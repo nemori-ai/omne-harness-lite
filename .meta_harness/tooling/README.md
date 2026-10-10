@@ -11,7 +11,9 @@ python tooling/src/check_sources.py --root design
 python tooling/src/check_sources.py --root design --source-root /explicit/execution-checkout
 ```
 
-`--source-root` 是明确的执行检出，不从安装位置或父目录猜测。模块链接只允许实际 workspace 的 packages／apps 成员，目标与 package.json 必须在该检出内；排除成员、非法声明、缺文件、错锚点及越界软链接非零。没有 source-root 时不放行外部模块路径。
+`--source-root` 是明确的执行检出，不从安装位置或父目录猜测。模块链接只允许实际workspace的packages与apps成员，目标与package.json必须在该检出内；排除成员、非法声明、缺文件、错锚点及越界软链接非零。
+
+当设计根确为该检出的`.meta_harness/design`时，还允许引用该检出的`docs/requirements.md`、`docs/architecture/`及`docs/domains/`中的实际拥有者正文。另允许工程治理及交付协议的明确拥有者`docs/engineering/documentation.md`、`delivery.md`、`work-types.md`、`agent-delivery.md`、`github-delivery.json`和`docs/rfcs/README.md`。其他docs文件、另一份执行检出和越界软链接仍不放行。没有`source-root`时不放行这些外部正文及模块路径。
 
 过程材料不能作为现行源，别名不能绕过归属。spec、realization、registry 三个旧根不得重新出现，空目录、普通文件或悬空软链接同样拒绝。其他本地链接只能指向有效设计、Agent／research 源或设计工作区根入口。外部 URL 不在本工具中抓取或核实。
 
@@ -72,13 +74,17 @@ python tooling/src/stories.py --root design
 - **就绪**：以「是」开头，或以「否」开头并写着缺什么。
 
 围栏代码块里的卡与「已发到」是示例，不参与对账。有 `stories.md` 的 topic（队列空了的也算）里**还不属于任何卡的带编号场景**以 `NOTE:` 列出，不判失败：
-它们要么已经交付、卡退场了，要么还没切到；两者怎么分，要看执行仓库里有没有验收覆盖它，由那边的检查给出。
+本检查不能判定这些场景已交付、尚未切卡或另有未观测状态。执行仓库的覆盖视图只给声明口径；覆盖声明、执行、接受和当前卡活动分别报告，须另核实际候选、证据与具名决定。
 
 它**不判断卡切得好不好**：查不出一张卡是不是只证明一件事、演示照着做不做得出来、顺序排得对不对；
 它只读眼前这一版，**看不到「已发到」有没有被改小、删卡的提交带没带 trailer**——那由执行仓库对一段提交范围的检查来看。
 链接的锚点由 `check_sources.py` 统一查。没有编号的场景行它看不见——一个 topic 的场景都没编号时，「还不属于任何卡」那一条不会出现。
 
 测试用一棵含两个 topic 的小型设计树，逐条覆盖每条规则的通过与失败，外加没有 `stories.md`、缺 `product/`、跨 topic 的引用与前置。
+
+根 `make design-check` 先运行 [当前卡源观察](../../tools/ts-checks/src/product/SPEC.md)，再以 `--source-observation` 交给本工具。投影绑定当前 HEAD 和所有输入路径与散列。过期、越界或重复绑定退出2，不能沿用旧观察。
+
+旧前置指向已经采用的 Issue 别名时，本工具保留定位，并把条件满足判断列为 unknown。当前采集不全或缺失不能计为空队列。直接使用上述 Python 命令仍为旧卡模式，不读取平台。
 
 ## Agent 编译
 

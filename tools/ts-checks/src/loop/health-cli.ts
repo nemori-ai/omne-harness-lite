@@ -1,7 +1,7 @@
 // 流程体检入口：把卡片台账、趋势快照、测试耗时账本与 git 历史汇成一张自包含的页面，另出 health.json 与文字摘要。
 // 只读、只报告：退出码 0 正常，2 是工具自己出错（参数、配置、git、写不了产物）。
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { coordinates, git } from '../metrics/git.ts'
 import { ledgerHome as testLedgerHome } from '../testing/config.ts'
@@ -25,14 +25,20 @@ import { healthSummary, renderHealthPage } from './health-render.ts'
 import { loopHome } from './home.ts'
 import { noData, type Reading } from './reading.ts'
 import { cardIndex, readStories } from '../product/stories.ts'
+import { inspectCurrentSources } from '../product/sources.ts'
 import { readTrend } from './trend.ts'
 import { readConformanceSensor } from './sensors/conformance.ts'
 
-const USAGE = '用法：loop-health [--out <dir>] [--root <检出目录>]'
+const USAGE =
+  '用法：loop-health [--out <dir>] [--root <检出目录>] [--config <路径>] [--capture <路径>]'
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
+const cwdPath = (value: string): string =>
+  isAbsolute(value) ? value : `${process.cwd()}/${value}`
 
 interface Options {
   readonly out?: string
+  readonly configPath?: string
+  readonly capturePath?: string
   readonly root: string
 }
 
@@ -40,14 +46,20 @@ function parseArgs(argv: readonly string[]): Options {
   const values = new Map<string, string>()
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index] ?? ''
-    if (arg !== '--out' && arg !== '--root') throw new Error(`认不出的参数 ${arg}\n${USAGE}`)
+    if (!['--out', '--root', '--config', '--capture'].includes(arg))
+      throw new Error(`认不出的参数 ${arg}\n${USAGE}`)
     const value = argv[index + 1]
     if (value === undefined || value === '') throw new Error(`${arg} 需要一个值\n${USAGE}`)
     values.set(arg, value)
     index += 1
   }
   const out = values.get('--out')
-  return { root: resolve(values.get('--root') ?? ROOT), ...(out === undefined ? {} : { out }) }
+  return {
+    root: resolve(values.get('--root') ?? ROOT),
+    ...(out === undefined ? {} : { out }),
+    ...(values.has('--config') ? { configPath: cwdPath(values.get('--config') ?? '') } : {}),
+    ...(values.has('--capture') ? { capturePath: cwdPath(values.get('--capture') ?? '') } : {}),
+  }
 }
 
 function readCommits(root: string, branch: string, count: number): Reading<CommitsBlock> {
@@ -107,12 +119,19 @@ function main(argv: readonly string[]): number {
   const cards = readCards(cardsPath)
   const productRoot = config.sensors.topicChurn.productRoot
   const stories = readStories(join(root, productRoot))
+  const sources = inspectCurrentSources({
+    root,
+    productRoot,
+    ...(options.configPath === undefined ? {} : { configPath: options.configPath }),
+    ...(options.capturePath === undefined ? {} : { capturePath: options.capturePath }),
+  })
   const trendPath = join(home, 'trend.jsonl')
   const trend = readTrend(trendPath)
   const catalogue = config.sensors.catalogue
   const catalogueText = readIfFile(join(root, catalogue.path))
 
   const notes = [
+    ...sources.findings.map(finding => `${finding.category} ${finding.code}：${finding.message}`),
     ...(cards.badLines.length === 0
       ? []
       : [`台账 ${cardsPath} 第 ${cards.badLines.join('、')} 行读不了，已跳过`]),
@@ -135,7 +154,7 @@ function main(argv: readonly string[]): number {
     },
     cards: cardsBlock(cards.entries, cardIndex(stories ?? []), now, cardsPath),
     weekly: weeklyAccepted(cards.entries, now, config.health.weeks),
-    remaining: remainingCards(stories, cards.entries, productRoot),
+    remaining: remainingCards(sources),
     commits: readCommits(root, config.primaryBranch, config.health.commits),
     tests: testsBlock(readLedgers(ledgerHome), config.health.runs, ledgerHome),
     debt,

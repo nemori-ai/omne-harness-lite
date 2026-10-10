@@ -1,8 +1,7 @@
 # 组织治理公共承诺
 
 本包拥有公开操作类型及四个 Cordis 服务定义。形状以 `src/index.ts` 的导出为准，
-本文件拥有业务及集成行为。[迁移范围与接受依据](../../../.meta_harness/design/architecture/pilots/n4-ownership.md)
-区分已迁接口、未迁业务协议和未实现的 OG3。不得从某个提供者的现状推导承诺。
+本文件在[现行系统架构](../../../docs/architecture/README.md)下拥有业务及集成细化。[资产治理增量](#已接受而未实现的资产治理增量)的关系时刻与分享不复活细化有PF-003及[资产责任](../../../docs/domains/assets-and-rules/README.md)依据，仍未实现；旧接受记录不授予架构例外。原模型及真实组合责任归本成员verification。不得从提供者现状推导承诺。
 
 ## 接缝与消费者
 
@@ -44,7 +43,7 @@
 清除链、幂等键、租户键稳定以及共同事务回滚。类型测试不替代这些验证。
 集成验证须覆盖四键同 fiber、依赖缺失、提供者替换、卸载和调用方 Context。
 必需提供者换代时，消费插件的旧效应须撤除并重新装载，持久业务事实不随换代丢失。
-现有模型与故障用例继续有效，其精确源与执行范围见迁移清单。
+现有模型与故障用例继续有效，其资源、有限前提及真实组合义务见[验证入口](verification/README.md)。
 
 ## 组织、成员与隶属
 
@@ -79,6 +78,6 @@ readInvitation 仅 target Account 或 issuer 组织 superadmin；readAffiliation
 - 隶属 accept 同提交写建立时刻，dissolve 清 parent 及该时刻；成员从无／无效变有效写生效时刻，role 改动不改，remove 保原时刻，rejoin 写严格更晚值，TenantId 不变。
 - readOrganization 交 parent 及其建立时刻；listMembers 每项交成员生效时刻，无效项保上次值；currentTenant 交所选成员的生效时刻。三个面不能省字段或给旧记录猜值，必要时刻无法判定时返回 unavailable。standing 不带时刻，不新增按 TenantId 直接读时刻的面。
 - 时刻与资产确认同源且不回退，先后串行提交须严格不等，即使同分辨率内断开重连也更晚。分享使用时在一次可串行化读取内取关系及该时刻，不分事务拼接成“未断开”。实际共同存储及精确资产参与范围由实际提供者／资产拥有者约束。
-- 同机 runtime 代行按被读租户取默认成员名单、逐链读组织，不借分享发起人的资格。共同存储可在一次可串行化事务内直读，不强制服务转调。跨进程服务身份、全序时钟及传播尚未定义，不用 Tenant brand 补保证。现有 Membership／Affiliation 不含 timestamp；分享 NoRevival 模型的同源严格递增及原子读取只是成立前提。
+- 同机runtime代行须先取得该资产使用及相应读取的有效授权，再按被读租户取默认成员名单、逐链读组织，不借分享发起人的资格。被读租户只定位数据，不授予读取权限。共同存储可在一次可串行化事务内直读，不强制服务转调。跨进程服务身份、全序时钟及传播尚未定义，不用Tenant brand补保证。现有Membership／Affiliation不含timestamp；分享NoRevival模型的同源严格递增及原子读取只是成立前提。
 
 模型与有限前提见 [models](verification/models/README.md)，真实存储及组合义务见 [verification](verification/README.md)。账号、存储和时钟仍从其公共定义消费，不吸纳提供者。

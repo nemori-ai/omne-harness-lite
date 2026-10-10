@@ -16,6 +16,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
+import subprocess
 import re
 import sys
 from dataclasses import dataclass, field
@@ -64,7 +67,7 @@ def scenario_id(line: str) -> str | None:
 
 
 class Checker:
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, source_observation: Path | None = None) -> None:
         self.root = root.resolve()
         self.errors: list[str] = []
         self.notes: list[str] = []
@@ -72,6 +75,151 @@ class Checker:
         # 每份 stories.md 里的「已发到」行：(行号, 写的值)。文件在这里就表示这个 topic 切过卡。
         self.high_water: dict[Path, list[tuple[int, str]]] = {}
         self._scenarios: dict[Path, dict[str, list[int]]] = {}
+        self.source_aliases: dict[str, dict] = {}
+        if source_observation is not None:
+            self.load_observation(source_observation)
+
+    def load_observation(self, path: Path) -> None:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(value, dict) or value.get("schemaVersion") != 1 or value.get("kind") != "current-source-observation":
+            raise ValueError("unsupported source observation")
+        checkout = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=self.root, text=True).strip()).resolve()
+        head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=checkout, text=True).strip()
+        if value.get("root") != str(checkout) or value.get("productRoot") != str((self.root / "product").resolve()) or value.get("head") != head:
+            raise ValueError("source observation checkout, productRoot or HEAD is stale")
+        roles = value.get("inputRoles")
+        if not isinstance(roles, dict) or set(roles) != {"config", "cutovers", "capture"}:
+            raise ValueError("source observation requires all input roles")
+
+        def role_path(role: dict) -> str:
+            filename = role.get("path")
+            if not isinstance(filename, str) or not filename or not Path(filename).is_absolute() or str(Path(filename).resolve()) != filename:
+                raise ValueError("invalid source input role path")
+            return filename
+
+        config, cutovers, capture = (roles[k] for k in ("config", "cutovers", "capture"))
+        if not isinstance(config, dict) or set(config) != {"selection", "path"} or config["selection"] not in ("default", "explicit"):
+            raise ValueError("invalid config input role")
+        config_path = role_path(config)
+        if config["selection"] == "default" and config_path != str((checkout / "docs/engineering/github-delivery.json").resolve()):
+            raise ValueError("default config input role must use checkout path")
+        if not isinstance(cutovers, dict) or set(cutovers) != {"path"} or role_path(cutovers) != str((checkout / "docs/engineering/source-cutovers.json").resolve()):
+            raise ValueError("invalid cutovers input role")
+        if not isinstance(capture, dict) or capture.get("kind") not in ("none", "file") or set(capture) != ({"kind"} if capture["kind"] == "none" else {"kind", "path"}):
+            raise ValueError("invalid capture input role")
+        required = {str(p.resolve()) for p in (self.root / "product").glob("PF-*/stories.md")}
+        mandatory = set(required)
+        required.update((config_path, cutovers["path"]))
+        optional = {cutovers["path"]}
+        if config["selection"] == "default":
+            optional.add(config_path)
+        if config["selection"] == "explicit":
+            mandatory.add(config_path)
+        if capture["kind"] == "file":
+            required.add(role_path(capture))
+            mandatory.add(capture["path"])
+        optional.difference_update(mandatory)
+        bindings = value.get("bindings")
+        if not isinstance(bindings, list):
+            raise ValueError("source observation bindings must be an array")
+        seen: set[str] = set()
+        for binding in bindings:
+            if not isinstance(binding, dict) or set(binding) != {"path", "sha256"}:
+                raise ValueError("invalid source binding")
+            filename = role_path(binding)
+            if filename in seen:
+                raise ValueError("duplicate source binding path")
+            seen.add(filename)
+            file = Path(filename)
+            expected = binding["sha256"]
+            if expected is not None and (not isinstance(expected, str) or not re.fullmatch(r"[a-f0-9]{64}", expected)):
+                raise ValueError("invalid source binding digest")
+            actual = hashlib.sha256(file.read_bytes()).hexdigest() if file.exists() else None
+            if expected != actual or (actual is None and filename not in optional):
+                raise ValueError(f"source observation binding is stale: {filename}")
+        if required != seen:
+            raise ValueError("source observation bindings do not equal selected inputs")
+        if not Path(config_path).exists() and value.get("dailyEnabled") is not False:
+            raise ValueError("missing default config requires dailyEnabled false")
+        aliases = value.get("aliases")
+        if not isinstance(aliases, list) or not isinstance(value.get("cards"), list) or not isinstance(value.get("findings"), list):
+            raise ValueError("invalid source observation arrays")
+        if value.get("completeness") not in ("complete", "partial", "unknown") or not isinstance(value.get("dailyEnabled"), bool):
+            raise ValueError("invalid source observation status")
+        def check_identity(identity: object) -> dict:
+            if not isinstance(identity, dict) or not all(isinstance(identity.get(k), str) and identity[k] for k in ("id", "url", "repository")):
+                raise ValueError("invalid Issue identity")
+            if type(identity.get("number")) is not int or identity["number"] < 1 or not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", identity["repository"]):
+                raise ValueError("invalid Issue repository or number")
+            if identity["url"] != f"https://github.com/{identity['repository']}/issues/{identity['number']}":
+                raise ValueError("Issue URL does not match repository and number")
+            return identity
+
+        seen_cards: set[tuple[str, str]] = set()
+        for card in value["cards"]:
+            if not isinstance(card, dict) or card.get("kind") not in ("legacy", "issue"):
+                raise ValueError("invalid source card")
+            if card["kind"] == "legacy":
+                if not all(isinstance(card.get(k), str) for k in ("id", "path", "topic", "title")) or not CARD_ID_RE.fullmatch(card["id"]):
+                    raise ValueError("invalid legacy card")
+                key = ("legacy", card["id"])
+                scenarios = card.get("scenarios")
+            else:
+                identity, read = card.get("identity"), card.get("read")
+                identity = check_identity(identity)
+                if not isinstance(card.get("aliases"), list):
+                    raise ValueError("invalid Issue card aliases")
+                old_ids: set[str] = set()
+                for old in card["aliases"]:
+                    if not isinstance(old, dict) or not isinstance(old.get("id"), str) or not CARD_ID_RE.fullmatch(old["id"]) or old["id"] in old_ids or type(old.get("productRevision")) is not int or old["productRevision"] < 1:
+                        raise ValueError("invalid or duplicate Issue card alias")
+                    old_ids.add(old["id"])
+                key = ("issue", identity["id"])
+                if not isinstance(read, dict) or read.get("kind") not in ("known", "unknown"):
+                    raise ValueError("invalid Issue read")
+                scenarios = []
+                if read["kind"] == "known":
+                    if not isinstance(read.get("title"), str) or type(read.get("revision")) is not int or read["revision"] < 1 or read.get("state") not in ("open", "closed") or not (read.get("stage") is None or isinstance(read["stage"], str)):
+                        raise ValueError("invalid known Issue read")
+                    scenarios = read.get("scenarios")
+                elif not isinstance(read.get("reason"), str):
+                    raise ValueError("invalid unknown Issue read")
+            if key in seen_cards:
+                raise ValueError("duplicate source card")
+            seen_cards.add(key)
+            if not isinstance(scenarios, list) or any(not isinstance(s, dict) or not isinstance(s.get("topic"), str) or not isinstance(s.get("id"), str) for s in scenarios):
+                raise ValueError("invalid source scenarios")
+        for alias in aliases:
+            if not isinstance(alias, dict) or not isinstance(alias.get("id"), str) or not CARD_ID_RE.fullmatch(alias["id"]):
+                raise ValueError("invalid source alias")
+            identifier, resolution = alias["id"], alias.get("resolution")
+            if identifier in self.source_aliases or not isinstance(resolution, dict):
+                raise ValueError("duplicate or invalid source alias")
+            kind = resolution.get("kind")
+            if kind not in ("legacy", "issue", "unknown", "conflict"):
+                raise ValueError("invalid source alias resolution")
+            if kind == "issue":
+                identity = resolution.get("identity")
+                check_identity(identity)
+                if not isinstance(resolution.get("observed"), bool):
+                    raise ValueError("invalid Issue observation flag")
+            if kind == "legacy" and (resolution.get("id") != identifier or not isinstance(resolution.get("path"), str)):
+                raise ValueError("invalid legacy alias")
+            if kind == "conflict" and not isinstance(resolution.get("sources"), list):
+                raise ValueError("invalid conflict sources")
+            if kind == "unknown" and not isinstance(resolution.get("reason"), str):
+                raise ValueError("invalid unknown reason")
+            self.source_aliases[identifier] = resolution
+        has_issue = any(card["kind"] == "issue" for card in value["cards"]) or any(alias["resolution"]["kind"] == "issue" for alias in aliases)
+        if capture["kind"] == "none" and (value["dailyEnabled"] or has_issue) and value["completeness"] != "unknown":
+            raise ValueError("unread Issue sources require unknown completeness")
+        for finding in value["findings"]:
+            if not isinstance(finding, dict) or finding.get("category") not in ("deviation", "unknown", "uncovered") or not isinstance(finding.get("message"), str):
+                raise ValueError("invalid source finding")
+            if finding["category"] == "deviation":
+                self.error(f"当前来源偏离: {finding['message']}")
+            else:
+                self.notes.append(f"当前来源 {finding['category']}: {finding['message']}")
 
     def error(self, message: str) -> None:
         self.errors.append(message)
@@ -266,7 +414,15 @@ class Checker:
                 if other == card.id:
                     self.error(f"{where}: {card.id} 把自己列成了前置")
                 elif other not in by_id:
-                    self.error(f"{where}: {card.id} 的前置 {other} 不存在")
+                    resolved = self.source_aliases.get(other)
+                    if resolved is None or resolved["kind"] == "legacy":
+                        self.error(f"{where}: {card.id} 的前置 {other} 不存在")
+                    elif resolved["kind"] == "conflict":
+                        self.error(f"{where}: {card.id} 的前置 {other} 当前来源冲突")
+                    elif resolved["kind"] == "issue":
+                        self.notes.append(f"{where}: {other} 定位到 {resolved['identity']['url']}；结果满足 unknown，跨源前置图不完整")
+                    else:
+                        self.notes.append(f"{where}: {other} 当前来源 unknown；跨源前置图不完整")
             edges[card.id] = [other for other in wanted if other in by_id and other != card.id]
         state: dict[str, int] = {}
         reported: set[frozenset[str]] = set()
@@ -301,9 +457,14 @@ class Checker:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", required=True, type=Path, help="设计根（含 product/）")
+    parser.add_argument("--source-observation", type=Path, help="本次当前来源投影")
     args = parser.parse_args(argv)
 
-    checker = Checker(args.root)
+    try:
+        checker = Checker(args.root, args.source_observation)
+    except (ValueError, OSError, RuntimeError, subprocess.CalledProcessError) as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        return 2
     checker.check()
     for note in checker.notes:
         print(f"NOTE: {note}")

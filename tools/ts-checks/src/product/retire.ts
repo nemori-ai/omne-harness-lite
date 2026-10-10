@@ -5,6 +5,17 @@
 //
 // 管不到的：以 squash 合入主线时，主线上那一条提交的说明由合并的人写，这里看不到——规矩要求合并说明里留着 trailer。
 // 合并提交只对「每个父提交里都还在、合并之后不见了」的卡负责：只在一边被删的卡，删它的是那一边的提交。
+import { InputError } from '../delivery/protocol.ts'
+import {
+  CUTOVERS_PATH,
+  cutoversAt,
+  verifySource,
+  gitText,
+  cardTexts,
+  sha256,
+  sourceProductRevision,
+  type Cutovers,
+} from './sources.ts'
 import { cardTrailers, readCommits, type CardTrailerKey } from '../commits.ts'
 import { git } from '../metrics/git.ts'
 import { TOPIC_DIR } from './scenarios.ts'
@@ -27,6 +38,7 @@ export interface RetireCommit {
   /** 每个父提交的产品区；根提交没有。 */
   readonly parents: readonly Queues[]
   readonly result: Queues
+  readonly migrated?: readonly string[]
 }
 
 export interface Retirement {
@@ -37,6 +49,7 @@ export interface Retirement {
 const KEY_WORDS: Readonly<Record<CardTrailerKey, string>> = {
   'Accepted-Card': '接受',
   'Voided-Card': '作废',
+  'Migrated-Card': '迁出',
 }
 
 const cardsOf = (queues: Queues) => new Set([...queues.values()].flatMap(queue => queue.cards))
@@ -122,6 +135,13 @@ export function judgeRetire(commit: RetireCommit): {
           : `${key}: ${card}，可父提交的 stories.md 里就没有这张卡`,
     )
   }
+  const migrated = commit.migrated ?? []
+  for (const [card, key] of named)
+    if (key === 'Migrated-Card' && !migrated.includes(card))
+      problems.push(`${card} 没有本提交新增切换批次`)
+  for (const card of migrated)
+    if (named.get(card) !== 'Migrated-Card')
+      problems.push(`${card} 新迁出批次缺少独立 Migrated-Card trailer`)
   for (const parent of commit.parents) problems.push(...highWaterProblems(parent, commit.result))
 
   const where = `提交 ${commit.sha.slice(0, 9)}（${commit.subject}）`
@@ -157,6 +177,7 @@ export function queuesAt(root: string, revision: string, productRoot: string): Q
 }
 
 export interface RetireReport {
+  readonly unknowns: readonly string[]
   readonly base: string
   readonly mergeBase: string
   /** 范围里碰过 stories.md 或带删卡 trailer 的提交，新的在前。 */
@@ -170,12 +191,15 @@ export interface RetireReport {
 
 /** 读 Git：任务基线到 HEAD 之间，删卡的提交带没带记录。 */
 export function inspectRetire(root: string, base: string, productRoot: string): RetireReport {
+  if (git(root, ['rev-parse', '--is-shallow-repository']) === 'true')
+    throw new InputError('retire requires complete Git history')
   const mergeBase = git(root, ['merge-base', base, 'HEAD'])
   const stories = new RegExp(
     `^${productRoot.replace(/\/+$/u, '').replaceAll(/[.*+?^${}()|[\]\\]/gu, '\\$&')}/PF-\\d{3}[^/]*/stories\\.md$`,
     'u',
   )
   const commits: RetireReport['commits'][number][] = []
+  const unknowns = new Set<string>()
   const violations: string[] = []
   for (const record of readCommits(root, `${mergeBase}..HEAD`)) {
     const trailers = cardTrailers(record)
@@ -190,24 +214,44 @@ export function inspectRetire(root: string, base: string, productRoot: string): 
         '-m',
         record.sha,
       ]),
-    ).some(path => stories.test(path))
+    ).some(path => stories.test(path) || path === CUTOVERS_PATH)
     if (!touched && trailers.length === 0) continue
     const parents = lines(git(root, ['rev-list', '--parents', '-n', '1', record.sha]))
       .join(' ')
       .split(' ')
       .slice(1)
     const subject = record.message.split('\n', 1)[0] ?? ''
+    const currentCutovers = cutoversAt(root, record.sha)
+    for (const topic of currentCutovers?.topics ?? [])
+      for (const batch of topic.batches) {
+        unknowns.add(`${topic.topic}/${batch.id} 采用权限与内容承接未核：${batch.adoption.source}`)
+        for (const removal of batch.removals)
+          unknowns.add(`${removal.card} 首次远端读回真实性未核：${removal.readback.source}`)
+      }
+    const parentCutovers = parents.map(parent => cutoversAt(root, parent))
+    const migration = migrationProblems(
+      root,
+      record.sha,
+      productRoot,
+      parents,
+      parentCutovers,
+      currentCutovers,
+    )
+    violations.push(...migration.problems.map(p => `提交 ${record.sha.slice(0, 9)}：${p}`))
     const judged = judgeRetire({
       sha: record.sha,
       subject,
       trailers,
-      parents: parents.map(parent => queuesAt(root, parent, productRoot)),
-      result: queuesAt(root, record.sha, productRoot),
+      parents: parents.map((parent, index) =>
+        anchoredQueues(root, parent, productRoot, parentCutovers[index], violations),
+      ),
+      result: anchoredQueues(root, record.sha, productRoot, currentCutovers, violations),
+      migrated: migration.added,
     })
     commits.push({ sha: record.sha, subject, retired: judged.retired })
     violations.push(...judged.violations)
   }
-  return { base, mergeBase, commits, violations }
+  return { base, mergeBase, commits, violations, unknowns: [...unknowns] }
 }
 
 export const RETIRE_BLIND_SPOT =
@@ -228,6 +272,125 @@ export function renderRetire(report: RetireReport): string[] {
     out.push(`  缺记录或对不上 ${report.violations.length} 处：`)
     for (const violation of report.violations) out.push(`    ✗ ${violation}`)
   }
+  for (const unknown of report.unknowns) out.push(`  unknown: ${unknown}`)
   out.push(`  ${RETIRE_BLIND_SPOT}`)
   return out
+}
+
+function stable(value: unknown): string {
+  if (Array.isArray(value)) return JSON.stringify(value.map(stable).sort())
+  if (typeof value === 'object' && value !== null)
+    return JSON.stringify(
+      Object.entries(value)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, value]) => [key, stable(value)]),
+    )
+  return JSON.stringify(value)
+}
+function migrationProblems(
+  root: string,
+  revision: string,
+  productRoot: string,
+  parents: readonly string[],
+  prior: readonly (Cutovers | undefined)[],
+  current: Cutovers | undefined,
+): { added: string[]; problems: string[] } {
+  const problems: string[] = [],
+    added: string[] = [],
+    inherited = new Map<string, string>()
+  const currentTopics = new Map(current?.topics.map(t => [t.topic, t]) ?? [])
+  for (const previous of prior) {
+    if (previous === undefined) continue
+    if (current?.repository !== previous.repository) problems.push('既有切换仓库记录被删除或改变')
+    for (const topic of previous.topics) {
+      const now = currentTopics.get(topic.topic)
+      if (now === undefined) problems.push(`${topic.topic} 既有切换记录被删除`)
+      for (const anchor of topic.history)
+        if (!now?.history.some(a => stable(a) === stable(anchor)))
+          problems.push(`${topic.topic} 既有历史锚点被删除或改变`)
+      for (const batch of topic.batches) {
+        const key = `${topic.topic}/${batch.id}`,
+          serialized = stable(batch),
+          other = inherited.get(key)
+        if (other !== undefined && other !== serialized) problems.push(`${key} 各父版本记录冲突`)
+        inherited.set(key, serialized)
+        const next = now?.batches.find(b => b.id === batch.id)
+        if (next === undefined || stable(next) !== serialized)
+          problems.push(`${key} 既有批次被删除或改写`)
+      }
+    }
+  }
+  for (const topic of current?.topics ?? [])
+    for (const batch of topic.batches) {
+      if (inherited.has(`${topic.topic}/${batch.id}`)) continue
+      added.push(...batch.removals.map(r => r.card))
+      try {
+        const originals = cardTexts(verifySource(root, revision, productRoot, batch.source))
+        const productRevision = sourceProductRevision(root, batch.source)
+        for (const removal of batch.removals) {
+          const original = originals.get(removal.card)
+          if (original === undefined || sha256(original) !== removal.cardSha256)
+            problems.push(`${removal.card} 源卡摘要不符`)
+          if (removal.readback.alias !== `${removal.card}@${productRevision}`)
+            problems.push(`${removal.card} 原产品修订不符`)
+          let present = false
+          for (const parent of parents) {
+            const raw = gitText(root, parent, batch.source.path),
+              before = raw === undefined ? undefined : cardTexts(raw).get(removal.card)
+            if (before !== undefined) {
+              present = true
+              if (sha256(before) !== removal.cardSha256)
+                problems.push(`${removal.card} 父版本原文冲突或摘要不符`)
+            }
+          }
+          if (!present) problems.push(`${removal.card} 实际父版本没有源卡`)
+        }
+      } catch (error) {
+        if (!(error instanceof InputError)) throw error
+        problems.push(error.message)
+      }
+    }
+  return { added, problems }
+}
+function anchoredQueues(
+  root: string,
+  revision: string,
+  productRoot: string,
+  cutovers: Cutovers | undefined,
+  problems: string[],
+): Queues {
+  const queues = new Map(queuesAt(root, revision, productRoot))
+  for (const topic of cutovers?.topics ?? []) {
+    const key = topic.topic.slice(3),
+      present = queues.get(key)
+    let highest = 0,
+      highCard = ''
+    for (const source of topic.history) {
+      try {
+        const parsed = parseStories(verifySource(root, revision, productRoot, source)),
+          water = parsed.highWater[0]
+        if (
+          parsed.highWater.length !== 1 ||
+          water === undefined ||
+          !CARD_ID.test(water) ||
+          water.slice(3, 6) !== key
+        ) {
+          problems.push(`${revision} ${topic.topic} 历史水位无效`)
+          continue
+        }
+        if (Number(water.slice(7)) >= highest) {
+          highest = Number(water.slice(7))
+          highCard = water
+        }
+      } catch (error) {
+        if (!(error instanceof InputError)) throw error
+        problems.push(`${revision} ${error.message}`)
+      }
+    }
+    if (present !== undefined && (waterOf(present) ?? -1) < highest)
+      problems.push(`${revision} ${present.path} 当前水位低于历史锚点`)
+    if (present === undefined && highCard)
+      queues.set(key, { path: `${CUTOVERS_PATH}#${topic.topic}`, cards: [], highWater: [highCard] })
+  }
+  return queues
 }

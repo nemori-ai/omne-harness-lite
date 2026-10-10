@@ -67,7 +67,7 @@ PF-004 有意留空了。留空的代价现在开始显现：
 | 设置与权限是资产的属性、层级求值 | [PF-002](../PF-002-assets-settings-and-permissions/design.md) |
 | **执行环境是注入的**；装配、装配清单、动作空间、注入 | [PF-004](../PF-004-agent-definition-and-assembly/design.md) |
 | [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)——照装配清单起、唯一会跑的那个 | [PF-012](../PF-012-agent-loop-and-run/design.md)（草稿） |
-| 定义 / 装配 / 活体三段结构 | [SYS-COMPOSITION](../../foundation/definition-and-runtime-composition/requirements.md) |
+| 定义 / 装配 / 活体三段结构 | [SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition) |
 
 ### 执行环境
 
@@ -116,7 +116,7 @@ PF-004 有意留空了。留空的代价现在开始显现：
 > **宿主机不提供租户隔离。**一个租户的 agent 在宿主机上写下的东西，
 > 另一个租户的 agent 看得见。
 
-这直接顶在 [SYS-TENANT](../../foundation/cross-system-constraints/requirements.md#sys-tenant) 上。
+这直接顶在 [SYS-TENANT](../../../../docs/requirements.md#从第一天支持隔离sys-tenant) 上。
 所以它**不是一个随便可用的选项，而是必须被显式允许才能用的选项**——
 这正是[执行环境权限](#执行环境权限)配成 `never-allow` 时要挡的东西（§6.2）。
 
@@ -366,7 +366,7 @@ agent 发起的是「执行一条命令」，从不说「在哪执行」。权�
 正文写明它，是为了让它不被当成 bug 报上来。
 
 **跨租户共享不存在。**那会直接破坏
-[租户隔离](../../foundation/cross-system-constraints/requirements.md#sys-tenant)，
+[租户隔离](../../../../docs/requirements.md#从第一天支持隔离sys-tenant)，
 因此**没有「组织级沙箱」**——三个沙箱层级是穷尽的。
 
 ### 6.5 一个会话、一个租户可以同时有多组执行环境
@@ -485,7 +485,7 @@ agent 发起的是「执行一条命令」，从不说「在哪执行」。权�
 | [PF-004](../PF-004-agent-definition-and-assembly/README.md)（**rev 8**） | 装配清单、动作空间、上下文怎样到达 agent，以及**装配这一头给执行环境留下什么**（需要哪几类、装进来哪些[沙箱实现](#沙箱实现)） | **本 topic 是它「执行环境」那一行的展开**，不改写其定义 |
 | [PF-002](../PF-002-assets-settings-and-permissions/README.md) | 设置与权限、层级求值 | **依赖其定义**。[执行环境权限](#执行环境权限)是其中一项权限，本 topic 只定它改了之后落点怎么变 |
 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md) | 租户、租户隔离 | **依赖其定义**。租户级沙箱的共享范围与「没有组织级沙箱」都由它决定 |
-| [SYS-TENANT](../../foundation/cross-system-constraints/requirements.md#sys-tenant) | 全局的租户隔离义务 | **不削弱它**。宿主机不提供租户隔离，因此必须被显式允许才能用 |
+| [SYS-TENANT](../../../../docs/requirements.md#从第一天支持隔离sys-tenant) | 全局的租户隔离义务 | **不削弱它**。宿主机不提供租户隔离，因此必须被显式允许才能用 |
 
 **尚无对应 topic、但本 topic 明确不拥有的**：工具怎么声明它需要哪些[设施](#设施)
 （**供给侧与[匹配不上的后果](#69-落点不可用就是拒绝不降级)归这里，需求侧怎么声明归工具与技能那一块**）、

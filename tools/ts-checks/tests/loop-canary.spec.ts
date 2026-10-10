@@ -268,12 +268,12 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
   })
   it('删除全局预期时 silent 指名 architecture', async () => {
     const { root, base } = canary()
-    rmSync(join(root, '.meta_harness/design/architecture/constraints.json'))
+    rmSync(join(root, 'docs/architecture/constraints.json'))
     const { result, status } = await strictRun(root, base)
     expect(status.hardLines.sensors.silent).toEqual([
       {
         sensor: 'architecture',
-        reason: '全局架构预期不可用：.meta_harness/design/architecture/constraints.json',
+        reason: '全局架构预期不可用：docs/architecture/constraints.json',
       },
     ])
     expect(result.code).toBe(1)

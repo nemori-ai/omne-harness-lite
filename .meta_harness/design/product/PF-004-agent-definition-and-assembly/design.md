@@ -67,8 +67,8 @@
 | 单次工具调用的观察、中断与后台接续 | 它有自己的生命周期，且[能跨 agent runtime 存活](../PF-006-tools-and-skills/design.md)。本 topic 只定它**怎么被装进来**、**算不算在动作空间里** |
 | 子 agent 的委派、监督与关系 | 一个会话里出现多份装配清单是那件事的结果，不是本 topic 的对象 |
 | 待决项的统一呈现与作答 | 那是跨会话的事。**「等人的时候那个协程怎么办」也归 PF-012** |
-| 模型怎么供给、怎么路由 | 归 [SYS-LLM](../../foundation/cross-system-constraints/requirements.md#sys-llm)。本 topic 只定**模型在哪一刻被确定** |
-| 崩溃后恢复到哪个合法位置 | 判据归 [SYS-RUNTIME-CONTINUITY](../../foundation/runtime-state-and-continuity/requirements.md)。本 topic 定的是**正常的装配与失效**，不是故障恢复 |
+| 模型怎么供给、怎么路由 | 归 [SYS-LLM](../../../../docs/requirements.md#模型接入sys-llm)。本 topic 只定**模型在哪一刻被确定** |
+| 崩溃后恢复到哪个合法位置 | 判据归 [SYS-RUNTIME-CONTINUITY](../../../../docs/requirements.md#运行时解耦与接续sys-runtime-continuity)。本 topic 定的是**正常的装配与失效**，不是故障恢复 |
 | 具体有哪些上下文项、哪些执行环境 | 本 topic 定它们**以什么方式进入**——上下文靠注入，执行环境靠装配留下的那两样——**不枚举内容** |
 
 ## 三、用户与场景
@@ -96,7 +96,7 @@
 | 账号、组织、租户、四层作用域、`immutable`、成本按租户归属 | [PF-001](../PF-001-identity-scope-and-agent-constraints/design.md) |
 | **Context：agent 运行时可感知的上下文信息**（协作范围 / 个人两种） | [PF-001 §4](../PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息) |
 | 资产八类、能力标识、持有、设置与权限是资产的属性、层级求值、移除与禁用 | [PF-002](../PF-002-assets-settings-and-permissions/design.md) |
-| **定义 / 装配 / 活体三段结构**，及「变化作用于下一次装配」 | [SYS-COMPOSITION](../../foundation/definition-and-runtime-composition/requirements.md) |
+| **定义 / 装配 / 活体三段结构**，及「变化作用于下一次装配」 | [SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition) |
 
 本 topic 把 SYS-COMPOSITION 的三段结构，落到 agent 这件具体的事上，
 并给每一段起一个产品上的名字。
@@ -174,7 +174,7 @@ Agent Definition 是输入之一；作用域提供资产候选，不意味着所
 > **权限项照旧被滤掉**。会话[创建时没指定工作区](../PF-002-assets-settings-and-permissions/design.md#它是会话选用的不指定就是空)的，
 > 这一级为空，**装配不会去找任何目录**。哪些文件、什么格式，PF-002 列为本版非目标，本 topic 同样不定。
 
-> **它对应 [SYS-COMPOSITION 三段结构](../../foundation/definition-and-runtime-composition/requirements.md#sys-compositionc1三段结构)
+> **它对应 [SYS-COMPOSITION 三段结构](../../../../docs/requirements.md#定义装配与活体sys-composition)
 > 的第二段「装配」，那一段明写它是「一次求值」。**
 > **第三段「活体」不在本 topic**——它是 [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)，
 > 归 PF-012。**求值的结果是数据，不是活体**；
@@ -684,7 +684,7 @@ Runtime 持有的是这些持久事实和服务的使用关系，不复制一份
 
 | 相邻 topic | 它拥有什么 | 本 topic 与它的关系 |
 |---|---|---|
-| [SYS-COMPOSITION](../../foundation/definition-and-runtime-composition/requirements.md) | 定义/装配/活体三段结构、变化作用于下一次装配 | **本 topic 是它在 agent 这件事上的产品落点**，不重复陈述结构本身 |
+| [SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition) | 定义/装配/活体三段结构、变化作用于下一次装配 | **本 topic 是它在 agent 这件事上的产品落点**，不重复陈述结构本身 |
 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md) | 身份、四层作用域、Context 两种、撤销的效应、成本按租户归属 | **依赖其定义**。本 topic 只补「运行期产生的上下文」这一类 |
 | [PF-002](../PF-002-assets-settings-and-permissions/README.md) | 资产八类、能力标识、层级求值、移除与禁用 | **依赖其定义**。装配的输入来自它的求值结果 |
 | [PF-003](../PF-003-asset-transfer-and-sharing/README.md) | 定义怎样跨组织流动 | 不直接依赖。资产复制与分享改变的是「持有什么」，经 PF-002 的求值进入装配 |

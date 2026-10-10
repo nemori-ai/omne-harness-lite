@@ -111,3 +111,62 @@ def test_retired_root_cannot_return_as_empty_tree_or_alias(tmp_path: Path, name:
     else:
         target.symlink_to(tmp_path / 'missing')
     assert f'retired design root exists: {name}' in markdown(root)
+
+
+@pytest.mark.parametrize('target', ['requirements.md', 'architecture/runtime/assembly.md', 'domains/identity/README.md', 'architecture/constraints.json', 'engineering/documentation.md', 'engineering/delivery.md', 'engineering/work-types.md', 'engineering/agent-delivery.md', 'engineering/github-delivery.json', 'rfcs/README.md'])
+def test_adopted_documents_require_their_explicit_execution_checkout(tmp_path: Path, target: str) -> None:
+    root = tmp_path / '.meta_harness/design'
+    save(tmp_path / 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
+    save(tmp_path / 'docs' / target, '# Guarantee\n' if target.endswith('.md') else '{}\n')
+    fragment = '#guarantee' if target.endswith('.md') else ''
+    save(root / 'product/README.md', f'[basis](../../../docs/{target}{fragment})\n')
+    assert markdown(root, tmp_path) == []
+    assert any('escapes design root' in error for error in markdown(root))
+
+
+@pytest.mark.parametrize('target', ['README.md', 'development.md', 'engineering/rule.md', 'architecture-other/rule.md', 'domain/rule.md'])
+def test_adoption_does_not_open_all_docs(tmp_path: Path, target: str) -> None:
+    root = tmp_path / '.meta_harness/design'
+    save(tmp_path / 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
+    save(tmp_path / 'docs' / target, '# Guarantee\n')
+    save(root / 'product/README.md', f'[basis](../../../docs/{target}#guarantee)\n')
+    assert any('escapes design root' in error for error in markdown(root, tmp_path))
+
+
+@pytest.mark.parametrize('target_name', ['requirements.md', 'engineering/agent-delivery.md'])
+@pytest.mark.parametrize('mutation', ['missing', 'anchor', 'symlink', 'encoded-traversal', 'other-checkout'])
+def test_adopted_document_boundaries_fail_closed(tmp_path: Path, mutation: str, target_name: str) -> None:
+    execution = tmp_path / 'execution'
+    other = tmp_path / 'other'
+    root = execution / '.meta_harness/design'
+    save(execution / 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
+    save(other / 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
+    target = execution / 'docs' / target_name
+    save(target, '# Guarantee\n')
+    href = f'../../../docs/{target_name}#guarantee'
+    if mutation == 'missing':
+        target.unlink()
+    elif mutation == 'anchor':
+        href = f'../../../docs/{target_name}#absent'
+    elif mutation == 'symlink':
+        save(other / 'docs' / target_name, '# Guarantee\n')
+        target.unlink()
+        target.symlink_to(other / 'docs' / target_name)
+    elif mutation == 'encoded-traversal':
+        save(execution / 'secret.md', '# Guarantee\n')
+        href = '../../../docs/architecture/%2e%2e/%2e%2e/secret.md#guarantee'
+    save(root / 'product/README.md', f'[basis]({href})\n')
+    assert markdown(root, other if mutation == 'other-checkout' else execution)
+
+
+def test_same_document_path_uses_each_checkouts_actual_revision(tmp_path: Path) -> None:
+    for revision in ['old', 'new']:
+        checkout = tmp_path / revision
+        root = checkout / '.meta_harness/design'
+        save(checkout / 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
+        save(checkout / 'docs/requirements.md', f'# {revision}\n')
+        save(root / 'product/README.md', f'[basis](../../../docs/requirements.md#{revision})\n')
+        assert markdown(root, checkout) == []
+        save(root / 'product/README.md', '[basis](../../../docs/requirements.md#new)\n')
+        result = markdown(root, checkout)
+        assert bool(result) == (revision == 'old')

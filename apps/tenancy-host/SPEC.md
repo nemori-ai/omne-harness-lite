@@ -1,8 +1,7 @@
 # 租户治理宿主的整体承诺
 
 本应用拥有启动、配置接入、共享事务域、开闸与撤除协调责任。
-依据 PF-017、D-028、D-055/056 及 Cordis IC；精确未迁资源与未来义务见
-[迁移范围](../../.meta_harness/design/architecture/pilots/n4-ownership.md#租户治理宿主)。
+本页在[系统架构](../../docs/architecture/README.md)约束下细化PF-017的治理宿主责任；旧整体装配接受记录不授权连带停止无关能力。当前限制和未兑现责任见[保留义务与实际范围](#保留义务与实际范围)。
 公开类型和最终插件树表达当前形状，不替代本文件的整体性质。
 
 ## 启动与开放服务
@@ -24,7 +23,7 @@
 SQLite 的单机耐久前提不扩大为整机/磁盘毁损恢复保证。
 PG 迁移后装配失败的整体回滚尚未闭合，不能开放成已支持生产升级路径。
 
-本文件约束应用公开类型不能表达的集成行为，依据[已采用的 T4 宿主接缝](../../.meta_harness/design/architecture/identity-integration/host-integration.md)及采用记录。它接续旧 HT2 的装配责任；身份、租户、治理、维护、数据格式及网络业务语义仍由各能力的现行契约拥有。设计采用不表示本批实现已验收。
+本文件拥有已采用的宿主集成行为。身份、租户、治理、维护、数据格式及网络业务语义由各能力现行契约拥有；设计采用不表示全部真实组合或后继增量已经验收。
 
 ## 插件树准备与装载
 
@@ -36,7 +35,7 @@ PG 迁移后装配失败的整体回滚尚未闭合，不能开放成已支持�
 ## 失败与关闭
 
 - 原 setup 异常在同一行登记时私有捕获；只有安全树错误的同一 rowId、已核验角色及 apply-failed 条件成立，才按原分类器返回原 cause。错误分类和公开定位逐项遵循宿主接缝的诊断表，日志不得输出配置、凭据或任意私有异常文字。
-- 任何行撤除或失败使本代停止新准入。已经开始的工作按原提交边界收场；资源关闭等待真实工作及 setup 前缀结算。停止请求、停止事实和资源释放不相互替代。
+- 撤除或失败按真实依赖停止受影响的新准入，不连带停止无关工作。已经开始的工作按原提交边界收场；资源关闭等待真实工作及setup前缀结算。停止请求、停止事实和资源释放不相互替代。当前整代停止的限制见[实现偏离](README.md#当前装配限制与架构偏离)。
 - `treeCreated` 发生于句柄已保存且尚未 apply 时；它抛错后仍由同一句柄完成实际收场。`dispose` 在调用可重入的关闭路径前保存稳定 Promise，重复调用返回同一观察。
 - loader 先等已登记工作真实关闭，再逆序撤 fiber 与行端口。宿主随后核对原维护完成状态和 guard.pending，最后撤外部资源 fiber；原主错误不被收尾错误遮盖。
 - 30 秒只报告未完成项，随后继续等待。HostDisposal.complete 仅在树撤除、原维护与守卫核对全部闭合时为 true。关闭异常或完成通知缺失不得伪装成功。
@@ -72,3 +71,52 @@ command-data.ts 唯一拥有命令与输出端口形状。maintenance-command.ts
 ## Docker健康探针
 
 Docker exec探针在同一进程调用原main的ops full-health，不创建CLI后代。5秒期限包含动态加载，发送前及成功返回前核单调截止；64KiB上限按实际字节累计。超限/失败不报告ready，shutdownSignal沿原AbortController结束socket，finally清理自身计时器。成功形状与业务体检语义归公共入口，不以Docker Engine受理或探针进程退出代替原应用责任完成。
+
+## 角色声明与发行树
+
+宿主解释tenancy-host命名空间的八项version=1 claim。通用loader只验数据形状；提供者不得反向依赖应用。准备通过后、创建guard或打开数据前，宿主一次核对职责、服务及配置投影。
+
+| 角色 | 必需provides | 宿主语义投影 |
+| --- | --- | --- |
+| storage | storage | SQLite、file、synchronous=full、startup=migrate及maintenance.workDirectory，与HostConfig及路径投影一致 |
+| clock | clock | 原clock全部数据字段，保持storage、lease和readiness参数关系 |
+| credentials | credentials | 已校验算法参数；替代算法仍守公共凭据接缝，不由宿主复制算法校验 |
+| accounts | accounts、logins | 公钥、有效期及policy；缺席policy保持undefined业务语义，声明省略字段 |
+| organizations | organizations、offers、memberships、organizationPurge | 密钥及有效期与宿主原投影相同 |
+| registration | registration | activation私钥与已核验密钥对一致 |
+| ops | 无业务Service | socket、部署、维护路径、版本和migrationNames，与同一次资源一致 |
+| entry | 无业务Service | TLS、listen、version和超时，与HostConfig界限一致 |
+
+每项恰一次。缺失、重复、不支持版本、服务不合或投影不合分别拒绝；未知tenancy-host名称拒绝，不回显任意claim名。其他命名空间不由宿主解释，helper可以没有宿主claim。稳定id不是职责证明，停用原行后插入等价角色允许，保留id却换成不承担职责的helper必须失败。
+
+首版八个稳定id为storage-sql、clock-lease、credential-verification、account-identity、organization-governance、account-registration、governance-center-ops、governance-center-entry。id与包名分开，替换提供者不迫使运维修改id。发行删除或改id须同步发行说明。数据只从host配置和显式operator层取得，没有隐含第三层。
+
+声明是受信代码的协议承诺，不证明实际行为。宿主仍核真实readiness、serving、升级确认、维护完成和guard身份；任意不可信Node模块不能因通过声明进入当前受信装配路径。
+
+## 启动诊断的精确映射
+
+boot只以HostStartupFailure拒绝。prepare和合层拒绝先于资源创建；启动失败仍等真实收场和原守卫、维护核对后拒绝。原setup异常只进入私有观察表；登记给真实协调器的仍是同一OwnedWork，不能让错误观察取得关闭权或改变ready。
+
+| 原因 | stage | cause及安全定位 |
+| --- | --- | --- |
+| StartError为apply-failed且同一row已捕获原setup异常 | 按已核验角色沿occupied、restore、preflight、snapshot、migration、storage-open、clock-unreadable或plugin分类 | 保原cause、item及允许snapshot；首行优先，不把异常塞进通用树错误 |
+| 其余StartError的apply-failed或stopped | plugin | 安全StartError和合法rowId |
+| StartError为dependency-unavailable、missing-registration或provided-service-missing | manifest | 安全StartError和合法rowId |
+| TreeError或PreparationError为invalid-config | plugin | 原安全错误和合法rowId |
+| TreeError或PreparationError其余code | manifest | 原安全错误和合法rowId |
+| UsageError全部code | manifest | 安全UsageError，不暗示已经接管或关闭资源 |
+| HostPluginPolicyError全部code | manifest | 安全政策错误和已知role，unknown-role不回显未知名称 |
+
+HostPluginPolicyCode保持missing-role、duplicate-role、unsupported-role-version、role-service-mismatch、incompatible-role-config、unknown-role。公开role仅storage、clock、credentials、accounts、organizations、registration、ops、entry。安全树或政策cause使用固定说明plugin tree rejected，由HostStartupFailure加阶段前缀。
+
+startup-failed保留event、stage、item、errorType、message；安全cause可另交code及核验过的role或rowId。序列化前核封闭集合，省略缺席可选字段，不展开任意cause/message或异常属性。原具名setup错误保原允许说明及快照，不打印秘密。若首次原因为stopped，迟到setup异常不能改写该结果。loader.ready可先拒绝，boot仍承担完整清理。
+
+serve的--plugins选项带一个文件参数，--print-plugins无值，两者可交换且各至多一次。未知、重复或缺参数沿usage拒绝。打印成功只交安全DTO数组JSON加换行并退出，不等待shutdownSignal；准备失败使用同一映射且failed退出，语法失败仍usage。打印不得创建guard、backup目录、数据库、端口或socket。
+
+backup路径先只读解析核验，准备及政策通过后才durable创建并重验同一规范路径的owner、mode及symlink条件。同一次资源使用同一migrationNames及checks，不从operator JSON注入函数或重算另一份集合。
+
+## 保留义务与实际范围
+
+本应用的SQLite路径不表示PG迁移后整体恢复已闭合；类型可用不能开放成支持部署。当前单代整体停止是[明确的装配偏离](README.md#当前装配限制与架构偏离)，不能作为局部重装配的目标政策，不可信代码还需架构要求的受限执行域及受控桥接。目标、现行前提和未兑现保证各由其拥有者维护。
+
+资产治理与目录中心未实现增量归相关公共定义，OG3继续由[治理公共承诺](../../packages/core/organization-governance/SPEC.md#已接受而未实现的资产治理增量)持有；完整Session候选从[架构保留源](../../.meta_harness/design/architecture/session-agent-runtime-phase1/README.md)进入。实际验证与原恢复观察义务见[本应用验证](verification/README.md)，不得以旧批次完成状态关闭这些义务。

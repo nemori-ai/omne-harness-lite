@@ -65,7 +65,7 @@ relations:
 |---|---|
 | `supersedes` | 无 |
 | `depends-on` | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md) 与 [PF-002](../PF-002-assets-settings-and-permissions/README.md)，引用不改写 |
-| 上游前提 | [SYS-COMPOSITION](../../foundation/definition-and-runtime-composition/README.md)。**本 topic 是它在 agent 这件事上的产品落点**，不重复陈述结构本身 |
+| 上游前提 | [SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition)。**本 topic 是它在 agent 这件事上的产品落点**，不重复陈述结构本身 |
 | `extends` | 无 |
 
 **与 PF-002 的分界**：有哪几类资产、怎么组合、怎么求值，归 PF-002；

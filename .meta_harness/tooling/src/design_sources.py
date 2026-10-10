@@ -19,6 +19,17 @@ def check_links(root: Path, source_root: Path | None = None) -> list[str]:
         modules = ModuleSources(source_root)
     except (ValueError, OSError, TypeError) as error:
         return [f"source links: {error}"]
+    execution_root = (
+        modules.root if modules.root is not None and root == modules.root / ".meta_harness/design" else None
+    )
+    document_roots = () if execution_root is None else tuple(
+        execution_root / "docs" / name for name in ("architecture", "domains")
+    )
+    project_documents = (
+        "requirements.md", "engineering/documentation.md", "engineering/delivery.md",
+        "engineering/work-types.md", "engineering/agent-delivery.md",
+        "engineering/github-delivery.json", "rfcs/README.md",
+    )
     workspace = root.parent if root.name == "design" and root.parent.name == ".meta_harness" else None
     anchors: dict[Path, set[str]] = {}
     for path in sorted(root.rglob("*.md")):
@@ -40,6 +51,9 @@ def check_links(root: Path, source_root: Path | None = None) -> list[str]:
                 errors.append(label + f"invalid module owner: {error}")
                 continue
             allowed = target.is_relative_to(root) or owned
+            if execution_root is not None:
+                allowed = allowed or target in (execution_root / "docs" / name for name in project_documents)
+                allowed = allowed or any(target.is_relative_to(base) for base in document_roots)
             if workspace is not None:
                 allowed = allowed or any(target.is_relative_to(workspace / name)
                                          for name in ("agents", "research"))

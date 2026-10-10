@@ -27,7 +27,7 @@ export interface Fact extends Site {
   readonly contract?: string
   readonly owner?: string
   readonly definitionForm?: 'context-augmentation' | 'service-class'
-  /** Class provenance links a Context property to its Service definition. */
+  /** Exact class provenance for definitions, typed Context properties and class providers. */
   readonly serviceDefinition?: Site & {
     readonly member?: string
     readonly symbol: string

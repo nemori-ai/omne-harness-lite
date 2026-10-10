@@ -1,8 +1,6 @@
 # 治理 CLI 装配承诺
 
-本页迁入已采用的应用集成责任。文件输入、动作、报告、退出码及终端原行为继续受
-[CQ1/CQ2 和保持清单](../../.meta_harness/design/architecture/identity-integration/preservation.md)约束。
-跨模块采用依据归 [CLI 生命周期修正](../../.meta_harness/design/architecture/identity-integration/cli-lifecycle.md)。
+本页拥有已采用的应用集成责任和CQ1、CQ2行为。公共动作、结果及秘密过滤归[客户端公共承诺](../../packages/core/governance-client-operations/SPEC.md)，实际关闭、输入、表示恢复及退出状态由本应用维护。
 
 应用以同一个 assembly-lifecycle 协调器按 storage 工厂、CLS、HTTPS transport、CG 装载。
 每行必须同步登记，ready 成功且 fiber ACTIVE 后才能向下一行开放。SQL 桥选择 SQLite full，
@@ -155,3 +153,17 @@ profile是用户明确选择的环境前提，不是对模拟器或用户的认�
 ## S-12 验证义务
 
 forms逐条覆盖CQ1全部34命令/31路由，生成Intent与原CG/EC Schema一致，条件/可选字段与秘密槽精确。相同治理旅程在CLI/TUI消费同一CG事实；初始收件箱和失权/不可得/空区别；其他进程改变本地状态、原预览后CAS冲突不换登录。终端测试覆盖严格增量UTF-8、控制文本、跨块帧、超限丢弃、输入/输出背压、resize、确认修订、取消/EOF/信号、实际模式及OS属性恢复。模型只证明其有限状态与来源/进展假设；真实模拟器/IME、最终制品和Linux/macOS运行另验。
+
+## 启动前缀与表示释放门
+
+CG行私有端口在register成功后同步保存原receipt，不等待或执行用户回调。onStopping发生于本代current=false之后，未来register均拒绝；只有这个停止屏障之后的记录缺席，才能确认本代没有且不会创建CG。不能以ctx.get缺席或整体closed判定未分配。
+
+| 停止屏障后的观察 | clientStopped结果 |
+| --- | --- |
+| 无CG receipt | 成功确认无CG工作，保原ready失败分类，不虚构client-close-failed |
+| 有receipt而尚无observe | 等receipt.closed与observe到达竞速；行已排空且观察仍缺席才确认未分配CG；不能先等receipt再查询observer |
+| 已observe | 观察原稳定关闭尝试；成功才有静止许可，拒绝只报告client-close-failed和70，不能恢复终端或放CLS |
+
+未停止时暂缺receipt不能提前成功。已分配但未公开的CG同样经原观察通路保有。CG最后业务行的receipt不等待CLS表示门，无CG分支也不等待transport、CLS或整体closed。setup未实际结束可保持pending，不能越过真实进展前提。
+
+表示门只延后本应用拥有的CLS依赖释放，仍共用storage工厂→CLS→transport→CG的一个协调器。requestStop通过同一次CG尝试停止新动作与输入；releasePresentation只在本次输入帧、普通输出及实际终端恢复结束后幂等给许可。恢复抛错但已真实结束仍允许存储收场；未结束不放行，不能在finally一律释放。CG关闭缺陷不等待不可能完成的closed，但保原报告和未完成责任；自然进程结束不证明资源完成。

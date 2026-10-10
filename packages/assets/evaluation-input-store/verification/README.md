@@ -24,3 +24,7 @@ pnpm --filter @omne-harness-lite/evaluation-input-store run test
 ```
 
 制品和真正消费者检查使用所属工具/装配的入口。报告区分 source/dist worker、组件 fixture、实际 consumer 与打包外部消费。
+
+## 尚未关闭的超时观察
+
+原集成问题中的 EIS 超时观察尚未定位到具体输入、因果和当前关闭依据。须核对本成员及其实际调用组合，不能因旧施工页退出而记为已修复。跨系统索引见[符合性问题](../../../../docs/architecture/assurance.md#尚未取得关闭依据的组合问题)。这不是新设的超时阈值或本次运行结果。

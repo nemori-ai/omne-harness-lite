@@ -1,8 +1,7 @@
 # 产品包
 
-这里放产品的可复用包，按 `packages/<能力族>/<职责包>/` 两层组织：第一层只组织相关能力，
-**不是 workspace 成员**；第二层才拥有 `package.json`、`src`、依赖、公开入口和测试。
-布局规则见[源码布局](../docs/workspace.md)，承诺归属见[架构维护入口](../.meta_harness/design/architecture/README.md)。
+这里放产品的可复用包，目标按 `packages/<能力组>/<成员>/` 两层组织。第一层组织相关知识，不是workspace成员；第二层拥有package.json、src、依赖、公开入口和验证。
+目标分组、公共SDK位置与包边界见[产品包组织](../docs/package-organization.md)，开发环境见[workspace](../docs/workspace.md)，责任见[领域地图](../docs/domains/boundaries.md)。下表仍列现有真实路径，不表示目标目录已迁移；未迁承诺继续沿[原维护入口](../.meta_harness/design/architecture/README.md)及实际成员定位。
 未迁包的分层状态仍由其 realization 节点记录，新单元不预建四件套。
 
 ## 当前成员
@@ -30,11 +29,15 @@
 `infra` 组名与 `apps/tenancy-host` 节点名已由产品负责人拍板（D-027，2026-09-23）。
 各包的分层状态与遗留见各自的 realization 节点 README；全部成员的测试记在运行 `2026-09-23-tests-tenancy-leg-2`。
 
+## 文档与维护入口
+
+能力组与成员各自维护文档，规则归[两层成员文档](../docs/member-documentation.md)。组README说明真实成员的工程分工、依赖和组合验证，包README说明使用、契约、设计及维护。必要内容登记缺项，独立阅读任务再拆专题；新模板的采用不表示这些现有包已经整改。
+
 ## 硬约束
 
 - 基础设施**不提供 in-memory 实现**：存储开发期用 sqlite 文件库，只改配置切 pg；测试用临时文件。
 - 失败值字面以契约为准，两套拼法并存（`account-identity` kebab-case，其余 camelCase），不自造统一层。
-- 公开定义及薄SPEC由接口拥有者维护；有效承诺变化须明确依据、影响和采用范围，同步当前消费者。
+- 公开定义及完整行为承诺由接口拥有者维护；有效承诺变化须明确依据、影响和采用范围，同步当前消费者。
 - `packages/` 与 `apps/` 内不得出现墙钟（`infra/`、测试及D047的具名副本显示取时文件除外）、`ctx.bail(`；`accounts.produce(`、`organization-purge` 等受限调用只有注册组合够得着——由 [tools/ts-checks](../tools/ts-checks/README.md) 在 `pnpm run check` 里守，规则全集见其 README。
 
 ## 历史

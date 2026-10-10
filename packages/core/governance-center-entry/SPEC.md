@@ -1,6 +1,6 @@
 # 治理入口公共集成承诺
 
-本包拥有两张治理网络面共用的准入信号。采用依据为[身份集成设计](../../../.meta_harness/design/architecture/identity-integration/retirement.md#开闸的代际约束)及其链接的接受决定。
+本包拥有已采用的两张治理网络面共用的准入信号。宿主实现该信号，资源关系与确认责任归[治理宿主](../../../apps/tenancy-host/SPEC.md)。
 
 - 每个装配代际只有一个实例。`isOpen()` 直接求值为本代确认完成且 lifetime 仍 current，不依赖通知缓存。
 - `wait()` 只在全部资源就绪、升级守卫确认完成且仍 current 后兑现。停止时尚未兑现的等待，以及停止后的新等待，以 `EntryOpeningStopped` 拒绝。
@@ -19,8 +19,7 @@ ops 必需注入 entryMaintenance，已经开始的维护等待真实收场，�
 运维监听安装完成后发 ops-listening-started。通知是同步 emit，失败只记诊断，
 不改变已提交业务结果或丢失清理责任。迁移保留原载荷、次数和时序。
 
-采用依据为[树资源协议](../../../.meta_harness/design/architecture/identity-integration/plugin-tree.md#运行资源的唯一拥有者)
-与[宿主接口补充](../../../.meta_harness/design/architecture/identity-integration/host-integration.md)。
+维护资源由[治理宿主](../../../apps/tenancy-host/SPEC.md)交付，[服务端提供者](../../tenancy/governance-center-entry-node/SPEC.md)拥有真实启动与关闭。
 下述业务承诺由所有入口提供者共同消费。线上字节与本地维护算法归[实际提供者](../../tenancy/governance-center-entry-node/SPEC.md)，不从类型齐全推断业务兑现。
 
 ## 判定、授权与结果

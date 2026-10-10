@@ -67,3 +67,11 @@ Build workspace dependencies first. These commands cover this package. Actual pr
 ## Related packages
 
 - [Plugin tree loader](../cordis-plugin-tree/README.md)
+
+## Current mechanism and architecture gap
+
+The current coordinator fixes one row set and permits one claim. Duplicate registration, registration after stopping, setup failure, row removal, failed managed binding, and invalid retained-close delivery request a generation stop. The first stop invalidates every row port. Replacement currently waits for the old generation to close and uses a new coordinator.
+
+This describes the current mechanism, not the system deployment policy. Placing unrelated capabilities in one coordinator makes a local removal stop unrelated admission. That conflicts with [local dependency scope](../../../docs/architecture/deployment/cordis-and-lifecycle.md#依赖换代与就绪) and [reload continuity](../../../docs/architecture/runtime/assembly-and-change.md#reload-与推进权交接). Assembly and mechanism owners must define the affected scope and transfer of admitted work. This documentation change does not change product code or resolve the gap.
+
+Current governance bindings retain CLS until CG finishes its local CAS and verification, and retain SQL until identity and governance work completes after scrypt. These drain paths do not require unrelated capabilities to stop. [Verification](verification/README.md) separates mechanism regression from target conformance.

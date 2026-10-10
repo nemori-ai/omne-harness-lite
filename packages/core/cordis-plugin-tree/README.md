@@ -67,3 +67,9 @@ Build workspace dependencies first. These commands cover this package. Actual pr
 
 - [Assembly completion owner](../assembly-lifecycle/README.md)
 - [Real tenancy host](../../../apps/tenancy-host/README.md)
+
+## Current support and architecture gap
+
+The current loader prepares a fixed in-process tree from named /cordis exports of installed npm packages. It has no runtime configuration update or Session plugin takeover entry. Updates currently require restart and recalculation. This is a support gap, not a system requirement to restart.
+
+A fixed row or port leaving ACTIVE, loss or replacement of a statically declared required or optional provider, or a change in optional dependency ownership currently stops the generation. Removing a dynamic contribution without removing a static service does not trigger that stop. If unrelated work shares the generation, this policy exceeds the [actual dependency scope](../../../docs/architecture/deployment/cordis-and-lifecycle.md#依赖换代与就绪). Loader, shutdown mechanism, and assembly owners must address local replacement and continuity. Existing mechanism tests do not prove target conformance.

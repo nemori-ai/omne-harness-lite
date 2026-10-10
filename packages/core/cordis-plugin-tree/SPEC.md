@@ -1,9 +1,7 @@
 # Plugin tree
 
 公开形状归 [src/index.ts](src/index.ts)。纯根拥有两层数据合成和安全描述；
-`./cordis` 拥有准备、加载及实际 fiber 检查。采用依据为
-[已接受的插件树设计](../../../.meta_harness/design/architecture/identity-integration/plugin-tree.md)
-与宿主接口补充。
+`./cordis` 拥有准备、加载及实际fiber检查。本页接续已采用的两层树协议；具名宿主政策由实际装配拥有者维护。
 本包的实现与验证状态不表示宿主或两域整改已经完成。
 
 ## 数据与来源
@@ -52,11 +50,7 @@ claim 的 name 非空、version 为正整数，同行 name/version 对不能重�
 每行通过独立端口登记 OwnedWork，再开始副作用。就绪须同时满足登记、OwnedWork.ready 成功、
 实际 fiber ACTIVE、静态 provides 声明的服务可见及代际仍有效。未开始的后缀在失败或停止后不再加载。
 ready 立即报告首个观察到的终结原因；已成功的 ready 保留历史结果。内部始终观察拒绝。
-固定 row/port 本身退出 ACTIVE，或静态 provides/requires/optional 的实际提供者丧失、
-同键换代或改变可选依赖拥有关系，均结束整代，不能承接新代。判断比较真实提供者身份，
-不能只比较是否仍可见。纯动态贡献子 fiber 退出不自动结束固定行；它撤掉静态声明服务时
-仍结束本代。动态服务缺席和换代按原领域契约处理。内部工作的失败与收尾仍由 host 拥有，
-动态声明不替代真实 OwnedWork.ready/close，也不授予租户或业务权限。
+提供者丧失或换代按真实依赖确定受影响工作，不能连带停止无关能力。判断核对真实提供者身份，不能只比较是否仍可见。可选依赖按调用时可用性和领域契约处理，不将其变更一律升级为整代退出。当前loader的整代停止行为见[支持限制](README_ZH.md#当前支持与架构偏离)。内部工作的失败与收尾仍由host拥有；动态声明不替代真实OwnedWork.ready/close，也不授予租户或业务权限。
 
 dispose 请求停止并返回同一个 closed Promise。先等待协调器完成真实 OwnedWork，
 再逆序撤除行 fiber，最后逆序撤端口。setup、close、fiber 和端口失败分别保留。
@@ -73,3 +67,21 @@ npm 的 validate-npm-package-name 与 Babel 的 helper-validator-identifier 校�
 资源完成复用 assembly-lifecycle，Cordis 状态取自已验证的 kernel-basis 绑定，不另建关闭协调器。
 
 六字段声明和固定 host 的动态贡献范围由共享机制投影采用接续。行端口的 retainClose 仍交付原行控制；整体 closeControl 只归实际装配拥有者，行为归 assembly-lifecycle 的模块 SPEC。
+
+## 协议范围与拒绝
+
+两层只指发行和运维配置，不把Session动态插件接管塞入发行树。运行期更新须遵循[装配变化](../../../docs/architecture/runtime/assembly-and-change.md)的作用范围和交接要求；当前loader尚未支持的更新方式归[支持限制](README_ZH.md#当前支持与架构偏离)，不规定系统必须重启才能更新。
+
+加载固定解析已安装npm包的/cordis具名导出。外部合成输入仍须完整验证，配置或声明的异步结果、抛错、非法输出均在apply前拒绝。声明覆盖子作用域和逐调用取得的全部必需、可选或动态依赖。装配提供的外部静态服务实际可见后才能接管；外部资源保留到closed之后。稳定id、声明或assemblyLifecycle标识都不是代码真实性、租户权限或沙箱证明。
+
+| 阶段 | 具名错误与封闭code | 状态与保密边界 |
+| --- | --- | --- |
+| 合层 | PluginTreeError；invalid-tree、duplicate-id、duplicate-edit、missing-target、disabled-target、invalid-reference、invalid-config | 完整拒绝，不跳坏行；只带合法id、层和索引，不带配置或任意异常片段 |
+| 准备 | PluginTreePreparationError；invalid-tree、module-unavailable、invalid-export、missing-schema、invalid-config、invalid-declaration、missing-service、service-order、duplicate-service | 无apply；module异常和Schema issues原文不外泄 |
+| load前置 | PluginTreeUsageError；invalid-prepared、lifetime-mismatch、lifetime-used、missing-external-service | 同步拒绝；不接管、不关闭或停止尚未使用的lifetime，不干扰已接管的首个加载 |
+| 启动 | PluginTreeStartError；apply-failed、dependency-unavailable、missing-registration、provided-service-missing、stopped | 先固定首个终结原因并及时拒绝ready；实际closed仍保全部原工作责任 |
+| 撤除 | assembly-fiber-dispose-failed、assembly-port-dispose-failed | 与原setup及close分类分开，complete=false；不能确认静止时仍未完成 |
+
+loader必须保有原句柄、行fiber和任务到closed。行端口登记时即观察ready拒绝，不等fiber清理后才报告初始化失败。inspectPluginTree仅接本进程真实句柄，伪造时同步TypeError，消息为Invalid plugin tree handle；快照含实际创建前缀和失败或已撤行，不含未开始后缀。该进程内调试入口不能打印成安全运维DTO。
+
+实际资源唯一源为[Storage启动与完成](../storage/SPEC.md#启动资源和完成通知)、[入口开放与维护](../governance-center-entry/SPEC.md)及其实际提供者；通用树不拥有宿主业务claim的解释。宿主政策和八项角色归[治理宿主](../../../apps/tenancy-host/SPEC.md#角色声明与发行树)。

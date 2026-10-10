@@ -1,5 +1,5 @@
 <!-- 规则：../CONTRIBUTING.md 的“提交与 PR 表达”。按主要结果选择 PULL_REQUEST_TEMPLATE/ 下 feature、docs、fix、refactor 模板；perf 复用 refactor。此入口适合小改动和其他类型。 -->
-<!-- 先阅读执行仓库 CONTRIBUTING.md；需要组织正文时使用 prepare-pr skill。填写后删除提示和不适用块。 -->
+<!-- 先阅读执行仓库 CONTRIBUTING.md；需要组织正文时沿 docs/engineering/publication.md 加载对应 pstack 方法。填写后删除提示和不适用块。 -->
 
 ## 改变
 

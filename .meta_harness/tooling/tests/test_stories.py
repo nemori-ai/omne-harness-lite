@@ -248,3 +248,150 @@ def test_the_entry_point_reports_and_fails(tmp_path: Path, capsys: pytest.Captur
     bad = tree(tmp_path / "bad", card(scenarios="[S9](acceptance.md)"))
     assert stories.main(["--root", str(bad)]) == 1
     assert "FAIL: 故事卡对账发现 1 处问题。" in capsys.readouterr().err
+
+
+def observation_fixture(tmp_path: Path):
+    import hashlib
+    import json
+    import subprocess
+    root = tree(tmp_path, card(before='ST-017-01'))
+    subprocess.run(['git', 'init', '-q'], cwd=tmp_path, check=True)
+    subprocess.run(['git', 'add', '.'], cwd=tmp_path, check=True)
+    subprocess.run(['git', '-c', 'user.name=someone', '-c', 'user.email=someone@example.com', 'commit', '-qm', 'fixture'], cwd=tmp_path, check=True)
+    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=tmp_path, text=True).strip()
+    config = tmp_path / 'docs/engineering/github-delivery.json'
+    config.parent.mkdir(parents=True)
+    config.write_text('{}')
+    (tmp_path / 'capture.json').write_text('{}')
+    files = [root / CLI / 'stories.md', config, tmp_path / 'docs/engineering/source-cutovers.json', tmp_path / 'capture.json']
+    value = {'schemaVersion': 1, 'kind': 'current-source-observation', 'root': str(tmp_path), 'productRoot': str(root / 'product'), 'head': head, 'dailyEnabled': False, 'completeness': 'partial', 'bindings': [{'path': str(p), 'sha256': hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None} for p in files], 'cards': [], 'findings': [], 'aliases': [{'id': 'ST-017-01', 'resolution': {'kind': 'issue', 'identity': {'repository': 'owner/repo', 'id': 'I_1', 'url': 'https://github.com/owner/repo/issues/1', 'number': 1}, 'observed': False}}]}
+    value['inputRoles'] = {'config': {'selection': 'default', 'path': str(config)}, 'cutovers': {'path': str(tmp_path / 'docs/engineering/source-cutovers.json')}, 'capture': {'kind': 'file', 'path': str(tmp_path / 'capture.json')}}
+    path = tmp_path / 'projection.json'
+    path.write_text(json.dumps(value))
+    return root, path, value
+
+
+def test_mixed_prerequisite_identity_is_known_but_result_and_graph_remain_unknown(tmp_path: Path):
+    root, path, _ = observation_fixture(tmp_path)
+    checker = Checker(root, path)
+    checker.check()
+    assert not checker.errors
+    assert any('结果满足 unknown' in note and '跨源前置图不完整' in note for note in checker.notes)
+
+
+@pytest.mark.parametrize('changed', ['stories', 'config', 'cutovers', 'capture', 'new-stories'])
+def test_same_head_changed_input_rejects_projection(tmp_path: Path, changed: str):
+    root, path, _ = observation_fixture(tmp_path)
+    target = {'stories': root / CLI / 'stories.md', 'config': tmp_path / 'docs/engineering/github-delivery.json', 'cutovers': tmp_path / 'docs/engineering/source-cutovers.json', 'capture': tmp_path / 'capture.json', 'new-stories': root / CENTER / 'stories.md'}[changed]
+    target.write_text('changed')
+    assert stories.main(['--root', str(root), '--source-observation', str(path)]) == 2
+
+
+@pytest.mark.parametrize('damage', ['head', 'root', 'duplicate-binding', 'duplicate-alias', 'schema', 'resolution', 'json'])
+def test_damaged_projection_is_input_error_without_legacy_fallback(tmp_path: Path, damage: str):
+    import json
+    root, path, value = observation_fixture(tmp_path)
+    if damage in ('head', 'root'):
+        value[damage] = 'bad'
+    elif damage == 'duplicate-binding':
+        value['bindings'].append(value['bindings'][0])
+    elif damage == 'duplicate-alias':
+        value['aliases'].append(value['aliases'][0])
+    elif damage == 'schema':
+        value['schemaVersion'] = 2
+    elif damage == 'resolution':
+        value['aliases'][0]['resolution'] = {'kind': 'missing'}
+    path.write_text('{' if damage == 'json' else json.dumps(value))
+    assert stories.main(['--root', str(root), '--source-observation', str(path)]) == 2
+
+
+def test_mixed_prerequisite_conflict_keeps_existing_structural_failure(tmp_path: Path):
+    import json
+    root, path, value = observation_fixture(tmp_path)
+    value['aliases'][0]['resolution'] = {'kind': 'conflict', 'sources': ['one', 'two']}
+    path.write_text(json.dumps(value))
+    checker = Checker(root, path)
+    checker.check()
+    assert any('当前来源冲突' in error for error in checker.errors)
+
+
+@pytest.mark.parametrize('field,value', [('url', 'https://github.com/other/repo/issues/1'), ('repository', 'invalid'), ('number', 2), ('number', True)])
+def test_projection_rejects_issue_identity_mismatch(tmp_path: Path, field: str, value):
+    import json
+    root, path, observation = observation_fixture(tmp_path)
+    observation['aliases'][0]['resolution']['identity'][field] = value
+    path.write_text(json.dumps(observation))
+    assert stories.main(['--root', str(root), '--source-observation', str(path)]) == 2
+
+
+@pytest.mark.parametrize('damage', ['roles', 'config-role', 'capture-role', 'config-binding', 'capture-binding', 'extra-binding', 'null-explicit', 'null-capture', 'digest', 'capture-none-path', 'default-path', 'cutovers-path'])
+def test_selected_input_closure_rejects_damaged_projection(tmp_path: Path, damage: str):
+    import json
+    root, path, value = observation_fixture(tmp_path)
+    roles = value['inputRoles']
+    if damage == 'roles':
+        del value['inputRoles']
+    elif damage.endswith('-role'):
+        del roles[damage.removesuffix('-role')]
+    elif damage in ('config-binding', 'capture-binding'):
+        omitted = roles[damage.removesuffix('-binding')]['path']
+        value['bindings'] = [b for b in value['bindings'] if b['path'] != omitted]
+    elif damage == 'extra-binding':
+        value['bindings'].append({'path': str(tmp_path / 'absent'), 'sha256': None})
+    elif damage in ('null-explicit', 'null-capture'):
+        key = 'config' if damage == 'null-explicit' else 'capture'
+        if key == 'config':
+            roles[key]['selection'] = 'explicit'
+        Path(roles[key]['path']).unlink()
+        next(b for b in value['bindings'] if b['path'] == roles[key]['path'])['sha256'] = None
+    elif damage == 'digest':
+        value['bindings'][0]['sha256'] = 17
+    elif damage == 'capture-none-path':
+        roles['capture']['kind'] = 'none'
+    else:
+        roles['config' if damage == 'default-path' else 'cutovers']['path'] = str(tmp_path / 'other')
+    path.write_text(json.dumps(value))
+    assert stories.main(['--root', str(root), '--source-observation', str(path)]) == 2
+
+
+@pytest.mark.parametrize('enabled,issue', [(True, False), (False, True)])
+@pytest.mark.parametrize('completeness', ['complete', 'partial'])
+def test_no_capture_rejects_contradictory_completeness(tmp_path: Path, enabled: bool, issue: bool, completeness: str):
+    import json
+    root, path, value = observation_fixture(tmp_path)
+    value['bindings'] = [b for b in value['bindings'] if b['path'] != value['inputRoles']['capture']['path']]
+    value['inputRoles']['capture'] = {'kind': 'none'}
+    value['dailyEnabled'] = enabled
+    value['completeness'] = completeness
+    if not issue:
+        value['aliases'] = []
+    path.write_text(json.dumps(value))
+    assert stories.main(['--root', str(root), '--source-observation', str(path)]) == 2
+    value['completeness'] = 'unknown'
+    path.write_text(json.dumps(value))
+    Checker(root, path)
+
+
+@pytest.mark.parametrize('role', ['config', 'capture'])
+def test_missing_required_file_cannot_share_optional_cutover_binding(tmp_path: Path, role: str):
+    import json
+    root, path, value = observation_fixture(tmp_path)
+    selected = value['inputRoles'][role]
+    original = selected['path']
+    selected['path'] = value['inputRoles']['cutovers']['path']
+    if role == 'config':
+        selected['selection'] = 'explicit'
+    value['bindings'] = [b for b in value['bindings'] if b['path'] != original]
+    path.write_text(json.dumps(value))
+    assert stories.main(['--root', str(root), '--source-observation', str(path)]) == 2
+
+
+def test_missing_default_config_requires_disabled_observation(tmp_path: Path):
+    import json
+    root, path, value = observation_fixture(tmp_path)
+    config_path = value['inputRoles']['config']['path']
+    Path(config_path).unlink()
+    next(b for b in value['bindings'] if b['path'] == config_path)['sha256'] = None
+    value['dailyEnabled'] = True
+    path.write_text(json.dumps(value))
+    assert stories.main(['--root', str(root), '--source-observation', str(path)]) == 2

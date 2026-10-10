@@ -4,16 +4,16 @@
 （storage-sql → clock-lease → credential-verification → account-identity → organization-governance → account-registration
 → governance-center-ops → governance-center-entry），迁移合成与升级守卫，两步开闸，逆序撤除。
 这些是发行树的稳定行 id；公共插件引用见 [tree.ts](src/tree.ts)。
-现行集成行为见 [SPEC.md](SPEC.md)，设计依据见[宿主接缝](../../.meta_harness/design/architecture/identity-integration/host-integration.md)；
+现行集成行为见 [SPEC.md](SPEC.md)，角色、资源及诊断见[宿主契约](SPEC.md#角色声明与发行树)；
 未迁业务和验证义务继续从[原实现映射](SPEC.md)定位。
 本页只写**怎么起、怎么停、怎么配、运维要守什么**，以及源码取了哪些常量。
 
 应用合并发行与运维树并准备全部公共插件，核验角色后才创建运行资源。
 正式插件树逐行等待 OwnedWork.ready、fiber ACTIVE、服务可见和代际资格。
 全部就绪后确认升级，再兑现同一个 EntryOpening；两张网络面直接检查它。
-任一管理行撤除使整个代际停止准入。已有工作按原提交边界收场，注册不得交下一步。
+当前实现中任一管理行撤除会使整个代际停止准入；这是[尚未解决的装配偏离](#当前装配限制与架构偏离)，不是目标策略。已有工作按原提交边界收场，注册不得交下一步。
 资源按逆序关闭，随后撤 fiber、行端口，核对维护及升级守卫后才撤外部资源服务。
-后继装配必须新建代际，不能在旧槽位重新开放。设计依据见[有序收尾](../../.meta_harness/design/architecture/identity-integration/retirement.md)。
+当前后继装配新建代际，不能在旧槽位重新开放。有序收尾的安全要求归[装配生命周期](../../packages/core/assembly-lifecycle/SPEC.md#装配代际与调用方责任)，真实组合义务见[验证入口](verification/README.md)。
 装配迁移的接受依据及验证范围见插件树与治理宿主交付记录。
 
 ## 命令
@@ -135,3 +135,9 @@ Maintenance commands use named effects. The assembly selects the existing Unix c
 普通启动遇到缺失 manifest、缺失数据库或资源身份不一致会失败。不能通过重新启用初始化来绕过丢失状态。当前 SQLite 提供者需要 Linux 与 PATH 中的 util-linux `flock`。升级前必须停止所有旧进程；旧版 SQLite 协调锁与新版 flock 不共同排他。
 
 备份格式现为 `omne-center-backup/2`，同时保存业务快照与 Clock checkpoint。离线恢复只复制完整封套，不开启业务。激活该副本前必须把 checkpoint 底线持久交给 Clock；不得仅提取业务 SQLite 文件便开启服务。
+
+## 当前装配限制与架构偏离
+
+当前宿主把八个职责放在同一固定代际，任一管理行撤除或失败都会停止整代新准入。它尚未按真实消费者细分故障与换代范围，不能由“当前限定应用”取得连带停止无关工作的架构许可。
+
+目标要求[局部变化不使无关能力停机](../../docs/architecture/deployment/cordis-and-lifecycle.md#依赖换代与就绪)，并允许[候选校验与在途交接](../../docs/architecture/runtime/assembly-and-change.md#reload-与推进权交接)。装配、插件树及关闭机制拥有者须共同细化局部范围。此次未改产品代码，现有整代关闭测试不证明连续性已满足。

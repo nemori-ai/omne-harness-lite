@@ -1,7 +1,8 @@
+import type { CurrentSources } from '../src/product/sources.ts'
 // 流程体检：八块各自有数据时算得对、没数据时写明原因；页面自包含、带着各块的标题与关键数字；入口在临时仓库里跑通。
 // 时间一律注入：「现在」与各事件的时间都用本机时区的日历构造，周的切分在任何时区下都按周一零点算。
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -136,46 +137,89 @@ describe('每周接受数', () => {
   it('还没有接受过的卡：没有数据', () => {
     expect(
       weeklyAccepted([entry('ST-001-01', 'proposed', local(2026, 1, 1))], local(2026, 1, 2), 8),
-    ).toEqual(noData('台账里还没有接受过的卡'))
+    ).toEqual(noData('旧台账里还没有 accepted 登记'))
   })
 })
 
-describe('各 topic 剩余卡数', () => {
-  const topics = [
+const sourceObservation: CurrentSources = {
+  schemaVersion: 1,
+  kind: 'current-source-observation',
+  root: '/',
+  productRoot: '/product',
+  head: 'test',
+  dailyEnabled: false,
+  inputRoles: {
+    config: { selection: 'default', path: '/repo/docs/engineering/github-delivery.json' },
+    cutovers: { path: '/repo/docs/engineering/source-cutovers.json' },
+    capture: { kind: 'none' },
+  },
+  bindings: [],
+  aliases: [],
+  completeness: 'partial',
+  findings: [],
+  cards: [
     {
-      topic: 'PF-016-x',
-      cards: [
-        { id: 'ST-016-01', title: 'a', ready: 'ready' as const },
-        { id: 'ST-016-02', title: 'b', ready: 'not-ready' as const },
-        { id: 'ST-016-03', title: 'c', ready: 'not-ready' as const },
-        { id: 'ST-016-04', title: 'd', ready: 'unknown' as const },
-      ],
+      kind: 'legacy',
+      id: 'ST-016-01',
+      path: 'stories.md',
+      topic: 'PF-016',
+      title: '卡',
+      scenarios: [],
     },
-    { topic: 'PF-021-y', cards: [] },
-  ]
+    {
+      kind: 'issue',
+      identity: { repository: 'a/b', id: 'I_1', number: 1, url: 'https://github.com/a/b/issues/1' },
+      aliases: [{ id: 'ST-016-02', productRevision: 1 }],
+      read: {
+        kind: 'known',
+        title: '卡',
+        revision: 2,
+        scenarios: [],
+        state: 'closed',
+        stage: 'Accepted',
+      },
+    },
+    {
+      kind: 'issue',
+      identity: { repository: 'a/b', id: 'I_2', number: 2, url: 'https://github.com/a/b/issues/2' },
+      aliases: [{ id: 'ST-016-03', productRevision: 1 }],
+      read: { kind: 'unknown', reason: '缺页' },
+    },
+  ],
+}
 
-  it('总数、已接受、剩余；未就绪只数剩余里的；接受过却不在 stories.md 里的单列', () => {
-    const entries = [
-      entry('ST-016-01', 'accepted', local(2026, 9, 1)),
-      entry('ST-016-03', 'accepted', local(2026, 9, 1)),
-      entry('ST-016-02', 'runnable', local(2026, 9, 1)),
-      entry('ST-099-01', 'accepted', local(2026, 9, 1)),
-    ]
-    expect(remainingCards(topics, entries, 'product')).toEqual(
+describe('当前来源活动', () => {
+  it('keeps the enabled unread native Issue queue unknown with zero selected cards', () => {
+    expect(
+      remainingCards({
+        ...sourceObservation,
+        dailyEnabled: true,
+        cards: [],
+        completeness: 'unknown',
+      }),
+    ).toEqual(data({ topics: [], cards: [], completeness: 'unknown', dailyEnabled: true }))
+  })
+  it('列当前旧卡、平台closed与unknown，不从旧台账accepted登记扣卡', () => {
+    expect(remainingCards(sourceObservation)).toEqual(
       data({
-        topics: [
-          { topic: 'PF-016-x', total: 4, accepted: 2, remaining: 2, notReady: 1 },
-          { topic: 'PF-021-y', total: 0, accepted: 0, remaining: 0, notReady: 0 },
-        ],
-        unlisted: ['ST-099-01'],
+        topics: [{ topic: 'PF-016', total: 3, legacy: 1, open: 0, closed: 1, unknown: 1 }],
+        cards: sourceObservation.cards,
+        completeness: 'partial',
+        dailyEnabled: false,
       }),
     )
   })
-
-  it('产品区不存在、没有 stories.md：没有数据，原因不同', () => {
-    expect(remainingCards(undefined, [], 'product')).toEqual(noData('产品区 product 不存在'))
-    expect(remainingCards([], [], 'product')).toEqual(
-      noData('product 下还没有哪个 topic 有 stories.md'),
+  it('完整capture里的未读Issue仍保留unknown，活动关联完整性不能称complete', () => {
+    const reading = remainingCards({ ...sourceObservation, completeness: 'complete' })
+    expect(reading.status).toBe('data')
+    if (reading.status === 'data') {
+      expect(reading.data.completeness).toBe('partial')
+      expect(reading.data.cards).toHaveLength(3)
+    }
+  })
+  it('未知完整性与空观察仍明确报告，不能宣称没有活动', () => {
+    expect(remainingCards({ ...sourceObservation, cards: [], completeness: 'unknown' })).toEqual(
+      data({ topics: [], cards: [], completeness: 'unknown', dailyEnabled: false }),
     )
   })
 })
@@ -389,7 +433,7 @@ describe('页面与摘要', () => {
         'cards.jsonl',
       ),
       weekly: weeklyAccepted(entries, now, 2),
-      remaining: remainingCards(undefined, entries, '.meta_harness/design/product'),
+      remaining: remainingCards(sourceObservation),
       commits: commitsBlock(
         [
           { sha: '1234567890ab', subject: 'tooling: big one', files: 42 },
@@ -446,7 +490,9 @@ describe('页面与摘要', () => {
     expect(page).toContain('ST-016-01')
     expect(page).toContain('开一个会话')
     expect(page).toContain('中位数 1.5 天，最长 1.5 天')
-    expect(page).toContain('没有数据：产品区 .meta_harness/design/product 不存在')
+    expect(page).toContain('完整性 partial，日常禁用')
+    expect(page).toContain('schema1历史登记仅供度量，不代表有效接受或交付吞吐。')
+    expect(page).toContain('unknown：缺页')
     expect(page).toContain('改动文件数中位数 3，最大 42')
     expect(page).toContain('tooling: big one')
     expect(page).toContain('docs: &lt;small&gt;')
@@ -468,7 +514,7 @@ describe('页面与摘要', () => {
     expect(page).not.toMatch(/url\(\s*["']?https?:/iu)
     expect(page).not.toMatch(/<link\b|<script\b[^>]*\bsrc=/iu)
     expect(page).not.toContain('http://')
-    expect(page).not.toContain('https://')
+    expect(page).toContain('https://github.com/a/b/issues/1')
   })
 
   it('摘要不超过 15 行，末行是页面路径；没数据的块写原因', () => {
@@ -476,9 +522,9 @@ describe('页面与摘要', () => {
     expect(lines.length).toBeLessThanOrEqual(15)
     expect(lines.at(-1)).toBe('页面：/out/health.html')
     expect(lines).toContain(
-      '各 topic 剩余卡数：没有数据，产品区 .meta_harness/design/product 不存在',
+      '当前来源卡与平台活动：3 张观察卡，完整性 partial，日常禁用；平台 open 0，closed 1，unknown 1',
     )
-    expect(lines.some(line => line.startsWith('卡：1 张，已接受 1'))).toBe(true)
+    expect(lines.some(line => line.startsWith('卡：1 张，旧台账accepted登记 1'))).toBe(true)
     expect(lines.find(line => line.startsWith('测试耗时'))).toBe(
       '测试耗时：最近 2 次全量：快层 201 秒；两层 693 秒；最近一次（快层）全过',
     )
@@ -555,7 +601,7 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(result.stdout).toContain('提交与合并的大小：main 最近 2 个，文件数中位数 2、最大 3（')
     expect(result.stdout).toContain('merge side')
     expect(result.stdout).toContain(
-      '各 topic 剩余卡数：1 个 topic，共 1 张，剩余 1（其中未就绪 1）',
+      '当前来源卡与平台活动：1 张观察卡，完整性 complete，日常禁用；平台 open 0，closed 0，unknown 0',
     )
     expect(result.stdout).toContain('测试耗时：没有数据，测试耗时账本目录')
     const out = join(home, 'health')
@@ -576,6 +622,65 @@ describe('入口', { timeout: 60_000 }, () => {
     ])
     expect((json as { conformance: { status: string } }).conformance.status).toBe('no-data')
     expect(readFileSync(join(out, 'summary.md'), 'utf8')).toBe(result.stdout)
+  })
+
+  it('显式config与capture按符号链接路径读取，且相对路径从调用cwd展开', () => {
+    const root = temp('loop-health-path-repo-')
+    const home = temp('loop-health-path-home-')
+    const caller = temp('loop-health-path-caller-')
+    const git = (...args: string[]) =>
+      execFileSync('git', ['-C', root, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', ...args])
+    git('init', '-q')
+    git('symbolic-ref', 'HEAD', 'refs/heads/main')
+    writeFileSync(join(root, 'README.md'), 'seed\n')
+    git('add', '-A')
+    git('commit', '-qm', 'seed')
+    mkdirSync(join(root, '.meta_harness/design/product'), { recursive: true })
+    const deliveryConfig = {
+      schemaVersion: 1,
+      kind: 'github-delivery-config',
+      protocolVersion: 1,
+      enabled: false,
+      repository: 'a/b',
+      mode: 'manual-single-dispatcher',
+      project: {
+        owner: 'a', number: null, id: null, url: null,
+        fields: { stage: null, priority: null, iteration: null },
+      },
+      creationHandoffIssue: null,
+      writers: { stage: null, body: null },
+    }
+    const capture = {
+      schemaVersion: 1,
+      kind: 'github-delivery-capture',
+      protocolVersion: 1,
+      repository: 'a/b',
+      projectId: null,
+      startedAt: '2026-10-10T00:00:00Z',
+      finishedAt: '2026-10-10T00:00:01Z',
+      collection: { issues: 'complete', project: 'complete', errors: [] },
+      issues: [],
+    }
+    mkdirSync(join(root, 'actual/child'), { recursive: true })
+    writeFileSync(join(root, 'actual/config.json'), JSON.stringify(deliveryConfig))
+    writeFileSync(join(root, 'actual/capture.json'), JSON.stringify(capture))
+    writeFileSync(join(root, 'config.json'), JSON.stringify({ ...deliveryConfig, enabled: true }))
+    writeFileSync(join(root, 'capture.json'), '{damaged')
+    symlinkSync(join(root, 'actual/child'), join(root, 'link'))
+    symlinkSync(join(root, 'actual/child'), join(caller, 'link'))
+    for (const [configPath, capturePath, cwd] of [
+      [`${root}/link/../config.json`, join(root, 'actual/capture.json'), root],
+      [join(root, 'actual/config.json'), 'link/../capture.json', caller],
+    ] as const) {
+      const result = spawnSync(
+        process.execPath,
+        ['--experimental-strip-types', cli, '--root', root, '--out', join(home, 'health'),
+          '--config', configPath, '--capture', capturePath],
+        { cwd, encoding: 'utf8', env: { ...process.env, OMNE_METRICS_HOME: home } },
+      )
+      expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout).toContain('当前来源卡与平台活动：0 张观察卡，完整性 complete，日常禁用')
+    }
   })
 
   it('认不出的参数：退出 2', () => {

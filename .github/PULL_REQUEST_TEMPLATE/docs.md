@@ -1,4 +1,4 @@
-<!-- 规则归执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”；prepare-pr 提供 docs 例子。简单文字/链接修改可以几句话，不必保留所有标题。 -->
+<!-- 规则归执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”；写作方法归 pstack:technical-writing，项目要求归 CONTRIBUTING。简单文字/链接修改可以几句话，不必保留所有标题。 -->
 
 ## 文档改变
 

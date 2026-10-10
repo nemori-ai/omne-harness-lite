@@ -470,7 +470,7 @@
 但**不等于那份清单**：清单是数据、可跨多次尝试复用，协程每次重新起。
 清单怎么算出来，归 [PF-004](../PF-004-agent-definition-and-assembly/README.md)。
 
-> **它就是 [SYS-COMPOSITION 说的「活体」](../../foundation/definition-and-runtime-composition/requirements.md#sys-compositionc1三段结构)。**
+> **它就是 [SYS-COMPOSITION 说的「活体」](../../../../docs/requirements.md#定义装配与活体sys-composition)。**
 > 那一段描述的「计算资源、占用即消耗、可回收可重建、因资源治理而生灭」，
 > **逐条说的都是协程**——[现行词义](../../ubiquitous_language/index.md)。
 

@@ -1,6 +1,8 @@
 import { lstatSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { workspacePatterns } from '../testing/members.ts'
+import { checkLayout } from './layout.ts'
+import { readDomainTemplate } from './domain-template.ts'
 
 function requireDirectory(root: string, path: string): void {
   if (!lstatSync(join(root, path), { throwIfNoEntry: false })?.isDirectory())
@@ -13,12 +15,23 @@ function children(root: string, path: string, segment: string): string[] {
   if (segment !== '*') return [`${path}/${segment}`]
   return readdirSync(join(root, path), { withFileTypes: true }).flatMap(entry => {
     const child = `${path}/${entry.name}`
+    if (path.split('/').length === 2 && entry.name === 'docs' && entry.isDirectory()) {
+      const layout = readDomainTemplate().layout
+      const result = checkLayout(root, child, {
+        ...layout,
+        files: layout.files.filter(file => file.startsWith('docs/')).map(file => file.slice(5)),
+      })
+      if (result.tree.length === 0 || result.findings.length > 0)
+        throw new Error(`${child}: product discovery rejects invalid group documentation`)
+      return []
+    }
     if (entry.isDirectory()) return [child]
     // Only group navigation files may occupy a non-directory slot. A wrong node kind
     // must not hide a group or member before the source resolver filters it out.
     if (
       entry.isFile() &&
-      ['README.md', 'README_ZH.md', 'AGENTS.md', 'CLAUDE.md'].includes(entry.name)
+      (['README.md', 'README_ZH.md', 'AGENTS.md', 'CLAUDE.md'].includes(entry.name) ||
+        (path.split('/').length === 2 && entry.name === 'documentation.json'))
     )
       return []
     throw new Error(`${child}: product discovery rejects links and unexpected non-directory nodes`)

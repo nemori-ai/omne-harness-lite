@@ -8,7 +8,7 @@
 
 ## 工作区使用
 
-这是实验性的私有 ESM 工作区包，尚未发布到 npm。先按[开发指南](../../../docs/development.md)准备环境，在消费成员中声明 `"@omne-harness-lite/governance-center-client-https": "workspace:*"`。示例导入的其他工作区包也须声明为直接依赖。通过公开导出消费，不穿透兄弟包的 `src/`。
+这是实验性的私有 ESM 工作区包，尚未发布到 npm。工作区工具链及依赖见[环境准备](../../../docs/development.md#准备可用的检出)；参与项目研发维护时另按[开发指南](../../../docs/development.md)核对相应工作要求。在消费成员中声明 `"@omne-harness-lite/governance-center-client-https": "workspace:*"`。示例导入的其他工作区包也须声明为直接依赖。通过公开导出消费，不穿透兄弟包的 `src/`。
 
 ## 公开 API
 

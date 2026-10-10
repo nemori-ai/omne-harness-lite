@@ -81,7 +81,7 @@
 | [agent runtime](../PF-012-agent-loop-and-run/design.md#agent-runtime)——照装配清单起、唯一会跑的那个 | [PF-012](../PF-012-agent-loop-and-run/design.md)（草稿） |
 | 执行环境的四种、[设施](../PF-005-execution-environments-and-sandboxes/design.md#设施)声明 | [PF-005](../PF-005-execution-environments-and-sandboxes/design.md) |
 | 租户与租户隔离 | [PF-001](../PF-001-identity-scope-and-agent-constraints/design.md) |
-| 定义 / 装配 / 活体三段结构 | [SYS-COMPOSITION](../../foundation/definition-and-runtime-composition/requirements.md) |
+| 定义 / 装配 / 活体三段结构 | [SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition) |
 
 ### 三层：能做什么 / 怎么够得着 / 现在做不做得了
 
@@ -1071,7 +1071,7 @@ agent 会当成完整的转述用下去，**而它不知道自己漏了什么**�
 | | [run / agent-loop](../PF-012-agent-loop-and-run/design.md#57-一次尝试三条路通向重新算一遍) | **一次工具执行** |
 |---|---|---|
 | 停机之后 | **重新算一遍**——状态都在日志里 | **不重来** |
-| 为什么 | 它是[纯函数的求值](../PF-012-agent-loop-and-run/design.md#agent-loop)，**重算一定得到同一个答案** | **它可能已经在外面做了事**，[而那些效果收不回来](../../foundation/README.md)。**重来就是做第二遍** |
+| 为什么 | 它是[纯函数的求值](../PF-012-agent-loop-and-run/design.md#agent-loop)，**重算一定得到同一个答案** | **它可能已经在外面做了事**，[而那些效果收不回来](../../../../docs/requirements.md)。**重来就是做第二遍** |
 | 那它算什么 | —— | **算[失败](#55-一次工具执行的收场有六种)**——[产品负责人 2026-09-17 的裁决](../PF-012-agent-loop-and-run/design.md)：「**系统都停机了，运行在系统里的后台工具执行是不是也是失败了呢**」；**写给 agent 的原因是「异常中断」**（见下） |
 
 > **落成「失败」而不是「状态不明」，是有依据的**：[它跑在这个系统里](#65-工具执行有自己的运行时绑定在-session-上)，

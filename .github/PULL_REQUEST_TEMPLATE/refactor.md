@@ -1,4 +1,4 @@
-<!-- 规则归执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”；prepare-pr 提供 refactor 例子；perf 复用此模板。删除提示/不适用块。 -->
+<!-- 规则归执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”；流程沿 docs/engineering/publication.md 的 pstack 引用展开；perf 复用此模板。删除提示/不适用块。 -->
 
 ## 结构问题与最终改变
 

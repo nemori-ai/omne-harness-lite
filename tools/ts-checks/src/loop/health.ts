@@ -1,4 +1,3 @@
-// 流程体检的八块数据：卡的前置时间、每周接受数、各 topic 剩余卡数、主线提交的大小、全量测试的墙钟、
 // 债的走向、对照表条数、各传感器最近一次有数据。全是纯函数：读文件、跑 git 在 health-cli.ts，
 // 「现在」由调用方注入。每一块要么有数据，要么写明没有数据的原因。
 import { shapeOf } from '../metrics/git.ts'
@@ -8,7 +7,7 @@ import type { CardEntry } from './cards.ts'
 import { CATEGORIES, type Category } from './catalogue.ts'
 import { BUDGET_ITEMS, INDICATORS, type BudgetItem, type LoopConfig } from './config.ts'
 import { data, noData, type Reading } from './reading.ts'
-import type { StoryCard, TopicStories } from '../product/stories.ts'
+import type { CurrentSources, SourceCard } from '../product/sources.ts'
 import type { Snapshot } from './trend.ts'
 
 const HOUR = 60 * 60 * 1000
@@ -45,7 +44,7 @@ export interface CardRow {
 
 export interface CardsBlock {
   readonly rows: readonly CardRow[]
-  /** 接受过的卡从提出到接受的小时数。 */
+  /** 旧台账 proposed 至 accepted 登记的小时数。 */
   readonly leadTime: Reading<{
     readonly count: number
     readonly medianHours: number
@@ -121,7 +120,7 @@ export function weeklyAccepted(
   weeks: number,
 ): Reading<readonly WeekCount[]> {
   const accepted = entries.filter(entry => entry.event === 'accepted').map(e => Date.parse(e.at))
-  if (accepted.length === 0) return noData('台账里还没有接受过的卡')
+  if (accepted.length === 0) return noData('旧台账里还没有 accepted 登记')
   const monday = mondayOf(now)
   const out: WeekCount[] = []
   for (let back = weeks - 1; back >= 0; back -= 1) {
@@ -140,43 +139,54 @@ export function weeklyAccepted(
 export interface TopicRemaining {
   readonly topic: string
   readonly total: number
-  readonly accepted: number
-  readonly remaining: number
-  /** 剩余的卡里「就绪」写着「否」的。 */
-  readonly notReady: number
+  readonly legacy: number
+  readonly open: number
+  readonly closed: number
+  readonly unknown: number
 }
 
 export interface RemainingBlock {
   readonly topics: readonly TopicRemaining[]
-  /** 台账里接受过、却不在任何 stories.md 里的卡。 */
-  readonly unlisted: readonly string[]
+  readonly cards: readonly SourceCard[]
+  readonly completeness: CurrentSources['completeness']
+  readonly dailyEnabled: boolean
 }
 
-export function remainingCards(
-  topics:
-    | readonly (Pick<TopicStories, 'topic'> & {
-        readonly cards: readonly Pick<StoryCard, 'id' | 'ready'>[]
-      })[]
-    | undefined,
-  entries: readonly CardEntry[],
-  productRoot: string,
-): Reading<RemainingBlock> {
-  if (topics === undefined) return noData(`产品区 ${productRoot} 不存在`)
-  if (topics.length === 0) return noData(`${productRoot} 下还没有哪个 topic 有 stories.md`)
-  const accepted = new Set(entries.filter(e => e.event === 'accepted').map(e => e.card))
-  const listed = new Set(topics.flatMap(topic => topic.cards.map(card => card.id)))
+export function remainingCards(sources: CurrentSources): Reading<RemainingBlock> {
+  const groups = new Map<string, SourceCard[]>()
+  for (const card of sources.cards) {
+    const topics =
+      card.kind === 'legacy'
+        ? [card.topic]
+        : [
+            ...new Set([
+              ...card.aliases.map(alias => `PF-${alias.id.slice(3, 6)}`),
+              ...(card.read.kind === 'known' ? card.read.scenarios.map(ref => ref.topic) : []),
+            ]),
+          ]
+    for (const topic of topics.length === 0 ? ['关联未读到'] : topics)
+      groups.set(topic, [...(groups.get(topic) ?? []), card])
+  }
   return data({
-    topics: topics.map(({ topic, cards }) => {
-      const open = cards.filter(card => !accepted.has(card.id))
-      return {
-        topic,
-        total: cards.length,
-        accepted: cards.length - open.length,
-        remaining: open.length,
-        notReady: open.filter(card => card.ready === 'not-ready').length,
-      }
-    }),
-    unlisted: [...accepted].filter(card => !listed.has(card)).sort(),
+    topics: [...groups].map(([topic, cards]) => ({
+      topic,
+      total: cards.length,
+      legacy: cards.filter(card => card.kind === 'legacy').length,
+      open: cards.filter(
+        card => card.kind === 'issue' && card.read.kind === 'known' && card.read.state === 'open',
+      ).length,
+      closed: cards.filter(
+        card => card.kind === 'issue' && card.read.kind === 'known' && card.read.state === 'closed',
+      ).length,
+      unknown: cards.filter(card => card.kind === 'issue' && card.read.kind === 'unknown').length,
+    })),
+    cards: sources.cards,
+    completeness:
+      sources.completeness === 'complete' &&
+      sources.cards.some(card => card.kind === 'issue' && card.read.kind === 'unknown')
+        ? 'partial'
+        : sources.completeness,
+    dailyEnabled: sources.dailyEnabled,
   })
 }
 

@@ -138,6 +138,20 @@
           "tools/core-verification"
         ],
         "why": "w1/w6以成员拥有的Schema及独立规范输入作外部消费，测试不会读取退役中央清单"
+      },
+      {
+        "paths": [
+          "docs/engineering/github-delivery.json",
+          "docs/engineering/source-cutovers.json",
+          ".github/ISSUE_TEMPLATE/work-item.md",
+          ".github/ISSUE_TEMPLATE/task.md",
+          ".meta_harness/design/product/PF-*/stories.md",
+          ".meta_harness/design/product/PF-*/acceptance.md"
+        ],
+        "members": [
+          "tools/ts-checks"
+        ],
+        "why": "current-source、delivery、retire、scenario-status 与 loop 读取交付配置、切换记录、正文格式和当前产品卡源；变化须运行真实消费者测试"
       }
     ],
     "memberDocuments": [

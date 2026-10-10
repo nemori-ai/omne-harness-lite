@@ -8,7 +8,7 @@ Public shapes live in [src/index.ts](src/index.ts). Behavior and integration com
 
 ## Workspace use
 
-This is an experimental, private ESM workspace package, not an npm release. Follow the [development setup](../../../docs/development.md). Declare `"@omne-harness-lite/governance-center-client-https": "workspace:*"` in the consuming member. Declare every other imported workspace package as a direct dependency too. Use public exports rather than sibling `src/` paths.
+This is an experimental, private ESM workspace package, not an npm release. Workspace toolchain and dependency setup are described in [environment setup](../../../docs/development.md#准备可用的检出). The [development guide](../../../docs/development.md) also defines the requirements for project development and maintenance. Declare `"@omne-harness-lite/governance-center-client-https": "workspace:*"` in the consuming member. Declare every other imported workspace package as a direct dependency too. Use public exports rather than sibling `src/` paths.
 
 ## Public API
 

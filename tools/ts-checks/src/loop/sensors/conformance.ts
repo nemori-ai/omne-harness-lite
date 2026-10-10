@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { fileAt, git } from '../../metrics/git.ts'
 import { analyzeConformance, readConformance } from '../../arch/conformance.ts'
 import { readArchitectureSource } from '../../arch/source.ts'
-import { CONSTRAINT_PATH } from '../../arch/constraints.ts'
+import { CONSTRAINT_PATH, CONSTRAINT_PATHS } from '../../arch/constraints.ts'
 import type { Conformance, ConstraintChange } from '../../arch/conformance-model.ts'
 import { data, noData, type Reading } from '../reading.ts'
 import { observeAssembly, type AssemblyDelta, type AssemblyObservations } from './assembly.ts'
@@ -54,7 +54,7 @@ export function readArchitectureSensors(
   const assembly = observeAssembly(observed.headActual, observed.baseActual)
   return {
     architecture:
-      observed.conformance.current.value === null
+      observed.conformance.current.value === null || observed.conformance.baseline?.value === null
         ? noData(`全局架构预期不可用：${CONSTRAINT_PATH}`)
         : data(assembly),
     assemblyDelta: assembly.delta,
@@ -70,9 +70,15 @@ export function readConformanceSensor(
 ): Reading<Conformance> {
   if (!enabled) return noData('配置里关了')
   if (
-    !existsSync(join(root, CONSTRAINT_PATH)) &&
-    (base === undefined || fileAt(root, base, CONSTRAINT_PATH) === undefined)
+    !CONSTRAINT_PATHS.some(
+      path =>
+        existsSync(join(root, path)) ||
+        (base !== undefined && fileAt(root, base, path) !== undefined),
+    )
   )
     return noData('全局架构预期未提供')
-  return data(readConformance({ root, ...(base === undefined ? {} : { base }) }))
+  const result = readConformance({ root, ...(base === undefined ? {} : { base }) })
+  return result.current.value === null || result.baseline?.value === null
+    ? noData('当前或BASE架构预期缺失，无法判断符合性')
+    : data(result)
 }

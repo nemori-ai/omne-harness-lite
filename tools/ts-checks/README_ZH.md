@@ -141,7 +141,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 它**不核对**来源 trailer 有没有写、写得对不对——哪些提交有 agent 参与，工具看不出来。
 浅克隆时只查克隆下来的那些提交；不在 git 检出里运行时通过提示会写明「未检查」。自测：`tests/commit-attribution.spec.ts`。
 
-同一入口还跑 `card-trailer`：删卡的两条 trailer（`Accepted-Card:`、`Voided-Card:`，键不分大小写）的值必须恰好是一个合乎写法的卡号
+同一入口还跑 `card-trailer`：删卡的三条 trailer（`Accepted-Card:`、`Voided-Card:`、`Migrated-Card:`，键不分大小写）的值必须恰好是一个合乎写法的卡号
 `ST-<三位>-<两位>`——一张卡一条，不许一条里写几张。trailer 按 git 自己的认法读（`%(trailers:only,unfold)`，只认信息末段的 trailer 块），
 正文里写着同样字样的行不算。它只看写法；点到的卡是不是真在那个提交里删掉，归[删卡记录](#删卡记录)。
 
@@ -198,18 +198,16 @@ make acceptance-lock BASE=<任务基线提交或分支>
 make scenario-status
 ```
 
-按 topic 列出每条带编号的验收场景处于哪一种（`src/acceptance/scenario-status.ts`），只读、只报告、退出 0（产品区不存在等工具错误退出 2）：
+工具按 topic 分别报告四类事实，正常观察退出0，输入或工具错误退出2。
 
-| 状态 | 有卡（还在某个 `stories.md` 里，经「覆盖场景」链接指到它） | 有验收（某份验收的覆盖声明里有它） |
-|---|---|---|
-| 已交付 | 否 | 是 |
-| 交付中 | 是 | 是 |
-| 已立卡 | 是 | 否 |
-| 还没切到 | 否 | 否 |
+| 事实 | 信息及限制 |
+| --- | --- |
+| 覆盖声明 | 哪些验收文件声明覆盖该场景；不证明执行、断言充分或接受 |
+| 执行 | 本工具没有运行证据时为 unknown |
+| 接受 | 有权者的完整接受未核对时为 unknown；关闭或 Accepted 阶段不替代接受 |
+| 当前活动 | 旧卡、采用的 Issue 身份、平台状态及阶段；目标未读时保留 unknown |
 
-**它是推导出来的**：每次从 `acceptance.md`、`stories.md` 与覆盖声明现算，不落盘，不是第二份权威。覆盖声明有错时只在抬头提一句并给出前三处
-（判失败的是 `lint:rules`），不合写法的项不计入。**不能声称**：「已交付」只看声明，主线的检查绿不绿这里看不到；
-跨 topic 引用的卡算在场景所在的 topic。没有编号的场景行它看不见。自测：`tests/acceptance-scenario-status.spec.ts`。
+`CAPTURE=<采集文件>` 与 `CONFIG=<配置文件>` 可传入显式来源。默认离线执行。当前来源依据归[来源契约](src/product/SPEC.md)，不会把卡消失和声明覆盖组合成“已交付”。跨 topic 的引用计入场景所属 topic。没有编号的场景行不在观察范围。自测见 `tests/acceptance-scenario-status.spec.ts`。
 
 ## 删卡记录
 
@@ -218,7 +216,7 @@ make card-retire BASE=<任务基线提交或分支>   # BASE 缺省 main
 ```
 
 规矩正文在[故事卡的格式契约「卡的一生」「卡号」](../../.meta_harness/design/product/conventions.md#卡的一生)：卡接受或作废就从 `stories.md` 删掉，
-删卡的提交带 `Accepted-Card: <卡号>` 或 `Voided-Card: <卡号>`；「已发到」只增不减。设计区的对账器只看得到眼前这一版，
+接受或作废提交分别带 `Accepted-Card: <卡号>` 或 `Voided-Card: <卡号>`；「已发到」只增不减。设计区的对账器只看得到眼前这一版，
 这两条要对一段提交看，由 `src/product/retire.ts` 来查。做法与验收锁同类：取 `BASE` 与 HEAD 的合并点，逐个看这段范围里**碰过 `<产品区>/PF-*/stories.md`
 或带删卡 trailer** 的提交，与它的父提交比：
 
@@ -237,6 +235,8 @@ make card-retire BASE=<任务基线提交或分支>   # BASE 缺省 main
 **管不到的**：以 squash 合入主线时，主线上那一条提交的说明是合并的人写的，这里看不到——规矩要求合并说明里留着这些 trailer，
 主线上查得到的才算数（`git log --format='%h %(trailers:key=Accepted-Card,valueonly)'`）。它也不判断 `Accepted-Card` 是不是在产品负责人说了接受之后才写的。
 范围之外（`BASE` 之前）的提交不看。自测：`tests/product-retire.spec.ts`（临时仓库造提交，含合并）。
+
+迁出使用 `Migrated-Card: <卡号>`，并在同一提交新增唯一对应的 [source-cutovers.json](../../docs/engineering/source-cutovers.json) 批次。历史锚点、所有父提交的批次并集、追加约束与空容器退出按[来源契约](src/product/SPEC.md)核对。旧表中的“已发到没了”只有绑定有效迁出历史时才能退出。迁出不表示接受或作废。切换文件变化也检查，缺失 Git 对象是工具错误。
 
 ## 实际架构 JSON
 
@@ -453,8 +453,10 @@ make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make che
 ### 实际装配与全局架构约束
 
 `src/arch/` 按完整版本源码抽取实际关系，回路经 `sensors.architecture` 读取。
-全局预期归 `.meta_harness/design/architecture/constraints.json`。
-集成约定归 [Cordis 集成约定](../../.meta_harness/design/architecture/cordis-integration-conventions.md)。
+全局预期归 `docs/architecture/constraints.json`。
+当前及历史版本分别发现唯一源，同版双源或坏依据拒绝。schema 2依据路径从仓库根解析，文件和Markdown锚点在相同版本校验。IC-1与IC-5沿采用责任及真实公开入口判断，目录名不构成许可。
+缺当前或BASE输入保留unknown或no-data，删除变化仍可见。只修改依据Markdown也触发收工测量。精确输入、范围和不能证明的性质见[符合性契约](src/arch/CONFORMANCE.md)。
+集成约定归 [Cordis 集成约定](../../docs/architecture/cordis-integration-conventions.md)。
 工具不反写预期，也不从目录存在性或手写绑定推断实现状态。
 
 | 配置／输出 | 含义 |
@@ -485,7 +487,7 @@ contract、owner、layer、定义形式、提供形式和表达形状独立参�
 IC-5 例外仅放行 BASE 点名的精确导出符号，namespace 通配符和新增符号仍不放行。
 例外记录共同存储与出处，不据此证明同提交；方向和环硬线保持独立。
 
-当前全局预期缺失时，architecture 是 no-data，严格模式点名失败；已有 BASE 的预期删除差分仍可见。
+当前或BASE全局预期缺失时，architecture是no-data，严格模式点名失败；已有 BASE 的预期删除差分仍可见。
 有效预期与完整实际源码都已读取时，空事实集是真实空结果，不能和 no-data 混淆。
 当前或 BASE 缺 workspace 配置时，架构通道报告具名 no-data，其他结构读数仍可运行；不借 HEAD 补 BASE。
 存在却非法的配置仍报错，不统一吞解析错误。
@@ -601,7 +603,7 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 1. `OMNE_LOOP_HOOK=off` → 什么都不做；输入解析不了、不是对象 → 不反馈。
 2. `stop_hook_active` 为 `true`（这次收工已经因钩子续跑过）→ 不反馈。**每次收工至多拦一次。**
 3. 工作目录取输入的 `cwd`，没有就用进程的当前目录；不在 git 仓库里 → 不反馈。`loop.config.json` 的 `hook.enabled` 为 `false` → 不反馈。
-4. 这次变更（相对与 `primaryBranch` 的合并点，求不出就只看未提交的；已提交、未提交、未跟踪都算）没碰产品源码、全局 `constraints.json` 或原 realization 的 `bindings.yaml` → 不反馈。
+4. 这次变更（相对与 `primaryBranch` 的合并点，求不出就只看未提交的；已提交、未提交、未跟踪都算）没碰产品源码、全局 `constraints.json` 或其引用的Markdown源 → 不反馈。
 5. 量**静态那部分**读数：变更函数里超 alert、且比基线涨了或新出现的（与 `make loop-status` 同一个判法，见上「要解释的函数与基线比」，基线是这里的合并点；
    反馈的那一行末尾补「原 N」「新出现」或拿不准的原因，原来就超线、这次没变差的不反馈）、新增的跨成员依赖、其中稳定依赖不稳定的、改动过的测试文件里没有断言的用例，加方向违规与环两条硬线（全仓的）。
    不跑重复代码（全仓二十多秒）、覆盖率、工作树与 topic 那几项。量在 worker 线程里跑，超过 `hook.timeoutSeconds`（初值 40；宿主那侧另配 60）就放弃。
@@ -632,7 +634,7 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 
 **不能声称**：反馈过的读数被处理了——它只提醒一次，交代与否由交付说明与接受的人核对；没被反馈等于没有红项——
 没碰产品源码、全局约束或原节点声明，或者钩子关了、出错或超时、`stop_hook_active` 为真时都不反馈，重复代码与覆盖率不在其中，
-**改动落在会话当前目录之外的另一棵工作树里时也不反馈**（它只量输入的 `cwd` 所在的那一棵检出；一个会话只用一棵工作树、先 `cd` 进去再干活，见 `worktree-discipline` skill）；宿主真的调用了它——
+**改动落在会话当前目录之外的另一棵工作树里时也不反馈**（hook只量payload的 `cwd` 所在检出；每个写者须显式进入自己的检出，不能只给exec设置workdir就声称宿主cwd已迁移。shell脚本可用当前目录回退，但配置选择依脚本位置；真实host cwd未经验证仍是未覆盖。协作交接见[责任与协作交接](../../docs/engineering/workflow.md#责任与协作交接)）；宿主真的调用了它——
 生成配置不等于宿主已加载、已信任，要在真实会话里另行核实（Claude Code 一端 2026-10-02 见过一次真实调用；Codex 一端还没有）；
 警告一定到了用户眼前——`systemMessage` 怎样显示由宿主定，两端都只按文档核对过，没有在真实会话里看过它显示出来的样子。
 自测：`tests/loop-hook.spec.ts`（判断，外部动作用替身）、`tests/loop-stop-hook.spec.ts`（入口与线程，用临时仓库与子进程）；
@@ -656,15 +658,15 @@ make loop-health                                                     # 体检页
 |---|---|
 | `proposed` | 卡被提出 |
 | `runnable` | 主路径第一次能照卡上的演示脚本跑 |
-| `accepted` | 负责人接受 |
+| `accepted` | 登记者记录的历史接受事件；不证明具名权限或成果接受 |
 
 `at` 是事件发生的时间：不给 `AT` 取现在，给了用它（补记）；`recordedAt` 永远是登记的那一刻；`commit` 与 `branch` 取登记时的检出。
 `AT` 写 `YYYY-MM-DD`（本机零点）或 `YYYY-MM-DDTHH:MM[:SS][Z|±HH:MM]`（不带时区按本机时区），存成 UTC。
 
 - **拒绝登记，退出 1**：同一张卡同一个事件已有一条（报出已有那条的时间）；`runnable`、`accepted` 早于这张卡的 `proposed`，或这张卡还没有 `proposed`。
 - **退出 2**：卡号不合 `ST-<三位 topic 编号>-<两位序号>`、事件不是三者之一、`AT` 不是合法的时间（含 2 月 30 日这类不存在的日子）、缺参数，以及读不了的文件或 git。
-- 卡号不在这个检出的任何 `PF-*/stories.md` 里：**只提醒，照记**——卡可能还没合入这条分支。`accepted` 不做这条核对
-  （接受了的卡会从 `stories.md` 删掉），改为提醒一句：**接受以删卡提交上的 `Accepted-Card` trailer 为准，台账只供度量**（见[删卡记录](#删卡记录)）。
+- 已迁出的旧卡别名拒绝新增任何事件，并提供 Issue 定位；未知或冲突来源不写台账。未迁出卡号不在这个检出的任何 `PF-*/stories.md` 里：**只提醒，照记**——卡可能还没合入这条分支。`accepted` 不做这条核对
+  （接受了的卡会从 `stories.md` 删掉），改为提醒一句：**台账和 `Accepted-Card` trailer 都是记录，成果接受另核具名决定与对应范围**（见[删卡记录](#删卡记录)）。
 - **要更正只能手工改文件**：入口只追加，不提供删改。读的时候坏行跳过并报出行号。
 
 **体检页** `make loop-health` 把四样东西汇成一张页面：卡片台账、趋势快照 `trend.jsonl`、测试耗时账本、git 历史。
@@ -673,9 +675,9 @@ make loop-health                                                     # 体检页
 
 | 块 | 内容 | 数据来源 |
 |---|---|---|
-| 卡 | 每张卡一行：卡号、标题、三个时间、提出→能跑与提出→接受各隔多久（不到一天写小时，否则写天，一位小数）；没走完的写「进行中」与已过去多久。上方是接受过的卡的前置时间中位数与最大值 | 台账；标题取自各 `PF-*/stories.md` |
-| 每周接受数 | 最近 `health.weeks` 周每周接受了几张；周一零点为一周之始，按本机时区 | 台账 |
-| 各 topic 剩余卡数 | 每个有 `stories.md` 的 topic：卡总数、已接受、剩余、剩余里「就绪」写「否」的；台账里接受过却不在任何 `stories.md` 里的卡单列 | `stories.md` 与台账 |
+| 旧台账登记 | 每张旧卡的三个登记时间及间隔；accepted 字段标为历史登记 | 台账；可读旧源提供标题 |
+| 每周旧台账 accepted 登记数 | 最近 `health.weeks` 周的历史登记；不作为实际接受吞吐 | 台账 |
+| 当前卡活动 | 当前旧卡及 Issue 的 open、closed 与 unknown 读数；不会扣除 accepted 登记 | 当前来源投影；完整性单列 |
 | 提交与合并的大小 | `primaryBranch` 沿第一父链最近 `health.commits` 个提交各改了几个文件（合并提交按它对第一父的改动计）：中位数、最大值、最大的三个 | `git log --first-parent -m` |
 | 测试耗时 | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线 | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`，或计划判为全量的 `make check` 测试一步），可以只跑一层（`make check` 的测试一步快、慢两层各记一份），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入 |
 | 债的走向 | 每个指标一条小折线（虚线是提醒线与处置线，蓝点是最新值）、最新值与最新带位；当前或曾经处于处置的成员，各项预算的读数走向 | `trend.jsonl`；同一提交多条取最后一条，按提交时间排 |
@@ -685,8 +687,8 @@ make loop-health                                                     # 体检页
 **任何一块没有数据，都在那一块里写明「没有数据」与原因**（台账还没有记录、没有哪个 topic 有 `stories.md`、账本里只有受影响范围的运行……），不留空白、不画空图。
 窗口与条数在 [`loop.config.json`](loop.config.json) 的 `health` 一段（`weeks` 初值 8、`commits` 50、`runs` 10）；产品区的位置沿用 `sensors.topicChurn.productRoot`。
 
-**不能声称**：前置时间只和登记一样准——忘了登记、补记时写错的时间都原样进图；「已接受」只看台账，不核对卡是否真的交付。
-卡接受后就从 `stories.md` 删掉，所以「台账里接受过却不在任何 `stories.md` 里」那一列眼下列的就是正常退场的卡，不是异常；「剩余」仍是还在队列里的卡数。
+**不能声称**：前置时间只和登记一样准——忘了登记、补记时写错的时间都原样进图；旧 accepted 数只看历史登记，不核对卡是否真的交付。
+卡接受后就从 `stories.md` 删掉，所以「台账里接受过却不在任何 `stories.md` 里」那一列眼下列的就是正常退场的卡，不是异常；当前队列仍按可读源计算，旧登记不能减少它。
 中位数在偶数个时取中间两个里较小的那个（与结构度量的提交形状同一取法）。提交大小只数文件个数，不看改了多少行。
 测试耗时受机器负载影响，几次之间的差不能直接归因于代码。债的走向把不同分支上的快照按提交时间排在一条线上，分支来回切换时折线会跳。
 自测：`tests/loop-cards.spec.ts`、`tests/loop-health.spec.ts`（入口用临时仓库）。
@@ -936,3 +938,5 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 ## 包模板与采用扫描
 
 私有 omne-package-template CLI 创建草稿并盘点精确模板采用。见[模板说明](templates/package/README_ZH.md)与[开发入口](../../docs/development.md#创建和整改产品包)。扫描复用架构读取器，结构结果不接受业务或生命周期行为。
+
+包模板当前为typescript-package@2.0.0，精确保留1.0.0旧标识规则。`create-domain --group <名称>`预览package-domain@1.0.0组文档草稿，加--write才创建。`scan --group <名称> --check`检查组结构，与--member互斥。见[组模板](templates/domain/README.md)。Python文档inventory独立检查登记、章节与占位，结构结果不能代替正文接受。

@@ -20,7 +20,7 @@
 | Topic | 状态 | rev |
 |---|---|---|
 | [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | active | 1 |
-| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 25 |
+| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 26 |
 | [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 32 |
 | [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 6 |
 | [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 20 |
@@ -36,7 +36,7 @@
 | [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 13 |
 | [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | active | 21 |
 | [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 11 |
-| [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 7 |
+| [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 8 |
 | [PF-020 工作区](PF-020-workspace/README.md) | active | 22 |
 | [PF-021 日程与日历](PF-021-schedule-and-calendar/README.md) | active | 8 |
 

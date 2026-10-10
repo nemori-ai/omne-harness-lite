@@ -1,6 +1,9 @@
 // 卡片台账：登记的收与拒、坏行、AT 的取法、stories.md 的解析，以及入口的退出码（拒绝是 1，参数错是 2）。
+import { createHash } from 'node:crypto'
+import type { Cutovers } from '../src/product/sources.ts'
+import type { DeliveryConfig } from '../src/delivery/protocol.ts'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -231,7 +234,7 @@ describe('入口', { timeout: 60_000 }, () => {
     const accepted = run(root, home, '--card', 'ST-099-01', '--event', 'accepted')
     expect(accepted.status).toBe(0)
     expect(accepted.stdout).toContain(
-      '提醒：接受以删卡提交上的 `Accepted-Card: ST-099-01` 为准（见 conventions.md「卡的一生」），台账只供度量',
+      '提醒：旧台账 accepted 登记不授予有效接受。旧卡处置仍按删卡提交上的 `Accepted-Card: ST-099-01` 为准（见 conventions.md「卡的一生」），台账只供度量',
     )
     expect(accepted.stdout).not.toContain('不在这个检出的任何 stories.md 里')
 
@@ -246,6 +249,133 @@ describe('入口', { timeout: 60_000 }, () => {
       branch: 'main',
     })
     expect((recorded as { commit: string }).commit).toMatch(/^[0-9a-f]{40}$/u)
+  })
+
+  it('迁出的旧别名拒绝新增历史登记，并定位未读Issue', () => {
+    const { root, home } = repository()
+    const product = '.meta_harness/design/product/PF-016-x'
+    const path = `${product}/stories.md`
+    const git = (...args: string[]) =>
+      execFileSync(
+        'git',
+        ['-C', root, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', ...args],
+        { encoding: 'utf8' },
+      ).trim()
+    writeFileSync(join(root, product, 'README.md'), 'revision: 1\n')
+    git('add', '-A')
+    git('commit', '-qm', 'source revision')
+    const source = {
+      commit: git('rev-parse', 'HEAD'),
+      path,
+      blob: git('rev-parse', `HEAD:${path}`),
+    }
+    const hash = (value: string) => createHash('sha256').update(value).digest('hex')
+    const identity = 'https://github.com/a/b/issues/1'
+    const cutovers: Cutovers = {
+      schemaVersion: 1,
+      kind: 'legacy-source-cutovers',
+      repository: 'a/b',
+      topics: [
+        {
+          topic: 'PF-016',
+          history: [source],
+          batches: [
+            {
+              id: 'batch1',
+              source,
+              removals: [
+                {
+                  card: 'ST-016-01',
+                  cardSha256: hash(readFileSync(join(root, path), 'utf8')),
+                  target: {
+                    repository: 'a/b',
+                    nodeId: 'I_1',
+                    url: identity,
+                    revision: 1,
+                    bodySha256: hash('first body'),
+                  },
+                  readback: {
+                    source: 'controlled readback',
+                    captureSha256: hash('capture'),
+                    issueUpdatedAt: '2026-10-10T00:00:00Z',
+                    alias: 'ST-016-01@1',
+                  },
+                },
+              ],
+              adoption: { source: 'controlled adoption', decider: 'Test', scope: ['ST-016-01'] },
+              consumers: ['loop-card'],
+            },
+          ],
+        },
+      ],
+    }
+    const config: DeliveryConfig = {
+      schemaVersion: 1,
+      kind: 'github-delivery-config',
+      protocolVersion: 1,
+      enabled: false,
+      repository: 'a/b',
+      mode: 'manual-single-dispatcher',
+      project: {
+        owner: 'a',
+        number: null,
+        id: null,
+        url: null,
+        fields: { stage: null, priority: null, iteration: null },
+      },
+      creationHandoffIssue: null,
+      writers: { stage: null, body: null },
+    }
+    mkdirSync(join(root, 'docs/engineering'), { recursive: true })
+    writeFileSync(join(root, 'docs/engineering/source-cutovers.json'), JSON.stringify(cutovers))
+    mkdirSync(join(root, 'actual/child'), { recursive: true })
+    writeFileSync(join(root, 'actual/config.json'), JSON.stringify(config))
+    writeFileSync(join(root, 'custom-config.json'), JSON.stringify({ ...config, repository: 'wrong/repository' }))
+    writeFileSync(join(root, 'actual/capture.json'), JSON.stringify({
+      schemaVersion: 1,
+      kind: 'github-delivery-capture',
+      protocolVersion: 1,
+      repository: 'a/b',
+      projectId: null,
+      startedAt: '2026-10-10T00:00:00Z',
+      finishedAt: '2026-10-10T00:00:01Z',
+      collection: { issues: 'partial', project: 'complete', errors: [] },
+      issues: [],
+    }))
+    writeFileSync(join(root, 'capture.json'), '{damaged')
+    symlinkSync(join(root, 'actual/child'), join(root, 'link'))
+    const caller = temp('loop-cards-caller-')
+    symlinkSync(join(root, 'actual/child'), join(caller, 'link'))
+    rmSync(join(root, path))
+    for (const event of ['proposed', 'runnable', 'accepted']) {
+      const result = run(
+        root,
+        home,
+        '--config',
+        `${root}/link/../config.json`,
+        '--capture',
+        join(root, 'actual/capture.json'),
+        '--card',
+        'ST-016-01',
+        '--event',
+        event,
+      )
+      expect(result.stderr).toBe('')
+      expect(result.status).toBe(1)
+      expect(result.stdout).toContain(identity)
+      expect(result.stdout).toContain('当前来源不是旧卡')
+    }
+    const relativeCapture = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', cli, '--root', root,
+        '--config', join(root, 'actual/config.json'), '--capture', 'link/../capture.json',
+        '--card', 'ST-016-01', '--event', 'proposed'],
+      { cwd: caller, encoding: 'utf8', env: { ...process.env, OMNE_METRICS_HOME: home } },
+    )
+    expect(relativeCapture.status, relativeCapture.stderr).toBe(1)
+    expect(relativeCapture.stdout).toContain(identity)
+    expect(relativeCapture.stdout).toContain('当前来源不是旧卡')
+    expect(readCards(join(home, 'cards.jsonl')).entries).toEqual([])
   })
 
   it('参数错退出 2，不写台账：卡号格式错、事件不认得、AT 不合法、缺参数', () => {

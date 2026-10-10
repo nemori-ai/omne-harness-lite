@@ -10,14 +10,18 @@ import { readTemplate, TEMPLATE_DIRECTORY } from '../src/package-template/templa
 import type { ActualExtraction } from '../src/arch/actual-model.ts'
 import type { Conformance } from '../src/arch/conformance-model.ts'
 
-const fault = vi.hoisted(() => ({ write: false }))
+const fault = vi.hoisted(() => ({ write: false, descriptor: -1 }))
 vi.mock('node:fs', async importOriginal => {
   const real = await importOriginal<typeof import('node:fs')>()
   return {
     ...real,
+    openSync: (...args: Parameters<typeof real.openSync>) => {
+      const descriptor = real.openSync(...args)
+      if (String(args[0]).endsWith('README_ZH.md')) fault.descriptor = descriptor
+      return descriptor
+    },
     writeFileSync: (...args: Parameters<typeof real.writeFileSync>) => {
-      if (fault.write && String(args[0]).endsWith('README_ZH.md'))
-        throw new Error('injected write failure')
+      if (fault.write && args[0] === fault.descriptor) throw new Error('injected write failure')
       return real.writeFileSync(...args)
     },
   }
@@ -25,6 +29,7 @@ vi.mock('node:fs', async importOriginal => {
 const roots: string[] = []
 afterEach(() => {
   fault.write = false
+  fault.descriptor = -1
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
 function repository(): string {
@@ -61,10 +66,12 @@ const emptyConformance: Conformance = {
       unversionedInputs: [],
     },
     value: null,
+    sources: [],
   },
   comparedWith: 'current',
   rows: [],
   changes: [],
+  sourceChanges: [],
   changeState: 'no-baseline',
   coverage: [],
   limitations: [],
@@ -82,7 +89,7 @@ function adopted(root: string): string {
   fs.writeFileSync(join(root, member, 'tests/value.spec.ts'), 'export {}\n')
   changeManifest(root, member, value => {
     value['omneHarness'] = {
-      packageTemplate: { id: 'typescript-package', version: '1.0.0', variant: 'module' },
+      packageTemplate: { id: 'typescript-package', version: '2.0.0', variant: 'module' },
     }
   })
   return member
@@ -231,7 +238,7 @@ describe('template adoption and observation', () => {
     null,
     { id: 'typescript-package', version: 'latest', variant: 'module' },
     { id: 'typescript-package', version: '1.0.0', variant: 'bogus' },
-    { id: 'typescript-package', version: '1.0.0', variant: 'module', pass: true },
+    { id: 'typescript-package', version: '2.0.0', variant: 'module', pass: true },
   ])('rejects malformed marker %j', marker => {
     expect(parseMarker(marker)).toBeUndefined()
     const root = repository(),
@@ -536,7 +543,7 @@ describe('template adoption and observation', () => {
     const result = inspectPackage(root, member, readTemplate(), evidence)
     expect(result.structure).toBe('pass')
     expect(result.excludedDirectories).toEqual(['dist'])
-    expect(result.tree.filter(node => node.kind === 'file')).toHaveLength(files.length + 8)
+    expect(result.tree.filter(node => node.kind === 'file')).toHaveLength(files.length + 9)
     fs.rmSync(join(root, member, 'verification/README.md'))
     expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
   })
@@ -586,5 +593,51 @@ describe('template adoption and observation', () => {
       },
     }
     expect(inspectPackage(root, member, historical, evidence).structure).toBe('fail')
+  })
+})
+
+describe('documentation template version boundary', () => {
+  it('keeps version 1.0.0 obligations exact and reports older without adding registration', () => {
+    const root = repository(),
+      member = adopted(root),
+      template = readTemplate()
+    fs.rmSync(join(root, member, 'documentation.json'))
+    changeManifest(root, member, value => {
+      value['omneHarness'] = {
+        packageTemplate: { id: 'typescript-package', version: '1.0.0', variant: 'module' },
+      }
+    })
+    const before = fs.readFileSync(join(root, member, 'package.json'))
+    const result = inspectPackage(root, member, template, evidence)
+    expect(result).toMatchObject({ adoption: 'older', structure: 'pass' })
+    expect(scanExitCode([result], true)).toBe(1)
+    expect(
+      inspectPackage(root, member, { ...template, previousVersions: {} }, evidence).structure,
+    ).toBe('uncovered')
+    expect(() => createPackage({ root, group: 'util', name: 'sample', variant: 'module' })).toThrow(
+      'already exists',
+    )
+    expect(fs.readFileSync(join(root, member, 'package.json'))).toEqual(before)
+    expect(template.previousVersions['1.0.0']?.ruleSet).toBe(2)
+    expect(template.previousVersions['1.0.0']?.requiredFiles).not.toContain('documentation.json')
+    expect(template.previousVersions['1.0.0']?.layout.files).not.toContain('docs/**/*.md')
+  })
+  it('requires new registration and permits only declared documentation formats', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.mkdirSync(join(root, member, 'docs'))
+    fs.writeFileSync(join(root, member, 'docs/usage.md'), '# Usage\n\nUse the public value.\n')
+    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('pass')
+    fs.writeFileSync(join(root, member, 'docs/run.sh'), 'exit 0')
+    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
+    fs.rmSync(join(root, member, 'docs/run.sh'))
+    fs.writeFileSync(join(root, member, 'docs/usage.md'), '# Usage\n\nPACKAGE_TEMPLATE_DRAFT\n')
+    expect(inspectPackage(root, member, readTemplate(), evidence).findings).toContainEqual(
+      expect.objectContaining({ code: 'draft', path: `${member}/docs/usage.md` }),
+    )
+    fs.rmSync(join(root, member, 'documentation.json'))
+    expect(inspectPackage(root, member, readTemplate(), evidence).findings).toContainEqual(
+      expect.objectContaining({ path: `${member}/documentation.json` }),
+    )
   })
 })

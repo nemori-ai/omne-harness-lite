@@ -120,3 +120,7 @@ backup、worker、已发 read 必须真结束。close 抛且 isOpen=true 时保�
 ## 验证与范围
 
 具名方法和限制见 [verification](verification/README.md)。当前治理宿主交付 SQLite；PG 独立协议保留，PG 整体恢复、写锁等待上限、专用会话锁断连／事务池代理边界未闭合。普通进程重启和有限探针不证明物理断电、全部平台、任意公平调度或接近容量上界性能。维护保护不覆盖整机／磁盘损毁灾难恢复。
+
+## 绑定入口与生命周期坐标
+
+`@omne-harness-lite/storage-sql/cordis`导出`storageSqlPlugin`和`managedStorageSqlPlugin`，限定name分别为`storage-sql`和`storage-sql-managed`。两者使用同一纯实现和配置Schema；管理版声明`assemblyLifecycle: 1`并必需注入`assemblyLifetime`，先登记后开始资源效果，缺端口不回退独立模式。独立版由调用方先排空消费者再撤依赖，管理版由[装配生命周期](../../core/assembly-lifecycle/SPEC.md)安排真实逆序收场。

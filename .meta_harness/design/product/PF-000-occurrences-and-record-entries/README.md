@@ -36,10 +36,7 @@ PF-006 的工具执行、PF-008 的请示、PF-012 的每一步，**都要回答
 | [PF-009](../PF-009-context-message-types/README.md) | [内容块](../PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)与[块标注](../PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗) | **「给谁看」已经有主。**本 topic 定的是「留不留」，两件事必须分开 |
 | [PF-012](../PF-012-agent-loop-and-run/README.md) | [状态转移方程](../PF-012-agent-loop-and-run/design.md#agent-loop)与[记录先于可见](../PF-012-agent-loop-and-run/design.md#61-日志先于可见) | **「依据」这一档的定义就是「方程要读它」**，离开方程说不清 |
 
-> **⚠️ PF-012 目前是 draft。**本 topic 引用的是它已经稳定的那两条
-> （[§5.2 记录是唯一的真相来源](../PF-012-agent-loop-and-run/design.md#52-会话日志是唯一的真相来源)、
-> [§6.1 记录先于可见](../PF-012-agent-loop-and-run/design.md#61-日志先于可见)）。
-> **PF-012 转正时，这两处引用要复核。**
+PF-012 的当前修订与限定采用范围见其[状态说明](../PF-012-agent-loop-and-run/README.md#状态)。本 topic 的依赖与复核责任见[依赖范围](design.md#pf-012-的依赖范围)。
 
 ## 它定什么，不定什么
 
@@ -49,7 +46,7 @@ PF-006 的工具执行、PF-008 的请示、PF-012 的每一步，**都要回答
 | 一条记录条目上**必须声明什么** | **存在哪里、存几份、留多久、用什么技术** |
 | 哪些组合**不合法** | **给谁看**——归 [PF-009](../PF-009-context-message-types/README.md) |
 
-**最后一格是红线。**[SYS-OBSERVABILITY](../../foundation/observability-and-logging/requirements.md)
+**最后一格是红线。**[SYS-OBSERVABILITY](../../../../docs/requirements.md#全链路可观测可遥测与日志完备sys-observability)
 明写「**不预选 OpenTelemetry、日志后端、统一 EventLog 或特定部署拓扑**」——
 本 topic 说的是一条条目的**性质**，不是它**装在哪**。
 

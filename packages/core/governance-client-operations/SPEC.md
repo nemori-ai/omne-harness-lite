@@ -16,8 +16,7 @@ close 同步停止新 use/action，取消仍在等待输入的 prompt，等待�
 借入依赖只可在实际静止后释放。关闭拒绝本身不是静止许可。
 
 ClientCloseObservation 是装配运行观察资源，在分配实例前接管一次原关闭尝试。
-它没有关闭权，也不把拒绝变成静止。管理绑定、表示门与启动前缀的跨模块责任沿
-[CLI生命周期采用](../../../.meta_harness/design/architecture/identity-integration/cli-lifecycle.md)。
+它没有关闭权，也不把拒绝变成静止。管理绑定见[管理关闭的观察资源](#管理关闭的观察资源)，表示门与启动前缀归[CLI](../../../apps/cli/SPEC.md#启动前缀与表示释放门)。
 验证覆盖原全部动作、真实SQLite/TLS/CLI、取消晚完成、忙碌、故障、机密输出及替代依赖。
 
 ## 公共操作行为
@@ -249,3 +248,11 @@ Preview含安全意图投影、原origin、端点及来源。除configure的信�
 以上仅扩充“Input还在受控取得”的正常路径：remote.not-attempted可保留成功的health/OG36准备观察，分别在health/identity阶段，sendAttempted仍只指目标。它不表示没有任何前置网络。本地输入取消为invalid-input，S15既有优先级不变：defect70、本地不确定5、不可得/unknown3、重进/拒绝4、其余本地阻断2；不会把准备成功当目标成功或自动返回0。原完整Input路径没有这些交互中止情况，其封闭映射不变。
 
 应用必须在继续前用本Preview呈现身份及影响说明，不能另读一个版本替换预览。此保证指动作身份一致，不保证人已经读懂、也不产生新的治理授权或“确认即有权限”。TTY模式与秘密尾块收场仍由CQ/终端拥有者兑现，不能由这个安全Preview替代。
+
+## 管理关闭的观察资源
+
+ClientCloseObservation只接管一次原关闭尝试，没有关闭权。重复observe为使用错误，缺资源的管理绑定不能退回独立模式。管理setup第一步同步交付稳定deferred Promise并接管拒绝，然后才创建纯CG并公开Service；observer失败不得继续分配实例。
+
+公共Service.close与登记OwnedWork.close触发同一次attempt，先同步保存已开始状态，再调用原纯实例close。公共调用观察原拒绝，登记close则仅在成功后完成；失败时保持pending和原借入依赖，不超时放行、重试或移交新代际。合法未分配前缀可正常完成，Service尚不可见不能证明未分配。
+
+应用的停止屏障、receipt与observe竞速、输入和终端表示门由[CLI契约](../../../apps/cli/SPEC.md#启动前缀与表示释放门)拥有。该机制不新增业务工作台账或通用OwnedWork失败例外。

@@ -6,7 +6,7 @@
 
 本包拥有模型请求的公共服务协议、共享端口和后端无关计算。公开根不加载 Cordis；正式服务、服务键和类型化集成由 `./cordis` 拥有。公开形状以源码为准，本规格只补充身份、授权、次序、生命周期、错误、重复调用和副作用的行为承诺。
 
-`ModelRuntimeOperations` 的十五个操作是同一能力的公共协议。公开算法可独立取用；独立 `invokeModel` 和具体 runtime 是协议的消费者。公共协议不要求完整 Agent Loop，也不把提供者工厂、私有队列、存储后端或具体实现策略搬成本包的业务定义。
+`ModelRuntimeOperations`的十五个操作是现有Session关联公共协议，其CallKey与日志绑定不推广为所有模型调用的前提。公开算法可独立取用；`invokeModel`提供单次发出构件，但不据此声称无Session的持久结果、消费与ACK协议已完整承接。[独立调用目标](../../../docs/architecture/runtime/model-runtime.md#独立调用)不要求隐式Session，该覆盖缺项归[验证与承接范围](verification/README.md#独立调用的协议覆盖缺项)。公共协议不要求完整Agent Loop，也不把提供者工厂、私有队列、存储后端或具体实现策略搬成本包的业务定义。
 
 纯计算只消费显式输入，不读环境凭据、当前 Context 或持久服务，不发送、不调度、不结算。`readSettlementPrefix` 通过显式端口读取日志并登记真实任务，具有读取副作用；它不因位于公开根而变为无 IO 计算。
 
@@ -179,7 +179,7 @@ Duration 与 JsonNumber 使用公开精确值语义，不能先转成毫秒浮�
 | settleReply、acknowledgeCall                           | 响应处分/整批结算、ACK/释放及 retainedResult 的条件 |
 
 [验证资源](verification/README.md)维护性质、模型规模/公平性、正负控与实际组合义务；运行结果留任务 tmp。现行公共定义不再由冻结 RT12 充当第二权威。
-[精确保留范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)仍约束未迁的具体提供者投影、跨拥有者兑现及综合模型，不因公共接口移动而关闭。
+[跨拥有者兑现范围](#跨拥有者兑现与验证范围)保留具体提供者、真实来源及综合模型责任，不因公共接口移动而关闭。
 
 ## 物理拥有者的执行来源
 
@@ -257,3 +257,13 @@ PlanExecutionContext.imageBytes 是可选的请求内执行依赖。调用者先
 适配器仅在 wire 投影中消费固定字节。PlannedSemantics.input 保留原经验证的 PlanInput，不能将展开后的消息作为新的原语义输入。不得伪造品牌计划绕过原输入相等检查。缺失、重复或取消的快照明确拒绝，不能以未知 locator 冒充已发送图片。未提供快照不承诺支持外部引用，原 inline 图片路径不变。
 
 调用者拥有读取任务，必须等实际 IO 停止，不能只撤除等待。原附件的持久保有、原调用的访问句柄和逐使用点当前资格仍分别由各拥有者负责。快照只属于本次计划，不替代日志原件或模型内容保有证明。
+
+## 跨拥有者兑现与验证范围
+
+公共十五操作及独立算法由本页与公开类型唯一维护。具体工厂、池、真正停止、恢复登记、传输、codec与诊断投影归[local提供者](../../model/model-request-runtime-local/SPEC.md)及其ADR；公共接口不代替实际来源兑现。
+
+RT12 S-36、S-39、S-53、S-61、S-64的关闭与依赖保有继续由真实提供者承担。S-66、G-9、G-28及S-69、S-87、S-90的当前输入、生产授权、Run终结、presence和唯一恢复由原输入、执行与协调拥有者共同兑现。S-38、S-51至S-59、S-62、S-63、S-74、S-77至S-83的传输、计量、codec、观察和诊断分别从其真实提供者验证，不因正式类存在自动完成。
+
+S-68至S-73、S-81、S-85、S-86、S-88、S-96至S-103的原完整批、未知写、原writer、ACK保管和清理仍为跨拥有者义务。[综合验证](verification/README.md#综合模型的保留与实际验证)及[ACK模型](verification/models/ACK.md)保持正负控、有限前提和真实组合范围，Session Log的事实与SQL由实际拥有者维护。
+
+[Session地基](../session-runtime/SPEC.md)只有F0限定接口和事实协调，完整Session提供者仍为[候选](../../../.meta_harness/design/architecture/session-agent-runtime-phase1/README.md)。调用方主体、双Session、Run终结、恢复及无Agent进展须真实装配兑现，不以类转发、模型或导航迁移声明完成。

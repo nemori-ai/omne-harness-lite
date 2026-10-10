@@ -4,18 +4,20 @@
 
 `omne-harness-lite` 以 DeepSeek 提出的 Cordis 为内核，延续 `omne-next/omne_harness`
 的核心设计理念与最佳实践，面向更轻量、更高性能的 OMNE harness 演进。它的目标是让智能体
-持续感知环境、协作完成工作、积累知识，并在运行中发展自身能力，始终与所服务的组织或个人
-保持利益对齐。
+持续感知环境、协作完成工作、积累知识，并在运行中发展自身能力，在不违背组织公共利益的前提下最大程度与个人租户保持利益对齐。
 
-> 产品设计、规格与实验实现并行推进。承诺归属从[架构维护入口](.meta_harness/design/architecture/README.md)查找；
-> 公开定义、模块行为和验证责任从[架构维护入口](.meta_harness/design/architecture/README.md)定位实际拥有者。
+> 当前处于0.0.0至0.1.0研发阶段。项目要求、架构目标与实际成员承诺从[系统架构入口](docs/architecture/README.md)定位；接受、实现与验证分别判断。
 > 治理中心的启动与配置见 [tenancy-host](apps/tenancy-host/README.md)；
 > 可运行不等于已经满足生产准入。第一版完整交付为单机系统。
 
-[系统目标与全局约束](.meta_harness/design/foundation/README.md) ·
+[系统目标与全局约束](docs/requirements.md) ·
 [产品设计](.meta_harness/design/product/README.md) ·
 [开发指南](docs/development.md) ·
 [参与贡献](CONTRIBUTING.md)
+
+按角色开始阅读：[文档入口](docs/README.md)。按任务加载上下文：[任务地图](docs/context-map.md)。
+[工程](docs/engineering/README.md)、[技术架构](docs/architecture/README.md)和[领域](docs/domains/README.md)
+已按各自范围形成正文，状态和未决以对应入口为准。结构缺项通过 `make docs-inventory` 查看。
 
 ## 系统目标
 
@@ -23,21 +25,18 @@
 调整能力。项目围绕以下目标展开：
 
 - **完全动态。** 能力的定义、实现、绑定和组合关系能够在运行期演化，结构变化具有明确的
-  依赖、作用域、所有权和生命周期约束。见[完全动态系统](.meta_harness/design/foundation/fully-dynamic-system/requirements.md)。
+  依赖、作用域、所有权和生命周期约束。见[完全动态系统](docs/requirements.md#完全动态目标sys-dynamic)。
 - **超长期待机、稳定运行、持续进化。** 智能体能够长期服务，并根据工作需要发展能力；
   等待用户或未来时刻的工作可以持久保留，释放对应执行资源。
-  见[长期运行目标](.meta_harness/design/foundation/long-running-and-evolving/requirements.md)。
+  见[长期运行目标](docs/requirements.md#长期运行与持续进化sys-long-running)。
 - **状态持久，工作可接续。** Agent 运行时与持久状态解耦，在同构资源下恢复并接续工作；
   针对不同物理环境与操作系统采用合适的装配策略或部署版本。
-  见[恢复与异构适配](.meta_harness/design/foundation/runtime-state-and-continuity/requirements.md)。
-- **与服务对象保持利益对齐。** 以所服务的组织或个人的利益为持续目标；对齐的判断方式、
-  维持机制及多方利益冲突规则仍待进一步明确。
-  见[利益对齐](.meta_harness/design/foundation/interest-alignment/requirements.md)。
+  见[恢复与异构适配](docs/requirements.md#运行时解耦与接续sys-runtime-continuity)。
+- **与服务对象保持利益对齐。** 在不违背组织公共利益的前提下最大程度与个人租户保持利益对齐。原生提供对用户的感知与观测能力，支持这些能力持续自主演进。
+  见[利益对齐](docs/requirements.md#服务对象与利益对齐sys-alignment)。
 - **全链路可观测。** 工作从触发、授权、执行到恢复和交付均应有可关联的状态与日志依据，
   失败、部分完成和未知结果如实可见。
-  见[可观测性要求](.meta_harness/design/foundation/observability-and-logging/requirements.md)。
-
-功能上[继承并进一步发展 omne-next 现有或已承诺的机制与功能](.meta_harness/design/foundation/omne-next-continuity/requirements.md)。
+  见[可观测性要求](docs/requirements.md#全链路可观测可遥测与日志完备sys-observability)。
 
 ## 产品设计
 
@@ -56,16 +55,14 @@ Agent 定义与装配、执行环境与沙箱、工具与技能、Meta Capabilit
 
 ## 技术基础
 
-从 DeepSeek Harness 仅复用 Cordis，不复用 DSH `agent` 原语；Agent Runtime（Agent Loop）
-完全由本项目自主设计，Harness 层、工具协议、治理及其他子系统由本项目定义和实现。
+系统使用 Cordis 提供装配、组合、依赖注入与生命周期管理能力。
 
 - **动态组合。** 可替换能力以具有生命周期、作用域和所有权的插件或服务组合；
   定义、运行实例、持久状态与物理部署分别建模。
-- **就近维护精确承诺。** 公开 TypeScript 类型与必要运行时校验表达形状，薄规格表达剩余行为。
-  重要性质保留相称的模型与测试，归属见[架构维护入口](.meta_harness/design/architecture/README.md)。
+- **就近维护精确承诺。** 公开 TypeScript 类型与必要运行时校验表达形状，成员行为契约表达类型不能完整表达的必要规则。
+  重要性质保留相称的模型与测试，归属见[架构维护入口](docs/architecture/README.md)。
 - **从第一天起落实租户隔离。** 自然人全局身份与租户成员关系分别表达；受租户所有权
   约束的对象和跨边界操作显式携带租户身份，跨租户访问默认拒绝。
-- **统一模型请求入口。** 所有模型请求经 OpenRouter 发送。
 
 在线演化须遵守已有工作的生命周期、当前权限和状态契约。恢复执行、切回旧版本、
 补偿外部效果各有明确含义；动态能力的具体保证由相应规格与验证证据落实。
@@ -76,8 +73,8 @@ Agent 定义与装配、执行环境与沙箱、工具与技能、Meta Capabilit
 
 | 位置 | 内容 |
 |---|---|
-| [.meta_harness/](.meta_harness/README.md) | **设计工作区**：需求、产品设计、统一语言、规格、研究、已发生的事、agent 能力 |
-| [docs/](docs/README.md) | 项目开发文档：环境、源码布局、检查含义、防御指导 |
+| [.meta_harness/](.meta_harness/README.md) | 产品设计、统一语言、领域对象、持续研究及独有agent能力；保留源按其入口定位 |
+| [docs/](docs/README.md) | 十类读者导航、工程与技术架构落点、领域关系、使用和开发指南 |
 | [packages/](packages/README.md)、[apps/](apps/README.md) | 产品包与应用装配；采用范围与验证状态见实现映射 |
 | [tools/spec-tools/](tools/spec-tools/README.md)、[scripts/](scripts/README.md) | 开发检查器与仓库自动化 |
 

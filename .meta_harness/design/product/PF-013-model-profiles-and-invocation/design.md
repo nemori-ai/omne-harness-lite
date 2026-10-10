@@ -60,7 +60,7 @@
 | **请求体的内容怎么攒出来、装不下时怎么压** | 归 [PF-010](../PF-010-context-management-and-assembly/README.md)。**换模型之后的生效走的就是这条既有流程** |
 | **流式怎么回来、怎么拼成完整一份、断在半路记录里留什么** | 归 [PF-009](../PF-009-context-message-types/design.md#56-流断在半路)。本 topic 只定**断了之后这一层还做不做**得了什么 |
 | **分层处置模型本身**：阶梯、上交的形状、终局、「本层了结得了吗」的总判据 | 归 [PF-011](../PF-011-off-nominal-handling/README.md)。**本 topic 是它的一个填格人，不是第二份权威** |
-| **模型请求从哪条路出去** | 归 [SYS-LLM](../../foundation/cross-system-constraints/requirements.md#sys-llm)：统一经 OpenRouter。**它自陈不决定调用细节**，本 topic 引用它，不重述也不扩张 |
+| **模型请求从哪条路出去** | [SYS-LLM](../../../../docs/requirements.md#模型接入sys-llm)不限定统一请求通道；具体通道由模型接入契约及提供者维护，本 topic 不将当前通道扩张为系统要求 |
 | **重试几次、按什么次序换、退避多久、超时几秒** | **策略，不是产品设计**（[PF-011 已定](../PF-011-off-nominal-handling/design.md#八边界与依赖)）。试几次、换哪家、退避多久归[一件挂在已有位置上的可替换拓展件](#512-重试站在一个已经存在的位置上)；超时算多久是[运行时的设置项](#617-本-topic-不出现任何时限数值)；**本 topic 定重试挂件看得到什么、能做什么，不定它怎么决定，也不出现任何时限数值** |
 | **会话怎么建、怎么收束、日志的家** | 归 [PF-015](../PF-015-session-lifecycle-and-ownership/README.md)。本 topic 只定会话上的两项事实：**选中模型**与**[模态投影](#模态投影)** |
 | **模型产出的工具调用参数解析不了怎么办** | 那是**拿到回复之后**的事，归 [PF-009](../PF-009-context-message-types/design.md#610-没收齐的工具调用参数不解析不执行) 与 [PF-006](../PF-006-tools-and-skills/README.md)。本 topic 到「拿回完整的一份」为止 |
@@ -722,8 +722,7 @@ agent 就是模型，模型没给出回复，**那个会思考的主体此刻不
   组织层建的档案，成员调它，用的是成员自己那一把。
 - **官方档案自身也不含凭据**；**出厂默认那一格可以有一把**——由部署装配时配好，**产品里没有任何操作能配、换或解绑它**；
   它和官方档案一样随部署而来，不是哪个组织或租户的东西。
-- **[所有模型请求统一经 OpenRouter 出去](../../foundation/cross-system-constraints/requirements.md#sys-llm)**，
-  所以「一把凭据」说的就是一把 OpenRouter 凭据，**不是每家供应商各一把**。
+- 本节当前描述的是一把 OpenRouter 凭据。[SYS-LLM](../../../../docs/requirements.md#模型接入sys-llm)不限定系统请求通道，不能由本节推导出全系统只允许这一类凭据。其他接入方式的凭据设计仍由相应契约拥有者细化。
 - **租户可以自带凭据。**租户配上自己的那一把，他的模型调用就从它出去，
   **用量也跟着记在他头上**——**这是产品要支持的用法，不是绕开产品的走法**。
 
@@ -1526,7 +1525,7 @@ ACK 和清理都不得修改成功、失败、中断、已发送或未发送的�
 
 | 留给谁 | 什么 |
 |---|---|
-| [SYS-LLM](../../foundation/cross-system-constraints/requirements.md#sys-llm) | **模型请求从哪条路出去**。本 topic 引用它，**不重述也不扩张** |
+| [SYS-LLM](../../../../docs/requirements.md#模型接入sys-llm) | **模型请求从哪条路出去**。本 topic 引用它，**不重述也不扩张** |
 | **[挂在「调模型之后 · 失败」的拓展件](#512-重试站在一个已经存在的位置上)** | **试几次、按什么次序换、退避多久**。**本 topic 只定它看得到什么、能做出什么决定，不定它怎么决定** |
 | [PF-002](../PF-002-assets-settings-and-permissions/README.md) | **那件拓展件的配置存在哪**——[它是第八类资产](../PF-002-assets-settings-and-permissions/design.md#loop-extension)，走资产已有的那一套；**两个超时是 Agent 定义上的运行时设置项**（[§6.17](#617-本-topic-不出现任何时限数值)），同样走那一套。**不是本 topic 的缺口** |
 | [PF-009](../PF-009-context-message-types/README.md) / [PF-006](../PF-006-tools-and-skills/README.md) | **模型产出的工具调用参数解析不了怎么办**——那是拿到回复**之后**的事 |

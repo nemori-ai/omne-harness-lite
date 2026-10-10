@@ -7,7 +7,7 @@
 ## 保持的运行责任
 
 十五操作的形状归公共 `ModelRuntimeOperations`；类型之外的共享行为归公共 SPEC。
-尚未迁移的具体生命周期投影与跨拥有者组合义务继续按精确旧源，见[迁移范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)。
+具体生命周期与跨拥有者组合义务由本页、服务寿命ADR及[公共兑现范围](../../core/model-request-runtime/SPEC.md#跨拥有者兑现与验证范围)分别持有，不再从不可达的旧realization或冻结目录读取。
 接口迁移不得把当前 local 实现限制写成通用模型能力政策。
 
 运行时负责提交后的观测、取消、退出和恢复。在途工作未实际停止前不得释放其责任。

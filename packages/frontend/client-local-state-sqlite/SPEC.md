@@ -3,9 +3,7 @@
 本包实现公共 client-local-state。纯根导出 openClientLocalState 及本提供者打开类型/错误。
 工厂显式接受 storage 依赖；`./cordis` 提供绑定，根源码/声明/运行闭包不加载内核。
 
-本批迁入公共形状和集成承诺。精确业务源、采用依据和仍有效的模型义务见
-[身份迁移保持清单](../../../.meta_harness/design/architecture/identity-integration/preservation.md)。
-本页不替代尚未迁移的完整操作条款；N5/N6 接续剩余旧源及资源登记。
+共享业务与公开形状归[公共承诺](../../core/client-local-state/SPEC.md)，本页拥有具体提供者的资源、绑定和实际关闭责任。持续验证资源由实际接口及应用拥有者维护，不从包存在推断全部组合通过。
 
 目录/文件私有检查、exclusive creation、原SQLite表与字段、full耐久、5秒受限打开等待
 及错误分类保持。仅创建文件的一方初始化其身份，不因读到损坏自动重建。
@@ -19,4 +17,8 @@
 
 `store.ts` 拥有原布局解码、实例 token、CAS 优先级与准入/收场规则。一次读取的 catalog 与 rows 来自同一快照。replace 暂存完整原行，installed 仍须等待真实提交与原目录同步。提交确认或同步失败保持 unconfirmed。打开失败由 open 清理未交付资源；交付后只有本实例 close 调用拥有的 storage.close。
 
-close 同步停止准入并等待完整 jobs，包括目录同步。其原 try storage.close / finally directory.close 双失败仍由 finally 传播目录失败，不新增 AggregateError。打开及清理双失败继续原 AggregateError 次序。
+close同步停止准入并等待完整jobs，包括目录同步。存储与目录关闭分别记录结果，两者同时失败时仍须保留两项失败，不能让后执行的清理覆盖前一项失败。当前实现的双失败覆盖见[现状偏离](README_ZH.md#关闭失败的现状偏离)，不是应保持的规范。打开及清理双失败继续保留AggregateError次序。
+
+## 独立和管理绑定
+
+/cordis的clientLocalStatePlugin和managedClientLocalStatePlugin分别使用client-local-state-sqlite及client-local-state-sqlite-managed限定name。两者共用原严格directory配置和纯工厂，必需clientStateStorage；管理版另需assemblyLifetime并先同步登记。缺端口不回退独立模式。交出的数据库由本实例独占close，工厂桥不得代关或复用。公共工厂及独立、管理绑定的行为与资源协议不因信息迁移改变。

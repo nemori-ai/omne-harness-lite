@@ -65,3 +65,9 @@ Tests require real temporary SQLite files and filesystem permissions. They do no
 
 - [Public definitions](../../core/client-local-state/README.md)
 - [Governance client coordinator](../governance-client-operations-local/README.md)
+
+## Current close failure gap
+
+The existing close flow calls storage.close in try and directory.close in finally. If both fail, the directory failure replaces the storage failure. This conflicts with the requirement to [retain each cleanup failure](../../../docs/architecture/deployment/cordis-and-lifecycle.md#有序退出与清理失败). SPEC no longer requires preserving this behavior.
+
+The provider must expose both failures so the shutdown owner can retain unfinished responsibility. This change only corrects documentation. It does not fix the implementation or rerun the two-failure regression. The gap remains open.

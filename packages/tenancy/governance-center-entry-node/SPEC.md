@@ -134,3 +134,9 @@ native CJS helper保持receiver/instance，text function不得拆取；src/dist�
 restoreIsolated 保留完整封套并保持 businessOpen=false，不开启业务数据库或时钟。未来激活恢复库的拥有者必须先把该 checkpoint 交给 Clock 的初始化或 minimum 接纳入口，且不得降低目标已有的更高底线。离线复制完成不等于业务已经激活。
 
 本次仅迁移备份维护的形状与行为：schema/governance-maintenance.schema.json 为当前维护协议的唯一形状源，采用新 URI `https://omne-harness-lite.invalid/schema/governance-center-maintenance/2.json`。31条业务路由保留主线接续的Schema资源。构建图为维护定义选择本包新源，为业务定义选择各自当前拥有者的源；运行时仍使用按需加载且由 Node 缓存的预编译校验器。旧维护成功示例的 /1 元数据已退役，测试仍核对未变答复字节并拒绝旧元数据，新例子归 verification/maintenance-v2.json。
+
+## 绑定入口与生命周期坐标
+
+`@omne-harness-lite/governance-center-entry-node/cordis`导出TLS面的`governanceCenterEntryPlugin`和`managedGovernanceCenterEntryPlugin`，限定name分别为`governance-center-entry-node`和`governance-center-entry-node-managed`。Unix面的`governanceCenterOpsPlugin`和`managedGovernanceCenterOpsPlugin`使用`governance-center-entry-node-ops`和`governance-center-entry-node-ops-managed`。
+
+独立和管理版均使用同一纯工厂与配置Schema，共用本代`EntryOpening`；管理版另需`assemblyLifetime`，先同步登记再setup。运行资源从正式服务取得，缺资源不能静默改用无守卫或无维护路径。公共形状及实际独立工厂的行为不因文档归位改变。

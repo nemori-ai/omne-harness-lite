@@ -19,7 +19,7 @@
 行为、相关版本和必要证据；设计任务说明目标、约束、已知事实与尚待确定的部分。
 产品需求的接收、澄清与设计工作进入私有工作区 [.meta_harness](.meta_harness/AGENTS.md)，
 先加载 `harness-design-handbook` skill。
-本项目已有[系统目标与全局约束](.meta_harness/design/foundation/README.md)与一批
+本项目已有[项目要求](docs/requirements.md)、[技术架构](docs/architecture/README.md)、[领域设计](docs/domains/README.md)与一批
 [产品设计正文](.meta_harness/design/product/README.md)作为明确输入，保留确认范围与精确修订；
 有 Issue、提案或任务记录时直接引用，**避免另写一份同义需求**。
 `.meta_harness/` 与仓库其余部分的职责边界见[根 AGENTS.md](AGENTS.md#meta_harness-拥有什么外面做什么)。
@@ -27,9 +27,9 @@
 | 变更类型 | 从哪里推进 |
 |---|---|
 | 已有规则内的文字、链接、工具修复或实现修正 | 定位内容所有者或精确契约，在任务范围内修改并做相称验证；不要求另造提案或决定 |
-| 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 在 `.meta_harness/design/` 相应 family 接续或创建信息包，沿手册分析现有能力覆盖、剩余责任与候选；必要政策未明确时，暂停依赖它的实施 |
+| 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 沿[任务地图](docs/context-map.md)定位要求、架构、领域或产品拥有者，加载手册分析能力覆盖、剩余责任与候选；必要政策未明确时，只暂停依赖它的实施 |
 | 新观察挑战已有决定 | 定位现行承诺与范围，在任务 tmp 提供反例和比较；当前正文经明确接受后修订，观察不自动改变承诺 |
-| 发布或修订正式规格 | 按[架构维护规则](.meta_harness/design/architecture/README.md)维护唯一承诺源、接受依据和消费者；同步公开类型、薄SPEC、必要模型及真实消费者，不保留被取代源 |
+| 发布或修订正式规格 | 按[架构维护规则](.meta_harness/design/architecture/README.md)维护唯一承诺源、接受依据和消费者；同步公开类型、必要行为契约、模型及真实消费者，不保留被取代源 |
 | 衔接能力规格、提供者设计与实施交接 | 加载 `harness-design-handbook` skill 的「规格演进」，明确当前正文、就绪范围、受影响消费者与未完成义务 |
 | 创建或维护 skills、角色及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；skill 加载官方 `skill-creator`，角色加载 `design-subagents` skill，AGENTS.md 加载 `write-agents-md` skill |
 
@@ -39,17 +39,16 @@
 
 ## 开始工作
 
+按[读者入口](docs/README.md)或[任务地图](docs/context-map.md)定位上下文。
+新技术正文落点和原有效源的交接沿[文档治理](docs/engineering/documentation.md)；正文骨架不表示采用。
+
 读取根 AGENTS.md 和实际修改目录的局部约定，再沿相关入口展开。Codex 与 Claude Code
 共用这套项目指导，CLAUDE.md 引用同级 AGENTS.md；技能和角色的使用见
 [开发指南](docs/development.md#使用-coding-agents)。
 进入 `.meta_harness/` 后按其局部地图展开，任务给出产品事实和采用范围；
 它保存可迁出的设计方法与 agent 能力，根宿主目录只通过软链接暴露生成物。
 
-先核对当前检出、分支和已有改动。常规隔离、合并与清理由
-`worktree-discipline` skill 维护，工作树容器统一在
-主检出根的 `.worktrees/`，一个会话只用一棵工作树。任务中明确授权的例外按其范围执行，不改写为永久惯例；
-一个会话带几棵工作树或并行的写入者不在可例外之列，要改就改那份 skill。
-保护其他任务已有的改动，环境准备按开发指南在实际工作的检出中完成。
+先核对当前检出、分支和已有改动。独立任务按[协作交接](docs/engineering/workflow.md#责任与协作交接)在隔离树并行，共享对象单写，耦合依赖串行；工作树容器统一在主检出根的 `.worktrees/`。保护已有改动，检出、工具输入与清理都核对实际执行者的工作树，环境准备按开发指南在该树完成。
 
 新增依赖应说明它解决什么问题以及为何适合，依赖归属和锁文件维护按
 [workspace 规范](docs/workspace.md)。研发品味按 AGENTS.md 及其引用判断，
@@ -78,16 +77,20 @@ skills/roles 变更一并交付 canonical/角色源、宿主适配与生成产�
 本地 diff、设计稿和远程 PR 使用同样的交付信息要求；已有 Issue/PR 时关联其记录。
 标题与正文按[提交与 PR 表达](#提交与-pr-表达)组织；已有 Issue/PR 可关联，不要求先建 Issue。
 
-使用 AI 辅助时，**对最终内容、事实来源和验证声明负责**；生成成功不等于已验证。
-分支名以自己的 git username 开头，**不用 `codex/`、`claude/` 这类 harness 或 agent 名**；
-commit 的 author 与 committer **只有人**，不写 `Co-Authored-By`、`Generated with` 这类把 agent 列为作者的行；
-agent 参与产出的提交另带 `Harness:` 与 `Agent-Role:` 两条来源 trailer，只记来源、不表示作者身份。
-理由与写法见[根 AGENTS.md 的「署名与分支」](AGENTS.md#署名与分支作者是人来源可追溯)——
-**署名只写人，责任才无处可退；来源记下来，过程才有迹可循。**
+使用 AI 辅助不改变权责归属。指导和调用工具的人对最终内容、事实来源和验证声明负责，生成成功不等于验证。
+
+分支名以负责人的 git username 开头，例如 `panqiwei/meta-harness`。不用 `harness/`、`codex/`、`claude/`、`kimi/`、`cursor/` 或 `deepseek/` 这类工具或 agent 前缀。
+
+commit 的 author 与 committer 只有实际负责的人。commit、PR 标题和描述不写 `Co-Authored-By: Claude`、`Generated with <agent>` 等作者式工具署名；宿主自动附加的同类提示也不采用。agent 参与产出的提交在信息末尾带两条来源 trailer：
+
+- `Harness: <宿主名>`，例如 `codex` 或 `claude-code`。
+- `Agent-Role: <角色名>`，主会话写 `main`。
+
+署名回答谁负责，来源回答怎样产生；来源不表示作者身份，也不转移责任。可以用 `git log --format='%h %(trailers:key=Agent-Role,valueonly)'` 按来源复核。[提交署名检查](tools/ts-checks/README_ZH.md#提交署名)拦作者式工具署名，但不能判断哪些提交实际有 agent 参与或来源是否如实填写。
 
 ## 提交与 PR 表达
 
-本节拥有 commit/PR 的书面约定；模板是填写提示，`prepare-pr` skill 是使用方法。
+本节拥有 commit/PR 的书面约定；模板是填写提示，准备方法按[工程技能入口](docs/engineering/skills.md#playbook-入口)选择 Opening a PR，Matt code-review 按需补充固定点审阅。
 这不增加 CI 类型门、合并硬线或自动发版；机器执行范围仍归现有检查器。
 
 ### 标题与提交正文
@@ -111,7 +114,7 @@ scope 取稳定的包、领域或工具名；描述默认中文，也可用英�
 正文需要时在标题后空一行，写当前问题、必要理由和最终改变，不记尝试过程。
 破坏性公开契约变更用 `!`，正文加 `BREAKING CHANGE:` 说明变化、消费者迁移和旧入口删除。
 内部文件移动不自动算 breaking；前发布阶段的消费者同步迁移政策保持。
-commit 的人类署名、来源及特殊 trailer 按[根约定](AGENTS.md#署名与分支作者是人来源可追溯)和
+commit 的人类署名和来源按[交付规则](#形成可审阅的交付)，特殊 trailer 按
 [产品卡规则](.meta_harness/design/product/conventions.md#卡的一生)执行。
 
 ```text
@@ -124,7 +127,7 @@ Agent-Role: main
 ```
 
 squash 标题按最终 diff 整理，正文只保留必要理由和结果，并保留适用 trailer。
-不拼接中间 commit、PR 长表或临时证据。只有实际关闭的范围才写 `Closes`；
+不拼接中间commit、PR长表或临时证据。新Issue交付协议使用普通引用，禁止以`Closes`等自动关闭关键字代替具名接受。未迁ST的既有规则保持；只有明确采用自动关闭的其他范围才使用关闭关键字。
 `Accepted-Card:` 只在产品负责人明确接受后写，不能用引用卡号代替接受。
 
 ### PR 正文与报告
@@ -132,12 +135,12 @@ squash 标题按最终 diff 整理，正文只保留必要理由和结果，并�
 开头说明具体问题和最终效果，再给必要边界、验证和具体审阅问题。按最终 diff 更新正文，
 删除占位、失效结论和不适用块；实质缺口不能随裁剪消失。短改动可用几句话。
 比较数据用窄表格，调用关系或时序用必要小图，长明细可折叠；重大红项和未知须在摘要中可见。
-不写文件流水、讨论史、派发和进度；图表的取舍及四类成品示例由 `prepare-pr` 提供。
+不写文件流水、讨论史、派发和进度；具体版式沿所选写作方法，项目报告义务由本节维护。
 
 | 信息 | 提供条件 | 最低内容 |
 |---|---|---|
 | 产品卡 | feature 明确写是否涉及；其他类型实际涉及时写 | 卡与场景、已交付/剩余范围及验收；无卡不临时造卡 |
-| 架构与复杂度 | 修改产品源码 | BASE/HEAD、实际比较坐标、范围/约束版本、摘要原文与入口、引入/解决/保留及逐条红项处置；unknown 与偏离分开 |
+| 架构与复杂度 | 修改产品源码 | BASE/HEAD 或实际未提交候选字节、dirty 状态、实际比较坐标、范围/约束版本、摘要原文与入口、引入/解决/保留及逐条红项处置；unknown 与偏离分开 |
 | 差分变异 | 修改产品源码，沿现行入口执行 | 实际范围、被杀/存活/无覆盖/超时/错误；存活与无覆盖原样列出，复跑确认和处置分开 |
 | 测试覆盖率 | 修改产品源码 | 受影响成员的实际维度、分母、未覆盖位置及风险；没有可比基线不宣称提升 |
 | Profiling | 较大/复杂 feature、改变用户交互主路径的 feature，或性能/资源相关变更 | 有界代表性负载、阶段/热点、相关指标、环境/方法和局限；明确问题的处置与同口径修复前后结果；全新路径无旧基线时报告当前画像 |
@@ -190,10 +193,10 @@ Profiling 发现可复现、已有原因证据的明显性能问题时，不能�
 发现问题后回到拥有该含义的材料修正；涉及实现的检查应覆盖实际交付状态。
 
 评审及交付结论区分语义接受、提供者可实施、应用装配和实际验证的范围；设计
-中的关键跨能力交接沿 `harness-design-handbook` skill 的「契约描述」→「沿完整动作链核对组合」核对。
+中的关键跨能力交接加载 `harness-design-handbook`，按[消费者视角的完整动作链](.meta_harness/agents/skills/harness-design-handbook/canonical/references/architecture/reference/contract-description.md#沿完整动作链核对组合)核对，再沿[可观察结果反查](.meta_harness/agents/skills/harness-design-handbook/canonical/references/handoff.md#s8反向核对可观察结果)检查性质与证据范围。
 
 评审意见、设计接受、实现完成和验证通过分别记录。政策与正式规格的接受、部分
-当前采用范围归唯一承诺拥有者；接受或取代过程放工作树 tmp。
+当前采用范围归唯一承诺拥有者；正式RFC与Issue决定按[保存例外](docs/engineering/documentation.md#五类成果与保存例外)维护，其余接受或取代过程放工作树tmp。
 合并、推送、发布或部署依任务授权执行，评审结论和本指南本身不授予这些动作的权限。
 
 ## 维护这份入口

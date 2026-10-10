@@ -1,8 +1,10 @@
 import { extractArchitecture } from './extract.ts'
 import { readArchitectureSource, type ArchitectureSource } from './source.ts'
-import { CONSTRAINT_PATH, readConstraints, roleAt, semanticConstraints } from './constraints.ts'
+import { readConstraints, roleAt, semanticConstraints } from './constraints.ts'
 import type { ActualExtraction, PackageImport, Fact } from './actual-model.ts'
 import type { ActualArchitectureInput } from './actual.ts'
+import { publicEntries, StaticResolver, type PublicEntry } from './resolve.ts'
+import type { Snapshot } from './actual-model.ts'
 import type {
   ArchitectureConstraints,
   Conformance,
@@ -51,13 +53,9 @@ const adopted = (path: string, intent: ArchitectureConstraints | null) => {
   const result = role(path, intent)
   return result?.status === 'adopted' && result.layer !== 'unknown' ? result : undefined
 }
-function exceptionAt(
-  edge: PackageImport,
-  intent: ArchitectureConstraints | null,
-  extraction: ActualExtraction,
-) {
+function exceptionAt(edge: PackageImport, input: ConstraintInput, extraction: ActualExtraction) {
   const members = new Set(extraction.members.map(member => member.path))
-  const exception = intent?.importExceptions?.find(
+  const exception = input.value?.importExceptions?.find(
     item =>
       edge.target.kind === 'workspace' &&
       item.member === edge.member &&
@@ -67,13 +65,37 @@ function exceptionAt(
       members.has(item.member) &&
       members.has(item.target),
   )
-  return exception === undefined ? undefined : { ...exception, path: CONSTRAINT_PATH }
+  return exception === undefined ? undefined : { ...exception, path: input.path }
 }
 
-function rowsOf(extraction: ActualExtraction, input: ConstraintInput): ConformanceRow[] {
+function rowsOf(
+  extraction: ActualExtraction,
+  input: ConstraintInput,
+  snapshot: Snapshot,
+): ConformanceRow[] {
   const rows: ConformanceRow[] = [],
     intent = input.value
   const rules = new Map(intent?.rules.map(rule => [rule.id, rule]) ?? [])
+  const entries = publicEntries(snapshot)
+  const bySource = new Map<string, PackageImport[]>()
+  for (const edge of extraction.packageImports)
+    bySource.set(edge.path, [...(bySource.get(edge.path) ?? []), edge])
+  const closureOf = (entry: PublicEntry, valueOnly = false) => {
+    const seen = new Set<string>(),
+      edges: PackageImport[] = []
+    const pending = entry.sourcePath === undefined ? [] : [entry.sourcePath]
+    while (pending.length > 0) {
+      const path = pending.pop()
+      if (path === undefined || seen.has(path)) continue
+      seen.add(path)
+      for (const edge of bySource.get(path) ?? []) {
+        if (valueOnly && edge.type) continue
+        edges.push(edge)
+        if (edge.resolvedPath !== undefined) pending.push(edge.resolvedPath)
+      }
+    }
+    return { paths: seen, edges }
+  }
   const add = (
     id: string,
     rule: ConformanceRow['rule'],
@@ -166,7 +188,7 @@ function rowsOf(extraction: ActualExtraction, input: ConstraintInput): Conforman
             (target?.layer === 'storage-port' || target?.layer === 'storage-adapter')
           : from.layer === 'policy' &&
             ['interaction', 'storage-adapter', 'assembly'].includes(target?.layer ?? '')
-      const conflict = violates ? exceptionAt(edge, intent, extraction) : undefined
+      const conflict = violates ? exceptionAt(edge, input, extraction) : undefined
       imported(
         edge,
         id,
@@ -186,8 +208,7 @@ function rowsOf(extraction: ActualExtraction, input: ConstraintInput): Conforman
     if (
       rules.has('IC-5') &&
       edge.target.kind === 'workspace' &&
-      edge.target.member !== edge.member &&
-      !/^packages\/(core|util)\//u.test(edge.target.member)
+      edge.target.member !== edge.member
     ) {
       if (from?.layer === 'assembly') {
         imported(edge, 'IC-5', 'converged', '明确的装配入口选择实现')
@@ -202,13 +223,84 @@ function rowsOf(extraction: ActualExtraction, input: ConstraintInput): Conforman
         )
         return
       }
-      const exception = exceptionAt(edge, intent, extraction)
+      const exception = exceptionAt(edge, input, extraction)
+      const targetMember = edge.target.member
+      const target =
+        edge.resolvedPath === undefined ? undefined : adopted(edge.resolvedPath, intent)
+      const named = entries.filter(
+        entry => entry.member === targetMember && entry.specifier === edge.specifier,
+      )
+      const publicTargets =
+        named.length > 0
+          ? named
+          : entries.filter(
+              entry => entry.member === targetMember && entry.sourcePath === edge.resolvedPath,
+            )
+      const closures = publicTargets.map(entry => ({ entry, ...closureOf(entry, true) }))
+      const privateTarget = publicTargets.length === 0
+      const unknown =
+        target === undefined ||
+        closures.some(
+          item =>
+            item.entry.sourcePath === undefined ||
+            !snapshot.texts.has(item.entry.sourcePath) ||
+            item.edges.some(
+              link =>
+                link.target.kind === 'unresolved-local' ||
+                (link.target.kind === 'workspace' && link.resolvedPath === undefined),
+            ) ||
+            extraction.importUnknown.some(itemUnknown => item.paths.has(itemUnknown.path)),
+        )
+      const provider = closures.some(item =>
+        [...item.paths].some(path => {
+          const definitions = extraction.facts.filter(
+            fact =>
+              fact.path === path &&
+              fact.kind === 'defines' &&
+              fact.definitionForm === 'service-class',
+          )
+          return extraction.facts.some(
+            fact =>
+              (fact.kind === 'provides' && fact.provideForm === 'class-plugin'
+                ? (fact.serviceDefinition?.path ?? fact.path)
+                : fact.path) === path &&
+              ['plugin', 'provides'].includes(fact.kind) &&
+              !definitions.some(
+                definition =>
+                  fact.serviceDefinition !== undefined &&
+                  definition.serviceDefinition?.path === fact.serviceDefinition.path &&
+                  definition.serviceDefinition.offset === fact.serviceDefinition.offset &&
+                  definition.serviceDefinition.symbol === fact.serviceDefinition.symbol,
+              ),
+          )
+        }),
+      )
+      const targetImplementation =
+        target?.layer === 'assembly' ||
+        target?.layer === 'interaction' ||
+        (target?.layer === 'storage-adapter' &&
+          !closures.every(
+            item =>
+              item.entry.subpath !== '.' &&
+              extraction.facts.some(fact => item.paths.has(fact.path) && fact.kind === 'defines'),
+          ))
+      const violates = privateTarget || provider || targetImplementation
       imported(
         edge,
         'IC-5',
-        exception === undefined ? 'deviation' : 'converged',
+        exception !== undefined
+          ? 'converged'
+          : violates
+            ? 'deviation'
+            : unknown
+              ? 'unknown'
+              : 'converged',
         exception === undefined
-          ? '非装配入口引用非 core/util 提供者，BASE 无精确符号同提交例外'
+          ? violates
+            ? '非装配消费者引用私有入口或提供者实现，BASE无精确符号同提交例外'
+            : unknown
+              ? '目标责任或公开入口值闭包未完整解析，不能证明消费隔离'
+              : '消费已采用公开契约或定义入口，未观察到独立提供者值依赖'
           : `静态例外：${exception.path} ${exception.source}；共同存储 ${exception.sharedStorage}，事务行为仍需证据`,
       )
     }
@@ -229,6 +321,19 @@ function rowsOf(extraction: ActualExtraction, input: ConstraintInput): Conforman
           )
         : undefined
     const declarations = definitions.filter(fact => serviceDefinition(fact) === undefined)
+    const resolver = new StaticResolver(snapshot)
+    const publicDeclarations = entries.flatMap(entry =>
+      entry.sourcePath === undefined
+        ? []
+        : resolver
+            .publicDeclarations(entry.sourcePath)
+            .map(site => ({ ...site, member: entry.member })),
+    )
+    const uncertainPublicMembers = new Set(
+      entries
+        .filter(entry => entry.sourcePath === undefined || !snapshot.texts.has(entry.sourcePath))
+        .map(entry => entry.member),
+    )
     const factRow = (rule: RuleId, fact: Fact, state: ConformanceRow['state'], reason: string) =>
       add(
         JSON.stringify([rule, fact.path, fact.plugin, fact.kind, fact.key, fact.scope]),
@@ -244,10 +349,9 @@ function rowsOf(extraction: ActualExtraction, input: ConstraintInput): Conforman
         factRow(
           'IC-1',
           fact,
-          !fact.member.startsWith('packages/core/') ||
-            declarations.filter(
-              item => item.key === fact.key && item.id !== (serviceDefinition(fact) ?? fact).id,
-            ).length > 0 ||
+          declarations.filter(
+            item => item.key === fact.key && item.id !== (serviceDefinition(fact) ?? fact).id,
+          ).length > 0 ||
             extraction.factOccurrences.filter(
               item =>
                 item.kind === 'defines' &&
@@ -255,8 +359,19 @@ function rowsOf(extraction: ActualExtraction, input: ConstraintInput): Conforman
                 serviceDefinition(item) === undefined,
             ).length > 1
             ? 'deviation'
-            : 'converged',
-          '仅静态定义的位置与重复，不证明动态唯一性',
+            : adopted(fact.path, intent) === undefined
+              ? 'unknown'
+              : publicDeclarations.some(
+                    site =>
+                      site.member === fact.member &&
+                      site.path === (serviceDefinition(fact) ?? fact).serviceDefinition?.path &&
+                      site.offset === (serviceDefinition(fact) ?? fact).serviceDefinition?.offset,
+                  )
+                ? 'converged'
+                : uncertainPublicMembers.has(fact.member)
+                  ? 'unknown'
+                  : 'deviation',
+          '仅检查采用的定义责任、实际公开导出与同键重复；不按core许可，不证明动态唯一性',
         )
       if (rules.has('IC-2') && fact.kind === 'provides')
         factRow(
@@ -295,7 +410,7 @@ function rowsOf(extraction: ActualExtraction, input: ConstraintInput): Conforman
       unknown.reason,
       [unknown],
     )
-  if (rules.has('IC-4')) checkRoots(extraction, imported)
+  if (rules.has('IC-4')) checkRoots(extraction, imported, entries, snapshot)
   return rows.sort((a, b) => a.id.localeCompare(b.id))
 }
 function checkRoots(
@@ -307,37 +422,60 @@ function checkRoots(
     reason: string,
     origin: { readonly member: string; readonly path: string },
   ) => void,
+  entries: readonly PublicEntry[],
+  snapshot: Snapshot,
 ): void {
   const bySource = new Map<string, PackageImport[]>()
   for (const edge of extraction.packageImports)
     bySource.set(edge.path, [...(bySource.get(edge.path) ?? []), edge])
   for (const member of extraction.members) {
     if (member.path.startsWith('apps/') || member.path === 'packages/core/kernel-basis') continue
-    // Supported root entries match the version-local source entry used by workspace exports.
-    const entry = `${member.path}/src/index.ts`,
-      seen = new Set<string>(),
-      pending = [entry]
-    while (pending.length > 0) {
-      const path = pending.pop()
-      if (path === undefined || seen.has(path)) continue
-      seen.add(path)
-      for (const edge of bySource.get(path) ?? []) {
-        if (
-          edge.specifier === '@deepseek-ai/cordis' ||
-          edge.specifier.startsWith('@deepseek-ai/cordis/') ||
-          edge.resolvedPath === `${member.path}/src/cordis.ts` ||
-          edge.resolvedPath?.startsWith(`${member.path}/src/cordis/`)
-        )
-          add(edge, 'IC-4', 'deviation', `公开根 ${entry} 的源码依赖闭包引入 Cordis 绑定`, {
-            member: member.path,
-            path: entry,
-          })
-        else if (edge.resolvedPath !== undefined) pending.push(edge.resolvedPath)
-        else if (edge.target.kind === 'workspace' || edge.target.kind === 'unresolved-local')
-          add(edge, 'IC-4', 'unknown', `公开根 ${entry} 的源码依赖闭包存在未解析目标`, {
-            member: member.path,
-            path: entry,
-          })
+    for (const root of entries.filter(
+      entry => entry.member === member.path && entry.subpath === '.',
+    )) {
+      if (root.sourcePath === undefined || !snapshot.texts.has(root.sourcePath)) {
+        const edge: PackageImport = {
+          id: JSON.stringify(['root', member.path, root.specifier]),
+          member: member.path,
+          path: `${member.path}/package.json`,
+          line: 1,
+          specifier: root.specifier,
+          symbol: '*',
+          type: false,
+          form: 'export',
+          target: { kind: 'unresolved-local' },
+        }
+        add(edge, 'IC-4', 'unknown', '公开根exports不能映射到本版源码', {
+          member: member.path,
+          path: edge.path,
+        })
+        continue
+      }
+      const entry = root.sourcePath,
+        seen = new Set<string>(),
+        pending = [entry]
+      while (pending.length > 0) {
+        const path = pending.pop()
+        if (path === undefined || seen.has(path)) continue
+        seen.add(path)
+        for (const edge of bySource.get(path) ?? []) {
+          if (
+            edge.specifier === '@deepseek-ai/cordis' ||
+            edge.specifier.startsWith('@deepseek-ai/cordis/') ||
+            edge.resolvedPath === `${member.path}/src/cordis.ts` ||
+            edge.resolvedPath?.startsWith(`${member.path}/src/cordis/`)
+          )
+            add(edge, 'IC-4', 'deviation', `公开根 ${entry} 的源码依赖闭包引入 Cordis 绑定`, {
+              member: member.path,
+              path: entry,
+            })
+          else if (edge.resolvedPath !== undefined) pending.push(edge.resolvedPath)
+          else if (edge.target.kind === 'workspace' || edge.target.kind === 'unresolved-local')
+            add(edge, 'IC-4', 'unknown', `公开根 ${entry} 的源码依赖闭包存在未解析目标`, {
+              member: member.path,
+              path: entry,
+            })
+        }
       }
     }
   }
@@ -346,26 +484,41 @@ export function conformanceOf(
   root: string,
   current: ArchitectureSource,
   baseline?: ArchitectureSource,
-  path = CONSTRAINT_PATH,
 ): Conformance {
-  return analyzeConformance(root, current, baseline, path).conformance
+  return analyzeConformance(root, current, baseline).conformance
 }
 /** One extraction per source version for constraints and actual assembly observations. */
 export function analyzeConformance(
   root: string,
   current: ArchitectureSource,
   baseline?: ArchitectureSource,
-  path = CONSTRAINT_PATH,
 ) {
-  const head = readConstraints(root, current.source, path),
-    base = baseline === undefined ? undefined : readConstraints(root, baseline.source, path)
+  const head = readConstraints(root, current.source),
+    base = baseline === undefined ? undefined : readConstraints(root, baseline.source)
   const headActual = extractArchitecture(current.snapshot),
     baseActual = baseline === undefined ? undefined : extractArchitecture(baseline.snapshot)
-  const rows = rowsOf(headActual, base ?? head)
+  const rows = rowsOf(headActual, base ?? head, current.snapshot)
+  for (const [version, input] of [
+    ['current', head],
+    ['baseline', base],
+  ] as const) {
+    if (input !== undefined && input.value === null)
+      rows.push({
+        id: JSON.stringify(['INPUT', version, input.source.commit]),
+        rule: 'INPUT',
+        state: 'unknown',
+        age: 'unjudged',
+        member: '',
+        key: version,
+        reason: `${version} 架构预期缺失；不能以空规则或另一版本证明符合`,
+        expected: input.path,
+        sites: [{ path: input.path, line: 1 }],
+      })
+  }
   const stock = new Set(
     baseActual === undefined
       ? []
-      : rowsOf(baseActual, base ?? head)
+      : rowsOf(baseActual, base ?? head, baseline?.snapshot ?? current.snapshot)
           .filter(row => row.state === 'deviation')
           .map(row => row.id),
   )
@@ -373,7 +526,23 @@ export function analyzeConformance(
   const before = semanticConstraints(base?.value ?? null),
     after = semanticConstraints(head.value)
   if (base !== undefined && before !== after)
-    changes.push({ id: 'global-architecture', path, before, after })
+    changes.push({
+      id: 'global-architecture',
+      path: head.value === null ? (base?.path ?? head.path) : head.path,
+      before,
+      after,
+    })
+  const sourceChanges: ConstraintChange[] = []
+  if (base !== undefined) {
+    const previous = new Map(base.sources.map(item => [item.path, item.digest]))
+    const next = new Map(head.sources.map(item => [item.path, item.digest]))
+    for (const path of [...new Set([...previous.keys(), ...next.keys()])].sort()) {
+      const before = previous.get(path) ?? null,
+        after = next.get(path) ?? null
+      if (before !== after)
+        sourceChanges.push({ id: `architecture-source:${path}`, path, before, after })
+    }
+  }
   const conformance: Conformance = {
     schemaVersion: 1,
     kind: 'architecture-conformance',
@@ -390,6 +559,7 @@ export function analyzeConformance(
             : 'new',
     })),
     changes,
+    sourceChanges,
     changeState: base === undefined ? 'no-baseline' : 'compared',
     coverage,
     limitations,

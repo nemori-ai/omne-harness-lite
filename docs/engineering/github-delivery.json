@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "kind": "github-delivery-config",
+  "protocolVersion": 1,
+  "enabled": false,
+  "repository": "nemori-ai/omne-harness-lite",
+  "mode": "manual-single-dispatcher",
+  "sourceCutovers": "docs/engineering/source-cutovers.json",
+  "project": {
+    "owner": "nemori-ai",
+    "number": 4,
+    "id": "PVT_kwDODPptlM4BmeFE",
+    "url": "https://github.com/orgs/nemori-ai/projects/4",
+    "fields": {
+      "stage": "PVTSSF_lADODPptlM4BmeFEzhlG_3U",
+      "priority": "PVTSSF_lADODPptlM4BmeFEzhlHAKo",
+      "iteration": "PVTIF_lADODPptlM4BmeFEzhlHAKs"
+    }
+  },
+  "creationHandoffIssue": "https://github.com/nemori-ai/omne-harness-lite/issues/184",
+  "writers": {
+    "stage": "PanQiWei；操作由其在本任务中明确委派的单一调度代理执行",
+    "body": "PanQiWei；操作由其在本任务中明确委派的单一正文集成代理执行"
+  },
+  "notes": [
+    "日常入口未启用；旧PF与ST仍沿未迁来源，source-cutovers当前无生产切换。",
+    "Stage 使用 GitHub 内置 Status 字段；按字段 ID 读取，不另建 Stage 副本。",
+    "负责人已确认关闭关联PR合并自动关闭；官方API无该设置读回支持。默认分支模板尚未发布。",
+    "Stage与正文的责任人已具名；每次委派只授予本任务的写范围，切换写者先确认交接。API写权限不是接受权限。"
+  ]
+}

@@ -475,7 +475,7 @@ agent 就是模型，模型没给出回复，**那个会思考的主体此刻不
 
 **理由**：上交要留下一条条目，而那条条目**带着这个租户的内容**。
 交到一个「组织层」，它的读者里就有**别的租户**——这直接撞
-[SYS-TENANT](../../foundation/cross-system-constraints/requirements.md#sys-tenant)
+[SYS-TENANT](../../../../docs/requirements.md#从第一天支持隔离sys-tenant)
 的「跨租户访问默认拒绝」。
 
 [PF-005 在沙箱那一侧做过同一个判断](../PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)：
@@ -517,7 +517,7 @@ agent 就是模型，模型没给出回复，**那个会思考的主体此刻不
 | 问人那条路的全部形状 | [PF-008](../PF-008-human-in-the-loop/README.md) |
 | 装配缺东西怎么失败、实例怎么退役、强制停止 | [PF-004](../PF-004-agent-definition-and-assembly/README.md) |
 | 沙箱起不来怎么办、禁止降级 | [PF-005](../PF-005-execution-environments-and-sandboxes/README.md) |
-| 租户是什么、隔离边界划在哪 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md) 与 [SYS-TENANT](../../foundation/cross-system-constraints/requirements.md#sys-tenant) |
+| 租户是什么、隔离边界划在哪 | [PF-001](../PF-001-identity-scope-and-agent-constraints/README.md) 与 [SYS-TENANT](../../../../docs/requirements.md#从第一天支持隔离sys-tenant) |
 | 组装与压缩 | [PF-010](../PF-010-context-management-and-assembly/README.md) |
 | **把一次模型调用发出去 · 这一层失败了能做什么 · 什么时候算试尽** | [PF-013](../PF-013-model-profiles-and-invocation/README.md)——见下 |
 | 重试次数、退避、超时、[阈值提醒](#64-要让-agent-知道只能走阈值触发的定长提醒)的阈值与字数 | **策略，不是产品设计** |
@@ -541,7 +541,7 @@ agent 就是模型，模型没给出回复，**那个会思考的主体此刻不
 | 请求体的内容怎么攒出来 | [PF-010](../PF-010-context-management-and-assembly/README.md) |
 | **把它发出去 · 这一层失败了能做什么 · 什么时候算试尽** | [**PF-013**](../PF-013-model-profiles-and-invocation/README.md)——[四要素那一格由它填](../PF-013-model-profiles-and-invocation/design.md#52-这一层的四要素填-pf-011-那一格) |
 | 流式怎么回来、怎么拼成完整一份、断在半路怎么收场 | [PF-009](../PF-009-context-message-types/README.md) |
-| 统一经 OpenRouter 出去 | [SYS-LLM](../../foundation/cross-system-constraints/requirements.md#sys-llm)，**但它自陈不决定调用细节** |
+| 模型接入范围 | [SYS-LLM](../../../../docs/requirements.md#模型接入sys-llm)不限定统一请求通道；具体通道与调用细节由模型接入契约及提供者维护 |
 | 试尽之后交给谁、[越过不存在的层](#61-起点可以是任何一层往上不许跳) | **本 topic** |
 
 **它单立一个 topic 而不是并进现有的**，理由是**改动它的原因与谁都不同**：

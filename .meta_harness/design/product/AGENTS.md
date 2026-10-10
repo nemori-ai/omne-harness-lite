@@ -19,6 +19,8 @@
 
 ## 一个 topic 里，答案在哪一份
 
+以下stories规则只用于未迁ST。新Issue操作从[交付入口](../../../docs/engineering/agent-delivery.md)核对启用范围；未来产品模板中的活动查询不替换当前PF，不能直接复制整包并沿用旧stories／projection义务。
+
 查**这个概念是什么、规则怎么定的** → `design.md`；
 查**它怎么动、这步失败了怎么办** → `flows.md`；
 查**做成什么样算对** → `acceptance.md`；

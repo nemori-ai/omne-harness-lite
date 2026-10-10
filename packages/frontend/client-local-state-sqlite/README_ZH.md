@@ -65,3 +65,9 @@ pnpm --filter @omne-harness-lite/client-local-state-sqlite run test
 
 - [公共定义](../../core/client-local-state/README.md)
 - [治理客户端协调者](../governance-client-operations-local/README.md)
+
+## 关闭失败的现状偏离
+
+现有关闭流程使用try调用storage.close，再在finally调用directory.close。两步同时失败时，目录失败覆盖存储失败。该行为违背[清理失败分别保留](../../../docs/architecture/deployment/cordis-and-lifecycle.md#有序退出与清理失败)的要求，不再作为SPEC中应保持的规则。
+
+本提供者须让两项失败均可观察，组合关闭拥有者据此保留未完成责任。此次仅纠正文档，未修复实现，也未运行双失败回归；测试通过前不能宣称偏离关闭。

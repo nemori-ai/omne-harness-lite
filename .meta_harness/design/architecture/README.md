@@ -1,61 +1,34 @@
-# 系统架构与维护边界
+# 保留技术源入口
 
-本入口拥有全系统架构预期的维护位置与规格归属规则。实际结构由工具读取源码生成，
-不在这里手写逐包状态、插件事实或第二套实现映射。
-全局规格要求：[SYS-SPEC](../foundation/cross-system-constraints/requirements.md#sys-spec)。
+本区只维护尚未承接的技术专题及其状态导航。全系统目标设计归[系统架构](../../../docs/architecture/README.md)，项目要求归[docs/requirements.md](../../../docs/requirements.md)，业务责任归[领域设计](../../../docs/domains/README.md)。成员的公开形状、完整必要行为与持续验证资源由实际拥有者维护。
 
-现行全局方向见[系统责任与关系预期](system-intent.md)。
-持久化基础设施的后端边界见[当前采用规则](infrastructure-policy.md)。
-[机读约束](constraints.json)区分已采用入口、候选映射和未知；实际源码结构仍由工具生成。
+## 尚未承接的专题
 
-[身份领域集成设计](identity-integration/README.md)已限定采用服务/包、行为保持和装配责任。
-正式提供者、插件树及 R1 限定领域验收已交付；
-当前接口、薄规格与可复跑验证资源分别由实际成员维护；某次交付和验收记录留任务 tmp。
-模型公开承诺及未实现业务分别由当前成员和产品/系统拥有者维护；完整Session/Agent运行时沿其独立范围推进。
+以下专题尚未确定完整迁出位置，暂留原处供整合和消费者核对，不为接收材料创建空包。旧接受记录不构成与docs架构并列的权威，也不授予冲突设计继续采用。内容须按[现行架构准入规则](../../../docs/architecture/README.md#采用状态与当前有效源)筛选，符合上层的细化才可承接；实现限制作为偏离，未判定保持未判定。
 
-[Session与Agent Runtime第一期候选设计](session-agent-runtime-phase1/README.md)定位包责任、持久动作链、消息投影和Cordis会话装配；新增承诺仍待限定接受，不表示第一期实现已交付。
-
-## 一份承诺，一个拥有者
-
-| 内容 | 唯一拥有者 |
+| 专题 | 当前入口 |
 |---|---|
-| 系统目标、产品规则、统一语言、对象依据 | 现有 foundation、product、ubiquitous_language、domain_objects 正文 |
-| 全系统预期与跨模块架构约束 | 本区实际已接受正文和明确采用范围；不从目录推断未确认边界 |
-| 模块公开形状 | 拥有该接口的成员公开 TypeScript 类型及必要运行时校验 |
-| 类型表达不出的行为承诺 | 同一成员旁的薄 SPEC.md：不变量、失败、副作用、并发、取消及恢复 |
-| 必须解释的实现取舍 | 拥有该实现的成员旁简短 ADR；无持续判断价值的不预建 |
-| Schema、规范例子、形式模型 | 语义拥有者旁的一份源；迁移须保持消费者、公开身份和验证义务 |
-| 真实结构、复杂度与变化 | 从具体实现及输入版本派生的数据和视图，不是新的语义权威 |
-| 当前采用范围与验证义务 | 当前承诺拥有者；单次接受过程/验证结果归执行工作树 tmp，不要求永久追溯 |
+| 资产治理 | [asset-governance](asset-governance/README.md) |
+| 资产转移 | [asset-transfer](asset-transfer/README.md)及其模型与验证资源 |
+| 治理中心接入 | [center-connection](center-connection/README.md) |
+| Hooks导入 | [hooks-import](hooks-import/README.md)及方言与场景 |
+| MCP桥接 | [mcp-bridge](mcp-bridge/README.md) |
+| 多模态投影 | [modality-projection](modality-projection/README.md) |
+| 完整Session与Agent第一期候选 | [session-agent-runtime-phase1](session-agent-runtime-phase1/README.md)；F0限定授权与完整候选分开，实际成员维护其当前契约 |
+| Connector接入 | [connector](connector/README.md)；产品整体搁置，保留条件性设计，不构成当前交付承诺 |
 
-多个提供者共享的规格由定义拥有者维护，不能每个提供者写一份。
-跨模块整体性质由协调责任拥有者维护，不假定各模块绿测就等于整体成立。
-尚无实现的有效承诺留在产品或系统待实现入口，保留接受状态；不建空包冒充实现。
+PF详细技术继续由[产品专题](../product/README.md)中的原拥有者维护，按专项范围整合，不以非PF源切换代替其迁移。
 
-## 日常维护与迁移
+## 已承接信息从哪里读取
 
-模块使用实际执行仓库的版本化包模板。普通局部修改先读拥有者公开接口、相关行为承诺和测试，信息足够即停止扩展阅读。新增责任边界、系统保证或所有权变化，先核全局要求和产品依据，再明确拥有者及采用范围。
+共同集成保证归[Cordis集成约定](../../../docs/architecture/cordis-integration-conventions.md)，采用定位归[机读约束](../../../docs/architecture/constraints.json)，机械规则覆盖归执行仓库`tools/ts-checks/src/arch/CONFORMANCE.md`。阶段后端选择归[基础设施采用](../../../docs/architecture/deployment/infrastructure-policy.md)。它们与目标架构、实际成员契约分别拥有不同信息，不从路径或绿色结构报告推断行为已兑现。
 
-迁移逐项保护有效承诺、直接/间接消费者、Schema/模型/规范场景及验证义务，处理真实文件读取、声明闭包和打包消费。只有实际责任与消费完成切换，才物理删除被替代源，不另存归档或保留无退出条件的两份权威。行为修订与物理移动分开；公开Schema URI不因移动自动改变。
+身份、组织、登录、注册、治理入口和客户端的精确行为沿[身份与治理责任](../../../docs/domains/identity-and-authorization/README.md)定位实际成员。装配、插件树、Storage/Clock与Session相关承诺沿[架构入口](../../../docs/architecture/README.md)和[领域导航](../../../docs/domains/README.md)展开，不再消费旧施工页。
 
-## 保持的系统保证
+未取得关闭依据的原组合问题继续由[符合性问题入口](../../../docs/architecture/assurance.md#尚未取得关闭依据的组合问题)显示未知。OG3等已接受但未实现的增量继续由其实际成员规格维护，不能因施工页退出而销项。
 
-领域责任先于框架机制；Cordis 仍是集成装配要满足的契约规范。
-[Cordis 集成约定](cordis-integration-conventions.md)拥有 IC-1～IC-19 的系统正文、有效要求与机制核对责任。
-正文归位没有接受新的运行作用域机制，实际符合性仍由各拥有者兑现和验证。
-租户隔离、身份、所有权、生命周期、失败、外部效果与在途工作仍需明确兑现。
-重要并发、事务、恢复和进展问题保留相称的模型、探针或故障测试；目录简化不能消除义务。
-源码现状不替代行为承诺，图、类型检查和有限测试不宣称无条件行为证明。
+## 维护与退出
 
-## agent 采用与验证
+迁出前先按docs现行项目要求、系统架构及领域责任判断内容是否仍有效，再核对可承接细化的条件、例外、消费者、Schema、规范场景、模型及验证义务。冲突旧设计不得进入正式规范，不能以保全为由降低上层目标。正文和必要消费实际切换后退出被替代源；公开身份不因移动自动改变，不建立两份现行权威。
 
-根及局部 AGENTS 只投影本规则并导航到拥有者；详细规则不复制进每个角色。
-派发给出实际采用的公开接口/薄SPEC及必要资源、输入修订、约束、影响面和验收。
-修改 skills/roles 的 canonical 源后使用官方编译器同步两端产物，不手改固定提示生成物。
-编译一致、接入正确、宿主加载、模型行为分别记录；已运行任务显式核对新的输入快照，
-固定提示未刷新时重新派发，不能假定热更新。
-
-生成和验证命令归设计工作区的 `tooling/README.md`「Agent 编译」，本区不复制命令清单。
-具体任务的派发、批次、进度及运行日志留任务 tmp，不成为永久架构登记。
-
-[Connector接入边界](connector/README.md)保留现有Schema约束与条件性设计；当前产品已将连接件整体搁置，不构成当前交付承诺。
+归属、表达及留空规则由执行仓库的文档治理维护，成员完整规格与内部设计由两层成员文档维护；可点击入口见[工作区地图](../../README.md)。提案、比较、接受过程和单次输出留执行工作树tmp。当前入口变化时同步本页及真实消费者。

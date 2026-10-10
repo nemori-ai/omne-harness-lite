@@ -4,6 +4,11 @@
 本文件负责**常驻心智、权威边界与任务入口**；详细判断由各自拥有者维护，
 工作区地图见 [README](README.md)。
 
+本项目已采用[项目要求](../docs/requirements.md)、[系统架构](../docs/architecture/README.md)与[领域责任](../docs/domains/README.md)顶层正文。
+产品规则、统一语言、领域对象、持续研究及独有 skills/roles 仍在本区。
+共同集成规则与采用映射归执行仓库架构区，成员精确承诺归实际拥有者；[保留技术源入口](design/architecture/README.md)定位尚未承接的专题、完整Session候选和PF详细技术。
+本项目架构以docs已接受正文为准；旧技术材料按[准入规则](../docs/engineering/documentation.md#位置与唯一源)筛选，冲突设计不取得规范效力。顶层接受不表示材料已迁移、实现或验证。
+
 ## 怎样看待这个工作区
 
 `.meta_harness/` 是可以独立迁出的私有设计工作区。它既维护「怎样设计」的方法，
@@ -30,8 +35,10 @@ fiber、plugin、service、inject 的方式集成装配；它不是建模的视�
 **目录、类、服务键和插件数量不能代替能力模型**。
 组合须解释正常、失败及撤除后的责任交接。推理沿 `harness-design-handbook` skill 展开。
 
-新维护单元采用[系统架构维护入口](design/architecture/README.md)：公开类型与薄规格随接口拥有者维护，
-使用执行仓库包模板，公开类型、薄SPEC、必要理由和验证资源随实际成员维护，不另建中央模块规格或节点四件套。
+新维护单元从[系统架构入口](../docs/architecture/README.md)定位责任，使用执行仓库模板。
+[两层成员文档](../docs/member-documentation.md)区分包群工程关系与成员使用、行为、内部设计和维护。
+公开类型、完整行为契约、必要理由和验证资源归实际成员，不另建中央模块规格或节点四件套。
+SPEC避免重复形状，不能删去必要条件、失败、生命周期或验证义务，也不限制完整成员文档。
 
 ## 知识只有一个家，由失效事件决定
 
@@ -43,7 +50,7 @@ fiber、plugin、service、inject 的方式集成装配；它不是建模的视�
 
 | 拥有者 | 保存什么 |
 |---|---|
-| [design/](design/README.md) | 待设计系统的设计链：统一语言、产品、领域对象、基础前提、机制条目、全局架构预期及剩余设计的派生视图 |
+| [design/](design/README.md) | 统一语言、产品、领域对象、上游机制及未迁精确技术源；已采用顶层要求、架构与领域正文归执行仓库docs |
 | [research/](research/README.md) | 当前仅保留 TypeSafe Jev；目录职责与结构待负责人另行定义 |
 | [agents/](agents/README.md) | skills 与 roles 的 canonical 源、宿主适配与评估证据 |
 | [tooling/](tooling/README.md) | 确定性的生成、检查与项目链接 |
@@ -81,10 +88,10 @@ fiber、plugin、service、inject 的方式集成装配；它不是建模的视�
 | 知识该落哪里、怎样建 topic | [design/AGENTS.md](design/AGENTS.md) 的准入四步，再读目标目录 README；**不要求每项需求创建所有目录** |
 | 已有架构、规格或计划待审稿 | [评审分工](agents/roles/README.md#按判断对象选择-reviewer)：给出对象/版本、依据与范围，意见不代替接受 |
 | 派发或接手实现 | [开发者契约](agents/roles/developer-contract.md)与[任务输入](agents/roles/developer-task.md)：只实施本次已具备输入且获准写入的范围 |
-| 几种做法都成立，要选方向 | [研发品味](agents/roles/engineering-taste.md)：全部设计与研发角色内联的同一份，改它只改那一处再重编 |
+| 几种做法都成立，要选方向 | [工程技能](../docs/engineering/skills.md)选择已采用方法；[角色规则入口](agents/roles/engineering-taste.md)只内联项目拥有者指针 |
 | 编写角色、宿主或模型适配 | 加载 `design-subagents` skill：明确职责、行动、输入与停止条件 |
 | 维护 skill 源、编译或链接 | [agents 源约定](agents/README.md)与 [tooling](tooling/README.md)：**检查不等于安装** |
-| 操作执行仓库的 worktree | 加载 `worktree-discipline` skill：先定位本次检出、基线与证据 |
+| 隔离任务、协作或清理工作树 | [协作流程](../docs/engineering/workflow.md)拥有检出、共享写权与清理条件；通用方法从工程技能入口加载 |
 | 重写常驻指令或继承范围 | 加载 `write-agents-md` skill：先确认权威拥有者，再调整这里的投影 |
 | 新建或修订本工作区文档 | 加载 `asd-ste100` skill：按[写作要求](agents/skills/asd-ste100/canonical/references/documentation.md)选择模式并复核语义；写作规范不替代该材料所属的方法与接受流程 |
 

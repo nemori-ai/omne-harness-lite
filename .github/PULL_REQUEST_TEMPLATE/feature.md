@@ -1,4 +1,4 @@
-<!-- 执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”拥有规则；prepare-pr 提供版式及 feature 成品示例。删除提示与不适用块，实质缺口须保留。 -->
+<!-- 执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”拥有规则；流程沿 docs/engineering/publication.md 的 pstack 引用展开。删除提示与不适用块，实质缺口须保留。 -->
 
 ## 能力与结果
 

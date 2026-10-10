@@ -1,7 +1,7 @@
 # SQL 组织治理提供者
 
 本包实现[公共承诺](../../core/organization-governance/SPEC.md)，不拥有另一套操作类型或业务政策。
-业务协议、资源与未来义务的精确范围见[迁移清单](../../../.meta_harness/design/architecture/pilots/n4-ownership.md)。
+业务、有限模型和未来OG3义务由[公共承诺](../../core/organization-governance/SPEC.md#已接受而未实现的资产治理增量)及其verification持有；本提供者未来负责具体兑现，不从当前SQL结构推断已实现。
 根入口公开独立工厂、输入校验和迁移。插件只从 `./cordis` 导出。
 
 ## 生命周期与事务
@@ -47,3 +47,7 @@ accounts、logins，投影原密钥和有效期为 tenancy-host/organizations v1
 装配绑定原 StorageUnit，不提前核验、观察或终结。每次参与调用先检查真实 Storage 实例，再在原 unit.run 中依次构造账号和登录参与面。query、mutate、afterCommit 直接委托当前单元；普通操作恰有一次原 atomic。不可用在 run 内污染当前单元，不能由业务层捕获后提交先前暂存效果。
 
 四个公开独立工厂继续可单独消费。整体工厂共享一个依赖投影并保持原准入和关闭责任。后端不另开连接、缓存参与对象或关闭借入资源。实现理由及复核条件见[策略与记录后端](adr/policy-persistence.md)。
+
+## 绑定入口与生命周期坐标
+
+`@omne-harness-lite/organization-governance-sql/cordis`导出`organizationGovernancePlugin`和`managedOrganizationGovernancePlugin`，限定name分别为`organization-governance-sql`和`organization-governance-sql-managed`。两者使用同一纯实现和配置Schema；管理版声明`assemblyLifecycle: 1`并必需注入`assemblyLifetime`，先登记后开始资源效果，缺端口不回退独立模式。独立版由调用方先排空消费者再撤依赖，管理版由[装配生命周期](../../core/assembly-lifecycle/SPEC.md)安排真实逆序收场。

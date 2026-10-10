@@ -1,7 +1,7 @@
 # 身份 SQL 提供者
 
 本包实现[公共身份承诺](../../core/account-identity/SPEC.md)。表、列、迁移及快照身份保持；
-业务算法继续沿原 AI3，未迁条款和模型见[保留清单](../../../.meta_harness/design/architecture/identity-integration/preservation.md)。
+业务行为由[身份公共承诺](../../core/account-identity/SPEC.md)拥有；原AI3模型与有限前提见[身份验证](../../core/account-identity/verification/README.md)。
 
 纯根公开 createAccountIdentity(config, dependencies)、配置校验、迁移与快照检查。
 工厂返回同一实例的 accounts、logins 和幂等 close。公钥和政策从配置取得，
@@ -14,7 +14,7 @@ close 停止新普通调用，等待完整已准入 Promise，包括事务外 sc
 停止前交出的参与面仍按原 StorageUnit 的寿命和共同提交规则执行。
 
 `./cordis` 的两个正式 Service 委托同一纯实例。独立绑定要求调用方先排空消费者，
-再撤除依赖。管理装配的有序收尾按[生命周期设计](../../../.meta_harness/design/architecture/identity-integration/retirement.md)实施，
+再撤除依赖。管理装配的有序收尾按[装配生命周期](../../core/assembly-lifecycle/SPEC.md#装配代际与调用方责任)实施，
 本包出现不表示真实宿主已经完成接入。
 
 managedAccountIdentityPlugin 的纯 describeAssembly 声明提供 accounts/logins、必需 storage/clock，
@@ -47,3 +47,7 @@ assertStorage，再进入原 unit.run。query/mutate 只包装当次真实事务
 S-13 的锁内重读若已见已激活账号，该占用是稳定终态，不再因快照来自 none/live 而消耗重试。原 S-20 禁止该行消失或退回未激活。事务只交出私有占用判定；若此前命中认回分支而跳过政策，必须在事务结束后补政策检查，政策拒绝仍先于 identifier-taken。持锁段不得调用 credentials。已激活账号不能凭旧 match 被认回。
 
 none/live/expired 的其他变化仍要求重取相同账号及凭据证据，沿原两次尝试上限；重复替换未激活账号仍可返回 storage-unavailable。本段取代旧提供者对“再次变为已激活也必定耗尽”的实现取舍，保持公开账号拒绝次序与并发注册 S-31。验证须同时覆盖 none→live→activated 收敛、认回期间激活后的严格政策拒绝，以及 live 身份更换后的有限失败。
+
+## 绑定入口与生命周期坐标
+
+`@omne-harness-lite/account-identity-sql/cordis`导出`accountIdentityPlugin`和`managedAccountIdentityPlugin`，限定name分别为`account-identity-sql`和`account-identity-sql-managed`。两者使用同一纯实现和配置Schema；管理版声明`assemblyLifecycle: 1`并必需注入`assemblyLifetime`，先登记后开始资源效果，缺端口不回退独立模式。独立版由调用方先排空消费者再撤依赖，管理版由[装配生命周期](../../core/assembly-lifecycle/SPEC.md)安排真实逆序收场。

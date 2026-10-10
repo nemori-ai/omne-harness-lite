@@ -19,7 +19,7 @@ StorageService 只要求原 Storage 的 read/write。AtomicStorage 是显式可�
 | P-4 行锁 | lockRow 后的同事务读写与其他同样锁行的写排成次序，不留先读后写窗口；空行不锁，空行互斥须用唯一约束及 P-2 |
 | P-5 哨兵锁 | 同名 lockSentinel 的另一写事务在本事务结束前不能进入锁后部分；不强制哨兵表 |
 | P-6 只读快照 | read 回调内全部读是同一已提交快照；写语句为 StorageDefect，库中无变化 |
-| P-7 持久性 | 提交后跨进程重启仍在；SQLite WAL 的 synchronous=NORMAL 在断电时可能丢最后一段已提交事务，这是明确边界，不宣称断电持久 |
+| P-7 持久性 | 提交后跨进程重启仍在。提供者声明提交所覆盖的故障范围；业务确认保存须满足[已确认保存的耐久边界](../../../docs/architecture/data-and-state.md#已确认保存的耐久边界)，不能仅凭事务返回便声称抵御断电 |
 | P-8 分类 | 连接、忙超时、IO、关闭期间拒绝为 StorageUnavailable，不假装空结果或旧快照；语法、列名、NOT NULL／CHECK、只读内写、嵌套调用及未知约束名为带 cause 的 StorageDefect，不折成不可用 |
 | P-9 唯一值释放 | 删除后同一唯一约束立即允许同值插入 |
 | P-10 引用两向 | 删除被引用行为 delete-restricted；插入／更新指向不存在目标为 missing-target，按触发语句分类；要求 ON DELETE RESTRICT、SQLite foreign_keys=ON，不用延迟约束 |
@@ -65,7 +65,7 @@ SQL owning 绑定在 migrate 路径必需注入 storageStartup；plain 不取得
 启用维护时必需注入 storageCompletion。实际数据库及锁收场后只通知一次，
 通知不替代完成 Promise。宿主在整代 closed 后才核对并释放这些资源。
 独立 openStorage 仍可显式接收运行对象；可序列化插件树配置不能携带它们。
-依据为[已接受的树资源协议](../../../.meta_harness/design/architecture/identity-integration/plugin-tree.md#运行资源的唯一拥有者)。
+实际资源由[治理宿主](../../../apps/tenancy-host/SPEC.md)构造，[SQL提供者](../../infra/storage-sql/SPEC.md)保留原私有guard核验和真实完成。
 
 ## 迁移与维护
 
@@ -101,4 +101,4 @@ ownResource 仅由静态本地消费者在 open 成功后立即登记 close／is
 
 方法及未覆盖范围见[验证义务](verification/README.md)。真实 SQLite、PostgreSQL、业务外键、跨进程持久与明确同提交组合各有独立责任，任一有限测试不能授予整体完成。PostgreSQL 保留既有协议，不以本次 SQLite 验证声称整体恢复。
 
-集成边界遵循[IC](../../../.meta_harness/design/architecture/cordis-integration-conventions.md)，共享资源沿[插件树协议](../../../.meta_harness/design/architecture/identity-integration/plugin-tree.md)。本页接续已采用 P-1～P-13 及公开集成承诺，未更改领域或租户政策。
+集成边界遵循[IC](../../../docs/architecture/cordis-integration-conventions.md)，共享装配沿[插件树协议](../cordis-plugin-tree/SPEC.md)，启动与完成资源由本页唯一维护。本页接续已采用 P-1～P-13 及公开集成承诺，未更改领域或租户政策。

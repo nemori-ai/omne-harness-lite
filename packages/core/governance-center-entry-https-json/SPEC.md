@@ -4,7 +4,7 @@
 `./cordis` 拥有 GovernanceTransportService 与唯一键。业务不依赖 Cordis 对象。
 
 本批迁入公共形状和集成承诺。精确业务源、采用依据和仍有效的模型义务见
-[身份迁移保持清单](../../../.meta_harness/design/architecture/identity-integration/preservation.md)。
+[传输提供者](../../frontend/governance-center-client-https/SPEC.md)。
 完整字节、成帧与服务端拒绝责任归[提供者](../../tenancy/governance-center-entry-node/SPEC.md)；本页约束客户端单次读取和交付。
 
 客户端继续沿已接受的 HT2/EC2 协议；服务端采用 HT3/EC3 不自动升级客户端。

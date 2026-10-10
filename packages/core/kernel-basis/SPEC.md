@@ -18,7 +18,7 @@ The adopted Cordis 4.0.4 probes establish the following integration premises:
 - Disposal drives separate effects concurrently. Logged disposal errors and a fulfilled disposal promise do not prove resource cleanup.
 
 FIBER_STATE mirrors the adopted kernel values. Re-run the [kernel probes](tests/basis/) when changing the adopted version.
-Public product services must follow the [integration convention](../../../.meta_harness/design/architecture/cordis-integration-conventions.md).
+Public product services must follow the [integration convention](../../../docs/architecture/cordis-integration-conventions.md).
 Raw service values in kernel probes do not establish an exception for product providers.
 
 `./testing` belongs to tests. Startup rejects failures and missing required dependencies.

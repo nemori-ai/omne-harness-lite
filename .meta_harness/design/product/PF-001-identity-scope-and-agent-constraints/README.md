@@ -2,7 +2,7 @@
 id: PF-001
 title: 身份、范围与对 Agent 的约束
 status: active
-revision: 25
+revision: 26
 relations:
   supersedes: []
   depends-on: []
@@ -40,7 +40,7 @@ relations:
 
 ## 状态
 
-- 产品设计：**rev 25**，按本轮直接裁决补齐 official Agent Definition 的不可替换例外；工作区概念对齐增量已正式接受（[当前规则与范围](design.md)）；rev 19 的治理产品基线及其评审、确认范围保留，见 [当前规则与范围](design.md)。本次整合不扩大原接受范围。
+- 产品设计：**rev 26**。登录入口的租户冲突规则已获产品负责人接受；工作区概念对齐及治理产品基线的既有接受范围保持，其他未决沿本包正文，不表示实现或验证完成。
 - 未决项：成功业务访问与跨到期访问的规格映射，以及 PF-017 的恢复核对依赖，见 [design §九](design.md#九未决项)
 - 待裁决：本 topic 无新增独立登录政策选择；恢复材料、核对资格与开放等真实依赖由 PF-017 接续
 

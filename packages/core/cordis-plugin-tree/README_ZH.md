@@ -67,3 +67,9 @@ pnpm --filter @omne-harness-lite/cordis-plugin-tree run test
 
 - [装配完成拥有者](../assembly-lifecycle/README.md)
 - [真实治理宿主](../../../apps/tenancy-host/README.md)
+
+## 当前支持与架构偏离
+
+当前loader加载已安装npm包的具名/cordis导出，准备一份进程内固定树。它尚无运行期配置热更新或Session动态插件接管入口，更新当前依赖重启重算。这是支持缺项，不是系统必须重启的规范。
+
+固定行或端口退出ACTIVE，静态声明的必需、可选服务丧失或换代，以及可选依赖拥有关系变化，目前会结束整代。纯动态贡献退出若未撤掉静态服务则不触发该停止。若同代包含无关工作，这个策略超出[真实依赖影响范围](../../../docs/architecture/deployment/cordis-and-lifecycle.md#依赖换代与就绪)；可选服务换代也不能直接成为无关工作停机的许可。loader、关闭机制及实际装配拥有者继续承接局部换代和连续性，不能凭现有回归测试声称目标已满足。

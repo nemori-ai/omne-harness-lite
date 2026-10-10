@@ -468,7 +468,7 @@
 
 - **形态**：对象
 - **出处**：[现行词义](../index.md)（产品负责人 2026-09-20 直接裁决）
-- **它就是 [SYS-COMPOSITION](../../foundation/definition-and-runtime-composition/requirements.md#sys-compositionc1三段结构) 说的「活体」**——
+- **它就是 [SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition) 说的「活体」**——
   那一段描述的计算资源、可回收可重建、因资源治理而生灭，**逐条说的都是协程**
 - **注意 ①**：**一次起一个，[一个会话同时至多一个](#ul-single-active-execution--会话内单活跃--single-active-execution)**；
   从 Run 的角度看，它的一生就是[一次执行尝试](#ul-run-attempt--执行尝试--run-attempt)

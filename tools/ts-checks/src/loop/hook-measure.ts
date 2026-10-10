@@ -10,7 +10,7 @@ import type { LoopConfig } from './config.ts'
 import type { HookReadings } from './hook.ts'
 import { noData } from './reading.ts'
 import { readArchitectureSensors } from './sensors/conformance.ts'
-import { CONSTRAINT_PATH } from '../arch/constraints.ts'
+import { CONSTRAINT_PATHS, constraintDependencies } from '../arch/constraints.ts'
 import {
   changeSince,
   directionLines,
@@ -38,9 +38,15 @@ export function touchedBase(root: string, primaryBranch: string): string | undef
   } catch {
     // 求不出合并点：只看未提交的改动。
   }
-  return changedFiles(root, base).some(path => isProductSource(path) || path === CONSTRAINT_PATH)
-    ? base
-    : undefined
+  const changed = changedFiles(root, base)
+  if (changed.some(path => isProductSource(path) || CONSTRAINT_PATHS.some(input => input === path)))
+    return base
+  if (!changed.some(path => path.endsWith('.md'))) return undefined
+  const dependencies = new Set([
+    ...constraintDependencies(root),
+    ...constraintDependencies(root, base),
+  ])
+  return changed.some(path => dependencies.has(path)) ? base : undefined
 }
 
 export function measureForHook(

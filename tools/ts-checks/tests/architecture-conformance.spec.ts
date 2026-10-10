@@ -1,11 +1,20 @@
 // @module-tag slow
 // Real Git commits exercise both version-local resolution and baseline intent protection.
-import { rmSync } from 'node:fs'
+import { readFileSync, rmSync, symlinkSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { readConformance } from '../src/arch/conformance.ts'
-import { parseConstraints, CONSTRAINT_PATH } from '../src/arch/constraints.ts'
+import {
+  parseConstraints,
+  readConstraints,
+  CONSTRAINT_PATH,
+  LEGACY_CONSTRAINT_PATH,
+} from '../src/arch/constraints.ts'
 import { RULE_IDS, type ArchitectureConstraints } from '../src/arch/conformance-model.ts'
+import { readArchitectureSource } from '../src/arch/source.ts'
+import { readConformanceSensor } from '../src/loop/sensors/conformance.ts'
 import { readActualArchitecture } from '../src/arch/actual.ts'
 import { findingsOf } from '../src/loop/hook.ts'
 import { measureForHook, touchedBase } from '../src/loop/hook-measure.ts'
@@ -16,6 +25,7 @@ import {
   git,
   removeTemporaries,
   repository,
+  temporaryDirectory,
   write,
 } from './fixtures/loop-canary/repository.ts'
 import type { Storage } from '../../../packages/core/storage/src/index.ts'
@@ -37,7 +47,10 @@ function setup(): { root: string; intent: ArchitectureConstraints; base: string 
     write(
       root,
       `${member}/package.json`,
-      JSON.stringify({ name: `@example/${name}`, exports: { '.': './dist/index.js' } }),
+      JSON.stringify({
+        name: `@example/${name}`,
+        exports: { '.': './dist/index.js', './cordis': './dist/cordis.js' },
+      }),
     )
     write(root, `${member}/src/index.ts`, 'export const value = 1')
   }
@@ -94,6 +107,12 @@ function setup(): { root: string; intent: ArchitectureConstraints; base: string 
     ],
     rules: RULE_IDS.map(id => ({ id, source: 'accepted.md#rules' })),
   }
+  write(
+    root,
+    'docs/architecture/accepted.md',
+    '# Accepted\n\n## ui\n## compose\n## port\n## adapter\n## policy\n## rules\n## same-commit\n',
+  )
+  write(root, 'docs/architecture/design.md', '# Design\n\n## same-commit\n')
   write(root, CONSTRAINT_PATH, JSON.stringify(intent))
   return { root, intent, base: commit(root, 'accepted expectations') }
 }
@@ -564,7 +583,12 @@ export const p = { name: 'p', inject: ['newDependency'], apply(ctx:Context) { ct
     )
     const compared = readConformance({ root, base })
     expect(compared.baseline?.value).toBeNull()
-    expect(compared.rows.every(row => row.rule === 'ROLE')).toBe(true)
+    expect(compared.rows.every(row => row.rule === 'ROLE' || row.rule === 'INPUT')).toBe(true)
+    expect(compared.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ rule: 'INPUT', key: 'baseline', state: 'unknown' }),
+      ]),
+    )
     expect(compared.changes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: 'global-architecture', before: null }),
@@ -616,5 +640,324 @@ export const p = { name: 'p', inject: ['newDependency'], apply(ctx:Context) { ct
     expect(readConformance({ root }).coverage.find(row => row.id === 'LSP')).toMatchObject({
       evidence: 'behavior',
     })
+  })
+})
+
+describe('version-local constraint migration', () => {
+  it('reads legacy BASE and current HEAD independently, without inventing changes for a path-only move', () => {
+    const { root, intent } = setup()
+    const legacyDirectory = '.meta_harness/design/architecture'
+    write(
+      root,
+      `${legacyDirectory}/accepted.md`,
+      readFileSync(join(root, 'docs/architecture/accepted.md'), 'utf8'),
+    )
+    write(
+      root,
+      `${legacyDirectory}/design.md`,
+      readFileSync(join(root, 'docs/architecture/design.md'), 'utf8'),
+    )
+    rmSync(join(root, CONSTRAINT_PATH))
+    write(root, LEGACY_CONSTRAINT_PATH, JSON.stringify(intent))
+    const base = commit(root, 'historical unique constraint owner')
+    rmSync(join(root, LEGACY_CONSTRAINT_PATH))
+    write(root, CONSTRAINT_PATH, JSON.stringify(intent))
+    const head = commit(root, 'move unique current owner')
+    const report = readConformance({ root, base, revision: head })
+    expect(report.baseline?.path).toBe(LEGACY_CONSTRAINT_PATH)
+    expect(report.current.path).toBe(CONSTRAINT_PATH)
+    expect(report.changes).toEqual([])
+    expect(report.rows.some(row => row.rule === 'INPUT')).toBe(false)
+  })
+  it('rejects duplicate current owners, malformed input and source coordinates borrowed from HEAD', () => {
+    const { root, intent } = setup()
+    write(root, LEGACY_CONSTRAINT_PATH, JSON.stringify(intent))
+    expect(() => readConformance({ root })).toThrow('Ambiguous architecture constraints')
+    rmSync(join(root, LEGACY_CONSTRAINT_PATH))
+    write(root, CONSTRAINT_PATH, '{bad JSON')
+    expect(() => readConformance({ root })).toThrow()
+    write(
+      root,
+      CONSTRAINT_PATH,
+      JSON.stringify({ ...intent, rules: [{ id: 'IC-1', source: 'accepted.md#head-only' }] }),
+    )
+    const base = commit(root, 'missing anchor at BASE')
+    write(root, 'docs/architecture/accepted.md', '# Accepted\n\n## head-only\n')
+    expect(() => readConformance({ root, base })).toThrow('missing source anchor')
+  })
+  it('schema2 resolves every source from root, rejects nonexistent and fenced anchors, and preserves duplicate and explicit anchors', () => {
+    const { root } = setup()
+    const input = {
+      schemaVersion: 2,
+      domains: [],
+      roles: [],
+      rules: [{ id: 'IC-1', source: 'guides/policy.md#重复-1' }],
+    }
+    write(
+      root,
+      'guides/policy.md',
+      '# 重复\n\n# 重复\n\n<a id="explicit"></a>\n\n```md\n# counterfeit\n<a id="counterfeit-html"></a>\n```\n\n<!--\n# ghost\n<a id="ghost-html"></a>\n-->\n',
+    )
+    write(root, CONSTRAINT_PATH, JSON.stringify(input))
+    expect(readConformance({ root }).current.value?.schemaVersion).toBe(2)
+    for (const anchor of ['重复', 'explicit']) {
+      write(
+        root,
+        CONSTRAINT_PATH,
+        JSON.stringify({ ...input, rules: [{ id: 'IC-1', source: `guides/policy.md#${anchor}` }] }),
+      )
+      expect(() => readConformance({ root })).not.toThrow()
+    }
+    for (const anchor of ['counterfeit', 'counterfeit-html', 'ghost', 'ghost-html', '重复-2']) {
+      write(
+        root,
+        CONSTRAINT_PATH,
+        JSON.stringify({ ...input, rules: [{ id: 'IC-1', source: `guides/policy.md#${anchor}` }] }),
+      )
+      expect(() => readConformance({ root })).toThrow('missing source anchor')
+    }
+    write(
+      root,
+      CONSTRAINT_PATH,
+      JSON.stringify({ ...input, rules: [{ id: 'IC-1', source: 'guides/missing.md' }] }),
+    )
+    expect(() => readConformance({ root })).toThrow('missing source')
+  })
+  it('rejects a source symlink escaping the worktree', () => {
+    const { root } = setup()
+    symlinkSync('/etc/passwd', join(root, 'docs/architecture/escaped.md'))
+    write(
+      root,
+      CONSTRAINT_PATH,
+      JSON.stringify({
+        schemaVersion: 2,
+        domains: [],
+        roles: [],
+        rules: [{ id: 'IC-1', source: 'docs/architecture/escaped.md' }],
+      }),
+    )
+    expect(() => readConformance({ root })).toThrow('escapes checkout')
+  })
+  it('missing HEAD or BASE stays visible and cannot become a successful empty policy', () => {
+    const { root, base, intent } = setup()
+    rmSync(join(root, CONSTRAINT_PATH))
+    const missing = readConformance({ root, base })
+    expect(missing.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ rule: 'INPUT', key: 'current', state: 'unknown' }),
+      ]),
+    )
+    expect(missing.changes[0]?.after).toBeNull()
+    expect(readConformanceSensor(root, true, base).status).toBe('no-data')
+    const noOwner = commit(root, 'missing owner')
+    write(root, CONSTRAINT_PATH, JSON.stringify(intent))
+    expect(readConformanceSensor(root, true, noOwner).status).toBe('no-data')
+    expect(readConstraints(root, readArchitectureSource(root, noOwner).source).value).toBeNull()
+  })
+  it('triggers and performs measurements when only a cited source changes', () => {
+    const { root, base } = setup()
+    write(
+      root,
+      'docs/architecture/accepted.md',
+      readFileSync(join(root, 'docs/architecture/accepted.md'), 'utf8') +
+        '\nNew accepted evidence.\n',
+    )
+    expect(touchedBase(root, 'main')).toBe(base)
+    const measured = measureForHook(root, base, readLoopConfig(), readMetricsConfig())
+    expect(measured.explain.conformance?.status).toBe('data')
+    expect(readConformance({ root, base }).sourceChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'docs/architecture/accepted.md',
+          before: expect.any(String),
+          after: expect.any(String),
+        }),
+      ]),
+    )
+    expect(findingsOf(measured)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: expect.stringContaining('架构依据字节变化') }),
+      ]),
+    )
+  })
+
+  it.each(['json', 'source'])('runs the actual stop hook for a %s-only change', mode => {
+    const { root, intent } = setup()
+    const home = temporaryDirectory('source-hook-home-')
+    if (mode === 'json')
+      write(
+        root,
+        CONSTRAINT_PATH,
+        JSON.stringify({ ...intent, rules: intent.rules.filter(row => row.id !== 'IC-1') }),
+      )
+    else
+      write(
+        root,
+        'docs/architecture/accepted.md',
+        readFileSync(join(root, 'docs/architecture/accepted.md'), 'utf8') +
+          '\nChanged source evidence.\n',
+      )
+    const started = performance.now()
+    const output = spawnSync(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        fileURLToPath(new URL('../src/loop/stop-hook.ts', import.meta.url)),
+      ],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        timeout: 40_000,
+        input: JSON.stringify({
+          hook_event_name: 'SubagentStop',
+          stop_hook_active: false,
+          cwd: root,
+        }),
+        env: { ...process.env, OMNE_METRICS_HOME: home },
+      },
+    )
+    expect(performance.now() - started).toBeLessThan(40_000)
+    expect(output.error).toBeUndefined()
+    expect(output.status).toBe(0)
+    expect(output.stderr).toBe('')
+    const parsed = JSON.parse(output.stdout)
+    expect(Object.keys(parsed)).toEqual(['decision', 'reason'])
+    expect(parsed.decision).toBe('block')
+    expect(parsed.reason).toContain(mode === 'json' ? '架构预期改动' : '架构依据字节变化')
+  })
+  it('allows a non-core definition owner and rejects a provider leaking through its public definition entry', () => {
+    const { root, intent } = setup()
+    const member = 'packages/agent/capability'
+    write(
+      root,
+      `${member}/package.json`,
+      JSON.stringify({
+        name: '@example/capability',
+        exports: {
+          '.': './dist/api.js',
+          './service': './dist/service.js',
+          './cordis': './dist/plugin.js',
+        },
+      }),
+    )
+    write(root, `${member}/src/api.ts`, 'export type Operation = () => void')
+    write(
+      root,
+      `${member}/src/service.ts`,
+      "import {Service} from '@deepseek-ai/cordis'\n/** @contract capability */\nexport abstract class Capability extends Service {static readonly provide = 'capability'}",
+    )
+    write(
+      root,
+      `${member}/src/plugin.ts`,
+      "import {Capability} from './service.js'; export class Provider extends Capability {}",
+    )
+    write(
+      root,
+      CONSTRAINT_PATH,
+      JSON.stringify({
+        ...intent,
+        roles: [
+          ...intent.roles,
+          {
+            id: 'capability',
+            paths: [`${member}/src/**`],
+            layer: 'contract',
+            domains: [],
+            status: 'adopted',
+            source: 'accepted.md',
+          },
+        ],
+      }),
+    )
+    const base = commit(root, 'accepted capability owner')
+    write(
+      root,
+      `${policy}/src/index.ts`,
+      "import {Capability} from '@example/capability/service'; export const definition = Capability",
+    )
+    let rows = readConformance({ root, base }).rows
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ rule: 'IC-1', member, state: 'converged', key: 'capability' }),
+        expect.objectContaining({
+          rule: 'IC-5',
+          key: '@example/capability/service#Capability',
+          state: 'converged',
+        }),
+      ]),
+    )
+    write(
+      root,
+      `${member}/src/service.ts`,
+      readFileSync(join(root, `${member}/src/service.ts`), 'utf8') +
+        "\nexport {Provider} from './plugin.js'",
+    )
+    rows = readConformance({ root, base }).rows
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule: 'IC-5',
+          key: '@example/capability/service#Capability',
+          state: 'deviation',
+        }),
+      ]),
+    )
+    write(root, `${member}/src/api.ts`, "export {Provider} from './plugin.js'")
+    expect(readConformance({ root, base }).rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule: 'IC-4',
+          member,
+          state: 'deviation',
+          reason: expect.stringContaining('api.ts'),
+        }),
+      ]),
+    )
+  })
+  it('does not grant public-definition ownership through another member re-export', () => {
+    const { root } = setup()
+    write(root, `${storage}/src/cordis.ts`, 'export {}')
+    write(
+      root,
+      `${storage}/src/private.ts`,
+      "import {Service} from '@deepseek-ai/cordis'\n/** @contract private */\nexport abstract class Private extends Service {static provide = 'private'}",
+    )
+    write(
+      root,
+      `${policy}/src/index.ts`,
+      "export {Private} from '../../../core/storage/src/private.js'",
+    )
+    expect(readConformance({ root }).rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule: 'IC-1',
+          member: storage,
+          key: 'private',
+          state: 'deviation',
+        }),
+      ]),
+    )
+  })
+  it('does not exempt an independent plugin merely because its name matches a definition', () => {
+    const { root } = setup()
+    write(
+      root,
+      `${storage}/src/cordis.ts`,
+      "import {Service, Context} from '@deepseek-ai/cordis'\n/** @contract registry */\nexport class Registry extends Service {static readonly provide = 'registry'}\nexport const plugin = {name:'Registry', apply(ctx: Context) {ctx.get('registry')}}",
+    )
+    write(
+      root,
+      `${policy}/src/index.ts`,
+      "import {Registry} from '@example/storage/cordis'; export const registry = Registry",
+    )
+    expect(readConformance({ root }).rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule: 'IC-5',
+          key: '@example/storage/cordis#Registry',
+          state: 'deviation',
+        }),
+      ]),
+    )
   })
 })

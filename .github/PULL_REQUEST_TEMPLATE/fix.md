@@ -1,4 +1,4 @@
-<!-- 规则归执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”；prepare-pr 提供 fix 例子。按最终 diff 写，删除提示/不适用块。 -->
+<!-- 规则归执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”；流程沿 docs/engineering/publication.md 的 pstack 引用展开。按最终 diff 写，删除提示/不适用块。 -->
 
 ## 问题与修复结果
 

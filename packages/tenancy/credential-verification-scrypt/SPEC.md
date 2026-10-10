@@ -18,5 +18,8 @@ managedCredentialsPlugin 的纯 describeAssembly 声明提供 credentials，无�
 
 验证保持原 AI3 S-8/S-26 义务、参数边界及固定编码对照。
 随机编码偶含短子串不是明文泄漏；消除该错误判据时必须保留真实明文泄漏负控。
-IR-CC-1 未因本页或包改名而关闭。来源及接受范围见
-[迁移行为](../../../.meta_harness/design/architecture/identity-integration/behavior.md)。
+IR-CC-1不因本页或包改名关闭；仍须保留原秘密保护及真实明文泄漏负控，验证责任沿[身份验证入口](../../core/account-identity/verification/README.md)。
+
+## 绑定入口与生命周期坐标
+
+`@omne-harness-lite/credential-verification-scrypt/cordis`导出`credentialsPlugin`和`managedCredentialsPlugin`，限定name分别为`credential-verification-scrypt`和`credential-verification-scrypt-managed`。两者使用同一纯实现和配置Schema；管理版声明`assemblyLifecycle: 1`并必需注入`assemblyLifetime`，先登记后开始资源效果，缺端口不回退独立模式。独立版由调用方先排空消费者再撤依赖，管理版由[装配生命周期](../../core/assembly-lifecycle/SPEC.md)安排真实逆序收场。

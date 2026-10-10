@@ -47,12 +47,12 @@ Service 的接收者 Context 可以是追踪派生对象；探针按真实调用
 
 | 精确 RT12 模型                                                         | 公共性质及保留原因                                                                             |
 | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| FinalPlan、UsageCalibration                                            | 固定输入、计量及校准同时含 Anchor/Send/恢复；仍由未迁真实来源和提供者组合消费                  |
+| FinalPlan、UsageCalibration                                            | 固定输入、计量及校准同时含 Anchor/Send/恢复；由实际来源和提供者组合持续消费                  |
 | PendingReply                                                           | Pending 值交接、处分和 Commit 的共同关系，不能只验证值构造                                     |
 | Settlement、Publication、ReferenceLifecycle、OpenedOrder、AckLifecycle | 完整原批、未知写、执行/消费者双寿命、开口栅栏与 ACK 提交/清理；真实日志/Storage/写方组合仍有效 |
-| ContentGate、Adaptation、AdaptationBinding、RecoveryTiming             | 首内容准入、精确版本保有及恢复时序；实现与实际在途来源尚未全部改接正式 Service                 |
+| ContentGate、Adaptation、AdaptationBinding、RecoveryTiming             | 首内容准入、精确版本保有及恢复时序；仍须真实Service装配及在途来源组合验证                 |
 
-这些综合资源继续只保留原位置，[协议模型](models/README.md)给出规模和配置。公开性质不能统一称为 provider 私有，也不复制整套模型。本次接口迁移须复验受影响正/负配置及实际旧提供者；最终正式提供者/协调验收另验证真实来源、双 Session 和无 Agent 进展。
+这些综合资源唯一归本成员models目录，[协议模型](models/README.md)给出规模和配置。公开性质不能统一称为 provider 私有，也不复制整套模型。接口或组合变化须复验受影响正负配置及实际提供者；正式提供者与协调验收另验证真实来源、双Session和无agent进展。
 
 ## ACK 组合验证义务
 
@@ -74,3 +74,9 @@ Service 的接收者 Context 可以是追踪派生对象；探针按真实调用
 ## 综合规范输入
 
 [models](models/README.md)保存本能力的规范TLA及全部配对配置。模型是有限协议输入，不是执行记录；RetryHistory唯一源仍在本验证目录原算法位置。
+
+## 独立调用的协议覆盖缺项
+
+[独立调用目标](../../../../docs/architecture/runtime/model-runtime.md#独立调用)允许无隐式Session的合法消费者处理或可靠保存结果后ACK。现有十五操作仍关联Session、CallKey与Session Log；invokeModel只提供单次发出构件，不能证明完整的独立持久消费与ACK已承接。
+
+模型公共契约及提供者拥有者须细化该独立协议、授权、结果保管、确认和恢复，并验证不创建隐式Session的完整消费路径。当前Session适配的模型与测试只覆盖各自范围，不授予用Session要求替代独立调用目标。此缺项不因本次导航迁移而关闭。

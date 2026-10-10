@@ -14,10 +14,10 @@
 应用拥有**启动入口、配置接入和装配**；可复用能力回到 [packages/](../packages/README.md)
 的所属包，通过公开入口组合。应用目录的出现不自动决定进程或微服务拓扑。
 
-应用通过公开入口选择提供者，配置、就绪与退出责任由应用旁类型和薄规格约束；
-重要选择留简短 ADR，按[架构维护规则](../.meta_harness/design/architecture/README.md)取得依据。
-未迁应用继续读取相关 realization 与验证义务；**计划不另立一份长期装配权威**。
+应用通过公开入口选择提供者，配置、就绪与退出责任由应用旁类型和行为规格约束；
+重要选择留必要 ADR，按[系统架构](../docs/architecture/README.md)取得依据。
+旧装配材料按[准入规则](../docs/engineering/documentation.md#位置与唯一源)筛选，冲突政策不得成为应用规范；实际限制记录为偏离。
 
 调整已有装配时沿成员的契约和验证完成；若需要绕开包边界，或改变身份传递、授权、
-生命周期或失败语义，先回 [.meta_harness](../.meta_harness/AGENTS.md) 核对权威设计。
+生命周期或失败语义，先核对[系统架构](../docs/architecture/README.md)与[领域责任](../docs/domains/README.md)。
 启动参数与构建命令放在应用自己的说明或脚本中，**不扩充常驻提示**。

@@ -1,6 +1,6 @@
 // 测试运行工具的已知值核对：成员清单、并行度覆盖、耗时账本、计时报告器、失败归因的分类。影响面的计划另见 affected.spec.ts。
-import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -68,16 +68,29 @@ describe('成员清单', () => {
     expect(listTestMembers(ROOT, []).some(item => item.path.startsWith('examples/'))).toBe(true)
   })
 
-  it('从提交读与从工作树读走同一套解析：HEAD 上的成员清单与工作树一致（工作树没有新增或删掉成员时）', () => {
-    const config = readTestRunsConfig()
-    const fromTree = listWorkspaceMembers(fileTree(ROOT), config.affected.excludeRoots)
-    const fromHead = listWorkspaceMembers(gitTree(ROOT, 'HEAD'), config.affected.excludeRoots)
-    const paths = (members: readonly { path: string }[]) => members.map(item => item.path)
-    // 工作树可能多出还没提交的成员；HEAD 上有的，工作树里都得有，且依赖与脚本一样。
-    expect(paths(fromHead).every(path => paths(fromTree).includes(path))).toBe(true)
-    for (const member of fromHead)
-      expect(fromTree.find(item => item.path === member.path)).toEqual(member)
-    expect(() => gitTree(ROOT, '0'.repeat(40))).toThrow('不存在')
+  it('同一份成员清单从真实提交与文件系统读取，脚本和测试依赖一致', () => {
+    const root = mkdtempSync(join(tmpdir(), 'test-runs-tree-'))
+    try {
+      mkdirSync(join(root, 'tools', 'fixture'), { recursive: true })
+      writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - tools/*\n')
+      writeFileSync(join(root, 'tools', 'fixture', 'package.json'), JSON.stringify({
+        name: '@fixture/tool',
+        scripts: { test: 'vitest run', delivery: 'node delivery.js' },
+        devDependencies: { '@fixture/leaf': 'workspace:*' },
+      }))
+      execFileSync('git', ['init', '-q', root])
+      execFileSync('git', ['-C', root, 'add', '.'])
+      execFileSync('git', ['-C', root, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'seed'])
+      const fromTree = listWorkspaceMembers(fileTree(root), [])
+      const fromHead = listWorkspaceMembers(gitTree(root, 'HEAD'), [])
+      expect(fromTree).toEqual(fromHead)
+      expect(fromHead).toHaveLength(1)
+      expect(fromHead[0]?.scripts.delivery).toBe('node delivery.js')
+      expect(fromHead[0]?.dependencies).toContain('@fixture/leaf')
+      expect(() => gitTree(root, '0'.repeat(40))).toThrow('不存在')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('按脚本名选成员：acceptance 只选有这个脚本的，并带上脚本原文', () => {

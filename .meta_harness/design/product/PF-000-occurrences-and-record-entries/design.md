@@ -40,7 +40,7 @@
 | 不在本 topic | 归哪 |
 |---|---|
 | **具体有哪些事件类型** | **各自的 topic。**本 topic 给判据，不给清单 |
-| **存在哪里、存几份、留多久** | **技术设计。**[SYS-OBSERVABILITY](../../foundation/observability-and-logging/requirements.md) 明写「不预选……统一 EventLog」 |
+| **存在哪里、存几份、留多久** | **技术设计。**[SYS-OBSERVABILITY](../../../../docs/requirements.md#全链路可观测可遥测与日志完备sys-observability) 明写「不预选……统一 EventLog」 |
 | **给人看吗、给模型看吗** | [PF-009 的块标注](../PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗) |
 | **怎么组装、怎么压缩** | [PF-010](../PF-010-context-management-and-assembly/README.md) |
 | **一次运行怎么往前走** | [PF-012](../PF-012-agent-loop-and-run/README.md) |
@@ -229,14 +229,14 @@
 | 字段 | 谁拥有 | 为什么不能省 |
 |---|---|---|
 | **寿命宿主** | 本 topic | 决定保留、清理与孤儿检测。默认[会话](../../ubiquitous_language/terms/agent-runtime-loop.md) |
-| **租户身份** | [SYS-TENANT](../../foundation/cross-system-constraints/requirements.md#sys-tenant) | **无条件**。它是隔离边界，**与寿命宿主不是一回事**——一条归会话的条目同时也归某个租户 |
+| **租户身份** | [SYS-TENANT](../../../../docs/requirements.md#从第一天支持隔离sys-tenant) | **无条件**。它是隔离边界，**与寿命宿主不是一回事**——一条归会话的条目同时也归某个租户 |
 | **出处** | 本 topic | 谁产生了这条。**它不是寿命宿主的取值**（见 [§6.5](#65-两条必须堵死的后门)） |
-| **因果先后** | [SYS-OBSERVABILITY.C2](../../foundation/observability-and-logging/requirements.md) | 该条明写「时间戳顺序、因果先后与同一流程归属**分别表达**」 |
+| **因果先后** | [SYS-OBSERVABILITY 第1项](../../../../docs/requirements.md#全链路可观测可遥测与日志完备sys-observability) | 该条明写「时间戳顺序、因果先后与同一流程归属**分别表达**」 |
 | **外部效果的确定性** | 本 topic | 三值：**已确定发生 / 已确定未发生 / 不可确定**。只对记录了外部效果的条目要求 |
 | ~~给人看 / 给模型看~~ | **[PF-009](../PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)** | **本 topic 指向它，不重定** |
 
 **「不可确定」必须是一个合法值。**没有它，
-[SYS-OBSERVABILITY.C3](../../foundation/observability-and-logging/requirements.md)
+[SYS-OBSERVABILITY 第2项](../../../../docs/requirements.md#全链路可观测可遥测与日志完备sys-observability)
 的「**不得以缺少终态记录冒充仍在运行**」当场失守——
 设计者只会记成功和失败，而**真实世界里有第三种**：发出去了，回音没了。
 
@@ -264,7 +264,7 @@
 - **倒数第三行是一次真实踩过的坑**——它长得像「截图要不要留」，
   实际上一位都不涉及效力。**「持久」和「模型看得见」是两件事**，
   混起来会在绝大多数条目上判错。
-- **倒数第二行没有会话。**[SYS-OBSERVABILITY.C1](../../foundation/observability-and-logging/requirements.md)
+- **倒数第二行没有会话。**[SYS-OBSERVABILITY](../../../../docs/requirements.md#全链路可观测可遥测与日志完备sys-observability)
   明写「**没有 Session 的系统工作同样可观测**」——
   只拿会话内的例子校准，会让人以为寿命宿主恒等于会话，从而把这一整类漏掉。
 - **最后一行提醒：不是每件发生的事都要留下条目。**「零条」是一个正常答案。
@@ -281,7 +281,7 @@
 **为什么**：干预改变了实际发生的事。不记结论，
 **恢复之后重算会得到与当时不同的结果**，而且没人看得出来哪里不一样。
 
-依据：[SYS-OBSERVABILITY.C3](../../foundation/observability-and-logging/requirements.md)
+依据：[SYS-OBSERVABILITY 第2项](../../../../docs/requirements.md#全链路可观测可遥测与日志完备sys-observability)
 要求接受/拒绝/取消都有可定位的记录。
 
 ### 6.2 K2：依据的寿命，不得短于要靠它重建的那个对象
@@ -296,7 +296,7 @@
 实例可回收、可重建，而运行还是那个运行。挂错了，
 **恢复的时候依据已经随实例一起没了**。
 
-依据：[SYS-RUNTIME-CONTINUITY.C1/C2](../../foundation/runtime-state-and-continuity/requirements.md)
+依据：[SYS-RUNTIME-CONTINUITY](../../../../docs/requirements.md#运行时解耦与接续sys-runtime-continuity)
 与 [PF-012 §6.2 恢复不铸新身份](../PF-012-agent-loop-and-run/design.md#62-新的一次尝试不铸新身份)。
 
 ### 6.3 K3：瞬态条目不得独撑任何一条恢复路径
@@ -382,20 +382,18 @@
 |---|---|
 | 给人看吗、给模型看吗 | [PF-009](../PF-009-context-message-types/README.md) |
 | 怎么组装、怎么压缩 | [PF-010](../PF-010-context-management-and-assembly/README.md) |
-| 一次运行怎么往前走、方程长什么样 | [PF-012](../PF-012-agent-loop-and-run/README.md)（**draft**） |
+| 一次运行怎么往前走、方程长什么样 | [PF-012](../PF-012-agent-loop-and-run/README.md)，采用范围见其状态说明 |
 | 非常态怎么分层处置 | [**PF-011**](../PF-011-off-nominal-handling/README.md) |
 | 存在哪、存几份、留多久 | 技术设计 |
-| 工程观测的采集与查询 | [SYS-OBSERVABILITY](../../foundation/observability-and-logging/requirements.md)，且**观测记录是派生投影，不是第四档效力** |
+| 工程观测的采集与查询 | [SYS-OBSERVABILITY](../../../../docs/requirements.md#全链路可观测可遥测与日志完备sys-observability)，且**观测记录是派生投影，不是第四档效力** |
+
+### PF-012 的依赖范围
+
+本 topic 消费 PF-012 的[会话日志](../PF-012-agent-loop-and-run/design.md#52-会话日志是唯一的真相来源)与[日志先于可见](../PF-012-agent-loop-and-run/design.md#61-日志先于可见)规则。PF-012 的当前修订、已接受范围及保留缺口以其 [README 状态说明](../PF-012-agent-loop-and-run/README.md#状态)为准，不从整包标签推断全部内容均已接受或均未接受。相关规则修订时，复核本 topic 的依据效力、重建寿命与可见性要求。
 
 ---
 
 ## 九、未决项
-
-### 9.1 依赖 PF-012（**仍是 draft**）
-
-本 topic 引用它两条已经稳定的内容（[§5.2](../PF-012-agent-loop-and-run/design.md#52-会话日志是唯一的真相来源)、
-[§6.1](../PF-012-agent-loop-and-run/design.md#61-日志先于可见)）。
-**PF-012 转正时，这两处引用要复核。**
 
 ### 9.2 寿命宿主的首批取值表尚未封板
 

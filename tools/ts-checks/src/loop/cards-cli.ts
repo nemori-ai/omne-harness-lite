@@ -1,6 +1,6 @@
 // 卡片台账入口：给一张故事卡记一个时间点，追加到 `<回路目录>/cards.jsonl`。
 // 退出码：0 记下了；1 拒绝了这次登记（重复、时间倒挂、没有 proposed 先来后两个）；2 是工具自己出错（参数、读不了的文件、git）。
-import { join, resolve } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { coordinates } from '../metrics/git.ts'
 import {
@@ -15,12 +15,17 @@ import {
 import { readLoopConfig } from './config.ts'
 import { loopHome } from './home.ts'
 import { cardIndex, CARD_ID, readStories } from '../product/stories.ts'
+import { inspectCurrentSources } from '../product/sources.ts'
 
 const USAGE =
-  '用法：loop-card --card <ST-NNN-NN> --event proposed|runnable|accepted [--at <ISO 时间>] [--root <检出目录>]'
+  '用法：loop-card --card <ST-NNN-NN> --event proposed|runnable|accepted [--at <ISO 时间>] [--root <检出目录>] [--config <路径>] [--capture <路径>]'
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
+const cwdPath = (value: string): string =>
+  isAbsolute(value) ? value : `${process.cwd()}/${value}`
 
 interface Options {
+  readonly configPath?: string
+  readonly capturePath?: string
   readonly card: string
   readonly event: CardEvent
   readonly at?: Date
@@ -31,7 +36,7 @@ function parseArgs(argv: readonly string[]): Options {
   const values = new Map<string, string>()
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index] ?? ''
-    if (!['--card', '--event', '--at', '--root'].includes(arg))
+    if (!['--card', '--event', '--at', '--root', '--config', '--capture'].includes(arg))
       throw new Error(`认不出的参数 ${arg}\n${USAGE}`)
     const value = argv[index + 1]
     if (value === undefined || value === '') throw new Error(`${arg} 需要一个值\n${USAGE}`)
@@ -51,6 +56,8 @@ function parseArgs(argv: readonly string[]): Options {
       `--at ${atText} 不是合法的 ISO 时间（YYYY-MM-DD 或 YYYY-MM-DDTHH:MM[:SS][Z|±HH:MM]）`,
     )
   return {
+    ...(values.has('--config') ? { configPath: cwdPath(values.get('--config') ?? '') } : {}),
+    ...(values.has('--capture') ? { capturePath: cwdPath(values.get('--capture') ?? '') } : {}),
     card,
     event: known,
     root: resolve(values.get('--root') ?? ROOT),
@@ -61,6 +68,23 @@ function parseArgs(argv: readonly string[]): Options {
 function main(argv: readonly string[]): number {
   const options = parseArgs(argv)
   const config = readLoopConfig()
+  const sources = inspectCurrentSources({
+    root: options.root,
+    productRoot: config.sensors.topicChurn.productRoot,
+    ...(options.configPath === undefined ? {} : { configPath: options.configPath }),
+    ...(options.capturePath === undefined ? {} : { capturePath: options.capturePath }),
+  })
+  const resolution = sources.aliases.find(alias => alias.id === options.card)?.resolution
+  if (resolution !== undefined && resolution.kind !== 'legacy') {
+    const target =
+      resolution.kind === 'issue'
+        ? resolution.identity.url
+        : resolution.kind === 'unknown'
+          ? resolution.reason
+          : resolution.sources.join('、')
+    console.log(`拒绝：${options.card} 当前来源不是旧卡，请读取 Issue 来源：${target}`)
+    return 1
+  }
   const at = coordinates(options.root, undefined)
   const path = join(loopHome(at.mainRoot, process.env), 'cards.jsonl')
   const { entries, badLines } = readCards(path)
@@ -90,7 +114,7 @@ function main(argv: readonly string[]): number {
   if (options.event === 'accepted') {
     // 接受了的卡会从 stories.md 删掉，所以这里不再核它在不在。
     console.log(
-      `提醒：接受以删卡提交上的 \`Accepted-Card: ${options.card}\` 为准（见 conventions.md「卡的一生」），台账只供度量`,
+      `提醒：旧台账 accepted 登记不授予有效接受。旧卡处置仍按删卡提交上的 \`Accepted-Card: ${options.card}\` 为准（见 conventions.md「卡的一生」），台账只供度量`,
     )
     return 0
   }

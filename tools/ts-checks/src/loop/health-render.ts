@@ -24,8 +24,8 @@ import { INDICATOR_LABELS } from './status.ts'
 
 export const SECTION_TITLES = {
   cards: '卡',
-  weekly: '每周接受数',
-  remaining: '各 topic 剩余卡数',
+  weekly: '每周旧台账accepted登记',
+  remaining: '当前来源卡与平台活动',
   commits: '提交与合并的大小',
   tests: '测试耗时',
   debt: '债的走向',
@@ -41,7 +41,7 @@ export function formatHours(hours: number): string {
 
 export function spanText(span: Span): string {
   if (span.kind === 'done') return formatHours(span.hours)
-  if (span.kind === 'open') return `进行中，已过 ${formatHours(span.elapsedHours)}`
+  if (span.kind === 'open') return `尚未登记终点，已过 ${formatHours(span.elapsedHours)}`
   return '算不出：台账里没有 proposed'
 }
 
@@ -136,12 +136,21 @@ function cardsHtml(block: CardsBlock): string {
   const lead =
     block.leadTime.status === 'no-data'
       ? `<div class="meta">前置时间：没有数据，${esc(block.leadTime.reason)}</div>`
-      : `<div class="meta">接受过的 ${block.leadTime.data.count} 张卡，提出→接受的前置时间：中位数 ${formatHours(block.leadTime.data.medianHours)}，最长 ${formatHours(block.leadTime.data.maxHours)}</div>`
+      : `<div class="meta">旧台账accepted登记 ${block.leadTime.data.count} 张卡，提出→旧台账accepted登记的前置时间：中位数 ${formatHours(block.leadTime.data.medianHours)}，最长 ${formatHours(block.leadTime.data.maxHours)}</div>`
   const time = (iso: string | undefined) => (iso === undefined ? '—' : localTime(iso))
   return (
+    '<div class="meta">schema1历史登记仅供度量，不代表有效接受或交付吞吐。</div>' +
     lead +
     table(
-      ['卡号', '标题', '提出', '第一次能跑', '接受', '提出→能跑', '提出→接受'],
+      [
+        '卡号',
+        '标题',
+        '提出',
+        '第一次能跑',
+        '旧台账accepted登记',
+        '提出→能跑',
+        '提出→旧台账accepted登记',
+      ],
       block.rows.map(row => [
         `<span class="mono">${esc(row.card)}</span>`,
         row.title === undefined
@@ -160,7 +169,7 @@ function cardsHtml(block: CardsBlock): string {
 function weeklyHtml(weeks: readonly WeekCount[]): string {
   const most = Math.max(1, ...weeks.map(week => week.accepted))
   return table(
-    ['周一', '接受', ''],
+    ['周一', '旧台账accepted登记', ''],
     weeks.map(week => [
       week.start,
       String(week.accepted),
@@ -172,17 +181,27 @@ function weeklyHtml(weeks: readonly WeekCount[]): string {
 
 function remainingHtml(block: RemainingBlock): string {
   const rows = block.topics.map(topic => [
-    `<span class="mono">${esc(topic.topic)}</span>`,
+    esc(topic.topic),
     String(topic.total),
-    String(topic.accepted),
-    String(topic.remaining),
-    String(topic.notReady),
+    String(topic.legacy),
+    String(topic.open),
+    String(topic.closed),
+    String(topic.unknown),
   ])
-  const unlisted =
-    block.unlisted.length === 0
-      ? ''
-      : `<div class="meta">台账里接受过、却不在任何 stories.md 里的卡：${esc(block.unlisted.join('、'))}</div>`
-  return table(['topic', '卡', '已接受', '剩余', '剩余里未就绪'], rows, [1, 2, 3, 4]) + unlisted
+  const cards = block.cards.map(card =>
+    card.kind === 'legacy'
+      ? esc(card.id)
+      : `${esc(card.identity.url)} ${card.read.kind === 'unknown' ? `unknown：${esc(card.read.reason)}` : `${card.read.state}，Stage ${esc(card.read.stage ?? '未读到')}`}`,
+  )
+  return (
+    `<div class="meta">完整性 ${esc(block.completeness)}，日常${block.dailyEnabled ? '启用' : '禁用'}。平台 closed／Stage 与旧台账登记不授予有效接受。</div>` +
+    table(
+      ['topic', '观察卡', '旧卡', '平台 open', '平台 closed', 'unknown'],
+      rows,
+      [1, 2, 3, 4, 5],
+    ) +
+    `<ul>${cards.map(card => `<li>${card}</li>`).join('')}</ul>`
+  )
 }
 
 function commitsHtml(block: CommitsBlock): string {
@@ -331,7 +350,7 @@ export function renderHealthPage(health: Health): string {
 <body>
 <h1>流程体检 <span class="mono">${esc(meta.shortHead)}</span>${meta.dirty ? '<span class="badge bad">工作树不干净</span>' : ''}</h1>
 <div class="meta">生成于 ${esc(meta.generatedAt)} · 提交 <span class="mono">${esc(meta.head)}</span> · 分支 <span class="mono">${esc(meta.branch)}</span> · 回路目录 <span class="mono">${esc(meta.home)}</span></div>
-<div class="meta">窗口：每周接受数看最近 ${meta.windows.weeks} 周 · 提交看最近 ${meta.windows.commits} 个 · 测试看最近 ${meta.windows.runs} 次全量运行</div>
+<div class="meta">窗口：每周旧台账accepted登记看最近 ${meta.windows.weeks} 周 · 提交看最近 ${meta.windows.commits} 个 · 测试看最近 ${meta.windows.runs} 次全量运行</div>
 ${notes}
 ${section(SECTION_TITLES.cards, health.cards, cardsHtml)}
 ${section(SECTION_TITLES.weekly, health.weekly, weeklyHtml)}
@@ -378,15 +397,13 @@ export function healthSummary(health: Health, pagePath: string): string[] {
         block.leadTime.status === 'no-data'
           ? '前置时间没有数据'
           : `前置时间中位数 ${formatHours(block.leadTime.data.medianHours)}、最长 ${formatHours(block.leadTime.data.maxHours)}`
-      return `${block.rows.length} 张，已接受 ${block.rows.length - open}，未走完 ${open}；${lead}`
+      return `${block.rows.length} 张，旧台账accepted登记 ${block.rows.length - open}，尚无accepted登记 ${open}；${lead}`
     }),
     line(SECTION_TITLES.weekly, health.weekly, weeks =>
       weeks.map(week => `${week.start.slice(5)} ${week.accepted}`).join('，'),
     ),
     line(SECTION_TITLES.remaining, health.remaining, block => {
-      const sum = (key: 'total' | 'remaining' | 'notReady') =>
-        block.topics.reduce((total, topic) => total + topic[key], 0)
-      return `${block.topics.length} 个 topic，共 ${sum('total')} 张，剩余 ${sum('remaining')}（其中未就绪 ${sum('notReady')}）`
+      return `${block.cards.length} 张观察卡，完整性 ${block.completeness}，日常${block.dailyEnabled ? '启用' : '禁用'}；平台 open ${block.cards.filter(card => card.kind === 'issue' && card.read.kind === 'known' && card.read.state === 'open').length}，closed ${block.cards.filter(card => card.kind === 'issue' && card.read.kind === 'known' && card.read.state === 'closed').length}，unknown ${block.cards.filter(card => card.kind === 'issue' && card.read.kind === 'unknown').length}`
     }),
     line(SECTION_TITLES.commits, health.commits, block => {
       const top = block.largest[0]

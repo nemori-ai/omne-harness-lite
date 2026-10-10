@@ -39,7 +39,7 @@ export function parseTrailers(block: string): Trailer[] {
   })
 }
 
-export const CARD_TRAILER_KEYS = ['Accepted-Card', 'Voided-Card'] as const
+export const CARD_TRAILER_KEYS = ['Accepted-Card', 'Voided-Card', 'Migrated-Card'] as const
 export type CardTrailerKey = (typeof CARD_TRAILER_KEYS)[number]
 
 /** 一个提交上的删卡 trailer：键规范成 `Accepted-Card`／`Voided-Card`，值原样（不一定合乎写法）。 */

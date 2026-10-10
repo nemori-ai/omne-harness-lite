@@ -1,6 +1,6 @@
 # TypeScript package template
 
-This directory owns `typescript-package@1.0.0`. It is a development resource, not a workspace product member.
+This directory owns `typescript-package@2.0.0`. It is a development resource, not a workspace product member.
 Public interfaces, behavior and acceptance remain with their existing owners.
 
 ## Create and inspect
@@ -27,14 +27,20 @@ Creation does not generate empty specs, fictitious services or passing placehold
 | Template resource | Purpose |
 | --- | --- |
 | manifest.json | Exact identity, version, file slots, required resources, variants and historical rules |
-| common/ | Manifest, TypeScript/Vitest configuration and bilingual README drafts |
+| common/ | Manifest, TypeScript/Vitest configuration bilingual README drafts and bindings v2 registration |
 | variants/module/ | Public functions and values without a binding entry |
 | variants/cordis-module/ | Pure root and integration helpers or coordination bindings |
 | variants/service-contract/ | Pure public definitions and separate Service definitions, keys and typed events |
 | variants/service-provider/ | Independent factories and bindings that consume public Service definitions |
-| fragments/ | Writing guides for actual thin specs, schema, verification and decisions |
+| fragments/ | Writing guides for actual documentation topics, complete owned behavior specifications, schema, verification and decisions |
 
-Public Service definitions belong to core. A provider consumes their promises instead of copying them.
+Templates 1.0.0 and 2.0.0 still restrict service-contract creation and inspection to core.
+The target ownership policy is in [Product package organization](../../../../docs/package-organization.md).
+Service definitions follow their capability owner. Architecture conformance now checks adopted roles and public exports.
+Template creation, adoption inspection and other lint checks retain their existing scope.
+The tool owner must adapt the applicable checks before creating public Service members in a new group.
+Keep definition uniqueness and public entry rules. Do not bypass inspection with a handwritten structure or a false adoption marker.
+A provider consumes the public promises instead of copying them.
 Private helper services do not automatically make a coordination package a public Service provider.
 Choose a variant from responsibility review, not directory names or a single extracted provide fact.
 
@@ -42,6 +48,8 @@ Choose a variant from responsibility review, not directory names or a single ext
 packages/<group>/<name>/
 ├── package.json                     Explicit exports, scripts, publishing and adopted version
 ├── README.md / README_ZH.md          Actual responsibilities, entries, examples and boundaries
+├── documentation.json              Required files, sections and formal requirement sources
+├── docs/                           Conditional topics and declared static images
 ├── SPEC.md                          Owned behavior beyond types; required for binding variants
 ├── src/
 │   ├── index.ts                     Pure public root
@@ -70,7 +78,8 @@ Schema, runtime resources, models, proofs and fixtures must occupy their declare
 Verification requires its README. Acceptance requires its separate Vitest configuration.
 A declared directory must contain actual resources. Do not add empty directories to imitate the template.
 
-Types and necessary validation express shape. SPEC states only additional behavior and references its accepted basis.
+Types and necessary validation express shape. SPEC states the complete necessary behavior beyond public types and references its accepted basis.
+The specification has no fixed thickness limit. Shared guarantees stay with their owner instead of being copied.
 Keep effective unmigrated sources and their consumers until an accepted migration replaces them.
 Do not duplicate a provider's shared promises or manufacture a contract.md beside an existing authority.
 Publish an owned SPEC and external schema/runtime resources through the explicit file list.
@@ -85,7 +94,9 @@ Member discovery first checks real package directories and manifest files agains
 It compares those candidates with the source inventory before inspecting packages.
 Missing or invalid manifests, directory links and unexpected non-directory nodes cause exit 2.
 The scanner cannot report a successful inventory that silently omits these candidates.
-Group navigation files are limited to README.md, README_ZH.md, AGENTS.md and CLAUDE.md.
+Group roots allow README.md, README_ZH.md, AGENTS.md, CLAUDE.md and documentation.json.
+Group docs contain Markdown and declared SVG, PNG or WebP images. They are not workspace members.
+Unknown directories still require a real package manifest. The name docs is reserved for group documentation.
 
 The scanner visits **every owned file and directory**, including untracked files and empty directories.
 It reports the full node inventory and compares it with the selected variant's instantiated template tree.
@@ -113,7 +124,7 @@ After complete adaptation and manual integration review, an existing or complete
   "omneHarness": {
     "packageTemplate": {
       "id": "typescript-package",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "variant": "service-provider"
     }
   }
@@ -121,8 +132,8 @@ After complete adaptation and manual integration review, an existing or complete
 ```
 
 Do not mark an incomplete tree, unresolved applicable obligation or unverified provider as adopted.
-The [per-package adoption review](adoption-review.md) records this PR's qualified packages and remaining scopes.
-It does not replace contracts, accepted evidence or the marker in package.json.
+The [1.0.0 adoption review](adoption-review.md) describes the earlier template adoption scope.
+It does not establish 2.0.0 adoption or replace current contracts and markers.
 The scanner is read-only. There is no automatic adoption or version upgrade command.
 
 Marker states are current, older, unmarked, invalid and unknown.
@@ -138,8 +149,59 @@ The manifest is the single current version source. Change its version when relea
 Existing packages keep their adopted version until their complete migration is checked.
 Unknown identities and future versions cannot be certified with current rules.
 
-This first release has no actual historical version. previousVersions is empty.
-Controlled fixtures test historical dispatch, not a real historical migration.
+Version 2.0.0 adds mandatory documentation.json and conditional documentation slots.
+previousVersions preserves the exact 1.0.0 required files, variants and complete layout.
+Existing 1.0.0 markers remain older. They do not acquire the new registration requirement.
 A supported historical entry needs its exact required files, variant requirements, complete layout and immutable ruleSet 2 semantics.
 Without those rules, report uncovered. Future incompatible checking behavior requires a separate rule engine.
 The withdrawn preliminary limited checker is not a published historical template.
+
+## Documentation and group drafts
+
+[Member documentation requirements](../../../../docs/member-documentation.md) own the required content.
+Both package READMEs contain seven required sections. Each section starts with a documentation placeholder.
+The bindings v2 registration uses paths relative to the repository root and stable section IDs.
+Its adopted basis records the structural requirement, not acceptance of draft content.
+
+The [group template](../domain/README.md) creates README.md and documentation.json only.
+It creates no workspace member, source, empty topic or adoption marker.
+
+```sh
+pnpm package:template create-domain --group example
+pnpm package:template create-domain --group example --write
+pnpm package:template scan --group example --json --check
+uv run --locked omne-documentation inventory --root . --out tmp/documentation-inventory
+```
+
+Use fragments/docs only when a topic has actual readers. Default creation does not copy these fragments.
+Register required topic files and sections in the owning documentation.json after adding actual content.
+The layout permits Markdown, SVG, PNG and WebP under docs. Empty directories and other formats fail.
+
+The TypeScript scanner checks layout, required registration and draft sentinels.
+The Python inventory checks bindings v2, source references, sections, placeholders and unknown applicability.
+A section placeholder appears as missing-section with reason `section body: placeholder-only`.
+An inventory exit of 0 means that the report completed, including gaps. Inspect its rows.
+Neither tool proves content sufficiency, independent installation, business behavior or semantic acceptance.
+
+An unselected scan reports groups against the current group template but retains the package check exit policy.
+Use explicit --group with --check to assert group structure. --group and --member are mutually exclusive.
+Group results include the template identity, owned tree, delegated members, findings and current-template-only coverage.
+They do not certify historical group adoption. Older packages and groups outside the new template scope need separate migration review.
+
+## Long-lived specifications and single-delivery input
+
+The [SPEC writing guide](fragments/specification/SPEC.md.tpl) covers owned behavior, failure, lifecycle, composition, and persistent verification.
+The [internal design fragment](fragments/docs/internals.md.tpl) explains the mechanism, responsibility, failure handling, and necessary reasons.
+Use both only for real owned obligations. The public entry remains the data-shape authority.
+
+A single-delivery specification describes one task's implementation scope and acceptance input.
+It stays with task process materials. A delivery Issue refers to current normative clauses instead of replacing them.
+The [delivery protocol](../../../../docs/engineering/delivery.md) owns that distinction and the card's decision rules.
+
+The [RFC directory](../../../../docs/rfcs/README.md) preserves actual proposals and their precise decisions.
+RFC acceptance, normative writeback, implementation, and delivery acceptance remain separate.
+The current SPEC expresses the final adopted guarantees without assembling RFC history.
+Do not manufacture a proposal for an existing guarantee's first formal specification.
+
+These writing-guide changes add no required files or structural slots.
+The current manifest version and historical adoption rules remain unchanged.

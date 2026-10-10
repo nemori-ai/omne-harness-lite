@@ -67,3 +67,11 @@ pnpm --filter @omne-harness-lite/assembly-lifecycle run test
 ## 相关包
 
 - [插件树加载器](../cordis-plugin-tree/README.md)
+
+## 当前机制与架构偏离
+
+当前协调器固定一组行，只能接管一次。重复或停止后登记、setup失败、行撤除及管理绑定失败会请求整代停止；首次停止使全部行端口失效。它不能在旧槽位重开，当前整体重建先等待旧代真实收场。无效retainClose交付也会请求停止。
+
+这些是当前机制的限制，不是目标装配政策。若将无关能力放进同一协调器，局部撤除会停止无关工作的准入，违背[局部依赖范围](../../../docs/architecture/deployment/cordis-and-lifecycle.md#依赖换代与就绪)及[reload连续性](../../../docs/architecture/runtime/assembly-and-change.md#reload-与推进权交接)。装配与机制拥有者须细化受影响范围和在途交接；文档修订没有改变产品代码或关闭该偏离。
+
+当前治理装配在CG等待网络时保有CLS，等本地CAS与查证后才关闭；AI等待scrypt时先等待身份、治理及入口工作，再关闭SQL。这说明现有排空方式，不要求无关能力一起退出。机制回归和目标准入验证分别见[验证入口](verification/README.md)。

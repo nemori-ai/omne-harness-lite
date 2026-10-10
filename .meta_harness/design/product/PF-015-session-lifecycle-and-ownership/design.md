@@ -509,7 +509,7 @@
 
 #### 第二件：今天是单机，但别把单机焊进语义
 
-[SYS-DEPLOY](../../foundation/cross-system-constraints/requirements.md) 已经定了
+[SYS-DEPLOY](../../../../docs/requirements.md) 已经定了
 第一版是单机，**而边界要清晰到将来能扩展成分布式、异构节点与微服务化，且不改变领域语义**。
 **落到存储这件事上，产品侧只认一条：**
 

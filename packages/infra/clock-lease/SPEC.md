@@ -70,3 +70,7 @@ resource 拥有独立持久资源、初始化、格式确认与关闭。resource
 每段回拨只记录进入warn和恢复info，保持墙钟、高水位及持续时间，不按调用刷日志。条件回收只认本实例最后确认的上界，另一写者已推进则不回收。独立资源预检只读；不得把缺失、损坏或IO失败当作合法首次创建。明确初始化的prepared前缀与普通ready打开分别验证。
 
 验证必须覆盖首次/快速重启、回拨与追上、申请失败/未知及缺陷闩锁、真实写锁/关闭顺序、业务写事务内取时、独立预检与快照损坏，以及公共分面、制品消费和实际消费者装配。
+
+## 绑定入口与生命周期坐标
+
+`@omne-harness-lite/clock-lease/cordis`导出`clockPlugin`和`managedClockPlugin`，限定name分别为`clock-lease`和`clock-lease-managed`。两者使用同一纯实现和配置Schema；管理版声明`assemblyLifecycle: 1`并必需注入`assemblyLifetime`，先登记后开始资源效果，缺端口不回退独立模式。独立版由调用方先排空消费者再撤依赖，管理版由[装配生命周期](../../core/assembly-lifecycle/SPEC.md)安排真实逆序收场。

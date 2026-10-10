@@ -15,7 +15,7 @@
 本次不增加后台清扫调度器。
 
 验证继续覆盖原步骤/重试/清除映射、各步停止及迟到结果、真实三次提交和崩溃恢复模型。
-集成采用见[行为设计](../../../.meta_harness/design/architecture/identity-integration/behavior.md)。
+本页拥有已采用的注册业务及集成承诺，持续资源从本成员verification读取。
 
 ## 主链与过期占用
 
