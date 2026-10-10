@@ -6,12 +6,7 @@ import {
   type SettlementCoordinatorFactory,
   type SettlementCoordinator,
 } from '@omne-harness-lite/model-request-runtime'
-import {
-  projectMessages,
-  materializeMessages,
-  type ProjectionRules,
-  type ProjectionOptions,
-} from '@omne-harness-lite/model-message-projection'
+import { projectMessages, materializeMessages } from '@omne-harness-lite/model-message-projection'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { checkKey } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
@@ -21,6 +16,7 @@ import type { PendingModelResponse } from '@omne-harness-lite/model-response'
 import type { SessionModelResultSource, CapturedSessionModelReply } from './model-result-source.ts'
 import { createSessionRunHistory } from './run-history.ts'
 import type { SessionRunModelBinding } from './model-binding.ts'
+import type { MessageProjectionInput, SessionMessageProjections } from './message-projection.ts'
 
 type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
 type CallInput = Pick<
@@ -42,7 +38,8 @@ export interface SessionModelTurnOptions {
   readonly linked: SessionRunModelBinding
   readonly source: SessionModelResultSource
   readonly call: CallInput
-  readonly projection: { readonly rules: ProjectionRules; readonly options?: ProjectionOptions }
+  readonly projection: MessageProjectionInput
+  readonly projections?: SessionMessageProjections
   readonly settlement: {
     readonly factory: SettlementCoordinatorFactory
     readonly owner: SettlementOwner
@@ -123,16 +120,21 @@ class ModelTurn {
   async messages(): Promise<
     { messages: OpenCallInput['messages'] } | Extract<SessionModelTurnResult, { retained: true }>
   > {
-    const prefix = await this.prefix()
-    if (!prefix || 'failure' in prefix) return await this.retain(prefix)
-    const projected = projectMessages(
-      { source: prefix.source, entries: prefix.entries, rules: this.options.projection.rules },
-      this.options.projection.options,
-    )
+    const projected = await this.project()
     if (!('projected' in projected)) return await this.retain(projected)
     const messages = materializeMessages(projected.projected)
     if (!('materialized' in messages)) return await this.retain(messages)
     return { messages: messages.materialized }
+  }
+  async project() {
+    if (this.options.projections)
+      return this.options.projections.read(this.options.linked.journal, this.options.projection)
+    const prefix = await this.prefix()
+    if (!prefix || 'failure' in prefix) return { failure: 'unavailable' as const }
+    return projectMessages(
+      { source: prefix.source, entries: prefix.entries, rules: this.options.projection.rules },
+      this.options.projection.options,
+    )
   }
   async start(): Promise<
     | { ref: CallKey; pending: PendingModelResponse }

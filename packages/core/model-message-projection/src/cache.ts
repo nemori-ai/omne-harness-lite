@@ -75,7 +75,6 @@ export function createProjectionCache(
   if (bytes > limits.bytes) return { unavailable: true, reason: 'capacity' }
   const result = cold(input, options)
   if (!('projected' in result)) return result
-  if (result.state.rules.external === null) return { unavailable: true, reason: 'requiredSource' }
   if (result.state.entries > limits.entries || result.state.blocks > limits.blocks)
     return { unavailable: true, reason: 'capacity' }
   const owner = Object.freeze({}) as CacheOwner

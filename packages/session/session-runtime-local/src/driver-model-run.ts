@@ -19,12 +19,14 @@ import {
   type SessionModelAttempt,
 } from './model-attempt.ts'
 import type { RetainedSessionModelTurn } from './model-turn.ts'
+import type { SessionMessageProjections } from './message-projection.ts'
 
 type Prepared = Extract<DriverRunStart, { kind: 'prepared' }>
 type Inputs = Pick<LocalSessionDriverOptions, 'ingress' | 'identities' | 'model' | 'tools' | 'work'>
 
 /** Takes responsibility for these original borrows before asynchronous Model construction. */
 export function createDriverModelRunTask(input: {
+  readonly projections?: SessionMessageProjections | undefined
   readonly options: Inputs
   readonly scope: SessionScope
   readonly prepared: Prepared
@@ -94,6 +96,7 @@ class ModelRunTask {
       async retained => {
         this.retained.add(retained)
       },
+      this.input.projections,
     )
     this.token = options.work.begin(scope, prepared.preparation)
     this.tokens.add(this.token)
@@ -322,6 +325,7 @@ class ModelRunTask {
       async retained => {
         this.retained.add(retained)
       },
+      this.input.projections,
     )
     delete this.original
     this.retained.clear()

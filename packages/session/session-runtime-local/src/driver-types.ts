@@ -12,10 +12,6 @@ import type {
   RunnerServiceHost,
 } from '@omne-harness-lite/loop-extension-runner'
 import type {
-  ProjectionRules,
-  ProjectionOptions,
-} from '@omne-harness-lite/model-message-projection'
-import type {
   ModelRuntimeHostInputs,
   ModelIdentitySource,
   SessionRuntimeBinding,
@@ -40,6 +36,7 @@ import type { SessionDriverModelFactory } from './driver-model-types.ts'
 import type { LocalToolResultCustody, LocalToolResultDelivery } from './tool-result-types.ts'
 import type { StateOptions } from './state-types.ts'
 import type { SessionModelResultSource } from './model-result-source.ts'
+import type { MessageProjectionInput, MessageProjectionPolicy } from './message-projection.ts'
 
 declare const workTokenBrand: unique symbol
 export interface SessionDriverWorkToken {
@@ -78,7 +75,7 @@ export interface SessionDriverRunSources {
   readonly providers: Omit<SessionRuntimeBinding, 'log' | 'selection' | 'currentEvaluationInputs'>
   readonly selection: Omit<SessionModelSelectionInput, 'binding' | 'currentEvaluationInputs'>
   readonly host: Omit<ModelRuntimeHostInputs, 'sessions' | 'callAccess' | 'identities'>
-  readonly projection: { readonly rules: ProjectionRules; readonly options?: ProjectionOptions }
+  readonly projection: MessageProjectionInput
   readonly release: () => Promise<void>
 }
 export interface SessionDriverRunSourceFactory {
@@ -144,6 +141,7 @@ export interface SessionDriverToolFactory {
 
 /** Pure trusted construction. No process paths, socket, command, UI or inferred grants. */
 export interface LocalSessionDriverOptions {
+  readonly projectionCache?: MessageProjectionPolicy
   readonly tenant: TenantId
   readonly ingress: SessionDriverIngress
   readonly work: SessionDriverWorkOwner

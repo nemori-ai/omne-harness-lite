@@ -13,7 +13,7 @@ import {
   type SourceToken,
 } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import { copyJsonValue, isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
 import {
   StorageDefect,
   StorageUnavailable,
@@ -70,6 +70,32 @@ export function createParticipant(
   if (authority.storage !== storage)
     throw new TypeError('log authorization must use the same storage')
   return Object.freeze<SessionLogParticipant>({
+    async readSinceIn(unit, access, source, after) {
+      const checked = checkSourceToken(source)
+      const copied = copyJsonValue(after)
+      if (
+        'failure' in checked ||
+        'failed' in copied ||
+        !isNonNegativeJsonInteger(copied.ok) ||
+        compareInteger(copied.ok, checked.ok.tail) > 0 ||
+        !validUnit(unit, storage)
+      )
+        return invalidInput
+      if (!admission()) return unavailable
+      const cursor = copied.ok
+      return available(() =>
+        supervise(() =>
+          unit.run(async () => {
+            const selected = await readFixedSourceIn(unit, access, checked.ok, authority)
+            if ('failure' in selected) return selected
+            const entries = await unit.query(tx =>
+              entriesBetween(tx, checked.ok, cursor, checked.ok.tail),
+            )
+            return { kind: 'suffix' as const, entries, source: checked.ok }
+          }),
+        ),
+      )
+    },
     async readByKeyIn(unit, access, source, key) {
       const checked = checkSourceToken(source)
       if ('failure' in checked || !checkKey(key) || !validUnit(unit, storage)) return invalidInput

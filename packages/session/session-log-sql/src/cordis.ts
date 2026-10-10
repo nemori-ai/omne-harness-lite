@@ -75,6 +75,7 @@ class OwnerProvider extends SessionLogOwnerService {
   }
 }
 class ParticipantProvider extends SessionLogParticipantService {
+  readonly readSinceIn: SessionLogParticipant['readSinceIn']
   readonly readPrefixIn: SessionLogParticipant['readPrefixIn']
   readonly readByKeyIn: SessionLogParticipant['readByKeyIn']
   readonly sourceIn: SessionLogParticipant['sourceIn']
@@ -83,6 +84,7 @@ class ParticipantProvider extends SessionLogParticipantService {
   readonly readPrefix: SessionLogParticipant['readPrefix']
   constructor(ctx: Context, participant: SessionLogParticipant) {
     super(ctx)
+    this.readSinceIn = participant.readSinceIn
     this.readPrefixIn = participant.readPrefixIn
     this.readByKeyIn = participant.readByKeyIn
     this.sourceIn = participant.sourceIn

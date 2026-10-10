@@ -5,6 +5,7 @@ import {
   checkAppendInput,
   checkKey,
   compareInteger,
+  checkSourceToken,
   type AppendResult,
   type AppendRequest,
   type SessionLogParticipant,
@@ -17,6 +18,19 @@ import type { runtimeAuthority } from './runtime-authority.ts'
 import type { BorrowedRunJournal, OriginalRunJournal } from './run-journal-types.ts'
 import { stateScope, InvalidStateInput } from './state-values.ts'
 import { CoordinationRejection, boundedText } from './coordination-values.ts'
+
+function reusableProjectionSource(
+  before: import('@omne-harness-lite/session-log').SourceToken | undefined,
+  source: import('@omne-harness-lite/session-log').SourceToken,
+): before is import('@omne-harness-lite/session-log').SourceToken {
+  return (
+    before !== undefined &&
+    before.session === source.session &&
+    tenantIdEquals(before.tenant, source.tenant) &&
+    before.journalGeneration === source.journalGeneration &&
+    compareInteger(before.tail, source.tail) <= 0
+  )
+}
 
 interface Host {
   readonly options: RuntimeOptions
@@ -96,6 +110,8 @@ class BoundRunJournal {
           unavailable: true as const,
         }),
       readPrefix: () => this.operation(() => this.prefix(), { failure: 'unavailable' as const }),
+      readProjection: previous =>
+        this.operation(() => this.projection(previous), { failure: 'unavailable' as const }),
       close: this.close,
     })
   }
@@ -128,7 +144,7 @@ class BoundRunJournal {
       )
         return Promise.resolve({ failure: 'invalidInput' })
       const fixed = copied.ok
-      return this.operation(() => this.read(entry => compareInteger(entry.position, fixed) > 0), {
+      return this.operation(() => this.since(fixed), {
         failure: 'unavailable' as const,
       })
     },
@@ -170,6 +186,47 @@ class BoundRunJournal {
     const prefix = await this.prefix()
     if ('failure' in prefix) return prefix
     return { entries: prefix.entries.filter(filter), tail: prefix.tail }
+  }
+  async since(after: import('@omne-harness-lite/session-log').SourceToken['tail']) {
+    return this.inUnit(async unit => {
+      const current = await this.host.log.sourceIn(unit, this.host.authority.logAccess, this.scope)
+      if ('failure' in current) return { failure: 'unavailable' as const }
+      const cursor = compareInteger(after, current.source.tail) > 0 ? current.source.tail : after
+      const result = await this.host.log.readSinceIn(
+        unit,
+        this.host.authority.logAccess,
+        current.source,
+        cursor,
+      )
+      return 'failure' in result
+        ? { failure: 'unavailable' as const }
+        : { entries: result.entries, tail: result.source.tail }
+    })
+  }
+  async projection(previous: import('@omne-harness-lite/session-log').SourceToken | null) {
+    const checked = previous === null ? null : checkSourceToken(previous)
+    if (checked && 'failure' in checked) throw new TypeError('invalid previous projection source')
+    return this.inUnit(async unit => {
+      const coordinate = await this.host.log.sourceIn(
+        unit,
+        this.host.authority.logAccess,
+        this.scope,
+      )
+      if ('failure' in coordinate) return { failure: 'unavailable' as const }
+      const source = coordinate.source
+      const before = checked?.ok
+      if (reusableProjectionSource(before, source)) {
+        const result = await this.host.log.readSinceIn(
+          unit,
+          this.host.authority.logAccess,
+          source,
+          before.tail,
+        )
+        return 'failure' in result ? { failure: 'unavailable' as const } : result
+      }
+      const result = await this.host.log.readPrefixIn(unit, this.host.authority.logAccess, source)
+      return 'failure' in result ? { failure: 'unavailable' as const } : result
+    })
   }
   async append(request: AppendRequest): Promise<AppendResult> {
     try {

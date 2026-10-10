@@ -669,3 +669,15 @@ permit 绑定现有 execution_generation，不修改 Run、attempt、输入、�
 同一提供者并发重读同一原调用时复用同一个恢复 permit；每个 Session 至多保留一个恢复 permit。
 Driver 从原前项位置推导模型身份，并核对 call、prepareKey 和 originalPosition 后进入既有模型路径。
 唯一发起仍归原 model invocation owner。已发起或结果未知的调用、工具后的调用和已推进日志均不适用此接续操作。
+
+## 运行时历史消息缓存
+
+`LocalSessionDriverOptions.projectionCache`显式配置最大Session数及每个缓存的条目、块、规范化输入字节上限。不配置时不保留消息投影。正式CLI配置4个Session，每个最多8MiB输入、16384条目、65536块；字节不是JavaScript堆大小。Driver拥有派生状态，实际任务停止后释放，不关闭借入的日志、模型或工具资源。
+
+Run来源的`projection.cache.identity`是进程内可信解析策略身份。所有factReaders、entryReaders及其捕获的参数改变时，装配者必须更换身份；单纯重建等价闭包不改变策略。正式CLI将此身份绑定本次宿主的evaluator和固定解析规则。缓存按完整租户和Session分开，跨独立Run复用；规则、代次及解析策略变化重建。每次读取都通过本次Run的`readProjection`重新授权并读当前固定来源，缓存没有授权能力。未知存储结果不发布缓存。
+
+`BorrowedRunJournal.readProjection(previous)`在同一原Unit取得source；同租户、Session、generation且previous.tail不超前时只读取后缀，否则读取完整前缀。成功返回后才更新缓存。相同tail也重新授权。普通`log.readSince`同样直接读取范围，不先读完整历史。
+
+历史模式`external:null`仅缓存历史消息，system必须为空。当前模型、工具和参数继续由本次请求取得。压缩影响旧块、增量失效或规则变更时使用完整冷建。容量超限时完整冷建且记住本代次/规则不可缓存，直到其改变；不截断历史。相同Session不并发更新缓存，驱动排空后清理。返回的不可变投影可继续用于同步materialize，逐出不改变其内容。
+
+热投影处理新增条目并共享旧段；materialize仍按输出消息及字节线性工作。其他完整日志消费者、请求序列化及上游模型耗时不在此性能界内。

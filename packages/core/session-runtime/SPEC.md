@@ -68,6 +68,8 @@ runJournal.borrow是可信运行根的内部入口，接原coordinationAuthority
 
 借用提供原Session的SessionLog及完整readPrefix，供原模型准备、结算和ACK按各自公开协议使用。每次读写都在实际租户Unit重新核原grant，再授权同Unit日志参加者；不借普通成员读取资格，不嵌套日志独立事务。完整前缀包含本Unit取得的真实SourceToken；按key或位置读取保留实际尾部。写入复制／校验输入并拒绝其他Session、租户和Run；attempt fence、tail condition和去重沿原日志拥有者判断。拒绝使单元回滚。原Run日志权限不替代最新permit、模型的登记与当前装配模态或唯一claim。模型可用性沿模型协议的登记／模态／额度三项；本期不约束额度，不另设独立模型许可。
 
+`BorrowedRunJournal.readProjection(previous)` 为历史消息投影读取固定范围。每次调用先在同一实际 Unit 核原 Run grant，再读取当前 SourceToken。previous 与当前租户、Session、journalGeneration 相同且尾号未倒退时，返回 `(previous.tail, current.tail]` 的完整 suffix；否则返回当前完整 prefix。相同尾号仍核当前授权，但不读旧日志行。返回的来源和记录须出自同一 Unit；外层提交失败时不得向缓存发布结果。该方法不缓存授权，也不授予新执行资格。
+
 withReadUnit只供可信宿主读取本Run的求值输入。每次调用在原租户单元重新核原持久grant及ticket使用，随后调用一次读回调，并返回该回调的原结果。回调不得发外部IO、写入数据或使Unit逃逸。它不重新查询登录或成员，不签发新Run、模型或工具执行资格。已有Run的输入读取因而不使用新会话的成员准入端口；最新attempt仍在原发起点另核；模型登记与当前装配模态沿ModelRuntime的原调用路径核验。该读面与日志借用共用在途上界和关闭排空；close后不调用新回调，存储暂不可用返回unavailable，原程序缺陷保持异常。
 
 借用generation是进程内生命周期对象，不是持久journalGeneration，不授予权限。currentGeneration在该借用可用时返回原对象，close同步将它变为null。借用和在途操作容量须在异步核验前预留，真实归还后才释放；具体容量由提供者显式配置。没有自动超时释放、替换或驱逐旧借用。

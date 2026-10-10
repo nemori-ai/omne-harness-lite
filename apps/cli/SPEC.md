@@ -619,6 +619,7 @@ createSessionRunModelBinding消费Session提供者公开的createSessionCallAcce
 
 `startProductionSessionHost` 选择既有 Session Driver、官方定义、实际模型目录、加密凭据、同库参加者、Clock 和 OpenRouter 提供者。Run 的源和任务在实际生命周期内借用及归还，不由 CLI 消费者维护执行循环。当前发行定义同时安装文本模型回路、Shell及其准入扩展。未安装的工具与扩展执行返回不可用。裸终端入口消费同一独立宿主，不另设执行循环。
 
+正式宿主为 Driver 显式配置历史投影缓存，最多保留四个 Session。每份缓存上限为16384条日志、65536个内容块及8 MiB规范化输入字节；这不是堆内存上限。缓存使用既有 Core 投影实现；每次仍通过当前 Run 借用核验授权并读取固定后缀。宿主构造时固定 reader 策略身份，策略及其捕获参数变更时必须更换身份。模型、工具声明和请求参数逐次求值，不由历史缓存替代。容量超限回到完整投影；宿主关闭时在 Driver 工作排空后释放缓存。
 
 ## 终端会话消费者
 

@@ -38,6 +38,15 @@ export interface SessionWorkReading {
 
 /** Trusted borrowed original-Run log. It cannot be sent in a client protocol. */
 export interface BorrowedRunJournal {
+  /** Reauthorize, then read a fixed suffix only when the previous source is reusable. */
+  readonly readProjection: (previous: SourceToken | null) => Promise<
+    | {
+        readonly kind: 'prefix' | 'suffix'
+        readonly entries: readonly LogEntry[]
+        readonly source: SourceToken
+      }
+    | { readonly failure: 'unavailable' }
+  >
   readonly scope: SessionScope
   readonly run: string
   /** Process-local borrow identity, distinct from the durable journal generation. */

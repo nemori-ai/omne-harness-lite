@@ -31,6 +31,7 @@ export interface SessionRunModelBindingOptions {
   readonly maxCallReads: number
 }
 export interface SessionRunModelBinding {
+  readonly journal: Pick<BorrowedRunJournal, 'scope' | 'readProjection'>
   readonly binding: SessionRuntimeBinding
   readonly operations: ModelRuntimeOperations
   /** Return only after the original model owner has stopped using this binding. */
@@ -123,7 +124,7 @@ export async function createSessionRunModelBinding(
       return { failure: 'unavailable' }
     }
     model = acquired
-    return Object.freeze({ binding, operations: model.operations, returnJournal })
+    return Object.freeze({ binding, journal, operations: model.operations, returnJournal })
   } catch (error) {
     try {
       await returnJournal()

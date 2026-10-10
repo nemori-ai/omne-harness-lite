@@ -5,6 +5,7 @@ import type { LocalSessionDriverOptions, SessionDriverRunSources } from './drive
 import type { DriverTask } from './driver-tasks.ts'
 import { startDriverRun, type DriverRunStart } from './driver-run.ts'
 import { createDriverModelRunTask } from './driver-model-run.ts'
+import type { SessionMessageProjections } from './message-projection.ts'
 
 type Inputs = Pick<
   LocalSessionDriverOptions,
@@ -12,8 +13,12 @@ type Inputs = Pick<
 >
 
 /** Register this task before it allocates its original Run or any asynchronous source borrow. */
-export function createDriverRunTask(options: Inputs, scope: SessionScope): DriverTask {
-  const task = new RunTask(options, scope)
+export function createDriverRunTask(
+  options: Inputs,
+  scope: SessionScope,
+  projections?: SessionMessageProjections,
+): DriverTask {
+  const task = new RunTask(options, scope, projections)
   return Object.freeze({
     completion: Promise.resolve().then(() => task.run()),
     admission: task.admission,
@@ -35,6 +40,7 @@ class RunTask {
   constructor(
     readonly options: Inputs,
     readonly scope: SessionScope,
+    readonly projections?: SessionMessageProjections,
   ) {}
   admission = (): SessionRunAdmissionBlock | null => {
     const started = this.started
@@ -74,6 +80,7 @@ class RunTask {
       this.sources = sources
       if (this.stopping) return 'retained'
       this.model = createDriverModelRunTask({
+        projections: this.projections,
         options: this.options,
         scope: this.scope,
         prepared: this.started,

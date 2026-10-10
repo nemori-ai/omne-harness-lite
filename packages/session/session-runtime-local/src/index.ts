@@ -64,6 +64,12 @@ export { prepareSessionModelRun } from './run-preparation.ts'
 export type { SessionRunIdentities } from './run-preparation.ts'
 
 export { createLocalSessionDriver } from './driver.ts'
+export { createSessionMessageProjections } from './message-projection.ts'
+export type {
+  MessageProjectionPolicy,
+  MessageProjectionInput,
+  SessionMessageProjections,
+} from './message-projection.ts'
 export { inspectSessionToolAdoption, sessionToolActionOwner } from './driver-tool-adoption.ts'
 export type { SessionToolAdoption } from './driver-tool-adoption.ts'
 export { createSessionToolActionHistory } from './driver-action-history.ts'

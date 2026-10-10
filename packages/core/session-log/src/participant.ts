@@ -30,6 +30,22 @@ export type LogParticipationFailure =
   | { readonly failure: 'dedupeConflict'; readonly keys: readonly string[] }
 
 export interface SessionLogParticipant {
+  /** Reads (after, source.tail] in the caller's unit, with current authorization. */
+  readonly readSinceIn: (
+    unit: StorageUnit,
+    authority: LogAuthority,
+    source: SourceToken,
+    after: JsonNumber,
+  ) => Promise<
+    | {
+        readonly kind: 'suffix'
+        readonly entries: readonly LogEntry[]
+        readonly source: SourceToken
+      }
+    | InvalidInput
+    | Unavailable
+    | { readonly failure: 'denied' }
+  >
   readonly readByKeyIn: (
     unit: StorageUnit,
     authority: LogAuthority,

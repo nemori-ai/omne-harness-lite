@@ -107,6 +107,7 @@ import { createDriverModelRunTask } from '../src/driver-model-run.ts'
 import { readDriverModelHistory, DriverHistoryInvalid } from '../src/driver-model-history.ts'
 import { readDriverToolBatch } from '../src/driver-tool-source.ts'
 import { createLocalSessionDriver } from '../src/index.ts'
+import { createSessionMessageProjections } from '../src/message-projection.ts'
 import { createDriverRunTask } from '../src/driver-run-task.ts'
 import {
   nativeCallFixturePorts,
@@ -2884,6 +2885,54 @@ describe('original Run journal borrow for model settlement', () => {
     if (!('journal' in result)) throw new Error('original Run journal unavailable')
     return { f, p, journal: result.journal }
   }
+  it('reads a current authorized projection suffix across distinct Run borrows', async () => {
+    const { f, p, journal } = await borrowed()
+    const full = await journal.readProjection(null)
+    if ('failure' in full) throw new Error('missing actual prefix')
+    expect(full.kind).toBe('prefix')
+    const appended = await journal.log.append(
+      p.scope.session,
+      [
+        {
+          tenant,
+          run: p.step.run,
+          attempt: p.step.attempt,
+          dedupeKey: 'projection-suffix',
+          readKeys: [],
+          payload: { fact: 'new' },
+        },
+      ],
+      { kind: 'unfenced' },
+      { kind: 'unconditional' },
+    )
+    expect(appended).toHaveProperty('positions')
+    await journal.close()
+    expect(await journal.readProjection(full.source)).toEqual({ failure: 'unavailable' })
+    const next = await f.runtime.runJournal.borrow(
+      f.runtime.coordinationAuthority,
+      p.scope,
+      p.step.run,
+    )
+    if ('failure' in next) throw new Error('missing next borrow')
+    try {
+      const suffix = await next.journal.readProjection(full.source)
+      expect(suffix).toMatchObject({
+        kind: 'suffix',
+        entries: [{ dedupeKey: 'projection-suffix' }],
+      })
+      if ('failure' in suffix) throw new Error('missing suffix')
+      expect(suffix.entries).toHaveLength(1)
+      expect(await next.journal.readProjection(suffix.source)).toMatchObject({
+        kind: 'suffix',
+        entries: [],
+      })
+      expect(
+        await next.journal.readProjection({ ...suffix.source, journalGeneration: 'replacement' }),
+      ).toMatchObject({ kind: 'prefix', source: suffix.source })
+    } finally {
+      await next.journal.close()
+    }
+  })
   it('holds the original Run unit through a trusted input read and drains it before returning the borrow', async () => {
     const { f, journal } = await borrowed()
     const entered = Promise.withResolvers<void>()
@@ -6856,6 +6905,14 @@ describe('driver complete original Model Run', () => {
     const entered = Promise.withResolvers<void>(),
       returned = Promise.withResolvers<void>()
     const f = await running({ entered: entered.resolve, wait: returned.promise })
+    const cache = createSessionMessageProjections({
+      maxSessions: 2,
+      limits: { entries: 4096, blocks: 4096, bytes: 8 * 1024 * 1024 },
+    })
+    const projection = { read: vi.fn(cache.read), close: cache.close }
+    Object.defineProperty(f.sources, 'projection', {
+      value: { ...f.sources.projection, cache: { identity: {} } },
+    })
     runResources.push(async () => returned.resolve())
     const model: LocalSessionDriverOptions['identities']['model'] = (
       _scope,
@@ -6873,6 +6930,8 @@ describe('driver complete original Model Run', () => {
     const probes = f.f.probe.mock.calls.length
     const task = createDriverModelRunTask({
       ...f.input,
+      projections: projection,
+      sources: f.sources,
       options: { ...f.input.options, identities: { ...f.input.options.identities, model } },
     })
     await entered.promise
@@ -6888,6 +6947,15 @@ describe('driver complete original Model Run', () => {
     expect(await task.completion).toBe('released')
     expect(await task.close()).toBe('released')
     expect(f.ports.sends()).toBe(2)
+    expect(projection.read).toHaveBeenCalledTimes(2)
+    const firstProjection = await projection.read.mock.results[0]!.value
+    const secondProjection = await projection.read.mock.results[1]!.value
+    if (!('projected' in firstProjection) || !('projected' in secondProjection))
+      throw new Error('actual model projection unavailable')
+    let segment = secondProjection.projected.segments
+    while (segment && segment !== firstProjection.projected.segments) segment = segment.previous
+    expect(segment).toBe(firstProjection.projected.segments)
+    await projection.close()
     expect(f.f.probe.mock.calls.length).toBe(probes)
     expect(f.sources.release).toHaveBeenCalledOnce()
     expect(f.releaseModel).toHaveBeenCalledTimes(2)

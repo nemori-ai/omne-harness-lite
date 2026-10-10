@@ -92,3 +92,7 @@ SLO-4：维护令牌与普通访问令牌分离。维护权限只收尾已归属
 
 
 模型与实际验证义务见[verification](verification/README.md)。
+
+## 固定后缀读取
+
+`SessionLogParticipant.readSinceIn(unit, authority, source, after)`读取`(after, source.tail]`。它在调用方原Unit中重新核验权限和固定source，不独立开事务或提交。after必须是非负精确整数且不超过固定tail；相等时返回空后缀，也必须核验权限。输出保持连续位置和原来源，缺行或损坏报错。它不重读或校验范围以外的历史行；调用方复用旧前缀时负责绑定同租户、Session、generation及已处理位置。

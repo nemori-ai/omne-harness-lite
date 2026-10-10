@@ -12,6 +12,7 @@ function fixture() {
     failure: 'unavailable',
   }))
   const journal: BorrowedRunJournal = {
+    readProjection: async () => ({ failure: 'unavailable' }),
     scope: {
       tenant: unwrap(parseTenantId({ organization: 'org', account: 'account' })),
       session: unwrap(parseOpaqueIdentifier('session', 'SessionRef')),

@@ -22,6 +22,7 @@ import {
 } from './driver-tool-adoption.ts'
 import { inspectActionBatch, sessionActionBatchOwner } from './driver-action-facts.ts'
 import { DriverHistoryInvalid } from './driver-model-history.ts'
+import type { SessionMessageProjections } from './message-projection.ts'
 
 type Prepared = Extract<DriverRunStart, { kind: 'prepared' }>
 type Inputs = Pick<LocalSessionDriverOptions, 'ingress' | 'identities' | 'model'>
@@ -40,6 +41,7 @@ export function createDriverModelSegment(
   sources: SessionDriverRunSources,
   isOpen: () => boolean,
   retain: SessionModelTurnOptions['retain'],
+  projections?: SessionMessageProjections,
 ): {
   readonly build: () => Promise<DriverModelTurn | Failure>
   readonly release: () => Promise<void>
@@ -50,7 +52,7 @@ export function createDriverModelSegment(
     sources.run !== prepared.preparation.run
   )
     throw new TypeError('actual original Run sources required')
-  const segment = new ModelSegment(options, scope, prepared, sources, isOpen, retain)
+  const segment = new ModelSegment(options, scope, prepared, sources, isOpen, retain, projections)
   return Object.freeze({ build: segment.build, release: segment.release })
 }
 
@@ -71,6 +73,7 @@ class ModelSegment {
     readonly sources: SessionDriverRunSources,
     readonly isOpen: () => boolean,
     readonly retain: SessionModelTurnOptions['retain'],
+    readonly projections?: SessionMessageProjections,
   ) {
     this.inputs = scopedInputs(sources.evaluation, options.model.maxCallReads)
   }
@@ -187,6 +190,7 @@ class ModelSegment {
       linked: this.linked!,
       source: options.model.results,
       projection: toolAdoptionProjection(scope, sources.projection, sources.selection.evaluator),
+      ...(this.projections ? { projections: this.projections } : {}),
       resultKey: prepared.identities.resultKey,
       adoptionKey: prepared.identities.adoptionKey,
       call: {

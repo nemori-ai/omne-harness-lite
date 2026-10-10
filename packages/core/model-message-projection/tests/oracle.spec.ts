@@ -166,13 +166,23 @@ describe('independent fixed-prefix oracle and finite cache limits', () => {
       createProjectionCache(input(entries), { limits: { entries: 1, blocks: 3, bytes: 1 } }),
     ).toEqual({ unavailable: true, reason: 'capacity' })
   })
-  it('requires all request-side identities for caching and invalidates physical history replacements', () => {
+  it('caches history without request-side inputs and invalidates physical history replacements', () => {
     const entries = users(1, 2).map((value, index) => row(index + 1, messageLogPayload(value)))
     const uncached = input(entries, { ...rules, external: null })
     expect(output(projectMessages(uncached)).materialized).toEqual(reference(users(1, 2)))
     expect(
       createProjectionCache(uncached, { limits: { entries: 10, blocks: 10, bytes: 8192 } }),
-    ).toEqual({ unavailable: true, reason: 'requiredSource' })
+    ).toHaveProperty('ready')
+    const system = message({ ...users(1, 1)[0], type: 'system' })
+    if (system.type !== 'system') throw new Error('system fixture')
+    expect(
+      createProjectionCache(
+        { ...uncached, rules: { ...uncached.rules, system: [system] } },
+        {
+          limits: { entries: 10, blocks: 10, bytes: 8192 },
+        },
+      ),
+    ).not.toHaveProperty('ready')
     const first = createProjectionCache(input(entries), {
       limits: { entries: 10, blocks: 10, bytes: 8192 },
     })

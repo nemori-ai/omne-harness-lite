@@ -230,9 +230,14 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
       const directory = pool.directory
       if (!directory || !presence) throw new Error('actual model sources unavailable')
       const actualPresence = presence
+      const projectionIdentity = Object.freeze({})
       const now = sessionClock(files.clock)
       await tools.open(owners, files)
       return {
+        projectionCache: {
+          maxSessions: 4,
+          limits: { entries: 16384, blocks: 65536, bytes: 8 * 1024 * 1024 },
+        },
         policy: {
           scanLimit: 16,
           intervalMs: 20,
@@ -433,6 +438,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                   callPresence: actualPresence,
                 },
                 projection: {
+                  cache: { identity: projectionIdentity },
                   rules: {
                     version: 'cli-session-v1',
                     external: null,

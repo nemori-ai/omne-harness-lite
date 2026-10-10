@@ -11,6 +11,7 @@ import type { SessionRef } from '@omne-harness-lite/messages'
 import type { LocalSessionDriverOptions } from './driver-types.ts'
 import { createDriverTaskOwner } from './driver-tasks.ts'
 import { createDriverRunTask } from './driver-run-task.ts'
+import { createSessionMessageProjections } from './message-projection.ts'
 
 /** Own durable scanning and original Run tasks. Borrowed execution pools remain with their owners. */
 export async function createLocalSessionDriver(
@@ -37,6 +38,7 @@ export async function createLocalSessionDriver(
 }
 
 class LocalDriver {
+  readonly projections: ReturnType<typeof createSessionMessageProjections> | undefined
   readonly stop = new AbortController()
   readonly tasks: ReturnType<typeof createDriverTaskOwner>
   readonly failures: unknown[] = []
@@ -49,6 +51,8 @@ class LocalDriver {
     readonly signal: AbortSignal,
   ) {
     this.tasks = createDriverTaskOwner(options.policy, error => this.fail(error))
+    this.projections =
+      options.projectionCache && createSessionMessageProjections(options.projectionCache)
     signal.addEventListener('abort', this.requestStop, { once: true })
     if (signal.aborted) this.requestStop()
   }
@@ -97,7 +101,7 @@ class LocalDriver {
     for (const session of page.sessions) {
       if (this.stop.signal.aborted) return
       const scope = Object.freeze({ tenant: this.options.tenant, session })
-      this.tasks.admit(session, async () => createDriverRunTask(options, scope))
+      this.tasks.admit(session, async () => createDriverRunTask(options, scope, this.projections))
     }
   }
   async wait() {
@@ -125,13 +129,22 @@ class LocalDriver {
     } catch (error) {
       errors.push(error)
     }
+    if (result && 'closed' in result) {
+      try {
+        await this.projections?.close()
+      } catch (error) {
+        errors.push(error)
+      }
+    }
     if (errors.length)
       throw new AggregateError(
         errors,
         `Session driver failed; ${this.additionalFailures} additional failures; originals retained`,
       )
     if (!result) throw new Error('original driver close result missing')
-    if ('closed' in result) this.signal.removeEventListener('abort', this.requestStop)
+    if ('closed' in result) {
+      this.signal.removeEventListener('abort', this.requestStop)
+    }
     return result
   }
 }
