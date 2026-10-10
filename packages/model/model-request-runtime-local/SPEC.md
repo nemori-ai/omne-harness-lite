@@ -17,6 +17,8 @@
 
 本包不再实现会话超时求值、工具描述解析或完整历史校准。旧call-tools和service-calibration模块已删除。当前混合消费者仍负责登记并等待准备操作，将固定结果交给原发送和结算机制；其记录／控制依赖仍需继续按窄执行池接口迁移。
 
+新调用的目录选择、模态判断、档案快照和参数合并通过requestPreparation.prepareCreation完成。本包只消费PreparedModelCreation，不在新调用路径读取完整前缀或再次选择档案。获取transport及规划前核对准备内容的原CallKey、creationKey、来源和完整创建输入；不匹配时零规划、零发送、零创建写入。规划使用准备结果的已采用快照、参数、消息和工具。
+
 发起前检查、续接检查和原调用停止检查通过requestPreparation.readCall取得CallHistoryResult，不在这三条路径直接读取完整前缀。已ACK的调用仍是终态，不能再次发送或续接。历史不可用时不得开始准备或发送。失败结算、ACK和未知写入认回等其余完整前缀消费者仍待迁移，此处不表示完整执行池已完成。
 
 实际发送路径消费准备结果中的PreparedModelExecution。在规划或发送前，核对完整租户／会话／调用／发出序号、原创建键、调用来源及PlanInput目标；任何不匹配返回invalidInput，不规划、不发送、不追加日志。凭据和政策留在可信进程内的准备结果中，不进入可序列化执行请求。

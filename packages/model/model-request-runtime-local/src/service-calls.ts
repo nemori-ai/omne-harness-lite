@@ -6,12 +6,12 @@ import type {
   ServiceInvalidInput,
   PlanFailure,
   PlanResult,
+  PreparedModelCreation,
 } from '@omne-harness-lite/model-request-runtime'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { createPlanReuseScopes, type PlanReuseScopes } from './plan-reuse-scopes.ts'
 import { randomUUID } from 'node:crypto'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
-import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
 import {
   validate as contentShape,
   copyJsonValue,
@@ -28,13 +28,9 @@ import {
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
 import {
   judgeModelProfileDocument,
-  validate as profileShape,
-  type ModelProfile,
   type ModelProfileRef,
-  type ModelProfileSnapshot,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
-import { winningRow, type ProfileRow } from '@omne-harness-lite/model-profile-directory'
 import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { operationDiagnostics } from './service-diagnostics.ts'
@@ -48,6 +44,7 @@ import {
 } from './service-control.ts'
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import {
+  createModelCallCreationInput,
   readSettlementPrefix,
   settlementGenerationCurrent,
 } from '@omne-harness-lite/model-request-runtime'
@@ -435,67 +432,6 @@ export function ownOpenCallInput(
   return captureOpenRequest(input, inspected.observer)
 }
 
-function snapshotOf(profile: ModelProfile): ModelProfileSnapshot | undefined {
-  const candidate = {
-    adaptation: profile.adaptation,
-    providers: profile.providers,
-    allowFallback: profile.allowFallback,
-    inputModalities: profile.inputModalities,
-    outputModalities: profile.outputModalities,
-    maxInputTokens: profile.maxInputTokens,
-    maxOutputTokens: profile.maxOutputTokens,
-    inputConstraints: profile.inputConstraints,
-    upstreamInputLimits: profile.upstreamInputLimits,
-    ...(profile.parameters === undefined ? {} : { parameters: profile.parameters }),
-    updatedAt: profile.updatedAt,
-  }
-  const copied = copyJsonValue(candidate)
-  return 'ok' in copied && profileShape('ModelProfileSnapshot', copied.ok).valid
-    ? (copied.ok as unknown as ModelProfileSnapshot)
-    : undefined
-}
-
-function mergedParameters(
-  profile: ModelProfile,
-  override: ModelRequestParameters | undefined,
-): { readonly parameters: ModelRequestParameters } | ServiceInvalidInput {
-  const base = profile.parameters ?? {}
-  const combined = {
-    ...base,
-    ...override,
-    ...(base.extra === undefined && override?.extra === undefined
-      ? {}
-      : { extra: { ...base.extra, ...override?.extra } }),
-  }
-  const copied = copyJsonValue(combined)
-  if (!('ok' in copied)) return { invalidInput: { reason: 'malformed' } }
-  const judged = judgeModelProfileDocument('ModelRequestParameters', copied.ok)
-  if ('rejected' in judged) return { invalidInput: { reason: judged.rejected } }
-  const parameters = copied.ok as ModelRequestParameters
-  if (
-    parameters.maxOutputTokens !== undefined &&
-    ExactDecimal.from(parameters.maxOutputTokens).compare(
-      ExactDecimal.from(profile.maxOutputTokens),
-    ) > 0
-  )
-    return { invalidInput: { reason: 'max_output_exceeds_profile' } }
-  return { parameters }
-}
-
-function readRows(value: unknown): readonly ProfileRow[] | undefined {
-  if (!Array.isArray(value)) return undefined
-  const copied = copyJsonValue(value)
-  if (!('ok' in copied) || !Array.isArray(copied.ok)) return undefined
-  return copied.ok.every(
-    item =>
-      object(item) &&
-      'ok' in judgeModelProfileDocument('ModelProfileRef', item.ref) &&
-      'ok' in judgeModelProfileDocument('ModelProfile', item.profile),
-  )
-    ? (copied.ok as unknown as readonly ProfileRow[])
-    : undefined
-}
-
 function sameObserverRequest(
   left: ModelObserverRequest | undefined,
   right: ModelObserverRequest | undefined,
@@ -637,22 +573,6 @@ export class UnknownAppendTracker {
   }
 }
 
-/** MS8 S-56: the one creation input value; its semantic digest identifies the creation. */
-function creationInputOf(
-  request: OpenCallInput,
-  session: SessionRuntimeBinding,
-): ModelCallCreatedPayload['input'] {
-  return {
-    target: request.target,
-    ...(request.parameters === undefined ? {} : { parameters: request.parameters }),
-    messages: request.messages,
-    tools: request.tools,
-    basis: request.basis,
-    sourceVersions: session.sourceVersions,
-    ...(request.targetChangedBy === undefined ? {} : { targetChangedBy: request.targetChangedBy }),
-  }
-}
-
 function creationValueOf(request: OpenCallInput, session: SessionRuntimeBinding) {
   return {
     origin: {
@@ -660,7 +580,7 @@ function creationValueOf(request: OpenCallInput, session: SessionRuntimeBinding)
       session: session.log.session,
       ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
     },
-    input: creationInputOf(request, session),
+    input: createModelCallCreationInput(request, session.sourceVersions),
   }
 }
 
@@ -687,6 +607,21 @@ function sameCreationAssociation(
   )
 }
 
+function matchesPreparedCreation(
+  prepared: PreparedModelCreation,
+  key: CallKey,
+  session: SessionRuntimeBinding,
+  request: OpenCallInput,
+): boolean {
+  const content = prepared.content
+  return (
+    modelLogJsonEqual(content.ref, key) &&
+    content.creationKey === request.creationKey &&
+    sameCreationAssociation(content.origin, session, request) &&
+    modelLogJsonEqual(content.input, createModelCallCreationInput(request, session.sourceVersions))
+  )
+}
+
 /** S-85/S-101: only authoritative absence permits a new creation and adoption. */
 async function recognizeCreation<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
@@ -709,7 +644,10 @@ async function recognizeCreation<P extends PlannedSemantics, R>(
     const { payload, view } = found
     if (
       !sameCreationAssociation(payload.origin, session, request) ||
-      !modelLogJsonEqual(payload.input, creationInputOf(request, session))
+      !modelLogJsonEqual(
+        payload.input,
+        createModelCallCreationInput(request, session.sourceVersions),
+      )
     )
       return { creationConflict: true }
     return { ref: view.ref, callId: view.ref.callId, state: view.state }
@@ -728,7 +666,7 @@ async function recognizeAcknowledgedCreation(
     facts.ref.session === request.session && sameCreationAssociation(facts.origin, session, request)
   const digest = judgeModelCallSemanticDigest(
     'model-call-creation-semantic-sha256/v1',
-    creationInputOf(request, session),
+    createModelCallCreationInput(request, session.sourceVersions),
     facts.record.creationInput,
   )
   // A differing value is a conflict and discloses nothing of the original.
@@ -870,7 +808,6 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
     type ToolResult = Awaited<
       ReturnType<RuntimeConstruction<P, R>['requestPreparation']['resolveTools']>
     >
-    type Tools = Extract<ToolResult, { tools: unknown }>['tools']
     type ReservedInput = {
       key: CallKey
       callId: CallKey['callId']
@@ -1162,109 +1099,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
         if (!transferred) lease.release()
       }
     }
-    function judgeCatalogRows(
-      rawRows: Awaited<ReturnType<SessionRuntimeBinding['catalog']['listProfiles']>>,
-    ) {
-      const rows = readRows(rawRows)
-      if (rows === undefined) return { unavailable: true } as const
-      const matching = rows.filter(row => row.ref.routeName === request.target)
-      if (matching.length === 0) return { profileNotFound: true } as const
-      const winner = winningRow(rows, request.target, [request.target])
-      if (winner === undefined) return { undispatched: 'withdrawn' } as const
-      return { winner } as const
-    }
-    function judgeSelectionCompatibility(
-      session: SessionRuntimeBinding,
-      winner: ProfileRow,
-      projection: Awaited<ReturnType<SessionRuntimeBinding['selection']['projection']>>,
-    ) {
-      if ('unknown' in projection) return { unavailable: true } as const
-      const compatible = session.selection.compatible(winner.profile, projection.known)
-      if ('invalidInput' in compatible || 'unavailable' in compatible)
-        return { unavailable: true } as const
-      if ('blocked' in compatible) return { undispatched: 'modality_mismatch' } as const
-      return { compatible: true } as const
-    }
-    function judgeCredentialPresence(
-      present: Awaited<ReturnType<SessionRuntimeBinding['catalog']['credentialPresent']>>,
-    ) {
-      if ('failure' in present) return { unavailable: true } as const
-      if (!present.present) return { undispatched: 'credential_unavailable' } as const
-      return { present: true } as const
-    }
-    async function readFreshFacts(
-      session: SessionRuntimeBinding,
-      callId: CallKey['callId'],
-      registration: SettlementRegistration,
-    ) {
-      const holding = await registration.start(
-        'read',
-        async () => await session.selection.sessionTenancy.holdingTenant(request.session),
-      ).completion
-      if (!('tenant' in holding) || !tenantIdEquals(holding.tenant, session.log.tenant))
-        return { unavailable: true } as const
-      const rawRows = await registration.start(
-        'read',
-        async () => await session.catalog.listProfiles(holding.tenant),
-      ).completion
-      const selected = judgeCatalogRows(rawRows)
-      if (!('winner' in selected)) return selected
-      const { winner } = selected
-      const prefix = await readSettlementPrefix({ binding: session.log, registration })
-      if ('unavailable' in prefix) return { unavailable: true } as const
-      const projection = await registration.start(
-        'read',
-        async () => await session.selection.projection(prefix.prefix),
-      ).completion
-      const compatible = judgeSelectionCompatibility(session, winner, projection)
-      if (!('compatible' in compatible)) return compatible
-      const present = await registration.start(
-        'read',
-        async () => await session.catalog.credentialPresent(session.log.tenant, winner.ref.origin),
-      ).completion
-      const credential = judgeCredentialPresence(present)
-      if (!('present' in credential)) return credential
-      const calibrated = runtime.requestPreparation.calibrate(
-        prefix.prefix,
-        request.messages,
-        {
-          callId,
-          dispatch: 1,
-          ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
-        },
-        runtime.history.calibration,
-      )
-      return 'unavailable' in calibrated
-        ? ({ unavailable: true } as const)
-        : ({
-            winner,
-            calibration: calibrated.calibration,
-            outputHistory: calibrated.outputHistory,
-          } as const)
-    }
-    type SelectedFacts = Extract<Awaited<ReturnType<typeof readFreshFacts>>, { winner: unknown }>
-    type FreshSelection = SelectedFacts & {
-      snapshot: ModelProfileSnapshot
-      parameters: ModelRequestParameters
-    }
-    function selectFreshBinding(
-      checked: SelectedFacts,
-    ): FreshSelection | ServiceInvalidInput | { unavailable: true } {
-      const { winner } = checked
-      const snapshot = snapshotOf(winner.profile)
-      if (snapshot === undefined) return { unavailable: true } as const
-      const merged = mergedParameters(winner.profile, request.parameters)
-      if ('invalidInput' in merged) return merged
-      if (snapshot.adaptation.definition.modelId !== request.target)
-        return { invalidInput: { reason: 'malformed' } } as const
-      return {
-        winner,
-        snapshot,
-        parameters: merged.parameters,
-        calibration: checked.calibration,
-        outputHistory: checked.outputHistory,
-      } as const
-    }
+    type FreshSelection = PreparedModelCreation
     async function appendUndispatched(
       session: SessionRuntimeBinding,
       key: CallKey,
@@ -1347,7 +1182,6 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       session: SessionRuntimeBinding,
       callId: CallKey['callId'],
       selection: FreshSelection,
-      tools: Tools,
       lease: ExactTransportLease<P, R>,
     ): { planning: Promise<PlanResult<P>> } | { unavailable: true } {
       const scoped = scopes.acquire(session.log)
@@ -1361,12 +1195,12 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
             outputHistory: selection.outputHistory,
             tokenMargin: runtime.tokenMargin,
             target: { kind: 'model_call', callId, dispatch: 1 },
-            routeName: request.target,
-            provider: selection.snapshot.providers[0] ?? '',
-            snapshot: selection.snapshot,
-            parameters: selection.parameters,
-            messages: request.messages,
-            tools,
+            routeName: selection.content.adopted.profile.routeName,
+            provider: selection.content.adopted.profileSnapshot.providers[0] ?? '',
+            snapshot: selection.content.adopted.profileSnapshot,
+            parameters: selection.content.adopted.parameters,
+            messages: selection.content.adopted.messages,
+            tools: selection.content.adopted.tools,
           },
           {
             signal: AbortSignal.any([lease.signal, preparation?.signal ?? request.host.signal]),
@@ -1444,53 +1278,16 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       if (!boundSession(session, request)) return { unavailable: true }
       if (owner.admission() !== 'open') return { runtimeStopped: true }
     }
-    function freshCreatedPayload(
-      session: SessionRuntimeBinding,
-      input: ReservedInput,
-      selection: FreshSelection,
-      tools: Tools,
-    ) {
-      const { key } = input
-      const { winner, snapshot } = selection
-      const selectedBy =
-        request.targetChangedBy === undefined
-          ? request.basis.selectedBy
-          : { extension: capabilityCanonicalString(request.targetChangedBy) }
-      const created: ModelCallCreatedPayload = {
-        kind: 'created',
-        ref: key,
-        creationKey: request.creationKey,
-        origin: {
-          tenant: session.log.tenant,
-          session: session.log.session,
-          ...(request.run === undefined ? {} : { run: request.run, attempt: request.attempt }),
-        },
-        input: creationInputOf(request, session),
-        status: 'accepted',
-        adopted: {
-          profile: winner.ref,
-          profileSnapshot: snapshot,
-          adaptation: snapshot.adaptation,
-          parameters: selection.parameters,
-          selectedBy,
-          messages: request.messages,
-          tools,
-          contextSources: {},
-        },
-      }
-      return { created, selectedBy }
-    }
     async function createFreshWithLease(
       session: SessionRuntimeBinding,
       input: ReservedInput,
       reservation: Reservation,
       selection: FreshSelection,
-      tools: Tools,
     ): Promise<OpenCallResult> {
       const { key, callId, observer } = input
-      const { winner, snapshot } = selection
+      const { profile, profileSnapshot: snapshot } = selection.content.adopted
       const owner = session.selection.owner
-      const acquired = acquireObservedLease(session, callId, winner.ref, [
+      const acquired = acquireObservedLease(session, callId, profile, [
         snapshot.adaptation,
         request.target,
       ])
@@ -1498,7 +1295,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       const lease = acquired.lease
       let transferred = false
       try {
-        const planning = startOriginalPlanning(session, callId, selection, tools, lease)
+        const planning = startOriginalPlanning(session, callId, selection, lease)
         if ('unavailable' in planning) return planning
         const planned = await planning.planning
         if (planningStopped()) return { runtimeStopped: true }
@@ -1511,7 +1308,8 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
           settlementScheduler: runtime.settlementScheduler,
           diagnostic: event => runtime.policy.diagnostic(event),
         })
-        const { created, selectedBy } = freshCreatedPayload(session, input, selection, tools)
+        const created = selection.content
+        const selectedBy = created.adopted.selectedBy
         const at = await runtime.policy.now()
         const refused = judgeFreshEligibility(session, owner)
         if (refused !== undefined) return refused
@@ -1547,9 +1345,9 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
             request: { ...request, callId },
 
             binding: {
-              profile: winner.ref,
+              profile,
               snapshot,
-              parameters: selection.parameters,
+              parameters: selection.content.adopted.parameters,
               selectedBy,
               lease,
             },
@@ -1574,7 +1372,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       input: ReservedInput,
       reservation: Reservation,
     ): Promise<OpenCallResult> {
-      const { key, callId } = input
+      const { key } = input
       const resolved = await runtime.requestPreparation.resolveTools(request, session.tools)
       if ('failure' in resolved) return toolRefusal(resolved)
       const owner = session.selection.owner
@@ -1582,7 +1380,15 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
         owner,
         runtime.settlementContention.limits.concurrent,
         physical.retainedReads,
-        registration => readFreshFacts(session, callId, registration),
+        registration =>
+          runtime.requestPreparation.prepareCreation({
+            session,
+            request,
+            key,
+            registration,
+            tools: resolved.tools,
+            calibration: runtime.history.calibration.bind(runtime.history),
+          }),
       )
       if ('unavailable' in facts || 'unavailable' in facts.ok) return { unavailable: true }
       const checked = facts.ok
@@ -1591,9 +1397,10 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
         if (physical.closing) return { runtimeStopped: true }
         return await appendUndispatched(session, key, checked.undispatched)
       }
-      const selected = selectFreshBinding(checked)
-      if (!('winner' in selected)) return selected
-      return await createFreshWithLease(session, input, reservation, selected, resolved.tools)
+      if (!('prepared' in checked)) return checked
+      if (!matchesPreparedCreation(checked.prepared, key, session, request))
+        return { unavailable: true }
+      return await createFreshWithLease(session, input, reservation, checked.prepared)
     }
     function reservationRefusal(): OpenCallResult {
       return preparation?.stopping() || request.host.signal.aborted

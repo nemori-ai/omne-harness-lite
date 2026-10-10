@@ -60,7 +60,12 @@ export { policyKind, policyJitter } from './retry-policy-shape.ts'
 export type * from './execution-pool.ts'
 
 export type {
+  SessionModelCreationInput,
+  SessionModelCreationResult,
+  PreparedModelCreation,
   SessionModelDispatchInput,
   SessionModelDispatchResult,
   SessionModelRequestPreparation,
 } from './session-request-preparation.ts'
+
+export { createModelCallCreationInput } from './creation-input.ts'

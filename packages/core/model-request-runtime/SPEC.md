@@ -18,6 +18,10 @@
 
 [`session-request-preparation.ts`](src/session-request-preparation.ts) 定义现有混合消费者向Session提供者借用的准备接口。它不是`ModelPoolConstruction`的一部分，也不是可序列化的执行请求。
 
+prepareCreation负责新调用的会话侧准备。在原registration中按既有次序读取实际租户、目录、完整前缀、当前模态、凭据存在性及历史校准，再校验档案快照和参数。已解析工具由同一准备流程传入。成功返回PreparedModelCreation，包含原创建内容、已采用档案／参数／工具和校准结果；不返回完整会话前缀。不写日志、不取得执行权、不关闭借入来源。注册信息、配置范围或模态不可用时沿原失败集合返回，不新增模型许可。
+
+createModelCallCreationInput只构造原创建输入值，供准备器及原身份比较共用。它不复制权限或验证来源；调用者仍须先校验公开请求并使用实际sourceVersions。
+
 其中readCall由Session侧读取并解释原调用历史，只向消费者返回CallHistoryResult。读取使用调用者保有的原registration及原解释器，必须保留来源校验、ACK和失败语义。调用者传递解释器时须保留其原所属对象，不能因回调转交改变接收者。它不登记第二份读取，不提交记录，也不取得发送权。该方法用于现有消费者迁移，不能作为执行池普通请求的一部分。
 
 Session准备器从实际会话来源求值本次超时、解析工具描述、选择历史校准并读取原凭据，返回PreparedModelExecution及该次调用的政策。执行请求固定完整租户／会话／调用／发出序号、原创建键、独立调用或Run／attempt来源，以及PlanInput。原顺序保持为超时、凭据、工具、校准。缺失或不可用的输入必须显式失败，不补默认值。原拥有者提供read执行登记，准备器不得自行释放登记或关闭来源。

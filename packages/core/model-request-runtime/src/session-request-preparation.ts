@@ -1,6 +1,5 @@
 import type { AttemptId } from '@omne-harness-lite/call-accounts'
-import type { Message } from '@omne-harness-lite/messages'
-import type { SettlementPrefix } from './settlement-prefix.ts'
+import type { ModelCallCreatedPayload } from '@omne-harness-lite/messages'
 import type { PlanCalibration, PlanOutputHistoryGroup } from './planning-types.ts'
 import type { CallKey } from '@omne-harness-lite/messages'
 import type {
@@ -61,24 +60,38 @@ export type SessionModelDispatchResult =
   | { readonly invalidInput: { readonly reason: 'malformed' | 'unknownTool' } }
   | { readonly unavailable: true; readonly diagnosticReason?: 'scope_disallowed' }
 
+export interface SessionModelCreationInput {
+  readonly session: SessionRuntimeBinding
+  readonly request: OpenCallInput
+  readonly key: CallKey
+  readonly tools: readonly ModelToolEntry[]
+  readonly registration: SettlementRegistration
+  readonly calibration: CurrentHistoryReaders['calibration']
+}
+
+export interface PreparedModelCreation {
+  readonly content: Extract<ModelCallCreatedPayload, { readonly status: 'accepted' }>
+  readonly calibration: PlanCalibration
+  readonly outputHistory: readonly PlanOutputHistoryGroup[]
+}
+
+export type SessionModelCreationResult =
+  | { readonly prepared: PreparedModelCreation }
+  | { readonly unavailable: true }
+  | { readonly profileNotFound: true }
+  | { readonly undispatched: 'withdrawn' | 'modality_mismatch' | 'credential_unavailable' }
+  | import('./service-types.ts').ServiceInvalidInput
+
 export interface SessionModelRequestPreparation {
+  readonly prepareCreation: (
+    input: SessionModelCreationInput,
+  ) => Promise<SessionModelCreationResult>
   readonly readCall: (input: {
     readonly binding: SettlementLogBinding
     readonly registration: SettlementRegistration
     readonly callId: CallKey['callId']
     readonly interpret: CurrentHistoryReaders['call']
   }) => Promise<CallHistoryResult>
-  readonly calibrate: (
-    prefix: SettlementPrefix,
-    messages: readonly Message[],
-    target: Parameters<CurrentHistoryReaders['calibration']>[2],
-    read: CurrentHistoryReaders['calibration'],
-  ) =>
-    | {
-        readonly calibration: PlanCalibration
-        readonly outputHistory: readonly PlanOutputHistoryGroup[]
-      }
-    | { readonly unavailable: true }
   readonly prepare: (input: SessionModelDispatchInput) => Promise<SessionModelDispatchResult>
   readonly resolveTools: (
     request: Pick<OpenCallInput, 'session' | 'tools' | 'run' | 'attempt' | 'report'>,

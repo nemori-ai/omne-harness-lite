@@ -1,3 +1,4 @@
+import { prepareSessionModelCreation } from './model-creation-preparation.ts'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
 import { evaluate } from '@omne-harness-lite/asset-evaluation'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
@@ -228,6 +229,7 @@ function toolPreparationFailure(
 }
 
 export const sessionModelRequestPreparation = Object.freeze<SessionModelRequestPreparation>({
+  prepareCreation: prepareSessionModelCreation,
   async readCall(input) {
     const received = await readSettlementPrefix({
       binding: input.binding,
@@ -238,6 +240,5 @@ export const sessionModelRequestPreparation = Object.freeze<SessionModelRequestP
       : input.interpret(received.prefix, input.callId)
   },
   prepare: prepareSessionModelDispatch,
-  calibrate: authorizedCalibration,
   resolveTools: resolveCallTools,
 })

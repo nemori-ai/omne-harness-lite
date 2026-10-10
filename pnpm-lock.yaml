@@ -2673,6 +2673,12 @@ importers:
       '@omne-harness-lite/model-message-projection':
         specifier: workspace:*
         version: link:../../core/model-message-projection
+      '@omne-harness-lite/model-profile':
+        specifier: workspace:*
+        version: link:../../core/model-profile
+      '@omne-harness-lite/model-profile-directory':
+        specifier: workspace:*
+        version: link:../../core/model-profile-directory
       '@omne-harness-lite/model-request-runtime':
         specifier: workspace:*
         version: link:../../core/model-request-runtime
