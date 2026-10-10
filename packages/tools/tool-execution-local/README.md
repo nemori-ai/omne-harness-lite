@@ -32,3 +32,5 @@ The demo entry was physically removed. The PF-006 S24 and S69 assertions remain 
 The independent acceptance owner maintains `acceptance/*.acceptance.ts`. Those scenarios declare their product coverage and use public entries. Provider implementation work does not change their assertions. Network acceptance reads the local OpenRouter configuration without displaying credentials. A missing credential or a failed model request is not a passing result.
 
 受信根可从纯根入口调用 `createToolOriginalIssueVerifier(storage)`。其 `verifyIn` 只在调用者原 Unit 读取完整持久原身份，不发行 claim 或执行权。原 job 关闭后仍可供既有结果保管核验；共享 Storage 的存续由根负责。
+
+`createToolExecutionObligations({ storage, tenant, maxPageSize })` reads the tenant's native original-task index in one committed snapshot. Its callback may commit independent work. The source returns task references, without recovering Sessions or granting execution. It covers native original rows only. Legacy jobs, actual records and resource cleanup remain cold-recovery migration obligations; this reader alone does not establish pool readiness.

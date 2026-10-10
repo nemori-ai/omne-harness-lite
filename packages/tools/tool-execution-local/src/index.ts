@@ -10,3 +10,4 @@ export { toolOriginalIssueMigrations } from './original-issue-migrations.ts'
 export { createToolOriginalIssueVerifier } from './original-proof.ts'
 
 export { createToolExecutionRecordReader } from './execution-records.ts'
+export { createToolExecutionObligations } from './tool-obligations.ts'

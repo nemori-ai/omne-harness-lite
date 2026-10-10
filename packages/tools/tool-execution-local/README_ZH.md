@@ -35,3 +35,5 @@ pnpm --filter @omne-harness-lite/tool-execution-local run test
 真实宿主提供者通过原环境契约提供命令和文件设施，本包不实现OS后端。长期终端的resource_adopted在原会话日志提交边界确认；创建call释放后，原环境维护owner继续承担回收责任。冷恢复调用recoverOwned枚举该scope的原资源，不重放作者函数或用户命令。详见原接口拥有者的TE-29/30和本包LP-12。
 
 受信根可从纯根入口调用 `createToolOriginalIssueVerifier(storage)`。其 `verifyIn` 只在调用者原 Unit 读取完整持久原身份，不发行 claim 或执行权。原 job 关闭后仍可供既有结果保管核验；共享 Storage 的存续由根负责。
+
+`createToolExecutionObligations({ storage, tenant, maxPageSize })` 读取本租户原工具任务索引。一次借用使用同一已提交快照，回调可以独立写入。它只返回任务引用，不恢复 Session，也不发出执行权。该读取覆盖 native 原任务；旧路径、实际记录和资源收场仍须由后续冷恢复迁移核实，不能据此宣称完整执行池已就绪。
