@@ -43,7 +43,7 @@
 | `createAcknowledgementCustody(input)` | 每个 runtime 一份的 custody：按显式 `acknowledgementCleanup` 政策与调度器先释放内存副本、再释放保留内容                                                                                                                                                                                                                                                                                                                                                                           |
 | `createModelRuntime(construction)`                                                        | 十五方法共用一份调用 store、一份 ACK custody 与可重试收口 owner；无需 Cordis Context                                                                                                                                                                                                                                                                                                                                                                                                              |
 
-`createModelRuntime` 还返回 `project(inputs, facts)`。受信装配交入固定主体的 `ModelRuntimeHostInputs` 和同一内容拥有者的借用 facts 视图。用 `createModelCallFacts(...).project(presence)` 固定视图的 presence reader。全部投影共用原执行与可重试整体 close；投影自身没有 `close`。端口保持稳定，各操作仍重核当前资格。行为见[固定主体与共享执行](SPEC.md#固定主体与共享执行)。纯工厂投影不表示正式 Service 已完成整改。 |
+`createModelRuntime` 还返回 `project(inputs, facts)`。受信装配交入固定主体的 `ModelRuntimeHostInputs` 和同一内容拥有者的借用 facts 视图。用 `createSessionModelCallFacts(...).project(presence)` 固定视图的 presence reader。全部投影共用原执行与可重试整体 close；投影自身没有 `close`。端口保持稳定，各操作仍重核当前资格。行为见[固定主体与共享执行](SPEC.md#固定主体与共享执行)。纯工厂投影不表示正式 Service 已完成整改。 |
 
 `createRuntimeReconcile(input)` 返回 `{ reconcile, close }`。事实或写入未决而返回 `unavailable` 时，组件保留原恢复作用域；下一次对账会先沿同一作用域认回，不为同会话另开一个恢复入口。`close()` 关闭新对账准入，停止有归属的任务，从原绑定读取完整前缀；仅在物理工作有确定结果后释放各作用域。收口不追加业务记录。若返回 `unavailable`，宿主须继续持有同一组件，在原任务或读取来源恢复后重试；`createModelRuntime` 已将此收口纳入自身的可重试收口。
 
@@ -53,7 +53,7 @@
 
 ## Cordis 服务装配
 
-`createModelRuntimeLocal({ requestPreparation, recordPublication, acknowledgementFactory, settlementFactory })` 创建一代可信装配工厂。应用选择Session拥有的准备实现，本提供者不提供默认准备器。插件从具名宿主输入、执行支持、Storage、Clock 和 transport 构造私有调用池、内容及事实。配置显式提供作用域、内容、等待和 token margin 界限，不接收 `construct` 回调，不补政策默认值；受管行另需 `assemblyLifetime`。
+`createModelRuntimeLocal({ requestPreparation, recordPublication, acknowledgementFactory, settlementFactory, callFactsFactory })` 创建一代可信装配工厂。应用选择Session拥有的准备实现，本提供者不提供默认准备器。插件从具名宿主输入、执行支持、Storage、Clock 和 transport 构造私有调用池及内容存储。事实索引通过必填的 `callFactsFactory` 创建，装配根选择 `@omne-harness-lite/session-runtime-local` 的实现。配置显式提供作用域、内容、等待和 token margin 界限，不接收 `construct` 回调，不补政策默认值；受管行另需 `assemblyLifetime`。
 
 Config 的四个精确字段（`tokenMargin.multiplier/reserveTokens`、`reservationWaitPolicy.maxWaitersPerCall/timeoutMs`）使用 JSON 数字词法字符串，例如 `"1.10000000000000000001"` 和 `"256"`。装配方用 `jsonNumberSource` 编码原 `JsonNumber`，提供者严检后恢复精确值，不经浮点转换。独立函数仍使用原 `JsonNumber` 输入。
 
@@ -1068,4 +1068,4 @@ export async function confirmContent(
 
 内部 `publishModelCallContent` 先写入 accepted 创建或 ready 内容、读取权威 Session Log 前缀，再以 `tailEquals` 追加 marker。真实 SQLite/SQL Session Log 场景验证 created marker 单次提交、同原件认回及不同字节拒绝。公开 `openCall` 和有回复 `dispatch` 在返回 ref 或终态前调用该发布件。`createIndependentCallConsumer` 独立拥有 wait/release 资源：单次 wait 取消不结束 consumer，release 等待接收任务真实停止。`createRuntimeAcquire` 经受信资格与存在性提供者及共同 facts 投影回答 `acquireCall`。
 
-`createModelCallFacts` 从实际会话前缀投影 created/ready marker，并按摘要读取已确认内容。首个 owner 关闭后，另一个 facts 实例能从 SQL Session Log 和 SQLite 内容存储还原同一引用。在 Cordis/Storage 服务场景中，`openCall` 返回创建引用，`dispatch` 发布 ready 而不捏造最终响应，新建 `acquireCall({ mode: 'read' })` 消费者看到 `complete` 与 `disposition_pending`。释放消费者不取消执行 owner。ready 工作真实排空后，runtime 释放精确 transport lease。之后的处分、ACK 回收（RT12 S-98，见上文确认一节）与 creation key 认回由 `tests/acceptance-a22-acknowledgement.spec.ts`、`tests/acceptance-a22-settlement-work.spec.ts`、`tests/acceptance-20260930-a22-runtime.spec.ts` 覆盖，经 demo 服务的路径由其 `tests/call-reference-service.spec.ts` 覆盖。
+`createSessionModelCallFacts` 从实际会话前缀投影 created/ready marker，并按摘要读取已确认内容。首个 owner 关闭后，另一个 facts 实例能从 SQL Session Log 和 SQLite 内容存储还原同一引用。在 Cordis/Storage 服务场景中，`openCall` 返回创建引用，`dispatch` 发布 ready 而不捏造最终响应，新建 `acquireCall({ mode: 'read' })` 消费者看到 `complete` 与 `disposition_pending`。释放消费者不取消执行 owner。ready 工作真实排空后，runtime 释放精确 transport lease。之后的处分、ACK 回收（RT12 S-98，见上文确认一节）与 creation key 认回由 `tests/acceptance-a22-acknowledgement.spec.ts`、`tests/acceptance-a22-settlement-work.spec.ts`、`tests/acceptance-20260930-a22-runtime.spec.ts` 覆盖，经 demo 服务的路径由其 `tests/call-reference-service.spec.ts` 覆盖。

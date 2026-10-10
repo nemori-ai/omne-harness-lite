@@ -1,3 +1,4 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
@@ -37,7 +38,7 @@ import type { ModelCallAcknowledgedRecord } from '@omne-harness-lite/messages'
 import { narrow, type Storage } from '@omne-harness-lite/storage'
 import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { createModelCallContentStore } from '../src/reference-content.ts'
-import { createModelCallFacts } from '../src/reference-facts.ts'
+
 import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
@@ -226,7 +227,7 @@ async function runtimeOn(w: World, options: RuntimeOptions = {}) {
     storage: options.storage?.(host.storage) ?? host.storage,
     policy: { maxConcurrentWrites: 4, maxContentBytes: 1_000_000 },
   })
-  const callFacts = createModelCallFacts({ content, presence: callPresence, maxScopes: 4 })
+  const callFacts = createSessionModelCallFacts({ content, presence: callPresence, maxScopes: 4 })
   const callAccess: CallAccess = {
     async check(input, admitted) {
       const grant = w.grants.get(w.principal)

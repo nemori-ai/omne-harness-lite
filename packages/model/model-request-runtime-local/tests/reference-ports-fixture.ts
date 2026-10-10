@@ -1,3 +1,4 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
@@ -6,7 +7,7 @@ import {
 } from '@omne-harness-lite/session-runtime-local'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { createModelCallContentStore } from '../src/reference-content.ts'
-import { createModelCallFacts } from '../src/reference-facts.ts'
+
 import {
   createAcknowledgementCustody,
   type AcknowledgementCustody,
@@ -67,7 +68,7 @@ export function referencePorts<P extends PlannedSemantics, R>(
     storage: host.storage,
     policy: { maxConcurrentWrites: 2, maxContentBytes: 1_000_000 },
   })
-  const callFacts = createModelCallFacts({
+  const callFacts = createSessionModelCallFacts({
     content: options.content === undefined ? store : options.content(store),
     presence: callPresence,
     maxScopes: 4,

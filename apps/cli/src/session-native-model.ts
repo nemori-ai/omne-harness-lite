@@ -1,3 +1,4 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
@@ -17,7 +18,6 @@ import {
   createCallContainerStore,
   createCallContainerPresence,
   createModelCallContentStore,
-  createModelCallFacts,
   type RuntimeConstruction,
   type ModelCallContentPolicy,
   type CallFacts,
@@ -161,7 +161,7 @@ class NativeModelOwner {
     this.calls = createCallContainerStore<PlannedRequest, RawResponse>()
     const sources = this.options.sources(this.calls, this.clock)
     const presence = createCallContainerPresence(this.calls)
-    this.facts = createModelCallFacts({
+    this.facts = createSessionModelCallFacts({
       content: this.content,
       presence,
       maxScopes: this.options.maxFactScopes,

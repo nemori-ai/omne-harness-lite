@@ -1,4 +1,4 @@
-import type { CallFacts, CallFactsView } from './reference-types.ts'
+import type { CallFacts, CallFactsView } from '@omne-harness-lite/model-request-runtime'
 import type {
   CallLifecycleState,
   CallOrigin,
@@ -39,7 +39,10 @@ import {
   originOfEntry,
   type AcknowledgedDispatch,
 } from '@omne-harness-lite/model-request-runtime'
-import type { ModelCallContentStore, ModelCallContentValue } from './reference-types.ts'
+import type {
+  ModelCallContentStore,
+  ModelCallContentValue,
+} from '@omne-harness-lite/model-request-runtime'
 import type { AcknowledgedCallFacts, CallPresence } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 
@@ -397,9 +400,9 @@ function callState(
             : 'speaking'
 }
 
-/** Runtime-owned bounded index. A cold source rebuild scans once; a current lookup reads only
+/** Session log index owned by the original physical runtime. A cold source rebuild scans once; a current lookup reads only
  * the new tail and one keyed creation marker. It never uses process absence as lost execution. */
-export function createModelCallFacts(input: {
+export function createSessionModelCallFacts(input: {
   readonly content: ModelCallContentStore
   readonly presence: CallPresence
   readonly maxScopes: number

@@ -1,3 +1,4 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
@@ -15,7 +16,7 @@ import type {
   ModelFailureSource,
   ModelRuntimeHostLease,
 } from '@omne-harness-lite/model-request-runtime'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { createModelRuntimeLocal } from '../src/service-plugin.ts'
 import { createProviderContributions } from '../src/provider-contributions.ts'
@@ -30,6 +31,55 @@ const callId = unwrap(parseOpaqueIdentifier('named-call', 'ModelCallId'))
 const key = { session, callId }
 
 describe('named model runtime provider', () => {
+  it('does not replace a refused Session facts factory or publish a ready runtime', async () => {
+    const refused = new Error('Session facts construction refused')
+    const factory = vi.fn(() => {
+      throw refused
+    })
+    const host = await namedProviderFixture({ callFactsFactory: factory })
+    try {
+      await expect(host.binding.ready).rejects.toBe(refused)
+      expect(factory).toHaveBeenCalledTimes(1)
+      expect(host.ctx.get(MODEL_RUNTIME_SERVICE)).toBeUndefined()
+      expect(await host.binding.close()).toEqual({ released: true })
+      expect(host.releases()).toBe(1)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('creates one shared Session facts index and closes it through the physical owner', async () => {
+    const close = vi.fn()
+    const factory = vi.fn((input: Parameters<typeof createSessionModelCallFacts>[0]) => {
+      const facts = createSessionModelCallFacts(input)
+      const borrowed = facts.project(input.presence)
+      expect(facts.content).toBe(input.content)
+      expect(borrowed.content).toBe(input.content)
+      expect(Reflect.has(borrowed, 'close')).toBe(false)
+      return {
+        ...facts,
+        async close() {
+          close()
+          return facts.close()
+        },
+      }
+    })
+    const host = await namedProviderFixture({ callFactsFactory: factory })
+    try {
+      await host.binding.ready
+      const service = host.ctx.get(MODEL_RUNTIME_SERVICE)
+      if (!service) throw new Error('actual service not published')
+      await service.acquireCall({ ref: key, mode: 'read' })
+      await service.acquireCall({ ref: key, mode: 'read' })
+      expect(factory).toHaveBeenCalledTimes(1)
+      expect(close).not.toHaveBeenCalled()
+      expect(await host.binding.close()).toEqual({ released: true })
+      expect(close).toHaveBeenCalledTimes(1)
+    } finally {
+      await host.close()
+    }
+  })
+
   it('loads exact decimal lexemes and rejects numeric objects, invalid syntax and invalid bounds before setup', async () => {
     const exact = {
       ...providerConfig,
@@ -38,6 +88,7 @@ describe('named model runtime provider', () => {
     }
     const provider = createModelRuntimeLocal({
       acknowledgementFactory: createSessionModelAcknowledgement,
+      callFactsFactory: createSessionModelCallFacts,
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
@@ -198,6 +249,7 @@ describe('named model runtime provider', () => {
   it('rejects missing/extra configuration instead of accepting construct or inferred defaults', () => {
     const provider = createModelRuntimeLocal({
       acknowledgementFactory: createSessionModelAcknowledgement,
+      callFactsFactory: createSessionModelCallFacts,
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,

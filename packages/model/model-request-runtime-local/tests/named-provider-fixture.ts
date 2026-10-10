@@ -1,3 +1,4 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
@@ -89,9 +90,14 @@ export async function namedProviderFixture(
     readonly support?: ModelRuntimeExecutionSupport
     readonly deferDependencies?: boolean
     readonly config?: ModelRuntimeLocalConfig
+    readonly callFactsFactory?: ModelRuntimeLocalConstruction['callFactsFactory']
     readonly construction?: Omit<
       ModelRuntimeLocalConstruction,
-      'requestPreparation' | 'recordPublication' | 'acknowledgementFactory' | 'settlementFactory'
+      | 'requestPreparation'
+      | 'recordPublication'
+      | 'acknowledgementFactory'
+      | 'settlementFactory'
+      | 'callFactsFactory'
     >
     readonly transport?: Pick<ModelTransportService, 'clearReuseScope' | 'acquire'>
   } = {},
@@ -107,6 +113,7 @@ export async function namedProviderFixture(
     binding = createModelRuntimeLocal({
       ...options.construction,
       acknowledgementFactory: createSessionModelAcknowledgement,
+      callFactsFactory: options.callFactsFactory ?? createSessionModelCallFacts,
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,

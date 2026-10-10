@@ -112,3 +112,5 @@ It grants no access and does not close the borrowed Ingress on removal.
 See [SPEC.md](SPEC.md#cordis驱动插件) for the ownership rules.
 
 `sessionModelSettlement` supplies model settlement, persistent work, and work recovery to runtime consumers. `createSettlementCoordinator` and `createSettlementWork` are also independent functions. See [ownership and lifetime](SPEC.md#模型结算的实际拥有者).
+
+The Session-owned `createSessionModelCallFacts` factory rebuilds and updates the call index from the session log. The root passes the original content store; the physical runtime keeps the close responsibility. See [the specification](SPEC.md#模型调用事实索引).

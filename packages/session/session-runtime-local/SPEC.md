@@ -577,4 +577,10 @@ Session `readCall` 同样供原未知写入的收场使用。读取沿原Source�
 
 实现保留原协调器的任务登记、实际停止和unknown批次。createSettlementWork将原批次交给借入的SQL工作行存储，恢复只对不再被活体组件持有的工作判断原日志。retireWork使用原Model内容custody的删除机制，不新建清理队列。
 
-本提供者不创建新的Storage、不关闭借入的原日志或执行池。原binding、source及owner持续有效至原工作收场。Session工厂拒绝结算时，Model不得自行追加批次。当前Model的其他历史消费者及事实索引仍待迁移，此项不表示完整执行池边界已完成。
+本提供者不创建新的Storage、不关闭借入的原日志或执行池。原binding、source及owner持续有效至原工作收场。Session工厂拒绝结算时，Model不得自行追加批次。当前Model的其他历史消费者仍待迁移，此项不表示完整执行池边界已完成。
+
+## 模型调用事实索引
+
+根函数createSessionModelCallFacts实现Core的SessionModelCallFactsFactory，解释完整会话日志并维护调用／创建键索引。它保留原有按generation对象分隔的有界Map、增量cursor、更新任务合并及淘汰规则，不改变算法或容量政策。
+
+实现只借用原ModelCallContentStore，既不复制正文也不新建内容存储。project只更换presence读者并共享原状态。工厂取得原content的关闭委托，物理Model拥有者仍在整体排空后关闭该索引。它不是单会话Context的关闭资源。content关闭失败时不清缓存，不报告released，允许原关闭重试。共享行为和形状见[Core规格](../../core/model-request-runtime/SPEC.md#session-调用事实索引)。

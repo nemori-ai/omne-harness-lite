@@ -49,7 +49,10 @@ import { z } from 'zod'
 import { createModelRuntime } from './service-runtime.ts'
 import { createCallContainerStore } from './service-container.ts'
 import { createModelCallContentStore } from './reference-content.ts'
-import { createModelCallFacts } from './reference-facts.ts'
+import type {
+  SessionModelCallFacts,
+  SessionModelCallFactsFactory,
+} from '@omne-harness-lite/model-request-runtime'
 import { createProviderContributions } from './provider-contributions.ts'
 import type { ModelCallExternalContentCustody } from './reference-types.ts'
 
@@ -109,7 +112,7 @@ const requires = [
 ] as const
 
 type Runtime = ReturnType<typeof createModelRuntime<PlannedRequest, RawResponse>>
-type Facts = ReturnType<typeof createModelCallFacts>
+type Facts = SessionModelCallFacts
 
 /** Close only new-work admission at the original host-port usage points. */
 function admissionInputs(
@@ -325,6 +328,7 @@ class Provider extends ModelRuntimeService {
 /** Trusted assembly closure ports. These are not serialized policy or caller authority. */
 export interface ModelRuntimeLocalConstruction {
   readonly requestPreparation: SessionModelRequestPreparation
+  readonly callFactsFactory: SessionModelCallFactsFactory
   readonly settlementFactory: SessionModelSettlement
   readonly acknowledgementFactory: SessionModelAcknowledgementFactory
   readonly recordPublication: ModelCallPublication
@@ -428,7 +432,7 @@ export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruct
                 policy: config.callReferences.content,
                 ...contentDependencies,
               })
-              facts = createModelCallFacts({
+              facts = construction.callFactsFactory({
                 content,
                 presence: setupBorrow.inputs.callPresence,
                 maxScopes: config.callReferences.maxScopes,

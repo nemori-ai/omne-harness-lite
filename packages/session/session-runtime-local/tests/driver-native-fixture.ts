@@ -1,10 +1,10 @@
+import { createSessionModelCallFacts } from '../src/model-call-facts.ts'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import { publishSessionModelCallContent } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelRequestPreparation } from '../src/model-request-preparation.ts'
 import { writeJsonLossless, type ToolCallBlock } from '@omne-harness-lite/content-blocks'
 import {
-  createModelCallFacts,
   createCallContainerPresence,
   createModelCallContentStore,
   createCallContainerStore,
@@ -144,7 +144,11 @@ export function nativeCallFixturePorts(
   const sentRequests: Array<{ readonly messages: unknown }> = []
   function configure(base: Construction): Construction {
     const presence = createCallContainerPresence(base.calls)
-    const facts = createModelCallFacts({ content: base.callFacts.content, presence, maxScopes: 8 })
+    const facts = createSessionModelCallFacts({
+      content: base.callFacts.content,
+      presence,
+      maxScopes: 8,
+    })
     return {
       ...base,
       callPresence: presence,
@@ -371,7 +375,7 @@ export function nativeModelConstruction(
     requestPreparation: sessionModelRequestPreparation,
     callAccess: { check: async () => unavailable },
     callPresence,
-    callFacts: createModelCallFacts({ content, presence: callPresence, maxScopes: 8 }),
+    callFacts: createSessionModelCallFacts({ content, presence: callPresence, maxScopes: 8 }),
     calls: createCallContainerStore(),
     maxScopes: 8,
     sessions: { bind: async () => ({ failure: 'unavailable' }) },

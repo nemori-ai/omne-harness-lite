@@ -61,7 +61,7 @@ stageConsumeIn只在调用者的实际StorageUnit内核对原claim、当前授�
 资格在原操作使用点重核。端口是当前资格的事实来源，不能捕获一次允许后永久放行。
 装配须提供稳定端口对象，不能在投影建立后将其中的方法替换为另一主体。
 
-`facts` 是同一 `createModelCallFacts` 拥有者的借用视图。
+`facts` 是同一 `createSessionModelCallFacts` 拥有者的借用视图。
 该工厂的 `project(presence)` 固定 presence 端口并共用原 content/index。
 视图没有整体 `close`，其 content 是借用端口，消费者不得关闭物理内容。
 外来 content 对象使 `runtime.project` 同步抛出 `TypeError`，这是受信构造错误，不是业务结果。
@@ -174,3 +174,9 @@ releaseCopies 对全部原代核同 log binding、真实 released/未 registered
 `RuntimeConstruction` 和 `ModelRuntimeLocalConstruction` 必须显式提供 `acknowledgementFactory`。Model构造原清理器后，将原内容端口和清理动作交给该工厂。`acknowledgeCall` 委派给其结果；Model不再解释ACK的完整日志前缀。旧 `createServiceAcknowledge` 出口和实现已删除，现行调用者选择Session的公开根工厂。
 
 Model保留原内容锁、固定批次和清理资源。重装配调用同一拥有者的 `project`，不重建确认状态。确认拥有者与清理器各自参加原运行时收场；只有全部真实任务结束，才关闭容器与内容存储。该迁移不改变原执行资格、引用计数、ACK内容摘要或清理策略。
+
+## 调用事实索引的装配
+
+调用事实索引由Session的createSessionModelCallFacts实现。ModelRuntimeLocalConstruction必须提供callFactsFactory，本包没有内置实现或后备索引。纯createModelRuntime沿用已有的callFacts输入。Core维护CallFacts、CallFactsView、SessionModelCallFactsFactory及原内容存储的共享形状。
+
+插件创建原内容存储后，只调用一次工厂。每个主体投影借用同一索引及content原对象，不重复构造缓存或关闭拥有者。索引仍由原物理运行时关闭，不能随单会话Context卸载。工厂失败时不发布就绪服务，原资源按既有流程排空。其他完整前缀消费者尚待迁移，此项不表示完整执行池已完成。

@@ -1,3 +1,4 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
@@ -27,7 +28,7 @@ import { createServiceControl } from '../src/service-control.ts'
 import { createServiceDispatch, settlementEvent } from '../src/service-dispatch.ts'
 import { createRuntimeReads } from '../src/service-reads.ts'
 import { createModelCallContentStore } from '../src/reference-content.ts'
-import { createModelCallFacts } from '../src/reference-facts.ts'
+
 import { createRuntimeAcquire } from '../src/service-acquire.ts'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import {
@@ -230,7 +231,7 @@ test('service dispatch writes both anchors before handing out a complete pending
         }
       },
     } satisfies RuntimeConstruction<TestPlan, object>['callPresence']
-    const callFacts = createModelCallFacts({
+    const callFacts = createSessionModelCallFacts({
       content: contentStore,
       presence: callPresence,
       maxScopes: 4,
@@ -513,7 +514,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       storage: host.storage,
       policy: { maxConcurrentWrites: 4, maxContentBytes: 1_000_000 },
     })
-    const coldFacts = createModelCallFacts({
+    const coldFacts = createSessionModelCallFacts({
       content: coldContent,
       presence: callPresence,
       maxScopes: 4,

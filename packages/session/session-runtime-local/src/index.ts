@@ -90,3 +90,5 @@ export { createSessionModelAcknowledgement } from './model-acknowledgement.ts'
 export { sessionModelSettlement } from './model-settlement.ts'
 export { createSettlementCoordinator } from './settlement-coordinator.ts'
 export { createSettlementWork } from './settlement-work.ts'
+
+export { createSessionModelCallFacts } from './model-call-facts.ts'

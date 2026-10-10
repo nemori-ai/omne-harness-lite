@@ -1,3 +1,4 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { expectTypeOf } from 'vitest'
 import type {
   ModelRuntimeHostInputs,
@@ -7,7 +8,7 @@ import type {
   ModelRuntimeExecutionSource,
 } from '@omne-harness-lite/model-request-runtime'
 import { createModelRuntime } from '../src/service-runtime.ts'
-import { createModelCallFacts } from '../src/reference-facts.ts'
+
 import type { CallFactsView } from '../src/reference-types.ts'
 
 declare const runtime: ReturnType<typeof createModelRuntime<PlannedSemantics, never>>
@@ -28,7 +29,7 @@ const incompleteRecovery: RuntimeRecoveryAccess = {
 }
 void incompleteRecovery
 expectTypeOf<
-  ReturnType<typeof createModelCallFacts>['project']
+  ReturnType<typeof createSessionModelCallFacts>['project']
 >().returns.toEqualTypeOf<CallFactsView>()
 
 expectTypeOf(runtime.executionSource).toEqualTypeOf<ModelRuntimeExecutionSource>()

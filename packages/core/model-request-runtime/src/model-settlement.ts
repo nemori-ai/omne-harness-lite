@@ -1,3 +1,4 @@
+import type { ModelCallRetentionKey } from './model-call-facts.ts'
 import type { CallKey } from '@omne-harness-lite/messages'
 import type { ResponseId } from '@omne-harness-lite/model-response'
 import type { AckPendingReason, ModelCallCleanupResult } from './reference-types.ts'
@@ -18,10 +19,6 @@ import type {
   SettlementCoordinator,
 } from './settlement-types.ts'
 
-type ModelCallRetentionKey = {
-  readonly binding: SettlementLogBinding
-  readonly call: CallKey['callId']
-}
 /** RT12 S-99⑧: one post-ACK settlement's write responsibility for one ResponseId. */
 export type ModelCallSettlementWorkKey = ModelCallRetentionKey & {
   readonly response: ResponseId

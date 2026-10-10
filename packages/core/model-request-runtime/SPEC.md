@@ -373,3 +373,11 @@ PlanExecutionContext.imageBytes 是可选的请求内执行依赖。调用者先
 `ModelAcknowledgementContent` 只提供原内容读取、retention观察、锁内固定批次及明确零写后的撤回。`cleanup` 由Model拥有者提供，保持先确认批次、再排空原内存副本、最后释放原内容的顺序。端口接收原 `SettlementLogBinding`，因为清理还须核对原执行捕获的对象身份；它不授权内容端口解释或读取Session日志。
 
 `project` 只替换当前宿主来源与读取入口，必须保留原内容拥有者、串行中的调用、未知写入和读任务。确认拥有者关闭只排空自己的原任务，不关闭借入的内容存储或清理器。重复关闭仍可检查未释放的原任务。既有ACK结果、目标冲突、权限复核及pending清理语义不变。
+
+## Session 调用事实索引
+
+SessionModelCallFactsFactory接收原ModelCallContentStore、当前CallPresence及显式maxScopes，返回一个具有project的CallFacts。该工厂解释会话日志，属于Session提供者；Model不得在工厂缺失或失败时自行读取完整日志构造替代索引。
+
+project只替换presence读者，共享原content与缓存，没有独立close。实际generation对象是索引作用域身份；同一对象还须匹配原tenant、session和log。刷新保留原连续页检查与完整页更新，不应用部分损坏页。ACK后可从小事实认回调用，不要求已释放正文重新出现。
+
+原物理拥有者调用close，先阻止索引新工作，再关闭原content。仅content返回released时清除缓存；失败保留原对象供关闭重试。该构造不增加第二内容库、执行池或SessionContext关闭权。

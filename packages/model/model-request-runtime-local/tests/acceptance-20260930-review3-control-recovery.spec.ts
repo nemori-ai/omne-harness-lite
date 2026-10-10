@@ -1,3 +1,4 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
@@ -30,7 +31,7 @@ import { createCallContainerStore } from '../src/service-container.ts'
 import { createModelRuntime } from '../src/service-runtime.ts'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createModelCallContentStore } from '../src/reference-content.ts'
-import { createModelCallFacts } from '../src/reference-facts.ts'
+
 import type { CallAccess, CallPresence } from '@omne-harness-lite/model-request-runtime'
 import type { RuntimeConstruction } from '../src/service-types.ts'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
@@ -171,7 +172,7 @@ async function runtimeOver(
     storage: host.storage,
     policy: { maxConcurrentWrites: 4, maxContentBytes: 1_000_000 },
   })
-  const callFacts = createModelCallFacts({ content, presence: callPresence, maxScopes: 4 })
+  const callFacts = createSessionModelCallFacts({ content, presence: callPresence, maxScopes: 4 })
   const callAccess: CallAccess = {
     async check(input, admitted) {
       const found = await callFacts.lookup({ binding: input.binding, ref: input.ref })

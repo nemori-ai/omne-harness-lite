@@ -1,3 +1,4 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
@@ -124,7 +125,6 @@ import {
   createModelRuntime,
   createCallContainerStore,
   createModelCallContentStore,
-  createModelCallFacts,
   modelCallContentMigrations,
   type RuntimeConstruction,
 } from '@omne-harness-lite/model-request-runtime-local'
@@ -2648,7 +2648,7 @@ function nativeModelConstruction(
     requestPreparation: sessionModelRequestPreparation,
     callAccess: { check: async () => unavailable },
     callPresence,
-    callFacts: createModelCallFacts({ content, presence: callPresence, maxScopes: 8 }),
+    callFacts: createSessionModelCallFacts({ content, presence: callPresence, maxScopes: 8 }),
     calls: createCallContainerStore(),
     maxScopes: 8,
     sessions: { bind: async () => ({ failure: 'unavailable' }) },

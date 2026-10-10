@@ -78,3 +78,5 @@ export * from './owned-settlement-reads.ts'
 export { drainDiagnosticThenable } from './drain-diagnostic.ts'
 
 export * from './model-settlement.ts'
+
+export type * from './model-call-facts.ts'

@@ -107,3 +107,5 @@ createLocalSessionIngressBinding(original)以空Config将Core四个限定分面�
 行为归[SPEC](SPEC.md#cordis驱动插件)。
 
 `sessionModelSettlement`向运行时消费者提供模型结算、持久工作和恢复判断。`createSettlementCoordinator`及`createSettlementWork`也可独立调用。见[职责与生命周期](SPEC.md#模型结算的实际拥有者)。
+
+根函数 `createSessionModelCallFacts` 从会话日志重建并更新调用索引。装配根传入原内容存储，物理运行时保留关闭责任。见[规格](SPEC.md#模型调用事实索引)。

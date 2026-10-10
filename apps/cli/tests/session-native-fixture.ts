@@ -1,5 +1,5 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import {
-  createModelCallFacts,
   createCallContainerPresence,
   type RuntimeConstruction,
 } from '@omne-harness-lite/model-request-runtime-local'
@@ -104,7 +104,11 @@ export function nativeCallFixturePorts(
   const sentRequests: Array<{ readonly messages: unknown }> = []
   function configure(base: Construction): Construction {
     const presence = createCallContainerPresence(base.calls)
-    const facts = createModelCallFacts({ content: base.callFacts.content, presence, maxScopes: 8 })
+    const facts = createSessionModelCallFacts({
+      content: base.callFacts.content,
+      presence,
+      maxScopes: 8,
+    })
     return {
       ...base,
       callPresence: presence,

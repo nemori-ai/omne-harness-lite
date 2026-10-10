@@ -1,3 +1,4 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { mkdir, mkdtemp, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -18,7 +19,7 @@ import { composeMigrations, narrow, type Storage } from '@omne-harness-lite/stor
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { publishSessionModelCallContent } from '@omne-harness-lite/session-runtime-local'
-import { createModelCallFacts } from '../src/reference-facts.ts'
+
 import { OwnedReadTracker, withOwnedReads } from '../src/service-control.ts'
 import type { SettlementOwner, SettlementTask } from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult } from '@omne-harness-lite/session-log'
@@ -283,7 +284,7 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       expect(written).toEqual({ published: true })
       await first.close()
       const reopened = createModelCallContentStore({ storage: await h.reopen(), policy })
-      const facts = createModelCallFacts({
+      const facts = createSessionModelCallFacts({
         content: reopened,
         maxScopes: 2,
         presence: {

@@ -1,3 +1,4 @@
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
 import {
@@ -26,7 +27,7 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import { createCallContainerStore } from '../src/service-container.ts'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
-import { createModelCallFacts } from '../src/reference-facts.ts'
+
 import type { RuntimeConstruction } from '../src/service-types.ts'
 import type {
   CurrentHistoryReaders,
@@ -581,7 +582,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
       maxScopes: 4,
-      callFacts: createModelCallFacts({
+      callFacts: createSessionModelCallFacts({
         content,
         presence: { read: async () => ({ unavailable: true }) },
         maxScopes: 4,
