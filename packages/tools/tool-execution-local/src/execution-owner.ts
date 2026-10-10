@@ -699,6 +699,20 @@ export function createExecutionOwner(input: {
     }
     job.controller.abort('owner_closed')
   }
+  function stopTarget(
+    view: Awaited<ReturnType<Journal['read']>>,
+    after: Awaited<ReturnType<typeof authorize>>,
+    ref: ExecutionRef,
+  ): OwnedExecution | 'notAuthorized' | 'unavailable' | 'notFound' | 'alreadyEnded' {
+    if (after || !open) return after === 'notAuthorized' ? after : 'unavailable'
+    if (view.kind !== 'view') return 'unavailable'
+    const history = view.executions.get(ref.callId)
+    if (!history) return 'notFound'
+    if (history.terminal) return 'alreadyEnded'
+    const job = owned.get(keyOf(ref))
+    if (!job) return 'unavailable'
+    return job
+  }
   const operations = Object.freeze({
     submit(supplied) {
       let captured: ReturnType<typeof captureSubmission>
@@ -776,13 +790,8 @@ export function createExecutionOwner(input: {
         if (before) return before === 'notAuthorized' ? before : 'unavailable'
         const view = await input.journal.read(scopeOf(ref), ref.callId)
         const after = await authorize(access, ref, 'tool.stop')
-        if (after || !open) return after === 'notAuthorized' ? after : 'unavailable'
-        if (view.kind !== 'view') return 'unavailable'
-        const history = view.executions.get(ref.callId)
-        if (!history) return 'notFound'
-        if (history.terminal) return 'alreadyEnded'
-        const job = owned.get(keyOf(ref))
-        if (!job) return 'unavailable'
+        const job = stopTarget(view, after, ref)
+        if (typeof job === 'string') return job
         const result = await end(job, { outcome: 'interrupted', reason })
         if (result === 'unavailable') return result
         job.controller.abort(reason)
