@@ -34,6 +34,7 @@ async function withPreparation(
     readonly capturePlans: number
   }) => Promise<void>,
   prepare?: SessionModelRequestPreparation['prepare'],
+  readCall?: SessionModelRequestPreparation['readCall'],
 ): Promise<void> {
   const owner = new ControlledSettlementOwner()
   const world = await acknowledgementHost({ owner })
@@ -51,6 +52,10 @@ async function withPreparation(
       requestPreparation: {
         ...sessionModelRequestPreparation,
         prepare: prepare ?? sessionModelRequestPreparation.prepare,
+        readCall: input =>
+          preparing && readCall !== undefined
+            ? readCall(input)
+            : sessionModelRequestPreparation.readCall(input),
       },
       calls,
       sessions: {
@@ -75,6 +80,36 @@ async function withPreparation(
 }
 
 describe('original dispatch preparation over actual resources and SQL', () => {
+  it('uses Session call history before preparing or sending an execution', async () => {
+    let reads = 0
+    let prepares = 0
+    let deny = true
+    await withPreparation(
+      binding => binding,
+      async ({ world, runtime, ref, capturePlans }) => {
+        const before = await world.entries()
+        expect(await runtime.service.dispatch(ref)).toEqual({ unavailable: true })
+        expect(reads).toBe(1)
+        expect(prepares).toBe(0)
+        expect(world.wire.plans()).toBe(capturePlans)
+        expect(world.wire.sends()).toBe(0)
+        expect(await world.entries()).toEqual(before)
+      },
+      async input => {
+        prepares++
+        return sessionModelRequestPreparation.prepare(input)
+      },
+      async input => {
+        reads++
+        if (deny) {
+          deny = false
+          return { unavailable: true, reason: 'prefix' }
+        }
+        return sessionModelRequestPreparation.readCall(input)
+      },
+    )
+  })
+
   it('passes the Session-prepared canonical execution into the original physical invocation', async () => {
     let prepared: Awaited<ReturnType<SessionModelRequestPreparation['prepare']>> | undefined
     await withPreparation(

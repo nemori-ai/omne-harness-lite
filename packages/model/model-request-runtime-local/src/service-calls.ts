@@ -795,11 +795,14 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       runtime.settlementContention.limits.concurrent,
       physical.retainedReads,
       async registration => {
-        const prefix = await readSettlementPrefix({ binding: session.log, registration })
-        return 'unavailable' in prefix
-          ? ({ unavailable: true, reason: 'prefix' } as const)
-          : // RT12 S-100: an acknowledged call is terminal, never resumable (wrongPhase).
-            acknowledgedAsTerminal(runtime.history.call(prefix.prefix, callId))
+        const history = await runtime.requestPreparation.readCall({
+          binding: session.log,
+          registration,
+          callId,
+          interpret: runtime.history.call.bind(runtime.history),
+        })
+        // RT12 S-100: an acknowledged call is terminal, never resumable (wrongPhase).
+        return acknowledgedAsTerminal(history)
       },
     )
     return 'unavailable' in read ? { unavailable: true, reason: 'prefix' } : read.ok

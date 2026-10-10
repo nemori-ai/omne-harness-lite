@@ -227,7 +227,16 @@ function toolPreparationFailure(
     : { invalidInput: { reason: tools.reason ?? 'malformed' } }
 }
 
-export const sessionModelRequestPreparation: SessionModelRequestPreparation = Object.freeze({
+export const sessionModelRequestPreparation = Object.freeze<SessionModelRequestPreparation>({
+  async readCall(input) {
+    const received = await readSettlementPrefix({
+      binding: input.binding,
+      registration: input.registration,
+    })
+    return 'unavailable' in received
+      ? { unavailable: true, reason: 'prefix' }
+      : input.interpret(received.prefix, input.callId)
+  },
   prepare: prepareSessionModelDispatch,
   calibrate: authorizedCalibration,
   resolveTools: resolveCallTools,

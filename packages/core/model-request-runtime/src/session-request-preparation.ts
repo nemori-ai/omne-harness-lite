@@ -15,7 +15,12 @@ import type {
   OpenCallInput,
   CurrentHistoryReaders,
 } from './service-types.ts'
-import type { SettlementOwner, SettlementRegistration } from './settlement-types.ts'
+import type {
+  SettlementLogBinding,
+  SettlementOwner,
+  SettlementRegistration,
+} from './settlement-types.ts'
+import type { CallHistoryResult } from './call-history.ts'
 import type { InvocationPolicy } from './invocation-types.ts'
 import type { PreparedModelExecution } from './execution-pool.ts'
 import type { TokenMargin } from './planning-types.ts'
@@ -57,6 +62,12 @@ export type SessionModelDispatchResult =
   | { readonly unavailable: true; readonly diagnosticReason?: 'scope_disallowed' }
 
 export interface SessionModelRequestPreparation {
+  readonly readCall: (input: {
+    readonly binding: SettlementLogBinding
+    readonly registration: SettlementRegistration
+    readonly callId: CallKey['callId']
+    readonly interpret: CurrentHistoryReaders['call']
+  }) => Promise<CallHistoryResult>
   readonly calibrate: (
     prefix: SettlementPrefix,
     messages: readonly Message[],

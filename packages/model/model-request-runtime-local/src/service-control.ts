@@ -333,7 +333,10 @@ export async function appendControlRecord(
 }
 
 type ControlAppendOutcome = { readonly appended: true } | { readonly unavailable: true }
-type PreparedControlRecord = Extract<ReturnType<typeof prepareModelLogEntry>, { readonly ok: unknown }>
+type PreparedControlRecord = Extract<
+  ReturnType<typeof prepareModelLogEntry>,
+  { readonly ok: unknown }
+>
 type ControlReceipt = ReturnType<typeof settlementAppendReceipt>
 
 async function runControlAppend(
@@ -489,7 +492,14 @@ export function createOriginalSystemStop<P extends PlannedSemantics, R>(
         }
         const received = await readOriginalStopHistory(runtime, key, reads, view)
         if ('unavailable' in received) return { unavailable: true }
-        return await settleOriginalStopHistory(runtime, key, retainUnknown, control, view, received.ok)
+        return await settleOriginalStopHistory(
+          runtime,
+          key,
+          retainUnknown,
+          control,
+          view,
+          received.ok,
+        )
       } catch {
         return { unavailable: true }
       }
@@ -509,7 +519,10 @@ type OriginalWriteRetention = (
   registration: SettlementRegistration,
   task: SettlementTask<AppendResult>,
 ) => void
-type PendingResponseId = Extract<CallOperationState, { readonly phase: 'reply_pending' }>['pending']['id']
+type PendingResponseId = Extract<
+  CallOperationState,
+  { readonly phase: 'reply_pending' }
+>['pending']['id']
 
 function readOriginalStopHistory<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
@@ -522,10 +535,12 @@ function readOriginalStopHistory<P extends PlannedSemantics, R>(
     runtime.settlementContention.limits.concurrent,
     reads,
     async registration => {
-      const result = await readSettlementPrefix({ binding: view.session.log, registration })
-      return 'unavailable' in result
-        ? ({ unavailable: true } as const)
-        : runtime.history.call(result.prefix, key.callId)
+      return runtime.requestPreparation.readCall({
+        binding: view.session.log,
+        registration,
+        callId: key.callId,
+        interpret: runtime.history.call.bind(runtime.history),
+      })
     },
   )
 }
@@ -537,8 +552,7 @@ function originalReplyIsDurable(durable: OwnedStopHistory, responseId: PendingRe
     known.acknowledged !== null ||
     known.dispatches.some(
       item =>
-        item.record.response === responseId &&
-        (item.ready !== null || item.response !== null),
+        item.record.response === responseId && (item.ready !== null || item.response !== null),
     )
   return readyDurable
 }
@@ -615,12 +629,7 @@ async function appendOriginalCancellation<P extends PlannedSemantics, R>(
   view: StopView<P, R>,
   history: UnacknowledgedCallHistory,
 ): Promise<RuntimeCloseResult> {
-  const account = controlAccount(
-    history,
-    view.request.run,
-    view.request.attempt,
-    view.operation,
-  )
+  const account = controlAccount(history, view.request.run, view.request.attempt, view.operation)
   if ('unavailable' in account) return account
   const appended = await appendControlRecord({
     binding: view.session.log,
@@ -946,9 +955,7 @@ function buildServiceControl<P extends PlannedSemantics, R>(
         return true
       }
       if (!ownerReadable()) return { unavailable: true }
-      function prepareRelease(
-        history: UnacknowledgedCallHistory,
-      ):
+      function prepareRelease(history: UnacknowledgedCallHistory):
         | {
             readonly account: Exclude<
               ReturnType<typeof controlAccount>,

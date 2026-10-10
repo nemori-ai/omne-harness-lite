@@ -393,11 +393,14 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
         runtime.settlementContention.limits.concurrent,
         physical.retainedReads,
         async registration => {
-          const prefix = await readSettlementPrefix({ binding: session.log, registration })
+          const history = await runtime.requestPreparation.readCall({
+            binding: session.log,
+            registration,
+            callId: key.callId,
+            interpret: runtime.history.call.bind(runtime.history),
+          })
           // RT12 S-100: an acknowledged call is its real terminal state: alreadyEnded, zero send.
-          return 'unavailable' in prefix
-            ? ({ unavailable: true, reason: 'prefix' } as const)
-            : acknowledgedAsTerminal(runtime.history.call(prefix.prefix, key.callId))
+          return acknowledgedAsTerminal(history)
         },
       )
       if ('unavailable' in received) return { unavailable: true }

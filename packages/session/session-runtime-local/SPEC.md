@@ -541,7 +541,9 @@ Session将原工具身份的完整内容与语义摘要一起写入sr_tool_issue
 
 ## 会话模型请求准备
 
-根入口sessionModelRequestPreparation提供准备和工具／校准读取函数。其形状由core/model-request-runtime的SessionModelRequestPreparation拥有。
+根入口sessionModelRequestPreparation提供原调用历史读取、准备和工具／校准读取函数。其形状由core/model-request-runtime的SessionModelRequestPreparation拥有。
+
+readCall使用原registration读取并校验完整结算前缀，再交给调用者提供的原解释器。消费者只收到CallHistoryResult。来源缺失或前缀不可用时返回unavailable；不把按键过滤的条目冒充完整前缀，不补造历史，不提交记录，不关闭借入资源。
 
 prepareSessionModelDispatch使用实际Session来源和原调用快照。它依次求值当前AE4超时、读取原模型来源的凭据、解析当前工具描述、从同一授权前缀核对校准来源，再返回PreparedModelExecution与调用政策。执行请求携带完整原身份、创建键、调用来源及PlanInput；Run来源必须同时具有attempt，独立调用不得带attempt。凭据不放入执行请求。无输入或来源不可用时失败，不补默认值；不发送模型请求，不创建Run或attempt，不提交日志。
 
