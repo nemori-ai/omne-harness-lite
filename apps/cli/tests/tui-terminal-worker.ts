@@ -2,7 +2,8 @@ import { openTerminal } from '../dist/tui/terminal.js'
 
 process.stdout.write('SHELL_BEFORE\r\n')
 try {
-  const terminal = await openTerminal('xterm-379')
+  const terminal =
+    process.argv[3] === undefined ? await openTerminal() : await openTerminal(process.argv[3])
   try {
     await terminal.write('\x1b[H\x1b[2JPRIVATE_UI_FRAME')
     if (process.argv[2] === 'work-failure') throw new Error('controlled work failure')
