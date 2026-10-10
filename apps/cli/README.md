@@ -106,7 +106,7 @@ Never put credential contents in command arguments, source control, or diagnosti
 
 The conversation shows your messages and the assistant replies. The input field appears below the conversation when a reply finishes. You do not need an extra Enter to open it. Enter sends the next message. PgUp/PgDn scrolls through history. You can send without visiting every page. Reattaching loads the Session's human-visible messages through the host.
 
-While a Run is active, the terminal updates the reply as text arrives. It labels public thinking text as `Reasoning summary` and shows tool names with their observed execution state. Private reasoning, opaque data, and tool arguments are not displayed. A model may provide no public reasoning summary.
+While a Run is active, the terminal updates the reply as text arrives. It shows public reasoning text after `Reasoning summary` and omits the heading when no text is available. Tools show their names, actual public arguments, execution states, and public results. Private blocks, descendants of hidden blocks, and opaque data are not displayed. A model may provide no public reasoning summary.
 
 The live view follows the last page. Use PgUp/PgDn to read earlier pages; return to the last page to follow new output. A slow display can skip intermediate frames. The final view comes from saved session messages. If live content exceeds the display limit, the terminal shows an omission notice.
 
