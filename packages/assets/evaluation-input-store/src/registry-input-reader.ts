@@ -31,6 +31,18 @@ export interface RegistryInputReader {
   read(request: unknown): Promise<RegistryInputResult>
   close(): Promise<void>
 }
+function validRootSource(value: unknown): boolean {
+  return (
+    object(value) &&
+    Object.keys(value).length === 2 &&
+    'ok' in getAssetJudge().judgeAssetValue('AssetRecordId', value.asset) &&
+    'ok' in
+      getAssetJudge().judgeAssetValue('VersionSelection', {
+        kind: 'pinned',
+        number: value.version,
+      })
+  )
+}
 export function registryInputRequest(value: unknown): RegistryInputRequest | undefined {
   const copied = json(value)
   if (
@@ -39,16 +51,7 @@ export function registryInputRequest(value: unknown): RegistryInputRequest | und
     typeof copied.session !== 'string' ||
     !validateMessage('SessionRef', copied.session).valid ||
     !['reload', 'refresh_availability'].includes(String(copied.purpose)) ||
-    !object(copied.rootSource) ||
-    Object.keys(copied.rootSource).length !== 2 ||
-    !('ok' in getAssetJudge().judgeAssetValue('AssetRecordId', copied.rootSource.asset)) ||
-    !(
-      'ok' in
-      getAssetJudge().judgeAssetValue('VersionSelection', {
-        kind: 'pinned',
-        number: copied.rootSource.version,
-      })
-    )
+    !validRootSource(copied.rootSource)
   )
     return undefined
   const tenant = parseTenantId(copied.tenant)
@@ -106,6 +109,77 @@ function recipeForRead(
     throw new SourceUnavailable('current_membership')
   return { ...recipe, standing: current }
 }
+async function fixedRootSnapshot(
+  deps: EvaluationStorageDependencies,
+  readUnit: RegistryReadUnit,
+  inputRequest: RegistryInputRequest,
+) {
+  const { session, tenant, purpose, rootSource } = inputRequest
+  const holding = await deps.sessionTenancy.holdingTenant(session)
+  if (!('tenant' in holding) || !tenantIdEquals(holding.tenant, tenant))
+    throw new SourceUnavailable('session_tenancy')
+  const requested = deps.monotonicNow()
+  let acquired: bigint | undefined
+  const snapshot = await readUnit(inputRequest, async (unit, current) => {
+    acquired = deps.monotonicNow()
+    return unit.run(() =>
+      unit.query(async tx => {
+        const row = await narrow<SourceDb>(tx)
+          .selectFrom('evaluation_input_recipe')
+          .selectAll()
+          .where('store_key', '=', deps.storeKey)
+          .where('session', '=', session)
+          .executeTakeFirst()
+        if (row === undefined) throw new SourceUnavailable('recipe')
+        const recipe = recipeFromRow(row)
+        if (!tenantIdEquals(recipe.tenant, tenant)) throw new SourceUnavailable('recipe_tenant')
+        return readSourceSnapshot(tx, deps, recipeForRead(recipe, current, purpose), rootSource)
+      }),
+    )
+  })
+  const released = deps.monotonicNow()
+  if (acquired === undefined)
+    throw new Error('fixed-root transaction callback never acquired its transaction')
+  return {
+    snapshot,
+    queueNanos: (acquired - requested).toString(),
+    holdNanos: (released - acquired).toString(),
+  }
+}
+function registryResult(
+  input: ReturnType<typeof buildInputWithRoot>,
+  selected: ReturnType<typeof selectEvaluationRootSource>,
+  evaluated: ReturnType<typeof evaluate>,
+  rootSource: RegistryInputRequest['rootSource'],
+  sourceRevision: string,
+): RegistryInputResult {
+  let result: RegistryInputResult
+  if ('invalidInput' in evaluated) {
+    const c16 = evaluated.invalidInput.diagnostics.some(
+      diagnostic => diagnostic.condition === 'C16',
+    )
+    if (c16) {
+      if (!('ok' in selected) || equal(selected.ok, rootSource))
+        throw new Error('C16 and shared root selector disagree')
+      result = Object.freeze({
+        failure: 'rootSourceMismatch',
+        input,
+        selected: selected.ok,
+        rejection: evaluated,
+        sourceRevision,
+      })
+    } else result = { failure: 'unavailable', stage: 'evaluation_input' }
+  } else {
+    if (
+      'invalidInput' in selected ||
+      'unavailable' in selected ||
+      ('ok' in selected && !equal(selected.ok, rootSource))
+    )
+      throw new Error('successful fixed-root admission and shared selector disagree')
+    result = { input }
+  }
+  return result
+}
 export function createRegistryInputReaderWithUnit(
   dependencies: EvaluationStorageDependencies,
   readUnit: RegistryReadUnit,
@@ -123,37 +197,11 @@ export function createRegistryInputReaderWithUnit(
       active++
       const { session, tenant, purpose, rootSource } = inputRequest
       try {
-        const holding = await deps.sessionTenancy.holdingTenant(session)
-        if (!('tenant' in holding) || !tenantIdEquals(holding.tenant, tenant))
-          throw new SourceUnavailable('session_tenancy')
-        const requested = deps.monotonicNow()
-        let acquired: bigint | undefined
-        const snapshot = await readUnit(inputRequest, async (unit, current) => {
-          acquired = deps.monotonicNow()
-          return unit.run(() =>
-            unit.query(async tx => {
-              const row = await narrow<SourceDb>(tx)
-                .selectFrom('evaluation_input_recipe')
-                .selectAll()
-                .where('store_key', '=', deps.storeKey)
-                .where('session', '=', session)
-                .executeTakeFirst()
-              if (row === undefined) throw new SourceUnavailable('recipe')
-              const recipe = recipeFromRow(row)
-              if (!tenantIdEquals(recipe.tenant, tenant))
-                throw new SourceUnavailable('recipe_tenant')
-              return readSourceSnapshot(
-                tx,
-                deps,
-                recipeForRead(recipe, current, purpose),
-                rootSource,
-              )
-            }),
-          )
-        })
-        const released = deps.monotonicNow()
-        if (acquired === undefined)
-          throw new Error('fixed-root transaction callback never acquired its transaction')
+        const { snapshot, queueNanos, holdNanos } = await fixedRootSnapshot(
+          deps,
+          readUnit,
+          inputRequest,
+        )
         const extractionStarted = deps.monotonicNow()
         const input = buildInputWithRoot(snapshot, rootSource, snapshot.fixedRoot)
         const extractionNanos = (deps.monotonicNow() - extractionStarted).toString()
@@ -170,31 +218,7 @@ export function createRegistryInputReaderWithUnit(
         const evaluationStarted = deps.monotonicNow()
         const evaluated = evaluate(input)
         const evaluationNanos = (deps.monotonicNow() - evaluationStarted).toString()
-        let result: RegistryInputResult
-        if ('invalidInput' in evaluated) {
-          const c16 = evaluated.invalidInput.diagnostics.some(
-            diagnostic => diagnostic.condition === 'C16',
-          )
-          if (c16) {
-            if (!('ok' in selected) || equal(selected.ok, rootSource))
-              throw new Error('C16 and shared root selector disagree')
-            result = Object.freeze({
-              failure: 'rootSourceMismatch',
-              input,
-              selected: selected.ok,
-              rejection: evaluated,
-              sourceRevision: snapshot.revision,
-            })
-          } else result = { failure: 'unavailable', stage: 'evaluation_input' }
-        } else {
-          if (
-            'invalidInput' in selected ||
-            'unavailable' in selected ||
-            ('ok' in selected && !equal(selected.ok, rootSource))
-          )
-            throw new Error('successful fixed-root admission and shared selector disagree')
-          result = { input }
-        }
+        const result = registryResult(input, selected, evaluated, rootSource, snapshot.revision)
         emit(deps, {
           kind: 'registry_input_read',
           session,
@@ -203,18 +227,13 @@ export function createRegistryInputReaderWithUnit(
           sourceRevision: snapshot.revision,
           fixed: rootSource,
           ...('ok' in selected ? { selected: selected.ok } : {}),
-          result:
-            'input' in result && !('failure' in result)
-              ? 'input'
-              : 'failure' in result
-                ? result.failure
-                : 'input',
+          result: 'failure' in result ? result.failure : 'input',
           holdings: snapshot.holdings.length,
           assets: snapshot.definitions.length,
           versions: snapshot.versions,
           bodyBytes: snapshot.bodyBytes,
-          queueNanos: (acquired - requested).toString(),
-          holdNanos: (released - acquired).toString(),
+          queueNanos,
+          holdNanos,
           extractionNanos,
           selectorNanos,
           evaluationNanos,

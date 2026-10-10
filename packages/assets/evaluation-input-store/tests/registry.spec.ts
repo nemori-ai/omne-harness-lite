@@ -271,22 +271,22 @@ test('fixed-root participation failure terminates atomic before mapping; defects
   withHost(async h => {
     const { tenant } = await h.identity('alice')
     await h.initialize(tenant)
-    const reader: RegistryInputReader = createRegistryInputReader(h.deps)
     const request = {
       session: 'session_a',
       tenant,
       purpose: 'reload',
       rootSource: { asset: 'ast_root', version: 1 },
     }
+    const real = h.memberships.participate.bind(h.memberships)
+    const participation = vi.spyOn(h.memberships, 'participate').mockImplementation(unit => ({
+      ...real(unit),
+      standing: () =>
+        unit.run(async () => {
+          throw new StorageUnavailable('actual participation injected failure')
+        }),
+    }))
+    const reader: RegistryInputReader = createRegistryInputReader(h.deps)
     try {
-      const real = h.memberships.participate.bind(h.memberships)
-      const participation = vi.spyOn(h.memberships, 'participate').mockImplementation(unit => ({
-        ...real(unit),
-        standing: () =>
-          unit.run(async () => {
-            throw new StorageUnavailable('actual participation injected failure')
-          }),
-      }))
       expect(await reader.read(request)).toEqual({ failure: 'unavailable', stage: 'storage' })
       participation.mockImplementation(unit => ({
         ...real(unit),
