@@ -1,46 +1,42 @@
-import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
-import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
+import {
+  createSessionModelReconciler,
+  sessionModelRequestPreparation,
+  sessionModelSettlement,
+} from '@omne-harness-lite/session-runtime-local'
 import type { CreateCallContainerInput } from '../src/service-types.ts'
 import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
-import { describe, expect, it, vi } from 'vitest'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
+import type {
+  AnchoredInvocationHandle,
+  DiagnosticAssociation,
+  DiagnosticEvent,
+  DiagnosticScope,
+  PlannedSemantics,
+  RuntimeRecoveryScope,
+  SessionRuntimeBinding,
+  SettleReplyInput,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  captureModelLogValue,
+  inspectCurrentModelLogPrefix,
+  modelLogJsonEqual,
+  prepareModelLogEntry,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   judgePendingModelResponse,
   type PendingModelResponse,
 } from '@omne-harness-lite/model-response'
-import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
-import { projectRuntimeComponent } from '../src/runtime-projection.ts'
-import {
-  captureModelLogValue,
-  modelLogJsonEqual,
-  prepareModelLogEntry,
-} from '@omne-harness-lite/model-request-runtime'
-import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
-import {
-  createRuntimeReconcile,
-  createRuntimeSettleReply,
-  settlePendingReply,
-} from '../src/service-reconcile.ts'
-import { createCallContainer, createCallContainerStore } from '../src/service-container.ts'
-import type { SystemStopControl } from '../src/service-types.ts'
-import type {
-  SessionRuntimeBinding,
-  RuntimeRecoveryScope,
-} from '@omne-harness-lite/model-request-runtime'
-import type { SettleReplyInput } from '@omne-harness-lite/model-request-runtime'
-import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
-import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import type {
-  DiagnosticAssociation,
-  DiagnosticScope,
-} from '@omne-harness-lite/model-request-runtime'
-import type { DiagnosticCollector } from '../src/diagnostics-types.ts'
-import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
-import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { SessionLog } from '@omne-harness-lite/session-log'
+import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
+import { describe, expect, it, vi } from 'vitest'
+import type { DiagnosticCollector } from '../src/diagnostics-types.ts'
+import { createCallContainer, createCallContainerStore } from '../src/service-container.ts'
+import { createRuntimeSettleReply, settlePendingReply } from '../src/service-reconcile.ts'
+import type { SystemStopControl } from '../src/service-types.ts'
 import {
   dispatched as dispatchedFixture,
   opened as openedFixture,
@@ -48,9 +44,9 @@ import {
   session,
 } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
-import { controlled, deferred, noWaitScheduler, policy, request } from './settlement-fixture.ts'
+import { storeUnavailableCustody, unavailableReferencePorts } from './reference-ports-fixture.ts'
 import { selectionHost } from './session-selection-fixture.ts'
-import { unavailableReferencePorts, storeUnavailableCustody } from './reference-ports-fixture.ts'
+import { controlled, deferred, noWaitScheduler, policy, request } from './settlement-fixture.ts'
 
 /** Like the anchored handle, a repeat settles the same original request; the coordinator
  * resolves its retained unknown handle before any new submission. */
@@ -581,7 +577,7 @@ describe('v17 conditional Run cold recovery', () => {
       )
       if ('failure' in later) throw new Error('new Run attempt')
       let observed = 0
-      const reconcile = createRuntimeReconcile({
+      const reconcile = createSessionModelReconciler({
         settlementFactory: sessionModelSettlement,
         readCall: sessionModelRequestPreparation.readCall,
 
@@ -658,7 +654,7 @@ describe('S-33 retained recovery ownership', () => {
       const gate = deferred<{ scope: RuntimeRecoveryScope }>()
       let enters = 0
       let closes = 0
-      const component = createRuntimeReconcile({
+      const component = createSessionModelReconciler({
         settlementFactory: sessionModelSettlement,
         readCall: sessionModelRequestPreparation.readCall,
 
@@ -709,7 +705,7 @@ describe('S-33 retained recovery ownership', () => {
           originalChecks = 0,
           deniedChecks = 0
         let scopeCanClose = false
-        const input: Parameters<typeof createRuntimeReconcile>[0] = {
+        const input: Parameters<typeof createSessionModelReconciler>[0] = {
           settlementFactory: sessionModelSettlement,
           readCall: sessionModelRequestPreparation.readCall,
 
@@ -739,8 +735,8 @@ describe('S-33 retained recovery ownership', () => {
             },
           },
         }
-        const original = createRuntimeReconcile(input)
-        const denied = projectRuntimeComponent(original, {
+        const original = createSessionModelReconciler(input)
+        const denied = original.project({
           ...input,
           recovery: {
             async authorize() {
@@ -784,7 +780,7 @@ describe('S-33 retained recovery ownership', () => {
       let otherCloses = 0
       let otherCloseAvailable = false
       const otherSession = unwrap(parseOpaqueIdentifier('other-held-read-session', 'SessionRef'))
-      const component = createRuntimeReconcile({
+      const component = createSessionModelReconciler({
         settlementFactory: sessionModelSettlement,
         readCall: sessionModelRequestPreparation.readCall,
 
@@ -881,7 +877,7 @@ describe('S-33 retained recovery ownership', () => {
         }
         let scopeCloses = 0
         let enters = 0
-        const component = createRuntimeReconcile({
+        const component = createSessionModelReconciler({
           settlementFactory: sessionModelSettlement,
           readCall: sessionModelRequestPreparation.readCall,
 
@@ -961,7 +957,7 @@ describe('S-33 retained recovery ownership', () => {
           },
         }
         let enters = 0
-        const component = createRuntimeReconcile({
+        const component = createSessionModelReconciler({
           settlementFactory: sessionModelSettlement,
           readCall: sessionModelRequestPreparation.readCall,
 
@@ -1027,7 +1023,7 @@ describe('S-33 retained recovery ownership', () => {
         let otherCloseAvailable = false
         let enters = 0
         const otherSession = unwrap(parseOpaqueIdentifier('other-recovery-session', 'SessionRef'))
-        const component = createRuntimeReconcile({
+        const component = createSessionModelReconciler({
           settlementFactory: sessionModelSettlement,
           readCall: sessionModelRequestPreparation.readCall,
 
@@ -1119,7 +1115,7 @@ describe('S-33 retained recovery ownership', () => {
           },
         }
         let clock = 0
-        const component = createRuntimeReconcile({
+        const component = createSessionModelReconciler({
           settlementFactory: sessionModelSettlement,
           readCall: sessionModelRequestPreparation.readCall,
 
@@ -1182,7 +1178,7 @@ describe('S-33 retained recovery ownership', () => {
           },
         }
         let scopeCloses = 0
-        const component = createRuntimeReconcile({
+        const component = createSessionModelReconciler({
           settlementFactory: sessionModelSettlement,
           readCall: sessionModelRequestPreparation.readCall,
 
@@ -1251,7 +1247,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
             }
           },
         } as DiagnosticCollector
-        const reconcile = createRuntimeReconcile({
+        const reconcile = createSessionModelReconciler({
           settlementFactory: sessionModelSettlement,
           readCall: sessionModelRequestPreparation.readCall,
 
@@ -1370,7 +1366,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
         expect(await task.completion).toHaveProperty('settled')
         await task.stopped
         let queried = 0
-        const reconcile = createRuntimeReconcile({
+        const reconcile = createSessionModelReconciler({
           settlementFactory: sessionModelSettlement,
           readCall: sessionModelRequestPreparation.readCall,
 
@@ -1431,7 +1427,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
       if ('failure' in added) throw new Error('second durable dispatch')
       let secondAvailable = false
       let enters = 0
-      const reconcile = createRuntimeReconcile({
+      const reconcile = createSessionModelReconciler({
         settlementFactory: sessionModelSettlement,
         readCall: sessionModelRequestPreparation.readCall,
 
@@ -1524,7 +1520,7 @@ describe('S-33 noRun recovered full-prefix read', () => {
             return { released: true }
           },
         }
-        const reconcile = createRuntimeReconcile({
+        const reconcile = createSessionModelReconciler({
           settlementFactory: sessionModelSettlement,
           readCall: sessionModelRequestPreparation.readCall,
 

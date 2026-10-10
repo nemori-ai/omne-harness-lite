@@ -1,7 +1,7 @@
+import { UnknownAppendTracker } from '@omne-harness-lite/model-request-runtime'
 import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 import { expect, test } from 'vitest'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
-import { UnknownAppendTracker } from '../src/service-calls.ts'
 import { controlled, deferred, policy } from './settlement-fixture.ts'
 import { prepare, session } from './log-codec-fixture.ts'
 

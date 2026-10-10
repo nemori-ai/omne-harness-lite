@@ -10,6 +10,9 @@
 
 根入口的`createLocalSessionDriver`提供正常Model／Tool路径：扫描持久Session工作并拥有原Run任务。调用者提供实际Run来源、模型服务、Clock及显式policy。停止撤销新工作；关闭等待实际扫描和原任务归还。`./cordis`公开SessionDriver，采用显式policy及Core startup注入；生产来源组合仍须另验，不能据此声明完整产品或冷恢复已经交付。
 
+
+`createSessionModelReconciler`拥有完整会话日志对账。投影共享原恢复状态和可重试关闭责任。`sessionModelSettlement`同时提供冷回复认回及控制记录追加，不发起模型请求，不关闭借入的执行池。
+
 ## 使用
 
 在共享根库组合admissionMigrations，在每租户实际运行库组合admissionUseMigrations，然后以根Storage、可信治理核验端口及显式容量策略调用createLocalAdmission。调用者保管借入依赖。

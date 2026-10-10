@@ -1,12 +1,19 @@
 import type { TenantId } from '@omne-harness-lite/identity-values'
-import type { DiagnosticAssociation } from '@omne-harness-lite/model-request-runtime'
-import type { DiagnosticCollector } from './diagnostics-types.ts'
+import type { DiagnosticAssociation } from './diagnostics-types.ts'
+import type { DiagnosticScope } from './diagnostics-types.ts'
 import type {
   DiagnosticEmitter,
   DiagnosticEvent,
   DiagnosticReference,
-} from '@omne-harness-lite/model-request-runtime'
-import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+} from './diagnostic-events.ts'
+import { drainDiagnosticThenable } from './drain-diagnostic.ts'
+
+export interface DiagnosticEmitterSource {
+  readonly emitter: (
+    scope: DiagnosticScope,
+    association?: DiagnosticAssociation,
+  ) => DiagnosticEmitter
+}
 
 function recordedReference(result: unknown): DiagnosticReference | undefined {
   if (result !== null && typeof result === 'object' && 'recorded' in result) {
@@ -28,7 +35,7 @@ function recordedReference(result: unknown): DiagnosticReference | undefined {
 
 /** One verified service operation owns this emitter and the actual recorded parent reference. */
 export function operationDiagnostics(
-  collector: Pick<DiagnosticCollector, 'emitter'> | undefined,
+  collector: DiagnosticEmitterSource | undefined,
   tenant: TenantId,
   association: DiagnosticAssociation,
   report: () => void,

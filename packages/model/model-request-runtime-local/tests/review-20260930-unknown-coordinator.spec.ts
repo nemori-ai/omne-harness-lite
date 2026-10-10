@@ -1,3 +1,4 @@
+import { createSessionModelReconciler } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 /**
@@ -25,7 +26,6 @@ import {
 } from './settlement-fixture.ts'
 import { dispatched, opened, prepare, session, tenant } from './log-codec-fixture.ts'
 import { batchV2 } from './log-codec-v2-fixture.ts'
-import { createRuntimeReconcile } from '../src/service-reconcile.ts'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { storeUnavailableCustody } from './reference-ports-fixture.ts'
@@ -525,7 +525,7 @@ describe('review 2026-09-30 Q3/S2 fail-closed granularity: reconcile per call (R
         )
         if ('failure' in appended) throw new Error('acked call')
         void tenant
-        const reconcile = createRuntimeReconcile({
+        const reconcile = createSessionModelReconciler({
           settlementFactory: sessionModelSettlement,
           readCall: sessionModelRequestPreparation.readCall,
 

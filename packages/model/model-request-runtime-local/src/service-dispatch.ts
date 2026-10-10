@@ -1,5 +1,12 @@
-import type { ModelObserverQueue } from './service-types.ts'
+import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
+import { isJsonNumber } from '@omne-harness-lite/content-blocks'
+import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
+import { validate as loopShape, type RetryPlan } from '@omne-harness-lite/loop-extension'
+import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type {
+  CallKey,
+  DiagnosticEvent,
+  DiagnosticReference,
   DispatchAgainInput,
   DispatchAgainResult,
   DispatchGuardPhase,
@@ -8,54 +15,42 @@ import type {
   FailureConsumableOperation,
   FailureConsumption,
   ModelFailureSource,
+  ObserverDiagnostic,
+  PlannedSemantics,
+  SessionRuntimeBinding,
+  SettlementDiagnostic,
 } from '@omne-harness-lite/model-request-runtime'
-import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
-import { offerReferenceConsumers } from './reference-consumer.ts'
-import {
-  createPlanReuseScopes,
-  type PlanReuseScopes,
-  type PlanReuseScopeLease,
-} from './plan-reuse-scopes.ts'
-import { randomUUID } from 'node:crypto'
-import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
-import { isJsonNumber } from '@omne-harness-lite/content-blocks'
-import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { validate as loopShape, type RetryPlan } from '@omne-harness-lite/loop-extension'
-import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import { createAnchoredModelInvocation } from './anchored-invocation.ts'
-import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
-import { operationDiagnostics } from './service-diagnostics.ts'
-import { createModelObserverQueue } from './service-observer-queue.ts'
-import { dispatchGuard } from '@omne-harness-lite/model-request-runtime'
-import { UnknownAppendTracker } from './service-calls.ts'
-import {
-  appendControlRecord,
-  OwnedAppendTracker,
-  OwnedReadTracker,
-  withOwnedReads,
-} from './service-control.ts'
-import {
-  readSettlementPrefix,
-  settlementGenerationCurrent,
-} from '@omne-harness-lite/model-request-runtime'
-import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
-import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import {
   acknowledgedAsTerminal,
+  dispatchGuard,
+  modelLogJsonEqual,
+  operationDiagnostics,
+  readSettlementPrefix,
   rejectAcknowledgedHistory,
+  settlementGenerationCurrent,
+  UnknownAppendTracker,
   type UnacknowledgedCallHistory,
 } from '@omne-harness-lite/model-request-runtime'
-import type { CallOperationState, CallReservation, RuntimeConstruction } from './service-types.ts'
+import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
+import { randomUUID } from 'node:crypto'
+import { createAnchoredModelInvocation } from './anchored-invocation.ts'
+import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
+import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import {
+  createPlanReuseScopes,
+  type PlanReuseScopeLease,
+  type PlanReuseScopes,
+} from './plan-reuse-scopes.ts'
+import { offerReferenceConsumers } from './reference-consumer.ts'
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
+import { OwnedAppendTracker, OwnedReadTracker, withOwnedReads } from './service-control.ts'
+import { createModelObserverQueue } from './service-observer-queue.ts'
 import type {
-  CallKey,
-  SessionRuntimeBinding,
-  ObserverDiagnostic,
-} from '@omne-harness-lite/model-request-runtime'
-import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
-import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementDiagnostic } from '@omne-harness-lite/model-request-runtime'
-import type { DiagnosticAssociation } from '@omne-harness-lite/model-request-runtime'
-import type { DiagnosticEvent, DiagnosticReference } from '@omne-harness-lite/model-request-runtime'
+  CallOperationState,
+  CallReservation,
+  ModelObserverQueue,
+  RuntimeConstruction,
+} from './service-types.ts'
 
 const settlementUnavailableKinds = new Set<string>([
   'settlement.unavailable.dependency',
@@ -556,7 +551,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
           facts: { kind: 'decision', cause: 'credential_unavailable', credentialPresent: false },
         })
         const first = 'absent' in history || history.known.dispatches.length === 0
-        const appended = await appendControlRecord({
+        const appended = await runtime.settlementFactory.appendControl({
           trackTask: task => physical.appends.track(task),
           binding: session.log,
           owner,
@@ -1117,7 +1112,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
         if (outcome.rejected === 'modality_not_carried') {
           if (dispatchNumber > 1) return { invalidInput: { reason: 'modality_mismatch' } }
           if (physical.closing) return { runtimeStopped: true }
-          const appended = await appendControlRecord({
+          const appended = await runtime.settlementFactory.appendControl({
             trackTask: task => physical.appends.track(task),
             binding: session.log,
             owner: view.owner,

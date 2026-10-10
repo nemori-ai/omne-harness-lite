@@ -91,6 +91,7 @@ export async function namedProviderFixture(
     readonly deferDependencies?: boolean
     readonly config?: ModelRuntimeLocalConfig
     readonly callFactsFactory?: ModelRuntimeLocalConstruction['callFactsFactory']
+    readonly settlementFactory?: ModelRuntimeLocalConstruction['settlementFactory']
     readonly construction?: Omit<
       ModelRuntimeLocalConstruction,
       | 'requestPreparation'
@@ -114,7 +115,7 @@ export async function namedProviderFixture(
       ...options.construction,
       acknowledgementFactory: createSessionModelAcknowledgement,
       callFactsFactory: options.callFactsFactory ?? createSessionModelCallFacts,
-      settlementFactory: sessionModelSettlement,
+      settlementFactory: options.settlementFactory ?? sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
     })

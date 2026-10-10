@@ -1,3 +1,5 @@
+import { appendControlRecord } from '@omne-harness-lite/session-runtime-local'
+import { UnknownAppendTracker } from '@omne-harness-lite/model-request-runtime'
 import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
@@ -6,7 +8,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import {
-  appendControlRecord,
   classifyInterrupt,
   classifyRelease,
   OwnedAppendTracker,
@@ -21,7 +22,6 @@ import type {
   SettlementTask,
 } from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult } from '@omne-harness-lite/session-log'
-import { UnknownAppendTracker } from '../src/service-calls.ts'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 
 const absent: ControlFacts = { durable: { absent: true }, localCall: false }

@@ -584,3 +584,12 @@ Session `readCall` 同样供原未知写入的收场使用。读取沿原Source�
 根函数createSessionModelCallFacts实现Core的SessionModelCallFactsFactory，解释完整会话日志并维护调用／创建键索引。它保留原有按generation对象分隔的有界Map、增量cursor、更新任务合并及淘汰规则，不改变算法或容量政策。
 
 实现只借用原ModelCallContentStore，既不复制正文也不新建内容存储。project只更换presence读者并共享原状态。工厂取得原content的关闭委托，物理Model拥有者仍在整体排空后关闭该索引。它不是单会话Context的关闭资源。content关闭失败时不清缓存，不报告released，允许原关闭重试。共享行为和形状见[Core规格](../../core/model-request-runtime/SPEC.md#session-调用事实索引)。
+
+
+## 完整模型调用恢复
+
+createSessionModelReconciler实现SessionModelReconciler，sessionModelSettlement.createReconciler使用同一实现。Session拥有完整日志枚举、原中断结果构造、ACK后小事实判断及未知控制记录认回。原RecoveryEntry中的scope、原批次、读写任务及关闭状态只保留一份。project共享它们，后继输入不替换已捕获任务的身份、时间戳或来源。
+
+recognizeSessionModelReply只读取完整已结算前缀，检查原日志和selection身份后认回既有处分，不发起模型调用。appendControlRecord执行原条件与栅栏校验，持有登记直到实际停止，未知结果转交原拥有者。恢复过程中仍活着的结算工作保持由原组件负责，不由扫描器重复执行。Model原custody继续负责结果内容与工作行的退休；Session不创建第二清理队列。
+
+这些闭包不取得新的模型执行权，不因日志恢复而重发请求，也不关闭借入的Model池、日志或内容存储。与Core的原任务停止和可重试关闭约定共同适用。

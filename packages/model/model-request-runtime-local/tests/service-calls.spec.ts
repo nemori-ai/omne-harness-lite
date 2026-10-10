@@ -1,3 +1,4 @@
+import { UnknownAppendTracker } from '@omne-harness-lite/model-request-runtime'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
@@ -20,7 +21,7 @@ import {
   modelCallContentMigrations,
 } from '../src/reference-content.ts'
 import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
-import { createServiceCalls, ownOpenCallInput, UnknownAppendTracker } from '../src/service-calls.ts'
+import { createServiceCalls, ownOpenCallInput } from '../src/service-calls.ts'
 import {
   captureModelLogValue,
   prepareModelLogEntry,

@@ -1,3 +1,9 @@
+import type { ControlAppendInput } from './model-control.ts'
+import type {
+  SessionModelRecoveryInput,
+  SessionModelReconciler,
+  SessionModelReplyRecognition,
+} from './model-recovery.ts'
 import type { ModelCallRetentionKey } from './model-call-facts.ts'
 import type { CallKey } from '@omne-harness-lite/messages'
 import type { ResponseId } from '@omne-harness-lite/model-response'
@@ -150,6 +156,12 @@ export interface SettlementWorkRecoveryInput {
 
 /** Session owns log interpretation. The root supplies these implementations without fallback. */
 export interface SessionModelSettlement {
+  readonly createReconciler: (input: SessionModelRecoveryInput) => SessionModelReconciler
+  readonly recognizeReply: SessionModelReplyRecognition
+  readonly appendControl: (
+    input: ControlAppendInput,
+  ) => Promise<{ readonly appended: true } | { readonly unavailable: true }>
+
   readonly create: (input: SettlementCoordinatorInput) => SettlementCoordinator
   readonly createWork: (input: SettlementWorkInput) => SettlementWork
   readonly recoverWork: (input: SettlementWorkRecoveryInput) => Promise<void>

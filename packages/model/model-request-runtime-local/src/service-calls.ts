@@ -1,17 +1,3 @@
-import type { SessionModelRequestPreparation } from '@omne-harness-lite/model-request-runtime'
-import type {
-  EffectiveModel,
-  ModelObserverRequest,
-  OpenCallInput,
-  OpenCallResult,
-  ServiceInvalidInput,
-  PlanFailure,
-  PlanResult,
-  PreparedModelCreation,
-} from '@omne-harness-lite/model-request-runtime'
-import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
-import { createPlanReuseScopes, type PlanReuseScopes } from './plan-reuse-scopes.ts'
-import { randomUUID } from 'node:crypto'
 import { ExactDecimal, judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import {
   validate as contentShape,
@@ -21,60 +7,62 @@ import {
   type JsonValue,
 } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
+import type { CallKey } from '@omne-harness-lite/messages'
 import {
   judgeMessage,
   judgeModelCallSemanticDigest,
   type ModelCallCreatedPayload,
 } from '@omne-harness-lite/messages'
-import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
 import {
   judgeModelProfileDocument,
   type ModelProfileRef,
   type ModelRequestParameters,
 } from '@omne-harness-lite/model-profile'
+import type {
+  AcknowledgedCallFacts,
+  EffectiveModel,
+  ModelCreationPublication,
+  ModelObserverRequest,
+  OpenCallInput,
+  OpenCallResult,
+  PlanFailure,
+  PlannedSemantics,
+  PlanResult,
+  PreparedModelCreation,
+  ServiceInvalidInput,
+  SessionRuntimeBinding,
+  SettlementOwner,
+} from '@omne-harness-lite/model-request-runtime'
+import {
+  acknowledgedAsTerminal,
+  createModelCallCreationInput,
+  modelLogJsonEqual,
+  operationDiagnostics,
+  settlementGenerationCurrent,
+  UnknownAppendTracker,
+  type UnacknowledgedCallHistory,
+} from '@omne-harness-lite/model-request-runtime'
 import { validate as toolShape } from '@omne-harness-lite/tool-definition'
+import { randomUUID } from 'node:crypto'
+import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
-import { operationDiagnostics } from './service-diagnostics.ts'
+import { createPlanReuseScopes, type PlanReuseScopes } from './plan-reuse-scopes.ts'
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { createCallContainer, createCallPreparationOwner } from './service-container.ts'
 import {
-  appendControlRecord,
   createOriginalSystemStop,
   OwnedAppendTracker,
   OwnedReadTracker,
   withOwnedReads,
 } from './service-control.ts'
-import {
-  createModelCallCreationInput,
-  settlementGenerationCurrent,
-} from '@omne-harness-lite/model-request-runtime'
-import {
-  acknowledgedAsTerminal,
-  type UnacknowledgedCallHistory,
-} from '@omne-harness-lite/model-request-runtime'
-import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type {
+  CallObserverBinding,
   CallPreparationOwner,
   CallReservation,
   CreateCallContainerInput,
-  CallObserverBinding,
-  RuntimeConstruction,
   ExactTransportLease,
+  RuntimeConstruction,
 } from './service-types.ts'
-import type {
-  SettlementOwner,
-  SettlementRegistration,
-  SettlementTask,
-} from '@omne-harness-lite/model-request-runtime'
-import type { AppendResult } from '@omne-harness-lite/session-log'
-import type { CallKey } from '@omne-harness-lite/messages'
-import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
-import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import type { AcknowledgedCallFacts } from '@omne-harness-lite/model-request-runtime'
-import type { ModelCallPublishPermit } from './reference-types.ts'
-import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
-import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
-import type { ModelCreationPublication } from '@omne-harness-lite/model-request-runtime'
 
 function observeAcquireRefusal<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
@@ -445,121 +433,6 @@ function sameObserverRequest(
       ExactDecimal.from(right.observer_max_buffered_bytes),
     ) === 0
   )
-}
-
-interface UnknownAppend {
-  readonly key: CallKey
-  readonly binding: SettlementLogBinding
-  readonly owner: SettlementOwner
-  readonly registration: SettlementRegistration
-  readonly task: SettlementTask<AppendResult>
-  readonly readTasks: Set<SettlementTask<unknown>>
-  readonly call: CurrentHistoryReaders['call']
-  readonly readCall: SessionModelRequestPreparation['readCall']
-  /** RT12 S-98: a content publish permit held until this original batch is recognized. */
-  readonly permit?: ModelCallPublishPermit
-}
-
-function requestUnknownWriteStops(writes: readonly UnknownAppend[]): void {
-  for (const write of writes) {
-    try {
-      write.task.requestStop()
-    } catch {
-      // The actual stopped promise remains authoritative.
-    }
-  }
-}
-
-function releaseUnknownWrite(write: UnknownAppend, retained: Set<UnknownAppend>): void {
-  try {
-    write.registration.release()
-    retained.delete(write)
-  } catch {
-    // A failed writer release remains owned for a later close attempt.
-  }
-}
-
-/** Unknown append receipts retain their original writer until it stops and Session confirms the original call. */
-export class UnknownAppendTracker {
-  readonly #writes = new Set<UnknownAppend>()
-  #closing: Promise<{ readonly released: true } | { readonly unavailable: true }> | undefined
-
-  keep(
-    key: CallKey,
-    binding: SettlementLogBinding,
-    owner: SettlementOwner,
-    registration: SettlementRegistration,
-    task: SettlementTask<AppendResult>,
-    call: CurrentHistoryReaders['call'],
-    readCall: SessionModelRequestPreparation['readCall'],
-    permit?: ModelCallPublishPermit,
-  ): void {
-    this.#writes.add({
-      key,
-      binding,
-      owner,
-      registration,
-      task,
-      call,
-      readCall,
-      readTasks: new Set(),
-      ...(permit === undefined ? {} : { permit }),
-    })
-  }
-
-  close(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
-    if (this.#closing !== undefined) return this.#closing
-    const attempt = this.#closeOnce()
-    this.#closing = attempt
-    const finish = () => {
-      if (this.#closing === attempt) this.#closing = undefined
-    }
-    void attempt.then(finish, finish)
-    return attempt
-  }
-
-  async #closeOnce(): Promise<{ readonly released: true } | { readonly unavailable: true }> {
-    const writes = [...this.#writes]
-    requestUnknownWriteStops(writes)
-    for (const write of writes) {
-      try {
-        await write.task.stopped
-      } catch {
-        continue
-      }
-      // The original writer still owns the only registration when concurrent=1.
-      // Reuse it for recognition instead of waiting for a second owner grant.
-      const priorReads = await Promise.allSettled([...write.readTasks].map(requestStopAndWait))
-      if (priorReads.some(result => result.status === 'rejected')) continue
-      write.readTasks.clear()
-      let read: Awaited<ReturnType<SessionModelRequestPreparation['readCall']>>
-      try {
-        read = await write.readCall({
-          binding: write.binding,
-          callId: write.key.callId,
-          interpret: write.call,
-          registration: {
-            start(kind, operation) {
-              const task = write.registration.start(kind, operation)
-              write.readTasks.add(task)
-              return task
-            },
-            release: write.registration.release,
-          },
-        })
-      } catch {
-        continue
-      }
-      const stopped = await Promise.allSettled([...write.readTasks].map(requestStopAndWait))
-      if (stopped.some(result => result.status === 'rejected')) continue
-      write.readTasks.clear()
-      if ('unavailable' in read) continue
-      // The original batch is now determined and its writer stopped: its content permit ends.
-      if (write.permit !== undefined && !('released' in (await write.permit.release()))) continue
-      releaseUnknownWrite(write, this.#writes)
-    }
-    return this.#writes.size === 0 ? { released: true } : { unavailable: true }
-  }
 }
 
 function creationValueOf(request: OpenCallInput, session: SessionRuntimeBinding) {
@@ -1096,7 +969,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
     ): Promise<OpenCallResult> {
       const owner = session.selection.owner
       const callId = key.callId
-      const written = await appendControlRecord({
+      const written = await runtime.settlementFactory.appendControl({
         trackTask: task => physical.appends.track(task),
         binding: session.log,
         owner,

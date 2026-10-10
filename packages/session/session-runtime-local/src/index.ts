@@ -92,3 +92,6 @@ export { createSettlementCoordinator } from './settlement-coordinator.ts'
 export { createSettlementWork } from './settlement-work.ts'
 
 export { createSessionModelCallFacts } from './model-call-facts.ts'
+
+export { appendControlRecord } from './model-control-append.ts'
+export { createSessionModelReconciler, recognizeSessionModelReply } from './model-recovery.ts'

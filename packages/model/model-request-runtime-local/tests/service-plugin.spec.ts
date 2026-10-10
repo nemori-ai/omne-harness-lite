@@ -31,6 +31,63 @@ const callId = unwrap(parseOpaqueIdentifier('named-call', 'ModelCallId'))
 const key = { session, callId }
 
 describe('named model runtime provider', () => {
+  it('does not replace a refused Session recovery owner or publish a ready runtime', async () => {
+    const refused = new Error('Session recovery construction refused')
+    const createReconciler = vi.fn(() => {
+      throw refused
+    })
+    const host = await namedProviderFixture({
+      settlementFactory: { ...sessionModelSettlement, createReconciler },
+    })
+    try {
+      await expect(host.binding.ready).rejects.toBe(refused)
+      expect(createReconciler).toHaveBeenCalledTimes(1)
+      expect(host.ctx.get(MODEL_RUNTIME_SERVICE)).toBeUndefined()
+      expect(await host.binding.close()).toEqual({ released: true })
+      expect(host.releases()).toBe(1)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('projects one Session recovery owner and closes that original owner', async () => {
+    const close = vi.fn()
+    const project = vi.fn()
+    const createReconciler = vi.fn(
+      (input: Parameters<typeof sessionModelSettlement.createReconciler>[0]) => {
+        const owner = sessionModelSettlement.createReconciler(input)
+        return {
+          ...owner,
+          project(next: typeof input) {
+            project()
+            return owner.project(next)
+          },
+          async close() {
+            close()
+            return owner.close()
+          },
+        }
+      },
+    )
+    const host = await namedProviderFixture({
+      settlementFactory: { ...sessionModelSettlement, createReconciler },
+    })
+    try {
+      await host.binding.ready
+      const service = host.ctx.get(MODEL_RUNTIME_SERVICE)
+      if (!service) throw new Error('actual service not published')
+      await service.reconcile({ session })
+      await service.reconcile({ session })
+      expect(createReconciler).toHaveBeenCalledTimes(1)
+      expect(project).toHaveBeenCalledTimes(2)
+      expect(close).not.toHaveBeenCalled()
+      expect(await host.binding.close()).toEqual({ released: true })
+      expect(close).toHaveBeenCalled()
+    } finally {
+      await host.close()
+    }
+  })
+
   it('does not replace a refused Session facts factory or publish a ready runtime', async () => {
     const refused = new Error('Session facts construction refused')
     const factory = vi.fn(() => {

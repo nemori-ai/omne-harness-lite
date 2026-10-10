@@ -80,3 +80,8 @@ export { drainDiagnosticThenable } from './drain-diagnostic.ts'
 export * from './model-settlement.ts'
 
 export type * from './model-call-facts.ts'
+
+export * from './model-control.ts'
+export * from './model-recovery.ts'
+export * from './model-unknown-append.ts'
+export * from './operation-diagnostics.ts'

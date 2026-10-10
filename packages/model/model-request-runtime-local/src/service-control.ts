@@ -1,49 +1,41 @@
-import { OwnedReadTracker, withOwnedReads } from '@omne-harness-lite/model-request-runtime'
-export { OwnedReadTracker, withOwnedReads } from '@omne-harness-lite/model-request-runtime'
-import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
-import type {
-  CurrentHistoryReaders,
-  SessionModelRequestPreparation,
-} from '@omne-harness-lite/model-request-runtime'
-import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
-import type {
-  DispatchGuardPhase,
-  InterruptInput,
-  InterruptResult,
-  ReleaseCallResult,
-  RuntimeCloseResult,
-} from '@omne-harness-lite/model-request-runtime'
-import type {
-  ModelCallEndedRecord,
-  ModelCallInterruptIntentRecord,
-} from '@omne-harness-lite/messages'
 import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import { judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import type { AppendFence, AppendResult } from '@omne-harness-lite/session-log'
-import {
-  captureModelLogValue,
-  prepareModelLogEntry,
-} from '@omne-harness-lite/model-request-runtime'
-import { settlementAppendReceipt } from '@omne-harness-lite/model-request-runtime'
-import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
-import {
-  acknowledgedAsTerminal,
-  rejectAcknowledgedHistory,
-  type CallHistoryResult,
-  type UnacknowledgedCallHistory,
-} from '@omne-harness-lite/model-request-runtime'
-import type { CallContainerView } from './service-types.ts'
-import type { CallOperationState, SystemStopControl, RuntimeConstruction } from './service-types.ts'
-import type { CallKey, SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
-import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
+  CallKey,
+  CurrentHistoryReaders,
+  DispatchGuardPhase,
+  InterruptInput,
+  InterruptResult,
+  PlannedSemantics,
+  ReleaseCallResult,
+  RuntimeCloseResult,
+  SessionModelRequestPreparation,
+  SessionRuntimeBinding,
   SettlementLogBinding,
   SettlementOwner,
   SettlementRegistration,
   SettlementTask,
 } from '@omne-harness-lite/model-request-runtime'
-import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
+import {
+  acknowledgedAsTerminal,
+  OwnedReadTracker,
+  rejectAcknowledgedHistory,
+  requestStopAndWait,
+  settlementGenerationCurrent,
+  withOwnedReads,
+  type CallHistoryResult,
+  type UnacknowledgedCallHistory,
+} from '@omne-harness-lite/model-request-runtime'
+import type { AppendResult } from '@omne-harness-lite/session-log'
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
+import type {
+  CallContainerView,
+  CallOperationState,
+  RuntimeConstruction,
+  SystemStopControl,
+} from './service-types.ts'
+export { OwnedReadTracker, withOwnedReads } from '@omne-harness-lite/model-request-runtime'
 
 /** Append tasks stay visible to service close until their caller transfers or releases ownership. */
 export class OwnedAppendTracker {
@@ -182,152 +174,6 @@ export function classifyRelease(facts: ControlFacts): ReleaseAdmission {
   if ('intentExists' in facts.durable && facts.durable.intentExists)
     return { rejected: 'unavailable' }
   return { allowed: true }
-}
-
-export interface ControlAppendInput {
-  readonly binding: SettlementLogBinding
-  readonly owner: SettlementOwner
-  readonly concurrent: import('@omne-harness-lite/content-blocks').JsonNumber
-  readonly record: ModelCallInterruptIntentRecord | ModelCallEndedRecord
-  /** Original Run/attempt only; no synthetic fence is permitted. */
-  readonly run?: RunId
-  readonly attempt?: AttemptId
-  /** The caller owns this registration until actual stop and authoritative recognition. */
-  readonly retainUnknown: (
-    registration: SettlementRegistration,
-    task: SettlementTask<AppendResult>,
-  ) => void
-  readonly trackTask?: (task: SettlementTask<AppendResult>) => () => void
-}
-
-/** S-68/S-70: one actual SL3 unconditional commit, with the original Run fence if present.
- * An unconfirmed effect is transferred to the caller's owner; it is never called absent. */
-export async function appendControlRecord(
-  input: ControlAppendInput,
-): Promise<{ readonly appended: true } | { readonly unavailable: true }> {
-  const { binding, owner, record } = input
-  if (
-    (input.run === undefined) !== (input.attempt === undefined) ||
-    owner.admission() !== 'open' ||
-    !settlementGenerationCurrent(binding)
-  )
-    return { unavailable: true }
-  const captured = captureModelLogValue({
-    category: 'record',
-    input: { kind: 'value', value: record },
-  })
-  if ('invalidValue' in captured) return { unavailable: true }
-  const prepared = prepareModelLogEntry({
-    session: binding.session,
-    shell: {
-      tenant: binding.tenant,
-      ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
-    },
-    captured: captured.ok,
-    purpose: { kind: 'record' },
-    messagePrefix: null,
-  })
-  if ('invalidValue' in prepared) return { unavailable: true }
-  const grant = owner.acquire(input.concurrent)
-  if ('unavailable' in grant) return { unavailable: true }
-  const registration = grant.registration
-  const fence: AppendFence =
-    input.run !== undefined && input.attempt !== undefined
-      ? { kind: 'fenced', run: input.run, attempt: input.attempt }
-      : { kind: 'unfenced' }
-  return runControlAppend(input, binding, owner, prepared, registration, fence)
-}
-
-type ControlAppendOutcome = { readonly appended: true } | { readonly unavailable: true }
-type PreparedControlRecord = Extract<
-  ReturnType<typeof prepareModelLogEntry>,
-  { readonly ok: unknown }
->
-type ControlReceipt = ReturnType<typeof settlementAppendReceipt>
-
-async function runControlAppend(
-  input: ControlAppendInput,
-  binding: SettlementLogBinding,
-  owner: SettlementOwner,
-  prepared: PreparedControlRecord,
-  registration: SettlementRegistration,
-  fence: AppendFence,
-): Promise<ControlAppendOutcome> {
-  let started = false
-  let task: SettlementTask<AppendResult>
-  try {
-    task = registration.start('controlAppend', async () => {
-      if (owner.admission() !== 'open' || !settlementGenerationCurrent(binding))
-        return { failure: 'unavailable' } as const
-      started = true
-      return await binding.log.append(binding.session, [prepared.ok], fence, {
-        kind: 'unconditional',
-      })
-    })
-  } catch {
-    registration.release()
-    return { unavailable: true }
-  }
-  const untrack = input.trackTask?.(task)
-
-  async function rejectedCompletion(): Promise<ControlAppendOutcome> {
-    try {
-      if (started) {
-        input.retainUnknown(registration, task)
-        return { unavailable: true }
-      }
-      try {
-        await requestStopAndWait(task)
-        registration.release()
-      } catch {
-        input.retainUnknown(registration, task)
-      }
-      return { unavailable: true }
-    } finally {
-      untrack?.()
-    }
-  }
-
-  async function receivedCompletion(raw: unknown): Promise<ControlAppendOutcome> {
-    try {
-      const receipt = settlementAppendReceipt(raw, 1)
-      if (
-        started &&
-        (receipt === null || ('failure' in receipt && receipt.failure === 'unavailable'))
-      ) {
-        input.retainUnknown(registration, task)
-        return { unavailable: true }
-      }
-      try {
-        await requestStopAndWait(task)
-      } catch {
-        input.retainUnknown(registration, task)
-        return { unavailable: true }
-      }
-      try {
-        registration.release()
-      } catch {
-        return { unavailable: true }
-      }
-      return completedControlAppend(started, receipt)
-    } finally {
-      untrack?.()
-    }
-  }
-
-  let raw: unknown
-  try {
-    raw = await task.completion
-  } catch {
-    return rejectedCompletion()
-  }
-  return receivedCompletion(raw)
-}
-
-function completedControlAppend(started: boolean, receipt: ControlReceipt): ControlAppendOutcome {
-  return started && receipt !== null && !('failure' in receipt)
-    ? { appended: true }
-    : { unavailable: true }
 }
 
 interface UnknownControlWrite {
@@ -538,7 +384,7 @@ async function appendOriginalCancellation<P extends PlannedSemantics, R>(
 ): Promise<RuntimeCloseResult> {
   const account = controlAccount(history, view.request.run, view.request.attempt, view.operation)
   if ('unavailable' in account) return account
-  const appended = await appendControlRecord({
+  const appended = await runtime.settlementFactory.appendControl({
     binding: view.session.log,
     owner: view.owner,
     concurrent: runtime.settlementContention.limits.concurrent,
@@ -863,7 +709,11 @@ function buildServiceControl<P extends PlannedSemantics, R>(
         return { account }
       }
       function releaseOutcome(
-        appended: Awaited<ReturnType<typeof appendControlRecord>>,
+        appended: Awaited<
+          ReturnType<
+            import('@omne-harness-lite/model-request-runtime').SessionModelSettlement['appendControl']
+          >
+        >,
       ): ReleaseCallResult {
         return 'appended' in appended
           ? { callId: key.callId, state: 'handed_up' }
@@ -873,7 +723,7 @@ function buildServiceControl<P extends PlannedSemantics, R>(
       const prepared = prepareRelease(history)
       if (!('account' in prepared)) return prepared
       const account = prepared.account
-      const appended = await appendControlRecord({
+      const appended = await runtime.settlementFactory.appendControl({
         trackTask: task => physical.appends.track(task),
         binding: session.log,
         owner,
@@ -995,7 +845,7 @@ function buildServiceControl<P extends PlannedSemantics, R>(
         }
       }
       if (!admission.intentExists) {
-        const appended = await appendControlRecord({
+        const appended = await runtime.settlementFactory.appendControl({
           trackTask: task => physical.appends.track(task),
           binding: session.log,
           owner: controlOwner,
@@ -1016,7 +866,13 @@ function buildServiceControl<P extends PlannedSemantics, R>(
       function startBackgroundEnding(): void {
         if (!physical.backgroundEnds.has(keyOf(key))) {
           let committed = false
-          function endingReceived(result: Awaited<ReturnType<typeof appendControlRecord>>): void {
+          function endingReceived(
+            result: Awaited<
+              ReturnType<
+                import('@omne-harness-lite/model-request-runtime').SessionModelSettlement['appendControl']
+              >
+            >,
+          ): void {
             if ('appended' in result) committed = true
             else {
               markEndUnavailable(key, session.log, owner)
@@ -1053,23 +909,24 @@ function buildServiceControl<P extends PlannedSemantics, R>(
               next.reservation.release()
             }
           }
-          const ending = appendControlRecord({
-            trackTask: task => physical.appends.track(task),
-            binding: session.log,
-            owner: controlOwner,
-            concurrent: runtime.settlementContention.limits.concurrent,
-            ...account,
-            record: {
-              kind: 'model_call_ended',
-              call: key.callId,
-              ending: 'interrupted',
-              initiator:
-                'known' in history && history.known.intent !== null
-                  ? history.known.intent.initiator
-                  : input.initiator,
-            },
-            retainUnknown: (registration, task) => retain(key, session.log, registration, task),
-          })
+          const ending = runtime.settlementFactory
+            .appendControl({
+              trackTask: task => physical.appends.track(task),
+              binding: session.log,
+              owner: controlOwner,
+              concurrent: runtime.settlementContention.limits.concurrent,
+              ...account,
+              record: {
+                kind: 'model_call_ended',
+                call: key.callId,
+                ending: 'interrupted',
+                initiator:
+                  'known' in history && history.known.intent !== null
+                    ? history.known.intent.initiator
+                    : input.initiator,
+              },
+              retainUnknown: (registration, task) => retain(key, session.log, registration, task),
+            })
             .then(endingReceived)
             .catch(endingRejected)
           const cleanup = ending

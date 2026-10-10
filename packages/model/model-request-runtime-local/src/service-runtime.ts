@@ -8,7 +8,7 @@ import { createRuntimeReads } from './service-reads.ts'
 import { createServiceCalls } from './service-calls.ts'
 import { createServiceDispatch } from './service-dispatch.ts'
 import { createServiceControl } from './service-control.ts'
-import { createRuntimeReconcile, createRuntimeSettleReply } from './service-reconcile.ts'
+import { createRuntimeSettleReply } from './service-reconcile.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import { retainRuntimeExecutions } from './execution-source.ts'
 import type {
@@ -111,7 +111,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
     custody,
     settlementWork: { store: source.callFacts.content.work, owns: settleReply.ownsWork },
   })
-  const reconcile = createRuntimeReconcile(recoveryInputs(construction))
+  const reconcile = construction.settlementFactory.createReconciler(recoveryInputs(construction))
   ownedStores.add(provided.calls)
 
   const inFlight = new Set<Promise<void>>()
@@ -245,7 +245,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
       dispatch: projectRuntimeComponent(dispatch, next),
       control: projectRuntimeComponent(control, next),
       settleReply: projectRuntimeComponent(settleReply, settlementInputs(next)),
-      reconcile: projectRuntimeComponent(reconcile, recoveryInputs(next)),
+      reconcile: reconcile.project(recoveryInputs(next)),
     })
   }
 

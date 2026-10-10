@@ -1,3 +1,4 @@
+import { appendControlRecord } from '@omne-harness-lite/session-runtime-local'
 import { attemptStartedPayload } from '@omne-harness-lite/session-runtime'
 import { checkAppendInput } from '@omne-harness-lite/session-log'
 import { describe, expect, it } from 'vitest'
@@ -13,7 +14,6 @@ import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { appendControlRecord } from '../src/service-control.ts'
 import { judgePendingModelResponse } from '@omne-harness-lite/model-response'
 import {
   harness,
