@@ -1,5 +1,7 @@
 # 本地工具运行时
 
+`createToolExecutionRecordReader` 借入原同Unit来源及按key读取，只提供固定租户的ToolExecutionRecords.readOriginalIn。它不读取完整会话前缀，不授予执行或恢复权；行为归 [SPEC](SPEC.md)。
+
 根入口导出 `createToolInvoker`、`createToolImplementationRegistry`、`createToolRuntimeRegistry`、`createToolRuntime` 和 `createToolEnvironmentPlacementSource`。公开操作与构造类型归 [core/tool-execution-runtime](../../core/tool-execution-runtime/src/index.ts)。独立工厂不加载 Cordis。
 
 `createToolRuntime(config, dependencies)` 返回 operations、ready、idle() 与 close()。发布操作前必须等待 ready。依赖包括共享日志代、完整动作历史、runtime context、结果存储及不可变 runner 链读取口。启动恢复使用应用的私有维护授权。

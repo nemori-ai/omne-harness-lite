@@ -56,6 +56,10 @@ function keyOf(value: ToolJournalPayload): string {
 function callKey(callId: string): string {
   return `${toolJournalFormat}/call/${JSON.stringify(callId)}`
 }
+export function toolJournalCallKey(input: unknown): string | typeof invalidJournal {
+  const parsed = parseOpaqueIdentifier(input, 'CallId')
+  return 'ok' in parsed ? callKey(parsed.ok) : invalidJournal
+}
 export function toolJournalKey(input: unknown): string | typeof invalidJournal {
   const value = captureToolJournalValue(input)
   return 'invalid' in value ? value : keyOf(value)

@@ -121,6 +121,12 @@ export function createSessionToolAdmission(host: Host) {
         : withOriginalRead(unit, source, () => host.log.readPrefixIn(unit, access, source), {
             failure: 'denied',
           } as const),
+    readByKeyIn: (unit, access, source, key) =>
+      access !== host.authority.logAccess
+        ? Promise.resolve({ failure: 'denied' } as const)
+        : withOriginalRead(unit, source, () => host.log.readByKeyIn(unit, access, source, key), {
+            failure: 'denied',
+          } as const),
   })
   async function admit(participant: ToolOriginalIssueParticipant) {
     const identity = participant.identity,

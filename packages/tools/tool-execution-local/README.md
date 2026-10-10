@@ -1,5 +1,7 @@
 # Local Tool Runtime
 
+`createToolExecutionRecordReader` borrows the original same-unit source and keyed-read operations. It returns only the readOriginalIn part of ToolExecutionRecords for its fixed tenant. It does not read complete Session prefixes or confer execution or recovery authority. See [the reader behavior](SPEC.md#local-provider-constraints).
+
 The root exports `createToolInvoker`, `createToolImplementationRegistry`, `createToolRuntimeRegistry`, `createToolRuntime`, and `createToolEnvironmentPlacementSource`. Public operation and construction types belong to [core/tool-execution-runtime](../../core/tool-execution-runtime/src/index.ts). Root factories do not import Cordis.
 
 `createToolRuntime(config, dependencies)` returns an instance with `operations`, `ready`, `idle()`, and `close()`. Await `ready` before registering its operations. The factory uses the actual shared log generation, complete action history, runtime context, result storage, and immutable runner-chain reader. Its bootstrap receives the application's private recovery authority.

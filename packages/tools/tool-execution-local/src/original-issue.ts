@@ -23,6 +23,7 @@ import {
   type ToolOriginalIssueSupport,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { sameJson } from './json-values.ts'
+import { createToolExecutionRecordReader } from './execution-records.ts'
 
 interface Row {
   tenant: string
@@ -94,15 +95,17 @@ export function createToolOriginalIssue(input: {
     )
     return support.current.authorizeIn(unit, identity)
   }
+  const records = createToolExecutionRecordReader({
+    storage: support.storage,
+    tenant: value.ref.tenant,
+    participant: support.log,
+    authority: support.access,
+  })
   async function verifyIntent(unit: StorageUnit) {
-    const source = await support.log.sourceIn(unit, support.access, expected.scope)
-    if ('failure' in source) return false
-    const prefix = await support.log.readPrefixIn(unit, support.access, source.source)
-    if ('failure' in prefix) return false
-    return prefix.entries.some(actual => {
-      const { position: _position, session: _session, ...owned } = actual
-      return sameJson(owned, entry)
-    })
+    const original = await records.readOriginalIn(unit, identity.ref)
+    if (original.kind !== 'found') return false
+    const { position: _position, session: _session, ...owned } = original.history.intent.entry
+    return sameJson(owned, entry)
   }
   async function stage(unit: StorageUnit): Promise<ToolOriginalIssueStage> {
     return unit.run(async () => {
