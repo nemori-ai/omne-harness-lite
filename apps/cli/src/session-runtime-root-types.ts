@@ -8,10 +8,7 @@ import type {
   LocalSessionAccessOptions,
   LocalSessionAccess,
 } from '@omne-harness-lite/session-runtime-local'
-import type {
-  ModelRuntimeExecutionSource,
-  OriginalIssueAuthority,
-} from '@omne-harness-lite/model-request-runtime'
+import type { ModelRuntimeExecutionSource } from '@omne-harness-lite/model-request-runtime'
 import type { AdmissionPolicy } from '@omne-harness-lite/session-runtime-local'
 import type {
   SessionBootstrapAssembly,
@@ -46,7 +43,6 @@ export interface SessionRuntimeRootOptions {
     ingress: LocalSessionIngress,
   ) => Omit<LocalSessionAccessOptions, 'tenant'>
   readonly model: {
-    readonly current: OriginalIssueAuthority
     readonly maxInFlight: number
     readonly maxRecords: number
     readonly maxCaptures: number

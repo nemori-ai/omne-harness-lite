@@ -27,7 +27,7 @@ import {
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
 import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
-import { selectionHost } from './session-selection-fixture.ts'
+import { profile, selectionHost } from './session-selection-fixture.ts'
 import {
   dispatchAdmission,
   dispatchAgainAdmission,
@@ -1017,6 +1017,71 @@ test('service dispatch writes both anchors before handing out a complete pending
       { run, attempt: 1 },
       { run, attempt: 2 },
     ])
+    const sendsBeforeRefusal = sendCount
+    const openInput = {
+      creationKey: creationKey('eligibility-check'),
+      session: host.session,
+      target: effective.ok.routeName,
+      basis: effective.ok,
+      messages: [],
+      tools: [],
+      host: lifecycleHost,
+    }
+    expect(
+      await opening.openCall({
+        ...openInput,
+        target: 'example/not-registered',
+        basis: {
+          ...effective.ok,
+          routeName: 'example/not-registered',
+          profile: { ...effective.ok.profile, routeName: 'example/not-registered' },
+        },
+      }),
+    ).toEqual({ profileNotFound: true })
+    const incompatible = createServiceCalls({
+      ...runtime,
+      sessions: {
+        bind: async () => ({
+          binding: {
+            ...binding,
+            selection: { ...binding.selection, projection: async () => ({ known: ['image'] }) },
+          },
+        }),
+      },
+    })
+    expect(await incompatible.openCall(openInput)).toEqual({
+      callId: 'actual-call-10',
+      state: 'handed_up',
+      undispatched: 'modality_mismatch',
+    })
+    const {
+      registration: _registration,
+      updatedAt: _updatedAt,
+      ...content
+    } = profile('example/withdrawn')
+    const registered = await host.catalog.registerProfile(
+      host.tenant,
+      { layer: 'tenant', tenant: host.tenant },
+      { ...content, origin: 'custom' },
+    )
+    if ('failure' in registered) throw new Error('actual model registration failed')
+    expect(await host.catalog.withdrawProfile(host.tenant, registered.ref)).toHaveProperty(
+      'registration',
+      'withdrawn',
+    )
+    expect(
+      await opening.openCall({
+        ...openInput,
+        target: 'example/withdrawn',
+        basis: { ...effective.ok, routeName: 'example/withdrawn', profile: registered.ref },
+      }),
+    ).toEqual({ callId: 'actual-call-11', state: 'handed_up', undispatched: 'withdrawn' })
+    expect(sendCount).toBe(sendsBeforeRefusal)
+    const rejectedLog = await host.log.readSince(host.session, durable.tail)
+    if (!('entries' in rejectedLog)) throw new Error('actual rejected call journal missing')
+    expect(
+      rejectedLog.entries.filter(entry => payload(entry).kind === 'model_call_dispatched'),
+    ).toEqual([])
   } finally {
     await contentStore.close()
     await host.close()

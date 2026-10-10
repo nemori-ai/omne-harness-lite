@@ -7,7 +7,6 @@ import type {
 } from '@omne-harness-lite/session-runtime-local'
 import type {
   OriginalIssueAdmission,
-  OriginalIssueAuthority,
   OriginalIssueClaim,
   OriginalIssueFailure,
 } from '@omne-harness-lite/model-request-runtime'
@@ -21,7 +20,6 @@ type AdmissionResult = Awaited<ReturnType<LocalSessionIngress['modelInvocation']
 export type ModelIssueUnknown = Extract<AdmissionResult, { kind: 'unknownCommit' }>
 export interface SessionOriginalModelOwnerOptions {
   readonly storage: AtomicStorage
-  readonly current: OriginalIssueAuthority
   readonly maxRecords: number
   readonly maxInFlight: number
 }
@@ -43,7 +41,6 @@ export function createSessionOriginalModelOwner(
   let closing = false
   const modelIssue = Object.freeze<SessionOriginalModelOwner['modelIssue']>({
     maxRecords: options.maxRecords,
-    current: options.current,
     create(binding) {
       if (closing || original) throw new Error('original model owner already attached or closed')
       original = createOriginalIssueOwner({

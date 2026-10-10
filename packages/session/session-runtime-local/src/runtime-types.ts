@@ -90,7 +90,6 @@ export interface RuntimeOptions {
   /** Root-selected original model owner. Omission means model admission is unavailable. */
   readonly modelIssue?: {
     readonly maxRecords: number
-    readonly current: OriginalIssueAuthority
     readonly create: (binding: {
       readonly log: SessionLogParticipant
       readonly access: import('@omne-harness-lite/session-log').LogAuthority

@@ -36,7 +36,6 @@ import {
   prepareModelLogEntry,
   createModelLogReadInspector,
   type OriginalIssueInput,
-  type OriginalIssueAuthority,
 } from '@omne-harness-lite/model-request-runtime'
 import {
   SessionDriverStartupService,
@@ -1972,12 +1971,10 @@ it('rolls back preparation, its fact and receipt together when original step cap
 
 async function modelFixture(maxRecords = 8) {
   let owner!: OriginalIssueOwner
-  const current = vi.fn<OriginalIssueAuthority['authorizeIn']>(async () => ({ kind: 'authorized' }))
   const f = await fixture(undefined, 32, storage => ({
     modelResults: { maxRecords, source: { verifyIn: async () => 'verified' } },
     modelIssue: {
       maxRecords,
-      current: { authorizeIn: current },
       create: binding => {
         owner = createOriginalIssueOwner({ storage, ...binding, limit: 8 })
         modelOwners.push(owner)
@@ -1997,7 +1994,7 @@ async function modelFixture(maxRecords = 8) {
   const original = modelInput(p, prepared.source)
   const ready = owner.prepareOriginal(original)
   if (!('ticket' in ready)) throw new Error('actual model ticket unavailable')
-  return { f, p, owner, current, prepared, original, ticket: ready.ticket }
+  return { f, p, owner, prepared, original, ticket: ready.ticket }
 }
 function modelInput(
   p: Awaited<ReturnType<typeof preparedAttempt>>,
@@ -2053,7 +2050,7 @@ function modelInput(
     throw new Error('invalid original dispatch entry')
   return { source, originalPosition: entry.ok.dedupeKey, entry: entry.ok }
 }
-it('atomically pairs latest Session admission, actual original model claim and dispatched anchor, and grants one launch', async () => {
+it('issues once under the actual Run and attempt without an extra model permission callback', async () => {
   const { f, p, owner, prepared, ticket, original } = await modelFixture()
   expect(await owner.admitOriginal(original)).toEqual({ kind: 'denied' })
   const result = await f.runtime.modelInvocation.admit(
@@ -2086,7 +2083,7 @@ it('atomically pairs latest Session admission, actual original model claim and d
   expect(await f.log().readSince(p.scope.session, 7)).toHaveProperty('entries.length', 1)
 })
 it('rejects copied latest permits before the actual model participant can append or acquire a claim', async () => {
-  const { f, p, prepared, ticket, current } = await modelFixture()
+  const { f, p, prepared, ticket } = await modelFixture()
   expect(
     await f.runtime.modelInvocation.admit(
       f.runtime.coordinationAuthority,
@@ -2096,26 +2093,9 @@ it('rejects copied latest permits before the actual model participant can append
       ticket,
     ),
   ).toEqual({ failure: 'staleAttempt' })
-  expect(current).not.toHaveBeenCalled()
   expect(await f.count('mr_original_issue')).toEqual({ n: 0 })
   expect(await f.count('sr_model_issue')).toEqual({ n: 0 })
   expect(await f.log().readSince(p.scope.session, 7)).toHaveProperty('entries.length', 0)
-})
-it('keeps actual original model qualification refusal inside the common admission transaction', async () => {
-  const { f, p, prepared, ticket, current } = await modelFixture()
-  current.mockResolvedValue({ kind: 'denied' })
-  expect(
-    await f.runtime.modelInvocation.admit(
-      f.runtime.coordinationAuthority,
-      p.scope,
-      prepared.source,
-      p.step,
-      ticket,
-    ),
-  ).toEqual({ failure: 'denied' })
-  expect(await f.count('mr_original_issue')).toEqual({ n: 0 })
-  expect(await f.count('sr_model_issue')).toEqual({ n: 0 })
-  expect(await f.log().readSince(p.scope.session, 7)).toHaveProperty('tail', 7)
 })
 it('rechecks the actual latest attempt at launch and still drains original proof after the Run is terminal', async () => {
   const { f, p, owner, prepared, ticket } = await modelFixture()
@@ -2282,7 +2262,7 @@ it('reports admission read failure before the participant starts as unavailable 
   expect(await f.count('mr_original_issue')).toEqual({ n: 0 })
 })
 it('rejects a damaged stored preparation position before staging a real original model claim', async () => {
-  const { f, p, prepared, ticket, current } = await modelFixture()
+  const { f, p, prepared, ticket } = await modelFixture()
   const row = await f.storage.read(tx =>
     tx.db.selectFrom('sr_call_preparation').select('preparation').executeTakeFirstOrThrow(),
   )
@@ -2302,7 +2282,6 @@ it('rejects a damaged stored preparation position before staging a real original
       ticket,
     ),
   ).rejects.toThrow('call preparation receipt')
-  expect(current).not.toHaveBeenCalled()
   expect(await f.count('mr_original_issue')).toEqual({ n: 0 })
 })
 
@@ -4564,12 +4543,29 @@ describe('driver original model binding', () => {
     expect(m.launched).not.toHaveBeenCalled()
     expect(await m.owner.consumeOriginal(admitted.claim)).toEqual({ kind: 'launch' })
   })
-  it('rechecks the real current model qualification before launch', async () => {
+  it('rechecks the actual Run terminal state before driver launch', async () => {
     const m = await binding()
     const admitted = await m.issue.admitOriginal(m.original)
     if (!('confirmed' in admitted)) throw new Error('actual driver admission missing')
-    m.current.mockResolvedValueOnce({ kind: 'denied' })
-    expect(await m.issue.consumeOriginal(admitted.claim)).toEqual({ kind: 'denied' })
+    const prefix = await m.f.runtime.journal.readPrefix(m.f.runtime.access, m.p.scope.session)
+    if (!('kind' in prefix) || prefix.kind !== 'prefix') throw new Error('actual journal missing')
+    expect(
+      await m.f.runtime.lifecycle.commitStep(
+        m.f.runtime.coordinationAuthority,
+        m.p.scope,
+        prefix.source,
+        {
+          kind: 'finish',
+          stepKey: 'finish-before-driver-launch',
+          run: m.p.step.run,
+          attempt: m.p.step.attempt,
+          permit: m.p.step.permit,
+          terminal: 'completed',
+          reason: 'controlled-settled-source',
+        },
+      ),
+    ).toHaveProperty('kind', 'committed')
+    expect(await m.issue.consumeOriginal(admitted.claim)).toEqual({ kind: 'staleAttempt' })
     expect(m.launched).not.toHaveBeenCalled()
     expect(await m.f.count('sr_model_issue')).toEqual({ n: 1 })
   })
@@ -5015,7 +5011,6 @@ describe('driver complete original Model Run', () => {
           modelResults: { maxRecords: 8, source: results.source },
           modelIssue: {
             maxRecords: 8,
-            current: { authorizeIn: async () => ({ kind: 'authorized' }) },
             create: binding => {
               original = createOriginalIssueOwner({ storage, ...binding, limit: 8 })
               modelOwners.push(original)

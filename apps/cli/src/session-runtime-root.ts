@@ -109,7 +109,6 @@ class RuntimeRoot {
     )
     this.modelOwner = createSessionOriginalModelOwner({
       storage: o.storage,
-      current: o.model.current,
       maxRecords: o.model.maxRecords,
       maxInFlight: o.model.maxInFlight,
     })

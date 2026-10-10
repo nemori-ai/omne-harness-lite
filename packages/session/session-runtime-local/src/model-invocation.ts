@@ -131,7 +131,7 @@ class ModelAdmission {
     if (!matches(scope, step, identity)) return { kind: 'denied' as const }
     if (!(await this.host.state.checkPermitIn(unit, step.permit, scope, step.run, step.attempt)))
       return { kind: 'staleAttempt' as const }
-    return this.host.options.modelIssue!.current.authorizeIn(unit, identity)
+    return { kind: 'authorized' as const }
   }
   admit: LocalSessionIngress['modelInvocation']['admit'] = async (
     authority,

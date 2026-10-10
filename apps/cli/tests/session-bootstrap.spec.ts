@@ -113,7 +113,6 @@ import {
   readSettlementPrefix,
   type SettlementLogBinding,
   type SettlementRegistration,
-  type OriginalIssueAuthority,
   type OriginalIssueInput,
   type PlannedSemantics,
   type ModelRuntimeExecutionSource,
@@ -373,13 +372,9 @@ async function setup(
   cleanup.push(() => admission.close())
   let log!: Awaited<ReturnType<typeof openSqlSessionLog>>
   let assembly!: ReturnType<typeof createSessionBootstrap>
-  const modelCurrent = vi.fn<OriginalIssueAuthority['authorizeIn']>(async () => ({
-    kind: 'authorized',
-  }))
   const modelOwner = withModel
     ? createSessionOriginalModelOwner({
         storage,
-        current: { authorizeIn: modelCurrent },
         maxRecords: 16,
         maxInFlight: 8,
       })
@@ -551,7 +546,6 @@ async function setup(
     access,
     checks,
     modelOwner,
-    modelCurrent,
     pauseChecks,
     corruptIdentity(transform: (identity: AccessIdentity) => AccessIdentity) {
       corruptIdentity = transform
@@ -606,7 +600,6 @@ async function rootFixture(withModel = false) {
         policy: { maxBindings: 16, maxContextKeys: 16 },
       }),
     model: {
-      current: { authorizeIn: f.modelCurrent },
       maxInFlight: 8,
       maxRecords: 16,
       maxCaptures: 8,
@@ -1844,7 +1837,6 @@ it.each(['normal', 'foreignScope'] as const)(
       (...args) => work.readIn(...args),
       {
         maxRecords: 16,
-        current: { authorizeIn: async () => ({ kind: 'authorized' }) },
         create(binding) {
           original = createOriginalIssueOwner({
             storage: sourceStorage,
@@ -2653,10 +2645,17 @@ it('binds the actual original model owner through Session admission and permits 
     ),
   ).toEqual({ n: 1 })
 })
-it('propagates the current model authority denial before the original anchor and claim commit', async () => {
+it('rejects another Session original identity before the anchor and claim commit', async () => {
   const { f, original, issue } = await originalModelBinding()
-  f.modelCurrent.mockResolvedValue({ kind: 'denied' })
-  expect(await issue.admitOriginal(original)).toEqual({ kind: 'denied' })
+  expect(
+    await issue.admitOriginal({
+      ...original,
+      source: {
+        ...original.source,
+        session: unwrap(parseOpaqueIdentifier('another-session', 'SessionRef')),
+      },
+    }),
+  ).toEqual({ kind: 'conflict' })
   expect(
     await f.storage.read(tx =>
       tx.db
@@ -2694,12 +2693,24 @@ it('stops new original model admission through the actual model owner without cl
   )
   expect(f.assembly.context(scope)).toBeDefined()
 })
-it('rechecks actual current model authority at launch after a committed Session issue', async () => {
-  const { f, original, issue } = await originalModelBinding()
+it('rechecks the actual Run terminal state at launch after a committed Session issue', async () => {
+  const { f, scope, preparation, original, issue } = await originalModelBinding()
   const issued = await issue.admitOriginal(original)
   if (!('confirmed' in issued)) throw new Error('original claim not issued')
-  f.modelCurrent.mockResolvedValue({ kind: 'denied' })
-  expect(await issue.consumeOriginal(issued.claim)).toEqual({ kind: 'denied' })
+  const prefix = await f.runtime.journal.readPrefix(f.runtime.access, scope.session)
+  if (!('kind' in prefix) || prefix.kind !== 'prefix') throw new Error('actual journal missing')
+  expect(
+    await f.runtime.lifecycle.commitStep(f.runtime.coordinationAuthority, scope, prefix.source, {
+      kind: 'finish',
+      stepKey: 'finish-before-launch',
+      run: preparation.run,
+      attempt: preparation.attempt,
+      permit: preparation.permit,
+      terminal: 'completed',
+      reason: 'controlled-settled-source',
+    }),
+  ).toHaveProperty('kind', 'committed')
+  expect(await issue.consumeOriginal(issued.claim)).toEqual({ kind: 'staleAttempt' })
   expect(await f.modelOwner!.close()).toEqual({ kind: 'released' })
 })
 it('propagates an unknown-responsibility owner defect without silently returning a model launch', async () => {
