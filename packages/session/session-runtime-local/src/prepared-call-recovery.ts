@@ -18,6 +18,7 @@ import { stateRow, stateHead } from './state-store.ts'
 import { CoordinationRejection } from './coordination-values.ts'
 import { verifyCallPreparation } from './call-preparation.ts'
 import { readFirstAttemptStep } from './coordination-store.ts'
+import { inspectSessionToolAdoption } from './driver-tool-adoption.ts'
 
 type Recovered = Extract<
   Awaited<ReturnType<LocalSessionIngress['resumePreparedCall']>>,
@@ -70,12 +71,44 @@ function preparedFact(entry: LogEntry, run: NonNullable<SessionHead['run']>) {
     originalPosition: fact.originalPosition,
   }
 }
-function originalPreparation(entries: readonly LogEntry[], run: NonNullable<SessionHead['run']>) {
-  const last = entries.at(-1)
-  const previous = entries.at(-2)
-  if (!last || !previous) throw new CoordinationRejection('retryFromFacts')
-  firstAttempt(previous, run)
-  return { last, previous, data: preparedFact(last, run) }
+function originalPreparation(
+  entries: readonly LogEntry[],
+  run: NonNullable<SessionHead['run']>,
+  scope: SessionScope,
+  options: RuntimeOptions,
+) {
+  const tail = entries.at(-1)
+  if (!tail) throw new CoordinationRejection('retryFromFacts')
+  const adoption = inspectSessionToolAdoption(scope, tail, options.parameters)
+  if ('failure' in adoption) throw new CoordinationRejection('retryFromFacts')
+  const last = adoption.kind === 'adoption' ? entries.at(-2) : tail
+  if (!last) throw new CoordinationRejection('retryFromFacts')
+  const data = preparedFact(last, run)
+  if (
+    adoption.kind === 'adoption' &&
+    (adoption.adoption.call !== data.call ||
+      adoption.adoption.run !== data.run ||
+      compareInteger(adoption.adoption.attempt, data.attempt) !== 0)
+  )
+    throw new CoordinationRejection('retryFromFacts')
+  const previous = entries.at(adoption.kind === 'adoption' ? -3 : -2)
+  return { last, previous, data }
+}
+async function identityBasis(
+  unit: StorageUnit,
+  host: Host,
+  scope: SessionScope,
+  current: SourceToken,
+  previous: LogEntry | undefined,
+  run: NonNullable<SessionHead['run']>,
+): Promise<Recovered['identityBasis']> {
+  const fact = previous && readSessionFact(previous)
+  if (!fact || !('fact' in fact) || fact.fact.kind !== 'attempt_started')
+    return { kind: 'originalPreparation' }
+  firstAttempt(previous!, run)
+  const attempt = await readFirstAttemptStep(unit, scope, run.id, host.options)
+  receiptPosition(attempt, previous!, current)
+  return { kind: 'predecessor', position: attempt.position }
 }
 function receiptPosition(receipt: StepReceipt, entry: LogEntry, source: SourceToken) {
   if (
@@ -118,11 +151,8 @@ export async function recoverPreparedCallIn(
     exactSource(current.source, expected)
     const prefix = await host.log.readPrefixIn(unit, host.authority.logAccess, current.source)
     if ('failure' in prefix) throw new CoordinationRejection(prefix.failure)
-    const original = originalPreparation(prefix.entries, run)
-    if (compareInteger(original.last.position, current.source.tail) !== 0)
-      throw new CoordinationRejection('retryFromFacts')
-    const attempt = await readFirstAttemptStep(unit, scope, run.id, host.options)
-    receiptPosition(attempt, original.previous, current.source)
+    const original = originalPreparation(prefix.entries, run, scope, host.options)
+    const basis = await identityBasis(unit, host, scope, current.source, original.previous, run)
     const prepared = await verifyCallPreparation(
       unit,
       scope,
@@ -144,7 +174,7 @@ export async function recoverPreparedCallIn(
       kind: 'prepared',
       preparation: Object.freeze({ ...original.data, permit }),
       source: current.source,
-      predecessor: attempt.position,
+      identityBasis: Object.freeze(basis),
     })
   })
 }

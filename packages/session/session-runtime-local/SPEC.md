@@ -325,6 +325,8 @@ report须包含Core规定的完整类别快照；工具名字必须唯一，权�
 写入前持有不可变输入快照；写入仍使用原Run／attempt栅栏和原日志尾部条件。
 未确认不创建或发起模型，也不自动重试。显式认回仅接受同一键的完整相同值，异语义不追加。
 
+重建同一 Model 段时，driver 先按原 Call 的采用键读取并核实原 Scope、Run、Attempt 和完整采用事实。已有事实时复用原快照，不重新刷新报告或生成新的 computedAt。只有确定该键不存在时才计算并保存新快照；读取失败或原记录非法时停止。后续模型发起及工具执行仍执行各自的当前可用性检查。
+
 根函数`inspectSessionToolAdoption`读取此owner的形状与外壳；异Scope、错误原键或未知版本拒绝。
 此读取不执行IO，也不授予工具权限。driver的事实投影读取器采用同一读取函数，事实不转成模型消息。
 完整模型回复的来源仍由Model拥有者的codec核验原创建、dispatch、response及persisted消息的结算配对。
@@ -654,21 +656,19 @@ G28的`query`可重新排入原状态为unavailable的ticket，保留身份和�
 
 `RuntimeOptions.parameters` borrows the assembly's parameter validator. If omitted, the ingress creates one validator for its own lifetime. Tool record inspection, custody and delivery reuse that validator. Each current record is still validated; sharing compilation does not authorize a record or reuse a prior validation result.
 
-### 宿主重启后接续未发起的首个模型调用
+### 宿主重启后接续未发起的模型调用
 
-可信宿主可通过 `LocalSessionIngress.resumePreparedCall` 接续原 Run 的首个模型调用。普通客户端协议不暴露此操作。
-调用方必须先取得该存储的独占 Driver 所有权。本地宿主通过原独占通道保证新旧宿主不同时驱动；此操作不支持跨宿主接管。
-操作在同一 StorageUnit 内核实 coordination authority、固定租户、原 Run grant、当前 active Session 和 runnable Run。
-请求的 SourceToken 必须与当前日志完全相同。
-日志末尾必须是原 `call_prepared`，其紧邻前项必须是同一 Run、attempt 1 的 `attempt_started`，且 reason 为 `first`。
-两项原 StepReceipt、prepareCall 的持久记录、位置和来源必须一致。该 call 在 `sr_model_issue` 中必须没有任何记录。
-条件不满足时拒绝接续，不写持久状态，不发模型请求。
+可信宿主可通过 `LocalSessionIngress.resumePreparedCall` 认回已经持久准备、尚未发起的模型调用。普通客户端协议不暴露此操作。调用方须先取得存储的独占 Driver 所有权；该操作不支持并发宿主接管。
 
-成功时返回原 preparation 和前项位置，并由状态提供者签发真实 AttemptPermit。
-permit 绑定现有 execution_generation，不修改 Run、attempt、输入、日志或 generation。
-同一提供者并发重读同一原调用时复用同一个恢复 permit；每个 Session 至多保留一个恢复 permit。
-Driver 从原前项位置推导模型身份，并核对 call、prepareKey 和 originalPosition 后进入既有模型路径。
-唯一发起仍归原 model invocation owner。已发起或结果未知的调用、工具后的调用和已推进日志均不适用此接续操作。
+操作在同一 StorageUnit 内核实 coordination authority、固定租户、原 Run grant、active Session、runnable Run和最新 Attempt。请求的 SourceToken 必须与当前日志完全一致。日志末尾只接受原 `call_prepared`，或该准备之后一条由原拥有者严格解释的同 Call、Run、Attempt 的 `tools_adopted`。其他尾随记录一律拒绝。
+
+持久 prepareCall、原 StepReceipt 和日志事实的身份、位置及 generation 必须一致，`sr_model_issue` 不得存在该 Call。条件不满足时不写持久状态、不发模型请求。成功签发的真实 AttemptPermit 绑定现有 execution_generation，不修改 Run、Attempt、输入或日志。同一提供者并发认回复用一个恢复 permit。
+
+返回的 `identityBasis` 区分原首个 Attempt 回执位置和已验证的原 preparation。前者仍核实原 first attempt 的 StepReceipt，并保留其数值表示。后者不从相邻工具记录猜测前驱位置。
+
+`SessionDriverIdentitySource.restoreModel` 是身份拥有者可选的纯认回函数。它只能按该拥有者原有方案返回原完整身份，或明确 unavailable；不能生成替代身份。Driver 对比原 call、prepareKey、originalPosition，并校验全部键。没有认回函数时，仅原首个 Attempt 的精确回执位置可以调用既有 model 函数。认回函数拒绝后不会回退或重算。
+
+恢复进入既有 Model 路径及唯一发起门。它不重新提交输入、不执行或恢复工具、不改变已记录的工具结果。已发起、结果未知及其他推进后的调用仍不适用。保留完整工具池恢复不在该操作范围内。
 
 ## 运行时历史消息缓存
 

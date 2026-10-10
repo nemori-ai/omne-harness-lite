@@ -90,6 +90,31 @@ const schema = (parameters?: ParameterJudge) =>
 function adoptionKey(call: string) {
   return `${sessionToolActionOwner}/1/adoption/${JSON.stringify(call)}`
 }
+
+export async function readDriverToolAdoption(input: {
+  readonly scope: SessionScope
+  readonly log: SessionLog
+  readonly preparation: Pick<
+    Extract<SessionLifecycleStep, { kind: 'prepareCall' }>,
+    'call' | 'run' | 'attempt'
+  >
+  readonly parameters?: ParameterJudge | undefined
+}) {
+  const key = adoptionKey(input.preparation.call)
+  const read = await input.log.readByKey(input.scope.session, key)
+  if ('failure' in read) return { unavailable: true as const }
+  if (!read.entries.length) return { absent: true as const }
+  if (read.entries.length !== 1) return { unavailable: true as const }
+  const checked = inspectSessionToolAdoption(input.scope, read.entries[0]!, input.parameters)
+  if (
+    !('adoption' in checked) ||
+    checked.adoption.call !== input.preparation.call ||
+    checked.adoption.run !== input.preparation.run ||
+    compareInteger(checked.adoption.attempt, input.preparation.attempt) !== 0
+  )
+    return { unavailable: true as const }
+  return { adoption: checked.adoption, key }
+}
 function capture(value: unknown, parameters?: ParameterJudge): SessionToolAdoption | undefined {
   const copied = copyJsonValue(value)
   if ('failed' in copied) return undefined

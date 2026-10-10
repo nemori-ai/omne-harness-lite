@@ -75,15 +75,20 @@ class RunStart {
     )
     if (!('kind' in recovered)) return this.blocked(recovered)
     if (!this.isOpen()) return this.blocked('withdrawn')
-    const { preparation, predecessor } = recovered
-    const identities = Object.freeze({
-      ...this.options.identities.model(
-        this.scope,
-        preparation.run,
-        preparation.attempt,
-        predecessor,
-      ),
-    })
+    const { preparation, identityBasis } = recovered
+    const restored = this.options.identities.restoreModel?.(preparation)
+    const candidate =
+      restored ??
+      (identityBasis.kind === 'predecessor'
+        ? this.options.identities.model(
+            this.scope,
+            preparation.run,
+            preparation.attempt,
+            identityBasis.position,
+          )
+        : { unavailable: true as const })
+    if ('unavailable' in candidate) return this.blocked('originalModelIdentityUnavailable')
+    const identities = Object.freeze({ ...candidate })
     if (
       !Object.values(identities).every(checkKey) ||
       identities.prepareKey !== preparation.stepKey ||

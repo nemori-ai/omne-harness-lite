@@ -1,19 +1,18 @@
+import { createSessionDriverIdentities } from './session-driver-identities.ts'
 import { createSessionPresentation } from './session-presentation.ts'
 import { createAssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import { isOk, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { officialCatalog, officialCatalogRevision } from '@omne-harness-lite/pi-ai-transport'
 import {
   createCallContainerPresence,
   createSessionRunHistory,
   createSettlementCoordinator,
-  type SessionDriverIdentitySource,
 } from '@omne-harness-lite/session-runtime-local'
 import { createModalityProjection } from '@omne-harness-lite/model-message-projection'
 import { inspectContextLogEntry } from '@omne-harness-lite/runtime-context-local'
 import { createRunnerTaskOwner } from '@omne-harness-lite/loop-extension-runner-local'
 import { inspectRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
-import { toolJournalFormat } from '@omne-harness-lite/tool-execution-runtime'
 import { SHELL_CONTEXT_KEY } from '@omne-harness-lite/meta-shell'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { tenantPaths } from './state-layout.ts'
@@ -63,36 +62,7 @@ const coordinatedOperations: readonly AccessOperation[] = [
   'environment.acquire',
   'result.read',
 ]
-function identities(): SessionDriverIdentitySource {
-  const id = (kind: string, ...parts: unknown[]) =>
-    kind + ':' + createHash('sha256').update(JSON.stringify(parts)).digest('hex')
-  const invocation = (...parts: unknown[]) => ({
-    prepareKey: id('prepare', parts),
-    originalPosition: id('origin', parts),
-    resultKey: id('result', parts),
-    adoptionKey: id('adopt', parts),
-  })
-  return {
-    run: (...parts) => ({ startKey: id('start', parts), attemptKey: id('attempt', parts) }),
-    model: (...parts) => {
-      const key = parseOpaqueIdentifier(id('creation', parts), 'CreationKey')
-      if (!isOk(key)) throw new Error('Generated CreationKey rejected')
-      return { ...invocation(...parts), call: id('call', parts), creationKey: key.ok }
-    },
-    tool: (...parts) => ({
-      ...invocation(...parts),
-      originalPosition: toolJournalFormat + '/' + JSON.stringify(['execution_intended', parts[4]]),
-    }),
-    modelContent: {
-      response: randomUUID,
-      message() {
-        const value = parseOpaqueIdentifier(randomUUID(), 'MessageId')
-        if (!isOk(value)) throw new Error('Generated MessageId rejected')
-        return value.ok
-      },
-    },
-  }
-}
+
 function contextAccess(
   options: ProductionSessionHostOptions,
 ): SessionRuntimeRootOptions['contextAccess'] {
@@ -246,7 +216,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
           maxFailures: 16,
           maxStepsPerPass: 16,
         },
-        identities: identities(),
+        identities: createSessionDriverIdentities(),
         model: {
           maxCallReads: 8,
           settlement: {

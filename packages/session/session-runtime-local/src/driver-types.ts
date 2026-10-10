@@ -106,6 +106,16 @@ export interface SessionDriverIdentitySource {
     readonly call: ReturnType<ModelIdentitySource['call']>
     readonly creationKey: CreationKey
   }
+  /** Recognize this source's original identity scheme. Unrecognized preparations stay retained. */
+  readonly restoreModel?: (
+    preparation: Pick<
+      Extract<
+        import('@omne-harness-lite/session-runtime').SessionLifecycleStep,
+        { kind: 'prepareCall' }
+      >,
+      'run' | 'attempt' | 'stepKey' | 'call' | 'originalPosition'
+    >,
+  ) => ReturnType<SessionDriverIdentitySource['model']> | { readonly unavailable: true }
   readonly tool: (
     scope: SessionScope,
     run: RunId,

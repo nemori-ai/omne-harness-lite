@@ -682,3 +682,9 @@ CLI官方会话定义的第三版声明Shell及官方工具准入扩展，工厂
 同一 Session 的并发恢复共享一个初始化任务。失效的 journal、外租户和关闭中的 bootstrap 返回 unavailable。
 关闭停止新恢复，并等待原初始化任务和读取器排空；关闭失败保留原资源和 retryClose 责任。
 `createSessionRunAssets` 必须等待 ensureRun 成功，再获取 runInputs 和 runRegistry。
+
+### 已准备模型身份的认回
+
+正式身份源对同一组原坐标使用同一个SHA-256摘要，并分别加上prepare、call、origin、creation、result及adopt前缀。该生成方案保持不变。宿主恢复只接收Session提供者已验证的原preparation；身份源核对已存call、prepareKey与originalPosition具有相同的64位小写十六进制摘要，再认回其余原键。CreationKey仍通过原公开解析器。
+
+此规则仅属于正式CLI身份源，不是通用Runtime的身份格式。格式或摘要不一致时拒绝认回，不猜工具消息位置、不换Call、不重发用户输入。恢复仍经过Session当前grant、Source、Attempt及唯一发起校验。

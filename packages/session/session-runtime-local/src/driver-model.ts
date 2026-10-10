@@ -17,6 +17,7 @@ import type { LocalSessionDriverOptions, SessionDriverRunSources } from './drive
 import type { SessionModelTurnOptions } from './model-turn.ts'
 import {
   persistDriverToolAdoption,
+  readDriverToolAdoption,
   inspectSessionToolAdoption,
   sessionToolActionOwner,
 } from './driver-tool-adoption.ts'
@@ -147,6 +148,13 @@ class ModelSegment {
   async adoptedTable() {
     const { sources, scope, prepared } = this
     const preparation = prepared.preparation
+    const original = await readDriverToolAdoption({
+      scope,
+      preparation,
+      log: this.linked!.binding.log.log,
+      parameters: sources.selection.evaluator?.parameters,
+    })
+    if (!('absent' in original)) return original
     const refreshed = await sources.registry.refreshAvailability(
       scope.session,
       { kind: 'start', runId: preparation.run },

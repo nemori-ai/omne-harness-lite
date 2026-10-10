@@ -6705,6 +6705,41 @@ describe('driver complete original Model Run', () => {
     ).toEqual({ failure: 'invalidInput' })
     expect(await task.close()).toBe('released')
   })
+  it('reuses the original tool adoption when rebuilding a model segment without refreshing its timestamp', async () => {
+    const f = await running()
+    const first = createDriverModelSegment(
+      f.input.options,
+      f.scope,
+      f.prepared,
+      f.sources,
+      () => true,
+      async () => {},
+    )
+    const built = await first.build()
+    if ('failure' in built) throw new Error('initial segment unavailable')
+    const original = built.turn.call.report
+    await first.release()
+    const refreshAvailability = vi.fn<typeof f.sources.registry.refreshAvailability>(async () => {
+      throw new Error('must not rebuild an adopted snapshot')
+    })
+    const restoredSources: typeof f.sources = Object.create(f.sources, {
+      registry: { value: { ...f.sources.registry, refreshAvailability } },
+    })
+    const second = createDriverModelSegment(
+      f.input.options,
+      f.scope,
+      f.prepared,
+      restoredSources,
+      () => true,
+      async () => {},
+    )
+    const restored = await second.build()
+    if ('failure' in restored) throw new Error('restored segment unavailable')
+    expect(restored.turn.call.report).toEqual(original)
+    expect(refreshAvailability).not.toHaveBeenCalled()
+    expect(f.ports.sends()).toBe(0)
+    await second.release()
+  })
   it('retains an unconfirmed original tool adoption with zero Model IO, then recognizes only its exact snapshot', async () => {
     const f = await running()
     let lost = false
@@ -8050,6 +8085,161 @@ it.each([
     expect(await snapshot()).toEqual(before)
   },
 )
+
+it.each([
+  'plain',
+  'adoption',
+  'foreign-adoption',
+  'unrelated',
+  'mismatch',
+  'unsupported',
+  'declined',
+  'issued',
+])('recovers the original unissued post-tool model identity: %s', async mode => {
+  const t = await toolDeliveryFixture()
+  const confirmed = await t.f.runtime.toolDelivery.confirm(
+    t.f.runtime.coordinationAuthority,
+    t.p.scope,
+    t.delivery,
+  )
+  if (!('source' in confirmed)) throw new Error('Tool delivery missing')
+  const keys = {
+    prepareKey: 'post-tool-prepare',
+    call: 'post-tool-call',
+    originalPosition: 'post-tool-origin',
+    creationKey: unwrap(parseOpaqueIdentifier('post-tool-create', 'CreationKey')),
+    resultKey: 'post-tool-result',
+    adoptionKey: 'post-tool-adopt',
+  }
+  const prepared = await t.f.runtime.lifecycle.commitStep(
+    t.f.runtime.coordinationAuthority,
+    t.p.scope,
+    confirmed.source,
+    {
+      ...t.p.step,
+      stepKey: keys.prepareKey,
+      call: keys.call,
+      originalPosition: keys.originalPosition,
+    },
+  )
+  if (!('kind' in prepared) || prepared.kind !== 'committed')
+    throw new Error('Model preparation missing')
+  if (mode === 'issued')
+    await t.f.storage.write(tx =>
+      tx.db
+        .insertInto('sr_model_issue')
+        .values({
+          session: t.p.scope.session,
+          call: keys.call,
+          dispatch: '1',
+          source_generation: prepared.source.journalGeneration,
+          source_tail: String(prepared.source.tail),
+          issue: '{}',
+        })
+        .execute(),
+    )
+  if (['adoption', 'foreign-adoption', 'unrelated'].includes(mode)) {
+    const journal = await t.f.runtime.runJournal.borrow(
+      t.f.runtime.coordinationAuthority,
+      t.p.scope,
+      t.p.step.run,
+    )
+    if (!('journal' in journal)) throw new Error('Run journal missing')
+    try {
+      const call = mode === 'foreign-adoption' ? 'foreign-call' : keys.call
+      const appended = await journal.journal.log.append(
+        t.p.scope.session,
+        [
+          {
+            tenant,
+            run: t.p.step.run,
+            attempt: t.p.step.attempt,
+            readKeys: [],
+            dedupeKey: `session-runtime-tool-actions/1/adoption/${JSON.stringify(call)}`,
+            payload:
+              mode === 'unrelated'
+                ? { unrelated: true }
+                : {
+                    kind: 'fact',
+                    owner: 'session-runtime-tool-actions',
+                    version: '1',
+                    value: {
+                      kind: 'tools_adopted',
+                      call,
+                      run: t.p.step.run,
+                      attempt: t.p.step.attempt,
+                      report: {
+                        session: t.p.scope.session,
+                        runId: t.p.step.run,
+                        attempt: t.p.step.attempt,
+                        computedAt: unwrap(instantFromRfc3339(at)),
+                        snapshots: REGISTERED_CATEGORIES.map(category => ({
+                          category,
+                          filledAt: unwrap(instantFromRfc3339(at)),
+                        })),
+                        availability: [],
+                        mcpActions: [],
+                        endpointHoldings: [],
+                        effectivePermissions: {},
+                        skillGate: [],
+                      },
+                      tools: [],
+                    },
+                  },
+          },
+        ],
+        { kind: 'unfenced' },
+        { kind: 'tailEquals', tail: prepared.source.tail },
+      )
+      expect(appended).not.toHaveProperty('failure')
+    } finally {
+      await journal.journal.close()
+    }
+  }
+  await t.f.runtime.close()
+  await t.f.log().close()
+  const restarted = createLocalSessionIngress(t.f.options)
+  const model = vi.fn(() => {
+    throw new Error('must not guess predecessor')
+  })
+  const restoreModel = vi.fn(() =>
+    mode === 'declined'
+      ? { unavailable: true as const }
+      : mode === 'mismatch'
+        ? { ...keys, call: 'wrong-call' }
+        : keys,
+  )
+  const before = await restarted.journal.readPrefix(restarted.access, t.p.scope.session)
+  try {
+    const result = await startDriverRun(
+      {
+        ingress: restarted,
+        identities: {
+          model,
+          ...(mode === 'unsupported' ? {} : { restoreModel }),
+          run: () => {
+            throw new Error('must not start another Run')
+          },
+          tool: () => {
+            throw new Error('must not repeat Tool execution')
+          },
+          modelContent: {
+            response: () => 'unused',
+            message: () => unwrap(parseOpaqueIdentifier('unused', 'MessageId')),
+          },
+        },
+      },
+      t.p.scope,
+      () => true,
+    )
+    expect(result.kind).toBe(['plain', 'adoption'].includes(mode) ? 'prepared' : 'blocked')
+    if (result.kind === 'prepared') expect(result.identities).toEqual(keys)
+    expect(model).not.toHaveBeenCalled()
+    expect(await restarted.journal.readPrefix(restarted.access, t.p.scope.session)).toEqual(before)
+  } finally {
+    await restarted.close()
+  }
+})
 
 it('reuses one provider-owned permit for concurrent prepared-call recovery', async () => {
   const f = await fixture()
