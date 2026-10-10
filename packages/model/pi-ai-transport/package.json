@@ -71,6 +71,7 @@
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
-    "@omne-harness-lite/model-request-runtime-local": "workspace:*"
+    "@omne-harness-lite/model-request-runtime-local": "workspace:*",
+    "@omne-harness-lite/session-runtime-local": "workspace:*"
   }
 }

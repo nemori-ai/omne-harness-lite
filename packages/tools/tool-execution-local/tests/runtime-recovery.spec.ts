@@ -1,4 +1,5 @@
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
+import { StorageUnavailable } from '@omne-harness-lite/storage'
 import type { ResourceRecoveryResult } from '@omne-harness-lite/execution-environments'
 import { at, ref, scope } from './execution-owner-fixture.ts'
 import { recoveryFixture, resource } from './runtime-recovery-fixture.ts'
@@ -135,45 +136,47 @@ test('owner recovery cannot create a receipt for an unplanned resource', async (
   }
 })
 
-test.each(['enumerate', 'owner-generation', 'clock', 'receipt-unknown', 'tail-changed'] as const)(
-  'recovery %s respects the original owner and durable retry boundary',
-  async mode => {
-    const f = await recoveryFixture()
-    try {
-      if (mode === 'enumerate')
-        f.enumerate.mockResolvedValueOnce({ kind: 'rejected', reason: 'notAuthorized' })
-      if (mode === 'owner-generation')
-        f.readPrefix.mockResolvedValueOnce({
-          kind: 'prefix',
-          prefix: { scope, ownerGeneration: 'foreign', tail: 0, entries: [] },
-        })
-      if (mode === 'clock') f.now.mockResolvedValueOnce('unavailable')
-      if (mode === 'receipt-unknown')
-        f.controlledJournal.commit.mockResolvedValueOnce({
-          kind: 'rejected',
-          reason: 'unavailable',
-        })
-      if (mode === 'tail-changed')
-        f.controlledJournal.commit.mockResolvedValueOnce({
-          kind: 'rejected',
-          reason: 'tailChanged',
-        })
-      if (mode === 'tail-changed') {
-        await f.run()
-        expect(f.input.retry).toHaveBeenCalledExactlyOnceWith(0)
-        expect((await f.read()).resources.get(resource.key)?.observations).toHaveLength(1)
-      } else {
-        await expect(f.run()).rejects.toThrow('Tool')
-        expect((await f.read()).terminal).toBeUndefined()
-        await f.run()
-        expect((await f.read()).terminal?.value.terminal).toEqual({
-          outcome: 'failed',
-          code: 'abnormal_interruption',
-        })
-      }
-      expect(f.f.implementation).not.toHaveBeenCalled()
-    } finally {
-      await f.close()
+test.each([
+  'index-unavailable',
+  'original-record-unavailable',
+  'clock',
+  'receipt-unknown',
+  'tail-changed',
+] as const)('recovery %s respects the original owner and durable retry boundary', async mode => {
+  const f = await recoveryFixture()
+  try {
+    if (mode === 'index-unavailable')
+      vi.spyOn(f.input.dependencies.originalIssue.storage, 'read').mockRejectedValueOnce(
+        new StorageUnavailable('Tool index unavailable'),
+      )
+    if (mode === 'original-record-unavailable')
+      f.controlledJournal.read.mockResolvedValueOnce({ kind: 'rejected', reason: 'unavailable' })
+    if (mode === 'clock') f.now.mockResolvedValueOnce('unavailable')
+    if (mode === 'receipt-unknown')
+      f.controlledJournal.commit.mockResolvedValueOnce({
+        kind: 'rejected',
+        reason: 'unavailable',
+      })
+    if (mode === 'tail-changed')
+      f.controlledJournal.commit.mockResolvedValueOnce({
+        kind: 'rejected',
+        reason: 'tailChanged',
+      })
+    if (mode === 'tail-changed') {
+      await f.run()
+      expect(f.input.retry).toHaveBeenCalledExactlyOnceWith(0)
+      expect((await f.read()).resources.get(resource.key)?.observations).toHaveLength(1)
+    } else {
+      await expect(f.run()).rejects.toThrow('Tool')
+      expect((await f.read()).terminal).toBeUndefined()
+      await f.run()
+      expect((await f.read()).terminal?.value.terminal).toEqual({
+        outcome: 'failed',
+        code: 'abnormal_interruption',
+      })
     }
-  },
-)
+    expect(f.f.implementation).not.toHaveBeenCalled()
+  } finally {
+    await f.close()
+  }
+})

@@ -153,7 +153,7 @@ export async function preUseAction(
   let result: GovernanceOutcome
   try {
     result = await runtime.exchange(options(runtime, record.center), {
-      protocolVersion: '2',
+      protocolVersion: '3',
       operation,
       payload: complete.payload,
     })

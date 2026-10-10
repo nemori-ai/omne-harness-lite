@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as settlementCodec from '../src/log-codec-settlement.ts'
 import { copyJsonValue, LosslessNumber, type JsonObject } from '@omne-harness-lite/content-blocks'
 import { judgeAccountValue } from '@omne-harness-lite/call-accounts'
 import { judgeModelInvocationRecord } from '@omne-harness-lite/messages'
@@ -9,6 +10,7 @@ import {
   interpretCallHistory,
   interpretRunAtPrefix,
   interpretSettlementPrefix,
+  inspectSettlementPrefixEntries,
   isOwnedSettlementPrefix,
   projectCallState,
   readSettlementPrefix,
@@ -47,6 +49,7 @@ function ordered(entries: readonly LogEntry[]): readonly LogEntry[] {
 function fixture(entries: readonly LogEntry[]) {
   const generation = Object.freeze({})
   let current: object | null = generation
+  let generationFails = false
   const trace: string[] = []
   const stopped: Promise<void>[] = []
   let active = 0
@@ -60,7 +63,10 @@ function fixture(entries: readonly LogEntry[]) {
     tenant,
     log,
     generation,
-    currentGeneration: () => current,
+    currentGeneration: () => {
+      if (generationFails) throw new Error('generation source unavailable')
+      return current
+    },
     async readPrefix() {
       trace.push('read')
       const result = await log.readSince(session, 0)
@@ -113,6 +119,13 @@ function fixture(entries: readonly LogEntry[]) {
     trace,
     revoke: () => {
       current = null
+    },
+    restore: () => {
+      current = generation
+      generationFails = false
+    },
+    failGeneration: () => {
+      generationFails = true
     },
   }
 }
@@ -190,6 +203,322 @@ const first = record(opened)
 const complete = durable().prefix.entries
 const readyOnly = [record(created), sent, first, record(ready)]
 const target = { call: 'call', dispatch: 1, response: 'response' }
+
+describe('fixed owned prefix interpretation', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it.each([223, 446])('constructs once for repeated queries on %i complete entries', async size => {
+    const padding: LogEntry[] = Array.from({ length: size - complete.length }, (_, index) => ({
+      session,
+      tenant,
+      position: index + 1,
+      readKeys: [],
+      payload: { kind: 'fact', owner: 'another-owner', version: 'one', value: { index } },
+    }))
+    const value = await prefix([...padding, ...complete])
+    const construct = vi.spyOn(settlementCodec, 'createModelLogReadInspector')
+    for (let index = 0; index < 8; index += 1) {
+      expect(inspectSettlementPrefixEntries({ prefix: value })).toHaveProperty('ok')
+      expect(interpretCallHistory({ prefix: value, callId: 'call' })).toHaveProperty('known')
+      expect(interpretSettlementPrefix({ prefix: value, target, current: null })).toHaveProperty(
+        'facts',
+      )
+    }
+    expect(construct).toHaveBeenCalledTimes(1)
+    expect(construct.mock.calls[0]?.[0].prefix.entries).toHaveLength(size)
+  })
+
+  it('constructs once across entry reads, nested call history and settlement queries', async () => {
+    const construct = vi.spyOn(settlementCodec, 'createModelLogReadInspector')
+    const owner = fixture(ordered(complete))
+    const value = await owner.read()
+    const entries = inspectSettlementPrefixEntries({ prefix: value })
+    expect(entries).toHaveProperty('ok')
+    if (!('ok' in entries)) throw new Error('entry fixture')
+    expect(Object.isFrozen(entries.ok)).toBe(true)
+    for (let index = 0; index < 4; index += 1) {
+      const repeated = inspectSettlementPrefixEntries({ prefix: value })
+      if (!('ok' in repeated)) throw new Error('entry fixture')
+      expect(repeated.ok).toBe(entries.ok)
+      expect(interpretCallHistory({ prefix: value, callId: 'call' })).toHaveProperty('known')
+      expect(interpretCallHistory({ prefix: value, callId: 'other' })).toEqual({ absent: true })
+      expect(interpretSettlementPrefix({ prefix: value, target, current: null })).toHaveProperty(
+        'facts',
+      )
+    }
+    expect(construct).toHaveBeenCalledTimes(1)
+    const independent = await owner.read()
+    const second = inspectSettlementPrefixEntries({ prefix: independent })
+    expect(second).toEqual(entries)
+    if (!('ok' in second)) throw new Error('entry fixture')
+    expect(second.ok).not.toBe(entries.ok)
+    expect(construct).toHaveBeenCalledTimes(2)
+    expect(owner.trace.filter(event => event === 'read')).toHaveLength(2)
+  })
+
+  it('rejects copied, forged and proxied prefixes before consulting content', async () => {
+    const construct = vi.spyOn(settlementCodec, 'createModelLogReadInspector')
+    const value = await prefix(complete)
+    for (const imitation of [
+      { ...value },
+      Object.create(Object.getPrototypeOf(value)),
+      new Proxy(value, {}),
+    ]) {
+      expect(
+        Reflect.apply(inspectSettlementPrefixEntries, undefined, [{ prefix: imitation }]),
+      ).toEqual({ unavailable: true, reason: 'prefix' })
+      expect(
+        Reflect.apply(interpretSettlementPrefix, undefined, [
+          { prefix: imitation, target, current: null },
+        ]),
+      ).toEqual({ unavailable: true, reason: 'prefix' })
+    }
+    expect(construct).not.toHaveBeenCalled()
+  })
+
+  it('rechecks revocation after a memo hit and does not reuse a current answer', async () => {
+    const owner = fixture(ordered(complete))
+    const value = await owner.read()
+    expect(inspectSettlementPrefixEntries({ prefix: value })).toHaveProperty('ok')
+    owner.revoke()
+    expect(inspectSettlementPrefixEntries({ prefix: value })).toEqual({
+      unavailable: true,
+      reason: 'generation',
+    })
+    expect(interpretSettlementPrefix({ prefix: value, target, current: null })).toEqual({
+      unavailable: true,
+      reason: 'generation',
+    })
+    expect(interpretCallHistory({ prefix: value, callId: 'call' })).toEqual({
+      unavailable: true,
+      reason: 'prefix',
+    })
+    owner.restore()
+    expect(inspectSettlementPrefixEntries({ prefix: value })).toHaveProperty('ok')
+    owner.failGeneration()
+    expect(inspectSettlementPrefixEntries({ prefix: value })).toEqual({
+      unavailable: true,
+      reason: 'generation',
+    })
+  })
+
+  it('rejects changed scope and generation descriptors even when their new callback agrees', async () => {
+    const replacement = {}
+    for (const change of [
+      { session: 'foreign' },
+      { tenant: { organization: 'foreign', account: 'foreign' } },
+      { generation: {} },
+      { currentGeneration: () => null },
+      { generation: replacement, currentGeneration: () => replacement },
+    ]) {
+      const owner = fixture(ordered(complete))
+      const value = await owner.read()
+      expect(inspectSettlementPrefixEntries({ prefix: value })).toHaveProperty('ok')
+      Object.assign(owner.binding, change)
+      const reason = 'session' in change || 'tenant' in change ? 'prefix' : 'generation'
+      expect(inspectSettlementPrefixEntries({ prefix: value })).toEqual({
+        unavailable: true,
+        reason,
+      })
+      expect(interpretSettlementPrefix({ prefix: value, target, current: null })).toEqual({
+        unavailable: true,
+        reason,
+      })
+      expect(interpretCallHistory({ prefix: value, callId: 'call' })).toEqual({
+        unavailable: true,
+        reason: 'prefix',
+      })
+    }
+    const owner = fixture(ordered(complete))
+    const value = await owner.read()
+    expect(inspectSettlementPrefixEntries({ prefix: value })).toHaveProperty('ok')
+    Object.assign(owner.binding, { currentGeneration: () => owner.binding.generation })
+    expect(inspectSettlementPrefixEntries({ prefix: value })).toEqual({
+      unavailable: true,
+      reason: 'generation',
+    })
+  })
+
+  it('checks generation after first construction and does not cache unexpected exceptions', async () => {
+    const original = settlementCodec.createModelLogReadInspector
+    const construct = vi.spyOn(settlementCodec, 'createModelLogReadInspector')
+    const owner = fixture(ordered(complete))
+    const value = await owner.read()
+    const defect = new Error('inspector defect')
+    construct.mockImplementationOnce(() => {
+      throw defect
+    })
+    expect(() => inspectSettlementPrefixEntries({ prefix: value })).toThrow(defect)
+    expect(inspectSettlementPrefixEntries({ prefix: value })).toHaveProperty('ok')
+    expect(construct).toHaveBeenCalledTimes(2)
+    const second = fixture(ordered(complete))
+    const independent = await second.read()
+    construct.mockImplementationOnce(input => {
+      const result = original(input)
+      second.revoke()
+      return result
+    })
+    expect(inspectSettlementPrefixEntries({ prefix: independent })).toEqual({
+      unavailable: true,
+      reason: 'generation',
+    })
+  })
+
+  it('keeps target and current queries separate while sharing the ordered messages', async () => {
+    const value = await prefix(complete)
+    const firstRead = interpretSettlementPrefix({ prefix: value, target, current: null })
+    expect(firstRead).toHaveProperty('facts')
+    if (!('facts' in firstRead)) throw new Error('settlement fixture')
+    expect(firstRead.facts.messagePrefix.map(message => message.id)).toEqual(['winner-message'])
+    expect(Object.isFrozen(firstRead.facts.messagePrefix)).toBe(true)
+    const same = interpretSettlementPrefix({
+      prefix: value,
+      target,
+      current: { messageId: 'winner-message', disposition: 'persisted' },
+    })
+    expect(same).toMatchObject({ facts: { members: { completeMembers: { disposition: 'same' } } } })
+    const losing = interpretSettlementPrefix({
+      prefix: value,
+      target,
+      current: { messageId: 'losing-message', disposition: { consumed: { by: 'side_query' } } },
+    })
+    expect(losing).toMatchObject({
+      facts: { members: { completeMembers: { disposition: 'firstWinner' } } },
+    })
+    if (!('facts' in losing)) throw new Error('settlement fixture')
+    expect(losing.facts.messagePrefix).toBe(firstRead.facts.messagePrefix)
+    expect(
+      interpretSettlementPrefix({
+        prefix: value,
+        target,
+        current: { messageId: '', disposition: 'persisted' },
+      }),
+    ).toEqual({ unavailable: true, reason: 'members' })
+    expect(
+      interpretSettlementPrefix({
+        prefix: value,
+        target: { ...target, response: 'foreign' },
+        current: null,
+      }),
+    ).toEqual({ unavailable: true, reason: 'members' })
+  })
+
+  it('preserves unknown format and anchor-before-members refusal ordering', async () => {
+    const unknown = { ...first, payload: { ...jsonObject(first.payload), version: 'future' } }
+    const value = await prefix([sent, unknown])
+    const construct = vi.spyOn(settlementCodec, 'createModelLogReadInspector')
+    for (let index = 0; index < 2; index += 1) {
+      expect(inspectSettlementPrefixEntries({ prefix: value })).toEqual({
+        unavailable: true,
+        reason: 'unknown_format',
+      })
+      expect(interpretCallHistory({ prefix: value, callId: 'call' })).toEqual({
+        unavailable: true,
+        reason: 'unknown_format',
+      })
+      expect(interpretSettlementPrefix({ prefix: value, target, current: null })).toEqual({
+        unavailable: true,
+        reason: 'members',
+      })
+      expect(
+        interpretSettlementPrefix({
+          prefix: value,
+          target: { ...target, call: 'missing' },
+          current: null,
+        }),
+      ).toEqual({ unavailable: true, reason: 'anchor' })
+    }
+    expect(construct).toHaveBeenCalledTimes(1)
+    const malformedAnchor = await prefix([{ ...sent, payload: unknown.payload }])
+    expect(interpretSettlementPrefix({ prefix: malformedAnchor, target, current: null })).toEqual({
+      unavailable: true,
+      reason: 'anchor',
+    })
+    const unpaired = fixture(ordered([{ ...sent, run: 'original' }, unknown]))
+    expect(await readSettlementPrefix(unpaired)).toEqual({ unavailable: true, reason: 'prefix' })
+  })
+
+  it('rejects malformed foreign envelopes before minting an owned prefix', async () => {
+    const owner = fixture(
+      ordered([
+        ...complete,
+        {
+          session,
+          tenant,
+          position: 1,
+          readKeys: [],
+          payload: { owner: 'another-owner', kind: 'fact', value: null },
+        },
+      ]),
+    )
+    const construct = vi.spyOn(settlementCodec, 'createModelLogReadInspector')
+    expect(await readSettlementPrefix(owner)).toEqual({ unavailable: true, reason: 'prefix' })
+    expect(construct).not.toHaveBeenCalled()
+  })
+
+  it('keeps malformed Model content unavailable after repeated reads', async () => {
+    const value = await prefix([
+      sent,
+      {
+        ...first,
+        payload: {
+          ...jsonObject(first.payload),
+          value: { category: 'record', value: { kind: 'model_call_opened' } },
+        },
+      },
+    ])
+    const construct = vi.spyOn(settlementCodec, 'createModelLogReadInspector')
+    for (let index = 0; index < 2; index += 1) {
+      expect(inspectSettlementPrefixEntries({ prefix: value })).toEqual({
+        unavailable: true,
+        reason: 'members',
+      })
+      expect(interpretCallHistory({ prefix: value, callId: 'call' })).toEqual({
+        unavailable: true,
+        reason: 'history',
+      })
+      expect(interpretSettlementPrefix({ prefix: value, target, current: null })).toEqual({
+        unavailable: true,
+        reason: 'members',
+      })
+    }
+    expect(construct).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the full message order and rechecks mutable structural codec inputs', async () => {
+    const user = (id: string) =>
+      located(
+        prepare(
+          'message',
+          { id, type: 'user', createdAt: '2026-09-27T00:00:04Z', blocks: [] },
+          { kind: 'message' },
+        ),
+        1,
+      )
+    const entries = ordered([user('before'), ...complete, user('after')])
+    const value = await prefix(entries)
+    const firstRead = interpretSettlementPrefix({ prefix: value, target, current: null })
+    expect(firstRead).toHaveProperty('facts')
+    if (!('facts' in firstRead)) throw new Error('settlement fixture')
+    expect(firstRead.facts.messagePrefix.map(message => message.id)).toEqual([
+      'before',
+      'winner-message',
+      'after',
+    ])
+    const structural = { session, tenant, prefix: { entries: [...entries], tail: entries.length } }
+    expect(settlementCodec.inspectCurrentModelLogPrefix(structural)).toHaveProperty('ok')
+    structural.prefix.entries[0] = {
+      ...sent,
+      position: 1,
+      payload: { ...jsonObject(sent.payload), version: 'future' },
+    }
+    expect(settlementCodec.inspectCurrentModelLogPrefix(structural)).toEqual({
+      undetermined: true,
+      reason: 'unknown_format',
+    })
+    expect(interpretSettlementPrefix({ prefix: value, target, current: null })).toEqual(firstRead)
+  })
+})
 
 describe('owned prefix and durable call projections', () => {
   it('registers an actual read, owns a frozen copy and keeps exact positions', async () => {

@@ -17,20 +17,23 @@ import {
 /** AI R-7 ⇔ OG R-6 那一条外键的名字：`organization.owner_account → account(account_id)`，ON DELETE RESTRICT、不延迟。 */
 export const ORGANIZATION_OWNER_ACCOUNT_FK = 'organization_owner_account_fk'
 
+const organizationMigrations = organizationGovernanceMigrations({
+  ownerAccountReference: { table: ACCOUNT_TABLE, column: ACCOUNT_ID_COLUMN },
+  ownerAccountForeignKey: ORGANIZATION_OWNER_ACCOUNT_FK,
+})
+
 /**
  * 合成次序（M-9：编号名一经发布不改、不重排，新片段只追加在末尾）：
  * AI 在前（外键目标先存在）→ OG 工厂（外键目标与名字由本节点给，目标取 AI 导出的常量）→ clock → 入口层。
  */
 export const hostMigrationFragments: readonly MigrationFragment[] = Object.freeze([
-  // Preserve the published global prefix; new AI fragments append after all old owners.
+  // The first six organization fragments precede clock in the published global prefix.
   ...accountIdentityMigrations.slice(0, 1),
-  ...organizationGovernanceMigrations({
-    ownerAccountReference: { table: ACCOUNT_TABLE, column: ACCOUNT_ID_COLUMN },
-    ownerAccountForeignKey: ORGANIZATION_OWNER_ACCOUNT_FK,
-  }),
+  ...organizationMigrations.slice(0, 6),
   ...clockMigrations,
   ...governanceCenterMigrations,
   ...accountIdentityMigrations.slice(1),
+  ...organizationMigrations.slice(6),
 ])
 
 /** 一组片段合成后的迁移名序列（与 `composeMigrations` 同一编号规则）。 */

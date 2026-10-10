@@ -1,0 +1,82 @@
+{
+  "name": "@omne-harness-lite/session-runtime-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Persistent local Session admission and shared-unit runtime provider",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README_ZH.md",
+    "SPEC.md",
+    "model-runtime.md",
+    "adr",
+    "verification"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/governance-center-entry": "workspace:*",
+    "@omne-harness-lite/session-runtime": "workspace:*",
+    "@omne-harness-lite/session-tenancy": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*",
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/messages": "workspace:*",
+    "@omne-harness-lite/runtime-context": "workspace:*",
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/offer-expiry": "workspace:*",
+    "@omne-harness-lite/kernel-basis": "workspace:*",
+    "zod": "catalog:",
+    "@omne-harness-lite/model-request-runtime": "workspace:*",
+    "@omne-harness-lite/model-profile": "workspace:*",
+    "@omne-harness-lite/model-profile-directory": "workspace:*",
+    "@omne-harness-lite/model-response": "workspace:*",
+    "@omne-harness-lite/tool-execution-runtime": "workspace:*",
+    "@omne-harness-lite/asset-evaluation": "workspace:*",
+    "@omne-harness-lite/model-message-projection": "workspace:*",
+    "@omne-harness-lite/agent-loop": "workspace:*",
+    "@omne-harness-lite/loop-extension-runner": "workspace:*",
+    "@omne-harness-lite/loop-extension": "workspace:*",
+    "@omne-harness-lite/asset-registry": "workspace:*",
+    "@omne-harness-lite/tool-definition": "workspace:*",
+    "@omne-harness-lite/asset-model": "workspace:*",
+    "@omne-harness-lite/tool-admission": "workspace:*",
+    "@omne-harness-lite/arrival-events": "workspace:*",
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
+    "@omne-harness-lite/stream-assembly": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@omne-harness-lite/storage-sql": "workspace:*",
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/runtime-context-local": "workspace:*",
+    "@omne-harness-lite/model-request-runtime-local": "workspace:*",
+    "@omne-harness-lite/loop-extension-runner-local": "workspace:*",
+    "@omne-harness-lite/tool-execution-local": "workspace:*",
+    "@omne-harness-lite/tool-result-files": "workspace:*",
+    "@omne-harness-lite/assembly-manifest-store": "workspace:*",
+    "@omne-harness-lite/tool-admission-local": "workspace:*"
+  }
+}

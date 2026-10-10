@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import { createCallContainerStore } from '../src/service-container.ts'
-import type { ReservationWaitPolicy } from '../src/service-types.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import type { ReservationWaitPolicy } from '@omne-harness-lite/session-runtime-local'
 import type { SettlementScheduler } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 

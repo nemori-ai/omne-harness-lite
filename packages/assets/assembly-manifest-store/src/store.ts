@@ -1,3 +1,4 @@
+import { createAssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import { randomBytes } from 'node:crypto'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { isAssetCategory, type AssetCategory } from '@omne-harness-lite/asset-model'
@@ -163,6 +164,7 @@ export function createAssemblyManifestStore(
   if (options.diagnostic !== undefined && typeof options.diagnosticFailure !== 'function')
     throw new TypeError('diagnostic failure port is required')
   const { presenceSource, diagnostic, diagnosticFailure } = options
+  const evaluator = options.evaluator ?? createAssetEvaluator()
   let stopped = false,
     active = 0
   let closing: Promise<void> | undefined
@@ -399,7 +401,7 @@ export function createAssemblyManifestStore(
             .executeTakeFirst()
           if (source === undefined) return { failure: 'recordNotFound' } as const
           // Parsing failures are unavailable; represented projection failures carry the closed reason.
-          const projection = readEvaluationProjection(decode(source.content))
+          const projection = readEvaluationProjection(decode(source.content), evaluator)
           if ('failure' in projection) return projection
           const ref = parseOpaqueIdentifier(source.evaluation_ref, 'EvaluationRef')
           if (!('ok' in ref) || source.owned_ref !== source.evaluation_ref)
@@ -447,7 +449,7 @@ export function createAssemblyManifestStore(
             )
               throw new ManifestDataCorrupt('manifest given source relation mismatch')
             note({ evaluationRef: full.evaluationRef })
-            const projection = readEvaluationProjection(full.content)
+            const projection = readEvaluationProjection(full.content, evaluator)
             if ('failure' in projection) {
               note({ stage: 'projection' })
               return projection

@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { access, at, deferred, fixture, ref, request, scope } from './execution-owner-fixture.ts'
 
 function interruptionValue(reason: string) {
@@ -57,15 +57,16 @@ test('second stop authorization refuses revocation during the original SQL read 
     return author.promise
   })
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
     const signal = await entered.promise
     const before = await f.log.readSince(scope.session, 0)
     if ('failure' in before) throw new Error('original SQL prefix unavailable')
     f.authorize.mockClear()
-    f.readSince.mockImplementationOnce(async (...args) => {
+    const atomic = f.support.storage.atomic.bind(f.support.storage)
+    vi.spyOn(f.support.storage, 'atomic').mockImplementationOnce(async use => {
       reading.resolve()
       await readGate.promise
-      return f.log.readSince(...args)
+      return atomic(use)
     })
     const pending = f.owner.operations.stop(access, ref, 'revoked-stop')
     await reading.promise
@@ -98,16 +99,17 @@ test('stop confirms the entire SQLite terminal account and delivery before abort
     return author.promise
   })
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
     const signal = await entered.promise
     let held = false
-    f.append.mockImplementation(async (...args) => {
-      if (!held && args[1].some(entry => entry.dedupeKey?.includes('execution_ended'))) {
+    const append = f.appendIn.getMockImplementation()!
+    f.appendIn.mockImplementation(async (...args) => {
+      if (!held && args[2].entries.some(entry => entry.dedupeKey?.includes('execution_ended'))) {
         held = true
         appending.resolve()
         await receiptGate.promise
       }
-      return f.log.append(...args)
+      return append(...args)
     })
     const pending = f.owner.operations.stop(access, ref, 'original-stop')
     await appending.promise
@@ -129,8 +131,8 @@ test('stop confirms the entire SQLite terminal account and delivery before abort
       interruptionValue('original-stop'),
     )
     expect(
-      f.append.mock.calls.filter(call =>
-        call[1].some(entry => entry.dedupeKey?.includes('execution_ended')),
+      f.appendIn.mock.calls.filter(call =>
+        call[2].entries.some(entry => entry.dedupeKey?.includes('execution_ended')),
       ),
     ).toHaveLength(1)
     expect(f.implementation).toHaveBeenCalledOnce()
@@ -155,17 +157,9 @@ test('lost stop receipt is recognized without early abort and original close set
     }
   })
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
     const signal = await entered.promise
-    let lost = false
-    f.append.mockImplementation(async (...args) => {
-      const result = await f.log.append(...args)
-      if (!lost && args[1].some(entry => entry.dedupeKey?.includes('execution_ended'))) {
-        lost = true
-        return { failure: 'unavailable' }
-      }
-      return result
-    })
+    f.loseNextCommit('execution_ended')
     expect(await f.owner.operations.stop(access, ref, 'original-stop')).toBe('unavailable')
     expect(signal.aborted).toBe(false)
     expect(await f.owner.operations.stop(access, ref, 'replacement-stop')).toBe('alreadyEnded')
@@ -181,8 +175,8 @@ test('lost stop receipt is recognized without early abort and original close set
     expect(signal.reason).toBe('owner_closed')
     expect(f.implementation).toHaveBeenCalledOnce()
     expect(
-      f.append.mock.calls.filter(call =>
-        call[1].some(entry => entry.dedupeKey?.includes('execution_ended')),
+      f.appendIn.mock.calls.filter(call =>
+        call[2].entries.some(entry => entry.dedupeKey?.includes('execution_ended')),
       ),
     ).toHaveLength(1)
   } finally {

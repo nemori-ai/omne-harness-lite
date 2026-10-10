@@ -9,6 +9,7 @@ This package is an unpublished, private ESM workspace member. Use it from this r
 | Public API                   | Use                                                                          |
 | ---------------------------- | ---------------------------------------------------------------------------- |
 | `evaluate`                   | Validate inputs, filter/select assets, expand composition and resolve values |
+| `createAssetEvaluator`       | Share caller-owned compilation across evaluation and tool consumers          |
 | `readWorkspaceCarrier`       | Convert a complete manifest value into workspace holdings                    |
 | `defaultBodyContracts`       | Reuse the five available body providers                                      |
 | `evaluationInputFingerprint` | Fingerprint the full evaluation input                                        |

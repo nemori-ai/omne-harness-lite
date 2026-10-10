@@ -45,13 +45,14 @@ function closed(
   )
 }
 function data(
+  judge: AssetModelJudge,
   definition: Parameters<AssetModelJudge['judgeAssetValue']>[0],
   value: unknown,
 ): boolean {
-  return 'ok' in getAssetJudge().judgeAssetValue(definition, value)
+  return 'ok' in judge.judgeAssetValue(definition, value)
 }
-function capability(value: unknown): boolean {
-  return data('CapabilityId', value)
+function capability(judge: AssetModelJudge, value: unknown): boolean {
+  return data(judge, 'CapabilityId', value)
 }
 function positiveInteger(value: unknown): boolean {
   return (
@@ -63,9 +64,9 @@ function positiveInteger(value: unknown): boolean {
 function unique<T>(values: readonly T[], key: (value: T) => string): boolean {
   return new Set(values.map(key)).size === values.length
 }
-function permission(value: JsonValue, allowed: readonly string[]): boolean {
+function permission(judge: AssetModelJudge, value: JsonValue, allowed: readonly string[]): boolean {
   return (
-    data('PermissionValue', value) &&
+    data(judge, 'PermissionValue', value) &&
     object(value) &&
     Array.isArray(value.allowed) &&
     value.allowed.every(token => typeof token === 'string' && allowed.includes(token))
@@ -93,15 +94,15 @@ function rootValue(value: EffectiveValue): boolean {
 }
 
 /** EffectiveAsset members: closed set, capability, record id, positive version and a holding layer. */
-function assetIdentityShape(asset: JsonValue): asset is JsonObject {
+function assetIdentityShape(judge: AssetModelJudge, asset: JsonValue): asset is JsonObject {
   return (
     closed(
       asset,
       ['capability', 'asset', 'version', 'from', 'replaced'],
       ['lockedAt', 'resident'],
     ) &&
-    capability(asset.capability) &&
-    data('AssetRecordId', asset.asset) &&
+    capability(judge, asset.capability) &&
+    data(judge, 'AssetRecordId', asset.asset) &&
     positiveInteger(asset.version) &&
     member(asset.from, holdingLayers)
   )
@@ -118,14 +119,14 @@ function assetLayersShape(asset: JsonObject): boolean {
   )
 }
 /** EffectiveValue members: closed set, capability, non-empty item and a layer. */
-function valueIdentityShape(item: JsonValue): item is JsonObject {
+function valueIdentityShape(judge: AssetModelJudge, item: JsonValue): item is JsonObject {
   return (
     closed(
       item,
       ['capability', 'item', 'value', 'from'],
       ['lockedAt', 'provenance', 'tenantAutoWritable'],
     ) &&
-    capability(item.capability) &&
+    capability(judge, item.capability) &&
     typeof item.item === 'string' &&
     item.item.length > 0 &&
     member(item.from, layers)
@@ -140,29 +141,29 @@ function valueMetadataShape(item: JsonObject): boolean {
     (!Object.hasOwn(item, 'tenantAutoWritable') || typeof item.tenantAutoWritable === 'boolean')
   )
 }
-function filteredOutShape(item: JsonValue): boolean {
+function filteredOutShape(judge: AssetModelJudge, item: JsonValue): boolean {
   return (
     closed(item, ['capability', 'from', 'reason']) &&
-    capability(item.capability) &&
+    capability(judge, item.capability) &&
     member(item.from, holdingLayers) &&
     member(item.reason, reasons)
   )
 }
-function unresolvedShape(item: JsonValue): boolean {
+function unresolvedShape(judge: AssetModelJudge, item: JsonValue): boolean {
   return (
     closed(item, ['capability'], ['referencedBy']) &&
-    capability(item.capability) &&
-    (!Object.hasOwn(item, 'referencedBy') || capability(item.referencedBy))
+    capability(judge, item.capability) &&
+    (!Object.hasOwn(item, 'referencedBy') || capability(judge, item.referencedBy))
   )
 }
-function assetShape(asset: JsonValue): boolean {
-  return assetIdentityShape(asset) && assetLayersShape(asset)
+function assetShape(judge: AssetModelJudge, asset: JsonValue): boolean {
+  return assetIdentityShape(judge, asset) && assetLayersShape(asset)
 }
-function valueShape(item: JsonValue): boolean {
-  return valueIdentityShape(item) && valueMetadataShape(item)
+function valueShape(judge: AssetModelJudge, item: JsonValue): boolean {
+  return valueIdentityShape(judge, item) && valueMetadataShape(item)
 }
 /** The five collections are arrays whose every entry has its DTO shape. */
-function collectionsShape(value: JsonObject): boolean {
+function collectionsShape(judge: AssetModelJudge, value: JsonObject): boolean {
   const { assets, composition, values, filteredOut, unresolved } = value
   if (
     !Array.isArray(assets) ||
@@ -173,21 +174,21 @@ function collectionsShape(value: JsonObject): boolean {
   )
     return false
   return (
-    assets.every(assetShape) &&
-    composition.every(capability) &&
-    values.every(valueShape) &&
-    filteredOut.every(filteredOutShape) &&
-    unresolved.every(unresolvedShape)
+    assets.every(value => assetShape(judge, value)) &&
+    composition.every(value => capability(judge, value)) &&
+    values.every(value => valueShape(judge, value)) &&
+    filteredOut.every(value => filteredOutShape(judge, value)) &&
+    unresolved.every(value => unresolvedShape(judge, value))
   )
 }
 /** S-47 member table: the closed DTO positions and their value types; open JSON slots stay untouched. */
-function dtoShape(value: JsonValue): boolean {
+function dtoShape(judge: AssetModelJudge, value: JsonValue): boolean {
   return (
     closed(value, ['root', 'assets', 'composition', 'values', 'filteredOut', 'unresolved']) &&
-    capability(value.root) &&
+    capability(judge, value.root) &&
     object(value.root) &&
     value.root.category === 'agent_definition' &&
-    collectionsShape(value)
+    collectionsShape(judge, value)
   )
 }
 
@@ -293,7 +294,11 @@ function filteredOutRelations(filtered: FilteredOut, index: AssemblyIndex): bool
     : filteredBelowSelection(filtered, index.assets.get(key(filtered.capability)))
 }
 /** S-47 clause 6: every composed capability has a usableBy value in the fixed domain, not from the workspace, without metadata. */
-function usableByValue(capability: CapabilityId, values: readonly EffectiveValue[]): boolean {
+function usableByValue(
+  judge: AssetModelJudge,
+  capability: CapabilityId,
+  values: readonly EffectiveValue[],
+): boolean {
   const usableDomain =
     USABLE_BY_DECLARATION.kind === 'permission' ? USABLE_BY_DECLARATION.domain.values : []
   const usable = values.find(
@@ -301,7 +306,7 @@ function usableByValue(capability: CapabilityId, values: readonly EffectiveValue
   )
   return (
     usable !== undefined &&
-    permission(usable.value, usableDomain) &&
+    permission(judge, usable.value, usableDomain) &&
     usable.from !== 'workspace' &&
     !Object.hasOwn(usable, 'provenance') &&
     !Object.hasOwn(usable, 'tenantAutoWritable')
@@ -326,11 +331,15 @@ function provenanceRelation(item: EffectiveValue, asset: EffectiveAsset): boolea
   )
 }
 /** S-47 clause 7: tenantAutoWritable sits only on tool or mcp execution permissions outside the workspace, false for workspace assets. */
-function tenantAutoWritableRelation(item: EffectiveValue, asset: EffectiveAsset): boolean {
+function tenantAutoWritableRelation(
+  judge: AssetModelJudge,
+  item: EffectiveValue,
+  asset: EffectiveAsset,
+): boolean {
   return (
     item.tenantAutoWritable === undefined ||
     (['tool', 'mcp'].includes(item.capability.category) &&
-      permission(item.value, ['forbid', 'auto', 'ask']) &&
+      permission(judge, item.value, ['forbid', 'auto', 'ask']) &&
       item.from !== 'workspace' &&
       !(asset.from === 'workspace' && item.tenantAutoWritable))
   )
@@ -345,13 +354,17 @@ function mcpExecuteRelation(item: EffectiveValue): boolean {
   )
 }
 /** S-47 clauses 6 and 7 for one value: it has an asset, root values obey AD1, metadata obeys its position. */
-function valueRelations(item: EffectiveValue, index: AssemblyIndex): boolean {
+function valueRelations(
+  judge: AssetModelJudge,
+  item: EffectiveValue,
+  index: AssemblyIndex,
+): boolean {
   const asset = index.assets.get(key(item.capability))
   if (asset === undefined) return false
   return (
     (key(item.capability) !== index.root || rootValueRelations(item)) &&
     provenanceRelation(item, asset) &&
-    tenantAutoWritableRelation(item, asset) &&
+    tenantAutoWritableRelation(judge, item, asset) &&
     mcpExecuteRelation(item)
   )
 }
@@ -363,22 +376,26 @@ function rootResolution(assembly: EffectiveAssembly, index: AssemblyIndex): bool
     : missingRootOnly(assembly, index.root)
 }
 /** S-47 clauses 2～7: the relations between the five collections. */
-function memberRelations(assembly: EffectiveAssembly, index: AssemblyIndex): boolean {
+function memberRelations(
+  judge: AssetModelJudge,
+  assembly: EffectiveAssembly,
+  index: AssemblyIndex,
+): boolean {
   return (
     compositionMembers(assembly, index) &&
     valuesBelongToComposition(assembly, index) &&
     rootResolution(assembly, index) &&
     assembly.assets.every(asset => assetRelations(asset, index)) &&
     assembly.filteredOut.every(filtered => filteredOutRelations(filtered, index)) &&
-    assembly.composition.every(capability => usableByValue(capability, assembly.values)) &&
-    assembly.values.every(item => valueRelations(item, index))
+    assembly.composition.every(capability => usableByValue(judge, capability, assembly.values)) &&
+    assembly.values.every(item => valueRelations(judge, item, index))
   )
 }
 
 /** S-47 checks only represented result facts. It cannot establish source, current authorization or evaluation correctness. */
-export function judgeEffectiveAssembly(value: unknown): boolean {
+export function judgeEffectiveAssemblyWithJudge(judge: AssetModelJudge, value: unknown): boolean {
   const copied = copyJsonValue(value)
-  if ('failed' in copied || !dtoShape(copied.ok)) return false
+  if ('failed' in copied || !dtoShape(judge, copied.ok)) return false
   // All represented DTO fields have been admitted above; open JSON value slots stay untouched.
   const assembly = copied.ok as unknown as EffectiveAssembly
   const index: AssemblyIndex = {
@@ -386,5 +403,9 @@ export function judgeEffectiveAssembly(value: unknown): boolean {
     composition: new Set(assembly.composition.map(key)),
     assets: new Map(assembly.assets.map(asset => [key(asset.capability), asset])),
   }
-  return uniqueMembers(assembly) && memberRelations(assembly, index)
+  return uniqueMembers(assembly) && memberRelations(judge, assembly, index)
+}
+
+export function judgeEffectiveAssembly(value: unknown): boolean {
+  return judgeEffectiveAssemblyWithJudge(getAssetJudge(), value)
 }

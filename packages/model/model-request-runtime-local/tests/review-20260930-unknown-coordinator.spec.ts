@@ -1,3 +1,6 @@
+import { createSessionModelReconciler } from '@omne-harness-lite/session-runtime-local'
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 /**
  * Review 2026-09-30 Q4 (a)-(h) at the settlement coordinator, over an actual SQL journal SessionLog and an
  * actual SQL session-tenant mapping (tests/settlement-fixture.ts `controlled`). The wrappers only
@@ -6,7 +9,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest'
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
-import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
 import {
   type SettlementRegistration,
   type SettlementTask,
@@ -23,7 +26,6 @@ import {
 } from './settlement-fixture.ts'
 import { dispatched, opened, prepare, session, tenant } from './log-codec-fixture.ts'
 import { batchV2 } from './log-codec-v2-fixture.ts'
-import { createRuntimeReconcile } from '../src/service-reconcile.ts'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { storeUnavailableCustody } from './reference-ports-fixture.ts'
@@ -523,7 +525,10 @@ describe('review 2026-09-30 Q3/S2 fail-closed granularity: reconcile per call (R
         )
         if ('failure' in appended) throw new Error('acked call')
         void tenant
-        const reconcile = createRuntimeReconcile({
+        const reconcile = createSessionModelReconciler({
+          settlementFactory: sessionModelSettlement,
+          readCall: sessionModelRequestPreparation.readCall,
+
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,

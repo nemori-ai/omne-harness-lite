@@ -1,5 +1,7 @@
 import { expect, test, vi } from 'vitest'
 import { createRegistryHistoryReader } from '@omne-harness-lite/evaluation-input-store/registry-history'
+import { createRunRegistryReaders, type RunInputReaderDependencies } from '../src/admitted.ts'
+import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { type RegistryHistoryRequest } from '@omne-harness-lite/asset-evaluation'
 import { createAssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
 import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
@@ -85,6 +87,54 @@ async function setup(h: Host, tenant: TenantId) {
   }
   return { manifest, reader, request }
 }
+
+test('reads the original manifest version through a fixed Run unit after current holding changes', async () =>
+  withHost(async h => {
+    const { tenant } = await h.identity('run-history')
+    const original = await setup(h, tenant)
+    const called = vi.fn()
+    const withOriginalRunUnit: RunInputReaderDependencies['withOriginalRunUnit'] = read => {
+      called()
+      return h.storage.atomic(async unit => ({ read: await read(unit) }))
+    }
+    const readers = createRunRegistryReaders({
+      ...h.deps,
+      scope: { tenant, session: unwrap(parseOpaqueIdentifier('session_a', 'SessionRef')) },
+      withOriginalRunUnit,
+      manifestHistory: original.manifest,
+    })
+    try {
+      expect(await readers.history.read(original.request)).toEqual({
+        version: plugin(tenant).versions[0],
+      })
+      expect(
+        await publishLocalInputs(h.deps, {
+          expectedRevision: '2',
+          definitions: [plugin(tenant, 2)],
+          scopes: [{ holder: { layer: 'tenant', tenant }, holdings: [] }],
+        }),
+      ).toEqual({ revision: '3' })
+      expect(await readers.history.read(original.request)).toEqual({
+        version: plugin(tenant).versions[0],
+      })
+      expect(await readers.history.read({ ...original.request, session: 'other-session' })).toEqual(
+        {
+          failure: 'unavailable',
+          stage: 'current_membership',
+        },
+      )
+      expect(called).toHaveBeenCalledTimes(2)
+      await readers.close()
+      expect(await readers.history.read(original.request)).toEqual({
+        failure: 'unavailable',
+        stage: 'stopped',
+      })
+    } finally {
+      await readers.close()
+      await original.reader.close()
+      await original.manifest.close()
+    }
+  }))
 
 test('real published immutable old version remains readable after unholding, new version, new table and file reopen', async () => {
   const h = await boot()
@@ -283,7 +333,11 @@ test('current membership is real and revocation rejects despite a durable same-s
   withHost(async h => {
     const owner = await h.identity('owner'),
       member = await h.identity('member')
-    const team = await h.organizations.createTeam(owner.tenant.account, 'history-team')
+    const team = await h.organizations.createTeam(
+      owner.tenant.account,
+      'test organization',
+      'history-team',
+    )
     if (!('ok' in team)) throw new Error('team failed')
     const invitation = await h.offers.issueInvitation(
       team.ok.tenant,
@@ -471,7 +525,11 @@ test('actual qualification and immutable body share the SQLite atomic boundary a
   withHost(async h => {
     const owner = await h.identity('owner'),
       member = await h.identity('member')
-    const team = await h.organizations.createTeam(owner.tenant.account, 'history-race')
+    const team = await h.organizations.createTeam(
+      owner.tenant.account,
+      'test organization',
+      'history-race',
+    )
     if (!('ok' in team)) throw new Error('team failed')
     const invitation = await h.offers.issueInvitation(
       team.ok.tenant,

@@ -19,7 +19,7 @@
 | `toOpaqueJson`、`readOpaqueJson`                       | 仅供传输适配的不透明包装／读取边界                    |
 | 块类型、相等及媒体类型助手                             | 七类块、标识、附件与模态                              |
 | `validate`、`schemaId`；`./schema`、`./schema/v2`      | 当前 v3 与保留的 v2 Schema 资源                       |
-| `./schema-runtime`                                     | `createSchemaRuntime` 与精确 Draft 2020-12 校验器类型 |
+| `./schema-runtime`                                     | 独立运行时、可复用资源准备及精确校验器 |
 
 ## 使用示例
 
@@ -86,6 +86,8 @@ console.log(validator.validate(new LosslessNumber('1.00000000000000000001'))) //
 `JsonNumber` 是 `number | LosslessNumber`。严格读取器把普通安全整数字面量保留为 number；小数、指数、不安全整数与负零由 `LosslessNumber` 保留原文。不能用 `Number(source)` 判断精确边界或相等。写入器对非 JSON 值抛 `TypeError`，不会省略它们；复制器拒绝 getter、环与其他非 JSON 属性。不透明 JSON 不构成内容检查许可，复制其交换表示也不会保留领域品牌。
 
 内置 `validate` 只检查形状，数字投影仅适用于这份固定 Schema；不能把投影用于任意数值约束，也不能把包装器直接交给普通 Ajv。`createSchemaRuntime` 由调用方持有，只解析显式提供的固定资源，不远程加载或异步校验。本包不解析 `rawArguments`、执行工具、取附件、持久化块、建立跨消息块标识唯一性或授权可见性。`./schema/v2` 只保留旧资源，不提供 v2 行为兼容。实际 JSON source／raw-number API 要求 Node `>=24.18.0 <25`。
+
+`createSchemaRuntimeFactory(resources, options)` 一次准备固定资源的快照。调用返回的工厂时，每次创建独立编译器。多个短生命周期的作者 Schema 编译器使用相同固定资源时，可复用这一步准备工作。作者 Schema 注册和校验结果不共享。资源校验及重复标识错误在创建工厂时报告。
 
 内联 base64 校验支持解码后 4 MiB 及更大的媒体值，不依赖随输入增长的正则回溯栈。固定校验器和默认 `createSchemaRuntime` 编译器保持公开 Schema 的语言不变（含 padding 与严格串尾检查）；不解码图片、不引入模型字节上限，也没有新增用户配置。消费者仍负责各自声明的输入限制。显式传入的 `patternFactory` 保留 native RegExp 行为，其模式执行仍由调用方负责。
 

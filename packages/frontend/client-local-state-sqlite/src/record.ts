@@ -109,7 +109,7 @@ export function validRecord(value: unknown): value is LocalRecord | null {
       return false
     if (
       !fixedSchemas().Envelope({
-        protocolVersion: '2',
+        protocolVersion: '3',
         operation: c.operation,
         presentedLoginState: 'cached-read',
         payload: c.payload,

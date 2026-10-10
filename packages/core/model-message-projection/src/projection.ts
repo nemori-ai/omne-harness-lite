@@ -118,6 +118,20 @@ export function appendSegments(
   }
   return { segments: tail }
 }
+/** Rebuild only block selection after a compaction. All indexed bodies already passed ingestion. */
+export function reselectSegments(state: IndexState): ProjectionSegment | null {
+  let tail: ProjectionSegment | null = null
+  for (const message of state.rules.system) {
+    const source: SourceMapping = Object.freeze({
+      messageId: message.id,
+      position: null,
+      blockIds: Object.freeze(message.blocks.map(block => block.id)),
+    })
+    tail = Object.freeze({ previous: tail, message, source })
+  }
+  for (const indexed of state.messages.values()) tail = segment(tail, indexed)
+  return tail
+}
 export function projection(
   state: IndexState,
   source: SourceToken,

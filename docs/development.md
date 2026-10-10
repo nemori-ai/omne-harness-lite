@@ -153,7 +153,7 @@ pnpm package:template scan --member packages/core/storage --check
 | 一张卡被接受或作废，要从 `stories.md` 删掉 | 删卡的提交带 `Accepted-Card: <卡号>` 或 `Voided-Card: <卡号>`，「已发到」那一行不动；`make card-retire BASE=<任务基线提交>` 核对范围里删掉的卡都有记录。规矩见[故事卡的格式契约](../.meta_harness/design/product/conventions.md#卡的一生) |
 | 写或改了可执行验收，或想知道哪些场景已经交付 | 验收开头要有一行 `// covers: PF-016 S5`，`pnpm run lint:rules` 核对声明的场景存在；`make acceptance` 只跑验收；`make scenario-status` 按 topic 列出每条场景是已交付、交付中、已立卡还是还没切到。约定见[源码布局](workspace.md) |
 | 想看流程本身走得怎么样（卡的前置时间、每周接受数、债的走向） | `make loop-health`：只读、只报告，出一张离线可开的页面，末行给路径；每块怎么读见[写给负责的人](development_human.md#每周看一次体检页) |
-| 规格还没定，想先看一条主路径走不走得通 | 做探路件：放 [examples/](../examples/README_ZH.md) 或任务的 `tmp/`，不进 `packages/`、`apps/`；跑通后带回设计的是事实清单，不是代码 |
+| 规格还没定，想先看一条主路径走不走得通 | 做探路件：放任务的 `tmp/`，不进 `packages/`、`apps/`；跑通后带回设计的是事实清单，不是代码 |
 | 存储提供者或迁移 | `pnpm --filter @omne-harness-lite/storage-sql run test`：sqlite 上跑一致性套件；pg 需设 `OMNE_TEST_PG_URL`，否则跳过 |
 | 形式工具是否可用 | `make formal-tools` |
 | 跨入口改动、合并前 | 在待合并的提交上计算影响面，再执行需要的检查。记录基线、提交、范围、选择依据、结果和未覆盖范围。`make check` 按基线以来的改动打印计划，再运行常驻检查及计划选中的 Python 测试、构建、类型检查、成员快慢两层与可执行验收。纯文档只构建常驻检查需要的 identity-values；其他成员步骤可跳过。`make check-plan` 只看计划，`FULL=1` 显式要全量。整套重检查入口使用机器级[运行名额](../scripts/README.md#运行名额)，并发限制仍须遵守负责人的当前安排 |

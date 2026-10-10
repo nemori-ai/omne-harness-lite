@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
-import { createAnchoredModelInvocation } from '../src/anchored-invocation.ts'
+import { createAnchoredModelInvocation } from '@omne-harness-lite/session-runtime-local'
 import { harness, transport } from './anchored-invocation-fixture.ts'
 
 describe('anchored planning rejection priority with a missing current input cap', () => {

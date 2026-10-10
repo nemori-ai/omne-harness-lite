@@ -1,34 +1,47 @@
 # 模型消息投影薄规格
 
-状态：F0 实施候选。公开函数已有实现，交付验收与负责人 review 尚未完成。Session 提供者的缓存发布、逐出及在途 pin 属于后续装配。
+状态：F0 实施候选。公开函数已有实现，交付验收与负责人 review 尚未完成。Session 提供者拥有缓存发布、逐出及在途引用。
 
 来源PF-009消息／标注、PF-010压缩／组装，PF-012原reply、PF-013模态，用户日志投影及复杂度要求。非消息判别由session-log拥有，函数不自造日志权威。
 
 ## 形状
 
-`ProjectionInput`含固定的[Session Log SourceToken](../session-log/SPEC.md#固定日志坐标)、readonly合法日志条目、组装规则版本与外部输入键。原响应索引从同一固定日志范围建立，不另读其他尾部。缓存必须带完整外部输入键；外部键包括采用AgentDefinition／assembly、system prompt、context generation、model profile／模态、tools／参数来源版本。
+`ProjectionInput`含固定的[Session Log SourceToken](../session-log/SPEC.md#固定日志坐标)、readonly合法日志条目、组装规则版本与外部输入键。原响应索引从同一固定日志范围建立，不另读其他尾部。组装请求侧输入的缓存必须带完整外部输入键；外部键包括采用AgentDefinition／assembly、system prompt、context generation、model profile／模态、tools／参数来源版本。
 缺必要来源、版本不可核实或已宣称本owner的无效数据是失败，不当缓存命中。键取自明确版本或对实际规范化输入作摘要；只有键必须比较时可用摘要，摘要相同且源变化不构成无条件证明，必要时校验实际输入。
 `Projection`返回sourceToken、inputKey、分段消息／原来源对应、可读块索引、处理进度及可观测workCounters。`Materialized`为readonly Message列表和来源映射；原Message类型从公开messages入口取用。
 `CacheOwner`由公开factory创建，是单Session独占的可变派生资源；其状态变化显式，不把增量更新称为纯函数。索引由owner私有维护，避免每次复制全部索引。`Projection`是该owner返回的不可变派生视图；materialize仅接受本模块创建的视图，不接受调用者伪造的可变对象。视图携带固定source与完整inputKey。缓存包含必要历史摘要索引，不含凭据。固定Segment不可变，共享前缀不复写。
 
-| 函数 | 输入 | 成功／失败 | 效果 |
-|---|---|---|---|
-| `projectMessages` | 完整ProjectionInput、可选可信owner codecs | projected(Projection)；invalidInput(reason:shape/source/pairing/claimedPayload/compaction)、unavailable(reason:requiredSource) | 纯冷建，不写log/存储，不请求模型 |
-| `createProjectionCache` | 完整ProjectionInput、CacheOptions | ready(CacheOwner,Projection)；invalidInput；unavailable(reason:requiredSource/capacity) | 创建独占派生状态，O(N+B)；不IO |
-| `extendProjection` | 独占CacheOwner、新固定source、规则及严格连续增量 | projected(Projection,reusedSegments)；rebuildRequired(reason:generation/gap/rule/external/corrupt/impactUnknown/capacity)；invalidInput或unavailable | 追加索引和段；旧prefix受影响时要求冷建 |
-| `materializeMessages` | 本模块返回的Projection | materialized(Messages,sources,outputMessages,outputBlocks)或invalidInput | 枚举有效消息/块，输出O(K+B) |
-| `projectionKey` | ProjectionRules | key或invalidInput/unavailable | 成本与输入键字节数成正比 |
-| `releaseProjectionCache` | 本模块创建且未逐出的CacheOwner | released或invalidInput | 删除可变索引的owner关联；旧视图仍可读取 |
+| 函数                       | 输入                                             | 成功／失败                                                                                                                                           | 效果                                      |
+| -------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `projectMessages`          | 完整ProjectionInput、可选可信owner codecs        | projected(Projection)；invalidInput(reason:shape/source/pairing/claimedPayload/compaction)、unavailable(reason:requiredSource)                       | 纯冷建，不写log/存储，不请求模型          |
+| `createProjectionCache`    | 完整ProjectionInput、CacheOptions                | ready(CacheOwner,Projection)；invalidInput；unavailable(reason:requiredSource/capacity)                                                              | 创建独占派生状态，O(N+B)；不IO            |
+| `extendProjection`         | 独占CacheOwner、新固定source、规则及严格连续增量 | projected(Projection,reusedSegments)；rebuildRequired(reason:generation/gap/rule/external/corrupt/impactUnknown/capacity)；invalidInput或unavailable | 追加索引和段；压缩从已保留索引重选块      |
+| `materializeMessages`      | 本模块返回的Projection                           | materialized(Messages,sources,outputMessages,outputBlocks)或invalidInput                                                                             | 枚举有效消息/块，输出O(K+B)               |
+| `projectionKey`            | ProjectionRules                                  | key或invalidInput/unavailable                                                                                                                        | 成本与输入键字节数成正比                  |
+| `releaseProjectionCache`   | 本模块创建且未逐出的CacheOwner                   | released或invalidInput                                                                                                                               | 删除可变索引的owner关联；旧视图仍可读取   |
+| `createModalityProjection` | 固定租户与Session                                | 现有`SessionModelSelectionInput.projection`函数                                                                                                      | 创建该Session独占的历史模态派生状态，不IO |
 
 `CacheOptions.limits` 必须显式给出 entries、blocks、bytes 三个正安全整数。本模块不提供默认容量。bytes 计量规范化输入 JSON 的 UTF-8 字节，不等同于 JavaScript 堆大小。entries、blocks 限制索引规模。超界不得发布半更新的新视图。
 
-`external: null` 只允许一次无缓存的耐久历史投影。此模式的 system 必须为空，且不声称已采用模型配置、工具或其他请求侧输入。createProjectionCache 对此模式返回 unavailable(requiredSource)。真正请求缓存仍须带八项当前来源键。缺压缩所需 pendingCardBlocks 或 lastModelRequestPrefixLength 时，有 silenced 引用的消息返回 unavailable(requiredSource)，不补假空集合。
+`external: null` 表示仅投影耐久历史，允许冷建及增量缓存。此模式的 system 必须为空，且不声称已采用模型配置、工具或其他请求侧输入。该缓存只保存历史消息，调用方仍须重新取得请求侧输入。组装请求侧输入的缓存仍须带八项当前来源键。缺压缩所需 pendingCardBlocks 或 lastModelRequestPrefixLength 时，有 silenced 引用的消息返回 unavailable(requiredSource)，不补假空集合。
 
 可信 owner codec 必须是无 IO 的校验函数。声明为本 owner 的错误 payload 返回 invalidInput(claimedPayload)；需要但不可用的 codec 返回 unavailable(requiredSource)。其他 owner 的合法事实不成为模型消息。
 
 冷projectMessages与materialize是纯计算。createProjectionCache创建显式CacheOwner；extendProjection只在owner独占准入内修改私有派生索引，返回不可变分段视图，新视图不改旧视图。任意旧引用失效点可整体线性重建，不强制引入持久数据结构库。缓存获取／发布／逐出属于Session provider端口，不偷偷IO。API边界可用异常表示内部未知缺陷，不能返回一份少了消息的“成功”。
 
 CacheOwner不能同时被两次增量调用使用；违反独占输入前提返回invalidInput。提供者逐出owner后不得再次使用；原不可变视图仍可被在途请求持有。相同token且无增量只认回原视图，不重复追加；失败不把半更新索引发布为成功，不能恢复旧有效索引时返回rebuildRequired(corrupt)。
+
+## 历史模态来源
+
+`createModalityProjection`返回的函数只接受ModelRuntime实际读取的完整`SettlementPrefix`。它核对固定租户、Session和当前物理binding；伪造、跨Scope或已失效的输入返回`unknown`，不得泄露已缓存集合。构造时非法Scope抛出异常。
+
+集合来自原始消息中给模型看的内容块。隐藏父块的所有后代都不计入。含transcript的媒体块只贡献文本；无transcript的图、语音和视频贡献各自模态。文件按content-blocks的`modalityOf`解释，非四种模态的文件不贡献模态。可见的文本、thinking和tool_call贡献文本，tool_result按子块计算。事实及其他非消息条目不贡献模态。
+
+该集合用于PF-013的模型选择，不是本次请求的有效消息视图。压缩可以隐藏旧消息，但不移除原始历史中的模态要求。相同固定前缀的冷建与增量结果一致。
+
+每个函数只保留一个物理binding、日志generation、已处理条目数、四位集合和冻结结果。相同binding及generation上的连续追加只处理新后缀，同尾部返回原结果。物理binding、日志generation变化或读取较早前缀时重建。无新增记录时不遍历已有消息。
+
+以传入前缀为起点，冷建为O(N+B)，追加为O(ΔN+ΔB)，同尾部查询为O(1)。除已由调用方持有的前缀外，常驻派生状态为O(1)，遍历临时空间不超过当前消息块数。完整前缀的读取、复制和校验由ModelRuntime负责，其成本不包含在此查询界内。当前完整前缀读取仍为O(N+B)，不能据此声称模型选择或调用的端到端成本为O(1)。本函数不改变现有消息缓存算法。
 
 ## 行为与算法义务
 
@@ -49,4 +62,8 @@ MP10：投影保持原reply，不把转换后的模型表示回写原response；
 用独立参考选择器和可计数规模试验检查N/2N/4N冷线性、热Δ、prefix共享／避免全copy；计时仅辅助。原源码的二次路径以操作计数或profile证明移除，短样本计时不能当复杂度证明。
 算法论证和有限试验均不证明完整生产实现；实施后真实request serialization、字节成本和供应方payload需单验。
 
+历史模态来源须验证transcript、隐藏祖先、非媒体文件、压缩前后、较早前缀、generation变化、物理binding替换和跨Scope拒绝。实际Session日志与ModelRuntime组合须证明：兼容的已注册模型可用，无transcript图片入库后纯文本模型不可用，拒绝不发模型请求。
+
 本阶段操作的身份、授权、幂等、提交、通知与在途共用规则见[共用规则](../session-runtime/adr/shared-operation-rules.md)。本文与该表一起读取；不从目录存在推断实现完成。
+
+压缩追加先按原规则校验新增消息和引用，再从已保留的消息与块索引重选段。旧正文不重新解码或深查，旧 Projection 保留原选择。重选仍按保留消息及块数量线性工作，返回 reusedSegments 为 null。模态读取使用 OwnedPrefix 固定内容后缀，不增加完整 Model 解释成功的前提。

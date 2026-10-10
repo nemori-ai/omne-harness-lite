@@ -8,6 +8,10 @@
     "node": ">=24 <25"
   },
   "exports": {
+    "./local-credentials": {
+      "types": "./dist/local-credentials.d.ts",
+      "import": "./dist/local-credentials.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"

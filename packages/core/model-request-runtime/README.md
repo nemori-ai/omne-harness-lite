@@ -18,6 +18,8 @@ The root also defines `ModelRuntimeExecutionSource` for trusted physical assembl
 
 Definitions do not install services or certify authorization or physical writer termination. The [local provider](../../model/model-request-runtime-local/README.md) exports invocation, storage, queue, scheduling, coordination and physical-close factories. Related public contracts retain their own owners.
 
+The Session-owned immutable content algorithm uses private persistent List and Map indexes. See [the data structure, interpretation stages and complexity limits](adr/immutable-model-history.md). This pure component grants no access or execution authority. The physical Model pool does not own Session history.
+
 ## Development
 
 From the repository root:

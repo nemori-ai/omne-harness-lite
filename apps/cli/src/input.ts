@@ -1,8 +1,6 @@
 import { constants } from 'node:fs'
 import { open } from 'node:fs/promises'
-import type { ActionIntent, PromptResult } from '@omne-harness-lite/governance-client-operations'
 import { InputFailure } from './diagnostic.ts'
-import { secretOption, type Invocation } from './parser.ts'
 
 export async function readInputFile(
   path: string,
@@ -154,79 +152,4 @@ export function payloadJSON(text: string): Record<string, unknown> {
   if (at !== text.length || result === null || typeof result !== 'object' || Array.isArray(result))
     return fail()
   return result as Record<string, unknown>
-}
-
-async function configureIntent(
-  values: Extract<Invocation, { kind: 'command' }>['values'],
-  signal: AbortSignal,
-): Promise<unknown> {
-  const trust =
-    values['system-ca'] === true
-      ? { mode: 'ca' }
-      : values['spki'] !== undefined
-        ? { mode: 'spki', sha256: values['spki'] }
-        : {
-            mode: 'ca',
-            certificateAuthorities: await readInputFile(
-              values['ca-file'] as string,
-              1024 * 1024,
-              false,
-              signal,
-            ),
-          }
-  return { action: 'configure', endpoint: values['endpoint'], trust }
-}
-
-export async function buildIntent(
-  invocation: Extract<Invocation, { kind: 'command' }>,
-  signal: AbortSignal,
-): Promise<unknown> {
-  const { command, values } = invocation
-  const action = command.action
-  if (action === 'configure') return configureIntent(values, signal)
-  if (action === 'health' || action === 'logout') return { action }
-  const payload =
-    values['payload-file'] === undefined
-      ? {}
-      : payloadJSON(await readInputFile(values['payload-file'] as string, 64 * 1024, false, signal))
-  for (const field of command.secretFields)
-    if (Object.hasOwn(payload, field)) throw new InputFailure('secret-source')
-  if (values['login-identifier'] !== undefined) {
-    if (Object.hasOwn(payload, 'loginIdentifier')) throw new InputFailure('invalid-options')
-    payload['loginIdentifier'] = values['login-identifier']
-  }
-  return {
-    action,
-    payload,
-    ...(action === 'invoke'
-      ? { operation: command.operation, ...(values['refresh'] ? { readMode: 'refresh' } : {}) }
-      : {}),
-  }
-}
-export async function readSecrets(
-  invocation: Extract<Invocation, { kind: 'command' }>,
-  signal: AbortSignal,
-): Promise<PromptResult> {
-  for (const field of invocation.command.secretFields) {
-    if (typeof invocation.values[secretOption(field)] !== 'string')
-      throw new InputFailure('tty-unsupported')
-  }
-  const secrets: Record<string, string> = {}
-  for (const field of invocation.command.secretFields) {
-    const path = invocation.values[secretOption(field)]
-    if (typeof path !== 'string') throw new InputFailure('tty-unsupported')
-    secrets[field] = await readInputFile(path, 64 * 1024, true, signal)
-  }
-  return {
-    kind: 'continue',
-    secrets:
-      secrets['credential'] !== undefined
-        ? { credential: secrets['credential'] }
-        : secrets['currentCredential'] !== undefined
-          ? {
-              currentCredential: secrets['currentCredential'],
-              newCredential: secrets['newCredential']!,
-            }
-          : {},
-  }
 }

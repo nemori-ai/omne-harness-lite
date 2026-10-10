@@ -1,3 +1,5 @@
+import { createModelExecutionObligations, originalIssueMigrations } from '../src/index.ts'
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { mkdir, mkdtemp, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,9 +19,9 @@ import {
 import { composeMigrations, narrow, type Storage } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
-import { publishModelCallContent } from '../src/reference-publish.ts'
-import { createModelCallFacts } from '../src/reference-facts.ts'
-import { OwnedReadTracker } from '../src/service-control.ts'
+import { publishSessionModelCallContent } from '@omne-harness-lite/session-runtime-local'
+
+import { OwnedReadTracker, withOwnedReads } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementOwner, SettlementTask } from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult } from '@omne-harness-lite/session-log'
 import {
@@ -85,7 +87,10 @@ async function host(
       dialect: 'sqlite',
       file: join(dir, 'content.sqlite'),
       upgrade: false,
-      migrations: composeMigrations(modelCallContentMigrations('sqlite')),
+      migrations: composeMigrations([
+        ...modelCallContentMigrations('sqlite'),
+        ...originalIssueMigrations,
+      ]),
     })
   let storage = await open()
   const log = await openSqlLogFixture({ dir: join(dir, 'log') })
@@ -162,11 +167,11 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       const { owner, active } = publicationOwner()
       const reads = new OwnedReadTracker()
       const invoke = () =>
-        publishModelCallContent({
+        publishSessionModelCallContent({
           binding: h.binding,
           owner,
           concurrent: 2,
-          reads,
+          read: work => withOwnedReads(owner, 2, reads, work),
           contentStore: store,
           content: h.content,
           locator: 'created',
@@ -196,11 +201,11 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
         },
       }
       expect(
-        await publishModelCallContent({
+        await publishSessionModelCallContent({
           binding: h.binding,
           owner,
           concurrent: 2,
-          reads,
+          read: work => withOwnedReads(owner, 2, reads, work),
           contentStore: store,
           content: changed,
           locator: 'created',
@@ -223,11 +228,11 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       const { owner, active } = publicationOwner()
       const reads = new OwnedReadTracker()
       const publish = (content: ModelCallContentValue, locator: string) =>
-        publishModelCallContent({
+        publishSessionModelCallContent({
           binding: h.binding,
           owner,
           concurrent: 2,
-          reads,
+          read: work => withOwnedReads(owner, 2, reads, work),
           contentStore: store,
           content,
           locator,
@@ -266,11 +271,11 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       const owner = publicationOwner().owner
       const first = createModelCallContentStore({ storage: h.storage, policy })
       const reads = new OwnedReadTracker()
-      const written = await publishModelCallContent({
+      const written = await publishSessionModelCallContent({
         binding: h.binding,
         owner,
         concurrent: 2,
-        reads,
+        read: work => withOwnedReads(owner, 2, reads, work),
         contentStore: first,
         content: h.content,
         locator: 'created-cold',
@@ -283,7 +288,7 @@ describe('R20-ST2 private immutable content against real SQLite and SL3', () => 
       expect(written).toEqual({ published: true })
       await first.close()
       const reopened = createModelCallContentStore({ storage: await h.reopen(), policy })
-      const facts = createModelCallFacts({
+      const facts = createSessionModelCallFacts({
         content: reopened,
         maxScopes: 2,
         presence: {
@@ -536,6 +541,32 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
         content: other,
       })
       if (!('ref' in written) || !('ref' in neighbour)) throw new Error('confirmed content')
+      const source = createModelExecutionObligations({
+        storage: h.storage,
+        tenant: h.binding.tenant,
+        maxPageSize: 4,
+      })
+      const expectBothCalls = async () => {
+        const result = await source.withObligations(
+          { tenant: h.binding.tenant, limit: 4 },
+          reader => reader.next(),
+        )
+        expect(result).toEqual({
+          kind: 'used',
+          value: {
+            kind: 'page',
+            refs: [
+              { tenant: h.binding.tenant, session: h.binding.session, callId: call },
+              {
+                tenant: h.binding.tenant,
+                session: h.binding.session,
+                callId: other.value.ref.callId,
+              },
+            ].sort((a, b) => a.callId.localeCompare(b.callId)),
+          },
+        })
+      }
+      await expectBothCalls()
       expect(await store.retention({ binding: h.binding, call })).toEqual({
         phase: 'retained',
         publishers: 1,
@@ -552,6 +583,7 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
       })
       if (!('record' in prepared)) throw new Error('prepared ACK batch')
       expect(prepared.phase).toBe('retiring')
+      await expectBothCalls()
       // Retiring closes new reads and publications of this call only.
       expect(await store.read({ binding: h.binding, call, ref: written.ref })).toEqual({
         unavailable: true,
@@ -580,6 +612,7 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
       expect(
         await store.confirmAcknowledgement({ binding: h.binding, call, record: prepared.record }),
       ).toEqual({ phase: 'acknowledged' })
+      await expectBothCalls()
       // The original writer still holds its permit: no deletion yet.
       expect(await store.releaseAcknowledged({ binding: h.binding, call })).toEqual({
         cleanup: 'pending',
@@ -595,6 +628,7 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
         phase: 'released',
         publishers: 0,
       })
+      await expectBothCalls()
       // Released never retreats; a repeat recognizes it.
       expect(await store.releaseAcknowledged({ binding: h.binding, call })).toEqual({
         cleanup: 'released',
@@ -610,6 +644,16 @@ describe('RT12 S-98 retention gate on real SQLite', () => {
       })
       expect(await neighbour.permit.release()).toEqual({ released: true })
       await store.close()
+      const reopened = await h.reopen()
+      const recovered = createModelExecutionObligations({
+        storage: reopened,
+        tenant: h.binding.tenant,
+        maxPageSize: 4,
+      })
+      const scan = await recovered.withObligations({ tenant: h.binding.tenant, limit: 4 }, reader =>
+        reader.next(),
+      )
+      expect(scan).toHaveProperty('value.refs.length', 2)
     })
   })
   it('keeps the fixed batch across reopen and refuses a differing confirmation', async () => {

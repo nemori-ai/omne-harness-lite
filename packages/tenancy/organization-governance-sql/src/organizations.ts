@@ -25,6 +25,7 @@ import {
   mintIdentifier,
   readOrganization,
   readOrganizationOwnedBy,
+  StoredRecordMalformed,
 } from './records.ts'
 import {
   type OperationContext,
@@ -44,6 +45,7 @@ import type {
   ScopeLayers,
   ScopeLayersFailure,
 } from '@omne-harness-lite/organization-governance'
+import { parseOrganizationName } from '@omne-harness-lite/organization-governance'
 
 /** 上级链里出现了环：S-7／S-32 保护的不变量已被破坏。缺陷，上抛，不折成任何契约失败值。 */
 export class ParentChainCycle extends Error {
@@ -66,6 +68,7 @@ async function insertOrganizationWithSuperAdministrator(
   row: {
     readonly id: OrganizationId
     readonly kind: 'personal' | 'team'
+    readonly name: string
     readonly ownerAccount: AccountId | null
     readonly creator: AccountId
     readonly createdAt: number
@@ -74,6 +77,7 @@ async function insertOrganizationWithSuperAdministrator(
   await d.insertOrganization({
     organization_id: row.id,
     kind: row.kind,
+    name: row.name,
     parent: null,
     owner_account: row.ownerAccount,
     created_at: row.createdAt,
@@ -110,6 +114,7 @@ async function createPersonal(
       await insertOrganizationWithSuperAdministrator(d, {
         id,
         kind: 'personal',
+        name: '个人组织',
         ownerAccount: account,
         creator: account,
         createdAt: now,
@@ -136,18 +141,12 @@ async function createPersonal(
 async function createTeam(
   deps: OperationContext,
   creatorInput: unknown,
+  nameInput: unknown,
   creationKeyInput?: unknown,
 ): Promise<Outcome<CreatedOrganization, CreateTeamFailure>> {
-  const parsedCreator = parseAccountId(creatorInput)
-  if (!isOk(parsedCreator)) return fail('invalidInput')
-  const creator = parsedCreator.ok
-  // 创建键：缺席 = 本次不去重（S-16 表第三行）；给了就按 IV S-31 的词法判形状
-  let creationKey: string | undefined
-  if (creationKeyInput !== undefined) {
-    const parsedKey = parseOpaqueIdentifier(creationKeyInput, 'CreationKey')
-    if (!isOk(parsedKey)) return fail('invalidInput')
-    creationKey = parsedKey.ok
-  }
+  const input = parseTeamInput(creatorInput, nameInput, creationKeyInput)
+  if ('failure' in input) return input
+  const { creator, name, creationKey } = input.ok
 
   const facts = await readAccountFacts(deps, creator)
   if ('failure' in facts) return facts
@@ -166,18 +165,54 @@ async function createTeam(
         now,
         retention: deps.config.teamCreationKeyRetention,
       })
-      // 同创建者、同键、仍在保留期内 ⇒ 首次创建的那一个，无二次效果（⑦）
-      if (replay !== undefined) return succeed(created(replay, creator))
+      // 同创建者、同键、仍在保留期内：核原名称后认回，不产生二次效果。
+      if (replay !== undefined) return replayTeam(d, replay, creator, name)
     }
     await insertOrganizationWithSuperAdministrator(d, {
       id,
       kind: 'team',
+      name,
       ownerAccount: null,
       creator,
       createdAt: now,
     })
     return succeed(created(id, creator))
   })
+}
+
+function parseTeamInput(
+  creatorInput: unknown,
+  nameInput: unknown,
+  creationKeyInput: unknown,
+): Outcome<
+  { readonly creator: AccountId; readonly name: string; readonly creationKey: string | undefined },
+  'invalidInput'
+> {
+  const parsedCreator = parseAccountId(creatorInput)
+  const parsedName = parseOrganizationName(nameInput)
+  if (!isOk(parsedCreator) || !isOk(parsedName)) return fail('invalidInput')
+  const creator = parsedCreator.ok
+  // 创建键：缺席 = 本次不去重（S-16 表第三行）；给了就按 IV S-31 的词法判形状
+  let creationKey: string | undefined
+  if (creationKeyInput !== undefined) {
+    const parsedKey = parseOpaqueIdentifier(creationKeyInput, 'CreationKey')
+    if (!isOk(parsedKey)) return fail('invalidInput')
+    creationKey = parsedKey.ok
+  }
+
+  return succeed({ creator, name: parsedName.ok, creationKey })
+}
+
+async function replayTeam(
+  d: OrgWrite,
+  organization: OrganizationId,
+  creator: AccountId,
+  name: string,
+): Promise<Outcome<CreatedOrganization, 'invalidInput'>> {
+  const original = await readOrganization(d, organization)
+  if (original === undefined || original.kind !== 'team')
+    throw new StoredRecordMalformed('team_creation_key', 'missing team organization')
+  return original.name === name ? succeed(created(organization, creator)) : fail('invalidInput')
 }
 
 /**
@@ -239,7 +274,7 @@ async function read(
   return deps.query(async tx => {
     const record = await readOrganization(tx, parsed.ok)
     if (record === undefined) return fail('organizationDoesNotExist')
-    return succeed({ id: record.id, kind: record.kind, parent: record.parent })
+    return succeed({ id: record.id, kind: record.kind, parent: record.parent, name: record.name })
   })
 }
 
@@ -330,8 +365,8 @@ export function createOrganizationsPolicy(deps: PolicyDeps): Omit<
 } {
   return {
     createPersonal: accountId => withOperation(deps, context => createPersonal(context, accountId)),
-    createTeam: (creator, creationKey) =>
-      withOperation(deps, context => createTeam(context, creator, creationKey)),
+    createTeam: (creator, name, creationKey) =>
+      withOperation(deps, context => createTeam(context, creator, name, creationKey)),
     read: organizationId => withOperation(deps, context => read(context, organizationId)),
     dissolveAffiliation: (initiator, child) =>
       withOperation(deps, context => dissolveAffiliation(context, initiator, child)),
@@ -340,8 +375,8 @@ export function createOrganizationsPolicy(deps: PolicyDeps): Omit<
     shareAncestor: (a, b) => withOperation(deps, context => shareAncestor(context, a, b)),
     scopeLayers,
     participate: unit => ({
-      createTeam: (creator, creationKey) =>
-        withParticipation(deps, unit, context => createTeam(context, creator, creationKey)),
+      createTeam: (creator, name, creationKey) =>
+        withParticipation(deps, unit, context => createTeam(context, creator, name, creationKey)),
       read: organizationId =>
         withParticipation(deps, unit, context => read(context, organizationId)),
       dissolveAffiliation: (initiator, child) =>

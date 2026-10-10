@@ -26,6 +26,10 @@ export abstract class SessionLogParticipantService
   constructor(ctx: Context) {
     super(ctx, SessionLogParticipantService.provide)
   }
+  abstract readonly readPrefixIn: SessionLogParticipant['readPrefixIn']
+  abstract readonly readSinceIn: SessionLogParticipant['readSinceIn']
+  abstract readonly readByKeyIn: SessionLogParticipant['readByKeyIn']
+  abstract readonly sourceIn: SessionLogParticipant['sourceIn']
   abstract readonly appendIn: SessionLogParticipant['appendIn']
   abstract readonly source: SessionLogParticipant['source']
   abstract readonly readPrefix: SessionLogParticipant['readPrefix']

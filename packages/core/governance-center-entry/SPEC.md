@@ -21,6 +21,21 @@ ops 必需注入 entryMaintenance，已经开始的维护等待真实收场，�
 
 采用依据为[树资源协议](../../../.meta_harness/design/architecture/identity-integration/plugin-tree.md#运行资源的唯一拥有者)
 与[宿主接口补充](../../../.meta_harness/design/architecture/identity-integration/host-integration.md)。
+## 当前治理协议与组织名称
+
+`./schema` 是当前治理交换形状的唯一源，Schema 身份采用文件中的包级 `$id`。
+提供者、HTTPS 客户端、本地缓存校验和 CLI 消费同一份源，不再保留包内冻结副本。
+线上协议版本为字符串 `3`。旧协议 `2` 返回 `version-mismatch`，不保留无名称创建兼容路径。
+公开体检仍跨版本，保留原请求/返回和中心绑定规则。
+
+现存 operation 字符串作为稳定路由标识保持；其当前形状由本协议版本和本包 Schema 共同限定。
+团队创建路由的载荷必须含 `name`，可选 `creationKey` 保持。名称语义归组织治理公共 SPEC。
+组织读取结果必须含原身份、种类和中心持久名称，有上级时仍含 `parentOrganization`。
+有效客户端不能以旧无名称读面或本机别名填充这项属性。保留原调用方推导、授权现读、
+事务参与、拒绝/不可用/未知区分、一次调用和秘密保护，名称不改变任何授权。
+服务端维护定义接续已迁 EC3 的形状，客户端采用本次明确的治理线上协议，不自动开放运维面。
+当前运行消费者不再引用旧协议Schema；旧输入只作为各拥有者的限定验证夹具，不提供运行兼容。
+
 下述业务承诺由所有入口提供者共同消费。线上字节与本地维护算法归[实际提供者](../../tenancy/governance-center-entry-node/SPEC.md)，不从类型齐全推断业务兑现。
 
 ## 判定、授权与结果

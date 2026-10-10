@@ -30,6 +30,48 @@ export type LogParticipationFailure =
   | { readonly failure: 'dedupeConflict'; readonly keys: readonly string[] }
 
 export interface SessionLogParticipant {
+  /** Reads (after, source.tail] in the caller's unit, with current authorization. */
+  readonly readSinceIn: (
+    unit: StorageUnit,
+    authority: LogAuthority,
+    source: SourceToken,
+    after: JsonNumber,
+  ) => Promise<
+    | {
+        readonly kind: 'suffix'
+        readonly entries: readonly LogEntry[]
+        readonly source: SourceToken
+      }
+    | InvalidInput
+    | Unavailable
+    | { readonly failure: 'denied' }
+  >
+  readonly readByKeyIn: (
+    unit: StorageUnit,
+    authority: LogAuthority,
+    source: SourceToken,
+    key: string,
+  ) => Promise<
+    | {
+        readonly kind: 'keyed'
+        readonly entries: readonly LogEntry[]
+        readonly source: SourceToken
+      }
+    | InvalidInput
+    | Unavailable
+    | { readonly failure: 'denied' }
+  >
+  /** Reads the staged current journal coordinate in the supplied shared unit; no independent transaction. */
+  readonly sourceIn: (
+    unit: StorageUnit,
+    authority: LogAuthority,
+    scope: SessionScope,
+  ) => Promise<
+    | { readonly kind: 'source'; readonly source: SourceToken }
+    | InvalidInput
+    | Unavailable
+    | { readonly failure: 'denied' }
+  >
   /** Stages only. The caller owns commit, rollback and unknown-commit reconciliation. */
   readonly appendIn: (
     unit: StorageUnit,
@@ -44,6 +86,12 @@ export interface SessionLogParticipant {
       }
     | LogParticipationFailure
   >
+  /** Reads a fixed complete prefix in the caller's unit. It never starts or commits a transaction. */
+  readonly readPrefixIn: (
+    unit: StorageUnit,
+    authority: LogAuthority,
+    source: SourceToken,
+  ) => ReturnType<SessionLogParticipant['readPrefix']>
   readonly readPrefix: (
     authority: LogAuthority,
     source: SourceToken,

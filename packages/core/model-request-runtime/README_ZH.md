@@ -18,6 +18,8 @@
 
 定义不安装服务，也不证明来源已经授权或真实写者停止。具体调用、存储、队列、调度、协调与物理关闭工厂由 [local 提供者](../../model/model-request-runtime-local/README_ZH.md)公开。五类相关公共定义各有唯一拥有者，不整体搬入本包。
 
+Session拥有的不可变内容算法采用私有持久List和Map索引。[数据结构与算法](adr/immutable-model-history.md)说明解释阶段、后缀处理、关联索引和复杂度成立条件。纯内容组件不授予访问或执行资格；物理Model池不拥有Session历史。
+
 ## 开发
 
 从仓库根运行：

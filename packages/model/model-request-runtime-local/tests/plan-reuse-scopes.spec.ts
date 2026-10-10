@@ -4,7 +4,7 @@ import {
   createPlanReuseScopes,
   type PlanScopeBinding,
   type PlanReuseScopes,
-} from '../src/plan-reuse-scopes.ts'
+} from '@omne-harness-lite/session-runtime-local'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { policy } from './invoke-policy-fixture.ts'
 

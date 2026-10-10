@@ -52,31 +52,43 @@ const deps = { ...host.deps, deployedOfficial: deployments }
 let reader
 let secondReader
 try {
-  assert.equal(compilations, 0, 'empty setup manifest must not construct a default owner')
+  const setupOwners = owners.size
+  assert.equal(
+    setupOwners,
+    1,
+    'each standalone reader owns one evaluator, even with no deployments',
+  )
   failure = new Error('first input-store default construction fails')
   assert.throws(
     () => api.createEvaluationInputReader(deps),
     error => error === failure,
   )
-  assert.equal(owners.size, 1)
+  assert.equal(owners.size, setupOwners + 1)
   failure = undefined
   reader = api.createEvaluationInputReader(deps)
-  assert.equal(owners.size, 2, 'failed input-store owner must not be cached')
+  assert.equal(
+    owners.size,
+    setupOwners + 3,
+    'retry owns its evaluator after successful fixed-shape validation',
+  )
   const accepted = await reader.read('session_a', tenant)
   assert('input' in accepted, JSON.stringify(accepted))
-  assert.equal(owners.size, 3, 'the input read also uses one AE owner')
+  assert.equal(owners.size, setupOwners + 3, 'the read must reuse its reader evaluator')
   const afterFirst = compilations
   secondReader = api.createEvaluationInputReader(deps)
+  assert.equal(owners.size, setupOwners + 4, 'a second reader owns an independent evaluator')
+  const afterSecondConstruction = compilations
   assert.deepEqual(await secondReader.read('session_a', tenant), accepted)
   assert.deepEqual(await reader.read('session_a', tenant), accepted)
   assert.deepEqual(await reader.read('session_a', {}), { failure: 'invalidInput' })
-  assert.equal(compilations, afterFirst, 'successful owners must be reused')
+  assert(compilations > afterFirst, 'the second reader must construct an independent owner')
+  assert.equal(compilations, afterSecondConstruction, 'reads must reuse their own evaluator')
   assert.equal(JSON.stringify(defaultBodyContracts), snapshot)
   process.stdout.write(
     JSON.stringify({
       mode,
       importedCompilations: 0,
-      owners: owners.size,
+      standaloneOwners: 2,
       retry: true,
       snapshot: true,
       cached: true,

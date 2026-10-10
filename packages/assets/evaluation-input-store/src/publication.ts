@@ -1,12 +1,16 @@
+import { sessionRecipe, captureRecipeIn } from './recipe-store.ts'
+export {
+  installOfficialFactoryDefinition,
+  installOfficialFactoryDefinitions,
+} from './factory-installation.ts'
 import {
   capabilityCanonicalString,
   BodyProviderUnavailableError,
   type AssetHolding,
   type HoldingScope,
 } from '@omne-harness-lite/asset-model'
-import { validate as messageValidate } from '@omne-harness-lite/messages'
-import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { narrow, StorageUnavailable, type ReadTx } from '@omne-harness-lite/storage'
+import { tenantIdEquals } from '@omne-harness-lite/identity-values'
+import { narrow, StorageUnavailable } from '@omne-harness-lite/storage'
 import {
   getAssetJudge,
   ownDependencies,
@@ -15,8 +19,6 @@ import {
   definition,
   emit,
   equal,
-  inputFromSnapshot,
-  readSourceSnapshot,
   orderVersions,
   json,
   object,
@@ -24,10 +26,10 @@ import {
   scopeKey,
   SourceUnavailable,
   text,
-  type Recipe,
 } from './data.ts'
 import type {
   InputSourceDependencies,
+  EvaluationStorageDependencies,
   LocalPublication,
   PublicationResult,
   SessionRecipeInput,
@@ -37,7 +39,10 @@ import type {
 function revision(value: unknown): value is string | null {
   return value === null || (typeof value === 'string' && /^(?:0|[1-9][0-9]*)$/u.test(value))
 }
-function publication(value: unknown): LocalPublication | undefined {
+function publication(
+  value: unknown,
+  deps: EvaluationStorageDependencies,
+): LocalPublication | undefined {
   const copy = json(value)
   if (
     !object(copy) ||
@@ -50,7 +55,7 @@ function publication(value: unknown): LocalPublication | undefined {
   const scopes = new Set<string>()
   const assets = new Set<string>()
   for (const entry of copy.definitions) {
-    const admitted = definition(entry)
+    const admitted = definition(entry, deps.evaluator)
     if (assets.has(admitted.id)) return undefined
     assets.add(admitted.id)
   }
@@ -85,13 +90,13 @@ function publication(value: unknown): LocalPublication | undefined {
   return copy as unknown as LocalPublication
 }
 export async function publishLocalInputs(
-  dependencies: InputSourceDependencies,
+  dependencies: EvaluationStorageDependencies,
   value: unknown,
 ): Promise<PublicationResult> {
   const deps = ownDependencies(dependencies)
   let input: LocalPublication | undefined
   try {
-    input = publication(value)
+    input = publication(value, deps)
   } catch (error) {
     if (error instanceof SourceUnavailable) return { failure: 'invalidInput' }
     if (error instanceof BodyProviderUnavailableError) return { failure: 'unavailable' }
@@ -192,10 +197,13 @@ export async function publishLocalInputs(
                 if (!object(metadata)) throw new SourceUnavailable('existing_metadata')
                 persisted.set(
                   holding.asset,
-                  definition({
-                    ...metadata,
-                    versions: versions.map(row => parsed(row.version, 'existing_version')),
-                  }),
+                  definition(
+                    {
+                      ...metadata,
+                      versions: versions.map(row => parsed(row.version, 'existing_version')),
+                    },
+                    deps.evaluator,
+                  ),
                 )
               }
               const asset = requested.get(holding.asset) ?? persisted.get(holding.asset)
@@ -319,7 +327,7 @@ export async function publishLocalInputs(
   }
 }
 export async function readPublicationRevision(
-  dependencies: InputSourceDependencies,
+  dependencies: EvaluationStorageDependencies,
 ): Promise<{ revision: string | null } | { failure: 'unavailable' }> {
   const deps = ownDependencies(dependencies)
   try {
@@ -343,104 +351,24 @@ export async function captureSessionRecipe(
   value: unknown,
 ): Promise<{ captured: true } | { failure: 'invalidInput' | 'conflict' | 'unavailable' }> {
   const deps = ownDependencies(dependencies)
-  const copied = json(value)
-  if (
-    !object(copied) ||
-    Object.keys(copied).some(
-      key =>
-        !['session', 'tenant', 'rootDefinition', 'sessionAssignments', 'workspace'].includes(key),
-    ) ||
-    typeof copied.session !== 'string' ||
-    !messageValidate('SessionRef', copied.session).valid ||
-    !('ok' in getAssetJudge().judgeAssetValue('CapabilityId', copied.rootDefinition)) ||
-    !object(copied.rootDefinition) ||
-    copied.rootDefinition.category !== 'agent_definition'
-  )
-    return { failure: 'invalidInput' }
-  const tenant = parseTenantId(copied.tenant)
-  if (
-    !('ok' in tenant) ||
-    (Object.hasOwn(copied, 'sessionAssignments') && !Array.isArray(copied.sessionAssignments))
-  )
-    return { failure: 'invalidInput' }
-  if (
-    Object.hasOwn(copied, 'workspace') &&
-    (!('ok' in getAssetJudge().judgeAssetValue('WorkspaceKey', copied.workspace)) ||
-      !object(copied.workspace) ||
-      !equal(copied.workspace.tenant, tenant.ok))
-  )
-    return { failure: 'invalidInput' }
-  const input = copied as unknown as SessionRecipeInput
+  const request = sessionRecipe(value)
+  if (!request) return { failure: 'invalidInput' }
+  const { input, tenant } = request
   try {
     const holding = await deps.sessionTenancy.holdingTenant(input.session)
-    if (!('tenant' in holding) || !tenantIdEquals(holding.tenant, tenant.ok))
+    if (!('tenant' in holding) || !tenantIdEquals(holding.tenant, tenant))
       throw new SourceUnavailable('session_tenancy')
     if (input.workspace !== undefined) throw new SourceUnavailable('workspace_source')
     const result = await deps.storage.atomic(async unit => {
-      const standing = await deps.memberships.participate(unit).standing(tenant.ok)
+      const standing = await deps.memberships.participate(unit).standing(tenant)
       if (!('standing' in standing) || standing.standing !== 'effective')
         throw new SourceUnavailable('current_membership')
-      return unit.run(() =>
-        unit.mutate(async tx => {
-          await tx.lockSentinel(`evaluation-recipe:${deps.storeKey}:${input.session}`)
-          const db = narrow<SourceDb>(tx)
-          const old = await db
-            .selectFrom('evaluation_input_recipe')
-            .selectAll()
-            .where('store_key', '=', deps.storeKey)
-            .where('session', '=', input.session)
-            .executeTakeFirst()
-          if (old !== undefined) {
-            const assignments =
-              old.session_assignments === null
-                ? undefined
-                : parsed(old.session_assignments, 'recipe_assignments')
-            return equal(parsed(old.tenant, 'recipe_tenant'), tenant.ok) &&
-              equal(parsed(old.root_definition, 'recipe_root'), input.rootDefinition) &&
-              old.workspace === null &&
-              (assignments === undefined
-                ? input.sessionAssignments === undefined
-                : equal(assignments, input.sessionAssignments))
-              ? ({ captured: true } as const)
-              : ({ failure: 'conflict' } as const)
-          }
-          const recipe: Recipe = {
-            tenant: tenant.ok,
-            standing,
-            rootDefinition: input.rootDefinition,
-            ...(input.sessionAssignments === undefined
-              ? {}
-              : { session: input.sessionAssignments }),
-          }
-          const source = inputFromSnapshot(
-            await readSourceSnapshot(tx as ReadTx, deps, recipe),
-            deps,
-          )
-          await db
-            .insertInto('evaluation_input_recipe')
-            .values({
-              store_key: deps.storeKey,
-              session: input.session,
-              tenant: text(tenant.ok),
-              standing_at_creation: text(standing),
-              root_definition: text(input.rootDefinition),
-              session_assignments:
-                input.sessionAssignments === undefined ? null : text(input.sessionAssignments),
-              workspace: null,
-              source_at_creation: text({
-                revision: source.revision,
-                source: source.input.root.source,
-              }),
-            })
-            .execute()
-          return { captured: true } as const
-        }),
-      )
+      return captureRecipeIn(unit, deps, input, tenant, standing)
     })
     emit(deps, {
       kind: 'evaluation_input_capture',
       session: input.session,
-      tenant: tenant.ok,
+      tenant: tenant,
       result: 'captured' in result ? 'committed' : result.failure,
     })
     return result
@@ -453,7 +381,7 @@ export async function captureSessionRecipe(
       emit(deps, {
         kind: 'evaluation_input_capture',
         session: input.session,
-        tenant: tenant.ok,
+        tenant: tenant,
         result: 'unavailable',
       })
       return { failure: 'unavailable' }

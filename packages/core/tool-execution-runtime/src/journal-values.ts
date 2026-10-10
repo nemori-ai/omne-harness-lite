@@ -22,7 +22,11 @@ import {
 } from '@omne-harness-lite/execution-environments'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { positiveInteger } from '@omne-harness-lite/session-log'
-import { judgeToolDefinition, judgeToolReturn } from '@omne-harness-lite/tool-definition'
+import {
+  judgeToolDefinition,
+  judgeToolReturn,
+  type ParameterJudge,
+} from '@omne-harness-lite/tool-definition'
 import type { ToolJournalPayload } from './tool-journal.ts'
 
 export const invalidJournal = Object.freeze({ invalid: true } as const)
@@ -56,17 +60,21 @@ function resultValid(value: unknown, callId: string): boolean {
   )
 }
 type RecordOf<K extends ToolJournalPayload['kind']> = Extract<ToolJournalPayload, { kind: K }>
-function intentRelations(value: RecordOf<'execution_intended'>): boolean {
+function intentRelations(
+  value: RecordOf<'execution_intended'>,
+  parameters?: ParameterJudge,
+): boolean {
   if (
     !journalIdentity(value.origin.run) ||
     !positiveInteger(value.origin.attempt) ||
     !journalIdentity(value.origin.assistantMessage)
   )
     return false
-  return value.selected === undefined || selectedRelations(value.selected)
+  return value.selected === undefined || selectedRelations(value.selected, parameters)
 }
 function selectedRelations(
   selected: NonNullable<RecordOf<'execution_intended'>['selected']>,
+  parameters?: ParameterJudge,
 ): boolean {
   const version = readJsonStrict(selected.version)
   return (
@@ -75,7 +83,7 @@ function selectedRelations(
     journalIdentity(selected.adoption) &&
     !('failed' in version) &&
     positiveInteger(version.ok) &&
-    'ok' in judgeToolDefinition(selected.definition)
+    'ok' in judgeToolDefinition(selected.definition, parameters)
   )
 }
 
@@ -203,12 +211,12 @@ function readyRelations(value: RecordOf<'delivery_ready'>): boolean {
       : journalIdentity(value.basis.pass))
   )
 }
-function localRelations(value: ToolJournalPayload): boolean {
+function localRelations(value: ToolJournalPayload, parameters?: ParameterJudge): boolean {
   const { ref } = value
   if (!referenceRelations(ref)) return false
   switch (value.kind) {
     case 'execution_intended':
-      return intentRelations(value)
+      return intentRelations(value, parameters)
     case 'execution_environment_adopted':
       return adoptionRelations(value)
     case 'delivery_ready':
@@ -225,9 +233,10 @@ function localRelations(value: ToolJournalPayload): boolean {
 /** Checks the closed record and delegates nested contracts to their public owners. */
 export function captureToolJournalValue(
   input: unknown,
+  parameters?: ParameterJudge,
 ): ToolJournalPayload | typeof invalidJournal {
   const copy = copyJsonValue(input)
   if ('failed' in copy || !journalShape('Value', copy.ok)) return invalidJournal
   const value = copy.ok as unknown as ToolJournalPayload
-  return localRelations(value) ? value : invalidJournal
+  return localRelations(value, parameters) ? value : invalidJournal
 }

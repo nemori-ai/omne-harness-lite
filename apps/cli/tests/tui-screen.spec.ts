@@ -1,6 +1,35 @@
 import { expect, it } from 'vitest'
 import { Input } from '@earendil-works/pi-tui'
-import { FrameWriter, layout, safeText } from '../src/tui/screen.ts'
+import { FrameWriter, layout, safeText, type Layout } from '../src/tui/screen.ts'
+
+const tick = () => new Promise<void>(resolve => setImmediate(resolve))
+const screen = {
+  identity: ['Center: local', 'Account: alice', 'Organization: org'],
+  title: 'Name',
+  body: ['Choose a name'],
+  footer: 'Enter: continue',
+  page: 0,
+}
+function frameSink() {
+  const writes: string[] = []
+  const writer = new FrameWriter(
+    async bytes => {
+      writes.push(bytes)
+    },
+    () => {
+      throw new Error('unexpected output failure')
+    },
+  )
+  let revision = 0
+  return {
+    writer,
+    writes,
+    async render(frame: Layout) {
+      writer.submit({ ...frame, revision: ++revision, delivered: () => {} })
+      await tick()
+    },
+  }
+}
 
 it('never grants delivery to an old revision; backpressure retains only latest', async () => {
   const writes: string[] = [],
@@ -107,3 +136,184 @@ it('layout preserves full identities, paginates body and never changes private m
   expect(layout({ ...screen, identity: ['c'.repeat(3000)] }, 60, 16).fits).toBe(false)
   expect(safeText('\x1b[31m\u202e')).toBe('\\u001b[31m\\u202e')
 })
+
+it('clears a shortened input row and only moves the cursor for arrow keys', async () => {
+  const sink = frameSink(),
+    input = new Input({ prompt: '> ' })
+  input.focused = true
+  input.setValue('中文🙂tail')
+  const first = layout({ ...screen, input }, 80, 24)
+  await sink.render(first)
+  input.setValue('中')
+  input.handleInput('\x05')
+  await sink.render(layout({ ...screen, input }, 80, 24))
+  input.handleInput('\x1b[D')
+  await sink.render(layout({ ...screen, input }, 80, 24))
+  expect(sink.writes).toEqual([first.bytes, '\x1b[22;1H\x1b[2K> 中\x1b[22;5H', '\x1b[22;3H'])
+  await sink.writer.close()
+})
+
+it('erases removed rows and restores the footer cursor when input disappears', async () => {
+  const sink = frameSink(),
+    input = new Input({ prompt: '> ' })
+  input.focused = true
+  input.setValue('private input')
+  await sink.render(layout({ ...screen, input }, 80, 24))
+  await sink.render(layout(screen, 80, 24))
+  expect(sink.writes[1]).toBe('\x1b[22;1H\x1b[2K\x1b[23;16H')
+  const hidden = layout({ ...screen, identity: ['a'.repeat(80 * 24)] }, 80, 24)
+  await sink.render(hidden)
+  expect(hidden.fits).toBe(false)
+  expect(sink.writes[2]).toContain('\x1b[23;1H\x1b[2K')
+  expect(sink.writes[2]).not.toContain('\x1b[2J')
+  expect(sink.writes[2]).toMatch(/\x1b\[1;70H$/u)
+  await sink.writer.close()
+})
+
+it('paints in full after dimension changes or an unstructured frame', async () => {
+  const sink = frameSink()
+  await sink.render(layout(screen, 80, 24))
+  const narrow = layout(screen, 60, 24),
+    short = layout(screen, 60, 16)
+  await sink.render(narrow)
+  await sink.render(short)
+  await sink.render({ bytes: '\x1b[Hother output', fits: false, page: 0, pages: 1 })
+  await sink.render(short)
+  await sink.render(layout(screen, Number.NaN, 24))
+  await sink.render(short)
+  expect(sink.writes.slice(1)).toEqual([
+    narrow.bytes,
+    short.bytes,
+    '\x1b[Hother output',
+    short.bytes,
+    '',
+    short.bytes,
+  ])
+  await sink.writer.close()
+})
+
+it('compares coalesced frames against the actual completed write', async () => {
+  const writes: string[] = [],
+    delivered: number[] = [],
+    gate = Promise.withResolvers<void>()
+  const writer = new FrameWriter(
+    async bytes => {
+      writes.push(bytes)
+      await gate.promise
+    },
+    () => {},
+  )
+  const submit = (revision: number, body: string[]) =>
+    writer.submit({
+      ...layout({ ...screen, body }, 80, 24),
+      revision,
+      delivered: () => {
+        delivered.push(revision)
+      },
+    })
+  submit(1, ['first', 'remove me'])
+  await Promise.resolve()
+  submit(2, ['skipped'])
+  submit(3, ['latest'])
+  gate.resolve()
+  await tick()
+  expect(writes[1]).toBe('\x1b[6;1H\x1b[2Klatest\x1b[7;1H\x1b[2K\x1b[23;16H')
+  expect(delivered).toEqual([3])
+  await writer.close()
+})
+
+it('keeps the delivery fence for an unchanged screen', async () => {
+  const gate = Promise.withResolvers<void>(),
+    writes: string[] = [],
+    delivered: number[] = []
+  const writer = new FrameWriter(
+    async bytes => {
+      writes.push(bytes)
+      if (writes.length === 2) await gate.promise
+    },
+    () => {},
+  )
+  const frame = layout(screen, 80, 24)
+  const submit = (revision: number) =>
+    writer.submit({
+      ...frame,
+      revision,
+      delivered: () => {
+        delivered.push(revision)
+      },
+    })
+  submit(1)
+  await tick()
+  submit(2)
+  await tick()
+  expect(writes).toEqual([frame.bytes, ''])
+  expect(delivered).toEqual([1])
+  gate.resolve()
+  await tick()
+  expect(delivered).toEqual([1, 2])
+  await writer.close()
+})
+
+it('does not grant delivery or send queued updates after a partial diff fails', async () => {
+  let calls = 0,
+    failures = 0
+  const delivered: number[] = []
+  const writer = new FrameWriter(
+    async () => {
+      if (++calls > 1) throw new Error('broken output')
+    },
+    () => {
+      failures++
+    },
+  )
+  const submit = (revision: number) =>
+    writer.submit({
+      ...layout({ ...screen, body: [String(revision)] }, 80, 24),
+      revision,
+      delivered: () => {
+        delivered.push(revision)
+      },
+    })
+  submit(1)
+  await tick()
+  submit(2)
+  await tick()
+  submit(3)
+  await writer.close()
+  expect(delivered).toEqual([1])
+  expect(calls).toBe(2)
+  expect(failures).toBe(1)
+  expect(writer.failed).toBe(true)
+})
+
+it.each([false, true])(
+  'repaints after a coalesced resize round trip, in flight=%s',
+  async inFlight => {
+    const gate = Promise.withResolvers<void>(),
+      writes: string[] = []
+    const writer = new FrameWriter(
+      async bytes => {
+        writes.push(bytes)
+        if (inFlight && writes.length === 2) await gate.promise
+      },
+      () => {},
+    )
+    const initial = layout(screen, 80, 24)
+    writer.submit({ ...initial, revision: 1, delivered: () => {} })
+    await tick()
+    if (inFlight) {
+      writer.submit({
+        ...layout({ ...screen, body: ['second'] }, 80, 24),
+        revision: 2,
+        delivered: () => {},
+      })
+      await tick()
+    }
+    writer.submit({ ...layout(screen, 60, 16), revision: 3, delivered: () => {} })
+    writer.submit({ ...initial, revision: 4, delivered: () => {} })
+    gate.resolve()
+    await tick()
+    expect(writes.at(-1)).toBe(initial.bytes)
+    await writer.close()
+  },
+)

@@ -1,3 +1,5 @@
+import { invokeModel } from '../src/invoke.ts'
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import {
@@ -12,7 +14,7 @@ import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identit
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { type SessionLog, type AppendResult, type LogEntry } from '@omne-harness-lite/session-log'
 import { isJsonNumber, type JsonObject, type JsonValue } from '@omne-harness-lite/content-blocks'
-import type { AnchoredInvocationInput } from '../src/anchored-invocation-types.ts'
+import type { AnchoredInvocationInput } from '@omne-harness-lite/model-request-runtime'
 import type {
   PlannedSemantics,
   TransportAdapter,
@@ -196,6 +198,8 @@ export async function harness(
   const controller = new AbortController()
   let released = 0
   const input: AnchoredInvocationInput<TestPlan, object> = {
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
+    settlementFactory: sessionModelSettlement,
     planInput: request(),
     transport: transport().adapter,
     credential: '503',

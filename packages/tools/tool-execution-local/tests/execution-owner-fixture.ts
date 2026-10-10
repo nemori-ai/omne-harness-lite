@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { vi } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
+import { StorageUnavailable } from '@omne-harness-lite/storage'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import type { SessionAccess, SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
@@ -13,25 +14,25 @@ import {
   toolResultOf,
   type ToolDefinition,
 } from '@omne-harness-lite/tool-definition'
-import type {
-  AdmissionToken,
-  ToolActionFacts,
-  ToolActionHistoryOperations,
-  ToolAdmissionOperations,
-} from '@omne-harness-lite/tool-admission'
+import type { AdmissionToken, ToolAdmissionOperations } from '@omne-harness-lite/tool-admission'
 import {
-  projectToolJournal,
-  environmentToolOf,
   type DeliveryBasis,
   type ExecutionRef,
   type ExecutionSubmission,
   type ExecutionTerminal,
   type ToolExecutor,
+  type ToolOriginalIssueSupport,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { createExecutionOwner } from '../src/execution-owner.ts'
 import { createToolImplementationRegistry } from '../src/implementations.ts'
 import { createToolInvoker } from '../src/invoker.ts'
-import { createRuntimeJournal } from '../src/runtime-journal.ts'
+import { createOriginalRecordJournal } from '../src/original-record-journal.ts'
+import { toolOriginalIssueMigrations } from '../src/original-issue-migrations.ts'
+import type {
+  PreparedToolExecution,
+  ToolOriginalIssueParticipant,
+  ToolOriginalIssueClaim,
+} from '@omne-harness-lite/tool-execution-runtime'
 
 export const at = '2026-10-05T04:00:00.000Z'
 export const scope = {
@@ -108,12 +109,15 @@ export function frozenDelivery(
     selectedChain: chain,
   }
 }
-/** Real SQL journal/codec/projection/invoker/implementation registry. Delivery bytes and chain selection remain controlled inputs. */
+/** Real SQLite original records, invoker and registry. Session qualification and prepared selection are controlled inputs. */
 export async function fixture(
   executor: ToolExecutor = async () => 'actual-result',
   invalidated?: AbortSignal,
   adoptedDefinition: ToolDefinition = definition,
   environments?: Parameters<typeof createExecutionOwner>[0]['environments'],
+  originalIssue?: (
+    log: Awaited<ReturnType<typeof openSqlLogFixture>>,
+  ) => ToolOriginalIssueSupport | Promise<ToolOriginalIssueSupport>,
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'omne-execution-owner-'))
   const log = await openSqlLogFixture({ dir: dir })
@@ -145,72 +149,13 @@ export async function fixture(
         }
       : { kind: 'rejected', reason: 'notAuthorized' },
   )
-  const history: ToolActionHistoryOperations = {
-    inspect(prefix, callId) {
-      const projected = projectToolJournal(prefix.scope, prefix.entries)
-      if ('invalid' in projected) return { kind: 'unavailable' }
-      const facts: ToolActionFacts = {
-        origin: request.origin,
-        latestAttempt: prefix.entries.some(entry => entry.dedupeKey === 'attempt-changed') ? 2 : 1,
-        runState: prefix.entries.some(entry => entry.dedupeKey === 'run-ended') ? 'ended' : 'open',
-        calls: [request.call],
-        route: projected.executions.has(callId)
-          ? {
-              kind: 'execution',
-              intentKey: projected.executions.get(callId)!.intent.entry.dedupeKey!,
-            }
-          : { kind: 'none' },
-        adoption: {
-          key: 'adopted',
-          tools: [
-            {
-              name: 'echo',
-              capability: 'tool:echo',
-              asset: 'echo-asset',
-              version: '1',
-              definition: adoptedDefinition,
-            },
-          ],
-          report: {
-            session: scope.session,
-            runId: 'owner-run',
-            attempt: 1,
-            computedAt: 0 as ToolActionFacts['adoption']['report']['computedAt'],
-            snapshots: [],
-            availability: [],
-            mcpActions: [],
-            endpointHoldings: [],
-            effectivePermissions: {},
-            skillGate: [],
-          },
-        },
-        batch: {
-          kind: 'complete',
-          completion: {
-            key: 'batch',
-            gate: { kind: 'available' },
-            items: [
-              {
-                callId: ref.callId,
-                effectiveCall: request.call,
-                conclusions: ['official'],
-                decision: { kind: 'allow', conclusion: 'official' },
-              },
-            ],
-          },
-        },
-      }
-      return { kind: 'known', facts }
-    },
-  }
-  const backing = {
-    ownerGeneration: 'owner-generation',
-    borrow: () => ({
-      log: { append, readSince, readByKey: log.readByKey },
-      release: async () => {},
-    }),
-  }
-  const journal = createRuntimeJournal({ backing, history })
+  await log.fixturePrefix(scope)
+  for (const part of toolOriginalIssueMigrations)
+    await log.fixtureStorage.write(tx => part.migration.up(tx.db))
+  const provided = originalIssue ? await originalIssue(log) : fixtureOriginalSupport(log)
+  const appendIn = vi.fn(provided.log.appendIn)
+  const support = { ...provided, log: { ...provided.log, appendIn } }
+  const journal = createOriginalRecordJournal({ tenant: scope.tenant, originalIssue: support })
   const admission: ToolAdmissionOperations = {
     forPass: async () => ({ kind: 'rejected', reason: 'passUnavailable' }),
     verifyToken: async () => {
@@ -218,7 +163,7 @@ export async function fixture(
       if ('failure' in view) return { kind: 'failed', reason: 'unavailable' }
       return {
         kind: 'valid',
-        checked: { scope, ownerGeneration: backing.ownerGeneration, tail: view.tail },
+        checked: { scope, ownerGeneration: journal.generation, tail: view.tail },
       }
     },
   }
@@ -241,11 +186,10 @@ export async function fixture(
       delivery: frozenDelivery(terminal, chain, pass),
     }),
   )
-  const selectChain = vi.fn<Parameters<typeof createExecutionOwner>[0]['selectChain']>(
-    async () => ({ chain: [], pass: 'after-action-pass' }),
-  )
   const owner = createExecutionOwner({
     journal,
+    tenant: scope.tenant,
+    originalIssue: support,
     ...(environments ? { environments } : {}),
     authorization: { authorize },
     admission: () => admission,
@@ -267,9 +211,28 @@ export async function fixture(
           : { kind: 'invalid' }
       },
     }),
-    selectChain,
     prepareDelivery,
   })
+  const source = await log.participant.source(log.fixtureAccess, scope)
+  if ('failure' in source || request.call.arguments === undefined)
+    throw new Error('fixture prepared source unavailable')
+  const prepared: PreparedToolExecution = {
+    access: request.access,
+    ref,
+    origin: request.origin,
+    call: request.call,
+    args: request.call.arguments,
+    selected: {
+      capability: 'tool:echo',
+      asset: 'echo-asset',
+      version: '1',
+      definition: adoptedDefinition,
+      adoption: request.adoption,
+    },
+    source: source.source,
+    afterAction: { pass: 'after-action-pass', selectedChain: [] },
+    admissionToken: request.admissionToken,
+  }
   async function observer() {
     const acquired = await owner.operations.acquire(access, ref)
     if (acquired.kind !== 'acquired') throw new Error(`fixture acquire ${acquired.reason}`)
@@ -277,19 +240,46 @@ export async function fixture(
   }
   return {
     dir,
-    backing,
-    history,
+    prepared,
+    support,
+    admission,
     owner,
     journal,
     log,
     append,
+    appendIn,
+    loseNextCommit(kind: string) {
+      let matched = false,
+        lose = false
+      const write = appendIn.getMockImplementation()!
+      appendIn.mockImplementation(async (...args) => {
+        const result = await write(...args)
+        if (
+          !matched &&
+          args[2].entries.some(entry => JSON.stringify(entry.payload).includes(kind))
+        ) {
+          matched = true
+          lose = true
+        }
+        return result
+      })
+      const atomic = log.fixtureStorage.atomic.bind(log.fixtureStorage)
+      const spy = vi.spyOn(log.fixtureStorage, 'atomic').mockImplementation(async use => {
+        const result = await atomic(use)
+        if (lose) {
+          lose = false
+          throw new StorageUnavailable('committed; result unavailable')
+        }
+        return result
+      })
+      return { restore: () => spy.mockRestore(), matched: () => matched }
+    },
     readSince,
     implementation,
     withdraw,
     authorize,
     bind,
     prepareDelivery,
-    selectChain,
     observer,
     revoke() {
       authorized = false
@@ -317,6 +307,61 @@ export async function fixture(
       await owner.close()
       await log.close()
       await rm(dir, { recursive: true, force: true })
+    },
+  }
+}
+
+export function fixtureOriginalSupport(
+  log: Awaited<ReturnType<typeof openSqlLogFixture>>,
+): ToolOriginalIssueSupport {
+  const claims = new Map<ToolOriginalIssueClaim, ToolOriginalIssueParticipant>()
+  return {
+    storage: log.fixtureStorage,
+    log: log.participant,
+    access: log.fixtureAccess,
+    current: { authorizeIn: async () => ({ kind: 'authorized' }) },
+    async classifyTerminalIn(unit, identity) {
+      const source = await log.participant.sourceIn(unit, log.fixtureAccess, {
+        tenant: identity.ref.tenant,
+        session: identity.ref.session,
+      })
+      if ('failure' in source) return { kind: 'unavailable' }
+      const prefix = await log.participant.readPrefixIn(unit, log.fixtureAccess, source.source)
+      if ('failure' in prefix) return { kind: 'unavailable' }
+      return {
+        kind: 'classified',
+        late: prefix.entries.some(entry =>
+          ['attempt-changed', 'run-ended'].includes(entry.dedupeKey ?? ''),
+        ),
+      }
+    },
+    admission: {
+      async admitOriginal(participant) {
+        try {
+          const staged = await log.fixtureStorage.atomic(async unit => {
+            const result = await participant.stageOriginalIn(unit)
+            if (result.kind === 'staged') claims.set(result.claim, participant)
+            return result
+          })
+          return staged.kind === 'staged' ? { ...staged, kind: 'issued' } : staged
+        } catch (error) {
+          if (!(error instanceof StorageUnavailable)) throw error
+          return { kind: 'unknownCommit', identity: participant.identity }
+        }
+      },
+      async consumeOriginal(claim) {
+        const participant = claims.get(claim)
+        if (!participant) return { kind: 'invalidInput' }
+        try {
+          const staged = await log.fixtureStorage.atomic(unit =>
+            participant.consumeOriginalIn(unit, claim),
+          )
+          return staged.kind === 'staged' ? { ...staged, kind: 'launch' } : staged
+        } catch (error) {
+          if (!(error instanceof StorageUnavailable)) throw error
+          return { kind: 'unknownCommit', identity: participant.identity }
+        }
+      },
     },
   }
 }

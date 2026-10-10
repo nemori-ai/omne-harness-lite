@@ -26,7 +26,7 @@
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "scan": "node --experimental-strip-types src/cli.ts ../../packages ../../apps ../../examples",
+    "scan": "node --experimental-strip-types src/cli.ts ../../packages ../../apps",
     "metrics": "node --experimental-strip-types src/metrics/cli.ts",
     "architecture": "node --experimental-strip-types src/arch/cli.ts",
     "package:template": "node --experimental-strip-types src/package-template/cli.ts"

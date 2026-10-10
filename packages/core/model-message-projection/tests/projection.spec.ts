@@ -17,7 +17,11 @@ import {
   type LogEntry,
 } from '@omne-harness-lite/session-log'
 import { judgeMessage } from '@omne-harness-lite/messages'
-import { attemptStartedPayload } from '@omne-harness-lite/session-runtime'
+import {
+  attemptStartedPayload,
+  sessionFactPayload,
+  checkOperationRef,
+} from '@omne-harness-lite/session-runtime'
 function opaque<T extends 'MessageId' | 'BlockId'>(value: string, kind: T) {
   const parsed = parseOpaqueIdentifier(value, kind)
   if (!('ok' in parsed)) throw new Error('invalid identity')
@@ -92,6 +96,164 @@ function messages(value: ReturnType<typeof projectMessages>) {
   return result.materialized
 }
 describe('fixed log projection and prefix reuse', () => {
+  it('validates Session lifecycle facts and includes only their original business messages', () => {
+    const create = checkOperationRef({
+      tenant,
+      principal: 'account-a',
+      operation: 'createSession',
+      operationKey: 'create',
+      session: null,
+    })
+    const submit = checkOperationRef({
+      tenant,
+      principal: 'account-a',
+      operation: 'submitInput',
+      operationKey: 'submit',
+      session: 'session-a',
+    })
+    if ('failure' in create || 'failure' in submit) throw new Error('invalid operation fixture')
+    const at = '2026-10-08T00:00:00Z'
+    const entries = [
+      row(
+        1,
+        sessionFactPayload({
+          kind: 'session_created',
+          operation: create.operation,
+          definition: { category: 'agent_definition', name: 'agent' },
+          executionType: 'main',
+          mode: 'auto_permission',
+          collaboration: 'co-work',
+          workspace: null,
+          at,
+        }),
+      ),
+      user(2),
+      row(
+        3,
+        sessionFactPayload({
+          kind: 'input_accepted',
+          operation: submit.operation,
+          semanticDigest: 'semantic',
+          messagePosition: 2,
+          at,
+        }),
+      ),
+      row(
+        4,
+        sessionFactPayload({
+          kind: 'run_started',
+          run: 'run-a' as never,
+          inputPosition: 2,
+          stepKey: 'start',
+          at,
+        }),
+      ),
+      {
+        ...row(
+          5,
+          attemptStartedPayload({
+            kind: 'attempt_started',
+            run: 'run-a',
+            attempt: 1,
+            reason: 'first',
+            at,
+          }),
+        ),
+        run: 'run-a',
+        attempt: 1,
+      },
+      {
+        ...row(
+          6,
+          sessionFactPayload({
+            kind: 'input_adopted',
+            run: 'run-a' as never,
+            attempt: 1,
+            inputPosition: 2,
+            stepKey: 'adopt',
+            at,
+          }),
+        ),
+        run: 'run-a',
+        attempt: 1,
+      },
+      {
+        ...row(
+          7,
+          sessionFactPayload({
+            kind: 'call_prepared',
+            run: 'run-a' as never,
+            attempt: 1,
+            call: 'call-a',
+            originalPosition: 'loop-position',
+            stepKey: 'prepare',
+            at,
+          }),
+        ),
+        run: 'run-a',
+        attempt: 1,
+      },
+      {
+        ...row(
+          8,
+          sessionFactPayload({
+            kind: 'result_custodied',
+            run: 'run-a',
+            attempt: 1,
+            call: 'call-a',
+            resultKey: 'original-result',
+            semanticDigest: 'a'.repeat(64),
+            at,
+          }),
+        ),
+        run: 'run-a',
+        attempt: 1,
+      },
+      {
+        ...row(
+          9,
+          sessionFactPayload({
+            kind: 'run_finished',
+            run: 'run-a' as never,
+            attempt: 1,
+            terminal: 'completed',
+            reason: 'no remaining work',
+            stepKey: 'finish',
+            at,
+          }),
+        ),
+        run: 'run-a',
+        attempt: 1,
+      },
+    ]
+    const projected = messages(projectMessages(input(entries)))
+    expect(projected).toHaveLength(1)
+    expect(projected[0]).toMatchObject({
+      id: 'm2',
+      type: 'user',
+      blocks: [{ id: 'b2', kind: 'text', text: '2' }],
+    })
+    expect(
+      projectMessages(
+        input(
+          entries.map(entry =>
+            entry.position === 3
+              ? row(
+                  3,
+                  factLogPayload('session-runtime', '1', {
+                    kind: 'input_accepted',
+                    operation: create.operation,
+                    semanticDigest: 'semantic',
+                    messagePosition: 2,
+                    at,
+                  }),
+                )
+              : entry,
+          ),
+        ),
+      ),
+    ).toEqual({ invalidInput: true, reason: 'claimedPayload' })
+  })
   it('saves non-message events without model reminders; preserves business reminders', () => {
     const attempt = {
       ...row(
@@ -233,7 +395,7 @@ describe('fixed log projection and prefix reuse', () => {
       expect(extension.projected.segments?.previous).toBe(result.projected.segments)
     }
   })
-  it('compaction changes old blocks only after cold rebuild; summaries stay visible', () => {
+  it('compaction reselects indexed blocks while preserving the old projection', () => {
     const compaction = judgeMessage({
       id: 'summary',
       type: 'compaction',
@@ -253,9 +415,14 @@ describe('fixed log projection and prefix reuse', () => {
     const first = createProjectionCache(input([user(1)], selectedRules))
     if (!('ready' in first)) throw new Error('not ready')
     const next = row(2, messageLogPayload(compaction.ok))
-    expect(
-      extendProjection(first.ready, { ...input([user(1), next], selectedRules), entries: [next] }),
-    ).toEqual({ rebuildRequired: true, reason: 'impactUnknown' })
+    const extended = extendProjection(first.ready, {
+      ...input([user(1), next], selectedRules),
+      entries: [next],
+    })
+    expect(messages(extended).map(value => value.id)).toEqual(['summary'])
+    if (!('projected' in extended)) throw new Error('compaction projection')
+    expect(extended.projected.workCounters.entries - first.projected.workCounters.entries).toBe(1)
+    expect(extended.reusedSegments).toBeNull()
     expect(
       messages(projectMessages(input([user(1), next], selectedRules))).map(value => value.id),
     ).toEqual(['summary'])

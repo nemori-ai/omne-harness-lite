@@ -32,6 +32,7 @@
 | [UL-login-identifier](terms/subjects-and-ownership.md#ul-login-identifier--登录标识--login-identifier) | 登录标识 | Login Identifier | 账号的对外名字，**部署内唯一、注册时定**；**只指认，不证明持有** |
 | [UL-login-state](terms/subjects-and-ownership.md#ul-login-state--登录状态--login-state) | 登录状态 | Login State | 鉴权意义上的一次登录，**不是会话**；退出只失效这一个，**同账号的有效登录状态可被逐个列出与撤销** |
 | [UL-organization](terms/subjects-and-ownership.md#ul-organization--组织--organization) | 组织 | Organization | 一个协作范围，能容纳多个账号 |
+| [UL-organization-name](terms/subjects-and-ownership.md#ul-organization-name--组织名称--organization-name) | 组织名称 | Organization Name | 中心保存的组织显示属性；同名可共存，不授予权限 |
 | [UL-personal-organization](terms/subjects-and-ownership.md#ul-personal-organization--个人组织--personal-organization) | 个人组织 | Personal Organization | 注册时自动产生、不能邀请人的那一个 |
 | [UL-team-organization](terms/subjects-and-ownership.md#ul-team-organization--团队组织--team-organization) | 团队组织 | Team Organization | 个人组织之外的所有组织 |
 | [UL-parent-organization](terms/subjects-and-ownership.md#ul-parent-organization--上级组织--parent-organization) | 上级组织 | Parent Organization | 一项属性，不是一层，也不带来继承 |

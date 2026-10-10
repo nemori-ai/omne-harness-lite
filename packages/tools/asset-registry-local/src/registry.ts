@@ -1,6 +1,6 @@
 import {
-  evaluate,
-  selectEvaluationRootSource,
+  createAssetEvaluator,
+  type AssetEvaluator,
   type EffectiveAssembly,
   type NonConnectorEvaluationInput,
 } from '@omne-harness-lite/asset-evaluation'
@@ -100,7 +100,9 @@ function dependencyConfiguration(input: RegistryDependencies): boolean {
     new Set(input.deployedMeta.map(id => id.name)).size === input.deployedMeta.length
   )
 }
-function ownDependencies(input: RegistryDependencies): RegistryDependencies {
+function ownDependencies(
+  input: RegistryDependencies,
+): RegistryDependencies & { readonly evaluator: AssetEvaluator } {
   if (!dependencyPorts(input) || !dependencyConfiguration(input))
     throw new TypeError(
       'registry requires valid explicit dependencies, bounded policies and trusted metadata',
@@ -123,6 +125,7 @@ function ownDependencies(input: RegistryDependencies): RegistryDependencies {
   ) as unknown as RegistryDependencies['manifest']
   return Object.freeze({
     ...input,
+    evaluator: input.evaluator ?? createAssetEvaluator(),
     manifest,
     clock: Object.freeze({ now: input.clock.now.bind(input.clock) }),
     conflictPolicy: Object.freeze({ ...input.conflictPolicy }),
@@ -137,12 +140,13 @@ function ownDependencies(input: RegistryDependencies): RegistryDependencies {
     ...(input.currentInputs === undefined ? {} : { currentInputs: borrow(input.currentInputs) }),
     ...(input.fixedRootInput === undefined ? {} : { fixedRootInput: borrow(input.fixedRootInput) }),
     ...(input.historicalBody === undefined ? {} : { historicalBody: borrow(input.historicalBody) }),
-  }) as RegistryDependencies
+  }) as RegistryDependencies & { readonly evaluator: AssetEvaluator }
 }
 function readHeadRecords(
   s: string,
   h: number,
   latest: Partial<Record<RegisteredCategory, unknown>>,
+  evaluator: AssetEvaluator,
 ): Head['records'] {
   if (
     Object.keys(latest).length !== 6 ||
@@ -152,7 +156,7 @@ function readHeadRecords(
   const records: Partial<Record<RegisteredCategory, CheckedRegistryRecord>> = {}
   const sameSeq = new Map<number, ManifestRecord>()
   for (const category of REGISTERED_CATEGORIES) {
-    const checked = readRegistryRecord(latest[category], s, h)
+    const checked = readRegistryRecord(latest[category], s, h, evaluator)
     if (checked === undefined || checked.record.tables[category] === undefined)
       throw new Unavailable('manifest_table_binding')
     const other = sameSeq.get(checked.record.seq)
@@ -277,7 +281,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
     }
     return {
       head: observed.head,
-      records: readHeadRecords(s, observed.head, observed.latest),
+      records: readHeadRecords(s, observed.head, observed.latest, deps.evaluator),
     }
   }
   async function rebuild(
@@ -308,7 +312,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
       }
       const copied = own(result.version)
       if (
-        !('ok' in getAssetJudge().judgeAssetValue('AssetVersion', copied)) ||
+        !('ok' in deps.evaluator.assetJudge.judgeAssetValue('AssetVersion', copied)) ||
         !object(copied) ||
         !equal(copied.number, tuple.version) ||
         !object(copied.content) ||
@@ -354,7 +358,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
           ).find(value => value.category === plan.category) as TablePlan),
     )
     const snapshots = plans.flatMap(plan =>
-      buildSnapshots(observed.records[plan.category].record, [plan]),
+      buildSnapshots(observed.records[plan.category].record, [plan], deps.evaluator),
     )
     const cached = cache.get(s)
     const effectiveSnapshots =
@@ -389,7 +393,12 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
   ): Promise<NonConnectorEvaluationInput> {
     const given = await deps.manifest.readGiven(s, loaded.observed.head)
     if (!('record' in given)) throw new Unavailable('original_given')
-    const proof = extractRootSourceFromFullFillRecord(given.record, s, loaded.observed.head)
+    const proof = extractRootSourceFromFullFillRecord(
+      given.record,
+      s,
+      loaded.observed.head,
+      deps.evaluator,
+    )
     if ('failure' in proof) throw new Unavailable('full_fill_proof')
     facts.givenSeq = proof.record.seq
     facts.givenRef = proof.record.evaluationRef
@@ -405,7 +414,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
       if (result.failure === 'invalidInput')
         throw new TypeError('validated full-fill proof produced an invalid fixed-root request')
       if (result.failure === 'rootSourceMismatch') {
-        const selected = selectEvaluationRootSource({
+        const selected = deps.evaluator.selectEvaluationRootSource({
           tenant: loaded.tenant,
           standing: result.input.standing,
           holdings: result.input.holdings,
@@ -413,7 +422,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
           ...(result.input.session === undefined ? {} : { session: result.input.session }),
           rootDefinition: result.input.root.definition,
         })
-        const actual = evaluate(result.input)
+        const actual = deps.evaluator.evaluate(result.input)
         if (
           !equal(result.input.root.source, proof.rootSource) ||
           !('ok' in selected) ||
@@ -491,7 +500,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
       seq: result.seq,
       evaluationRef: result.evaluationRef,
     })
-    const snapshots = buildSnapshots(committed, plans)
+    const snapshots = buildSnapshots(committed, plans, deps.evaluator)
     publishCache(s, result.head, snapshots)
     return { snapshots }
   }
@@ -536,7 +545,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
   }
   return Object.freeze({
     async fill(s: unknown, value: unknown, ref: unknown, sequence: unknown) {
-      const evaluation = effective(value),
+      const evaluation = effective(value, deps.evaluator),
         copied = own(sequence)
       if (
         !session(s) ||
@@ -555,7 +564,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
           facts.head = observed.head
           // A visible complete current given can be recognized without substituting retry E/O or reading current bodies.
           const originals = REGISTERED_CATEGORIES.map(category =>
-            readRegistryRecord(observed.latest[category], s, observed.head),
+            readRegistryRecord(observed.latest[category], s, observed.head, deps.evaluator),
           )
           if (
             originals.every(
@@ -582,11 +591,22 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
               missing: evaluation.unresolved,
             })
           const input = await current(s, t)
-          const built = buildTableContents(evaluation, copied, input.definitions)
+          const built = buildTableContents(
+            evaluation,
+            copied,
+            input.definitions,
+            REGISTERED_CATEGORIES,
+            deps.evaluator,
+          )
           if (!('plans' in built)) return built
           const previous: Partial<Record<RegisteredCategory, CheckedRegistryRecord>> = {}
           for (const category of REGISTERED_CATEGORIES) {
-            const old = readRegistryRecord(observed.latest[category], s, observed.head)
+            const old = readRegistryRecord(
+              observed.latest[category],
+              s,
+              observed.head,
+              deps.evaluator,
+            )
             if (old !== undefined) previous[category] = old
             else if (observed.head > 0) throw new Unavailable('fill_previous_table')
           }
@@ -646,12 +666,18 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
           const loaded = await load(s, facts)
           if ('failure' in loaded) return loaded
           const input = await fixed(s, loaded, 'reload', facts)
-          const evaluated = evaluate(input)
+          const evaluated = deps.evaluator.evaluate(input)
           facts.evaluationCount = 1
           if ('invalidInput' in evaluated) throw new Unavailable('evaluation_input')
           if (!('ok' in evaluated)) return evaluated
           if (!permutation(evaluated.ok, copied)) return { failure: 'invalidInput' as const }
-          const built = buildTableContents(evaluated.ok, copied, input.definitions)
+          const built = buildTableContents(
+            evaluated.ok,
+            copied,
+            input.definitions,
+            REGISTERED_CATEGORIES,
+            deps.evaluator,
+          )
           if (!('plans' in built)) return built
           const targets = new Set<RegisteredCategory>([category])
           if (category === 'plugin') {
@@ -703,7 +729,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
         const loaded = await load(s, facts)
         if ('failure' in loaded) return loaded
         const input = await fixed(s, loaded, 'refresh_availability', facts)
-        const evaluated = evaluate(input)
+        const evaluated = deps.evaluator.evaluate(input)
         facts.evaluationCount = 1
         if ('invalidInput' in evaluated) throw new Unavailable('evaluation_input')
         if (!('ok' in evaluated)) return evaluated
@@ -835,7 +861,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
           const loaded = await load(s, facts)
           if ('failure' in loaded) return loaded
           const input = await current(s, loaded.tenant),
-            evaluated = evaluate(input)
+            evaluated = deps.evaluator.evaluate(input)
           if (!('ok' in evaluated)) throw new Unavailable('gate_evaluation')
           const removed =
             loaded.plans
@@ -893,7 +919,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
       if (locator === undefined) throw new TypeError('validated report has no category locator')
       const historical = await deps.manifest.readHistory(s, category, locator.filledAt)
       if (!('record' in historical)) throw new Unavailable('report_history')
-      const checked = readRegistryRecord(historical.record, s, observed.head)
+      const checked = readRegistryRecord(historical.record, s, observed.head, deps.evaluator)
       if (checked === undefined || checked.record.tables[category]?.filledAt !== locator.filledAt)
         throw new Unavailable('report_binding')
       const plan = await rebuild(s, t, category, checked)
@@ -920,7 +946,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
           }
         }),
       }
-      snapshot = buildSnapshots(checked.record, [resolved])[0] as RegistrySnapshot
+      snapshot = buildSnapshots(checked.record, [resolved], deps.evaluator)[0] as RegistrySnapshot
       if (
         category === 'tool' &&
         (Object.keys(selection.report.effectivePermissions).length !== resolved.entries.length ||
@@ -938,7 +964,7 @@ export function createAssetRegistry(dependencies: RegistryDependencies): AssetRe
       )
     if (category === 'skill' || category === 'slash_command') {
       const input = await current(s, t),
-        evaluated = evaluate(input)
+        evaluated = deps.evaluator.evaluate(input)
       if (!('ok' in evaluated)) throw new Unavailable('gate_evaluation')
       return requiredOwn(
         snapshot.entries.filter(

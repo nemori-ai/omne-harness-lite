@@ -3,6 +3,7 @@ import { evaluationPublicationBoundary } from '../src/rules/evaluation-publicati
 const entry = '@omne-harness-lite/evaluation-input-store/publication'
 const imported = `import { publishLocalInputs, captureSessionRecipe } from '${entry}';`
 test.each([
+  'apps/cli/src/session-factory-assets.ts',
   'examples/model-invocation-minimal-demo/src/bootstrap.ts',
   'examples/model-invocation-minimal-demo/tests/bootstrap.spec.ts',
   'packages/assets/evaluation-input-store/tests/crash-worker.mjs',
@@ -13,6 +14,8 @@ test.each([
   expect(evaluationPublicationBoundary.check([{ path, text: imported }])).toEqual([])
 })
 test.each([
+  'apps/cli/src/entry-providers.ts',
+  'apps/cli/src/session-runtime-root.ts',
   'packages/model/model-request-runtime-local/src/runtime.ts',
   'packages/agent-loop/loop-extension-runner-local/src/runner-chain.ts',
   'packages/agent-loop/loop-extension-runner-local/tests/unapproved-publication.ts',
@@ -79,6 +82,56 @@ test.each([
       {
         path: 'packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts',
         text,
+      },
+    ]),
+  ).not.toEqual([])
+})
+
+const admitted = '@omne-harness-lite/evaluation-input-store/admitted'
+test('only the actual application bootstrap can construct an admitted source through its public entry', () => {
+  expect(
+    evaluationPublicationBoundary.check([
+      {
+        path: 'apps/cli/src/session-bootstrap.ts',
+        text: `import { createAdmittedEvaluationInputSource } from '${admitted}';`,
+      },
+    ]),
+  ).toEqual([])
+  for (const path of [
+    'apps/cli/src/main.ts',
+    'apps/cli/tests/unapproved.spec.ts',
+    'packages/model/model-request-runtime-local/src/runtime.ts',
+  ])
+    expect(
+      evaluationPublicationBoundary.check([
+        { path, text: `import { createAdmittedEvaluationInputSource } from '${admitted}';` },
+      ]),
+    ).not.toEqual([])
+})
+test('the actual composed bootstrap fixture can publish source data', () => {
+  expect(
+    evaluationPublicationBoundary.check([
+      { path: 'apps/cli/tests/session-bootstrap.spec.ts', text: imported },
+    ]),
+  ).toEqual([])
+})
+test.each([
+  `export * from '${admitted}';`,
+  `const source = await import('${admitted}');`,
+  `const source = require('${admitted}');`,
+  "import { createAdmittedEvaluationInputSource } from '../../../packages/assets/evaluation-input-store/src/admitted.ts';",
+])('admitted source forwarding and private imports fail: %s', text => {
+  expect(
+    evaluationPublicationBoundary.check([{ path: 'apps/cli/src/session-bootstrap.ts', text }]),
+  ).not.toEqual([])
+})
+test('resolved aliases cannot hide admitted source access', () => {
+  expect(
+    evaluationPublicationBoundary.check([
+      {
+        path: 'apps/cli/src/main.ts',
+        text: "import { createAdmittedEvaluationInputSource } from 'sourceAlias';",
+        resolvedModules: { sourceAlias: 'packages/assets/evaluation-input-store/src/admitted.ts' },
       },
     ]),
   ).not.toEqual([])

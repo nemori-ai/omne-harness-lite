@@ -6,7 +6,7 @@ import {
   modelLogJsonEqual,
   type CapturedModelLogValue,
 } from '@omne-harness-lite/model-request-runtime'
-import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
+import { readSessionFact } from '@omne-harness-lite/session-runtime'
 import type { Message } from '@omne-harness-lite/messages'
 import { checkLogPayload, compareInteger, type LogEntry } from '@omne-harness-lite/session-log'
 import { indexBlocks } from './blocks.ts'
@@ -122,7 +122,7 @@ function fact(
 ): ProjectionFailure | undefined {
   if (owner === 'model-request-runtime') return ownModelFact(state, entry)
   if (owner === 'session-runtime')
-    return 'failure' in readAttemptStarted(entry) ? claimedFailure : undefined
+    return 'failure' in readSessionFact(entry) ? claimedFailure : undefined
   const reader = state.options.factReaders?.get(owner)
   if (reader === undefined)
     return ['runtime-context', 'tool-execution-runtime', 'loop-extension-runner'].includes(owner)

@@ -8,6 +8,7 @@ import {
   defaultBodyContracts,
   judgeEffectiveAssembly,
   type EffectiveAssembly,
+  type AssetEvaluator,
 } from '@omne-harness-lite/asset-evaluation'
 import { readEvaluationProjection, type ManifestRecord } from '@omne-harness-lite/assembly-manifest'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
@@ -178,6 +179,7 @@ export function readRegistryRecord(
   value: unknown,
   expectedSession: string,
   head: number,
+  evaluator?: AssetEvaluator,
 ): CheckedRegistryRecord | undefined {
   const copied = own(value)
   if (
@@ -190,7 +192,7 @@ export function readRegistryRecord(
     return undefined
   const identity = copied.evaluation
   if (!recordIdentity(identity, copied.evaluationRef)) return undefined
-  const projected = readEvaluationProjection(copied.content)
+  const projected = readEvaluationProjection(copied.content, evaluator)
   if (!('ok' in projected) || projected.ok.evaluation.unresolved.length !== 0) return undefined
   if (!recordPurpose(identity.kind, copied.content.filledBy)) return undefined
   const categories = recordCategories(copied.tables, identity.kind)
@@ -213,6 +215,7 @@ export function extractRootSourceFromFullFillRecord(
   value: unknown,
   expectedSession: unknown,
   head: unknown,
+  evaluator?: AssetEvaluator,
 ): RootSourceProof | { readonly failure: 'unavailable' } {
   if (
     !session(expectedSession) ||
@@ -221,7 +224,7 @@ export function extractRootSourceFromFullFillRecord(
     head < 1
   )
     return { failure: 'unavailable' }
-  const checked = readRegistryRecord(value, expectedSession, head)
+  const checked = readRegistryRecord(value, expectedSession, head, evaluator)
   if (
     checked === undefined ||
     checked.record.evaluation.kind !== 'given' ||
@@ -239,9 +242,14 @@ export function extractRootSourceFromFullFillRecord(
     rootSource: { asset: root.asset, version: root.version },
   })
 }
-export function effective(value: unknown): EffectiveAssembly | undefined {
+export function effective(
+  value: unknown,
+  evaluator?: AssetEvaluator,
+): EffectiveAssembly | undefined {
   const copy = own(value)
-  return judgeEffectiveAssembly(copy) ? (copy as unknown as EffectiveAssembly) : undefined
+  return (evaluator?.judgeEffectiveAssembly ?? judgeEffectiveAssembly)(copy)
+    ? (copy as unknown as EffectiveAssembly)
+    : undefined
 }
 export function entryName(id: CapabilityId): string {
   return id.category === 'tool' ? modelName(id.name) : id.name

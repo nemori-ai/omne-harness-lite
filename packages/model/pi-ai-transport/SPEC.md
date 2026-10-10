@@ -8,6 +8,14 @@ OpenRouter Chat Completions的refusal缺席/null/空串不发内容事件；非�
 
 终止后的非空内容拒绝；同帧error优先于delta，不能先发该帧delta，已合法取得的facts保持。正常stop/tool_calls/length继续读正常尾帧到DONE，真实usage/cost沿原累积器；缺账仍未知。异常finish、顶层error、坏协议、取消或超时沿原停止规则，仅保留已读事实，不为未来计量额外排空连接。合法非空refusal不是失败判据，不把content_filter改为成功，不增加origin或自动过滤回放；持久reply与故障delivered的既有选择责任不变。
 
+## 公开推理文本
+
+流读取器将公开推理文字写入 thinking.text，并发送对应的 fill 事件。一个响应只选择一个公开文字来源：首次出现非空文字时，同帧的旧式 reasoning／reasoning_content／reasoning_text 优先，否则选择 reasoning_details。选定后不切换来源，也不把另一来源的镜像文字重复追加。空字符串、签名和非文字详情不会锁定来源。不按相同前缀猜测或删减文字。
+
+详情来源只读取 reasoning.text 的 text 字符串和 reasoning.summary 的 summary 字符串，按帧与数组顺序追加。reasoning.encrypted、未知详情类型、签名和其他字段不成为公开文字。所有原详情仍按既有身份合并规则保存在 opaque 中，供原模型协议回放；公开文字投影不改变其字段、签名或加密内容。消费者不需要解码 opaque 来显示公开推理文字。
+
+此来源选择适用于 OpenRouter 将旧式文字与结构化详情作为并行表示的响应。不把一种表示的缺席片段从另一种表示补齐，不声称两种不同表示可以无损合并。详情字段的协议来源见 [OpenRouter reasoning tokens](https://github.com/OpenRouterTeam/docs/blob/main/guides/best-practices/reasoning-tokens.mdx)。
+
 ## 固定执行与图片复用
 
 共享reader的相同revision不得偷换实现；贡献的实际采用绑定须与同步发布的固定组合一致。原调用固定整组reader/definition/meter、精确版本与实际输入，消费者不能热改在途闭包。stop请求、native真正结束与责任释放分开；外部付费效果不能回滚。图片转换只处理选中固定请求的材料，原件不改，具体配置与有限支持归README的图片准备部分。

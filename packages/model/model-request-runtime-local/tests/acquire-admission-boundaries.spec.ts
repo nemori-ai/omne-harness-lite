@@ -7,8 +7,8 @@ import type {
   ObserverReceiver,
 } from '@omne-harness-lite/model-request-runtime'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import { createRuntimeAcquire } from '../src/service-acquire.ts'
-import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
+import { createRuntimeAcquire } from '@omne-harness-lite/session-runtime-local'
+import { acknowledgementHost } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import {
   admissionCases,
   acquisitionScenario,

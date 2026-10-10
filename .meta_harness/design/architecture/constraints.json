@@ -57,9 +57,7 @@
       "id": "cli-composition",
       "paths": [
         "apps/cli/src/assembly.ts",
-        "apps/cli/src/default-providers.ts",
         "apps/cli/src/main.ts",
-        "apps/cli/src/tui/providers.ts",
         "apps/cli/src/schema-inputs.ts"
       ],
       "layer": "assembly",
@@ -72,22 +70,18 @@
     {
       "id": "cli-interaction",
       "paths": [
-        "apps/cli/src/application.ts",
         "apps/cli/src/client-assembly.ts",
         "apps/cli/src/diagnostic.ts",
         "apps/cli/src/input.ts",
-        "apps/cli/src/parser.ts",
-        "apps/cli/src/presentation.ts",
         "apps/cli/src/validation.ts",
         "apps/cli/src/version.ts",
-        "apps/cli/src/tui/application.ts",
         "apps/cli/src/tui/dialog.ts",
-        "apps/cli/src/tui/forms.ts",
         "apps/cli/src/tui/framer.ts",
         "apps/cli/src/tui/mode-replies.ts",
         "apps/cli/src/tui/raw-mode.ts",
         "apps/cli/src/tui/screen.ts",
-        "apps/cli/src/tui/terminal.ts"
+        "apps/cli/src/tui/terminal.ts",
+        "apps/cli/src/tui/field-text.ts"
       ],
       "layer": "interaction",
       "domains": [
@@ -1460,6 +1454,54 @@
       ],
       "status": "adopted",
       "source": "packages/session/session-log-sql/SPEC.md"
+    },
+    {
+      "id": "session-runtime-local-admission",
+      "paths": [
+        "packages/session/session-runtime-local/src/admission-migrations.ts",
+        "packages/session/session-runtime-local/src/admission-sql.ts",
+        "packages/session/session-runtime-local/src/admission-types.ts",
+        "packages/session/session-runtime-local/src/admission-values.ts",
+        "packages/session/session-runtime-local/src/admission.ts"
+      ],
+      "layer": "storage-adapter",
+      "domains": [
+        "session",
+        "admission"
+      ],
+      "status": "adopted",
+      "source": "packages/session/session-runtime-local/SPEC.md"
+    },
+    {
+      "id": "session-runtime-local-state",
+      "paths": [
+        "packages/session/session-runtime-local/src/state-types.ts",
+        "packages/session/session-runtime-local/src/state-migrations.ts",
+        "packages/session/session-runtime-local/src/state-values.ts",
+        "packages/session/session-runtime-local/src/state-store.ts",
+        "packages/session/session-runtime-local/src/state-participant.ts"
+      ],
+      "layer": "storage-adapter",
+      "domains": [
+        "session"
+      ],
+      "status": "adopted",
+      "source": "packages/session/session-runtime-local/SPEC.md"
+    },
+    {
+      "id": "session-runtime-local-receipts",
+      "paths": [
+        "packages/session/session-runtime-local/src/receipt-types.ts",
+        "packages/session/session-runtime-local/src/receipt-migrations.ts",
+        "packages/session/session-runtime-local/src/receipt-values.ts",
+        "packages/session/session-runtime-local/src/receipt-participant.ts"
+      ],
+      "layer": "storage-adapter",
+      "domains": [
+        "session"
+      ],
+      "status": "adopted",
+      "source": "packages/session/session-runtime-local/SPEC.md"
     }
   ],
   "rules": [

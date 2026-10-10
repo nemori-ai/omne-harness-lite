@@ -682,7 +682,11 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
           expectResult(
             await as(`${name}1`, 'readOrganization', { organization: current.organization }),
           ),
-        ).toEqual({ organization: current.organization, organizationKind: 'personal' })
+        ).toEqual({
+          organization: current.organization,
+          organizationKind: 'personal',
+          name: '个人组织',
+        })
         expect(
           expectResult(await as(`${name}1`, 'membershipStanding', { tenant: current })),
         ).toEqual({
@@ -824,17 +828,28 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
     it('[PF-001 §1.4；PF-017 §一「第二个人来，也建了一个组织」] 团队组织一次建成、创建者即超管；带创建键重发认回同一个；先来者没有特殊待遇', async () => {
       scenario('pf001-1.4-create-organization')
       const x = asString(
-        expectResult(await as('ada1', 'createOrganization', { creationKey: 'e2e-org-x' })),
+        expectResult(
+          await as('ada1', 'createOrganization', {
+            name: 'test organization',
+            creationKey: 'e2e-org-x',
+          }),
+        ),
         'X',
       )
       expect(
-        expectResult(await as('ada1', 'createOrganization', { creationKey: 'e2e-org-x' })),
+        expectResult(
+          await as('ada1', 'createOrganization', {
+            name: 'test organization',
+            creationKey: 'e2e-org-x',
+          }),
+        ),
       ).toBe(x)
       ids.set('X', x)
       tenants.set('X:ada', { organization: x, account: personal('ada').account })
       expect(expectResult(await as('ada1', 'readOrganization', { organization: x }))).toEqual({
         organization: x,
         organizationKind: 'team',
+        name: 'test organization',
       })
       expect(
         expectResult(await as('ada1', 'membershipStanding', { tenant: tenants.get('X:ada') })),
@@ -845,7 +860,10 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
       expect(await myTenants('ada1')).toEqual(
         expect.arrayContaining([personal('ada'), tenants.get('X:ada')]),
       )
-      const y = asString(expectResult(await as('cy1', 'createOrganization')), 'Y')
+      const y = asString(
+        expectResult(await as('cy1', 'createOrganization', { name: 'test organization' })),
+        'Y',
+      )
       ids.set('Y', y)
       tenants.set('Y:cy', { organization: y, account: personal('cy').account })
       expect(
@@ -1038,6 +1056,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         {
           organization: id('X'),
           organizationKind: 'team',
+          name: 'test organization',
           parentOrganization: id('Y'),
         },
       )
@@ -1052,6 +1071,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         {
           organization: id('X'),
           organizationKind: 'team',
+          name: 'test organization',
         },
       )
       // 已解除后由下级一方重发：两种读法都得 noSuchAffiliation（OG S-33 ⑦、EC S-21「重发」一列）
@@ -1145,7 +1165,10 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         await as('ada1', 'acceptAffiliationRequest', { affiliationRequest: cycle }),
         'wouldFormACycle',
       )
-      const z = asString(expectResult(await as('cy1', 'createOrganization')), 'Z')
+      const z = asString(
+        expectResult(await as('cy1', 'createOrganization', { name: 'test organization' })),
+        'Z',
+      )
       ids.set('Z', z)
       const second = asString(
         expectResult(
@@ -1162,7 +1185,10 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         'alreadyHasAParentOrganization',
       )
       await switchTo('cy1', tenants.get('Y:cy') ?? personal('cy'))
-      const x2 = asString(expectResult(await as('ada1', 'createOrganization')), 'X2')
+      const x2 = asString(
+        expectResult(await as('ada1', 'createOrganization', { name: 'test organization' })),
+        'X2',
+      )
       ids.set('X2', x2)
       tenants.set('X2:ada', { organization: x2, account: personal('ada').account })
       await switchTo('ada1', tenants.get('X2:ada') ?? personal('ada'))
@@ -1214,7 +1240,10 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
 
     it('[PF-001 §二「移除或降级超管：两位超管同时移除或降级对方」、§3.3「同时发生也只有一种收场」] 两位超管在两条连接上同时降级、再同时移除对方：每轮恰一方成立，另一方得到与单次被拒逐字相同的答复，组织始终有一位超管', async () => {
       scenario('pf001-2-concurrent-super-administrators')
-      const w = asString(expectResult(await as('ada1', 'createOrganization')), 'W')
+      const w = asString(
+        expectResult(await as('ada1', 'createOrganization', { name: 'test organization' })),
+        'W',
+      )
       const wAda = { organization: w, account: personal('ada').account }
       const wCy = { organization: w, account: personal('cy').account }
       await switchTo('ada1', wAda)
@@ -1349,7 +1378,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
           callRaw(
             cA,
             'two presentations',
-            `{"protocolVersion":"2","presentedLoginState":${JSON.stringify(valid)},"presentedLoginState":"x","operation":"${ROUTE.myTenants}","payload":{}}`,
+            `{"protocolVersion":"3","presentedLoginState":${JSON.stringify(valid)},"presentedLoginState":"x","operation":"${ROUTE.myTenants}","payload":{}}`,
           ),
         ],
         ['malformed', call(cA, 'myTenants', {}, ` ${valid}`, 'malformed (leading space)')],
@@ -1395,7 +1424,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         ).length
       const issuedBefore = await issued()
       const writes: [RouteName, Record<string, unknown>][] = [
-        ['createOrganization', {}],
+        ['createOrganization', { name: 'test organization' }],
         ['invite', { invitedAccount: personal('cy').account }],
       ]
       for (const [route, payload] of writes)
@@ -1559,7 +1588,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         [
           'accept invitation for cy',
           envelopeBody({
-            protocolVersion: '2',
+            protocolVersion: '3',
             operation: ROUTE.acceptInvitation,
             payload: { invitation },
           }),
@@ -1568,7 +1597,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         [
           'remove ada',
           envelopeBody({
-            protocolVersion: '2',
+            protocolVersion: '3',
             operation: ROUTE.removeMember,
             payload: { targetTenant: tenants.get('X:ada') },
           }),
@@ -1577,7 +1606,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         [
           'revoke ada1',
           envelopeBody({
-            protocolVersion: '2',
+            protocolVersion: '3',
             operation: ROUTE.revokeLoginState,
             payload: { loginStateHandle: login('ada1').handle },
           }),
@@ -1586,7 +1615,7 @@ describe('e2e：治理中心作为可部署应用的黑盒旅程（部署方式�
         [
           'register mallory',
           envelopeBody({
-            protocolVersion: '2',
+            protocolVersion: '3',
             operation: ROUTE.register,
             payload: { loginIdentifier: 'mallory@example.invalid', credential: password() },
           }),

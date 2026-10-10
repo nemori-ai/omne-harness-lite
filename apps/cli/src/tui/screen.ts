@@ -18,9 +18,61 @@ export interface Screen {
 }
 export interface Layout {
   readonly bytes: string
+  readonly rendered?: RenderedScreen
   readonly fits: boolean
   readonly page: number
   readonly pages: number
+}
+interface RenderedScreen {
+  readonly columns: number
+  readonly rows: number
+  readonly lines: readonly string[]
+  readonly cursor: { readonly row: number; readonly column: number }
+}
+function paint(
+  lines: readonly string[],
+  columns: number,
+  rows: number,
+  cursor?: RenderedScreen['cursor'],
+): Pick<Layout, 'bytes' | 'rendered'> {
+  const bytes = '\x1b[H\x1b[2J' + lines.join('\r\n') + (cursor ? position(cursor) : '')
+  if (
+    lines.length > rows ||
+    lines.some(line => /[\u0000-\u001f\u007f-\u009f]/u.test(line) || visibleWidth(line) >= columns)
+  )
+    return { bytes }
+  return {
+    bytes,
+    rendered: {
+      columns,
+      rows,
+      lines: lines.map(line => line.replace(/ +$/u, '')),
+      cursor: cursor ?? { row: lines.length, column: visibleWidth(lines.at(-1) ?? '') + 1 },
+    },
+  }
+}
+function position(cursor: RenderedScreen['cursor']): string {
+  return `\x1b[${cursor.row};${cursor.column}H`
+}
+function sameSize(previous: RenderedScreen | undefined, next: RenderedScreen | undefined): boolean {
+  return previous?.columns === next?.columns && previous?.rows === next?.rows
+}
+function changes(previous: RenderedScreen | undefined, frame: Frame): string {
+  const next = frame.rendered
+  if (!previous || !next || !sameSize(previous, next)) return frame.bytes
+  let bytes = ''
+  for (let row = 0; row < Math.max(previous.lines.length, next.lines.length); row++) {
+    const line = next.lines[row] ?? ''
+    if (line !== (previous.lines[row] ?? ''))
+      bytes += position({ row: row + 1, column: 1 }) + '\x1b[2K' + line
+  }
+  if (
+    bytes !== '' ||
+    previous.cursor.row !== next.cursor.row ||
+    previous.cursor.column !== next.cursor.column
+  )
+    bytes += position(next.cursor)
+  return bytes
 }
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
 function wrap(text: string, width: number): string[] {
@@ -54,7 +106,7 @@ export function layout(screen: Screen, columns: number, rows: number): Layout {
     // No business eligibility for this revision. Even the notice must not scroll.
     const notice = 'Window too small. Enlarge to show the full identity and current step.'
     const lines = wrapped(notice).slice(0, Math.max(1, rows - 1))
-    return { bytes: '\x1b[H\x1b[2J' + lines.join('\r\n'), fits: false, page: 0, pages: 1 }
+    return { ...paint(lines, columns, rows), fits: false, page: 0, pages: 1 }
   }
   const body = screen.body.flatMap(wrapped)
   const pages = Math.max(1, Math.ceil(body.length / capacity))
@@ -63,21 +115,22 @@ export function layout(screen: Screen, columns: number, rows: number): Layout {
   // Reserve a stable footer/input region rather than letting body growth scroll identity.
   while (lines.length < rows - footer.length - 3) lines.push('')
   lines.push(`Page ${page + 1}/${pages}`)
-  let cursor: string | undefined
+  let cursor: RenderedScreen['cursor'] | undefined
   if (screen.input) {
     const rendered = screen.input.render(width)[0] ?? ''
     const marker = rendered.indexOf(CURSOR_MARKER)
     if (marker >= 0)
-      cursor = `\x1b[${lines.length + 1};${visibleWidth(rendered.slice(0, marker)) + 1}H`
+      cursor = { row: lines.length + 1, column: visibleWidth(rendered.slice(0, marker)) + 1 }
     lines.push(stripTerminalSequences(rendered.replaceAll(CURSOR_MARKER, '')))
   } else lines.push('')
   lines.push(...footer)
-  return { bytes: '\x1b[H\x1b[2J' + lines.join('\r\n') + (cursor ?? ''), fits: true, page, pages }
+  return { ...paint(lines, columns, rows, cursor), fits: true, page, pages }
 }
 
 interface Frame {
   readonly revision: number
   readonly bytes: string
+  readonly rendered?: Layout['rendered']
   readonly delivered: () => void
 }
 /** One actual write plus one latest state; callback completion is the delivery fence. */
@@ -89,6 +142,9 @@ export class FrameWriter {
   #revision = 0
   #closed = false
   #failure = false
+  #painted: RenderedScreen | undefined
+  #submitted: RenderedScreen | undefined
+  #resizeRevision = 0
   constructor(write: (bytes: string) => Promise<void>, failed: () => void) {
     this.#write = write
     this.#failed = failed
@@ -98,6 +154,11 @@ export class FrameWriter {
   }
   submit(frame: Frame): void {
     if (this.#closed || this.#failure) return
+    if (!sameSize(this.#submitted, frame.rendered)) {
+      this.#resizeRevision++
+      this.#painted = undefined
+    }
+    this.#submitted = frame.rendered
     this.#revision = frame.revision
     this.#latest = frame
     if (this.#work === undefined) {
@@ -113,15 +174,17 @@ export class FrameWriter {
   async #pump(): Promise<void> {
     while (!this.#closed && this.#latest) {
       const frame = this.#latest
+      const resizeRevision = this.#resizeRevision
       this.#latest = undefined
       try {
-        await this.#write(frame.bytes)
+        await this.#write(changes(this.#painted, frame))
       } catch {
         this.#failure = true
         this.#latest = undefined
         this.#failed()
         return
       }
+      this.#painted = resizeRevision === this.#resizeRevision ? frame.rendered : undefined
       if (!this.#closed && this.#revision === frame.revision) frame.delivered()
     }
   }

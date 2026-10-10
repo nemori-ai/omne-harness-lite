@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Input } from '@earendil-works/pi-tui'
 import { InputFramer, type TerminalInput } from '../src/tui/framer.ts'
-import { FIELD_LIMIT, validFieldText } from '../src/tui/forms.ts'
+import { FIELD_LIMIT, validFieldText } from '../src/tui/field-text.ts'
 
 describe('CQ2 bounded input', () => {
   it('input error is observable but cannot release an unfinished paste as EOF', async () => {
@@ -154,7 +154,7 @@ describe('CQ2 bounded input', () => {
     const events: TerminalInput[] = [],
       f = new InputFramer(e => events.push(e))
     f.feed(Buffer.from('\x1b[?2004;2$y\x1b[<0;1;1M'))
-    expect(events).toEqual([{ kind: 'mode', value: 2 }, { kind: 'invalid' }])
+    expect(events).toEqual([{ kind: 'mode', value: 2, privateMode: 2004 }, { kind: 'invalid' }])
     f.dispose()
   })
   it('rejects control/bidi, malformed UTF16 and over-capacity fields without trimming', () => {

@@ -1,49 +1,9 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
-import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
-import type { SessionLog } from '@omne-harness-lite/session-log'
-import { openSqlLogFixture } from './sql-log-fixture.ts'
-import type { SessionAccess, SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
-import {
-  createParameterJudge,
-  isToolReturn,
-  toolResultOf,
-  type ToolDefinition,
-} from '@omne-harness-lite/tool-definition'
-import type {
-  AdmissionToken,
-  ToolActionFacts,
-  ToolActionHistoryOperations,
-  ToolAdmissionOperations,
-} from '@omne-harness-lite/tool-admission'
-import {
-  projectToolJournal,
-  environmentToolOf,
-  type DeliveryBasis,
-  type ExecutionRef,
-  type ExecutionSubmission,
-  type ExecutionTerminal,
-  type ToolExecutor,
-} from '@omne-harness-lite/tool-execution-runtime'
-import { createExecutionOwner } from '../src/execution-owner.ts'
-import { createToolImplementationRegistry } from '../src/implementations.ts'
-import { createToolInvoker } from '../src/invoker.ts'
-import { createRuntimeJournal } from '../src/runtime-journal.ts'
+import type { ToolDefinition } from '@omne-harness-lite/tool-definition'
+import { projectToolJournal } from '@omne-harness-lite/tool-execution-runtime'
 
-import {
-  at,
-  scope,
-  ref,
-  access,
-  definition,
-  request,
-  deferred,
-  frozenDelivery,
-  fixture,
-} from './execution-owner-fixture.ts'
+import { at, scope, ref, access, definition, deferred, fixture } from './execution-owner-fixture.ts'
 
 test.each(['renewal', 'revocation'] as const)(
   'context reads allow due %s before consulting the original current reader',
@@ -68,7 +28,7 @@ test.each(['renewal', 'revocation'] as const)(
     })
     f.bind.mockImplementation(async () => ({ kind: 'bound', reader: { read: sourceRead } }))
     try {
-      expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+      expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
       const observer = await f.observer()
       const ended = await observer.waitForEnd()
       expect(ended).toMatchObject({
@@ -102,10 +62,10 @@ test('concurrent identical submissions invoke one captured closure and persist t
   const f = await fixture()
   try {
     expect(
-      await Promise.all([f.owner.operations.submit(request), f.owner.operations.submit(request)]),
+      await Promise.all([f.owner.submitPrepared(f.prepared), f.owner.submitPrepared(f.prepared)]),
     ).toEqual([
       { kind: 'recorded', execution: ref },
-      { kind: 'recorded', execution: ref },
+      { kind: 'recognized', execution: ref },
     ])
     const observer = await f.observer(),
       result = await observer.waitForEnd()
@@ -130,8 +90,8 @@ test('concurrent identical submissions invoke one captured closure and persist t
     expect(ending.value.delivery.pass).toBe('after-action-pass')
     expect(ending.value.account.late).toBeUndefined()
     expect(
-      f.append.mock.calls.filter(call =>
-        call[1].some(entry => entry.dedupeKey?.includes('execution_ended')),
+      f.appendIn.mock.calls.filter(call =>
+        call[2].entries.some(entry => entry.dedupeKey?.includes('execution_ended')),
       ),
     ).toHaveLength(1)
     observer.release()
@@ -147,7 +107,7 @@ test('last observer release settles its pending wait while execution survives an
     return returned.promise
   })
   try {
-    expect(await f.owner.operations.submit(request)).toHaveProperty('kind', 'recorded')
+    expect(await f.owner.submitPrepared(f.prepared)).toHaveProperty('kind', 'recorded')
     const signal = await entered.promise,
       first = await f.observer(),
       pending = first.waitForEnd()
@@ -175,7 +135,7 @@ test('explicit stop commits interruption before abort and a later author result 
     return returned.promise
   })
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     const signal = await entered.promise
     expect(await f.owner.operations.stop(access, ref, 'requested-stop')).toBe('stopped')
     expect(signal.aborted).toBe(true)
@@ -198,53 +158,51 @@ test('explicit stop commits interruption before abort and a later author result 
   }
 })
 test.each(['run-ended', 'attempt-changed'])(
-  'terminal commit recomputes late after a competing %s append',
+  'terminal commit uses Session classification after %s',
   async marker => {
-    const f = await fixture()
-    const append = f.log.append
-    let inserted = false
-    f.append.mockImplementation(async (...args) => {
-      if (!inserted && args[1].some(entry => entry.dedupeKey?.includes('execution_ended'))) {
-        inserted = true
-        await f.marker(marker)
-      }
-      return append(...args)
+    const entered = deferred<void>(),
+      returned = deferred<string>()
+    const f = await fixture(async () => {
+      entered.resolve()
+      return returned.promise
     })
     try {
-      await f.owner.operations.submit(request)
+      await f.owner.submitPrepared(f.prepared)
+      await entered.promise
+      await f.marker(marker)
+      returned.resolve('original-result')
       const observer = await f.observer()
       expect(await observer.waitForEnd()).toMatchObject({
         snapshot: { state: { account: { late: true } } },
       })
       expect(
-        f.append.mock.calls.filter(call =>
-          call[1].some(entry => entry.dedupeKey?.includes('execution_ended')),
+        f.appendIn.mock.calls.filter(call =>
+          call[2].entries.some(entry => entry.dedupeKey?.includes('execution_ended')),
         ),
-      ).toHaveLength(2)
+      ).toHaveLength(1)
       observer.release()
     } finally {
+      returned.resolve('original-result')
       await f.close()
     }
   },
 )
 test('unknown intent receipt is recognized before the only invocation starts', async () => {
   const f = await fixture()
-  f.append.mockImplementationOnce(async (...args) => {
-    expect(await f.log.append(...args)).toHaveProperty('ok')
-    return { failure: 'unavailable' }
-  })
+  const lost = f.loseNextCommit('execution_intended')
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({
-      kind: 'rejected',
-      reason: 'runtimeUnavailable',
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({
+      kind: 'unknownCommit',
+      original: ref,
     })
     expect(f.implementation).not.toHaveBeenCalled()
-    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recognized', execution: ref })
     const observer = await f.observer()
     expect(await observer.waitForEnd()).toMatchObject({ snapshot: { state: { phase: 'ended' } } })
     expect(f.implementation).toHaveBeenCalledTimes(1)
     observer.release()
   } finally {
+    lost.restore()
     await f.close()
   }
 })
@@ -260,7 +218,7 @@ test('successful execution context reads are durable before the executor receive
     return 'used-context'
   })
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     const observer = await f.observer()
     expect(await observer.waitForEnd()).toMatchObject({
       snapshot: {
@@ -290,7 +248,7 @@ test('a changed context view stays an explicit rejection and is never durably ad
     reader: { read: async () => ({ kind: 'rejected', reason: 'viewChanged' }) },
   })
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     const observer = await f.observer()
     expect(await observer.waitForEnd()).toMatchObject({
       snapshot: {
@@ -306,14 +264,14 @@ test('a changed context view stays an explicit rejection and is never durably ad
 test('revocation prevents observer reads, stop and duplicate submit before existence can escape', async () => {
   const f = await fixture()
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     const observer = await f.observer()
     await observer.waitForEnd()
     f.revoke()
     const reads = f.readSince.mock.calls.length
     expect(await observer.read()).toEqual({ kind: 'rejected', reason: 'notAuthorized' })
     expect(await f.owner.operations.stop(access, ref, 'stop')).toBe('notAuthorized')
-    expect(await f.owner.operations.submit(request)).toEqual({
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({
       kind: 'rejected',
       reason: 'notAuthorized',
     })
@@ -333,7 +291,7 @@ test('owner close invalidates old observers and confirms abnormal interruption b
     return 'discarded-on-close'
   })
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     await entered.promise
     const observer = await f.observer(),
       waiting = observer.waitForEnd()
@@ -354,75 +312,67 @@ test('owner close invalidates old observers and confirms abnormal interruption b
   }
 })
 
-test('a lost start receipt retains the fixed implementation and reentry starts it once after recognition', async () => {
+test('a lost consume receipt retains its start record and never re-enters the author', async () => {
   const f = await fixture()
-  let lost = false
-  f.append.mockImplementation(async (...args) => {
-    const result = await f.log.append(...args)
-    if (!lost && args[1].some(entry => entry.dedupeKey?.includes('execution_started'))) {
-      lost = true
-      return { failure: 'unavailable' }
-    }
-    return result
-  })
+  const lost = f.loseNextCommit('execution_started')
   try {
-    expect(await f.owner.operations.submit(request)).toHaveProperty('kind', 'recorded')
+    expect(await f.owner.submitPrepared(f.prepared)).toHaveProperty('kind', 'recorded')
     await f.owner.idle()
+    expect(lost.matched()).toBe(true)
     expect(f.implementation).not.toHaveBeenCalled()
     f.withdraw()
-    expect(await f.owner.operations.submit(request)).toHaveProperty('kind', 'recorded')
+    expect(await f.owner.submitPrepared(f.prepared)).toHaveProperty('kind', 'recognized')
     const observer = await f.observer()
     expect(await observer.waitForEnd()).toMatchObject({
-      snapshot: { state: { terminal: { result: 'actual-result' } } },
+      snapshot: {
+        state: { terminal: { outcome: 'unavailable', reason: 'original_consume_unconfirmed' } },
+      },
     })
-    expect(f.implementation).toHaveBeenCalledTimes(1)
+    expect(f.implementation).not.toHaveBeenCalled()
     expect(
-      f.append.mock.calls.filter(args =>
-        args[1].some(entry => entry.dedupeKey?.includes('execution_started')),
+      f.appendIn.mock.calls.filter(args =>
+        args[2].entries.some(entry => entry.dedupeKey?.includes('execution_started')),
       ),
     ).toHaveLength(1)
     observer.release()
   } finally {
+    lost.restore()
     await f.close()
   }
 })
 
 test('a lost terminal receipt is recognized without invoking or preparing the original result again', async () => {
   const f = await fixture()
-  let lost = false
-  f.append.mockImplementation(async (...args) => {
-    const result = await f.log.append(...args)
-    if (!lost && args[1].some(entry => entry.dedupeKey?.includes('execution_ended'))) {
-      lost = true
-      return { failure: 'unavailable' }
-    }
-    return result
-  })
+  const lost = f.loseNextCommit('execution_ended')
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     await f.owner.idle()
     const observer = await f.observer()
     expect(await observer.waitForEnd()).toMatchObject({
       snapshot: { state: { terminal: { result: 'actual-result' } } },
     })
-    expect(await f.owner.operations.submit(request)).toHaveProperty('kind', 'recorded')
+    expect(await f.owner.submitPrepared(f.prepared)).toHaveProperty('kind', 'recognized')
     await f.owner.idle()
     expect(f.implementation).toHaveBeenCalledTimes(1)
     expect(f.prepareDelivery).toHaveBeenCalledTimes(1)
     observer.release()
   } finally {
+    expect(lost.matched()).toBe(true)
+    lost.restore()
     await f.close()
   }
 })
 
-test('revocation during chain IO prevents the intent append and execution', async () => {
+test('revocation during admission verification prevents the intent append and execution', async () => {
   const f = await fixture()
-  f.selectChain.mockImplementation(async () => {
+  const verify = f.admission.verifyToken
+  vi.spyOn(f.admission, 'verifyToken').mockImplementation(async (...args) => {
+    const result = await verify(...args)
     f.revoke()
-    return { chain: [], pass: 'after-action-pass' }
+    return result
   })
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({
+    expect(await f.owner.submitPrepared(f.prepared)).toEqual({
       kind: 'rejected',
       reason: 'notAuthorized',
     })
@@ -433,13 +383,13 @@ test('revocation during chain IO prevents the intent append and execution', asyn
   }
 })
 
-test('unavailable chain selection refuses admission instead of freezing an empty chain', async () => {
+test('missing prepared chain refuses admission instead of freezing an empty chain', async () => {
   const f = await fixture()
-  f.selectChain.mockResolvedValue('unavailable')
   try {
-    expect(await f.owner.operations.submit(request)).toEqual({
+    const { afterAction: _chain, ...incomplete } = f.prepared
+    expect(await f.owner.submitPrepared(incomplete as typeof f.prepared)).toEqual({
       kind: 'rejected',
-      reason: 'runtimeUnavailable',
+      reason: 'invalidInput',
     })
     expect(f.append).not.toHaveBeenCalled()
     expect(f.implementation).not.toHaveBeenCalled()
@@ -500,7 +450,7 @@ test('actual frame reduction is observable and its measured count goes into the 
     return 'done'
   })
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     await entered.promise
     const observer = await f.observer()
     expect(await observer.frames()).toMatchObject({
@@ -528,7 +478,7 @@ test('observer release settles an outstanding authorized read without waiting fo
     entered = deferred<void>(),
     resumed = deferred<void>()
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     const observer = await f.observer()
     await observer.waitForEnd()
     const original = f.authorize.getMockImplementation()!
@@ -560,7 +510,7 @@ test('implementation resource invalidation records unavailable and aborts its ow
     return 'invalidated-author-result'
   }, invalidated.signal)
   try {
-    await f.owner.operations.submit(request)
+    await f.owner.submitPrepared(f.prepared)
     const signal = await entered.promise,
       observer = await f.observer()
     invalidated.abort('resource-unloaded')
@@ -602,7 +552,7 @@ test.each<ToolDefinition>([
   async adopted => {
     const f = await fixture(async () => 'must-not-run', undefined, adopted)
     try {
-      expect(await f.owner.operations.submit(request)).toHaveProperty('kind', 'recorded')
+      expect(await f.owner.submitPrepared(f.prepared)).toHaveProperty('kind', 'recorded')
       const observer = await f.observer()
       expect(await observer.waitForEnd()).toMatchObject({
         snapshot: {
@@ -639,7 +589,7 @@ test('a background waiting declaration does not block execution or add a runtime
     },
   )
   try {
-    expect(await f.owner.operations.submit(request)).toHaveProperty('kind', 'recorded')
+    expect(await f.owner.submitPrepared(f.prepared)).toHaveProperty('kind', 'recorded')
     const observer = await f.observer()
     await entered.promise
     observer.release()

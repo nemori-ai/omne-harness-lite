@@ -1,3 +1,5 @@
+import { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
+export { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
 import type { BoundCredentialRedaction } from '@omne-harness-lite/model-request-runtime'
 import type { DiagnosticEmitter, DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 import type {
@@ -51,17 +53,6 @@ function association(
 }
 
 /** Never await a diagnostic callback on the business path. Drain a violating thenable rejection. */
-export function drainDiagnosticThenable(value: unknown): boolean {
-  if ((typeof value !== 'object' || value === null) && typeof value !== 'function') return false
-  try {
-    if (typeof (value as { then?: unknown }).then !== 'function') return false
-    void Promise.resolve(value).catch(() => {})
-    return true
-  } catch {
-    return true
-  }
-}
-
 export function createInvocationDiagnostics<P extends PlannedSemantics, R>(
   input: InvocationInput<P, R>,
   bound: BoundCredentialRedaction,

@@ -18,7 +18,10 @@ import { entryValidator } from '../src/routing/schema.ts'
 import { TLS_FIXTURES } from './support/wire.ts'
 
 const PACKAGE = join(import.meta.dirname, '..')
-const SPEC_SCHEMA = join(PACKAGE, 'tests/fixtures/entry-baseline.schema.json')
+const SPEC_SCHEMA = join(
+  PACKAGE,
+  '../../core/governance-center-entry/schema/governance-center-entry.schema.json',
+)
 
 describe('basis：ctx.on 经 effect 纳管', () => {
   it('插件里 ctx.on 挂的监听，在该 fiber 撤除后不再被调用；未撤除时照常被调用', async () => {
@@ -96,11 +99,14 @@ describe('basis：Node 24 的 TLS 服务器与预建的 secureContext', () => {
   })
 })
 
-describe('规范 Schema 的包内副本', () => {
-  it('与独立基线夹具的那一份逐字节相同', () => {
-    expect(readFileSync(join(PACKAGE, 'schema/governance-center-entry.schema.json'))).toEqual(
-      readFileSync(SPEC_SCHEMA),
+describe('规范 Schema 的公共拥有者', () => {
+  it('使用唯一公共源，编译声明的身份与该源一致', () => {
+    const schema = JSON.parse(readFileSync(SPEC_SCHEMA, 'utf8')) as { $id: string }
+    expect(schema.$id).toBe(
+      'https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json',
     )
+    expect(entryValidator('ProtocolVersion')('3')).toBe(true)
+    expect(entryValidator('ProtocolVersion')('2')).toBe(false)
   })
 
   it('每条路由的 Payload_<路由> 与 Result_<路由> 都编得出；另有 Exchange、Envelope、FullHealthReply', () => {

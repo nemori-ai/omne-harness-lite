@@ -15,6 +15,17 @@ SingleActive只检查模型单指针，不能证明真实表中至多一个未�
 
 真实提供者必须补事务回滚、唯一约束、当前授权与撤权顺序、持续追加进展、原IO准入及结果保管／ACK的故障组合。有限模型不替代这些义务。模型涉及的状态与生产协议建立明确映射后，才判断证据可用于哪项实现接受。
 
+## 驱动接口及组合义务
+
+SessionDriverStartup／Control及policy属于[共享SPEC](../SPEC.md)的施工承诺。
+类型／policy校验只证明形状和界值，不证明启动、唯一执行、排空或关闭。
+完整构造及实际组合义务由[本机提供者](../../../session/session-runtime-local/verification/README.md)维护。
+共享定义不选择具体Model／Tool或Root资源，也不通过事件授予推进权。
+
+每个提供者须检验坏配置、启动部分失败、撤除期间晚到control、依赖换代、原pending续关及两个实例不互撤。
+plugin拥有并传入启动signal；root持原真实依赖直到closed，signal终止不等于物理执行取消。
+这些动态轨迹不在SessionWork内，不从有限公平进展推导实际Clock、Storage或依赖必然可用。
+
 ## 有限机制探针
 
 

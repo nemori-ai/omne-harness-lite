@@ -9,7 +9,7 @@ import {
   modelCallContentMigrations,
 } from '../src/reference-content.ts'
 import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
-import type { SettlementStagedBatch } from '../src/settlement-types.ts'
+import type { SettlementStagedBatch } from '@omne-harness-lite/model-request-runtime'
 import { session, tenant } from './log-codec-fixture.ts'
 
 const policy = { maxConcurrentWrites: 4, maxContentBytes: 1000000 }

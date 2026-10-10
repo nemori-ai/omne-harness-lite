@@ -1,4 +1,9 @@
-import { copyJsonValue, validate, type AttachmentRef } from '@omne-harness-lite/content-blocks'
+import {
+  copyJsonValue,
+  validate,
+  type AttachmentRef,
+  type ResultContentBlock,
+} from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import { toolResultOf, type ToolResult } from '@omne-harness-lite/tool-definition'
@@ -48,21 +53,48 @@ export function captureResult(input: unknown): StoredToolResult | undefined {
 export function references(result: ToolResult): AttachmentRef[] {
   const output: AttachmentRef[] = [...(result.attachments ?? [])]
   if (result.offload && 'storage' in result.offload.raw) output.push(result.offload.raw)
-  for (const block of [...result.content, ...(result.offload?.summary ?? [])]) {
-    if (block.kind === 'file') output.push(block.attachment)
-    if ((block.kind === 'image' || block.kind === 'voice') && 'storage' in block.data)
-      output.push(block.data)
-    if ('renderings' in block)
-      for (const rendering of block.renderings ?? [])
-        for (const child of rendering.blocks) {
-          if ((child.kind === 'image' || child.kind === 'voice') && 'storage' in child.data)
-            output.push(child.data)
-        }
-  }
+  output.push(...blockReferences([...result.content, ...(result.offload?.summary ?? [])]))
   return output
 }
 export function originalMatches(result: StoredToolResult, returned: unknown): boolean {
   if (typeof returned !== 'string') return same(result.result, returned)
   const block = result.result.content[0]
   return block !== undefined && same(result.result, toolResultOf(returned, block.id))
+}
+
+export function captureStoreConfig(config: unknown): {
+  readonly directory: string
+  readonly storage: string
+} {
+  const copied = copyJsonValue(config)
+  if (
+    'failed' in copied ||
+    !object(copied.ok) ||
+    Object.keys(copied.ok).length !== 2 ||
+    typeof copied.ok.directory !== 'string' ||
+    !copied.ok.directory ||
+    !('ok' in parseOpaqueIdentifier(copied.ok.storage, 'StorageId'))
+  )
+    throw new TypeError('result file configuration required')
+  return { directory: copied.ok.directory, storage: copied.ok.storage as string }
+}
+
+export function blockReferences(input: readonly ResultContentBlock[]): AttachmentRef[] {
+  const output: AttachmentRef[] = [],
+    pending = [...input]
+  while (pending.length) {
+    const block = pending.pop()!,
+      reference = blockReference(block)
+    if (reference) output.push(reference)
+    if (block.kind === 'tool_result') pending.push(...block.blocks)
+    if ('renderings' in block)
+      pending.push(...(block.renderings ?? []).flatMap(rendering => rendering.blocks))
+  }
+  return output
+}
+function blockReference(block: ResultContentBlock): AttachmentRef | undefined {
+  if (block.kind === 'file') return block.attachment
+  if (block.kind === 'tool_result') return block.offloaded
+  if ((block.kind === 'image' || block.kind === 'voice') && 'storage' in block.data)
+    return block.data
 }

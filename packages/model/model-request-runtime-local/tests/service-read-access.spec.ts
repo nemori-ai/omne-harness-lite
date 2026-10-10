@@ -12,8 +12,8 @@ import { dispatched } from './log-codec-fixture.ts'
 import { responseV5 } from './log-codec-v2-fixture.ts'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { CallAccessEvidence } from '@omne-harness-lite/model-request-runtime'
-import { createRuntimeReads } from '../src/service-reads.ts'
-import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
+import { createRuntimeReads } from '@omne-harness-lite/session-runtime-local'
+import { acknowledgementHost } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'
 
 const missingRef = (session: Parameters<typeof parseOpaqueIdentifier>[0]) => ({

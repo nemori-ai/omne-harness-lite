@@ -1,14 +1,15 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { createServer } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import {
@@ -36,7 +37,7 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
       server.once('error', reject)
       server.listen(0, '127.0.0.1', resolve)
     })
-    let runtime: ReturnType<typeof createModelRuntime<TestPlan, object>> | undefined
+    let runtime: ReturnType<typeof createSessionModelRuntime<TestPlan, object>> | undefined
     try {
       const address = server.address()
       if (address === null || typeof address === 'string') throw new Error('HTTP address')
@@ -85,7 +86,8 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
       const parsedMessage = parseOpaqueIdentifier('thirteen-message', 'MessageId')
       if (!('ok' in parsedMessage)) throw new Error('message id')
       const calls = createCallContainerStore<TestPlan, object>()
-      const config: RuntimeConstruction<TestPlan, object> = {
+      const config: SessionModelConstruction<TestPlan, object> = {
+        execute: ({ input }) => ({ invocation: invokeModel(input) }),
         ...referencePorts(host, calls),
         maxScopes: 4,
         sessions: { bind: async () => ({ binding }) },
@@ -184,7 +186,7 @@ describe('RT10 thirteen-operation noRun public service gate', () => {
         },
         diagnostic() {},
       }
-      runtime = createModelRuntime(config)
+      runtime = createSessionModelRuntime(config)
       const service = runtime.service
       const targets = await service.legalTargets({ session: host.session })
       expect(targets).toMatchObject({ legalTargets: expect.arrayContaining(['example/model-a']) })

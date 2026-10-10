@@ -25,8 +25,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "vitest run",
-    "acceptance": "vitest run --config vitest.acceptance.config.ts"
+    "test": "vitest run"
   },
   "dependencies": {
     "@omne-harness-lite/asset-model": "workspace:*",
@@ -47,7 +46,8 @@
     "@omne-harness-lite/stream-assembly": "workspace:*",
     "@omne-harness-lite/loop-extension-runner": "workspace:*",
     "@omne-harness-lite/execution-environments": "workspace:*",
-    "@omne-harness-lite/assembly-lifecycle": "workspace:*"
+    "@omne-harness-lite/assembly-lifecycle": "workspace:*",
+    "@omne-harness-lite/storage": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness-lite/model-request-runtime": "workspace:*",
@@ -56,9 +56,9 @@
     "vitest": "catalog:",
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness-lite/session-log-sql": "workspace:*",
-    "@omne-harness-lite/storage": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
-    "@omne-harness-lite/session-log": "workspace:*"
+    "@omne-harness-lite/session-log": "workspace:*",
+    "@omne-harness-lite/execution-environments-host": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:"

@@ -2,6 +2,8 @@
 
 公开形状、值读和纯构件归 src/index.ts；正式抽象 Service 及键 assetRegistry 归 ./cordis。Service 提供 fill、reload、refreshAvailability、lookup、list、markFailed、onAssetChange 七操作；提供者选择只归装配。纯根不加载 Cordis。求值复用 [asset-evaluation](../asset-evaluation/SPEC.md)，耐久构成归 [assembly-manifest](../assembly-manifest/SPEC.md)，不建立第二个求值算法或登记库。
 
+纯表构件、正文选择及记录读取接受调用方提供的 `AssetEvaluator`。同一装配可共用其编译结果，但每次仍校验完整实际输入。省略该参数保留独立值函数的现行行为，不创建进程级作者 Schema 缓存。
+
 ## 表、依赖与报告
 
 六张表按类别过滤 caller 显式给出的 compositionOrder；它须为组合的精确无重复全排列，不含根，不从集合编码猜顺序。删除保持相对次序。已知八类中的 connector/agent_definition 是 categoryNotRegistered，八类外 invalidInput。每 session/category 一份当前不可变快照；替换造新快照，不原位修改。多表全成全败，单次 MF append 确认后才可见。MF 是构成唯一耐久源；同会话队列不替代存储裁决。

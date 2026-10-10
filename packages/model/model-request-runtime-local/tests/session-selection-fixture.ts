@@ -53,7 +53,7 @@ import { modelProfileDirectoryPlugin } from '@omne-harness-lite/model-profile-di
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
-import { createSessionModelSelection } from '../src/session-selection.ts'
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { type SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
 import { ControlledSettlementOwner } from './settlement-fixture.ts'
 

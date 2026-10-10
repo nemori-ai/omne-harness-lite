@@ -21,7 +21,7 @@ import {
   acknowledgements,
   kinds,
   type HostOptions,
-} from './acknowledgement-host-fixture.ts'
+} from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import type {
   SettlementOwner,
   SettlementRegistration,

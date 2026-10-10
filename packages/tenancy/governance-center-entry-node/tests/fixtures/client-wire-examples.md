@@ -4,7 +4,7 @@
 
 属于 `composition.governance-center-entry-https-json` v2（候选）的规范实例，是本版的规范工件之一。
 §1～§5 是完整的线上字节，**入口层 T-2 固定字节快照以它们为来源**；§6 是请求体的读法与重复成员落到哪一种答复；§7 是体的写出规则的逐例。
-答复的形状与成员以入口契约的 [Schema](../../../../core/governance-center-entry/schema/governance-center-entry-v2.schema.json) 为准，本页不另立定义。
+答复的形状与成员以入口契约的 [Schema](../../../../core/governance-center-entry/schema/governance-center-entry.schema.json) 为准，本页不另立定义。
 
 **两种写法，同一串字节：**
 

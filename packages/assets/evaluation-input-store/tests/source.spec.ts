@@ -272,7 +272,11 @@ test('actual current role is only a qualification gate; capture keeps original r
   withHost(async h => {
     const owner = await h.identity('owner')
     const member = await h.identity('member')
-    const team = await h.organizations.createTeam(owner.tenant.account, 'source-team')
+    const team = await h.organizations.createTeam(
+      owner.tenant.account,
+      'test organization',
+      'source-team',
+    )
     if (!('ok' in team)) throw new Error('real team creation failed')
     const invitation = await h.offers.issueInvitation(
       team.ok.tenant,

@@ -213,11 +213,8 @@ function judgeReadonlyLeaf(file: SourceFile, ref: ImportRef): string | undefined
         'ajv/dist/2020.js',
         '@omne-harness-lite/identity-values/schema',
         '@omne-harness-lite/offer-expiry/schema',
+        '@omne-harness-lite/governance-center-entry/schema',
       ].includes(specifier)
-    )
-      return undefined
-    if (
-      resolved === 'tenancy/governance-center-entry-node/schema/governance-center-entry.schema.json'
     )
       return undefined
     // The async Clock backup envelope is a separate, fixed resource of this same owner.

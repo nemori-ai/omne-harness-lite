@@ -15,7 +15,6 @@ Python 当前服务于开发工具。
 |---|---|---|
 | [packages/](../packages/README.md) | 产品的可复用包，以 TS 为主 | 有明确职责、依赖和对外入口；消费者通过包入口使用 |
 | [apps/](../apps/README.md) | 可启动的产品应用与装配入口 | 组合包、加载配置、启动宿主；可复用行为回到所属包 |
-| [examples/](../examples/README_ZH.md) | 可运行的开发示例 | 使用已接受的包公开面演示有限的闭环；不作为正式产品应用或新的设计权威 |
 | [tools/](../tools/README.md) | 开发、验证和维护工具 | 工具也可拥有独立包、CLI、资源和测试；以 TS 编写也归此处 |
 | [scripts/](../scripts/README.md) | 仓库级开发与 CI/CD 自动化 | 串联现有工具、准备构建输入、整理产物；复杂检查逻辑归工具包 |
 | 各包或应用内的 `src/` | 该成员的实现源码 | TS、Python 都可采用；源码跟随所属包，不汇入根 `src/` |
@@ -74,7 +73,6 @@ packages/frontend/client-local-state-sqlite
 packages/frontend/governance-client-operations-local
                                        治理协议运输、本地完整状态与共享治理用例
 apps/cli/                             治理CLI应用；文件输入增量
-examples/model-invocation-minimal-demo/ 真实模型调用、持久多轮交互示例
 tools/artifact-builder/                TS 开发成员；应用归档文件校验与独占发布
 tools/ts-checks/                       TS 开发成员；产品源码结构检查规则与 CLI
 tools/core-verification/               TS 开发成员；core 真实组合与验证套件有效性自测
@@ -106,7 +104,7 @@ CI 配置（`.github/workflows/`）只负责触发条件、执行环境和调用
 `tool.uv.workspace.members` 指向 `tools/spec-tools`，`workspace = true` 绑定本地成员。
 
 TS workspace 由 pnpm 管理，[`pnpm-workspace.yaml`](../pnpm-workspace.yaml) 声明
-`packages/*/*`、`apps/*`、`examples/*`、`tools/ts-checks`、`tools/artifact-builder` 与 `tools/core-verification`，并用 `catalog` 把第三方依赖的版本钉一次
+`packages/*/*`、`apps/*`、`tools/ts-checks`、`tools/artifact-builder` 与 `tools/core-verification`，并用 `catalog` 把第三方依赖的版本钉一次
 （成员写 `catalog:`）。每个成员自带 `build`／`typecheck`／`test` 脚本；根命令的构建与类型检查用 `pnpm -r` 聚合，
 测试由 [tools/ts-checks 的测试运行入口](../tools/ts-checks/README_ZH.md#测试运行)逐成员调用各自的 `test` 脚本
 （成员清单仍读 `pnpm-workspace.yaml`）。测试框架是 vitest（`*.spec.ts` 运行时、`*.spec-d.ts` 类型测试）。

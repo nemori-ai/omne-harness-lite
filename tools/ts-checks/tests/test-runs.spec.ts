@@ -1,6 +1,6 @@
 // 测试运行工具的已知值核对：成员清单、并行度覆盖、耗时账本、计时报告器、失败归因的分类。影响面的计划另见 affected.spec.ts。
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -65,7 +65,8 @@ describe('成员清单', () => {
     // ts-checks 只在 devDependencies 里依赖 identity-values；改后者要重跑前者的测试。
     const checks = members.find(item => item.path === 'tools/ts-checks')
     expect(checks?.dependencies).toContain('@omne-harness-lite/identity-values')
-    expect(listTestMembers(ROOT, []).some(item => item.path.startsWith('examples/'))).toBe(true)
+    expect(listTestMembers(ROOT, []).some(item => item.path.startsWith('examples/'))).toBe(false)
+    expect(existsSync(join(ROOT, 'examples'))).toBe(false)
   })
 
   it('从提交读与从工作树读走同一套解析：HEAD 上的成员清单与工作树一致（工作树没有新增或删掉成员时）', () => {

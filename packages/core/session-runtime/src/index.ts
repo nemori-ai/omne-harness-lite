@@ -1,3 +1,7 @@
 export * from './types.ts'
 export * from './facts.ts'
 export * from './operation.ts'
+export * from './lifecycle-facts.ts'
+export * from './work-types.ts'
+export type * from './driver-types.ts'
+export { checkSessionDriverPolicy } from './driver-policy.ts'

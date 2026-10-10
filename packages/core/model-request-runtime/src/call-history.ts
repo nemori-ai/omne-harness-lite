@@ -17,15 +17,13 @@ import { finalMatchesWitness } from './acknowledged-view.ts'
 import type { CapturedModelLogValue } from './log-codec-value.ts'
 import type { InspectedModelLogEntry } from './log-codec-entry.ts'
 import type { ModelLogResponseProjection } from './log-codec-value.ts'
-import { modelLogJsonEqual } from './log-codec-key.ts'
+import { encodeModelLogKey, modelLogJsonEqual } from './log-codec-key.ts'
 import {
   interpretSettlementPrefix,
-  isOwnedSettlementPrefix,
-  settlementGenerationCurrent,
+  inspectSettlementPrefixEntries,
   type SettlementPrefix,
 } from './settlement-prefix.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
-import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
 
 export interface CallHistoryDispatch {
   readonly ordinal: JsonNumber
@@ -139,18 +137,19 @@ export function interpretCallHistory(input: {
   readonly callId: ModelCallId
 }): CallHistoryResult {
   const { prefix, callId } = input
-  if (!isOwnedSettlementPrefix(prefix) || !settlementGenerationCurrent(prefix.binding))
-    return unavailable('prefix')
-  const inspectedPrefix = inspectCurrentModelLogPrefix({
-    session: prefix.binding.session,
-    tenant: prefix.binding.tenant,
+  const key = encodeModelLogKey({ kind: 'call', call: callId })
+  if (!('ok' in key)) return unavailable('history')
+  const inspectedPrefix = inspectSettlementPrefixEntries({
     prefix,
+    selector: { kind: 'readKey', key: key.ok },
   })
   if (!('ok' in inspectedPrefix))
     return unavailable(
-      'reason' in inspectedPrefix && inspectedPrefix.reason === 'unknown_format'
-        ? 'unknown_format'
-        : 'history',
+      inspectedPrefix.reason === 'prefix' || inspectedPrefix.reason === 'generation'
+        ? 'prefix'
+        : inspectedPrefix.reason === 'unknown_format'
+          ? 'unknown_format'
+          : 'history',
     )
   const { records, responses } = collectCallRecords(inspectedPrefix.ok, callId)
   return interpretCallRecords(prefix, callId, records, responses)

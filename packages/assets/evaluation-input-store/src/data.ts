@@ -10,6 +10,8 @@ import {
 } from '@omne-harness-lite/asset-model'
 import {
   defaultBodyContracts,
+  createAssetEvaluator,
+  type AssetEvaluator,
   evaluate,
   selectEvaluationRootSource,
   type EvaluationRootSource,
@@ -40,7 +42,7 @@ import {
   type TenantId,
 } from '@omne-harness-lite/identity-values'
 import { narrow, type ReadTx } from '@omne-harness-lite/storage'
-import type { DeployedOfficialEntry, InputSourceDependencies, SourceDb } from './types.ts'
+import type { DeployedOfficialEntry, EvaluationStorageDependencies, SourceDb } from './types.ts'
 
 let assetJudge: AssetModelJudge | undefined
 export function getAssetJudge(): AssetModelJudge {
@@ -111,8 +113,13 @@ function content(value: AssetContent): AssetContent {
     ? { ...value, body: toOpaqueJson(json(value.body) ?? null) }
     : value
 }
-export function definition(value: unknown): NonConnectorAssetDefinition {
-  if (!('ok' in getAssetJudge().judgeAssetValue('AssetDefinition', value)))
+export function definition(
+  value: unknown,
+  evaluator?: AssetEvaluator,
+): NonConnectorAssetDefinition {
+  if (
+    !('ok' in (evaluator?.assetJudge ?? getAssetJudge()).judgeAssetValue('AssetDefinition', value))
+  )
     throw new SourceUnavailable('asset_definition')
   const wire = json(value) as unknown as AssetDefinition
   if (wire.capability.category === 'connector') throw new SourceUnavailable('connector_body')
@@ -159,7 +166,7 @@ export function decodeHoldings(value: unknown, holder: HoldingScope): readonly A
   }
   return value as readonly AssetHolding[]
 }
-export function emit(deps: InputSourceDependencies, event: unknown): void {
+export function emit(deps: EvaluationStorageDependencies, event: unknown): void {
   const value = json(event)
   if (!object(value)) throw new TypeError('source diagnostic is not a JSON object')
   try {
@@ -173,7 +180,7 @@ export function emit(deps: InputSourceDependencies, event: unknown): void {
     }
   }
 }
-export function checkDependencies(deps: InputSourceDependencies): void {
+export function checkDependencies(deps: EvaluationStorageDependencies): void {
   if (
     typeof deps.storage.atomic !== 'function' ||
     typeof deps.storeKey !== 'string' ||
@@ -207,12 +214,15 @@ export function checkDependencies(deps: InputSourceDependencies): void {
   )
     throw new TypeError('input source requires explicit diagnostics and measurement ports')
 }
-export function ownDependencies(deps: InputSourceDependencies): InputSourceDependencies {
+export function ownDependencies<T extends EvaluationStorageDependencies>(
+  deps: T,
+): T & { readonly evaluator: AssetEvaluator } {
   checkDependencies(deps)
   const deployedOfficial = json(deps.deployedOfficial)
   if (!Array.isArray(deployedOfficial)) throw new TypeError('invalid deployed official manifest')
   return Object.freeze({
     ...deps,
+    evaluator: deps.evaluator ?? createAssetEvaluator(),
     deployedOfficial: deployedOfficial as unknown as readonly DeployedOfficialEntry[],
   })
 }
@@ -306,7 +316,7 @@ export interface SourceSnapshot {
 }
 export async function readSourceSnapshot(
   tx: ReadTx,
-  deps: InputSourceDependencies,
+  deps: EvaluationStorageDependencies,
   recipe: Recipe,
   fixedSource?: EvaluationRootSource,
 ): Promise<SourceSnapshot> {
@@ -375,11 +385,14 @@ export async function readSourceSnapshot(
     const info = parsed(metadata.metadata, 'definition_metadata')
     if (!object(info)) throw new SourceUnavailable('definition_metadata')
     definitions.push(
-      definition({
-        ...info,
-        ...(metadata.draft === null ? {} : { draft: parsed(metadata.draft, 'draft') }),
-        versions: rows.map(row => parsed(row.version, 'version')),
-      }),
+      definition(
+        {
+          ...info,
+          ...(metadata.draft === null ? {} : { draft: parsed(metadata.draft, 'draft') }),
+          versions: rows.map(row => parsed(row.version, 'version')),
+        },
+        deps.evaluator,
+      ),
     )
     versions += rows.length
     bodyBytes += rows.reduce((sum, row) => sum + Buffer.byteLength(row.version), 0)
@@ -471,7 +484,7 @@ export function buildInputWithRoot(
 /** No IO: selection, extraction and admission run only on this operation's owned snapshot. */
 export function inputFromSnapshot(
   snapshot: SourceSnapshot,
-  deps: InputSourceDependencies,
+  deps: EvaluationStorageDependencies,
 ): {
   input: NonConnectorEvaluationInput
   revision: string
@@ -484,7 +497,7 @@ export function inputFromSnapshot(
 } {
   const { recipe, holdings, definitions } = snapshot
   const selectionStarted = deps.monotonicNow()
-  const selected = selectEvaluationRootSource({
+  const selected = (deps.evaluator?.selectEvaluationRootSource ?? selectEvaluationRootSource)({
     tenant: recipe.tenant,
     standing: recipe.standing,
     holdings,
@@ -502,7 +515,7 @@ export function inputFromSnapshot(
     )
   const input = buildInputWithRoot(snapshot, selected.ok, root)
   const evaluationStarted = deps.monotonicNow()
-  const evaluated = evaluate(input)
+  const evaluated = (deps.evaluator?.evaluate ?? evaluate)(input)
   const evaluationNanos = (deps.monotonicNow() - evaluationStarted).toString()
   if (!('ok' in evaluated)) {
     emit(deps, {

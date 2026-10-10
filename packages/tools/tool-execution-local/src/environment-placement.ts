@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
 import {
-  evaluate,
+  createAssetEvaluator,
+  type AssetEvaluator,
   evaluationInputFingerprint,
   type CurrentEvaluationInputs,
   type NonConnectorEvaluationInput,
@@ -162,6 +163,7 @@ export function createToolEnvironmentPlacementSource(
     readonly currentInputs: CurrentEvaluationInputs
     readonly tools: Pick<ToolRuntimeRegistryOperations, 'acquire'>
     readonly select: EnvironmentPlacementSource['select']
+    readonly evaluator?: AssetEvaluator | undefined
   },
 ): EnvironmentPlacementSource {
   const copied = copyJsonValue(supplied)
@@ -169,6 +171,7 @@ export function createToolEnvironmentPlacementSource(
     throw new TypeError('ordinary environment placement configuration required')
   const config = ToolEnvironmentPlacementConfig.parse(copied.ok)
   const { currentInputs, tools, select } = dependencies
+  const evaluator = dependencies.evaluator ?? createAssetEvaluator()
   async function read(
     scope: SessionScope,
     authorization: SessionAccess,
@@ -188,7 +191,9 @@ export function createToolEnvironmentPlacementSource(
       if ('failed' in captured) return rejected('invalidInput')
       // evaluate validates this owned representation before any field grants an environment decision.
       const input = captured.ok as unknown as NonConnectorEvaluationInput
-      const evaluated = evaluate(input, { toolEnvironmentPermission: config.factoryPermission })
+      const evaluated = evaluator.evaluate(input, {
+        toolEnvironmentPermission: config.factoryPermission,
+      })
       if (!('ok' in evaluated))
         return rejected('invalidInput' in evaluated ? 'invalidInput' : 'policyUnavailable')
       return effectivePlacement(input, evaluated.ok, selected, scope, call, config)

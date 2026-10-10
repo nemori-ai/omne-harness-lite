@@ -14,6 +14,7 @@ import type {
 import type { ToolReturn } from '@omne-harness-lite/tool-definition'
 import type { AdmissionToken } from '@omne-harness-lite/tool-admission'
 import type { ToolResultWriter } from './tool-results.ts'
+import type { ToolPoolAdmission } from './execution-pool.ts'
 import type { CardId } from '@omne-harness-lite/messages'
 
 export interface ExecutionRef extends ContextScope {
@@ -212,7 +213,6 @@ export type SubmissionResult =
         | 'ownerStopped'
     }
 export interface ToolRuntimeOperations {
-  readonly submit: (request: ExecutionSubmission) => Promise<SubmissionResult>
   readonly acquire: (
     access: RuntimeAccess,
     ref: ExecutionRef,
@@ -244,6 +244,6 @@ export interface ToolRuntimeOperations {
 }
 
 /** Stable provider registration; withdrawal does not transfer execution ownership. */
-export interface ToolRuntimeRegistryOperations extends ToolRuntimeOperations {
-  readonly register: (provider: ToolRuntimeOperations) => () => Promise<void>
+export interface ToolRuntimeRegistryOperations extends ToolPoolAdmission {
+  readonly register: (provider: ToolPoolAdmission) => () => Promise<void>
 }

@@ -63,10 +63,14 @@ export interface EnvironmentLease {
   >
 }
 export type EnvironmentAuthorization = SessionAccess
-declare const recoveryBrand: unique symbol
+const recoveryBrand: unique symbol = Symbol('environment-recovery-access')
 /** Minted by the application maintenance owner; does not depend on a user's active membership. */
 export interface RecoveryAccess {
   readonly [recoveryBrand]: true
+}
+/** Creates an opaque identity. The maintenance owner must still verify ownership on each use. */
+export function createRecoveryAccess(): RecoveryAccess {
+  return Object.freeze({ [recoveryBrand]: true as const })
 }
 export interface ResourceRecoveryAuthority {
   readonly authorizeRecovery: (

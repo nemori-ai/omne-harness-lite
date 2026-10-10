@@ -1,4 +1,7 @@
-import { type CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
+import {
+  type AssetEvaluator,
+  type CurrentEvaluationInputs,
+} from '@omne-harness-lite/asset-evaluation'
 import type {
   AssetDefinition,
   AssetHolding,
@@ -13,16 +16,19 @@ import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { MembershipsService } from '@omne-harness-lite/organization-governance'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 
-export interface InputSourceDependencies {
+export interface EvaluationStorageDependencies {
+  readonly evaluator?: AssetEvaluator
   readonly storage: AtomicStorage
   readonly storeKey: string
   /** Actual deployed manifest given by the trusted assembly, never self-declared by a publication. */
   readonly deployedOfficial: readonly DeployedOfficialEntry[]
-  readonly memberships: Pick<MembershipsService, 'participate'>
   readonly sessionTenancy: SessionTenancyService
   readonly diagnostics: (event: JsonObject) => void
   readonly onDiagnosticFailure: (stage: string) => void
   readonly monotonicNow: () => bigint
+}
+export interface InputSourceDependencies extends EvaluationStorageDependencies {
+  readonly memberships: Pick<MembershipsService, 'participate'>
 }
 export interface DeployedOfficialEntry {
   readonly capability: CapabilityId

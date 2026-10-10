@@ -1,10 +1,15 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
-import { parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
-import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
-import { createModelRuntime } from '../src/service-runtime.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
+import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
+import type {
+  SessionRuntimeBinding,
+  SessionModelRequestPreparation,
+} from '@omne-harness-lite/model-request-runtime'
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { acknowledgementHost } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { referencePorts } from './reference-ports-fixture.ts'
 import type { TestPlan } from './anchored-invocation-fixture.ts'
 import { deferred } from './anchored-invocation-fixture.ts'
@@ -22,17 +27,19 @@ async function withPreparation(
   work: (context: {
     readonly world: World
     readonly owner: ControlledSettlementOwner
-    readonly runtime: ReturnType<typeof createModelRuntime>
+    readonly runtime: ReturnType<typeof createSessionModelRuntime>
     readonly calls: ReturnType<typeof createCallContainerStore<TestPlan, object>>
     readonly binding: SessionRuntimeBinding
     readonly ref: { readonly session: World['host']['session']; readonly callId: string }
     readonly trace: string[]
     readonly capturePlans: number
   }) => Promise<void>,
+  prepare?: SessionModelRequestPreparation['prepare'],
+  readCall?: SessionModelRequestPreparation['readCall'],
 ): Promise<void> {
   const owner = new ControlledSettlementOwner()
   const world = await acknowledgementHost({ owner })
-  let runtime: ReturnType<typeof createModelRuntime> | undefined
+  let runtime: ReturnType<typeof createSessionModelRuntime> | undefined
   try {
     const result = await world.construction.sessions.bind(world.host.session)
     if (!('binding' in result)) throw new Error('original binding unavailable')
@@ -40,9 +47,17 @@ async function withPreparation(
     let preparing = false
     const binding = configure(result.binding, trace, () => preparing)
     const calls = createCallContainerStore<TestPlan, object>()
-    runtime = createModelRuntime({
+    runtime = createSessionModelRuntime({
       ...world.construction,
       ...referencePorts(world.host, calls),
+      requestPreparation: {
+        ...sessionModelRequestPreparation,
+        prepare: prepare ?? sessionModelRequestPreparation.prepare,
+        readCall: input =>
+          preparing && readCall !== undefined
+            ? readCall(input)
+            : sessionModelRequestPreparation.readCall(input),
+      },
       calls,
       sessions: {
         async bind() {
@@ -66,6 +81,144 @@ async function withPreparation(
 }
 
 describe('original dispatch preparation over actual resources and SQL', () => {
+  it('uses Session call history before preparing or sending an execution', async () => {
+    let reads = 0
+    let prepares = 0
+    let deny = true
+    await withPreparation(
+      binding => binding,
+      async ({ world, runtime, ref, capturePlans }) => {
+        const before = await world.entries()
+        expect(await runtime.service.dispatch(ref)).toEqual({ unavailable: true })
+        expect(reads).toBe(1)
+        expect(prepares).toBe(0)
+        expect(world.wire.plans()).toBe(capturePlans)
+        expect(world.wire.sends()).toBe(0)
+        expect(await world.entries()).toEqual(before)
+      },
+      async input => {
+        prepares++
+        return sessionModelRequestPreparation.prepare(input)
+      },
+      async input => {
+        reads++
+        if (deny) {
+          deny = false
+          return { unavailable: true, reason: 'prefix' }
+        }
+        return sessionModelRequestPreparation.readCall(input)
+      },
+    )
+  })
+
+  it('passes the Session-prepared canonical execution into the original physical invocation', async () => {
+    let prepared: Awaited<ReturnType<SessionModelRequestPreparation['prepare']>> | undefined
+    await withPreparation(
+      binding => binding,
+      async ({ world, runtime, ref, binding }) => {
+        await runtime.service.dispatch(ref)
+        expect(prepared).toMatchObject({
+          prepared: {
+            execution: {
+              ref: {
+                tenant: binding.log.tenant,
+                session: ref.session,
+                callId: ref.callId,
+                dispatch: 1,
+              },
+              creationKey: 'p6_dispatch_preparation',
+              origin: { kind: 'independent' },
+              input: { target: { kind: 'model_call', callId: ref.callId, dispatch: 1 } },
+            },
+          },
+        })
+        expect(world.wire.sends()).toBe(1)
+      },
+      async input => {
+        prepared = await sessionModelRequestPreparation.prepare(input)
+        return prepared
+      },
+    )
+  })
+
+  it.each(['tenant', 'session', 'call', 'dispatch', 'creation', 'origin', 'target'] as const)(
+    'rejects a prepared execution with a different %s before planning or sending',
+    async mismatch => {
+      await withPreparation(
+        binding => binding,
+        async ({ world, runtime, ref, capturePlans }) => {
+          const before = await world.entries()
+          expect(await runtime.service.dispatch(ref)).toEqual({
+            invalidInput: { reason: 'malformed' },
+          })
+          expect(world.wire.plans()).toBe(capturePlans)
+          expect(world.wire.sends()).toBe(0)
+          expect(await world.entries()).toEqual(before)
+        },
+        async input => {
+          const result = await sessionModelRequestPreparation.prepare(input)
+          if (!('prepared' in result)) throw new Error('original preparation unavailable')
+          const original = result.prepared.execution
+          const ref = {
+            ...original.ref,
+            ...(mismatch === 'tenant'
+              ? { tenant: unwrap(parseTenantId({ organization: 'another', account: 'another' })) }
+              : {}),
+            ...(mismatch === 'session'
+              ? { session: unwrap(parseOpaqueIdentifier('another-session', 'SessionRef')) }
+              : {}),
+            ...(mismatch === 'call' ? { callId: 'another-call' } : {}),
+            ...(mismatch === 'dispatch' ? { dispatch: 2 } : {}),
+          }
+          return {
+            prepared: {
+              ...result.prepared,
+              execution: {
+                ...original,
+                ref,
+                ...(mismatch === 'creation'
+                  ? {
+                      creationKey: unwrap(parseOpaqueIdentifier('another-creation', 'CreationKey')),
+                    }
+                  : {}),
+                ...(mismatch === 'origin'
+                  ? { origin: { kind: 'sessionAttempt', run: 'another-run', attempt: 1 } }
+                  : {}),
+                input: {
+                  ...original.input,
+                  ...(mismatch === 'target'
+                    ? { target: { kind: 'model_call', callId: 'another-call', dispatch: 1 } }
+                    : {}),
+                },
+              },
+            },
+          }
+        },
+      )
+    },
+  )
+
+  it('uses the caller-selected Session preparer and does not plan or send after its refusal', async () => {
+    let preparations = 0
+    await withPreparation(
+      binding => binding,
+      async ({ world, runtime, ref, capturePlans }) => {
+        const before = await world.entries()
+        expect(await runtime.service.dispatch(ref)).toEqual({ unavailable: true })
+        expect(preparations).toBe(1)
+        expect(world.wire.plans()).toBe(capturePlans)
+        expect(world.wire.sends()).toBe(0)
+        expect(await world.entries()).toEqual(before)
+      },
+      async input => {
+        preparations++
+        expect(input.key.session).toBe(input.session.log.session)
+        expect(input.request.session).toBe(input.key.session)
+        return { unavailable: true }
+      },
+    )
+  })
+
   it.each([1, 2])('preserves the credential bytes getter fault on read %s', async failingRead => {
     const fault = new Error('original credential byte getter')
     let reads = 0

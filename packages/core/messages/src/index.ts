@@ -12,6 +12,7 @@ export {
   judgeModelCallCreatedPayloadText,
   judgeMessage,
   judgeMessageInLog,
+  messageReferencesEarlier,
   judgeMessageText,
   judgeModelInvocationRecord,
   judgeModelInvocationRecordText,

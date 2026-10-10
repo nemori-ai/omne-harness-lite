@@ -212,7 +212,7 @@ export class Use implements GovernanceUse {
       const result = await this.#environment.exchange(
         options(this.#environment, this.#selection.center),
         {
-          protocolVersion: '2',
+          protocolVersion: '3',
           presentedLoginState: this.#selection.login.presentation,
           operation,
           payload,

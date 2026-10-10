@@ -157,6 +157,29 @@ function sameReasoningIdentity(
   return true
 }
 
+function publicReasoningText(detail: JsonValue): string | undefined {
+  if (!object(detail)) return undefined
+  const text =
+    detail.type === 'reasoning.text'
+      ? detail.text
+      : detail.type === 'reasoning.summary'
+        ? detail.summary
+        : undefined
+  return typeof text === 'string' && text.length > 0 ? text : undefined
+}
+
+type ReasoningSource = 'plain' | 'details'
+
+function selectReasoningSource(
+  reasoning: JsonValue | undefined,
+  detail: JsonValue | undefined,
+): ReasoningSource | undefined {
+  if (typeof reasoning === 'string' && reasoning.length > 0) return 'plain'
+  if (Array.isArray(detail) && detail.some(value => publicReasoningText(value) !== undefined))
+    return 'details'
+  return undefined
+}
+
 const nonempty = (v: JsonValue | undefined) =>
   v !== undefined && v !== null && v !== '' && (!Array.isArray(v) || v.length > 0)
 
@@ -179,6 +202,7 @@ export async function* readStream(
   const blocks: Block[] = []
   const tools = new Map<string, ToolParts>()
   let textBlock: Block | undefined, thinkingBlock: Block | undefined
+  let reasoningSource: ReasoningSource | undefined
   const accumulator = createReadFactsAccumulator(
     event => diagnostic(event),
     state.stream.headers['x-openrouter-cache-status'] === 'HIT',
@@ -287,8 +311,7 @@ export async function* readStream(
     if (object(delta)) {
       const { content, refusal, reasoning, detail, callParts } = readDeltaFields(delta)
       for (const event of readTextFragments(content, refusal)) yield event
-      for (const event of readThinkingText(reasoning)) yield event
-      for (const event of readThinkingDetails(detail)) yield event
+      yield* readThinking(reasoning, detail)
       for (const event of readToolCalls(callParts)) yield event
     }
   }
@@ -474,6 +497,15 @@ export async function* readStream(
     }
   }
 
+  function* readThinking(
+    reasoning: JsonValue | undefined,
+    detail: JsonValue | undefined,
+  ): Generator<ArrivalEvent> {
+    reasoningSource ??= selectReasoningSource(reasoning, detail)
+    if (reasoningSource === 'plain') yield* readThinkingText(reasoning)
+    yield* readThinkingDetails(detail)
+  }
+
   function* readThinkingText(reasoning: JsonValue | undefined): Generator<ArrivalEvent> {
     if (typeof reasoning === 'string' && reasoning.length) {
       if (!thinkingBlock) {
@@ -499,6 +531,7 @@ export async function* readStream(
         const continued = continueReasoningDetail(last, raw)
         if (continued) thinkingBlock.details[thinkingBlock.details.length - 1] = continued
         else thinkingBlock.details.push(raw)
+        if (reasoningSource === 'details') yield* readThinkingText(publicReasoningText(raw))
       }
     }
   }

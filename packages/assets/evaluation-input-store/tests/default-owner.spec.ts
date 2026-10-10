@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
 it.each(['src', 'dist'])(
-  'default input-store owner retries and reuses the %s public path',
+  'standalone input-store owners retry and reuse the %s public path',
   mode => {
     const directory = mkdtempSync(join(tmpdir(), 'omne-eis-default-'))
     try {
@@ -30,7 +30,7 @@ it.each(['src', 'dist'])(
       expect(JSON.parse(output)).toMatchObject({
         mode,
         importedCompilations: 0,
-        owners: 3,
+        standaloneOwners: 2,
         retry: true,
         snapshot: true,
         cached: true,

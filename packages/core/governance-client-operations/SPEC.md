@@ -4,6 +4,11 @@
 `./cordis` 拥有正式服务和唯一键。根入口不加载 Cordis，不选择具体本地状态或传输。
 CG2 S1～16 的完整行为保持，包括全部动作、use、敏感槽和封闭失败集合。
 
+当前输入/报告资源由 `./schema` 拥有，完整意图/预览资源由 `./schema/intents` 拥有。
+两者采用包级 Schema 身份，治理载荷与结果引用当前 governance-center-entry 的唯一 Schema。
+本次明确采用线上协议 `3` 和中心组织名称增量，替代运行消费者的旧协议 `2` Schema。
+当前输入中团队创建必须含名称，读取结果必须含中心名称，其余 CG2 生命周期和敏感槽规则保持。
+
 ActionIntent 在等待前捕获。InputPrompt 的调用次数、取消与晚返回规则保持。
 单个 use 固定中心、信任与登录选择，busy 与 invalid-input 的判定次序不变。
 依赖注入不授予租户权限，不在已开始的动作中换入另一代 state/transport。

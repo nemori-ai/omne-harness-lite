@@ -1,25 +1,15 @@
-import type {
-  SessionLogBackingOperations,
-  SessionLogOwnerOperations,
-} from '@omne-harness-lite/session-log'
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import type { SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
+import type { ToolPoolInstance } from './execution-pool.ts'
 import type { RuntimeContextOperations } from '@omne-harness-lite/runtime-context'
 import type {
   EnvironmentProviderRegistrations,
   ExecutionEnvironmentOperations,
   RecoveryAccess,
 } from '@omne-harness-lite/execution-environments'
-import type {
-  ToolActionHistoryOperations,
-  ToolAdmissionOperations,
-} from '@omne-harness-lite/tool-admission'
-import type { RunnerServiceHost } from '@omne-harness-lite/loop-extension-runner'
+import type { ToolAdmissionOperations } from '@omne-harness-lite/tool-admission'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
-import type {
-  InvokeTool,
-  ToolImplementationOperations,
-  ToolRuntimeOperations,
-} from './tool-execution.ts'
+import type { InvokeTool, ToolImplementationOperations } from './tool-execution.ts'
 import type { ToolResultStorageOperations } from './tool-results.ts'
 import type {
   RetainedCloseAttempt,
@@ -36,10 +26,6 @@ export interface ToolRuntimeConfig {
   }
   readonly resultStorage: string
 }
-/** Private maintenance authority is a bootstrap input, never plugin configuration or a tool capability. */
-export interface ToolRuntimeBootstrap {
-  readonly recovery: RecoveryAccess
-}
 /** An observed original close attempt; retained does not establish quiescence. */
 export type ToolRuntimeCloseAttempt = RetainedCloseAttempt
 
@@ -48,14 +34,14 @@ export type ToolRuntimeCloseControl = RetainedCloseControl
 
 /** The host retains control before waiting for runtime recovery. */
 export interface ToolRuntimeStartupOperations {
-  recoveryAccess(): ToolRuntimeBootstrap['recovery']
+  start(config: ToolRuntimeConfig): ToolPoolInstance
   retainClose(control: ToolRuntimeCloseControl): void
 }
 
-export interface ToolRuntimeDependencies extends ToolRuntimeBootstrap {
-  readonly backing: SessionLogBackingOperations
-  readonly owner: SessionLogOwnerOperations
-  readonly history: ToolActionHistoryOperations
+export interface ToolRuntimeDependencies {
+  readonly parameters?: ParameterJudge
+
+  readonly recovery: RecoveryAccess
   readonly authorization: SessionAccessOperations
   readonly admission: () => ToolAdmissionOperations | undefined
   readonly implementations: ToolImplementationOperations
@@ -63,15 +49,6 @@ export interface ToolRuntimeDependencies extends ToolRuntimeBootstrap {
   readonly environments: Pick<EnvironmentProviderRegistrations, 'recover' | 'recoverOwned'> &
     Pick<ExecutionEnvironmentOperations, 'resolvePlacement' | 'acquire'>
   readonly results: ToolResultStorageOperations
-  readonly runnerHost: RunnerServiceHost
   readonly invoke: InvokeTool
   readonly clock: Clock
-}
-export interface ToolRuntimeInstance {
-  readonly operations: ToolRuntimeOperations
-  /** Resolves only after every owned session has been scanned and recovery obligations have settled. */
-  readonly ready: Promise<void>
-  readonly idle: () => Promise<void>
-  /** Does not close the shared physical log, result storage, context or environment providers. */
-  readonly close: () => Promise<void>
 }

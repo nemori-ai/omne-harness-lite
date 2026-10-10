@@ -17,6 +17,7 @@ import {
   CLIENT_LOCAL_STATE_SERVICE,
 } from '@omne-harness-lite/client-local-state/cordis'
 import { ClientStateOpenFailure } from '@omne-harness-lite/client-local-state-sqlite'
+import type { ClientLocalState } from '@omne-harness-lite/client-local-state'
 import { managedClientLocalStatePlugin } from '@omne-harness-lite/client-local-state-sqlite/cordis'
 import { GOVERNANCE_TRANSPORT_SERVICE } from '@omne-harness-lite/governance-center-entry-https-json/cordis'
 import { managedGovernanceTransportPlugin } from '@omne-harness-lite/governance-center-client-https/cordis'
@@ -31,7 +32,7 @@ import { FIBER_STATE } from '@omne-harness-lite/kernel-basis/cordis'
 import {
   ClientAssemblyStateFailure,
   ClientAssemblyStopped,
-  type ClientAssembly,
+  type PreparedClientAssembly,
   type ClientAssemblyOptions,
 } from './client-assembly.ts'
 
@@ -94,7 +95,7 @@ const provides: Record<RowId, string> = {
 export function createClientAssembly(
   options: ClientAssemblyOptions,
   bindings: ClientAssemblyBindings = {},
-): ClientAssembly {
+): PreparedClientAssembly {
   const context = new Context()
   const ready = Promise.withResolvers<GovernanceClientOperations>()
   const stopped = Promise.withResolvers<void>()
@@ -102,6 +103,7 @@ export function createClientAssembly(
   void ready.promise.catch(() => undefined)
   void stopped.promise.catch(() => undefined)
   let client: GovernanceClientOperations | undefined
+  let source: ClientLocalState | undefined
   let receipt: LifetimeRegistration | undefined
   let observed = false
   const lifetime = createAssemblyLifetime(ids, () => {
@@ -145,8 +147,13 @@ export function createClientAssembly(
     }
   })
   void closed.catch(() => undefined)
-  const handle: ClientAssembly = {
+  const handle: PreparedClientAssembly = {
     ready: ready.promise,
+    async borrowState() {
+      await ready.promise
+      assertCurrent()
+      return source!
+    },
     requestStop() {
       void lifetime.close()
     },
@@ -231,7 +238,10 @@ export function createClientAssembly(
     assertCurrent()
     if ((fiber.state as number) !== FIBER_STATE.ACTIVE || !scope.get(provides[id]))
       invalidRow('Client row is not ready and active')
-    if (id === 'client') client = scope.governanceClientOperations
+    if (id === 'client') {
+      client = scope.governanceClientOperations
+      source = scope.clientLocalState
+    }
   }
   // Start only after returning the handle; all setup failures retain their real prefix.
   void Promise.resolve()

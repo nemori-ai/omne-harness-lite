@@ -20,7 +20,7 @@ import {
   toolEnvironmentPermissionDeclaration,
 } from '@omne-harness-lite/tool-definition'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
-import { getAssetJudge, defaultBodyContracts } from './defaults.ts'
+import { defaultEvaluationContext, type EvaluationContext } from './context.ts'
 import { invalidInput } from './diagnostics.ts'
 import { copyJson, immutable, object, own } from './json.ts'
 import { computeEvaluation } from './compute.ts'
@@ -57,10 +57,11 @@ function checkAvailability(input: unknown): void {
 }
 /** C1 through the asset-model judge: the rejection becomes the diagnostic's `rejected`. */
 function rejected(
+  context: EvaluationContext,
   name: Parameters<AssetModelJudge['judgeAssetValue']>[0],
   value: unknown,
 ): InputDiagnostic | undefined {
-  const result = getAssetJudge().judgeAssetValue(name, value)
+  const result = context.assetJudge.judgeAssetValue(name, value)
   return 'rejected' in result
     ? { condition: 'C1', message: name, rejected: result.rejected }
     : undefined
@@ -83,11 +84,19 @@ function identityDiagnostic(raw: JsonObject): InputDiagnostic | undefined {
     return { condition: 'C1', message: 'identity shape' }
   return undefined
 }
-function workspaceDiagnostic(raw: JsonObject): InputDiagnostic | undefined {
-  return Object.hasOwn(raw, 'workspace') ? rejected('WorkspaceKey', raw.workspace) : undefined
+function workspaceDiagnostic(
+  context: EvaluationContext,
+  raw: JsonObject,
+): InputDiagnostic | undefined {
+  return Object.hasOwn(raw, 'workspace')
+    ? rejected(context, 'WorkspaceKey', raw.workspace)
+    : undefined
 }
 /** C1 for each `root.references` entry: only `capability` and an optional boolean `resident`. */
-function referencesDiagnostic(root: JsonObject): InputDiagnostic | undefined {
+function referencesDiagnostic(
+  context: EvaluationContext,
+  root: JsonObject,
+): InputDiagnostic | undefined {
   for (const reference of Array.isArray(root.references) ? root.references : []) {
     if (
       !object(reference) ||
@@ -95,13 +104,16 @@ function referencesDiagnostic(root: JsonObject): InputDiagnostic | undefined {
       (Object.hasOwn(reference, 'resident') && typeof reference.resident !== 'boolean')
     )
       return { condition: 'C1', message: 'AssetReference' }
-    const bad = rejected('CapabilityId', reference.capability)
+    const bad = rejected(context, 'CapabilityId', reference.capability)
     if (bad !== undefined) return bad
   }
   return undefined
 }
 /** C15: the root carries exactly its four members, a well-formed source and declarations AD1 accepts. */
-function rootDeclarationsDiagnostic(root: JsonObject): InputDiagnostic | undefined {
+function rootDeclarationsDiagnostic(
+  context: EvaluationContext,
+  root: JsonObject,
+): InputDiagnostic | undefined {
   const source = root.source
   if (
     Object.keys(root).some(
@@ -109,7 +121,7 @@ function rootDeclarationsDiagnostic(root: JsonObject): InputDiagnostic | undefin
     ) ||
     !object(source) ||
     Object.keys(source).length !== 2 ||
-    rejected('AssetRecordId', source.asset) !== undefined ||
+    rejected(context, 'AssetRecordId', source.asset) !== undefined ||
     !isJsonNumber(source.version) ||
     !ExactDecimal.from(source.version).isInteger ||
     ExactDecimal.from(source.version).compare(ExactDecimal.from(0)) <= 0 ||
@@ -120,30 +132,37 @@ function rootDeclarationsDiagnostic(root: JsonObject): InputDiagnostic | undefin
   return undefined
 }
 /** The root capability (either input form), then the composition root's references and declarations. */
-function rootDiagnostic(raw: JsonObject): InputDiagnostic | undefined {
+function rootDiagnostic(context: EvaluationContext, raw: JsonObject): InputDiagnostic | undefined {
   const root = object(raw.root) ? raw.root : undefined
   const bad = rejected(
+    context,
     'CapabilityId',
     Object.hasOwn(raw, 'rootDefinition') ? raw.rootDefinition : root?.definition,
   )
   if (bad !== undefined) return bad
   if (root === undefined) return undefined
-  return referencesDiagnostic(root) ?? rootDeclarationsDiagnostic(root)
+  return referencesDiagnostic(context, root) ?? rootDeclarationsDiagnostic(context, root)
 }
 /** C1 for every holding and definition record. */
-function recordsDiagnostic(raw: JsonObject): InputDiagnostic | undefined {
+function recordsDiagnostic(
+  context: EvaluationContext,
+  raw: JsonObject,
+): InputDiagnostic | undefined {
   for (const [name, entries] of [
     ['AssetHolding', raw.holdings],
     ['AssetDefinition', raw.definitions],
   ] as const) {
     for (const entry of Array.isArray(entries) ? entries : []) {
-      const bad = rejected(name, entry)
+      const bad = rejected(context, name, entry)
       if (bad !== undefined) return bad
     }
   }
   return undefined
 }
-function sessionDiagnostic(raw: JsonObject): InputDiagnostic | undefined {
+function sessionDiagnostic(
+  context: EvaluationContext,
+  raw: JsonObject,
+): InputDiagnostic | undefined {
   if (!Object.hasOwn(raw, 'session')) return undefined
   if (!Array.isArray(raw.session)) return { condition: 'C1', message: 'session list' }
   for (const entry of raw.session) {
@@ -152,13 +171,16 @@ function sessionDiagnostic(raw: JsonObject): InputDiagnostic | undefined {
       ['CapabilityId', 'capability'],
       ['AttributeAssignment', 'assignment'],
     ] as const) {
-      const bad = rejected(name, entry[member])
+      const bad = rejected(context, name, entry[member])
       if (bad !== undefined) return bad
     }
   }
   return undefined
 }
-function actionSetsDiagnostic(raw: JsonObject): InputDiagnostic | undefined {
+function actionSetsDiagnostic(
+  context: EvaluationContext,
+  raw: JsonObject,
+): InputDiagnostic | undefined {
   if (!Object.hasOwn(raw, 'mcpActionSets')) return undefined
   if (!Array.isArray(raw.mcpActionSets)) return { condition: 'C1', message: 'mcpActionSets list' }
   for (const entry of raw.mcpActionSets) {
@@ -168,7 +190,7 @@ function actionSetsDiagnostic(raw: JsonObject): InputDiagnostic | undefined {
       ![...layers, 'session'].includes(entry.scope)
     )
       return { condition: 'C1', message: 'McpActionSet' }
-    const bad = rejected('CapabilityId', entry.endpoint)
+    const bad = rejected(context, 'CapabilityId', entry.endpoint)
     if (bad !== undefined) return bad
     const result = judgeMcpValue('ActionSnapshot', entry.actions)
     if ('rejected' in result)
@@ -177,7 +199,7 @@ function actionSetsDiagnostic(raw: JsonObject): InputDiagnostic | undefined {
   return undefined
 }
 /** C1 and C15 on the JSON snapshot of the input, in the contract's member order. */
-function shape(input: RawInput): InputDiagnostic | undefined {
+function shape(context: EvaluationContext, input: RawInput): InputDiagnostic | undefined {
   let raw: unknown
   try {
     raw = copyJson(input)
@@ -190,16 +212,17 @@ function shape(input: RawInput): InputDiagnostic | undefined {
   return (
     requiredMembersDiagnostic(raw) ??
     identityDiagnostic(raw) ??
-    workspaceDiagnostic(raw) ??
-    rootDiagnostic(raw) ??
-    recordsDiagnostic(raw) ??
-    sessionDiagnostic(raw) ??
-    actionSetsDiagnostic(raw)
+    workspaceDiagnostic(context, raw) ??
+    rootDiagnostic(context, raw) ??
+    recordsDiagnostic(context, raw) ??
+    sessionDiagnostic(context, raw) ??
+    actionSetsDiagnostic(context, raw)
   )
 }
 
 /** The declarations the body contract derives for a held version; mcp bodies read the pinned action set at that scope. */
 function derivedDeclarations(
+  context: EvaluationContext,
   input: RawInput,
   holding: AssetHolding,
   version: AssetVersion,
@@ -212,19 +235,20 @@ function derivedDeclarations(
   return version.content.category === 'mcp'
     ? attributeDeclarationsOf(
         version.content,
-        getAssetJudge(),
+        context.assetJudge,
         action?.actions.kind === 'fetched' ? copyJson(action.actions) : undefined,
       )
-    : attributeDeclarationsOf(version.content, getAssetJudge())
+    : attributeDeclarationsOf(version.content, context.assetJudge)
 }
 /** The declarations a held version projects: the root's explicit attributes, else what its body derives, else only usableBy. */
 function heldDeclarations(
+  context: EvaluationContext,
   input: RawInput,
   holding: AssetHolding,
   version: AssetVersion,
   options?: EvaluationOptions,
 ): readonly AttributeDeclaration[] {
-  const derived = derivedDeclarations(input, holding, version)
+  const derived = derivedDeclarations(context, input, holding, version)
   if (
     'root' in input &&
     capabilityCanonicalString(holding.capability) ===
@@ -235,7 +259,7 @@ function heldDeclarations(
   if (
     options &&
     version.content.category === 'tool' &&
-    isToolDefinition(version.content.definition)
+    isToolDefinition(version.content.definition, context.parameters)
   ) {
     const permission = toolEnvironmentPermissionDeclaration(
       version.content.definition,
@@ -246,7 +270,11 @@ function heldDeclarations(
   return declarations
 }
 /** Project only resolvable held versions. Invalid C5/C9 inputs are left to the shared computation, never thrown during projection. */
-function projectFacts(input: RawInput, options?: EvaluationOptions): EvaluationFacts {
+function projectFacts(
+  context: EvaluationContext,
+  input: RawInput,
+  options?: EvaluationOptions,
+): EvaluationFacts {
   const definitions = new Map(input.definitions.map(entry => [entry.id, entry]))
   const declarations = new Map<AssetHolding, readonly AttributeDeclaration[]>()
   const references = new Map<AssetVersion, readonly CapabilityId[]>()
@@ -255,9 +283,9 @@ function projectFacts(input: RawInput, options?: EvaluationOptions): EvaluationF
     if (definition === undefined) continue
     const version = versionOf(holding, definition)
     if (version === undefined) continue
-    declarations.set(holding, heldDeclarations(input, holding, version, options))
+    declarations.set(holding, heldDeclarations(context, input, holding, version, options))
     if (!references.has(version)) {
-      const derivedReferences = referencesOf(version.content, defaultBodyContracts)
+      const derivedReferences = referencesOf(version.content, context.bodies)
       if (!('underivable' in derivedReferences))
         references.set(version, derivedReferences.references)
     }
@@ -275,25 +303,27 @@ function captureOptions(input: unknown): EvaluationOptions | undefined {
     : Object.freeze({ toolEnvironmentPermission: permission })
 }
 
-export function evaluate(
+export function evaluateWithContext(
+  context: EvaluationContext,
   input: NonConnectorEvaluationInput,
   options?: EvaluationOptions,
 ): EvaluationResult {
   const captured = options === undefined ? undefined : captureOptions(options)
   if (options !== undefined && captured === undefined)
     return invalidInput({ condition: 'C1', message: 'invalid EvaluationOptions' })
-  const bad = shape(input)
+  const bad = shape(context, input)
   if (bad !== undefined) return invalidInput(bad)
-  return computeEvaluation(input, projectFacts(input, captured))
+  return computeEvaluation(context.assetJudge, input, projectFacts(context, input, captured))
 }
 
-export function selectEvaluationRootSource(
+export function selectEvaluationRootSourceWithContext(
+  context: EvaluationContext,
   input: EvaluationRootSelectionInput,
 ): EvaluationRootSelectionResult {
   try {
-    const bad = shape(input)
+    const bad = shape(context, input)
     if (bad !== undefined) return invalidInput(bad)
-    const selection = selectAssets(input, projectFacts(input))
+    const selection = selectAssets(input, projectFacts(context, input))
     if ('invalidInput' in selection) return selection
     const root = selection.selected.get(capabilityCanonicalString(input.rootDefinition))
     return root === undefined
@@ -303,4 +333,17 @@ export function selectEvaluationRootSource(
     if (error instanceof BodyProviderUnavailableError) return immutable({ unavailable: true })
     throw error
   }
+}
+
+export function evaluate(
+  input: NonConnectorEvaluationInput,
+  options?: EvaluationOptions,
+): EvaluationResult {
+  return evaluateWithContext(defaultEvaluationContext(), input, options)
+}
+
+export function selectEvaluationRootSource(
+  input: EvaluationRootSelectionInput,
+): EvaluationRootSelectionResult {
+  return selectEvaluationRootSourceWithContext(defaultEvaluationContext(), input)
 }

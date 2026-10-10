@@ -1,7 +1,6 @@
 import type { FrameAccount } from '@omne-harness-lite/call-accounts'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
-import { compareInteger } from '@omne-harness-lite/session-log'
 import type {
   DeliveryBasis,
   ExecutionOrigin,
@@ -9,11 +8,11 @@ import type {
   ExecutionTerminal,
   ToolJournalPayload,
 } from '@omne-harness-lite/tool-execution-runtime'
-import type { createRuntimeJournal } from './runtime-journal.ts'
+import type { RuntimeJournal } from './execution-journal.ts'
 
 /** One terminal, its account and its delivery obligation use the same checked session tail. */
 export function createTerminalCommitter(input: {
-  readonly journal: ReturnType<typeof createRuntimeJournal>
+  readonly journal: RuntimeJournal
   readonly clock: Clock
   readonly attempts: number
   readonly retry?: (attempt: number) => Promise<void>
@@ -52,17 +51,14 @@ export function createTerminalCommitter(input: {
       if (committed.kind === 'view') return 'recorded'
       if (committed.reason !== 'tailChanged') return 'unavailable'
       await input.retry?.(attempt)
-      // A new tail requires a new late decision. The terminal candidate itself does not change.
+      // Session classifies the terminal in the new commit unit. The terminal candidate does not change.
     }
     return 'unavailable'
   }
 }
 
 type TerminalRequest = Parameters<ReturnType<typeof createTerminalCommitter>>[0]
-type TerminalView = Extract<
-  Awaited<ReturnType<ReturnType<typeof createRuntimeJournal>['read']>>,
-  { kind: 'view' }
->
+type TerminalView = Extract<Awaited<ReturnType<RuntimeJournal['read']>>, { kind: 'view' }>
 
 function terminalValue(
   request: TerminalRequest,
@@ -70,11 +66,8 @@ function terminalValue(
   endedAt: string,
 ): ToolJournalPayload | 'unavailable' | 'alreadyEnded' {
   const execution = view.executions.get(request.ref.callId)
-  if (!execution || !view.facts) return 'unavailable'
+  if (!execution) return 'unavailable'
   if (execution.terminal) return 'alreadyEnded'
-  const late =
-    view.facts.runState !== 'open' ||
-    compareInteger(view.facts.latestAttempt, request.origin.attempt) !== 0
   const value: ToolJournalPayload = {
     kind: 'execution_ended',
     revision: 1,
@@ -94,7 +87,6 @@ function terminalValue(
       frames: request.frames,
       wallClock: { startedAt: request.startedAt, endedAt },
       ...(request.terminal.outcome === 'interrupted' ? { stoppedAt: endedAt } : {}),
-      ...(late ? { late: true } : {}),
     },
   }
   return value

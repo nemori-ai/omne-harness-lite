@@ -1,5 +1,5 @@
 import { Input } from '@earendil-works/pi-tui'
-import { FIELD_LIMIT, validFieldText } from './forms.ts'
+import { FIELD_LIMIT, validFieldText } from './field-text.ts'
 import { FrameWriter, layout, type Screen } from './screen.ts'
 import type { TerminalPort } from './terminal.ts'
 import type { TerminalInput } from './framer.ts'
@@ -16,6 +16,7 @@ export class Dialog {
     footer: 'Ctrl+C: exit',
     page: 0,
   }
+  #following = true
   #revision = 0
   #eligible = false
   #fieldVisible = false
@@ -25,6 +26,7 @@ export class Dialog {
     | {
         readonly result: ReturnType<typeof Promise.withResolvers<string | undefined>>
         readonly auto: boolean
+        readonly requirePageReview: boolean
       }
     | undefined
   #stopped = false
@@ -68,6 +70,7 @@ export class Dialog {
     this.#writer.submit({
       revision,
       bytes: frame.bytes,
+      rendered: frame.rendered,
       delivered: () => {
         if (!frame.fits || revision !== this.#revision || this.#stopped) return
         this.#eligible = true
@@ -112,11 +115,10 @@ export class Dialog {
     }
     if (event.kind !== 'key' && event.kind !== 'paste') return
     // Busy/backpressured keys never become a queued action in the next screen.
-    if (!this.#waiting) return
-    this.#interact(event)
+    if (this.#waiting || paging(event)) this.#interact(event)
   }
   #interact(event: Extract<TerminalInput, { kind: 'key' | 'paste' }>): void {
-    if (event.kind === 'key' && (event.text === '\x1b[5~' || event.text === '\x1b[6~')) {
+    if (paging(event)) {
       if (!this.#eligible) return
       this.#screen = {
         ...this.#screen,
@@ -125,6 +127,7 @@ export class Dialog {
           Math.min(this.#pages - 1, this.#screen.page + (event.text === '\x1b[5~' ? -1 : 1)),
         ),
       }
+      this.#following = this.#screen.page === this.#pages - 1
       this.#draw()
       return
     }
@@ -140,7 +143,7 @@ export class Dialog {
   }
   #confirm(): void {
     if (!this.#eligible) return
-    if (this.#visited.size !== this.#pages) {
+    if (this.#waiting?.requirePageReview && this.#visited.size !== this.#pages) {
       this.#screen = {
         ...this.#screen,
         footer: 'Read every page with PgUp/PgDn before continuing. Ctrl+C: exit',
@@ -198,28 +201,47 @@ export class Dialog {
     body: readonly string[],
     input: boolean,
     auto: boolean,
+    requirePageReview = true,
   ): Promise<string | undefined> {
     if (this.#stopped) return undefined
     if (this.#waiting) throw new Error('overlapping dialog')
+    this.#following = true
     const field = input ? new Input({ prompt: '> ' }) : undefined
     if (field) field.focused = true
     this.#screen = {
       identity: this.#identity,
       title,
       body,
-      page: 0,
-      footer: 'Enter: continue | Ctrl+G: cancel | Ctrl+C: exit | PgUp/PgDn: pages',
+      page: requirePageReview ? 0 : Number.MAX_SAFE_INTEGER,
+      footer: requirePageReview
+        ? 'Enter: continue | Ctrl+G: cancel | Ctrl+C: exit | PgUp/PgDn: pages'
+        : 'Enter: send | Ctrl+G: cancel | Ctrl+C: exit | PgUp/PgDn: history',
       ...(field ? { input: field } : {}),
     }
     this.#visited.clear()
     this.#fieldVisible = false
     const result = Promise.withResolvers<string | undefined>()
-    this.#waiting = { result, auto }
+    this.#waiting = { result, auto, requirePageReview }
     this.#draw()
     return result.promise
   }
+  progress(title: string, body: readonly string[]): void {
+    if (this.#stopped) return
+    if (this.#waiting) throw new Error('progress overlaps input')
+    this.#screen = {
+      identity: this.#identity,
+      title,
+      body,
+      page: this.#following ? Number.MAX_SAFE_INTEGER : this.#screen.page,
+      footer: 'Working | Ctrl+C: detach | PgUp/PgDn: pages',
+    }
+    this.#draw()
+  }
   text(title: string, body: readonly string[] = []): Promise<string | undefined> {
     return this.#show(title, body, true, false)
+  }
+  compose(title: string, body: readonly string[]): Promise<string | undefined> {
+    return this.#show(title, body, true, false, false)
   }
   async choose(
     title: string,
@@ -249,9 +271,19 @@ export class Dialog {
     this.#eligible = false
     const input = this.#terminal.stopInput()
     const output = this.#writer.close()
-    this.#stop = Promise.all([input, output]).then(() => {
+    this.#stop = Promise.allSettled([input, output]).then(results => {
       this.#resolve(undefined)
+      const failures = results.flatMap(result =>
+        result.status === 'rejected' ? [result.reason] : [],
+      )
+      if (failures.length === 1) throw failures[0]
+      if (failures.length)
+        throw new AggregateError(failures, 'dialog input and output close failed')
     })
     return this.#stop
   }
+}
+
+function paging(event: Extract<TerminalInput, { kind: 'key' | 'paste' }>): boolean {
+  return event.kind === 'key' && (event.text === '\x1b[5~' || event.text === '\x1b[6~')
 }

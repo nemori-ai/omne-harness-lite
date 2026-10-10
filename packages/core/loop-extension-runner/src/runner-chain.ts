@@ -93,6 +93,7 @@ function project(
   record: ManifestRecord,
   head: number,
   session: string,
+  evaluator: ReadRunnerChainInput['evaluator'],
 ): ProjectedChain | undefined {
   if (!validManifestRecord(record, head, session)) return undefined
   const checked = checkManifestAppendInput(session, head, {
@@ -107,7 +108,7 @@ function project(
     !projectionContent(owned.content)
   )
     return undefined
-  const projection = categoryProjection(record, owned.content)
+  const projection = categoryProjection(record, owned.content, evaluator)
   if (projection === undefined) return undefined
   const table = owned.tables.loop_extension
   if (!table || !Array.isArray(table.composition)) return undefined
@@ -126,8 +127,12 @@ function project(
     assets: Object.freeze(selected),
   }
 }
-function categoryProjection(record: ManifestRecord, content: JsonObject) {
-  const projection = readEvaluationProjection(content)
+function categoryProjection(
+  record: ManifestRecord,
+  content: JsonObject,
+  evaluator: ReadRunnerChainInput['evaluator'],
+) {
+  const projection = readEvaluationProjection(content, evaluator)
   if (
     'failure' in projection ||
     projection.ok.evaluation.unresolved.length !== 0 ||
@@ -285,12 +290,13 @@ function holdingRejection(
 function headProjection(
   head: Awaited<ReturnType<AssemblyManifestService['readHead']>>,
   session: string,
+  evaluator: ReadRunnerChainInput['evaluator'],
 ): ProjectedChain | RunnerReplayFailure {
   if ('failure' in head || !Number.isSafeInteger(head.head) || head.head < 0) return unavailable
   if (head.head === 0) return manifestMissing
   const record = head.latest.loop_extension
   if (!record) return unavailable
-  const projected = project(record, head.head, session)
+  const projected = project(record, head.head, session, evaluator)
   if (!projected) return unavailable
   return projected
 }
@@ -299,7 +305,7 @@ function headProjection(
 export async function readRunnerChain(
   input: ReadRunnerChainInput,
 ): Promise<readonly RunnerPiece[] | RunnerReplayFailure> {
-  const { session, binding, sources } = input
+  const { session, binding, sources, evaluator } = input
   if (!validChainBinding(session, binding)) return { failure: 'invalidInput' }
   if (session !== binding.session) return manifestMissing
   // Capture methods as well as receivers before any suspension. Never stitch replacement sources.
@@ -314,7 +320,7 @@ export async function readRunnerChain(
   if (rejection !== undefined) return rejection
   const head = await readHead(session)
   if (!active()) return unavailable
-  const projected = headProjection(head, session)
+  const projected = headProjection(head, session, evaluator)
   if ('failure' in projected) return projected
   const chain: RunnerPiece[] = []
   for (const asset of projected.assets) {

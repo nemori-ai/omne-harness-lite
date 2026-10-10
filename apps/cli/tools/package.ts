@@ -12,22 +12,38 @@ export {
   runtime,
   type PackagingRuntime,
 } from '@omne-harness-lite/artifact-builder'
-const readme = `# omne governance CLI
+const readme = `# OMNE CLI
 
-Requires preinstalled Node.js 24.21.0. Tested: macOS arm64, Linux arm64 and amd64. macOS Intel has not been verified.
+Requires Node.js 24.21.0 on PATH. The archive contains the CLI and its production dependencies. It does not contain Node.js. B01 supports Linux. macOS support is deferred. The current Shell provider requires Linux, a working systemd user manager and scopes, /usr/bin/env, /usr/bin/stty, and /bin/bash. An archive for another platform does not establish Shell support.
 
-Obtain this archive AND its SHA256 through a trusted channel. A checksum verifies bytes, not authorship. Compare with shasum -a 256 ARCHIVE (macOS) or sha256sum ARCHIVE (Linux), then extract into a NEW empty directory:
+Get the archive and its SHA256 digest from a trusted channel. Compare the digest with sha256sum. A matching digest checks the bytes, not the publisher.
 
-    mkdir chosen-new-directory
-    tar -xzf ARCHIVE -C chosen-new-directory
-    node chosen-new-directory/app/dist/main.js --version
-    node chosen-new-directory/app/dist/main.js --help
+Install into a new directory. The recommended code location is ~/.local/share/omne/builds/<BUILD_ID>. The command link is ~/.local/bin/omne. For example, from the directory that contains the verified archive:
 
-Run machine commands for redirected output. Human governance commands require a terminal. Credentials come from protected files; there is no interactive password input. The entire UTF-8 file is used, including a final newline or spaces: nothing is trimmed or normalized. A file made with echo and one made with printf without a newline are different credentials. Preserve the exact contents for later login, and check the export/editor newline setting when creating the file. There is no administrator password reset. The governance TUI is an implementation increment with incomplete terminal acceptance; run tui --help for the precise adopted terminal profile and limitations. Do not infer TUI compatibility from the CLI platform list above. Use an explicit --state-dir absolute directory to preserve the intended local identity across code upgrades. Its parent must already exist; do not copy state into this code directory.
+    archive="$PWD/omne-cli.tar.gz"
+    build_id=$(tar -xOf "$archive" app/BUILD_ID)
+    install_dir="$HOME/.local/share/omne/builds/$build_id"
+    mkdir -p "$HOME/.local/share/omne/builds" "$HOME/.local/bin"
+    mkdir "$install_dir"
+    tar -xzf "$archive" -C "$install_dir"
+    ln -s "$install_dir/app/bin/omne.js" "$HOME/.local/bin/omne"
+    export PATH="$HOME/.local/bin:$PATH"
+    omne --version
+    omne --help
 
-For a code upgrade, unpack into another new directory and retain the old code. Retention does not guarantee older code can read newer state. This tool performs no migration, automatic rollback, global install, download or upload. Do not overwrite an active installation. Center compatibility must be checked before use.
+An existing install directory or command link causes these commands to stop. Do not overwrite an active installation. To change versions, unpack into a new directory and deliberately change the command link. This does not stop an existing Session host or roll back its data format.
 
-build-info.json lists packaged files and relative symlinks. BUILD_ID identifies that list (excluding itself and build-info.json). This is not a byte-reproducible-build claim. Never store credentials or local client state inside this artifact directory.
+Use omne to start a terminal session. The entry prepares a governance center, login, tenant, and model configuration when needed. A configured entry starts or attaches to the tenant's independent Session host. Exiting the terminal detaches the client. It does not stop an executing Run.
+
+Interactive input uses the current terminal, including an SSH PTY. No DISPLAY, X11 server or terminal profile is required. The terminal must be an exclusive UTF-8 TTY, at least 60 columns by 16 rows, and support bracketed paste and alternate-screen mode queries. It must preserve paste boundaries and prevent pasted content from forging the closing delimiter. Unsupported capabilities fail explicitly. The application runs on Linux; an SSH client may run on another operating system.
+
+For redirected output, use the documented --json commands. omne --message-file <path> --json [--session <id>] reads a complete JSON UserMessage and uses an already configured, running tenant host. The message file is not a plain-text prompt.
+
+Local data is separate from this code directory. The root is --home <absolute-path>, otherwise OMNE_HOME, otherwise ~/.omne. It holds the root catalog and separate tenant directories for authentication, assets, logs, and sessions. Use the same home when changing the code version. Do not put secrets or local state in the installation.
+
+Credentials come from protected files. The complete UTF-8 text is used, including spaces and final newlines. Nothing is trimmed. Preserve these bytes for later login. There is no administrator password reset in this release.
+
+BUILD_ID identifies the packaged inventory in build-info.json. It is not a reproducible-build or signature claim. The packaging command does not install, upload, or modify account state.
 `
 const definition = {
   member: '@omne-harness-lite/cli',
@@ -35,6 +51,9 @@ const definition = {
   format: 'omne-cli-build/1',
   version: '0.0.0',
   readme,
+  verifyScript: `import { createRequire } from 'node:module';
+const host = import.meta.resolve('@omne-harness-lite/execution-environments-host');
+createRequire(host)('node-pty');`,
 }
 export function packageCli(root: string, target: string, io: PackagingRuntime = runtime) {
   return packageArtifact(root, target, definition, io)

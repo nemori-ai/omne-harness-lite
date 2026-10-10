@@ -1,0 +1,96 @@
+import { humanBlocks, type HumanBlock } from './session-human-content.ts'
+import type { Message } from '@omne-harness-lite/messages'
+import { parseTenantId, tenantIdEquals, isOk } from '@omne-harness-lite/identity-values'
+import { StorageDefect } from '@omne-harness-lite/storage'
+import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import { checkLogPayload, checkSourceToken, type LogEntry } from '@omne-harness-lite/session-log'
+import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+import type { SessionScope } from '@omne-harness-lite/session-tenancy'
+import type { SourceToken } from '@omne-harness-lite/session-log'
+import type { LocalSessionIngress } from '@omne-harness-lite/session-runtime-local'
+
+export interface SessionMessageView {
+  readonly position: JsonNumber
+  readonly run: string | null
+  readonly id: string
+  readonly type: Message['type']
+  readonly createdAt: string
+  readonly blocks: readonly HumanBlock[]
+}
+export interface SessionConversationReaderOptions {
+  readonly tenant: SessionScope['tenant']
+  readonly ingress: LocalSessionIngress
+}
+export type SessionConversationReading =
+  | {
+      readonly kind: 'messages'
+      readonly source: SourceToken
+      readonly messages: readonly SessionMessageView[]
+    }
+  | { readonly failure: 'invalidInput' | 'denied' | 'notFound' | 'unavailable' }
+/** Trusted host facade. It never exposes raw messages or a live authority to the client. */
+export function createSessionConversationReader(options: SessionConversationReaderOptions): {
+  readonly read: (scope: SessionScope) => Promise<SessionConversationReading>
+} {
+  const checked = parseTenantId(options.tenant)
+  if (!isOk(checked)) throw new TypeError('invalid text reader tenant')
+  const tenant = Object.freeze(checked.ok)
+  const { ingress } = options
+  return Object.freeze({
+    read: async scope => {
+      const requested = checkedScope(scope)
+      if (!requested) return { failure: 'invalidInput' }
+      if (!tenantIdEquals(requested.tenant, tenant)) return { failure: 'denied' }
+      const prefix = await ingress.journal.readPrefix(ingress.access, requested.session)
+      if ('failure' in prefix) return prefix
+      if (
+        prefix.source.session !== requested.session ||
+        !tenantIdEquals(prefix.source.tenant, tenant)
+      )
+        throw new StorageDefect('authorized journal returned foreign source')
+      const messages = prefix.entries.flatMap(entry => humanMessage(entry))
+      return Object.freeze({
+        kind: 'messages',
+        source: prefix.source,
+        messages: Object.freeze(messages),
+      })
+    },
+  })
+}
+function checkedScope(scope: SessionScope): SessionScope | undefined {
+  const copied = copyJsonValue(scope)
+  if (
+    'failed' in copied ||
+    copied.ok === null ||
+    typeof copied.ok !== 'object' ||
+    Array.isArray(copied.ok)
+  )
+    return undefined
+  if (
+    Object.keys(copied.ok).length !== 2 ||
+    !Object.hasOwn(copied.ok, 'tenant') ||
+    !Object.hasOwn(copied.ok, 'session')
+  )
+    return undefined
+  const token = checkSourceToken({ ...copied.ok, journalGeneration: 'scope-check', tail: 0 })
+  if ('failure' in token) return undefined
+  return Object.freeze({ tenant: token.ok.tenant, session: token.ok.session })
+}
+function humanMessage(entry: LogEntry): readonly SessionMessageView[] {
+  const checked = checkLogPayload(entry.payload)
+  if ('failure' in checked) throw new StorageDefect('invalid owned message payload')
+  if (checked.kind !== 'message') return []
+  const message = checked.payload.value
+  const blocks = humanBlocks(message.blocks)
+  if (blocks.length === 0) return []
+  return [
+    Object.freeze({
+      position: entry.position,
+      run: entry.run ?? null,
+      id: message.id,
+      type: message.type,
+      createdAt: message.createdAt,
+      blocks,
+    }),
+  ]
+}

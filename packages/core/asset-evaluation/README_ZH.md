@@ -9,6 +9,7 @@
 | 公开 API                     | 用途                                         |
 | ---------------------------- | -------------------------------------------- |
 | `evaluate`                   | 校验输入、过滤与选择资产、展开组合、求属性值 |
+| `createAssetEvaluator`       | 由调用者持有编译状态，供求值与工具消费者共用 |
 | `readWorkspaceCarrier`       | 把完整清单值转换为工作区持有                 |
 | `defaultBodyContracts`       | 复用五个已经接入的正文提供者                 |
 | `evaluationInputFingerprint` | 为完整求值输入生成指纹                       |

@@ -38,6 +38,16 @@ async function fixture() {
   }
   return { root, target: join(root, 'cli.tar.gz'), io, calls, output }
 }
+async function rejectNativeDependency(
+  command: string,
+  args: readonly string[],
+  cwd: string,
+  run: PackagingRuntime['run'],
+) {
+  if (command === 'node') throw new Error('native module missing')
+  if (args.includes('deploy')) expect(args).not.toContain('--ignore-scripts')
+  await run(command, args, cwd)
+}
 afterEach(async () => {
   await Promise.all(directories.splice(0).map(path => rm(path, { recursive: true, force: true })))
 })
@@ -45,7 +55,7 @@ describe('portable artifact publication', () => {
   it('real tar preserves files/links; marker, manifest and output digest identify the extracted closure', async () => {
     const f = await fixture()
     const result = await packageCli(f.root, f.target, f.io)
-    expect(f.calls).toEqual(['pnpm', 'pnpm', 'tar'])
+    expect(f.calls).toEqual(['pnpm', 'pnpm', 'node', 'tar'])
     expect(execFileSync('tar', ['-tzf', f.target], { encoding: 'utf8' })).not.toContain('/._')
     expect(await digest(f.target)).toBe(result.sha256)
     expect(JSON.parse(f.output[0]!)).toEqual(result)
@@ -65,6 +75,15 @@ describe('portable artifact publication', () => {
     )
     expect(actual.map(e => e.path)).toEqual(['README.md', 'alias', 'dist/main.js'])
     expect((await readdir(f.root)).some(p => p.startsWith('.omne-cli-package-'))).toBe(false)
+  })
+  it('does not publish when the deployed native runtime cannot load', async () => {
+    const f = await fixture()
+    const run = f.io.run
+    f.io.run = (command, args, cwd) => rejectNativeDependency(command, args, cwd, run)
+    await expect(packageCli(f.root, f.target, f.io)).rejects.toThrow('native module missing')
+    await expect(lstat(f.target)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(f.output).toEqual([])
+    expect(f.calls).not.toContain('tar')
   })
   it.each(['file', 'symlink', 'racing-file'])(
     'does not replace an existing %s target',

@@ -31,7 +31,6 @@ const owners = new Set([
   'packages/frontend/governance-center-client-https',
   'packages/frontend/governance-client-operations-local',
   'apps/cli',
-  'examples/model-invocation-minimal-demo',
 ])
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 const snapshot = value => {

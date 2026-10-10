@@ -84,3 +84,116 @@ it('stop waits outstanding output before ending the prompt', async () => {
   await stop
   expect(await read).toBeUndefined()
 })
+
+it('paints progress without requiring Enter and never queues typing into the next prompt', async () => {
+  const terminal = new FakeTerminal(),
+    dialog = new Dialog(terminal, () => {})
+  dialog.progress('Assistant', ['partial'])
+  await tick()
+  terminal.key('x')
+  terminal.key('\r')
+  dialog.progress('Assistant', ['partial response'])
+  await tick()
+  expect(terminal.frames.join('')).toContain('partial response')
+  const read = dialog.text('Message')
+  await tick()
+  terminal.key('\r')
+  expect(await read).toBe('')
+  await dialog.stop()
+})
+
+it('preserves a page being read during progress and resumes following on the last page', async () => {
+  const terminal = new FakeTerminal(),
+    dialog = new Dialog(terminal, () => {})
+  terminal.size = { columns: 80, rows: 16 }
+  const lines = Array.from({ length: 18 }, (_, i) => `line ${i}`)
+  dialog.progress('Assistant', lines)
+  await tick()
+  expect(terminal.frames.at(-1)).toContain('Page 3/3')
+  terminal.key('\x1b[5~')
+  await tick()
+  expect(terminal.frames.at(-1)).toContain('Page 2/3')
+  dialog.progress('Assistant', [...lines, 'line 18', 'line 19', 'line 20', 'line 21'])
+  await tick()
+  expect(terminal.frames.at(-1)).toContain('Page 2/4')
+  terminal.key('\x1b[6~')
+  await tick()
+  terminal.key('\x1b[6~')
+  await tick()
+  dialog.progress('Assistant', [...lines, ...Array.from({ length: 12 }, (_, i) => `new ${i}`)])
+  await tick()
+  expect(terminal.frames.at(-1)).toContain('Page 5/5')
+  await dialog.stop()
+})
+
+it('opens the composer on the latest history page and sends without mandatory history review', async () => {
+  const terminal = new FakeTerminal(),
+    dialog = new Dialog(terminal, () => {})
+  terminal.size = { columns: 80, rows: 16 }
+  const read = dialog.compose(
+    'Conversation',
+    Array.from({ length: 18 }, (_, i) => `history ${i}`),
+  )
+  await tick()
+  expect(terminal.frames.at(-1)).toContain('Page 3/3')
+  expect(terminal.frames.at(-1)).toContain('Enter: send')
+  terminal.paste('next message')
+  await tick()
+  terminal.key('\r')
+  expect(await read).toBe('next message')
+  await dialog.stop()
+})
+
+it('preserves composer input while paging and rejects Enter until its frame is delivered', async () => {
+  const terminal = new FakeTerminal(),
+    dialog = new Dialog(terminal, () => {})
+  terminal.size = { columns: 80, rows: 16 }
+  const read = dialog.compose(
+    'Conversation',
+    Array.from({ length: 18 }, (_, i) => `history ${i}`),
+  )
+  let done = false
+  void read.then(() => {
+    done = true
+  })
+  terminal.key('\r')
+  await tick()
+  expect(done).toBe(false)
+  terminal.paste('kept')
+  await tick()
+  terminal.key('\x1b[5~')
+  await tick()
+  expect(terminal.frames.at(-1)).toContain('Page 2/3')
+  const gate = Promise.withResolvers<void>()
+  terminal.gate = gate.promise
+  terminal.key('!')
+  await tick()
+  terminal.key('\r')
+  await tick()
+  expect(done).toBe(false)
+  gate.resolve()
+  await tick()
+  terminal.key('\r')
+  expect(await read).toBe('kept!')
+  await dialog.stop()
+})
+
+it('ends a stopped composer only after its pending frame is drained', async () => {
+  const terminal = new FakeTerminal(),
+    dialog = new Dialog(terminal, () => {})
+  const gate = Promise.withResolvers<void>()
+  terminal.gate = gate.promise
+  const read = dialog.compose('Conversation', ['User', 'hello', 'Assistant', 'hello'])
+  let done = false
+  void read.then(() => {
+    done = true
+  })
+  await tick()
+  const stop = dialog.stop()
+  terminal.key('\r')
+  await tick()
+  expect(done).toBe(false)
+  gate.resolve()
+  await stop
+  expect(await read).toBeUndefined()
+})

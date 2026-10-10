@@ -40,12 +40,14 @@ ops 只订阅 SERVING_EVENT/STOPPED_EVENT/DEFECT_EVENT，只派发 LISTENING_EVE
 
 31 条路由、判定次序、租户拒绝、同提交、中心身份、wire/Schema 身份、SQL/迁移及维护算法保持。
 共享判定、授权、结果及同提交承诺归[公共入口](../../core/governance-center-entry/SPEC.md)，客户端读取归[传输定义](../../core/governance-center-entry-https-json/SPEC.md)。本包拥有实际持久身份、服务端字节和维护资源行为。
+
+线上协议与组织名称采用公共定义包当前协议3；其唯一Schema由公共包拥有，维护资源仍归本提供者。
 采用依据为身份整体设计及T4 接缝。
 源码、声明、运行闭包和制品消费须分别验证；类型及静态图不能证明启动、隔离、事务或关闭。
 
 ## 请求判定与协议装配
 
-`service-faces.ts`、`json-shapes.ts` 与 `routing/record-shapes.ts` 分别唯一拥有服务、读取结果与工程记录形状。`routing/routes.ts` 保留原31条业务调用及失败规则，`route-wire.ts` 按同一原 schema 拥有协议投影。内部形状与投影不成为新的公共操作。
+`service-faces.ts`、`json-shapes.ts` 与 `routing/record-shapes.ts` 分别唯一拥有服务、读取结果与工程记录形状。`routing/routes.ts` 保留31条业务路由，团队创建增加必有名称，`route-wire.ts` 读取原持久名称。当前治理协议与 Schema 归公共定义包，不保留提供者副本。内部形状与投影不成为新的公共操作。
 
 `decision-policy.ts` 通过私有协议、关联号和认证事务端口作原判定。`decide.ts` 绑定实际 JSON 读取、原协议编码/校验、关联号与原共同事务；五参与面仍在同一 atomic 回调按原次序构造。公开体检与无需查询的拒绝不读取服务或启动事务。
 

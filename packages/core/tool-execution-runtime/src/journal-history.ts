@@ -1,3 +1,4 @@
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import { isResourceJournalValue } from './journal-resources.ts'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
@@ -230,6 +231,7 @@ function captureHistoryInput(scope: SessionScope, entries: readonly LogEntry[]) 
 export function projectToolJournal(
   scope: SessionScope,
   entries: readonly LogEntry[],
+  parameters?: ParameterJudge,
 ): { readonly executions: ReadonlyMap<string, ToolJournalHistory> } | { readonly invalid: true } {
   const captured = captureHistoryInput(scope, entries)
   if (captured === undefined) return { invalid: true }
@@ -239,7 +241,7 @@ export function projectToolJournal(
   let position = 0 as import('@omne-harness-lite/content-blocks').JsonNumber
   try {
     for (const entry of captured.entries) {
-      const record = inspectToolJournalEntry(ownedScope, entry)
+      const record = inspectToolJournalEntry(ownedScope, entry, parameters)
       check(!('invalid' in record))
       if ('unrelated' in record) continue
       check(compareInteger(record.entry.position, position) > 0 && !keys.has(record.key))

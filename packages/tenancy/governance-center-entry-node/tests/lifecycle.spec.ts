@@ -387,7 +387,9 @@ describe('T-12 停机时的在途请求（S-34）', () => {
     const paused = c.storage.pauseNextCommit()
     const inFlight = tlsExchange(
       c.port,
-      httpRequest(JSON.stringify(envelopeOf(OG(21), {}, ada.presentation))),
+      httpRequest(
+        JSON.stringify(envelopeOf(OG(21), { name: 'test organization' }, ada.presentation)),
+      ),
     )
     await paused.reached
     const half = tlsExchange(
@@ -414,7 +416,9 @@ describe('T-12 停机时的在途请求（S-34）', () => {
     const paused = c.storage.pauseNextCommit()
     const inFlight = tlsExchange(
       c.port,
-      httpRequest(JSON.stringify(envelopeOf(OG(21), {}, ada.presentation))),
+      httpRequest(
+        JSON.stringify(envelopeOf(OG(21), { name: 'test organization' }, ada.presentation)),
+      ),
     )
     await paused.reached
     const started = performance.now()

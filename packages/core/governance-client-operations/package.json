@@ -17,7 +17,7 @@
       "import": "./dist/cordis.js"
     },
     "./schema": "./schema/governance-client-operations.schema.json",
-    "./schema/v2": "./schema/governance-client-operations-v2.schema.json"
+    "./schema/intents": "./schema/governance-client-intents.schema.json"
   },
   "files": [
     "dist",

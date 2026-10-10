@@ -91,6 +91,7 @@ export async function boot(wrap: (storage: AtomicStorage) => AtomicStorage = sto
       .values({
         organization_id: 'team-a',
         kind: 'team',
+        name: 'Fixture team',
         parent: null,
         owner_account: 'owner-a',
         created_at: 0,

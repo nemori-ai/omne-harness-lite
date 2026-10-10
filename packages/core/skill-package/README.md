@@ -125,6 +125,9 @@ console.log(skillBodyContract.category) // skill
 
 The v2 entry admits normalized values and supplies its own body contract. Validate a value with that entry before giving it to a v2 consumer. Author-defined schema references are version-sensitive.
 
+
+For one assembly, use `createSkillBodyContract({ reuseDomainValidators: true })` from `/v2`. It reuses compiled setting schemas and validates every current default. Release the body contract when that assembly ends. The default body contract does not retain author validators.
+
 ```ts
 import { schemaId, judgeSkillPackage, type SkillPackage } from '@omne-harness-lite/skill-package'
 import {

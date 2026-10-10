@@ -12,17 +12,21 @@ import type {
   ObserverDiagnostic,
   ObserverScope,
   SettlementLogBinding,
+  SettlementStagedBatch,
 } from '@omne-harness-lite/model-request-runtime'
+import {
+  createSettlementCoordinator,
+  createSettlementWork,
+} from '@omne-harness-lite/session-runtime-local'
+import {
+  createModelCallContentStore,
+  modelCallContentMigrations,
+} from '@omne-harness-lite/model-request-runtime-local'
 import {
   createAcknowledgementCustody,
   createCallContainerStore,
-  createModelCallContentStore,
   createModelObserverQueue,
-  createSettlementCoordinator,
-  createSettlementWork,
-  modelCallContentMigrations,
-  type SettlementStagedBatch,
-} from '@omne-harness-lite/model-request-runtime-local'
+} from '@omne-harness-lite/session-runtime-local'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'

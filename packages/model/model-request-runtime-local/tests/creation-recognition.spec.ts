@@ -5,8 +5,8 @@ import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { expect, test, vi } from 'vitest'
 import { LosslessNumber, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { LogEntryInput } from '@omne-harness-lite/session-log'
-import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
-import { kinds } from './acknowledgement-host-fixture.ts'
+import { acknowledgementHost } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
+import { kinds } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { ControlledSettlementOwner, deferred, policy } from './settlement-fixture.ts'
 import {
   captureModelLogValue,

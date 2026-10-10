@@ -114,6 +114,67 @@ it('resolves a visible nested tool result while retaining text blocks', () => {
   expect(writeJsonLossless(result)).not.toContain('image-source-test')
   expect(writeJsonLossless(nested)).toBe(before)
 })
+it('resolves visible media renderings without rewriting their persisted source', () => {
+  const rendered = judgedMessage({
+    type: 'user',
+    id: 'rendered-image',
+    createdAt: at,
+    blocks: [
+      {
+        id: 'voice',
+        kind: 'voice',
+        mediaType: 'audio/wav',
+        data: { inline: 'AQID' },
+        transcript: 'Original audio',
+        visibility: { toHuman: true, toModel: true },
+        renderings: [{ producedBy: 'system', blocks: [image] }],
+      },
+    ],
+  })
+  const before = writeJsonLossless(rendered)
+  const result = resolveImageMessages([rendered], {
+    signal: new AbortController().signal,
+    imageBytes: [{ reference: image.data, bytes: new Uint8Array([1, 2, 3]) }],
+  })
+  expect(writeJsonLossless(result)).toContain('"inline":"AQID"')
+  expect(writeJsonLossless(result)).not.toContain('image-source-test')
+  expect(writeJsonLossless(rendered)).toBe(before)
+})
+it('resolves an image and its rendering without skipping the original image', () => {
+  const message = judgedMessage({
+    type: 'user',
+    id: 'rendered-own-image',
+    createdAt: at,
+    blocks: [
+      {
+        ...image,
+        transcript: 'Caption',
+        renderings: [
+          {
+            producedBy: 'system',
+            blocks: [
+              {
+                id: 'caption',
+                kind: 'text',
+                text: 'Caption',
+                visibility: { toHuman: true, toModel: true },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const result = resolveImageMessages([message], {
+    signal: new AbortController().signal,
+    imageBytes: [{ reference: image.data, bytes: new Uint8Array([1, 2, 3]) }],
+  })
+  expect(result[0]!.blocks[0]).toMatchObject({
+    data: { inline: 'AQID' },
+    renderings: [{ blocks: [{ text: 'Caption' }] }],
+  })
+  expect(message.blocks[0]).toMatchObject({ data: image.data })
+})
 it('does not substitute bytes retained for a different reference', () => {
   expect(() =>
     resolveImageMessages(messages(), {

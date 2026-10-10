@@ -6,7 +6,7 @@ export { judgeToolDefinition, judgeToolReturn, isToolDefinition, isToolReturn } 
 export { createParameterJudge } from './parameters.ts'
 export { toolResultOf } from './returns.ts'
 export { toolDependencies } from './dependencies.ts'
-export { toolBodyContract } from './body.ts'
+export { toolBodyContract, createToolBodyContract } from './body.ts'
 export { PATTERN_MAX_CODE_POINTS, PATTERN_MAX_FINITE_COUNT } from './pattern.ts'
 export {
   toolEnvironmentPermissionDeclaration,

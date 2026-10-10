@@ -17,14 +17,24 @@ export function resolveImageMessages(
     if (!block.visibility.toModel) return block
     if (block.kind === 'tool_result')
       return contentBlockFromRepresentation({ ...block, blocks: block.blocks.map(resolveBlock) })
-    if (block.kind !== 'image' || 'inline' in block.data) return block
+    const rendered =
+      'renderings' in block && block.renderings
+        ? contentBlockFromRepresentation({
+            ...block,
+            renderings: block.renderings.map(rendering => ({
+              ...rendering,
+              blocks: rendering.blocks.map(resolveBlock),
+            })),
+          })
+        : block
+    if (block.kind !== 'image' || 'inline' in block.data) return rendered
     if (execution.signal.aborted) throw new Error('Image projection interrupted')
     const reference = block.data
     const matches = sources.filter(source => jsonEqual({ ...source.reference }, { ...reference }))
     if (matches.length !== 1 || !(matches[0]!.bytes instanceof Uint8Array))
       throw new Error('Image bytes unavailable')
     return contentBlockFromRepresentation({
-      ...block,
+      ...rendered,
       data: { inline: Buffer.from(matches[0]!.bytes).toString('base64') },
     })
   }

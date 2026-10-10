@@ -1,4 +1,4 @@
-import { symbols, type Context } from '@deepseek-ai/cordis'
+import { type Context } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import {
@@ -12,35 +12,16 @@ import {
   ToolImplementationsService,
 } from '@omne-harness-lite/tool-execution-runtime/cordis'
 import type {
-  ToolRuntimeOperations,
+  ToolPoolAdmission,
   ToolImplementationOperations,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { createToolRuntimeRegistry } from './registry.ts'
 import { createToolImplementationRegistry } from './implementations.ts'
-import { SESSION_ACCESS } from '@omne-harness-lite/session-tenancy/cordis'
-import { SESSION_LOG_BACKING, SESSION_LOG_OWNER } from '@omne-harness-lite/session-log/cordis'
-import { RUNTIME_CONTEXT } from '@omne-harness-lite/runtime-context/cordis'
-import { EXECUTION_ENVIRONMENTS } from '@omne-harness-lite/execution-environments/cordis'
-import { TOOL_ACTION_HISTORY, TOOL_ADMISSION } from '@omne-harness-lite/tool-admission/cordis'
-import { RUNNER_HOST } from '@omne-harness-lite/loop-extension-runner/cordis'
-import { CLOCK_SERVICE } from '@omne-harness-lite/offer-expiry/cordis'
 import {
   TOOL_RUNTIME_REGISTRY,
   TOOL_IMPLEMENTATIONS,
-  TOOL_RESULTS,
   TOOL_RUNTIME_STARTUP,
 } from '@omne-harness-lite/tool-execution-runtime/cordis'
-import type {
-  ToolRuntimeConfig,
-  ToolRuntimeBootstrap,
-} from '@omne-harness-lite/tool-execution-runtime'
-import {
-  createParameterJudge,
-  isToolReturn,
-  type ToolReturn,
-} from '@omne-harness-lite/tool-definition'
-import { createToolInvoker } from './invoker.ts'
-import { createToolRuntime } from './runtime.ts'
 
 export {
   toolEnvironmentPlacement,
@@ -49,18 +30,18 @@ export {
 
 class RuntimeRegistry extends ToolRuntimeRegistryService {
   private readonly operations = createToolRuntimeRegistry()
-  register(provider: ToolRuntimeOperations) {
+  register(provider: ToolPoolAdmission) {
     const dispose = this.ctx.effect(() => this.operations.register(provider))
     return async () => {
       await dispose()
     }
   }
-  submit(...args: Parameters<ToolRuntimeOperations['submit']>) {
+  submit(...args: Parameters<ToolPoolAdmission['submit']>) {
     return this.operations.submit(...args)
   }
   async acquire(
-    ...args: Parameters<ToolRuntimeOperations['acquire']>
-  ): ReturnType<ToolRuntimeOperations['acquire']> {
+    ...args: Parameters<ToolPoolAdmission['acquire']>
+  ): ReturnType<ToolPoolAdmission['acquire']> {
     // Install ownership before awaiting acquisition; caller disposal may win that race.
     let released = false
     let release: (() => void) | undefined
@@ -70,7 +51,7 @@ class RuntimeRegistry extends ToolRuntimeRegistryService {
       release?.()
     }
     const dispose = this.ctx.effect(() => finish, 'tool-runtime-registry.observer')
-    let result: Awaited<ReturnType<ToolRuntimeOperations['acquire']>>
+    let result: Awaited<ReturnType<ToolPoolAdmission['acquire']>>
     try {
       result = await this.operations.acquire(...args)
     } catch (error) {
@@ -98,10 +79,10 @@ class RuntimeRegistry extends ToolRuntimeRegistryService {
       }),
     }
   }
-  stop(...args: Parameters<ToolRuntimeOperations['stop']>) {
+  stop(...args: Parameters<ToolPoolAdmission['stop']>) {
     return this.operations.stop(...args)
   }
-  answer(...args: Parameters<ToolRuntimeOperations['answer']>) {
+  answer(...args: Parameters<ToolPoolAdmission['answer']>) {
     return this.operations.answer(...args)
   }
 }
@@ -146,73 +127,6 @@ const RuntimeConfig = z
     resultStorage: z.string().min(1),
   })
   .strict()
-
-function createInstance(
-  ctx: Context,
-  config: ToolRuntimeConfig,
-  recovery: ToolRuntimeBootstrap['recovery'],
-) {
-  return createToolRuntime(config, {
-    recovery,
-    backing: ctx.sessionLogBacking,
-    owner: ctx.sessionLogOwner,
-    history: ctx.toolActionHistory,
-    authorization: ctx.sessionAccess,
-    implementations: ctx.toolImplementations,
-    context: ctx.runtimeContext,
-    environments: ctx.executionEnvironments,
-    results: ctx.toolResults,
-    runnerHost: ctx.runnerHost,
-    clock: ctx.clock,
-    admission: () => {
-      const current = ctx.get(TOOL_ADMISSION)
-      // Cordis 4.0.4 returns a new caller proxy per get(). Compare its actual provider generation.
-      return current ? (Reflect.get(current, symbols.original) ?? current) : undefined
-    },
-    invoke: createToolInvoker({
-      parameters: createParameterJudge(),
-      judgeResult: value =>
-        isToolReturn(value) ? { kind: 'valid', result: value as ToolReturn } : { kind: 'invalid' },
-    }),
-  })
-}
-
-/** The app supplies its private maintenance token through construction, outside JSON configuration. */
-export function toolExecutionLocal(bootstrap: ToolRuntimeBootstrap) {
-  const recovery = bootstrap.recovery
-  return definePlugin({
-    name: 'tool-execution-local',
-    inject: [
-      TOOL_RUNTIME_REGISTRY,
-      TOOL_IMPLEMENTATIONS,
-      TOOL_RESULTS,
-      SESSION_LOG_BACKING,
-      SESSION_LOG_OWNER,
-      SESSION_ACCESS,
-      TOOL_ACTION_HISTORY,
-      RUNTIME_CONTEXT,
-      EXECUTION_ENVIRONMENTS,
-      RUNNER_HOST,
-      CLOCK_SERVICE,
-    ],
-    Config: RuntimeConfig,
-    async apply(ctx, config) {
-      const instance = createInstance(ctx, config, recovery)
-      let closed = false,
-        withdraw: (() => Promise<void>) | undefined
-      ctx.effect(
-        () => async () => {
-          closed = true
-          await withdraw?.()
-          await instance.close()
-        },
-        'tool-execution-local.close',
-      )
-      await instance.ready
-      if (!closed) withdraw = ctx.toolRuntimeRegistry.register(instance.operations)
-    },
-  })
-}
 
 export const managedRuntimeRegistry = Object.assign(
   definePlugin({
@@ -276,20 +190,7 @@ export const managedImplementationRegistry = Object.assign(
   },
 )
 
-const runtimeRequirements = [
-  TOOL_RUNTIME_REGISTRY,
-  TOOL_IMPLEMENTATIONS,
-  TOOL_RESULTS,
-  SESSION_LOG_BACKING,
-  SESSION_LOG_OWNER,
-  SESSION_ACCESS,
-  TOOL_ACTION_HISTORY,
-  RUNTIME_CONTEXT,
-  EXECUTION_ENVIRONMENTS,
-  RUNNER_HOST,
-  CLOCK_SERVICE,
-  TOOL_RUNTIME_STARTUP,
-]
+const runtimeRequirements = [TOOL_RUNTIME_REGISTRY, TOOL_RUNTIME_STARTUP]
 
 /** Managed initialization retains the original close control before awaiting recovery. */
 export const managedToolExecutionLocal = Object.assign(
@@ -304,7 +205,7 @@ export const managedToolExecutionLocal = Object.assign(
         ctx,
         async () => {
           const startup = ctx.toolRuntimeStartup
-          const instance = createInstance(ctx, config, startup.recoveryAccess())
+          const instance = startup.start(config)
           owned = createRetainedWork(instance.ready, instance.close)
           // A failed handoff rejects managed readiness; the registered close still owns this instance.
           ctx.assemblyLifetime.retainClose(owned.control)
@@ -330,7 +231,7 @@ export const managedToolExecutionLocal = Object.assign(
         requires: runtimeRequirements,
         optional: [],
         dynamicProvides: [],
-        dynamicRequires: [TOOL_ADMISSION],
+        dynamicRequires: [],
         claims: [],
       }
     },

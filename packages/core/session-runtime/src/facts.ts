@@ -2,12 +2,9 @@ import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 import { copyJsonValue, type JsonObject } from '@omne-harness-lite/content-blocks'
 import {
   checkKey,
-  checkLogPayload,
-  compareInteger,
   factLogPayload,
   positiveInteger,
   type FactLogPayload,
-  type LogEntry,
 } from '@omne-harness-lite/session-log'
 import type { AttemptStartedFact } from './types.ts'
 
@@ -40,27 +37,6 @@ export function attemptStartedPayload(value: AttemptStartedFact): FactLogPayload
   const checked = checkAttemptStarted(value)
   if ('failure' in checked) throw new TypeError('invalid attempt start fact')
   return factLogPayload(SESSION_FACT_OWNER, SESSION_FACT_VERSION, checked.fact)
-}
-export function readAttemptStarted(
-  entry: LogEntry,
-):
-  | { readonly kind: 'fact'; readonly fact: AttemptStartedFact }
-  | { readonly kind: 'other' }
-  | typeof invalidInput {
-  const payload = checkLogPayload(entry.payload)
-  if ('failure' in payload) return invalidInput
-  if (payload.kind !== 'fact' || payload.payload.owner !== SESSION_FACT_OWNER)
-    return { kind: 'other' }
-  if (payload.payload.version !== SESSION_FACT_VERSION) return invalidInput
-  const checked = checkAttemptStarted(payload.payload.value)
-  if ('failure' in checked) return invalidInput
-  if (
-    entry.run !== checked.fact.run ||
-    entry.attempt === undefined ||
-    compareInteger(entry.attempt, checked.fact.attempt) !== 0
-  )
-    return invalidInput
-  return checked
 }
 
 function closedFact(fact: JsonObject, keys: readonly string[]): boolean {

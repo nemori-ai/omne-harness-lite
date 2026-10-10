@@ -17,8 +17,8 @@ export abstract class ToolRuntimeRegistryService
     super(ctx, ToolRuntimeRegistryService.provide)
   }
   abstract submit(
-    ...args: Parameters<ToolRuntimeOperations['submit']>
-  ): ReturnType<ToolRuntimeOperations['submit']>
+    ...args: Parameters<ToolRuntimeRegistryOperations['submit']>
+  ): ReturnType<ToolRuntimeRegistryOperations['submit']>
   abstract acquire(
     ...args: Parameters<ToolRuntimeOperations['acquire']>
   ): ReturnType<ToolRuntimeOperations['acquire']>
@@ -89,7 +89,7 @@ export abstract class ToolRuntimeStartupService
   constructor(ctx: Context) {
     super(ctx, ToolRuntimeStartupService.provide)
   }
-  abstract recoveryAccess: ToolRuntimeStartupOperations['recoveryAccess']
+  abstract start: ToolRuntimeStartupOperations['start']
   abstract retainClose: ToolRuntimeStartupOperations['retainClose']
 }
 export const TOOL_RUNTIME_STARTUP = ToolRuntimeStartupService.provide

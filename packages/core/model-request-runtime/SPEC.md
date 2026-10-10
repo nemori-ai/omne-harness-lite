@@ -14,6 +14,50 @@
 
 通用图片 codec 的公共类型归 `util/image-codec`。本包只作类型重导出，保留模型消费者的公开入口。具体 codec 的选择和原生库加载归消费者装配，模型准备政策与缓存不转移给通用模块。
 
+## 既有消费者的会话请求准备
+
+[`session-request-preparation.ts`](src/session-request-preparation.ts) 定义现有混合消费者向Session提供者借用的准备接口。它属于Session编排，不进入物理执行池的构造输入，也不是可序列化的执行请求。
+
+prepareCreation负责新调用的会话侧准备。在原registration中按既有次序读取实际租户、目录、完整前缀、当前模态、凭据存在性及历史校准，再校验档案快照和参数。已解析工具由同一准备流程传入。成功返回PreparedModelCreation，包含原创建内容、已采用档案／参数／工具和校准结果；不返回完整会话前缀。不写日志、不取得执行权、不关闭借入来源。注册信息、配置范围或模态不可用时沿原失败集合返回，不新增模型许可。
+
+createModelCallCreationInput只构造原创建输入值，供准备器及原身份比较共用。它不复制权限或验证来源；调用者仍须先校验公开请求并使用实际sourceVersions。
+
+其中readCall由Session侧读取并解释原调用历史，只向消费者返回CallHistoryResult。读取使用调用者保有的原registration及原解释器，必须保留来源校验、ACK和失败语义。调用者传递解释器时须保留其原所属对象，不能因回调转交改变接收者。它不登记第二份读取，不提交记录，也不取得发送权。该方法用于现有消费者迁移，不能作为执行池普通请求的一部分。 未知控制写入可以提供additionalReaders。Session在同一实际完整前缀上调用各个原解释器；仅当结果一致时返回该历史。任一解释器失败或结果不一致均返回history不可用，不返回前缀、不另开读取。
+
+Session准备器从实际会话来源求值本次超时、解析工具描述、选择历史校准并读取原凭据，返回PreparedModelExecution及该次调用的政策。执行请求固定完整租户／会话／调用／发出序号、原创建键、独立调用或Run／attempt来源，以及PlanInput。原顺序保持为超时、凭据、工具、校准。缺失或不可用的输入必须显式失败，不补默认值。原拥有者提供read执行登记，准备器不得自行释放登记或关闭来源。
+
+返回值中的凭据仅供可信进程内发送使用，不得放入日志、诊断、配置或对外回复。超时读取登记到当前会话求值拥有者，凭据和校准读取登记到原调用拥有者；这些原任务均须真正结束后才能归还资源。完整会话来源和准备回调不得进入执行池的普通请求。既有混合消费者的迁移不意味着窄执行池接口已完成实现。
+
+## 执行池消费边界
+
+[`execution-pool.ts`](src/execution-pool.ts) 定义显式执行身份、物理执行池及原执行记录类型。Session从SessionLog、Context和当前装配准备请求，Agent决定下一步。物理池不创建业务调用，不选择模型、不解释会话日志，不执行重试政策、恢复或ACK。
+
+`ModelPoolInstance.execute`接收`ModelExecutionRef`及已有`InvocationInput`。ref包含完整tenant、session、callId和dispatch；callId及dispatch必须与请求target相同。无效输入、已关闭准入或同一身份仍有未停止执行时，分别在调用物理能力前返回invalidInput、closed或duplicateActive。等值的发出序号采用同一身份。池只保留活动登记；停止后再次使用相同ref不提供持久去重。Session须在进入池前完成原claim的唯一消费，提交不明不得进入execute。
+
+`invokeModel`仍可独立使用。池执行原InvocationInput，不解析凭据、不取得Session来源、不登记第二份原发起账。transport拥有实际连接并发和排队；池不增加队列。原请求带有的回调、transport和policy仍由调用者提供，不从全局Context或环境补值。
+
+`ModelInvocationHandle.stopped`与outcome分开。stopped只在执行主体、读取迭代器及已登记的首内容回调结束，定时器和监听移除后完成。读取失败但原迭代器成功关闭可以确认停止；send或读取迭代器构造抛错、无法确认迭代器关闭或清理未完成时拒绝stopped。回调结束只证明它返回的Promise结束，不证明其他拥有者未登记的工作停止。诊断端口必须同步；违规返回的thenable沿原诊断隔离处理，不纳入业务关闭。结果失败不等于停止失败，结果返回也不等于停止。
+
+`executionSource.snapshot(scope)`只复制该tenant及session当前未确认停止执行的ref和状态。active表示停止尚未确认，不保证网络仍在传输；stopUnconfirmed表示停止失败。该读面不返回请求、凭据、结果、Session binding或调用句柄，也不持有捕获租约。它不提供持久历史；空数组不能证明Session义务已结束。
+
+closeAdmission同步拒绝后续执行。close请求已有执行取消，等待其真实stopped，全部确认后返回released；任一停止失败返回unavailable并保留责任。原回调不响应时继续等待，不用默认超时宣布成功。池的同步启动缺陷保留该ref为stopUnconfirmed并抛出原错误，不伪称未发出。Session或观察者退出不关闭共享池；实际根负责其寿命。池停止不证明结果已保管、费用已记录或ACK已完成。
+
+`ModelExecutionRecords`是同一实际OriginalIssueOwner的完整能力，提供原job准备、同Unit暂存、claim消费和关闭，与物理池分开构造。stageOriginalIn和stageConsumeIn只暂存，不独立提交或发IO。只有原记录拥有者发行、关联同一数据集的活体job和claim有效。复制对象、旧owner或异StorageUnit不能参加。Session参加者与records必须使用同一原owner和实际数据集。提交不明保留完整原ref、creationKey、原输入和责任，不授予launch、不重发、不生成后继身份。根保留records直到原参加者及执行任务收场；不因物理池或投影退出提前关闭。
+
+完整结果及必要引用可靠保管后才能ACK。Session拥有业务历史、重试判定、恢复、调用控制、结果处置和ACK；其原调用捕获接口与本节物理元数据读面不同。旧attempt的费用与迟到结果责任保持。
+
+### 原执行义务的借用读取
+
+withObligations 只遍历绑定数据集内本租户的模型调用。每个 ModelExecutionCallRef 包括尚未发出的调用；读取原调用时必须覆盖其全部原 dispatch，不伪造发出序号。ref 是数据，不授予 launch、控制或 ACK。
+
+limit 必须是正整数且满足提供者容量策略。原维护来源不能核实时，在发布 reader 前返回 denied 或 unavailable。提供者先完成一次真实读取，固定原一致视图，再发布 reader；空集也不能跳过这次读取。游标由提供者持有，按实际原 Session 和记录坐标稳定排序。坏版本、异归属或不完整来源返回 unavailable，不冒称空集。
+
+next 返回非空 page、明确 end 或 unavailable。同一 reader 只允许一次 next 在途；重叠调用返回 unavailable，并使本次借用不能返回 used。任何 next 返回 unavailable 均影响整个借用结果，即使 callback 忽略该值。used 只表示 callback 值与借用收场成功，不表示完整遍历或全部义务已处理。
+
+callback 在原存储只读作用域外执行，可通过原公开接口独立写入。callback 结束后使 reader 失效，等待已开始的读取及实际存储借用收场，才返回。callback、读取或释放抛出的异常优先于普通 unavailable；单个异常保留原对象，多异常以 AggregateError 保留原对象，按 callback、读取、释放排列。
+
+遍历不能预先排除终态或已 ACK 调用。原 unknown claim、writer、response、ACK 清理和持有资源仍可能有义务。一致视图不替代活体执行与资源检查。完整义务覆盖、处理或可靠保留均成立后，提供者才开放新工作；来源不可核不能冒称 ready。池关闭仍要求原义务和实际资源收场，不以读到 end 代替。
+
 ## 调用身份、绑定与状态
 
 调用按同一会话中的 CallKey 识别；callId 在会话内唯一且不复用。发出序号从 1 开始，在同一次调用跨尝试连续递增。创建时固定租户及原 Session/Run/attempt 关联；无 Run 的调用不补 Run/attempt，其账归该会话。创建尝试、原发出尝试与恢复时实际归账尝试不能互相代填。
@@ -23,6 +67,8 @@
 终态吸收，不重新发出。ready 确认 complete/interrupted 及待处分结果；它不是回复消息，不预填最终处置或提交时的 late。未确认写入形成的本地 reply_pending 责任不等于耐久 ready/final。回执未知时不得凭本地旧状态授予再发许可。ACK 后按显式小视图回答，不把内容已释放当 callNotFound、损坏或可重新创建。
 
 ## 真实授权和失败次序
+
+模型的产品可用性只有三项：模型是否已注册、当前上下文装配的数据模态是否支持该模型、账户额度是否充足。本期不约束账户额度。不新增独立模型执行许可或模型调用主体的额外资格。范围链、选中模型与有效模型仍沿PF-013的既有设置求值；该求值不等于另一份模型执行许可，也不因本条而取消。凭据缺失或运输失败按调用失败处理，不扩成模型可用性的业务门槛。调用记录访问、取消、结果处分和ACK各自的归属与责任检查保持，不从这些检查推出新的模型使用许可。
 
 先校验请求表示，再按当前调用动作核验会话、创建租户及当前资格，之后才向已授权主体区分调用是否存在、终态与阶段。拒绝和不可判对外均为 unavailable，诊断仍区分实际原因。CallKey、持有引用、generation、隔离标签、Context 或旧 captured standing 均不授予权限。
 
@@ -156,6 +202,18 @@ Duration 与 JsonNumber 使用公开精确值语义，不能先转成毫秒浮�
 | originOfEntry、attemptFromFinal、attemptFromWitness、acknowledgedAttempts、acknowledgedFactsFromHistory、acknowledgementSummary、completeAcknowledgedView                     | 从合法已验证原关联/最终响应/witness构造小账视图，冲突在来源优先之前拒绝，保持 failed 历史、原账壳、未知账及原 ACK 时间；不恢复被释放的大内容。                                                             |
 | createCredentialRedactionPolicy、CredentialRedactionConfigurationError、policyKind、policyJitter                                                                              | 校验显式政策，不静默默认未知枚举；创建脱敏政策不授予内容权限。公开部署初值不替代必需当前输入或业务政策。                                                                                                   |
 
+### 固定前缀的 Model 解释
+
+`inspectSettlementPrefixEntries({ prefix })` 返回该原始 `SettlementPrefix` 的不可变 `InspectedModelLogEntry` 数组。失败为 `unavailable`，原因区分 `prefix`、`generation`、`unknown_format` 与 `members`。
+
+同一个真实前缀至多构造一次完整 Model 解释，并按原日志顺序派生一次非 system 消息序列。独立完整读取铸造独立拥有者，即使内容和来源相同，也不共享解释。结构输入的 `inspectCurrentModelLogPrefix` 仍逐次完整校验。
+
+每次条目读取和结算解释都必须先核验私有品牌、捕获的租户与 Session、原 generation 对象及原 `currentGeneration` 函数，并调用当前代际检查。构造首次解释后再次核验。复制对象、伪造对象和无私有品牌的代理不能取得解释。范围变化返回 `prefix`，代际描述或当前代际变化返回 `generation`。固定内容解释不证明当前权限、原来源资格、提交或 ACK 资格。
+
+结算解释保留 dispatched 锚点和 Run/Attempt 配对失败先于成员失败的顺序。每次结算仍核验本次 target、anchors 与 current，不缓存查询答案。未知格式在条目读取返回 `unknown_format`，在结算沿原映射返回 `members`。其他非法内容返回 `members`，不能缓存成成功。未预期异常保持原抛出行为，且不填入解释缓存。
+
+解释只随原前缀存活，无全局缓存或资源租约。每个活前缀保留 O(B + N) 内容与消息引用，B 为内容字节，N 为条目数。总保留量随活前缀数量变化。释放前缀及返回值后可回收。已返回条目只表示历史固定内容，不授予后续访问权。
+
 ## 正式集成定义与停止边界
 
 纯协议 `ModelRuntimeOperations` 与 `./cordis` 的 `ModelRuntimeService` 分面，键只从类的静态 provide 导出。dispatch、dispatchAgain、readAttempts 的普通调用与 consumeFailure 调用是不同完整重载，包装不丢失同一授权读取产生的 source。source 校验实际执行及当前资格，release 只交还其消费引用，不伪造耐久失败事实。
@@ -180,6 +238,49 @@ Duration 与 JsonNumber 使用公开精确值语义，不能先转成毫秒浮�
 
 [验证资源](verification/README.md)维护性质、模型规模/公平性、正负控与实际组合义务；运行结果留任务 tmp。现行公共定义不再由冻结 RT12 充当第二权威。
 [精确保留范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)仍约束未迁的具体提供者投影、跨拥有者兑现及综合模型，不因公共接口移动而关闭。
+
+## 独立结算协议
+
+本包拥有`SettlementCoordinator`、`SettlementHandle`、`SettlementRequest`、
+`SettlementStagedBatch`和`SettlementStaging`。这些共享形状接续原整批结算行为。
+它们不选择具体工厂、队列、存储或竞争政策，不授予模型发出、日志写权或ACK资格。
+共享构造输入由本包维护。应用选择具体提供者，并绑定实际资源和显式政策。
+
+`SettlementCoordinatorInput`保留显式竞争策略、scheduler和diagnostic。
+`SessionModelSettlement`组合原协调器构造、持久结算工作和工作恢复操作，供尚在迁移的Model消费者注入Session实现。每次调用保留原输入的策略捕获时机，不隐含默认值。
+`SettlementWorkInput`保留原工作行存储和原custody的retireWork端口。工作行先耐久保存完整批次，再尝试追加日志；两者不因此成为同一个提交。未知追加不得覆盖原批次。恢复必须先证明原执行已停止，再按同源完整日志判断完整批次或可靠缺席。残留、读取失败和停止不明均保留原责任。
+
+`SettlementCoordinatorBinding`携带本次原日志binding、真实settlement owner及可选Run解释器。
+`SettlementCoordinatorFactory.create`接该绑定，返回一个承担下述整批结算和关闭责任的coordinator。
+应用选择实际工厂并绑定原contention、scheduler及diagnostic；Session消费者不选择具体邻包实现。
+构造错误保持原异常，不返回成功占位；构造失败不向调用者转移未返回的coordinator责任。
+构造不写业务日志、不发模型请求、不发ACK，也不能恢复已失效的日志或owner。
+缺Run解释器阻止新的withRun结算，但不阻止原批次认回。
+
+`./cordis`以`SettlementCoordinatorFactoryService`／`modelSettlementFactory`承载该构造协议，只供可信协调域。
+原binding、owner、函数和策略端口不进入JSON配置或普通Session Agent Context。
+依赖撤除停止新构造和驱动，已借coordinator仍保留原资源及策略依赖，直到真实close完成。
+撤除不允许释放未明责任、换新工厂重发或关闭借入的物理模型池。
+抽象工厂存在不表示实际桥、权限来源或撤除收场已实现。
+
+物理ModelRuntime发布reply_ready后可经原finishReady关闭SDK invocation的结算入口。
+消费者不得从captured invocation存在推断还能调用settleReply；此时沿独立coordinator协议结算原批。
+工厂必须借入真实有效的原owner；捕获副本寿命不等于结算权限或CallPresence临界区。
+
+settle在异步工作前捕获原target、current及完整response。
+返回句柄分别提供completion、requestStop和stopped。公开结果、停止请求与实际停止不是同一事实。
+staging存在时，hold须在原批可写入前可靠保存精确entries和append condition。
+hold只在初次提交前或此前写入已证明为零后调用；旧收据不明时不能覆盖原批。
+缺staging保持原模型侧的pre-ACK保管，不自动补一个成功保管端口。
+
+未知append即使句柄已经停止，仍保有原registration和精确批次。
+同target后继settle只经同source完整前缀认回原句柄，不自行再写。
+确认完整原批则认回；证明未写则释放原责任并返回write_unknown，之后才可另行提交。
+close先撤新准入、请求停止并主动核实保留的未知原件。
+全部原任务实际停止且registration释放后才成功；失败保留原拥有者及资源，供后续原close接续。
+消费者不得凭completion、缺记录或close请求清空责任、释放资源、替换原件或重发。
+
+类型归位只改变定义拥有者，不改变原算法、操作身份、失败结果或已接受的生命周期义务。
 
 ## 物理拥有者的执行来源
 
@@ -230,13 +331,30 @@ attempt 开始由 Session 事实拥有者记录，不是模型消息。事件不
 
 一次完整读取中检查多个模型结算，应复用这份校验结果。原响应关联使用唯一性索引；重复响应仍拒绝，不以最后一个值覆盖冲突。该辅助函数不提供跨回合缓存，也不替代 Session 拥有的模型消息投影缓存。构造、各结算关联和输出字节的成本分别计量，不能把复用一次前缀校验表述为全部路径已达到线性复杂度。
 
+## 不可变模型历史
+
+`captureModelLogHistory` 接管同源完整内容或已有品牌根后的连续后缀。它拒绝伪造品牌、缺号、跨租户、跨 Session、跨 journal generation 和额外输入字段。品牌仅证明内容已接管，不授予读取、写入或当前资格。原 unknown 完整输入仍由独立完整 codec 检查。
+
+`SettlementLogBinding.readPrefix` 可返回该固定根。OwnedPrefix 仍检查原 binding 与 generation，并在原 Model 使用点惰性解释。捕获阶段先于关联阶段；原结算锚点检查先于 Model 全局检查。未知异常不转成预期失败，不发表部分索引。后添响应可改变新 cut 的关联结果，不能改变旧 cut。
+
+`inspectSettlementPrefixEntries` 的 selector 支持位置、dedupe、read key、Call、MessageId、ResponseId 及 dispatch ResponseId。selector 保留完整 Model 解释的拒绝条件。局部内容读取、Session fact、模型选择及模态判断不增加该全局条件。完整枚举仅用于真正输出所有条目的操作。
+
+`settlementPrefixBytes` 返回原 owned `{entries,tail}` 的完整 UTF-8 长度，不先查询 generation。结算原 guard 继续决定关闭、撤销、generation 和预算的优先序。结构、算法及复杂度见 [不可变模型历史](adr/immutable-model-history.md)。
+
 ## 原发起窄协议
 
-OriginalIssueParticipant 暂存原 dispatched 事实和唯一执行 claim，必须参加调用者的同一 StorageUnit，不独立提交、不先发送模型请求。ticket 与 claim 仅由实际原拥有者签发；复制形状或取得 ticket 都不授予当前权限。
+OriginalIssueOwner的共享prepareOriginal／participant／admission／consumeOriginal／close形状归本包。
+具体拥有者的Storage／LogAuthority／limit构造与持久承载仍归实际提供者。
+可信根选择原owner并给Session驱动借入；Session不能从具体Model提供者私有类型推断其消费协议。
+prepareOriginal只固定原ModelExecutionJob，不授IO；Session桥必须使用原participant参加自己的同Unit，
+不能改走owner.admitOriginal的独立提交来绕过Session栅栏。
+close只撤原发起拥有者，released不证明物理ModelRuntime或远端请求已经停止；pending保原身份与责任。
+
+OriginalIssueParticipant 暂存原 dispatched 事实和唯一执行 claim，必须参加调用者的同一 StorageUnit，不独立提交、不先发送模型请求。job 与 claim 仅由实际原拥有者签发；复制形状或取得 job 都不授予当前权限。
 
 stageOriginalIn 核同存储实例、完整固定 source、原消费位置、call／dispatch 身份、Session shell、当前授权和栅栏。原 dispatched 与唯一 claim 全提交或全回滚。重复只认回原完整等值证明，不授予第二次发起权；异原位置或正文冲突明确拒绝。
 
-当前授权必须核本次原调用捕获的主体及其当前资格。另一并发调用的主体不能替代它；同账户、同租户的另一登录也不能替代已撤销的原登录。缺少原主体来源时拒绝发起，不从会话的可变当前主体取得替代资格。
+原发起核验固定租户、调用归属和原执行资格，不另要求独立模型许可或新的登录／成员资格。模型登记与当前装配模态由ModelRuntime的原调用路径核验。当前授权接缝保护原调用身份及执行一致性，不定义额外模型使用政策。另一并发调用不得改写原归属。Session内已有Run不因登录自然到期停止，新Run仍须确认登录有效。
 
 consumeOriginal 必须等待外层提交完成，并在同一存储范围重新核当前授权。只准原执行代际消费一次；并发消费不能启动两次。回滚、unknown、撤权或原批次未确认均不返回 launch。提交未知时保留原身份与完整批次，认回也不能将只读证明转成第二个启动权。
 
@@ -252,8 +370,64 @@ dispatched 表示原发起锚点，不表示收到模型内容。opened 继续�
 
 ## 请求内图片字节
 
+ModelCallHost.imageBytes 与 AnchoredInvocationInput.imageBytes 借入同一形状的固定附件字节，分别供 Session 原调用和独立协调调用的计划阶段使用。调用者负责在原调用关闭前保持字节不变；字节不进入持久消息、语义摘要或调用身份。创建与发起计划使用相同原引用和字节，重建后由宿主重新授权读取。
+
 PlanExecutionContext.imageBytes 是可选的请求内执行依赖。调用者先完成原附件权限检查和有界读取，再提供原引用与固定字节的一一对应快照。它不授予 Session 或附件权限。plan 不通过此端口联网或读取持久源，原 IO 禁止不变。
 
 适配器仅在 wire 投影中消费固定字节。PlannedSemantics.input 保留原经验证的 PlanInput，不能将展开后的消息作为新的原语义输入。不得伪造品牌计划绕过原输入相等检查。缺失、重复或取消的快照明确拒绝，不能以未知 locator 冒充已发送图片。未提供快照不承诺支持外部引用，原 inline 图片路径不变。
 
 调用者拥有读取任务，必须等实际 IO 停止，不能只撤除等待。原附件的持久保有、原调用的访问句柄和逐使用点当前资格仍分别由各拥有者负责。快照只属于本次计划，不替代日志原件或模型内容保有证明。
+
+## 会话记录发布
+
+`ModelCallPublication`定义现有混合消费者借用的会话记录发布能力，不属于普通模型执行请求。它接收原内容、原身份和实际拥有者，并借用调用方提供的read寿命管理。实现读取完整会话前缀并决定创建／reply_ready标记是否可发布；不向消费者返回前缀。
+
+发布前必须核对原标记及会话历史。只有通过后才调用ModelCallContentWriter.put。该写入将内容原件、保管状态和发布许可同提交；日志标记随后按原前缀尾部条件单独提交。标记未知或任务未停止时保留原许可和登记，不把内容写入成功当作标记成功。原标记只能用同一内容引用认回。创建身份冲突、终态或ACK后的新结果不得产生新模型副本。
+
+`settlementAppendReceipt`校验原追加回执，畸形回执视为未确认。`requestStopAndWait`请求停止后等待原任务实际停止；请求停止异常不能取代stopped证明。两者为跨拥有者复用机制，不读取会话历史或授予执行资格。
+
+未知创建发布的 `ModelCreationPublication` 只公开原操作的 `retry` 和 `close`。`UnknownModelPublication` 用 `created` 和 `reply_ready` 区分两种保有。创建分支返回会话发行的原恢复句柄，不把完整前缀读取权交给执行池。结果分支暂时保留原登记、任务、许可及条目，后续迁移不得提前丢弃。
+
+## Session ACK 实现边界
+
+`SessionModelAcknowledgementFactory` 是可信装配根必须提供的闭包。它产生一个确认拥有者及其 `project` 入口。Session负责完整前缀的读取、终态和来源判断、ACK原批次的构造、条件追加、未知写入认回及确认回读。执行池不得自行替代该拥有者完成这些动作。
+
+`ModelAcknowledgementContent` 只提供原内容读取、retention观察、锁内固定批次及明确零写后的撤回。`cleanup` 由Model拥有者提供，保持先确认批次、再排空原内存副本、最后释放原内容的顺序。端口接收原 `SettlementLogBinding`，因为清理还须核对原执行捕获的对象身份；它不授权内容端口解释或读取Session日志。
+
+`project` 只替换当前宿主来源与读取入口，必须保留原内容拥有者、串行中的调用、未知写入和读任务。确认拥有者关闭只排空自己的原任务，不关闭借入的内容存储或清理器。重复关闭仍可检查未释放的原任务。既有ACK结果、目标冲突、权限复核及pending清理语义不变。
+
+## Session 调用事实索引
+
+SessionModelCallFactsFactory接收原ModelCallContentStore、当前CallPresence及显式maxScopes，返回一个具有project的CallFacts。该工厂解释会话日志，属于Session提供者；Model不得在工厂缺失或失败时自行读取完整日志构造替代索引。
+
+project只替换presence读者，共享原content与缓存，没有独立close。实际generation对象是索引作用域身份；同一对象还须匹配原tenant、session和log。刷新保留原连续页检查与完整页更新，不应用部分损坏页。ACK后可从小事实认回调用，不要求已释放正文重新出现。
+
+原物理拥有者调用close，先阻止索引新工作，再关闭原content。仅content返回released时清除缓存；失败保留原对象供关闭重试。该构造不增加第二内容库、执行池或SessionContext关闭权。
+
+## Session 模型恢复拥有者
+
+SessionModelSettlement.createReconciler接收原恢复来源、调用读取函数、调度策略及结果custody的view／retireWork端口。返回的SessionModelReconciler拥有完整Session前缀读取、调用枚举、原中断批次及其未结束任务。project只替换后续调用的输入，必须共享原entries、任务、scope和可重试关闭状态；不能为投影重建另一恢复拥有者。
+
+恢复构造只在物理拥有者创建时调用一次。关闭先停止自己的准入，等待原读写实际结束并认回不确定批次，最后归还原scope。停止或归还未被证明时保持unavailable和原资源，后续close重试相同责任。它不关闭借入的执行池、内容存储或日志。
+
+recognizeReply由Session核对原Session／tenant／日志代际和完整已结算历史，只认回既有结果。appendControl由Session准备并追加原控制记录，保留原Run／attempt栅栏。未知追加通过retainUnknown转交原registration和task；trackTask跟踪真实任务。Model不能在工厂拒绝时另行实现这两种日志判断。
+
+UnknownAppendTracker共用原任务保管逻辑。它先等待原写停止，再通过捕获的Session readCall及解释器认回原调用，复用原registration而不再申请一个槽位。原读取停止及许可释放均成功后才归还登记。它不自行解释完整日志，也不为后继投影替换原读取来源。
+
+## 会话模型选择工厂
+
+SessionModelSelectionFactory接收已有SessionModelSelectionInput，返回独立的SessionModelSelection。完整会话日志、当前目录和当前求值输入的解释归Session。模型执行池不提供默认选择器，也不从目录顺序或root配置补造初始选择。
+
+选择器拥有自己的操作、未知写入和可重试关闭。持有者须在输入来源改变时先成功关闭原选择器，再建立新选择器；相同输入复用原句柄。该工厂不属于单次请求准备，不增加模型可用性条件。旧模型混合接口在迁移期间仍通过返回句柄提供选择操作，最终纯ModelPool构造不增加会话选择依赖。
+
+### 会话读取与失败历史
+
+SessionModelReadFactory创建SessionModelReads。它在当前读取资格内解释完整会话前缀，提供原模型读取方法。project只接收当前宿主输入，沿用原读取、选择与关闭状态；不能替换原content或custody，不新增物理执行或第二个清理拥有者。local回调一次捕获同一个本机执行视图的责任和存续判断，不能用两个世代的值拼接。
+
+content和custody.view借入原内容与ACK清理能力。只有读取组件自己拥有的custody才提供close；生产运行时共用的custody不由读取组件关闭。构造工厂失败直接失败，不回退到内部历史读取；操作内不可用仍按原结果返回。
+
+SessionModelSettlement的readFailure在原registration下核对完整历史、同一失败响应和原执行身份，按请求返回失败来源；captureSource只返回该实际前缀的SourceToken。它们不释放借入registration，也不授予执行权。Model继续核对原收据、消费原claim、保管执行任务，并在实际停止后释放。
+
+## Session原调用协调输入
+
+AnchoredInvocationInput显式携带invoke、原日志与结算绑定。invoke接收对应泛型的InvocationInput并同步返回ModelInvocationHandle，不能由提供者补默认执行器。SessionModelSettlement.createInvocation是该协调输入的消费者；Session实现拥有完整日志判断，Model提供者只提供独立物理调用能力。缺少invoke须在原issue准入前拒绝，不得先消费claim。返回原handle的outcome不证明ready或实际关闭，finishReady、close及未知状态保留原停止与借用责任。

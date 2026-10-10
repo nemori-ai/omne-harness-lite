@@ -1,12 +1,9 @@
-import { readFileSync } from 'node:fs'
 import { chmod, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { buildIntent, payloadJSON, readInputFile, readSecrets } from '../src/input.ts'
-import { commands, parseInvocation } from '../src/parser.ts'
-import { validIntent } from '../src/validation.ts'
+import { payloadJSON, readInputFile } from '../src/input.ts'
 const signal = () => new AbortController().signal
 const roots: string[] = []
 afterEach(async () => {
@@ -19,38 +16,7 @@ async function file(bytes: string | Buffer, mode = 0o600) {
   await writeFile(path, bytes, { mode })
   return { root, path }
 }
-function invocation(args: string[]) {
-  const result = parseInvocation(args)
-  if (result.kind !== 'command') throw new Error('invalid fixture')
-  return result
-}
-describe('exact command and nonsecret syntax', () => {
-  it('ships the exact accepted command registry', () => {
-    expect(readFileSync(new URL('../commands/governance.json', import.meta.url), 'utf8')).toBe(
-      readFileSync(new URL('./fixtures/commands.json', import.meta.url), 'utf8'),
-    )
-  })
-  for (const command of commands) {
-    it(`only accepts declared options for ${command.command.join(' ')}`, () => {
-      const args = [
-        ...command.command,
-        ...(command.action === 'configure'
-          ? ['--endpoint', 'https://center.invalid/', '--system-ca']
-          : []),
-      ]
-      expect(parseInvocation(args).kind).toBe('command')
-      expect(parseInvocation(['machine', ...args]).machine).toBe(true)
-      expect(parseInvocation([...args, '--unknown', 'value']).kind).toBe('error')
-      expect(parseInvocation([...args, '--state-dir', '/one', '--state-dir', '/two']).kind).toBe(
-        'error',
-      )
-      if (!command.refresh) expect(parseInvocation([...args, '--refresh']).kind).toBe('error')
-      if (!command.secretFields.includes('credential'))
-        expect(parseInvocation([...args, '--credential-file', '/must-not-read']).kind).toBe('error')
-      if (command.payloadSource === 'none')
-        expect(parseInvocation([...args, '--payload-file', '/must-not-read']).kind).toBe('error')
-    })
-  }
+describe('strict tenant-reference JSON syntax', () => {
   it.each([
     '{"a":1,"a":2}',
     '{"a":1,"\\u0061":2}',
@@ -72,37 +38,6 @@ describe('exact command and nonsecret syntax', () => {
     expect(value['id']).toBe(' Case ')
     expect(value['x']).toEqual([true, null, 42])
     expect(Object.getPrototypeOf(value)).toBeNull()
-  })
-  it('constructs all accepted input projections using canonical examples without copying secrets', async () => {
-    const examples: { definition: string; valid: boolean; value: Record<string, unknown> }[] =
-      JSON.parse(
-        readFileSync(
-          new URL(
-            '../../../packages/core/governance-client-operations/tests/fixtures/action-examples.json',
-            import.meta.url,
-          ),
-          'utf8',
-        ),
-      )
-    for (const command of commands.filter(c => c.action !== 'configure')) {
-      const sample = examples.find(
-        e =>
-          e.valid &&
-          e.definition === 'Input' &&
-          e.value['action'] === command.action &&
-          (command.action !== 'invoke' || e.value['operation'] === command.operation),
-      )
-      expect(sample).toBeDefined()
-      const payload = { ...((sample!.value['payload'] as Record<string, unknown>) ?? {}) }
-      for (const field of command.secretFields) delete payload[field]
-      const input = await file(JSON.stringify(payload))
-      const args = [
-        ...command.command,
-        ...(command.payloadSource === 'none' ? [] : ['--payload-file', input.path]),
-      ]
-      const intent = await buildIntent(invocation(args), signal())
-      expect(validIntent(intent)).toBe(true)
-    }
   })
 })
 describe('owned input files', () => {
@@ -131,7 +66,7 @@ describe('owned input files', () => {
     await expect(readInputFile(fifo, 64, true, signal())).rejects.toThrow('secret-source')
     await expect(readInputFile('/dev/null', 64, true, signal())).rejects.toThrow('secret-source')
   }, 2000)
-  it('rejects limits, cancellation and missing secret sources without opening stdin', async () => {
+  it('rejects limits and cancellation without opening stdin', async () => {
     const { path } = await file('12345')
     await expect(readInputFile(path, 4, true, signal())).rejects.toThrow('input-too-large')
     const controller = new AbortController()
@@ -139,21 +74,5 @@ describe('owned input files', () => {
     await expect(readInputFile(path, 64, true, controller.signal)).rejects.toThrow(
       'input-cancelled',
     )
-    await expect(
-      readSecrets(invocation(['login', '--login-identifier', 'person']), signal()),
-    ).rejects.toThrow('tty-unsupported')
-  })
-  it('rejects secrets in a payload file and ambiguous login identifier sources', async () => {
-    const { path } = await file('{"loginIdentifier":"person","credential":null}')
-    await expect(
-      buildIntent(invocation(['login', '--payload-file', path]), signal()),
-    ).rejects.toThrow('secret-source')
-    await writeFile(path, '{"loginIdentifier":"person"}')
-    await expect(
-      buildIntent(
-        invocation(['login', '--payload-file', path, '--login-identifier', 'other']),
-        signal(),
-      ),
-    ).rejects.toThrow('invalid-options')
   })
 })

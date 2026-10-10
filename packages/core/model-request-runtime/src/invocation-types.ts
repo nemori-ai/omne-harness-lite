@@ -236,8 +236,14 @@ export interface InvocationObservedFacts extends ServingFacts {
 }
 export type InvocationOutcome =
   ModelInvocationResult | { readonly cancelledBeforeSend: true } | PlanFailure
+/** Physical invocation capability. The caller owns any surrounding Session coordination. */
+export interface ModelInvoker {
+  <P extends PlannedSemantics, R>(input: InvocationInput<P, R>): ModelInvocationHandle
+}
 export interface ModelInvocationHandle {
   readonly outcome: Promise<InvocationOutcome>
+  /** Resolves after the reader and registered callbacks stop; rejects if stop cannot be confirmed. */
+  readonly stopped: Promise<void>
   readonly snapshot: () => AssemblySnapshot
   /** Available only once this invocation and all its owned asynchronous work actually stop. */
   readonly observedFacts: () =>

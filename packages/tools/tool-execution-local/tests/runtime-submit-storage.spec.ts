@@ -65,7 +65,7 @@ test('declared storage is checked then bound without adopting an alternate reada
 })
 
 for (const failure of ['configuredBind', 'declaredAvailable', 'declaredBind'] as const) {
-  test(`${failure} refusal prevents start, author and result recording without fallback`, async () => {
+  test(`${failure} refusal prevents author and result recording without fallback`, async () => {
     const f = await submitFixture({
       storage: failure === 'configuredBind' ? 'configured' : 'declared',
     })
@@ -81,7 +81,7 @@ for (const failure of ['configuredBind', 'declaredAvailable', 'declaredBind'] as
       await assertFinished(
         f,
         { outcome: 'unavailable', reason: 'result_storage_unavailable' },
-        false,
+        true,
       )
       expect(f.bindContext).toHaveBeenCalledTimes(1)
       expect(f.implementation).not.toHaveBeenCalled()

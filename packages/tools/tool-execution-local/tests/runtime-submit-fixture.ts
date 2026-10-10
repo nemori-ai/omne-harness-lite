@@ -6,12 +6,7 @@ import { expect, vi } from 'vitest'
 import type { JsonValue } from '@omne-harness-lite/content-blocks'
 import type { RecoveryAccess } from '@omne-harness-lite/execution-environments'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
-import type { RunnerReadScope } from '@omne-harness-lite/loop-extension-runner'
-import { instantFromEpochMs, instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
-import type {
-  ToolActionFacts,
-  ToolActionHistoryOperations,
-} from '@omne-harness-lite/tool-admission'
+import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import {
   createParameterJudge,
   isToolReturn,
@@ -26,13 +21,25 @@ import {
   type ToolExecutor,
   type ToolResultWriter,
   type ToolRuntimeDependencies,
+  type ToolRuntimeOriginalIssueDependencies,
+  type PreparedToolExecution,
 } from '@omne-harness-lite/tool-execution-runtime'
 import {
   createToolImplementationRegistry,
   createToolInvoker,
-  createToolRuntime,
+  createOriginalIssueToolRuntime,
+  toolOriginalIssueMigrations,
 } from '../src/index.ts'
-import { access, at, definition, deferred, ref, request, scope } from './execution-owner-fixture.ts'
+import {
+  access,
+  at,
+  definition,
+  deferred,
+  ref,
+  request,
+  scope,
+  fixtureOriginalSupport,
+} from './execution-owner-fixture.ts'
 import { factoryConfig } from './runtime-factory-fixture.ts'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 
@@ -40,70 +47,9 @@ export { access, at, deferred, ref, scope }
 export const pass = `tool-after-${createHash('sha256')
   .update(JSON.stringify([scope.tenant, scope.session, request.origin, ref.callId]))
   .digest('hex')}`
-export const extension = {
-  name: 'example:after',
-  position: 'after_action',
-  dimension: { scope: 'each' },
-  power: 'observe',
-  implementation: { kind: 'builtin', builtinName: 'example:after' },
-} as const
-export const selectedChain = [{ definition: extension, power: 'observe' }]
-
-export function chainHead(
-  nonempty = false,
-): Awaited<ReturnType<RunnerReadScope['sources']['manifest']['readHead']>> {
-  const root = { category: 'agent_definition', name: 'example:root' } as const
-  const capability = { category: 'loop_extension', name: extension.name } as const
-  const tuple = { capability, asset: 'ast_after', version: 1, from: 'factory' }
-  const record = {
-    session: scope.session,
-    seq: 1,
-    evaluation: {
-      kind: 'given',
-      ref: unwrap(parseOpaqueIdentifier('evaluation_one', 'EvaluationRef')),
-    } as const,
-    evaluationRef: unwrap(parseOpaqueIdentifier('evaluation_one', 'EvaluationRef')),
-    tables: {
-      loop_extension: {
-        filledAt: unwrap(instantFromEpochMs(1)),
-        composition: nonempty ? [tuple] : [],
-      },
-      mcp: { filledAt: unwrap(instantFromEpochMs(1)), composition: [] },
-      plugin: { filledAt: unwrap(instantFromEpochMs(1)), composition: [] },
-      skill: { filledAt: unwrap(instantFromEpochMs(1)), composition: [] },
-      slash_command: { filledAt: unwrap(instantFromEpochMs(1)), composition: [] },
-      tool: { filledAt: unwrap(instantFromEpochMs(1)), composition: [] },
-    },
-    content: {
-      evaluation: {
-        root,
-        assets: [
-          { capability: root, asset: 'ast_root', version: 1, from: 'factory', replaced: [] },
-          ...(nonempty ? [{ ...tuple, replaced: [] }] : []),
-        ],
-        composition: nonempty ? [capability] : [],
-        values: nonempty
-          ? [
-              { capability, item: 'position', value: 'after_action', from: 'factory' },
-              { capability, item: 'dimension', value: { scope: 'each' }, from: 'factory' },
-              { capability, item: 'power', value: { allowed: ['observe'] }, from: 'factory' },
-              { capability, item: 'usableBy', value: { allowed: ['self'] }, from: 'factory' },
-            ]
-          : [],
-        filteredOut: [],
-        unresolved: [],
-      },
-      compositionOrder: nonempty ? [capability] : [],
-      filledBy: { kind: 'assembly' },
-    },
-  }
-  return { head: 1, latest: { loop_extension: record } }
-}
-
 export type SubmitScenario = {
   readonly decision?: 'allow' | 'no_such_entry' | 'unparseable'
   readonly storage?: 'configured' | 'declared'
-  readonly nonempty?: boolean
   readonly executor?: ToolExecutor
 }
 
@@ -166,65 +112,6 @@ export async function submitFixture(options: SubmitScenario = {}) {
           }
         : { kind: 'rejected', reason: 'notAuthorized' },
   )
-  const history: ToolActionHistoryOperations = {
-    inspect(prefix, callId) {
-      const projected = projectToolJournal(prefix.scope, prefix.entries)
-      if ('invalid' in projected) return { kind: 'unavailable' }
-      const execution = projected.executions.get(callId)
-      const facts: ToolActionFacts = {
-        origin: submitted.origin,
-        latestAttempt: 1,
-        runState: 'open',
-        calls: [submitted.call],
-        route: execution
-          ? { kind: 'execution', intentKey: execution.intent.entry.dedupeKey! }
-          : { kind: 'none' },
-        adoption: {
-          key: 'adopted',
-          tools: [
-            {
-              name: 'echo',
-              capability: 'tool:echo',
-              asset: 'echo-asset',
-              version: '1',
-              definition: adoptedDefinition,
-            },
-          ],
-          report: {
-            session: scope.session,
-            runId: 'owner-run',
-            attempt: 1,
-            computedAt: 0 as ToolActionFacts['adoption']['report']['computedAt'],
-            snapshots: [],
-            availability: [],
-            mcpActions: [],
-            endpointHoldings: [],
-            effectivePermissions: {},
-            skillGate: [],
-          },
-        },
-        batch: {
-          kind: 'complete',
-          completion: {
-            key: 'batch',
-            gate: { kind: 'available' },
-            items: [
-              {
-                callId: ref.callId,
-                effectiveCall: submitted.call,
-                conclusions: ['official'],
-                decision:
-                  options.decision && options.decision !== 'allow'
-                    ? { kind: 'notExecutable', reason: options.decision }
-                    : { kind: 'allow', conclusion: 'official' },
-              },
-            ],
-          },
-        },
-      }
-      return { kind: 'known', facts }
-    },
-  }
   const recovery = Object.freeze({}) as RecoveryAccess
   const verifyToken = vi.fn<
     NonNullable<ReturnType<ToolRuntimeDependencies['admission']>>['verifyToken']
@@ -273,67 +160,18 @@ export async function submitFixture(options: SubmitScenario = {}) {
     trace.push('bindWriter')
     return { kind: 'bound', writer }
   })
-  let heldActive = true
-  const holdingTenant = vi.fn<RunnerReadScope['sources']['sessionTenancy']['holdingTenant']>(
-    async () => ({ tenant: scope.tenant }),
-  )
-  const readHead = vi.fn<RunnerReadScope['sources']['manifest']['readHead']>(async () =>
-    chainHead(options.nonempty),
-  )
-  const readVersion = vi.fn<RunnerReadScope['sources']['history']['read']>(async () => ({
-    version: {
-      number: 1,
-      publishedAt: '2026-09-29T00:00:00Z',
-      content: { category: 'loop_extension', extension },
-    },
-  }))
-  const sources: RunnerReadScope['sources'] = {
-    sessionTenancy: { holdingTenant },
-    manifest: { readHead, dependencyPresence: unused },
-    history: { read: readVersion },
-    isActive: () => true,
-  }
-  const release = vi.fn(() => {
-    heldActive = false
-    trace.push('release')
-  })
-  const held: RunnerReadScope = {
-    binding: { session: scope.session, tenant: scope.tenant, logGeneration: 'owner-generation' },
-    sources,
-    isActive: () => heldActive,
-    release,
-    owner: {
-      start: unused,
-      hasUnknown: unused,
-      closeAdmission: unused,
-      drain: unused,
-      reconcileStoppedLog: unused,
-    },
-  }
-  const acquireReplay = vi.fn<ToolRuntimeDependencies['runnerHost']['acquireReplay']>(
-    async () => held,
-  )
-  const append = vi.fn<typeof log.append>(async (...args) => {
-    trace.push('append')
-    return log.append(...args)
-  })
   const now = vi.fn(async () => unwrap(instantFromRfc3339(at)))
-  const dependencies: ToolRuntimeDependencies = {
+  for (const part of toolOriginalIssueMigrations)
+    await log.fixtureStorage.write(tx => part.migration.up(tx.db))
+  await log.fixturePrefix(scope)
+  const originalSupport = fixtureOriginalSupport(log)
+  const appendIn = vi.fn(originalSupport.log.appendIn)
+  const dependencies: ToolRuntimeOriginalIssueDependencies = {
+    tenant: scope.tenant,
+    recoveryPageSize: 1,
+    originalIssue: { ...originalSupport, log: { ...originalSupport.log, appendIn } },
     recovery,
-    backing: {
-      ownerGeneration: 'owner-generation',
-      borrow: () => ({ log: { ...log, append }, release: async () => {} }),
-    },
-    owner: {
-      enumerate: async candidate =>
-        candidate === recovery
-          ? { kind: 'sessions', sessions: [] }
-          : { kind: 'rejected', reason: 'notAuthorized' },
-      readPrefix: unused,
-      borrow: unused,
-    },
     authorization: { authorize },
-    history,
     admission: () => admission,
     implementations: { ...implementations, acquire },
     context: { bind: bindContext },
@@ -351,7 +189,6 @@ export async function submitFixture(options: SubmitScenario = {}) {
       readForDelivery: unused,
       readDeliveryBytes: unused,
     },
-    runnerHost: { acquireDispatch: unused, acquireReplay },
     clock: { now },
     invoke: createToolInvoker({
       parameters: createParameterJudge(),
@@ -368,20 +205,37 @@ export async function submitFixture(options: SubmitScenario = {}) {
     }),
   }
   const config = { ...factoryConfig() }
-  const runtime = createToolRuntime(config, dependencies)
+  const runtime = createOriginalIssueToolRuntime(config, dependencies)
+  const source = await log.participant.source(log.fixtureAccess, scope)
+  if ('failure' in source) throw new Error('fixture source unavailable')
+  const preparedBase = {
+    access,
+    ref,
+    origin: submitted.origin,
+    call: submitted.call,
+    source: source.source,
+    afterAction: { pass, selectedChain: [] },
+  }
+  const prepared: PreparedToolExecution =
+    options.decision && options.decision !== 'allow'
+      ? { ...preparedBase, adoption: 'adopted', notExecutable: options.decision }
+      : {
+          ...preparedBase,
+          selected,
+          args: submitted.call.arguments!,
+          admissionToken: submitted.admissionToken!,
+        }
   const observers = new Set<ExecutionObserver>()
   const gates: (() => void)[] = []
   return {
     dir,
     log,
-    submitted,
+    submitted: prepared,
     selected,
     trace,
     config,
     dependencies,
     runtime,
-    held,
-    sources,
     implementation,
     withdraw,
     acquire,
@@ -392,17 +246,9 @@ export async function submitFixture(options: SubmitScenario = {}) {
     putAttachment,
     available,
     bindWriter,
-    acquireReplay,
-    holdingTenant,
-    readHead,
-    readVersion,
-    release,
-    append,
     now,
+    appendIn,
     unused,
-    revokeHeld() {
-      heldActive = false
-    },
     gate() {
       const gate = deferred<void>()
       gates.push(() => gate.resolve())
@@ -523,6 +369,7 @@ export async function assertFinished(
       acceptedAt: at,
       chain,
       pass,
+      ...('notExecutable' in f.submitted ? { notExecutable: f.submitted.notExecutable } : {}),
     },
   })
   expect(execution.started?.value).toEqual(

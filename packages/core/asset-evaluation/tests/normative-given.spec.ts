@@ -12,6 +12,7 @@ import {
 } from '@omne-harness-lite/asset-model'
 import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { computeEvaluation, type EvaluationFacts } from '../src/compute.ts'
+import { getAssetJudge } from '../src/defaults.ts'
 import {
   readWorkspaceCarrier,
   type EffectiveAssembly,
@@ -78,7 +79,7 @@ function given(
   for (const record of input.definitions)
     for (const version of record.versions) references.set(version, referenced(version))
   const facts: EvaluationFacts = { declarations, references }
-  return computeEvaluation(input, facts)
+  return computeEvaluation(getAssetJudge(), input, facts)
 }
 function successful(result: ReturnType<typeof given>): EffectiveAssembly {
   if (!('ok' in result)) throw new Error(writeJsonLossless(result))

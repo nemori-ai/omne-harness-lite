@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { modelCategory } from './log-codec-fixture.ts'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
@@ -11,9 +12,9 @@ import {
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
@@ -192,7 +193,8 @@ async function ready() {
     },
   }
   const calls = createCallContainerStore<TestPlan, object>()
-  const config: RuntimeConstruction<TestPlan, object> = {
+  const config: SessionModelConstruction<TestPlan, object> = {
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
     ...referencePorts(source, calls),
     maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },
@@ -262,7 +264,7 @@ async function ready() {
     },
     diagnostic() {},
   }
-  const runtime = createModelRuntime(config)
+  const runtime = createSessionModelRuntime(config)
   const reconciled = await runtime.service.reconcile({ session: source.session })
   expect(reconciled).toEqual({ calls: [{ callId: CALL, state: 'resumable' }] })
   expect(

@@ -94,7 +94,12 @@ describe('capability.organization-governance v1 · 规范场景', () => {
 
     expect(await h.offers.acceptAffiliationRequest(parent.owner, q1.ok)).toBe('ok')
     expect(await h.organizations.read(c1.organization)).toEqual({
-      ok: { id: c1.organization, kind: 'team', parent: parent.organization },
+      ok: {
+        id: c1.organization,
+        kind: 'team',
+        name: 'test organization',
+        parent: parent.organization,
+      },
     })
     expect(await countRows(h, 'membership')).toBe(tenantsBefore) // 没有任何租户产生
 
@@ -108,7 +113,7 @@ describe('capability.organization-governance v1 · 规范场景', () => {
     expect(r4).toEqual(r2)
     for (const child of [c2, c3]) {
       expect(await h.organizations.read(child.organization)).toEqual({
-        ok: { id: child.organization, kind: 'team', parent: null },
+        ok: { id: child.organization, kind: 'team', name: 'test organization', parent: null },
       })
     }
     expect(await countRows(h, 'membership')).toBe(tenantsBefore)
@@ -214,7 +219,7 @@ describe('capability.organization-governance v1 · 规范场景', () => {
     ).toEqual({ failure: 'personalOrganizationTakesNoPartInAffiliation' })
     // S-15：读面不发起操作就给出同一个结论
     expect(await h.organizations.read(owner.personal.organization)).toEqual({
-      ok: { id: owner.personal.organization, kind: 'personal', parent: null },
+      ok: { id: owner.personal.organization, kind: 'personal', name: '个人组织', parent: null },
     })
     // 没有任何写入发生
     expect(await countRows(h, 'invitation')).toBe(0)
@@ -271,6 +276,7 @@ describe('capability.organization-governance v1 · 规范场景', () => {
           .values({
             organization_id: 'constructed-team',
             kind: 'team',
+            name: 'test organization',
             parent: null,
             owner_account: oddball,
             created_at: now,

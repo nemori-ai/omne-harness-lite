@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import {
   checkAppendRequest,
+  checkKey,
   checkSourceToken,
   compareInteger,
   sourceTokenEquals,
@@ -12,7 +13,7 @@ import {
   type SourceToken,
 } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import { copyJsonValue, isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
 import {
   StorageDefect,
   StorageUnavailable,
@@ -20,7 +21,7 @@ import {
   type StorageUnit,
 } from '@omne-harness-lite/storage'
 import { stageAppend } from './append.ts'
-import { entriesBetween, journal, matchesScope, token } from './database.ts'
+import { entriesBetween, entriesByKey, journal, matchesScope, token } from './database.ts'
 import type { OriginalBatch } from './handle.ts'
 
 const invalidInput = Object.freeze({ failure: 'invalidInput' } as const)
@@ -69,6 +70,64 @@ export function createParticipant(
   if (authority.storage !== storage)
     throw new TypeError('log authorization must use the same storage')
   return Object.freeze<SessionLogParticipant>({
+    async readSinceIn(unit, access, source, after) {
+      const checked = checkSourceToken(source)
+      const copied = copyJsonValue(after)
+      if (
+        'failure' in checked ||
+        'failed' in copied ||
+        !isNonNegativeJsonInteger(copied.ok) ||
+        compareInteger(copied.ok, checked.ok.tail) > 0 ||
+        !validUnit(unit, storage)
+      )
+        return invalidInput
+      if (!admission()) return unavailable
+      const cursor = copied.ok
+      return available(() =>
+        supervise(() =>
+          unit.run(async () => {
+            const selected = await readFixedSourceIn(unit, access, checked.ok, authority)
+            if ('failure' in selected) return selected
+            const entries = await unit.query(tx =>
+              entriesBetween(tx, checked.ok, cursor, checked.ok.tail),
+            )
+            return { kind: 'suffix' as const, entries, source: checked.ok }
+          }),
+        ),
+      )
+    },
+    async readByKeyIn(unit, access, source, key) {
+      const checked = checkSourceToken(source)
+      if ('failure' in checked || !checkKey(key) || !validUnit(unit, storage)) return invalidInput
+      if (!admission()) return unavailable
+      return available(() =>
+        supervise(() =>
+          unit.run(async () => {
+            const selected = await readFixedSourceIn(unit, access, checked.ok, authority)
+            if ('failure' in selected) return selected
+            const entries = await unit.query(tx =>
+              entriesByKey(tx, checked.ok, key, checked.ok.tail),
+            )
+            return { kind: 'keyed' as const, entries, source: checked.ok }
+          }),
+        ),
+      )
+    },
+    async sourceIn(unit, access, scope) {
+      const captured = sourceScope(scope)
+      if (captured === undefined || !validUnit(unit, storage)) return invalidInput
+      if (!admission()) return unavailable
+      const requested = { tenant: captured.tenant, session: captured.session }
+      return unit.run(async () => {
+        await unit.mutate(tx => tx.lockSentinel(`session-log:${requested.session}`))
+        const decision = await authority.authorize(unit, access, requested, 'read')
+        if (decision.kind !== 'authorized') return decision.kind === 'denied' ? denied : unavailable
+        const row = await unit.query(tx => journal(tx, requested.session))
+        if (row === undefined) return unavailable
+        if (!matchesScope(row, requested)) return denied
+        return { kind: 'source' as const, source: token(row) }
+      })
+    },
     async appendIn(unit, access, request, expectedSource) {
       const checked = checkAppendRequest(request)
       if ('failure' in checked || !validUnit(unit, storage)) return invalidInput
@@ -130,6 +189,14 @@ export function createParticipant(
         ),
       )
     },
+    async readPrefixIn(unit, access, source) {
+      const checked = checkSourceToken(source)
+      if ('failure' in checked || !validUnit(unit, storage)) return invalidInput
+      if (!admission()) return unavailable
+      return available(() =>
+        supervise(() => unit.run(() => readFixedPrefixIn(unit, access, checked.ok, authority))),
+      )
+    },
     async readPrefix(access: LogAuthority, source) {
       const checked = checkSourceToken(source)
       if ('failure' in checked) return invalidInput
@@ -137,31 +204,44 @@ export function createParticipant(
       return available(() =>
         supervise(() =>
           storage.atomic(unit =>
-            unit.run(async () => {
-              await unit.mutate(tx => tx.lockSentinel(`session-log:${checked.ok.session}`))
-              const decision = await authority.authorize(unit, access, checked.ok, 'read')
-              if (decision.kind !== 'authorized')
-                return decision.kind === 'denied' ? denied : unavailable
-              const row = await unit.query(tx => journal(tx, checked.ok.session))
-              if (row === undefined) return unavailable
-              if (!matchesScope(row, checked.ok)) return denied
-              // Compare the requested generation and verify that its entire prefix is still present.
-              const current = token(row)
-              if (compareInteger(checked.ok.tail, current.tail) > 0) return unavailable
-              const requested = { ...current, tail: checked.ok.tail }
-              if (!sourceTokenEquals(requested, checked.ok)) return unavailable
-              const entries = await unit.query(tx =>
-                entriesBetween(tx, checked.ok, 0, checked.ok.tail),
-              )
-              const last = entries.at(-1)?.position ?? 0
-              if (!sourceTokenEquals({ ...checked.ok, tail: last }, checked.ok)) return unavailable
-              return { kind: 'prefix' as const, entries, source: checked.ok }
-            }),
+            unit.run(() => readFixedPrefixIn(unit, access, checked.ok, authority)),
           ),
         ),
       )
     },
   })
+}
+
+async function readFixedPrefixIn(
+  unit: StorageUnit,
+  access: LogAuthority,
+  source: SourceToken,
+  authority: LogAuthorityOperations,
+): ReturnType<SessionLogParticipant['readPrefix']> {
+  const selected = await readFixedSourceIn(unit, access, source, authority)
+  if ('failure' in selected) return selected
+  const entries = await unit.query(tx => entriesBetween(tx, source, 0, source.tail))
+  const last = entries.at(-1)?.position ?? 0
+  if (!sourceTokenEquals({ ...source, tail: last }, source)) return unavailable
+  return { kind: 'prefix', entries, source }
+}
+
+async function readFixedSourceIn(
+  unit: StorageUnit,
+  access: LogAuthority,
+  source: SourceToken,
+  authority: LogAuthorityOperations,
+): ReturnType<SessionLogParticipant['sourceIn']> {
+  await unit.mutate(tx => tx.lockSentinel(`session-log:${source.session}`))
+  const decision = await authority.authorize(unit, access, source, 'read')
+  if (decision.kind !== 'authorized') return decision.kind === 'denied' ? denied : unavailable
+  const row = await unit.query(tx => journal(tx, source.session))
+  if (row === undefined) return unavailable
+  if (!matchesScope(row, source)) return denied
+  const current = token(row)
+  if (compareInteger(source.tail, current.tail) > 0) return unavailable
+  if (!sourceTokenEquals({ ...current, tail: source.tail }, source)) return unavailable
+  return { kind: 'source', source }
 }
 
 function expected(

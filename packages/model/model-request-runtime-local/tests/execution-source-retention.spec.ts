@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 // @module-tag slow
 // Real SQLite/SQL journal factory, actual invocation/container, and six-round GC attribution.
 import { describe, expect, it } from 'vitest'
@@ -6,9 +7,9 @@ import { runInNewContext } from 'node:vm'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { OpenCallInput, SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
-import { createModelRuntime } from '../src/service-runtime.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import { selectionHost } from './session-selection-fixture.ts'
 import { referencePorts } from './reference-ports-fixture.ts'
 import { transport, type TestPlan } from './anchored-invocation-fixture.ts'
@@ -47,7 +48,8 @@ async function fixture() {
       },
     },
   }
-  const construction: RuntimeConstruction<TestPlan, object> = {
+  const construction: SessionModelConstruction<TestPlan, object> = {
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
     ...referencePorts(host, calls),
     maxScopes: 4,
     calls,
@@ -91,7 +93,7 @@ async function fixture() {
     },
     diagnostic() {},
   }
-  const runtime = createModelRuntime(construction)
+  const runtime = createSessionModelRuntime(construction)
   const selection = await runtime.service.selectModel({
     session: host.session,
     routeName: 'example/model-a',

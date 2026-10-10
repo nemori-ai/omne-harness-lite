@@ -1,5 +1,9 @@
 import type { AssetDefinition, CapabilityId } from '@omne-harness-lite/asset-model'
-import type { EffectiveAssembly, EffectiveAsset } from '@omne-harness-lite/asset-evaluation'
+import type {
+  AssetEvaluator,
+  EffectiveAssembly,
+  EffectiveAsset,
+} from '@omne-harness-lite/asset-evaluation'
 import type { EvaluationRef, ManifestRecord } from '@omne-harness-lite/assembly-manifest'
 import {
   toolDependencies,
@@ -37,6 +41,7 @@ import {
 export function selectBody(
   definitions: readonly AssetDefinition[],
   asset: EffectiveAsset,
+  evaluator?: AssetEvaluator,
 ): BodySelection | undefined {
   const matches = definitions.filter(
     definition => definition.id === asset.asset && equal(definition.capability, asset.capability),
@@ -45,7 +50,10 @@ export function selectBody(
   if (
     matches.length !== 1 ||
     definition === undefined ||
-    !('ok' in getAssetJudge().judgeAssetValue('AssetDefinition', definition))
+    !(
+      'ok' in
+      (evaluator?.assetJudge ?? getAssetJudge()).judgeAssetValue('AssetDefinition', definition)
+    )
   )
     return undefined
   const versions = definition.versions.filter(version => equal(version.number, asset.version))
@@ -182,6 +190,7 @@ function buildPlans(
   sequence: readonly CapabilityId[],
   definitions: readonly AssetDefinition[],
   categories: readonly RegisteredCategory[],
+  evaluator?: AssetEvaluator,
 ): readonly TablePlan[] | undefined {
   const plans: TablePlan[] = []
   for (const category of categories) {
@@ -189,7 +198,7 @@ function buildPlans(
     if (composition === undefined) return undefined
     const entries: RegistryEntry[] = []
     for (const tuple of composition) {
-      const source = selectBody(definitions, { ...tuple, replaced: [] })
+      const source = selectBody(definitions, { ...tuple, replaced: [] }, evaluator)
       if (source === undefined) return undefined
       entries.push({
         capability: tuple.capability,
@@ -209,8 +218,9 @@ export function buildTableContents(
   sequence: unknown,
   definitionsValue: unknown,
   categories: readonly RegisteredCategory[] = REGISTERED_CATEGORIES,
+  evaluator?: AssetEvaluator,
 ): TableBuildResult {
-  const evaluation = effective(value)
+  const evaluation = effective(value, evaluator)
   const copiedOrder = own(sequence),
     copiedDefinitions = own(definitionsValue)
   if (
@@ -230,6 +240,7 @@ export function buildTableContents(
     copiedOrder as unknown as readonly CapabilityId[],
     copiedDefinitions as unknown as readonly AssetDefinition[],
     categories,
+    evaluator,
   )
   if (plans === undefined) return { failure: 'unavailable' }
   const tools = plans.find(plan => plan.category === 'tool')?.entries ?? []
@@ -241,8 +252,9 @@ export function buildTableContents(
 export function buildSnapshots(
   record: ManifestRecord,
   plans: readonly TablePlan[],
+  evaluator?: AssetEvaluator,
 ): readonly RegistrySnapshot[] {
-  const checked = readRegistryRecord(record, record.session, record.seq)
+  const checked = readRegistryRecord(record, record.session, record.seq, evaluator)
   if (checked === undefined) throw new TypeError('registry committed record cannot be projected')
   return requiredOwn(
     plans.map(plan => {

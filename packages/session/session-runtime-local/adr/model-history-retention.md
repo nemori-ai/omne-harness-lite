@@ -1,0 +1,11 @@
+# Session Model history retention
+
+The original Run journal registry recognizes the actual borrowed port by object identity. `readModelHistory` rejects copied ports. Every read enters that port's original operation lifetime and actual Storage Unit. `readProjection` supplies source and suffix in the same Unit. Only successful atomic completion permits content publication. An older completion can return its own cut but cannot replace a higher current tail.
+
+Ingress retains at most one current root per Session. A family groups persistent roots that share captured cells. Its retained amount counts original cells once, each additional branch suffix once, and logical index positions plus sixteen root references per new cut. It does not sum shared content again for each cut. Unbuilt semantic indexes reserve their unshared earlier cells as well as the suffix; retaining many cold cuts can therefore reach the index bound before the content bound. Warm checkpoints reserve only new cells. A borrow pins a family before an in-flight read uses its current root. Repeated reads by that borrow do not add another pin.
+
+Retiring a family removes its current root. Its amount remains charged until every original borrower drains and returns. The ledger stores amounts and pins, not old roots. The current root never retains a chain of old cut objects. A family conservatively keeps charges for abandoned branches until retirement, so it can reach its configured bound before the collector releases the corresponding objects.
+
+`RuntimePolicy.modelHistory` supplies positive safe-integer entry, canonical content-byte and logical index-reference bounds. Existing maxSessions and maxInFlight bound current Session roots and original borrowers. Omission disables retention. When retention cannot admit a cut, the same original journal performs a complete read for that caller. This fallback still charges the caller's full settlement prefix. It never returns stale cached success. Transient read results and caller materializations are outside the retained-family ledger. No hard process-heap bound is promised.
+
+The Model pool owns no Session history. Closing ingress waits for the actual Run borrows. Each borrow withdraws new operations before draining its pending work and releasing its family pins. A failed drain retains responsibility.

@@ -122,7 +122,11 @@ test('reload uses real current role; availability preserves captured role and bo
   withHost(async h => {
     const owner = await h.identity('owner')
     const member = await h.identity('member')
-    const team = await h.organizations.createTeam(owner.tenant.account, 'registry-team')
+    const team = await h.organizations.createTeam(
+      owner.tenant.account,
+      'test organization',
+      'registry-team',
+    )
     if (!('ok' in team)) throw new Error('real team not created')
     const invitation = await h.offers.issueInvitation(
       team.ok.tenant,
@@ -267,22 +271,22 @@ test('fixed-root participation failure terminates atomic before mapping; defects
   withHost(async h => {
     const { tenant } = await h.identity('alice')
     await h.initialize(tenant)
-    const reader: RegistryInputReader = createRegistryInputReader(h.deps)
     const request = {
       session: 'session_a',
       tenant,
       purpose: 'reload',
       rootSource: { asset: 'ast_root', version: 1 },
     }
+    const real = h.memberships.participate.bind(h.memberships)
+    const participation = vi.spyOn(h.memberships, 'participate').mockImplementation(unit => ({
+      ...real(unit),
+      standing: () =>
+        unit.run(async () => {
+          throw new StorageUnavailable('actual participation injected failure')
+        }),
+    }))
+    const reader: RegistryInputReader = createRegistryInputReader(h.deps)
     try {
-      const real = h.memberships.participate.bind(h.memberships)
-      const participation = vi.spyOn(h.memberships, 'participate').mockImplementation(unit => ({
-        ...real(unit),
-        standing: () =>
-          unit.run(async () => {
-            throw new StorageUnavailable('actual participation injected failure')
-          }),
-      }))
       expect(await reader.read(request)).toEqual({ failure: 'unavailable', stage: 'storage' })
       participation.mockImplementation(unit => ({
         ...real(unit),

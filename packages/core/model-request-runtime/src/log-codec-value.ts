@@ -12,7 +12,7 @@ import {
   type Message,
   type ModelInvocationRecord,
 } from '@omne-harness-lite/messages'
-import { judgeModelResponse } from '@omne-harness-lite/model-response'
+import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { currentCodecDomain, type ModelLogCodecDomain } from './log-codec-domain.ts'
 import {
   invalidValue,
@@ -49,6 +49,9 @@ function responseProjection(value: JsonValue): value is ModelLogResponseProjecti
     typeof value.outcome === 'string'
   )
 }
+function acceptedResponse(value: JsonValue): value is JsonValue & ModelResponse {
+  return 'ok' in judgeModelResponse(value)
+}
 function responseIdentity(value: JsonObject): boolean {
   return (
     typeof value.id === 'string' &&
@@ -83,6 +86,7 @@ class CapturedValue {
     readonly record: ModelInvocationRecord | null,
     readonly message: Message | null,
     readonly response: ModelLogResponseProjection | null,
+    readonly judgedResponse: ModelResponse | null = null,
   ) {
     if (token !== captureToken) throw new TypeError('Use captureModelLogValue')
     this.#domain = domain
@@ -190,8 +194,7 @@ export function createValueCodec(domain: ModelLogCodecDomain) {
     format: string,
     writable: boolean,
   ): { readonly ok: CapturedModelLogValue } | ModelLogInvalidValue {
-    const judged = judgeModelResponse(value)
-    if ('rejected' in judged || !responseProjection(value)) return invalidValue('value')
+    if (!acceptedResponse(value) || !responseProjection(value)) return invalidValue('value')
     if (value.reply !== undefined) {
       const reply = judgeMessage(value.reply)
       if ('rejected' in reply || reply.ok.type !== 'assistant') return invalidValue('value')
@@ -206,6 +209,7 @@ export function createValueCodec(domain: ModelLogCodecDomain) {
         value,
         null,
         null,
+        value,
         value,
       ),
     })

@@ -1,7 +1,10 @@
 import { isCapabilityName } from '@omne-harness-lite/asset-model'
-import { isCanonicalMediaType } from '@omne-harness-lite/content-blocks'
+import { isCanonicalMediaType, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import type { JsonObject, JsonValue } from '@omne-harness-lite/content-blocks'
-import type { SchemaValidator } from '@omne-harness-lite/content-blocks/schema-runtime'
+import type {
+  SchemaDocument,
+  SchemaValidator,
+} from '@omne-harness-lite/content-blocks/schema-runtime'
 import { copyJson, object } from './json.ts'
 import {
   skillSchemaBinding,
@@ -53,25 +56,44 @@ function toolShape(value: JsonValue): value is JsonObject & { category: string; 
     typeof value.name === 'string'
   )
 }
-function defaultFits(setting: JsonObject, binding: SkillSchemaBinding): boolean {
+function defaultFits(
+  setting: JsonObject,
+  binding: SkillSchemaBinding,
+  validators: Map<string, SchemaValidator>,
+  reuse: boolean | undefined,
+): boolean {
   if (
     !object(setting.domain) ||
     setting.domain.kind !== 'open' ||
     !schemaDocument(setting.domain.schema)
   )
     return false
-  // An author schema compiler belongs to this invocation, never a growing module cache.
+  const validator = settingValidator(setting.domain.schema, binding, reuse ? validators : undefined)
+  return (
+    validator !== undefined &&
+    (!Object.hasOwn(setting, 'default') || validator.validate(setting.default ?? null))
+  )
+}
+function settingValidator(
+  schema: SchemaDocument,
+  binding: SkillSchemaBinding,
+  validators?: Map<string, SchemaValidator>,
+): SchemaValidator | undefined {
+  const key = validators === undefined ? undefined : writeJsonLossless(schema)
+  const cached = key === undefined ? undefined : validators?.get(key)
+  if (cached !== undefined) return cached
   const runtime = binding.createRuntime()
-  if (!runtime.metaValidate(setting.domain.schema)) return false
+  if (!runtime.metaValidate(schema)) return undefined
   let validator: SchemaValidator
   try {
-    validator = runtime.compile(setting.domain.schema)
+    validator = runtime.compile(schema)
   } catch (error) {
     // Invalid/unresolvable author schemas cannot define a valid setting domain.
-    if (error instanceof Error) return false
+    if (error instanceof Error) return undefined
     throw error
   }
-  return !Object.hasOwn(setting, 'default') || validator.validate(setting.default ?? null)
+  if (key !== undefined) validators?.set(key, validator)
+  return validator
 }
 /** Only independently established members participate; absent observations are never invented. */
 export function knownSkillRejection(
@@ -132,7 +154,12 @@ export function knownSkillRejection(
   return undefined
 }
 /** S-24 ordered predicates precede the frozen Schema shape check. No repairs are made. */
-export function createSkillJudge(binding: SkillSchemaBinding) {
+export function createSkillJudge(
+  binding: SkillSchemaBinding,
+  options: { readonly reuseDomainValidators?: boolean } = {},
+) {
+  const validators = new Map<string, SchemaValidator>()
+  const reuse = options.reuseDomainValidators
   return function judgeSkillPackage(input: unknown, context?: SkillJudgeContext): SkillJudgment {
     const value = copyJson(input)
     if (!object(value)) return malformed('M1')
@@ -268,7 +295,7 @@ export function createSkillJudge(binding: SkillSchemaBinding) {
         setting.item === 'disabled' ||
         setting.item === 'usableBy' ||
         items.includes(setting.item ?? null) ||
-        !defaultFits(setting, binding)
+        !defaultFits(setting, binding, validators, reuse)
       )
         return malformed('M12')
       if (!binding.validate('SkillDefinitionRecord', { format: 1, settings: [setting] }).valid)

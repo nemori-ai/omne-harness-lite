@@ -65,6 +65,7 @@ export interface ArtifactDefinition {
   readonly format: string
   readonly version: string
   readonly readme: string
+  readonly verifyScript?: string
 }
 /** Internal tool seam for fault tests; the command line always uses the runtime above. */
 export async function packageArtifact(
@@ -91,12 +92,13 @@ export async function packageArtifact(
         'deploy',
         '--prod',
         '--offline',
-        '--ignore-scripts',
         app,
       ],
       root,
     )
     await inventory(app)
+    if (definition.verifyScript)
+      await io.run('node', ['--input-type=module', '--eval', definition.verifyScript], app)
     await rm(join(app, 'README.md'), { force: true })
     await writeFile(join(app, 'README.md'), definition.readme, { flag: 'wx' })
     // These names are generated only here; stale deployment artifacts must not enter their own digest.

@@ -1,12 +1,24 @@
+import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { createModelCallContentStore } from '../src/reference-content.ts'
-import { createModelCallFacts } from '../src/reference-facts.ts'
+
 import {
   createAcknowledgementCustody,
   type AcknowledgementCustody,
-} from '../src/acknowledgement-custody.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
-import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
+} from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import type {
+  CallContainerStore,
+  SessionModelConstruction,
+} from '@omne-harness-lite/session-runtime-local'
 import type { ModelCallContentStore } from '../src/reference-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { selectionHost } from './session-selection-fixture.ts'
@@ -14,8 +26,16 @@ import { noWaitScheduler } from './settlement-fixture.ts'
 
 type Host = Awaited<ReturnType<typeof selectionHost>>
 type Ports<P extends PlannedSemantics, R> = Pick<
-  RuntimeConstruction<P, R>,
-  'callAccess' | 'callPresence' | 'callFacts'
+  SessionModelConstruction<P, R>,
+  | 'callAccess'
+  | 'callPresence'
+  | 'callFacts'
+  | 'requestPreparation'
+  | 'selectionFactory'
+  | 'readFactory'
+  | 'recordPublication'
+  | 'acknowledgementFactory'
+  | 'settlementFactory'
 >
 
 /** The test host owns the same real Storage and tenant binding as its SessionLog. */
@@ -55,7 +75,7 @@ export function referencePorts<P extends PlannedSemantics, R>(
     storage: host.storage,
     policy: { maxConcurrentWrites: 2, maxContentBytes: 1_000_000 },
   })
-  const callFacts = createModelCallFacts({
+  const callFacts = createSessionModelCallFacts({
     content: options.content === undefined ? store : options.content(store),
     presence: callPresence,
     maxScopes: 4,
@@ -93,13 +113,29 @@ export function referencePorts<P extends PlannedSemantics, R>(
       return { allowed: await admitted(evidence), evidence }
     },
   }
-  return { callAccess, callPresence, callFacts }
+  return {
+    callAccess,
+    callPresence,
+    callFacts,
+    acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
+    recordPublication: publishSessionModelCallContent,
+    requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
+  }
 }
 
 /** A read-only fixture must fail closed if it accidentally enters the new ref path. */
 export function unavailableReferencePorts<P extends PlannedSemantics, R>(): Ports<P, R> {
   const unavailable = { unavailable: true } as const
   return {
+    acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
+    recordPublication: publishSessionModelCallContent,
+    requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     callAccess: { check: async () => unavailable },
     callPresence: { read: async () => unavailable },
     callFacts: {

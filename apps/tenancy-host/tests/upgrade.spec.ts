@@ -95,7 +95,7 @@ describe('AI3 append preserves the released host migration prefix', () => {
       query<{ name: string }>(d.file, 'SELECT name FROM kysely_migration ORDER BY name').map(
         r => r.name,
       ),
-    ).toEqual([...oldNames, '0010_account_identity_bounded_logins'])
+    ).toEqual([...oldNames, '0010_account_identity_bounded_logins', '0011_organization_name'])
     const second = await hosts.start(d)
     expect(second.host.serving.centerId).toBe(centerId)
     await hosts.stop(second.host)
@@ -115,7 +115,7 @@ describe('assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数�
     const refused = await hosts.refuse(d)
     expect(refused.failure.stage).toBe('preflight')
     expect(refused.failure.message).toContain(`check "${DATA_FORMAT_CHECK}" refused`)
-    expect(refused.failure.message).toContain('"0011_upgrade_probe"')
+    expect(refused.failure.message).toContain('"0012_upgrade_probe"')
     expect(failureRecords(refused.log)).toHaveLength(1)
     expect(allDisposed(refused.fibers)).toBe(true)
     expect(readFileSync(d.file).equals(clean)).toBe(true)
@@ -167,8 +167,8 @@ describe('assembly.upgrade-preflight-refuses：只读核对不过 ⇒ 不碰数�
       snapshotRemoved: true,
     })
     const names = query<{ name: string }>(d.file, 'SELECT name FROM kysely_migration ORDER BY name')
-    expect(names.map(n => n.name).at(-1)).toBe('0011_upgrade_probe')
-    expect(names).toHaveLength(11)
+    expect(names.map(n => n.name).at(-1)).toBe('0012_upgrade_probe')
+    expect(names).toHaveLength(12)
   })
 })
 

@@ -8,7 +8,7 @@
 
 完整操作形状归本包纯根。操作协议名为 `ModelRuntimeOperations`，Cordis 抽象类名为 `ModelRuntimeService`；二者分属纯根与 `./cordis`，不互相代替。
 绑定类静态唯一键为 `modelRuntime`，导出键 `MODEL_RUNTIME_SERVICE` 从该静态字段取得。
-具体提供者使用 `model-request-runtime-local` 限定名。旧 local 操作接口、键与绑定重复定义在实际消费者切换时删除，不保留兼容别名。
+完整编排由Session提供者的`session-model-runtime`插件实现；Model提供者只提供物理执行及独立记录、内容等构件。旧 local 操作接口、键与绑定重复定义在实际消费者切换时删除，不保留兼容别名。
 
 完整方法集合为 acquireCall、legalTargets、displayList、effectiveModel、selectModel、openCall、dispatch、dispatchAgain、interrupt、releaseCall、reconcile、readAttempts、settleReply、canDispatchAgain、acknowledgeCall。
 每个方法保持其原输入、闭合结果、错误判定次序和异步结果。
@@ -50,10 +50,12 @@ dispatch、dispatchAgain、readAttempts 的失败消费重载、acknowledgeCall 
 公共操作类型及其必要值形状按定义拥有者归位。通用算法只有在不依赖具体后端、其完整消费者同步后才迁入公共函数入口；提供者构造、物理 close、存储、调度与组件工厂留在其实现拥有者。
 不能因导出可见就把整个提供者搬进 core，也不能以只保留十五方法为由删除其他独立能力。
 
-## 宿主输入与注入
+## Session 编排的宿主输入与注入
+
+以下十五操作及其调用容器由 `session/session-runtime-local` 实现。物理 Model 提供者不消费这些 Session 宿主输入；其独立执行函数通过 `ModelInvoker` 显式借入。
 
 运行时提供者自行构造其调用容器、内容保留和私有协调构件；这些具体实现不是公共业务契约。
-原 `RuntimeConstruction` 仍是独立工厂的显式输入，不因 Cordis 集成而变成插件 JSON 配置。
+原 `SessionModelConstruction` 仍是独立工厂的显式输入，不因 Cordis 集成而变成插件 JSON 配置。
 
 跨包宿主端口的纯形状归本包。`ModelRuntimeHostInputs` 只组合以下已存在的语义端口：
 
@@ -78,16 +80,16 @@ capture 在任何异步工作之前固定本次主体、来源和代际；取得
 一个已登记调用 fiber 在存续期间只绑定一个受信主体，登记后不得覆写。共用 HTTP/CLI 入口 fiber 不可把当前请求主体写进该登记；装配须先建立各主体的独立调用贡献，或使用显式绑定真实主体的纯工厂门面。Context 隔离不代替认证与当前授权。两个主体即使访问同一 Session，也不得共用同一主体登记。
 同一 Session 的两个调用主体仍有独立 callAccess 和撤权信号。原十五操作的输入保持；其原输入校验、绑定、授权与错误次序不被 capture 添加的提前拒绝改变。资格缺失在原协议规定的使用点返回原失败分支。CallAccess.check 的 admitted 回调仍携带真实证据，并在原读取、等待、处分、控制和 ACK 使用点重核当前资格；不能先做一次允许检查，再以宿主特权执行。
 
-提供者按当前调用主体投影操作门面，各门面共享同一调用容器、在途登记、执行拥有者和整体 close。门面不是另一份 createModelRuntime，撤除门面也不调用共享 runtime.close。原已外发的执行、结算写者和费用归原拥有者；新的读取或控制仍由本次主体取得资格。原调用的持久写入依据不能被后来的主体覆盖。
+提供者按当前调用主体投影操作门面，各门面共享同一调用容器、在途登记、执行拥有者和整体 close。门面不是另一份 createSessionModelRuntime，撤除门面也不调用共享 runtime.close。原已外发的执行、结算写者和费用归原拥有者；新的读取或控制仍由本次主体取得资格。原调用的持久写入依据不能被后来的主体覆盖。
 纯工厂调用者显式交入已经绑定真实主体的相同端口，不必创建 Context，也不获得自动授权。
 
 宿主桥在取得原日志、历史、恢复及 presence 来源时登记实际借用，保有其精确资源代际；租约引用本身不能阻止源释放。模型行装配在宿主桥和实际支持来源之后，关闭顺序相反。原模型 close 未确认时，该行保持 pending，装配拥有者不得先物理关闭其来源行。单独撤除调用主体或 Session 贡献只失效该新准入/消费门面，来源资源仍由稳定宿主与原在途拥有者保有。独立部署不使用该装配协议时，也须由调用方显式提供等价的排空后释放顺序。
 isCurrent 失效只关闭该代际的新工作，不能统一屏蔽关闭后读、对账和 ACK；这些操作仍核当前资格与实际保有来源。
 执行、等待/观察及借用均停止或完成可核实交接后才 release；归还一份借用不意味着其他借用或未知写者已消失。来源失权使当前访问按原协议拒绝，但不能借此删除原结果、费用或 ACK 收场责任。
 
-函数型执行政策由单独的 `ModelRuntimeExecutionSupport` 纯接口组合，字段保持现有 RuntimeConstruction 的 settlementContention、settlementScheduler、policy、acknowledgementCleanup、diagnostic 及可选 diagnosticCollector 原形状；不包含 calls、callFacts、sessions、history 或 recovery。
+函数型执行政策由单独的 `ModelRuntimeExecutionSupport` 纯接口组合，字段保持现有 SessionModelConstruction 的 settlementContention、settlementScheduler、policy、acknowledgementCleanup、diagnostic 及可选 diagnosticCollector 原形状；不包含 calls、callFacts、sessions、history 或 recovery。
 绑定为 `ModelRuntimeExecutionSupportService`，静态键 `modelRuntimeExecutionSupport`。它提供同部署代际的显式执行政策，调用方先取得这一代际的固定引用。具体政策由可替换的支持提供者创建；时间与调度仍借用实际 Clock，不自行创建第二套时钟。配置只描述现有显式政策数据；next、decide、schedule、diagnostic 等可执行对象不序列化，不加入隐式重试或清理默认。
-支持拥有者负责其调度句柄和诊断资源，按原在途工作排空后释放；模型行在其后装配、之前完成关闭。它与受信主体桥是不同的变更/寿命拥有者，不因接线便利合成整个 RuntimeConstruction 服务。
+支持拥有者负责其调度句柄和诊断资源，按原在途工作排空后释放；模型行在其后装配、之前完成关闭。它与受信主体桥是不同的变更/寿命拥有者，不因接线便利合成整个 SessionModelConstruction 服务。
 
 提供者必需注入 host-input、execution-support、Storage、Clock、modelTransport 及其实际已采用支持能力。modelInputMeters 由实际选择并登记计量器的 transport／adaptation 贡献注入；local runtime 不添加无直接消费的依赖。
 支持服务的精确键从公共 `./cordis` 取得，不复制字符串常量。

@@ -38,6 +38,8 @@ manifest 未知格式最高优先级，缺列表不补空；重复 JSON 键拒�
 
 ## 验证与采用边界
 
+`createAssetModelJudge` 默认不保留作者域的编译结果。调用者显式设置 `reuseDomainValidators: true` 时，成功编译的域按完整无损 Schema 表示保存在该 judge 内，固定资源使用构造时快照。不同 Schema 各用独立编译器，相同 `$id` 不合并身份。缓存只复用校验器，每次仍校验当前 default；无 default 时只做元校验。释放 judge 后，其编译状态不再由本包持有，不设模块级作者缓存。
+
 固定 Schema 图在构建生成，首次实际消费加载；缺资源、定义、生成物或 helper 原抛，不回退、不伪业务拒绝。动态作者 Schema 的编译对象归调用者。规范输入、闭包缺资源负控、首拒绝与正文端口责任由 tests 验证；发布顺序、owner 历史、权限、血缘同提交和凭据泄漏还须真实消费方验证。
 
 plugin 完整内容／声明、AM3 agent_definition 集成端口、Connector install／usableBy 对应、项域变化后旧配值求值及版本撤下仍待各真正拥有者限定；新版独立 agent-definition 不自动改 AM3 opaque 规则。

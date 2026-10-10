@@ -7,10 +7,14 @@ export type ExecuteTier = 'forbid' | 'auto' | 'ask'
 export type EffectiveExecutionPermission =
   | { readonly value: ExecuteTier; readonly from: 'factory' | 'organization' | 'tenant' }
   | { readonly value: 'ask'; readonly from: 'workspace' }
-declare const grantsBrand: unique symbol
+const grantsBrand: unique symbol = Symbol('tool-authorization-context')
 declare const tokenBrand: unique symbol
 export interface AuthorizationContext {
   readonly [grantsBrand]: true
+}
+/** An explicit absence of additional grants. This does not authorize an execution. */
+export function emptyAuthorizationContext(): AuthorizationContext {
+  return Object.freeze({ [grantsBrand]: true as const })
 }
 /** Encoded durable conclusion reference, validated by the owner decoder; not a bearer grant. */
 export type AdmissionToken = string & { readonly [tokenBrand]: true }

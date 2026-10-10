@@ -1,6 +1,7 @@
 import { expect, test, vi } from 'vitest'
 import { instantFromRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import { unwrap, parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identity-values'
+import { createToolOriginalIssue } from '../src/original-issue.ts'
 import { createExecutionEnvironment } from '../src/execution-environment.ts'
 import { at, scope, ref, request, access, fixture, deferred } from './execution-owner-fixture.ts'
 import { environmentDefinition, environmentPorts } from './execution-environment-fixture.ts'
@@ -15,25 +16,37 @@ async function journalFixture(started = true) {
     adoption: 'adopted',
     definition: environmentDefinition,
   }
-  const initial = await f.journal.read(scope, ref.callId)
-  if (initial.kind !== 'view') throw new Error('Original journal unavailable')
-  const seeded = await f.journal.commit({
-    ref,
-    origin: request.origin,
-    expected: initial.prefix,
-    values: [
-      {
-        kind: 'execution_intended',
-        revision: 1,
-        ref,
-        origin: request.origin,
-        selected,
-        input: { value: 'captured' },
+  const source = await f.log.participant.source(f.log.fixtureAccess, scope)
+  if ('failure' in source) throw new Error('Original source unavailable')
+  const original = createToolOriginalIssue({
+    support: f.support,
+    generation: 'environment-test-owner',
+    expected: { scope, ownerGeneration: f.journal.generation, tail: source.source.tail },
+    value: {
+      kind: 'execution_intended',
+      revision: 1,
+      ref,
+      origin: request.origin,
+      selected,
+      input: {
+        format: 'tool-input/1',
+        submission: { adoption: 'adopted' },
+        acceptedAt: at,
+        chain: [],
+        pass: 'after-action-pass',
       },
-      ...(started ? [{ kind: 'execution_started' as const, revision: 1 as const, ref, at }] : []),
-    ],
+    },
+    clock: { now: async () => unwrap(instantFromRfc3339(at)) },
+    stopped: new Promise(() => {}),
+    isOpen: () => f.journal.isCurrent(),
+    isRetained: () => f.journal.isCurrent(),
   })
-  if (seeded.kind !== 'view') throw new Error(`Original journal seed rejected: ${seeded.reason}`)
+  const issued = await f.support.admission.admitOriginal(original.participant)
+  if (issued.kind !== 'issued') throw new Error(`Original issue failed: ${issued.kind}`)
+  if (started) {
+    const launched = await f.support.admission.consumeOriginal(issued.claim)
+    if (launched.kind !== 'launch') throw new Error(`Original consume failed: ${launched.kind}`)
+  }
   const closed = new AbortController(),
     retry = vi.fn(async () => {}),
     invalidate = vi.fn(),

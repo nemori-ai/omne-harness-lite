@@ -56,3 +56,42 @@ export * from './execution-source-types.ts'
 export type * from './original-issue.ts'
 export * from './log-envelope.ts'
 export { policyKind, policyJitter } from './retry-policy-shape.ts'
+
+export type * from './execution-pool.ts'
+
+export type {
+  SessionModelCreationInput,
+  SessionModelCreationResult,
+  PreparedModelCreation,
+  SessionModelDispatchInput,
+  SessionModelDispatchResult,
+  SessionModelRequestPreparation,
+} from './session-request-preparation.ts'
+
+export { createModelCallCreationInput } from './creation-input.ts'
+
+export type * from './model-record-publication.ts'
+export { settlementAppendReceipt } from './settlement-receipt.ts'
+export { requestStopAndWait } from './settlement-stop.ts'
+export * from './model-acknowledgement.ts'
+export * from './owned-settlement-reads.ts'
+export { drainDiagnosticThenable } from './drain-diagnostic.ts'
+
+export * from './model-settlement.ts'
+
+export type * from './model-call-facts.ts'
+
+export * from './model-control.ts'
+export * from './model-recovery.ts'
+export * from './model-unknown-append.ts'
+export * from './operation-diagnostics.ts'
+
+export type * from './model-reads.ts'
+
+export { ownPlanInput, preflightMissingInputLimits } from './capture-plan-input.ts'
+
+export {
+  ModelLogHistory,
+  captureModelLogHistory,
+  type ModelHistorySelector,
+} from './model-log-history.ts'

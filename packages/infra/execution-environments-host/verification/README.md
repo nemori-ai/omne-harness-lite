@@ -30,12 +30,11 @@ Build before native tests. The worker subprocesses consume the built public memb
 pnpm --filter @omne-harness-lite/execution-environments-host run build
 pnpm --filter @omne-harness-lite/execution-environments-host run typecheck
 pnpm --filter @omne-harness-lite/execution-environments-host run test
-pnpm --filter @omne-harness-lite/model-invocation-minimal-demo exec vitest run tests/host-runtime-integration.spec.ts
 ```
 
 `native-command` checks literal arguments, explicit environment, real TTY descriptors, merged bytes, exact stdin EOF, executable lookup, target signals, bounded unread output, permission closure, and real stop. `native-terminal` checks persistent Bash state, temporary overrides, delayed output, quiet controller trace options, damaged private receipts, and residual processes. `host-terminal-owner` checks original adoption, later permission, scoped references, capacity, and receipt gating.
 
-`native-files` checks real byte operations, conditions, whole precheck, publication uncertainty, bounded enumeration, original stage ownership, and lease closure. `host-cold-recovery` kills the actual creator. It checks original command, terminal, and partial-batch recovery without replay. `host-admission-lifecycle` checks immediate caller input changes, retirement and call closure during original readiness verification, pending preparation, adoption-index waits, and cleanup receipt failure after confirmed publication. The original runtime/context/log test checks the real consumer chain. These tests cover named cut points, not every OS fault.
+`native-files` checks real byte operations, conditions, whole precheck, publication uncertainty, bounded enumeration, original stage ownership, and lease closure. `host-cold-recovery` kills the actual creator. It checks original command, terminal, and partial-batch recovery without replay. `host-admission-lifecycle` checks immediate caller input changes, retirement and call closure during original readiness verification, pending preparation, adoption-index waits, and cleanup receipt failure after confirmed publication. The removed demo no longer supplies the runtime/context/log integration check. The formal CLI must verify that consumer chain before delivery. These tests cover named cut points, not every OS fault.
 
 The standard mutation run selects the fast layer. Native slow tests need a separate directed run. Report killed, timed out, survived, and not covered candidates separately. Do not add the two ledgers or treat a timeout as a semantic assertion.
 

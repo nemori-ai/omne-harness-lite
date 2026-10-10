@@ -650,6 +650,17 @@ describe('D105 original invocation facts', () => {
     expect(unscheduled.observedFacts()).toMatchObject({ facts: { usage: { source: 'none' } } })
     expect(unscheduled.observedFacts()).not.toHaveProperty('facts.sentAt')
 
+    const failedPort = adapter({ sent: { failed: { source: 'local', localError: 'send failed' } } })
+    const failed = invoke(failedPort, 'credential')
+    await failed.outcome
+    await failed.stopped
+    expect(failedPort.sends()).toBe(1)
+    expect(failed.observedFacts()).toMatchObject({
+      facts: { sentAt: '2026-09-28T00:00:00Z', usage: { source: 'none' } },
+    })
+  })
+
+  it('withholds observed facts when synchronous send failure leaves physical stop unconfirmed', async () => {
     let sent = 0
     const port = adapter()
     const throwing = invoke(port, 'credential', {
@@ -662,10 +673,9 @@ describe('D105 original invocation facts', () => {
       },
     })
     await expect(throwing.outcome).rejects.toThrow('send threw synchronously')
+    await expect(throwing.stopped).rejects.toThrow('stop unconfirmed')
     expect(sent).toBe(1)
-    expect(throwing.observedFacts()).toMatchObject({
-      facts: { sentAt: '2026-09-28T00:00:00Z', usage: { source: 'none' } },
-    })
+    expect(throwing.observedFacts()).toEqual({ unavailable: true })
   })
 
   it('keeps accepted partial account and exact frozen multi-value headers when result fails', async () => {

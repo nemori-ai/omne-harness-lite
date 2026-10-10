@@ -7,7 +7,9 @@
 [身份迁移保持清单](../../../.meta_harness/design/architecture/identity-integration/preservation.md)。
 完整字节、成帧与服务端拒绝责任归[提供者](../../tenancy/governance-center-entry-node/SPEC.md)；本页约束客户端单次读取和交付。
 
-客户端继续沿已接受的 HT2/EC2 协议；服务端采用 HT3/EC3 不自动升级客户端。
+HTTPS 成帧、限制与单次发送沿已接受的 HT2 行为。治理交换明确采用
+governance-center-entry 公共 SPEC 的线上协议 `3` 与唯一 Schema，含中心组织名称。
+此采用不开放运维入口，服务端其余 HT3/EC3 行为不自动成为客户端能力。
 每次调用只发送一次，不重试、不保存登录、不替用户接受信任、不记录请求秘密。
 配置错误在请求前以 GovernanceClientConfigurationError 拒绝。协议答案和网络不可用
 保持原封闭联合；发送后取消或超时保留 sendAttempted，不能改称远端未发生。

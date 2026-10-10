@@ -1,3 +1,4 @@
+import { createAssetEvaluator, type AssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import { captureActionRequest, checkActionSource, isActionDispatch } from './action-request.ts'
 import { runActionBatch } from './action-batch.ts'
 import { createServicePorts } from './service-ports.ts'
@@ -132,12 +133,14 @@ function modelPosition(initial: PositionedSubject): boolean {
 
 /** Shared service assembly. Authorization and physical log ownership remain with the supplied host. */
 export function createLoopExtensionRunner(input: {
+  readonly evaluator?: AssetEvaluator
   readonly log: SessionLog
   readonly host: RunnerServiceHost
   readonly access: SessionAccessOperations
   readonly isActive: () => boolean
 }): RunnerServiceInstance {
   const { log, host, isActive } = input
+  const evaluator = input.evaluator ?? createAssetEvaluator()
   const registry = createRunnerImplementationRegistry()
   const stop = new AbortController()
   let admitting = true
@@ -166,6 +169,7 @@ export function createLoopExtensionRunner(input: {
       return captured.ok as unknown as readonly RunnerPiece[]
     }
     const result = await readRunnerChain({
+      evaluator,
       session: requested.manifest,
       binding: scope.binding,
       sources: { ...scope.sources, isActive: () => scopeActive(scope) },

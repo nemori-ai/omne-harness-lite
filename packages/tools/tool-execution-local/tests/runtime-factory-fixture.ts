@@ -8,11 +8,23 @@ import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import type {
   ToolRuntimeConfig,
   ToolRuntimeDependencies,
-  ToolRuntimeInstance,
 } from '@omne-harness-lite/tool-execution-runtime'
-import { createToolImplementationRegistry, createToolRuntime } from '../src/index.ts'
+import { createToolImplementationRegistry } from '../src/index.ts'
 import { at } from './execution-owner-fixture.ts'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
+import type {
+  SessionLogBackingOperations,
+  SessionLogOwnerOperations,
+} from '@omne-harness-lite/session-log'
+import type { ToolActionHistoryOperations } from '@omne-harness-lite/tool-admission'
+import type { RunnerServiceHost } from '@omne-harness-lite/loop-extension-runner'
+
+type FixtureDependencies = ToolRuntimeDependencies & {
+  readonly backing: SessionLogBackingOperations
+  readonly owner: SessionLogOwnerOperations
+  readonly history: ToolActionHistoryOperations
+  readonly runnerHost: RunnerServiceHost
+}
 
 export function factoryConfig(): ToolRuntimeConfig {
   return {
@@ -22,14 +34,14 @@ export function factoryConfig(): ToolRuntimeConfig {
   }
 }
 
-/** Actual root factory and SQL log; authority and unused live ports are controlled. */
+/** Actual SQL log and controlled construction dependencies. */
 export async function factoryFixture() {
   const dir = await mkdtemp(join(tmpdir(), 'omne-tool-factory-'))
   const log = await openSqlLogFixture({ dir })
   const recovery = Object.freeze({}) as RecoveryAccess
   const release = vi.fn(async () => {})
   const borrow = vi.fn(() => ({ log, release }))
-  const enumerate = vi.fn<ToolRuntimeDependencies['owner']['enumerate']>(async () => ({
+  const enumerate = vi.fn<FixtureDependencies['owner']['enumerate']>(async () => ({
     kind: 'sessions',
     sessions: [],
   }))
@@ -40,7 +52,7 @@ export async function factoryFixture() {
   const unused = vi.fn((): never => {
     throw new Error('factory test invoked an unused live port')
   })
-  const dependencies: ToolRuntimeDependencies = {
+  const dependencies: FixtureDependencies = {
     recovery,
     backing: { ownerGeneration: 'factory-owner', borrow },
     owner: { enumerate, readPrefix: unused, borrow: unused },
@@ -67,8 +79,8 @@ export async function factoryFixture() {
     invoke: unused,
     clock: { now: async () => unwrap(instantFromRfc3339(at)) },
   }
-  let runtime: ToolRuntimeInstance | undefined
   return {
+    dir,
     log,
     dependencies,
     recovery,
@@ -77,17 +89,7 @@ export async function factoryFixture() {
     enumerate,
     authorize,
     unused,
-    start(supplied: unknown): ToolRuntimeInstance {
-      if (runtime !== undefined) throw new Error('one original factory per fixture')
-      const created: ToolRuntimeInstance = Reflect.apply(createToolRuntime, undefined, [
-        supplied,
-        dependencies,
-      ])
-      runtime = created
-      return created
-    },
     async close() {
-      if (runtime !== undefined) await runtime.close()
       await log.close()
       await rm(dir, { recursive: true, force: true })
     },

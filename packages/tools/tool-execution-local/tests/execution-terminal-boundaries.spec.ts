@@ -14,8 +14,12 @@ import {
 
 const endedAt = '2026-10-05T04:00:01.000Z'
 function journalProbe(original: Parameters<typeof createTerminalCommitter>[0]['journal']) {
-  const read = vi.fn(original.read),
-    commit = vi.fn(original.commit)
+  const read = vi.fn(function (this: typeof original, ...args: Parameters<typeof original.read>) {
+      return original.read.apply(this, args)
+    }),
+    commit = vi.fn(function (this: typeof original, ...args: Parameters<typeof original.commit>) {
+      return original.commit.apply(this, args)
+    })
   return { ...original, read, commit }
 }
 function terminalRequest() {
@@ -86,7 +90,7 @@ test.each(['run-ended', 'attempt-changed'])(
       }),
     }
     try {
-      expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+      expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
       await entered.promise
       const journal = journalProbe(f.journal),
         { read, commit } = journal,
@@ -95,8 +99,8 @@ test.each(['run-ended', 'attempt-changed'])(
       const pending = finish(supplied)
       expect(read).not.toHaveBeenCalled()
       await f.marker(marker)
-      const prefix = await f.log.readSince(scope.session, 0)
-      if ('failure' in prefix) throw new Error('original SQL prefix unavailable')
+      const viewBefore = await f.journal.read(scope, ref.callId)
+      if (viewBefore.kind !== 'view') throw new Error('original Tool record unavailable')
       supplied.terminal.result = 'replacement-result'
       Object.defineProperty(supplied.delivery, 'pass', { value: 'replacement-pass' })
       supplied.origin.attempt = 2
@@ -110,13 +114,8 @@ test.each(['run-ended', 'attempt-changed'])(
       expect(commit.mock.calls[0]?.[0]).toEqual({
         ref,
         origin: request.origin,
-        expected: {
-          scope,
-          ownerGeneration: f.backing.ownerGeneration,
-          tail: prefix.tail,
-          entries: prefix.entries,
-        },
-        values: [expectedValue(true)],
+        expected: viewBefore.prefix,
+        values: [expectedValue(false)],
       })
       const view = await f.journal.read(scope, ref.callId)
       if (view.kind !== 'view') throw new Error('original SQL ending unavailable')
@@ -146,15 +145,16 @@ test.each([1, 2])(
     const journal = journalProbe(f.journal),
       input = { journal, clock, attempts, retry }
     try {
-      expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+      expect(await f.owner.submitPrepared(f.prepared)).toEqual({ kind: 'recorded', execution: ref })
       await entered.promise
       let competed = false
-      f.append.mockImplementation(async (...args) => {
-        if (!competed && args[1].some(entry => entry.dedupeKey?.includes('execution_ended'))) {
+      const commitOriginal = journal.commit.getMockImplementation()!
+      journal.commit.mockImplementation(async candidate => {
+        if (!competed) {
           competed = true
           await f.marker('attempt-changed')
         }
-        return f.log.append(...args)
+        return commitOriginal.call(journal, candidate)
       })
       const { commit } = journal
       const finish = createTerminalCommitter(input)
@@ -168,7 +168,7 @@ test.each([1, 2])(
       if (attempts === 1) {
         expect(view.executions.get(ref.callId)?.terminal).toBeUndefined()
       } else {
-        expect(commit.mock.calls[1]?.[0].values).toEqual([expectedValue(true)])
+        expect(commit.mock.calls[1]?.[0].values).toEqual([expectedValue(false)])
         expect(commit.mock.calls[1]?.[0].expected.tail).not.toEqual(
           commit.mock.calls[0]?.[0].expected.tail,
         )
@@ -211,7 +211,7 @@ test.each(['clock', 'journal', 'retry'] as const)(
     const clock: Clock = { now: vi.fn(async () => unwrap(instantFromRfc3339(endedAt))) },
       retry = vi.fn(async () => {})
     try {
-      await f.owner.operations.submit(request)
+      await f.owner.submitPrepared(f.prepared)
       await entered.promise
       const journal = journalProbe(f.journal)
       if (port === 'clock') vi.mocked(clock.now).mockRejectedValueOnce(error)

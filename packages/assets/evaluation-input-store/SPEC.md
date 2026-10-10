@@ -6,7 +6,7 @@
 
 - 只使用本 `storeKey` 的真实发布、实际会话租户映射和当前组织治理公开事实。调用方不能用完整预造输入、历史求值结果、恒真资格回调或 `EffectiveAssembly` 代替来源。隔离标签及 tenant/session 参数不构成授权；可信宿主向已获权限的消费者分发闭包。
 - EIS 与治理资格使用同一 `AtomicStorage` 对象，治理通过公开 `participate(unit)` 加入实际事务。另一个对象即使打开同文件也不是此保证。ordinary read 不伪造 unit，atomic 内不另开资格事务。本采用依赖 SQLite `BEGIN IMMEDIATE` 写者排序；不承诺 PostgreSQL、跨库快照或数据库硬只读。
-- selector、evaluate、根提取及生产 BodyContracts/Schema 使用同一采用版本，不复制算法或各自追最新。默认 Schema owner 首次实际使用构造，成功后复用；失败保持原异常并允许以后重试。import 不构造，显式工厂和临时作者编译不受单例规则替代。
+- selector、evaluate、根提取及生产 BodyContracts/Schema 使用同一采用版本，不复制算法或各自追最新。调用方可提供装配持有的 `AssetEvaluator`，发布、正文读取、选根和求值共用它。未提供时，每个 reader 在构造时创建自己的 evaluator；同组 Run registry readers 共用一个。重复读取仍核验当前数据，但复用同一 evaluator 已编译的完整 Schema。重新装配须提供新 evaluator；旧 reader 保留原 evaluator 直至调用结束。import 不创建 evaluator。
 - 可信部署清单逐项明确 capability 和布尔 meta，集合严格复制。重复、畸形、缺 meta 拒绝构造；不把旧裸数组自动补为 `meta:false`。名字、正文、持有或发布请求不决定 meta。更换清单须显式重建并核发布状态。
 - 根入口提供独立当前读取器及迁移；`./publication` 属于可信宿主；`./registry-inputs` 和 `./registry-history` 是受限独立读面。独立模型调用不隐含依赖本包。
 
@@ -19,6 +19,18 @@
 - 旧裸格式数据库不静默补 meta 或删行迁移；存储/宿主须明确重发布或迁移后准入。invalidInput、revision conflict、真实来源/IO unavailable 分开。提交未知时调用方读实际 revision/data 决策；本包不自动重试、修复或声称超时必回滚。
 - 捕获前实际 SessionTenancy owner 已建立不可变映射。本包核 holdingTenant，再在 EIS-OG 同一 atomic 取真实 effective standing。既有 recipe 只比较 tenant/root/session values/workspace；相同返回原捕获值，不同返回 conflict，不用后来角色覆写。
 - 首次捕获使用当时真实来源与角色。映射建立与 recipe 捕获是两个 owner 的步骤，没有跨 owner 的会话创建同提交保证；中间缺 recipe 为 unavailable。首次 capture 的原子准入可在 mutate 内构造和求值；下文“事务后纯阶段”只约束三种读取。
+
+### 官方工厂定义部署
+
+`./publication` 的 `installOfficialFactoryDefinition` 和 `installOfficialFactoryDefinitions` 由可信工厂部署拥有者使用。CLI 的具名拥有者是 `apps/cli/src/session-factory-assets.ts`；普通运行时、命令输入和消费者没有发布权，也不能转导出该入口。CLI 发行最小官方会话定义及其工具依赖的依据为负责人明确选择；这不扩大其他调用方的发布权限。
+
+安装输入必须是部署清单已声明的 official 定义、至少一个已发布版本、无 draft，以及实际安装时间。工厂持有的 immutable 沿清单 meta，配值为空。安装不授予成员资格、Context 读取权、模型或工具执行权。
+
+部署读取同一快照中的原定义、完整版本、工厂持有和指定组织／租户层。同能力工厂持有不同则 conflict，不覆盖。已有定义只允许追加已发布版本；元数据与原版本前缀必须逐项相等，改写、删除版本或回退均为 conflict。追加版本不改变原 holding.since。已有且一致时认回原 revision 和 holding.since，不重新发布。不存在时使用原 publishLocalInputs 的 expectedRevision 同提交发布；并发变更返回 conflict，不自动重试。
+
+新增持有保留工厂其他持有。指定的组织／租户层只在缺失时明确建立为空；已有层、其他资产和会话配方不改写。完整工厂集合仍须与可信部署清单一致。存储失败或提交响应丢失返回 unavailable，不声称回滚；调用方可再次核原身份，不能换 release 或冒认成功。
+
+整组安装使用同一读取快照和一次原发布提交，不能暴露只装了部分定义的工厂清单。任一定义冲突时整组不发布；全部已安装且一致时认回原revision。允许在已有工厂上追加整组定义，但新集合必须恰等本次可信部署清单，旧定义版本及原持有时间仍保留。
 
 ## 普通当前读取
 
@@ -65,3 +77,37 @@ history 工厂绑定明确 storage/storeKey/SessionTenancy/OG/MF.readHistory 和
 - sink 失败经独立 failure port 降级，两输出都失败也不改业务结果/原缺陷，不递归 fallback 或虚报事务终态。history 分别观测 STT/MF、真实锁 queue/hold、事务后 decode/judge/total，selector/evaluate 计数为零；current/fixed 记录共享纯成本与实际来源规模。任意 JS 回调启动不代表 SQL 已取得锁；观察点随真实 SQLite provider 前提解释，不承诺性能阈值。输出授权、容量和保留归宿主。
 
 验证路径和有限前提见 [verification](verification/README.md)。共享、工作区同步、完整历史恢复、PG/跨库、历史 GC、缓存优化及强制停止时限不由本包组件通过自动获得。
+
+## 已准入会话的本机求值输入
+
+本文约束公开子入口 `./admitted` 的提供者行为。公开形状见 `src/admitted-types.ts`。根读取器、发布及registry入口由本文件其他各节约束；本节只补充已准入入口。
+
+## 可信构造与作用域
+
+createAdmittedEvaluationInputSource接收实际租户AtomicStorage、固定SessionScope、实际SessionTenancy、显式部署条目及诊断端口。当前授权单元和原创建成员观察由可信拥有者提供。普通客户端不能提供这些函数、签发权限或调用配方捕获。应用只向普通runtime借出CurrentEvaluationInputs读面。公开入口不得重新导出为普通runtime服务。
+
+withAuthorizedUnit须核当前成员有效性和该内部操作的调用权限，并保持原授权顺序直到同一个租户StorageUnit结束。它只调用一次读取回调，传入原Storage所属单元，返回该回调的原结果。来源不能吞掉回调缺陷并返回成功。跨存储单元、跳过回调、重复回调及替换原结果均为程序缺陷。此端口不把远端治理查询嵌入租户事务。
+
+readCreationStanding只读取本Session原创建的持久S-26观察。其effective和role属于配方数据，不能证明当前权限，也不能镜像成治理中心的组织真相。缺少原观察时拒绝捕获，不猜角色。来源的采用资格由真实授权拥有者和消费者装配核实，函数存在或捕获成功不能替代资格。
+
+## 捕获与读取
+
+捕获先核固定Session和租户，再核实际归属。来源不支持workspace时返回unavailable，不能补空workspace。来源在当前授权的同租户单元中读取完整合法资产输入，并保存原根定义、原创建角色及显式会话配值。相同Session的原语义认回，异语义返回conflict；后续角色观察不能覆盖原创建角色。
+
+每次读取独立核当前授权，并在其原单元读取原配方和同一发布快照。读取不能以captured effective绕过当前拒绝。缺失、非法、不一致或不可读的必要来源返回unavailable，不能拼接不同发布版本或补默认资产、配值、角色和时限。返回值由来源独立持有，后续发布不改变原快照。
+
+非法输入返回invalidInput。合法的跨Session或跨租户读取返回unavailable，并且不调用授权或原创建观察端口。跨作用域捕获返回invalidInput。SessionTenancy缺失或不符拒绝读取和捕获。
+
+createRunEvaluationInputReader是同一可信子入口的原Run读面。它只返回CurrentInputReader，不提供配方捕获。可信宿主须借入实际Session原Run的withOriginalRunUnit；该端口在原租户StorageUnit核持久Run grant及其原使用，而不是以原创建角色猜当前权限。读取仍核固定Scope和实际归属，并从同一Unit读取持久配方及完整当前发布快照，沿用上述输入校验、来源失败和关闭规则。原Run资格不因登录到期重新准入，也不被提升成新Run、当前模型权限或模型IO资格。新会话捕获和普通当前成员读面继续使用withAuthorizedUnit，不能改接原Run端口。
+
+createRunRegistryReaders使用同一原Run单元提供固定根可用性读取和历史正文读取。它复用独立registry读取器的来源校验、固定版本选择、完整manifest历史配对及诊断，不另建资产缓存或查询算法。所有请求先核固定SessionScope；合法跨域请求不调用原Run或manifest端口。固定根只允许refresh_availability，reload返回unavailable；原Run资格不授予当前成员或资产重装配权限。历史读取仍核实际manifest的原时间、capability、asset和version，并读取不可变已发布版本，不因后来撤回持有而改用当前正文。
+
+这两个读面均由实际withOriginalRunUnit在租户StorageUnit中授权。它们不检查新登录，不伪造memberships.participate，不把已捕获角色当当前权限。原Run关闭或原单元不可用时返回unavailable。close撤销两个读面的新准入并等待已开始的原读取结束，不关闭借入的manifest、Storage或Run journal。
+
+声明的来源、存储或正文暂不可用返回unavailable并报告不含秘密的诊断。程序缺陷保留原异常，不能降级成业务拒绝。提交结果未知时，调用者须认回同一持久配方；本来源不自动重试，也不把未知当未执行。
+
+## 关闭与组合义务
+
+close同步拒绝新的读取和捕获，等待已登记的原工作结束。它不关闭借入的Storage、治理、归属或授权拥有者。reader.close与来源close关闭同一准入。可信宿主须在来源排空后再关闭借入资源。
+
+组合验证须覆盖实际持久配方、当前拒绝、原角色不覆盖、作用域拒绝零端口调用、同存储单元、授权缺陷、原结果一致性及关闭排空。受控授权端口测试只验证接口反例，不能证明正式治理运输、宿主权限、模型发出或掉电恢复。

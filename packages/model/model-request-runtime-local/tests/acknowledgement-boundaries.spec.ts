@@ -2,9 +2,12 @@
 // Real SQLite content retention and SQL journal, with controlled trusted ports and stop gates.
 import { describe, expect, it } from 'vitest'
 import type { RuntimeCloseResult, SettlementOwner } from '@omne-harness-lite/model-request-runtime'
-import { createServiceAcknowledge } from '../src/service-acknowledge.ts'
+import { acknowledgementComponent } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { modelValue } from './log-codec-fixture.ts'
-import { acknowledgementHost, acknowledgements } from './acknowledgement-host-fixture.ts'
+import {
+  acknowledgementHost,
+  acknowledgements,
+} from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'
 
 function isAcknowledgement(payload: Parameters<typeof modelValue>[0]): boolean {
@@ -51,7 +54,7 @@ describe('ACK evidence and original-writer boundaries on real SQL', () => {
           },
       })
       const revoked = h.grant('owner', ['read', 'wait', 'settle', 'cancel', 'ack'])
-      const component = createServiceAcknowledge({
+      const component = acknowledgementComponent({
         ...h.construction,
         policy: {
           ...h.construction.policy,
@@ -123,7 +126,7 @@ describe('ACK evidence and original-writer boundaries on real SQL', () => {
       }),
     })
     h.grant('owner', ['read', 'wait', 'settle', 'cancel', 'ack'])
-    const component = createServiceAcknowledge({
+    const component = acknowledgementComponent({
       ...h.construction,
       policy: {
         ...h.construction.policy,
@@ -207,7 +210,7 @@ describe('ACK evidence and original-writer boundaries on real SQL', () => {
           return { failure: 'unavailable' }
         },
     })
-    const component = createServiceAcknowledge(h.construction)
+    const component = acknowledgementComponent(h.construction)
     h.grant('owner', ['read', 'wait', 'settle', 'cancel', 'ack'])
     try {
       await h.service.openCall(h.request('p5d_original_writer'))
@@ -224,7 +227,13 @@ describe('ACK evidence and original-writer boundaries on real SQL', () => {
       expect(controlled.active).toBe(1)
       const releases = controlled.releases
       let retryDone = false
-      const retry = component.acknowledgeCall(input).then(result => {
+      const projected = component.project({
+        sessions: h.construction.sessions,
+        callAccess: h.construction.callAccess,
+        history: h.construction.history,
+        lookup: h.construction.callFacts.lookup,
+      })
+      const retry = projected.acknowledgeCall(input).then(result => {
         retryDone = true
         return result
       })
@@ -285,7 +294,7 @@ describe('ACK evidence and original-writer boundaries on real SQL', () => {
           return await real(...args)
         },
     })
-    const component = createServiceAcknowledge({
+    const component = acknowledgementComponent({
       ...h.construction,
       sessions: {
         async bind(session) {
@@ -361,7 +370,7 @@ describe('ACK evidence and original-writer boundaries on real SQL', () => {
           return { failure: 'tailChanged', tail: args[3].tail }
         },
     })
-    const component = createServiceAcknowledge(h.construction)
+    const component = acknowledgementComponent(h.construction)
     h.grant('owner', ['read', 'wait', 'settle', 'cancel', 'ack'])
     try {
       await h.service.openCall(h.request('p5d_cancelled_timer'))

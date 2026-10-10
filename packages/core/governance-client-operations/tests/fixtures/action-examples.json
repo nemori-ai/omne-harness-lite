@@ -574,7 +574,9 @@
     "value": {
       "action": "invoke",
       "operation": "capability.organization-governance/v2#S-21",
-      "payload": {}
+      "payload": {
+        "name": "test organization"
+      }
     },
     "title": "EC2 projection capability.organization-governance/v2#S-21"
   },
@@ -658,7 +660,8 @@
           "reply": {
             "result": {
               "organization": "org_kf22",
-              "organizationKind": "team"
+              "organizationKind": "team",
+              "name": "test organization"
             }
           }
         }
@@ -673,7 +676,8 @@
           "reply": {
             "result": {
               "organization": "org_kf22",
-              "organizationKind": "team"
+              "organizationKind": "team",
+              "name": "test organization"
             }
           }
         },
@@ -1376,9 +1380,7 @@
       "action": "invoke",
       "operation": "capability.organization-governance/v2#S-34",
       "payload": {
-        "organizations": [
-          "org_kf22"
-        ]
+        "organizations": ["org_kf22"]
       }
     },
     "title": "EC2 projection capability.organization-governance/v2#S-34"
@@ -1406,9 +1408,7 @@
         "reply": {
           "operation": "capability.organization-governance/v2#S-34",
           "reply": {
-            "result": [
-              "org_b7"
-            ]
+            "result": ["org_b7"]
           }
         }
       },
@@ -1420,17 +1420,13 @@
         "data": {
           "operation": "capability.organization-governance/v2#S-34",
           "reply": {
-            "result": [
-              "org_b7"
-            ]
+            "result": ["org_b7"]
           }
         },
         "query": {
           "operation": "capability.organization-governance/v2#S-34",
           "payload": {
-            "organizations": [
-              "org_kf22"
-            ]
+            "organizations": ["org_kf22"]
           }
         }
       },

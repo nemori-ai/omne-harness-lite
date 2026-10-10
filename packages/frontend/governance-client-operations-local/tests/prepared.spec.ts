@@ -460,19 +460,19 @@ describe('CG2 fixed capture and interactive input', () => {
     expect(result.remote.status).toBe('success')
     expect((await read(state)).value!.cache.filter(c => c.operation === OG36)).toEqual([])
   })
-  it('schema resources match both independent original inputs without overwriting v1', () => {
-    for (const version of [1, 2]) {
+  it('schema resources resolve to their current public owners', () => {
+    for (const [subpath, filename] of [
+      ['schema', 'governance-client-operations.schema.json'],
+      ['schema/intents', 'governance-client-intents.schema.json'],
+    ]) {
       const published = readFileSync(
         createRequire(import.meta.url).resolve(
-          `@omne-harness-lite/governance-client-operations/schema${version === 1 ? '' : '/v2'}`,
+          `@omne-harness-lite/governance-client-operations/${subpath}`,
         ),
         'utf8',
       )
       const authority = readFileSync(
-        new URL(
-          `../../../core/governance-client-operations/tests/fixtures/operation-v${version}.schema.json`,
-          import.meta.url,
-        ),
+        new URL(`../../../core/governance-client-operations/schema/${filename}`, import.meta.url),
         'utf8',
       )
       expect(published).toBe(authority)

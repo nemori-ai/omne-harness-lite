@@ -28,11 +28,9 @@ import {
   type SettlementScheduler,
   type SettlementTask,
   type SettlementTaskKind,
+  type SettlementRequest,
+  type SettlementStagedBatch,
 } from '@omne-harness-lite/model-request-runtime'
-import type {
-  SettlementRequest,
-  SettlementStagedBatch,
-} from '@omne-harness-lite/model-request-runtime-local'
 import type { AppendResult, LogEntry, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import type { ReadTx, Storage, WriteTx } from '@omne-harness-lite/storage'
 

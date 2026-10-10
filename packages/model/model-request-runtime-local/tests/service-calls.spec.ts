@@ -1,3 +1,13 @@
+import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
+import { UnknownAppendTracker } from '@omne-harness-lite/model-request-runtime'
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 import { mockPrefixReader } from './mock-prefix-fixture.ts'
 import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 import { expect, test, vi } from 'vitest'
@@ -13,15 +23,15 @@ import {
   modelCallContentMigrations,
 } from '../src/reference-content.ts'
 import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
-import { createServiceCalls, ownOpenCallInput, UnknownAppendTracker } from '../src/service-calls.ts'
+import { createServiceCalls, ownOpenCallInput } from '@omne-harness-lite/session-runtime-local'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { createCallContainerStore } from '../src/service-container.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
-import { createModelCallFacts } from '../src/reference-facts.ts'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type {
   CurrentHistoryReaders,
   SessionRuntimeBinding,
@@ -98,6 +108,7 @@ test('unknown writes retain their own original readers on the real JSONL source'
         registration,
         task,
         reader,
+        sessionModelRequestPreparation.readCall,
       )
     }
     expect(owner.active).toBe(2)
@@ -165,6 +176,7 @@ test('unknown append recognition reuses its only registration before release', a
       requestStop() {},
     },
     () => ({ absent: true }),
+    sessionModelRequestPreparation.readCall,
   )
   expect(await tracker.close()).toEqual({
     unavailable: true,
@@ -281,12 +293,18 @@ test('a stopped host rejects registration before any asynchronous session prepar
   const bind = vi.fn()
   const register = vi.fn(() => ({ runtimeStopped: true as const }))
   const runtime = {
+    acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
+    recordPublication: publishSessionModelCallContent,
+    requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     identities: { call: () => 'stopped-call' },
     maxScopes: 4,
     sessions: { bind },
     transport: { clearReuseScope() {}, acquire: () => ({ unavailable: true }) },
     calls: createCallContainerStore<PlannedSemantics, never>(),
-  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  } as unknown as SessionModelConstruction<PlannedSemantics, never>
   const service = createServiceCalls(runtime)
   expect(
     await service.openCall(
@@ -316,12 +334,18 @@ test('host stop during session binding prevents a late call publication and unre
   const register = vi.fn(() => ({ registration: { unregister } }))
   const calls = createCallContainerStore<PlannedSemantics, never>()
   const runtime = {
+    acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
+    recordPublication: publishSessionModelCallContent,
+    requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     identities: { call: () => 'late-call' },
     maxScopes: 4,
     sessions: { bind },
     transport: { clearReuseScope() {}, acquire: () => ({ unavailable: true }) },
     calls,
-  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  } as unknown as SessionModelConstruction<PlannedSemantics, never>
   const pending = createServiceCalls(runtime).openCall(
     request({
       host: { signal: controller.signal, stopping: () => controller.signal.aborted, register },
@@ -348,6 +372,12 @@ test('service close stops and retains a registered preparation until binding act
   const register = vi.fn(() => ({ registration: { unregister } }))
   const calls = createCallContainerStore<PlannedSemantics, never>()
   const runtime = {
+    acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
+    recordPublication: publishSessionModelCallContent,
+    requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     identities: { call: () => 'closing-preparation-call' },
     maxScopes: 4,
     sessions: { bind },
@@ -355,7 +385,7 @@ test('service close stops and retains a registered preparation until binding act
     calls,
     settlementContention: { limits: { concurrent: 1 } },
     history: { call: vi.fn() },
-  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  } as unknown as SessionModelConstruction<PlannedSemantics, never>
   const service = createServiceCalls(runtime)
   const pending = service.openCall(
     request({ host: { signal: host.signal, stopping: () => false, register } }),
@@ -386,13 +416,19 @@ test('observer association rejects a wrong call before catalog reads or transpor
   const acquire = vi.fn()
   const calls = createCallContainerStore<PlannedSemantics, never>()
   const runtime = {
+    acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
+    recordPublication: publishSessionModelCallContent,
+    requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     identities: { call: () => 'observer-call' },
     maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },
     callFacts: { creation: async () => ({ callNotFound: true }) },
     calls,
     transport: { clearReuseScope() {}, acquire },
-  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  } as unknown as SessionModelConstruction<PlannedSemantics, never>
   const observer = {
     session,
     endpoint: {
@@ -552,8 +588,14 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       return { noObservation: true }
     }
     const runtime = {
+      acknowledgementFactory: createSessionModelAcknowledgement,
+      settlementFactory: sessionModelSettlement,
+      recordPublication: publishSessionModelCallContent,
+      requestPreparation: sessionModelRequestPreparation,
+      selectionFactory: createSessionModelSelection,
+      readFactory: createSessionModelReads,
       maxScopes: 4,
-      callFacts: createModelCallFacts({
+      callFacts: createSessionModelCallFacts({
         content,
         presence: { read: async () => ({ unavailable: true }) },
         maxScopes: 4,
@@ -626,7 +668,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
               }
             : interpretCallHistory({ prefix, callId }),
       },
-    } as unknown as RuntimeConstruction<PlannedSemantics, never>
+    } as unknown as SessionModelConstruction<PlannedSemantics, never>
     try {
       const service = createServiceCalls(runtime)
       const first = await service.openCall({ ...request({ observer: observerRequest }), host })

@@ -1,3 +1,13 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 import { DatabaseSync } from 'node:sqlite'
 import { modelCategory, modelValue, replaceModelValue } from './log-codec-fixture.ts'
 // @module-tag slow
@@ -31,9 +41,9 @@ import type { ModelCallAcknowledgedRecord } from '@omne-harness-lite/messages'
 import { narrow, type Storage } from '@omne-harness-lite/storage'
 import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { createModelCallContentStore } from '../src/reference-content.ts'
-import { createModelCallFacts } from '../src/reference-facts.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
+
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { acknowledgedAttempts, attemptFromWitness } from '@omne-harness-lite/model-request-runtime'
 import {
@@ -46,7 +56,7 @@ import type {
   CallPresence,
 } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallContentStore } from '../src/reference-types.ts'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type {
   AcknowledgementCleanupPolicy,
   SessionRuntimeBinding,
@@ -220,7 +230,7 @@ async function runtimeOn(w: World, options: RuntimeOptions = {}) {
     storage: options.storage?.(host.storage) ?? host.storage,
     policy: { maxConcurrentWrites: 4, maxContentBytes: 1_000_000 },
   })
-  const callFacts = createModelCallFacts({ content, presence: callPresence, maxScopes: 4 })
+  const callFacts = createSessionModelCallFacts({ content, presence: callPresence, maxScopes: 4 })
   const callAccess: CallAccess = {
     async check(input, admitted) {
       const grant = w.grants.get(w.principal)
@@ -272,7 +282,14 @@ async function runtimeOn(w: World, options: RuntimeOptions = {}) {
   let nextResponse = 0
   let sendCount = 0
   const diagnostics: string[] = []
-  const construction: RuntimeConstruction<TestPlan, object> = {
+  const construction: SessionModelConstruction<TestPlan, object> = {
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
+    acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
+    recordPublication: publishSessionModelCallContent,
+    requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     callAccess,
     callPresence,
     callFacts,
@@ -349,7 +366,7 @@ async function runtimeOn(w: World, options: RuntimeOptions = {}) {
       diagnostics.push(event.kind)
     },
   }
-  const runtime = createModelRuntime(construction)
+  const runtime = createSessionModelRuntime(construction)
   const service = runtime.service
   let effective = await service.effectiveModel({ session: host.session })
   if (!('effectiveModel' in effective)) {

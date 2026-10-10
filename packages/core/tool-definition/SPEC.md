@@ -23,6 +23,8 @@ format 只作注解，不据此拒参数。根 additionalProperties 缺席仅在
 
 parameter judge 及编译 cache 归调用者，不设随作者 Schema 增长的模块级 cache。各线程独立；同步纯判断不能自己终止，真实运行者拥有墙钟策略和可终止 worker；500ms 不作为本 core 的全局政策。
 
+`createToolBodyContract(parameters)` 的 judge、deriveDeclarations 和 references 共同使用给定的参数 judge。`isToolDefinition` 也可显式接收该 judge。复用只省去同一 Schema 的重复编译，不省去工具定义、参数或当前上下文的校验。默认 `toolBodyContract` 不保留作者编译结果。
+
 当前 pattern 限项为至多1024码点、无嵌套无界量词、无实际 AST Backreference、有限计数上界至多1000；方言先 non-u 后 u，同输入同限项同结论。不按源码子串误禁八进制／字面 Character。
 
 ## 设置、依赖与执行边界

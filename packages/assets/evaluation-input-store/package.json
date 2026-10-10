@@ -27,6 +27,10 @@
     "./cordis": {
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
+    },
+    "./admitted": {
+      "types": "./dist/admitted.d.ts",
+      "import": "./dist/admitted.js"
     }
   },
   "files": [

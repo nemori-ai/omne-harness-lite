@@ -1,6 +1,6 @@
 # 模型请求与Session事实的集成边界
 
-模型请求的十五操作、失败和费用责任归[公共SPEC](../SPEC.md)。`ModelRuntimeOperations`归本包纯根，`ModelRuntimeService`归`./cordis`；提供者实现同一公开接口。`createModelRuntime`保留独立调用能力，不要求调用方使用Cordis。
+模型请求的十五操作、失败和费用责任归[公共SPEC](../SPEC.md)。`ModelRuntimeOperations`归本包纯根，`ModelRuntimeService`归`./cordis`；提供者实现同一公开接口。Session 提供者的 `createSessionModelRuntime` 实现这些操作；Model 提供者的 `invokeModel` 保留独立物理调用能力。两者均不要求调用方使用 Cordis。
 
 Session事实用于证明原准入、归因和终结，不接管模型发送、重试、首token、凭据、响应或结算。具名接缝与生命周期归[运行时集成](runtime-integration.md)。完整Session准入、生产历史、G28与保管/ACK装配的兑现由对应拥有者负责；接口存在不认证生产来源。
 
@@ -15,6 +15,6 @@ Session事实用于证明原准入、归因和终结，不接管模型发送、�
 
 模型提供者的`OriginalIssueParticipant`在协调者给出的同实例unit中暂存原已出门及唯一执行claim，不独立commit或IO。统一提交后由原执行拥有者发送。该窄端口及准入桥是明确construction输入：Session不读模型私有表，独立模型核心不反向依赖Session类型。其他提供者须给出等价原子准入证据。
 
-已出门、dispatch序号、first-token、恢复和费用语义仍由公共SPEC约束。ACK适配归模型拥有者，不能把不同确认条件压成一个布尔ACK。demo/reference适配只说明已知局部事实，不表示完整生产宿主已兑现。
+已出门、dispatch序号、first-token、恢复和费用语义仍由公共SPEC约束。ACK适配归模型拥有者，不能把不同确认条件压成一个布尔ACK。受控适配只说明其验证覆盖的局部事实，不表示完整生产宿主已兑现。
 
 操作的身份、授权、幂等、提交、通知和在途共用规则归[Session共用规则](../../session-runtime/adr/shared-operation-rules.md)。源码、公开承诺与实际组合证据分别说明自身范围，不从目录存在推断实现完成。

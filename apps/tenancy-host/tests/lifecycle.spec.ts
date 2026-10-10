@@ -557,7 +557,7 @@ describe('AI S-32「完整重启」支：boot() 可重入同一文件', () => {
     const revoke = await tlsExchange(
       d.port,
       JSON.stringify({
-        protocolVersion: '2',
+        protocolVersion: '3',
         presentedLoginState: session.loginState,
         operation: 'capability.account-identity/v3#S-16',
         payload: { loginStateHandle: session.loginStateHandle },

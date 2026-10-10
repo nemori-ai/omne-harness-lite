@@ -5,10 +5,10 @@ const cg: {
 } = require('@omne-harness-lite/governance-client-operations/schema')
 const cg2: {
   readonly $id: string
-} = require('@omne-harness-lite/governance-client-operations/schema/v2')
+} = require('@omne-harness-lite/governance-client-operations/schema/intents')
 const oe: { readonly $id: string } = require('@omne-harness-lite/offer-expiry/schema')
 const iv = require('@omne-harness-lite/identity-values/schema')
-const ec = require('@omne-harness-lite/governance-center-entry/schema/v2')
+const ec = require('@omne-harness-lite/governance-center-entry/schema')
 export const schemaGraphs = [
   {
     name: 'ordinary',
@@ -17,9 +17,9 @@ export const schemaGraphs = [
     resourceSpecifiers: [
       '@omne-harness-lite/identity-values/schema',
       '@omne-harness-lite/offer-expiry/schema',
-      '@omne-harness-lite/governance-center-entry/schema/v2',
+      '@omne-harness-lite/governance-center-entry/schema',
       '@omne-harness-lite/governance-client-operations/schema',
-      '@omne-harness-lite/governance-client-operations/schema/v2',
+      '@omne-harness-lite/governance-client-operations/schema/intents',
     ],
     sourceFiles: ['src/schema-inputs.ts'],
     options: { strict: true, strictTypes: false, strictRequired: false, validateFormats: false },

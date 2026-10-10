@@ -32,7 +32,7 @@ import type {
   PlanResult,
   SendResult,
 } from '@omne-harness-lite/model-request-runtime'
-import { ownPlanInput, preflightMissingInputLimits } from './input.ts'
+import { ownPlanInput, preflightMissingInputLimits } from '@omne-harness-lite/model-request-runtime'
 import {
   createCredentialRedactionPolicy,
   CredentialRedactionConfigurationError,
@@ -92,6 +92,7 @@ function policyValid(policy: InvocationPolicy): boolean {
 function rejectionHandle(failure: PlanFailure): ModelInvocationHandle {
   return Object.freeze({
     outcome: Promise.resolve(failure),
+    stopped: Promise.resolve(),
     snapshot: () => ({ blocks: [], position: 0 }),
     observedFacts: () => ({ unavailable: true }) as const,
     abort: () => {},
@@ -159,6 +160,7 @@ function bindInvocationCredential<P extends PlannedSemantics, R>(
     return {
       failureHandle: Object.freeze({
         outcome: Promise.reject(new Error('model_invocation.policy_bind_defect')),
+        stopped: Promise.resolve(),
         snapshot: () => ({ blocks: [], position: 0 }),
         observedFacts: () => ({ unavailable: true }) as const,
         abort: () => {},
@@ -482,13 +484,13 @@ export function invokeModel<P extends PlannedSemantics, R>(
         }
       retainSendHeaders(sent)
       if ('response' in sent) {
+        readerStopped = false
         const reader = input.transport.read(
           sent.response,
           planned,
           controller.signal,
           diagnostics.transport,
         )
-        readerStopped = false
         return { reader }
       } else if ('failed' in sent) end = { failed: sent.failed, readFacts: noReadFacts }
       else if ('aborted' in sent)
@@ -826,7 +828,7 @@ export function invokeModel<P extends PlannedSemantics, R>(
       disposeTimer()
       input.signal.removeEventListener('abort', cancel)
       runStopped = readerStopped
-      diagnose('model_invocation.stopped')
+      diagnose(runStopped ? 'model_invocation.stopped' : 'model_invocation.stop_unconfirmed')
       if (runStopped)
         diagnostics.record({
           source: 'invocation',
@@ -917,12 +919,14 @@ export function invokeModel<P extends PlannedSemantics, R>(
         outcome: 'started',
         facts: { kind: 'transport', requestedProvider: input.provider },
       })
+      readerStopped = false
       const sent = await input.transport.send(
         planned,
         input.credential,
         controller.signal,
         diagnostics.transport,
       )
+      readerStopped = !('response' in sent)
       const received = receiveSend(sent, planned)
       if ('failure' in received) return received.failure
       if ('reader' in received) {
@@ -962,6 +966,13 @@ export function invokeModel<P extends PlannedSemantics, R>(
     }
   }
   const outcome = run()
+  async function confirmStopped(cause?: unknown): Promise<void> {
+    await Promise.all([...gates])
+    if (!runStopped) throw new Error('model invocation stop unconfirmed', { cause })
+  }
+  const stopped = outcome.then(() => confirmStopped(), confirmStopped)
+  // Callers can inspect this separate failure even when they only await the outcome.
+  void stopped.catch(() => {})
   function observedFacts():
     { readonly facts: InvocationObservedFacts } | { readonly unavailable: true } {
     if (
@@ -988,5 +999,11 @@ export function invokeModel<P extends PlannedSemantics, R>(
     })
     return { facts }
   }
-  return Object.freeze({ outcome, snapshot: () => snapshot(state), observedFacts, abort: cancel })
+  return Object.freeze({
+    outcome,
+    stopped,
+    snapshot: () => snapshot(state),
+    observedFacts,
+    abort: cancel,
+  })
 }

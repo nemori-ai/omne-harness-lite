@@ -399,8 +399,11 @@ export function judgeToolDefinition(value: unknown, judge?: ParameterJudge): Too
   if (unsupported !== undefined) return unsupported
   return Object.freeze({ ok: true })
 }
-export function isToolDefinition(value: unknown): value is ToolDefinition {
-  return 'ok' in judgeToolDefinition(value)
+export function isToolDefinition(
+  value: unknown,
+  parameters?: ParameterJudge,
+): value is ToolDefinition {
+  return 'ok' in judgeToolDefinition(value, parameters)
 }
 
 function returnContentRejection(value: JsonObject): ToolJudgment | undefined {

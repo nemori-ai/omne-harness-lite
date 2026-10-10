@@ -20,7 +20,7 @@ import {
 import type { SessionAccess } from '@omne-harness-lite/session-tenancy'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import type { JsonValue } from '@omne-harness-lite/content-blocks'
-import type { createRuntimeJournal } from './runtime-journal.ts'
+import type { RuntimeJournal } from './execution-journal.ts'
 import { sameJson } from './json-values.ts'
 
 type ResourceRecord = Extract<
@@ -128,7 +128,7 @@ export function createExecutionEnvironment(input: {
   readonly origin: ExecutionOrigin
   readonly selected: SelectedTool
   readonly access: SessionAccess
-  readonly journal: ReturnType<typeof createRuntimeJournal>
+  readonly journal: RuntimeJournal
   readonly environments: Pick<ExecutionEnvironmentOperations, 'resolvePlacement' | 'acquire'>
   readonly closed: AbortSignal
   readonly clock: Clock

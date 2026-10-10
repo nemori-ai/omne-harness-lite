@@ -1,3 +1,13 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 /**
  * Real-assembly runtime over the Cordis host of tests/session-selection-fixture.ts (SQLite
  * Storage, SQL journal SessionLog), shared by the 2026-09-30 close-responsibility acceptance and the
@@ -7,13 +17,13 @@
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import type { JsonObject } from '@omne-harness-lite/content-blocks'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createModelCallContentStore } from '../src/reference-content.ts'
-import { createModelCallFacts } from '../src/reference-facts.ts'
+
 import type { CallAccess, CallPresence } from '@omne-harness-lite/model-request-runtime'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import type {
@@ -167,7 +177,7 @@ export async function runtimeOver(
     storage: host.storage,
     policy: { maxConcurrentWrites: 4, maxContentBytes: 1_000_000 },
   })
-  const callFacts = createModelCallFacts({ content, presence: callPresence, maxScopes: 4 })
+  const callFacts = createSessionModelCallFacts({ content, presence: callPresence, maxScopes: 4 })
   const callAccess: CallAccess = {
     async check(input, admitted) {
       const found = await callFacts.lookup({ binding: input.binding, ref: input.ref })
@@ -207,7 +217,14 @@ export async function runtimeOver(
   let nextCall = 0
   let nextResponse = 0
   const diagnostics: string[] = []
-  const construction: RuntimeConstruction<TestPlan, object> = {
+  const construction: SessionModelConstruction<TestPlan, object> = {
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
+    acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
+    recordPublication: publishSessionModelCallContent,
+    requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     callAccess,
     callPresence,
     callFacts,
@@ -270,7 +287,7 @@ export async function runtimeOver(
       diagnostics.push(event.kind)
     },
   }
-  const runtime = createModelRuntime(construction)
+  const runtime = createSessionModelRuntime(construction)
   const service = runtime.service
   let effective = await service.effectiveModel({ session: host.session })
   if (!('effectiveModel' in effective)) {

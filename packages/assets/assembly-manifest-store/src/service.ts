@@ -9,6 +9,15 @@ import type { AssemblyManifestStore } from './types.ts'
 
 const resourceOptions = z
   .object({
+    evaluator: z
+      .custom<NonNullable<ManifestOptions['evaluator']>>(
+        value =>
+          value !== null &&
+          typeof value === 'object' &&
+          'judgeEffectiveAssembly' in value &&
+          typeof value.judgeEffectiveAssembly === 'function',
+      )
+      .optional(),
     presenceSource: z
       .custom<NonNullable<ManifestOptions['presenceSource']>>(
         value =>
@@ -38,6 +47,7 @@ export class AssemblyManifestResourcesService extends AssemblyManifestResources 
     const options = Object.freeze(resourceOptions.parse(supplied))
     super(ctx)
     this.options = Object.freeze({
+      ...(options.evaluator === undefined ? {} : { evaluator: options.evaluator }),
       ...(options.presenceSource === undefined ? {} : { presenceSource: options.presenceSource }),
       ...(options.diagnostic === undefined ? {} : { diagnostic: options.diagnostic }),
       ...(options.diagnosticFailure === undefined

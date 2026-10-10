@@ -1,6 +1,6 @@
 import { expectTypeOf, test } from 'vitest'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
-import { createSettlementCoordinator } from '../src/settlement-coordinator.ts'
+import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
 import { readSettlementPrefix } from '@omne-harness-lite/model-request-runtime'
 import {
   type SettlementResult,
@@ -8,15 +8,27 @@ import {
   type SettlementLogBinding,
   type SettlementRegistration,
   type SettlementContention,
+  type SettlementCoordinator as PublicSettlementCoordinator,
+  type SettlementRequest as PublicSettlementRequest,
+  type SettlementHandle as PublicSettlementHandle,
+  type SettlementCoordinatorBinding,
 } from '@omne-harness-lite/model-request-runtime'
 import {
   type SettlementCoordinatorInput,
   type SettlementRequest,
   type SettlementHandle,
-} from '../src/settlement-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 test('public settlement is an owned independent closure with precise policy numbers and no authority switches', () => {
   expectTypeOf(createSettlementCoordinator).parameter(0).toEqualTypeOf<SettlementCoordinatorInput>()
+  expectTypeOf<
+    ReturnType<typeof createSettlementCoordinator>
+  >().toEqualTypeOf<PublicSettlementCoordinator>()
+  expectTypeOf<SettlementRequest>().toEqualTypeOf<PublicSettlementRequest>()
+  expectTypeOf<SettlementHandle>().toEqualTypeOf<PublicSettlementHandle>()
+  expectTypeOf<
+    Pick<SettlementCoordinatorInput, 'binding' | 'owner' | 'run'>
+  >().toEqualTypeOf<SettlementCoordinatorBinding>()
   expectTypeOf<SettlementHandle['completion']>().toEqualTypeOf<Promise<SettlementResult>>()
   expectTypeOf<SettlementHandle['stopped']>().toEqualTypeOf<Promise<void>>()
   expectTypeOf<SettlementContention['limits']['elapsedMs']>().toMatchTypeOf<

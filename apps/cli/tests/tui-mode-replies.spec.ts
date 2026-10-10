@@ -4,17 +4,80 @@ import { ModeReplies } from '../src/tui/mode-replies.ts'
 
 const begin = Buffer.from('\x1b[200~'),
   end = Buffer.from('\x1b[201~')
-function harness() {
+function harness(canStart?: () => boolean) {
   const events: TerminalInput[] = [],
     modes: number[] = []
   const framer = new InputFramer(event => events.push(event))
   const replies = new ModeReplies(
     bytes => framer.feed(bytes),
-    value => modes.push(value),
+    value => {
+      modes.push(value)
+    },
+    canStart,
   )
   return { events, modes, framer, replies }
 }
 describe('D054 interleaved terminal replies', () => {
+  it('preserves an unclaimed mode report inside a paste while another query is pending', () => {
+    const events: TerminalInput[] = []
+    const framer = new InputFramer(event => events.push(event))
+    const replies = new ModeReplies(
+      bytes => framer.feed(bytes),
+      (_value, mode) => mode === 2004,
+      () => true,
+    )
+    replies.feed(Buffer.concat([begin, Buffer.from('left\x1b[?1049;1$yright'), end]))
+    expect(events).toEqual([{ kind: 'invalid' }])
+    expect(framer.inPaste).toBe(false)
+    framer.dispose()
+  })
+  it('does not remove a report-shaped paste body when no query is pending', () => {
+    const h = harness(() => false)
+    h.replies.feed(Buffer.concat([begin, Buffer.from('left\x1b[?2004;1$yright'), end]))
+    expect(h.events).toEqual([{ kind: 'invalid' }])
+    expect(h.modes).toEqual([])
+    expect(h.framer.inPaste).toBe(false)
+    h.framer.dispose()
+  })
+  it('drains an owned report after the query stops accepting new candidates', async () => {
+    let pending = true
+    const h = harness(() => pending)
+    h.replies.feed(Buffer.from('\x1b[?2004;'))
+    pending = false
+    let drained = false
+    const drain = h.replies.drainHeld().then(() => {
+      drained = true
+    })
+    await Promise.resolve()
+    expect(drained).toBe(false)
+    h.replies.feed(Buffer.from('1$y'))
+    await drain
+    expect(drained).toBe(true)
+    expect(h.modes).toEqual([1])
+    h.replies.feed(Buffer.concat([begin, Buffer.from('new\x1b[?2004;1$y'), end]))
+    expect(h.events).toEqual([{ kind: 'invalid' }])
+    expect(h.modes).toEqual([1])
+    h.framer.dispose()
+  })
+  it('forwards an interrupting Escape when the query has ended', async () => {
+    let pending = true
+    const bytes: number[] = [],
+      modes: number[] = []
+    const replies = new ModeReplies(
+      value => bytes.push(...value),
+      value => {
+        modes.push(value)
+      },
+      () => pending,
+    )
+    replies.feed(Buffer.from('\x1b[?20'))
+    pending = false
+    replies.feed(Buffer.from('\x1b[?2004;1$y'))
+    await replies.drainHeld()
+    expect(Buffer.from(bytes)).toEqual(Buffer.from('\x1b[?20\x1b[?2004;1$y'))
+    expect(modes).toEqual([])
+    expect(replies.bufferedBytes).toBe(0)
+  })
   it('preserves every delimiter and UTF8 cut with each legitimate report, byte by byte', () => {
     const text = '中🙂é',
       frame = Buffer.concat([begin, Buffer.from(text), end])
@@ -102,7 +165,9 @@ describe('D054 interleaved terminal replies', () => {
       modes: number[] = []
     const r = new ModeReplies(
       bytes => output.push(...bytes),
-      value => modes.push(value),
+      value => {
+        modes.push(value)
+      },
     )
     const original = Buffer.from([27, 91, 50, 27, 91, 63, 50, 48, 48, 52, 59, 57, 36, 121, 255, 27])
     r.feed(original)
@@ -127,4 +192,30 @@ describe('D054 interleaved terminal replies', () => {
     expect(h.events).toEqual([])
     h.framer.dispose()
   })
+})
+
+it('keeps alternate-screen replies distinct while preserving interleaved paste bytes', () => {
+  for (const privateMode of [2004, 1049]) {
+    const frame = Buffer.concat([begin, Buffer.from('中🙂'), end])
+    for (let cut = 0; cut <= frame.length; cut++) {
+      const events: TerminalInput[] = [],
+        modes: [number, number][] = []
+      const framer = new InputFramer(event => events.push(event))
+      const replies = new ModeReplies(
+        bytes => framer.feed(bytes),
+        (value, mode) => {
+          modes.push([mode, value])
+        },
+      )
+      const bytes = Buffer.concat([
+        frame.subarray(0, cut),
+        Buffer.from(`\x1b[?${privateMode};2$y`),
+        frame.subarray(cut),
+      ])
+      for (const byte of bytes) replies.feed(Uint8Array.of(byte))
+      expect(events).toEqual([{ kind: 'paste', text: '中🙂' }])
+      expect(modes).toEqual([[privateMode, 2]])
+      framer.dispose()
+    }
+  }
 })

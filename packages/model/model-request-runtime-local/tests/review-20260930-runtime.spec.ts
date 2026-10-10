@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { modelCategory, modelValue, replaceModelValue } from './log-codec-fixture.ts'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
@@ -22,11 +23,11 @@ import type {
   SettlementTaskKind,
 } from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult, LogEntry, SessionLog } from '@omne-harness-lite/session-log'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
@@ -60,7 +61,7 @@ interface RuntimeOptions {
   readonly nextCall?: { value: number }
   readonly settlement?: ReturnType<typeof settlementPolicy>
   readonly bindLog?: (log: SessionRuntimeBinding['log']) => SessionRuntimeBinding['log']
-  readonly historyCall?: RuntimeConstruction<TestPlan, object>['history']['call']
+  readonly historyCall?: SessionModelConstruction<TestPlan, object>['history']['call']
   readonly clearReuseScope?: () => void
   readonly diagnostic?: (event: { readonly kind: string }) => void
 }
@@ -113,7 +114,8 @@ function buildRuntime(host: Host, options: RuntimeOptions = {}) {
   }
   let released = 0
   let acquired = 0
-  const construction: RuntimeConstruction<TestPlan, object> = {
+  const construction: SessionModelConstruction<TestPlan, object> = {
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
     ...referencePorts(host, calls),
     maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },
@@ -168,7 +170,7 @@ function buildRuntime(host: Host, options: RuntimeOptions = {}) {
     },
     diagnostic() {},
   }
-  const runtime = createModelRuntime(construction)
+  const runtime = createSessionModelRuntime(construction)
   return {
     runtime,
     wire,

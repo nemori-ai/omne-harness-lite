@@ -127,6 +127,8 @@ export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>>
     'tool-definition',
   ],
   'tool-execution-runtime': [
+    // B01 SR6: original Tool participation uses public shared Unit types, not a storage backend.
+    'storage',
     // TE-25 uses the shared pure close-control types; this does not grant a Cordis face.
     'assembly-lifecycle',
     // Adopted r10 i1/b1: the public runtime factory receives the core RunnerServiceHost read port.
@@ -332,6 +334,16 @@ const treeBindingPath = (path: string): boolean =>
     name => path === `core/cordis-plugin-tree/src/${name}`,
   )
 
+function ownerImplementationImport(pkg: string, path: string, specifier: string): boolean {
+  if (path === 'core/model-request-runtime/src/model-log-history.ts' && specifier === 'immutable')
+    return true
+  return (
+    CORDIS_DEFINITION_OWNERS.has(pkg) &&
+    path === `core/${pkg}/src/cordis.ts` &&
+    specifier === '@deepseek-ai/cordis'
+  )
+}
+
 function allowedExternal(
   pkg: string,
   dependencies: readonly string[],
@@ -356,13 +368,7 @@ function allowedExternal(
     )
       return true
   }
-  // IC-4: only the explicitly exported Cordis face may load the kernel.
-  if (
-    CORDIS_DEFINITION_OWNERS.has(pkg) &&
-    path === `core/${pkg}/src/cordis.ts` &&
-    specifier === '@deepseek-ai/cordis'
-  )
-    return true
+  if (ownerImplementationImport(pkg, path, specifier)) return true
   if (
     (specifier === 'node:module' || specifier === 'module') &&
     FIXED_SCHEMA_MODULE_SITES.has(path)

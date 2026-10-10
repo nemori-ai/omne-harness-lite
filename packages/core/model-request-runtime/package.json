@@ -32,6 +32,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "immutable": "catalog:",
     "@omne-harness-lite/content-blocks": "workspace:*",
     "@omne-harness-lite/call-accounts": "workspace:*",
     "@omne-harness-lite/tool-definition": "workspace:*",

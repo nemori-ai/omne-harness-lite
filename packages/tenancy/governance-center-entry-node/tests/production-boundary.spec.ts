@@ -73,11 +73,11 @@ describe('EC2 real SQLite commit boundary', () => {
     const original = await organizations(c)
     c.clock.advance(100)
     c.storage.failNextCommit()
-    expect(await request(c, s, OG(21))).toBe('unavailable')
+    expect(await request(c, s, OG(21), { name: 'test organization' })).toBe('unavailable')
     expect(await organizations(c)).toEqual(original)
     expect(await activity(c, s)).toEqual(before)
     expect(c.events.defect).toBe(0)
-    expect(await request(c, s, OG(21))).toHaveProperty('result')
+    expect(await request(c, s, OG(21), { name: 'test organization' })).toHaveProperty('result')
     expect(await organizations(c)).toHaveLength(original.length + 1)
     expect((await activity(c, s))['last_activity_at']).toBe(c.clock.current)
   })
@@ -96,7 +96,7 @@ describe('EC2 real SQLite commit boundary', () => {
         return {
           ...face,
           createTeam: async account => {
-            const result = await face.createTeam(account)
+            const result = await face.createTeam(account, 'test organization')
             if (failure === 'clock') c.clock.unavailable = true
             if (failure === 'schema') return { ok: { organization: '', tenant: {} } } as never
             if (failure === 'throw') throw new TypeError('injected after provisional success')
@@ -114,7 +114,7 @@ describe('EC2 real SQLite commit boundary', () => {
         }
       })
       c.clock.advance(100)
-      expect(await request(c, s, OG(21))).toBe('unavailable')
+      expect(await request(c, s, OG(21), { name: 'test organization' })).toBe('unavailable')
       c.clock.unavailable = false
       expect(await organizations(c)).toEqual(before)
       expect(await activity(c, s)).toEqual(loginBefore)
@@ -127,7 +127,7 @@ describe('EC2 real SQLite commit boundary', () => {
     const personal = value(await request(c, s, OG(36)))
     if (typeof personal !== 'object' || personal === null || !('account' in personal))
       throw new Error('tenant')
-    const team = value(await request(c, s, OG(21)))
+    const team = value(await request(c, s, OG(21), { name: 'test organization' }))
     const selected = { organization: team, account: personal.account }
     const switchPayload = { expectedTenant: personal, targetTenant: selected }
     expect(await request(c, s, OG(37), switchPayload)).toEqual({ result: 'ok' })
@@ -151,7 +151,7 @@ describe('EC2 real SQLite commit boundary', () => {
     const personal = value(await request(c, s, OG(36)))
     if (typeof personal !== 'object' || personal === null || !('account' in personal))
       throw new Error('tenant')
-    const team = value(await request(c, s, OG(21)))
+    const team = value(await request(c, s, OG(21), { name: 'test organization' }))
     const tenant = { organization: team, account: personal.account }
     await request(c, s, OG(37), { expectedTenant: personal, targetTenant: tenant })
     const member = await registerAndLogin(c, 'member@example.invalid')

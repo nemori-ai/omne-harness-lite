@@ -151,6 +151,11 @@ export interface SessionRuntime {
     | Failure<'notFound' | 'invalidTransition' | 'identityConflict'>
   >
 }
+/** Public ingress subset. It does not advertise cancellation or archive operations. */
+export type SessionIngressOperations = Pick<
+  SessionRuntime,
+  'createSession' | 'readSession' | 'submitInput' | 'readReceipt' | 'readProgress'
+>
 export type CoordinationStep =
   | { readonly kind: 'startRun'; readonly stepKey: string; readonly inputPosition: JsonNumber }
   | {
@@ -206,6 +211,16 @@ export type CoordinationStep =
       readonly run: RunId
       readonly cancellation: Receipt
     }
+/** Lifecycle transitions, excluding the cancellation governance steps. */
+export type SessionLifecycleStep = Extract<
+  CoordinationStep,
+  { kind: 'startRun' | 'startAttempt' | 'adoptInput' | 'prepareCall' | 'adoptResult' | 'finish' }
+>
+/** Observation of a completed new-Run login check for one pending input. It grants no authority. */
+export interface SessionRunAdmissionBlock {
+  readonly inputPosition: JsonNumber
+  readonly reason: 'loginRejected' | 'confirmationUnavailable'
+}
 export type StepCommit =
   | {
       readonly kind: 'committed'
@@ -214,15 +229,24 @@ export type StepCommit =
       readonly permit: AttemptPermit | null
     }
   | { readonly kind: 'unknownCommit'; readonly scope: SessionScope; readonly stepKey: string }
-  | Failure<
+  | (Failure<
       'invalidInput' | 'retryFromFacts' | 'staleAttempt' | 'terminal' | 'denied' | 'unavailable'
-    >
+    > & { readonly admission?: SessionRunAdmissionBlock })
 export interface SessionCoordination {
   readonly commitStep: (
     authority: CoordinationAuthority,
     scope: SessionScope,
     expectedSource: SourceToken,
     step: CoordinationStep,
+  ) => Promise<StepCommit>
+}
+/** Trusted lifecycle subset. Availability does not convey a coordination authority. */
+export interface SessionLifecycle {
+  readonly commitStep: (
+    authority: CoordinationAuthority,
+    scope: SessionScope,
+    expectedSource: SourceToken,
+    step: SessionLifecycleStep,
   ) => Promise<StepCommit>
 }
 export interface AttemptStartedFact {

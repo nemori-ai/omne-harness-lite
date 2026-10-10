@@ -10,7 +10,8 @@
 | --- | --- |
 | `.` | `createEvaluationInputReader`、`evaluationInputMigrations` 和依赖/reader类型 |
 | `./cordis` | `evaluationInputStorePlugin`；共享 CurrentEvaluationInputs Service及支持端口归asset-evaluation |
-| `./publication` | 可信 `publishLocalInputs`、`captureSessionRecipe`、`readPublicationRevision` 及发布类型 |
+| `./publication` | 可信 `publishLocalInputs`、`installOfficialFactoryDefinition`、`captureSessionRecipe`、`readPublicationRevision` 及发布类型 |
+| `./admitted` | 固定Session的原创建配方捕获，以及按当前成员或原Run资格读取输入与注册表来源，见[SPEC](SPEC.md) |
 | `./registry-inputs` | 供已准入 registry 调用者使用的受限固定根读取器 |
 | `./registry-history` | `createRegistryHistoryReader` 及历史类型，读取已授权精确历史正文 |
 
@@ -61,3 +62,11 @@ pnpm --filter @omne-harness-lite/evaluation-input-store... run build
 pnpm --filter @omne-harness-lite/evaluation-input-store run typecheck
 pnpm --filter @omne-harness-lite/evaluation-input-store run test
 ```
+
+## 已准入会话来源
+
+会话宿主经./admitted传入原G28当前成员与内部调用授权单元，以及原创建票据的持久角色。角色只作配方，每次读取仍核当前权限。该来源沿用同一持久发布与配方存储，不伪装成组织治理服务。原同库治理读取器保持原使用范围。捕获和读取共用关闭责任，借入资源由宿主收场。
+
+createRunRegistryReaders经原Run单元读取固定根可用性和精确历史正文。它拒绝reload和跨Session请求，复用独立注册表读取器的来源校验与不可变版本查询。宿主须先关闭并排空两个读取器，再释放借入的journal、manifest和Storage。
+
+createRunEvaluationInputReader在原Run grant下读取同一当前配方和发布。宿主提供实际授权的租户单元。该读面不能捕获配方或授模型执行权；关闭撤新读取并排空原工作。

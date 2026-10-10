@@ -24,7 +24,7 @@
           "const": "omne-center-backup/2"
         },
         "centerId": {
-          "$ref": "https://omne-harness-lite.invalid/meta-harness/omne-harness-lite-design-2026-09-15/spec/compositions/governance-center-entry/v3/governance-center-entry.schema.json#/$defs/GovernanceCenterId"
+          "$ref": "https://omne-harness-lite.invalid/packages/core/governance-center-entry/schema/governance-center-entry.schema.json#/$defs/GovernanceCenterId"
         },
         "sourceBuildId": {
           "anyOf": [
@@ -85,10 +85,7 @@
               "maximum": 9007199254740991
             }
           },
-          "required": [
-            "writtenAt",
-            "upperBound"
-          ],
+          "required": ["writtenAt", "upperBound"],
           "additionalProperties": false
         }
       },
@@ -116,10 +113,7 @@
           "$ref": "#/$defs/Metadata"
         }
       },
-      "required": [
-        "fileName",
-        "metadata"
-      ],
+      "required": ["fileName", "metadata"],
       "additionalProperties": false
     },
     "BackupInput": {
@@ -129,9 +123,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "onlyIfDue"
-      ],
+      "required": ["onlyIfDue"],
       "additionalProperties": false
     },
     "BackupStatusInput": {
@@ -147,9 +139,7 @@
           "$ref": "#/$defs/MaintenanceLocation"
         }
       },
-      "required": [
-        "sourceLocation"
-      ],
+      "required": ["sourceLocation"],
       "additionalProperties": false
     },
     "RestoreIsolatedInput": {
@@ -162,10 +152,7 @@
           "$ref": "#/$defs/MaintenanceLocation"
         }
       },
-      "required": [
-        "sourceLocation",
-        "targetLocation"
-      ],
+      "required": ["sourceLocation", "targetLocation"],
       "additionalProperties": false
     },
     "BackupOutcomeUnknown": {
@@ -181,11 +168,7 @@
           "type": "null"
         }
       },
-      "required": [
-        "status",
-        "fileName",
-        "targetLocation"
-      ],
+      "required": ["status", "fileName", "targetLocation"],
       "additionalProperties": false
     },
     "RestoreOutcomeUnknown": {
@@ -201,11 +184,7 @@
           "$ref": "#/$defs/MaintenanceLocation"
         }
       },
-      "required": [
-        "status",
-        "fileName",
-        "targetLocation"
-      ],
+      "required": ["status", "fileName", "targetLocation"],
       "additionalProperties": false
     },
     "BackupResult": {
@@ -220,10 +199,7 @@
               "$ref": "#/$defs/BackupDescriptor"
             }
           },
-          "required": [
-            "status",
-            "backup"
-          ],
+          "required": ["status", "backup"],
           "additionalProperties": false
         },
         {
@@ -236,10 +212,7 @@
               "$ref": "#/$defs/BackupDescriptor"
             }
           },
-          "required": [
-            "status",
-            "backup"
-          ],
+          "required": ["status", "backup"],
           "additionalProperties": false
         },
         {
@@ -257,9 +230,7 @@
               ]
             }
           },
-          "required": [
-            "status"
-          ],
+          "required": ["status"],
           "additionalProperties": false
         },
         {
@@ -287,12 +258,7 @@
               "maximum": 256
             }
           },
-          "required": [
-            "status",
-            "health",
-            "latest",
-            "invalidCount"
-          ],
+          "required": ["status", "health", "latest", "invalidCount"],
           "additionalProperties": false
         },
         {
@@ -302,10 +268,7 @@
               "const": "observed"
             },
             "health": {
-              "enum": [
-                "current",
-                "overdue"
-              ]
+              "enum": ["current", "overdue"]
             },
             "latest": {
               "$ref": "#/$defs/BackupDescriptor"
@@ -316,30 +279,17 @@
               "maximum": 256
             }
           },
-          "required": [
-            "status",
-            "health",
-            "latest",
-            "invalidCount"
-          ],
+          "required": ["status", "health", "latest", "invalidCount"],
           "additionalProperties": false
         },
         {
           "type": "object",
           "properties": {
             "status": {
-              "enum": [
-                "invalid-input",
-                "busy",
-                "unavailable",
-                "capacity",
-                "cancelled"
-              ]
+              "enum": ["invalid-input", "busy", "unavailable", "capacity", "cancelled"]
             }
           },
-          "required": [
-            "status"
-          ],
+          "required": ["status"],
           "additionalProperties": false
         },
         {
@@ -362,11 +312,7 @@
               "const": false
             }
           },
-          "required": [
-            "status",
-            "metadata",
-            "businessOpen"
-          ],
+          "required": ["status", "metadata", "businessOpen"],
           "additionalProperties": false
         },
         {
@@ -383,9 +329,7 @@
               ]
             }
           },
-          "required": [
-            "status"
-          ],
+          "required": ["status"],
           "additionalProperties": false
         }
       ]
@@ -408,12 +352,7 @@
               "const": false
             }
           },
-          "required": [
-            "status",
-            "metadata",
-            "targetLocation",
-            "businessOpen"
-          ],
+          "required": ["status", "metadata", "targetLocation", "businessOpen"],
           "additionalProperties": false
         },
         {
@@ -431,9 +370,7 @@
               ]
             }
           },
-          "required": [
-            "status"
-          ],
+          "required": ["status"],
           "additionalProperties": false
         },
         {

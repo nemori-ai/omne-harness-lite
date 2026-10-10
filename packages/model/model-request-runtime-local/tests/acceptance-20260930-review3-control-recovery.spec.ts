@@ -1,3 +1,13 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 /**
@@ -20,13 +30,13 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createModelCallContentStore } from '../src/reference-content.ts'
-import { createModelCallFacts } from '../src/reference-facts.ts'
+
 import type { CallAccess, CallPresence } from '@omne-harness-lite/model-request-runtime'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import type {
@@ -165,7 +175,7 @@ async function runtimeOver(
     storage: host.storage,
     policy: { maxConcurrentWrites: 4, maxContentBytes: 1_000_000 },
   })
-  const callFacts = createModelCallFacts({ content, presence: callPresence, maxScopes: 4 })
+  const callFacts = createSessionModelCallFacts({ content, presence: callPresence, maxScopes: 4 })
   const callAccess: CallAccess = {
     async check(input, admitted) {
       const found = await callFacts.lookup({ binding: input.binding, ref: input.ref })
@@ -205,7 +215,14 @@ async function runtimeOver(
   let nextCall = 0
   let nextResponse = 0
   const diagnostics: string[] = []
-  const construction: RuntimeConstruction<TestPlan, object> = {
+  const construction: SessionModelConstruction<TestPlan, object> = {
+    execute: ({ input }) => ({ invocation: invokeModel(input) }),
+    acknowledgementFactory: createSessionModelAcknowledgement,
+    settlementFactory: sessionModelSettlement,
+    recordPublication: publishSessionModelCallContent,
+    requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     callAccess,
     callPresence,
     callFacts,
@@ -268,7 +285,7 @@ async function runtimeOver(
       diagnostics.push(event.kind)
     },
   }
-  return { runtime: createModelRuntime(construction), diagnostics }
+  return { runtime: createSessionModelRuntime(construction), diagnostics }
 }
 
 describe('A22-V16′ N-5: the control recovery after an unknown intent receipt (service-control)', () => {

@@ -6,7 +6,7 @@
     "node": ">=24.18.0 <25"
   },
   "scripts": {
-    "build": "pnpm -r --filter './packages/**' --filter './apps/**' --filter './examples/**' --filter './tools/ts-checks' --filter './tools/core-verification' --filter './tools/artifact-builder' run build",
+    "build": "pnpm -r --filter './packages/**' --filter './apps/**' --filter './tools/ts-checks' --filter './tools/core-verification' --filter './tools/artifact-builder' run build",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm run build && pnpm run test:members",
     "test:members": "./scripts/with-test-slot.sh node --experimental-strip-types tools/ts-checks/src/testing/cli.ts run --all",

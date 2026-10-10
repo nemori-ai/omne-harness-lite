@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
-const ec: { readonly $id: string } = require('@omne-harness-lite/governance-center-entry/schema/v2')
+const ec: { readonly $id: string } = require('@omne-harness-lite/governance-center-entry/schema')
 const iv: { readonly $id: string } = require('@omne-harness-lite/identity-values/schema')
 const oe: { readonly $id: string } = require('@omne-harness-lite/offer-expiry/schema')
 export const schemaGraphs = [
@@ -11,7 +11,7 @@ export const schemaGraphs = [
     resourceSpecifiers: [
       '@omne-harness-lite/identity-values/schema',
       '@omne-harness-lite/offer-expiry/schema',
-      '@omne-harness-lite/governance-center-entry/schema/v2',
+      '@omne-harness-lite/governance-center-entry/schema',
     ],
     sourceFiles: ['src/schema-inputs.ts'],
     options: { strict: true, strictTypes: false, strictRequired: false, validateFormats: false },

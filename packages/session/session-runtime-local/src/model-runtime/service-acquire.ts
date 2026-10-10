@@ -1,0 +1,603 @@
+import type {
+  AcknowledgedCallView,
+  CallAccessEvidence,
+  CallAccessResult,
+  AcknowledgedCallFacts,
+  CallPresenceFact,
+  AcquireCallInput,
+  AcquireCallResult,
+  CallConsumer,
+  CallOrigin,
+  ModelObserverRequest,
+  ObserverReceiver,
+  RetainedCallReadView,
+  RuntimeCloseResult,
+} from '@omne-harness-lite/model-request-runtime'
+import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
+import { isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
+import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
+import { createIndependentCallConsumer } from './reference-consumer.ts'
+import { createModelObserverQueue } from './service-observer-queue.ts'
+import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
+import { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
+import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
+import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
+import type {
+  SessionModelConstruction,
+  ModelObserverQueue,
+  CallContainerView,
+} from './service-types.ts'
+import type { AuthorizedCallObserver } from '@omne-harness-lite/model-request-runtime'
+import type { CallFacts } from '@omne-harness-lite/model-request-runtime'
+import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
+
+const unavailable = Object.freeze({ unavailable: true } as const)
+const malformed = Object.freeze({ invalidInput: { reason: 'malformed' } } as const)
+function validAcquireRef(input: AcquireCallInput): boolean {
+  return !(
+    input === null ||
+    typeof input !== 'object' ||
+    Array.isArray(input) ||
+    input.ref === null ||
+    typeof input.ref !== 'object' ||
+    Array.isArray(input.ref) ||
+    Object.keys(input.ref).length !== 2 ||
+    !Object.hasOwn(input.ref, 'session') ||
+    !Object.hasOwn(input.ref, 'callId')
+  )
+}
+function validAcquireMode(input: AcquireCallInput): boolean {
+  return !(
+    (input.mode !== 'read' && input.mode !== 'wait') ||
+    (input.mode === 'read' && input.observer !== undefined)
+  )
+}
+function validAcquireObserver(
+  value: ModelObserverRequest,
+  session: AcquireCallInput['ref']['session'],
+): boolean {
+  return !(
+    value === null ||
+    typeof value !== 'object' ||
+    value.session !== session ||
+    value.endpoint === null ||
+    typeof value.endpoint !== 'object' ||
+    typeof value.endpoint.open !== 'function' ||
+    ![value.observer_max_buffered_events, value.observer_max_buffered_bytes].every(
+      n => isNonNegativeJsonInteger(n) && ExactDecimal.from(n).compare(ExactDecimal.from(0)) > 0,
+    )
+  )
+}
+function captureAcquireObserver(
+  value: ModelObserverRequest,
+  session: AcquireCallInput['ref']['session'],
+): ModelObserverRequest {
+  const endpoint = value.endpoint
+  const open = endpoint.open
+  return Object.freeze({
+    session,
+    endpoint: Object.freeze({
+      open: (scope: Parameters<typeof open>[0]) => open.call(endpoint, scope),
+    }),
+    observer_max_buffered_events: value.observer_max_buffered_events,
+    observer_max_buffered_bytes: value.observer_max_buffered_bytes,
+  })
+}
+function inspectAcquireObserver(
+  input: AcquireCallInput,
+  session: AcquireCallInput['ref']['session'],
+): { readonly observer?: ModelObserverRequest } | typeof malformed {
+  if (input.observer === undefined) return {}
+  const value = input.observer
+  if (!validAcquireObserver(value, session)) return malformed
+  return { observer: captureAcquireObserver(value, session) }
+}
+function ownInput(input: AcquireCallInput): AcquireCallInput | typeof malformed {
+  if (!validAcquireRef(input)) return malformed
+  const session = parseOpaqueIdentifier(input.ref.session, 'SessionRef')
+  const call = parseOpaqueIdentifier(input.ref.callId, 'ModelCallId')
+  if (!('ok' in session) || !('ok' in call) || !validAcquireMode(input)) return malformed
+  const inspected = inspectAcquireObserver(input, session.ok)
+  if ('invalidInput' in inspected) return inspected
+  const observer = inspected.observer
+  return Object.freeze({
+    ref: Object.freeze({ session: session.ok, callId: call.ok }),
+    mode: input.mode,
+    ...(observer === undefined ? {} : { observer }),
+  })
+}
+
+/** The same original association: current binding owner and both origins equal. */
+function sameOrigin(first: CallOrigin, next: CallOrigin, binding: SettlementLogBinding): boolean {
+  return (
+    next.session === binding.session &&
+    tenantIdEquals(next.tenant, binding.tenant) &&
+    first.session === next.session &&
+    tenantIdEquals(first.tenant, next.tenant) &&
+    first.run === next.run &&
+    (first.attempt === undefined) === (next.attempt === undefined) &&
+    (first.attempt === undefined ||
+      next.attempt === undefined ||
+      ExactDecimal.from(first.attempt).compare(ExactDecimal.from(next.attempt)) === 0)
+  )
+}
+
+type AcquiredFacts = Awaited<ReturnType<CallFacts['lookup']>>
+function availableFirstFacts(first: AcquiredFacts): boolean {
+  return 'view' in first || 'acknowledged' in first || 'callNotFound' in first
+}
+function initialOrigin(first: AcquiredFacts): CallOrigin | undefined {
+  return 'view' in first
+    ? first.view.origin
+    : 'acknowledged' in first
+      ? first.acknowledged.origin
+      : undefined
+}
+function matchingAcknowledged(
+  facts: AcknowledgedCallFacts,
+  firstOrigin: CallOrigin | undefined,
+  binding: SettlementLogBinding,
+  owned: AcquireCallInput,
+): boolean {
+  return !(
+    firstOrigin === undefined ||
+    facts.ref.session !== owned.ref.session ||
+    facts.ref.callId !== owned.ref.callId ||
+    facts.source.generation !== binding.generation ||
+    !sameOrigin(firstOrigin, facts.origin, binding)
+  )
+}
+function matchingRetained(
+  view: RetainedCallReadView,
+  first: { readonly view: RetainedCallReadView },
+  binding: SettlementLogBinding,
+  owned: AcquireCallInput,
+): boolean {
+  return !(
+    view.ref.session !== owned.ref.session ||
+    view.ref.callId !== owned.ref.callId ||
+    view.source.generation !== binding.generation ||
+    !sameOrigin(first.view.origin, view.origin, binding)
+  )
+}
+function smallAcquisition(
+  small: AcknowledgedCallView | typeof unavailable,
+  current: () => boolean,
+): AcquireCallResult {
+  if ('unavailable' in small) return unavailable
+  const acknowledged: { readonly view: AcknowledgedCallView; readonly consumer?: never } = {
+    view: small,
+  }
+  return current() ? acknowledged : unavailable
+}
+function currentPresence(
+  presence: CallPresenceFact,
+  view: RetainedCallReadView,
+  current: () => boolean,
+): presence is Exclude<CallPresenceFact, { readonly kind: 'notFound' }> {
+  return !(
+    !current() ||
+    presence.kind === 'notFound' ||
+    presence.source.generation !== view.source.generation ||
+    ExactDecimal.from(presence.source.progress).compare(ExactDecimal.from(view.source.progress)) !==
+      0
+  )
+}
+function presenceReadResult(
+  owned: AcquireCallInput,
+  actual: RetainedCallReadView,
+  presence: CallPresenceFact,
+  physical: RuntimeAcquireState,
+): { readonly view: RetainedCallReadView } | { readonly runtimeStopped: true } | undefined {
+  if (
+    owned.mode === 'read' ||
+    actual.result !== undefined ||
+    actual.state === 'open' ||
+    presence.kind !== 'live'
+  )
+    return { view: actual }
+  if (physical.closed) return { runtimeStopped: true }
+  return undefined
+}
+
+function matchingLocal<P extends PlannedSemantics, R>(
+  local: CallContainerView<P, R>,
+  presence: CallPresenceFact,
+  view: RetainedCallReadView,
+  binding: SettlementLogBinding,
+): boolean {
+  return !(
+    presence.executionGeneration !== view.presence.executionGeneration ||
+    local.executionGeneration !== presence.executionGeneration ||
+    local.session.log.generation !== binding.generation ||
+    !tenantIdEquals(local.session.log.tenant, binding.tenant)
+  )
+}
+function observedAcquisition(
+  observed:
+    { readonly read: AcquireCallResult } | { readonly invalidInput: unknown } | typeof unavailable,
+  current: () => boolean,
+): AcquireCallResult {
+  return 'read' in observed && current() ? observed.read : unavailable
+}
+function deliverableConsumer(admitted: { readonly allowed: AcquireCallResult }): admitted is {
+  readonly allowed: { readonly view: RetainedCallReadView; readonly consumer: CallConsumer }
+} {
+  return 'view' in admitted.allowed && admitted.allowed.consumer !== undefined
+}
+
+/**
+ * All attachment is inside trusted presence admission; no model task is owned by a consumer.
+ * `custody` is the runtime's shared ACK custody; a standalone component owns its own.
+ */
+export function createRuntimeAcquire<P extends PlannedSemantics, R>(
+  runtime: SessionModelConstruction<P, R>,
+  sharedCustody?: AcknowledgementCustody,
+): ProjectedComponent<
+  {
+    readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
+    readonly close: () => Promise<RuntimeCloseResult>
+  },
+  SessionModelConstruction<P, R>
+> {
+  return buildRuntimeAcquire(runtime, sharedCustody)
+}
+
+class RuntimeAcquireState {
+  readonly resources = new Set<{ readonly close: () => Promise<RuntimeCloseResult> }>()
+  closed = false
+}
+
+function buildRuntimeAcquire<P extends PlannedSemantics, R>(
+  runtime: SessionModelConstruction<P, R>,
+  sharedCustody?: AcknowledgementCustody,
+  physical: RuntimeAcquireState = new RuntimeAcquireState(),
+): ProjectedComponent<
+  {
+    readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
+    readonly close: () => Promise<RuntimeCloseResult>
+  },
+  SessionModelConstruction<P, R>
+> {
+  if (
+    typeof runtime.callAccess?.check !== 'function' ||
+    typeof runtime.callPresence?.read !== 'function' ||
+    typeof runtime.callFacts?.lookup !== 'function' ||
+    typeof runtime.callFacts.creation !== 'function' ||
+    typeof runtime.callFacts.refresh !== 'function' ||
+    typeof runtime.callFacts.close !== 'function' ||
+    typeof runtime.callFacts.content?.put !== 'function' ||
+    typeof runtime.callFacts.content.read !== 'function' ||
+    typeof runtime.callFacts.content.close !== 'function'
+  )
+    throw new TypeError('trusted access, original presence and durable call facts required')
+  const ownCustody = sharedCustody === undefined ? runtimeCustody(runtime) : undefined
+  const custody = sharedCustody ?? ownCustody
+
+  async function acquireCall(input: AcquireCallInput): Promise<AcquireCallResult> {
+    const inspected = ownInput(input)
+    if ('invalidInput' in inspected) return inspected
+    const owned = inspected
+    let acquired: CallConsumer | undefined
+    let delivered = false
+    try {
+      const bound = await runtime.sessions.bind(owned.ref.session)
+      if ('failure' in bound) return bound.failure === 'invalidInput' ? malformed : unavailable
+      const binding = bound.binding.log
+      if (binding.session !== owned.ref.session || !settlementGenerationCurrent(binding))
+        return unavailable
+      const first = await runtime.callFacts.lookup({ binding, ref: owned.ref })
+      if (!availableFirstFacts(first)) return unavailable
+      const firstOrigin = initialOrigin(first)
+      const admitAcquisition = async (evidence: CallAccessEvidence): Promise<AcquireCallResult> => {
+        function current(): boolean {
+          return (
+            evidence.action === owned.mode &&
+            evidence.ref.session === owned.ref.session &&
+            evidence.ref.callId === owned.ref.callId &&
+            evidence.source.generation === binding.generation &&
+            typeof evidence.sourceVersion === 'string' &&
+            evidence.sourceVersion.length > 0 &&
+            !evidence.revoked.aborted &&
+            settlementGenerationCurrent(binding)
+          )
+        }
+        if (!current()) return unavailable
+        const latest = await runtime.callFacts.lookup({ binding, ref: owned.ref })
+        if ('acknowledged' in latest) {
+          // RT12 S-97/S-100: the explicit small branch for read and wait alike. ACK grants no
+          // access; the current read/wait admission above still decides. No payload, presence,
+          // provider or consumer handle is taken.
+          const facts = latest.acknowledged
+          if (custody === undefined || !matchingAcknowledged(facts, firstOrigin, binding, owned))
+            return unavailable
+          const small = await custody.view(binding, facts)
+          return smallAcquisition(small, current)
+        }
+        if (!('view' in latest)) return current() ? latest : unavailable
+        if (!('view' in first)) return unavailable
+        const view = latest.view
+        if (!matchingRetained(view, first, binding, owned)) return unavailable
+        const attachPresence = async (presence: CallPresenceFact): Promise<AcquireCallResult> => {
+          if (!currentPresence(presence, view, current)) return unavailable
+          const actual: RetainedCallReadView = Object.freeze({ ...view, presence })
+          const immediate = presenceReadResult(owned, actual, presence, physical)
+          if (immediate !== undefined) return immediate
+          const container = runtime.calls.find(owned.ref)
+          const local = container?.view()
+          if (
+            container === undefined ||
+            local === undefined ||
+            !matchingLocal(local, presence, view, binding)
+          )
+            return unavailable
+          let queue: ModelObserverQueue | undefined
+          let authorization: AuthorizedCallObserver | undefined
+          let consumer: CallConsumer | undefined
+          let unregister: (() => void) | undefined
+          let closing: Promise<RuntimeCloseResult> | undefined
+          const entry = {
+            close(): Promise<RuntimeCloseResult> {
+              if (closing !== undefined) return closing
+              closing = Promise.resolve()
+                .then(async () => {
+                  consumer?.release()
+                  const actualQueue = queue
+                  const actualAuthorization = authorization
+                  const outcomes = await Promise.allSettled([
+                    ...(actualQueue === undefined
+                      ? []
+                      : [Promise.resolve().then(() => actualQueue.close())]),
+                    ...(actualAuthorization === undefined
+                      ? []
+                      : [Promise.resolve().then(() => actualAuthorization.close())]),
+                  ])
+                  if (
+                    !outcomes.every(
+                      result => result.status === 'fulfilled' && 'released' in result.value,
+                    )
+                  )
+                    return unavailable
+                  await consumer?.stopped
+                  unregister?.()
+                  unregister = undefined
+                  physical.resources.delete(entry)
+                  return { released: true as const }
+                })
+                .catch(() => unavailable)
+                .finally(() => {
+                  closing = undefined
+                })
+              return closing
+            },
+          }
+          physical.resources.add(entry)
+          const retained = local.request.host.register(entry.close)
+          if (!('registration' in retained)) {
+            await entry.close()
+            return retained
+          }
+          unregister = retained.registration.unregister
+          try {
+            const installObserver = (observed: CallContainerView<P, R>): boolean => {
+              if (owned.observer !== undefined) {
+                if (
+                  observed.operation.phase !== 'dispatching' ||
+                  observed.invocation === undefined ||
+                  bound.binding.observers === undefined
+                ) {
+                  return false
+                }
+                const authorized = bound.binding.observers.authorize({
+                  request: owned.observer,
+                  session: owned.ref.session,
+                  tenant: binding.tenant,
+                  callId: owned.ref.callId,
+                })
+                if (!('observer' in authorized)) {
+                  return false
+                }
+                authorization = authorized.observer
+                const target = observed.operation.target
+                const opened = authorization.open(target)
+                if (!('receiver' in opened)) {
+                  return false
+                }
+                const originalReceiver = opened.receiver
+                const receiver: ObserverReceiver = {
+                  stop: () => originalReceiver.stop(),
+                  stopped: originalReceiver.stopped,
+                  receive(serialized, signal) {
+                    let attempted = false
+                    let actuallyStopped = false
+                    async function deliverObserver(
+                      fresh: CallAccessEvidence,
+                    ): Promise<'unavailable' | 'delivered'> {
+                      if (
+                        !current() ||
+                        fresh.action !== 'wait' ||
+                        fresh.ref.session !== owned.ref.session ||
+                        fresh.ref.callId !== owned.ref.callId ||
+                        fresh.source.generation !== binding.generation ||
+                        fresh.revoked.aborted ||
+                        signal.aborted
+                      )
+                        return 'unavailable' as const
+                      attempted = true
+                      const task = originalReceiver.receive(
+                        serialized,
+                        AbortSignal.any([signal, fresh.revoked, evidence.revoked]),
+                      )
+                      if (
+                        !(task?.completion instanceof Promise) ||
+                        !(task.stopped instanceof Promise)
+                      )
+                        throw new TypeError('observer receive lacks actual stop proof')
+                      try {
+                        await task.completion
+                      } finally {
+                        await task.stopped
+                        actuallyStopped = true
+                      }
+                      return 'delivered' as const
+                    }
+                    const completion = runtime.callAccess
+                      .check(
+                        { binding, ref: owned.ref, action: 'wait', origin: actual.origin },
+                        deliverObserver,
+                      )
+                      .then(result => {
+                        if (!('allowed' in result) || result.allowed !== 'delivered')
+                          throw new Error('observer access unavailable')
+                      })
+                    const stopped = completion.then(
+                      () => undefined,
+                      async () => {
+                        // A throwing/bad provider may have begun receiving: require its real global stop.
+                        if (attempted && !actuallyStopped) await originalReceiver.stopped
+                      },
+                    )
+                    return { completion, stopped }
+                  },
+                }
+                queue = createModelObserverQueue({
+                  scope: { session: owned.ref.session, tenant: binding.tenant, target },
+                  authorization,
+                  receiver,
+                  maxBufferedEvents: owned.observer.observer_max_buffered_events,
+                  maxBufferedBytes: owned.observer.observer_max_buffered_bytes,
+                  diagnostic: event => {
+                    try {
+                      drainDiagnosticThenable(
+                        runtime.policy.diagnostic({
+                          kind: 'model_observer.delivery',
+                          detail: {
+                            stage: event.stage,
+                            reason: event.reason,
+                            callId: event.callId,
+                            dispatch: event.dispatch,
+                          },
+                        }),
+                      )
+                    } catch {
+                      /* Diagnostic failure does not authorize delivery. */
+                    }
+                  },
+                })
+              }
+              return true
+            }
+            if (!installObserver(local)) {
+              await entry.close()
+              return unavailable
+            }
+            const observerSnapshot = (
+              observed: CallContainerView<P, R>,
+            ): Pick<
+              Parameters<typeof createIndependentCallConsumer>[0],
+              'queue' | 'initialSnapshot'
+            > => {
+              return queue === undefined || observed.invocation === undefined
+                ? {}
+                : { queue, initialSnapshot: observed.invocation.snapshot() }
+            }
+            const original = local.executionGeneration
+            consumer = createIndependentCallConsumer({
+              container,
+              revoked: evidence.revoked,
+              // A replaced execution invalidates this handle; a container that was merely
+              // released (for example by ACK cleanup, RT12 S-97) does not: the next read
+              // answers from the durable facts, the small acknowledged view included.
+              valid: () => {
+                if (!current()) return false
+                const found = runtime.calls.find(owned.ref)
+                return found === undefined || found.view().executionGeneration === original
+              },
+              read: async () => {
+                const read = await acquireCall({ ref: owned.ref, mode: 'read' })
+                return 'view' in read ? { view: read.view } : unavailable
+              },
+              ...observerSnapshot(local),
+              onStopped: () => {
+                // This original entry retains the cleanup promise; failed cleanup remains retryable.
+                entry.close()
+              },
+            })
+            acquired = consumer
+            if (!current()) {
+              await entry.close()
+              return unavailable
+            }
+            return { view: actual, consumer }
+          } catch {
+            await entry.close()
+            return unavailable
+          }
+        }
+        const observed = await runtime.callPresence.read(
+          {
+            ref: owned.ref,
+            origin: view.origin,
+            source: view.source,
+            executionGeneration: view.presence.executionGeneration,
+          },
+          attachPresence,
+        )
+        return observedAcquisition(observed, current)
+      }
+      const admitted = await runtime.callAccess.check(
+        {
+          binding,
+          ref: owned.ref,
+          action: owned.mode,
+          ...(firstOrigin === undefined ? {} : { origin: firstOrigin }),
+        },
+        admitAcquisition,
+      )
+      function finishAcquisition(admitted: CallAccessResult<AcquireCallResult>): AcquireCallResult {
+        if ('allowed' in admitted) {
+          if (!settlementGenerationCurrent(binding) || admitted.evidence.revoked.aborted) {
+            if ('view' in admitted.allowed) admitted.allowed.consumer?.release()
+            return unavailable
+          }
+          if (deliverableConsumer(admitted) && physical.closed) {
+            admitted.allowed.consumer.release()
+            return { runtimeStopped: true }
+          }
+          delivered = deliverableConsumer(admitted)
+          return admitted.allowed
+        }
+        return 'invalidInput' in admitted ? admitted : unavailable
+      }
+      return finishAcquisition(admitted)
+    } catch {
+      return unavailable
+    } finally {
+      // A revoked admission can discard the result after a genuine consumer was created.
+      // The provider cannot observe that hidden handle. Keep this acquisition outstanding
+      // until its original read/receiver tasks actually stop, so its host borrow stays held.
+      if (acquired && !delivered) {
+        acquired.release()
+        await acquired.stopped
+      }
+    }
+  }
+  return retainRuntimeProjection(
+    Object.freeze({
+      acquireCall,
+      async close() {
+        physical.closed = true
+        const outcomes = await Promise.allSettled([
+          ...[...physical.resources].map(resource => resource.close()),
+          ...(ownCustody === undefined ? [] : [ownCustody.close()]),
+        ])
+        return physical.resources.size === 0 &&
+          outcomes.every(result => result.status === 'fulfilled' && 'released' in result.value)
+          ? { released: true as const }
+          : unavailable
+      },
+    }),
+    (next: SessionModelConstruction<P, R>) => buildRuntimeAcquire(next, sharedCustody, physical),
+  )
+}

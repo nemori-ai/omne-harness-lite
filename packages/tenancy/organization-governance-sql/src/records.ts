@@ -35,6 +35,7 @@ import {
 } from './governance-data.ts'
 import {
   AFFILIATION_DIRECTIONS,
+  parseOrganizationName,
   type AffiliationDirection,
   type AffiliationRequestId,
   type InvitationId,
@@ -78,6 +79,7 @@ function nullable<T>(value: unknown, parse: (v: unknown) => Parsed<T>): Parsed<T
 export interface OrganizationRecord {
   readonly id: OrganizationId
   readonly kind: OrganizationKind
+  readonly name: string
   readonly parent: OrganizationId | null
   readonly ownerAccount: AccountId | null
 }
@@ -87,11 +89,13 @@ export function decodeOrganization(row: {
   kind: unknown
   parent: unknown
   owner_account: unknown
+  name: unknown
 }): OrganizationRecord {
   const t = OG_TABLES.organization
   return {
     id: field(t, 'organization_id', parseOrganizationId(row.organization_id)),
     kind: field(t, 'kind', parseOrganizationKind(row.kind)),
+    name: field(t, 'name', parseOrganizationName(row.name)),
     parent: field(t, 'parent', nullable(row.parent, parseOrganizationId)),
     ownerAccount: field(t, 'owner_account', nullable(row.owner_account, parseAccountId)),
   }

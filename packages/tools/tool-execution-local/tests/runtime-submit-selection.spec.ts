@@ -14,13 +14,13 @@ test('public factory executes the selected implementation and recognizes duplica
     expect(f.implementation.mock.calls[0]?.[0]).toEqual({ value: 'captured' })
     expect(f.acquire).toHaveBeenCalledWith(f.selected)
     expect(await f.runtime.operations.submit(f.submitted)).toEqual({
-      kind: 'recorded',
+      kind: 'recognized',
       execution: ref,
     })
     await f.runtime.idle()
     expect(f.implementation).toHaveBeenCalledTimes(1)
     expect(f.recordResult).toHaveBeenCalledTimes(1)
-    expect(f.append.mock.calls.flatMap(call => call[1])).toHaveLength(3)
+    expect(f.appendIn.mock.calls.flatMap(call => call[2].entries)).toHaveLength(3)
     expect(await f.runtime.operations.acquire(Object.freeze({}) as typeof access, ref)).toEqual({
       kind: 'rejected',
       reason: 'notAuthorized',
@@ -39,7 +39,7 @@ test('withdrawn registration keeps adopted history but never enters the author',
       kind: 'recorded',
       execution: ref,
     })
-    await assertFinished(f, { outcome: 'unavailable', reason: 'unavailable' }, false)
+    await assertFinished(f, { outcome: 'unavailable', reason: 'unavailable' }, true)
     expect(f.acquire).toHaveBeenCalledWith(f.selected)
     expect(f.implementation).not.toHaveBeenCalled()
     expect(f.bindContext).not.toHaveBeenCalled()

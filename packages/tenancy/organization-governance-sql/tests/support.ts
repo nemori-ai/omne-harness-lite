@@ -516,7 +516,7 @@ export async function teamWith(
   readonly members: readonly TenantId[]
 }> {
   const creator = await registeredUser(h)
-  const team = await h.organizations.createTeam(creator.account)
+  const team = await h.organizations.createTeam(creator.account, 'test organization')
   if (!('ok' in team)) throw new Error(`createTeam failed: ${team.failure}`)
   const owner = team.ok.tenant
   const joined: TenantId[] = []

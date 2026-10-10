@@ -30,5 +30,3 @@ export const modelDefaultRetry = definePlugin({
     ctx.loopExtensionImplementations.registerBuiltin(DEFAULT_RETRY_BUILTIN, implementation)
   },
 })
-
-export * from './service-plugin.ts'

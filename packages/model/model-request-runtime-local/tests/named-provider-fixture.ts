@@ -1,3 +1,14 @@
+import { createModelCallContentStore } from '@omne-harness-lite/model-request-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
+import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
+import {
+  publishSessionModelCallContent,
+  sessionModelRequestPreparation,
+} from '@omne-harness-lite/session-runtime-local'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { createAssemblyLifetime } from '@omne-harness-lite/assembly-lifecycle'
@@ -18,10 +29,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
 import {
-  createModelRuntimeLocal,
-  type ModelRuntimeLocalConfig,
-  type ModelRuntimeLocalConstruction,
-} from '../src/service-plugin.ts'
+  createSessionModelRuntimeLocal,
+  type SessionModelRuntimeConfig,
+  type SessionModelRuntimeConstruction,
+} from '@omne-harness-lite/session-runtime-local/cordis'
 import { modelCallContentMigrations } from '../src/reference-content.ts'
 import { policy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
@@ -82,8 +93,21 @@ export async function namedProviderFixture(
     readonly release?: () => void
     readonly support?: ModelRuntimeExecutionSupport
     readonly deferDependencies?: boolean
-    readonly config?: ModelRuntimeLocalConfig
-    readonly construction?: ModelRuntimeLocalConstruction
+    readonly config?: SessionModelRuntimeConfig
+    readonly callFactsFactory?: SessionModelRuntimeConstruction['callFactsFactory']
+    readonly settlementFactory?: SessionModelRuntimeConstruction['settlementFactory']
+    readonly construction?: Omit<
+      SessionModelRuntimeConstruction,
+      | 'requestPreparation'
+      | 'selectionFactory'
+      | 'readFactory'
+      | 'recordPublication'
+      | 'acknowledgementFactory'
+      | 'settlementFactory'
+      | 'callFactsFactory'
+      | 'execute'
+      | 'createContentStore'
+    >
     readonly transport?: Pick<ModelTransportService, 'clearReuseScope' | 'acquire'>
   } = {},
 ) {
@@ -95,7 +119,18 @@ export async function namedProviderFixture(
     migrations: composeMigrations(modelCallContentMigrations('sqlite')),
   })
   const ctx = new Context(),
-    binding = createModelRuntimeLocal(options.construction)
+    binding = createSessionModelRuntimeLocal({
+      execute: ({ input }) => ({ invocation: invokeModel(input) }),
+      createContentStore: createModelCallContentStore,
+      ...options.construction,
+      acknowledgementFactory: createSessionModelAcknowledgement,
+      callFactsFactory: options.callFactsFactory ?? createSessionModelCallFacts,
+      settlementFactory: options.settlementFactory ?? sessionModelSettlement,
+      recordPublication: publishSessionModelCallContent,
+      requestPreparation: sessionModelRequestPreparation,
+      selectionFactory: createSessionModelSelection,
+      readFactory: createSessionModelReads,
+    })
   const lifetime = createAssemblyLifetime(['model'], binding.closeAdmission)
   if (!lifetime.tryClaim()) throw new Error('fixture lifetime claim')
   const captures: Fiber[] = []

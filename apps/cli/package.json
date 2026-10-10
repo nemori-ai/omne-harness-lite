@@ -3,17 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "D049 governance CLI file-input increment",
+  "description": "OMNE terminal sessions and tenant governance",
   "engines": {
     "node": ">=24 <25"
   },
   "bin": {
-    "omne": "./dist/main.js"
+    "omne": "./bin/omne.js"
   },
   "files": [
+    "bin",
     "dist",
-    "commands",
-    "forms",
     "generated"
   ],
   "scripts": {
@@ -23,11 +22,17 @@
     "acceptance": "vitest run --config acceptance/vitest.config.ts"
   },
   "dependencies": {
+    "@omne-harness-lite/assembly-manifest-store": "workspace:*",
+    "@omne-harness-lite/model-profile-directory": "workspace:*",
+    "@omne-harness-lite/model-profile-directory-local": "workspace:*",
+    "@omne-harness-lite/credential-custodian-local": "workspace:*",
     "@earendil-works/pi-tui": "catalog:",
     "@omne-harness-lite/client-local-state": "workspace:*",
     "@omne-harness-lite/governance-client-operations": "workspace:*",
+    "@omne-harness-lite/session-runtime-local": "workspace:*",
     "ajv": "catalog:",
     "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness-lite/organization-governance": "workspace:*",
     "@omne-harness-lite/offer-expiry": "workspace:*",
     "@omne-harness-lite/governance-center-entry": "workspace:*",
     "@omne-harness-lite/client-local-state-sqlite": "workspace:*",
@@ -37,7 +42,42 @@
     "@omne-harness-lite/governance-center-entry-https-json": "workspace:*",
     "@omne-harness-lite/governance-center-client-https": "workspace:*",
     "@omne-harness-lite/storage-sql": "workspace:*",
-    "@omne-harness-lite/kernel-basis": "workspace:*"
+    "@omne-harness-lite/storage": "workspace:*",
+    "@omne-harness-lite/kernel-basis": "workspace:*",
+    "@omne-harness-lite/runtime-context-local": "workspace:*",
+    "@omne-harness-lite/evaluation-input-store": "workspace:*",
+    "@omne-harness-lite/session-tenancy": "workspace:*",
+    "@omne-harness-lite/runtime-context": "workspace:*",
+    "@omne-harness-lite/session-log": "workspace:*",
+    "@omne-harness-lite/asset-evaluation": "workspace:*",
+    "@omne-harness-lite/content-blocks": "workspace:*",
+    "@omne-harness-lite/call-accounts": "workspace:*",
+    "@omne-harness-lite/messages": "workspace:*",
+    "zod": "catalog:",
+    "@omne-harness-lite/session-runtime": "workspace:*",
+    "@omne-harness-lite/model-request-runtime": "workspace:*",
+    "@omne-harness-lite/model-request-runtime-local": "workspace:*",
+    "@omne-harness-lite/model-response": "workspace:*",
+    "@omne-harness-lite/model-message-projection": "workspace:*",
+    "@omne-harness-lite/session-log-sql": "workspace:*",
+    "@omne-harness-lite/clock-lease": "workspace:*",
+    "@omne-harness-lite/pi-ai-transport": "workspace:*",
+    "@omne-harness-lite/asset-registry-local": "workspace:*",
+    "@omne-harness-lite/loop-extension-runner": "workspace:*",
+    "@omne-harness-lite/loop-extension-runner-local": "workspace:*",
+    "@omne-harness-lite/tool-admission-local": "workspace:*",
+    "@omne-harness-lite/tool-admission": "workspace:*",
+    "@omne-harness-lite/tool-definition": "workspace:*",
+    "@omne-harness-lite/tool-execution-runtime": "workspace:*",
+    "@omne-harness-lite/tool-execution-local": "workspace:*",
+    "@omne-harness-lite/tool-result-files": "workspace:*",
+    "@omne-harness-lite/execution-environments": "workspace:*",
+    "@omne-harness-lite/execution-environments-host": "workspace:*",
+    "@omne-harness-lite/meta-shell": "workspace:*",
+    "@omne-harness-lite/asset-model": "workspace:*",
+    "@omne-harness-lite/meta-files": "workspace:*",
+    "@omne-harness-lite/image-codec": "workspace:*",
+    "sharp": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -9,10 +9,10 @@ import {
   type ToolJournalPayload,
 } from '@omne-harness-lite/tool-execution-runtime'
 import type {
-  createRuntimeJournal,
+  RuntimeJournal,
   RuntimeJournalView,
   RuntimeJournalFailure,
-} from './runtime-journal.ts'
+} from './execution-journal.ts'
 import { jsonObject } from './json-values.ts'
 
 type RejectedRead = Extract<ContextRead, { kind: 'rejected' }>
@@ -20,7 +20,7 @@ type ReaderInput = {
   readonly ref: ExecutionRef
   readonly origin: ExecutionOrigin
   readonly reader: ContextReader
-  readonly journal: ReturnType<typeof createRuntimeJournal>
+  readonly journal: RuntimeJournal
   readonly isOpen: () => boolean
   readonly attempts: number
 }
