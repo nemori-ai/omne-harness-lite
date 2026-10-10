@@ -25,67 +25,97 @@ function reject(rejected: ArrivalRejection): ArrivalJudgment {
   return Object.freeze({ rejected })
 }
 
-/** S-28 order. openBlock supplies a legal readonly opened view, not sequence validation. */
-export function judgeArrivalEnvelope(envelope: unknown, openBlock?: OpenBlock): ArrivalJudgment {
-  const value = snapshot(envelope)
-  if (!isObject(value) || !isObject(value.event)) return reject('malformed')
-  const event = value.event
+function unknownReason(event: JsonObject, kind: string, reasons: readonly string[]): boolean {
+  return (
+    event.t === kind &&
+    Object.hasOwn(event, 'reason') &&
+    (typeof event.reason !== 'string' || !reasons.includes(event.reason))
+  )
+}
+function eventProtocolRejection(event: JsonObject): ArrivalRejection | undefined {
   if (Object.hasOwn(event, 't') && (typeof event.t !== 'string' || !events.includes(event.t)))
-    return reject('event_unknown')
-  if (
-    event.t === 'trim' &&
-    Object.hasOwn(event, 'reason') &&
-    (typeof event.reason !== 'string' || !trimReasons.includes(event.reason))
-  )
-    return reject('trim_reason_unknown')
-  if (
-    event.t === 'finish' &&
-    Object.hasOwn(event, 'reason') &&
-    (typeof event.reason !== 'string' || !finishReasons.includes(event.reason))
-  )
-    return reject('finish_reason_unknown')
-  const embedded = embeddedRejection(event)
-  if (embedded !== undefined && embedded !== 'malformed') return reject(embedded)
+    return 'event_unknown'
+  if (unknownReason(event, 'trim', trimReasons)) return 'trim_reason_unknown'
+  if (unknownReason(event, 'finish', finishReasons)) return 'finish_reason_unknown'
+  return undefined
+}
+function headModality(kind: JsonValue | undefined): string | undefined {
+  return kind === 'voice'
+    ? 'audio'
+    : kind === 'image'
+      ? 'image'
+      : kind === 'text' || kind === 'thinking'
+        ? 'text'
+        : undefined
+}
+function openHeadRejection(event: JsonObject): ArrivalRejection | undefined {
   if (event.t === 'open' && isObject(event.head)) {
-    if (Object.hasOwn(event.head, 'presentation')) return reject('presentation_invalid')
-    const expected =
-      event.kind === 'voice'
-        ? 'audio'
-        : event.kind === 'image'
-          ? 'image'
-          : event.kind === 'text' || event.kind === 'thinking'
-            ? 'text'
-            : undefined
+    if (Object.hasOwn(event.head, 'presentation')) return 'presentation_invalid'
+    const expected = headModality(event.kind)
     if (
       expected !== undefined &&
       isCanonicalMediaType(event.head.mediaType) &&
       modalityOf(event.head.mediaType) !== expected
     )
-      return reject('head_modality_mismatch')
+      return 'head_modality_mismatch'
   }
+  return undefined
+}
+function fillKindNotAppendable(event: JsonObject): boolean {
   if (
     event.t === 'open' &&
     event.fill === 'append' &&
     ['image', 'file', 'tool_result'].includes(typeof event.kind === 'string' ? event.kind : '')
   )
-    return reject('fill_kind_not_appendable')
+    return true
+  return false
+}
+function frameMediaInline(
+  target: JsonValue | undefined,
+  event: JsonObject,
+  opened: OpenEvent | undefined,
+): boolean {
+  if (
+    isObject(target) &&
+    target.kind === 'tool_execution' &&
+    (wholeValues(event).some(hasInlineMedia) || (event.t === 'fill' && opened?.kind === 'voice'))
+  )
+    return true
+  return false
+}
+function openViewRejection(
+  value: JsonObject,
+  event: JsonObject,
+  openBlock?: OpenBlock,
+): ArrivalRejection | undefined {
   // Only these two predicates need an open view. Invalid indices never reach its callback.
   const opened =
     event.t === 'fill' && isNonNegativeJsonInteger(event.index)
       ? openBlock?.(event.index)
       : undefined
-  if (
-    isObject(value.target) &&
-    value.target.kind === 'tool_execution' &&
-    (wholeValues(event).some(hasInlineMedia) || (event.t === 'fill' && opened?.kind === 'voice'))
-  )
-    return reject('frame_media_inline')
+  if (frameMediaInline(value.target, event, opened)) return 'frame_media_inline'
   if (
     event.t === 'fill' &&
     opened?.fill === 'replace' &&
     !replacementMatches(opened, event.payload)
   )
-    return reject('replace_payload_shape')
+    return 'replace_payload_shape'
+  return undefined
+}
+/** S-28 order. openBlock supplies a legal readonly opened view, not sequence validation. */
+export function judgeArrivalEnvelope(envelope: unknown, openBlock?: OpenBlock): ArrivalJudgment {
+  const value = snapshot(envelope)
+  if (!isObject(value) || !isObject(value.event)) return reject('malformed')
+  const event = value.event
+  const protocol = eventProtocolRejection(event)
+  if (protocol !== undefined) return reject(protocol)
+  const embedded = embeddedRejection(event)
+  if (embedded !== undefined && embedded !== 'malformed') return reject(embedded)
+  const head = openHeadRejection(event)
+  if (head !== undefined) return reject(head)
+  if (fillKindNotAppendable(event)) return reject('fill_kind_not_appendable')
+  const contextual = openViewRejection(value, event, openBlock)
+  if (contextual !== undefined) return reject(contextual)
   if (embedded === 'malformed' || !validate('ArrivalEnvelope', value).valid)
     return reject('malformed')
   return Object.freeze({ ok: true })
@@ -153,6 +183,9 @@ function replacementMatches(opened: OpenEvent, payload: JsonValue | undefined): 
   if (opened.kind === 'voice') return isStandardBase64(payload)
   if (opened.kind === 'text' || opened.kind === 'thinking' || opened.kind === 'tool_call')
     return typeof payload === 'string'
+  return wholeReplacementMatches(opened, payload)
+}
+function wholeReplacementMatches(opened: OpenEvent, payload: JsonValue | undefined): boolean {
   if (
     !isObject(payload) ||
     payload.kind !== opened.kind ||

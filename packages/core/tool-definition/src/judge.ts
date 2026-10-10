@@ -65,36 +65,18 @@ function legalSchema(schema: JsonValue, judge: ParameterJudge): boolean {
   // belongs to M27 after metavalidation, rather than selecting another dialect.
   return judge.metaValidate({ ...schema, $schema: 'https://json-schema.org/draft/2020-12/schema' })
 }
-function malformedDefinition(value: JsonObject): MalformedCode | undefined {
-  const codes = new Set<MalformedCode>()
-  const add = (code: MalformedCode, condition: boolean) => {
-    if (condition) codes.add(code)
-  }
-  const fields = (document: JsonObject, required: readonly string[], known: readonly string[]) => {
-    add(
-      'M3',
-      required.some(key => !Object.hasOwn(document, key)),
-    )
-    add(
-      'M4',
-      Object.keys(document).some(key => !known.includes(key)),
-    )
-  }
-  const string = (v: JsonValue | undefined) => {
-    if (v === undefined) return
-    add('M5', typeof v !== 'string')
-    add('M6', v === '')
-  }
-  const strings = (v: JsonValue | undefined, modality = false) => {
-    if (v === undefined) return
-    if (!Array.isArray(v)) {
-      codes.add('M5')
-      return
-    }
-    for (const item of v) string(item)
-    add('M7', new Set(v).size !== v.length)
-    add('M8', modality && v.some(item => typeof item !== 'string' || !modalities.includes(item)))
-  }
+interface MalformedChecks {
+  readonly add: (code: MalformedCode, condition: boolean) => void
+  readonly fields: (
+    document: JsonObject,
+    required: readonly string[],
+    known: readonly string[],
+  ) => void
+  readonly string: (value: JsonValue | undefined) => void
+  readonly strings: (value: JsonValue | undefined, modality?: boolean) => void
+}
+function malformedHeader(value: JsonObject, checks: MalformedChecks): void {
+  const { add, fields, string } = checks
   fields(
     value,
     [
@@ -129,6 +111,9 @@ function malformedDefinition(value: JsonObject): MalformedCode | undefined {
       value.name !== '' &&
       (!/^[A-Za-z0-9_:-]+$/u.test(value.name) || value.name.replaceAll(':', '__').length > 128),
   )
+}
+function malformedCommands(value: JsonObject, checks: MalformedChecks): void {
+  const { add, fields, string } = checks
   if (value.paradigm === 'multi') {
     add('M13', Object.hasOwn(value, 'input'))
     add('M5', value.commands !== undefined && !object(value.commands))
@@ -136,7 +121,7 @@ function malformedDefinition(value: JsonObject): MalformedCode | undefined {
       for (const [name, command] of Object.entries(value.commands)) {
         string(name)
         if (!object(command)) {
-          codes.add('M5')
+          add('M5', true)
           continue
         }
         fields(command, ['description', 'input'], ['description', 'input', 'help'])
@@ -145,8 +130,11 @@ function malformedDefinition(value: JsonObject): MalformedCode | undefined {
         if (command.input !== undefined) add('M24', commandRelativeReference(command.input))
       }
   }
+}
+function malformedNeeds(value: JsonObject, checks: MalformedChecks): void {
+  const { add, fields, string, strings } = checks
   if (value.needs !== undefined) {
-    if (!object(value.needs)) codes.add('M5')
+    if (!object(value.needs)) add('M5', true)
     else {
       fields(
         value.needs,
@@ -159,8 +147,44 @@ function malformedDefinition(value: JsonObject): MalformedCode | undefined {
       strings(value.needs.outputModalities, true)
     }
   }
+}
+function malformedSetting(name: string, setting: JsonValue, checks: MalformedChecks): void {
+  const { add, fields } = checks
+  if (!object(setting)) {
+    add('M5', true)
+    return
+  }
+  fields(setting, ['category', 'default'], ['category', 'default'])
+  add(
+    'M10',
+    typeof setting.category === 'string' &&
+      categories.includes(setting.category) &&
+      setting.category !== (name === 'targetEnvironment' ? 'placement_identity' : 'preference'),
+  )
+  if (!Object.hasOwn(setting, 'default')) return
+  malformedSettingDefault(name, setting.default, checks)
+}
+function malformedSettingDefault(
+  name: string,
+  value: JsonValue | undefined,
+  checks: MalformedChecks,
+): void {
+  const { add, fields, strings } = checks
+  if (name === 'timeout' || name === 'backgroundThreshold')
+    add('M11', typeof value !== 'string' || !duration.test(value))
+  if (name === 'concurrency') add('M12', !positiveInteger(value))
+  if (name === 'targetEnvironment') {
+    if (!object(value)) add('M5', true)
+    else {
+      fields(value, ['bindingLayer', 'facilities'], ['bindingLayer', 'facilities'])
+      strings(value.facilities)
+    }
+  }
+}
+function malformedSettings(value: JsonObject, checks: MalformedChecks): void {
+  const { add, fields } = checks
   if (value.settings !== undefined) {
-    if (!object(value.settings)) codes.add('M5')
+    if (!object(value.settings)) add('M5', true)
     else {
       fields(
         value.settings,
@@ -168,29 +192,7 @@ function malformedDefinition(value: JsonObject): MalformedCode | undefined {
         ['targetEnvironment', 'backgroundThreshold', 'timeout', 'concurrency'],
       )
       for (const [name, setting] of Object.entries(value.settings)) {
-        if (!object(setting)) {
-          codes.add('M5')
-          continue
-        }
-        fields(setting, ['category', 'default'], ['category', 'default'])
-        add(
-          'M10',
-          typeof setting.category === 'string' &&
-            categories.includes(setting.category) &&
-            setting.category !==
-              (name === 'targetEnvironment' ? 'placement_identity' : 'preference'),
-        )
-        if (!Object.hasOwn(setting, 'default')) continue
-        if (name === 'timeout' || name === 'backgroundThreshold')
-          add('M11', typeof setting.default !== 'string' || !duration.test(setting.default))
-        if (name === 'concurrency') add('M12', !positiveInteger(setting.default))
-        if (name === 'targetEnvironment') {
-          if (!object(setting.default)) codes.add('M5')
-          else {
-            fields(setting.default, ['bindingLayer', 'facilities'], ['bindingLayer', 'facilities'])
-            strings(setting.default.facilities)
-          }
-        }
+        malformedSetting(name, setting, checks)
       }
       add(
         'M15',
@@ -198,25 +200,28 @@ function malformedDefinition(value: JsonObject): MalformedCode | undefined {
       )
     }
   }
+}
+function malformedPermissions(value: JsonObject, checks: MalformedChecks): void {
+  const { add, fields } = checks
   if (value.permissions !== undefined) {
-    if (!object(value.permissions)) codes.add('M5')
+    if (!object(value.permissions)) add('M5', true)
     else {
       fields(value.permissions, ['execute'], ['execute'])
       if (value.permissions.execute !== undefined) {
-        if (!object(value.permissions.execute)) codes.add('M5')
+        if (!object(value.permissions.execute)) add('M5', true)
         else fields(value.permissions.execute, ['default'], ['default'])
       }
     }
   }
+}
+function malformedOrigin(value: JsonObject, checks: MalformedChecks): void {
+  const { add, fields, string } = checks
   if (value.origin !== undefined) {
-    if (!object(value.origin)) codes.add('M5')
+    if (!object(value.origin)) add('M5', true)
     else {
       const mcp = value.origin.kind === 'mcp'
-      fields(
-        value.origin,
-        mcp ? ['kind', 'endpoint', 'remoteName'] : ['kind'],
-        mcp ? ['kind', 'endpoint', 'remoteName'] : ['kind'],
-      )
+      const names = mcp ? ['kind', 'endpoint', 'remoteName'] : ['kind']
+      fields(value.origin, names, names)
       if (mcp) {
         string(value.origin.remoteName)
         if (value.origin.endpoint !== undefined)
@@ -230,103 +235,178 @@ function malformedDefinition(value: JsonObject): MalformedCode | undefined {
       }
     }
   }
+}
+function malformedComposition(value: JsonObject, checks: MalformedChecks): void {
+  const { add, fields, strings } = checks
   if (value.composes !== undefined) {
-    if (!object(value.composes)) codes.add('M5')
+    if (!object(value.composes)) add('M5', true)
     else {
       fields(value.composes, [], ['skills'])
       strings(value.composes.skills)
     }
   }
+}
+function malformedInputs(value: JsonObject, checks: MalformedChecks): void {
+  const { add } = checks
   for (const input of inputs(value)) {
     add('M26', object(input) && (input.type !== 'object' || !object(input.properties)))
     add('M27', unsupportedKeyword(input))
   }
+}
+function malformedDefinition(value: JsonObject): MalformedCode | undefined {
+  const codes = new Set<MalformedCode>()
+  const add = (code: MalformedCode, condition: boolean) => {
+    if (condition) codes.add(code)
+  }
+  const fields = (document: JsonObject, required: readonly string[], known: readonly string[]) => {
+    add(
+      'M3',
+      required.some(key => !Object.hasOwn(document, key)),
+    )
+    add(
+      'M4',
+      Object.keys(document).some(key => !known.includes(key)),
+    )
+  }
+  const string = (v: JsonValue | undefined) => {
+    if (v === undefined) return
+    add('M5', typeof v !== 'string')
+    add('M6', v === '')
+  }
+  const strings = (v: JsonValue | undefined, modality = false) => {
+    if (v === undefined) return
+    if (!Array.isArray(v)) {
+      codes.add('M5')
+      return
+    }
+    for (const item of v) string(item)
+    add('M7', new Set(v).size !== v.length)
+    add('M8', modality && v.some(item => typeof item !== 'string' || !modalities.includes(item)))
+  }
+  const checks: MalformedChecks = { add, fields, string, strings }
+  malformedHeader(value, checks)
+  malformedCommands(value, checks)
+  malformedNeeds(value, checks)
+  malformedSettings(value, checks)
+  malformedPermissions(value, checks)
+  malformedOrigin(value, checks)
+  malformedComposition(value, checks)
+  malformedInputs(value, checks)
   return [...codes].sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)))[0]
 }
-export function judgeToolDefinition(value: unknown, judge?: ParameterJudge): ToolJudgment {
-  const copied = copyJson(value)
-  if (!object(copied)) return rejected('malformed', 'M1')
-  if (!Object.hasOwn(copied, 'paradigm')) return rejected('malformed', 'M2')
-  if (copied.paradigm !== 'single' && copied.paradigm !== 'multi')
+function definitionShapeRejection(value: JsonObject): ToolJudgment | undefined {
+  if (!Object.hasOwn(value, 'paradigm')) return rejected('malformed', 'M2')
+  if (value.paradigm !== 'single' && value.paradigm !== 'multi')
     return Object.freeze({ rejected: 'paradigm_unknown' })
-  if (copied.paradigm === 'single' && Object.hasOwn(copied, 'commands'))
+  if (value.paradigm === 'single' && Object.hasOwn(value, 'commands'))
     return Object.freeze({ rejected: 'commands_forbidden' })
   if (
-    copied.paradigm === 'multi' &&
-    (!Object.hasOwn(copied, 'commands') ||
-      (object(copied.commands) && Object.keys(copied.commands).length === 0))
+    value.paradigm === 'multi' &&
+    (!Object.hasOwn(value, 'commands') ||
+      (object(value.commands) && Object.keys(value.commands).length === 0))
   )
     return Object.freeze({ rejected: 'commands_missing' })
-  const schemas = inputs(copied)
-  const owned = judge ?? createParameterJudge()
-  if (schemas.some(input => !legalSchema(input, owned)))
-    return Object.freeze({ rejected: 'input_not_schema' })
-  if (schemas.some(descriptionMissing))
-    return Object.freeze({ rejected: 'parameter_description_missing' })
+  return undefined
+}
+function unknownBindingLayer(value: JsonObject): boolean {
   const target =
-    object(copied.settings) &&
-    object(copied.settings.targetEnvironment) &&
-    object(copied.settings.targetEnvironment.default)
-      ? copied.settings.targetEnvironment.default
+    object(value.settings) &&
+    object(value.settings.targetEnvironment) &&
+    object(value.settings.targetEnvironment.default)
+      ? value.settings.targetEnvironment.default
       : undefined
   if (
     target !== undefined &&
     Object.hasOwn(target, 'bindingLayer') &&
     (typeof target.bindingLayer !== 'string' || !layers.includes(target.bindingLayer))
   )
-    return Object.freeze({ rejected: 'binding_layer_unknown' })
+    return true
+  return false
+}
+function unknownSettingCategory(value: JsonObject): boolean {
   if (
-    object(copied.settings) &&
-    Object.values(copied.settings).some(
+    object(value.settings) &&
+    Object.values(value.settings).some(
       setting =>
         object(setting) &&
         Object.hasOwn(setting, 'category') &&
         (typeof setting.category !== 'string' || !categories.includes(setting.category)),
     )
   )
-    return Object.freeze({ rejected: 'setting_category_unknown' })
+    return true
+  return false
+}
+function unknownPermission(value: JsonObject): boolean {
   if (
-    object(copied.permissions) &&
-    object(copied.permissions.execute) &&
-    Object.hasOwn(copied.permissions.execute, 'default') &&
-    (typeof copied.permissions.execute.default !== 'string' ||
-      !permissions.includes(copied.permissions.execute.default))
+    object(value.permissions) &&
+    object(value.permissions.execute) &&
+    Object.hasOwn(value.permissions.execute, 'default') &&
+    (typeof value.permissions.execute.default !== 'string' ||
+      !permissions.includes(value.permissions.execute.default))
   )
-    return Object.freeze({ rejected: 'permission_unknown' })
+    return true
+  return false
+}
+function unknownOrigin(value: JsonObject): boolean {
   if (
-    object(copied.origin) &&
-    Object.hasOwn(copied.origin, 'kind') &&
-    copied.origin.kind !== 'authored' &&
-    copied.origin.kind !== 'mcp'
+    object(value.origin) &&
+    Object.hasOwn(value.origin, 'kind') &&
+    value.origin.kind !== 'authored' &&
+    value.origin.kind !== 'mcp'
   )
-    return Object.freeze({ rejected: 'tool_origin_unknown' })
-  if (typeof copied.name === 'string' && /__|_:|:_/u.test(copied.name))
+    return true
+  return false
+}
+function declarationRejection(value: JsonObject): ToolJudgment | undefined {
+  if (unknownBindingLayer(value)) return Object.freeze({ rejected: 'binding_layer_unknown' })
+  if (unknownSettingCategory(value)) return Object.freeze({ rejected: 'setting_category_unknown' })
+  if (unknownPermission(value)) return Object.freeze({ rejected: 'permission_unknown' })
+  if (unknownOrigin(value)) return Object.freeze({ rejected: 'tool_origin_unknown' })
+  if (typeof value.name === 'string' && /__|_:|:_/u.test(value.name))
     return Object.freeze({ rejected: 'name_reserved_sequence' })
-  const malformed = malformedDefinition(copied)
-  if (malformed !== undefined) return rejected('malformed', malformed)
-  if (!validate('ToolDefinition', copied).valid)
-    throw new Error('Schema rejection absent from S26 malformed inventory')
+  return undefined
+}
+function compiledInputRejection(
+  schemas: readonly JsonValue[],
+  owned: ParameterJudge,
+): ToolJudgment | undefined {
   for (const schema of schemas)
     if (object(schema)) {
       const compiled = owned.compile(schema)
       if ('unsupported' in compiled)
         return Object.freeze({ rejected: 'schema_unsupported', unsupported: compiled.unsupported })
     }
+  return undefined
+}
+export function judgeToolDefinition(value: unknown, judge?: ParameterJudge): ToolJudgment {
+  const copied = copyJson(value)
+  if (!object(copied)) return rejected('malformed', 'M1')
+  const shape = definitionShapeRejection(copied)
+  if (shape !== undefined) return shape
+  const schemas = inputs(copied)
+  const owned = judge ?? createParameterJudge()
+  if (schemas.some(input => !legalSchema(input, owned)))
+    return Object.freeze({ rejected: 'input_not_schema' })
+  if (schemas.some(descriptionMissing))
+    return Object.freeze({ rejected: 'parameter_description_missing' })
+  const declaration = declarationRejection(copied)
+  if (declaration !== undefined) return declaration
+  const malformed = malformedDefinition(copied)
+  if (malformed !== undefined) return rejected('malformed', malformed)
+  if (!validate('ToolDefinition', copied).valid)
+    throw new Error('Schema rejection absent from S26 malformed inventory')
+  const unsupported = compiledInputRejection(schemas, owned)
+  if (unsupported !== undefined) return unsupported
   return Object.freeze({ ok: true })
 }
 export function isToolDefinition(value: unknown): value is ToolDefinition {
   return 'ok' in judgeToolDefinition(value)
 }
 
-export function judgeToolReturn(value: unknown): ToolJudgment {
-  const copied = copyJson(value)
-  if (typeof copied === 'string') return Object.freeze({ ok: true })
-  if (!object(copied)) return rejected('malformed', 'M16')
+function returnContentRejection(value: JsonObject): ToolJudgment | undefined {
   const blocks = [
-    ...(Array.isArray(copied.content) ? copied.content : []),
-    ...(object(copied.offload) && Array.isArray(copied.offload.summary)
-      ? copied.offload.summary
-      : []),
+    ...(Array.isArray(value.content) ? value.content : []),
+    ...(object(value.offload) && Array.isArray(value.offload.summary) ? value.offload.summary : []),
   ]
   for (const block of blocks) {
     const result = judgeContentBlock(block)
@@ -334,45 +414,65 @@ export function judgeToolReturn(value: unknown): ToolJudgment {
   }
   if (blocks.some(block => object(block) && block.kind === 'tool_call'))
     return Object.freeze({ rejected: 'result_call_in_content' })
+  return undefined
+}
+function returnMembersMissing(value: JsonObject): boolean {
   if (
-    !Object.hasOwn(copied, 'content') ||
-    (object(copied.offload) &&
-      (!Object.hasOwn(copied.offload, 'raw') ||
-        (object(copied.offload.raw) &&
-          Object.hasOwn(copied.offload.raw, 'inline') &&
-          !Object.hasOwn(copied.offload.raw, 'mediaType'))))
+    !Object.hasOwn(value, 'content') ||
+    (object(value.offload) &&
+      (!Object.hasOwn(value.offload, 'raw') ||
+        (object(value.offload.raw) &&
+          Object.hasOwn(value.offload.raw, 'inline') &&
+          !Object.hasOwn(value.offload.raw, 'mediaType'))))
   )
-    return rejected('malformed', 'M17')
+    return true
+  return false
+}
+function returnMembersUnknown(value: JsonObject): boolean {
   if (
-    Object.keys(copied).some(
+    Object.keys(value).some(
       key => !['content', 'offload', 'attachments', 'isError'].includes(key),
     ) ||
-    (object(copied.offload) &&
-      Object.keys(copied.offload).some(key => !['raw', 'summary'].includes(key))) ||
-    (object(copied.offload) &&
-      object(copied.offload.raw) &&
-      Object.hasOwn(copied.offload.raw, 'inline') &&
-      Object.keys(copied.offload.raw).some(key => !['inline', 'mediaType'].includes(key)))
+    (object(value.offload) &&
+      Object.keys(value.offload).some(key => !['raw', 'summary'].includes(key))) ||
+    (object(value.offload) &&
+      object(value.offload.raw) &&
+      Object.hasOwn(value.offload.raw, 'inline') &&
+      Object.keys(value.offload.raw).some(key => !['inline', 'mediaType'].includes(key)))
   )
-    return rejected('malformed', 'M18')
+    return true
+  return false
+}
+function returnMemberTypesInvalid(value: JsonObject): boolean {
   if (
-    !Array.isArray(copied.content) ||
-    (Object.hasOwn(copied, 'isError') && typeof copied.isError !== 'boolean') ||
-    (Object.hasOwn(copied, 'offload') && !object(copied.offload)) ||
-    (object(copied.offload) &&
-      Object.hasOwn(copied.offload, 'summary') &&
-      !Array.isArray(copied.offload.summary)) ||
-    (Object.hasOwn(copied, 'attachments') && !Array.isArray(copied.attachments))
+    !Array.isArray(value.content) ||
+    (Object.hasOwn(value, 'isError') && typeof value.isError !== 'boolean') ||
+    returnOffloadTypeInvalid(value) ||
+    (Object.hasOwn(value, 'attachments') && !Array.isArray(value.attachments))
   )
-    return rejected('malformed', 'M19')
+    return true
+  return false
+}
+function returnSummaryEmpty(value: JsonObject): boolean {
   if (
-    object(copied.offload) &&
-    Array.isArray(copied.offload.summary) &&
-    copied.offload.summary.length === 0
+    object(value.offload) &&
+    Array.isArray(value.offload.summary) &&
+    value.offload.summary.length === 0
   )
-    return rejected('malformed', 'M20')
-  if (object(copied.offload)) {
-    const raw = copied.offload.raw
+    return true
+  return false
+}
+function returnOffloadTypeInvalid(value: JsonObject): boolean {
+  return (
+    (Object.hasOwn(value, 'offload') && !object(value.offload)) ||
+    (object(value.offload) &&
+      Object.hasOwn(value.offload, 'summary') &&
+      !Array.isArray(value.offload.summary))
+  )
+}
+function returnRawRejection(value: JsonObject): ToolJudgment | undefined {
+  if (object(value.offload)) {
+    const raw = value.offload.raw
     if (!object(raw)) return rejected('malformed', 'M21')
     if (Object.hasOwn(raw, 'inline')) {
       if (
@@ -382,11 +482,27 @@ export function judgeToolReturn(value: unknown): ToolJudgment {
         return rejected('malformed', 'M22')
     } else if (!contentValidate('AttachmentRef', raw).valid) return rejected('malformed', 'M21')
   }
-  if (
-    Array.isArray(copied.attachments) &&
-    copied.attachments.some(item => !contentValidate('AttachmentRef', item).valid)
+  return undefined
+}
+function returnAttachmentsInvalid(value: JsonObject): boolean {
+  return (
+    Array.isArray(value.attachments) &&
+    value.attachments.some(item => !contentValidate('AttachmentRef', item).valid)
   )
-    return rejected('malformed', 'M23')
+}
+export function judgeToolReturn(value: unknown): ToolJudgment {
+  const copied = copyJson(value)
+  if (typeof copied === 'string') return Object.freeze({ ok: true })
+  if (!object(copied)) return rejected('malformed', 'M16')
+  const content = returnContentRejection(copied)
+  if (content !== undefined) return content
+  if (returnMembersMissing(copied)) return rejected('malformed', 'M17')
+  if (returnMembersUnknown(copied)) return rejected('malformed', 'M18')
+  if (returnMemberTypesInvalid(copied)) return rejected('malformed', 'M19')
+  if (returnSummaryEmpty(copied)) return rejected('malformed', 'M20')
+  const raw = returnRawRejection(copied)
+  if (raw !== undefined) return raw
+  if (returnAttachmentsInvalid(copied)) return rejected('malformed', 'M23')
   if (!validate('ToolReturn', copied).valid)
     throw new Error('Schema rejection absent from S26 return inventory')
   return Object.freeze({ ok: true })

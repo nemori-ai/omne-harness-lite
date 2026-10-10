@@ -17,6 +17,41 @@ import { createRuntimeJournal } from './runtime-journal.ts'
 import { recoverExecutions } from './runtime-recovery.ts'
 import { jsonObject } from './json-values.ts'
 
+function captureRuntimeConfiguration(supplied: ToolRuntimeConfig): ToolRuntimeConfig {
+  const copied = copyJsonValue(supplied)
+  if ('failed' in copied) throw new TypeError('ordinary tool runtime configuration required')
+  const value = copied.ok
+  if (
+    !jsonObject(value) ||
+    Object.keys(value).sort().join(',') !== 'frameQueueBytes,resultStorage,tailRetry'
+  )
+    throw new TypeError('ordinary tool runtime configuration required')
+  const policy = value.tailRetry
+  if (
+    !jsonObject(policy) ||
+    Object.keys(policy).sort().join(',') !== 'attempts,maxDelayMs,minDelayMs'
+  )
+    throw new TypeError('ordinary retry configuration required')
+  return copied.ok as unknown as ToolRuntimeConfig
+}
+
+function requireRuntimeFrameBudget(config: ToolRuntimeConfig): void {
+  if (!Number.isSafeInteger(config.frameQueueBytes) || config.frameQueueBytes < 0)
+    throw new TypeError('invalid tool runtime policy')
+}
+
+function requireRuntimeTailRetry(config: ToolRuntimeConfig): void {
+  if (
+    !Number.isSafeInteger(config.tailRetry?.attempts) ||
+    config.tailRetry.attempts < 1 ||
+    !Number.isFinite(config.tailRetry.minDelayMs) ||
+    config.tailRetry.minDelayMs < 0 ||
+    !Number.isFinite(config.tailRetry.maxDelayMs) ||
+    config.tailRetry.maxDelayMs < config.tailRetry.minDelayMs
+  )
+    throw new TypeError('invalid tool runtime policy')
+}
+
 /** Independent root factory. Construction dependencies never enter persisted input or tool dependencies. */
 export function createToolRuntime(
   supplied: ToolRuntimeConfig,
@@ -38,33 +73,10 @@ function createRuntime(
   dependencies: ToolRuntimeDependencies,
   originalIssue?: ToolOriginalIssueSupport,
 ): ToolRuntimeInstance {
-  const copied = copyJsonValue(supplied)
-  if ('failed' in copied) throw new TypeError('ordinary tool runtime configuration required')
-  const value = copied.ok
-  if (
-    !jsonObject(value) ||
-    Object.keys(value).sort().join(',') !== 'frameQueueBytes,resultStorage,tailRetry'
-  )
-    throw new TypeError('ordinary tool runtime configuration required')
-  const policy = value.tailRetry
-  if (
-    !jsonObject(policy) ||
-    Object.keys(policy).sort().join(',') !== 'attempts,maxDelayMs,minDelayMs'
-  )
-    throw new TypeError('ordinary retry configuration required')
-  const config = copied.ok as unknown as ToolRuntimeConfig
-  if (
-    !Number.isSafeInteger(config.frameQueueBytes) ||
-    config.frameQueueBytes < 0 ||
-    !Number.isSafeInteger(config.tailRetry?.attempts) ||
-    config.tailRetry.attempts < 1 ||
-    !Number.isFinite(config.tailRetry.minDelayMs) ||
-    config.tailRetry.minDelayMs < 0 ||
-    !Number.isFinite(config.tailRetry.maxDelayMs) ||
-    config.tailRetry.maxDelayMs < config.tailRetry.minDelayMs ||
-    typeof config.resultStorage !== 'string' ||
-    config.resultStorage.length === 0
-  )
+  const config = captureRuntimeConfiguration(supplied)
+  requireRuntimeFrameBudget(config)
+  requireRuntimeTailRetry(config)
+  if (typeof config.resultStorage !== 'string' || config.resultStorage.length === 0)
     throw new TypeError('invalid tool runtime policy')
   const retry = async (attempt: number) => {
     const delay = Math.min(

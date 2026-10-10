@@ -20,6 +20,46 @@ function mediaDerivationOnly(original: JsonValue, rewritten: JsonValue): boolean
     return exceptEqual(oldBlock, newBlock, ['renderings', 'transcript'])
   })
 }
+function persistedMessageChanged(original: JsonObject, rewritten: JsonObject): boolean {
+  if (!exceptEqual(original, rewritten, ['message'])) return true
+  return (
+    original.producer === 'model' &&
+    !mediaDerivationOnly(original.message ?? null, rewritten.message ?? null)
+  )
+}
+function modelRequestChanged(original: JsonObject, rewritten: JsonObject): boolean {
+  return (
+    !exceptEqual(original, rewritten, ['request']) ||
+    !object(original.request) ||
+    !object(rewritten.request) ||
+    !exceptEqual(original.request, rewritten.request, ['parameters', 'messages'])
+  )
+}
+function actionCallChanged(original: JsonObject, rewritten: JsonObject): boolean {
+  return (
+    !exceptEqual(original, rewritten, ['call']) ||
+    !object(original.call) ||
+    !object(rewritten.call) ||
+    !exceptEqual(original.call, rewritten.call, ['arguments'])
+  )
+}
+function actionResultChanged(original: JsonObject, rewritten: JsonObject): boolean {
+  if (original.outcome === 'denied') return !equal(original, rewritten)
+  if (!exceptEqual(original, rewritten, ['result'])) return true
+  if (!Object.hasOwn(rewritten, 'result')) return false
+  const result = rewritten.result
+  if (
+    !object(result) ||
+    !equal(result.callId, original.callId) ||
+    !equal(result.outcome, original.outcome)
+  )
+    return true
+  const oldResult = original.result
+  return (
+    object(oldResult) &&
+    (!equal(oldResult.callId, result.callId) || !equal(oldResult.outcome, result.outcome))
+  )
+}
 /** S-23 value comparison only. System-converter eligibility is a runner assembly fact. */
 export function rewriteChangesImmutable(
   position: Position,
@@ -28,42 +68,13 @@ export function rewriteChangesImmutable(
 ): boolean {
   switch (position) {
     case 'before_persist_message':
-      if (!exceptEqual(original, rewritten, ['message'])) return true
-      return (
-        original.producer === 'model' &&
-        !mediaDerivationOnly(original.message ?? null, rewritten.message ?? null)
-      )
+      return persistedMessageChanged(original, rewritten)
     case 'before_model_call':
-      return (
-        !exceptEqual(original, rewritten, ['request']) ||
-        !object(original.request) ||
-        !object(rewritten.request) ||
-        !exceptEqual(original.request, rewritten.request, ['parameters', 'messages'])
-      )
+      return modelRequestChanged(original, rewritten)
     case 'before_action':
-      return (
-        !exceptEqual(original, rewritten, ['call']) ||
-        !object(original.call) ||
-        !object(rewritten.call) ||
-        !exceptEqual(original.call, rewritten.call, ['arguments'])
-      )
-    case 'after_action': {
-      if (original.outcome === 'denied') return !equal(original, rewritten)
-      if (!exceptEqual(original, rewritten, ['result'])) return true
-      if (!Object.hasOwn(rewritten, 'result')) return false
-      const result = rewritten.result
-      if (
-        !object(result) ||
-        !equal(result.callId, original.callId) ||
-        !equal(result.outcome, original.outcome)
-      )
-        return true
-      const oldResult = original.result
-      return (
-        object(oldResult) &&
-        (!equal(oldResult.callId, result.callId) || !equal(oldResult.outcome, result.outcome))
-      )
-    }
+      return actionCallChanged(original, rewritten)
+    case 'after_action':
+      return actionResultChanged(original, rewritten)
     default:
       return true
   }

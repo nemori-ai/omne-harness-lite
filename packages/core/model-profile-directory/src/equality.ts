@@ -13,24 +13,31 @@ function numericKey(value: Parameters<typeof jsonNumberSource>[0]): string {
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
-export function jsonEqual(a: unknown, b: unknown): boolean {
-  if (isJsonNumber(a) || isJsonNumber(b))
-    return isJsonNumber(a) && isJsonNumber(b) && numericKey(a) === numericKey(b)
-  if (a === b) return true
-  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false
-  if (Array.isArray(a) || Array.isArray(b))
-    return (
-      Array.isArray(a) &&
-      Array.isArray(b) &&
-      a.length === b.length &&
-      a.every((v: unknown, i: number) => jsonEqual(v, b[i]))
-    )
+function jsonNumbersEqual(a: unknown, b: unknown): boolean {
+  return isJsonNumber(a) && isJsonNumber(b) && numericKey(a) === numericKey(b)
+}
+function jsonArraysEqual(a: unknown, b: unknown): boolean {
+  return (
+    Array.isArray(a) &&
+    Array.isArray(b) &&
+    a.length === b.length &&
+    a.every((v: unknown, i: number) => jsonEqual(v, b[i]))
+  )
+}
+function jsonObjectsEqual(a: unknown, b: unknown): boolean {
   if (!record(a) || !record(b)) return false
   const ak = Object.keys(a),
     bk = Object.keys(b)
   return (
     ak.length === bk.length && ak.every(key => Object.hasOwn(b, key) && jsonEqual(a[key], b[key]))
   )
+}
+export function jsonEqual(a: unknown, b: unknown): boolean {
+  if (isJsonNumber(a) || isJsonNumber(b)) return jsonNumbersEqual(a, b)
+  if (a === b) return true
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false
+  if (Array.isArray(a) || Array.isArray(b)) return jsonArraysEqual(a, b)
+  return jsonObjectsEqual(a, b)
 }
 function setEqual(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every(value => b.includes(value))

@@ -41,10 +41,7 @@ function schemaProjection(value: JsonValue): unknown {
 function exactBytes(defName: SchemaDefName, value: JsonValue): boolean {
   if (defName === 'AttachmentRef') return attachmentBytes(value)
   if (defName === 'DerivedRendering') {
-    return (
-      isObject(value) &&
-      (!Array.isArray(value.blocks) || value.blocks.every(item => exactBytes('ContentBlock', item)))
-    )
+    return isObject(value) && contentBytes(value.blocks)
   }
   if (
     [
@@ -60,25 +57,26 @@ function exactBytes(defName: SchemaDefName, value: JsonValue): boolean {
       'ToolResultBlock',
     ].includes(defName)
   ) {
-    if (!isObject(value)) return true
-    if ((value.kind === 'voice' || value.kind === 'image') && !attachmentBytes(value.data))
-      return false
-    if (value.kind === 'file' && !attachmentBytes(value.attachment)) return false
-    if (value.kind === 'tool_result') {
-      if (!attachmentBytes(value.offloaded)) return false
-      if (
-        Array.isArray(value.blocks) &&
-        !value.blocks.every(item => exactBytes('ContentBlock', item))
-      )
-        return false
-    }
-    if (
-      Array.isArray(value.renderings) &&
-      !value.renderings.every(item => exactBytes('DerivedRendering', item))
-    )
-      return false
+    return blockBytes(value)
   }
   return true
+}
+function contentBytes(value: JsonValue | undefined): boolean {
+  return !Array.isArray(value) || value.every(item => exactBytes('ContentBlock', item))
+}
+function resultBytes(value: Record<string, JsonValue>): boolean {
+  return attachmentBytes(value.offloaded) && contentBytes(value.blocks)
+}
+function blockBytes(value: JsonValue): boolean {
+  if (!isObject(value)) return true
+  if ((value.kind === 'voice' || value.kind === 'image') && !attachmentBytes(value.data))
+    return false
+  if (value.kind === 'file' && !attachmentBytes(value.attachment)) return false
+  if (value.kind === 'tool_result' && !resultBytes(value)) return false
+  return (
+    !Array.isArray(value.renderings) ||
+    value.renderings.every(item => exactBytes('DerivedRendering', item))
+  )
 }
 function attachmentBytes(value: JsonValue | undefined): boolean {
   return !isObject(value) || !Object.hasOwn(value, 'bytes') || isNonNegativeJsonInteger(value.bytes)

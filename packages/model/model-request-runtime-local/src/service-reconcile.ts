@@ -131,34 +131,39 @@ export async function settlePendingReply(input: {
   readonly invocation: Pick<AnchoredInvocationHandle, 'settleReply'>
 }): Promise<SettleReplyResult> {
   const { request, pending, invocation } = input
-  if (
-    !isServiceDisposition(request.disposition) ||
-    request.session.length === 0 ||
-    request.callId.length === 0 ||
-    'rejected' in judgePendingModelResponse(pending) ||
-    // RT12 S-99③: before ACK a caller's value may only equal the authoritative original.
-    (request.retainedResult !== undefined && !modelLogJsonEqual(request.retainedResult, pending))
-  )
-    return { invalidInput: { reason: 'malformed' } }
+  const requestMalformed = (): boolean => {
+    return (
+      !isServiceDisposition(request.disposition) ||
+      request.session.length === 0 ||
+      request.callId.length === 0 ||
+      'rejected' in judgePendingModelResponse(pending) ||
+      // RT12 S-99③: before ACK a caller's value may only equal the authoritative original.
+      (request.retainedResult !== undefined && !modelLogJsonEqual(request.retainedResult, pending))
+    )
+  }
+  if (requestMalformed()) return { invalidInput: { reason: 'malformed' } }
   if (pending.call.callId !== request.callId) return { callNotFound: true }
   try {
     const result = await invocation.settleReply(request.disposition)
-    if ('unavailable' in result) return { unavailable: true }
-    if (result.settled.disposition === 'firstWinner') return { alreadyEnded: true }
-    const original = result.settled.response.response
-    if (original === null) return { unavailable: true }
-    if (!modelLogJsonEqual(original.replyDisposition, request.disposition))
-      return { alreadyEnded: true }
-    if (
-      original.outcome !== 'interrupted' &&
-      original.outcome !== 'complete' &&
-      original.outcome !== 'truncated'
-    )
-      return { unavailable: true }
-    return {
-      callId: request.callId,
-      state: original.outcome === 'interrupted' ? 'interrupted' : 'complete',
+    const settledReceipt = (): SettleReplyResult => {
+      if ('unavailable' in result) return { unavailable: true }
+      if (result.settled.disposition === 'firstWinner') return { alreadyEnded: true }
+      const original = result.settled.response.response
+      if (original === null) return { unavailable: true }
+      if (!modelLogJsonEqual(original.replyDisposition, request.disposition))
+        return { alreadyEnded: true }
+      if (
+        original.outcome !== 'interrupted' &&
+        original.outcome !== 'complete' &&
+        original.outcome !== 'truncated'
+      )
+        return { unavailable: true }
+      return {
+        callId: request.callId,
+        state: original.outcome === 'interrupted' ? 'interrupted' : 'complete',
+      }
     }
+    return settledReceipt()
   } catch {
     // The original invocation retains any unresolved writer after this return.
     return { unavailable: true }
@@ -211,23 +216,46 @@ function buildRuntimeSettleReply<P extends PlannedSemantics, R>(
     JSON.stringify([request.session, request.callId])
 
   async function settleReply(request: SettleReplyInput): Promise<SettleReplyResult> {
-    if (
-      !isServiceDisposition(request.disposition) ||
-      typeof request.session !== 'string' ||
-      request.session.length === 0 ||
-      typeof request.callId !== 'string' ||
-      request.callId.length === 0
-    )
-      return { invalidInput: { reason: 'malformed' } }
-    // RT12 S-99①⑥: an optional caller-held original, owned before the first await.
-    let retainedResult: PendingModelResponse | undefined
-    if (request.retainedResult !== undefined) {
-      const copied = copyJsonValue(request.retainedResult)
-      if (!('ok' in copied) || !isPendingResponse(copied.ok))
-        return { invalidInput: { reason: 'malformed' } }
-      retainedResult = copied.ok
+    const requestMalformed = (): boolean => {
+      return (
+        !isServiceDisposition(request.disposition) ||
+        typeof request.session !== 'string' ||
+        request.session.length === 0 ||
+        typeof request.callId !== 'string' ||
+        request.callId.length === 0
+      )
     }
-    if (physical.closed) return { unavailable: true }
+    const retainCallerResult = ():
+      | {
+          readonly retainedResult: PendingModelResponse | undefined
+        }
+      | {
+          readonly rejected: SettleReplyResult
+        } => {
+      if (requestMalformed()) return { rejected: { invalidInput: { reason: 'malformed' } } }
+      // RT12 S-99①⑥: an optional caller-held original, owned before the first await.
+      let retainedResult: PendingModelResponse | undefined
+      if (request.retainedResult !== undefined) {
+        const copied = copyJsonValue(request.retainedResult)
+        if (!('ok' in copied) || !isPendingResponse(copied.ok))
+          return { rejected: { invalidInput: { reason: 'malformed' } } }
+        retainedResult = copied.ok
+      }
+      if (physical.closed) return { rejected: { unavailable: true } }
+      return { retainedResult }
+    }
+    const retained = retainCallerResult()
+    if ('rejected' in retained) return retained.rejected
+    const retainedResult = retained.retainedResult
+    const authorizedResult = (
+      result: Awaited<ReturnType<typeof input.callAccess.check<SettleReplyResult>>>,
+    ): SettleReplyResult => {
+      return 'allowed' in result
+        ? result.allowed
+        : 'invalidInput' in result
+          ? result
+          : { unavailable: true }
+    }
     const admitted = await input.calls.waitReserve(request, {
       policy: input.reservationWaitPolicy,
       scheduler: input.scheduler,
@@ -237,48 +265,64 @@ function buildRuntimeSettleReply<P extends PlannedSemantics, R>(
     const { reservation } = admitted
     try {
       const bound = await input.sessions.bind(request.session)
-      if ('failure' in bound) return { unavailable: true }
-      const session = bound.binding
-      if (
-        session.log.session !== request.session ||
-        session.selection.binding.generation !== session.log.generation ||
-        !tenantIdEquals(session.selection.binding.tenant, session.log.tenant)
-      )
-        return { unavailable: true }
+      const currentSession = ():
+        | {
+            readonly session: SessionRuntimeBinding
+          }
+        | {
+            readonly unavailable: true
+          } => {
+        if ('failure' in bound) return { unavailable: true }
+        const session = bound.binding
+        if (
+          session.log.session !== request.session ||
+          session.selection.binding.generation !== session.log.generation ||
+          !tenantIdEquals(session.selection.binding.tenant, session.log.tenant)
+        )
+          return { unavailable: true }
+        return { session }
+      }
+      const binding = currentSession()
+      if ('unavailable' in binding) return binding
+      const session = binding.session
       const fact = await input.callFacts.lookup({ binding: session.log, ref: request })
       const container = input.calls.find(request)
       const local = container?.view()
-      if (
-        !physical.entries.has(keyOf(request)) &&
-        container !== undefined &&
-        local?.operation.phase === 'reply_pending' &&
-        local.invocation !== undefined &&
-        'view' in fact &&
-        fact.view.result !== undefined &&
-        (fact.view.result.disposition === 'disposition_pending'
-          ? modelLogJsonEqual(fact.view.result.pending, local.operation.pending)
-          : 'ok' in
-            judgeResponseFinalization(local.operation.pending, fact.view.result.response)) &&
-        local.session.log === session.log
-      ) {
-        const pending = local.operation.pending
-        const invocation = local.invocation
-        const authorized = await input.callAccess.check(
-          { binding: session.log, ref: request, action: 'settle', origin: fact.view.origin },
-          async evidence => {
-            if (
-              evidence.action !== 'settle' ||
-              evidence.ref.session !== request.session ||
-              evidence.ref.callId !== request.callId ||
-              evidence.source.generation !== session.log.generation ||
-              ExactDecimal.from(evidence.source.progress).compare(
-                ExactDecimal.from(fact.view.source.progress),
-              ) !== 0 ||
-              evidence.revoked.aborted ||
-              physical.closed ||
-              session.log.currentGeneration() !== session.log.generation
-            )
-              return { unavailable: true } as const
+      const authorizeWarmPending = ():
+        ReturnType<typeof input.callAccess.check<SettleReplyResult>> | undefined => {
+        if (
+          !physical.entries.has(keyOf(request)) &&
+          container !== undefined &&
+          local?.operation.phase === 'reply_pending' &&
+          local.invocation !== undefined &&
+          'view' in fact &&
+          fact.view.result !== undefined &&
+          (fact.view.result.disposition === 'disposition_pending'
+            ? modelLogJsonEqual(fact.view.result.pending, local.operation.pending)
+            : 'ok' in
+              judgeResponseFinalization(local.operation.pending, fact.view.result.response)) &&
+          local.session.log === session.log
+        ) {
+          const pending = local.operation.pending
+          const invocation = local.invocation
+          const settleWarmAuthorized = async (
+            evidence: Parameters<Parameters<CallAccess['check']>[1]>[0],
+          ): Promise<SettleReplyResult> => {
+            const evidenceRejected = (): boolean => {
+              return (
+                evidence.action !== 'settle' ||
+                evidence.ref.session !== request.session ||
+                evidence.ref.callId !== request.callId ||
+                evidence.source.generation !== session.log.generation ||
+                ExactDecimal.from(evidence.source.progress).compare(
+                  ExactDecimal.from(fact.view.source.progress),
+                ) !== 0 ||
+                evidence.revoked.aborted ||
+                physical.closed ||
+                session.log.currentGeneration() !== session.log.generation
+              )
+            }
+            if (evidenceRejected()) return { unavailable: true } as const
             reservation.publish({ phase: 'settling' })
             const result = await settlePendingReply({
               request,
@@ -294,103 +338,153 @@ function buildRuntimeSettleReply<P extends PlannedSemantics, R>(
               reservation.publish(local.operation)
             }
             return result
-          },
-        )
-        return 'allowed' in authorized
-          ? authorized.allowed
-          : 'invalidInput' in authorized
-            ? authorized
-            : { unavailable: true }
+          }
+          return input.callAccess.check(
+            { binding: session.log, ref: request, action: 'settle', origin: fact.view.origin },
+            settleWarmAuthorized,
+          )
+        }
+        return undefined
       }
-
+      const authorizedWarm = authorizeWarmPending()
+      if (authorizedWarm !== undefined) {
+        const authorized = await authorizedWarm
+        return authorizedResult(authorized)
+      }
       if ('acknowledged' in fact) {
         // RT12 S-99②: the current settle authority first; ACK grants no disposition right.
         const facts = fact.acknowledged
+        const settleAcknowledgedAuthorized = async (
+          evidence: Parameters<Parameters<CallAccess['check']>[1]>[0],
+        ): Promise<SettleReplyResult> => {
+          const evidenceRejected = (): boolean => {
+            return (
+              evidence.action !== 'settle' ||
+              evidence.ref.session !== request.session ||
+              evidence.ref.callId !== request.callId ||
+              evidence.source.generation !== session.log.generation ||
+              evidence.revoked.aborted
+            )
+          }
+          if (evidenceRejected()) return { unavailable: true }
+          const judged = judgeAcknowledgedSettlement(request, retainedResult, facts)
+          if (!('validated' in judged)) return judged
+          return await settleAcknowledged(request, judged.validated, session)
+        }
         const admittedAck = await input.callAccess.check(
           { binding: session.log, ref: request, action: 'settle', origin: facts.origin },
-          async (evidence): Promise<SettleReplyResult> => {
-            if (
-              evidence.action !== 'settle' ||
-              evidence.ref.session !== request.session ||
-              evidence.ref.callId !== request.callId ||
-              evidence.source.generation !== session.log.generation ||
-              evidence.revoked.aborted
-            )
-              return { unavailable: true }
-            const judged = judgeAcknowledgedSettlement(request, retainedResult, facts)
-            if (!('validated' in judged)) return judged
-            return await settleAcknowledged(request, judged.validated, session)
-          },
+          settleAcknowledgedAuthorized,
         )
-        if ('allowed' in admittedAck) return admittedAck.allowed
-        return 'invalidInput' in admittedAck ? admittedAck : { unavailable: true }
+        return authorizedResult(admittedAck)
       }
-      if (
-        'view' in fact &&
-        (fact.view.result !== undefined || physical.entries.has(keyOf(request)))
-      ) {
-        const admittedSettle = await input.callAccess.check(
-          { binding: session.log, ref: request, action: 'settle', origin: fact.view.origin },
-          async evidence => {
-            if (
-              evidence.action !== 'settle' ||
-              evidence.ref.session !== request.session ||
-              evidence.ref.callId !== request.callId ||
-              evidence.source.generation !== session.log.generation ||
-              ExactDecimal.from(evidence.source.progress).compare(
-                ExactDecimal.from(fact.view.source.progress),
-              ) !== 0 ||
-              evidence.revoked.aborted
-            )
-              return { unavailable: true } as const
+      const authorizeColdReady = ():
+        ReturnType<typeof input.callAccess.check<SettleReplyResult>> | undefined => {
+        if (
+          'view' in fact &&
+          (fact.view.result !== undefined || physical.entries.has(keyOf(request)))
+        ) {
+          const settleColdAuthorized = async (
+            evidence: Parameters<Parameters<CallAccess['check']>[1]>[0],
+          ): Promise<SettleReplyResult> => {
+            const evidenceRejected = (): boolean => {
+              return (
+                evidence.action !== 'settle' ||
+                evidence.ref.session !== request.session ||
+                evidence.ref.callId !== request.callId ||
+                evidence.source.generation !== session.log.generation ||
+                ExactDecimal.from(evidence.source.progress).compare(
+                  ExactDecimal.from(fact.view.source.progress),
+                ) !== 0 ||
+                evidence.revoked.aborted
+              )
+            }
+            if (evidenceRejected()) return { unavailable: true } as const
             const key = keyOf(request)
-            let entry = physical.entries.get(key)
-            if (entry === undefined) {
-              // RT12 S-99④⑦/S-86: a committed final decides by itself, after the current settle
-              // authority: the same disposition recognizes it, another is alreadyEnded. No value
-              // is needed or consulted and nothing is written.
-              if (fact.view.result?.disposition === 'final')
-                return await recognizeSettledReply(request, input, session)
-              if (fact.view.result?.disposition !== 'disposition_pending')
-                return { unavailable: true } as const
-              const pending = fact.view.result.pending
-              // RT12 S-99③: before ACK a caller's value may only equal the authority.
-              if (retainedResult !== undefined && !modelLogJsonEqual(retainedResult, pending))
+            const selectOriginalEntry = ():
+              | {
+                  readonly entry: DurableReplySettlement
+                }
+              | {
+                  readonly recognize: true
+                }
+              | {
+                  readonly unavailable: true
+                }
+              | {
+                  readonly invalidInput: {
+                    readonly reason: 'malformed'
+                  }
+                } => {
+              let entry = physical.entries.get(key)
+              if (entry === undefined) {
+                // RT12 S-99④⑦/S-86: a committed final decides by itself, after the current settle
+                // authority: the same disposition recognizes it, another is alreadyEnded. No value
+                // is needed or consulted and nothing is written.
+                if (fact.view.result?.disposition === 'final') return { recognize: true }
+                if (fact.view.result?.disposition !== 'disposition_pending')
+                  return { unavailable: true } as const
+                const constructOriginalEntry = (
+                  pending: PendingModelResponse,
+                ):
+                  | {
+                      readonly entry: DurableReplySettlement
+                    }
+                  | {
+                      readonly unavailable: true
+                    }
+                  | {
+                      readonly invalidInput: {
+                        readonly reason: 'malformed'
+                      }
+                    } => {
+                  // RT12 S-99③: before ACK a caller's value may only equal the authority.
+                  if (retainedResult !== undefined && !modelLogJsonEqual(retainedResult, pending))
+                    return { invalidInput: { reason: 'malformed' } } as const
+                  const final = { ...pending, replyDisposition: request.disposition }
+                  if ('rejected' in judgeResponseFinalization(pending, final))
+                    return { unavailable: true } as const
+                  const entry: DurableReplySettlement = {
+                    key,
+                    settlement: {
+                      target: {
+                        call: request.callId,
+                        dispatch: pending.dispatch,
+                        response: pending.id,
+                      },
+                      current: { messageId: pending.reply.id, disposition: request.disposition },
+                      response: final,
+                    },
+                    disposition: request.disposition,
+                    pending,
+                    state: pending.outcome === 'interrupted' ? 'interrupted' : 'complete',
+                    coordinator: createSettlementCoordinator({
+                      binding: session.log,
+                      owner: session.selection.owner,
+                      ...(input.run === undefined ? {} : { run: input.run }),
+                      settlementContention: input.contention,
+                      settlementScheduler: input.scheduler,
+                      diagnostic: input.diagnostic,
+                    }),
+                    processing: false,
+                  }
+                  physical.entries.set(key, entry)
+                  return { entry }
+                }
+                const constructed = constructOriginalEntry(fact.view.result.pending)
+                if (!('entry' in constructed)) return constructed
+                entry = constructed.entry
+              } else if (
+                retainedResult !== undefined &&
+                !modelLogJsonEqual(retainedResult, entry.pending)
+              )
                 return { invalidInput: { reason: 'malformed' } } as const
-              const final = { ...pending, replyDisposition: request.disposition }
-              if ('rejected' in judgeResponseFinalization(pending, final))
-                return { unavailable: true } as const
-              entry = {
-                key,
-                settlement: {
-                  target: {
-                    call: request.callId,
-                    dispatch: pending.dispatch,
-                    response: pending.id,
-                  },
-                  current: { messageId: pending.reply.id, disposition: request.disposition },
-                  response: final,
-                },
-                disposition: request.disposition,
-                pending,
-                state: pending.outcome === 'interrupted' ? 'interrupted' : 'complete',
-                coordinator: createSettlementCoordinator({
-                  binding: session.log,
-                  owner: session.selection.owner,
-                  ...(input.run === undefined ? {} : { run: input.run }),
-                  settlementContention: input.contention,
-                  settlementScheduler: input.scheduler,
-                  diagnostic: input.diagnostic,
-                }),
-                processing: false,
-              }
-              physical.entries.set(key, entry)
-            } else if (
-              retainedResult !== undefined &&
-              !modelLogJsonEqual(retainedResult, entry.pending)
-            )
-              return { invalidInput: { reason: 'malformed' } } as const
-            if (entry.processing) return { unavailable: true } as const
+              if (entry.processing) return { unavailable: true } as const
+              return { entry }
+            }
+            const selected = selectOriginalEntry()
+            if ('recognize' in selected) return await recognizeSettledReply(request, input, session)
+            if (!('entry' in selected)) return selected
+            const entry = selected.entry
             entry.processing = true
             try {
               // The same coordinator resolves a retained original before any new submission.
@@ -410,19 +504,31 @@ function buildRuntimeSettleReply<P extends PlannedSemantics, R>(
               }
               if (!(await closeEntry(entry))) return { unavailable: true } as const
               physical.entries.delete(key)
-              if (
-                result.settled.disposition === 'firstWinner' ||
-                !modelLogJsonEqual(entry.disposition, request.disposition)
-              )
-                return { alreadyEnded: true } as const
-              return { callId: request.callId, state: entry.state } as const
+              const settledOriginalResult = (): SettleReplyResult => {
+                if (
+                  result.settled.disposition === 'firstWinner' ||
+                  !modelLogJsonEqual(entry.disposition, request.disposition)
+                )
+                  return { alreadyEnded: true } as const
+                return { callId: request.callId, state: entry.state } as const
+              }
+              return settledOriginalResult()
             } catch {
               return { unavailable: true } as const
             } finally {
               entry.processing = false
             }
-          },
-        )
+          }
+          return input.callAccess.check(
+            { binding: session.log, ref: request, action: 'settle', origin: fact.view.origin },
+            settleColdAuthorized,
+          )
+        }
+        return undefined
+      }
+      const authorizedCold = authorizeColdReady()
+      if (authorizedCold !== undefined) {
+        const admittedSettle = await authorizedCold
         return 'allowed' in admittedSettle ? admittedSettle.allowed : { unavailable: true }
       }
       if (container === undefined) return await recognizeSettledReply(request, input, session)
@@ -483,28 +589,30 @@ function buildRuntimeSettleReply<P extends PlannedSemantics, R>(
       physical.works.set(key, work)
     }
     const outcome = await work.advance()
-    if ('retained' in outcome) return { unavailable: true }
-    physical.works.delete(key)
-    // Ended: nothing of this work was written; the consumer may apply again with its value.
-    if ('ended' in outcome) return { unavailable: true }
-    const original = outcome.settled.response.response
-    if (
-      outcome.settled.disposition === 'firstWinner' ||
-      original === null ||
-      !modelLogJsonEqual(original.replyDisposition, request.disposition)
-    )
-      return { alreadyEnded: true }
-    if (
-      original.outcome !== 'interrupted' &&
-      original.outcome !== 'complete' &&
-      original.outcome !== 'truncated'
-    )
-      return { unavailable: true }
-    return {
-      callId: request.callId,
-      state: original.outcome === 'interrupted' ? 'interrupted' : 'complete',
+    const applyWorkOutcome = (): SettleReplyResult => {
+      if ('retained' in outcome) return { unavailable: true }
+      physical.works.delete(key)
+      // Ended: nothing of this work was written; the consumer may apply again with its value.
+      if ('ended' in outcome) return { unavailable: true }
+      const original = outcome.settled.response.response
+      if (
+        outcome.settled.disposition === 'firstWinner' ||
+        original === null ||
+        !modelLogJsonEqual(original.replyDisposition, request.disposition)
+      )
+        return { alreadyEnded: true }
+      if (
+        original.outcome !== 'interrupted' &&
+        original.outcome !== 'complete' &&
+        original.outcome !== 'truncated'
+      )
+        return { unavailable: true }
+      return {
+        callId: request.callId,
+        state: original.outcome === 'interrupted' ? 'interrupted' : 'complete',
+      }
     }
-
+    return applyWorkOutcome()
     function emitWork(kind: string): void {
       try {
         drainDiagnosticThenable(
@@ -633,25 +741,28 @@ async function readSettledReply(
     const history = rejectAcknowledgedHistory(
       interpretCallHistory({ prefix: read.prefix, callId: request.callId }),
     )
-    if ('absent' in history) return { callNotFound: true }
-    if (!('known' in history)) return { unavailable: true }
-    const response = history.known.dispatches.at(-1)?.response?.projection
-    if (response === undefined) {
-      const phase = history.known.phase
-      return phase === null ? { unavailable: true } : { wrongPhase: { phase } }
+    const classifySettledHistory = (): SettleReplyResult => {
+      if ('absent' in history) return { callNotFound: true }
+      if (!('known' in history)) return { unavailable: true }
+      const response = history.known.dispatches.at(-1)?.response?.projection
+      if (response === undefined) {
+        const phase = history.known.phase
+        return phase === null ? { unavailable: true } : { wrongPhase: { phase } }
+      }
+      if (!modelLogJsonEqual(response.replyDisposition, request.disposition))
+        return { alreadyEnded: true }
+      if (
+        response.outcome !== 'interrupted' &&
+        response.outcome !== 'complete' &&
+        response.outcome !== 'truncated'
+      )
+        return { unavailable: true }
+      return {
+        callId: request.callId,
+        state: response.outcome === 'interrupted' ? 'interrupted' : 'complete',
+      }
     }
-    if (!modelLogJsonEqual(response.replyDisposition, request.disposition))
-      return { alreadyEnded: true }
-    if (
-      response.outcome !== 'interrupted' &&
-      response.outcome !== 'complete' &&
-      response.outcome !== 'truncated'
-    )
-      return { unavailable: true }
-    return {
-      callId: request.callId,
-      state: response.outcome === 'interrupted' ? 'interrupted' : 'complete',
-    }
+    return classifySettledHistory()
   } finally {
     await Promise.all(tasks.map(requestStopAndWait))
     admitted.registration.release()
@@ -896,9 +1007,14 @@ function buildRuntimeReconcile(
   }
 
   async function reconcile(request: ReconcileInput): Promise<ReconcileResult> {
-    if (typeof request.session !== 'string' || request.session.length === 0)
-      return { invalidInput: { reason: 'malformed' } }
-    if (physical.closed) return { unavailable: true }
+    const requestRejected = (): ReconcileResult | undefined => {
+      if (typeof request.session !== 'string' || request.session.length === 0)
+        return { invalidInput: { reason: 'malformed' } }
+      if (physical.closed) return { unavailable: true }
+      return undefined
+    }
+    const rejected = requestRejected()
+    if (rejected !== undefined) return rejected
     try {
       const authorization = await input.recovery.authorize(request)
       if (!('authorized' in authorization) || physical.closed) return { unavailable: true }
@@ -910,37 +1026,45 @@ function buildRuntimeReconcile(
     if (previous !== undefined) {
       if (previous.active !== undefined) return { unavailable: true }
       const ready = await releaseEntry(previous, previous.exitAttempted)
-      if (!ready) return { unavailable: true }
-      if (physical.closed) return { unavailable: true }
-      if (previous.exitAttempted) {
-        if (physical.entries.has(request.session)) return { unavailable: true }
-      } else if (
-        previous.active !== undefined ||
-        physical.entries.get(request.session) !== previous
-      ) {
-        return { unavailable: true }
+      const retainedEntryReusable = (): boolean => {
+        if (!ready) return false
+        if (physical.closed) return false
+        if (previous.exitAttempted) {
+          if (physical.entries.has(request.session)) return false
+        } else if (
+          previous.active !== undefined ||
+          physical.entries.get(request.session) !== previous
+        ) {
+          return false
+        }
+        return true
       }
+      if (!retainedEntryReusable()) return { unavailable: true }
     }
-    entry =
-      previous !== undefined && physical.entries.get(request.session) === previous
-        ? previous
-        : {
-            session: request.session,
-            reads: new Set(),
-            settlements: new Set(),
-            unknownControl: new UnknownAppendTracker(),
-            pendingControl: new Set(),
-            controlTasks: new Set(),
-            originals: new Map(),
-            active: undefined,
-            releasing: undefined,
-            exitAttempted: false,
-          }
-    if (physical.entries.get(request.session) !== entry)
-      physical.entries.set(request.session, entry)
+    const retainEntry = (): RecoveryEntry => {
+      const retained: RecoveryEntry =
+        previous !== undefined && physical.entries.get(request.session) === previous
+          ? previous
+          : {
+              session: request.session,
+              reads: new Set(),
+              settlements: new Set(),
+              unknownControl: new UnknownAppendTracker(),
+              pendingControl: new Set(),
+              controlTasks: new Set(),
+              originals: new Map(),
+              active: undefined,
+              releasing: undefined,
+              exitAttempted: false,
+            }
+      if (physical.entries.get(request.session) !== retained)
+        physical.entries.set(request.session, retained)
+      return retained
+    }
+    entry = retainEntry()
     const entering = entry.entered ?? Promise.resolve().then(() => input.recovery.enter(request))
     entry.entered = entering
-    const active = (async (): Promise<ReconcileResult> => {
+    const recoverEnteredScope = async (): Promise<ReconcileResult> => {
       let observer: ReturnType<typeof operationDiagnostics> | undefined
       let terminalRecorded = false
       let diagnosticReportEnabled = true
@@ -957,71 +1081,77 @@ function buildRuntimeReconcile(
         const entered = await entering
         if ('unavailable' in entered) return { unavailable: true }
         entry.scope = entered.scope
-        if (entered.scope.binding.log.session === request.session) {
-          try {
-            observer = operationDiagnostics(
-              input.diagnosticCollector,
-              entered.scope.binding.log.tenant,
-              { executionId: randomUUID(), session: request.session },
-              reportDiagnosticFailure,
-            )
-            observer.record({
-              source: 'runtime',
-              stage: 'recovery',
-              outcome: 'started',
-              facts: { kind: 'progress' },
-            })
-          } catch {
-            reportDiagnosticFailure()
+        const observeRecoveryScope = (): void => {
+          if (entered.scope.binding.log.session === request.session) {
+            try {
+              observer = operationDiagnostics(
+                input.diagnosticCollector,
+                entered.scope.binding.log.tenant,
+                { executionId: randomUUID(), session: request.session },
+                reportDiagnosticFailure,
+              )
+              observer.record({
+                source: 'runtime',
+                stage: 'recovery',
+                outcome: 'started',
+                facts: { kind: 'progress' },
+              })
+            } catch {
+              reportDiagnosticFailure()
+            }
           }
         }
+        observeRecoveryScope()
         if (physical.closed) return { unavailable: true }
+        const observeAnchor = (
+          anchor: Parameters<Parameters<typeof readRecoveredCalls>[4]>[0],
+        ): void => {
+          let recovered: ReturnType<typeof operationDiagnostics> | undefined
+          try {
+            recovered = operationDiagnostics(
+              input.diagnosticCollector,
+              entered.scope.binding.log.tenant,
+              {
+                executionId: randomUUID(),
+                session: request.session,
+                call: anchor.call,
+                dispatch: anchor.dispatch,
+                response: anchor.response,
+              },
+              reportDiagnosticFailure,
+            )
+            for (const [kind, position] of [
+              ['dispatched', anchor.dispatchedPosition],
+              ['opened', anchor.openedPosition],
+            ] as const) {
+              if (position === undefined) continue
+              recovered.record({
+                source: 'runtime',
+                stage: 'recovery',
+                outcome: 'started',
+                facts: {
+                  kind: 'progress',
+                  anchor: kind,
+                  anchorId: ExactDecimal.from(position).toString(),
+                },
+              })
+            }
+          } catch {
+            reportDiagnosticFailure()
+          } finally {
+            try {
+              recovered?.close()
+            } catch {
+              reportDiagnosticFailure()
+            }
+          }
+        }
         const result = await readRecoveredCalls(
           request,
           entry,
           input,
           () => physical.closed,
-          anchor => {
-            let recovered: ReturnType<typeof operationDiagnostics> | undefined
-            try {
-              recovered = operationDiagnostics(
-                input.diagnosticCollector,
-                entered.scope.binding.log.tenant,
-                {
-                  executionId: randomUUID(),
-                  session: request.session,
-                  call: anchor.call,
-                  dispatch: anchor.dispatch,
-                  response: anchor.response,
-                },
-                reportDiagnosticFailure,
-              )
-              for (const [kind, position] of [
-                ['dispatched', anchor.dispatchedPosition],
-                ['opened', anchor.openedPosition],
-              ] as const) {
-                if (position === undefined) continue
-                recovered.record({
-                  source: 'runtime',
-                  stage: 'recovery',
-                  outcome: 'started',
-                  facts: {
-                    kind: 'progress',
-                    anchor: kind,
-                    anchorId: ExactDecimal.from(position).toString(),
-                  },
-                })
-              }
-            } catch {
-              reportDiagnosticFailure()
-            } finally {
-              try {
-                recovered?.close()
-              } catch {
-                reportDiagnosticFailure()
-              }
-            }
-          },
+          observeAnchor,
         )
         if (physical.closed) return { unavailable: true }
         if ('unavailable' in result) {
@@ -1035,14 +1165,17 @@ function buildRuntimeReconcile(
           return result
         }
         const released = await releaseEntry(entry, true)
-        observer?.record({
-          source: 'runtime',
-          stage: 'recovery',
-          outcome: released ? 'completed' : 'unavailable',
-          facts: { kind: 'progress', ...(released ? { retry: 'without_resend' } : {}) },
-        })
-        terminalRecorded = true
-        return released ? result : { unavailable: true }
+        const releasedRecoveryResult = (): ReconcileResult => {
+          observer?.record({
+            source: 'runtime',
+            stage: 'recovery',
+            outcome: released ? 'completed' : 'unavailable',
+            facts: { kind: 'progress', ...(released ? { retry: 'without_resend' } : {}) },
+          })
+          terminalRecorded = true
+          return released ? result : { unavailable: true }
+        }
+        return releasedRecoveryResult()
       } catch {
         observer?.record({
           source: 'runtime',
@@ -1066,7 +1199,8 @@ function buildRuntimeReconcile(
           reportDiagnosticFailure()
         }
       }
-    })()
+    }
+    const active = recoverEnteredScope()
     entry.active = active
     const result = await active
     if (entry.active === active) entry.active = undefined
@@ -1077,32 +1211,33 @@ function buildRuntimeReconcile(
     if (physical.closing !== undefined) return physical.closing
     physical.closed = true
     const attempt = (async () => {
-      for (const entry of physical.entries.values()) {
-        for (const read of entry.reads)
-          for (const task of read.tasks) {
+      const requestEntryStops = (): void => {
+        for (const entry of physical.entries.values()) {
+          for (const read of entry.reads)
+            for (const task of read.tasks) {
+              try {
+                task.requestStop()
+              } catch {
+                // Await stopped below.
+              }
+            }
+          for (const settlement of entry.settlements) {
+            try {
+              settlement.task?.requestStop()
+            } catch {
+              // Actual stopped remains authoritative.
+            }
+          }
+          for (const task of entry.controlTasks) {
             try {
               task.requestStop()
             } catch {
-              // Await stopped below.
+              // Actual stopped remains authoritative.
             }
-          }
-        for (const settlement of entry.settlements) {
-          try {
-            settlement.task?.requestStop()
-          } catch {
-            // Actual stopped remains authoritative.
-          }
-        }
-        for (const task of entry.controlTasks) {
-          try {
-            task.requestStop()
-          } catch {
-            // Actual stopped remains authoritative.
           }
         }
       }
-      // A held task keeps its own scope, but does not prevent an independent
-      // session's stopped scope from leaving recovery admission.
+      requestEntryStops()
       const active = [...physical.entries.values()].some(entry => entry.active !== undefined)
       const outcomes = await Promise.allSettled(
         [...physical.entries.values()]

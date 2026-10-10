@@ -82,21 +82,24 @@ const replaceKeys = [
   'inputConstraints',
   'upstreamInputLimits',
 ]
+function validReplacementKeys(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (object(value) && Object.keys(value).every(key => replaceKeys.includes(key)))
+  )
+}
+function validRemoval(value: unknown): boolean {
+  return (
+    value === undefined || (Array.isArray(value) && value.length === 1 && value[0] === 'parameters')
+  )
+}
 function isPatch(input: unknown): input is ProfilePatch {
   if (!object(input) || Object.keys(input).some(k => k !== 'replace' && k !== 'remove'))
     return false
   const replace = input.replace
   const remove = input.remove
-  if (
-    replace !== undefined &&
-    (!object(replace) || Object.keys(replace).some(k => !replaceKeys.includes(k)))
-  )
-    return false
-  if (
-    remove !== undefined &&
-    (!Array.isArray(remove) || remove.length !== 1 || remove[0] !== 'parameters')
-  )
-    return false
+  if (!validReplacementKeys(replace)) return false
+  if (!validRemoval(remove)) return false
   if (
     object(replace) &&
     Object.hasOwn(replace, 'adaptation') &&

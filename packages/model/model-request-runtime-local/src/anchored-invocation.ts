@@ -37,6 +37,9 @@ import type {
   ModelInvocationResult,
   InvocationPolicy,
   OutputProjectionInput,
+  PlanInput,
+  PlanResult,
+  CredentialRedactionConfig,
 } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementTask,
@@ -52,6 +55,7 @@ import type {
   ResponseConstructionResult,
 } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationInput } from './anchored-invocation-types.ts'
+import type { SettlementCoordinatorInput } from './settlement-types.ts'
 import type {
   DiagnosticEmitter,
   DiagnosticEvent,
@@ -60,6 +64,33 @@ import type {
 import { requestStopAndWait } from './settlement-stop.ts'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
+
+function recordedDiagnosticReference(ref: unknown): DiagnosticRecordResult | undefined {
+  if (
+    ref !== null &&
+    typeof ref === 'object' &&
+    'collectorId' in ref &&
+    'sequence' in ref &&
+    typeof ref.collectorId === 'string' &&
+    typeof ref.sequence === 'string'
+  )
+    return { recorded: { collectorId: ref.collectorId, sequence: ref.sequence } }
+  return undefined
+}
+
+function droppedDiagnosticReply(result: object): DiagnosticRecordResult | undefined {
+  if (
+    'dropped' in result &&
+    (result.dropped === 'invalid' ||
+      result.dropped === 'unsupported' ||
+      result.dropped === 'oversize' ||
+      result.dropped === 'queue_full' ||
+      result.dropped === 'closed')
+  )
+    return { dropped: result.dropped }
+  return undefined
+}
+
 /** One actual emitter is shared by the anchored owner and the inner public invocation. */
 function anchoredDiagnostics<P extends PlannedSemantics, R>(
   input: AnchoredInvocationInput<P, R>,
@@ -109,25 +140,12 @@ function anchoredDiagnostics<P extends PlannedSemantics, R>(
         return { dropped: 'invalid' }
       } else if (result !== null && typeof result === 'object') {
         if ('recorded' in result) {
-          const ref = result.recorded
-          if (
-            ref !== null &&
-            typeof ref === 'object' &&
-            'collectorId' in ref &&
-            'sequence' in ref &&
-            typeof ref.collectorId === 'string' &&
-            typeof ref.sequence === 'string'
-          )
-            return { recorded: { collectorId: ref.collectorId, sequence: ref.sequence } }
-        } else if (
-          'dropped' in result &&
-          (result.dropped === 'invalid' ||
-            result.dropped === 'unsupported' ||
-            result.dropped === 'oversize' ||
-            result.dropped === 'queue_full' ||
-            result.dropped === 'closed')
-        )
-          return { dropped: result.dropped }
+          const reference = recordedDiagnosticReference(result.recorded)
+          if (reference !== undefined) return reference
+        } else {
+          const dropped = droppedDiagnosticReply(result)
+          if (dropped !== undefined) return dropped
+        }
       }
       recordEnabled = false
       report('model_anchor.diagnostic_contract_violation')
@@ -205,96 +223,133 @@ function terminalHandle(
     },
   }
 }
-/** R3-P3/P4/P5, RT5 S-15/17: one noRun dispatch with the original invokeModel and shared settlement. */
-async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
+function validAnchoredRun<P extends PlannedSemantics, R>(
   input: AnchoredInvocationInput<P, R>,
-): Promise<AnchoredInvocationHandle> {
-  input = Object.freeze({ ...input })
-  const terminal = (value: AnchoredInvocationOutcome) =>
-    terminalHandle(value, input.releaseBorrowed)
-  const owned = ownPlanInput(input.planInput)
-  const missing = owned === undefined ? preflightMissingInputLimits(input.planInput) : null
-  const requested = owned ?? missing?.input
-  if (
-    !requested ||
+): boolean {
+  return !(
     (input.run === undefined) !== (input.attempt === undefined) ||
     (input.run !== undefined && !('ok' in judgeAccountValue('RunId', input.run))) ||
-    (input.attempt !== undefined && !('ok' in judgeAccountValue('AttemptId', input.attempt))) ||
-    !(input.signal instanceof AbortSignal) ||
-    !input.policy ||
-    !validPolicy(input.policy) ||
+    (input.attempt !== undefined && !('ok' in judgeAccountValue('AttemptId', input.attempt)))
+  )
+}
+
+function validAnchoredSelection<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+  requested: PlanInput,
+): boolean {
+  return !(
     !('ok' in parseOpaqueIdentifier(input.messageId, 'MessageId')) ||
     !('ok' in parseOpaqueIdentifier(input.responseId, 'ResponseId')) ||
     input.profile.routeName !== requested.routeName ||
     !requested.snapshot.providers.includes(requested.provider) ||
     ((!requested.snapshot.allowFallback || modelLogJsonEqual(requested.target.dispatch, 1)) &&
-      requested.provider !== requested.snapshot.providers[0]) ||
+      requested.provider !== requested.snapshot.providers[0])
+  )
+}
+
+function validAnchoredCredentialScope<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+): boolean {
+  return !(
     (input.profile.origin === 'custom' && input.credentialScope.layer === 'factory') ||
     (input.credentialScope.layer === 'tenant' &&
       !tenantIdEquals(input.credentialScope.tenant, input.settlement.binding.tenant))
   )
-    return terminal({ rejected: 'invalidInput', reason: 'malformed' })
-  try {
-    const bound = createCredentialRedactionPolicy(input.policy.credentialRedaction).bind(
-      input.credential,
-    )
-    if ('rejected' in bound) return terminal({ rejected: 'invalidInput', reason: 'malformed' })
-    const config = input.policy.credentialRedaction
-    const sourceOwner = input.settlement.owner
-    const sourceLog = input.settlement.binding.log
-    const contention = input.settlement.settlementContention
-    input = Object.freeze({
-      ...input,
-      policy: Object.freeze({
-        ...input.policy,
-        statusCauseTable: Object.freeze({ ...input.policy.statusCauseTable }),
-        credentialRedaction: Object.freeze({
-          credential_fragment_min_length: config.credential_fragment_min_length,
-          credential_header_names: Object.freeze([...config.credential_header_names]),
-          credential_patterns: Object.freeze(
-            config.credential_patterns.map(pattern => Object.freeze({ ...pattern })),
-          ),
-        }),
-      }),
-      settlement: Object.freeze({
-        ...input.settlement,
-        ...(contention === undefined
-          ? {}
-          : {
-              settlementContention: Object.freeze({
-                ...contention,
-                limits: Object.freeze({ ...contention.limits }),
-              }),
-            }),
-        ...(input.settlement.settlementScheduler === undefined
-          ? {}
-          : { settlementScheduler: Object.freeze({ ...input.settlement.settlementScheduler }) }),
-        binding: Object.freeze({
-          ...input.settlement.binding,
-          log: Object.freeze({
-            append: sourceLog.append.bind(sourceLog),
-            readSince: sourceLog.readSince.bind(sourceLog),
-            readByKey: sourceLog.readByKey.bind(sourceLog),
+}
+
+function validAnchoredAdmission<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+  requested: PlanInput,
+): boolean {
+  return (
+    validAnchoredRun(input) &&
+    input.signal instanceof AbortSignal &&
+    !!input.policy &&
+    validPolicy(input.policy) &&
+    validAnchoredSelection(input, requested) &&
+    validAnchoredCredentialScope(input)
+  )
+}
+
+function captureAnchoredPolicy(
+  policy: InvocationPolicy,
+  config: CredentialRedactionConfig,
+): InvocationPolicy {
+  return Object.freeze({
+    ...policy,
+    statusCauseTable: Object.freeze({ ...policy.statusCauseTable }),
+    credentialRedaction: Object.freeze({
+      credential_fragment_min_length: config.credential_fragment_min_length,
+      credential_header_names: Object.freeze([...config.credential_header_names]),
+      credential_patterns: Object.freeze(
+        config.credential_patterns.map(pattern => Object.freeze({ ...pattern })),
+      ),
+    }),
+  })
+}
+
+function captureAnchoredSettlement(
+  settlement: SettlementCoordinatorInput,
+  contention: SettlementCoordinatorInput['settlementContention'],
+  sourceLog: SettlementLogBinding['log'],
+  sourceOwner: SettlementOwner,
+): SettlementCoordinatorInput {
+  return Object.freeze({
+    ...settlement,
+    ...(contention === undefined
+      ? {}
+      : {
+          settlementContention: Object.freeze({
+            ...contention,
+            limits: Object.freeze({ ...contention.limits }),
           }),
         }),
-        owner: Object.freeze({
-          name: sourceOwner.name,
-          admission: sourceOwner.admission.bind(sourceOwner),
-          acquire: sourceOwner.acquire.bind(sourceOwner),
-          opened: sourceOwner.opened.bind(sourceOwner),
-          unresolvedWrites: sourceOwner.unresolvedWrites.bind(sourceOwner),
-        }),
+    ...(settlement.settlementScheduler === undefined
+      ? {}
+      : { settlementScheduler: Object.freeze({ ...settlement.settlementScheduler }) }),
+    binding: Object.freeze({
+      ...settlement.binding,
+      log: Object.freeze({
+        append: sourceLog.append.bind(sourceLog),
+        readSince: sourceLog.readSince.bind(sourceLog),
+        readByKey: sourceLog.readByKey.bind(sourceLog),
       }),
-    })
-  } catch (error) {
-    if (error instanceof CredentialRedactionConfigurationError)
-      return terminal({ rejected: 'invalidInput', reason: 'malformed' })
-    throw error
-  }
+    }),
+    owner: Object.freeze({
+      name: sourceOwner.name,
+      admission: sourceOwner.admission.bind(sourceOwner),
+      acquire: sourceOwner.acquire.bind(sourceOwner),
+      opened: sourceOwner.opened.bind(sourceOwner),
+      unresolvedWrites: sourceOwner.unresolvedWrites.bind(sourceOwner),
+    }),
+  })
+}
+
+function captureAnchoredInput<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+): AnchoredInvocationInput<P, R> {
+  const config = input.policy.credentialRedaction
+  const sourceOwner = input.settlement.owner
+  const sourceLog = input.settlement.binding.log
+  const contention = input.settlement.settlementContention
+  return Object.freeze({
+    ...input,
+    policy: captureAnchoredPolicy(input.policy, config),
+    settlement: captureAnchoredSettlement(input.settlement, contention, sourceLog, sourceOwner),
+  })
+}
+
+/** Capture source ports and acquire the one registration that owns planning. */
+function acquireAnchoredPlanning<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+) {
+  const terminal = (value: AnchoredInvocationOutcome) => ({
+    terminal: terminalHandle(value, input.releaseBorrowed),
+  })
   const binding = Object.freeze({ ...input.settlement.binding })
   const originalOwner = input.settlement.owner
   if ('unknown' in originalOwner.opened() || originalOwner.unresolvedWrites().length > 0)
-    return terminalHandle(unavailable, undefined, true)
+    return { terminal: terminalHandle(unavailable, undefined, true) }
   const contention = input.settlement.settlementContention
   if (contention === undefined || input.settlement.settlementScheduler === undefined)
     return terminal(unavailable)
@@ -314,44 +369,42 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
   if (input.signal.aborted) return terminal({ cancelledBeforeDispatch: true })
   const acquiredPlanning = originalOwner.acquire(contention.limits.concurrent)
   if ('unavailable' in acquiredPlanning) return terminal(unavailable)
-  const planningRegistration = acquiredPlanning.registration
-  let plan
-  try {
-    const task = planningRegistration.start('wait', async signal => {
-      const completion = transport.plan(missing ? missing.original : requested, {
-        signal: AbortSignal.any([signal, input.signal]),
-        ...(input.reuseScope === undefined ? {} : { reuseScope: input.reuseScope }),
-      })
-      return input.trackPlan === undefined ? await completion : await input.trackPlan(completion)
-    })
-    try {
-      plan = await task.completion
-    } finally {
-      await requestStopAndWait(task)
-    }
-  } finally {
-    planningRegistration.release()
+  return {
+    binding,
+    originalOwner,
+    contention,
+    originalIssue,
+    transport,
+    policy,
+    planningRegistration: acquiredPlanning.registration,
   }
-  if (input.signal.aborted) return terminal({ cancelledBeforeDispatch: true })
-  if (missing) {
-    if (
-      'rejected' in plan &&
-      ((plan.rejected === 'invalidInput' && plan.reason === 'malformed') ||
-        plan.rejected === 'modality_not_carried' ||
-        plan.rejected === 'orphan_tool_call' ||
-        plan.rejected === 'tool_internal_in_request')
-    )
-      return terminal(plan)
-    return terminal({
-      rejected: 'invalidInput',
-      reason: 'input_limit_missing',
-      metrics: missing.metrics,
-    })
+}
+
+function missingAnchoredLimitFailure<P extends PlannedSemantics>(
+  plan: PlanResult<P>,
+  missing: NonNullable<ReturnType<typeof preflightMissingInputLimits>>,
+): AnchoredInvocationOutcome {
+  if (
+    'rejected' in plan &&
+    ((plan.rejected === 'invalidInput' && plan.reason === 'malformed') ||
+      plan.rejected === 'modality_not_carried' ||
+      plan.rejected === 'orphan_tool_call' ||
+      plan.rejected === 'tool_internal_in_request')
+  )
+    return plan
+  return {
+    rejected: 'invalidInput',
+    reason: 'input_limit_missing',
+    metrics: missing.metrics,
   }
-  if ('rejected' in plan) return terminal(plan)
-  const planned = plan.planned
-  if (!modelLogJsonEqual(planned.input, requested))
-    return terminal({ rejected: 'invalidInput', reason: 'malformed' })
+}
+
+function prepareAnchoredDispatch<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+  requested: PlanInput,
+  planned: P,
+  binding: SettlementLogBinding,
+) {
   const captured = captureModelLogValue({
     category: 'record',
     input: {
@@ -378,7 +431,7 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     },
   })
   if ('invalidValue' in captured || captured.ok.record?.kind !== 'model_call_dispatched')
-    return terminal({ rejected: 'invalidInput', reason: 'malformed' })
+    return undefined
   const dispatched: ModelCallDispatchedRecord = captured.ok.record
   const prepared = prepareModelLogEntry({
     session: binding.session,
@@ -390,11 +443,87 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     purpose: { kind: 'record' },
     messagePrefix: null,
   })
-  if ('invalidValue' in prepared) return terminal({ rejected: 'invalidInput', reason: 'malformed' })
-  const preparedEntry = prepared.ok
-  const acquired = originalOwner.acquire(contention.limits.concurrent)
-  if ('unavailable' in acquired) return terminal(unavailable)
-  const registration: SettlementRegistration = acquired.registration
+  if ('invalidValue' in prepared) return undefined
+  return { dispatched, preparedEntry: prepared.ok }
+}
+
+function captureAnchoredAdmission<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+) {
+  const owned = ownPlanInput(input.planInput)
+  const missing = owned === undefined ? preflightMissingInputLimits(input.planInput) : null
+  const requested = owned ?? missing?.input
+  if (!requested || !validAnchoredAdmission(input, requested)) return undefined
+  try {
+    const bound = createCredentialRedactionPolicy(input.policy.credentialRedaction).bind(
+      input.credential,
+    )
+    if ('rejected' in bound) return undefined
+    return { input: captureAnchoredInput(input), missing, requested }
+  } catch (error) {
+    if (error instanceof CredentialRedactionConfigurationError) return undefined
+    throw error
+  }
+}
+
+/** R3-P3/P4/P5, RT5 S-15/17: one noRun dispatch with the original invokeModel and shared settlement. */
+async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
+  input: AnchoredInvocationInput<P, R>,
+): Promise<AnchoredInvocationHandle> {
+  input = Object.freeze({ ...input })
+  const terminal = (value: AnchoredInvocationOutcome) =>
+    terminalHandle(value, input.releaseBorrowed)
+  const admitted = captureAnchoredAdmission(input)
+  if (admitted === undefined) return terminal({ rejected: 'invalidInput', reason: 'malformed' })
+  input = admitted.input
+  const { missing, requested } = admitted
+  const planning = acquireAnchoredPlanning(input)
+  if ('terminal' in planning) return planning.terminal
+  const {
+    binding,
+    originalOwner,
+    contention,
+    originalIssue,
+    transport,
+    policy,
+    planningRegistration,
+  } = planning
+  let plan
+  try {
+    const task = planningRegistration.start('wait', async signal => {
+      const completion = transport.plan(missing ? missing.original : requested, {
+        signal: AbortSignal.any([signal, input.signal]),
+        ...(input.reuseScope === undefined ? {} : { reuseScope: input.reuseScope }),
+      })
+      return input.trackPlan === undefined ? await completion : await input.trackPlan(completion)
+    })
+    try {
+      plan = await task.completion
+    } finally {
+      await requestStopAndWait(task)
+    }
+  } finally {
+    planningRegistration.release()
+  }
+  function acceptAnchoredPlan(plan: PlanResult<P>) {
+    if (input.signal.aborted) return { terminal: terminal({ cancelledBeforeDispatch: true }) }
+    if (missing) return { terminal: terminal(missingAnchoredLimitFailure(plan, missing)) }
+    if ('rejected' in plan) return { terminal: terminal(plan) }
+    const planned = plan.planned
+    if (!modelLogJsonEqual(planned.input, requested))
+      return { terminal: terminal({ rejected: 'invalidInput', reason: 'malformed' }) }
+    const dispatch = prepareAnchoredDispatch(input, requested, planned, binding)
+    if (dispatch === undefined)
+      return { terminal: terminal({ rejected: 'invalidInput', reason: 'malformed' }) }
+    const { dispatched, preparedEntry } = dispatch
+    const acquired = originalOwner.acquire(contention.limits.concurrent)
+    if ('unavailable' in acquired) return { terminal: terminal(unavailable) }
+    const registration: SettlementRegistration = acquired.registration
+    return { planned, dispatched, preparedEntry, registration }
+  }
+  const accepted = acceptAnchoredPlan(plan)
+  if ('terminal' in accepted) return accepted.terminal
+  const { planned, dispatched, preparedEntry, registration } = accepted
   const controller = new AbortController()
   const tasks: SettlementTask<unknown>[] = []
   const unresolved = new Set<SettlementTask<AppendResult>>()
@@ -627,6 +756,29 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
       })
     }
   }
+  function prepareSettlementRequest(
+    disposition: ReplyDisposition | null,
+    withoutReply: boolean,
+  ): SettlementRequest | undefined {
+    const candidate =
+      interruption ??
+      (construction === undefined
+        ? { rejected: 'invalidInput' as const }
+        : constructModelResponse(construction, disposition, withoutReply))
+    if ('rejected' in candidate) return undefined
+    return {
+      target: {
+        call: dispatched.call,
+        dispatch: dispatched.dispatch,
+        response: dispatched.response,
+      },
+      current: {
+        messageId: withoutReply || !('reply' in candidate.response) ? null : input.messageId,
+        disposition: withoutReply ? null : disposition,
+      },
+      response: candidate.response,
+    }
+  }
   async function settleCandidate(
     disposition: ReplyDisposition | null,
     withoutReply = false,
@@ -639,27 +791,8 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     )
       return { unavailable: true, reason: 'opened_unknown' }
     await drain()
-    let request = originalSettlement
-    if (request === undefined) {
-      const candidate =
-        interruption ??
-        (construction === undefined
-          ? { rejected: 'invalidInput' as const }
-          : constructModelResponse(construction, disposition, withoutReply))
-      if ('rejected' in candidate) return { unavailable: true, reason: 'candidate' }
-      request = {
-        target: {
-          call: dispatched.call,
-          dispatch: dispatched.dispatch,
-          response: dispatched.response,
-        },
-        current: {
-          messageId: withoutReply || !('reply' in candidate.response) ? null : input.messageId,
-          disposition: withoutReply ? null : disposition,
-        },
-        response: candidate.response,
-      }
-    }
+    const request = originalSettlement ?? prepareSettlementRequest(disposition, withoutReply)
+    if (request === undefined) return { unavailable: true, reason: 'candidate' }
     const handle = coordinator.settle(request)
     const result = await handle.completion
     handle.requestStop()
@@ -717,109 +850,189 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     const permission = await originalIssue.consumeOriginal(claim)
     return permission.kind === 'launch' && usable()
   }
+  async function interruptionBeforeLaunch(): Promise<ResponseConstructionResult> {
+    return constructAnchoredInterruption({
+      dispatched,
+      ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
+      planned,
+      observed: null,
+      sendState: 'not_sent',
+      firstTokenAt: null,
+      endedAt: await policy.now(),
+      initiator: interruptInitiator ?? 'run_cancelled',
+    })
+  }
+  async function stoppedWorkInterruption(): Promise<
+    ResponseConstructionResult | typeof unavailable
+  > {
+    const original = invocation?.observedFacts()
+    if (original !== undefined && !('facts' in original)) return unavailable
+    if (original !== undefined && original.facts.sentAt !== undefined) return unavailable
+    const originalFacts =
+      original === undefined
+        ? ({ observed: null, sendState: 'not_sent' } as const)
+        : ({ observed: original.facts } as const)
+    return constructAnchoredInterruption({
+      dispatched,
+      ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
+      planned,
+      ...originalFacts,
+      firstTokenAt: null,
+      endedAt: await policy.now(),
+      initiator: interruptInitiator ?? 'run_cancelled',
+    })
+  }
+  function captureResponseConstruction(result: ModelInvocationResult): ResponseConstructionInput {
+    return Object.freeze({
+      dispatched,
+      ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
+      result,
+      messageId: input.messageId,
+      firstTokenAt,
+      projectOutput: (projection: OutputProjectionInput) =>
+        transport.projectOutput(planned, projection),
+      ...(interruptInitiator === undefined ? {} : { interruptInitiator }),
+    })
+  }
+  /** Resolve the content gate's receipt state before handing off any response. */
+  function openedGateUnavailable(): boolean {
+    if (openedTask !== undefined && !openedConfirmed && !openedKnownAbsent) quarantined = true
+    if (quarantined) {
+      diagnose('model_anchor.quarantined')
+      return true
+    }
+    return false
+  }
+  function pendingInvocationReply(
+    construction: ResponseConstructionInput,
+    result: ModelInvocationResult,
+  ): AnchoredInvocationOutcome | undefined {
+    const reply = constructPendingModelResponse(construction)
+    if ('pending' in reply) return { replyPending: reply.pending }
+    if (result.ending !== undefined && result.outcome !== 'interrupted') return unavailable
+    return undefined
+  }
+  function shouldSettleBeforeClose(): boolean {
+    return (
+      !settled && (construction !== undefined || originalSettlement !== undefined) && !quarantined
+    )
+  }
+  function retainedOwnershipBlocksRelease(): boolean {
+    return quarantined || unresolved.size > 0 || (dispatchConfirmed && !settled)
+  }
+  function prepareOpenedEntry(at: string): OwnedLogEntry {
+    const value = captureModelLogValue({
+      category: 'record',
+      input: {
+        kind: 'value',
+        value: {
+          kind: 'model_call_opened',
+          call: dispatched.call,
+          dispatch: dispatched.dispatch,
+          firstTokenAt: at,
+        },
+      },
+    })
+    if ('invalidValue' in value) throw new Error('model_anchor.opened')
+    const entry = prepareModelLogEntry({
+      session: binding.session,
+      shell: {
+        tenant: binding.tenant,
+        ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
+      },
+      captured: value.ok,
+      purpose: { kind: 'record' },
+      messagePrefix: null,
+    })
+    if ('invalidValue' in entry) throw new Error('model_anchor.opened')
+    return entry.ok
+  }
+  function startInvocationWork(
+    admission: NonNullable<Awaited<ReturnType<typeof admitDispatched>>>,
+  ) {
+    return start('wait', async signal => {
+      const cancel = () => controller.abort()
+      signal.addEventListener('abort', cancel, { once: true })
+      if (signal.aborted) cancel()
+      try {
+        if (!(await launchAuthorized(admission.claim)))
+          return { cancelledBeforeSend: true } as const
+        const invocationEmitter = engineering.invocationEmitter
+        invocation = invokeModel({
+          ...requested,
+          transport: {
+            plan: async () => ({ planned }),
+            projectOutput: transport.projectOutput,
+            send: (...args) => transport.send(...args),
+            read: transport.read,
+          },
+          credential: input.credential,
+          policy,
+          signal: controller.signal,
+          beforeSend: usable,
+          ...(input.onAccepted === undefined ? {} : { onAccepted: input.onAccepted }),
+          ...(invocationEmitter === undefined
+            ? {}
+            : { diagnosticEmitterFactory: () => invocationEmitter }),
+          beforeFirstContent: () => {
+            openedGate = start('wait', async () => {
+              if (!usable()) throw new Error('model_anchor.stopped')
+              const at = await policy.now()
+              if (!usable()) throw new Error('model_anchor.stopped')
+              if (!('ok' in compareRfc3339Instants(at, at))) throw new Error('model_anchor.clock')
+              openedTask = append(prepareOpenedEntry(at))
+              const openedReceipt = await receipt(openedTask)
+              if (openedReceipt === undefined) throw new Error('model_anchor.unconfirmed')
+              openedConfirmed = true
+              openedPosition = openedReceipt.positions[0]
+              firstTokenAt = at
+              if (!usable()) {
+                // The anchor is durable and its receipt known. A stop of this process (host
+                // stop, cancel) is then a real in-flight caller stopping with complete writer
+                // evidence: the gate fails, the stream is stopped, and `run` settles the
+                // no-reply final (RT12 S-86) instead of isolating the call forever. Only a
+                // closed admission or a changed settlement generation ends this writer's right
+                // to settle in this log: that outcome is unknown to it and stays quarantined.
+                if (originalOwner.admission() !== 'open' || !settlementGenerationCurrent(binding))
+                  quarantined = true
+                throw new Error('model_anchor.stopped')
+              }
+            })
+            return openedGate.completion
+          },
+        })
+        return await invocation.outcome
+      } finally {
+        signal.removeEventListener('abort', cancel)
+      }
+    })
+  }
+  async function dispatchLaunchDecision(admission: Awaited<ReturnType<typeof admitDispatched>>) {
+    if (admission === undefined) return { state: 'unavailable' } as const
+    dispatchConfirmed = true
+    dispatchedPosition = admission.positions[0]
+    if (!usable()) {
+      const candidate = await interruptionBeforeLaunch()
+      if ('rejected' in candidate) return { state: 'unavailable' } as const
+      interruption = candidate
+      return { state: 'settle' } as const
+    }
+    return { state: 'launch', admission } as const
+  }
+  function settlementOutcome(result: SettlementResult): AnchoredInvocationOutcome {
+    return 'settled' in result ? { settled: result } : unavailable
+  }
   const run = async (): Promise<AnchoredInvocationOutcome> => {
     try {
       if (!usable()) return { cancelledBeforeDispatch: true }
       const admission = await admitDispatched()
-      if (admission === undefined) return unavailable
-      dispatchConfirmed = true
-      dispatchedPosition = admission.positions[0]
-      if (!usable()) {
-        const candidate = constructAnchoredInterruption({
-          dispatched,
-          ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
-          planned,
-          observed: null,
-          sendState: 'not_sent',
-          firstTokenAt: null,
-          endedAt: await policy.now(),
-          initiator: interruptInitiator ?? 'run_cancelled',
-        })
-        if ('rejected' in candidate) return unavailable
-        interruption = candidate
+      const decision = await dispatchLaunchDecision(admission)
+      if (decision.state === 'unavailable') return unavailable
+      if (decision.state === 'settle') {
         const stoppedSettlement = await settleCandidate(null)
-        return 'settled' in stoppedSettlement ? { settled: stoppedSettlement } : unavailable
+        return settlementOutcome(stoppedSettlement)
       }
-      const work = start('wait', async signal => {
-        const cancel = () => controller.abort()
-        signal.addEventListener('abort', cancel, { once: true })
-        if (signal.aborted) cancel()
-        try {
-          if (!(await launchAuthorized(admission.claim)))
-            return { cancelledBeforeSend: true } as const
-          const invocationEmitter = engineering.invocationEmitter
-          invocation = invokeModel({
-            ...requested,
-            transport: {
-              plan: async () => ({ planned }),
-              projectOutput: transport.projectOutput,
-              send: (...args) => transport.send(...args),
-              read: transport.read,
-            },
-            credential: input.credential,
-            policy,
-            signal: controller.signal,
-            beforeSend: usable,
-            ...(input.onAccepted === undefined ? {} : { onAccepted: input.onAccepted }),
-            ...(invocationEmitter === undefined
-              ? {}
-              : { diagnosticEmitterFactory: () => invocationEmitter }),
-            beforeFirstContent: () => {
-              openedGate = start('wait', async () => {
-                if (!usable()) throw new Error('model_anchor.stopped')
-                const at = await policy.now()
-                if (!usable()) throw new Error('model_anchor.stopped')
-                if (!('ok' in compareRfc3339Instants(at, at))) throw new Error('model_anchor.clock')
-                const value = captureModelLogValue({
-                  category: 'record',
-                  input: {
-                    kind: 'value',
-                    value: {
-                      kind: 'model_call_opened',
-                      call: dispatched.call,
-                      dispatch: dispatched.dispatch,
-                      firstTokenAt: at,
-                    },
-                  },
-                })
-                if ('invalidValue' in value) throw new Error('model_anchor.opened')
-                const entry = prepareModelLogEntry({
-                  session: binding.session,
-                  shell: {
-                    tenant: binding.tenant,
-                    ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
-                  },
-                  captured: value.ok,
-                  purpose: { kind: 'record' },
-                  messagePrefix: null,
-                })
-                if ('invalidValue' in entry) throw new Error('model_anchor.opened')
-                openedTask = append(entry.ok)
-                const openedReceipt = await receipt(openedTask)
-                if (openedReceipt === undefined) throw new Error('model_anchor.unconfirmed')
-                openedConfirmed = true
-                openedPosition = openedReceipt.positions[0]
-                firstTokenAt = at
-                if (!usable()) {
-                  // The anchor is durable and its receipt known. A stop of this process (host
-                  // stop, cancel) is then a real in-flight caller stopping with complete writer
-                  // evidence: the gate fails, the stream is stopped, and `run` settles the
-                  // no-reply final (RT12 S-86) instead of isolating the call forever. Only a
-                  // closed admission or a changed settlement generation ends this writer's right
-                  // to settle in this log: that outcome is unknown to it and stays quarantined.
-                  if (originalOwner.admission() !== 'open' || !settlementGenerationCurrent(binding))
-                    quarantined = true
-                  throw new Error('model_anchor.stopped')
-                }
-              })
-              return openedGate.completion
-            },
-          })
-          return await invocation.outcome
-        } finally {
-          signal.removeEventListener('abort', cancel)
-        }
-      })
+      const work = startInvocationWork(decision.admission)
       const result = await work.completion
       // The invocation may end first (host stop, cancel) while the opened append is still on
       // its way. Its receipt is bounded by that append itself, so wait for the gate that owns
@@ -830,53 +1043,24 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
           () => undefined,
           () => undefined,
         )
-      if (openedTask !== undefined && !openedConfirmed && !openedKnownAbsent) quarantined = true
-      if (quarantined) {
-        diagnose('model_anchor.quarantined')
-        return unavailable
-      }
+      if (openedGateUnavailable()) return unavailable
       if (!('outcome' in result)) {
         if (!('cancelledBeforeSend' in result)) return unavailable
         await requestStopAndWait(work)
-        const original = invocation?.observedFacts()
-        if (original !== undefined && !('facts' in original)) return unavailable
-        if (original !== undefined && original.facts.sentAt !== undefined) return unavailable
-        const originalFacts =
-          original === undefined
-            ? ({ observed: null, sendState: 'not_sent' } as const)
-            : ({ observed: original.facts } as const)
-        const candidate = constructAnchoredInterruption({
-          dispatched,
-          ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
-          planned,
-          ...originalFacts,
-          firstTokenAt: null,
-          endedAt: await policy.now(),
-          initiator: interruptInitiator ?? 'run_cancelled',
-        })
-        if ('rejected' in candidate) return unavailable
+        const candidate = await stoppedWorkInterruption()
+        if (!('response' in candidate)) return unavailable
         interruption = candidate
         const stoppedSettlement = await settleCandidate(null)
-        return 'settled' in stoppedSettlement ? { settled: stoppedSettlement } : unavailable
+        return settlementOutcome(stoppedSettlement)
       }
       recordAnchors('reply_handoff')
       if (!settlementGenerationCurrent(binding)) return unavailable
-      construction = Object.freeze({
-        dispatched,
-        ...(input.run === undefined ? {} : { run: input.run, attempt: input.attempt }),
-        result,
-        messageId: input.messageId,
-        firstTokenAt,
-        projectOutput: (projection: OutputProjectionInput) =>
-          transport.projectOutput(planned, projection),
-        ...(interruptInitiator === undefined ? {} : { interruptInitiator }),
-      })
+      construction = captureResponseConstruction(result)
       await drain()
-      const reply = constructPendingModelResponse(construction)
-      if ('pending' in reply) return { replyPending: reply.pending }
-      if (result.ending !== undefined && result.outcome !== 'interrupted') return unavailable
+      const reply = pendingInvocationReply(construction, result)
+      if (reply !== undefined) return reply
       const resultSettlement = await settleCandidate(null)
-      return 'settled' in resultSettlement ? { settled: resultSettlement } : unavailable
+      return settlementOutcome(resultSettlement)
     } finally {
       // Unknown append may outlive invoke; close retains and awaits its actual stopped fact.
       try {
@@ -973,15 +1157,9 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
         await outcome
         await drain()
         // A retained original request is settled again as itself, never replaced by close.
-        if (
-          !settled &&
-          (construction !== undefined || originalSettlement !== undefined) &&
-          !quarantined
-        )
-          await settleCandidate(null, true)
+        if (shouldSettleBeforeClose()) await settleCandidate(null, true)
         input.signal.removeEventListener('abort', stop)
-        if (quarantined || unresolved.size > 0 || (dispatchConfirmed && !settled))
-          return unavailable
+        if (retainedOwnershipBlocksRelease()) return unavailable
         if (!(await closeCoordinator())) return unavailable
         if (!borrowedReleased) {
           await input.releaseBorrowed?.()

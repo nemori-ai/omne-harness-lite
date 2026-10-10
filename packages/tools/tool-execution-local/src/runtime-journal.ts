@@ -6,6 +6,7 @@ import {
   checkAppendInput,
   compareInteger,
   type AppendRequest,
+  type AppendResult,
   type CheckedPrefix,
   type LogEntry,
   type OwnedLogEntry,
@@ -66,6 +67,140 @@ function recognize(prefix: CheckedPrefix, batch: AppendRequest): 'same' | 'absen
   })
     ? 'same'
     : 'conflict'
+}
+
+type RuntimeCommitInput = {
+  readonly ref: ExecutionRef
+  readonly origin: ExecutionOrigin
+  readonly expected: Pick<CheckedPrefix, 'ownerGeneration' | 'tail'>
+  readonly values: readonly ToolJournalPayload[]
+}
+type PendingRuntimeAppend = {
+  readonly request: AppendRequest
+  readonly scope: SessionScope
+  readonly call: string
+}
+type PreparedRuntimeAppend = {
+  readonly kind: 'prepared'
+  readonly value: RuntimeCommitInput
+  readonly scope: SessionScope
+  readonly entries: readonly OwnedLogEntry[]
+  readonly request: AppendRequest
+}
+
+function captureRuntimeCommitInput(
+  input: RuntimeCommitInput,
+): RuntimeJournalFailure | { readonly kind: 'captured'; readonly value: RuntimeCommitInput } {
+  const copied = copyJsonValue(input)
+  if ('failed' in copied || !jsonObject(copied.ok) || Object.keys(copied.ok).length !== 4)
+    return reject('invalidInput')
+  const value = copied.ok as unknown as RuntimeCommitInput
+  if (!value.ref || !value.expected || !Array.isArray(value.values) || value.values.length === 0)
+    return reject('invalidInput')
+  return { kind: 'captured', value }
+}
+
+function prepareRuntimeAppendEntries(
+  value: RuntimeCommitInput,
+):
+  | RuntimeJournalFailure
+  | { readonly kind: 'prepared'; readonly entries: readonly OwnedLogEntry[] } {
+  const entries: OwnedLogEntry[] = []
+  for (const record of value.values) {
+    if (!record || !sameJson(record.ref, value.ref)) return reject('invalidInput')
+    const prepared = prepareToolJournalEntry({ origin: value.origin, value: record })
+    if ('invalid' in prepared) return reject('invalidInput')
+    entries.push(prepared.entry)
+  }
+  return { kind: 'prepared', entries }
+}
+
+function prepareRuntimeAppend(
+  input: RuntimeCommitInput,
+  generation: string,
+): RuntimeJournalFailure | PreparedRuntimeAppend {
+  const captured = captureRuntimeCommitInput(input)
+  if (captured.kind === 'rejected') return captured
+  const value = captured.value
+  const scope = ownScope({ tenant: value.ref.tenant, session: value.ref.session })
+  if (!scope || value.expected.ownerGeneration !== generation) return reject('unavailable')
+  const prepared = prepareRuntimeAppendEntries(value)
+  if (prepared.kind === 'rejected') return prepared
+  const entries = prepared.entries
+  const checked = checkAppendInput(
+    scope.session,
+    entries,
+    { kind: 'unfenced' },
+    { kind: 'tailEquals', tail: value.expected.tail },
+  )
+  if ('failure' in checked) return reject('invalidInput')
+  return { kind: 'prepared', value, scope, entries, request: checked.ok }
+}
+
+function checkRuntimeAppendAnchor(
+  current: RuntimeJournalView,
+  request: AppendRequest,
+  expected: RuntimeCommitInput['expected'],
+  resolvePending: (view: RuntimeJournalView) => boolean,
+): RuntimeJournalView | RuntimeJournalFailure | { readonly kind: 'append' } {
+  if (!resolvePending(current)) return reject('unavailable')
+  const seen = recognize(current.prefix, request)
+  if (seen === 'same') return current
+  if (seen === 'conflict') return reject('conflict')
+  if (compareInteger(current.prefix.tail, expected.tail) !== 0) return reject('tailChanged')
+  return { kind: 'append' }
+}
+
+function projectRuntimeAppend(
+  current: RuntimeJournalView,
+  entries: readonly OwnedLogEntry[],
+  scope: SessionScope,
+  call: string,
+  project: (prefix: CheckedPrefix, call: string) => RuntimeJournalView | RuntimeJournalFailure,
+): RuntimeJournalView | RuntimeJournalFailure {
+  let tail = current.prefix.tail
+  return project(
+    {
+      ...current.prefix,
+      tail: addInteger(tail, entries.length),
+      entries: [
+        ...current.prefix.entries,
+        ...entries.map(entry => ({
+          ...entry,
+          session: scope.session,
+          position: (tail = addInteger(tail, 1)),
+        })),
+      ],
+    },
+    call,
+  )
+}
+
+function classifyRuntimeAppendReceipt(
+  result: AppendResult,
+  pending: Map<string, PendingRuntimeAppend>,
+  session: string,
+): RuntimeJournalFailure | undefined {
+  if ('failure' in result) {
+    if (result.failure === 'unavailable') return reject('unavailable')
+    pending.delete(session)
+    if (result.failure === 'tailChanged') return reject('tailChanged')
+    if (result.failure !== 'alreadyRecorded') return reject('conflict')
+  }
+}
+
+function confirmRuntimeAppend(
+  confirmed: RuntimeJournalView | RuntimeJournalFailure,
+  result: AppendResult,
+  pending: Map<string, PendingRuntimeAppend>,
+  write: PendingRuntimeAppend,
+): RuntimeJournalView | RuntimeJournalFailure {
+  if (confirmed.kind !== 'view' || recognize(confirmed.prefix, write.request) !== 'same') {
+    if (!('failure' in result)) pending.set(write.scope.session, write)
+    return reject('unavailable')
+  }
+  pending.delete(write.scope.session)
+  return confirmed
 }
 
 /** Trusted runtime writer. Business authorization stays in submit/read/control; tools never receive this object. */
@@ -174,66 +309,21 @@ export function createRuntimeJournal(input: {
       readonly values: readonly ToolJournalPayload[]
     }): Promise<RuntimeJournalView | RuntimeJournalFailure> {
       if (!open || !active()) return Promise.resolve(reject('unavailable'))
-      const copied = copyJsonValue(input)
-      if ('failed' in copied || !jsonObject(copied.ok) || Object.keys(copied.ok).length !== 4)
-        return Promise.resolve(reject('invalidInput'))
-      const value = copied.ok as unknown as typeof input
-      if (
-        !value.ref ||
-        !value.expected ||
-        !Array.isArray(value.values) ||
-        value.values.length === 0
-      )
-        return Promise.resolve(reject('invalidInput'))
-      const scope = ownScope({ tenant: value.ref.tenant, session: value.ref.session })
-      if (!scope || value.expected.ownerGeneration !== generation)
-        return Promise.resolve(reject('unavailable'))
-      const entries: OwnedLogEntry[] = []
-      for (const record of value.values) {
-        if (!record || !sameJson(record.ref, value.ref))
-          return Promise.resolve(reject('invalidInput'))
-        const prepared = prepareToolJournalEntry({ origin: value.origin, value: record })
-        if ('invalid' in prepared) return Promise.resolve(reject('invalidInput'))
-        entries.push(prepared.entry)
-      }
-      const checked = checkAppendInput(
-        scope.session,
-        entries,
-        { kind: 'unfenced' },
-        { kind: 'tailEquals', tail: value.expected.tail },
-      )
-      if ('failure' in checked) return Promise.resolve(reject('invalidInput'))
-      const request = checked.ok
+      const prepared = prepareRuntimeAppend(input, generation)
+      if (prepared.kind === 'rejected') return Promise.resolve(prepared)
+      const { value, scope, entries, request } = prepared
       return track(scope.session, async () => {
         const current = await read(scope, value.ref.callId)
         if (current.kind !== 'view') return current
-        if (!resolvePending(current)) return reject('unavailable')
-        const seen = recognize(current.prefix, request)
-        if (seen === 'same') return current
-        if (seen === 'conflict') return reject('conflict')
-        if (compareInteger(current.prefix.tail, value.expected.tail) !== 0)
-          return reject('tailChanged')
-        let tail = current.prefix.tail
-        const projected = project(
-          {
-            ...current.prefix,
-            tail: addInteger(tail, entries.length),
-            entries: [
-              ...current.prefix.entries,
-              ...entries.map(entry => ({
-                ...entry,
-                session: scope.session,
-                position: (tail = addInteger(tail, 1)),
-              })),
-            ],
-          },
-          value.ref.callId,
-        )
+        const anchor = checkRuntimeAppendAnchor(current, request, value.expected, resolvePending)
+        if (anchor.kind !== 'append') return anchor
+        const projected = projectRuntimeAppend(current, entries, scope, value.ref.callId, project)
         if (projected.kind !== 'view') return reject('conflict')
         // Candidate validation is synchronous. Append still checks the original current authority.
         await yieldToTimers(0)
         if (!active()) return reject('unavailable')
-        pending.set(scope.session, { request, scope, call: value.ref.callId })
+        const write = { request, scope, call: value.ref.callId }
+        pending.set(scope.session, write)
         let result
         try {
           result = await held.log.append(
@@ -245,20 +335,10 @@ export function createRuntimeJournal(input: {
         } catch {
           return reject('unavailable')
         }
-        if ('failure' in result) {
-          if (result.failure === 'unavailable') return reject('unavailable')
-          pending.delete(scope.session)
-          if (result.failure === 'tailChanged') return reject('tailChanged')
-          if (result.failure !== 'alreadyRecorded') return reject('conflict')
-        }
+        const rejected = classifyRuntimeAppendReceipt(result, pending, scope.session)
+        if (rejected) return rejected
         const confirmed = await read(scope, value.ref.callId)
-        if (confirmed.kind !== 'view' || recognize(confirmed.prefix, request) !== 'same') {
-          if (!('failure' in result))
-            pending.set(scope.session, { request, scope, call: value.ref.callId })
-          return reject('unavailable')
-        }
-        pending.delete(scope.session)
-        return confirmed
+        return confirmRuntimeAppend(confirmed, result, pending, write)
       })
     },
     close(): Promise<void> {

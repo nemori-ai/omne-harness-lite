@@ -183,6 +183,29 @@ export function readJsonStrict(text: string): JsonReadResult {
   return Object.freeze({ ok: copied.ok })
 }
 
+function closingQuote(text: string, start: number): number {
+  let index = start + 1
+  while (text[index] !== '"') {
+    if (text[index] === '\\') index++
+    index++
+  }
+  return index
+}
+function registerMember(
+  text: string,
+  start: number,
+  end: number,
+  members: Set<string> | null | undefined,
+): boolean {
+  let after = end + 1
+  while (/[\u0009\u000a\u000d\u0020]/u.test(text[after] ?? 'x')) after++
+  if (text[after] !== ':') return false
+  const name: unknown = JSON.parse(text.slice(start, end + 1))
+  if (typeof name !== 'string' || members == null) throw new Error('invalid scan state')
+  if (members.has(name)) return true
+  members.add(name)
+  return false
+}
 function hasDuplicateMember(text: string): boolean {
   const stack: (Set<string> | null)[] = []
   for (let index = 0; index < text.length; index++) {
@@ -191,20 +214,9 @@ function hasDuplicateMember(text: string): boolean {
     else if (character === '[') stack.push(null)
     else if (character === '}' || character === ']') stack.pop()
     else if (character === '"') {
-      const start = index++
-      while (text[index] !== '"') {
-        if (text[index] === '\\') index++
-        index++
-      }
-      let after = index + 1
-      while (/[\u0009\u000a\u000d\u0020]/u.test(text[after] ?? 'x')) after++
-      if (text[after] === ':') {
-        const name: unknown = JSON.parse(text.slice(start, index + 1))
-        const members = stack[stack.length - 1]
-        if (typeof name !== 'string' || members == null) throw new Error('invalid scan state')
-        if (members.has(name)) return true
-        members.add(name)
-      }
+      const start = index
+      index = closingQuote(text, start)
+      if (registerMember(text, start, index, stack[stack.length - 1])) return true
     }
   }
   return false
