@@ -559,3 +559,5 @@ prepareSessionModelDispatch使用实际Session来源和原调用快照。它依�
 实际完整前缀只在Session内使用。read端口负责原登记寿命；原标记追加通过原owner登记。未知提交把原任务、登记、许可和原日志条目交给retainUnknown，实际停止和原批次认回前不能释放许可。trackTask仅登记原追加任务，不产生另一任务或授权。
 
 `createSessionModelCreationPublication` 拥有未知创建标记的原批次认回。每次先等待原写任务真实停止，再用原登记读取完整前缀。只有原条目完全相同才认作已发布。明确缺失且原准入仍有效时，才按原内容和尾位置重试标记写入，不重发模型请求。关闭撤销重写资格；读／写停止或许可释放不能证明时返回不可用并保有原资源。该句柄不关闭借入的模型池、日志或存储。
+
+Session `readCall` 同样供原未知写入的收场使用。读取沿原Source、原registration和原解释器进行，后继装配不改变已保有操作的读取来源。读取失败不确认Model的原保管结束。

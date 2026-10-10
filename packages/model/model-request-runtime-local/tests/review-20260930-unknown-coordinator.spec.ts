@@ -1,3 +1,4 @@
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 /**
  * Review 2026-09-30 Q4 (a)-(h) at the settlement coordinator, over an actual SQL journal SessionLog and an
  * actual SQL session-tenant mapping (tests/settlement-fixture.ts `controlled`). The wrappers only
@@ -524,6 +525,8 @@ describe('review 2026-09-30 Q3/S2 fail-closed granularity: reconcile per call (R
         if ('failure' in appended) throw new Error('acked call')
         void tenant
         const reconcile = createRuntimeReconcile({
+          readCall: sessionModelRequestPreparation.readCall,
+
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,

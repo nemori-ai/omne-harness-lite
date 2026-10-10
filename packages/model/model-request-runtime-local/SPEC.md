@@ -167,3 +167,5 @@ releaseCopies 对全部原代核同 log binding、真实 released/未 registered
 旧reference-publish实现已迁入Session且物理删除。共用回执校验和停止等待函数归Core。模型内容库仍负责原件保管及许可，不参与会话状态恢复。其他ACK、结算及恢复中的完整日志依赖仍待迁移，本变化不表示完整ModelPoolConstruction已兑现。
 
 未知创建标记的恢复由Session发行 `ModelCreationPublication`。Model只保有句柄并调用 `retry`／`close`，不读取完整Session前缀、不判断原标记存在性。旧 `creation-publication.ts` 已删除。结果发布的未知写入和ACK路径仍是本次边界迁移的待完成部分，不能据此声称纯执行池构造已完成。
+
+未知写入的关闭认回使用原操作登记时捕获的Session `readCall` 及原调用解释器。Model等待原写与读任务实际停止，只消费原调用的读取结果，不自行读取完整前缀。读取不可用或释放失败时保留原任务与许可，后继装配不能替换原读取函数。

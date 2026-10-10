@@ -585,6 +585,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
               registration,
               task,
               runtime.history.call,
+              runtime.requestPreparation.readCall.bind(runtime.requestPreparation),
             )
           },
         })
@@ -987,6 +988,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
               registration,
               task,
               runtime.history.call,
+              runtime.requestPreparation.readCall.bind(runtime.requestPreparation),
               permit,
             )
           },
@@ -1136,6 +1138,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
                 registration,
                 task,
                 runtime.history.call,
+                runtime.requestPreparation.readCall.bind(runtime.requestPreparation),
               )
             },
           })

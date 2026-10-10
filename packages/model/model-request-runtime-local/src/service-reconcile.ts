@@ -1,3 +1,4 @@
+import type { SessionModelRequestPreparation } from '@omne-harness-lite/model-request-runtime'
 import type {
   DispatchGuardPhase,
   ReconcileInput,
@@ -850,6 +851,7 @@ async function recoverSettlementWork(input: {
 
 /** S-33 recovery owns every entered scope until its original work and full-prefix read are settled. */
 interface ReconcileConstruction {
+  readonly readCall: SessionModelRequestPreparation['readCall']
   readonly recovery: RuntimeRecoveryAccess
   readonly run?: RunHistoryReader
   readonly contention: SettlementContention
@@ -1264,15 +1266,17 @@ function buildRuntimeReconcile(
 async function readRecoveredCalls(
   request: ReconcileInput,
   entry: RecoveryEntry,
-  input: {
-    readonly contention: SettlementContention
-    readonly scheduler: SettlementScheduler
-    readonly now: () => Promise<string>
-    readonly diagnostic: (event: SettlementDiagnostic) => void
-    readonly run?: RunHistoryReader
-    readonly custody: AcknowledgementCustody
-    readonly settlementWork?: SettlementWorkRecovery
-  },
+  input: Pick<
+    ReconcileConstruction,
+    | 'contention'
+    | 'scheduler'
+    | 'now'
+    | 'diagnostic'
+    | 'run'
+    | 'custody'
+    | 'settlementWork'
+    | 'readCall'
+  >,
   closed: () => boolean,
   onAnchor: (anchor: {
     readonly call: CallKey['callId']
@@ -1382,6 +1386,7 @@ async function readRecoveredCalls(
             registration,
             task,
             (prefix, callId) => interpretCallHistory({ prefix, callId }),
+            input.readCall,
           )
         },
         trackTask(task) {

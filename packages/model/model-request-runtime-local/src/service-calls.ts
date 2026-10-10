@@ -1,3 +1,4 @@
+import type { SessionModelRequestPreparation } from '@omne-harness-lite/model-request-runtime'
 import type {
   EffectiveModel,
   ModelObserverRequest,
@@ -45,7 +46,6 @@ import {
 import { createSettlementCoordinator } from './settlement-coordinator.ts'
 import {
   createModelCallCreationInput,
-  readSettlementPrefix,
   settlementGenerationCurrent,
 } from '@omne-harness-lite/model-request-runtime'
 import {
@@ -456,6 +456,7 @@ interface UnknownAppend {
   readonly task: SettlementTask<AppendResult>
   readonly readTasks: Set<SettlementTask<unknown>>
   readonly call: CurrentHistoryReaders['call']
+  readonly readCall: SessionModelRequestPreparation['readCall']
   /** RT12 S-98: a content publish permit held until this original batch is recognized. */
   readonly permit?: ModelCallPublishPermit
 }
@@ -470,19 +471,6 @@ function requestUnknownWriteStops(writes: readonly UnknownAppend[]): void {
   }
 }
 
-function recognizedUnknownCall(
-  write: UnknownAppend,
-  prefix: Parameters<CurrentHistoryReaders['call']>[0],
-): boolean {
-  let recognized: ReturnType<CurrentHistoryReaders['call']>
-  try {
-    recognized = write.call(prefix, write.key.callId)
-  } catch {
-    return false
-  }
-  return !('unavailable' in recognized)
-}
-
 function releaseUnknownWrite(write: UnknownAppend, retained: Set<UnknownAppend>): void {
   try {
     write.registration.release()
@@ -492,7 +480,7 @@ function releaseUnknownWrite(write: UnknownAppend, retained: Set<UnknownAppend>)
   }
 }
 
-/** Unknown append receipts retain their original writer until it stops and a full prefix is read. */
+/** Unknown append receipts retain their original writer until it stops and Session confirms the original call. */
 export class UnknownAppendTracker {
   readonly #writes = new Set<UnknownAppend>()
   #closing: Promise<{ readonly released: true } | { readonly unavailable: true }> | undefined
@@ -504,6 +492,7 @@ export class UnknownAppendTracker {
     registration: SettlementRegistration,
     task: SettlementTask<AppendResult>,
     call: CurrentHistoryReaders['call'],
+    readCall: SessionModelRequestPreparation['readCall'],
     permit?: ModelCallPublishPermit,
   ): void {
     this.#writes.add({
@@ -513,6 +502,7 @@ export class UnknownAppendTracker {
       registration,
       task,
       call,
+      readCall,
       readTasks: new Set(),
       ...(permit === undefined ? {} : { permit }),
     })
@@ -543,10 +533,12 @@ export class UnknownAppendTracker {
       const priorReads = await Promise.allSettled([...write.readTasks].map(requestStopAndWait))
       if (priorReads.some(result => result.status === 'rejected')) continue
       write.readTasks.clear()
-      let read: Awaited<ReturnType<typeof readSettlementPrefix>>
+      let read: Awaited<ReturnType<SessionModelRequestPreparation['readCall']>>
       try {
-        read = await readSettlementPrefix({
+        read = await write.readCall({
           binding: write.binding,
+          callId: write.key.callId,
+          interpret: write.call,
           registration: {
             start(kind, operation) {
               const task = write.registration.start(kind, operation)
@@ -563,7 +555,6 @@ export class UnknownAppendTracker {
       if (stopped.some(result => result.status === 'rejected')) continue
       write.readTasks.clear()
       if ('unavailable' in read) continue
-      if (!recognizedUnknownCall(write, read.prefix)) continue
       // The original batch is now determined and its writer stopped: its content permit ends.
       if (write.permit !== undefined && !('released' in (await write.permit.release()))) continue
       releaseUnknownWrite(write, this.#writes)
@@ -1126,6 +1117,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
             registration,
             task,
             runtime.history.call,
+            runtime.requestPreparation.readCall.bind(runtime.requestPreparation),
           )
         },
       })
@@ -1255,6 +1247,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
               registration,
               task,
               runtime.history.call,
+              runtime.requestPreparation.readCall.bind(runtime.requestPreparation),
             ),
         ),
         ...(observer === undefined ? {} : { observer }),

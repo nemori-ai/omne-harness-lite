@@ -102,6 +102,7 @@ test('unknown writes retain their own original readers on the real JSONL source'
         registration,
         task,
         reader,
+        sessionModelRequestPreparation.readCall,
       )
     }
     expect(owner.active).toBe(2)
@@ -169,6 +170,7 @@ test('unknown append recognition reuses its only registration before release', a
       requestStop() {},
     },
     () => ({ absent: true }),
+    sessionModelRequestPreparation.readCall,
   )
   expect(await tracker.close()).toEqual({
     unavailable: true,

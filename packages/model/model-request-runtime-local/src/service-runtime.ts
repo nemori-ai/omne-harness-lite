@@ -87,6 +87,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   }
   const recoveryInputs = (source: RuntimeConstruction<P, R>) => ({
     recovery: source.recovery,
+    readCall: source.requestPreparation.readCall.bind(source.requestPreparation),
     run: source.history.run,
     contention: source.settlementContention,
     scheduler: source.settlementScheduler,

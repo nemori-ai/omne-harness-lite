@@ -1,3 +1,4 @@
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -369,6 +370,7 @@ describe('RT7 S-31/S-68 actual control append', () => {
             registration,
             task,
             (prefix, callId) => interpretCallHistory({ prefix, callId }),
+            sessionModelRequestPreparation.readCall,
           )
         },
       })

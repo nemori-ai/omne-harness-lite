@@ -1,3 +1,4 @@
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 import type { CreateCallContainerInput } from '../src/service-types.ts'
 import { prepareAttemptFact } from './attempt-fact-fixture.ts'
 // @module-tag slow
@@ -580,6 +581,8 @@ describe('v17 conditional Run cold recovery', () => {
       if ('failure' in later) throw new Error('new Run attempt')
       let observed = 0
       const reconcile = createRuntimeReconcile({
+        readCall: sessionModelRequestPreparation.readCall,
+
         custody: storeUnavailableCustody(),
         contention: policy(),
         scheduler: noWaitScheduler,
@@ -654,6 +657,8 @@ describe('S-33 retained recovery ownership', () => {
       let enters = 0
       let closes = 0
       const component = createRuntimeReconcile({
+        readCall: sessionModelRequestPreparation.readCall,
+
         custody: storeUnavailableCustody(),
         contention: policy(),
         scheduler: noWaitScheduler,
@@ -702,6 +707,8 @@ describe('S-33 retained recovery ownership', () => {
           deniedChecks = 0
         let scopeCanClose = false
         const input: Parameters<typeof createRuntimeReconcile>[0] = {
+          readCall: sessionModelRequestPreparation.readCall,
+
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
@@ -774,6 +781,8 @@ describe('S-33 retained recovery ownership', () => {
       let otherCloseAvailable = false
       const otherSession = unwrap(parseOpaqueIdentifier('other-held-read-session', 'SessionRef'))
       const component = createRuntimeReconcile({
+        readCall: sessionModelRequestPreparation.readCall,
+
         custody: storeUnavailableCustody(),
         contention: policy(),
         scheduler: noWaitScheduler,
@@ -868,6 +877,8 @@ describe('S-33 retained recovery ownership', () => {
         let scopeCloses = 0
         let enters = 0
         const component = createRuntimeReconcile({
+          readCall: sessionModelRequestPreparation.readCall,
+
           custody: storeUnavailableCustody(),
           contention: { ...policy(), limits: { ...policy().limits, concurrent: 1 } },
           scheduler: noWaitScheduler,
@@ -945,6 +956,8 @@ describe('S-33 retained recovery ownership', () => {
         }
         let enters = 0
         const component = createRuntimeReconcile({
+          readCall: sessionModelRequestPreparation.readCall,
+
           custody: storeUnavailableCustody(),
           contention: { ...policy(), limits: { ...policy().limits, concurrent: 1 } },
           scheduler: noWaitScheduler,
@@ -1008,6 +1021,8 @@ describe('S-33 retained recovery ownership', () => {
         let enters = 0
         const otherSession = unwrap(parseOpaqueIdentifier('other-recovery-session', 'SessionRef'))
         const component = createRuntimeReconcile({
+          readCall: sessionModelRequestPreparation.readCall,
+
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
@@ -1097,6 +1112,8 @@ describe('S-33 retained recovery ownership', () => {
         }
         let clock = 0
         const component = createRuntimeReconcile({
+          readCall: sessionModelRequestPreparation.readCall,
+
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
@@ -1157,6 +1174,8 @@ describe('S-33 retained recovery ownership', () => {
         }
         let scopeCloses = 0
         const component = createRuntimeReconcile({
+          readCall: sessionModelRequestPreparation.readCall,
+
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
@@ -1223,6 +1242,8 @@ describe('S-33 noRun recovered full-prefix read', () => {
           },
         } as DiagnosticCollector
         const reconcile = createRuntimeReconcile({
+          readCall: sessionModelRequestPreparation.readCall,
+
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
@@ -1339,6 +1360,8 @@ describe('S-33 noRun recovered full-prefix read', () => {
         await task.stopped
         let queried = 0
         const reconcile = createRuntimeReconcile({
+          readCall: sessionModelRequestPreparation.readCall,
+
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,
@@ -1397,6 +1420,8 @@ describe('S-33 noRun recovered full-prefix read', () => {
       let secondAvailable = false
       let enters = 0
       const reconcile = createRuntimeReconcile({
+        readCall: sessionModelRequestPreparation.readCall,
+
         custody: storeUnavailableCustody(),
         contention: policy(),
         scheduler: noWaitScheduler,
@@ -1487,6 +1512,8 @@ describe('S-33 noRun recovered full-prefix read', () => {
           },
         }
         const reconcile = createRuntimeReconcile({
+          readCall: sessionModelRequestPreparation.readCall,
+
           custody: storeUnavailableCustody(),
           contention: policy(),
           scheduler: noWaitScheduler,

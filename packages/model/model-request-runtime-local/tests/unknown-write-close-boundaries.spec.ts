@@ -1,3 +1,4 @@
+import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
 import { expect, test } from 'vitest'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { UnknownAppendTracker } from '../src/service-calls.ts'
@@ -58,6 +59,7 @@ test('unknown close stops every original writer and retries reader and release f
           if (index === 0 && readerFails) throw new Error('original reader unavailable')
           return interpretCallHistory({ prefix, callId })
         },
+        sessionModelRequestPreparation.readCall,
       )
     }
     const before = await binding.log.readSince(session, 0)
@@ -84,5 +86,41 @@ test('unknown close stops every original writer and retries reader and release f
     expect(await tracker.close()).toEqual({ released: true })
     expect(await binding.log.readSince(session, 0)).toEqual(before)
     expect(submissions.map(item => item.count)).toEqual([2, 1, 1])
+  })
+})
+
+test('unknown close cannot bypass the Session original-call reader', async () => {
+  await controlled('unknown-close-session-reader', async ({ binding, owner }) => {
+    const tracker = new UnknownAppendTracker()
+    const acquired = owner.acquire(policy().limits.concurrent)
+    if (!('registration' in acquired)) throw new Error('original writer admission')
+    const task = acquired.registration.start('append', async () => ({
+      failure: 'unavailable' as const,
+    }))
+    await task.completion
+    await task.stopped
+    let reads = 0
+    let readable = false
+    tracker.keep(
+      { session, callId: 'call' },
+      binding,
+      owner,
+      acquired.registration,
+      task,
+      () => ({ absent: true }),
+      async input => {
+        reads++
+        expect(input.binding).toBe(binding)
+        expect(input.callId).toBe('call')
+        return readable ? { absent: true } : { unavailable: true, reason: 'history' }
+      },
+    )
+    expect(await tracker.close()).toEqual({ unavailable: true })
+    expect(reads).toBe(1)
+    expect(owner.active).toBe(1)
+    readable = true
+    expect(await tracker.close()).toEqual({ released: true })
+    expect(reads).toBe(2)
+    expect(owner.active).toBe(0)
   })
 })
