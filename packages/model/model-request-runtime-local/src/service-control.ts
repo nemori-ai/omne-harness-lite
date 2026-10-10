@@ -1,5 +1,8 @@
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
-import type { CurrentHistoryReaders } from '@omne-harness-lite/model-request-runtime'
+import type {
+  CurrentHistoryReaders,
+  SessionModelRequestPreparation,
+} from '@omne-harness-lite/model-request-runtime'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import type {
   DispatchGuardPhase,
@@ -22,7 +25,6 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import { settlementAppendReceipt } from './settlement-receipt.ts'
 import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
-import { readSettlementPrefix } from '@omne-harness-lite/model-request-runtime'
 import {
   acknowledgedAsTerminal,
   rejectAcknowledgedHistory,
@@ -426,6 +428,7 @@ function completedControlAppend(started: boolean, receipt: ControlReceipt): Cont
 
 interface UnknownControlWrite {
   readonly call: CurrentHistoryReaders['call']
+  readonly readCall: SessionModelRequestPreparation['readCall']
   readonly key: CallKey
   readonly binding: SettlementLogBinding
   readonly registration: SettlementRegistration
@@ -675,6 +678,7 @@ class ServiceControlState {
       readonly binding: SettlementLogBinding
       readonly owner: SettlementOwner
       readonly call: CurrentHistoryReaders['call']
+      readonly readCall: SessionModelRequestPreparation['readCall']
     }
   >()
   closing = false
@@ -690,7 +694,13 @@ function buildServiceControl<P extends PlannedSemantics, R>(
     binding: SettlementLogBinding,
     owner: SettlementOwner,
   ) => {
-    physical.backgroundFailed.set(keyOf(key), { key, binding, owner, call: runtime.history.call })
+    physical.backgroundFailed.set(keyOf(key), {
+      key,
+      binding,
+      owner,
+      call: runtime.history.call.bind(runtime.history),
+      readCall: runtime.requestPreparation.readCall.bind(runtime.requestPreparation),
+    })
   }
 
   function retain(
@@ -706,7 +716,8 @@ function buildServiceControl<P extends PlannedSemantics, R>(
       physical.unknown.set(token, writes)
     }
     const write: UnknownControlWrite = {
-      call: runtime.history.call,
+      call: runtime.history.call.bind(runtime.history),
+      readCall: runtime.requestPreparation.readCall.bind(runtime.requestPreparation),
       key,
       binding,
       registration,
@@ -808,28 +819,6 @@ function buildServiceControl<P extends PlannedSemantics, R>(
   async function recognizeUnknown(
     writes: readonly UnknownControlWrite[],
   ): Promise<UnacknowledgedCallHistory> {
-    function compareOriginalReaders(
-      first: UnknownControlWrite,
-      prefix: Extract<
-        Awaited<ReturnType<typeof readSettlementPrefix>>,
-        { readonly prefix: unknown }
-      >['prefix'],
-    ): CallHistoryResult {
-      let history: CallHistoryResult
-      try {
-        history = first.call(prefix, first.key.callId)
-        for (const write of writes) {
-          if (write.released || write === first) continue
-          const original = write.call(prefix, write.key.callId)
-          if ('unavailable' in original) return original
-          if (!modelLogJsonEqual(original, history)) return { unavailable: true, reason: 'history' }
-        }
-      } catch {
-        return { unavailable: true, reason: 'history' }
-      }
-      return history
-    }
-
     function releaseRecognized(
       first: UnknownControlWrite,
       history: Exclude<CallHistoryResult, { readonly unavailable: true }>,
@@ -861,10 +850,15 @@ function buildServiceControl<P extends PlannedSemantics, R>(
       if (previous.some(result => result.status === 'rejected'))
         return { unavailable: true, reason: 'prefix' }
       first.readTasks.clear()
-      let received: Awaited<ReturnType<typeof readSettlementPrefix>>
+      let received: CallHistoryResult
       try {
-        received = await readSettlementPrefix({
+        received = await first.readCall({
           binding: first.binding,
+          callId: first.key.callId,
+          interpret: first.call,
+          additionalReaders: writes
+            .filter(write => !write.released && write !== first)
+            .map(write => ({ callId: write.key.callId, interpret: write.call })),
           registration: {
             start(kind, operation) {
               const task = first.registration.start(kind, operation)
@@ -881,12 +875,8 @@ function buildServiceControl<P extends PlannedSemantics, R>(
       if (stopped.some(result => result.status === 'rejected'))
         return { unavailable: true, reason: 'prefix' }
       first.readTasks.clear()
-      if ('unavailable' in received) return { unavailable: true, reason: 'prefix' }
-      // Recognizing the stopped writers' original batch needs no acknowledged view; callers
-      // derive a control phase from the returned history (an ACK is its terminal state).
-      const history = compareOriginalReaders(first, received.prefix)
-      if ('unavailable' in history) return history
-      return releaseRecognized(first, history)
+      if ('unavailable' in received) return received
+      return releaseRecognized(first, received)
     })()
     first.recognizing = attempt
     try {
@@ -907,20 +897,16 @@ function buildServiceControl<P extends PlannedSemantics, R>(
       owner,
       runtime.settlementContention.limits.concurrent,
       physical.reads,
-      async registration => await readSettlementPrefix({ binding: session.log, registration }),
+      registration =>
+        runtime.requestPreparation.readCall({
+          binding: session.log,
+          registration,
+          callId: key.callId,
+          interpret: runtime.history.call.bind(runtime.history),
+        }),
     )
     if ('unavailable' in received) return { unavailable: true, reason: 'prefix' }
-    const result = received.ok
-    if ('unavailable' in result) return { unavailable: true, reason: 'prefix' }
-    let history: UnacknowledgedCallHistory
-    try {
-      // RT12 S-100: interrupt/releaseCall of an acknowledged call answer alreadyEnded.
-      history = acknowledgedAsTerminal(runtime.history.call(result.prefix, key.callId))
-    } catch {
-      return { unavailable: true, reason: 'history' }
-    }
-    if ('unavailable' in history) return history
-    return history
+    return acknowledgedAsTerminal(received.ok)
   }
 
   const releaseCall = async (key: CallKey): Promise<ReleaseCallResult> => {
@@ -1305,13 +1291,13 @@ function buildServiceControl<P extends PlannedSemantics, R>(
         failed.owner,
         runtime.settlementContention.limits.concurrent,
         physical.reconcileReads,
-        async registration => {
-          const result = await readSettlementPrefix({ binding: failed.binding, registration })
-          return 'unavailable' in result
-            ? ({ unavailable: true } as const)
-            : // Recognizes the durable interrupt of an already stopped local owner only.
-              failed.call(result.prefix, failed.key.callId)
-        },
+        registration =>
+          failed.readCall({
+            binding: failed.binding,
+            registration,
+            callId: failed.key.callId,
+            interpret: failed.call,
+          }),
       )
       if (!failedEndRecognized(received)) continue
       const container = runtime.calls.find(failed.key)

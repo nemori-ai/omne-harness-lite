@@ -134,6 +134,7 @@ describe('original control unknown intent recognition', () => {
       if (!('ref' in opened)) throw new Error('actual original call absent')
       let originalReads = 0
       let replacementReads = 0
+      let replacementPreparations = 0
       const original: Construction = {
         ...f.world.construction,
         history: {
@@ -147,6 +148,13 @@ describe('original control unknown intent recognition', () => {
       const control = createServiceControl(original)
       const projected = projectRuntimeComponent(control, {
         ...original,
+        requestPreparation: {
+          ...original.requestPreparation,
+          async readCall() {
+            replacementPreparations++
+            throw new Error('retained Session reader replaced')
+          },
+        },
         history: {
           ...original.history,
           call() {
@@ -169,6 +177,7 @@ describe('original control unknown intent recognition', () => {
         })
         expect(originalReads).toBe(readsBefore + 1)
         expect(replacementReads).toBe(0)
+        expect(replacementPreparations).toBe(0)
         expect(f.held()).toBe(held)
         expect(f.writer()).toBe(writer)
         expect(f.inner.active).toBe(1)

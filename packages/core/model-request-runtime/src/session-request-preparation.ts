@@ -91,6 +91,10 @@ export interface SessionModelRequestPreparation {
     readonly registration: SettlementRegistration
     readonly callId: CallKey['callId']
     readonly interpret: CurrentHistoryReaders['call']
+    readonly additionalReaders?: readonly {
+      readonly callId: CallKey['callId']
+      readonly interpret: CurrentHistoryReaders['call']
+    }[]
   }) => Promise<CallHistoryResult>
   readonly prepare: (input: SessionModelDispatchInput) => Promise<SessionModelDispatchResult>
   readonly resolveTools: (

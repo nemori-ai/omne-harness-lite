@@ -5,6 +5,7 @@ import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import {
   readSettlementPrefix,
+  modelLogJsonEqual,
   settlementGenerationCurrent,
   type SessionModelDispatchInput,
   type SessionModelDispatchResult,
@@ -12,6 +13,8 @@ import {
   type SessionRuntimeBinding,
   type PlanInput,
   type PreparedModelExecution,
+  type SettlementPrefix,
+  type CallHistoryResult,
 } from '@omne-harness-lite/model-request-runtime'
 import { resolveCallTools } from './model-call-tools.ts'
 import { authorizedCalibration } from './model-request-calibration.ts'
@@ -228,6 +231,23 @@ function toolPreparationFailure(
     : { invalidInput: { reason: tools.reason ?? 'malformed' } }
 }
 
+function interpretOriginalCall(
+  input: Parameters<SessionModelRequestPreparation['readCall']>[0],
+  prefix: SettlementPrefix,
+): CallHistoryResult {
+  try {
+    const history = input.interpret(prefix, input.callId)
+    for (const reader of input.additionalReaders ?? []) {
+      const other = reader.interpret(prefix, reader.callId)
+      if ('unavailable' in other) return other
+      if (!modelLogJsonEqual(other, history)) return { unavailable: true, reason: 'history' }
+    }
+    return history
+  } catch {
+    return { unavailable: true, reason: 'history' }
+  }
+}
+
 export const sessionModelRequestPreparation = Object.freeze<SessionModelRequestPreparation>({
   prepareCreation: prepareSessionModelCreation,
   async readCall(input) {
@@ -237,7 +257,7 @@ export const sessionModelRequestPreparation = Object.freeze<SessionModelRequestP
     })
     return 'unavailable' in received
       ? { unavailable: true, reason: 'prefix' }
-      : input.interpret(received.prefix, input.callId)
+      : interpretOriginalCall(input, received.prefix)
   },
   prepare: prepareSessionModelDispatch,
   resolveTools: resolveCallTools,
