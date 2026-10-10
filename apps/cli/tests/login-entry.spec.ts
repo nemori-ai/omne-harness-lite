@@ -11,6 +11,18 @@ import { openCliCatalog } from '../src/catalog-open.ts'
 import { runLoginEntry, type LoginEntryInput } from '../src/login-entry.ts'
 import { readSessionEntryPreparation } from '../src/session-entry-preparation.ts'
 import { runDefaultSessionEntry, type DefaultSessionOptions } from '../src/session-default-entry.ts'
+import { createSessionModelDirectory } from '../src/session-model-directory.ts'
+import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
+import { replicaMigrations } from '@omne-harness-lite/credential-custodian-local/migrations'
+import { instantFromEpochMs } from '@omne-harness-lite/offer-expiry'
+import {
+  parseTenantId,
+  parseAccountId,
+  parseLoginStateId,
+  unwrap,
+} from '@omne-harness-lite/identity-values'
+import { isGovernanceCenterId } from '@omne-harness-lite/governance-center-entry'
+import { usingSelectedTenant } from '../src/selected-tenant-work.ts'
 import type { GovernanceChoices, GovernanceDialog } from '../src/governance-input.ts'
 import { tenantPaths } from '../src/state-layout.ts'
 import { checkedTenantBinding } from '../src/state-layout-values.ts'
@@ -724,3 +736,127 @@ it('does not turn cancellation or an unknown login into an automatic second cred
   expect(execute).toHaveBeenCalledTimes(1)
   expect(enter).not.toHaveBeenCalled()
 })
+
+it.each(['stored', 'rejected', 'unconfirmed', 'draining'] as const)(
+  'publishes an explicitly supplied model credential with %s outcome through actual owners',
+  async mode => {
+    const f = await fixture()
+    await runLoginEntry(f.input, f.owned.catalog, new AbortController().signal, f.factory)
+    const storage = await openStorage({
+      dialect: 'sqlite',
+      file: join(f.input.home, 'model.sqlite'),
+      synchronous: 'full',
+    })
+    cleanup.push(() => storage.close())
+    for (const migration of [...modelProfileDirectoryMigrations, ...replicaMigrations])
+      await storage.write(tx => migration.migration.up(tx.db))
+    const keyFile = join(f.input.home, 'model-replica.key')
+    await writeFile(keyFile, new Uint8Array(32).fill(7), { mode: 0o600 })
+    if (!isGovernanceCenterId(centerId)) throw new Error('invalid center fixture')
+    const source = {
+      centerId,
+      accountId: unwrap(parseAccountId(account)),
+      loginStateHandle: unwrap(parseLoginStateId(handle)),
+    }
+    const clock = { now: async () => unwrap(instantFromEpochMs(1791417600000)) }
+    const fixedTenant = unwrap(parseTenantId(tenant))
+    const outcome = await usingSelectedTenant(
+      f.input.home,
+      f.owned.catalog,
+      new AbortController().signal,
+      async ports => {
+        const options = {
+          governance: ports.client,
+          source,
+          tenant: fixedTenant,
+          keyFile,
+          diagnostics: { record() {} },
+          onDiagnosticFailure() {},
+          replicaDiagnostics: { record() {}, sinkFailure() {} },
+        }
+        const owner = createSessionModelDirectory(storage, clock, options)
+        cleanup.push(() => owner.close())
+        const read = await owner.ready
+        expect(await read.credentials.value(fixedTenant, 'official')).toEqual({
+          failure: 'credentialUnavailable',
+        })
+        const body = new TextEncoder().encode('explicit-model-secret')
+        const original = f.exchange.getMockImplementation()
+        if (!original) throw new Error('missing original transport')
+        const entered = Promise.withResolvers<void>(),
+          release = Promise.withResolvers<void>()
+        if (mode === 'rejected' || mode === 'unconfirmed')
+          f.exchange.mockImplementation(async (...args) => {
+            if (mode === 'unconfirmed')
+              return { kind: 'unavailable', reason: 'connection', sendAttempted: false }
+            if ((args[1] as { operation: string }).operation.endsWith('#S-26'))
+              return {
+                kind: 'reply',
+                reply: { result: { standing: 'ineffective' } },
+                sendAttempted: true,
+              }
+            return original(...args)
+          })
+        if (mode === 'draining')
+          f.exchange.mockImplementation(async (...args) => {
+            entered.resolve()
+            await release.promise
+            return original(...args)
+          })
+        const publication = owner.publishCredential({
+          credentialRef: 'original-model-credential',
+          body,
+        })
+        if (mode === 'draining') {
+          await entered.promise
+          let closed = false
+          const closing = owner.close().then(() => {
+            closed = true
+          })
+          await new Promise<void>(resolve => setImmediate(resolve))
+          expect(closed).toBe(false)
+          release.resolve()
+          await closing
+        }
+        const result = await publication
+        f.exchange.mockImplementation(original)
+        if (mode === 'rejected' || mode === 'unconfirmed') {
+          expect(result).toMatchObject({
+            kind: mode,
+            credentialRef: 'original-model-credential',
+            stage: 'binding',
+          })
+          expect(await read.credentials.value(fixedTenant, 'official')).toEqual({
+            failure: 'credentialUnavailable',
+          })
+          return result
+        }
+        expect(result).toEqual({ kind: 'stored', credentialRef: 'original-model-credential' })
+        expect(new TextDecoder().decode(body)).toBe('explicit-model-secret')
+        expect(JSON.stringify(result)).not.toContain('explicit-model-secret')
+        await owner.close()
+        const stoppedCalls = f.exchange.mock.calls.length
+        expect(await owner.publishCredential({ credentialRef: 'stopped-write', body })).toEqual({
+          kind: 'rejected',
+          credentialRef: 'stopped-write',
+          stage: 'admission',
+          reason: 'closed',
+        })
+        expect(f.exchange.mock.calls.length).toBe(stoppedCalls)
+        const reopened = createSessionModelDirectory(storage, clock, options)
+        try {
+          const current = await (await reopened.ready).credentials.value(fixedTenant, 'official')
+          expect(current).toMatchObject({ scope: { layer: 'tenant', tenant: fixedTenant } })
+          if ('failure' in current) throw new Error('model credential not restored')
+          expect(new TextDecoder().decode(current.value)).toBe('explicit-model-secret')
+          current.value.fill(0)
+        } finally {
+          await reopened.close()
+        }
+        return result
+      },
+      f.factory,
+    )
+    expect(outcome.diagnostics).toEqual([])
+  },
+)

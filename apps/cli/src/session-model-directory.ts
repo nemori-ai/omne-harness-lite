@@ -3,6 +3,7 @@ import type { Clock } from '@omne-harness-lite/offer-expiry'
 import {
   isOk,
   parseTenantId,
+  parseOpaqueIdentifier,
   tenantIdEquals,
   type TenantId,
 } from '@omne-harness-lite/identity-values'
@@ -10,6 +11,7 @@ import type { GovernanceClientOperations } from '@omne-harness-lite/governance-c
 import type { AdmissionSource } from '@omne-harness-lite/session-runtime-local'
 import type {
   ModelCatalogRead,
+  ModelCatalog,
   CredentialLookup,
   DiagnosticSink,
 } from '@omne-harness-lite/model-profile-directory'
@@ -44,7 +46,28 @@ export interface SessionModelDirectoryRead {
   readonly credentials: CredentialLookup
 }
 
-/** Application-only resource owner. Only read faces leave this constructor. */
+export type ModelCredentialPublication =
+  | { readonly kind: 'stored'; readonly credentialRef: string }
+  | {
+      readonly kind: 'rejected' | 'unconfirmed'
+      readonly credentialRef: string
+      readonly stage: 'admission' | 'binding' | 'replica'
+      readonly reason: string
+    }
+
+interface CredentialPublicationInput {
+  readonly credentialRef: string
+  readonly body: Uint8Array
+}
+
+function captureCredential(input: CredentialPublicationInput) {
+  const parsed = parseOpaqueIdentifier(input.credentialRef, 'CredentialRef')
+  if (!isOk(parsed) || !(input.body instanceof Uint8Array) || input.body.length === 0)
+    throw new TypeError('explicit model credential reference and bytes required')
+  return { credentialRef: parsed.ok, body: Uint8Array.from(input.body) }
+}
+
+/** The application owns setup. Model consumers receive only the ready read faces. */
 export function createSessionModelDirectory(
   storage: AtomicStorage,
   clock: Clock,
@@ -63,6 +86,8 @@ export function createSessionModelDirectory(
   let directory: ReturnType<typeof createLocalModelDirectory> | undefined
   let replica: ModelReplicaCustodian | undefined
   let lookup: ReturnType<typeof createLocalCredentialLookup> | undefined
+  let catalog: ModelCatalog | undefined
+  const publications = new Set<Promise<ModelCredentialPublication>>()
   let stopping = false
   let closing: Promise<void> | undefined
   async function standing(candidate: TenantId) {
@@ -101,7 +126,7 @@ export function createSessionModelDirectory(
       onDiagnosticFailure: options.onDiagnosticFailure,
       withdrawn() {},
     })
-    const catalog = await directory.ready
+    catalog = await directory.ready
     replica = await createModelReplicaCustodian({
       storage,
       clock,
@@ -128,6 +153,7 @@ export function createSessionModelDirectory(
   async function closeResources() {
     stopping = true
     await started
+    await Promise.allSettled([...publications])
     await lookup?.close()
     await replica?.close()
     await directory?.close()
@@ -148,5 +174,48 @@ export function createSessionModelDirectory(
     }
     return closing
   }
-  return Object.freeze({ ready, close })
+  async function publishCredential(
+    input: CredentialPublicationInput,
+  ): Promise<ModelCredentialPublication> {
+    const { credentialRef, body } = captureCredential(input)
+    try {
+      await ready
+      if (stopping || !catalog || !replica)
+        return { kind: 'rejected', credentialRef, stage: 'admission', reason: 'closed' }
+      const bound = await catalog.bindCredential(options.tenant, options.tenant, credentialRef)
+      if ('failure' in bound)
+        return {
+          kind: bound.failure === 'unavailable' ? 'unconfirmed' : 'rejected',
+          credentialRef,
+          stage: 'binding',
+          reason: bound.failure,
+        }
+      const stored = await replica.storeBoundReplica({
+        loginState: options.source.loginStateHandle,
+        tenant: options.tenant,
+        sourceRef: credentialRef,
+        body,
+      })
+      if ('stored' in stored && stored.stored) return { kind: 'stored', credentialRef }
+      const reason = 'failure' in stored ? stored.failure : 'bindingChanged'
+      return {
+        kind: reason === 'unavailable' ? 'unconfirmed' : 'rejected',
+        credentialRef,
+        stage: 'replica',
+        reason,
+      }
+    } finally {
+      body.fill(0)
+    }
+  }
+  function publish(input: Parameters<typeof publishCredential>[0]) {
+    const job = publishCredential(input)
+    publications.add(job)
+    void job.then(
+      () => publications.delete(job),
+      () => publications.delete(job),
+    )
+    return job
+  }
+  return Object.freeze({ ready, close, publishCredential: publish })
 }
