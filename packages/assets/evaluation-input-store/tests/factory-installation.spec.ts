@@ -3,6 +3,7 @@ import { toOpaqueJson } from '@omne-harness-lite/content-blocks'
 import { narrow, StorageUnavailable } from '@omne-harness-lite/storage'
 import {
   installOfficialFactoryDefinition,
+  installOfficialFactoryDefinitions,
   publishLocalInputs,
   readPublicationRevision,
 } from '../src/publication.ts'
@@ -29,6 +30,61 @@ const release = {
   ],
 }
 const request = { definition: release, since: AT, holders: [] }
+
+test('installs a complete factory bundle in one revision and recognizes the whole bundle', async () => {
+  const other = {
+    ...release,
+    id: 'second-factory-session',
+    capability: { ...capability, name: 'factory:second' },
+  }
+  const h = await boot(undefined, [
+    { capability, meta: false },
+    { capability: other.capability, meta: false },
+  ])
+  try {
+    const input = { definitions: [release, other], since: AT, holders: [] }
+    expect(await installOfficialFactoryDefinitions(h.deps, input)).toEqual({ revision: '1' })
+    const atomic = vi.spyOn(h.storage, 'atomic')
+    expect(await installOfficialFactoryDefinitions(h.deps, input)).toEqual({ revision: '1' })
+    expect(atomic).not.toHaveBeenCalled()
+    expect(await readPublicationRevision(h.deps)).toEqual({ revision: '1' })
+  } finally {
+    await h.close()
+  }
+})
+
+test('a conflicting member rejects a factory bundle without installing its earlier valid member', async () => {
+  const h = await boot()
+  try {
+    const { tenant } = await h.identity('bundle-reader')
+    await h.initialize(tenant)
+    const deps = {
+      ...h.deps,
+      deployedOfficial: [...h.deps.deployedOfficial, { capability, meta: false }],
+    }
+    const changed = {
+      ...asset(),
+      versions: [{ ...asset().versions[0]!, publishedAt: '2026-10-09T00:00:00Z' }],
+    }
+    expect(
+      await installOfficialFactoryDefinitions(deps, {
+        definitions: [release, changed],
+        since: AT,
+        holders: [],
+      }),
+    ).toEqual({ failure: 'conflict' })
+    expect(await readPublicationRevision(h.deps)).toEqual({ revision: '1' })
+    const reader = createEvaluationInputReader(h.deps)
+    try {
+      const read = await reader.read('session_a', tenant)
+      expect(read).toHaveProperty('input.definitions.length', 1)
+    } finally {
+      await reader.close()
+    }
+  } finally {
+    await h.close()
+  }
+})
 
 test('installs the declared official release once and recognizes it without publishing again', async () => {
   const h = await boot(undefined, [{ capability, meta: false }])

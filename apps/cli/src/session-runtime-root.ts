@@ -287,6 +287,7 @@ class RuntimeRoot {
       if (stopped.kind === 'pending') return { pending: true }
     }
     if (this.results && 'pending' in this.results.close()) return { pending: true }
+    await this.options.tools?.close?.()
     await this.bootstrap?.close()
     await this.manifest?.close()
     await this.access?.close()

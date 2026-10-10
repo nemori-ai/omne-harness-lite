@@ -145,6 +145,9 @@ importers:
       '@omne-harness-lite/asset-evaluation':
         specifier: workspace:*
         version: link:../../packages/core/asset-evaluation
+      '@omne-harness-lite/asset-model':
+        specifier: workspace:*
+        version: link:../../packages/core/asset-model
       '@omne-harness-lite/asset-registry-local':
         specifier: workspace:*
         version: link:../../packages/tools/asset-registry-local
@@ -169,6 +172,12 @@ importers:
       '@omne-harness-lite/evaluation-input-store':
         specifier: workspace:*
         version: link:../../packages/assets/evaluation-input-store
+      '@omne-harness-lite/execution-environments':
+        specifier: workspace:*
+        version: link:../../packages/core/execution-environments
+      '@omne-harness-lite/execution-environments-host':
+        specifier: workspace:*
+        version: link:../../packages/infra/execution-environments-host
       '@omne-harness-lite/governance-center-client-https':
         specifier: workspace:*
         version: link:../../packages/frontend/governance-center-client-https
@@ -199,6 +208,9 @@ importers:
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../../packages/core/messages
+      '@omne-harness-lite/meta-shell':
+        specifier: workspace:*
+        version: link:../../packages/tools/meta-shell
       '@omne-harness-lite/model-message-projection':
         specifier: workspace:*
         version: link:../../packages/core/model-message-projection
@@ -259,6 +271,18 @@ importers:
       '@omne-harness-lite/tool-admission-local':
         specifier: workspace:*
         version: link:../../packages/tools/tool-admission-local
+      '@omne-harness-lite/tool-definition':
+        specifier: workspace:*
+        version: link:../../packages/core/tool-definition
+      '@omne-harness-lite/tool-execution-local':
+        specifier: workspace:*
+        version: link:../../packages/tools/tool-execution-local
+      '@omne-harness-lite/tool-execution-runtime':
+        specifier: workspace:*
+        version: link:../../packages/core/tool-execution-runtime
+      '@omne-harness-lite/tool-result-files':
+        specifier: workspace:*
+        version: link:../../packages/tools/tool-result-files
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
@@ -269,9 +293,6 @@ importers:
       '@omne-harness-lite/artifact-builder':
         specifier: workspace:*
         version: link:../../tools/artifact-builder
-      '@omne-harness-lite/tool-definition':
-        specifier: workspace:*
-        version: link:../../packages/core/tool-definition
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

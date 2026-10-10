@@ -159,6 +159,7 @@ import {
 } from '@omne-harness-lite/evaluation-input-store/publication'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { contextSeedFromDefinition } from '../src/session-seed.ts'
+import { registerSessionWorkspace } from '../src/session-workspace-source.ts'
 import { createSessionAdmissionProbe } from '../src/session-admission-probe.ts'
 import type { AccessIdentity } from '@omne-harness-lite/session-tenancy'
 import { createSessionBootstrap, type SessionBootstrapOptions } from '../src/session-bootstrap.ts'
@@ -760,8 +761,11 @@ it('deploys the actual CLI official release and creates an independently initial
     input: {
       root: {
         definition: officialSessionDefinition,
-        source: { asset: officialSessionAsset.id, version: 2 },
-        references: [],
+        source: { asset: officialSessionAsset.id, version: 3 },
+        references: [
+          { capability: { category: 'tool', name: 'Shell' } },
+          { capability: { category: 'loop_extension', name: 'omne-official:admission-judgment' } },
+        ],
       },
     },
   })
@@ -823,7 +827,7 @@ it('assembles the actual runtime root and creates a legal empty Session through 
     request,
     policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
   })
-  expect(reply).toMatchObject({ kind: 'reply', result: { kind: 'created' } })
+  expect(reply, JSON.stringify(reply)).toMatchObject({ kind: 'reply', result: { kind: 'created' } })
   expect(configure).toHaveBeenCalledOnce()
   const created = await root.owners.ingress.operations.createSession(
     root.owners.ingress.access,
@@ -4204,6 +4208,73 @@ it('uses original work tokens and the actual tenant Unit instead of treating abs
   expect(await read()).toBe('unavailable')
 })
 
+it('reads the durable Session workspace through the official Context source across registrations', async () => {
+  const { options } = await rootFixture()
+  const root = await startSessionRuntimeRoot({
+    ...options,
+    creation: {
+      definition: officialSessionDefinition,
+      executionType: 'interactive',
+      mode: 'never',
+      collaboration: 'co-work',
+    },
+    contextAccess: ingress =>
+      createSessionContextReadGrant(ingress, source, tenant, {
+        consumers: ['tool'],
+        policy: { maxBindings: 16, maxContextKeys: 16 },
+      }),
+  })
+  cleanup.push(async () => {
+    expect(await root.close()).toEqual({ closed: true })
+  })
+  const created = await root.owners.ingress.operations.createSession(root.owners.ingress.access, {
+    operationKey: 'workspace-source',
+    definition: officialSessionDefinition,
+    executionType: 'interactive',
+    mode: 'never',
+    collaboration: 'co-work',
+    workspace: options.home,
+  })
+  if (!('kind' in created) || created.kind !== 'created') throw new Error('Session creation failed')
+  const scope = { tenant, session: created.session }
+  const context = await root.owners.bootstrap.context(scope)!.ready
+  const issued = await root.owners.contextAccess.issuer.issue({
+    principal: source.accountId,
+    principalKind: 'human',
+    scope,
+    consumer: 'tool',
+    operations: ['context.read'],
+    contextKeys: ['shell.initial'],
+  })
+  if (issued.kind !== 'issued') throw new Error('Context access unavailable')
+  const bound = await context.bind(issued.access, scope, 'tool')
+  if (bound.kind !== 'bound') throw new Error('Context binding unavailable')
+  const journal = {
+    scope,
+    readPrefix: async () => {
+      const prefix = await root.owners.ingress.journal.readPrefix(
+        root.owners.ingress.access,
+        scope.session,
+      )
+      if (!('entries' in prefix)) throw new Error('Actual Session prefix unavailable')
+      return { entries: prefix.entries, source: prefix.source, tail: prefix.source.tail }
+    },
+  }
+  for (let registration = 0; registration < 2; registration++) {
+    const handle = await registerSessionWorkspace(context, journal)
+    try {
+      expect(await bound.reader.read(['shell.initial'])).toMatchObject({
+        kind: 'values',
+        values: [
+          { key: 'shell.initial', value: { cwd: options.home, envs: { PATH: '/usr/bin:/bin' } } },
+        ],
+      })
+    } finally {
+      await handle.dispose()
+    }
+  }
+  root.owners.contextAccess.issuer.revoke(issued.access)
+})
 it('opens the actual file Session root, creates the official Session and recognizes it on reopen', async () => {
   // Real file resources, Clock, CG client, G28, EIS, Context and listener.
   // Governance transport and model qualification are controlled; this empty Session has no model IO.
@@ -4221,6 +4292,7 @@ it('opens the actual file Session root, creates the official Session and recogni
   }))
   const sources = {
     ...options,
+    transport: { ...options.transport, idleTimeoutMs: 10000 },
     creation,
     inputSource: {
       ...options.inputSource,
@@ -4238,12 +4310,16 @@ it('opens the actual file Session root, creates the official Session and recogni
     command: 'createSession' as const,
     input: { ...creation, operationKey: 'file-official-create' },
   }
+  const requestedAt = performance.now()
   const reply = await sendSessionHostRequest({
     home: options.home,
     request,
     policy: { timeoutMs: 5000, maxResponseBytes: 65536 },
   })
-  expect(reply).toMatchObject({ kind: 'reply', result: { kind: 'created' } })
+  expect(
+    reply,
+    JSON.stringify({ reply, elapsedMs: performance.now() - requestedAt }),
+  ).toMatchObject({ kind: 'reply', result: { kind: 'created' } })
   expect(createModel).toHaveBeenCalledOnce()
   expect(await root.close()).toEqual({ closed: true })
   const reopened = await startFileSessionRuntimeRoot(sources)

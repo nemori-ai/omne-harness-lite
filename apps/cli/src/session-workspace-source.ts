@@ -1,0 +1,43 @@
+import { createHash } from 'node:crypto'
+import { isAbsolute } from 'node:path'
+import { SHELL_CONTEXT_KEY } from '@omne-harness-lite/meta-shell'
+import { readSessionFact } from '@omne-harness-lite/session-runtime'
+import { tenantIdEquals } from '@omne-harness-lite/identity-values'
+import type {
+  RuntimeContextOperations,
+  ContextSourceRegistrations,
+} from '@omne-harness-lite/runtime-context'
+import type { BorrowedRunJournal } from '@omne-harness-lite/session-runtime-local'
+
+/** Workspace comes from the durable Session creation, never from the daemon's cwd. */
+export async function registerSessionWorkspace(
+  context: RuntimeContextOperations & ContextSourceRegistrations,
+  journal: Pick<BorrowedRunJournal, 'scope' | 'readPrefix'>,
+) {
+  const prefix = await journal.readPrefix()
+  if ('failure' in prefix) throw new Error('Session workspace source unavailable')
+  const created = prefix.entries.flatMap(entry => {
+    const read = readSessionFact(entry)
+    return 'fact' in read && read.fact.kind === 'session_created' ? [read.fact] : []
+  })
+  const original = created[0]
+  if (created.length !== 1 || !original?.workspace || !isAbsolute(original.workspace))
+    throw new Error('An absolute original Session workspace is required')
+  const value = { cwd: original.workspace, envs: { PATH: '/usr/bin:/bin' } }
+  const content = {
+    key: SHELL_CONTEXT_KEY,
+    revision: createHash('sha256').update(JSON.stringify(value)).digest('hex'),
+    observedAt: original.at,
+    value,
+  }
+  return context.registerSource({
+    name: 'session-workspace',
+    consumers: ['tool'],
+    requiredKeys: [SHELL_CONTEXT_KEY],
+    recovery: 'reread_source',
+    read: async scope =>
+      scope.session === journal.scope.session && tenantIdEquals(scope.tenant, journal.scope.tenant)
+        ? { kind: 'values', values: [content] }
+        : { kind: 'rejected', reason: 'notAuthorized' },
+  })
+}

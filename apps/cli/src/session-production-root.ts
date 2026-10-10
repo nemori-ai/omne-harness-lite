@@ -10,7 +10,18 @@ import {
 import { createModalityProjection } from '@omne-harness-lite/model-message-projection'
 import { inspectContextLogEntry } from '@omne-harness-lite/runtime-context-local'
 import { createRunnerTaskOwner } from '@omne-harness-lite/loop-extension-runner-local'
-import { emptyAuthorizationContext } from '@omne-harness-lite/tool-admission'
+import { inspectRunnerConclusion } from '@omne-harness-lite/loop-extension-runner'
+import { toolJournalFormat } from '@omne-harness-lite/tool-execution-runtime'
+import { SHELL_CONTEXT_KEY } from '@omne-harness-lite/meta-shell'
+import { copyJsonValue } from '@omne-harness-lite/content-blocks'
+import { tenantPaths } from './state-layout.ts'
+import { join } from 'node:path'
+import { createProductionSessionTools } from './session-production-tools.ts'
+import { registerSessionWorkspace } from './session-workspace-source.ts'
+import {
+  emptyAuthorizationContext,
+  OFFICIAL_ADMISSION_NAME,
+} from '@omne-harness-lite/tool-admission'
 import type { AccessOperation } from '@omne-harness-lite/session-tenancy'
 import { startFileSessionDriverRoot, type FileSessionDriverOptions } from './session-file-root.ts'
 import { createSessionContextReadGrant } from './session-context-access.ts'
@@ -42,6 +53,13 @@ const coordinatedOperations: readonly AccessOperation[] = [
   'context.read',
   'run.advance',
   'session.log.coordinate',
+  'tool.submit',
+  'tool.read',
+  'tool.stop',
+  'tool.answer',
+  'environment.describe',
+  'environment.acquire',
+  'result.read',
 ]
 function identities(): SessionDriverIdentitySource {
   const id = (kind: string, ...parts: unknown[]) =>
@@ -59,7 +77,10 @@ function identities(): SessionDriverIdentitySource {
       if (!isOk(key)) throw new Error('Generated CreationKey rejected')
       return { ...invocation(...parts), call: id('call', parts), creationKey: key.ok }
     },
-    tool: invocation,
+    tool: (...parts) => ({
+      ...invocation(...parts),
+      originalPosition: toolJournalFormat + '/' + JSON.stringify(['execution_intended', parts[4]]),
+    }),
     modelContent: {
       response: randomUUID,
       message() {
@@ -100,6 +121,10 @@ function contextAccess(
 /** Application-owned policies and public providers for the default Session host. */
 export async function startProductionSessionHost(options: ProductionSessionHostOptions) {
   const tenant = options.binding.tenant
+  const tools = createProductionSessionTools(
+    tenant,
+    join(tenantPaths(options.home, options.binding).data, 'tool-results'),
+  )
   const nativeModel = productionSessionModel(
     {
       governance: options.governance,
@@ -154,6 +179,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
     admissionPolicy: { maxLogins: 16, maxTickets: 256, maxRecordBytes: 65_536 },
     logOperationLimit: 256,
     contextAccess: contextAccess(options),
+    tools: tools.options,
     initialRouteName: options.routeName,
     nativeModel: {
       ...nativeModel,
@@ -167,7 +193,9 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
       maxRecords: 128,
       maxCaptures: 16,
       retainReferencesIn: async (_unit, _scope, pending) =>
-        pending.reply.blocks.every(block => block.kind === 'text' || block.kind === 'thinking')
+        pending.reply.blocks.every(
+          block => block.kind === 'text' || block.kind === 'thinking' || block.kind === 'tool_call',
+        )
           ? 'retained'
           : 'unavailable',
     },
@@ -190,6 +218,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
       if (!directory || !presence) throw new Error('actual model sources unavailable')
       const actualPresence = presence
       const now = sessionClock(files.clock)
+      await tools.open(owners, files)
       return {
         policy: {
           scanLimit: 16,
@@ -212,7 +241,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
               }),
           },
         },
-        tools: { acquire: async () => ({ unavailable: true }) },
+        tools: tools.factory,
         sources: {
           acquire: async (scope, journal) => {
             const assets = createSessionRunAssets({
@@ -220,7 +249,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
               journal,
               tenancy: owners.ingress.tenancy,
               initialFillRef: 'fill:' + journal.run,
-              evaluation: { toolEnvironmentPermission: 'never-allow' },
+              evaluation: { toolEnvironmentPermission: 'always-allow' },
               registry: {
                 manifest: owners.manifest,
                 deployedMeta: [],
@@ -238,8 +267,12 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
             let runner: ReturnType<typeof createSessionRunRunner> | undefined
             let runnerTasks: ReturnType<typeof createRunnerTaskOwner> | undefined
             let access: Awaited<ReturnType<typeof owners.contextAccess.issuer.issue>> | undefined
+            let workspace: Awaited<ReturnType<typeof registerSessionWorkspace>> | undefined
+            let unregisterToolRun: (() => void) | undefined
             async function release() {
               await runner?.close()
+              unregisterToolRun?.()
+              await workspace?.dispose()
               if (runnerTasks) {
                 runnerTasks.closeAdmission()
                 await runnerTasks.drain()
@@ -260,8 +293,8 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                 principal: options.source.accountId,
                 principalKind: 'human',
                 scope,
-                consumer: 'coordinator',
-                contextKeys: [],
+                consumer: 'tool',
+                contextKeys: [SHELL_CONTEXT_KEY],
                 operations: coordinatedOperations,
               })
               if (access.kind !== 'issued') {
@@ -269,6 +302,8 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                 return { unavailable: true }
               }
               const toolAccess = access.access
+              const runtimeContext = await context.ready
+              workspace = await registerSessionWorkspace(runtimeContext, journal)
               const admission = { grants: emptyAuthorizationContext(), runMode: 'never' as const }
               runnerTasks = createRunnerTaskOwner({
                 ...scope,
@@ -286,9 +321,18 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                 admission,
                 ports: {
                   readAskState: async () => ({ kind: 'unavailable' }),
-                  openHandles: async () => ({ unavailable: true }),
+                  openHandles: async piece => {
+                    if (piece.definition.name !== OFFICIAL_ADMISSION_NAME)
+                      return { unavailable: true }
+                    const log = parseOpaqueIdentifier(randomUUID(), 'LogHandle')
+                    const environment = parseOpaqueIdentifier(randomUUID(), 'EnvironmentHandle')
+                    if (!isOk(log) || !isOk(environment))
+                      throw new Error('invalid original Run handle')
+                    return { log: log.ok, environment: environment.ok, release() {} }
+                  },
                   verifyFailure: async () => ({ kind: 'unavailable' }),
-                  judgeCapabilities: async () => ({ kind: 'unavailable' }),
+                  judgeCapabilities: async (_input, output) =>
+                    output.kind === 'observed' ? { kind: 'accepted' } : { kind: 'unavailable' },
                   now,
                   mintReminder: randomUUID,
                   fallbackNeedsProjection: async () => ({ unavailable: true }),
@@ -296,7 +340,30 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                   commandPresence: async () => 'absent',
                 },
                 readMessagePrefix: async () => ({ unavailable: true }),
-                subjectForCandidate: () => ({ unavailable: true }),
+                subjectForCandidate: (request, entry, action) => {
+                  const payload = copyJsonValue(entry.payload)
+                  if ('failed' in payload) return { unavailable: true }
+                  const read = inspectRunnerConclusion({
+                    ...scope,
+                    entry: { ...entry, payload: payload.ok, session: scope.session, position: 1 },
+                  })
+                  if (!('conclusion' in read) || request.position !== 'before_action' || !action)
+                    return { unavailable: true }
+                  const call = action.calls.find(value => value.callId === read.conclusion.callId)
+                  return call
+                    ? {
+                        position: 'before_action',
+                        subject: {
+                          call,
+                          definition: { name: call.tool },
+                          batch: [
+                            action.calls[0].callId,
+                            ...action.calls.slice(1).map(value => value.callId),
+                          ],
+                        },
+                      }
+                    : { unavailable: true }
+                },
                 isActive: () => context.currentGeneration() !== null,
               })
               const actions = await runner.ready
@@ -304,19 +371,26 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                 await release()
                 return { unavailable: true }
               }
+              unregisterToolRun = tools.registerRun({
+                scope,
+                run: journal.run,
+                input: bound.input,
+                context: runtimeContext,
+                admission: actions.admission,
+              })
               return {
                 scope,
                 run: journal.run,
                 evaluation: bound.input,
                 registry: bound.registry,
-                context: await context.ready,
+                context: runtimeContext,
                 contextGeneration: context.currentGeneration,
                 toolAccess,
                 actions: { runner: actions.runner, host: actions.host, admission },
                 providers: {
                   ...directory,
-                  tools: { lookup: async () => ({ failure: 'unavailable' }) },
-                  sourceVersions: { cliDefinition: '2', catalog: String(officialCatalogRevision) },
+                  tools: bound.registry,
+                  sourceVersions: { cliDefinition: '3', catalog: String(officialCatalogRevision) },
                 },
                 selection: {
                   owner: selection,

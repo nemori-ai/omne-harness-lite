@@ -37,13 +37,27 @@ export async function installOfficialFactoryDefinition(
     readonly holders: readonly DeploymentHolder[]
   },
 ): Promise<PublicationResult> {
+  return installOfficialFactoryDefinitions(dependencies, {
+    definitions: [requested.definition],
+    since: requested.since,
+    holders: requested.holders,
+  })
+}
+/** Install one complete official factory release through the existing atomic publication. */
+export async function installOfficialFactoryDefinitions(
+  dependencies: EvaluationStorageDependencies,
+  requested: {
+    readonly definitions: readonly unknown[]
+    readonly since: string
+    readonly holders: readonly DeploymentHolder[]
+  },
+): Promise<PublicationResult> {
   const deps = ownDependencies(dependencies)
-  const input = installationInput(deps, requested)
-  if ('failure' in input) return input
-  const { release, holding, holders } = input
+  const bundle = installationBundle(deps, requested)
+  if ('failure' in bundle) return bundle
   try {
     const snapshot = await deps.storage.read(tx =>
-      installationSnapshot(tx, deps, release, holding, holders),
+      installationSnapshot(tx, deps, bundle.releases, bundle.holdings, bundle.holders),
     )
     if ('failure' in snapshot) return snapshot
     if (snapshot.definitions.length === 0 && snapshot.scopes.length === 0) {
@@ -56,6 +70,33 @@ export async function installOfficialFactoryDefinition(
       return { failure: 'unavailable' }
     throw error
   }
+}
+function installationBundle(
+  deps: EvaluationStorageDependencies,
+  requested: Parameters<typeof installOfficialFactoryDefinitions>[1],
+):
+  | {
+      readonly releases: readonly ReturnType<typeof definition>[]
+      readonly holdings: readonly AssetHolding[]
+      readonly holders: readonly DeploymentHolder[]
+    }
+  | { readonly failure: 'invalidInput' | 'unavailable' } {
+  if (!Array.isArray(requested.definitions) || requested.definitions.length === 0)
+    return { failure: 'invalidInput' } as const
+  const releases: ReturnType<typeof definition>[] = []
+  const holdings: AssetHolding[] = []
+  const identities = new Set<string>()
+  let holders: readonly DeploymentHolder[] = []
+  for (const definition of requested.definitions) {
+    const input = installationInput(deps, { ...requested, definition })
+    if ('failure' in input) return input
+    if (identities.has(input.release.id)) return { failure: 'invalidInput' } as const
+    identities.add(input.release.id)
+    releases.push(input.release)
+    holdings.push(input.holding)
+    holders = input.holders
+  }
+  return { releases, holdings, holders }
 }
 function installationInput(
   deps: EvaluationStorageDependencies,
@@ -134,8 +175,8 @@ async function storedDefinition(tx: ReadTx, deps: EvaluationStorageDependencies,
 async function installationSnapshot(
   tx: ReadTx,
   deps: EvaluationStorageDependencies,
-  release: ReturnType<typeof definition>,
-  holding: AssetHolding,
+  releases: readonly ReturnType<typeof definition>[],
+  holdings: readonly AssetHolding[],
   holders: readonly DeploymentHolder[],
 ): Promise<LocalPublication | { failure: 'conflict' }> {
   const db = narrow<SourceDb>(tx)
@@ -144,16 +185,19 @@ async function installationSnapshot(
     .select(['revision', 'factory_manifest'])
     .where('store_key', '=', deps.storeKey)
     .executeTakeFirst()
-  const original = await storedDefinition(tx, deps, release.id)
-  if (original && !canAppendRelease(original, release)) return { failure: 'conflict' }
-  const changed = !equal(original, release)
-  const factory = await factoryScopes(tx, deps, holding, head)
+  const definitions = []
+  for (const release of releases) {
+    const original = await storedDefinition(tx, deps, release.id)
+    if (original && !canAppendRelease(original, release)) return { failure: 'conflict' }
+    if (!equal(original, release)) definitions.push(release)
+  }
+  const factory = await factoryScopes(tx, deps, holdings, head)
   if ('failure' in factory) return factory
   const scopes = [...factory.scopes, ...(await missingScopes(tx, deps, holders))]
-  if (!changed && scopes.length === 0) checkInstalledHead(head, deps)
+  if (!definitions.length && scopes.length === 0) checkInstalledHead(head, deps)
   return {
     expectedRevision: head?.revision ?? null,
-    definitions: changed ? [release] : [],
+    definitions,
     scopes,
   }
 }
@@ -173,7 +217,7 @@ function canAppendRelease(
 async function factoryScopes(
   tx: ReadTx,
   deps: EvaluationStorageDependencies,
-  holding: AssetHolding,
+  holdings: readonly AssetHolding[],
   head: Pick<SourceDb['evaluation_input_head'], 'revision' | 'factory_manifest'> | undefined,
 ): Promise<{ scopes: LocalPublication['scopes'] } | { failure: 'conflict' }> {
   const db = narrow<SourceDb>(tx)
@@ -187,29 +231,31 @@ async function factoryScopes(
   const existing = factory
     ? decodeHoldings(parsed(factory.holdings, 'factory_holdings'), { layer: 'factory' })
     : []
-  const prior = existing.find(item => equal(item.capability, holding.capability))
-  if (prior && !equal(prior, { ...holding, since: prior.since })) return { failure: 'conflict' }
-  const next = prior ? existing : [...existing, holding]
+  checkExistingFactory(factory !== undefined, head, existing)
+  const next = [...existing]
+  for (const holding of holdings) {
+    const prior = next.find(item => equal(item.capability, holding.capability))
+    if (prior && !equal(prior, { ...holding, since: prior.since })) return { failure: 'conflict' }
+    if (!prior) next.push(holding)
+  }
   if (!factoryMatches(next, deps.deployedOfficial)) return { failure: 'conflict' }
-  checkFactoryManifest(factory !== undefined, head, deps, holding, prior !== undefined)
-  const scopes: LocalPublication['scopes'][number][] = prior
-    ? []
-    : [{ holder: { layer: 'factory' }, holdings: next }]
+  const scopes: LocalPublication['scopes'][number][] =
+    next.length === existing.length ? [] : [{ holder: { layer: 'factory' }, holdings: next }]
   return { scopes }
 }
-function checkFactoryManifest(
+function checkExistingFactory(
   hasFactory: boolean,
   head: Pick<SourceDb['evaluation_input_head'], 'revision' | 'factory_manifest'> | undefined,
-  deps: EvaluationStorageDependencies,
-  holding: AssetHolding,
-  alreadyHeld: boolean,
+  existing: readonly AssetHolding[],
 ) {
   if (hasFactory !== (head !== undefined)) throw new SourceUnavailable('factory_head')
-  if (!head) return
-  const previous = alreadyHeld
-    ? deps.deployedOfficial
-    : deps.deployedOfficial.filter(entry => !equal(entry.capability, holding.capability))
-  if (!deploymentEquals(parsed(head.factory_manifest, 'factory_manifest'), previous))
+  if (
+    head &&
+    !deploymentEquals(
+      parsed(head.factory_manifest, 'factory_manifest'),
+      existing.map(item => ({ capability: item.capability, meta: item.immutable })),
+    )
+  )
     throw new SourceUnavailable('factory_manifest')
 }
 async function missingScopes(

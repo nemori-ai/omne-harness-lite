@@ -84,7 +84,10 @@ export type SessionDriverRuntimeRootOptions = Omit<
   'model' | 'execution' | 'identities'
 > & {
   readonly model: Omit<SessionRuntimeRootOptions['model'], 'configure'>
-  readonly tools?: Pick<RuntimeOptions, 'toolIssue' | 'toolResults' | 'toolDelivery'>
+  readonly tools?: Pick<RuntimeOptions, 'toolIssue' | 'toolResults' | 'toolDelivery'> & {
+    /** End owned Tool resources after the driver stops and before shared Context/log closure. */
+    readonly close?: () => Promise<void>
+  }
   readonly configure: (
     owners: SessionRuntimeRootOwners,
     work: SessionDriverWorkOwner,

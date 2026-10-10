@@ -8,6 +8,8 @@ import {
 import { sessionLogMigrations } from '@omne-harness-lite/session-log-sql'
 import { assemblyManifestMigrations } from '@omne-harness-lite/assembly-manifest-store'
 import { runtimeContextMigrations } from '@omne-harness-lite/runtime-context-local'
+import { toolOriginalIssueMigrations } from '@omne-harness-lite/tool-execution-local'
+import { hostEnvironmentMigrations } from '@omne-harness-lite/execution-environments-host/migrations'
 import { evaluationInputMigrations } from '@omne-harness-lite/evaluation-input-store'
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
 import { replicaMigrations } from '@omne-harness-lite/credential-custodian-local/migrations'
@@ -84,6 +86,8 @@ export const sessionTenantMigrations = composeMigrations([
   ...modelProfileDirectoryMigrations,
   ...replicaMigrations,
   ...assemblyManifestMigrations,
+  ...toolOriginalIssueMigrations,
+  ...hostEnvironmentMigrations,
 ])
 export async function claimRuntimeFile(file: string): Promise<boolean> {
   try {
