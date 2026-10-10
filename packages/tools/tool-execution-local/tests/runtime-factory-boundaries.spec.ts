@@ -1,12 +1,49 @@
 import { expect, test, vi } from 'vitest'
+import { StorageUnavailable } from '@omne-harness-lite/storage'
 import { LosslessNumber } from '@omne-harness-lite/content-blocks'
 import { unwrap } from '@omne-harness-lite/identity-values'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
-import type { ToolRuntimeDependencies } from '@omne-harness-lite/tool-execution-runtime'
-import { createToolRuntime } from '../src/index.ts'
-import { access, at, ref, request, scope } from './execution-owner-fixture.ts'
-import { factoryConfig, factoryFixture } from './runtime-factory-fixture.ts'
-import { recoveryFixture } from './runtime-recovery-fixture.ts'
+import type {
+  PreparedToolExecution,
+  ToolPoolInstance,
+} from '@omne-harness-lite/tool-execution-runtime'
+import { access, at, definition, ref, request, scope } from './execution-owner-fixture.ts'
+import { factoryConfig } from './runtime-factory-fixture.ts'
+import { nativeRuntimeFixture } from './native-runtime-fixture.ts'
+
+async function factoryFixture() {
+  const cleanup: (() => Promise<void>)[] = []
+  const native = await nativeRuntimeFixture(cleanup)
+  const source = await native.log.fixturePrefix(scope)
+  if ('failure' in source) throw new Error('fixture source unavailable')
+  if (request.call.arguments === undefined) throw new Error('fixture arguments missing')
+  const prepared: PreparedToolExecution = {
+    access,
+    ref,
+    origin: request.origin,
+    call: request.call,
+    source: source.source,
+    afterAction: { pass: 'original-after-action', selectedChain: [] },
+    selected: {
+      capability: 'tool:echo',
+      asset: 'echo-asset',
+      version: '1',
+      adoption: 'adopted',
+      definition,
+    },
+    args: request.call.arguments,
+    ...(request.admissionToken === undefined ? {} : { admissionToken: request.admissionToken }),
+  }
+  return {
+    ...native,
+    prepared,
+    start: (value: unknown): ToolPoolInstance => Reflect.apply(native.start, undefined, [value]),
+    async close() {
+      await native.pool()?.close()
+      for (const close of cleanup.splice(0)) await close()
+    },
+  }
+}
 
 test.each([
   ['null root', null],
@@ -97,13 +134,16 @@ test('a hostile configuration proxy retains its exception and creates no borrow'
 
 test('recovery fences all ingress, retains ready identity and delegates only after readiness', async () => {
   const f = await factoryFixture()
-  const gate =
-    Promise.withResolvers<Awaited<ReturnType<ToolRuntimeDependencies['owner']['enumerate']>>>()
-  f.enumerate.mockImplementationOnce(() => gate.promise)
+  const gate = Promise.withResolvers<void>()
+  const read = f.support.storage.read.bind(f.support.storage)
+  const index = vi.spyOn(f.support.storage, 'read').mockImplementationOnce(async use => {
+    await gate.promise
+    return read(use)
+  })
   const runtime = f.start(factoryConfig())
   const ready = runtime.ready
   try {
-    expect(await runtime.operations.submit(request)).toEqual({
+    expect(await runtime.operations.submit(f.prepared)).toEqual({
       kind: 'rejected',
       reason: 'runtimeNotReady',
     })
@@ -114,10 +154,10 @@ test('recovery fences all ingress, retains ready identity and delegates only aft
     expect(await runtime.operations.stop(access, ref, 'stop')).toBe('unavailable')
     expect(await runtime.operations.answer(access, ref, 1, null)).toBe('unavailable')
     expect(f.authorize).not.toHaveBeenCalled()
-    gate.resolve({ kind: 'sessions', sessions: [] })
+    gate.resolve()
     await ready
     expect(runtime.ready).toBe(ready)
-    expect(await runtime.operations.submit(request)).toEqual({
+    expect(await runtime.operations.submit(f.prepared)).toEqual({
       kind: 'rejected',
       reason: 'notAuthorized',
     })
@@ -129,30 +169,34 @@ test('recovery fences all ingress, retains ready identity and delegates only aft
     expect(await runtime.operations.answer(access, ref, 1, null)).toBe('unavailable')
     expect(f.authorize).toHaveBeenCalledTimes(3)
     await runtime.idle()
-    expect(f.borrow).toHaveBeenCalledOnce()
+    expect(index).toHaveBeenCalledOnce()
+    expect(f.borrow).not.toHaveBeenCalled()
+    expect(f.enumerate).not.toHaveBeenCalled()
     expect(f.unused).not.toHaveBeenCalled()
   } finally {
-    gate.resolve({ kind: 'sessions', sessions: [] })
+    gate.resolve()
     await f.close()
   }
 })
 
-test('close during recovery shares the original pending attempt and late readiness cannot reopen ingress', async () => {
+test('close during recovery shares the original attempt and late readiness cannot reopen ingress', async () => {
   const f = await factoryFixture()
-  const gate =
-    Promise.withResolvers<Awaited<ReturnType<ToolRuntimeDependencies['owner']['enumerate']>>>()
-  f.enumerate.mockImplementationOnce(() => gate.promise)
+  const gate = Promise.withResolvers<void>()
+  const read = f.support.storage.read.bind(f.support.storage)
+  vi.spyOn(f.support.storage, 'read').mockImplementationOnce(async use => {
+    await gate.promise
+    return read(use)
+  })
   const runtime = f.start(factoryConfig())
   const ready = runtime.ready
   try {
     const closing = runtime.close()
     expect(runtime.close()).toBe(closing)
-    expect(f.release).not.toHaveBeenCalled()
-    expect(await runtime.operations.submit(request)).toEqual({
+    expect(await runtime.operations.submit(f.prepared)).toEqual({
       kind: 'rejected',
       reason: 'ownerStopped',
     })
-    gate.resolve({ kind: 'sessions', sessions: [] })
+    gate.resolve()
     await ready
     await closing
     expect(runtime.ready).toBe(ready)
@@ -163,26 +207,28 @@ test('close during recovery shares the original pending attempt and late readine
     })
     expect(await runtime.operations.stop(access, ref, 'stop')).toBe('unavailable')
     expect(await runtime.operations.answer(access, ref, 1, null)).toBe('ownerStopped')
-    expect(f.borrow).toHaveBeenCalledOnce()
-    expect(f.release).toHaveBeenCalledOnce()
-    expect(f.enumerate).toHaveBeenCalledOnce()
+    expect(f.borrow).not.toHaveBeenCalled()
+    expect(f.enumerate).not.toHaveBeenCalled()
     expect(f.authorize).not.toHaveBeenCalled()
+    expect(await f.log.readSince(scope.session, 0)).not.toHaveProperty('failure')
   } finally {
-    gate.resolve({ kind: 'sessions', sessions: [] })
+    gate.resolve()
     await f.close()
   }
 })
 
-test('failed readiness and failed close retain the original ready and borrow for explicit same-instance retry', async () => {
+test('failed index reads retain original readiness and require explicit same-instance close retry', async () => {
   const f = await factoryFixture()
-  f.enumerate
-    .mockResolvedValueOnce({ kind: 'rejected', reason: 'unavailable' })
-    .mockResolvedValueOnce({ kind: 'rejected', reason: 'unavailable' })
+  const error = new StorageUnavailable('original index unavailable')
+  const index = vi
+    .spyOn(f.support.storage, 'read')
+    .mockRejectedValueOnce(error)
+    .mockRejectedValueOnce(error)
   const runtime = f.start(factoryConfig())
   const ready = runtime.ready
   try {
-    await expect(ready).rejects.toThrow('cannot enumerate owned sessions')
-    expect(await runtime.operations.submit(request)).toEqual({
+    await expect(ready).rejects.toBe(error)
+    expect(await runtime.operations.submit(f.prepared)).toEqual({
       kind: 'rejected',
       reason: 'runtimeUnavailable',
     })
@@ -190,89 +236,62 @@ test('failed readiness and failed close retain the original ready and borrow for
       kind: 'rejected',
       reason: 'runtimeUnavailable',
     })
-    expect(f.release).not.toHaveBeenCalled()
-    await expect(runtime.close()).rejects.toThrow('cannot enumerate owned sessions')
-    expect(f.release).not.toHaveBeenCalled()
+    await expect(runtime.close()).rejects.toBe(error)
     const retry = runtime.close()
     expect(runtime.close()).toBe(retry)
     await retry
     expect(runtime.ready).toBe(ready)
-    await expect(runtime.ready).rejects.toThrow('cannot enumerate owned sessions')
-    expect(await runtime.operations.submit(request)).toEqual({
+    await expect(runtime.ready).rejects.toBe(error)
+    expect(await runtime.operations.submit(f.prepared)).toEqual({
       kind: 'rejected',
       reason: 'ownerStopped',
     })
-    expect(f.borrow).toHaveBeenCalledOnce()
-    expect(f.enumerate).toHaveBeenCalledTimes(3)
-    expect(f.release).toHaveBeenCalledOnce()
+    expect(index).toHaveBeenCalledTimes(3)
+    expect(f.borrow).not.toHaveBeenCalled()
+    expect(f.enumerate).not.toHaveBeenCalled()
     expect(f.authorize).not.toHaveBeenCalled()
+    expect(await f.log.readSince(scope.session, 0)).not.toHaveProperty('failure')
   } finally {
     await f.close()
   }
 })
 
-test('release rejection remains pending responsibility until retry succeeds and never closes the shared SQL log', async () => {
-  const f = await factoryFixture()
-  const error = new Error('original borrow release failed')
-  f.release.mockRejectedValueOnce(error)
-  const runtime = f.start(factoryConfig())
-  try {
-    await runtime.ready
-    await expect(runtime.close()).rejects.toBe(error)
-    expect(await runtime.operations.submit(request)).toEqual({
-      kind: 'rejected',
-      reason: 'ownerStopped',
-    })
-    await runtime.close()
-    expect(f.release).toHaveBeenCalledTimes(2)
-    expect(f.borrow).toHaveBeenCalledOnce()
-    const prefix = await f.log.readSince(scope.session, 0)
-    expect(prefix).not.toHaveProperty('failure')
-    await runtime.close()
-    expect(f.release).toHaveBeenCalledTimes(2)
-  } finally {
-    await f.close()
+test('unavailable recovery clock prevents ready and preserves the original resource obligation', async () => {
+  const cleanup: (() => Promise<void>)[] = []
+  const f = await nativeRuntimeFixture(cleanup)
+  const original = await f.seed()
+  const resource = {
+    key: 'original-process',
+    provider: 'controlled',
+    reference: { unit: 'unit', generation: 'one' },
   }
-})
-
-test('unavailable asynchronous recovery clock prevents ready and preserves the original SQL resource obligation', async () => {
-  const f = await factoryFixture()
-  const cold = await recoveryFixture()
-  const release = vi.fn(async () => {})
-  const borrow = vi.fn(() => ({ log: cold.log, release }))
-  const dependencies: ToolRuntimeDependencies = {
-    ...f.dependencies,
-    ...cold.input.dependencies,
-    history: cold.f.history,
-    backing: { ownerGeneration: cold.input.dependencies.backing.ownerGeneration, borrow },
-  }
-  cold.now.mockResolvedValueOnce('unavailable')
-  const runtime = createToolRuntime(factoryConfig(), dependencies)
+  const planned = await f.support.storage.atomic(unit =>
+    original.records.stageTransitionIn(unit, original.job, [
+      { kind: 'resource_planned', revision: 1, ref, resource },
+    ]),
+  )
+  expect(planned.kind).toBe('staged')
+  const now = vi.spyOn(f.dependencies.clock, 'now').mockResolvedValueOnce('unavailable')
+  const runtime = f.start()
   const ready = runtime.ready
   try {
     await expect(ready).rejects.toThrow('clock unavailable')
-    expect(release).not.toHaveBeenCalled()
-    expect(await runtime.operations.submit(request)).toEqual({
-      kind: 'rejected',
-      reason: 'runtimeUnavailable',
-    })
+    expect((await f.history()).kind).toBe('found')
     await runtime.close()
     expect(runtime.ready).toBe(ready)
-    expect(borrow).toHaveBeenCalledOnce()
-    expect(release).toHaveBeenCalledOnce()
-    const history = await cold.read()
-    expect(history.terminal?.value.terminal).toEqual({
+    const found = await f.history()
+    if (found.kind !== 'found') throw new Error('original history unavailable')
+    expect(found.history.terminal?.value.terminal).toEqual({
       outcome: 'failed',
       code: 'abnormal_interruption',
     })
-    expect(history.resources.get('original-process')?.observations.at(-1)?.value.status).toBe(
+    expect(found.history.resources.get(resource.key)?.observations.at(-1)?.value.status).toBe(
       'confirmed',
     )
     expect(f.unused).not.toHaveBeenCalled()
   } finally {
-    cold.now.mockResolvedValue(unwrap(instantFromRfc3339(at)))
+    now.mockResolvedValue(unwrap(instantFromRfc3339(at)))
     await runtime.close()
-    await cold.close()
-    await f.close()
+    for (const close of cleanup.splice(0)) await close()
   }
 })

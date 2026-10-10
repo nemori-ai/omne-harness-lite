@@ -14,38 +14,22 @@ import {
   type SessionLogBackingOperations,
 } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
-import type {
-  ToolActionFacts,
-  ToolActionHistoryOperations,
-} from '@omne-harness-lite/tool-admission'
+import type { ToolActionHistoryOperations } from '@omne-harness-lite/tool-admission'
 import {
   prepareToolJournalEntry,
   projectToolJournal,
   type ExecutionOrigin,
   type ExecutionRef,
-  type ToolJournalHistory,
   type ToolJournalPayload,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { jsonObject, sameJson } from './json-values.ts'
 
-/** The entries can be an indexed Tool history, not a complete Session prefix. */
-export interface ToolRecordSnapshot {
-  readonly scope: SessionScope
-  readonly ownerGeneration: string
-  readonly tail: JsonNumber
-  readonly entries: readonly LogEntry[]
-}
+import type {
+  RuntimeJournal,
+  RuntimeJournalView,
+  RuntimeJournalFailure,
+} from './execution-journal.ts'
 
-export interface RuntimeJournalView {
-  readonly kind: 'view'
-  readonly prefix: ToolRecordSnapshot
-  readonly executions: ReadonlyMap<string, ToolJournalHistory>
-  readonly facts?: ToolActionFacts
-}
-export type RuntimeJournalFailure = {
-  readonly kind: 'rejected'
-  readonly reason: 'invalidInput' | 'unavailable' | 'conflict' | 'tailChanged'
-}
 const reject = (reason: RuntimeJournalFailure['reason']): RuntimeJournalFailure => ({
   kind: 'rejected',
   reason,
@@ -216,7 +200,7 @@ function confirmRuntimeAppend(
 export function createRuntimeJournal(input: {
   readonly backing: SessionLogBackingOperations
   readonly history: ToolActionHistoryOperations
-}) {
+}): RuntimeJournal {
   const generation = input.backing.ownerGeneration,
     held = input.backing.borrow()
   const pending = new Map<

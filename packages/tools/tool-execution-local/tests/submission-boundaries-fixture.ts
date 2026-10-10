@@ -1,6 +1,6 @@
 import { vi } from 'vitest'
 import type { ToolActionFacts, ToolAdmissionOperations } from '@omne-harness-lite/tool-admission'
-import type { RuntimeJournalView } from '../src/runtime-journal.ts'
+import type { RuntimeJournalView } from '../src/execution-journal.ts'
 import { createSubmissionAdmission } from '../src/submission.ts'
 import { fixture, ref, scope } from './execution-owner-fixture.ts'
 

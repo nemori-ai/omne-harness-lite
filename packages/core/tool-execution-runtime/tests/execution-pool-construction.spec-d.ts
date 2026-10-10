@@ -5,4 +5,6 @@ declare const selected: SelectedTool
 tool.owner.enumerate()
 // @ts-expect-error Tool execution does not own admission history preparation.
 tool.history.read()
+// @ts-expect-error The caller supplies the selected after-action chain.
+tool.runnerHost.acquireReplay()
 tool.implementations.acquire(selected)

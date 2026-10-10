@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import type { ToolDefinition } from '@omne-harness-lite/tool-definition'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { unwrap } from '@omne-harness-lite/identity-values'
 import type {
@@ -41,7 +42,9 @@ export async function nativeRuntimeFixture(cleanup: (() => Promise<void>)[]) {
     async (_scope, _access, resources) =>
       resources.map(resource => ({ resource, status: 'confirmedStopped' })),
   )
-  const recoverOwned = vi.fn(async () => ({ kind: 'recovered' as const, values: [], failures: [] }))
+  const recoverOwned = vi.fn<ToolRuntimeOriginalIssueDependencies['environments']['recoverOwned']>(
+    async () => ({ kind: 'recovered', values: [], failures: [] }),
+  )
   // The production constructor receives no Session enumeration, full-prefix or Runner selection ports.
   const {
     backing: _backing,
@@ -51,7 +54,7 @@ export async function nativeRuntimeFixture(cleanup: (() => Promise<void>)[]) {
     ...base
   } = f.dependencies
   let pool: ToolPoolInstance | undefined
-  async function seed() {
+  async function seed(options: { definition?: ToolDefinition; pass?: string } = {}) {
     await f.log.fixturePrefix(scope)
     const source = await f.log.participant.source(f.log.fixtureAccess, scope)
     if ('failure' in source) throw new Error('fixture source unavailable')
@@ -68,13 +71,13 @@ export async function nativeRuntimeFixture(cleanup: (() => Promise<void>)[]) {
           asset: 'echo-asset',
           version: '1',
           adoption: 'adopted',
-          definition,
+          definition: options.definition ?? definition,
         },
         input: {
           format: 'tool-input/1',
           submission: { adoption: 'adopted' },
           acceptedAt: at,
-          pass: 'original-pass',
+          pass: options.pass ?? 'original-pass',
           chain: [],
         },
       },
@@ -116,6 +119,7 @@ export async function nativeRuntimeFixture(cleanup: (() => Promise<void>)[]) {
       log: log.participant,
       access: log.fixtureAccess,
     }
+    return log
   }
   return {
     ...f,

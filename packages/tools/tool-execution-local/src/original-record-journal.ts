@@ -18,12 +18,12 @@ import type {
   ToolOriginalIssueIdentity,
   ToolRuntimeOriginalIssueDependencies,
 } from '@omne-harness-lite/tool-execution-runtime'
-import type { createRuntimeJournal, RuntimeJournalFailure } from './runtime-journal.ts'
+import type { RuntimeJournal, RuntimeJournalFailure } from './execution-journal.ts'
 import { decodeToolOriginal, type OriginalRow } from './tool-obligations.ts'
 import { createToolExecutionTransitions } from './execution-transitions.ts'
 import { sameJson } from './json-values.ts'
 
-type Journal = ReturnType<typeof createRuntimeJournal>
+type Journal = RuntimeJournal
 type Request = Parameters<Journal['commit']>[0]
 type Ref = Request['ref']
 const rejected = (reason: RuntimeJournalFailure['reason']): RuntimeJournalFailure => ({
@@ -205,7 +205,7 @@ export function createOriginalRecordJournal(
       throw error
     }
   }
-  return Object.freeze({
+  return Object.freeze<Journal>({
     generation,
     isCurrent: current,
     read(scope, call) {

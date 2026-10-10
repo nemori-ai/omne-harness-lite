@@ -13,7 +13,7 @@ import {
   projectToolJournal,
   type ExecutionSubmission,
 } from '@omne-harness-lite/tool-execution-runtime'
-import type { RuntimeJournalView } from '../src/runtime-journal.ts'
+import type { RuntimeJournalView } from '../src/execution-journal.ts'
 import {
   captureSubmission,
   createSubmissionAdmission,

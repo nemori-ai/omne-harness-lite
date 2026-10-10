@@ -112,10 +112,7 @@ export interface ToolOriginalIssueSupport {
   ) => Promise<{ readonly kind: 'classified'; readonly late: boolean } | ToolOriginalIssueFailure>
 }
 /** Required construction subset for a Tool instance used by the Session driver. */
-export interface ToolRuntimeOriginalIssueDependencies extends Omit<
-  ToolRuntimeDependencies,
-  'backing' | 'owner' | 'history' | 'runnerHost'
-> {
+export interface ToolRuntimeOriginalIssueDependencies extends ToolRuntimeDependencies {
   readonly tenant: TenantId
   readonly recoveryPageSize: number
   readonly originalIssue: ToolOriginalIssueSupport

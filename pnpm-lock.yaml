@@ -1883,9 +1883,6 @@ importers:
       '@omne-harness-lite/identity-values':
         specifier: workspace:*
         version: link:../identity-values
-      '@omne-harness-lite/loop-extension-runner':
-        specifier: workspace:*
-        version: link:../loop-extension-runner
       '@omne-harness-lite/messages':
         specifier: workspace:*
         version: link:../messages

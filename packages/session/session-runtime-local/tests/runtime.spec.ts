@@ -4338,7 +4338,6 @@ import {
 import { createRunnerTaskOwner } from '@omne-harness-lite/loop-extension-runner-local'
 import type {
   ToolRuntimeOriginalIssueDependencies,
-  ToolRuntimeDependencies,
   ExecutionSubmission,
   ToolOriginalIssueParticipant,
 } from '@omne-harness-lite/tool-execution-runtime'
@@ -4417,7 +4416,7 @@ it('composes the public native Tool factory with Session original issue, actual 
   }
   const generation = f.log().backing.ownerGeneration
   const backing = f.log().backing
-  const history: ToolRuntimeDependencies['history'] = {
+  const history: import('@omne-harness-lite/tool-admission').ToolActionHistoryOperations = {
     inspect(checked, id) {
       const tools = projectToolJournal(p.scope, checked.entries)
       if ('invalid' in tools) return { kind: 'unavailable' }

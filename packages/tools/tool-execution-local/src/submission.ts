@@ -21,7 +21,7 @@ import type {
   SubmissionResult,
   ToolJournalHistory,
 } from '@omne-harness-lite/tool-execution-runtime'
-import type { RuntimeJournalView } from './runtime-journal.ts'
+import type { RuntimeJournalView } from './execution-journal.ts'
 import { jsonObject, sameJson } from './json-values.ts'
 
 export type SubmissionFailure = Extract<SubmissionResult, { kind: 'rejected' }>

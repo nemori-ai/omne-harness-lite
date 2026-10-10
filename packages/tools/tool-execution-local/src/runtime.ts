@@ -1,22 +1,13 @@
-import { createHash } from 'node:crypto'
 import { setTimeout } from 'node:timers/promises'
 import { copyJsonValue, type JsonValue } from '@omne-harness-lite/content-blocks'
-import { tenantIdEquals } from '@omne-harness-lite/identity-values'
-import { readRunnerChain } from '@omne-harness-lite/loop-extension-runner'
 import type {
   ToolRuntimeConfig,
-  ToolRuntimeDependencies,
-  ToolRuntimeInstance,
-  ToolRuntimeOperations,
   ToolRuntimeOriginalIssueDependencies,
-  ToolOriginalIssueSupport,
   ToolPoolInstance,
-  PreparedToolExecution,
+  ToolPoolAdmission,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { createExecutionOwner } from './execution-owner.ts'
 import { createResultPreparation } from './execution-result.ts'
-import { createRuntimeJournal } from './runtime-journal.ts'
-import { recoverExecutions } from './runtime-recovery.ts'
 import { createOriginalRecordJournal } from './original-record-journal.ts'
 import { recoverOriginalExecutions } from './runtime-recovery.ts'
 import { jsonObject } from './json-values.ts'
@@ -56,80 +47,11 @@ function requireRuntimeTailRetry(config: ToolRuntimeConfig): void {
     throw new TypeError('invalid tool runtime policy')
 }
 
-/** Independent root factory. Construction dependencies never enter persisted input or tool dependencies. */
-export function createToolRuntime(
-  supplied: ToolRuntimeConfig,
-  dependencies: ToolRuntimeDependencies,
-): ToolRuntimeInstance {
-  return createRuntime(supplied, dependencies).ordinary
-}
-
 export function createOriginalIssueToolRuntime(
   supplied: ToolRuntimeConfig,
   dependencies: ToolRuntimeOriginalIssueDependencies,
 ): ToolPoolInstance {
   if (!dependencies.originalIssue) throw new TypeError('original Tool issue support required')
-  return createRuntime(supplied, dependencies, dependencies.originalIssue).prepared
-}
-
-async function selectRuntimeChain(
-  dependencies: ToolRuntimeDependencies,
-  request: Parameters<Parameters<typeof createExecutionOwner>[0]['selectChain']>[0],
-): ReturnType<Parameters<typeof createExecutionOwner>[0]['selectChain']> {
-  const pass = `tool-after-${createHash('sha256')
-    .update(
-      JSON.stringify([
-        request.scope.tenant,
-        request.scope.session,
-        request.origin,
-        request.call.callId,
-      ]),
-    )
-    .digest('hex')}`
-  const held = await dependencies.runnerHost.acquireReplay(
-    {
-      manifest: request.scope.session,
-      anchor: pass,
-      run: request.origin.run,
-      position: 'after_action',
-      dimension: { scope: 'each' },
-      subject: { callId: request.call.callId, outcome: 'completed' },
-    },
-    new AbortController().signal,
-  )
-  if ('failure' in held) return 'unavailable'
-  try {
-    if (
-      !held.isActive() ||
-      held.binding.session !== request.scope.session ||
-      !tenantIdEquals(held.binding.tenant, request.scope.tenant) ||
-      held.binding.logGeneration !== dependencies.backing.ownerGeneration
-    )
-      return 'unavailable'
-    const chain = await readRunnerChain({
-      session: request.scope.session,
-      binding: held.binding,
-      sources: held.sources,
-    })
-    if (!Array.isArray(chain) || !held.isActive()) return 'unavailable'
-    const captured = copyJsonValue(
-      chain.filter(
-        piece =>
-          piece.definition.position === 'after_action' &&
-          piece.definition.dimension.scope === 'each',
-      ),
-    )
-    return 'failed' in captured ? 'unavailable' : { chain: captured.ok, pass }
-  } finally {
-    held.release()
-  }
-}
-
-function createRuntime(
-  supplied: ToolRuntimeConfig,
-  dependencies: ToolRuntimeDependencies | ToolRuntimeOriginalIssueDependencies,
-  originalIssue?: ToolOriginalIssueSupport,
-) {
   const config = captureRuntimeConfiguration(supplied)
   requireRuntimeFrameBudget(config)
   requireRuntimeTailRetry(config)
@@ -142,24 +64,18 @@ function createRuntime(
     )
     if (delay > 0) await setTimeout(delay)
   }
-  const journal =
-    'originalIssue' in dependencies
-      ? createOriginalRecordJournal(dependencies)
-      : createRuntimeJournal(dependencies)
+  const journal = createOriginalRecordJournal(dependencies)
   let state: 'recovering' | 'ready' | 'failed' | 'closed' = 'recovering'
   const owner = createExecutionOwner({
     ...dependencies,
     journal,
-    originalIssue,
+    originalIssue: dependencies.originalIssue,
     attempts: config.tailRetry.attempts,
     frameQueueBytes: config.frameQueueBytes,
     retry,
-    selectChain:
-      'originalIssue' in dependencies
-        ? async () => {
-            throw new Error('prepared Tool request must supply its selected chain')
-          }
-        : request => selectRuntimeChain(dependencies, request),
+    selectChain: async () => {
+      throw new Error('prepared Tool request must supply its selected chain')
+    },
     async bindWriter(request, selected) {
       const storage = selected?.definition.needs?.attachmentStorage ?? config.resultStorage
       if (selected?.definition.needs?.attachmentStorage) {
@@ -187,14 +103,12 @@ function createRuntime(
     },
   })
   const recover = () =>
-    'originalIssue' in dependencies
-      ? recoverOriginalExecutions({
-          dependencies,
-          journal,
-          attempts: config.tailRetry.attempts,
-          retry,
-        })
-      : recoverExecutions({ dependencies, journal, attempts: config.tailRetry.attempts, retry })
+    recoverOriginalExecutions({
+      dependencies,
+      journal,
+      attempts: config.tailRetry.attempts,
+      retry,
+    })
   const ready = recover().then(
     () => {
       if (state === 'recovering') state = 'ready'
@@ -215,9 +129,9 @@ function createRuntime(
           ? ('runtimeNotReady' as const)
           : ('runtimeUnavailable' as const),
   })
-  const operations = Object.freeze<ToolRuntimeOperations>({
+  const operations = Object.freeze<ToolPoolAdmission>({
     submit(request) {
-      return state === 'ready' ? owner.operations.submit(request) : Promise.resolve(unavailable())
+      return state === 'ready' ? owner.submitPrepared(request) : Promise.resolve(unavailable())
     },
     acquire(access, ref) {
       return state === 'ready'
@@ -257,15 +171,5 @@ function createRuntime(
       return task
     },
   }
-  return {
-    ordinary: Object.freeze({ ...lifetime, operations }),
-    prepared: Object.freeze<ToolPoolInstance>({
-      ...lifetime,
-      operations: Object.freeze({
-        ...operations,
-        submit: (request: PreparedToolExecution) =>
-          state === 'ready' ? owner.submitPrepared(request) : Promise.resolve(unavailable()),
-      }),
-    }),
-  }
+  return Object.freeze<ToolPoolInstance>({ ...lifetime, operations })
 }

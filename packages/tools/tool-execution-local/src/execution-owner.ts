@@ -61,7 +61,7 @@ import {
   samePreparedExecution,
 } from './prepared-submission.ts'
 import { jsonObject, sameJson } from './json-values.ts'
-import type { createRuntimeJournal, RuntimeJournalFailure } from './runtime-journal.ts'
+import type { RuntimeJournal, RuntimeJournalFailure } from './execution-journal.ts'
 import {
   captureSubmission,
   createSubmissionAdmission,
@@ -69,7 +69,7 @@ import {
   type SubmissionAdmission,
 } from './submission.ts'
 
-type Journal = ReturnType<typeof createRuntimeJournal>
+type Journal = RuntimeJournal
 function transition(
   value: ToolJournalPayload,
 ): value is Parameters<ToolExecutionRecords['stageTransitionIn']>[2][number] {

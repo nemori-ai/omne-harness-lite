@@ -46,8 +46,7 @@
     "@omne-harness-lite/messages": "workspace:*",
     "@omne-harness-lite/session-log": "workspace:*",
     "@omne-harness-lite/identity-values": "workspace:*",
-    "@omne-harness-lite/offer-expiry": "workspace:*",
-    "@omne-harness-lite/loop-extension-runner": "workspace:*"
+    "@omne-harness-lite/offer-expiry": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

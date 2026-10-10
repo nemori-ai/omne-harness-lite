@@ -15,11 +15,11 @@ import { createResultPreparation } from './execution-result.ts'
 import { createTerminalCommitter } from './execution-terminal.ts'
 import { createToolExecutionObligations } from './tool-obligations.ts'
 import { jsonObject, sameJson } from './json-values.ts'
-import type { createRuntimeJournal } from './runtime-journal.ts'
+import type { RuntimeJournal } from './execution-journal.ts'
 
 type Input = {
   readonly dependencies: Pick<ToolRuntimeDependencies, 'recovery' | 'clock' | 'environments'>
-  readonly journal: ReturnType<typeof createRuntimeJournal>
+  readonly journal: RuntimeJournal
   readonly classification?: 'session' | 'history'
   readonly attempts: number
   readonly retry: (attempt: number) => Promise<void>
@@ -160,31 +160,6 @@ async function recoverEnvironmentOwners(
   )
     throw new Error('Environment owner recovery remains pending')
 }
-type LegacyInput = Input & {
-  readonly dependencies: Input['dependencies'] & Pick<ToolRuntimeDependencies, 'backing' | 'owner'>
-}
-async function recoverSession(input: LegacyInput, scope: SessionScope) {
-  const authorized = await input.dependencies.owner.readPrefix(input.dependencies.recovery, scope)
-  if (
-    authorized.kind !== 'prefix' ||
-    authorized.prefix.ownerGeneration !== input.dependencies.backing.ownerGeneration
-  )
-    throw new Error('Tool runtime recovery owner unavailable')
-  const view = await input.journal.read(scope, 'recovery-scan')
-  if (view.kind !== 'view') throw new Error('Tool runtime recovery prefix unavailable')
-  await recoverEnvironmentOwners(input, scope, view.executions)
-  for (const execution of view.executions.values()) {
-    await recoverCallResources(input, execution)
-    await finishInterruptedCall(input, execution)
-  }
-}
-/** Cold owners never replay the author. Environment-owned resources keep independent responsibility. */
-export async function recoverExecutions(input: LegacyInput) {
-  const sessions = await input.dependencies.owner.enumerate(input.dependencies.recovery)
-  if (sessions.kind !== 'sessions') throw new Error('Tool runtime cannot enumerate owned sessions')
-  for (const { scope } of sessions.sessions) await recoverSession(input, scope)
-}
-
 async function readOriginalExecution(input: Input, ref: ExecutionRef) {
   const read = await input.journal.read({ tenant: ref.tenant, session: ref.session }, ref.callId)
   const execution = read.kind === 'view' ? read.executions.get(ref.callId) : undefined

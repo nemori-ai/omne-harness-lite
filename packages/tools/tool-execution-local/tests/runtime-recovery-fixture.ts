@@ -1,16 +1,12 @@
 import { vi } from 'vitest'
-import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'
 import { unwrap } from '@omne-harness-lite/identity-values'
-import type { RecoveryAccess } from '@omne-harness-lite/execution-environments'
-import type {
-  ToolJournalPayload,
-  ToolRuntimeDependencies,
-} from '@omne-harness-lite/tool-execution-runtime'
-import { createRuntimeJournal } from '../src/runtime-journal.ts'
-import { recoverExecutions } from '../src/runtime-recovery.ts'
-import { at, fixture, ref, request, scope } from './execution-owner-fixture.ts'
+import type { ToolRuntimeOriginalIssueDependencies } from '@omne-harness-lite/tool-execution-runtime'
+import { createOriginalRecordJournal } from '../src/original-record-journal.ts'
+import { recoverOriginalExecutions } from '../src/runtime-recovery.ts'
+import { at, ref, scope } from './execution-owner-fixture.ts'
 import { environmentDefinition, environmentPorts } from './execution-environment-fixture.ts'
+import { nativeRuntimeFixture } from './native-runtime-fixture.ts'
 
 export const resource = {
   key: 'original-process',
@@ -18,31 +14,25 @@ export const resource = {
   reference: { unit: 'unit', generation: 'one' },
 }
 
-/** Reopens the actual SQL log and rebuilds its journal. Recovery authority and OS observations are controlled ports. */
+/** Actual original issue, same-unit transitions and SQLite reopen; recovery authority and OS observations are controlled. */
 export async function recoveryFixture(options: { adopted?: boolean; started?: boolean } = {}) {
-  const f = await fixture(undefined, undefined, environmentDefinition)
+  const cleanup: (() => Promise<void>)[] = []
+  const f = await nativeRuntimeFixture(cleanup)
+  const original = await f.seed({
+    definition: environmentDefinition,
+    pass: 'original-after-action',
+  })
   const ports = environmentPorts()
-  const original = await f.journal.read(scope, ref.callId)
-  if (original.kind !== 'view') throw new Error('Original prefix unavailable')
-  const values: ToolJournalPayload[] = [
-    {
-      kind: 'execution_intended',
-      revision: 1,
-      ref,
-      origin: request.origin,
-      selected: {
-        capability: 'tool:echo',
-        asset: 'echo-asset',
-        version: '1',
-        adoption: 'adopted',
-        definition: environmentDefinition,
-      },
-      input: { format: 'tool-input/1', acceptedAt: at, chain: [], pass: 'original-after-action' },
-    },
+  if (options.started !== false) {
+    const consumed = await f.support.storage.atomic(unit =>
+      original.participant.consumeOriginalIn(unit, original.claim),
+    )
+    if (consumed.kind !== 'staged') throw new Error('original consumption unavailable')
+  }
+  const values: Parameters<typeof original.records.stageTransitionIn>[2] = [
     ...(options.started === false
       ? []
       : [
-          { kind: 'execution_started' as const, revision: 1 as const, ref, at },
           {
             kind: 'execution_environment_adopted' as const,
             revision: 1 as const,
@@ -58,94 +48,58 @@ export async function recoveryFixture(options: { adopted?: boolean; started?: bo
         ]
       : []),
   ]
-  const seeded = await f.journal.commit({
-    ref,
-    origin: request.origin,
-    expected: original.prefix,
-    values,
-  })
-  if (seeded.kind !== 'view') throw new Error(`Original seed rejected: ${seeded.reason}`)
-  await f.journal.close()
-  await f.log.close()
-  const log = await openSqlLogFixture({
-    dir: f.dir,
-  })
-  const backing = {
-    ownerGeneration: 'owner-generation',
-    borrow: () => ({ log, release: async () => {} }),
-  }
-  const journal = createRuntimeJournal({ backing, history: f.history })
-  const controlledJournal = { ...journal, read: vi.fn(journal.read), commit: vi.fn(journal.commit) }
-  const authority = Object.freeze({}) as RecoveryAccess
-  const enumerate = vi.fn<ToolRuntimeDependencies['owner']['enumerate']>(async () => ({
-    kind: 'sessions',
-    sessions: [{ scope, locator: 'original-log' }],
-  }))
-  const readPrefix = vi.fn<ToolRuntimeDependencies['owner']['readPrefix']>(
-    async (access, candidate) => {
-      if (access !== authority || JSON.stringify(candidate) !== JSON.stringify(scope))
-        return { kind: 'rejected', reason: 'notAuthorized' }
-      const prefix = await log.readSince(scope.session, 0)
-      return 'failure' in prefix
-        ? { kind: 'rejected', reason: 'unavailable' }
-        : { kind: 'prefix', prefix: { scope, ownerGeneration: backing.ownerGeneration, ...prefix } }
-    },
+  const staged = await f.support.storage.atomic(unit =>
+    original.records.stageTransitionIn(unit, original.job, values),
   )
-  const recover = vi.fn<ToolRuntimeDependencies['environments']['recover']>(
-    async (_scope, _access, resources) =>
-      resources.map(resource => ({ resource, status: 'confirmedStopped' as const })),
-  )
-  const recoverOwned = vi.fn<ToolRuntimeDependencies['environments']['recoverOwned']>(async () => ({
-    kind: 'recovered',
-    values: [],
-    failures: [],
-  }))
-  const now = vi.fn<ToolRuntimeDependencies['clock']['now']>(async () =>
+  if (staged.kind !== 'staged') throw new Error('original resource seed unavailable')
+  const log = await f.reopen()
+  const recover = f.recover
+  const recoverOwned = f.recoverOwned
+  const now = vi.fn<ToolRuntimeOriginalIssueDependencies['clock']['now']>(async () =>
     unwrap(instantFromRfc3339(at)),
   )
-  const input: Parameters<typeof recoverExecutions>[0] = {
-    dependencies: {
-      backing,
-      owner: {
-        enumerate,
-        readPrefix,
-        borrow: async () => ({ kind: 'rejected', reason: 'unavailable' }),
-      },
-      recovery: authority,
-      clock: { now },
-      environments: {
-        recover,
-        recoverOwned,
-        resolvePlacement: async () => ({ kind: 'notApplicable' }),
-        acquire: async () => ({ kind: 'rejected', reason: 'unavailable' }),
-      },
-    },
+  const {
+    backing: _backing,
+    owner: _owner,
+    history: _history,
+    runnerHost: _runner,
+    ...base
+  } = f.dependencies
+  const dependencies: ToolRuntimeOriginalIssueDependencies = {
+    ...base,
+    tenant: scope.tenant,
+    recoveryPageSize: 1,
+    originalIssue: f.support,
+    clock: { now },
+    environments: { ...base.environments, recover, recoverOwned },
+  }
+  const journal = createOriginalRecordJournal(dependencies)
+  const controlledJournal = { ...journal, read: vi.fn(journal.read), commit: vi.fn(journal.commit) }
+  const input: Parameters<typeof recoverOriginalExecutions>[0] = {
+    dependencies,
     journal: controlledJournal,
     attempts: 3,
     retry: vi.fn(async () => {}),
   }
   return {
-    f,
+    f: { implementation: f.unused },
     input,
     log,
     journal,
     controlledJournal,
-    authority,
+    authority: dependencies.recovery,
     recover,
     recoverOwned,
     now,
-    enumerate,
-    readPrefix,
-    run: () => recoverExecutions(input),
+    run: () => recoverOriginalExecutions(input),
     async read() {
       const view = await journal.read(scope, ref.callId)
-      if (view.kind !== 'view') throw new Error('Cold journal unavailable')
+      if (view.kind !== 'view') throw new Error('cold original Tool record unavailable')
       return view.executions.get(ref.callId)!
     },
     async close() {
       await journal.close()
-      await log.close()
-      await f.close()
+      for (const close of cleanup.splice(0)) await close()
     },
   }
 }

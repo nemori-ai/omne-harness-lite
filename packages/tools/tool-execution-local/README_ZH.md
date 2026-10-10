@@ -2,13 +2,11 @@
 
 `createToolExecutionRecordReader` 借入原同Unit来源及按key读取，只提供固定租户的ToolExecutionRecords.readOriginalIn。它不读取完整会话前缀，不授予执行或恢复权；行为归 [SPEC](SPEC.md)。
 
-根入口导出 `createToolInvoker`、`createToolImplementationRegistry`、`createToolRuntimeRegistry`、`createToolRuntime` 和 `createToolEnvironmentPlacementSource`。公开操作与构造类型归 [core/tool-execution-runtime](../../core/tool-execution-runtime/src/index.ts)。独立工厂不加载 Cordis。
-
-`createToolRuntime(config, dependencies)` 返回 operations、ready、idle() 与 close()。发布操作前必须等待 ready。依赖包括共享日志代、完整动作历史、runtime context、结果存储及不可变 runner 链读取口。启动恢复使用应用的私有维护授权。
+根入口导出 `createToolInvoker`、`createToolImplementationRegistry`、`createToolRuntimeRegistry`、`createOriginalIssueToolRuntime` 和 `createToolEnvironmentPlacementSource`。公开操作与构造类型归 [core/tool-execution-runtime](../../core/tool-execution-runtime/src/index.ts)。独立工厂不加载 Cordis。
 
 `createOriginalIssueToolRuntime(config, dependencies)` 复用原执行器。构造显式提供 `tenant`、`recoveryPageSize` 和 `originalIssue`，不接收完整历史、会话枚举、日志借用或Runner选链端口。工厂读取自身任务索引，原资源收场后才就绪；已选工具和after_action链由请求提供。构造前将 `toolOriginalIssueMigrations` 合入同库迁移。工厂不关闭借入资源，也不声称能恢复尚未进入原生索引的旧任务。
 
-该工厂返回 `ToolPoolInstance`。`submit` 接收 `PreparedToolExecution`，包含原Source及已选 `after_action` 链。正常请求还包含选中定义和参数；不可执行请求包含原adoption及明确的 `unparseable` 或 `no_such_entry`，不能携带选中实现。Session生产者准备这些输入并核对原完成批次；原池核验正常请求的准入token，复用已有执行器，不可执行请求只形成失败结果，不调用作者。构造与冷恢复仍须完成[SPEC.md](SPEC.md)要求的迁移，返回类型本身不证明完整池边界已成立。
+该工厂返回 `ToolPoolInstance`。`submit` 接收 `PreparedToolExecution`，包含原Source及已选 `after_action` 链。正常请求还包含选中定义和参数；不可执行请求包含原adoption及明确的 `unparseable` 或 `no_such_entry`，不能携带选中实现。Session生产者准备这些输入并核对原完成批次；原池核验正常请求的准入token，复用已有执行器，不可执行请求只形成失败结果，不调用作者。公开构造与冷恢复只使用原生任务路径；私有旧适配器及其单元测试仍须按[SPEC.md](SPEC.md)完成迁移，不据此宣称完整池边界已经验证。
 
 原owner先保有完整job、输入和固定实现，再给Session提供同事务参加者。原意图和唯一claim先提交；原claim的消费确认后才进入作者。发起不明保留原job；消费已提交但回执丢失时，以未启动的unavailable终局收场，不补调作者。`stopped`只证明该job的实际工作和借用已收场，不代替结果交付凭证。目前组件验证使用真实SQLite与原执行器，Session准入仍为受控输入；完整Session保管／交付和动态Cordis驱动另行验证。
 

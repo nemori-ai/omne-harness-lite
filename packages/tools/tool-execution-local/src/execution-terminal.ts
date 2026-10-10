@@ -9,7 +9,7 @@ import type {
   ExecutionTerminal,
   ToolJournalPayload,
 } from '@omne-harness-lite/tool-execution-runtime'
-import type { createRuntimeJournal, RuntimeJournalView } from './runtime-journal.ts'
+import type { RuntimeJournal, RuntimeJournalView } from './execution-journal.ts'
 
 function terminalLate(
   classification: 'session' | 'history',
@@ -23,7 +23,7 @@ function terminalLate(
 
 /** One terminal, its account and its delivery obligation use the same checked session tail. */
 export function createTerminalCommitter(input: {
-  readonly journal: ReturnType<typeof createRuntimeJournal>
+  readonly journal: RuntimeJournal
   readonly classification: 'session' | 'history'
   readonly clock: Clock
   readonly attempts: number

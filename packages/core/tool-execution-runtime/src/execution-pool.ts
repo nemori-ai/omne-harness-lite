@@ -187,7 +187,6 @@ export type ToolPoolConstruction = Pick<
   | 'context'
   | 'environments'
   | 'results'
-  | 'runnerHost'
   | 'invoke'
   | 'clock'
 > & {
