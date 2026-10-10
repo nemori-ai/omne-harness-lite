@@ -37,7 +37,7 @@ export async function publishSessionModelCallContent(
 ): Promise<{ readonly published: true } | { readonly unavailable: true }> {
   const unavailable = { unavailable: true } as const
   const { binding, owner } = input
-  if (!settlementGenerationCurrent(binding) || owner.admission() !== 'open') return unavailable
+  if (!publicationCurrent(input)) return unavailable
   // RT12 S-98 (review S3): admit the marker from the complete prefix before any content is
   // written, so a refused publication never leaves a model copy behind it.
   const admitted = await admitMarker(input)
@@ -256,8 +256,7 @@ async function publishMarker(
   let task: SettlementTask<AppendResult>
   try {
     task = registration.start('controlAppend', async () => {
-      if (!settlementGenerationCurrent(binding) || owner.admission() !== 'open')
-        return { failure: 'unavailable' } as const
+      if (!publicationCurrent(input)) return { failure: 'unavailable' } as const
       started = true
       return await binding.log.append(
         binding.session,
@@ -272,12 +271,7 @@ async function publishMarker(
   }
   const untrack = input.trackTask?.(task)
   try {
-    let receipt: ReturnType<typeof settlementAppendReceipt>
-    try {
-      receipt = settlementAppendReceipt(await task.completion, 1)
-    } catch {
-      receipt = null
-    }
+    const receipt = await publicationReceipt(task)
     if (unknownPublication(started, receipt)) {
       retainUnknown(registration, task, prepared.ok)
       return unavailable
@@ -292,6 +286,20 @@ async function publishMarker(
     return publicationResult(started, receipt, unavailable)
   } finally {
     untrack?.()
+  }
+}
+
+function publicationCurrent(input: Pick<ModelCallPublicationInput, 'binding' | 'owner'>): boolean {
+  return settlementGenerationCurrent(input.binding) && input.owner.admission() === 'open'
+}
+
+async function publicationReceipt(
+  task: SettlementTask<AppendResult>,
+): Promise<ReturnType<typeof settlementAppendReceipt>> {
+  try {
+    return settlementAppendReceipt(await task.completion, 1)
+  } catch {
+    return null
   }
 }
 

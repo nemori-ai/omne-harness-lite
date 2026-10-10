@@ -145,11 +145,8 @@ async function verifyJournal(
   )
   if ('failure' in records)
     return { failure: records.failure === 'denied' ? 'invalidSource' : 'unavailable' }
-  for (const entry of records.entries) {
-    const checked = inspectToolJournalEntry(scope, entry)
-    if (!('value' in checked) || checked.value.ref.callId !== original.ref.callId)
-      return { failure: 'invalidSource' }
-  }
+  if (!journalEntriesMatch(scope, records.entries, original.ref.callId))
+    return { failure: 'invalidSource' }
   const projected = projectToolJournal(scope, records.entries)
   if ('invalid' in projected) return { failure: 'unavailable' }
   const execution = projected.executions.get(original.ref.callId)
@@ -157,6 +154,18 @@ async function verifyJournal(
     return { failure: 'invalidSource' }
   return { valid: true }
 }
+function journalEntriesMatch(
+  scope: Parameters<typeof projectToolJournal>[0],
+  entries: Parameters<typeof projectToolJournal>[1],
+  callId: ToolOriginalIssueIdentity['ref']['callId'],
+): boolean {
+  for (const entry of entries) {
+    const checked = inspectToolJournalEntry(scope, entry)
+    if (!('value' in checked) || checked.value.ref.callId !== callId) return false
+  }
+  return true
+}
+
 function uniqueReferences(input: ToolResultCustodyEvidence['references']) {
   return input.filter(
     (reference, index) => !input.slice(0, index).some(previous => same(reference, previous)),
