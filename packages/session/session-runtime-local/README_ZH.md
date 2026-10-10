@@ -90,6 +90,8 @@ createLocalSessionAccess借入真实当前authority、固定的已鉴权主体�
 
 `createSessionToolActionHistory`从同一完整prefix读取原模型工具批次、整批完成事实及原Native Tool路由。根提供成熟的Runner结论解释器。该函数不执行IO，也不授予执行权限。
 
+`readSessionRunnerAction`为可信Runner宿主读取原Run日志，返回已持久化的调用、采用报告和稳定anchor。异Run或过期attempt会被拒绝；返回来源不授予执行权。
+
 内部批次消费者调用实际Runner并核其原replay，可靠持久化完整原序后才返回执行locator。asked项保持pending；写入未确认不返回locator，认回原事实不重新dispatch。整批事实不进入模型消息。原Model任务现已通过原同Unit支持消费实际Native Tool。它保留未完成Model工作，逐项prepare，并持有原Native participant与真实stopped。未知结果继续保留原责任，归还本次借用不关闭共享池。每项真实stopped后先经实际不可变结果来源保管，再执行原after_action与普通交付。保管或交付未知保留原责任，不发下一Model。完整批次交付和Tool借用归还可靠完成后，先登记下一Model工作，再完成上一Model责任；Core工具和Runner事实读取器保留event与消息的区别。Cordis与正式生产来源组合仍须通过各自验证。见[SPEC](SPEC.md#原-run-的模型运行时接线)。
 
 ## Cordis驱动与操作分面

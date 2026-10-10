@@ -1,4 +1,4 @@
-import { vi } from 'vitest'
+import { expect, vi } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeDefinition } from '@omne-harness-lite/loop-extension'
 import {
@@ -8,7 +8,8 @@ import {
 import {
   encodeRunnerAdmissionToken,
   inspectRunnerConclusion,
-  type RunnerActionSource,
+  type RunnerAnyDispatchRequest,
+  type RunnerReplayRequest,
   type RunnerDispatchScope,
   type OfficialAdmissionContribution,
 } from '@omne-harness-lite/loop-extension-runner'
@@ -20,8 +21,8 @@ import {
 } from '@omne-harness-lite/tool-admission'
 import type { BorrowedRunJournal } from '../src/run-journal-types.ts'
 import type { DriverToolBatch } from '../src/driver-tool-source.ts'
-import { actionAnchor } from '../src/driver-action-facts.ts'
 import { actionInitial } from '../src/driver-action-check.ts'
+import { readSessionRunnerAction } from '../src/runner-action-source.ts'
 
 /** Actual Runner, registry, pass custody and original journal. Root qualifications and chain selection are controlled. */
 export function driverActionFixture(journal: BorrowedRunJournal, batch: DriverToolBatch) {
@@ -55,35 +56,33 @@ export function driverActionFixture(journal: BorrowedRunJournal, batch: DriverTo
   )
   const authorization: SessionAccessOperations = { authorize }
   let active = true
-  const source: RunnerActionSource = {
-    access: heldAccess,
-    scope: journal.scope,
-    run: batch.origin.run,
-    attempt: batch.origin.attempt,
-    assistantMessage: batch.origin.assistantMessage,
-    calls: batch.calls,
-    anchors: batch.calls
-      .filter(call => !call.unparseable)
-      .map(call => actionAnchor(batch.origin.assistantMessage, call.callId)),
-    report: batch.adoption.adoption.report,
-    grants,
-    runMode: 'auto_permission',
-    toolNames: batch.adoption.adoption.tools.map(tool => tool.name),
-  }
   const unreachable = async (): Promise<never> => {
     throw new Error('unexpected unrelated source')
   }
-  const makeScope = async (request: {
-    readonly position: string
-  }): Promise<RunnerDispatchScope> => {
+  const makeScope = async (
+    request: RunnerAnyDispatchRequest | RunnerReplayRequest,
+  ): Promise<RunnerDispatchScope> => {
     const prefix = await journal.readPrefix()
     if ('failure' in prefix) throw new Error('actual original journal unavailable')
     binding.logGeneration = prefix.source.journalGeneration
+    const readAction =
+      request.position === 'before_action' && 'admission' in request
+        ? await readSessionRunnerAction(
+            {
+              journal,
+              ownerGeneration: binding.logGeneration,
+              access: heldAccess,
+              admission: { grants, runMode: 'auto_permission' },
+            },
+            request,
+          )
+        : undefined
+    if (readAction && 'failure' in readAction) throw new Error(readAction.failure)
     return {
       binding,
       selectedChain: request.position === 'after_action' ? [] : selectedChain,
       owner,
-      action: source,
+      ...(readAction && 'action' in readAction ? { action: readAction.action } : {}),
       isActive: () => active,
       release() {},
       sources: {
@@ -133,6 +132,22 @@ export function driverActionFixture(journal: BorrowedRunJournal, batch: DriverTo
       const prefix = await journal.readPrefix()
       if ('failure' in prefix) throw new Error('actual original log generation missing')
       binding.logGeneration = prefix.source.journalGeneration
+      const actionOptions = {
+        journal,
+        ownerGeneration: binding.logGeneration,
+        access: heldAccess,
+        admission: { grants, runMode: 'auto_permission' as const },
+      }
+      const request = { manifest: journal.scope.session, ...batch.origin }
+      const actual = await readSessionRunnerAction(actionOptions, request)
+      if ('failure' in actual) throw new Error(actual.failure)
+      expect(actual.action.calls).toEqual(batch.calls)
+      expect(actual.action.report).toEqual(batch.adoption.adoption.report)
+      expect(actual.action.access).toBe(heldAccess)
+      expect(actual.action.grants).toBe(grants)
+      expect(await readSessionRunnerAction(actionOptions, { ...request, attempt: 999 })).toEqual({
+        failure: 'attemptSuperseded',
+      })
       owner = createRunnerTaskOwner(binding)
       const append = vi.fn(journal.log.append)
       const instance = createLoopExtensionRunner({
