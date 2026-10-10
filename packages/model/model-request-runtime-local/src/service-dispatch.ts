@@ -977,7 +977,9 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
           version: 'v1',
           at,
           trackTask: task => physical.appends.track(task),
-          retainUnknown(registration, task, permit) {
+          retainUnknown(publication) {
+            if (publication.kind !== 'reply_ready') throw new Error('reply publication expected')
+            const { registration, task, permit } = publication
             physical.unknownWrites.keep(
               key,
               session.log,

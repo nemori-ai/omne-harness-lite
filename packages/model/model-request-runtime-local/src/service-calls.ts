@@ -75,7 +75,7 @@ import type { AcknowledgedCallFacts } from '@omne-harness-lite/model-request-run
 import type { ModelCallPublishPermit } from './reference-types.ts'
 import { requestStopAndWait } from '@omne-harness-lite/model-request-runtime'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
-import { CreationPublication } from './creation-publication.ts'
+import type { ModelCreationPublication } from '@omne-harness-lite/model-request-runtime'
 
 function observeAcquireRefusal<P extends PlannedSemantics, R>(
   runtime: RuntimeConstruction<P, R>,
@@ -587,7 +587,7 @@ interface CreationAttempt {
   readonly binding: SessionRuntimeBinding
   readonly value: JsonValue
   busy: boolean
-  publication?: CreationPublication
+  publication?: ModelCreationPublication
 }
 
 function sameCreationAssociation(
@@ -1329,17 +1329,10 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
           version: 'v1',
           at,
           trackTask: task => physical.appends.track(task),
-          retainUnknown(registration, task, permit, entry) {
+          retainUnknown(publication) {
             if (creation === undefined) throw new Error('creation owner missing')
-            creation.publication = new CreationPublication({
-              binding: session.log,
-              owner,
-              registration,
-              task,
-              permit,
-              entry,
-              callId: key.callId,
-            })
+            if (publication.kind !== 'created') throw new Error('creation publication expected')
+            creation.publication = publication.recovery
           },
         })
         if (!('published' in publication)) return { unavailable: true }

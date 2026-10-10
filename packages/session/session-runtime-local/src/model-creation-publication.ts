@@ -2,7 +2,10 @@ import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
-import type { ModelCallPublishPermit } from './reference-types.ts'
+import type {
+  ModelCallPublishPermit,
+  ModelCreationPublication,
+} from '@omne-harness-lite/model-request-runtime'
 import {
   readSettlementPrefix,
   settlementGenerationCurrent,
@@ -31,7 +34,17 @@ interface CreationPublicationInput {
 }
 
 /** S-85: the original creation batch and all tasks that can still publish or read it. */
-export class CreationPublication {
+export function createSessionModelCreationPublication(
+  input: CreationPublicationInput,
+): ModelCreationPublication {
+  const publication = new CreationPublication(input)
+  return Object.freeze({
+    retry: (admit: () => boolean) => publication.retry(admit),
+    close: () => publication.close(),
+  })
+}
+
+class CreationPublication {
   readonly #reads = new Set<SettlementTask<unknown>>()
   #task: SettlementTask<AppendResult>
   #running: Promise<Outcome> | undefined

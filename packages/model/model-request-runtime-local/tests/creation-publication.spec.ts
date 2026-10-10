@@ -1,6 +1,6 @@
 import { mockPrefixReader } from './mock-prefix-fixture.ts'
 import { expect, test, vi } from 'vitest'
-import { CreationPublication } from '../src/creation-publication.ts'
+import { createSessionModelCreationPublication } from '@omne-harness-lite/session-runtime-local'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
@@ -90,7 +90,7 @@ function fixture() {
 test('S-85: an unreadable full prefix retains the original publication until a later read', async () => {
   const f = fixture()
   f.read.mockResolvedValueOnce({ failure: 'unavailable' })
-  const publication = new CreationPublication(f.input)
+  const publication = createSessionModelCreationPublication(f.input)
   expect(await publication.retry(() => true)).toEqual({ unavailable: true })
   expect(f.append).not.toHaveBeenCalled()
   expect(f.release).not.toHaveBeenCalled()
@@ -108,7 +108,10 @@ test('S-85: stop rejection never releases or recognizes a visible original marke
   f.commit()
   const stopped = Promise.reject(new Error('stop unproved'))
   void stopped.catch(() => {})
-  const publication = new CreationPublication({ ...f.input, task: { ...f.input.task, stopped } })
+  const publication = createSessionModelCreationPublication({
+    ...f.input,
+    task: { ...f.input.task, stopped },
+  })
   expect(await publication.retry(() => true)).toEqual({ unavailable: true })
   expect(await publication.close()).toEqual({ unavailable: true })
   expect(f.read).not.toHaveBeenCalled()
@@ -121,7 +124,7 @@ test('S-85: a completed read must actually stop before permit and registration r
   f.commit()
   const stop = deferred<void>()
   f.owner.stopBarrier = stop.promise
-  const publication = new CreationPublication(f.input)
+  const publication = createSessionModelCreationPublication(f.input)
   let finished = false
   const retry = publication
     .retry(() => true)
@@ -143,7 +146,7 @@ test('S-85: a read stop rejection retains every task and prevents a subsequent r
   const f = fixture()
   f.commit()
   const registration = f.input.registration
-  const publication = new CreationPublication({
+  const publication = createSessionModelCreationPublication({
     ...f.input,
     registration: {
       ...registration,
@@ -180,7 +183,7 @@ test('S-85: a different shell under the same creation key is never the original 
   })
   if (!('ok' in prepared)) throw new Error('conflicting shell')
   f.rows.push({ ...prepared.ok, session, position: 1 })
-  const publication = new CreationPublication(f.input)
+  const publication = createSessionModelCreationPublication(f.input)
   expect(await publication.retry(() => true)).toEqual({ unavailable: true })
   expect(f.append).not.toHaveBeenCalled()
   expect(f.release).not.toHaveBeenCalled()
@@ -192,7 +195,7 @@ test('S-85: a different shell under the same creation key is never the original 
 test('S-85: tail conflict keeps the original batch for the next explicit retry', async () => {
   const f = fixture()
   f.append.mockResolvedValueOnce({ failure: 'tailChanged', tail: 0 })
-  const publication = new CreationPublication(f.input)
+  const publication = createSessionModelCreationPublication(f.input)
   expect(await publication.retry(() => true)).toEqual({ unavailable: true })
   expect(f.release).not.toHaveBeenCalled()
   expect(await publication.retry(() => true)).toEqual({ published: true })
@@ -204,7 +207,7 @@ test('S-85: tail conflict keeps the original batch for the next explicit retry',
 
 test('S-85: changed generation cannot prove absence or release the unknown writer', async () => {
   const f = fixture()
-  const publication = new CreationPublication(f.input)
+  const publication = createSessionModelCreationPublication(f.input)
   f.changeGeneration()
   expect(await publication.retry(() => true)).toEqual({ unavailable: true })
   expect(await publication.close()).toEqual({ unavailable: true })
@@ -217,7 +220,7 @@ test('S-85: close during an absence read prevents resend and releases exactly on
   const f = fixture()
   const gate = deferred<ReadResult>()
   f.read.mockImplementationOnce(async () => await gate.promise)
-  const publication = new CreationPublication(f.input)
+  const publication = createSessionModelCreationPublication(f.input)
   const retry = publication.retry(() => true)
   await vi.waitFor(() => expect(f.read).toHaveBeenCalledTimes(1))
   const closing = publication.close()
@@ -238,7 +241,7 @@ test('S-85: revoked admission after an absence read prevents resend', async () =
     allowed = false
     return { entries: [], tail: 0 }
   })
-  const publication = new CreationPublication(f.input)
+  const publication = createSessionModelCreationPublication(f.input)
   expect(await publication.retry(() => allowed)).toEqual({ unavailable: true })
   expect(f.append).not.toHaveBeenCalled()
   expect(f.owner.active).toBe(1)

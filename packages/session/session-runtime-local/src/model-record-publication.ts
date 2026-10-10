@@ -1,3 +1,4 @@
+import { createSessionModelCreationPublication } from './model-creation-publication.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type {
   ModelCallCreatedRecord,
@@ -55,7 +56,28 @@ export async function publishSessionModelCallContent(
   try {
     return await publishMarker(input, admitted, stored.ref, (registration, task, entry) => {
       retained = true
-      input.retainUnknown(registration, task, stored.permit, entry)
+      if (input.content.kind === 'created') {
+        input.retainUnknown({
+          kind: 'created',
+          recovery: createSessionModelCreationPublication({
+            binding,
+            owner,
+            registration,
+            task,
+            permit: stored.permit,
+            entry,
+            callId: input.content.value.ref.callId,
+          }),
+        })
+      } else {
+        input.retainUnknown({
+          kind: 'reply_ready',
+          registration,
+          task,
+          permit: stored.permit,
+          entry,
+        })
+      }
     })
   } finally {
     if (!retained) await stored.permit.release()

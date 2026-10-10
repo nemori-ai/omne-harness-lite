@@ -83,3 +83,5 @@ export {
 } from './model-request-calibration.ts'
 
 export { publishSessionModelCallContent } from './model-record-publication.ts'
+
+export { createSessionModelCreationPublication } from './model-creation-publication.ts'

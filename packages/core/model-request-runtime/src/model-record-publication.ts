@@ -35,6 +35,23 @@ export interface ModelCallContentWriter {
   >
 }
 
+export interface ModelCreationPublication {
+  readonly retry: (
+    admit: () => boolean,
+  ) => Promise<{ readonly published: true } | { readonly released: true } | ServiceUnavailable>
+  readonly close: () => Promise<RuntimeCloseResult>
+}
+
+export type UnknownModelPublication =
+  | { readonly kind: 'created'; readonly recovery: ModelCreationPublication }
+  | {
+      readonly kind: 'reply_ready'
+      readonly registration: SettlementRegistration
+      readonly task: SettlementTask<AppendResult>
+      readonly permit: ModelCallPublishPermit
+      readonly entry: OwnedLogEntry
+    }
+
 export interface ModelCallPublicationInput {
   readonly binding: SettlementLogBinding
   readonly owner: SettlementOwner
@@ -47,12 +64,7 @@ export interface ModelCallPublicationInput {
   readonly locator: string
   readonly version: string
   readonly at: string
-  readonly retainUnknown: (
-    registration: SettlementRegistration,
-    task: SettlementTask<AppendResult>,
-    permit: ModelCallPublishPermit,
-    entry: OwnedLogEntry,
-  ) => void
+  readonly retainUnknown: (publication: UnknownModelPublication) => void
   readonly trackTask?: (task: SettlementTask<AppendResult>) => () => void
 }
 

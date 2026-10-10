@@ -358,3 +358,5 @@ PlanExecutionContext.imageBytes 是可选的请求内执行依赖。调用者先
 发布前必须核对原标记及会话历史。只有通过后才调用ModelCallContentWriter.put。该写入将内容原件、保管状态和发布许可同提交；日志标记随后按原前缀尾部条件单独提交。标记未知或任务未停止时保留原许可和登记，不把内容写入成功当作标记成功。原标记只能用同一内容引用认回。创建身份冲突、终态或ACK后的新结果不得产生新模型副本。
 
 `settlementAppendReceipt`校验原追加回执，畸形回执视为未确认。`requestStopAndWait`请求停止后等待原任务实际停止；请求停止异常不能取代stopped证明。两者为跨拥有者复用机制，不读取会话历史或授予执行资格。
+
+未知创建发布的 `ModelCreationPublication` 只公开原操作的 `retry` 和 `close`。`UnknownModelPublication` 用 `created` 和 `reply_ready` 区分两种保有。创建分支返回会话发行的原恢复句柄，不把完整前缀读取权交给执行池。结果分支暂时保留原登记、任务、许可及条目，后续迁移不得提前丢弃。

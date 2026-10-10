@@ -165,3 +165,5 @@ releaseCopies 对全部原代核同 log binding、真实 released/未 registered
 现有混合RuntimeConstruction及ModelRuntimeLocalConstruction必须由装配根显式提供recordPublication。创建与reply_ready路径调用它，不自行解释完整会话前缀或构造日志标记。模型侧管理原读取登记、原追加任务及内容发布许可的存续；借入的会话发布者不得被替换为成功占位函数。
 
 旧reference-publish实现已迁入Session且物理删除。共用回执校验和停止等待函数归Core。模型内容库仍负责原件保管及许可，不参与会话状态恢复。其他ACK、结算及恢复中的完整日志依赖仍待迁移，本变化不表示完整ModelPoolConstruction已兑现。
+
+未知创建标记的恢复由Session发行 `ModelCreationPublication`。Model只保有句柄并调用 `retry`／`close`，不读取完整Session前缀、不判断原标记存在性。旧 `creation-publication.ts` 已删除。结果发布的未知写入和ACK路径仍是本次边界迁移的待完成部分，不能据此声称纯执行池构造已完成。
