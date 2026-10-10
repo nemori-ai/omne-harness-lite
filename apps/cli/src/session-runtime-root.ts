@@ -1,4 +1,8 @@
 import { instantToRfc3339 } from '@omne-harness-lite/offer-expiry'
+import {
+  createAssemblyManifestStore,
+  type AssemblyManifestStore,
+} from '@omne-harness-lite/assembly-manifest-store'
 import { openSqlSessionLog, type SqlSessionLog } from '@omne-harness-lite/session-log-sql'
 import {
   createLocalAdmission,
@@ -143,6 +147,7 @@ export async function confirmSessionRuntimeLogin(
   })
 }
 class RuntimeRoot {
+  manifest?: AssemblyManifestStore
   admission?: LocalAdmission
   log?: SqlSessionLog
   ingress?: LocalSessionIngress
@@ -162,6 +167,7 @@ class RuntimeRoot {
       createSessionAdmissionProbe(o.governance, o.source, o.binding.tenant),
       o.admissionPolicy,
     )
+    this.manifest = createAssemblyManifestStore(o.storage)
     this.modelOwner = createSessionOriginalModelOwner({
       storage: o.storage,
       maxRecords: o.model.maxRecords,
@@ -243,6 +249,7 @@ class RuntimeRoot {
       contextSeed: o.contextSeed,
     })
     this.owners = Object.freeze({
+      manifest: this.manifest,
       log: this.log!,
       ingress: this.ingress,
       bootstrap: this.bootstrap,
@@ -280,6 +287,7 @@ class RuntimeRoot {
     }
     if (this.results && 'pending' in this.results.close()) return { pending: true }
     await this.bootstrap?.close()
+    await this.manifest?.close()
     await this.access?.close()
     await this.ingress?.close()
     await this.log?.close()

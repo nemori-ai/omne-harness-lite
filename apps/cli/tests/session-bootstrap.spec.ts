@@ -4531,10 +4531,12 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
       throw new Error('empty file Session executed a Run')
     }
     let pool: SessionNativeModelPool | undefined
+    let rootManifest: ReturnType<typeof createAssemblyManifestStore> | undefined
     const configure = vi.fn<
       import('../src/session-file-root.ts').FileSessionDriverOptions['configure']
     >((owners, actual, work) => {
       pool = actual
+      rootManifest = owners.manifest
       expect(owners.ingress.coordinationAuthority).toBeDefined()
       expect(work.readIn).toBeDefined()
       if (mode === 'startupFailure') throw defect
@@ -4581,6 +4583,7 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
           unwrap(parseOpaqueIdentifier('closed-session', 'SessionRef')),
         ),
       ).toEqual({ unavailable: true })
+      expect(await rootManifest!.readHead('failed-startup')).toEqual({ failure: 'unavailable' })
       return
     }
     const root = await startFileSessionDriverRoot(requested)
@@ -4597,6 +4600,38 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
       policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
     })
     if (created.kind !== 'created-session') throw new Error('file Driver session not created')
+    expect(root.owners.manifest).toBe(rootManifest)
+    expect(await rootManifest!.readHead(created.session)).toEqual({ head: 0, latest: {} })
+    const current = root.owners.bootstrap.inputs({ tenant, session: created.session })
+    if (!current) throw new Error('actual created Session inputs unavailable')
+    const inputRead = await current.read(created.session, tenant)
+    if (!('input' in inputRead)) throw new Error('actual created Session input missing')
+    const assembly = evaluate(inputRead.input, { toolEnvironmentPermission: 'always-allow' })
+    if (!('ok' in assembly)) throw new Error('actual created Session evaluation unavailable')
+    const registry = createAssetRegistry({
+      manifest: root.owners.manifest,
+      clock: options.clock,
+      sessionTenancy: root.owners.ingress.tenancy,
+      currentInputs: current,
+      deployedMeta: [],
+      diagnostic() {},
+      diagnosticFailure() {},
+      monotonicNow: process.hrtime.bigint,
+      conflictPolicy: { maxRetries: 0 },
+      maxInFlight: 4,
+    })
+    cleanup.push(() => registry.close())
+    expect(
+      await registry.fill(
+        created.session,
+        assembly.ok,
+        'file-initial-fill',
+        assembly.ok.composition,
+      ),
+    ).toHaveProperty('snapshots')
+    const originalManifest = await rootManifest!.readHead(created.session)
+    expect(originalManifest).toHaveProperty('head', 1)
+    await registry.close()
     expect(pool.runtime.executionSource.snapshot(created.session)).toEqual([])
     expect(
       await root.owners.ingress.operations.readSession(root.owners.ingress.access, created.session),
@@ -4606,9 +4641,11 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
       if (!('capture' in held)) throw new Error('actual capture missing')
       cleanup.push(async () => held.capture.release())
       expect(await root.close()).toEqual({ pending: true })
+      expect(await rootManifest!.readHead(created.session)).toEqual({ failure: 'unavailable' })
       held.capture.release()
     }
     expect(await root.close()).toEqual({ closed: true })
+    expect(await rootManifest!.readHead(created.session)).toEqual({ failure: 'unavailable' })
     expect(pool.runtime.executionSource.capture(created.session)).toEqual({ unavailable: true })
     const response = await sendSessionHostRequest({
       home: options.home,
@@ -4622,5 +4659,13 @@ it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
       policy: { timeoutMs: 1000, maxResponseBytes: 65536 },
     })
     expect(response).toHaveProperty('kind', 'unconfirmed')
+    if (mode === 'normal') {
+      const reopened = await startFileSessionDriverRoot(requested)
+      cleanup.push(async () => {
+        expect(await reopened.close()).toEqual({ closed: true })
+      })
+      expect(await reopened.owners.manifest.readHead(created.session)).toEqual(originalManifest)
+      expect(await reopened.close()).toEqual({ closed: true })
+    }
   },
 )

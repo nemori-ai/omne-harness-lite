@@ -139,6 +139,9 @@ importers:
       '@omne-harness-lite/assembly-lifecycle':
         specifier: workspace:*
         version: link:../../packages/core/assembly-lifecycle
+      '@omne-harness-lite/assembly-manifest-store':
+        specifier: workspace:*
+        version: link:../../packages/assets/assembly-manifest-store
       '@omne-harness-lite/asset-evaluation':
         specifier: workspace:*
         version: link:../../packages/core/asset-evaluation
@@ -254,9 +257,6 @@ importers:
       '@omne-harness-lite/artifact-builder':
         specifier: workspace:*
         version: link:../../tools/artifact-builder
-      '@omne-harness-lite/assembly-manifest-store':
-        specifier: workspace:*
-        version: link:../../packages/assets/assembly-manifest-store
       '@omne-harness-lite/tool-definition':
         specifier: workspace:*
         version: link:../../packages/core/tool-definition

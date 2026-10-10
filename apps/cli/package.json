@@ -23,6 +23,7 @@
     "acceptance": "vitest run --config acceptance/vitest.config.ts"
   },
   "dependencies": {
+    "@omne-harness-lite/assembly-manifest-store": "workspace:*",
     "@omne-harness-lite/model-profile-directory": "workspace:*",
     "@omne-harness-lite/model-profile-directory-local": "workspace:*",
     "@omne-harness-lite/credential-custodian-local": "workspace:*",
@@ -69,7 +70,6 @@
     "typescript": "catalog:",
     "vitest": "catalog:",
     "@omne-harness-lite/artifact-builder": "workspace:*",
-    "@omne-harness-lite/assembly-manifest-store": "workspace:*",
     "@omne-harness-lite/tool-definition": "workspace:*"
   }
 }

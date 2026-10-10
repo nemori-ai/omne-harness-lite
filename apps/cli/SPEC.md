@@ -495,6 +495,8 @@ Driver故障先停止协议准入，再调用原诊断端口。关闭停止新�
 
 `SessionRuntimeFiles`拥有准入库、租户运行库和LeaseClock的文件分配及关闭。打开失败时，已取得的资源仍保留在原对象中，调用方须完成closeFiles。调用方先关闭使用这些资源的Driver、Context和执行池，再关闭文件资源。首次模型准备、文件运行根和后续Driver根共用同一迁移顺序，不建立第二套运行库。
 
+运行根在同一租户Storage上创建实际AssemblyManifestStore，并通过可信owners.manifest供Run资产装配借用。它在bootstrap及其资产读取器结束后关闭manifest，不把关闭责任交给普通客户端。租户迁移在现有迁移末尾追加assembly_manifest；重开文件根读取原装配表，不重新填表或改变先前迁移的顺序。启动失败同样关闭已经分配的manifest。
+
 `createNativeSessionModelPool`分配实际ModelRuntime、调用存储、内容存储、调用事实、官方OpenRouter运输和可选模型目录。ready返回这些原对象，close保留原关闭语义。Session绑定在资源分配之后由应用选择，不内置某个宿主循环。已有createNativeSessionModelOwner在同一分配函数上安装模型绑定，不另建第二个池。
 
 `startFileSessionRuntimeRoot`在分配资源前核固定中心／账号／登录来源，完成原CG刷新及use关闭，并核既有`tenant.json`的完整租户绑定。它不安装登录、绑定或模型凭据。准入库位于`<home>/data/session-admission.sqlite`，租户运行库沿`tenantPaths.runtime`，时钟使用该租户`run/clock.sqlite`的独立LeaseClock。目录、数据库及旁文件按既有私有命名空间规则检查。只有本次原子创建的新时钟文件允许初始化；重新打开不改写时钟身份。

@@ -1,5 +1,6 @@
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { SqlSessionLog } from '@omne-harness-lite/session-log-sql'
+import type { AssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
 import type { Clock } from '@omne-harness-lite/offer-expiry'
 import type { GovernanceClientOperations } from '@omne-harness-lite/governance-client-operations'
 import type {
@@ -60,6 +61,7 @@ export interface SessionRuntimeRootOptions {
   readonly diagnostic: (error: unknown) => void
 }
 export interface SessionRuntimeRootOwners {
+  readonly manifest: AssemblyManifestStore
   readonly log: SqlSessionLog
   readonly ingress: LocalSessionIngress
   readonly contextAccess: LocalSessionAccess

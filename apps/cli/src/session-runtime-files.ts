@@ -6,6 +6,7 @@ import {
   sessionRuntimeMigrations,
 } from '@omne-harness-lite/session-runtime-local'
 import { sessionLogMigrations } from '@omne-harness-lite/session-log-sql'
+import { assemblyManifestMigrations } from '@omne-harness-lite/assembly-manifest-store'
 import { runtimeContextMigrations } from '@omne-harness-lite/runtime-context-local'
 import { evaluationInputMigrations } from '@omne-harness-lite/evaluation-input-store'
 import { modelProfileDirectoryMigrations } from '@omne-harness-lite/model-profile-directory-local/migrations'
@@ -82,6 +83,7 @@ export const sessionTenantMigrations = composeMigrations([
   ...modelCallContentMigrations('sqlite'),
   ...modelProfileDirectoryMigrations,
   ...replicaMigrations,
+  ...assemblyManifestMigrations,
 ])
 export async function claimRuntimeFile(file: string): Promise<boolean> {
   try {
