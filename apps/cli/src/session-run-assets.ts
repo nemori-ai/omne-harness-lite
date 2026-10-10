@@ -54,13 +54,16 @@ export function createSessionRunAssets(options: SessionRunAssetOptions): Session
       fixedRootInput: sources.fixedRoot,
       historicalBody: sources.history,
     })
-    const head = await options.registry.manifest.readHead(journal.scope.session)
-    if (!('head' in head) || stopped) return { unavailable: true }
-    if (head.head === 0 && !(await fillInitial(input, registry, options)))
-      return { unavailable: true }
-    const restored = await registry.list(journal.scope.session, 'tool', { kind: 'session' })
-    if (!('entries' in restored) || stopped) return { unavailable: true }
+    if (!(await restoreRegistry(input, registry)) || stopped) return { unavailable: true }
     return Object.freeze({ input, registry, history: sources.history })
+  }
+  async function restoreRegistry(input: CurrentInputReader, registry: AssetRegistry) {
+    const { scope } = options.journal
+    const head = await options.registry.manifest.readHead(scope.session)
+    if (!('head' in head) || stopped) return false
+    if (head.head === 0 && !(await fillInitial(input, registry, options))) return false
+    const restored = await registry.list(scope.session, 'tool', { kind: 'session' })
+    return 'entries' in restored
   }
   const ready = Promise.resolve().then(start)
   const started = ready.then(
