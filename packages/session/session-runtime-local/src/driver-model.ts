@@ -291,14 +291,14 @@ export function bindDriverOriginal(input: {
   return Object.freeze({
     admitOriginal: async input => {
       if (!available()) return { kind: 'unavailable' }
-      const ticket = options.model.original.prepareOriginal(input)
-      if ('kind' in ticket) return ticket
+      const preparedJob = options.model.original.prepareOriginal(input)
+      if ('kind' in preparedJob) return preparedJob
       const issued = await options.ingress.modelInvocation.admit(
         options.ingress.coordinationAuthority,
         scope,
         input.source,
         prepared.preparation,
-        ticket.ticket,
+        preparedJob.job,
       )
       if ('failure' in issued) {
         if (issued.failure === 'retryFromFacts') return { kind: 'conflict' }

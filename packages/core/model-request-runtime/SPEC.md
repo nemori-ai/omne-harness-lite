@@ -316,11 +316,11 @@ attempt 开始由 Session 事实拥有者记录，不是模型消息。事件不
 OriginalIssueOwner的共享prepareOriginal／participant／admission／consumeOriginal／close形状归本包。
 具体拥有者的Storage／LogAuthority／limit构造与持久承载仍归实际提供者。
 可信根选择原owner并给Session驱动借入；Session不能从具体Model提供者私有类型推断其消费协议。
-prepareOriginal只固定原ticket，不授IO；Session桥必须使用原participant参加自己的同Unit，
+prepareOriginal只固定原ModelExecutionJob，不授IO；Session桥必须使用原participant参加自己的同Unit，
 不能改走owner.admitOriginal的独立提交来绕过Session栅栏。
 close只撤原发起拥有者，released不证明物理ModelRuntime或远端请求已经停止；pending保原身份与责任。
 
-OriginalIssueParticipant 暂存原 dispatched 事实和唯一执行 claim，必须参加调用者的同一 StorageUnit，不独立提交、不先发送模型请求。ticket 与 claim 仅由实际原拥有者签发；复制形状或取得 ticket 都不授予当前权限。
+OriginalIssueParticipant 暂存原 dispatched 事实和唯一执行 claim，必须参加调用者的同一 StorageUnit，不独立提交、不先发送模型请求。job 与 claim 仅由实际原拥有者签发；复制形状或取得 job 都不授予当前权限。
 
 stageOriginalIn 核同存储实例、完整固定 source、原消费位置、call／dispatch 身份、Session shell、当前授权和栅栏。原 dispatched 与唯一 claim 全提交或全回滚。重复只认回原完整等值证明，不授予第二次发起权；异原位置或正文冲突明确拒绝。
 

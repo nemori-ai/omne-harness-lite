@@ -6,7 +6,7 @@ import {
   modelLogJsonEqual,
   encodeModelLogKey,
   type OriginalIssueInput,
-  type OriginalIssueTicket,
+  type ModelExecutionJob,
   type OriginalIssueClaim,
   type OriginalIssueIdentity,
   type OriginalIssueAuthority,
@@ -142,13 +142,13 @@ function sameOriginal(row: Row, input: Prepared): boolean {
 /** One model execution owner per storage. Storage and log are borrowed until every claim is resolved. */
 export function createOriginalIssueOwner(
   options: OriginalIssueOwnerOptions,
-): OriginalIssueOwner & Pick<ModelExecutionRecords, 'stageConsumeIn'> {
+): OriginalIssueOwner & Pick<ModelExecutionRecords, 'stageOriginalIn' | 'stageConsumeIn'> {
   if (!Number.isSafeInteger(options.limit) || options.limit < 1)
     throw new TypeError('positive original issue limit required')
   if (owners.has(options.storage)) throw new TypeError('duplicate original model execution owner')
   owners.add(options.storage)
   const generation = randomUUID(),
-    tickets = new WeakMap<OriginalIssueTicket, Prepared>(),
+    jobs = new WeakMap<ModelExecutionJob, Prepared>(),
     claims = new WeakMap<OriginalIssueClaim, HeldClaim>()
   const pending = new Set<HeldClaim>(),
     active = new Set<Promise<unknown>>()
@@ -164,11 +164,8 @@ export function createOriginalIssueOwner(
     )
     return task
   }
-  async function stage(
-    unit: StorageUnit,
-    ticket: OriginalIssueTicket,
-  ): Promise<OriginalIssueStage> {
-    const input = tickets.get(ticket)
+  async function stage(unit: StorageUnit, job: ModelExecutionJob): Promise<OriginalIssueStage> {
+    const input = jobs.get(job)
     if (input === undefined) return invalid
     if (!admitting || pending.size + reserved >= options.limit) return unavailable
     unit.assertStorage(options.storage)
@@ -341,26 +338,29 @@ export function createOriginalIssueOwner(
     }
   }
   const participant = Object.freeze<OriginalIssueParticipant>({ stageOriginalIn: stage })
-  return Object.freeze<OriginalIssueOwner & Pick<ModelExecutionRecords, 'stageConsumeIn'>>({
+  return Object.freeze<
+    OriginalIssueOwner & Pick<ModelExecutionRecords, 'stageOriginalIn' | 'stageConsumeIn'>
+  >({
     participant,
+    stageOriginalIn: stage,
     stageConsumeIn: stageConsume,
     prepareOriginal(input) {
       if (!admitting) return unavailable
       const captured = prepared(input, generation)
       if (captured === undefined) return invalid
-      const ticket = Object.freeze({}) as OriginalIssueTicket
-      tickets.set(ticket, captured)
-      return { ticket }
+      const job = Object.freeze({}) as ModelExecutionJob
+      jobs.set(job, captured)
+      return { job }
     },
     admitOriginal(input) {
       if (!admitting || active.size >= options.limit) return Promise.resolve(unavailable)
       return watch(async () => {
         const captured = prepared(input, generation)
         if (captured === undefined) return invalid
-        const ticket = Object.freeze({}) as OriginalIssueTicket
-        tickets.set(ticket, captured)
+        const job = Object.freeze({}) as ModelExecutionJob
+        jobs.set(job, captured)
         try {
-          const result = await options.storage.atomic(unit => stage(unit, ticket))
+          const result = await options.storage.atomic(unit => stage(unit, job))
           return result.kind === 'staged'
             ? { confirmed: true as const, positions: result.positions, claim: result.claim }
             : result.kind === 'alreadyIssued'

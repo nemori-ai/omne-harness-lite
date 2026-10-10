@@ -21,7 +21,7 @@ import type {
   OriginalIssueAuthority,
   OriginalIssueParticipant,
   OriginalIssueStage,
-  OriginalIssueTicket,
+  ModelExecutionJob,
 } from '@omne-harness-lite/model-request-runtime'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { RuntimeOptions, LocalSessionIngress, SessionLifecycleStep } from './runtime-types.ts'
@@ -145,7 +145,7 @@ class ModelAdmission {
     scope,
     source,
     requested,
-    ticket,
+    job,
   ) => {
     if (authority !== this.host.authority.coordination) return { failure: 'denied' }
     if (!this.participant) return { failure: 'unavailable' }
@@ -164,7 +164,7 @@ class ModelAdmission {
       const result = await this.host.options.storage.atomic(unit =>
         unit.run(() =>
           this.host.authority.withinRun(unit, input.scope, step.run, () =>
-            this.stageIn(unit, input.scope, input.source, step, ticket, progress),
+            this.stageIn(unit, input.scope, input.source, step, job, progress),
           ),
         ),
       )
@@ -185,7 +185,7 @@ class ModelAdmission {
     scope: SessionScope,
     expected: SourceToken,
     step: Preparation,
-    ticket: OriginalIssueTicket,
+    job: ModelExecutionJob,
     progress: { stagingStarted: boolean },
   ) {
     const current = await this.sourceIn(unit, scope)
@@ -197,7 +197,7 @@ class ModelAdmission {
     let staged: OriginalIssueStage
     try {
       progress.stagingStarted = true
-      staged = await this.participant!.stageOriginalIn(unit, ticket)
+      staged = await this.participant!.stageOriginalIn(unit, job)
     } finally {
       this.active.delete(unit)
     }

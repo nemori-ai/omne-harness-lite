@@ -1997,8 +1997,8 @@ async function modelFixture(maxRecords = 8) {
     throw new Error('actual preparation failed')
   const original = modelInput(p, prepared.source)
   const ready = owner.prepareOriginal(original)
-  if (!('ticket' in ready)) throw new Error('actual model ticket unavailable')
-  return { f, p, owner, prepared, original, originalBinding, ticket: ready.ticket }
+  if (!('job' in ready)) throw new Error('actual model job unavailable')
+  return { f, p, owner, prepared, original, originalBinding, job: ready.job }
 }
 function modelInput(
   p: Awaited<ReturnType<typeof preparedAttempt>>,
@@ -2055,14 +2055,14 @@ function modelInput(
   return { source, originalPosition: entry.ok.dedupeKey, entry: entry.ok }
 }
 it('issues once under the actual Run and attempt without an extra model permission callback', async () => {
-  const { f, p, owner, prepared, ticket, original } = await modelFixture()
+  const { f, p, owner, prepared, job, original } = await modelFixture()
   expect(await owner.admitOriginal(original)).toEqual({ kind: 'denied' })
   const result = await f.runtime.modelInvocation.admit(
     f.runtime.coordinationAuthority,
     p.scope,
     prepared.source,
     p.step,
-    ticket,
+    job,
   )
   expect(result).toHaveProperty('kind', 'issued')
   if (!('kind' in result) || result.kind !== 'issued') throw new Error('actual issue missing')
@@ -2081,19 +2081,19 @@ it('issues once under the actual Run and attempt without an extra model permissi
       p.scope,
       prepared.source,
       p.step,
-      ticket,
+      job,
     ),
   ).toHaveProperty('kind', 'alreadyIssued')
   expect(await f.log().readSince(p.scope.session, 7)).toHaveProperty('entries.length', 1)
 })
 it('restricts original model recognition to its committed dispatch key after ingress closes', async () => {
-  const { f, p, owner, prepared, ticket, original, originalBinding } = await modelFixture()
+  const { f, p, owner, prepared, job, original, originalBinding } = await modelFixture()
   const result = await f.runtime.modelInvocation.admit(
     f.runtime.coordinationAuthority,
     p.scope,
     prepared.source,
     p.step,
-    ticket,
+    job,
   )
   if (!('kind' in result) || result.kind !== 'issued') throw new Error('actual issue missing')
   const source = { ...prepared.source, tail: result.positions.at(-1)! }
@@ -2117,14 +2117,14 @@ it('restricts original model recognition to its committed dispatch key after ing
   expect(await owner.close()).toEqual({ kind: 'released' })
 })
 it('rejects copied latest permits before the actual model participant can append or acquire a claim', async () => {
-  const { f, p, prepared, ticket } = await modelFixture()
+  const { f, p, prepared, job } = await modelFixture()
   expect(
     await f.runtime.modelInvocation.admit(
       f.runtime.coordinationAuthority,
       p.scope,
       prepared.source,
       { ...p.step, permit: { ...p.step.permit } },
-      ticket,
+      job,
     ),
   ).toEqual({ failure: 'staleAttempt' })
   expect(await f.count('mr_original_issue')).toEqual({ n: 0 })
@@ -2132,13 +2132,13 @@ it('rejects copied latest permits before the actual model participant can append
   expect(await f.log().readSince(p.scope.session, 7)).toHaveProperty('entries.length', 0)
 })
 it('rechecks the actual latest attempt at launch and still drains original proof after the Run is terminal', async () => {
-  const { f, p, owner, prepared, ticket } = await modelFixture()
+  const { f, p, owner, prepared, job } = await modelFixture()
   const result = await f.runtime.modelInvocation.admit(
     f.runtime.coordinationAuthority,
     p.scope,
     prepared.source,
     p.step,
-    ticket,
+    job,
   )
   if (!('kind' in result) || result.kind !== 'issued') throw new Error('actual issue missing')
   const facts = await f.runtime.journal.readPrefix(f.runtime.access, p.scope.session)
@@ -2164,14 +2164,14 @@ it('rechecks the actual latest attempt at launch and still drains original proof
 })
 
 it('rolls back the actual model claim and dispatched anchor when Session issue capacity rejects the batch', async () => {
-  const { f, p, owner, prepared, ticket } = await modelFixture(1)
+  const { f, p, owner, prepared, job } = await modelFixture(1)
   expect(
     await f.runtime.modelInvocation.admit(
       f.runtime.coordinationAuthority,
       p.scope,
       prepared.source,
       p.step,
-      ticket,
+      job,
     ),
   ).toHaveProperty('kind', 'issued')
   const reading = await f.runtime.journal.readPrefix(f.runtime.access, p.scope.session)
@@ -2192,14 +2192,14 @@ it('rolls back the actual model claim and dispatched anchor when Session issue c
   if (!('kind' in saved) || saved.kind !== 'committed')
     throw new Error('second prepare unavailable')
   const ready = owner.prepareOriginal(modelInput({ ...p, step: next }, saved.source))
-  if (!('ticket' in ready)) throw new Error('second ticket unavailable')
+  if (!('job' in ready)) throw new Error('second job unavailable')
   expect(
     await f.runtime.modelInvocation.admit(
       f.runtime.coordinationAuthority,
       p.scope,
       saved.source,
       next,
-      ready.ticket,
+      ready.job,
     ),
   ).toEqual({ failure: 'unavailable' })
   expect(await f.count('mr_original_issue')).toEqual({ n: 1 })
@@ -2207,7 +2207,7 @@ it('rolls back the actual model claim and dispatched anchor when Session issue c
   expect(await f.log().readSince(p.scope.session, 9)).toHaveProperty('entries.length', 0)
 })
 it('recognizes a real lost admission commit without allocating another model claim or granting launch on replay', async () => {
-  const { f, p, owner, prepared, ticket } = await modelFixture()
+  const { f, p, owner, prepared, job } = await modelFixture()
   const commit = f.storage.write.bind(f.storage)
   const lost = vi.spyOn(f.storage, 'write').mockImplementationOnce(async tx => {
     await commit(tx)
@@ -2219,7 +2219,7 @@ it('recognizes a real lost admission commit without allocating another model cla
       p.scope,
       prepared.source,
       p.step,
-      ticket,
+      job,
     ),
   ).toEqual({
     kind: 'unknownCommit',
@@ -2235,7 +2235,7 @@ it('recognizes a real lost admission commit without allocating another model cla
     p.scope,
     prepared.source,
     p.step,
-    ticket,
+    job,
   )
   expect(replay).toHaveProperty('kind', 'alreadyIssued')
   expect(replay).not.toHaveProperty('claim')
@@ -2243,14 +2243,14 @@ it('recognizes a real lost admission commit without allocating another model cla
   expect(await owner.close()).toEqual({ kind: 'released' })
 })
 it('requires the same original prepare semantics and treats reordered JSON fields as the same data', async () => {
-  const { f, p, prepared, ticket } = await modelFixture()
+  const { f, p, prepared, job } = await modelFixture()
   expect(
     await f.runtime.modelInvocation.admit(
       f.runtime.coordinationAuthority,
       p.scope,
       prepared.source,
       { ...p.step, originalPosition: 'another-position' },
-      ticket,
+      job,
     ),
   ).toEqual({ failure: 'retryFromFacts' })
   const { permit, attempt, run, originalPosition, call, stepKey, kind } = p.step
@@ -2260,18 +2260,18 @@ it('requires the same original prepare semantics and treats reordered JSON field
       p.scope,
       prepared.source,
       { permit, attempt, run, originalPosition, call, stepKey, kind },
-      ticket,
+      job,
     ),
   ).toHaveProperty('kind', 'issued')
 })
 it('stops new launch on ingress close without revoking read-only recognition of its original issued source', async () => {
-  const { f, p, owner, prepared, ticket } = await modelFixture()
+  const { f, p, owner, prepared, job } = await modelFixture()
   const result = await f.runtime.modelInvocation.admit(
     f.runtime.coordinationAuthority,
     p.scope,
     prepared.source,
     p.step,
-    ticket,
+    job,
   )
   if (!('kind' in result) || result.kind !== 'issued') throw new Error('actual issue missing')
   await f.runtime.close()
@@ -2280,7 +2280,7 @@ it('stops new launch on ingress close without revoking read-only recognition of 
 })
 
 it('reports admission read failure before the participant starts as unavailable rather than unknownCommit', async () => {
-  const { f, p, prepared, ticket } = await modelFixture()
+  const { f, p, prepared, job } = await modelFixture()
   vi.spyOn(f.storage, 'atomic').mockRejectedValueOnce(
     new StorageUnavailable('read before model staging unavailable'),
   )
@@ -2290,13 +2290,13 @@ it('reports admission read failure before the participant starts as unavailable 
       p.scope,
       prepared.source,
       p.step,
-      ticket,
+      job,
     ),
   ).toEqual({ failure: 'unavailable' })
   expect(await f.count('mr_original_issue')).toEqual({ n: 0 })
 })
 it('rejects a damaged stored preparation position before staging a real original model claim', async () => {
-  const { f, p, prepared, ticket } = await modelFixture()
+  const { f, p, prepared, job } = await modelFixture()
   const row = await f.storage.read(tx =>
     tx.db.selectFrom('sr_call_preparation').select('preparation').executeTakeFirstOrThrow(),
   )
@@ -2313,7 +2313,7 @@ it('rejects a damaged stored preparation position before staging a real original
       p.scope,
       prepared.source,
       p.step,
-      ticket,
+      job,
     ),
   ).rejects.toThrow('call preparation receipt')
   expect(await f.count('mr_original_issue')).toEqual({ n: 0 })
@@ -2327,7 +2327,7 @@ describe('original model result custody', () => {
       m.p.scope,
       m.prepared.source,
       m.p.step,
-      m.ticket,
+      m.job,
     )
     if (!('kind' in issued) || issued.kind !== 'issued')
       throw new Error('actual original issue missing')

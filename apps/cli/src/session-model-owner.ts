@@ -80,7 +80,7 @@ export function createSessionOriginalModelOwner(
             fixedScope,
             input.source,
             fixedPreparation,
-            prepared.ticket,
+            prepared.job,
           )
           if ('failure' in issued) return mappedFailure(issued.failure)
           if (issued.kind === 'unknownCommit') {

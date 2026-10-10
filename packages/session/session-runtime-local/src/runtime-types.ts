@@ -6,7 +6,7 @@ import type {
 import type {
   OriginalIssueAuthority,
   OriginalIssueParticipant,
-  OriginalIssueTicket,
+  ModelExecutionJob,
   OriginalIssueStage,
 } from '@omne-harness-lite/model-request-runtime'
 import type { SessionRef } from '@omne-harness-lite/messages'
@@ -132,7 +132,7 @@ export interface LocalSessionIngress {
       scope: SessionScope,
       source: SourceToken,
       preparation: Extract<SessionLifecycleStep, { kind: 'prepareCall' }>,
-      ticket: OriginalIssueTicket,
+      job: ModelExecutionJob,
     ) => Promise<
       | Exclude<OriginalIssueStage, { kind: 'staged' }>
       | {

@@ -2,15 +2,12 @@ import type { StorageUnit } from '@omne-harness-lite/storage'
 import type { OwnedLogEntry, SourceToken } from '@omne-harness-lite/session-log'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
+import type { ModelExecutionJob } from './execution-pool.ts'
 /** The original model owner captures the exact prepared dispatched record and fixed source. */
 export interface OriginalIssueInput {
   readonly source: SourceToken
   readonly originalPosition: string
   readonly entry: OwnedLogEntry
-}
-declare const ticketBrand: unique symbol
-export interface OriginalIssueTicket {
-  readonly [ticketBrand]: true
 }
 declare const claimBrand: unique symbol
 export interface OriginalIssueClaim {
@@ -39,10 +36,10 @@ export type OriginalIssueStage =
 export interface OriginalIssueParticipant {
   readonly stageOriginalIn: (
     unit: StorageUnit,
-    ticket: OriginalIssueTicket,
+    job: ModelExecutionJob,
   ) => Promise<OriginalIssueStage>
 }
-/** This is a same-unit current source. Neither a ticket nor a claim grants authorization. */
+/** This is a same-unit current source. Neither a job nor a claim grants authorization. */
 export interface OriginalIssueAuthority {
   readonly authorizeIn: (
     unit: StorageUnit,
@@ -70,6 +67,6 @@ export interface OriginalIssueOwner extends OriginalIssueAdmission {
   readonly participant: OriginalIssueParticipant
   readonly prepareOriginal: (
     input: OriginalIssueInput,
-  ) => { readonly ticket: OriginalIssueTicket } | OriginalIssueFailure
+  ) => { readonly job: ModelExecutionJob } | OriginalIssueFailure
   readonly close: () => Promise<{ readonly kind: 'released' } | { readonly kind: 'pending' }>
 }
