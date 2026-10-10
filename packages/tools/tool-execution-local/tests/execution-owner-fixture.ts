@@ -311,7 +311,7 @@ export async function fixture(
   }
 }
 
-function fixtureOriginalSupport(
+export function fixtureOriginalSupport(
   log: Awaited<ReturnType<typeof openSqlLogFixture>>,
 ): ToolOriginalIssueSupport {
   const claims = new Map<ToolOriginalIssueClaim, ToolOriginalIssueParticipant>()

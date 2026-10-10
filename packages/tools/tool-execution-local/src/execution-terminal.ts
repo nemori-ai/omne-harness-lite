@@ -40,30 +40,8 @@ export function createTerminalCommitter(input: {
         request.ref.callId,
       )
       if (view.kind !== 'view') return 'unavailable'
-      const execution = view.executions.get(request.ref.callId)
-      if (!execution) return 'unavailable'
-      if (execution.terminal) return 'alreadyEnded'
-      const value: ToolJournalPayload = {
-        kind: 'execution_ended',
-        revision: 1,
-        ref: request.ref,
-        terminal: request.terminal,
-        delivery: request.delivery,
-        account: {
-          callId: request.ref.callId,
-          initiator: request.ref.tenant,
-          externalEffect: 'unknown',
-          cost: request.recovered
-            ? {
-                total_usd: 'unknown',
-                items: [{ service: 'tool_execution', cost_usd: 'unknown', source: 'none' }],
-              }
-            : { total_usd: 0, items: [] },
-          frames: request.frames,
-          wallClock: { startedAt: request.startedAt, endedAt },
-          ...(request.terminal.outcome === 'interrupted' ? { stoppedAt: endedAt } : {}),
-        },
-      }
+      const value = terminalValue(request, view, endedAt)
+      if (typeof value === 'string') return value
       const committed = await input.journal.commit({
         ref: request.ref,
         origin: request.origin,
@@ -77,4 +55,39 @@ export function createTerminalCommitter(input: {
     }
     return 'unavailable'
   }
+}
+
+type TerminalRequest = Parameters<ReturnType<typeof createTerminalCommitter>>[0]
+type TerminalView = Extract<Awaited<ReturnType<RuntimeJournal['read']>>, { kind: 'view' }>
+
+function terminalValue(
+  request: TerminalRequest,
+  view: TerminalView,
+  endedAt: string,
+): ToolJournalPayload | 'unavailable' | 'alreadyEnded' {
+  const execution = view.executions.get(request.ref.callId)
+  if (!execution) return 'unavailable'
+  if (execution.terminal) return 'alreadyEnded'
+  const value: ToolJournalPayload = {
+    kind: 'execution_ended',
+    revision: 1,
+    ref: request.ref,
+    terminal: request.terminal,
+    delivery: request.delivery,
+    account: {
+      callId: request.ref.callId,
+      initiator: request.ref.tenant,
+      externalEffect: 'unknown',
+      cost: request.recovered
+        ? {
+            total_usd: 'unknown',
+            items: [{ service: 'tool_execution', cost_usd: 'unknown', source: 'none' }],
+          }
+        : { total_usd: 0, items: [] },
+      frames: request.frames,
+      wallClock: { startedAt: request.startedAt, endedAt },
+      ...(request.terminal.outcome === 'interrupted' ? { stoppedAt: endedAt } : {}),
+    },
+  }
+  return value
 }

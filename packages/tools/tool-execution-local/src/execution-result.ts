@@ -42,17 +42,7 @@ export function createResultPreparation(input: {
   /** Classification comes from the trusted control ingress, rather than author result text. */
   readonly interruptionCode?: Extract<ToolResultBlock, { outcome: 'interrupted' }>['reason']['code']
 }) {
-  const copied = copyJsonValue({
-    ref: input.ref,
-    pass: input.pass,
-    chain: input.chain,
-    ...(input.interruptionCode ? { interruptionCode: input.interruptionCode } : {}),
-  })
-  if ('failed' in copied) throw new TypeError('ordinary result preparation coordinates required')
-  const coordinates = copied.ok as unknown as Pick<
-    typeof input,
-    'ref' | 'pass' | 'chain' | 'interruptionCode'
-  >
+  const coordinates = captureCoordinates(input)
   const writer = input.writer
   const storeRaw = writer?.storeRaw.bind(writer),
     recordResult = writer?.recordResult.bind(writer)
@@ -60,17 +50,12 @@ export function createResultPreparation(input: {
     const captured = copyJsonValue(supplied)
     if ('failed' in captured) return 'unavailable'
     let terminal = captured.ok as unknown as ExecutionTerminal
-    if (terminal.outcome === 'interrupted' && !coordinates.interruptionCode) return 'unavailable'
-    const author =
-      terminal.outcome === 'completed'
-        ? terminal.result
-        : terminal.outcome === 'failed'
-          ? terminal.result
-          : undefined
+    const candidate = authorRecordCandidate(terminal, coordinates, storeRaw, recordResult)
+    if (candidate === 'unavailable') return candidate
     let original: ToolResult | undefined
-    if (author !== undefined) {
-      if (!storeRaw || !recordResult) return 'unavailable'
-      original = toolResultOf(author, blockId(coordinates.ref, 'original-text'))
+    if (candidate) {
+      original = candidate.original
+      const { storeRaw, recordResult } = candidate
       const offload = original.offload
       if (offload && 'inline' in offload.raw) {
         const stored = await storeRaw(
@@ -91,45 +76,115 @@ export function createResultPreparation(input: {
         ...(raw && !('inline' in raw) ? { raw } : {}),
       })
       if (recorded !== 'recorded' && recorded !== 'duplicate') return 'unavailable'
-      if (typeof author !== 'string') {
-        if (terminal.outcome === 'completed') terminal = { ...terminal, result: original }
-        else if (terminal.outcome === 'failed') terminal = { ...terminal, result: original }
-      }
+      terminal = recordedTerminal(terminal, original)
     }
-    const text =
-      terminal.outcome === 'failed'
-        ? terminal.code
-        : terminal.outcome === 'unavailable' || terminal.outcome === 'interrupted'
-          ? terminal.reason
-          : terminal.outcome
-    const blocks =
-      original?.content ?? toolResultOf(text, blockId(coordinates.ref, 'ending-text')).content
-    const reason =
-      terminal.outcome === 'interrupted'
-        ? { code: coordinates.interruptionCode, text: terminal.reason }
-        : terminal.outcome === 'failed' && terminal.code === 'abnormal_interruption'
-          ? { code: 'abnormal_interruption' as const, text: terminal.code }
-          : undefined
-    const raw = original?.offload?.raw
-    const judged = judgeContentBlock({
-      id: blockId(coordinates.ref, 'result'),
-      kind: 'tool_result',
-      callId: coordinates.ref.callId,
-      visibility: { toHuman: true, toModel: true },
-      outcome: terminal.outcome,
-      blocks,
-      ...(raw && !('inline' in raw) ? { offloaded: raw } : {}),
-      ...(reason ? { reason } : {}),
-    })
-    if ('rejected' in judged || judged.ok.kind !== 'tool_result') return 'unavailable'
-    return {
-      terminal,
-      delivery: {
-        result: judged.ok,
-        pass: coordinates.pass,
-        selectedChain: coordinates.chain,
-        ...(raw && !('inline' in raw) ? { raw } : {}),
-      },
+    return preparedTerminal(terminal, original, coordinates)
+  }
+}
+
+type Coordinates = Pick<
+  Parameters<typeof createResultPreparation>[0],
+  'ref' | 'pass' | 'chain' | 'interruptionCode'
+>
+
+function captureCoordinates(input: Parameters<typeof createResultPreparation>[0]): Coordinates {
+  const copied = copyJsonValue({
+    ref: input.ref,
+    pass: input.pass,
+    chain: input.chain,
+    ...(input.interruptionCode ? { interruptionCode: input.interruptionCode } : {}),
+  })
+  if ('failed' in copied) throw new TypeError('ordinary result preparation coordinates required')
+  const coordinates = copied.ok as unknown as Pick<
+    typeof input,
+    'ref' | 'pass' | 'chain' | 'interruptionCode'
+  >
+  return coordinates
+}
+
+function authorRecordCandidate(
+  terminal: ExecutionTerminal,
+  coordinates: Coordinates,
+  storeRaw: ToolResultWriter['storeRaw'] | undefined,
+  recordResult: ToolResultWriter['recordResult'] | undefined,
+):
+  | {
+      original: ToolResult
+      storeRaw: ToolResultWriter['storeRaw']
+      recordResult: ToolResultWriter['recordResult']
     }
+  | 'unavailable'
+  | undefined {
+  if (terminal.outcome === 'interrupted' && !coordinates.interruptionCode) return 'unavailable'
+  const author =
+    terminal.outcome === 'completed'
+      ? terminal.result
+      : terminal.outcome === 'failed'
+        ? terminal.result
+        : undefined
+  if (author === undefined) return
+  if (!storeRaw || !recordResult) return 'unavailable'
+  return {
+    original: toolResultOf(author, blockId(coordinates.ref, 'original-text')),
+    storeRaw,
+    recordResult,
+  }
+}
+
+function recordedTerminal(terminal: ExecutionTerminal, original: ToolResult): ExecutionTerminal {
+  if (terminal.outcome === 'completed') {
+    if (typeof terminal.result !== 'string') return { ...terminal, result: original }
+  } else if (terminal.outcome === 'failed') {
+    if (typeof terminal.result !== 'string') return { ...terminal, result: original }
+  }
+  return terminal
+}
+
+function terminalPlaceholder(terminal: ExecutionTerminal, coordinates: Coordinates) {
+  const text =
+    terminal.outcome === 'failed'
+      ? terminal.code
+      : terminal.outcome === 'unavailable' || terminal.outcome === 'interrupted'
+        ? terminal.reason
+        : terminal.outcome
+  const reason =
+    terminal.outcome === 'interrupted'
+      ? { code: coordinates.interruptionCode, text: terminal.reason }
+      : terminal.outcome === 'failed' && terminal.code === 'abnormal_interruption'
+        ? { code: 'abnormal_interruption' as const, text: terminal.code }
+        : undefined
+  return { text, reason }
+}
+
+function preparedTerminal(
+  terminal: ExecutionTerminal,
+  original: ToolResult | undefined,
+  coordinates: Coordinates,
+): PreparedTerminal | 'unavailable' {
+  const placeholder = terminalPlaceholder(terminal, coordinates)
+  const blocks =
+    original?.content ??
+    toolResultOf(placeholder.text, blockId(coordinates.ref, 'ending-text')).content
+  const reason = placeholder.reason
+  const raw = original?.offload?.raw
+  const judged = judgeContentBlock({
+    id: blockId(coordinates.ref, 'result'),
+    kind: 'tool_result',
+    callId: coordinates.ref.callId,
+    visibility: { toHuman: true, toModel: true },
+    outcome: terminal.outcome,
+    blocks,
+    ...(raw && !('inline' in raw) ? { offloaded: raw } : {}),
+    ...(reason ? { reason } : {}),
+  })
+  if ('rejected' in judged || judged.ok.kind !== 'tool_result') return 'unavailable'
+  return {
+    terminal,
+    delivery: {
+      result: judged.ok,
+      pass: coordinates.pass,
+      selectedChain: coordinates.chain,
+      ...(raw && !('inline' in raw) ? { raw } : {}),
+    },
   }
 }

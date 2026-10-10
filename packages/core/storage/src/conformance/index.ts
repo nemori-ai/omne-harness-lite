@@ -31,6 +31,15 @@ class CallerError extends Error {
   override readonly name = 'CallerError'
 }
 
+async function captureStatementFailure(operation: () => PromiseLike<unknown>): Promise<unknown> {
+  try {
+    await operation()
+    return undefined
+  } catch (error) {
+    return error
+  }
+}
+
 export function describeStorageConformance(
   name: string,
   factory: () => Promise<StorageInstance>,
@@ -166,30 +175,21 @@ export function describeStorageConformance(
       await s0.write(async tx => {
         await db(tx).insertInto('conformance_account').values({ id: 'u1', name: 'dup' }).execute()
       })
-      const error = await s0.write(async tx => {
-        try {
-          await db(tx).insertInto('conformance_account').values({ id: 'u2', name: 'dup' }).execute()
-          return undefined
-        } catch (e) {
-          return e
-        }
-      })
+      const error = await s0.write(tx =>
+        captureStatementFailure(() =>
+          db(tx).insertInto('conformance_account').values({ id: 'u2', name: 'dup' }).execute(),
+        ),
+      )
       expect(error).toBeInstanceOf(UniqueViolation)
       expect((error as UniqueViolation).constraint).toBe(CONFORMANCE_UNIQUE_CONSTRAINT)
     })
 
     it('C-2b 主键冲突 ⇒ UniqueViolation 且 constraint 为 <table>_pkey（两方言同一字符串）', async () => {
-      const error = await s0.write(async tx => {
-        try {
-          await db(tx)
-            .insertInto('conformance_account')
-            .values({ id: 'u1', name: 'pk-dup' })
-            .execute()
-          return undefined
-        } catch (e) {
-          return e
-        }
-      })
+      const error = await s0.write(tx =>
+        captureStatementFailure(() =>
+          db(tx).insertInto('conformance_account').values({ id: 'u1', name: 'pk-dup' }).execute(),
+        ),
+      )
       expect(error).toBeInstanceOf(UniqueViolation)
       expect((error as UniqueViolation).constraint).toBe('conformance_account_pkey')
     })
@@ -493,14 +493,11 @@ export function describeStorageConformance(
           .values({ id: 'ch1', parent_id: 'p1' })
           .execute()
       })
-      const error = await s0.write(async tx => {
-        try {
-          await db(tx).deleteFrom('conformance_parent').where('id', '=', 'p1').execute()
-          return undefined
-        } catch (e) {
-          return e
-        }
-      })
+      const error = await s0.write(tx =>
+        captureStatementFailure(() =>
+          db(tx).deleteFrom('conformance_parent').where('id', '=', 'p1').execute(),
+        ),
+      )
       expect(error).toBeInstanceOf(ReferenceViolation)
       expect((error as ReferenceViolation).kind).toBe('delete-restricted')
       await s0.read(async tx => {
@@ -515,17 +512,11 @@ export function describeStorageConformance(
     })
 
     it('C-12 插入指向不存在目标 ⇒ ReferenceViolation missing-target', async () => {
-      const error = await s0.write(async tx => {
-        try {
-          await db(tx)
-            .insertInto('conformance_child')
-            .values({ id: 'ch2', parent_id: 'nope' })
-            .execute()
-          return undefined
-        } catch (e) {
-          return e
-        }
-      })
+      const error = await s0.write(tx =>
+        captureStatementFailure(() =>
+          db(tx).insertInto('conformance_child').values({ id: 'ch2', parent_id: 'nope' }).execute(),
+        ),
+      )
       expect(error).toBeInstanceOf(ReferenceViolation)
       expect((error as ReferenceViolation).kind).toBe('missing-target')
     })
@@ -584,24 +575,16 @@ export function describeStorageConformance(
     })
 
     it('C-14 缺陷不折成不可用：非法语句与 CHECK 违反 ⇒ StorageDefect 且带 cause', async () => {
-      const syntax = await s0.write(async tx => {
-        try {
-          await sql`SELEC nonsense FROM nowhere`.execute(tx.db)
-          return undefined
-        } catch (e) {
-          return e
-        }
-      })
+      const syntax = await s0.write(tx =>
+        captureStatementFailure(() => sql`SELEC nonsense FROM nowhere`.execute(tx.db)),
+      )
       expect(syntax).toBeInstanceOf(StorageDefect)
       expect((syntax as StorageDefect).cause).toBeDefined()
-      const check = await s0.write(async tx => {
-        try {
-          await db(tx).insertInto('conformance_checked').values({ id: 'k', n: 0 }).execute()
-          return undefined
-        } catch (e) {
-          return e
-        }
-      })
+      const check = await s0.write(tx =>
+        captureStatementFailure(() =>
+          db(tx).insertInto('conformance_checked').values({ id: 'k', n: 0 }).execute(),
+        ),
+      )
       expect(check).toBeInstanceOf(StorageDefect)
     })
   })
