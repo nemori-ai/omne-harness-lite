@@ -1,3 +1,4 @@
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
@@ -217,6 +218,7 @@ async function runtimeOver(
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
     callAccess,
     callPresence,
     callFacts,

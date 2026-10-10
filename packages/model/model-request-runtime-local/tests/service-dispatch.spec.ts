@@ -1,3 +1,4 @@
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
@@ -340,6 +341,7 @@ test('service dispatch writes both anchors before handing out a complete pending
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
+      selectionFactory: createSessionModelSelection,
       callFacts,
       callPresence,
       callAccess,

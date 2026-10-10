@@ -10,7 +10,6 @@ import type {
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { validate as validateLoop } from '@omne-harness-lite/loop-extension'
-import { createSessionModelSelection } from './session-selection.ts'
 import {
   acknowledgedAsTerminal,
   rejectAcknowledgedHistory,
@@ -29,7 +28,7 @@ import {
   type SettlementPrefix,
 } from '@omne-harness-lite/model-request-runtime'
 import type { SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
-import type { SessionModelSelection } from './session-selection-types.ts'
+import type { SessionModelSelection } from '@omne-harness-lite/model-request-runtime'
 import type { RuntimeConstruction, CallContainerView } from './service-types.ts'
 import type { CallKey, SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type {
@@ -342,7 +341,7 @@ function buildRuntimeReads<P extends PlannedSemantics, R>(
         if (!('released' in ended)) return unavailable()
         physical.selections.delete(key)
       }
-      const created = createSessionModelSelection(next)
+      const created = construction.selectionFactory(next)
       physical.selections.set(key, { input: next, selection: created })
       return { selection: created }
     } catch {

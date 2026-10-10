@@ -1,3 +1,4 @@
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
@@ -63,6 +64,7 @@ export interface SessionNativeModelOptions {
     | 'callPresence'
     | 'transport'
     | 'requestPreparation'
+    | 'selectionFactory'
     | 'recordPublication'
     | 'acknowledgementFactory'
     | 'settlementFactory'
@@ -189,6 +191,7 @@ class NativeModelOwner {
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
+      selectionFactory: createSessionModelSelection,
       ...sources,
       calls: this.calls,
       callFacts: this.facts,

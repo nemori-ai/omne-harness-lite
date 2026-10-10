@@ -36,7 +36,7 @@ import type {
 import type {
   SessionEffectiveModelResult,
   SessionModelSelection,
-} from './session-selection-types.ts'
+} from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = () => Object.freeze({ unavailable: true } as const)
 function route(value: unknown): value is RouteName {

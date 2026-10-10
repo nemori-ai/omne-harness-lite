@@ -1,3 +1,4 @@
+import type { SessionModelSelectionFactory } from '@omne-harness-lite/model-request-runtime'
 import type { SessionModelSettlement } from '@omne-harness-lite/model-request-runtime'
 import type { SessionModelAcknowledgementFactory } from '@omne-harness-lite/model-request-runtime'
 import type {
@@ -122,6 +123,7 @@ export interface PreparedCallBinding<P extends PlannedSemantics, R> {
 }
 
 export interface RuntimeConstruction<P extends PlannedSemantics, R> {
+  readonly selectionFactory: SessionModelSelectionFactory
   readonly requestPreparation: SessionModelRequestPreparation
   readonly settlementFactory: SessionModelSettlement
   readonly acknowledgementFactory: SessionModelAcknowledgementFactory

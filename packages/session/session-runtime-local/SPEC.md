@@ -593,3 +593,10 @@ createSessionModelReconciler实现SessionModelReconciler，sessionModelSettlemen
 recognizeSessionModelReply只读取完整已结算前缀，检查原日志和selection身份后认回既有处分，不发起模型调用。appendControlRecord执行原条件与栅栏校验，持有登记直到实际停止，未知结果转交原拥有者。恢复过程中仍活着的结算工作保持由原组件负责，不由扫描器重复执行。Model原custody继续负责结果内容与工作行的退休；Session不创建第二清理队列。
 
 这些闭包不取得新的模型执行权，不因日志恢复而重发请求，也不关闭借入的Model池、日志或内容存储。与Core的原任务停止和可重试关闭约定共同适用。
+
+
+## 会话模型选择
+
+根函数createSessionModelSelection实现Core的SessionModelSelectionFactory。它从原绑定的完整前缀读取选择记录，结合实际目录和当前求值输入提供legalTargets、selectModel、displayList及effectiveModel。无初选时保持不可用，不按目录次序补选择。
+
+该函数保留原模型选择实现及其任务寿命。输入绑定和owner在构造时固定；未知追加、未确认停止及释放失败继续保留原登记。close撤销新操作并等待原任务，不能关闭借入日志、目录、求值输入或模型池。原目录撤回、模态、凭据可用性及显式选择的校验和次序不因迁移改变。

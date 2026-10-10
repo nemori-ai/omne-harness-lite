@@ -1,5 +1,6 @@
 import { modelCategory } from './log-codec-fixture.ts'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
@@ -137,6 +138,83 @@ function currentSelection(
     },
   }
 }
+
+async function selectionFactoryFixture() {
+  const host = await selectionHost()
+  const held = host.create()
+  await held.component.close()
+  const binding: SessionRuntimeBinding = {
+    sourceVersions: { fixture: 'selection-factory-v1' },
+    log: held.input.binding,
+    selection: currentSelection(held.input),
+    tools: {
+      async lookup() {
+        return { failure: 'unavailable' }
+      },
+    },
+    catalog: host.catalog,
+    credentials: {
+      async value() {
+        return { failure: 'unavailable' }
+      },
+    },
+    currentEvaluationInputs: host.reader,
+  }
+  return {
+    host,
+    input: construction(binding, { value: 0, append: 0, credential: 0, transport: 0 }),
+  }
+}
+
+describe('Session selection factory ownership', () => {
+  it('does not replace a refused selection factory with a Model implementation', async () => {
+    const { host, input } = await selectionFactoryFixture()
+    const selectionFactory = vi.fn(() => {
+      throw new Error('Session selection refused')
+    })
+    const runtime = createRuntimeReads({ ...input, selectionFactory })
+    try {
+      expect(await runtime.methods.legalTargets({ session: host.session })).toEqual({
+        unavailable: true,
+      })
+      expect(selectionFactory).toHaveBeenCalledTimes(1)
+    } finally {
+      await runtime.close()
+      await host.close()
+    }
+  })
+
+  it('reuses the original selection owner and closes it through the physical read owner', async () => {
+    const { host, input } = await selectionFactoryFixture()
+    const close = vi.fn()
+    const selectionFactory = vi.fn((next: Parameters<typeof createSessionModelSelection>[0]) => {
+      const selection = createSessionModelSelection(next)
+      return {
+        ...selection,
+        async close() {
+          close()
+          return selection.close()
+        },
+      }
+    })
+    const runtime = createRuntimeReads({ ...input, selectionFactory })
+    try {
+      expect(await runtime.methods.legalTargets({ session: host.session })).toHaveProperty(
+        'legalTargets',
+      )
+      expect(await runtime.methods.legalTargets({ session: host.session })).toHaveProperty(
+        'legalTargets',
+      )
+      expect(selectionFactory).toHaveBeenCalledTimes(1)
+      expect(close).not.toHaveBeenCalled()
+      expect(await runtime.close()).toEqual({ released: true })
+      expect(close).toHaveBeenCalledTimes(1)
+    } finally {
+      await runtime.close()
+      await host.close()
+    }
+  })
+})
 
 describe('RT7 service selection and reads on real SQLite/SQL journal session', () => {
   it('does not cache unavailable close while an actual-stop receipt remains unresolved', async () => {

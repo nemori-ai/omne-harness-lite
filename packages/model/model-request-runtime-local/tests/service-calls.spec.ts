@@ -1,3 +1,4 @@
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { UnknownAppendTracker } from '@omne-harness-lite/model-request-runtime'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
@@ -295,6 +296,7 @@ test('a stopped host rejects registration before any asynchronous session prepar
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
     identities: { call: () => 'stopped-call' },
     maxScopes: 4,
     sessions: { bind },
@@ -334,6 +336,7 @@ test('host stop during session binding prevents a late call publication and unre
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
     identities: { call: () => 'late-call' },
     maxScopes: 4,
     sessions: { bind },
@@ -370,6 +373,7 @@ test('service close stops and retains a registered preparation until binding act
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
     identities: { call: () => 'closing-preparation-call' },
     maxScopes: 4,
     sessions: { bind },
@@ -412,6 +416,7 @@ test('observer association rejects a wrong call before catalog reads or transpor
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
     identities: { call: () => 'observer-call' },
     maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },
@@ -582,6 +587,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
+      selectionFactory: createSessionModelSelection,
       maxScopes: 4,
       callFacts: createSessionModelCallFacts({
         content,

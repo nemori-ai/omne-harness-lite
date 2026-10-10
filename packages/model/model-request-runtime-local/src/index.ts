@@ -3,8 +3,6 @@ export { createDefaultRetryImplementation, DEFAULT_RETRY_BUILTIN } from './defau
 export type { DefaultRetryConfiguration, DefaultRetryResult } from './default-retry.ts'
 export { createAnchoredModelInvocation } from './anchored-invocation.ts'
 export type * from './anchored-invocation-types.ts'
-export { createSessionModelSelection } from './session-selection.ts'
-export type * from './session-selection-types.ts'
 export type * from './service-types.ts'
 export { createCallContainerStore, createCallPreparationOwner } from './service-container.ts'
 export { createCallContainerPresence } from './call-presence.ts'

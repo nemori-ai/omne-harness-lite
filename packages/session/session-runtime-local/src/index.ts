@@ -95,3 +95,5 @@ export { createSessionModelCallFacts } from './model-call-facts.ts'
 
 export { appendControlRecord } from './model-control-append.ts'
 export { createSessionModelReconciler, recognizeSessionModelReply } from './model-recovery.ts'
+
+export { createSessionModelSelection } from './model-selection.ts'

@@ -1,3 +1,5 @@
+import type { EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
+import type { EffectiveModel, DisplayListResult, LegalTargetsResult } from './selection-types.ts'
 import type { CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { RouteName } from '@omne-harness-lite/model-profile'
@@ -44,3 +46,22 @@ export type SessionSelectModelResult =
         readonly because: readonly ['withdrawn' | 'scope_disallowed' | 'modality_mismatch']
       }
     }
+
+/** Evaluation is the actual current AE4 result, including root limits; no dispatch defaults. */
+export type SessionEffectiveModelResult =
+  | { readonly ok: EffectiveModel; readonly evaluation: EffectiveAssembly }
+  | SelectionFailure
+  | { readonly profileNotFound: true }
+
+export interface SessionModelSelection {
+  readonly legalTargets: () => Promise<LegalTargetsResult>
+  readonly selectModel: (routeName: unknown) => Promise<SessionSelectModelResult>
+  readonly displayList: () => Promise<DisplayListResult>
+  readonly effectiveModel: () => Promise<SessionEffectiveModelResult>
+  /** Unconfirmed original writes retain their registrations and borrowed dependencies. */
+  readonly close: () => Promise<{ readonly released: true } | { readonly unavailable: true }>
+}
+
+export type SessionModelSelectionFactory = (
+  input: SessionModelSelectionInput,
+) => SessionModelSelection

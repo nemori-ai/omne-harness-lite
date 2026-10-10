@@ -13,6 +13,9 @@
 
 `createSessionModelReconciler`拥有完整会话日志对账。投影共享原恢复状态和可重试关闭责任。`sessionModelSettlement`同时提供冷回复认回及控制记录追加，不发起模型请求，不关闭借入的执行池。
 
+
+`createSessionModelSelection`拥有会话模型选择、完整历史读取、求值及原操作收尾。公开类型归Core；调用者显式关闭返回句柄，并持有它直至原任务实际结束。
+
 ## 使用
 
 在共享根库组合admissionMigrations，在每租户实际运行库组合admissionUseMigrations，然后以根Storage、可信治理核验端口及显式容量策略调用createLocalAdmission。调用者保管借入依赖。

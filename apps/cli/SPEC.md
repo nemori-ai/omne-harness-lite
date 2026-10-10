@@ -499,6 +499,8 @@ Driver故障先停止协议准入，再调用原诊断端口。关闭停止新�
 
 `createNativeSessionModelPool`分配实际ModelRuntime、调用存储、内容存储、调用事实、官方OpenRouter运输和可选模型目录。ready返回这些原对象，close保留原关闭语义。Session绑定在资源分配之后由应用选择，不内置某个宿主循环。已有createNativeSessionModelOwner在同一分配函数上安装模型绑定，不另建第二个池。
 
+该应用根显式选择Session的createSessionModelSelection并注入原Model读取适配器。sources只提供调用来源，不选择或替换此工厂；选择器的原句柄与关闭责任仍归物理拥有者。
+
 `startFileSessionRuntimeRoot`在分配资源前核固定中心／账号／登录来源，完成原CG刷新及use关闭，并核既有`tenant.json`的完整租户绑定。它不安装登录、绑定或模型凭据。准入库位于`<home>/data/session-admission.sqlite`，租户运行库沿`tenantPaths.runtime`，时钟使用该租户`run/clock.sqlite`的独立LeaseClock。目录、数据库及旁文件按既有私有命名空间规则检查。只有本次原子创建的新时钟文件允许初始化；重新打开不改写时钟身份。
 
 `startFileSessionDriverRoot`复用相同的文件资源和关闭拥有者，启动`startSessionDriverRuntimeRoot`。它先分配实际物理模型池，再把原pool、Session拥有者、工作结算拥有者和同一Storage／Clock交给可信configure。executionSource和Model工厂固定为原pool，不能由configure替换。configure提供公开Driver的Run来源、模型结算配置和工具绑定，不增加应用层循环。可信Session拥有者另提供原SqlSessionLog，供工具结果保管等组合使用；借用方不关闭它。普通协议不公开这些引用。配置失败也按同一顺序释放已分配资源。

@@ -1,3 +1,4 @@
+import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
@@ -26,6 +27,7 @@ type Ports<P extends PlannedSemantics, R> = Pick<
   | 'callPresence'
   | 'callFacts'
   | 'requestPreparation'
+  | 'selectionFactory'
   | 'recordPublication'
   | 'acknowledgementFactory'
   | 'settlementFactory'
@@ -114,6 +116,7 @@ export function referencePorts<P extends PlannedSemantics, R>(
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
   }
 }
 
@@ -125,6 +128,7 @@ export function unavailableReferencePorts<P extends PlannedSemantics, R>(): Port
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
+    selectionFactory: createSessionModelSelection,
     callAccess: { check: async () => unavailable },
     callPresence: { read: async () => unavailable },
     callFacts: {

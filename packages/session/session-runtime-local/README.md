@@ -13,6 +13,9 @@ The root exports `createLocalSessionDriver` for normal Model and Tool paths. It 
 
 `createSessionModelReconciler` owns complete Session-log reconciliation. Its projections share the original recovery entries and retryable close state. `sessionModelSettlement` also supplies cold-reply recognition and control-record append. These operations do not dispatch model requests or close the borrowed execution pool.
 
+
+`createSessionModelSelection` owns Session model selection, full-history reads, evaluation and original operation cleanup. Its public types belong to Core. Callers explicitly close the returned handle and keep it until original operations have stopped.
+
 ## Admission
 
 Compose `admissionMigrations` on the shared root database. Compose `admissionUseMigrations` on each tenant runtime database. Then call `createLocalAdmission` with the root storage, the trusted governance probe, and explicit capacity limits. The caller owns both storage instances and the probe.
