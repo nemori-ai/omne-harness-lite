@@ -1,14 +1,10 @@
 import { expect, test, vi } from 'vitest'
 import { judgeContentBlock, LosslessNumber } from '@omne-harness-lite/content-blocks'
 import { validate } from '@omne-harness-lite/loop-extension'
-import type {
-  AdmissionInput,
-  AuthorizationContext,
-  SessionRunMode,
-  ExecuteTier,
-} from '@omne-harness-lite/tool-admission'
+import type { AdmissionInput, SessionRunMode, ExecuteTier } from '@omne-harness-lite/tool-admission'
 import { createAdmissionJudgment } from '../src/index.ts'
-const grants = Object.freeze({}) as AuthorizationContext
+import { emptyAuthorizationContext } from '@omne-harness-lite/tool-admission'
+const grants = emptyAuthorizationContext()
 function call(id = 'call', args: unknown = { message: 'hello' }): AdmissionInput['call'] {
   const result = judgeContentBlock({
     kind: 'tool_call',
@@ -235,4 +231,26 @@ test('failure precedence checks the whole shape, then unknown mode, then parent 
       kind: 'failed',
       reason: 'invalidInput',
     })
+})
+
+for (const permission of ['forbid', 'ask', 'auto'] as const) {
+  test(`empty grants preserve ${permission} execution policy`, async () => {
+    const result = await createAdmissionJudgment().admit([input(permission, 'never')])
+    if (permission === 'ask') expect(result).toEqual({ kind: 'failed', reason: 'unavailable' })
+    else
+      expect(result).toMatchObject({
+        kind: 'decisions',
+        results: [
+          permission === 'auto'
+            ? { kind: 'allow' }
+            : { kind: 'deny', reason: 'permission_forbidden' },
+        ],
+      })
+  })
+}
+
+test('empty grant contexts are immutable and have independent binding identity', () => {
+  const first = emptyAuthorizationContext()
+  expect(Object.isFrozen(first)).toBe(true)
+  expect(first).not.toBe(emptyAuthorizationContext())
 })

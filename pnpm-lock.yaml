@@ -253,6 +253,9 @@ importers:
       '@omne-harness-lite/storage-sql':
         specifier: workspace:*
         version: link:../../packages/infra/storage-sql
+      '@omne-harness-lite/tool-admission':
+        specifier: workspace:*
+        version: link:../../packages/core/tool-admission
       '@omne-harness-lite/tool-admission-local':
         specifier: workspace:*
         version: link:../../packages/tools/tool-admission-local

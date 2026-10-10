@@ -635,3 +635,13 @@ forms逐条覆盖CQ1全部34命令/31路由，生成Intent与原CG/EC Schema一�
 本机Model装配从Session公开入口选择createSessionModelCallFacts，并传入原Model内容存储和实际presence。各主体视图共享同一索引。停止单个Session不得关闭该物理池索引；原池在排空后按原顺序关闭。
 
 模型根装配同时选择Session的createSessionModelReads与createSessionModelSelection。sources不提供或覆盖这两个工厂。读取拥有者借入原Model内容和ACK补全能力，Model原池继续负责执行与清理。
+
+## 独立宿主进程与启动输入
+
+`session-host-main` 是私有进程入口。`omne-session-host-startup/1` 只传入规范化 home、完整 TenantBinding 和显式模型名称。它拒绝附加字段，不接收账号声明、密钥、SessionAccess、回调或执行器。进程从实际本机目录读取登录记录，再经真实治理客户端完成既有登录与成员检查。密钥位置由该租户目录确定。
+
+`runSessionHostProcess` 持有根目录、治理客户端和文件运行根。停止请求先交给原运行根；只有它确认 closed，进程才释放治理客户端和目录。pending 或关闭异常保留原拥有者，记录故障并等待另一次显式停止请求，不自动重试业务操作。启动失败留下的 closeRetained 遵守相同次序。客户端退出不发送停止请求。
+
+`connectProductionSessionHost` 消费既有连接协议。通道缺失时，用当前 Node 可执行文件启动发行包内的私有入口，启用 detached。子进程继承自己的私有日志文件描述符；父进程归还文件句柄不关闭子进程日志。已有通道不被覆盖，连接取消或超时不杀子进程。日志仅记录诊断类别，不输出启动身份材料或凭据。
+
+`startProductionSessionHost` 选择既有 Session Driver、官方定义、实际模型目录、加密凭据、同库参加者、Clock 和 OpenRouter 提供者。Run 的源和任务在实际生命周期内借用及归还，不由 CLI 消费者维护执行循环。当前发行定义的此装配支持文本模型回路；未安装的工具与扩展执行返回不可用。完整 B01 工具装配和裸终端接入仍须完成，不能以该文本装配替代这些交付要求。
