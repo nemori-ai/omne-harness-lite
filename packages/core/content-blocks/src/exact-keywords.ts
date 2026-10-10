@@ -83,13 +83,6 @@ function equal(left: JsonValue, right: JsonValue): boolean {
   if (object(left) || object(right)) return objectsEqual(left, right)
   return left === right
 }
-function containsNumber(value: JsonValue): boolean {
-  return (
-    isJsonNumber(value) ||
-    (Array.isArray(value) && value.some(containsNumber)) ||
-    (object(value) && Object.values(value).some(containsNumber))
-  )
-}
 function divisible(a: Decimal, b: Decimal): boolean {
   if (b.negative || b.digits === '0') return false
   if (a.digits === '0') return true
