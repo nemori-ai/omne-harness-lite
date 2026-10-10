@@ -5,7 +5,7 @@ import { TOOL_RUNTIME_REGISTRY } from '@omne-harness-lite/tool-execution-runtime
 import type {
   ExecutionObserver,
   ExecutionRead,
-  ToolRuntimeOperations,
+  ToolPoolAdmission,
 } from '@omne-harness-lite/tool-execution-runtime'
 import type { SessionAccess } from '@omne-harness-lite/session-tenancy'
 import { runtimeRegistry } from '../src/cordis.ts'
@@ -49,7 +49,7 @@ function observer() {
   }
 }
 
-async function fixture(acquire: ToolRuntimeOperations['acquire']) {
+async function fixture(acquire: ToolPoolAdmission['acquire']) {
   const root = new Context()
   const registry = await root.plugin(runtimeRegistry, {})
   const provider = await root.plugin({

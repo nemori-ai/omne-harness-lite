@@ -11,7 +11,7 @@ import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type {
   InvocationDependencies,
   ToolImplementation,
-  ToolRuntimeOperations,
+  ToolPoolAdmission,
 } from '@omne-harness-lite/tool-execution-runtime'
 import {
   TOOL_IMPLEMENTATIONS,
@@ -75,7 +75,7 @@ function invoker() {
     },
   })
 }
-const missing: ToolRuntimeOperations = {
+const missing: ToolPoolAdmission = {
   async submit() {
     return { kind: 'rejected', reason: 'runtimeNotReady' }
   },

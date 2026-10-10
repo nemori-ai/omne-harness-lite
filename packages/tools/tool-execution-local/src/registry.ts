@@ -1,11 +1,11 @@
 import type {
-  ToolRuntimeOperations,
+  ToolPoolAdmission,
   ToolRuntimeRegistryOperations,
 } from '@omne-harness-lite/tool-execution-runtime'
 
 /** Stable access path. The registered provider retains responsibility for its existing work. */
 export function createToolRuntimeRegistry(): ToolRuntimeRegistryOperations {
-  let current: { readonly provider: ToolRuntimeOperations } | undefined
+  let current: { readonly provider: ToolPoolAdmission } | undefined
   return Object.freeze({
     register(provider) {
       if (current) throw new Error('tool runtime already registered')

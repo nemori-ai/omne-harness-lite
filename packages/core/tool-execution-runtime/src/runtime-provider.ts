@@ -3,6 +3,7 @@ import type {
   SessionLogOwnerOperations,
 } from '@omne-harness-lite/session-log'
 import type { SessionAccessOperations } from '@omne-harness-lite/session-tenancy'
+import type { ToolPoolInstance } from './execution-pool.ts'
 import type { RuntimeContextOperations } from '@omne-harness-lite/runtime-context'
 import type {
   EnvironmentProviderRegistrations,
@@ -48,7 +49,7 @@ export type ToolRuntimeCloseControl = RetainedCloseControl
 
 /** The host retains control before waiting for runtime recovery. */
 export interface ToolRuntimeStartupOperations {
-  recoveryAccess(): ToolRuntimeBootstrap['recovery']
+  start(config: ToolRuntimeConfig): ToolPoolInstance
   retainClose(control: ToolRuntimeCloseControl): void
 }
 

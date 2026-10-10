@@ -207,7 +207,7 @@ TE-22 `projectToolJournal` 只解释工具领域的有序事实，不替代完�
 TE-23 runtime 提供给工具的每次成功 context 读取，都先确认 `execution_context_read`，再返回该次实际值。readIndex 从 1 连续增加；同次采用的 key 不重复。采用记录只追加，不替换先前读值；终局之后不能新增采用。回执未知或存储不可用时不把值交给工具。采用记录不改变执行阶段，也不以缓存值冒充当前读取。
 
 
-TE-24 管理启动仅借用原 RecoveryAccess，不把权限或关闭控制放入 JSON、工具能力、runtime context 或模型输入。创建原实例后、等待其 ready 前，提供者须把原 ToolRuntimeCloseControl 经 retainClose 交给受信宿主。retainClose 正常返回表示宿主已经持有该原控制，并持有到原责任完成。同一控制重复交付可认回；不同控制与原控制冲突时须同步抛出，不覆盖原控制，也不假报成功。宿主无法持有时须同步抛出。交付抛出使管理 ready 拒绝，不能继续发布业务 runtime；原已登记的提供者仍负责实际实例及关闭，不表示可丢弃。控制不替代租户／会话授权。
+TE-24 管理启动通过受信根提供的 ToolRuntimeStartupOperations.start(config) 取得原 ToolPoolInstance。受信根选择工厂及活体依赖；绑定只传普通配置，不读取 Session 历史或选择 Runner 链。注册表只接收 PreparedToolExecution。不把权限或关闭控制放入 JSON、工具能力、runtime context 或模型输入。取得原实例后、等待其 ready 前，提供者须把原 ToolRuntimeCloseControl 经 retainClose 交给受信宿主。retainClose 正常返回表示宿主已经持有该原控制，并持有到原责任完成。同一控制重复交付可认回；不同控制与原控制冲突时须同步抛出，不覆盖原控制，也不假报成功。宿主无法持有时须同步抛出。交付抛出使管理 ready 拒绝，不能继续发布业务 runtime；原已登记的提供者仍负责实际实例及关闭，不表示可丢弃。控制不替代租户／会话授权。
 
 TE-25 原实例管理关闭开始前，closeAttempt 与 retryClose 都固定等待第一次原关闭尝试，不主动停止实例，也不因第一次失败再自动启动第二次。关闭已经开始时，closeAttempt 固定观察调用当时最近已发起的尝试；以后重试不改变该次观察。retryClose 在有在途尝试时加入该次，在最近尝试失败且没有在途尝试时发起一次同实例重试；并发请求合并为同一在途尝试。closed 后两个操作均认回 closed，且不再调用根 close。closed 只表示原实例 close 成功。原 close 拒绝返回 retained，不能推断业务或物理工作已静止；管理 OwnedWork.close 保持 pending，下层仍须保有。原 close 真正 pending 时也继续 pending，不以超时假完成。控制指向原纯闭包，Service 撤除不改变应用已持有控制的责任或寿命；不能创建 successor、重新执行作者或开放业务准入。
 

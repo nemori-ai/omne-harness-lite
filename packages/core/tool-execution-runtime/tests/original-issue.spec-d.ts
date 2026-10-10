@@ -12,6 +12,9 @@ import type {
   ToolRuntimeOriginalIssueDependencies,
   ToolRuntimeOriginalIssueFactory,
   ToolPoolInstance,
+  ToolRuntimeStartupOperations,
+  ToolRuntimeRegistryOperations,
+  PreparedToolExecution,
 } from '../src/index.ts'
 
 declare const nativeDependencies: ToolRuntimeOriginalIssueDependencies
@@ -77,3 +80,12 @@ declare const originalSupport: ToolOriginalIssueSupport
 originalSupport.log.readPrefixIn
 // @ts-expect-error The native pool cannot enumerate Sessions through original support.
 originalSupport.log.enumerate
+
+declare const startup: ToolRuntimeStartupOperations
+// @ts-expect-error The binding receives an actual pool factory, not a maintenance token.
+startup.recoveryAccess()
+declare const registry: ToolRuntimeRegistryOperations
+// @ts-expect-error The runtime registry forwards prepared requests only.
+registry.submit(submission)
+declare const prepared: PreparedToolExecution
+registry.submit(prepared)
