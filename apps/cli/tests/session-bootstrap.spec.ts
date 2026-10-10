@@ -1,3 +1,4 @@
+import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
@@ -2648,6 +2649,7 @@ function nativeModelConstruction(
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     callAccess: { check: async () => unavailable },
     callPresence,
     callFacts: createSessionModelCallFacts({ content, presence: callPresence, maxScopes: 8 }),

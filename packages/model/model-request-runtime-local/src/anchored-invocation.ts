@@ -20,10 +20,7 @@ import {
   modelLogJsonEqual,
 } from '@omne-harness-lite/model-request-runtime'
 import { settlementAppendReceipt } from '@omne-harness-lite/model-request-runtime'
-import {
-  readSettlementPrefix,
-  settlementGenerationCurrent,
-} from '@omne-harness-lite/model-request-runtime'
+import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
 import {
   constructPendingModelResponse,
   constructModelResponse,
@@ -818,19 +815,19 @@ async function prepareAnchoredInvocation<P extends PlannedSemantics, R>(
     }
   }
   async function admitDispatched() {
-    const fixed = await readSettlementPrefix({
+    const fixed = await input.settlementFactory.captureSource({
       binding,
       registration: { start, release: registration.release },
     })
-    if (!('prefix' in fixed) || preparedEntry.dedupeKey === undefined) return undefined
+    if (!('source' in fixed) || preparedEntry.dedupeKey === undefined) return undefined
     const received = await start('controlAppend', () =>
       originalIssue.admitOriginal({
-        source: fixed.prefix.source,
+        source: fixed.source,
         originalPosition: preparedEntry.dedupeKey!,
         entry: preparedEntry,
       }),
     ).completion
-    const admission = originalIssueReceipt(received, fixed.prefix.source)
+    const admission = originalIssueReceipt(received, fixed.source)
     if (admission === undefined || !('confirmed' in admission)) {
       if (
         admission === undefined ||

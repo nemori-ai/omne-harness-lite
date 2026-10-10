@@ -1075,3 +1075,5 @@ export async function confirmContent(
 内部 `publishModelCallContent` 先写入 accepted 创建或 ready 内容、读取权威 Session Log 前缀，再以 `tailEquals` 追加 marker。真实 SQLite/SQL Session Log 场景验证 created marker 单次提交、同原件认回及不同字节拒绝。公开 `openCall` 和有回复 `dispatch` 在返回 ref 或终态前调用该发布件。`createIndependentCallConsumer` 独立拥有 wait/release 资源：单次 wait 取消不结束 consumer，release 等待接收任务真实停止。`createRuntimeAcquire` 经受信资格与存在性提供者及共同 facts 投影回答 `acquireCall`。
 
 `createSessionModelCallFacts` 从实际会话前缀投影 created/ready marker，并按摘要读取已确认内容。首个 owner 关闭后，另一个 facts 实例能从 SQL Session Log 和 SQLite 内容存储还原同一引用。在 Cordis/Storage 服务场景中，`openCall` 返回创建引用，`dispatch` 发布 ready 而不捏造最终响应，新建 `acquireCall({ mode: 'read' })` 消费者看到 `complete` 与 `disposition_pending`。释放消费者不取消执行 owner。ready 工作真实排空后，runtime 释放精确 transport lease。之后的处分、ACK 回收（RT12 S-98，见上文确认一节）与 creation key 认回由 `tests/acceptance-a22-acknowledgement.spec.ts`、`tests/acceptance-a22-settlement-work.spec.ts`、`tests/acceptance-20260930-a22-runtime.spec.ts` 覆盖，经 demo 服务的路径由其 `tests/call-reference-service.spec.ts` 覆盖。
+
+readFactory为必填构造输入。createRuntimeReads只把原执行与custody输入适配给Session读取拥有者。Model不再为读取、失败对象或原发起来源捕获读取完整Session前缀。

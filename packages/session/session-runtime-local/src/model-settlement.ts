@@ -1,3 +1,4 @@
+import { captureSessionModelSource, readSessionModelFailure } from './model-failure-read.ts'
 import { appendControlRecord } from './model-control-append.ts'
 import { createSessionModelReconciler, recognizeSessionModelReply } from './model-recovery.ts'
 import type { SessionModelSettlement } from '@omne-harness-lite/model-request-runtime'
@@ -6,6 +7,8 @@ import { createSettlementWork } from './settlement-work.ts'
 import { recoverSettlementWork } from './settlement-work-recovery.ts'
 
 export const sessionModelSettlement: SessionModelSettlement = Object.freeze({
+  captureSource: captureSessionModelSource,
+  readFailure: readSessionModelFailure,
   appendControl: appendControlRecord,
   createReconciler: createSessionModelReconciler,
   recognizeReply: recognizeSessionModelReply,

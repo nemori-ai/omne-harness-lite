@@ -1,3 +1,4 @@
+import type { SessionModelReadFactory } from '@omne-harness-lite/model-request-runtime'
 import type { SessionModelSelectionFactory } from '@omne-harness-lite/model-request-runtime'
 import type { SessionModelSettlement } from '@omne-harness-lite/model-request-runtime'
 import type { SessionModelAcknowledgementFactory } from '@omne-harness-lite/model-request-runtime'
@@ -328,6 +329,7 @@ class Provider extends ModelRuntimeService {
 
 /** Trusted assembly closure ports. These are not serialized policy or caller authority. */
 export interface ModelRuntimeLocalConstruction {
+  readonly readFactory: SessionModelReadFactory
   readonly selectionFactory: SessionModelSelectionFactory
   readonly requestPreparation: SessionModelRequestPreparation
   readonly callFactsFactory: SessionModelCallFactsFactory
@@ -443,6 +445,7 @@ export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruct
               runtime = createModelRuntime({
                 requestPreparation: construction.requestPreparation,
                 selectionFactory: construction.selectionFactory,
+                readFactory: construction.readFactory,
                 acknowledgementFactory: construction.acknowledgementFactory,
                 settlementFactory: construction.settlementFactory,
                 recordPublication: construction.recordPublication,

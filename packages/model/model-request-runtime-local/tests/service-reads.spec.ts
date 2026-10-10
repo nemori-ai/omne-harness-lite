@@ -1,3 +1,11 @@
+import type { SessionModelReads } from '@omne-harness-lite/model-request-runtime'
+import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
+import type {
+  SessionModelReadInput,
+  SessionModelReadHost,
+} from '@omne-harness-lite/model-request-runtime'
+import { projectRuntimeComponent } from '../src/runtime-projection.ts'
+import { runtimeCustody } from '../src/acknowledgement-custody.ts'
 import { modelCategory } from './log-codec-fixture.ts'
 import { describe, expect, it, vi } from 'vitest'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
@@ -165,6 +173,116 @@ async function selectionFactoryFixture() {
     input: construction(binding, { value: 0, append: 0, credential: 0, transport: 0 }),
   }
 }
+
+describe('Session read factory ownership', () => {
+  it('does not construct a Model history reader when the Session factory refuses', async () => {
+    const { host, input } = await selectionFactoryFixture()
+    const refusal = new Error('Session read factory refused')
+    const readFactory = vi.fn(() => {
+      throw refusal
+    })
+    try {
+      expect(() => createRuntimeReads({ ...input, readFactory })).toThrow(refusal)
+      expect(readFactory).toHaveBeenCalledTimes(1)
+    } finally {
+      await host.close()
+    }
+  })
+})
+
+describe('Session read custody ownership', () => {
+  it('keeps original custody when a projected host carries another cleanup object', async () => {
+    const { host, input } = await selectionFactoryFixture()
+    const inputs: SessionModelReadInput[] = []
+    const owners: SessionModelReads[] = []
+    const originalCloses: ReturnType<typeof vi.fn>[] = []
+    const runtime = createRuntimeReads({
+      ...input,
+      readFactory(next) {
+        const custody = next.custody
+        if (custody?.close === undefined) throw new Error('original owned custody required')
+        const close = vi.fn(custody.close)
+        const owned = { ...next, custody: { ...custody, close } }
+        inputs.push(owned)
+        originalCloses.push(close)
+        const reads = createSessionModelReads(owned)
+        owners.push(reads)
+        return reads
+      },
+    })
+    try {
+      const original = inputs[0],
+        owner = owners[0]
+      if (original === undefined || owner === undefined || original.custody === undefined)
+        throw new Error('actual Session read owner missing')
+      const close = vi.fn(async () => ({ released: true as const }))
+      const next = { ...original, custody: { ...original.custody, close } }
+      const projected = owner.project(next)
+      expect(await projected.close()).toEqual({ released: true })
+      expect(close).not.toHaveBeenCalled()
+      expect(originalCloses[0]).toHaveBeenCalledTimes(1)
+    } finally {
+      await runtime.close()
+      await inputs[0]?.custody?.close?.()
+      await host.close()
+    }
+  })
+
+  it('shares one original custody across standalone read projections', async () => {
+    const { host, input } = await selectionFactoryFixture()
+    const seen: SessionModelReadInput[] = []
+    let projections = 0
+    const readFactory = vi.fn((next: SessionModelReadInput) => {
+      seen.push(next)
+      const reads = createSessionModelReads(next)
+      return {
+        ...reads,
+        project(projected: SessionModelReadHost) {
+          projections++
+          return reads.project(projected)
+        },
+      }
+    })
+    const runtime = createRuntimeReads({ ...input, readFactory })
+    try {
+      const projected = projectRuntimeComponent(runtime, { ...input, readFactory })
+      expect(readFactory).toHaveBeenCalledTimes(1)
+      expect(seen).toHaveLength(1)
+      expect(projections).toBe(1)
+      expect(seen[0]?.custody).toBeDefined()
+      expect(seen[0]?.custody?.close).toBeTypeOf('function')
+      expect(await projected.methods.legalTargets({ session: host.session })).toHaveProperty(
+        'legalTargets',
+      )
+      expect(await runtime.close()).toEqual({ released: true })
+      expect(await projected.methods.legalTargets({ session: host.session })).toEqual({
+        unavailable: true,
+      })
+    } finally {
+      await runtime.close()
+      await host.close()
+    }
+  })
+
+  it('does not close the physical runtime custody borrowed by Session reads', async () => {
+    const { host, input } = await selectionFactoryFixture()
+    const custody = runtimeCustody(input)
+    if (custody === undefined) throw new Error('actual custody required')
+    const close = vi.fn(custody.close)
+    const runtime = createRuntimeReads(input, { ...custody, close })
+    try {
+      expect(await runtime.methods.legalTargets({ session: host.session })).toHaveProperty(
+        'legalTargets',
+      )
+      expect(await runtime.close()).toEqual({ released: true })
+      expect(close).not.toHaveBeenCalled()
+    } finally {
+      await runtime.close()
+      await custody.close()
+      await host.close()
+    }
+  })
+})
 
 describe('Session selection factory ownership', () => {
   it('does not replace a refused selection factory with a Model implementation', async () => {

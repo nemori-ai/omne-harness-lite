@@ -1,3 +1,4 @@
+import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { UnknownAppendTracker } from '@omne-harness-lite/model-request-runtime'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
@@ -297,6 +298,7 @@ test('a stopped host rejects registration before any asynchronous session prepar
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     identities: { call: () => 'stopped-call' },
     maxScopes: 4,
     sessions: { bind },
@@ -337,6 +339,7 @@ test('host stop during session binding prevents a late call publication and unre
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     identities: { call: () => 'late-call' },
     maxScopes: 4,
     sessions: { bind },
@@ -374,6 +377,7 @@ test('service close stops and retains a registered preparation until binding act
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     identities: { call: () => 'closing-preparation-call' },
     maxScopes: 4,
     sessions: { bind },
@@ -417,6 +421,7 @@ test('observer association rejects a wrong call before catalog reads or transpor
     recordPublication: publishSessionModelCallContent,
     requestPreparation: sessionModelRequestPreparation,
     selectionFactory: createSessionModelSelection,
+    readFactory: createSessionModelReads,
     identities: { call: () => 'observer-call' },
     maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },
@@ -588,6 +593,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
       selectionFactory: createSessionModelSelection,
+      readFactory: createSessionModelReads,
       maxScopes: 4,
       callFacts: createSessionModelCallFacts({
         content,

@@ -6,7 +6,7 @@ import { parseOpaqueIdentifier, parseTenantId } from '@omne-harness-lite/identit
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type { OwnedLogEntry } from '@omne-harness-lite/session-log'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
-import { createModelFailureSource } from '../src/failure-subject.ts'
+import { createModelFailureSource } from '@omne-harness-lite/session-runtime-local'
 import {
   captureModelLogValue,
   prepareModelLogEntry,

@@ -1,3 +1,4 @@
+import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
@@ -97,6 +98,7 @@ export async function namedProviderFixture(
       ModelRuntimeLocalConstruction,
       | 'requestPreparation'
       | 'selectionFactory'
+      | 'readFactory'
       | 'recordPublication'
       | 'acknowledgementFactory'
       | 'settlementFactory'
@@ -121,6 +123,7 @@ export async function namedProviderFixture(
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
       selectionFactory: createSessionModelSelection,
+      readFactory: createSessionModelReads,
     })
   const lifetime = createAssemblyLifetime(['model'], binding.closeAdmission)
   if (!lifetime.tryClaim()) throw new Error('fixture lifetime claim')

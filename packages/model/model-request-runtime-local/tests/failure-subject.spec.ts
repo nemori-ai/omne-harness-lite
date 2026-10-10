@@ -3,7 +3,7 @@ import type {
   AfterModelCallFailureSubject,
   ModelRetryConclusion,
 } from '@omne-harness-lite/loop-extension'
-import { readFailureSubject } from '../src/failure-subject.ts'
+import { readFailureSubject } from '@omne-harness-lite/session-runtime-local'
 import { readSettlementPrefix } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementTask, SettlementTaskKind } from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'

@@ -25,8 +25,6 @@ import {
   dispatchGuard,
   modelLogJsonEqual,
   operationDiagnostics,
-  readSettlementPrefix,
-  rejectAcknowledgedHistory,
   settlementGenerationCurrent,
   UnknownAppendTracker,
   type UnacknowledgedCallHistory,
@@ -34,7 +32,6 @@ import {
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { randomUUID } from 'node:crypto'
 import { createAnchoredModelInvocation } from './anchored-invocation.ts'
-import { createModelFailureSource, readFailureSubject } from './failure-subject.ts'
 import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
 import {
   createPlanReuseScopes,
@@ -1018,49 +1015,32 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
             view.owner,
             runtime.settlementContention.limits.concurrent,
             physical.retainedReads,
-            async registration => {
-              const prefix = await readSettlementPrefix({ binding: session.log, registration })
-              if ('unavailable' in prefix) return { unavailable: true } as const
-              const history = rejectAcknowledgedHistory(
-                runtime.history.call(prefix.prefix, key.callId),
-              )
-              if (!('known' in history)) return { unavailable: true } as const
-              const latest = history.known.dispatches.at(-1)
-              if (
-                latest?.response === null ||
-                latest?.response === undefined ||
-                !modelLogJsonEqual(latest.response.value, response)
-              )
-                return { unavailable: true } as const
-              const subject = readFailureSubject({
-                prefix: prefix.prefix,
+            registration =>
+              runtime.settlementFactory.readFailure({
+                binding: session.log,
+                registration,
                 callId: key.callId,
-                dispatches: history.known.dispatches,
-                source: runtime.history.failure,
-              })
-              if (!('subject' in subject)) return { unavailable: true } as const
-              if (onFailure !== undefined) {
-                const source = createModelFailureSource({
-                  prefix: prefix.prefix,
-                  callId: key.callId,
-                  owner: view.owner,
-                  subject: subject.subject,
-                  usable: () =>
-                    !physical.closing &&
-                    !view.request.host.stopping() &&
-                    !view.request.host.signal.aborted,
-                  retain: value => {
-                    physical.sources.add(value)
-                  },
-                  forget: value => {
-                    physical.sources.delete(value)
-                  },
-                })
-                if (source === null) return { unavailable: true } as const
-                createdSource = source
-              }
-              return { subject: subject.subject }
-            },
+                response,
+                history: runtime.history,
+                owner: view.owner,
+                ...(onFailure === undefined
+                  ? {}
+                  : {
+                      consume: {
+                        usable: () =>
+                          !physical.closing &&
+                          !view.request.host.stopping() &&
+                          !view.request.host.signal.aborted,
+                        retain: source => {
+                          createdSource = source
+                          physical.sources.add(source)
+                        },
+                        forget: source => {
+                          physical.sources.delete(source)
+                        },
+                      },
+                    }),
+              }),
           )
           if ('unavailable' in got || 'unavailable' in got.ok) {
             createdSource?.release()

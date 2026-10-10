@@ -1,3 +1,4 @@
+import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelSettlement } from '@omne-harness-lite/session-runtime-local'
@@ -151,6 +152,7 @@ describe('named model runtime provider', () => {
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
       selectionFactory: createSessionModelSelection,
+      readFactory: createSessionModelReads,
     })
     const schema = provider.plugin.Config
     if (!schema) throw new Error('provider schema absent')
@@ -313,6 +315,7 @@ describe('named model runtime provider', () => {
       recordPublication: publishSessionModelCallContent,
       requestPreparation: sessionModelRequestPreparation,
       selectionFactory: createSessionModelSelection,
+      readFactory: createSessionModelReads,
     })
     expect(() => provider.plugin.describeAssembly({})).toThrow()
     expect(() => provider.plugin.describeAssembly({ ...providerConfig, construct() {} })).toThrow()

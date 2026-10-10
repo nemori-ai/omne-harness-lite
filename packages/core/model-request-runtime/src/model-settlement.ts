@@ -1,3 +1,8 @@
+import type {
+  SessionModelFailureReadInput,
+  SessionModelFailureReadResult,
+  SessionModelSourceCapture,
+} from './model-reads.ts'
 import type { ControlAppendInput } from './model-control.ts'
 import type {
   SessionModelRecoveryInput,
@@ -156,6 +161,10 @@ export interface SettlementWorkRecoveryInput {
 
 /** Session owns log interpretation. The root supplies these implementations without fallback. */
 export interface SessionModelSettlement {
+  readonly captureSource: SessionModelSourceCapture
+  readonly readFailure: (
+    input: SessionModelFailureReadInput,
+  ) => Promise<SessionModelFailureReadResult>
   readonly createReconciler: (input: SessionModelRecoveryInput) => SessionModelReconciler
   readonly recognizeReply: SessionModelReplyRecognition
   readonly appendControl: (

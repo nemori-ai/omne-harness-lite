@@ -85,3 +85,5 @@ export * from './model-control.ts'
 export * from './model-recovery.ts'
 export * from './model-unknown-append.ts'
 export * from './operation-diagnostics.ts'
+
+export type * from './model-reads.ts'

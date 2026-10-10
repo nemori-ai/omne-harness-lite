@@ -120,3 +120,5 @@ See [SPEC.md](SPEC.md#cordis驱动插件) for the ownership rules.
 `sessionModelSettlement` supplies model settlement, persistent work, and work recovery to runtime consumers. `createSettlementCoordinator` and `createSettlementWork` are also independent functions. See [ownership and lifetime](SPEC.md#模型结算的实际拥有者).
 
 The Session-owned `createSessionModelCallFacts` factory rebuilds and updates the call index from the session log. The root passes the original content store; the physical runtime keeps the close responsibility. See [the specification](SPEC.md#模型调用事实索引).
+
+The root exports `createSessionModelReads` and the fixed-prefix failure readers. The read owner retains Session history and read lifetimes; Model supplies its original execution view and borrowed content/ACK operations.
