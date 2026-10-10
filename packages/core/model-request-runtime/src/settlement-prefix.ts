@@ -1,5 +1,5 @@
 import { encodeModelLogKey } from './log-codec-key.ts'
-import { inspectModelLogEntry } from './log-codec-entry.ts'
+import { inspectModelLogEntry, type InspectedModelLogEntry } from './log-codec-entry.ts'
 import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import {
   copyJsonValue,
@@ -17,13 +17,13 @@ import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { type LoggedMessage } from '@omne-harness-lite/messages'
 import {
   checkSourceToken,
-  checkLogPayload,
   checkAppendInput,
   type SourceToken,
   type LogEntry,
 } from '@omne-harness-lite/session-log'
 import {
-  inspectSettlementMembers,
+  createModelLogReadInspector,
+  type ModelLogReadInspector,
   type ModelLogSettlementTarget,
   type ModelLogSettlementCurrent,
   type ModelLogSettlementAnchors,
@@ -42,8 +42,21 @@ function object(value: unknown): value is { readonly [key: string]: unknown } {
   )
 }
 const prefixToken = Object.freeze({})
+type PrefixAccessFailure = {
+  readonly unavailable: true
+  readonly reason: 'prefix' | 'generation'
+}
+type PrefixModelRead =
+  | {
+      readonly inspector: ModelLogReadInspector
+      readonly messagePrefix: readonly LoggedMessage[]
+    }
+  | { readonly unavailable: true; readonly reason: 'unknown_format' | 'members' }
 class OwnedPrefix {
   readonly #owned = true
+  readonly #generation: object
+  readonly #currentGeneration: SettlementLogBinding['currentGeneration']
+  #modelRead: PrefixModelRead | undefined
   constructor(
     token: unknown,
     readonly binding: SettlementLogBinding,
@@ -52,13 +65,73 @@ class OwnedPrefix {
     readonly source: SourceToken,
   ) {
     if (token !== prefixToken) throw new TypeError('Use readSettlementPrefix')
+    this.#generation = binding.generation
+    this.#currentGeneration = binding.currentGeneration
     Object.freeze(this)
   }
   static owns(value: unknown): value is OwnedPrefix {
     return value !== null && typeof value === 'object' && #owned in value
   }
+  static access(value: unknown): OwnedPrefix | PrefixAccessFailure {
+    if (!OwnedPrefix.owns(value)) return { unavailable: true, reason: 'prefix' }
+    if (!sourceMatchesBinding(value.source, value.binding, value.tail))
+      return { unavailable: true, reason: 'prefix' }
+    if (
+      value.binding.generation !== value.#generation ||
+      value.binding.currentGeneration !== value.#currentGeneration ||
+      !settlementGenerationCurrent(value.binding)
+    )
+      return { unavailable: true, reason: 'generation' }
+    return value
+  }
+  static modelRead(value: unknown): PrefixModelRead | PrefixAccessFailure {
+    const prefix = OwnedPrefix.access(value)
+    if ('unavailable' in prefix) return prefix
+    if (prefix.#modelRead === undefined) {
+      const inspected = createModelLogReadInspector({
+        session: prefix.source.session,
+        tenant: prefix.source.tenant,
+        prefix: { entries: prefix.entries, tail: prefix.tail },
+      })
+      if ('ok' in inspected) {
+        const messages: LoggedMessage[] = []
+        for (const { captured } of inspected.ok.entries) {
+          if (captured.message !== null && captured.message.type !== 'system')
+            messages.push(captured.message)
+        }
+        prefix.#modelRead = Object.freeze({
+          inspector: inspected.ok,
+          messagePrefix: Object.freeze(messages),
+        })
+      } else {
+        prefix.#modelRead = Object.freeze<PrefixModelRead>({
+          unavailable: true,
+          reason:
+            'reason' in inspected && inspected.reason === 'unknown_format'
+              ? 'unknown_format'
+              : 'members',
+        })
+      }
+      const current = OwnedPrefix.access(prefix)
+      if ('unavailable' in current) return current
+    }
+    return prefix.#modelRead
+  }
 }
 export type SettlementPrefix = OwnedPrefix
+export type SettlementPrefixEntriesResult =
+  | { readonly ok: readonly InspectedModelLogEntry[] }
+  | {
+      readonly unavailable: true
+      readonly reason: 'prefix' | 'generation' | 'unknown_format' | 'members'
+    }
+/** Fixed content interpretation. Each use checks the original owner and current generation. */
+export function inspectSettlementPrefixEntries(input: {
+  readonly prefix: SettlementPrefix
+}): SettlementPrefixEntriesResult {
+  const read = OwnedPrefix.modelRead(input.prefix)
+  return 'unavailable' in read ? read : { ok: read.inspector.entries }
+}
 /** Internal ownership test shared with call history; never a substitute for generation validity. */
 export function isOwnedSettlementPrefix(value: unknown): value is SettlementPrefix {
   return OwnedPrefix.owns(value)
@@ -266,7 +339,8 @@ export function interpretSettlementPrefix(input: {
   readonly target: ModelLogSettlementTarget
   readonly current: ModelLogSettlementCurrent | null
 }): SettlementInterpretation {
-  if (!isOwnedSettlementPrefix(input.prefix)) return { unavailable: true, reason: 'prefix' }
+  const accessed = OwnedPrefix.access(input.prefix)
+  if ('unavailable' in accessed) return accessed
   const { prefix, target, current } = input
   function record(key: Parameters<typeof encodeModelLogKey>[0]): LogEntry | null {
     const encoded = encodeModelLogKey(key)
@@ -291,11 +365,10 @@ export function interpretSettlementPrefix(input: {
     opened: record({ kind: 'opened', call: target.call, dispatch: target.dispatch }),
     intent: record({ kind: 'intent', call: target.call }),
   }
-  const members = inspectSettlementMembers({
-    mode: 'read',
-    session: prefix.binding.session,
-    tenant: prefix.binding.tenant,
-    prefix,
+  const read = OwnedPrefix.modelRead(prefix)
+  if ('unavailable' in read)
+    return { unavailable: true, reason: read.reason === 'unknown_format' ? 'members' : read.reason }
+  const members = read.inspector.inspectSettlementMembers({
     target,
     anchors,
     current,
@@ -305,19 +378,11 @@ export function interpretSettlementPrefix(input: {
       unavailable: true,
       reason: members.reason === 'run_history_unavailable' ? 'run_history_unavailable' : 'members',
     }
-  // The codec already checked every declared model entry in this full prefix.
-  const messages: LoggedMessage[] = []
-  for (const entry of prefix.entries) {
-    const recognized = checkLogPayload(entry.payload)
-    if ('failure' in recognized) return { unavailable: true, reason: 'members' }
-    if (recognized.kind === 'message' && recognized.payload.value.type !== 'system')
-      messages.push(recognized.payload.value)
-  }
   return {
     facts: {
       anchors,
       ended: record({ kind: 'ended', call: target.call }),
-      messagePrefix: Object.freeze(messages),
+      messagePrefix: read.messagePrefix,
       members,
     },
   }

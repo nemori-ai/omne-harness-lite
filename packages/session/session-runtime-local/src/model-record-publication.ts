@@ -11,7 +11,7 @@ import {
   prepareModelLogEntry,
   modelLogJsonEqual,
 } from '@omne-harness-lite/model-request-runtime'
-import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
+import { inspectSettlementPrefixEntries } from '@omne-harness-lite/model-request-runtime'
 import {
   readSettlementPrefix,
   settlementGenerationCurrent,
@@ -122,11 +122,7 @@ async function admitMarker(
   )
   if (!('ok' in read) || !('prefix' in read.ok)) return undefined
   const prefix = read.ok.prefix
-  const inspected = inspectCurrentModelLogPrefix({
-    session: binding.session,
-    tenant: binding.tenant,
-    prefix,
-  })
+  const inspected = inspectSettlementPrefixEntries({ prefix })
   if (!('ok' in inspected)) return undefined
   const sameCall = recordsForCall(inspected.ok, marker)
   const priorEntry = priorMarker(sameCall, marker)
@@ -139,7 +135,7 @@ async function admitMarker(
 
 type MarkerIdentity = ReturnType<typeof markerIdentity>
 type PrefixEntries = Extract<
-  ReturnType<typeof inspectCurrentModelLogPrefix>,
+  ReturnType<typeof inspectSettlementPrefixEntries>,
   { readonly ok: unknown }
 >['ok']
 type MarkerRecord = ModelCallCreatedRecord | ModelCallReplyReadyRecord

@@ -113,6 +113,7 @@ async function fixture(encrypted = false, hasGroup = true) {
   append('message', pending.reply, { kind: 'persistedMessage', response: captured.ok })
   append('response', response, { kind: 'response' })
   const generation = {}
+  let currentGeneration: object | null = generation
   const unused = async (): Promise<never> => {
     throw new Error('unexpected fixture mutation')
   }
@@ -120,7 +121,7 @@ async function fixture(encrypted = false, hasGroup = true) {
     tenant,
     session,
     generation,
-    currentGeneration: () => generation,
+    currentGeneration: () => currentGeneration,
     log: { append: unused, readByKey: unused, readSince: unused },
     readPrefix: async () => ({
       entries,
@@ -137,7 +138,14 @@ async function fixture(encrypted = false, hasGroup = true) {
   }
   const read = await readSettlementPrefix({ binding, registration })
   if (!('prefix' in read)) throw new Error('fixture prefix rejected')
-  return { prefix: read.prefix, pending, entries }
+  return {
+    prefix: read.prefix,
+    pending,
+    entries,
+    revoke: () => {
+      currentGeneration = null
+    },
+  }
 }
 
 test('production history supplies the persisted output group instead of an empty calibration source', async () => {
@@ -201,4 +209,41 @@ test('a response without an output group remains eligible for ordinary full coun
       sessionModelHistory.calibration,
     ),
   ).toEqual({ calibration: { kind: 'none', reason: 'no_observation' }, outputHistory: [] })
+})
+
+test('repeated calibration calls retain actual reader checks after the prefix is interpreted', async () => {
+  const f = await fixture()
+  let reads = 0
+  const read: typeof sessionModelHistory.calibration = (...input) => {
+    reads += 1
+    return sessionModelHistory.calibration(...input)
+  }
+  for (let index = 0; index < 2; index += 1) {
+    const result = authorizedCalibration(
+      f.prefix,
+      [f.pending.reply],
+      { callId: 'next-call', dispatch: 1 },
+      read,
+    )
+    expect(result).toHaveProperty('calibration')
+  }
+  expect(reads).toBe(2)
+  const revoked = authorizedCalibration(
+    f.prefix,
+    [f.pending.reply],
+    { callId: 'next-call', dispatch: 1 },
+    (...input) => {
+      const result = read(...input)
+      f.revoke()
+      return result
+    },
+  )
+  expect(reads).toBe(3)
+  expect(revoked).toEqual({ unavailable: true })
+  expect(
+    sessionModelHistory.calibration(f.prefix, [f.pending.reply], {
+      callId: 'next-call',
+      dispatch: 1,
+    }),
+  ).toEqual({ sourceUnavailable: true })
 })

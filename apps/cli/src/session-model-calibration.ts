@@ -1,5 +1,5 @@
 import {
-  inspectCurrentModelLogPrefix,
+  inspectSettlementPrefixEntries,
   modelLogJsonEqual,
   type CurrentHistoryReaders,
   type InspectedModelLogEntry,
@@ -65,11 +65,7 @@ export const readSessionModelCalibration: CurrentHistoryReaders['calibration'] =
   prefix,
   messages,
 ) => {
-  const inspected = inspectCurrentModelLogPrefix({
-    session: prefix.binding.session,
-    tenant: prefix.binding.tenant,
-    prefix,
-  })
+  const inspected = inspectSettlementPrefixEntries({ prefix })
   if (!('ok' in inspected)) return { sourceUnavailable: true }
   const index = indexes(inspected.ok)
   const selectedSources = [],

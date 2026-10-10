@@ -202,6 +202,18 @@ Duration 与 JsonNumber 使用公开精确值语义，不能先转成毫秒浮�
 | originOfEntry、attemptFromFinal、attemptFromWitness、acknowledgedAttempts、acknowledgedFactsFromHistory、acknowledgementSummary、completeAcknowledgedView                     | 从合法已验证原关联/最终响应/witness构造小账视图，冲突在来源优先之前拒绝，保持 failed 历史、原账壳、未知账及原 ACK 时间；不恢复被释放的大内容。                                                             |
 | createCredentialRedactionPolicy、CredentialRedactionConfigurationError、policyKind、policyJitter                                                                              | 校验显式政策，不静默默认未知枚举；创建脱敏政策不授予内容权限。公开部署初值不替代必需当前输入或业务政策。                                                                                                   |
 
+### 固定前缀的 Model 解释
+
+`inspectSettlementPrefixEntries({ prefix })` 返回该原始 `SettlementPrefix` 的不可变 `InspectedModelLogEntry` 数组。失败为 `unavailable`，原因区分 `prefix`、`generation`、`unknown_format` 与 `members`。
+
+同一个真实前缀至多构造一次完整 Model 解释，并按原日志顺序派生一次非 system 消息序列。独立完整读取铸造独立拥有者，即使内容和来源相同，也不共享解释。结构输入的 `inspectCurrentModelLogPrefix` 仍逐次完整校验。
+
+每次条目读取和结算解释都必须先核验私有品牌、捕获的租户与 Session、原 generation 对象及原 `currentGeneration` 函数，并调用当前代际检查。构造首次解释后再次核验。复制对象、伪造对象和无私有品牌的代理不能取得解释。范围变化返回 `prefix`，代际描述或当前代际变化返回 `generation`。固定内容解释不证明当前权限、原来源资格、提交或 ACK 资格。
+
+结算解释保留 dispatched 锚点和 Run/Attempt 配对失败先于成员失败的顺序。每次结算仍核验本次 target、anchors 与 current，不缓存查询答案。未知格式在条目读取返回 `unknown_format`，在结算沿原映射返回 `members`。其他非法内容返回 `members`，不能缓存成成功。未预期异常保持原抛出行为，且不填入解释缓存。
+
+解释只随原前缀存活，无全局缓存或资源租约。每个活前缀保留 O(B + N) 内容与消息引用，B 为内容字节，N 为条目数。总保留量随活前缀数量变化。释放前缀及返回值后可回收。已返回条目只表示历史固定内容，不授予后续访问权。
+
 ## 正式集成定义与停止边界
 
 纯协议 `ModelRuntimeOperations` 与 `./cordis` 的 `ModelRuntimeService` 分面，键只从类的静态 provide 导出。dispatch、dispatchAgain、readAttempts 的普通调用与 consumeFailure 调用是不同完整重载，包装不丢失同一授权读取产生的 source。source 校验实际执行及当前资格，release 只交还其消费引用，不伪造耐久失败事实。

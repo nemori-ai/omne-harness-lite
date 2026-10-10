@@ -6,7 +6,7 @@ import {
   interpretCallHistory,
   rejectAcknowledgedHistory,
 } from '@omne-harness-lite/model-request-runtime'
-import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
+import { inspectSettlementPrefixEntries } from '@omne-harness-lite/model-request-runtime'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
 import {
   interpretSettlementPrefix,
@@ -81,11 +81,7 @@ function unavailableSources(
   messages: readonly Message[],
   target: CalibrationTarget,
 ): AuthorizedCalibrationResult {
-  const inspected = inspectCurrentModelLogPrefix({
-    session: prefix.binding.session,
-    tenant: prefix.binding.tenant,
-    prefix,
-  })
+  const inspected = inspectSettlementPrefixEntries({ prefix })
   if (
     !('ok' in inspected) ||
     'unavailable' in
@@ -161,11 +157,7 @@ function calibrationFromCandidates(
   target: CalibrationTarget,
   interpreted: CalibrationCandidates,
 ): AuthorizedCalibrationResult {
-  const inspected = inspectCurrentModelLogPrefix({
-    session: prefix.binding.session,
-    tenant: prefix.binding.tenant,
-    prefix,
-  })
+  const inspected = inspectSettlementPrefixEntries({ prefix })
   if (!('ok' in inspected)) return { unavailable: true }
   const located = (entry: LogEntry) => {
     const position = ExactDecimal.from(entry.position)

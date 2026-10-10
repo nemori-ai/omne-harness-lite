@@ -20,12 +20,10 @@ import type { ModelLogResponseProjection } from './log-codec-value.ts'
 import { modelLogJsonEqual } from './log-codec-key.ts'
 import {
   interpretSettlementPrefix,
-  isOwnedSettlementPrefix,
-  settlementGenerationCurrent,
+  inspectSettlementPrefixEntries,
   type SettlementPrefix,
 } from './settlement-prefix.ts'
 import type { DispatchGuardPhase } from './dispatch-guard.ts'
-import { inspectCurrentModelLogPrefix } from './log-codec-settlement.ts'
 
 export interface CallHistoryDispatch {
   readonly ordinal: JsonNumber
@@ -139,18 +137,14 @@ export function interpretCallHistory(input: {
   readonly callId: ModelCallId
 }): CallHistoryResult {
   const { prefix, callId } = input
-  if (!isOwnedSettlementPrefix(prefix) || !settlementGenerationCurrent(prefix.binding))
-    return unavailable('prefix')
-  const inspectedPrefix = inspectCurrentModelLogPrefix({
-    session: prefix.binding.session,
-    tenant: prefix.binding.tenant,
-    prefix,
-  })
+  const inspectedPrefix = inspectSettlementPrefixEntries({ prefix })
   if (!('ok' in inspectedPrefix))
     return unavailable(
-      'reason' in inspectedPrefix && inspectedPrefix.reason === 'unknown_format'
-        ? 'unknown_format'
-        : 'history',
+      inspectedPrefix.reason === 'prefix' || inspectedPrefix.reason === 'generation'
+        ? 'prefix'
+        : inspectedPrefix.reason === 'unknown_format'
+          ? 'unknown_format'
+          : 'history',
     )
   const { records, responses } = collectCallRecords(inspectedPrefix.ok, callId)
   return interpretCallRecords(prefix, callId, records, responses)

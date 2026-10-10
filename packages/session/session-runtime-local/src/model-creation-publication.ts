@@ -1,7 +1,7 @@
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { AppendResult, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import { modelLogJsonEqual } from '@omne-harness-lite/model-request-runtime'
-import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
+import { inspectSettlementPrefixEntries } from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelCallPublishPermit,
   ModelCreationPublication,
@@ -120,12 +120,8 @@ class CreationPublication {
   }
 
   #state(prefix: SettlementPrefix): 'present' | 'absent' | 'blocked' | 'unknown' {
-    const { binding, entry, callId } = this.input
-    const inspected = inspectCurrentModelLogPrefix({
-      session: binding.session,
-      tenant: binding.tenant,
-      prefix,
-    })
+    const { entry, callId } = this.input
+    const inspected = inspectSettlementPrefixEntries({ prefix })
     if (!('ok' in inspected)) return 'unknown'
     const matches = prefix.entries.filter(value => value.dedupeKey === entry.dedupeKey)
     if (matches.length > 1) return 'unknown'

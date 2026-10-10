@@ -29,7 +29,7 @@ import {
   prepareModelLogEntry,
   type ModelLogShell,
 } from '@omne-harness-lite/model-request-runtime'
-import { inspectCurrentModelLogPrefix } from '@omne-harness-lite/model-request-runtime'
+import { inspectSettlementPrefixEntries } from '@omne-harness-lite/model-request-runtime'
 import { OwnedReadTracker, withOwnedReads } from '@omne-harness-lite/model-request-runtime'
 import {
   readSettlementPrefix,
@@ -121,11 +121,7 @@ interface CallSources {
   }[]
 }
 function sourcesOf(prefix: SettlementPrefix, callId: string): CallSources | undefined {
-  const inspected = inspectCurrentModelLogPrefix({
-    session: prefix.binding.session,
-    tenant: prefix.binding.tenant,
-    prefix,
-  })
+  const inspected = inspectSettlementPrefixEntries({ prefix })
   if (!('ok' in inspected)) return undefined
   let creation: CallSources['creation'] | undefined
   let creationPayload: CallSources['creationPayload'] | undefined
@@ -708,11 +704,7 @@ function recordedAcknowledgement(
   prefix: SettlementPrefix,
   callId: string,
 ): ModelCallAcknowledgedRecord | 'conflict' | 'unavailable' | undefined {
-  const inspected = inspectCurrentModelLogPrefix({
-    session: prefix.binding.session,
-    tenant: prefix.binding.tenant,
-    prefix,
-  })
+  const inspected = inspectSettlementPrefixEntries({ prefix })
   if (!('ok' in inspected)) return 'unavailable'
   let found: ModelCallAcknowledgedRecord | undefined
   for (const { captured } of inspected.ok) {

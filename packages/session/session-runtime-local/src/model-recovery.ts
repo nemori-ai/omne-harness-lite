@@ -27,7 +27,7 @@ import {
   acknowledgedFactsFromHistory,
   constructAnchoredInterruption,
   drainDiagnosticThenable,
-  inspectCurrentModelLogPrefix,
+  inspectSettlementPrefixEntries,
   interpretCallHistory,
   modelLogJsonEqual,
   operationDiagnostics,
@@ -631,11 +631,7 @@ async function readRecoveredCalls(
     return { unavailable: true }
   const firstRead = await readRecoveryPrefix(entry, input.contention)
   if ('unavailable' in firstRead) return { unavailable: true }
-  const inspected = inspectCurrentModelLogPrefix({
-    session: binding.session,
-    tenant: binding.tenant,
-    prefix: firstRead.prefix,
-  })
+  const inspected = inspectSettlementPrefixEntries({ prefix: firstRead.prefix })
   if (!('ok' in inspected)) return { unavailable: true }
   const callIds = new Set<string>()
   for (const item of inspected.ok) {
@@ -648,11 +644,7 @@ async function readRecoveredCalls(
     if (closed()) return { unavailable: true }
     const read = await readRecoveryPrefix(entry, input.contention)
     if ('unavailable' in read) return { unavailable: true }
-    const rowInspected = inspectCurrentModelLogPrefix({
-      session: binding.session,
-      tenant: binding.tenant,
-      prefix: read.prefix,
-    })
+    const rowInspected = inspectSettlementPrefixEntries({ prefix: read.prefix })
     if (!('ok' in rowInspected)) return { unavailable: true }
     const raw = interpretCallHistory({ prefix: read.prefix, callId })
     if ('known' in raw && raw.known.acknowledged !== null) {
