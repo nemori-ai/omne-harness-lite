@@ -3198,6 +3198,7 @@ describe('Session original Tool participation', () => {
 async function sessionToolFixture(
   terminal = false,
   conclusionMode?: 'observed' | 'foreignAttempt',
+  notExecutable?: 'unparseable' | 'no_such_entry',
 ) {
   const current = vi.fn<
     import('@omne-harness-lite/tool-execution-runtime').ToolOriginalIssueAuthority['authorizeIn']
@@ -3254,7 +3255,13 @@ async function sessionToolFixture(
       revision: 1,
       ref: identityBase.ref,
       origin: identityBase.origin,
-      input: { format: 'controlled-tool/1', value: 'original-input' },
+      input: notExecutable
+        ? {
+            format: 'tool-input/1',
+            notExecutable,
+            submission: { origin: { ...identityBase.origin } },
+          }
+        : { format: 'controlled-tool/1', value: 'original-input' },
     },
   })
   if ('invalid' in native) throw new Error('invalid controlled native Tool intent')
@@ -3392,6 +3399,15 @@ async function sessionToolFixture(
 }
 
 describe('Session original Tool shared transaction', () => {
+  it('refuses a fabricated non-executable result without the original completed batch', async () => {
+    const t = await sessionToolFixture(false, undefined, 'no_such_entry')
+    expect(await t.support.admission.admitOriginal(t.participant)).toEqual({ kind: 'conflict' })
+    expect(await t.f.count('sr_tool_issue')).toEqual({ n: 0 })
+    expect(await t.f.log().readSince(t.p.scope.session, t.prepared.source.tail)).toEqual({
+      entries: [],
+      tail: t.prepared.source.tail,
+    })
+  })
   it('allows only the retained original Tool records in an independent caller unit', async () => {
     const t = await sessionToolFixture()
     expect(await t.support.admission.admitOriginal(t.participant)).toHaveProperty('kind', 'issued')
@@ -6864,190 +6880,195 @@ describe('driver complete original Model Run', () => {
       ).toHaveProperty('kind', 'session')
     },
   )
-  it('public Cordis driver completes the actual native Tool round trip without caller turn execution', async () => {
-    const checked = judgeMessage({
-      id: 'public-tool-source',
-      type: 'assistant',
-      response: 'public-tool-response',
-      ending: 'complete',
-      createdAt: at,
-      blocks: [
-        {
-          id: 'public-tool-block',
-          callId: 'public-tool-call',
-          kind: 'tool_call',
-          tool: 'example__read',
-          complete: true,
-          arguments: {},
-          visibility: { toHuman: true, toModel: true },
+  it.each(['executable', 'unparseable', 'no_such_entry'] as const)(
+    'public Cordis driver completes the actual native Tool %s round trip without caller turn execution',
+    async outcome => {
+      const checked = judgeMessage({
+        id: 'public-tool-source',
+        type: 'assistant',
+        response: 'public-tool-response',
+        ending: 'complete',
+        createdAt: at,
+        blocks: [
+          {
+            id: 'public-tool-block',
+            callId: 'public-tool-call',
+            kind: 'tool_call',
+            tool: outcome === 'no_such_entry' ? 'missing__tool' : 'example__read',
+            complete: true,
+            ...(outcome === 'unparseable'
+              ? { unparseable: true, rawArguments: '{' }
+              : { arguments: {} }),
+            visibility: { toHuman: true, toModel: true },
+          },
+        ],
+      })
+      if (!('ok' in checked) || checked.ok.type !== 'assistant')
+        throw new Error('controlled public Tool reply rejected')
+      const calls: import('@omne-harness-lite/content-blocks').ToolCallBlock[] = []
+      for (const block of checked.ok.blocks)
+        if (block.kind === 'tool_call' && block.complete) calls.push(block)
+      // This three-call prefix exceeded the original 64 KiB fixture budget (69,262 bytes).
+      const f = await running(undefined, false, send => (send === 2 ? calls : []), 131072)
+      expect(await createDriverModelRunTask(f.input).completion).toBe('released')
+      const table = evaluatedDriverTool(),
+        history = createSessionToolActionHistory({ readConclusions: readPassConclusions })
+      let journal: import('../src/run-journal-types.ts').BorrowedRunJournal | undefined
+      let runner: Awaited<ReturnType<ReturnType<typeof driverActionFixture>['open']>> | undefined
+      let tool: Awaited<ReturnType<typeof driverNativeToolFixture>> | undefined
+      let original: import('@omne-harness-lite/session-runtime').SessionDriverControl | undefined
+      const options = driverOptions(f)
+      const identities = {
+        ...options.identities,
+        run: () => ({ startKey: 'public-tool-run', attemptKey: 'public-tool-attempt' }),
+        model: (
+          _scope: SessionScope,
+          _run: string,
+          _attempt: import('@omne-harness-lite/call-accounts').AttemptId,
+          position: import('@omne-harness-lite/content-blocks').JsonNumber,
+        ) => ({
+          prepareKey: `public-tool-model:${position}`,
+          originalPosition: `public-tool-model-position:${position}`,
+          resultKey: `public-tool-model-result:${position}`,
+          adoptionKey: `public-tool-model-adopt:${position}`,
+          call: unwrap(parseOpaqueIdentifier(`public-tool-model-call:${position}`, 'ModelCallId')),
+          creationKey: unwrap(
+            parseOpaqueIdentifier(`public-tool-model-create:${position}`, 'CreationKey'),
+          ),
+        }),
+        tool: (
+          _scope: SessionScope,
+          _run: string,
+          _attempt: import('@omne-harness-lite/call-accounts').AttemptId,
+          _position: import('@omne-harness-lite/content-blocks').JsonNumber,
+          call: import('@omne-harness-lite/content-blocks').CallId,
+        ) => ({
+          prepareKey: `public-native:${call}`,
+          originalPosition: `tool-runtime/1/${JSON.stringify(['execution_intended', call])}`,
+          resultKey: `public-native-result:${call}`,
+          adoptionKey: `public-native-adopt:${call}`,
+        }),
+      }
+      const sources: LocalSessionDriverOptions['sources'] = {
+        acquire: async (_scope, current) => {
+          journal = current
+          return toolSources(await sourcesForRun(f, current), table, {
+            actions: () => {
+              if (!runner) throw new Error('actual public Runner not acquired')
+              return runner.actions
+            },
+            access: () => {
+              if (!tool) throw new Error('actual public Tool not acquired')
+              return tool.access
+            },
+          })
         },
-      ],
-    })
-    if (!('ok' in checked) || checked.ok.type !== 'assistant')
-      throw new Error('controlled public Tool reply rejected')
-    const calls: import('@omne-harness-lite/content-blocks').ToolCallBlock[] = []
-    for (const block of checked.ok.blocks)
-      if (block.kind === 'tool_call' && block.complete) calls.push(block)
-    // This three-call prefix exceeded the original 64 KiB fixture budget (69,262 bytes).
-    const f = await running(undefined, false, send => (send === 2 ? calls : []), 131072)
-    expect(await createDriverModelRunTask(f.input).completion).toBe('released')
-    const table = evaluatedDriverTool(),
-      history = createSessionToolActionHistory({ readConclusions: readPassConclusions })
-    let journal: import('../src/run-journal-types.ts').BorrowedRunJournal | undefined
-    let runner: Awaited<ReturnType<ReturnType<typeof driverActionFixture>['open']>> | undefined
-    let tool: Awaited<ReturnType<typeof driverNativeToolFixture>> | undefined
-    let original: import('@omne-harness-lite/session-runtime').SessionDriverControl | undefined
-    const options = driverOptions(f)
-    const identities = {
-      ...options.identities,
-      run: () => ({ startKey: 'public-tool-run', attemptKey: 'public-tool-attempt' }),
-      model: (
-        _scope: SessionScope,
-        _run: string,
-        _attempt: import('@omne-harness-lite/call-accounts').AttemptId,
-        position: import('@omne-harness-lite/content-blocks').JsonNumber,
-      ) => ({
-        prepareKey: `public-tool-model:${position}`,
-        originalPosition: `public-tool-model-position:${position}`,
-        resultKey: `public-tool-model-result:${position}`,
-        adoptionKey: `public-tool-model-adopt:${position}`,
-        call: unwrap(parseOpaqueIdentifier(`public-tool-model-call:${position}`, 'ModelCallId')),
-        creationKey: unwrap(
-          parseOpaqueIdentifier(`public-tool-model-create:${position}`, 'CreationKey'),
-        ),
-      }),
-      tool: (
-        _scope: SessionScope,
-        _run: string,
-        _attempt: import('@omne-harness-lite/call-accounts').AttemptId,
-        _position: import('@omne-harness-lite/content-blocks').JsonNumber,
-        call: import('@omne-harness-lite/content-blocks').CallId,
-      ) => ({
-        prepareKey: `public-native:${call}`,
-        originalPosition: `tool-runtime/1/${JSON.stringify(['execution_intended', call])}`,
-        resultKey: `public-native-result:${call}`,
-        adoptionKey: `public-native-adopt:${call}`,
-      }),
-    }
-    const sources: LocalSessionDriverOptions['sources'] = {
-      acquire: async (_scope, current) => {
-        journal = current
-        return toolSources(await sourcesForRun(f, current), table, {
-          actions: () => {
-            if (!runner) throw new Error('actual public Runner not acquired')
-            return runner.actions
-          },
-          access: () => {
-            if (!tool) throw new Error('actual public Tool not acquired')
-            return tool.access
-          },
-        })
-      },
-    }
-    const tools: LocalSessionDriverOptions['tools'] = {
-      acquire: async support => {
-        if (!journal) throw new Error('actual public Run not acquired')
-        const read = await journal.readPrefix()
-        if ('failure' in read) throw new Error('actual public batch unavailable')
-        const prefix = {
-          scope: f.scope,
-          ownerGeneration: read.source.journalGeneration,
-          entries: read.entries,
-          tail: read.tail,
-        }
-        const reply = [...readDriverModelHistory(prefix).replies.values()].find(value =>
-          value.message.blocks.some(block => block.kind === 'tool_call'),
-        )
-        if (!reply) throw new Error('actual public Tool reply absent')
-        const found = readDriverToolBatch(prefix, reply.message.id)
-        if (found.kind !== 'batch') throw new Error('actual public Tool batch absent')
-        runner = await driverActionFixture(journal, found.batch).open()
-        tool = await driverNativeToolFixture({
-          storage: f.f.storage,
-          root: f.f.root,
-          ingress: f.f.runtime,
-          backing: f.f.log().backing,
-          journal,
-          history,
-          call: calls[0]!.callId,
-        })
-        const borrowed = await tool.factory.acquire(support)
-        f.installToolResultSource(tool.custody!.source)
-        return borrowed
-      },
-    }
-    const ctx = new Context()
-    class Startup extends SessionDriverStartupService {
-      readonly start: import('@omne-harness-lite/session-runtime').SessionDriverStartup['start'] =
-        async (policy, signal) => {
-          original = await createLocalSessionDriver(
-            { ...options, identities, sources, tools, policy },
-            signal,
+      }
+      const tools: LocalSessionDriverOptions['tools'] = {
+        acquire: async support => {
+          if (!journal) throw new Error('actual public Run not acquired')
+          const read = await journal.readPrefix()
+          if ('failure' in read) throw new Error('actual public batch unavailable')
+          const prefix = {
+            scope: f.scope,
+            ownerGeneration: read.source.journalGeneration,
+            entries: read.entries,
+            tail: read.tail,
+          }
+          const reply = [...readDriverModelHistory(prefix).replies.values()].find(value =>
+            value.message.blocks.some(block => block.kind === 'tool_call'),
           )
-          return original
-        }
-    }
-    const root = ctx.plugin(
-      definePlugin({
-        name: 'actual-public-tool-root',
-        Config: z.object({}).strict(),
-        apply(inner) {
-          new Startup(inner)
+          if (!reply) throw new Error('actual public Tool reply absent')
+          const found = readDriverToolBatch(prefix, reply.message.id)
+          if (found.kind !== 'batch') throw new Error('actual public Tool batch absent')
+          runner = await driverActionFixture(journal, found.batch).open()
+          tool = await driverNativeToolFixture({
+            storage: f.f.storage,
+            root: f.f.root,
+            ingress: f.f.runtime,
+            backing: f.f.log().backing,
+            journal,
+            history,
+            call: calls[0]!.callId,
+          })
+          const borrowed = await tool.factory.acquire(support)
+          f.installToolResultSource(tool.custody!.source)
+          return borrowed
         },
-      }),
-      {},
-    )
-    await root
-    const bound = ctx.plugin(createLocalSessionIngressBinding(f.f.runtime), {})
-    await bound
-    expect(
-      await ctx
-        .get(SESSION_INGRESS)!
-        .submitInput(
-          f.f.runtime.access,
-          f.scope.session,
-          'public-tool-input',
-          user('Use the Tool', 'public-tool-input'),
-        ),
-    ).toHaveProperty('kind', 'accepted')
-    const plugin = ctx.plugin(SessionDriver, options.policy)
-    await plugin
-    try {
-      await vi.waitFor(
-        async () => {
-          expect(f.ports.sends()).toBe(3)
-          expect(
-            await ctx
-              .get(SESSION_WORK_READING)!
-              .readWork(f.f.runtime.coordinationAuthority, f.scope, 1),
-          ).toMatchObject({ head: { run: { state: 'completed' } }, inputs: [] })
-          expect(f.sources.release).toHaveBeenCalledTimes(2)
-        },
-        { timeout: 15000, interval: 20 },
+      }
+      const ctx = new Context()
+      class Startup extends SessionDriverStartupService {
+        readonly start: import('@omne-harness-lite/session-runtime').SessionDriverStartup['start'] =
+          async (policy, signal) => {
+            original = await createLocalSessionDriver(
+              { ...options, identities, sources, tools, policy },
+              signal,
+            )
+            return original
+          }
+      }
+      const root = ctx.plugin(
+        definePlugin({
+          name: 'actual-public-tool-root',
+          Config: z.object({}).strict(),
+          apply(inner) {
+            new Startup(inner)
+          },
+        }),
+        {},
       )
-      expect(tool!.author).toHaveBeenCalledOnce()
-      expect(await f.f.count('sr_tool_result')).toEqual({ n: 1 })
-      expect(await f.f.count('sr_tool_delivery')).toEqual({ n: 1 })
-      expect(JSON.stringify(f.ports.sentRequests[2]!.messages)).toContain(
-        'actual driver native result',
-      )
-      expect(options.diagnostic).not.toHaveBeenCalled()
-      expect(tool!.release).toHaveBeenCalledOnce()
-      await plugin.dispose()
-      expect(await original!.close()).toEqual({ closed: true })
+      await root
+      const bound = ctx.plugin(createLocalSessionIngressBinding(f.f.runtime), {})
+      await bound
       expect(
-        f.native.executionSource.snapshot(f.scope.session).every(row => row.copyReleased),
-      ).toBe(true)
-    } finally {
-      original?.requestStop()
-      await plugin.dispose()
-      await original?.close()
-      await bound.dispose()
-      await root.dispose()
-      await tool?.close()
-      await runner?.close()
-    }
-  })
+        await ctx
+          .get(SESSION_INGRESS)!
+          .submitInput(
+            f.f.runtime.access,
+            f.scope.session,
+            'public-tool-input',
+            user('Use the Tool', 'public-tool-input'),
+          ),
+      ).toHaveProperty('kind', 'accepted')
+      const plugin = ctx.plugin(SessionDriver, options.policy)
+      await plugin
+      try {
+        await vi.waitFor(
+          async () => {
+            expect(f.ports.sends()).toBe(3)
+            expect(
+              await ctx
+                .get(SESSION_WORK_READING)!
+                .readWork(f.f.runtime.coordinationAuthority, f.scope, 1),
+            ).toMatchObject({ head: { run: { state: 'completed' } }, inputs: [] })
+            expect(f.sources.release).toHaveBeenCalledTimes(2)
+          },
+          { timeout: 15000, interval: 20 },
+        )
+        expect(tool!.author).toHaveBeenCalledTimes(outcome === 'executable' ? 1 : 0)
+        expect(await f.f.count('sr_tool_result')).toEqual({ n: 1 })
+        expect(await f.f.count('sr_tool_delivery')).toEqual({ n: 1 })
+        expect(JSON.stringify(f.ports.sentRequests[2]!.messages)).toContain(
+          outcome === 'executable' ? 'actual driver native result' : outcome,
+        )
+        expect(options.diagnostic).not.toHaveBeenCalled()
+        expect(tool!.release).toHaveBeenCalledOnce()
+        await plugin.dispose()
+        expect(await original!.close()).toEqual({ closed: true })
+        expect(
+          f.native.executionSource.snapshot(f.scope.session).every(row => row.copyReleased),
+        ).toBe(true)
+      } finally {
+        original?.requestStop()
+        await plugin.dispose()
+        await original?.close()
+        await bound.dispose()
+        await root.dispose()
+        await tool?.close()
+        await runner?.close()
+      }
+    },
+  )
   it('public driver refuses new Model IO after an actual SQLite call-preparation failure and retains the original Run', async () => {
     const f = await running()
     expect(await createDriverModelRunTask(f.input).completion).toBe('released')

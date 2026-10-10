@@ -28,6 +28,7 @@ import { runtimeSemantic } from './runtime-values.ts'
 import { verifyCallPreparation } from './call-preparation.ts'
 import { createToolRecordAppender } from './tool-record-append.ts'
 import { readDriverRunState } from './run-history.ts'
+import { hasOriginalToolFailure } from './tool-request-proof.ts'
 
 type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
 interface Held {
@@ -208,6 +209,18 @@ export function createSessionToolAdmission(host: Host) {
       text(inspected.value.origin) !== text(identity.origin)
     )
       throw new StorageDefect('Tool issue original intent identity mismatch')
+    if (
+      !hasOriginalToolFailure(
+        {
+          scope: held.scope,
+          entries: prefix.entries,
+          ownerGeneration: source.source.journalGeneration,
+          tail: source.source.tail,
+        },
+        inspected.value,
+      )
+    )
+      throw new ToolStageFailure({ kind: 'conflict' })
   }
   async function save(unit: StorageUnit, held: Held) {
     const count = await unit.query(tx =>

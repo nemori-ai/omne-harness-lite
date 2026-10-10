@@ -844,6 +844,7 @@ export function createExecutionOwner(input: {
         acceptedAt: job.acceptedAt,
         chain: job.chain,
         pass: job.pass,
+        ...(job.notExecutable ? { notExecutable: job.notExecutable } : {}),
       } as unknown as JsonValue,
     }
     if (input.originalIssue) {
@@ -966,9 +967,9 @@ export function createExecutionOwner(input: {
     captured: Exclude<ReturnType<typeof capturePreparedExecution>, SubmissionResult>,
     basis: Extract<Awaited<ReturnType<typeof captureExecutionBasis>>, { kind: 'basis' }>,
   ): Promise<ToolSubmitResult> {
-    const { request, selected, source, chain } = captured
+    const { request, source, chain } = captured
     const ref = { ...request.scope, callId: request.call.callId }
-    const job = ownCandidate({ request, selected }, ref, basis, chain)
+    const job = ownCandidate(captured, ref, basis, chain)
     owned.set(keyOf(ref), job)
     preparedRequests.set(keyOf(ref), captured)
     const committed = await commitIntent(job, {

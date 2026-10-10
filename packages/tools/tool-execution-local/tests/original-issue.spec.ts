@@ -693,7 +693,7 @@ it('refuses a foreign prepared source and inconsistent arguments before invoking
       await f.owner.submitPrepared({
         ...prepared,
         source: { ...prepared.source, session: 'foreign' },
-      } as never),
+      } as unknown as import('@omne-harness-lite/tool-execution-runtime').PreparedToolExecution),
     ).toEqual({ kind: 'rejected', reason: 'invalidInput' })
     expect(f.implementation).not.toHaveBeenCalled()
     expect(await f.log.readSince(scope.session, 0)).toHaveProperty('entries', [])
@@ -776,6 +776,90 @@ it('retains an uncertain prepared admission and recognizes the original on an ex
     await f.owner.idle()
     expect(f.implementation).toHaveBeenCalledTimes(1)
     expect(state.participants[0]).toBe(state.participants[1])
+  } finally {
+    await f.close()
+  }
+})
+
+it.each(['unparseable', 'no_such_entry'] as const)(
+  'records the prepared %s outcome without selecting or invoking an implementation',
+  async reason => {
+    const { f } = await admittedFixture()
+    const ordinary = await preparedFor(f)
+    const verify = vi.spyOn(f.admission, 'verifyToken')
+    const { selected: _selected, args: _args, admissionToken: _token, ...common } = ordinary
+    const { arguments: _arguments, ...unparsed } = request.call
+    const supplied: import('@omne-harness-lite/tool-execution-runtime').PreparedToolExecution = {
+      ...common,
+      adoption: request.adoption,
+      notExecutable: reason,
+      call:
+        reason === 'unparseable'
+          ? { ...unparsed, unparseable: true, rawArguments: '{' }
+          : request.call,
+    }
+    f.readSince.mockImplementation(() => {
+      throw new Error('Session scan forbidden')
+    })
+    f.selectChain.mockRejectedValue(new Error('chain selection forbidden'))
+    try {
+      expect(await f.owner.submitPrepared(supplied)).toEqual({ kind: 'recorded', execution: ref })
+      await f.owner.idle()
+      const observer = await f.observer()
+      try {
+        const ended = await observer.waitForEnd()
+        expect(ended).toMatchObject({
+          kind: 'found',
+          snapshot: {
+            state: {
+              phase: 'ended',
+              terminal:
+                reason === 'unparseable'
+                  ? { outcome: 'failed', code: 'unparseable' }
+                  : { outcome: 'unavailable', reason: 'no_such_entry' },
+            },
+          },
+        })
+      } finally {
+        observer.release()
+      }
+      expect(f.implementation).not.toHaveBeenCalled()
+      const read = await f.log.readSince(scope.session, 0)
+      if ('failure' in read) throw new Error('original history unavailable')
+      const history = projectToolJournal(scope, read.entries)
+      if ('invalid' in history) throw new Error('invalid original history')
+      expect(history.executions.get(ref.callId)?.started).toBeUndefined()
+      expect(history.executions.get(ref.callId)?.terminal?.value.account.cost.total_usd).toBe(0)
+      expect(verify).not.toHaveBeenCalled()
+      expect(f.selectChain).not.toHaveBeenCalled()
+    } finally {
+      f.readSince.mockImplementation(f.log.readSince)
+      await f.close()
+    }
+  },
+)
+
+it('rejects a mixed execution/failure request and a failure inconsistent with its call', async () => {
+  const { f } = await admittedFixture()
+  try {
+    const request = await preparedFor(f)
+    expect(
+      await f.owner.submitPrepared({
+        ...request,
+        notExecutable: 'no_such_entry',
+      } as unknown as import('@omne-harness-lite/tool-execution-runtime').PreparedToolExecution),
+    ).toEqual({ kind: 'rejected', reason: 'invalidInput' })
+    const { selected, args: _args, ...common } = request
+    if (!selected) throw new Error('selected fixture missing')
+    expect(
+      await f.owner.submitPrepared({
+        ...common,
+        adoption: selected.adoption,
+        notExecutable: 'unparseable',
+      }),
+    ).toEqual({ kind: 'rejected', reason: 'invalidInput' })
+    expect(f.implementation).not.toHaveBeenCalled()
+    expect(await f.log.readSince(scope.session, 0)).toEqual({ entries: [], tail: 0 })
   } finally {
     await f.close()
   }

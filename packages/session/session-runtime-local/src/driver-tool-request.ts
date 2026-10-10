@@ -46,15 +46,19 @@ async function captureAfterAction(
   return copied.ok
 }
 
-export async function prepareDriverToolRequest(input: {
-  readonly request: ExecutionSubmission
-  readonly selected: SelectedTool
-  readonly source: SourceToken
-  readonly host: RunnerServiceHost
-  readonly signal: AbortSignal
-}): Promise<PreparedToolExecution | undefined> {
-  const { request, selected, source, host, signal } = input
-  if (signal.aborted || request.call.arguments === undefined) return
+export type DriverToolResolution =
+  { readonly selected: SelectedTool } | { readonly notExecutable: 'unparseable' | 'no_such_entry' }
+
+export async function prepareDriverToolRequest(
+  input: {
+    readonly request: ExecutionSubmission
+    readonly source: SourceToken
+    readonly host: RunnerServiceHost
+    readonly signal: AbortSignal
+  } & DriverToolResolution,
+): Promise<PreparedToolExecution | undefined> {
+  const { request, source, host, signal } = input
+  if (signal.aborted) return
   const pass = `tool-after-${createHash('sha256')
     .update(
       JSON.stringify([
@@ -81,17 +85,19 @@ export async function prepareDriverToolRequest(input: {
     if (!currentToolRunner(held, source, signal)) return
     const chain = await captureAfterAction(held, request, signal)
     if (!chain) return
-    return {
+    const fixed = {
       access: request.access,
       ref: { ...request.scope, callId: request.call.callId },
       origin: request.origin,
       call: request.call,
-      args: request.call.arguments,
-      selected,
       source,
       afterAction: { pass, selectedChain: chain },
       ...(request.admissionToken === undefined ? {} : { admissionToken: request.admissionToken }),
     }
+    if ('notExecutable' in input)
+      return { ...fixed, adoption: request.adoption, notExecutable: input.notExecutable }
+    if (request.call.unparseable) return
+    return { ...fixed, selected: input.selected, args: request.call.arguments }
   } finally {
     held.release()
   }

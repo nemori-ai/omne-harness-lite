@@ -2,7 +2,11 @@ import { copyJsonValue, type JsonObject, type JsonValue } from '@omne-harness-li
 import { isToolDefinition } from '@omne-harness-lite/tool-definition'
 import { checkKey, checkSourceToken } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
-import type { PreparedToolExecution, SelectedTool } from '@omne-harness-lite/tool-execution-runtime'
+import type {
+  PreparedToolExecution,
+  SelectedTool,
+  ExecutionSubmission,
+} from '@omne-harness-lite/tool-execution-runtime'
 import type { ToolAdmissionOperations } from '@omne-harness-lite/tool-admission'
 import { compareInteger } from '@omne-harness-lite/session-log'
 import {
@@ -14,12 +18,18 @@ import {
 import { jsonObject, sameJson } from './json-values.ts'
 
 const invalid: SubmissionFailure = Object.freeze({ kind: 'rejected', reason: 'invalidInput' })
-const required = ['access', 'ref', 'origin', 'call', 'args', 'selected', 'source', 'afterAction']
+const common = ['access', 'ref', 'origin', 'call', 'source', 'afterAction']
 
-function ordinary(input: PreparedToolExecution) {
+function preparedProperties(input: PreparedToolExecution) {
   const prototype = Object.getPrototypeOf(input)
   if (prototype !== Object.prototype && prototype !== null) return
   const fields = Object.getOwnPropertyDescriptors(input)
+  const required = [
+    ...common,
+    ...(Object.hasOwn(fields, 'notExecutable')
+      ? ['adoption', 'notExecutable']
+      : ['args', 'selected']),
+  ]
   if (required.some(key => !Object.hasOwn(fields, key))) return
   if (
     Reflect.ownKeys(fields).some(
@@ -28,6 +38,11 @@ function ordinary(input: PreparedToolExecution) {
   )
     return
   if (Object.values(fields).some(field => !('value' in field) || !field.enumerable)) return
+  return fields
+}
+function ordinary(input: PreparedToolExecution) {
+  const fields = preparedProperties(input)
+  if (!fields) return
   const copied = copyJsonValue(
     Object.fromEntries(
       Object.entries(fields)
@@ -56,45 +71,70 @@ function afterAction(value: JsonValue | undefined) {
   return { pass: value.pass, chain: value.selectedChain }
 }
 
-function requestData(
-  data: JsonObject,
-  access: PreparedToolExecution['access'],
-  selected: SelectedTool,
-) {
+function requestData(data: JsonObject, access: PreparedToolExecution['access'], adoption: string) {
   if (!jsonObject(data.ref) || Object.keys(data.ref).length !== 3) return invalid
   const request = captureSubmission({
     access,
     scope: { tenant: data.ref.tenant, session: data.ref.session },
     origin: data.origin,
     call: data.call,
-    adoption: selected.adoption,
+    adoption,
     ...(data.admissionToken === undefined ? {} : { admissionToken: data.admissionToken }),
   })
   if ('reason' in request) return request
-  if (request.call.callId !== data.ref.callId || !sameJson(request.call.arguments, data.args))
-    return invalid
+  if (request.call.callId !== data.ref.callId) return invalid
   return request
 }
 
+function disposition(value: JsonObject) {
+  if (Object.hasOwn(value, 'notExecutable')) {
+    if (
+      !['unparseable', 'no_such_entry'].includes(String(value.notExecutable)) ||
+      !checkKey(value.adoption)
+    )
+      return
+    return {
+      adoption: value.adoption,
+      notExecutable: value.notExecutable as 'unparseable' | 'no_such_entry',
+    }
+  }
+  const selected = selectedTool(value.selected)
+  return selected ? { adoption: selected.adoption, selected } : undefined
+}
+function matchesCall(
+  value: JsonObject,
+  request: Exclude<ReturnType<typeof captureSubmission>, SubmissionFailure>,
+  decision: NonNullable<ReturnType<typeof disposition>>,
+) {
+  if ('notExecutable' in decision)
+    return (decision.notExecutable === 'unparseable') === (request.call.unparseable === true)
+  return request.call.unparseable !== true && sameJson(request.call.arguments, value.args)
+}
+function preparedSource(value: JsonValue | undefined, request: ExecutionSubmission) {
+  const source = checkSourceToken(value)
+  if ('failure' in source) return
+  if (
+    source.ok.session !== request.scope.session ||
+    !tenantIdEquals(source.ok.tenant, request.scope.tenant)
+  )
+    return
+  return source.ok
+}
 /** Capture the prepared values once. Only the original Access object stays live. */
 export function capturePreparedExecution(input: PreparedToolExecution) {
   if (input === null || typeof input !== 'object') return invalid
   const captured = ordinary(input)
   if (!captured) return invalid
   const { value, access } = captured
-  const selected = selectedTool(value.selected),
+  const decision = disposition(value),
     chain = afterAction(value.afterAction)
-  if (!selected || !chain) return invalid
-  const request = requestData(value, access, selected)
+  if (!decision || !chain) return invalid
+  const request = requestData(value, access, decision.adoption)
   if ('reason' in request) return request
-  const source = checkSourceToken(value.source)
-  if ('failure' in source) return invalid
-  if (
-    source.ok.session !== request.scope.session ||
-    !tenantIdEquals(source.ok.tenant, request.scope.tenant)
-  )
-    return invalid
-  return { request, selected, source: source.ok, chain }
+  if (!matchesCall(value, request, decision)) return invalid
+  const source = preparedSource(value.source, request)
+  if (!source) return invalid
+  return { request, ...decision, source, chain }
 }
 
 export async function verifyPreparedExecution(
@@ -102,6 +142,7 @@ export async function verifyPreparedExecution(
   currentAdmission: () => ToolAdmissionOperations | undefined,
 ): Promise<SubmissionFailure | undefined> {
   const { request, source } = captured
+  if ('notExecutable' in captured) return
   const admission = currentAdmission()
   if (!admission || request.admissionToken === undefined)
     return { kind: 'rejected', reason: 'admissionMissing' }

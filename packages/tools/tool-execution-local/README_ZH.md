@@ -8,7 +8,7 @@
 
 `createOriginalIssueToolRuntime(config, dependencies)` 选择同一个原工具执行器，并要求传入 `originalIssue`。该可信输入携带实际共同存储、日志参加者、日志权限、当前资格和Session准入。装配须先将 `toolOriginalIssueMigrations` 合入同库迁移。工厂不关闭这些借入资源；普通工厂和既有Cordis绑定不会隐式取得此协议。
 
-该工厂返回 `ToolPoolInstance`。`submit` 接收 `PreparedToolExecution`，包含选中定义、参数、原Source及已选 `after_action` 链。Session生产者准备这些输入；原池核验准入token，并复用已有执行器。构造与冷恢复仍须完成[SPEC.md](SPEC.md)要求的迁移，返回类型本身不证明完整池边界已成立。
+该工厂返回 `ToolPoolInstance`。`submit` 接收 `PreparedToolExecution`，包含原Source及已选 `after_action` 链。正常请求还包含选中定义和参数；不可执行请求包含原adoption及明确的 `unparseable` 或 `no_such_entry`，不能携带选中实现。Session生产者准备这些输入并核对原完成批次；原池核验正常请求的准入token，复用已有执行器，不可执行请求只形成失败结果，不调用作者。构造与冷恢复仍须完成[SPEC.md](SPEC.md)要求的迁移，返回类型本身不证明完整池边界已成立。
 
 原owner先保有完整job、输入和固定实现，再给Session提供同事务参加者。原意图和唯一claim先提交；原claim的消费确认后才进入作者。发起不明保留原job；消费已提交但回执丢失时，以未启动的unavailable终局收场，不补调作者。`stopped`只证明该job的实际工作和借用已收场，不代替结果交付凭证。目前组件验证使用真实SQLite与原执行器，Session准入仍为受控输入；完整Session保管／交付和动态Cordis驱动另行验证。
 

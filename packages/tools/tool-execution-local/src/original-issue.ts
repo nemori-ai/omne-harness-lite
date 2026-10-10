@@ -23,7 +23,7 @@ import {
   type ToolOriginalIssueSupport,
   type ToolExecutionJob,
 } from '@omne-harness-lite/tool-execution-runtime'
-import { sameJson } from './json-values.ts'
+import { sameJson, jsonObject } from './json-values.ts'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import { createToolExecutionRecordReader } from './execution-records.ts'
 import { createToolExecutionTransitions } from './execution-transitions.ts'
@@ -53,6 +53,11 @@ export function createToolOriginalIssue(input: {
   readonly isRetained: () => boolean
 }) {
   const { support, value, expected } = input
+  const nonexecuting =
+    value.selected === undefined &&
+    jsonObject(value.input) &&
+    value.input.format === 'tool-input/1' &&
+    (value.input.notExecutable === 'unparseable' || value.input.notExecutable === 'no_such_entry')
   const prepared = prepareToolJournalEntry({ origin: value.origin, value })
   if ('invalid' in prepared) throw new TypeError('invalid original tool intent')
   const entry = prepared.entry
@@ -176,7 +181,7 @@ export function createToolOriginalIssue(input: {
       : { kind: 'unavailable' }
   }
   async function stageConsumption(unit: StorageUnit): Promise<ToolOriginalIssueConsumeStage> {
-    if (!(await startIn(unit))) return { kind: 'unavailable' }
+    if (!nonexecuting && !(await startIn(unit))) return { kind: 'unavailable' }
     await unit.mutate(tx =>
       narrow<Database>(tx)
         .updateTable('tool_original_issue')
@@ -191,7 +196,10 @@ export function createToolOriginalIssue(input: {
   }
   async function verifyStarted(unit: StorageUnit) {
     const result = await records.readOriginalIn(unit, identity.ref)
-    return result.kind === 'found' && result.history.started !== undefined
+    return (
+      result.kind === 'found' &&
+      (nonexecuting ? result.history.started === undefined : result.history.started !== undefined)
+    )
   }
   async function startIn(unit: StorageUnit): Promise<boolean> {
     const now = await input.clock.now()

@@ -8,11 +8,11 @@
 
 Session 固定原工具请求、当前 attempt 和结果采用关系，Agent 决定执行或等待。工具池接收完整请求，管理原执行、并发、取消、等待、结果与资源。池不枚举 Session，不读取完整 SessionLog，不恢复 Session 队列、Run 或 attempt。独立 invokeTool 与既有执行器继续复用，不新增通用任务运行时。
 
-PreparedToolExecution 保留原 ExecutionRef、ExecutionOrigin、完整调用块、参数、真实 SelectedTool 和活体 RuntimeAccess。AdmissionToken 沿原可选输入及实际准入核验。数据身份、复制 Access、选中定义或 token 均不授予执行。持久工具执行保持原 Session、Run、attempt 及 assistantMessage 关联，不新增无 Run 的持久工具分支。
+PreparedToolExecution 保留原 ExecutionRef、ExecutionOrigin、完整调用块和活体 RuntimeAccess。正常请求携带参数及真实 SelectedTool；已确定不可执行的请求携带原 adoption 和 notExecutable，后者只允许 unparseable 或 no_such_entry，不能同时携带 selected 或 args。AdmissionToken 沿原可选输入及实际准入核验。数据身份、复制 Access、选中定义或 token 均不授予执行。持久工具执行保持原 Session、Run、attempt 及 assistantMessage 关联，不新增无 Run 的持久工具分支。
 
-请求生产者提供同一 Session 的实际 SourceToken，并固定 afterAction.pass 和 afterAction.selectedChain。池保存这些输入，不读取完整会话历史来重新选择定义或 after_action。args 必须与原调用块的 arguments 一致。普通 JSON 输入在首次等待前复制，Access 保留原活体对象；同一原调用的不同准备输入必须冲突，不得覆盖已保管的执行。
+请求生产者提供同一 Session 的实际 SourceToken，并固定 afterAction.pass 和 afterAction.selectedChain。池保存这些输入，不读取完整会话历史来重新选择定义或 after_action。正常请求的 args 必须与原调用块的 arguments 一致。不可执行结论由 Session 从已完成的原 before_action 批次取得，并在原发起的同一 Unit 核对；调用方不能仅凭自报结论跳过准入或伪造失败。普通 JSON 输入在首次等待前复制，Access 保留原活体对象；同一原调用的不同准备输入必须冲突，不得覆盖已保管的执行。
 
-ToolRuntimeOriginalIssueFactory 返回 ToolPoolInstance，submit 只接受准备好的请求。原工具准入 token 仍由实际 ToolAdmissionOperations 核验，缺席或无效不能发行新执行；核验来源须与请求的 Scope 和固定末尾位置一致。重复认回原调用仍先核当前访问资格，不把 token 或 SourceToken 当作独立执行权。完整纯池构造还须满足下段的依赖边界，不以返回类型相符代替验证。
+ToolRuntimeOriginalIssueFactory 返回 ToolPoolInstance，submit 只接受准备好的请求。正常请求的工具准入 token 仍由实际 ToolAdmissionOperations 核验，缺席或无效不能发行新执行；核验来源须与请求的 Scope 和固定末尾位置一致。重复认回原调用仍先核当前访问资格，不把 token 或 SourceToken 当作独立执行权。完整纯池构造还须满足下段的依赖边界，不以返回类型相符代替验证。
 
 ToolPoolConstruction 借入原实现、Context、环境、结果、Runner、授权和策略依赖，消费 ToolExecutionRecords。它不借入会话枚举、完整日志管理或历史驱动的准入准备接口。工具定义与采用来源在请求准备端核实，池仍核对固定输入及真正实现借用。普通读取、停止和答复保持原动作资格。
 
@@ -126,7 +126,7 @@ unknown须保同一个job、claim、意图、实现及输入借用；一次缺�
 
 consumeOriginal由原native owner请求；admission核该原claim并在实际Unit重新核最新permit及当前资格，
 调用participant.consumeOriginalIn暂存唯一消费，真正commit后才能返回launch。
-唯一消费与原工具的execution_started记录在同一个实际Unit暂存；任何一项失败，两项一起回滚。
+正常可执行请求的唯一消费与原工具的execution_started记录在同一个实际Unit暂存；任何一项失败，两项一起回滚。已由 Session 核实的不可执行请求只消费原处置凭证并形成失败结果，不写 execution_started，不借用或调用作者；其终局、原账、结果保管及 after_action 交付仍沿同一原身份。
 该记录表示原执行已取得启动资格，不证明作者已进入或物理效果已发生。
 ToolOriginalIssueAuthority只核同Unit当前资格，不替代native的权限、token、BeforeActions、原输入和实现守卫。
 participant.consumeOriginalIn的新消费返回staged；admission.consumeOriginal仅在真实commit后返回launch。
@@ -191,7 +191,7 @@ RS-3（core/tool-execution-runtime）维护读取只接受独立 RecoveryAccess�
 
 TE-19（core/tool-execution-runtime）after_action(each) 的 subject.result 仅在 completed 或 failed{business_failure,implementation_error,result_rejected} 时提供；其余终局及前台后台占位均缺席，不允许改写运行时产生的用法或中断说明。business_failure 是新增的正常作者返回失败，与其余作者结果同样可做消息投影。DeliveryBasis.result 必有只表示待交付投影存在，不表示该结果可交给 hook 改写。
 
-TE-20（core/tool-execution-runtime）同一 tenant/session/callId 的执行接纳与拒绝处置互斥。submit 须从完整前缀确认本批 before_action 已完成且本调用没有正式拒绝（包括官方件缺席的全拒）；未完成回 admissionMissing，正式拒绝回 callConflict。免 token 仅免 allow 凭据，不免这一守卫；仅最终仍为 notExecutable 的项可走该路径。还须确认无 action_denial_intended/action_denied 或其他路由的首次返回，免 token 提交同受约束；有拒绝路由返回 callConflict。仅同路由同实际输入可认回。守卫与 execution_intended 使用同代同尾提交；尾冲突重读并重判，未知回执不换路线。
+TE-20（core/tool-execution-runtime）同一 tenant/session/callId 的执行接纳与拒绝处置互斥。Session 请求生产者须从完整前缀确认本批 before_action 已完成且本调用没有正式拒绝（包括官方件缺席的全拒），并在原发起同一 Unit 核实不可执行结论；执行池不为此读取完整 SessionLog。未准备请求的旧 submit 路径迁移前仍执行同样的历史守卫；未完成回 admissionMissing，正式拒绝回 callConflict。免 token 仅免 allow 凭据，不免这一守卫；仅最终仍为 notExecutable 的项可走该路径。还须确认无 action_denial_intended/action_denied 或其他路由的首次返回，免 token 提交同受约束；有拒绝路由返回 callConflict。仅同路由同实际输入可认回。守卫与 execution_intended 使用同代同尾提交；尾冲突重读并重判，未知回执不换路线。
 
 
 TE-21 工具日志的公开 codec 拥有 `tool-runtime/1` 载荷、稳定键及 shell 对应关系。进入判定前复制严格 JSON，不运行调用者的 getter。未知所属版本、键、读键、租户或原 Run/attempt 冲突均拒绝。固定 Schema 在构建时生成，首次判定才加载并使用原生模块缓存；日志解码不编译作者的参数或应答 Schema。

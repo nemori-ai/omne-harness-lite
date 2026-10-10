@@ -23,17 +23,31 @@ import type { SourceToken } from '@omne-harness-lite/session-log'
 import type { StorageUnit } from '@omne-harness-lite/storage'
 import type { ToolRuntimeDependencies, ToolRuntimeConfig } from './runtime-provider.ts'
 
-export interface PreparedToolExecution {
+interface PreparedToolRequest {
   readonly access: RuntimeAccess
   readonly ref: ExecutionRef
   readonly origin: ExecutionOrigin
   readonly call: ToolCallBlock
-  readonly args: InvocationInput['args']
-  readonly selected: SelectedTool
   readonly source: SourceToken
   readonly afterAction: Pick<DeliveryBasis, 'pass' | 'selectedChain'>
   readonly admissionToken?: ExecutionSubmission['admissionToken']
 }
+
+export type PreparedToolExecution = PreparedToolRequest &
+  (
+    | {
+        readonly selected: SelectedTool
+        readonly args: InvocationInput['args']
+        readonly adoption?: never
+        readonly notExecutable?: never
+      }
+    | {
+        readonly selected?: never
+        readonly args?: never
+        readonly adoption: string
+        readonly notExecutable: 'unparseable' | 'no_such_entry'
+      }
+  )
 
 export type ToolPoolControls = Pick<ToolRuntimeOperations, 'acquire' | 'stop' | 'answer'>
 

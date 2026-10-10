@@ -11,7 +11,6 @@ import {
   type ToolOriginalIssueClaim,
   type ToolOriginalIssueSupport,
   type ToolTerminalRecord,
-  type SelectedTool,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { modelLogJsonEqual as equal } from '@omne-harness-lite/model-request-runtime'
 import type { BorrowedRunJournal } from './run-journal-types.ts'
@@ -33,7 +32,7 @@ import { publishDriverActionBatch } from './driver-action-batch.ts'
 import { inspectActionBatch } from './driver-action-facts.ts'
 import { readDriverToolBatch, type DriverToolBatch } from './driver-tool-source.ts'
 import { DriverHistoryInvalid, requireHistory } from './driver-model-history.ts'
-import { prepareDriverToolRequest } from './driver-tool-request.ts'
+import { prepareDriverToolRequest, type DriverToolResolution } from './driver-tool-request.ts'
 
 type Preparation = Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
 type Inputs = Pick<LocalSessionDriverOptions, 'ingress' | 'identities' | 'tools' | 'work'>
@@ -48,7 +47,7 @@ type Input = {
 }
 export interface DriverToolWork {
   readonly request: ExecutionSubmission
-  readonly selected: SelectedTool
+  readonly resolution: DriverToolResolution
   readonly preparation: Preparation
   readonly identities: ReturnType<Inputs['identities']['tool']>
   readonly token: SessionDriverWorkToken
@@ -133,14 +132,12 @@ class ToolRun {
       ...(token === undefined ? {} : { admissionToken: token }),
     }
     const adopted = batch.adoption.adoption.tools.find(tool => tool.name === request.call.tool)
-    if (!adopted || item.decision.kind === 'notExecutable') return
+    if (item.decision.kind === 'notExecutable')
+      return this.prepareWork(request, position, { notExecutable: item.decision.reason })
+    if (!adopted) return
     const { capability, asset, version, definition } = adopted
     return this.prepareWork(request, position, {
-      capability,
-      asset,
-      version,
-      definition,
-      adoption: request.adoption,
+      selected: { capability, asset, version, definition, adoption: request.adoption },
     })
   }
   async executeAndDeliver(work: DriverToolWork) {
@@ -245,7 +242,7 @@ class ToolRun {
   prepareWork(
     request: ExecutionSubmission,
     position: SourceToken['tail'],
-    selected: SelectedTool,
+    resolution: DriverToolResolution,
   ): DriverToolWork {
     const { scope, options, permit } = this.input
     const identities = Object.freeze({
@@ -283,7 +280,7 @@ class ToolRun {
       originalPosition: identities.originalPosition,
     })
     const token = options.work.begin(scope, preparation)
-    return { request, selected, preparation, identities, token, stopped: false }
+    return { request, resolution, preparation, identities, token, stopped: false }
   }
   async execute(work: DriverToolWork) {
     const { options, scope } = this.input
@@ -324,7 +321,7 @@ class ToolRun {
     const source = await this.prefix()
     const prepared = await prepareDriverToolRequest({
       request: work.request,
-      selected: work.selected,
+      ...work.resolution,
       source: source.source,
       host: this.input.sources.actions.host,
       signal: this.input.signal,
