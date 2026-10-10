@@ -17,9 +17,13 @@ async function setup() {
   const h = await boot()
   const borrow = await h.log.owner.borrow(h.access, scope)
   if (borrow.kind !== 'borrowed') throw Error('borrow fixture')
+  const log = { ...h.log.participant }
   const owner = createOriginalIssueOwner({
     storage: h.storage,
-    log: h.log.participant,
+    log: {
+      appendIn: (...args) => log.appendIn(...args),
+      readByKeyIn: (...args) => log.readByKeyIn(...args),
+    },
     access: h.access,
     limit: 8,
     authority: {
@@ -54,7 +58,7 @@ async function setup() {
     originalPosition: 'original-call-position',
     entry: entry.ok,
   }
-  return { h, owner, input }
+  return { h, owner, input, log }
 }
 it('the model claim and dispatched fact roll back together and no launch can precede outer commit', async () => {
   const { h, owner, input } = await setup()
@@ -107,7 +111,7 @@ it('a copied ticket and replaced journal generation cannot authorize a claim', a
   expect(await h.log.readSince(scope.session, 0)).toHaveProperty('entries.length', 0)
 })
 it('lost acknowledgment does not grant launch and close needs both the exact claim and original log batch', async () => {
-  const { h, owner, input } = await setup()
+  const { h, owner, input, log } = await setup()
   const write = h.storage.write.bind(h.storage)
   const lost = vi.spyOn(h.storage, 'write').mockImplementation(async callback => {
     await write(callback)
@@ -115,13 +119,57 @@ it('lost acknowledgment does not grant launch and close needs both the exact cla
   })
   expect(await owner.admitOriginal(input)).toEqual({ kind: 'unavailable' })
   lost.mockRestore()
-  const hidden = vi
-    .spyOn(h.storage, 'read')
-    .mockRejectedValue(new StorageUnavailable('cannot recognize'))
+  const hidden = vi.spyOn(log, 'readByKeyIn').mockResolvedValue({ failure: 'unavailable' })
   expect(await owner.close()).toEqual({ kind: 'pending' })
   hidden.mockRestore()
   expect(await owner.close()).toEqual({ kind: 'released' })
   expect(await h.log.readSince(scope.session, 0)).toHaveProperty('entries.length', 1)
+})
+it('recognizes a lost original commit through its dispatch key without reading the Session prefix', async () => {
+  const { h, owner, input, log } = await setup()
+  const write = h.storage.write.bind(h.storage)
+  const lost = vi.spyOn(h.storage, 'write').mockImplementation(async callback => {
+    await write(callback)
+    throw new StorageUnavailable('lost acknowledgment')
+  })
+  expect(await owner.admitOriginal(input)).toEqual({ kind: 'unavailable' })
+  lost.mockRestore()
+  const wholeSession = vi.spyOn(log, 'readPrefix').mockImplementation(async () => {
+    throw new Error('Model original owner cannot read a full Session prefix')
+  })
+  const key = input.entry.dedupeKey
+  if (key === undefined) throw Error('dispatch key')
+  const read = vi.spyOn(log, 'readByKeyIn')
+  expect(await owner.close()).toEqual({ kind: 'released' })
+  expect(wholeSession).not.toHaveBeenCalled()
+  expect(read).toHaveBeenCalledTimes(1)
+  expect(read.mock.calls[0]?.[3]).toBe(key)
+  expect(await h.log.readSince(scope.session, 0)).toHaveProperty('entries.length', 1)
+})
+
+it('retains a lost original commit when its keyed entry has another position', async () => {
+  const { h, owner, input, log } = await setup()
+  const write = h.storage.write.bind(h.storage)
+  const lost = vi.spyOn(h.storage, 'write').mockImplementation(async callback => {
+    await write(callback)
+    throw new StorageUnavailable('lost acknowledgment')
+  })
+  expect(await owner.admitOriginal(input)).toEqual({ kind: 'unavailable' })
+  lost.mockRestore()
+  const read = h.log.participant.readByKeyIn.bind(h.log.participant)
+  const changed = vi.spyOn(log, 'readByKeyIn').mockImplementation(async (...args) => {
+    const result = await read(...args)
+    return 'failure' in result
+      ? result
+      : {
+          ...result,
+          entries: result.entries.map(entry => ({ ...entry, position: 2 })),
+        }
+  })
+  expect(await owner.close()).toEqual({ kind: 'pending' })
+  expect(await owner.consumeOriginal({} as never)).toEqual({ kind: 'invalidInput' })
+  changed.mockRestore()
+  expect(await owner.close()).toEqual({ kind: 'released' })
 })
 it('consumption stays pending while the actual outer transaction is uncommitted', async () => {
   const { h, owner, input } = await setup()

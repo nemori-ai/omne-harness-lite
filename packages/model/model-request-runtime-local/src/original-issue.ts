@@ -4,6 +4,7 @@ import { copyJsonValue, readJsonStrict, writeJsonLossless } from '@omne-harness-
 import {
   inspectModelLogEntry,
   modelLogJsonEqual,
+  encodeModelLogKey,
   type OriginalIssueInput,
   type OriginalIssueTicket,
   type OriginalIssueClaim,
@@ -60,7 +61,7 @@ const invalid: OriginalIssueFailure = { kind: 'invalidInput' },
   conflict: OriginalIssueFailure = { kind: 'conflict' }
 export interface OriginalIssueOwnerOptions {
   readonly storage: AtomicStorage
-  readonly log: SessionLogParticipant
+  readonly log: Pick<SessionLogParticipant, 'appendIn' | 'readByKeyIn'>
   readonly access: LogAuthority
   readonly authority: OriginalIssueAuthority
   readonly limit: number
@@ -257,46 +258,49 @@ export function createOriginalIssueOwner(options: OriginalIssueOwnerOptions): Or
     }
   }
   async function recognizes(held: HeldClaim): Promise<boolean> {
-    const identity = held.prepared.identity
-    let row: Row | undefined
     try {
-      row = await options.storage.read(tx =>
-        narrow<Database>(tx)
-          .selectFrom('mr_original_issue')
-          .selectAll()
-          .where('session', '=', identity.session)
-          .where('call', '=', identity.call)
-          .where('dispatch', '=', dispatchText(identity))
-          .executeTakeFirst(),
-      )
+      return await options.storage.atomic(unit => recognizesIn(unit, held))
     } catch (error) {
       if (error instanceof StorageUnavailable) return false
       throw error
     }
+  }
+  async function recognizesIn(unit: StorageUnit, held: HeldClaim): Promise<boolean> {
+    const identity = held.prepared.identity
+    const row = await unit.query(tx =>
+      narrow<Database>(tx)
+        .selectFrom('mr_original_issue')
+        .selectAll()
+        .where('session', '=', identity.session)
+        .where('call', '=', identity.call)
+        .where('dispatch', '=', dispatchText(identity))
+        .executeTakeFirst(),
+    )
     if (
       row === undefined ||
       row.owner_generation !== generation ||
       !sameOriginal(row, held.prepared)
     )
       return false
-    return recognizesLog(held)
+    return recognizesLog(unit, held)
   }
-  async function recognizesLog(held: HeldClaim): Promise<boolean> {
+  async function recognizesLog(unit: StorageUnit, held: HeldClaim): Promise<boolean> {
     const last = held.entries.at(-1)
     if (last === undefined) throw new StorageDefect('original claim has no staged entry')
-    const prefix = await options.log.readPrefix(options.access, {
-      ...held.prepared.source,
-      tail: last.position,
+    const identity = held.prepared.identity
+    const key = encodeModelLogKey({
+      kind: 'dispatched',
+      call: identity.call,
+      dispatch: identity.dispatch,
     })
-    if ('failure' in prefix) return false
-    for (const expected of held.entries) {
-      const actual = prefix.entries.find(
-        entry =>
-          ExactDecimal.from(entry.position).compare(ExactDecimal.from(expected.position)) === 0,
-      )
-      if (actual === undefined || !modelLogJsonEqual(actual, expected)) return false
-    }
-    return true
+    if ('invalidValue' in key) throw new StorageDefect('invalid original model dispatch identity')
+    const read = await options.log.readByKeyIn(
+      unit,
+      options.access,
+      { ...held.prepared.source, tail: last.position },
+      key.ok,
+    )
+    return !('failure' in read) && modelLogJsonEqual(read.entries, held.entries)
   }
   const participant = Object.freeze<OriginalIssueParticipant>({ stageOriginalIn: stage })
   return Object.freeze<OriginalIssueOwner>({

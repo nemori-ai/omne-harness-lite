@@ -15,7 +15,9 @@
 
 原发起Owner的共享操作形状归core/model-request-runtime，本包公开类型沿同一源重导出。
 具体createOriginalIssueOwner选同Storage、实际日志和权限，并保留原limit／持久实现。
-类型归属迁移不改变原发起、认回、消费或关闭算法，也不据此证明Session桥已消费实际owner。
+该Owner只借入日志的appendIn和readByKeyIn。关闭时，在同一StorageUnit中读取原发起索引和固定SourceToken下的原dispatch记录；它不读取完整Session前缀。
+只有原索引、执行代次和完整记录（含原位置）全部匹配，才解除未知提交的保有责任。记录缺失、内容或位置不同、读取失败时仍返回pending；这不授予再次发送的权利。
+这项限定不代表完整Model执行池已完成迁移，也不据此证明Session桥已消费实际owner。
 
 十五操作的形状归公共 `ModelRuntimeOperations`；类型之外的共享行为归公共 SPEC。
 尚未迁移的具体生命周期投影与跨拥有者组合义务继续按精确旧源，见[迁移范围](../../../.meta_harness/design/architecture/pilots/n4-ownership.md#模型请求运行时)。
