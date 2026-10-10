@@ -39,7 +39,10 @@ import type {
 function revision(value: unknown): value is string | null {
   return value === null || (typeof value === 'string' && /^(?:0|[1-9][0-9]*)$/u.test(value))
 }
-function publication(value: unknown): LocalPublication | undefined {
+function publication(
+  value: unknown,
+  deps: EvaluationStorageDependencies,
+): LocalPublication | undefined {
   const copy = json(value)
   if (
     !object(copy) ||
@@ -52,7 +55,7 @@ function publication(value: unknown): LocalPublication | undefined {
   const scopes = new Set<string>()
   const assets = new Set<string>()
   for (const entry of copy.definitions) {
-    const admitted = definition(entry)
+    const admitted = definition(entry, deps.evaluator)
     if (assets.has(admitted.id)) return undefined
     assets.add(admitted.id)
   }
@@ -93,7 +96,7 @@ export async function publishLocalInputs(
   const deps = ownDependencies(dependencies)
   let input: LocalPublication | undefined
   try {
-    input = publication(value)
+    input = publication(value, deps)
   } catch (error) {
     if (error instanceof SourceUnavailable) return { failure: 'invalidInput' }
     if (error instanceof BodyProviderUnavailableError) return { failure: 'unavailable' }
@@ -194,10 +197,13 @@ export async function publishLocalInputs(
                 if (!object(metadata)) throw new SourceUnavailable('existing_metadata')
                 persisted.set(
                   holding.asset,
-                  definition({
-                    ...metadata,
-                    versions: versions.map(row => parsed(row.version, 'existing_version')),
-                  }),
+                  definition(
+                    {
+                      ...metadata,
+                      versions: versions.map(row => parsed(row.version, 'existing_version')),
+                    },
+                    deps.evaluator,
+                  ),
                 )
               }
               const asset = requested.get(holding.asset) ?? persisted.get(holding.asset)

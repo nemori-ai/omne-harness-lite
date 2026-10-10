@@ -109,6 +109,7 @@ function sameSelection(a: SessionModelSelectionInput, b: SessionModelSelectionIn
     a.sessionTenancy === b.sessionTenancy &&
     a.catalog === b.catalog &&
     a.currentEvaluationInputs === b.currentEvaluationInputs &&
+    a.evaluator === b.evaluator &&
     a.projection === b.projection &&
     a.compatible === b.compatible &&
     a.now === b.now

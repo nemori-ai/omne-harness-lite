@@ -206,7 +206,7 @@ export function createRegistryInputReaderWithUnit(
         const input = buildInputWithRoot(snapshot, rootSource, snapshot.fixedRoot)
         const extractionNanos = (deps.monotonicNow() - extractionStarted).toString()
         const selectorStarted = deps.monotonicNow()
-        const selected = selectEvaluationRootSource({
+        const selected = deps.evaluator.selectEvaluationRootSource({
           tenant,
           standing: input.standing,
           holdings: input.holdings,
@@ -216,7 +216,7 @@ export function createRegistryInputReaderWithUnit(
         })
         const selectorNanos = (deps.monotonicNow() - selectorStarted).toString()
         const evaluationStarted = deps.monotonicNow()
-        const evaluated = evaluate(input)
+        const evaluated = deps.evaluator.evaluate(input)
         const evaluationNanos = (deps.monotonicNow() - evaluationStarted).toString()
         const result = registryResult(input, selected, evaluated, rootSource, snapshot.revision)
         emit(deps, {

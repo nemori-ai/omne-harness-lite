@@ -37,7 +37,8 @@ import type {
 import { BodyProviderUnavailableError } from './availability.ts'
 import { isAssetCategory, isCapabilityName, normalizeWorkspaceDirectory } from './values.ts'
 import {
-  createSchemaRuntime,
+  createSchemaRuntimeFactory,
+  type SchemaRuntime,
   type SchemaValidator,
 } from '@omne-harness-lite/content-blocks/schema-runtime'
 
@@ -523,7 +524,12 @@ function authorshipLeavesOwner(c: Candidate): boolean {
   return lineage !== undefined && !sameTenant(owner, lineage.importedBy)
 }
 /** Section-three constraints Schema cannot express; each one is a `malformed` value. */
-function violatesCrossMemberRules(c: Candidate, bodies: BodyContractSupply): boolean {
+function violatesCrossMemberRules(
+  c: Candidate,
+  runtime: SchemaRuntime,
+  createRuntime: () => SchemaRuntime,
+  domainValidators?: Map<string, SchemaValidator>,
+): boolean {
   return (
     !canonicalWorkspaceKey(c.defName, c.root) ||
     authorshipLeavesOwner(c) ||
@@ -531,7 +537,7 @@ function violatesCrossMemberRules(c: Candidate, bodies: BodyContractSupply): boo
       duplicate(array(c.root?.assets), entry => capabilityKey(entry.capability))) ||
     ((c.defName === 'AttributeDeclaration' || c.defName === 'AttributeDomain') &&
       c.root !== undefined &&
-      !validDomain(c.root, bodies))
+      !validDomain(c.root, runtime, createRuntime, domainValidators))
   )
 }
 export interface AssetModelJudge {
@@ -547,9 +553,16 @@ export interface AssetModelJudge {
   ) => AssetJudgment
   readonly validate: (defName: SchemaDefName, value: unknown) => { readonly valid: boolean }
 }
-export function createAssetModelJudge(bodyContracts: BodyContractSupply): AssetModelJudge {
+export function createAssetModelJudge(
+  bodyContracts: BodyContractSupply,
+  options: { readonly reuseDomainValidators?: boolean } = {},
+): AssetModelJudge {
   const bodies = bindBodyContracts(bodyContracts)
-  const runtime = createSchemaRuntime(resources(bodies))
+  const createRuntime = createSchemaRuntimeFactory(resources(bodies))
+  const runtime = createRuntime()
+  const domainValidators = options.reuseDomainValidators
+    ? new Map<string, SchemaValidator>()
+    : undefined
   const validators = new Map<SchemaDefName, SchemaValidator>()
   for (const name of SCHEMA_DEF_NAMES) {
     const validator = runtime.compile({ $ref: `${schemaId}#/$defs/${name}` })
@@ -587,7 +600,7 @@ export function createAssetModelJudge(bodyContracts: BodyContractSupply): AssetM
     if (
       nested.includes('malformed') ||
       !validate(defName, value).valid ||
-      violatesCrossMemberRules(candidate, bodies)
+      violatesCrossMemberRules(candidate, runtime, createRuntime, domainValidators)
     )
       return Object.freeze({ rejected: 'malformed' })
     return Object.freeze({ ok: true })
@@ -604,23 +617,41 @@ export function createAssetModelJudge(bodyContracts: BodyContractSupply): AssetM
     )
   return Object.freeze({ judgeAssetValue, validate, attributeDeclarationsOf })
 }
-function validDomain(root: JsonObject, bodies: BodyContractSupply): boolean {
+function domainValidator(
+  raw: JsonSchema,
+  createRuntime: () => SchemaRuntime,
+  domainValidators?: Map<string, SchemaValidator>,
+): SchemaValidator | undefined {
+  const key = domainValidators === undefined ? undefined : writeJsonLossless(raw)
+  const cached = key === undefined ? undefined : domainValidators?.get(key)
+  if (cached !== undefined) return cached
+  // Distinct author schemas use separate compilers, including schemas with colliding ids.
+  const runtime = createRuntime()
+  if (!runtime.metaValidate(raw)) return undefined
+  let validator: SchemaValidator
+  try {
+    validator = runtime.compile(raw)
+  } catch (error) {
+    if (error instanceof Error) return undefined
+    throw error
+  }
+  if (key !== undefined) domainValidators?.set(key, validator)
+  return validator
+}
+
+function validDomain(
+  root: JsonObject,
+  ownerRuntime: SchemaRuntime,
+  createRuntime: () => SchemaRuntime,
+  domainValidators?: Map<string, SchemaValidator>,
+): boolean {
   const domain = object(root.domain) ?? root
   if (domain.kind === 'enum')
     return !Object.hasOwn(root, 'default') || array(domain.values).includes(root.default ?? null)
   if (domain.kind !== 'open') return true
   const raw = domain.schema
   if (typeof raw !== 'boolean' && !isObject(raw)) return false
-  // Caller schemas have no module-level cache. The local compiler dies with this invocation.
-  const runtime = createSchemaRuntime(resources(bodies))
-  if (!runtime.metaValidate(raw)) return false
-  if (!Object.hasOwn(root, 'default')) return true
-  let validator: SchemaValidator
-  try {
-    validator = runtime.compile(raw)
-  } catch (error) {
-    if (error instanceof Error) return false
-    throw error
-  }
-  return !Object.hasOwn(root, 'default') || validator.validate(root.default ?? null)
+  if (!Object.hasOwn(root, 'default')) return ownerRuntime.metaValidate(raw)
+  const validator = domainValidator(raw, createRuntime, domainValidators)
+  return validator !== undefined && validator.validate(root.default ?? null)
 }

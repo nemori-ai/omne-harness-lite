@@ -9,6 +9,7 @@ import {
 } from '@omne-harness-lite/asset-model'
 import { toOpaqueJson, writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { computeEvaluation, type EvaluationFacts } from '../src/compute.ts'
+import { getAssetJudge } from '../src/defaults.ts'
 import type { EffectiveAssembly, NonConnectorEvaluationInput } from '../src/index.ts'
 import { assignment, cap, definition, holding, shell, simple, tool } from './fixtures.ts'
 
@@ -119,7 +120,7 @@ function evaluated(
   unlockedNetwork = false,
 ): EffectiveAssembly {
   const { input, facts } = inputOf(branch, unlockedNetwork)
-  const result = computeEvaluation(input, facts)
+  const result = computeEvaluation(getAssetJudge(), input, facts)
   if (!('ok' in result)) throw new Error(writeJsonLossless(result))
   return result.ok
 }

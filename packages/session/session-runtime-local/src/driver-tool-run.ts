@@ -40,7 +40,8 @@ type Input = {
   readonly options: Inputs
   readonly scope: SessionScope
   readonly journal: BorrowedRunJournal
-  readonly sources: Pick<SessionDriverRunSources, 'toolAccess' | 'actions'>
+  readonly sources: Pick<SessionDriverRunSources, 'toolAccess' | 'actions'> &
+    Partial<Pick<SessionDriverRunSources, 'selection'>>
   readonly message: string
   readonly permit: Preparation['permit']
   readonly signal: AbortSignal
@@ -158,11 +159,16 @@ class ToolRun {
       journal: this.input.journal,
       message: this.input.message,
       actions: this.input.sources.actions,
+      parameters: this.input.sources.selection?.evaluator?.parameters,
       signal: this.input.signal,
     })
     if (published.kind !== 'complete' || !this.available()) return undefined
     const prefix = await this.prefix()
-    const found = readDriverToolBatch(prefix, this.input.message)
+    const found = readDriverToolBatch(
+      prefix,
+      this.input.message,
+      this.input.sources.selection?.evaluator?.parameters,
+    )
     requireHistory(found.kind === 'batch', 'actual original Tool batch required')
     const record = prefix.entries.flatMap(entry => {
       const record = inspectActionBatch(prefix, entry)

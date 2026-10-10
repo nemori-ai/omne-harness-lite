@@ -1,3 +1,4 @@
+import { createAssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import type { RunRegistryReaderDependencies, RunRegistryReaders } from './admitted-types.ts'
 import { parseTenantId, tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { validate as validateMessage } from '@omne-harness-lite/messages'
@@ -31,8 +32,9 @@ export function createRunRegistryReaders(
     if (!matches(scope)) throw new SourceUnavailable('current_membership')
     return authorized(unit => read(unit))
   }
-  const fixedRoot = createRegistryInputReaderWithUnit(dependencies, readUnit)
-  const history = createRegistryHistoryReaderWithUnit(dependencies, readUnit)
+  const owned = { ...dependencies, evaluator: dependencies.evaluator ?? createAssetEvaluator() }
+  const fixedRoot = createRegistryInputReaderWithUnit(owned, readUnit)
+  const history = createRegistryHistoryReaderWithUnit(owned, readUnit)
   let closed = false
   return Object.freeze<RunRegistryReaders>({
     fixedRoot: Object.freeze<RunRegistryReaders['fixedRoot']>({

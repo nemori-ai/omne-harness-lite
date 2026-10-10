@@ -167,6 +167,7 @@ class ModelSegment {
       report,
       entries: tools.entries,
       inputs: this.inputs,
+      evaluator: this.sources.selection.evaluator,
     })
     return 'adoption' in adoption ? adoption : { failure: 'unavailable' as const }
   }
@@ -185,7 +186,7 @@ class ModelSegment {
       preparation,
       linked: this.linked!,
       source: options.model.results,
-      projection: toolAdoptionProjection(scope, sources.projection),
+      projection: toolAdoptionProjection(scope, sources.projection, sources.selection.evaluator),
       resultKey: prepared.identities.resultKey,
       adoptionKey: prepared.identities.adoptionKey,
       call: {
@@ -255,10 +256,13 @@ class ModelSegment {
 function toolAdoptionProjection(
   scope: SessionScope,
   projection: SessionDriverRunSources['projection'],
+  evaluator: SessionDriverRunSources['selection']['evaluator'],
 ): SessionModelTurnOptions['projection'] {
   const factReaders = new Map(projection.options?.factReaders)
   factReaders.set(sessionToolActionOwner, (_value, entry) =>
-    'adoption' in inspectSessionToolAdoption(scope, entry) ? 'valid' : 'invalid',
+    'adoption' in inspectSessionToolAdoption(scope, entry, evaluator?.parameters)
+      ? 'valid'
+      : 'invalid',
   )
   factReaders.set(sessionActionBatchOwner, (_value, entry) => {
     try {

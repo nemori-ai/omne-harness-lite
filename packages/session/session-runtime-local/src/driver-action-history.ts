@@ -1,3 +1,4 @@
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { modelLogJsonEqual as equal } from '@omne-harness-lite/model-request-runtime'
 import { compareInteger, type CheckedPrefix } from '@omne-harness-lite/session-log'
@@ -23,17 +24,18 @@ import { actionRecords, checkActionBatch } from './driver-action-check.ts'
 export interface SessionToolActionHistoryOptions {
   /** Root-selected mature Runner replay interpreter. This is a pure data function, never a grant. */
   readonly readConclusions: ReadActionConclusions
+  readonly parameters?: ParameterJudge | undefined
 }
 export function createSessionToolActionHistory(
   options: SessionToolActionHistoryOptions,
 ): ToolActionHistoryOperations {
-  const read = options.readConclusions
+  const { readConclusions: read, parameters } = options
   return Object.freeze({
     inspect(prefix: CheckedPrefix, call: string) {
       try {
         const copy = copyJsonValue(prefix)
         requireHistory('ok' in copy, 'tool action prefix is not owned JSON')
-        return inspect(read, copy.ok as unknown as CheckedPrefix, call)
+        return inspect(read, copy.ok as unknown as CheckedPrefix, call, parameters)
       } catch (error) {
         if (error instanceof DriverHistoryInvalid) return { kind: 'unavailable' as const }
         throw error
@@ -45,11 +47,12 @@ function inspect(
   read: ReadActionConclusions,
   prefix: CheckedPrefix,
   call: string,
+  parameters?: ParameterJudge,
 ): ReturnType<ToolActionHistoryOperations['inspect']> {
   const batches = new Map<string, DriverToolBatch>(),
     completed = new Map<string, DriverActionBatchRecord>()
   for (const reply of readDriverModelHistory(prefix).replies.values()) {
-    const result = readDriverToolBatch(prefix, reply.message.id)
+    const result = readDriverToolBatch(prefix, reply.message.id, parameters)
     requireHistory(result.kind !== 'unavailable', 'uninterpretable original Model batch')
     if (result.kind === 'batch') batches.set(reply.message.id, result.batch)
   }

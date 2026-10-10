@@ -396,7 +396,7 @@ export function createSessionModelSelection(
       currentInputs.input.standing.standing !== 'effective'
     )
       return unavailable()
-    const evaluated = evaluate(currentInputs.input)
+    const evaluated = (input.evaluator?.evaluate ?? evaluate)(currentInputs.input)
     if (!('ok' in evaluated)) return unavailable()
     return {
       root: capabilityCanonicalString(currentInputs.input.root.definition),

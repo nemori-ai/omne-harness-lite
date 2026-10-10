@@ -3,7 +3,11 @@ import {
   capabilityCanonicalString,
   type CapabilityId,
 } from '@omne-harness-lite/asset-model'
-import { judgeEffectiveAssembly, type EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
+import {
+  judgeEffectiveAssembly,
+  type AssetEvaluator,
+  type EffectiveAssembly,
+} from '@omne-harness-lite/asset-evaluation'
 import {
   copyJsonValue,
   isNonNegativeJsonInteger,
@@ -148,6 +152,7 @@ export function answerPresence(
 }
 export function readEvaluationProjection(
   content: unknown,
+  evaluator?: AssetEvaluator,
 ):
   | { readonly ok: EvaluationProjection }
   | { readonly failure: 'unavailable'; readonly reason: 'invalid_evaluation_content' } {
@@ -156,7 +161,7 @@ export function readEvaluationProjection(
   if (
     'failed' in copied ||
     !object(copied.ok) ||
-    !judgeEffectiveAssembly(copied.ok.evaluation) ||
+    !(evaluator?.judgeEffectiveAssembly ?? judgeEffectiveAssembly)(copied.ok.evaluation) ||
     !Array.isArray(copied.ok.compositionOrder)
   )
     return bad

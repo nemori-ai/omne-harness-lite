@@ -1,12 +1,18 @@
 import { createShellTool } from '@omne-harness-lite/meta-shell'
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 
 /** The CLI release chooses its shell and output policy. */
-export const sessionShell = createShellTool({
-  shell: { executable: '/bin/bash', args: ['--noprofile', '--norc'] },
-  maxOutputBytes: 65_536,
-  executePermission: 'auto',
-  backgroundThreshold: 'PT30S',
-})
+export function createSessionShell(parameters?: ParameterJudge) {
+  return createShellTool({
+    ...(parameters ? { parameters } : {}),
+    shell: { executable: '/bin/bash', args: ['--noprofile', '--norc'] },
+    maxOutputBytes: 65_536,
+    executePermission: 'auto',
+    backgroundThreshold: 'PT30S',
+  })
+}
+
+export const sessionShell = createSessionShell()
 
 export const sessionShellAsset = Object.freeze({
   id: 'omne.cli.shell',

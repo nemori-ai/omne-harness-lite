@@ -1,3 +1,4 @@
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import type { ToolCallBlock } from '@omne-harness-lite/content-blocks'
 import { compareInteger, type CheckedPrefix, type LogEntry } from '@omne-harness-lite/session-log'
 import { readDriverRunState } from './run-history.ts'
@@ -30,6 +31,7 @@ export interface DriverToolBatch {
 export function readDriverToolBatch(
   prefix: CheckedPrefix,
   message: string,
+  parameters?: ParameterJudge,
 ):
   | { readonly kind: 'batch'; readonly batch: DriverToolBatch }
   | { readonly kind: 'notFound' | 'unavailable' } {
@@ -40,7 +42,7 @@ export function readDriverToolBatch(
     const calls = completedCalls(reply)
     if (!calls.length) return { kind: 'notFound' }
     uniqueCalls(models.replies.values())
-    const adoption = adopted(prefix, reply)
+    const adoption = adopted(prefix, reply, parameters)
     const { run, attempt } = reply.entry
     requireHistory(
       run !== undefined && attempt !== undefined,
@@ -76,11 +78,15 @@ function uniqueCalls(replies: Iterable<DriverModelReply>) {
     }
   }
 }
-function adopted(prefix: CheckedPrefix, reply: DriverModelReply): DriverToolBatch['adoption'] {
+function adopted(
+  prefix: CheckedPrefix,
+  reply: DriverModelReply,
+  parameters?: ParameterJudge,
+): DriverToolBatch['adoption'] {
   const values: DriverToolBatch['adoption'][] = []
   const call = reply.response.response!.call.callId
   for (const entry of prefix.entries) {
-    const parsed = inspectSessionToolAdoption(prefix.scope, entry)
+    const parsed = inspectSessionToolAdoption(prefix.scope, entry, parameters)
     requireHistory(!('failure' in parsed), 'uninterpretable original tool adoption')
     if (parsed.kind !== 'adoption' || parsed.adoption.call !== call) continue
     values.push({ entry, key: entry.dedupeKey!, adoption: parsed.adoption })

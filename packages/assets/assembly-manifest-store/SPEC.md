@@ -9,6 +9,12 @@ Its configuration is a strict empty serialized object. Callbacks and runtime han
 Missing required services hold the consumer pending. Invalid configuration rejects startup.
 `AssemblyManifestResourcesService` validates ports before publication and snapshots the option fields.
 An explicit empty resource service selects the original optional-port defaults.
+The caller can supply an assembly-owned `AssetEvaluator` through `ManifestOptions`.
+The store creates one evaluator at construction when the caller omits it.
+Both evaluation projection reads reuse this evaluator and still validate each complete value.
+A replacement store keeps a separate evaluator unless its assembly explicitly supplies a shared owner.
+The store does not close a borrowed evaluator.
+
 The source object and functions remain borrowed. The factory captures the PresenceSource object and the two callback references once.
 It calls diagnostic and diagnosticFailure as bare functions, without binding this to Cordis or the caller Context.
 It calls presenceSource.read through the captured source object; it does not snapshot or bind that method separately.

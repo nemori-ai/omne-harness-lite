@@ -6,7 +6,7 @@
 
 - 只使用本 `storeKey` 的真实发布、实际会话租户映射和当前组织治理公开事实。调用方不能用完整预造输入、历史求值结果、恒真资格回调或 `EffectiveAssembly` 代替来源。隔离标签及 tenant/session 参数不构成授权；可信宿主向已获权限的消费者分发闭包。
 - EIS 与治理资格使用同一 `AtomicStorage` 对象，治理通过公开 `participate(unit)` 加入实际事务。另一个对象即使打开同文件也不是此保证。ordinary read 不伪造 unit，atomic 内不另开资格事务。本采用依赖 SQLite `BEGIN IMMEDIATE` 写者排序；不承诺 PostgreSQL、跨库快照或数据库硬只读。
-- selector、evaluate、根提取及生产 BodyContracts/Schema 使用同一采用版本，不复制算法或各自追最新。默认 Schema owner 首次实际使用构造，成功后复用；失败保持原异常并允许以后重试。import 不构造，显式工厂和临时作者编译不受单例规则替代。
+- selector、evaluate、根提取及生产 BodyContracts/Schema 使用同一采用版本，不复制算法或各自追最新。调用方可提供装配持有的 `AssetEvaluator`，发布、正文读取、选根和求值共用它。未提供时，每个 reader 在构造时创建自己的 evaluator；同组 Run registry readers 共用一个。重复读取仍核验当前数据，但复用同一 evaluator 已编译的完整 Schema。重新装配须提供新 evaluator；旧 reader 保留原 evaluator 直至调用结束。import 不创建 evaluator。
 - 可信部署清单逐项明确 capability 和布尔 meta，集合严格复制。重复、畸形、缺 meta 拒绝构造；不把旧裸数组自动补为 `meta:false`。名字、正文、持有或发布请求不决定 meta。更换清单须显式重建并核发布状态。
 - 根入口提供独立当前读取器及迁移；`./publication` 属于可信宿主；`./registry-inputs` 和 `./registry-history` 是受限独立读面。独立模型调用不隐含依赖本包。
 

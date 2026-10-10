@@ -18,6 +18,26 @@ export interface SchemaRuntime {
   readonly metaValidate: (schema: SchemaDocument) => boolean
   readonly compile: (schema: SchemaDocument) => SchemaValidator
 }
+/** Snapshot and prepare fixed resources once; each call owns a fresh author compiler. */
+export function createSchemaRuntimeFactory(
+  resources: readonly SchemaDocument[],
+  options?: SchemaRuntimeOptions,
+): () => SchemaRuntime {
+  const metaValidator = createExactMetaValidator()
+  const patternFactory = options?.patternFactory
+  const probe = createCompiler(patternFactory)
+  const prepared: JsonObject[] = []
+  for (const resource of resources) {
+    const transformed = prepareResource(resource, metaValidator)
+    probe.addSchema(structuredClone(transformed))
+    prepared.push(transformed)
+  }
+  return () => {
+    const ajv = createCompiler(patternFactory)
+    for (const resource of prepared) ajv.addSchema(structuredClone(resource))
+    return bindRuntime(ajv, metaValidator)
+  }
+}
 /** One caller-owned compiler; no remote loading, async schemas or module-level author cache. */
 export function createSchemaRuntime(
   resources: readonly SchemaDocument[],
@@ -25,6 +45,12 @@ export function createSchemaRuntime(
 ): SchemaRuntime {
   const metaValidator = createExactMetaValidator()
   const factory = options?.patternFactory
+  const ajv = createCompiler(factory)
+  for (const resource of resources) ajv.addSchema(prepareResource(resource, metaValidator))
+  return bindRuntime(ajv, metaValidator)
+}
+
+function createCompiler(factory: SchemaRuntimeOptions['patternFactory']): Ajv2020Type {
   const engine: RegExpEngine = Object.assign(
     (source: string) => {
       if (factory === undefined) return schemaPattern(source, 'u')
@@ -48,19 +74,29 @@ export function createSchemaRuntime(
     code: { regExp: engine },
   })
   installExactKeywords(ajv)
+  return ajv
+}
+
+function prepareResource(
+  resource: SchemaDocument,
+  metaValidator: ReturnType<typeof createExactMetaValidator>,
+): JsonObject {
+  const original = copySchema(resource)
+  if (!object(original) || typeof original.$id !== 'string')
+    throw new TypeError('Schema resource needs a fixed $id')
+  if (!metaValidator(original, projection(original))) throw new TypeError('invalid Schema resource')
+  const transformed = projection(exactSchema(original))
+  if (!object(transformed)) throw new Error('Schema resource projection is not an object')
+  return transformed
+}
+
+function bindRuntime(
+  ajv: Ajv2020Type,
+  metaValidator: ReturnType<typeof createExactMetaValidator>,
+): SchemaRuntime {
   function metaValidate(schema: SchemaDocument): boolean {
     const original = copySchema(schema)
     return metaValidator(original, projection(original))
-  }
-  for (const resource of resources) {
-    const original = copySchema(resource)
-    if (!object(original) || typeof original.$id !== 'string')
-      throw new TypeError('Schema resource needs a fixed $id')
-    if (!metaValidator(original, projection(original)))
-      throw new TypeError('invalid Schema resource')
-    const transformed = projection(exactSchema(original))
-    if (!object(transformed)) throw new Error('Schema resource projection is not an object')
-    ajv.addSchema(transformed)
   }
   function compile(schema: SchemaDocument): SchemaValidator {
     const originalSchema = copySchema(schema)

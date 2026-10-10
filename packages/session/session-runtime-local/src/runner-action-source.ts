@@ -1,3 +1,4 @@
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import type {
   RunnerActionRequest,
   RunnerActionSource,
@@ -14,6 +15,7 @@ export interface SessionRunnerActionOptions {
   readonly ownerGeneration: string
   readonly access: SessionAccess
   readonly admission: Omit<RunnerActionRequest['admission'], 'report'>
+  readonly parameters?: ParameterJudge | undefined
 }
 
 export async function readSessionRunnerAction(
@@ -32,6 +34,7 @@ export async function readSessionRunnerAction(
   const found = readDriverToolBatch(
     { scope: journal.scope, ownerGeneration, entries: prefix.entries, tail: prefix.tail },
     assistantMessage,
+    options.parameters,
   )
   if (found.kind !== 'batch') return { failure: 'unavailable' }
   const batch = found.batch

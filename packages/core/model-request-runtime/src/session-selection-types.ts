@@ -1,4 +1,4 @@
-import type { EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
+import type { AssetEvaluator, EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
 import type { EffectiveModel, DisplayListResult, LegalTargetsResult } from './selection-types.ts'
 import type { CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
@@ -21,6 +21,8 @@ export interface SessionModelSelectionInput {
   readonly sessionTenancy: SessionTenancyService
   readonly catalog: Pick<ModelCatalogRead, 'listProfiles' | 'credentialPresent'>
   readonly currentEvaluationInputs: CurrentEvaluationInputs
+  /** Borrow the assembly's compiler owner; current input and permission reads remain uncached. */
+  readonly evaluator?: AssetEvaluator
   /** Interpret the actual complete prefix using the adopted projection implementation. */
   readonly projection: (prefix: SettlementPrefix) => Promise<SelectionProjection>
   readonly compatible: SelectionCompatibility

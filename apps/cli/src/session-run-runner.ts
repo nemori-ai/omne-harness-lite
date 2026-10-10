@@ -7,6 +7,7 @@ import type {
   RunnerImplementations,
   LoopExtensionRunnerService,
 } from '@omne-harness-lite/loop-extension-runner'
+import type { AssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import type {
   SessionAccess,
   SessionAccessOperations,
@@ -29,6 +30,7 @@ import {
 } from '@omne-harness-lite/session-runtime-local'
 
 export interface SessionRunRunnerOptions {
+  readonly evaluator?: AssetEvaluator
   readonly journal: BorrowedRunJournal
   readonly assets: Pick<SessionRunAssets, 'history'>
   readonly manifest: SessionRunAssetOptions['registry']['manifest']
@@ -111,6 +113,7 @@ export function createSessionRunRunner(requested: SessionRunRunnerOptions): {
             ownerGeneration: binding.logGeneration,
             access,
             admission: options.admission,
+            parameters: options.evaluator?.parameters,
           },
           request,
         )
@@ -139,7 +142,10 @@ export function createSessionRunRunner(requested: SessionRunRunnerOptions): {
       access: options.access,
       backing,
       source: instance.admissionPassSource,
-      history: createSessionToolActionHistory({ readConclusions: readPassConclusions }),
+      history: createSessionToolActionHistory({
+        readConclusions: readPassConclusions,
+        parameters: options.evaluator?.parameters,
+      }),
     })
     const actualAdmission = admission
     withdraw = instance.implementations.registerAdmission(async (access, scope, pass, batch) => {

@@ -1,4 +1,5 @@
 import { observeSessionToolPool } from './session-tool-presentation.ts'
+import { createAssetEvaluator, type AssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import type { SessionPresentationStore } from './session-presentation.ts'
 import {
   tenantIdEquals,
@@ -11,11 +12,7 @@ import {
   createEnvironmentRegistry,
   createHostEnvironment,
 } from '@omne-harness-lite/execution-environments-host'
-import {
-  createParameterJudge,
-  isToolReturn,
-  toolResultOf,
-} from '@omne-harness-lite/tool-definition'
+import { isToolReturn, toolResultOf } from '@omne-harness-lite/tool-definition'
 import {
   createOriginalIssueToolRuntime,
   createToolInvoker,
@@ -48,7 +45,7 @@ import type {
   SessionRuntimeRootOwners,
   SessionDriverRuntimeRootOptions,
 } from './session-runtime-root-types.ts'
-import { sessionShell, sessionShellAsset } from './session-shell.ts'
+import { createSessionShell, sessionShellAsset } from './session-shell.ts'
 import { randomUUID } from 'node:crypto'
 
 interface RunSources {
@@ -71,8 +68,9 @@ export function createProductionSessionTools(
   tenant: TenantId,
   directory: string,
   presentation?: SessionPresentationStore,
+  evaluator: AssetEvaluator = createAssetEvaluator(),
 ) {
-  const owner = new ProductionTools(tenant, directory, presentation)
+  const owner = new ProductionTools(tenant, directory, presentation, evaluator)
   return {
     options: owner.options,
     open: owner.open,
@@ -84,9 +82,9 @@ class ProductionTools {
   readonly runs = new Map<string, RunSources>()
   readonly admissions = new Map<string, ToolOriginalIssueSupport>()
   readonly claims = new WeakMap<ToolOriginalIssueClaim, ToolOriginalIssueSupport>()
-  readonly implementations = createToolImplementationRegistry()
+  readonly implementations: ReturnType<typeof createToolImplementationRegistry>
   readonly runtimeRegistry = createToolRuntimeRegistry()
-  readonly history = createSessionToolActionHistory({ readConclusions: readPassConclusions })
+  readonly history: ReturnType<typeof createSessionToolActionHistory>
   owners?: SessionRuntimeRootOwners
   original?: ToolOriginalIssueSupport
   pool?: ToolPoolInstance
@@ -102,7 +100,14 @@ class ProductionTools {
     readonly tenant: TenantId,
     readonly directory: string,
     readonly presentation?: SessionPresentationStore,
-  ) {}
+    readonly evaluator: AssetEvaluator = createAssetEvaluator(),
+  ) {
+    this.implementations = createToolImplementationRegistry({ parameters: evaluator.parameters })
+    this.history = createSessionToolActionHistory({
+      readConclusions: readPassConclusions,
+      parameters: evaluator.parameters,
+    })
+  }
   readonly options: ToolsOptions = {
     toolIssue: {
       maxRecords: 128,
@@ -268,7 +273,7 @@ class ProductionTools {
       capability: capabilityCanonicalString(sessionShellAsset.capability),
       asset: sessionShellAsset.id,
       version: '1',
-      ...sessionShell,
+      ...createSessionShell(this.evaluator.parameters),
     })
     this.withdrawPlacement = environments.placements.registerPlacementSource(
       createToolEnvironmentPlacementSource(
@@ -277,6 +282,7 @@ class ProductionTools {
           factoryPermission: 'always-allow',
         },
         {
+          evaluator: this.evaluator,
           currentInputs: {
             read: async (session, tenant) => {
               const current = typeof session === 'string' ? this.runs.get(session) : undefined
@@ -313,7 +319,7 @@ class ProductionTools {
         environments: { ...environments.operations, ...environments.registrations },
         results: this.results.operations,
         invoke: createToolInvoker({
-          parameters: createParameterJudge(),
+          parameters: this.evaluator.parameters,
           judgeResult: value =>
             isToolReturn(value)
               ? {

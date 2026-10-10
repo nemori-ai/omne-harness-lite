@@ -1,6 +1,7 @@
 import { type AssetRegistryService } from '@omne-harness-lite/asset-registry'
 import type { AssetDefinition, CapabilityId } from '@omne-harness-lite/asset-model'
 import type {
+  AssetEvaluator,
   EffectiveAssembly,
   NonConnectorEvaluationInput,
 } from '@omne-harness-lite/asset-evaluation'
@@ -19,6 +20,7 @@ export interface AssetRegistry extends AssetRegistryService {
   close(): Promise<void>
 }
 export interface RegistryDependencies {
+  readonly evaluator?: AssetEvaluator
   readonly manifest: AssemblyManifestService
   readonly clock: Clock
   readonly sessionTenancy?: SessionTenancyService

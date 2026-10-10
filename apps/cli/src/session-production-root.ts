@@ -1,4 +1,5 @@
 import { createSessionPresentation } from './session-presentation.ts'
+import { createAssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import { isOk, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { createHash, randomUUID } from 'node:crypto'
 import { officialCatalog, officialCatalogRevision } from '@omne-harness-lite/pi-ai-transport'
@@ -122,6 +123,7 @@ function contextAccess(
 /** Application-owned policies and public providers for the default Session host. */
 export async function startProductionSessionHost(options: ProductionSessionHostOptions) {
   const tenant = options.binding.tenant
+  const evaluator = createAssetEvaluator()
   const presentation = createSessionPresentation({
     maxCalls: 64,
     maxBlocks: 256,
@@ -131,6 +133,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
     tenant,
     join(tenantPaths(options.home, options.binding).data, 'tool-results'),
     presentation,
+    evaluator,
   )
   const nativeModel = productionSessionModel(
     {
@@ -161,6 +164,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
     source: options.source,
     governance: options.governance,
     inputSource: {
+      evaluator,
       storeKey: 'cli-official-inputs',
       deployedOfficial: [],
       diagnostics: options.diagnostic,
@@ -259,7 +263,9 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
               tenancy: owners.ingress.tenancy,
               initialFillRef: 'fill:' + journal.run,
               evaluation: { toolEnvironmentPermission: 'always-allow' },
+              evaluator,
               registry: {
+                evaluator,
                 manifest: owners.manifest,
                 deployedMeta: [],
                 clock: files.clock,
@@ -319,6 +325,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                 logGeneration: owners.log.backing.ownerGeneration,
               })
               runner = createSessionRunRunner({
+                evaluator,
                 journal,
                 assets: bound,
                 manifest: owners.manifest,
@@ -402,6 +409,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
                   sourceVersions: { cliDefinition: '3', catalog: String(officialCatalogRevision) },
                 },
                 selection: {
+                  evaluator,
                   owner: selection,
                   concurrent: 8,
                   sessionTenancy: owners.ingress.tenancy,

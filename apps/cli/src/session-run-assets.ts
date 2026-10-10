@@ -3,7 +3,11 @@ import {
   type RegistryDependencies,
   type AssetRegistry,
 } from '@omne-harness-lite/asset-registry-local'
-import { evaluate, type EvaluationOptions } from '@omne-harness-lite/asset-evaluation'
+import {
+  evaluate,
+  type AssetEvaluator,
+  type EvaluationOptions,
+} from '@omne-harness-lite/asset-evaluation'
 import type { CurrentInputReader } from '@omne-harness-lite/evaluation-input-store'
 import type { BorrowedRunJournal } from '@omne-harness-lite/session-runtime-local'
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
@@ -15,6 +19,7 @@ export interface SessionRunAssetOptions {
   readonly tenancy: SessionTenancyService
   readonly initialFillRef: string
   readonly evaluation: EvaluationOptions
+  readonly evaluator?: AssetEvaluator
   readonly registry: Omit<
     RegistryDependencies,
     'sessionTenancy' | 'currentInputs' | 'fixedRootInput' | 'historicalBody'
@@ -80,7 +85,7 @@ async function fillInitial(
   const { scope } = options.journal
   const current = await input.read(scope.session, scope.tenant)
   if (!('input' in current)) return false
-  const selected = evaluate(current.input, options.evaluation)
+  const selected = (options.evaluator?.evaluate ?? evaluate)(current.input, options.evaluation)
   if (!('ok' in selected)) return false
   const filled = await registry.fill(
     scope.session,

@@ -19,7 +19,7 @@ This is an experimental, private workspace package, currently not published on n
 | `toOpaqueJson`, `readOpaqueJson`                            | Explicit transport-only opaque wrapping/read boundary               |
 | Block types, equality helpers, media-type helpers           | Seven block kinds, identities, attachments and modality             |
 | `validate`, `schemaId`; `./schema`, `./schema/v2`           | Current v3 and retained v2 Schema resources                         |
-| `./schema-runtime`                                          | `createSchemaRuntime` and exact Draft 2020-12 validator types       |
+| `./schema-runtime`                                          | Independent runtimes, reusable resource preparation and exact validators       |
 
 ## Examples
 
@@ -86,6 +86,8 @@ console.log(validator.validate(new LosslessNumber('1.00000000000000000001'))) //
 `JsonNumber` is `number | LosslessNumber`. The strict reader keeps ordinary safe-integer literals as numbers; decimals, exponents, unsafe integers and negative zero retain their source in `LosslessNumber`. Never use `Number(source)` to establish exact bounds or equality. The writer rejects non-JSON values with `TypeError` instead of omitting them; copying rejects getters, cycles and other non-JSON properties. Opaque JSON is not an inspection permission, and copying its exchange representation does not preserve its domain brand.
 
 The bundled `validate` is shape-only and has a numeric projection specific to this fixed Schema; do not reuse that projection for arbitrary numeric constraints or pass wrappers directly to ordinary Ajv. `createSchemaRuntime` is caller-owned, resolves only supplied fixed resources, and performs no remote loading or async validation. This package does not parse `rawArguments`, execute tools, retrieve attachments, persist blocks, establish block-ID uniqueness across messages, or authorize visibility. `./schema/v2` retains the old resource without v2 behavior compatibility. Node `>=24.18.0 <25` is required for the actual JSON source/raw-number APIs.
+
+`createSchemaRuntimeFactory(resources, options)` prepares a snapshot of fixed resources once. Each call to the returned factory creates an independent compiler. Use it when several short-lived author Schema compilers share the same fixed resources. Author Schema registrations and validation results are not shared. Resource validation and duplicate-ID errors occur when the factory is created.
 
 Inline base64 validation supports large media values, including 4 MiB and larger decoded payloads, without an input-sized regular-expression stack. The fixed validator and the default `createSchemaRuntime` compiler preserve the published Schema language (including padding and strict end-of-string checks); they do not decode images, impose a model byte limit, or add a configuration option. Consumers still enforce their own declared input limits. An explicit `patternFactory` retains its native-RegExp behavior and remains responsible for executing its patterns.
 

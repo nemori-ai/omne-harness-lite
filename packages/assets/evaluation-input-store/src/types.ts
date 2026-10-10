@@ -1,4 +1,7 @@
-import { type CurrentEvaluationInputs } from '@omne-harness-lite/asset-evaluation'
+import {
+  type AssetEvaluator,
+  type CurrentEvaluationInputs,
+} from '@omne-harness-lite/asset-evaluation'
 import type {
   AssetDefinition,
   AssetHolding,
@@ -14,6 +17,7 @@ import type { MembershipsService } from '@omne-harness-lite/organization-governa
 import type { SessionTenancyService } from '@omne-harness-lite/session-tenancy'
 
 export interface EvaluationStorageDependencies {
+  readonly evaluator?: AssetEvaluator
   readonly storage: AtomicStorage
   readonly storeKey: string
   /** Actual deployed manifest given by the trusted assembly, never self-declared by a publication. */

@@ -15,6 +15,8 @@ readHead 的 head 与每类 last 来自同一读视图，last 按最大提交 se
 
 readEvaluation 共用 AE 全量值读，O 是组合精确排列。固定当前 head，取同会话 seq≤head 最大 given/mint；reuse 不是新源，不让 reuse 头把 E 退回过去。选源／读记录／返回 E/O/ref 用同读视图，最新源坏则失败、不回退旧合法源。无源 recordNotFound，坏投影 unavailable/invalid_evaluation_content，IO 不可读 unavailable。合法任意 content 仍可由 append 原样存，readHead/history 原样返；投影读取不修复、不证明新鲜／正文真值／授权，不补模型或时限默认。
 
+纯函数 `readEvaluationProjection` 可使用调用方持有的 `AssetEvaluator` 校验当前完整投影。它不持有进程级作者 Schema 缓存，也不因复用编译结果而省略值校验。
+
 readGiven 显式合法 H，表示层先核，真实读中核 H≤当前本会话 head；同一致读选 seq≤H 最大 **given**，mint/reuse 不参与。后续追加不扩大 H。原完整壳／tables/content 无损返，保留合法未知 content，不替 AR 解释 filledBy/六表/根。合法范围无 given 是 none；超范围须真读确认后 invalidInput，头不可读 unknown 不猜范围。坏壳／丢记录／不可读 unavailable，坏投影具名 unavailable，绝不回退旧 given。旧 H 在重开／追加后仍认同原值，零写、零修复、零铸 ref。
 
 ## 责任与留存

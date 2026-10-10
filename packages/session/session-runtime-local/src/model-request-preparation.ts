@@ -55,7 +55,7 @@ export async function currentDispatchTiming(
     evaluationInput.standing.standing !== 'effective'
   )
     return { unavailable: true }
-  const evaluated = evaluate(evaluationInput)
+  const evaluated = (session.selection.evaluator?.evaluate ?? evaluate)(evaluationInput)
   if (!('ok' in evaluated)) return { unavailable: true }
   const assembly = evaluated.ok
   const root = capabilityCanonicalString(assembly.root)
@@ -109,7 +109,11 @@ export async function prepareSessionModelDispatch(
   const credentialText = credentialPrepared.credentialText
   let tools: Awaited<ReturnType<typeof resolveCallTools>>
   try {
-    tools = await resolveCallTools(view.request, session.tools)
+    tools = await resolveCallTools(
+      view.request,
+      session.tools,
+      session.selection.evaluator?.parameters,
+    )
   } catch {
     return { unavailable: true }
   }

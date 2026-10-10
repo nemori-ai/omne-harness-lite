@@ -19,6 +19,7 @@ import {
   modelName,
   type ModelToolEntry,
   type ModelToolName,
+  type ParameterJudge,
 } from '@omne-harness-lite/tool-definition'
 
 export interface CallToolRequest {
@@ -113,6 +114,7 @@ function capture(request: CallToolRequest): CallToolRequest | undefined {
 function validToolEntry(
   entry: RegistryEntry,
   name: ModelToolName,
+  parameters?: ParameterJudge,
 ): entry is RegistryEntry & {
   readonly content: {
     readonly category: 'tool'
@@ -123,7 +125,7 @@ function validToolEntry(
     entry.capability.category !== 'tool' ||
     modelName(entry.capability.name) !== name ||
     entry.content.category !== 'tool' ||
-    !isToolDefinition(entry.content.definition) ||
+    !isToolDefinition(entry.content.definition, parameters) ||
     entry.content.definition.name !== entry.capability.name
   )
 }
@@ -132,6 +134,7 @@ function validToolEntry(
 export async function resolveCallTools(
   request: CallToolRequest,
   registry: Pick<AssetRegistryService, 'lookup'>,
+  parameters?: ParameterJudge,
 ): Promise<CallToolResolution> {
   const captured = capture(request)
   if (captured === undefined) return { failure: 'invalidInput' }
@@ -151,7 +154,7 @@ export async function resolveCallTools(
     if (!('entry' in result))
       throw new TypeError('asset registry returned an invalid lookup result')
     const { entry } = result
-    if (!validToolEntry(entry, name))
+    if (!validToolEntry(entry, name, parameters))
       throw new TypeError('asset registry returned an invalid tool entry')
     tools.push(modelEntry(entry.content.definition))
   }

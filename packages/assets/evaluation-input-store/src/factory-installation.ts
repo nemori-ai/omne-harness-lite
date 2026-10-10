@@ -110,7 +110,7 @@ function installationInput(
   | { failure: 'invalidInput' | 'unavailable' } {
   let release: ReturnType<typeof definition>
   try {
-    release = definition(requested.definition)
+    release = definition(requested.definition, deps.evaluator)
   } catch (error) {
     if (error instanceof SourceUnavailable) return { failure: 'invalidInput' }
     if (error instanceof BodyProviderUnavailableError) return { failure: 'unavailable' }
@@ -166,11 +166,14 @@ async function storedDefinition(tx: ReadTx, deps: EvaluationStorageDependencies,
     .execute()
   const metadata = parsed(row.metadata, 'definition_metadata')
   if (!object(metadata)) throw new SourceUnavailable('definition_metadata')
-  return definition({
-    ...metadata,
-    ...(row.draft === null ? {} : { draft: parsed(row.draft, 'draft') }),
-    versions: orderVersions(versions).map(version => parsed(version.version, 'version')),
-  })
+  return definition(
+    {
+      ...metadata,
+      ...(row.draft === null ? {} : { draft: parsed(row.draft, 'draft') }),
+      versions: orderVersions(versions).map(version => parsed(version.version, 'version')),
+    },
+    deps.evaluator,
+  )
 }
 async function installationSnapshot(
   tx: ReadTx,

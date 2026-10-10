@@ -1,3 +1,4 @@
+import type { ParameterJudge } from '@omne-harness-lite/tool-definition'
 import {
   copyJsonValue,
   validate,
@@ -47,13 +48,14 @@ type Input = {
   readonly message: string
   readonly actions: SessionDriverRunSources['actions']
   readonly signal: AbortSignal
+  readonly parameters?: ParameterJudge | undefined
 }
 
 /** The actual Runner finishes every parsed pass before Session publishes the whole original batch. */
 export async function publishDriverActionBatch(input: Input) {
   try {
     const prefix = await readPrefix(input.journal)
-    const read = readDriverToolBatch(prefix, input.message)
+    const read = readDriverToolBatch(prefix, input.message, input.parameters)
     requireHistory(read.kind === 'batch', 'original complete tool reply unavailable')
     const batch = read.batch
     requireHistory(batch.origin.run === input.journal.run, 'foreign original Run batch')

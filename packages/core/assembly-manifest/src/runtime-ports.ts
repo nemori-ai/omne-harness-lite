@@ -1,3 +1,4 @@
+import type { AssetEvaluator } from '@omne-harness-lite/asset-evaluation'
 import type { EvaluationRef, ManifestSessionRef, Presence } from './types.ts'
 
 export interface PresenceSource {
@@ -31,6 +32,7 @@ export interface ManifestDiagnostic {
   readonly selectedSeq?: number
 }
 export interface ManifestOptions {
+  readonly evaluator?: AssetEvaluator
   readonly presenceSource?: PresenceSource
   /** Ports own bounded output/retention. This provider never forwards payloads or error messages. */
   readonly diagnostic?: (event: ManifestDiagnostic) => void

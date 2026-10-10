@@ -59,6 +59,13 @@ export const defaultBodyContracts: NonConnectorBodyContracts = Object.freeze({
   mcp: snapshotBodyContract(mcpBodyContract),
   slash_command: snapshotBodyContract(slashCommandBodyContract),
 })
+
+export function captureBodyContracts(tool: BodyContract<'tool'>): NonConnectorBodyContracts {
+  return Object.freeze({
+    ...defaultBodyContracts,
+    tool: snapshotBodyContract(tool),
+  })
+}
 let assetJudge: AssetModelJudge | undefined
 export function getAssetJudge(): AssetModelJudge {
   return (assetJudge ??= createAssetModelJudge(defaultBodyContracts))

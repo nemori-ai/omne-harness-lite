@@ -1,5 +1,6 @@
 import {
   type AssetDefinition,
+  type AssetModelJudge,
   type AssetHolding,
   type AttributeAssignment,
   type AttributeDeclaration,
@@ -8,7 +9,6 @@ import {
 import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import { judgeAgentDefinitionBody } from '@omne-harness-lite/agent-definition'
-import { getAssetJudge } from './defaults.ts'
 import { diagnostic, invalidInput } from './diagnostics.ts'
 import {
   assignmentsFor,
@@ -158,6 +158,7 @@ function compose(
 
 /** C10: one assignment's value lies in its declaration's domain (root settings by AD1, permissions by the enum, settings by the schema). */
 function assignmentWithinDeclaration(
+  judge: AssetModelJudge,
   assignment: AttributeAssignment,
   declaration: AttributeDeclaration,
   rootSetting = false,
@@ -177,14 +178,14 @@ function assignmentWithinDeclaration(
       value.allowed.every(token => declaration.domain.values.includes(token))
     )
   }
-  const result = getAssetJudge().judgeAssetValue('AttributeDeclaration', {
+  const result = judge.judgeAssetValue('AttributeDeclaration', {
     ...declaration,
     default: assignment.value,
   })
   if ('rejected' in result) return false
   return (
     'ok' in
-    getAssetJudge().judgeAssetValue('AttributeAssignment', assignment, {
+    judge.judgeAssetValue('AttributeAssignment', assignment, {
       declarations: [declaration],
     })
   )
@@ -235,6 +236,7 @@ function assignmentRead(
 }
 /** C10 over one in-effect holding: only assignments that S-21／S-23 actually read are judged. */
 function holdingAssignmentsDiagnostic(
+  judge: AssetModelJudge,
   holding: AssetHolding,
   root: CapabilityId,
   selection: Selection,
@@ -251,13 +253,16 @@ function holdingAssignmentsDiagnostic(
     const declaration = targetDeclaration(declared, holding.capability, assignment.item)
     if (declaration === undefined) continue
     if (!assignmentRead(holding, assignment, declaration, effectiveDeclarations, current)) continue
-    if (!assignmentWithinDeclaration(assignment, declaration, same(holding.capability, root)))
+    if (
+      !assignmentWithinDeclaration(judge, assignment, declaration, same(holding.capability, root))
+    )
       return diagnostic('C10', 'holding assignment outside its declaration domain')
   }
   return undefined
 }
 /** C10 over the in-effect holdings and the session, for capabilities the composition or the effective root uses. */
 function assignmentsDiagnostic(
+  judge: AssetModelJudge,
   input: NonConnectorEvaluationInput,
   root: CapabilityId,
   selection: Selection,
@@ -266,13 +271,14 @@ function assignmentsDiagnostic(
 ): InputDiagnostic | undefined {
   for (const holding of selection.inEffect) {
     if (!participates(holding.capability)) continue
-    const bad = holdingAssignmentsDiagnostic(holding, root, selection, facts)
+    const bad = holdingAssignmentsDiagnostic(judge, holding, root, selection, facts)
     if (bad !== undefined) return bad
   }
-  return sessionAssignmentsDiagnostic(input, root, selection.selected, facts, participates)
+  return sessionAssignmentsDiagnostic(judge, input, root, selection.selected, facts, participates)
 }
 /** C10 over the session assignments, read against the effective asset's declarations. */
 function sessionAssignmentsDiagnostic(
+  judge: AssetModelJudge,
   input: NonConnectorEvaluationInput,
   root: CapabilityId,
   selected: ReadonlyMap<string, Selected>,
@@ -288,7 +294,12 @@ function sessionAssignmentsDiagnostic(
     )
     if (
       declaration !== undefined &&
-      !assignmentWithinDeclaration(entry.assignment, declaration, same(entry.capability, root))
+      !assignmentWithinDeclaration(
+        judge,
+        entry.assignment,
+        declaration,
+        same(entry.capability, root),
+      )
     )
       return diagnostic('C10', 'session assignment outside effective declaration domain')
   }
@@ -580,6 +591,7 @@ const ordered = <T>(list: readonly T[], capabilityOf: (entry: T) => CapabilityId
   )
 
 export function computeEvaluation(
+  judge: AssetModelJudge,
   input: NonConnectorEvaluationInput,
   facts: EvaluationFacts,
 ): EvaluationResult {
@@ -595,7 +607,7 @@ export function computeEvaluation(
   // C10 admits only assignments used by composition or the selected root.
   const participates = (capability: CapabilityId): boolean =>
     composed.composition.has(key(capability)) || (selected.has(key(root)) && same(capability, root))
-  const outsideDomain = assignmentsDiagnostic(input, root, selection, facts, participates)
+  const outsideDomain = assignmentsDiagnostic(judge, input, root, selection, facts, participates)
   if (outsideDomain !== undefined) return invalidInput(outsideDomain)
   if (composed.cycle !== undefined)
     return immutable({ compositionCycle: { cycle: composed.cycle.map(entry => ({ ...entry })) } })

@@ -145,7 +145,9 @@ class RuntimeRoot {
     const o = this.options
     const probe = createSessionAdmissionProbe(o.governance, o.source, o.binding.tenant)
     this.admission = await createLocalAdmission(o.rootStorage, probe, o.admissionPolicy)
-    this.manifest = createAssemblyManifestStore(o.storage)
+    this.manifest = createAssemblyManifestStore(o.storage, {
+      ...(o.inputSource.evaluator ? { evaluator: o.inputSource.evaluator } : {}),
+    })
     this.modelOwner = createSessionOriginalModelOwner({
       storage: o.storage,
       maxRecords: o.model.maxRecords,

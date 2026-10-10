@@ -4,6 +4,8 @@
 
 构造时校验并捕获 manifest/clock、可选 sessionTenancy/currentInputs/fixedRootInput/historicalBody、可信 deployedMeta、诊断及失败端口、monotonicNow、冲突策略和容量。不变配置不随 caller 后续改写变化。借用端口不关闭。
 
+调用方可提供装配持有的 `AssetEvaluator`；未提供时，每个 registry 在构造时创建自己的 evaluator。完整正文、历史记录、表构成和当前求值共用它。重复调用仍校验实际值，复用已编译的完整 Schema。重装配使用新 evaluator，进行中的调用继续持有原 evaluator。借入 evaluator 不由 registry 关闭。
+
 同 session 有界队列，容量满或有界重试耗尽明确 unavailable；已受理 Promise 不能遗失。仅已知 headMismatch 可整套重做，mint/reuse 未知回执不能盲目重发。每次 session 读取核真实 MF 头，旧 H 缓存晚完成不覆盖更高 H；进行中的调用持自己的不可变 H 视图，旧代晚结果不写新代缓存。
 
 close 先停止新合法准入，等已受理实际调用及诊断排空后清缓存；不改变原 invalidInput 优先级。装配必须等实际完成再放 MF/clock/EIS/诊断等借用资源，不以撤除回调进入或 disposer 返回证明事务结束。

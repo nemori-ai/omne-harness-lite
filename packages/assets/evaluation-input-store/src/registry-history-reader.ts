@@ -1,4 +1,6 @@
 import {
+  createAssetEvaluator,
+  type AssetEvaluator,
   type RegistryHistoryRequest,
   type RegistryHistoryStage,
   type RegistryHistoryResult,
@@ -41,6 +43,7 @@ export interface RegistryHistoryReader {
   close(): Promise<void>
 }
 export interface RegistryHistoryDependencies {
+  readonly evaluator?: AssetEvaluator
   readonly storage: AtomicStorage
   readonly storeKey: string
   readonly sessionTenancy: SessionTenancyService
@@ -161,7 +164,9 @@ function hasHistorySources(dependencies: HistoryStorage): boolean {
     typeof dependencies.manifestHistory?.readHistory === 'function'
   )
 }
-function own(dependencies: HistoryStorage): HistoryStorage {
+function own(
+  dependencies: HistoryStorage,
+): HistoryStorage & { readonly evaluator: AssetEvaluator } {
   if (
     dependencies === null ||
     typeof dependencies !== 'object' ||
@@ -176,6 +181,7 @@ function own(dependencies: HistoryStorage): HistoryStorage {
   // Capture this instance's actual borrowed methods, including their receivers.
   return Object.freeze({
     ...dependencies,
+    evaluator: dependencies.evaluator ?? createAssetEvaluator(),
     sessionTenancy: Object.freeze({
       holdingTenant: dependencies.sessionTenancy.holdingTenant.bind(dependencies.sessionTenancy),
     }),
@@ -240,6 +246,7 @@ function historicalVersion(
     readonly rows: { readonly version_position: string; readonly version: string }[]
   },
   requested: RegistryHistoryRequest,
+  evaluator: AssetEvaluator,
 ) {
   const metadata = historyMetadata(snapshot.metadata, requested)
   orderVersions(snapshot.rows)
@@ -247,7 +254,7 @@ function historicalVersion(
     ...metadata,
     versions: snapshot.rows.map(row => parsed(row.version, 'history_version')),
   })
-  if (!('ok' in getAssetJudge().judgeAssetValue('AssetDefinition', definition)))
+  if (!('ok' in evaluator.assetJudge.judgeAssetValue('AssetDefinition', definition)))
     throw new HistoryUnavailable('source')
   const asset = definition as unknown as AssetDefinition
   const versions = asset.versions.filter(version => equal(version.number, requested.version))
@@ -329,7 +336,7 @@ export function createRegistryHistoryReaderWithUnit(
         measurements.queueNanos = (acquired - waiting).toString()
         measurements.holdNanos = (released - acquired).toString()
         const pureStart = deps.monotonicNow()
-        const selected = historicalVersion(snapshot, requested)
+        const selected = historicalVersion(snapshot, requested, deps.evaluator)
         measurements.versions = snapshot.rows.length
         measurements.bodyBytes = snapshot.rows.reduce(
           (sum, row) => sum + Buffer.byteLength(row.version),
