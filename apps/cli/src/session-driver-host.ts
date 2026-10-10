@@ -1,3 +1,4 @@
+import type { SessionPresentationStore } from './session-presentation.ts'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import type { SessionDriverCloseResult } from '@omne-harness-lite/session-runtime'
 import {
@@ -13,6 +14,7 @@ import {
 } from './session-host-server.ts'
 
 export interface SessionDriverHostOptions {
+  readonly presentation?: SessionPresentationStore
   readonly home: string
   readonly binding: TenantBinding
   readonly creation?: SessionCreationDefaults
@@ -49,6 +51,7 @@ export async function startSessionDriverHost(
       ingress: options.driver.ingress,
       observations: { readRunAdmission: scope => owner.driver?.readRunAdmission(scope) ?? null },
       clock: options.driver.clock,
+      ...(options.presentation ? { presentation: options.presentation } : {}),
       ...(options.initialRouteName === undefined
         ? {}
         : { initialRouteName: options.initialRouteName }),

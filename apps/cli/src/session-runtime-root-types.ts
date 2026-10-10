@@ -1,3 +1,4 @@
+import type { SessionPresentationStore } from './session-presentation.ts'
 import type { AtomicStorage } from '@omne-harness-lite/storage'
 import type { SqlSessionLog } from '@omne-harness-lite/session-log-sql'
 import type { AssemblyManifestStore } from '@omne-harness-lite/assembly-manifest-store'
@@ -30,6 +31,7 @@ import type { SessionCreationDefaults } from './session-host-protocol.ts'
 
 /** Trusted application inputs. No callback, Unit or execution source is ordinary command data. */
 export interface SessionRuntimeRootOptions {
+  readonly presentation?: SessionPresentationStore
   readonly home: string
   readonly binding: TenantBinding
   readonly source: AdmissionSource

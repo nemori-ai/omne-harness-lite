@@ -1,3 +1,4 @@
+import type { SessionPresentationStore } from './session-presentation.ts'
 import { createModelExecutionPool } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
@@ -50,6 +51,7 @@ export interface SessionNativeModelPool {
 }
 /** Official model IDs and transport limits come from explicit application configuration. */
 export interface SessionNativeModelOptions {
+  readonly presentation?: SessionPresentationStore
   readonly directory?: SessionModelDirectoryOptions
   readonly modelIds: readonly string[]
   readonly network: Omit<TransportOptions, 'definitions' | 'inputMeters' | 'baseUrl' | 'tls'>
@@ -174,7 +176,20 @@ class NativeModelOwner {
       if ('rejected' in result) throw new Error('official model registration failed')
     }
     this.runtime = createSessionModelRuntime({
-      execute: this.physical.execute,
+      execute: request =>
+        this.physical.execute({
+          ...request,
+          input: {
+            ...request.input,
+            onAccepted: (event, snapshot) => {
+              try {
+                request.input.onAccepted?.(event, snapshot)
+              } finally {
+                this.options.presentation?.model(request.ref, snapshot)
+              }
+            },
+          },
+        }),
       acknowledgementFactory: createSessionModelAcknowledgement,
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,

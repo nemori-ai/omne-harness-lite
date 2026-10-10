@@ -102,6 +102,12 @@ The complete UTF-8 content is the credential, including spaces, BOM, and final n
 `echo` normally adds a newline. Preserve the exact original bytes for later login. This release has no administrator password reset.
 Never put credential contents in command arguments, source control, or diagnostic reports.
 
+## Live replies and tool status
+
+While a Run is active, the terminal updates the reply as text arrives. It labels public thinking text as `Reasoning summary` and shows tool names with their observed execution state. Private reasoning, opaque data, and tool arguments are not displayed. A model may provide no public reasoning summary.
+
+The live view follows the last page. Use PgUp/PgDn to read earlier pages; return to the last page to follow new output. A slow display can skip intermediate frames. The final view comes from saved session messages. If live content exceeds the display limit, the terminal shows an omission notice.
+
 ## Resume and detach
 
 Ctrl+G cancels the current input or detaches from the conversation. Ctrl+C exits the client.

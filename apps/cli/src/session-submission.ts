@@ -1,3 +1,4 @@
+import type { SessionPresentation } from './session-presentation.ts'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import {
   checkLogPayload,
@@ -29,6 +30,7 @@ export type SessionSubmissionReading =
       readonly messageId: string
       readonly run: null | { readonly id: string; readonly state: 'running' | Terminal }
       readonly admission?: SessionRunAdmissionBlock
+      readonly presentation?: SessionPresentation
     }
   | { readonly kind: 'absent' }
   | { readonly failure: 'invalidInput' | 'denied' | 'notFound' | 'unavailable' }

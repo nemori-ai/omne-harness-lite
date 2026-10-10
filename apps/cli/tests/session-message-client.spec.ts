@@ -332,3 +332,40 @@ it.each(['differentInput', 'alreadyStarted'] as const)(
     ])
   },
 )
+
+it('shows progressive public content before the original Run finishes without changing final custody', async () => {
+  let count = 0
+  const seen: string[] = []
+  const f = await fixture(async packet => {
+    if (packet.command === 'submitInput') return { kind: 'accepted', receipt }
+    if (packet.command === 'readMessages') return history
+    if (packet.command === 'readSubmission') {
+      expect(packet.includePresentation).toBe(true)
+      const running = ++count < 3
+      return {
+        ...submission,
+        run: { id: 'original-run', state: running ? 'running' : 'completed' },
+        presentation: {
+          revision: count,
+          omitted: false,
+          items: [
+            { kind: 'text', text: running ? 'part' + count : 'complete' },
+            { kind: 'thinking', text: 'public summary' },
+            { kind: 'tool', text: 'Shell', state: 'running' },
+          ],
+        },
+      }
+    }
+    throw Error('unexpected')
+  })
+  const outcome = await submitSessionMessage({
+    ...f.options,
+    onProgress: view => seen.push(view.items[0]!.text),
+  })
+  expect(seen).toEqual(['part1', 'part2', 'complete'])
+  expect(outcome.status).toBe('completed')
+  if ('messages' in outcome) expect(outcome.messages.map(value => value.id)).toEqual(['this-reply'])
+  expect(f.execute.mock.calls.filter(([packet]) => packet.command === 'submitInput')).toHaveLength(
+    1,
+  )
+})

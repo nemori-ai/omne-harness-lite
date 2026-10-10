@@ -168,6 +168,7 @@ async function fixture(
     .mockResolvedValue(undefined)
   const show = vi.fn(async () => true)
   const identity = vi.fn()
+  const progress = vi.fn()
   let identityNumber = 0
   return {
     execute,
@@ -177,6 +178,7 @@ async function fixture(
     text,
     show,
     identity,
+    progress,
     options: {
       home,
       binding,
@@ -186,7 +188,7 @@ async function fixture(
       signal: new AbortController().signal,
       originalId: () => `id-${++identityNumber}`,
       policy,
-      dialog: { text, show, identity, choose: async () => undefined },
+      dialog: { text, show, identity, progress, choose: async () => undefined },
     },
   }
 }

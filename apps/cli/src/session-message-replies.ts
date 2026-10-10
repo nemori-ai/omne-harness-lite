@@ -64,6 +64,26 @@ const submission: z.ZodType<SessionSubmissionReading> = z.union([
       source,
       inputPosition: position,
       messageId: key,
+      presentation: z
+        .strictObject({
+          revision: z.number().int().nonnegative(),
+          omitted: z.boolean(),
+          items: z.array(
+            z
+              .strictObject({
+                kind: z.enum(['text', 'thinking', 'tool']),
+                text: z.string(),
+                state: z.string().optional(),
+                call: z.string().optional(),
+              })
+              .transform(({ state, call, ...value }) => ({
+                ...value,
+                ...(state === undefined ? {} : { state }),
+                ...(call === undefined ? {} : { call }),
+              })),
+          ),
+        })
+        .optional(),
       admission: z
         .strictObject({
           inputPosition: position,
@@ -74,9 +94,11 @@ const submission: z.ZodType<SessionSubmissionReading> = z.union([
         .strictObject({ id: key, state: z.enum(['running', 'completed', 'failed', 'cancelled']) })
         .nullable(),
     })
-    .transform(({ admission, ...value }) =>
-      admission === undefined ? value : { ...value, admission },
-    ),
+    .transform(({ admission, presentation, ...value }) => ({
+      ...value,
+      ...(admission === undefined ? {} : { admission }),
+      ...(presentation === undefined ? {} : { presentation }),
+    })),
   z.strictObject({ kind: z.literal('absent') }),
   z.strictObject({ failure: z.enum(['invalidInput', 'denied', 'notFound', 'unavailable']) }),
 ])

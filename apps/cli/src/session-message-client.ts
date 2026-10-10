@@ -1,3 +1,4 @@
+import type { SessionPresentation } from './session-presentation.ts'
 import { setTimeout as pause } from 'node:timers/promises'
 import type { Receipt, OperationRef } from '@omne-harness-lite/session-runtime'
 import type { SessionTextMessage } from './session-reading.ts'
@@ -21,6 +22,7 @@ type Known = {
   readonly receipt: Receipt
 }
 interface MessageOptions {
+  readonly onProgress?: (presentation: SessionPresentation) => void
   readonly home: string
   readonly request: SubmitRequest
   readonly policy: SessionMessagePolicy
@@ -120,12 +122,13 @@ async function observeSubmission(
         reason: options.signal.aborted ? 'detached' : 'waitExpired',
         submission,
       }
-    const observation = await observeOnce(known, exchange)
+    const observation = await observeOnce(known, exchange, options.onProgress !== undefined)
     if (waitSignal.aborted) continue
     if ('reason' in observation)
       return { ...known, status: 'unconfirmed', reason: observation.reason }
     const read = observation.read
     submission = read
+    if (read.presentation) options.onProgress?.(read.presentation)
     if (read.admission)
       return { ...known, status: 'accepted', reason: read.admission.reason, submission: read }
     if (read.run && read.run.state !== 'running') return terminal(known, read, exchange)
@@ -142,11 +145,13 @@ async function waitForObservation(intervalMs: number, signal: AbortSignal): Prom
 async function observeOnce(
   known: Known,
   exchange: Exchange,
+  presentation: boolean,
 ): Promise<{ read: Submission } | { reason: string }> {
   const result = await exchange({
     format: known.request.format,
     binding: known.request.binding,
     command: 'readSubmission',
+    ...(presentation ? { includePresentation: true as const } : {}),
     operation: known.receipt.operation,
   })
   if (result.kind !== 'reply') return { reason: result.reason }

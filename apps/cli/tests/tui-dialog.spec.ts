@@ -84,3 +84,44 @@ it('stop waits outstanding output before ending the prompt', async () => {
   await stop
   expect(await read).toBeUndefined()
 })
+
+it('paints progress without requiring Enter and never queues typing into the next prompt', async () => {
+  const terminal = new FakeTerminal(),
+    dialog = new Dialog(terminal, () => {})
+  dialog.progress('Assistant', ['partial'])
+  await tick()
+  terminal.key('x')
+  terminal.key('\r')
+  dialog.progress('Assistant', ['partial response'])
+  await tick()
+  expect(terminal.frames.join('')).toContain('partial response')
+  const read = dialog.text('Message')
+  await tick()
+  terminal.key('\r')
+  expect(await read).toBe('')
+  await dialog.stop()
+})
+
+it('preserves a page being read during progress and resumes following on the last page', async () => {
+  const terminal = new FakeTerminal(),
+    dialog = new Dialog(terminal, () => {})
+  terminal.size = { columns: 80, rows: 16 }
+  const lines = Array.from({ length: 18 }, (_, i) => `line ${i}`)
+  dialog.progress('Assistant', lines)
+  await tick()
+  expect(terminal.frames.at(-1)).toContain('Page 3/3')
+  terminal.key('\x1b[5~')
+  await tick()
+  expect(terminal.frames.at(-1)).toContain('Page 2/3')
+  dialog.progress('Assistant', [...lines, 'line 18', 'line 19', 'line 20', 'line 21'])
+  await tick()
+  expect(terminal.frames.at(-1)).toContain('Page 2/4')
+  terminal.key('\x1b[6~')
+  await tick()
+  terminal.key('\x1b[6~')
+  await tick()
+  dialog.progress('Assistant', [...lines, ...Array.from({ length: 12 }, (_, i) => `new ${i}`)])
+  await tick()
+  expect(terminal.frames.at(-1)).toContain('Page 5/5')
+  await dialog.stop()
+})

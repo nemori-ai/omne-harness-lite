@@ -28,11 +28,15 @@ const executionView = z.object({
 
 /** Display only. Unknown results retain their original human-visible text. */
 export function terminalMessageLines(message: SessionTextMessage): readonly string[] {
-  return message.blocks.flatMap(block =>
-    message.type === 'tool' || message.type === 'tool_internal'
-      ? toolLines(block.text)
-      : [block.text],
-  )
+  return message.blocks
+    .flatMap(block =>
+      message.type === 'tool' || message.type === 'tool_internal'
+        ? toolLines(block.text)
+        : block.kind === 'thinking'
+          ? ['Reasoning summary', block.text]
+          : [block.text],
+    )
+    .flatMap(line => line.split(/\r?\n/u))
 }
 function toolLines(text: string): readonly string[] {
   const json = readJsonStrict(text)

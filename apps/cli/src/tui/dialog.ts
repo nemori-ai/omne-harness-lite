@@ -16,6 +16,7 @@ export class Dialog {
     footer: 'Ctrl+C: exit',
     page: 0,
   }
+  #following = true
   #revision = 0
   #eligible = false
   #fieldVisible = false
@@ -68,6 +69,7 @@ export class Dialog {
     this.#writer.submit({
       revision,
       bytes: frame.bytes,
+      rendered: frame.rendered,
       delivered: () => {
         if (!frame.fits || revision !== this.#revision || this.#stopped) return
         this.#eligible = true
@@ -112,11 +114,10 @@ export class Dialog {
     }
     if (event.kind !== 'key' && event.kind !== 'paste') return
     // Busy/backpressured keys never become a queued action in the next screen.
-    if (!this.#waiting) return
-    this.#interact(event)
+    if (this.#waiting || paging(event)) this.#interact(event)
   }
   #interact(event: Extract<TerminalInput, { kind: 'key' | 'paste' }>): void {
-    if (event.kind === 'key' && (event.text === '\x1b[5~' || event.text === '\x1b[6~')) {
+    if (paging(event)) {
       if (!this.#eligible) return
       this.#screen = {
         ...this.#screen,
@@ -125,6 +126,7 @@ export class Dialog {
           Math.min(this.#pages - 1, this.#screen.page + (event.text === '\x1b[5~' ? -1 : 1)),
         ),
       }
+      this.#following = this.#screen.page === this.#pages - 1
       this.#draw()
       return
     }
@@ -201,6 +203,7 @@ export class Dialog {
   ): Promise<string | undefined> {
     if (this.#stopped) return undefined
     if (this.#waiting) throw new Error('overlapping dialog')
+    this.#following = true
     const field = input ? new Input({ prompt: '> ' }) : undefined
     if (field) field.focused = true
     this.#screen = {
@@ -217,6 +220,18 @@ export class Dialog {
     this.#waiting = { result, auto }
     this.#draw()
     return result.promise
+  }
+  progress(title: string, body: readonly string[]): void {
+    if (this.#stopped) return
+    if (this.#waiting) throw new Error('progress overlaps input')
+    this.#screen = {
+      identity: this.#identity,
+      title,
+      body,
+      page: this.#following ? Number.MAX_SAFE_INTEGER : this.#screen.page,
+      footer: 'Working | Ctrl+C: detach | PgUp/PgDn: pages',
+    }
+    this.#draw()
   }
   text(title: string, body: readonly string[] = []): Promise<string | undefined> {
     return this.#show(title, body, true, false)
@@ -260,4 +275,8 @@ export class Dialog {
     })
     return this.#stop
   }
+}
+
+function paging(event: Extract<TerminalInput, { kind: 'key' | 'paste' }>): boolean {
+  return event.kind === 'key' && (event.text === '\x1b[5~' || event.text === '\x1b[6~')
 }

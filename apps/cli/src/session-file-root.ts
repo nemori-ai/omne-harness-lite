@@ -89,6 +89,7 @@ export async function startFileSessionDriverRoot(
               initialRouteName: options.initialRouteName,
               runtime: pool.runtime,
               facts: pool.facts,
+              ...(options.presentation ? { presentation: options.presentation } : {}),
             }),
           },
         }

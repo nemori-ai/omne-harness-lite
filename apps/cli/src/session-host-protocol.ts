@@ -1,3 +1,4 @@
+import type { SessionPresentationStore } from './session-presentation.ts'
 import { z } from 'zod'
 import { instantToRfc3339, type Clock } from '@omne-harness-lite/offer-expiry'
 import { copyJsonValue, isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
@@ -96,7 +97,12 @@ export type SessionHostRequest = {
       readonly command: 'readSession' | 'readProgress' | 'readMessages'
       readonly session: SessionRef
     }
-  | { readonly command: 'readReceipt' | 'readSubmission'; readonly operation: OperationRef }
+  | { readonly command: 'readReceipt'; readonly operation: OperationRef }
+  | {
+      readonly command: 'readSubmission'
+      readonly operation: OperationRef
+      readonly includePresentation?: true
+    }
 )
 const requests: z.ZodType<SessionHostRequest> = z
   .discriminatedUnion('command', [
@@ -114,7 +120,16 @@ const requests: z.ZodType<SessionHostRequest> = z
     z.strictObject({ ...common, command: z.literal('readSession'), session }),
     z.strictObject({ ...common, command: z.literal('readProgress'), session }),
     z.strictObject({ ...common, command: z.literal('readReceipt'), operation }),
-    z.strictObject({ ...common, command: z.literal('readSubmission'), operation }),
+    z
+      .strictObject({
+        ...common,
+        command: z.literal('readSubmission'),
+        operation,
+        includePresentation: z.literal(true).optional(),
+      })
+      .transform(({ includePresentation, ...value }) =>
+        includePresentation === undefined ? value : { ...value, includePresentation },
+      ),
     z.strictObject({ ...common, command: z.literal('readMessages'), session }),
   ])
   .readonly()
@@ -141,6 +156,7 @@ export interface SessionHostEndpoint {
 export function createSessionHostEndpoint(options: {
   readonly binding: TenantBinding
   readonly ingress: LocalSessionIngress
+  readonly presentation?: SessionPresentationStore
   readonly observations?: SessionDriverObservations
   readonly creation?: SessionCreationDefaults
   readonly clock?: Clock
@@ -172,7 +188,8 @@ export function createSessionHostEndpoint(options: {
       }
       if (request.command === 'readCreationDefaults')
         return defaults ? { kind: 'creationDefaults', defaults } : { kind: 'creationNotReady' }
-      return dispatch(ingress, text, request, options.observations)
+      const result = await dispatch(ingress, text, request, options.observations)
+      return withPresentation(request, result, options.presentation)
     },
   })
 }
@@ -203,4 +220,24 @@ function dispatch(
     case 'readMessages':
       return text.read({ tenant: request.binding.tenant, session: request.session })
   }
+}
+
+async function withPresentation(
+  request: SessionHostRequest,
+  result: SessionHostResult,
+  store?: SessionPresentationStore,
+): Promise<SessionHostResult> {
+  if (request.command !== 'readSubmission' || !request.includePresentation || !store) return result
+  if (
+    !('kind' in result) ||
+    result.kind !== 'submission' ||
+    !result.run ||
+    request.operation.session === null
+  )
+    return result
+  const presentation = await store.read(
+    { tenant: request.binding.tenant, session: request.operation.session },
+    result.run.id,
+  )
+  return { ...result, presentation }
 }

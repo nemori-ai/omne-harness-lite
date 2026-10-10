@@ -46,6 +46,7 @@ export async function startSessionDriverRuntimeRoot(
       ...(o.creation === undefined ? {} : { creation: o.creation }),
       ...(o.initialRouteName === undefined ? {} : { initialRouteName: o.initialRouteName }),
       transport: o.transport,
+      ...(o.presentation ? { presentation: o.presentation } : {}),
       driver: {
         ...configured,
         tenant: o.binding.tenant,
@@ -271,6 +272,7 @@ class RuntimeRoot {
     await this.ingress?.close()
     await this.log?.close()
     await this.admission?.close()
+    this.options.presentation?.close()
     return { closed: true }
   }
 }

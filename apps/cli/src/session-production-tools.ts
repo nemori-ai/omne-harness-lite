@@ -1,3 +1,5 @@
+import { observeSessionToolPool } from './session-tool-presentation.ts'
+import type { SessionPresentationStore } from './session-presentation.ts'
 import {
   tenantIdEquals,
   parseOpaqueIdentifier,
@@ -65,8 +67,12 @@ function resultBlockId() {
 }
 
 /** One tenant pool. Session supplies each original Run's admission and Context bindings. */
-export function createProductionSessionTools(tenant: TenantId, directory: string) {
-  const owner = new ProductionTools(tenant, directory)
+export function createProductionSessionTools(
+  tenant: TenantId,
+  directory: string,
+  presentation?: SessionPresentationStore,
+) {
+  const owner = new ProductionTools(tenant, directory, presentation)
   return {
     options: owner.options,
     open: owner.open,
@@ -95,6 +101,7 @@ class ProductionTools {
   constructor(
     readonly tenant: TenantId,
     readonly directory: string,
+    readonly presentation?: SessionPresentationStore,
   ) {}
   readonly options: ToolsOptions = {
     toolIssue: {
@@ -198,7 +205,7 @@ class ProductionTools {
       this.admissions.set(key, support)
       return {
         tenant: this.tenant,
-        runtime: this.pool,
+        runtime: observeSessionToolPool(this.pool, binding.scope, binding.run, this.presentation),
         release: async () => {
           if (this.admissions.get(key) === support) this.admissions.delete(key)
         },

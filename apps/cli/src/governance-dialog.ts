@@ -9,7 +9,10 @@ export type TerminalFactory = () => Promise<TerminalPort>
 export async function usingGovernanceDialog(
   signal: AbortSignal,
   terminal: TerminalFactory,
-  work: (dialog: GovernanceDialog, signal: AbortSignal) => Promise<EntryExecution>,
+  work: (
+    dialog: GovernanceDialog & Pick<Dialog, 'progress'>,
+    signal: AbortSignal,
+  ) => Promise<EntryExecution>,
   presentation?: PreparedPresentationGroup,
 ): Promise<EntryExecution> {
   if (signal.aborted)

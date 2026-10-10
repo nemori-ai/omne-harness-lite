@@ -1,3 +1,4 @@
+import { createSessionPresentation } from './session-presentation.ts'
 import { isOk, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { createHash, randomUUID } from 'node:crypto'
 import { officialCatalog, officialCatalogRevision } from '@omne-harness-lite/pi-ai-transport'
@@ -121,9 +122,15 @@ function contextAccess(
 /** Application-owned policies and public providers for the default Session host. */
 export async function startProductionSessionHost(options: ProductionSessionHostOptions) {
   const tenant = options.binding.tenant
+  const presentation = createSessionPresentation({
+    maxCalls: 64,
+    maxBlocks: 256,
+    maxCharactersPerCall: 131072,
+  })
   const tools = createProductionSessionTools(
     tenant,
     join(tenantPaths(options.home, options.binding).data, 'tool-results'),
+    presentation,
   )
   const nativeModel = productionSessionModel(
     {
@@ -145,6 +152,7 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
     officialCatalog.map(entry => entry.definition.modelId),
     options.diagnostic,
   )
+  const observedModel = { ...nativeModel, presentation }
   let presence: ReturnType<typeof createCallContainerPresence> | undefined
   const sources = nativeModel.sources
   return startFileSessionDriverRoot({
@@ -181,8 +189,9 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
     contextAccess: contextAccess(options),
     tools: tools.options,
     initialRouteName: options.routeName,
+    presentation,
     nativeModel: {
-      ...nativeModel,
+      ...observedModel,
       sources(calls, clock) {
         presence = createCallContainerPresence(calls)
         return sources(calls, clock)

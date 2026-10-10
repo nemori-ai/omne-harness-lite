@@ -1,3 +1,5 @@
+import type { Dialog } from './tui/dialog.ts'
+import { presentationLines } from './session-presentation-output.ts'
 import { z } from 'zod'
 import { judgeMessage, type SessionRef } from '@omne-harness-lite/messages'
 import { checkSession } from '@omne-harness-lite/session-log'
@@ -17,7 +19,7 @@ export interface TerminalSessionOptions {
   readonly routeName: string
   readonly session: string | null
   readonly workspace: string
-  readonly dialog: GovernanceDialog
+  readonly dialog: GovernanceDialog & Pick<Dialog, 'progress'>
   readonly signal: AbortSignal
   readonly originalId: () => string
   readonly policy: SessionMessagePolicy
@@ -50,7 +52,17 @@ async function interact(
     if (!text.trim()) continue
     const message = await userMessage(options, text)
     if (!message) return blocked('host-clock-unavailable')
+    let shown = ''
+    options.dialog.progress('Assistant', ['Waiting for the model…'])
     const outcome = await submitSessionMessage({
+      onProgress: presentation => {
+        const lines = presentationLines(presentation)
+        const next = JSON.stringify(lines)
+        if (next !== shown) {
+          shown = next
+          options.dialog.progress('Assistant', lines)
+        }
+      },
       home: options.home,
       signal: options.signal,
       policy: options.policy,

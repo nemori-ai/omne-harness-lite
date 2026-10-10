@@ -1,3 +1,4 @@
+import type { SessionPresentationStore } from './session-presentation.ts'
 import { tenantIdEquals, type TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionDriverModelFactory } from '@omne-harness-lite/session-runtime-local'
 import {
@@ -12,6 +13,7 @@ import type { SessionNativeModelPool } from './session-native-model.ts'
 import type { LogEntry } from '@omne-harness-lite/session-log'
 
 export interface SessionDriverModelOptions {
+  readonly presentation?: SessionPresentationStore
   readonly tenant: TenantId
   readonly initialRouteName: string
   readonly runtime: Pick<SessionNativeModelPool['runtime'], 'project'>
@@ -31,6 +33,16 @@ export function createSessionDriverModelFactory(
       return Object.freeze({
         operations: Object.freeze<ModelRuntimeOperations>({
           ...operations,
+          async openCall(input) {
+            const result = await operations.openCall(input)
+            if ('ref' in result && input.run !== undefined)
+              options.presentation?.bindModel(
+                { tenant: options.tenant, session: input.session },
+                input.run,
+                result.callId,
+              )
+            return result
+          },
           async effectiveModel(input) {
             if (released || (originalSession !== undefined && input.session !== originalSession))
               return { unavailable: true }
