@@ -789,7 +789,10 @@ test('custody reads immutable author result in the caller unit after writer owne
       { directory: f.directory, storage: 'results' },
       {
         storage: f.log.fixtureStorage,
-        log: f.log.participant,
+        log: {
+          sourceIn: f.log.participant.sourceIn,
+          readByKeyIn: f.log.participant.readByKeyIn,
+        },
         access: f.log.fixtureAccess,
         original: controlledOriginalProof,
       },

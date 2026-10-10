@@ -526,3 +526,5 @@ createSessionModelObservations用于尚未发起原调用的正常段。当前So
 同一原claim只映射回其原participant与准备。消费还要认回原Session证明，不能把一个工具的准备用于另一个工具。工具拥有者负责唯一claim的实际消费和作者执行；Session返回launch前必须确认其共同事务已提交。原工具支持不关闭共享存储或工具池，不把结果保管当作交付确认。
 
 原工具日志核验可在本Scope已有发起证明后使用只读原事实权限，包括Run终态或Ingress关闭后。该权限不允许追加或新工具发起。工具支持的在途准入和消费受Ingress的容量及close排空约束。原工具结果保管及普通交付已提供。实际公开 native Tool 工厂、Session 原同 Unit 准入／消费、文件结果来源和普通交付可以由可信根组合。重复提交认回原参加者，不创建第二 claim 或再次调用作者；关闭原 native owner 和文件 writer 后，只读保管来源仍核验原结果。该组合不把受控资格、根资产或 Context 输入升级为生产来源；完整 driver 和 Cordis 仍有实现与验证责任。
+
+原工具支持的log分面只发布sourceIn、readByKeyIn和appendIn；不把Session完整前缀读取或独立日志操作交给工具池。固定来源及按key读取仍在原Unit中激活原只读资格；追加只能沿原同Unit写入资格。Session自身的准备、late、保管及交付继续读取其必要的完整事实，不因收窄工具分面而删去跨领域核验。

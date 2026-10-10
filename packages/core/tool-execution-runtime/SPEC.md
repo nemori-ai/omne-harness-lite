@@ -70,6 +70,8 @@ TE-17 精确实现登记不得覆盖；撤除只关闭新采用，旧 lease 不�
 
 ## Session原工具发起参加协议
 
+ToolOriginalIssueSupport.log 只提供 sourceIn、readByKeyIn 和 appendIn。Session 的实际支持对象也只发布这三个成员，不借出完整前缀读取、会话枚举或独立事务接口。原工具拥有者核固定 owner 寿命、原 tail、当前资格和本调用记录后暂存原意图；完整会话准备和当前 attempt 栅栏由 Session 协调者核验。后来追加使原 tail 失效，不能跳过重判继续发行 claim。
+
 B01的Session消费采用`original-issue.ts`中的工具专有原发起协议。
 现有普通ToolRuntimeOperations／createToolRuntime不因这些类型存在而获得同Unit能力；
 真实提供者须实现和验证下述构造、参加和消费责任后，才能作为B01的原工具实例。

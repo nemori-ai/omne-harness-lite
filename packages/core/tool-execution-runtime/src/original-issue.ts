@@ -103,7 +103,7 @@ export interface ToolOriginalIssueAuthority {
 /** The root must pair these resources with the same native runtime and Session storage. */
 export interface ToolOriginalIssueSupport {
   readonly storage: AtomicStorage
-  readonly log: SessionLogParticipant
+  readonly log: Pick<SessionLogParticipant, 'sourceIn' | 'readByKeyIn' | 'appendIn'>
   readonly access: LogAuthority
   readonly current: ToolOriginalIssueAuthority
   readonly admission: ToolOriginalIssueAdmission

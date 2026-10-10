@@ -5,6 +5,7 @@ import { definePlugin } from '@omne-harness-lite/kernel-basis/cordis'
 import { z } from 'zod'
 import {
   prepareToolJournalEntry,
+  toolJournalCallKey,
   projectToolJournal,
 } from '@omne-harness-lite/tool-execution-runtime'
 import { readPassConclusions } from '@omne-harness-lite/loop-extension-runner-local'
@@ -3331,10 +3332,13 @@ async function sessionToolFixture(
       expected: { ownerGeneration: 'controlled-backing-generation', tail: prepared.source.tail },
       stopped: Promise.resolve(),
       async stageOriginalIn(unit) {
+        expect(Object.keys(support.log).sort()).toEqual(['appendIn', 'readByKeyIn', 'sourceIn'])
         const source = await support.log.sourceIn(unit, support.access, p.scope)
         if ('failure' in source) throw new Error('source unavailable in shared unit')
-        const prefix = await support.log.readPrefixIn(unit, support.access, source.source)
-        if ('failure' in prefix) throw new Error('prefix unavailable in shared unit')
+        const callKey = toolJournalCallKey(identity.ref.callId)
+        if (typeof callKey !== 'string') throw new Error('invalid original Tool call key')
+        const prefix = await support.log.readByKeyIn(unit, support.access, source.source, callKey)
+        if ('failure' in prefix) throw new Error('original Tool records unavailable in shared unit')
         if (prefix.entries.some(entry => entry.dedupeKey === identity.originalPosition))
           return { kind: 'alreadyIssued', identity }
         const request = checkAppendInput(

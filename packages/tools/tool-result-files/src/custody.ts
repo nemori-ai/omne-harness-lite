@@ -7,7 +7,9 @@ import type { LogAuthority, SessionLogParticipant } from '@omne-harness-lite/ses
 import { copyJsonValue } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import {
+  inspectToolJournalEntry,
   projectToolJournal,
+  toolJournalCallKey,
   type ToolResultCustodySource,
   type ToolResultCustodyEvidence,
   type ToolOriginalIssueIdentity,
@@ -23,7 +25,7 @@ import { readStoredResult } from './result-record.ts'
 
 export interface ToolResultCustodyDependencies {
   readonly storage: AtomicStorage
-  readonly log: SessionLogParticipant
+  readonly log: Pick<SessionLogParticipant, 'sourceIn' | 'readByKeyIn'>
   readonly access: LogAuthority
   readonly original: {
     readonly verifyIn: (unit: StorageUnit, identity: ToolOriginalIssueIdentity) => Promise<boolean>
@@ -133,10 +135,22 @@ async function verifyJournal(
     coordinate = await dependencies.log.sourceIn(unit, dependencies.access, scope)
   if ('failure' in coordinate)
     return { failure: coordinate.failure === 'denied' ? 'invalidSource' : 'unavailable' }
-  const prefix = await dependencies.log.readPrefixIn(unit, dependencies.access, coordinate.source)
-  if ('failure' in prefix)
-    return { failure: prefix.failure === 'denied' ? 'invalidSource' : 'unavailable' }
-  const projected = projectToolJournal(scope, prefix.entries)
+  const key = toolJournalCallKey(original.ref.callId)
+  if (typeof key !== 'string') return { failure: 'invalidSource' }
+  const records = await dependencies.log.readByKeyIn(
+    unit,
+    dependencies.access,
+    coordinate.source,
+    key,
+  )
+  if ('failure' in records)
+    return { failure: records.failure === 'denied' ? 'invalidSource' : 'unavailable' }
+  for (const entry of records.entries) {
+    const checked = inspectToolJournalEntry(scope, entry)
+    if (!('value' in checked) || checked.value.ref.callId !== original.ref.callId)
+      return { failure: 'invalidSource' }
+  }
+  const projected = projectToolJournal(scope, records.entries)
   if ('invalid' in projected) return { failure: 'unavailable' }
   const execution = projected.executions.get(original.ref.callId)
   if (!execution || !matchesOriginal(execution, original, terminal))

@@ -18,7 +18,7 @@ RF-7 reader 的可用性来自指定版本的实际实现登记。核验期间�
 
 RF-8 管理绑定在打开文件资源前登记本行 ready/close。打开完成后再次核验本代资格，才能发布结果服务。启动失败仍收尾已取得前缀，不能用 fiber ACTIVE 代替文件根准备完成。
 
-RF-9 `openToolResultCustodySource` 是受信根选择的只读来源。构造输入为同一个 AtomicStorage、SessionLogParticipant、LogAuthority 和原身份核验端口。原身份核验须来自实际 native 原发起拥有者；调用方数据和当前成员角色不能替代它。来源在调用者 Unit 内核原完整身份及原 intent、origin、adoption 和精确终局，不另开事务。坏构造的跨库 Unit 由存储断言暴露。
+RF-9 `openToolResultCustodySource` 是受信根选择的只读来源。构造输入为同一个 AtomicStorage、SessionLogParticipant 的 sourceIn／readByKeyIn 只读分面、LogAuthority 和原身份核验端口。来源只读取原调用 key 的工具记录，不读取完整会话前缀或枚举会话。原身份核验须来自实际 native 原发起拥有者；调用方数据和当前成员角色不能替代它。来源在调用者 Unit 内核原完整身份及原 intent、origin、adoption 和精确终局，不另开事务。坏构造的跨库 Unit 由存储断言暴露。
 
 RF-10 来源复用已发布的作者结果和字节校验。存在作者返回时，缺失或不匹配的持久结果不能通过。引用集合覆盖 raw、作者内容／摘要／附件、嵌套工具结果、媒体派生内容、交付投影及内部消息。每个引用须属于原调用，元数据和摘要须匹配原完整字节。此核验不声称文件发布与 SQLite 保管提交形成跨库原子提交。
 

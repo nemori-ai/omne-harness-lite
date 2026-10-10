@@ -61,6 +61,7 @@ describe('native original Tool owner', () => {
 import { toolOriginalIssueMigrations } from '../src/original-issue-migrations.ts'
 import { deferred, ref } from './execution-owner-fixture.ts'
 import { narrow, StorageUnavailable } from '@omne-harness-lite/storage'
+import { checkAppendInput } from '@omne-harness-lite/session-log'
 import type { ToolOriginalIssueClaim } from '@omne-harness-lite/tool-execution-runtime'
 
 async function admittedFixture(
@@ -68,6 +69,8 @@ async function admittedFixture(
     readonly stage?: 'rollback' | 'unknown'
     readonly consume?: 'unknown' | 'deny'
     readonly executor?: Parameters<typeof fixture>[0]
+    readonly forbidCompletePrefix?: boolean
+    readonly advanceBeforeStage?: boolean
   } = {},
 ) {
   const participants: ToolOriginalIssueParticipant[] = []
@@ -81,9 +84,41 @@ async function admittedFixture(
       await log.fixtureStorage.write(tx => fragment.migration.up(tx.db))
     return {
       ...support(log),
+      ...(options.forbidCompletePrefix
+        ? {
+            log: {
+              ...log.participant,
+              readPrefixIn: () => {
+                throw new Error('Tool complete Session prefix forbidden')
+              },
+            },
+          }
+        : {}),
       admission: {
         async admitOriginal(participant) {
           participants.push(participant)
+          if (options.advanceBeforeStage) {
+            const later = checkAppendInput(
+              scope.session,
+              [
+                {
+                  tenant: scope.tenant,
+                  readKeys: ['unrelated'],
+                  payload: { category: 'fact', format: 'test-later/1' },
+                },
+              ],
+              { kind: 'unfenced' },
+              { kind: 'unconditional' },
+            )
+            if ('failure' in later) throw new Error('invalid later fixture')
+            const appended = await log.append(
+              scope.session,
+              later.ok.entries,
+              later.ok.fence,
+              later.ok.condition,
+            )
+            if ('failure' in appended) throw new Error('later append unavailable')
+          }
           try {
             const staged = await log.fixtureStorage.atomic(async unit => {
               const result = await participant.stageOriginalIn(unit)
@@ -395,6 +430,44 @@ it('reads the native original identity in the caller unit after actual job close
       f.log.fixtureStorage.atomic(unit => verifier.verifyIn(unit, original)),
     ).rejects.toThrow('invalid original Tool identity')
     expect(f.implementation).toHaveBeenCalledTimes(1)
+  } finally {
+    await f.close()
+  }
+})
+
+it('stages and consumes the original intent without the complete Session prefix capability', async () => {
+  const { f, participants, consumes } = await admittedFixture({ forbidCompletePrefix: true })
+  try {
+    expect(await f.owner.operations.submit(request)).toEqual({ kind: 'recorded', execution: ref })
+    await f.owner.idle()
+    await participants[0]!.stopped
+    expect(f.implementation).toHaveBeenCalledTimes(1)
+    expect(consumes()).toBe(1)
+  } finally {
+    await f.close()
+  }
+})
+
+it('rejects the original stale coordinate without reading the full prefix or entering the author', async () => {
+  const { f, consumes } = await admittedFixture({
+    forbidCompletePrefix: true,
+    advanceBeforeStage: true,
+  })
+  try {
+    expect(await f.owner.operations.submit(request)).toEqual({
+      kind: 'rejected',
+      reason: 'runtimeUnavailable',
+    })
+    await f.owner.idle()
+    expect(f.implementation).not.toHaveBeenCalled()
+    expect(consumes()).toBe(0)
+    const rows = await f.log.fixtureStorage.read(tx =>
+      narrow<{ tool_original_issue: { call: string } }>(tx)
+        .selectFrom('tool_original_issue')
+        .selectAll()
+        .execute(),
+    )
+    expect(rows).toHaveLength(0)
   } finally {
     await f.close()
   }

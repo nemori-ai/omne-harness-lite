@@ -42,7 +42,7 @@ type Completion = Promise<'committed' | 'rolledBack' | 'unknown'>
 export function createToolOriginalIssue(input: {
   readonly support: ToolOriginalIssueSupport
   readonly generation: string
-  readonly expected: CheckedPrefix
+  readonly expected: Pick<CheckedPrefix, 'scope' | 'tail' | 'ownerGeneration'>
   readonly value: Extract<ToolJournalPayload, { kind: 'execution_intended' }>
   readonly stopped: Promise<void>
   readonly isOpen: () => boolean
@@ -131,15 +131,15 @@ export function createToolOriginalIssue(input: {
       { kind: 'tailEquals', tail: expected.tail },
     )
     if ('failure' in checked) return { kind: 'invalidInput' }
-    const prefix = await support.log.readPrefixIn(unit, support.access, source.source)
-    if ('failure' in prefix) return { kind: 'unavailable' }
-    if (!sameJson(prefix.entries, expected.entries)) return { kind: 'retryFromFacts' }
+    const prior = await records.readOriginalIn(unit, identity.ref)
+    if (prior.kind === 'found') return { kind: 'conflict' }
+    if (prior.kind !== 'absent') return { kind: 'unavailable' }
     claim = Object.freeze({}) as ToolOriginalIssueClaim
     row.claim = randomUUID()
     const appended = await support.log.appendIn(unit, support.access, checked.ok, source.source)
     if ('failure' in appended)
       return { kind: appended.failure === 'denied' ? 'denied' : 'unavailable' }
-    if ('invalid' in projectToolJournal(expected.scope, [...prefix.entries, ...appended.entries]))
+    if ('invalid' in projectToolJournal(expected.scope, appended.entries))
       throw new StorageDefect('invalid original tool journal transition')
     await unit.mutate(tx =>
       narrow<Database>(tx).insertInto('tool_original_issue').values(row).execute(),

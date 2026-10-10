@@ -3,6 +3,7 @@ import type { StorageUnit } from '@omne-harness-lite/storage'
 import type {
   ExecutionSubmission,
   ToolOriginalIssueClaim,
+  ToolOriginalIssueSupport,
   ToolOriginalIssueIdentity,
   ToolOriginalIssueParticipant,
   ToolOriginalIssueAdmission,
@@ -59,3 +60,9 @@ declare const notStopped: Omit<ToolOriginalIssueParticipant, 'stopped'>
 // @ts-expect-error A participant without actual stopped cannot transfer job responsibility.
 const unfinished: ToolOriginalIssueParticipant = notStopped
 void [unsupported, copiedClaim, replay, unfinished]
+
+declare const originalSupport: ToolOriginalIssueSupport
+// @ts-expect-error Original issue consumes only same-unit Tool record operations.
+originalSupport.log.readPrefixIn
+// @ts-expect-error The native pool cannot enumerate Sessions through original support.
+originalSupport.log.enumerate

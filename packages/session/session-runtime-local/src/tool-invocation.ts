@@ -107,18 +107,12 @@ export function createSessionToolAdmission(host: Host) {
     if (!row) return denied
     return host.authority.withinOriginalRead(unit, scope, read)
   }
-  const log = Object.freeze<SessionLogParticipant>({
-    ...host.log,
+  const log = Object.freeze<ToolOriginalIssueSupport['log']>({
+    appendIn: host.log.appendIn,
     sourceIn: (unit, access, scope) =>
       access !== host.authority.logAccess
         ? Promise.resolve({ failure: 'denied' } as const)
         : withOriginalRead(unit, scope, () => host.log.sourceIn(unit, access, scope), {
-            failure: 'denied',
-          } as const),
-    readPrefixIn: (unit, access, source) =>
-      access !== host.authority.logAccess
-        ? Promise.resolve({ failure: 'denied' } as const)
-        : withOriginalRead(unit, source, () => host.log.readPrefixIn(unit, access, source), {
             failure: 'denied',
           } as const),
     readByKeyIn: (unit, access, source, key) =>
