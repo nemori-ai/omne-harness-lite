@@ -103,3 +103,26 @@ export { createModelFailureSource, readFailureSubject } from './model-failure-su
 export { captureSessionModelSource, readSessionModelFailure } from './model-failure-read.ts'
 
 export { createAnchoredModelInvocation } from './model-invocation-coordinator.ts'
+export type * from './model-runtime/service-types.ts'
+export {
+  createCallContainerStore,
+  createCallPreparationOwner,
+} from './model-runtime/service-container.ts'
+export { createCallContainerPresence } from './model-runtime/call-presence.ts'
+export { createModelObserverQueue } from './model-runtime/service-observer-queue.ts'
+export { createRuntimeReads } from './model-runtime/service-reads.ts'
+export { createServiceCalls, ownOpenCallInput } from './model-runtime/service-calls.ts'
+export { createServiceControl } from './model-runtime/service-control.ts'
+export { createRuntimeSettleReply } from './model-runtime/service-reconcile.ts'
+export { createServiceDispatch, validDispatchInput } from './model-runtime/service-dispatch.ts'
+export { createSessionModelRuntime } from './model-runtime/service-runtime.ts'
+export { createPlanReuseScopes } from './model-runtime/plan-reuse-scopes.ts'
+export type {
+  PlanReuseScopes,
+  PlanReuseScopeLease,
+  PlanScopeBinding,
+} from './model-runtime/plan-reuse-scopes.ts'
+export { createRuntimeAcquire } from './model-runtime/service-acquire.ts'
+export { createAcknowledgementCustody } from './model-runtime/acknowledgement-custody.ts'
+export type { AcknowledgementCustody } from './model-runtime/acknowledgement-custody.ts'
+export { createIndependentCallConsumer } from './model-runtime/reference-consumer.ts'

@@ -1,8 +1,9 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { expect, it } from 'vitest'
 import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
-import { createModelRuntime } from '../src/service-runtime.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { acknowledgementHost } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { referencePorts } from './reference-ports-fixture.ts'
 import type { TestPlan } from './anchored-invocation-fixture.ts'
 
@@ -10,7 +11,7 @@ it('requires Session creation preparation before planning, storing content or op
   const world = await acknowledgementHost()
   const calls = createCallContainerStore<TestPlan, object>()
   let prepared = 0
-  const runtime = createModelRuntime({
+  const runtime = createSessionModelRuntime({
     ...world.construction,
     ...referencePorts(world.host, calls),
     calls,
@@ -41,7 +42,7 @@ it('requires Session creation preparation before planning, storing content or op
 it('rejects a prepared creation for another call before acquiring or planning a model', async () => {
   const world = await acknowledgementHost()
   const calls = createCallContainerStore<TestPlan, object>()
-  const runtime = createModelRuntime({
+  const runtime = createSessionModelRuntime({
     ...world.construction,
     ...referencePorts(world.host, calls),
     calls,

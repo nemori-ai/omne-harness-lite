@@ -33,7 +33,7 @@ import type { AssemblySnapshot } from '@omne-harness-lite/stream-assembly'
 
 import type { CallKey } from '@omne-harness-lite/messages'
 import type { CallAccess, CallPresence } from '@omne-harness-lite/model-request-runtime'
-import type { CallFacts } from './reference-types.ts'
+import type { CallFacts } from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelAdaptationBinding,
   ModelProfileRef,
@@ -58,7 +58,7 @@ import type {
 } from '@omne-harness-lite/model-request-runtime'
 import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
-import type { DiagnosticCollector } from './diagnostics-types.ts'
+import type { ModelRuntimeDiagnosticEmitterFactory } from '@omne-harness-lite/model-request-runtime'
 
 export type ObserverDelivery =
   | {
@@ -123,7 +123,8 @@ export interface PreparedCallBinding<P extends PlannedSemantics, R> {
   readonly lease: ExactTransportLease<P, R>
 }
 
-export interface RuntimeConstruction<P extends PlannedSemantics, R> {
+export interface SessionModelConstruction<P extends PlannedSemantics, R> {
+  readonly invoke: import('@omne-harness-lite/model-request-runtime').ModelInvoker
   readonly readFactory: SessionModelReadFactory
   readonly selectionFactory: SessionModelSelectionFactory
   readonly requestPreparation: SessionModelRequestPreparation
@@ -156,7 +157,7 @@ export interface RuntimeConstruction<P extends PlannedSemantics, R> {
   readonly recovery: RuntimeRecoveryAccess
   readonly diagnostic: (event: SettlementDiagnostic) => void
   /** Engineering diagnostics are bound per operation after verified session ownership. */
-  readonly diagnosticCollector?: Pick<DiagnosticCollector, 'emitter'>
+  readonly diagnosticCollector?: ModelRuntimeDiagnosticEmitterFactory
 }
 
 /** Process-local admission budget, independent of durable settlement contention. */

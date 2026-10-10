@@ -1,6 +1,6 @@
 import { expectTypeOf } from 'vitest'
 import type { SessionRef } from '@omne-harness-lite/messages'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type { ModelIdentitySource } from '@omne-harness-lite/model-request-runtime'
 import type {
   ModelRuntimeOperations,
@@ -15,7 +15,7 @@ import type { TokenMargin } from '@omne-harness-lite/model-request-runtime'
 declare const service: ModelRuntimeOperations
 declare const session: SessionRef
 declare const call: OpenCallInput
-declare const construction: RuntimeConstruction<PlannedSemantics, never>
+declare const construction: SessionModelConstruction<PlannedSemantics, never>
 declare const ids: ModelIdentitySource
 
 const invalidAcquisition: ReturnType<typeof construction.transport.acquire> = {

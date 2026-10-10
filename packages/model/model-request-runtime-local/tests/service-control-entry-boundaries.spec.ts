@@ -3,13 +3,13 @@
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import type { CallKey } from '@omne-harness-lite/messages'
-import { createServiceControl } from '../src/service-control.ts'
-import type { RuntimeConstruction } from '../src/service-types.ts'
-import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
+import { createServiceControl } from '@omne-harness-lite/session-runtime-local'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
+import { acknowledgementHost } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import type { TestPlan } from './anchored-invocation-fixture.ts'
 
 type World = Awaited<ReturnType<typeof acknowledgementHost>>
-type Construction = RuntimeConstruction<TestPlan, object>
+type Construction = SessionModelConstruction<TestPlan, object>
 type Control = ReturnType<typeof createServiceControl<TestPlan, object>>
 type Command = 'releaseCall' | 'interrupt'
 const commands = ['releaseCall', 'interrupt'] as const

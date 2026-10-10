@@ -19,12 +19,14 @@ import {
   createSettlementWork,
 } from '@omne-harness-lite/session-runtime-local'
 import {
-  createAcknowledgementCustody,
-  createCallContainerStore,
   createModelCallContentStore,
-  createModelObserverQueue,
   modelCallContentMigrations,
 } from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createAcknowledgementCustody,
+  createCallContainerStore,
+  createModelObserverQueue,
+} from '@omne-harness-lite/session-runtime-local'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import { composeMigrations } from '@omne-harness-lite/storage'
 import { openStorage } from '@omne-harness-lite/storage-sql'

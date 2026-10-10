@@ -3,8 +3,8 @@ import {
   sessionModelRequestPreparation,
   sessionModelSettlement,
 } from '@omne-harness-lite/session-runtime-local'
-import type { CreateCallContainerInput } from '../src/service-types.ts'
-import { prepareAttemptFact } from './attempt-fact-fixture.ts'
+import type { CreateCallContainerInput } from '@omne-harness-lite/session-runtime-local'
+import { prepareAttemptFact } from '../../../../model/model-request-runtime-local/tests/attempt-fact-fixture.ts'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
@@ -33,20 +33,31 @@ import {
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import { createSettlementCoordinator } from '@omne-harness-lite/session-runtime-local'
 import { describe, expect, it, vi } from 'vitest'
-import type { DiagnosticCollector } from '../src/diagnostics-types.ts'
-import { createCallContainer, createCallContainerStore } from '../src/service-container.ts'
-import { createRuntimeSettleReply, settlePendingReply } from '../src/service-reconcile.ts'
-import type { SystemStopControl } from '../src/service-types.ts'
+import type { DiagnosticCollector } from '@omne-harness-lite/model-request-runtime-local'
+import { createCallContainer } from '../../dist/model-runtime/service-container.js'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createRuntimeSettleReply } from '@omne-harness-lite/session-runtime-local'
+import { settlePendingReply } from '../../dist/model-runtime/service-reconcile.js'
+import type { SystemStopControl } from '@omne-harness-lite/session-runtime-local'
 import {
   dispatched as dispatchedFixture,
   opened as openedFixture,
   prepare,
   session,
-} from './log-codec-fixture.ts'
-import { responseV5 } from './log-codec-v2-fixture.ts'
-import { storeUnavailableCustody, unavailableReferencePorts } from './reference-ports-fixture.ts'
-import { selectionHost } from './session-selection-fixture.ts'
-import { controlled, deferred, noWaitScheduler, policy, request } from './settlement-fixture.ts'
+} from '../../../../model/model-request-runtime-local/tests/log-codec-fixture.ts'
+import { responseV5 } from '../../../../model/model-request-runtime-local/tests/log-codec-v2-fixture.ts'
+import {
+  storeUnavailableCustody,
+  unavailableReferencePorts,
+} from '../../../../model/model-request-runtime-local/tests/reference-ports-fixture.ts'
+import { selectionHost } from '../../../../model/model-request-runtime-local/tests/session-selection-fixture.ts'
+import {
+  controlled,
+  deferred,
+  noWaitScheduler,
+  policy,
+  request,
+} from '../../../../model/model-request-runtime-local/tests/settlement-fixture.ts'
 
 /** Like the anchored handle, a repeat settles the same original request; the coordinator
  * resolves its retained unknown handle before any new submission. */

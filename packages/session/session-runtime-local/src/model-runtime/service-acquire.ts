@@ -20,12 +20,16 @@ import { parseOpaqueIdentifier, tenantIdEquals } from '@omne-harness-lite/identi
 import { createIndependentCallConsumer } from './reference-consumer.ts'
 import { createModelObserverQueue } from './service-observer-queue.ts'
 import { settlementGenerationCurrent } from '@omne-harness-lite/model-request-runtime'
-import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
 import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
-import type { RuntimeConstruction, ModelObserverQueue, CallContainerView } from './service-types.ts'
+import type {
+  SessionModelConstruction,
+  ModelObserverQueue,
+  CallContainerView,
+} from './service-types.ts'
 import type { AuthorizedCallObserver } from '@omne-harness-lite/model-request-runtime'
-import type { CallFacts } from './reference-types.ts'
+import type { CallFacts } from '@omne-harness-lite/model-request-runtime'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 const unavailable = Object.freeze({ unavailable: true } as const)
@@ -228,14 +232,14 @@ function deliverableConsumer(admitted: { readonly allowed: AcquireCallResult }):
  * `custody` is the runtime's shared ACK custody; a standalone component owns its own.
  */
 export function createRuntimeAcquire<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   sharedCustody?: AcknowledgementCustody,
 ): ProjectedComponent<
   {
     readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
     readonly close: () => Promise<RuntimeCloseResult>
   },
-  RuntimeConstruction<P, R>
+  SessionModelConstruction<P, R>
 > {
   return buildRuntimeAcquire(runtime, sharedCustody)
 }
@@ -246,7 +250,7 @@ class RuntimeAcquireState {
 }
 
 function buildRuntimeAcquire<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   sharedCustody?: AcknowledgementCustody,
   physical: RuntimeAcquireState = new RuntimeAcquireState(),
 ): ProjectedComponent<
@@ -254,7 +258,7 @@ function buildRuntimeAcquire<P extends PlannedSemantics, R>(
     readonly acquireCall: (input: AcquireCallInput) => Promise<AcquireCallResult>
     readonly close: () => Promise<RuntimeCloseResult>
   },
-  RuntimeConstruction<P, R>
+  SessionModelConstruction<P, R>
 > {
   if (
     typeof runtime.callAccess?.check !== 'function' ||
@@ -594,6 +598,6 @@ function buildRuntimeAcquire<P extends PlannedSemantics, R>(
           : unavailable
       },
     }),
-    (next: RuntimeConstruction<P, R>) => buildRuntimeAcquire(next, sharedCustody, physical),
+    (next: SessionModelConstruction<P, R>) => buildRuntimeAcquire(next, sharedCustody, physical),
   )
 }

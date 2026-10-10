@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { unwrap, parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import type { PlannedSemantics, RuntimeCloseResult } from '@omne-harness-lite/model-request-runtime'
-import { createCallContainer, createCallContainerStore } from '../src/service-container.ts'
-import { retainRuntimeExecutions } from '../src/execution-source.ts'
-import type { CreateCallContainerInput, CallContainerStore } from '../src/service-types.ts'
+import { createCallContainer } from '../../dist/model-runtime/service-container.js'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { retainRuntimeExecutions } from '../../dist/model-runtime/execution-source.js'
+import type {
+  CreateCallContainerInput,
+  CallContainerStore,
+} from '@omne-harness-lite/session-runtime-local'
 
 const session = unwrap(parseOpaqueIdentifier('source-session', 'SessionRef'))
 const otherSession = unwrap(parseOpaqueIdentifier('other-source-session', 'SessionRef'))

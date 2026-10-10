@@ -1,5 +1,5 @@
 import { projectRuntimeComponent } from './runtime-projection.ts'
-import type { CallFactsView } from './reference-types.ts'
+import type { CallFactsView } from '@omne-harness-lite/model-request-runtime'
 import { randomUUID } from 'node:crypto'
 import { createPlanReuseScopes } from './plan-reuse-scopes.ts'
 import { createRuntimeAcquire } from './service-acquire.ts'
@@ -9,7 +9,7 @@ import { createServiceCalls } from './service-calls.ts'
 import { createServiceDispatch } from './service-dispatch.ts'
 import { createServiceControl } from './service-control.ts'
 import { createRuntimeSettleReply } from './service-reconcile.ts'
-import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
 import { retainRuntimeExecutions } from './execution-source.ts'
 import type {
   ModelRuntimeOperations,
@@ -19,7 +19,7 @@ import type {
   FailureConsumption,
   ModelRuntimeExecutionSource,
 } from '@omne-harness-lite/model-request-runtime'
-import type { RuntimeConstruction } from './service-types.ts'
+import type { SessionModelConstruction } from './service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 
 const ownedStores = new WeakSet<object>()
@@ -27,8 +27,8 @@ const unavailable = Object.freeze({ unavailable: true } as const)
 const runtimeStopped = Object.freeze({ runtimeStopped: true } as const)
 
 /** One process owner for all reference lifecycle operations and their shared call store. */
-export function createModelRuntime<P extends PlannedSemantics, R>(
-  provided: RuntimeConstruction<P, R>,
+export function createSessionModelRuntime<P extends PlannedSemantics, R>(
+  provided: SessionModelConstruction<P, R>,
 ): {
   readonly service: ModelRuntimeOperations
   readonly project: (inputs: ModelRuntimeHostInputs, facts: CallFactsView) => ModelRuntimeOperations
@@ -36,6 +36,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   readonly closeAdmission: () => void
   readonly executionSource: ModelRuntimeExecutionSource
 } {
+  if (typeof provided.invoke !== 'function') throw new TypeError('physical model invoker required')
   if (ownedStores.has(provided.calls)) throw new TypeError('call store already owned')
   let released = false
   const executions = retainRuntimeExecutions(provided.calls, () => released)
@@ -68,7 +69,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   const dispatch = createServiceDispatch(construction, scopes)
   const control = createServiceControl(construction)
   const instance = randomUUID()
-  const settlementInputs = (source: RuntimeConstruction<P, R>) => ({
+  const settlementInputs = (source: SessionModelConstruction<P, R>) => ({
     settlementFactory: source.settlementFactory,
     calls: source.calls,
     sessions: source.sessions,
@@ -95,7 +96,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
       recoveryDiagnosticReportEnabled = false
     }
   }
-  const recoveryInputs = (source: RuntimeConstruction<P, R>) => ({
+  const recoveryInputs = (source: SessionModelConstruction<P, R>) => ({
     settlementFactory: source.settlementFactory,
     recovery: source.recovery,
     readCall: source.requestPreparation.readCall.bind(source.requestPreparation),
@@ -216,7 +217,7 @@ export function createModelRuntime<P extends PlannedSemantics, R>(
   function project(inputs: ModelRuntimeHostInputs, facts: CallFactsView): ModelRuntimeOperations {
     if (facts.content !== construction.callFacts.content)
       throw new TypeError('runtime projection must borrow the original content owner')
-    const next: RuntimeConstruction<P, R> = Object.freeze({
+    const next: SessionModelConstruction<P, R> = Object.freeze({
       ...construction,
       sessions: inputs.sessions,
       history: inputs.history,

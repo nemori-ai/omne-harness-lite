@@ -1,9 +1,13 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 // @module-tag slow
 import { expect, it } from 'vitest'
 import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-runtime-local'
-import { createModelRuntime } from '../src/service-runtime.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { acknowledgementHost, acknowledgements } from './acknowledgement-host-fixture.ts'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import {
+  acknowledgementHost,
+  acknowledgements,
+} from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { referencePorts } from './reference-ports-fixture.ts'
 import type { TestPlan } from './anchored-invocation-fixture.ts'
 
@@ -11,7 +15,7 @@ it('uses the injected Session ACK owner before fixing or clearing original model
   const world = await acknowledgementHost()
   const calls = createCallContainerStore<TestPlan, object>()
   let requested = 0
-  const runtime = createModelRuntime({
+  const runtime = createSessionModelRuntime({
     ...world.construction,
     ...referencePorts(world.host, calls),
     calls,

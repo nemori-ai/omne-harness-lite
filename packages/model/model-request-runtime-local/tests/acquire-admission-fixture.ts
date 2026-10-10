@@ -12,8 +12,11 @@ import type {
   SessionRuntimeBinding,
 } from '@omne-harness-lite/model-request-runtime'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
-import { createRuntimeAcquire } from '../src/service-acquire.ts'
-import { acknowledgementHost, kinds } from './acknowledgement-host-fixture.ts'
+import { createRuntimeAcquire } from '@omne-harness-lite/session-runtime-local'
+import {
+  acknowledgementHost,
+  kinds,
+} from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { deferred } from './anchored-invocation-fixture.ts'
 
 const otherSession = unwrap(parseOpaqueIdentifier('acquire-other-session', 'SessionRef'))

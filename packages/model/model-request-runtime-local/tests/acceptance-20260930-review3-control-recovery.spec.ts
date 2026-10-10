@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
@@ -29,13 +30,13 @@ import {
 import { afterAll, describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { createModelCallContentStore } from '../src/reference-content.ts'
 
 import type { CallAccess, CallPresence } from '@omne-harness-lite/model-request-runtime'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
 import type {
@@ -214,7 +215,8 @@ async function runtimeOver(
   let nextCall = 0
   let nextResponse = 0
   const diagnostics: string[] = []
-  const construction: RuntimeConstruction<TestPlan, object> = {
+  const construction: SessionModelConstruction<TestPlan, object> = {
+    invoke: invokeModel,
     acknowledgementFactory: createSessionModelAcknowledgement,
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
@@ -283,7 +285,7 @@ async function runtimeOver(
       diagnostics.push(event.kind)
     },
   }
-  return { runtime: createModelRuntime(construction), diagnostics }
+  return { runtime: createSessionModelRuntime(construction), diagnostics }
 }
 
 describe('A22-V16′ N-5: the control recovery after an unknown intent receipt (service-control)', () => {

@@ -21,7 +21,10 @@
     "dist",
     "README.md",
     "README_ZH.md",
-    "SPEC.md"
+    "SPEC.md",
+    "model-runtime.md",
+    "adr",
+    "verification"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -57,7 +60,10 @@
     "@omne-harness-lite/asset-registry": "workspace:*",
     "@omne-harness-lite/tool-definition": "workspace:*",
     "@omne-harness-lite/asset-model": "workspace:*",
-    "@omne-harness-lite/tool-admission": "workspace:*"
+    "@omne-harness-lite/tool-admission": "workspace:*",
+    "@omne-harness-lite/arrival-events": "workspace:*",
+    "@omne-harness-lite/cordis-plugin-tree": "workspace:*",
+    "@omne-harness-lite/stream-assembly": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

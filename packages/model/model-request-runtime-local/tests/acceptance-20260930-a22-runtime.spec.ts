@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
@@ -41,8 +42,8 @@ import { narrow, type Storage } from '@omne-harness-lite/storage'
 import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
 import { createModelCallContentStore } from '../src/reference-content.ts'
 
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { acknowledgedAttempts, attemptFromWitness } from '@omne-harness-lite/model-request-runtime'
 import {
@@ -55,7 +56,7 @@ import type {
   CallPresence,
 } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallContentStore } from '../src/reference-types.ts'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type {
   AcknowledgementCleanupPolicy,
   SessionRuntimeBinding,
@@ -281,7 +282,8 @@ async function runtimeOn(w: World, options: RuntimeOptions = {}) {
   let nextResponse = 0
   let sendCount = 0
   const diagnostics: string[] = []
-  const construction: RuntimeConstruction<TestPlan, object> = {
+  const construction: SessionModelConstruction<TestPlan, object> = {
+    invoke: invokeModel,
     acknowledgementFactory: createSessionModelAcknowledgement,
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
@@ -364,7 +366,7 @@ async function runtimeOn(w: World, options: RuntimeOptions = {}) {
       diagnostics.push(event.kind)
     },
   }
-  const runtime = createModelRuntime(construction)
+  const runtime = createSessionModelRuntime(construction)
   const service = runtime.service
   let effective = await service.effectiveModel({ session: host.session })
   if (!('effectiveModel' in effective)) {

@@ -1,8 +1,8 @@
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
 import {
   createCallContainerPresence,
-  type RuntimeConstruction,
-} from '@omne-harness-lite/model-request-runtime-local'
+  type SessionModelConstruction,
+} from '@omne-harness-lite/session-runtime-local'
 import type {
   PlannedSemantics,
   SettlementOwner,
@@ -31,7 +31,7 @@ export function controlledTimingDeclarations() {
   }))
 }
 
-type Construction = RuntimeConstruction<PlannedSemantics, object>
+type Construction = SessionModelConstruction<PlannedSemantics, object>
 /** Controlled selection owner. Real provider operations run and stop before registrations return. */
 function selectionOwner(): SettlementOwner {
   let acquired = false

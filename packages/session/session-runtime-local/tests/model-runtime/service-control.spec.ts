@@ -6,16 +6,19 @@ import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { openSqlLogFixture } from './sql-log-fixture.ts'
+import { openSqlLogFixture } from '../../../../model/model-request-runtime-local/tests/sql-log-fixture.ts'
 import {
   classifyInterrupt,
   classifyRelease,
-  OwnedAppendTracker,
-  OwnedReadTracker,
-  withOwnedReads,
   type ControlFacts,
-} from '../src/service-control.ts'
-import { ControlledSettlementOwner, controlled, deferred } from './settlement-fixture.ts'
+} from '../../dist/model-runtime/service-control.js'
+import { OwnedAppendTracker } from '../../dist/model-runtime/service-control.js'
+import { OwnedReadTracker, withOwnedReads } from '@omne-harness-lite/model-request-runtime'
+import {
+  ControlledSettlementOwner,
+  controlled,
+  deferred,
+} from '../../../../model/model-request-runtime-local/tests/settlement-fixture.ts'
 import type {
   SettlementOwner,
   SettlementRegistration,

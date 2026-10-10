@@ -23,15 +23,15 @@ import {
   modelCallContentMigrations,
 } from '../src/reference-content.ts'
 import type { AvailabilityReport } from '@omne-harness-lite/asset-registry'
-import { createServiceCalls, ownOpenCallInput } from '../src/service-calls.ts'
+import { createServiceCalls, ownOpenCallInput } from '@omne-harness-lite/session-runtime-local'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { createCallContainerStore } from '../src/service-container.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type {
   CurrentHistoryReaders,
   SessionRuntimeBinding,
@@ -304,7 +304,7 @@ test('a stopped host rejects registration before any asynchronous session prepar
     sessions: { bind },
     transport: { clearReuseScope() {}, acquire: () => ({ unavailable: true }) },
     calls: createCallContainerStore<PlannedSemantics, never>(),
-  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  } as unknown as SessionModelConstruction<PlannedSemantics, never>
   const service = createServiceCalls(runtime)
   expect(
     await service.openCall(
@@ -345,7 +345,7 @@ test('host stop during session binding prevents a late call publication and unre
     sessions: { bind },
     transport: { clearReuseScope() {}, acquire: () => ({ unavailable: true }) },
     calls,
-  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  } as unknown as SessionModelConstruction<PlannedSemantics, never>
   const pending = createServiceCalls(runtime).openCall(
     request({
       host: { signal: controller.signal, stopping: () => controller.signal.aborted, register },
@@ -385,7 +385,7 @@ test('service close stops and retains a registered preparation until binding act
     calls,
     settlementContention: { limits: { concurrent: 1 } },
     history: { call: vi.fn() },
-  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  } as unknown as SessionModelConstruction<PlannedSemantics, never>
   const service = createServiceCalls(runtime)
   const pending = service.openCall(
     request({ host: { signal: host.signal, stopping: () => false, register } }),
@@ -428,7 +428,7 @@ test('observer association rejects a wrong call before catalog reads or transpor
     callFacts: { creation: async () => ({ callNotFound: true }) },
     calls,
     transport: { clearReuseScope() {}, acquire },
-  } as unknown as RuntimeConstruction<PlannedSemantics, never>
+  } as unknown as SessionModelConstruction<PlannedSemantics, never>
   const observer = {
     session,
     endpoint: {
@@ -668,7 +668,7 @@ test.each(['lease', 'invalidInput', 'unavailable'] as const)(
               }
             : interpretCallHistory({ prefix, callId }),
       },
-    } as unknown as RuntimeConstruction<PlannedSemantics, never>
+    } as unknown as SessionModelConstruction<PlannedSemantics, never>
     try {
       const service = createServiceCalls(runtime)
       const first = await service.openCall({ ...request({ observer: observerRequest }), host })

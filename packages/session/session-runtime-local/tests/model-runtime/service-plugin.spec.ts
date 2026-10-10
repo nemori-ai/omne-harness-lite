@@ -1,3 +1,5 @@
+import { createModelCallContentStore } from '@omne-harness-lite/model-request-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
@@ -20,19 +22,44 @@ import type {
 } from '@omne-harness-lite/model-request-runtime'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { createModelRuntimeLocal } from '../src/service-plugin.ts'
-import { createProviderContributions } from '../src/provider-contributions.ts'
+import { createSessionModelRuntimeLocal } from '@omne-harness-lite/session-runtime-local/cordis'
+import { createProviderContributions } from '../../dist/model-runtime/provider-contributions.js'
 import {
   namedProviderFixture,
   providerConfig,
   unavailableInputs,
-} from './named-provider-fixture.ts'
+} from '../../../../model/model-request-runtime-local/tests/named-provider-fixture.ts'
 
 const session = unwrap(parseOpaqueIdentifier('named-session', 'SessionRef'))
 const callId = unwrap(parseOpaqueIdentifier('named-call', 'ModelCallId'))
 const key = { session, callId }
 
 describe('named model runtime provider', () => {
+  it.each(['invoke', 'createContentStore'] as const)(
+    'rejects an absent or non-callable physical %s before creating a provider',
+    field => {
+      const input = {
+        invoke: invokeModel,
+        createContentStore: createModelCallContentStore,
+        acknowledgementFactory: createSessionModelAcknowledgement,
+        callFactsFactory: createSessionModelCallFacts,
+        settlementFactory: sessionModelSettlement,
+        recordPublication: publishSessionModelCallContent,
+        requestPreparation: sessionModelRequestPreparation,
+        selectionFactory: createSessionModelSelection,
+        readFactory: createSessionModelReads,
+      }
+      const error =
+        field === 'invoke'
+          ? 'physical model invoker required'
+          : 'model content store factory required'
+      Reflect.deleteProperty(input, field)
+      expect(() => createSessionModelRuntimeLocal(input)).toThrow(error)
+      Reflect.set(input, field, {})
+      expect(() => createSessionModelRuntimeLocal(input)).toThrow(error)
+    },
+  )
+
   it('does not replace a refused Session recovery owner or publish a ready runtime', async () => {
     const refused = new Error('Session recovery construction refused')
     const createReconciler = vi.fn(() => {
@@ -145,7 +172,9 @@ describe('named model runtime provider', () => {
       tokenMargin: { multiplier: '1.10000000000000000001', reserveTokens: '9007199254740993' },
       reservationWaitPolicy: { maxWaitersPerCall: '2e1', timeoutMs: '1e3' },
     }
-    const provider = createModelRuntimeLocal({
+    const provider = createSessionModelRuntimeLocal({
+      invoke: invokeModel,
+      createContentStore: createModelCallContentStore,
       acknowledgementFactory: createSessionModelAcknowledgement,
       callFactsFactory: createSessionModelCallFacts,
       settlementFactory: sessionModelSettlement,
@@ -308,7 +337,9 @@ describe('named model runtime provider', () => {
   })
 
   it('rejects missing/extra configuration instead of accepting construct or inferred defaults', () => {
-    const provider = createModelRuntimeLocal({
+    const provider = createSessionModelRuntimeLocal({
+      invoke: invokeModel,
+      createContentStore: createModelCallContentStore,
       acknowledgementFactory: createSessionModelAcknowledgement,
       callFactsFactory: createSessionModelCallFacts,
       settlementFactory: sessionModelSettlement,

@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '../src/model-call-facts.ts'
@@ -6,12 +7,12 @@ import { createSessionModelAcknowledgement } from '@omne-harness-lite/session-ru
 import { publishSessionModelCallContent } from '@omne-harness-lite/session-runtime-local'
 import { sessionModelRequestPreparation } from '../src/model-request-preparation.ts'
 import { writeJsonLossless, type ToolCallBlock } from '@omne-harness-lite/content-blocks'
+import { createModelCallContentStore } from '@omne-harness-lite/model-request-runtime-local'
 import {
   createCallContainerPresence,
-  createModelCallContentStore,
   createCallContainerStore,
-  type RuntimeConstruction,
-} from '@omne-harness-lite/model-request-runtime-local'
+  type SessionModelConstruction,
+} from '@omne-harness-lite/session-runtime-local'
 import type {
   PlannedSemantics,
   SettlementOwner,
@@ -39,7 +40,7 @@ export function controlledTimingDeclarations(): import('@omne-harness-lite/asset
   }))
 }
 
-type Construction = RuntimeConstruction<PlannedSemantics, object>
+type Construction = SessionModelConstruction<PlannedSemantics, object>
 /** Controlled selection owner. Real provider operations run and stop before registrations return. */
 function selectionOwner(): SettlementOwner {
   let acquired = false
@@ -361,9 +362,9 @@ export function nativeCallFixturePorts(
 
 export function nativeModelConstruction(
   storage: AtomicStorage,
-): RuntimeConstruction<PlannedSemantics, object> {
+): SessionModelConstruction<PlannedSemantics, object> {
   const unavailable = { unavailable: true } as const
-  const callPresence: RuntimeConstruction<PlannedSemantics, object>['callPresence'] = {
+  const callPresence: SessionModelConstruction<PlannedSemantics, object>['callPresence'] = {
     read: async () => unavailable,
   }
   const content = createModelCallContentStore({
@@ -371,6 +372,7 @@ export function nativeModelConstruction(
     policy: { maxConcurrentWrites: 2, maxContentBytes: 65536 },
   })
   return {
+    invoke: invokeModel,
     acknowledgementFactory: createSessionModelAcknowledgement,
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,

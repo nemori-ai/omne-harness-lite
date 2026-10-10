@@ -45,7 +45,7 @@ import {
 import { validate as toolShape } from '@omne-harness-lite/tool-definition'
 import { randomUUID } from 'node:crypto'
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
-import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
 import { createPlanReuseScopes, type PlanReuseScopes } from './plan-reuse-scopes.ts'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import { createCallContainer, createCallPreparationOwner } from './service-container.ts'
@@ -61,11 +61,11 @@ import type {
   CallReservation,
   CreateCallContainerInput,
   ExactTransportLease,
-  RuntimeConstruction,
+  SessionModelConstruction,
 } from './service-types.ts'
 
 function observeAcquireRefusal<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   session: SessionRuntimeBinding,
   callId: CallKey['callId'],
   outcome: 'rejected' | 'unavailable',
@@ -91,7 +91,7 @@ function observeAcquireRefusal<P extends PlannedSemantics, R>(
 
 /** The verified openCall owner reports the actual exact lease, including its eventual release. */
 function observeLease<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   session: SessionRuntimeBinding,
   callId: CallKey['callId'],
   profile: ModelProfileRef,
@@ -486,7 +486,7 @@ function matchesPreparedCreation(
 
 /** S-85/S-101: only authoritative absence permits a new creation and adoption. */
 async function recognizeCreation<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   custody: AcknowledgementCustody | undefined,
   session: SessionRuntimeBinding,
   request: OpenCallInput,
@@ -558,10 +558,10 @@ export interface ServiceCalls {
 /** RT7 S-28: bind a new noRun call without a durable open record. An already-dispatched
  * call's resume binding must come from its original MS6 record, never the latest catalog. */
 export function createServiceCalls<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   borrowedScopes?: PlanReuseScopes,
   sharedCustody?: AcknowledgementCustody,
-): ProjectedComponent<ServiceCalls, RuntimeConstruction<P, R>> {
+): ProjectedComponent<ServiceCalls, SessionModelConstruction<P, R>> {
   return buildServiceCalls(runtime, borrowedScopes, sharedCustody)
 }
 
@@ -577,11 +577,11 @@ class ServiceCallsState<P extends PlannedSemantics, R> {
 }
 
 function buildServiceCalls<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   borrowedScopes?: PlanReuseScopes,
   sharedCustody?: AcknowledgementCustody,
   physical: ServiceCallsState<P, R> = new ServiceCallsState<P, R>(),
-): ProjectedComponent<ServiceCalls, RuntimeConstruction<P, R>> {
+): ProjectedComponent<ServiceCalls, SessionModelConstruction<P, R>> {
   const ownCustody = sharedCustody === undefined ? runtimeCustody(runtime) : undefined
   const custody = sharedCustody ?? ownCustody
   const scopes = borrowedScopes ?? createPlanReuseScopes(runtime)
@@ -664,11 +664,11 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       if (preparation !== undefined) physical.preparations.add(preparation)
       return { preparation }
     }
-    type Bound = Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
+    type Bound = Awaited<ReturnType<SessionModelConstruction<P, R>['sessions']['bind']>>
     type Reservation = CallReservation<P, R>
     type Local = NonNullable<ReturnType<Reservation['view']>>
     type ToolResult = Awaited<
-      ReturnType<RuntimeConstruction<P, R>['requestPreparation']['resolveTools']>
+      ReturnType<SessionModelConstruction<P, R>['requestPreparation']['resolveTools']>
     >
     type ReservedInput = {
       key: CallKey
@@ -889,7 +889,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
       session: SessionRuntimeBinding,
       callId: CallKey['callId'],
       profile: ModelProfileRef,
-      binding: Parameters<RuntimeConstruction<P, R>['transport']['acquire']>,
+      binding: Parameters<SessionModelConstruction<P, R>['transport']['acquire']>,
     ): { lease: ExactTransportLease<P, R> } | OpenCallResult {
       const acquired = runtime.transport.acquire(...binding)
       if ('invalidInput' in acquired) {
@@ -1391,7 +1391,7 @@ function buildServiceCalls<P extends PlannedSemantics, R>(
         physical.admissionClosed = true
       },
     }),
-    (next: RuntimeConstruction<P, R>) =>
+    (next: SessionModelConstruction<P, R>) =>
       buildServiceCalls(next, borrowedScopes, sharedCustody, physical),
   )
 }

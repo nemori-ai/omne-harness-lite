@@ -7,17 +7,17 @@ import type {
   CreateCallContainerInput,
   CallObserverBinding,
   ModelObserverQueue,
-} from '../src/service-types.ts'
+} from '@omne-harness-lite/session-runtime-local'
 import type { OpenCallInput, ModelCallHost } from '@omne-harness-lite/model-request-runtime'
+import { createCallContainer } from '../../dist/model-runtime/service-container.js'
 import {
-  createCallContainer,
   createCallContainerStore,
   createCallPreparationOwner,
-} from '../src/service-container.ts'
+} from '@omne-harness-lite/session-runtime-local'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
 import type { PendingModelResponse } from '@omne-harness-lite/model-response'
-import { createCallContainerPresence } from '../src/index.ts'
+import { createCallContainerPresence } from '@omne-harness-lite/session-runtime-local'
 
 function deferred() {
   let resolve: (() => void) | undefined

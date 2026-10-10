@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
 import type {
@@ -14,9 +15,12 @@ import type {
   DiagnosticRecord,
 } from '../src/diagnostics-types.ts'
 import { createDiagnosticCollector } from '../src/diagnostics.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { acknowledgementHost, kinds } from './acknowledgement-host-fixture.ts'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import {
+  acknowledgementHost,
+  kinds,
+} from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { payload } from './anchored-invocation-fixture.ts'
 import { judgeModelResponse } from '@omne-harness-lite/model-response'
 import { referencePorts } from './reference-ports-fixture.ts'
@@ -131,7 +135,7 @@ it('a credential diagnostic microtask sees the original first reservation releas
   const owner = new ControlledSettlementOwner()
   const world = await acknowledgementHost({ owner })
   const calls = createCallContainerStore<TestPlan, object>()
-  let runtime: ReturnType<typeof createModelRuntime> | undefined
+  let runtime: ReturnType<typeof createSessionModelRuntime> | undefined
   let armed = false
   let queued = false
   const trace: string[] = []
@@ -164,7 +168,7 @@ it('a credential diagnostic microtask sees the original first reservation releas
   })
   let ref: { session: typeof world.host.session; callId: string }
   try {
-    runtime = createModelRuntime({
+    runtime = createSessionModelRuntime({
       ...world.construction,
       ...referencePorts(world.host, calls),
       calls,
@@ -210,7 +214,7 @@ async function withDiagnosticHostWithoutFailureReader(
   const owner = new ControlledSettlementOwner()
   const world = await acknowledgementHost({ owner })
   const calls = createCallContainerStore<TestPlan, object>()
-  let runtime: ReturnType<typeof createModelRuntime> | undefined
+  let runtime: ReturnType<typeof createSessionModelRuntime> | undefined
   const legacy: string[] = []
   const engineering: DiagnosticRecord[] = []
   const reports: string[] = []
@@ -275,7 +279,7 @@ async function withDiagnosticHostWithoutFailureReader(
         }
       },
     }
-    runtime = createModelRuntime({
+    runtime = createSessionModelRuntime({
       ...world.construction,
       ...referencePorts(world.host, calls),
       calls,

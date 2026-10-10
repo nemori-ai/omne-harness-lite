@@ -28,8 +28,8 @@ import {
 } from '@omne-harness-lite/model-response'
 import { judgeAcknowledgedSettlement } from './acknowledged-settlement.ts'
 import type { AcknowledgementCustody } from './acknowledgement-custody.ts'
-import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
-import type { CallFacts } from './reference-types.ts'
+import { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
+import type { CallFacts } from '@omne-harness-lite/model-request-runtime'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
 import type { CallContainerStore, ReservationWaitPolicy } from './service-types.ts'
 

@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
@@ -124,12 +125,14 @@ import {
   originalIssueMigrations,
   createOriginalIssueOwner,
   type OriginalIssueOwner,
-  createModelRuntime,
-  createCallContainerStore,
   createModelCallContentStore,
   modelCallContentMigrations,
-  type RuntimeConstruction,
 } from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createSessionModelRuntime,
+  createCallContainerStore,
+  type SessionModelConstruction,
+} from '@omne-harness-lite/session-runtime-local'
 import {
   captureModelLogValue,
   inspectModelLogEntry,
@@ -162,7 +165,7 @@ import { readSessionFact } from '@omne-harness-lite/session-runtime'
 import type { SessionScope } from '@omne-harness-lite/session-tenancy'
 
 const cleanup: Array<() => Promise<void>> = []
-const nativeModels: Array<ReturnType<typeof createModelRuntime>> = []
+const nativeModels: Array<ReturnType<typeof createSessionModelRuntime>> = []
 afterEach(async () => {
   for (const model of nativeModels.splice(0).reverse()) {
     expect(await model.close()).toEqual({ released: true })
@@ -1909,7 +1912,7 @@ async function originalModelInput(
 it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
   'public driver pairs the original Run reader with actual bootstrap, Context and adopted registry: %s',
   async fault => {
-    let native: ReturnType<typeof createModelRuntime> | undefined
+    let native: ReturnType<typeof createSessionModelRuntime> | undefined
     let bridge!: SessionModelResultSource,
       work!: SessionDriverWorkOwner,
       original!: OriginalIssueOwner
@@ -1965,7 +1968,7 @@ it.each(['normal', 'foreignScope', 'fillReceiptLost'] as const)(
     })
     const ports = nativeCallFixturePorts(scope, f.runtime, f.storage)
     const construction = ports.configure(nativeModelConstruction(f.storage))
-    native = createModelRuntime(construction)
+    native = createSessionModelRuntime(construction)
     nativeModels.push(native)
     for (const migration of assemblyManifestMigrations)
       await f.storage.write(tx => migration.migration.up(tx.db))
@@ -2567,11 +2570,11 @@ it.each([
 function nativeBindingOptions(
   original: Awaited<ReturnType<typeof originalModelBinding>>,
   configure?: (
-    construction: RuntimeConstruction<PlannedSemantics, object>,
-  ) => RuntimeConstruction<PlannedSemantics, object>,
+    construction: SessionModelConstruction<PlannedSemantics, object>,
+  ) => SessionModelConstruction<PlannedSemantics, object>,
 ): SessionRunModelBindingOptions & {
-  readonly nativeModel: ReturnType<typeof createModelRuntime>
-  readonly construction: RuntimeConstruction<PlannedSemantics, object>
+  readonly nativeModel: ReturnType<typeof createSessionModelRuntime>
+  readonly construction: SessionModelConstruction<PlannedSemantics, object>
 } {
   const { f, scope, preparation, unknown } = original
   const inputs = f.assembly.inputs(scope)
@@ -2586,7 +2589,7 @@ function nativeBindingOptions(
   }
   const base = nativeModelConstruction(f.storage)
   const construction = configure ? configure(base) : base
-  const model = createModelRuntime(construction)
+  const model = createSessionModelRuntime(construction)
   nativeModels.push(model)
   return {
     construction,
@@ -2634,9 +2637,9 @@ function nativeBindingOptions(
 }
 function nativeModelConstruction(
   storage: Awaited<ReturnType<typeof openStorage>>,
-): RuntimeConstruction<PlannedSemantics, object> {
+): SessionModelConstruction<PlannedSemantics, object> {
   const unavailable = { unavailable: true } as const
-  const callPresence: RuntimeConstruction<PlannedSemantics, object>['callPresence'] = {
+  const callPresence: SessionModelConstruction<PlannedSemantics, object>['callPresence'] = {
     read: async () => unavailable,
   }
   const content = createModelCallContentStore({
@@ -2644,6 +2647,7 @@ function nativeModelConstruction(
     policy: { maxConcurrentWrites: 2, maxContentBytes: 65536 },
   })
   return {
+    invoke: invokeModel,
     acknowledgementFactory: createSessionModelAcknowledgement,
     settlementFactory: sessionModelSettlement,
     recordPublication: publishSessionModelCallContent,
@@ -3448,7 +3452,7 @@ async function actualModelTurn(
 }
 
 it('derives model eligibility from actual Session history and retains image requirements after compaction', async () => {
-  let native: ReturnType<typeof createModelRuntime> | undefined
+  let native: ReturnType<typeof createSessionModelRuntime> | undefined
   let bridge!: SessionModelResultSource
   const original = await originalModelBinding(storage => {
     bridge = createSessionModelResultSource({
@@ -3549,7 +3553,7 @@ it.each([
 ] as const)('runs the host-owned model turn with original responsibility: %s', async fault => {
   // Governance/current qualification, model catalog and transport are controlled. Runtime execution and SQL are real.
   let bridge!: SessionModelResultSource
-  let native: ReturnType<typeof createModelRuntime> | undefined
+  let native: ReturnType<typeof createSessionModelRuntime> | undefined
   const original = await originalModelBinding(storage => {
     bridge = createSessionModelResultSource({
       storage,
@@ -3971,7 +3975,7 @@ it.each(['normal', 'detach', 'retained', 'rootFailure', 'diagnosticFailure', 'mi
   async fault => {
     // SQL, CG client, original Run/attempt, ModelRuntime, SDK/custody/ACK and Unix listener are real.
     // Governance transport, qualification/generation and model transport are controlled; work proof owns actual jobs.
-    let native: ReturnType<typeof createModelRuntime> | undefined
+    let native: ReturnType<typeof createSessionModelRuntime> | undefined
     let bridge!: SessionModelResultSource
     let work!: SessionDriverWorkOwner
     const initial = await originalModelInput(

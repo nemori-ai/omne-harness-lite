@@ -1,7 +1,7 @@
 # 正式模型服务的注册与资源保有
 
 目标定义、宿主端口和当前未迁范围归[公共边界](../../../core/model-request-runtime/adr/runtime-integration.md)。
-本页维护本地提供者的集成责任与验证义务。createModelRuntimeLocal 使用具名宿主桥、执行支持和受管装配；独立 createModelRuntime 工厂仍承担纯函数消费者的原责任。服务可见不能代替逐项架构与行为验收。
+本页维护Session 模型编排提供者的集成责任与验证义务。createSessionModelRuntimeLocal 使用具名宿主桥、执行支持和受管装配；独立 createSessionModelRuntime 工厂仍承担纯函数消费者的原责任。服务可见不能代替逐项架构与行为验收。
 
 ## 注册与构造
 
@@ -30,23 +30,22 @@ unavailable/异常转为 retained 的未确认关闭观察；共享 control 重�
 晚 setup 和失败 setup 也必须登记并收尾。原源、Storage、Clock、传输和持久写者依赖留到真实义务停止/交接，不能先 await fiber dispose 再开始实际 close。
 
 acquireCall 返回消费句柄时，其 release 通过本次调用方 effect 配对撤除；观察者和监听也落在该贡献的 fiber。调用方在异步取得句柄前已撤除时，立即交还该原句柄，不向已失效 fiber 补登记。没有消费句柄的只读结果不添加等待资源。贡献撤除只结束消费等待/观察，不能代写 durable ACK 或关闭原模型执行。
-consumer.release 只请求停止，实际 stopped 后才归还 host lease；FailureSource.release 同步完成才归还，抛错保有。提供者登记每项贡献并主动关闭，不能等调用 fiber dispose 才启动收场；effect 是同一关闭的幂等入口。Session 桥撤除只交还消费句柄；真正模型提供者撤除才执行 S-36 停止及原结算。
+consumer.release 只请求停止，实际 stopped 后才归还 host lease；FailureSource.release 同步完成才归还，抛错保有。提供者登记每项贡献并主动关闭，不能等调用 fiber dispose 才启动收场；effect 是同一关闭的幂等入口。Session 桥撤除只交还消费句柄；原 Session 编排拥有者撤除才执行 S-36 停止及原结算。
 Cordis 4.0.4 的 effect 撤除函数在重复调用时可以返回 void。归还原借用后，以独立 Promise 任务撤下 effect，并收束同步或异步结果；不等待正在完成的同一个 close，不以撤除函数返回值代替 consumer.stopped。撤除异常仍进入原诊断。
 物理等待超时只产生诊断。已形成完整结果、ready 回执未知、旧 unfenced 写者未停、ACK 清理 pending 均不能被包装成完成。
 旧句柄仍能按原权限/来源认回耐久结果或 ACK；能调用一项 JavaScript 方法不等于已通过授权、真实存储或当前读取权。
 
 ## 事实来源与范围
 
-| 必需事实                              | 已有真实来源                                                                | 正式模块责任                                                                               |
-| ------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Session 的 tenant、日志借用与当前输入 | minimal-demo 的认证入口、session-tenancy、SessionLog、档案/凭据及求值提供者 | 宿主桥借用实际源；当前提供者迁移可复验这些真实输入，不将示例 Map 当正式 Session 状态       |
-| Run 终结与同前缀解释                  | 示例 tool-turn-driver 持久 run_ended；tool-driver-run-history 解释同一前缀  | Session/Run 协调拥有必要事实产生及纯读取；不由模型 provider 猜 Run 结束                    |
-| 旧执行停止与恢复资格                  | 示例 supervisor 的实际 worker 退出、原结算排空及 recovery scope             | 稳定宿主保有执行登记和退出观察；恢复拥有者取得真实停止依据和唯一资格，不用空 registry 推导 |
-| 无 Agent 恢复进展                     | 已有示例恢复入口；尚无完整正式驱动                                          | 正式 Session 协调持久扫描/重建，模型 provider 认回原调用；无新通知也推进必要义务           |
-| 迟到结果、费用与 ACK                  | 原模型结算/保留资源及原日志/内容数据集                                      | 模型拥有者保留原身份；Session 保管承接完整值/引用，明确确认后才由原 ACK 协议清理           |
+| 必需事实 | 当前拥有者与责任 |
+| --- | --- |
+| Session 的 tenant、日志借用与当前输入 | Session 准入与归属、SessionLog、请求准备及可信宿主桥提供实际输入；构造不得自造身份或使用示例状态。 |
+| Run 终结与同前缀解释 | Session/Run 协调产生并读取原持久事实，物理模型执行器不猜测 Run 是否结束。 |
+| 旧执行停止与恢复资格 | 原执行登记、实际退出观察及恢复 scope 提供依据；空 registry 不证明执行已经停止。 |
+| 无 Agent 时的恢复进展 | Session 宿主扫描持久义务并推进原恢复；没有新通知也不能丢失责任。 |
+| 迟到结果、费用与 ACK | Model 内容库保留原结果；Session 可靠接管完整值或引用后确认 ACK，再由原内容拥有者清理。 |
 
-完整 Session/Agent 第一期开口仍是候选；其包/API、事务准入、日志格式和消息变化不在这里接受。
-正式协调实现前，提供者的限定验收只覆盖现有真实输入和原行为；新增协调的双 Session、无 Agent 及最小正式来源门保持未完成。示例输入足以复验既有行为，不足以关闭这些新门。
+本页只约束这些输入的责任与生命周期。各提供者的兑现范围由实际公共接口、薄规格及组合测试确认；文件存在或服务已注册不代表完整产品验收通过。
 
 ## 验证义务
 
@@ -56,7 +55,7 @@ Cordis 4.0.4 的 effect 撤除函数在重复调用时可以返回 void。归还
 | Retained 关闭     | assembly-lifecycle 的原 work/control 身份、失败 pending、显式同 owner 重试及依赖逆序；不能用受控 close 证明所有真实写者停止 |
 | 原调用            | 十五操作、错误/授权次序、首内容、真实取消、同前缀、完整结果与晚到费用；维持独立函数使用                                     |
 | ACK               | AckLifecycle/AckProgress 原模型及负控，实际保管、同提交删除/状态、崩溃认回、晚 final、停止后可读及原确认资格                |
-| Session 组合      | 两 Session 的真实租户拒绝与局部故障、共同依赖失败、无 Agent 扫描、恢复实际停止/唯一性和来源换代；示例不能作为正式来源实现   |
+| Session 组合      | 两 Session 的真实租户拒绝与局部故障、共同依赖失败、无 Agent 扫描、恢复实际停止/唯一性和来源换代；受控输入不能作为正式来源实现   |
 
 有限模型与前提仍归精确 RT12 验证资源；Session 协调模型只覆盖其声明的有限域，不替代原模型首 token、响应或 ACK 义务。
 本页不保存一次运行结果，不将模型绿测等同于生产提供者接受。

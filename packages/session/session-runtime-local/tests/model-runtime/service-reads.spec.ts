@@ -1,19 +1,20 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import type { SessionModelReads } from '@omne-harness-lite/model-request-runtime'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import type {
   SessionModelReadInput,
   SessionModelReadHost,
 } from '@omne-harness-lite/model-request-runtime'
-import { projectRuntimeComponent } from '../src/runtime-projection.ts'
-import { runtimeCustody } from '../src/acknowledgement-custody.ts'
-import { modelCategory } from './log-codec-fixture.ts'
+import { projectRuntimeComponent } from '../../dist/model-runtime/runtime-projection.js'
+import { runtimeCustody } from '../../dist/model-runtime/acknowledgement-custody.js'
+import { modelCategory } from '../../../../model/model-request-runtime-local/tests/log-codec-fixture.ts'
 import { describe, expect, it, vi } from 'vitest'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { isJsonNumber, type JsonNumber } from '@omne-harness-lite/content-blocks'
 import { parseOpaqueIdentifier } from '@omne-harness-lite/identity-values'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
-import { createRuntimeReads } from '../src/service-reads.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
+import { createRuntimeReads } from '../../dist/model-runtime/service-reads.js'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
@@ -21,25 +22,35 @@ import {
 import type { SessionModelSelectionInput } from '@omne-harness-lite/model-request-runtime'
 import type { SessionLog } from '@omne-harness-lite/session-log'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementRegistration,
   SettlementTaskKind,
 } from '@omne-harness-lite/model-request-runtime'
-import { selectionHost, AT } from './session-selection-fixture.ts'
-import { dispatched, opened } from './log-codec-fixture.ts'
-import { responseV5 } from './log-codec-v2-fixture.ts'
-import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'
-import { unavailableReferencePorts } from './reference-ports-fixture.ts'
+import {
+  selectionHost,
+  AT,
+} from '../../../../model/model-request-runtime-local/tests/session-selection-fixture.ts'
+import {
+  dispatched,
+  opened,
+} from '../../../../model/model-request-runtime-local/tests/log-codec-fixture.ts'
+import { responseV5 } from '../../../../model/model-request-runtime-local/tests/log-codec-v2-fixture.ts'
+import {
+  ControlledSettlementOwner,
+  deferred,
+} from '../../../../model/model-request-runtime-local/tests/settlement-fixture.ts'
+import { unavailableReferencePorts } from '../../../../model/model-request-runtime-local/tests/reference-ports-fixture.ts'
 
 function construction(
   binding: SessionRuntimeBinding,
   reads: { value: number; append: number; credential: number; transport: number },
-): RuntimeConstruction<PlannedSemantics, unknown> {
+): SessionModelConstruction<PlannedSemantics, unknown> {
   const message = parseOpaqueIdentifier('unused-reply-message', 'MessageId')
   if (!('ok' in message)) throw new Error('reply message identity')
   return {
+    invoke: invokeModel,
     ...unavailableReferencePorts<PlannedSemantics, unknown>(),
     // These history tests explicitly grant read; unavailable reference ports grant nothing.
     callAccess: {

@@ -2,9 +2,9 @@ import type { RuntimeCloseResult } from '@omne-harness-lite/model-request-runtim
 import { tenantIdEquals, type TenantId } from '@omne-harness-lite/identity-values'
 import type { SessionRef } from '@omne-harness-lite/messages'
 import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
-import type { RuntimeConstruction } from './service-types.ts'
+import type { SessionModelConstruction } from './service-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
-import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
 
 export interface PlanReuseScopeLease {
   readonly reuseScope?: object
@@ -30,7 +30,7 @@ interface Entry {
 
 /** One bounded process owner; provider caches remain behind the acquired cleanup capability. */
 export function createPlanReuseScopes<P extends PlannedSemantics, R>(
-  input: Pick<RuntimeConstruction<P, R>, 'maxScopes' | 'transport' | 'policy'>,
+  input: Pick<SessionModelConstruction<P, R>, 'maxScopes' | 'transport' | 'policy'>,
 ): PlanReuseScopes {
   if (!Number.isSafeInteger(input.maxScopes) || input.maxScopes <= 0)
     throw new TypeError('maxScopes must be a positive safe integer')

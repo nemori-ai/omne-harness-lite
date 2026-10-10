@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest'
 import type { ModelCallPublicationInput } from '@omne-harness-lite/model-request-runtime'
-import { createModelRuntime } from '../src/service-runtime.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { acknowledgementHost } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { referencePorts } from './reference-ports-fixture.ts'
 import type { TestPlan } from './anchored-invocation-fixture.ts'
 
@@ -22,7 +22,7 @@ it('requires Session record publication before opening a new call or storing its
       return { unavailable: true as const }
     },
   }
-  const runtime = createModelRuntime(construction)
+  const runtime = createSessionModelRuntime(construction)
   try {
     const before = await world.entries()
     const result = await runtime.service.openCall(world.request('publication-required'))

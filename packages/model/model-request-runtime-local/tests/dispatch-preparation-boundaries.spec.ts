@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
@@ -6,9 +7,9 @@ import type {
   SessionModelRequestPreparation,
 } from '@omne-harness-lite/model-request-runtime'
 import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
-import { createModelRuntime } from '../src/service-runtime.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { acknowledgementHost } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { referencePorts } from './reference-ports-fixture.ts'
 import type { TestPlan } from './anchored-invocation-fixture.ts'
 import { deferred } from './anchored-invocation-fixture.ts'
@@ -26,7 +27,7 @@ async function withPreparation(
   work: (context: {
     readonly world: World
     readonly owner: ControlledSettlementOwner
-    readonly runtime: ReturnType<typeof createModelRuntime>
+    readonly runtime: ReturnType<typeof createSessionModelRuntime>
     readonly calls: ReturnType<typeof createCallContainerStore<TestPlan, object>>
     readonly binding: SessionRuntimeBinding
     readonly ref: { readonly session: World['host']['session']; readonly callId: string }
@@ -38,7 +39,7 @@ async function withPreparation(
 ): Promise<void> {
   const owner = new ControlledSettlementOwner()
   const world = await acknowledgementHost({ owner })
-  let runtime: ReturnType<typeof createModelRuntime> | undefined
+  let runtime: ReturnType<typeof createSessionModelRuntime> | undefined
   try {
     const result = await world.construction.sessions.bind(world.host.session)
     if (!('binding' in result)) throw new Error('original binding unavailable')
@@ -46,7 +47,7 @@ async function withPreparation(
     let preparing = false
     const binding = configure(result.binding, trace, () => preparing)
     const calls = createCallContainerStore<TestPlan, object>()
-    runtime = createModelRuntime({
+    runtime = createSessionModelRuntime({
       ...world.construction,
       ...referencePorts(world.host, calls),
       requestPreparation: {

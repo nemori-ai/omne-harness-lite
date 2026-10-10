@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { sessionModelRequestPreparation } from '@omne-harness-lite/session-runtime-local'
-import { createServiceControl } from '../src/service-control.ts'
-import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
+import { createServiceControl } from '@omne-harness-lite/session-runtime-local'
+import { acknowledgementHost } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 
 for (const command of ['interrupt', 'releaseCall'] as const) {
   it(`${command} uses Session call history and preserves a failed read without writing`, async () => {

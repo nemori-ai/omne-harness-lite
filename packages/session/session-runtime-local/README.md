@@ -205,3 +205,11 @@ export function invokeWithTools<P extends PlannedSemantics, R>(
 ```
 
 The runtime sends definitions and assembles streamed tool calls; the caller supplies each corresponding tool result in subsequent history. No tool is executed or automatically fed back by this function. Invalid definitions, duplicate names and orphan calls are rejected before a new dispatched anchor or HTTP request. The internal service composition helper now resolves names through the captured session or Run report scope; it is not a public tool execution API.
+
+## Session model-call composition
+
+`createSessionModelRuntime` composes the Session model-call operations over one original call store.
+Supply an explicit `invoke` from the chosen Model provider. The Session coordinator retains original issue, ready, ACK, and close responsibilities.
+
+The Cordis entry exports `createSessionModelRuntimeLocal`. Its trusted construction requires the same `invoke` and an original `createContentStore` factory.
+See [the composition contract](model-runtime.md) and [lifecycle responsibilities](adr/model-service-lifetime.md).

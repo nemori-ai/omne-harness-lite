@@ -2,9 +2,12 @@
 // Real SQLite content retention and SQL journal, with controlled trusted ports and stop gates.
 import { describe, expect, it } from 'vitest'
 import type { RuntimeCloseResult, SettlementOwner } from '@omne-harness-lite/model-request-runtime'
-import { acknowledgementComponent } from './acknowledgement-host-fixture.ts'
+import { acknowledgementComponent } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { modelValue } from './log-codec-fixture.ts'
-import { acknowledgementHost, acknowledgements } from './acknowledgement-host-fixture.ts'
+import {
+  acknowledgementHost,
+  acknowledgements,
+} from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'
 
 function isAcknowledgement(payload: Parameters<typeof modelValue>[0]): boolean {

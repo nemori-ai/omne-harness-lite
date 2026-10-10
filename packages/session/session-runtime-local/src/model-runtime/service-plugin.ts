@@ -48,15 +48,14 @@ import {
   MODEL_TRANSPORT,
 } from '@omne-harness-lite/model-request-runtime/cordis'
 import { z } from 'zod'
-import { createModelRuntime } from './service-runtime.ts'
+import { createSessionModelRuntime } from './service-runtime.ts'
 import { createCallContainerStore } from './service-container.ts'
-import { createModelCallContentStore } from './reference-content.ts'
 import type {
   SessionModelCallFacts,
   SessionModelCallFactsFactory,
 } from '@omne-harness-lite/model-request-runtime'
 import { createProviderContributions } from './provider-contributions.ts'
-import type { ModelCallExternalContentCustody } from './reference-types.ts'
+import type { ModelCallExternalContentCustody } from '@omne-harness-lite/model-request-runtime'
 
 const integer = z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
 const decimal = z.string().refine(value => {
@@ -104,7 +103,7 @@ const Config = z
       .strict(),
   })
   .strict()
-export type ModelRuntimeLocalConfig = z.infer<typeof Config>
+export type SessionModelRuntimeConfig = z.infer<typeof Config>
 const requires = [
   MODEL_RUNTIME_HOST_INPUTS,
   MODEL_RUNTIME_EXECUTION_SUPPORT,
@@ -113,7 +112,7 @@ const requires = [
   MODEL_TRANSPORT,
 ] as const
 
-type Runtime = ReturnType<typeof createModelRuntime<PlannedRequest, RawResponse>>
+type Runtime = ReturnType<typeof createSessionModelRuntime<PlannedRequest, RawResponse>>
 type Facts = SessionModelCallFacts
 
 /** Close only new-work admission at the original host-port usage points. */
@@ -328,7 +327,13 @@ class Provider extends ModelRuntimeService {
 }
 
 /** Trusted assembly closure ports. These are not serialized policy or caller authority. */
-export interface ModelRuntimeLocalConstruction {
+export interface SessionModelRuntimeConstruction {
+  readonly invoke: import('@omne-harness-lite/model-request-runtime').ModelInvoker
+  readonly createContentStore: (input: {
+    readonly storage: import('@omne-harness-lite/storage').Storage
+    readonly policy: { readonly maxConcurrentWrites: number; readonly maxContentBytes: number }
+    readonly externalContent?: ModelCallExternalContentCustody
+  }) => import('@omne-harness-lite/model-request-runtime').ModelCallContentStore
   readonly readFactory: SessionModelReadFactory
   readonly selectionFactory: SessionModelSelectionFactory
   readonly requestPreparation: SessionModelRequestPreparation
@@ -348,7 +353,7 @@ export interface ModelRuntimeLocalConstruction {
 
 function decoratedLease(
   lease: AdaptationLease,
-  decorate: ModelRuntimeLocalConstruction['decorateTransport'],
+  decorate: SessionModelRuntimeConstruction['decorateTransport'],
 ): { readonly lease: AdaptationLease } {
   if (!decorate) return { lease }
   try {
@@ -360,7 +365,11 @@ function decoratedLease(
 }
 
 /** Trusted assembly owns this factory; source/facts never become ordinary Context services. */
-export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruction) {
+export function createSessionModelRuntimeLocal(construction: SessionModelRuntimeConstruction) {
+  if (typeof construction.invoke !== 'function')
+    throw new TypeError('physical model invoker required')
+  if (typeof construction.createContentStore !== 'function')
+    throw new TypeError('model content store factory required')
   const contentDependencies = construction.externalContent
     ? { externalContent: construction.externalContent }
     : {}
@@ -369,7 +378,7 @@ export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruct
     stopped = false
   let runtime: Runtime | undefined
   let facts: Facts | undefined
-  let content: ReturnType<typeof createModelCallContentStore> | undefined
+  let content: import('@omne-harness-lite/model-request-runtime').ModelCallContentStore | undefined
   let calls: ReturnType<typeof createCallContainerStore<PlannedRequest, RawResponse>> | undefined
   let setupBorrow: ReturnType<ModelRuntimeHostInputsService['capture']> | undefined
   const contributions = createProviderContributions()
@@ -411,7 +420,7 @@ export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruct
   }
   const plugin = Object.assign(
     definePlugin({
-      name: 'model-request-runtime-local',
+      name: 'session-model-runtime',
       Config,
       inject: [...requires, ASSEMBLY_LIFETIME_SERVICE],
       apply(ctx, config) {
@@ -431,7 +440,7 @@ export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruct
               if (stopped) throw new Error('model runtime owner stopped')
               if (!clock) throw new Error('model runtime clock absent')
               setupBorrow = originalBridge.capture()
-              content = createModelCallContentStore({
+              content = construction.createContentStore({
                 storage,
                 policy: config.callReferences.content,
                 ...contentDependencies,
@@ -442,7 +451,8 @@ export function createModelRuntimeLocal(construction: ModelRuntimeLocalConstruct
                 maxScopes: config.callReferences.maxScopes,
               })
               calls = createCallContainerStore<PlannedRequest, RawResponse>()
-              runtime = createModelRuntime({
+              runtime = createSessionModelRuntime({
+                invoke: construction.invoke,
                 requestPreparation: construction.requestPreparation,
                 selectionFactory: construction.selectionFactory,
                 readFactory: construction.readFactory,

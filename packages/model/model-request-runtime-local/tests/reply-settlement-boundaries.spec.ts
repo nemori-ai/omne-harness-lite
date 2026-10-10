@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 // @module-tag slow
 import { describe, expect, it } from 'vitest'
 import type {
@@ -6,9 +7,9 @@ import type {
   SettleReplyInput,
   SettlementScheduler,
 } from '@omne-harness-lite/model-request-runtime'
-import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
+import { acknowledgementHost } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
 import { referencePorts } from './reference-ports-fixture.ts'
 import { deferred, payload, type TestPlan } from './anchored-invocation-fixture.ts'
 
@@ -124,7 +125,7 @@ describe('reply settlement input ownership and authorization boundaries', () => 
         return Promise.resolve(refusal)
       },
     }
-    const runtime = createModelRuntime({
+    const runtime = createSessionModelRuntime({
       ...h.construction,
       ...ports,
       calls,

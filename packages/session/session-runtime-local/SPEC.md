@@ -614,3 +614,9 @@ createModelFailureSource与readFailureSubject核对原失败前缀，返回的so
 原dispatched写入确认及原claim消费先于物理调用；原opened确认先于可见内容。完整Pending使用原ResponseId、用量、费用和实际响应事实。原batch未知时保留同一请求及handle，不重发模型。结果保管与ready未确认前不释放借用。finishReady和close等待原执行、门控、追加和结算任务实际停止；未知结果或释放失败保留原责任，供后继重试关闭。
 
 本提供者不选择具体Model实现，不建立第二个original owner，不关闭借入的Model池或日志。Model服务现行混合接缝调用此工厂并持有原handle；纯池构造及其消费者迁移仍是独立未完成项。
+
+## Session 的模型调用编排
+
+[模型调用编排](model-runtime.md)是本包实现的原十五操作、调用容器、主体投影及 ACK 清理协调的行为正文。
+公开根工厂为 createSessionModelRuntime，Cordis 工厂为 createSessionModelRuntimeLocal。
+两者显式借入 Model 的物理调用及内容拥有者，不选择具体提供者。

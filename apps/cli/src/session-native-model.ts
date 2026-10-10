@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
@@ -16,14 +17,16 @@ import type {
   RuntimeCloseResult,
 } from '@omne-harness-lite/model-request-runtime'
 import {
-  createModelRuntime,
-  createCallContainerStore,
-  createCallContainerPresence,
   createModelCallContentStore,
-  type RuntimeConstruction,
   type ModelCallContentPolicy,
   type CallFacts,
 } from '@omne-harness-lite/model-request-runtime-local'
+import {
+  createSessionModelRuntime,
+  createCallContainerStore,
+  createCallContainerPresence,
+  type SessionModelConstruction,
+} from '@omne-harness-lite/session-runtime-local'
 import {
   createModelTransportService,
   officialCatalog,
@@ -36,8 +39,8 @@ import {
   type SessionModelDirectoryRead,
 } from './session-model-directory.ts'
 
-type Construction = RuntimeConstruction<PlannedRequest, RawResponse>
-type Runtime = ReturnType<typeof createModelRuntime<PlannedRequest, RawResponse>>
+type Construction = SessionModelConstruction<PlannedRequest, RawResponse>
+type Runtime = ReturnType<typeof createSessionModelRuntime<PlannedRequest, RawResponse>>
 type Calls = Construction['calls']
 type Content = ReturnType<typeof createModelCallContentStore>
 export interface SessionNativeModelPool {
@@ -61,6 +64,7 @@ export interface SessionNativeModelOptions {
   ) => Omit<
     Construction,
     | 'calls'
+    | 'invoke'
     | 'callFacts'
     | 'callPresence'
     | 'transport'
@@ -188,7 +192,8 @@ class NativeModelOwner {
       )
       if ('rejected' in result) throw new Error('official model registration failed')
     }
-    this.runtime = createModelRuntime({
+    this.runtime = createSessionModelRuntime({
+      invoke: invokeModel,
       acknowledgementFactory: createSessionModelAcknowledgement,
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,

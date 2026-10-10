@@ -13,9 +13,12 @@ import { createModelCallContentStore } from '../src/reference-content.ts'
 import {
   createAcknowledgementCustody,
   type AcknowledgementCustody,
-} from '../src/acknowledgement-custody.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
-import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
+} from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import type {
+  CallContainerStore,
+  SessionModelConstruction,
+} from '@omne-harness-lite/session-runtime-local'
 import type { ModelCallContentStore } from '../src/reference-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import type { selectionHost } from './session-selection-fixture.ts'
@@ -23,7 +26,7 @@ import { noWaitScheduler } from './settlement-fixture.ts'
 
 type Host = Awaited<ReturnType<typeof selectionHost>>
 type Ports<P extends PlannedSemantics, R> = Pick<
-  RuntimeConstruction<P, R>,
+  SessionModelConstruction<P, R>,
   | 'callAccess'
   | 'callPresence'
   | 'callFacts'

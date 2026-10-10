@@ -8,17 +8,20 @@ import type {
   SettlementTask,
 } from '@omne-harness-lite/model-request-runtime'
 import type { SessionLog } from '@omne-harness-lite/session-log'
-import { createServiceControl } from '../src/service-control.ts'
-import { projectRuntimeComponent } from '../src/runtime-projection.ts'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import { createServiceControl } from '../../dist/model-runtime/service-control.js'
+import { projectRuntimeComponent } from '../../dist/model-runtime/runtime-projection.js'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import { acknowledgementHost, type HostOptions } from './acknowledgement-host-fixture.ts'
-import { modelValue } from './log-codec-fixture.ts'
-import { ControlledSettlementOwner, deferred } from './settlement-fixture.ts'
-import type { TestPlan } from './anchored-invocation-fixture.ts'
-import { within } from './review3-close-fixture.ts'
+import { modelValue } from '../../../../model/model-request-runtime-local/tests/log-codec-fixture.ts'
+import {
+  ControlledSettlementOwner,
+  deferred,
+} from '../../../../model/model-request-runtime-local/tests/settlement-fixture.ts'
+import type { TestPlan } from '../../../../model/model-request-runtime-local/tests/anchored-invocation-fixture.ts'
+import { within } from '../../../../model/model-request-runtime-local/tests/review3-close-fixture.ts'
 
 type World = Awaited<ReturnType<typeof acknowledgementHost>>
-type Construction = RuntimeConstruction<TestPlan, object>
+type Construction = SessionModelConstruction<TestPlan, object>
 
 function kind(entry: Parameters<SessionLog['append']>[1][number]): unknown {
   const value = modelValue(entry.payload)

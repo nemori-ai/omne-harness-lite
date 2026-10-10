@@ -7,10 +7,10 @@ import type {
 } from '@omne-harness-lite/model-request-runtime'
 import { runtimeCustody, type AcknowledgementCustody } from './acknowledgement-custody.ts'
 import { retainRuntimeProjection, type ProjectedComponent } from './runtime-projection.ts'
-import type { RuntimeConstruction } from './service-types.ts'
+import type { SessionModelConstruction } from './service-types.ts'
 
 function localFacts<P extends PlannedSemantics, R>(
-  construction: RuntimeConstruction<P, R>,
+  construction: SessionModelConstruction<P, R>,
   key: CallKey,
 ) {
   const view = construction.calls.find(key)?.view()
@@ -32,7 +32,7 @@ function localFacts<P extends PlannedSemantics, R>(
 }
 
 function readInput<P extends PlannedSemantics, R>(
-  construction: RuntimeConstruction<P, R>,
+  construction: SessionModelConstruction<P, R>,
   custody: SessionModelReadInput['custody'],
 ): SessionModelReadInput {
   return {
@@ -47,9 +47,12 @@ function readInput<P extends PlannedSemantics, R>(
 }
 
 export function createRuntimeReads<P extends PlannedSemantics, R>(
-  construction: RuntimeConstruction<P, R>,
+  construction: SessionModelConstruction<P, R>,
   sharedCustody?: AcknowledgementCustody,
-): ProjectedComponent<Pick<SessionModelReads, 'methods' | 'close'>, RuntimeConstruction<P, R>> {
+): ProjectedComponent<
+  Pick<SessionModelReads, 'methods' | 'close'>,
+  SessionModelConstruction<P, R>
+> {
   const original = sharedCustody ?? runtimeCustody(construction)
   const custody: SessionModelReadInput['custody'] =
     original === undefined
@@ -61,7 +64,10 @@ export function createRuntimeReads<P extends PlannedSemantics, R>(
   const reads = construction.readFactory(readInput(construction, custody))
   function project(
     owner: SessionModelReads,
-  ): ProjectedComponent<Pick<SessionModelReads, 'methods' | 'close'>, RuntimeConstruction<P, R>> {
+  ): ProjectedComponent<
+    Pick<SessionModelReads, 'methods' | 'close'>,
+    SessionModelConstruction<P, R>
+  > {
     return retainRuntimeProjection({ methods: owner.methods, close: owner.close }, next =>
       project(owner.project(readInput(next, custody))),
     )

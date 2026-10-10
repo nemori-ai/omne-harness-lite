@@ -11,7 +11,10 @@ import type { ModelCallContentStore } from '../src/reference-types.ts'
 import type { SettlementLogBinding } from '@omne-harness-lite/model-request-runtime'
 import type { AcknowledgementCleanupPolicy } from '@omne-harness-lite/model-request-runtime'
 import { payload } from './anchored-invocation-fixture.ts'
-import { acknowledgementHost, type HostOptions } from './acknowledgement-host-fixture.ts'
+import {
+  acknowledgementHost,
+  type HostOptions,
+} from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import {
   ControlledSettlementOwner,
   deferred,

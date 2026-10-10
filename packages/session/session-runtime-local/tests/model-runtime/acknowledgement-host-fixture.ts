@@ -1,4 +1,5 @@
-import { runtimeCustody } from '../src/acknowledgement-custody.ts'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
+import { runtimeCustody } from '../../dist/model-runtime/acknowledgement-custody.js'
 import { expect } from 'vitest'
 import {
   parseOpaqueIdentifier,
@@ -8,12 +9,12 @@ import {
 } from '@omne-harness-lite/identity-values'
 import { narrow } from '@omne-harness-lite/storage'
 import type { LogEntry, SessionLog } from '@omne-harness-lite/session-log'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import type { CallAccess, CallAccessAction } from '@omne-harness-lite/model-request-runtime'
-import type { ModelCallContentStore } from '../src/reference-types.ts'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { ModelCallContentStore } from '@omne-harness-lite/model-request-runtime'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type {
   AcknowledgementCleanupPolicy,
   RuntimeRecoveryScope,
@@ -25,15 +26,19 @@ import type {
   SettlementOwner,
   SettlementScheduler,
 } from '@omne-harness-lite/model-request-runtime'
-import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
+import { policy as invocationPolicy } from '../../../../model/model-request-runtime-local/tests/invoke-policy-fixture.ts'
 import {
   ControlledSettlementOwner,
   noWaitScheduler,
   policy as settlementPolicy,
-} from './settlement-fixture.ts'
-import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
-import { selectionHost } from './session-selection-fixture.ts'
-import { referencePorts } from './reference-ports-fixture.ts'
+} from '../../../../model/model-request-runtime-local/tests/settlement-fixture.ts'
+import {
+  payload,
+  transport,
+  type TestPlan,
+} from '../../../../model/model-request-runtime-local/tests/anchored-invocation-fixture.ts'
+import { selectionHost } from '../../../../model/model-request-runtime-local/tests/session-selection-fixture.ts'
+import { referencePorts } from '../../../../model/model-request-runtime-local/tests/reference-ports-fixture.ts'
 
 const messageId = unwrap(parseOpaqueIdentifier('a22-message', 'MessageId'))
 const creationKey = (value: string) => unwrap(parseOpaqueIdentifier(value, 'CreationKey'))
@@ -190,7 +195,8 @@ export async function acknowledgementHost(options: HostOptions = {}) {
     // The runtime compares binding identity: one stable object per sourceVersions value.
     const original = bindingWith({ fixture: 'a22-v1' })
     let binding = original
-    const construction: RuntimeConstruction<TestPlan, object> = {
+    const construction: SessionModelConstruction<TestPlan, object> = {
+      invoke: invokeModel,
       ...ports,
       callAccess: {
         check: (input, admitted) =>
@@ -255,7 +261,7 @@ export async function acknowledgementHost(options: HostOptions = {}) {
       },
       diagnostic() {},
     }
-    const runtime = createModelRuntime(construction)
+    const runtime = createSessionModelRuntime(construction)
     return {
       construction,
       runtime,
@@ -357,7 +363,7 @@ export const acknowledgements = (entries: readonly LogEntry[], call: string) =>
 export function acknowledgementComponent<
   P extends import('@omne-harness-lite/model-request-runtime').PlannedSemantics,
   R,
->(runtime: RuntimeConstruction<P, R>) {
+>(runtime: SessionModelConstruction<P, R>) {
   const custody = runtimeCustody(runtime)
   if (custody === undefined) throw new Error('ACK custody unavailable')
   const owner = runtime.acknowledgementFactory({

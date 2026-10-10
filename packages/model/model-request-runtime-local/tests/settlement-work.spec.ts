@@ -15,8 +15,8 @@ import {
   createModelCallContentStore,
   modelCallContentMigrations,
 } from '../src/reference-content.ts'
-import { createAcknowledgementCustody } from '../src/acknowledgement-custody.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
+import { createAcknowledgementCustody } from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
 import { createSettlementWork } from '@omne-harness-lite/session-runtime-local'
 import type { ModelCallSettlementWorkStore } from '../src/reference-types.ts'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'

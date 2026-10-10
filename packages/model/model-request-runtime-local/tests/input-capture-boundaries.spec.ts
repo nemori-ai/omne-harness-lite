@@ -10,9 +10,9 @@ import type {
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { brandMessage } from '@omne-harness-lite/messages'
-import { ownOpenCallInput } from '../src/service-calls.ts'
-import { createRuntimeAcquire } from '../src/service-acquire.ts'
-import { acknowledgementHost } from './acknowledgement-host-fixture.ts'
+import { ownOpenCallInput } from '@omne-harness-lite/session-runtime-local'
+import { createRuntimeAcquire } from '@omne-harness-lite/session-runtime-local'
+import { acknowledgementHost } from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { deferred } from './anchored-invocation-fixture.ts'
 
 const session = unwrap(parseOpaqueIdentifier('p5_capture_session', 'SessionRef'))

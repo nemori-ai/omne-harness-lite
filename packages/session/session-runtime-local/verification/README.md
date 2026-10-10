@@ -50,3 +50,6 @@ CoreModel的原结算／ACK／引用模型和[CoreTool的有限执行模型](../
 普通Session Context不提供驱动startup或协调生命周期服务。
 [驱动插件测试](../tests/driver-cordis.spec.ts)另核Core startup依赖和原control责任。
 受控startup不替代物理Model／Tool证明；实际公开driver往返场景归同一运行时测试文件。
+
+
+[模型调用编排的有限模型](model-runtime/README.md)维护原调用容器、捕获引用和提供者借用的验证义务。原执行记录与响应内容存储仍由 Model 提供者的真实测试覆盖。

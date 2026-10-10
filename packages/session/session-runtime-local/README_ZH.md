@@ -189,3 +189,11 @@ export function invokeWithTools<P extends PlannedSemantics, R>(
 ```
 
 runtime 负责发送定义并装配流式工具调用；调用者负责在后续历史中提供各调用对应的工具结果。该函数不执行工具，也不自动回填结果。非法定义、重名或孤儿调用在新的 dispatched 锚点和 HTTP 请求之前拒绝。内部服务组合构件已能按捕获的会话或 Run 报告范围解析名字；这不是公开的工具执行 API。
+
+## Session model-call composition
+
+`createSessionModelRuntime` composes the Session model-call operations over one original call store.
+Supply an explicit `invoke` from the chosen Model provider. The Session coordinator retains original issue, ready, ACK, and close responsibilities.
+
+The Cordis entry exports `createSessionModelRuntimeLocal`. Its trusted construction requires the same `invoke` and an original `createContentStore` factory.
+See [the composition contract](model-runtime.md) and [lifecycle responsibilities](adr/model-service-lifetime.md).

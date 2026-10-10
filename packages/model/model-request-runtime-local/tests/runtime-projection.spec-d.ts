@@ -7,11 +7,11 @@ import type {
   PlannedSemantics,
   ModelRuntimeExecutionSource,
 } from '@omne-harness-lite/model-request-runtime'
-import { createModelRuntime } from '../src/service-runtime.ts'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
 
 import type { CallFactsView } from '../src/reference-types.ts'
 
-declare const runtime: ReturnType<typeof createModelRuntime<PlannedSemantics, never>>
+declare const runtime: ReturnType<typeof createSessionModelRuntime<PlannedSemantics, never>>
 declare const inputs: ModelRuntimeHostInputs
 declare const facts: CallFactsView
 expectTypeOf(runtime.project).parameter(0).toEqualTypeOf<ModelRuntimeHostInputs>()

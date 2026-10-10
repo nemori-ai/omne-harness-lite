@@ -21,7 +21,7 @@ import { openStorage } from '@omne-harness-lite/storage-sql'
 import { openSqlLogFixture } from './sql-log-fixture.ts'
 import { publishSessionModelCallContent } from '@omne-harness-lite/session-runtime-local'
 
-import { OwnedReadTracker, withOwnedReads } from '../src/service-control.ts'
+import { OwnedReadTracker, withOwnedReads } from '@omne-harness-lite/model-request-runtime'
 import type { SettlementOwner, SettlementTask } from '@omne-harness-lite/model-request-runtime'
 import type { AppendResult } from '@omne-harness-lite/session-log'
 import {

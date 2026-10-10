@@ -9,13 +9,13 @@ import { isNonNegativeJsonInteger, type JsonValue } from '@omne-harness-lite/con
 import type { CallKey, ModelCallAcknowledgedRecord } from '@omne-harness-lite/messages'
 import type { ResponseId } from '@omne-harness-lite/model-response'
 import { completeAcknowledgedView } from '@omne-harness-lite/model-request-runtime'
-import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
-import type { ModelCallContentStore } from './reference-types.ts'
+import { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
+import type { ModelCallContentStore } from '@omne-harness-lite/model-request-runtime'
 import type {
   AcknowledgedCallFacts,
   ModelCallCleanupResult,
 } from '@omne-harness-lite/model-request-runtime'
-import type { CallContainerStore, RuntimeConstruction } from './service-types.ts'
+import type { CallContainerStore, SessionModelConstruction } from './service-types.ts'
 import type { AcknowledgementCleanupPolicy } from '@omne-harness-lite/model-request-runtime'
 import type {
   SettlementLogBinding,
@@ -86,7 +86,7 @@ interface Scheduled {
  * cleanup policy there is no custody: acknowledged paths are then unavailable, never faked.
  */
 export function runtimeCustody<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
 ): AcknowledgementCustody | undefined {
   if (typeof runtime.acknowledgementCleanup?.next !== 'function') return undefined
   return createAcknowledgementCustody({

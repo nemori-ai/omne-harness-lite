@@ -9,7 +9,7 @@ import {
   dispatchAdmission,
   dispatchAgainAdmission,
   settlementEvent,
-} from '../src/service-dispatch.ts'
+} from '../../dist/model-runtime/service-dispatch.js'
 
 const session = unwrap(parseOpaqueIdentifier('p6_dispatch_facts', 'SessionRef'))
 const tenant = unwrap(parseTenantId({ organization: 'p6_dispatch', account: 'p6_dispatch' }))

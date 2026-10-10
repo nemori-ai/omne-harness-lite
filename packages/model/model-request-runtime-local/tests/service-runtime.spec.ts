@@ -1,12 +1,16 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
-import type { CallContainerStore, RuntimeConstruction } from '../src/service-types.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
+import type {
+  CallContainerStore,
+  SessionModelConstruction,
+} from '@omne-harness-lite/session-runtime-local'
 import type { PlannedSemantics } from '@omne-harness-lite/model-request-runtime'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
@@ -41,11 +45,12 @@ function deferred<T>() {
 function construction(
   input: {
     readonly store?: CallContainerStore<PlannedSemantics, never>
-    readonly bind?: RuntimeConstruction<PlannedSemantics, never>['sessions']['bind']
+    readonly bind?: SessionModelConstruction<PlannedSemantics, never>['sessions']['bind']
     readonly diagnostics?: string[]
   } = {},
-): RuntimeConstruction<PlannedSemantics, never> {
+): SessionModelConstruction<PlannedSemantics, never> {
   return {
+    invoke: invokeModel,
     ...unavailableReferencePorts<PlannedSemantics, never>(),
     maxScopes: 4,
     sessions: { bind: input.bind ?? (async () => ({ failure: 'unavailable' })) },
@@ -103,10 +108,20 @@ function construction(
   }
 }
 
+it('rejects a missing physical invoker before claiming the Session call store', async () => {
+  const input = construction()
+  const invoke = input.invoke
+  Reflect.deleteProperty(input, 'invoke')
+  expect(() => createSessionModelRuntime(input)).toThrow('physical model invoker required')
+  Object.defineProperty(input, 'invoke', { value: invoke, enumerable: true })
+  const runtime = createSessionModelRuntime(input)
+  expect(await runtime.close()).toEqual({ released: true })
+})
+
 describe('fixed-subject projections of a single physical runtime', () => {
   it('retains each original source, rechecks current qualification, and closes admission for all projections', async () => {
     const original = construction()
-    const runtime = createModelRuntime(original)
+    const runtime = createSessionModelRuntime(original)
     const seen: string[] = []
     let validA = true
     const a = runtime.project(
@@ -147,7 +162,7 @@ describe('fixed-subject projections of a single physical runtime', () => {
   it('rejects a different physical content owner rather than adopting it', async () => {
     const original = construction(),
       other = construction()
-    const runtime = createModelRuntime(original)
+    const runtime = createSessionModelRuntime(original)
     expect(() => runtime.project(original, other.callFacts)).toThrow(TypeError)
     expect(await runtime.close()).toEqual({ released: true })
     expect(await other.calls.close()).toEqual({ released: true })
@@ -158,7 +173,7 @@ describe('fixed-subject projections of a single physical runtime', () => {
     const authorization = deferred<{ readonly authorized: true }>()
     const enteredAuthorization = deferred<void>()
     let entered = 0
-    const runtime = createModelRuntime(original)
+    const runtime = createSessionModelRuntime(original)
     const projected = runtime.project(
       {
         ...original,
@@ -188,7 +203,7 @@ describe('fixed-subject projections of a single physical runtime', () => {
     const original = construction()
     let entered = 0,
       checks = 0
-    const runtime = createModelRuntime(original)
+    const runtime = createSessionModelRuntime(original)
     const denied = runtime.project(
       {
         ...original,
@@ -284,7 +299,8 @@ describe('D102 unified model runtime owner', () => {
             },
           },
         }
-        const construction: RuntimeConstruction<TestPlan, object> = {
+        const construction: SessionModelConstruction<TestPlan, object> = {
+          invoke: invokeModel,
           ...referencePorts(host, calls),
           maxScopes: 4,
           sessions: { bind: async () => (holdBind ? await bound.promise : { binding }) },
@@ -338,7 +354,7 @@ describe('D102 unified model runtime owner', () => {
           },
           diagnostic() {},
         }
-        const runtime = createModelRuntime(construction)
+        const runtime = createSessionModelRuntime(construction)
         const service = projected
           ? runtime.project(construction, construction.callFacts)
           : runtime.service
@@ -561,7 +577,7 @@ describe('D102 unified model runtime owner', () => {
   )
 
   it('composes all fifteen actual methods and closes their shared healthy owners', async () => {
-    const runtime = createModelRuntime(construction())
+    const runtime = createSessionModelRuntime(construction())
     expect(Object.keys(runtime.service)).toHaveLength(15)
     expect(await runtime.service.effectiveModel({ session })).toEqual({ unavailable: true })
     const first = runtime.close()
@@ -576,7 +592,7 @@ describe('D102 unified model runtime owner', () => {
 
   it('waits for an already registered operation before reporting released', async () => {
     const bound = deferred<{ readonly failure: 'unavailable' }>()
-    const runtime = createModelRuntime(construction({ bind: () => bound.promise }))
+    const runtime = createSessionModelRuntime(construction({ bind: () => bound.promise }))
     const inFlight = runtime.service.effectiveModel({ session })
     let closeFinished = false
     const closing = runtime.close().then(result => {
@@ -603,8 +619,8 @@ describe('D102 unified model runtime owner', () => {
     }
     const diagnostics: string[] = []
     const config = construction({ store, diagnostics })
-    const runtime = createModelRuntime(config)
-    expect(() => createModelRuntime(config)).toThrow('call store already owned')
+    const runtime = createSessionModelRuntime(config)
+    expect(() => createSessionModelRuntime(config)).toThrow('call store already owned')
     expect(await runtime.close()).toEqual({ unavailable: true })
     expect(diagnostics).toEqual(['model_runtime.close_component_failed'])
     expect(await runtime.close()).toEqual({ released: true })
@@ -648,7 +664,7 @@ it.each(['open', 'dispatch'] as const)(
       }
       const base = construction()
       const calls = createCallContainerStore<TestPlan, object>()
-      const runtime = createModelRuntime<TestPlan, object>({
+      const runtime = createSessionModelRuntime<TestPlan, object>({
         ...base,
         ...referencePorts(host, calls),
         maxScopes: 4,

@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
@@ -8,8 +9,12 @@ import {
   sessionModelRequestPreparation,
 } from '@omne-harness-lite/session-runtime-local'
 import { positiveDurationMs } from '@omne-harness-lite/session-runtime-local'
-import { modelCategory, modelValue, replaceModelValue } from './log-codec-fixture.ts'
-import { prepareAttemptFact } from './attempt-fact-fixture.ts'
+import {
+  modelCategory,
+  modelValue,
+  replaceModelValue,
+} from '../../../../model/model-request-runtime-local/tests/log-codec-fixture.ts'
+import { prepareAttemptFact } from '../../../../model/model-request-runtime-local/tests/attempt-fact-fixture.ts'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { expect, test } from 'vitest'
@@ -24,34 +29,48 @@ import {
   tenantIdEquals,
   unwrap,
 } from '@omne-harness-lite/identity-values'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createServiceCalls } from '../src/service-calls.ts'
-import { createServiceControl } from '../src/service-control.ts'
-import { createServiceDispatch, settlementEvent } from '../src/service-dispatch.ts'
-import { createRuntimeReads } from '../src/service-reads.ts'
-import { createModelCallContentStore } from '../src/reference-content.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createServiceCalls } from '@omne-harness-lite/session-runtime-local'
+import { createServiceControl } from '@omne-harness-lite/session-runtime-local'
+import { createServiceDispatch } from '@omne-harness-lite/session-runtime-local'
+import { settlementEvent } from '../../dist/model-runtime/service-dispatch.js'
+import { createRuntimeReads } from '@omne-harness-lite/session-runtime-local'
+import { createModelCallContentStore } from '@omne-harness-lite/model-request-runtime-local'
 
-import { createRuntimeAcquire } from '../src/service-acquire.ts'
+import { createRuntimeAcquire } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import {
   captureModelLogValue,
   prepareModelLogEntry,
 } from '@omne-harness-lite/model-request-runtime'
-import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
-import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
-import { payload, transport, type TestPlan } from './anchored-invocation-fixture.ts'
-import { profile, selectionHost } from './session-selection-fixture.ts'
-import { dispatchAdmission, dispatchAgainAdmission } from '../src/service-dispatch.ts'
+import { policy as invocationPolicy } from '../../../../model/model-request-runtime-local/tests/invoke-policy-fixture.ts'
+import {
+  noWaitScheduler,
+  policy as settlementPolicy,
+} from '../../../../model/model-request-runtime-local/tests/settlement-fixture.ts'
+import {
+  payload,
+  transport,
+  type TestPlan,
+} from '../../../../model/model-request-runtime-local/tests/anchored-invocation-fixture.ts'
+import {
+  profile,
+  selectionHost,
+} from '../../../../model/model-request-runtime-local/tests/session-selection-fixture.ts'
+import {
+  dispatchAdmission,
+  dispatchAgainAdmission,
+} from '../../dist/model-runtime/service-dispatch.js'
 import type { UnacknowledgedCallHistory } from '@omne-harness-lite/model-request-runtime'
 import type { ModelProfileSnapshot } from '@omne-harness-lite/model-profile'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type { PlanFailure } from '@omne-harness-lite/model-request-runtime'
 import type {
   DiagnosticAssociation,
   DiagnosticScope,
 } from '@omne-harness-lite/model-request-runtime'
-import type { DiagnosticCollector } from '../src/diagnostics-types.ts'
+import type { DiagnosticCollector } from '@omne-harness-lite/model-request-runtime-local'
 import type { DiagnosticEvent } from '@omne-harness-lite/model-request-runtime'
 
 const session = unwrap(parseOpaqueIdentifier('session_dispatch', 'SessionRef'))
@@ -232,13 +251,13 @@ test('service dispatch writes both anchors before handing out a complete pending
           }),
         }
       },
-    } satisfies RuntimeConstruction<TestPlan, object>['callPresence']
+    } satisfies SessionModelConstruction<TestPlan, object>['callPresence']
     const callFacts = createSessionModelCallFacts({
       content: contentStore,
       presence: callPresence,
       maxScopes: 4,
     })
-    const callAccess: RuntimeConstruction<TestPlan, object>['callAccess'] = {
+    const callAccess: SessionModelConstruction<TestPlan, object>['callAccess'] = {
       async check(input, admitted) {
         const held = await host.tenancy.holdingTenant(input.ref.session)
         if (
@@ -337,7 +356,8 @@ test('service dispatch writes both anchors before handing out a complete pending
         tailConflicts: 0,
       }),
     ).toBeUndefined()
-    const runtime: RuntimeConstruction<TestPlan, object> = {
+    const runtime: SessionModelConstruction<TestPlan, object> = {
+      invoke: invokeModel,
       acknowledgementFactory: createSessionModelAcknowledgement,
       settlementFactory: sessionModelSettlement,
       recordPublication: publishSessionModelCallContent,

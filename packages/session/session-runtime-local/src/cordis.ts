@@ -170,3 +170,5 @@ export type {
 } from './session-context-types.ts'
 
 export { createLocalSessionIngressBinding } from './ingress-cordis.ts'
+
+export * from './model-runtime/service-plugin.ts'

@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 // @module-tag slow
 // Real SQLite and SQL journal with original provider completion and host stop barriers.
 import { expect, it, vi } from 'vitest'
@@ -16,15 +17,18 @@ import type {
   CallContainerStore,
   CallContainer,
   CallReservation,
-  RuntimeConstruction,
-} from '../src/service-types.ts'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
-import { createServiceCalls } from '../src/service-calls.ts'
+  SessionModelConstruction,
+} from '@omne-harness-lite/session-runtime-local'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
+import { createServiceCalls } from '@omne-harness-lite/session-runtime-local'
 import { referencePorts } from './reference-ports-fixture.ts'
 import { profile } from './session-selection-fixture.ts'
 import type { TestPlan } from './anchored-invocation-fixture.ts'
-import { acknowledgementHost, kinds } from './acknowledgement-host-fixture.ts'
+import {
+  acknowledgementHost,
+  kinds,
+} from '../../../session/session-runtime-local/tests/model-runtime/acknowledgement-host-fixture.ts'
 import { deferred } from './settlement-fixture.ts'
 import { modelValue } from './log-codec-fixture.ts'
 
@@ -40,7 +44,7 @@ async function adoptionHost(cold: boolean) {
   let failLeaseRelease = false
   const observerCloses = new Map<ModelObserverRequest['endpoint'], number>()
   const acquisitionArguments: Array<
-    Parameters<RuntimeConstruction<TestPlan, object>['transport']['acquire']>
+    Parameters<SessionModelConstruction<TestPlan, object>['transport']['acquire']>
   > = []
   let originalReservation: CallReservation<TestPlan, object> | undefined
   let candidate: CallContainer<TestPlan, object> | undefined
@@ -126,7 +130,7 @@ async function adoptionHost(cold: boolean) {
       },
     },
   }
-  const runtime = createModelRuntime({
+  const runtime = createSessionModelRuntime({
     ...h.construction,
     ...referencePorts(h.host, calls),
     calls,

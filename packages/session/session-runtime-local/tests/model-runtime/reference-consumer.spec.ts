@@ -3,10 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { readJsonStrict } from '@omne-harness-lite/content-blocks'
 import { judgeModelCallCreatedPayload } from '@omne-harness-lite/messages'
 import type { CallReadView, RetainedCallReadView } from '@omne-harness-lite/model-request-runtime'
-import {
-  createIndependentCallConsumer,
-  notifyReferenceConsumers,
-} from '../src/reference-consumer.ts'
+import { createIndependentCallConsumer } from '@omne-harness-lite/session-runtime-local'
+import { notifyReferenceConsumers } from '../../dist/model-runtime/reference-consumer.js'
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => {}
@@ -18,7 +16,7 @@ function deferred<T>() {
 function view(container: object): RetainedCallReadView {
   const parsed = readJsonStrict(
     readFileSync(
-      new URL('../../../core/messages/tests/fixtures/reference-examples.json', import.meta.url),
+      new URL('../../../../core/messages/tests/fixtures/reference-examples.json', import.meta.url),
       'utf8',
     ),
   )

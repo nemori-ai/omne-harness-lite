@@ -31,9 +31,8 @@ import {
 } from '@omne-harness-lite/model-request-runtime'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import { randomUUID } from 'node:crypto'
-import { invokeModel } from './invoke.ts'
 import type { AnchoredInvocationHandle } from '@omne-harness-lite/model-request-runtime'
-import { drainDiagnosticThenable } from './invocation-diagnostics.ts'
+import { drainDiagnosticThenable } from '@omne-harness-lite/model-request-runtime'
 import {
   createPlanReuseScopes,
   type PlanReuseScopeLease,
@@ -47,7 +46,7 @@ import type {
   CallOperationState,
   CallReservation,
   ModelObserverQueue,
-  RuntimeConstruction,
+  SessionModelConstruction,
 } from './service-types.ts'
 
 const settlementUnavailableKinds = new Set<string>([
@@ -279,9 +278,9 @@ export interface ServiceDispatch {
 
 /** One provider attempt owns its original anchored writer after the short admission is released. */
 export function createServiceDispatch<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   borrowedScopes?: PlanReuseScopes,
-): ProjectedComponent<ServiceDispatch, RuntimeConstruction<P, R>> {
+): ProjectedComponent<ServiceDispatch, SessionModelConstruction<P, R>> {
   return buildServiceDispatch(runtime, borrowedScopes)
 }
 
@@ -298,10 +297,10 @@ class ServiceDispatchState<P extends PlannedSemantics, R> {
 }
 
 function buildServiceDispatch<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   borrowedScopes?: PlanReuseScopes,
   physical: ServiceDispatchState<P, R> = new ServiceDispatchState<P, R>(),
-): ProjectedComponent<ServiceDispatch, RuntimeConstruction<P, R>> {
+): ProjectedComponent<ServiceDispatch, SessionModelConstruction<P, R>> {
   const scopes = borrowedScopes ?? createPlanReuseScopes(runtime)
 
   function reportDiagnosticFailure(kind = 'model_runtime.diagnostic_sink_failed'): void {
@@ -340,7 +339,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
     if (!validDispatchInput(input)) return { invalidInput: { reason: 'malformed' } }
     if (again && !('plan' in input)) return { invalidInput: { reason: 'malformed' } }
     const key: CallKey = { session: input.session, callId: input.callId }
-    let bound: Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
+    let bound: Awaited<ReturnType<SessionModelConstruction<P, R>['sessions']['bind']>>
     try {
       bound = await runtime.sessions.bind(key.session)
     } catch {
@@ -829,7 +828,7 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
           }
         }
         const created = runtime.settlementFactory.createInvocation({
-          invoke: invokeModel,
+          invoke: runtime.invoke,
           settlementFactory: runtime.settlementFactory,
           ...(local.request.run === undefined
             ? {}
@@ -1235,11 +1234,11 @@ function buildServiceDispatch<P extends PlannedSemantics, R>(
           : ({ unavailable: true } as const)
       },
     }),
-    (next: RuntimeConstruction<P, R>) => buildServiceDispatch(next, borrowedScopes, physical),
+    (next: SessionModelConstruction<P, R>) => buildServiceDispatch(next, borrowedScopes, physical),
   )
 }
 async function prepareSend<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   session: SessionRuntimeBinding,
   key: CallKey,
   dispatch: number,

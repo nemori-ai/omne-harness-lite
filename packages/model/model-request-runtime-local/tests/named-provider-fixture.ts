@@ -1,3 +1,5 @@
+import { createModelCallContentStore } from '@omne-harness-lite/model-request-runtime-local'
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 import { createSessionModelReads } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelSelection } from '@omne-harness-lite/session-runtime-local'
 import { createSessionModelCallFacts } from '@omne-harness-lite/session-runtime-local'
@@ -27,10 +29,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
 import {
-  createModelRuntimeLocal,
-  type ModelRuntimeLocalConfig,
-  type ModelRuntimeLocalConstruction,
-} from '../src/service-plugin.ts'
+  createSessionModelRuntimeLocal,
+  type SessionModelRuntimeConfig,
+  type SessionModelRuntimeConstruction,
+} from '@omne-harness-lite/session-runtime-local/cordis'
 import { modelCallContentMigrations } from '../src/reference-content.ts'
 import { policy } from './invoke-policy-fixture.ts'
 import { noWaitScheduler, policy as settlementPolicy } from './settlement-fixture.ts'
@@ -91,11 +93,11 @@ export async function namedProviderFixture(
     readonly release?: () => void
     readonly support?: ModelRuntimeExecutionSupport
     readonly deferDependencies?: boolean
-    readonly config?: ModelRuntimeLocalConfig
-    readonly callFactsFactory?: ModelRuntimeLocalConstruction['callFactsFactory']
-    readonly settlementFactory?: ModelRuntimeLocalConstruction['settlementFactory']
+    readonly config?: SessionModelRuntimeConfig
+    readonly callFactsFactory?: SessionModelRuntimeConstruction['callFactsFactory']
+    readonly settlementFactory?: SessionModelRuntimeConstruction['settlementFactory']
     readonly construction?: Omit<
-      ModelRuntimeLocalConstruction,
+      SessionModelRuntimeConstruction,
       | 'requestPreparation'
       | 'selectionFactory'
       | 'readFactory'
@@ -103,6 +105,8 @@ export async function namedProviderFixture(
       | 'acknowledgementFactory'
       | 'settlementFactory'
       | 'callFactsFactory'
+      | 'invoke'
+      | 'createContentStore'
     >
     readonly transport?: Pick<ModelTransportService, 'clearReuseScope' | 'acquire'>
   } = {},
@@ -115,7 +119,9 @@ export async function namedProviderFixture(
     migrations: composeMigrations(modelCallContentMigrations('sqlite')),
   })
   const ctx = new Context(),
-    binding = createModelRuntimeLocal({
+    binding = createSessionModelRuntimeLocal({
+      invoke: invokeModel,
+      createContentStore: createModelCallContentStore,
       ...options.construction,
       acknowledgementFactory: createSessionModelAcknowledgement,
       callFactsFactory: options.callFactsFactory ?? createSessionModelCallFacts,

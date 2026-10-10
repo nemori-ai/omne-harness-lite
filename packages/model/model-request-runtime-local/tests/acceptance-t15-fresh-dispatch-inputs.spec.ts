@@ -1,3 +1,4 @@
+import { invokeModel } from '@omne-harness-lite/model-request-runtime-local'
 // @module-tag slow
 // 归慢层：整套装配＋真库：用例经会话选择宿主起租户、时钟与评估输入的整套装配（SQLite 文件库），并开真实 SQL journal 会话日志。
 import { createHash } from 'node:crypto'
@@ -5,11 +6,11 @@ import { createServer } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { parseOpaqueIdentifier, unwrap } from '@omne-harness-lite/identity-values'
 import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
-import type { RuntimeConstruction } from '../src/service-types.ts'
+import type { SessionModelConstruction } from '@omne-harness-lite/session-runtime-local'
 import type { SessionRuntimeBinding } from '@omne-harness-lite/model-request-runtime'
 import type { ModelCallHost } from '@omne-harness-lite/model-request-runtime'
-import { createCallContainerStore } from '../src/service-container.ts'
-import { createModelRuntime } from '../src/service-runtime.ts'
+import { createCallContainerStore } from '@omne-harness-lite/session-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
 import { interpretCallHistory } from '@omne-harness-lite/model-request-runtime'
 import { policy as invocationPolicy } from './invoke-policy-fixture.ts'
 import {
@@ -97,7 +98,8 @@ async function ready() {
     },
   }
   const calls = createCallContainerStore<TestPlan, object>()
-  const config: RuntimeConstruction<TestPlan, object> = {
+  const config: SessionModelConstruction<TestPlan, object> = {
+    invoke: invokeModel,
     ...referencePorts(source, calls),
     maxScopes: 4,
     sessions: { bind: async () => ({ binding }) },
@@ -194,7 +196,7 @@ async function ready() {
     },
     diagnostic() {},
   }
-  const runtime = createModelRuntime(config)
+  const runtime = createSessionModelRuntime(config)
   async function openCall() {
     const opened = await runtime.service.openCall({
       creationKey: unwrap(parseOpaqueIdentifier(`t15_fresh_${issuedCalls + 1}`, 'CreationKey')),

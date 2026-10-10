@@ -32,7 +32,7 @@ import { retainRuntimeProjection, type ProjectedComponent } from './runtime-proj
 import type {
   CallContainerView,
   CallOperationState,
-  RuntimeConstruction,
+  SessionModelConstruction,
   SystemStopControl,
 } from './service-types.ts'
 export { OwnedReadTracker, withOwnedReads } from '@omne-harness-lite/model-request-runtime'
@@ -214,7 +214,7 @@ function controlAccount(
 
 /** The original call's S-36 system stop. It never manufactures a user interrupt intent. */
 export function createOriginalSystemStop<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   key: CallKey,
   retainUnknown: (
     binding: SettlementLogBinding,
@@ -278,7 +278,7 @@ type PendingResponseId = Extract<
 >['pending']['id']
 
 function readOriginalStopHistory<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   key: CallKey,
   reads: OwnedReadTracker,
   view: StopView<P, R>,
@@ -311,7 +311,7 @@ function originalReplyIsDurable(durable: OwnedStopHistory, responseId: PendingRe
 }
 
 function settleOriginalStopHistory<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   key: CallKey,
   retainUnknown: OriginalWriteRetention,
   control: SystemStopControl<P, R>,
@@ -335,7 +335,7 @@ function settleOriginalStopHistory<P extends PlannedSemantics, R>(
 }
 
 async function stopFromCallFacts<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   key: CallKey,
   control: SystemStopControl<P, R>,
   view: StopView<P, R>,
@@ -354,7 +354,7 @@ async function stopFromCallFacts<P extends PlannedSemantics, R>(
 }
 
 function cancelOriginalHistory<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   key: CallKey,
   retainUnknown: OriginalWriteRetention,
   control: SystemStopControl<P, R>,
@@ -375,7 +375,7 @@ function cancelOriginalHistory<P extends PlannedSemantics, R>(
 }
 
 async function appendOriginalCancellation<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   key: CallKey,
   retainUnknown: OriginalWriteRetention,
   control: SystemStopControl<P, R>,
@@ -409,8 +409,8 @@ async function appendOriginalCancellation<P extends PlannedSemantics, R>(
 /** The service instance retains uncertain append owners across calls. A later complete read is
  * needed even after actual stop; completion alone cannot decide whether the record committed. */
 export function createServiceControl<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
-): ProjectedComponent<ServiceControl, RuntimeConstruction<P, R>> {
+  runtime: SessionModelConstruction<P, R>,
+): ProjectedComponent<ServiceControl, SessionModelConstruction<P, R>> {
   return buildServiceControl(runtime)
 }
 
@@ -435,9 +435,9 @@ class ServiceControlState {
 }
 
 function buildServiceControl<P extends PlannedSemantics, R>(
-  runtime: RuntimeConstruction<P, R>,
+  runtime: SessionModelConstruction<P, R>,
   physical: ServiceControlState = new ServiceControlState(),
-): ProjectedComponent<ServiceControl, RuntimeConstruction<P, R>> {
+): ProjectedComponent<ServiceControl, SessionModelConstruction<P, R>> {
   const keyOf = (key: CallKey) => JSON.stringify([key.session, key.callId])
   const markEndUnavailable = (
     key: CallKey,
@@ -493,7 +493,7 @@ function buildServiceControl<P extends PlannedSemantics, R>(
     InterruptResult,
     { readonly unavailable: true } | { readonly invalidInput: unknown }
   >
-  type BoundSession = Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
+  type BoundSession = Awaited<ReturnType<SessionModelConstruction<P, R>['sessions']['bind']>>
 
   function releaseInputFailure(key: CallKey): InputFailure | undefined {
     if (physical.closing) return { unavailable: true }
@@ -662,7 +662,7 @@ function buildServiceControl<P extends PlannedSemantics, R>(
   const releaseCall = async (key: CallKey): Promise<ReleaseCallResult> => {
     const inputFailure = releaseInputFailure(key)
     if (inputFailure !== undefined) return inputFailure
-    let bound: Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
+    let bound: Awaited<ReturnType<SessionModelConstruction<P, R>['sessions']['bind']>>
     try {
       bound = await runtime.sessions.bind(key.session)
     } catch {
@@ -748,7 +748,7 @@ function buildServiceControl<P extends PlannedSemantics, R>(
     const inputFailure = interruptInputFailure(input)
     if (inputFailure !== undefined) return inputFailure
     const key: CallKey = { session: input.session, callId: input.callId }
-    let bound: Awaited<ReturnType<RuntimeConstruction<P, R>['sessions']['bind']>>
+    let bound: Awaited<ReturnType<SessionModelConstruction<P, R>['sessions']['bind']>>
     try {
       bound = await runtime.sessions.bind(key.session)
     } catch {
@@ -1070,6 +1070,6 @@ function buildServiceControl<P extends PlannedSemantics, R>(
   }
   return retainRuntimeProjection(
     Object.freeze({ releaseCall, interrupt, close }),
-    (next: RuntimeConstruction<P, R>) => buildServiceControl(next, physical),
+    (next: SessionModelConstruction<P, R>) => buildServiceControl(next, physical),
   )
 }

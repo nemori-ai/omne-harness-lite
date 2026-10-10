@@ -29,9 +29,9 @@ import {
   createOriginalIssueOwner,
   originalIssueMigrations,
   type OriginalIssueOwner,
-  createModelRuntime,
   modelCallContentMigrations,
 } from '@omne-harness-lite/model-request-runtime-local'
+import { createSessionModelRuntime } from '@omne-harness-lite/session-runtime-local'
 import {
   captureModelLogValue,
   readModelLogEnvelope,
@@ -5282,7 +5282,7 @@ describe('driver complete original Model Run', () => {
     maxSettlementBytes = 65536,
   ) {
     let original!: OriginalIssueOwner
-    let native: ReturnType<typeof createModelRuntime> | undefined
+    let native: ReturnType<typeof createSessionModelRuntime> | undefined
     let results!: ReturnType<typeof createSessionModelResultSource>
     let work!: ReturnType<typeof createSessionDriverWorkOwner>
     const toolQualified = vi.fn(async () => ({ kind: 'authorized' as const }))
@@ -5406,7 +5406,7 @@ describe('driver complete original Model Run', () => {
         },
       },
     })
-    native = createModelRuntime(construction)
+    native = createSessionModelRuntime(construction)
     const releaseModel = vi.fn(async () => {})
     const model: LocalSessionDriverOptions['model'] = {
       original,
