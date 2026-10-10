@@ -395,7 +395,7 @@ describe('fixed log projection and prefix reuse', () => {
       expect(extension.projected.segments?.previous).toBe(result.projected.segments)
     }
   })
-  it('compaction changes old blocks only after cold rebuild; summaries stay visible', () => {
+  it('compaction reselects indexed blocks while preserving the old projection', () => {
     const compaction = judgeMessage({
       id: 'summary',
       type: 'compaction',
@@ -415,9 +415,14 @@ describe('fixed log projection and prefix reuse', () => {
     const first = createProjectionCache(input([user(1)], selectedRules))
     if (!('ready' in first)) throw new Error('not ready')
     const next = row(2, messageLogPayload(compaction.ok))
-    expect(
-      extendProjection(first.ready, { ...input([user(1), next], selectedRules), entries: [next] }),
-    ).toEqual({ rebuildRequired: true, reason: 'impactUnknown' })
+    const extended = extendProjection(first.ready, {
+      ...input([user(1), next], selectedRules),
+      entries: [next],
+    })
+    expect(messages(extended).map(value => value.id)).toEqual(['summary'])
+    if (!('projected' in extended)) throw new Error('compaction projection')
+    expect(extended.projected.workCounters.entries - first.projected.workCounters.entries).toBe(1)
+    expect(extended.reusedSegments).toBeNull()
     expect(
       messages(projectMessages(input([user(1), next], selectedRules))).map(value => value.id),
     ).toEqual(['summary'])

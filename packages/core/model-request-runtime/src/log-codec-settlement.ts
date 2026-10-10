@@ -1,3 +1,4 @@
+import type { ModelHistorySelector } from './model-log-history.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
   copyJsonValue,
@@ -9,7 +10,7 @@ import {
 import { parseTenantId, tenantIdEquals, type TenantId } from '@omne-harness-lite/identity-values'
 import type { LoggedMessage } from '@omne-harness-lite/messages'
 import { validate as responseShape, type ReplyDisposition } from '@omne-harness-lite/model-response'
-import type { LogEntry, OwnedLogEntry } from '@omne-harness-lite/session-log'
+import type { SourceToken, LogEntry, OwnedLogEntry } from '@omne-harness-lite/session-log'
 import { compareRfc3339Instants } from '@omne-harness-lite/offer-expiry'
 import {
   createEntryCodec,
@@ -19,6 +20,7 @@ import {
 } from './log-codec-entry.ts'
 import {
   decodeModelLogKey,
+  encodeModelLogKey,
   identity,
   modelLogJsonEqual,
   object,
@@ -68,6 +70,7 @@ export type InspectSettlementMembersInput =
 /** Pure, read-only checks against one owned complete prefix. No authority or resource lease. */
 export interface ModelLogReadInspector {
   readonly entries: readonly InspectedModelLogEntry[]
+  select(selector: ModelHistorySelector): readonly InspectedModelLogEntry[]
   inspectSettlementMembers(
     input: Pick<SettlementInputBase, 'target' | 'anchors' | 'current'>,
   ): SettlementMembersResult
@@ -585,26 +588,28 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     const captured = captureWrapper(payload)
     return 'invalidValue' in captured ? undetermined('entry') : captured
   }
+  function anchorValueMatches(entry: LogEntry, value: JsonObject): boolean {
+    return (
+      modelLogJsonEqual(entry.payload, value.payload) &&
+      entry.session === value.session &&
+      modelLogJsonEqual(entry.tenant, value.tenant) &&
+      modelLogJsonEqual(entry.position, value.position) &&
+      entry.dedupeKey === value.dedupeKey &&
+      modelLogJsonEqual(entry.run, value.run) &&
+      modelLogJsonEqual(entry.attempt, value.attempt)
+    )
+  }
   function anchor(
     entries: readonly InspectedModelLogEntry[],
     raw: LogEntry | null,
   ): InspectedModelLogEntry | null {
     if (raw === null) return null
+    const owned = entries.find(item => item.entry === raw)
+    if (owned !== undefined) return owned
     const copied = copyJsonValue(raw)
     if ('failed' in copied || !object(copied.ok)) return null
     const value = copied.ok
-    return (
-      entries.find(
-        item =>
-          modelLogJsonEqual(item.entry.payload, value.payload) &&
-          item.entry.session === value.session &&
-          modelLogJsonEqual(item.entry.tenant, value.tenant) &&
-          modelLogJsonEqual(item.entry.position, value.position) &&
-          item.entry.dedupeKey === value.dedupeKey &&
-          modelLogJsonEqual(item.entry.run, value.run) &&
-          modelLogJsonEqual(item.entry.attempt, value.attempt),
-      ) ?? null
-    )
+    return entries.find(item => anchorValueMatches(item.entry, value)) ?? null
   }
   function association(
     input: InspectSettlementMembersInput,
@@ -861,6 +866,34 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     return association(input, members, all, dispatched, opened, intent)
   }
 
+  function dispatchedResponseMatches(item: InspectedModelLogEntry, id: string): boolean {
+    return (
+      item.captured.record?.kind === 'model_call_dispatched' && item.captured.record.response === id
+    )
+  }
+  function selectedPrefixEntry(
+    item: InspectedModelLogEntry,
+    selector: ModelHistorySelector,
+  ): boolean {
+    switch (selector.kind) {
+      case 'call':
+        return modelLogCallIdentityMatches(item, selector.call)
+      case 'all':
+        return true
+      case 'position':
+        return numberEqual(item.entry.position, selector.position)
+      case 'dedupe':
+        return item.entry.dedupeKey === selector.key
+      case 'readKey':
+        return item.entry.readKeys.includes(selector.key)
+      case 'message':
+        return item.captured.message?.id === selector.id
+      case 'response':
+        return item.captured.response?.id === selector.id
+      case 'dispatchResponse':
+        return dispatchedResponseMatches(item, selector.id)
+    }
+  }
   function createReadInspector(
     supplied: CompletePrefixInput,
   ): { readonly ok: ModelLogReadInspector } | SettlementMembersResult {
@@ -881,6 +914,9 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
     return Object.freeze({
       ok: Object.freeze<ModelLogReadInspector>({
         entries,
+        select(selector) {
+          return entries.filter(item => selectedPrefixEntry(item, selector))
+        },
         inspectSettlementMembers(value) {
           const current = ownCurrent(value.current)
           if (!('ok' in current)) return current
@@ -899,15 +935,80 @@ export function createSettlementCodec(domain: ModelLogCodecDomain) {
       }),
     })
   }
+  function createIndexedReadInspector(
+    source: SourceToken,
+    select: ModelLogReadInspector['select'],
+  ): ModelLogReadInspector {
+    return Object.freeze({
+      get entries() {
+        return select({ kind: 'all' })
+      },
+      select,
+      inspectSettlementMembers(value: Pick<SettlementInputBase, 'target' | 'anchors' | 'current'>) {
+        const current = ownCurrent(value.current)
+        if (!('ok' in current)) return current
+        const positions = new Map<string, InspectedModelLogEntry>()
+        const include = (items: readonly InspectedModelLogEntry[]) => {
+          for (const item of items)
+            positions.set(ExactDecimal.from(item.entry.position).toCanonicalString(), item)
+        }
+        const call = encodeModelLogKey({ kind: 'call', call: value.target.call })
+        const settlement = encodeModelLogKey({
+          kind: 'settlement',
+          response: value.target.response,
+        })
+        if ('ok' in call) include(select({ kind: 'readKey', key: call.ok }))
+        if ('ok' in settlement) include(select({ kind: 'readKey', key: settlement.ok }))
+        const responses = select({ kind: 'response', id: value.target.response })
+        include(responses)
+        for (const item of responses) {
+          const reply = item.captured.response?.reply
+          if (object(reply) && typeof reply.id === 'string')
+            include(select({ kind: 'message', id: reply.id }))
+        }
+        if (current.ok?.messageId !== null && current.ok?.messageId !== undefined)
+          include(select({ kind: 'message', id: current.ok.messageId }))
+        const entries = [...positions.values()].sort((a, b) =>
+          ExactDecimal.from(a.entry.position).compare(ExactDecimal.from(b.entry.position)),
+        )
+        return inspectFromPrefix(
+          {
+            session: source.session,
+            tenant: source.tenant,
+            prefix: { entries: [], tail: source.tail },
+            mode: 'read',
+            ...value,
+            current: current.ok,
+          },
+          entries,
+        )
+      },
+    })
+  }
   function copyEntry(entry: OwnedLogEntry): JsonValue | undefined {
     const copied = copyJsonValue(entry)
     return 'ok' in copied ? copied.ok : undefined
   }
 
-  return { inspectSettlementMembers, inspectCompletePrefix: fullPrefix, createReadInspector }
+  return {
+    inspectSettlementMembers,
+    inspectCompletePrefix: fullPrefix,
+    createReadInspector,
+    createIndexedReadInspector,
+  }
 }
 export const {
   inspectSettlementMembers,
   inspectCompletePrefix: inspectCurrentModelLogPrefix,
   createReadInspector: createModelLogReadInspector,
+  createIndexedReadInspector: createIndexedModelLogReadInspector,
 } = createSettlementCodec(currentCodecDomain)
+
+export function modelLogCallIdentityMatches(item: InspectedModelLogEntry, call: string): boolean {
+  return (
+    (item.captured.record !== null &&
+      'call' in item.captured.record &&
+      item.captured.record.call === call) ||
+    item.captured.response?.call.callId === call
+  )
+}

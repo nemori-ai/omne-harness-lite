@@ -644,7 +644,10 @@ async function readRecoveredCalls(
     if (closed()) return { unavailable: true }
     const read = await readRecoveryPrefix(entry, input.contention)
     if ('unavailable' in read) return { unavailable: true }
-    const rowInspected = inspectSettlementPrefixEntries({ prefix: read.prefix })
+    const rowInspected = inspectSettlementPrefixEntries({
+      prefix: read.prefix,
+      selector: { kind: 'call', call: callId },
+    })
     if (!('ok' in rowInspected)) return { unavailable: true }
     const raw = interpretCallHistory({ prefix: read.prefix, callId })
     if ('known' in raw && raw.known.acknowledged !== null) {

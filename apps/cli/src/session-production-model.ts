@@ -10,15 +10,17 @@ import {
   type SettlementContention,
   type SettlementScheduler,
 } from '@omne-harness-lite/model-request-runtime'
-import { createSessionRunHistory } from '@omne-harness-lite/session-runtime-local'
-import { readSessionModelCalibration } from './session-model-calibration.ts'
+import {
+  createSessionRunHistory,
+  readSessionModelCalibration,
+} from '@omne-harness-lite/session-runtime-local'
 import { sessionImageCodec } from './session-image-codec.ts'
 import { modelImageBalancedV1 } from '@omne-harness-lite/pi-ai-transport'
 import type { SessionNativeModelPoolOptions } from './session-native-model.ts'
 
 export const sessionModelContention: SettlementContention = {
   name: 'cli-session',
-  limits: { submissions: 4, elapsedMs: 10_000, retainedBytes: 1_048_576, concurrent: 8 },
+  limits: { submissions: 4, elapsedMs: 10_000, retainedBytes: 16 * 1024 * 1024, concurrent: 8 },
   decide(input) {
     return ExactDecimal.from(input.submissions).compare(ExactDecimal.from(4)) >= 0 ||
       ExactDecimal.from(input.elapsedMs).compare(ExactDecimal.from(10_000)) >= 0

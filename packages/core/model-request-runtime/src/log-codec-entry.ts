@@ -413,6 +413,29 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
       }),
     })
   }
+  function inspectCapturedEntry(
+    entry: LogEntry,
+    captured: CapturedModelLogValue,
+    purpose: ModelLogPurpose,
+  ): { readonly ok: InspectedModelLogEntry } | ModelLogInvalidValue {
+    if (!values.owns(captured, false)) return invalidValue('identity')
+    const projected = keys(captured, purpose)
+    if ('invalidValue' in projected) return projected
+    const encoded = encodeEntryKeys(projected, entry)
+    if ('invalidValue' in encoded) return encoded
+    const claimed = [entry.dedupeKey, ...entry.readKeys].some(
+      key => typeof key === 'string' && /^mrr(?:\/|$)/u.test(key),
+    )
+    if (captured.message === null || claimed) {
+      if (
+        entry.dedupeKey !== encoded.dedupeKey ||
+        entry.readKeys.length !== encoded.readKeys.length ||
+        !encoded.readKeys.every(key => entry.readKeys.includes(key))
+      )
+        return invalidValue('key_set')
+    }
+    return { ok: Object.freeze({ entry, captured }) }
+  }
   function messageInspectionAllowed(
     value: CapturedModelLogValue,
     associationRequired: boolean,
@@ -458,6 +481,7 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
 
   return Object.freeze({
     prepareModelLogEntry,
+    inspectCapturedEntry,
     inspectModelLogEntry,
     inspectModelMessageEntry,
     captureWrapper,
@@ -465,6 +489,7 @@ export function createEntryCodec(domain: ModelLogCodecDomain) {
 }
 export const {
   prepareModelLogEntry,
+  inspectCapturedEntry,
   inspectModelLogEntry,
   inspectModelMessageEntry,
   captureWrapper,

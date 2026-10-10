@@ -10,6 +10,7 @@ import type { StorageUnit } from '@omne-harness-lite/storage'
 import type { AdmissionGuard, AdmissionSource } from './admission-types.ts'
 import type { RuntimeOptions } from './runtime-types.ts'
 import { originalGrant } from './coordination-store.ts'
+import { stateScope } from './state-values.ts'
 
 /** Tokens are issued here; only active original G28 callbacks grant participant access. */
 export function runtimeAuthority(options: RuntimeOptions) {
@@ -45,6 +46,20 @@ export function runtimeAuthority(options: RuntimeOptions) {
       }
     },
     authorizeEnumeration: async () => ({ kind: 'denied' }),
+  }
+  function assertRunScope(unit: StorageUnit, scope: SessionScope) {
+    unit.assertStorage(options.storage)
+    if (!tenantIdEquals(scope.tenant, options.tenant)) throw new Error('foreign original Run scope')
+    if (guards.has(unit) || runs.has(unit))
+      throw new Error('Session authority callback already active')
+  }
+  async function runIn<T>(unit: StorageUnit, scope: SessionScope, action: () => Promise<T>) {
+    runs.set(unit, scope)
+    try {
+      return await unit.run(action)
+    } finally {
+      runs.delete(unit)
+    }
   }
   return Object.freeze({
     access,
@@ -102,17 +117,17 @@ export function runtimeAuthority(options: RuntimeOptions) {
       run: string,
       action: () => Promise<T>,
     ): Promise<T> {
-      unit.assertStorage(options.storage)
-      if (!tenantIdEquals(scope.tenant, options.tenant))
-        throw new Error('foreign original Run scope')
-      if (guards.has(unit) || runs.has(unit))
-        throw new Error('Session authority callback already active')
+      assertRunScope(unit, scope)
       await originalGrant(unit, scope, run, options)
-      runs.set(unit, scope)
-      try {
-        return await unit.run(action)
-      } finally {
-        runs.delete(unit)
+      return runIn(unit, scope, action)
+    },
+    async bindRun(unit: StorageUnit, scope: SessionScope, run: string) {
+      assertRunScope(unit, scope)
+      const fixed = stateScope(scope)
+      await originalGrant(unit, fixed, run, options)
+      return <T>(unit: StorageUnit, read: () => Promise<T>): Promise<T> => {
+        assertRunScope(unit, fixed)
+        return runIn(unit, fixed, read)
       }
     },
     async within<T>(

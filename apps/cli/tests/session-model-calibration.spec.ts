@@ -1,6 +1,7 @@
 import { judgeMessage } from '@omne-harness-lite/messages'
 import { toOpaqueJson } from '@omne-harness-lite/content-blocks'
-import { expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
+import * as modelHistory from '@omne-harness-lite/model-request-runtime'
 import { parseOpaqueIdentifier, parseTenantId, unwrap } from '@omne-harness-lite/identity-values'
 import {
   captureModelLogValue,
@@ -16,7 +17,9 @@ import type { LogEntry } from '@omne-harness-lite/session-log'
 import { originalPending } from './model-result-fixture.ts'
 import { sessionModelHistory } from '../src/session-production-model.ts'
 
-async function fixture(encrypted = false, hasGroup = true) {
+afterEach(() => vi.restoreAllMocks())
+
+async function fixture({ encrypted = false, hasGroup = true, duplicateDispatch = false } = {}) {
   const tenant = unwrap(
     parseTenantId({ organization: 'calibration-org', account: 'calibration-account' }),
   )
@@ -110,6 +113,18 @@ async function fixture(encrypted = false, hasGroup = true) {
     },
     { kind: 'record' },
   )
+  if (duplicateDispatch)
+    append(
+      'record',
+      {
+        kind: 'model_call_dispatched',
+        call: 'other-calibration-call',
+        dispatch: pending.dispatch,
+        response: pending.id,
+        ...pending.route,
+      },
+      { kind: 'record' },
+    )
   append('message', pending.reply, { kind: 'persistedMessage', response: captured.ok })
   append('response', response, { kind: 'response' })
   const generation = {}
@@ -172,6 +187,32 @@ test('changed selected content cannot borrow an original output group', async ()
   ).toEqual({ sourceUnavailable: true })
 })
 
+test('calibration does not enumerate the complete history to locate one selected reply', async () => {
+  const f = await fixture()
+  const read = vi.spyOn(modelHistory, 'inspectSettlementPrefixEntries')
+  const result = authorizedCalibration(
+    f.prefix,
+    [f.pending.reply],
+    { callId: 'next-call', dispatch: 1 },
+    sessionModelHistory.calibration,
+  )
+  expect(result).toHaveProperty('calibration')
+  expect(read).toHaveBeenCalled()
+  expect(read.mock.calls.every(([input]) => input.selector && input.selector.kind !== 'all')).toBe(
+    true,
+  )
+})
+
+test('dispatch ambiguity across different Calls still refuses the original output group', async () => {
+  const f = await fixture({ duplicateDispatch: true })
+  expect(
+    sessionModelHistory.calibration(f.prefix, [f.pending.reply], {
+      callId: 'next-call',
+      dispatch: 1,
+    }),
+  ).toEqual({ sourceUnavailable: true })
+})
+
 test('empty selected history does not invent a calibration observation', async () => {
   const f = await fixture()
   const result = authorizedCalibration(
@@ -187,7 +228,7 @@ test('empty selected history does not invent a calibration observation', async (
 })
 
 test('encrypted reasoning retains its original output group and opaque bytes', async () => {
-  const f = await fixture(true)
+  const f = await fixture({ encrypted: true })
   const result = authorizedCalibration(
     f.prefix,
     [f.pending.reply],
@@ -200,7 +241,7 @@ test('encrypted reasoning retains its original output group and opaque bytes', a
 })
 
 test('a response without an output group remains eligible for ordinary full counting', async () => {
-  const f = await fixture(false, false)
+  const f = await fixture({ hasGroup: false })
   expect(
     authorizedCalibration(
       f.prefix,

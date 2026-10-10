@@ -301,18 +301,18 @@ function ownsOrigin(
 }
 function prepared(prefix: SettlementPrefix, turn: SessionModelTurnOptions) {
   const expected = turn.preparation
-  return prefix.entries.some(entry => {
-    const read = readSessionFact(entry)
-    if (!('fact' in read) || read.fact.kind !== 'call_prepared') return false
-    const fact = read.fact
-    return (
-      fact.run === expected.run &&
-      compareInteger(fact.attempt, expected.attempt) === 0 &&
-      fact.call === expected.call &&
-      fact.originalPosition === expected.originalPosition &&
-      fact.stepKey === expected.stepKey
-    )
-  })
+  return prefix.history
+    .sessionFacts({ call: expected.call, kind: 'call_prepared' })
+    .entries.some(({ fact }) => {
+      if (fact.kind !== 'call_prepared') return false
+      return (
+        fact.run === expected.run &&
+        compareInteger(fact.attempt, expected.attempt) === 0 &&
+        fact.call === expected.call &&
+        fact.originalPosition === expected.originalPosition &&
+        fact.stepKey === expected.stepKey
+      )
+    })
 }
 async function waitOriginal<T>(
   completion: Promise<T>,

@@ -1,3 +1,4 @@
+import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
   narrow,
   StorageDefect,
@@ -201,10 +202,11 @@ class ResultCustody {
       throw new CustodyRefusal('invalidSource')
     const current = await this.source(unit, scope)
     if (!sourceCovers(current, input.source)) throw new CustodyRefusal('invalidSource')
-    const prefix = await this.host.log.readPrefixIn(
+    const prefix = await this.host.log.readByKeyIn(
       unit,
       this.host.authority.logAccess,
       issue.source,
+      issue.identity.originalPosition,
     )
     if ('failure' in prefix) throw new CustodyRefusal('unavailable')
     const entry = prefix.entries.find(item => item.dedupeKey === issue.identity.originalPosition)
@@ -307,10 +309,11 @@ class ResultCustody {
   }
   async verifySaved(unit: StorageUnit, scope: SessionScope, saved: ModelResultStored) {
     const { receipt } = saved.witness
-    const prefix = await this.host.log.readPrefixIn(
+    const prefix = await this.host.log.readSinceIn(
       unit,
       this.host.authority.logAccess,
-      receipt.source,
+      { ...receipt.source, tail: receipt.position },
+      ExactDecimal.from(receipt.position).add(ExactDecimal.from(-1)).toJsonNumber(),
     )
     if ('failure' in prefix) throw new CustodyRefusal('unavailable')
     const entry = prefix.entries.find(item => compareInteger(item.position, receipt.position) === 0)

@@ -76,6 +76,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     options.policy.maxInFlight,
     options.policy.maxSteps,
     ...optionalRecordBounds(options),
+    ...Object.values(options.policy.modelHistory ?? {}),
   ])
     if (!Number.isSafeInteger(bound) || bound < 1 || bound >= Number.MAX_SAFE_INTEGER)
       throw new InvalidStateInput()
@@ -104,6 +105,7 @@ export function createLocalSessionIngress(options: RuntimeOptions): LocalSession
     toolDelivery: owner.toolDelivery,
     modelResults: owner.modelResults,
     runJournal: owner.runJournal,
+    readModelHistory: owner.readModelHistory,
     close: owner.close,
   })
 }
@@ -194,6 +196,8 @@ class SessionIngress implements LocalSessionIngress {
   readonly toolDelivery: LocalSessionIngress['toolDelivery']
   readonly toolAdmission: ReturnType<typeof createSessionToolAdmission>
   readonly modelInvocation: LocalSessionIngress['modelInvocation']
+  readonly readModelHistory: LocalSessionIngress['readModelHistory'] = journal =>
+    this.originalJournals.readModelHistory(journal)
   readonly runJournal: LocalSessionIngress['runJournal']
   private readonly originalJournals: ReturnType<typeof createOriginalRunJournal>
   readonly modelResults: LocalSessionIngress['modelResults']

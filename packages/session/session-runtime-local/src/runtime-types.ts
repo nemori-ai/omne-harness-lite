@@ -48,6 +48,11 @@ export interface SessionBootstrap {
   ) => Promise<'ready' | 'definitionUnavailable' | 'unavailable'>
 }
 export interface RuntimePolicy {
+  readonly modelHistory?: {
+    readonly maxEntries: number
+    readonly maxContentBytes: number
+    readonly maxIndexReferences: number
+  }
   readonly maxSessions: number
   readonly maxRecordBytes: number
   readonly maxInFlight: number
@@ -111,6 +116,13 @@ export type {
   SessionLifecycleStep,
 } from '@omne-harness-lite/session-runtime'
 export interface LocalSessionIngress {
+  readonly readModelHistory: (
+    journal: import('./run-journal-types.ts').BorrowedRunJournal,
+  ) => ReturnType<
+    NonNullable<
+      import('@omne-harness-lite/model-request-runtime').SettlementLogBinding['readPrefix']
+    >
+  >
   readonly access: Access
   readonly operations: SessionIngressOperations
   /** Trusted host read only. Full journal data must never be sent as ordinary client output. */

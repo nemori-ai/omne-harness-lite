@@ -8,6 +8,8 @@ The root exports `createLocalSessionDriver` for normal Model and Tool paths. It 
 
 `createSessionDriverWorkOwner` and `createSessionCallAccess` retain original work and enforce original Run reads. They do not grant new Model or Tool permission or provide execution recovery.
 
+Original Run journal borrows validate their fixed grant once and retain a private read binding. Each read uses an actual storage unit and current log source. Appends retain their original grant and attempt checks. See [the binding structure and limits](adr/original-run-read-binding.md).
+
 `sessionModelRequestPreparation` prepares the current model request for the existing runtime consumer. Session owns tool resolution, history calibration and assembly timeout evaluation. The application supplies this implementation explicitly. This preparation interface is separate from the prepared execution request accepted by a Model pool. See [SPEC.md](SPEC.md#会话模型请求准备).
 
 
@@ -15,6 +17,8 @@ The root exports `createLocalSessionDriver` for normal Model and Tool paths. It 
 
 
 `createSessionModelSelection` owns Session model selection, full-history reads, evaluation and original operation cleanup. Its public types belong to Core. Callers explicitly close the returned handle and keep it until original operations have stopped.
+
+The Session provider owns retained immutable history and its borrow lifetime. See [retention and capacity](adr/model-history-retention.md), [the content algorithm](../../core/model-request-runtime/adr/immutable-model-history.md), [the benchmark](verification/benchmarks/README.md), and [the finite publication model](verification/history-cuts/README.md). Capacity fallback remains a complete current read. Benchmark and model results do not prove whole-CLI latency or a process heap bound.
 
 ## Admission
 

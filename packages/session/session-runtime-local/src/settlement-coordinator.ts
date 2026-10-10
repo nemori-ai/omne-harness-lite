@@ -1,3 +1,4 @@
+import { settlementPrefixBytes } from '@omne-harness-lite/model-request-runtime'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import {
   copyJsonValue,
@@ -502,8 +503,7 @@ export function createSettlementCoordinator(
       read: SettlementPrefixResult,
     ): Finished | { readonly prefix: SettlementPrefix; readonly facts: PrefixFacts } {
       if ('unavailable' in read) return { finished: unavailable(read.reason) }
-      retained =
-        bytes(candidate.value) + bytes({ entries: read.prefix.entries, tail: read.prefix.tail })
+      retained = bytes(candidate.value) + settlementPrefixBytes(read.prefix)
       const afterRead = guard()
       if (afterRead !== null) return { finished: unavailable(afterRead) }
       const interpreted = interpretSettlementPrefix({

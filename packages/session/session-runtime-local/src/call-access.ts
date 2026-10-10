@@ -4,6 +4,8 @@ import { checkKey, compareInteger, type LogEntry } from '@omne-harness-lite/sess
 import { readSessionFact } from '@omne-harness-lite/session-runtime'
 import {
   modelLogJsonEqual,
+  ModelLogHistory,
+  captureModelLogHistory,
   type CallAccess,
   type CallAccessInput,
   type CallAccessEvidence,
@@ -19,10 +21,7 @@ export interface SessionCallAccessOptions {
   readonly preparation: Extract<SessionLifecycleStep, { kind: 'prepareCall' }>
   readonly maxInFlight: number
 }
-type Prefix = Extract<
-  Awaited<ReturnType<BorrowedRunJournal['readPrefix']>>,
-  { entries: readonly LogEntry[] }
->
+type Prefix = ModelLogHistory
 const unavailable = Object.freeze({ unavailable: true } as const)
 const malformed = Object.freeze({ invalidInput: { reason: 'malformed' } } as const)
 /** Private original-Run reads and durable Session custody, never a new execution permission. */
@@ -60,8 +59,12 @@ export function createSessionCallAccess(requested: SessionCallAccessOptions) {
     input: CallAccessInput,
     admitted: (evidence: CallAccessEvidence) => Promise<T>,
   ): Promise<CallAccessResult<T>> {
-    const prefix = await options.journal.readPrefix()
-    if ('failure' in prefix || !current() || !hasPreparation(prefix, options)) return unavailable
+    const read = await options.ingress.readModelHistory(options.journal)
+    if ('failure' in read) return unavailable
+    const captured = 'history' in read ? read : captureModelLogHistory(null, read)
+    if ('failure' in captured) return unavailable
+    const prefix = captured.history
+    if (!current() || !hasPreparation(prefix, options)) return unavailable
     const version = writeJsonLossless(prefix.source)
     const evidence = Object.freeze<CallAccessEvidence>({
       action: input.action,
@@ -126,19 +129,20 @@ function originMatches(input: CallAccessInput, options: SessionCallAccessOptions
   )
 }
 function hasPreparation(prefix: Prefix, options: SessionCallAccessOptions): boolean {
-  return prefix.entries.some(entry => {
-    const read = readSessionFact(entry)
-    if (!('fact' in read) || read.fact.kind !== 'call_prepared') return false
-    const actual = read.fact,
-      expected = options.preparation
-    return (
-      actual.run === expected.run &&
-      compareInteger(actual.attempt, expected.attempt) === 0 &&
-      actual.call === expected.call &&
-      actual.stepKey === expected.stepKey &&
-      actual.originalPosition === expected.originalPosition
-    )
-  })
+  return prefix
+    .sessionFacts({ call: options.preparation.call, kind: 'call_prepared' })
+    .entries.some(({ fact }) => {
+      if (fact.kind !== 'call_prepared') return false
+      const actual = fact,
+        expected = options.preparation
+      return (
+        actual.run === expected.run &&
+        compareInteger(actual.attempt, expected.attempt) === 0 &&
+        actual.call === expected.call &&
+        actual.stepKey === expected.stepKey &&
+        actual.originalPosition === expected.originalPosition
+      )
+    })
 }
 async function actionPermission(
   action: CallAccessInput['action'],
@@ -165,11 +169,12 @@ async function actionPermission(
     : 'unavailable'
 }
 function custodyFact(prefix: Prefix, options: SessionCallAccessOptions) {
-  for (const entry of prefix.entries) {
-    const read = readSessionFact(entry)
-    if (!('fact' in read) || read.fact.kind !== 'result_custodied') continue
-    const fact = read.fact,
-      expected = options.preparation
+  for (const { entry, fact } of prefix.sessionFacts({
+    call: options.preparation.call,
+    kind: 'result_custodied',
+  }).entries) {
+    if (fact.kind !== 'result_custodied') continue
+    const expected = options.preparation
     if (
       fact.run === expected.run &&
       compareInteger(fact.attempt, expected.attempt) === 0 &&

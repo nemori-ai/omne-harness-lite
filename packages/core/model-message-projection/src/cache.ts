@@ -9,7 +9,7 @@ import {
 } from '@omne-harness-lite/session-log'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { checkedRules } from './key.ts'
-import { appendSegments, cold, ownedEntries, projection } from './projection.ts'
+import { appendSegments, cold, ownedEntries, projection, reselectSegments } from './projection.ts'
 import { ingest, type IndexState } from './index-state.ts'
 import type {
   CacheOwner,
@@ -142,17 +142,6 @@ function delta(
   if (compareInteger(value.source.tail, held.view.source.tail) <= 0) return rebuild('gap')
   const owned = ownedEntries(value.entries, value.source, held.state.entries)
   if (!('entries' in owned)) return rebuild('gap')
-  // Older segment selection can change. Preserve the old view and require one linear rebuild.
-  for (const entry of owned.entries) {
-    const checked = checkLogPayload(entry.payload)
-    if ('failure' in checked) return { invalidInput: true, reason: 'claimedPayload' }
-    if (
-      checked.kind === 'message' &&
-      checked.payload.value.type === 'compaction' &&
-      checked.payload.value.silenced.length > 0
-    )
-      return rebuild('impactUnknown')
-  }
   return owned
 }
 function appendDelta(
@@ -165,6 +154,7 @@ function appendDelta(
   | RebuildRequired {
   const previous = held.view,
     appended = []
+  let compacted = false
   for (const entry of entries) {
     const failure = ingest(held.state, entry)
     if (failure !== undefined) {
@@ -172,8 +162,11 @@ function appendDelta(
       return failure
     }
     const payload = checkLogPayload(entry.payload)
-    if ('kind' in payload && payload.kind === 'message')
+    if ('kind' in payload && payload.kind === 'message') {
       appended.push(held.state.messages.get(payload.payload.value.id)!)
+      compacted ||=
+        payload.payload.value.type === 'compaction' && payload.payload.value.silenced.length > 0
+    }
   }
   if (held.state.blocks > held.limits.blocks) {
     held.usable = false
@@ -185,8 +178,13 @@ function appendDelta(
     return selected
   }
   held.bytes += value.addedBytes
-  held.view = projection(held.state, value.source, previous.inputKey, selected.segments)
-  return { projected: held.view, reusedSegments: previous.segments }
+  held.view = projection(
+    held.state,
+    value.source,
+    previous.inputKey,
+    compacted ? reselectSegments(held.state) : selected.segments,
+  )
+  return { projected: held.view, reusedSegments: compacted ? null : previous.segments }
 }
 export function extendProjection(
   owner: CacheOwner,

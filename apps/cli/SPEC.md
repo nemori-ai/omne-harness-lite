@@ -619,7 +619,11 @@ createSessionRunModelBinding消费Session提供者公开的createSessionCallAcce
 
 ### Session提供模型结算
 
+模型历史校准来源由Session提供者公开的readSessionModelCalibration提供。消息、原响应和dispatch的定位及原输出组选择归该提供者，CLI只装配此函数，不重建整段历史索引或维护另一份日志解释算法。
+
 本机Model池的可信构造显式选择Session的sessionModelSettlement。该依赖与原请求准备、记录发布和ACK实现同属应用装配选择，不由CLI命令参数提供。调用创建、原锚定执行、post-ACK工作和工作恢复沿原模型资源使用这个工厂；CLI不解释这些日志批次。
+
+正式CLI的单次模型结算采用16MiB保留计费上限、最多4次提交、10秒单调时钟预算和最多8个并发结算登记。16MiB计费包括完整固定历史、候选响应和原协调器继续持有的待写内容；它不是单条模型响应、SSE事件或进程heap上限。单条模型内容和SSE事件仍各受原1MiB策略约束。完整历史即使由缓存提供也不免除计费，超限仍明确返回budget并保留原结果责任，不丢弃历史或重发模型请求。此政策扩大了可完成结算的有限范围，不承诺无限历史。计费语义及拒绝次序归Session提供者；选择理由见[结算资源政策](adr/model-settlement-resource-policy.md)。
 
 本机Model装配从Session公开入口选择createSessionModelCallFacts，并传入原Model内容存储和实际presence。各主体视图共享同一索引。停止单个Session不得关闭该物理池索引；原池在排空后按原顺序关闭。
 

@@ -38,7 +38,7 @@ export type AuthorizedCalibrationResult =
   | { readonly unavailable: true }
 
 function sameEntry(left: unknown, right: unknown): boolean {
-  return modelLogJsonEqual(left, right)
+  return left === right || modelLogJsonEqual(left, right)
 }
 
 type CalibrationTarget = Parameters<CurrentHistoryReaders['calibration']>[2]
@@ -81,54 +81,43 @@ function unavailableSources(
   messages: readonly Message[],
   target: CalibrationTarget,
 ): AuthorizedCalibrationResult {
-  const inspected = inspectSettlementPrefixEntries({ prefix })
+  const inspected = inspectSettlementPrefixEntries({
+    prefix,
+    selector: { kind: 'call', call: target.callId },
+  })
   if (
     !('ok' in inspected) ||
     'unavailable' in
       rejectAcknowledgedHistory(interpretCallHistory({ prefix, callId: target.callId }))
   )
     return { unavailable: true }
-  // A reader failure cannot demote a selected reply with a broken original
-  // D/M/R batch into a source-less full count. Check those durable members
-  // from the same authorized prefix before returning the explicit empty set.
-  const { attachedById, responseById } = unavailableSourceIndex(inspected.ok)
   for (const message of messages) {
     if (message.type !== 'assistant') continue
-    if (!selectedBatchComplete(prefix, message, attachedById, responseById))
-      return { unavailable: true }
+    if (!selectedBatchComplete(prefix, message)) return { unavailable: true }
   }
   return { calibration: { kind: 'none', reason: 'source_unavailable' }, outputHistory: [] }
 }
 
-function unavailableSourceIndex(entries: readonly InspectedModelLogEntry[]): {
-  readonly attachedById: ReadonlyMap<string, InspectedModelLogEntry | null>
-  readonly responseById: ReadonlyMap<string, InspectedModelLogEntry | null>
-} {
-  const attachedById = new Map<string, InspectedModelLogEntry | null>()
-  const responseById = new Map<string, InspectedModelLogEntry | null>()
-  for (const item of entries) {
-    const capturedMessage = item.captured.message
-    if (capturedMessage?.type === 'assistant') {
-      const id = capturedMessage.id
-      attachedById.set(id, attachedById.has(id) ? null : item)
-    }
-    const capturedResponse = item.captured.response
-    if (capturedResponse !== null) {
-      const id = capturedResponse.id
-      responseById.set(id, responseById.has(id) ? null : item)
-    }
-  }
-  return { attachedById, responseById }
+function uniqueSelectedEntry(
+  read: ReturnType<typeof inspectSettlementPrefixEntries>,
+): InspectedModelLogEntry | undefined {
+  return 'ok' in read && read.ok.length === 1 ? read.ok[0] : undefined
 }
 
 function selectedBatchComplete(
   prefix: SettlementPrefix,
   message: Extract<Message, { readonly type: 'assistant' }>,
-  attachedById: ReadonlyMap<string, InspectedModelLogEntry | null>,
-  responseById: ReadonlyMap<string, InspectedModelLogEntry | null>,
 ): boolean {
-  const attached = attachedById.get(message.id)
-  const response = responseById.get(message.response)
+  const attachedRead = inspectSettlementPrefixEntries({
+    prefix,
+    selector: { kind: 'message', id: message.id },
+  })
+  const responseRead = inspectSettlementPrefixEntries({
+    prefix,
+    selector: { kind: 'response', id: message.response },
+  })
+  const attached = uniqueSelectedEntry(attachedRead)
+  const response = uniqueSelectedEntry(responseRead)
   const original = response?.captured.response
   if (!attached || !sameEntry(attached.captured.message, message) || !response || !original)
     return false
@@ -157,13 +146,17 @@ function calibrationFromCandidates(
   target: CalibrationTarget,
   interpreted: CalibrationCandidates,
 ): AuthorizedCalibrationResult {
-  const inspected = inspectSettlementPrefixEntries({ prefix })
+  const inspected = inspectSettlementPrefixEntries({
+    prefix,
+    selector: { kind: 'call', call: target.callId },
+  })
   if (!('ok' in inspected)) return { unavailable: true }
   const located = (entry: LogEntry) => {
-    const position = ExactDecimal.from(entry.position)
-    const found = inspected.ok.find(
-      item => ExactDecimal.from(item.entry.position).compare(position) === 0,
-    )
+    const selected = inspectSettlementPrefixEntries({
+      prefix,
+      selector: { kind: 'position', position: entry.position },
+    })
+    const found = 'ok' in selected ? selected.ok[0] : undefined
     return found !== undefined && sameEntry(found.entry, entry) ? found : undefined
   }
   const sourceEntries = selectedSourceEntries(interpreted.selectedSources, messages, located)
@@ -283,20 +276,29 @@ function selectedSourceEntries(
   return sources
 }
 
+function validCandidateResponse(
+  candidate: LocatedCalibrationCandidate['response'],
+  owned: InspectedModelLogEntry['captured']['judgedResponse'] | undefined,
+): boolean {
+  return candidate === owned || 'ok' in judgeModelResponse(candidate)
+}
+
 function candidateAnchors(
   candidate: LocatedCalibrationCandidate,
   located: CalibrationEntryLocator,
 ):
   | { readonly response: InspectedModelLogEntry; readonly dispatched: InspectedModelLogEntry }
   | undefined {
-  if (!('ok' in judgeModelResponse(candidate.response))) return undefined
   const response = located(candidate.responseEntry)
   const dispatched = located(candidate.dispatchedEntry)
+  const ownedResponse = response?.captured.judgedResponse
+  if (!validCandidateResponse(candidate.response, ownedResponse)) return undefined
   if (
     response?.captured.response === null ||
     response === undefined ||
     dispatched?.captured.record?.kind !== 'model_call_dispatched' ||
-    !modelLogJsonEqual(response.captured.value, candidate.response) ||
+    (candidate.response !== ownedResponse &&
+      !modelLogJsonEqual(response.captured.value, candidate.response)) ||
     dispatched.captured.record.response !== candidate.response.id ||
     dispatched.captured.record.call !== candidate.response.call.callId ||
     ExactDecimal.from(dispatched.captured.record.dispatch).compare(

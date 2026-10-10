@@ -38,7 +38,7 @@ export interface SessionWorkReading {
 
 /** Trusted borrowed original-Run log. It cannot be sent in a client protocol. */
 export interface BorrowedRunJournal {
-  /** Reauthorize, then read a fixed suffix only when the previous source is reusable. */
+  /** Use the original read binding and current Unit source to select a fixed prefix or suffix. */
   readonly readProjection: (previous: SourceToken | null) => Promise<
     | {
         readonly kind: 'prefix' | 'suffix'

@@ -121,9 +121,12 @@ class CreationPublication {
 
   #state(prefix: SettlementPrefix): 'present' | 'absent' | 'blocked' | 'unknown' {
     const { entry, callId } = this.input
-    const inspected = inspectSettlementPrefixEntries({ prefix })
+    const inspected = inspectSettlementPrefixEntries({
+      prefix,
+      selector: { kind: 'call', call: callId },
+    })
     if (!('ok' in inspected)) return 'unknown'
-    const matches = prefix.entries.filter(value => value.dedupeKey === entry.dedupeKey)
+    const matches = prefix.history.select({ kind: 'dedupe', key: entry.dedupeKey! })
     if (matches.length > 1) return 'unknown'
     const prior = matches[0]
     if (prior !== undefined) {

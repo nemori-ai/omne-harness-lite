@@ -1,3 +1,4 @@
+import { encodeModelLogKey } from '@omne-harness-lite/model-request-runtime'
 import { createSessionModelCreationPublication } from './model-creation-publication.ts'
 import { ExactDecimal } from '@omne-harness-lite/call-accounts'
 import type {
@@ -122,7 +123,10 @@ async function admitMarker(
   )
   if (!('ok' in read) || !('prefix' in read.ok)) return undefined
   const prefix = read.ok.prefix
-  const inspected = inspectSettlementPrefixEntries({ prefix })
+  const inspected = inspectSettlementPrefixEntries({
+    prefix,
+    selector: { kind: 'call', call: marker.call },
+  })
   if (!('ok' in inspected)) return undefined
   const sameCall = recordsForCall(inspected.ok, marker)
   const priorEntry = priorMarker(sameCall, marker)
@@ -180,7 +184,14 @@ function admitCreation(
   sameCall: PrefixEntries,
   marker: Extract<MarkerIdentity, { readonly kind: 'model_call_created' }>,
 ): MarkerAdmission | undefined {
-  const sameCreation = entries.some(
+  const key = encodeModelLogKey({ kind: 'creation', creationKey: marker.creationKey })
+  if (!('ok' in key)) return undefined
+  const matches = inspectSettlementPrefixEntries({
+    prefix,
+    selector: { kind: 'readKey', key: key.ok },
+  })
+  if (!('ok' in matches)) return undefined
+  const sameCreation = matches.ok.some(
     item =>
       item.captured.record?.kind === 'model_call_created' &&
       item.captured.record.creationKey === marker.creationKey,
@@ -219,7 +230,13 @@ function admitReply(
         // RT12 S-98: an acknowledged call admits no new model-copy publication.
         item.captured.record?.kind === 'model_call_acknowledged',
     ) ||
-    entries.some(item => item.captured.response?.id === marker.response)
+    (() => {
+      const found = inspectSettlementPrefixEntries({
+        prefix,
+        selector: { kind: 'response', id: marker.response },
+      })
+      return !('ok' in found) || found.ok.length !== 0
+    })()
   )
     return undefined
   return { prefix, prior: undefined }

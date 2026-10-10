@@ -110,6 +110,8 @@ Existing pure-core, tenancy, entry and repository rules are described in the [Ch
 
 ## Current core schema imports
 
+`core-pure-imports` permits the adopted `immutable` value collections only at `core/model-request-runtime/src/model-log-history.ts`. Adjacent files, other core members, and private library subpaths remain rejected.
+
 `core-pure-imports` uses an exact public-subpath list, including `model-profile/schema/v3` and `asset-model/schema/connector/v2`. Consumers still need an approved package dependency. Frozen schemas required by current contracts remain available; retired model execution entry points, adjacent private paths, and unknown versions are rejected. The response and loop schema graphs include their explicitly adopted dependencies.
 
 Run `pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/core-rules.spec.ts` for the positive and negative boundary checks.

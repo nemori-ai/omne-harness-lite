@@ -11,15 +11,15 @@
 `Projection`返回sourceToken、inputKey、分段消息／原来源对应、可读块索引、处理进度及可观测workCounters。`Materialized`为readonly Message列表和来源映射；原Message类型从公开messages入口取用。
 `CacheOwner`由公开factory创建，是单Session独占的可变派生资源；其状态变化显式，不把增量更新称为纯函数。索引由owner私有维护，避免每次复制全部索引。`Projection`是该owner返回的不可变派生视图；materialize仅接受本模块创建的视图，不接受调用者伪造的可变对象。视图携带固定source与完整inputKey。缓存包含必要历史摘要索引，不含凭据。固定Segment不可变，共享前缀不复写。
 
-| 函数 | 输入 | 成功／失败 | 效果 |
-|---|---|---|---|
-| `projectMessages` | 完整ProjectionInput、可选可信owner codecs | projected(Projection)；invalidInput(reason:shape/source/pairing/claimedPayload/compaction)、unavailable(reason:requiredSource) | 纯冷建，不写log/存储，不请求模型 |
-| `createProjectionCache` | 完整ProjectionInput、CacheOptions | ready(CacheOwner,Projection)；invalidInput；unavailable(reason:requiredSource/capacity) | 创建独占派生状态，O(N+B)；不IO |
-| `extendProjection` | 独占CacheOwner、新固定source、规则及严格连续增量 | projected(Projection,reusedSegments)；rebuildRequired(reason:generation/gap/rule/external/corrupt/impactUnknown/capacity)；invalidInput或unavailable | 追加索引和段；旧prefix受影响时要求冷建 |
-| `materializeMessages` | 本模块返回的Projection | materialized(Messages,sources,outputMessages,outputBlocks)或invalidInput | 枚举有效消息/块，输出O(K+B) |
-| `projectionKey` | ProjectionRules | key或invalidInput/unavailable | 成本与输入键字节数成正比 |
-| `releaseProjectionCache` | 本模块创建且未逐出的CacheOwner | released或invalidInput | 删除可变索引的owner关联；旧视图仍可读取 |
-| `createModalityProjection` | 固定租户与Session | 现有`SessionModelSelectionInput.projection`函数 | 创建该Session独占的历史模态派生状态，不IO |
+| 函数                       | 输入                                             | 成功／失败                                                                                                                                           | 效果                                      |
+| -------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `projectMessages`          | 完整ProjectionInput、可选可信owner codecs        | projected(Projection)；invalidInput(reason:shape/source/pairing/claimedPayload/compaction)、unavailable(reason:requiredSource)                       | 纯冷建，不写log/存储，不请求模型          |
+| `createProjectionCache`    | 完整ProjectionInput、CacheOptions                | ready(CacheOwner,Projection)；invalidInput；unavailable(reason:requiredSource/capacity)                                                              | 创建独占派生状态，O(N+B)；不IO            |
+| `extendProjection`         | 独占CacheOwner、新固定source、规则及严格连续增量 | projected(Projection,reusedSegments)；rebuildRequired(reason:generation/gap/rule/external/corrupt/impactUnknown/capacity)；invalidInput或unavailable | 追加索引和段；压缩从已保留索引重选块      |
+| `materializeMessages`      | 本模块返回的Projection                           | materialized(Messages,sources,outputMessages,outputBlocks)或invalidInput                                                                             | 枚举有效消息/块，输出O(K+B)               |
+| `projectionKey`            | ProjectionRules                                  | key或invalidInput/unavailable                                                                                                                        | 成本与输入键字节数成正比                  |
+| `releaseProjectionCache`   | 本模块创建且未逐出的CacheOwner                   | released或invalidInput                                                                                                                               | 删除可变索引的owner关联；旧视图仍可读取   |
+| `createModalityProjection` | 固定租户与Session                                | 现有`SessionModelSelectionInput.projection`函数                                                                                                      | 创建该Session独占的历史模态派生状态，不IO |
 
 `CacheOptions.limits` 必须显式给出 entries、blocks、bytes 三个正安全整数。本模块不提供默认容量。bytes 计量规范化输入 JSON 的 UTF-8 字节，不等同于 JavaScript 堆大小。entries、blocks 限制索引规模。超界不得发布半更新的新视图。
 
@@ -65,3 +65,5 @@ MP10：投影保持原reply，不把转换后的模型表示回写原response；
 历史模态来源须验证transcript、隐藏祖先、非媒体文件、压缩前后、较早前缀、generation变化、物理binding替换和跨Scope拒绝。实际Session日志与ModelRuntime组合须证明：兼容的已注册模型可用，无transcript图片入库后纯文本模型不可用，拒绝不发模型请求。
 
 本阶段操作的身份、授权、幂等、提交、通知与在途共用规则见[共用规则](../session-runtime/adr/shared-operation-rules.md)。本文与该表一起读取；不从目录存在推断实现完成。
+
+压缩追加先按原规则校验新增消息和引用，再从已保留的消息与块索引重选段。旧正文不重新解码或深查，旧 Projection 保留原选择。重选仍按保留消息及块数量线性工作，返回 reusedSegments 为 null。模态读取使用 OwnedPrefix 固定内容后缀，不增加完整 Model 解释成功的前提。

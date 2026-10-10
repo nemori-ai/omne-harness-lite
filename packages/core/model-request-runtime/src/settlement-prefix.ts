@@ -1,8 +1,11 @@
-import { encodeModelLogKey } from './log-codec-key.ts'
-import { inspectModelLogEntry, type InspectedModelLogEntry } from './log-codec-entry.ts'
-import { readAttemptStarted } from '@omne-harness-lite/session-runtime'
 import {
-  copyJsonValue,
+  ModelLogHistory,
+  captureModelLogHistory,
+  type ModelHistorySelector,
+} from './model-log-history.ts'
+import { encodeModelLogKey } from './log-codec-key.ts'
+import type { InspectedModelLogEntry } from './log-codec-entry.ts'
+import {
   isJsonNumber,
   isNonNegativeJsonInteger,
   type JsonNumber,
@@ -15,12 +18,7 @@ import {
 } from '@omne-harness-lite/call-accounts'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { type LoggedMessage } from '@omne-harness-lite/messages'
-import {
-  checkSourceToken,
-  checkAppendInput,
-  type SourceToken,
-  type LogEntry,
-} from '@omne-harness-lite/session-log'
+import { checkSourceToken, type SourceToken, type LogEntry } from '@omne-harness-lite/session-log'
 import {
   createModelLogReadInspector,
   type ModelLogReadInspector,
@@ -60,14 +58,22 @@ class OwnedPrefix {
   constructor(
     token: unknown,
     readonly binding: SettlementLogBinding,
-    readonly entries: readonly LogEntry[],
-    readonly tail: JsonNumber,
-    readonly source: SourceToken,
+    readonly history: ModelLogHistory,
+    readonly raw: boolean,
   ) {
     if (token !== prefixToken) throw new TypeError('Use readSettlementPrefix')
     this.#generation = binding.generation
     this.#currentGeneration = binding.currentGeneration
     Object.freeze(this)
+  }
+  get entries(): readonly LogEntry[] {
+    return this.history.entries
+  }
+  get tail(): JsonNumber {
+    return this.history.tail
+  }
+  get source(): SourceToken {
+    return this.history.source
   }
   static owns(value: unknown): value is OwnedPrefix {
     return value !== null && typeof value === 'object' && #owned in value
@@ -88,20 +94,30 @@ class OwnedPrefix {
     const prefix = OwnedPrefix.access(value)
     if ('unavailable' in prefix) return prefix
     if (prefix.#modelRead === undefined) {
-      const inspected = createModelLogReadInspector({
-        session: prefix.source.session,
-        tenant: prefix.source.tenant,
-        prefix: { entries: prefix.entries, tail: prefix.tail },
-      })
+      const inspected = prefix.raw
+        ? createModelLogReadInspector({
+            session: prefix.source.session,
+            tenant: prefix.source.tenant,
+            prefix: { entries: prefix.entries, tail: prefix.tail },
+          })
+        : prefix.history.inspect()
       if ('ok' in inspected) {
-        const messages: LoggedMessage[] = []
-        for (const { captured } of inspected.ok.entries) {
-          if (captured.message !== null && captured.message.type !== 'system')
-            messages.push(captured.message)
-        }
+        let messages: readonly LoggedMessage[] | undefined
         prefix.#modelRead = Object.freeze({
           inspector: inspected.ok,
-          messagePrefix: Object.freeze(messages),
+          get messagePrefix() {
+            const values =
+              messages ??
+              Object.freeze(
+                inspected.ok.entries.flatMap(({ captured }) =>
+                  captured.message !== null && captured.message.type !== 'system'
+                    ? [captured.message]
+                    : [],
+                ),
+              )
+            if (prefix.raw) messages = values
+            return values
+          },
         })
       } else {
         prefix.#modelRead = Object.freeze<PrefixModelRead>({
@@ -128,9 +144,17 @@ export type SettlementPrefixEntriesResult =
 /** Fixed content interpretation. Each use checks the original owner and current generation. */
 export function inspectSettlementPrefixEntries(input: {
   readonly prefix: SettlementPrefix
+  readonly selector?: ModelHistorySelector
 }): SettlementPrefixEntriesResult {
   const read = OwnedPrefix.modelRead(input.prefix)
-  return 'unavailable' in read ? read : { ok: read.inspector.entries }
+  return 'unavailable' in read
+    ? read
+    : {
+        ok:
+          input.selector === undefined
+            ? read.inspector.entries
+            : read.inspector.select(input.selector),
+      }
 }
 /** Internal ownership test shared with call history; never a substitute for generation validity. */
 export function isOwnedSettlementPrefix(value: unknown): value is SettlementPrefix {
@@ -146,7 +170,7 @@ export function settlementGenerationCurrent(binding: SettlementLogBinding): bool
     return false
   }
 }
-/** Full re-read only. No cached/key-filtered input can be promoted to a complete prefix. */
+/** Read one complete raw or Session-owned cut through the current binding. */
 export async function readSettlementPrefix(input: {
   readonly binding: SettlementLogBinding
   readonly registration: SettlementRegistration
@@ -164,59 +188,62 @@ export async function readSettlementPrefix(input: {
   if (!settlementGenerationCurrent(binding)) return { unavailable: true, reason: 'generation' }
   return ownPrefix(received, binding)
 }
-function prefixEntry(
-  entry: unknown,
-  index: number,
-  binding: SettlementLogBinding,
-): LogEntry | null {
+function captureRawPrefix(
+  received: unknown,
+): { readonly history: ModelLogHistory } | PrefixAccessFailure {
   if (
-    !object(entry) ||
-    entry.session !== binding.session ||
-    !isNonNegativeJsonInteger(entry.position) ||
-    ExactDecimal.from(entry.position).compare(ExactDecimal.from(index + 1)) !== 0
+    !object(received) ||
+    Object.keys(received).length !== 3 ||
+    !['entries', 'tail', 'source'].every(key => Object.hasOwn(received, key))
   )
-    return null
-  const { session: _session, position, ...shell } = entry
-  const checked = checkAppendInput(
-    binding.session,
-    [shell],
-    { kind: 'unfenced' },
-    { kind: 'unconditional' },
-  )
-  const owned = 'ok' in checked ? checked.ok.entries[0] : undefined
-  if (owned === undefined || !tenantIdEquals(owned.tenant, binding.tenant)) return null
-  return Object.freeze({ ...owned, session: binding.session, position })
+    return { unavailable: true, reason: 'prefix' }
+  const captured = captureModelLogHistory(null, received)
+  return 'failure' in captured ? { unavailable: true, reason: 'prefix' } : captured
 }
-function isPrefixEnvelope(value: { readonly [key: string]: unknown }): value is {
-  readonly entries: readonly unknown[]
-  readonly tail: JsonNumber
-  readonly source: SourceToken
-} {
-  return !(
-    Object.keys(value).length !== 3 ||
-    !Array.isArray(value.entries) ||
-    !isNonNegativeJsonInteger(value.tail) ||
-    ExactDecimal.from(value.tail).compare(ExactDecimal.from(value.entries.length)) !== 0
-  )
+function receivedPrefixContent(
+  received: unknown,
+): { readonly history: ModelLogHistory; readonly raw: boolean } | PrefixAccessFailure {
+  const descriptor = object(received)
+    ? Object.getOwnPropertyDescriptor(received, 'history')
+    : undefined
+  const held: unknown =
+    descriptor !== undefined && 'value' in descriptor ? descriptor.value : undefined
+  if (ModelLogHistory.owns(held)) return { history: held, raw: false }
+  const captured = captureRawPrefix(received)
+  return 'unavailable' in captured ? captured : { history: captured.history, raw: true }
 }
 function ownPrefix(received: unknown, binding: SettlementLogBinding): SettlementPrefixResult {
-  const copied = copyJsonValue(received)
-  if ('failed' in copied || !object(copied.ok)) return { unavailable: true, reason: 'prefix' }
-  const value = copied.ok
-  if ('failure' in value) return { unavailable: true, reason: 'log' }
-  if (!isPrefixEnvelope(value)) return { unavailable: true, reason: 'prefix' }
-  const source = checkSourceToken(value.source)
-  if ('failure' in source || !sourceMatchesBinding(source.ok, binding, value.tail))
+  if (object(received) && 'failure' in received) return { unavailable: true, reason: 'log' }
+  const captured = receivedPrefixContent(received)
+  if ('unavailable' in captured) return captured
+  const { history, raw } = captured
+  if (!sourceMatchesBinding(history.source, binding, history.tail))
     return { unavailable: true, reason: 'prefix' }
-  const entries: LogEntry[] = []
-  for (const [index, entry] of value.entries.entries()) {
-    const owned = prefixEntry(entry, index, binding)
-    if (owned === null) return { unavailable: true, reason: 'prefix' }
-    entries.push(owned)
-  }
-  return {
-    prefix: new OwnedPrefix(prefixToken, binding, Object.freeze(entries), value.tail, source.ok),
-  }
+  return { prefix: new OwnedPrefix(prefixToken, binding, history, raw) }
+}
+/** Fixed content suffix, independent of Model interpretation. */
+export function settlementPrefixContent(input: {
+  readonly prefix: SettlementPrefix
+  readonly after?: number
+}): { readonly ok: readonly LogEntry[] } | PrefixAccessFailure {
+  const prefix = OwnedPrefix.access(input.prefix)
+  if ('unavailable' in prefix) return prefix
+  const after = input.after ?? 0
+  if (!Number.isSafeInteger(after) || after < 0 || after > prefix.history.length)
+    return { unavailable: true, reason: 'prefix' }
+  return { ok: prefix.history.entriesSince(after) }
+}
+/** Counts the complete canonical prefix without introducing a lifecycle check before the caller's guard. */
+export function settlementPrefixBytes(prefix: SettlementPrefix): number {
+  if (!OwnedPrefix.owns(prefix)) throw new TypeError('owned settlement prefix required')
+  return prefix.history.retainedBytes
+}
+export function selectSettlementPrefixContent(
+  prefix: SettlementPrefix,
+  selector: Exclude<ModelHistorySelector, { kind: 'message' | 'response' | 'dispatchResponse' }>,
+): { readonly ok: readonly LogEntry[] } | PrefixAccessFailure {
+  const accessed = OwnedPrefix.access(prefix)
+  return 'unavailable' in accessed ? accessed : { ok: accessed.history.select(selector) }
 }
 export type SettlementInterpretation =
   | {
@@ -232,14 +259,14 @@ export type SettlementInterpretation =
 function startedAttempts(prefix: SettlementPrefix, run: RunId): readonly AttemptId[] | null {
   const starts: AttemptId[] = []
   const seen = new Set<string>()
-  for (const entry of prefix.entries) {
-    const started = readAttemptStarted(entry)
-    if ('failure' in started) return null
-    if (started.kind === 'other' || started.fact.run !== run) continue
-    const key = ExactDecimal.from(started.fact.attempt).toCanonicalString()
+  const read = prefix.history.sessionFacts({ run, kind: 'attempt_started' })
+  if (read.invalid) return null
+  for (const { fact } of read.entries) {
+    if (fact.kind !== 'attempt_started') continue
+    const key = ExactDecimal.from(fact.attempt).toCanonicalString()
     if (seen.has(key)) return null
     seen.add(key)
-    starts.push(started.fact.attempt)
+    starts.push(fact.attempt)
   }
   return starts.length === 0 ? null : starts
 }
@@ -345,16 +372,12 @@ export function interpretSettlementPrefix(input: {
   function record(key: Parameters<typeof encodeModelLogKey>[0]): LogEntry | null {
     const encoded = encodeModelLogKey(key)
     if (!('ok' in encoded)) return null
-    const found = prefix.entries.filter(entry => entry.dedupeKey === encoded.ok)
+    const found = prefix.history.select({ kind: 'dedupe', key: encoded.ok })
     if (found.length !== 1 || found[0] === undefined) return null
-    const item = inspectModelLogEntry({
-      session: prefix.binding.session,
-      tenant: prefix.binding.tenant,
-      entry: found[0],
-      purpose: { kind: 'record' },
-      messagePrefix: null,
-    })
-    return 'ok' in item ? item.ok.entry : null
+    const item = prefix.history.recordAt(
+      Number(ExactDecimal.from(found[0].position).toCanonicalString()) - 1,
+    )
+    return item?.entry ?? null
   }
   const dispatched = record({ kind: 'dispatched', call: target.call, dispatch: target.dispatch })
   if (dispatched === null) return { unavailable: true, reason: 'anchor' }
@@ -382,7 +405,9 @@ export function interpretSettlementPrefix(input: {
     facts: {
       anchors,
       ended: record({ kind: 'ended', call: target.call }),
-      messagePrefix: read.messagePrefix,
+      get messagePrefix() {
+        return read.messagePrefix
+      },
       members,
     },
   }

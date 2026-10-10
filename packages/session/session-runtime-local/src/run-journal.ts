@@ -1,3 +1,4 @@
+import { createModelHistoryOwner } from './model-history-owner.ts'
 import { StorageUnavailable, type StorageUnit } from '@omne-harness-lite/storage'
 import { tenantIdEquals } from '@omne-harness-lite/identity-values'
 import { copyJsonValue, isNonNegativeJsonInteger } from '@omne-harness-lite/content-blocks'
@@ -45,6 +46,8 @@ class AppendRefusal extends Error {
 /** Owns only trusted log borrows. Physical storage and journal remain borrowed. */
 export function createOriginalRunJournal(host: Host) {
   const borrows = new Set<BoundRunJournal>()
+  const ports = new WeakMap<BorrowedRunJournal, BoundRunJournal>()
+  const history = createModelHistoryOwner(host.options.policy)
   let reservations = 0,
     open = true
   const borrow: OriginalRunJournal['borrow'] = async (authority, requested, run) => {
@@ -56,11 +59,15 @@ export function createOriginalRunJournal(host: Host) {
       const scope = stateScope(requested)
       if (!tenantIdEquals(scope.tenant, host.options.tenant)) return { failure: 'denied' }
       if (!checkKey(run)) return { failure: 'invalidInput' }
-      await host.options.storage.atomic(unit =>
-        unit.run(() => host.authority.withinRun(unit, scope, run, async () => undefined)),
+      const readIn = await host.options.storage.atomic(unit =>
+        unit.run(() => host.authority.bindRun(unit, scope, run)),
       )
-      const owner = new BoundRunJournal(host, scope, run, () => borrows.delete(owner))
+      const owner = new BoundRunJournal(host, scope, run, readIn, () => {
+        history.release(owner.port)
+        borrows.delete(owner)
+      })
       borrows.add(owner)
+      ports.set(owner.port, owner)
       return { journal: owner.port }
     } catch (error) {
       return borrowFailure(error)
@@ -70,11 +77,25 @@ export function createOriginalRunJournal(host: Host) {
   }
   return Object.freeze({
     operations: Object.freeze({ borrow }),
+    readModelHistory(journal: BorrowedRunJournal) {
+      const owner = ports.get(journal)
+      if (owner === undefined) return Promise.resolve({ failure: 'unavailable' as const })
+      return owner.operation(
+        () =>
+          history.read(
+            journal,
+            previous => owner.projection(previous),
+            () => owner.prefix(),
+          ),
+        { failure: 'unavailable' as const },
+      )
+    },
     async close() {
       open = false
       const outcomes = await Promise.allSettled([...borrows].map(b => b.returned))
       const errors = outcomes.filter(r => r.status === 'rejected').map(r => r.reason)
       if (errors.length) throw new AggregateError(errors, 'original Run journals retained')
+      history.clear()
     },
   })
 }
@@ -91,6 +112,7 @@ class BoundRunJournal {
     readonly host: Host,
     readonly scope: BorrowedRunJournal['scope'],
     readonly run: string,
+    readonly readIn: Awaited<ReturnType<Host['authority']['bindRun']>>,
     readonly release: () => void,
   ) {
     this.returned = new Promise((resolve, reject) => {
@@ -106,7 +128,7 @@ class BoundRunJournal {
       currentGeneration: () => (this.open ? this.generation : null),
       log: Object.freeze(this.log),
       withReadUnit: read =>
-        this.operation(() => this.inUnit(async unit => ({ read: await read(unit) })), {
+        this.operation(() => this.inReadUnit(async unit => ({ read: await read(unit) })), {
           unavailable: true as const,
         }),
       readPrefix: () => this.operation(() => this.prefix(), { failure: 'unavailable' as const }),
@@ -160,13 +182,13 @@ class BoundRunJournal {
       (request.fence.kind !== 'fenced' || request.fence.run === this.run)
     )
   }
-  inUnit<T>(action: (unit: StorageUnit) => Promise<T>) {
+  inReadUnit<T>(action: (unit: StorageUnit) => Promise<T>) {
     return this.host.options.storage.atomic(unit =>
-      unit.run(() => this.host.authority.withinRun(unit, this.scope, this.run, () => action(unit))),
+      unit.run(() => this.readIn(unit, () => action(unit))),
     )
   }
   async prefix() {
-    return this.inUnit(async unit => {
+    return this.inReadUnit(async unit => {
       const coordinate = await this.host.log.sourceIn(
         unit,
         this.host.authority.logAccess,
@@ -188,7 +210,7 @@ class BoundRunJournal {
     return { entries: prefix.entries.filter(filter), tail: prefix.tail }
   }
   async since(after: import('@omne-harness-lite/session-log').SourceToken['tail']) {
-    return this.inUnit(async unit => {
+    return this.inReadUnit(async unit => {
       const current = await this.host.log.sourceIn(unit, this.host.authority.logAccess, this.scope)
       if ('failure' in current) return { failure: 'unavailable' as const }
       const cursor = compareInteger(after, current.source.tail) > 0 ? current.source.tail : after
@@ -206,7 +228,7 @@ class BoundRunJournal {
   async projection(previous: import('@omne-harness-lite/session-log').SourceToken | null) {
     const checked = previous === null ? null : checkSourceToken(previous)
     if (checked && 'failure' in checked) throw new TypeError('invalid previous projection source')
-    return this.inUnit(async unit => {
+    return this.inReadUnit(async unit => {
       const coordinate = await this.host.log.sourceIn(
         unit,
         this.host.authority.logAccess,
@@ -230,11 +252,19 @@ class BoundRunJournal {
   }
   async append(request: AppendRequest): Promise<AppendResult> {
     try {
-      return await this.inUnit(async unit => {
-        const staged = await this.host.log.appendIn(unit, this.host.authority.logAccess, request)
-        if ('failure' in staged) throw new AppendRefusal(appendFailure(staged))
-        return { positions: staged.entries.map(e => e.position), tail: staged.nextTail }
-      })
+      return await this.host.options.storage.atomic(unit =>
+        unit.run(() =>
+          this.host.authority.withinRun(unit, this.scope, this.run, async () => {
+            const staged = await this.host.log.appendIn(
+              unit,
+              this.host.authority.logAccess,
+              request,
+            )
+            if ('failure' in staged) throw new AppendRefusal(appendFailure(staged))
+            return { positions: staged.entries.map(e => e.position), tail: staged.nextTail }
+          }),
+        ),
+      )
     } catch (error) {
       if (error instanceof AppendRefusal) return error.outcome
       throw error

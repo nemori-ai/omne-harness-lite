@@ -1,3 +1,4 @@
+import type { ModelLogHistory } from './model-log-history.ts'
 import type { JsonNumber } from '@omne-harness-lite/content-blocks'
 import type { AttemptId, RunId } from '@omne-harness-lite/call-accounts'
 import type { TenantId } from '@omne-harness-lite/identity-values'
@@ -46,6 +47,7 @@ export interface SettlementLogBinding {
         readonly tail: JsonNumber
         readonly source: SourceToken
       }
+    | { readonly history: ModelLogHistory }
     | { readonly failure: 'unavailable' }
   >
   readonly originalIssue?: OriginalIssueAdmission

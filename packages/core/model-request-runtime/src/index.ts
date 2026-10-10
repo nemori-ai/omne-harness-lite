@@ -89,3 +89,9 @@ export * from './operation-diagnostics.ts'
 export type * from './model-reads.ts'
 
 export { ownPlanInput, preflightMissingInputLimits } from './capture-plan-input.ts'
+
+export {
+  ModelLogHistory,
+  captureModelLogHistory,
+  type ModelHistorySelector,
+} from './model-log-history.ts'

@@ -165,6 +165,11 @@ export async function startProductionSessionHost(options: ProductionSessionHostO
       collaboration: 'co-work',
     },
     runtimePolicy: {
+      modelHistory: {
+        maxEntries: 16_384,
+        maxContentBytes: 8 * 1024 * 1024,
+        maxIndexReferences: 262_144,
+      },
       maxSessions: 16,
       maxRecordBytes: 1_048_576,
       maxInFlight: 16,

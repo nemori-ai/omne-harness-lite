@@ -74,3 +74,7 @@ Service 的接收者 Context 可以是追踪派生对象；探针按真实调用
 ## 综合规范输入
 
 [models](models/README.md)保存本能力的规范TLA及全部配对配置。模型是有限协议输入，不是执行记录；RetryHistory唯一源仍在本验证目录原算法位置。
+
+## Immutable history
+
+`tests/model-log-history.spec.ts` compares the persistent history with the independent raw inspector across every partition of short histories and a seeded longer history. It checks old cuts, response order, duplicate keys, compaction forward references, exact UTF-8 byte counts and unexpected exceptions. Instrumented ordinary append checks count only suffix capture, shell validation and association visits. Provider publication and finite cut models are maintained by `packages/session/session-runtime-local/verification/history-cuts/`.

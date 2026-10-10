@@ -15,6 +15,7 @@ catalog:
   '@huggingface/tokenizers': 0.2.0
   js-tiktoken: 1.0.21
   image-size: 2.0.4
+  immutable: 5.1.9
   sharp: 0.35.3
   diff: 9.0.0
   node-pty: 1.1.0

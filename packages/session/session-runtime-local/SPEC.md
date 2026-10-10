@@ -85,7 +85,11 @@ lifecycle.commitStep是可信宿主分面，接原coordinationAuthority、Scope�
 
 startRun先核当前成员、active状态、原待处理输入和日志来源，再登记并执行真实G28新Run登录核验。租户消费单元再次核当前相关状态。原ticket使用、唯一Run、初始输入资格采用、sr_run_grant、run_started和sr_coordination_step同提交。此时attempt为null，不签发permit。状态参加者的startRun只是保留；本提供者用adoptInitialIn在同原单元完成初始采用，再对外报告。该方法只准尚无attempt、原Run和原保留位置匹配的状态，不能替代后续有permit的adoptInput。历史输入保留，只移除pending工作行。
 
-原Run grant保存完整Scope、Run、可信principal及实际原AdmissionTicket。后续原Run操作严格读取该持久记录，核固定中心／账号／租户及宿主主体，并核同租户原ticket使用记录的完整binding和原stepKey；缺失或损坏使用记录按StorageDefect拒绝。核对成功后，只为本StorageUnit和本Session安装内部授权。这个内部授权不返回给调用者，不要求再次验证登录；登录过期不会停止已经执行的Run。它不授予其他Session的状态、日志或公共操作回执访问。坏grant为StorageDefect，不能退回到新登录核验来冒充原授权。
+原Run grant保存完整Scope、Run、可信principal及实际原AdmissionTicket。原Run协调操作和日志append严格读取该持久记录，核固定中心／账号／租户及宿主主体，并核同租户原ticket使用记录的完整binding和原stepKey；缺失或损坏使用记录按StorageDefect拒绝。核对成功后，只为本StorageUnit和本Session安装内部授权。这个内部授权不返回给调用者，不要求再次验证登录；登录过期不会停止已经执行的Run。它不授予其他Session的状态、日志或公共操作回执访问。坏grant为StorageDefect，不能退回到新登录核验来冒充原授权。
+
+原日志borrow在实际Unit内通过同一个originalGrant完整核验，外层atomic成功后才构造并返回BoundRunJournal。私有bindRun闭包持有冻结的完整Scope及原Storage绑定。后续readPrefix、readProjection、按key或位置读取和withReadUnit只核实际Storage、固定租户、原借用生命周期及Unit重入，在当前Unit安装原Session上下文，并在finally清除。日志参加者仍核完整Scope，当前SourceToken和prefix／suffix仍在同一实际Unit读取。外层atomic失败不得发表借用或读取结果。
+
+sr_run_grant和sr_admission_use的合法持久操作只有insert和select，已有事实不变。上述原借用读路径不重复查询或解析固定grant和ticket使用，不缓存日志内容、当前SourceToken、登录、成员或最新attempt。新的进程或新的borrow重新核完整原事实。已有借用不检测固定记录在借用后遭到的非法外部修改；新borrow及append仍检测这些损坏。withReadUnit的消费者继续承担只读、无外部IO及Unit不逃逸的责任，私有绑定不扩大其权限用途。原借用和在途容量、关闭拒新读及真实排空沿[共享协议](../../core/session-runtime/SPEC.md#可信工作读取与原run日志)。结构和成本见[原Run读取绑定](adr/original-run-read-binding.md)。
 
 startAttempt单独建立首次attempt、实际执行代际、开始事实和原StepReceipt，返回实际permit。状态与日志的attempt栅栏同提交。permit在提交完成后才可跨单元使用。当前切片只支持first且无旧attempt；中断／等待恢复、执行者接管及原调用是否停止仍须完整协调装配实现，对这些请求返回retryFromFacts，不伪造停止证据或新permit。
 
@@ -481,7 +485,6 @@ release撤销该捕获的新验证，等待已经参加的实际StorageUnit结�
 
 来源拥有者在归还frame前清除原执行数组和invocation引用；捕获分面不让这些能力逃逸到调用者。close只撤新捕获准入；已分配且正在等待的捕获仍由原拥有者结束。存在未归还捕获时close返回pending。它不停止借入ModelRuntime、不关闭借入Storage、Session或Context，也不代替物理模型拥有者的真实关闭证明。
 
-
 ## 原Run历史的模型读取
 
 `createSessionRunHistory`由可信根固定完整SessionScope。它只解释模型SDK给出的原owned prefix；Scope、来源或借用代际失效时返回unavailable，不另开存储事务，不授执行权。
@@ -489,7 +492,6 @@ release撤销该捕获的新验证，等待已经参加的实际StorageUnit结�
 读取从同一完整前缀核原run_started、原attempt及最新attempt、run_finished。无Run、无原attempt、重复开始、倒序attempt或不匹配的终态拒绝；合法其他会话事实和模型消息保留，不改成模型提醒。读取至多O(n)，没有新增缓存算法。
 
 实际ModelRuntime的dispatch发布ready后可关闭原invocation结算入口。可信根不能假定捕获该句柄后仍能settleReply；需要结算时复用公开SDK coordinator及原Run日志、真实owner和Run历史。原完整结果先由Session可靠接管；原SDK仍拥有消息／响应配对及ACK条件。Session结果采用和原能力结算分别核对，不以保管或模型ACK冒充最新permit的推进完成。
-
 
 ## 宿主拥有的一次原模型消费
 
@@ -553,7 +555,6 @@ prepareSessionModelDispatch使用实际Session来源和原调用快照。它依�
 
 调用者提供的read登记必须属于原操作，覆盖实际异步读取的完整寿命。准备器不关闭借入的Session、日志、存储、凭据来源或共享执行池。凭据只用于进程内原发送，不写入日志或用户可见输出。工具描述和校准算法从原模型提供者迁入，算法本身不变。
 
-
 ## 模型记录发布
 
 根函数publishSessionModelCallContent实现Core ModelCallPublication。Session拥有创建和reply_ready标记的完整历史判断、原内容引用匹配及原尾部条件追加。内容原件仍由借入ModelCallContentWriter保管；不把模型内容库搬入Session，不关闭借入存储或执行池。
@@ -563,7 +564,6 @@ prepareSessionModelDispatch使用实际Session来源和原调用快照。它依�
 `createSessionModelCreationPublication` 拥有未知创建标记的原批次认回。每次先等待原写任务真实停止，再用原登记读取完整前缀。只有原条目完全相同才认作已发布。明确缺失且原准入仍有效时，才按原内容和尾位置重试标记写入，不重发模型请求。关闭撤销重写资格；读／写停止或许可释放不能证明时返回不可用并保有原资源。该句柄不关闭借入的模型池、日志或存储。
 
 Session `readCall` 同样供原未知写入的收场使用。读取沿原Source、原registration和原解释器进行，后继装配不改变已保有操作的读取来源。读取失败不确认Model的原保管结束。
-
 
 ## 模型 ACK 确认
 
@@ -587,7 +587,6 @@ Session `readCall` 同样供原未知写入的收场使用。读取沿原Source�
 
 实现只借用原ModelCallContentStore，既不复制正文也不新建内容存储。project只更换presence读者并共享原状态。工厂取得原content的关闭委托，物理Model拥有者仍在整体排空后关闭该索引。它不是单会话Context的关闭资源。content关闭失败时不清缓存，不报告released，允许原关闭重试。共享行为和形状见[Core规格](../../core/model-request-runtime/SPEC.md#session-调用事实索引)。
 
-
 ## 完整模型调用恢复
 
 createSessionModelReconciler实现SessionModelReconciler，sessionModelSettlement.createReconciler使用同一实现。Session拥有完整日志枚举、原中断结果构造、ACK后小事实判断及未知控制记录认回。原RecoveryEntry中的scope、原批次、读写任务及关闭状态只保留一份。project共享它们，后继输入不替换已捕获任务的身份、时间戳或来源。
@@ -595,7 +594,6 @@ createSessionModelReconciler实现SessionModelReconciler，sessionModelSettlemen
 recognizeSessionModelReply只读取完整已结算前缀，检查原日志和selection身份后认回既有处分，不发起模型调用。appendControlRecord执行原条件与栅栏校验，持有登记直到实际停止，未知结果转交原拥有者。恢复过程中仍活着的结算工作保持由原组件负责，不由扫描器重复执行。Model原custody继续负责结果内容与工作行的退休；Session不创建第二清理队列。
 
 这些闭包不取得新的模型执行权，不因日志恢复而重发请求，也不关闭借入的Model池、日志或内容存储。与Core的原任务停止和可重试关闭约定共同适用。
-
 
 ## 会话模型选择
 
@@ -627,7 +625,6 @@ createModelFailureSource与readFailureSubject核对原失败前缀，返回的so
 
 Session的模型编排及Cordis构造器必须取得显式ModelPoolExecutor，不在提供者内选择具体Model工厂。原claim确认消费后，协调器传入完整tenant、session、callId和dispatch及原InvocationInput。执行池拒绝不撤销该次消费，也不允许自动重用claim。Session的opened、ready、结果保管、ACK和恢复仍沿原拥有者处理。物理池的活动快照不替代Session业务executionSource；关闭共享池由应用根负责。
 
-
 ## 工具池的原 Run 借用绑定
 
 SessionDriverToolFactory.acquire在原发起支持之外显式接收scope和run。Driver从实际Run journal提供这两个值，工厂不得从创建先后顺序、集合首项或当前UI选择推断它们。绑定是普通路由数据，不签发新的执行权；原participant及claim仍须经过对应支持对象核验。
@@ -640,7 +637,6 @@ SessionDriverToolFactory.acquire在原发起支持之外显式接收scope和run�
 
 观察随原任务的保留责任存在，不能替代持久回执或作为重启恢复来源。后续输入不得借用前一输入的阻挡。CLI须先按原回执授权读取，再核对输入位置；原消息保持已受理，不能因此重发或声称新Run已经开始。
 
-
 ### 已知登录阻挡后的接续
 
 可信构造端口`readAdmissionSource`在新Session或新Run准入前读取当前本机登录。返回loginRequired表示明确缺少适用登录；返回unavailable表示本机来源暂不能确认。端口返回的中心与账号必须等于入口的固定归属，登录handle可以更新。省略该端口的独立消费者继续使用其显式构造来源。读取本机来源不是线上登录核验，也不授予权限。
@@ -648,7 +644,6 @@ SessionDriverToolFactory.acquire在原发起支持之外显式接收scope和run�
 同一来源及`startRun.stepKey`使用同一G28 ticket，原消息身份、输入位置和业务步骤键不变。明确不可达后的下一次扫描可以重查原ticket，不新增持久记录。重新登录的真正新handle对应新来源。原ticket的消费记录与Run grant引用同一完整来源。真实同单元guard仅在其有效回调内使用该来源；不能用入口启动时的旧handle代替。
 
 只有明确的登录拒绝、来源缺失、未进入核验的本机暂不可用或已结束的不可达查询，才令尚未建立Run的任务以`admissionBlocked`结束。这个状态没有执行资源，下一次按显式Driver扫描周期处理原输入。拒绝的旧handle仍保持拒绝；读取到真正的新handle才有新的登录核验资格。`waiting`、`querying`、未知提交、已开始Run和持有未归还资源的任务均保持原责任，不适用这种替代。新Run仍须通过G28核验和实际同提交消费，不能凭本机登录变化直接推进。
-
 
 G28的`query`可重新排入原状态为unavailable的ticket，保留身份和全序。它不能重排querying、ready、consumed或rejected。重排和取得唯一active许可在原根事务中完成；其他active仍阻挡它。重新排队时即递增内部`query_generation`，同一事务若取得active许可则沿用该新代；后续从waiting取得许可时再递增。因此等待其他active结束期间，旧已完成结果也已经失效。本机保留结果及SQL结算都携带该代数，旧代结果不能覆盖新代状态，也不能清除新代尚未结算的结果。不可达必须来自已经结束的原核验；未知或未结算结果仍保留原责任，只重试结算。根迁移为已有记录补零代数，正式新查询从下一代开始。
 
@@ -674,14 +669,26 @@ G28的`query`可重新排入原状态为unavailable的ticket，保留身份和�
 
 `LocalSessionDriverOptions.projectionCache`显式配置最大Session数及每个缓存的条目、块、规范化输入字节上限。不配置时不保留消息投影。正式CLI配置4个Session，每个最多8MiB输入、16384条目、65536块；字节不是JavaScript堆大小。Driver拥有派生状态，实际任务停止后释放，不关闭借入的日志、模型或工具资源。
 
-Run来源的`projection.cache.identity`是进程内可信解析策略身份。所有factReaders、entryReaders及其捕获的参数改变时，装配者必须更换身份；单纯重建等价闭包不改变策略。正式CLI将此身份绑定本次宿主的evaluator和固定解析规则。缓存按完整租户和Session分开，跨独立Run复用；规则、代次及解析策略变化重建。每次读取都通过本次Run的`readProjection`重新授权并读当前固定来源，缓存没有授权能力。未知存储结果不发布缓存。
+Run来源的`projection.cache.identity`是进程内可信解析策略身份。所有factReaders、entryReaders及其捕获的参数改变时，装配者必须更换身份；单纯重建等价闭包不改变策略。正式CLI将此身份绑定本次宿主的evaluator和固定解析规则。缓存按完整租户和Session分开，跨独立Run复用；规则、代次及解析策略变化重建。每次读取都通过本次Run的`readProjection`安装原借用读上下文并读当前固定来源，缓存没有授权能力。未知存储结果不发布缓存。
 
-`BorrowedRunJournal.readProjection(previous)`在同一原Unit取得source；同租户、Session、generation且previous.tail不超前时只读取后缀，否则读取完整前缀。成功返回后才更新缓存。相同tail也重新授权。普通`log.readSince`同样直接读取范围，不先读完整历史。
+`BorrowedRunJournal.readProjection(previous)`在同一原Unit取得source；同租户、Session、generation且previous.tail不超前时只读取后缀，否则读取完整前缀。成功返回后才更新缓存。相同tail也进入实际Unit并检查原借用寿命。普通`log.readSince`同样直接读取范围，不先读完整历史。
 
-历史模式`external:null`仅缓存历史消息，system必须为空。当前模型、工具和参数继续由本次请求取得。压缩影响旧块、增量失效或规则变更时使用完整冷建。容量超限时完整冷建且记住本代次/规则不可缓存，直到其改变；不截断历史。相同Session不并发更新缓存，驱动排空后清理。返回的不可变投影可继续用于同步materialize，逐出不改变其内容。
+历史模式`external:null`仅缓存历史消息，system必须为空。当前模型、工具和参数继续由本次请求取得。压缩影响旧块时，消息投影从已保留索引重新选择块。增量失效或规则变更时使用完整冷建。容量超限时完整冷建且记住本代次/规则不可缓存，直到其改变；不截断历史。相同Session不并发更新缓存，驱动排空后清理。返回的不可变投影可继续用于同步materialize，逐出不改变其内容。
 
 热投影处理新增条目并共享旧段；materialize仍按输出消息及字节线性工作。其他完整日志消费者、请求序列化及上游模型耗时不在此性能界内。
 
 ## 请求内容准备
 
 SessionModelTurnOptions 的可选 prepareImageBytes 在历史投影物化后、原 Call 创建前执行。可信宿主核验附件权限，并有界读取原引用对应的固定字节。返回值只包含 imageBytes，不允许改写投影消息。原消息及其附件引用用于 Session 日志来源核验和计量校准；字节随 ModelCallHost 借给本次原调用，在创建计划与发起计划时传给已有 PlanExecutionContext.imageBytes，只有传输层将图片转换为请求表示。该操作不修改持久日志或投影缓存。返回 unavailable 时保留当前 turn，且不创建或发起模型 Call。SessionDriverRunSources 将同一借入端口传给当前 Run，原 Run 关闭与访问撤销继续约束读取。重建原调用时重新从当前授权的原附件读取，不从旧传输表示猜测字节。
+
+## Session 拥有的 Model 历史
+
+`readModelHistory` 仅接受本 ingress 签发的实际 Run journal。每次读取仍进入原 operation 和同一 Storage Unit 的 source/suffix 读取。实际 atomic 成功后才发表根；低 tail 的延迟完成不能覆盖较新 head。缓存不替代原借用关闭检查或实际写入的最新 fence。
+
+`RuntimePolicy.modelHistory` 分别限定保留条目、完整 canonical prefix UTF-8 内容字节和逻辑索引引用。现有 maxSessions 与 maxInFlight 继续限制 Session 根和原借用。未配置时走完整读取。超限可退回本次实际完整读取，不少计历史字节。当前、退休且有借用的 family 一起计量，原 borrow drain 后才归还 pins。细节及非 heap 上界见 [历史保留](adr/model-history-retention.md)。
+
+Call/Run/settlement、准备与 custody、publication、ACK、recovery 及 calibration 使用固定 cut 的身份或位置索引。恢复确需输出全部 Call 时保留一次完整枚举。`readSessionModelCalibration` 由 Session 提供者拥有。它使用固定 cut 的 MessageId、ResponseId 与 dispatch ResponseId 索引，保留原歧义拒绝、output group、replay selection 及 generation 拒绝。CLI 仅选择该提供者。
+
+模型选择按原 envelope/record 规则增量解释。模态按原 payload 规则读取新增内容。两者都不要求不相关的全局 Model 关联成功。
+
+`readSessionOriginalModelSelection` 从原 binding 的实际读取获取固定内容 cut，并在读取前后核原 generation 及租户／Session 来源。它只查询原持久选择，不判断当前模型是否可用，不写选择、不发模型。CLI 的首次默认选择和 Session 的模型选择读取共用内容拥有者的增量 checkpoint；原 record 合法性与禁止 fenced selection 的规则保持。未知 raw 前缀仍完整 capture。

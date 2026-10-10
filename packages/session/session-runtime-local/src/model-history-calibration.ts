@@ -4,40 +4,28 @@ import {
   type CurrentHistoryReaders,
   type InspectedModelLogEntry,
   type LocatedCalibrationCandidate,
+  type ModelHistorySelector,
+  type SettlementPrefix,
 } from '@omne-harness-lite/model-request-runtime'
-import { judgeModelResponse, type ModelResponse } from '@omne-harness-lite/model-response'
 import type { Message } from '@omne-harness-lite/messages'
 
-function isResponse(value: unknown): value is ModelResponse {
-  return 'ok' in judgeModelResponse(value)
-}
-type Index = Map<string, InspectedModelLogEntry | null>
-function add(index: Index, key: string, entry: InspectedModelLogEntry) {
-  index.set(key, index.has(key) ? null : entry)
-}
-function indexes(entries: readonly InspectedModelLogEntry[]) {
-  const messages: Index = new Map(),
-    responses: Index = new Map(),
-    dispatches: Index = new Map()
-  for (const entry of entries) {
-    const value = entry.captured
-    if (value.message) add(messages, value.message.id, entry)
-    if (value.response) add(responses, value.response.id, entry)
-    if (value.record?.kind === 'model_call_dispatched')
-      add(dispatches, value.record.response, entry)
-  }
-  return { messages, responses, dispatches }
+function selectedEntry(
+  prefix: SettlementPrefix,
+  selector: ModelHistorySelector,
+): InspectedModelLogEntry | undefined {
+  const selected = inspectSettlementPrefixEntries({ prefix, selector })
+  return 'ok' in selected && selected.ok.length === 1 ? selected.ok[0] : undefined
 }
 function selectedCandidate(
   message: Extract<Message, { type: 'assistant' }>,
   messageIndex: number,
   messageEntry: InspectedModelLogEntry,
-  index: ReturnType<typeof indexes>,
+  prefix: SettlementPrefix,
 ): LocatedCalibrationCandidate | undefined {
-  const responseEntry = index.responses.get(message.response),
-    dispatchedEntry = index.dispatches.get(message.response)
-  const response = responseEntry?.captured.response
-  if (!responseEntry || !dispatchedEntry || !isResponse(response) || !response.reply) return
+  const responseEntry = selectedEntry(prefix, { kind: 'response', id: message.response }),
+    dispatchedEntry = selectedEntry(prefix, { kind: 'dispatchResponse', id: message.response })
+  const response = responseEntry?.captured.judgedResponse
+  if (!responseEntry || !dispatchedEntry || !response || !response.reply) return
   const blocks = new Map(
     response.reply.blocks.map((block, sourceBlockIndex) => [block.id, { block, sourceBlockIndex }]),
   )
@@ -65,18 +53,20 @@ export const readSessionModelCalibration: CurrentHistoryReaders['calibration'] =
   prefix,
   messages,
 ) => {
-  const inspected = inspectSettlementPrefixEntries({ prefix })
+  const inspected = inspectSettlementPrefixEntries({
+    prefix,
+    selector: { kind: 'position', position: 0 },
+  })
   if (!('ok' in inspected)) return { sourceUnavailable: true }
-  const index = indexes(inspected.ok)
   const selectedSources = [],
     candidates: LocatedCalibrationCandidate[] = []
   for (const [messageIndex, message] of messages.entries()) {
-    const source = index.messages.get(message.id)
+    const source = selectedEntry(prefix, { kind: 'message', id: message.id })
     if (!source || !modelLogJsonEqual(source.captured.message, message))
       return { sourceUnavailable: true }
     selectedSources.push({ messageIndex, entry: source.entry })
     if (message.type === 'assistant') {
-      const candidate = selectedCandidate(message, messageIndex, source, index)
+      const candidate = selectedCandidate(message, messageIndex, source, prefix)
       if (!candidate) return { sourceUnavailable: true }
       candidates.push(candidate)
     }

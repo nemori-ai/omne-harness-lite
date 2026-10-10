@@ -4,6 +4,8 @@
 
 根入口另提供createSessionDriverWorkOwner和createSessionCallAccess，供可信运行时构造原工作及Run读面。它们不代表完整driver、恢复执行者或新的Model／Tool权限；行为归[SPEC](SPEC.md)。
 
+原Run日志借用在首次借用时核对固定的grant和ticket使用事实。随后读取复用绑定原身份的私有闭包，不重复查询这些固定记录；实际Unit、来源及借用生命周期仍须有效。追加继续核对原grant和最新执行栅栏。结构、边界与验证见[原Run读取绑定](adr/original-run-read-binding.md)。
+
 [English](README.md)
 
 本包提供Session操作的本机持久准入。根入口独立于Cordis；Session业务承诺由[公开定义](../../core/session-runtime/SPEC.md)拥有，提供者顺序及资源规则见[SPEC](SPEC.md)。
@@ -15,6 +17,8 @@
 
 
 `createSessionModelSelection`拥有会话模型选择、完整历史读取、求值及原操作收尾。公开类型归Core；调用者显式关闭返回句柄，并持有它直至原任务实际结束。
+
+Session提供者拥有不可变历史的保留及借用生命周期。见[保留与容量](adr/model-history-retention.md)、[内容算法](../../core/model-request-runtime/adr/immutable-model-history.md)、[基准入口](verification/benchmarks/README.md)和[有限发表模型](verification/history-cuts/README.md)。容量回退仍读取完整的当前前缀。基准和模型不证明完整CLI延迟或进程heap上界。
 
 ## 使用
 

@@ -84,7 +84,7 @@ export async function createSessionRunModelBinding(
       session: journal.scope.session,
       tenant: journal.scope.tenant,
       log: journal.log,
-      readPrefix: journal.readPrefix,
+      readPrefix: () => options.ingress.readModelHistory(journal),
       generation: journal.generation,
       currentGeneration: journal.currentGeneration,
       originalIssue: options.originalIssue(journal),

@@ -331,6 +331,16 @@ attempt 开始由 Session 事实拥有者记录，不是模型消息。事件不
 
 一次完整读取中检查多个模型结算，应复用这份校验结果。原响应关联使用唯一性索引；重复响应仍拒绝，不以最后一个值覆盖冲突。该辅助函数不提供跨回合缓存，也不替代 Session 拥有的模型消息投影缓存。构造、各结算关联和输出字节的成本分别计量，不能把复用一次前缀校验表述为全部路径已达到线性复杂度。
 
+## 不可变模型历史
+
+`captureModelLogHistory` 接管同源完整内容或已有品牌根后的连续后缀。它拒绝伪造品牌、缺号、跨租户、跨 Session、跨 journal generation 和额外输入字段。品牌仅证明内容已接管，不授予读取、写入或当前资格。原 unknown 完整输入仍由独立完整 codec 检查。
+
+`SettlementLogBinding.readPrefix` 可返回该固定根。OwnedPrefix 仍检查原 binding 与 generation，并在原 Model 使用点惰性解释。捕获阶段先于关联阶段；原结算锚点检查先于 Model 全局检查。未知异常不转成预期失败，不发表部分索引。后添响应可改变新 cut 的关联结果，不能改变旧 cut。
+
+`inspectSettlementPrefixEntries` 的 selector 支持位置、dedupe、read key、Call、MessageId、ResponseId 及 dispatch ResponseId。selector 保留完整 Model 解释的拒绝条件。局部内容读取、Session fact、模型选择及模态判断不增加该全局条件。完整枚举仅用于真正输出所有条目的操作。
+
+`settlementPrefixBytes` 返回原 owned `{entries,tail}` 的完整 UTF-8 长度，不先查询 generation。结算原 guard 继续决定关闭、撤销、generation 和预算的优先序。结构、算法及复杂度见 [不可变模型历史](adr/immutable-model-history.md)。
+
 ## 原发起窄协议
 
 OriginalIssueOwner的共享prepareOriginal／participant／admission／consumeOriginal／close形状归本包。
@@ -368,7 +378,6 @@ PlanExecutionContext.imageBytes 是可选的请求内执行依赖。调用者先
 
 调用者拥有读取任务，必须等实际 IO 停止，不能只撤除等待。原附件的持久保有、原调用的访问句柄和逐使用点当前资格仍分别由各拥有者负责。快照只属于本次计划，不替代日志原件或模型内容保有证明。
 
-
 ## 会话记录发布
 
 `ModelCallPublication`定义现有混合消费者借用的会话记录发布能力，不属于普通模型执行请求。它接收原内容、原身份和实际拥有者，并借用调用方提供的read寿命管理。实现读取完整会话前缀并决定创建／reply_ready标记是否可发布；不向消费者返回前缀。
@@ -378,7 +387,6 @@ PlanExecutionContext.imageBytes 是可选的请求内执行依赖。调用者先
 `settlementAppendReceipt`校验原追加回执，畸形回执视为未确认。`requestStopAndWait`请求停止后等待原任务实际停止；请求停止异常不能取代stopped证明。两者为跨拥有者复用机制，不读取会话历史或授予执行资格。
 
 未知创建发布的 `ModelCreationPublication` 只公开原操作的 `retry` 和 `close`。`UnknownModelPublication` 用 `created` 和 `reply_ready` 区分两种保有。创建分支返回会话发行的原恢复句柄，不把完整前缀读取权交给执行池。结果分支暂时保留原登记、任务、许可及条目，后续迁移不得提前丢弃。
-
 
 ## Session ACK 实现边界
 
@@ -396,7 +404,6 @@ project只替换presence读者，共享原content与缓存，没有独立close�
 
 原物理拥有者调用close，先阻止索引新工作，再关闭原content。仅content返回released时清除缓存；失败保留原对象供关闭重试。该构造不增加第二内容库、执行池或SessionContext关闭权。
 
-
 ## Session 模型恢复拥有者
 
 SessionModelSettlement.createReconciler接收原恢复来源、调用读取函数、调度策略及结果custody的view／retireWork端口。返回的SessionModelReconciler拥有完整Session前缀读取、调用枚举、原中断批次及其未结束任务。project只替换后续调用的输入，必须共享原entries、任务、scope和可重试关闭状态；不能为投影重建另一恢复拥有者。
@@ -406,7 +413,6 @@ SessionModelSettlement.createReconciler接收原恢复来源、调用读取函�
 recognizeReply由Session核对原Session／tenant／日志代际和完整已结算历史，只认回既有结果。appendControl由Session准备并追加原控制记录，保留原Run／attempt栅栏。未知追加通过retainUnknown转交原registration和task；trackTask跟踪真实任务。Model不能在工厂拒绝时另行实现这两种日志判断。
 
 UnknownAppendTracker共用原任务保管逻辑。它先等待原写停止，再通过捕获的Session readCall及解释器认回原调用，复用原registration而不再申请一个槽位。原读取停止及许可释放均成功后才归还登记。它不自行解释完整日志，也不为后继投影替换原读取来源。
-
 
 ## 会话模型选择工厂
 

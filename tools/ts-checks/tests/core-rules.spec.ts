@@ -43,6 +43,23 @@ const purePackages = [
 ]
 
 describe('core-pure-imports', () => {
+  it('permits the adopted persistent collection only at its content owner', () => {
+    expect(
+      corePureImports.check([
+        file(
+          'core/model-request-runtime/src/model-log-history.ts',
+          "import { List, Map } from 'immutable'",
+        ),
+      ]),
+    ).toEqual([])
+    for (const [path, specifier] of [
+      ['core/model-request-runtime/src/service-types.ts', 'immutable'],
+      ['core/messages/src/judge.ts', 'immutable'],
+      ['core/model-request-runtime/src/model-log-history.ts', 'immutable/dist/immutable.js'],
+    ])
+      expect(corePureImports.check([file(path!, `import '${specifier}'`)])).toHaveLength(1)
+  })
+
   it('Tool original issue imports shared Unit types through the public storage entry', () => {
     const path = 'core/tool-execution-runtime/src/original-issue.ts'
     expect(

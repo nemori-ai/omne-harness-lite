@@ -113,7 +113,8 @@ class ModelTurn {
     return { retained: true, stage: this.stage }
   }
   async prefix() {
-    return await this.options.linked.binding.log.readPrefix?.()
+    const read = await this.options.linked.binding.log.readPrefix?.()
+    return read !== undefined && 'history' in read ? read.history : read
   }
   async run(): Promise<SessionModelTurnResult> {
     const started = await this.start()

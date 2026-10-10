@@ -7,6 +7,7 @@ import {
 } from '@omne-harness-lite/identity-values'
 import {
   isOwnedSettlementPrefix,
+  settlementPrefixContent,
   settlementGenerationCurrent,
   type SessionModelSelectionInput,
   type SelectionProjection,
@@ -39,10 +40,12 @@ export function createModalityProjection(
     if (prefix.source.session !== session || !tenantIdEquals(prefix.source.tenant, tenant))
       return unknown
     const previous = reusableSnapshot(snapshot, prefix)
-    if (previous?.entries === prefix.entries.length) return previous.result
+    if (previous?.entries === prefix.history.length) return previous.result
     let mask = previous?.mask ?? 0
-    for (let index = previous?.entries ?? 0; index < prefix.entries.length; index++) {
-      const payload = checkLogPayload(prefix.entries[index]!.payload)
+    const content = settlementPrefixContent({ prefix, after: previous?.entries ?? 0 })
+    if ('unavailable' in content) return unknown
+    for (const entry of content.ok) {
+      const payload = checkLogPayload(entry.payload)
       if ('failure' in payload) return unknown
       if (payload.kind === 'message') mask |= blockModalities(payload.payload.value.blocks)
     }
@@ -52,7 +55,7 @@ export function createModalityProjection(
     snapshot = {
       binding: prefix.binding,
       generation: prefix.source.journalGeneration,
-      entries: prefix.entries.length,
+      entries: prefix.history.length,
       mask,
       result,
     }
@@ -63,7 +66,7 @@ export function createModalityProjection(
 function reusableSnapshot(snapshot: Snapshot | undefined, prefix: SettlementPrefix) {
   return snapshot?.binding === prefix.binding &&
     snapshot.generation === prefix.source.journalGeneration &&
-    snapshot.entries <= prefix.entries.length
+    snapshot.entries <= prefix.history.length
     ? snapshot
     : undefined
 }

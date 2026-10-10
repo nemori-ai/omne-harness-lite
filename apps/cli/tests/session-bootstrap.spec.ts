@@ -419,6 +419,11 @@ async function setup(
       maxRecordBytes: 65536,
       maxInFlight: 8,
       maxSteps: 32,
+      modelHistory: {
+        maxEntries: 16384,
+        maxContentBytes: 8 * 1024 * 1024,
+        maxIndexReferences: 262144,
+      },
       state: { maxPendingPerSession: 16, maxBatchSize: 16, maxRecordBytes: 65536 },
       receipts: { maxRecords: 32, maxRecordBytes: 65536 },
     },
@@ -2701,8 +2706,9 @@ it.each([
       expect(second).toEqual(first)
     }
     const prefix = await linked.binding.log.readPrefix!()
-    if (!('entries' in prefix)) throw new Error('real original prefix unavailable')
-    const records = prefix.entries.filter(entry => {
+    if ('failure' in prefix) throw new Error('real original prefix unavailable')
+    const entries = 'history' in prefix ? prefix.history.entries : prefix.entries
+    const records = entries.filter(entry => {
       const inspected = inspectModelLogEntry({
         session: original.scope.session,
         tenant,

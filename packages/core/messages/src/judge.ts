@@ -171,10 +171,7 @@ export function judgeMessage(value: unknown): MessageJudgment {
 export function judgeMessageInLog(value: unknown, prefix: LogPrefixView): MessageJudgment {
   const first = judgeMessage(value)
   if ('rejected' in first) return first
-  if (
-    first.ok.type === 'compaction' &&
-    first.ok.silenced.some(ref => !prefix.some(message => message.id === ref.messageId))
-  )
+  if (!messageReferencesEarlier(first.ok, id => prefix.some(message => message.id === id)))
     return Object.freeze({ rejected: 'compaction_forward_reference' } as const)
   return first
 }
@@ -307,4 +304,12 @@ function membersEqual(
       )
     }) && Object.keys(persisted).every(key => allowed.includes(key) || Object.hasOwn(original, key))
   )
+}
+
+/** Checks history references after the message body has passed judgeMessage. */
+export function messageReferencesEarlier(
+  message: Message,
+  hasEarlier: (id: string) => boolean,
+): boolean {
+  return message.type !== 'compaction' || message.silenced.every(ref => hasEarlier(ref.messageId))
 }

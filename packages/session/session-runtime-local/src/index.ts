@@ -132,3 +132,6 @@ export { createRuntimeAcquire } from './model-runtime/service-acquire.ts'
 export { createAcknowledgementCustody } from './model-runtime/acknowledgement-custody.ts'
 export type { AcknowledgementCustody } from './model-runtime/acknowledgement-custody.ts'
 export { createIndependentCallConsumer } from './model-runtime/reference-consumer.ts'
+
+export { readSessionModelCalibration } from './model-history-calibration.ts'
+export { readSessionOriginalModelSelection } from './model-history-selection.ts'

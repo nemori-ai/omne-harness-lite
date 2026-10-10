@@ -121,7 +121,10 @@ interface CallSources {
   }[]
 }
 function sourcesOf(prefix: SettlementPrefix, callId: string): CallSources | undefined {
-  const inspected = inspectSettlementPrefixEntries({ prefix })
+  const inspected = inspectSettlementPrefixEntries({
+    prefix,
+    selector: { kind: 'call', call: callId },
+  })
   if (!('ok' in inspected)) return undefined
   let creation: CallSources['creation'] | undefined
   let creationPayload: CallSources['creationPayload'] | undefined
@@ -704,7 +707,10 @@ function recordedAcknowledgement(
   prefix: SettlementPrefix,
   callId: string,
 ): ModelCallAcknowledgedRecord | 'conflict' | 'unavailable' | undefined {
-  const inspected = inspectSettlementPrefixEntries({ prefix })
+  const inspected = inspectSettlementPrefixEntries({
+    prefix,
+    selector: { kind: 'call', call: callId },
+  })
   if (!('ok' in inspected)) return 'unavailable'
   let found: ModelCallAcknowledgedRecord | undefined
   for (const { captured } of inspected.ok) {

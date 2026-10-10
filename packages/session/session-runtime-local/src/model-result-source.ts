@@ -188,7 +188,7 @@ class ResultSourceOwner {
   async readJournalIdentity(record: CaptureRecord, execution: ModelRuntimeCapturedExecution) {
     const prefix = await execution.session.log.readPrefix?.()
     if (!prefix || 'failure' in prefix) return { failure: 'unavailable' } as const
-    const checked = checkSourceToken(prefix.source)
+    const checked = checkSourceToken('history' in prefix ? prefix.history.source : prefix.source)
     if (
       'failure' in checked ||
       checked.ok.session !== record.scope.session ||

@@ -1,4 +1,3 @@
-import { readModelLogEnvelope } from '@omne-harness-lite/model-request-runtime'
 import type { SessionSelectModelResult } from '@omne-harness-lite/model-request-runtime'
 import { evaluate, type EffectiveAssembly } from '@omne-harness-lite/asset-evaluation'
 import { capabilityCanonicalString } from '@omne-harness-lite/asset-model'
@@ -75,22 +74,6 @@ function operationOutcome(result: object): SessionSelectionDiagnostic['outcome']
     : 'ok' in result || 'selected' in result
       ? 'success'
       : 'rejected'
-}
-
-type PrefixEntry = SettlementPrefix['entries'][number]
-function currentModelEnvelope(payload: PrefixEntry['payload']) {
-  const decoded = readModelLogEnvelope(payload)
-  if ('failure' in decoded || decoded.kind !== 'model') return undefined
-  return decoded.envelope.format === 'mrr/3' ? decoded.envelope : undefined
-}
-function declaresModelLog(entry: PrefixEntry): boolean {
-  const decoded = readModelLogEnvelope(entry.payload)
-  return (
-    entry.readKeys.some(key => 'ok' in decodeModelLogKey(key) || key.startsWith('mrr/')) ||
-    entry.dedupeKey?.startsWith('mrr/') === true ||
-    'failure' in decoded ||
-    decoded.kind === 'model'
-  )
 }
 
 function targetRejection(
@@ -314,29 +297,10 @@ export function createSessionModelSelection(
   async function prefix(operation: Operation) {
     const received = await readSettlementPrefix({ binding, registration: operation.registration })
     if ('unavailable' in received || !current(operation)) return unavailable()
-    let selected: RouteName | null = null
-    for (const entry of received.prefix.entries) {
-      const declared = declaresModelLog(entry)
-      if (!declared) continue
-      const envelope = currentModelEnvelope(entry.payload)
-      if (envelope === undefined) return unavailable()
-      if (envelope.category !== 'record') continue
-      const recognized = inspectModelLogEntry({
-        session: binding.session,
-        tenant: binding.tenant,
-        entry,
-        purpose: { kind: 'record' },
-        messagePrefix: null,
-      })
-      if ('invalidValue' in recognized) return unavailable()
-      const record = recognized.ok.captured.record
-      if (record?.kind === 'model_selection_changed') {
-        if (entry.run !== undefined || entry.attempt !== undefined) return unavailable()
-        selected = record.routeName
-      }
-    }
-    return { prefix: received.prefix, selected }
+    const result = received.prefix.history.modelSelection()
+    return 'unavailable' in result ? result : { prefix: received.prefix, selected: result.selected }
   }
+
   async function rows(
     operation: Operation,
   ): Promise<

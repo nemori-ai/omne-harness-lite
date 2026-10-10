@@ -17,7 +17,7 @@ import { finalMatchesWitness } from './acknowledged-view.ts'
 import type { CapturedModelLogValue } from './log-codec-value.ts'
 import type { InspectedModelLogEntry } from './log-codec-entry.ts'
 import type { ModelLogResponseProjection } from './log-codec-value.ts'
-import { modelLogJsonEqual } from './log-codec-key.ts'
+import { encodeModelLogKey, modelLogJsonEqual } from './log-codec-key.ts'
 import {
   interpretSettlementPrefix,
   inspectSettlementPrefixEntries,
@@ -137,7 +137,12 @@ export function interpretCallHistory(input: {
   readonly callId: ModelCallId
 }): CallHistoryResult {
   const { prefix, callId } = input
-  const inspectedPrefix = inspectSettlementPrefixEntries({ prefix })
+  const key = encodeModelLogKey({ kind: 'call', call: callId })
+  if (!('ok' in key)) return unavailable('history')
+  const inspectedPrefix = inspectSettlementPrefixEntries({
+    prefix,
+    selector: { kind: 'readKey', key: key.ok },
+  })
   if (!('ok' in inspectedPrefix))
     return unavailable(
       inspectedPrefix.reason === 'prefix' || inspectedPrefix.reason === 'generation'
