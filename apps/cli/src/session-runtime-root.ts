@@ -243,6 +243,7 @@ class RuntimeRoot {
       contextSeed: o.contextSeed,
     })
     this.owners = Object.freeze({
+      log: this.log!,
       ingress: this.ingress,
       bootstrap: this.bootstrap,
       originalModel: this.modelOwner,

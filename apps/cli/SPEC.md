@@ -495,13 +495,15 @@ Driver故障先停止协议准入，再调用原诊断端口。关闭停止新�
 
 `startFileSessionRuntimeRoot`在分配资源前核固定中心／账号／登录来源，完成原CG刷新及use关闭，并核既有`tenant.json`的完整租户绑定。它不安装登录、绑定或模型凭据。准入库位于`<home>/data/session-admission.sqlite`，租户运行库沿`tenantPaths.runtime`，时钟使用该租户`run/clock.sqlite`的独立LeaseClock。目录、数据库及旁文件按既有私有命名空间规则检查。只有本次原子创建的新时钟文件允许初始化；重新打开不改写时钟身份。
 
+`startFileSessionDriverRoot`复用相同的文件资源和关闭拥有者，启动`startSessionDriverRuntimeRoot`。它先分配实际物理模型池，再把原pool、Session拥有者、工作结算拥有者和同一Storage／Clock交给可信configure。executionSource固定为原pool来源，不能由configure替换。configure只提供公开Driver的Run来源、模型绑定和工具绑定，不增加应用层循环。可信Session拥有者另提供原SqlSessionLog，供工具结果保管等组合使用；借用方不关闭它。普通协议不公开这些引用。配置失败也按同一顺序释放已分配资源。
+
 可信应用明确选择`nativeModel`或可替换的`createModel`，二者互斥。实际模型拥有者使用同一租户Storage与Clock。工厂必须先返回原关闭端口，再等待异步ready；同步构造抛错时不得遗留资源。ready提供原运行根所需的模型输入，不代表已授权或已发起模型IO。普通通道不携带这些函数或运行引用。
 
 外层关闭先等待原运行根收场，再关闭实际模型池，随后关闭Clock、租户库和准入库。运行根pending或模型unavailable时保留尚被使用的资源，显式再次close只续接原收场。启动失败同样执行原关闭；尚有责任或关闭失败时，FileSessionRuntimeFailure保留原错误与closeRetained。治理客户端仍由借出方关闭。文件入口不负责独立OS进程启动。目录按下文的显式输入装入；当前调用权限、凭据初次准备及正式main消费者仍由实际应用接线。
 
 `nativeModel`选择现有ModelRuntime、同一租户库中的原调用内容／事实与官方OpenRouter传输。模型ID列表必须明确、非空、无重复，且来自实际官方catalog；注册原定义及对应meter，不另写HTTP／SSE协议或模型执行器。应用不会转发自定义baseUrl或TLS覆盖。模型池来源、预算、结算和关闭策略由可信应用提供；模型列表不代替当前选择或执行授权。
 
-原模型拥有者在分配内容／调用／传输资源前已存在。来源或Run装配失败时，ready保留原错误，close仍结束实际部分资源。executionSource固定为此物理ModelRuntime的实际来源，不采用外部复制或替代getter。关闭先等原模型和事实静止，再关闭内容与实际传输；remaining_active保持unavailable，不把提交关闭当资源已释放。借入Clock、Storage和治理依赖不在模型构造器内关闭。
+原模型拥有者在分配内容／调用／传输资源前已存在。来源或Run装配失败时，ready保留原错误，close仍结束实际部分资源。executionSource固定为此物理ModelRuntime的实际来源，不采用外部复制或替代getter。关闭先完成原ModelRuntime关闭，再释放原executionSource，之后关闭内容与实际传输。原捕获未归还时，source.release保持unavailable；外层保留模型池及文件资源，归还后显式close可继续原收场。remaining_active保持unavailable，不把提交关闭当资源已释放。借入Clock、Storage和治理依赖不在模型构造器内关闭。
 
 ### 原模型目录及凭据读面
 

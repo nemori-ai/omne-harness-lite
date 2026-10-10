@@ -8,14 +8,22 @@ import { resolveStateHome } from './state-layout.ts'
 import { checkedTenantBinding } from './state-layout-values.ts'
 import {
   startSessionRuntimeRoot,
+  startSessionDriverRuntimeRoot,
   confirmSessionRuntimeLogin,
   SessionRuntimeRootFailure,
 } from './session-runtime-root.ts'
-import type { SessionRuntimeRoot, SessionRuntimeRootOptions } from './session-runtime-root-types.ts'
+import type {
+  SessionRuntimeRoot,
+  SessionRuntimeRootOptions,
+  SessionDriverRuntimeRootOptions,
+} from './session-runtime-root-types.ts'
 import { parseRunLoginBinding } from './session-preparation.ts'
 import {
   createNativeSessionModelOwner,
   type SessionNativeModelOptions,
+  type SessionNativeModelPoolOptions,
+  type SessionNativeModelPool,
+  createNativeSessionModelPool,
 } from './session-native-model.ts'
 
 export interface FileSessionModelOwner {
@@ -38,6 +46,43 @@ export type FileSessionRuntimeOptions = FileSessionRuntimeInputs &
         readonly createModel: (storage: AtomicStorage, clock: Clock) => FileSessionModelOwner
       }
   )
+export type FileSessionDriverOptions = Omit<
+  SessionDriverRuntimeRootOptions,
+  'storage' | 'rootStorage' | 'clock' | 'model' | 'configure'
+> & {
+  readonly clockOptions?: Omit<OpenLeaseClockOptions, 'file' | 'initialize'>
+  readonly nativeModel: SessionNativeModelPoolOptions
+  readonly model: Omit<SessionDriverRuntimeRootOptions['model'], 'executionSource'>
+  readonly configure: (
+    owners: Parameters<SessionDriverRuntimeRootOptions['configure']>[0],
+    pool: SessionNativeModelPool,
+    work: Parameters<SessionDriverRuntimeRootOptions['configure']>[1],
+    files: Pick<SessionRuntimeRootOptions, 'storage' | 'clock'>,
+  ) => ReturnType<SessionDriverRuntimeRootOptions['configure']>
+}
+
+export async function startFileSessionDriverRoot(
+  requested: FileSessionDriverOptions,
+): Promise<SessionRuntimeRoot> {
+  return startFileRoot(requested, async (owner, options) => {
+    const model = createNativeSessionModelPool(owner.storage!, owner.clock!, options.nativeModel)
+    owner.model = model
+    const pool = await model.ready
+    return startSessionDriverRuntimeRoot({
+      ...options,
+      storage: owner.storage!,
+      rootStorage: owner.rootStorage!,
+      clock: owner.clock!,
+      model: { ...options.model, executionSource: () => pool.runtime.executionSource },
+      configure: (owners, work) =>
+        options.configure(owners, pool, work, {
+          storage: owner.storage!,
+          clock: owner.clock!,
+        }),
+    })
+  })
+}
+
 /** Original resources remain available to the owner when startup cleanup cannot finish. */
 export class FileSessionRuntimeFailure extends AggregateError {
   constructor(
@@ -51,6 +96,27 @@ export class FileSessionRuntimeFailure extends AggregateError {
 export async function startFileSessionRuntimeRoot(
   requested: FileSessionRuntimeOptions,
 ): Promise<SessionRuntimeRoot> {
+  return startFileRoot(requested, async (owner, options) => {
+    const model = options.nativeModel
+      ? createNativeSessionModelOwner(owner.storage!, owner.clock!, options.nativeModel)
+      : options.createModel(owner.storage!, owner.clock!)
+    owner.model = model
+    return startSessionRuntimeRoot({
+      ...options,
+      storage: owner.storage!,
+      rootStorage: owner.rootStorage!,
+      clock: owner.clock!,
+      model: await model.ready,
+    })
+  })
+}
+type FileRootInputs = Omit<FileSessionRuntimeInputs, 'execution' | 'identities'> & {
+  readonly nativeModel?: Pick<SessionNativeModelPoolOptions, 'directory'>
+}
+async function startFileRoot<T extends FileRootInputs>(
+  requested: T,
+  start: (owner: FileRootOwner, options: T) => Promise<SessionRuntimeRoot>,
+): Promise<SessionRuntimeRoot> {
   const home = resolveStateHome({ explicitHome: requested.home, osHome: requested.home })
   const binding = Object.freeze(checkedTenantBinding(requested.binding))
   const source = parseRunLoginBinding(requested.source)
@@ -60,20 +126,15 @@ export async function startFileSessionRuntimeRoot(
     source.accountId !== binding.tenant.account
   )
     throw new TypeError('actual fixed Session source required')
-  const options = Object.freeze({ ...requested, home, binding, source: Object.freeze(source) })
+  const options: T = { ...requested, home, binding, source: Object.freeze(source) }
+  Object.freeze(options)
   if (!directoryMatchesRoot(options))
     throw new TypeError('model directory does not belong to the fixed Session root')
   await confirmSessionRuntimeLogin(options)
   const owner = new FileRootOwner(options)
   try {
-    await owner.open()
-    const root = await startSessionRuntimeRoot({
-      ...options,
-      storage: owner.storage!,
-      rootStorage: owner.rootStorage!,
-      clock: owner.clock!,
-      model: owner.modelOptions!,
-    })
+    await owner.openFiles()
+    const root = await start(owner, options)
     owner.root = root
     return Object.freeze({ socketPath: root.socketPath, owners: root.owners, close: owner.close })
   } catch (error) {
@@ -88,7 +149,7 @@ export async function startFileSessionRuntimeRoot(
     throw error
   }
 }
-function directoryMatchesRoot(options: FileSessionRuntimeOptions): boolean {
+function directoryMatchesRoot(options: FileRootInputs): boolean {
   const directory = options.nativeModel?.directory
   if (!directory) return true
   const tenant = parseTenantId(directory.tenant)
@@ -105,21 +166,12 @@ function directoryMatchesRoot(options: FileSessionRuntimeOptions): boolean {
 }
 
 class FileRootOwner extends SessionRuntimeFiles {
-  model?: FileSessionModelOwner
-  modelOptions?: SessionRuntimeRootOptions['model']
+  model?: Pick<FileSessionModelOwner, 'close'>
   root?: SessionRuntimeRoot
   retainedRoot?: SessionRuntimeRoot['close']
   closing?: ReturnType<SessionRuntimeRoot['close']>
-  constructor(readonly options: FileSessionRuntimeOptions) {
+  constructor(options: FileRootInputs) {
     super(options)
-  }
-  async open() {
-    const o = this.options
-    await this.openFiles()
-    this.model = o.nativeModel
-      ? createNativeSessionModelOwner(this.storage!, this.clock!, o.nativeModel)
-      : o.createModel(this.storage!, this.clock!)
-    this.modelOptions = await this.model.ready
   }
   close = (): ReturnType<SessionRuntimeRoot['close']> => {
     if (!this.closing) {

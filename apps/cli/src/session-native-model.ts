@@ -222,7 +222,10 @@ class NativeModelOwner {
     return { released: true }
   }
   async closeRuntime(): Promise<RuntimeCloseResult> {
-    if (this.runtime) return await this.runtime.close()
+    if (this.runtime) {
+      const result = await this.runtime.close()
+      return 'unavailable' in result ? result : this.runtime.executionSource.release()
+    }
     if (this.calls && 'unavailable' in (await this.calls.close())) return { unavailable: true }
     if (this.facts && 'unavailable' in (await this.facts.close())) return { unavailable: true }
     return { released: true }

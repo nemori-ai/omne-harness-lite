@@ -7,7 +7,11 @@ import {
 import { createSessionCallAccess } from '@omne-harness-lite/session-runtime-local'
 import { createSessionContextReadGrant } from '../src/session-context-access.ts'
 import type { BorrowedRunJournal } from '@omne-harness-lite/session-runtime-local'
-import { startFileSessionRuntimeRoot, FileSessionRuntimeFailure } from '../src/session-file-root.ts'
+import {
+  startFileSessionRuntimeRoot,
+  startFileSessionDriverRoot,
+  FileSessionRuntimeFailure,
+} from '../src/session-file-root.ts'
 import type {
   SessionNativeModelOptions,
   SessionNativeModelPool,
@@ -4369,5 +4373,110 @@ it.each(['model', 'inputs'] as const)(
     expect(acquire).toHaveBeenCalledOnce()
     expect(release).toHaveBeenCalledTimes(stage === 'model' ? 2 : 1)
     expect(releaseInputs).toHaveBeenCalledTimes(stage === 'inputs' ? 2 : 1)
+  },
+)
+
+it.each(['normal', 'startupFailure', 'heldCapture'] as const)(
+  'owns the file-backed public Driver and its real native pool: %s',
+  async mode => {
+    const { f, options } = await rootFixture()
+    await prepareTenantDirectory(options.home, options.binding)
+    const nativeModel = nativeFileModelOptions(f, options, () => options.model)
+    const defect = new Error('file Driver binding failed')
+    const unexpected = (): never => {
+      throw new Error('empty file Session executed a Run')
+    }
+    let pool: SessionNativeModelPool | undefined
+    const configure = vi.fn<
+      import('../src/session-file-root.ts').FileSessionDriverOptions['configure']
+    >((owners, actual, work) => {
+      pool = actual
+      expect(owners.ingress.coordinationAuthority).toBeDefined()
+      expect(work.readIn).toBeDefined()
+      if (mode === 'startupFailure') throw defect
+      return {
+        policy: { ...options.execution, maxStepsPerPass: 16 },
+        identities: {
+          run: unexpected,
+          model: unexpected,
+          tool: unexpected,
+          modelContent: { response: unexpected, message: unexpected },
+        },
+        sources: { acquire: async () => unexpected() },
+        model: {
+          factory: { acquire: async () => unexpected() },
+          settlement: { create: unexpected },
+          maxCallReads: 4,
+        },
+        tools: { acquire: async () => unexpected() },
+      }
+    })
+    const requested = {
+      ...options,
+      nativeModel,
+      model: options.model,
+      maxHeld: options.execution.maxHeld,
+      inputSource: {
+        ...options.inputSource,
+        deployedOfficial: [{ capability: officialSessionDefinition, meta: false }],
+      },
+      creation: {
+        definition: officialSessionDefinition,
+        executionType: input.executionType,
+        mode: input.mode,
+        collaboration: input.collaboration,
+      },
+      configure,
+    }
+    if (mode === 'startupFailure') {
+      await expect(startFileSessionDriverRoot(requested)).rejects.toBe(defect)
+      expect(configure).toHaveBeenCalledOnce()
+      if (!pool) throw new Error('actual failed pool was not allocated')
+      expect(
+        pool.runtime.executionSource.capture(
+          unwrap(parseOpaqueIdentifier('closed-session', 'SessionRef')),
+        ),
+      ).toEqual({ unavailable: true })
+      return
+    }
+    const root = await startFileSessionDriverRoot(requested)
+    cleanup.push(async () => {
+      expect(await root.close()).toEqual({ closed: true })
+    })
+    expect(configure).toHaveBeenCalledOnce()
+    if (!pool) throw new Error('actual file model pool missing')
+    const created = await createSessionForMessage({
+      home: options.home,
+      binding: options.binding,
+      signal: new AbortController().signal,
+      originalId: () => 'file-public-driver-session',
+      policy: { timeoutMs: 2000, maxResponseBytes: 65536 },
+    })
+    if (created.kind !== 'created-session') throw new Error('file Driver session not created')
+    expect(pool.runtime.executionSource.snapshot(created.session)).toEqual([])
+    expect(
+      await root.owners.ingress.operations.readSession(root.owners.ingress.access, created.session),
+    ).toMatchObject({ kind: 'session', session: { lifecycle: 'active' } })
+    if (mode === 'heldCapture') {
+      const held = pool.runtime.executionSource.capture(created.session)
+      if (!('capture' in held)) throw new Error('actual capture missing')
+      cleanup.push(async () => held.capture.release())
+      expect(await root.close()).toEqual({ pending: true })
+      held.capture.release()
+    }
+    expect(await root.close()).toEqual({ closed: true })
+    expect(pool.runtime.executionSource.capture(created.session)).toEqual({ unavailable: true })
+    const response = await sendSessionHostRequest({
+      home: options.home,
+      request: {
+        format: 'omne-session-host/1',
+        binding: options.binding,
+        command: 'readSession',
+        session: created.session,
+      },
+      signal: new AbortController().signal,
+      policy: { timeoutMs: 1000, maxResponseBytes: 65536 },
+    })
+    expect(response).toHaveProperty('kind', 'unconfirmed')
   },
 )
