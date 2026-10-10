@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import {
   checkAppendRequest,
+  checkKey,
   checkSourceToken,
   compareInteger,
   sourceTokenEquals,
@@ -20,7 +21,7 @@ import {
   type StorageUnit,
 } from '@omne-harness-lite/storage'
 import { stageAppend } from './append.ts'
-import { entriesBetween, journal, matchesScope, token } from './database.ts'
+import { entriesBetween, entriesByKey, journal, matchesScope, token } from './database.ts'
 import type { OriginalBatch } from './handle.ts'
 
 const invalidInput = Object.freeze({ failure: 'invalidInput' } as const)
@@ -69,6 +70,23 @@ export function createParticipant(
   if (authority.storage !== storage)
     throw new TypeError('log authorization must use the same storage')
   return Object.freeze<SessionLogParticipant>({
+    async readByKeyIn(unit, access, source, key) {
+      const checked = checkSourceToken(source)
+      if ('failure' in checked || !checkKey(key) || !validUnit(unit, storage)) return invalidInput
+      if (!admission()) return unavailable
+      return available(() =>
+        supervise(() =>
+          unit.run(async () => {
+            const selected = await readFixedSourceIn(unit, access, checked.ok, authority)
+            if ('failure' in selected) return selected
+            const entries = await unit.query(tx =>
+              entriesByKey(tx, checked.ok, key, checked.ok.tail),
+            )
+            return { kind: 'keyed' as const, entries, source: checked.ok }
+          }),
+        ),
+      )
+    },
     async sourceIn(unit, access, scope) {
       const captured = sourceScope(scope)
       if (captured === undefined || !validUnit(unit, storage)) return invalidInput
@@ -174,6 +192,20 @@ async function readFixedPrefixIn(
   source: SourceToken,
   authority: LogAuthorityOperations,
 ): ReturnType<SessionLogParticipant['readPrefix']> {
+  const selected = await readFixedSourceIn(unit, access, source, authority)
+  if ('failure' in selected) return selected
+  const entries = await unit.query(tx => entriesBetween(tx, source, 0, source.tail))
+  const last = entries.at(-1)?.position ?? 0
+  if (!sourceTokenEquals({ ...source, tail: last }, source)) return unavailable
+  return { kind: 'prefix', entries, source }
+}
+
+async function readFixedSourceIn(
+  unit: StorageUnit,
+  access: LogAuthority,
+  source: SourceToken,
+  authority: LogAuthorityOperations,
+): ReturnType<SessionLogParticipant['sourceIn']> {
   await unit.mutate(tx => tx.lockSentinel(`session-log:${source.session}`))
   const decision = await authority.authorize(unit, access, source, 'read')
   if (decision.kind !== 'authorized') return decision.kind === 'denied' ? denied : unavailable
@@ -183,10 +215,7 @@ async function readFixedPrefixIn(
   const current = token(row)
   if (compareInteger(source.tail, current.tail) > 0) return unavailable
   if (!sourceTokenEquals({ ...current, tail: source.tail }, source)) return unavailable
-  const entries = await unit.query(tx => entriesBetween(tx, source, 0, source.tail))
-  const last = entries.at(-1)?.position ?? 0
-  if (!sourceTokenEquals({ ...source, tail: last }, source)) return unavailable
-  return { kind: 'prefix', entries, source }
+  return { kind: 'source', source }
 }
 
 function expected(

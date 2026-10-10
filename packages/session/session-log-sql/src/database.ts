@@ -134,6 +134,41 @@ export function decodeEntry(row: EntryRow, scope: SessionScope): LogEntry {
     position: numberFrom(row.position),
   })
 }
+export async function entriesByKey(
+  tx: ReadTx,
+  scope: SessionScope,
+  key: string,
+  through: JsonNumber,
+): Promise<readonly LogEntry[]> {
+  const high = integerText(through)
+  const rows = await narrow<LogDatabase>(tx)
+    .selectFrom('sl_entry')
+    .innerJoin('sl_read_key', join =>
+      join
+        .onRef('sl_entry.session', '=', 'sl_read_key.session')
+        .onRef('sl_entry.position', '=', 'sl_read_key.position'),
+    )
+    .selectAll('sl_entry')
+    .where('sl_entry.session', '=', scope.session)
+    .where('sl_read_key.key', '=', key)
+    .where(eb =>
+      eb.or([
+        eb('sl_entry.position_length', '<', high.length),
+        eb.and([
+          eb('sl_entry.position_length', '=', high.length),
+          eb('sl_entry.position', '<=', high),
+        ]),
+      ]),
+    )
+    .orderBy('sl_entry.position_length')
+    .orderBy('sl_entry.position')
+    .execute()
+  const entries = rows.map(row => decodeEntry(row, scope))
+  if (entries.some(entry => !entry.readKeys.includes(key)))
+    throw new StorageDefect('journal key index disagrees with entry')
+  return Object.freeze(entries)
+}
+
 export async function entriesBetween(
   tx: ReadTx,
   scope: SessionScope,

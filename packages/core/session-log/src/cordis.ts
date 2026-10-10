@@ -27,6 +27,7 @@ export abstract class SessionLogParticipantService
     super(ctx, SessionLogParticipantService.provide)
   }
   abstract readonly readPrefixIn: SessionLogParticipant['readPrefixIn']
+  abstract readonly readByKeyIn: SessionLogParticipant['readByKeyIn']
   abstract readonly sourceIn: SessionLogParticipant['sourceIn']
   abstract readonly appendIn: SessionLogParticipant['appendIn']
   abstract readonly source: SessionLogParticipant['source']

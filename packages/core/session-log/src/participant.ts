@@ -30,6 +30,21 @@ export type LogParticipationFailure =
   | { readonly failure: 'dedupeConflict'; readonly keys: readonly string[] }
 
 export interface SessionLogParticipant {
+  readonly readByKeyIn: (
+    unit: StorageUnit,
+    authority: LogAuthority,
+    source: SourceToken,
+    key: string,
+  ) => Promise<
+    | {
+        readonly kind: 'keyed'
+        readonly entries: readonly LogEntry[]
+        readonly source: SourceToken
+      }
+    | InvalidInput
+    | Unavailable
+    | { readonly failure: 'denied' }
+  >
   /** Reads the staged current journal coordinate in the supplied shared unit; no independent transaction. */
   readonly sourceIn: (
     unit: StorageUnit,
