@@ -313,3 +313,15 @@ def test_source_disappearing_after_discovery_is_explicit_failure(tmp_path, monke
         return original(inputs, relative, **kwargs)
     monkeypatch.setattr(Inputs, 'read_bytes', remove)
     assert any('disappeared' in error for error in check_links(root))
+
+
+def test_nested_archived_design_material_is_not_scanned(tmp_path):
+    root = tmp_path / '.meta_harness/design'
+    save(root / 'README.md', '# Root\n')
+    save(root / 'topic/archive.legacy/broken.md', '[Missing](absent.md)\n')
+    assert check_links(root) == []
+    save(root / 'topic/archive.legacy-not/broken.md', '[Missing](absent.md)\n')
+    errors = check_links(root)
+    assert errors
+    assert any('archive.legacy-not/broken.md' in error for error in errors)
+    assert not any('archive.legacy/broken.md' in error for error in errors)

@@ -660,7 +660,7 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 整个文件都被滤掉时 vitest 不导入它；用例名或标签不是字面量时静态解析看不出，照常导入、导入后再过滤。
 自测：`tests/test-tiers.spec.ts` 真起 vitest 核对三种层各跑了什么、整文件归慢的在快层下不被导入、没有慢测试的项目在慢层下退出 0、标签写错会报错。
 
-**验收**（`run --all --script acceptance`）：选的是 `package.json` 里有 `acceptance` 脚本的成员（同样去掉 `affected.excludeRoots`），
+**验收**（`run --all --script acceptance`）：选的是 `package.json` 里有 `acceptance` 脚本的成员（同样排除 `affected.excludeRoots` 和 `.legacy` 目录），
 逐个跑 `pnpm run acceptance`，并行度、vitest 报告、账本格式都与测试相同；账本根另放在主检出的 `tmp/acceptance-ledger/`
 （`OMNE_ACCEPTANCE_LEDGER_HOME` 可改），不混进体检页读的测试账本。每份 `ledger.json` 的 `meta.script` 写着跑的是哪一种，
 `triage` 照它经同一个脚本重跑（`pnpm run <脚本> <文件> -t …`，验收的那份带着自己的 vitest 配置）。`--all` 缺省不构建（由调用方先构建），
@@ -668,16 +668,16 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 只跑被选中、带验收的成员（驱动前面构建好的 `dist/`，不再构建），任何一份不过整套检查就失败；一个都没有时记一份「跳过」的账本（见[验收耗时](#验收耗时)）。
 
 **影响面怎么算**（`src/testing/affected.ts`，规则在 `test-runs.config.json` 的 `affected`）。改动文件取基线合并点到当前工作树的全部差异，
-含未提交与未跟踪的文件，改名拆成删与增两侧，文件名原样（不受 git 的引号转义影响）。成员清单读 `pnpm-workspace.yaml`，去掉 `affected.excludeRoots` 下的（现为 `examples`）。
-每个改动文件按顺序归到第一类命中的：
+含未提交与未跟踪的文件，改名拆成删与增两侧，文件名原样（不受 git 的引号转义影响）。完整成员清单读 `pnpm-workspace.yaml`，用于解析声明依赖。直接检查、测试及验收目标排除 `affected.excludeRoots` 下的成员和任意层级中以 `.legacy` 结尾的目录。`FULL=1`、未知路径回退和 `run --all` 均应用这一排除。必要的封存构建依赖可准备，但不运行其类型检查、测试和验收。`.legacy-not` 不属于排除后缀。
+以 `.legacy` 结尾目录中的改动先记为排除，不触发未知路径全量回退。其余改动文件按顺序归到第一类命中的：
 
 1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh`、本配置文件、
    测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`affected.ts`／`members.ts` 与取改动的 `src/metrics/git.ts`）：整份计划判全量——
    引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围；
 2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；
-   每条带着谁读、证据在哪（登记 → stream-assembly 与 core-verification；核心成员的 `schema/` → stream-assembly；核心成员的 `src/` → core-verification；
-   governance-center-entry 的 TLS 夹具 → governance-client-operations；`packages`、`apps`、`examples` 下的 TS 与成员 `package.json` → 本包；
-   `docs/clean-loop.md`、整洁之道对照表、`scripts/with-test-slot.sh` → 本包；两个成员各自的 README → 它自己）；
+   每条记录实际读者和依据；核心成员的 `schema/`、`src/`及测试夹具 → core-verification；
+   `packages`、`apps`、`examples` 下的 TS 与成员清单、工程协议及当前产品设计输入 → 本包；
+   `docs/clean-loop.md`、整洁之道对照表、`scripts/with-test-slot.sh` → 本包；
 3. **成员文件**：按最长的成员目录前缀归属，这个成员与直接、间接依赖它的成员进来；依赖取各 `package.json` 里写成 `workspace:` 的
    `dependencies`、`devDependencies` 与 `peerDependencies`——按声明算而不是按源码导入算，因为测试可能导入生产代码不导入的包。
    成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动，除非读者规则点了名；`tests/` 等其余目录里的 `.md` 可能是夹具
@@ -686,7 +686,7 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 5. **只需常驻检查**（`residentPaths`）：文档、设计区、research、`examples/`、`.github/`、格式配置、`tools/model-probe/` 等；
 6. 其余（没有规则认得的，如 `.gitignore`）：整份计划判全量，理由点名前几个文件与总数。
 
-读者、成员文件与 Python 工具三种归属可以同时成立（另一个成员的 `schema/` 既是那个成员的文件又被 stream-assembly 读），三者都算。
+读者、成员文件与 Python 工具三种归属可以同时成立（另一个成员的 `schema/` 既是那个成员的文件又被 core-verification 读），三者都算。
 被选中的成员定下之后：测试、类型检查、验收各取其中有对应脚本的；构建取它们连同正向依赖里有 `build` 脚本的，
 另加 `residentBuild` 列的成员（现为 identity-values：`lint:rules` 导入它的 `dist`），纯文档改动也构建它。
 `FULL=1` 或 `--full` 直接给全量计划。算不出计划——基线不存在、取不到改动、规则点名的成员不存在——就报错退出，不改判全量。

@@ -130,10 +130,10 @@ describe('group-direction', () => {
   })
 
   // 归慢层：重 CPU：读取并解析整个真实仓库的成员源码。
-  it('真实仓库严格方向通过；注回已退役的前端到SQL依赖必须失败', { tags: ['slow'] }, () => {
+  it('当前树保留无源码事实；注回前端到SQL依赖必须失败', { tags: ['slow'] }, () => {
     const root = fileURLToPath(new URL('../../../', import.meta.url))
     const sources = collectMemberSources(root)
-    expect(sources.length).toBeGreaterThan(100)
+    expect(sources).toEqual([])
     expect(runRules(sources, [groupDirection])).toEqual([])
     const strict = createGroupDirection({ ...GROUP_DIRECTION_POLICY, exceptions: [] })
     expect(strict.check(sources)).toEqual([])
@@ -141,7 +141,7 @@ describe('group-direction', () => {
       'packages/frontend/client-local-state-sqlite/src/reintroduced-sql.ts',
       imports('storage-sql'),
     )
-    const found = strict.check([...sources, forbidden])
+    const found = strict.check([...sources, sql, forbidden])
     expect(found.length).toBeGreaterThan(0)
     expect(
       found.every(v => v.path.startsWith('packages/frontend/client-local-state-sqlite/src/')),

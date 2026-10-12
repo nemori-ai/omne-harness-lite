@@ -20,6 +20,7 @@ import { buildLedger, emptyLedger, ledgerSummary, type LedgerFile, type RunMeta 
 import {
   fileTree,
   listWorkspaceMembers,
+  listTestMembers,
   withScript,
   type TestMember,
   type WorkspaceMember,
@@ -150,13 +151,9 @@ export function pythonStep(root: string, file: PlanFile): number {
       ])
 }
 
-/** 构建或类型检查：全量用根脚本（唯一的「全部」定义）；按范围用 pnpm 逐个点名，`-r` 按拓扑顺序跑。 */
+/** 按计划逐个点名，`-r` 按拓扑顺序构建依赖。 */
 export function pnpmStep(root: string, file: PlanFile, script: 'build' | 'typecheck'): number {
   const name = script === 'build' ? '构建' : '类型检查'
-  if (file.plan.mode === 'full' && process.env['OMNE_RUNNER_ROOT'] === undefined) {
-    console.log(`${name}：全量（根 pnpm run ${script}）`)
-    return spawnInherited(root, 'pnpm', ['run', script])
-  }
   const paths = script === 'build' ? file.plan.build.map(entry => entry.path) : file.plan.typecheck
   if (paths.length === 0) {
     console.log(`${name}：跳过——没有被选中的成员`)
@@ -343,10 +340,7 @@ export function recordSkippedAcceptance(
 /** 可执行验收：只跑计划里有验收的成员（驱动前面构建好的 dist，不再构建）；一个都没有时记一份「跳过」的账本。 */
 export async function acceptanceStep(root: string, file: PlanFile): Promise<number> {
   const config = readTestRunsConfig()
-  const accepting = withScript(
-    listWorkspaceMembers(fileTree(root), config.affected.excludeRoots),
-    'acceptance',
-  )
+  const accepting = listTestMembers(root, config.affected.excludeRoots, 'acceptance')
   const selected = new Set(file.plan.acceptance)
   const targets = accepting.filter(member => selected.has(member.path))
   const skipped = accepting.filter(member => !selected.has(member.path)).map(member => member.path)

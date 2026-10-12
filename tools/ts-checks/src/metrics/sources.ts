@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { isLegacyDirectory } from '../check-scope.ts'
 import type { SourceFile } from '../rule.ts'
 import { fileAt } from './git.ts'
 import { memberOf } from './graph.ts'
@@ -9,15 +10,11 @@ export function collectMemberSources(root: string): SourceFile[] {
   const out: SourceFile[] = []
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir)) {
-      if (
-        ['node_modules', 'dist', 'coverage', 'packages.0.0.1.legacy', 'apps.0.0.1.legacy'].includes(
-          entry,
-        )
-      )
-        continue
+      if (['node_modules', 'dist', 'coverage'].includes(entry)) continue
       const full = join(dir, entry)
-      if (statSync(full).isDirectory()) walk(full)
-      else if (/\.[cm]?tsx?$/u.test(entry))
+      if (statSync(full).isDirectory()) {
+        if (!isLegacyDirectory(relative(root, full))) walk(full)
+      } else if (/\.[cm]?tsx?$/u.test(entry))
         out.push({
           path: relative(root, full).replaceAll('\\', '/'),
           text: readFileSync(full, 'utf8'),

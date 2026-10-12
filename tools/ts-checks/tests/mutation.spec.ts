@@ -266,8 +266,35 @@ describe('sandbox 与配置', () => {
   })
 })
 
+const cliRoot = temporary('mutation-cli-')
+for (const path of ['packages/core/canary/src', 'tools/ts-checks'])
+  mkdirSync(join(cliRoot, path), { recursive: true })
+writeFileSync(join(cliRoot, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n  - tools/*\n')
+for (const path of ['packages/core/canary', 'tools/ts-checks'])
+  writeFileSync(
+    join(cliRoot, path, 'package.json'),
+    JSON.stringify({ name: `@fixture/${path.split('/').at(-1)}`, scripts: { test: 'vitest run' } }),
+  )
+writeFileSync(join(cliRoot, 'packages/core/canary/src/index.ts'), 'export const value = 1\n')
+execFileSync('git', ['init', '-q'], { cwd: cliRoot })
+execFileSync(
+  'git',
+  [
+    '-c',
+    'user.name=Fixture',
+    '-c',
+    'user.email=fixture@example.invalid',
+    'commit',
+    '--allow-empty',
+    '-qm',
+    'fixture',
+  ],
+  { cwd: cliRoot },
+)
 const cli = (...args: string[]) =>
-  spawnSync(process.execPath, ['--experimental-strip-types', CLI, ...args], { encoding: 'utf8' })
+  spawnSync(process.execPath, ['--experimental-strip-types', CLI, ...args, '--root', cliRoot], {
+    encoding: 'utf8',
+  })
 
 describe('入口的参数', () => {
   it('--base 与 --members 二选一；不是产品成员的拒绝', () => {
@@ -282,15 +309,10 @@ describe('入口的参数', () => {
   })
 
   it('点名成员只列范围：写明跑快层', () => {
-    const planned = cli(
-      'run',
-      '--members',
-      'packages.0.0.1.legacy/core/kernel-basis',
-      '--plan-only',
-    )
+    const planned = cli('run', '--members', 'packages/core/canary', '--plan-only')
     expect(planned.status, planned.stderr).toBe(0)
     expect(planned.stdout).toContain('只跑快层（OMNE_TEST_TIER=fast）')
-    expect(planned.stdout).toMatch(/packages\.0\.0\.1\.legacy\/core\/kernel-basis：\d+ 个文件/u)
+    expect(planned.stdout).toMatch(/packages\/core\/canary：1 个文件/u)
   })
 })
 

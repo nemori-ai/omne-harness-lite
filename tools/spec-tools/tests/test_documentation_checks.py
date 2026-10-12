@@ -186,3 +186,15 @@ def test_current_method_research_cannot_hide_broken_links(tmp_path):
     base(tmp_path)
     write(tmp_path / ".meta_harness/agents/research/topic/README.md", "[broken](missing.md)")
     assert "broken link" in run(tmp_path).stdout
+
+
+def test_nested_legacy_directories_are_not_quality_targets(tmp_path):
+    base(tmp_path)
+    write(tmp_path / "docs/archive.legacy/broken.md", "[missing](absent.md)")
+    write(tmp_path / "tools/extra/old.legacy/broken.md", "[missing](absent.md)")
+    assert run(tmp_path).returncode == 0
+    write(tmp_path / "docs/archive.legacy-not/broken.md", "[missing](absent.md)")
+    result = run(tmp_path)
+    assert result.returncode == 1
+    assert "archive.legacy-not/broken.md" in result.stdout
+    assert "archive.legacy/broken.md" not in result.stdout

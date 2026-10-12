@@ -28,6 +28,7 @@ def collect(root: Path) -> list[Path]:
         elif path.is_dir():
             for directory, children, names in os.walk(path):
                 children[:] = [child for child in children if child not in IGNORED_DIRECTORIES
+                              and not child.endswith(".legacy")
                               and (Path(directory) / child).resolve() != (root / ".meta_harness/design/record").resolve()]
                 files.extend(Path(directory) / name for name in names if name.endswith(".md"))
     # `.templates/` holds placeholders such as `{{YYYY-MM-DD-topic}}.md`; they are meant to be

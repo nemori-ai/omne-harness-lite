@@ -60,7 +60,11 @@ describe('成员清单', () => {
   it('本仓库：成员清单不含示例，且认得测试依赖', () => {
     const config = readTestRunsConfig()
     const members = listTestMembers(ROOT, config.affected.excludeRoots)
-    expect(members.length).toBeGreaterThan(40)
+    expect(members.map(member => member.path).sort()).toEqual([
+      'tools/artifact-builder',
+      'tools/core-verification',
+      'tools/ts-checks',
+    ])
     expect(members.some(item => item.path.startsWith('examples/'))).toBe(false)
     // ts-checks 只在 devDependencies 里依赖 identity-values；改后者要重跑前者的测试。
     const checks = members.find(item => item.path === 'tools/ts-checks')
@@ -110,10 +114,9 @@ describe('成员清单', () => {
   it('按脚本名选成员：acceptance 只选有这个脚本的，并带上脚本原文', () => {
     const config = readTestRunsConfig()
     const accepting = listTestMembers(ROOT, config.affected.excludeRoots, 'acceptance')
-    expect(accepting.map(item => item.path)).toContain('apps.0.0.1.legacy/cli')
-    expect(accepting.find(item => item.path === 'apps.0.0.1.legacy/cli')?.script).toContain(
-      'acceptance/',
-    )
+    expect(
+      accepting.some(item => item.path.split('/').some(part => part.endsWith('.legacy'))),
+    ).toBe(false)
     expect(accepting.some(item => item.path === 'tools/ts-checks')).toBe(false)
   })
 })
