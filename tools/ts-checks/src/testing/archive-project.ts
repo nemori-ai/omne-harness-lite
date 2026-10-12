@@ -18,7 +18,8 @@ export interface ScopedProject {
 }
 
 export function scopedProject(project: string, output: string): ScopedProject {
-  const original = resolve(project)
+  const target = resolve(project)
+  const original = ts.sys.directoryExists(target) ? join(target, 'tsconfig.json') : target
   const input = ts.readConfigFile(original, ts.sys.readFile)
   if (input.error !== undefined)
     throw new Error(ts.flattenDiagnosticMessageText(input.error.messageText, '\n'))

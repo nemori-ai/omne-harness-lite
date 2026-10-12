@@ -1,5 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
@@ -180,6 +181,70 @@ it('a project without archived roots keeps its native build-info location', () =
   )
   expect(typecheckMember(root)).toBe(0)
   expect(readFileSync(join(root, 'tsconfig.test.tsbuildinfo'), 'utf8')).not.toBe('')
+}, 20_000)
+
+it('accepts the native directory form of tsc --project without archives', () => {
+  const root = fixture()
+  rmSync(join(root, 'src/archive.legacy'), { recursive: true })
+  put(root, 'tsconfig.json', readFileSync(join(root, 'tsconfig.test.json'), 'utf8'))
+  put(root, 'package.json', JSON.stringify({ scripts: { typecheck: 'tsc -p .' } }))
+  expect(typecheckMember(root)).toBe(0)
+}, 20_000)
+
+it('keeps a native Vitest projects configuration when there are no archived inputs', async () => {
+  const root = fixture()
+  rmSync(join(root, 'src/archive.legacy'), { recursive: true })
+  put(
+    root,
+    'vitest.config.ts',
+    `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { projects: [{ test: { name: 'unit', include: ['tests/**/*.spec.ts'] } }] } })\n`,
+  )
+  put(
+    root,
+    'tests/live.spec.ts',
+    `import { test, expect } from 'vitest'\ntest('live', () => expect(1).toBe(1))\n`,
+  )
+  const target: TestMember = {
+    path: '.',
+    name: '@fixture/nested',
+    script: 'vitest run',
+    dependencies: [],
+  }
+  const out = join(root, 'evidence')
+  mkdirSync(out)
+  const result = await runMembers(
+    root,
+    [target],
+    out,
+    { memberConcurrency: 1, vitestMaxWorkers: 1 },
+    'test',
+    'all',
+    () => {},
+  )
+  expect(result[0]?.exitCode, readFileSync(join(out, '..log'), 'utf8')).toBe(0)
+}, 20_000)
+
+it('preserves a single native CLI exclusion as a whole pattern', () => {
+  const root = fixture()
+  const output = join(root, 'options.json')
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--experimental-strip-types',
+      fileURLToPath(new URL('../src/testing/vitest-archive.ts', import.meta.url)),
+      'vitest run --typecheck.exclude tests/fixtures/**',
+      'all',
+      output,
+    ],
+    { cwd: root, encoding: 'utf8' },
+  )
+  expect(result.status, result.stderr).toBe(0)
+  expect(JSON.parse(readFileSync(output, 'utf8'))).toEqual([
+    '--typecheck.exclude',
+    'tests/fixtures/**',
+    '--typecheck.exclude',
+    '**/*.legacy/**',
+  ])
 }, 20_000)
 
 it('real Vitest ignores archived runtime/type roots while active source errors still fail', async () => {

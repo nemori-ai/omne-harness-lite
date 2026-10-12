@@ -35,7 +35,7 @@ export function typecheckMember(member: string): number {
   const temporary = mkdtempSync(join(tmpdir(), 'omne-typecheck-scope-'))
   try {
     const scoped = scopedProject(project, join(temporary, 'tsconfig.json'))
-    if (scoped.path === project) return invoke([])
+    if (scoped.path === project || scoped.path === join(project, 'tsconfig.json')) return invoke([])
     if (scoped.activeFiles === 0) {
       console.log(`Typecheck skipped: no active compiler roots in ${member}`)
       return 0
