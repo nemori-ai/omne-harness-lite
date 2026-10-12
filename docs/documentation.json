@@ -4409,6 +4409,58 @@
           "anchor": "加载与维护"
         }
       ]
+    },
+    {
+      "id": "docs#rfcs#RFC-0001",
+      "path": "docs/rfcs/RFC-0001-technical-foundations.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/rfcs/README.md",
+        "anchor": "准入编号与状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "1",
+          "anchor": "问题与有效输入"
+        },
+        {
+          "id": "2",
+          "anchor": "建议与改变范围"
+        },
+        {
+          "id": "3",
+          "anchor": "共同技术选择"
+        },
+        {
+          "id": "4",
+          "anchor": "公共设施机制"
+        },
+        {
+          "id": "5",
+          "anchor": "实质备选"
+        },
+        {
+          "id": "6",
+          "anchor": "验证与消费者切换"
+        },
+        {
+          "id": "7",
+          "anchor": "决定范围"
+        },
+        {
+          "id": "8",
+          "anchor": "写回现行正文"
+        },
+        {
+          "id": "9",
+          "anchor": "后继关系与维护"
+        }
+      ]
     }
   ]
 }
