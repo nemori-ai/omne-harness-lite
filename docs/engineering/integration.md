@@ -80,6 +80,6 @@ Project 可由原单投影写者维护可选 Integration target 与 Integration 
 
 已采用检出先bootstrap，工作树再依据真实Issue派发取得context。main没有任务context时，不直接运行带任务基线的check-plan或make check，也不伪造Issue绑定；通过checkpoint prepare和verify运行完整检查。无需发布stable时可停在verified，checkpoint发布另受实际任务授权约束。
 
-当前full profile分别验证工程工具入口启动、runner/subject锁定依赖安装、真实Git采用与模板迁移场景、开发者上下文查询及完整组合检查。封存实现的构建、类型、测试和验收按组合计划执行，不能据此声称新packages/apps产品骨架已提供运行时。新版产品的startup或数据迁移能力仍须由未来真实成员提供独立证据。
+当前full profile验证工程工具入口启动、runner/subject锁定依赖安装、真实Git采用与模板迁移场景、开发者上下文查询及工程静态检查。首次启用只执行这一组检查；此前已验证且输入未变的行为证据沿用原记录。`packages.0.0.1.legacy/`与`apps.0.0.1.legacy/`不进入工程静态扫描，也不执行封存产品的全量构建、类型、测试或验收。工具自身必需的依赖安装、构建不代表验证旧产品。新packages/apps仍是产品骨架，产品传感器没有输入时如实报告无数据，工程检查通过不代替产品质量结论。新版产品的startup、数据迁移及严格产品传感器门槛须由未来真实成员提供证据。
 
 平台前提为仓库规则24926783对adoption和unit标签禁止更新、删除及非快进修改，无bypass。Actions仍沿现有手动、本地验证政策；本次不声称启用自动Actions或验证所有coding agent宿主。实际采用与接续命令归工具README。

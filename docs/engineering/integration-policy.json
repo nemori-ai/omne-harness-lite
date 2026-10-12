@@ -167,9 +167,9 @@
       "cwd": "runner"
     },
     {
-      "id": "subject-native",
-      "argv": ["pnpm", "--dir", "{subject}", "-r", "rebuild", "node-pty"],
-      "cwd": "subject"
+      "id": "engineering-check",
+      "argv": ["bash", "{runner}/scripts/check-engineering.sh"],
+      "cwd": "runner"
     }
   ],
   "profiles": {
@@ -178,7 +178,6 @@
       "runner-python",
       "runner-build",
       "subject-dependencies",
-      "subject-native",
       "runner-agents",
       "runner-agent-links",
       "subject-agents",
@@ -191,22 +190,21 @@
       "runner-python",
       "runner-build",
       "subject-dependencies",
-      "subject-native",
       "runner-agents",
       "runner-agent-links",
       "subject-agents",
       "subject-agent-links",
       "startup",
-      "check",
+      "engineering-check",
       "migration-tests",
       "context-main-path"
     ]
   },
   "checkpointCoverage": {
     "startup": ["startup"],
-    "install": ["runner-dependencies", "runner-python", "subject-dependencies", "subject-native"],
+    "install": ["runner-dependencies", "runner-python", "subject-dependencies"],
     "migration": ["migration-tests"],
-    "mainPath": ["context-main-path", "check"]
+    "mainPath": ["context-main-path", "engineering-check"]
   },
   "timeouts": {
     "commandMs": 3600000,

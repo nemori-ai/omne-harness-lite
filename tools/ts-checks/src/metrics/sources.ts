@@ -9,7 +9,12 @@ export function collectMemberSources(root: string): SourceFile[] {
   const out: SourceFile[] = []
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir)) {
-      if (entry === 'node_modules' || entry === 'dist' || entry === 'coverage') continue
+      if (
+        ['node_modules', 'dist', 'coverage', 'packages.0.0.1.legacy', 'apps.0.0.1.legacy'].includes(
+          entry,
+        )
+      )
+        continue
       const full = join(dir, entry)
       if (statSync(full).isDirectory()) walk(full)
       else if (/\.[cm]?tsx?$/u.test(entry))

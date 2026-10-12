@@ -23,7 +23,7 @@ is_format_target() {
         /*|../*|*/../*|*/..)
             return 1
             ;;
-        */node_modules/*|*/dist/*|*/tmp/*|*/.worktrees/*|*/generated/*|*/upstream/*|spec/*|*.jsonl)
+        packages.0.0.1.legacy/*|apps.0.0.1.legacy/*|*/node_modules/*|*/dist/*|*/tmp/*|*/.worktrees/*|*/generated/*|*/upstream/*|spec/*|*.jsonl)
             return 1
             ;;
         .prettierrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/check.yml)
