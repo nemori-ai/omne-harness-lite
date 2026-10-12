@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
-import { assertContentSchemaTransition } from '../../../packages/core/content-blocks/tests/schema-transition.ts'
+import { assertContentSchemaTransition } from '../../../packages.0.0.1.legacy/core/content-blocks/tests/schema-transition.ts'
 
 const member = fileURLToPath(new URL('../', import.meta.url))
 const evidenceRoot = evidencePath(
