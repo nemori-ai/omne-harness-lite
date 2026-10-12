@@ -18,7 +18,7 @@
 > access across tenants is denied by default.
 
 - **形态**：对象
-- **出处**：[PF-001 §4 租户](../product/PF-001-identity-scope-and-agent-constraints/design.md#租户)（rev 19）
+- **出处**：[PF-001 §4 租户](../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#租户)（rev 19）
 - **别混**：与[组织](terms/subjects-and-ownership.md#ul-organization--组织--organization)不是一回事——组织是租户的**一半**，另一半是账号
 - **弃用**：~~「空间」~~、~~「工作区」~~
 ````
@@ -113,7 +113,7 @@
 | **指向 [现行词义](index.md) 的一条** | 这个概念**不归任何一个 topic**——跨全链的治理概念，被很多 topic 引用却没有哪一个拥有它 | 链到 `UL-D-1`，并注明是**谁、哪天**直接裁决的 |
 
 **没有第三种。**一条查不到出处的词条，说明它是**在这里被发明出来的**——
-那是[红线](../product/AGENTS.md#红线)：不发明没人拍板的东西。
+那是[红线](../product.0.0.1.legacy/AGENTS.md#红线)：不发明没人拍板的东西。
 
 ### rev 怎么写，怎么读
 
@@ -122,8 +122,8 @@
 那不代表定义错了，只代表「那边改过，这条还没人回头看」。
 
 ```markdown
-- **出处**：[PF-005 §5.2](../product/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事) · [§6.4](../product/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 3）
-- **出处**：[PF-004 §4 执行环境](../product/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 6） · [PF-005 §4](../product/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 3）
+- **出处**：[PF-005 §5.2](../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#52-租户级沙箱本体的存活与数据的存活是两件事) · [§6.4](../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#64-租户级沙箱共享的工作空间)（rev 3）
+- **出处**：[PF-004 §4 执行环境](../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#执行环境)（rev 6） · [PF-005 §4](../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#执行环境)（rev 3）
 ```
 
 第一行是同一个 topic 的两节共用一个 rev，第二行是两个 topic 各带各的。
@@ -134,7 +134,7 @@
 ## 对账器替这里守着什么
 
 形态必填且合法、变体的父走得到一个对象；[index.md](index.md) 每一行与分卷标题在 ID、中文名、英文名、锚点上一致；
-出处的 rev 是那个 topic 的当前值；形态为「对象」「未定」的词条，领域对象那边有对应的条目或待裁。
+当前PD出处的rev核README当前值，封存PF出处核封存README值并标为历史来源；封存可定位不证明词条已按当前产品复核或获得新采用。形态为「对象」「未定」的词条，领域对象那边有对应的条目或待裁。
 完整的一张表与道理在[领域对象的 conventions](../domain_objects/conventions.md#对账)，命令在工作区的 `tooling/README.md`「领域对象对账」。
 
 返回[统一语言入口](README.md)。

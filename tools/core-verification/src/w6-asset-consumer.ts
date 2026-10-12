@@ -974,7 +974,7 @@ for (const name of [
   } else
     assert.ok(
       url.pathname.endsWith(
-        '/packages/core/' +
+        '/packages.0.0.1.legacy/core/' +
           name.split('/')[0] +
           '/dist/' +
           (name.endsWith('/v2') ? 'v2' : 'index') +

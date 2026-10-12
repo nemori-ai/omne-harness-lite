@@ -2,15 +2,22 @@
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inspect, readAcceptanceLockConfig, render } from './lock.ts'
+import { baselines } from '../integration/context.ts'
+import { auditRanges } from '../integration/audit.ts'
 
 const USAGE = '用法：--base <基线提交或分支> [--root <检出目录>]'
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 
 function main(argv: readonly string[]): number {
   let base: string | undefined
-  let root = ROOT
+  let defaultBase = false
+  let root = process.env['OMNE_SUBJECT_ROOT'] ?? ROOT
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
+    if (arg === '--default-base') {
+      defaultBase = true
+      continue
+    }
     const value = argv[index + 1]
     if ((arg !== '--base' && arg !== '--root') || value === undefined || value === '')
       throw new Error(`认不出的参数 ${arg ?? ''}\n${USAGE}`)
@@ -18,11 +25,18 @@ function main(argv: readonly string[]): number {
     else root = resolve(value)
     index += 1
   }
-  if (base === undefined) throw new Error(`缺 --base\n${USAGE}`)
   const config = readAcceptanceLockConfig()
-  const report = inspect(root, base, config)
-  for (const line of render(report, config)) console.log(line)
-  return report.violations.length === 0 ? 0 : 1
+  const selected = baselines(root, base)
+  base = selected.targetBase ?? (defaultBase ? 'main' : undefined)
+  if (base === undefined) throw new Error(USAGE)
+  const ranges = auditRanges(root, base)
+  if (ranges.length === 0) ranges.push({ label: 'legacy task', base: base ?? 'main', head: 'HEAD' })
+  const reports = ranges.map(range =>
+    inspect(root, range.base, config, range.head, selected.state === 'adopted'),
+  )
+  for (const range of ranges) console.log(`${range.label}: ${range.base}..${range.head}`)
+  for (const report of reports) for (const line of render(report, config)) console.log(line)
+  return reports.every(report => report.violations.length === 0) ? 0 : 1
 }
 
 try {

@@ -12,7 +12,10 @@ import {
 const AI = 'tenancy/account-identity-sql/src/'
 const file = (path: string, text: string): SourceFile => ({ path, text })
 const real = (path: string): SourceFile =>
-  file(path, readFileSync(new URL(`../../../packages/${path}`, import.meta.url), 'utf8'))
+  file(
+    path,
+    readFileSync(new URL(`../../../packages.0.0.1.legacy/${path}`, import.meta.url), 'utf8'),
+  )
 const plugin = file(`${AI}plugin.ts`, 'const deps = { random: cryptoRandomSource }\n')
 
 describe('no-presentation-in-diagnostics', () => {

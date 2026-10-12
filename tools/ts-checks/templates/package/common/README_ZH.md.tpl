@@ -1,27 +1,47 @@
 # @omne-harness-lite/{{PACKAGE_NAME}}
 
+PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
-PACKAGE_TEMPLATE_DRAFT：交付前填写已接受的实际职责。
-这是私有 ESM workspace 包，采用 {{VARIANT}} 模板变体。
+{{VARIANT}} 变体草稿。
+## 职责与状态
 
-## 公开接口和示例
+<!-- documentation:placeholder -->
 
-说明实际导出与可运行示例。根入口独立于 Cordis；绑定变体才使用 `./cordis`。
+填写实际消费者、平台、职责和采用依据。区分已实现、未实现与未验证。
 
-## 承诺和验证
+## 使用
 
-链接公开接口拥有者和采用的行为。类型表达不出的行为才建立 SPEC.md。
-适用的 Schema、模型和证明归语义拥有者。模板标识不证明业务行为通过。
+<!-- documentation:placeholder -->
 
-## 开发
+给出最小有效示例、依赖及初始化和释放责任。分别说明独立使用入口与 Cordis 集成入口。逐项核对公开 exports、源码值依赖、生成声明、运行启动和安装闭包。存在 ./cordis 不证明独立安装成立。
 
-按[开发指南](../../../docs/development.md)准备环境，先构建依赖。
+## 契约
 
-```sh
-pnpm --filter @omne-harness-lite/{{PACKAGE_NAME}} run build
-pnpm --filter @omne-harness-lite/{{PACKAGE_NAME}} run typecheck
-pnpm --filter @omne-harness-lite/{{PACKAGE_NAME}} run test
-```
+<!-- documentation:placeholder -->
 
-交付前以已接受的内容和有意义的测试替换草稿，不用空测试假报通过。
+链接公开类型、必要校验及唯一行为正文。类型外行为由 SPEC.md 拥有。说明错误、生命周期与资源责任的拥有者，不复制签名或状态机。
+
+## 设计
+
+<!-- documentation:placeholder -->
+
+说明内部模块、数据流、控制流和关键不变量的拥有者。复杂机制按实际阅读任务拆页。
+
+## 配置与运行
+
+<!-- documentation:placeholder -->
+
+填写配置拥有者、默认行为、环境前提和显式依赖。说明调用者与包各自的运行责任。
+
+## 验证
+
+<!-- documentation:placeholder -->
+
+填写可复跑命令、性质、前提和未覆盖。提供有实际断言的测试。结构通过不表示业务行为已验证。
+
+## 维护
+
+<!-- documentation:placeholder -->
+
+说明公开契约、资源或依赖变化时必须同步的消费者和验证入口。信息不适用时写明理由，未知时登记具名缺口。

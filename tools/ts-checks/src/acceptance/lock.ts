@@ -140,15 +140,30 @@ function lines(text: string): string[] {
 
 const STATUS = { A: 'added', M: 'modified', D: 'deleted', T: 'modified' } as const
 
-function changesSince(root: string, mergeBase: string, config: AcceptanceLockConfig): FileChange[] {
+function changesSince(
+  root: string,
+  mergeBase: string,
+  config: AcceptanceLockConfig,
+  head = 'HEAD',
+): FileChange[] {
   const changes: FileChange[] = []
-  for (const line of lines(git(root, ['diff', '--no-renames', '--name-status', mergeBase]))) {
+  for (const line of lines(
+    git(root, [
+      'diff',
+      '--no-renames',
+      '--name-status',
+      mergeBase,
+      ...(head === 'HEAD' ? [] : [head]),
+    ]),
+  )) {
     const [code, path] = line.split('\t')
     const status = STATUS[code as keyof typeof STATUS]
     if (path === undefined || status === undefined) throw new Error(`认不出的 git diff 行：${line}`)
     if (isAcceptancePath(path, config)) changes.push({ status, path })
   }
-  for (const path of lines(git(root, ['ls-files', '--others', '--exclude-standard'])))
+  for (const path of head === 'HEAD'
+    ? lines(git(root, ['ls-files', '--others', '--exclude-standard']))
+    : [])
     if (isAcceptancePath(path, config)) changes.push({ status: 'added', path })
   return changes.sort((a, b) => a.path.localeCompare(b.path))
 }
@@ -165,9 +180,11 @@ function touchesSince(
   root: string,
   mergeBase: string,
   config: AcceptanceLockConfig,
+  head = 'HEAD',
+  integration = false,
 ): CommitTouch[] {
   const touches: CommitTouch[] = []
-  for (const record of readCommits(root, `${mergeBase}..HEAD`)) {
+  for (const record of readCommits(root, `${mergeBase}..${head}`)) {
     // `-m` 让合并提交相对每个父提交各列一次，路径去重后即「这个提交带进来的验收改动」。
     const names = git(root, [
       'diff-tree',
@@ -175,7 +192,7 @@ function touchesSince(
       '--name-only',
       '--no-renames',
       '-r',
-      '-m',
+      ...(integration ? ['--cc'] : ['-m']),
       record.sha,
     ])
     const files = [...new Set(lines(names))].filter(path => isAcceptancePath(path, config)).sort()
@@ -185,15 +202,21 @@ function touchesSince(
 }
 
 /** 读 Git：基线到当前工作树之间，验收文件发生了什么、谁改的。 */
-export function inspect(root: string, base: string, config: AcceptanceLockConfig): LockReport {
-  const mergeBase = git(root, ['merge-base', base, 'HEAD'])
-  const uncommitted = uncommittedPaths(root, config)
+export function inspect(
+  root: string,
+  base: string,
+  config: AcceptanceLockConfig,
+  head = 'HEAD',
+  integration = false,
+): LockReport {
+  const mergeBase = git(root, ['merge-base', base, head])
+  const uncommitted = head === 'HEAD' ? uncommittedPaths(root, config) : []
   return {
     base,
     mergeBase,
-    changes: changesSince(root, mergeBase, config),
+    changes: changesSince(root, mergeBase, config, head),
     uncommitted,
-    ...judge(touchesSince(root, mergeBase, config), uncommitted, config),
+    ...judge(touchesSince(root, mergeBase, config, head, integration), uncommitted, config),
   }
 }
 

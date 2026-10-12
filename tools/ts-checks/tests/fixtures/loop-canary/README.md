@@ -15,7 +15,7 @@
 | 超 alert 的函数 | 十四个分支的函数，基线之后加入 | 测试里写入 `apps/cli/src/route.ts` |
 | 新增跨成员依赖 | 基线之后 apps/cli 新依赖 core/a | 测试里写入 `apps/cli/src/extra.ts` |
 | 一起改却分属两组 | core/a 与 infra/b 连着一起改四次 | 测试里造提交 |
-| topic rev 翻动 | 一个 topic 两周内升了三次 rev | `.meta_harness/design/product/PF-001-canary/README.md`，测试里造提交 |
+| topic rev 翻动 | 一个 topic 两周内升了三次 rev | `.meta_harness/design/product/canary/README.md`，测试里造提交 |
 | 并行工作树 | 两棵工作树同时改 model/m | 测试里建工作树 |
 
 假仓库里的 TypeScript 文件以 `.ts.txt` 存放，拷进临时目录时去掉 `.txt`：这样本包的类型检查、

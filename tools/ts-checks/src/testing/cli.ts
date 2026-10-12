@@ -7,6 +7,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { coordinates } from '../metrics/git.ts'
+import { baselines } from '../integration/context.ts'
 import {
   isRunScript,
   isRunTier,
@@ -55,7 +56,9 @@ const USAGE = [
   '  triage --run <运行目录>',
 ].join('\n')
 
-const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
+const ROOT = resolve(
+  process.env['OMNE_SUBJECT_ROOT'] ?? fileURLToPath(new URL('../../../../', import.meta.url)),
+)
 
 const parseFlags = (
   argv: readonly string[],
@@ -65,7 +68,12 @@ const parseFlags = (
 
 function planFromFlags(flags: Flags): PlanFile {
   const full = flags.switches.has('--full') || fullRequested(process.env)
-  return computePlan(ROOT, baselineOf(flags.values.get('--base'), process.env), full)
+  const explicit = flags.values.get('--base') ?? process.env['BASELINE']
+  return computePlan(
+    ROOT,
+    baselines(ROOT, explicit).targetBase ?? baselineOf(explicit, process.env),
+    full,
+  )
 }
 
 function plan(argv: readonly string[]): number {
@@ -125,11 +133,19 @@ function parseRun(argv: readonly string[]): RunRequest {
   const flags = parseFlags(
     argv,
     ['--base', '--out', '--script', '--tier'],
-    ['--all', '--plan-only', '--no-build', '--build'],
+    ['--all', '--plan-only', '--no-build', '--build', '--default-base'],
   )
-  const base = flags.values.get('--base')
   const all = flags.switches.has('--all')
-  if ((base === undefined) === !all) throw new Error(`--base 与 --all 二选一\n${USAGE}`)
+  if (all && flags.values.has('--base')) throw new Error(`--base 与 --all 二选一\n${USAGE}`)
+  const resolved = baselines(ROOT, flags.values.get('--base'))
+  if (
+    !all &&
+    resolved.state !== 'adopted' &&
+    !flags.values.has('--base') &&
+    !flags.switches.has('--default-base')
+  )
+    throw new Error(`--base 与 --all 二选一\n${USAGE}`)
+  const base = all ? undefined : (resolved.targetBase ?? 'main')
   if (flags.switches.has('--build') && flags.switches.has('--no-build'))
     throw new Error(`--build 与 --no-build 不能同时给\n${USAGE}`)
   const script = scriptOf(flags)

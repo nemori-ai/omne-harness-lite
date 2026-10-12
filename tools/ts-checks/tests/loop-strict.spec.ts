@@ -36,11 +36,16 @@ function complete(): { root: string; home: string; out: string; base: string } {
   write(root, 'packages/core/a/src/index.ts', 'export const a = 1\n')
   write(root, 'packages/infra/b/src/index.ts', 'export const b = 2\n')
   write(root, 'packages/core/a/tests/a.spec.ts', "it('断言', () => { expect(1).toBe(1) })\n")
-  write(root, '.meta_harness/design/product/PF-001-x/README.md', '---\nrevision: 1\n---\n')
+  write(
+    root,
+    '.meta_harness/design/product/x/README.md',
+    '---\nid: PD-x\nstatus: draft\nrevision: 1\n---\n',
+  )
+  write(root, '.meta_harness/design/product/x/design.md', '# Product fixture\n')
   write(root, 'packages/core/a/package.json', '{"name":"@omne-harness-lite/a"}\n')
   write(
     root,
-    '.meta_harness/design/architecture/constraints.json',
+    'docs/architecture/constraints.json',
     '{"schemaVersion": 1, "domains": [], "roles": [], "rules": []}',
   )
   const base = commit(root, 'members')
@@ -122,7 +127,7 @@ describe('严格模式', { timeout: 60_000 }, () => {
 
   it('当前全局预期删除：architecture 点名 no-data，严格模式失败；差分独立可见', () => {
     const { root, home, out, base } = complete()
-    rmSync(join(root, '.meta_harness/design/architecture/constraints.json'))
+    rmSync(join(root, 'docs/architecture/constraints.json'))
     const result = run(root, home, '--strict', '--base', base, '--out', out)
     expect(result.status).toBe(1)
     expect(result.stdout).toContain('sensors.architecture（全局架构预期不可用：')

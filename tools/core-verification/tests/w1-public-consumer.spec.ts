@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
-import { assertContentSchemaTransition } from '../../../packages/core/content-blocks/tests/schema-transition.ts'
+import { assertContentSchemaTransition } from '../../../packages.0.0.1.legacy/core/content-blocks/tests/schema-transition.ts'
 
 const member = fileURLToPath(new URL('../', import.meta.url))
 const evidenceRoot = evidencePath(
@@ -118,7 +118,7 @@ async function consume(negativeControl: boolean) {
     const bytes = await readFile(
       join(
         member,
-        '../../packages/core',
+        '../../packages.0.0.1.legacy/core',
         name,
         name === 'content-blocks'
           ? 'tests/fixtures/content-before-admission.schema.json'
@@ -130,7 +130,10 @@ async function consume(negativeControl: boolean) {
     expect(sha256).toBe(schemaDigests[name])
     if (name === 'content-blocks') {
       const current = await readFile(
-        join(member, '../../packages/core/content-blocks/schema/content-blocks.schema.json'),
+        join(
+          member,
+          '../../packages.0.0.1.legacy/core/content-blocks/schema/content-blocks.schema.json',
+        ),
       )
       assertContentSchemaTransition(current, bytes)
       expect(schema.sha256).toBe(createHash('sha256').update(current).digest('hex'))

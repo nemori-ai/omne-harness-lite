@@ -1,8 +1,9 @@
-"""Shared local document parsing for repository checks; never fetch remote resources."""
 from __future__ import annotations
 
 import hashlib
+import os
 import re
+import unicodedata
 from functools import lru_cache
 from html.parser import HTMLParser
 from pathlib import Path
@@ -11,6 +12,8 @@ from urllib.parse import unquote, urlsplit
 from markdown_it import MarkdownIt
 
 PARSER = MarkdownIt().enable("table")
+# Parse every URI so the local boundary can reject file links instead of hiding them as text.
+PARSER.validateLink = lambda value: True
 
 
 def repository_root(start: Path | None = None) -> Path:
@@ -26,10 +29,14 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def tokens(path: Path):
-    text = path.read_text(encoding="utf-8")
-    text = re.sub(r"\A---\r?\n.*?\r?\n---(?:\r?\n|$)", "", text, count=1, flags=re.S)
+def parse_markdown(text: str):
+    text = re.sub(r"\A---\r?\n.*?\r?\n---(?:\r?\n|$)",
+                  lambda match: "\n" * match.group().count("\n"), text, count=1, flags=re.S)
     return PARSER.parse(text)
+
+
+def tokens(path: Path):
+    return parse_markdown(path.read_text(encoding="utf-8"))
 
 
 def slug(text: str) -> str:
@@ -49,8 +56,6 @@ class _ExplicitAnchors(HTMLParser):
 
 @lru_cache(maxsize=None)
 def headings(path: Path) -> set[str]:
-    # 每条带锚点的链接都要查目标文件的标题集；一份上千行的契约被引用上千次时，
-    # 不缓存就是把它解析上千遍。一次检查运行内文件不变，按路径缓存即可。
     parsed = tokens(path)
     result = set()
     for index, token in enumerate(parsed[:-1]):
@@ -64,7 +69,6 @@ def headings(path: Path) -> set[str]:
             suffix += 1
             name = f"{base}-{suffix}"
         result.add(name)
-    # 只读真正的HTML token；代码示例里的同形文字不是链接目标。
     explicit = _ExplicitAnchors()
     for token in parsed:
         if token.type == "html_block":
@@ -83,17 +87,45 @@ def markdown_links(path: Path):
                 yield child.attrGet("href" if child.type == "link_open" else "src")
 
 
-def local_target(source: Path, value: str, root: Path):
+def navigation_path(root: Path, path: Path) -> Path:
+    root = root.resolve()
+    target = path.resolve()
+    if not target.is_relative_to(root):
+        raise ValueError(f"link escapes checkout: {path}")
+    for candidate in (path, target):
+        if not candidate.is_relative_to(root):
+            raise ValueError(f"link escapes checkout: {path}")
+        parts = candidate.relative_to(root).parts
+        if "record" in parts:
+            raise ValueError(f"process record is not a current owner: {path}")
+        if any(part in {"tmp", ".worktrees", ".git", "node_modules", ".venv"} for part in parts):
+            raise ValueError(f"temporary/process source: {path}")
+    return path
+
+
+def local_target(source: Path, value: str, root: Path, *, resolve=True):
+    if any(unicodedata.category(char) == "Cc" for char in value) or "\\" in value:
+        raise ValueError(f"invalid local URI: {value!r}")
     parts = urlsplit(value)
+    if parts.scheme.lower() == "file":
+        raise ValueError(f"file URI is not a local document link: {value}")
     if parts.scheme or parts.netloc:
         return None, None
-    raw = unquote(parts.path)
+    if re.search(r"%(?![0-9a-fA-F]{2})", value):
+        raise ValueError(f"invalid percent encoding: {value}")
+    raw, fragment, query = (unquote(part, errors="strict") for part in (parts.path, parts.fragment, parts.query))
+    if any(unicodedata.category(char) == "Cc" or char == "\\" for char in raw + fragment + query):
+        raise ValueError(f"invalid decoded local URI: {value}")
     if raw.startswith("/"):
         raise ValueError(f"use repository-relative links: {value}")
-    target = (source.parent / raw).resolve() if raw else source.resolve()
-    if not target.is_relative_to(root.resolve()):
+    # abspath removes dot components but retains the symlink identity for input guards.
+    original = source.resolve().parent / raw if raw else source.resolve()
+    target = Path(os.path.abspath(original))
+    if original.resolve() != target.resolve():
+        raise ValueError(f"ambiguous symlink traversal: {value}")
+    if not target.resolve().is_relative_to(root.resolve()):
         raise ValueError(f"link escapes checkout: {value}")
-    return target, unquote(parts.fragment)
+    return target.resolve() if resolve else target, fragment
 
 
 def validate_link(source: Path, value: str, root: Path, *, local_required=False):

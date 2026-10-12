@@ -4,6 +4,14 @@ Structural checks for this repository's TypeScript product sources and trusted a
 
 [中文说明 and the existing rule catalogue](README_ZH.md)
 
+## Ordinary tasks and long-lived product scenarios
+
+The [delivery observer](src/delivery/README.md) reads an explicit Issue capture and reports known facts, deviations, and unknowns. It does not authorize dispatch or acceptance. The formal configuration remains disabled. Each task uses the ordinary protocol to define its identity, result, scope, and acceptance responsibility.
+
+`make scenario-status` reads current product topics and coverage declarations independently of Issues. It reports execution and acceptance as unknown when evidence is absent. Topics without numbered scenarios remain explicitly uncovered. The [product contract](src/product/SPEC.md) defines discovery and failure behavior.
+
+`make design-check` checks current design sources, domain objects, and generated inputs. `make loop-health` reports trends, test timings, and Git history.
+
 ## Stop-hook revision reads
 
 The Stop hook recalculates the merge base with `primaryBranch` on each invocation.
@@ -122,10 +130,20 @@ The exact `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-su
 
 The private `omne-package-template` CLI creates drafts and inventories exact template adoption. See the [template guide](templates/package/README.md) and [development entry](../../docs/development.md#创建和整改产品包). It reuses the architecture reader. Structural results do not accept business or lifecycle behavior.
 
+The package template is typescript-package@2.0.0. Exact 1.0.0 rules remain available for older markers.
+`create-domain --group <name>` previews a package-domain@1.0.0 documentation draft. Add --write to create it.
+`scan --group <name> --check` checks group structure. It is mutually exclusive with --member.
+See the [group template](templates/domain/README.md). Python documentation inventory separately checks bindings, sections and placeholders.
+
 ## Actual assembly observations
 
 The clean loop reads complete current and BASE sources through `sensors.architecture`.
-Global expectations belong to `.meta_harness/design/architecture/constraints.json`.
+Global expectations belong to `docs/architecture/constraints.json`.
+Each version discovers its own current or historical input. Duplicate owners and invalid source references fail.
+Schema 2 source paths start at repository root. Referenced files and Markdown anchors are read at the same version.
+IC-1 and IC-5 use adopted roles and actual public exports. Directory names grant no exception.
+A missing current or BASE input remains unknown or no-data. Current deletion still reports its semantic change.
+Changes to cited Markdown also trigger the hook. See the [conformance contract](src/arch/CONFORMANCE.md).
 It reports static conformance separately from added, removed and changed assembly facts.
 Fact counts are neutral. They have no thresholds or trend comparison.
 
@@ -139,3 +157,7 @@ The extractor does not prove lifecycle, authorization, isolation or shared commi
 Public services, member SPEC files and behavior verification own those obligations.
 Tests cover source moves, injection additions, metadata changes, collisions, unknowns and missing inputs.
 See [the full configuration and output description](README_ZH.md#实际装配与全局架构约束).
+
+## GitHub delivery observation
+
+The [delivery observer](src/delivery/README.md) reads an explicit configuration and capture. It reports card shape, phase waits, native dependency projections, stock and changes. It does not authorize dispatch or acceptance, and it does not infer current product support.

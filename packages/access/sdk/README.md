@@ -1,0 +1,13 @@
+# 客户端 SDK 文档目标
+
+<!-- documentation:placeholder -->
+
+本目录预留完整 Harness 的客户端统一入口及客户端拥有的连接和句柄的成员文档。依据为[上层责任](../../../docs/architecture/layers-and-dependencies.md)和[目标包组织](../../../docs/package-organization.md)。目前没有 manifest、源码、公开导出或运行支持；文档不表示成员已获技术采用。
+
+## 阅读路径
+
+客户端应用是预期消费者。公开形状、调用前提与用法尚未确定。非类型行为的待承接项见[行为规格](SPEC.md)，内部结构见[内部设计](docs/internals.md)。实际产品成员从[包入口](../../README.md)辨认，封存实现从[legacy 入口](../../../packages.0.0.1.legacy/README.md)查证。
+
+## 边界与承接
+
+SDK 不依赖服务端私有实现或 Cordis 装配树。技术拥有者须与具名消费者确认公开契约、采用范围及依赖边界，再由成员维护者补使用、配置、失败与验证说明。文档维护者核对登记与导航。长期个人负责人尚未具名。没有已接受契约或真实入口时在此停止。

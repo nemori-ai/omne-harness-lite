@@ -2,6 +2,7 @@
 // 列出存活与无覆盖的变异体，读数写进主检出的 `tmp/mutation-ledger/`。
 // 只报告（负责人 2026-10-02 定）：变异体存活不影响退出码；Stryker 起不来、初跑失败、没写出报告才退出非零。
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { baselines } from '../integration/context.ts'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { changedLines, coordinates, type Coordinates } from '../metrics/git.ts'
@@ -21,7 +22,7 @@ import { runStryker } from './stryker.ts'
 const USAGE = [
   '用法：',
   '  run (--base <ref> | --members <成员目录,…>) [--plan-only] [--root <检出根>] [--out <目录>]',
-  '      --base 变异基线合并点到工作树（含未提交、未跟踪）改动碰到的、packages/ 与 apps/ 成员 src/ 下的源码行',
+  '      --base 变异基线合并点到工作树（含未提交、未跟踪）改动碰到的 workspace 产品成员 src/ 下的源码行',
   '      --members 变异点名成员 src/ 下的全部源码（逗号分隔的仓库相对目录）',
 ].join('\n')
 
@@ -37,13 +38,27 @@ interface MutationRequest {
 }
 
 function parseRun(argv: readonly string[]): MutationRequest {
-  const flags = parseFlags(argv, ['--base', '--members', '--root', '--out'], ['--plan-only'], USAGE)
-  const base = flags.values.get('--base')
+  const flags = parseFlags(
+    argv,
+    ['--base', '--members', '--root', '--out'],
+    ['--plan-only', '--default-base'],
+    USAGE,
+  )
+  const root = resolve(
+    flags.values.get('--root') ?? process.env['OMNE_SUBJECT_ROOT'] ?? DEFAULT_ROOT,
+  )
+  const resolved = baselines(root, flags.values.get('--base'))
   const members = flags.values.get('--members')
-  if ((base === undefined) === (members === undefined))
+  const base =
+    members === undefined
+      ? (resolved.targetBase ?? (flags.switches.has('--default-base') ? 'main' : undefined))
+      : undefined
+  if (base === undefined && members === undefined)
+    throw new Error(`--base 与 --members 二选一\n${USAGE}`)
+  if (flags.values.has('--base') && members !== undefined)
     throw new Error(`--base 与 --members 二选一\n${USAGE}`)
   return {
-    root: resolve(flags.values.get('--root') ?? DEFAULT_ROOT),
+    root,
     base,
     members: members
       ?.split(',')

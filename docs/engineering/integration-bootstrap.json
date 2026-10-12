@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "repository": "nemori-ai/omne-harness-lite",
+  "policyPath": "docs/engineering/integration-policy.json",
+  "adoptionPrefix": "refs/tags/omne/integration/adoption/",
+  "remote": "origin"
+}

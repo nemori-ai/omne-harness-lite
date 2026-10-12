@@ -154,8 +154,6 @@ export interface HardLines {
   readonly direction: readonly DirectionFinding[]
   readonly cycles: readonly DirectionFinding[]
   readonly acceptanceLock: RangeLine
-  /** 删卡要有记录：与验收锁同一个基线。 */
-  readonly cardRetire: RangeLine
   readonly sensors: SensorLine
 }
 
@@ -166,7 +164,6 @@ export function hardLinesBroken(lines: HardLines): boolean {
     lines.direction.length > 0 ||
     lines.cycles.length > 0 ||
     broken(lines.acceptanceLock) ||
-    broken(lines.cardRetire) ||
     (lines.sensors.status === 'judged' && lines.sensors.silent.length > 0)
   )
 }
@@ -260,7 +257,6 @@ function hardLineLines(lines: HardLines): string[] {
     finding('方向违规', lines.direction),
     finding('环', lines.cycles),
     range(lines.acceptanceLock, '验收锁', '没破', '破'),
-    range(lines.cardRetire, '删卡记录', '齐', '缺'),
     sensorLine(lines.sensors),
   ]
 }

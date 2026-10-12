@@ -1,6 +1,6 @@
 # MCP桥：当前设计与未实现边界
 
-产品规则归[产品入口](../../product/PF-006-tools-and-skills/README.md)；本页只维护尚无真实提供者的已采用技术行为及未决，不授予实现或验证状态。公开数据沿实际定义拥有者，不建空包。新增产品政策仍由产品负责人决定。
+产品规则归[产品入口](../../product.0.0.1.legacy/PF-006-tools-and-skills/README.md)；本页只维护尚无真实提供者的已采用技术行为及未决，不授予实现或验证状态。公开数据沿实际定义拥有者，不建空包。新增产品政策仍由产品负责人决定。
 
 桥不做准入。holding 来自真实求值，invoke 由已经过 tool admission 的调用方执行；身份、凭据、scope/provenance 不能从进程环境补。形状先 invalidInput；其他闭合失败是现行采用集合，**现行采用未给所有并发失败的统一首拒绝全序，不补一个**。纯投影内部有明确名字/schema 首拒绝。
 
@@ -30,4 +30,4 @@ projectActions 行为必须保持：remote条目名 endpoint.name+":"+remote.nam
 
 验证义务与规范输入见[verification](verification/README.md)。尚未闭合的公共语义阻止相应提供者实施，不以迁移目录关闭业务缺口。
 
-动作名和Schema判定沿[tool-definition](../../../../packages/core/tool-definition/SPEC.md)的公开校验与具名拒绝顺序；本桥先名字，再Schema形状，后编译上限，最后execution方式，不新增编号权威。
+动作名和Schema判定沿[tool-definition](../../../../packages.0.0.1.legacy/core/tool-definition/SPEC.md)的公开校验与具名拒绝顺序；本桥先名字，再Schema形状，后编译上限，最后execution方式，不新增编号权威。

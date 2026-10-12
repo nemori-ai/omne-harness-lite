@@ -36,7 +36,7 @@ export interface ArchitectureImportException {
   readonly source: string
 }
 export interface ArchitectureConstraints {
-  readonly schemaVersion: 1
+  readonly schemaVersion: 1 | 2
   readonly importExceptions?: readonly ArchitectureImportException[]
   readonly domains: readonly {
     readonly id: string
@@ -50,6 +50,7 @@ export interface ConstraintInput {
   readonly path: string
   readonly source: SourceCoordinates
   readonly value: ArchitectureConstraints | null
+  readonly sources: readonly { readonly path: string; readonly digest: string }[]
 }
 export interface ConstraintChange {
   readonly id: string
@@ -59,7 +60,7 @@ export interface ConstraintChange {
 }
 export interface ConformanceRow {
   readonly id: string
-  readonly rule: RuleId | 'ROLE'
+  readonly rule: RuleId | 'ROLE' | 'INPUT'
   readonly state: 'converged' | 'deviation' | 'unknown'
   readonly age: 'new' | 'stock' | 'unjudged'
   readonly member: string
@@ -79,6 +80,7 @@ export interface Conformance {
   readonly comparedWith: 'baseline' | 'current'
   readonly rows: readonly ConformanceRow[]
   readonly changes: readonly ConstraintChange[]
+  readonly sourceChanges: readonly ConstraintChange[]
   readonly changeState: 'compared' | 'no-baseline'
   readonly coverage: readonly {
     readonly id: string

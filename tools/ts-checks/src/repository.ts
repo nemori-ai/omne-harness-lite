@@ -73,7 +73,18 @@ export function collectRepositorySources(root: string): SourceFile[] {
   }
   function walk(dir: string): void {
     for (const name of readdirSync(dir)) {
-      if (['node_modules', 'dist', 'tmp', '.git', '.worktrees', '.meta_harness'].includes(name))
+      if (
+        [
+          'node_modules',
+          'dist',
+          'tmp',
+          '.git',
+          '.worktrees',
+          '.meta_harness',
+          'packages.0.0.1.legacy',
+          'apps.0.0.1.legacy',
+        ].includes(name)
+      )
         continue
       const full = join(dir, name)
       if (statSync(full).isDirectory()) walk(full)

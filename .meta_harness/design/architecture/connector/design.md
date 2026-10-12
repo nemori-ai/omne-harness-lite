@@ -46,7 +46,7 @@
 每个接收边界重验，不信上游已校验；非法值进入业务判断之前拒绝，不记作受理的业务结论。不能丢掉多余／坏成员、裁空白、大小写归一化或部分保留附件来修补。
 现有值的拒绝集合闭合，多处违例固定按 `target_unknown > channel_empty > envelope_empty > malformed` 取最高项，与遍历顺序无关。malformed判据为其余Schema形状失败，内嵌SessionRef／AttachmentRef／Instant违例沿该项收场。嵌入资产形状时按资产闭合集合携带原名；不另造同义错误。Schema合法仅证明形状，不证明可信、会话可访问或附件可读。
 
-Schema唯一源在 [Asset Model资源](../../../../packages/core/asset-model/schema/resources/connector.schema.json)，公开URI保持。它能约束单值形状；不证明交接认证、实际账号一致、声明求值、去重或投递进展。
+Schema唯一源在 [Asset Model资源](../../../../packages.0.0.1.legacy/core/asset-model/schema/resources/connector.schema.json)，公开URI保持。它能约束单值形状；不证明交接认证、实际账号一致、声明求值、去重或投递进展。
 
 ## 阻断实施的未决
 

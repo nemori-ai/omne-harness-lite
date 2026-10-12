@@ -23,7 +23,7 @@
 
 ## 二、五条旅程
 
-### 2.1 给组织加一个资产（[flows §1.1](../../../product/PF-002-assets-settings-and-permissions/flows.md#11-给组织加一个资产)）
+### 2.1 给组织加一个资产（[flows §1.1](../../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#11-给组织加一个资产)）
 
 `S` 把一份组织自己的 tool `lint`（记录 `ar_lint`，所有者 `O`，已发布 v1）加入组织层。
 
@@ -35,7 +35,7 @@
 
 **加入的是 plugin 时**：只写**一份**持有；成员随它进来，不各自成为持有（当前设计）。视图里那一份另列成员能力标识；成员的表单见 当前设计。
 
-### 2.2 用自定义资产替换 official（[flows §1.3](../../../product/PF-002-assets-settings-and-permissions/flows.md#13-用自定义资产替换-official)）
+### 2.2 用自定义资产替换 official（[flows §1.3](../../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#13-用自定义资产替换-official)）
 
 `S` 做一份组织自己的 `{skill, code_review}`，替掉官方那份。
 
@@ -48,9 +48,9 @@
 
 **「这一层及以下生效的是新的那份」「所有引用该标识的 plugin 与 agent definition 自动用上新的」是求值的结论**（`asset-evaluation），本域设计只写下了第 3 步那份持有。
 
-**在个人组织里做同一件事也行**：`Qs` 是 `Q` 的超级管理员，上面三步把 `S`／`O` 换成 `Qs`／`Q` 照样成立（[acceptance](../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)「成员在个人组织里替换 official：允许」）。
+**在个人组织里做同一件事也行**：`Qs` 是 `Q` 的超级管理员，上面三步把 `S`／`O` 换成 `Qs`／`Q` 照样成立（[acceptance](../../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)「成员在个人组织里替换 official：允许」）。
 
-### 2.3 组织锁死一个自定义资产（[flows §1.4](../../../product/PF-002-assets-settings-and-permissions/flows.md#14-组织锁死一个自定义资产)）
+### 2.3 组织锁死一个自定义资产（[flows §1.4](../../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#14-组织锁死一个自定义资产)）
 
 接 2.2：`S` 不许任何成员换掉 `{skill, code_review}`。`M` 自己有一份 `{skill, code_review}`（记录 `ar_cr_m`，所有者 `M`，已发布 v1）。
 
@@ -58,12 +58,12 @@
 |---|---|---|---|
 | 1 | 当前设计 `lockReplacement(caller: S, scope: 组织层 O, capability: {skill, code_review})` | `ok`；发 `HoldingChanged(replacement_locked)` | — |
 | 2 | 当前设计 `hold(caller: M, scope: 租户层 M, asset: "ar_cr_m")` | **`lockedAbove`**，不写 | ②「组织层没有加替换锁」不成立；**不是 `notPermitted`**——那是组织锁定的，不是他权限不够 |
-| 3 | 当前设计 `hold(caller: M, scope: 租户层 M, asset: "ar_off_review")` | **`lockedAbove`** | 换回官方件同样是替换（[acceptance](../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)「无法把它换回 official，也无法换成自己的」） |
+| 3 | 当前设计 `hold(caller: M, scope: 租户层 M, asset: "ar_off_review")` | **`lockedAbove`** | 换回官方件同样是替换（[acceptance](../../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)「无法把它换回 official，也无法换成自己的」） |
 | 3a | 当前设计 `hold(caller: M, scope: 租户层 M, asset: "ar_cr_O")` | `ok`，依据 `organization`、版本选用 `current` | **同一份记录不算替换**）：他要在自己那一层配值；配值仍受组织层的项锁 |
 | 3b | 同 3a，但 `versionSelection: {"kind":"pinned","number":1}`（先移除 3a 那份） | **`lockedAbove`** | 锁下以 `pinned` 进来会用上与组织层不同的一版（当前设计；当前设计） |
 | 4 | 当前设计 解锁，再重试第 2 步 | 解锁 `ok`；第 2 步 `ok` | **不回溯**：解锁前那次被拒的不会被补上，要重新调 |
 
-### 2.4 不让成员用某个工具：移除与禁用（[flows §1.5](../../../product/PF-002-assets-settings-and-permissions/flows.md#15-不让成员用某个工具)）
+### 2.4 不让成员用某个工具：移除与禁用（[flows §1.5](../../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#15-不让成员用某个工具)）
 
 接 2.1：组织层持有 `{tool, lint}`，并配了两项：`timeout = 30`、执行权限 `{"allowed":["ask"]}`。
 
@@ -73,7 +73,7 @@
 |---|---|---|---|
 | 1 | 当前设计 `disable(caller: S, scope: 组织层 O, capability: {tool, lint})` | `ok`；发 `HoldingChanged(disabled)` | 自定义件可以禁用 |
 | 2 | 当前设计 读视图 | 那一份**还在**、`disabled` 为真、**两项值原样** | 当前设计 |
-| 3 | 当前设计 `enable(...)` | `ok`；发 `HoldingChanged(enabled)`；值还是那两项 | [acceptance](../../../product/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)「用的还是禁用之前配好的那些值」 |
+| 3 | 当前设计 `enable(...)` | `ok`；发 `HoldingChanged(enabled)`；值还是那两项 | [acceptance](../../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/acceptance.md#一可观察场景)「用的还是禁用之前配好的那些值」 |
 
 **移除那一路**（从头来）：
 
@@ -89,7 +89,7 @@
 **同一路里，租户开不回组织禁掉的**：组织禁用之后，`M` 若在自己租户层持有同一份并 `enable`，那只是「他这一层不为真」，
 **资产照样不可见**——那不是 当前设计 的失败，是求值的析取。
 
-### 2.5 创作一个资产（[flows §1.7](../../../product/PF-002-assets-settings-and-permissions/flows.md#17-创作一个资产)）
+### 2.5 创作一个资产（[flows §1.7](../../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#17-创作一个资产)）
 
 **租户范围**：`M` 在自己的租户里写一份 skill。
 
@@ -116,12 +116,12 @@
 
 | # | 调用 | 结果 | 依据 |
 |---|---|---|---|
-| 1 | 当前设计 `promoteToOrganization(caller: S, asset: "ar_s1", organization: "org_O")` | `ok`；所有者 `O`，**作者仍是 `S`**；`S` 租户层那份持有**还在**，依据随所有者重算为 `organization`，`timeout = 20` 与版本选用原样——**不是一次持有变更**；组织层**没有因此多出一份持有**；发 `AssetPromoted`（不另发 `HoldingChanged`） | [PF-001 rev 19 §6.7](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)「提升只换所有者，不动任何一份持有」；依据重算见 当前设计 末段） |
+| 1 | 当前设计 `promoteToOrganization(caller: S, asset: "ar_s1", organization: "org_O")` | `ok`；所有者 `O`，**作者仍是 `S`**；`S` 租户层那份持有**还在**，依据随所有者重算为 `organization`，`timeout = 20` 与版本选用原样——**不是一次持有变更**；组织层**没有因此多出一份持有**；发 `AssetPromoted`（不另发 `HoldingChanged`） | [PF-001 rev 19 §6.7](../../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)「提升只换所有者，不动任何一份持有」；依据重算见 当前设计 末段） |
 | 1b | `S` 另一份自己租户级的 `ar_s2` 已组织内分享给 `M`、`M` 那一层以 `shared` 持有它；当前设计 提升 `ar_s2` | `ok`；同一提交里那段分享置 `revoked`、原因 `ownerChanged`（资产流转的记录）；`M` 那份 `shared` 持有**还在**、此后按分享的判据不可用 | **提升不被分享挡住** |
 | 2 | 同一调用重放 | `ok`，不发事件 | ⑦认回 |
 | 3 | 想退回租户 | **没有这条操作** | 当前设计 |
 
-**版本选用**（[flows §3.3](../../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)「选用哪个版本是消费方的决定」）：接上面，`ar_s1` 已有 v1、v2；组织层以 `current` 持有它，`S` 的租户层持有着它。
+**版本选用**（[flows §3.3](../../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)「选用哪个版本是消费方的决定」）：接上面，`ar_s1` 已有 v1、v2；组织层以 `current` 持有它，`S` 的租户层持有着它。
 
 | # | 调用 | 结果 | 依据 |
 |---|---|---|---|
@@ -129,7 +129,7 @@
 | 2 | `S` 发布 v3 | 组织层那份按 v3 求值；`S` 租户层那份**仍是 v1**；**两份持有都没被写** | 当前设计：发布不改变任何持有 |
 | 3 | 当前设计 同上，`number: 7` | **`versionNotPublished`** | 7 不是已发布版本 |
 | 4 | 当前设计 `unpinVersion(caller: S, scope: 租户层 S, capability: ...)` | `ok`；此后按 v3；配值原样 | — |
-| 5 | 组织层 `O` 以分享持有着 `P` 的 `ar_std`（[`notOwner` 那一行](#三十九个失败值各一个反例)），`S` 对组织层 `O` 的这份 当前设计 钉 v1 | **`notOwner`**，仍是 `current` | [被分享方不钉版本](../../../product/PF-003-asset-transfer-and-sharing/design.md#611-分享的同步与自保)：钉住就是要一份 fork，那个动作叫复制 |
+| 5 | 组织层 `O` 以分享持有着 `P` 的 `ar_std`（[`notOwner` 那一行](#三十九个失败值各一个反例)），`S` 对组织层 `O` 的这份 当前设计 钉 v1 | **`notOwner`**，仍是 `current` | [被分享方不钉版本](../../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#611-分享的同步与自保)：钉住就是要一份 fork，那个动作叫复制 |
 | 6 | `M` 在自己租户层以 `organization` 依据持有 `ar_std`） | `ok` | 当前设计：租户格持有本组织可用的那一份，被分享来的也算 |
 
 **删除与告知**：以 2.3 第 3a 步之后的状态为起点——`M` 的租户层以 `organization` 依据持有 `ar_cr_O`。
@@ -151,15 +151,15 @@
 | `invalidInput` | 当前设计 `hold(caller: S, scope: {"layer":"workspace", ...}, ...)` | 写面的 `scope` 是 `ScopeLayerIdentity`，工作区那一格**构造不出来**——表示层拒，不是「无权」 |
 | `crossTenant` | 当前设计 `assign(caller: S, scope: 租户层 M, capability: {tool, lint}, item: "timeout", value: 10)` | `S` 是超管，**照样**写不进 `M` 的租户层——与角色无关，不是 `notPermitted` |
 | `scopeNotFound` | 一个带着旧身份的调用 `G = {"organization":"org_gone","account":"acc_g"}`，`org_gone` 是一个已被清除的个人组织：当前设计 `listHoldings(caller: G, scope: 组织层 org_gone)` | 不越界（是他自己的组织），组织却不存在（组织治理 `#当前行为` 的 `organizationDoesNotExist`）——不是「你不是成员」 |
-| `notPermitted` | 当前设计 `hold(caller: M, scope: 组织层 O, asset: "ar_lint")` | `M` 是 `O` 的成员但不是超管——[flows §四](../../../product/PF-002-assets-settings-and-permissions/flows.md#四角色与操作)「给组织加入资产：普通成员不可」 |
+| `notPermitted` | 当前设计 `hold(caller: M, scope: 组织层 O, asset: "ar_lint")` | `M` 是 `O` 的成员但不是超管——[flows §四](../../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#四角色与操作)「给组织加入资产：普通成员不可」 |
 | `assetNotFound` | 当前设计 `updateDraft(caller: S, asset: "ar_notes", ...)`（`ar_notes` 是 `M` 租户里的私有记录） | 对 `S` 不可见——**与一个从未分配过的标识逐字相同**，不是 `notOwner`（当前设计） |
 | `holdingNotFound` | 当前设计 `unhold(caller: S, scope: 组织层 O, capability: <组织层某个 plugin 的成员>)` | 成员没有自己的持有——这就是「单独卸载 plugin 的成员：拒绝」 |
 | `assignmentNotFound` | 当前设计 `lockAssignment(caller: S, scope: 组织层 O, capability: {tool, lint}, item: "concurrency")`，组织层从没配过 `concurrency` | 持有在，只是这一级对这一项「没意见」——没有值可锁，不是 `holdingNotFound` |
 | `alreadyHeld` | 当前设计 组织层已持有 `ar_cr_O`，再 `hold(... asset: "ar_off_review")` | 同一能力标识换另一份记录——要换，先移除；**完全相同的重放是 `ok`**，同记录只换版本选用走 当前设计 |
 | `lockedAbove` | 2.3 第 2 步；权限上：组织层把 `{tool, lint}` 的执行权限配成 `{"allowed":["forbid"]}`（**不锁**），`M` 在自己租户层 当前设计 挑 `{"allowed":["auto"]}` | 上层锁的，自己解不开——不是 `lockedHere`。权限那一例：配成「禁止」锁不锁都是界，「自动」落在界外；挑 `{"allowed":["forbid"]}` 则 `ok` |
 | `lockedHere` | 组织层已对 `timeout` 加了项锁，`S` 再 当前设计 `assign(... item: "timeout", value: 60)`（不带 `immutable`） | 自己这一层锁着，先 当前设计 解锁。**同一调用带 `immutable: true` ⇒ `ok`**：随值加锁替换这一层自己的锁，`lockedHere` 只挡不带锁的改值与清除 |
-| `officialImmutable` | 当前设计 `disable(caller: S, scope: 组织层 O, capability: {tool, read_file})`，组织层那份持有指向 `T_off` | 官方件任何一层都不能禁用——超管也不行（[PF-001 §4 来源](../../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)） |
-| `notOwner` | `P` 把它拥有的 `ar_std` 分享给了同树的 `O`（组织—组织；`O` 组织层经组合入口以 `shared` 依据持有它）；`S` 调 当前设计 `updateDraft(caller: S, asset: "ar_std", ...)` | `S` 看得见它（组织层持有着），所以不是 `assetNotFound`；它不归 `O`——被分享方不能改（[PF-003 §6.10](../../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)） |
+| `officialImmutable` | 当前设计 `disable(caller: S, scope: 组织层 O, capability: {tool, read_file})`，组织层那份持有指向 `T_off` | 官方件任何一层都不能禁用——超管也不行（[PF-001 §4 来源](../../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)） |
+| `notOwner` | `P` 把它拥有的 `ar_std` 分享给了同树的 `O`（组织—组织；`O` 组织层经组合入口以 `shared` 依据持有它）；`S` 调 当前设计 `updateDraft(caller: S, asset: "ar_std", ...)` | `S` 看得见它（组织层持有着），所以不是 `assetNotFound`；它不归 `O`——被分享方不能改（[PF-003 §6.10](../../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)） |
 | `hasReferrers` | 组织层持有 plugin `ar_pack`（成员含 `{skill, code_review}`）与 `ar_cr_O`；当前设计 `unhold(caller: S, scope: 组织层 O, capability: {skill, code_review})` 不带 `acknowledged` | 返回 `{ 组合引用方: [组织层 O · ar_pack] }`，不写；带上它再调 ⇒ `ok`，**`ar_pack` 原样在**（不级联） |
 | `versionSequenceBroken` | `ar_notes` 已有 v2；当前设计 `publish(caller: M, asset: "ar_notes", expected: 2)`，且 v2 不是 `M` 以同一内容发的 | 说的号不是末尾 ＋ 1，也不是认回 |
 | `versionNotPublished` | 当前设计 把 2.5 第 1 步刚建、还没发布的 `ar_notes` 加进 `M` 的租户层 | 草稿不进求值，没有可选用的版本 |
@@ -200,7 +200,7 @@
 | 版本选用，自己的租户层 | 可 | 可；**组织加了替换锁的不可钉**（`lockedAbove`） | — | **推导**：同上，「租户层是本人」；替换锁那一格取 当前设计 的理由 |
 | 配值、清除，组织层 | 可（**凭据类项除外**，下一行）；**随值加锁**（`immutable: true`）同一格 | 不可 | 不可 | **原话**：PF-002 flows §四「配置组织级的设置与权限」「把组织级的值标为 immutable」——随值加锁是这两格合成一步，资格不另开 |
 | 当前设计 配值，组织层的**凭据类项**（MCP 凭据、连接件的鉴权绑定） | **不可**（`layerNotAllowed`） | 不可 | 不可 | **原话**：PF-002 rev 18 flows §四「配置组织级的设置与权限：可——MCP 凭据与连接件的鉴权绑定除外」、flows §二「拒绝，说明这两项只在租户那一层配、每个成员自己取」。超管也不可：这一格与角色无关 |
-| 配值、清除，自己的租户层 | 可 | 可；**设置项：组织加了项锁的那一项不可**（`lockedAbove`）；**权限项：值（挑选或界，带不带锁）落在组织那一层的界外不可**（`lockedAbove`，界含执行权限上不锁的「禁止」），分档的权限只挑一档（`selectionNotSingleTier`） | — | **原话**：PF-002 flows §四「配置自己租户级的设置与权限：可／可」「覆盖组织级的值：普通成员看组织有没有加锁」；权限那一半是 [§5.3](../../../product/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)「在界内挑一个」。**超管那一格同样受组织层的锁与界约束**：它们是组织层的值，不认人 |
+| 配值、清除，自己的租户层 | 可 | 可；**设置项：组织加了项锁的那一项不可**（`lockedAbove`）；**权限项：值（挑选或界，带不带锁）落在组织那一层的界外不可**（`lockedAbove`，界含执行权限上不锁的「禁止」），分档的权限只挑一档（`selectionNotSingleTier`） | — | **原话**：PF-002 flows §四「配置自己租户级的设置与权限：可／可」「覆盖组织级的值：普通成员看组织有没有加锁」；权限那一半是 [§5.3](../../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#53-两个例子两种合成)「在界内挑一个」。**超管那一格同样受组织层的锁与界约束**：它们是组织层的值，不认人 |
 | 项锁，组织层 | 可 | 不可 | 不可 | **原话**：PF-002 flows §四「把组织级的值标为 immutable」 |
 | 项锁，自己的租户层 | 可 | 可 | — | **推导**：PF-002 §5.4「每一层对一个东西可以做两件事：给一个值；声明它不可再被下层覆盖」 |
 | 以上任何一项，**别人的租户层** | **不可**（`crossTenant`） | 不可（`crossTenant`） | 不可 | **原话**：PF-002 flows §四末句「超级管理员……管不到成员租户级的私有部分」；acceptance §二「超级管理员能读到成员租户级的私有配置：绝不能发生」 |

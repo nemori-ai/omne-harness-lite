@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "kind": "github-delivery-config",
+  "protocolVersion": 2,
+  "enabled": true,
+  "repository": "nemori-ai/omne-harness-lite",
+  "mode": "manual-single-dispatcher",
+  "project": {
+    "owner": "nemori-ai",
+    "number": 4,
+    "id": "PVT_kwDODPptlM4BmeFE",
+    "url": "https://github.com/orgs/nemori-ai/projects/4",
+    "fields": {
+      "stage": "PVTSSF_lADODPptlM4BmeFEzhlG_3U",
+      "priority": "PVTSSF_lADODPptlM4BmeFEzhlHAKo",
+      "iteration": "PVTIF_lADODPptlM4BmeFEzhlHAKs"
+    }
+  },
+  "creationHandoffIssue": "https://github.com/nemori-ai/omne-harness-lite/issues/184",
+  "writers": {
+    "stage": "PanQiWei；操作由其在本任务中明确委派的单一调度代理执行",
+    "body": "PanQiWei；操作由其在本任务中明确委派的单一正文集成代理执行"
+  },
+  "notes": [
+    "PanQiWei在本会话授权完整启用；配置随PR194发布，首次采用依据及检查由Issue195记录。",
+    "Stage使用GitHub内置Status字段，按已读回的field ID投影，Issue正文仍拥有任务事实。",
+    "负责人此前已关闭关联PR合并自动关闭；该设置没有官方API读回支持。",
+    "每项任务的正文和Stage保持单写者；接受必须来自该项具名决定，不由关闭、合并或绿测代替。"
+  ]
+}

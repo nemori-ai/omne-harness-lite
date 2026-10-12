@@ -3,7 +3,7 @@ import { expect, test } from 'vitest'
 import { ogS42DynamicResolve } from '../src/index.ts'
 const path = 'tenancy-host/src/policy.ts'
 const text = readFileSync(
-  new URL('../../../apps/tenancy-host/src/policy.ts', import.meta.url),
+  new URL('../../../apps.0.0.1.legacy/tenancy-host/src/policy.ts', import.meta.url),
   'utf8',
 )
 test('actual host compares declared string keys without resolving purge', () => {

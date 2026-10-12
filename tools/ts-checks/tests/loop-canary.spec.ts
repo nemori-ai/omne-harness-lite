@@ -39,7 +39,7 @@ function canary(): { root: string; base: string } {
     commit(root, `together ${round}`)
   }
   // rev 翻动：建 topic 时的 revision 1 算一次，再升三次。
-  const readme = `${PRODUCT}/PF-001-canary/README.md`
+  const readme = `${PRODUCT}/canary/README.md`
   for (let revision = 2; revision <= 4; revision += 1) {
     const text = readFileSync(join(root, readme), 'utf8')
     write(root, readme, text.replace(/^revision: \d+$/mu, `revision: ${revision}`))
@@ -225,8 +225,11 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
       removed: [],
     })
     expect(dataOf(status, 'topicChurn')).toEqual([
-      expect.objectContaining({ topic: 'PF-001-canary', revisions: 4 }),
+      expect.objectContaining({ topic: 'PD-canary', revisions: 4 }),
     ])
+    expect(
+      result.lines.some(line => line.includes('HEAD 历史窗口口径，未提交新增 topic 计 0')),
+    ).toBe(true)
     const trees = dataOf(status, 'worktrees') as { branch: string; members: string[] }[]
     // git 按工作树路径排，临时目录名是随机的，所以按分支名比。
     const byBranch = [...trees].sort((x, y) => x.branch.localeCompare(y.branch))
@@ -254,26 +257,26 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
     expect(result.lines).toContainEqual(expect.stringMatching(/^ {2}✗ 环 /u))
   })
 
-  it('拿掉一个传感器的数据源（PF-* 目录）：严格模式报它没数据并判失败', async () => {
+  it('拿掉一个传感器的数据源（当前 PD 目录）：严格模式报它没数据并判失败', async () => {
     const { root, base } = canary()
-    rmSync(join(root, PRODUCT, 'PF-001-canary'), { recursive: true })
+    rmSync(join(root, PRODUCT, 'canary'), { recursive: true })
     const { result, status } = await strictRun(root, base)
     expect(status.hardLines.sensors.silent).toEqual([
-      { sensor: 'topicChurn', reason: `${PRODUCT} 下没有 PF-* topic` },
+      { sensor: 'topicChurn', reason: `${PRODUCT} 下没有当前 PD topic` },
     ])
     expect(result.code).toBe(1)
     expect(result.lines).toContain(
-      `  ✗ 传感器没数据 1 个：sensors.topicChurn（${PRODUCT} 下没有 PF-* topic）`,
+      `  ✗ 传感器没数据 1 个：sensors.topicChurn（${PRODUCT} 下没有当前 PD topic）`,
     )
   })
   it('删除全局预期时 silent 指名 architecture', async () => {
     const { root, base } = canary()
-    rmSync(join(root, '.meta_harness/design/architecture/constraints.json'))
+    rmSync(join(root, 'docs/architecture/constraints.json'))
     const { result, status } = await strictRun(root, base)
     expect(status.hardLines.sensors.silent).toEqual([
       {
         sensor: 'architecture',
-        reason: '全局架构预期不可用：.meta_harness/design/architecture/constraints.json',
+        reason: '全局架构预期不可用：docs/architecture/constraints.json',
       },
     ])
     expect(result.code).toBe(1)

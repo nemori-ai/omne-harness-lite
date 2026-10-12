@@ -1,6 +1,6 @@
 # 设计与 Agent 工具入口
 
-本目录维护现行设计导航、领域对象与故事卡对账，以及 skills／roles 的宿主生成和接入。模块接口、薄规格及验证资源由实际包／应用拥有，工具不建立另一份中央契约或实现映射。
+本目录维护现行设计导航、领域对象对账，以及 skills／roles 的宿主生成和接入。模块接口、完整必要行为规格及验证资源由实际包／应用拥有，工具不建立另一份中央契约或实现映射。
 
 ## 现行源检查
 
@@ -11,13 +11,32 @@ python tooling/src/check_sources.py --root design
 python tooling/src/check_sources.py --root design --source-root /explicit/execution-checkout
 ```
 
-`--source-root` 是明确的执行检出，不从安装位置或父目录猜测。模块链接只允许实际 workspace 的 packages／apps 成员，目标与 package.json 必须在该检出内；排除成员、非法声明、缺文件、错锚点及越界软链接非零。没有 source-root 时不放行外部模块路径。
+`--source-root` 必须指向设计根所在的同一执行检出，不从安装位置或父目录猜测。
+工具校验该检出的根登记和发现的局部登记。docs、组及仅有文档的成员 Markdown 按精确注册文件准入，
+不放行目录或同级未登记文件。另允许两个精确的非 Markdown 目标
+`docs/engineering/github-delivery.json` 和 `docs/architecture/constraints.json`。
 
-过程材料不能作为现行源，别名不能绕过归属。spec、realization、registry 三个旧根不得重新出现，空目录、普通文件或悬空软链接同样拒绝。其他本地链接只能指向有效设计、Agent／research 源或设计工作区根入口。外部 URL 不在本工具中抓取或核实。
+实际 packages 与 apps 当前成员及 `.0.0.1.legacy` 封存成员的文件，包括 Markdown SPEC，
+可由 workspace 包含及排除声明和有效 manifest 确认出处。目标与 manifest 必须留在该检出内。
+`ModuleSources.owns()` 只表示当前成员；`origin()` 返回 `current-member`、`archived-member` 或 None。
+封存出处不授予当前采用或运行支持。tools 不属于产品成员，其 Markdown 按精确登记准入。
+坏登记、非法声明、缺文件、错锚点和越界链接均使检查失败。
 
-该工具不判断条款等价性、采用状态、实现符合性或模型覆盖。公开 Schema 身份、规范输入及形式模型的正负控由真实拥有者维护并执行；单次原始输出归执行工作树 tmp。根 `make design-check` 组合本检查、领域对象及故事卡对账，不隐式执行形式模型。
+未提供 `--source-root` 时，仅检查设计根、既有 meta agents/research 来源和 meta 根入口，
+不准入外部 docs 或成员路径。模板可被合法引用，但不扫描模板正文。tmp、record、跨检出及其别名被拒绝。
+spec、realization、registry 三个旧根不得重新出现，空目录、普通文件或悬空软链接同样拒绝。
+外部 URL 不在本工具中抓取或核实。
+
+检查冻结扫描集合、源正文、登记、依据、workspace、实际用到的 manifest、目标字节与实际路径，
+收尾发现变化时失败。图片等二进制目标只读字节，Markdown 必须能按 UTF-8 解码。
+持续正控与拒绝反例位于 `tests/test_source_links.py`。
+角色上下文入口见 [spec-tools](../../tools/spec-tools/README.md#按角色读取上下文)。
+
+该工具不判断条款等价性、采用状态、实现符合性或模型覆盖。公开 Schema 身份、规范输入及形式模型的正负控由真实拥有者维护并执行；单次原始输出归执行工作树 tmp。根 `make design-check` 组合本检查与领域对象对账，不隐式执行形式模型。
 
 ## 领域对象对账
+
+出处锚点读取复用已安装的项目`omne-harness-lite-spec-tools`及其Markdown解析依赖；执行仓库用锁定的uv环境提供。对象对账不维护另一套围栏或标题解析。
 
 `domain_objects.py` 对账三家之间的对应关系——统一语言词条、领域对象条目、产品 topic——
 并生成派生总表 `design/views/domain-object-map.md`：
@@ -32,53 +51,20 @@ python tooling/src/domain_objects.py --root design --stale report   # rev 落后
 被点名之后怎么逐条复核，归 `ubiquitous-language` 与 `domain-objects` 两份 skill。这里只记工具自己的边界：
 
 - **rev 的权威是各 topic `README.md` front-matter 的 `revision`。**`design.md` 抬头
-  若写了 rev，必须与它相等；没写不算错。产品区两张手写的 rev 表——`product/README.md` 的 topic 一览与
-  `product/architecture-core.md` 的清单——每一行同样必须与它相等。
+  若写了 rev，必须与它相等；没写不算错。当前产品从slug目录的README元数据发现，核对PD身份、正整数修订、状态、正文及根内路径。封存PF出处另核修订、文件与锚点，不进入当前采用或反链。
 - `ubiquitous_language/conflicts.md` 里的 rev **不查**：那是记下冲突时看到的那一版，是一条观察的时间戳，不是对齐凭据。
 - 词条「出处」、条目「依据」、待裁「牵涉」读的是[同一条写法](../design/ubiquitous_language/conventions.md#rev-怎么写怎么读)：
   指向产品正文的链接后面跟着它那个 topic 的 `（rev N）`，同一个 topic 连着的几条链接可以共用后面那一个；
   一个括号里并列几个 rev 的，按前面 topic 出现的次序配，个数配不上就报错。
 - 总表比对时**忽略生成时间那一行**，所以隔天重跑不会因为日期而判过期。
 - `--stale report` 供本地迭代看待复核队列，**不是通过的证据**。
-- 链接与锚点是否存在由 `check_sources.py` 统一查，本工具不重复；
+- 当前导航的链接与锚点由`check_sources.py`核对；封存出处的文件和锚点由本工具在明确legacy根核对；
   它也**不判断任何条目的内容对不对**，更查不出产品正文里新冒出来、却没人立词条的对象。
 
 测试用一棵含一个 topic、一卷四个词条（含一个变体）、三条对象条目与一项待裁的小型设计树，覆盖：
 一致时通过且总表可往返、只改生成时间不判过期、对象词条缺条目与条目缺对象词条、条目缺词条或缺必填字段、
-rev 落后（含 topic 内三处 rev 不一致）及其 report 模式、依据缺 rev 或指向非产品正文、
+rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev 或指向非产品正文、
 形态缺失/非法/变体的父无效、未定词条须同时出现在 pending 与 conflicts、索引与分卷不一致、待裁缺 owner。
-
-## 故事卡对账
-
-`stories.py` 核 `design/product/PF-*/stories.md` 里每张故事卡的形状，以及卡与验收场景的对应；
-`.templates/` 与 `archive/` 不是 topic，不参与对账：
-
-```sh
-python tooling/src/stories.py --root design
-```
-
-卡该长什么样、场景怎么编号，权威正文在[故事卡的格式契约](../design/product/conventions.md)；这里只记工具自己查到哪：
-
-- **卡号**：标题写成 `### ST-<三位>-<两位> · 一句话`；卡号全区唯一，中间三位等于所在 topic 的编号。
-  以 `ST-` 开头却不合写法的标题会被点名，不会被悄悄当成普通小节。
-- **已发到**：每份 `stories.md` 有且只有一行 `**已发到**：ST-<三位>-<两位>`（冒号全角半角都认），
-  它的中间三位等于所在 topic 的编号，文件里每张卡的序号都不超过它。**只有这一行、一张卡都没有的文件是合法的**——卡都交付完了。
-- **字段**：价值、覆盖场景、演示、不含、前置、就绪六个都要有且不为空；同一个字段不得写两次。
-- **覆盖场景**：至少一条链接，链接文字是场景编号，目标是某个 topic 的 `acceptance.md`；
-  那份文件里要有一行第一格是这个编号（加粗、反引号都认），且这个编号在那份文件里不重复。
-- **一条场景至多属于一张卡**，按（topic，编号）算，跨 topic 引用也算在内；同一张卡里重复链接同一条不算。
-- **前置**：字段里出现的卡号都要存在、不是自己；全部卡的前置关系不成环。
-- **演示**：至少一个缩进的编号步骤，每步都有「→」隔开的两半。
-- **就绪**：以「是」开头，或以「否」开头并写着缺什么。
-
-围栏代码块里的卡与「已发到」是示例，不参与对账。有 `stories.md` 的 topic（队列空了的也算）里**还不属于任何卡的带编号场景**以 `NOTE:` 列出，不判失败：
-它们要么已经交付、卡退场了，要么还没切到；两者怎么分，要看执行仓库里有没有验收覆盖它，由那边的检查给出。
-
-它**不判断卡切得好不好**：查不出一张卡是不是只证明一件事、演示照着做不做得出来、顺序排得对不对；
-它只读眼前这一版，**看不到「已发到」有没有被改小、删卡的提交带没带 trailer**——那由执行仓库对一段提交范围的检查来看。
-链接的锚点由 `check_sources.py` 统一查。没有编号的场景行它看不见——一个 topic 的场景都没编号时，「还不属于任何卡」那一条不会出现。
-
-测试用一棵含两个 topic 的小型设计树，逐条覆盖每条规则的通过与失败，外加没有 `stories.md`、缺 `product/`、跨 topic 的引用与前置。
 
 ## Agent 编译
 

@@ -59,7 +59,7 @@ rev 标注新不新——归「表达」那一种判断。**施工顺序与分�
 ## 读的顺序
 
 1. **派发简报**——先确定待审对象是四种形态里的哪一种，本次该兑现什么。
-2. **需求与全局约束的确认范围**——产品正文的相关小节、`foundation/cross-system-constraints/`；
+2. **需求与全局约束的确认范围**——产品正文的相关小节与任务明确的现行项目要求；本项目的位置见[工作区地图](../workspace-context.md)；
    `domain_objects/objects.md` 的相关条目（**它是输入不是依据**，对不上以它指向的产品正文为准）。
 3. **共用的 data 契约**，再逐份 capability／composition，再 realization 节点（如有）。
 4. **只在某条核对真的需要时**，展开[对账](../reconciliation.md)（四表的判据与走查示例）、[能力覆盖与演化](../decompose.md)（反查边界）、

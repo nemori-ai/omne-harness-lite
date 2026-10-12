@@ -971,7 +971,7 @@ for (const name of [
       fileURLToPath(url).startsWith(dirname(fileURLToPath(import.meta.url)) + '/node_modules/'),
     )
     assert.ok(url.pathname.endsWith('/node_modules/@omne-harness-lite/' + name + '/dist/index.js'))
-  } else assert.ok(url.pathname.endsWith('/packages/core/' + name + '/dist/index.js'))
+  } else assert.ok(url.pathname.endsWith('/packages.0.0.1.legacy/core/' + name + '/dist/index.js'))
   resolution.push({
     name,
     file: fileURLToPath(url),

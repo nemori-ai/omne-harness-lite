@@ -29,7 +29,7 @@ function parseArgs(argv: readonly string[]): RunOptions {
   return {
     snapshot,
     strict,
-    root: resolve(values.get('--root') ?? ROOT),
+    root: resolve(values.get('--root') ?? process.env['OMNE_SUBJECT_ROOT'] ?? ROOT),
     ...(base === undefined ? {} : { base }),
     ...(out === undefined ? {} : { out }),
   }

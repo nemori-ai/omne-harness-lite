@@ -159,10 +159,11 @@ describe('architecture view projection', () => {
     const conformance = {
       schemaVersion: 1 as const,
       kind: 'architecture-conformance' as const,
-      current: { path: 'constraints.json', source: graph.source, value: null },
+      current: { path: 'constraints.json', source: graph.source, value: null, sources: [] },
       comparedWith: 'current' as const,
       rows,
       changes: [],
+      sourceChanges: [],
       changeState: 'no-baseline' as const,
       coverage: [],
       limitations: [],

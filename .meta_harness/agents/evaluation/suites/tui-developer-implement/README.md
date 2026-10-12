@@ -4,7 +4,7 @@
 针对它的原有测试被拿走，按一份完整的施工简报让它把模块补完——补完之后原有测试与类型检查是否全过，
 它是否守住写入范围、没有动原有测试。判定由程序在收录运行时做，没有判官。
 
-状态：版本2仅迁移派发输入和局部规则；尚未重新签字或运行模型基线，不沿用版本1的签字或声称性能等价。基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
+状态：版本2仅迁移派发输入和局部规则；尚未重新签字或运行模型基线，不沿用版本1的签字或声称性能等价。基线何时跑由 [遗留汇总L07](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-agent-evaluations) 跟踪。
 
 这个流与 [developer-implement](../developer-implement/README.md) 同属 `implement` 一类，副本、判定、指标与运行器代码完全相同，
 只有角色、材料与目标测试不同；下文只写不同之处，相同的部分以那份说明为准。

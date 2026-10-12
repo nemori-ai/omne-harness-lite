@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { isAbsolute, join } from 'node:path'
-import { fileAt } from '../metrics/git.ts'
+import { lstatSync, readFileSync, realpathSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { isAbsolute, join, posix, relative } from 'node:path'
+import { fileAt, git } from '../metrics/git.ts'
 import {
   RULE_IDS,
   type ArchitectureConstraints,
@@ -11,7 +12,9 @@ import {
 } from './conformance-model.ts'
 import type { SourceCoordinates } from './source.ts'
 
-export const CONSTRAINT_PATH = '.meta_harness/design/architecture/constraints.json'
+export const CONSTRAINT_PATH = 'docs/architecture/constraints.json'
+export const LEGACY_CONSTRAINT_PATH = '.meta_harness/design/architecture/constraints.json'
+export const CONSTRAINT_PATHS = [CONSTRAINT_PATH, LEGACY_CONSTRAINT_PATH] as const
 const record = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
 function obj(v: unknown, keys: readonly string[]): Record<string, unknown> {
@@ -91,7 +94,9 @@ export function parseConstraints(text: string): ArchitectureConstraints {
     'rules',
     'importExceptions',
   ])
-  if (value['schemaVersion'] !== 1) throw new Error('Unsupported architecture constraint schema')
+  const schemaVersion = value['schemaVersion']
+  if (schemaVersion !== 1 && schemaVersion !== 2)
+    throw new Error('Unsupported architecture constraint schema')
   const domains = unique(
     list(value['domains']).map(item => {
       const row = obj(item, ['id', 'label', 'source'])
@@ -142,33 +147,187 @@ export function parseConstraints(text: string): ArchitectureConstraints {
     }),
   )
   return {
-    schemaVersion: 1,
+    schemaVersion,
     domains,
     roles,
     rules,
     importExceptions: importExceptions(value['importExceptions']),
   }
 }
-export function readConstraints(
-  root: string,
-  source: SourceCoordinates,
-  path = CONSTRAINT_PATH,
-): ConstraintInput {
-  safePath(path)
-  const text =
-    source.kind === 'revision'
-      ? fileAt(root, source.commit, path)
-      : existsSync(join(root, path))
-        ? readFileSync(join(root, path), 'utf8')
-        : undefined
-  return { path, source, value: text === undefined ? null : parseConstraints(text) }
+export function readConstraints(root: string, source: SourceCoordinates): ConstraintInput {
+  const document = readDocument(root, source)
+  return { ...document, source }
+}
+
+function readDocument(root: string, source: Pick<SourceCoordinates, 'kind' | 'commit'>) {
+  const read = versionReader(root, source)
+  const present = CONSTRAINT_PATHS.flatMap(path => {
+    const text = read(path)
+    return text === undefined ? [] : [{ path, text }]
+  })
+  if (present.length > 1)
+    throw new Error(
+      `Ambiguous architecture constraints at ${source.kind} ${source.commit}: ${present.map(item => item.path).join(', ')}`,
+    )
+  const selected = present[0]
+  if (selected === undefined) return { path: CONSTRAINT_PATH, value: null, sources: [] }
+  try {
+    const value = parseConstraints(selected.text)
+    const sources = validateConstraintSources(selected.path, value, read)
+    return { path: selected.path, value, sources }
+  } catch (error) {
+    throw new Error(
+      `${source.kind} ${source.commit} ${selected.path}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    )
+  }
+}
+
+export function constraintDependencies(root: string, revision?: string): readonly string[] {
+  const source = {
+    kind: revision === undefined ? 'worktree' : 'revision',
+    commit: git(root, ['rev-parse', '--verify', `${revision ?? 'HEAD'}^{commit}`]),
+  } satisfies Pick<SourceCoordinates, 'kind' | 'commit'>
+  const { path, value } = readDocument(root, source)
+  if (value === null) return CONSTRAINT_PATHS
+  return [
+    path,
+    ...new Set(
+      [...value.domains, ...value.roles, ...value.rules, ...(value.importExceptions ?? [])].map(
+        row => constraintSourcePath(path, value.schemaVersion, row.source),
+      ),
+    ),
+  ]
+}
+
+function versionReader(root: string, source: Pick<SourceCoordinates, 'kind' | 'commit'>) {
+  const texts = new Map<string, string | undefined>()
+  return (path: string): string | undefined => {
+    safePath(path)
+    if (texts.has(path)) return texts.get(path)
+    let text: string | undefined
+    if (source.kind === 'revision') {
+      const entry = git(root, ['ls-tree', source.commit, '--', path])
+      if (entry !== '') {
+        if (!/^100(?:644|755) blob /u.test(entry))
+          throw new Error(`Architecture input is not a regular file at ${source.commit}: ${path}`)
+        text = fileAt(root, source.commit, path)
+        if (text === undefined)
+          throw new Error(`Cannot read architecture input at ${source.commit}: ${path}`)
+      }
+    } else if (lstatSync(join(root, path), { throwIfNoEntry: false }) !== undefined) {
+      const actual = realpathSync(join(root, path))
+      const contained = relative(realpathSync(root), actual)
+      if (isAbsolute(contained) || contained === '..' || contained.startsWith('../'))
+        throw new Error(`Architecture input escapes checkout: ${path}`)
+      text = readFileSync(actual, 'utf8')
+    }
+    texts.set(path, text)
+    return text
+  }
+}
+
+export function constraintSourcePath(
+  path: string,
+  schemaVersion: 1 | 2,
+  reference: string,
+): string {
+  const [raw, fragment, extra] = reference.split('#')
+  if (
+    raw === undefined ||
+    raw === '' ||
+    extra !== undefined ||
+    fragment === '' ||
+    raw.includes('?')
+  )
+    throw new Error(`Invalid architecture source: ${reference}`)
+  const decoded = decodeURIComponent(raw)
+  safePath(decoded)
+  if (!decoded.endsWith('.md'))
+    throw new Error(`Architecture source must be Markdown: ${reference}`)
+  const rooted =
+    schemaVersion === 2 || /^(?:packages|apps|docs|tools|scripts|\.meta_harness)\//u.test(decoded)
+  return safePath(rooted ? decoded : posix.join(posix.dirname(path), decoded))
+}
+
+function markdownAnchors(text: string): Set<string> {
+  const anchors = new Set<string>()
+  let fence: string | undefined
+  let previous = ''
+  for (const line of text
+    .replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/u, '')
+    .replace(/<!--[\s\S]*?(?:-->|$)/gu, '')
+    .split(/\r?\n/u)) {
+    const marker = /^ {0,3}(`{3,}|~{3,})/u.exec(line)?.[1]
+    if (marker !== undefined) {
+      if (fence === undefined) fence = marker
+      else if (marker[0] === fence[0] && marker.length >= fence.length) fence = undefined
+      previous = ''
+      continue
+    }
+    if (fence !== undefined || /^(?: {4}|\t)/u.test(line)) continue
+    const heading =
+      /^ {0,3}#{1,6}\s+(.+?)\s*#*\s*$/u.exec(line)?.[1] ??
+      (/^ {0,3}(?:=+|-+)\s*$/u.test(line) ? previous : undefined)
+    if (heading !== undefined && heading !== '') {
+      const base = heading
+        .replace(/!?(?:\[([^\]]*)\])\([^)]*\)/gu, '$1')
+        .replace(/<[^>]*>/gu, '')
+        .replace(/[*`]/gu, '')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}_\- ]/gu, '')
+        .replaceAll(' ', '-')
+      let anchor = base,
+        suffix = 0
+      while (anchors.has(anchor)) anchor = `${base}-${++suffix}`
+      anchors.add(anchor)
+    }
+    for (const match of line
+      .replace(/(`+).*?\1/gu, '')
+      .matchAll(/<a\s+[^>]*?(?:id|name)=["']([^"']+)["'][^>]*>/gu)) {
+      const anchor = match[1]
+      if (anchor !== undefined) anchors.add(anchor)
+    }
+    previous = line.trim()
+  }
+  return anchors
+}
+
+function validateConstraintSources(
+  path: string,
+  value: ArchitectureConstraints,
+  read: (path: string) => string | undefined,
+): ConstraintInput['sources'] {
+  const anchors = new Map<string, Set<string>>()
+  const digests = new Map<string, string>()
+  for (const row of [
+    ...value.domains,
+    ...value.roles,
+    ...value.rules,
+    ...(value.importExceptions ?? []),
+  ]) {
+    const target = constraintSourcePath(path, value.schemaVersion, row.source)
+    const text = read(target)
+    if (text === undefined)
+      throw new Error(`${path} ${row.id}: missing source ${row.source} (${target})`)
+    if (!digests.has(target)) digests.set(target, createHash('sha256').update(text).digest('hex'))
+    const fragment = row.source.split('#')[1]
+    if (fragment === undefined) continue
+    const names = anchors.get(target) ?? markdownAnchors(text)
+    anchors.set(target, names)
+    if (!names.has(decodeURIComponent(fragment)))
+      throw new Error(`${path} ${row.id}: missing source anchor ${row.source} (${target})`)
+  }
+  return [...digests]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([path, digest]) => ({ path, digest }))
 }
 export function semanticConstraints(value: ArchitectureConstraints | null): string | null {
   if (value === null) return null
   const sorted = <T extends { readonly id: string }>(items: readonly T[]) =>
     [...items].sort((a, b) => a.id.localeCompare(b.id))
   return JSON.stringify({
-    schemaVersion: 1,
+    schemaVersion: value.schemaVersion,
     domains: sorted(value.domains),
     ...(value.importExceptions?.length
       ? {

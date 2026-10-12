@@ -1,4 +1,0 @@
-version: 1
-host: claude-code
-skill: prepare-pr
-mode: copy

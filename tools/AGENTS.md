@@ -14,4 +14,4 @@
 只有涉及新的产品保证或架构取舍时才展开架构设计材料。
 
 实际架构抽取独立于意图声明，来源、未知、版本与范围必须可核对；不把结构图称作行为证明。
-规则归属和承诺读法见[架构维护入口](../.meta_harness/design/architecture/README.md)。
+系统规则与采用范围从[架构入口](../docs/architecture/README.md)读取；尚未承接的技术专题从[保留源入口](../.meta_harness/design/architecture/README.md)定位。

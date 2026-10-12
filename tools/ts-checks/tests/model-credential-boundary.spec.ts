@@ -489,6 +489,7 @@ test('root configured aliases have collector and actual built CLI parity', () =>
     mkdirSync(directory, { recursive: true })
     mkdirSync(source, { recursive: true })
     mkdirSync(tool, { recursive: true })
+    mkdirSync(join(root, '.meta_harness/design/product'), { recursive: true })
     writeFileSync(
       join(root, 'tsconfig.json'),
       JSON.stringify({

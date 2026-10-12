@@ -7,9 +7,9 @@
 | 入口 | 作用 |
 |---|---|
 | [build-fixed-schemas.mjs](build-fixed-schemas.mjs) | 在已登记的成员或其同名包副本中运行，支持变异测试的临时目录。清理旧 `dist/generated`，执行该成员的 TypeScript 构建，再按 `schema-inputs` 生成全部固定校验图和输入摘要；任一步失败即删除两份产物并返回非零。未匹配登记目录或包身份时，在清理前拒绝。由成员的 `build` 脚本调用；生成目录随包发布，不纳入 Git |
-| [package-tenancy-host.sh](package-tenancy-host.sh) | 构建治理中心全新本地.tar.gz归档；不安装、不启动、不上传，见[中心开发入口](../apps/tenancy-host/README.md) |
-| [build-tenancy-image.sh](build-tenancy-image.sh) | 从已解压且核完整清单的治理中心app构建指定Linux架构镜像与独占新Docker save归档；不安装、不推送，见[Docker部署入口](../apps/tenancy-host/deploy/docker/README.md) |
-| [package-cli.sh](package-cli.sh) | 将现有CLI构建为指定的全新本地.tar.gz归档；不安装、不上传，使用与前提见[CLI开发入口](../apps/cli/README.md) |
+| [package-tenancy-host.sh](package-tenancy-host.sh) | 构建治理中心全新本地.tar.gz归档；不安装、不启动、不上传，见[中心开发入口](../apps.0.0.1.legacy/tenancy-host/README.md) |
+| [build-tenancy-image.sh](build-tenancy-image.sh) | 从已解压且核完整清单的治理中心app构建指定Linux架构镜像与独占新Docker save归档；不安装、不推送，见[Docker部署入口](../apps.0.0.1.legacy/tenancy-host/deploy/docker/README.md) |
+| [package-cli.sh](package-cli.sh) | 将现有CLI构建为指定的全新本地.tar.gz归档；不安装、不上传，使用与前提见[CLI开发入口](../apps.0.0.1.legacy/cli/README.md) |
 | [check.sh](check.sh) | 定位仓库根，先取一个运行名额，算基线以来改动的影响面并打印计划，再依次运行常驻检查与计划里的各步，最后是严格模式的回路状态；任一步失败即停止并返回非零 |
 | [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
 | [format.sh](format.sh) | 用根配置和本地锁定 Prettier 检查或写入受维护文件；`staged` 模式只检查 Git index blob |
@@ -41,7 +41,7 @@
 合并后没有自动补跑，也没有定时任务：全量由负责人不定时让一个会话手动跑 `make check FULL=1`。
 根 `pnpm run check`（`make product-check`）仍保留为单独的产品检查：全量构建与类型检查，测试一步同样跟计划。
 
-最后一步是 `make loop-status STRICT=1 BASE=<基线> OUT=tmp/loop-status-check`：方向与环、验收锁、删卡记录（与验收锁同一个基线）、
+最后一步是 `make loop-status STRICT=1 BASE=<基线> OUT=tmp/loop-status-check`：方向与环、验收锁、
 开着的传感器都有数据（验收被计划跳过时认上一步的记录），破一个就失败（见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#回路状态)）。
 基线就是脚本开头解析的那一个；HEAD 就是那个提交时照跑，新增依赖为 0。
 它只读源码、git 与上一步的验收耗时记录，放最后是让前面的失败先报；产物写进被 git 忽略的 `tmp/loop-status-check/`（每次先清掉），
@@ -107,18 +107,18 @@
 
 ## CI
 
-**远程 CI 目前关闭，检查结论以实际执行的本地检查证据为准。**
-[check.yml](../.github/workflows/check.yml) 只留了手动触发，仓库设置里这份工作流也已停用：
-没有注册 runner 时，自动触发的任务只会排队、不会执行。合并前，在待合并的提交上计算影响面，再运行受影响、因此需要执行的检查。
-范围、依据与结果写进 PR，规则归[整洁回路](../docs/clean-loop.md#回路怎么转)。当前 `make check` 尚未自动收窄的范围，由实施者手动计算并执行；其自适应改造归增量 10（#68）。
+正式 `Check` 工作流当前停用。[check.yml](../.github/workflows/check.yml) 只保留手动触发，仓库设置也将这份工作流停用。仓库的 Actions 服务已启用，有在线自托管 runner 和临时分支试验工作流；它们不构成 `main` 或 PR 的正式检查。
 
-恢复自动触发要三步，缺一步都不算恢复：按下文注册自托管 runner；在仓库设置里启用这份工作流
-（`gh workflow enable Check`）；把工作流文件开头注释掉的三种触发放回 `on:` 之下。恢复之后的行为如下。
+合并前，在待合并的提交上计算影响面，再运行所需检查。`make check` 已按共同配置生成影响面计划；用 `make check-plan` 核对选中的范围、依据与跳过条件。实际结果写进 PR，规则归[整洁回路](../docs/clean-loop.md#回路怎么转)。
+
+当前 GitHub 可见字段将 `main` 报为未保护，保护详情与 Rulesets 接口读取受限，规则细节仍未核实。正式接入时须落实共享分支及采用 tag 的保护，条件归[多层集成](../docs/engineering/integration.md)。本地候选检查不能代替平台门禁。
+
+恢复自动触发时，先核对现有 runner 的在线状态、标签和执行权限；需要新增或重新注册时再按下文操作。在仓库设置里启用 `Check`，命令为 `gh workflow enable Check`，再把工作流文件开头注释掉的三种触发放回 `on:` 之下。核对真实触发和结果后，才能确认正式检查已接通。工作流定义的行为如下。
 
 | 触发 | 做什么 |
 |---|---|
-| 手动触发（现在仅此一种）；恢复后另有 PR、推送到 `main` | 全新检出 → 安装依赖 → 编译 agent 生成物 → `make check` → `make metrics`（以 PR 基线或推送前的提交为 `BASE`）。度量步骤失败不改变检查结论 |
-| 手动触发并勾选 coverage；恢复后另有每天 03:00（Asia/Shanghai） | 构建后对全部成员跑 `make metrics COVERAGE=1` |
+| 启用 `Check` 后可手动触发；恢复自动触发后另有 PR、推送到 `main` | 全新检出 → 安装依赖 → 编译 agent 生成物 → `make check` → `make metrics`（以 PR 基线或推送前的提交为 `BASE`）。度量步骤失败不改变检查结论 |
+| 启用 `Check` 后手动触发并勾选 coverage；恢复自动触发后另有每天 03:00（Asia/Shanghai） | 构建后对全部成员跑 `make metrics COVERAGE=1` |
 
 任务跑在**自托管 runner** 上（标签 `self-hosted`、`linux`）。工作流自己安装 Node、pnpm 与 uv，
 不依赖 runner 用户的登录环境；它不读任何 `.env`，需要付费模型凭据的测试因此照常跳过。

@@ -1,6 +1,6 @@
 # 中心连接观察：当前设计与未实现边界
 
-产品规则归[产品入口](../../product/PF-016-cli-tui-delivery-surface/README.md)；本页只维护尚无真实提供者的已采用技术行为及未决，不授予实现或验证状态。公开数据沿实际定义拥有者，不建空包。新增产品政策仍由产品负责人决定。
+产品规则归[产品入口](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/README.md)；本页只维护尚无真实提供者的已采用技术行为及未决，不授予实现或验证状态。公开数据沿实际定义拥有者，不建空包。新增产品政策仍由产品负责人决定。
 
  `reachability()` 无参数、无授权（不出秘密/治理事实）、无结构拒绝、纯读当前快照，**闭合失败集合为空**。在场 service 必须始终能读；service 缺席是依赖缺席，不编造操作失败。输出三态 undetermined/reachable/unreachable、since、reachCount；天然可重复。
 

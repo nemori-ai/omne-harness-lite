@@ -16,7 +16,8 @@ from .doc_support import headings, local_target, markdown_links, repository_root
 ROOTS = ("README.md", "CONTRIBUTING.md", "AGENTS.md", "CLAUDE.md", "docs", "packages", "apps",
          "tools", "scripts", ".agents", ".claude", ".codex", ".meta_harness")
 IGNORED_DIRECTORIES = {".git", ".venv", "node_modules", ".dist", "dist", "build",
-                       "__pycache__", ".pytest_cache", "tmp", ".worktrees"}
+                       "__pycache__", ".pytest_cache", "tmp", ".worktrees",
+                       "packages.0.0.1.legacy", "apps.0.0.1.legacy"}
 
 def collect(root: Path) -> list[Path]:
     files: list[Path] = []

@@ -6,8 +6,8 @@
 不会令 core 产品包反向依赖 infra。
 
 本工具检查真实存储一致性、W1 独立公开消费者、五个正文提供者的资产组合、流装配组合及独立打包消费者。
-存储性质与负控依据见 [Storage SPEC](../../packages/core/storage/SPEC.md) 和
-[验证义务](../../packages/core/storage/verification/README.md)。其他行为由实际成员的公开入口及薄 SPEC 约束，
+存储性质与负控依据见 [Storage SPEC](../../packages.0.0.1.legacy/core/storage/SPEC.md) 和
+[验证义务](../../packages.0.0.1.legacy/core/storage/verification/README.md)。其他行为由实际成员的公开入口及薄 SPEC 约束，
 从[架构维护入口](../../.meta_harness/design/architecture/README.md)定位拥有者。本工具不定义产品政策。
 
 从仓库根准备锁定环境并运行：

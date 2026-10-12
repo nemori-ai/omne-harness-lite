@@ -1,4 +1,4 @@
-<!-- 规则归执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”；prepare-pr 提供 docs 例子。简单文字/链接修改可以几句话，不必保留所有标题。 -->
+<!-- 规则归执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”；写作方法归 pstack:technical-writing，项目要求归 CONTRIBUTING。简单文字/链接修改可以几句话，不必保留所有标题。 -->
 
 ## 文档改变
 
@@ -12,4 +12,6 @@
 
 ## 审阅重点
 
-<!-- 指出条款/术语/示例或具体入口，说明需要核对的含义和归属。相关产品卡、demo、其他报告按实际影响接续；不适用删除。 -->
+<!-- 指出条款/术语/示例或具体入口，说明需要核对的含义和归属。适用任务卡、demo、其他报告按实际影响接续；不适用删除。 -->
+
+<!-- 采用多层集成时附 operation、B/S/C、各卡 taskBase/历史 tuple、真实 receipt 及 Git 观察；声明 completionTarget 与实际运输，未知保留。技术运输不自动生成 Closes 或宣称接受。规则见 docs/engineering/integration.md。 -->

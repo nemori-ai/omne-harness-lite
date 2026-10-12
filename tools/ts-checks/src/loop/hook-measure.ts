@@ -1,6 +1,7 @@
 // 收工钩子要的静态读数：与 `make loop-status BASE=…` 同一套步骤，但只跑度量报告、稳定依赖、
 // 改动过的测试里没有断言的用例与新增依赖；不跑重复代码（全仓要二十多秒）、覆盖率、工作树与 topic 那几项。
 // 只在量读数的线程里加载（它带进 TypeScript 解析器），主线程不碰。
+import { baselines, loadIntegration } from '../integration/context.ts'
 import type { MetricsConfig } from '../metrics/config.ts'
 import { changedFiles, git } from '../metrics/git.ts'
 import { memberOf } from '../metrics/graph.ts'
@@ -10,7 +11,7 @@ import type { LoopConfig } from './config.ts'
 import type { HookReadings } from './hook.ts'
 import { noData } from './reading.ts'
 import { readArchitectureSensors } from './sensors/conformance.ts'
-import { CONSTRAINT_PATH } from '../arch/constraints.ts'
+import { CONSTRAINT_PATHS, constraintDependencies } from '../arch/constraints.ts'
 import {
   changeSince,
   directionLines,
@@ -32,15 +33,30 @@ export function isProductSource(path: string): boolean {
  * 只看未提交的。没碰 → undefined。只跑 git。
  */
 export function touchedBase(root: string, primaryBranch: string): string | undefined {
+  const selected = baselines(root)
+  if (selected.state === 'adopted') {
+    const state = loadIntegration(root)
+    if (state.kind !== 'adopted' || state.context === null)
+      throw new Error('Missing adopted hook context')
+    const base = state.context.ownerTask?.taskBase ?? selected.targetBase
+    if (base === undefined) throw new Error('Missing adopted hook baseline')
+    return base
+  }
   let base = 'HEAD'
   try {
     base = git(root, ['merge-base', primaryBranch, 'HEAD'])
   } catch {
     // 求不出合并点：只看未提交的改动。
   }
-  return changedFiles(root, base).some(path => isProductSource(path) || path === CONSTRAINT_PATH)
-    ? base
-    : undefined
+  const changed = changedFiles(root, base)
+  if (changed.some(path => isProductSource(path) || CONSTRAINT_PATHS.some(input => input === path)))
+    return base
+  if (!changed.some(path => path.endsWith('.md'))) return undefined
+  const dependencies = new Set([
+    ...constraintDependencies(root),
+    ...constraintDependencies(root, base),
+  ])
+  return changed.some(path => dependencies.has(path)) ? base : undefined
 }
 
 export function measureForHook(

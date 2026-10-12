@@ -24,7 +24,7 @@
 > serves directly as the basis of entitlement** — no fabricated self-grant is needed.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 拥有、获权、选用](../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用)（rev 26）
+- **出处**：[PF-001 §4 拥有、获权、选用](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用)（rev 26）
 - **注意**：**实际作者与定义所有者分别记录**；作者用**租户身份**标识
 
 ### UL-usage-right · 使用权 · Usage Right
@@ -44,7 +44,7 @@
 > another.**
 
 - **形态**：属性
-- **出处**：[PF-001 §4 拥有、获权、选用](../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用) · [§6.4](../../product/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 26） · [PF-003 §6.10](../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有) · [§6.12](../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)（rev 6）
+- **出处**：[PF-001 §4 拥有、获权、选用](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用) · [§6.4](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 26） · [PF-003 §6.10](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有) · [§6.12](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)（rev 6）
 - **别混**：**论域只有资产。**[模型档案](capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)不是资产，一个范围允不允许某条档案由设置与权限的求值决定，不叫使用权
 - **注意 ①**：**没有暂停，没有到期**——它只有「有」与「没有」（[C-15 的裁决](../conflicts.md#现有冲突)）
 - **注意 ②**：**结束了就不复活**——关系断了又接上（重新隶属、重新加入），它不自己回来；要用，再分享一次，那是[新的一段分享关系](#ul-sharing-relationship--分享关系--sharing-relationship)
@@ -56,9 +56,9 @@
 > **EN**: **Which version of it a given scope currently has selected.**
 
 - **形态**：属性
-- **出处**：[PF-001 §4 拥有、获权、选用](../../product/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用)（rev 26）
+- **出处**：[PF-001 §4 拥有、获权、选用](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#拥有获权选用)（rev 26）
 - **别混**：**裸写「选用 / selection」不作数**——它专指**选哪个版本**
-- **注意**：它记在[持有](#ul-asset-holding--资产持有--asset-holding)上，**有两种：钉在某一版，或追随当前版**；不另说时追随当前版，而那是持有上写明、看得见的选择——新版一发布就用上，不算静默替换（[PF-002 flows §3.3](../../product/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)）
+- **注意**：它记在[持有](#ul-asset-holding--资产持有--asset-holding)上，**有两种：钉在某一版，或追随当前版**；不另说时追随当前版，而那是持有上写明、看得见的选择——新版一发布就用上，不算静默替换（[PF-002 flows §3.3](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#33-一个资产定义的版本)）
 
 ### UL-revocation-is-not-stop · 撤销不等于强制停止 · Revocation Is Not a Stop
 
@@ -72,7 +72,7 @@
 > already under way is stopped is decided by run control, separately.**
 
 - **形态**：规则
-- **出处**：[PF-001 §6.6](../../product/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止)（rev 26）
+- **出处**：[PF-001 §6.6](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#66-撤销不等于强制停止)（rev 26）
 - **别混**：与[强制停止](agent-runtime-loop.md#ul-forced-stop--强制停止--forced-stop)**不是一件事**
 
 ## 一个范围手上有什么
@@ -98,7 +98,7 @@
 > **disabling does not end it.**
 
 - **形态**：属性
-- **出处**：[PF-002 §5.2 三方分工](../../product/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · [PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [PF-002 flows §3.1 一个资产在某个范围里](../../product/PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)（rev 32） · [PF-001 §6.1 层次](../../product/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)（rev 26）
+- **出处**：[PF-002 §5.2 三方分工](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#三方分工资产定形状各层配值运行时求值) · [PF-002 §6.4](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [PF-002 flows §3.1 一个资产在某个范围里](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)（rev 32） · [PF-001 §6.1 层次](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#61-层次)（rev 26）
 - **别混**：与[定义所有权](#ul-definition-ownership--定义所有权--definition-ownership)不是一回事——**持有的不一定是自己的**，[被分享来的](#ul-asset-sharing--资产分享--asset-sharing)照样持有。**裸写「持有」不作数**：正文也用它说「持有使用权」「持有待处理消息队列」
 - **注意 ①**：正文**未述它靠什么标识**；工作区那一级持有的资产算不算[自定义件](#ul-customized-asset--自定义件--customized-asset)，正文没说。
   **工作区那一级照样配得了[禁用](#ul-asset-disable--资产禁用--asset-disable)**，
@@ -109,7 +109,7 @@
 - **注意 ③**：**一层对一个[能力标识](scope-and-resolution.md#ul-capability-identifier--能力标识--capability-identifier)至多持有一份**——同一层可以有好几份同标识的资产，替代发生在持有上；
   持有上还记着[版本选用](#ul-version-selection--版本选用--version-selection)：钉在某一版，或追随当前版
 - **注意 ④**：**把资产从租户范围提升到组织范围，只换所有者，不动任何一份持有**
-  （[PF-001 §6.7](../../product/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)）
+  （[PF-001 §6.7](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#67-创作与归属)）
 - **注意 ⑤**：**形态是「属性」说的是它的所指，不是它的存储**——它是范围与资产之间的一层关系，
   [C-17](../conflicts.md#现有冲突) 已由产品负责人裁为属性；**它存不存成一条独立的记录、怎么标识，归系统架构设计**，不因此改变形态
 
@@ -126,10 +126,10 @@
 > command's "who may use this entry point" are both this.
 
 - **形态**：属性
-- **出处**：[PF-002 §5.2「谁可以使用它」是各类资产共用的一项权限](../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限) ·
-  [§4 Slash Command](../../product/PF-002-assets-settings-and-permissions/design.md#slash-command) ·
-  [§5.6 第 1 步](../../product/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 32） ·
-  [PF-007 §6.2](../../product/PF-007-meta-capabilities/design.md#62-skills通向任意技能)（rev 25）
+- **出处**：[PF-002 §5.2「谁可以使用它」是各类资产共用的一项权限](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限) ·
+  [§4 Slash Command](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#slash-command) ·
+  [§5.6 第 1 步](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#56-四步资产求值--组装--投影--层级计算)（rev 32） ·
+  [PF-007 §6.2](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#62-skills通向任意技能)（rev 25）
 - **别混**：**不是[使用权](#ul-usage-right--使用权--usage-right)**——使用权说的是**一个范围**对一份资产有没有使用的权利（定义者直接有、被分享方确认后有）；
   这一项是那份持有上配的「**这个范围里哪些人**能用」
 - **注意 ①**：**「自己」在组织、租户持有的资产上指作者本人**；在工作区自带的资产上，指挂上那份工作区的租户本人
@@ -152,7 +152,7 @@
 > asset composition — no separate rule set is needed.
 
 - **形态**：属性
-- **出处**：[PF-001 §4 来源](../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 26）
+- **出处**：[PF-001 §4 来源](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 26）
 - **别混**：**裸写「来源」不作数**——它专指 official / customized 这个二分
 - **注意**：来源**不能靠任意请求自报来冒充**
 
@@ -171,7 +171,7 @@
 > not removal**. Meta capabilities and official Agent Definitions cannot be substituted.
 
 - **形态**：变体（父：[资产](capabilities-and-composition.md#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 来源](../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 26）
+- **出处**：[PF-001 §4 来源](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 26）
 - **别混**：它**不是**「一批可以申请使用的官方资源」，**它是底座**——没有它，agent 组装不出来
 - **注意**：资产求值的**下界**：每个 official 能力标识下都必须有东西，**任何层都不能把它清空**
 
@@ -185,7 +185,7 @@
 > a capability identifier and substitution is permitted. It **requires authorization** and **can be disabled**.
 
 - **形态**：变体（父：[资产](capabilities-and-composition.md#ul-asset--资产--asset)）
-- **出处**：[PF-001 §4 来源](../../product/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 26）
+- **出处**：[PF-001 §4 来源](../../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#来源official-与-customized)（rev 26）
 - **注意**：自定义来源**不会**因为被 agent 使用就给作者或该 agent 额外的行动权限——**资产决定组装，权限决定行动，两者不互相转化**
 
 ## 两个动作
@@ -215,9 +215,9 @@
 > personal form only**.
 
 - **形态**：过程
-- **出处**：[PF-003 §4 资产复制](../../product/PF-003-asset-transfer-and-sharing/design.md#资产复制) ·
-  [§6.2 谁能流向谁](../../product/PF-003-asset-transfer-and-sharing/design.md#62-谁能流向谁) ·
-  [§6.3](../../product/PF-003-asset-transfer-and-sharing/design.md#63-复制的通则同一自然人的两个租户身份)（rev 6）
+- **出处**：[PF-003 §4 资产复制](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#资产复制) ·
+  [§6.2 谁能流向谁](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#62-谁能流向谁) ·
+  [§6.3](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#63-复制的通则同一自然人的两个租户身份)（rev 6）
 - **别混**：与[资产分享](#ul-asset-sharing--资产分享--asset-sharing)的根本分别——**复制交出一份所有权，分享只开放使用权**；
   交出所有权只在同一个人、或同树两个各由超管点头的组织之间发生，分享能到的对方更宽。
   **裸写「复制」不作数**——那个词到处都是
@@ -251,7 +251,7 @@
 > parties need not be the same person.**
 
 - **形态**：过程
-- **出处**：[PF-003 §4 分享](../../product/PF-003-asset-transfer-and-sharing/design.md#分享) · [§6.2 谁能流向谁](../../product/PF-003-asset-transfer-and-sharing/design.md#62-谁能流向谁) · [§6.10](../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有) · [§6.12](../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)（rev 6）
+- **出处**：[PF-003 §4 分享](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#分享) · [§6.2 谁能流向谁](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#62-谁能流向谁) · [§6.10](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有) · [§6.12](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后)（rev 6）
 - **注意 ①**：**它成立后的那一段是一个对象——[分享关系](#ul-sharing-relationship--分享关系--sharing-relationship)**；结束的来路都写在那一条上：
   分享方撤销、被分享方移除、两个组织的隶属关系解除、任一方是租户时它的成员关系解除。**结束了不复活**——关系断了又接上，要用得再分享一次，那是新的一段。
   **确认之后的使用权没有到期，也没有暂停**
@@ -262,7 +262,7 @@
 - **注意 ④**：**组织级的资产不需要组织内分享**——它在本组织里谁能用，归权限项[谁可以使用它](#ul-usable-by--谁可以使用它--usable-by)；
   **个人组织 → 团队的组织级只有复制，没有分享**
 - **注意 ⑤**：**「组织内分享」「本人型分享」是按接收方是谁分出的两种情形的叫法，不是独立概念**——
-  [正文说组织内分享「就是分享，不另立一套」](../../product/PF-003-asset-transfer-and-sharing/design.md#分享)；
+  [正文说组织内分享「就是分享，不另立一套」](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#分享)；
   英文随定义写 **intra-organization sharing / the personal form**。它们与 flows §4 分格用的「跨组织分享」「个人间分享」一样，
   指的都是这一个动作，只是接收方、确认者与结束来路各占一格，**不另立词条，也不作变体**（变体只给对象，这一条是过程）
 
@@ -286,7 +286,7 @@
 > **Created at the first copy, fixed thereafter, and it does not propagate.**
 
 - **形态**：属性
-- **出处**：[PF-003 §4 复制血缘](../../product/PF-003-asset-transfer-and-sharing/design.md#复制血缘) · [§6.5](../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制)（rev 6）
+- **出处**：[PF-003 §4 复制血缘](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#复制血缘) · [§6.5](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#65-首次复制)（rev 6）
 - **别混**：**不是设计材料的新旧身份对应**。**裸写「血缘」不作数**
 - **注意**：对目标组织**有意做得很浅**——能看到「由某租户在某时送进来第几版」，**看不到源资产本身**
 - **弃用**：~~「转移血缘 / Transfer Lineage」~~（旧 ID ~~`UL-transfer-lineage`~~）
@@ -309,9 +309,9 @@
 > is an object: the recipient sees each one, and what gets confirmed is that one.
 
 - **形态**：对象
-- **出处**：[PF-003 §6.14 待确认的复制通知与分享邀请会过期](../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期) ·
-  [§4 资产复制](../../product/PF-003-asset-transfer-and-sharing/design.md#资产复制) ·
-  [PF-003 flows §3.4](../../product/PF-003-asset-transfer-and-sharing/flows.md#34-一份待确认的邀约复制通知与分享邀请同形)（rev 6）
+- **出处**：[PF-003 §6.14 待确认的复制通知与分享邀请会过期](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期) ·
+  [§4 资产复制](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#资产复制) ·
+  [PF-003 flows §3.4](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/flows.md#34-一份待确认的邀约复制通知与分享邀请同形)（rev 6）
 - **别混**：**不是[分享邀请](#ul-sharing-invitation--分享邀请--sharing-invitation)**——两者同形（可撤回、会过期、带时长、再发是新的一份），
   但确认落下的东西不同：这一个落下一份资产，那一个建立一段使用权。也**不是[邀请](subjects-and-ownership.md#ul-invitation--邀请--invitation)**（那是加入组织的）
 - **注意 ①**：**正文未述它靠什么标识**；只写明逐份可辨——接收方看得见每一份，重新发起的是新的一份
@@ -338,9 +338,9 @@
 > right comes into being. **A personal-form share produces none.**
 
 - **形态**：对象
-- **出处**：[PF-003 §6.14 待确认的复制通知与分享邀请会过期](../../product/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期) ·
-  [§4 分享](../../product/PF-003-asset-transfer-and-sharing/design.md#分享) ·
-  [PF-003 flows §3.4](../../product/PF-003-asset-transfer-and-sharing/flows.md#34-一份待确认的邀约复制通知与分享邀请同形)（rev 6）
+- **出处**：[PF-003 §6.14 待确认的复制通知与分享邀请会过期](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#614-待确认的复制通知与分享邀请会过期) ·
+  [§4 分享](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#分享) ·
+  [PF-003 flows §3.4](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/flows.md#34-一份待确认的邀约复制通知与分享邀请同形)（rev 6）
 - **别混**：**不是[邀请](subjects-and-ownership.md#ul-invitation--邀请--invitation)**——那是加入组织的邀约，接受产生租户；这一份接受建立的是使用权。
   正文在没有歧义处写「邀请」指前者，指这一个时一律带「分享」
 - **注意 ①**：**正文未述它靠什么标识**；只写明逐份可辨
@@ -368,9 +368,9 @@
 > A personal-form share enters "sharing" on initiation, with no pending stretch.
 
 - **形态**：对象
-- **出处**：[PF-003 flows §3.2 一段分享关系](../../product/PF-003-asset-transfer-and-sharing/flows.md#32-一段分享关系) ·
-  [PF-003 §6.12](../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后) ·
-  [§6.10](../../product/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)（rev 6）
+- **出处**：[PF-003 flows §3.2 一段分享关系](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/flows.md#32-一段分享关系) ·
+  [PF-003 §6.12](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后) ·
+  [§6.10](../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#610-分享给的是获权不是拥有)（rev 6）
 - **别混**：**不是[使用权](#ul-usage-right--使用权--usage-right)**——使用权是接收方对那份资产的一项权利状态（有 / 没有），
   由这一段的「分享中」带来；这一段是被逐份指认、有自己生灭的那个东西。也**不是[资产分享](#ul-asset-sharing--资产分享--asset-sharing)**——那是动作，这是动作立起来的东西
 - **注意 ①**：**正文未述它靠什么标识**；只写明「再分享一次是新的一段」，即同一对当事人、同一份资产可以先后有两段
@@ -392,7 +392,7 @@
 > configured for it**. It ceases to be a current asset candidate; known session capability identities remain, with unavailability reasons according to current evaluation.
 
 - **形态**：过程
-- **出处**：[PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作)（rev 32）
+- **出处**：[PF-002 §6.4](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作)（rev 32）
 - **别混**：与[资产禁用](#ul-asset-disable--资产禁用--asset-disable)均保留已知不可用身份，原因可区分，差的是**配置还在不在、还能不能开回来**
 - **注意**：**这个范围往后不要这份资产了 → 用这个**
 
@@ -415,7 +415,7 @@
 > by any other layer.
 
 - **形态**：属性
-- **出处**：[PF-002 §6.4](../../product/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [§6.4 禁用是逐层配的布尔设置](../../product/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见)（rev 32）
+- **出处**：[PF-002 §6.4](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作) · [§6.4 禁用是逐层配的布尔设置](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#禁用是逐层配的布尔设置任一层为真即不可见)（rev 32）
 - **注意**：被禁的那份持有**在替换次序上视为不存在，同标识退回下一层**——
   工作区借「同名替换再禁用」藏不掉租户的资产
 - **别混**：与[当下可用性](reach-and-availability.md#ul-current-availability--当下可用性--current-availability)不是一回事——

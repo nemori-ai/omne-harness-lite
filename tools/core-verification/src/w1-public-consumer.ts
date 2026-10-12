@@ -113,7 +113,7 @@ const negativeControl = process.argv.includes('--negative-control=outcome')
 const cases: readonly ConsumerCase[] = [
   {
     id: 'w1.kernel.outcome-public',
-    sources: ['packages/core/kernel-basis/SPEC.md'],
+    sources: ['packages.0.0.1.legacy/core/kernel-basis/SPEC.md'],
     run() {
       const success = succeed({ answer: 42 })
       const failure = fail('consumerUnavailable')
@@ -127,7 +127,7 @@ const cases: readonly ConsumerCase[] = [
   },
   {
     id: 'w1.kernel.public-lifecycle',
-    sources: ['packages/core/kernel-basis/SPEC.md'],
+    sources: ['packages.0.0.1.legacy/core/kernel-basis/SPEC.md'],
     async run() {
       const ctx = new Context()
       let applied = 0
@@ -166,7 +166,7 @@ const cases: readonly ConsumerCase[] = [
   },
   {
     id: 'w1.kernel.public-assembly-cleanup',
-    sources: ['packages/core/kernel-basis/SPEC.md'],
+    sources: ['packages.0.0.1.legacy/core/kernel-basis/SPEC.md'],
     async run() {
       const assembly = await bootAssembly({ services: [{ name: 'w1AssemblyValue', value: 7 }] })
       assert.equal(resolveOptional(assembly.ctx, 'w1AssemblyValue'), 7)
@@ -455,7 +455,7 @@ const cases: readonly ConsumerCase[] = [
   },
   {
     id: 'w1.storage.exception-dependencies',
-    sources: ['realization/packages/core/storage/design.md#状态并发与失败映射'],
+    sources: ['packages.0.0.1.legacy/core/storage/SPEC.md#事务锁与分类失败'],
     run() {
       const cause = new Error('consumer-cause')
       const transient = new StorageUnavailable('offline', { cause })
@@ -488,9 +488,7 @@ const cases: readonly ConsumerCase[] = [
   },
   {
     id: 'w1.storage.public-migrations',
-    sources: [
-      'realization/packages/core/storage/design.md#表结构不在协议里由装配层迁移建立两节点同一约束域',
-    ],
+    sources: ['packages.0.0.1.legacy/core/storage/SPEC.md#迁移与维护'],
     async run() {
       const first = { name: 'consumer_one', migration: { async up() {} } }
       const second = { name: 'consumer_two', migration: { async up() {} } }
@@ -644,7 +642,7 @@ for (const name of packageNames) {
   const specifier = `@omne-harness-lite/${name}`
   const url = new URL(import.meta.resolve(specifier))
   assert.ok(
-    url.pathname.endsWith(`/packages/core/${name}/dist/index.js`),
+    url.pathname.endsWith(`/packages.0.0.1.legacy/core/${name}/dist/index.js`),
     `${specifier} must resolve to built dist`,
   )
   const bytes = await readFile(url)

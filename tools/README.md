@@ -5,7 +5,7 @@
 
 | 工具 | 职责 |
 |---|---|
-| [spec-tools](spec-tools/README.md) | 跨仓库 Markdown 导航与技能镜像、形式工具环境、开发模型评估证据；Python uv workspace 成员 |
+| [spec-tools](spec-tools/README.md) | 跨仓库 Markdown 导航与技能镜像、文档目标库存与角色上下文、形式工具环境、开发模型评估证据；Python uv workspace 成员 |
 | [artifact-builder](artifact-builder/README.md) | 应用归档的开发期文件闭包校验与独占发布；CLI和中心的静态适配经公开入口消费，不进入生产依赖 |
 | [ts-checks](ts-checks/README.md) | 产品源码的结构检查规则（墙钟、`bail`、受限调用点、`./testing` 零 import、跨组依赖方向），每条带「故意违反就失败」自测；pnpm workspace 成员，`pnpm run lint:rules`。同包的第二入口 `make metrics` 出结构度量与审讯页，只报告不判失败 |
 | [core-verification](core-verification/README.md) | core 包的真实组合与套件有效性验证；开发依赖通过公开入口消费现有提供者，产品 core 不反向依赖 infra |

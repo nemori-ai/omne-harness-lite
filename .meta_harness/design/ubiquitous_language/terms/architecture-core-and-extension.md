@@ -29,14 +29,14 @@
 
 > **中**：系统里**立规矩**的那一部分——概念在这里定义、边界在这里划、
 > 其余部分必须遵守的协议在这里立；其余部分**消费**它们，不重新定义。
-> 它由[架构内核 PF 索引](../../product/architecture-core.md)登记的那批产品设计 topic
+> 它由[架构内核 PF 索引](../../product.0.0.1.legacy/architecture-core.md)登记的那批产品设计 topic
 > 所覆盖的对象、层与领域构成，**那份清单会随设计生长而增补**。
 >
 > **EN**: The part of the system that **establishes the rules** — where concepts are
 > defined, boundaries are drawn, and the protocols everything else must obey are
 > set. The rest **consumes** them rather than redefining them. It consists of the
 > objects, layers and domains covered by the product-design topics registered in
-> the [architecture-core PF index](../../product/architecture-core.md), a set that
+> the [architecture-core PF index](../../product.0.0.1.legacy/architecture-core.md), a set that
 > grows as the design grows.
 
 - **形态**：总称

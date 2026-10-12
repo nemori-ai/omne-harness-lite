@@ -1,17 +1,8 @@
-// 产品区的读法：场景行怎么认、stories.md 的「已发到」与空队列、「覆盖场景」的链接指到哪条场景，
-// 以及认场景行的正则与设计区对账器 stories.py 没有分叉。
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import {
-  readProductTopics,
-  SCENARIO_ID,
-  scenarioId,
-  scenarioRows,
-} from '../src/product/scenarios.ts'
-import { linkedScenario, parseStories, readStories } from '../src/product/stories.ts'
+import { readProductTopics, scenarioId, scenarioRows } from '../src/product/scenarios.ts'
 
 const made: string[] = []
 afterEach(() => {
@@ -37,87 +28,93 @@ describe('场景行', () => {
       ['S2', [4]],
     ])
   })
-
-  // 两边各用自己的语言写同一条规则；有人只改了一边，这里变红。
-  it('与 stories.py 的 SCENARIO_RE、CELL_SPLIT_RE 是同一个正则', () => {
-    const python = readFileSync(
-      fileURLToPath(new URL('../../../.meta_harness/tooling/src/stories.py', import.meta.url)),
-      'utf8',
-    )
-    const pattern = (name: string) =>
-      new RegExp(`^${name} = re\\.compile\\(r"(.+)"\\)$`, 'mu').exec(python)?.[1]
-    expect(pattern('SCENARIO_RE')).toBe(SCENARIO_ID.source)
-    expect(pattern('CELL_SPLIT_RE')).toBe('(?<!\\\\)\\|')
-    expect(pattern('TOPIC_RE')).toBe('^PF-(\\d{3})(?:-|$)')
-  })
-
-  it('读产品区：只认 PF-<三位> 开头的目录，没有 acceptance.md 的 topic 场景为空', () => {
-    const root = mkdtempSync(join(tmpdir(), 'product-'))
-    made.push(root)
-    for (const dir of ['PF-016-cli', 'PF-017-center', '.templates', 'archive'])
-      mkdirSync(join(root, dir))
-    writeFileSync(join(root, 'PF-016-cli', 'acceptance.md'), '| S5 | 没有屏 | 指路 |\n')
-    const topics = readProductTopics(root)
-    expect(topics?.map(topic => [topic.dir, topic.topic, [...topic.scenarios.keys()]])).toEqual([
-      ['PF-016-cli', 'PF-016', ['S5']],
-      ['PF-017-center', 'PF-017', []],
-    ])
-    expect(readProductTopics(join(root, 'nowhere'))).toBeUndefined()
-  })
 })
 
-describe('stories.md', () => {
-  it('「已发到」冒号全角半角都认，代码块里的不算；只有这一行的队列读成没有卡', () => {
-    const drained = parseStories(
-      '# PF-016 故事卡\n\n**已发到**：ST-016-03\n\n```\n**已发到**: ST-016-09\n```\n',
+function topic(
+  root: string,
+  slug = 'skills',
+  metadata = 'id: PD-skills\nrevision: 1\nstatus: draft',
+): string {
+  const dir = join(root, slug)
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'README.md'), `---\n${metadata}\n---\n`)
+  writeFileSync(join(dir, 'design.md'), '# Product\n')
+  return dir
+}
+function temporary(): string {
+  const root = mkdtempSync(join(tmpdir(), 'product-'))
+  made.push(root)
+  return root
+}
+describe('当前产品发现', () => {
+  it.each(['---   \n', '---\t\r\n', '--- \t'])('接受 front-matter 关闭行的尾随空白 %j', closing => {
+    const root = temporary()
+    const dir = topic(root)
+    writeFileSync(
+      join(dir, 'README.md'),
+      `---\nid: PD-skills\nrevision: 1\nstatus: draft\n${closing}`,
     )
-    expect(drained).toEqual({ cards: [], highWater: ['ST-016-03'] })
-    expect(parseStories('**已发到**: ST-016-01\n**已发到**：ST-016-02\n').highWater).toEqual([
-      'ST-016-01',
-      'ST-016-02',
-    ])
-    expect(parseStories('### ST-016-01 · 没有已发到\n').highWater).toEqual([])
+    expect(readProductTopics(root).map(t => t.topic)).toEqual(['PD-skills'])
   })
-
-  it('「覆盖场景」的链接按行收下，续行也收；别的字段里的链接不收', () => {
-    const { cards } = parseStories(
-      [
-        '### ST-016-01 · 一张卡',
-        '- **价值**：见[设计](design.md)',
-        '- **覆盖场景**：[S5](acceptance.md#给脚本用)、[**A01**](../PF-017-center/acceptance.md)',
-        '  [S6](acceptance.md)',
-        '- **就绪**：是',
-      ].join('\n'),
+  it('关闭行带非空白文本仍不是合法 front-matter 分隔符', () => {
+    const root = temporary()
+    const dir = topic(root)
+    writeFileSync(
+      join(dir, 'README.md'),
+      '---\nid: PD-skills\nrevision: 1\nstatus: draft\n--- text\n',
     )
-    expect(cards[0]?.covers).toEqual([
-      { label: 'S5', href: 'acceptance.md#给脚本用' },
-      { label: '**A01**', href: '../PF-017-center/acceptance.md' },
-      { label: 'S6', href: 'acceptance.md' },
-    ])
-    expect(cards[0]?.ready).toBe('ready')
+    expect(() => readProductTopics(root)).toThrow('缺元数据')
   })
-
-  it('链接解析到（topic 目录，编号）；指到 acceptance.md 以外或产品区以外的认不出', () => {
-    const at = (label: string, href: string) => linkedScenario('PF-016-cli', { label, href })
-    expect(at('S5', 'acceptance.md#给脚本用')).toEqual({ topic: 'PF-016-cli', id: 'S5' })
-    expect(at('`A01`', '../PF-017-center/acceptance.md')).toEqual({
-      topic: 'PF-017-center',
-      id: 'A01',
-    })
-    expect(at('S5', 'design.md')).toBeUndefined()
-    expect(at('S5', '../../acceptance.md')).toBeUndefined()
-    expect(at('S5', '../archive/acceptance.md')).toBeUndefined()
-    expect(at('S5', '%E0%A4%A.md')).toBeUndefined()
+  it.each(['missing', 'alpha'])('拒绝指向 %s 的 topic 目录链接，不返回部分成功', target => {
+    const root = temporary()
+    topic(root, 'alpha', 'id: PD-alpha\nrevision: 1\nstatus: draft')
+    symlinkSync(join(root, target), join(root, 'beta'), 'dir')
+    expect(() => readProductTopics(root)).toThrow('别名链接')
   })
-
-  it('有 stories.md 的 topic 都列出来，空队列也算', () => {
-    const root = mkdtempSync(join(tmpdir(), 'product-'))
-    made.push(root)
-    mkdirSync(join(root, 'PF-016-cli'))
-    mkdirSync(join(root, 'PF-017-center'))
-    writeFileSync(join(root, 'PF-016-cli', 'stories.md'), '**已发到**：ST-016-01\n')
-    expect(readStories(root)).toEqual([
-      { topic: 'PF-016-cli', cards: [], highWater: ['ST-016-01'] },
+  it('读取 PD 元数据，保留没有编号场景的 topic，排除模板', () => {
+    const root = temporary()
+    const dir = topic(root)
+    topic(root, 'tools', 'id: PD-tools\nrevision: 2\nstatus: draft')
+    mkdirSync(join(root, '.templates'))
+    writeFileSync(join(dir, 'acceptance.md'), '| S5 | 场景 |\n')
+    expect(readProductTopics(root).map(t => [t.dir, t.topic, [...t.scenarios.keys()]])).toEqual([
+      ['skills', 'PD-skills', ['S5']],
+      ['tools', 'PD-tools', []],
     ])
+  })
+  it.each([
+    ['id: PD-skills\nstatus: draft', 'revision'],
+    ['id: PD-skills\nrevision: 0\nstatus: draft', 'revision'],
+    ['id: PD-other\nrevision: 1\nstatus: draft', 'slug'],
+    ['id: PD-skills\nrevision: 1', 'status'],
+  ])('拒绝非法元数据 %s', (metadata, error) => {
+    const root = temporary()
+    topic(root, 'skills', metadata)
+    expect(() => readProductTopics(root)).toThrow(error)
+  })
+  it('缺正文、非法根明确失败；合法空根返回空结果', () => {
+    const root = temporary()
+    expect(readProductTopics(root)).toEqual([])
+    expect(() => readProductTopics(join(root, 'missing'))).toThrow('不存在')
+    const dir = topic(root)
+    rmSync(join(dir, 'design.md'))
+    expect(() => readProductTopics(root)).toThrow('缺正文')
+  })
+  it('身份重复明确失败', () => {
+    const root = temporary()
+    topic(root)
+    topic(root, 'tools')
+    expect(() => readProductTopics(root)).toThrow('重复')
+  })
+  it('README、正文和 acceptance 的符号链接不得逃出产品根', () => {
+    for (const file of ['README.md', 'design.md', 'acceptance.md']) {
+      const root = temporary()
+      const dir = topic(root)
+      const outside = temporary()
+      writeFileSync(join(outside, 'file'), 'outside')
+      rmSync(join(dir, file), { force: true })
+      symlinkSync(join(outside, 'file'), join(dir, file))
+      expect(() => readProductTopics(root)).toThrow('越界')
+    }
   })
 })

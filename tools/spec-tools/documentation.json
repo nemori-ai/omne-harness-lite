@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "tool:spec-tools",
+    "kind": "member",
+    "source": {
+      "path": "docs/maintenance.md",
+      "anchor": "检查与偏离报告"
+    }
+  },
+  "documents": [
+    {
+      "id": "entry",
+      "path": "tools/spec-tools/README.md",
+      "kind": "reference",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/maintenance.md",
+        "anchor": "检查与偏离报告"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    }
+  ]
+}
