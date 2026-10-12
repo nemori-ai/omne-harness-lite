@@ -163,3 +163,17 @@ def test_proved_fixture_requires_verified_evidence_for_each_scope(source):
     report.write_text("changed bytes")
     with pytest.raises(ValueError, match="evidence file.*stale"):
         project_cursor_role(role)
+
+
+def test_existing_correctly_hashed_evidence_outside_source_is_rejected(source):
+    role = source / "roles/developer"
+    record = limited_record(role)
+    record.update(status="proved", missing=[])
+    record["scope"]["dispatch"][0]["purpose"] = "accepted-role-duty"
+    outside = source.parent / "outside.json"
+    outside.write_text('{"synthetic": true}')
+    record["evidence"] = [{"reference": "../outside.json", "sha256": digest(outside.read_bytes()),
+                           "claims": sorted(CLAIMS), "dispatch": copy.deepcopy(record["scope"]["dispatch"])}]
+    write_record(role, adopt(record))
+    with pytest.raises(ValueError, match="evidence file.*outside source"):
+        project_cursor_role(role)
