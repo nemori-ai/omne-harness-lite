@@ -134,6 +134,13 @@
     {
       "id": "migration-tests",
       "argv": [
+        "env",
+        "-u",
+        "OMNE_INTEGRATION_BOOTSTRAP_CHECK",
+        "-u",
+        "OMNE_SUBJECT_ROOT",
+        "-u",
+        "OMNE_RUNNER_ROOT",
         "pnpm",
         "--dir",
         "{runner}/tools/ts-checks",
