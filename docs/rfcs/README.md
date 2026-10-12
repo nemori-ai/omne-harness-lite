@@ -28,4 +28,4 @@
 
 ## 提案条目
 
-- [RFC-0001：新包结构下的系统技术基础与公共设施](RFC-0001-technical-foundations.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
+- [RFC-0001：系统技术基础与公共设施](RFC-0001-technical-foundations.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
