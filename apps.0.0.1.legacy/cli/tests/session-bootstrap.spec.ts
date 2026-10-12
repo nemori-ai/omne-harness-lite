@@ -797,6 +797,7 @@ it('deploys the actual CLI official release and creates an independently initial
         references: [
           { capability: { category: 'tool', name: 'Shell' } },
           { capability: { category: 'tool', name: 'Files' } },
+          { capability: { category: 'tool', name: 'Result' } },
           { capability: { category: 'loop_extension', name: 'omne-official:admission-judgment' } },
         ],
       },

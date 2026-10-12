@@ -72,7 +72,9 @@ it('w1.types.inventory.all-five-built-members-with-kernel-binding', async () => 
     expect(resolved, specifier).toBeDefined()
     if (resolved === undefined) throw new Error(`public type module unavailable: ${specifier}`)
     const declaration = await realpath(resolved.resolvedFileName)
-    expect(declaration).toBe(join(repository, 'packages/core', node, `dist/${file}.d.ts`))
+    expect(declaration).toBe(
+      join(repository, 'packages.0.0.1.legacy/core', node, `dist/${file}.d.ts`),
+    )
     const bytes = await readFile(declaration)
     const names = namedTypeExports(bytes.toString('utf8'))
     const imported = imports.get(specifier) ?? []
@@ -91,7 +93,9 @@ it('w1.types.inventory.all-five-built-members-with-kernel-binding', async () => 
       exportedNamedTypes: names,
       directlyImportedNamedTypes: imported,
       declarations: await dependencySurface(declaration, true),
-      sources: await dependencySurface(join(repository, 'packages/core', node, `src/${file}.ts`)),
+      sources: await dependencySurface(
+        join(repository, 'packages.0.0.1.legacy/core', node, `src/${file}.ts`),
+      ),
     })
   }
   expect(inventory.reduce((sum, item) => sum + item.exportedNamedTypes.length, 0)).toBe(112)

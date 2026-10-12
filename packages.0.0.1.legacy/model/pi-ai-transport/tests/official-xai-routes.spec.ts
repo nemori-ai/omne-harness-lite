@@ -295,7 +295,7 @@ describe.each(routes)('%s xai route (synthetic offline capability fixture)', (mo
       )
       expect(result.outcome).toBe('complete')
       expect(result.blocks).toMatchObject([
-        { kind: 'thinking', text: '' },
+        { kind: 'thinking', text: 'controlled thought' },
         { kind: 'text', text: 'controlled answer' },
       ])
       const thinking = result.blocks[0]

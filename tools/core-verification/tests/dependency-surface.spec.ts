@@ -31,7 +31,8 @@ it('w1.consumer.dependency-parser-detects-forbidden-edges', () => {
 })
 
 it('w1.consumer.adopted-dependency-exceptions', async () => {
-  const root = (node: string, file: string) => join(repository, 'packages/core', node, file)
+  const root = (node: string, file: string) =>
+    join(repository, 'packages.0.0.1.legacy/core', node, file)
   const kernelSource = await dependencySurface(root('kernel-basis', 'src/index.ts'))
   const kernelDeclarations = await dependencySurface(root('kernel-basis', 'dist/index.d.ts'), true)
   const kernelRuntime = await dependencySurface(root('kernel-basis', 'dist/index.js'))

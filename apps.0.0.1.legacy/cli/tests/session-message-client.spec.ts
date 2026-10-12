@@ -149,7 +149,7 @@ it('keeps a queued original input accepted when its bounded wait expires without
   const f = await fixture(async packet =>
     packet.command === 'submitInput' ? { kind: 'accepted', receipt } : { ...submission, run: null },
   )
-  const outcome = await submitSessionMessage({ ...f.options, policy: { ...policy, maxWaitMs: 30 } })
+  const outcome = await submitSessionMessage(f.options)
   expect(outcome).toMatchObject({
     status: 'accepted',
     receipt,

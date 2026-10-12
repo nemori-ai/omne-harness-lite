@@ -165,6 +165,11 @@
         "developer"
       ],
       "cwd": "runner"
+    },
+    {
+      "id": "subject-native",
+      "argv": ["pnpm", "--dir", "{subject}", "-r", "rebuild", "node-pty"],
+      "cwd": "subject"
     }
   ],
   "profiles": {
@@ -173,6 +178,7 @@
       "runner-python",
       "runner-build",
       "subject-dependencies",
+      "subject-native",
       "runner-agents",
       "runner-agent-links",
       "subject-agents",
@@ -185,6 +191,7 @@
       "runner-python",
       "runner-build",
       "subject-dependencies",
+      "subject-native",
       "runner-agents",
       "runner-agent-links",
       "subject-agents",
@@ -197,7 +204,7 @@
   },
   "checkpointCoverage": {
     "startup": ["startup"],
-    "install": ["runner-dependencies", "runner-python", "subject-dependencies"],
+    "install": ["runner-dependencies", "runner-python", "subject-dependencies", "subject-native"],
     "migration": ["migration-tests"],
     "mainPath": ["context-main-path", "check"]
   },
