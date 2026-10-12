@@ -17,11 +17,12 @@ export async function archiveVitestArgs(
   const { vitestConfig } = await resolveConfig({ ...options, root: member })
   if ((vitestConfig.projects?.length ?? 0) > 0)
     throw new Error('Archived inputs require a single Vitest project')
-  const args = [...vitestConfig.typecheck.exclude, '**/*.legacy/**'].flatMap(pattern => [
-    '--typecheck.exclude',
-    pattern,
-  ])
-  if (tier !== 'slow' && vitestConfig.typecheck.enabled === true) {
+  const coverage = tier === 'coverage'
+  const args = [
+    ...(coverage ? vitestConfig.coverage.exclude : vitestConfig.typecheck.exclude),
+    '**/*.legacy/**',
+  ].flatMap(pattern => [coverage ? '--coverage.exclude' : '--typecheck.exclude', pattern])
+  if (!coverage && tier !== 'slow' && vitestConfig.typecheck.enabled === true) {
     if (vitestConfig.typecheck.checker !== 'tsc')
       throw new Error('Archived inputs require the supported tsc checker')
     const project =

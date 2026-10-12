@@ -126,7 +126,12 @@ async function runMember(
       process.execPath,
       [
         '--experimental-strip-types',
-        fileURLToPath(new URL('./vitest-archive.ts', import.meta.url)),
+        fileURLToPath(
+          new URL(
+            `./vitest-archive.${import.meta.url.endsWith('.ts') ? 'ts' : 'js'}`,
+            import.meta.url,
+          ),
+        ),
         member.script,
         tier,
         optionsPath,
