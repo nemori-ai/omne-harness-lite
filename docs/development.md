@@ -58,6 +58,10 @@ codex plugin add mattpocock-skills@mattpocock
 
 更换机器、cloud镜像或harness时重新核对。插件更新或自动更新后也核对实际版本；不匹配时先恢复指定版本，或由技能拥有者明确版本与采用变更，再继续依赖该方法的工作。临时安装与加载记录留任务tmp，不修改来源表来掩盖环境差异。
 
+### Cursor 项目与 Cloud 初始化
+
+Cursor 官方 pstack/Matt 按[来源表](engineering/skills.md#来源与项目采用)安装；本项目资产从 canonical 生成。CLI、IDE 和 Cloud 的项目视图、外部物理插件及首会话前 setup 命令归 [tooling](../.meta_harness/tooling/README.md#cursor-原生包与项目视图)。只启用同一资产的一种接入方式；本地安装不证明 Cloud 初始化或角色模型资格。
+
 ### 形式工具链
 
 只有任务需要形式模型时才准备和运行相应工具。先确认实际执行环境：

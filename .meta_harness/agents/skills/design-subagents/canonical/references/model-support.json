@@ -212,5 +212,48 @@
     "Codex cache is dated evidence, not a live model invocation.",
     "Claude model aliases and account availability depend on provider and policy.",
     "No native role execution was used to validate this model list; independent skill-authoring trials are recorded separately."
-  ]
+  ],
+  "cursor": {
+    "checked_at": "2026-10-12",
+    "cli_version": "2026.08.04-aaa8809",
+    "evidence": {
+      "kind": "authenticated_cli_list_models",
+      "command": "agent --list-models",
+      "sha256": "ba3700ee0f80829b6c3fa4c16fd68a072f663dd037c31d49db95f71adf1f7b11",
+      "official_host_docs": "https://cursor.com/docs/subagents"
+    },
+    "models": [
+      {
+        "id": "claude-opus-5-5-high",
+        "host_catalog_visible": true,
+        "account_execution": "not_tested_for_role"
+      },
+      {
+        "id": "claude-opus-5-5-xhigh",
+        "host_catalog_visible": true,
+        "account_execution": "not_tested_for_role"
+      },
+      {
+        "id": "claude-fable-5-1-high",
+        "host_catalog_visible": true,
+        "account_execution": "not_tested_for_role"
+      },
+      {
+        "id": "claude-fable-5-1-xhigh",
+        "host_catalog_visible": true,
+        "account_execution": "not_tested_for_role"
+      },
+      {
+        "id": "claude-sonnet-5-5-high",
+        "host_catalog_visible": true,
+        "account_execution": "not_tested_for_role"
+      }
+    ],
+    "qualification": {
+      "project_agents": "requested_model_preserved; effective_model_and_permissions_require_run_evidence",
+      "plugin_agents": "model_is_inherit_in_this_cli; requires_verified_Task_override_for_model_sensitive_roles",
+      "ide": "not_run",
+      "cloud": "not_run"
+    }
+  }
 }

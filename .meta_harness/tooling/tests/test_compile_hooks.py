@@ -34,6 +34,8 @@ def source(tmp_path):
     (role / "claude.yaml").write_text("name: developer\ndescription: Implement\n", encoding="utf-8")
     declare(root, [{"id": "facts", "events": ["Stop", "SubagentStop"],
                     "subagent_types": ["developer"], "command": COMMAND, "timeout": 60}])
+    (role / "cursor.yaml").write_text("name: developer\ndescription: Implement\nmodel: claude-sonnet-5-5-high\nreadonly: false\nis_background: false\n")
+    (root / "hooks/cursor.yaml").write_text("version: 1\nloop_limit: 1\ntimeout_grace: 5\n")
     return root
 
 
@@ -67,6 +69,7 @@ def test_without_hooks_the_output_set_is_unchanged(source):
     with_hooks = set(compile_sources(source))
     (source / "hooks/hooks.yaml").unlink()
     assert set(compile_sources(source)) == with_hooks - {CLAUDE, CODEX}
+    (source / "hooks/cursor.yaml").unlink()
     (source / "hooks").rmdir()
     assert set(compile_sources(source)) == with_hooks - {CLAUDE, CODEX}
     declare(source, [])

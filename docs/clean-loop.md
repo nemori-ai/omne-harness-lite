@@ -102,7 +102,7 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 
 评审问法指到的三份判据：设计评审的[「选择」判据](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/review/choice.md)
 （下面简称「选择」）、[实现评审检查表](../.meta_harness/agents/roles/implementation-review-checklist.md)（简称「检查表」，后面的数字是第几问）、
-手册的[判断](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/architecture/assurance/judgment.md)。
+手册的[判断](defensive-patterns.md#dp-10-规格实现与证据对齐)。
 「研发品味」指[这一份](../.meta_harness/agents/roles/engineering-taste.md)。
 
 ### 一、敏捷开发

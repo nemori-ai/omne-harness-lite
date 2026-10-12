@@ -2,6 +2,7 @@
 /.claude/
 /.agents/
 /.codex/
+/.cursor/
 
 
 # Runtime traces and migration discussions belong in the execution worktree tmp/.

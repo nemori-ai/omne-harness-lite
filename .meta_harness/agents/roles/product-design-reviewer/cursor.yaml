@@ -1,0 +1,5 @@
+name: product-design-reviewer
+description: Independent read-only review of a product design. Judge logic, completeness and implementation ambiguity. No design taste judgment, edits or acceptance. Cursor model and readonly are requests; qualification needs runtime evidence.
+model: claude-fable-5-1-xhigh
+readonly: true
+is_background: false

@@ -18,7 +18,7 @@
 
 实施须依据明确且已接受的承诺。未定新方案不能凭目录或产品设计直接开包；先定位拥有者及采用范围。探路件放任务 tmp，只带事实回设计。正式终态随拥有者维护，正式RFC与Issue最小决定按[保存例外](docs/engineering/documentation.md#四类长期成果与普通任务)维护；其余候选、逐轮评审、执行证据与过程记录留[任务tmp](docs/development.md#终态与过程材料)。
 
-自有 skills 和 roles 在 `.meta_harness/agents/` 维护源与宿主适配；根 `.agents`、`.claude`、`.codex` 只暴露生成物。按[生成入口](.meta_harness/tooling/README.md)生成，不直接修改宿主产物。
+自有 skills 和 roles 在 `.meta_harness/agents/` 维护源与宿主适配；根 `.agents`、`.claude`、`.codex`、`.cursor` 只暴露生成物。按[生成入口](.meta_harness/tooling/README.md)生成，不直接修改宿主产物。
 
 ## 研发品味
 

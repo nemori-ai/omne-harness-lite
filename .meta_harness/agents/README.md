@@ -1,20 +1,20 @@
 # Agent 源资产
 
 本目录维护独有 skills、角色和宿主 hooks 的唯一编译源。实际条目以下表和源目录为准。
-执行仓库根 `.agents/`、`.claude/`、`.codex/` 通过相对软链接暴露生成物；接入状态由工具核对。
+执行仓库根 `.agents/`、`.claude/`、`.codex/`、`.cursor/` 通过相对软链接暴露生成物；接入状态由工具核对。
 通用工程方法从[技能采用入口](../../docs/engineering/skills.md)加载 pstack 与已选 Matt 方法，不复制插件正文。
 
 | 输入 | 输出（相对显式指定的输出根） |
 |---|---|
-| `skills/<name>/canonical/` + `adapters/<host>/strategy.yaml` | `.agents/skills/<name>/`、`.claude/skills/<name>/` |
-| `roles/<name>/role.md`、`codex.toml`、`claude.yaml`，可选 assembly / adaptation | `.codex/agents/<name>.toml`、`.claude/agents/<name>.md` |
-| [`hooks/hooks.yaml`](hooks/README.md)（宿主无关的收工钩子声明） | `.claude/settings.json`、`.codex/hooks.json` |
+| `skills/<name>/canonical/` + `adapters/<host>/strategy.yaml` | `.agents/skills/<name>/`、`.claude/skills/<name>/`、`.cursor/skills/<name>/` |
+| `roles/<name>/role.md`、`codex.toml`、`claude.yaml`、`cursor.yaml`，可选 assembly / adaptation | `.codex/agents/<name>.toml`、`.claude/agents/<name>.md`、`.cursor/agents/<name>.md` |
+| [`hooks/hooks.yaml`](hooks/README.md)（宿主无关的收工钩子声明） | `.claude/settings.json`、`.codex/hooks.json`、`.cursor/hooks.json` 及 Cursor bridge 资源 |
 
 [`research/`](research/README.md) 保存方法仍依赖的上游事实、适用版本与限制，
 不保存本项目如何讨论、迁移或验证这些方法的过程。规矩本身归 canonical skills 与 roles。
 开发草稿、评审与运行结果放执行工作树 `tmp/<task>/`。
 
-skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，也分别提供显式策略；
+skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，也分别提供显式策略；
 局部宿主差异通过策略声明的 Markdown slots 表达。包内相对引用保持不变，不猜测或
 自动重写外部路径；确需宿主路径时使用经过验证的局部适配，不发明运行时变量。
 生成后的目录名与 frontmatter 的 `name` 一致，`name`、`description` 和正文必填。
@@ -24,10 +24,10 @@ skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，
 两端一致是无差异策略的结果，不是禁止适配的全局约束。具体策略格式见工具说明。
 
 角色沿用现有共享角色源包格式及生成器，保留其字段校验、共享正文与宿主适配语义。
-公共契约等辅助文件可置于 `roles/` 根；每个角色子目录必须是完整双端源包。
+公共契约等辅助文件可置于 `roles/` 根；每个所选宿主必须有其明确配置。
 `role.md` 是角色共享语义，`codex.toml`、`claude.yaml` 与可选适配段承载宿主差异；
 不为统一文件名重复建立另一层 strategy。当前角色 renderer 仍验证完整双端配置，
-即使只选择一个输出宿主也一样；这是现有成对源格式的明确限制。
+选择任一旧宿主时即如此；Cursor 只消费共享 assembly 与 Cursor 配置，详见 [Cursor 支持](skills/design-subagents/canonical/references/cursor.md)。
 角色正文、公共契约与配置归 [roles](roles/README.md)；评审角色按判断对象加载相应判据。
 [evaluation](evaluation/README.md) 维护评估方法、用例与必要夹具，运行结果归工作树 tmp。
 
@@ -47,7 +47,7 @@ skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，
 | Skill | 职责 |
 |---|---|
 | `branch-integration` | 读取实际采用和 Issue 绑定，接续工作分支同步、FI/RI、联合候选、checkpoint 及未知发布恢复；工程规则与 CLI 由执行仓库拥有 |
-| `harness-design-handbook` | 从需求与能力覆盖到演化、契约、装配时对 Cordis 的符合性核对和交接；方法草稿 |
+| `harness-design-handbook` | 独有的能力覆盖、性质保护责任与 Cordis 承载判断；三类独立 reviewer 判据直接派发 |
 | `product-design` | 以 product manager 视角起草或修订产品设计正文；该区维护规矩归 [design/product](../design/product/AGENTS.md) |
 | `write-blog` | 为人代笔技术博客：访谈作者、核对设计资料，按方向撰写个人工程复盘或开发者技术专题，以说人话和准确表达为准则 |
 | [`asd-ste100`](skills/asd-ste100/README.md) | 全工作区文档写作与修订的表达规范：英文采用 STE，中文采用清晰性原则；保留语义与要求强度，含结构检查器，由本仓库维护 |

@@ -24,7 +24,7 @@ def source(tmp_path):
     (skill / "references").mkdir()
     (skill / "references/input.md").write_text("实际证据\n", encoding="utf-8")
     (skill / "sample.bin").write_bytes(bytes(range(256)))
-    for host in ("codex", "claude-code"):
+    for host in ("codex", "claude-code", "cursor"):
         adapter = skill.parent / "adapters" / host
         adapter.mkdir(parents=True)
         (adapter / "strategy.yaml").write_text(yaml.safe_dump({
@@ -41,6 +41,7 @@ def source(tmp_path):
         "name: evidence-reader\ndescription: Read evidence\ntools: Read, Glob\n",
         encoding="utf-8"
     )
+    (role / "cursor.yaml").write_text("name: evidence-reader\ndescription: Read evidence\nmodel: claude-sonnet-5-5-high\nreadonly: true\nis_background: false\n")
     return root
 
 
@@ -190,16 +191,19 @@ def test_host_slots_keep_common_text_and_exclude_maintainer_material(source):
     (skill / "canonical/AGENTS.md").write_text("maintainer-only")
     (skill / ".design").mkdir()
     (skill / ".design/review.md").write_text("private review")
-    for host, invocation in (("codex", "codex-specific-call"), ("claude-code", "claude-specific-call")):
+    for host, invocation in (("codex", "codex-specific-call"), ("claude-code", "claude-specific-call"),
+                             ("cursor", "cursor-specific-call")):
         adapter = skill / "adapters" / host
         strategy = yaml.safe_load((adapter / "strategy.yaml").read_text())
         strategy["slots"] = {"{{INVOKE}}": "invoke.md"}
         (adapter / "strategy.yaml").write_text(yaml.safe_dump(strategy))
         (adapter / "invoke.md").write_text(invocation)
-    outputs = compiler.compile_sources(source)
+    outputs = compiler.compile_sources(source, hosts=("codex", "claude-code", "cursor"))
     codex = outputs[Path(".agents/skills/evidence-reading/SKILL.md")].content.decode()
     claude = outputs[Path(".claude/skills/evidence-reading/SKILL.md")].content.decode()
+    cursor = outputs[Path(".cursor/skills/evidence-reading/SKILL.md")].content.decode()
     assert codex.replace("codex-specific-call", "HOST") == claude.replace("claude-specific-call", "HOST")
+    assert codex.replace("codex-specific-call", "HOST") == cursor.replace("cursor-specific-call", "HOST")
     assert all(not any(part in {"adapters", ".design", "AGENTS.md"} for part in p.parts) for p in outputs)
 
 
@@ -247,14 +251,15 @@ def test_single_host_does_not_require_other_skill_strategy(source, tmp_path):
     assert not (output / ".claude").exists()
 
 
-def test_executable_resource_is_preserved_and_mode_drift_detected(source, tmp_path):
+@pytest.mark.parametrize("host,root", [("codex", ".agents"), ("claude-code", ".claude"), ("cursor", ".cursor")])
+def test_executable_resource_is_preserved_and_mode_drift_detected(source, tmp_path, host, root):
     script = source / "skills/evidence-reading/canonical/run.sh"
     script.write_text("#!/bin/sh\nprintf 'resource works\\n'\n")
     script.chmod(0o755)
     output = tmp_path / "preview"
-    args = ["--source", str(source), "--output", str(output)]
+    args = ["--source", str(source), "--output", str(output), "--host", host]
     assert compiler.main(args) == 0
-    target = output / ".agents/skills/evidence-reading/run.sh"
+    target = output / root / "skills/evidence-reading/run.sh"
     import subprocess
     assert subprocess.run([str(target)], check=True, capture_output=True, text=True).stdout == "resource works\n"
     target.chmod(0o644)

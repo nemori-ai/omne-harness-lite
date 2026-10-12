@@ -18,7 +18,7 @@
 | skill 的唯一维护源及宿主策略 | `agents/skills/<name>/canonical/` 与 `adapters/` |
 | 集中编译及项目链接工具 | `tooling/README.md`，以实际支持范围为准 |
 | 研发 agent 的评估协议与采用证据 | `agents/evaluation/README.md` 及其实际引用 |
-| 原生生成物 | 工作区内 `.codex/agents/`、`.claude/agents/` |
+| 原生生成物 | 工作区内 `.codex/agents/`、`.claude/agents/`、`.cursor/agents/` |
 
 其他工作区可以显式提供不同位置。角色目录为空时保留缺口，不假定同名旧角色已迁入。
 生成方法见[打包](packaging.md)，正文中不永久写入临时 worktree 路径。

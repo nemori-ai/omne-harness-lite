@@ -30,7 +30,7 @@
 | 新需求、新能力，或职责、身份、授权、生命周期、失败等语义变化 | 沿[任务地图](docs/context-map.md)定位要求、架构、领域或产品拥有者，加载手册分析能力覆盖、剩余责任与候选；必要政策未明确时，只暂停依赖它的实施 |
 | 新观察挑战已有决定 | 定位现行承诺与范围，在任务 tmp 提供反例和比较；当前正文经明确接受后修订，观察不自动改变承诺 |
 | 发布或修订正式规格 | 按[架构维护规则](.meta_harness/design/architecture/README.md)维护唯一承诺源、接受依据和消费者；同步公开类型、必要行为契约、模型及真实消费者，不保留被取代源 |
-| 衔接能力规格、提供者设计与实施交接 | 加载 `harness-design-handbook` skill 的「规格演进」，明确当前正文、就绪范围、受影响消费者与未完成义务 |
+| 衔接能力规格、提供者设计与实施交接 | 按[文档治理](docs/engineering/documentation.md)定位当前承诺，按[质量与风险](docs/engineering/quality.md#区分四层就绪状态)明确就绪范围，并同步受影响消费者与未完成义务 |
 | 创建或维护 skills、角色及宿主适配 | 在 [.meta_harness/agents](.meta_harness/agents/README.md) 修改源；skill 加载官方 `skill-creator`，角色加载 `design-subagents` skill，AGENTS.md 加载 `write-agents-md` skill |
 
 用户已明确的要求和任务授权是开展工作的依据。关键歧义或缺少必需输入时，提出
@@ -42,7 +42,7 @@
 按[读者入口](docs/README.md)或[任务地图](docs/context-map.md)定位上下文。
 新技术正文落点和原有效源的交接沿[文档治理](docs/engineering/documentation.md)；正文骨架不表示采用。
 
-读取根 AGENTS.md 和实际修改目录的局部约定，再沿相关入口展开。Codex 与 Claude Code
+读取根 AGENTS.md 和实际修改目录的局部约定，再沿相关入口展开。Codex、Claude Code 与 Cursor
 共用这套项目指导，CLAUDE.md 引用同级 AGENTS.md；技能和角色的使用见
 [开发指南](docs/development.md#使用-coding-agents)。
 进入 `.meta_harness/` 后按其局部地图展开，任务给出产品事实和采用范围；
@@ -191,7 +191,7 @@ Profiling 发现可复现、已有原因证据的明显性能问题时，不能�
 发现问题后回到拥有该含义的材料修正；涉及实现的检查应覆盖实际交付状态。
 
 评审及交付结论区分语义接受、提供者可实施、应用装配和实际验证的范围；设计
-中的关键跨能力交接加载 `harness-design-handbook`，按[消费者视角的完整动作链](.meta_harness/agents/skills/harness-design-handbook/canonical/references/architecture/reference/contract-description.md#沿完整动作链核对组合)核对，再沿[可观察结果反查](.meta_harness/agents/skills/harness-design-handbook/canonical/references/handoff.md#s8反向核对可观察结果)检查性质与证据范围。
+中的关键跨能力交接加载 `harness-design-handbook`，按[消费者视角的完整动作链](.meta_harness/agents/skills/harness-design-handbook/canonical/references/review/expression.md#消费者视角走查)核对，再沿[可观察结果反查](.meta_harness/agents/skills/harness-design-handbook/canonical/references/cordis.md#反向核对与停止)检查性质与证据范围。
 
 评审意见、设计接受、实现完成和验证通过分别记录。政策与正式规格的接受、部分
 当前采用范围归唯一承诺拥有者；正式RFC与Issue决定按[保存例外](docs/engineering/documentation.md#四类长期成果与普通任务)维护，其余接受或取代过程放工作树tmp。

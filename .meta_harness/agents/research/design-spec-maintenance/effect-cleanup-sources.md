@@ -28,7 +28,7 @@
 局部逆操作应撤除本次实例拥有的贡献，并保持其它合法贡献；恢复整个系统的旧
 快照会抹掉期间发生的独立变化，不能作为通用卸载策略。持久事实、独立工作和
 外部发送是否可撤销，要由业务契约与所有权决定；释放连接或撤除入口不等于撤销
-它们已经产生的效果。具体指导归 handbook 的[生命周期正文](../../skills/harness-design-handbook/canonical/references/architecture/runtime/lifecycle.md)。
+它们已经产生的效果。具体指导归 handbook 的[性质核对](../../skills/harness-design-handbook/canonical/references/properties.md)。
 
 文档事实不验证产品装卸、泄漏检测、外部补偿或并发行为，
 不将理论可逆性、框架清理机制和真实业务恢复混为一种证据。

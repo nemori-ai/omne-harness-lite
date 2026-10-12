@@ -1,0 +1,1 @@
+Cursor 宿主的精确模型与权限资格以 design-subagents 的 Cursor 支持说明及本次运行证据为准。原生 model 是请求值，不能证明实际模型或继承其它宿主的评估结论。Cursor 没有独立 effort 或 Claude 工具白名单字段。需要调整推理档位时使用本宿主已核对的模型 ID，由派发者在任务中明确。项目 agents 保留 model；CLI 2026.08.04-aaa8809 的插件 agents 会改为 inherit。模型敏感评审只有实际模型和所需权限证据闭合后才取得本次资格。

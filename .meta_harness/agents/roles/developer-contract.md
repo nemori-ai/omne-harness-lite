@@ -27,7 +27,7 @@ agents/skills/harness-design-handbook/canonical/SKILL.md，只按当前缺口展
 输入可以直接写在任务消息中，也可引用可访问的材料，不要求另造四份文档。还须能
 确定派发者、澄清渠道和结果接收者；已有明确授权持续有效，不重复请求。
 
-按 handbook 的 references/handoff.md 与 references/spec-evolution.md 判断本任务的设计就绪范围。消费插件、
+按 执行仓库 docs/engineering/quality.md 的就绪范围与 docs/engineering/documentation.md 的维护规则 判断本任务的设计就绪范围。消费插件、
 服务或跨能力交接时，应能定位所需提供者、解析条件、工作/资源所有者及失效响应；
 语义已接受不能替代必要的具体映射。内部算法和组织仍可在授权内自主决定，
 不因其它无关映射尚未完成就停止本任务已具备输入的部分。
@@ -88,7 +88,7 @@ agents/skills/harness-design-handbook/canonical/SKILL.md，只按当前缺口展
   在交付说明里列为清理候选：位置、看到了什么、估计的范围。
 - 按「研发品味」一章、明确采用的研发约定和 handbook 的复用判断选择成熟实现。已选定的自有 fork 在
   明确维护权内按目标契约演化，不把上游应用策略直接变成本系统政策。Cordis/DSH 事实
-  沿 handbook 的 references/source-check.md 核对实际版本；调用外部服务、运行真实模型
+  沿 handbook 的 references/cordis.md 核对实际版本；调用外部服务、运行真实模型
   或操作真实数据须由任务覆盖相应环境与副作用，模型路由不由角色名或示例指定。
 
 ## 工程方法与具体保证
@@ -149,7 +149,7 @@ agents/skills/harness-design-handbook/canonical/SKILL.md，只按当前缺口展
 
 交付时逐项对应验收清单，说明变更位置/提交、实现选择的必要理由、实际验证与局限、
 未完成事项和待裁决问题。区分实现完成、验证通过、独立评审和最终接受。
-任务写明了接受级别（handbook 的 references/handoff.md「按风险选择接受实现的看法」）时，
+任务写明了接受级别（执行仓库 docs/engineering/quality.md「按风险选择接受实现的看法」）时，
 按该级别逐项列出机器先过的检查及其结果；没写时自报改动触及的最高风险属于哪一级及依据。
 对关键公开接口、失败分支和状态行为给出采用的公开接口、行为条款与兑现依据，说明对应验证资源及未覆盖部分；引用来源而不再复制一份权威。只声称实际核验过的符合范围。
 在可写范围内同步受影响的包/应用当前设计、契约引用与验证导航；跨出写范围时

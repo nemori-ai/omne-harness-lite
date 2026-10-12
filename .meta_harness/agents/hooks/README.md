@@ -39,3 +39,7 @@ Claude Code 与 Codex 的 `Stop` 已有真实会话执行证据，包括本工�
 - 拿掉这条钩子：从 `hooks.yaml` 删掉它并重新编译。
 
 采用多层集成后，测量入口按实际 cwd 工作树读取共同 context；不从另一个树借 taskBase 或 targetBase。缺输入报告 unknown/error，pending 保持原读法。规则归执行仓库 `docs/engineering/integration.md`；生成和静态检查不证明宿主实际执行。
+
+## Cursor native adapter
+
+Cursor 消费同一 hooks.yaml 事件意图，cursor.yaml 拥有 native loop_limit。生成器输出 stop/subagentStop 和包内 bridge，协议、目标根与诊断边界归 [tooling](../../tooling/README.md#cursor-hook-协议)。不能直接复制旧宿主 decision/block 输出。CLI/IDE 用项目视图或单份原生插件，Cloud 由 setup 先生成项目视图；不依赖 SessionStart 或用户 hooks。真实原生执行与命令重放分别报告。

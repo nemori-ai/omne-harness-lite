@@ -123,7 +123,7 @@ model structure 在这里对应软件怎样分担责任。看新增依赖有没�
 
 ## 接受级别
 
-派发时按改动触及的最高风险定级，不按行数或文件数定级。拿不准就上调。完整定义归手册的[风险分级](../.meta_harness/agents/skills/harness-design-handbook/canonical/references/handoff.md#按风险选择接受实现的看法)。
+派发时按改动触及的最高风险定级，不按行数或文件数定级。拿不准就上调。完整定义归手册的[风险分级](engineering/quality.md#按风险选择接受实现的看法)。
 
 | 级别 | 你主要看什么 | 独立评估 |
 | --- | --- | --- |

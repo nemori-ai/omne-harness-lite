@@ -99,3 +99,5 @@ docs-check检查已有链接与镜像，inventory观察已登记文件、章节�
 后续设计从区入口及实际拥有者展开。架构未决沿[集中入口](architecture/README.md#未决事项与后续设计入口)维护，领域后续义务就近保留拥有者和下一入口。完成任务在临时计划中划掉，除[正式保存例外](engineering/documentation.md#四类长期成果与普通任务)外，候选、访谈、过程决定及单次证据留tmp。
 
 维护者接手时先定位本次修改的源和消费者，无需通读所有文档。发现相同内容在两处成为权威时，先核对含义、适用范围与采用依据，再由拥有者确定唯一源及切换范围。
+
+本项目 skills/roles 修改源后同步 Codex、Claude Code、Cursor 三宿主生成。手册方法、三类 reviewer 判据与风险/验证政策分属各自拥有者。路径不变也须核对 eval flow、报告路径检查和实际工作副本能读取新依赖；一次结构通过不继承旧模型评估结论。生成与接入边界见 [tooling](../.meta_harness/tooling/README.md#agent-编译)。

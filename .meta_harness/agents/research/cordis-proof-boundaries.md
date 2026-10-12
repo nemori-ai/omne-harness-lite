@@ -20,7 +20,7 @@ scope: Cordis 形式结果的组件义务及本项目治理推论
 | [固定修订的 Fiber 文档](https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/c291e7961a515f6d7af9304e7fd1d257929aef26/docs/cordis-api/fiber.md) | effect 登记及调用清理的 API 语义，不能据此证明任意回调正确 |
 
 具体清理 API 事实见[装载清理来源](design-spec-maintenance/effect-cleanup-sources.md)。
-当前设计核对方法归 handbook 的[组合性质](../skills/harness-design-handbook/canonical/references/architecture/assurance/composability.md)。
+当前设计核对方法归 执行仓库的[组合性质与证明义务](../../../docs/verification.md#组合性质与证明义务)。
 
 ## 适用边界
 

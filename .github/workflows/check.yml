@@ -46,7 +46,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # 生成物被 Git 忽略，全新检出要先编译一次，agents-check 才有东西可比。
       - name: Compile agent outputs
-        run: uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness
+        run: uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-root .
         env:
           PYTHONDONTWRITEBYTECODE: '1'
       # 并行度的初值在 tools/ts-checks/test-runs.config.json；这两个仓库变量留空即用初值，

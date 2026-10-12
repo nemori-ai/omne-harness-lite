@@ -1,0 +1,5 @@
+name: developer
+description: Implement one scoped slice against supplied contracts, acceptance criteria and a construction plan. The task sets write scope. Report contract conflicts. Choose the Cursor task model for the required risk; configuration does not inherit another host evaluation or prove the effective model.
+model: claude-opus-5-5-high
+readonly: false
+is_background: false

@@ -11,13 +11,15 @@ from typing import NamedTuple
 
 import yaml
 
+from host_layout import HOSTS
+
 IGNORED = {"__pycache__", ".pytest_cache", ".git", ".venv"}
-SKILL_TARGETS = {"codex": Path(".agents/skills"), "claude-code": Path(".claude/skills")}
-ROLE_TARGETS = (Path(".codex/agents"), Path(".claude/agents"))
+SKILL_TARGETS = {host: layout.skills for host, layout in HOSTS.items()}
+ROLE_TARGETS = tuple(HOSTS[host].agents for host in ("codex", "claude-code"))
 RUNTIME_EXCLUDES = {"AGENTS.md", "CLAUDE.md", ".design", "evals"}
 # Host-neutral hooks become each host's project hook file. Both hosts read the same
 # `{"hooks": {<event>: [{"matcher"?, "hooks": [handler]}]}}` shape for these two events.
-HOOK_TARGETS = {"claude-code": Path(".claude/settings.json"), "codex": Path(".codex/hooks.json")}
+HOOK_TARGETS = {host: layout.hooks for host, layout in HOSTS.items()}
 HOOK_EVENTS = ("Stop", "SubagentStop")
 HOOK_FIELDS = {"id", "events", "subagent_types", "command", "timeout"}
 # Matchers made only of these characters are exact names on both hosts, never a regex.
@@ -157,7 +159,7 @@ def project_skill(skill: Path, host: str) -> dict[Path, Artifact]:
     return outputs
 
 
-def load_renderer(path: Path):
+def load_module(path: Path):
     module_spec = importlib.util.spec_from_file_location("meta_harness_role_renderer", path)
     if module_spec is None or module_spec.loader is None:
         raise ValueError(f"cannot load role renderer: {path}")
@@ -165,9 +167,18 @@ def load_renderer(path: Path):
     previous = sys.dont_write_bytecode
     try:
         sys.dont_write_bytecode = True
-        module_spec.loader.exec_module(module)
+        sys.path.insert(0, str(path.parent))
+        try:
+            module_spec.loader.exec_module(module)
+        finally:
+            sys.path.pop(0)
     finally:
         sys.dont_write_bytecode = previous
+    return module
+
+
+def load_renderer(path: Path):
+    module = load_module(path)
     if not callable(getattr(module, "render", None)):
         raise ValueError(f"role renderer must expose render(source): {path}")
     return module.render
@@ -252,8 +263,14 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
                 add(relative, artifact)
 
     role_sources = list(members(source / "roles"))
-    render = load_renderer(renderer_path) if role_sources else None
-    for role in role_sources:
+    old_hosts = tuple(host for host in hosts if host != "cursor")
+    render = load_renderer(renderer_path) if role_sources and old_hosts else None
+    if "cursor" in hosts:
+        from cursor_projection import project_cursor_role
+        for role in role_sources:
+            relative, text = project_cursor_role(role)
+            add(relative, Artifact(text.encode("utf-8"), 0o644))
+    for role in role_sources if old_hosts else ():
         rendered = render(role)
         if not isinstance(rendered, dict) or len(rendered) != 2:
             raise ValueError(f"role renderer must produce two native files: {role}")
@@ -270,6 +287,10 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
     if hooks.exists() and not hooks.is_dir():
         raise ValueError(f"hooks source must be a directory: {hooks}")
     if hooks.is_dir():
-        for relative, artifact in project_hooks(hooks, hosts, {role.name for role in role_sources}).items():
+        for relative, artifact in project_hooks(hooks, old_hosts, {role.name for role in role_sources}).items():
+            add(relative, artifact)
+    if "cursor" in hosts:
+        from cursor_projection import project_cursor_package
+        for relative, artifact in project_cursor_package(source, {role.name for role in role_sources}).items():
             add(relative, artifact)
     return outputs
