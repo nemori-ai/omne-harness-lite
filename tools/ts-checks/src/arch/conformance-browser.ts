@@ -137,7 +137,7 @@ export function conformanceBrowser(
     ),
     el(
       'p',
-      'Session 拥有三类 runtime 生命周期；Agent runtime 发起/等待模型与工具并持有句柄；Run 关联工作与取消治理。独立公开函数无需 Session/runtime。',
+      'Session按业务规则逻辑治理三类runtime；各runtime生命周期独立。Agent runtime发起或等待模型与工具并持有句柄，Run关联工作与取消治理。独立公开能力无需Session或runtime。',
     ),
   )
   const changes = required('conformance-changes')
@@ -153,6 +153,17 @@ export function conformanceBrowser(
     const details = el('details', '')
     details.append(
       el('summary', `${change.id} · ${change.path}`),
+      el('pre', `BASE ${change.before ?? '缺失'}\nCURRENT ${change.after ?? '缺失'}`),
+    )
+    changes.append(details)
+  }
+  changes.append(
+    el('p', `依据字节变化 ${doc?.sourceChanges.length ?? 0} 条；哈希不能判断含义或行为符合。`),
+  )
+  for (const change of doc?.sourceChanges ?? []) {
+    const details = el('details', '')
+    details.append(
+      el('summary', change.path),
       el('pre', `BASE ${change.before ?? '缺失'}\nCURRENT ${change.after ?? '缺失'}`),
     )
     changes.append(details)

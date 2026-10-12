@@ -1,5 +1,5 @@
 <!-- 规则：../CONTRIBUTING.md 的“提交与 PR 表达”。按主要结果选择 PULL_REQUEST_TEMPLATE/ 下 feature、docs、fix、refactor 模板；perf 复用 refactor。此入口适合小改动和其他类型。 -->
-<!-- 先阅读执行仓库 CONTRIBUTING.md；需要组织正文时使用 prepare-pr skill。填写后删除提示和不适用块。 -->
+<!-- 先阅读执行仓库 CONTRIBUTING.md；需要组织正文时沿 docs/engineering/publication.md 加载对应 pstack 方法。填写后删除提示和不适用块。 -->
 
 ## 改变
 
@@ -13,3 +13,5 @@
 ## 审阅重点
 
 <!-- 具体路径/符号/条款＋要核对的问题；有 demo 给版本、准备、操作→预期，无可体验入口时说明。短改动可合并成一段。 -->
+
+<!-- 采用多层集成时附 operation、B/S/C、各卡 taskBase/历史 tuple、真实 receipt 及 Git 观察；声明 completionTarget 与实际运输，未知保留。技术运输不自动生成 Closes 或宣称接受。规则见 docs/engineering/integration.md。 -->

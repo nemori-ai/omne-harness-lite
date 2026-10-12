@@ -1,8 +1,8 @@
-<!-- 执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”拥有规则；prepare-pr 提供版式及 feature 成品示例。删除提示与不适用块，实质缺口须保留。 -->
+<!-- 执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”拥有规则；流程沿 docs/engineering/publication.md 的 pstack 引用展开。删除提示与不适用块，实质缺口须保留。 -->
 
 ## 能力与结果
 
-<!-- 谁在什么场景下需要什么能力，最终提供什么；产品卡/场景已交付和剩余范围，无卡说明不涉及。 -->
+<!-- 谁在什么场景下需要什么能力，最终提供什么；适用任务卡及长期依据、本次已交付和剩余范围。 -->
 
 ## 边界与接入
 
@@ -21,3 +21,5 @@
 
 <!-- 有没有 demo：对应 HEAD、准备、访问/命令、操作→预期、有效期、真实/mock。没有则说明原因和替代入口。 -->
 <!-- 具体代码/契约位置、为什么重要、建议追问；不用“全部测试通过”代替 reviewer 判断。 -->
+
+<!-- 采用多层集成时附 operation、B/S/C、各卡 taskBase/历史 tuple、真实 receipt 及 Git 观察；声明 completionTarget 与实际运输，未知保留。技术运输不自动生成 Closes 或宣称接受。规则见 docs/engineering/integration.md。 -->

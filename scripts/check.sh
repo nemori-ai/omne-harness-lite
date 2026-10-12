@@ -7,6 +7,9 @@ if (( $# )); then
 fi
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -n "${OMNE_SUBJECT_ROOT:-}" ]]; then
+    exec bash "$repo_root/scripts/integration-check.sh"
+fi
 cd -- "$repo_root"
 
 # 整套检查占一个运行名额：同一台机器上别的全量检查在跑时排队，而不是一起把 CPU 压满。
@@ -15,7 +18,7 @@ if [[ -z "${OMNE_TEST_SLOT_HELD:-}" ]]; then
 fi
 
 # 基线取 BASELINE；没给就用 origin/main，本地没有这个引用就用 main。影响面与回路状态共用它。
-baseline="${BASELINE:-}"
+baseline="$(node --experimental-strip-types tools/ts-checks/src/integration/cli.ts baselines ${BASELINE:+--base "$BASELINE"} | node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>process.stdout.write(JSON.parse(s).targetBase??""))')"
 if [[ -z "$baseline" ]]; then
     baseline=main
     if git rev-parse --verify --quiet origin/main >/dev/null; then
@@ -52,7 +55,6 @@ pnpm run lint:rules
 # 按计划：可执行验收，驱动上面构建出来的 dist/；计划里没有带验收的成员时为当前提交记一份「跳过」的账本。
 step acceptance
 
-# 回路状态的严格模式：方向与环、验收锁与删卡记录（同一个基线）、开着的传感器都有数据（验收被跳过时认上一步的记录）。
 # 它只读源码、git 与验收的耗时记录，放在最后是让前面的失败先报。产物写进被 git 忽略的 tmp/，回路目录里什么都不写。
 rm -rf tmp/loop-status-check
 make --no-print-directory loop-status STRICT=1 BASE="$baseline" OUT=tmp/loop-status-check

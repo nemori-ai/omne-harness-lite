@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
 import { analyzeConformance } from '../arch/conformance.ts'
 import { readArchitectureSource } from '../arch/source.ts'
 import type { ActualExtraction } from '../arch/actual-model.ts'
@@ -69,6 +70,17 @@ export function inspectPackage(
     ...layout.findings,
     ...checkStructure(root, member, manifest, selected, required),
   ]
+  if (adoption === 'current' || adoption === 'unmarked')
+    for (const node of layout.tree) {
+      if (node.kind !== 'file' || !node.path.startsWith('docs/') || !node.path.endsWith('.md'))
+        continue
+      if (readFileSync(join(root, member, node.path), 'utf8').includes('PACKAGE_TEMPLATE_DRAFT'))
+        findings.push({
+          code: 'draft',
+          path: `${member}/${node.path}`,
+          reason: 'Complete the package documentation draft',
+        })
+    }
   // A private helper's Service/provide fact does not decide public responsibility.
   // Unmarked inference is an inventory hint; adopted variants require manual review.
   if (adoption === 'invalid')

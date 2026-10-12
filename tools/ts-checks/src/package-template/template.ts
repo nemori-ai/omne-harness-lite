@@ -25,10 +25,10 @@ export function safeRelative(path: string): boolean {
     path.split('/').every(part => part !== '' && part !== '.' && part !== '..')
   )
 }
-function stringArray(value: unknown): value is string[] {
+export function stringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string' && safeRelative(item))
 }
-function fileList(value: unknown): value is FileTemplate[] {
+export function fileList(value: unknown): value is FileTemplate[] {
   return (
     Array.isArray(value) &&
     value.every(
@@ -42,7 +42,7 @@ function fileList(value: unknown): value is FileTemplate[] {
     )
   )
 }
-function layoutRules(value: unknown): value is LayoutRules {
+export function layoutRules(value: unknown): value is LayoutRules {
   return (
     object(value) &&
     Object.keys(value).sort().join(',') ===

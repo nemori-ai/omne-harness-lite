@@ -1,6 +1,5 @@
 // 验收的覆盖声明：每份可执行验收在开头的注释块里恰好一行 `// covers: PF-016 S5`（多条用逗号隔开），
 // 文件名以它覆盖的某个 topic 的编号开头，声明的每条场景都在那个 topic 的 acceptance.md 里有一行。
-// 规矩正文在 `docs/workspace.md`「可执行验收」；场景行怎么认与设计区对账器同一条（`../product/scenarios.ts`）。
 // 场景含义变了会换新编号，覆盖旧编号的验收在这里被点名——这是这份检查存在的理由。
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -208,19 +207,27 @@ function hasAcceptanceScript(root: string, member: string): boolean {
   return typeof parsed.scripts?.[ACCEPTANCE_SCRIPT] === 'string'
 }
 
-/** 读仓库：找出全部验收、读产品区，核一遍。产品区不存在当作没有任何 topic。 */
+/** 读仓库的持续覆盖声明；非法产品来源明确失败。 */
 export function inspectCoverage(
   root: string,
   productRoot: string,
   config: AcceptanceLockConfig,
-): { readonly violations: Violation[]; readonly declarations: Declaration[] } {
-  return judgeCoverage({
-    files: listAcceptanceFiles(root, config).map(path => ({
-      path,
-      text: readFileSync(join(root, path), 'utf8'),
-    })),
-    topics: readProductTopics(join(root, productRoot)) ?? [],
-    hasScript: member => hasAcceptanceScript(root, member),
-    config,
-  })
+): {
+  readonly violations: Violation[]
+  readonly declarations: Declaration[]
+  readonly topics: ProductTopic[]
+} {
+  const topics = readProductTopics(join(root, productRoot))
+  return {
+    topics,
+    ...judgeCoverage({
+      files: listAcceptanceFiles(root, config).map(path => ({
+        path,
+        text: readFileSync(join(root, path), 'utf8'),
+      })),
+      topics,
+      hasScript: member => hasAcceptanceScript(root, member),
+      config,
+    }),
+  }
 }

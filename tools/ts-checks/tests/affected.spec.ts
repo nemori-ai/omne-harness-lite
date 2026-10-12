@@ -38,19 +38,19 @@ const member = (
 
 // base ← mid ← top（top 有验收）；custodian-user 依赖读自己 README 的 credential-custodian-local。
 const MEMBERS = [
-  member('packages/core/identity-values'),
+  member('packages.0.0.1.legacy/core/identity-values'),
   member('packages/core/base'),
   member('packages/core/mid', ['@x/base']),
-  member('packages/core/stream-assembly'),
+  member('packages.0.0.1.legacy/core/stream-assembly'),
   member('packages/infra/leaf'),
   member('packages/infra/plain'),
-  member('packages/infra/credential-custodian-local'),
+  member('packages.0.0.1.legacy/infra/credential-custodian-local'),
   member('packages/infra/custodian-user', ['@x/credential-custodian-local']),
-  member('packages/model/model-profile-directory-local'),
-  member('packages/tools/tool-execution-local', [], {
+  member('packages.0.0.1.legacy/model/model-profile-directory-local'),
+  member('packages.0.0.1.legacy/tools/tool-execution-local', [], {
     acceptance: 'vitest run --config vitest.acceptance.config.ts',
   }),
-  member('packages/frontend/governance-client-operations-local'),
+  member('packages.0.0.1.legacy/frontend/governance-client-operations-local'),
   member('packages/tenancy/governance-center-entry-node'),
   member('apps/top', ['@x/mid'], { acceptance: 'vitest run --dir acceptance' }),
   member('tools/core-verification', ['@x/base']),
@@ -59,7 +59,7 @@ const MEMBERS = [
 
 const plan = (paths: string[], full = false) => planCheck(paths, MEMBERS, RULES, full)
 const describe_ = (checkPlan: CheckPlan) => describeCheckPlan(checkPlan, RULES, CONFIG).join('\n')
-const RESIDENT_BUILD = [{ path: 'packages/core/identity-values', reason: 'resident' }]
+const RESIDENT_BUILD = [{ path: 'packages.0.0.1.legacy/core/identity-values', reason: 'resident' }]
 
 describe('路径模式', () => {
   it('`*` 不跨目录，`**` 跨目录，`**/` 也匹配零层目录', () => {
@@ -89,7 +89,7 @@ describe('影响面计划（真实规则）', () => {
     expect(text).toContain('判为只需常驻检查，跳过了类型检查、成员测试、验收、pytest')
     expect(text).toContain(`${CONFIG} 的 affected.residentPaths`)
     expect(text).toContain(
-      '构建：只构建 packages/core/identity-values——常驻检查需要：lint:rules 经',
+      '构建：只构建 packages.0.0.1.legacy/core/identity-values——常驻检查需要：lint:rules 经',
     )
     expect(text).toContain('成员测试：没有要跑的成员')
   })
@@ -106,7 +106,7 @@ describe('影响面计划（真实规则）', () => {
       },
     ])
     expect(result.build).toEqual([
-      { path: 'packages/core/identity-values', reason: 'dependency' },
+      { path: 'packages.0.0.1.legacy/core/identity-values', reason: 'dependency' },
       { path: 'packages/infra/leaf', reason: 'selected' },
       { path: 'tools/ts-checks', reason: 'selected' },
     ])
@@ -143,15 +143,18 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('测试运行自己 README 代码块的成员：只它自己，不沿反向依赖传播', () => {
-    const result = plan(['packages/infra/credential-custodian-local/README_ZH.md'])
+    const result = plan(['packages.0.0.1.legacy/infra/credential-custodian-local/README_ZH.md'])
     expect(result.files[0]?.category).toBe('reader')
-    expect(result.test).toEqual(['packages/infra/credential-custodian-local'])
+    expect(result.test).toEqual(['packages.0.0.1.legacy/infra/credential-custodian-local'])
     expect(result.members[0]?.dependsOn).toBeUndefined()
   })
 
   it('外部制品校验读取公共Schema：选实际拥有者与读者', () => {
     const result = plan(['packages/core/messages/schema/messages.schema.json'])
-    expect(result.test).toEqual(['packages/core/stream-assembly', 'tools/core-verification'])
+    expect(result.test).toEqual([
+      'packages.0.0.1.legacy/core/stream-assembly',
+      'tools/core-verification',
+    ])
     expect(result.members.every(entry => entry.changed.length === 0)).toBe(true)
     expect(result.python.run).toBe(false)
   })
@@ -162,7 +165,7 @@ describe('影响面计划（真实规则）', () => {
     expect(result.test).toEqual([
       'packages/core/base',
       'packages/core/mid',
-      'packages/core/stream-assembly',
+      'packages.0.0.1.legacy/core/stream-assembly',
       'apps/top',
       'tools/core-verification',
     ])
@@ -171,19 +174,17 @@ describe('影响面计划（真实规则）', () => {
   it('别的成员的 TLS 夹具：那个成员自己，加上没声明依赖却读它的 governance-client-operations', () => {
     const result = plan(['packages/tenancy/governance-center-entry-node/tests/fixtures/tls/ca.pem'])
     expect(result.test).toEqual([
-      'packages/frontend/governance-client-operations-local',
+      'packages.0.0.1.legacy/frontend/governance-client-operations-local',
       'packages/tenancy/governance-center-entry-node',
     ])
   })
 
-  it('stories.py：既跑 pytest，又带上读它的 ts-checks', () => {
-    const result = plan(['.meta_harness/tooling/src/stories.py'])
-    expect(result.files[0]).toMatchObject({
-      category: 'reader',
-      python: '.meta_harness/tooling/**',
-    })
-    expect(result.test).toEqual(['tools/ts-checks'])
-    expect(result.python.run).toBe(true)
+  it('当前产品 README、正文与编号场景触发实际 TS 消费者', () => {
+    for (const file of ['README.md', 'design.md', 'acceptance.md']) {
+      const result = plan([`.meta_harness/design/product/skills/${file}`])
+      expect(result.files[0]?.category).toBe('reader')
+      expect(result.test).toEqual(['tools/ts-checks'])
+    }
   })
 
   it('.meta_harness/agents 下的改动：只跑 pytest，不测成员，构建只做常驻需要的', () => {
@@ -204,7 +205,10 @@ describe('影响面计划（真实规则）', () => {
     expect(result.mode).toBe('full')
     expect(result.reason).toBe('全局文件 pnpm-lock.yaml 有改动（命中 pnpm-lock.yaml）')
     expect(result.test).toHaveLength(MEMBERS.length)
-    expect(result.acceptance).toEqual(['packages/tools/tool-execution-local', 'apps/top'])
+    expect(result.acceptance).toEqual([
+      'packages.0.0.1.legacy/tools/tool-execution-local',
+      'apps/top',
+    ])
     expect(result.python.run).toBe(true)
     expect(describe_(result)).toContain('构建：全部（根 pnpm run build')
   })
@@ -263,9 +267,11 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('规则点名的成员不存在：报错，不悄悄忽略', () => {
-    const without = MEMBERS.filter(entry => entry.path !== 'packages/core/stream-assembly')
+    const without = MEMBERS.filter(
+      entry => entry.path !== 'packages.0.0.1.legacy/core/stream-assembly',
+    )
     expect(() => planCheck(['docs/a.md'], without, RULES)).toThrow(
-      '影响面规则点名了不存在的成员：packages/core/stream-assembly',
+      '影响面规则点名了不存在的成员：packages.0.0.1.legacy/core/stream-assembly',
     )
   })
 
@@ -275,7 +281,7 @@ describe('影响面计划（真实规则）', () => {
     ).toEqual([])
     // loop-canary.spec.ts 把这份 README 复制进临时仓、改它的 revision 行再断言修订次数。
     const fixture = plan([
-      'tools/ts-checks/tests/fixtures/loop-canary/repo/.meta_harness/design/product/PF-001-canary/README.md',
+      'tools/ts-checks/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/README.md',
     ])
     expect(fixture.files[0]).toMatchObject({ category: 'member', owner: 'tools/ts-checks' })
     expect(fixture.test).toEqual(['tools/ts-checks'])
@@ -294,8 +300,8 @@ describe('影响面计划（真实规则）', () => {
   it('模型工具demo的输入变化选中实际产品验收成员，仍不把examples加入默认构建', () => {
     const result = plan(['examples/model-invocation-minimal-demo/src/bootstrap.ts'])
     expect(result.mode).toBe('scoped')
-    expect(result.acceptance).toEqual(['packages/tools/tool-execution-local'])
-    expect(result.test).toContain('packages/tools/tool-execution-local')
+    expect(result.acceptance).toEqual(['packages.0.0.1.legacy/tools/tool-execution-local'])
+    expect(result.test).toContain('packages.0.0.1.legacy/tools/tool-execution-local')
     expect(result.build.some(entry => entry.path.startsWith('examples/'))).toBe(false)
   })
 

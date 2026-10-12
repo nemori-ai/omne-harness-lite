@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="930" viewBox="0 0 1280 930" role="img" aria-labelledby="map-title map-desc">
+  <title id="map-title">项目知识归属地图</title>
+  <desc id="map-desc">地图分为阅读入口、遵循方向和维护位置。阅读从十类读者或任务入口开始。项目要求、已接受系统架构与有效产品规则共同约束领域和成员细化，适用工程约定横跨各层。成员维护精确承诺，实现与验证报告兑现情况。项目根、docs、meta、能力组、实际成员、工具和任务临时目录分别维护不同知识。位置不表示软件拓扑或完成度。</desc>
+  <style>
+    text { font-family: 'WenQuanYi Zen Hei', 'Noto Sans CJK SC', sans-serif; fill: #142534; }
+    .head { font-size: 28px; font-weight: 700; }
+    .section { font-size: 21px; font-weight: 700; }
+    .label { font-size: 18px; font-weight: 700; }
+    .body { font-size: 15px; }
+    .note { font-size: 14px; fill: #334a59; }
+    .step { font-size: 17px; font-weight: 700; }
+    .arrow { stroke: #526879; stroke-width: 2; fill: none; marker-end: url(#tip); }
+  </style>
+  <defs>
+    <marker id="tip" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#526879"/>
+    </marker>
+  </defs>
+  <rect width="1280" height="930" fill="#fff"/>
+  <text class="head" x="40" y="51">知识从哪里读，由谁维护</text>
+  <text class="note" x="40" y="79">按问题选入口，沿有效约束定位正文，再核对实际成员与证据。</text>
+
+  <rect x="32" y="101" width="1216" height="137" rx="10" fill="#f2f6f8" stroke="#c7d3da"/>
+  <text class="section" x="51" y="133">① 阅读入口</text>
+  <rect x="229" y="118" width="360" height="99" rx="8" fill="#fff" stroke="#8ca7b5"/>
+  <text class="label" x="248" y="151">按读者</text>
+  <text class="body" x="248" y="179">docs/README.md：十类角色与首轮路径</text>
+  <text class="note" x="248" y="202">身份不授予访问或接受权</text>
+  <rect x="611" y="118" width="608" height="99" rx="8" fill="#fff" stroke="#8ca7b5"/>
+  <text class="label" x="630" y="151">按任务</text>
+  <text class="body" x="630" y="179">docs/context-map.md：必要上下文与停止点</text>
+  <text class="note" x="630" y="202">局部修复先看局部承诺；新边界再展开上层</text>
+
+  <rect x="32" y="254" width="1216" height="259" rx="10" fill="#f6f8f5" stroke="#ccd8cb"/>
+  <text class="section" x="51" y="286">② 遵循关系</text>
+  <text class="note" x="211" y="285">工程约定横跨各层；下层事实用于对照，不能反向降低承诺。</text>
+  <rect x="44" y="302" width="683" height="130" rx="10" fill="none" stroke="#a1b4ab"/>
+  <rect x="51" y="310" width="205" height="113" rx="8" fill="#e6f1ed" stroke="#719889"/>
+  <text class="step" x="68" y="342">项目要求</text>
+  <text class="body" x="68" y="368">目标、范围、全局保证</text>
+  <text class="note" x="68" y="398">docs/requirements.md</text>
+  <rect x="270" y="310" width="205" height="113" rx="8" fill="#e6f1ed" stroke="#719889"/>
+  <text class="step" x="287" y="342">系统架构</text>
+  <text class="body" x="287" y="368">技术边界与协作保证</text>
+  <text class="note" x="287" y="398">docs/architecture</text>
+  <rect x="514" y="310" width="205" height="113" rx="8" fill="#e5edf4" stroke="#7995ad"/>
+  <text class="step" x="531" y="342">有效产品规则</text>
+  <text class="body" x="531" y="368">需求、旅程、阶段、未决</text>
+  <text class="note" x="531" y="398">产品设计入口</text>
+  <path class="arrow" d="M 725 366 H 749"/>
+  <rect x="758" y="310" width="205" height="113" rx="8" fill="#e5edf4" stroke="#7995ad"/>
+  <text class="step" x="775" y="342">领域与能力组</text>
+  <text class="body" x="775" y="368">责任、工程分解、组合</text>
+  <text class="note" x="775" y="398">docs/domains · packages/组</text>
+  <path class="arrow" d="M 969 366 H 993"/>
+  <rect x="1002" y="310" width="226" height="113" rx="8" fill="#e5edf4" stroke="#7995ad"/>
+  <text class="step" x="1019" y="342">成员承诺</text>
+  <text class="body" x="1019" y="368">公开形状、行为、机制</text>
+  <text class="note" x="1019" y="398">实际包、应用、工具</text>
+  <text class="note" x="51" y="454">前三项是共同约束；产品规则不能越过项目要求或已接受架构。箭头表示有效细化，不表示工作先后。</text>
+  <text class="note" x="51" y="482">实现、装配与验证位于承诺之后，分别报告事实、符合性和未覆盖。</text>
+
+  <rect x="32" y="529" width="1216" height="336" rx="10" fill="#f9f8f5" stroke="#d6d1c3"/>
+  <text class="section" x="51" y="561">③ 维护位置</text>
+  <text class="note" x="204" y="560">同一含义只有一份当前权威正文；位置并非权威等级。</text>
+
+  <rect x="51" y="582" width="276" height="119" rx="8" fill="#fff" stroke="#b5a887"/>
+  <text class="label" x="68" y="613">项目根</text>
+  <text class="body" x="68" y="642">项目介绍、贡献入口、agent 提示</text>
+  <text class="note" x="68" y="672">README · CONTRIBUTING · AGENTS</text>
+
+  <rect x="344" y="582" width="276" height="119" rx="8" fill="#fff" stroke="#b5a887"/>
+  <text class="label" x="361" y="613">docs/</text>
+  <text class="body" x="361" y="642">要求、架构、领域、工程、指南</text>
+  <text class="note" x="361" y="672">正式 RFC 及文档治理</text>
+
+  <rect x="637" y="582" width="276" height="119" rx="8" fill="#fff" stroke="#b5a887"/>
+  <text class="label" x="654" y="613">.meta_harness/</text>
+  <text class="body" x="654" y="642">产品、术语、对象、上游读数</text>
+  <text class="note" x="654" y="672">研究入口 · skills/roles 源与生成</text>
+
+  <rect x="930" y="582" width="298" height="119" rx="8" fill="#fff" stroke="#b5a887"/>
+  <text class="label" x="947" y="613">packages/&lt;domain&gt;/</text>
+  <text class="body" x="947" y="642">能力组工程关系及组合责任</text>
+  <text class="note" x="947" y="672">不是自动成立的运行边界</text>
+
+  <rect x="51" y="716" width="374" height="126" rx="8" fill="#fff" stroke="#b5a887"/>
+  <text class="label" x="68" y="747">实际成员：包、应用、工具</text>
+  <text class="body" x="68" y="776">README、代码/Schema、SPEC、机制、验证</text>
+  <text class="note" x="68" y="810">形状随公开定义；必要行为随契约拥有者</text>
+
+  <rect x="442" y="716" width="380" height="126" rx="8" fill="#fff" stroke="#b5a887"/>
+  <text class="label" x="459" y="747">交付与检查</text>
+  <text class="body" x="459" y="776">Issue 记一次任务；Project 是派生视图</text>
+  <text class="note" x="459" y="810">tools 报覆盖、缺项和执行事实</text>
+
+  <rect x="839" y="716" width="389" height="126" rx="8" fill="#fff" stroke="#b5a887"/>
+  <text class="label" x="856" y="747">过程与历史</text>
+  <text class="body" x="856" y="776">tmp 留候选和单次证据；Git 留旧字节</text>
+  <text class="note" x="856" y="810">封存源需筛选，不能并列为当前规范</text>
+
+  <text class="note" x="42" y="898">图只指明阅读、约束和知识归属；它不声明任何能力已经实现、获准支持或通过验证。</text>
+</svg>

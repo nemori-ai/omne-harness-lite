@@ -1,31 +1,22 @@
-// 流程体检：八块各自有数据时算得对、没数据时写明原因；页面自包含、带着各块的标题与关键数字；入口在临时仓库里跑通。
-// 时间一律注入：「现在」与各事件的时间都用本机时区的日历构造，周的切分在任何时区下都按周一零点算。
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { CardEntry } from '../src/loop/cards.ts'
 import { countPending } from '../src/loop/catalogue.ts'
 import { readLoopConfig } from '../src/loop/config.ts'
 import {
-  cardsBlock,
   catalogueBlock,
   commitsBlock,
   debtBlock,
-  median,
-  mondayOf,
   parseCommitLog,
   parseLedgerRun,
-  remainingCards,
   sensorsBlock,
   testsBlock,
-  weeklyAccepted,
   type Health,
 } from '../src/loop/health.ts'
 import {
-  formatHours,
   healthSummary,
   renderHealthPage,
   SECTION_TITLES,
@@ -37,148 +28,7 @@ import type { Snapshot } from '../src/loop/trend.ts'
 const local = (...parts: [number, number, number, number?, number?]) =>
   new Date(parts[0], parts[1] - 1, parts[2], parts[3] ?? 0, parts[4] ?? 0)
 
-const entry = (card: string, event: CardEntry['event'], at: Date): CardEntry => ({
-  schema: 1,
-  card,
-  event,
-  at: at.toISOString(),
-  commit: 'c'.repeat(40),
-  branch: 'main',
-  recordedAt: at.toISOString(),
-})
-
 const config = readLoopConfig()
-
-describe('卡', () => {
-  const now = local(2026, 10, 1, 12)
-  const titles = new Map([['ST-016-01', { title: '开一个会话', topic: 'PF-016-x' }]])
-
-  it('前置时间：走完的算相隔，没走完的写已过去多久；中位数取较小的那个、最大值', () => {
-    const entries = [
-      entry('ST-016-01', 'proposed', local(2026, 9, 28, 0)),
-      entry('ST-016-01', 'runnable', local(2026, 9, 28, 6)),
-      entry('ST-016-01', 'accepted', local(2026, 9, 29, 0)),
-      entry('ST-016-02', 'proposed', local(2026, 9, 28, 0)),
-      entry('ST-016-02', 'accepted', local(2026, 9, 30, 12)),
-      entry('ST-016-03', 'proposed', local(2026, 9, 25, 0)),
-      entry('ST-016-03', 'accepted', local(2026, 9, 25, 10)),
-      entry('ST-016-04', 'proposed', local(2026, 10, 1, 9)),
-    ]
-    const read = cardsBlock(entries, titles, now, 'cards.jsonl')
-    if (read.status !== 'data') throw new Error(read.reason)
-    expect(read.data.rows.map(row => row.card)).toEqual([
-      'ST-016-03',
-      'ST-016-01',
-      'ST-016-02',
-      'ST-016-04',
-    ])
-    const first = read.data.rows[1]
-    expect(first?.title).toBe('开一个会话')
-    expect(first?.toRunnable).toEqual({ kind: 'done', hours: 6 })
-    expect(first?.toAccepted).toEqual({ kind: 'done', hours: 24 })
-    expect(read.data.rows[2]?.toRunnable).toEqual({ kind: 'open', elapsedHours: 84 })
-    expect(read.data.rows[3]?.toAccepted).toEqual({ kind: 'open', elapsedHours: 3 })
-    // 三张接受过的：10、24、60 小时。
-    expect(read.data.leadTime).toEqual(data({ count: 3, medianHours: 24, maxHours: 60 }))
-    expect(formatHours(10)).toBe('10.0 小时')
-    expect(formatHours(60)).toBe('2.5 天')
-  })
-
-  it('还没有接受过的卡：前置时间没有数据；台账为空：整块没有数据', () => {
-    const read = cardsBlock([entry('ST-016-01', 'proposed', now)], titles, now, 'x.jsonl')
-    expect(read.status === 'data' && read.data.leadTime.status).toBe('no-data')
-    expect(cardsBlock([], titles, now, 'x.jsonl')).toEqual(
-      noData('台账 x.jsonl 里还没有记录（用 make loop-card 登记）'),
-    )
-  })
-
-  it('中位数：偶数个取中间两个里较小的那个', () => {
-    expect(median([4, 1, 3, 2])).toBe(2)
-    expect(median([5])).toBe(5)
-    expect(median([])).toBeUndefined()
-  })
-})
-
-describe('每周接受数', () => {
-  it('跨年：周一为一周之始，周日深夜归上一周', () => {
-    const now = local(2026, 1, 7, 15) // 周三
-    expect(mondayOf(now)).toEqual(local(2026, 1, 5))
-    const entries = [
-      entry('ST-001-01', 'accepted', local(2025, 12, 22, 0)),
-      entry('ST-001-02', 'accepted', local(2025, 12, 31, 23)),
-      entry('ST-001-03', 'accepted', local(2026, 1, 4, 23, 59)),
-      entry('ST-001-04', 'accepted', local(2026, 1, 5, 0)),
-      entry('ST-001-05', 'accepted', local(2025, 12, 21, 23)), // 窗口之前
-      entry('ST-001-06', 'proposed', local(2026, 1, 6)),
-    ]
-    expect(weeklyAccepted(entries, now, 3)).toEqual(
-      data([
-        { start: '2025-12-22', accepted: 1 },
-        { start: '2025-12-29', accepted: 2 },
-        { start: '2026-01-05', accepted: 1 },
-      ]),
-    )
-  })
-
-  it('跨月：今天是周一时这一周从今天起', () => {
-    const entries = [
-      entry('ST-001-01', 'accepted', local(2026, 9, 30, 10)),
-      entry('ST-001-02', 'accepted', local(2026, 10, 5, 1)),
-    ]
-    expect(weeklyAccepted(entries, local(2026, 10, 5, 9), 2)).toEqual(
-      data([
-        { start: '2026-09-28', accepted: 1 },
-        { start: '2026-10-05', accepted: 1 },
-      ]),
-    )
-  })
-
-  it('还没有接受过的卡：没有数据', () => {
-    expect(
-      weeklyAccepted([entry('ST-001-01', 'proposed', local(2026, 1, 1))], local(2026, 1, 2), 8),
-    ).toEqual(noData('台账里还没有接受过的卡'))
-  })
-})
-
-describe('各 topic 剩余卡数', () => {
-  const topics = [
-    {
-      topic: 'PF-016-x',
-      cards: [
-        { id: 'ST-016-01', title: 'a', ready: 'ready' as const },
-        { id: 'ST-016-02', title: 'b', ready: 'not-ready' as const },
-        { id: 'ST-016-03', title: 'c', ready: 'not-ready' as const },
-        { id: 'ST-016-04', title: 'd', ready: 'unknown' as const },
-      ],
-    },
-    { topic: 'PF-021-y', cards: [] },
-  ]
-
-  it('总数、已接受、剩余；未就绪只数剩余里的；接受过却不在 stories.md 里的单列', () => {
-    const entries = [
-      entry('ST-016-01', 'accepted', local(2026, 9, 1)),
-      entry('ST-016-03', 'accepted', local(2026, 9, 1)),
-      entry('ST-016-02', 'runnable', local(2026, 9, 1)),
-      entry('ST-099-01', 'accepted', local(2026, 9, 1)),
-    ]
-    expect(remainingCards(topics, entries, 'product')).toEqual(
-      data({
-        topics: [
-          { topic: 'PF-016-x', total: 4, accepted: 2, remaining: 2, notReady: 1 },
-          { topic: 'PF-021-y', total: 0, accepted: 0, remaining: 0, notReady: 0 },
-        ],
-        unlisted: ['ST-099-01'],
-      }),
-    )
-  })
-
-  it('产品区不存在、没有 stories.md：没有数据，原因不同', () => {
-    expect(remainingCards(undefined, [], 'product')).toEqual(noData('产品区 product 不存在'))
-    expect(remainingCards([], [], 'product')).toEqual(
-      noData('product 下还没有哪个 topic 有 stories.md'),
-    )
-  })
-})
 
 describe('提交与合并的大小', () => {
   // `git log --format=%x00%H%x09%s --name-only` 的形状：每个提交以 NUL 起头，标题行后空一行再列文件。
@@ -357,10 +207,6 @@ describe('对照表条数', () => {
 describe('页面与摘要', () => {
   const fixture = (): Health => {
     const now = local(2026, 10, 1, 12)
-    const entries = [
-      entry('ST-016-01', 'proposed', local(2026, 9, 28, 0)),
-      entry('ST-016-01', 'accepted', local(2026, 9, 29, 12)),
-    ]
     const debt = debtBlock(
       [
         snapshot('a'.repeat(40), '2026-09-01T00:00:00Z', 1),
@@ -380,16 +226,8 @@ describe('页面与摘要', () => {
         generatedAt: now.toISOString(),
         home: '/loop/home',
         windows: config.health,
-        notes: ['台账 cards.jsonl 第 3 行读不了，已跳过'],
+        notes: ['趋势 trend.jsonl 第 3 行读不了，已跳过'],
       },
-      cards: cardsBlock(
-        entries,
-        new Map([['ST-016-01', { title: '开一个会话', topic: 'PF-016-x' }]]),
-        now,
-        'cards.jsonl',
-      ),
-      weekly: weeklyAccepted(entries, now, 2),
-      remaining: remainingCards(undefined, entries, '.meta_harness/design/product'),
       commits: commitsBlock(
         [
           { sha: '1234567890ab', subject: 'tooling: big one', files: 42 },
@@ -440,13 +278,9 @@ describe('页面与摘要', () => {
     }
   }
 
-  it('八块的标题都在，关键数字都在；没数据的块写明原因', () => {
+  it('五块的标题都在，关键数字都在；没数据的块写明原因', () => {
     const page = renderHealthPage(fixture())
     for (const title of Object.values(SECTION_TITLES)) expect(page).toContain(`<h2>${title}</h2>`)
-    expect(page).toContain('ST-016-01')
-    expect(page).toContain('开一个会话')
-    expect(page).toContain('中位数 1.5 天，最长 1.5 天')
-    expect(page).toContain('没有数据：产品区 .meta_harness/design/product 不存在')
     expect(page).toContain('改动文件数中位数 3，最大 42')
     expect(page).toContain('tooling: big one')
     expect(page).toContain('docs: &lt;small&gt;')
@@ -468,17 +302,12 @@ describe('页面与摘要', () => {
     expect(page).not.toMatch(/url\(\s*["']?https?:/iu)
     expect(page).not.toMatch(/<link\b|<script\b[^>]*\bsrc=/iu)
     expect(page).not.toContain('http://')
-    expect(page).not.toContain('https://')
   })
 
   it('摘要不超过 15 行，末行是页面路径；没数据的块写原因', () => {
     const lines = healthSummary(fixture(), '/out/health.html')
     expect(lines.length).toBeLessThanOrEqual(15)
     expect(lines.at(-1)).toBe('页面：/out/health.html')
-    expect(lines).toContain(
-      '各 topic 剩余卡数：没有数据，产品区 .meta_harness/design/product 不存在',
-    )
-    expect(lines.some(line => line.startsWith('卡：1 张，已接受 1'))).toBe(true)
     expect(lines.find(line => line.startsWith('测试耗时'))).toBe(
       '测试耗时：最近 2 次全量：快层 201 秒；两层 693 秒；最近一次（快层）全过',
     )
@@ -505,7 +334,7 @@ describe('入口', { timeout: 60_000 }, () => {
   }
   const cli = fileURLToPath(new URL('../src/loop/health-cli.ts', import.meta.url))
 
-  it('在临时仓库里：八块都写出来，合并提交按对第一父的改动计；产物三件、摘要打到终端', () => {
+  it('在临时仓库里：五块都写出来，合并提交按对第一父的改动计；产物三件、摘要打到终端', () => {
     const root = temp('loop-health-repo-')
     const home = temp('loop-health-home-')
     const git = (...args: string[]) =>
@@ -554,9 +383,8 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('提交与合并的大小：main 最近 2 个，文件数中位数 2、最大 3（')
     expect(result.stdout).toContain('merge side')
-    expect(result.stdout).toContain(
-      '各 topic 剩余卡数：1 个 topic，共 1 张，剩余 1（其中未就绪 1）',
-    )
+    expect(result.stdout).not.toContain('当前来源卡')
+    expect(result.stdout).not.toContain('ST-016-01')
     expect(result.stdout).toContain('测试耗时：没有数据，测试耗时账本目录')
     const out = join(home, 'health')
     const page = readFileSync(join(out, 'health.html'), 'utf8')
@@ -565,9 +393,6 @@ describe('入口', { timeout: 60_000 }, () => {
     expect(Object.keys(json as object)).toEqual([
       'conformance',
       'meta',
-      'cards',
-      'weekly',
-      'remaining',
       'commits',
       'tests',
       'debt',
@@ -576,6 +401,16 @@ describe('入口', { timeout: 60_000 }, () => {
     ])
     expect((json as { conformance: { status: string } }).conformance.status).toBe('no-data')
     expect(readFileSync(join(out, 'summary.md'), 'utf8')).toBe(result.stdout)
+  })
+
+  it.each(['--config', '--capture'])('拒绝退出的任务输入 %s', flag => {
+    const result = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', cli, flag, 'input.json'],
+      { encoding: 'utf8' },
+    )
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('认不出的参数')
   })
 
   it('认不出的参数：退出 2', () => {

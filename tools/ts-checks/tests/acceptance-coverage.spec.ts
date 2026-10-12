@@ -144,7 +144,9 @@ describe('覆盖声明：读仓库', () => {
   it('只收成员根下 acceptance 目录里的 *.acceptance.ts，node_modules 与 dist 不进；场景从产品区读', () => {
     const root = mkdtempSync(join(tmpdir(), 'coverage-'))
     made.push(root)
-    write(root, 'product/PF-016-cli/acceptance.md', '| S5 | 没有屏 |\n')
+    write(root, 'product/cli/README.md', '---\nid: PD-cli\nrevision: 1\nstatus: draft\n---\n')
+    write(root, 'product/cli/design.md', '# Product')
+    write(root, 'product/cli/acceptance.md', '| S5 | 没有屏 |\n')
     write(root, 'apps/cli/package.json', '{"scripts":{"acceptance":"vitest run"}}')
     write(root, PATH, `// covers: PF-016 S5\n${BODY}`)
     write(root, 'apps/cli/acceptance/vitest.config.ts', 'export default {}\n')
@@ -153,11 +155,13 @@ describe('覆盖声明：读仓库', () => {
     write(root, 'apps/cli/tests/PF-016.a.acceptance.ts', '')
     write(root, 'tools/x/acceptance/PF-016.a.acceptance.ts', '')
     expect(listAcceptanceFiles(root, config)).toEqual([PATH])
-    expect(inspectCoverage(root, 'product', config).violations).toEqual([])
-
-    write(root, 'product/PF-016-cli/acceptance.md', '| S5b | 含义变了，换了新编号 |\n')
     expect(inspectCoverage(root, 'product', config).violations.map(v => v.message)).toEqual([
-      'PF-016 S5 在 PF-016-cli/acceptance.md 里没有带这个编号的场景行：场景改了含义会换新编号，这份验收要跟着改或删',
+      'PF-016 在产品区里没有对应的 topic 目录',
+    ])
+
+    write(root, 'product/cli/acceptance.md', '| S5b | 含义变了，换了新编号 |\n')
+    expect(inspectCoverage(root, 'product', config).violations.map(v => v.message)).toEqual([
+      'PF-016 在产品区里没有对应的 topic 目录',
     ])
   })
 })

@@ -8,12 +8,19 @@
 from __future__ import annotations
 
 import argparse
+import math
+import os
 import re
 import sys
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
+from typing import TypedDict
 from urllib.parse import unquote, urldefrag
+
+import yaml
+
+from omne_harness_lite_spec_tools.doc_support import headings
 
 from markdown_support import HEADING_RE, github_anchor
 
@@ -30,10 +37,55 @@ LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)\s]+)\)")
 # 一段引用按次序切成两种记号：一条链接，或一个写着 rev 的全角括号「（rev 6）」「（rev 6 / rev 2）」
 CITE_TOKEN_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)|（([^（）]*\brev\s*\d+[^（）]*)）")
 REV_RE = re.compile(r"\brev\s*(\d+)")
-TOPIC_RE = re.compile(r"product/(PF-\d{3})[^/]*/(design|flows)\.md$")
-# `| [PF-006 工具与技能](PF-006-…/README.md) | active | 10 |` 与 `| [PF-006 …](…) | …… | rev 10 |`；最后一格可带「（草稿）」
-ROSTER_ROW_RE = re.compile(r"^\| \[(PF-\d{3})[^\]]*\]\([^)]*README\.md\) \|.*\| (?:rev )?(\d+)(?:（[^|）]*）)? \|\s*$")
 INDEX_ROW_RE =re.compile(r"^\| \[(UL-[a-z0-9-]+)\]\(([^)#]+)#([^)]+)\) \| (.+?) \| (.+?) \|")
+
+
+class ProductMetadata(TypedDict):
+    id: str
+    revision: int
+    status: str
+
+
+class ProductMetadataLoader(yaml.SafeLoader):
+    """Read YAML safely, with YAML 1.2 core scalar types used by the TS reader."""
+
+
+# Keep resolver changes local: the shared SafeLoader retains its original behavior.
+ProductMetadataLoader.yaml_implicit_resolvers = {
+    first: [(tag, pattern) for tag, pattern in resolvers
+            if tag not in {"tag:yaml.org,2002:bool", "tag:yaml.org,2002:int",
+                           "tag:yaml.org,2002:float", "tag:yaml.org,2002:timestamp",
+                           "tag:yaml.org,2002:merge", "tag:yaml.org,2002:value"}]
+    for first, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
+}
+ProductMetadataLoader.add_implicit_resolver("tag:yaml.org,2002:bool",
+    re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$"), list("tTfF"))
+ProductMetadataLoader.add_implicit_resolver("tag:yaml.org,2002:int",
+    re.compile(r"^(?:[-+]?[0-9]+|0o[0-7]+|0x[0-9a-fA-F]+)$"), list("-+0123456789"))
+ProductMetadataLoader.add_implicit_resolver("tag:yaml.org,2002:float",
+    re.compile(r"^(?:[-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][-+]?[0-9]+)?"
+               r"|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$"), list("-+0123456789."))
+
+
+def _product_integer(loader: yaml.SafeLoader, node: yaml.ScalarNode) -> int:
+    value = loader.construct_scalar(node)
+    return int(value[2:], 8 if value.startswith("0o") else 16) if value.startswith(("0o", "0x")) else int(value, 10)
+
+
+def _product_mapping(loader: yaml.SafeLoader, node: yaml.MappingNode, deep: bool = False) -> dict:
+    result = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if not isinstance(key, str):
+            raise ValueError("front-matter 的映射键必须是字符串")
+        if key in result:
+            raise ValueError(f"front-matter 的 {key} 重复")
+        result[key] = loader.construct_object(value_node, deep=deep)
+    return result
+
+
+ProductMetadataLoader.add_constructor("tag:yaml.org,2002:int", _product_integer)
+ProductMetadataLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _product_mapping)
 
 
 @dataclass
@@ -94,6 +146,10 @@ class Reconciler:
         self.revisions: dict[str, int] = {}
         self.drafts: set[str] = set()  # front-matter 的 status 为 draft 的 topic：那份产品正文还没被接受
         self.topic_dirs: dict[str, Path] = {}
+        self.sealed_revisions: dict[str, int] = {}
+        self.sealed_dirs: dict[str, Path] = {}
+        self.sealed_citations: set[str] = set()
+        self._anchors: dict[Path, set[str]] = {}
         self.cards: dict[str, Card] = {}
         self.pending: list[tuple[str, dict[str, str]]] = []
 
@@ -110,40 +166,136 @@ class Reconciler:
         self._load_cards()
         self._load_pending()
 
+    def _metadata(self, readme: Path) -> ProductMetadata | None:
+        text = readme.read_text(encoding="utf-8")
+        front = re.match(r"\A---\r?\n(.*?)^---[ \t]*\r?$", text, re.S | re.M)
+        if front is None:
+            self.error(f"{self.rel(readme)}: 缺 front-matter")
+            return None
+        try:
+            fields = yaml.load(front.group(1), Loader=ProductMetadataLoader)
+        except (yaml.YAMLError, ValueError) as error:
+            self.error(f"{self.rel(readme)}: front-matter YAML 无效：{error}")
+            return None
+        if not isinstance(fields, dict):
+            self.error(f"{self.rel(readme)}: front-matter 必须是映射对象")
+            return None
+        valid = True
+        for name in ("id", "revision", "status"):
+            if name not in fields or fields[name] is None:
+                self.error(f"{self.rel(readme)}: front-matter 里没有 {name}")
+                valid = False
+        identity, revision, status = (fields.get(name) for name in ("id", "revision", "status"))
+        if not isinstance(identity, str) or not identity:
+            self.error(f"{self.rel(readme)}: id 必须是非空字符串")
+            valid = False
+        if (type(revision) not in (int, float) or revision < 1 or revision > 2**53 - 1
+                or not math.isfinite(revision) or int(revision) != revision):
+            self.error(f"{self.rel(readme)}: revision 必须是正整数（安全数值）")
+            valid = False
+        if not isinstance(status, str) or not status.strip():
+            self.error(f"{self.rel(readme)}: status 必须是非空状态名称")
+            valid = False
+        if not valid:
+            return None
+        return ProductMetadata(id=identity, revision=int(revision), status=status)
+
     def _load_revisions(self) -> None:
-        for readme in sorted(self.root.glob("product/PF-*/README.md")):
-            topic = readme.parent.name[:6]
-            self.topic_dirs[topic] = readme.parent
-            match = re.search(r"\A---\n.*?^revision:\s*(\d+)\s*$.*?^---", readme.read_text(encoding="utf-8"),
-                              re.S | re.M)
-            if not match:
-                self.error(f"{self.rel(readme)}: front-matter 里没有 revision")
+        self._load_product_root("product", sealed=False)
+        self._load_product_root("product.0.0.1.legacy", sealed=True)
+        if not self.topic_dirs:
+            self.error("product/: zero-current-input，没有可对账的当前 PD topic")
+
+    def _load_product_root(self, name: str, *, sealed: bool) -> None:
+        base = self.root / name
+        if sealed and not base.exists() and not base.is_symlink():
+            return
+        if not base.is_dir() or base.resolve() != base:
+            self.error(f"{name}/: 产品根不存在或越界别名")
+            return
+        revisions = self.sealed_revisions if sealed else self.revisions
+        directories = self.sealed_dirs if sealed else self.topic_dirs
+        seen: set[str] = set()
+        for directory in sorted(base.iterdir()):
+            if directory.name.startswith("."):
                 continue
-            current = int(match.group(1))
-            self.revisions[topic] = current
-            status = re.search(r"^status:\s*(\S+)\s*$", match.group(0), re.M)
-            if status and status.group(1) == "draft":
+            if directory.is_symlink():
+                self.error(f"{self.rel(directory)}: topic 目录是越界或别名链接")
+                continue
+            if not directory.is_dir():
+                continue
+            if sealed and not directory.name.startswith("PF-"):
+                continue
+            if directory.resolve() != directory:
+                self.error(f"{self.rel(directory)}: topic 目录是越界或别名链接")
+                continue
+            readme = directory / "README.md"
+            if not readme.is_file() or readme.resolve() != readme:
+                self.error(f"{self.rel(readme)}: README 不存在或越界别名")
+                continue
+            fields = self._metadata(readme)
+            if fields is None:
+                continue
+            topic = fields["id"]
+            if topic in seen:
+                self.error(f"{self.rel(readme)}: topic id {topic} 重复")
+                continue
+            seen.add(topic)
+            expected = re.match(r"^(PF-\d{3})(?:-|$)", directory.name) if sealed else None
+            valid_id = (expected is not None and topic == expected.group(1)) if sealed else (
+                re.fullmatch(r"PD-[a-z0-9]+(?:-[a-z0-9]+)*", topic) is not None
+                and topic == f"PD-{directory.name}")
+            if not valid_id:
+                self.error(f"{self.rel(readme)}: id {topic} 与 topic slug 不一致")
+                continue
+            target = directory / "design.md"
+            if not target.is_file() or target.resolve() != target:
+                self.error(f"{self.rel(target)}: 产品正文不存在或越界别名")
+                continue
+            flows = directory / "flows.md"
+            if flows.is_symlink() or (flows.exists() and not flows.is_file()):
+                self.error(f"{self.rel(flows)}: 产品正文不是文件或是越界别名")
+                continue
+            current = int(fields["revision"])
+            directories[topic] = directory
+            revisions[topic] = current
+            if not sealed and fields["status"] == "draft":
                 self.drafts.add(topic)
-            for name, probe in (("design.md", self._header_rev),):
-                target = readme.parent / name
-                if target.is_file():
-                    stated = probe(target.read_text(encoding="utf-8").splitlines())
-                    if stated is not None and stated != current:
-                        self.error(f"{self.rel(target)}: 写的是 rev {stated}，而 README front-matter 是 rev {current}"
-                                   "（以 front-matter 为准）")
-        # 产品区还有两张手写的 rev 表：topic 一览与架构内核 PF 清单
-        for name in ("product/README.md", "product/architecture-core.md"):
-            table = self.root / name
-            if not table.is_file():
+            stated = self._header_rev(target.read_text(encoding="utf-8").splitlines())
+            if stated is not None and stated != current:
+                self.error(f"{self.rel(target)}: 写的是 rev {stated}，而 README front-matter 是 rev {current}"
+                           "（以 front-matter 为准）")
+
+    def _product_reference(self, source: Path, href: str, where: str | None = None) -> tuple[str, bool] | None:
+        target, fragment = urldefrag(unquote(href))
+        lexical = Path(os.path.abspath(source.parent / target))
+        for name, directories, sealed in (("product", self.topic_dirs, False),
+                                         ("product.0.0.1.legacy", self.sealed_dirs, True)):
+            base = self.root / name
+            if not lexical.is_relative_to(base):
                 continue
-            for number, line in enumerate(table.read_text(encoding="utf-8").splitlines(), 1):
-                match = ROSTER_ROW_RE.match(line)
-                if not match:
-                    continue
-                current = self.revisions.get(match.group(1))
-                if current is not None and int(match.group(2)) != current:
-                    self.error(f"{name}:{number}: 表里写 {match.group(1)} 是 rev {match.group(2)}，"
-                               f"而它的 README front-matter 是 rev {current}")
+            parts = lexical.relative_to(base).parts
+            if len(parts) != 2 or parts[1] not in ("design.md", "flows.md"):
+                return None
+            topic = next((uid for uid, directory in directories.items() if directory == lexical.parent), None)
+            problem = None
+            if lexical.resolve() != lexical:
+                problem = "引用目标是越界或别名链接"
+            elif topic is None:
+                problem = "引用的 topic 没有有效 README 元数据"
+            elif not lexical.is_file():
+                problem = "引用文件不存在"
+            elif fragment:
+                if lexical not in self._anchors:
+                    self._anchors[lexical] = headings.__wrapped__(lexical)
+                if fragment not in self._anchors[lexical]:
+                    problem = f"引用锚点 #{fragment} 不存在"
+            if problem:
+                if where is not None:
+                    self.error(f"{where}: {href} {problem}")
+                return None
+            return topic, sealed
+        return None
 
     @staticmethod
     def _header_rev(lines: list[str]) -> int | None:
@@ -305,17 +457,16 @@ class Reconciler:
         可以共用后面那一个；一个括号里并列几个 rev 的，按 topic 出现的次序配。
         strict 时每条链接都必须指向产品正文，且至少有一条。
         """
-        waiting: list[str] = []  # 还没等到 rev 的 topic，按出现次序、不重复
+        waiting: list[tuple[str, bool]] = []
         cited = False
         for href, group in CITE_TOKEN_RE.findall(text):
             if href:
-                target, _ = urldefrag(unquote(href))
-                match = TOPIC_RE.search(str((source.parent / target).resolve()))
-                if match is None:
+                reference = self._product_reference(source, href, where)
+                if reference is None:
                     if strict:
-                        self.error(f"{where}: {href} 不是某个 topic 的 design.md 或 flows.md")
-                elif match.group(1) not in waiting:
-                    waiting.append(match.group(1))
+                        self.error(f"{where}: {href} 不是某个 topic 的 design.md 或 flows.md 有效出处")
+                elif reference not in waiting:
+                    waiting.append(reference)
                 continue
             if not waiting:
                 continue
@@ -324,14 +475,18 @@ class Reconciler:
                 revs *= len(waiting)
             if len(revs) != len(waiting):
                 self.error(f"{where}:「（{group}）」前面是 {len(waiting)} 个 topic 的链接，却写了 {len(revs)} 个 rev，配不上对")
-            for topic, rev in zip(waiting, revs):
+            for (topic, sealed), rev in zip(waiting, revs):
                 cited = True
-                current = self.revisions.get(topic)
-                if current is not None and current != rev:
+                current = (self.sealed_revisions if sealed else self.revisions).get(topic)
+                if sealed:
+                    self.sealed_citations.add(topic)
+                if sealed and current != rev:
+                    self.error(f"{where}: sealed provenance {topic} 标的是 rev {rev}，封存修订是 rev {current}")
+                elif current is not None and current != rev:
                     self._stale(f"{where}: 标的是 {topic} rev {rev}，该 topic 现在是 rev {current}——复核后再改 rev")
             waiting = []
         if waiting:
-            self.error(f"{where}: 指向 {'、'.join(waiting)} 的链接后面没有「（rev N）」")
+            self.error(f"{where}: 指向 {'、'.join(topic for topic, _ in waiting)} 的链接后面没有「（rev N）」")
         elif strict and not cited:
             self.error(f"{where}: 至少要有一条指向产品正文、带 rev 的依据")
 
@@ -345,7 +500,7 @@ class Reconciler:
         for topic, directory in self.topic_dirs.items():
             for name in ("design.md", "flows.md"):
                 path = directory / name
-                if not path.is_file():
+                if not path.is_file() or path.resolve() != path:
                     continue
                 for _, href in LINK_RE.findall(path.read_text(encoding="utf-8")):
                     if "ubiquitous_language/terms/" not in href:
@@ -372,9 +527,9 @@ class Reconciler:
         def definers(card: Card | None) -> list[str]:
             topics: list[str] = []
             for _, href in LINK_RE.findall(card.fields.get("依据", "") if card else ""):
-                match = TOPIC_RE.search(href.split("#")[0])
-                if match and match.group(1) not in topics:
-                    topics.append(match.group(1))
+                reference = self._product_reference(self.root / "domain_objects/objects.md", href)
+                if reference and reference[0] not in topics:
+                    topics.append(reference[0])
             return topics
 
         children: dict[str, list[Term]] = {}
@@ -390,7 +545,7 @@ class Reconciler:
                "[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。",
                "",
                "- derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · "
-               "`domain_objects/pending.md` · `product/PF-*/{README,design,flows}.md`（rev、指向词条的链接）",
+               "`domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）",
                f"{STAMP}{date.today().isoformat()}",
                "- 生成：`python tooling/src/domain_objects.py --root design --write`",
                "",
@@ -403,7 +558,8 @@ class Reconciler:
                "**那份产品正文尚未被接受**，建在它上面的对象骨架随时可能跟着变。", ""]
 
         def mark(topic: str, short: bool = False) -> str:
-            return (topic[3:] if short else topic) + ("（草稿）" if topic in self.drafts else "")
+            return ((topic[3:] if short else topic) + ("（sealed provenance）" if topic in self.sealed_dirs else "")
+                    + ("（草稿）" if topic in self.drafts else ""))
 
         for filename, title in self.volumes:
             rows = [term for term in objects if term.volume == filename]
@@ -473,6 +629,9 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"WROTE: {VIEW}")
         elif not view.is_file() or not same_but_stamp(view.read_text(encoding="utf-8"), rendered):
             reconciler.error(f"{VIEW} 不是最新的——运行 --write 重新生成")
+    if reconciler.sealed_citations:
+        print("SEALED PROVENANCE: " + "、".join(sorted(reconciler.sealed_citations))
+              + "（只核出处，不是当前 PD 采用）")
     for note in reconciler.notes:
         print(f"STALE: {note}")
     for error in reconciler.errors:
@@ -481,7 +640,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"FAIL: 领域对象对账发现 {len(reconciler.errors)} 处问题。", file=sys.stderr)
         return 1
     print(f"PASS: {len(reconciler.terms)} 个词条、{len(reconciler.cards)} 条对象条目、"
-          f"{len(reconciler.pending)} 项待裁，对账一致。")
+          f"{len(reconciler.pending)} 项待裁、{len(reconciler.revisions)} 个当前 PD，对账一致。")
     return 0
 
 

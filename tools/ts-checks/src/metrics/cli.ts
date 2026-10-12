@@ -14,6 +14,7 @@ import { baseTextsOf, collectMemberSources } from './sources.ts'
 import { readActualArchitecture } from '../arch/actual.ts'
 import { buildArchitectureView } from '../arch/view.ts'
 import { readConformance } from '../arch/conformance.ts'
+import { baselines } from '../integration/context.ts'
 
 interface Options {
   readonly base?: string
@@ -49,8 +50,10 @@ function parseArgs(argv: readonly string[]): Options {
 function main(): void {
   const options = parseArgs(process.argv.slice(2))
   const config = readMetricsConfig()
-  const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
-  const at = coordinates(root, options.base)
+  const root = resolve(
+    process.env['OMNE_SUBJECT_ROOT'] ?? fileURLToPath(new URL('../../../../', import.meta.url)),
+  )
+  const at = coordinates(root, baselines(root, options.base).targetBase)
   const outDir = resolve(
     options.out ??
       process.env['OMNE_METRICS_OUT'] ??

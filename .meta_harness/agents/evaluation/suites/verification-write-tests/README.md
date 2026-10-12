@@ -5,7 +5,7 @@
 以及能否杀死一组它看不到的变异体（每个变异体是模块的一处改动，各自违反一条规格）。判定由程序在收录运行时做，没有判官。
 
 状态：版本2仅迁移派发输入和局部规则；尚未重新签字或运行模型基线，不沿用版本1的签字或声称性能等价。当前判定规则：**类型检查只记录，不计入成败**。
-基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
+基线何时跑由 [遗留汇总L07](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-agent-evaluations) 跟踪。
 
 ## 材料
 

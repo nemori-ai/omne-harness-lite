@@ -1,8 +1,8 @@
 # Agent 源资产
 
-本目录是私有工作区资产的唯一编译源。三个独立 skills 与八个角色已迁入；
-承载它的当前 worktree 根 `.agents/`、`.claude/`、`.codex/` 已通过相对软链接暴露生成物，
-旧实体和原局部指引已退役留档，不能当作维护源。
+本目录维护独有 skills、角色和宿主 hooks 的唯一编译源。实际条目以下表和源目录为准。
+执行仓库根 `.agents/`、`.claude/`、`.codex/` 通过相对软链接暴露生成物；接入状态由工具核对。
+通用工程方法从[技能采用入口](../../docs/engineering/skills.md)加载 pstack 与已选 Matt 方法，不复制插件正文。
 
 | 输入 | 输出（相对显式指定的输出根） |
 |---|---|
@@ -46,16 +46,18 @@ skills 的共享正文与资源放在 `canonical/`。即使两端直接复制，
 
 | Skill | 职责 |
 |---|---|
+| `branch-integration` | 读取实际采用和 Issue 绑定，接续工作分支同步、FI/RI、联合候选、checkpoint 及未知发布恢复；工程规则与 CLI 由执行仓库拥有 |
 | `harness-design-handbook` | 从需求与能力覆盖到演化、契约、装配时对 Cordis 的符合性核对和交接；方法草稿 |
 | `product-design` | 以 product manager 视角起草或修订产品设计正文；该区维护规矩归 [design/product](../design/product/AGENTS.md) |
 | `write-blog` | 为人代笔技术博客：访谈作者、核对设计资料，按方向撰写个人工程复盘或开发者技术专题，以说人话和准确表达为准则 |
 | [`asd-ste100`](skills/asd-ste100/README.md) | 全工作区文档写作与修订的表达规范：英文采用 STE，中文采用清晰性原则；保留语义与要求强度，含结构检查器，由本仓库维护 |
-| [`prepare-pr`](skills/prepare-pr/README.md) | 开工时识别报告采集点，交付时选择执行仓库模板、组织摘要/图表和具体审阅问题；语言引用 asd-ste100 |
 | `write-agents-md` | AGENTS.md 的心智、边界、继承与阅读地图 |
 | `design-subagents` | 角色契约、宿主与模型适配、模板、成对渲染及验证 |
-| `worktree-discipline` | 明确执行仓库中的隔离、并行集成与证据保留 |
 | `ubiquitous-language` | 统一语言的取名、分卷、无歧义中英文定义、判形态、查重、冲突处置与出处复核；**只有要新增或修改词条的人加载**，该区约定归 [design/ubiquitous_language](../design/ubiquitous_language/AGENTS.md) |
 | `domain-objects` | 领域对象条目的宿主、身份、生灭与并入怎么判，待裁怎么登记，topic 升 rev 后怎么逐条复核，全量重提怎么做；**只有要在那一区落字的人加载**，该区约定归 [design/domain_objects](../design/domain_objects/AGENTS.md) |
 
+工作树隔离、真实 cwd、共享写权及清理归[协作流程](../../docs/engineering/workflow.md)。
+提交和PR方法从工程技能入口选择，项目模板、署名及报告归[贡献指南](../../CONTRIBUTING.md)，
+动作授权及成果保存归[交付边界](../../docs/engineering/publication.md)。
 外部项目依赖必须作为明确工作区/执行仓库输入，不暗接父仓库。编译保留草稿状态，
 生成不代表接受、安装、宿主加载或模型行为已验证。

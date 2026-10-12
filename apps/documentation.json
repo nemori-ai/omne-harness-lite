@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "application-skeleton",
+    "kind": "project",
+    "source": {
+      "path": "docs/package-organization.md",
+      "anchor": "目标目录"
+    }
+  },
+  "documents": [
+    {
+      "id": "overview",
+      "path": "apps/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/package-organization.md",
+        "anchor": "目标目录"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "roles",
+          "anchor": "目标责任"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "建立与维护"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "apps/README.md",
+        "anchor": "建立与维护"
+      }
+    }
+  ]
+}

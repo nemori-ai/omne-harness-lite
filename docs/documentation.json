@@ -1,0 +1,4414 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "project-documentation",
+    "kind": "project",
+    "source": {
+      "path": "docs/engineering/documentation.md"
+    }
+  },
+  "documents": [
+    {
+      "id": "README",
+      "path": "README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "CONTRIBUTING",
+      "path": "CONTRIBUTING.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "AGENTS",
+      "path": "AGENTS.md",
+      "kind": "agent-instruction",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "CLAUDE",
+      "path": "CLAUDE.md",
+      "kind": "agent-instruction",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "docs#README",
+      "path": "docs/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "user",
+          "anchor": "终端使用者"
+        },
+        {
+          "id": "admin",
+          "anchor": "租户管理者"
+        },
+        {
+          "id": "operator",
+          "anchor": "部署运维者"
+        },
+        {
+          "id": "integrator",
+          "anchor": "集成扩展者"
+        },
+        {
+          "id": "developer",
+          "anchor": "实现维护者"
+        },
+        {
+          "id": "verifier",
+          "anchor": "验证评审者"
+        },
+        {
+          "id": "doc-maintainer",
+          "anchor": "工具文档维护者"
+        },
+        {
+          "id": "architect",
+          "anchor": "系统架构负责人"
+        },
+        {
+          "id": "product-owner",
+          "anchor": "产品负责人"
+        },
+        {
+          "id": "delivery-owner",
+          "anchor": "项目交付负责人"
+        }
+      ]
+    },
+    {
+      "id": "docs#maintenance",
+      "path": "docs/maintenance.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "维护指南与局部入口"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "layers",
+          "anchor": "选择信息层级"
+        },
+        {
+          "id": "granularity",
+          "anchor": "控制内容粒度"
+        },
+        {
+          "id": "new-and-split",
+          "anchor": "新增正文与拆页"
+        },
+        {
+          "id": "change-and-migrate",
+          "anchor": "修改与迁移"
+        },
+        {
+          "id": "targets-and-gaps",
+          "anchor": "登记目标与留空"
+        },
+        {
+          "id": "checks-and-deviations",
+          "anchor": "检查与偏离报告"
+        },
+        {
+          "id": "handoff-and-upkeep",
+          "anchor": "交付与后续维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#requirements",
+      "path": "docs/requirements.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "purpose",
+          "anchor": "系统定位与目标"
+        },
+        {
+          "id": "delivery",
+          "anchor": "交付阶段与功能范围"
+        },
+        {
+          "id": "kernel-and-open-capabilities",
+          "anchor": "内核与开放能力"
+        },
+        {
+          "id": "multimodal-io",
+          "anchor": "多模态输入与输出"
+        },
+        {
+          "id": "dynamic-composition",
+          "anchor": "动态演化与运行对象"
+        },
+        {
+          "id": "tenant-isolation",
+          "anchor": "租户与身份隔离"
+        },
+        {
+          "id": "authorization-and-hitl",
+          "anchor": "权限管理与人在回路"
+        },
+        {
+          "id": "data-protection",
+          "anchor": "数据安全与隐私"
+        },
+        {
+          "id": "runtime-continuity",
+          "anchor": "持久状态与恢复"
+        },
+        {
+          "id": "durability",
+          "anchor": "已确认业务事实的持久性sys-durability"
+        },
+        {
+          "id": "observability",
+          "anchor": "工程观测与结果真实性"
+        },
+        {
+          "id": "contracts-and-verification",
+          "anchor": "承诺与验证的表达"
+        },
+        {
+          "id": "unresolved-acceptance",
+          "anchor": "尚待明确的验收条件"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "相关正文与维护"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      }
+    },
+    {
+      "id": "docs#AGENTS",
+      "path": "docs/AGENTS.md",
+      "kind": "agent-instruction",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "维护指南与局部入口"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "sources",
+          "anchor": "当前有效源与目标"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "维护时展开"
+        },
+        {
+          "id": "routes",
+          "anchor": "按任务展开"
+        }
+      ]
+    },
+    {
+      "id": "docs#context-map",
+      "path": "docs/context-map.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "use",
+          "anchor": "使用管理部署"
+        },
+        {
+          "id": "consume",
+          "anchor": "消费独立包"
+        },
+        {
+          "id": "fix",
+          "anchor": "局部修复"
+        },
+        {
+          "id": "boundary",
+          "anchor": "公开边界变更"
+        },
+        {
+          "id": "documentation",
+          "anchor": "文档重写整合"
+        },
+        {
+          "id": "accept",
+          "anchor": "冲突与验收"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#README",
+      "path": "docs/engineering/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "entry-1",
+          "anchor": "从任务开始"
+        },
+        {
+          "id": "entry-2",
+          "anchor": "查询共享主题"
+        },
+        {
+          "id": "entry-3",
+          "anchor": "现行源与未完成范围"
+        },
+        {
+          "id": "entry-4",
+          "anchor": "检查与维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#documentation",
+      "path": "docs/engineering/documentation.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "layers",
+          "anchor": "分层与遵循方向"
+        },
+        {
+          "id": "ssot",
+          "anchor": "位置与唯一源"
+        },
+        {
+          "id": "specification-lifecycles",
+          "anchor": "单次交付规格与长期规格"
+        },
+        {
+          "id": "targets",
+          "anchor": "首批目标与暂时留空"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "最低内容与维护"
+        },
+        {
+          "id": "checks",
+          "anchor": "检查与结论边界"
+        },
+        {
+          "id": "engineering-targets",
+          "anchor": "工程目标与必要结构"
+        },
+        {
+          "id": "presentation",
+          "anchor": "表达与排版"
+        },
+        {
+          "id": "maintenance-guide",
+          "anchor": "维护指南与局部入口"
+        },
+        {
+          "id": "package-organization",
+          "anchor": "产品包组织文档"
+        },
+        {
+          "id": "long-lived-artifacts",
+          "anchor": "四类长期成果与普通任务"
+        }
+      ]
+    },
+    {
+      "id": "docs#architecture#README",
+      "path": "docs/architecture/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "overview",
+          "anchor": "系统总览"
+        },
+        {
+          "id": "map",
+          "anchor": "内容地图"
+        },
+        {
+          "id": "reading",
+          "anchor": "按问题阅读"
+        },
+        {
+          "id": "adoption",
+          "anchor": "采用状态与当前有效源"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "维护与展开"
+        },
+        {
+          "id": "open-design",
+          "anchor": "未决事项与后续设计入口"
+        },
+        {
+          "id": "unresolved-semantics",
+          "anchor": "仍需明确的语义与契约范围"
+        },
+        {
+          "id": "follow-up-design",
+          "anchor": "由后续契约与技术设计承接"
+        },
+        {
+          "id": "unwritten-architecture",
+          "anchor": "尚未完成或待接受的架构正文"
+        },
+        {
+          "id": "phase-boundaries",
+          "anchor": "已明确的阶段范围"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#context-and-scope",
+      "path": "docs/architecture/context-and-scope.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "范围与外部参与者"
+        },
+        {
+          "id": "interfaces",
+          "anchor": "外部交互与信任边界"
+        },
+        {
+          "id": "context-diagram",
+          "anchor": "系统上下文图"
+        },
+        {
+          "id": "unresolved-boundaries",
+          "anchor": "尚待明确的接缝"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#drivers-and-constraints",
+      "path": "docs/architecture/drivers-and-constraints.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "basis",
+          "anchor": "上游依据与适用范围"
+        },
+        {
+          "id": "quality-goals",
+          "anchor": "关键质量目标"
+        },
+        {
+          "id": "constraints",
+          "anchor": "技术与组织约束"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#structure",
+      "path": "docs/architecture/structure.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "decomposition",
+          "anchor": "系统分解与结构图"
+        },
+        {
+          "id": "responsibilities",
+          "anchor": "职责与公开边界"
+        },
+        {
+          "id": "dependencies",
+          "anchor": "依赖方向与扩展点"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#layers-and-dependencies",
+      "path": "docs/architecture/layers-and-dependencies.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "分层范围与阅读路径"
+        },
+        {
+          "id": "responsibilities",
+          "anchor": "各层职责"
+        },
+        {
+          "id": "dependencies",
+          "anchor": "依赖关系与禁止方向"
+        },
+        {
+          "id": "consumption",
+          "anchor": "两种消费方式"
+        },
+        {
+          "id": "semantics",
+          "anchor": "跨边界行为与事实归属"
+        },
+        {
+          "id": "verification",
+          "anchor": "偏离检查与维护责任"
+        },
+        {
+          "id": "open-design",
+          "anchor": "待细化范围"
+        },
+        {
+          "id": "operations",
+          "anchor": "公开操作与契约覆盖"
+        },
+        {
+          "id": "transport",
+          "anchor": "传输与兼容约定"
+        },
+        {
+          "id": "client-state",
+          "anchor": "客户端状态与资源管理"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime",
+      "path": "docs/architecture/runtime/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scenarios",
+          "anchor": "代表性主流程"
+        },
+        {
+          "id": "lifecycle",
+          "anchor": "生命周期与状态转换"
+        },
+        {
+          "id": "concurrency",
+          "anchor": "并发与取消"
+        },
+        {
+          "id": "recovery",
+          "anchor": "失败与恢复"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime#session-and-run",
+      "path": "docs/architecture/runtime/session-and-run.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "会话创建与身份"
+        },
+        {
+          "id": "section-2",
+          "anchor": "输入受理与分流"
+        },
+        {
+          "id": "section-3",
+          "anchor": "run-创建与推进权"
+        },
+        {
+          "id": "section-4",
+          "anchor": "attempt-与原工作接续"
+        },
+        {
+          "id": "section-5",
+          "anchor": "生命周期与工作收束"
+        },
+        {
+          "id": "section-6",
+          "anchor": "多会话与独立调用"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime#agent-runtime",
+      "path": "docs/architecture/runtime/agent-runtime.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "启动与运行条件"
+        },
+        {
+          "id": "section-2",
+          "anchor": "一轮推进"
+        },
+        {
+          "id": "section-3",
+          "anchor": "回复准入与动作处理"
+        },
+        {
+          "id": "section-4",
+          "anchor": "下一步与完成条件"
+        },
+        {
+          "id": "section-5",
+          "anchor": "调用关联与可接续性"
+        },
+        {
+          "id": "section-6",
+          "anchor": "长期运行与验证义务"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime#loop-extensions",
+      "path": "docs/architecture/runtime/loop-extensions.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "扩展位置与干预力"
+        },
+        {
+          "id": "section-2",
+          "anchor": "有序组合与参数改写"
+        },
+        {
+          "id": "section-3",
+          "anchor": "等待与恢复"
+        },
+        {
+          "id": "section-4",
+          "anchor": "不可用报错与系统扩展"
+        },
+        {
+          "id": "section-5",
+          "anchor": "准入与-hitl"
+        },
+        {
+          "id": "section-6",
+          "anchor": "循环守卫与终态扩展"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime#model-runtime",
+      "path": "docs/architecture/runtime/model-runtime.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "请求身份与输入"
+        },
+        {
+          "id": "section-2",
+          "anchor": "真实发出与调用收场"
+        },
+        {
+          "id": "section-3",
+          "anchor": "重试与失联边界"
+        },
+        {
+          "id": "section-4",
+          "anchor": "结果确认与费用"
+        },
+        {
+          "id": "section-5",
+          "anchor": "独立调用"
+        },
+        {
+          "id": "section-6",
+          "anchor": "验证责任与细化范围"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime#tool-runtime",
+      "path": "docs/architecture/runtime/tool-runtime.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "调用输入与身份"
+        },
+        {
+          "id": "section-2",
+          "anchor": "已知能力可用性与排队"
+        },
+        {
+          "id": "section-3",
+          "anchor": "前后台与内部等待"
+        },
+        {
+          "id": "section-4",
+          "anchor": "返回结果与执行账"
+        },
+        {
+          "id": "section-5",
+          "anchor": "中断与失联"
+        },
+        {
+          "id": "section-6",
+          "anchor": "独立调用"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime#assembly-and-change",
+      "path": "docs/architecture/runtime/assembly-and-change.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "多层来源求值"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力选入与实现解析"
+        },
+        {
+          "id": "section-3",
+          "anchor": "定义清单与实例"
+        },
+        {
+          "id": "section-4",
+          "anchor": "工作区与能力变化"
+        },
+        {
+          "id": "section-5",
+          "anchor": "reload-与推进权交接"
+        },
+        {
+          "id": "section-6",
+          "anchor": "细化与验证责任"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime#runtime-context",
+      "path": "docs/architecture/runtime/runtime-context.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "数据块与消费边界"
+        },
+        {
+          "id": "section-2",
+          "anchor": "模式与-context-初始化"
+        },
+        {
+          "id": "section-3",
+          "anchor": "更新通知与读取"
+        },
+        {
+          "id": "section-4",
+          "anchor": "注册移除与恢复"
+        },
+        {
+          "id": "section-5",
+          "anchor": "观测与性能责任"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime#request-context",
+      "path": "docs/architecture/runtime/request-context.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "输入来源与组装"
+        },
+        {
+          "id": "section-2",
+          "anchor": "模态表示与完整输入限制"
+        },
+        {
+          "id": "section-3",
+          "anchor": "压缩与历史保留"
+        },
+        {
+          "id": "section-4",
+          "anchor": "失败与固定采用值"
+        },
+        {
+          "id": "section-5",
+          "anchor": "长期会话的性能与验证"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime#execution-environment",
+      "path": "docs/architecture/runtime/execution-environment.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "环境能力与寿命"
+        },
+        {
+          "id": "section-2",
+          "anchor": "环境选择与资源准备"
+        },
+        {
+          "id": "section-3",
+          "anchor": "资源凭据与可见变化"
+        },
+        {
+          "id": "section-4",
+          "anchor": "失效重建与数据责任"
+        },
+        {
+          "id": "section-5",
+          "anchor": "观测与验证责任"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime#streaming-and-consumption",
+      "path": "docs/architecture/runtime/streaming-and-consumption.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "到达语法与在途观察"
+        },
+        {
+          "id": "section-2",
+          "anchor": "真实收场与消息形成"
+        },
+        {
+          "id": "section-3",
+          "anchor": "可靠承接与原消费位置"
+        },
+        {
+          "id": "section-4",
+          "anchor": "模型-ack-与副本清理"
+        },
+        {
+          "id": "section-5",
+          "anchor": "在途内容的局部对账"
+        },
+        {
+          "id": "section-6",
+          "anchor": "性能权限与验证"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#runtime#control-and-recovery",
+      "path": "docs/architecture/runtime/control-and-recovery.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "运行专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "插队与单次中断"
+        },
+        {
+          "id": "section-2",
+          "anchor": "取消与归档"
+        },
+        {
+          "id": "section-3",
+          "anchor": "agent-runtime-退出后的接续"
+        },
+        {
+          "id": "section-4",
+          "anchor": "模型与工具失联"
+        },
+        {
+          "id": "section-5",
+          "anchor": "存储与关键服务降级"
+        },
+        {
+          "id": "section-6",
+          "anchor": "观测身份与故障证据"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#data-and-state",
+      "path": "docs/architecture/data-and-state.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "ownership",
+          "anchor": "数据所有权与事实源"
+        },
+        {
+          "id": "persistence",
+          "anchor": "状态分类与持久边界"
+        },
+        {
+          "id": "consistency",
+          "anchor": "事务与一致性"
+        },
+        {
+          "id": "evolution",
+          "anchor": "数据生命周期与演进"
+        },
+        {
+          "id": "business-ownership",
+          "anchor": "业务拥有者与保存责任"
+        },
+        {
+          "id": "facts-and-views",
+          "anchor": "事实当前状态与读取视图"
+        },
+        {
+          "id": "state-classes",
+          "anchor": "按用途确定持久范围"
+        },
+        {
+          "id": "durability-boundary",
+          "anchor": "已确认保存的耐久边界"
+        },
+        {
+          "id": "identity-and-versions",
+          "anchor": "身份关联与版本"
+        },
+        {
+          "id": "atomicity",
+          "anchor": "共同成立的业务事实"
+        },
+        {
+          "id": "handoff",
+          "anchor": "可靠交接与消费确认"
+        },
+        {
+          "id": "read-performance",
+          "anchor": "长期读取与派生状态"
+        },
+        {
+          "id": "retention",
+          "anchor": "保留归档与清理"
+        },
+        {
+          "id": "recovery",
+          "anchor": "恢复与备份"
+        },
+        {
+          "id": "format-evolution",
+          "anchor": "数据格式与版本演进"
+        },
+        {
+          "id": "verification",
+          "anchor": "承接与验证责任"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#security",
+      "path": "docs/architecture/security/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "threats",
+          "anchor": "资产与威胁假设"
+        },
+        {
+          "id": "access",
+          "anchor": "身份与访问控制"
+        },
+        {
+          "id": "isolation",
+          "anchor": "隔离与凭据保护"
+        },
+        {
+          "id": "verification",
+          "anchor": "安全验证责任"
+        },
+        {
+          "id": "reader-map",
+          "anchor": "阅读地图"
+        },
+        {
+          "id": "adoption",
+          "anchor": "采用状态与待明确边界"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#security#threat-model",
+      "path": "docs/architecture/security/threat-model.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/security/README.md",
+        "anchor": "阅读地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "保护对象与安全目标"
+        },
+        {
+          "id": "section-2",
+          "anchor": "参与者与信任边界"
+        },
+        {
+          "id": "section-3",
+          "anchor": "威胁与控制责任"
+        },
+        {
+          "id": "section-4",
+          "anchor": "保证前提与未覆盖范围"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#security#identity-and-authorization",
+      "path": "docs/architecture/security/identity-and-authorization.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/security/README.md",
+        "anchor": "阅读地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "主体身份与资源归属"
+        },
+        {
+          "id": "section-2",
+          "anchor": "权限来源与求值"
+        },
+        {
+          "id": "section-3",
+          "anchor": "动作准入与人工决定"
+        },
+        {
+          "id": "section-4",
+          "anchor": "撤权与在途工作"
+        },
+        {
+          "id": "section-5",
+          "anchor": "独立调用与跨边界身份"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#security#data-and-privacy",
+      "path": "docs/architecture/security/data-and-privacy.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/security/README.md",
+        "anchor": "阅读地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "数据用途与可见范围"
+        },
+        {
+          "id": "section-2",
+          "anchor": "凭据与秘密生命周期"
+        },
+        {
+          "id": "section-3",
+          "anchor": "模型工具与遥测的对外传送"
+        },
+        {
+          "id": "section-4",
+          "anchor": "存储备份与删除"
+        },
+        {
+          "id": "section-5",
+          "anchor": "查询与错误中的信息暴露"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#security#execution-isolation",
+      "path": "docs/architecture/security/execution-isolation.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/security/README.md",
+        "anchor": "阅读地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "隔离对象与共享矩阵"
+        },
+        {
+          "id": "section-2",
+          "anchor": "环境选择与能力暴露"
+        },
+        {
+          "id": "section-3",
+          "anchor": "插件装配与代码信任"
+        },
+        {
+          "id": "section-4",
+          "anchor": "资源回收与故障边界"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#security#untrusted-content",
+      "path": "docs/architecture/security/untrusted-content.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/security/README.md",
+        "anchor": "阅读地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "内容来源与控制权限"
+        },
+        {
+          "id": "section-2",
+          "anchor": "模型上下文与内容转换"
+        },
+        {
+          "id": "section-3",
+          "anchor": "动作边界与提示注入"
+        },
+        {
+          "id": "section-4",
+          "anchor": "扩展与人工决定的限制"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#security#assurance",
+      "path": "docs/architecture/security/assurance.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/security/README.md",
+        "anchor": "阅读地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "安全性质与责任"
+        },
+        {
+          "id": "section-2",
+          "anchor": "代表场景与反例"
+        },
+        {
+          "id": "section-3",
+          "anchor": "证据范围与偏离"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决事项与交付边界"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#deployment",
+      "path": "docs/architecture/deployment/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "部署专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "阅读地图",
+          "anchor": "阅读地图"
+        },
+        {
+          "id": "topology",
+          "anchor": "运行单元与部署图"
+        },
+        {
+          "id": "共同语义",
+          "anchor": "共同语义"
+        },
+        {
+          "id": "follow-up",
+          "anchor": "后续部署契约与实现选择"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#deployment#single-machine",
+      "path": "docs/architecture/deployment/single-machine.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "部署专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "personal-assembly",
+          "anchor": "个人设备装配"
+        },
+        {
+          "id": "multi-process-assembly",
+          "anchor": "单机多进程的扩展边界"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#deployment#cluster",
+      "path": "docs/architecture/deployment/cluster.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "部署专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "cluster-assembly",
+          "anchor": "云端集群装配"
+        },
+        {
+          "id": "分布式计算与存储",
+          "anchor": "分布式计算与存储"
+        },
+        {
+          "id": "cluster-transition",
+          "anchor": "从单机扩展到集群"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#deployment#distributed-storage",
+      "path": "docs/architecture/deployment/distributed-storage.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "部署专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "部署范围与存储职责",
+          "anchor": "部署范围与存储职责"
+        },
+        {
+          "id": "数据分类与放置",
+          "anchor": "数据分类与放置"
+        },
+        {
+          "id": "访问关系与数据位置",
+          "anchor": "访问关系与数据位置"
+        },
+        {
+          "id": "一致性复制与提交边界",
+          "anchor": "一致性复制与提交边界"
+        },
+        {
+          "id": "分片迁移故障与恢复",
+          "anchor": "分片迁移故障与恢复"
+        },
+        {
+          "id": "提供者与验证责任",
+          "anchor": "提供者与验证责任"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#deployment#distributed-compute",
+      "path": "docs/architecture/deployment/distributed-compute.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "部署专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "服务扩容与计算扩容",
+          "anchor": "服务扩容与计算扩容"
+        },
+        {
+          "id": "工作分配与执行关系",
+          "anchor": "工作分配与执行关系"
+        },
+        {
+          "id": "放置条件与准入",
+          "anchor": "放置条件与准入"
+        },
+        {
+          "id": "认领交接与结果",
+          "anchor": "认领交接与结果"
+        },
+        {
+          "id": "容量公平性与扩缩容",
+          "anchor": "容量公平性与扩缩容"
+        },
+        {
+          "id": "节点失联与恢复范围",
+          "anchor": "节点失联与恢复范围"
+        },
+        {
+          "id": "提供者与验证责任",
+          "anchor": "提供者与验证责任"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#deployment#cordis-and-lifecycle",
+      "path": "docs/architecture/deployment/cordis-and-lifecycle.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "部署专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "cordis-assembly",
+          "anchor": "cordis-运行约束与装配边界"
+        },
+        {
+          "id": "cordis-lifecycle",
+          "anchor": "cordis-生命周期与工作承接"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#deployment#execution-and-communication",
+      "path": "docs/architecture/deployment/execution-and-communication.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "部署专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "execution-model",
+          "anchor": "进程与线程模型"
+        },
+        {
+          "id": "communication",
+          "anchor": "通信路由与结果交接"
+        },
+        {
+          "id": "environments",
+          "anchor": "环境与基础设施依赖"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#deployment#resilience-and-evolution",
+      "path": "docs/architecture/deployment/resilience-and-evolution.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "部署专题范围"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "failure-domains",
+          "anchor": "资源与故障域"
+        },
+        {
+          "id": "evolution",
+          "anchor": "扩缩容与部署演进"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#cross-cutting-concepts",
+      "path": "docs/architecture/cross-cutting-concepts.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "catalog",
+          "anchor": "约定目录与适用范围"
+        },
+        {
+          "id": "data",
+          "anchor": "公共数据模型与身份"
+        },
+        {
+          "id": "records",
+          "anchor": "消息记录与流"
+        },
+        {
+          "id": "protocols",
+          "anchor": "接口协议与错误语义"
+        },
+        {
+          "id": "recovery",
+          "anchor": "并发取消与恢复"
+        },
+        {
+          "id": "time-and-version",
+          "anchor": "时间顺序与版本"
+        },
+        {
+          "id": "configuration",
+          "anchor": "配置与可观测性"
+        },
+        {
+          "id": "assembly",
+          "anchor": "装配与资源管理"
+        },
+        {
+          "id": "conformance",
+          "anchor": "契约演进与符合性"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#decisions",
+      "path": "docs/architecture/decisions.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "choices",
+          "anchor": "当前关键选择"
+        },
+        {
+          "id": "rationale",
+          "anchor": "理由与代价"
+        },
+        {
+          "id": "reevaluation",
+          "anchor": "重新评估条件"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#assurance",
+      "path": "docs/architecture/assurance.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "quality-scenarios",
+          "anchor": "质量场景与判断条件"
+        },
+        {
+          "id": "verification",
+          "anchor": "保证与验证责任"
+        },
+        {
+          "id": "conformance",
+          "anchor": "文档与实现的符合性"
+        },
+        {
+          "id": "evidence",
+          "anchor": "证据与有效范围"
+        },
+        {
+          "id": "uncovered",
+          "anchor": "偏离与未覆盖范围"
+        },
+        {
+          "id": "feedback",
+          "anchor": "持续反馈与交付约束"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "后续细化与维护"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#architecture#risks-and-evolution",
+      "path": "docs/architecture/risks-and-evolution.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "risks",
+          "anchor": "已知风险与技术债"
+        },
+        {
+          "id": "limitations",
+          "anchor": "当前限制与能力边界"
+        },
+        {
+          "id": "triggers",
+          "anchor": "演进触发与影响范围"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "采用状态与当前有效源"
+      }
+    },
+    {
+      "id": "docs#domains#README",
+      "path": "docs/domains/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/domains/boundaries.md",
+        "anchor": "文档内容与登记"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "从任务开始"
+        },
+        {
+          "id": "section-2",
+          "anchor": "责任入口"
+        },
+        {
+          "id": "section-3",
+          "anchor": "向下阅读与唯一源"
+        },
+        {
+          "id": "section-4",
+          "anchor": "维护与状态"
+        }
+      ]
+    },
+    {
+      "id": "docs#guides#README",
+      "path": "docs/guides/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      }
+    },
+    {
+      "id": "docs#development",
+      "path": "docs/development.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "维护指南与局部入口"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "coding-agent-plugins",
+          "anchor": "初始化-coding-agent-插件"
+        },
+        {
+          "id": "checkout",
+          "anchor": "准备可用的检出"
+        },
+        {
+          "id": "delivery-start",
+          "anchor": "开始一次交付"
+        },
+        {
+          "id": "package-creation",
+          "anchor": "创建和整改产品包"
+        },
+        {
+          "id": "change-verification",
+          "anchor": "修改与验证"
+        },
+        {
+          "id": "delivery-verification-loop",
+          "anchor": "一次交付的验证与整洁回路"
+        },
+        {
+          "id": "submission",
+          "anchor": "准备提交与-pr"
+        },
+        {
+          "id": "artifacts",
+          "anchor": "终态与过程材料"
+        },
+        {
+          "id": "delivery-operations",
+          "anchor": "通过对话维护交付卡"
+        }
+      ]
+    },
+    {
+      "id": "docs#development_human",
+      "path": "docs/development_human.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "coding-agent-environment",
+          "anchor": "开始前准备-coding-agent-环境"
+        }
+      ]
+    },
+    {
+      "id": "docs#workspace",
+      "path": "docs/workspace.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "docs#package-organization",
+      "path": "docs/package-organization.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "产品包组织文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "principles",
+          "anchor": "组织原则"
+        },
+        {
+          "id": "target-layout",
+          "anchor": "目标目录"
+        },
+        {
+          "id": "responsibility-map",
+          "anchor": "责任与能力组"
+        },
+        {
+          "id": "boundaries-and-entries",
+          "anchor": "包边界与公开入口"
+        },
+        {
+          "id": "sdk-and-access",
+          "anchor": "sdk与系统接入"
+        },
+        {
+          "id": "dependencies-and-cordis",
+          "anchor": "依赖方向与cordis集成"
+        },
+        {
+          "id": "extension",
+          "anchor": "新增与扩展"
+        },
+        {
+          "id": "docs-and-maintenance",
+          "anchor": "文档归属与维护路径"
+        },
+        {
+          "id": "existing-and-tools",
+          "anchor": "现有成员与工具适配"
+        }
+      ]
+    },
+    {
+      "id": "docs#member-documentation",
+      "path": "docs/member-documentation.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "产品包组织文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "ownership",
+          "anchor": "三处各自拥有的知识"
+        },
+        {
+          "id": "group",
+          "anchor": "能力组文档要求"
+        },
+        {
+          "id": "package",
+          "anchor": "成员包文档要求"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "阅读与维护路径"
+        },
+        {
+          "id": "checks",
+          "anchor": "检查与结论边界"
+        }
+      ]
+    },
+    {
+      "id": "docs#verification",
+      "path": "docs/verification.md",
+      "kind": "verification",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "docs#defensive-patterns",
+      "path": "docs/defensive-patterns.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "docs#clean-loop",
+      "path": "docs/clean-loop.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": ".meta_harness#design#product#README",
+      "path": ".meta_harness/design/product/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "private",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": ".meta_harness#design#foundation#README",
+      "path": ".meta_harness/design/foundation/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "private",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": ".meta_harness#design#ubiquitous_language#README",
+      "path": ".meta_harness/design/ubiquitous_language/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "private",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": ".meta_harness#design#domain_objects#README",
+      "path": ".meta_harness/design/domain_objects/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "private",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": ".meta_harness#research#README",
+      "path": ".meta_harness/research/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "private",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": ".meta_harness#agents#README",
+      "path": ".meta_harness/agents/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "private",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "docs#engineering#publication",
+      "path": "docs/engineering/publication.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "目的与范围"
+        },
+        {
+          "id": "body",
+          "anchor": "正文"
+        },
+        {
+          "id": "verification",
+          "anchor": "验证责任与局限"
+        },
+        {
+          "id": "unresolved-policy",
+          "anchor": "首次发布政策待定"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      }
+    },
+    {
+      "id": "docs#guides#usage",
+      "path": "docs/guides/usage.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      }
+    },
+    {
+      "id": "docs#guides#administration",
+      "path": "docs/guides/administration.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      }
+    },
+    {
+      "id": "docs#guides#deployment",
+      "path": "docs/guides/deployment.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      }
+    },
+    {
+      "id": "docs#guides#integration",
+      "path": "docs/guides/integration.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      }
+    },
+    {
+      "id": "docs#domains#boundaries",
+      "path": "docs/domains/boundaries.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/domains/boundaries.md",
+        "anchor": "文档内容与登记"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "分解依据"
+        },
+        {
+          "id": "section-2",
+          "anchor": "责任地图"
+        },
+        {
+          "id": "section-3",
+          "anchor": "协作与依赖方向"
+        },
+        {
+          "id": "section-4",
+          "anchor": "关键接缝与组合承担者"
+        },
+        {
+          "id": "section-5",
+          "anchor": "横向能力与阶段范围"
+        },
+        {
+          "id": "section-6",
+          "anchor": "文档内容与登记"
+        },
+        {
+          "id": "section-7",
+          "anchor": "后续设计与维护入口"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#workflow",
+      "path": "docs/engineering/workflow.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "有效输入与范围"
+        },
+        {
+          "id": "section-2",
+          "anchor": "最小上下文与方法"
+        },
+        {
+          "id": "section-3",
+          "anchor": "责任与协作交接"
+        },
+        {
+          "id": "section-4",
+          "anchor": "停止与继续"
+        },
+        {
+          "id": "section-5",
+          "anchor": "完成与交付声明"
+        },
+        {
+          "id": "worktree-cleanup",
+          "anchor": "工作树清理条件"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#quality",
+      "path": "docs/engineering/quality.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "目标与可观察依据"
+        },
+        {
+          "id": "section-2",
+          "anchor": "按成果和风险验证"
+        },
+        {
+          "id": "section-3",
+          "anchor": "性能与成本证据"
+        },
+        {
+          "id": "section-4",
+          "anchor": "失败未知与完成范围"
+        },
+        {
+          "id": "async-resource-verification",
+          "anchor": "异步资源的验证责任"
+        },
+        {
+          "id": "capability-policy-observability",
+          "anchor": "公开能力策略与观测"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#skills",
+      "path": "docs/engineering/skills.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "来源与项目采用"
+        },
+        {
+          "id": "section-2",
+          "anchor": "阅读与实际加载"
+        },
+        {
+          "id": "section-3",
+          "anchor": "pstack-方法入口"
+        },
+        {
+          "id": "section-4",
+          "anchor": "matt-补充与候选"
+        },
+        {
+          "id": "section-5",
+          "anchor": "项目差异与负责边界"
+        },
+        {
+          "id": "section-6",
+          "anchor": "hooks-与证明层次"
+        },
+        {
+          "id": "section-7",
+          "anchor": "完整-port-采用待定"
+        },
+        {
+          "id": "section-8",
+          "anchor": "宿主加载与行为验证待补"
+        },
+        {
+          "id": "section-9",
+          "anchor": "更新与维护传播"
+        },
+        {
+          "id": "typescript-policy",
+          "anchor": "尚待明确的-typescript-政策"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      }
+    },
+    {
+      "id": "docs#engineering#scenarios#README",
+      "path": "docs/engineering/scenarios/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "按任务选择"
+        },
+        {
+          "id": "section-2",
+          "anchor": "组合与最小阅读"
+        },
+        {
+          "id": "section-3",
+          "anchor": "方法采用与维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#scenarios#research-and-design",
+      "path": "docs/engineering/scenarios/research-and-design.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "何时使用"
+        },
+        {
+          "id": "section-2",
+          "anchor": "开始需要什么"
+        },
+        {
+          "id": "section-3",
+          "anchor": "最小上下文"
+        },
+        {
+          "id": "section-4",
+          "anchor": "适用共享规范"
+        },
+        {
+          "id": "section-5",
+          "anchor": "工作步骤"
+        },
+        {
+          "id": "section-6",
+          "anchor": "完成及交付"
+        },
+        {
+          "id": "section-7",
+          "anchor": "停止与恢复"
+        },
+        {
+          "id": "section-8",
+          "anchor": "示例与精确参考"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#scenarios#feature",
+      "path": "docs/engineering/scenarios/feature.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "何时使用"
+        },
+        {
+          "id": "section-2",
+          "anchor": "开始需要什么"
+        },
+        {
+          "id": "section-3",
+          "anchor": "最小上下文"
+        },
+        {
+          "id": "section-4",
+          "anchor": "适用共享规范"
+        },
+        {
+          "id": "section-5",
+          "anchor": "工作步骤"
+        },
+        {
+          "id": "section-6",
+          "anchor": "完成及交付"
+        },
+        {
+          "id": "section-7",
+          "anchor": "停止与恢复"
+        },
+        {
+          "id": "section-8",
+          "anchor": "示例与精确参考"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#scenarios#bug-fix",
+      "path": "docs/engineering/scenarios/bug-fix.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "何时使用"
+        },
+        {
+          "id": "section-2",
+          "anchor": "开始需要什么"
+        },
+        {
+          "id": "section-3",
+          "anchor": "最小上下文"
+        },
+        {
+          "id": "section-4",
+          "anchor": "适用共享规范"
+        },
+        {
+          "id": "section-5",
+          "anchor": "工作步骤"
+        },
+        {
+          "id": "section-6",
+          "anchor": "完成及交付"
+        },
+        {
+          "id": "section-7",
+          "anchor": "停止与恢复"
+        },
+        {
+          "id": "section-8",
+          "anchor": "示例与精确参考"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#scenarios#refactoring",
+      "path": "docs/engineering/scenarios/refactoring.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "何时使用"
+        },
+        {
+          "id": "section-2",
+          "anchor": "开始需要什么"
+        },
+        {
+          "id": "section-3",
+          "anchor": "最小上下文"
+        },
+        {
+          "id": "section-4",
+          "anchor": "适用共享规范"
+        },
+        {
+          "id": "section-5",
+          "anchor": "工作步骤"
+        },
+        {
+          "id": "section-6",
+          "anchor": "完成及交付"
+        },
+        {
+          "id": "section-7",
+          "anchor": "停止与恢复"
+        },
+        {
+          "id": "section-8",
+          "anchor": "示例与精确参考"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#scenarios#performance",
+      "path": "docs/engineering/scenarios/performance.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "何时使用"
+        },
+        {
+          "id": "section-2",
+          "anchor": "开始需要什么"
+        },
+        {
+          "id": "section-3",
+          "anchor": "最小上下文"
+        },
+        {
+          "id": "section-4",
+          "anchor": "适用共享规范"
+        },
+        {
+          "id": "section-5",
+          "anchor": "工作步骤"
+        },
+        {
+          "id": "section-6",
+          "anchor": "完成及交付"
+        },
+        {
+          "id": "section-7",
+          "anchor": "停止与恢复"
+        },
+        {
+          "id": "section-8",
+          "anchor": "示例与精确参考"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#scenarios#dependencies-and-runtime",
+      "path": "docs/engineering/scenarios/dependencies-and-runtime.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "何时使用"
+        },
+        {
+          "id": "section-2",
+          "anchor": "开始需要什么"
+        },
+        {
+          "id": "section-3",
+          "anchor": "最小上下文"
+        },
+        {
+          "id": "section-4",
+          "anchor": "适用共享规范"
+        },
+        {
+          "id": "section-5",
+          "anchor": "工作步骤"
+        },
+        {
+          "id": "section-6",
+          "anchor": "完成及交付"
+        },
+        {
+          "id": "section-7",
+          "anchor": "停止与恢复"
+        },
+        {
+          "id": "section-8",
+          "anchor": "示例与精确参考"
+        },
+        {
+          "id": "runtime-policy",
+          "anchor": "尚待明确的运行政策"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      }
+    },
+    {
+      "id": "docs#engineering#scenarios#review-and-delivery",
+      "path": "docs/engineering/scenarios/review-and-delivery.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "何时使用"
+        },
+        {
+          "id": "section-2",
+          "anchor": "开始需要什么"
+        },
+        {
+          "id": "section-3",
+          "anchor": "最小上下文"
+        },
+        {
+          "id": "section-4",
+          "anchor": "适用共享规范"
+        },
+        {
+          "id": "section-5",
+          "anchor": "工作步骤"
+        },
+        {
+          "id": "section-6",
+          "anchor": "完成及交付"
+        },
+        {
+          "id": "section-7",
+          "anchor": "停止与恢复"
+        },
+        {
+          "id": "section-8",
+          "anchor": "示例与精确参考"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#scenarios#docs-and-skills",
+      "path": "docs/engineering/scenarios/docs-and-skills.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "工程目标与必要结构"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "何时使用"
+        },
+        {
+          "id": "section-2",
+          "anchor": "开始需要什么"
+        },
+        {
+          "id": "section-3",
+          "anchor": "最小上下文"
+        },
+        {
+          "id": "section-4",
+          "anchor": "适用共享规范"
+        },
+        {
+          "id": "section-5",
+          "anchor": "工作步骤"
+        },
+        {
+          "id": "section-6",
+          "anchor": "完成及交付"
+        },
+        {
+          "id": "section-7",
+          "anchor": "停止与恢复"
+        },
+        {
+          "id": "section-8",
+          "anchor": "示例与精确参考"
+        }
+      ]
+    },
+    {
+      "id": "docs#domains#extending-the-system",
+      "path": "docs/domains/extending-the-system.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "inspectionProfile": "prose-v1",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/domains/boundaries.md",
+        "anchor": "文档内容与登记"
+      },
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "先识别责任"
+        },
+        {
+          "id": "section-2",
+          "anchor": "选择扩展路径"
+        },
+        {
+          "id": "section-3",
+          "anchor": "共同契约与专有知识"
+        },
+        {
+          "id": "section-4",
+          "anchor": "阅读和维护顺序"
+        },
+        {
+          "id": "section-5",
+          "anchor": "扩展仍须保护的边界"
+        },
+        {
+          "id": "section-6",
+          "anchor": "反向核对与测量"
+        }
+      ]
+    },
+    {
+      "id": "docs#domains#verification",
+      "path": "docs/domains/verification.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "inspectionProfile": "prose-v1",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/domains/boundaries.md",
+        "anchor": "文档内容与登记"
+      },
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "组合性质与承担者"
+        },
+        {
+          "id": "section-2",
+          "anchor": "文档是否符合要求"
+        },
+        {
+          "id": "section-3",
+          "anchor": "设计与实现如何对照"
+        },
+        {
+          "id": "section-4",
+          "anchor": "报告与口径"
+        },
+        {
+          "id": "section-5",
+          "anchor": "后续验证与阅读任务"
+        }
+      ]
+    },
+    {
+      "id": "docs#architecture#cordis-integration-conventions",
+      "path": "docs/architecture/cordis-integration-conventions.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "ic-1",
+          "anchor": "ic-1"
+        },
+        {
+          "id": "ic-2",
+          "anchor": "ic-2"
+        },
+        {
+          "id": "ic-3",
+          "anchor": "ic-3"
+        },
+        {
+          "id": "ic-4",
+          "anchor": "ic-4"
+        },
+        {
+          "id": "ic-5",
+          "anchor": "ic-5"
+        },
+        {
+          "id": "ic-6",
+          "anchor": "ic-6"
+        },
+        {
+          "id": "ic-7",
+          "anchor": "ic-7"
+        },
+        {
+          "id": "ic-8",
+          "anchor": "ic-8"
+        },
+        {
+          "id": "ic-9",
+          "anchor": "ic-9"
+        },
+        {
+          "id": "ic-10",
+          "anchor": "ic-10"
+        },
+        {
+          "id": "ic-11",
+          "anchor": "ic-11"
+        },
+        {
+          "id": "ic-12",
+          "anchor": "ic-12"
+        },
+        {
+          "id": "ic-13",
+          "anchor": "ic-13"
+        },
+        {
+          "id": "ic-14",
+          "anchor": "ic-14"
+        },
+        {
+          "id": "ic-15",
+          "anchor": "ic-15"
+        },
+        {
+          "id": "ic-16",
+          "anchor": "ic-16"
+        },
+        {
+          "id": "ic-17",
+          "anchor": "ic-17"
+        },
+        {
+          "id": "ic-18",
+          "anchor": "ic-18"
+        },
+        {
+          "id": "ic-19",
+          "anchor": "ic-19"
+        },
+        {
+          "id": "assurance",
+          "anchor": "审阅与验证责任"
+        }
+      ]
+    },
+    {
+      "id": "docs#architecture#deployment#infrastructure-policy",
+      "path": "docs/architecture/deployment/infrastructure-policy.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "policy-1",
+          "anchor": "正式后端的范围"
+        },
+        {
+          "id": "policy-2",
+          "anchor": "消息队列的采用"
+        },
+        {
+          "id": "policy-3",
+          "anchor": "当前治理交付"
+        },
+        {
+          "id": "policy-4",
+          "anchor": "耐久目标与提供者保证"
+        },
+        {
+          "id": "policy-5",
+          "anchor": "维护与变更"
+        },
+        {
+          "id": "pending-sources",
+          "anchor": "未决问题与待办事项"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#delivery",
+      "path": "docs/engineering/delivery.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "四类长期成果与普通任务"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "artifacts",
+          "anchor": "长期正文与一次交付"
+        },
+        {
+          "id": "platform",
+          "anchor": "1-平台能力与职责"
+        },
+        {
+          "id": "stage",
+          "anchor": "2-卡片与阶段"
+        },
+        {
+          "id": "conditions",
+          "anchor": "3-条件关系与解锁"
+        },
+        {
+          "id": "decisions",
+          "anchor": "4-接受取消与重开"
+        },
+        {
+          "id": "single-writer",
+          "anchor": "5-调度认领与cloud接续"
+        },
+        {
+          "id": "access-and-failure",
+          "anchor": "6-访问失败与最小工具"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#work-types",
+      "path": "docs/engineering/work-types.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "四类长期成果与普通任务"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "classification",
+          "anchor": "工作类型与分解"
+        },
+        {
+          "id": "types",
+          "anchor": "首版类型"
+        },
+        {
+          "id": "owners",
+          "anchor": "卡与长期正文的关系"
+        },
+        {
+          "id": "methods",
+          "anchor": "工程方法"
+        }
+      ]
+    },
+    {
+      "id": "docs#engineering#agent-delivery",
+      "path": "docs/engineering/agent-delivery.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "四类长期成果与普通任务"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "intent",
+          "anchor": "从人的话判断本次动作"
+        },
+        {
+          "id": "intake",
+          "anchor": "1-整理需求并定位已有卡"
+        },
+        {
+          "id": "create",
+          "anchor": "2-建卡或修订卡"
+        },
+        {
+          "id": "dispatch",
+          "anchor": "3-取任务和派发"
+        },
+        {
+          "id": "progress",
+          "anchor": "4-推进和更新状态"
+        },
+        {
+          "id": "acceptance",
+          "anchor": "5-提交成果供接受"
+        },
+        {
+          "id": "resume",
+          "anchor": "6-暂停取消和跨会话恢复"
+        },
+        {
+          "id": "receipt",
+          "anchor": "对人的操作回执"
+        }
+      ]
+    },
+    {
+      "id": "docs#rfcs#README",
+      "path": "docs/rfcs/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "四类长期成果与普通任务"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "current-source",
+          "anchor": "当前规范从哪里读"
+        },
+        {
+          "id": "admission",
+          "anchor": "准入编号与状态"
+        },
+        {
+          "id": "writeback",
+          "anchor": "现行源与维护"
+        },
+        {
+          "id": "retention",
+          "anchor": "保存与访问边界"
+        },
+        {
+          "id": "entries",
+          "anchor": "提案条目"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": "docs/rfcs/README.md",
+        "anchor": "提案条目"
+      }
+    },
+    {
+      "id": "engineering-integration",
+      "path": "docs/engineering/integration.md",
+      "kind": "standard",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "首批目标与暂时留空"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-.meta_harness#design#product#identity-and-authorization#README",
+      "path": ".meta_harness/design/product/identity-and-authorization/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#identity-and-authorization#design",
+      "path": ".meta_harness/design/product/identity-and-authorization/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#assets-and-rules#README",
+      "path": ".meta_harness/design/product/assets-and-rules/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#assets-and-rules#design",
+      "path": ".meta_harness/design/product/assets-and-rules/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#sessions-and-work#README",
+      "path": ".meta_harness/design/product/sessions-and-work/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#sessions-and-work#design",
+      "path": ".meta_harness/design/product/sessions-and-work/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#agent-progression#README",
+      "path": ".meta_harness/design/product/agent-progression/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#agent-progression#design",
+      "path": ".meta_harness/design/product/agent-progression/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#model-invocation#README",
+      "path": ".meta_harness/design/product/model-invocation/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#model-invocation#design",
+      "path": ".meta_harness/design/product/model-invocation/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#tool-execution#README",
+      "path": ".meta_harness/design/product/tool-execution/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#tool-execution#design",
+      "path": ".meta_harness/design/product/tool-execution/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ],
+      "gapAllowanceSource": {
+        "path": ".meta_harness/design/product/tool-execution/design.md",
+        "anchor": "阶段与版本支持承诺"
+      }
+    },
+    {
+      "id": "placed-.meta_harness#design#product#runtime-context#README",
+      "path": ".meta_harness/design/product/runtime-context/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#runtime-context#design",
+      "path": ".meta_harness/design/product/runtime-context/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#workspaces#README",
+      "path": ".meta_harness/design/product/workspaces/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#workspaces#design",
+      "path": ".meta_harness/design/product/workspaces/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#execution-environments#README",
+      "path": ".meta_harness/design/product/execution-environments/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#execution-environments#design",
+      "path": ".meta_harness/design/product/execution-environments/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#skills#README",
+      "path": ".meta_harness/design/product/skills/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#skills#design",
+      "path": ".meta_harness/design/product/skills/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#slash-commands#README",
+      "path": ".meta_harness/design/product/slash-commands/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#slash-commands#design",
+      "path": ".meta_harness/design/product/slash-commands/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#mcp#README",
+      "path": ".meta_harness/design/product/mcp/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#mcp#design",
+      "path": ".meta_harness/design/product/mcp/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#human-intervention#README",
+      "path": ".meta_harness/design/product/human-intervention/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#human-intervention#design",
+      "path": ".meta_harness/design/product/human-intervention/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#calendars#README",
+      "path": ".meta_harness/design/product/calendars/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#calendars#design",
+      "path": ".meta_harness/design/product/calendars/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#notifications#README",
+      "path": ".meta_harness/design/product/notifications/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#notifications#design",
+      "path": ".meta_harness/design/product/notifications/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#schedules-and-jobs#README",
+      "path": ".meta_harness/design/product/schedules-and-jobs/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "阅读入口"
+        },
+        {
+          "id": "section-2",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-.meta_harness#design#product#schedules-and-jobs#design",
+      "path": ".meta_harness/design/product/schedules-and-jobs/design.md",
+      "kind": "requirement",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": ".meta_harness/design/product/README.md",
+        "anchor": "正文与采用状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "产品需求描述"
+        },
+        {
+          "id": "section-2",
+          "anchor": "能力定义与实现状态记录表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "阶段与版本支持承诺"
+        },
+        {
+          "id": "section-4",
+          "anchor": "未决问题与待定事项"
+        }
+      ]
+    },
+    {
+      "id": "docs#knowledge-map",
+      "path": "docs/knowledge-map.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "public",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "整体知识体系说明"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "overview",
+          "anchor": "整体地图"
+        },
+        {
+          "id": "ownership",
+          "anchor": "知识归属"
+        },
+        {
+          "id": "constraints",
+          "anchor": "遵循与状态"
+        },
+        {
+          "id": "reading",
+          "anchor": "阅读和维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#knowledge-map-agent",
+      "path": "docs/knowledge-map-agent.md",
+      "kind": "agent-instruction",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/engineering/documentation.md",
+        "anchor": "整体知识体系说明"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "layers",
+          "anchor": "分层模型"
+        },
+        {
+          "id": "ownership",
+          "anchor": "知识归属"
+        },
+        {
+          "id": "status",
+          "anchor": "状态与判断"
+        },
+        {
+          "id": "loading",
+          "anchor": "加载与维护"
+        }
+      ]
+    }
+  ]
+}

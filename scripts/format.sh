@@ -7,7 +7,8 @@ usage() {
 }
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-prettier="$repo_root/node_modules/.bin/prettier"
+runner_root="$repo_root"
+prettier="$runner_root/node_modules/.bin/prettier"
 
 if [[ ! -x "$prettier" ]]; then
     echo "Prettier is not installed; run pnpm install --frozen-lockfile --ignore-scripts." >&2
@@ -55,9 +56,33 @@ run_prettier() {
         echo "No formatting targets found."
         return 0
     fi
+    if [[ "$mode" == check && "$repo_root" != "$runner_root" ]]; then
+        node - "$runner_root" "$repo_root" "$@" <<'NODE'
+const fs = require('node:fs')
+const path = require('node:path')
+const [runner, subject, ...files] = process.argv.slice(2)
+const prettier = require(path.join(runner, 'node_modules/prettier'))
+async function check() {
+    const config = await prettier.resolveConfig(path.join(runner, '.prettierrc.json'))
+    let failed = false
+    for (const file of files) {
+        const policyPath = path.join(runner, file)
+        const info = await prettier.getFileInfo(policyPath, { ignorePath: path.join(runner, '.prettierignore') })
+        if (info.ignored || info.inferredParser === null) continue
+        if (!await prettier.check(fs.readFileSync(path.join(subject, file), 'utf8'), { ...config, filepath: policyPath })) {
+            process.stderr.write(`Formatting differs: ${path.join(subject, file)}\n`)
+            failed = true
+        }
+    }
+    process.exitCode = failed ? 1 : 0
+}
+check().catch(error => { process.stderr.write(`${error.message}\n`); process.exitCode = 2 })
+NODE
+        return "$?"
+    fi
     "$prettier" "--$mode" \
-        --config "$repo_root/.prettierrc.json" \
-        --ignore-path "$repo_root/.prettierignore" \
+        --config "$runner_root/.prettierrc.json" \
+        --ignore-path "$runner_root/.prettierignore" \
         --ignore-unknown \
         "$@"
 }
@@ -84,8 +109,8 @@ run_staged_check() {
         echo "Checking staged $path"
         if ! git -C "$repo_root" show --no-textconv ":$path" |
             "$prettier" --check \
-                --config "$repo_root/.prettierrc.json" \
-                --ignore-path "$repo_root/.prettierignore" \
+                --config "$runner_root/.prettierrc.json" \
+                --ignore-path "$runner_root/.prettierignore" \
                 --stdin-filepath "$repo_root/$path"; then
             failed=1
         fi
@@ -104,6 +129,10 @@ fi
 
 mode="$1"
 shift
+if [[ "$mode" == check && -n "${OMNE_SUBJECT_ROOT:-}" ]]; then
+    repo_root="$(git -C "$OMNE_SUBJECT_ROOT" rev-parse --show-toplevel)"
+    echo "Formatting subject $repo_root with rules from $runner_root"
+fi
 if [[ "${1:-}" == "--" ]]; then
     shift
 fi

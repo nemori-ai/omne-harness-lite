@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "package-domain:session",
+    "kind": "domain",
+    "source": {
+      "path": "docs/member-documentation.md",
+      "anchor": "能力组文档要求"
+    }
+  },
+  "documents": [
+    {
+      "id": "overview",
+      "path": "packages/session/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "能力组文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "责任与范围"
+        },
+        {
+          "id": "members",
+          "anchor": "成员与依赖"
+        },
+        {
+          "id": "collaboration",
+          "anchor": "关键协作"
+        },
+        {
+          "id": "verification",
+          "anchor": "组合验证"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "target-session-spec",
+      "path": "packages/session/session/SPEC.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "target-session-design",
+      "path": "packages/session/session/docs/internals.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#session#docs#architecture",
+      "path": "packages/session/docs/architecture.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "能力组文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#session#session#README",
+      "path": "packages/session/session/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#session#session#docs#key-flows",
+      "path": "packages/session/session/docs/key-flows.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#session#session#docs#session-log-events",
+      "path": "packages/session/session/docs/session-log-events.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#session#session#docs#session-state-transitions",
+      "path": "packages/session/session/docs/session-state-transitions.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    }
+  ]
+}

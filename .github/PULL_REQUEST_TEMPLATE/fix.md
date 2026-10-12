@@ -1,8 +1,8 @@
-<!-- 规则归执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”；prepare-pr 提供 fix 例子。按最终 diff 写，删除提示/不适用块。 -->
+<!-- 规则归执行仓库 CONTRIBUTING.md 的“提交与 PR 表达”；流程沿 docs/engineering/publication.md 的 pstack 引用展开。按最终 diff 写，删除提示/不适用块。 -->
 
 ## 问题与修复结果
 
-<!-- 具体触发、原错误表现、现行承诺、修复后行为；关联问题/产品卡的确切范围。 -->
+<!-- 具体触发、原错误表现、现行承诺、修复后行为；关联问题或适用任务卡的确切范围。 -->
 
 ## 原因与影响
 
@@ -17,3 +17,5 @@
 ## 复现与审阅重点
 
 <!-- 对应版本、准备、操作→预期；体验为真实还是 mock。重点代码/条款和可回答的因果/范围问题；完全没覆盖的场景不能写成已修复。 -->
+
+<!-- 采用多层集成时附 operation、B/S/C、各卡 taskBase/历史 tuple、真实 receipt 及 Git 观察；声明 completionTarget 与实际运输，未知保留。技术运输不自动生成 Closes 或宣称接受。规则见 docs/engineering/integration.md。 -->

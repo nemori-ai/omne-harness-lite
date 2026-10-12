@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "revision": "1",
+  "repository": "nemori-ai/omne-harness-lite",
+  "deliveryConfig": "docs/engineering/github-delivery.json",
+  "owners": [],
+  "tracks": [],
+  "commands": [
+    {
+      "id": "runner-dependencies",
+      "argv": ["pnpm", "--dir", "{runner}", "install", "--frozen-lockfile", "--ignore-scripts"],
+      "cwd": "runner"
+    },
+    {
+      "id": "runner-build",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "{runner}",
+        "--filter",
+        "@omne-harness-lite/identity-values",
+        "run",
+        "build"
+      ],
+      "cwd": "runner"
+    },
+    {
+      "id": "subject-dependencies",
+      "argv": ["pnpm", "--dir", "{subject}", "install", "--frozen-lockfile", "--ignore-scripts"],
+      "cwd": "subject"
+    },
+    {
+      "id": "check",
+      "argv": ["bash", "{runner}/scripts/check.sh"],
+      "cwd": "runner"
+    }
+  ],
+  "profiles": {
+    "integration": ["runner-dependencies", "runner-build", "subject-dependencies", "check"],
+    "full": ["runner-dependencies", "runner-build", "subject-dependencies", "check"]
+  },
+  "checkpointCoverage": {
+    "startup": null,
+    "install": null,
+    "migration": null,
+    "mainPath": null
+  },
+  "timeouts": {
+    "commandMs": 3600000,
+    "networkMs": 30000
+  },
+  "requiredFiles": [
+    "tools/ts-checks/src/integration/cli.ts",
+    "tools/ts-checks/src/integration/engine.ts",
+    "tools/ts-checks/src/integration/SPEC.md",
+    "tools/ts-checks/src/delivery/binding.ts",
+    "docs/engineering/integration.md",
+    ".meta_harness/agents/skills/branch-integration/canonical/SKILL.md"
+  ],
+  "transport": {
+    "kind": "remote",
+    "location": "origin"
+  }
+}

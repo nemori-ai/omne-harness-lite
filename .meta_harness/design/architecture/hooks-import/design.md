@@ -1,6 +1,6 @@
 # 兼容hook翻译：当前设计与未实现边界
 
-产品规则归[产品入口](../../product/PF-012-agent-loop-and-run/README.md)；本页只维护尚无真实提供者的已采用技术行为及未决，不授予实现或验证状态。公开数据沿实际定义拥有者，不建空包。新增产品政策仍由产品负责人决定。
+产品规则归[产品入口](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/README.md)；本页只维护尚无真实提供者的已采用技术行为及未决，不授予实现或验证状态。公开数据沿实际定义拥有者，不建空包。新增产品政策仍由产品负责人决定。
 
  `importHostHooks(host,document,path,scope)` 全必填，**无授权、无 IO/提交**；导入者声明来源不等于可信源。闭合失败仅 invalidInput：host/scope/path/格式、任一 matcher 坏，整份拒、零部分导出。同输入逐字同 report/name。CC pin=2.1.280（2026-09-23 快照）；Codex pin=5c5308fc，配置逐字结构/解释器/部分失败语义未核，旧同构采用前提不能写成上游事实。
 

@@ -12,13 +12,19 @@ export const productSource = (path: string) =>
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-function exportPath(value: unknown): string | undefined {
-  if (typeof value === 'string') return value
-  if (!record(value)) return undefined
-  return exportPath(value['types']) ?? exportPath(value['import']) ?? exportPath(value['default'])
+function exportPaths(value: unknown): string[] {
+  if (typeof value === 'string') return [value]
+  if (Array.isArray(value)) return value.flatMap(exportPaths)
+  return record(value) ? Object.values(value).flatMap(exportPaths) : []
 }
-function pathsOf(snapshot: Snapshot): Record<string, string[]> {
-  const paths: Record<string, string[]> = {}
+export interface PublicEntry {
+  readonly member: string
+  readonly specifier: string
+  readonly subpath: string
+  readonly sourcePath?: string
+}
+export function publicEntries(snapshot: Snapshot): PublicEntry[] {
+  const result: PublicEntry[] = []
   for (const member of snapshot.members) {
     const text = snapshot.texts.get(`${member.path}/package.json`)
     if (text === undefined) continue
@@ -30,15 +36,36 @@ function pathsOf(snapshot: Snapshot): Record<string, string[]> {
         ? Object.entries(exports)
         : [['.', exports]]
     for (const [key, value] of entries) {
-      const path = exportPath(value)
-      if (path === undefined) continue
-      const source = path
-        .replace(/^\.\/dist\//u, './src/')
-        .replace(/\.d\.mts$|\.mjs$/u, '.mts')
-        .replace(/\.d\.cts$|\.cjs$/u, '.cts')
-        .replace(/\.d\.ts$|\.js$/u, '.ts')
-      paths[`${pkg['name']}${key === '.' ? '' : key.slice(1)}`] = [posix.join(member.path, source)]
+      const paths = exportPaths(value)
+      if (paths.length === 0)
+        result.push({ member: member.path, specifier: pkg['name'], subpath: key })
+      for (const path of [...new Set(paths)]) {
+        const source = path
+          .replace(/^\.\/dist\//u, './src/')
+          .replace(/\.d\.mts$|\.mjs$/u, '.mts')
+          .replace(/\.d\.cts$|\.cjs$/u, '.cts')
+          .replace(/\.d\.ts$|\.js$/u, '.ts')
+        const sourcePath = posix.join(member.path, source)
+        result.push({
+          member: member.path,
+          specifier: `${pkg['name']}${key === '.' ? '' : key.slice(1)}`,
+          subpath: key,
+          ...(key.includes('*') ||
+          !path.startsWith('./') ||
+          !sourcePath.startsWith(`${member.path}/src/`)
+            ? {}
+            : { sourcePath }),
+        })
+      }
     }
+  }
+  return result
+}
+function pathsOf(snapshot: Snapshot): Record<string, string[]> {
+  const paths: Record<string, string[]> = {}
+  for (const entry of publicEntries(snapshot)) {
+    if (entry.sourcePath === undefined) continue
+    paths[entry.specifier] = [...(paths[entry.specifier] ?? []), entry.sourcePath]
   }
   return paths
 }
@@ -55,6 +82,19 @@ export class StaticResolver {
   readonly modulePath: (specifier: string, file: ts.SourceFile) => string | undefined
   readonly snapshot: Snapshot
   readonly configurationFiles = new Set<string>()
+  publicDeclarations(path: string): readonly (Site & { readonly offset: number })[] {
+    const tree = this.program.getSourceFile(ROOT + path)
+    const module = tree === undefined ? undefined : this.checker.getSymbolAtLocation(tree)
+    if (module === undefined) return []
+    return this.checker.getExportsOfModule(module).flatMap(symbol => {
+      const target =
+        symbol.flags & ts.SymbolFlags.Alias ? this.checker.getAliasedSymbol(symbol) : symbol
+      return (target.declarations ?? []).map(node => ({
+        ...this.site(node),
+        offset: node.getStart(),
+      }))
+    })
+  }
   constructor(snapshot: Snapshot) {
     this.snapshot = snapshot
     this.files = [...snapshot.texts]

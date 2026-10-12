@@ -174,7 +174,6 @@
     }
   },
   "health": {
-    "weeks": 8,
     "commits": 50,
     "runs": 10
   },

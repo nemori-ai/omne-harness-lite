@@ -10,7 +10,7 @@ from design_sources import check_links
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", required=True, type=Path, help="Current design source root")
-    parser.add_argument("--source-root", type=Path, help="Explicit execution checkout for module-owned links")
+    parser.add_argument("--source-root", type=Path, help="Explicit execution checkout for module and adopted project-document links")
     args = parser.parse_args(argv)
     if not args.root.is_dir():
         parser.error("root must be an existing design directory")

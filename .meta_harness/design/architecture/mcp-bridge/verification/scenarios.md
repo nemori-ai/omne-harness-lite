@@ -4,7 +4,7 @@
 
 属于 `mcp-bridge 的规范实例。它是**当前限定范围的规范工件之一**，不是说明材料：
 每个操作的正常结局、每个失败值、投影与结果映射的逐项取值，在这里各有至少一个实例，并注明**依据哪一条**。
-值的形状（正文、副本、条目名、OAuth 绑定、凭据配值）的正反实例在 [`mcp-endpoint 的实例](../../../../../packages/core/mcp-endpoint/tests/fixtures/endpoint-examples.md)，本文件直接引用那里的编号。
+值的形状（正文、副本、条目名、OAuth 绑定、凭据配值）的正反实例在 [`mcp-endpoint 的实例](../../../../../packages.0.0.1.legacy/core/mcp-endpoint/tests/fixtures/endpoint-examples.md)，本文件直接引用那里的编号。
 
 **怎么读**：
 

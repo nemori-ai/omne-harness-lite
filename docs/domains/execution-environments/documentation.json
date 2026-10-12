@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "domain-execution-environments",
+    "kind": "domain",
+    "source": {
+      "path": "docs/domains/boundaries.md",
+      "anchor": "责任地图"
+    }
+  },
+  "documents": [
+    {
+      "id": "overview",
+      "path": "docs/domains/execution-environments/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/domains/boundaries.md",
+        "anchor": "文档内容与登记"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "范围与边界"
+        },
+        {
+          "id": "section-2",
+          "anchor": "模块角色与事实归属"
+        },
+        {
+          "id": "section-3",
+          "anchor": "协作与依赖"
+        },
+        {
+          "id": "section-4",
+          "anchor": "主路径与交接"
+        },
+        {
+          "id": "section-5",
+          "anchor": "契约与验证导航"
+        },
+        {
+          "id": "section-6",
+          "anchor": "后续设计与维护"
+        }
+      ]
+    },
+    {
+      "id": "placed-docs#domains#execution-environments#architecture",
+      "path": "docs/domains/execution-environments/architecture.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/domains/boundaries.md",
+        "anchor": "文档内容与登记"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-docs#domains#execution-environments#key-flows",
+      "path": "docs/domains/execution-environments/key-flows.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/domains/boundaries.md",
+        "anchor": "文档内容与登记"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    }
+  ]
+}

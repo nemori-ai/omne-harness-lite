@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "package-domain:assembly",
+    "kind": "domain",
+    "source": {
+      "path": "docs/member-documentation.md",
+      "anchor": "能力组文档要求"
+    }
+  },
+  "documents": [
+    {
+      "id": "overview",
+      "path": "packages/assembly/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "能力组文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "责任与范围"
+        },
+        {
+          "id": "members",
+          "anchor": "成员与依赖"
+        },
+        {
+          "id": "collaboration",
+          "anchor": "关键协作"
+        },
+        {
+          "id": "verification",
+          "anchor": "组合验证"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "target-assembly-spec",
+      "path": "packages/assembly/assembly/SPEC.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      }
+    },
+    {
+      "id": "target-assembly-design",
+      "path": "packages/assembly/assembly/docs/internals.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      }
+    },
+    {
+      "id": "target-assembly-entry",
+      "path": "packages/assembly/assembly/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 量的是：给 [qa](../../../roles/qa/role.md) 一份构建好的交付和十条验收标准，它的四态判决与逐条结果是否与预置的缺陷相符——
 该判 fail 的没漏、不该判 fail 的没误报，同时不动制品、不写出可写目录。判定由程序在收录运行时做，没有判官。
 
-状态：**第 2 版，尚未签字，也没有本版模型运行基线。**基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
+状态：**第 2 版，尚未签字，也没有本版模型运行基线。**基线何时跑由 [遗留汇总L07](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-agent-evaluations) 跟踪。
 
 ## 材料
 

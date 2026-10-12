@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "package-domain:notification",
+    "kind": "domain",
+    "source": {
+      "path": "docs/member-documentation.md",
+      "anchor": "能力组文档要求"
+    }
+  },
+  "documents": [
+    {
+      "id": "overview",
+      "path": "packages/notification/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "能力组文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "责任与范围"
+        },
+        {
+          "id": "members",
+          "anchor": "成员与依赖"
+        },
+        {
+          "id": "collaboration",
+          "anchor": "关键协作"
+        },
+        {
+          "id": "verification",
+          "anchor": "组合验证"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "target-notification-spec",
+      "path": "packages/notification/notification/SPEC.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "target-notification-design",
+      "path": "packages/notification/notification/docs/internals.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#notification#docs#architecture",
+      "path": "packages/notification/docs/architecture.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "能力组文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#notification#notification#README",
+      "path": "packages/notification/notification/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#notification#notification#docs#key-flows",
+      "path": "packages/notification/notification/docs/key-flows.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    }
+  ]
+}

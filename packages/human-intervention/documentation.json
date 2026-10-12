@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "package-domain:human-intervention",
+    "kind": "domain",
+    "source": {
+      "path": "docs/member-documentation.md",
+      "anchor": "能力组文档要求"
+    }
+  },
+  "documents": [
+    {
+      "id": "overview",
+      "path": "packages/human-intervention/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "能力组文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "责任与范围"
+        },
+        {
+          "id": "members",
+          "anchor": "成员与依赖"
+        },
+        {
+          "id": "collaboration",
+          "anchor": "关键协作"
+        },
+        {
+          "id": "verification",
+          "anchor": "组合验证"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "target-human-intervention-spec",
+      "path": "packages/human-intervention/human-intervention/SPEC.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "target-human-intervention-design",
+      "path": "packages/human-intervention/human-intervention/docs/internals.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#human-intervention#docs#architecture",
+      "path": "packages/human-intervention/docs/architecture.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "能力组文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#human-intervention#human-intervention#README",
+      "path": "packages/human-intervention/human-intervention/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#human-intervention#human-intervention#docs#key-flows",
+      "path": "packages/human-intervention/human-intervention/docs/key-flows.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    }
+  ]
+}

@@ -4,7 +4,7 @@
 针对它的原有测试被拿走，按一份完整的施工简报让它把模块补完——补完之后原有测试与类型检查是否全过，
 它是否守住写入范围、没有动原有测试。判定由程序在收录运行时做，没有判官。
 
-状态：**第 2 版，尚未签字，也没有本版模型运行基线。**基线何时跑由 [#72](https://github.com/nemori-ai/omne-harness-lite/issues/72) 跟踪。
+状态：**第 2 版，尚未签字，也没有本版模型运行基线。**基线何时跑由 [遗留汇总L07](https://github.com/nemori-ai/omne-harness-lite/issues/193#legacy-agent-evaluations) 跟踪。
 
 ## 材料
 

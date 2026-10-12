@@ -1,74 +1,56 @@
 # omne-harness-lite
 
-**为组织和个人构建能够长期运行、持续进化的智能体系统。**
+`omne-harness-lite` 是以 DeepSeek Cordis 为内核的 agent harness，为组织和个人提供智能体运行、能力调用与治理框架。系统组织模型、工具、状态和执行过程，目标是长期稳定运行、动态演化，并在不违背组织公共利益的前提下最大程度与个人租户保持利益对齐。
 
-`omne-harness-lite` 以 DeepSeek 提出的 Cordis 为内核，延续 `omne-next/omne_harness`
-的核心设计理念与最佳实践，面向更轻量、更高性能的 OMNE harness 演进。它的目标是让智能体
-持续感知环境、协作完成工作、积累知识，并在运行中发展自身能力，始终与所服务的组织或个人
-保持利益对齐。
+项目处于 `0.0.0 → 0.1.0` 研发阶段，尚未正式上线或提供生产服务。第一版完整交付为单机系统，同时为个人设备和云端集群的后续装配保留边界。具体阶段范围归[项目要求](docs/requirements.md#交付阶段与功能范围)和各产品的版本承诺。
 
-> 产品设计、规格与实验实现并行推进。承诺归属从[架构维护入口](.meta_harness/design/architecture/README.md)查找；
-> 公开定义、模块行为和验证责任从[架构维护入口](.meta_harness/design/architecture/README.md)定位实际拥有者。
-> 治理中心的启动与配置见 [tenancy-host](apps/tenancy-host/README.md)；
-> 可运行不等于已经满足生产准入。第一版完整交付为单机系统。
+新 `packages/` 和 `apps/` 目前维护目标文档与骨架，尚未建立产品源码、成员 manifest 或可启动应用。封存实现保存在带 `.0.0.1.legacy` 后缀的目录中。设计接受、实现支持和运行验证分别记录，不能凭文档目录判断功能已可用。
 
-[系统目标与全局约束](.meta_harness/design/foundation/README.md) ·
+[项目要求](docs/requirements.md) ·
 [产品设计](.meta_harness/design/product/README.md) ·
 [开发指南](docs/development.md) ·
 [参与贡献](CONTRIBUTING.md)
 
+从[文档入口](docs/README.md)选择使用、管理、运维、集成、研发或负责人路径；人和 agent 使用同一套正文。已有明确任务时，从[任务地图](docs/context-map.md)找到必要上下文及停止点。Coding agents 另从 [AGENTS.md](AGENTS.md)加载项目心智、责任地图与触发。
+
+需要先看全项目知识和文档怎样组织，读[知识地图](docs/knowledge-map.md)；agent一次加载的文字版见[体系上下文](docs/knowledge-map-agent.md)。
+
 ## 系统目标
 
-长期协作需要保留已经完成的工作、等待中的决定和未来的安排，也需要随着环境与需求变化
-调整能力。项目围绕以下目标展开：
+长期协作需要保存工作与决定，控制故障影响，并允许运行中的能力变化。以下目标的完整要求及验收边界由[项目要求](docs/requirements.md)维护。
 
 - **完全动态。** 能力的定义、实现、绑定和组合关系能够在运行期演化，结构变化具有明确的
-  依赖、作用域、所有权和生命周期约束。见[完全动态系统](.meta_harness/design/foundation/fully-dynamic-system/requirements.md)。
+  依赖、作用域、所有权和生命周期约束。见[完全动态系统](docs/requirements.md#完全动态目标sys-dynamic)。
 - **超长期待机、稳定运行、持续进化。** 智能体能够长期服务，并根据工作需要发展能力；
   等待用户或未来时刻的工作可以持久保留，释放对应执行资源。
-  见[长期运行目标](.meta_harness/design/foundation/long-running-and-evolving/requirements.md)。
-- **状态持久，工作可接续。** Agent 运行时与持久状态解耦，在同构资源下恢复并接续工作；
-  针对不同物理环境与操作系统采用合适的装配策略或部署版本。
-  见[恢复与异构适配](.meta_harness/design/foundation/runtime-state-and-continuity/requirements.md)。
-- **与服务对象保持利益对齐。** 以所服务的组织或个人的利益为持续目标；对齐的判断方式、
-  维持机制及多方利益冲突规则仍待进一步明确。
-  见[利益对齐](.meta_harness/design/foundation/interest-alignment/requirements.md)。
-- **全链路可观测。** 工作从触发、授权、执行到恢复和交付均应有可关联的状态与日志依据，
-  失败、部分完成和未知结果如实可见。
-  见[可观测性要求](.meta_harness/design/foundation/observability-and-logging/requirements.md)。
-
-功能上[继承并进一步发展 omne-next 现有或已承诺的机制与功能](.meta_harness/design/foundation/omne-next-continuity/requirements.md)。
+  见[长期运行目标](docs/requirements.md#长期运行与持续进化sys-long-running)。
+- **状态持久，工作可接续。** 会话承担业务与逻辑治理，Agent、模型和工具运行时具有独立生命周期。故障影响须可控，恢复与降级由相应拥有者负责。
+  见[恢复与异构适配](docs/requirements.md#运行时解耦与接续sys-runtime-continuity)。
+- **与服务对象保持利益对齐。** 在不违背组织公共利益的前提下最大程度与个人租户保持利益对齐。原生提供对用户的感知与观测能力，支持这些能力持续自主演进。
+  见[利益对齐](docs/requirements.md#服务对象与利益对齐sys-alignment)。
+- **全链路可观测、可遥测。** 工作从触发、授权、执行到恢复和交付有可关联的状态与日志依据，失败、部分完成和未知结果如实可见。数据收集与传送须遵循安全和隐私要求。
+  见[可观测性要求](docs/requirements.md#全链路可观测可遥测与日志完备sys-observability)。
 
 ## 产品设计
 
-产品正文按**主题**组织，每个主题一个信息包：概念定义、模型、产品规则、拍板记录与未决项
-各有其位。当前覆盖发生的事与记录条目、身份与范围、设置权限与资产、资产的转移与分享、
-Agent 定义与装配、执行环境与沙箱、工具与技能、Meta Capabilities、Human in the Loop、
-上下文的消息类型与组装、非常态的分层处置、Agent Loop 与 Run、模型档案与调用、
-输入的受理与排队，以及会话的生命周期与归属。
+[产品设计入口](.meta_harness/design/product/README.md)按独立产品问题组织正文。每份正文说明需求与关键用户旅程，定义能力及其实现状态，记录阶段支持承诺，并集中列出未决问题。读者可以在产品描述所在位置判断能力是否已有实现证据；版本承诺不等于当前支持。
 
-这些主题目前**全部属于[架构内核](.meta_harness/design/product/architecture-core.md)**——
-它们立的是彼此赖以成立的前提，**改其中一个，代价落在别的主题身上**。
+产品模块聚焦自己的业务责任，通过明确契约协作。框架提供可配置、可组合、可扩展的能力；具体治理模型和配置值由相应产品规则与部署设置决定。产品规则服从项目要求、系统架构及适用工程约定，技术细节随其实际拥有者维护。
 
-完整清单、状态与修订次数见[产品设计入口](.meta_harness/design/product/README.md)；
-概念的精确所指归[统一语言](.meta_harness/design/ubiquitous_language/README.md)——
-**同一个概念在整个系统里只有一个词。**
+产品入口连接[领域责任](docs/domains/README.md)及对应工程拥有者，概念定义归[统一语言](.meta_harness/design/ubiquitous_language/README.md)。内部产品依据与公共消费路径的访问范围分别判断，使用者不必通读内部设计。
 
 ## 技术基础
 
-从 DeepSeek Harness 仅复用 Cordis，不复用 DSH `agent` 原语；Agent Runtime（Agent Loop）
-完全由本项目自主设计，Harness 层、工具协议、治理及其他子系统由本项目定义和实现。
+系统使用 Cordis 提供装配、组合、依赖注入与生命周期管理能力。领域模块独立建模，Cordis集成契约约束装配边界。
 
 - **动态组合。** 可替换能力以具有生命周期、作用域和所有权的插件或服务组合；
   定义、运行实例、持久状态与物理部署分别建模。
-- **就近维护精确承诺。** 公开 TypeScript 类型与必要运行时校验表达形状，薄规格表达剩余行为。
-  重要性质保留相称的模型与测试，归属见[架构维护入口](.meta_harness/design/architecture/README.md)。
+- **就近维护精确承诺。** 公开 TypeScript 类型与必要运行时校验表达形状，成员行为契约表达类型不能完整表达的必要规则。
+  重要性质保留相称的模型与测试，归属见[架构维护入口](docs/architecture/README.md)。
 - **从第一天起落实租户隔离。** 自然人全局身份与租户成员关系分别表达；受租户所有权
   约束的对象和跨边界操作显式携带租户身份，跨租户访问默认拒绝。
-- **统一模型请求入口。** 所有模型请求经 OpenRouter 发送。
 
-在线演化须遵守已有工作的生命周期、当前权限和状态契约。恢复执行、切回旧版本、
-补偿外部效果各有明确含义；动态能力的具体保证由相应规格与验证证据落实。
+全系统分层、运行时协作、数据、安全与部署设计从[架构入口](docs/architecture/README.md)展开。领域关系归[领域设计](docs/domains/README.md)，精确接口、必要行为和持续验证归实际成员。在线演化、恢复和外部副作用按相应契约判断，架构正文描述目标保证。
 
 ## 仓库与开发
 
@@ -76,22 +58,15 @@ Agent 定义与装配、执行环境与沙箱、工具与技能、Meta Capabilit
 
 | 位置 | 内容 |
 |---|---|
-| [.meta_harness/](.meta_harness/README.md) | **设计工作区**：需求、产品设计、统一语言、规格、研究、已发生的事、agent 能力 |
-| [docs/](docs/README.md) | 项目开发文档：环境、源码布局、检查含义、防御指导 |
-| [packages/](packages/README.md)、[apps/](apps/README.md) | 产品包与应用装配；采用范围与验证状态见实现映射 |
+| [.meta_harness/](.meta_harness/README.md) | 产品设计、统一语言、领域对象、持续研究及独有agent能力；保留源按其入口定位 |
+| [docs/](docs/README.md) | 项目要求、工程规范、系统架构、领域关系、读者与任务指引、维护指南及RFC入口 |
+| [packages/](packages/README.md) | 目标能力组与成员文档；具体包边界沿[产品包组织](docs/package-organization.md)维护 |
+| [apps/](apps/README.md) | 目标应用与装配责任；尚无可启动成员 |
+| [packages.0.0.1.legacy/](packages.0.0.1.legacy/README.md)、[apps.0.0.1.legacy/](apps.0.0.1.legacy/README.md) | 封存源码与公开说明，用于来源核对及仍有的工具依赖；不作为新树实现支持 |
 | [tools/spec-tools/](tools/spec-tools/README.md)、[scripts/](scripts/README.md) | 开发检查器与仓库自动化 |
 
-当前可以运行仓库检查。按[开发指南](docs/development.md#准备可用的检出)准备 Python 与
-Node/pnpm 两套环境，在实际工作的检出根目录执行：
+参与研发从 [CONTRIBUTING.md](CONTRIBUTING.md)和[开发初始化](docs/development.md#准备可用的检出)开始。人或 agent 使用的 coding agent harness 须安装项目指定版本的 pstack 与 Matt 插件，版本及采用范围归[技能入口](docs/engineering/skills.md)。环境准备、命令与按任务选择验证的方法继续由开发指南维护。
 
-```sh
-uv sync --locked
-pnpm install --frozen-lockfile --ignore-scripts
-make check
-```
+日常文档维护可运行 `make docs-check`，结构缺项通过 `make docs-inventory` 查看。`make check` 按影响面选择必要检查，未选择的检查没有执行；结论边界归[验证说明](docs/verification.md)。这些检查不证明产品已支持、业务行为符合或已获负责人接受。
 
-`make check` 执行 agent 产物与链接、文档导航、设计链登记、工具测试与格式检查，
-**不调用真实模型**。日常文档修改可单跑 `make docs-check`；形式模型的覆盖、执行与工具环境
-按[验证与证据](docs/verification.md)分别报告。应用启动入口、配置与运行边界由所属应用的 README 维护。
-
-参与研发从 [CONTRIBUTING.md](CONTRIBUTING.md) 开始；coding agents 遵循 [AGENTS.md](AGENTS.md)。
+阅读封存命令时，从[封存CLI](apps.0.0.1.legacy/cli/README.md)或[封存宿主](apps.0.0.1.legacy/tenancy-host/README.md)核对构建、环境与权限前提，不能直接当作新树启动方法。新增或修改文档按[维护指南](docs/maintenance.md)选择层级、同步消费者和检查引用。

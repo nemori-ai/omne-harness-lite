@@ -82,12 +82,12 @@ description: >
 先读 `design/AGENTS.md` 和 `design/README.md`，按文章问题定位相关 topic 与局部约定，
 不要把整条设计链通读一遍。作者给出的路径优先作为入口，随后追到实际权威正文。
 
-- **为什么有这些目标和边界**：查 `design/foundation/`、相关 `design/product/` 正文。
+- **为什么有这些目标和边界**：从任务明确的执行仓库 `docs/requirements.md` 查项目要求，产品规则查设计工作区相关 `design/product/` 正文。
 - **当时比较和决定了什么**：查本次任务提供的临时材料；没有输入就访谈作者，不恢复或新建永久开发记录。
   区分作者回忆、当时记录和你现在作出的推断。
 - **概念与准确承诺是什么**：查 `design/ubiquitous_language/`，需要对象身份时查
-  `design/domain_objects/`；接口与行为从架构维护入口定位实际拥有者的公开类型、薄SPEC及采用边界。
-- **怎样实现、实际做到哪一步**：查实际包/应用的源码、薄SPEC、必要理由和验证资源。
+  `design/domain_objects/`；系统与领域责任查执行仓库 `docs/architecture/`、`docs/domains/`，接口与行为查实际拥有者的公开类型、行为契约及采用边界。未迁精确技术源仍由 `design/architecture/README.md` 定位。
+- **怎样实现、实际做到哪一步**：查实际包/应用的源码、行为契约、内部设计、维护说明及验证资源，包群与成员分工沿执行仓库 `docs/member-documentation.md`。
   读代码和实验产物时明确对应版本；设计意图不能当作运行结果。
 - **依赖的外部事实**：按引用查 `design/basis/` 或 `research/`，必要时核对上游一手资料的版本。
   专门讲历史时须明确标为历史，不能作为当前系统依据。

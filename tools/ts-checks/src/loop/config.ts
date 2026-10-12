@@ -115,8 +115,8 @@ export interface HookConfig {
   readonly stateLimit: number
 }
 
-/** weeks：每周接受数看最近几周；commits：主线最近几个提交；runs：最近几次全量测试运行。 */
-export const HEALTH_WINDOWS = ['weeks', 'commits', 'runs'] as const
+/** commits：主线最近几个提交；runs：最近几次全量测试运行。 */
+export const HEALTH_WINDOWS = ['commits', 'runs'] as const
 export type HealthWindow = (typeof HEALTH_WINDOWS)[number]
 
 export const LOOP_CONFIG_PATH = fileURLToPath(new URL('../../loop.config.json', import.meta.url))

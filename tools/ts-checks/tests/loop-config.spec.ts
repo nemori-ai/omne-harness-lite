@@ -36,7 +36,7 @@ describe('回路配置', () => {
     ] as const)
       expect(config.indicators[id]).toEqual({ lines: null, baseline: false })
     expect(config.indicators.unresolvedServiceNames).toEqual({ lines: null, baseline: true })
-    expect(config.health).toEqual({ weeks: 8, commits: 50, runs: 10 })
+    expect(config.health).toEqual({ commits: 50, runs: 10 })
     expect(config.hook).toEqual({
       enabled: true,
       maxItems: 12,
@@ -143,9 +143,9 @@ describe('回路配置', () => {
     expect(without(value => delete value['health'])).toThrow('health 须为对象')
     expect(
       without(value => {
-        ;(value['health'] as Record<string, unknown>)['weeks'] = 0
+        ;(value['health'] as Record<string, unknown>)['commits'] = 0
       }),
-    ).toThrow('health.weeks 须为正整数')
+    ).toThrow('health.commits 须为正整数')
     expect(
       without(value => {
         ;(value['health'] as Record<string, unknown>)['week'] = 8

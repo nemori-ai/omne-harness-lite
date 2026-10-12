@@ -23,10 +23,16 @@ function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'omne-template-cli-'))
   roots.push(root)
   mkdirSync(join(root, 'packages'))
-  mkdirSync(join(root, '.meta_harness/design/architecture'), { recursive: true })
-  cpSync(
-    join(repo, '.meta_harness/design/architecture/constraints.json'),
-    join(root, '.meta_harness/design/architecture/constraints.json'),
+  mkdirSync(join(root, 'docs/architecture'), { recursive: true })
+  writeFileSync(join(root, 'docs/architecture/policy.md'), '# Fixture policy\n')
+  writeFileSync(
+    join(root, 'docs/architecture/constraints.json'),
+    JSON.stringify({
+      schemaVersion: 2,
+      domains: [],
+      roles: [],
+      rules: [{ id: 'IC-4', source: 'docs/architecture/policy.md' }],
+    }),
   )
   cpSync(join(repo, 'tsconfig.base.json'), join(root, 'tsconfig.base.json'))
   writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n')
@@ -70,7 +76,7 @@ it('runs real preview/write/scan paths and rejects a Cordis leak despite a curre
   const manifestPath = join(root, member, 'package.json')
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
   manifest.omneHarness = {
-    packageTemplate: { id: 'typescript-package', version: '1.0.0', variant: 'module' },
+    packageTemplate: { id: 'typescript-package', version: '2.0.0', variant: 'module' },
   }
   writeFileSync(manifestPath, JSON.stringify(manifest))
   const clean = run(root, ['scan', '--member', member, '--check', '--json'])
@@ -143,3 +149,73 @@ it.each([
   },
   20_000,
 )
+
+it('previews, writes and checks domain drafts through the real CLI', () => {
+  const root = fixture()
+  const preview = run(root, ['create-domain', '--group', 'sample'])
+  expect(preview.status).toBe(0)
+  expect(JSON.parse(preview.stdout)).toMatchObject({
+    written: false,
+    files: ['README.md', 'documentation.json'],
+  })
+  expect(run(root, ['create-domain', '--group', 'sample', '--write']).status).toBe(0)
+  const draft = run(root, ['scan', '--group', 'sample', '--check', '--json'])
+  expect(draft.status).toBe(1)
+  expect(
+    JSON.parse(draft.stdout).domains[0].findings.some(
+      (item: { code: string }) => item.code === 'draft',
+    ),
+  ).toBe(true)
+  const all = run(root, ['scan', '--json'])
+  expect(all.status).toBe(0)
+  expect(JSON.parse(all.stdout).packages).toEqual([])
+  expect(JSON.parse(all.stdout).domains[0].structure).toBe('fail')
+  writeFileSync(
+    join(root, 'packages/sample/README.md'),
+    '# Completed group\n\nActual group responsibilities.\n',
+  )
+  expect(run(root, ['scan', '--group', 'sample', '--check']).status).toBe(0)
+  expect(run(root, ['create-domain', '--group', 'sample', '--write']).status).toBe(2)
+  expect(run(root, ['create-domain', '--group', '../escape', '--write']).status).toBe(2)
+  expect(
+    run(root, ['scan', '--group', 'sample', '--member', 'packages/sample/member']).status,
+  ).toBe(2)
+  rmSync(join(root, 'packages/sample/documentation.json'))
+  expect(run(root, ['scan', '--group', 'sample', '--check']).status).toBe(1)
+}, 20_000)
+
+it('keeps the exact old package marker and reports older through the real CLI', () => {
+  const root = fixture()
+  const create = ['create', '--group', 'util', '--name', 'old', '--variant', 'module']
+  expect(run(root, [...create, '--write']).status).toBe(0)
+  const member = 'packages/util/old'
+  for (const file of ['README.md', 'README_ZH.md'])
+    writeFileSync(
+      join(root, member, file),
+      '# Value\n\nThis fixture exports the constant value 1.\n',
+    )
+  writeFileSync(join(root, member, 'src/index.ts'), 'export const value = 1\n')
+  mkdirSync(join(root, member, 'tests'))
+  writeFileSync(
+    join(root, member, 'tests/value.spec.ts'),
+    "import { expect, it } from 'vitest'\nimport { value } from '../src/index.ts'\nit('exports one', () => expect(value).toBe(1))\n",
+  )
+  rmSync(join(root, member, 'documentation.json'))
+  const manifestPath = join(root, member, 'package.json')
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  manifest.omneHarness = {
+    packageTemplate: { id: 'typescript-package', version: '1.0.0', variant: 'module' },
+  }
+  writeFileSync(manifestPath, JSON.stringify(manifest))
+  const before = readFileSync(manifestPath)
+  const inventory = run(root, ['scan', '--member', member, '--json'])
+  expect(inventory.status).toBe(0)
+  expect(JSON.parse(inventory.stdout).packages[0]).toMatchObject({
+    adoption: 'older',
+    structure: 'pass',
+  })
+  expect(run(root, ['scan', '--member', member, '--check']).status).toBe(1)
+  expect(run(root, create).status).toBe(2)
+  expect(run(root, [...create, '--write']).status).toBe(2)
+  expect(readFileSync(manifestPath)).toEqual(before)
+}, 20_000)

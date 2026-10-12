@@ -1,165 +1,66 @@
-# 产品设计
+# 产品设计入口
 
-这里保存产品**是什么**：每个 topic 一个包，承载该块的概念定义、模型、产品规则、
-取舍、验收标准，以及它是怎么演变到今天的。
+本区维护产品需求、关键用户旅程、能力定义与实现状态，以及版本阶段的支持承诺和有效未决。系统以 Harness 框架提供可配置、可组合、可扩展的能力。产品设计服从[项目要求](../../../docs/requirements.md)、[系统架构](../../../docs/architecture/README.md)及适用工程约定。
 
-失效事件：产品方向改变。技术方案换了、上游升级了、实现重写了，这里一个字不动。
+## 正文与采用状态
 
-**这里不叫「需求」。**那个词暗示内容是被动接收的转述，而实际上这些是设计——
-概念怎么定、模型什么形状、边界画在哪，都是判断的结果。
-进入本目录的维护规矩、阅读地图与红线见 [AGENTS.md](AGENTS.md)；
-真要在这里落字，按它的指引加载 `product-design` skill。
+下表直接进入正式维护位置。每份正文保留四块，依次为产品需求描述、能力定义与实现状态记录表、阶段与版本支持承诺、未决问题与待定事项。关键旅程在需求块展开；技术问题在末块说明使用者后果，并链接唯一技术拥有者。
 
-## 当前 topic
+已明确的产品及阶段决定继续有效，整体待审范围见各 topic 入口。正式落位、产品接受、技术采用、实现支持和验证通过分别判断。身份、资产及会话的已定阶段保持，其他正文中尚待选择的阶段范围由负责人决定。
 
-> **动手改任何一个之前，先看[架构内核 PF](architecture-core.md)。**
-> 那份清单登记哪些 topic 覆盖[架构内核](../ubiquitous_language/terms/architecture-core-and-extension.md#ul-architecture-core--架构内核--architecture-core)——
-> **改它们等于改别的 PF 赖以成立的前提**，代价与自检问题都在那里。
-> **PF-000～PF-015 全在那份清单上；[PF-016 起默认在内核之外](architecture-core.md#内核之外的-pf)。**
+## 产品阅读地图
 
-| Topic | 状态 | rev |
-|---|---|---|
-| [PF-000 发生的事与记录条目](PF-000-occurrences-and-record-entries/README.md) | active | 1 |
-| [PF-001 身份、范围与对 Agent 的约束](PF-001-identity-scope-and-agent-constraints/README.md) | active | 26 |
-| [PF-002 设置、权限与资产的展开](PF-002-assets-settings-and-permissions/README.md) | active | 32 |
-| [PF-003 资产的复制与分享](PF-003-asset-transfer-and-sharing/README.md) | active | 6 |
-| [PF-004 Agent 定义与装配](PF-004-agent-definition-and-assembly/README.md) | active | 20 |
-| [PF-005 执行环境与沙箱](PF-005-execution-environments-and-sandboxes/README.md) | active | 9 |
-| [PF-006 工具与技能](PF-006-tools-and-skills/README.md) | active | 24 |
-| [PF-007 Meta Capabilities](PF-007-meta-capabilities/README.md) | active | 25 |
-| [PF-008 Human in the Loop](PF-008-human-in-the-loop/README.md) | active | 7 |
-| [PF-009 上下文消息类型](PF-009-context-message-types/README.md) | active | 9 |
-| [PF-010 上下文管理与组装](PF-010-context-management-and-assembly/README.md) | active | 8 |
-| [PF-011 非常态的分层处置](PF-011-off-nominal-handling/README.md) | active | 5 |
-| [PF-012 Agent Loop 与 Run](PF-012-agent-loop-and-run/README.md) | active | 25 |
-| [PF-013 模型档案、调用与切换](PF-013-model-profiles-and-invocation/README.md) | active | 17 |
-| [PF-014 输入的受理与排队](PF-014-inbound-intake-and-queueing/README.md) | active | 14 |
-| [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md) | active | 21 |
-| [PF-016 命令行交付面](PF-016-cli-tui-delivery-surface/README.md) | active | 13 |
-| [PF-017 治理中心作为一个可部署应用](PF-017-governance-center-as-deployable-application/README.md) | active | 7 |
-| [PF-020 工作区](PF-020-workspace/README.md) | active | 22 |
-| [PF-021 日程与日历](PF-021-schedule-and-calendar/README.md) | active | 8 |
+| 产品问题 | 当前未决 | 领域关系 | 工程拥有者 |
+| --- | --- | --- | --- |
+| [身份与授权](identity-and-authorization/design.md) | [未决](identity-and-authorization/design.md#未决问题与待定事项) | [领域](../../../docs/domains/identity-and-authorization/README.md) | [工程与规格](../../../packages/identity/README.md) |
+| [资产与规则](assets-and-rules/design.md) | [未决](assets-and-rules/design.md#未决问题与待定事项) | [领域](../../../docs/domains/assets-and-rules/README.md) | [工程与规格](../../../packages/assets/README.md) |
+| [会话与工作的产品设计](sessions-and-work/design.md) | [未决](sessions-and-work/design.md#未决问题与待定事项) | [领域](../../../docs/domains/sessions-and-work/README.md) | [工程与规格](../../../packages/session/README.md) |
+| [Agent 定义与工作推进](agent-progression/design.md) | [未决](agent-progression/design.md#未决问题与待定事项) | [领域](../../../docs/domains/agent-progression/README.md) | [工程与规格](../../../packages/agent/README.md) |
+| [模型调用的产品设计](model-invocation/design.md) | [未决](model-invocation/design.md#未决问题与待定事项) | [领域](../../../docs/domains/model-invocation/README.md) | [工程与规格](../../../packages/model/README.md) |
+| [工具执行](tool-execution/design.md) | [未决](tool-execution/design.md#未决问题与待定事项) | [领域](../../../docs/domains/tool-execution/README.md) | [工程与规格](../../../packages/tool/README.md) |
+| [运行感知与一次模型请求](runtime-context/design.md) | [未决](runtime-context/design.md#未决问题与待定事项) | [领域](../../../docs/domains/runtime-context/README.md) | [工程与规格](../../../packages/context/README.md) |
+| [工作区产品设计](workspaces/design.md) | [未决](workspaces/design.md#未决问题与待定事项) | [领域](../../../docs/domains/workspaces/README.md) | [工程与规格](../../../packages/workspace/README.md) |
+| [执行环境产品设计](execution-environments/design.md) | [未决](execution-environments/design.md#未决问题与待定事项) | [领域](../../../docs/domains/execution-environments/README.md) | [工程与规格](../../../packages/execution/README.md) |
+| [Skill产品设计](skills/design.md) | [未决](skills/design.md#未决问题与待定事项) | [领域](../../../docs/domains/skills/README.md) | [工程与规格](../../../packages/skills/README.md) |
+| [Slash Command产品设计](slash-commands/design.md) | [未决](slash-commands/design.md#未决问题与待定事项) | [领域](../../../docs/domains/slash-commands/README.md) | [工程与规格](../../../packages/slash-command/README.md) |
+| [MCP产品设计](mcp/design.md) | [未决](mcp/design.md#未决问题与待定事项) | [领域](../../../docs/domains/mcp/README.md) | [工程与规格](../../../packages/mcp/README.md) |
+| [人在回路产品设计](human-intervention/design.md) | [未决](human-intervention/design.md#未决问题与待定事项) | [领域](../../../docs/domains/human-intervention/README.md) | [工程与规格](../../../packages/human-intervention/README.md) |
+| [日历产品设计](calendars/design.md) | [未决](calendars/design.md#未决问题与待定事项) | [领域](../../../docs/domains/calendars/README.md) | [工程与规格](../../../packages/calendar/README.md) |
+| [通知产品候选](notifications/design.md) | [未决](notifications/design.md#未决问题与待定事项) | [领域](../../../docs/domains/notifications/README.md) | [工程与规格](../../../packages/notification/README.md) |
+| [日程与作业产品候选](schedules-and-jobs/design.md) | [未决](schedules-and-jobs/design.md#未决问题与待定事项) | [领域](../../../docs/domains/schedules-and-jobs/README.md) | [工程与规格](../../../packages/schedule/README.md) |
 
-## 已排定、尚未开题的编号
+Skill、Slash Command、MCP 的工程分解已维护在对应能力组，完整行为候选尚未分配正式成员。其产品末块与组入口继续显示承接缺项，不以组根 SPEC 或空包替代。
 
-这里只登记编号和主题，不提前创建空的 topic 包；正式开题时再按准入规则建包。
+## 旧PF与点位来源
 
-| 编号 | 预留主题 | 当前安排 |
-|---|---|---|
-| PF-018 | WebUI 交付面 | 预留编号，尚未开题 |
-| PF-019 | Desktop 交付面 | 预留编号，尚未开题 |
+旧 PF 原文封存在 [product.0.0.1.legacy](../product.0.0.1.legacy/README.md)，不作为本表正文的并列现行源。原始点位按封存入口及各 topic 维护的来源引用核对；原坐标、哈希和评审快照只证明各自历史范围。尚未承接的 PF 内容由后续专项处理，不据旧源补项目要求或改写已接受架构。
 
-PF-020「工作区」与 [PF-021「日程与日历」](PF-021-schedule-and-calendar/README.md) 已按原定顺序开题；其余预留主题尚未开题。
+## 维护路径
 
-**PF-015 于 2026-09-21 开题**，见 [PF-015 会话的生命周期与归属](PF-015-session-lifecycle-and-ownership/README.md)。
-它是 2026-09-17「agent-loop / session / inbound 会是多个 PF，不是单个」那条裁决
-（记在 [PF-008 decisions](PF-008-human-in-the-loop/design.md)）的**最后一个落点**——
-agent-loop 是 [PF-012](PF-012-agent-loop-and-run/README.md)，
-模型调用那一层是 [PF-013](PF-013-model-profiles-and-invocation/README.md)，
-inbound 是 [PF-014](PF-014-inbound-intake-and-queueing/README.md)，**四个全部开题**。
+topic 按独立产品问题、读者和变化原因组织，不要求与工程能力组一一对应。新 topic 使用[模板](.templates/topic/README.md)。产品拥有者维护需求、旅程、能力、阶段和未决；实现拥有者依据绑定版本与覆盖的证据维护状态。配置范围、生效条件、领域职责和阶段版本写明确，没有实现证据时记录未核实。
 
-> **那两条吊在「这段协作到此为止」上的规则，已经落到锚点上了。**
-> 那个锚点是[归档](PF-015-session-lifecycle-and-ownership/design.md#会话归档)——
-> [现行词义](../ubiquitous_language/index.md)。
-> **两条的去向各不相同**：
->
-> - [会话授权上下文**不随归档消失**](PF-007-meta-capabilities/design.md#会话授权上下文)——
->   PF-007 rev 11 把它重定为**数据**，「随会话结束一起消失」那条作废；
-> - [通信规则一的条件问题](PF-007-meta-capabilities/design.md#92-报告之后派发者再发一条消息子拿什么回应)
->   已由 PF-007 rev 10 闭合——规则一改双向，规则二的条件明确为**会话仍未被归档**。
->
-> **PF-015 五块大纲现已全部有落点**（2026-09-23）：工具权限那条腿由
-> [PF-007 §5.6](PF-007-meta-capabilities/design.md#56-一次放行判断走四步) 接住——
-> 三档执行权限各落放行四步里的一处；执行环境权限归 [PF-005](PF-005-execution-environments-and-sandboxes/README.md)。
-> PF-015 rev 13 已正式接受，范围与保留未决项见 D-074。
+起草沿 `product-design`。写前加载 `asd-ste100`、`pstack:technical-writing`、`pstack:unslop`，写后按实际正文复核。概念沿[统一语言](../ubiquitous_language/README.md)，有身份的对象沿[领域对象](../domain_objects/README.md)。已答问题落实正文并退出活动问题；原问答与评审留任务 tmp。技术细节在所属组或成员维护，产品末块保留必要影响与跳转。
 
-> **2026-09-20**：**产品正文统一去历史化。**产品负责人的要求：
-> **`design.md` 只记录最终正式确定的设计**——「之前怎么样、现在怎么样」与推导过程
-> **十四个 topic 的 `design.md` / `flows.md` / `acceptance.md` / `README.md` 全部过了一遍**：
-> 删掉 rev 对照、交割说明、「原先写的是」，以及未决项里那些「rev N 已闭合」的条目；
-> **现行规则一个字没改，所以除 PF-010 与 PF-012 之外不升 rev**。
-> 这条规矩已写进[本区红线](AGENTS.md#红线)、`product-design` skill
-> 与 drafter / reviewer 两个 role。
+活动交付按[agent交付操作](../../../docs/engineering/agent-delivery.md)，正式提案从[RFC入口](../../../docs/rfcs/README.md)进入。长期规格承载当前决定版行为，不以单次任务材料替代；本区不保存过程账本或第二份技术契约。
 
-> **2026-09-19**：PF-011 开题为[非常态的分层处置](PF-011-off-nominal-handling/README.md)，
-> 它的地盘此前由 PF-012 的一节暂时拿着。**PF-011 本轮设计按产品负责人要求全程未参考那一份。**
->
-> **同日交割完成。**[PF-012 rev 2](PF-012-agent-loop-and-run/design.md) 在**同时看两边**的前提下
-> 把「失败三档」整块交出，并补上 rev 1 漏掉的那一半——
-> [Run 的终态与非常态的终局是两条线](PF-012-agent-loop-and-run/design.md#512-run-的终态与非常态的终局是两条线)。
-> **PF-011 同步升到 rev 3**，[那边 §9.1 已关](PF-011-off-nominal-handling/design.md)，
-> **模型一个字没改**。
+## 未决问题与待定事项
 
-> **2026-09-18 的一次编号重排**：PF-009 原名「上下文消息类型与上下文管理」，
-> 因体量过大**收窄为只讲消息类型**；上下文管理与组装另立 PF-010，
-> 异常分层处理另立 PF-011；**原 PF-010（Agent Loop 与 Run）顺延为 PF-012**。
-> 记录见 [PF-012 changelog](PF-012-agent-loop-and-run/design.md)。
+跨产品来源尚无完整现行拥有位置时，在本节登记承接待办。专题已有的产品政策与阶段决定由各自正文维护，本节不代选新的业务规则。
 
-## 一个 topic 包含什么
+<a id="product-e01"></a>
+### PRODUCT-E01 发生与记录条目的跨产品承接
 
-```text
-PF-0NN-<slug>/
-├── README.md         定位、关系声明、状态              ← 必须
-├── design.md         概念、模型、规则、取舍、边界、未决  ← 必须
-├── flows.md          旅程、异常分支、状态流转、角色矩阵
-├── acceptance.md     可观察场景、绝不能发生的事、判据
-├── stories.md        故事卡：还没交付的那几块，先做哪块、怎么演示
-```
+本项为来源承接待办。发生的事是否留下记录、条目性质、可见性、推进依据、干预力及寿命归属的共同产品范围尚未完整分配到现行正文。各业务事实仍由实际领域拥有者负责，本页只登记共同来源的承接缺项，不取得这些领域的业务所有权。
 
-四个必须的分别回答**是什么**、**谁定的**、**怎么变的**、**在哪**。
-其余按实际情况取舍：没有多步旅程就不必有 `flows.md`，还没切卡就不建 `stories.md`。
+产品维护者须会同 Agent、Session、消息及各产生记录的领域逐项核对责任，确认唯一正文和仍缺的采用依据。具体产品拥有位置及完整承接范围仍待确定。它影响跨系统约定与扩展记录来源的完整对账，不阻止有明确现行承诺的分支继续设计；不能据此采用统一事件流、选择字段或保留策略，也不重新裁定已接受架构。
 
-**故事卡是交付切片，不是产品含义。**一张卡是一个可以单独演示的用户可见结果，由若干条验收场景组成；
-它决定先交付哪一块，不增加也不改变任何一条规则，所以**改卡不升 rev**。
-**卡接受了就从 `stories.md` 删掉**：那份文件只放还没交付的，长期留下的是验收场景与守着它们的可执行验收。
-卡长什么样、它的一生、场景怎么编号、对账器守哪几条，见[故事卡的格式契约](conventions.md)。
+[封存来源](../product.0.0.1.legacy/PF-000-occurrences-and-record-entries/design.md)只用于核对引用范围与原始依据，不作为并列现行产品规则，也不表示完整旧 PF 已接受或已承接。
 
-**静态与动态分开**：`design.md` 说产品是什么，`flows.md` 说它怎么动。
-研发查「这步失败了怎么办」去 flows，查「这个概念是什么」去 design。
+<a id="product-e02"></a>
+### PRODUCT-E02 治理中心秘密处理的产品承接
 
-## topic 之间怎么建立联系
+本项为来源承接待办。治理中心秘密呈现、持久数据和备份暴露的产品责任尚未完整落位，具名应用产品正文及实际承接成员仍待确定。本项只登记数据保护入口引用的范围，不将整个治理中心产品责任交给身份或模型领域。
 
-关系声明在每个 topic 的 `README.md` front-matter，是唯一的机器可读处：
+应用交付与部署产品维护者须会同身份、Model 及数据保护拥有者核对产品输出、持久表示、部署密钥生成交付的例外与原始数据及备份中的可读范围。未闭合来源限制完整产品承接的声明，不授予运维者账号治理或秘密读取通道，不将产品不呈现解释为静态数据不可读，也不重开已有取舍。已接受的[数据保护与隐私架构](../../../docs/architecture/security/data-and-privacy.md)继续有效。
 
-```yaml
-relations:
-  supersedes: [PF-0NN]          # 取代：对方全部内容被吸收，对方进 archive
-  depends-on:                   # 依赖：引用对方定义，不重复展开
-    - id: PF-0NN
-      for: 一句话说明引用它的什么
-  extends: []                   # 发展：扩展对方范围，对方继续有效
-```
-
-反向关系（谁依赖我）由工具派生，**不手写**——手写的反向索引每次重组就作废。
-
-## 准入
-
-建一个新 topic 之前必须能回答：
-
-- 这解决谁的什么问题？（写不出「背景与问题」的 topic 不该存在）
-- 不做会怎样？
-- 边界到哪？它与现有 topic 的区别是什么？
-- 改动它的原因，和改动现有 topic 的原因一样吗？（一样就不是新 topic）
-
-答不上来就先不建包，把待答的问题留在交流笔记里。
-**不要先创建空 topic 等着以后补齐**——空壳会被当成已有设计。
-
-## 与技术设计的关系
-
-产品设计是技术设计的**输入**，不是它的一部分：
-
-产品正文给出业务规则与采用边界；系统级技术预期归[architecture](../architecture/README.md)，模块承诺随实际接口拥有者维护。产品topic不存技术快照或实现过程。两者作者视角不同：产品设计不做技术判断，技术设计不改产品语义。
-
-## 数据字典的边界
-
-概念的**业务属性与业务约束**写在 `design.md` 的概念定义里；
-精确的数据结构、类型和格式归实际接口拥有者的公开定义与必要Schema；从[架构维护入口](../architecture/README.md)定位。
-
-判据：这条约束产品负责人能看懂并判断对错吗？能，写产品侧；不能，归技术设计。
-两边各写一份完整字段规格必然不一致。
-
-返回[设计链入口](../README.md)。
-
-## 2026-09-27 工作区产品增量正式登记
-
-依据产品负责人授权“design/product 下的变更，如果未翻正式的，帮我翻一下顺手”，本次登记 PR #13 的 PF-001／002／003／004／005／006／007／014／015／016／017／020 工作区增量为正式产品设计。接受仅覆盖已确定条款与据已有裁决修正的残余矛盾；既有未决与此前接受范围保留，产品正式状态不升级冻结契约、提供者采用或实现完成度。独立评审范围与外部仓库登记仅参与者及受限时不取得工作区身份的同批裁决见 [PF-020 登记](PF-020-workspace/design.md)。
+[封存来源](../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#614-产品不把任何秘密的值交给运维者)只用于核对引用范围与原始依据，不作为并列现行产品规则，也不表示完整旧 PF 已接受或已承接。

@@ -3,10 +3,9 @@
 本页维护 monorepo 的源码归属、包边界与开发环境组织。产品实现以 TypeScript 为主；
 Python 当前服务于开发工具。
 
-> 成员入口见 [packages/README](../packages/README.md)、[apps/README](../apps/README.md)；承诺和证据沿[架构维护入口](../.meta_harness/design/architecture/README.md)查找，未迁单元仍查旧节点。本页维护归属与 workspace 规则，不另存易过期的成员总数。
+> 目标分组与包边界见[产品包组织](package-organization.md)，新骨架见[packages/README](../packages/README.md)、[apps/README](../apps/README.md)，旧成员查[legacy包](../packages.0.0.1.legacy/README.md)及[legacy应用](../apps.0.0.1.legacy/README.md)。领域责任从[领域入口](domains/README.md)定位，未迁契约仍从[原维护入口](../.meta_harness/design/architecture/README.md)定位。本页维护顶层归属与workspace操作规则，不另存成员总数或第二份目标包树。
 
-系统级要求与架构预期归 `.meta_harness/`；公开类型、薄 SPEC、必要 ADR 和验证资源随成员拥有者维护。
-公开承诺与必要验证资源由实际成员拥有；
+项目要求与已接受技术架构从[docs入口](README.md)定位；产品、统一语言及持续研究保持meta源。公开类型、行为契约、必要理由和验证资源随成员拥有者维护。
 目录和包的划分不直接决定插件、服务或部署边界。
 
 ## 目录与内容归属
@@ -20,28 +19,26 @@ Python 当前服务于开发工具。
 | 各包或应用内的 `src/` | 该成员的实现源码 | TS、Python 都可采用；源码跟随所属包，不汇入根 `src/` |
 | 各成员的 `tests/` | 该成员的验证 | 测试夹具就近维护；共享测试工具按实际消费边界提取 |
 | 各成员的 `acceptance/` | 产品验收场景的可执行验收 | 放在承载那些场景用户入口的成员里；见下面「可执行验收」 |
-| [docs/](README.md) | 项目开发文档：环境、布局、检查、防御指导 | 设计与 research 的权威正文归 `.meta_harness/` |
-| [.meta_harness/](../.meta_harness/README.md) | 可独立迁出的私有设计工作区 | 需求、产品、统一语言、全局架构预期、决定、研究与 agent 能力的唯一源；未迁规格仍在其中 |
+| [docs/](README.md) | 项目要求、工程、技术架构、领域关系及任务文档 | 各层拥有自己的正文，精确成员承诺随实际拥有者 |
+| [.meta_harness/](../.meta_harness/README.md) | 可独立迁出的私有设计工作区 | 产品、独立目标、统一语言、领域对象、持续研究及agent方法；未迁源保持原责任 |
 | 根 `.agents/`、`.claude/`、`.codex/` | 指向 `.meta_harness/` 内同名目录的相对软链接 | 只暴露生成产物；源与检查归工作区 |
 
 按用途和所有权选择顶层位置，再按实际依赖选择语言与构建工具。独立包不等于
 独立发布、独立进程或独立微服务，也不要求每个 Cordis 插件单独成包。
 
-产品包采用 `packages/<能力族>/<职责包>/` 两层：**第一层只组织相关能力，不是 workspace 成员**；
-第二层才拥有 `package.json`、`src`、依赖、公开入口和测试。
-能力的 Cordis 服务定义一律放 `packages/core/`，具体提供者放所属领域或 `infra/`；消费者依赖服务定义及契约、不依赖提供者，
-装配负责选择提供者。每个包的根入口与 Cordis 无关，Cordis 绑定放同包的 `./cordis` 入口。
-这些规则与其余集成规矩的权威在 [Cordis 集成约定](../.meta_harness/design/architecture/cordis-integration-conventions.md)。
-不机械地为每个插件创建包。
+产品包采用 `packages/<能力组>/<成员>/` 两层。第一层按相关知识组织维护位置，不是workspace成员；它拥有包群工程关系及维护文档。第二层拥有package.json、src、依赖、公开入口和验证，以及完整的使用、契约、设计和维护文档。两层文档要求归[成员文档规范](member-documentation.md)。目标组、包边界与新增路径由[产品包组织](package-organization.md)维护。
+
+能力的契约、实现、专属提供者、集成与验证就近维护，Service定义随契约的唯一拥有者；不再要求全部集中core。业务消费依赖公开契约，装配选择提供者，包根保持独立使用入口。Cordis形状及绑定规则仍由[集成约定](architecture/cordis-integration-conventions.md)拥有，目录治理不能扩大生命周期或同提交例外。
+
+公共Harness SDK、共同系统契约与服务端接入组织在access组，三者的职责和安装依赖分别核对。目标目录尚未全部实现，当前模板和静态检查的旧路径限制见[工具适配范围](package-organization.md#现有成员与工具适配)。
 
 **可执行验收**放在成员的 `acceptance/` 目录，与 `tests/` 分开，因为两者的主人不同：
 
-- **它认的是验收场景，不是故事卡。**[故事卡](../.meta_harness/design/product/conventions.md#卡的一生)接受之后就从产品区删掉，
-  验收却要一直守着那几条场景，所以文件名与内容都不带卡号。文件名是 `<topic 编号>.<一句话>.acceptance.ts`
+- **它持续验证产品场景。**任务结束后仍须维护相应场景，文件名与内容不绑定任务身份。文件名是 `<topic 编号>.<一句话>.acceptance.ts`
   （如 `PF-016.no-screen-points-to-machine-entry.acceptance.ts`），内容从用户入口驱动真实组合。
 - **每份验收在开头的注释里声明它覆盖哪些场景**，恰好一行：`// covers: PF-016 S5`，多条用逗号隔开（`// covers: PF-016 S5, PF-016 S6`）。
   声明的场景必须在那个 topic 的 `acceptance.md` 里存在——场景含义变了会换新编号，覆盖旧编号的验收于是被点名，要跟着改或删。
-  **一条场景交付了没有，就看有没有验收声明覆盖它**，不另外手写。
+  **覆盖声明只表示有验收程序声称覆盖该场景**，实际运行、结果及负责人接受分别核对，不由声明推定交付。
 - **数量跟着场景走，不跟着卡走。**新卡加强一条已有验收覆盖的流程时，改那份验收、把新场景加进它的声明；不为每张卡新建一份。
 - **长期留下的只有场景本身要成立的断言。**只在一张卡交付那一刻有意义的断言（如「与做这张卡之前一字不差」的快照比对）
   写的时候就标出来，卡接受时由拥有者删掉——留着它，以后任何一次正当的改动都会在这里变红。
@@ -53,26 +50,34 @@ Python 当前服务于开发工具。
 同源、同批 fork、共同构建或实验阶段**都不是**聚合不相关职责的理由。
 共享类型和有身份的运行时原语保持唯一拥有者，其他包通过公开入口复用。
 
-> **只为承诺和职责已明确、且确实要写代码的责任建成员。**新单元按[架构维护规则](../.meta_harness/design/architecture/README.md)就近维护类型与薄规格；
+> **只为承诺和职责已明确、且确实要写代码的责任建成员。**新单元按[架构维护规则](../.meta_harness/design/architecture/README.md)就近维护类型与完整行为承诺；
 > 不为尚未实现的承诺建空成员；
-> 第一层组名（`core`、`infra`、`tenancy`、`frontend`）随节点布局。
+> 新组按稳定责任及维护任务成立，不能从原节点布局或现有包名反推目标。使用模板前核对其实际支持范围。
 
-## 当前可执行代码
+## 目标骨架与封存实现
+
+新packages与apps只提供文档入口和缺项登记，没有真实产品成员或可启动应用。旧产品正文、应用及包分别保持在product.0.0.1.legacy、apps.0.0.1.legacy和packages.0.0.1.legacy；后缀不是发布版本。旧源用于核对及尚未退出的工具依赖，不授予架构采用。
+
+新包区按目标能力组维护工程关系，已具名目标成员维护长期 SPEC 与内部设计。尚未具名的行为规格承接继续计缺项。新产品区的[正式正文](../.meta_harness/design/product/README.md)包含需求、能力及实现状态、阶段承诺和未决四块。文档落位不建立可执行成员，也不授予设计或实现接受；常规新增成员的公开承诺与模板准入要求保持。
+
+## 现存实现与工具位置
+
+下面列的是封存实现及现存开发工具的位置。封存成员保留于workspace以解析工具的workspace依赖，不能算作新树的支持能力。旧布局专用的架构/测试选择仍待适配；完整旧产品构建不属于新骨架验收。
 
 ```text
 package.json / pnpm-workspace.yaml     TypeScript workspace、版本 catalog 与根聚合命令
 pnpm-lock.yaml                         TypeScript 依赖统一锁文件
 tsconfig.base.json                     全体 TS 成员共用的编译选项（NodeNext、strict、.ts 后缀导入）
-packages/core/{identity-values,offer-expiry,kernel-basis,storage}
+packages.0.0.1.legacy/core/{identity-values,offer-expiry,kernel-basis,storage}
                                        契约纯模块、Cordis 共用件与 probe、存储协议与一致性套件
-packages/infra/{storage-sql,clock}     存储与时钟提供者（sqlite/pg、租约时钟）
-packages/tenancy/{credential-verification,account-identity,organization-governance-sql,account-registration}
-                                       tenancy 插件与公开服务实现；完整成员从 packages/README 查找
-packages/frontend/governance-center-client-https
-packages/frontend/client-local-state-sqlite
-packages/frontend/governance-client-operations-local
+packages.0.0.1.legacy/infra/{storage-sql,clock}     存储与时钟提供者（sqlite/pg、租约时钟）
+packages.0.0.1.legacy/tenancy/{credential-verification,account-identity,organization-governance-sql,account-registration}
+                                       tenancy 插件与公开服务实现；完整成员从 packages.0.0.1.legacy/README 查找
+packages.0.0.1.legacy/frontend/governance-center-client-https
+packages.0.0.1.legacy/frontend/client-local-state-sqlite
+packages.0.0.1.legacy/frontend/governance-client-operations-local
                                        治理协议运输、本地完整状态与共享治理用例
-apps/cli/                             治理CLI应用；文件输入增量
+apps.0.0.1.legacy/cli/                             治理CLI应用；文件输入增量
 tools/artifact-builder/                TS 开发成员；应用归档文件校验与独占发布
 tools/ts-checks/                       TS 开发成员；产品源码结构检查规则与 CLI
 tools/core-verification/               TS 开发成员；core 真实组合与验证套件有效性自测
@@ -103,8 +108,8 @@ CI 配置（`.github/workflows/`）只负责触发条件、执行环境和调用
 生成器所需 PyYAML。工具包自行声明 jsonschema、Markdown/YAML 解析与构建依赖。
 `tool.uv.workspace.members` 指向 `tools/spec-tools`，`workspace = true` 绑定本地成员。
 
-TS workspace 由 pnpm 管理，[`pnpm-workspace.yaml`](../pnpm-workspace.yaml) 声明
-`packages/*/*`、`apps/*`、`tools/ts-checks`、`tools/artifact-builder` 与 `tools/core-verification`，并用 `catalog` 把第三方依赖的版本钉一次
+TS workspace 由 pnpm 管理，成员范围由[`pnpm-workspace.yaml`](../pnpm-workspace.yaml)声明，
+并用 `catalog` 把第三方依赖的版本钉一次
 （成员写 `catalog:`）。每个成员自带 `build`／`typecheck`／`test` 脚本；根命令的构建与类型检查用 `pnpm -r` 聚合，
 测试由 [tools/ts-checks 的测试运行入口](../tools/ts-checks/README_ZH.md#测试运行)逐成员调用各自的 `test` 脚本
 （成员清单仍读 `pnpm-workspace.yaml`）。测试框架是 vitest（`*.spec.ts` 运行时、`*.spec-d.ts` 类型测试）。

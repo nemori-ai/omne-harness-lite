@@ -103,6 +103,11 @@ export function findingsOf(readings: HookReadings): Finding[] {
         key: `intent\u0000${row.id}\u0000${row.before}\u0000${row.after}`,
         text: `架构预期改动：${row.id}（${row.path}）；与新增偏离分别核对`,
       })
+    for (const row of explain.conformance.data.sourceChanges)
+      out.push({
+        key: `intent-source\u0000${row.path}\u0000${row.before}\u0000${row.after}`,
+        text: `架构依据字节变化：${row.path}；须核对含义，哈希不证明语义变化或符合`,
+      })
     for (const row of explain.conformance.data.rows.filter(row => row.age === 'new'))
       out.push({
         key: `conformance\u0000${row.id}`,

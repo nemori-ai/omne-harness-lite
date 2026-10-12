@@ -21,7 +21,7 @@
 > **三层互不牵连。**一个工具可以「**在动作空间里 + 不占槽位 + 当下不可用**」——
 > **三个取值各说各的**。
 
-- **出处**：[PF-006 §4 三层](../../product/PF-006-tools-and-skills/design.md#三层能做什么--怎么够得着--现在做不做得了) · [§5.1](../../product/PF-006-tools-and-skills/design.md#51-三层正交)（rev 24）
+- **出处**：[PF-006 §4 三层](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#三层能做什么--怎么够得着--现在做不做得了) · [§5.1](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#51-三层正交)（rev 24）
 
 ## 怎么够得着
 
@@ -44,7 +44,7 @@
 > not occupying a slot** — it remains in the action space, reachable through the discovery entry.
 
 - **形态**：属性
-- **出处**：[PF-006 §4 常驻](../../product/PF-006-tools-and-skills/design.md#常驻)（rev 24）
+- **出处**：[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
 - **别混**：**它是那份 Agent Definition 或 Plugin 上的一项设置**（引用条目长在那里），
   归[偏好类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)，由持有它的各层配值——**不是工具或技能自己的设置**
 - **注意**：**上下文预算是装配方的问题，工具作者根本不知道**——这就是标记挂在引用上而非资产上的理由
@@ -56,7 +56,7 @@
 > **EN**: The evaluated usability of an admitted tool, skill or MCP capability: current selection and governance must permit it, and required implementations and dependencies must hold. It is checked at attempt start and subsequent use respects effective changes. Unavailability does not erase the session’s known identity.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 可用性](../../product/PF-006-tools-and-skills/design.md#可用性) · [§6.2](../../product/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
+- **出处**：[PF-006 §4 可用性](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#可用性) · [§6.2](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#62-可用性在每次-run-开始前重算)（rev 24）
 - **别混**：禁用是治理输入，当下可用性是求值结果；禁用可使已知条目不可用，不能使从未合法纳入的条目凭空可见。执行权限准入仍单独适用。
 
 ### UL-stand-in · 替换件 · Stand-in
@@ -77,7 +77,7 @@
 > remains that of the original entry in the action space.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 替换件](../../product/PF-006-tools-and-skills/design.md#替换件) · [§6.3](../../product/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)（rev 24）
+- **出处**：[PF-006 §4 替换件](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#替换件) · [§6.3](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)（rev 24）
 - **别混**：**它不是另一个条目**——动作空间里的条目一个没多、一个没少，变的只有那一条的说明与应答
 - **注意 ①**：**不可用时装的是它，不是「不装」**——**藏起来 agent 会以为自己没这个能力，而实际只是暂时用不了**
 - **注意 ②**：**说明不是闸**，agent 读到了照样可能调它——所以它的行为只有一种。
@@ -104,7 +104,7 @@
 > **anything a tool can do without stays out of the declaration and is probed at use**.
 
 - **形态**：属性
-- **出处**：[PF-006 §4 依赖](../../product/PF-006-tools-and-skills/design.md#依赖) · [§6.4](../../product/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 24）
+- **出处**：[PF-006 §4 依赖](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#依赖) · [§6.4](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#64-依赖声明与解析)（rev 24）
 - **别混**：这里的「**外部服务**」**不是 [PF-002 排除掉的那个 Service](capabilities-and-composition.md#ul-asset--资产--asset)**——
   那条排除的是 Cordis 的运行时概念。**指前者时必须写全 `Cordis service`**
 - **注意**：**声明不是免费的**——每多一项就多一个可能不被满足的前提，
@@ -121,9 +121,9 @@
 > **EN**: A session view exposing the adopted result for an asset category. Known Tool, Skill and MCP identities are retained while current definition data, implementation selection and unavailability reasons may change. Reload updates its selected sources without erasing known capability identities. Human slash-command entry points retain their own visibility and revocation rules rather than capability-identity monotonicity.
 
 - **形态**：视图
-- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) ·
-  [§4「谁可以使用它」是各类资产共用的一项权限](../../product/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)（rev 32） ·
-  [PF-016 §5.7 人要做的事分三族](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）
+- **出处**：[PF-002 §4 会话认得哪些命令，什么时候变](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#会话认得哪些命令什么时候变) ·
+  [§4「谁可以使用它」是各类资产共用的一项权限](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#谁可以使用它是各类资产共用的一项权限)（rev 32） ·
+  [PF-016 §5.7 人要做的事分三族](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)（rev 13）
 - **别混**：不是历史装配清单，不是资产所有权目录；保留历史可见身份不授予继续使用的权利。
 
 ### UL-governance-center-health-check · 治理中心体检 · Governance Center Health Check
@@ -146,9 +146,9 @@
 > it to "center health check".
 
 - **形态**：视图
-- **出处**：[PF-017 §4 中心体检](../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检) ·
-  [§6.17](../../product/PF-017-governance-center-as-deployable-application/design.md#617-体检只说部署不说里面有谁)（rev 7）
-- **⚠️ 别混**：与 [PF-016 本机族的「体检」](../../product/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)是**同一个词的两头**：
+- **出处**：[PF-017 §4 中心体检](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心体检) ·
+  [§6.17](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#617-体检只说部署不说里面有谁)（rev 8）
+- **⚠️ 别混**：与 [PF-016 本机族的「体检」](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#57-人要做的事分三族)是**同一个词的两头**：
   那边是客户端自查「能不能连上中心」，这边是中心自述「我在不在」；**取同一个词是有意的**，两头合起来才是「这条路通不通」
 - **注意**：不是[当下可用性](#ul-current-availability--当下可用性--current-availability)——那是一份能力的依赖解析结果，这是一次部署的自述
 
@@ -170,15 +170,15 @@
 > not mean they are invalid; a run already under way can continue while the center is unreachable. A new run still requires confirmation of a valid login before it starts.
 
 - **形态**：属性
-- **出处**：[PF-016 §6.17](../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) ·
-  [§5.6 哪几件事必须现读](../../product/PF-016-cli-tui-delivery-surface/design.md#哪几件事必须现读)（rev 13） ·
-  [PF-017 §4 中心体检](../../product/PF-017-governance-center-as-deployable-application/design.md#中心体检)（rev 7）
+- **出处**：[PF-016 §6.17](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活) ·
+  [§5.6 哪几件事必须现读](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#哪几件事必须现读)（rev 13） ·
+  [PF-017 §4 中心体检](../../product.0.0.1.legacy/PF-017-governance-center-as-deployable-application/design.md#中心体检)（rev 8）
 - **⚠️ 别混 ①**：**不是[治理中心体检](#ul-governance-center-health-check--治理中心体检--governance-center-health-check)**——
   体检是中心自述「我在不在、能不能答」；这一条是据点这一头的观察。体检答「数据所在够不着」，中心照样在应答，照样可达
 - **别混 ②**：**裸写「可达性」不作数**——形式检查里的可达性说的是某个状态走不走得到，
   [当下可用性](#ul-current-availability--当下可用性--current-availability)说的是一样能力此刻用不用得了，都与这一条无关
 - **注意 ①**：**它变了不让任何东西停下**——中心问不到不是让据点上任何在途工作停的理由；
-  再连上之后，那几件必须现读的事按新读到的重新算（[PF-016 §6.17](../../product/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)）
+  再连上之后，那几件必须现读的事按新读到的重新算（[PF-016 §6.17](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#617-治理中心不可达已经开着的会话照常干活)）
 - **注意 ②**：规格层（`capability.center-connection` v2，本能力在规格里叫「中心连接」）把它分成三态：
   多出的「尚未判定」是据点这一侧起来之后还没有任何一次往来有结果——**既不当可达，也不当不可达**
 

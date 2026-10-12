@@ -1,7 +1,7 @@
 {
   "format": 1,
   "id": "typescript-package",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "requiredFiles": [
     "package.json",
     "README.md",
@@ -9,7 +9,8 @@
     "tsconfig.build.json",
     "tsconfig.test.json",
     "vitest.config.ts",
-    "src/index.ts"
+    "src/index.ts",
+    "documentation.json"
   ],
   "common": [
     {
@@ -35,6 +36,10 @@
     {
       "source": "common/README_ZH.md.tpl",
       "target": "README_ZH.md"
+    },
+    {
+      "source": "common/documentation.json.tpl",
+      "target": "documentation.json"
     }
   ],
   "variants": {
@@ -75,12 +80,135 @@
       }
     ]
   },
-  "previousVersions": {},
+  "previousVersions": {
+    "1.0.0": {
+      "requiredFiles": [
+        "package.json",
+        "README.md",
+        "README_ZH.md",
+        "tsconfig.build.json",
+        "tsconfig.test.json",
+        "vitest.config.ts",
+        "src/index.ts"
+      ],
+      "variantRequiredFiles": {
+        "module": [],
+        "cordis-module": [
+          "src/cordis.ts",
+          "SPEC.md"
+        ],
+        "service-contract": [
+          "src/cordis.ts",
+          "SPEC.md"
+        ],
+        "service-provider": [
+          "src/cordis.ts",
+          "SPEC.md"
+        ]
+      },
+      "layout": {
+        "files": [
+          "package.json",
+          "README.md",
+          "README_ZH.md",
+          "SPEC.md",
+          "tsconfig.build.json",
+          "tsconfig.test.json",
+          "vitest.config.ts",
+          "vitest.acceptance.config.ts",
+          "src/**/*.ts",
+          "tests/**/*.ts",
+          "tests/**/*.mjs",
+          "tests/**/*.py",
+          "tests/**/*.md",
+          "tests/fixtures/**/*",
+          "schema/**/*.json",
+          "schema/README.md",
+          "verification/README.md",
+          "verification/models/**/*.tla",
+          "verification/models/**/*.cfg",
+          "verification/models/**/*.als",
+          "verification/models/**/*.md",
+          "verification/models/**/*.ts",
+          "verification/models/**/*.py",
+          "verification/models/**/*.json",
+          "verification/models/**/*.smt2",
+          "verification/proofs/**/*.md",
+          "verification/proofs/**/*.tex",
+          "verification/proofs/**/*.lean",
+          "verification/proofs/**/*.v",
+          "verification/proofs/**/*.dfy",
+          "verification/proofs/**/*.smt2",
+          "adr/**/*.md",
+          "acceptance/**/*.ts",
+          "acceptance/**/*.md",
+          "acceptance/fixtures/**/*",
+          "examples/**/*.ts",
+          "examples/**/*.mjs",
+          "examples/**/*.md",
+          "provenance.json",
+          "UPSTREAM.md",
+          "LICENSE",
+          "LICENSE.*",
+          "resources/**/*.json",
+          "resources/**/*.jinja",
+          "resources/**/*.model",
+          "resources/**/*.md",
+          "resources/**/LICENSE",
+          "resources/**/LICENSE.*"
+        ],
+        "requiredDirectories": [
+          "src",
+          "tests"
+        ],
+        "ignoredDirectories": [
+          "node_modules",
+          "dist",
+          "generated",
+          "coverage",
+          "tmp"
+        ],
+        "companions": [
+          {
+            "path": "verification",
+            "requires": [
+              "verification/README.md"
+            ]
+          },
+          {
+            "path": "acceptance",
+            "requires": [
+              "vitest.acceptance.config.ts"
+            ]
+          },
+          {
+            "path": "vitest.acceptance.config.ts",
+            "requires": [
+              "acceptance"
+            ]
+          }
+        ],
+        "requiredFileGroups": [
+          {
+            "patterns": [
+              "tests/**/*.spec.ts",
+              "tests/**/*.spec-d.ts",
+              "tests/basis/**/*.test.ts"
+            ],
+            "minimum": 1
+          }
+        ]
+      },
+      "ruleSet": 2
+    }
+  },
   "layout": {
     "files": [
       "package.json",
       "README.md",
       "README_ZH.md",
+      "AGENTS.md",
+      "CLAUDE.md",
       "SPEC.md",
       "tsconfig.build.json",
       "tsconfig.test.json",
@@ -125,7 +253,12 @@
       "resources/**/*.model",
       "resources/**/*.md",
       "resources/**/LICENSE",
-      "resources/**/LICENSE.*"
+      "resources/**/LICENSE.*",
+      "documentation.json",
+      "docs/**/*.md",
+      "docs/**/*.svg",
+      "docs/**/*.png",
+      "docs/**/*.webp"
     ],
     "requiredDirectories": [
       "src",

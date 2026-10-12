@@ -341,6 +341,12 @@ class Extractor {
       })
   }
   classPluginName(node: ts.ClassDeclaration, context: WalkContext): string {
+    const serviceDefinition = {
+      ...this.resolver.site(node),
+      member: context.member,
+      symbol: node.name?.text ?? 'default',
+      offset: node.getStart(),
+    }
     const metadata = node.members.find(
       item =>
         (ts.isPropertyDeclaration(item) || ts.isGetAccessorDeclaration(item)) &&
@@ -352,11 +358,12 @@ class Extractor {
         ? (metadata.initializer ?? metadata.name)
         : metadata
       return (
-        this.key('plugin', value, context) ?? `unresolved:class:${node.name?.text ?? 'default'}`
+        this.key('plugin', value, context, { serviceDefinition }) ??
+        `unresolved:class:${node.name?.text ?? 'default'}`
       )
     }
     const name = node.name?.text ?? 'default'
-    this.add('plugin', name, node, context)
+    this.add('plugin', name, node, context, { serviceDefinition })
     return name
   }
   discoverService(node: ts.ClassDeclaration, context: WalkContext): void {
@@ -1016,6 +1023,12 @@ class Extractor {
         if (this.serviceBase(plugin.serviceClass) !== undefined)
           this.key('provides', this.classKey(plugin.serviceClass), context, {
             provideForm: 'class-plugin',
+            serviceDefinition: {
+              ...this.resolver.site(plugin.serviceClass),
+              member: plugin.member,
+              symbol: plugin.serviceClass.name?.text ?? 'default',
+              offset: plugin.serviceClass.getStart(),
+            },
           })
         for (const item of plugin.serviceClass.members)
           if (ts.isConstructorDeclaration(item) || ts.isMethodDeclaration(item))

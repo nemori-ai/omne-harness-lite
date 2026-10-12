@@ -48,7 +48,7 @@ A 把个人组织里 skill `ast_x`（所有者 `P_A`，已发布 v1、v3）的 *
 |---|---|---|---|
 | 1 | `issueCopyNotice((P_A,A), {ast_x, 4}, {tenant:(C1,A)})` | `landed{ overwritten{ newVersion=2 } }` | 当前设计 |
 | 2 | 观察 `ast_y` | 记录号不变；**v2** 内容整体等于 `ast_x` 的 v4；v1 仍在、可查可回退；血缘 `lineage=ln_1` **不变**，`sourceVersion=4`、`imports=2` | 当前设计 |
-| 3 | 观察 A 那层的持有与配值 | **那一项配值与锁照旧**；持有照旧 | 当前设计、[§6.7](../../../product/PF-003-asset-transfer-and-sharing/design.md#67-覆盖的范围内容覆盖配置不动) |
+| 3 | 观察 A 那层的持有与配值 | **那一项配值与锁照旧**；持有照旧 | 当前设计、[§6.7](../../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#67-覆盖的范围内容覆盖配置不动) |
 
 **带尝试键的重放**（当前设计）：第 1 步若带键 `k_1` 发起、回执丢了，A 用 `k_1` 再调一次 ⇒ 返回**同一个** `landed{ overwritten{ newVersion=2 } }`，`ast_y` **没有 v3**；不带键再调 ⇒ 一次新的重复复制，`ast_y` 多出 v3（`imports=3`）。
 
@@ -59,7 +59,7 @@ A 把个人组织里 skill `ast_x`（所有者 `P_A`，已发布 v1、v3）的 *
 | 步 | 调用 | 预期 | 依据 |
 |---|---|---|---|
 | 1 | （第 1 节末尾那一次） | `created{ asset=ast_z, **未取得持有** }`，并告知同一能力标识下现在有两份 | 当前设计 |
-| 2 | 观察 | `ast_c2` **一字节不动**、它的持有**不动**；`ast_z` 是 `C2` 的一份新记录，带新血缘；谁生效由 `C2` 自己决定 | [§6.8](../../../product/PF-003-asset-transfer-and-sharing/design.md#68-能力标识撞车但没有血缘) |
+| 2 | 观察 | `ast_c2` **一字节不动**、它的持有**不动**；`ast_z` 是 `C2` 的一份新记录，带新血缘；谁生效由 `C2` 自己决定 | [§6.8](../../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#68-能力标识撞车但没有血缘) |
 | 3 | A 再把 `ast_x` 复制进 `{tenant:(C2,A)}` | **又是 `created`**——`C2` 组织级那份 `ast_z` 不动；A 在 `C2` 的租户级多一份，各有各的血缘 | 当前设计「先定层，再在那一层里找」 |
 
 ## 4. 组织型复制：集团把模板复制给子公司
@@ -72,7 +72,7 @@ A 把个人组织里 skill `ast_x`（所有者 `P_A`，已发布 v1、v3）的 *
 | 2 | `listPendingForOrganization((C1,T), {org:C1})` | 一项：复制通知 `cn_1` 与它的 `OfferTiming`；**不带内容、不带源** | 当前设计 |
 | 3 | `readCopyNotice((C1,T), cn_1)` | 目标侧投影：**源组织 `G`**、能力标识、源版本号 2、v2 的内容、`pending`、**此刻确认会是首次**；**没有 `ast_m`**，也没有 `ast_m` 的其余版本与草稿、没有 R | 当前设计 |
 | 4 | `confirmCopy((C1,T), cn_1)` | `created{ asset=ast_k, 已取得持有 }` | 当前设计 |
-| 5 | 观察 `ast_k` | 所有者 `C1`；**作者 `(C1, T)`**——确认的那位超管；血缘 `importedBy=(C1,T)`；**`byAgent = false`**——取 R 发起那一次调用的上下文（复制通知上记着），T 的确认不改它 | 当前设计、[§6.5](../../../product/PF-003-asset-transfer-and-sharing/design.md#65-首次复制) |
+| 5 | 观察 `ast_k` | 所有者 `C1`；**作者 `(C1, T)`**——确认的那位超管；血缘 `importedBy=(C1,T)`；**`byAgent = false`**——取 R 发起那一次调用的上下文（复制通知上记着），T 的确认不改它 | 当前设计、[§6.5](../../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#65-首次复制) |
 | 6 | `C1` 的普通成员 `(C1,B)` 调 `confirmCopy` | `notPermitted` | 当前设计 |
 
 ## 5. 组织间分享的确认、跟随与撤销
@@ -83,7 +83,7 @@ A 把个人组织里 skill `ast_x`（所有者 `P_A`，已发布 v1、v3）的 *
 |---|---|---|---|
 | 1 | `issueSharingInvitation((G,R), ast_s, {org:C1})` | `pending{ si_1 }` | 当前设计：团队 → 同树团队；资产归组织，R 是超管 |
 | 2 | `confirmSharing((C1,T), si_1)` | `sh_1`，已取得持有（`C1` 组织层，basis `shared{sh_1}`）；`sh_1` 的确认时刻记下 | 当前设计 |
-| 3 | `G` 发布 v6 | `C1` 下一次求值用到 **v6**，没有任何人做任何操作 | 当前设计、[§6.11](../../../product/PF-003-asset-transfer-and-sharing/design.md#611-分享的同步与自保) |
+| 3 | `G` 发布 v6 | `C1` 下一次求值用到 **v6**，没有任何人做任何操作 | 当前设计、[§6.11](../../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#611-分享的同步与自保) |
 | 4 | 再发一份 `si_2`（同一对）并确认 | 返回 **`sh_1`**，不新建 | 当前设计 |
 | 5 | `revokeSharing((G,R), sh_1)` | `ok`；`listSharings((C1,T), C1)` 默认档里没有它，全部档里它是 `revoked` | 当前设计 |
 | 6 | 观察 `C1` | 下一次使用被拒；**`C1` 那层的持有与配值还在**，不可用 | 当前设计 |
@@ -99,7 +99,7 @@ A 把个人组织里 skill `ast_x`（所有者 `P_A`，已发布 v1、v3）的 *
 |---|---|---|---|
 | 1 | 解除之后 `listSharings((C1,T), C1, 全部)` | `sh_1` 此刻是 **`dissolved`**——算出来的，存储里它仍记为 `active` | 当前设计 |
 | 2 | `C1` 下一次求值 | `ast_s` 那份 shared 持有**不可用** | 当前设计 |
-| 3 | 复制进 `C1` 的 `ast_k` | **照常用、照常改** | [§6.12](../../../product/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后) |
+| 3 | 复制进 `C1` 的 `ast_k` | **照常用、照常改** | [§6.12](../../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#612-关系解除之后) |
 | 4 | `C1` 重新隶属 `G` | `sh_1` **仍是 `dissolved`、仍不可用**——`C1` 的隶属建立时刻晚于 `sh_1` 的确认时刻 | 当前设计 第三个合取项、当前设计 |
 | 5 | R 再分享一次、T 再确认 | **新的 `sh_2`**，可用——不认回 `sh_1`（它不生效） | 当前设计 |
 | 6 | 关掉 `affiliation.dissolved` 的派发、解除与重建之间不做任何读，重跑 1～5 | **结果完全相同** | 当前设计 |
@@ -146,7 +146,7 @@ A 在 `C1` 的租户级有 tool `ast_t`（所有者 `(C1, A)`，已发布）。A
 | `sourceNotOwned` | A 拿 `C1` 里**另一个成员**的租户级资产号去发复制——与「这个号不存在」给**同一个值** | 当前设计 |
 | `versionNotPublished` | `issueCopyNotice((P_A,A), {ast_x, 2}, {tenant:(C1,A)})`：`ast_x` 没有 v2（只有草稿与 v1、v3） | 当前设计 |
 | `officialNotTransferable` | 任何人对一份 `origin = official` 的资产发起复制或分享 | 当前设计 |
-| `notTransitive` | 第 5 节确认之后，T 把 `ast_s` 分享给 `C2`（或复制出去）；第 7 节第 7 步 | 当前设计、[§6.13](../../../product/PF-003-asset-transfer-and-sharing/design.md#613-分享不可传递) |
+| `notTransitive` | 第 5 节确认之后，T 把 `ast_s` 分享给 `C2`（或复制出去）；第 7 节第 7 步 | 当前设计、[§6.13](../../../product.0.0.1.legacy/PF-003-asset-transfer-and-sharing/design.md#613-分享不可传递) |
 | `noticeNotFound` | `C2` 的超管读或确认 `cn_1`（目标是 `C1`，不是他的组织）——与「这个号不存在」同值 | 当前设计 |
 | `invitationNotFound` | `X` 的超管读 `si_1`；第 7 节第 3 步 | 当前设计 |
 | `sharingNotFound` | `C2` 的超管对 `sh_1` 调 `removeShared` | 当前设计 |

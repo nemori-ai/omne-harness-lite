@@ -6,26 +6,19 @@ import { BAND_WORDS, type Band, type Lines } from './bands.ts'
 import { BUDGET_LABELS } from './budget.ts'
 import { CATEGORIES } from './catalogue.ts'
 import type {
-  CardsBlock,
   CatalogueBlock,
   CommitsBlock,
   DebtBlock,
   Health,
-  RemainingBlock,
   SensorLast,
   Series,
-  Span,
   TestsBlock,
-  WeekCount,
 } from './health.ts'
 import { fixed } from './proposals.ts'
 import type { Reading } from './reading.ts'
 import { INDICATOR_LABELS } from './status.ts'
 
 export const SECTION_TITLES = {
-  cards: '卡',
-  weekly: '每周接受数',
-  remaining: '各 topic 剩余卡数',
   commits: '提交与合并的大小',
   tests: '测试耗时',
   debt: '债的走向',
@@ -34,16 +27,6 @@ export const SECTION_TITLES = {
 } as const
 
 const esc = (text: string) => escapeHtml(text).replaceAll('"', '&quot;')
-
-export function formatHours(hours: number): string {
-  return hours < 24 ? `${hours.toFixed(1)} 小时` : `${(hours / 24).toFixed(1)} 天`
-}
-
-export function spanText(span: Span): string {
-  if (span.kind === 'done') return formatHours(span.hours)
-  if (span.kind === 'open') return `进行中，已过 ${formatHours(span.elapsedHours)}`
-  return '算不出：台账里没有 proposed'
-}
 
 const pad = (value: number) => String(value).padStart(2, '0')
 
@@ -130,59 +113,6 @@ export function sparkline(values: readonly (number | null)[], lines: Lines | nul
       `<circle cx="${x(lastIndex).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3" style="fill:var(--changed)"/>`,
     )
   return `<svg class="spark" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img">${parts.join('')}</svg>`
-}
-
-function cardsHtml(block: CardsBlock): string {
-  const lead =
-    block.leadTime.status === 'no-data'
-      ? `<div class="meta">前置时间：没有数据，${esc(block.leadTime.reason)}</div>`
-      : `<div class="meta">接受过的 ${block.leadTime.data.count} 张卡，提出→接受的前置时间：中位数 ${formatHours(block.leadTime.data.medianHours)}，最长 ${formatHours(block.leadTime.data.maxHours)}</div>`
-  const time = (iso: string | undefined) => (iso === undefined ? '—' : localTime(iso))
-  return (
-    lead +
-    table(
-      ['卡号', '标题', '提出', '第一次能跑', '接受', '提出→能跑', '提出→接受'],
-      block.rows.map(row => [
-        `<span class="mono">${esc(row.card)}</span>`,
-        row.title === undefined
-          ? '<span class="empty">不在任何 stories.md 里</span>'
-          : `${esc(row.title)} <span class="meta mono">${esc(row.topic ?? '')}</span>`,
-        time(row.proposed),
-        time(row.runnable),
-        time(row.accepted),
-        esc(spanText(row.toRunnable)),
-        esc(spanText(row.toAccepted)),
-      ]),
-    )
-  )
-}
-
-function weeklyHtml(weeks: readonly WeekCount[]): string {
-  const most = Math.max(1, ...weeks.map(week => week.accepted))
-  return table(
-    ['周一', '接受', ''],
-    weeks.map(week => [
-      week.start,
-      String(week.accepted),
-      `<span style="display:inline-block;height:10px;background:var(--good);width:${Math.round((week.accepted / most) * 160)}px"></span>`,
-    ]),
-    [1],
-  )
-}
-
-function remainingHtml(block: RemainingBlock): string {
-  const rows = block.topics.map(topic => [
-    `<span class="mono">${esc(topic.topic)}</span>`,
-    String(topic.total),
-    String(topic.accepted),
-    String(topic.remaining),
-    String(topic.notReady),
-  ])
-  const unlisted =
-    block.unlisted.length === 0
-      ? ''
-      : `<div class="meta">台账里接受过、却不在任何 stories.md 里的卡：${esc(block.unlisted.join('、'))}</div>`
-  return table(['topic', '卡', '已接受', '剩余', '剩余里未就绪'], rows, [1, 2, 3, 4]) + unlisted
 }
 
 function commitsHtml(block: CommitsBlock): string {
@@ -331,11 +261,8 @@ export function renderHealthPage(health: Health): string {
 <body>
 <h1>流程体检 <span class="mono">${esc(meta.shortHead)}</span>${meta.dirty ? '<span class="badge bad">工作树不干净</span>' : ''}</h1>
 <div class="meta">生成于 ${esc(meta.generatedAt)} · 提交 <span class="mono">${esc(meta.head)}</span> · 分支 <span class="mono">${esc(meta.branch)}</span> · 回路目录 <span class="mono">${esc(meta.home)}</span></div>
-<div class="meta">窗口：每周接受数看最近 ${meta.windows.weeks} 周 · 提交看最近 ${meta.windows.commits} 个 · 测试看最近 ${meta.windows.runs} 次全量运行</div>
+<div class="meta">窗口：提交看最近 ${meta.windows.commits} 个 · 测试看最近 ${meta.windows.runs} 次全量运行</div>
 ${notes}
-${section(SECTION_TITLES.cards, health.cards, cardsHtml)}
-${section(SECTION_TITLES.weekly, health.weekly, weeklyHtml)}
-${section(SECTION_TITLES.remaining, health.remaining, remainingHtml)}
 ${section(SECTION_TITLES.commits, health.commits, commitsHtml)}
 ${section(SECTION_TITLES.tests, health.tests, testsHtml)}
 ${section(SECTION_TITLES.debt, health.debt, debtHtml)}
@@ -372,22 +299,6 @@ export function healthSummary(health: Health, pagePath: string): string[] {
   return [
     `流程体检 ${meta.shortHead}${meta.dirty ? '（工作树不干净）' : ''} · 分支 ${meta.branch} · 生成于 ${meta.generatedAt}`,
     ...meta.notes.slice(0, 2),
-    line(SECTION_TITLES.cards, health.cards, block => {
-      const open = block.rows.filter(row => row.toAccepted.kind !== 'done').length
-      const lead =
-        block.leadTime.status === 'no-data'
-          ? '前置时间没有数据'
-          : `前置时间中位数 ${formatHours(block.leadTime.data.medianHours)}、最长 ${formatHours(block.leadTime.data.maxHours)}`
-      return `${block.rows.length} 张，已接受 ${block.rows.length - open}，未走完 ${open}；${lead}`
-    }),
-    line(SECTION_TITLES.weekly, health.weekly, weeks =>
-      weeks.map(week => `${week.start.slice(5)} ${week.accepted}`).join('，'),
-    ),
-    line(SECTION_TITLES.remaining, health.remaining, block => {
-      const sum = (key: 'total' | 'remaining' | 'notReady') =>
-        block.topics.reduce((total, topic) => total + topic[key], 0)
-      return `${block.topics.length} 个 topic，共 ${sum('total')} 张，剩余 ${sum('remaining')}（其中未就绪 ${sum('notReady')}）`
-    }),
     line(SECTION_TITLES.commits, health.commits, block => {
       const top = block.largest[0]
       return `${block.branch} 最近 ${block.count} 个，文件数中位数 ${block.medianFiles}、最大 ${block.maxFiles}${top === undefined ? '' : `（${top.sha.slice(0, 9)} ${top.subject}）`}`

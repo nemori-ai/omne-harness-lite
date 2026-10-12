@@ -1,6 +1,7 @@
 // `make check` 里按计划执行的几步：pytest、构建、类型检查、成员测试（快慢两层）、可执行验收；
 // 以及它们共用的「跑一批成员的脚本并写耗时账本」。计划由 `affected.ts` 算，这里只照着执行、照实说跳了什么。
 import { spawnSync } from 'node:child_process'
+import { baselines } from '../integration/context.ts'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
@@ -78,6 +79,7 @@ export function readPlanFile(root: string, path: string): PlanFile {
   if (!existsSync(path)) throw new Error(`计划文件 ${path} 不存在：先跑 cli.ts plan --json ${path}`)
   const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
   if (!isPlanFile(parsed)) throw new Error(`计划文件 ${path} 的形状不对：重新算计划`)
+  baselines(root, parsed.base.ref)
   const head = coordinates(root, undefined).head
   if (parsed.head !== head)
     throw new Error(
@@ -127,13 +129,31 @@ export function pythonStep(root: string, file: PlanFile): number {
     return 0
   }
   console.log(`pytest：跑——${file.plan.python.reason}`)
-  return spawnInherited(root, 'make', ['--no-print-directory', 'test'])
+  const runner = process.env['OMNE_RUNNER_ROOT']
+  return runner === undefined
+    ? spawnInherited(root, 'make', ['--no-print-directory', 'test'])
+    : spawnInherited(root, 'uv', [
+        'run',
+        '--project',
+        runner,
+        '--locked',
+        'pytest',
+        '-c',
+        join(runner, 'pyproject.toml'),
+        '--basetemp',
+        join(root, 'tmp/test-runs'),
+        ...[
+          'tools/spec-tools/tests',
+          '.meta_harness/tooling/tests',
+          '.meta_harness/agents/skills/design-subagents/canonical/scripts',
+        ].map(path => join(root, path)),
+      ])
 }
 
 /** 构建或类型检查：全量用根脚本（唯一的「全部」定义）；按范围用 pnpm 逐个点名，`-r` 按拓扑顺序跑。 */
 export function pnpmStep(root: string, file: PlanFile, script: 'build' | 'typecheck'): number {
   const name = script === 'build' ? '构建' : '类型检查'
-  if (file.plan.mode === 'full') {
+  if (file.plan.mode === 'full' && process.env['OMNE_RUNNER_ROOT'] === undefined) {
     console.log(`${name}：全量（根 pnpm run ${script}）`)
     return spawnInherited(root, 'pnpm', ['run', script])
   }
