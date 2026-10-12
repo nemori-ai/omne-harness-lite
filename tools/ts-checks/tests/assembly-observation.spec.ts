@@ -4,7 +4,7 @@ import { ogS42DynamicResolve } from '../src/index.ts'
 
 const path = 'tenancy-host/src/policy.ts'
 const source = readFileSync(
-  new URL('../../../apps/tenancy-host/src/policy.ts', import.meta.url),
+  new URL('../../../apps.0.0.1.legacy/tenancy-host/src/policy.ts', import.meta.url),
   'utf8',
 )
 const check = (text: string, location = path) =>

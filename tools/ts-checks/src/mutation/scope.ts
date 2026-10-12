@@ -4,8 +4,13 @@ import { join } from 'node:path'
 import { touches, type ChangedLines } from '../metrics/git.ts'
 import { ownerOf, type TestMember } from '../testing/members.ts'
 
-/** 只变异这些根下成员的产品源码：`tools/` 是开发工具，`examples/` 不长期维护。 */
-export const MUTATION_ROOTS = ['packages', 'apps'] as const
+/** 封存成员仍在 workspace 中，保留其变异验证；开发工具不属于产品源码。 */
+export const MUTATION_ROOTS = [
+  'packages',
+  'apps',
+  'packages.0.0.1.legacy',
+  'apps.0.0.1.legacy',
+] as const
 
 const SOURCE = /\.(?:[cm]?ts|tsx)$/u
 const DECLARATION = /\.d\.[cm]?ts$/u

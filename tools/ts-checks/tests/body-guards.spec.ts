@@ -9,7 +9,7 @@ import {
 const paths = [...new Set(CORE_BODY_PROJECTION_TARGETS.map(target => target.path))]
 const actualModules: readonly SourceFile[] = paths.map(path => ({
   path,
-  text: readFileSync(new URL(`../../../packages/${path}`, import.meta.url), 'utf8'),
+  text: readFileSync(new URL(`../../../packages.0.0.1.legacy/${path}`, import.meta.url), 'utf8'),
 }))
 const slashPath = 'core/slash-command/src/declarations.ts'
 

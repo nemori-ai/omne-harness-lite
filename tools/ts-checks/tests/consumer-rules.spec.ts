@@ -17,7 +17,10 @@ const AI = 'tenancy/account-identity-sql/src/'
 const AR = 'tenancy/account-registration-sequential/src/'
 const file = (path: string, text: string): SourceFile => ({ path, text })
 const real = (path: string): SourceFile =>
-  file(path, readFileSync(new URL(`../../../packages/${path}`, import.meta.url), 'utf8'))
+  file(
+    path,
+    readFileSync(new URL(`../../../packages.0.0.1.legacy/${path}`, import.meta.url), 'utf8'),
+  )
 
 describe('sc-oe-1', () => {
   it('持久记录类型（*Record／*Row／*Table）以 OfferState 为字段 ⇒ 报出', () => {

@@ -21,7 +21,7 @@ import {
 const file = (path: string, text: string): SourceFile => ({ path, text })
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const real = (path: string): SourceFile =>
-  file(path, readFileSync(join(root, 'packages', path), 'utf8'))
+  file(path, readFileSync(join(root, 'packages.0.0.1.legacy', path), 'utf8'))
 
 // 独立列出节点范围，防止新增规则遗漏一个包而测试仍通过。
 const purePackages = [

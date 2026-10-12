@@ -282,10 +282,15 @@ describe('入口的参数', () => {
   })
 
   it('点名成员只列范围：写明跑快层', () => {
-    const planned = cli('run', '--members', 'packages/core/kernel-basis', '--plan-only')
+    const planned = cli(
+      'run',
+      '--members',
+      'packages.0.0.1.legacy/core/kernel-basis',
+      '--plan-only',
+    )
     expect(planned.status, planned.stderr).toBe(0)
     expect(planned.stdout).toContain('只跑快层（OMNE_TEST_TIER=fast）')
-    expect(planned.stdout).toMatch(/packages\/core\/kernel-basis：\d+ 个文件/u)
+    expect(planned.stdout).toMatch(/packages\.0\.0\.1\.legacy\/core\/kernel-basis：\d+ 个文件/u)
   })
 })
 

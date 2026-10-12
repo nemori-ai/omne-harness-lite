@@ -110,8 +110,10 @@ describe('成员清单', () => {
   it('按脚本名选成员：acceptance 只选有这个脚本的，并带上脚本原文', () => {
     const config = readTestRunsConfig()
     const accepting = listTestMembers(ROOT, config.affected.excludeRoots, 'acceptance')
-    expect(accepting.map(item => item.path)).toContain('apps/cli')
-    expect(accepting.find(item => item.path === 'apps/cli')?.script).toContain('acceptance/')
+    expect(accepting.map(item => item.path)).toContain('apps.0.0.1.legacy/cli')
+    expect(accepting.find(item => item.path === 'apps.0.0.1.legacy/cli')?.script).toContain(
+      'acceptance/',
+    )
     expect(accepting.some(item => item.path === 'tools/ts-checks')).toBe(false)
   })
 })

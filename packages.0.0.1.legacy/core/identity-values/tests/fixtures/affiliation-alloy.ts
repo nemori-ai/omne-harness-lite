@@ -2,7 +2,7 @@
 // Relations below are copied from the solver result, not recomputed by a test oracle.
 export const affiliationFixture = {
   provenance: {
-    model: 'packages/core/organization-governance/verification/models/Affiliation.als',
+    model: 'packages.0.0.1.legacy/core/organization-governance/verification/models/Affiliation.als',
     modelSha256: '9c03a63012fd88ce088babb60f5fece2c0ff3954046a154a6f955890c4639d52',
     tool: 'Alloy 6.2.0',
     solver: 'SAT4J',

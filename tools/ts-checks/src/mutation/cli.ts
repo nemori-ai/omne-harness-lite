@@ -22,7 +22,7 @@ import { runStryker } from './stryker.ts'
 const USAGE = [
   '用法：',
   '  run (--base <ref> | --members <成员目录,…>) [--plan-only] [--root <检出根>] [--out <目录>]',
-  '      --base 变异基线合并点到工作树（含未提交、未跟踪）改动碰到的、packages/ 与 apps/ 成员 src/ 下的源码行',
+  '      --base 变异基线合并点到工作树（含未提交、未跟踪）改动碰到的 workspace 产品成员 src/ 下的源码行',
   '      --members 变异点名成员 src/ 下的全部源码（逗号分隔的仓库相对目录）',
 ].join('\n')
 

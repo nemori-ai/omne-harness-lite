@@ -4,13 +4,13 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const members = {
-  codec: 'packages/core/model-request-runtime',
-  values: 'packages/core/content-blocks',
-  identity: 'packages/core/identity-values',
-  sessionCore: 'packages/core/session-runtime',
-  storage: 'packages/infra/storage-sql',
-  log: 'packages/session/session-log-sql',
-  runtime: 'packages/session/session-runtime-local',
+  codec: 'packages.0.0.1.legacy/core/model-request-runtime',
+  values: 'packages.0.0.1.legacy/core/content-blocks',
+  identity: 'packages.0.0.1.legacy/core/identity-values',
+  sessionCore: 'packages.0.0.1.legacy/core/session-runtime',
+  storage: 'packages.0.0.1.legacy/infra/storage-sql',
+  log: 'packages.0.0.1.legacy/session/session-log-sql',
+  runtime: 'packages.0.0.1.legacy/session/session-runtime-local',
 }
 
 export async function loadArtifacts(root) {

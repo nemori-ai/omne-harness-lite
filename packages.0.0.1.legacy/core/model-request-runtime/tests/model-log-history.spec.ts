@@ -161,38 +161,43 @@ it('matches raw settlement queries without enumerating unrelated entries', () =>
   }
   expect(indexed.ok.select({ kind: 'dispatchResponse', id: 'response' })).toHaveLength(1)
 })
-it('matches a seeded long history and uses only newly captured cells on ordinary append', () => {
-  let history = append(null, [])
-  const entries: LogEntry[] = []
-  let seed = 71
-  for (let batch = 0; batch < 24; batch++) {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
-    const count = 1 + (seed % 5)
-    const suffix = Array.from({ length: count }, (_, index) => user(entries.length + index + 1))
-    const prior = history
-    const capture = vi.spyOn(entryCodec, 'captureWrapper')
-    capture.mockClear()
-    const association = vi.spyOn(entryCodec, 'inspectCapturedEntry')
-    const deepShell = vi.spyOn(logShell, 'checkAppendInput')
-    history = append(history, suffix)
-    const inspected = history.inspect()
-    expect(capture).toHaveBeenCalledTimes(count)
-    expect(association).toHaveBeenCalledTimes(count)
-    expect(deepShell).toHaveBeenCalledTimes(count)
-    association.mockRestore()
-    deepShell.mockRestore()
-    if (prior.length) expect(history.entryAt(0)).toBe(prior.entryAt(0))
-    entries.push(...suffix)
-    expect(answer(inspected)).toEqual(answer(oracle(entries)))
-    expect(history.retainedBytes).toBe(
-      Buffer.byteLength(
-        writeJsonLossless({ entries: history.entries, tail: history.tail }),
-        'utf8',
-      ),
-    )
-    capture.mockRestore()
-  }
-})
+// 重 CPU：逐批重建完整前缀，与增量读取和精确字节计数交叉核对。
+it(
+  'matches a seeded long history and uses only newly captured cells on ordinary append',
+  { tags: ['slow'] },
+  () => {
+    let history = append(null, [])
+    const entries: LogEntry[] = []
+    let seed = 71
+    for (let batch = 0; batch < 24; batch++) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+      const count = 1 + (seed % 5)
+      const suffix = Array.from({ length: count }, (_, index) => user(entries.length + index + 1))
+      const prior = history
+      const capture = vi.spyOn(entryCodec, 'captureWrapper')
+      capture.mockClear()
+      const association = vi.spyOn(entryCodec, 'inspectCapturedEntry')
+      const deepShell = vi.spyOn(logShell, 'checkAppendInput')
+      history = append(history, suffix)
+      const inspected = history.inspect()
+      expect(capture).toHaveBeenCalledTimes(count)
+      expect(association).toHaveBeenCalledTimes(count)
+      expect(deepShell).toHaveBeenCalledTimes(count)
+      association.mockRestore()
+      deepShell.mockRestore()
+      if (prior.length) expect(history.entryAt(0)).toBe(prior.entryAt(0))
+      entries.push(...suffix)
+      expect(answer(inspected)).toEqual(answer(oracle(entries)))
+      expect(history.retainedBytes).toBe(
+        Buffer.byteLength(
+          writeJsonLossless({ entries: history.entries, tail: history.tail }),
+          'utf8',
+        ),
+      )
+      capture.mockRestore()
+    }
+  },
+)
 it('reserves independent lazy indexes for cold cuts and shares warm checkpoints', () => {
   const cold = append(null, [user(1), user(2)])
   const coldNext = append(cold, [user(3)])

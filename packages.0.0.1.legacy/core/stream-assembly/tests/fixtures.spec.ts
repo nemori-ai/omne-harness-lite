@@ -26,47 +26,47 @@ const artifactFile: { artifacts: readonly SourceArtifact[] } = JSON.parse(
 )
 // Fixed adopted expectations are independent of tested resources.
 const schemaDigests: Readonly<Record<string, string>> = {
-  'packages/core/arrival-events/schema/arrival-events.schema.json':
+  'packages.0.0.1.legacy/core/arrival-events/schema/arrival-events.schema.json':
     'bcaac3fc5c9d7a0a223f68722164956507bf978e62bc1423d56cc9c4810b74c5',
-  'packages/core/call-accounts/schema/v2/call-accounts.schema.json':
+  'packages.0.0.1.legacy/core/call-accounts/schema/v2/call-accounts.schema.json':
     'c79cbf51ada9314d83f8bd5fcb5a10b2ebbf855a59bddbe68bb3fdfeffc19511',
-  'packages/core/content-blocks/schema/content-blocks.schema.json':
+  'packages.0.0.1.legacy/core/content-blocks/schema/content-blocks.schema.json':
     '809d2a5db29db6a91096535017cc9bf4e7f75a3b93469520173e82916fff1bb5',
-  'packages/core/content-blocks/schema/content-blocks.v2.schema.json':
+  'packages.0.0.1.legacy/core/content-blocks/schema/content-blocks.v2.schema.json':
     'ed9c7d15f35edfd1b24cef510367449a3a8ed5eefd5305464709220304ee6b21',
-  'packages/core/loop-extension/schema/loop-extension.v2.schema.json':
+  'packages.0.0.1.legacy/core/loop-extension/schema/loop-extension.v2.schema.json':
     '41ebe3501a30fe124b7226c055b5ff294cca399ad5f0179c6754b10160c8a0fe',
-  'packages/core/identity-values/schema/identity-values.schema.json':
+  'packages.0.0.1.legacy/core/identity-values/schema/identity-values.schema.json':
     '1d1f5743c28de3400ecd332072549b6540ca602e553708491caa468267c6a855',
-  'packages/core/offer-expiry/schema/offer-expiry.v1.schema.json':
+  'packages.0.0.1.legacy/core/offer-expiry/schema/offer-expiry.v1.schema.json':
     '63a8ccb42ea5f84a8062c9e8a472679c0d7ff11401c43939641587b48e2b0684',
-  'packages/core/asset-model/schema/asset-model.v2.schema.json':
+  'packages.0.0.1.legacy/core/asset-model/schema/asset-model.v2.schema.json':
     '3b4a9302a51f902f89f6bb567f2b91b0533f323d8f315853e35ac15a679f5890',
-  'packages/core/tool-definition/schema/tool-definition.v2.schema.json':
+  'packages.0.0.1.legacy/core/tool-definition/schema/tool-definition.v2.schema.json':
     '21f6ff19640da3905b4697404b8d7c527a4f0a6ec4c870b3f0affdc558c469ae',
-  'packages/core/messages/schema/messages.v2.schema.json':
+  'packages.0.0.1.legacy/core/messages/schema/messages.v2.schema.json':
     '5069484d45c7a2d9165c1201307e9b4241acf8eceae20e749b5c24f377b0d65f',
-  'packages/core/model-profile/schema/v2/model-profile.schema.json':
+  'packages.0.0.1.legacy/core/model-profile/schema/v2/model-profile.schema.json':
     '3a2088c59777b9520af8355bb3b4e794637f4642fdbf8a93b268366717de8b3b',
-  'packages/core/skill-package/schema/skill-package.v2.schema.json':
+  'packages.0.0.1.legacy/core/skill-package/schema/skill-package.v2.schema.json':
     'eb2b30c03023e02584d0bfec54f1905751c4049b41e16ae3744c8b9606cbd4e5',
-  'packages/core/mcp-endpoint/schema/mcp-endpoint.schema.json':
+  'packages.0.0.1.legacy/core/mcp-endpoint/schema/mcp-endpoint.schema.json':
     '4fcddf8b9e2a870be8d47ac0abf3fc835ad330f4bd0afd2d6cfe866796df2c13',
-  'packages/core/slash-command/schema/slash-command.schema.json':
+  'packages.0.0.1.legacy/core/slash-command/schema/slash-command.schema.json':
     '595e5662cf7ebd5d84c5ba3edee7b4dd8a6e817a4738343bfa86c318cc1ac40e',
-  'packages/core/asset-model/schema/resources/connector.schema.json':
+  'packages.0.0.1.legacy/core/asset-model/schema/resources/connector.schema.json':
     'd02af56071f37786229142a73e93194529b7e3dad3b5a70c1a69e0fe44196d5d',
 }
 const modelDigests: Readonly<Record<string, string>> = {
-  'packages/core/stream-assembly/verification/models/Assembly_OneShotCloseFirst.cfg':
+  'packages.0.0.1.legacy/core/stream-assembly/verification/models/Assembly_OneShotCloseFirst.cfg':
     '2680ba91e3be8ae86e88549711c61db6a869e832df17719f4c2230096cd25986',
-  'packages/core/stream-assembly/verification/models/Assembly_ReplaceAsAppend.cfg':
+  'packages.0.0.1.legacy/core/stream-assembly/verification/models/Assembly_ReplaceAsAppend.cfg':
     '7e5e1c6d71c1a82c1d8eeb04835120bb4a507cc2534224edfaee3ff066b5d231',
-  'packages/core/stream-assembly/verification/models/Assembly.cfg':
+  'packages.0.0.1.legacy/core/stream-assembly/verification/models/Assembly.cfg':
     '5b7f84cb8333ba5da5a00b4e672964c3a2029de8b2358017fb65c3acffb797db',
-  'packages/core/stream-assembly/verification/models/Assembly_OrderByClose.cfg':
+  'packages.0.0.1.legacy/core/stream-assembly/verification/models/Assembly_OrderByClose.cfg':
     '7a437b7519163339880eae4473e8afd56272f58bbea4c9ca6ad3320b1acbbbe3',
-  'packages/core/stream-assembly/verification/models/Assembly.tla':
+  'packages.0.0.1.legacy/core/stream-assembly/verification/models/Assembly.tla':
     '5caf855ec1b73f7c49b3afa38b784f0aee4cbe128314cb28afc19436a1b000c6',
 }
 const priorContentDigest = '809d2a5db29db6a91096535017cc9bf4e7f75a3b93469520173e82916fff1bb5'
@@ -90,7 +90,7 @@ describe('INPUT adopted resources and language-neutral source artifacts', () => 
     const prior = readFileSync(
       resolve(
         root,
-        'packages/core/content-blocks/tests/fixtures/content-before-admission.schema.json',
+        'packages.0.0.1.legacy/core/content-blocks/tests/fixtures/content-before-admission.schema.json',
       ),
     )
     expect(createHash('sha256').update(prior).digest('hex')).toBe(priorContentDigest)
@@ -103,13 +103,15 @@ describe('INPUT adopted resources and language-neutral source artifacts', () => 
       ['content-blocks', 'content-blocks.schema.json', 3],
       ['call-accounts', 'v2/call-accounts.schema.json', 2],
     ] as const) {
-      const current = readFileSync(resolve(root, `packages/core/${name}/schema/${file}`))
-      const path = `packages/core/${name}/schema/${file}`
+      const current = readFileSync(
+        resolve(root, `packages.0.0.1.legacy/core/${name}/schema/${file}`),
+      )
+      const path = `packages.0.0.1.legacy/core/${name}/schema/${file}`
       if (name === 'content-blocks') {
         const previous = readFileSync(
           resolve(
             root,
-            'packages/core/content-blocks/tests/fixtures/content-before-admission.schema.json',
+            'packages.0.0.1.legacy/core/content-blocks/tests/fixtures/content-before-admission.schema.json',
           ),
         )
         expect(createHash('sha256').update(previous).digest('hex')).toBe(priorContentDigest)
@@ -149,19 +151,19 @@ describe('INPUT adopted resources and language-neutral source artifacts', () => 
           resolve(
             root,
             name === 'connector'
-              ? `packages/core/asset-model/schema/resources/${filename}`
-              : `packages/core/${name}/schema/${filename}`,
+              ? `packages.0.0.1.legacy/core/asset-model/schema/resources/${filename}`
+              : `packages.0.0.1.legacy/core/${name}/schema/${filename}`,
           ),
         )
         const path =
           name === 'connector'
-            ? `packages/core/asset-model/schema/resources/${filename}`
-            : `packages/core/${name}/schema/${filename}`
+            ? `packages.0.0.1.legacy/core/asset-model/schema/resources/${filename}`
+            : `packages.0.0.1.legacy/core/${name}/schema/${filename}`
         if (name === 'content-blocks' && version === 3) {
           const previous = readFileSync(
             resolve(
               root,
-              'packages/core/content-blocks/tests/fixtures/content-before-admission.schema.json',
+              'packages.0.0.1.legacy/core/content-blocks/tests/fixtures/content-before-admission.schema.json',
             ),
           )
           expect(createHash('sha256').update(previous).digest('hex')).toBe(priorContentDigest)
