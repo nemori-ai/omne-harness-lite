@@ -1,9 +1,10 @@
 // @module-tag slow
-import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { integrationFixture, commit } from './fixtures/integration.ts'
+import { integrationFixture, commit, init } from './fixtures/integration.ts'
 import { openIntegration } from '../src/integration/engine.ts'
 import { prepare } from '../src/integration/candidate.ts'
 import { verify } from '../src/integration/verify.ts'
@@ -76,10 +77,14 @@ async function start(f: ReturnType<typeof fixture>) {
 }
 describe('real candidate CLI and trusted execution', () => {
   it('keeps pending CLI observational', () => {
+    const root = mkdtempSync(join(tmpdir(), 'omne-integration-pending-'))
+    homes.push(root)
+    init(root)
+    commit(root, 'README.md', 'Unadopted fixture\n')
     const cli = new URL('../src/integration/cli.ts', import.meta.url).pathname
     const result = spawnSync(
       'node',
-      ['--experimental-strip-types', cli, 'status', '--root', join(process.cwd(), '../..')],
+      ['--experimental-strip-types', cli, 'status', '--root', root],
       { encoding: 'utf8' },
     )
     expect(result.status).toBe(0)
