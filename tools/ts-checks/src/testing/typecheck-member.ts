@@ -26,13 +26,16 @@ export function typecheckMember(member: string): number {
     if (result.error !== undefined) throw result.error
     return result.status ?? 1
   }
-  if (!hasArchivedDirectories(member)) return invoke([])
   const project = typecheckProject(script, member)
-  if (project === undefined)
-    throw new Error(`Cannot exclude archived inputs from this typecheck script: ${script}`)
+  if (project === undefined) {
+    if (hasArchivedDirectories(member))
+      throw new Error(`Cannot exclude archived inputs from this typecheck script: ${script}`)
+    return invoke([])
+  }
   const temporary = mkdtempSync(join(tmpdir(), 'omne-typecheck-scope-'))
   try {
     const scoped = scopedProject(project, join(temporary, 'tsconfig.json'))
+    if (scoped.path === project) return invoke([])
     if (scoped.activeFiles === 0) {
       console.log(`Typecheck skipped: no active compiler roots in ${member}`)
       return 0

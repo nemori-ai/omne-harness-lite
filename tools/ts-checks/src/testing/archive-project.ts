@@ -38,6 +38,7 @@ export function scopedProject(project: string, output: string): ScopedProject {
       }),
     )
   const files = parsed.fileNames.filter(path => !isLegacyFile(relative(dirname(original), path)))
+  if (files.length === parsed.fileNames.length) return { path: original, activeFiles: files.length }
   if (
     (parsed.options.composite === true || parsed.options.incremental === true) &&
     parsed.options.tsBuildInfoFile === undefined

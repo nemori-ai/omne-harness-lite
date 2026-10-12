@@ -120,7 +120,7 @@ async function runMember(
     [TIMING_FILE_ENV]: timingPath,
     [TEST_TIER_ENV]: tier === 'all' ? '' : tier,
   }
-  if (hasArchivedDirectories(memberDirectory)) {
+  if (/^vitest\s/u.test(member.script.trim()) || hasArchivedDirectories(memberDirectory)) {
     const optionsPath = join(runDir, `${slug}.archive-options.json`)
     const prepared = spawnSync(
       process.execPath,
