@@ -211,3 +211,6 @@ agent 试用，并说明未经应用的原生沙箱与权限不能算生效；�
 ## Cursor 角色
 
 Cursor 原生配置与模型/权限资格由 [design-subagents](../skills/design-subagents/canonical/references/cursor.md) 拥有。角色职责不因新增宿主改变。生成配置不继承已有 Claude/Codex 评估资格；本次依赖精确模型或权限的任务须另核实际运行。
+
+每个角色的`cursor-qualification.yaml`绑定本角色实际提示及native字段；生成前门禁拒绝未采用或过期记录。
+当前九个生产记录为pending，Cursor全量生成保持拒绝。有限探针采用、正式角色资格和整卡接受分别确认，不能用D-02方向采用代替。

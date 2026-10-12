@@ -10,6 +10,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 import compile_agents as compiler
+from qualification_test_support import qualify_roles
 
 
 @pytest.fixture
@@ -42,6 +43,7 @@ def source(tmp_path):
         encoding="utf-8"
     )
     (role / "cursor.yaml").write_text("name: evidence-reader\ndescription: Read evidence\nmodel: claude-sonnet-5-5-high\nreadonly: true\nis_background: false\n")
+    qualify_roles(root)
     return root
 
 

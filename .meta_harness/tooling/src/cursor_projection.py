@@ -7,6 +7,7 @@ from pathlib import Path
 import yaml
 
 from host_layout import HOSTS
+from cursor_qualification import require_qualification
 from projection import Artifact, DEFAULT_RENDERER, UniqueLoader, hook_groups, load_module
 
 
@@ -14,9 +15,17 @@ def json_artifact(value) -> Artifact:
     return Artifact((json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode(), 0o644)
 
 
+def cursor_role_prompt(source: Path) -> str:
+    shared = load_module(DEFAULT_RENDERER.with_name("role_source.py"))
+    core, _ = shared.assemble_prompt(source)
+    common = shared.source_text(source.parent, "cursor-adaptation.md", optional=True)
+    overlay = shared.source_text(source, "cursor-adaptation.md", optional=True)
+    return core + ("\n\n" + common if common else "") + ("\n\n" + overlay if overlay else "")
+
+
 def project_cursor_role(source: Path) -> tuple[Path, str]:
     shared = load_module(DEFAULT_RENDERER.with_name("role_source.py"))
-    assemble_prompt, required_string, source_text = shared.assemble_prompt, shared.required_string, shared.source_text
+    required_string, source_text = shared.required_string, shared.source_text
 
     config = yaml.load(source_text(source, "cursor.yaml"), Loader=UniqueLoader)
     fields = {"name", "description", "model", "readonly", "is_background"}
@@ -33,14 +42,12 @@ def project_cursor_role(source: Path) -> tuple[Path, str]:
     for field in ("readonly", "is_background"):
         if type(config[field]) is not bool:
             raise ValueError(f"cursor: {field} must be a boolean")
-    core, _ = assemble_prompt(source)
-    common = source_text(source.parent, "cursor-adaptation.md", optional=True)
-    overlay = source_text(source, "cursor-adaptation.md", optional=True)
+    prompt = cursor_role_prompt(source)
+    qualification = require_qualification(source, (source / "cursor.yaml").read_bytes(), prompt)
     # CLI 2026.08.04-aaa8809 parses frontmatter one scalar line at a time.
     front = yaml.safe_dump(config, allow_unicode=True, sort_keys=False, width=100000).rstrip()
     return (HOSTS["cursor"].agents / f"{name}.md",
-            "---\n" + front + "\n---\n\n" + core + ("\n\n" + common if common else "")
-            + ("\n\n" + overlay if overlay else "") + "\n")
+            "---\n" + front + "\n---\n\n" + prompt + qualification + "\n")
 
 
 def project_cursor_package(source: Path, roles: set[str]) -> dict[Path, Artifact]:

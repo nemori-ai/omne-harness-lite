@@ -10,6 +10,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 import compile_agents as compiler
 from projection import compile_sources
+from qualification_test_support import qualify_roles
 
 CLAUDE = Path(".claude/settings.json")
 CODEX = Path(".codex/hooks.json")
@@ -36,6 +37,7 @@ def source(tmp_path):
                     "subagent_types": ["developer"], "command": COMMAND, "timeout": 60}])
     (role / "cursor.yaml").write_text("name: developer\ndescription: Implement\nmodel: claude-sonnet-5-5-high\nreadonly: false\nis_background: false\n")
     (root / "hooks/cursor.yaml").write_text("version: 1\nloop_limit: 1\ntimeout_grace: 5\n")
+    qualify_roles(root)
     return root
 
 

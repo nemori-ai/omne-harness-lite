@@ -1,0 +1,28 @@
+version: 1
+role: tui-developer
+binding:
+  native_sha256: 2986fcc100add927c381000a29e1a3a12ca6b81daf2dd17c3b50685f518e0e3c
+  prompt_sha256: d3ae5ddc94dde04eaab3d7b549b985dada3854d5a64960f39cbf2d1d3c604224
+host_versions:
+  cli:
+  - 2026.08.04-aaa8809
+  ide: []
+  cloud: []
+status: pending
+scope:
+  generation:
+  - cli-plugin
+  - cli-project
+  - cloud-project
+  - ide-plugin
+  - ide-project
+  dispatch: []
+evidence: []
+missing:
+- No accepted Cursor evaluation for the complete role duty.
+- The native model request does not prove the backend model or effort setting.
+- Required permissions and child lifecycle are not fully demonstrated.
+- IDE and Cloud runtime sessions have not been evaluated.
+adoption: null
+reason: D-02 adopts the integration design, not this role qualification. Exact owner
+  adoption or accepted role proof is still required.

@@ -148,6 +148,11 @@ Cursor 产物根是 `output/.cursor/`，包含 `.cursor-plugin/plugin.json`、sk
 manifest 明确组件路径，不把维护源目录当作插件。角色及精确资格归 [Cursor 适配](../agents/skills/design-subagents/canonical/references/cursor.md)。
 第三方 pstack/Matt 的宿主来源归执行仓库 `docs/engineering/skills.md`，本工具不安装或复制其正文。
 
+Cursor生成先核对全部角色的[资格记录](../agents/skills/design-subagents/canonical/references/cursor.md#生成前的角色资格门禁)。
+任一记录缺失、pending、unsupported、源指纹失效或缺精确采用时，整个Cursor或混合构建在写入前失败。
+当前生产记录为pending，没有正式角色资格。下面初始化命令在这些条件闭合前应返回非零，不能当成接入已完成。
+旧宿主可分别用`--host codex`及`--host claude-code`生成和检查；它们不读Cursor资格。
+
 CLI 和 IDE 可用项目 `.cursor` 相对视图，也可安装物理原生包。CLI 的插件方式示例为 `agent --plugin-dir /absolute/package/.cursor`。
 外部安装先在新的物理目录生成，只搬运 `.cursor/` 包；不使用指向维护源的链接。安装位置变化不改变包内相对引用。
 同一宿主不得同时启用项目视图和同一插件包，否则角色名称和 hooks 可能重复。本工具不管理宿主已安装插件清单。

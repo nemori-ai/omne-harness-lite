@@ -12,13 +12,16 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from compile_agents import deliver
 from projection import compile_sources
 from cursor_probe import main as probe
+from qualification_test_support import qualify_roles
 
 SOURCE = Path(__file__).parents[2] / "agents"
 
 
 @pytest.fixture
 def source(tmp_path):
-    return Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    root = Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    qualify_roles(root)
+    return root
 
 
 def test_cursor_never_requires_pair_configs_or_renderer(source, tmp_path):
@@ -70,6 +73,7 @@ def test_unsupported_cursor_strategy_fails_before_delivery(source):
 def test_clean_clone_initialization_has_no_personal_or_session_start_dependency(tmp_path):
     project = tmp_path / "clean clone"
     shutil.copytree(SOURCE, project / ".meta_harness/agents")
+    qualify_roles(project / ".meta_harness/agents")
     shutil.copytree(Path(__file__).parents[1] / "src", project / ".meta_harness/tooling/src")
     assert not (project / ".cursor").exists()
     command = [sys.executable, str(project / ".meta_harness/tooling/src/initialize_agents.py"),
