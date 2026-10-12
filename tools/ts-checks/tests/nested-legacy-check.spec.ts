@@ -95,6 +95,19 @@ it('preserves project references and existing exclusions in the generated projec
   expect(output.references).toEqual([{ path: join(root, 'dependency') }])
 })
 
+it.each(['generated', 'tmp', 'dist', 'coverage'])(
+  'a source folder named %s still excludes its archived descendants',
+  name => {
+    const root = fixture()
+    rmSync(join(root, 'src/archive.legacy'), { recursive: true })
+    put(root, `src/${name}/old.legacy/poison.ts`, 'export const bad: string = 1\n')
+    expect(typecheckMember(root)).toBe(0)
+    put(root, `src/${name}/current.legacy-not/poison.ts`, 'export const bad: string = 1\n')
+    expect(typecheckMember(root)).not.toBe(0)
+  },
+  20_000,
+)
+
 it('real Vitest ignores archived runtime/type roots while active source errors still fail', async () => {
   const root = fixture()
   put(

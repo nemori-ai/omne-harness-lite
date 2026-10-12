@@ -140,6 +140,7 @@ export function pythonStep(root: string, file: PlanFile): number {
         runner,
         '--locked',
         'pytest',
+        '--ignore-glob=*.legacy',
         '-c',
         join(runner, 'pyproject.toml'),
         '--basetemp',

@@ -5,11 +5,7 @@ import { isLegacyFile } from '../check-scope.ts'
 
 export function hasArchivedDirectories(root: string): boolean {
   for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (
-      !entry.isDirectory() ||
-      ['node_modules', 'dist', 'tmp', '.git', 'generated', 'coverage'].includes(entry.name)
-    )
-      continue
+    if (!entry.isDirectory() || ['node_modules', '.git'].includes(entry.name)) continue
     if (entry.name.endsWith('.legacy') || hasArchivedDirectories(join(root, entry.name)))
       return true
   }
