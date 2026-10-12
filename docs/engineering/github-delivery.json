@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "kind": "github-delivery-config",
   "protocolVersion": 2,
-  "enabled": false,
+  "enabled": true,
   "repository": "nemori-ai/omne-harness-lite",
   "mode": "manual-single-dispatcher",
   "project": {
@@ -22,9 +22,9 @@
     "body": "PanQiWei；操作由其在本任务中明确委派的单一正文集成代理执行"
   },
   "notes": [
-    "日常入口未启用；普通任务按实际需要新建，不继承旧任务。",
-    "Stage 使用 GitHub 内置 Status 字段；按字段 ID 读取，不另建 Stage 副本。",
-    "负责人已确认关闭关联PR合并自动关闭；官方API无该设置读回支持。默认分支模板尚未发布。",
-    "Stage与正文的责任人已具名；每次委派只授予本任务的写范围，切换写者先确认交接。API写权限不是接受权限。"
+    "PanQiWei在本会话授权完整启用；配置随PR194发布，首次采用依据及检查由Issue195记录。",
+    "Stage使用GitHub内置Status字段，按已读回的field ID投影，Issue正文仍拥有任务事实。",
+    "负责人此前已关闭关联PR合并自动关闭；该设置没有官方API读回支持。",
+    "每项任务的正文和Stage保持单写者；接受必须来自该项具名决定，不由关闭、合并或绿测代替。"
   ]
 }

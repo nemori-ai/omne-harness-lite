@@ -348,7 +348,7 @@ gh pr create --base main --head <自己的工作分支> \
 
 ## 通过对话维护交付卡
 
-研发环境初始化后，先读[agent交付操作](engineering/agent-delivery.md)及[配置](engineering/github-delivery.json)的启用范围，再按[工作类型](engineering/work-types.md)选择必要输入和验证。配置未启用时，只做获准的草稿、只读观察或接入准备；现存PF与ST继续走旧源。平台配置完成不能代替默认分支模板、凭证、具名写者和真实任务验证。
+研发环境初始化后，先读[agent交付操作](engineering/agent-delivery.md)及[配置](engineering/github-delivery.json)的启用范围，再按[工作类型](engineering/work-types.md)选择必要输入和验证。配置未启用时，只做获准的草稿、只读观察或接入准备；不从封存PF或Git历史重新继承任务。平台配置完成不能代替默认分支模板、凭证、具名写者和真实任务验证。
 
 协议启用后的建卡、取任务、更新与决定记录由操作页提供顺序；卡或模板不替代当前SPEC和设计。只读工具的完整输入、输出与限制由实际[ts-checks](../tools/ts-checks/README.md)维护，不能靠一次工具通过自动派发或接受。
 

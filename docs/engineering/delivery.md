@@ -1,6 +1,6 @@
 # Issue、Projects与交付协议
 
-协议已采用，日常入口未启用。[GitHub交付配置](github-delivery.json)保持`enabled:false`；未启用时按本协议形成任务草稿。每项任务按实际需要明确本次身份、结果和接受责任。平台、默认分支模板及实际宿主执行仍须独立验证，本页不授予发布或启用。
+协议已采用，日常入口以[GitHub交付配置](github-delivery.json)的实际发布状态为准。PanQiWei已授权启用，接入及首次采用记录归[工程启用任务](https://github.com/nemori-ai/omne-harness-lite/issues/195)；未发布或未获本任务授权时只形成获准草稿。每项任务按实际需要明确本次身份、结果和接受责任。平台、默认分支模板及实际宿主执行仍须独立验证，本页不授予发布或启用。
 
 本页拥有 Issue、Project、条件、调度与交付决定的共同协议。协议不是 GitHub 原生保证；对话及操作顺序归[agent交付操作](agent-delivery.md)。
 

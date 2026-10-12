@@ -419,8 +419,8 @@ describe('fixed log projection and prefix reuse', () => {
       ...input([user(1), next], selectedRules),
       entries: [next],
     })
-    expect(messages(extended).map(value => value.id)).toEqual(['summary'])
     if (!('projected' in extended)) throw new Error('compaction projection')
+    expect(messages(extended).map(value => value.id)).toEqual(['summary'])
     expect(extended.projected.workCounters.entries - first.projected.workCounters.entries).toBe(1)
     expect(extended.reusedSegments).toBeNull()
     expect(

@@ -215,7 +215,7 @@ agent 可完成获准且能够自行操作的安装与核对，需要人完成�
 
 提出任务时说清本次要起草、建卡、取任务还是实施。feature、修复、重构、性能、维护和调查按[工作类型](engineering/work-types.md)准备不同依据。agent 沿[交付操作](engineering/agent-delivery.md)定位真实任务、来源、条件和具名责任。
 
-Issue 协议已采用，日常入口仍以[配置](engineering/github-delivery.json)为准，配置保持`enabled:false`，按普通协议形成获准任务草稿。Project 是派生视图，关闭或阶段变化不授接受。
+Issue 协议已采用，日常入口仍以[配置](engineering/github-delivery.json)为准，启用及具名采用事实查[工程启用任务](https://github.com/nemori-ai/omne-harness-lite/issues/195)；未获本任务授权时只形成获准草稿。Project 是派生视图，关闭或阶段变化不授接受。
 
 多层集成机制当前也保持 pending。未来正式采用后，工作分支通常进入登记的 integration 轨道，完整 RI 进入 main，stable 选择已有 main checkpoint。FI 将 main 的变化同步到轨道。人的工作是确定路线、completionTarget、必要条件和集成责任，具体操作可委派给获授权的 agent。
 
@@ -228,5 +228,5 @@ Issue 协议已采用，日常入口仍以[配置](engineering/github-delivery.j
 - 可执行验收、覆盖声明和验收锁已有工具入口。产品观察读取当前PD；缺场景正文或编号时单列未覆盖，覆盖声明保留其现行格式与来源核对。实际执行、支持和有效接受仍分别核验。接受时仍核对有效场景、本次候选和实际运行证据，覆盖声明与任务阶段不能代替它们。具体覆盖归[验证说明](verification.md)。
 - 趋势已有历史快照，工具支持回退到可用的祖先记录。比较时核对当前 main 提交是否有对应快照，以及实际采用的历史范围；共享时间线可能包含不同分支的记录。没有可用数据时保持未判，不能补造主线历史。采集条件归[回路](clean-loop.md)。
 - hooks 的源、配置和入口已有，本工作树的原生 Codex `Stop` 已观察到正常反馈。这只支持当次事件与受检工作树。其他宿主、`SubagentStop` 和每个隔离执行者仍须核对真实 cwd、加载、信任与反馈；命令重放不能代替原生事件验证。边界归[hooks 说明](../.meta_harness/agents/hooks/README.md)。
-- Issue 协议和多层集成工具已有，日常入口仍未启用，多层集成保持 pending。交付配置已填平台标识与写者，集成负责人、轨道和完整检查配置仍需补齐。正式启用须提交完整建设，核对平台权限及保护，经具名决定与验证建立采用标记，再按实际任务明确本次身份、结果与条件。条件归[交付操作](engineering/agent-delivery.md)与[集成规则](engineering/integration.md)。
+- Issue 协议和多层集成工具已有，日常入口的启用状态归交付配置，集成状态须从实际采用tag及bootstrap读回。具名owner、development轨道与完整检查配置随首次construction提交；正式启用须提交完整建设，核对平台权限及保护，经具名决定与验证建立采用标记，再按实际任务明确本次身份、结果与条件。条件归[交付操作](engineering/agent-delivery.md)与[集成规则](engineering/integration.md)。
 - 正式 `Check` 工作流当前停用，已有在线 runner 和试验工作流不构成 main 或 PR 的正式检查。共享分支与采用标记的保护仍需核实并落实。合并前保留绑定候选的本地检查证据，平台接入与恢复沿[自动化入口](../scripts/README.md#ci)核对。

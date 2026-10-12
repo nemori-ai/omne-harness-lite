@@ -4,7 +4,7 @@
 
 ## 采用状态
 
-当前建设保持 pending。未提交文件、skill 可见、日期或测试通过都不启用机制。正式采用须在本次工作树全部正式成果提交后，由具名负责人确认 construction 完整性、实际平台接入及独立验证，再创建不可覆盖的采用 tag。现有GitHub delivery的启用与集成机制采用分别管理。
+采用事实以正式tag和实际bootstrap读回为准。PanQiWei已授权首次采用，[工程启用任务](https://github.com/nemori-ai/omne-harness-lite/issues/195)保存实际检查和具名决定。未提交文件、skill 可见、日期或测试通过都不启用机制。正式采用须在本次工作树全部正式成果提交后，由具名负责人确认 construction 完整性、实际平台接入及独立验证，再创建不可覆盖的采用 tag。现有GitHub delivery的启用与集成机制采用分别管理。
 
 正式接入须保护采用 tag 命名空间，禁止覆盖和删除。positive-absence 只证明当次完整查询没有采用 refs，不证明历史上从未采用。已有采用线索时缺失来源仍为 unknown。新 clone 和权威仓库同时失去所有历史线索时，Git 无法区分首次未采用与历史丢失；具名 owner 必须核对初次采用依据或恢复责任，不能仅凭空查询授权启用。
 
@@ -71,3 +71,15 @@ Project 可由原单投影写者维护可选 Integration target 与 Integration 
 历史聚合以完整稳定 Issue identity、revision、attempt 为键。同一卡不同历史 tuple 分别保留 taskBase/taskSource 和原 unit 包含关系，不代表多个当前绑定；同 tuple 的完整 binding 不一致或 source ancestry 分叉仍拒绝。RI/joint/checkpoint 为每个过期 tuple 分别取得 exact owner 重核并审计，不能取最新 taskBase 吞掉旧历史。
 
 政策升级的具名 owner 从 handoff 开始冻结各 clone 的发布，核清在途操作，在新采用与任务接续后恢复。变更入口重读完整权威采用链，旧 anchor 拒绝并要求 bootstrap。该读回与 branch CAS 不是跨 ref 原子事务；升级与发布的串行关系由这次明确交接保证，不宣称同凭据操作者无法绕过。
+
+## 首次接入范围与操作入口
+
+首次policy登记PanQiWei为owner，development轨道从已确认main基线建立，普通独立任务使用该轨道；global和跨轨道结果继续明确进入main。首次采用的legacy清单为空，旧任务不因树或分支保留而取得豁免。
+
+采用前的完整construction通过PR提交到main，再从干净的精确main检出执行activation-check、具名adopt决定和activate。construction进入main但adoption未成功期间，普通检查返回unknown；这是受控接入窗口，不能把提交当采用。
+
+已采用检出先bootstrap，工作树再依据真实Issue派发取得context。main没有任务context时，不直接运行带任务基线的check-plan或make check，也不伪造Issue绑定；通过checkpoint prepare和verify运行完整检查。无需发布stable时可停在verified，checkpoint发布另受实际任务授权约束。
+
+当前full profile分别验证工程工具入口启动、runner/subject锁定依赖安装、真实Git采用与模板迁移场景、开发者上下文查询及完整组合检查。封存实现的构建、类型、测试和验收按组合计划执行，不能据此声称新packages/apps产品骨架已提供运行时。新版产品的startup或数据迁移能力仍须由未来真实成员提供独立证据。
+
+平台前提为仓库规则24926783对adoption和unit标签禁止更新、删除及非快进修改，无bypass。Actions仍沿现有手动、本地验证政策；本次不声称启用自动Actions或验证所有coding agent宿主。实际采用与接续命令归工具README。

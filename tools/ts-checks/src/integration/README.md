@@ -1,6 +1,6 @@
 # 使用分支集成工具
 
-从仓库根运行。行为承诺归 [SPEC](SPEC.md)，工程节奏归[多层分支规则](../../../../docs/engineering/integration.md)。本树建设尚未提交，状态应为 pending。命令存在不授予项目 ref 或平台写权限。
+从仓库根运行。行为承诺归 [SPEC](SPEC.md)，工程节奏归[多层分支规则](../../../../docs/engineering/integration.md)。采用状态从可信main、正式tag和实际context读取；首次接入记录见[工程启用任务](https://github.com/nemori-ai/omne-harness-lite/issues/195)。命令存在不授予项目 ref 或平台写权限。
 
 ## 先观察
 
@@ -22,7 +22,7 @@ node --experimental-strip-types tools/ts-checks/src/integration/cli.ts execute \
 
 ## 首次采用及新 clone
 
-当前 `integration-policy.json` 是未采用模板：owners/tracks 为空，checkpointCoverage 四项为 null。`github-delivery.json` 仍 disabled。负责人需要先提交完整建设，配置真实 owner、轨道、Git 权限、必要检查和已启用的 delivery；不得由工具猜这些值。`full` 只是命令集合名称，单次 `make check` 不证明 startup/install/migration/mainPath 已覆盖。四项须分别指向真实必需 full 命令，未配置时 activation 和 checkpoint 都拒绝。
+`integration-policy.json` 登记PanQiWei、development轨道及四类实际命令；`github-delivery.json` 的启用只在配置发布后生效。负责人仍须提交完整建设、完成真实检查和具名采用，不能从配置存在推导正式adoption。`full` 只是命令集合名称，单次 `make check` 不证明 startup/install/migration/mainPath 已覆盖。四项须分别指向真实必需 full 命令，未配置时 activation 和 checkpoint 都拒绝。
 
 依赖从锁文件安装。模板先运行 runner 和 subject 的 `pnpm install --frozen-lockfile --ignore-scripts`，不执行候选 lifecycle；runner 的 Python 环境由 `uv run --project RUNNER --locked` 准备。安装失败是失败。runner 固定 policy commit 的整棵树、工具和锁；subject 安装的是待测锁。构建产品仍会运行 subject 的产品脚本，这不是执行不可信代码的沙箱。平台权限、包来源及执行环境须由负责人提供。不能拿旧树的 node_modules 或旧账本假称已验证新的 runner。
 
