@@ -247,6 +247,60 @@ it('preserves a single native CLI exclusion as a whole pattern', () => {
   ])
 }, 20_000)
 
+it('filters external archived runtime tests and preserves external active failures', async () => {
+  const root = fixture()
+  const shared = root + '-shared.legacy'
+  const active = shared + '-not'
+  roots.push(shared, active)
+  put(shared, 'poison[1].spec.ts', `throw new Error('EXTERNAL_ARCHIVE_EXECUTED')\n`)
+  put(
+    root,
+    'vitest.config.ts',
+    `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { include: ['tests/**/*.spec.ts', '../${basename(root)}-shared*/**/*.spec.ts'] } })\n`,
+  )
+  put(
+    root,
+    'tests/live.spec.ts',
+    `import { test, expect } from 'vitest'\ntest('live', () => expect(1).toBe(1))\n`,
+  )
+  const target: TestMember = {
+    path: '.',
+    name: '@fixture/nested',
+    script: 'vitest run',
+    dependencies: [],
+  }
+  const run = async (name: string) => {
+    const out = join(root, 'evidence', name)
+    mkdirSync(out, { recursive: true })
+    return (
+      await runMembers(
+        root,
+        [target],
+        out,
+        { memberConcurrency: 1, vitestMaxWorkers: 1 },
+        'test',
+        'all',
+        () => {},
+      )
+    )[0]
+  }
+  const passed = await run('pass')
+  expect(passed?.exitCode, readFileSync(join(root, 'evidence/pass/..log'), 'utf8')).toBe(0)
+  expect(passed?.report?.testResults.map(result => result.name)).toEqual([
+    join(root, 'tests/live.spec.ts'),
+  ])
+  put(
+    active,
+    'error.spec.ts',
+    `import { test, expect } from 'vitest'\ntest('external active error', () => expect(1).toBe(2))\n`,
+  )
+  const failed = await run('fail')
+  expect(failed?.exitCode).not.toBe(0)
+  expect(readFileSync(join(root, 'evidence/fail/..log'), 'utf8')).toContain(
+    'external active error',
+  )
+}, 30_000)
+
 it('real Vitest ignores archived runtime/type roots while active source errors still fail', async () => {
   const root = fixture()
   put(

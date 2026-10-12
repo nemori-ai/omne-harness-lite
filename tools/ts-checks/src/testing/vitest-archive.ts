@@ -1,5 +1,5 @@
 import { writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { createVitest, parseCLI, resolveConfig } from 'vitest/node'
@@ -51,6 +51,27 @@ export async function archiveVitestArgs(
     writeFileSync(output, '[]\n')
     return []
   }
+  const excluded: string[] = []
+  const context = await createVitest('test', { ...options, root: member, watch: false })
+  try {
+    for (const project of context.projects) {
+      const tests = await project.globTestFiles()
+      for (const [flag, files] of [
+        ['--exclude', tests.testFiles],
+        ['--typecheck.exclude', tests.typecheckTestFiles],
+      ] as const) {
+        for (const file of files.filter(isLegacyFile)) {
+          const pattern = relative(project.config.dir || project.config.root, file)
+            .split(sep)
+            .join('/')
+            .replace(/([*?()[\]{}!+@\\])/gu, '\\$1')
+          excluded.push(flag, pattern)
+        }
+      }
+    }
+  } finally {
+    await context.close()
+  }
   const coverage = tier === 'coverage'
   const args = [
     ...(coverage
@@ -58,6 +79,7 @@ export async function archiveVitestArgs(
       : [vitestConfig.typecheck.exclude].flat()),
     '**/*.legacy/**',
   ].flatMap(pattern => [coverage ? '--coverage.exclude' : '--typecheck.exclude', pattern])
+  args.push(...excluded)
   if (!coverage && tier !== 'slow' && vitestConfig.typecheck.enabled === true) {
     if (vitestConfig.typecheck.checker !== 'tsc') {
       if (hasArchivedDirectories(member))
