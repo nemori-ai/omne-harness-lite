@@ -37,6 +37,15 @@ def collect(root: Path) -> list[Path]:
             if ".templates" not in p.parts]
 
 
+def mirror_files(root: Path) -> set[Path]:
+    files: set[Path] = set()
+    for directory, children, names in os.walk(root):
+        children[:] = [child for child in children if not child.endswith(".legacy")]
+        files.update((Path(directory) / name).relative_to(root) for name in names
+                     if (Path(directory) / name).is_file())
+    return files
+
+
 def check_skill_mirrors(root: Path, errors: list[str]) -> None:
     left, right = root / ".agents/skills", root / ".claude/skills"
     if not left.is_dir() and not right.is_dir():
@@ -44,8 +53,8 @@ def check_skill_mirrors(root: Path, errors: list[str]) -> None:
     if not left.is_dir() or not right.is_dir():
         errors.append("only one of the generated skill directories exists; run the agent compiler")
         return
-    left_files = {p.relative_to(left) for p in left.rglob("*") if p.is_file()}
-    right_files = {p.relative_to(right) for p in right.rglob("*") if p.is_file()}
+    left_files = mirror_files(left)
+    right_files = mirror_files(right)
     if left_files != right_files:
         errors.append("Codex/Claude skill inventory differs")
     for relative in sorted(left_files & right_files):

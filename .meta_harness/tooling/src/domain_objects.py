@@ -224,6 +224,8 @@ class Reconciler:
                 continue
             if not directory.is_dir():
                 continue
+            if not sealed and directory.name.endswith(".legacy"):
+                continue
             if sealed and not directory.name.startswith("PF-"):
                 continue
             if directory.resolve() != directory:

@@ -198,3 +198,16 @@ def test_nested_legacy_directories_are_not_quality_targets(tmp_path):
     assert result.returncode == 1
     assert "archive.legacy-not/broken.md" in result.stdout
     assert "archive.legacy/broken.md" not in result.stdout
+
+
+def test_skill_mirrors_exclude_archived_directories(tmp_path):
+    base(tmp_path)
+    write(tmp_path / ".agents/skills/old.legacy/SKILL.md", "Archived left")
+    write(tmp_path / ".claude/skills/old.legacy/SKILL.md", "Archived right")
+    assert run(tmp_path).returncode == 0
+    write(tmp_path / ".agents/skills/active/SKILL.md", "Active left")
+    write(tmp_path / ".claude/skills/active/SKILL.md", "Active right")
+    result = run(tmp_path)
+    assert result.returncode == 1
+    assert "skill mirror differs: active/SKILL.md" in result.stdout
+    assert "old.legacy/SKILL.md" not in result.stdout

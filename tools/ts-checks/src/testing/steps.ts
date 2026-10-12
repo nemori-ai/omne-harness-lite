@@ -1,6 +1,7 @@
 // `make check` 里按计划执行的几步：pytest、构建、类型检查、成员测试（快慢两层）、可执行验收；
 // 以及它们共用的「跑一批成员的脚本并写耗时账本」。计划由 `affected.ts` 算，这里只照着执行、照实说跳了什么。
 import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { baselines } from '../integration/context.ts'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
@@ -164,8 +165,14 @@ export function pnpmStep(root: string, file: PlanFile, script: 'build' | 'typech
   return spawnInherited(root, 'pnpm', [
     '-r',
     ...members.flatMap(member => ['--filter', member.name]),
-    'run',
-    script,
+    ...(script === 'typecheck'
+      ? [
+          'exec',
+          process.execPath,
+          '--experimental-strip-types',
+          fileURLToPath(new URL('./typecheck-member.ts', import.meta.url)),
+        ]
+      : ['run', script]),
   ])
 }
 
