@@ -296,9 +296,7 @@ it('filters external archived runtime tests and preserves external active failur
   )
   const failed = await run('fail')
   expect(failed?.exitCode).not.toBe(0)
-  expect(readFileSync(join(root, 'evidence/fail/..log'), 'utf8')).toContain(
-    'external active error',
-  )
+  expect(readFileSync(join(root, 'evidence/fail/..log'), 'utf8')).toContain('external active error')
 }, 30_000)
 
 it('real Vitest ignores archived runtime/type roots while active source errors still fail', async () => {
