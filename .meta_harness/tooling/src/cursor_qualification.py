@@ -94,7 +94,6 @@ def read_qualification(source: Path, native: bytes, prompt: str, *, require_bind
     missing = strings(record["missing"], "missing guarantees")
     if not isinstance(record["evidence"], list):
         raise ValueError(f"{prefix}: evidence must be a list")
-    coverage = [set() for _ in dispatch]
     root = source.parent.parent.resolve()
     for evidence in record["evidence"]:
         if (not isinstance(evidence, dict) or set(evidence) != {"reference", "sha256", "claims", "dispatch"}
@@ -112,7 +111,6 @@ def read_qualification(source: Path, native: bytes, prompt: str, *, require_bind
         for evidenced in dispatch_scopes(evidence["dispatch"], versions, readonly=native_readonly(native)):
             if evidenced not in dispatch:
                 raise ValueError(f"{prefix}: evidence scope is outside qualification scope")
-            coverage[dispatch.index(evidenced)].update(claims)
     if status in {"pending", "unsupported"}:
         if record["adoption"] is not None:
             raise ValueError(f"{prefix}: {status} cannot carry adoption")
@@ -128,8 +126,8 @@ def read_qualification(source: Path, native: bytes, prompt: str, *, require_bind
     if status == "limited":
         if not missing or not dispatch or any(item["purpose"] != "qualification-probe" for item in dispatch):
             raise ValueError(f"{prefix}: limited roles require gaps and bounded qualification-probe scope")
-    elif (missing or not dispatch or any(not CLAIMS.issubset(claims) for claims in coverage)):
-        raise ValueError(f"{prefix}: proved role requires role/model/permission/lifecycle evidence for every dispatch scope")
+    elif missing or not dispatch or any(item["purpose"] != "accepted-role-duty" for item in dispatch):
+        raise ValueError(f"{prefix}: proved role requires empty gaps and accepted-role-duty dispatch")
     return record
 
 

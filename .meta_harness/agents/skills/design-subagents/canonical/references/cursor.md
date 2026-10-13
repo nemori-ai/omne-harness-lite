@@ -27,7 +27,7 @@ Cursor renderer 只读取共享正文、assembly、Cursor 配置、角色集合�
 | pending | 原因和缺口保留，adoption为null。生成器写出该角色的 `.cursor/agents/<name>.md`。该文件不进入合格摘要，`subagentStart` 拒绝派发 |
 | unsupported | 原因保留，adoption为null；拒绝Cursor生成，不静默省略角色 |
 | limited | 非空未证明保证和限定qualification-probe派发范围，必须有PanQiWei精确采用；只允许有限结构生成和探针，不承担正式角色职责 |
-| proved | 无剩余缺口；每个派发范围都有role-behavior、actual-model、permissions和lifecycle证据，并有PanQiWei精确采用 |
+| proved | 缺口为空，每个派发范围的 purpose 都是 accepted-role-duty，并有 PanQiWei 精确采用。该角色进入合格摘要，可以正式派发 |
 
 `scope.generation`须恰好覆盖cli-project、cli-plugin、ide-project、ide-plugin、cloud-project这五种共享包部署形状。
 这只允许结构资产，不表示三端运行资格。`scope.dispatch`每项写明environment、deployment、version、mode、purpose。
