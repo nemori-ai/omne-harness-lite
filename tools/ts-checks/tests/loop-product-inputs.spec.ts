@@ -88,3 +88,29 @@ it.each(['link', 'gitlink'])('rejects an unclassifiable historical product %s', 
   const base = git(root, 'rev-parse', 'HEAD')
   expect(() => engineeringEvidence(root, [], [base])).toThrow('Cannot classify product inputs')
 })
+
+it.each(['apps', 'packages', 'examples'])('rejects historical links at the %s root', directory => {
+  for (const kind of ['link', 'gitlink']) {
+    const root = repository()
+    if (kind === 'link') {
+      write(root, 'off-root/demo/src/index.ts', 'export const value = 1')
+      symlinkSync('off-root', join(root, directory))
+      commit(root, 'root link')
+    } else {
+      git(
+        root,
+        'update-index',
+        '--add',
+        '--cacheinfo',
+        '160000',
+        git(root, 'rev-parse', 'HEAD'),
+        directory,
+      )
+      git(root, 'commit', '-qm', 'root gitlink')
+    }
+    const base = git(root, 'rev-parse', 'HEAD')
+    git(root, 'rm', '-f', directory)
+    commit(root, 'remove root link')
+    expect(() => engineeringEvidence(root, [], [base])).toThrow('Cannot classify product inputs')
+  }
+})

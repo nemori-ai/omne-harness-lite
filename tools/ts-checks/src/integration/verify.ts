@@ -77,7 +77,7 @@ export function runCommands(
     const cwd = command.cwd === 'runner' ? runner : subject
     const startedAt = new Date().toISOString()
     const env: NodeJS.ProcessEnv = {
-      ...process.env,
+      ...repositoryEnv(process.env),
       OMNE_SUBJECT_ROOT: subject,
       OMNE_RUNNER_ROOT: runner,
       FULL: profile === 'full' ? '1' : '',
@@ -230,3 +230,4 @@ export function checkCommandEvidence(value: unknown): void {
     )
   }
 }
+import { repositoryEnv } from '../git-environment.ts'

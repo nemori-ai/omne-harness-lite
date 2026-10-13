@@ -2,7 +2,7 @@
 // 归慢层：子进程：在临时 git 仓库里起回路入口 CLI 子进程（严格模式）。
 // 严格模式（make check 用的那一档）：另判「开着的传感器都有数据」，要求基线与产物目录，回路目录一个字节都不动。
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -78,6 +78,45 @@ function skeleton() {
 
 // 每条用例都起 git 与 node 子进程；全量检查满载时单条会超过默认的 5 秒。
 describe('严格模式', { timeout: 60_000 }, () => {
+  it.each(['symlink', 'gitlink'])(
+    'refuses engineering exemption after deleting a historical root %s',
+    kind => {
+      const { root, home, out } = skeleton()
+      if (kind === 'symlink') {
+        write(root, 'off-root/demo/src/index.ts', 'export const value = 1')
+        symlinkSync('off-root', join(root, 'apps'))
+        commit(root, 'root symlink')
+      } else {
+        git(
+          root,
+          'update-index',
+          '--add',
+          '--cacheinfo',
+          '160000',
+          git(root, 'rev-parse', 'HEAD'),
+          'apps',
+        )
+        git(root, 'commit', '-qm', 'root gitlink')
+      }
+      const base = git(root, 'rev-parse', 'HEAD')
+      git(root, 'rm', '-f', 'apps')
+      commit(root, 'remove root')
+      const result = run(
+        root,
+        home,
+        '--strict',
+        '--scope',
+        'engineering',
+        '--base',
+        base,
+        '--out',
+        out,
+      )
+      expect(result.status).not.toBe(0)
+      expect(result.stdout + result.stderr).toContain('Cannot classify product inputs')
+      expect(run(root, home, '--strict', '--base', base, '--out', out).status).not.toBe(0)
+    },
+  )
   it('engineering keeps direction, cycle and acceptance-lock hard failures', () => {
     const { root, home, out, base } = complete()
     write(

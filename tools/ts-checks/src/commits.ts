@@ -97,6 +97,7 @@ export function attributionViolations(commits: readonly CommitRecord[]): Violati
 export function readCommits(root: string, revision = 'HEAD'): CommitRecord[] {
   return parseCommitLog(
     execFileSync('git', ['log', `--format=${LOG_FORMAT}`, revision], {
+      env: repositoryEnv(process.env),
       cwd: root,
       encoding: 'utf8',
       maxBuffer: 256 * 1024 * 1024,
@@ -104,3 +105,4 @@ export function readCommits(root: string, revision = 'HEAD'): CommitRecord[] {
     }),
   )
 }
+import { repositoryEnv } from './git-environment.ts'

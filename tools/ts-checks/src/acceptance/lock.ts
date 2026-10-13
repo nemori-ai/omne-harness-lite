@@ -127,6 +127,7 @@ export function judge(
 
 function git(root: string, args: readonly string[]): string {
   return execFileSync('git', args, {
+    env: repositoryEnv(process.env),
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
@@ -248,3 +249,4 @@ export function render(report: LockReport, config: AcceptanceLockConfig): string
   }
   return out
 }
+import { repositoryEnv } from '../git-environment.ts'

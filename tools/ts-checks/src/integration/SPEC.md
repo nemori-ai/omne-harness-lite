@@ -20,6 +20,8 @@ I06。targetBase 用于 B..C 影响检查。taskBase..taskSource 逐提交审计
 
 I07。verify 从已采用提交物化受信 runner，命令 manifest 和 checker 来自 runner。C 只提供被测产品、测试及构建输入。实际命令成功、候选 HEAD/tree/clean 前后不变才封存 receipt。回执绑定命令、退出码、日志 digest、B/S/C、任务集合和 policy/tool 对象。旧耗时 ledger 不构成成功证明。候选自身规则不能放宽已采用规则。
 
+显式仓库的 Git 调用及 verify 工程子命令删除继承的 `GIT_DIR`、`GIT_WORK_TREE`、`GIT_INDEX_FILE`、`GIT_COMMON_DIR`、`GIT_OBJECT_DIRECTORY`、`GIT_ALTERNATE_OBJECT_DIRECTORIES`、`GIT_NAMESPACE`、`GIT_SHALLOW_FILE`。仓库、对象库及引用由显式目录决定，linked worktree 仍由 Git 自身发现。原认证、Git 配置、超时、输入输出及错误分类保持；verify 继续绑定正式 OMNE runner/subject。此约定不隔离任意 Git 配置。
+
 ## 授权与更新
 
 I08。生产授权读取真实 Issue comment。固定只读 `gh api GET` 核对 repository、Issue 非 PR、comment URL、作者 login/node ID、严格 action schema 和精确动作输入。dispatch、adopt、publish、policy-adopt 与 track-bootstrap 各有自己的必需字段。本地 JSON 仅作为草稿或观察。关键步骤再读当前任务和条件决定，未知拒绝。

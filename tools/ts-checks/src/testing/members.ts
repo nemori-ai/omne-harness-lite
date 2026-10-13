@@ -53,6 +53,7 @@ export function fileTree(root: string): Tree {
 function gitOutput(root: string, args: readonly string[]): string | undefined {
   try {
     return execFileSync('git', args, {
+      env: repositoryEnv(process.env),
       cwd: root,
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
@@ -209,3 +210,4 @@ export function ownerOf<T extends { readonly path: string }>(
       owner = member
   return owner
 }
+import { repositoryEnv } from '../git-environment.ts'

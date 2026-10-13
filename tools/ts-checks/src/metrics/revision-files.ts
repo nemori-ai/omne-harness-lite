@@ -48,6 +48,7 @@ export function readRevisionTexts(
     if (!objects.has(path)) throw new Error(`Cannot read ${path} from fixed commit ${commit}`)
   const ids = [...new Set(objects.values())]
   const output = execFileSync('git', ['cat-file', '--batch'], {
+    env: repositoryEnv(process.env),
     cwd: root,
     input: `${ids.join('\n')}\n`,
     maxBuffer: 256 * 1024 * 1024,
@@ -56,3 +57,4 @@ export function readRevisionTexts(
   const texts = blobTexts(output, ids)
   return new Map(paths.map(path => [path, texts.get(objects.get(path)!)!]))
 }
+import { repositoryEnv } from '../git-environment.ts'

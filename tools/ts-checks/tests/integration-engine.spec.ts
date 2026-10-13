@@ -52,12 +52,14 @@ it('policy revision 2 uses the complete check for both profiles and only full se
       argv: [
         process.execPath,
         '-e',
-        'process.stdout.write(JSON.stringify({id:process.argv[1],full:process.env.FULL,subject:process.env.OMNE_SUBJECT_ROOT,runner:process.env.OMNE_RUNNER_ROOT}))',
+        'process.stdout.write(JSON.stringify({id:process.argv[1],full:process.env.FULL,subject:process.env.OMNE_SUBJECT_ROOT,runner:process.env.OMNE_RUNNER_ROOT,gitDir:process.env.GIT_DIR,index:process.env.GIT_INDEX_FILE}))',
         command.id,
       ],
     })),
   }
   vi.stubEnv('FULL', 'hostile-inherited-value')
+  vi.stubEnv('GIT_DIR', '/foreign/repository')
+  vi.stubEnv('GIT_INDEX_FILE', '/foreign/index')
   for (const profile of ['integration', 'full'] as const) {
     const commands = runCommands(observed, profile, home, home, join(home, profile), null, [
       'check',

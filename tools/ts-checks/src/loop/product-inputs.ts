@@ -37,7 +37,7 @@ export function countProductInputs(paths: Iterable<string>): ProductInputs {
 
 function maintainedPath(path: string): boolean {
   return (
-    /^(packages|apps|examples)\//u.test(path) &&
+    /^(packages|apps|examples)(?:\/|$)/u.test(path) &&
     !isLegacyDirectory(path) &&
     !path.split('/').some(part => ['node_modules', 'dist', 'coverage'].includes(part))
   )
