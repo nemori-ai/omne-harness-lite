@@ -19,3 +19,5 @@ author 与 committer 是潘其威(William)，邮箱是 `46810637+PanQiWei@users.
 镜像安装[技能来源表](../../../../docs/engineering/skills.md#来源与项目采用)中的 Matt revision `b0618bc436ad893b3c5e84e55fba86586d34a404`。`npx skills` 会把该 revision 当成分支名，所以镜像先取出这个 commit，再执行 `-a cursor -g`。
 
 技能正文在 ubuntu 用户的 `~/.agents/skills`。每个目录再链接到 `~/.cursor/skills`。镜像不运行 `setup-matt-pocock-skills`。安装完整插件不扩大方法采用范围。
+
+环境构建如果复用已有基础镜像，就只运行 `install.sh`。这时脚本在当前用户是 ubuntu 且 `sudo` 不询问密码时，从投影的 Dockerfile 取出同一段包装脚本和同一个 revision，再安装一次。其他账户不改。
