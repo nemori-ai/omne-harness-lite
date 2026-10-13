@@ -73,6 +73,8 @@ def main(argv=None):
         for host in hosts:
             directories.extend((".agents/skills", ".codex/agents") if host == "codex"
                                else (".claude/skills", ".claude/agents"))
+        if any(relative.parts[:1] == (".cursor",) for relative in outputs):
+            directories.append(".cursor")
         for relative in (*directories, *outputs):
             target = (output / relative).resolve()
             if source.is_relative_to(target) or target.is_relative_to(source):

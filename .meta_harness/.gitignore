@@ -1,4 +1,6 @@
 # Rebuildable host projections; authored inputs live under agents/.
+# .cursor is omitted on purpose. Cursor Cloud Agent reads that checkout
+# before install, so the compiled projection under .cursor/ is committed.
 /.claude/
 /.agents/
 /.codex/

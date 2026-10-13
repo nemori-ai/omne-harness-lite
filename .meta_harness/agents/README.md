@@ -1,7 +1,7 @@
 # Agent 源资产
 
 本目录维护独有 skills、角色和宿主 hooks 的唯一编译源。实际条目以下表和源目录为准。
-执行仓库根 `.agents/`、`.claude/`、`.codex/` 通过相对软链接暴露生成物；接入状态由工具核对。
+执行仓库根 `.agents/`、`.claude/`、`.codex/`、`.cursor/` 通过相对软链接暴露生成物；接入状态由工具核对。
 通用工程方法从[技能采用入口](../../docs/engineering/skills.md)加载 pstack 与已选 Matt 方法，不复制插件正文。
 
 | 输入 | 输出（相对显式指定的输出根） |
@@ -9,6 +9,7 @@
 | `skills/<name>/canonical/` + `adapters/<host>/strategy.yaml` | `.agents/skills/<name>/`、`.claude/skills/<name>/` |
 | `roles/<name>/role.md`、`codex.toml`、`claude.yaml`，可选 assembly / adaptation | `.codex/agents/<name>.toml`、`.claude/agents/<name>.md` |
 | [`hooks/hooks.yaml`](hooks/README.md)（宿主无关的收工钩子声明） | `.claude/settings.json`、`.codex/hooks.json` |
+| [`cloud/`](cloud/README.md)（Cursor Cloud Agent 镜像源） | `.cursor/`。这份投影提交入库；根 `.cursor` 只是指向它的软链接 |
 
 [`research/`](research/README.md) 保存方法仍依赖的上游事实、适用版本与限制，
 不保存本项目如何讨论、迁移或验证这些方法的过程。规矩本身归 canonical skills 与 roles。
