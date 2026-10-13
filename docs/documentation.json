@@ -842,6 +842,10 @@
         {
           "id": "pending-sources",
           "anchor": "未决问题与待办事项"
+        },
+        {
+          "id": "provider-adapters",
+          "anchor": "供应商适配路线"
         }
       ],
       "gapAllowanceSource": {
@@ -1238,6 +1242,22 @@
         {
           "id": "pending-sources",
           "anchor": "未决问题与待办事项"
+        },
+        {
+          "id": "sqlite-domain",
+          "anchor": "事务域与异步sqlite执行"
+        },
+        {
+          "id": "sql-streams-handoff",
+          "anchor": "sql与streams可靠交接"
+        },
+        {
+          "id": "schema-cache",
+          "anchor": "缓存懒加载与预热"
+        },
+        {
+          "id": "migration-barriers",
+          "anchor": "迁移维护与恢复屏障"
         }
       ],
       "gapAllowanceSource": {
@@ -1438,6 +1458,10 @@
         {
           "id": "section-4",
           "anchor": "资源回收与故障边界"
+        },
+        {
+          "id": "restricted-js-profile",
+          "anchor": "受限js-profile"
         }
       ],
       "gapAllowanceSource": {
@@ -1762,6 +1786,18 @@
         {
           "id": "environments",
           "anchor": "环境与基础设施依赖"
+        },
+        {
+          "id": "resource-pools",
+          "anchor": "能力自有资源池与租户调度"
+        },
+        {
+          "id": "result-reservations",
+          "anchor": "发出前的联合结果容量预留"
+        },
+        {
+          "id": "connection-reuse",
+          "anchor": "连接复用与流式缓冲"
         }
       ],
       "gapAllowanceSource": {
@@ -4428,6 +4464,98 @@
         {
           "id": "loading",
           "anchor": "加载与维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#rfcs#RFC-0001",
+      "path": "docs/rfcs/RFC-0001-technical-foundations.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/rfcs/README.md",
+        "anchor": "准入编号与状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "1",
+          "anchor": "问题与有效输入"
+        },
+        {
+          "id": "2",
+          "anchor": "建议与改变范围"
+        },
+        {
+          "id": "3",
+          "anchor": "共同技术选择"
+        },
+        {
+          "id": "4",
+          "anchor": "公共设施机制"
+        },
+        {
+          "id": "5",
+          "anchor": "实质备选"
+        },
+        {
+          "id": "6",
+          "anchor": "验证与消费者切换"
+        },
+        {
+          "id": "7",
+          "anchor": "决定范围"
+        },
+        {
+          "id": "8",
+          "anchor": "写回现行正文"
+        },
+        {
+          "id": "9",
+          "anchor": "后继关系与维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#architecture#technical-foundations",
+      "path": "docs/architecture/technical-foundations.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/architecture/README.md",
+        "anchor": "内容地图"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "采用范围与边界"
+        },
+        {
+          "id": "choices",
+          "anchor": "共同技术选择"
+        },
+        {
+          "id": "owners",
+          "anchor": "设施机制的拥有者"
+        },
+        {
+          "id": "admission",
+          "anchor": "实施准入与持续验证"
+        },
+        {
+          "id": "review",
+          "anchor": "比较与复核条件"
+        },
+        {
+          "id": "sources",
+          "anchor": "一手依据"
         }
       ]
     }

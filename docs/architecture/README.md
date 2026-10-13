@@ -34,6 +34,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | 安全与隔离架构 | [安全与隔离](security/README.md) | 七页已接受 | 哪些访问被允许，隔离和安全责任怎样落实？ |
 | 部署与运行拓扑 | [部署拓扑](deployment/README.md) | 八页已接受 | 单机服务如何扩展为集群，分布式存储与计算怎样组织，Cordis 装配及故障由谁承接？ |
 | Cordis集成保证与机械采用 | [集成约定](cordis-integration-conventions.md)、[采用映射](constraints.json) | 保全现行保证与采用状态 | 共同集成要求是什么，哪些检查有机械覆盖，实际成员怎样兑现？ |
+| 系统技术基础与公共设施 | [技术基础](technical-foundations.md) | 已接受的共同路线 | 运行时、Schema、数据、队列、执行和观测采用什么路线，各机制由谁兑现，哪些条件须复核？ |
 | 阶段基础设施选择 | [基础设施采用](deployment/infrastructure-policy.md) | 保全现行采用范围 | 正式后端、队列优先与当前治理交付范围怎样限定，哪些目标仍未兑现？ |
 | 跨系统技术约定 | [跨系统约定](cross-cutting-concepts.md) | 已接受 | 哪些技术约定跨多个部分适用，由谁承接？ |
 | 关键选择与取舍 | [选择与取舍](decisions.md) | 定位已明确，正文暂缓 | 当前关键选择为什么成立，代价和重新评估条件是什么？ |
@@ -120,10 +121,10 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | 执行环境提供者 | 候选排序、池化、探测、节点选择、设施命名、限额、保留期及异构恢复协议。 | 执行环境提供者与部署设计；[环境选择与资源准备](runtime/execution-environment.md#环境选择与资源准备)、[失效重建与数据责任](runtime/execution-environment.md#失效重建与数据责任)、[观测与验证责任](runtime/execution-environment.md#观测与验证责任)。 |
 | 持久化与提交协议 | 必需状态和 Schema、持久确认条件、跨拥有者事务、未知提交的查询与对账。 | 数据拥有者、存储提供者与协调方；[状态分类与持久边界](data-and-state.md#状态分类与持久边界)、[事务与一致性](data-and-state.md#事务与一致性)。 |
 | 数据保留、备份和迁移 | 各类内容的保留与删除范围、备份覆盖与灾备目标、迁移的中断及恢复协议。 | 对应产品政策、数据拥有者和存储提供者；[数据生命周期与演进](data-and-state.md#数据生命周期与演进)。 |
-| 不可信代码执行机制 | 受限执行域的引擎、宿主桥接、能力授予和可终止资源约束；用实际机制验证已接受保证。 | 代码运行机制与提供者设计；[插件装配与代码信任](security/execution-isolation.md#插件装配与代码信任)、[资源回收与故障边界](security/execution-isolation.md#资源回收与故障边界)。 |
+| 不可信代码执行机制 | 沿已采用QuickJS WASM及专用Worker路线细化宿主桥接、能力授予和可终止资源约束，验证实际隔离profile；任意Node插件及OS隔离分别承接。 | 代码运行机制与提供者设计；[插件装配与代码信任](security/execution-isolation.md#插件装配与代码信任)、[资源回收与故障边界](security/execution-isolation.md#资源回收与故障边界)。 |
 | Cordis 装配与生命周期 | 各根、受管分支、必需依赖和服务可见范围的具体配置，调用入口与执行拥有者的绑定、换代及退出协议。 | 装配与 runtime 提供者拥有者；[Cordis 运行约束](deployment/cordis-and-lifecycle.md#cordis-运行约束与装配边界)、[生命周期与工作承接](deployment/cordis-and-lifecycle.md#cordis-生命周期与工作承接)。 |
 | 进程级故障监督 | 进程外监督、独立终止路径、反复失败处置，以及具体装配的故障域和恢复安排。 | 运行监督及调用拥有者；[资源与故障域](deployment/resilience-and-evolution.md#资源与故障域)、[后续部署契约与实现选择](deployment/README.md#后续部署契约与实现选择)。 |
-| 进程与线程的具体机制 | 在已定执行边界下选择任务、线程与进程分工，细化执行器、背压、公平性和控制资源策略，并验证并发稳定性。 | 调度、runtime 与执行器拥有者；[进程与线程模型](deployment/execution-and-communication.md#进程与线程模型)、[后续部署契约与实现选择](deployment/README.md#后续部署契约与实现选择)。 |
+| 进程与线程的具体机制 | 沿专用SQLite写Worker、可信CPU池、能力自有池及租户DRR机制细化任务/进程分工、额度、保留容量与实际终止，验证并发稳定性和进展前提。 | 调度、runtime 与执行器拥有者；[进程与线程模型](deployment/execution-and-communication.md#进程与线程模型)、[后续部署契约与实现选择](deployment/README.md#后续部署契约与实现选择)。 |
 | daemon 与单机执行布局 | 客户端连接常驻 Harness 服务的发现、启停与连接协议；服务实例的辅助进程、资源归属及监督，按需独立部署能力的边界。 | 装配、客户端及执行器拥有者；[个人设备装配](deployment/single-machine.md#个人设备装配)、[单机多进程的扩展边界](deployment/single-machine.md#单机多进程的扩展边界)。 |
 | 集群协调与工作路由 | Harness 实例之上的接入路由、工作归属、跨实例协调、节点管理与共享数据访问；原调用定位、重连、接管、排空及单机到集群的提供者切换。 | 调度、Session/Run、公开协议及部署提供者拥有者；[云端集群装配](deployment/cluster.md#云端集群装配)、[从单机扩展到集群](deployment/cluster.md#从单机扩展到集群)、[通信、路由与结果交接](deployment/execution-and-communication.md#通信路由与结果交接)、[后续部署契约与实现选择](deployment/README.md#后续部署契约与实现选择)。 |
 | 分布式存储提供者 | 分片键、副本布局、提交与读取语义、元数据和内容协调、分片迁移、恢复指标及删除方式。 | 数据拥有者、存储提供者与装配维护者；[提供者与验证责任](deployment/distributed-storage.md#提供者与验证责任)。 |
@@ -134,7 +135,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | 独立模块与集成绑定 | 公开接口、必需与可选依赖、服务绑定、贡献撤回和在途资源交接的精确契约。 | 各能力、提供者及集成拥有者；[公开契约与独立使用](structure.md#公开契约与独立使用)、[Cordis 集成与作用域](structure.md#cordis-集成与作用域)。 |
 | 发布支持与阶段验收 | 各装配的支持矩阵与阶段交付，以及规模、持续可用范围、恢复时间和损失边界的验收条件。 | 产品、部署与质量验证拥有者；[个人设备与云端集群](drivers-and-constraints.md#个人设备与云端集群)、[部署与恢复验证](deployment/resilience-and-evolution.md#部署与恢复验证)、[后续部署契约与实现选择](deployment/README.md#后续部署契约与实现选择)。 |
 
-具体接口、类型外行为、实现选择和验证资源随实际拥有者维护，不集中塞回架构正文。性能与恢复指标需要产品场景和验证条件共同确定，不能由实现默认值替代要求。
+[共同技术基础](technical-foundations.md)维护已接受的路线与复核条件；具体接口、类型外行为、提供者实现和验证资源随实际拥有者维护，不集中塞回架构正文。性能与恢复指标需要产品场景和验证条件共同确定，不能由实现默认值替代要求。
 
 [质量与符合性](assurance.md#后续细化与维护)列出符合性映射、语义偏离计量、跨边界验证设施及新增高风险阻断的细化责任。正文已接受，具体工具与门禁仍须分别设计、采用和验证。
 
