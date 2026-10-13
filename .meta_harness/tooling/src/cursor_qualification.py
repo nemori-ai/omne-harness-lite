@@ -31,10 +31,11 @@ def strings(value, label: str, nonempty=False) -> list[str]:
     return value
 
 
-def dispatch_scopes(value, versions: dict) -> list[dict]:
+def dispatch_scopes(value, versions: dict, *, readonly: bool) -> list[dict]:
     if not isinstance(value, list):
         raise ValueError("cursor qualification: dispatch scopes must be a list")
     seen = set()
+    non_cli_mode = "ask" if readonly else "agent"
     for item in value:
         if (not isinstance(item, dict) or set(item) != DISPATCH_FIELDS
                 or any(not isinstance(field, str) or not field.strip() for field in item.values())):
@@ -42,10 +43,10 @@ def dispatch_scopes(value, versions: dict) -> list[dict]:
         host = item["environment"]
         if (host not in versions or item["version"] not in versions[host]
                 or item["deployment"] not in {"project", "plugin"}
-                or item["mode"] not in {"interactive", "headless", "agent"}
+                or item["mode"] not in {"interactive", "headless", "agent", "ask"}
                 or item["purpose"] not in {"qualification-probe", "accepted-role-duty"}
-                or (host != "cli" and item["mode"] != "agent")
-                or (host == "cli" and item["mode"] == "agent")
+                or (host != "cli" and item["mode"] != non_cli_mode)
+                or (host == "cli" and item["mode"] not in {"interactive", "headless"})
                 or (host == "cloud" and item["deployment"] != "project")):
             raise ValueError("cursor qualification: invalid or unversioned dispatch scope")
         key = json.dumps(item, sort_keys=True)
@@ -53,6 +54,13 @@ def dispatch_scopes(value, versions: dict) -> list[dict]:
             raise ValueError("cursor qualification: duplicate dispatch scope")
         seen.add(key)
     return value
+
+
+def native_readonly(native: bytes) -> bool:
+    config = yaml.load(native.decode(), Loader=UniqueLoader)
+    if not isinstance(config, dict) or type(config.get("readonly")) is not bool:
+        raise ValueError("cursor qualification: native readonly must be a boolean")
+    return config["readonly"]
 
 
 def read_qualification(source: Path, native: bytes, prompt: str) -> dict:
@@ -82,7 +90,7 @@ def read_qualification(source: Path, native: bytes, prompt: str) -> dict:
         raise ValueError(f"{prefix}: separate generation and dispatch scopes are required")
     if set(strings(scope["generation"], "generation scopes")) != GENERATION_SCOPES:
         raise ValueError(f"{prefix}: generation must cover the shared bundle's five deployment shapes")
-    dispatch = dispatch_scopes(scope["dispatch"], versions)
+    dispatch = dispatch_scopes(scope["dispatch"], versions, readonly=native_readonly(native))
     missing = strings(record["missing"], "missing guarantees")
     if not isinstance(record["evidence"], list):
         raise ValueError(f"{prefix}: evidence must be a list")
@@ -101,14 +109,16 @@ def read_qualification(source: Path, native: bytes, prompt: str) -> dict:
         claims = strings(evidence["claims"], "evidence claims", nonempty=True)
         if not set(claims).issubset(CLAIMS | {"catalog", "structure"}):
             raise ValueError(f"{prefix}: unknown evidence claim")
-        for evidenced in dispatch_scopes(evidence["dispatch"], versions):
+        for evidenced in dispatch_scopes(evidence["dispatch"], versions, readonly=native_readonly(native)):
             if evidenced not in dispatch:
                 raise ValueError(f"{prefix}: evidence scope is outside qualification scope")
             coverage[dispatch.index(evidenced)].update(claims)
     if status in {"pending", "unsupported"}:
         if record["adoption"] is not None:
             raise ValueError(f"{prefix}: {status} cannot carry adoption")
-        raise ValueError(f"{prefix}: {status}: {record['reason']}")
+        if status == "unsupported":
+            raise ValueError(f"{prefix}: unsupported: {record['reason']}")
+        return record
     adoption = record["adoption"]
     if (not isinstance(adoption, dict) or set(adoption) != {"owner", "reference", "subject_sha256"}
             or adoption["owner"] != "PanQiWei" or not isinstance(adoption["reference"], str)
@@ -123,8 +133,7 @@ def read_qualification(source: Path, native: bytes, prompt: str) -> dict:
     return record
 
 
-def require_qualification(source: Path, native: bytes, prompt: str) -> str:
-    record = read_qualification(source, native, prompt)
+def qualification_footer(record: dict) -> str:
     return ("\n\n## Cursor qualification scope\n\n"
             + f"Status: {record['status']}. Owner decision: {record['adoption']['reference']}.\n"
             + "Generation covers structural assets for CLI, IDE and Cloud. It does not qualify runtime use.\n"
@@ -135,6 +144,8 @@ def require_qualification(source: Path, native: bytes, prompt: str) -> str:
 
 def require_dispatch(source: Path, native: bytes, prompt: str, scope: dict) -> None:
     record = read_qualification(source, native, prompt)
-    dispatch_scopes([scope], record["host_versions"])
+    if record["status"] not in {"limited", "proved"}:
+        raise ValueError(f"cursor qualification {source.name}: dispatch scope is not adopted")
+    dispatch_scopes([scope], record["host_versions"], readonly=native_readonly(native))
     if scope not in record["scope"]["dispatch"]:
         raise ValueError(f"cursor qualification {source.name}: dispatch scope is not adopted")

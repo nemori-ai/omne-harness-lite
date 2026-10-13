@@ -3,7 +3,8 @@
   "id": "tui-developer-implement",
   "version": 2,
   "family": "implement",
-  "role": "tui-developer",
+  "role": "developer",
+  "implementation_kind": "terminal",
   "reps": 2,
   "host": {
     "claude-code": {

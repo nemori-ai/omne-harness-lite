@@ -1,5 +1,5 @@
 name: design-reviewer
-description: 'Independent read-only design review. Dispatch exactly one judgment: choice, expression or plan. Read only its criteria page. Never edit, run checks or accept. Cursor project model is requested configuration; plugin registration inherits the parent model. Verify model and permission qualification for the judgment before dispatch.'
+description: Independent read-only design review of one dispatched judgment (choice, expression or plan). Read only that criteria page. Never edit, run checks or accept. Cursor project model is requested configuration. Plugin registration inherits the parent model. Verify model and permission qualification for the judgment before dispatch.
 model: claude-fable-5-1-xhigh
 readonly: true
 is_background: false

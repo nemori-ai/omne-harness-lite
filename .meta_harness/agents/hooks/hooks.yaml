@@ -4,8 +4,8 @@
 hooks:
   - id: loop-stop-facts
     events: [Stop, SubagentStop]
-    # 只对会改产品源码的角色。
-    subagent_types: [developer, verification-developer, tui-developer]
+    # 只对会改产品源码的角色。终端与验证设施实施都由 developer 承担。
+    subagent_types: [developer]
     # shell 形式、从 git 根解析：两端都以会话的当前目录运行钩子，Codex 没有项目根变量。
     # 跑哪一份脚本：当前工作树里有这份脚本且装了依赖，就跑它自己的（它可能正在改这套工具）；
     # 否则跑主检出里的那一份——刚建的工作树还没装依赖，脚本加载不了解析器，量的仍是会话所在的那棵工作树。

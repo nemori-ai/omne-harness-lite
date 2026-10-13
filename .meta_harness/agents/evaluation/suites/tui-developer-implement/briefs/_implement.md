@@ -5,6 +5,7 @@
 
 - 任务 ID：{TASK_ID}（run {RUN_ID}）
 - 角色：{ROLE}
+- implementation_kind：terminal。加载 terminal-practice。不替代 diagnostician 或 qa
 - 能力纵线与交付物：治理 CLI/TUI（`apps/cli`）中的一个模块，见「目标边界」
 - 执行仓库：`{WORKDIR}`。副本排除中央设计工作区及旧宿主指导；本案例的规则由局部简报提供。这是一份独立检出，版本历史只有一个基线提交；本案例无需开发过程材料
 - 分支：当前分支；不新建分支、不提交、不推送

@@ -1,6 +1,6 @@
-# tui-developer 补完一个终端模块
+# developer 以 terminal 补完一个终端模块
 
-量的是：给 [tui-developer](../../../roles/tui-developer/role.md) 一份装好依赖的整仓检出，其中一个终端界面模块的实现体被换成只留公开签名的桩、
+量的是：给 [developer](../../../roles/developer/role.md) 一份装好依赖的整仓检出，`implementation_kind` 为 `terminal`，其中一个终端界面模块的实现体被换成只留公开签名的桩、
 针对它的原有测试被拿走，按一份完整的施工简报让它把模块补完——补完之后原有测试与类型检查是否全过，
 它是否守住写入范围、没有动原有测试。判定由程序在收录运行时做，没有判官。
 
@@ -33,7 +33,7 @@ TD-2 的目标测试里有 `tui-application.spec.ts`、`tui-dialog.spec.ts` 的�
 ## 运行设置
 
 模型、档位、工具清单、次数和判定阈值以 [flow.json](flow.json) 为准。
-角色的默认配置归[角色源](../../../roles/tui-developer/claude.yaml)。
+角色的默认配置归[角色源](../../../roles/developer/claude.yaml)。这次派发的实施种类是 `terminal`。
 每次执行的输出与比较结果放本工作树 tmp，不在用例说明中追加运行流水。
 
 ## 量不出什么

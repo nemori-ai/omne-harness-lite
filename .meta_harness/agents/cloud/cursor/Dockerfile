@@ -21,6 +21,7 @@ RUN apt-get update \
         git \
         python-is-python3 \
         python3 \
+        rsync \
         sudo \
         xz-utils \
     && rm -rf /var/lib/apt/lists/*

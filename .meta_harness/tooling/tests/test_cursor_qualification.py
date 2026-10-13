@@ -17,42 +17,39 @@ from qualification_test_support import adopt, limited_record, pending_record, qu
 SOURCE = Path(__file__).parents[2] / "agents"
 
 
-ADOPTION = "https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6136781019"
-ROLES = {"design-reviewer", "developer", "implementation-reviewer", "product-design-drafter",
-         "product-design-reviewer", "qa", "tui-debugger", "tui-developer", "verification-developer"}
+ROLES = {"design-reviewer", "developer", "diagnostician", "implementation-reviewer",
+         "product-design-drafter", "product-design-reviewer", "qa"}
 
 
-def test_limited_production_build_stages_the_adopted_ide_probe(tmp_path):
+def test_pending_production_writes_no_agent_files(tmp_path):
     source = Path(shutil.copytree(SOURCE, tmp_path / "source"))
     output = tmp_path / "output"
     assert main(["--source", str(source), "--output", str(output), "--host", "cursor"]) == 0
     agents = output / ".cursor/agents"
-    assert {path.name for path in agents.iterdir()} == {f"{role}.md" for role in ROLES}
-    text = (agents / "developer.md").read_text()
-    assert "Status: limited" in text and ADOPTION in text
+    assert not agents.exists() or not any(agents.glob("*.md"))
+    assert (output / ".cursor/skills/terminal-practice/SKILL.md").is_file()
+    gate = json.loads((output / ".cursor/runtime/role-gate.json").read_text())
+    assert set(gate["managed"]) == ROLES and gate["summaries"] == {}
     role = source / "roles/developer"
+    record = yaml.safe_load((role / "cursor-qualification.yaml").read_text())
+    assert record["status"] == "pending" and record["adoption"] is None
     native, prompt = (role / "cursor.yaml").read_bytes(), cursor_role_prompt(role)
-    probe = {"environment": "ide", "deployment": "project", "version": "3.24.12",
-             "mode": "agent", "purpose": "qualification-probe"}
-    assert require_dispatch(role, native, prompt, probe) is None
-    cli_version = yaml.safe_load((role / "cursor-qualification.yaml").read_text())["host_versions"]["cli"][0]
-    cli = {"environment": "cli", "deployment": "project", "version": cli_version,
-           "mode": "interactive", "purpose": "qualification-probe"}
-    for denied in [cli, {**probe, "purpose": "accepted-role-duty"}]:
-        with pytest.raises(ValueError, match="dispatch scope is not adopted"):
-            require_dispatch(role, native, prompt, denied)
+    with pytest.raises(ValueError, match="dispatch scope is not adopted"):
+        require_dispatch(role, native, prompt, {
+            "environment": "ide", "deployment": "project", "version": "3.24.12",
+            "mode": "agent", "purpose": "qualification-probe"})
 
 
-def test_pending_copy_of_production_still_writes_nothing(tmp_path, capsys):
-    source = Path(shutil.copytree(SOURCE, tmp_path / "source"))
-    for path in source.glob("roles/*/cursor-qualification.yaml"):
-        record = yaml.safe_load(path.read_text())
-        record["status"], record["adoption"] = "pending", None
-        path.write_text(yaml.safe_dump(record, allow_unicode=True, sort_keys=False))
+def test_pending_omits_only_that_role_agent_file(source, tmp_path):
+    role = source / "roles/developer"
+    write_record(role, pending_record(role))
     output = tmp_path / "output"
-    assert main(["--source", str(source), "--output", str(output), "--host", "cursor"]) == 1
-    assert "cursor qualification" in capsys.readouterr().err
-    assert not output.exists()
+    assert main(["--source", str(source), "--output", str(output), "--host", "cursor"]) == 0
+    names = {path.name for path in (output / ".cursor/agents").glob("*.md")}
+    assert "developer.md" not in names
+    assert names == {f"{name}.md" for name in ROLES - {"developer"}}
+    gate = json.loads((output / ".cursor/runtime/role-gate.json").read_text())
+    assert "developer" not in gate["summaries"] and "qa" in gate["summaries"]
 
 
 @pytest.fixture
@@ -87,7 +84,10 @@ def test_unadopted_states_refuse_direct_projection(source, status):
     record = pending_record(role)
     record["status"] = status
     write_record(role, record)
-    with pytest.raises(ValueError, match=f"cursor qualification developer: {status}"):
+    if status == "pending":
+        assert project_cursor_role(role) is None
+        return
+    with pytest.raises(ValueError, match="cursor qualification developer: unsupported"):
         project_cursor_role(role)
 
 
@@ -127,8 +127,8 @@ def test_scope_or_version_change_invalidates_exact_adoption(source):
         project_cursor_role(role)
 
 
-@pytest.mark.parametrize("file", ["developer/role.md", "developer/cursor.yaml", "engineering-taste.md",
-                                 "cursor-adaptation.md"])
+@pytest.mark.parametrize("file", ["developer/role.md", "developer/cursor.yaml", "project-frame.md",
+                                 "engineering-taste.md", "cursor-adaptation.md"])
 def test_role_native_shared_or_overlay_source_change_invalidates_binding(source, file):
     path = source / "roles" / file
     path.write_text(path.read_text() + ("\n# changed native bytes\n" if file.endswith("yaml") else "\nChanged source.\n"))
@@ -193,6 +193,21 @@ def test_proved_fixture_requires_verified_evidence_for_each_scope(source):
     report.write_text("changed bytes")
     with pytest.raises(ValueError, match="evidence file.*stale"):
         project_cursor_role(role)
+
+
+def test_readonly_qualification_records_ask_mode(source):
+    role = source / "roles/design-reviewer"
+    record = limited_record(role)
+    record["host_versions"]["ide"] = ["3.24.12"]
+    record["scope"]["dispatch"].append({
+        "environment": "ide", "deployment": "project", "version": "3.24.12",
+        "mode": "agent", "purpose": "qualification-probe"})
+    write_record(role, adopt(record))
+    with pytest.raises(ValueError, match="invalid or unversioned dispatch scope"):
+        project_cursor_role(role)
+    record["scope"]["dispatch"][-1]["mode"] = "ask"
+    write_record(role, adopt(record))
+    assert '"mode": "ask"' in project_cursor_role(role)[1]
 
 
 def test_existing_correctly_hashed_evidence_outside_source_is_rejected(source):

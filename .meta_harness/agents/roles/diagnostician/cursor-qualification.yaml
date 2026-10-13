@@ -1,0 +1,29 @@
+version: 1
+role: diagnostician
+binding:
+  native_sha256: 0663d41b5faa6c7e709d46de81575fee14a27a8e2003b22d96b2264552c406d7
+  prompt_sha256: 46f25771b4ac1439236a5c38a79c0cb1090367fd22ae4a1a05c6cf03dbfbc564
+host_versions:
+  cli:
+  - 2026.08.04-aaa8809
+  ide: []
+  cloud: []
+status: pending
+scope:
+  generation:
+  - cli-plugin
+  - cli-project
+  - cloud-project
+  - ide-plugin
+  - ide-project
+  dispatch: []
+evidence: []
+missing:
+- Revision 4 changed the role bytes. The previous limited IDE probe is not carried
+  forward.
+- The seven-role adoption is not role-qualification proof.
+- Obtain a new named qualification after these bytes are stable.
+- The project-frame init obligation changed the prompt again. Pending remains.
+adoption: null
+reason: Pending until a new named Cursor qualification. The previous nine limited
+  probes are not reused.

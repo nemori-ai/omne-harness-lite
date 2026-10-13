@@ -11,30 +11,33 @@
 | product-design-reviewer | 评审起草交付的文档本身：逻辑、完整性、明显漏洞，叠加一层可实施性；核对产品含义归长期正文，不承担任务调度与处置；**不评判品味与方向**；只读，固定 xhigh | [产品设计评审](product-design-reviewer/role.md) |
 | design-reviewer | 设计材料的独立只读评审，**一次派发只做一种判断**：选择（读数、能力边界、契约批次的语义整体、提供者或装配设计）、表达（规格文本）或计划（施工计划）；只读本次那一页判据，不混报、不修复、不接受；固定 xhigh | [设计评审](design-reviewer/role.md) |
 | implementation-reviewer | 一次实现类交付的独立评审，**只在接受级别 L2／L3 或读数里有未交代的红项时派**；先跑执行仓库声明的检查，再按检查表问；每条发现带工具输出或具体反例，不收品味意见；不改受版本管理的文件、不接受；默认 high | [实现评审](implementation-reviewer/role.md) |
-| developer | 按规格与施工计划实现一个限定的切片：内核原语、能力与组合的行为、具体提供者，或应用装配与流程；**写入范围由任务给，不由角色名给**；模型与档位按本次任务选，默认 high | [开发](developer/role.md) |
-| verification-developer | 实现跨边界场景、故障注入、测量及形式工具适配；默认 high | [验证开发](verification-developer/role.md) |
-| tui-developer | 按已接受契约实现终端交互与呈现、终端生命周期和输出边界；负责修复与自身回归，不代替独立取证或验收；默认 high | [TUI 开发](tui-developer/role.md) |
-| tui-debugger | 对终端界面（TUI）应用的异常现象做**取证**：可重跑的复现、分层证据、假设账本、修复建议，先排除终端特有的嫌疑变量；**不修、不判「修好」**，只写证据目录；默认 high | [TUI 取证](tui-debugger/role.md) |
-| qa | 对一个可运行的交付增量（命令行、终端界面、服务或包的公开入口）按给定验收标准在真实装配上做**独立验收**：四态判决、机器证据、逐条对照、缺陷清单；交付面是终端界面时另过终端矩阵、宽字符、resize、退出还原几关；**不修、不接受**，只写场景目录与证据目录；默认 high | [独立验收](qa/role.md) |
+| developer | 按规格与施工计划实现一个限定切片。派发字段 `implementation_kind` 取 `product`、`terminal` 或 `verification`。四类任务性质仍在正文里。写入范围由任务给。不替代 qa 或 diagnostician。模型与档位按本次任务选，默认 high | [开发](developer/role.md) |
+| diagnostician | 只对 `surface` 为 `terminal` 的异常做取证。缺省或非终端 surface 停止，桌面异常交回任务负责人。不修、不判「修好」。Codex 模型钉 `gpt-6.1-sol`，默认 high | [终端取证](diagnostician/role.md) |
+| qa | 对一个可运行的交付增量按给定验收标准在真实装配上做独立验收。交付面是终端时加载 `terminal-acceptance`。不修、不接受。Codex 模型由派发者传入，默认 high | [独立验收](qa/role.md) |
 
 角色正文拥有职责与边界，`codex.toml`、`claude.yaml` 和可选模型适配段拥有宿主差异。
-共享正文由各角色 `assembly.toml` 的 `shared_prompts` 按序内联：开发者（developer、verification-developer、tui-developer）在品味之后内联[共同契约](developer-contract.md)，
-固定提示已经包含必要输入、行动授权和停止条件；[派发模板](developer-task.md)提供本次事实，不进入固定提示。
-implementation-reviewer 在品味之后内联[实现评审检查表](implementation-review-checklist.md)——那份文件是这些问法唯一的正文。
+共享正文由各角色 `assembly.toml` 的 `shared_prompts` 按序内联。七个角色的第一项都是[开工框架](project-frame.md)。
+五个研发角色接着内联[研发品味](engineering-taste.md)。developer 再内联[共同契约](developer-contract.md)。
+implementation-reviewer 再内联[实现评审检查表](implementation-review-checklist.md)。那份文件是这些问法唯一的正文。
+固定提示已经包含必要输入、行动授权和停止条件。[派发模板](developer-task.md)提供本次事实，不进入固定提示。
 design-reviewer 的判据不内联：三种判断各一页，在手册的 `references/review/` 下，评审时只读本次那一页。
 生成说明见[工具入口](../../tooling/README.md)，生成物归工作区内
 `.codex/agents/` 与 `.claude/agents/`；这些目录由工具生成，未生成时不作为文档链接目标。
 
+## 开工框架
+
+[开工框架](project-frame.md)是七个角色固定提示的第一段共享正文。它要求角色先理解任务，再按需阅读根 `AGENTS.md`、`docs/requirements.md`、`docs/architecture/`、`docs/domains/` 和这次用到的 `docs/engineering/` 拥有者。它不复制这些正文，也不授予岗位权限。
+
+两个产品角色只内联这一段，不内联研发品味。五个研发角色在它之后内联品味。拼接顺序为 `role.md` → 开工框架 →（研发角色）研发品味 →（按角色）共同契约或检查表 → 模型适配段。
+
 ## 共享研发品味
 
-[研发品味](engineering-taste.md)是全部设计与研发角色共用的**唯一**品味正文：
-设计与实现评审、开发者、独立验收与 TUI 取证角色都把它列为 `shared_prompts` 的第一项，
-拼接顺序为 `role.md` → 研发品味 →（按角色）共同契约或检查表 → 模型适配段。
-它的导语写明只在各角色自身的职责、判断对象与授权之内生效：评审与验收角色不把品味当独立发现来源或验收判据。
+[研发品味](engineering-taste.md)是设计与研发角色共用的**唯一**品味正文。
+它接在开工框架之后，只在各角色自身的职责、判断对象与授权之内生效。评审与验收角色不把品味当独立发现来源或验收判据。
 
-**两个产品设计角色刻意不挂**：它们站在 product manager 视角、明令不做技术判断，
-product-design-reviewer 还明写不评判设计品味；工程品味会把它们往技术设计上拉。
-`tooling/tests/test_role_sources.py` 守住这条：新角色忘了挂、或产品角色误挂，`make test` 都会失败。
+**两个产品设计角色刻意不挂品味**：它们站在 product manager 视角，明令不做技术判断。
+product-design-reviewer 还明写不评判设计品味。工程品味会把它们往技术设计上拉。它们仍要按开工框架约束产品判断。
+`tooling/tests/test_role_sources.py` 守住这条：新角色忘了先挂框架、研发角色忘了接着挂品味，或产品角色误挂品味，`make test` 都会失败。
 
 改品味只改这一个文件，然后按工具入口重编生成物并运行 `make agents-check`；
 已开着的 Claude Code 会话在启动时就固化了角色定义，要开新会话才会用上新正文。
@@ -109,7 +112,7 @@ TLC/Alloy 工件按需选择，不因缺某工具文件就判错，也不以 opt
 启动方式与环境、干净检出与两个可写目录、可用的验证设施、预算。
 **不转发实现者的完成声明**；验收实例不得是实现者，也不得是写了被验代码的任何实例。
 流程：QA 实例 A 在实现前或并行写验收场景 → 实现者交付 → 干净上下文的 QA 实例 B 在干净检出上跑
-→ Fail 交 developer（终端面的现象交 tui-debugger）→ 修复后新实例复验（只跑 Fail 项加冒烟）→ Pass 由派发者或产品负责人接受。
+→ Fail 交 developer（终端面的现象交 diagnostician）→ 修复后新实例复验（只跑 Fail 项加冒烟）→ Pass 由派发者或产品负责人接受。
 qa 原来叫 tui-qa，只服务终端界面；2026-10-01 泛化成通用角色，终端那几关改为「交付面是终端界面时才过」，
 依据与验证范围见[现行实现评审用例](../evaluation/suites/implementation-review/README.md)。
 
@@ -117,31 +120,34 @@ qa 原来叫 tui-qa，只服务终端界面；2026-10-01 泛化成通用角色�
 派发者收工时用 `git status` 核写入范围，越界即本次结果无效。这两个角色的 `permissionMode` 是 `default`
 而不是 design-reviewer 的 `dontAsk`，因为它们要运行检查、被测程序与外部进程；Codex 侧是 `workspace-write`，Cursor 侧请求 `readonly: false`。
 
-## TUI 开发与取证
+## 实施种类与终端取证
 
-tui-developer 消费应用契约并实现终端交互；派发时给齐共同开发输入及目标终端矩阵、输出契约和真实组合边界。
-终端界面的验收由通用的 qa 做（见上一节），它在交付面是终端界面时另过终端那几关。
+developer 一次派发只取一个 `implementation_kind`。
 
-tui-debugger 服务于**终端界面（TUI）应用**的运行现象，与评审判文档、developer 改代码都不同：
-它**运行被测程序、往指定目录写证据**，但**不改产品源码、不接受结果**。
-现行职责与适用条件由各角色正文维护；候选讨论和调研过程留工作树 tmp。
+| 值 | 问的问题 | 加载 | 可写 |
+|---|---|---|---|
+| `product` | 上一节四类任务性质怎么兑现 | 无交付面 skill | 任务给定的产品源码与测试 |
+| `terminal` | 终端交互与呈现怎么做出来 | `terminal-practice` | 任务给定的终端消费者与回归测试 |
+| `verification` | 验证设施怎么建 | `verification-facility` | 任务给定的测试、`tools/` 或 `scripts/` |
+
+终端实践、终端验收、终端取证和验证设施实践在对应 skill 里，不写入 `shared_prompts`。
+验证设施不把尚未实现的产品行为补进 fixture。developer 不替代 qa 或 diagnostician 的判决。
+
+diagnostician 只覆盖终端取证。`surface` 不是 `terminal` 就停止。桌面异常交回任务负责人。
+它运行被测程序、往指定目录写证据，但不改产品源码、不接受结果。方法在 `terminal-forensics`。
 
 | 角色 | 问的问题 | 可写 | 交给谁 |
 |---|---|---|---|
-| developer、tui-developer | 怎么把它做出来 | 产品源码、计划划定的测试 | 派发者 |
-| verification-developer | 验证**设施**怎么建（无头终端驱动、替身后端、故障注入、证据 hook） | `tools/`、测试基础设施 | 派发者 |
-| tui-debugger | 这个异常**怎么发生的** | 只写证据目录；埋点只在显式给定的隔离工作树里且收工前撤净 | 派发者 → developer |
-| qa | 交付的东西按标准**到底过没过** | 只写验收场景目录与证据目录 | 派发者／产品负责人接受 |
+| developer | 怎么把它做出来 | 任务给定的源码与测试 | 派发者 |
+| diagnostician | 这个终端异常怎么发生的 | 只写证据目录。埋点只在显式给定的隔离工作树里，且收工前撤净 | 派发者 → developer |
+| qa | 交付的东西按标准到底过没过 | 只写验收场景目录与证据目录 | 派发者或产品负责人接受 |
 
-**派发 tui-debugger 时给齐**：带观察者的现象陈述、构建坐标、启动方式与环境、正确性判据（oracle）、
-证据目录、预算（默认三条假设或三次复现失败即停）。**说不清 oracle 就先派一次「提议 oracle」**，认可后再派取证。
-候选原因多于一个且互不重叠时，**一实例一假设**、各自独立的证据子目录，最后比对账本。
-因果链闭合后，把 `verdict.md` 与 `repro.sh` 直接作为 developer 任务的实施规格与验收判据；
-修复后**由派发者重跑复现脚本**判「修好」，不由 debugger 判。
+派发 diagnostician 时给齐 `surface: terminal`、带观察者的现象陈述、构建坐标、启动方式与环境、oracle、
+证据目录、预算（默认三条假设或三次复现失败即停）。说不清 oracle 就先派一次「提议 oracle」，认可后再派取证。
+因果链闭合后，把 `verdict.md` 与 `repro.sh` 作为 developer 任务的实施规格与验收判据。
+修复后由派发者重跑复现脚本判「修好」。
 
-它与 qa 一样只受指令约束、没有按路径的写保护，派发者收工时用 `git status` 核写入范围。
-**桌面应用的取证不在这个角色里。**TUI 与桌面应用的取证面（伪终端与写日志 vs 调试协议与无障碍树）、
-口味与最佳实践都不同，硬写成一个角色两边都会稀释；桌面应用有了交付面 PF 之后另立取证角色。
+`tui-developer`、`verification-developer`、`tui-debugger` 已删除，不加别名。
 
 ## 开发责任与并行
 
@@ -167,7 +173,7 @@ tui-debugger 服务于**终端界面（TUI）应用**的运行现象，与评审
 ## 模型配置与本次派发
 
 模型与档位的权威在各角色的 `codex.toml`、`claude.yaml` 与开发者的 `assembly.toml`；
-design-reviewer、product-design-reviewer 与 product-design-drafter 固定档位；开发者、implementation-reviewer、qa、TUI角色
+design-reviewer、product-design-reviewer 与 product-design-drafter 固定档位；developer、implementation-reviewer、qa、diagnostician
 默认档位见上表，可按任务选 medium/high/xhigh。这些钉值来自有日期的支持记录，不是对当前账户或新版本宿主的重新核验。
 
 **design-reviewer 判「表达」时可以换成 Opus 5.5**：Claude Code 一端角色文件钉 Fable 5.1，派发时用 Agent 工具的 `model` 参数覆盖
@@ -184,8 +190,8 @@ Codex 一端钉 GPT-6 Astra，三种判断都用它。
 | 安全敏感、跨多个包或整个装配、契约把失败／诊断／顺序留给判断 | Fable 5.1 | GPT-6 Astra | high 起 |
 
 两端换模型的机制不同：Claude Code 的角色文件钉了默认模型，派发时用 Agent 工具的 `model` 参数覆盖；
-Codex 里**角色文件钉的模型优先于派发值**，所以 developer 的 `codex.toml` 不钉模型，**Codex 派发必须显式给模型**，
-不给就继承父会话的模型。
+Codex 里**角色文件钉的模型优先于派发值**，所以 developer 与 qa 的 `codex.toml` 不钉模型，**Codex 派发必须显式给模型**，
+不给就继承父会话的模型。diagnostician 继续钉 `gpt-6.1-sol`。
 
 开发者派发参数从源配置取得。在本工作区根、使用具备 Python 3.12+ 和 PyYAML 的解释器：
 
@@ -213,4 +219,6 @@ agent 试用，并说明未经应用的原生沙箱与权限不能算生效；�
 Cursor 原生配置与模型/权限资格由 [design-subagents](../skills/design-subagents/canonical/references/cursor.md) 拥有。角色职责不因新增宿主改变。生成配置不继承已有 Claude/Codex 评估资格；本次依赖精确模型或权限的任务须另核实际运行。
 
 每个角色的`cursor-qualification.yaml`绑定本角色实际提示及native字段；生成前门禁拒绝未采用或过期记录。
-当前九个生产记录为pending，Cursor全量生成保持拒绝。有限探针采用、正式角色资格和整卡接受分别确认，不能用D-02方向采用代替。
+七个生产记录现为 pending。先前九份有限探针资格不沿用。pending 只跳过该角色自己的 Cursor agent 文件。
+记录缺失、过期或 unsupported 时，整个 Cursor 构建在写入前不产生文件。
+修订 4 的方案采用不是角色资格证明。角色字节稳定后另行取得资格。没有资格文件的角色不能派发正式职责。

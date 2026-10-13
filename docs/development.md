@@ -42,7 +42,7 @@ pnpm -r rebuild node-pty
 
 这份 `.cursor` 投影需要提交。Cursor 在安装脚本之前就要读到它。改源后删除旧的 `.meta_harness/.cursor`，再按[根软链接](../.meta_harness/tooling/README.md#根软链接)重新编译并链接。`make agents-check` 核对投影与根链接。手改投影或根目录会失败。
 
-镜像提供 Git、Bash、Make、支持 C++20 的编译器、GitHub CLI、uv 0.13.0，以及根 `package.json` 的 `engines` 与 `packageManager` 所要求的 Node 和 pnpm。精确版本写在源 Dockerfile 的 `NODE_VERSION` 与 `PNPM_VERSION`。当前分别是 24.21.0 和 10.28.1。
+镜像提供 Git、Bash、Make、rsync、支持 C++20 的编译器、GitHub CLI、uv 0.13.0，以及根 `package.json` 的 `engines` 与 `packageManager` 所要求的 Node 和 pnpm。角色评估用 rsync 复制检出副本，因此 `make test` 需要本机有 rsync。精确版本写在源 Dockerfile 的 `NODE_VERSION` 与 `PNPM_VERSION`。当前分别是 24.21.0 和 10.28.1。
 
 此镜像不安装 Java、TLC、Alloy 或 Postgres。缺少这些工具时，按[失败与未知的处理](#失败与未知的处理)报告未执行。密钥和令牌放在 Cursor Cloud Agents 的 Secrets。不要把它们写入仓库。
 

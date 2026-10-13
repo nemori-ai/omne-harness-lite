@@ -3,7 +3,8 @@
   "id": "verification-write-tests",
   "version": 2,
   "family": "write-tests",
-  "role": "verification-developer",
+  "role": "developer",
+  "implementation_kind": "verification",
   "reps": 2,
   "host": {
     "claude-code": {

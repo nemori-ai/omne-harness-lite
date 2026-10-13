@@ -31,7 +31,9 @@ def test_cursor_never_requires_pair_configs_or_renderer(source, tmp_path):
     artifacts = compile_sources(source, tmp_path / "absent.py", ("cursor",))
     assert all(path.parts[0] == ".cursor" for path in artifacts)
     role = artifacts[Path(".cursor/agents/developer.md")].content.decode()
-    assert "model: claude-opus-5-5-high" in role
+    front = yaml.safe_load(role.split("---", 2)[1])
+    assert front["model"] == "claude-opus-5-5[effort=high]"
+    assert set(front) == {"name", "description", "model", "readonly", "is_background"}
     assert "你的实施边界" in role
     assert b'"skills": "./skills"' in artifacts[Path(".cursor/.cursor-plugin/plugin.json")].content
     with pytest.raises(FileNotFoundError):
@@ -83,7 +85,7 @@ def test_clean_clone_initialization_has_no_personal_or_session_start_dependency(
         assert result.returncode == 0, result.stdout + result.stderr
     assert (project / ".cursor").is_symlink()
     hooks = json.loads((project / ".cursor/hooks.json").read_text())
-    assert set(hooks["hooks"]) == {"stop", "subagentStop"}
+    assert set(hooks["hooks"]) == {"stop", "subagentStop", "subagentStart"}
     shutil.rmtree(project / ".meta_harness/agents")
     moved = tmp_path / "moved project"
     project.rename(moved)
@@ -268,6 +270,38 @@ print(json.dumps({"type":"result", "subtype":"success"}))
     assert json.loads((output / "stdout.jsonl").read_text())["subtype"] == "success"
     with pytest.raises(SystemExit):
         probe(arguments)
+
+
+def test_cursor_description_rejects_colon_space(source):
+    path = source / "roles/developer/cursor.yaml"
+    config = yaml.safe_load(path.read_text())
+    config["description"] = "Implement one slice: then stop"
+    path.write_text(yaml.safe_dump(config))
+    with pytest.raises(ValueError, match="colon-space"):
+        compile_sources(source, hosts=("cursor",))
+
+
+def test_subagent_start_uses_the_qualified_file_summary(installed):
+    package, _workspace = installed
+    gate = package / "runtime/cursor-role-gate.mjs"
+
+    def run(payload):
+        result = subprocess.run(["node", str(gate)], input=json.dumps(payload), text=True, capture_output=True)
+        assert result.returncode == 0, result.stderr
+        return json.loads(result.stdout)
+
+    assert run({"subagent_type": "explore"}) == {"permission": "allow"}
+    assert run({"subagent_type": "developer"}) == {"permission": "allow"}
+    agent = package / "agents/developer.md"
+    agent.write_text(agent.read_text() + "\nchanged\n")
+    denied = run({"subagent_type": "developer"})
+    assert denied["permission"] == "deny" and "summary does not match" in denied["user_message"]
+    config = json.loads((package / "runtime/role-gate.json").read_text())
+    del config["summaries"]["qa"]
+    (package / "runtime/role-gate.json").write_text(json.dumps(config))
+    pending = run({"subagent_type": "qa"})
+    assert pending["permission"] == "deny" and "no qualified agent file" in pending["user_message"]
+    assert run({"subagent_type": "generalPurpose"})["permission"] == "allow"
 
 
 def test_probe_rejects_duplicate_project_and_plugin_registration(tmp_path):

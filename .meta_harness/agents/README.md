@@ -29,7 +29,7 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 `role.md` 是角色共享语义，`codex.toml`、`claude.yaml` 与可选适配段承载宿主差异；
 不为统一文件名重复建立另一层 strategy。当前角色 renderer 仍验证完整双端配置，
 选择任一旧宿主时即如此；Cursor 只消费共享 assembly 与 Cursor 配置，详见 [Cursor 支持](skills/design-subagents/canonical/references/cursor.md)。
-角色正文、公共契约与配置归 [roles](roles/README.md)；评审角色按判断对象加载相应判据。
+角色正文、公共契约与配置归 [roles](roles/README.md)。全部角色先内联开工框架，按需阅读 docs 拥有者，不复制目标与架构正文。评审角色按判断对象加载相应判据。
 [evaluation](evaluation/README.md) 维护评估方法、用例与必要夹具，运行结果归工作树 tmp。
 
 编译遍历 skills 和 roles 的直接子目录；缺少必要文件、重复输出名称、符号链接等均报错，
@@ -56,6 +56,10 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 | `design-subagents` | 角色契约、宿主与模型适配、模板、成对渲染及验证 |
 | `ubiquitous-language` | 统一语言的取名、分卷、无歧义中英文定义、判形态、查重、冲突处置与出处复核；**只有要新增或修改词条的人加载**，该区约定归 [design/ubiquitous_language](../design/ubiquitous_language/AGENTS.md) |
 | `domain-objects` | 领域对象条目的宿主、身份、生灭与并入怎么判，待裁怎么登记，topic 升 rev 后怎么逐条复核，全量重提怎么做；**只有要在那一区落字的人加载**，该区约定归 [design/domain_objects](../design/domain_objects/AGENTS.md) |
+| `terminal-practice` | developer 在 `implementation_kind=terminal` 时的终端实施实践 |
+| `terminal-acceptance` | qa 在交付面是终端时的验收关口 |
+| `terminal-forensics` | diagnostician 在 `surface=terminal` 时的取证方法 |
+| `verification-facility` | developer 在 `implementation_kind=verification` 时的验证设施实践 |
 
 工作树隔离、真实 cwd、共享写权及清理归[协作流程](../../docs/engineering/workflow.md)。
 提交和PR方法从工程技能入口选择，项目模板、署名及报告归[贡献指南](../../CONTRIBUTING.md)，
