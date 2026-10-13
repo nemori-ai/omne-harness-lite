@@ -17,8 +17,38 @@ from qualification_test_support import adopt, limited_record, pending_record, qu
 SOURCE = Path(__file__).parents[2] / "agents"
 
 
-def test_unqualified_production_build_fails_before_any_output(tmp_path, capsys):
+ADOPTION = "https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6136781019"
+ROLES = {"design-reviewer", "developer", "implementation-reviewer", "product-design-drafter",
+         "product-design-reviewer", "qa", "tui-debugger", "tui-developer", "verification-developer"}
+
+
+def test_limited_production_build_stages_the_adopted_ide_probe(tmp_path):
     source = Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    output = tmp_path / "output"
+    assert main(["--source", str(source), "--output", str(output), "--host", "cursor"]) == 0
+    agents = output / ".cursor/agents"
+    assert {path.name for path in agents.iterdir()} == {f"{role}.md" for role in ROLES}
+    text = (agents / "developer.md").read_text()
+    assert "Status: limited" in text and ADOPTION in text
+    role = source / "roles/developer"
+    native, prompt = (role / "cursor.yaml").read_bytes(), cursor_role_prompt(role)
+    probe = {"environment": "ide", "deployment": "project", "version": "3.24.12",
+             "mode": "agent", "purpose": "qualification-probe"}
+    assert require_dispatch(role, native, prompt, probe) is None
+    cli_version = yaml.safe_load((role / "cursor-qualification.yaml").read_text())["host_versions"]["cli"][0]
+    cli = {"environment": "cli", "deployment": "project", "version": cli_version,
+           "mode": "interactive", "purpose": "qualification-probe"}
+    for denied in [cli, {**probe, "purpose": "accepted-role-duty"}]:
+        with pytest.raises(ValueError, match="dispatch scope is not adopted"):
+            require_dispatch(role, native, prompt, denied)
+
+
+def test_pending_copy_of_production_still_writes_nothing(tmp_path, capsys):
+    source = Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    for path in source.glob("roles/*/cursor-qualification.yaml"):
+        record = yaml.safe_load(path.read_text())
+        record["status"], record["adoption"] = "pending", None
+        path.write_text(yaml.safe_dump(record, allow_unicode=True, sort_keys=False))
     output = tmp_path / "output"
     assert main(["--source", str(source), "--output", str(output), "--host", "cursor"]) == 1
     assert "cursor qualification" in capsys.readouterr().err
