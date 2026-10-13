@@ -87,6 +87,63 @@ def test_invalid_cloud_source_fails_before_writing(tmp_path, mutation):
     assert not output.exists()
 
 
+@pytest.mark.parametrize("configuration", [
+    {},
+    {"GIT_CONFIG_COUNT": "0"},
+    {
+        "GIT_CONFIG_COUNT": "2",
+        "GIT_CONFIG_KEY_0": "http.extraHeader",
+        "GIT_CONFIG_VALUE_0": "X-Test-Auth: fake-token",
+        "GIT_CONFIG_KEY_1": "core.hooksPath",
+        "GIT_CONFIG_VALUE_1": "/isolated/hooks with spaces",
+    },
+    {
+        "GIT_CONFIG_COUNT": "3",
+        "GIT_CONFIG_KEY_0": "http.extraHeader",
+        "GIT_CONFIG_VALUE_0": "X-Test-Order: first",
+        "GIT_CONFIG_KEY_1": "http.extraHeader",
+        "GIT_CONFIG_VALUE_1": "X-Test-Order: second\nwith trailing space ",
+        "GIT_CONFIG_KEY_2": "core.hooksPath",
+        "GIT_CONFIG_VALUE_2": "",
+    },
+], ids=["unset", "zero", "authentication-and-hooks", "repeated-keys"])
+def test_git_wrapper_preserves_caller_configuration_at_exec(tmp_path, configuration):
+    repo = Path(__file__).resolve().parents[3]
+    dockerfile = (repo / ".meta_harness/agents/cloud/cursor/Dockerfile").read_text(encoding="utf-8")
+    match = re.search(r'base64\.b64decode\("([A-Za-z0-9+/=]+)"\)', dockerfile)
+    assert match is not None
+    script = base64.b64decode(match.group(1)).decode()
+    identity = tmp_path / "identity"
+    identity.write_text("Test Human\nhuman@example.invalid\n", encoding="utf-8")
+    recorder = tmp_path / "recorder"
+    recorder.write_text(
+        f"#!{sys.executable}\n"
+        "import json, os, sys\n"
+        "if sys.argv[-1:] == ['probe']:\n"
+        "    print(json.dumps({'args': sys.argv[1:], 'config': {\n"
+        "        key: value for key, value in os.environ.items()\n"
+        "        if key.startswith('GIT_CONFIG_')}}))\n",
+        encoding="utf-8",
+    )
+    recorder.chmod(0o755)
+    wrapper = tmp_path / "git"
+    wrapper.write_text(
+        script.replace("/etc/git-human-identity", str(identity))
+        .replace("real=/usr/bin/git", f'real="{recorder}"'),
+        encoding="utf-8",
+    )
+    wrapper.chmod(0o755)
+    home = tmp_path / "home"
+    home.mkdir()
+    env = {"HOME": str(home), "PATH": "/usr/bin:/bin", **configuration}
+    result = subprocess.run(
+        [str(wrapper), "probe"], check=True, capture_output=True, text=True, env=env
+    )
+    observed = json.loads(result.stdout)
+    assert observed["config"] == configuration
+    assert observed["args"] == ["-c", "commit.gpgsign=false", "probe"]
+
+
 def test_image_pins_matt_revision_and_resets_cursor_agent_identity(tmp_path):
     repo = Path(__file__).resolve().parents[3]
     dockerfile = (repo / ".meta_harness/agents/cloud/cursor/Dockerfile").read_text(encoding="utf-8")
@@ -125,6 +182,8 @@ def test_image_pins_matt_revision_and_resets_cursor_agent_identity(tmp_path):
     env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     env["HOME"] = str(home)
     env["GIT_CONFIG_NOSYSTEM"] = "1"
+    env["GIT_CONFIG_SYSTEM"] = str(tmp_path / "system.gitconfig")
+    env["XDG_CONFIG_HOME"] = str(tmp_path / "xdg")
 
     def wrapped(*args):
         return subprocess.run(
@@ -152,6 +211,22 @@ def test_image_pins_matt_revision_and_resets_cursor_agent_identity(tmp_path):
     subprocess.run(
         ["/usr/bin/git", "-C", str(repo_dir), "add", "file"], check=True, env=env
     )
+    subprocess.run(
+        ["/usr/bin/git", "-C", str(repo_dir), "config", "commit.gpgsign", "true"],
+        check=True, env=env,
+    )
+    subprocess.run(
+        ["/usr/bin/git", "-C", str(repo_dir), "config", "gpg.program", "/bin/false"],
+        check=True, env=env,
+    )
+    env.update({
+        "GIT_AUTHOR_NAME": "Cursor Agent",
+        "GIT_AUTHOR_EMAIL": "cursoragent@cursor.com",
+        "GIT_COMMITTER_NAME": "Cursor Agent",
+        "GIT_COMMITTER_EMAIL": "cursoragent@cursor.com",
+    })
+    assert wrapped("-C", str(repo_dir), "config", "--bool", "--get", "commit.gpgsign").stdout.strip() == "false"
+    assert wrapped("-c", "commit.gpgsign=true", "config", "--bool", "--get", "commit.gpgsign").stdout.strip() == "true"
     wrapped("-C", str(repo_dir), "-c", "user.name=Cursor Agent", "commit", "-m", "identity")
     author = subprocess.run(
         ["/usr/bin/git", "-C", str(repo_dir), "log", "-1", "--format=%an <%ae>%n%cn <%ce>"],
@@ -180,7 +255,8 @@ def test_image_pins_matt_revision_and_resets_cursor_agent_identity(tmp_path):
     (repo_dir / "file").write_text("y\n", encoding="utf-8")
     subprocess.run(["/usr/bin/git", "-C", str(repo_dir), "add", "file"], check=True, env=direct)
     subprocess.run(
-        ["/usr/bin/git", "-C", str(repo_dir), "-c", "user.name=Cursor Agent", "commit", "-m", "direct"],
+        ["/usr/bin/git", "-C", str(repo_dir), "-c", "user.name=Cursor Agent",
+         "-c", "commit.gpgsign=false", "commit", "-m", "direct"],
         check=True, env=direct, capture_output=True,
     )
     direct_author = subprocess.run(
