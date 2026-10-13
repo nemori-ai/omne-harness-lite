@@ -2,6 +2,7 @@
 // 依赖按 package.json 的声明算，而不是按源码导入——测试可能导入生产代码不导入的包。
 // 清单可以从工作树读，也可以从某个提交读（回放历史上的提交时用），两者走同一套解析。
 import { execFileSync } from 'node:child_process'
+import { repositoryEnv } from '../git-environment.ts'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isLegacyDirectory } from '../check-scope.ts'
@@ -210,4 +211,3 @@ export function ownerOf<T extends { readonly path: string }>(
       owner = member
   return owner
 }
-import { repositoryEnv } from '../git-environment.ts'

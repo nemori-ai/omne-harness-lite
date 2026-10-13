@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { repositoryEnv } from '../git-environment.ts'
 import { dirname, resolve } from 'node:path'
 
 const MEMBER_ROOTS = ['packages', 'apps', 'examples'] as const
@@ -146,4 +147,3 @@ export function commitShape(root: string, mergeBase: string): CommitShape {
     .map(block => block.split('\n').filter(line => line !== '').length)
   return shapeOf(counts)
 }
-import { repositoryEnv } from '../git-environment.ts'

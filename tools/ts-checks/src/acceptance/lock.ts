@@ -3,6 +3,7 @@
 // 交回时拿它与当前工作树比，并把这段范围里碰过验收文件的提交逐个列出、按来源 trailer 判断是不是验收的拥有者改的。
 // 谁算拥有者、哪个目录算验收，只在 `acceptance-lock.config.json` 里定一次。
 import { execFileSync } from 'node:child_process'
+import { repositoryEnv } from '../git-environment.ts'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { readCommits, type CommitRecord } from '../commits.ts'
@@ -249,4 +250,3 @@ export function render(report: LockReport, config: AcceptanceLockConfig): string
   }
   return out
 }
-import { repositoryEnv } from '../git-environment.ts'

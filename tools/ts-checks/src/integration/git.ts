@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { repositoryEnv } from '../git-environment.ts'
 import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { IntegrationError, sha } from './parse.ts'
@@ -105,4 +106,3 @@ export function parents(root: string, commit: string): string[] {
 export function lines(value: string): string[] {
   return value === '' ? [] : value.split('\n')
 }
-import { repositoryEnv } from '../git-environment.ts'

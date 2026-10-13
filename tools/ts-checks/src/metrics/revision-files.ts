@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { repositoryEnv } from '../git-environment.ts'
 import { git } from './git.ts'
 
 function blobTexts(output: Buffer, ids: readonly string[]): Map<string, string> {
@@ -57,4 +58,3 @@ export function readRevisionTexts(
   const texts = blobTexts(output, ids)
   return new Map(paths.map(path => [path, texts.get(objects.get(path)!)!]))
 }
-import { repositoryEnv } from '../git-environment.ts'
