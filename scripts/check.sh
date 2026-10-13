@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/git-environment.sh"
+main() {
 if (( $# )); then
     echo "Usage: $0 (optional BASELINE and FULL=1 environment variables)" >&2
     exit 2
@@ -58,3 +60,5 @@ step acceptance
 # 它只读源码、git 与验收的耗时记录，放在最后是让前面的失败先报。产物写进被 git 忽略的 tmp/，回路目录里什么都不写。
 rm -rf tmp/loop-status-check
 make --no-print-directory loop-status STRICT=1 BASE="$baseline" OUT=tmp/loop-status-check
+}
+omne_repository_command main "$@"

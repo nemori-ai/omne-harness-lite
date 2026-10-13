@@ -59,6 +59,7 @@ it('rejects an always-successful formatter instead of reporting an empty self-te
     mkdirSync(join(fake, dir), { recursive: true })
   for (const path of [
     'scripts/test-formatting.sh',
+    'scripts/git-environment.sh',
     'scripts/format.sh',
     'scripts/pre-commit-format',
     'scripts/install-format-hook.sh',

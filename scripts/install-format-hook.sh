@@ -7,13 +7,14 @@ if (( $# )); then
 fi
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-git_root="$(git -C "$repo_root" rev-parse --show-toplevel)"
+source "$repo_root/scripts/git-environment.sh"
+git_root="$(omne_repository_command git -C "$repo_root" rev-parse --show-toplevel)"
 if [[ "$git_root" != "$repo_root" ]]; then
     echo "Installer must live in the repository's scripts directory." >&2
     exit 2
 fi
 source_hook="$repo_root/scripts/pre-commit-format"
-hook_path="$(git -C "$repo_root" rev-parse --git-path hooks/pre-commit)"
+hook_path="$(omne_repository_command git -C "$repo_root" rev-parse --git-path hooks/pre-commit)"
 if [[ "$hook_path" != /* ]]; then
     hook_path="$repo_root/$hook_path"
 fi

@@ -150,7 +150,12 @@ function wrapperFixture() {
   init(subject)
   const base = commit(subject, '.gitignore', 'tmp/\n')
   mkdirSync(join(runner, 'scripts'), { recursive: true })
-  for (const name of ['check.sh', 'integration-check.sh', 'with-test-slot.sh'])
+  for (const name of [
+    'check.sh',
+    'integration-check.sh',
+    'with-test-slot.sh',
+    'git-environment.sh',
+  ])
     writeFileSync(
       join(runner, 'scripts', name),
       readFileSync(new URL(`../../../scripts/${name}`, import.meta.url)),
@@ -374,6 +379,10 @@ it.each([
   writeFileSync(join(subject, 'apps/demo/src/main.ts'), source)
   mkdirSync(join(runner, 'scripts'), { recursive: true })
   const wrapper = join(runner, 'scripts/integration-check.sh')
+  writeFileSync(
+    join(runner, 'scripts/git-environment.sh'),
+    readFileSync(new URL('../../../scripts/git-environment.sh', import.meta.url)),
+  )
   writeFileSync(
     wrapper,
     readFileSync(new URL('../../../scripts/integration-check.sh', import.meta.url)),

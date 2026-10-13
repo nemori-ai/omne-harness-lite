@@ -13,6 +13,7 @@
 | [check.sh](check.sh) | 定位仓库根，先取一个运行名额，算基线以来改动的影响面并打印计划，再依次运行常驻检查与计划里的各步，最后是严格模式的回路状态；任一步失败即停止并返回非零 |
 | [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
 | [format.sh](format.sh) | 用根配置和本地锁定 Prettier 检查或写入受维护文件；`staged` 模式只检查 Git index blob |
+| [git-environment.sh](git-environment.sh) | 为显式仓库、独立 fixture 和 staged 命令提供各自的 Git 环境边界 |
 | [test-formatting.sh](test-formatting.sh) | 在临时独立 Git 仓库验证格式范围、幂等、部分暂存和 hook 安装边界 |
 | [install-format-hook.sh](install-format-hook.sh) | 显式安装格式化 pre-commit hook；发现已有 hook 时拒绝覆盖 |
 | [model-probe.mjs](model-probe.mjs) | 模型适配探针入口；公开目录检查与显式付费实验，预算、凭据和结果要求见 [model-probe](../tools/model-probe/README.md) |
@@ -56,6 +57,10 @@
 `pnpm format:write` 写入该范围；两者后接 `-- <仓库相对文件...>` 可收窄到明确文件。
 `pnpm format:staged` 供 pre-commit hook 使用，`pnpm format:hook:install` 由开发者按需
 显式安装本地 hook。安装命令不会覆盖已有 hook，也不应由共享自动化代替用户执行。
+
+显式仓库命令通过 `git-environment.sh` 删除继承的 `GIT_DIR`、`GIT_WORK_TREE`、`GIT_INDEX_FILE`、`GIT_COMMON_DIR`、`GIT_OBJECT_DIRECTORY`、`GIT_ALTERNATE_OBJECT_DIRECTORIES`、`GIT_NAMESPACE`、`GIT_SHALLOW_FILE`。正式检查保留 OMNE runner/subject、认证、Git 配置及测试槽参数；这不是任意 Git 配置隔离。格式自测在首个 fixture Git 调用前另清两个 OMNE root。
+
+`staged` 和已安装的 pre-commit 保留调用者选择的 `GIT_INDEX_FILE`，只清其余七项。非空相对 index 在改变工作目录前按调用目录转为绝对路径；未设置时仍由 Git 定位默认 index。格式检查只读 index，支持 linked worktree。复制格式脚本时须同时复制 `git-environment.sh`；已安装的 pre-commit 自带启动隔离，不依赖 hook 目录中的相邻文件。持续回归见 [格式环境测试](../tools/ts-checks/tests/formatting-environment.spec.ts)。
 
 远程发布或部署入口新增时按真实目标明确输入、产物和外部副作用。
 形式工具环境单独使用 `make formal-tools` 检查；检查覆盖与未覆盖的含义以验证规范为准。
