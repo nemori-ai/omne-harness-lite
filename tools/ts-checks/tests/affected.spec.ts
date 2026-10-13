@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { changedFiles } from '../src/metrics/git.ts'
+import { baselines } from '../src/integration/context.ts'
+import { changedFiles, coordinates } from '../src/metrics/git.ts'
 import {
   classify,
   describeCheckPlan,
@@ -324,17 +325,26 @@ describe('计划文件', () => {
     for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
   })
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim()
+  const fixed = baselines(ROOT)
+  const baseRef = fixed.targetBase ?? head
+  const base = coordinates(ROOT, baseRef).base
   const planFile = (overrides: Record<string, unknown>) => {
     const dir = mkdtempSync(join(tmpdir(), 'check-plan-'))
     dirs.push(dir)
     const path = join(dir, 'plan.json')
-    const file = { head, dirty: false, base: { ref: 'main', mergeBase: head }, plan: plan([]) }
+    const file = { head, dirty: false, base, plan: plan([]) }
     writeFileSync(path, JSON.stringify({ ...file, ...overrides }))
     return path
   }
 
   it('对当前提交算的：读得回来', () => {
     expect(readPlanFile(ROOT, planFile({})).head).toBe(head)
+  })
+
+  it.skipIf(fixed.state !== 'adopted')('与固定基线不同的真实提交：拒绝执行', () => {
+    expect(() =>
+      readPlanFile(ROOT, planFile({ base: { ref: `${baseRef}^`, mergeBase: head } })),
+    ).toThrow('Explicit base differs from fixed targetBase')
   })
 
   it('不存在、形状不对、对别的提交算的：都报错，不照着跑', () => {
