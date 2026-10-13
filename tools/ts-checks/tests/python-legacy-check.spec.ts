@@ -2,9 +2,15 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, inject, it } from 'vitest'
 import { pythonStep, type PlanFile } from '../src/testing/steps.ts'
 import { planCheck } from '../src/testing/affected.ts'
+
+declare module 'vitest' {
+  export interface ProvidedContext {
+    pythonToolingRoot: string
+  }
+}
 
 const roots: string[] = []
 afterEach(() => {
@@ -59,12 +65,22 @@ it.each(['local', 'runner'])(
         true,
       ),
     }
-    const names = ['OMNE_RUNNER_ROOT', 'UV_PROJECT', 'UV_NO_SYNC', 'PYTEST_ADDOPTS']
+    expect(process.env['OMNE_SUBJECT_ROOT']).toBeUndefined()
+    expect(process.env['OMNE_RUNNER_ROOT']).toBeUndefined()
+    const pythonToolingRoot = inject('pythonToolingRoot')
+    const names = [
+      'OMNE_RUNNER_ROOT',
+      'UV_PROJECT',
+      'UV_PROJECT_ENVIRONMENT',
+      'UV_NO_SYNC',
+      'PYTEST_ADDOPTS',
+    ]
     const before = names.map(name => process.env[name])
     try {
-      if (mode === 'runner') process.env['OMNE_RUNNER_ROOT'] = repository
+      if (mode === 'runner') process.env['OMNE_RUNNER_ROOT'] = pythonToolingRoot
       else delete process.env['OMNE_RUNNER_ROOT']
-      process.env['UV_PROJECT'] = repository
+      process.env['UV_PROJECT'] = pythonToolingRoot
+      process.env['UV_PROJECT_ENVIRONMENT'] = join(pythonToolingRoot, '.venv')
       process.env['UV_NO_SYNC'] = '1'
       process.env['PYTEST_ADDOPTS'] = `--confcutdir=${root}`
       expect(pythonStep(root, file)).toBe(0)
@@ -81,6 +97,7 @@ it.each(['local', 'runner'])(
         else process.env[name] = value
       })
     }
+    expect(names.map(name => process.env[name])).toEqual(before)
   },
   20_000,
 )
