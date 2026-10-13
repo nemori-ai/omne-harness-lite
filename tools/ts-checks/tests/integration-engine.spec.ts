@@ -1,5 +1,5 @@
 // @module-tag slow
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
@@ -12,7 +12,7 @@ import { parsePolicy } from '../src/integration/policy.ts'
 import { publish, resume } from '../src/integration/publish.ts'
 import { canonical, digest } from '../src/integration/parse.ts'
 import { conditionDigest, type Decision, type Confirmation } from '../src/integration/authority.ts'
-import { baselines } from '../src/integration/context.ts'
+import { baselines, contextPath } from '../src/integration/context.ts'
 import { auditHistory, scopeViolations } from '../src/integration/audit.ts'
 import { git } from '../src/integration/git.ts'
 import type { Condition } from '../src/delivery/protocol.ts'
@@ -79,8 +79,8 @@ afterEach(() => {
   vi.unstubAllEnvs()
   homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true }))
 })
-function fixture() {
-  const f = integrationFixture()
+function fixture(admissionOnly = false) {
+  const f = integrationFixture({ admissionOnly })
   homes.push(f.home)
   vi.stubEnv('PATH', `${f.bin}:${process.env.PATH}`)
   vi.stubEnv('OMNE_GH_FIXTURE', f.home)
@@ -492,3 +492,166 @@ describe('real candidate CLI and trusted execution', () => {
     expect(() => verify(f.root, r.operation)).toThrow('Candidate changed since it was sealed')
   })
 })
+
+it.each(['start', 'register'] as const)(
+  'admits %s without repository Issues or Project item enumeration',
+  async kind => {
+    const f = fixture(true)
+    f.authority(
+      {
+        ...common,
+        basis: [...common.basis],
+        action: 'dispatch',
+        task: f.binding,
+        confirmations: [],
+      },
+      1,
+    )
+    const result = await (
+      await openIntegration({ root: f.root })
+    ).execute({
+      kind,
+      authority: f.binding.dispatch,
+      issue: f.binding.issue.url,
+      revision: 1,
+      attempt: 'one',
+    })
+    expect(result).toMatchObject({ ownerTask: f.binding })
+    const calls: string[][] = readFileSync(f.calls, 'utf8')
+      .trim()
+      .split('\n')
+      .map(line => JSON.parse(line))
+    expect(calls.some(call => call.at(-1)?.includes('/issues?'))).toBe(false)
+    expect(calls.some(call => call.some(arg => arg.includes(' items(')))).toBe(false)
+    expect(calls.filter(call => call.at(-1) === 'repos/owner/repo/issues/1')).toHaveLength(2)
+  },
+)
+
+it.each(['body', 'comment', 'relation', 'stage', 'closure'] as const)(
+  'refuses a changed %s on readback without writing context',
+  async change => {
+    const f = fixture(true)
+    f.authority(
+      {
+        ...common,
+        basis: [...common.basis],
+        action: 'dispatch',
+        task: f.binding,
+        confirmations: [],
+      },
+      1,
+    )
+    const platform = join(f.home, 'platform.json'),
+      p = JSON.parse(readFileSync(platform, 'utf8'))
+    p.readbackChange =
+      change === 'body'
+        ? { body: p.body + '\nChanged relevant body' }
+        : change === 'comment'
+          ? {
+              comments: p.comments.map((comment: { body: string }) => ({
+                ...comment,
+                body: comment.body + '\nChanged relevant comment',
+              })),
+            }
+          : change === 'stage'
+            ? { stage: 'In Progress' }
+            : change === 'relation'
+              ? { parent: f.binding.issue.url }
+              : { blockedBy: ['https://github.com/owner/repo/issues/2'] }
+    writeFileSync(platform, JSON.stringify(p))
+    await expect(
+      (await openIntegration({ root: f.root })).execute({
+        kind: 'start',
+        authority: f.binding.dispatch,
+        issue: f.binding.issue.url,
+        revision: 1,
+        attempt: 'one',
+      }),
+    ).rejects.toThrow('Task inputs changed')
+    expect(existsSync(contextPath(f.root))).toBe(false)
+  },
+)
+it('keeps unrelated platform changes out of admission readback', async () => {
+  const f = fixture(true),
+    platform = join(f.home, 'platform.json'),
+    p = JSON.parse(readFileSync(platform, 'utf8'))
+  p.readbackChange = { unrelatedIssueBody: 'changed', unrelatedProjectItem: 'Done' }
+  writeFileSync(platform, JSON.stringify(p))
+  await start(f)
+  expect(existsSync(contextPath(f.root))).toBe(true)
+})
+
+it.each(['valid', 'revoked', 'direct-mismatch', 'actor-id'] as const)(
+  'checks a separate authority Issue with %s evidence',
+  async evidence => {
+    const f = fixture(true),
+      authorityIssue = 'https://github.com/owner/repo/issues/2'
+    f.binding.dispatch = authorityIssue + '#issuecomment-900'
+    f.update(f.binding)
+    f.authority(
+      {
+        ...common,
+        basis: [...common.basis],
+        action: 'dispatch',
+        task: f.binding,
+        confirmations: [],
+      },
+      900,
+    )
+    const platform = join(f.home, 'platform.json'),
+      p = JSON.parse(readFileSync(platform, 'utf8')),
+      authority = {
+        ...p.comments[0],
+        html_url: f.binding.dispatch,
+        issue_url: 'https://api.github.com/repos/owner/repo/issues/2',
+      }
+    p.comments = []
+    p.authorityComments = [authority]
+    if (evidence === 'revoked') {
+      p.authorityComments.push(
+        ...Array.from({ length: 99 }, (_, i) => ({
+          ...authority,
+          id: i + 901,
+          html_url: authorityIssue + '#issuecomment-' + (i + 901),
+          body: 'discussion',
+        })),
+      )
+      p.authorityComments.push({
+        ...authority,
+        id: 1000,
+        html_url: authorityIssue + '#issuecomment-1000',
+        body:
+          '\x60\x60\x60json omne-integration-revocation:v1\n' +
+          JSON.stringify({
+            schemaVersion: 1,
+            decisions: [f.binding.dispatch],
+            basis: 'withdrawn',
+          }) +
+          '\n\x60\x60\x60',
+      })
+    }
+    if (evidence === 'direct-mismatch')
+      p.directCommentChange = { body: authority.body + '\nChanged' }
+    if (evidence === 'actor-id')
+      p.directCommentChange = { user: { login: 'human', node_id: 'U_impostor' } }
+    writeFileSync(platform, JSON.stringify(p))
+    const pending = (await openIntegration({ root: f.root })).execute({
+      kind: 'start',
+      authority: f.binding.dispatch,
+      issue: f.binding.issue.url,
+      revision: 1,
+      attempt: 'one',
+    })
+    if (evidence === 'valid') await expect(pending).resolves.toMatchObject({ ownerTask: f.binding })
+    else {
+      await expect(pending).rejects.toThrow(
+        evidence === 'revoked'
+          ? 'revocation'
+          : evidence === 'direct-mismatch'
+            ? 'changed during capture'
+            : 'not a policy owner',
+      )
+      expect(existsSync(contextPath(f.root))).toBe(false)
+    }
+  },
+)

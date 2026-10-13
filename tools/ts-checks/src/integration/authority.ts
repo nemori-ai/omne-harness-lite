@@ -1,5 +1,12 @@
+import {
+  collectAdmission,
+  observeAdmission,
+  type AdmissionCapture,
+  type AdmissionScope,
+} from '../delivery/admission.ts'
 import { collectDelivery, runGhRead, type GhRead } from '../delivery/github-read.ts'
 import {
+  InputError,
   parseConfig,
   record,
   text,
@@ -227,6 +234,33 @@ export function currentCapture(config: DeliveryConfig, read: GhRead = runGhRead)
     )
   return capture
 }
+export function currentAdmission(
+  config: DeliveryConfig,
+  scope: AdmissionScope,
+  read: GhRead = runGhRead,
+): AdmissionCapture {
+  try {
+    return collectAdmission(config, scope, read)
+  } catch (error) {
+    throw new IntegrationError(
+      'unknown',
+      error instanceof InputError
+        ? error.message
+        : 'Current admission inputs are incomplete or unsupported',
+    )
+  }
+}
+export function admissionDigest(capture: AdmissionCapture): string {
+  return digest(
+    canonical({
+      repository: capture.repository,
+      projectId: capture.projectId,
+      scope: capture.scope,
+      closure: capture.closure,
+      issues: capture.issues,
+    }),
+  )
+}
 export function captureDigest(capture: DeliveryCapture): string {
   return digest(
     canonical({
@@ -239,7 +273,7 @@ export function captureDigest(capture: DeliveryCapture): string {
 export function readAuthority(
   policy: Policy,
   url: string,
-  capture: DeliveryCapture,
+  capture: Pick<DeliveryCapture, 'issues'>,
   read: GhRead = runGhRead,
 ): Decision {
   const match =
@@ -307,7 +341,7 @@ export function readAuthority(
   return decision
 }
 export function currentTask(
-  capture: DeliveryCapture,
+  capture: Pick<DeliveryCapture, 'issues'>,
   historical: TaskBinding,
 ): { binding: TaskBinding; issue: CapturedIssue } {
   const issue = capture.issues.find(
@@ -320,14 +354,17 @@ export function currentTask(
 }
 export function confirmConditions(
   config: DeliveryConfig,
-  capture: DeliveryCapture,
+  capture: DeliveryCapture | AdmissionCapture,
   task: TaskBinding,
   phase: 'start' | 'integration',
   target: string,
   confirmed: Confirmation[],
   policy: Policy,
 ): void {
-  const report = observeDelivery(config, capture)
+  const report =
+    capture.kind === 'github-admission-capture'
+      ? observeAdmission(config, capture)
+      : observeDelivery(config, capture)
   if (report.findings.some(f => f.object === task.issue.url && f.category === 'deviation'))
     throw new IntegrationError('unknown', 'Task card has protocol deviations')
   const card = report.cards.find(card => card.issue === task.issue.url)

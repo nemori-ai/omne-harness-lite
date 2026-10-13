@@ -26,6 +26,12 @@ I07。verify 从已采用提交物化受信 runner，命令 manifest 和 checker
 
 I08。生产授权读取真实 Issue comment。固定只读 `gh api GET` 核对 repository、Issue 非 PR、comment URL、作者 login/node ID、严格 action schema 和精确动作输入。dispatch、adopt、publish、policy-adopt 与 track-bootstrap 各有自己的必需字段。本地 JSON 仅作为草稿或观察。关键步骤再读当前任务和条件决定，未知拒绝。
 
+`start` 与 `register` 的平台读取限于任务闭包、授权卡及任务 Project 状态，范围归 [准入采集](../delivery/SPEC.md#任务准入采集)。闭包包含精确 Issue 条件目标、原生 blockedBy、原生父卡及正文父卡。独立授权卡完整读取评论以核对撤销声明，不读取其无关关系。每次最多 32 个 Issue、8 个边层级，缺页、解析错误、身份不符或超限均为 unknown。
+
+准入继续核对直接授权评论与已采评论的一致性、owner login/node ID、撤销声明、精确绑定及现行条件确认。工具只核对目标卡偏离，不以准入闭包声称全仓创建标识唯一或循环覆盖。配置 Stage 字段与任务 membership 必须确认，完整读取后的空 Stage 合法。
+
+创建 context 前重新采集同一范围。摘要包括完整闭包内容、独立授权评论和任务 Stage。相关正文、评论、关系、Stage 或闭包变化均拒绝写入。无关 Issue 历史或其他 Project item 不进入读取及摘要。已有同绑定 context 仍按现行幂等读回处理。其他集成操作继续使用全库采集。
+
 I09。publish 先证明 B 是 C 祖先，再在更新点比较 expected B。remote 使用精确 lease、无 `+` refspec 和 atomic branch/tag push。local bare 使用带 oldOID 的 update-ref 事务。branch 与 immutable unit/checkpoint tag 同时成功或全部失败。拒绝 non-FF、checked-out ref、tag 碰撞及不支持 atomic 的远端。
 
 I10。stable 选取已存在的 main 提交 C。旧 stable 只需是 C 祖先，不要求 C 第一父等于旧 stable。首次创建固定明确 audit base。stable 不产生开发提交。
