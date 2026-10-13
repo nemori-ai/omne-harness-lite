@@ -121,6 +121,13 @@ it.each([false, true])(
     const before = readFileSync(gitIndex)
     expect(run(root, 'format.sh', ['staged']).status).toBe(1)
     expect(run(root, 'format.sh', ['staged'], env).status).toBe(0)
+    const child = join(root, 'tools')
+    const nestedHook = spawnSync('bash', [join(root, 'scripts/pre-commit-format')], {
+      cwd: child,
+      env: { ...process.env, GIT_INDEX_FILE: relative(child, selected) },
+      encoding: 'utf8',
+    })
+    expect(nestedHook.status, nestedHook.stdout + nestedHook.stderr).toBe(0)
     expect(readFileSync(gitIndex)).toEqual(before)
     const stage = spawnSync('git', ['add', 'tools/demo.ts'], { cwd: root, env, encoding: 'utf8' })
     expect(stage.status).toBe(0)
