@@ -21,24 +21,24 @@ ROLES = {"design-reviewer", "developer", "diagnostician", "implementation-review
          "product-design-drafter", "product-design-reviewer", "qa"}
 
 
-def test_pending_production_writes_agent_files_outside_the_dispatch_gate(tmp_path):
+def test_proved_production_roles_are_formally_dispatchable(tmp_path):
     source = Path(shutil.copytree(SOURCE, tmp_path / "source"))
     output = tmp_path / "output"
     assert main(["--source", str(source), "--output", str(output), "--host", "cursor"]) == 0
     agents = output / ".cursor/agents"
     assert {path.name for path in agents.glob("*.md")} == {f"{name}.md" for name in ROLES}
-    assert "Status: pending. Owner decision: none." in (agents / "developer.md").read_text()
-    assert (output / ".cursor/skills/terminal-practice/SKILL.md").is_file()
+    assert "Status: proved." in (agents / "developer.md").read_text()
+    assert "accepted-role-duty" in (agents / "developer.md").read_text()
     gate = json.loads((output / ".cursor/runtime/role-gate.json").read_text())
-    assert set(gate["managed"]) == ROLES and gate["summaries"] == {}
-    role = source / "roles/developer"
-    record = yaml.safe_load((role / "cursor-qualification.yaml").read_text())
-    assert record["status"] == "pending" and record["adoption"] is None
-    native, prompt = (role / "cursor.yaml").read_bytes(), cursor_role_prompt(role)
-    with pytest.raises(ValueError, match="dispatch scope is not adopted"):
-        require_dispatch(role, native, prompt, {
-            "environment": "ide", "deployment": "project", "version": "3.24.12",
-            "mode": "agent", "purpose": "qualification-probe"})
+    assert set(gate["managed"]) == set(gate["summaries"]) == ROLES
+    developer = source / "roles/developer"
+    require_dispatch(developer, (developer / "cursor.yaml").read_bytes(), cursor_role_prompt(developer), {
+        "environment": "ide", "deployment": "project", "version": "3.24.12",
+        "mode": "agent", "purpose": "accepted-role-duty"})
+    reviewer = source / "roles/design-reviewer"
+    require_dispatch(reviewer, (reviewer / "cursor.yaml").read_bytes(), cursor_role_prompt(reviewer), {
+        "environment": "ide", "deployment": "project", "version": "3.24.12",
+        "mode": "ask", "purpose": "accepted-role-duty"})
 
 
 def test_pending_role_file_stays_out_of_the_dispatch_gate(source, tmp_path):
@@ -194,30 +194,25 @@ def test_duplicate_keys_are_not_last_writer_wins(source):
         project_cursor_role(path.parent)
 
 
-def test_proved_fixture_requires_verified_evidence_for_each_scope(source):
+def test_proved_fixture_accepts_formal_duty_and_rejects_probe_or_stale_evidence(source):
     role = source / "roles/developer"
     record = limited_record(role)
-    record.update(status="proved", missing=[])
+    record.update(status="proved", missing=[], evidence=[])
     record["scope"]["dispatch"][0]["purpose"] = "accepted-role-duty"
-    scope = record["scope"]["dispatch"][0]
+    write_record(role, adopt(record))
+    projected = project_cursor_role(role)
+    assert projected.dispatch_qualified and "Status: proved" in projected.text
+    record["scope"]["dispatch"][0]["purpose"] = "qualification-probe"
+    write_record(role, adopt(record))
+    with pytest.raises(ValueError, match="accepted-role-duty"):
+        project_cursor_role(role)
+    record["scope"]["dispatch"][0]["purpose"] = "accepted-role-duty"
     report = source / "qualification-evidence/fixture.json"
     report.parent.mkdir()
-    report.write_text(json.dumps({"synthetic": True, "claims": sorted(CLAIMS)}))
+    report.write_text(json.dumps({"synthetic": True}))
+    scope = record["scope"]["dispatch"][0]
     record["evidence"] = [{"reference": "qualification-evidence/fixture.json", "sha256": digest(report.read_bytes()),
-                           "claims": sorted(CLAIMS), "dispatch": [copy.deepcopy(scope)]}]
-    write_record(role, adopt(record))
-    assert "Status: proved" in project_cursor_role(role)[1]
-    for missing in CLAIMS:
-        incomplete = copy.deepcopy(record)
-        incomplete["evidence"][0]["claims"].remove(missing)
-        write_record(role, adopt(incomplete))
-        with pytest.raises(ValueError, match="every dispatch scope"):
-            project_cursor_role(role)
-    another = copy.deepcopy(record)
-    another["scope"]["dispatch"].append({**scope, "deployment": "plugin"})
-    write_record(role, adopt(another))
-    with pytest.raises(ValueError, match="every dispatch scope"):
-        project_cursor_role(role)
+                           "claims": ["structure"], "dispatch": [copy.deepcopy(scope)]}]
     write_record(role, adopt(record))
     report.write_text("changed bytes")
     with pytest.raises(ValueError, match="evidence file.*stale"):

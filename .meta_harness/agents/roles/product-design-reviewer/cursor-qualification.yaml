@@ -6,9 +6,10 @@ binding:
 host_versions:
   cli:
   - 2026.08.04-aaa8809
-  ide: []
+  ide:
+  - 3.24.12
   cloud: []
-status: pending
+status: proved
 scope:
   generation:
   - cli-plugin
@@ -16,14 +17,26 @@ scope:
   - cloud-project
   - ide-plugin
   - ide-project
-  dispatch: []
+  dispatch:
+  - environment: cli
+    deployment: project
+    version: 2026.08.04-aaa8809
+    mode: interactive
+    purpose: accepted-role-duty
+  - environment: cli
+    deployment: project
+    version: 2026.08.04-aaa8809
+    mode: headless
+    purpose: accepted-role-duty
+  - environment: ide
+    deployment: project
+    version: 3.24.12
+    mode: ask
+    purpose: accepted-role-duty
 evidence: []
-missing:
-- Revision 4 changed the role bytes. The previous limited IDE probe is not carried
-  forward.
-- The seven-role adoption is not role-qualification proof.
-- Obtain a new named qualification after these bytes are stable.
-- The project-frame init obligation changed the prompt again. Pending remains.
-adoption: null
-reason: Pending until a new named Cursor qualification. The previous nine limited
-  probes are not reused.
+missing: []
+adoption:
+  owner: PanQiWei
+  reference: https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6143351019
+  subject_sha256: 07cd083571ba131bd73662017f0eda2fc1d600f470e68712fc8220a6fa2a8dfc
+reason: PanQiWei accepted formal Cursor use for this role.

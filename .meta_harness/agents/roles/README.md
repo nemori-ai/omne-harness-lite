@@ -220,6 +220,6 @@ Cursor 原生配置与模型/权限资格由 [design-subagents](../skills/design
 
 每个角色的`cursor-qualification.yaml`绑定本角色实际提示及native字段。七个角色都进入 Cursor 投影。
 生成器把它们写到 `.cursor/agents/<name>.md`。源更新后重新编译即同步；`compile_agents.py --check` 核对字节，方式与 Codex、Claude Code 相同。
-七个生产记录现为 pending。先前九份有限探针资格不沿用。pending 或绑定过期的文件不进入合格摘要，因此不能派发。
+七个生产记录现为 proved。PanQiWei 接受它们在 Cursor CLI `2026.08.04-aaa8809` 与 IDE `3.24.12` 的项目视图中正式派发。Cloud 没有版本记录，不在派发范围内。
+pending 或绑定过期的文件不进入合格摘要。proved 且绑定仍对应当前源的文件进入合格摘要，`subagentStart` 按文件摘要放行。
 记录缺失或 unsupported 时，整个 Cursor 构建在写入前不产生文件。
-修订 4 的方案采用不是角色资格证明。角色字节稳定后另行取得资格。没有资格文件的角色不能派发正式职责。
