@@ -155,8 +155,9 @@ manifest 明确组件路径，不把维护源目录当作插件。角色及精�
 第三方 pstack/Matt 的宿主来源归执行仓库 `docs/engineering/skills.md`，本工具不安装或复制其正文。
 
 Cursor生成先核对全部角色的[资格记录](../agents/skills/design-subagents/canonical/references/cursor.md#生成前的角色资格门禁)。
-任一记录缺失、pending、unsupported、源指纹失效或缺精确采用时，整个Cursor或混合构建在写入前失败。
-当前生产记录为pending，没有正式角色资格。下面初始化命令在这些条件闭合前应返回非零，不能当成接入已完成。
+记录缺失、源指纹过期或 unsupported 时，整个 Cursor 或混合构建在写入前失败，不产生文件。
+pending 只跳过该角色自己的 agent 文件，其余已资格化角色和 skills、hooks 仍可生成。
+当前七个生产记录为 pending，先前九份有限探针资格不沿用。下面初始化可以完成结构生成，但不会写出 Cursor agent 文件，不能当成角色资格已完成。
 旧宿主可分别用`--host codex`及`--host claude-code`生成和检查；它们不读Cursor资格。
 
 CLI 和 IDE 可用项目 `.cursor` 相对视图，也可安装物理原生包。CLI 的插件方式示例为 `agent --plugin-dir /absolute/package/.cursor`。
@@ -173,7 +174,7 @@ uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-
 ```
 
 需要全部宿主时省略 `--host cursor`。Python/PyYAML 只用于生成，native bridge 运行需要 Node、Git 和 POSIX shell。
-Cloud 初始化由环境 setup 明确执行，不能等 SessionStart；其命令 hooks 只有 stop/subagentStop。
+Cloud 初始化由环境 setup 明确执行，不能等 SessionStart。命令 hooks 有 stop、subagentStop，以及按合格 agent 文件摘要把关的 subagentStart。
 Cloud 早期只读环境不会运行 hooks。本次未运行真实 IDE/Cloud 会话，clean clone 子进程检查只支持初始化与资源可达。
 初始化重复调用保持内容不变，存在不同字节/权限或真实项目目录时失败；更新仍须新 staging 比较后按任务授权更换生成物。
 

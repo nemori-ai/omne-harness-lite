@@ -1,6 +1,6 @@
-# verification-developer 为一个模块写测试
+# developer 以 verification 为一个模块写测试
 
-量的是：给 [verification-developer](../../../roles/verification-developer/role.md) 一份装好依赖的整仓检出，其中一个模块的实现在、
+量的是：给 [developer](../../../roles/developer/role.md) 一份装好依赖的整仓检出，`implementation_kind` 为 `verification`，其中一个模块的实现在、
 针对它的原有测试被拿走，按一份完整的施工简报让它为这个模块写模块级测试——写出的测试在当前实现上是否全过，
 以及能否杀死一组它看不到的变异体（每个变异体是模块的一处改动，各自违反一条规格）。判定由程序在收录运行时做，没有判官。
 
@@ -67,7 +67,7 @@ briefs/_write-tests.md   施工简报的框架；briefs/VD-*.md 按 @@段名 分
 ## 运行设置
 
 模型、档位、工具清单、次数和判定阈值以 [flow.json](flow.json) 为准。
-角色的默认配置归[角色源](../../../roles/verification-developer/claude.yaml)。
+角色的默认配置归[角色源](../../../roles/developer/claude.yaml)。这次派发的实施种类是 `verification`。
 每次执行的输出与比较结果放本工作树 tmp，不在用例说明中追加运行流水。
 
 ## 量不出什么

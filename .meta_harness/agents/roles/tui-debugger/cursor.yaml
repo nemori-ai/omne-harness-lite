@@ -1,5 +1,0 @@
-name: tui-debugger
-description: Investigate terminal UI anomalies from a supplied build, environment and oracle. Produce rerunnable reproduction, evidence and fix recommendation. No product fixes or fixed verdict. Write only assigned evidence and isolated instrumentation. Cursor qualification requires runtime evidence.
-model: claude-opus-5-5-high
-readonly: false
-is_background: false

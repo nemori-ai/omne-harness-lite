@@ -24,7 +24,7 @@ Cursor renderer 只读取共享正文、assembly、Cursor 配置、角色集合�
 
 | 状态 | 生成结果与所需依据 |
 | --- | --- |
-| pending | 原因和缺口保留，adoption为null；拒绝Cursor生成 |
+| pending | 原因和缺口保留，adoption为null；只跳过该角色自己的 agent 文件 |
 | unsupported | 原因保留，adoption为null；拒绝Cursor生成，不静默省略角色 |
 | limited | 非空未证明保证和限定qualification-probe派发范围，必须有PanQiWei精确采用；只允许有限结构生成和探针，不承担正式角色职责 |
 | proved | 无剩余缺口；每个派发范围都有role-behavior、actual-model、permissions和lifecycle证据，并有PanQiWei精确采用 |
@@ -39,15 +39,17 @@ purpose只能是qualification-probe或accepted-role-duty。未登记范围由派
 采用包含owner、真实Issue评论reference和subject_sha256。subject为除adoption外整个记录的排序键紧凑JSON UTF-8字节摘要。
 离线门禁核对绑定和记录，不证明评论身份、证据语义或负责人已经作决定。实际采用仍由有权负责人和交付记录确认。
 
-直接角色投影也执行门禁。全量或混合生成中任何一个Cursor角色失败，均在deliver前拒绝整次构建，保持既有输出字节和模式。
+直接角色投影也执行门禁。记录缺失、绑定过期或 unsupported 时，全量或混合生成在 deliver 前拒绝整次构建，保持既有输出字节和模式。pending 只省略该角色的 agent 文件。
 单独选择Codex或Claude不读取Cursor资格记录。不能新增绕过参数、角色过滤或以假采用使生产构建变绿。
 生成角色附带由此记录派生的限定范围。`require_dispatch`可检查具名探针的精确范围；直接原生Task没有被编译器拦截。
 这些是生成和派发契约，不能声称是Cursor运行时访问控制。
+`subagentStart` 另按合格 agent 文件的 SHA-256 拒绝受管角色。文件缺失、摘要不符或该角色仍是 pending 时拒绝。不在角色源目录里的类型放行。
+同一角色名出现在 `.claude/agents` 或 `.codex/agents` 不构成这份摘要。
 
 ## 模型和权限
 
 固定 CLI `2026.08.04-aaa8809` 的认证 `--list-models` 返回了记录中的 native IDs。
-`claude-fable-5-1-xhigh`、`claude-opus-5-5-xhigh`、`claude-opus-5-5-high` 与 `claude-sonnet-5-5-high` 是宿主请求标识。
+`claude-fable-5-1-xhigh`、`claude-opus-5-5-xhigh`、`claude-opus-5-5-high` 与 `claude-sonnet-5-5-high` 是 CLI 目录里的源 ID。
 不凭相似名称推导 Codex 模型、Claude API ID、上下文或独立 effort 等价。
 
 该 CLI 的项目 `.cursor/agents` 读取 model。插件 agents 加载器用 `stripModel: true` 并写入 `model: inherit`。
@@ -55,7 +57,11 @@ purpose只能是qualification-probe或accepted-role-duty。未登记范围由派
 原生 `subagentStart.subagent_model` 说明选择结果，不能排除后端回退。精确实际模型需任务卡或宿主用量证据。
 证据不足时角色只具请求配置与结构支持，不取得其它宿主的评估资格，也不能承担要求该资格的独立接受门。
 
-`readonly: true` 请求宿主只读模式，不保证按路径隔离。需要执行检查或写 tmp 的角色使用 `readonly: false`，仍受任务写范围约束。
+投影把目录里的模型请求写成 `id[effort=level]`。源 `cursor.yaml` 仍用支持记录里的目录 ID，例如 `claude-opus-5-5-high` 投影为 `claude-opus-5-5[effort=high]`。
+描述不得包含冒号加空格。Cursor 会给这种描述加引号，并原样显示引号。
+
+`readonly: true` 请求宿主 Ask 模式，不保证按路径隔离。资格记录里 IDE 与 Cloud 的 `mode` 因此写 `ask`，不写 `agent`。
+`readonly: false` 的 IDE 与 Cloud 记录仍写 `agent`。需要执行检查或写 tmp 的角色使用 `readonly: false`，仍受任务写范围约束。
 Cursor 没有本项目所需的逐工具 allowlist。不能把指令约束声明成与 Claude 白名单或 Codex sandbox 等价。
 `is_background` 仅表达原生调度配置，不证明进程已停止或资源已释放。
 

@@ -1,0 +1,28 @@
+version: 1
+role: diagnostician
+binding:
+  native_sha256: 0663d41b5faa6c7e709d46de81575fee14a27a8e2003b22d96b2264552c406d7
+  prompt_sha256: 1a46d87e35275f821955cf17a87a44b445c6c9c0aef01ec56aafc88c34063622
+host_versions:
+  cli:
+  - 2026.08.04-aaa8809
+  ide: []
+  cloud: []
+status: pending
+scope:
+  generation:
+  - cli-plugin
+  - cli-project
+  - cloud-project
+  - ide-plugin
+  - ide-project
+  dispatch: []
+evidence: []
+missing:
+- Revision 4 changed the role bytes. The previous limited IDE probe is not carried
+  forward.
+- The seven-role adoption is not role-qualification proof.
+- Obtain a new named qualification after these bytes are stable.
+adoption: null
+reason: Pending until a new named Cursor qualification. The previous nine limited
+  probes are not reused.

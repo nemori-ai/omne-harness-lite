@@ -7,8 +7,7 @@ Codex 的 `.codex/hooks.json`。两端在 `Stop`、`SubagentStop` 上读同一�
 `Stop` 一组不带 matcher，`SubagentStop` 一组的 matcher 是子代理类型名用 `|` 连起来。
 生成物不手改；没有 `hooks.yaml` 或列表为空时不产出这两个文件。
 
-现在只有一条：`loop-stop-facts`，在会话收工（`Stop`）与 developer、verification-developer、
-tui-developer 子代理收工（`SubagentStop`）时跑执行仓库的收工钩子（`tools/ts-checks/src/loop/stop-hook.ts`，
+现在只有一条：`loop-stop-facts`，在会话收工（`Stop`）与 developer 子代理收工（`SubagentStop`）时跑执行仓库的收工钩子（`tools/ts-checks/src/loop/stop-hook.ts`，
 说明在 `tools/ts-checks/README_ZH.md`「收工钩子」一节）。
 它核对产品源码、全局架构约束及其引用的 Markdown 依据，有要报告的读数时反馈。触发与基线选择以执行仓库的工具为准。
 新增偏离对 BASE 的预期判断，预期语义改动另列。机械范围归执行仓库的 `tools/ts-checks/src/arch/CONFORMANCE.md`。

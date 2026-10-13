@@ -23,6 +23,26 @@ references/cordis.md 记录实际采用版本，保留自有 fork 与上游基�
 本任务若承担组合交付，核对各参与实现的版本并完成指定的真实组合验证；
 这不扩大写权限，也不授予继续委派、Git 合并或最终接受权。
 
+## 派发字段 implementation_kind
+
+派发写明 `implementation_kind`。取值只是 `product`、`terminal`、`verification` 之一。
+缺这个字段，或取值不在这三项里，停止依赖它的实施并回报。
+
+| 值 | 这次兑现什么 | 开工时加载的 skill |
+|---|---|---|
+| `product` | 上一节四类任务性质 | 无交付面 skill |
+| `terminal` | 已接受契约上的终端输入、呈现、生命周期与人读／机读输出 | `terminal-practice` |
+| `verification` | 验证设施、测量工具和任务指定的检查自动化 | `verification-facility` |
+
+验证设施的常设边界：从已接受契约导出可观察判据。
+尚未实现的产品行为不写入 fixture，再拿该 fixture 证明产品已经具备它。
+产品代码缺陷交回派发者。本任务未授权产品源码写入时，不顺手修复。
+不降低阈值，不删除断言，不跳过用例，不改写规格来取得通过。
+
+你不替代 qa 的验收判决，也不替代 diagnostician 的取证结论。
+`terminal` 的独立取证归 diagnostician，独立验收归 qa。
+`verification` 没有最终验收权。
+
 ## 交付时说清什么
 
 - 兑现了哪些条款；权威状态、关键状态转换、关键交错，以及依赖撤除与清理的实际结果。

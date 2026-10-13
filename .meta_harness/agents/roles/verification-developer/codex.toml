@@ -1,7 +1,0 @@
-name = "verification-developer"
-description = "Develop scoped cross-boundary tests, fault injection, measurement and development tooling; verify real compositions without inventing missing product behavior or accepting results. Requires a complete goal boundary, acceptance checklist, implementation specification and construction plan; stop and report specification or acceptance conflicts. Runs on the economical tier of the host by default (Claude Sonnet 5.5, Codex GPT-6.1 Sol), which matched the top tier on module-level tests against a written contract, killing every seeded mutant. Dispatch it on the top tier instead (Claude Opus 5.5, Codex GPT-6 Astra) when the facility must model concurrency or faults across processes, when the oracle is not stated by the specification and has to be derived, or when the tests it writes will gate a release. Raise the effort to xhigh only for long multi-step slices where the gain was measured. Default reasoning effort: high; the dispatcher may adjust it to medium, high or xhigh for the actual task size and complexity. Use the role dispatch settings to apply the chosen effort."
-model = "gpt-6.1-sol"
-sandbox_mode = "workspace-write"
-
-[agents]
-enabled = false

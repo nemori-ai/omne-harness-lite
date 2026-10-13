@@ -89,11 +89,11 @@ subagent 还会带着主会话检出的约定文件（`AGENTS.md` 等）启动�
 
 除了评审类（`family: review`，判官判），还有三类流在 `record` 时由程序判定，**判定发生在删副本之前**，没有判官，`judge-brief`、`judge-record`、`grade`、校准对它们都拒绝：
 
-- `implement`（developer、tui-developer 补完一个模块）：判定照搬早先固定程序判定任务的 `oracle_implement`——
+- `implement`（developer 补完一个模块，含 `terminal`）：判定照搬早先固定程序判定任务的 `oracle_implement`——
   存一份 `changes.patch`，查写入范围与原有测试有没有被动过，把角色写的测试挪开、放回模板里的原测试，跑测试与类型检查。一次运行落一行（`meta.unit = "run"`）。
 - `acceptance`（qa 按标准验收）：判定照搬同一对照的 `oracle_acceptance` 与它的第 3 次修订——找报告、判判决与逐条结果、漏报与误报、制品哈希、写入范围。
   每条标准一行（`meta.unit = "criterion"`）加一行运行级。
-- `write-tests`（verification-developer 为拿走了原有测试的模块写测试）：判定移植同一对照的 `oracle_write_tests`——
+- `write-tests`（developer 以 `verification` 为拿走了原有测试的模块写测试）：判定移植同一对照的 `oracle_write_tests`——
   存一份 `changes.patch`，找角色在成员测试目录下新增或改动的 `*.spec.ts`，在当前实现上只跑它们（全过且至少一条才算有效）、跑类型检查（只记录），
   再逐个把预置变异体的 `find` 换成 `replace`（必须恰好命中一次）盖到模板里那份目标文件上、跑同一批文件，退出码不为 0 即杀死；每个变异体之后都把目标文件写回原样。
   有效且没有存活的变异体才算成功。每个变异体一行（`meta.unit = "mutant"`）加一行运行级。跑超时不是结论，记为判定器失败。

@@ -158,7 +158,7 @@ make acceptance-lock BASE=<任务基线提交或分支>
 
 | 判锁被破（退出 1） | 放行 |
 |---|---|
-| 碰过验收文件的提交，`Agent-Role` 不在拥有者角色里（如 `developer`、`tui-developer`） | `Agent-Role` 是拥有者角色（`main`、`qa`）的提交 |
+| 碰过验收文件的提交，`Agent-Role` 不在拥有者角色里（如 `developer`） | `Agent-Role` 是拥有者角色（`main`、`qa`）的提交 |
 | 工作树里有未提交或未跟踪的验收改动——说不清是谁改的 | 没有来源 trailer 的提交：按人写的算 |
 
 哪些根目录下的成员受管、验收目录叫什么、哪些角色算拥有者，只在

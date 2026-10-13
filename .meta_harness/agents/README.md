@@ -56,6 +56,10 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 | `design-subagents` | 角色契约、宿主与模型适配、模板、成对渲染及验证 |
 | `ubiquitous-language` | 统一语言的取名、分卷、无歧义中英文定义、判形态、查重、冲突处置与出处复核；**只有要新增或修改词条的人加载**，该区约定归 [design/ubiquitous_language](../design/ubiquitous_language/AGENTS.md) |
 | `domain-objects` | 领域对象条目的宿主、身份、生灭与并入怎么判，待裁怎么登记，topic 升 rev 后怎么逐条复核，全量重提怎么做；**只有要在那一区落字的人加载**，该区约定归 [design/domain_objects](../design/domain_objects/AGENTS.md) |
+| `terminal-practice` | developer 在 `implementation_kind=terminal` 时的终端实施实践 |
+| `terminal-acceptance` | qa 在交付面是终端时的验收关口 |
+| `terminal-forensics` | diagnostician 在 `surface=terminal` 时的取证方法 |
+| `verification-facility` | developer 在 `implementation_kind=verification` 时的验证设施实践 |
 
 工作树隔离、真实 cwd、共享写权及清理归[协作流程](../../docs/engineering/workflow.md)。
 提交和PR方法从工程技能入口选择，项目模板、署名及报告归[贡献指南](../../CONTRIBUTING.md)，

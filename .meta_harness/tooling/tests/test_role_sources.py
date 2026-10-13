@@ -6,15 +6,16 @@ ROLES = Path(__file__).parents[2] / "agents/roles"
 TASTE = "../engineering-taste.md"
 # Product roles take the product-manager viewpoint and must not judge engineering choices.
 EXEMPT = {"product-design-drafter", "product-design-reviewer"}
-DEVELOPERS = {"developer", "verification-developer", "tui-developer"}
-# Merged into `developer` or retired on 2026-10-01; a source package under one of these names
-# would bring back module-owned implementers or an agent that drafts architecture readings.
-# `tui-qa` was generalised into `qa` the same day: acceptance is not specific to terminal UIs.
-# The three design reviewers became `design-reviewer`, which makes one kind of judgment per dispatch.
+DEVELOPERS = {"developer"}
+# Merged into `developer` or retired. A source package under one of these names
+# would bring back a separate implementer, a terminal-only forensics name, or an agent
+# that drafts architecture readings. `tui-qa` was generalised into `qa`.
+# The three design reviewers became `design-reviewer`.
 RETIRED = {"kernel-developer", "capability-developer", "infrastructure-developer",
            "application-developer", "architecture-drafter", "tui-qa",
            "architecture-reviewer", "spec-reviewer", "plan-reviewer",
-           "spec-drafter", "realization-drafter"}
+           "spec-drafter", "realization-drafter",
+           "tui-developer", "verification-developer", "tui-debugger"}
 
 
 def shared_prompts(role: Path) -> list[str]:
@@ -51,7 +52,13 @@ def test_retired_roles_do_not_come_back():
     assert not leaked, f"retired drafting contract is referenced: {leaked}"
 
 
-def test_developer_leaves_the_codex_model_to_the_dispatcher():
-    """Codex lets a role-file model override the dispatch value, so the merged role must not pin one."""
-    codex = tomllib.loads((ROLES / "developer/codex.toml").read_text(encoding="utf-8"))
-    assert "model" not in codex
+def test_developer_and_qa_leave_the_codex_model_to_the_dispatcher():
+    """Codex lets a role-file model override the dispatch value, so these roles must not pin one."""
+    for name in ("developer", "qa"):
+        codex = tomllib.loads((ROLES / name / "codex.toml").read_text(encoding="utf-8"))
+        assert "model" not in codex, name
+
+
+def test_diagnostician_keeps_the_codex_model_pin():
+    codex = tomllib.loads((ROLES / "diagnostician/codex.toml").read_text(encoding="utf-8"))
+    assert codex["model"] == "gpt-6.1-sol"

@@ -2,6 +2,7 @@
 """Resolve explicit host strategies into runtime artifacts without writing outputs."""
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import re
@@ -340,11 +341,16 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
     role_sources = list(members(source / "roles"))
     old_hosts = tuple(host for host in hosts if host != "cursor")
     render = load_renderer(renderer_path) if role_sources and old_hosts else None
+    qualified_summaries = {}
     if "cursor" in hosts:
         from cursor_projection import project_cursor_role
         for role in role_sources:
-            relative, text = project_cursor_role(role)
+            projected = project_cursor_role(role)
+            if projected is None:
+                continue
+            relative, text = projected
             add(relative, Artifact(text.encode("utf-8"), 0o644))
+            qualified_summaries[role.name] = hashlib.sha256(text.encode("utf-8")).hexdigest()
     for role in role_sources if old_hosts else ():
         rendered = render(role)
         if not isinstance(rendered, dict) or len(rendered) != 2:
@@ -366,7 +372,8 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
             add(relative, artifact)
     if "cursor" in hosts:
         from cursor_projection import project_cursor_package
-        for relative, artifact in project_cursor_package(source, {role.name for role in role_sources}).items():
+        for relative, artifact in project_cursor_package(
+                source, {role.name for role in role_sources}, qualified_summaries).items():
             add(relative, artifact)
     for relative, artifact in project_cloud(source, hosts).items():
         add(relative, artifact)
