@@ -8,7 +8,7 @@
 |---|---|---|
 | pstack port | 0.9.79，[michael-denyer/pstack-claude@60ae9e25610744bccd45bd405c211413a471aaf8](https://github.com/michael-denyer/pstack-claude/tree/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack) | 工程主线的实际引用来源；本机 Codex 原生插件已安装、启用并由 skills/list 发现，行为按任务验证 |
 | Matt skills | 1.3.1，[mattpocock/skills@b0618bc436ad893b3c5e84e55fba86586d34a404](https://github.com/mattpocock/skills/tree/b0618bc436ad893b3c5e84e55fba86586d34a404/skills) | 六项选定补充及必要依赖已在本机发现；安装完整插件不扩大方法采用范围 |
-| pstack 原版参考 | 0.15.15，[cursor/plugins@ccb5507cec1546dc88135c1139c811e6c59115ba](https://github.com/cursor/plugins/tree/ccb5507cec1546dc88135c1139c811e6c59115ba/pstack) | 仅用于来源比较，不代表本机安装版，也不覆盖 port 的实际步骤 |
+| Cursor 官方 pstack | 0.15.20，[cursor/plugins@1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def](https://github.com/cursor/plugins/tree/1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def) | Cursor 宿主采用来源；与 Matt 1.3.1 已本地安装，实际调用按任务取证。不覆盖 Codex/Claude 的 port 0.9.79 |
 | 项目方法 | [.meta_harness/agents](../../.meta_harness/agents/README.md) | canonical 源与宿主生成分别维护，实际适用依据仍归项目拥有者 |
 
 用户选定的 Matt 补充是 grill-with-docs、to-spec、to-tickets、code-review、codebase-design、writing-for-agents。只在相关缺口出现时使用，不要求每个任务六项全跑。采用方法不能替代正式语义接受或扩大任务权限。
@@ -31,7 +31,7 @@ Matt grill-with-docs、to-spec、to-tickets 在固定源中声明 `disable-model
 
 ## pstack 方法入口
 
-以下均为已安装 port 的固定入口。按[场景选择](scenarios/README.md)触发，不作为要求全跑的清单。
+以下入口固定 Codex/Claude port 的正文。Cursor 从来源表的官方版本加载同名方法及其真实宿主适配，不把 port 步骤自动复制为 Cursor 保证。按[场景选择](scenarios/README.md)触发，不作为要求全跑的清单。
 
 | 精确方法 | 何时展开 |
 |---|---|
@@ -158,3 +158,7 @@ port 的 [Claude hooks](https://github.com/michael-denyer/pstack-claude/blob/60a
 ## 项目分支集成技能
 
 涉及工作分支同步、FI/RI、联合候选、checkpoint、采用或恢复时，加载自有 [branch-integration](../../.meta_harness/agents/skills/branch-integration/canonical/SKILL.md)。它从[共同规则](integration.md)和实际 CLI 展开，不替代 pstack 通用方法，也不因宿主发现而启用采用或授予外部动作。pending 时沿旧任务路线。
+
+## 项目设计判断的边界
+
+[harness-design-handbook](../../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md) 聚焦能力覆盖、性质保护责任和 Cordis 承载。默认入口只选一个方法页，再读任务实际拥有者。三种 reviewer 判据直接派发，不先加载 SKILL 或其他两页。普通工程/文档归属/交付由现有工程拥有者和 pstack/Matt 承担；风险与三轮升级归 quality，组合证明门槛归 verification。技能不再保存第二份内核版本事实。Cursor 项目生成与 Cloud 初始化见 [tooling](../../.meta_harness/tooling/README.md#cursor-原生包与项目视图)。

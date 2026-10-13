@@ -27,7 +27,11 @@
       ".meta_harness/CLAUDE.md",
       ".meta_harness/README.md",
       ".meta_harness/agents/skills",
-      ".meta_harness/tooling"
+      ".meta_harness/tooling",
+      "docs/engineering/quality.md",
+      "docs/verification.md",
+      "docs/engineering/documentation.md",
+      "docs/maintenance.md"
     ]
   },
   "metrics": [

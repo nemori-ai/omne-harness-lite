@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, matchesGlob, relative, resolve } from 'node:path'
+import { isLegacyDirectory, isLegacyFile } from '../check-scope.ts'
 import { git } from '../metrics/git.ts'
 import { readRevisionTexts } from '../metrics/revision-files.ts'
 import { listWorkspaceMembers, ownerOf, workspacePatterns, type Tree } from '../testing/members.ts'
@@ -34,18 +35,11 @@ export interface ArchitectureSource {
   /** Naming-based discovery only; the resolver records applied config and extends files separately. */
   readonly discoveredConfigurationFiles: readonly string[]
 }
-const ignored = new Set([
-  'node_modules',
-  '.git',
-  '.worktrees',
-  '.venv',
-  'tmp',
-  '.meta_harness',
-  'packages.0.0.1.legacy',
-  'apps.0.0.1.legacy',
-])
+const ignored = new Set(['node_modules', '.git', '.worktrees', '.venv', 'tmp', '.meta_harness'])
 const ignoredPath = (path: string) =>
-  ignored.has(path.split('/')[0] ?? '') || path.split('/').includes('node_modules')
+  isLegacyFile(path) ||
+  ignored.has(path.split('/')[0] ?? '') ||
+  path.split('/').includes('node_modules')
 const retained = (path: string) =>
   path === 'pnpm-workspace.yaml' || /\.[cm]?tsx?$/u.test(path) || path.endsWith('.json')
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -75,8 +69,9 @@ function sourceTree(
         const full = join(dir, entry.name)
         const path = relative(root, full).replaceAll('\\', '/')
         if (ignoredPath(path)) continue
-        if (entry.isDirectory()) walk(full)
-        else if (entry.isFile()) {
+        if (entry.isDirectory()) {
+          if (!isLegacyDirectory(full)) walk(full)
+        } else if (entry.isFile()) {
           paths.push(path)
           if (retained(path)) texts.set(path, readFileSync(full, 'utf8'))
         }

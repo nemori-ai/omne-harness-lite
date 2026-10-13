@@ -11,13 +11,20 @@ from typing import NamedTuple
 
 import yaml
 
+from host_layout import HOSTS
+
 IGNORED = {"__pycache__", ".pytest_cache", ".git", ".venv"}
-SKILL_TARGETS = {"codex": Path(".agents/skills"), "claude-code": Path(".claude/skills")}
-ROLE_TARGETS = (Path(".codex/agents"), Path(".claude/agents"))
+SKILL_TARGETS = {host: layout.skills for host, layout in HOSTS.items()}
+ROLE_TARGETS = tuple(HOSTS[host].agents for host in ("codex", "claude-code"))
 RUNTIME_EXCLUDES = {"AGENTS.md", "CLAUDE.md", ".design", "evals"}
 # Host-neutral hooks become each host's project hook file. Both hosts read the same
 # `{"hooks": {<event>: [{"matcher"?, "hooks": [handler]}]}}` shape for these two events.
-HOOK_TARGETS = {"claude-code": Path(".claude/settings.json"), "codex": Path(".codex/hooks.json")}
+HOOK_TARGETS = {host: layout.hooks for host, layout in HOSTS.items()}
+# Cursor reads .cursor/ from the checkout before install. The source stays here;
+# compile_agents.py copies these files into the output root. README.md is maintainer
+# text and is not part of the runtime projection.
+CLOUD_RUNTIME = ("Dockerfile", "environment.json", "install.sh")
+CLOUD_SOURCE_ONLY = {"README.md"}
 HOOK_EVENTS = ("Stop", "SubagentStop")
 HOOK_FIELDS = {"id", "events", "subagent_types", "command", "timeout"}
 # Matchers made only of these characters are exact names on both hosts, never a regex.
@@ -157,7 +164,7 @@ def project_skill(skill: Path, host: str) -> dict[Path, Artifact]:
     return outputs
 
 
-def load_renderer(path: Path):
+def load_module(path: Path):
     module_spec = importlib.util.spec_from_file_location("meta_harness_role_renderer", path)
     if module_spec is None or module_spec.loader is None:
         raise ValueError(f"cannot load role renderer: {path}")
@@ -165,9 +172,18 @@ def load_renderer(path: Path):
     previous = sys.dont_write_bytecode
     try:
         sys.dont_write_bytecode = True
-        module_spec.loader.exec_module(module)
+        sys.path.insert(0, str(path.parent))
+        try:
+            module_spec.loader.exec_module(module)
+        finally:
+            sys.path.pop(0)
     finally:
         sys.dont_write_bytecode = previous
+    return module
+
+
+def load_renderer(path: Path):
+    module = load_module(path)
     if not callable(getattr(module, "render", None)):
         raise ValueError(f"role renderer must expose render(source): {path}")
     return module.render
@@ -229,6 +245,76 @@ def project_hooks(directory: Path, hosts: tuple[str, ...], roles: set[str]) -> d
     return {HOOK_TARGETS[host]: Artifact(text.encode("utf-8"), 0o644) for host in hosts}
 
 
+def project_cloud(source: Path, hosts: tuple[str, ...]) -> dict[Path, Artifact]:
+    """Copy selected host cloud sources into each host's package root.
+
+    `cloud/` contains one directory per host, named as in host_layout, plus an
+    optional README.md. A missing `cloud/` or a missing host directory produces
+    nothing. A host directory whose package root is unset is rejected.
+    """
+    directory = source / "cloud"
+    if not directory.exists():
+        return {}
+    if not directory.is_dir():
+        raise ValueError(f"cloud source must be a directory: {directory}")
+    outputs = {}
+    for item in sorted(directory.iterdir()):
+        if item.name in IGNORED:
+            continue
+        no_symlinks(item)
+        if item.name == "README.md" and item.is_file():
+            continue
+        if not item.is_dir():
+            raise ValueError(
+                f"cloud source is one directory per host, plus optional README.md: {item.name}"
+            )
+        layout = HOSTS.get(item.name)
+        if layout is None:
+            raise ValueError(f"unknown cloud host: {item.name}")
+        if layout.package is None:
+            raise ValueError(f"cloud host {item.name} has no projection root yet")
+        if item.name not in hosts:
+            continue
+        for relative, artifact in _project_cloud_host(item, layout.package).items():
+            outputs[relative] = artifact
+    return outputs
+
+
+def _project_cloud_host(directory: Path, package: Path) -> dict[Path, Artifact]:
+    names = set()
+    for item in sorted(directory.iterdir()):
+        if item.name in IGNORED:
+            continue
+        no_symlinks(item)
+        if not item.is_file():
+            raise ValueError(f"cloud host source must be flat files: {item}")
+        names.add(item.name)
+    unknown = names - set(CLOUD_RUNTIME) - CLOUD_SOURCE_ONLY
+    missing = set(CLOUD_RUNTIME) - names
+    if unknown or missing:
+        raise ValueError(
+            f"cloud source files must be {list(CLOUD_RUNTIME)} "
+            f"plus optional {sorted(CLOUD_SOURCE_ONLY)}; unknown={sorted(unknown)} missing={sorted(missing)}"
+        )
+    config_path = directory / "environment.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    build = config.get("build") if isinstance(config, dict) else None
+    dockerfile = build.get("dockerfile") if isinstance(build, dict) else None
+    install = config.get("install") if isinstance(config, dict) else None
+    if dockerfile != "Dockerfile" or not isinstance(install, str) or not install.strip():
+        raise ValueError(
+            "cloud environment.json needs build.dockerfile 'Dockerfile' and a non-empty install string"
+        )
+    outputs = {}
+    for name in CLOUD_RUNTIME:
+        file = directory / name
+        mode = 0o755 if file.stat().st_mode & 0o111 else 0o644
+        if name == "install.sh" and mode != 0o755:
+            raise ValueError("cloud install.sh must be executable")
+        outputs[package / name] = Artifact(file.read_bytes(), mode)
+    return outputs
+
+
 def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
                     hosts: tuple[str, ...] = ("claude-code", "codex")) -> dict[Path, Artifact]:
     no_symlinks(source.absolute())
@@ -252,8 +338,14 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
                 add(relative, artifact)
 
     role_sources = list(members(source / "roles"))
-    render = load_renderer(renderer_path) if role_sources else None
-    for role in role_sources:
+    old_hosts = tuple(host for host in hosts if host != "cursor")
+    render = load_renderer(renderer_path) if role_sources and old_hosts else None
+    if "cursor" in hosts:
+        from cursor_projection import project_cursor_role
+        for role in role_sources:
+            relative, text = project_cursor_role(role)
+            add(relative, Artifact(text.encode("utf-8"), 0o644))
+    for role in role_sources if old_hosts else ():
         rendered = render(role)
         if not isinstance(rendered, dict) or len(rendered) != 2:
             raise ValueError(f"role renderer must produce two native files: {role}")
@@ -270,6 +362,12 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
     if hooks.exists() and not hooks.is_dir():
         raise ValueError(f"hooks source must be a directory: {hooks}")
     if hooks.is_dir():
-        for relative, artifact in project_hooks(hooks, hosts, {role.name for role in role_sources}).items():
+        for relative, artifact in project_hooks(hooks, old_hosts, {role.name for role in role_sources}).items():
             add(relative, artifact)
+    if "cursor" in hosts:
+        from cursor_projection import project_cursor_package
+        for relative, artifact in project_cursor_package(source, {role.name for role in role_sources}).items():
+            add(relative, artifact)
+    for relative, artifact in project_cloud(source, hosts).items():
+        add(relative, artifact)
     return outputs

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import yaml
 
+from host_layout import HOSTS
 from projection import Artifact, DEFAULT_RENDERER, compile_sources, no_symlinks
 
 
@@ -58,7 +59,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, type=Path, help="Shared agents source root")
     parser.add_argument("--output", required=True, type=Path, help="Explicit staging root")
-    parser.add_argument("--host", choices=("claude-code", "codex", "all"), default="all")
+    parser.add_argument("--host", choices=(*HOSTS, "all"), default="all")
     parser.add_argument("--role-renderer", type=Path, default=DEFAULT_RENDERER,
                         help="Trusted Python module providing render(source)")
     parser.add_argument("--check", action="store_true", help="Read-only expected-file comparison")
@@ -67,12 +68,11 @@ def main(argv=None):
         source, output = args.source.resolve(), args.output.resolve()
         if output.is_relative_to(source):
             raise ValueError("output root must not be inside the source")
-        hosts = ("claude-code", "codex") if args.host == "all" else (args.host,)
+        hosts = tuple(HOSTS) if args.host == "all" else (args.host,)
         outputs = compile_sources(args.source, args.role_renderer, hosts)
-        directories = []
-        for host in hosts:
-            directories.extend((".agents/skills", ".codex/agents") if host == "codex"
-                               else (".claude/skills", ".claude/agents"))
+        directories = [directory for host in hosts for directory in HOSTS[host].directories]
+        if any(relative.parts[:1] == (".cursor",) for relative in outputs):
+            directories.append(Path(".cursor"))
         for relative in (*directories, *outputs):
             target = (output / relative).resolve()
             if source.is_relative_to(target) or target.is_relative_to(source):

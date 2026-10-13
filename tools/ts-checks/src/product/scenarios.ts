@@ -1,6 +1,7 @@
 import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
 import { parse } from 'yaml'
+import { isLegacyDirectory } from '../check-scope.ts'
 
 export const SCENARIO_ID = /^[A-Z]{1,3}\d{1,3}[a-z]?$/u
 const CELL_SPLIT = /(?<!\\)\|/u
@@ -62,6 +63,7 @@ export function readProductTopics(productRoot: string): ProductTopic[] {
       const entry = lstatSync(join(root, dir))
       if (entry.isSymbolicLink()) throw new Error(`产品目录是越界或别名链接：${dir}`)
       if (!entry.isDirectory()) return []
+      if (isLegacyDirectory(dir)) return []
       if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(dir))
         throw new Error(`产品目录不是合法 slug：${dir}`)
       inside(join(root, dir))

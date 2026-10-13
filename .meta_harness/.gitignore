@@ -1,7 +1,14 @@
 # Rebuildable host projections; authored inputs live under agents/.
+# Cursor Cloud Agent reads Dockerfile, environment.json and install.sh from
+# the checkout before install. Those three files are committed. Generated
+# skills, agents and hooks in the same directory stay ignored.
 /.claude/
 /.agents/
 /.codex/
+/.cursor/*
+!/.cursor/Dockerfile
+!/.cursor/environment.json
+!/.cursor/install.sh
 
 
 # Runtime traces and migration discussions belong in the execution worktree tmp/.

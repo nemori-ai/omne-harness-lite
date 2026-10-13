@@ -29,19 +29,9 @@
     ],
     "readers": [
       {
-        "paths": ["packages/core/*/schema/**"],
-        "members": ["packages.0.0.1.legacy/core/stream-assembly"],
-        "why": "stream-assembly tests/fixtures.spec.ts 的 INPUT-02／INPUT-04 读十几个核心成员的 schema/，其中多数没有声明依赖"
-      },
-      {
         "paths": ["packages/core/*/src/**"],
         "members": ["tools/core-verification"],
         "why": "core-verification 的 dependency-surface、public-type-surface 读核心成员的 src 与 dist"
-      },
-      {
-        "paths": ["packages/tenancy/governance-center-entry-node/tests/fixtures/tls/**"],
-        "members": ["packages.0.0.1.legacy/frontend/governance-client-operations-local"],
-        "why": "governance-client-operations tests/prepared.spec.ts 读 governance-center-entry 的 TLS 夹具，没有声明依赖"
       },
       {
         "paths": [
@@ -81,32 +71,6 @@
         "why": "ts-checks 的 loop-catalogue.spec.ts 读 clean-loop 与整洁之道对照表，test-slot.spec.ts 执行 with-test-slot.sh"
       },
       {
-        "paths": [
-          "packages.0.0.1.legacy/infra/credential-custodian-local/README.md",
-          "packages.0.0.1.legacy/infra/credential-custodian-local/README_ZH.md"
-        ],
-        "members": ["packages.0.0.1.legacy/infra/credential-custodian-local"],
-        "why": "tests/literal.spec.ts 运行两份 README 里的代码块"
-      },
-      {
-        "paths": [
-          "packages.0.0.1.legacy/model/model-profile-directory-local/README.md",
-          "packages.0.0.1.legacy/model/model-profile-directory-local/README_ZH.md"
-        ],
-        "members": ["packages.0.0.1.legacy/model/model-profile-directory-local"],
-        "why": "tests/readme.spec.ts 运行两份 README 里的代码块"
-      },
-      {
-        "paths": [
-          "examples/model-invocation-minimal-demo/src/**",
-          "examples/model-invocation-minimal-demo/schema/**",
-          "examples/model-invocation-minimal-demo/generated/**",
-          "examples/model-invocation-minimal-demo/package.json"
-        ],
-        "members": ["packages.0.0.1.legacy/tools/tool-execution-local"],
-        "why": "tool-execution-local 的 PF-006 S24/S69 独立验收从 model-invocation-minimal-demo 公开 dist 入口驱动模型工具续答；先显式构建 demo 及依赖，再运行 acceptance。examples 仍不加入默认成员扫描。"
-      },
-      {
         "paths": ["packages/core/*/schema/**", "packages/core/*/tests/fixtures/**"],
         "members": ["tools/core-verification"],
         "why": "w1/w6以成员拥有的Schema及独立规范输入作外部消费，测试不会读取退役中央清单"
@@ -142,7 +106,10 @@
       "CLAUDE.md",
       ".meta_harness/README.md",
       ".meta_harness/AGENTS.md",
-      ".meta_harness/CLAUDE.md"
+      ".meta_harness/CLAUDE.md",
+      ".cursor",
+      ".cursor/**",
+      ".meta_harness/.gitignore"
     ],
     "residentPaths": [
       "README.md",

@@ -47,6 +47,24 @@ function temporary(): string {
   return root
 }
 describe('当前产品发现', () => {
+  it('不读取封存目录，仍拒绝活跃目录和后缀别名的非法元数据', () => {
+    const root = temporary()
+    mkdirSync(join(root, 'old.legacy'))
+    writeFileSync(join(root, 'old.legacy', 'README.md'), 'invalid archived metadata')
+    topic(root)
+    expect(readProductTopics(root).map(t => t.topic)).toEqual(['PD-skills'])
+    topic(root, 'active', 'revision: 1\nstatus: draft')
+    expect(() => readProductTopics(root)).toThrow('缺身份')
+    rmSync(join(root, 'active'), { recursive: true })
+    mkdirSync(join(root, 'old.legacy-not'))
+    expect(() => readProductTopics(root)).toThrow('合法 slug')
+  })
+  it('封存后缀不豁免产品目录符号链接', () => {
+    const root = temporary()
+    topic(root)
+    symlinkSync(join(root, 'skills'), join(root, 'alias.legacy'), 'dir')
+    expect(() => readProductTopics(root)).toThrow('别名链接')
+  })
   it.each(['---   \n', '---\t\r\n', '--- \t'])('接受 front-matter 关闭行的尾随空白 %j', closing => {
     const root = temporary()
     const dir = topic(root)

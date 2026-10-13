@@ -9,6 +9,7 @@
 // 成员按 package.json 声明的 workspace 依赖求反向传递闭包。pnpm 自带的 `--filter "...[<since>]"`
 // 做的是同一件事，但它在 git 工作树里匹配不到任何包（2026-10-01 在 pnpm 10.28.1 上验证：主检出选中 41 个，
 // 同一提交的工作树选中 0 个），而实施都在工作树里进行，所以这里自己算。
+import { isLegacyDirectory, isLegacyFile } from '../check-scope.ts'
 import type { AffectedRules } from './config.ts'
 import { ownerOf, type WorkspaceMember } from './members.ts'
 
@@ -27,7 +28,8 @@ export function patternToRegExp(pattern: string): RegExp {
 const firstMatch = (path: string, patterns: readonly string[]) =>
   patterns.find(pattern => patternToRegExp(pattern).test(path))
 
-export type FileCategory = 'global' | 'reader' | 'member' | 'python' | 'resident' | 'unclassified'
+export type FileCategory =
+  'excluded' | 'global' | 'reader' | 'member' | 'python' | 'resident' | 'unclassified'
 
 export interface ClassifiedFile {
   readonly path: string
@@ -49,6 +51,7 @@ export function classify(
   members: readonly WorkspaceMember[],
   rules: AffectedRules,
 ): ClassifiedFile {
+  if (isLegacyFile(path)) return { path, category: 'excluded', reads: [] }
   const global = firstMatch(path, rules.globalPaths)
   if (global !== undefined) return { path, category: 'global', rule: global, reads: [] }
   const reads = rules.readers.flatMap(reader => {
@@ -93,7 +96,7 @@ export interface CheckPlan {
   /** 一句话：为什么是这个模式、这个范围。 */
   readonly reason: string
   readonly files: readonly ClassifiedFile[]
-  /** 按范围时被选中的成员及原因；全量时为空（全部成员）。 */
+  /** 按范围时被选中的成员及原因；全量时为空（所有在役成员）。 */
   readonly members: readonly PlannedMember[]
   /** 要构建的成员：被选中的、它们的传递依赖、常驻检查需要的；只取有 build 脚本的。 */
   readonly build: readonly { readonly path: string; readonly reason: BuildReason }[]
@@ -131,16 +134,18 @@ function fullPlan(
   members: readonly WorkspaceMember[],
   files: readonly ClassifiedFile[],
   reason: string,
+  rules: AffectedRules,
 ): CheckPlan {
+  const active = members.filter(member => !isLegacyDirectory(member.path))
   return {
     mode: 'full',
     reason,
     files,
     members: [],
-    build: withScript(members, 'build').map(path => ({ path, reason: 'selected' })),
-    typecheck: withScript(members, 'typecheck'),
-    test: withScript(members, 'test'),
-    acceptance: withScript(members, 'acceptance'),
+    build: buildList(new Set(active.map(member => member.path)), members, rules),
+    typecheck: withScript(active, 'typecheck'),
+    test: withScript(active, 'test'),
+    acceptance: withScript(active, 'acceptance'),
     python: { run: true, reason: '全量' },
   }
 }
@@ -280,7 +285,7 @@ export function planCheck(
 ): CheckPlan {
   checkRuleMembers(members, rules)
   const files = [...new Set(changedPaths)].sort().map(path => classify(path, members, rules))
-  if (full) return fullPlan(members, files, 'FULL=1：要求全量')
+  if (full) return fullPlan(members, files, 'FULL=1：要求全量', rules)
   const globals = files.filter(file => file.category === 'global')
   const first = globals[0]
   if (first !== undefined)
@@ -289,6 +294,7 @@ export function planCheck(
       files,
       `全局文件 ${first.path} 有改动（命中 ${first.rule ?? ''}）` +
         (globals.length > 1 ? `，另有 ${globals.length - 1} 个全局文件` : ''),
+      rules,
     )
   const unknown = files.filter(file => file.category === 'unclassified').map(file => file.path)
   if (unknown.length > 0)
@@ -296,9 +302,13 @@ export function planCheck(
       members,
       files,
       `${unknown.length} 个改动文件不在任何规则里，影响面未知：${sample(unknown)}`,
+      rules,
     )
 
-  const planned = selectMembers(files, members)
+  const planned = selectMembers(
+    files,
+    members.filter(member => !isLegacyDirectory(member.path)),
+  )
   const selected = new Set(planned.map(member => member.path))
   const pythonHits = files.filter(file => file.python !== undefined)
   return {
@@ -325,6 +335,7 @@ export function planCheck(
 
 /** 说明里按这个顺序列各类：先列让计划判全量的两类。 */
 const CATEGORY_NAMES: Readonly<Record<FileCategory, string>> = {
+  excluded: '退役目录，排除',
   global: '全局',
   unclassified: '未归类',
   reader: '读者',
@@ -379,8 +390,8 @@ export function describeCheckPlan(
   )
   lines.push(`  pytest：${plan.python.run ? '跑' : '跳过'}——${plan.python.reason}`)
   if (plan.mode === 'full') {
-    lines.push('  构建：全部（根 pnpm run build，含 examples 与工具）')
-    lines.push('  类型检查：全部（根 pnpm run typecheck）')
+    lines.push(`  构建：${plan.build.length} 个计划成员，含必要依赖准备`)
+    lines.push(`  类型检查：全部 ${plan.typecheck.length} 个在役成员`)
     lines.push(`  成员测试：全部 ${plan.test.length} 个成员的快、慢两层`)
   } else {
     const resident = plan.build.filter(entry => entry.reason === 'resident').map(e => e.path)

@@ -1,9 +1,10 @@
 // 运行器：按给定的并行度逐成员跑它自己的 `test`（或 `acceptance`）脚本，一个失败不拦其余的；
 // 每个成员的输出落到运行目录里的日志，vitest 的 JSON 报告与计时报告落在旁边，供账本与失败归因读取。
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { closeSync, existsSync, openSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { hasArchivedDirectories } from './archive-project.ts'
 import type { TestMember } from './members.ts'
 import {
   TEST_TIER_ENV,
@@ -89,6 +90,8 @@ export function readTiming(path: string): TimingReport | undefined {
 /** 运行器加给成员 vitest 的参数：两份报告；慢层另关掉类型测试（`*.spec-d.ts` 都归快层，不重跑）。 */
 export function vitestArgs(reportPath: string, tier: RunTier): string[] {
   return [
+    '--exclude',
+    '**/*.legacy/**',
     '--reporter=default',
     '--reporter=json',
     `--outputFile.json=${reportPath}`,
@@ -110,15 +113,44 @@ async function runMember(
   const timingPath = join(runDir, `${slug}.timing.json`)
   // 只有 vitest 的脚本才认这几个参数；别的脚本原样跑，账本里只有成员一级的耗时。
   const args = /\bvitest\b/u.test(member.script) ? vitestArgs(reportPath, tier) : []
+  const memberDirectory = join(root, member.path)
+  const env = {
+    ...process.env,
+    [VITEST_MAX_WORKERS_ENV]: String(vitestMaxWorkers),
+    [TIMING_FILE_ENV]: timingPath,
+    [TEST_TIER_ENV]: tier === 'all' ? '' : tier,
+  }
+  const nativeVitest =
+    /^vitest(?:\s|$)/u.test(member.script.trim()) && !/[;&|<>]/u.test(member.script)
+  if (nativeVitest || hasArchivedDirectories(memberDirectory)) {
+    const optionsPath = join(runDir, `${slug}.archive-options.json`)
+    const prepared = spawnSync(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        fileURLToPath(
+          new URL(
+            `./vitest-archive.${import.meta.url.endsWith('.ts') ? 'ts' : 'js'}`,
+            import.meta.url,
+          ),
+        ),
+        member.script,
+        tier,
+        optionsPath,
+      ],
+      { cwd: memberDirectory, env, encoding: 'utf8' },
+    )
+    if (prepared.error !== undefined) throw prepared.error
+    if (prepared.status !== 0)
+      throw new Error(prepared.stderr || 'Cannot prepare archived test scope')
+    const extra: unknown = JSON.parse(readFileSync(optionsPath, 'utf8'))
+    if (!Array.isArray(extra) || !extra.every((value: unknown) => typeof value === 'string'))
+      throw new Error('Invalid archived test scope arguments')
+    args.push(...extra)
+  }
   const result = await spawnLogged('pnpm', ['run', script, ...args], {
-    cwd: join(root, member.path),
-    env: {
-      ...process.env,
-      [VITEST_MAX_WORKERS_ENV]: String(vitestMaxWorkers),
-      [TIMING_FILE_ENV]: timingPath,
-      // 两层全跑时置空，不让外面环境里残留的层漏进来。
-      [TEST_TIER_ENV]: tier === 'all' ? '' : tier,
-    },
+    cwd: memberDirectory,
+    env,
     logPath: join(runDir, `${slug}.log`),
   })
   const report = readReport(reportPath)

@@ -19,7 +19,7 @@ import {
   type RunTier,
 } from './config.ts'
 import type { Failure } from './ledger.ts'
-import { fileTree, listWorkspaceMembers, withScript } from './members.ts'
+import { listTestMembers } from './members.ts'
 import { replay, replayTable } from './replay.ts'
 import {
   acceptanceStep,
@@ -163,10 +163,7 @@ function parseRun(argv: readonly string[]): RunRequest {
 async function run(request: RunRequest): Promise<number> {
   const { base, script, tier } = request
   const config = readTestRunsConfig()
-  const members = withScript(
-    listWorkspaceMembers(fileTree(ROOT), config.affected.excludeRoots),
-    script,
-  )
+  const members = listTestMembers(ROOT, config.affected.excludeRoots, script)
   let targets = members
   let planned: PlanFile | undefined
   if (base !== undefined) {

@@ -28,12 +28,22 @@ def collect(root: Path) -> list[Path]:
         elif path.is_dir():
             for directory, children, names in os.walk(path):
                 children[:] = [child for child in children if child not in IGNORED_DIRECTORIES
+                              and not child.endswith(".legacy")
                               and (Path(directory) / child).resolve() != (root / ".meta_harness/design/record").resolve()]
                 files.extend(Path(directory) / name for name in names if name.endswith(".md"))
     # `.templates/` holds placeholders such as `{{YYYY-MM-DD-topic}}.md`; they are meant to be
     # filled in when a topic is created, so they cannot resolve where they sit.
     return [p for p in files
             if ".templates" not in p.parts]
+
+
+def mirror_files(root: Path) -> set[Path]:
+    files: set[Path] = set()
+    for directory, children, names in os.walk(root):
+        children[:] = [child for child in children if not child.endswith(".legacy")]
+        files.update((Path(directory) / name).relative_to(root) for name in names
+                     if (Path(directory) / name).is_file())
+    return files
 
 
 def check_skill_mirrors(root: Path, errors: list[str]) -> None:
@@ -43,8 +53,8 @@ def check_skill_mirrors(root: Path, errors: list[str]) -> None:
     if not left.is_dir() or not right.is_dir():
         errors.append("only one of the generated skill directories exists; run the agent compiler")
         return
-    left_files = {p.relative_to(left) for p in left.rglob("*") if p.is_file()}
-    right_files = {p.relative_to(right) for p in right.rglob("*") if p.is_file()}
+    left_files = mirror_files(left)
+    right_files = mirror_files(right)
     if left_files != right_files:
         errors.append("Codex/Claude skill inventory differs")
     for relative in sorted(left_files & right_files):

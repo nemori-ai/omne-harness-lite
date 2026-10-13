@@ -39,7 +39,7 @@ formal-tools:
 
 test:
 	mkdir -p tmp
-	PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest --basetemp=tmp/test-runs
+	PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest --ignore-glob='*.legacy' --basetemp=tmp/test-runs
 
 product-check:
 	pnpm run check

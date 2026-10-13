@@ -2212,7 +2212,16 @@
         "anchor": "首批目标与暂时留空"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "composition-proof",
+          "anchor": "组合性质与证明义务"
+        },
+        {
+          "id": "proof-implementation",
+          "anchor": "证明与实现证据"
+        }
+      ]
     },
     {
       "id": "docs#defensive-patterns",
@@ -2572,6 +2581,18 @@
         {
           "id": "capability-policy-observability",
           "anchor": "公开能力策略与观测"
+        },
+        {
+          "id": "readiness",
+          "anchor": "区分四层就绪状态"
+        },
+        {
+          "id": "risk-acceptance",
+          "anchor": "按风险选择接受实现的看法"
+        },
+        {
+          "id": "review-escalation",
+          "anchor": "三轮未收敛时升级结构诊断"
         }
       ]
     },

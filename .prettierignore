@@ -7,5 +7,4 @@
 **/provenance.json
 **/*.jsonl
 spec/
-packages.0.0.1.legacy/
-apps.0.0.1.legacy/
+**/*.legacy/

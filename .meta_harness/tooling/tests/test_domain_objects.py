@@ -525,3 +525,14 @@ def test_next_reconciliation_observes_changed_markdown_anchors(tree: Path) -> No
     second._load_revisions()
     assert second._product_reference(tree / 'domain_objects/objects.md', href, 'probe') is None
     assert any('引用锚点 #visible 不存在' in error for error in second.errors)
+
+
+def test_current_topic_discovery_excludes_archive_suffix_but_keeps_similar_names(tree: Path) -> None:
+    directory = tree / "product/ignored.legacy"
+    directory.mkdir()
+    (directory / "README.md").write_text("Invalid archived metadata\n")
+    assert errors(tree) == []
+    live = tree / "product/ignored.legacy-not"
+    live.mkdir()
+    (live / "README.md").write_text("Invalid live metadata\n")
+    assert any("ignored.legacy-not" in item for item in errors(tree))

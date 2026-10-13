@@ -1,4 +1,4 @@
-# 模板、共享正文与两端生成
+# 模板、共享正文与宿主生成
 
 ## 目录
 
@@ -14,6 +14,7 @@
 |---|---|
 | `role.md` | 两端共同职责、行动边界、必要输入、停止与返回约定 |
 | `codex.toml` | 原生 Codex 配置片段；不包含 `developer_instructions` |
+| `cursor.yaml` | Cursor 原生配置，由独立 projector 验证；字段与资格见 [Cursor](cursor.md) |
 | `claude.yaml` | 原生 Claude frontmatter 片段；不包含 Markdown 正文 |
 | 可选 `codex-adaptation.md` / `claude-adaptation.md` | 有来源和行为依据的模型适配段，追加到共享正文 |
 | 可选 `assembly.toml` | 声明要内联的共同提示词及可调整的默认 effort；属于生成源配置，不是宿主字段 |
@@ -98,10 +99,12 @@ python scripts/render_pair.py \
 如果已有项目使用 Claude 正文为源，也可沿用其维护方式，先提取共享职责再记录
 模型适配差异，不强制迁移目录。方法一致不要求所有项目采用同一个生成脚本。
 
-本 skill 的唯一维护源、两端策略与集中编译位置见[工作区上下文](workspace-context.md)。
+本 skill 的唯一维护源、宿主策略与集中编译位置见[工作区上下文](workspace-context.md)。
 两端 copy 策略使 skill 运行资源逐字节一致；角色生成结果由于宿主和模型适配差异，
 不适用逐字全文件镜像。不得混淆 skill 镜像与角色语义一致。
 
 源包的保存和原生角色发布使用任务授权的位置。提示词生成完成后，仍需按目标宿主
 进行发现/加载验证；新增文件不代表当前会话自动可调用。发布新角色或调整主力模型
 不是运行本生成器的隐含动作。
+
+Cursor 使用执行仓库的集中 compiler，共享 role_source 的装配函数，不调用 pair renderer 取得正文。只有选择旧宿主时才要求成对配置完整。Cursor-only 源可独立构建；无 Cursor 配置的旧 pair 示例仍只能作为旧宿主示例使用。

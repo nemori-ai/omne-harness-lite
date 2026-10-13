@@ -1,0 +1,42 @@
+version: 1
+role: design-reviewer
+binding:
+  native_sha256: 9a9f5290f8de7079698426dbb4b7c16bd4c2ccf782255c6bbc69fb35dbd4291e
+  prompt_sha256: f5cabbd8f5d672cf0c964634edb50bb88c249e1e4e82b006b68a9120ae487884
+host_versions:
+  cli:
+  - 2026.08.04-aaa8809
+  ide:
+  - 3.24.12
+  cloud: []
+status: limited
+scope:
+  generation:
+  - cli-plugin
+  - cli-project
+  - cloud-project
+  - ide-plugin
+  - ide-project
+  dispatch:
+  - environment: ide
+    deployment: project
+    version: 3.24.12
+    mode: agent
+    purpose: qualification-probe
+  - environment: ide
+    deployment: plugin
+    version: 3.24.12
+    mode: agent
+    purpose: qualification-probe
+evidence: []
+missing:
+- No accepted Cursor evaluation for the complete role duty.
+- The native model request does not prove the backend model or effort setting.
+- Required permissions and child lifecycle are not fully demonstrated.
+- IDE and Cloud runtime sessions have not been evaluated.
+adoption:
+  owner: PanQiWei
+  reference: https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6136781019
+  subject_sha256: a698fca41cc53665ed1f59ab820bba2359d5485a08c4faad65b5672535c0f323
+reason: PanQiWei granted a limited IDE qualification probe for Cursor 3.24.12 project
+  and plugin dispatch. This adoption does not prove role duty.

@@ -1,5 +1,5 @@
 // 测试分层：仓库根的分层定义、运行器传给成员的参数，以及真起 vitest 时三种层各跑了什么、导入了什么。
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -162,9 +162,45 @@ describe('真起 vitest：各层跑了什么、导入了什么', { timeout: 60_0
 })
 
 describe('入口的层参数', { timeout: 60_000 }, () => {
+  const subject = mkdtempSync(join(tmpdir(), 'test-tier-cli-'))
+  afterAll(() => rmSync(subject, { recursive: true, force: true }))
+  writeFileSync(
+    join(subject, 'pnpm-workspace.yaml'),
+    'packages:\n  - tools/*\n  - packages.0.0.1.legacy/core/*\n',
+  )
+  for (const path of [
+    'tools/ts-checks',
+    'tools/core-verification',
+    'packages.0.0.1.legacy/core/identity-values',
+  ]) {
+    mkdirSync(join(subject, path), { recursive: true })
+    writeFileSync(
+      join(subject, path, 'package.json'),
+      JSON.stringify({
+        name: `@fixture/${path.split('/').at(-1)}`,
+        scripts: { test: 'vitest run' },
+      }),
+    )
+  }
+  execFileSync('git', ['init', '-q'], { cwd: subject })
+  execFileSync(
+    'git',
+    [
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '--allow-empty',
+      '-qm',
+      'fixture',
+    ],
+    { cwd: subject },
+  )
   const cli = (...args: string[]) =>
     spawnSync(process.execPath, ['--experimental-strip-types', CLI, ...args], {
       encoding: 'utf8',
+      env: { ...process.env, OMNE_SUBJECT_ROOT: subject },
     })
 
   it('受影响范围缺省快层，--tier 可改；--plan-only 打印层', () => {

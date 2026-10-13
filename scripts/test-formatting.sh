@@ -53,6 +53,10 @@ printf '%s\n' '{"compilerOptions":{"strict":true}}' >"$sandbox/tsconfig.test.jso
 printf '%s\n' 'const upstream={must:"stay byte-identical"}' >"$sandbox/packages/demo/upstream/original.ts"
 printf '%s\n' 'const specification={must:"stay byte-identical"}' >"$sandbox/spec/ignored.ts"
 printf '%s\n' '{"scripts":{"format:staged":"./scripts/format.sh staged"}}' >"$sandbox/package.json"
+mkdir -p "$sandbox/packages/nested/archive.legacy/src" "$sandbox/tools/extra.legacy"
+printf '%s\n' 'const legacy={stay:unformatted}' >"$sandbox/packages/nested/archive.legacy/src/ignored.ts"
+printf '%s\n' 'const legacy={stay:unformatted}' >"$sandbox/tools/extra.legacy/ignored.ts"
+legacy_before="$(sha256sum "$sandbox/packages/nested/archive.legacy/src/ignored.ts")"
 upstream_before="$(sha256sum "$sandbox/packages/demo/upstream/original.ts")"
 spec_before="$(sha256sum "$sandbox/spec/ignored.ts")"
 
@@ -76,6 +80,16 @@ if "$sandbox/scripts/format.sh" check >/dev/null 2>&1; then
 fi
 git -C "$sandbox" rm --cached -q -- packages/demo/src/dangling.ts
 rm -- "$sandbox/packages/demo/src/dangling.ts"
+[[ "$legacy_before" == "$(sha256sum "$sandbox/packages/nested/archive.legacy/src/ignored.ts")" ]] || fail "nested legacy source was formatted"
+if "$sandbox/scripts/format.sh" check packages/nested/archive.legacy/src/ignored.ts >/dev/null 2>&1; then
+    fail "an explicit legacy target was accepted"
+fi
+mkdir -p "$sandbox/packages/nested/archive.legacy-not/src"
+printf '%s\n' 'const active={must:beFormatted}' >"$sandbox/packages/nested/archive.legacy-not/src/active.ts"
+if "$sandbox/scripts/format.sh" check >/dev/null 2>&1; then
+    fail "a similar active directory was excluded"
+fi
+"$sandbox/scripts/format.sh" write >/dev/null
 first_write="$(sha256sum "$sandbox/packages/demo/src/space name.ts")"
 "$sandbox/scripts/format.sh" write >/dev/null
 second_write="$(sha256sum "$sandbox/packages/demo/src/space name.ts")"

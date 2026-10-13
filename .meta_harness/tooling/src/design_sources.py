@@ -9,7 +9,8 @@ from source_links import ModuleSources
 
 def _sources(root: Path) -> list[Path]:
     return sorted(path for path in root.rglob("*.md")
-                  if ".templates" not in path.relative_to(root).parts
+                  if not any(part.endswith(".legacy") for part in path.relative_to(root).parts[:-1])
+                  and ".templates" not in path.relative_to(root).parts
                   and not path.is_relative_to(root / "record"))
 
 

@@ -36,6 +36,18 @@ pnpm -r rebuild node-pty
 
 安装依据锁文件且禁用依赖脚本。随后仅显式构建workspace白名单中的node-pty；使用Node 24时需要支持C++20的编译器，已有系统编译器过旧时在实际环境选择合适的CC/CXX，不修改依赖源码或跳过原生检查。依赖准备后按[任务影响面](#修改与验证)选择检查；需要核对完整交付候选时使用[组合检查](#交付与合并前的检查)。`make check`不调用真实模型，构建、成员测试及验收范围由实际计划决定。
 
+### Cursor Cloud Agent 镜像
+
+镜像按宿主分目录，手写源在 [`.meta_harness/agents/cloud/`](../.meta_harness/agents/cloud/README.md)。当前只有 [cursor](../.meta_harness/agents/cloud/cursor/README.md)。不要在仓库根创建实体 `.cursor` 目录。编译把 `Dockerfile`、`environment.json` 和 `install.sh` 投影到 `.meta_harness/.cursor/`。`link_agents.py` 在仓库根创建 `.cursor`，它是指向该投影的相对软链接。Cursor 从检出中的 [`.cursor/environment.json`](../.cursor/environment.json) 读取环境。Build 在仓库根运行 [`.cursor/install.sh`](../.cursor/install.sh)。该脚本先执行上面的三条依赖命令，再编译被 Git 忽略的 agent 生成物。脚本可以重复执行。成功的 Build 保留磁盘上的依赖和生成物。进程和 shell 变量不进入下一次 agent 运行。
+
+这份 `.cursor` 投影需要提交。Cursor 在安装脚本之前就要读到它。改源后删除旧的 `.meta_harness/.cursor`，再按[根软链接](../.meta_harness/tooling/README.md#根软链接)重新编译并链接。`make agents-check` 核对投影与根链接。手改投影或根目录会失败。
+
+镜像提供 Git、Bash、Make、支持 C++20 的编译器、GitHub CLI、uv 0.13.0，以及根 `package.json` 的 `engines` 与 `packageManager` 所要求的 Node 和 pnpm。精确版本写在源 Dockerfile 的 `NODE_VERSION` 与 `PNPM_VERSION`。当前分别是 24.21.0 和 10.28.1。
+
+此镜像不安装 Java、TLC、Alloy 或 Postgres。缺少这些工具时，按[失败与未知的处理](#失败与未知的处理)报告未执行。密钥和令牌放在 Cursor Cloud Agents 的 Secrets。不要把它们写入仓库。
+
+对已经包含这份投影和根链接的分支，直接启动 Cloud Agent。交互式 Set up agent 会忽略 Dockerfile。仓库内这份 `environment.json` 优先于仪表盘里保存的个人或团队环境。更换根 `engines` 或 `packageManager` 时，同步修改源 Dockerfile 里的对应版本，并重新投影。
+
 ### 初始化 coding agent 插件
 
 本项目的迭代维护依托pstack主线与已选Matt补充。人和agent参与项目迭代维护前，须在自己实际使用的coding agent harness安装并启用对应插件。这项前提适用于研发维护，普通应用操作或独立消费成员公开API不因此要求安装插件。精确版本、固定revision、采用子集及必要依赖只由[技能来源表](engineering/skills.md#来源与项目采用)维护；这里提供初始化步骤。
@@ -57,6 +69,10 @@ codex plugin add mattpocock-skills@mattpocock
 命令语法以实际CLI的 `codex plugin --help`、`codex plugin marketplace add --help` 和 `codex plugin add --help` 为准。其他harness沿固定源的宿主安装说明操作，不能把Codex命令直接套用。若当前宿主缺少项目所需插件机制或技能依赖，报告具体缺口并交agent能力维护者处理；已明确且不依赖缺失能力的工作可以继续，不能声称插件初始化已完成。
 
 更换机器、cloud镜像或harness时重新核对。插件更新或自动更新后也核对实际版本；不匹配时先恢复指定版本，或由技能拥有者明确版本与采用变更，再继续依赖该方法的工作。临时安装与加载记录留任务tmp，不修改来源表来掩盖环境差异。
+
+### Cursor 项目与 Cloud 初始化
+
+Cursor 官方 pstack/Matt 按[来源表](engineering/skills.md#来源与项目采用)安装；本项目资产从 canonical 生成。CLI、IDE 和 Cloud 的项目视图、外部物理插件及首会话前 setup 命令归 [tooling](../.meta_harness/tooling/README.md#cursor-原生包与项目视图)。只启用同一资产的一种接入方式；本地安装不证明 Cloud 初始化或角色模型资格。
 
 ### 形式工具链
 

@@ -69,7 +69,7 @@ SPEC避免重复形状，不能删去必要条件、失败、生命周期或验�
   继续约束后续设计；复议要说明新依据和取代范围，不靠重新措辞重开争论。
 - **语义接受、提供者可实施、装配明确与实际验证分别陈述。**已触发的证据义务不能因
   optional 而消失；有限检查不写成无条件证明。
-- **修改 skills/roles 的源，再由工具生成** `.agents/`、`.claude/`、`.codex/`；不手改生成物。
+- **修改 skills/roles 的源，再由工具生成** `.agents/`、`.claude/`、`.codex/`、`.cursor/`；不手改生成物。
   生成、宿主加载、项目根接入和对外发布是不同动作，**编译不扩张授权**。
 - **这里的文档写作与修订必须加载 `asd-ste100` skill。遵循其适用规范。**这包括产品、设计、规格、研究和 agent 正文。
   英文按文种选模式；中文至少满足可跨语言的清晰性原则，适用边界归[写作要求](agents/skills/asd-ste100/canonical/references/documentation.md)。
@@ -84,7 +84,7 @@ SPEC避免重复形状，不能删去必要条件、失败、生命周期或验�
 | 要用到一个概念，或两处说法对不上 | [统一语言](design/ubiquitous_language/index.md) 查重；对不上的记进 [conflicts](design/ubiquitous_language/conflicts.md)，**不静默统一掉**。**查词、用词不加载 skill**；要新增或修改词条才加载 `ubiquitous-language` skill，该区的约定归 [ubiquitous_language/AGENTS.md](design/ubiquitous_language/AGENTS.md) |
 | 系统里有哪些有身份的对象、各自依据在哪；或改了产品 topic 后要对账 | [领域对象](design/domain_objects/README.md)：条目以词条 ID 为键，依据带 rev。**来取输入的人只读，不加载 skill**；立条目、登记待裁、**topic 升 rev 后逐条复核被点名的条目**才加载 `domain-objects` skill，该区的约定归 [domain_objects/AGENTS.md](design/domain_objects/AGENTS.md) |
 | 上游到底保证什么 | [research/](research/README.md) 的 topic 或 [basis/](design/basis/README.md) 的条目；**不在本次分析里重新推导一遍** |
-| 已有契约、映射或证据发生变化 | 同一 skill 的「规格演进」：定位拥有者与受影响消费者，只展开变化涉及的范围 |
+| 已有契约、映射或证据发生变化 | 执行仓库的文档治理与维护入口：定位拥有者与受影响消费者，只展开变化涉及的范围 |
 | 知识该落哪里、怎样建 topic | [design/AGENTS.md](design/AGENTS.md) 的准入四步，再读目标目录 README；**不要求每项需求创建所有目录** |
 | 已有架构、规格或计划待审稿 | [评审分工](agents/roles/README.md#按判断对象选择-reviewer)：给出对象/版本、依据与范围，意见不代替接受 |
 | 派发或接手实现 | [开发者契约](agents/roles/developer-contract.md)与[任务输入](agents/roles/developer-task.md)：只实施本次已具备输入且获准写入的范围 |

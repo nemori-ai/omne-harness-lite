@@ -4,6 +4,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { isLegacyDirectory } from '../check-scope.ts'
 import type { RunScript } from './config.ts'
 
 export interface WorkspaceMember {
@@ -186,7 +187,12 @@ export function listTestMembers(
   excludeRoots: readonly string[],
   scriptName: RunScript = 'test',
 ): TestMember[] {
-  return withScript(listWorkspaceMembers(fileTree(root), excludeRoots), scriptName)
+  return withScript(
+    listWorkspaceMembers(fileTree(root), excludeRoots).filter(
+      member => !isLegacyDirectory(member.path),
+    ),
+    scriptName,
+  )
 }
 
 /** 路径归哪个成员：最长的成员目录前缀；目录名只是前缀相同的不算。 */

@@ -8,25 +8,33 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { afterAll, expect, it } from 'vitest'
 import { MEMBER_DIR_ENV, TEST_TIMEOUT_ENV } from '../src/mutation/stryker.ts'
 
 const root = fileURLToPath(new URL('../../../', import.meta.url))
-const original = join(root, 'packages/core/identity-values')
+const original = join(root, 'packages.0.0.1.legacy/core/identity-values')
 const builder = fileURLToPath(new URL('../src/mutation/sandbox-build.ts', import.meta.url))
 const temporaries: string[] = []
 afterAll(() => {
   for (const path of temporaries) rmSync(path, { recursive: true, force: true })
 })
 function fixture(): string {
-  const container = mkdtempSync(join(root, 'packages/.stryker-tmp-fixed-schema-test-'))
+  const container = mkdtempSync(join(tmpdir(), 'omne-fixed-schema-test-'))
   temporaries.push(container)
-  const owner = join(container, 'sandbox-owner')
-  mkdirSync(owner)
+  mkdirSync(join(container, 'scripts'))
+  cpSync(
+    join(root, 'scripts/build-fixed-schemas.mjs'),
+    join(container, 'scripts/build-fixed-schemas.mjs'),
+  )
+  symlinkSync(join(root, 'tsconfig.base.json'), join(container, 'tsconfig.base.json'))
+  const owner = join(container, 'packages/sandbox/sandbox-owner')
+  mkdirSync(owner, { recursive: true })
   for (const path of ['package.json', 'tsconfig.build.json', 'src', 'schema'])
     cpSync(join(original, path), join(owner, path), { recursive: true })
   return owner

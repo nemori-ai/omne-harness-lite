@@ -33,7 +33,7 @@
 其余只读核对继续。不能联系派发者时返回待澄清结果。
 
 不要假设你继承了父会话的历史、已读文档或已调用的 skill。接受级别的含义在 `harness-design-handbook` skill 的
-`references/handoff.md`「按风险选择接受实现的看法」；需要时读那一节，不通读手册。
+执行仓库 `docs/engineering/quality.md`「按风险选择接受实现的看法」；需要时读那一节，不通读手册。
 
 ## 先让工具算
 

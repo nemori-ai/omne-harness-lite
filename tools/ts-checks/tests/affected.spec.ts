@@ -142,41 +142,35 @@ describe('影响面计划（真实规则）', () => {
     expect(result.build).toEqual(RESIDENT_BUILD)
   })
 
-  it('测试运行自己 README 代码块的成员：只它自己，不沿反向依赖传播', () => {
+  it('退役成员的 README 不再触发读者或成员测试', () => {
     const result = plan(['packages.0.0.1.legacy/infra/credential-custodian-local/README_ZH.md'])
-    expect(result.files[0]?.category).toBe('reader')
-    expect(result.test).toEqual(['packages.0.0.1.legacy/infra/credential-custodian-local'])
-    expect(result.members[0]?.dependsOn).toBeUndefined()
+    expect(result.files[0]?.category).toBe('excluded')
+    expect(result.mode).toBe('scoped')
+    expect(result.test).toEqual([])
+    expect(result.build).toEqual(RESIDENT_BUILD)
   })
 
   it('外部制品校验读取公共Schema：选实际拥有者与读者', () => {
     const result = plan(['packages/core/messages/schema/messages.schema.json'])
-    expect(result.test).toEqual([
-      'packages.0.0.1.legacy/core/stream-assembly',
-      'tools/core-verification',
-    ])
+    expect(result.test).toEqual(['tools/core-verification'])
     expect(result.members.every(entry => entry.changed.length === 0)).toBe(true)
     expect(result.python.run).toBe(false)
   })
 
-  it('另一个成员的 schema/：那个成员与它的反向依赖，再加读它的 stream-assembly', () => {
+  it('另一个成员的 schema/：那个成员与它的反向依赖，再加在役读者 core-verification', () => {
     const result = plan(['packages/core/base/schema/base.schema.json'])
     expect(result.files[0]).toMatchObject({ category: 'reader', owner: 'packages/core/base' })
     expect(result.test).toEqual([
       'packages/core/base',
       'packages/core/mid',
-      'packages.0.0.1.legacy/core/stream-assembly',
       'apps/top',
       'tools/core-verification',
     ])
   })
 
-  it('别的成员的 TLS 夹具：那个成员自己，加上没声明依赖却读它的 governance-client-operations', () => {
+  it('别的成员的 TLS 夹具：只选在役成员，不选已退役的外部读者', () => {
     const result = plan(['packages/tenancy/governance-center-entry-node/tests/fixtures/tls/ca.pem'])
-    expect(result.test).toEqual([
-      'packages.0.0.1.legacy/frontend/governance-client-operations-local',
-      'packages/tenancy/governance-center-entry-node',
-    ])
+    expect(result.test).toEqual(['packages/tenancy/governance-center-entry-node'])
   })
 
   it('当前产品 README、正文与编号场景触发实际 TS 消费者', () => {
@@ -204,13 +198,12 @@ describe('影响面计划（真实规则）', () => {
     const result = plan(['docs/a.md', 'pnpm-lock.yaml'])
     expect(result.mode).toBe('full')
     expect(result.reason).toBe('全局文件 pnpm-lock.yaml 有改动（命中 pnpm-lock.yaml）')
-    expect(result.test).toHaveLength(MEMBERS.length)
-    expect(result.acceptance).toEqual([
-      'packages.0.0.1.legacy/tools/tool-execution-local',
-      'apps/top',
-    ])
+    expect(result.test).toEqual(
+      MEMBERS.filter(member => !member.path.includes('.legacy/')).map(member => member.path),
+    )
+    expect(result.acceptance).toEqual(['apps/top'])
     expect(result.python.run).toBe(true)
-    expect(describe_(result)).toContain('构建：全部（根 pnpm run build')
+    expect(describe_(result)).toContain('个计划成员，含必要依赖准备')
   })
 
   it('Makefile：只跑 pytest 与常驻检查——make check 只经它跑常驻的几步与 make test，成员测试不经 make', () => {
@@ -267,11 +260,9 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('规则点名的成员不存在：报错，不悄悄忽略', () => {
-    const without = MEMBERS.filter(
-      entry => entry.path !== 'packages.0.0.1.legacy/core/stream-assembly',
-    )
+    const without = MEMBERS.filter(entry => entry.path !== 'tools/core-verification')
     expect(() => planCheck(['docs/a.md'], without, RULES)).toThrow(
-      '影响面规则点名了不存在的成员：packages.0.0.1.legacy/core/stream-assembly',
+      '影响面规则点名了不存在的成员：tools/core-verification',
     )
   })
 
@@ -297,11 +288,11 @@ describe('影响面计划（真实规则）', () => {
     expect([...result.test].sort()).toEqual(['packages/infra/ring-a', 'packages/infra/ring-b'])
   })
 
-  it('模型工具demo的输入变化选中实际产品验收成员，仍不把examples加入默认构建', () => {
+  it('模型工具demo输入不再选择退役产品验收成员', () => {
     const result = plan(['examples/model-invocation-minimal-demo/src/bootstrap.ts'])
     expect(result.mode).toBe('scoped')
-    expect(result.acceptance).toEqual(['packages.0.0.1.legacy/tools/tool-execution-local'])
-    expect(result.test).toContain('packages.0.0.1.legacy/tools/tool-execution-local')
+    expect(result.acceptance).toEqual([])
+    expect(result.test).toEqual(['tools/ts-checks'])
     expect(result.build.some(entry => entry.path.startsWith('examples/'))).toBe(false)
   })
 

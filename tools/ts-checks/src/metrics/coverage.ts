@@ -14,6 +14,9 @@ import {
   statSync,
 } from 'node:fs'
 import { join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { isLegacyDirectory, isLegacyFile } from '../check-scope.ts'
+import { hasArchivedDirectories } from '../testing/archive-project.ts'
 import type { CoverageInput, LineHits } from './report.ts'
 
 interface IstanbulFile {
@@ -28,12 +31,14 @@ export function lineHitsFrom(
 ): Map<string, LineHits> {
   const files = new Map<string, LineHits>()
   for (const [absolute, entry] of Object.entries(report)) {
+    const path = relative(root, absolute).replaceAll('\\', '/')
+    if (isLegacyFile(path)) continue
     const hits = new Map<number, boolean>()
     for (const [id, location] of Object.entries(entry.statementMap)) {
       const line = location.start.line
       hits.set(line, (hits.get(line) ?? false) || (entry.s[id] ?? 0) > 0)
     }
-    files.set(relative(root, absolute).replaceAll('\\', '/'), hits)
+    files.set(path, hits)
   }
   return files
 }
@@ -44,6 +49,7 @@ function newestMtime(dir: string): number {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry)
     const stat = statSync(full)
+    if (stat.isDirectory() && isLegacyDirectory(entry)) continue
     newest = Math.max(newest, stat.isDirectory() ? newestMtime(full) : stat.mtimeMs)
   }
   return newest
@@ -75,7 +81,9 @@ export function measureCoverage(
   const exitCodes = new Map<string, number>()
   const seconds = new Map<string, number>()
   const staleDist: string[] = []
-  const targets = members.filter(member => runsVitest(join(root, member)))
+  const targets = members.filter(
+    member => !isLegacyDirectory(member) && runsVitest(join(root, member)),
+  )
   mkdirSync(outDir, { recursive: true })
   for (const [index, member] of targets.entries()) {
     const memberDir = join(root, member)
@@ -86,17 +94,46 @@ export function measureCoverage(
     const started = Date.now()
     process.stderr.write(`覆盖率 ${index + 1}/${targets.length} ${member} …`)
     try {
+      const archiveArgs: string[] = []
+      const distDir = join(memberDir, 'dist')
+      if (
+        hasArchivedDirectories(memberDir) ||
+        (existsSync(distDir) && hasArchivedDirectories(distDir))
+      ) {
+        const optionsPath = join(outDir, `${slug}.archive-options.json`)
+        const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js'
+        const prepared = spawnSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            fileURLToPath(new URL(`../testing/vitest-archive.${extension}`, import.meta.url)),
+            'vitest run',
+            'coverage',
+            optionsPath,
+          ],
+          { cwd: memberDir, encoding: 'utf8' },
+        )
+        if (prepared.error !== undefined) throw prepared.error
+        if (prepared.status !== 0)
+          throw new Error(prepared.stderr || 'Cannot prepare archived coverage scope')
+        const extra: unknown = JSON.parse(readFileSync(optionsPath, 'utf8'))
+        if (!Array.isArray(extra) || !extra.every((value: unknown) => typeof value === 'string'))
+          throw new Error('Invalid archived coverage scope arguments')
+        archiveArgs.push(...extra)
+      }
       const result = spawnSync(
         'pnpm',
         [
           'exec',
           'vitest',
           'run',
+          '--exclude=**/*.legacy/**',
           '--coverage.enabled',
           '--coverage.provider=v8',
           '--coverage.reporter=json',
           '--coverage.include=src/**',
           '--coverage.include=dist/**',
+          ...archiveArgs,
           // 测试失败时照样出报告；失败由退出码单独记下。
           '--coverage.reportOnFailure',
           `--coverage.reportsDirectory=${reports}`,
