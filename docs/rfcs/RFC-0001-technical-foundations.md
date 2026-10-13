@@ -2,13 +2,13 @@
 id: RFC-0001
 title: 系统技术基础与公共设施
 revision: 4
-status: review
+status: accepted
 owner: PanQiWei
 ---
 
 # RFC-0001：系统技术基础与公共设施
 
-规则与维护责任见[RFC入口](README.md)。本提案承接[#197](https://github.com/nemori-ai/omne-harness-lite/issues/197)的技术候选rev2，进入正式审议；当前规范仍以原拥有者已接受正文为准。PR审阅、提案采用、规范写回、实现及任务接受分别判断。
+规则与维护责任见[RFC入口](README.md)。PanQiWei于2026-10-13接受本提案revision4，精确范围见[技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/197#issuecomment-6135131457)。方案和接受范围固定，当前规范从下方写回表定位实际拥有者；尚未写回部分不能作为新正式实施依据。技术采用、规范切换、Git运输、实现及任务接受分别判断。
 
 ## 问题与有效输入
 
@@ -278,26 +278,28 @@ CPU和SQLite Worker探路显示控制线程阻塞与后台执行必须分别观�
 ## 决定范围
 
 - 有权决定者为PanQiWei，作为#197具名技术采用者及系统/工程要求拥有者。
-- 决定日期及对应revision尚未决定。本RFC revision4保留PanQiWei指定的Schema按需加载、编译缓存、全局复用及pi-ai优先，并依据固定版本实验细化编译、迁移、流预算、协议和观测条件。精确采用范围继续等待PanQiWei决定。
-- 采用范围尚未采用。PR审阅和文件存在不表示采纳，共同选型、机制、前提及写回范围需明确决定。
-- 不包含业务实现、产品依赖或lockfile修改、性能达标、真实断电、完整安全、真实供应商或完整终端矩阵验证、SDK公开操作或DST业务规则。相关产品未决仍归原拥有者。
-- D-02要求具名技术采用，尚未满足；原观察及有限探路不替代。获准范围随后写回，C7/main运输和C8完整结果接受分别处理。
+- 决定日期为2026-10-13，接受revision4。接受时方案固定于提交 `d50eef8a17b086668af2e068e795cdfd898412f4`，原RFC SHA-256为 `637a67506c06e340de7756fcec49a4b23bb5230fc0b9ac11747b8a3d51a98157`；[真实决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/197#issuecomment-6135131457)依据本会话明确指令代笔。
+- 采用范围为本提案共同技术选择、公共设施机制、成立前提、限制、持续复核及规范写回范围全部。Node24、Schema按需加载、首次编译缓存和未变更同执行域复用、模型请求优先pi-ai保持。
+- 文档落位授权包括更新实际规范拥有者、新增技术基础正文、同步导航、必要章节和真实消费者。写回关系只维护规范切换事实，不把方案接受推成实现或运行证明。
+- 不包含业务实现、产品依赖或lockfile修改、性能达标、真实断电、完整安全、真实供应商或完整终端矩阵验证、SDK公开操作或DST业务规则。相关精确契约和产品未决仍归原拥有者。
+- D-02具名技术采用已记录。获准规范写回、C6检查、C7/D-04 main运输及C8完整结果接受分别完成；本决定不授权自动合并、main ref发布或关闭#197。
 
 ## 写回现行正文
 
-下表只定位采用后的规范拥有者。未采用行均不适用写回义务，不能把提案review状态当作待实施许可。
+下表定位已采用条款的规范拥有者。待写回部分保留既有源；写回后的规范独立表达当前承诺，不要求实施者拼读本提案。
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换依据及确认者 |
 | --- | --- | --- | --- |
-| 共同技术选择 | 系统架构，拟新增 `docs/architecture/technical-foundations.md` | 不适用，尚未采用 | PanQiWei具名决定后确定，当前未切换 |
-| 事务/异步SQL/可靠交接/缓存/迁移 | [数据与状态](../architecture/data-and-state.md) | 不适用，尚未采用 | 同上，STORAGE-T01精确承接继续 |
-| 池/公平/联合结果预留 | [执行与通信](../architecture/deployment/execution-and-communication.md) | 不适用，尚未采用 | 同上，真实提供者未验证 |
-| 换代/排空/关闭 | [Cordis与生命周期](../architecture/deployment/cordis-and-lifecycle.md) | 不适用，尚未采用 | 同上，独立原调用不改 |
-| 受限JS及观测 | [执行隔离](../architecture/security/execution-isolation.md)、[跨系统约定](../architecture/cross-cutting-concepts.md) | 不适用，尚未采用 | 同上，验证与产品未决分别保留 |
-| 后端实施路线 | [基础设施采用政策](../architecture/deployment/infrastructure-policy.md) | 不适用，尚未采用 | 同上，不扩大SQLite为系统唯一后端 |
-| 编译构建/Node24 | [workspace](../workspace.md)、[依赖与运行场景](../engineering/scenarios/dependencies-and-runtime.md) | 不适用，尚未采用 | 同上，当前根声明及TS API消费者仍有效 |
-| 内容导航及登记 | [架构入口](../architecture/README.md)及 `docs/documentation.json` | 不适用，尚未采用 | 跟随获准拥有者正文同步，候选不冒充现行源 |
+| 共同技术选择 | 系统架构，拟新增 `docs/architecture/technical-foundations.md` | 待写回 | PanQiWei，2026-10-13接受revision4；当前未切换 |
+| 事务/异步SQL/可靠交接/缓存/迁移 | [数据与状态](../architecture/data-and-state.md) | 待写回 | PanQiWei，2026-10-13；STORAGE-T01精确承接继续 |
+| 池/公平/联合结果预留 | [执行与通信](../architecture/deployment/execution-and-communication.md) | 待写回 | PanQiWei，2026-10-13；真实提供者未验证 |
+| 换代/排空/关闭 | [Cordis与生命周期](../architecture/deployment/cordis-and-lifecycle.md) | 待写回 | PanQiWei，2026-10-13；独立原调用不改 |
+| pi-ai供应商适配 | [模型运行时](../architecture/runtime/model-runtime.md) | 待写回 | PanQiWei，2026-10-13；原调用/结果/费用责任及真实供应商验证保持 |
+| 受限JS及观测 | [执行隔离](../architecture/security/execution-isolation.md)、[跨系统约定](../architecture/cross-cutting-concepts.md) | 待写回 | PanQiWei，2026-10-13；验证与产品未决分别保留 |
+| 后端实施路线 | [基础设施采用政策](../architecture/deployment/infrastructure-policy.md) | 待写回 | PanQiWei，2026-10-13；不扩大SQLite为系统唯一后端 |
+| 编译构建/Node24 | [workspace](../workspace.md)、[依赖与运行场景](../engineering/scenarios/dependencies-and-runtime.md) | 待写回 | PanQiWei，2026-10-13；当前根声明及TS API消费者仍有效 |
+| 内容导航及登记 | [架构入口](../architecture/README.md)及 `docs/documentation.json` | 待写回 | 跟随获准拥有者正文同步；当前未切换 |
 
 ## 后继关系与维护
 
-当前无后继提案或已发生的规范切换。决定后的精确范围固定，新增技术决定另开提案；更正和导航维护不能静默扩大采用。当前要求与系统保证继续从[项目要求](../requirements.md)和[已接受架构](../architecture/README.md)读取。
+当前无后继提案，规范切换按写回表逐项维护。revision4方案与接受范围固定；pi-ai供应商接缝已在本次接受范围内，写回表补充模型运行时是准确拥有者定位，不增加方案范围。新增技术决定另开提案；更正和导航维护不能静默扩大采用。当前要求与系统保证继续从[项目要求](../requirements.md)和[已接受架构](../architecture/README.md)读取。

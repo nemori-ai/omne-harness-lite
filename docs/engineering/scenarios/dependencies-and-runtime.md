@@ -40,4 +40,4 @@
 
 <!-- documentation:placeholder -->
 
-统一部署支持、容量和背压预算、运行环境例外尚未完整采用。部署支持由运行架构负责人从[部署入口](../../architecture/deployment/README.md)明确，容量、背压及环境例外由运行要求负责人联合对应宿主或成员拥有者明确。当前配置与成员约束继续适用；根 engines 只约束开发工具，不自动扩大产品支持。删除旧主题页不算完成这些政策，未运行平台、后端、跨进程恢复和故障模型仍按[环境与实际执行](../../verification.md#环境与实际执行)保留未知。
+[共同技术路线](../../architecture/technical-foundations.md)已采用，有限资源、背压、公平及结果预留由[执行与通信](../../architecture/deployment/execution-and-communication.md)维护。具体平台支持矩阵、部署配置额度及运行环境例外尚须具名提供者和应用承接。部署支持由运行架构负责人从[部署入口](../../architecture/deployment/README.md)明确，容量、背压及环境例外由运行要求负责人联合对应宿主或成员拥有者明确。当前配置与成员约束继续适用；根 engines 只约束开发工具，不自动扩大产品支持。删除旧主题页不算完成这些政策，未运行平台、后端、跨进程恢复和故障模型仍按[环境与实际执行](../../verification.md#环境与实际执行)保留未知。
