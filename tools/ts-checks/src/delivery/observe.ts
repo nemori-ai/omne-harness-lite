@@ -19,16 +19,37 @@ function fields(body: string): Map<string, string[]> {
   }
   return result
 }
-function section(body: string, name: string): string | undefined {
-  const lines = body.split(/\r?\n/),
-    index = lines.findIndex(line => line.trim() === `## ${name}`)
-  if (index < 0) return undefined
-  const tail = lines.slice(index + 1),
-    end = tail.findIndex(line => /^##\s/.test(line))
-  return tail
-    .slice(0, end < 0 ? tail.length : end)
-    .join('\n')
-    .trim()
+const unifiedSections = [
+  '身份与责任',
+  '目标与范围',
+  '依据与实施输入',
+  '验收与测试',
+  '交付条件',
+  '当前执行与交接',
+  '决定与剩余责任',
+]
+const unifiedMarkers = ['目标与范围', '依据与实施输入', '验收与测试']
+const legacySections = {
+  delivery: [
+    '问题、结果与范围',
+    '依据与验收',
+    '工作类型附加内容',
+    '实施与持续成果交接',
+    '决定与剩余责任',
+    '交付条件',
+  ],
+  subtask: ['交付结果与范围', '持续成果与交接', '当前执行与交接', '决定', '交付条件'],
+}
+function sections(body: string): Map<string, string[]> {
+  const result = new Map<string, string[]>()
+  const parts = body.split(/^\s*## ([^\r\n]+)\s*$/m)
+  for (let index = 1; index < parts.length; index += 2) {
+    const name = parts[index]?.trim(),
+      content = parts[index + 1]?.trim()
+    if (name !== undefined && content !== undefined)
+      result.set(name, [...(result.get(name) ?? []), content])
+  }
+  return result
 }
 function cells(line: string): string[] {
   return line
@@ -196,19 +217,34 @@ export function observeDelivery(
       add('deviation', 'invalid-revision', issue.url, '交付修订', '交付修订须为正整数。')
     if (unresolved(issue.body))
       add('deviation', 'placeholder', issue.url, 'body', '正文仍包含模板占位。', revision)
-    const requiredSections =
-      level === 'subtask'
-        ? ['交付结果与范围', '持续成果与交接', '当前执行与交接', '决定']
-        : [
-            '问题、结果与范围',
-            '依据与验收',
-            '工作类型附加内容',
-            '实施与持续成果交接',
-            '决定与剩余责任',
-          ]
-    for (const name of requiredSections)
-      if (section(issue.body, name) === undefined || section(issue.body, name) === '')
+    const content = sections(issue.body),
+      unified = unifiedMarkers.some(name => content.has(name)),
+      requiredSections = unified ? unifiedSections : legacySections[level ?? 'delivery']
+    for (const name of requiredSections) {
+      const values = content.get(name) ?? []
+      if (values.length > 1)
+        add(
+          'deviation',
+          'section-duplicate',
+          issue.url,
+          name,
+          `${name}章节重复，无法确定唯一正文。`,
+          revision,
+        )
+      if (name !== '交付条件' && (values.length === 0 || values.some(value => value === '')))
         add('deviation', 'section-missing', issue.url, name, `缺少非空${name}章节。`, revision)
+    }
+    if (unified)
+      for (const name of new Set(['责任与依据', ...Object.values(legacySections).flat()]))
+        if (!unifiedSections.includes(name) && content.has(name))
+          add(
+            'deviation',
+            'section-layout-mixed',
+            issue.url,
+            name,
+            `统一布局混入旧版${name}章节。`,
+            revision,
+          )
     const parent = f.get('父交付卡')?.[0]
     if (level === 'subtask') {
       if (parent === undefined || issueUrl(parent) === null)
@@ -249,7 +285,7 @@ export function observeDelivery(
         )
     }
     const conditions: Condition[] = [],
-      rawConditions = section(issue.body, '交付条件')
+      rawConditions = content.get('交付条件')?.[0]
     if (rawConditions === undefined || rawConditions === '')
       add(
         'deviation',
