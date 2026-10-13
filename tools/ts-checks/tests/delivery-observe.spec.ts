@@ -14,6 +14,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { observeDelivery } from '../src/delivery/observe.ts'
+import type { TaskBinding } from '../src/delivery/binding.ts'
 import {
   bindCapture,
   parseBaseline,
@@ -141,6 +142,344 @@ function dependency(id: string, target: number, phase: Condition['phase'] = 'sta
 function codes(issues: CapturedIssue[], patch: Partial<DeliveryCapture> = {}): string[] {
   return observeDelivery(config(), capture(issues, patch)).findings.map(f => f.code)
 }
+
+const templateValues: Record<string, string> = {
+  一次可独立接受的结果: '统一交付卡的输入与执行信息',
+  父交付卡中的一次可验证结果: '统一子任务的输入与执行信息',
+  'feature／bug／refactor／performance／maintenance／investigation': 'maintenance',
+  '创建前登记并读回的稳定标识，后续修订保持': 'template-maintenance-2',
+  '真实父Issue URL，并核对平台父关系': 'https://github.com/owner/repo/issues/1',
+  '领域、实际成员或工程机制': '交付卡模板及只读观察工具',
+  '本切片承担的实际成员、领域或工程机制': '交付卡模板及只读观察工具',
+  '具名人、身份和本次权限依据': 'Human，工程负责人，按本卡获准范围接受',
+  '产品、架构或契约变化的拥有者；无则写无': '无',
+  '本卡指定调度者及获委派会话；未定则说明': 'Human，本卡调度会话 session-2',
+  '本卡指定正文集成者；兼任时写同上': '同上',
+  '当前问题及为何需要这次交付。': '当前卡片依据与执行输入分散，接手者难以核对。',
+  '本切片解决什么问题，以及为何可以独立接受。': '子任务独立承担模板组织和观察器适配。',
+  本子任务可独立接受的结果: '两份模板统一组织且新旧卡仍可观察',
+  '本切片对父结果的贡献，以及仍由父卡或其他子项承担的范围':
+    '本卡交付模板适配，父卡承担其余调度工作',
+  本次必须兑现的范围: '模板、操作说明和章节解析',
+  明确排除的相邻工作: '新调度服务和产品功能',
+  '按工作类型补齐必要事实，只保留适用内容': '维护工程入口，不改变条件与接受语义',
+  '引用下表输入ID及本子任务适用条款；不自动沿用父卡全部范围': 'I-01，卡片与阶段',
+  '真实可访问入口；无既有源时写获准问题':
+    'https://github.com/owner/repo/blob/main/docs/engineering/delivery.md',
+  '精确输入；候选须标未采用': '071e60d75d27a39bc74f2a6bb3406fa4706ba72f，已采用',
+  只列本次必要范围: '卡片结构、认领、单写和接受边界',
+  '已接受设计、必要环境、关键失败语义及停止点；已有正文足够时直接引用':
+    '按 I-01 维护，遇到授权冲突停止相关写入',
+  '实际成员、装配、工具、配置或外部消费': 'tools/ts-checks 交付观察器',
+  '要更新的规格、设计、指南和持续验证；依据不变时明说': '更新模板、agent-delivery 和观察器 SPEC',
+  '接手者可取得的最小材料；仅本机tmp须说明如何交接': '本卡正文及 I-01 固定提交',
+  可观察结果及必须拒绝的行为: '读取完整新旧卡，报告缺节和混合布局',
+  可复跑方法或独立判断入口: '运行交付观察器测试并核对两份模板',
+  '实际包、工具或文档拥有者': 'tools/ts-checks',
+  '单元／包内集成／关键旅程组合／其他适用检查': '单元及真实离线 CLI',
+  '本次关键行为、失败和边界': '新旧章节、条件、身份及绑定',
+  具体参与者与声明边界: '真实解析器，平台响应用 fixture，不覆盖平台权限',
+  '实际命令或方法；未具备则列缺口':
+    'pnpm --filter @omne-harness-lite/ts-checks test tests/delivery-observe.spec.ts',
+  '按风险需要的角色、对象和接受者；不适用项及理由': '独立评审实现，Human 接受本卡结果',
+  '实际限制及如何影响本次接受，不能把未运行写成通过': '平台真实权限须另核',
+  'issue-result／adopted-source／decision／capability': 'decision',
+  '真实结果、规范、决定或资源': 'https://github.com/owner/repo/issues/2#issuecomment-3',
+  'start／integration／acceptance': 'integration',
+  精确满足条件: 'Human 已授权本次候选进入 main',
+  具名确认者及可访问证据: 'Human 核对目标与候选，证据见目标评论',
+  'all；仅integration可限定track/main/stable或登记完整ref': 'main',
+  '真实评论URL；尚未认领时写未认领': '未认领',
+  '未派发；或引用下方binding.dispatch对应决定': '未派发',
+  '人的责任、宿主、会话或agent实例定位；不得用Assignee代替': '尚未派发执行实例',
+  '实际路径；未创建明说': '未创建',
+  '未派发时：写明未登记binding，列计划集成路线、最终终点及待定输入。不要发布占位JSON。':
+    '未登记binding。计划 global 路线，最终进入 main，执行实例待派发。',
+  '已派发Git任务时：由正文单写者在此插入唯一、完整、真实的json omne-integration-binding:v1区块，并替换上述计划文字。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。':
+    '',
+  '从binding.route及已采用轨道登记解析的只读摘要': '未派发，尚未解析',
+  'start回执taskSource；与binding.taskBase分别保留': '未开工',
+  'start回执targetBase及观察时点；后续集成重新核': '未开工',
+  '工具生成路径、成功回执、所核revision/attempt与工作树；未生成明说': '未生成',
+  '时间；首次建卡写尚未开工': '尚未开工',
+  '关键结果、最后成功远端提交或报告评论': '尚无实施成果',
+  '条件ID、影响、确认责任；无则写无': '无',
+  具体接续动作和谁负责: 'Human 核准执行实例并派发',
+  '链接、所核Stage和时点；待更新或失败须明说': 'https://github.com/orgs/owner/projects/4，待更新',
+  'PR/提交/报告及修订；未交付时写未交付': '未交付',
+  '逐项C-ID实际结果、证据和未覆盖': 'C1 尚未执行',
+  '实际所在分支/提交；无Git交付写不适用': '尚未集成',
+  '接受对象、缺口、下一责任': '候选尚未形成，由 Human 接收后续成果',
+  '真实评论URL、对象与精确修订、范围；没有则写未决定': '未决定',
+  '本子任务具名决定的真实评论URL、精确修订与范围；没有则写未决定': '未决定',
+  '未完成或未接受部分及具名下一责任；无则写无': '全范围尚未实施，Human 负责派发',
+  '有效决定读回、Issue开闭与原因、Project Stage；未接受时保持活动':
+    '无接受决定，Issue open，Project 待更新',
+}
+function template(level: 'delivery' | 'subtask'): string {
+  return readFileSync(
+    new URL(
+      `../../../.github/ISSUE_TEMPLATE/${level === 'delivery' ? 'work-item' : 'task'}.md`,
+      import.meta.url,
+    ),
+    'utf8',
+  )
+}
+function filledTemplate(level: 'delivery' | 'subtask', withCondition = false): string {
+  const source = template(level)
+    .replace(/^---\n[\s\S]*?\n---\n/, '')
+    .replace(/<!--[^]*?-->/g, '')
+    .replace(/^填写交付条件时，.*$/m, '')
+  return (
+    withCondition ? source : replaceSection(source, '交付条件', '## 交付条件\n\n无\n\n')
+  ).replace(/\{\{(.*?)\}\}/g, (_, name: string) => {
+    const value = templateValues[name]
+    if (value === undefined) throw new Error(`Unfilled template field: ${name}`)
+    return value
+  })
+}
+function replaceSection(body: string, name: string, replacement: string): string {
+  return body.replace(new RegExp(`^## ${name}\\n[^]*?(?=^## |$(?![^]))`, 'm'), replacement)
+}
+
+describe('delivery card layouts', () => {
+  const headings = [
+    '身份与责任',
+    '目标与范围',
+    '依据与实施输入',
+    '验收与测试',
+    '交付条件',
+    '当前执行与交接',
+    '决定与剩余责任',
+  ]
+  const legacy = [
+    { level: 'delivery', identity: '身份与责任', heading: '依据与验收' },
+    { level: 'subtask', identity: '责任与依据', heading: '持续成果与交接' },
+  ]
+
+  it('publishes identical visible intake instructions and seven sections in both templates', () => {
+    const [delivery, subtask] = [template('delivery'), template('subtask')]
+    for (const source of [delivery, subtask]) {
+      expect([...source.matchAll(/^## (.+)$/gm)].map(match => match[1])).toEqual(headings)
+      expect(source.replace(/<!--[^]*?-->/g, '')).toContain('在本Issue评论声明认卡')
+      expect(source).not.toContain('```json omne-integration-binding:v1')
+    }
+    const notice = (source: string) =>
+      source.slice(source.indexOf('**接手本卡**'), source.indexOf('## 身份与责任'))
+    expect(notice(delivery)).toBe(notice(subtask))
+    expect(notice(delivery)).toContain('在本Issue评论声明认卡')
+    expect(notice(delivery)).toContain('指定调度者更新Project Stage')
+  })
+
+  it.each(['delivery', 'subtask'] as const)(
+    'observes a filled %s template without granting dispatch',
+    level => {
+      const result = observeDelivery(
+        config(),
+        capture([
+          issue(2, {
+            body: filledTemplate(level),
+            parentIssue: level === 'subtask' ? issue(1).url : null,
+            comments: [
+              {
+                url: `${issue(2).url}#issuecomment-1`,
+                author: 'human',
+                body: '认卡：Human 按当前修订请求领取，尚无派发。',
+                updatedAt: at,
+              },
+            ],
+          }),
+        ]),
+      )
+      expect(result.findings.filter(f => f.category === 'deviation')).toEqual([])
+      expect(result.cards[0]).toMatchObject({
+        level,
+        revision: 1,
+        workKind: 'maintenance',
+        conditions: [],
+        integrationBinding: null,
+        dispatchPermission: 'not-provided',
+        acceptance: 'unknown',
+      })
+    },
+  )
+
+  it.each(legacy)('keeps complete legacy $level cards readable', ({ level, identity, heading }) => {
+    const card = issue(2, {
+      body: `## ${identity}\n${body(2, 'maintenance', [], level)}`,
+      parentIssue: level === 'subtask' ? issue(1).url : null,
+    })
+    expect(
+      observeDelivery(config(), capture([card])).findings.filter(f => f.category === 'deviation'),
+    ).toEqual([])
+    expect(codes([{ ...card, body: replaceSection(card.body, heading, '') }])).toContain(
+      'section-missing',
+    )
+    expect(codes([{ ...card, body: `${card.body}\n## ${heading}\n另一份正文。` }])).toContain(
+      'section-duplicate',
+    )
+  })
+
+  it.each(headings)('reports absent, empty and duplicate unified section %s', heading => {
+    const source = filledTemplate('delivery')
+    for (const replacement of ['', `## ${heading}\n\n`]) {
+      const changed = replaceSection(source, heading, replacement)
+      const result = observeDelivery(
+        config(),
+        capture([
+          issue(2, {
+            body: heading === '身份与责任' ? `- 交付层级：delivery\n${changed}` : changed,
+          }),
+        ]),
+      )
+      expect(result.findings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            category: 'deviation',
+            code: heading === '交付条件' ? 'conditions-missing' : 'section-missing',
+            clause: heading,
+          }),
+        ]),
+      )
+    }
+    expect(codes([issue(2, { body: `${source}\n## ${heading}\n另一份正文。` })])).toContain(
+      'section-duplicate',
+    )
+  })
+
+  it.each([
+    '问题、结果与范围',
+    '依据与验收',
+    '工作类型附加内容',
+    '实施与持续成果交接',
+    '责任与依据',
+    '交付结果与范围',
+    '持续成果与交接',
+    '决定',
+  ])('rejects old-only section %s in a unified card', heading => {
+    expect(
+      codes([issue(2, { body: `${filledTemplate('delivery')}\n## ${heading}\n旧版内容。` })]),
+    ).toContain('section-layout-mixed')
+  })
+
+  it.each(['目标与范围', '依据与实施输入', '验收与测试'])(
+    'does not fall back to legacy when only %s is migrated',
+    heading => {
+      for (const { level, identity } of legacy) {
+        const source = `## ${identity}\n${body(2, 'maintenance', [], level)}\n## ${heading}\n迁移未完成。`
+        expect(
+          codes([
+            issue(2, { body: source, parentIssue: level === 'subtask' ? issue(1).url : null }),
+          ]),
+        ).toEqual(expect.arrayContaining(['section-layout-mixed', 'section-missing']))
+      }
+    },
+  )
+
+  it('keeps condition, parent and unique revision requirements on unified cards', () => {
+    const source = filledTemplate('subtask')
+    expect(
+      codes([
+        issue(2, { body: source.replace('## 交付条件\n\n无', '## 交付条件\n\n无\n附加说明。') }),
+      ]),
+    ).toContain('conditions-table-invalid')
+    expect(
+      codes([
+        issue(2, {
+          body: source.replace('- 父交付卡：https://github.com/owner/repo/issues/1', ''),
+        }),
+      ]),
+    ).toEqual(expect.arrayContaining(['field-missing', 'parent-reference-invalid']))
+    expect(codes([issue(2, { body: source, parentIssue: issue(3).url })])).toContain(
+      'parent-projection-conflict',
+    )
+    expect(codes([issue(2, { body: `${source}\n- 交付修订：1` })])).toContain('field-duplicate')
+  })
+
+  it.each(['delivery', 'subtask'] as const)(
+    'reads the seven-column condition table from the %s template',
+    level => {
+      const result = observeDelivery(
+        config(),
+        capture([
+          issue(2, {
+            body: filledTemplate(level, true),
+            parentIssue: level === 'subtask' ? issue(1).url : null,
+          }),
+        ]),
+      )
+      expect(result.findings.filter(f => f.category === 'deviation')).toEqual([])
+      expect(result.cards[0]?.conditions).toEqual([
+        {
+          id: 'D-01',
+          kind: 'decision',
+          target: `${issue(2).url}#issuecomment-3`,
+          phase: 'integration',
+          predicate: 'Human 已授权本次候选进入 main',
+          evidence: 'Human 核对目标与候选，证据见目标评论',
+          scope: 'main',
+        },
+      ])
+    },
+  )
+
+  it('keeps binding authority separate from derived execution observations', () => {
+    const binding: TaskBinding = {
+      schemaVersion: 1,
+      issue: { repository: 'owner/repo', id: 'issue-2', number: 2, url: issue(2).url },
+      revision: 1,
+      attempt: 'template-2',
+      responsible: 'human',
+      branch: 'human/template-2',
+      route: { kind: 'global', owners: ['human'] },
+      completionTarget: 'main',
+      taskBase: 'a'.repeat(40),
+      writeScope: ['.github/ISSUE_TEMPLATE'],
+      dispatch: `${issue(2).url}#issuecomment-2`,
+      conditions: [],
+      authorization: [],
+    }
+    const block = `\`\`\`json omne-integration-binding:v1\n${JSON.stringify(binding)}\n\`\`\``
+    const source = replaceSection(
+      filledTemplate('delivery'),
+      '当前执行与交接',
+      `## 当前执行与交接\n\n${block}\n\n- 认卡声明：${issue(2).url}#issuecomment-1\n- 派发情况：${binding.dispatch}\n- 实际开工HEAD：${'b'.repeat(40)}\n- 本次读回的目标HEAD：${'c'.repeat(40)}\n- task context路径与核验：工具生成 .git/omne-integration-context.json\n\n`,
+    )
+    const result = observeDelivery(config(), capture([issue(2, { body: source })]))
+    expect(result.findings.filter(f => f.category === 'deviation')).toEqual([])
+    expect(result.cards[0]?.integrationBinding).toEqual(binding)
+    expect(result.cards[0]?.dispatchPermission).toBe('not-provided')
+    expect(codes([issue(2, { body: source.replace(block, `${block}\n${block}`) })])).toContain(
+      'integration-binding-invalid',
+    )
+    expect(
+      codes([
+        issue(2, {
+          body: source.replace(
+            JSON.stringify(binding),
+            JSON.stringify({ ...binding, taskContextPath: '.git/omne-integration-context.json' }),
+          ),
+        }),
+      ]),
+    ).toContain('integration-binding-invalid')
+  })
+
+  it('allows an explicitly non-Git report while retaining execution and acceptance observations', () => {
+    const source = replaceSection(
+      filledTemplate('delivery'),
+      '当前执行与交接',
+      '## 当前执行与交接\n\n认卡与派发尚未登记。分支及task context不适用，本卡明确只交Issue报告评论。当前未开工，结果仍待Human接受。\n\n',
+    )
+    const result = observeDelivery(config(), capture([issue(2, { body: source })]))
+    expect(result.findings.filter(f => f.category === 'deviation')).toEqual([])
+    expect(result.cards[0]).toMatchObject({
+      integrationBinding: null,
+      execution: 'requires-review',
+      dispatchPermission: 'not-provided',
+      acceptance: 'unknown',
+    })
+  })
+})
 
 describe('delivery input boundary', () => {
   it('rejects nonexistent calendar dates and invalid times', () => {
