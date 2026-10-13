@@ -1219,17 +1219,28 @@ it.each([
       .flatMap(card => card.conditions.map(conditionDigest)),
   )
 })
-it('reports non-table condition rows instead of silently skipping them', () => {
+it.each([
+  'D2 | decision | omitted row',
+  '123 | decision | https://github.com/owner/repo/issues/99 | start | 核对结果 | human |',
+  'D2 | unsupported | https://github.com/owner/repo/issues/99 | start | 核对结果 | human',
+  'D2 | unsupported | target | start | predicate | human |',
+  'D2 | decision | target | unsupported | predicate | human | all |',
+])('reports a condition row missing its opening delimiter: %s', row => {
   const card = issue(1, {
-    body: body(1, 'maintenance', [dependency('D1', 2)]) + '\nD2 | decision | omitted row',
+    body: body(1, 'maintenance', [dependency('D1', 2)]) + '\n' + row,
   })
   expect(codes([card, issue(2)])).toContain('conditions-table-invalid')
 })
 
-it('allows explanatory prose after a condition table', () => {
+it.each([
+  '没有以其他 Issue 的整项结果作为开工前置。',
+  '说明：核对命令 `gh issue view 224 | cat`。',
+  '`gh issue view 224 | cat`',
+  'ls | cat',
+  'D2 | unsupported | target',
+])('allows explanatory prose after a condition table: %s', explanation => {
   const card = issue(1, {
-    body:
-      body(1, 'maintenance', [dependency('D1', 2)]) + '\n没有以其他 Issue 的整项结果作为开工前置。',
+    body: body(1, 'maintenance', [dependency('D1', 2)]) + '\n' + explanation,
   })
   expect(codes([card, issue(2)])).not.toContain('conditions-table-invalid')
 })

@@ -232,7 +232,7 @@ describe('scoped admission capture', () => {
   it('ignores unrelated history and reads condition, native and declared parent closure once', () => {
     const f = admissionBackend()
     f.add(1, `- 父交付卡：${issueUrl(5)}\n` + conditionBody(issueUrl(2)))
-    f.add(2, conditionBody(issueUrl(3)) + '\n条件表后的说明文字。')
+    f.add(2, conditionBody(issueUrl(3)) + '\n说明：核对命令 `gh issue view 224 | cat`。')
     for (const number of [3, 4, 5, 6, 99]) f.add(number)
     f.blockedBy.set(1, [4])
     f.parents.set(4, 6)
@@ -268,21 +268,32 @@ describe('scoped admission capture', () => {
     expect(result.closure).toEqual([issueUrl(1)])
     expect(result.issues.find(issue => issue.number === 9)?.relationsComplete).toBe(false)
   })
-  it.each(['malformed', 'duplicate', 'skipped', 'missing', 'foreign'])(
-    'refuses %s condition references before returning a partial closure',
-    mode => {
-      const f = admissionBackend()
-      let body = conditionBody(issueUrl(2))
-      if (mode === 'malformed') body = body.replace('| decision |', '| unsupported |')
-      if (mode === 'duplicate') body += '\n' + body.split('\n').at(-1)
-      if (mode === 'skipped') body += '\nD2 | decision | omitted table row'
-      if (mode === 'missing') body = '- 交付层级：delivery\n- 交付修订：1'
-      if (mode === 'foreign') body = conditionBody('https://github.com/other/repo/issues/2')
-      f.add(1, body)
-      f.add(2)
-      expect(() => collectAdmission(config, f.scope, f.read)).toThrow()
-    },
-  )
+  it.each([
+    'malformed',
+    'duplicate',
+    'skipped',
+    'skipped-invalid-id',
+    'skipped-no-end',
+    'missing',
+    'foreign',
+  ])('refuses %s condition references before returning a partial closure', mode => {
+    const f = admissionBackend()
+    let body = conditionBody(issueUrl(2))
+    if (mode === 'malformed') body = body.replace('| decision |', '| unsupported |')
+    if (mode === 'duplicate') body += '\n' + body.split('\n').at(-1)
+    if (mode === 'skipped') body += '\nD2 | decision | omitted table row'
+    if (mode === 'skipped-invalid-id')
+      body +=
+        '\n123 | decision | https://github.com/owner/repo/issues/99 | start | 核对结果 | human |'
+    if (mode === 'skipped-no-end')
+      body +=
+        '\nD2 | unsupported | https://github.com/owner/repo/issues/99 | start | 核对结果 | human'
+    if (mode === 'missing') body = '- 交付层级：delivery\n- 交付修订：1'
+    if (mode === 'foreign') body = conditionBody('https://github.com/other/repo/issues/2')
+    f.add(1, body)
+    f.add(2)
+    expect(() => collectAdmission(config, f.scope, f.read)).toThrow()
+  })
   it('rejects missing Issues, PR substitution, URL/number/node identity changes and malformed comments', () => {
     for (const replacement of [
       undefined,

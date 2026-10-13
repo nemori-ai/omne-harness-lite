@@ -296,10 +296,17 @@ export function observeDelivery(
         revision,
       )
     else if (rawConditions !== '无') {
+      const header = ['条件ID', '类型', '目标', '阶段', '所需结果与判据', '确认责任及证据入口']
       if (
-        rawConditions
-          .split(/\r?\n/)
-          .some(line => !line.trim().startsWith('|') && /(?<!\\)\|/.test(line))
+        rawConditions.split(/\r?\n/).some(line => {
+          if (line.trim().startsWith('|')) return false
+          const row = cells(line)
+          return (
+            conditionKinds.some(kind => kind === row[1]) ||
+            row.length === header.length ||
+            row.length === header.length + 1
+          )
+        })
       )
         add(
           'deviation',
@@ -313,7 +320,6 @@ export function observeDelivery(
         .split(/\r?\n/)
         .filter(line => line.trim().startsWith('|'))
         .map(cells)
-      const header = ['条件ID', '类型', '目标', '阶段', '所需结果与判据', '确认责任及证据入口']
       const validHeader =
         JSON.stringify(rows[0]) === JSON.stringify(header) ||
         JSON.stringify(rows[0]) === JSON.stringify([...header, '适用目标'])
