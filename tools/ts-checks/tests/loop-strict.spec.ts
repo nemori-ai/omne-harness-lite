@@ -65,6 +65,57 @@ const tangled = Array.from(
 
 // 每条用例都起 git 与 node 子进程；全量检查满载时单条会超过默认的 5 秒。
 describe('严格模式', { timeout: 60_000 }, () => {
+  it('engineering scope preserves raw no-data and only exempts a proven empty product skeleton', () => {
+    const { root, home, out } = complete()
+    git(
+      root,
+      'rm',
+      '-q',
+      'packages/core/a/src/index.ts',
+      'packages/infra/b/src/index.ts',
+      'packages/core/a/tests/a.spec.ts',
+    )
+    const base = commit(root, 'product skeleton')
+    const strict = run(root, home, '--strict', '--base', base, '--out', out)
+    expect(strict.status).toBe(1)
+    const engineering = run(
+      root,
+      home,
+      '--strict',
+      '--scope',
+      'engineering',
+      '--base',
+      base,
+      '--out',
+      out,
+    )
+    expect(engineering.status, engineering.stdout + engineering.stderr).toBe(0)
+    const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(status).toMatchObject({
+      scope: {
+        kind: 'engineering',
+        evidence: {
+          current: { sources: 0, tests: 0 },
+          baselines: [{ commit: base, inputs: { sources: 0, tests: 0 } }],
+        },
+      },
+      hardLines: {
+        sensors: {
+          silent: [],
+          off: [],
+          notApplicable: [
+            { sensor: 'duplication', reason: 'engineering-without-product-inputs' },
+            { sensor: 'assertions', reason: 'engineering-without-product-inputs' },
+          ],
+        },
+      },
+      sensors: { duplication: { status: 'no-data' }, assertions: { status: 'no-data' } },
+    })
+    expect(engineering.stdout).toContain('工程范围不适用')
+    expect(readFileSync(join(out, 'status.md'), 'utf8')).toContain('工程范围不适用')
+    expect(readdirSync(home)).toEqual([])
+  })
+
   it('全有数据、硬线没破：退出 0；超预算的草稿写进产物目录，回路目录里什么都不写', () => {
     const { root, home, out, base } = complete()
     write(root, 'packages/core/a/src/tangled.ts', tangled)
