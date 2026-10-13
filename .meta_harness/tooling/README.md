@@ -68,7 +68,7 @@ rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev
 
 ## Agent 编译
 
-生成器从一个 `agents/` 源根按固定 host_layout 编译各宿主目录，并提供独立的相对软链接工具。
+生成器从一个 `agents/` 源根按固定 host_layout 编译各宿主目录，源里有 `cloud/` 时一并编译 Cursor Cloud Agent 的三份运行时文件，并提供独立的相对软链接工具。
 `host_layout.py` 拥有宿主清单与路径，`projection.py` 解析源和适配并产生内存产物，`compile_agents.py` 负责 CLI 与预检写入，
 `link_agents.py` 暴露项目入口，`initialize_agents.py` 串接生成与接入。没有安装更新器、发布事务或知识图谱依赖。
 
@@ -137,9 +137,15 @@ python .meta_harness/tooling/src/link_agents.py --project-root . --check
 ```
 
 工具预检所选目标后，创建 `.claude`、`.agents`、`.codex`、`.cursor` 到 `.meta_harness/` 内同名目录的
-相对链接；正确链接可重复运行，其他链接或实体路径一律拒绝，不删除、不搬迁、不覆盖。
+相对链接。选择 Cursor 时，`.cursor` 的目标必须已经含有编译出的 `Dockerfile`、`environment.json` 和 `install.sh`。
+正确链接可重复运行，其他链接或实体路径一律拒绝，不删除、不搬迁、不覆盖。
 工具不迁移既存内容；目标根若有实体目录，须按相应任务授权先处理，再创建链接。
 创建、冲突保护、只读核对和整体目录移动后的相对链接有效性由工具测试覆盖。
+
+`agents/cloud/` 存在时，编译把其中的运行时文件复制到输出根的 `.cursor/`。`README.md` 留在源目录，不进入投影。
+没有 `cloud/` 时不产生这三份文件。`install.sh` 必须可执行。`environment.json` 的 `build.dockerfile` 必须是 `Dockerfile`，
+`install` 必须是非空字符串。这三份需要提交：Cursor 在安装脚本之前从检出读取它们。
+skills、agents 和 hooks 仍由 `.meta_harness/.gitignore` 排除，检出后重新编译。
 
 
 ## Cursor 原生包与项目视图
@@ -210,5 +216,5 @@ Task 可覆盖 model，common payload.model 不是子代理模型；subagentStar
 模型自己声称发现或执行不算证据。退出零也不自动成为接受。过程超时会终止该进程组并报告 124。
 单次结果留任务 tmp，IDE/Cloud 真实执行、模型资格和完整付费评估分别报告。
 
-持续检查在 tests/test_cursor.py、test_compile_agents.py、test_compile_hooks.py 与 test_link_agents.py。
+持续检查在 tests/test_cursor.py、test_compile_agents.py、test_compile_hooks.py、test_compile_cloud.py 与 test_link_agents.py。
 它们覆盖文件、资源、路径、严格字段和子进程协议；真实模型与宿主事件仍由上面的驱动和独立验收取得。

@@ -18,7 +18,7 @@
 
 实施须依据明确且已接受的承诺。未定新方案不能凭目录或产品设计直接开包；先定位拥有者及采用范围。探路件放任务 tmp，只带事实回设计。正式终态随拥有者维护，正式RFC与Issue最小决定按[保存例外](docs/engineering/documentation.md#四类长期成果与普通任务)维护；其余候选、逐轮评审、执行证据与过程记录留[任务tmp](docs/development.md#终态与过程材料)。
 
-自有 skills 和 roles 在 `.meta_harness/agents/` 维护源与宿主适配；根 `.agents`、`.claude`、`.codex`、`.cursor` 只暴露生成物。按[生成入口](.meta_harness/tooling/README.md)生成，不直接修改宿主产物。
+自有 skills、roles 与 Cloud Agent 镜像源在 `.meta_harness/agents/` 维护；根 `.agents`、`.claude`、`.codex`、`.cursor` 只暴露生成物。按[生成入口](.meta_harness/tooling/README.md)生成，不直接修改宿主产物。
 
 ## 研发品味
 
@@ -52,6 +52,12 @@
 | Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本。未覆盖行为保留假设并以源码或验证补足，不自动采用上游保证 |
 
 任务方法由已采用 pstack 主线与 Matt 补充提供，触发、精确版本、宿主加载和项目差异归[技能入口](docs/engineering/skills.md)。派发写者明确检出、分支、写范围、必要输入、完成及停止条件；独立任务隔离并行，共享对象单写，耦合依赖串行。只在找到本次拥有者、适用范围和验证责任后停止扩大阅读。
+
+## Cursor Cloud specific instructions
+
+Cloud Agent 的镜像源、安装脚本和版本钉扎归[开发指南](docs/development.md#cursor-cloud-agent-镜像)。根 `.cursor` 是生成的软链接。改镜像时改 `.meta_harness/agents/cloud/`，不要改投影副本。Build 已经安装依赖。锁文件未变时，不要再执行安装。
+
+密钥和令牌只放在 Cursor Cloud Agents 的 Secrets。形式工具和 Postgres 不在此镜像中。缺少环境时报告未执行。不要把跳过的检查写成通过。
 
 ## 写给众 AGENTS 的话
 

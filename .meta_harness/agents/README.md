@@ -9,6 +9,7 @@
 | `skills/<name>/canonical/` + `adapters/<host>/strategy.yaml` | `.agents/skills/<name>/`、`.claude/skills/<name>/`、`.cursor/skills/<name>/` |
 | `roles/<name>/role.md`、`codex.toml`、`claude.yaml`、`cursor.yaml`，可选 assembly / adaptation | `.codex/agents/<name>.toml`、`.claude/agents/<name>.md`、`.cursor/agents/<name>.md` |
 | [`hooks/hooks.yaml`](hooks/README.md)（宿主无关的收工钩子声明） | `.claude/settings.json`、`.codex/hooks.json`、`.cursor/hooks.json` 及 Cursor bridge 资源 |
+| [`cloud/`](cloud/README.md)（Cursor Cloud Agent 镜像源） | `.cursor/Dockerfile`、`.cursor/environment.json`、`.cursor/install.sh`。这三份提交入库；根 `.cursor` 只是指向该目录的软链接 |
 
 [`research/`](research/README.md) 保存方法仍依赖的上游事实、适用版本与限制，
 不保存本项目如何讨论、迁移或验证这些方法的过程。规矩本身归 canonical skills 与 roles。

@@ -71,6 +71,8 @@ def main(argv=None):
         hosts = tuple(HOSTS) if args.host == "all" else (args.host,)
         outputs = compile_sources(args.source, args.role_renderer, hosts)
         directories = [directory for host in hosts for directory in HOSTS[host].directories]
+        if any(relative.parts[:1] == (".cursor",) for relative in outputs):
+            directories.append(Path(".cursor"))
         for relative in (*directories, *outputs):
             target = (output / relative).resolve()
             if source.is_relative_to(target) or target.is_relative_to(source):

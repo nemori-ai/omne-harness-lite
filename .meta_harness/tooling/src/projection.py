@@ -20,6 +20,11 @@ RUNTIME_EXCLUDES = {"AGENTS.md", "CLAUDE.md", ".design", "evals"}
 # Host-neutral hooks become each host's project hook file. Both hosts read the same
 # `{"hooks": {<event>: [{"matcher"?, "hooks": [handler]}]}}` shape for these two events.
 HOOK_TARGETS = {host: layout.hooks for host, layout in HOSTS.items()}
+# Cursor reads .cursor/ from the checkout before install. The source stays here;
+# compile_agents.py copies these files into the output root. README.md is maintainer
+# text and is not part of the runtime projection.
+CLOUD_RUNTIME = ("Dockerfile", "environment.json", "install.sh")
+CLOUD_SOURCE_ONLY = {"README.md"}
 HOOK_EVENTS = ("Stop", "SubagentStop")
 HOOK_FIELDS = {"id", "events", "subagent_types", "command", "timeout"}
 # Matchers made only of these characters are exact names on both hosts, never a regex.
@@ -240,6 +245,51 @@ def project_hooks(directory: Path, hosts: tuple[str, ...], roles: set[str]) -> d
     return {HOOK_TARGETS[host]: Artifact(text.encode("utf-8"), 0o644) for host in hosts}
 
 
+def project_cloud(source: Path) -> dict[Path, Artifact]:
+    """Copy the Cursor Cloud Agent source into `.cursor/` when `cloud/` exists.
+
+    Absent `cloud/` produces nothing, so host-only fixtures stay unchanged.
+    A present source must be the known flat file set. `install.sh` must be executable.
+    """
+    directory = source / "cloud"
+    if not directory.exists():
+        return {}
+    if not directory.is_dir():
+        raise ValueError(f"cloud source must be a directory: {directory}")
+    names = set()
+    for item in sorted(directory.iterdir()):
+        if item.name in IGNORED:
+            continue
+        no_symlinks(item)
+        if not item.is_file():
+            raise ValueError(f"cloud source must be flat files: {item}")
+        names.add(item.name)
+    unknown = names - set(CLOUD_RUNTIME) - CLOUD_SOURCE_ONLY
+    missing = set(CLOUD_RUNTIME) - names
+    if unknown or missing:
+        raise ValueError(
+            f"cloud source files must be {list(CLOUD_RUNTIME)} "
+            f"plus optional {sorted(CLOUD_SOURCE_ONLY)}; unknown={sorted(unknown)} missing={sorted(missing)}"
+        )
+    config_path = directory / "environment.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    build = config.get("build") if isinstance(config, dict) else None
+    dockerfile = build.get("dockerfile") if isinstance(build, dict) else None
+    install = config.get("install") if isinstance(config, dict) else None
+    if dockerfile != "Dockerfile" or not isinstance(install, str) or not install.strip():
+        raise ValueError(
+            "cloud environment.json needs build.dockerfile 'Dockerfile' and a non-empty install string"
+        )
+    outputs = {}
+    for name in CLOUD_RUNTIME:
+        file = directory / name
+        mode = 0o755 if file.stat().st_mode & 0o111 else 0o644
+        if name == "install.sh" and mode != 0o755:
+            raise ValueError("cloud install.sh must be executable")
+        outputs[Path(".cursor") / name] = Artifact(file.read_bytes(), mode)
+    return outputs
+
+
 def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
                     hosts: tuple[str, ...] = ("claude-code", "codex")) -> dict[Path, Artifact]:
     no_symlinks(source.absolute())
@@ -293,4 +343,6 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
         from cursor_projection import project_cursor_package
         for relative, artifact in project_cursor_package(source, {role.name for role in role_sources}).items():
             add(relative, artifact)
+    for relative, artifact in project_cloud(source).items():
+        add(relative, artifact)
     return outputs

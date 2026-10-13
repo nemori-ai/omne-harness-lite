@@ -6,10 +6,39 @@ import argparse
 import sys
 from pathlib import Path
 
-from projection import no_symlinks
 from host_layout import HOSTS, project_targets
+from projection import CLOUD_RUNTIME, no_symlinks
 
-TARGETS = project_targets()
+
+def directory_links(hosts=tuple(HOSTS)) -> dict[str, tuple[str, ...]]:
+    """Directory children that must exist before a host root is linked.
+
+    `.cursor` is one symlink to the whole projection. Its committed Cloud
+    Agent files are checked separately, so generated skills are not required
+    before Cursor can read the checkout.
+    """
+    return {
+        name: children
+        for name, children in project_targets(hosts).items()
+        if name != ".cursor"
+    }
+
+
+DIRECTORY_LINKS = directory_links()
+FILE_LINKS = {".cursor": CLOUD_RUNTIME}
+
+
+def _queue_link(project: Path, name: str, relative: Path, pending: list, check: bool):
+    destination = project / name
+    if destination.is_symlink():
+        if destination.readlink() != relative:
+            raise ValueError(f"existing link has another target: {destination}")
+    elif destination.exists():
+        raise ValueError(f"existing real path; migration is required before linking: {destination}")
+    elif check:
+        raise ValueError(f"missing project link: {destination}")
+    else:
+        pending.append((destination, relative))
 
 
 def link(project: Path, check=False, hosts=tuple(HOSTS)):
@@ -18,7 +47,7 @@ def link(project: Path, check=False, hosts=tuple(HOSTS)):
     if not project.is_dir():
         raise ValueError(f"project root does not exist: {project}")
     pending = []
-    for name, children in project_targets(hosts).items():
+    for name, children in directory_links(hosts).items():
         relative = Path(".meta_harness") / name
         target = project / relative
         no_symlinks(target)
@@ -26,17 +55,22 @@ def link(project: Path, check=False, hosts=tuple(HOSTS)):
             no_symlinks(target / child)
             if not (target / child).is_dir():
                 raise ValueError(f"missing compiled directory: {relative / child}")
-        destination = project / name
-        if destination.is_symlink():
-            if destination.readlink() != relative:
-                raise ValueError(f"existing link has another target: {destination}")
-        elif destination.exists():
-            raise ValueError(f"existing real path; migration is required before linking: {destination}")
-        elif check:
-            raise ValueError(f"missing project link: {destination}")
-        else:
-            pending.append((destination, relative))
+        _queue_link(project, name, relative, pending, check)
+    if "cursor" in hosts:
+        for name, files in FILE_LINKS.items():
+            relative = Path(".meta_harness") / name
+            target = project / relative
+            no_symlinks(target)
+            if not target.is_dir():
+                raise ValueError(f"missing compiled directory: {relative}")
+            for child in files:
+                file = target / child
+                no_symlinks(file)
+                if not file.is_file():
+                    raise ValueError(f"missing compiled file: {relative / child}")
+            _queue_link(project, name, relative, pending, check)
     if not check:
+        # Preflight every link first. A concurrent creator still fails rather than being replaced.
         for destination, relative in pending:
             destination.symlink_to(relative, target_is_directory=True)
 
