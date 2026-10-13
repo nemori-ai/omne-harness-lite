@@ -4,6 +4,7 @@ import { testTiers } from '../../vitest.tiers.mts'
 export default defineConfig({
   test: {
     ...testTiers(),
+    setupFiles: ['./tests/setup-environment.ts'],
     include: ['tests/**/*.spec.ts'],
     typecheck: {
       enabled: true,
