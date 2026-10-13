@@ -27,4 +27,4 @@ step typecheck
 step test
 node --experimental-strip-types "$runner/tools/ts-checks/src/cli.ts" packages apps
 step acceptance
-node --experimental-strip-types "$runner/tools/ts-checks/src/loop/cli.ts" ${BASELINE:+--base "$BASELINE"} --out "$plan_dir/loop" --strict
+node --experimental-strip-types "$runner/tools/ts-checks/src/loop/cli.ts" ${BASELINE:+--base "$BASELINE"} --out "$plan_dir/loop" --strict --scope engineering

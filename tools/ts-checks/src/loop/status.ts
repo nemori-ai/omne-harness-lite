@@ -19,6 +19,7 @@ import {
 import { describeAgainstBase, type ExplainedFunction } from './against-base.ts'
 import { describeClone, fixed } from './proposals.ts'
 import type { Reading } from './reading.ts'
+import { withoutProductInputs, type SensorScope } from './product-inputs.ts'
 import type { CaseWithoutAssertion } from './sensors/assertions.ts'
 import type { Clone } from './sensors/duplication.ts'
 import type { EdgeChange } from './sensors/new-edges.ts'
@@ -129,20 +130,31 @@ export type SensorLine =
       readonly status: 'judged'
       readonly silent: readonly SilentSensor[]
       readonly off: readonly SwitchedSensor[]
+      readonly notApplicable: readonly {
+        readonly sensor: 'duplication' | 'assertions'
+        readonly reason: 'engineering-without-product-inputs'
+      }[]
     }
 
 export function judgeSensors(
   readings: Readonly<Record<SwitchedSensor, Reading<unknown>>>,
   config: LoopConfig,
+  scope: SensorScope = { kind: 'all' },
 ): SensorLine {
   const silent: SilentSensor[] = []
   const off: SwitchedSensor[] = []
+  const notApplicable: Extract<SensorLine, { status: 'judged' }>['notApplicable'][number][] = []
+  const empty = withoutProductInputs(scope)
   for (const sensor of SWITCHED_SENSORS) {
     const reading = readings[sensor]
     if (!config.sensors[sensor].enabled) off.push(sensor)
-    else if (reading.status === 'no-data') silent.push({ sensor, reason: reading.reason })
+    else if (reading.status === 'no-data') {
+      if (empty && (sensor === 'duplication' || sensor === 'assertions'))
+        notApplicable.push({ sensor, reason: 'engineering-without-product-inputs' })
+      else silent.push({ sensor, reason: reading.reason })
+    }
   }
-  return { status: 'judged', silent, off }
+  return { status: 'judged', silent, off, notApplicable }
 }
 
 /** 对一段提交范围判的硬线：没给基线时不判。 */
@@ -267,9 +279,14 @@ function sensorLine(line: SensorLine): string {
     line.off.length === 0
       ? ''
       : `；配置里关了、不算：${line.off.map(sensor => `sensors.${sensor}`).join('、')}`
-  if (line.silent.length === 0) return `  传感器有数据 是${off}`
+  const notApplicable =
+    line.notApplicable.length === 0
+      ? ''
+      : `；工程范围不适用：${line.notApplicable.map(entry => `sensors.${entry.sensor}（${entry.reason}）`).join('、')}`
+  if (line.silent.length === 0)
+    return `  ${notApplicable === '' ? '传感器有数据 是' : '适用传感器有数据 是'}${off}${notApplicable}`
   const silent = line.silent.map(entry => `sensors.${entry.sensor}（${entry.reason}）`).join('、')
-  return `  ✗ 传感器没数据 ${line.silent.length} 个：${silent}${off}`
+  return `  ✗ 传感器没数据 ${line.silent.length} 个：${silent}${off}${notApplicable}`
 }
 
 function indicatorLine(row: IndicatorRow): string {

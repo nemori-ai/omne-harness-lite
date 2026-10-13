@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+unset OMNE_SUBJECT_ROOT OMNE_RUNNER_ROOT
 
 if (( $# )); then
     echo "Usage: $0" >&2

@@ -43,6 +43,7 @@ import { digest, canonical, object, string } from '../src/integration/parse.ts'
 import { pendingPrefix, unitFor } from '../src/integration/units.ts'
 import { annotatedObject } from '../src/integration/transport.ts'
 import { auditHistory } from '../src/integration/audit.ts'
+import { runLoopStatus } from '../src/loop/run.ts'
 
 const homes: string[] = []
 afterEach(() => {
@@ -77,6 +78,190 @@ async function start(f: ReturnType<typeof fixture>) {
     attempt: f.binding.attempt,
   })
 }
+
+it('engineering loop carries all task baselines and rejects stale context', async () => {
+  const f = fixture()
+  mkdirSync(join(f.root, 'packages/core/demo/src'), { recursive: true })
+  const sourceBase = commit(f.root, 'packages/core/demo/src/index.ts', 'export const value = 1')
+  git(f.root, ['rm', '-rq', 'packages'])
+  mkdirSync(join(f.root, 'apps/demo/tests'), { recursive: true })
+  const testBase = commit(f.root, 'apps/demo/tests/index.spec.ts', 'test("check", () => {})')
+  git(f.root, ['rm', '-rq', 'apps'])
+  const head = commit(f.root, 'README.md', 'empty product')
+  const info = repository(f.root)
+  writeContext(f.root, {
+    schemaVersion: 1,
+    root: info.root,
+    gitDir: info.gitDir,
+    branch: info.branch,
+    anchor: f.anchor,
+    targetBase: f.main,
+    tasks: [sourceBase, testBase].map(taskBase => ({
+      binding: { ...f.binding, taskBase },
+      taskSource: head,
+    })),
+    ownerTask: null,
+    operation: 'fixture-candidate',
+  })
+  const out = join(f.home, 'loop')
+  const options = {
+    root: f.root,
+    out,
+    strict: true,
+    snapshot: false,
+    scope: 'engineering',
+  } as const
+  const result = await runLoopStatus(options, { OMNE_METRICS_HOME: join(f.home, 'metrics') })
+  expect(result.code).toBe(1)
+  const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+  expect(status.scope.evidence.baselines).toEqual([
+    { commit: f.main, inputs: { sources: 0, tests: 0 } },
+    { commit: sourceBase, inputs: { sources: 1, tests: 0 } },
+    { commit: testBase, inputs: { sources: 0, tests: 1 } },
+  ])
+  expect(status.hardLines.sensors.notApplicable).toEqual([])
+  git(f.root, ['branch', '-m', 'human/stale-context'])
+  await expect(runLoopStatus(options, {})).rejects.toThrow('Context belongs to another')
+})
+
+const integrationStages = [
+  'plan',
+  'agents',
+  'links',
+  'docs',
+  'sources',
+  'objects',
+  'python',
+  'format',
+  'selftest',
+  'build',
+  'typecheck',
+  'test',
+  'rules',
+  'acceptance',
+  'loop',
+]
+
+function wrapperFixture() {
+  const home = mkdtempSync(join(tmpdir(), 'omne-wrapper-stages-'))
+  homes.push(home)
+  const runner = join(home, 'runner'),
+    subject = join(home, 'subject')
+  init(subject)
+  const base = commit(subject, '.gitignore', 'tmp/\n')
+  mkdirSync(join(runner, 'scripts'), { recursive: true })
+  for (const name of ['check.sh', 'integration-check.sh', 'with-test-slot.sh'])
+    writeFileSync(
+      join(runner, 'scripts', name),
+      readFileSync(new URL(`../../../scripts/${name}`, import.meta.url)),
+      { mode: 0o755 },
+    )
+  const setup = join(home, 'dependencies.bash'),
+    trace = join(home, 'trace')
+  writeFileSync(
+    setup,
+    `
+record() {
+  printf '%s|%s|%s|%s\\n' "$1" "$OMNE_TEST_SLOT_HELD" "$FULL" "$*" >> "$OMNE_TRACE"
+  [[ "$1" != "$OMNE_FAIL_STAGE" ]]
+}
+node() {
+  case "$2" in
+    */testing/cli.ts) if [[ "$3" == plan ]]; then record plan "$@"; else record "$4" "$@"; fi ;;
+    */loop/cli.ts) record loop "$@" ;;
+    */integration/cli.ts) printf '{"targetBase":"%s"}' "$BASELINE" ;;
+    */src/cli.ts) record rules "$@" ;;
+    *) command node "$@" ;;
+  esac
+}
+uv() {
+  case "$*" in
+    *compile_agents.py*) record agents ;;
+    *link_agents.py*) record links ;;
+    *check_docs*) record docs ;;
+    *check_sources.py*) record sources ;;
+    *domain_objects.py*) record objects ;;
+    *) return 97 ;;
+  esac
+}
+bash() {
+  case "$1" in
+    */format.sh) record format "$@" ;;
+    */test-formatting.sh) record selftest "$@" ;;
+    *) command bash "$@" ;;
+  esac
+}
+make() { record make "$@"; }
+pnpm() { record pnpm "$@"; }
+`,
+  )
+  return {
+    home,
+    runner,
+    subject,
+    base,
+    trace,
+    env: {
+      ...process.env,
+      BASH_ENV: setup,
+      OMNE_SUBJECT_ROOT: subject,
+      OMNE_RUNNER_ROOT: runner,
+      BASELINE: base,
+      FULL: '',
+      OMNE_FAIL_STAGE: '',
+      OMNE_TRACE: trace,
+      OMNE_TEST_SLOT_HELD: '',
+      OMNE_TEST_SLOT_DIR: join(home, 'slots'),
+      OMNE_TEST_SLOT_LEDGER: join(home, 'ledger'),
+    },
+  }
+}
+
+it.each(['', '1'])(
+  'actual check wrapper preserves all stages and engineering after test-slot reentry, FULL=%s',
+  full => {
+    const f = wrapperFixture()
+    const result = spawnSync('bash', [join(f.runner, 'scripts/check.sh')], {
+      env: { ...f.env, FULL: full },
+      encoding: 'utf8',
+    })
+    expect(result.status, result.stdout + result.stderr).toBe(0)
+    const trace = readFileSync(f.trace, 'utf8').trim().split('\n')
+    expect(trace.map(line => line.split('|')[0])).toEqual(integrationStages)
+    expect(trace.every(line => line.split('|')[1] !== '')).toBe(true)
+    expect(trace.every(line => line.split('|')[2] === full)).toBe(true)
+    expect(trace.at(-1)).toContain('--strict --scope engineering')
+    expect(trace.at(-1)).toContain(`--base ${f.base}`)
+  },
+)
+
+it.each(integrationStages)('actual check stops at failed stage %s', stage => {
+  const f = wrapperFixture()
+  const result = spawnSync('bash', [join(f.runner, 'scripts/check.sh')], {
+    env: { ...f.env, OMNE_FAIL_STAGE: stage, OMNE_TEST_SLOT_HELD: 'held' },
+    encoding: 'utf8',
+  })
+  expect(result.status, result.stdout + result.stderr).toBe(1)
+  expect(
+    readFileSync(f.trace, 'utf8')
+      .trim()
+      .split('\n')
+      .map(line => line.split('|')[0]),
+  ).toEqual(integrationStages.slice(0, integrationStages.indexOf(stage) + 1))
+})
+
+it('ordinary local check still invokes default strict scope', () => {
+  const f = wrapperFixture()
+  init(f.runner)
+  const result = spawnSync('bash', [join(f.runner, 'scripts/check.sh')], {
+    env: { ...f.env, OMNE_SUBJECT_ROOT: '', OMNE_TEST_SLOT_HELD: 'held' },
+    encoding: 'utf8',
+  })
+  expect(result.status, result.stdout + result.stderr).toBe(0)
+  const trace = readFileSync(f.trace, 'utf8')
+  expect(trace).toContain('loop-status STRICT=1')
+  expect(trace).not.toContain('--scope engineering')
+})
 it('reads the hook root and each worktree own immutable task baseline', async () => {
   const f = fixture()
   await start(f)

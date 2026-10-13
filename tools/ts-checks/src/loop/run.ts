@@ -21,6 +21,7 @@ import { baseFilesOf, judgeAgainstBase } from './function-baseline.ts'
 import { loopHome } from './home.ts'
 import { writeProposal } from './proposals.ts'
 import { data, noData, type Reading } from './reading.ts'
+import { engineeringEvidence, parseScope, type SensorScope } from './product-inputs.ts'
 import {
   readAcceptanceTiming,
   type AcceptanceLocation,
@@ -77,6 +78,7 @@ export interface RunOptions {
    * 不写趋势快照——回路目录一个字节都不动。
    */
   readonly strict: boolean
+  readonly scope?: SensorScope['kind']
 }
 
 export interface RunResult {
@@ -539,6 +541,9 @@ export async function runLoopStatus(
 ): Promise<RunResult> {
   const selectedBase = baselines(options.root, options.base).targetBase
   options = { ...options, ...(selectedBase === undefined ? {} : { base: selectedBase }) }
+  const scopeKind = parseScope(options.scope)
+  if (scopeKind === 'engineering' && !options.strict)
+    throw new Error('--scope engineering 要与 --strict 同用')
   checkStrict(options)
   const { root } = options
   const at = coordinates(root, options.base)
@@ -548,6 +553,18 @@ export async function runLoopStatus(
   )
 
   const files = collectMemberSources(root)
+  const audits = auditRanges(root, options.base)
+  const scope: SensorScope =
+    scopeKind === 'all'
+      ? { kind: 'all' }
+      : {
+          kind: 'engineering',
+          evidence: engineeringEvidence(root, files, [
+            ...(selectedBase === undefined ? [] : [selectedBase]),
+            ...(at.base === undefined ? [] : [at.base.mergeBase]),
+            ...audits.map(range => range.base),
+          ]),
+        }
   const change = at.base === undefined ? undefined : changeSince(root, at.base.mergeBase)
   const report = measuredReport(root, files, metrics, change)
   const sensors = await readSensors(root, config, files, report, change, {
@@ -586,7 +603,7 @@ export async function runLoopStatus(
     report,
     options.base,
     options.strict
-      ? judgeSensors(sensors, config)
+      ? judgeSensors(sensors, config, scope)
       : { status: 'unjudged', reason: '只在严格模式（STRICT=1）下判' },
   )
   const catalogue = readCatalogue(
@@ -627,7 +644,6 @@ export async function runLoopStatus(
       ),
     })
 
-  const audits = auditRanges(root, options.base)
   const notes = [
     ...audits.map(range => `审计：${range.label} ${range.base}..${range.head}`),
     `趋势：${trendPath}；上一次的带位${previous === undefined ? '：没有更早的快照' : `取自 ${previous.commit.slice(0, 9)}`}；` +
@@ -683,6 +699,7 @@ export async function runLoopStatus(
         },
         baseline: { ...baseline, from },
         auditRanges: audits,
+        scope,
         previous: previous?.commit ?? null,
         hardLines,
         indicators,

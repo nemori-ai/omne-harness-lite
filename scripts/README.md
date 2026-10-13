@@ -24,6 +24,11 @@
 基线在脚本开头解析一次（没给就用 `origin/main`，本地没有这个引用就用 `main`）并导出为 `BASELINE`，
 影响面与最后的回路状态共用它。
 
+设置 `OMNE_SUBJECT_ROOT` 时，`check.sh` 转入 [integration-check.sh](integration-check.sh)。
+该入口保留 Python、格式、自测、构建、类型、快慢测试、规则与验收步骤，末尾显式执行 `loop --strict --scope engineering`。
+日常集成沿影响面计划，只有 full profile 设置 `FULL=1`。工程范围的输入证据与拒绝条件见[回路状态](../tools/ts-checks/README_ZH.md#回路状态)。
+普通本地 `make check` 仍使用默认严格范围。格式自测在自身入口清除两个 OMNE root，保证 fixture 和 Git hook 检查自己的沙盒；正式格式检查仍读取真实 subject。
+
 脚本先跑 `tools/ts-checks/src/testing/cli.ts plan`：按 [test-runs.config.json](../tools/ts-checks/test-runs.config.json) 的 `affected` 规则
 给每个改动文件归类，打印判成什么、每一步跑还是跳、选中哪些成员与为什么，计划写进被忽略的 `tmp/check-plan/plan.json`
 （算不出计划就在这里失败，不改判全量；`make check-plan` 只打印不跑）。之后的顺序是：
