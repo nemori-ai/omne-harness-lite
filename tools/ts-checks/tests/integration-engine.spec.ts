@@ -19,7 +19,7 @@ import type { Condition } from '../src/delivery/protocol.ts'
 import type { Candidate } from '../src/integration/records.ts'
 const homes: string[] = []
 
-it('policy revision 2 uses the complete check for both profiles and only full sets FULL=1', () => {
+it('policy revision 3 uses the complete check for both profiles and only full sets FULL=1', () => {
   const policy = parsePolicy(
     JSON.parse(
       readFileSync(
@@ -28,7 +28,7 @@ it('policy revision 2 uses the complete check for both profiles and only full se
       ),
     ),
   )
-  expect(policy.revision).toBe('2')
+  expect(policy.revision).toBe('3')
   expect(policy.profiles.integration).toContain('check')
   expect(policy.profiles.full).toContain('check')
   expect(policy.tracks.find(track => track.id === 'development')?.checks).toEqual(['check'])
