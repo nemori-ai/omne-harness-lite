@@ -25,7 +25,7 @@ export function init(root: string, bare = false): void {
     git(root, ['config', key, git(process.cwd(), ['config', key])])
 }
 export function integrationFixture(
-  options: { sharedLoader?: boolean; runnerMutation?: boolean } = {},
+  options: { sharedLoader?: boolean; runnerMutation?: boolean; admissionOnly?: boolean } = {},
 ) {
   const home = mkdtempSync(join(tmpdir(), 'omne-integration-engine-')),
     root = join(home, 'work'),
@@ -196,11 +196,137 @@ export function integrationFixture(
   }
   const platform = join(home, 'platform.json'),
     calls = join(home, 'calls.jsonl')
-  writeFileSync(platform, JSON.stringify({ body: body(binding), state: 'open', comments: [] }))
+  writeFileSync(
+    platform,
+    JSON.stringify({
+      body: body(binding),
+      state: 'open',
+      comments: [],
+      admissionOnly: options.admissionOnly ?? false,
+    }),
+  )
   writeFileSync(
     join(bin, 'gh'),
-    `#!/usr/bin/env node
-import{readFileSync,appendFileSync}from'node:fs';const args=process.argv.slice(2);const home=process.env.OMNE_GH_FIXTURE;appendFileSync(home+'/calls.jsonl',JSON.stringify(args)+'\\n');const p=JSON.parse(readFileSync(home+'/platform.json','utf8'));let result;const issue={number:1,node_id:'I_1',html_url:'https://github.com/owner/repo/issues/1',state:p.state,updated_at:'2026-10-11T00:00:00Z',body:p.body,labels:[]};const endpoint=args.at(-1);if(args[0]!=='api')process.exit(91);if(args[1]==='graphql'){if(!args.some(x=>x.startsWith('query=query')))process.exit(92);if(args.some(x=>x.includes('parent{url}')))result={data:{node:{id:'I_1',parent:null}}};else result={data:{node:{id:'P_1',fields:{pageInfo:{hasNextPage:false},nodes:[{id:'F_stage'}]},items:{pageInfo:{hasNextPage:false},nodes:[]}}}};}else{if(args[1]!=='--method'||args[2]!=='GET')process.exit(93);if(endpoint.includes('/issues?'))result=[issue];else if(endpoint.includes('/dependencies/'))result=[];else if(endpoint.includes('/issues/1/comments?'))result=p.comments;else if(endpoint.includes('/issues/comments/'))result=p.comments.find(c=>c.id===Number(endpoint.split('/').at(-1)));else process.exit(94);}process.stdout.write(JSON.stringify(result));
+    String.raw`#!/usr/bin/env node
+import { readFileSync, appendFileSync, writeFileSync } from 'node:fs'
+const args = process.argv.slice(2)
+const home = process.env.OMNE_GH_FIXTURE
+appendFileSync(home + '/calls.jsonl', JSON.stringify(args) + '\n')
+const p = JSON.parse(readFileSync(home + '/platform.json', 'utf8'))
+if (
+  args.at(-1) === 'repos/owner/repo/issues/1' &&
+  readFileSync(home + '/calls.jsonl', 'utf8')
+    .trim()
+    .split('\n')
+    .map(JSON.parse)
+    .filter(a => a.at(-1) === 'repos/owner/repo/issues/1').length === 2 &&
+  p.readbackChange
+) {
+  Object.assign(p, p.readbackChange)
+  writeFileSync(home + '/platform.json', JSON.stringify(p))
+}
+let result
+const issue = {
+  number: 1,
+  node_id: 'I_1',
+  html_url: 'https://github.com/owner/repo/issues/1',
+  state: p.state,
+  updated_at: '2026-10-11T00:00:00Z',
+  body: p.body,
+  labels: [],
+}
+const endpoint = args.at(-1)
+const page = Number(new URLSearchParams(endpoint.split('?')[1]).get('page') || 1)
+const commentsPage = comments => comments.slice((page - 1) * 100, page * 100)
+if (args[0] !== 'api') process.exit(91)
+if (args[1] === 'graphql') {
+  if (!args.some(x => x.startsWith('query=query'))) process.exit(92)
+  if (p.admissionOnly && args.some(x => x.includes(' items('))) process.exit(95)
+  if (args.some(x => x.includes('parent{url}')))
+    result = {
+      data: {
+        node: {
+          id: args.find(a => a.startsWith('id=')).slice(3),
+          parent: p.parent ? { url: p.parent } : null,
+        },
+      },
+    }
+  else if (args.some(x => x.includes('projectItems(')))
+    result = {
+      data: {
+        node: {
+          id: 'I_1',
+          url: issue.html_url,
+          projectItems: {
+            pageInfo: { hasNextPage: false },
+            nodes: [{ id: 'ITEM_1', project: { id: 'P_1' } }],
+          },
+        },
+      },
+    }
+  else if (args.some(x => x.includes('... on ProjectV2Item{')))
+    result = {
+      data: {
+        node: {
+          id: 'ITEM_1',
+          project: { id: 'P_1' },
+          fieldValues: {
+            pageInfo: { hasNextPage: false },
+            nodes: p.stage
+              ? [
+                  {
+                    __typename: 'ProjectV2ItemFieldSingleSelectValue',
+                    name: p.stage,
+                    field: { id: 'F_stage' },
+                  },
+                ]
+              : [],
+          },
+        },
+      },
+    }
+  else
+    result = {
+      data: {
+        node: {
+          id: 'P_1',
+          fields: {
+            pageInfo: { hasNextPage: false },
+            nodes: [{ __typename: 'ProjectV2SingleSelectField', id: 'F_stage' }],
+          },
+          items: { pageInfo: { hasNextPage: false }, nodes: [] },
+        },
+      },
+    }
+} else {
+  if (args[1] !== '--method' || args[2] !== 'GET') process.exit(93)
+  if (endpoint.includes('/issues?')) {
+    if (p.admissionOnly) process.exit(95)
+    result = [issue]
+  } else if (endpoint === 'repos/owner/repo/issues/1') result = issue
+  else if (endpoint === 'repos/owner/repo/issues/2')
+    result = {
+      ...issue,
+      number: 2,
+      node_id: 'I_2',
+      html_url: 'https://github.com/owner/repo/issues/2',
+      body: 'Related ordinary Issue',
+    }
+  else if (endpoint.includes('/dependencies/'))
+    result = endpoint.includes('/issues/1/')
+      ? (p.blockedBy || []).map(url => ({ html_url: url }))
+      : []
+  else if (endpoint.includes('/issues/1/comments?')) result = commentsPage(p.comments)
+  else if (endpoint.includes('/issues/2/comments?'))
+    result = commentsPage(p.authorityComments || [])
+  else if (endpoint.includes('/issues/comments/')) {
+    result = [...p.comments, ...(p.authorityComments || [])].find(
+      c => c.id === Number(endpoint.split('/').at(-1)),
+    )
+    if (p.directCommentChange) Object.assign(result, p.directCommentChange)
+  } else process.exit(94)
+}
+process.stdout.write(JSON.stringify(result))
 `,
   )
   chmodSync(join(bin, 'gh'), 0o755)
