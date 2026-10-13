@@ -346,11 +346,9 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
         from cursor_projection import project_cursor_role
         for role in role_sources:
             projected = project_cursor_role(role)
-            if projected is None:
-                continue
-            relative, text = projected
-            add(relative, Artifact(text.encode("utf-8"), 0o644))
-            qualified_summaries[role.name] = hashlib.sha256(text.encode("utf-8")).hexdigest()
+            add(projected.path, Artifact(projected.text.encode("utf-8"), 0o644))
+            if projected.dispatch_qualified:
+                qualified_summaries[role.name] = hashlib.sha256(projected.text.encode("utf-8")).hexdigest()
     for role in role_sources if old_hosts else ():
         rendered = render(role)
         if not isinstance(rendered, dict) or len(rendered) != 2:

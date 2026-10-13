@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import NamedTuple
 
 import yaml
 
 from host_layout import HOSTS
 from git_environment import REPOSITORY_KEYS
-from cursor_qualification import qualification_footer, read_qualification
+from cursor_qualification import digest, qualification_footer, read_qualification
 from projection import Artifact, DEFAULT_RENDERER, UniqueLoader, hook_groups, load_module
 
 EFFORTS = ("max", "xhigh", "high", "medium", "low")
@@ -34,7 +35,13 @@ def cursor_model_request(model: str) -> str:
     raise ValueError(f"cursor model must request effort as id[effort=level]: {model}")
 
 
-def project_cursor_role(source: Path) -> tuple[Path, str] | None:
+class ProjectedCursorRole(NamedTuple):
+    path: Path
+    text: str
+    dispatch_qualified: bool
+
+
+def project_cursor_role(source: Path) -> ProjectedCursorRole:
     shared = load_module(DEFAULT_RENDERER.with_name("role_source.py"))
     required_string, source_text = shared.required_string, shared.source_text
 
@@ -57,15 +64,17 @@ def project_cursor_role(source: Path) -> tuple[Path, str] | None:
             raise ValueError(f"cursor: {field} must be a boolean")
     prompt = cursor_role_prompt(source)
     native = (source / "cursor.yaml").read_bytes()
-    record = read_qualification(source, native, prompt)
-    if record["status"] == "pending":
-        return None
+    record = read_qualification(source, native, prompt, require_binding=False)
+    binding_current = record["binding"] == {
+        "native_sha256": digest(native), "prompt_sha256": digest(prompt.encode())}
     projected = dict(config)
     projected["model"] = cursor_model_request(model)
     # CLI 2026.08.04-aaa8809 parses frontmatter one scalar line at a time.
     front = yaml.safe_dump(projected, allow_unicode=True, sort_keys=False, width=100000).rstrip()
-    return (HOSTS["cursor"].agents / f"{name}.md",
-            "---\n" + front + "\n---\n\n" + prompt + qualification_footer(record) + "\n")
+    return ProjectedCursorRole(
+        HOSTS["cursor"].agents / f"{name}.md",
+        "---\n" + front + "\n---\n\n" + prompt + qualification_footer(record) + "\n",
+        binding_current and record["status"] in {"limited", "proved"})
 
 
 def project_cursor_package(source: Path, roles: set[str], summaries: dict[str, str]) -> dict[Path, Artifact]:

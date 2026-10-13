@@ -156,8 +156,9 @@ manifest 明确组件路径，不把维护源目录当作插件。角色及精�
 
 Cursor生成先核对全部角色的[资格记录](../agents/skills/design-subagents/canonical/references/cursor.md#生成前的角色资格门禁)。
 记录缺失、源指纹过期或 unsupported 时，整个 Cursor 或混合构建在写入前失败，不产生文件。
-pending 只跳过该角色自己的 agent 文件，其余已资格化角色和 skills、hooks 仍可生成。
-当前七个生产记录为 pending，先前九份有限探针资格不沿用。下面初始化可以完成结构生成，但不会写出 Cursor agent 文件，不能当成角色资格已完成。
+七个角色都投影到 `.cursor/agents/<name>.md`。源更新后的下一次编译改写这些文件。`--check` 按字节核对，和 Codex、Claude Code 的角色投影使用同一次编译。
+绑定过期不阻止结构投影，但该角色不进入合格摘要。pending 同样写出文件，并且不进入合格摘要。
+当前七个生产记录为 pending，先前九份有限探针资格不沿用。文件存在不表示角色资格已完成。`subagentStart` 仍拒绝这些角色。
 旧宿主可分别用`--host codex`及`--host claude-code`生成和检查；它们不读Cursor资格。
 
 CLI 和 IDE 可用项目 `.cursor` 相对视图，也可安装物理原生包。CLI 的插件方式示例为 `agent --plugin-dir /absolute/package/.cursor`。
