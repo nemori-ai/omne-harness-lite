@@ -8,7 +8,7 @@ owner: PanQiWei
 
 # RFC-0001：系统技术基础与公共设施
 
-规则与维护责任见[RFC入口](README.md)。PanQiWei于2026-10-13接受本提案revision4，精确范围见[技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/197#issuecomment-6135131457)。方案和接受范围固定，当前规范从下方写回表定位实际拥有者；尚未写回部分不能作为新正式实施依据。技术采用、规范切换、Git运输、实现及任务接受分别判断。
+规则与维护责任见[RFC入口](README.md)。PanQiWei于2026-10-13接受本提案revision4，精确范围见[技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/197#issuecomment-6135131457)。方案和接受范围固定，当前规范从下方写回表定位实际拥有者；规范写回定位于工作分支，main运输另行办理。技术采用、规范切换、Git运输、实现及任务接受分别判断。
 
 ## 问题与有效输入
 
@@ -282,23 +282,25 @@ CPU和SQLite Worker探路显示控制线程阻塞与后台执行必须分别观�
 - 采用范围为本提案共同技术选择、公共设施机制、成立前提、限制、持续复核及规范写回范围全部。Node24、Schema按需加载、首次编译缓存和未变更同执行域复用、模型请求优先pi-ai保持。
 - 文档落位授权包括更新实际规范拥有者、新增技术基础正文、同步导航、必要章节和真实消费者。写回关系只维护规范切换事实，不把方案接受推成实现或运行证明。
 - 不包含业务实现、产品依赖或lockfile修改、性能达标、真实断电、完整安全、真实供应商或完整终端矩阵验证、SDK公开操作或DST业务规则。相关精确契约和产品未决仍归原拥有者。
-- D-02具名技术采用已记录。获准规范写回、C6检查、C7/D-04 main运输及C8完整结果接受分别完成；本决定不授权自动合并、main ref发布或关闭#197。
+- D-02具名技术采用已记录。获准规范写回、C6检查、C7/D-04 main运输及C8完整结果接受按各自条件分别确认；本决定不授权自动合并、main ref发布或关闭#197。
 
 ## 写回现行正文
 
-下表定位已采用条款的规范拥有者。待写回部分保留既有源；写回后的规范独立表达当前承诺，不要求实施者拼读本提案。
+下表定位已采用条款的规范拥有者，各规范独立表达当前承诺，不要求实施者拼读本提案。
+
+全部下列范围于2026-10-13写回工作分支，精确规范切换修订为[9db073521abcf79db504cb29af0590ca58e89ec6](https://github.com/nemori-ai/omne-harness-lite/commit/9db073521abcf79db504cb29af0590ca58e89ec6)，依据PanQiWei的revision4具名接受及文档落位授权。此修订定位规范字节；进入main、提供者实现及完整任务接受仍分别办理。
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换依据及确认者 |
 | --- | --- | --- | --- |
-| 共同技术选择 | 系统架构，拟新增 `docs/architecture/technical-foundations.md` | 待写回 | PanQiWei，2026-10-13接受revision4；当前未切换 |
-| 事务/异步SQL/可靠交接/缓存/迁移 | [数据与状态](../architecture/data-and-state.md) | 待写回 | PanQiWei，2026-10-13；STORAGE-T01精确承接继续 |
-| 池/公平/联合结果预留 | [执行与通信](../architecture/deployment/execution-and-communication.md) | 待写回 | PanQiWei，2026-10-13；真实提供者未验证 |
-| 换代/排空/关闭 | [Cordis与生命周期](../architecture/deployment/cordis-and-lifecycle.md) | 待写回 | PanQiWei，2026-10-13；独立原调用不改 |
-| pi-ai供应商适配 | [模型运行时](../architecture/runtime/model-runtime.md) | 待写回 | PanQiWei，2026-10-13；原调用/结果/费用责任及真实供应商验证保持 |
-| 受限JS及观测 | [执行隔离](../architecture/security/execution-isolation.md)、[跨系统约定](../architecture/cross-cutting-concepts.md) | 待写回 | PanQiWei，2026-10-13；验证与产品未决分别保留 |
-| 后端实施路线 | [基础设施采用政策](../architecture/deployment/infrastructure-policy.md) | 待写回 | PanQiWei，2026-10-13；不扩大SQLite为系统唯一后端 |
-| 编译构建/Node24 | [workspace](../workspace.md)、[依赖与运行场景](../engineering/scenarios/dependencies-and-runtime.md) | 待写回 | PanQiWei，2026-10-13；当前根声明及TS API消费者仍有效 |
-| 内容导航及登记 | [架构入口](../architecture/README.md)及 `docs/documentation.json` | 待写回 | 跟随获准拥有者正文同步；当前未切换 |
+| 共同技术选择 | 系统架构，[技术基础](../architecture/technical-foundations.md) | 已写回 | PanQiWei，2026-10-13接受revision4；规范切换见上述修订 |
+| 事务/异步SQL/可靠交接/缓存/迁移 | [数据与状态](../architecture/data-and-state.md) | 已写回 | PanQiWei，2026-10-13；STORAGE-T01精确承接继续 |
+| 池/公平/联合结果预留 | [执行与通信](../architecture/deployment/execution-and-communication.md) | 已写回 | PanQiWei，2026-10-13；真实提供者未验证 |
+| 换代/排空/关闭 | [Cordis与生命周期](../architecture/deployment/cordis-and-lifecycle.md) | 已写回 | PanQiWei，2026-10-13；独立原调用不改 |
+| pi-ai供应商适配 | [模型运行时](../architecture/runtime/model-runtime.md) | 已写回 | PanQiWei，2026-10-13；原调用/结果/费用责任及真实供应商验证保持 |
+| 受限JS及观测 | [执行隔离](../architecture/security/execution-isolation.md)、[跨系统约定](../architecture/cross-cutting-concepts.md) | 已写回 | PanQiWei，2026-10-13；验证与产品未决分别保留 |
+| 后端实施路线 | [基础设施采用政策](../architecture/deployment/infrastructure-policy.md) | 已写回 | PanQiWei，2026-10-13；不扩大SQLite为系统唯一后端 |
+| 编译构建/Node24 | [workspace](../workspace.md)、[依赖与运行场景](../engineering/scenarios/dependencies-and-runtime.md) | 已写回 | PanQiWei，2026-10-13；当前根声明及TS API消费者仍有效 |
+| 内容导航及登记 | [架构入口](../architecture/README.md)及 `docs/documentation.json` | 已写回 | 跟随获准拥有者正文同步；规范切换见上述修订 |
 
 ## 后继关系与维护
 
