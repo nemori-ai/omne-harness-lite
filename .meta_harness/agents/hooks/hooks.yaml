@@ -12,6 +12,8 @@ hooks:
     # 主检出取公共 git 目录的上一级；先进到工作树根再问，Git 2.25 在子目录里给的相对路径不可靠。
     # 不在 git 仓库里：退出 0，什么都不做。不经 make：make 失败退出 2，宿主把 2 一律当成拦截。
     command: >-
+      unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+      GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE;
       t="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0;
       s=tools/ts-checks;
       { [ -e "$t/$s/src/loop/stop-hook.ts" ] && [ -e "$t/$s/node_modules/typescript/package.json" ]; }

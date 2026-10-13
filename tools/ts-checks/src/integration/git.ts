@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { repositoryEnv } from '../git-environment.ts'
 import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { IntegrationError, sha } from './parse.ts'
@@ -26,7 +27,7 @@ export function git(
     input,
     timeout: timeoutMs,
     maxBuffer: 32 * 1024 * 1024,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    env: { ...repositoryEnv(process.env), GIT_TERMINAL_PROMPT: '0' },
   })
   if (result.error !== undefined || result.status !== 0)
     throw new GitError(argv, result.status, result.error?.message ?? result.stderr ?? '')
@@ -34,6 +35,7 @@ export function git(
 }
 export function maybeRef(root: string, ref: string): string | null {
   const result = spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], {
+    env: repositoryEnv(process.env),
     cwd: root,
     encoding: 'utf8',
   })
@@ -44,6 +46,7 @@ export function maybeRef(root: string, ref: string): string | null {
 }
 export function ancestor(root: string, older: string, newer: string): boolean {
   const result = spawnSync('git', ['merge-base', '--is-ancestor', sha(older), sha(newer)], {
+    env: repositoryEnv(process.env),
     cwd: root,
     encoding: 'utf8',
   })

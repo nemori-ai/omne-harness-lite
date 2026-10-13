@@ -1,6 +1,6 @@
 import { rmSync } from 'node:fs'
 import { spawn } from 'node:child_process'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { integrationFixture, commit } from './fixtures/integration.ts'
 import {
   atomicUpdate,
@@ -10,8 +10,26 @@ import {
 } from '../src/integration/transport.ts'
 import { git, maybeRef } from '../src/integration/git.ts'
 const homes: string[] = []
-afterEach(() => homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true })))
+afterEach(() => {
+  vi.unstubAllEnvs()
+  homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true }))
+})
 describe('actual ref transactions', () => {
+  it('packs and imports local transaction objects despite hostile repository routing', () => {
+    const a = integrationFixture(),
+      b = integrationFixture()
+    homes.push(a.home, b.home)
+    const next = commit(a.root, 'unique', 'local transport object')
+    const foreignRefs = git(b.remote, ['show-ref'])
+    vi.stubEnv('GIT_DIR', b.remote)
+    vi.stubEnv('GIT_OBJECT_DIRECTORY', `${b.remote}/objects`)
+    vi.stubEnv('GIT_NAMESPACE', 'foreign')
+    atomicUpdate(a.root, a.policy, [{ ref: 'refs/heads/main', old: a.main, next }])
+    vi.unstubAllEnvs()
+    expect(git(a.remote, ['show', 'main:unique'])).toBe('local transport object')
+    expect(git(b.remote, ['show-ref'])).toBe(foreignRefs)
+    expect(maybeRef(b.remote, `${next}^{object}`)).toBeNull()
+  })
   it('bounds a real stalled Git fetch and skips fetching an existing local object', async () => {
     const f = integrationFixture()
     homes.push(f.home)

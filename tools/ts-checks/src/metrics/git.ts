@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { repositoryEnv } from '../git-environment.ts'
 import { dirname, resolve } from 'node:path'
 
 const MEMBER_ROOTS = ['packages', 'apps', 'examples'] as const
@@ -6,6 +7,7 @@ const MEMBER_ROOTS = ['packages', 'apps', 'examples'] as const
 /** 在 `cwd` 跑一条 git 命令，返回去掉尾部空白的标准输出；失败就抛出。 */
 export function git(cwd: string, args: readonly string[]): string {
   return execFileSync('git', args, {
+    env: repositoryEnv(process.env),
     cwd,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
@@ -96,6 +98,7 @@ export function changedFiles(root: string, mergeBase: string): string[] {
 export function fileAt(root: string, revision: string, path: string): string | undefined {
   try {
     return execFileSync('git', ['show', `${revision}:${path}`], {
+      env: repositoryEnv(process.env),
       cwd: root,
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,

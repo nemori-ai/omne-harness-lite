@@ -2,7 +2,7 @@
 // 归慢层：子进程：在临时 git 仓库里起回路入口 CLI 子进程（严格模式）。
 // 严格模式（make check 用的那一档）：另判「开着的传感器都有数据」，要求基线与产物目录，回路目录一个字节都不动。
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -63,8 +63,280 @@ const tangled = Array.from(
     `export function tangled${n}(x: number) {\n${Array.from({ length: 14 }, (__, i) => `  if (x === ${i}) return ${i}`).join('\n')}\n  return -1\n}\n`,
 ).join('\n')
 
+function skeleton() {
+  const fixture = complete()
+  git(
+    fixture.root,
+    'rm',
+    '-q',
+    'packages/core/a/src/index.ts',
+    'packages/infra/b/src/index.ts',
+    'packages/core/a/tests/a.spec.ts',
+  )
+  return { ...fixture, base: commit(fixture.root, 'product skeleton') }
+}
+
 // 每条用例都起 git 与 node 子进程；全量检查满载时单条会超过默认的 5 秒。
 describe('严格模式', { timeout: 60_000 }, () => {
+  it.each(['symlink', 'gitlink'])(
+    'refuses engineering exemption after deleting a historical root %s',
+    kind => {
+      const { root, home, out } = skeleton()
+      if (kind === 'symlink') {
+        write(root, 'off-root/demo/src/index.ts', 'export const value = 1')
+        symlinkSync('off-root', join(root, 'apps'))
+        commit(root, 'root symlink')
+      } else {
+        git(
+          root,
+          'update-index',
+          '--add',
+          '--cacheinfo',
+          '160000',
+          git(root, 'rev-parse', 'HEAD'),
+          'apps',
+        )
+        git(root, 'commit', '-qm', 'root gitlink')
+      }
+      const base = git(root, 'rev-parse', 'HEAD')
+      git(root, 'rm', '-f', 'apps')
+      commit(root, 'remove root')
+      const result = run(
+        root,
+        home,
+        '--strict',
+        '--scope',
+        'engineering',
+        '--base',
+        base,
+        '--out',
+        out,
+      )
+      expect(result.status).not.toBe(0)
+      expect(result.stdout + result.stderr).toContain('Cannot classify product inputs')
+      expect(run(root, home, '--strict', '--base', base, '--out', out).status).not.toBe(0)
+    },
+  )
+  it('engineering keeps direction, cycle and acceptance-lock hard failures', () => {
+    const { root, home, out, base } = complete()
+    write(
+      root,
+      'packages/core/a/src/index.ts',
+      "import { b } from '@omne-harness-lite/b'\nexport const a = b\n",
+    )
+    write(
+      root,
+      'packages/infra/b/src/index.ts',
+      "import { a } from '@omne-harness-lite/a'\nexport const b = a\n",
+    )
+    write(root, 'apps/demo/acceptance/locked.ts', 'export const changed = true')
+    const result = run(
+      root,
+      home,
+      '--strict',
+      '--scope',
+      'engineering',
+      '--base',
+      base,
+      '--out',
+      out,
+    )
+    expect(result.status, result.stdout + result.stderr).toBe(1)
+    const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(status.hardLines.direction.length).toBeGreaterThan(0)
+    expect(status.hardLines.cycles.length).toBeGreaterThan(0)
+    expect(status.hardLines.acceptanceLock.violations.length).toBeGreaterThan(0)
+  })
+
+  it.each(['source', 'test'])('engineering refuses partial current input: %s', kind => {
+    const { root, home, out, base } = skeleton()
+    write(
+      root,
+      kind === 'source' ? 'packages/core/a/src/new.ts' : 'packages/core/a/tests/new.spec.ts',
+      'export const value = 1',
+    )
+    const result = run(
+      root,
+      home,
+      '--strict',
+      '--scope',
+      'engineering',
+      '--base',
+      base,
+      '--out',
+      out,
+    )
+    expect(result.status, result.stdout + result.stderr).toBe(1)
+    const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(status.hardLines.sensors.notApplicable).toEqual([])
+    expect(status.hardLines.sensors.silent).toEqual([
+      expect.objectContaining({ sensor: kind === 'source' ? 'assertions' : 'duplication' }),
+    ])
+  })
+
+  it.each(['delete', 'archive'])(
+    'engineering refuses to exempt the last baseline input after %s',
+    change => {
+      const { root, home, out, base } = complete()
+      if (change === 'delete') git(root, 'rm', '-rq', 'packages')
+      else git(root, 'mv', 'packages', 'packages.0.0.1.legacy')
+      const result = run(
+        root,
+        home,
+        '--strict',
+        '--scope',
+        'engineering',
+        '--base',
+        base,
+        '--out',
+        out,
+      )
+      expect(result.status, result.stdout + result.stderr).toBe(1)
+      expect(
+        JSON.parse(readFileSync(join(out, 'status.json'), 'utf8')).hardLines.sensors,
+      ).toMatchObject({
+        notApplicable: [],
+        silent: [{ sensor: 'duplication' }, { sensor: 'assertions' }],
+      })
+    },
+  )
+
+  it('checks explicit target input even when the merge base is an empty skeleton', () => {
+    const { root, home, out, base } = skeleton()
+    git(root, 'checkout', '-qb', 'target')
+    write(root, 'packages/core/a/src/target.ts', 'export const target = 1')
+    const target = commit(root, 'target input')
+    git(root, 'checkout', '-qb', 'work', base)
+    write(root, 'README.md', 'work')
+    commit(root, 'work')
+    const result = run(
+      root,
+      home,
+      '--strict',
+      '--scope',
+      'engineering',
+      '--base',
+      target,
+      '--out',
+      out,
+    )
+    expect(result.status, result.stdout + result.stderr).toBe(1)
+    expect(
+      JSON.parse(readFileSync(join(out, 'status.json'), 'utf8')).scope.evidence.baselines,
+    ).toEqual([
+      { commit: target, inputs: { sources: 1, tests: 0 } },
+      { commit: base, inputs: { sources: 0, tests: 0 } },
+    ])
+  })
+
+  it('preserves normal product readings and every other enabled sensor failure', () => {
+    const { root, home, out, base } = complete()
+    const passed = run(
+      root,
+      home,
+      '--strict',
+      '--scope',
+      'engineering',
+      '--base',
+      base,
+      '--out',
+      out,
+    )
+    expect(passed.status, passed.stderr).toBe(0)
+    expect(JSON.parse(readFileSync(join(out, 'status.json'), 'utf8')).sensors).toMatchObject({
+      duplication: { status: 'data' },
+      assertions: { status: 'data' },
+    })
+    const empty = skeleton()
+    rmSync(join(empty.root, 'docs/architecture/constraints.json'))
+    const failed = run(
+      empty.root,
+      empty.home,
+      '--strict',
+      '--scope',
+      'engineering',
+      '--base',
+      empty.base,
+      '--out',
+      empty.out,
+    )
+    expect(failed.status, failed.stderr).toBe(1)
+    expect(
+      JSON.parse(readFileSync(join(empty.out, 'status.json'), 'utf8')).hardLines.sensors,
+    ).toMatchObject({
+      silent: [{ sensor: 'architecture' }],
+      notApplicable: [{ sensor: 'duplication' }, { sensor: 'assertions' }],
+    })
+  })
+
+  it('rejects unknown scope, missing strict prerequisites and invalid base without writing output', () => {
+    const { root, home, out, base } = skeleton()
+    for (const args of [
+      ['--scope', 'unknown', '--strict', '--base', base, '--out', out],
+      ['--scope', 'engineering', '--base', base, '--out', out],
+      ['--scope', 'engineering', '--strict', '--out', out],
+      ['--scope', 'engineering', '--strict', '--base', base],
+      ['--scope', 'engineering', '--strict', '--base', base, '--out', out, '--snapshot'],
+      ['--scope', 'engineering', '--strict', '--base', 'missing', '--out', out],
+    ]) {
+      const result = run(root, home, ...args)
+      expect(result.status, result.stdout + result.stderr).toBe(2)
+      expect(existsSync(out)).toBe(false)
+    }
+    expect(readdirSync(home)).toEqual([])
+  })
+
+  it('engineering scope preserves raw no-data and only exempts a proven empty product skeleton', () => {
+    const { root, home, out } = complete()
+    git(
+      root,
+      'rm',
+      '-q',
+      'packages/core/a/src/index.ts',
+      'packages/infra/b/src/index.ts',
+      'packages/core/a/tests/a.spec.ts',
+    )
+    const base = commit(root, 'product skeleton')
+    const strict = run(root, home, '--strict', '--base', base, '--out', out)
+    expect(strict.status).toBe(1)
+    const engineering = run(
+      root,
+      home,
+      '--strict',
+      '--scope',
+      'engineering',
+      '--base',
+      base,
+      '--out',
+      out,
+    )
+    expect(engineering.status, engineering.stdout + engineering.stderr).toBe(0)
+    const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(status).toMatchObject({
+      scope: {
+        kind: 'engineering',
+        evidence: {
+          current: { sources: 0, tests: 0 },
+          baselines: [{ commit: base, inputs: { sources: 0, tests: 0 } }],
+        },
+      },
+      hardLines: {
+        sensors: {
+          silent: [],
+          off: [],
+          notApplicable: [
+            { sensor: 'duplication', reason: 'engineering-without-product-inputs' },
+            { sensor: 'assertions', reason: 'engineering-without-product-inputs' },
+          ],
+        },
+      },
+      sensors: { duplication: { status: 'no-data' }, assertions: { status: 'no-data' } },
+    })
+    expect(engineering.stdout).toContain('工程范围不适用')
+    expect(readFileSync(join(out, 'status.md'), 'utf8')).toContain('工程范围不适用')
+    expect(readdirSync(home)).toEqual([])
+  })
+
   it('全有数据、硬线没破：退出 0；超预算的草稿写进产物目录，回路目录里什么都不写', () => {
     const { root, home, out, base } = complete()
     write(root, 'packages/core/a/src/tangled.ts', tangled)

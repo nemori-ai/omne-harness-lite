@@ -3,9 +3,10 @@
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runLoopStatus, type RunOptions } from './run.ts'
+import { parseScope } from './product-inputs.ts'
 
 const USAGE =
-  '用法：loop-status [--base <ref>] [--snapshot] [--out <dir>] [--strict] [--root <检出目录>]'
+  '用法：loop-status [--base <ref>] [--snapshot] [--out <dir>] [--strict] [--scope all|engineering] [--root <检出目录>]'
 /** 被量的检出缺省是本工具所在的检出；测试用 `--root` 指向临时仓库。 */
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 
@@ -17,7 +18,7 @@ function parseArgs(argv: readonly string[]): RunOptions {
     const arg = argv[index]
     if (arg === '--snapshot') snapshot = true
     else if (arg === '--strict') strict = true
-    else if (arg === '--base' || arg === '--out' || arg === '--root') {
+    else if (arg === '--base' || arg === '--out' || arg === '--root' || arg === '--scope') {
       const value = argv[index + 1]
       if (value === undefined || value === '') throw new Error(`${arg} 需要一个值\n${USAGE}`)
       values.set(arg, value)
@@ -29,6 +30,7 @@ function parseArgs(argv: readonly string[]): RunOptions {
   return {
     snapshot,
     strict,
+    scope: parseScope(values.get('--scope')),
     root: resolve(values.get('--root') ?? process.env['OMNE_SUBJECT_ROOT'] ?? ROOT),
     ...(base === undefined ? {} : { base }),
     ...(out === undefined ? {} : { out }),

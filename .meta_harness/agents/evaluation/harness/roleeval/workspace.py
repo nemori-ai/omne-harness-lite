@@ -27,6 +27,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from .git_environment import repository_env
 
 READY = ".roleeval-ready"
 TEMPLATES = "_templates"
@@ -53,6 +54,7 @@ def run(command: list[str], cwd: Path, *, timeout: float | None = None, log: Pat
     """Run one command of a suite's configuration; stdout and stderr together, as a person would read them."""
     try:
         done = subprocess.run(command, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                              env=repository_env(os.environ),
                               timeout=timeout)
         ran = Ran(command, done.returncode, done.stdout)
     except subprocess.TimeoutExpired as expired:
@@ -76,7 +78,8 @@ def tree_hash(root: Path) -> str:
 
 
 def git(repo: Path, *args: str) -> str:
-    done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+    done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True,
+                          env=repository_env(os.environ))
     if done.returncode != 0:
         raise WorkspaceError(f"git {' '.join(args)}: {done.stderr.strip()}")
     return done.stdout.strip()
@@ -93,6 +96,7 @@ def dirty(repo: Path, paths: list[str]) -> list[str]:
 
 def is_ancestor(repo: Path, commit: str) -> bool:
     done = subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", commit, "HEAD"],
+                          env=repository_env(os.environ),
                           capture_output=True, text=True)
     return done.returncode == 0
 
@@ -217,6 +221,7 @@ def load_case_inputs(repo: Path, dest: Path, base: str, inputs: list[dict[str, A
         if target.exists():
             raise WorkspaceError(f"case input target already exists: {entry['to']}")
         payload = subprocess.run(["git", "-C", str(repo), "cat-file", "blob", identifier],
+                                 env=repository_env(os.environ),
                                  capture_output=True, check=True).stdout
         for reader in entry["consumers"]:
             file = path(reader["file"])
@@ -278,7 +283,8 @@ def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[
 
 
 def _extract(repo: Path, base: str, dest: Path) -> None:
-    archive = subprocess.Popen(["git", "-C", str(repo), "archive", base], stdout=subprocess.PIPE)
+    archive = subprocess.Popen(["git", "-C", str(repo), "archive", base], stdout=subprocess.PIPE,
+                               env=repository_env(os.environ))
     extract = subprocess.run(["tar", "-x", "-C", str(dest)], stdin=archive.stdout, capture_output=True)
     archive.stdout.close()
     if archive.wait() != 0 or extract.returncode != 0:
@@ -330,6 +336,7 @@ def deliver(dest: Path, *, subject: str, trailers: list[str], author: str) -> st
 def changed_paths(dest: Path) -> list[tuple[str, str]]:
     """(status, path) of every change against HEAD, untracked files one by one."""
     listed = subprocess.run(["git", "-C", str(dest), "status", "--porcelain", "-uall"], capture_output=True, text=True,
+                            env=repository_env(os.environ),
                             check=True).stdout
     return [(line[:2], line[3:].split(" -> ")[-1].strip('"')) for line in listed.splitlines()]
 
@@ -338,6 +345,7 @@ def patch(dest: Path) -> bytes:
     """Every change against HEAD as one diff, new files included."""
     git(dest, "add", "-A", "-N")
     try:
-        return subprocess.run(["git", "-C", str(dest), "diff"], capture_output=True, check=True).stdout
+        return subprocess.run(["git", "-C", str(dest), "diff"], capture_output=True, check=True,
+                              env=repository_env(os.environ)).stdout
     finally:
         git(dest, "reset", "-q")

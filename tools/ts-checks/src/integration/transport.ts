@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { repositoryEnv } from '../git-environment.ts'
 import type { Policy } from './policy.ts'
 import { ancestor, git, GitError, lines, maybeRef } from './git.ts'
 import { branch, canonical, sha, IntegrationError } from './parse.ts'
@@ -19,7 +20,7 @@ export function remoteRefs(
     cwd: root,
     encoding: 'utf8',
     timeout: timeoutMs,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    env: { ...repositoryEnv(process.env), GIT_TERMINAL_PROMPT: '0' },
   })
   if (result.error !== undefined || result.status !== 0)
     throw new IntegrationError('unknown', 'Cannot read complete authority refs')
@@ -79,6 +80,7 @@ export function atomicUpdate(root: string, policy: Policy, updates: RefUpdate[])
         'Local target must be a bare repository; checked-out refs cannot move',
       )
     const packed = spawnSync('git', ['pack-objects', '--stdout', '--revs'], {
+      env: repositoryEnv(process.env),
       cwd: root,
       input: updates.map(update => update.next).join('\n') + '\n',
       maxBuffer: 64 * 1024 * 1024,
@@ -86,6 +88,7 @@ export function atomicUpdate(root: string, policy: Policy, updates: RefUpdate[])
     if (packed.error !== undefined || packed.status !== 0)
       throw new IntegrationError('unknown', 'Cannot pack transaction objects')
     const unpacked = spawnSync('git', ['unpack-objects', '-q'], {
+      env: repositoryEnv(process.env),
       cwd: target,
       input: packed.stdout,
       maxBuffer: 64 * 1024 * 1024,
@@ -115,7 +118,7 @@ export function atomicUpdate(root: string, policy: Policy, updates: RefUpdate[])
     cwd: root,
     encoding: 'utf8',
     timeout: policy.timeouts.networkMs,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    env: { ...repositoryEnv(process.env), GIT_TERMINAL_PROMPT: '0' },
   })
   if (result.error !== undefined || result.status !== 0)
     throw new GitError(

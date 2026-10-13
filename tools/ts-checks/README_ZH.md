@@ -1,5 +1,7 @@
 # ts-checks
 
+显式仓库的 Git 子进程由 [git-environment.ts](src/git-environment.ts) 隔离八项仓库定位变量。认证、Git 配置、OMNE runner/subject 与测试控制参数继续继承。Vitest 在加载测试文件前另清两个 OMNE root，防止普通 fixture 读写外部仓库；污染回归在被测入口显式注入环境。持续验证见 [repository-environment.spec.ts](tests/repository-environment.spec.ts) 与 [integration-transport.spec.ts](tests/integration-transport.spec.ts)。
+
 `evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`。
 
 产品源码与开发示例（`packages/`、`apps/` 与 `examples/`）的结构检查：契约与 realization 节点 verification 点名的静态检查，
@@ -374,6 +376,15 @@ make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make che
 对照表那一项没有开关、也不进指标，不在此列。「没有基线快照，与基线比未判」是趋势的事，不算传感器没数据。
 它要求给 `BASE` 与 `OUT`（缺了按用法错退出 2），草稿写进 `OUT/proposals/`，不写趋势快照（与 `SNAPSHOT=1` 同用也是用法错）——
 回路目录里一个字节都不动。`make check` 的最后一步就是它，见[自动化入口](../../scripts/README.md)。
+
+工程集成由 `integration-check.sh` 显式传 `--strict --scope engineering`。CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须与 strict 同用。
+工具复用当前传感器的源码清单，并枚举固定 targetBase、实际 merge-base、每个任务 taskBase 的 Git 树，按同一规则统计源码和测试。相同提交去重。未采用集成机制的普通测试仓库使用有效显式 base 及其 merge-base。
+只有当前与全部基线的两类计数均为零，duplication、assertions 启用但无数据时才列入 `hardLines.sensors.notApplicable`，原因码为 `engineering-without-product-inputs`。
+`status.json` 的 `scope.evidence` 保存当前计数和各基线的精确提交、计数。原始 `sensors` 仍是 no-data；终端与 Markdown 点名工程范围不适用。关闭项仍列 `off`，其他启用的无数据项仍列 `silent` 并失败。
+最后一个输入被删除或迁入 legacy 时，历史输入仍阻止豁免。无效 context、无效基线、缺对象、读取错误及无法分类的历史链接或子模块按工具错误失败。输入范围沿现有扫描器，包括 legacy、构建产物、测试和声明文件规则。
+普通本地 `make check`、默认 strict、方向与环、验收锁和趋势只读边界保持。工程范围不证明产品质量通过，也不证明跳过的测试通过。
+
+适用性与编排回归位于 `tests/loop-product-inputs.spec.ts`、`tests/loop-status.spec.ts`、`tests/loop-strict.spec.ts`、`tests/formatting-boundaries.spec.ts` 和 `tests/integration-boundaries.spec.ts`。真实 Git 与 shell fixture、受控命令替身、真实工程入口分别提供证据。
 
 **传感器金丝雀**：`tests/fixtures/loop-canary/` 是一个最小的假仓库，每个传感器各种了一处已知违规（清单在它的 README）。
 `tests/loop-canary.spec.ts` 把它建成临时 git 仓库、造出要历史的那几项，走与严格模式相同的入口（`run.ts` 的 `runLoopStatus`），

@@ -1,4 +1,5 @@
 import { evidencePath } from './evidence-path.ts'
+import { repositoryEnv } from './git-environment.ts'
 import assert from 'node:assert/strict'
 import { execFile, execFileSync, type ExecFileException } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -462,6 +463,7 @@ const report = {
   measurementEpoch: 5,
   skillCoordinates: { reader: 3, body: 2 },
   sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], {
+    env: repositoryEnv(process.env),
     cwd: root,
     encoding: 'utf8',
   }).trim(),

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 runner="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$runner/scripts/git-environment.sh"
+main() {
 subject="$(git -C "${OMNE_SUBJECT_ROOT:?OMNE_SUBJECT_ROOT is required}" rev-parse --show-toplevel)"
 export OMNE_RUNNER_ROOT="$runner" OMNE_SUBJECT_ROOT="$subject"
 if [[ -z "${OMNE_TEST_SLOT_HELD:-}" ]]; then
@@ -27,4 +29,6 @@ step typecheck
 step test
 node --experimental-strip-types "$runner/tools/ts-checks/src/cli.ts" packages apps
 step acceptance
-node --experimental-strip-types "$runner/tools/ts-checks/src/loop/cli.ts" ${BASELINE:+--base "$BASELINE"} --out "$plan_dir/loop" --strict
+node --experimental-strip-types "$runner/tools/ts-checks/src/loop/cli.ts" ${BASELINE:+--base "$BASELINE"} --out "$plan_dir/loop" --strict --scope engineering
+}
+omne_repository_command main "$@"

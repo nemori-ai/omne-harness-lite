@@ -8,6 +8,7 @@ usage() {
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 runner_root="$repo_root"
+source "$runner_root/scripts/git-environment.sh"
 prettier="$runner_root/node_modules/.bin/prettier"
 
 if [[ ! -x "$prettier" ]]; then
@@ -93,7 +94,7 @@ collect_default_targets() {
         if is_format_target "$path" && [[ -e "$repo_root/$path" || -L "$repo_root/$path" ]]; then
             targets+=("$path")
         fi
-    done < <(git -C "$repo_root" ls-files --cached --others --exclude-standard -z)
+    done < <(omne_repository_command git -C "$repo_root" ls-files --cached --others --exclude-standard -z)
 }
 
 run_staged_check() {
@@ -107,14 +108,14 @@ run_staged_check() {
         fi
         matched=1
         echo "Checking staged $path"
-        if ! git -C "$repo_root" show --no-textconv ":$path" |
+        if ! omne_staged_command git -C "$repo_root" show --no-textconv ":$path" |
             "$prettier" --check \
                 --config "$runner_root/.prettierrc.json" \
                 --ignore-path "$runner_root/.prettierignore" \
                 --stdin-filepath "$repo_root/$path"; then
             failed=1
         fi
-    done < <(git -C "$repo_root" diff --cached --name-only --diff-filter=ACMR -z)
+    done < <(omne_staged_command git -C "$repo_root" diff --cached --name-only --diff-filter=ACMR -z)
 
     if (( matched == 0 )); then
         echo "No staged formatting targets found."
@@ -130,7 +131,7 @@ fi
 mode="$1"
 shift
 if [[ "$mode" == check && -n "${OMNE_SUBJECT_ROOT:-}" ]]; then
-    repo_root="$(git -C "$OMNE_SUBJECT_ROOT" rev-parse --show-toplevel)"
+    repo_root="$(omne_repository_command git -C "$OMNE_SUBJECT_ROOT" rev-parse --show-toplevel)"
     echo "Formatting subject $repo_root with rules from $runner_root"
 fi
 if [[ "${1:-}" == "--" ]]; then

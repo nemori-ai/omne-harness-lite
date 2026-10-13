@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "1",
+  "revision": "2",
   "repository": "nemori-ai/omne-harness-lite",
   "deliveryConfig": "docs/engineering/github-delivery.json",
   "owners": [
@@ -172,11 +172,6 @@
         "developer"
       ],
       "cwd": "runner"
-    },
-    {
-      "id": "engineering-check",
-      "argv": ["bash", "{runner}/scripts/check-engineering.sh"],
-      "cwd": "runner"
     }
   ],
   "profiles": {
@@ -202,7 +197,7 @@
       "subject-agents",
       "subject-agent-links",
       "startup",
-      "engineering-check",
+      "check",
       "migration-tests",
       "context-main-path"
     ]
@@ -211,7 +206,7 @@
     "startup": ["startup"],
     "install": ["runner-dependencies", "runner-python", "subject-dependencies"],
     "migration": ["migration-tests"],
-    "mainPath": ["context-main-path", "engineering-check"]
+    "mainPath": ["context-main-path", "check"]
   },
   "timeouts": {
     "commandMs": 3600000,

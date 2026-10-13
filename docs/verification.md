@@ -4,7 +4,7 @@
 命令的准确目标由根 [Makefile](../Makefile) 与 [scripts/check.sh](../scripts/check.sh) 维护，
 实际参数与退出语义以各 CLI 的 `--help` 为准。
 
-静态检查排除任意层级中以`.legacy`结尾的目录，包括格式、文档遍历、源码规则及实际架构抽取。`make check`的按影响面、未知路径回退及`FULL=1`均不选择其中的类型检查、测试和验收。当前工具所需的workspace依赖可单独构建准备；显式封存来源核对继续按其拥有者承诺读取。准备与来源核对不构成封存实现的质量接受。当前成员内部的归档测试也从Vitest发现和类型检查根文件中排除。Python两条执行路径在收集前排除`.legacy`目录及其conftest。覆盖率度量保留成员原有排除配置，另外排除归档测试、源码和新鲜度输入。源码中的generated、tmp、dist或coverage目录不因名称而豁免后缀核对。TypeScript仍检查当前代码的显式导入依赖；不能通过排除导入诊断把当前错误变成成功。带归档输入但不能识别的检查脚本明确报错，不能声称已排除。文档体系及其开发工具的交付不以封存实现的全量构建、测试为验收门槛，也不能将未验证的封存实现写成已通过。新目标目录缺少源码或证据时，保留缺项与无法判定状态。已有验证结论在其源码、输入和适用条件未变时直接引用，不为重复收集相同结果重跑。工程工具首次启用使用`scripts/check-engineering.sh`及采用policy明确列出的命令。该入口保留产品传感器的无数据报告，不将它标为严格产品检查通过；`make check`的严格产品门槛保持独立。
+静态检查排除任意层级中以`.legacy`结尾的目录，包括格式、文档遍历、源码规则及实际架构抽取。`make check`的按影响面、未知路径回退及`FULL=1`均不选择其中的类型检查、测试和验收。当前工具所需的workspace依赖可单独构建准备；显式封存来源核对继续按其拥有者承诺读取。准备与来源核对不构成封存实现的质量接受。当前成员内部的归档测试也从Vitest发现和类型检查根文件中排除。Python两条执行路径在收集前排除`.legacy`目录及其conftest。覆盖率度量保留成员原有排除配置，另外排除归档测试、源码和新鲜度输入。源码中的generated、tmp、dist或coverage目录不因名称而豁免后缀核对。TypeScript仍检查当前代码的显式导入依赖；不能通过排除导入诊断把当前错误变成成功。带归档输入但不能识别的检查脚本明确报错，不能声称已排除。文档体系及其开发工具的交付不以封存实现的全量构建、测试为验收门槛，也不能将未验证的封存实现写成已通过。新目标目录缺少源码或证据时，保留缺项与无法判定状态。已有验证结论在其源码、输入和适用条件未变时直接引用，不为重复收集相同结果重跑。工程集成使用采用 policy 中的完整`check`编排，末尾显式传`--strict --scope engineering`。当前树和所有有效审计基线均无产品源码与测试时，仅 duplication 和 assertions 的原始 no-data 标为不适用，并保存计数依据。其余无数据与方向、环、验收锁仍失败，精确规则见[整洁回路](clean-loop.md#回路怎么转)。普通本地`make check`与默认 strict 保持原门槛。integration 按影响面执行，full 设置`FULL=1`并保留四类 checkpoint 覆盖。
 
 ## 检查入口
 
@@ -52,6 +52,7 @@
 与根 `package.json` 指定的 Node/pnpm。`uv sync --locked` 依据锁文件准备 Python 3.12+
 及 JSON Schema、Markdown、YAML 验证依赖，并以 editable 方式安装 workspace 工具包。
 `make test` 的临时目录为 `tmp/test-runs/`，只用于本仓库测试。
+两个 TypeScript 工具套件的 Vitest setup、两个 Python 工具测试根的 pytest conftest，以及格式自测入口在创建 fixture 前隔离外来 OMNE root 和八项 Git 仓库定位变量。具体 Git 集合与 staged 例外见 [脚本环境边界](../scripts/README.md)。测试场景需要敌对环境时在被测入口显式注入，不能用 setup 净化后的普通调用证明生产隔离。`roleeval`、文档检查及 Cursor 来源和声明命令分别在本部署单元的进程边界保护显式目录；真实 Git 与本地命令替身不代表宿主模型或 Cloud 接受。
 测试运行器的耗时账本与各成员日志落**执行工作树**的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/`
 （环境变量 `OMNE_TEST_LEDGER_HOME` 可改根目录）；工作树不干净的账本不是任何提交的账本。
 

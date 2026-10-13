@@ -3,6 +3,22 @@ import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
+function repositoryEnv(base) {
+  const env = { ...base }
+  for (const key of [
+    'GIT_DIR',
+    'GIT_WORK_TREE',
+    'GIT_INDEX_FILE',
+    'GIT_COMMON_DIR',
+    'GIT_OBJECT_DIRECTORY',
+    'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+    'GIT_NAMESPACE',
+    'GIT_SHALLOW_FILE',
+  ])
+    delete env[key]
+  return env
+}
+
 function diagnostic(code, detail) {
   process.stderr.write(`${JSON.stringify({ component: 'omne-cursor-hook', code, detail })}\n`)
   return {}
@@ -35,7 +51,7 @@ function targetWorkspace(payload) {
 }
 
 function git(cwd, args) {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8', env: repositoryEnv(process.env) })
   if (result.error || result.status !== 0)
     throw new Error('target is not an accessible Git repository')
   return result.stdout.trim()
@@ -117,6 +133,7 @@ function run() {
     hook_event_name: event === 'stop' ? 'Stop' : 'SubagentStop',
   }
   const result = spawnSync('sh', ['-c', config.command], {
+    env: repositoryEnv(process.env),
     cwd: target,
     input: JSON.stringify(normalized),
     encoding: 'utf8',

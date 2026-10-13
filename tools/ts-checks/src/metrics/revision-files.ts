@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { repositoryEnv } from '../git-environment.ts'
 import { git } from './git.ts'
 
 function blobTexts(output: Buffer, ids: readonly string[]): Map<string, string> {
@@ -48,6 +49,7 @@ export function readRevisionTexts(
     if (!objects.has(path)) throw new Error(`Cannot read ${path} from fixed commit ${commit}`)
   const ids = [...new Set(objects.values())]
   const output = execFileSync('git', ['cat-file', '--batch'], {
+    env: repositoryEnv(process.env),
     cwd: root,
     input: `${ids.join('\n')}\n`,
     maxBuffer: 256 * 1024 * 1024,

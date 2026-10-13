@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/git-environment.sh"
+main() {
 
 if (( $# )); then
     echo "Usage: $0" >&2
@@ -35,6 +37,7 @@ mkdir -p \
     "$sandbox/spec" \
     "$sandbox/.vscode"
 cp -- "$repo_root/scripts/format.sh" "$sandbox/scripts/format.sh"
+cp -- "$repo_root/scripts/git-environment.sh" "$sandbox/scripts/git-environment.sh"
 cp -- "$repo_root/scripts/pre-commit-format" "$sandbox/scripts/pre-commit-format"
 cp -- "$repo_root/scripts/install-format-hook.sh" "$sandbox/scripts/install-format-hook.sh"
 cp -- "$repo_root/.prettierrc.json" "$sandbox/.prettierrc.json"
@@ -187,3 +190,5 @@ fi
 [[ "$hook_before" == "$(sha256sum "$hook_path")" ]] || fail "existing hook contents changed"
 
 echo "Formatting scope, idempotence, staged-index, real-commit, editor-path, and hook-install tests passed."
+}
+omne_fixture_command main "$@"

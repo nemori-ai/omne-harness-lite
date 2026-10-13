@@ -1,4 +1,5 @@
 import { scopeViolations } from './audit.ts'
+import { repositoryEnv } from '../git-environment.ts'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -77,7 +78,7 @@ export function runCommands(
     const cwd = command.cwd === 'runner' ? runner : subject
     const startedAt = new Date().toISOString()
     const env: NodeJS.ProcessEnv = {
-      ...process.env,
+      ...repositoryEnv(process.env),
       OMNE_SUBJECT_ROOT: subject,
       OMNE_RUNNER_ROOT: runner,
       FULL: profile === 'full' ? '1' : '',

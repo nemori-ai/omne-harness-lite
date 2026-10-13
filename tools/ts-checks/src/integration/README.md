@@ -22,7 +22,10 @@ node --experimental-strip-types tools/ts-checks/src/integration/cli.ts execute \
 
 ## 首次采用及新 clone
 
-`integration-policy.json` 登记PanQiWei、development轨道及四类实际命令；`github-delivery.json` 的启用只在配置发布后生效。负责人仍须提交完整建设、完成真实检查和具名采用，不能从配置存在推导正式adoption。`full` 只是命令集合名称，单次 `make check` 不证明 startup/install/migration/mainPath 已覆盖。四项须分别指向真实必需 full 命令，未配置时 activation 和 checkpoint 都拒绝。当前首次采用范围是工程工具，`engineering-check`执行`scripts/check-engineering.sh`。它不运行两个封存产品目录的全量检查，产品传感器的无数据状态仍保留。已验证且输入未变的行为证据沿用原记录；采用工具仍须在精确construction上执行已登记的full命令。
+`integration-policy.json` 登记PanQiWei、development轨道及四类实际命令；`github-delivery.json` 的启用只在配置发布后生效。负责人仍须提交完整建设、完成真实检查和具名采用，不能从配置存在推导正式adoption。`full` 只是命令集合名称，单次 `make check` 不证明 startup/install/migration/mainPath 已覆盖。四项须分别指向真实必需 full 命令，未配置时 activation 和 checkpoint 都拒绝。
+
+policy revision 2 的 integration、development 附加检查和 full 都执行 `check`。它经 `check.sh` 调用完整 `integration-check.sh`，包括格式自测与工具行为测试。full 设置 `FULL=1`，日常 integration 保留影响面计划。mainPath 登记 `context-main-path` 与 `check`，其他覆盖不变。封存产品排除规则继续适用，必要工具依赖可构建。
+严格工程范围的输入证明、原始 no-data 与失败条件见[回路状态](../../README_ZH.md#回路状态)。已验证且输入未变的行为证据沿用原记录；采用工具仍须在精确 construction 上执行已登记的 full 命令。旧 adopted runner 的预检与新 runner 的实际工程验证分开记录。
 
 依赖从锁文件安装。模板先运行 runner 和 subject 的 `pnpm install --frozen-lockfile --ignore-scripts`，不执行候选 lifecycle；runner 的 Python 环境由 `uv run --project RUNNER --locked` 准备。安装失败是失败。runner 固定 policy commit 的整棵树、工具和锁；subject 安装的是待测锁。构建产品仍会运行 subject 的产品脚本，这不是执行不可信代码的沙箱。平台权限、包来源及执行环境须由负责人提供。不能拿旧树的 node_modules 或旧账本假称已验证新的 runner。
 

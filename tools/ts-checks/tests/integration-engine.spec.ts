@@ -7,7 +7,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { integrationFixture, commit, init } from './fixtures/integration.ts'
 import { openIntegration } from '../src/integration/engine.ts'
 import { prepare } from '../src/integration/candidate.ts'
-import { verify } from '../src/integration/verify.ts'
+import { runCommands, verify } from '../src/integration/verify.ts'
+import { parsePolicy } from '../src/integration/policy.ts'
 import { publish, resume } from '../src/integration/publish.ts'
 import { canonical, digest } from '../src/integration/parse.ts'
 import { conditionDigest, type Decision, type Confirmation } from '../src/integration/authority.ts'
@@ -17,6 +18,63 @@ import { git } from '../src/integration/git.ts'
 import type { Condition } from '../src/delivery/protocol.ts'
 import type { Candidate } from '../src/integration/records.ts'
 const homes: string[] = []
+
+it('policy revision 2 uses the complete check for both profiles and only full sets FULL=1', () => {
+  const policy = parsePolicy(
+    JSON.parse(
+      readFileSync(
+        new URL('../../../docs/engineering/integration-policy.json', import.meta.url),
+        'utf8',
+      ),
+    ),
+  )
+  expect(policy.revision).toBe('2')
+  expect(policy.profiles.integration).toContain('check')
+  expect(policy.profiles.full).toContain('check')
+  expect(policy.tracks.find(track => track.id === 'development')?.checks).toEqual(['check'])
+  expect(policy.commands.find(command => command.id === 'check')?.argv).toEqual([
+    'bash',
+    '{runner}/scripts/check.sh',
+  ])
+  expect(policy.commands.some(command => command.id === 'engineering-check')).toBe(false)
+  expect(policy.checkpointCoverage).toEqual({
+    startup: ['startup'],
+    install: ['runner-dependencies', 'runner-python', 'subject-dependencies'],
+    migration: ['migration-tests'],
+    mainPath: ['context-main-path', 'check'],
+  })
+  const home = mkdtempSync(join(tmpdir(), 'omne-policy-profiles-'))
+  homes.push(home)
+  const observed = {
+    ...policy,
+    commands: policy.commands.map(command => ({
+      ...command,
+      argv: [
+        process.execPath,
+        '-e',
+        'process.stdout.write(JSON.stringify({id:process.argv[1],full:process.env.FULL,subject:process.env.OMNE_SUBJECT_ROOT,runner:process.env.OMNE_RUNNER_ROOT,gitDir:process.env.GIT_DIR,index:process.env.GIT_INDEX_FILE}))',
+        command.id,
+      ],
+    })),
+  }
+  vi.stubEnv('FULL', 'hostile-inherited-value')
+  vi.stubEnv('GIT_DIR', '/foreign/repository')
+  vi.stubEnv('GIT_INDEX_FILE', '/foreign/index')
+  for (const profile of ['integration', 'full'] as const) {
+    const commands = runCommands(observed, profile, home, home, join(home, profile), null, [
+      'check',
+    ])
+    expect(commands.map(command => command.id)).toEqual(policy.profiles[profile])
+    expect(commands.filter(command => command.id === 'check')).toHaveLength(1)
+    for (const command of commands)
+      expect(JSON.parse(readFileSync(command.log, 'utf8'))).toEqual({
+        id: command.id,
+        full: profile === 'full' ? '1' : '',
+        subject: home,
+        runner: home,
+      })
+  }
+})
 afterEach(() => {
   vi.unstubAllEnvs()
   homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true }))

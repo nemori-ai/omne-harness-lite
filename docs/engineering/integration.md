@@ -8,6 +8,9 @@
 
 正式接入须保护采用 tag 命名空间，禁止覆盖和删除。positive-absence 只证明当次完整查询没有采用 refs，不证明历史上从未采用。已有采用线索时缺失来源仍为 unknown。新 clone 和权威仓库同时失去所有历史线索时，Git 无法区分首次未采用与历史丢失；具名 owner 必须核对初次采用依据或恢复责任，不能仅凭空查询授权启用。
 
+policy revision 2 的 integration、development 轨道附加检查及 full 均使用完整 `check`，不再保留独立的弱工程检查入口。日常集成按影响面执行，full 通过 `FULL=1` 选择全部活跃成员，并保留 startup、install、migration、mainPath 四类覆盖。
+工程集成末尾显式使用严格工程范围。仅当当前与所有有效审计基线均无产品输入时，两项产品传感器保留 no-data 并报告不适用，条件见[整洁回路](../clean-loop.md#回路怎么转)。本地默认 strict 不改变。此修订仍须经过正式 policy 采用；文件中的 revision 不代表已采用。
+
 ## 分支与任务
 
 main 保存完整集成结果。任意数量的 integration/<track> 保存已登记责任轨道。stable 指向 main 中经过完整检查的既有 checkpoint。轨道和 stable 不加用户名；工作及临时分支遵守人的署名约定。
