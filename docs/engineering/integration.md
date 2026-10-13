@@ -8,7 +8,7 @@
 
 正式接入须保护采用 tag 命名空间，禁止覆盖和删除。positive-absence 只证明当次完整查询没有采用 refs，不证明历史上从未采用。已有采用线索时缺失来源仍为 unknown。新 clone 和权威仓库同时失去所有历史线索时，Git 无法区分首次未采用与历史丢失；具名 owner 必须核对初次采用依据或恢复责任，不能仅凭空查询授权启用。
 
-policy revision 2 的 integration、development 轨道附加检查及 full 均使用完整 `check`，不再保留独立的弱工程检查入口。日常集成按影响面执行，full 通过 `FULL=1` 选择全部活跃成员，并保留 startup、install、migration、mainPath 四类覆盖。
+policy revision 2 起，integration、轨道附加检查及 full 均使用完整 `check`，不再保留独立的弱工程检查入口。日常集成按影响面执行，full 通过 `FULL=1` 选择全部活跃成员，并保留 startup、install、migration、mainPath 四类覆盖。
 工程集成末尾显式使用严格工程范围。仅当当前与所有有效审计基线均无产品输入时，两项产品传感器保留 no-data 并报告不适用，条件见[整洁回路](../clean-loop.md#回路怎么转)。本地默认 strict 不改变。此修订仍须经过正式 policy 采用；文件中的 revision 不代表已采用。
 
 ## 分支与任务
@@ -16,6 +16,22 @@ policy revision 2 的 integration、development 轨道附加检查及 full 均�
 main 保存完整集成结果。任意数量的 integration/<track> 保存已登记责任轨道。stable 指向 main 中经过完整检查的既有 checkpoint。轨道和 stable 不加用户名；工作及临时分支遵守人的署名约定。
 
 任务从真实 Issue 的 revision 和当前 attempt 开始。指定调度者记录并读回人的责任、分支、route、不可变 taskBase、写范围与条件定位。普通任务进入登记轨道；cross-track 或 global 完整单元进入 main，并具名受影响责任。目录不能自动决定路线。
+
+## 轨道责任与保护
+
+[policy registry](integration-policy.json) 登记轨道身份、owner、状态和固定起点。revision 3 按以下责任划分轨道；正式准入仍取决于该 revision 的实际采用与 bootstrap，不能仅凭本表开工。
+
+| 轨道 | 责任与适用任务 |
+| --- | --- |
+| `integration/legacy-refactor` | 将 0.0.1.legacy 已支持的功能迁入新的文档体系、架构和包结构；以已确认能力清单防止功能遗漏，不借重构扩大到全部 0.1.0 范围 |
+| `integration/engineering-toolchain` | 持续改进研发工具链，包括 lint、make check、CI/CD、pre-commit hooks 及相关脚手架、检查工具和工程流程 |
+| `integration/development` | 首次接入使用的历史轨道；revision 3 将其设为 retiring，停止新任务准入。核清未提升成果及交接责任后，按明确授权删除 ref，保留历史登记与标签 |
+
+新轨道按 registry 的 initialMain 从已确认 main 提交创建。后续 main 变化通过 FI 同步，不改写起点。任务 route 必须明确选择轨道；global 或跨轨道完整结果仍按具名责任进入 main，不设置隐含默认轨道。
+
+GitHub 对 `integration/**/*` 分别实施三项保护：只有仓库管理员可删除，所有人禁止非快进更新，创建与更新仅允许现行具名发布者 PanQiWei。删除权限不代替退役清单和具体动作授权。新增或更换发布者时同步平台权限与已采用 policy。
+
+main 与 stable 禁止删除和非快进更新，创建与更新仅允许 PanQiWei。adoption、unit、checkpoint 标签禁止修改和删除，无 bypass。平台保护不验证回执、任务接受或跨 ref 原子性，这些仍由集成流程承担；管理员修改规则本身属于管理权限。
 
 ## 完整集成
 
@@ -77,7 +93,7 @@ Project 可由原单投影写者维护可选 Integration target 与 Integration 
 
 ## 首次接入范围与操作入口
 
-首次policy登记PanQiWei为owner，development轨道从已确认main基线建立，普通独立任务使用该轨道；global和跨轨道结果继续明确进入main。首次采用的legacy清单为空，旧任务不因树或分支保留而取得豁免。
+首次policy登记PanQiWei为owner，并从已确认main基线建立development轨道。后续任务按已采用registry及上方轨道责任选路；global和跨轨道结果继续明确进入main。首次采用的legacy清单为空，旧任务不因树或分支保留而取得豁免。
 
 采用前的完整construction通过PR提交到main，再从干净的精确main检出执行activation-check、具名adopt决定和activate。construction进入main但adoption未成功期间，普通检查返回unknown；这是受控接入窗口，不能把提交当采用。
 
@@ -85,4 +101,4 @@ Project 可由原单投影写者维护可选 Integration target 与 Integration 
 
 当前full profile验证工程工具入口启动、runner/subject锁定依赖安装、真实Git采用与模板迁移场景、开发者上下文查询及工程静态检查。首次启用只执行这一组检查；此前已验证且输入未变的行为证据沿用原记录。`packages.0.0.1.legacy/`与`apps.0.0.1.legacy/`不进入工程静态扫描，也不执行封存产品的全量构建、类型、测试或验收。工具自身必需的依赖安装、构建不代表验证旧产品。新packages/apps仍是产品骨架，产品传感器没有输入时如实报告无数据，工程检查通过不代替产品质量结论。新版产品的startup、数据迁移及严格产品传感器门槛须由未来真实成员提供证据。
 
-平台前提为仓库规则24926783对adoption和unit标签禁止更新、删除及非快进修改，无bypass。Actions仍沿现有手动、本地验证政策；本次不声称启用自动Actions或验证所有coding agent宿主。实际采用与接续命令归工具README。
+平台前提为仓库规则24926783对adoption、unit和checkpoint标签禁止更新、删除及非快进修改，无bypass。分支保护按上方职责分别配置。Actions仍沿现有手动、本地验证政策；本次不声称启用自动Actions或验证所有coding agent宿主。实际采用与接续命令归工具README。
