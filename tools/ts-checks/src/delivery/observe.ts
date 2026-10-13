@@ -296,11 +296,30 @@ export function observeDelivery(
         revision,
       )
     else if (rawConditions !== '无') {
+      const header = ['条件ID', '类型', '目标', '阶段', '所需结果与判据', '确认责任及证据入口']
+      if (
+        rawConditions.split(/\r?\n/).some(line => {
+          if (line.trim().startsWith('|')) return false
+          const row = cells(line)
+          return (
+            conditionKinds.some(kind => kind === row[1]) ||
+            row.length === header.length ||
+            row.length === header.length + 1
+          )
+        })
+      )
+        add(
+          'deviation',
+          'conditions-table-invalid',
+          issue.url,
+          '交付条件',
+          '条件章节有缺少起始竖线的表格行。',
+          revision,
+        )
       const rows = rawConditions
         .split(/\r?\n/)
         .filter(line => line.trim().startsWith('|'))
         .map(cells)
-      const header = ['条件ID', '类型', '目标', '阶段', '所需结果与判据', '确认责任及证据入口']
       const validHeader =
         JSON.stringify(rows[0]) === JSON.stringify(header) ||
         JSON.stringify(rows[0]) === JSON.stringify([...header, '适用目标'])
@@ -674,4 +693,8 @@ export function observeDelivery(
 
 export function isDeliveryCardBody(body: string): boolean {
   return fields(body).has('交付层级') || body.includes('交付修订')
+}
+
+export function declaredIssueParents(body: string): string[] {
+  return fields(body).get('父交付卡') ?? []
 }

@@ -13,6 +13,8 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { observeAdmission, type AdmissionCapture } from '../src/delivery/admission.ts'
+import { conditionDigest } from '../src/integration/authority.ts'
 import { observeDelivery } from '../src/delivery/observe.ts'
 import type { TaskBinding } from '../src/delivery/binding.ts'
 import {
@@ -1174,4 +1176,71 @@ describe('retired delivery structures', () => {
       ).toBe(false)
     },
   )
+})
+
+it.each([
+  'ordinary',
+  'parent-conflict',
+  'missing-edge',
+  'extra-edge',
+  'duplicate-creation',
+] as const)('preserves target observations in admission for %s', mode => {
+  const first = issue(1),
+    second = issue(2)
+  if (mode === 'parent-conflict') {
+    second.body = body(2, 'maintenance', [], 'subtask')
+    second.parentIssue = second.url
+  }
+  if (mode === 'missing-edge') second.body = body(2, 'maintenance', [dependency('D1', 1)])
+  if (mode === 'extra-edge') second.blockedBy = [first.url]
+  if (mode === 'duplicate-creation') second.body = second.body.replace('create-2', 'create-1')
+  const full = capture([first, second]),
+    scoped: AdmissionCapture = {
+      schemaVersion: 1,
+      kind: 'github-admission-capture',
+      protocolVersion: 2,
+      repository: full.repository,
+      projectId: 'project-4',
+      scope: { task: second.url, authority: second.url + '#issuecomment-1' },
+      closure: [first.url, second.url],
+      issues: full.issues,
+      startedAt: at,
+      finishedAt: at,
+    }
+  const expected = observeDelivery(config(), full),
+    actual = observeAdmission(config(), scoped)
+  expect(actual.cards).toEqual(expected.cards.filter(card => card.issue === second.url))
+  expect(actual.findings.filter(f => f.category === 'deviation')).toEqual(
+    expected.findings.filter(f => f.object === second.url && f.category === 'deviation'),
+  )
+  expect(actual.cards.flatMap(card => card.conditions.map(conditionDigest))).toEqual(
+    expected.cards
+      .filter(card => card.issue === second.url)
+      .flatMap(card => card.conditions.map(conditionDigest)),
+  )
+})
+it.each([
+  'D2 | decision | omitted row',
+  '123 | decision | https://github.com/owner/repo/issues/99 | start | 核对结果 | human |',
+  'D2 | unsupported | https://github.com/owner/repo/issues/99 | start | 核对结果 | human',
+  'D2 | unsupported | target | start | predicate | human |',
+  'D2 | decision | target | unsupported | predicate | human | all |',
+])('reports a condition row missing its opening delimiter: %s', row => {
+  const card = issue(1, {
+    body: body(1, 'maintenance', [dependency('D1', 2)]) + '\n' + row,
+  })
+  expect(codes([card, issue(2)])).toContain('conditions-table-invalid')
+})
+
+it.each([
+  '没有以其他 Issue 的整项结果作为开工前置。',
+  '说明：核对命令 `gh issue view 224 | cat`。',
+  '`gh issue view 224 | cat`',
+  'ls | cat',
+  'D2 | unsupported | target',
+])('allows explanatory prose after a condition table: %s', explanation => {
+  const card = issue(1, {
+    body: body(1, 'maintenance', [dependency('D1', 2)]) + '\n' + explanation,
+  })
+  expect(codes([card, issue(2)])).not.toContain('conditions-table-invalid')
 })
