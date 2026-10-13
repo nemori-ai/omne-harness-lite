@@ -127,8 +127,8 @@ def test_scope_or_version_change_invalidates_exact_adoption(source):
         project_cursor_role(role)
 
 
-@pytest.mark.parametrize("file", ["developer/role.md", "developer/cursor.yaml", "engineering-taste.md",
-                                 "cursor-adaptation.md"])
+@pytest.mark.parametrize("file", ["developer/role.md", "developer/cursor.yaml", "project-frame.md",
+                                 "engineering-taste.md", "cursor-adaptation.md"])
 def test_role_native_shared_or_overlay_source_change_invalidates_binding(source, file):
     path = source / "roles" / file
     path.write_text(path.read_text() + ("\n# changed native bytes\n" if file.endswith("yaml") else "\nChanged source.\n"))

@@ -1,2 +1,2 @@
-shared_prompts = ["../engineering-taste.md", "../implementation-review-checklist.md"]
+shared_prompts = ["../project-frame.md", "../engineering-taste.md", "../implementation-review-checklist.md"]
 default_effort = "high"

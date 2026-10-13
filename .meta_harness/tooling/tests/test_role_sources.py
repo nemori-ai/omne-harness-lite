@@ -3,6 +3,7 @@ import tomllib
 from pathlib import Path
 
 ROLES = Path(__file__).parents[2] / "agents/roles"
+FRAME = "../project-frame.md"
 TASTE = "../engineering-taste.md"
 # Product roles take the product-manager viewpoint and must not judge engineering choices.
 EXEMPT = {"product-design-drafter", "product-design-reviewer"}
@@ -25,12 +26,20 @@ def shared_prompts(role: Path) -> list[str]:
     return tomllib.loads(assembly.read_text(encoding="utf-8")).get("shared_prompts", [])
 
 
-def test_taste_is_first_shared_prompt_of_every_non_exempt_role():
+def test_every_role_inlines_the_project_frame_first():
     roles = sorted(p for p in ROLES.iterdir() if p.is_dir())
     assert EXEMPT <= {role.name for role in roles}, "exempt roles must exist"
+    missing = [role.name for role in roles if shared_prompts(role)[:1] != [FRAME]]
+    assert not missing, f"roles without the project frame as first shared prompt: {missing}"
+    product = [role.name for role in roles if role.name in EXEMPT and shared_prompts(role) != [FRAME]]
+    assert not product, f"product roles inline only the project frame: {product}"
+
+
+def test_taste_follows_the_project_frame_for_every_non_exempt_role():
+    roles = sorted(p for p in ROLES.iterdir() if p.is_dir())
     missing = [role.name for role in roles
-               if role.name not in EXEMPT and shared_prompts(role)[:1] != [TASTE]]
-    assert not missing, f"roles without the shared taste as first shared prompt: {missing}"
+               if role.name not in EXEMPT and shared_prompts(role)[1:2] != [TASTE]]
+    assert not missing, f"roles without the shared taste after the project frame: {missing}"
     leaked = [role.name for role in roles if role.name in EXEMPT and TASTE in shared_prompts(role)]
     assert not leaked, f"exempt roles must not inline the shared taste: {leaked}"
 

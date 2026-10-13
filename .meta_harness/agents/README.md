@@ -29,7 +29,7 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 `role.md` 是角色共享语义，`codex.toml`、`claude.yaml` 与可选适配段承载宿主差异；
 不为统一文件名重复建立另一层 strategy。当前角色 renderer 仍验证完整双端配置，
 选择任一旧宿主时即如此；Cursor 只消费共享 assembly 与 Cursor 配置，详见 [Cursor 支持](skills/design-subagents/canonical/references/cursor.md)。
-角色正文、公共契约与配置归 [roles](roles/README.md)；评审角色按判断对象加载相应判据。
+角色正文、公共契约与配置归 [roles](roles/README.md)。全部角色先内联开工框架，按需阅读 docs 拥有者，不复制目标与架构正文。评审角色按判断对象加载相应判据。
 [evaluation](evaluation/README.md) 维护评估方法、用例与必要夹具，运行结果归工作树 tmp。
 
 编译遍历 skills 和 roles 的直接子目录；缺少必要文件、重复输出名称、符号链接等均报错，

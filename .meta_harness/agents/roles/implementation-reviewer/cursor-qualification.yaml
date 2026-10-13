@@ -2,7 +2,7 @@ version: 1
 role: implementation-reviewer
 binding:
   native_sha256: 375ab94703437e25b5c05d55fc88744bdb72836e8b6af24cba1cd599be6cd5b3
-  prompt_sha256: a75831508d445d94b300dc81b913d507ed0c8086af67540eb108479b834f70f9
+  prompt_sha256: c5cbb2b861bd4a972d3c203d21a67b6145c8dd49d615486431fd91c99b85add8
 host_versions:
   cli:
   - 2026.08.04-aaa8809
@@ -23,6 +23,7 @@ missing:
   forward.
 - The seven-role adoption is not role-qualification proof.
 - Obtain a new named qualification after these bytes are stable.
+- The project-frame init obligation changed the prompt again. Pending remains.
 adoption: null
 reason: Pending until a new named Cursor qualification. The previous nine limited
   probes are not reused.

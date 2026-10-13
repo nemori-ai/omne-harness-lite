@@ -16,23 +16,28 @@
 | qa | 对一个可运行的交付增量按给定验收标准在真实装配上做独立验收。交付面是终端时加载 `terminal-acceptance`。不修、不接受。Codex 模型由派发者传入，默认 high | [独立验收](qa/role.md) |
 
 角色正文拥有职责与边界，`codex.toml`、`claude.yaml` 和可选模型适配段拥有宿主差异。
-共享正文由各角色 `assembly.toml` 的 `shared_prompts` 按序内联：developer 在品味之后内联[共同契约](developer-contract.md)，
-固定提示已经包含必要输入、行动授权和停止条件；[派发模板](developer-task.md)提供本次事实，不进入固定提示。
-implementation-reviewer 在品味之后内联[实现评审检查表](implementation-review-checklist.md)——那份文件是这些问法唯一的正文。
+共享正文由各角色 `assembly.toml` 的 `shared_prompts` 按序内联。七个角色的第一项都是[开工框架](project-frame.md)。
+五个研发角色接着内联[研发品味](engineering-taste.md)。developer 再内联[共同契约](developer-contract.md)。
+implementation-reviewer 再内联[实现评审检查表](implementation-review-checklist.md)。那份文件是这些问法唯一的正文。
+固定提示已经包含必要输入、行动授权和停止条件。[派发模板](developer-task.md)提供本次事实，不进入固定提示。
 design-reviewer 的判据不内联：三种判断各一页，在手册的 `references/review/` 下，评审时只读本次那一页。
 生成说明见[工具入口](../../tooling/README.md)，生成物归工作区内
 `.codex/agents/` 与 `.claude/agents/`；这些目录由工具生成，未生成时不作为文档链接目标。
 
+## 开工框架
+
+[开工框架](project-frame.md)是七个角色固定提示的第一段共享正文。它要求角色先理解任务，再按需阅读根 `AGENTS.md`、`docs/requirements.md`、`docs/architecture/`、`docs/domains/` 和这次用到的 `docs/engineering/` 拥有者。它不复制这些正文，也不授予岗位权限。
+
+两个产品角色只内联这一段，不内联研发品味。五个研发角色在它之后内联品味。拼接顺序为 `role.md` → 开工框架 →（研发角色）研发品味 →（按角色）共同契约或检查表 → 模型适配段。
+
 ## 共享研发品味
 
-[研发品味](engineering-taste.md)是全部设计与研发角色共用的**唯一**品味正文：
-设计与实现评审、开发者、独立验收与 TUI 取证角色都把它列为 `shared_prompts` 的第一项，
-拼接顺序为 `role.md` → 研发品味 →（按角色）共同契约或检查表 → 模型适配段。
-它的导语写明只在各角色自身的职责、判断对象与授权之内生效：评审与验收角色不把品味当独立发现来源或验收判据。
+[研发品味](engineering-taste.md)是设计与研发角色共用的**唯一**品味正文。
+它接在开工框架之后，只在各角色自身的职责、判断对象与授权之内生效。评审与验收角色不把品味当独立发现来源或验收判据。
 
-**两个产品设计角色刻意不挂**：它们站在 product manager 视角、明令不做技术判断，
-product-design-reviewer 还明写不评判设计品味；工程品味会把它们往技术设计上拉。
-`tooling/tests/test_role_sources.py` 守住这条：新角色忘了挂、或产品角色误挂，`make test` 都会失败。
+**两个产品设计角色刻意不挂品味**：它们站在 product manager 视角，明令不做技术判断。
+product-design-reviewer 还明写不评判设计品味。工程品味会把它们往技术设计上拉。它们仍要按开工框架约束产品判断。
+`tooling/tests/test_role_sources.py` 守住这条：新角色忘了先挂框架、研发角色忘了接着挂品味，或产品角色误挂品味，`make test` 都会失败。
 
 改品味只改这一个文件，然后按工具入口重编生成物并运行 `make agents-check`；
 已开着的 Claude Code 会话在启动时就固化了角色定义，要开新会话才会用上新正文。
