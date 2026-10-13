@@ -1,7 +1,11 @@
 """Host cloud sources project from agents/cloud/<host> into that host's package root."""
+import base64
 import json
+import os
+import re
 import shutil
 import stat
+import subprocess
 import sys
 from pathlib import Path
 
@@ -81,3 +85,106 @@ def test_invalid_cloud_source_fails_before_writing(tmp_path, mutation):
     output = tmp_path / "preview"
     assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
     assert not output.exists()
+
+
+def test_image_pins_matt_revision_and_resets_cursor_agent_identity(tmp_path):
+    repo = Path(__file__).resolve().parents[3]
+    dockerfile = (repo / ".meta_harness/agents/cloud/cursor/Dockerfile").read_text(encoding="utf-8")
+    skills = (repo / "docs/engineering/skills.md").read_text(encoding="utf-8")
+    revision = "b0618bc436ad893b3c5e84e55fba86586d34a404"
+    name = "潘其威(William)"
+    email = "46810637+PanQiWei@users.noreply.github.com"
+    assert f"ARG MATT_SKILLS_REVISION={revision}" in dockerfile
+    assert revision in skills
+    assert "-a cursor -g -s '*' -y --copy" in dockerfile
+    assert f"ARG GIT_HUMAN_NAME={name}" in dockerfile
+    assert f"ARG GIT_HUMAN_EMAIL={email}" in dockerfile
+
+    match = re.search(r'base64\.b64decode\("([A-Za-z0-9+/=]+)"\)', dockerfile)
+    assert match is not None
+    script = base64.b64decode(match.group(1)).decode()
+    assert script.startswith("#!/bin/sh\n")
+    identity = tmp_path / "git-human-identity"
+    identity.write_text(f"{name}\n{email}\n", encoding="utf-8")
+    wrapper = tmp_path / "git"
+    wrapper.write_text(script.replace("/etc/git-human-identity", str(identity)), encoding="utf-8")
+    wrapper.chmod(0o755)
+
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".gitconfig").write_text(
+        "[user]\n"
+        "\temail = cursoragent@cursor.com\n"
+        "\tname = Cursor Agent\n"
+        "[commit]\n"
+        "\tgpgsign = true\n"
+        '[url "https://example.invalid/token/"]\n'
+        "\tinsteadOf = https://github.com/\n",
+        encoding="utf-8",
+    )
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    env["HOME"] = str(home)
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+
+    def wrapped(*args):
+        return subprocess.run(
+            [str(wrapper), *args], check=True, capture_output=True, text=True, env=env
+        )
+
+    assert wrapped("config", "--global", "--get", "user.name").stdout.strip() == name
+    assert wrapped("config", "--global", "--get", "user.email").stdout.strip() == email
+    assert wrapped("config", "--global", "--bool", "--get", "commit.gpgsign").stdout.strip() == "false"
+    saved = (home / ".gitconfig").read_text(encoding="utf-8")
+    assert "insteadOf = https://github.com/" in saved
+    assert "cursoragent@cursor.com" not in saved
+
+    subprocess.run(
+        ["/usr/bin/git", "config", "--global", "user.name", "Cursor Agent"],
+        check=True, env=env,
+    )
+    subprocess.run(
+        ["/usr/bin/git", "config", "--global", "user.email", "cursoragent@cursor.com"],
+        check=True, env=env,
+    )
+    repo_dir = tmp_path / "repo"
+    subprocess.run(["/usr/bin/git", "init", str(repo_dir)], check=True, env=env, capture_output=True)
+    (repo_dir / "file").write_text("x\n", encoding="utf-8")
+    subprocess.run(
+        ["/usr/bin/git", "-C", str(repo_dir), "add", "file"], check=True, env=env
+    )
+    wrapped("-C", str(repo_dir), "-c", "user.name=Cursor Agent", "commit", "-m", "identity")
+    author = subprocess.run(
+        ["/usr/bin/git", "-C", str(repo_dir), "log", "-1", "--format=%an <%ae>%n%cn <%ce>"],
+        check=True, capture_output=True, text=True, env=env,
+    ).stdout.strip().splitlines()
+    assert author == [f"{name} <{email}>", f"{name} <{email}>"]
+
+    direct = dict(env)
+    direct.update({
+        "GIT_AUTHOR_NAME": name,
+        "GIT_AUTHOR_EMAIL": email,
+        "GIT_COMMITTER_NAME": name,
+        "GIT_COMMITTER_EMAIL": email,
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "commit.gpgsign",
+        "GIT_CONFIG_VALUE_0": "false",
+    })
+    subprocess.run(
+        ["/usr/bin/git", "config", "--global", "user.name", "Cursor Agent"],
+        check=True, env=env,
+    )
+    subprocess.run(
+        ["/usr/bin/git", "config", "--global", "user.email", "cursoragent@cursor.com"],
+        check=True, env=env,
+    )
+    (repo_dir / "file").write_text("y\n", encoding="utf-8")
+    subprocess.run(["/usr/bin/git", "-C", str(repo_dir), "add", "file"], check=True, env=direct)
+    subprocess.run(
+        ["/usr/bin/git", "-C", str(repo_dir), "-c", "user.name=Cursor Agent", "commit", "-m", "direct"],
+        check=True, env=direct, capture_output=True,
+    )
+    direct_author = subprocess.run(
+        ["/usr/bin/git", "-C", str(repo_dir), "log", "-1", "--format=%an <%ae>%n%cn <%ce>"],
+        check=True, capture_output=True, text=True, env=env,
+    ).stdout.strip().splitlines()
+    assert direct_author == [f"{name} <{email}>", f"{name} <{email}>"]

@@ -15,6 +15,8 @@
 
 参与本项目迭代维护前，人或agent须在实际使用的coding agent harness中安装并启用来源表指定版本的pstack与Matt插件。版本与revision以本表为准，安装完整插件不扩大方法采用范围。初始化、升级后复核和缺口处置沿[开发初始化](../development.md#初始化-coding-agent-插件)，负责人核对沿[给人的指南](../development_human.md#开始前准备-coding-agent-环境)。已有一台机器的安装记录不替代新机器、cloud环境或新宿主的初始化。
 
+Cursor Cloud 镜像把 Matt 这一 revision 的完整插件装进 ubuntu 用户的 `~/.agents/skills`，并链接到 `~/.cursor/skills`。步骤在[镜像说明](../development.md#cursor-cloud-agent-镜像)。这次安装不改变本表的采用范围，也不运行 `setup-matt-pocock-skills`。
+
 ## 阅读与实际加载
 
 人类展开下表固定正文。agent 核对当前宿主目录，读取所选 SKILL.md 及其必要参考，再按场景工作。Codex 实际名称为 `pstack:<name>` 和 `mattpocock-skills:<name>`；下文 Matt 简称映射到后者。

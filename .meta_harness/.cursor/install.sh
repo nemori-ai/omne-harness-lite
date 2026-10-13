@@ -3,6 +3,7 @@
 # .meta_harness/agents/cloud/cursor/; compile_agents.py projects it to .cursor/.
 # Cursor runs the projection from the repository root while it prepares a Build.
 # The first three commands match docs/development.md.
+# Git author identity belongs to the image wrapper at /usr/local/bin/git.
 set -eu
 
 root=$(git rev-parse --show-toplevel)
