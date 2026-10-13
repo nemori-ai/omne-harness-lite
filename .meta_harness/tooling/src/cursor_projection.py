@@ -7,6 +7,7 @@ from pathlib import Path
 import yaml
 
 from host_layout import HOSTS
+from git_environment import REPOSITORY_KEYS
 from cursor_qualification import qualification_footer, read_qualification
 from projection import Artifact, DEFAULT_RENDERER, UniqueLoader, hook_groups, load_module
 
@@ -102,6 +103,7 @@ def cursor_hooks(source: Path, entries: list, roles: set[str], summaries: dict[s
         runtime / "role-gate.json": json_artifact(gate),
     }
     project_hooks, plugin_hooks = {}, {}
+    isolate = "unset " + " ".join(REPOSITORY_KEYS) + "; "
     seen = set()
     for entry in entries:
         events, _ = hook_groups(entry, roles)
@@ -115,12 +117,12 @@ def cursor_hooks(source: Path, entries: list, roles: set[str], summaries: dict[s
             suffix = f'/runtime/cursor-hook.mjs" {identity} {native}'
             for hooks, prefix in ((project_hooks, f'$(git rev-parse --show-toplevel)/{root.as_posix()}'),
                                   (plugin_hooks, '${CURSOR_PLUGIN_ROOT}')):
-                hooks.setdefault(native, []).append({"command": f'node "{prefix}{suffix}',
+                hooks.setdefault(native, []).append({"command": isolate + f'node "{prefix}{suffix}',
                     "timeout": entry["timeout"] + adapter["timeout_grace"], "loop_limit": adapter["loop_limit"]})
     for hooks, prefix in ((project_hooks, f'$(git rev-parse --show-toplevel)/{root.as_posix()}'),
                           (plugin_hooks, '${CURSOR_PLUGIN_ROOT}')):
         hooks.setdefault("subagentStart", []).append({
-            "command": f'node "{prefix}/runtime/cursor-role-gate.mjs"', "timeout": 10})
+            "command": isolate + f'node "{prefix}/runtime/cursor-role-gate.mjs"', "timeout": 10})
     outputs[HOSTS["cursor"].hooks] = json_artifact({"version": 1, "hooks": project_hooks})
     outputs[HOSTS["cursor"].plugin_hooks] = json_artifact({"version": 1, "hooks": plugin_hooks})
     return outputs

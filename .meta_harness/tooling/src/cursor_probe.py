@@ -12,6 +12,7 @@ from pathlib import Path
 from compile_agents import deliver
 from cursor_projection import json_artifact
 from projection import Artifact
+from git_environment import repository_env
 
 
 def observer() -> dict[Path, Artifact]:
@@ -61,14 +62,14 @@ def main(argv=None):
     command.append(prompt)
     source_root = Path(__file__).resolve().parents[3]
     metadata = {"command": command, "workspace": str(workspace), "requested_model": args.model,
-                "source_revision": subprocess.check_output(["git", "-C", str(source_root), "rev-parse", "HEAD"], text=True).strip(),
-                "source_dirty": bool(subprocess.check_output(["git", "-C", str(source_root), "status", "--porcelain"], text=True)),
+                "source_revision": subprocess.check_output(["git", "-C", str(source_root), "rev-parse", "HEAD"], text=True, env=repository_env(os.environ)).strip(),
+                "source_dirty": bool(subprocess.check_output(["git", "-C", str(source_root), "status", "--porcelain"], text=True, env=repository_env(os.environ))),
                 "run": args.run}
     (output / "invocation.json").write_text(json.dumps(metadata, indent=2) + "\n")
     if not args.run:
         print(f"Prepared {output / 'invocation.json'}; no model request executed.")
         return 0
-    env = {**os.environ, "OMNE_CURSOR_PROBE_OUTPUT": str(output), "OMNE_METRICS_HOME": str(output / "loop")}
+    env = {**repository_env(os.environ), "OMNE_CURSOR_PROBE_OUTPUT": str(output), "OMNE_METRICS_HOME": str(output / "loop")}
     version = subprocess.run([args.agent, "--version"], capture_output=True, text=True, timeout=args.timeout, env=env)
     (output / "host-version.txt").write_text(version.stdout + version.stderr)
     try:

@@ -114,13 +114,13 @@ def installed(source, tmp_path):
     return package, workspace
 
 
-def invoke(installed, changes=None, event="stop", text=None):
+def invoke(installed, changes=None, event="stop", text=None, env=None):
     package, workspace = installed
     payload = {"workspace_roots": [str(workspace)], "status": "completed", "loop_count": 0,
                "subagent_type": "developer", **(changes or {})}
     result = subprocess.run(["node", str(package / "runtime/cursor-hook.mjs"), "loop-stop-facts", event],
                             input=json.dumps(payload) if text is None else text,
-                            cwd=package, capture_output=True, text=True)
+                            cwd=package, capture_output=True, text=True, env=env)
     assert result.returncode == 0
     return json.loads(result.stdout), result.stderr
 
@@ -134,6 +134,33 @@ def test_relocated_plugin_measures_target_and_normalizes_payload(installed):
     assert receipt["payload"]["hook_event_name"] == "Stop"
     assert invoke(installed, event="subagentStop")[0] == output
     assert json.loads((installed[1] / "receipt.json").read_text())["payload"]["hook_event_name"] == "SubagentStop"
+
+
+def test_hostile_git_cannot_redirect_adapter_project_or_canonical_commands(installed, tmp_path):
+    package, workspace = installed
+    foreign = tmp_path / "foreign"
+    foreign.mkdir()
+    subprocess.run(["git", "init", "-q", str(foreign)], check=True)
+    (foreign / "marker").write_text("foreign")
+    subprocess.run(["git", "-C", str(foreign), "add", "."], check=True)
+    index = (foreign / ".git/index").read_bytes()
+    env = {**os.environ, "GIT_DIR": str(foreign / ".git"), "GIT_WORK_TREE": str(foreign),
+           "GIT_INDEX_FILE": str(foreign / ".git/index")}
+    tool = workspace / "tools/ts-checks/src/loop/stop-hook.ts"
+    tool.write_text("import {execFileSync} from 'node:child_process';" + tool.read_text() +
+                   "if(execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim()!==process.cwd())process.exit(9);")
+    assert invoke(installed, env=env) == ({"followup_message": "new measured facts"}, "")
+    shutil.copytree(package, workspace / ".cursor")
+    project = json.loads((workspace / ".cursor/hooks.json").read_text())["hooks"]["stop"][0]["command"]
+    canonical = json.loads((package / "runtime/loop-stop-facts.json").read_text())["command"]
+    for command in (project, canonical):
+        result = subprocess.run(["sh", "-c", command], cwd=workspace, env=env, text=True, capture_output=True,
+                                input=json.dumps({"workspace_roots": [str(workspace)], "cwd": str(workspace),
+                                                  "status": "completed", "loop_count": 0}))
+        assert result.returncode == 0 and result.stderr == "", result.stderr
+        assert json.loads((workspace / "receipt.json").read_text())["cwd"] == str(workspace)
+    assert not (foreign / "receipt.json").exists()
+    assert (foreign / ".git/index").read_bytes() == index
 
 
 @pytest.mark.parametrize("changes,event", [({"loop_count": 1}, "stop"), ({"stop_hook_active": True}, "stop"),
@@ -236,9 +263,13 @@ def test_git_common_fallback_runs_main_tool_but_measures_target(installed, tmp_p
     assert not (main / "receipt.json").exists()
 
 
-def test_probe_driver_records_fixture_receipts_and_isolates_loop_home(tmp_path):
+def test_probe_driver_records_fixture_receipts_and_isolates_loop_home(tmp_path, monkeypatch):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
+    subprocess.run(["git", "init", "-q", str(workspace)], check=True)
+    expected_revision = subprocess.check_output(["git", "-C", str(Path(__file__).parents[3]), "rev-parse", "HEAD"], text=True).strip()
+    foreign = tmp_path / "foreign"
+    subprocess.run(["git", "init", "-q", str(foreign)], check=True)
     prompt = tmp_path / "prompt.txt"
     prompt.write_text("Invoke the named role once.")
     agent = tmp_path / "fixture-agent"
@@ -248,6 +279,7 @@ if "--version" in sys.argv:
     raise SystemExit(0)
 plugin = pathlib.Path(sys.argv[sys.argv.index("--plugin-dir") + 1])
 assert "--mode" not in sys.argv
+assert subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip() == sys.argv[sys.argv.index("--workspace") + 1]
 output = pathlib.Path(os.environ["OMNE_CURSOR_PROBE_OUTPUT"])
 assert os.environ["OMNE_METRICS_HOME"] == str(output / "loop")
 for event, payload in [("subagentStart", {"subagent_type":"developer", "subagent_model":"fixture-model"}),
@@ -261,8 +293,11 @@ print(json.dumps({"type":"result", "subtype":"success"}))
     output = tmp_path / "evidence"
     arguments = ["--workspace", str(workspace), "--output", str(output), "--agent", str(agent),
                  "--model", "fixture-model", "--prompt-file", str(prompt), "--timeout", "10"]
+    monkeypatch.setenv("GIT_DIR", str(foreign / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(foreign))
     assert probe([*arguments, "--run"]) == 0
     result = json.loads((output / "result.json").read_text())
+    assert result["source_revision"] == expected_revision
     assert result["native_receipts"] == 3
     assert result["subagent_start"][0]["subagent_model"] == "fixture-model"
     assert result["stop"][-1]["status"] == "completed"

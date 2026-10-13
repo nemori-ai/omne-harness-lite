@@ -52,6 +52,7 @@
 与根 `package.json` 指定的 Node/pnpm。`uv sync --locked` 依据锁文件准备 Python 3.12+
 及 JSON Schema、Markdown、YAML 验证依赖，并以 editable 方式安装 workspace 工具包。
 `make test` 的临时目录为 `tmp/test-runs/`，只用于本仓库测试。
+两个 TypeScript 工具套件的 Vitest setup、两个 Python 工具测试根的 pytest conftest，以及格式自测入口在创建 fixture 前隔离外来 OMNE root 和八项 Git 仓库定位变量。具体 Git 集合与 staged 例外见 [脚本环境边界](../scripts/README.md)。测试场景需要敌对环境时在被测入口显式注入，不能用 setup 净化后的普通调用证明生产隔离。`roleeval`、文档检查及 Cursor 来源和声明命令分别在本部署单元的进程边界保护显式目录；真实 Git 与本地命令替身不代表宿主模型或 Cloud 接受。
 测试运行器的耗时账本与各成员日志落**执行工作树**的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/`
 （环境变量 `OMNE_TEST_LEDGER_HOME` 可改根目录）；工作树不干净的账本不是任何提交的账本。
 

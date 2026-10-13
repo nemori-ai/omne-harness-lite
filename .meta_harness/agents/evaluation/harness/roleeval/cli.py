@@ -34,6 +34,7 @@ import os
 import re
 import shutil
 import subprocess
+from .git_environment import repository_env
 import sys
 import time
 from pathlib import Path
@@ -87,6 +88,7 @@ def work_root(arg: Path | None) -> Path:
     root = arg or Path(os.environ.get(WORK_ENV) or Path.home() / ".cache" / "role-evals" / "work")
     root.mkdir(parents=True, exist_ok=True)
     inside = subprocess.run(["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
+                            env=repository_env(os.environ),
                             capture_output=True, text=True)
     if inside.returncode == 0:
         # A copy inside a checkout would inherit that checkout's instruction files through its parent directories.
@@ -372,7 +374,7 @@ def compile_definition(flow: Flow, out: Path, variant: str) -> Path:
     done = subprocess.run(
         [sys.executable, str(META / "tooling/src/compile_agents.py"), "--source", str(META / "agents"),
          "--output", str(staging), "--host", "claude-code"],
-        env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"), capture_output=True, text=True)
+        env=dict(repository_env(os.environ), PYTHONDONTWRITEBYTECODE="1"), capture_output=True, text=True)
     if done.returncode != 0:
         raise Refused(f"could not compile the roles:\n{done.stdout}{done.stderr}")
     host = flow.host["claude-code"]
