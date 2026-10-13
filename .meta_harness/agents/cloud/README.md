@@ -1,9 +1,7 @@
-# Cursor Cloud Agent 镜像源
+# Cloud Agent 镜像源
 
-这里是 Cursor Cloud Agent 运行环境的唯一手写源。运行时文件是 `Dockerfile`、`environment.json` 和 `install.sh`。
+每个宿主一个目录。目录名与 `host_layout` 的宿主名相同：`cursor`、`codex`、`claude-code`。
 
-`compile_agents.py` 把这三个文件投影到输出根的 `.cursor/`。`link_agents.py` 在执行仓库根创建 `.cursor`，它是指向 `.meta_harness/.cursor` 的相对软链接。不要在仓库根另建实体 `.cursor` 目录，也不要手改投影。
+现在只有 [`cursor/`](cursor/README.md)。Codex 和 Claude Code 的镜像以后加在同级目录。不要把 Dockerfile、`environment.json` 或 `install.sh` 平铺在这一层。
 
-这份投影需要提交。Cursor 在执行安装脚本之前，从检出读取 `.cursor/environment.json`。skills 与 roles 的宿主投影可以在检出后重新生成，所以它们留在 `.meta_harness/.gitignore`。这份不能。
-
-改源之后删除旧的 `.meta_harness/.cursor`，再按 [tooling](../../tooling/README.md#根软链接) 重新编译并链接。内容或权限与源不一致时，编译拒绝覆盖。`make agents-check` 核对投影与根链接。
+每个宿主目录的运行时文件是 `Dockerfile`、`environment.json` 和 `install.sh`。`README.md` 留在源目录，不进入投影。编译按宿主写到该宿主的 package 根。没有 package 根的宿主不能在这里建目录。

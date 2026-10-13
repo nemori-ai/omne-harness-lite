@@ -38,7 +38,7 @@ pnpm -r rebuild node-pty
 
 ### Cursor Cloud Agent 镜像
 
-镜像的手写源在 [`.meta_harness/agents/cloud/`](../.meta_harness/agents/cloud/README.md)。不要在仓库根创建实体 `.cursor` 目录。编译把 `Dockerfile`、`environment.json` 和 `install.sh` 投影到 `.meta_harness/.cursor/`。`link_agents.py` 在仓库根创建 `.cursor`，它是指向该投影的相对软链接。Cursor 从检出中的 [`.cursor/environment.json`](../.cursor/environment.json) 读取环境。Build 在仓库根运行 [`.cursor/install.sh`](../.cursor/install.sh)。该脚本先执行上面的三条依赖命令，再编译被 Git 忽略的 agent 生成物。脚本可以重复执行。成功的 Build 保留磁盘上的依赖和生成物。进程和 shell 变量不进入下一次 agent 运行。
+镜像按宿主分目录，手写源在 [`.meta_harness/agents/cloud/`](../.meta_harness/agents/cloud/README.md)。当前只有 [cursor](../.meta_harness/agents/cloud/cursor/README.md)。不要在仓库根创建实体 `.cursor` 目录。编译把 `Dockerfile`、`environment.json` 和 `install.sh` 投影到 `.meta_harness/.cursor/`。`link_agents.py` 在仓库根创建 `.cursor`，它是指向该投影的相对软链接。Cursor 从检出中的 [`.cursor/environment.json`](../.cursor/environment.json) 读取环境。Build 在仓库根运行 [`.cursor/install.sh`](../.cursor/install.sh)。该脚本先执行上面的三条依赖命令，再编译被 Git 忽略的 agent 生成物。脚本可以重复执行。成功的 Build 保留磁盘上的依赖和生成物。进程和 shell 变量不进入下一次 agent 运行。
 
 这份 `.cursor` 投影需要提交。Cursor 在安装脚本之前就要读到它。改源后删除旧的 `.meta_harness/.cursor`，再按[根软链接](../.meta_harness/tooling/README.md#根软链接)重新编译并链接。`make agents-check` 核对投影与根链接。手改投影或根目录会失败。
 

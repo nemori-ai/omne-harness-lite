@@ -55,7 +55,7 @@
 
 ## Cursor Cloud specific instructions
 
-Cloud Agent 的镜像源、安装脚本和版本钉扎归[开发指南](docs/development.md#cursor-cloud-agent-镜像)。根 `.cursor` 是生成的软链接。改镜像时改 `.meta_harness/agents/cloud/`，不要改投影副本。Build 已经安装依赖。锁文件未变时，不要再执行安装。
+Cloud Agent 的镜像源、安装脚本和版本钉扎归[开发指南](docs/development.md#cursor-cloud-agent-镜像)。根 `.cursor` 是生成的软链接。改镜像时改 `.meta_harness/agents/cloud/<宿主>/`，不要改投影副本。现在只有 `cursor/`。Build 已经安装依赖。锁文件未变时，不要再执行安装。
 
 密钥和令牌只放在 Cursor Cloud Agents 的 Secrets。形式工具和 Postgres 不在此镜像中。缺少环境时报告未执行。不要把跳过的检查写成通过。
 

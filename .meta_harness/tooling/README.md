@@ -68,7 +68,7 @@ rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev
 
 ## Agent 编译
 
-生成器从一个 `agents/` 源根按固定 host_layout 编译各宿主目录，源里有 `cloud/` 时一并编译 Cursor Cloud Agent 的三份运行时文件，并提供独立的相对软链接工具。
+生成器从一个 `agents/` 源根按固定 host_layout 编译各宿主目录，源里有 `cloud/<host>/` 时一并编译该宿主的三份 Cloud Agent 运行时文件，并提供独立的相对软链接工具。
 `host_layout.py` 拥有宿主清单与路径，`projection.py` 解析源和适配并产生内存产物，`compile_agents.py` 负责 CLI 与预检写入，
 `link_agents.py` 暴露项目入口，`initialize_agents.py` 串接生成与接入。没有安装更新器、发布事务或知识图谱依赖。
 
@@ -142,8 +142,8 @@ python .meta_harness/tooling/src/link_agents.py --project-root . --check
 工具不迁移既存内容；目标根若有实体目录，须按相应任务授权先处理，再创建链接。
 创建、冲突保护、只读核对和整体目录移动后的相对链接有效性由工具测试覆盖。
 
-`agents/cloud/` 存在时，编译把其中的运行时文件复制到输出根的 `.cursor/`。`README.md` 留在源目录，不进入投影。
-没有 `cloud/` 时不产生这三份文件。`install.sh` 必须可执行。`environment.json` 的 `build.dockerfile` 必须是 `Dockerfile`，
+`agents/cloud/<host>/` 存在且本次选中该宿主时，编译把其中的运行时文件复制到该宿主的 package 根。现在只有 `cursor/`，输出是 `.cursor/`。`README.md` 留在源目录，不进入投影。
+没有 `cloud/`，或选中的宿主没有自己的目录时，不产生这三份文件。平铺在 `cloud/` 根上的运行时文件会被拒绝。`install.sh` 必须可执行。`environment.json` 的 `build.dockerfile` 必须是 `Dockerfile`，
 `install` 必须是非空字符串。这三份需要提交：Cursor 在安装脚本之前从检出读取它们。
 skills、agents 和 hooks 仍由 `.meta_harness/.gitignore` 排除，检出后重新编译。
 

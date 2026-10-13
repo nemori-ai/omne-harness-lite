@@ -245,24 +245,49 @@ def project_hooks(directory: Path, hosts: tuple[str, ...], roles: set[str]) -> d
     return {HOOK_TARGETS[host]: Artifact(text.encode("utf-8"), 0o644) for host in hosts}
 
 
-def project_cloud(source: Path) -> dict[Path, Artifact]:
-    """Copy the Cursor Cloud Agent source into `.cursor/` when `cloud/` exists.
+def project_cloud(source: Path, hosts: tuple[str, ...]) -> dict[Path, Artifact]:
+    """Copy selected host cloud sources into each host's package root.
 
-    Absent `cloud/` produces nothing, so host-only fixtures stay unchanged.
-    A present source must be the known flat file set. `install.sh` must be executable.
+    `cloud/` contains one directory per host, named as in host_layout, plus an
+    optional README.md. A missing `cloud/` or a missing host directory produces
+    nothing. A host directory whose package root is unset is rejected.
     """
     directory = source / "cloud"
     if not directory.exists():
         return {}
     if not directory.is_dir():
         raise ValueError(f"cloud source must be a directory: {directory}")
+    outputs = {}
+    for item in sorted(directory.iterdir()):
+        if item.name in IGNORED:
+            continue
+        no_symlinks(item)
+        if item.name == "README.md" and item.is_file():
+            continue
+        if not item.is_dir():
+            raise ValueError(
+                f"cloud source is one directory per host, plus optional README.md: {item.name}"
+            )
+        layout = HOSTS.get(item.name)
+        if layout is None:
+            raise ValueError(f"unknown cloud host: {item.name}")
+        if layout.package is None:
+            raise ValueError(f"cloud host {item.name} has no projection root yet")
+        if item.name not in hosts:
+            continue
+        for relative, artifact in _project_cloud_host(item, layout.package).items():
+            outputs[relative] = artifact
+    return outputs
+
+
+def _project_cloud_host(directory: Path, package: Path) -> dict[Path, Artifact]:
     names = set()
     for item in sorted(directory.iterdir()):
         if item.name in IGNORED:
             continue
         no_symlinks(item)
         if not item.is_file():
-            raise ValueError(f"cloud source must be flat files: {item}")
+            raise ValueError(f"cloud host source must be flat files: {item}")
         names.add(item.name)
     unknown = names - set(CLOUD_RUNTIME) - CLOUD_SOURCE_ONLY
     missing = set(CLOUD_RUNTIME) - names
@@ -286,7 +311,7 @@ def project_cloud(source: Path) -> dict[Path, Artifact]:
         mode = 0o755 if file.stat().st_mode & 0o111 else 0o644
         if name == "install.sh" and mode != 0o755:
             raise ValueError("cloud install.sh must be executable")
-        outputs[Path(".cursor") / name] = Artifact(file.read_bytes(), mode)
+        outputs[package / name] = Artifact(file.read_bytes(), mode)
     return outputs
 
 
@@ -343,6 +368,6 @@ def compile_sources(source: Path, renderer_path: Path = DEFAULT_RENDERER,
         from cursor_projection import project_cursor_package
         for relative, artifact in project_cursor_package(source, {role.name for role in role_sources}).items():
             add(relative, artifact)
-    for relative, artifact in project_cloud(source).items():
+    for relative, artifact in project_cloud(source, hosts).items():
         add(relative, artifact)
     return outputs

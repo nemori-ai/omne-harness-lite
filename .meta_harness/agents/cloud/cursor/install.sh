@@ -1,6 +1,6 @@
 #!/bin/sh
 # Idempotent Cloud Agent install. The authored copy lives in
-# .meta_harness/agents/cloud/; compile_agents.py projects it to .cursor/.
+# .meta_harness/agents/cloud/cursor/; compile_agents.py projects it to .cursor/.
 # Cursor runs the projection from the repository root while it prepares a Build.
 # The first three commands match docs/development.md.
 set -eu

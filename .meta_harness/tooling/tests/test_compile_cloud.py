@@ -1,5 +1,6 @@
-"""Cursor Cloud Agent files project from agents/cloud into .cursor/."""
+"""Host cloud sources project from agents/cloud/<host> into that host's package root."""
 import json
+import shutil
 import stat
 import sys
 from pathlib import Path
@@ -15,8 +16,9 @@ def source_tree(tmp_path: Path) -> Path:
     root = tmp_path / "agents"
     (root / "skills").mkdir(parents=True)
     (root / "roles").mkdir()
-    cloud = root / "cloud"
-    cloud.mkdir()
+    cloud = root / "cloud" / "cursor"
+    cloud.mkdir(parents=True)
+    (root / "cloud/README.md").write_text("host index\n", encoding="utf-8")
     (cloud / "Dockerfile").write_text("FROM ubuntu:24.04\n", encoding="utf-8")
     (cloud / "environment.json").write_text(json.dumps({
         "build": {"dockerfile": "Dockerfile"},
@@ -39,26 +41,41 @@ def test_cloud_projection_copies_runtime_files_and_keeps_install_executable(tmp_
     assert "README.md" not in {path.name for path in (output / ".cursor").iterdir()}
     mode = stat.S_IMODE((output / ".cursor/install.sh").stat().st_mode)
     assert mode == 0o755
-    assert Path(".cursor/environment.json") in compile_sources(source)
+    assert Path(".cursor/environment.json") in compile_sources(source, hosts=("cursor",))
 
 
 def test_absent_cloud_source_adds_no_cursor_output(tmp_path):
     source = source_tree(tmp_path)
-    for child in (source / "cloud").iterdir():
-        child.unlink()
-    (source / "cloud").rmdir()
-    assert not any(path.parts[0] == ".cursor" for path in compile_sources(source))
+    shutil.rmtree(source / "cloud")
+    outputs = compile_sources(source, hosts=("cursor",))
+    assert not any(path.name in {"Dockerfile", "environment.json", "install.sh"} for path in outputs)
+
+
+def test_flat_cloud_file_is_rejected(tmp_path):
+    source = source_tree(tmp_path)
+    (source / "cloud/Dockerfile").write_text("FROM scratch\n", encoding="utf-8")
+    output = tmp_path / "preview"
+    assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
+    assert not output.exists()
+
+
+def test_unmapped_cloud_host_is_rejected(tmp_path):
+    source = source_tree(tmp_path)
+    (source / "cloud/codex").mkdir()
+    output = tmp_path / "preview"
+    assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
+    assert not output.exists()
 
 
 @pytest.mark.parametrize("mutation", ["extra", "unexecutable", "dockerfile"])
 def test_invalid_cloud_source_fails_before_writing(tmp_path, mutation):
     source = source_tree(tmp_path)
     if mutation == "extra":
-        (source / "cloud/notes.txt").write_text("x\n", encoding="utf-8")
+        (source / "cloud/cursor/notes.txt").write_text("x\n", encoding="utf-8")
     elif mutation == "unexecutable":
-        (source / "cloud/install.sh").chmod(0o644)
+        (source / "cloud/cursor/install.sh").chmod(0o644)
     else:
-        (source / "cloud/environment.json").write_text(
+        (source / "cloud/cursor/environment.json").write_text(
             '{"build": {"dockerfile": "Other"}, "install": "true"}\n', encoding="utf-8"
         )
     output = tmp_path / "preview"
