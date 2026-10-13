@@ -63,7 +63,7 @@ def native_readonly(native: bytes) -> bool:
     return config["readonly"]
 
 
-def read_qualification(source: Path, native: bytes, prompt: str) -> dict:
+def read_qualification(source: Path, native: bytes, prompt: str, *, require_binding: bool = True) -> dict:
     prefix = f"cursor qualification {source.name}"
     path = source / "cursor-qualification.yaml"
     if not path.is_file():
@@ -73,7 +73,7 @@ def read_qualification(source: Path, native: bytes, prompt: str) -> dict:
             or type(record["version"]) is not int or record["version"] != 1
             or record["role"] != source.name):
         raise ValueError(f"{prefix}: invalid schema or identity")
-    if record["binding"] != {"native_sha256": digest(native), "prompt_sha256": digest(prompt.encode())}:
+    if require_binding and record["binding"] != {"native_sha256": digest(native), "prompt_sha256": digest(prompt.encode())}:
         raise ValueError(f"{prefix}: source binding is stale")
     status = record["status"]
     if not isinstance(status, str) or status not in {"pending", "unsupported", "limited", "proved"}:
@@ -134,8 +134,10 @@ def read_qualification(source: Path, native: bytes, prompt: str) -> dict:
 
 
 def qualification_footer(record: dict) -> str:
+    adoption = record["adoption"]
+    decision = "none" if adoption is None else adoption["reference"]
     return ("\n\n## Cursor qualification scope\n\n"
-            + f"Status: {record['status']}. Owner decision: {record['adoption']['reference']}.\n"
+            + f"Status: {record['status']}. Owner decision: {decision}.\n"
             + "Generation covers structural assets for CLI, IDE and Cloud. It does not qualify runtime use.\n"
             + "Allowed dispatch scopes: " + json.dumps(record["scope"]["dispatch"], ensure_ascii=False) + ".\n"
             + "Stop and report when a task falls outside these scopes. This is a dispatcher contract, not host access control.\n"

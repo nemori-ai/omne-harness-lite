@@ -24,7 +24,7 @@ Cursor renderer 只读取共享正文、assembly、Cursor 配置、角色集合�
 
 | 状态 | 生成结果与所需依据 |
 | --- | --- |
-| pending | 原因和缺口保留，adoption为null；只跳过该角色自己的 agent 文件 |
+| pending | 原因和缺口保留，adoption为null。生成器写出该角色的 `.cursor/agents/<name>.md`。该文件不进入合格摘要，`subagentStart` 拒绝派发 |
 | unsupported | 原因保留，adoption为null；拒绝Cursor生成，不静默省略角色 |
 | limited | 非空未证明保证和限定qualification-probe派发范围，必须有PanQiWei精确采用；只允许有限结构生成和探针，不承担正式角色职责 |
 | proved | 无剩余缺口；每个派发范围都有role-behavior、actual-model、permissions和lifecycle证据，并有PanQiWei精确采用 |
@@ -39,7 +39,7 @@ purpose只能是qualification-probe或accepted-role-duty。未登记范围由派
 采用包含owner、真实Issue评论reference和subject_sha256。subject为除adoption外整个记录的排序键紧凑JSON UTF-8字节摘要。
 离线门禁核对绑定和记录，不证明评论身份、证据语义或负责人已经作决定。实际采用仍由有权负责人和交付记录确认。
 
-直接角色投影也执行门禁。记录缺失、绑定过期或 unsupported 时，全量或混合生成在 deliver 前拒绝整次构建，保持既有输出字节和模式。pending 只省略该角色的 agent 文件。
+直接角色投影也执行门禁。记录缺失或 unsupported 时，全量或混合生成在 deliver 前拒绝整次构建，保持既有输出字节和模式。七个角色都写出 `.cursor/agents/<name>.md`。源更新后，下一次编译改写该文件；`--check` 按字节核对，路径与 Codex、Claude Code 的角色投影相同。绑定过期仍投影当前源，但不把该角色计入合格摘要。pending 同样写出文件，并且不进入合格摘要。
 单独选择Codex或Claude不读取Cursor资格记录。不能新增绕过参数、角色过滤或以假采用使生产构建变绿。
 生成角色附带由此记录派生的限定范围。`require_dispatch`可检查具名探针的精确范围；直接原生Task没有被编译器拦截。
 这些是生成和派发契约，不能声称是Cursor运行时访问控制。

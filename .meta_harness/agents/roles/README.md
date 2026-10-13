@@ -218,7 +218,8 @@ agent 试用，并说明未经应用的原生沙箱与权限不能算生效；�
 
 Cursor 原生配置与模型/权限资格由 [design-subagents](../skills/design-subagents/canonical/references/cursor.md) 拥有。角色职责不因新增宿主改变。生成配置不继承已有 Claude/Codex 评估资格；本次依赖精确模型或权限的任务须另核实际运行。
 
-每个角色的`cursor-qualification.yaml`绑定本角色实际提示及native字段；生成前门禁拒绝未采用或过期记录。
-七个生产记录现为 pending。先前九份有限探针资格不沿用。pending 只跳过该角色自己的 Cursor agent 文件。
-记录缺失、过期或 unsupported 时，整个 Cursor 构建在写入前不产生文件。
+每个角色的`cursor-qualification.yaml`绑定本角色实际提示及native字段。七个角色都进入 Cursor 投影。
+生成器把它们写到 `.cursor/agents/<name>.md`。源更新后重新编译即同步；`compile_agents.py --check` 核对字节，方式与 Codex、Claude Code 相同。
+七个生产记录现为 pending。先前九份有限探针资格不沿用。pending 或绑定过期的文件不进入合格摘要，因此不能派发。
+记录缺失或 unsupported 时，整个 Cursor 构建在写入前不产生文件。
 修订 4 的方案采用不是角色资格证明。角色字节稳定后另行取得资格。没有资格文件的角色不能派发正式职责。

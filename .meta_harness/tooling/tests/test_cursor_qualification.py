@@ -21,12 +21,13 @@ ROLES = {"design-reviewer", "developer", "diagnostician", "implementation-review
          "product-design-drafter", "product-design-reviewer", "qa"}
 
 
-def test_pending_production_writes_no_agent_files(tmp_path):
+def test_pending_production_writes_agent_files_outside_the_dispatch_gate(tmp_path):
     source = Path(shutil.copytree(SOURCE, tmp_path / "source"))
     output = tmp_path / "output"
     assert main(["--source", str(source), "--output", str(output), "--host", "cursor"]) == 0
     agents = output / ".cursor/agents"
-    assert not agents.exists() or not any(agents.glob("*.md"))
+    assert {path.name for path in agents.glob("*.md")} == {f"{name}.md" for name in ROLES}
+    assert "Status: pending. Owner decision: none." in (agents / "developer.md").read_text()
     assert (output / ".cursor/skills/terminal-practice/SKILL.md").is_file()
     gate = json.loads((output / ".cursor/runtime/role-gate.json").read_text())
     assert set(gate["managed"]) == ROLES and gate["summaries"] == {}
@@ -40,14 +41,14 @@ def test_pending_production_writes_no_agent_files(tmp_path):
             "mode": "agent", "purpose": "qualification-probe"})
 
 
-def test_pending_omits_only_that_role_agent_file(source, tmp_path):
+def test_pending_role_file_stays_out_of_the_dispatch_gate(source, tmp_path):
     role = source / "roles/developer"
     write_record(role, pending_record(role))
     output = tmp_path / "output"
     assert main(["--source", str(source), "--output", str(output), "--host", "cursor"]) == 0
     names = {path.name for path in (output / ".cursor/agents").glob("*.md")}
-    assert "developer.md" not in names
-    assert names == {f"{name}.md" for name in ROLES - {"developer"}}
+    assert names == {f"{name}.md" for name in ROLES}
+    assert "Status: pending." in (output / ".cursor/agents/developer.md").read_text()
     gate = json.loads((output / ".cursor/runtime/role-gate.json").read_text())
     assert "developer" not in gate["summaries"] and "qa" in gate["summaries"]
 
@@ -64,7 +65,9 @@ def test_private_limited_fixture_generates_and_restricts_dispatch(source):
     native, prompt = (role / "cursor.yaml").read_bytes(), cursor_role_prompt(role)
     record = limited_record(role)
     write_record(role, record)
-    path, text = project_cursor_role(role)
+    projected = project_cursor_role(role)
+    assert projected.dispatch_qualified
+    path, text = projected.path, projected.text
     front = yaml.safe_load(text.split("---", 2)[1])
     assert set(front) == {"name", "description", "model", "readonly", "is_background"}
     assert path == Path(".cursor/agents/developer.md")
@@ -85,7 +88,10 @@ def test_unadopted_states_refuse_direct_projection(source, status):
     record["status"] = status
     write_record(role, record)
     if status == "pending":
-        assert project_cursor_role(role) is None
+        projected = project_cursor_role(role)
+        assert projected.path == Path(".cursor/agents/developer.md")
+        assert not projected.dispatch_qualified
+        assert "Status: pending. Owner decision: none." in projected.text
         return
     with pytest.raises(ValueError, match="cursor qualification developer: unsupported"):
         project_cursor_role(role)
@@ -129,11 +135,34 @@ def test_scope_or_version_change_invalidates_exact_adoption(source):
 
 @pytest.mark.parametrize("file", ["developer/role.md", "developer/cursor.yaml", "project-frame.md",
                                  "engineering-taste.md", "cursor-adaptation.md"])
-def test_role_native_shared_or_overlay_source_change_invalidates_binding(source, file):
+def test_role_native_shared_or_overlay_source_change_reprojects_without_dispatch(source, file):
     path = source / "roles" / file
-    path.write_text(path.read_text() + ("\n# changed native bytes\n" if file.endswith("yaml") else "\nChanged source.\n"))
+    marker = "\n# changed native bytes\n" if file.endswith("yaml") else "\nChanged source.\n"
+    path.write_text(path.read_text() + marker)
+    role = source / "roles/developer"
+    projected = project_cursor_role(role)
+    assert projected.path == Path(".cursor/agents/developer.md")
+    assert not projected.dispatch_qualified
+    if file == "developer/role.md":
+        assert "Changed source." in projected.text
     with pytest.raises(ValueError, match="source binding is stale"):
-        project_cursor_role(source / "roles/developer")
+        require_dispatch(role, (role / "cursor.yaml").read_bytes(), cursor_role_prompt(role), {
+            "environment": "cli", "deployment": "project", "version": "fixture-cli",
+            "mode": "interactive", "purpose": "qualification-probe"})
+
+
+def test_next_compile_refreshes_every_cursor_agent_and_check_rejects_the_old_tree(tmp_path):
+    source = Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    first = tmp_path / "first"
+    assert main(["--source", str(source), "--output", str(first), "--host", "cursor"]) == 0
+    assert {path.name for path in (first / ".cursor/agents").glob("*.md")} == {f"{name}.md" for name in ROLES}
+    (source / "roles/qa/role.md").write_text(
+        (source / "roles/qa/role.md").read_text() + "\nProjection sync marker.\n")
+    assert main(["--source", str(source), "--output", str(first), "--host", "cursor", "--check"]) == 1
+    second = tmp_path / "second"
+    assert main(["--source", str(source), "--output", str(second), "--host", "cursor"]) == 0
+    assert "Projection sync marker." in (second / ".cursor/agents/qa.md").read_text()
+    assert main(["--source", str(source), "--output", str(second), "--host", "cursor", "--check"]) == 0
 
 
 def test_one_late_missing_role_rejects_mixed_build_before_writes(source, tmp_path, capsys):
