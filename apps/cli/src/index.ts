@@ -1,14 +1,17 @@
-export { helpText, parseArgv, type ParsedCommand } from './argv.ts'
-export {
-  productionCatalog,
-  renderHelp,
-  type Catalog,
-  type CommandSpec,
-  type DocumentedOption,
-  type FlagSpec,
-} from './catalog.ts'
+export { parseArgv, type ParsedCommand } from './argv.ts'
+export { defineCatalog, productionCatalog, renderHelp } from './catalog.ts'
+export type {
+  Catalog,
+  CliOutput,
+  CliRuntime,
+  CommandEnvironment,
+  CommandSpec,
+  DocumentedOption,
+  ExitCode,
+  FlagSpec,
+} from './cli-types.ts'
 export { readBuildIdentity, type BuildIdentityResult } from './identity.ts'
-export { run, type CliOutput, type ExitCode } from './run.ts'
+export { run } from './run.ts'
 export {
   ensureStateDirectory,
   resolveStateDirectory,

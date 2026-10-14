@@ -20,32 +20,24 @@ export type FieldPresentation = 'attr' | 'element' | 'content'
  */
 export type IncludeWhen = 'always' | 'not_nullish' | 'not_empty'
 
-/** Rendering specification of one field. */
-export interface FieldSpec {
-  /** Placement of the field. Defaults to `'element'`. */
-  readonly presentation?: FieldPresentation
-  /**
-   * Element or attribute name. Defaults to the last segment of the field path,
-   * verbatim (`asOf` renders as `asOf`; set `xmlName: 'as_of'` to change it).
-   */
+/** Fields shared by every presentation. */
+interface FieldCommon {
   readonly xmlName?: string
-  /** Inclusion condition. Defaults to `'always'`. */
   readonly includeWhen?: IncludeWhen
-  /** Extra attributes emitted on the element; only used with `'element'` presentation. */
-  readonly attrs?: Readonly<Record<string, string>>
-  /**
-   * Tag name for each item of an array value. Scalar items are wrapped as
-   * `<itemTag>value</itemTag>` instead of being joined by commas; object items
-   * use it as their element name and default to `item` when unset.
-   */
-  readonly itemTag?: string
-  /**
-   * Placement of each object item's own properties inside its item element.
-   * Properties not listed fall back to the default rule: scalars shorter than
-   * fifty characters become attributes, everything else becomes a child element.
-   */
-  readonly itemFields?: Readonly<Record<string, FieldPresentation>>
 }
+
+/**
+ * One field. Attribute and content presentations cannot carry element-only
+ * settings. Omitting `presentation` means an element.
+ */
+export type FieldSpec =
+  | (FieldCommon & { readonly presentation: 'attr' | 'content' })
+  | (FieldCommon & {
+      readonly presentation?: 'element'
+      readonly attrs?: Readonly<Record<string, string>>
+      readonly itemTag?: string
+      readonly itemFields?: Readonly<Record<string, FieldPresentation>>
+    })
 
 /**
  * Field path to specification. A path may contain dots to read nested values

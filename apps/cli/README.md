@@ -69,7 +69,7 @@ Summary of the promises:
 
 Each module has one job:
 
-- `src/catalog.ts` holds the flag list, the command list, and `renderHelp`. `helpText` is `renderHelp` of the production catalog. That catalog has no commands, so the process help text stays the pinned string.
+- `src/catalog.ts` holds `defineCatalog`, the production catalog, and `renderHelp`. The production command list is empty, so the process help text stays the pinned string. `bin.ts` passes that catalog, the identity reader, and the home inputs into `run`.
 - `src/argv.ts` holds `parseArgv`. Parsing is a pure function over `string[]` and a catalog. The default catalog is the production one.
 - `src/identity.ts` reads `cli-identity.json` beside the build module through `import.meta.url`.
 - `src/run.ts` maps a parsed command to output and an exit code. It is the only place that calls `readBuildIdentity`.

@@ -69,7 +69,7 @@ else {
 
 每个模块只做一件事：
 
-- `src/catalog.ts` 放旗标列表、命令列表和 `renderHelp`。`helpText` 是生产目录的 `renderHelp` 结果。该目录没有命令，所以进程帮助文本仍是锁定的原文。
+- `src/catalog.ts` 放 `defineCatalog`、生产目录和 `renderHelp`。生产目录没有命令，所以进程帮助文本仍是锁定的原文。`bin.ts` 把目录、身份读取和 home 输入交给 `run`。
 - `src/argv.ts` 放 `parseArgv`。解析是 `string[]` 和目录上的纯函数。默认目录是生产目录。
 - `src/identity.ts` 通过 `import.meta.url` 读取构建模块旁的 `cli-identity.json`。
 - `src/run.ts` 把解析结果映射为输出和退出码。只有它调用 `readBuildIdentity`。

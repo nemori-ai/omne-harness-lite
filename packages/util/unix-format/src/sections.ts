@@ -3,14 +3,21 @@
  * a column-aligned command overview.
  */
 
-import { resolveUnixFormatOptions, type UnixFormatOptions } from './options.ts'
+import { assertNonNegativeInteger } from './options.ts'
 import { codePointLength, indentLines, padEnd } from './text.ts'
 
+export interface SectionOptions {
+  readonly indent?: number
+  readonly markdownCompatible?: boolean
+}
+
 /** Render a titled section: `## TITLE` (or `TITLE:` when not Markdown-compatible) over the indented body. */
-export function formatSection(title: string, body: string, options?: UnixFormatOptions): string {
-  const resolved = resolveUnixFormatOptions(options)
-  const header = resolved.markdownCompatible ? `## ${title}` : `${title}:`
-  return `${header}\n${indentLines(body, ' '.repeat(resolved.indent))}`
+export function formatSection(title: string, body: string, options: SectionOptions = {}): string {
+  const indent = options.indent ?? 2
+  assertNonNegativeInteger(indent, 'indent')
+  const markdownCompatible = options.markdownCompatible ?? true
+  const header = markdownCompatible ? `## ${title}` : `${title}:`
+  return `${header}\n${indentLines(body, ' '.repeat(indent))}`
 }
 
 /** Render `USAGE: toolName(command="command", params=paramsSynopsis)`; the synopsis is inserted verbatim. */

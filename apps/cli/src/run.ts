@@ -1,27 +1,17 @@
-import {
-  productionCatalog,
-  renderHelp,
-  type Catalog,
-  type CliOutput,
-  type ExitCode,
-} from './catalog.ts'
+import { renderHelp } from './catalog.ts'
+import type { CliOutput, CliRuntime, ExitCode } from './cli-types.ts'
 import { parseArgv } from './argv.ts'
-import { readBuildIdentity } from './identity.ts'
 
 export type { CliOutput, ExitCode }
 
-export function run(
-  argv: readonly string[],
-  output: CliOutput,
-  catalog: Catalog = productionCatalog,
-): ExitCode {
-  const command = parseArgv(argv, catalog)
+export function run(argv: readonly string[], output: CliOutput, runtime: CliRuntime): ExitCode {
+  const command = parseArgv(argv, runtime.catalog)
   switch (command.kind) {
     case 'help':
-      output.stdout(renderHelp(catalog))
+      output.stdout(renderHelp(runtime.catalog))
       return 0
     case 'version': {
-      const identity = readBuildIdentity()
+      const identity = runtime.readIdentity()
       if (identity.kind === 'error') {
         output.stderr(identity.message)
         return 1
@@ -30,7 +20,11 @@ export function run(
       return 0
     }
     case 'command':
-      return command.command.run(command.args, output)
+      return command.command.run(command.args, output, {
+        homeFlag: command.homeFlag,
+        environmentHome: runtime.environmentHome,
+        homeDirectory: runtime.homeDirectory,
+      })
     case 'usage-error':
       output.stderr(command.message)
       return 2

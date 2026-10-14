@@ -5,6 +5,7 @@ export {
   applyFieldOverride,
   resolveFormattingOptions,
   type FormattingOptions,
+  type NestedFormattingOptions,
   type ResolvedFormattingOptions,
   type RuntimeFieldOverride,
 } from './options.ts'

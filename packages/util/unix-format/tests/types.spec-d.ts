@@ -48,6 +48,8 @@ it('UF6-TYPES consumes all declared public functions and option types', () => {
 it('UF6-NEGATIVES rejects wrong data, options and mutable declarations', () => {
   // @ts-expect-error renderers consume text rather than guessed serialization
   formatError({ message: 'm' })
+  // @ts-expect-error section options do not include table width
+  formatSection('t', 'b', { maxWidth: -1 })
   // @ts-expect-error widths are numeric
   resolveUnixFormatOptions({ maxWidth: '80' })
   // @ts-expect-error explicit undefined is not an absent field

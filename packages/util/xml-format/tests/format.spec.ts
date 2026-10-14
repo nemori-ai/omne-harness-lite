@@ -498,3 +498,30 @@ describe('system reminder envelope', () => {
     )
   })
 })
+
+describe('lists that share one rendering path', () => {
+  it('renders a set of text the same way as an array', () => {
+    const schema: XmlSchema = { tag: 'root', requiredFields: { items: {} } }
+    expect(formatXml({ items: new Set(['a', 'b']) }, schema)).toBe(
+      formatXml({ items: ['a', 'b'] }, schema),
+    )
+  })
+
+  it('keeps the field element when a list mixes self-rendering and plain objects', () => {
+    const schema: XmlSchema = { tag: 'root', requiredFields: { items: {} } }
+    const xml = formatXml({ items: [{ toXml: () => '<child/>' }, { name: 'plain' }] }, schema)
+    expect(xml).toContain('<items>')
+    expect(xml).toContain('<child/>')
+    expect(xml).toContain('plain')
+  })
+
+  it('does not read an inherited property', () => {
+    const proto = { secret: 'inherited' }
+    const value = Object.create(proto) as { visible: string }
+    value.visible = 'own'
+    const schema: XmlSchema = { tag: 'root', requiredFields: { secret: {}, visible: {} } }
+    const xml = formatXml(value, schema)
+    expect(xml).toContain('own')
+    expect(xml).not.toContain('inherited')
+  })
+})

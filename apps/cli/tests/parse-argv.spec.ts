@@ -1,4 +1,4 @@
-import { helpText, parseArgv } from '@omne-harness/cli'
+import { parseArgv, productionCatalog, renderHelp } from '@omne-harness/cli'
 import { describe, expect, it } from 'vitest'
 import {
   expectedHelp,
@@ -51,8 +51,8 @@ describe('parseArgv usage errors', () => {
   })
 })
 
-describe('helpText', () => {
-  it('is the documented help text with a trailing newline', () => {
-    expect(helpText).toBe(expectedHelp)
+describe('production help', () => {
+  it('matches the documented help text', () => {
+    expect(renderHelp(productionCatalog)).toBe(expectedHelp)
   })
 })

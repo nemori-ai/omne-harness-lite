@@ -1,12 +1,16 @@
-import { productionCatalog, renderHelp, type Catalog, type CommandSpec } from './catalog.ts'
+import { productionCatalog } from './catalog.ts'
+import type { Catalog, CommandSpec } from './cli-types.ts'
 
 export type ParsedCommand =
   | { readonly kind: 'help' }
   | { readonly kind: 'version' }
-  | { readonly kind: 'command'; readonly command: CommandSpec; readonly args: readonly string[] }
+  | {
+      readonly kind: 'command'
+      readonly command: CommandSpec
+      readonly args: readonly string[]
+      readonly homeFlag: string | undefined
+    }
   | { readonly kind: 'usage-error'; readonly message: string }
-
-export const helpText = renderHelp(productionCatalog)
 
 const missingCommand = 'omne: missing command\nRun omne --help for usage.\n'
 const homeRequiresDirectory = 'omne: --home requires a directory\n'
@@ -21,16 +25,36 @@ export function parseArgv(
     if (flag?.result === 'help') return { kind: 'help' }
     if (flag?.result === 'version') return { kind: 'version' }
   }
-  const commandName = argv[0]
+  if (homeValueIsMissing(argv)) return { kind: 'usage-error', message: homeRequiresDirectory }
+  const { homeFlag, rest } = takeHome(argv)
+  const commandName = rest[0]
   if (commandName !== undefined && !commandName.startsWith('-')) {
     const command = catalog.commands.find(item => item.name === commandName)
-    if (command) return { kind: 'command', command, args: argv.slice(1) }
+    if (command) return { kind: 'command', command, args: rest.slice(1), homeFlag }
   }
   if (argv.length === 0) return { kind: 'usage-error', message: missingCommand }
-  const homeWithoutDirectory = argv.some((token, index) => {
+  return { kind: 'usage-error', message: unrecognized }
+}
+
+function homeValueIsMissing(argv: readonly string[]): boolean {
+  return argv.some((token, index) => {
     const next = argv[index + 1]
     return token === '--home' && (next === undefined || next.startsWith('-'))
   })
-  if (homeWithoutDirectory) return { kind: 'usage-error', message: homeRequiresDirectory }
-  return { kind: 'usage-error', message: unrecognized }
+}
+
+function takeHome(argv: readonly string[]): { homeFlag: string | undefined; rest: string[] } {
+  const rest: string[] = []
+  let homeFlag: string | undefined
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index] ?? ''
+    const next = argv[index + 1]
+    if (token === '--home' && next !== undefined && next !== '' && !next.startsWith('-')) {
+      homeFlag = next
+      index += 1
+      continue
+    }
+    rest.push(token)
+  }
+  return { homeFlag, rest }
 }

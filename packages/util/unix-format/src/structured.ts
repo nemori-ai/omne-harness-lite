@@ -4,7 +4,7 @@
  * caller text and Unicode remain unchanged.
  */
 
-import { resolveUnixFormatOptions, type UnixFormatOptions } from './options.ts'
+import { assertNonNegativeInteger } from './options.ts'
 import { codePointLength, padEnd, sliceCodePoints } from './text.ts'
 
 const ELLIPSIS = '...'
@@ -22,7 +22,7 @@ const COLUMN_GAP = '  '
 export function formatTable(
   headers: readonly string[],
   rows: readonly (readonly string[])[],
-  options?: UnixFormatOptions,
+  options: { readonly maxWidth?: number } = {},
 ): string {
   if (headers.length === 0) return ''
   const expected = headers.length
@@ -32,7 +32,8 @@ export function formatTable(
     }
   })
 
-  const { maxWidth } = resolveUnixFormatOptions(options)
+  const maxWidth = options.maxWidth ?? 120
+  assertNonNegativeInteger(maxWidth, 'maxWidth')
   const widths = headers.map(codePointLength)
   for (const row of rows) {
     row.forEach((cell, index) => {
@@ -71,7 +72,7 @@ export function formatTable(
  * integer-like keys come first; pass a Map to keep insertion order exactly.
  */
 export function formatKeyValue(
-  pairs: Readonly<Record<string, string>> | ReadonlyMap<string, string>,
+  pairs: Readonly<Record<string, string>> | Map<string, string>,
 ): string {
   const entries = pairs instanceof Map ? [...pairs.entries()] : Object.entries(pairs)
   if (entries.length === 0) return ''

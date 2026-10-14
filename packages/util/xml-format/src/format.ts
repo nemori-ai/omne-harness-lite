@@ -14,13 +14,14 @@ import {
   nestedFormattingOptions,
   resolveFormattingOptions,
   type FormattingOptions,
+  type NestedFormattingOptions,
   type ResolvedFormattingOptions,
 } from './options.ts'
 import type { FieldPresentation, FieldSpec, FieldSpecs, IncludeWhen, XmlSchema } from './types.ts'
 
 /** An object that renders itself; nested values implementing it are embedded verbatim. */
 export interface XmlFormattable {
-  toXml(options?: FormattingOptions): string
+  toXml(options?: NestedFormattingOptions): string
 }
 
 /** Whether `value` renders itself through `toXml`. Arrays never do. */
@@ -92,10 +93,15 @@ function selectFields(schema: XmlSchema, options: ResolvedFormattingOptions): Fi
 
   // Required fields first, then the selected optional fields in declaration
   // order, so the same selection always renders the same text.
-  let selected: Record<string, FieldSpec> = { ...schema.requiredFields }
+  const selected: Record<string, FieldSpec> = { ...schema.requiredFields }
   for (const [name, spec] of Object.entries(optional)) {
     if (options.extraFields.has(name) && !Object.hasOwn(selected, name)) {
-      selected = { ...selected, [name]: spec }
+      Object.defineProperty(selected, name, {
+        value: spec,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      })
     }
   }
   return selected
@@ -112,7 +118,8 @@ function readPath(root: object, path: string): unknown {
     if (current instanceof Map) {
       current = current.get(part)
     } else if (typeof current === 'object' || typeof current === 'function') {
-      current = (current as Record<string, unknown>)[part]
+      if (!Object.hasOwn(current, part) && part !== '__proto__') return undefined
+      current = Reflect.get(current, part)
     } else {
       return undefined
     }
@@ -149,21 +156,56 @@ interface ValueShape {
   readonly selfTagged: boolean
 }
 
+function elementFields(spec: FieldSpec): {
+  readonly attrs?: Readonly<Record<string, string>>
+  readonly itemTag?: string
+  readonly itemFields?: Readonly<Record<string, FieldPresentation>>
+} {
+  switch (spec.presentation) {
+    case 'attr':
+    case 'content':
+      return {}
+    case 'element':
+    case undefined: {
+      const fields: {
+        attrs?: Readonly<Record<string, string>>
+        itemTag?: string
+        itemFields?: Readonly<Record<string, FieldPresentation>>
+      } = {}
+      if (spec.attrs !== undefined) fields.attrs = spec.attrs
+      if (spec.itemTag !== undefined) fields.itemTag = spec.itemTag
+      if (spec.itemFields !== undefined) fields.itemFields = spec.itemFields
+      return fields
+    }
+  }
+  return {}
+}
+
+function listItems(value: unknown): readonly unknown[] | undefined {
+  if (Array.isArray(value)) return value
+  if (value instanceof Set) return [...value]
+  return undefined
+}
+
 function classify(value: unknown, spec: FieldSpec): ValueShape {
   if (isXmlFormattable(value)) return { preformatted: true, selfTagged: true }
-  if (Array.isArray(value) && value.length > 0) {
-    const first: unknown = value[0]
-    if (isObjectValue(first)) return { preformatted: true, selfTagged: isXmlFormattable(first) }
-    return { preformatted: spec.itemTag !== undefined, selfTagged: false }
+  const items = listItems(value)
+  if (items !== undefined && items.length > 0) {
+    if (items.every(item => isXmlFormattable(item))) return { preformatted: true, selfTagged: true }
+    if (items.every(item => isObjectValue(item))) return { preformatted: true, selfTagged: false }
+    return { preformatted: elementFields(spec).itemTag !== undefined, selfTagged: false }
   }
   return { preformatted: false, selfTagged: false }
 }
 
 function renderValue(value: unknown, spec: FieldSpec, options: ResolvedFormattingOptions): string {
-  if (Array.isArray(value)) {
-    if (value.length > 0 && isObjectValue(value[0])) return renderObjectList(value, spec, options)
-    if (spec.itemTag !== undefined) return renderTaggedList(value, spec.itemTag, options)
-    return value.map(item => stringify(item, options)).join(', ')
+  const items = listItems(value)
+  if (items !== undefined) {
+    if (items.length > 0 && items.every(item => isObjectValue(item)))
+      return renderObjectList(items, spec, options)
+    if (elementFields(spec).itemTag !== undefined)
+      return renderTaggedList(items, elementFields(spec).itemTag ?? 'item', options)
+    return items.map(item => stringify(item, options)).join(', ')
   }
   if (isXmlFormattable(value)) return value.toXml(nestedFormattingOptions(options))
   if (value instanceof Map || isRecordValue(value)) return renderPairs(entriesOf(value), options)
@@ -193,12 +235,13 @@ function renderObjectList(
   spec: FieldSpec,
   options: ResolvedFormattingOptions,
 ): string {
-  const itemTag = assertXmlName(spec.itemTag ?? 'item', 'item tag')
+  const element = elementFields(spec)
+  const itemTag = assertXmlName(element.itemTag ?? 'item', 'item tag')
   return items
     .map(item =>
       isXmlFormattable(item)
         ? item.toXml(nestedFormattingOptions(options))
-        : renderObjectItem(item, itemTag, spec.itemFields, options),
+        : renderObjectItem(item, itemTag, element.itemFields, options),
     )
     .join('\n')
 }
@@ -284,7 +327,7 @@ function renderElement(
   preformatted: boolean,
 ): string {
   const prefix = ' '.repeat(options.indentSize)
-  const attrsText = renderAttributes(Object.entries(spec.attrs ?? {}))
+  const attrsText = renderAttributes(Object.entries(elementFields(spec).attrs ?? {}))
   const body = indent(preformatted ? rendered : escapeXmlContent(rendered), prefix)
   return `<${name}${attrsText}>\n${body}\n</${name}>`
 }

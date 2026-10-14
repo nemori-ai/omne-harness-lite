@@ -15,7 +15,12 @@ export interface RuntimeFieldOverride {
   readonly presentation?: FieldPresentation
 }
 
-/** Options accepted by `formatXml` and by `XmlFormattable.toXml`. */
+/** Settings a nested `toXml` implementation is given. */
+export interface NestedFormattingOptions {
+  readonly indentSize?: number
+  readonly formatDate?: (date: Date) => string
+}
+/** Options accepted by `formatXml`. Nested `toXml` receives `NestedFormattingOptions`. */
 export interface FormattingOptions {
   /** Spaces per indentation level, an integer from 0 to 8. Defaults to 2. */
   readonly indentSize?: number
@@ -72,7 +77,9 @@ export function resolveFormattingOptions(
 }
 
 /** The rendering settings a nested object inherits from its parent. */
-export function nestedFormattingOptions(options: ResolvedFormattingOptions): FormattingOptions {
+export function nestedFormattingOptions(
+  options: ResolvedFormattingOptions,
+): NestedFormattingOptions {
   return { indentSize: options.indentSize, formatDate: options.formatDate }
 }
 

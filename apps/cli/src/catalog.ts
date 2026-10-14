@@ -1,36 +1,20 @@
-export interface CliOutput {
-  readonly stdout: (text: string) => void
-  readonly stderr: (text: string) => void
+import type { Catalog, CommandSpec, DocumentedOption, FlagSpec } from './cli-types.ts'
+
+export type { Catalog, CommandSpec, DocumentedOption, FlagSpec }
+
+export function defineCatalog(catalog: Catalog): Catalog {
+  const names = new Set<string>()
+  for (const command of catalog.commands) {
+    if (command.name === '' || command.name.startsWith('-')) {
+      throw new TypeError(`command name must be a word, got ${JSON.stringify(command.name)}`)
+    }
+    if (names.has(command.name)) throw new TypeError(`duplicate command name ${command.name}`)
+    names.add(command.name)
+  }
+  return catalog
 }
 
-export type ExitCode = 0 | 1 | 2
-
-export interface FlagSpec {
-  readonly token: '--help' | '--version'
-  readonly usage: string
-  readonly result: 'help' | 'version'
-}
-
-export interface CommandSpec {
-  readonly name: string
-  readonly usage: string
-  readonly summary: string
-  readonly run: (args: readonly string[], output: CliOutput) => ExitCode
-}
-
-export interface DocumentedOption {
-  readonly usage: string
-  readonly summary: string
-}
-
-export interface Catalog {
-  readonly flags: readonly FlagSpec[]
-  readonly commands: readonly CommandSpec[]
-  readonly options: readonly DocumentedOption[]
-  readonly footer: string
-}
-
-export const productionCatalog: Catalog = {
+export const productionCatalog: Catalog = defineCatalog({
   flags: [
     { token: '--help', usage: 'omne --help', result: 'help' },
     { token: '--version', usage: 'omne --version', result: 'version' },
@@ -42,7 +26,7 @@ export const productionCatalog: Catalog = {
   ],
   footer:
     'The default state directory is $HOME/.omne.\n--help and --version do not open or create a state directory.\n',
-}
+})
 
 export function renderHelp(catalog: Catalog): string {
   const intro =
@@ -50,15 +34,28 @@ export function renderHelp(catalog: Catalog): string {
       ? 'Show help or version. This build has no other commands.'
       : 'Show help or version, or run a command.'
   const flags = catalog.flags.map(flag => `  ${flag.usage}`).join('\n')
-  const commands =
-    catalog.commands.length === 0
-      ? ''
-      : `\nCommands\n\n${catalog.commands
-          .map(command => `  omne ${command.name} ${command.usage}    ${command.summary}`)
-          .join('\n')}\n`
-  const width = Math.max(...catalog.options.map(option => option.usage.length))
-  const options = catalog.options
-    .map(option => `  ${option.usage.padEnd(width)}    ${option.summary}`)
-    .join('\n')
-  return `omne\n\n${intro}\n\n${flags}\n${commands}\n${options}\n\n${catalog.footer}`
+  const commands = renderCommands(catalog.commands)
+  const options = renderOptions(catalog.options)
+  const optionBreak = options === '' ? '' : `\n${options}`
+  return `omne\n\n${intro}\n\n${flags}\n${commands}${optionBreak}\n\n${catalog.footer}`
+}
+
+function renderCommands(commands: readonly CommandSpec[]): string {
+  if (commands.length === 0) return ''
+  const heads = commands.map(commandHead)
+  const width = Math.max(...heads.map(head => head.length))
+  const lines = commands.map(
+    (command, index) => `  ${heads[index]?.padEnd(width) ?? ''}    ${command.summary}`,
+  )
+  return `\nCommands\n\n${lines.join('\n')}\n`
+}
+
+function commandHead(command: CommandSpec): string {
+  return command.usage === '' ? `omne ${command.name}` : `omne ${command.name} ${command.usage}`
+}
+
+function renderOptions(options: readonly DocumentedOption[]): string {
+  if (options.length === 0) return ''
+  const width = Math.max(...options.map(option => option.usage.length))
+  return options.map(option => `  ${option.usage.padEnd(width)}    ${option.summary}`).join('\n')
 }
