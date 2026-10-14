@@ -16,19 +16,19 @@ const TENANT_TEXT =
   '{"organization":"org_abcdefghjkmnpqrstvwxyz2345","account":"acc_abcdefghjkmnpqrstvwxyz2345"}'
 
 function parsedAccount(text: string): AccountId {
-  const result = accountCodec().parse(text)
+  const result = accountCodec.parse(text)
   if (!result.ok) throw new Error(`fixture ${text} did not parse: ${result.error.code}`)
   return result.value
 }
 
 function parsedOrganization(text: string): OrganizationId {
-  const result = organizationCodec().parse(text)
+  const result = organizationCodec.parse(text)
   if (!result.ok) throw new Error(`fixture ${text} did not parse: ${result.error.code}`)
   return result.value
 }
 
 function parsedTenant(text: string): TenantId {
-  const result = tenantCodec().parse(text)
+  const result = tenantCodec.parse(text)
   if (!result.ok) throw new Error(`fixture ${text} did not parse: ${result.error.code}`)
   return result.value
 }
@@ -42,7 +42,7 @@ describe('tenant()', () => {
       account: { name: 'AccountId', text: ACCOUNT_TEXT },
     })
     expect(Object.isFrozen(combined)).toBe(true)
-    expect(tenantCodec().encode(combined)).toEqual({ ok: true, value: TENANT_TEXT })
+    expect(tenantCodec.encode(combined)).toEqual({ ok: true, value: TENANT_TEXT })
   })
 
   it('throws TypeError for a hand-built organization or account', () => {
@@ -69,7 +69,7 @@ describe('tenant text codec', () => {
   it('parses either key order and encodes organization before account', () => {
     const reordered =
       '{"account":"acc_abcdefghjkmnpqrstvwxyz2345","organization":"org_abcdefghjkmnpqrstvwxyz2345"}'
-    const parsed = tenantCodec().parse(reordered)
+    const parsed = tenantCodec.parse(reordered)
     expect(parsed).toEqual({
       ok: true,
       value: {
@@ -80,7 +80,7 @@ describe('tenant text codec', () => {
     })
     if (!parsed.ok) return
     expect(Object.isFrozen(parsed.value)).toBe(true)
-    expect(tenantCodec().encode(parsed.value)).toEqual({ ok: true, value: TENANT_TEXT })
+    expect(tenantCodec.encode(parsed.value)).toEqual({ ok: true, value: TENANT_TEXT })
   })
 
   it.each([
@@ -117,14 +117,14 @@ describe('tenant text codec', () => {
       'whitespace',
     ],
   ])('rejects %s', (_case, text, code) => {
-    expect(tenantCodec().parse(text)).toEqual({
+    expect(tenantCodec.parse(text)).toEqual({
       ok: false,
       error: { kind: 'identity-text-error', code },
     })
   })
 
   it('rejects a non-string input with type instead of coercing it to text', () => {
-    expect(tenantCodec().parse([TENANT_TEXT] as never)).toEqual({
+    expect(tenantCodec.parse([TENANT_TEXT] as never)).toEqual({
       ok: false,
       error: { kind: 'identity-text-error', code: 'type' },
     })
@@ -153,7 +153,7 @@ describe('tenant text codec', () => {
       organization: parsedOrganization(ORGANIZATION_TEXT),
       account: parsedAccount(ACCOUNT_TEXT),
     }
-    expect(tenantCodec().encode(forged)).toEqual({
+    expect(tenantCodec.encode(forged)).toEqual({
       ok: false,
       error: { kind: 'identity-text-error', code: 'type' },
     })

@@ -19,18 +19,18 @@ Import the public entry by package name. Dependencies are empty. The package has
 ```ts
 import { accountCodec, organizationCodec, tenant, tenantCodec } from '@omne-harness/legal-identity'
 
-const account = accountCodec().parse('acc_abcdefghjkmnpqrstvwxyz2345')
-const organization = organizationCodec().parse('org_abcdefghjkmnpqrstvwxyz2345')
+const account = accountCodec.parse('acc_abcdefghjkmnpqrstvwxyz2345')
+const organization = organizationCodec.parse('org_abcdefghjkmnpqrstvwxyz2345')
 if (!account.ok || !organization.ok) throw new Error('not a legal identity')
 
 const pair = tenant(organization.value, account.value)
-tenantCodec().encode(pair)
+tenantCodec.encode(pair)
 // { ok: true, value: '{"organization":"org_abcdefghjkmnpqrstvwxyz2345","account":"acc_abcdefghjkmnpqrstvwxyz2345"}' }
 ```
 
 | Export | Use |
 | --- | --- |
-| `accountCodec`, `organizationCodec`, `loginStateCodec`, `tenantCodec`, `scopeLayerCodec` | Each function returns `{ parse, encode }` for one family |
+| `accountCodec`, `organizationCodec`, `loginStateCodec`, `tenantCodec`, `scopeLayerCodec` | Each codec is `{ parse, encode }` for one family |
 | `accountEquals`, `organizationEquals`, `loginStateEquals`, `tenantEquals`, `scopeLayerEquals` | Compare two values of one family by value |
 | `tenant(organization, account)` | Combine a parsed organization and a parsed account |
 | `IDENTITY_TYPE_NAMES` | The five identity type names, for static checks |
@@ -90,11 +90,11 @@ Two parses of one text give two objects. The equality function of that family re
 
 ## Design
 
-`src/index.ts` is the only module. A module-private `IDENTITY_SPECS` table holds one row per identity type, with `name` and `form`. Atomic rows also hold `prefix`. `IDENTITY_TYPE_NAMES` comes from that table, and the three atomic codecs read their prefix from it. A new atomic family is a new row, not a new prefix check.
+`src/index.ts` is the only module. `ACCOUNT_SPEC`, `ORGANIZATION_SPEC`, and `LOGIN_STATE_SPEC` each hold `name` and `prefix`. `IDENTITY_SPECS` is those three rows, then the `TenantId` row, then the `ScopeLayerIdentity` row. Those last two rows hold only `name`. A row with `prefix` is atomic. `IDENTITY_TYPE_NAMES` comes from that table in row order, and the three atomic codecs read their prefix from their spec. A new atomic family is a new row, not a new prefix check.
 
 A module-private `WeakSet` records each value that `parse` or `tenant()` returns. `encode`, the equality functions, and `tenant()` accept a value only if the set holds it and its `name` is the expected family. Each value is frozen before the set records it, so a recorded value cannot change its family or text. The `WeakSet` does not keep a value alive. #221 rejected a unique-symbol brand, so this record is the only mint check.
 
-Tenant parse and scope-layer parse share one member check for JSON objects. A tenant layer parses its inner tenant with the tenant rules and builds it with `tenant()`.
+Tenant parse and scope-layer parse share one member check for JSON objects. A tenant layer parses its inner tenant with the tenant rules. `parseTenantValue` calls `mintTenant`. The scope-layer tenant branch calls `parseTenantValue`. `mintTenant` freezes the tenant and records it. It does not throw. `tenant()` rejects an argument that was not minted, then calls `mintTenant`.
 
 ## Configuration and operation
 
@@ -112,6 +112,7 @@ Applicable tests are unit tests and contract tests from the public entry. The te
 | `tests/tenant.spec.ts` | `tenant()`, tenant text, `role`, missing members, non-object input, reparse equality, and a hand-built tenant |
 | `tests/scope-layer.spec.ts` | Organization and tenant layers, rejected layer names, inner tenant rules, equality, and a hand-built layer |
 | `tests/identity-type-names.spec.ts` | The name list and the absence of `LoginIdentifier` |
+| `tests/codec-variance.spec-d.ts` | Assigning `accountCodec` to the account and organization union codec is a type error |
 
 Run `pnpm test` from this directory. It builds `dist` and then runs the tests. Run `pnpm typecheck` to check the tests against the source types.
 
@@ -121,4 +122,4 @@ The tests do not cover a type-level ban on hand-built objects, because the accep
 
 Named consumers are `packages/identity/identity`, `packages/session/session`, and the `identity-shapes` check in `tools/ts-checks`. The check imports `IDENTITY_TYPE_NAMES` from this package. #220 receives a `{ parse, encode }` pair and does not import a parser file.
 
-To add an atomic family, add a row to `IDENTITY_SPECS`, then add its type, codec function, equality function, and tests. That change also changes `IDENTITY_TYPE_NAMES`, so synchronize the `identity-shapes` owner. A change to a prefix, the alphabet, a failure code, or the check order changes the public contract. Synchronize the named consumers and the common-group README before you change it.
+To add an atomic family, declare its spec constant, include that row in `IDENTITY_SPECS`, then add its type, codec, equality function, and tests. That change also changes `IDENTITY_TYPE_NAMES`, so synchronize the `identity-shapes` owner. A change to a prefix, the alphabet, a failure code, or the check order changes the public contract. Synchronize the named consumers and the common-group README before you change it.

@@ -15,20 +15,20 @@ const TENANT_LAYER_TEXT =
   '{"layer":"tenant","tenant":{"organization":"org_abcdefghjkmnpqrstvwxyz2345","account":"acc_abcdefghjkmnpqrstvwxyz2345"}}'
 
 function parsedOrganization(text: string): OrganizationId {
-  const result = organizationCodec().parse(text)
+  const result = organizationCodec.parse(text)
   if (!result.ok) throw new Error(`fixture ${text} did not parse: ${result.error.code}`)
   return result.value
 }
 
 function parsedLayer(text: string): ScopeLayerIdentity {
-  const result = scopeLayerCodec().parse(text)
+  const result = scopeLayerCodec.parse(text)
   if (!result.ok) throw new Error(`fixture ${text} did not parse: ${result.error.code}`)
   return result.value
 }
 
 describe('scope layer codec', () => {
   it('parses an organization layer into frozen plain data and encodes the same text', () => {
-    const parsed = scopeLayerCodec().parse(ORGANIZATION_LAYER_TEXT)
+    const parsed = scopeLayerCodec.parse(ORGANIZATION_LAYER_TEXT)
     expect(parsed).toEqual({
       ok: true,
       value: {
@@ -39,14 +39,14 @@ describe('scope layer codec', () => {
     })
     if (!parsed.ok) return
     expect(Object.isFrozen(parsed.value)).toBe(true)
-    expect(scopeLayerCodec().encode(parsed.value)).toEqual({
+    expect(scopeLayerCodec.encode(parsed.value)).toEqual({
       ok: true,
       value: ORGANIZATION_LAYER_TEXT,
     })
   })
 
   it('parses a tenant layer into frozen plain data and encodes the same text', () => {
-    const parsed = scopeLayerCodec().parse(
+    const parsed = scopeLayerCodec.parse(
       '{"tenant":{"account":"acc_abcdefghjkmnpqrstvwxyz2345","organization":"org_abcdefghjkmnpqrstvwxyz2345"},"layer":"tenant"}',
     )
     expect(parsed).toEqual({
@@ -63,7 +63,7 @@ describe('scope layer codec', () => {
     })
     if (!parsed.ok) return
     expect(Object.isFrozen(parsed.value)).toBe(true)
-    expect(scopeLayerCodec().encode(parsed.value)).toEqual({ ok: true, value: TENANT_LAYER_TEXT })
+    expect(scopeLayerCodec.encode(parsed.value)).toEqual({ ok: true, value: TENANT_LAYER_TEXT })
   })
 
   it.each([
@@ -72,7 +72,7 @@ describe('scope layer codec', () => {
     ['an account layer', '{"layer":"account","account":"acc_abcdefghjkmnpqrstvwxyz2345"}'],
     ['a factory default layer', '{"layer":"factoryDefault"}'],
   ])('rejects %s with family', (_case, text) => {
-    expect(scopeLayerCodec().parse(text)).toEqual({
+    expect(scopeLayerCodec.parse(text)).toEqual({
       ok: false,
       error: { kind: 'identity-text-error', code: 'family' },
     })
@@ -113,7 +113,7 @@ describe('scope layer codec', () => {
     ['text that is not JSON', '{"layer":', 'type'],
     ['an array', '["organization","org_abcdefghjkmnpqrstvwxyz2345"]', 'type'],
   ])('rejects %s', (_case, text, code) => {
-    expect(scopeLayerCodec().parse(text)).toEqual({
+    expect(scopeLayerCodec.parse(text)).toEqual({
       ok: false,
       error: { kind: 'identity-text-error', code },
     })
@@ -150,7 +150,7 @@ describe('scope layer codec', () => {
       layer: 'organization',
       organization: parsedOrganization(ORGANIZATION_TEXT),
     }
-    expect(scopeLayerCodec().encode(forged)).toEqual({
+    expect(scopeLayerCodec.encode(forged)).toEqual({
       ok: false,
       error: { kind: 'identity-text-error', code: 'type' },
     })

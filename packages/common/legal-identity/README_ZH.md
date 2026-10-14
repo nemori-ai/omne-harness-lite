@@ -19,18 +19,18 @@ Issue #243 实现了公开入口。入口包含五个 codec、五个相等函数
 ```ts
 import { accountCodec, organizationCodec, tenant, tenantCodec } from '@omne-harness/legal-identity'
 
-const account = accountCodec().parse('acc_abcdefghjkmnpqrstvwxyz2345')
-const organization = organizationCodec().parse('org_abcdefghjkmnpqrstvwxyz2345')
+const account = accountCodec.parse('acc_abcdefghjkmnpqrstvwxyz2345')
+const organization = organizationCodec.parse('org_abcdefghjkmnpqrstvwxyz2345')
 if (!account.ok || !organization.ok) throw new Error('not a legal identity')
 
 const pair = tenant(organization.value, account.value)
-tenantCodec().encode(pair)
+tenantCodec.encode(pair)
 // { ok: true, value: '{"organization":"org_abcdefghjkmnpqrstvwxyz2345","account":"acc_abcdefghjkmnpqrstvwxyz2345"}' }
 ```
 
 | 导出 | 用途 |
 | --- | --- |
-| `accountCodec`、`organizationCodec`、`loginStateCodec`、`tenantCodec`、`scopeLayerCodec` | 每个函数返回一个家族的 `{ parse, encode }` |
+| `accountCodec`、`organizationCodec`、`loginStateCodec`、`tenantCodec`、`scopeLayerCodec` | 每个 codec 是一个家族的 `{ parse, encode }` |
 | `accountEquals`、`organizationEquals`、`loginStateEquals`、`tenantEquals`、`scopeLayerEquals` | 按值比较同一家族的两个值 |
 | `tenant(organization, account)` | 组合一个已解析的组织和一个已解析的账号 |
 | `IDENTITY_TYPE_NAMES` | 五个身份类型名，供静态检查使用 |
@@ -90,11 +90,11 @@ tenantCodec().encode(pair)
 
 ## 设计
 
-`src/index.ts` 是唯一的模块。模块私有的 `IDENTITY_SPECS` 表为每个身份类型保存一行，含 `name` 和 `form`。原子行还含 `prefix`。`IDENTITY_TYPE_NAMES` 从这张表得出，三个原子 codec 也从这张表读取前缀。新增原子家族就是新增一行，不是新增一处前缀判断。
+`src/index.ts` 是唯一的模块。`ACCOUNT_SPEC`、`ORGANIZATION_SPEC` 和 `LOGIN_STATE_SPEC` 各有 `name` 和 `prefix`。`IDENTITY_SPECS` 先放这三行，再放 `TenantId` 行，再放 `ScopeLayerIdentity` 行。后两行只有 `name`。带 `prefix` 的行是原子身份。`IDENTITY_TYPE_NAMES` 按这张表的行序得出，三个原子 codec 从各自的 spec 读取前缀。新增原子家族就是新增一行，不是新增一处前缀判断。
 
 模块私有的 `WeakSet` 登记 `parse` 或 `tenant()` 返回的每个值。`encode`、相等函数和 `tenant()` 只接受登记过、且 `name` 是预期家族的值。每个值先冻结再登记，所以登记过的值不能改变家族或文本。`WeakSet` 不延长值的生命周期。#221 没有采用唯一符号品牌，所以这份登记是唯一的铸造检查。
 
-租户解析和范围层解析共用一份 JSON 对象成员检查。租户层按租户规则解析内层租户，并用 `tenant()` 建立它。
+租户解析和范围层解析共用一份 JSON 对象成员检查。租户层按租户规则解析内层租户。`parseTenantValue` 调用 `mintTenant`。范围层的租户分支调用 `parseTenantValue`。`mintTenant` 冻结租户并登记它。它不抛出。`tenant()` 先拒绝未铸造的参数，再调用 `mintTenant`。
 
 ## 配置与运行
 
@@ -112,6 +112,7 @@ tenantCodec().encode(pair)
 | `tests/tenant.spec.ts` | `tenant()`、租户文本、`role`、缺成员、非对象输入、重新解析后相等，以及手写租户 |
 | `tests/scope-layer.spec.ts` | 组织层和租户层、被拒绝的层名、内层租户规则、相等，以及手写范围层 |
 | `tests/identity-type-names.spec.ts` | 名单本身，以及 `LoginIdentifier` 不在名单里 |
+| `tests/codec-variance.spec-d.ts` | 把 `accountCodec` 赋给账号与组织联合类型的 codec 是类型错误 |
 
 在本目录运行 `pnpm test`。它先构建 `dist`，再运行测试。运行 `pnpm typecheck` 按源码类型检查测试。
 
@@ -119,6 +120,6 @@ tenantCodec().encode(pair)
 
 ## 维护
 
-已点名的消费者是 `packages/identity/identity`、`packages/session/session`，以及 `tools/ts-checks` 的 `identity-shapes`。该检查从本包导入 `IDENTITY_TYPE_NAMES`。#220 接收 `{ parse, encode }` 这一对函数，不导入解析实现文件。
+已点名的消费者是 `packages/identity/identity`、`packages/session/session`，以及 `tools/ts-checks` 的 `identity-shapes`。该检查从本包导入 `IDENTITY_TYPE_NAMES`。#220 接收 `{ parse, encode }` 这一对，不导入解析实现文件。
 
-新增原子家族时，先在 `IDENTITY_SPECS` 加一行，再加它的类型、codec 函数、相等函数和测试。这项修改也会改变 `IDENTITY_TYPE_NAMES`，所以要同步 `identity-shapes` 的拥有者。修改前缀、字母表、失败码或检查顺序都会改变公开契约。修改前先同步已点名的消费者和共同组说明。
+新增原子家族时，先声明它的 spec 常量，把这一行放进 `IDENTITY_SPECS`，再加它的类型、codec、相等函数和测试。这项修改也会改变 `IDENTITY_TYPE_NAMES`，所以要同步 `identity-shapes` 的拥有者。修改前缀、字母表、失败码或检查顺序都会改变公开契约。修改前先同步已点名的消费者和共同组说明。

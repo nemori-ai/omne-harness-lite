@@ -1,14 +1,18 @@
+const ACCOUNT_SPEC = { name: 'AccountId', prefix: 'acc_' } as const
+const ORGANIZATION_SPEC = { name: 'OrganizationId', prefix: 'org_' } as const
+const LOGIN_STATE_SPEC = { name: 'LoginStateId', prefix: 'lgn_' } as const
+
 const IDENTITY_SPECS = [
-  { name: 'AccountId', form: 'atomic', prefix: 'acc_' },
-  { name: 'OrganizationId', form: 'atomic', prefix: 'org_' },
-  { name: 'LoginStateId', form: 'atomic', prefix: 'lgn_' },
-  { name: 'TenantId', form: 'pair' },
-  { name: 'ScopeLayerIdentity', form: 'layer' },
+  ACCOUNT_SPEC,
+  ORGANIZATION_SPEC,
+  LOGIN_STATE_SPEC,
+  { name: 'TenantId' },
+  { name: 'ScopeLayerIdentity' },
 ] as const
 
 type IdentitySpec = (typeof IDENTITY_SPECS)[number]
 type IdentityTypeName = IdentitySpec['name']
-type AtomicSpec = Extract<IdentitySpec, { readonly form: 'atomic' }>
+type AtomicSpec = Extract<IdentitySpec, { readonly prefix: string }>
 type AtomicName = AtomicSpec['name']
 
 /** Identity type names for static checks. Login identifiers are account attributes, not identity types. */
@@ -49,8 +53,8 @@ export type IdentityTextResult<T> =
 
 /** Rejected input is a failure result. Neither function throws, trims, or folds case. */
 export interface IdentityTextCodec<T> {
-  parse(text: string): IdentityTextResult<T>
-  encode(value: T): IdentityTextResult<string>
+  readonly parse: (text: string) => IdentityTextResult<T>
+  readonly encode: (value: T) => IdentityTextResult<string>
 }
 
 const ATOMIC_BODY = /^[0-9abcdefghjkmnpqrstvwxyz]{26}$/
@@ -140,22 +144,11 @@ function atomicEquals<N extends AtomicName>(
   return isMinted(left, name) && isMinted(right, name) && left.text === right.text
 }
 
-const [ACCOUNT_SPEC, ORGANIZATION_SPEC, LOGIN_STATE_SPEC] = IDENTITY_SPECS
-const ACCOUNT_CODEC = atomicCodec(ACCOUNT_SPEC)
-const ORGANIZATION_CODEC = atomicCodec(ORGANIZATION_SPEC)
-const LOGIN_STATE_CODEC = atomicCodec(LOGIN_STATE_SPEC)
+export const accountCodec: IdentityTextCodec<AccountId> = atomicCodec(ACCOUNT_SPEC)
 
-export function accountCodec(): IdentityTextCodec<AccountId> {
-  return ACCOUNT_CODEC
-}
+export const organizationCodec: IdentityTextCodec<OrganizationId> = atomicCodec(ORGANIZATION_SPEC)
 
-export function organizationCodec(): IdentityTextCodec<OrganizationId> {
-  return ORGANIZATION_CODEC
-}
-
-export function loginStateCodec(): IdentityTextCodec<LoginStateId> {
-  return LOGIN_STATE_CODEC
-}
+export const loginStateCodec: IdentityTextCodec<LoginStateId> = atomicCodec(LOGIN_STATE_SPEC)
 
 /** False unless both values came from parse. */
 export function accountEquals(left: AccountId, right: AccountId): boolean {
@@ -172,13 +165,17 @@ export function loginStateEquals(left: LoginStateId, right: LoginStateId): boole
   return atomicEquals(left, right, 'LoginStateId')
 }
 
-/** The only in-process tenant constructor. Throws TypeError unless both halves came from parse. */
+function mintTenant(organization: OrganizationId, account: AccountId): TenantId {
+  return mint<TenantId>({ name: 'TenantId', organization, account })
+}
+
+/** Throws TypeError unless both halves came from parse. */
 export function tenant(organization: OrganizationId, account: AccountId): TenantId {
   if (!isMinted(organization, 'OrganizationId') || !isMinted(account, 'AccountId'))
     throw new TypeError(
       'tenant() accepts only an OrganizationId and an AccountId returned by parse',
     )
-  return mint<TenantId>({ name: 'TenantId', organization, account })
+  return mintTenant(organization, account)
 }
 
 function parseTenantValue(value: unknown): IdentityTextResult<TenantId> {
@@ -188,23 +185,19 @@ function parseTenantValue(value: unknown): IdentityTextResult<TenantId> {
   if (!organization.ok) return organization
   const account = parseAtomic(members.value.account, ACCOUNT_SPEC)
   if (!account.ok) return account
-  return success(tenant(organization.value, account.value))
+  return success(mintTenant(organization.value, account.value))
 }
 
 function tenantMembers(value: TenantId) {
   return { organization: value.organization.text, account: value.account.text }
 }
 
-const TENANT_CODEC: IdentityTextCodec<TenantId> = Object.freeze({
+/** Tenant text is a JSON object with exactly the `organization` and `account` members. */
+export const tenantCodec: IdentityTextCodec<TenantId> = Object.freeze({
   parse: (text: string) => parseJsonText(text, parseTenantValue),
   encode: (value: TenantId) =>
     isMinted(value, 'TenantId') ? success(JSON.stringify(tenantMembers(value))) : failure('type'),
 })
-
-/** Tenant text is a JSON object with exactly the `organization` and `account` members. */
-export function tenantCodec(): IdentityTextCodec<TenantId> {
-  return TENANT_CODEC
-}
 
 /** False unless both values came from parse or tenant(). */
 export function tenantEquals(left: TenantId, right: TenantId): boolean {
@@ -251,21 +244,17 @@ function scopeLayerMembers(value: ScopeLayerIdentity) {
     : { layer: value.layer, tenant: tenantMembers(value.tenant) }
 }
 
-const SCOPE_LAYER_CODEC: IdentityTextCodec<ScopeLayerIdentity> = Object.freeze({
+/**
+ * Scope layer text is a JSON object whose `layer` is `organization` or `tenant`, plus one member
+ * named after that layer. Every other layer name is `family`.
+ */
+export const scopeLayerCodec: IdentityTextCodec<ScopeLayerIdentity> = Object.freeze({
   parse: (text: string) => parseJsonText(text, parseScopeLayerValue),
   encode: (value: ScopeLayerIdentity) =>
     isMinted(value, 'ScopeLayerIdentity')
       ? success(JSON.stringify(scopeLayerMembers(value)))
       : failure('type'),
 })
-
-/**
- * Scope layer text is a JSON object whose `layer` is `organization` or `tenant`, plus one member
- * named after that layer. Every other layer name is `family`.
- */
-export function scopeLayerCodec(): IdentityTextCodec<ScopeLayerIdentity> {
-  return SCOPE_LAYER_CODEC
-}
 
 /** False unless both values came from parse. */
 export function scopeLayerEquals(left: ScopeLayerIdentity, right: ScopeLayerIdentity): boolean {
