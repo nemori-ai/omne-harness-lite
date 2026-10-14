@@ -29,6 +29,7 @@ const TOKEN = {
   eof: 17,
 } as const
 const SCAN_OK = 0
+const SCAN_END_OF_STRING = 2
 
 /** An open container and the token it accepts next. */
 type Frame = ArrayFrame | ObjectFrame
@@ -122,17 +123,17 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
         complete({ kind: 'boolean', value: false })
         return undefined
       case TOKEN.string: {
-        const value = readString(scanner)
+        const value = readString(scanner, text)
         if (typeof value !== 'string') return value
         complete({ kind: 'string', value })
         return undefined
       }
-      case TOKEN.number:
-        complete({
-          kind: 'number',
-          lexeme: text.slice(scanner.getTokenOffset(), scanner.getPosition()),
-        })
+      case TOKEN.number: {
+        const lexeme = readNumber(text, scanner.getTokenOffset())
+        if (typeof lexeme !== 'string') return lexeme
+        complete({ kind: 'number', lexeme })
         return undefined
+      }
       default:
         return syntax('token')
     }
@@ -153,6 +154,7 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
         close(frame)
         return undefined
       case 'item':
+        if (token === TOKEN.closeBracket) return syntax('trailing-comma')
         return startValue(token)
     }
   }
@@ -169,12 +171,13 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
         return undefined
       case 'first-key':
       case 'key': {
-        if (token === TOKEN.closeBrace && frame.next === 'first-key') {
+        if (token === TOKEN.closeBrace) {
+          if (frame.next === 'key') return syntax('trailing-comma')
           close(frame)
           return undefined
         }
         if (token !== TOKEN.string) return syntax('token')
-        const key = readString(scanner)
+        const key = readString(scanner, text)
         if (typeof key !== 'string') return key
         frame.keys.add(key)
         frame.key = key
@@ -193,6 +196,7 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
   for (;;) {
     const token: number = scanner.scan()
     if (token === TOKEN.whitespace || token === TOKEN.lineBreak) continue
+    if (token === TOKEN.lineComment || token === TOKEN.blockComment) return syntax('comment')
     const top = stack.at(-1)
     if (top === undefined && root !== undefined)
       return token === TOKEN.eof ? { kind: 'ok', value: root } : syntax('trailing-content')
@@ -207,9 +211,27 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
   }
 }
 
-function readString(scanner: JSONScanner): JsonFailure | string {
-  if (scanner.getTokenError() !== SCAN_OK) return syntax('token')
-  return scanner.getTokenValue()
+function readString(scanner: JSONScanner, text: string): JsonFailure | string {
+  const error = scanner.getTokenError()
+  if (error === SCAN_OK) return scanner.getTokenValue()
+  // The scanner also reports a raw line break as the end of a string, before the end of the text.
+  if (error === SCAN_END_OF_STRING && scanner.getPosition() === text.length)
+    return syntax('truncated')
+  return syntax('token')
+}
+
+const RFC_8259_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/
+
+/**
+ * The scanner splits `01` into two numbers and keeps `1.` as one, so the lexeme is
+ * the whole run of number characters from the token start, checked against RFC 8259.
+ */
+function readNumber(text: string, offset: number): JsonFailure | string {
+  let end = offset
+  while (end < text.length && '0123456789+-.eE'.includes(text.charAt(end))) end += 1
+  const lexeme = text.slice(offset, end)
+  if (!RFC_8259_NUMBER.test(lexeme)) return syntax('token')
+  return lexeme
 }
 
 function syntax(reason: JsonSyntaxReason): JsonFailure {

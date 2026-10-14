@@ -277,3 +277,146 @@ describe('values', () => {
     })
   })
 })
+
+describe('syntax', () => {
+  it.each([
+    '// note\nnull',
+    'null // note',
+    '/* note */ null',
+    'null /* note */',
+    '[1, /* note */ 2]',
+    '{"a" /* note */: 1}',
+    '/* never closed',
+    '{"a": 1} //',
+  ])('comment in %j is syntax comment', text => {
+    expect(readJsonText(text, roomy)).toEqual({ kind: 'syntax', reason: 'comment' })
+  })
+
+  it.each(['[1,]', '[1 , ]', '[[1,],2]', '{"a":1,}', '{"a":1 ,\n}', '{"a":{"b":2,}}'])(
+    'trailing comma in %j is syntax trailing-comma',
+    text => {
+      expect(readJsonText(text, roomy)).toEqual({ kind: 'syntax', reason: 'trailing-comma' })
+    },
+  )
+
+  it.each(['[,]', '[,1]', '[1,,2]', '{,}', '{,"a":1}', '{"a":1,,"b":2}'])(
+    'a comma without a preceding value in %j is syntax token',
+    text => {
+      expect(readJsonText(text, roomy)).toEqual({ kind: 'syntax', reason: 'token' })
+    },
+  )
+
+  it.each([
+    '[',
+    '{',
+    '[1',
+    '[1,',
+    '[[]',
+    '{"a"',
+    '{"a":',
+    '{"a":1',
+    '{"a":1,',
+    '"abc',
+    '"abc\\',
+    '{"a":"b',
+    '{"ab',
+    '[1, {"a": [true',
+  ])('unfinished %j is syntax truncated', text => {
+    expect(readJsonText(text, roomy)).toEqual({ kind: 'syntax', reason: 'truncated' })
+  })
+
+  it.each(['null null', '{} []', '1 2', '"a""b"', '{}x', '1x', '[] ]', '{}}', 'true,'])(
+    'extra content after one value in %j is syntax trailing-content',
+    text => {
+      expect(readJsonText(text, roomy)).toEqual({ kind: 'syntax', reason: 'trailing-content' })
+    },
+  )
+
+  it.each([
+    'nul',
+    'True',
+    'undefined',
+    'NaN',
+    'Infinity',
+    "'a'",
+    '/',
+    ']',
+    '}',
+    ':',
+    ',',
+    '{a:1}',
+    '{1:2}',
+    '{null:1}',
+    '{"a" 1}',
+    '{"a"::1}',
+    '{"a":}',
+    '{"a":1 "b":2}',
+    '{"a",1}',
+    '[1 2]',
+    '[:]',
+    '[1}',
+    '{"a":1]',
+    '"a\\x"',
+    '"\\u12"',
+    '"\\uZZZZ"',
+    '"a\tb"',
+    '"a\nb"',
+    '"a\rb"',
+    '"\u0000"',
+    '"\u001f"',
+    '\fnull',
+    '\vnull',
+    '\u00a0null',
+    '\u2028null',
+    '[\uFEFF1]',
+  ])('illegal token in %j is syntax token', text => {
+    expect(readJsonText(text, roomy)).toEqual({ kind: 'syntax', reason: 'token' })
+  })
+
+  it.each([
+    '-',
+    '+1',
+    '01',
+    '-01',
+    '00',
+    '1.',
+    '.5',
+    '-.5',
+    '1e',
+    '1e+',
+    '1E-',
+    '1.e3',
+    '1.5.3',
+    '1e5e3',
+    '1-2',
+    '[0x10]',
+    '[01]',
+    '{"a":1.}',
+  ])('number lexeme in %j that is not RFC 8259 is syntax token', text => {
+    expect(readJsonText(text, roomy)).toEqual({ kind: 'syntax', reason: 'token' })
+  })
+
+  it('the first failure in source order wins', () => {
+    expect(readJsonText('[1,] // note', roomy)).toEqual({
+      kind: 'syntax',
+      reason: 'trailing-comma',
+    })
+    expect(readJsonText('// note\n[1,]', roomy)).toEqual({ kind: 'syntax', reason: 'comment' })
+  })
+
+  it('a failure carries no value, even when a prefix was readable', () => {
+    for (const text of ['[1, 2', '[1, 2,]', '{"a": 1} x', '{"a": 1 // note\n}', '[1, 01]']) {
+      const result = readJsonText(text, roomy)
+      expect(result.kind).toBe('syntax')
+      expect(Object.keys(result).sort()).toEqual(['kind', 'reason'])
+    }
+    expect(Object.keys(readJsonText('[1, 2]', roomy)).sort()).toEqual(['kind', 'value'])
+  })
+
+  it('comment markers inside a string are string content', () => {
+    expect(readJsonText('"// /* */"', roomy)).toEqual({
+      kind: 'ok',
+      value: { kind: 'string', value: '// /* */' },
+    })
+  })
+})
