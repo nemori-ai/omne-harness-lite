@@ -421,6 +421,34 @@ describe('syntax', () => {
   })
 })
 
+describe('unterminated string content', () => {
+  it.each(['"\\x', '"a\tb', '"\\uZZ'])('unterminated illegal string %j is syntax token', text => {
+    expect(readJsonText(text, roomy)).toEqual({ kind: 'syntax', reason: 'token' })
+  })
+
+  it('an unterminated illegal string longer than maxStringLength is syntax token', () => {
+    expect(readJsonText('"abcdef\\x', { ...roomy, maxStringLength: 3 })).toEqual({
+      kind: 'syntax',
+      reason: 'token',
+    })
+  })
+
+  it('unterminated abcdef with maxStringLength 3 is budget string', () => {
+    expect(readJsonText('"abcdef', { ...roomy, maxStringLength: 3 })).toEqual({
+      kind: 'budget',
+      name: 'string',
+    })
+  })
+
+  it.each(['"abc', '"\\u12'])('unterminated legal string %j is syntax truncated', text => {
+    expect(readJsonText(text, roomy)).toEqual({ kind: 'syntax', reason: 'truncated' })
+  })
+
+  it('closed "a\\x" is syntax token', () => {
+    expect(readJsonText('"a\\x"', roomy)).toEqual({ kind: 'syntax', reason: 'token' })
+  })
+})
+
 describe('duplicate keys', () => {
   it('a repeated key is duplicate-key with the parent path and the decoded key', () => {
     expect(readJsonText('{"a":1,"a":2}', roomy)).toEqual({
