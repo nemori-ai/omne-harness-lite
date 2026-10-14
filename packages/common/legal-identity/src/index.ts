@@ -23,6 +23,12 @@ export type AccountId = AtomicIdentity<'AccountId'>
 export type OrganizationId = AtomicIdentity<'OrganizationId'>
 export type LoginStateId = AtomicIdentity<'LoginStateId'>
 
+export interface TenantId {
+  readonly name: 'TenantId'
+  readonly organization: OrganizationId
+  readonly account: AccountId
+}
+
 export interface IdentityTextError {
   readonly kind: 'identity-text-error'
   readonly code:
@@ -43,7 +49,10 @@ const ATOMIC_BODY = /^[0-9abcdefghjkmnpqrstvwxyz]{26}$/
 const EDGE_WHITESPACE = /^[ \t\n]|[ \t\n]$/
 const UPPERCASE = /[A-Z]/
 
-// A type assertion can build any of these shapes, so membership here is the only proof of a parse.
+const TENANT_MEMBERS = ['organization', 'account'] as const
+
+// A type assertion can build any of these shapes, so membership here is the only proof that
+// parse or tenant() built the value.
 const minted = new WeakSet<object>()
 
 function mint<T extends object>(value: T): T {
@@ -63,10 +72,35 @@ function failure(code: IdentityTextError['code']): IdentityTextResult<never> {
   return { ok: false, error: { kind: 'identity-text-error', code } }
 }
 
+function parseJsonText<T>(
+  text: unknown,
+  parseValue: (value: unknown) => IdentityTextResult<T>,
+): IdentityTextResult<T> {
+  if (typeof text !== 'string') return failure('type')
+  let value: unknown
+  try {
+    value = JSON.parse(text)
+  } catch {
+    return failure('type')
+  }
+  return parseValue(value)
+}
+
+function readMembers<K extends string>(
+  value: unknown,
+  keys: readonly K[],
+): IdentityTextResult<{ readonly [P in K]: unknown }> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return failure('type')
+  if (!keys.every(key => Object.hasOwn(value, key))) return failure('missing-member')
+  if (Object.keys(value).length !== keys.length) return failure('extra-member')
+  return success(value as { readonly [P in K]: unknown })
+}
+
 function parseAtomic<N extends AtomicName>(
-  text: string,
+  text: unknown,
   spec: { readonly name: N; readonly prefix: string },
 ): IdentityTextResult<AtomicIdentity<N>> {
+  if (typeof text !== 'string') return failure('type')
   if (text === '') return failure('lexicon')
   if (EDGE_WHITESPACE.test(text)) return failure('whitespace')
   if (UPPERCASE.test(text)) return failure('case')
@@ -124,4 +158,48 @@ export function organizationEquals(left: OrganizationId, right: OrganizationId):
 /** False unless both values came from parse. */
 export function loginStateEquals(left: LoginStateId, right: LoginStateId): boolean {
   return atomicEquals(left, right, 'LoginStateId')
+}
+
+/** The only in-process tenant constructor. Throws TypeError unless both halves came from parse. */
+export function tenant(organization: OrganizationId, account: AccountId): TenantId {
+  if (!isMinted(organization, 'OrganizationId') || !isMinted(account, 'AccountId'))
+    throw new TypeError(
+      'tenant() accepts only an OrganizationId and an AccountId returned by parse',
+    )
+  return mint<TenantId>({ name: 'TenantId', organization, account })
+}
+
+function parseTenantValue(value: unknown): IdentityTextResult<TenantId> {
+  const members = readMembers(value, TENANT_MEMBERS)
+  if (!members.ok) return members
+  const organization = parseAtomic(members.value.organization, ORGANIZATION_SPEC)
+  if (!organization.ok) return organization
+  const account = parseAtomic(members.value.account, ACCOUNT_SPEC)
+  if (!account.ok) return account
+  return success(tenant(organization.value, account.value))
+}
+
+function tenantMembers(value: TenantId) {
+  return { organization: value.organization.text, account: value.account.text }
+}
+
+const TENANT_CODEC: IdentityTextCodec<TenantId> = Object.freeze({
+  parse: (text: string) => parseJsonText(text, parseTenantValue),
+  encode: (value: TenantId) =>
+    isMinted(value, 'TenantId') ? success(JSON.stringify(tenantMembers(value))) : failure('type'),
+})
+
+/** Tenant text is a JSON object with exactly the `organization` and `account` members. */
+export function tenantCodec(): IdentityTextCodec<TenantId> {
+  return TENANT_CODEC
+}
+
+/** False unless both values came from parse or tenant(). */
+export function tenantEquals(left: TenantId, right: TenantId): boolean {
+  return (
+    isMinted(left, 'TenantId') &&
+    isMinted(right, 'TenantId') &&
+    organizationEquals(left.organization, right.organization) &&
+    accountEquals(left.account, right.account)
+  )
 }
