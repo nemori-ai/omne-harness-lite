@@ -12,12 +12,12 @@ import {
   type Legacy,
 } from './context.ts'
 import {
-  currentCapture,
+  currentAdmission,
   deliveryConfig,
   readAuthority,
   currentTask,
   confirmConditions,
-  captureDigest,
+  admissionDigest,
 } from './authority.ts'
 import { clean, repository, requireAncestor } from './git.ts'
 import { activeTrack } from './policy.ts'
@@ -111,7 +111,8 @@ export async function openIntegration({ root }: { root: string }): Promise<Integ
 function start(root: string, command: Extract<Command, { kind: 'register' | 'start' }>): unknown {
   const state = requireCurrentAdoption(root),
     config = deliveryConfig(root, state.policy, state.source),
-    capture = currentCapture(config)
+    scope = { task: command.issue, authority: command.authority },
+    capture = currentAdmission(config, scope)
   const decision = readAuthority(state.policy, command.authority, capture)
   if (decision.action !== 'dispatch')
     throw new IntegrationError('refused', 'Recorded dispatch authority required')
@@ -157,8 +158,8 @@ function start(root: string, command: Extract<Command, { kind: 'register' | 'sta
     return state.context
   }
   same(
-    captureDigest(currentCapture(config)),
-    captureDigest(capture),
+    admissionDigest(currentAdmission(config, scope)),
+    admissionDigest(capture),
     'Task inputs changed during dispatch readback',
   )
   const context = {

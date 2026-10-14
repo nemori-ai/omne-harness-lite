@@ -52,7 +52,9 @@ taskBase 是开工固定 SHA，不能用 FI 后的目标替换。work branch 必
 {"kind":"start","authority":"真实评论URL","issue":"真实IssueURL","revision":1,"attempt":"实际attempt"}
 ```
 
-`register` 与 `start` 同一准入。执行失败不创建部分 context。已有同绑定可读回；另一绑定须明确新树。离线 delivery capture 可作观察，不作派发或发布资格。
+`register` 与 `start` 同一准入。两者只读取目标任务闭包、授权卡完整评论和目标任务 Project 状态，不枚举仓库历史或全 Project items。闭包最多 32 个 Issue、8 个边层级，独立授权卡计入总数。必需页、条件解析或配置字段不完整时拒绝。Stage 已确认且完整读取后未设值时，`null` 合法。创建 context 前双读相关输入，变化则拒绝写入。
+
+执行失败不创建部分 context。已有同绑定可读回；另一绑定须明确新树。离线 delivery capture 可作观察，不作派发或发布资格。
 
 ## 准备、验证和发布
 
