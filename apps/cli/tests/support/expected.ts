@@ -15,3 +15,7 @@ The default state directory is $HOME/.omne.
 export const expectedVersion = '0.0.0\n'
 
 export const identityFailure = 'omne: build identity is missing or invalid\n'
+
+export const missingCommand = 'omne: missing command\nRun omne --help for usage.\n'
+export const homeRequiresDirectory = 'omne: --home requires a directory\n'
+export const unrecognizedArguments = 'omne: unrecognized arguments\nRun omne --help for usage.\n'

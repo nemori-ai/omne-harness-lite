@@ -17,10 +17,18 @@ The default state directory is $HOME/.omne.
 --help and --version do not open or create a state directory.
 `
 
+const missingCommand = 'omne: missing command\nRun omne --help for usage.\n'
+const homeRequiresDirectory = 'omne: --home requires a directory\n'
 const unrecognized = 'omne: unrecognized arguments\nRun omne --help for usage.\n'
 
 export function parseArgv(argv: readonly string[]): ParsedCommand {
   if (argv.length === 1 && argv[0] === '--help') return { kind: 'help' }
   if (argv.length === 1 && argv[0] === '--version') return { kind: 'version' }
+  if (argv.length === 0) return { kind: 'usage-error', message: missingCommand }
+  const homeWithoutDirectory = argv.some((token, index) => {
+    const next = argv[index + 1]
+    return token === '--home' && (next === undefined || next.startsWith('-'))
+  })
+  if (homeWithoutDirectory) return { kind: 'usage-error', message: homeRequiresDirectory }
   return { kind: 'usage-error', message: unrecognized }
 }
