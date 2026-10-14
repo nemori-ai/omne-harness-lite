@@ -65,15 +65,23 @@ readJsonBytes(bytes, limits) -> JsonRead
 readJsonText(text, limits) -> JsonRead
 ```
 
-`readJsonBytes` 对字节做致命 UTF-8 解码，并且不跳过 BOM。`readJsonText` 只接收已经完成致命解码的文本。文本含孤立代理项时，函数抛 `TypeError`。文本以 U+FEFF 开头时，结果是 `bom`。
+`readJsonBytes` 对字节做致命 UTF-8 解码，并且不跳过 BOM。`readJsonText` 只接收已经完成致命解码的文本。`readJsonText` 的文本含孤立代理项时抛 `TypeError`。JSON 源码里的 `\u` 转义不因此抛 `TypeError`。文本以 U+FEFF 开头时，结果是 `bom`。
 
-`limits` 的每个字段都是 1 到 `Number.MAX_SAFE_INTEGER` 的整数。缺字段或非法值抛 `TypeError`。读取器不提供默认预算。
+`limits` 有 `maxBytes`、`maxDepth`、`maxItems`、`maxMembers`、`maxStringLength` 和 `maxNumberLength`。每个字段都是 1 到 `Number.MAX_SAFE_INTEGER` 的整数。缺字段、非安全整数或超出该范围抛 `TypeError`。`readJsonBytes` 只接受 `Uint8Array`。`readJsonText` 只接受字符串。参数类型不对时抛 `TypeError`。读取器不提供默认预算。
 
-成功时，每个 JSON 数字都是源词法，不转成 JavaScript `number`。对象以 `entries` 保存键的出现顺序。键 `2` 在键 `1` 之前出现时，结果保持这个顺序。失败时不返回值，也不抛 `SyntaxError`。
+成功结果的 `kind` 是 `ok`，并带 `value`。每个 JSON 数字的 `kind` 是 `number`，值是源词法 `lexeme`，不转成 JavaScript `number`。对象的 `kind` 是 `object`，以 `entries` 保存键的出现顺序。数组的 `kind` 是 `array`。键 `2` 在键 `1` 之前出现时，结果保持这个顺序。失败结果不带 `value`，也不抛 `SyntaxError`。
 
-失败种类是 `utf8`、`bom`、`empty`、`syntax`、`duplicate-key` 和 `budget`。`syntax` 的原因是 `comment`、`trailing-comma`、`token`、`truncated` 或 `trailing-content`。`duplicate-key` 带父对象路径和解码后的键名。`budget` 的名目是 `bytes`、`depth`、`items`、`members`、`string` 或 `number`。
+失败种类是 `utf8`、`bom`、`empty`、`syntax`、`duplicate-key` 和 `budget`。`syntax` 的原因是 `comment`、`trailing-comma`、`token`、`truncated` 或 `trailing-content`。`duplicate-key` 带从根到父对象的路径，以及解码后的键名。路径中的对象键是字符串，数组下标是数字。`budget` 的名目是 `bytes`、`depth`、`items`、`members`、`string` 或 `number`。
 
-读取器按下列顺序停止。字节先拒绝非法 UTF-8、BOM 和超过 `maxBytes` 的输入。然后拒绝空输入。只含空格、制表符、换行或回车的输入是空输入。对象键在扫描对应的值之前判定。解码后的键超过 `maxStringLength` 时，结果是 `budget` `string`。接受该键会使成员数超过 `maxMembers` 时，结果是 `budget` `members`。键已经出现过时，结果是 `duplicate-key`，并且不再扫描该值。下一个 token 会使深度或项数超限时，读取器在该 token 上返回对应的 `budget`。值没有写完，且尚未发生预算失败或重复键失败时，结果是 `truncated`。
+读取器按下列顺序停止。`readJsonBytes` 先拒绝非法 UTF-8，再拒绝 BOM，再拒绝超过 `maxBytes` 的输入。`maxBytes` 是整份输入的 UTF-8 字节长度。`readJsonText` 没有 `utf8` 失败。它先抛出孤立代理项的 `TypeError`，再拒绝 BOM，再按文本的 UTF-8 字节长度拒绝超过 `maxBytes` 的输入。然后两边都拒绝空输入。只含空格、制表符、换行或回车的输入是空输入。
+
+对象键在扫描对应的值之前判定。`maxStringLength` 是解码后的 JavaScript 字符串长度，键和字符串值都用它。解码后的键超过 `maxStringLength` 时，结果是 `budget` `string`。再接受一个成员就会超过 `maxMembers` 时，结果是 `budget` `members`。`maxMembers` 按单个对象计数。键已经出现过时，结果是 `duplicate-key`，并且不再扫描该值。
+
+一个值开始时，先看容器深度，再看项数。根容器的深度是 1。`{` 或 `[` 会使深度加一。加一之后大于 `maxDepth` 时，结果是 `budget` `depth`。项是一份文档里的 JSON 值。容器也算一项。键不算项。同一个 token 上深度和项数都会超限时，结果是 `depth`。`[1]` 在 `maxItems` 为 1 时是 `budget` `items`。
+
+字符串先看原始文本是不是合法 JSON 字符串前缀。未闭合字符串里已经出现非法转义、控制字符或其他非法内容时，结果是 `syntax` `token`，先于长度，也先于 `truncated`。合法字符串的解码长度超过 `maxStringLength` 时，结果是 `budget` `string`。合法但没有写完、并且还在长度预算内时，结果是 `truncated`。数字先按 RFC 8259 核对源词法。不合语法的词法是 `syntax` `token`，出现在文本末尾也一样。合语法的词法长度超过 `maxNumberLength` 时，结果是 `budget` `number`。`maxNumberLength` 是源词法的字符长度。
+
+值没有写完，且尚未发生非法内容、预算或重复键失败时，结果是 `truncated`。
 
 `{"a":1,"a":` 在 `maxMembers` 为 2 时是 `duplicate-key`。`{"a":[` 在 `maxDepth` 为 1 时是 `budget` `depth`。`{"a":` 是 `truncated`。
 
