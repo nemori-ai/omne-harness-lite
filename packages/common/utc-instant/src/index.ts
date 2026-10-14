@@ -1,2 +1,2 @@
-// PACKAGE_TEMPLATE_DRAFT: Export the accepted public functions/types here.
-export {}
+export { compareInstants, encodeInstant, parseInstant } from './instant.ts'
+export type { Instant } from './instant.ts'
