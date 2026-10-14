@@ -49,6 +49,26 @@ Service 定义的归属沿[产品包组织](../../../../docs/package-organizatio
 这次不改这条规则。
 若把这些组登记进 `GROUP_DIRECTION_POLICY`，同组的 `sdk` 导入 `server-entry` 会一直合法，直到两个成员成环。
 
+## 后续实施者
+
+本模板提供草稿生成和依赖诊断。它不实现后续产品。
+
+| 后续工作 | 使用方式 | 本卡不提供 |
+| --- | --- | --- |
+| 最小 CLI | 应用不使用本模板。CLI 放在 `apps/`。命令解析不导入 `@deepseek-ai/cordis`。 | 没有应用变体，也不实现命令循环。 |
+| 成员测试设施 | 草稿包含 `tests/` 槽。隔离测试只证明官方模板生成的骨架能够 build 和 typecheck。 | 不建立分包测试平台。 |
+| 基础能力 | `service-contract` 和 `cordis-module` 可以在目标组生成草稿。`kernel-basis` 的目标位置是 `packages/assembly/kernel-basis`。 | 不建立该成员，也不搬迁封存包。 |
+
+## 依赖诊断
+
+`scan --json` 的一行至少包含 `rule`、`state`、`member`、`targetMember` 和 `sites`。
+
+类型导入没有声明依赖时，`rule` 是 `undeclared-dependency`，`state` 是 `deviation`。`reason` 是「源码引用 workspace 包但未在 dependencies、peerDependencies 或 devDependencies 声明」。`tests/dependency-report.spec.ts` 断言这句。
+
+经 `./cordis` 子路径和相对导入形成的环，`rule` 是 `member-cycle`，`state` 是 `deviation`。`reason` 以「成员之间成环」起头。同一测试断言这条形状。
+
+`unknown` 保持 `unknown`。`--check` 退出 0 不表示全部依赖都已判断。
+
 保留定义唯一性和公开入口。不要用手写结构或伪造采用标识绕过检查。
 
 产品包基础必需 package.json、双语 README、documentation.json、构建/测试配置、src/index.ts，以及有真实内容的 src/ 和 tests/。绑定变体还需 src/cordis.ts 和已有采用依据的 SPEC.md。源码模块名和数量可变，但只在模板声明的 TypeScript 槽内变化。其他资源有实际义务才建：
