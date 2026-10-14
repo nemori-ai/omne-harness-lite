@@ -172,6 +172,8 @@ SQL outbox/inbox交接不依赖Redis独立断电耐久，SQL受理和outbox承�
 
 Schema模块按实际使用需求动态加载，不在启动时遍历加载和编译全部Schema。需要校验或转换的消费者触发加载，编译型校验器在首次使用时编译并缓存；并发请求共享同一加载与编译任务，不重复编译。启动就绪所必需的Schema在对应就绪检查使用时加载，纯能力入口不能因懒加载而依赖Cordis装配。
 
+公共 JSON 文本读取不是 Schema 编译，也不是缓存。它的签名和失败归[公共 JSON 文本读取](cross-cutting-concepts.md#json-text-reader)。
+
 Zod提供者区分原生编译、运行时解析和异步解析。首次加载时核对支持子集，使用严格编译检查辨认不支持形状，再选择已经声明的运行时路径。[采用基线](technical-foundations.md#共同技术选择)的递归、异步refinement、coercion及callback catch不能计为原生编译成功，异步解析和codec反向编码也不能套用同步编译收益。refinement和codec函数必须符合对应的纯度要求；编译失败后的运行时回退不能以重复执行callback改变外部事实。TypeBox、Ajv或ArkType的Boolean check与check后clone适配分别计量，不能把适配后的parse当作原生parse等价证据。
 
 纯Schema定义与编译产物由所属Schema提供者在同一进程或执行域全局复用，不为每个请求、Session或Cordis Context重建。缓存键包含Schema身份及内容修订、编译器版本、影响语义的选项和编译依赖修订。依赖范围包括递归引用的Schema、已解析的$ref目标、格式/关键字实现及参与校验的codec；提供者固定这些依赖的有效修订并跟踪其变更。这些输入均未变更时复用同一编译产物；定义、选项或依赖变更时，使受影响的编译缓存失效并建立新缓存项，旧产物保留到使用它的消费者释放；加载或编译失败不保存成功缓存。函数不能跨Worker直接共享，各执行域分别维护编译缓存。
