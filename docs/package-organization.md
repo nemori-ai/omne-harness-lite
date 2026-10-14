@@ -103,6 +103,42 @@ SDK是客户端统一编程入口，承接调用、观察、订阅及明确属�
 
 完整Harness客户端通过SDK使用系统；独立能力消费者可以直接使用所需能力及所选实现，不强制经过SDK。同组不要求共同安装或发布。首批SDK操作、传输、认证、兼容、缓存、订阅恢复及拥有式daemon启动沿[分层后续设计](architecture/layers-and-dependencies.md#待细化范围)明确，本页不补默认协议。
 
+## 最小 CLI 的接入边界
+
+最小 CLI 放在 `apps/`。它拥有进程入口、命令解析、人读呈现、机读呈现和本地状态目录。它通过 SDK 使用系统能力。它不导入 server-entry、服务端提供者、服务端业务存储、runtime 实例或服务端 Cordis 装配树。
+
+```mermaid
+flowchart LR
+  cli["CLI 应用"]
+  sdk["SDK"]
+  server["server-entry"]
+
+  cli -->|"使用系统能力"| sdk
+  cli -.->|"不导入"| server
+  sdk -.->|"不导入"| server
+```
+
+命令解析模块不导入 `@deepseek-ai/cordis`，也不导入 Cordis 绑定。IC-4 仍允许 `apps/` 的包根出口引入 Cordis。检查器不会因为这类导入失败。若该应用要装配自己的进程，把 Cordis 绑定放在同包 `./cordis`。命令解析不调用这个入口。
+
+调用方只给出 `--help`，或只给出 `--version` 时，进程把结果写到 stdout，然后以 0 退出。再带上其他选项或位置参数，则这条短路不成立。这两条路径不打开、也不创建 `OMNE_HOME`、`--home` 或业务存储。版本文本来自构建产物旁的身份文件。TTY 上的交互呈现使用 pi-tui，并且只用于表现层。非 TTY 输出机器可读结果，不加载 TUI。实现命令循环时，只参考 pi、DeepSeek Harness CLI 和 kimi-code CLI 的分流。不采用它们的存储、登录或服务端装配。
+
+```mermaid
+flowchart TD
+  entry["进程入口"]
+  parse["命令解析"]
+  entry --> parse
+  parse -->|"只有单独的 --help 或 --version"| stdout["写 stdout 并退出"]
+  parse -->|"其他命令"| branch{"是否 TTY"}
+  branch -->|"是"| tui["pi-tui 表现层"]
+  branch -->|"否"| machine["机读输出"]
+  tui --> sdkUse["SDK"]
+  machine --> sdkUse
+```
+
+`tools/artifact-builder` 不依赖 CLI。`apps.0.0.1.legacy/cli` 把 artifact-builder 列为 devDependency。`tools/ts-checks` 和 `tools/core-verification` 的 devDependency 都指向 `packages.0.0.1.legacy` 中的 `identity-values`。`scripts/package-cli.sh` 指向 `apps/cli/tools/package.ts`。仓库中没有这个成员。运行该脚本之前，先核对路径。
+
+发布到仓库之外时，CLI 包提供 `bin`、构建后的启动模块、构建身份文件，以及指向 SDK 包的依赖声明。启动不要求当前目录是本仓库。服务端包不进入这个安装闭包。包模板没有应用变体。缺少该变体并不阻止建包。建包前要同时满足两件事。[apps 入口](../apps/README.md#建立与维护)要求应用规格和公开依赖已经写明。[workspace](workspace.md)要求没有实现代码的承诺不建空成员。`help` 与 `version` 的测试归未来的 CLI 应用。SDK 调用的测试归 SDK。服务端接入的测试归 server-entry 和对应能力。模板与架构规则的测试归 `tools/ts-checks`。
+
 ## 依赖方向与Cordis集成
 
 依赖按角色和公开契约判断，不按core、infra或util目录名取得许可。共同纯定义不依赖领域状态和提供者；能力契约不依赖实现它的提供者、SDK或应用；业务实现通过公开契约和显式依赖组合，产品装配负责选择提供者。
