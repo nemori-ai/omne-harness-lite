@@ -7,10 +7,11 @@
 从仓库根运行：
 
 ```sh
-pnpm package:template create --group core --name example-capability --variant service-contract
-pnpm package:template create --group core --name example-capability --variant service-contract --write
+pnpm package:template create --group identity --name authorization --variant service-contract
+pnpm package:template create --group identity --name authorization --variant service-contract --write
+pnpm package:template create --group access --name public-contract --variant module --write
 pnpm package:template scan --json
-pnpm package:template scan --member packages/core/storage --check
+pnpm package:template scan --member packages/identity/authorization --json
 ```
 
 默认预览，`--write` 拒绝已有目标及软链接。先校验模板再写入；失败时清理自己创建的未完成包。不安装依赖、不运行包代码，用于没有并发目录替换的可信检出。
@@ -31,13 +32,17 @@ pnpm package:template scan --member packages/core/storage --check
 | common/ | 包 manifest、共享构建/测试配置、双语 README 和 bindings v2 登记草稿 |
 | module | 独立函数、类型和值的纯根，不增加 Cordis 包装 |
 | cordis-module | 纯根加集成 helper 或协调机制的绑定面 |
-| service-contract | 纯公共定义与 ./cordis 的 Service、唯一键和类型化事件；1.0.0和2.0.0创建及扫描仍限制core |
+| service-contract | 纯公共定义与 ./cordis 的 Service、唯一键和类型化事件。任意 kebab 组都可以创建，包括 identity 和 access |
 | service-provider | 独立工厂与 ./cordis 的具体绑定，消费公共承诺 |
 | fragments/ | 按实际义务取用的完整必要行为规格、Schema、模型/证明及 ADR 指南 |
 
 变体由实际责任判断。私有 RowLifetime 之类的 helper 不自动使协调包变成公开 Service 提供者。不能凭目录名或一条 provide 抽取事实裁定。
 
-目标分组及Service定义归属沿[产品包组织](../../../../docs/package-organization.md)。模板1.0.0、2.0.0及集成静态规则仍使用旧路径投影，尚未覆盖按能力就近维护的新目录。新组公共Service实施前须由工具拥有者适配，保留唯一性、公开入口和行为义务；不通过手写结构或伪造标识绕过。
+Service 定义的归属沿[产品包组织](../../../../docs/package-organization.md)。目录名 `core` 不授予创建或扫描许可。`scan --json` 的 `dependencies` 列出同一成员上已判断的边，字段有 `rule`、`state`、`member`、`targetMember` 和 `sites`。规则包含既有 IC 与分层行，另加 `undeclared-dependency` 和 `member-cycle`。后两个名字不是 `RuleId`，也不在 `constraints.json` 里。`unknown` 保持 `unknown`。`--check` 不把 `unknown` 当成通过，仅因 `unknown` 也不会把退出码改成 1。
+
+`lint:rules` 的 `group-direction` 是另一项检查。它对 `packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 仍报告 `unregistered-group`。依赖行不修改这条规则。若把这些组登记进 `GROUP_DIRECTION_POLICY`，同组的 `sdk` 导入 `server-entry` 会一直合法，直到两个成员成环。
+
+保留定义唯一性和公开入口。不要用手写结构或伪造采用标识绕过检查。
 
 产品包基础必需 package.json、双语 README、documentation.json、构建/测试配置、src/index.ts，以及有真实内容的 src/ 和 tests/。绑定变体还需 src/cordis.ts 和已有采用依据的 SPEC.md。源码模块名和数量可变，但只在模板声明的 TypeScript 槽内变化。其他资源有实际义务才建：
 
