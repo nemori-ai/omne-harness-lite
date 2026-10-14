@@ -50,6 +50,12 @@ describe('SI second durations', () => {
     expect(() => JSON.stringify({ timeout: duration('PT5S') })).toThrow(TypeError)
   })
 
+  it('has no string form, so String() and a template cannot silently emit [object Object]', () => {
+    const timeout = duration('PT5S')
+    expect(() => String(timeout)).toThrow(TypeError)
+    expect(() => `${timeout}`).toThrow(TypeError)
+  })
+
   it('refuses a value that parseDuration did not produce', () => {
     const forged = {} as Parameters<typeof encodeDuration>[0]
     expect(() => encodeDuration(forged)).toThrow(TypeError)

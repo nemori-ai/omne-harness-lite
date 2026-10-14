@@ -64,6 +64,12 @@ describe('instant values', () => {
     expect(() => JSON.stringify({ at: instant('2026-10-14T12:00:00Z') })).toThrow(TypeError)
   })
 
+  it('has no string form, so String() and a template cannot silently emit [object Object]', () => {
+    const at = instant('2026-10-14T12:00:00Z')
+    expect(() => String(at)).toThrow(TypeError)
+    expect(() => `${at}`).toThrow(TypeError)
+  })
+
   it('refuses a value that parseInstant did not produce', () => {
     const forged = {} as Parameters<typeof encodeInstant>[0]
     expect(() => encodeInstant(forged)).toThrow(TypeError)

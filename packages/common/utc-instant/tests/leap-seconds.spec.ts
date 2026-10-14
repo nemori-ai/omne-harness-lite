@@ -139,6 +139,17 @@ describe('a caller-supplied table', () => {
   })
 })
 
+describe('leap-second table values', () => {
+  it('have no JSON form, so serialising one cannot silently emit {}', () => {
+    expect(() => JSON.stringify({ table: leapSecondData })).toThrow(TypeError)
+  })
+
+  it('have no string form, so String() and a template cannot silently emit [object Object]', () => {
+    expect(() => String(leapSecondData)).toThrow(TypeError)
+    expect(() => `${leapSecondData}`).toThrow(TypeError)
+  })
+})
+
 describe('readLeapSecondData', () => {
   it('reads CRLF line ends like LF, comments on data rows included', () => {
     const crlf = table(
