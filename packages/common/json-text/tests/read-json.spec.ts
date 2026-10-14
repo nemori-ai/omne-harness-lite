@@ -159,3 +159,121 @@ describe('input encoding', () => {
     })
   })
 })
+
+describe('values', () => {
+  it.each([
+    ['null', { kind: 'null' }],
+    ['true', { kind: 'boolean', value: true }],
+    ['false', { kind: 'boolean', value: false }],
+    ['"abc"', { kind: 'string', value: 'abc' }],
+    ['""', { kind: 'string', value: '' }],
+    ['"a\\"\\\\\\/\\b\\f\\n\\r\\t\\u0041"', { kind: 'string', value: 'a"\\/\b\f\n\r\tA' }],
+    ['"\\uD800"', { kind: 'string', value: '\uD800' }],
+    ['"\\uD83D\\uDE00"', { kind: 'string', value: '😀' }],
+    [' \r\n\tnull \n', { kind: 'null' }],
+  ])('%j reads as a scalar', (text, value) => {
+    expect(readJsonText(text, roomy)).toEqual({ kind: 'ok', value })
+  })
+
+  it.each([
+    '0',
+    '-0',
+    '12',
+    '1.5',
+    '-1.5e+10',
+    '1E-3',
+    '2e5',
+    '9007199254740993',
+    '-123456789012345678901234567890',
+    '0.10000000000000000555',
+  ])('number %s keeps its source lexeme', lexeme => {
+    expect(readJsonText(lexeme, roomy)).toEqual({ kind: 'ok', value: { kind: 'number', lexeme } })
+  })
+
+  it('arrays keep item order and nesting', () => {
+    expect(readJsonText('[]', roomy)).toEqual({ kind: 'ok', value: { kind: 'array', items: [] } })
+    expect(readJsonText('[ 1 , "a" , [ null , [ ] ] , true ]', roomy)).toEqual({
+      kind: 'ok',
+      value: {
+        kind: 'array',
+        items: [
+          { kind: 'number', lexeme: '1' },
+          { kind: 'string', value: 'a' },
+          {
+            kind: 'array',
+            items: [{ kind: 'null' }, { kind: 'array', items: [] }],
+          },
+          { kind: 'boolean', value: true },
+        ],
+      },
+    })
+  })
+
+  it('objects keep entries in encounter order', () => {
+    expect(readJsonText('{}', roomy)).toEqual({
+      kind: 'ok',
+      value: { kind: 'object', entries: [] },
+    })
+    expect(readJsonText('{"2": 1, "1": {"b": [], "a": false}}', roomy)).toEqual({
+      kind: 'ok',
+      value: {
+        kind: 'object',
+        entries: [
+          { key: '2', value: { kind: 'number', lexeme: '1' } },
+          {
+            key: '1',
+            value: {
+              kind: 'object',
+              entries: [
+                { key: 'b', value: { kind: 'array', items: [] } },
+                { key: 'a', value: { kind: 'boolean', value: false } },
+              ],
+            },
+          },
+        ],
+      },
+    })
+  })
+
+  it('object keys decode escapes', () => {
+    expect(readJsonText('{"\\u0061\\n": null}', roomy)).toEqual({
+      kind: 'ok',
+      value: { kind: 'object', entries: [{ key: 'a\n', value: { kind: 'null' } }] },
+    })
+  })
+
+  it('readJsonBytes reads the same value as readJsonText', () => {
+    const text = '{"é": [9007199254740993, "😀"]}'
+    const expected = {
+      kind: 'ok',
+      value: {
+        kind: 'object',
+        entries: [
+          {
+            key: 'é',
+            value: {
+              kind: 'array',
+              items: [
+                { kind: 'number', lexeme: '9007199254740993' },
+                { kind: 'string', value: '😀' },
+              ],
+            },
+          },
+        ],
+      },
+    }
+    expect(readJsonText(text, roomy)).toEqual(expected)
+    expect(readJsonBytes(new TextEncoder().encode(text), roomy)).toEqual(expected)
+  })
+
+  it('a document of exactly maxBytes UTF-8 bytes reads', () => {
+    expect(readJsonText('"😀"', { ...roomy, maxBytes: 6 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'string', value: '😀' },
+    })
+    expect(readJsonText('"é"', { ...roomy, maxBytes: 4 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'string', value: 'é' },
+    })
+  })
+})

@@ -1,4 +1,50 @@
-import type { JsonLimits, JsonRead } from './types.ts'
+import { createScanner, type JSONScanner } from 'jsonc-parser'
+import type {
+  JsonEntry,
+  JsonFailure,
+  JsonLimits,
+  JsonRead,
+  JsonSyntaxReason,
+  JsonValue,
+} from './types.ts'
+
+// jsonc-parser declares SyntaxKind and ScanError as ambient const enums, which
+// verbatimModuleSyntax cannot read, so the codes this reader uses are copied here.
+const TOKEN = {
+  openBrace: 1,
+  closeBrace: 2,
+  openBracket: 3,
+  closeBracket: 4,
+  comma: 5,
+  colon: 6,
+  null: 7,
+  true: 8,
+  false: 9,
+  string: 10,
+  number: 11,
+  lineComment: 12,
+  blockComment: 13,
+  lineBreak: 14,
+  whitespace: 15,
+  eof: 17,
+} as const
+const SCAN_OK = 0
+
+/** An open container and the token it accepts next. */
+type Frame = ArrayFrame | ObjectFrame
+type ArrayFrame = {
+  readonly kind: 'array'
+  readonly items: JsonValue[]
+  next: 'first-item' | 'item' | 'comma'
+}
+type ObjectFrame = {
+  readonly kind: 'object'
+  readonly entries: JsonEntry[]
+  readonly keys: Set<string>
+  /** The key of the member whose value is read next. */
+  key: string
+  next: 'first-key' | 'key' | 'colon' | 'value' | 'comma'
+}
 
 const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 
@@ -27,7 +73,147 @@ export function readJsonText(text: string, limits: JsonLimits): JsonRead {
 function readDecoded(text: string, byteLength: number, limits: JsonLimits): JsonRead {
   if (text.startsWith('\uFEFF')) return { kind: 'bom' }
   if (byteLength > limits.maxBytes) return { kind: 'budget', name: 'bytes' }
-  return { kind: 'empty' }
+  if (/^[ \t\n\r]*$/.test(text)) return { kind: 'empty' }
+  return scanDocument(text, limits)
+}
+
+function scanDocument(text: string, limits: JsonLimits): JsonRead {
+  const scanner = createScanner(text, false)
+  const stack: Frame[] = []
+  let root: JsonValue | undefined
+
+  const complete = (value: JsonValue): void => {
+    const parent = stack.at(-1)
+    if (parent === undefined) {
+      root = value
+    } else if (parent.kind === 'array') {
+      parent.items.push(value)
+      parent.next = 'comma'
+    } else {
+      parent.entries.push({ key: parent.key, value })
+      parent.next = 'comma'
+    }
+  }
+
+  const close = (frame: Frame): void => {
+    stack.pop()
+    complete(
+      frame.kind === 'array'
+        ? { kind: 'array', items: frame.items }
+        : { kind: 'object', entries: frame.entries },
+    )
+  }
+
+  const startValue = (token: number): JsonFailure | undefined => {
+    switch (token) {
+      case TOKEN.openBracket:
+        stack.push({ kind: 'array', items: [], next: 'first-item' })
+        return undefined
+      case TOKEN.openBrace:
+        stack.push({ kind: 'object', entries: [], keys: new Set(), key: '', next: 'first-key' })
+        return undefined
+      case TOKEN.null:
+        complete({ kind: 'null' })
+        return undefined
+      case TOKEN.true:
+        complete({ kind: 'boolean', value: true })
+        return undefined
+      case TOKEN.false:
+        complete({ kind: 'boolean', value: false })
+        return undefined
+      case TOKEN.string: {
+        const value = readString(scanner)
+        if (typeof value !== 'string') return value
+        complete({ kind: 'string', value })
+        return undefined
+      }
+      case TOKEN.number:
+        complete({
+          kind: 'number',
+          lexeme: text.slice(scanner.getTokenOffset(), scanner.getPosition()),
+        })
+        return undefined
+      default:
+        return syntax('token')
+    }
+  }
+
+  const stepArray = (frame: ArrayFrame, token: number): JsonFailure | undefined => {
+    switch (frame.next) {
+      case 'comma':
+        if (token === TOKEN.comma) {
+          frame.next = 'item'
+          return undefined
+        }
+        if (token !== TOKEN.closeBracket) return syntax('token')
+        close(frame)
+        return undefined
+      case 'first-item':
+        if (token !== TOKEN.closeBracket) return startValue(token)
+        close(frame)
+        return undefined
+      case 'item':
+        return startValue(token)
+    }
+  }
+
+  const stepObject = (frame: ObjectFrame, token: number): JsonFailure | undefined => {
+    switch (frame.next) {
+      case 'comma':
+        if (token === TOKEN.comma) {
+          frame.next = 'key'
+          return undefined
+        }
+        if (token !== TOKEN.closeBrace) return syntax('token')
+        close(frame)
+        return undefined
+      case 'first-key':
+      case 'key': {
+        if (token === TOKEN.closeBrace && frame.next === 'first-key') {
+          close(frame)
+          return undefined
+        }
+        if (token !== TOKEN.string) return syntax('token')
+        const key = readString(scanner)
+        if (typeof key !== 'string') return key
+        frame.keys.add(key)
+        frame.key = key
+        frame.next = 'colon'
+        return undefined
+      }
+      case 'colon':
+        if (token !== TOKEN.colon) return syntax('token')
+        frame.next = 'value'
+        return undefined
+      case 'value':
+        return startValue(token)
+    }
+  }
+
+  for (;;) {
+    const token: number = scanner.scan()
+    if (token === TOKEN.whitespace || token === TOKEN.lineBreak) continue
+    const top = stack.at(-1)
+    if (top === undefined && root !== undefined)
+      return token === TOKEN.eof ? { kind: 'ok', value: root } : syntax('trailing-content')
+    if (token === TOKEN.eof) return syntax('truncated')
+    const failure =
+      top === undefined
+        ? startValue(token)
+        : top.kind === 'array'
+          ? stepArray(top, token)
+          : stepObject(top, token)
+    if (failure !== undefined) return failure
+  }
+}
+
+function readString(scanner: JSONScanner): JsonFailure | string {
+  if (scanner.getTokenError() !== SCAN_OK) return syntax('token')
+  return scanner.getTokenValue()
+}
+
+function syntax(reason: JsonSyntaxReason): JsonFailure {
+  return { kind: 'syntax', reason }
 }
 
 function utf8Length(text: string): number {
