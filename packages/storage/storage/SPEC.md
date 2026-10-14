@@ -4,6 +4,8 @@
 
 调用方学习三个操作：`registerCombination`、`commit`、`query`。写连接、SQL 和写者代际留在提供者内。
 
+公共结果由这一份目标文档拥有。workspace 包要等具名消费者和可运行入口。本规格不把旧的 `write` 回调迁进来。那个回调在应用线程执行，和 Worker 内命令冲突。
+
 ## 参加者
 
 调用方出示操作身份。结果未知时，调用方用同一身份调用 `query`。提交协调者登记参加者和组合版本。事实拥有者提供同步命令。存储提供者把一个事务域绑到一个数据库身份和一条写连接。命令在 Worker 内执行。
@@ -14,7 +16,83 @@
 
 ## 操作身份
 
-操作身份包含租户、事务域、操作、协议版本和操作键。这五项都由调用方传入。
+操作身份包含租户、事务域、操作、协议版本和操作键。这五项都由调用方传入。本规格的协议版本是 `1`。
+
+## 公开类型
+
+类型把不能同时成立的结果拆开。`commit` 的返回值不含未提交。未提交只出现在 `query`。
+
+```ts
+type ProtocolVersion = "1"
+
+type OperationIdentity = {
+  readonly tenant: string
+  readonly transactionDomain: string
+  readonly operation: string
+  readonly protocolVersion: ProtocolVersion
+  readonly operationKey: string
+}
+
+type FactCommand = {
+  readonly participant: string
+  readonly facts: Readonly<Record<string, unknown>>
+}
+
+type CommitRequest = {
+  readonly identity: OperationIdentity
+  readonly combinationVersion: string
+  readonly commands: readonly FactCommand[]
+}
+
+type Committed = {
+  readonly kind: "committed"
+  readonly identity: OperationIdentity
+  readonly inputDigest: string
+}
+
+type RolledBack = {
+  readonly kind: "rolled_back"
+  readonly identity: OperationIdentity
+  readonly inputDigest: string
+}
+
+type Unknown = {
+  readonly kind: "unknown"
+  readonly identity: OperationIdentity
+}
+
+type IdentityConflict = {
+  readonly kind: "identity_conflict"
+  readonly identity: OperationIdentity
+  readonly existing: Committed | RolledBack
+}
+
+type RejectedBeforeAccept = {
+  readonly kind: "rejected_before_accept"
+  readonly identity: OperationIdentity
+  readonly reason: "combination_unregistered" | "participant_not_in_combination" | "queue_full" | "field_missing"
+}
+
+type CommitResult = Committed | RolledBack | Unknown | IdentityConflict | RejectedBeforeAccept
+
+type NotCommitted = {
+  readonly kind: "not_committed"
+  readonly identity: OperationIdentity
+  readonly proofs: {
+    readonly writerGenerationExcluded: true
+    readonly oldTransactionTerminated: true
+    readonly databaseRecoveryFinished: true
+    readonly authoritativeReadSucceeded: true
+    readonly operationNotQueued: true
+  }
+}
+
+type QueryResult = Committed | RolledBack | Unknown | NotCommitted
+```
+
+`NotCommitted` 的五项证明由提供者构造。调用方代码不组装这个对象。
+
+输入摘要是协议版本 `1` 的 SHA-256，十六进制小写。输入是命令数组的规范 JSON。对象键按字典序排列。命令按 `participant` 字典序排列。JSON 中间没有空白。编码是 UTF-8。调用方不传入摘要。更换排序、空白或算法时，协议版本改为新的字符串。
 
 ## 登记
 
@@ -25,6 +103,8 @@
 新写者在旧写代际被排除之后开始。排除之前，提供者拒绝新的写准入。
 
 名字缺失时，提供者拒绝登记。版本缺失时，提供者拒绝登记。拒绝不写入回执。
+
+尚未开始的操作已经达到提供者声明的队列上限时，`commit` 返回受理前拒绝，原因是 `queue_full`。这次拒绝不写入回执。
 
 ## 提交
 
@@ -64,7 +144,11 @@ SQLite 提供者在专用 Worker 内使用 `node:sqlite`。基线是 Node 24.21.
 
 正在执行的 SQL 执行到结束。AbortSignal 只释放观察方。观察方释放后，原操作仍有结果拥有者。
 
-需要原子回滚的迁移把 DDL、数据和迁移标记放进同一连接事务。事务外步骤写明中断后的重入点。断电耐久以相应故障试验为证据。`FULL` 和普通进程终止证明进程级持久。
+需要原子回滚的迁移把 DDL、数据和迁移标记放进同一连接事务。事务外步骤写明中断后的重入点。
+
+开闸按这个次序。提供者先停止受影响的新准入和写者。然后核对原格式。然后按可恢复步骤迁移。然后记录完成标记。然后核对参加者和投影资格。然后才允许新的写准入。Kysely 返回的 error 和逐项结果都要检查。未抛出异常不等于迁移成功。失败时，提供者保持升级前的格式，并拒绝按新格式开闸。
+
+断电耐久以相应故障试验为证据。`FULL` 和普通进程终止证明进程级持久。
 
 PostgreSQL 提供者使用独立的 `pg` 与 Kysely 事务租约。该提供者返回已提交、明确回滚和未知，并按原身份接受查询。写连接数量、`BEGIN IMMEDIATE`、WAL 读回和文件快照沿 SQLite 义务，由 SQLite 提供者承担。一次 `commit` 使用一个事务域。第二个库的写入使用另一次提交。本规格把 PostgreSQL 集群留给单独的部署决定。
 
@@ -96,4 +180,13 @@ PostgreSQL 提供者使用独立的 `pg` 与 Kysely 事务租约。该提供者�
 - 排空失败时，关闭报告仍在收尾。
 - 断电耐久只在记录了相应故障试验时声明。
 
-本次没有可执行探针。通知运输和 PostgreSQL 集群不在上述场景内。进程级重启证明进程级持久。
+故障注入用这些步骤。注入只证明该步骤真正碰到的范围。
+
+- 回执已经写入、响应尚未返回时结束 Worker。然后用原身份调用 `query`。预期结果是已提交回执。
+- 旧写者仍持有写资格时提交新的写命令。预期结果是新写准入被拒绝。`query` 返回未知。
+- 同连接事务的第二句失败。预期结果是第一句的 DDL 和数据都不保留。
+- 关闭过程中排空失败。预期结果是关闭状态保持为仍在收尾。
+
+2026-10-14 在本机主线程用 `node:sqlite` 做了一次探针。步骤是设置 `journal_mode=WAL`、`synchronous=FULL`、`foreign_keys=ON`，读回这三项，再在 `BEGIN IMMEDIATE` 中建表并插入。第二句主键冲突后执行 `ROLLBACK`，然后统计 `sqlite_master` 里该表的数量。进程退出码为 0。观察值是 Node `v26.0.0`、SQLite `3.53.0`、`journal_mode` 为 `wal`、`synchronous` 为 `2`、`foreign_keys` 为 `1`、表数量为 `0`。`synchronous` 的 `2` 在 SQLite 中表示 `FULL`。
+
+这次探针的 Node 与 SQLite 版本不是规格基线 Node 24.21.0 和 SQLite 3.53.4。本机没有该基线。探针没有进入 Worker，也没有做断电试验。通知运输和 PostgreSQL 集群不在上述场景内。进程级重启证明进程级持久。
