@@ -8,7 +8,11 @@
 
 空元素写成自闭合标签，例如 `<root x="😀"/>`。
 
-文本经过转义。调用方传入的字符串不会被当作原始标记插入，除非该值实现 `toXml` 且被识别为 `XmlFormattable`。数组本身不是 `XmlFormattable`。
+`Set` 与等值数组走同一条渲染路径。一列对象只有在每一项都自己渲染时，才不再额外包一层字段元素。混合了自渲染对象和普通对象的列表保留字段元素。
+
+路径默认只读自有属性。字段名 `__proto__` 仍可读，因为表征测试要求这个显式字段名能渲染出来。
+
+`FieldSpec` 按呈现方式分开。`attr` 和 `content` 不能携带 `attrs`、`itemTag` 或 `itemFields`。未写 `presentation` 时按元素处理。嵌套 `toXml` 只收到 `indentSize` 和 `formatDate`。
 
 ## 拒绝
 

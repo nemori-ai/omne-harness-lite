@@ -72,8 +72,8 @@ Each module has one job:
 - `src/catalog.ts` holds `defineCatalog`, the production catalog, and `renderHelp`. The production command list is empty, so the process help text stays the pinned string. `bin.ts` passes that catalog, the identity reader, and the home inputs into `run`.
 - `src/argv.ts` holds `parseArgv`. Parsing is a pure function over `string[]` and a catalog. The default catalog is the production one.
 - `src/identity.ts` reads `cli-identity.json` beside the build module through `import.meta.url`.
-- `src/run.ts` maps a parsed command to output and an exit code. It is the only place that calls `readBuildIdentity`.
-- `src/bin.ts` passes `process.argv` and the process streams to `run`, then sets `process.exitCode`.
+- `src/run.ts` maps a parsed command to output and an exit code. Version text comes from `runtime.readIdentity`.
+- `src/bin.ts` passes `process.argv`, the process streams, `productionCatalog`, `readBuildIdentity`, `OMNE_HOME`, and `os.homedir()` into `run`, then sets `process.exitCode`.
 - `src/state-directory.ts` holds `resolveStateDirectory` and `ensureStateDirectory`.
 
 Results are discriminated unions with a `kind` field. Expected failures are values, so callers handle them with `switch` and the compiler checks every case.
@@ -84,9 +84,9 @@ The version source is a file that the build writes. This keeps the printed versi
 
 | Input | Effect today |
 | --- | --- |
-| `--home <directory>` | Usage error. A later command passes it to `resolveStateDirectory` as `flag`. |
-| `OMNE_HOME` | Not read by the process. A later command passes it as `environment`. |
-| `HOME` | Not read by the process. `os.homedir()` gives the default parent to a later command. |
+| `--home <directory>` | Usage error when no command is registered. A registered command receives the directory as `homeFlag`. |
+| `OMNE_HOME` | `bin.ts` reads the variable on every start and passes the string to `run`. Help and version do not resolve or create that path. |
+| `HOME` | `bin.ts` calls `os.homedir()` and passes the result to `run`. Help and version do not create `$HOME/.omne`. |
 
 Requirements:
 
@@ -110,7 +110,7 @@ Both scripts build first. The tests use the built `dist`, never `src`.
 Applicable test kinds follow [package test responsibilities](../../docs/verification.md#包级测试责任与边界):
 
 - Contract tests on the built process. `tests/help-version.spec.ts` and `tests/usage-errors.spec.ts` spawn `node dist/bin.js` from a temporary directory outside the repository. Each child gets a new environment with only `PATH`, a temporary `HOME`, and an optional `OMNE_HOME`. Each test checks the exit code, the exact stdout, the exact stderr, and the files under the temporary directories. Both files are in the slow tier because every case spawns a process.
-- Unit and contract tests through the package name. `tests/parse-argv.spec.ts` and `tests/state-directory.spec.ts` import `@omne-harness/cli`. The state tests use children of `os.tmpdir()`, never the developer home.
+- Unit and contract tests through the package name. `tests/parse-argv.spec.ts`, `tests/catalog.spec.ts`, and `tests/state-directory.spec.ts` import `@omne-harness/cli`. The state tests use children of `os.tmpdir()`, never the developer home. `tests/catalog.spec.ts` checks command alignment, `homeFlag`, and the injected identity reader.
 - Install-closure checks. `tests/package-boundary.spec.ts` reads `package.json` and every built module. It checks that there is no runtime dependency, and that the built modules import only `node:` modules and sibling build modules.
 
 Integration and end-to-end tests do not apply. This member has no storage, service, or user journey yet. The help and version process tests are not a full user journey.
@@ -127,7 +127,7 @@ Not covered:
 
 To change the help text, a message, or an exit code, change [SPEC.md](SPEC.md), `src/argv.ts` or `src/run.ts`, and the literals in `tests/support/expected.ts` together.
 
-To add a command, append a `CommandSpec` to a catalog. `renderHelp` includes it, and `run` calls its `run` function. The production catalog's command list is empty. A command that needs the state directory calls `resolveStateDirectory`, then `ensureStateDirectory`. Help and version must not call either function. A command that calls the SDK adds the SDK as a dependency. Update the install-closure test and SPEC.md in the same change.
+To add a command, append a `CommandSpec` through `defineCatalog`. `renderHelp` includes it, and `run` calls its `run` with a `CommandEnvironment`. The production catalog's command list is empty. A command that needs the state directory calls `resolveStateDirectory` with `homeFlag`, `environmentHome`, and `homeDirectory`, then `ensureStateDirectory`. It does not read `process.env` itself. Help and version must not call either function. A command that calls the SDK adds the SDK as a dependency. Update the install-closure test and SPEC.md in the same change.
 
 `scripts/package-cli.sh` still points to `apps/cli/tools/package.ts`. That file does not exist. Packaging for release is not part of this member yet.
 

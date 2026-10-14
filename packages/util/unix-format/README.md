@@ -20,7 +20,7 @@ The call above returns `## SYNOPSIS\n  my_tool command [params]`.
 
 ## Contracts
 
-`formatSection` puts a Markdown heading over an indented body. `markdownCompatible: false` uses a `TITLE:` heading instead. `formatUsage(toolName, command, paramsSynopsis)` returns one `USAGE:` line and inserts the synopsis verbatim. `formatCommandList` aligns name and synopsis columns and returns an empty string for an empty list. `formatKeyValue`, `formatTable`, and `formatBulletList` render structured blocks. `formatNumberedLines` renders addressed lines. `formatSuccess`, `formatHold`, and `formatError` render outcome envelopes.
+`formatSection` puts a Markdown heading over an indented body. `markdownCompatible: false` uses a `TITLE:` heading instead. It validates `indent` and `markdownCompatible` only. `formatTable` validates `maxWidth` only. `formatKeyValue` accepts a `Map` or a plain record, and does not accept a custom `ReadonlyMap`. `formatUsage(toolName, command, paramsSynopsis)` returns one `USAGE:` line and inserts the synopsis verbatim. `formatCommandList` aligns name and synopsis columns and returns an empty string for an empty list. `formatBulletList` renders a dash list. `formatNumberedLines` renders addressed lines. `formatSuccess`, `formatHold`, and `formatError` render outcome envelopes.
 
 Column width uses Unicode code points, not UTF-16 code units.
 
@@ -30,7 +30,7 @@ Column width uses Unicode code points, not UTF-16 code units.
 
 ## Configuration and operation
 
-`UnixFormatOptions` selects indent and Markdown-compatible headings. `DEFAULT_UNIX_FORMAT_OPTIONS` is the default. The functions do not read the environment or the filesystem.
+`UnixFormatOptions` still describes indent, heading style, and table width. Each function reads only its own fields. `formatSection` does not read `maxWidth`. `formatTable` does not read `indent`. The functions do not read the environment or the filesystem.
 
 Node `>=24.18.0 <25`. There is no runtime dependency.
 

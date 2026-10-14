@@ -25,9 +25,9 @@ formatXml({ x: '😀' }, schema)
 
 ## 契约
 
-`formatXml(value, schema, options?)` 返回一个 XML 元素。属性和子元素的顺序跟随字段声明。文本被转义。带 `toXml` 的嵌套对象通过该方法嵌入。
+`formatXml(value, schema, options?)` 返回一个 XML 元素。属性和子元素的顺序跟随字段声明。文本被转义。`Set` 与等值数组的渲染相同。全部自渲染的对象列表不再额外包一层字段元素。混合列表保留字段元素。嵌套 `toXml` 只收到 `indentSize` 和 `formatDate`。
 
-`escapeXmlContent` 和 `escapeXmlAttribute` 转义文本。`isXmlName` 判断字符串是否为 XML 名字。非法的 XML 1.0 字符在每条渲染路径上抛出 `TypeError`。未声明为可选字段的 `extraFields` 名称会抛出错误。
+`FieldSpec` 按呈现方式分开。`attr` 和 `content` 不能带 `attrs`、`itemTag` 或 `itemFields`。未写 `presentation` 时按元素处理。`escapeXmlContent` 和 `escapeXmlAttribute` 转义文本。`isXmlName` 判断字符串是否为 XML 名字。非法的 XML 1.0 字符在每条渲染路径上抛出 `TypeError`。未声明为可选字段的 `extraFields` 名称会抛出错误。
 
 ## 设计
 

@@ -25,9 +25,9 @@ The call above returns `<root x="😀"/>`.
 
 ## Contracts
 
-`formatXml(value, schema, options?)` returns one XML element. Attribute and element order follow the field declaration. Text is escaped. A nested object with `toXml` is embedded through that method.
+`formatXml(value, schema, options?)` returns one XML element. Attribute and element order follow the field declaration. Text is escaped. A `Set` renders like an array of its values. A list of self-rendering objects is embedded without an extra field element. A mixed list keeps the field element. A nested `toXml` receives only `indentSize` and `formatDate`.
 
-`escapeXmlContent` and `escapeXmlAttribute` escape text. `isXmlName` reports whether a string is an XML name. Illegal XML 1.0 characters throw `TypeError` on every rendering path. `extraFields` names that are not declared as optional fields throw.
+`FieldSpec` separates presentations. `attr` and `content` cannot carry `attrs`, `itemTag`, or `itemFields`. Omitting `presentation` means an element. `escapeXmlContent` and `escapeXmlAttribute` escape text. `isXmlName` reports whether a string is an XML name. Illegal XML 1.0 characters throw `TypeError` on every rendering path. `extraFields` names that are not declared as optional fields throw.
 
 ## Design
 

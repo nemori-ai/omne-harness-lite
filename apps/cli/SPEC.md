@@ -27,7 +27,9 @@
 4. 数组中任一个 `--home` 后面没有参数，或后面的参数以 `-` 开头时，结果是用法错误，消息为「缺少目录」。
 5. 其余数组都是用法错误，消息为「无法识别的参数」。
 
-因此，`-h`、`-v`、未知单词、`--help --version`、`--version --help`，以及任何带 `--home <目录>` 的组合，都是用法错误。`--home=<目录>` 是无法识别的参数。`--home ''` 也是无法识别的参数，因为空串不以 `-` 开头。
+因此，`-h`、`-v`、未知单词、`--help --version` 和 `--version --help` 都是用法错误。生产目录没有命令，所以单独的 `--home <目录>`，以及它和 `--help` 或 `--version` 的组合，仍是用法错误。`--home=<目录>` 是无法识别的参数。`--home ''` 也是无法识别的参数，因为空串不以 `-` 开头。
+
+已登记命令可以带 `--home <目录>`。目录可以出现在命令名之前或之后。解析结果是 `{ kind: 'command', command, args, homeFlag }`。`args` 不再包含这一对。`homeFlag` 是目录字符串。`bin.ts` 另外把 `process.env.OMNE_HOME` 和 `os.homedir()` 放进 `CliRuntime`。`run` 把这三项合成 `CommandEnvironment` 交给命令的 `run`。help 和 version 不调用 `resolveStateDirectory` 或 `ensureStateDirectory`。读取环境变量和 `os.homedir()` 不创建目录。
 
 用法错误的消息原文如下。每条都以换行结尾：
 
@@ -86,7 +88,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 - 内容不是 JSON。
 - 内容不是对象，或对象没有字符串类型的 `version`。
 
-`readBuildIdentity()` 返回 `{ kind: 'identity', version }` 或 `{ kind: 'error', message }`。它不抛出异常。只有 `--version` 路径调用它。
+`readBuildIdentity()` 返回 `{ kind: 'identity', version }` 或 `{ kind: 'error', message }`。它不抛出异常。`bin.ts` 把它作为 `readIdentity` 交给 `run`。只有 `--version` 调用这次读取。
 
 ## 状态目录
 

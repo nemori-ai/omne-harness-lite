@@ -20,7 +20,7 @@ formatSection('SYNOPSIS', 'my_tool command [params]')
 
 ## 契约
 
-`formatSection` 在缩进正文上方放 Markdown 标题。`markdownCompatible: false` 改用 `TITLE:` 标题。`formatUsage(toolName, command, paramsSynopsis)` 返回一行 `USAGE:`，并把概要原文插入。`formatCommandList` 对齐名称列和概要列，空列表返回空字符串。`formatKeyValue`、`formatTable` 和 `formatBulletList` 渲染结构化块。`formatNumberedLines` 渲染带地址的行。`formatSuccess`、`formatHold` 和 `formatError` 渲染结果信封。
+`formatSection` 在缩进正文上方放 Markdown 标题。`markdownCompatible: false` 改用 `TITLE:` 标题。它只校验 `indent` 和 `markdownCompatible`。`formatTable` 只校验 `maxWidth`。`formatKeyValue` 接受 `Map` 或普通记录，不接受自定义的 `ReadonlyMap`。`formatUsage(toolName, command, paramsSynopsis)` 返回一行 `USAGE:`，并把概要原文插入。`formatCommandList` 对齐名称列和概要列，空列表返回空字符串。`formatBulletList` 渲染短横线列表。`formatNumberedLines` 渲染带地址的行。`formatSuccess`、`formatHold` 和 `formatError` 渲染结果信封。
 
 列宽按 Unicode 码位计算，不按 UTF-16 码元计算。
 
@@ -30,7 +30,7 @@ formatSection('SYNOPSIS', 'my_tool command [params]')
 
 ## 配置与运行
 
-`UnixFormatOptions` 选择缩进和是否使用 Markdown 标题。`DEFAULT_UNIX_FORMAT_OPTIONS` 是默认值。这些函数不读环境变量，也不读文件系统。
+`UnixFormatOptions` 仍描述缩进、标题样式和表格宽度。每个函数只读取自己的字段。`formatSection` 不读取 `maxWidth`。`formatTable` 不读取 `indent`。这些函数不读环境变量，也不读文件系统。
 
 Node `>=24.18.0 <25`。没有运行时依赖。
 
