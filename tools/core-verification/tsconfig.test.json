@@ -7,11 +7,5 @@
     "sourceMap": false,
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["src/**/*.ts", "tests/legacy-suite-exit.spec.ts"],
-  "exclude": [
-    "src/w1-public-consumer.ts",
-    "src/w6-asset-consumer.ts",
-    "src/w6-stream-consumer.ts",
-    "src/storage-fixture.ts"
-  ]
+  "include": ["tests/legacy-suite-exit.spec.ts"]
 }

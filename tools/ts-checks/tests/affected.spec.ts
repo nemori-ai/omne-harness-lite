@@ -54,7 +54,7 @@ const MEMBERS = [
   member('packages.0.0.1.legacy/frontend/governance-client-operations-local'),
   member('packages/tenancy/governance-center-entry-node'),
   member('apps/top', ['@x/mid'], { acceptance: 'vitest run --dir acceptance' }),
-  member('tools/core-verification', ['@x/base']),
+  member('tools/core-verification'),
   member('tools/ts-checks', ['@x/legal-identity']),
 ]
 
@@ -115,22 +115,18 @@ describe('影响面计划（真实规则）', () => {
     expect(result.python.run).toBe(false)
   })
 
-  it('底层成员的源码：反向依赖传递进来，并说出经谁；读核心源码的 core-verification 也进来', () => {
+  it('底层成员的源码：反向依赖传递进来，并说出经谁', () => {
     const result = plan(['packages/core/base/src/a.ts'])
     expect(result.test).toEqual([
       'packages/core/base',
       'packages/core/mid',
       'apps/top',
-      'tools/core-verification',
       'tools/ts-checks',
     ])
     const why = Object.fromEntries(result.members.map(entry => [entry.path, entry]))
     expect(why['packages/core/mid']?.dependsOn).toBe('packages/core/base')
     expect(why['apps/top']?.dependsOn).toBe('packages/core/mid')
-    expect(why['tools/core-verification']?.dependsOn).toBe('packages/core/base')
-    expect(why['tools/core-verification']?.reads).toEqual([
-      { path: 'packages/core/base/src/a.ts', pattern: 'packages/core/*/src/**' },
-    ])
+    expect(why['tools/core-verification']).toBeUndefined()
     expect(result.acceptance).toEqual(['apps/top'])
     expect(describe_(result)).toContain('apps/top：依赖 packages/core/mid')
   })
@@ -151,22 +147,16 @@ describe('影响面计划（真实规则）', () => {
     expect(result.build).toEqual(RESIDENT_BUILD)
   })
 
-  it('外部制品校验读取公共Schema：选实际拥有者与读者', () => {
+  it('没有读者的旧核心 schema 路径：影响面未知，回退全量', () => {
     const result = plan(['packages/core/messages/schema/messages.schema.json'])
-    expect(result.test).toEqual(['tools/core-verification'])
-    expect(result.members.every(entry => entry.changed.length === 0)).toBe(true)
-    expect(result.python.run).toBe(false)
+    expect(result.mode).toBe('full')
+    expect(result.files[0]?.category).toBe('unclassified')
   })
 
-  it('另一个成员的 schema/：那个成员与它的反向依赖，再加在役读者 core-verification', () => {
+  it('成员自己的 schema/：那个成员与它的反向依赖', () => {
     const result = plan(['packages/core/base/schema/base.schema.json'])
-    expect(result.files[0]).toMatchObject({ category: 'reader', owner: 'packages/core/base' })
-    expect(result.test).toEqual([
-      'packages/core/base',
-      'packages/core/mid',
-      'apps/top',
-      'tools/core-verification',
-    ])
+    expect(result.files[0]).toMatchObject({ category: 'member', owner: 'packages/core/base' })
+    expect(result.test).toEqual(['packages/core/base', 'packages/core/mid', 'apps/top'])
   })
 
   it('别的成员的 TLS 夹具：只选在役成员，不选已退役的外部读者', () => {
@@ -270,9 +260,9 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('规则点名的成员不存在：报错，不悄悄忽略', () => {
-    const without = MEMBERS.filter(entry => entry.path !== 'tools/core-verification')
+    const without = MEMBERS.filter(entry => entry.path !== 'packages/common/legal-identity')
     expect(() => planCheck(['docs/a.md'], without, RULES)).toThrow(
-      '影响面规则点名了不存在的成员：tools/core-verification',
+      '影响面规则点名了不存在的成员：packages/common/legal-identity',
     )
   })
 

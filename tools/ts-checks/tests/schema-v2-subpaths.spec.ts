@@ -47,9 +47,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
           'dist/schema/v2.js',
         ])
           expect(
-            corePureImports.check([
-              { path, text: `import '@omne-harness/${provider}/${suffix}'` },
-            ]),
+            corePureImports.check([{ path, text: `import '@omne-harness/${provider}/${suffix}'` }]),
           ).toHaveLength(1)
       })
     }
@@ -100,9 +98,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
     for (const provider of ['messages', 'loop-extension']) {
       const path = `core/${provider}/src/v3/schema.ts`
       expect(
-        corePureImports.check([
-          { path, text: `import '@omne-harness/${provider}/schema/v3'` },
-        ]),
+        corePureImports.check([{ path, text: `import '@omne-harness/${provider}/schema/v3'` }]),
       ).toEqual([])
       for (const suffix of [
         'schema/v4',
@@ -111,9 +107,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         'schema/v3/testing',
       ])
         expect(
-          corePureImports.check([
-            { path, text: `import '@omne-harness/${provider}/${suffix}'` },
-          ]),
+          corePureImports.check([{ path, text: `import '@omne-harness/${provider}/${suffix}'` }]),
         ).toHaveLength(1)
     }
   })
@@ -128,15 +122,11 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
     ] as const) {
       const path = `core/${consumer}/src/schema.ts`
       expect(
-        corePureImports.check([
-          { path, text: `import '@omne-harness/${provider}/${subpath}'` },
-        ]),
+        corePureImports.check([{ path, text: `import '@omne-harness/${provider}/${subpath}'` }]),
       ).toEqual([])
       for (const suffix of [`${subpath}/private`, `${subpath}.json`, 'schema/v99'])
         expect(
-          corePureImports.check([
-            { path, text: `import '@omne-harness/${provider}/${suffix}'` },
-          ]),
+          corePureImports.check([{ path, text: `import '@omne-harness/${provider}/${suffix}'` }]),
         ).toHaveLength(1)
     }
     for (const consumer of ['content-blocks', 'tool-definition'])
@@ -228,9 +218,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         'dist/v2.js',
       ])
         expect(
-          corePureImports.check([
-            { path, text: `import '@omne-harness/skill-package/${suffix}'` },
-          ]),
+          corePureImports.check([{ path, text: `import '@omne-harness/skill-package/${suffix}'` }]),
         ).toHaveLength(1)
     })
   }

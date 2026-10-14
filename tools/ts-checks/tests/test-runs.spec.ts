@@ -61,7 +61,11 @@ describe('成员清单', () => {
     const config = readTestRunsConfig()
     const members = listTestMembers(ROOT, config.affected.excludeRoots)
     expect(members.map(member => member.path)).toEqual(
-      expect.arrayContaining(['tools/artifact-builder', 'tools/core-verification', 'tools/ts-checks']),
+      expect.arrayContaining([
+        'tools/artifact-builder',
+        'tools/core-verification',
+        'tools/ts-checks',
+      ]),
     )
     expect(members.some(item => item.path.includes('.legacy'))).toBe(false)
     expect(members.some(item => item.path.startsWith('examples/'))).toBe(false)

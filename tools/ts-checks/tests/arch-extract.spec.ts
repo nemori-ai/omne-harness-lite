@@ -168,16 +168,16 @@ export const p = plugin({ name: 'p', inject: ['required'], apply(ctx) {
     },
   )
 
-  it.each([
-    '@omne-harness/kernel-basis-other/cordis',
-    '@omne-harness/kernel-basis/private',
-  ])('does not trust helpers from %s', entry => {
-    const result = extract(`
+  it.each(['@omne-harness/kernel-basis-other/cordis', '@omne-harness/kernel-basis/private'])(
+    'does not trust helpers from %s',
+    entry => {
+      const result = extract(`
 import { definePlugin as plugin, resolveOptional as optional } from '${entry}'
 export const p = plugin({ apply(ctx) { optional(ctx, 'optional-service') } })
 `)
-    expect(result.facts.some(fact => fact.key === 'optional-service')).toBe(false)
-  })
+      expect(result.facts.some(fact => fact.key === 'optional-service')).toBe(false)
+    },
+  )
 
   it('keeps unowned helpers beside manifests and plugins without duplicating reached helpers', () => {
     const appSource = 'apps/host/src/index.ts'

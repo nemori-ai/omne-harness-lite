@@ -35,15 +35,27 @@ function exportTarget(value: unknown, member: string, root: string, findings: Fi
     return
   }
   if (
-    Object.keys(value).some(key => !['types', 'import', 'require', 'default'].includes(key)) ||
+    Object.keys(value).some(
+      key => !['source', 'types', 'import', 'require', 'default'].includes(key),
+    ) ||
     ['require', 'default'].some(key => value[key] !== undefined && value[key] !== value['import'])
   ) {
     findings.push({
       code: 'export-conditions',
       path: `${member}/package.json`,
       reason:
-        'Rule set 2 supports types/import and optional require/default pointing to the same runtime target',
+        'Rule set 2 supports source, types, import, and optional require/default pointing to the same runtime target',
     })
+  }
+  if (typeof value['source'] === 'string') {
+    const stem = value['import'].replace(/^\.\/dist\//u, '').replace(/\.js$/u, '')
+    const keys = Object.keys(value)
+    if (value['source'] !== `./src/${stem}.ts` || keys.indexOf('source') > keys.indexOf('types'))
+      findings.push({
+        code: 'export-conditions',
+        path: `${member}/package.json`,
+        reason: 'source must be listed before types and point at the TypeScript entry',
+      })
   }
   for (const [key, suffix] of [
     ['types', '.d.ts'],
@@ -117,10 +129,7 @@ function checkConfigurations(root: string, member: string): Finding[] {
 }
 function checkPublication(member: string, manifest: Record<string, unknown>): Finding[] {
   const files = manifest['files']
-  if (
-    !Array.isArray(files) ||
-    !files.includes('dist')
-  ) {
+  if (!Array.isArray(files) || !files.includes('dist')) {
     return [
       {
         code: 'publication',
@@ -149,8 +158,11 @@ function checkPublication(member: string, manifest: Record<string, unknown>): Fi
     }))
 }
 function canonicalEntry(value: unknown, stem: string): boolean {
+  if (!object(value)) return false
+  const keys = Object.keys(value)
   return (
-    object(value) &&
+    value['source'] === `./src/${stem}.ts` &&
+    keys.indexOf('source') < keys.indexOf('types') &&
     value['types'] === `./dist/${stem}.d.ts` &&
     value['import'] === `./dist/${stem}.js`
   )

@@ -1,6 +1,6 @@
 # TypeScript 包模板
 
-本目录拥有 `typescript-package@2.0.0`，是开发资源，不是 workspace 产品成员。公开接口、行为与接受继续归原拥有者。完整目录与版本说明见[英文说明](README.md)。成员的必选形状见[包组织](../../../../docs/package-organization.md#成员的必选结构)。本生成器已经写出先删除 `dist` 的 build、`erasableSyntaxOnly`，以及只发布 `dist` 的 `files`。源码条件仍未写出，因为名字尚未决定。生成器写出 `tests/public-entry.spec.ts`，从包名核对当前公开导出。单元、契约、集成和端到端按[包级测试责任与边界](../../../../docs/verification.md#包级测试责任与边界)选择。只有实现具体存储或应用服务的包增加集成测试。只有关键旅程的拥有者增加端到端测试。
+本目录拥有 `typescript-package@2.0.0`，是开发资源，不是 workspace 产品成员。公开接口、行为与接受继续归原拥有者。完整目录与版本说明见[英文说明](README.md)。成员的必选形状见[包组织](../../../../docs/package-organization.md#成员的必选结构)。本生成器已经写出先删除 `dist` 的 build、`erasableSyntaxOnly`，以及只发布 `dist` 的 `files`。源码条件名是 `source`，写在 `types` 前面。发布时去掉它。生成器写出 `tests/public-entry.spec.ts`，从包名核对当前公开导出。单元、契约、集成和端到端按[包级测试责任与边界](../../../../docs/verification.md#包级测试责任与边界)选择。只有实现具体存储或应用服务的包增加集成测试。只有关键旅程的拥有者增加端到端测试。
 
 ## 创建与完整结构核对
 
@@ -26,15 +26,15 @@ pnpm package:template scan --member packages/identity/authorization --json
 
 ## 归属与变体
 
-| 路径或变体 | 职责 |
-| --- | --- |
-| manifest.json | 唯一当前版本、完整文件槽、必需项、变体和精确历史规则 |
-| common/ | 包 manifest、共享构建/测试配置、双语 README 和 bindings v2 登记草稿 |
-| module | 独立函数、类型和值的纯根，不增加 Cordis 包装 |
-| cordis-module | 纯根加集成 helper 或协调机制的绑定面 |
-| service-contract | 纯公共定义与 ./cordis 的 Service、唯一键和类型化事件 |
-| service-provider | 独立工厂与 ./cordis 的具体绑定，消费公共承诺 |
-| fragments/ | 按实际义务取用的完整必要行为规格、Schema、模型/证明及 ADR 指南 |
+| 路径或变体       | 职责                                                                |
+| ---------------- | ------------------------------------------------------------------- |
+| manifest.json    | 唯一当前版本、完整文件槽、必需项、变体和精确历史规则                |
+| common/          | 包 manifest、共享构建/测试配置、双语 README 和 bindings v2 登记草稿 |
+| module           | 独立函数、类型和值的纯根，不增加 Cordis 包装                        |
+| cordis-module    | 纯根加集成 helper 或协调机制的绑定面                                |
+| service-contract | 纯公共定义与 ./cordis 的 Service、唯一键和类型化事件                |
+| service-provider | 独立工厂与 ./cordis 的具体绑定，消费公共承诺                        |
+| fragments/       | 按实际义务取用的完整必要行为规格、Schema、模型/证明及 ADR 指南      |
 
 变体由实际责任判断。私有 RowLifetime 之类的 helper 不自动使协调包变成公开 Service 提供者。不能凭目录名或一条 provide 抽取事实裁定。
 
@@ -53,11 +53,11 @@ Service 定义的归属沿[产品包组织](../../../../docs/package-organizatio
 
 本模板提供草稿生成和依赖诊断。它不实现后续产品。
 
-| 后续工作 | 使用方式 | 本卡不提供 |
-| --- | --- | --- |
-| 最小 CLI | 应用不使用本模板。CLI 放在 `apps/`。命令解析不导入 `@deepseek-ai/cordis`。 | 没有应用变体，也不实现命令循环。 |
-| 成员测试设施 | 草稿包含 `tests/` 槽。隔离测试只证明官方模板生成的骨架能够 build 和 typecheck。 | 不建立分包测试平台。 |
-| 基础能力 | `service-contract` 和 `cordis-module` 可以在目标组生成草稿。`kernel-basis` 的目标位置是 `packages/assembly/kernel-basis`。 | 不建立该成员，也不搬迁封存包。 |
+| 后续工作     | 使用方式                                                                                                                   | 本卡不提供                       |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| 最小 CLI     | 应用不使用本模板。CLI 放在 `apps/`。命令解析不导入 `@deepseek-ai/cordis`。                                                 | 没有应用变体，也不实现命令循环。 |
+| 成员测试设施 | 草稿包含 `tests/` 槽。隔离测试只证明官方模板生成的骨架能够 build 和 typecheck。                                            | 不建立分包测试平台。             |
+| 基础能力     | `service-contract` 和 `cordis-module` 可以在目标组生成草稿。`kernel-basis` 的目标位置是 `packages/assembly/kernel-basis`。 | 不建立该成员，也不搬迁封存包。   |
 
 ## 依赖诊断
 

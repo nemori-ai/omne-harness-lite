@@ -31,11 +31,6 @@
     ],
     "readers": [
       {
-        "paths": ["packages/core/*/src/**"],
-        "members": ["tools/core-verification"],
-        "why": "core-verification 的 dependency-surface、public-type-surface 读核心成员的 src 与 dist"
-      },
-      {
         "paths": [
           "packages/**/*.ts",
           "packages/**/*.tsx",
@@ -71,11 +66,6 @@
         ],
         "members": ["tools/ts-checks"],
         "why": "ts-checks 的 loop-catalogue.spec.ts 读 clean-loop 与整洁之道对照表，test-slot.spec.ts 执行 with-test-slot.sh"
-      },
-      {
-        "paths": ["packages/core/*/schema/**", "packages/core/*/tests/fixtures/**"],
-        "members": ["tools/core-verification"],
-        "why": "w1/w6以成员拥有的Schema及独立规范输入作外部消费，测试不会读取退役中央清单"
       },
       {
         "paths": [

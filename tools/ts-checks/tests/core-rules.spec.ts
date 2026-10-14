@@ -134,10 +134,7 @@ describe('core-pure-imports', () => {
     for (const subpath of ['code-runtime', 'schema-codegen'])
       expect(
         corePureImports.check([
-          file(
-            'core/messages/src/schema.ts',
-            `import '@omne-harness/content-blocks/${subpath}'`,
-          ),
+          file('core/messages/src/schema.ts', `import '@omne-harness/content-blocks/${subpath}'`),
         ]),
       ).toHaveLength(1)
   })
@@ -153,9 +150,7 @@ describe('core-pure-imports', () => {
       expect(corePureImports.check([file(path, `import '${allowed}'`)])).toEqual([])
       expect(corePureImports.check([file(path, `import '${allowed}/private'`)])).toHaveLength(1)
       expect(
-        corePureImports.check([
-          file(path, `import '@omne-harness/${dependency}/src/schema.ts'`),
-        ]),
+        corePureImports.check([file(path, `import '@omne-harness/${dependency}/src/schema.ts'`)]),
       ).toHaveLength(1)
     }
     for (const [consumer, retired] of [
@@ -425,11 +420,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
         corePureImports.check([file('core/content-blocks/src/x.ts', source.text)]),
       ).toHaveLength(1)
     }
-    for (const specifier of [
-      'node:fs',
-      '@deepseek-ai/cordis',
-      '@omne-harness/asset-governance',
-    ]) {
+    for (const specifier of ['node:fs', '@deepseek-ai/cordis', '@omne-harness/asset-governance']) {
       expect(
         corePureImports.check([file('core/asset-model/src/workspace.ts', `import '${specifier}'`)]),
       ).toHaveLength(1)

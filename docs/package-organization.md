@@ -16,7 +16,7 @@
 
 ## 成员的必选结构
 
-PanQiWei 于 2026-10-14 接受 [RFC-0003 revision 1](rfcs/RFC-0003-source-packages.md#决定范围)。下面是新成员的目标形状。应用不使用这套结构。生成和扫描仍用 [包模板](../tools/ts-checks/templates/package/README_ZH.md)。该生成器已经写出先删除 `dist` 的 build，以及 `erasableSyntaxOnly`。源码条件仍未写出，因为名字尚未决定。
+PanQiWei 于 2026-10-14 接受 [RFC-0003 revision 1](rfcs/RFC-0003-source-packages.md#决定范围)。下面是新成员的目标形状。应用不使用这套结构。生成和扫描仍用 [包模板](../tools/ts-checks/templates/package/README_ZH.md)。该生成器已经写出先删除 `dist` 的 build、`erasableSyntaxOnly`，以及写在 `types` 前面的 `source` 条件。
 
 每个新成员必须有这些文件。
 
@@ -35,7 +35,7 @@ packages/<能力组>/<成员>/
 
 `cordis-module`、`service-contract` 和 `service-provider` 再加 `src/cordis.ts`。`module` 不加这个文件。`src/index.ts` 不导入 `@deepseek-ai/cordis`。Cordis 绑定只从 `src/cordis.ts` 导出。
 
-`package.json` 把源码条件写在 `types` 前面。`files` 只发布 `dist`。`build` 先删除 `dist`，再编译。源码条件的名字尚未决定，不在本页新定。`tsconfig.build.json` 只包含 `src`，并打开 `erasableSyntaxOnly`。`tsconfig.test.json` 只包含 `tests`。测试导入本包时使用包名。谁写哪一类测试，见[包级测试责任与边界](verification.md#包级测试责任与边界)。
+`package.json` 把 `source` 写在 `types` 前面，指向 `./src/index.ts`。仓库类型检查通过根 `tsconfig.base.json` 的 `customConditions` 打开它。`files` 只发布 `dist`。发布时去掉 `source`，外部只保留指向 `dist` 的 `types` 和 `import`。`build` 先删除 `dist`，再编译。`tsconfig.build.json` 只包含 `src`，并打开 `erasableSyntaxOnly`。`tsconfig.test.json` 只包含 `tests`。测试导入本包时使用包名。谁写哪一类测试，见[包级测试责任与边界](verification.md#包级测试责任与边界)。
 
 `docs/`、`SPEC.md`、`schema/`、`verification/`、`adr/`、`examples/` 和 `resources/` 只有在里面有真实内容时才存在。模板不生成空目录。
 
@@ -168,7 +168,7 @@ flowchart TD
   machine --> sdkUse
 ```
 
-`tools/artifact-builder` 不依赖 CLI。`apps.0.0.1.legacy/cli` 把 artifact-builder 列为 devDependency。`tools/ts-checks` 从 `@omne-harness/legal-identity` 读取身份类型名单。`tools/core-verification` 不再声明旧包依赖。`scripts/package-cli.sh` 指向 `apps/cli/tools/package.ts`。仓库中没有这个成员。运行该脚本之前，先核对路径。
+`tools/artifact-builder` 不依赖 CLI。`apps.0.0.1.legacy/cli` 把 artifact-builder 列为 devDependency。`tools/ts-checks` 从 `@omne-harness/legal-identity` 读取身份类型名单。`tools/core-verification` 不再声明旧包依赖，也不再保留会导入旧包的消费者源码。`scripts/build-fixed-schemas.mjs` 已删除；它只解析 `@omne-harness-lite/content-blocks`。参考树里的旧 `build` 脚本仍写着这个文件名，运行会失败。`scripts/package-cli.sh` 指向 `apps/cli/tools/package.ts`。仓库中没有这个成员。运行该脚本之前，先核对路径。
 
 发布到仓库之外时，CLI 包提供 `bin`、构建后的启动模块、构建身份文件，以及指向 SDK 包的依赖声明。启动不要求当前目录是本仓库。服务端包不进入这个安装闭包。包模板没有应用变体。缺少该变体并不阻止建包。建包前要同时满足两件事。[apps 入口](../apps/README.md#建立与维护)要求应用规格和公开依赖已经写明。[workspace](workspace.md)要求没有实现代码的承诺不建空成员。`help` 与 `version` 的测试归未来的 CLI 应用。SDK 调用的测试归 SDK。服务端接入的测试归 server-entry 和对应能力。模板与架构规则的测试归 `tools/ts-checks`。
 

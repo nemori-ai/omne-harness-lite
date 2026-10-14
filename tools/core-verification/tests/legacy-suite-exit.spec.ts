@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const legacyPackages = [
@@ -25,9 +27,34 @@ const legacyPackages = [
   '@omne-harness-lite/xml-format',
 ]
 
+const removed = [
+  'src/w1-public-consumer.ts',
+  'src/w6-asset-consumer.ts',
+  'src/w6-packed-consumer.ts',
+  'src/w6-stream-consumer.ts',
+  'src/storage-fixture.ts',
+  'fixtures/storage-conformance.spec.ts',
+  'fixtures/packed-consumer.mjs',
+]
+
+const root = fileURLToPath(new URL('..', import.meta.url))
+
+function filesUnder(directory: string): string[] {
+  if (!existsSync(directory)) return []
+  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    if (entry.name === 'node_modules' || entry.name === 'dist') return []
+    const path = join(directory, entry.name)
+    if (entry.isDirectory()) return filesUnder(path)
+    return [path]
+  })
+}
+
 describe('legacy suite exit', () => {
   it('does not declare a workspace dependency on a legacy package', () => {
-    const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+    const manifest = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    ) as {
+      scripts?: Record<string, string>
       dependencies?: Record<string, string>
       devDependencies?: Record<string, string>
     }
@@ -36,5 +63,17 @@ describe('legacy suite exit', () => {
       ...Object.keys(manifest.devDependencies ?? {}),
     ]
     expect(declared.filter(name => legacyPackages.includes(name))).toEqual([])
+    expect(manifest.scripts?.['verify:packed']).toBeUndefined()
+  })
+
+  it('does not keep a file that can import or launch a legacy consumer', () => {
+    for (const relative of removed) expect(existsSync(join(root, relative))).toBe(false)
+    const texts = filesUnder(root)
+      .filter(path => /\.(?:[cm]?[jt]s|json|mjs)$/u.test(path))
+      .filter(path => !path.endsWith('tests/legacy-suite-exit.spec.ts'))
+      .map(path => readFileSync(path, 'utf8'))
+    expect(
+      texts.some(text => text.includes('@omne-harness-lite/') || text.includes('0.0.1.legacy/')),
+    ).toBe(false)
   })
 })

@@ -142,10 +142,7 @@ function judgeOpsImport(file: SourceFile, ref: ImportRef): string | undefined {
 }
 
 function judgeEventsImport(file: SourceFile, ref: ImportRef): string | undefined {
-  if (
-    ref.specifier === '@omne-harness/offer-expiry' &&
-    pureTypeOnly(file, ref.index, ['Instant'])
-  )
+  if (ref.specifier === '@omne-harness/offer-expiry' && pureTypeOnly(file, ref.index, ['Instant']))
     return undefined
   return `事件声明模块导入了 ${ref.specifier}；仅允许 offer-expiry 的 Instant 类型，绑定及治理逻辑不得进入纯事件叶子`
 }

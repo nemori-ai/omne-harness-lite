@@ -109,18 +109,9 @@
       ],
       "variantRequiredFiles": {
         "module": [],
-        "cordis-module": [
-          "src/cordis.ts",
-          "SPEC.md"
-        ],
-        "service-contract": [
-          "src/cordis.ts",
-          "SPEC.md"
-        ],
-        "service-provider": [
-          "src/cordis.ts",
-          "SPEC.md"
-        ]
+        "cordis-module": ["src/cordis.ts", "SPEC.md"],
+        "service-contract": ["src/cordis.ts", "SPEC.md"],
+        "service-provider": ["src/cordis.ts", "SPEC.md"]
       },
       "layout": {
         "files": [
@@ -173,44 +164,25 @@
           "resources/**/LICENSE",
           "resources/**/LICENSE.*"
         ],
-        "requiredDirectories": [
-          "src",
-          "tests"
-        ],
-        "ignoredDirectories": [
-          "node_modules",
-          "dist",
-          "generated",
-          "coverage",
-          "tmp"
-        ],
+        "requiredDirectories": ["src", "tests"],
+        "ignoredDirectories": ["node_modules", "dist", "generated", "coverage", "tmp"],
         "companions": [
           {
             "path": "verification",
-            "requires": [
-              "verification/README.md"
-            ]
+            "requires": ["verification/README.md"]
           },
           {
             "path": "acceptance",
-            "requires": [
-              "vitest.acceptance.config.ts"
-            ]
+            "requires": ["vitest.acceptance.config.ts"]
           },
           {
             "path": "vitest.acceptance.config.ts",
-            "requires": [
-              "acceptance"
-            ]
+            "requires": ["acceptance"]
           }
         ],
         "requiredFileGroups": [
           {
-            "patterns": [
-              "tests/**/*.spec.ts",
-              "tests/**/*.spec-d.ts",
-              "tests/basis/**/*.test.ts"
-            ],
+            "patterns": ["tests/**/*.spec.ts", "tests/**/*.spec-d.ts", "tests/basis/**/*.test.ts"],
             "minimum": 1
           }
         ]
@@ -276,61 +248,33 @@
       "docs/**/*.png",
       "docs/**/*.webp"
     ],
-    "requiredDirectories": [
-      "src",
-      "tests"
-    ],
-    "ignoredDirectories": [
-      "node_modules",
-      "dist",
-      "generated",
-      "coverage",
-      "tmp"
-    ],
+    "requiredDirectories": ["src", "tests"],
+    "ignoredDirectories": ["node_modules", "dist", "generated", "coverage", "tmp"],
     "companions": [
       {
         "path": "verification",
-        "requires": [
-          "verification/README.md"
-        ]
+        "requires": ["verification/README.md"]
       },
       {
         "path": "acceptance",
-        "requires": [
-          "vitest.acceptance.config.ts"
-        ]
+        "requires": ["vitest.acceptance.config.ts"]
       },
       {
         "path": "vitest.acceptance.config.ts",
-        "requires": [
-          "acceptance"
-        ]
+        "requires": ["acceptance"]
       }
     ],
     "requiredFileGroups": [
       {
-        "patterns": [
-          "tests/**/*.spec.ts",
-          "tests/**/*.spec-d.ts",
-          "tests/basis/**/*.test.ts"
-        ],
+        "patterns": ["tests/**/*.spec.ts", "tests/**/*.spec-d.ts", "tests/basis/**/*.test.ts"],
         "minimum": 1
       }
     ]
   },
   "variantRequiredFiles": {
     "module": [],
-    "cordis-module": [
-      "src/cordis.ts",
-      "SPEC.md"
-    ],
-    "service-contract": [
-      "src/cordis.ts",
-      "SPEC.md"
-    ],
-    "service-provider": [
-      "src/cordis.ts",
-      "SPEC.md"
-    ]
+    "cordis-module": ["src/cordis.ts", "SPEC.md"],
+    "service-contract": ["src/cordis.ts", "SPEC.md"],
+    "service-provider": ["src/cordis.ts", "SPEC.md"]
   }
 }

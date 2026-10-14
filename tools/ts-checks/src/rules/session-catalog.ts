@@ -24,9 +24,7 @@ function catalogReference(file: SourceFile, specifier: string): boolean {
     /^packages\/session\/session-tenancy-table\/(?:src|dist)\/maintenance(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
       target,
     ) ||
-    /^@omne-harness\/session-tenancy-table\/(?:src\/)?maintenance(?:\.[cm]?[jt]s)?$/u.test(
-      target,
-    )
+    /^@omne-harness\/session-tenancy-table\/(?:src\/)?maintenance(?:\.[cm]?[jt]s)?$/u.test(target)
   )
 }
 

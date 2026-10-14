@@ -45,7 +45,11 @@ function manifestText(input: CreateInput): string {
     typeof rootManifest['engines']['node'] !== 'string'
   )
     throw new Error('Root package.json must declare engines.node')
-  const entry = (name: string) => ({ types: `./dist/${name}.d.ts`, import: `./dist/${name}.js` })
+  const entry = (name: string) => ({
+    source: `./src/${name}.ts`,
+    types: `./dist/${name}.d.ts`,
+    import: `./dist/${name}.js`,
+  })
   const binding = input.variant !== 'module'
   return JSON.stringify(
     {

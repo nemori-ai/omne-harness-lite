@@ -256,8 +256,7 @@ describe('architecture view projection', () => {
       document({
         ...first,
         'packages/infra/sql':
-          "import {plugin as memory} from '@omne-harness/memory';" +
-          first['packages/infra/sql'],
+          "import {plugin as memory} from '@omne-harness/memory';" + first['packages/infra/sql'],
       }),
       bands,
     )

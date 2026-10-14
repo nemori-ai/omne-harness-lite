@@ -49,7 +49,13 @@ taskBase 是开工固定 SHA，不能用 FI 后的目标替换。work branch 必
 在具名工作分支执行：
 
 ```json
-{"kind":"start","authority":"真实评论URL","issue":"真实IssueURL","revision":1,"attempt":"实际attempt"}
+{
+  "kind": "start",
+  "authority": "真实评论URL",
+  "issue": "真实IssueURL",
+  "revision": 1,
+  "attempt": "实际attempt"
+}
 ```
 
 `register` 与 `start` 同一准入。两者只读取目标任务闭包、授权卡完整评论和目标任务 Project 状态，不枚举仓库历史或全 Project items。闭包最多 32 个 Issue、8 个边层级，独立授权卡计入总数。必需页、条件解析或配置字段不完整时拒绝。Stage 已确认且完整读取后未设值时，`null` 合法。创建 context 前双读相关输入，变化则拒绝写入。
@@ -60,14 +66,14 @@ taskBase 是开工固定 SHA，不能用 FI 后的目标替换。work branch 必
 
 `prepare` 的 `sources` 使用完整固定 commit SHA，拒重复；每次自动固定权威目标 B。以下模式共用一个引擎：
 
-| mode | 额外字段 | sources | 目标 |
-| --- | --- | --- | --- |
-| work | 无 | 一个 `{kind:"work",source:SHA}` | Issue route |
-| fi | track | 一个 `{kind:"main",source:SHA}` | 登记轨道 |
-| ri | 无 | 一个 `{kind:"track",track:ID,source:SHA}` | main |
-| joint | 无 | 多个 track source | main |
-| task-sync | 无 | main/track source | 当前任务人的工作分支 |
-| checkpoint | checkpoint；首次还有 initialAudit | 一个 main source | stable |
+| mode       | 额外字段                          | sources                                   | 目标                 |
+| ---------- | --------------------------------- | ----------------------------------------- | -------------------- |
+| work       | 无                                | 一个 `{kind:"work",source:SHA}`           | Issue route          |
+| fi         | track                             | 一个 `{kind:"main",source:SHA}`           | 登记轨道             |
+| ri         | 无                                | 一个 `{kind:"track",track:ID,source:SHA}` | main                 |
+| joint      | 无                                | 多个 track source                         | main                 |
+| task-sync  | 无                                | main/track source                         | 当前任务人的工作分支 |
+| checkpoint | checkpoint；首次还有 initialAudit | 一个 main source                          | stable               |
 
 例如 `{"kind":"prepare","mode":"ri","sources":[{"kind":"track","track":"实际ID","source":"实际SHA"}]}`。RI/joint 自动推导完整 pending prefix 的任务集合。可传 declaredTasks 供精确核对；漏卡、额外卡、缺 unit、未登记父提交均拒绝。checkpoint 从 main 的完整 unit 前缀推导旧 stable 尚未包含的各卡。
 
@@ -89,13 +95,13 @@ publish confirmations 绑定当前条件摘要 `conditionDigest(condition)`、�
 
 URL 为配置仓库的 Issue comment。工具固定只读 `gh api GET`，核 Issue 非 PR、repository、number、comment、user.login/node_id、policy action 权和当前采集；author_association 不授予权。支持一个 `json omne-integration-authority:v1` 区块。共同字段为 schemaVersion=1、action、policyRevision、responsible、basis（非空依据数组）。各 action 另需：
 
-| action | 字段 |
-| --- | --- |
-| dispatch | task 完整 binding、confirmations |
-| publish | operation、candidate、expectedBase（首次 null）、sources、tasks、receiptDigest、allowedRefs、confirmations、revalidations |
-| adopt | policyCommit、constructionHead、constructionComplete=true、legacyDigest、bootstrapBasis、checksDigest |
-| policy-adopt | previous、policyCommit、handoffDigest、checksDigest |
-| track-bootstrap | track、mainAnchor、allowedRefs、expectedAbsent=true |
+| action          | 字段                                                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| dispatch        | task 完整 binding、confirmations                                                                                          |
+| publish         | operation、candidate、expectedBase（首次 null）、sources、tasks、receiptDigest、allowedRefs、confirmations、revalidations |
+| adopt           | policyCommit、constructionHead、constructionComplete=true、legacyDigest、bootstrapBasis、checksDigest                     |
+| policy-adopt    | previous、policyCommit、handoffDigest、checksDigest                                                                       |
+| track-bootstrap | track、mainAnchor、allowedRefs、expectedAbsent=true                                                                       |
 
 精确运行时 schema 归 [authority.ts](authority.ts)。unknown 字段不接受。confirmations 每项 issue/condition/digest/evidence；revalidations 每项 historical/current/evidence。撤销评论用 `json omne-integration-revocation:v1`，其 `decisions` 数组列出被撤销决定 URL；出现适用撤销则拒绝，需 owner 新决定。完整撤销治理仍由交付协议拥有。
 

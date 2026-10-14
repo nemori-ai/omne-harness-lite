@@ -31,7 +31,7 @@ owner: PanQiWei
 | 身份与时间 | 旧 `identity-values` 仍被检查器导入 | 首批候选包含 `legal-identity` 和 `utc-instant`。检查器改从这些公开入口取类型名 | 包不存在之前，不改导入。精确业务契约仍由成员持有 |
 | 装配 | 包组织已登记 `packages/assembly/kernel-basis`，并写明现行实现仍在 legacy | 首批候选包含该成员。根入口只导出操作结果，不导入 `@deepseek-ai/cordis` | 本提案不搬迁旧包，也不建立转发层 |
 | 存储 | #223 的事务行为已有规格，目录还不是 workspace 成员 | 存储成员可以承接该规格。完整装配的其余设计仍有缺口 | 缺口部分不授予实施资格 |
-| 声明与产物 | 旧成员通过 `dist` 的声明互相引用 | 类型检查按 RFC-0002 的源码条件读源码。构建仍产出 `dist`。运行和发布消费 `dist`，除非该成员已证明 Node 能直接执行其源码 | 条件名未定，归 RFC-0002。发布包不含 `src` |
+| 声明与产物 | 旧成员通过 `dist` 的声明互相引用 | 类型检查按 RFC-0002 的源码条件读源码。构建仍产出 `dist`。运行和发布消费 `dist`，除非该成员已证明 Node 能直接执行其源码 | 条件名是 `source`。发布时去掉它。发布包不含 `src` |
 | 测试 | 旧测试经常导入自己的 `dist` | 类型检查不先构建。单元测试和包内集成在源码可直接执行时读源码。子进程、schema 生成和打包消费测试必须对着实际产物 | 禁止用旧 `dist` 或缓存让缺少产物的测试通过 |
 | 模板与检查器 | #219 已交付模板，并保留方向规则尚未适配的缺口 | 新包准入补上这些缺口之后，模板才能生成会被默认检查接受的成员 | 临时样例不留在产品目录 |
 
@@ -78,7 +78,7 @@ packages/<能力组>/<成员>/
 
 `cordis-module`、`service-contract` 和 `service-provider` 再加 `src/cordis.ts`。`module` 不加这个文件。根入口 `src/index.ts` 不导入 `@deepseek-ai/cordis`。Cordis 绑定只从 `src/cordis.ts` 导出。
 
-`package.json` 必须声明这些字段。源码条件的名字仍是 RFC-0002 的未决项，这里用占位，不新定一个名字。
+`package.json` 必须声明这些字段。源码条件名是 RFC-0002 已定的 `source`。发布时去掉它。
 
 ```json
 {
@@ -86,7 +86,7 @@ packages/<能力组>/<成员>/
   "type": "module",
   "exports": {
     ".": {
-      "<源码条件名未定>": "./src/index.ts",
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
@@ -108,7 +108,7 @@ packages/<能力组>/<成员>/
 docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 ```
 
-`typescript-package@2.0.0` 生成必选文件、四种变体和 `src/cordis.ts`。生成器已经写出 `build` 先删除 `dist`、`erasableSyntaxOnly`，以及只发布 `dist` 的 `files`。源码条件仍未写出，因为名字尚未决定。现有模板 README 里的大树是可选资源角色，不是每个新包都要建满的目录。
+`typescript-package@2.0.0` 生成必选文件、四种变体和 `src/cordis.ts`。生成器已经写出 `build` 先删除 `dist`、`erasableSyntaxOnly`、只发布 `dist` 的 `files`，以及 `source` 条件。发布时去掉 `source`。现有模板 README 里的大树是可选资源角色，不是每个新包都要建满的目录。
 
 依赖层数的上限未定。未定之前，新包不得形成比解除当前工具依赖更深的链。具体数字等 PanQiWei 在看到首批依赖图之后裁定。
 
@@ -142,11 +142,11 @@ docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 - 有权决定者：PanQiWei。
 - 决定日期及对应 revision：2026-10-14，revision 1。记录为 https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165074528 。
 - 采用范围：本提案 revision 1 的方案，包括源码包的正式模板结构。模板文件继续由 `tools/ts-checks` 的包模板维护，不在仓库根另设模板目录。
-- 不采用范围及必要理由：不建立全部目标目录，不搬迁 legacy，不实施 RFC-0002 的工具升级，不把根上的模板目录当作第二份结构。存储包名、依赖层数上限、源码条件名，以及尚未点名的旧依赖拥有者，仍未决定。
+- 不采用范围及必要理由：不建立全部目标目录，不搬迁 legacy，不实施 RFC-0002 的工具升级，不把根上的模板目录当作第二份结构。存储包名、依赖层数上限，以及尚未点名的旧依赖拥有者，仍未决定。源码条件名已由 RFC-0002 定为 `source`。
 - 未决与依赖停止点：
   - 存储成员的包名。裁定者是 PanQiWei。恢复输入是已接受的存储规格和具名消费者。
   - 依赖层数上限。与 RFC-0002 的未决是同一项，不在两份提案里各定一个数。
-  - 源码条件名。归 RFC-0002。
+  - 源码条件名已定为 `source`。见 RFC-0002。
   - `tools/core-verification` 其余旧依赖的新拥有者。没有拥有者就不建包。
 
 ## 写回现行正文

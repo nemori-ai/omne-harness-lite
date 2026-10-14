@@ -644,8 +644,7 @@ test('read service cannot transfer into plugin config, wrong constructors or ano
 
 test('custodian may import its exact pure read type but no provider or other directory face', () => {
   const path = 'packages/infra/credential-custodian-local/src/types.ts'
-  const allowed =
-    "import type {ReadBoundReplicaIn} from '@omne-harness/model-profile-directory';"
+  const allowed = "import type {ReadBoundReplicaIn} from '@omne-harness/model-profile-directory';"
   expect(check(allowed, path)).toEqual([])
   for (const statement of [
     "import {ReadBoundReplicaIn} from '@omne-harness/model-profile-directory';",

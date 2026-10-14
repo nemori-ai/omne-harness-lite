@@ -3,23 +3,18 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "核心包的跨边界开发验证与一致性套件有效性自测",
+  "description": "确认本工具不再执行 legacy 消费者",
   "engines": {
     "node": ">=24.18.0 <25"
   },
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\"",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "vitest run",
-    "verify:packed": "node dist/w6-packed-consumer.js"
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "catalog:",
     "@types/node": "catalog:",
-    "ajv": "catalog:",
-    "kysely": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "zod": "catalog:"
+    "vitest": "catalog:"
   }
 }

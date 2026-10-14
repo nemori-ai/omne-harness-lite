@@ -125,6 +125,8 @@ describe('package creation', () => {
       expect(value.scripts.build).toBe('rm -rf dist && tsc -p tsconfig.build.json')
       expect(value.scripts.test).toBe('pnpm run build && vitest run')
       expect(value.files).toEqual(['dist'])
+      expect(Object.keys(value.exports['.'])).toEqual(['source', 'types', 'import'])
+      expect(value.exports['.'].source).toBe('./src/index.ts')
       expect('./cordis' in value.exports).toBe(variant !== 'module')
       const buildConfig = JSON.parse(
         fs.readFileSync(join(root, member, 'tsconfig.build.json'), 'utf8'),
@@ -419,6 +421,7 @@ describe('template adoption and observation', () => {
       member = adopted(root)
     changeManifest(root, member, value => {
       ;(value['exports'] as Record<string, unknown>)['.'] = {
+        source: './src/index.ts',
         default: './dist/index.js',
         require: './dist/index.js',
         types: './dist/index.d.ts',
@@ -444,11 +447,7 @@ describe('template adoption and observation', () => {
     })
     const actual = spawnSync(
       process.execPath,
-      [
-        '--input-type=module',
-        '-e',
-        'console.log((await import("@omne-harness/sample")).surface)',
-      ],
+      ['--input-type=module', '-e', 'console.log((await import("@omne-harness/sample")).surface)'],
       { cwd: root, encoding: 'utf8' },
     )
     expect(actual.status).toBe(0)
