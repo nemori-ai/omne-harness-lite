@@ -23,7 +23,15 @@
         "anchor": "成员包文档要求"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        { "id": "scope", "anchor": "responsibility-and-status" },
+        { "id": "usage", "anchor": "usage" },
+        { "id": "contracts", "anchor": "contracts" },
+        { "id": "design", "anchor": "design" },
+        { "id": "configuration", "anchor": "configuration-and-operation" },
+        { "id": "verification", "anchor": "verification" },
+        { "id": "maintenance", "anchor": "maintenance" }
+      ]
     },
     {
       "id": "overview-zh",
@@ -38,7 +46,15 @@
         "anchor": "成员包文档要求"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        { "id": "scope", "anchor": "职责与状态" },
+        { "id": "usage", "anchor": "使用" },
+        { "id": "contracts", "anchor": "契约" },
+        { "id": "design", "anchor": "设计" },
+        { "id": "configuration", "anchor": "配置与运行" },
+        { "id": "verification", "anchor": "验证" },
+        { "id": "maintenance", "anchor": "维护" }
+      ]
     }
   ]
 }
