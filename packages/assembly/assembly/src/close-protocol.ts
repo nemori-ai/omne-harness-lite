@@ -108,7 +108,10 @@ export function createCloseProtocol(input: {
       admission = 'stopped'
       const caller = request?.caller
       if (caller !== undefined && held.get(caller.name) === caller) drainExcluded = caller
-      run = finishClose()
+      // Steps and clock.delay can call close before the first await. The promise has to be visible first.
+      const deferred = Promise.withResolvers<CloseReport>()
+      run = deferred.promise
+      void finishClose().then(deferred.resolve, deferred.reject)
       return run
     },
   }
