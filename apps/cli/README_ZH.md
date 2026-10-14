@@ -6,7 +6,7 @@
 
 ## 职责与状态
 
-本应用成员拥有进程入口 `omne`、参数解析、构建身份，以及两个状态目录公开函数。边界来自[包组织](../../docs/package-organization.md#最小-cli-的接入边界)。成员名、二进制名、退出码、消息和状态目录规则是 #246 的交付提议，写在 [SPEC.md](SPEC.md)。仓库负责人在评审时接受或替换它们。
+本应用成员拥有进程入口 `omne`、参数解析、构建身份，以及两个状态目录公开函数。边界来自[包组织](../../docs/package-organization.md#最小-cli-的接入边界)。成员名、二进制名、退出码、消息和状态目录规则已按 #246 revision 1 接受，写在 [SPEC.md](SPEC.md)。
 
 已经实现：
 
@@ -120,7 +120,7 @@ pnpm run typecheck
 - 子进程测试使用管道 stdio。没有测试分配 TTY。
 - 以 root 运行时，不可读目录和只读上级目录的用例会跳过，因为 root 不受这些权限限制。
 - 没有在 Windows 上测试。
-- 本地开发机的 Node 是 v26。测试没有在 Node 24 上运行过。
+- 本地开发机的 Node 是 v26。PanQiWei 于 2026-10-14 接受用这个版本完成本卡验证。没有在 Node 24 上另跑。`engines.node` 仍是 `>=24.18.0 <25`。
 - 没有测试通过 `pnpm pack` 在 workspace 之外安装本包。
 
 ## 维护
@@ -129,6 +129,6 @@ pnpm run typecheck
 
 新增命令时，通过 `defineCatalog` 追加一条 `CommandSpec`。`renderHelp` 会带上它，`run` 用 `CommandEnvironment` 调用它的 `run`。生产目录的命令列表是空的。需要状态目录的命令用 `homeFlag`、`environmentHome` 和 `homeDirectory` 调用 `resolveStateDirectory`，再调用 `ensureStateDirectory`。命令自己不读 `process.env`。help 和 version 不得调用这两个函数。调用 SDK 的命令要把 SDK 加为依赖，并在同一次修改中更新安装闭包测试和 SPEC.md。
 
-`scripts/package-cli.sh` 仍指向 `apps/cli/tools/package.ts`。这个文件不存在。发布打包还不属于本成员。
+`scripts/package-cli.sh` 构建本成员，并把 `apps/cli/dist` 写入一个新的 `.tar.gz`。它不安装命令、不上传发布、也不配置账号。这个归档不是旧的 B01 安装包。
 
 本文件与 [README.md](README.md) 保持同步。两份文件表达同一组承诺。
