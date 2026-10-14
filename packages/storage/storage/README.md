@@ -18,4 +18,4 @@ Node 基线、写连接、`WAL` 读回和有限上限在 SPEC。运行装配尚�
 
 ## 验证与维护
 
-验证场景在 [SPEC 的验证义务](SPEC.md#验证义务与未覆盖)。本次没有事务探针。结果模型变化时，先改 SPEC，再改组入口里的链接。创建真实包前核对[成员文档规范](../../../docs/member-documentation.md)。
+验证场景在 [SPEC 的验证义务](SPEC.md#验证义务与未覆盖)。本目录没有 `commit` 和 `query` 的探针。SPEC 里的探针是主线程上的 `node:sqlite` 读回。结果模型变化时，先改 SPEC，再改组入口里的链接。创建真实包前核对[成员文档规范](../../../docs/member-documentation.md)。
