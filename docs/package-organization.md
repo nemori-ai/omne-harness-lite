@@ -33,7 +33,9 @@ packages/
 │   └── permissions/            权限配值与求值
 ├── workspace/workspace/        工作区身份与资源关联
 ├── session/session/            Session、Run与逻辑治理
-├── assembly/assembly/          求值、采用和装配交接
+├── assembly/
+│   ├── assembly/               求值、采用和装配交接
+│   └── kernel-basis/           操作结果、Cordis 插件辅助和测试装配
 ├── agent/agent/                Agent定义、Loop与extensions
 ├── model/model/                模型能力、请求和原结果
 ├── tool/tool/                  工具定义、执行和效果
@@ -59,6 +61,12 @@ scripts/                       仓库自动化
 
 同一能力组内可以增加具名提供者或独立适配成员，前提是包边界有依据。单成员组仍提供稳定知识位置，不为目录对称增加转发层。time、telemetry和common须有实际共同语义及消费者，不能成为收纳未归属代码的目录。
 
+装配组有两个目标成员。`assembly` 维护求值、采用和交接。`kernel-basis` 维护操作结果、Cordis 插件辅助和测试装配。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。
+
+`kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口只导出操作结果，并且不导入 `@deepseek-ai/cordis`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页只登记目标位置 `packages/assembly/kernel-basis`。
+
+现行实现仍在 `packages.0.0.1.legacy/core/kernel-basis`。本页不建立该成员，也不搬迁该包。搬迁消费者、检查和探针另有任务。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
+
 ## 责任与能力组
 
 领域页拥有责任及协作，下面只维护责任到目标能力组的导航，不把责任数量当作包数量。
@@ -69,7 +77,7 @@ scripts/                       仓库自动化
 | [资产与规则](domains/assets-and-rules/README.md) | assets | 共同持有、来源、设置与权限求值 |
 | [工作区](domains/workspaces/README.md) | workspace | 工作区身份及资源关系 |
 | [会话与工作](domains/sessions-and-work/README.md) | session | 逻辑工作、输入受理及消费协调 |
-| [装配交接](domains/assembly-and-handoff/README.md) | assembly | 定义采用、绑定和交接 |
+| [装配交接](domains/assembly-and-handoff/README.md) | assembly | 定义采用、绑定、交接和内核辅助 |
 | [Agent推进](domains/agent-progression/README.md) | agent | Loop与扩展推进 |
 | [模型调用](domains/model-invocation/README.md) | model | 请求、原执行、结果与费用 |
 | [工具执行](domains/tool-execution/README.md) | tool | 调用、执行与外部效果 |
