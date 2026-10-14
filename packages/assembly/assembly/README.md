@@ -1,10 +1,8 @@
-PACKAGE_TEMPLATE_DRAFT
-
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
-
 # 定义求值与装配交接文档目标
 
-本目录预留采用依据、依赖绑定、就绪、撤除及换代交接的成员文档。依据为[上层责任](../../../docs/domains/assembly-and-handoff/README.md)和[目标包组织](../../../docs/package-organization.md)。已有 workspace 草稿和空的 src/index.ts。公开行为尚未实现。
+关闭协议已经实现。调用方从 `@omne-harness/assembly` 导入 `createCloseProtocol` 和 `LeaseId`。求值快照、绑定生效、缺依赖失败和旧新推进权尚未实现。
+
+本目录存放采用依据、依赖绑定、就绪、撤除及换代交接的成员文档。依据为[上层责任](../../../docs/domains/assembly-and-handoff/README.md)和[目标包组织](../../../docs/package-organization.md)。导出条件 `source` 指向本包源码。发布时去掉这个条件。
 
 ## 阅读路径
 
@@ -14,7 +12,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 边界与承接
 
-服务定义随原能力契约维护。原工作与执行事实不归装配取代。求值快照、绑定生效点和缺依赖失败仍待确定。长期个人负责人尚未具名。
+服务定义随原能力契约维护。原工作与执行事实不归装配取代。求值快照、绑定生效、缺依赖失败和旧新推进权尚未实现。长期个人负责人尚未具名。
 
 预期调用方有三类，都还没有单独的运行成员。
 

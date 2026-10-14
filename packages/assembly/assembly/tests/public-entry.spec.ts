@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
+it('exports the close protocol factory and lease id', async () => {
   const root = (await import('@omne-harness/assembly')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+  expect(Object.keys(root).sort()).toEqual(['LeaseId', 'createCloseProtocol'])
 })

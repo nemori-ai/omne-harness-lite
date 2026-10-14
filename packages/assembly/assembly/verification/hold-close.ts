@@ -1,5 +1,5 @@
 import { writeFileSync } from 'node:fs'
-import { createCloseProtocol } from './close-protocol.ts'
+import { createCloseProtocol } from '../src/close-protocol.ts'
 
 const reportPath = process.argv[2]
 if (reportPath === undefined) throw new Error('report path missing')
