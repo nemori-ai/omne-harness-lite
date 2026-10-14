@@ -44,6 +44,31 @@ Worker 一次处理一条消息。`node:sqlite` 的语句在这条消息里同�
 
 第 8 到第 12 步在同一次消息里完成。事实、已提交回执和待交接记录在同一个事务里提交。
 
+下面这张图用的是上面的候选顺序。多个拒绝同时成立时返回哪一个，仍以 SPEC 的未决项为准。
+
+```mermaid
+sequenceDiagram
+    participant C as 调用方
+    participant E as 控制侧入口
+    participant W as Worker
+    participant P as 参加者
+    C->>E: commit
+    E->>E: 核对字段和 JSON 值
+    E->>E: RFC 8785 写出并计算摘要
+    E->>W: 身份、组合版本、命令、摘要
+    W->>W: 核对代际、登记和队列
+    alt 受理前拒绝
+        W-->>C: rejected_before_accept
+    else 已进入队列
+        W->>W: BEGIN IMMEDIATE
+        W->>P: TransactionPort.execute
+        P-->>W: 语句结果
+        W->>W: 写入回执和待交接记录
+        W->>W: COMMIT
+        W-->>C: committed
+    end
+```
+
 ## 拒绝
 
 所有受理前拒绝都出现在正常提交的第 1 到第 7 步，在操作进入受理队列之前。拒绝不写入回执，也不占用队列位置。
@@ -67,6 +92,21 @@ Worker 一次处理一条消息。`node:sqlite` 的语句在这条消息里同�
 两个事务在同一次处理中完成。两个事务之间，Worker 不处理别的消息。所以同一身份的另一次尝试不会在回执写入之前开始执行。
 
 第二个事务没有提交时，`commit` 返回 `unknown`。这时事实已经回滚，但没有可以认回的明确回滚回执。
+
+```mermaid
+sequenceDiagram
+    participant C as 调用方
+    participant W as Worker
+    participant DB as 写连接
+    W->>DB: BEGIN IMMEDIATE
+    W->>DB: 参加者语句
+    DB-->>W: 明确的业务失败
+    W->>DB: ROLLBACK
+    W->>DB: BEGIN IMMEDIATE
+    W->>DB: 只写入 rolled_back 回执
+    W->>DB: COMMIT
+    W-->>C: rolled_back
+```
 
 ## 未知
 
