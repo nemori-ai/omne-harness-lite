@@ -34,16 +34,21 @@ export type DurationParse =
 
 const SI_SECONDS = /^(-?)PT(\d+)(?:\.(\d+))?S$/u
 const ISO_DURATION = /^-?P(?=.)(?:\d+(?:\.\d+)?[YMWD])*(?:T(?:\d+(?:\.\d+)?[HMS])+)?$/u
+const CALENDAR_OR_CLOCK_UNIT = /[YMWDH]/u
 
 /**
  * Reads `PT<digits>[.<digits>]S` or the same with a leading `-`. This is the only way to obtain
  * a Duration. Any other ISO 8601 designator (years, months, weeks, days, hours, minutes) fails
  * as `calendar-unit`, because those lengths belong to calendars and schedules, not SI seconds.
+ * An ISO duration made of seconds alone that is still not SI-second text, such as `PT5S5S`,
+ * fails as `syntax`.
  */
 export function parseDuration(text: string): DurationParse {
   const match = SI_SECONDS.exec(text)
-  if (match === null)
-    return { ok: false, failure: { kind: ISO_DURATION.test(text) ? 'calendar-unit' : 'syntax' } }
+  if (match === null) {
+    const calendarUnit = ISO_DURATION.test(text) && CALENDAR_OR_CLOCK_UNIT.test(text)
+    return { ok: false, failure: { kind: calendarUnit ? 'calendar-unit' : 'syntax' } }
+  }
   const [, sign, seconds = '', fraction = ''] = match
   return { ok: true, value: new Duration(sign === '-', seconds, fraction) }
 }
