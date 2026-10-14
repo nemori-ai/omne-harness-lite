@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft json-text package; complete the accepted public contract before delivery",
+  "description": "Strict JSON text reader with caller budgets",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -22,7 +22,9 @@
     "typecheck": "pnpm run build && tsc -p tsconfig.test.json",
     "test": "pnpm run build && vitest run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "jsonc-parser": "catalog:"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

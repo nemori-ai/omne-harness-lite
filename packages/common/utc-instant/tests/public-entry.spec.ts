@@ -1,6 +1,14 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
+it('the public entry exports exactly the accepted runtime names', async () => {
   const root = (await import('@omne-harness/utc-instant')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+  expect(Object.keys(root).sort()).toEqual([
+    'compareInstants',
+    'encodeDuration',
+    'encodeInstant',
+    'leapSecondData',
+    'parseDuration',
+    'parseInstant',
+    'readLeapSecondData',
+  ])
 })
