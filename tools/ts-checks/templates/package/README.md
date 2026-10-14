@@ -35,11 +35,18 @@ Creation does not generate empty specs, fictitious services or passing placehold
 | variants/service-provider/ | Independent factories and bindings that consume public Service definitions |
 | fragments/ | Writing guides for actual documentation topics, complete owned behavior specifications, schema, verification and decisions |
 
-`service-contract` can be created in any kebab group, including `identity` and `access`. The directory name `core` grants no permission.
+`service-contract` can be created in any kebab-case group, including `identity` and `access`. The directory name `core` does not grant create or scan permission.
 Ownership of Service definitions stays with [Product package organization](../../../../docs/package-organization.md).
-`scan --json` puts judged edges on each package's `dependencies` array. A row has `rule`, `state`, `member`, `targetMember`, and `sites`. The rules are the existing IC and layer rows, plus `undeclared-dependency` and `member-cycle`. Those two names are not `RuleId`s and are not listed in `constraints.json`. `unknown` stays `unknown`. `--check` does not treat `unknown` as a pass, and a row that is only `unknown` does not by itself make the exit code 1.
+`scan --json` lists judged edges on each package `dependencies` array.
+A row includes `rule`, `state`, `member`, `targetMember`, and `sites`.
+The rules are the existing IC rows, the layer rows, `undeclared-dependency`, and `member-cycle`.
+`undeclared-dependency` and `member-cycle` are not `RuleId` values. They do not appear in `constraints.json`.
+`unknown` stays `unknown`.
+`--check` does not treat `unknown` as a pass. An `unknown` row alone does not make the exit code 1.
 
-`lint:rules` `group-direction` is a separate check. It still reports `unregistered-group` for `packages/access`, `packages/identity`, `packages/agent`, and `packages/assembly`. The dependency rows do not edit that rule. Registering those groups on `GROUP_DIRECTION_POLICY` would leave a same-group import from `sdk` to `server-entry` legal until the two members cycle.
+`lint:rules` `group-direction` is a separate check. It still reports `unregistered-group` for `packages/access`, `packages/identity`, `packages/agent`, and `packages/assembly`.
+This change does not edit that rule.
+Registering those groups on `GROUP_DIRECTION_POLICY` would leave a same-group import from `sdk` to `server-entry` legal until the two members form a cycle.
 
 Keep definition uniqueness and public entry rules. Do not bypass inspection with a handwritten structure or a false adoption marker.
 A provider consumes the public promises instead of copying them.

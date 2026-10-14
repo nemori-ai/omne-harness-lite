@@ -32,15 +32,22 @@ pnpm package:template scan --member packages/identity/authorization --json
 | common/ | 包 manifest、共享构建/测试配置、双语 README 和 bindings v2 登记草稿 |
 | module | 独立函数、类型和值的纯根，不增加 Cordis 包装 |
 | cordis-module | 纯根加集成 helper 或协调机制的绑定面 |
-| service-contract | 纯公共定义与 ./cordis 的 Service、唯一键和类型化事件。任意 kebab 组都可以创建，包括 identity 和 access |
+| service-contract | 纯公共定义与 ./cordis 的 Service、唯一键和类型化事件 |
 | service-provider | 独立工厂与 ./cordis 的具体绑定，消费公共承诺 |
 | fragments/ | 按实际义务取用的完整必要行为规格、Schema、模型/证明及 ADR 指南 |
 
 变体由实际责任判断。私有 RowLifetime 之类的 helper 不自动使协调包变成公开 Service 提供者。不能凭目录名或一条 provide 抽取事实裁定。
 
-Service 定义的归属沿[产品包组织](../../../../docs/package-organization.md)。目录名 `core` 不授予创建或扫描许可。`scan --json` 的 `dependencies` 列出同一成员上已判断的边，字段有 `rule`、`state`、`member`、`targetMember` 和 `sites`。规则包含既有 IC 与分层行，另加 `undeclared-dependency` 和 `member-cycle`。后两个名字不是 `RuleId`，也不在 `constraints.json` 里。`unknown` 保持 `unknown`。`--check` 不把 `unknown` 当成通过，仅因 `unknown` 也不会把退出码改成 1。
+Service 定义的归属沿[产品包组织](../../../../docs/package-organization.md)。目录名 `core` 不授予创建或扫描许可。
+`scan --json` 的 `dependencies` 列出同一成员上已判断的边。一行包含 `rule`、`state`、`member`、`targetMember` 和 `sites`。
+规则包含既有 IC 行、分层行、`undeclared-dependency` 和 `member-cycle`。
+后两个名字不是 `RuleId`。它们不出现在 `constraints.json` 里。
+`unknown` 保持 `unknown`。
+`--check` 不把 `unknown` 当成通过。仅有 `unknown` 行时，退出码也不会变成 1。
 
-`lint:rules` 的 `group-direction` 是另一项检查。它对 `packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 仍报告 `unregistered-group`。依赖行不修改这条规则。若把这些组登记进 `GROUP_DIRECTION_POLICY`，同组的 `sdk` 导入 `server-entry` 会一直合法，直到两个成员成环。
+`lint:rules` 的 `group-direction` 是另一项检查。它对 `packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 仍报告 `unregistered-group`。
+这次不改这条规则。
+若把这些组登记进 `GROUP_DIRECTION_POLICY`，同组的 `sdk` 导入 `server-entry` 会一直合法，直到两个成员成环。
 
 保留定义唯一性和公开入口。不要用手写结构或伪造采用标识绕过检查。
 

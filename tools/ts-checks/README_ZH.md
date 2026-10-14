@@ -127,7 +127,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 
 层位与例外在 `src/rules/group-direction.ts` 的 `GROUP_DIRECTION_POLICY`，每条带 `source` 指回设计正文。它是机检投影，不是第二份权威。改层位先改 realization 的布局正文，再改这张表。`exceptions` 现在是空的，前端 SQLite 例外没有登记。
 
-`packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 不在这张路径表上。落地这些成员后，`group-direction` 仍报告 `unregistered-group`。依赖行不修改这条规则。若把这些组登记进路径表，同组的 `sdk` 导入 `server-entry` 会一直合法，直到两个成员成环。
+`packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 不在这张路径表上。落地这些成员后，`group-direction` 仍报告 `unregistered-group`。这次不改这条规则。若把这些组登记进路径表，同组的 `sdk` 导入 `server-entry` 会一直合法，直到两个成员成环。
 
 ## 提交署名
 
@@ -892,6 +892,9 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 
 私有 omne-package-template CLI 创建草稿并盘点精确模板采用。见[模板说明](templates/package/README_ZH.md)与[开发入口](../../docs/development.md#创建和整改产品包)。扫描复用架构读取器，结构结果不接受业务或生命周期行为。
 
-包模板当前为 typescript-package@2.0.0，精确保留 1.0.0 旧标识规则。`service-contract` 的创建和结构扫描不再要求 `packages/core`。`scan --json` 在 `dependencies` 上报告已判断的边。`unknown` 保持 `unknown`。`create-domain --group <名称>` 预览 package-domain@1.0.0 组文档草稿，加 `--write` 才创建。`scan --group <名称> --check` 检查组结构，与 `--member` 互斥。见[组模板](templates/domain/README.md)。Python 文档 inventory 独立检查登记、章节与占位，结构结果不能代替正文接受。
+包模板当前为 typescript-package@2.0.0，精确保留 1.0.0 旧标识规则。
+`service-contract` 的创建和结构扫描不再要求 `packages/core`。
+`scan --json` 在 `dependencies` 上报告已判断的边。`unknown` 保持 `unknown`。
+`create-domain --group <名称>` 预览 package-domain@1.0.0 组文档草稿，加 `--write` 才创建。`scan --group <名称> --check` 检查组结构，与 `--member` 互斥。见[组模板](templates/domain/README.md)。Python 文档 inventory 独立检查登记、章节与占位，结构结果不能代替正文接受。
 
 `core-pure-imports` 仅在 `core/model-request-runtime/src/model-log-history.ts` 允许已采用的 `immutable` 根入口。该模块使用其私有纯集合，理由归模型历史拥有者的 ADR。相邻文件、其他 core 成员和库的私有子路径继续拒绝。
