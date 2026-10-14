@@ -33,3 +33,4 @@
 - [RFC-0003：新架构源码包](RFC-0003-source-packages.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
 - [RFC-0004：四条主干的 PR 准入与确认](RFC-0004-trunk-pr-admission.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
 - [RFC-0005：源码包的测试责任](RFC-0005-package-testing.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
+- [RFC-0006：JSON 文本的规范写出](RFC-0006-json-canonical-text.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
