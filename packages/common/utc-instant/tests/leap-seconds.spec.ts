@@ -164,9 +164,19 @@ describe('readLeapSecondData', () => {
     ['a step of two seconds', ['2272060800\t10', '2287785600\t12']],
     ['a row that does not advance', ['2272060800\t10', '2272060800\t11']],
     ['a row that is not at midnight', ['2272060800\t10', '2287785601\t11']],
+    ['a first row at 1972-07-01 instead of 1972-01-01', ['2287785600\t10', '2303683200\t11']],
+    ['a first row at 1972-01-01 with offset 11', ['2272060800\t11', '2287785600\t12']],
   ])('refuses a file with %s as step', (_, rows) => {
     const lines = ['#$\t3992312697', '#@\t4133980800', ...rows]
     expect(readLeapSecondData(lines.join('\n'), 'test data')).toEqual({
+      ok: false,
+      failure: { kind: 'step' },
+    })
+  })
+
+  it('refuses a table truncated to start at 2017-01-01 as step instead of forgetting 2016-12-31T23:59:60Z', () => {
+    const truncated = ['#$\t3992312697', '#@\t4133980800', '3692217600\t37', '3707856000\t38']
+    expect(readLeapSecondData(truncated.join('\n'), 'test data: truncated')).toEqual({
       ok: false,
       failure: { kind: 'step' },
     })
