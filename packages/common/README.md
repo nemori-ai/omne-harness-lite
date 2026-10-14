@@ -10,13 +10,13 @@
 
 ## 成员与依赖
 
-依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的三个目录现在是 workspace 成员。`json-text` 的读取函数已经实现，负责人尚未接受。`utc-instant` 的公开行为已经实现，过期对外结果的接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171766684)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
+依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的三个目录现在是 workspace 成员。`json-text` 的读取函数已经实现，负责人尚未接受。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
 
 | 目标成员 | 状态 | 拥有的纯值 | 具名消费者 |
 | --- | --- | --- | --- |
 | `json-text` | 读取函数已实现，尚未接受。叶子名在本分支确定为 `json-text`。#242 当时没有裁定名字，并禁止从旧目录猜测 | 严格 JSON 文本读取 | 后续的配置读取、协议解码与持久记录读取。当前没有生产消费者 |
 | `legal-identity` | 公开入口已实现。精确文本归成员 README。#243 已合并进 `integration/legacy-refactor` | 合法身份文本、相等、租户组合 | `packages/identity/identity` 与 `packages/session/session` |
-| `utc-instant` | 公开行为已实现。过期对外结果已由 PanQiWei 于 2026-10-14 接受，见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171766684)。整卡尚未接受 | 时间点、SI 时长、唯一比较 | `packages/identity/identity` 与 `packages/tool/tool` |
+| `utc-instant` | 公开行为已实现。revision 1 整卡已由 PanQiWei 于 2026-10-14 接受并关闭，见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996) | 时间点、SI 时长、唯一比较 | `packages/identity/identity` 与 `packages/tool/tool` |
 
 采用记录是 [Issue 221 技术设计采用](https://github.com/nemori-ai/omne-harness-lite/issues/221#issuecomment-6161958178)。
 
