@@ -75,11 +75,20 @@ describe('atomic identity codecs', () => {
     ['a trailing space', 'acc_abcdefghjkmnpqrstvwxyz2345 '],
     ['a leading tab', '\tacc_abcdefghjkmnpqrstvwxyz2345'],
     ['a trailing newline', 'acc_abcdefghjkmnpqrstvwxyz2345\n'],
+    ['a leading space before an uppercase prefix', ' ACC_abcdefghjkmnpqrstvwxyz2345'],
   ])('rejects %s with whitespace and does not trim it', (_case, text) => {
     expect(accountCodec().parse(text)).toEqual({
       ok: false,
       error: { kind: 'identity-text-error', code: 'whitespace' },
     })
+  })
+
+  it('round-trips acc_0123456789abcdefghjkmnpqrs', () => {
+    const text = 'acc_0123456789abcdefghjkmnpqrs'
+    const parsed = accountCodec().parse(text)
+    expect(parsed).toEqual({ ok: true, value: { name: 'AccountId', text } })
+    if (!parsed.ok) return
+    expect(accountCodec().encode(parsed.value)).toEqual({ ok: true, value: text })
   })
 
   it.each([
@@ -131,5 +140,12 @@ describe('the parse-only mint path', () => {
       error: { kind: 'identity-text-error', code: 'type' },
     })
     expect(accountEquals(asAccount, asAccount)).toBe(false)
+  })
+
+  it('returns type when encoding null and does not throw', () => {
+    expect(accountCodec().encode(null as never)).toEqual({
+      ok: false,
+      error: { kind: 'identity-text-error', code: 'type' },
+    })
   })
 })

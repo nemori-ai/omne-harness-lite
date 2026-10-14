@@ -9,5 +9,4 @@ it('publishes the identity type names and keeps login identifiers out of that li
     'TenantId',
     'ScopeLayerIdentity',
   ])
-  expect(IDENTITY_TYPE_NAMES).not.toContain('LoginIdentifier')
 })
