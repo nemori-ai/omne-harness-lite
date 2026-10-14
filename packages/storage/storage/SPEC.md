@@ -2,6 +2,14 @@
 
 目标文档在 `packages/storage/storage`。本目录记录规格。workspace 包、源码和运行入口尚未建立。PanQiWei 于 2026-10-14 认可本规格的结果模型。断电耐久的提供者符合性仍由 [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 承接。系统行为以[数据与状态](../../../docs/architecture/data-and-state.md)为准。
 
+[#247](https://github.com/nemori-ai/omne-harness-lite/issues/247) 补入的下列条款是候选，待该卡结果接受：
+
+- 幂等认回和 `identity_conflict` 按完整的操作身份比较。
+- 登记结果、登记键和登记拒绝原因。
+- `commit` 的拒绝原因 `writer_not_current`、`facts_not_json` 和 `participant_repeated`。
+- 参加者端口。
+- SQLite 提供者的启动核对、受理队列、读取路径、两段回滚、未知条件和关闭期限。
+
 调用方学习三个操作：`registerCombination`、`commit`、`query`。写连接、SQL 和写者代际留在提供者内。
 
 公共结果由这一份目标文档拥有。workspace 包要等具名消费者和可运行入口。本规格不把旧的 `write` 回调迁进来。那个回调在应用线程执行，和 Worker 内命令冲突。
@@ -18,6 +26,8 @@
 
 操作身份包含租户、事务域、操作、协议版本和操作键。这五项都由调用方传入。本规格的协议版本是 `1`。
 
+幂等认回和 `identity_conflict` 都比较完整的五项。五项中任何一项不同，就是另一个操作。另一租户使用相同的操作键，也是另一个操作。那个操作不认回本租户的回执，也不和本租户的回执冲突。
+
 ## 公开类型
 
 类型把不能同时成立的结果拆开。`commit` 的返回值不含未提交。未提交只出现在 `query`。
@@ -32,6 +42,23 @@ type OperationIdentity = {
   readonly protocolVersion: ProtocolVersion
   readonly operationKey: string
 }
+
+type CombinationRegistration = {
+  readonly tenant: string
+  readonly transactionDomain: string
+  readonly combinationVersion: string
+  readonly participants: readonly string[]
+}
+
+type RegisterResult =
+  | {
+      readonly kind: "registered"
+      readonly registration: CombinationRegistration
+    }
+  | {
+      readonly kind: "rejected_before_accept"
+      readonly reason: "field_missing" | "participant_repeated" | "participant_empty"
+    }
 
 type FactCommand = {
   readonly participant: string
@@ -70,7 +97,14 @@ type IdentityConflict = {
 type RejectedBeforeAccept = {
   readonly kind: "rejected_before_accept"
   readonly identity: OperationIdentity
-  readonly reason: "combination_unregistered" | "participant_not_in_combination" | "queue_full" | "field_missing"
+  readonly reason:
+    | "combination_unregistered"
+    | "participant_not_in_combination"
+    | "queue_full"
+    | "field_missing"
+    | "writer_not_current"
+    | "facts_not_json"
+    | "participant_repeated"
 }
 
 type CommitResult = Committed | RolledBack | Unknown | IdentityConflict | RejectedBeforeAccept
@@ -92,31 +126,62 @@ type QueryResult = Committed | RolledBack | Unknown | NotCommitted
 
 `NotCommitted` 的五项证明由提供者构造。调用方代码不组装这个对象。
 
-协议版本 `1` 的输入摘要算法是 SHA-256。摘要写成十六进制小写。输入是命令数组的规范 JSON。对象键按字典序排列。命令按 `participant` 字典序排列。JSON 中间没有空白。编码是 UTF-8。调用方不传入摘要。更换排序、空白或算法时，协议版本改为新的字符串。
+协议版本 `1` 的输入摘要算法是 SHA-256。摘要写成十六进制小写。输入是命令数组的规范 JSON。调用方先按 `participant` 字典序排列命令。同一 `commit` 里 `participant` 重复时，提供者拒绝，不计算摘要。规范写出算法是 RFC 8785，见 [RFC-0006](../../../docs/rfcs/RFC-0006-json-canonical-text.md)。对象键按该标准排序。数组顺序保持调用方交给写出的顺序。JSON 中间没有空白。编码是 UTF-8。写出拒绝非 JSON 值，不自行转换。调用方不传入摘要。更换排序、空白或算法时，协议版本改为新的字符串。
+
+提供者在计算摘要之前做两项核对。任一项不成立时，`commit` 返回受理前拒绝。提供者不计算摘要，不写入回执，操作也不进入受理队列。
+
+- 两条命令的 `participant` 相同时，原因是 `participant_repeated`。
+- 任一命令的 `facts` 含有非 JSON 值时，原因是 `facts_not_json`。
+
+JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普通对象。数组的元素和对象的值也必须是 JSON 值。这条规则对任何嵌套深度都成立。`undefined`、BigInt、NaN、Infinity、-Infinity、Date 和函数都不是 JSON 值。提供者不转换这些值。例如，提供者不把 Date 写成字符串，也不省略值为 `undefined` 的键。
 
 ## 登记
 
-`registerCombination` 把参加者名字和组合版本登记到一个事务域。提供者按该事务域保存登记。协调者进程重启后，提供者仍返回这份登记。
+`registerCombination` 接收一份 `CombinationRegistration` 形状的请求。请求含租户、事务域、组合版本和参加者名字列表。
+
+登记键是租户、事务域和组合版本。提供者按登记键保存登记。同一事务域可以同时保存多个组合版本的登记。保存新版本不覆盖旧版本。协调者进程重启后，提供者仍返回已保存的登记。
 
 事务域以登记中的标识为准。调用方在操作身份中传入这份标识。
 
+提供者在下列情况下拒绝登记。`registerCombination` 返回 `rejected_before_accept` 和原因。
+
+| 原因 | 返回条件 |
+| --- | --- |
+| `field_missing` | 租户、事务域、组合版本或参加者列表缺失 |
+| `participant_empty` | 参加者列表没有名字，或列表中有空字符串 |
+| `participant_repeated` | 同一个名字在参加者列表中出现两次或更多 |
+
+登记和登记拒绝都不写入提交回执。
+
 新写者在旧写代际被排除之后开始。排除之前，提供者拒绝新的写准入。
-
-名字缺失时，提供者拒绝登记。版本缺失时，提供者拒绝登记。拒绝不写入回执。
-
-尚未开始的操作已经达到提供者声明的队列上限时，`commit` 返回受理前拒绝，原因是 `queue_full`。这次拒绝不写入回执。
 
 ## 提交
 
 `commit` 接收操作身份、已登记的组合版本，以及命令。每条命令只含版本化数据。
 
-提供者在受理前核对组合。组合已登记，并且每条命令的参加者属于该组合时，提供者受理。否则提供者拒绝。拒绝不写入回执。这次拒绝的名称是受理前拒绝。
+提供者在受理前核对请求、写代际、组合和受理队列。任一项不成立时，`commit` 返回受理前拒绝，即 `rejected_before_accept`。受理前拒绝不写入回执，操作也不进入受理队列。
+
+| 原因 | 返回条件 |
+| --- | --- |
+| `field_missing` | 操作身份的任一项、组合版本、命令数组，或某条命令的 `participant` 或 `facts` 缺失 |
+| `participant_repeated` | 两条命令的 `participant` 相同 |
+| `facts_not_json` | 某条命令的 `facts` 含有非 JSON 值 |
+| `writer_not_current` | 该事务域的旧写代际尚未排除 |
+| `combination_unregistered` | 该租户、事务域和组合版本下没有登记 |
+| `participant_not_in_combination` | 某条命令的 `participant` 不在该登记的参加者列表中 |
+| `queue_full` | 受理队列中尚未开始的操作已经达到提供者声明的上限 |
+
+旧写代际尚未排除时，`commit` 返回 `writer_not_current`。这个操作没有回执。五项证明全部成立之前，`query` 对该身份返回未知。
 
 提供者按该协议版本公布的规范编码，从命令数据计算输入摘要。
 
-同一操作键和同一输入摘要再次调用 `commit` 时，提供者返回已保存的回执。提供者不再执行命令。
+同一操作身份和同一输入摘要再次调用 `commit` 时，提供者返回已保存的回执。提供者不再执行命令。
 
-同一操作键配到不同输入摘要时，提供者从 `commit` 返回 `identity_conflict`。这个结果带上已有回执。
+同一操作身份配到不同输入摘要时，提供者从 `commit` 返回 `identity_conflict`。这个结果带上已有回执。
+
+`commit` 返回 `rolled_back` 时，明确回滚回执已经持久保存。回滚之后提供者没有保存这份回执时，`commit` 返回 `unknown`。
+
+`commit` 只在提供者不能判定结果时返回 `unknown`。能确定的受理前失败返回 `rejected_before_accept`，不返回 `unknown`。
 
 断开、超时、Worker 退出或取消观察时，调用方用同一身份调用 `query`。调用方在 `commit` 返回前失去响应时，也用同一身份调用 `query`。
 
@@ -128,21 +193,64 @@ type QueryResult = Committed | RolledBack | Unknown | NotCommitted
 
 查询返回已提交回执、明确回滚回执或未知。五项证明全部由提供者内部构造时，查询返回未提交。五项证明是旧写代际已排除、旧事务已终止、数据库恢复已完成、权威读取已成功，以及该操作未进入受理队列。缺任何一项时，查询返回未知。
 
+查询携带的租户与回执中的租户不同时，提供者返回未知。这个结果不透露另一租户是否有相同操作键的回执。
+
 调用方读取查询结果。未提交的值由提供者构造。
 
 回执记录提交结果。回执不新建 Run，也不发送通知。原拥有者在看到已提交回执之后，另行执行这些动作。
 
 | 操作 | 返回 |
 | --- | --- |
-| `registerCombination` | 已保存的登记，或受理前拒绝 |
+| `registerCombination` | `registered` 和已保存的登记，或 `rejected_before_accept` 和原因 |
 | `commit` | `committed`、`rolled_back`、`unknown`、`identity_conflict` 和已有回执、`rejected_before_accept` |
 | `query` | 已提交回执、明确回滚回执、未知、未提交 |
+
+## 参加者端口
+
+参加者模块在 Worker 内通过事务端口执行语句。
+
+```ts
+interface TransactionPort {
+  execute(sql: string, params: readonly SqlValue[]): QueryRows
+}
+```
+
+端口执行带参数的语句。端口不能提交、回滚或关闭连接。`BEGIN IMMEDIATE`、`COMMIT` 和 `ROLLBACK` 由提供者执行。参加者模块拿不到数据库句柄。`SqlValue` 和 `QueryRows` 的精确形状在提供者实现时确定。
 
 ## 提供者义务
 
 SQLite 提供者在专用 Worker 内使用 `node:sqlite`。基线是 Node 24.21.0 内嵌的 SQLite 3.53.4。路线见[技术基础](../../../docs/architecture/technical-foundations.md#共同技术选择)。一个事务域使用一条写连接。命令在该连接的 `BEGIN IMMEDIATE` 中执行。提供者对每个连接读回 `journal_mode=WAL`、`synchronous=FULL` 和 `foreign_keys=ON`。Kysely 构造查询，并辅助迁移。提交边界是该连接上的事务。
 
 正在执行的 SQL 执行到结束。AbortSignal 只释放观察方。观察方释放后，原操作仍有结果拥有者。
+
+SQLite 提供者怎样兑现下列义务，见 [SQLite 提供者设计](docs/sqlite-provider.md)。
+
+SQLite 提供者启动时先核对四项配置。任一项缺失，或者不是有限正数，提供者拒绝启动。装配者给出数值。本规格不规定数值。
+
+| 配置 | 限制什么 |
+| --- | --- |
+| `admissionQueueLimit` | 受理队列中尚未开始的操作数 |
+| `lockWaitMs` | 等待写锁的毫秒数 |
+| `maxCommandsPerCommit` | 一次 `commit` 的命令条数 |
+| `maxCommandBytes` | 一条命令的字节数 |
+
+提供者打开写连接之后，读取该连接上的 `sqlite_version()`。读数低于 3.51.3 时，提供者拒绝启动。这项核对在设置 `journal_mode=WAL` 之前完成。
+
+一个事务域只服务一个租户。租户之间不共用写连接。
+
+受理队列在持久受理之前。每条写连接有一个受理队列。队列在内存中，有上限，先进先出。上限是 `admissionQueueLimit`。重启后队列为空。SQLite 提供者不在租户之间轮转调度。
+
+默认的权威读取使用写连接。`query` 也使用写连接。SQLite 提供者不增加读连接。以后要增加读连接，由新的设计明确写出。
+
+提交成功时，提供者在一个 `BEGIN IMMEDIATE` 事务中写入事实、已提交回执和待交接记录，然后执行 `COMMIT`。
+
+某条命令出现明确的业务失败时，提供者对该事务执行 `ROLLBACK`。然后提供者用第二个短事务只写入明确回滚回执。第二个事务没有提交时，`commit` 返回 `unknown`。
+
+SQLite 提供者在下列情况下不能判定结果。这时 `commit` 返回 `unknown`。
+
+- 锁等待超过 `lockWaitMs`。
+- `COMMIT` 的结果不确定。
+- 回滚之后，明确回滚回执没有写入。
 
 需要原子回滚的迁移把 DDL、数据和迁移标记放进同一连接事务。事务外步骤写明中断后的重入点。
 
@@ -164,6 +272,22 @@ PostgreSQL 提供者使用独立的 `pg` 与 Kysely 事务租约。该提供者�
 
 关闭先停止新的准入。提供者确认在途读取、语句、备份和消息的责任，然后观察连接关闭和 Worker 退出。已经发出的外部效果保持发出时的状态。
 
+SQLite 提供者不打断正在执行的 SQL。关闭等待当前语句结束。关闭期限到达而当前语句还没有结束时，关闭结果是未完成 `incomplete`，不是已关闭 `closed`。结束 Worker 不是干净的回滚。Worker 被结束之后，调用方按原身份查询在途操作。
+
+## 尚未决定
+
+下列结果本规格尚未决定。实现这些情况之前，先由负责人决定。
+
+- 同一登记键再次登记不同的参加者列表时，`registerCombination` 返回什么。`RegisterResult` 没有对应原因。
+- 旧写代际尚未排除时，`registerCombination` 返回什么。`RegisterResult` 没有 `writer_not_current`。
+- 另一租户在已服务某租户的事务域上登记时，`registerCombination` 返回什么。
+- 下列 `commit` 输入没有对应的拒绝原因：协议版本不是 `1`、命令数组为空、命令条数超过 `maxCommandsPerCommit`、命令字节超过 `maxCommandBytes`。命令字节的计量口径也未定。
+- 调用方没有按 `participant` 排序时，提供者是否拒绝。现行规则下提供者不重排命令，摘要随顺序改变。
+- 多个拒绝条件同时成立时，返回哪个原因。[SQLite 提供者设计](docs/sqlite-provider.md#正常提交)的核对顺序是候选，不是承诺。
+- 哪些语句失败算明确的业务失败，哪些算提供者不能判定的结果。`ROLLBACK` 本身失败时怎样分类。
+- 关闭开始之后，受理队列中尚未开始的操作和新到的 `commit` 各返回什么。
+- `incomplete` 怎样对应装配的关闭报告。
+
 ## 验证义务与未覆盖
 
 测试通过 `commit` 和 `query` 观察结果。测试不直接断言 SQL 文本。
@@ -172,10 +296,22 @@ PostgreSQL 提供者使用独立的 `pg` 与 Kysely 事务租约。该提供者�
 
 - 查询携带的租户与回执中的租户不同时，提供者返回未知。
 - 两个参加者的事实同时出现在同一份已提交回执中。任一命令失败时，该回执为明确回滚，两份事实都不在已提交结果里。
-- 同一操作键和同一输入摘要返回第一份回执。
-- 同一操作键和不同输入摘要返回 `identity_conflict` 和已有回执。
+- 同一操作身份和同一输入摘要返回第一份回执。
+- 同一操作身份和不同输入摘要返回 `identity_conflict` 和已有回执。
+- 操作身份五项中任一项不同时，`commit` 不返回另一操作的回执，也不返回 `identity_conflict`。
+- 同一操作身份再次提交键顺序不同、值相同的命令时，`commit` 返回第一份回执。
 - 提交完成后、响应回到调用方之前，`query` 返回已提交回执。
-- 旧写代际尚未排除时，新写者未开始。此时 `query` 返回未知。
+- 旧写代际尚未排除时，`commit` 返回 `writer_not_current`。此时 `query` 返回未知。
+- 同一事务域登记两个组合版本之后，按两个版本的提交都被受理。
+- 重启之后，`registerCombination` 仍返回已保存的登记，按该登记的提交仍被受理。
+- 参加者列表为空、含空字符串或含重复名字时，登记被拒绝。之后按该版本的 `commit` 返回 `combination_unregistered`。
+- `facts` 含 `undefined`、BigInt、NaN、Infinity、Date 或函数时，`commit` 返回 `facts_not_json`。`query` 不返回已提交或明确回滚回执。
+- 两条命令的 `participant` 相同时，`commit` 返回 `participant_repeated`。
+- 命令出现明确的业务失败时，`commit` 返回 `rolled_back`。同一操作身份和同一输入摘要再次提交，返回同一份明确回滚回执。
+- 锁等待超过 `lockWaitMs` 时，`commit` 返回 `unknown`。
+- 四项配置中任一项缺失、为 0、为负数、为 NaN 或为 Infinity 时，提供者拒绝启动。
+- 写连接上的 `sqlite_version()` 低于 3.51.3 时，提供者拒绝启动。
+- 参加者模块不能经端口结束提供者的事务。
 - 原子迁移的后续步骤失败时，DDL、数据和迁移标记回到迁移前。
 - 排空失败时，关闭状态保持为仍在收尾。
 - 断电耐久只在记录了相应故障试验时声明。
@@ -183,10 +319,14 @@ PostgreSQL 提供者使用独立的 `pg` 与 Kysely 事务租约。该提供者�
 故障注入用这些步骤。
 
 - 回执已经写入、响应尚未返回时结束 Worker。然后用原身份调用 `query`。预期结果是已提交回执。
-- 旧写者仍持有写资格时提交新的写命令。预期结果是新写准入被拒绝。`query` 返回未知。
+- 旧写者仍持有写资格时提交新的写命令。预期结果是 `commit` 返回 `writer_not_current`。`query` 返回未知。
+- 回滚之后，让写入明确回滚回执的第二个事务失败。预期结果是 `commit` 返回 `unknown`。
 - 同连接事务的第二句失败。预期结果是第一句的 DDL 和数据都不保留。
+- 让一条语句的执行超过关闭期限。预期结果是关闭结果为 `incomplete`。
 - 关闭过程中排空失败。预期结果是关闭状态保持为仍在收尾。
 
 2026-10-14 在本机主线程用 `node:sqlite` 做了一次探针。步骤是设置 `journal_mode=WAL`、`synchronous=FULL`、`foreign_keys=ON`，读回这三项，再在 `BEGIN IMMEDIATE` 中建表并插入。第二句主键冲突后执行 `ROLLBACK`，然后统计 `sqlite_master` 里该表的数量。进程退出码为 0。观察值是 Node `v26.0.0`、SQLite `3.53.0`、`journal_mode` 为 `wal`、`synchronous` 为 `2`、`foreign_keys` 为 `1`、表数量为 `0`。`synchronous` 的 `2` 在 SQLite 中表示 `FULL`。
 
 这次探针的 Node 与 SQLite 版本不是规格基线 Node 24.21.0 和 SQLite 3.53.4。本机没有该基线。探针没有进入 Worker，也没有做断电试验。通知运输和 PostgreSQL 集群不在上述场景内。当 `synchronous` 为 `FULL` 时，普通进程终止证明进程级持久。
+
+#247 的 Worker 探针脚本是 `tmp/issue-247/probe.mjs`。它是临时脚本，不是生产提供者。运行之后，结果记入[探针观察](docs/probe-observations.md)。物理断电和 SQL-T01 不在 #247 内，仍未完成。行为模型也不在 #247 内。
