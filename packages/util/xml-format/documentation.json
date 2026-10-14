@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "package:util/xml-format",
+    "kind": "member",
+    "source": {
+      "path": "docs/member-documentation.md",
+      "anchor": "\u6210\u5458\u5305\u6587\u6863\u8981\u6c42"
+    }
+  },
+  "documents": [
+    {
+      "id": "overview",
+      "path": "packages/util/xml-format/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "\u6210\u5458\u5305\u6587\u6863\u8981\u6c42"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "responsibility-and-status"
+        },
+        {
+          "id": "usage",
+          "anchor": "usage"
+        },
+        {
+          "id": "contracts",
+          "anchor": "contracts"
+        },
+        {
+          "id": "design",
+          "anchor": "design"
+        },
+        {
+          "id": "configuration",
+          "anchor": "configuration-and-operation"
+        },
+        {
+          "id": "verification",
+          "anchor": "verification"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "maintenance"
+        }
+      ]
+    },
+    {
+      "id": "overview-zh",
+      "path": "packages/util/xml-format/README_ZH.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "\u6210\u5458\u5305\u6587\u6863\u8981\u6c42"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "\u804c\u8d23\u4e0e\u72b6\u6001"
+        },
+        {
+          "id": "usage",
+          "anchor": "\u4f7f\u7528"
+        },
+        {
+          "id": "contracts",
+          "anchor": "\u5951\u7ea6"
+        },
+        {
+          "id": "design",
+          "anchor": "\u8bbe\u8ba1"
+        },
+        {
+          "id": "configuration",
+          "anchor": "\u914d\u7f6e\u4e0e\u8fd0\u884c"
+        },
+        {
+          "id": "verification",
+          "anchor": "\u9a8c\u8bc1"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "\u7ef4\u62a4"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,188 @@
+{
+  "format": 1,
+  "source_repository": "omne-harness-lite",
+  "source_commit": "d79484d9f4b8c726b6d7e37a36ae5698f4c8ecac",
+  "source_package": "packages/util/xml-format",
+  "source_origin_claim": {
+    "repository": "omne-next",
+    "commit": "6263fed545e48ad9efb5714f3fe76a7c1a0af1b5",
+    "independently_reexecuted": false
+  },
+  "adopted_design": "README.md",
+  "adopted_decision": "D-046",
+  "imported_files": [
+    {
+      "source_path": "packages/util/xml-format/src/escape.ts",
+      "source_sha256": "f1f30c9d08120826a6040695b5086d932bf66d9e5e28bbd6710548fb5b6252dc",
+      "destination_path": "packages/util/xml-format/src/escape.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "fcb3602e6e48489c25de962b8bfdb2260590b16b5e98fe35fca21f3c628b799e",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/xml-format/src/format.ts",
+      "source_sha256": "d088d29588996b91db165c224763b0aa0a7a1d2ce9aa3e2778780497ae2de4d9",
+      "destination_path": "packages/util/xml-format/src/format.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "fc4ef38ec67eac226bf62b8333a66d09ccbb9623edbf87e25a887feaeef4d25f",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/xml-format/src/index.ts",
+      "source_sha256": "ccd32462e158a008d1d3a97351fb5c7d9f24e94cb8c44ddab3976e08dc364641",
+      "destination_path": "packages/util/xml-format/src/index.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "941187c5292a0fcb477d4268cd6c83a8f6eba20765b5f99f8d95abd60e82b6e2",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/xml-format/src/options.ts",
+      "source_sha256": "5cdd797d412cf4fd5d7febcb4fdc97cef743de57a7d9c055d8c65704168babfd",
+      "destination_path": "packages/util/xml-format/src/options.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "f9cd37c8820023bfb126cc6241d9e640e051349094167176d35f6d225efdcc02",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/xml-format/src/types.ts",
+      "source_sha256": "e95b8baa5c80cc78fb81837a3471bd7b4d86d2dbcb0e8dddb7e5f7c2943222cd",
+      "destination_path": "packages/util/xml-format/src/types.ts",
+      "adaptations": [
+        "relative .ts imports"
+      ],
+      "destination_sha256": "e95b8baa5c80cc78fb81837a3471bd7b4d86d2dbcb0e8dddb7e5f7c2943222cd",
+      "byte_identical_to_source": true
+    },
+    {
+      "source_path": "packages/util/xml-format/tests/differential.spec.ts",
+      "source_sha256": "2f210cd1fea0ff31cc8aa9af047cdfeb4b20751ab0db15bfe5895f2b598ecfbe",
+      "destination_path": "packages/util/xml-format/tests/differential.spec.ts",
+      "adaptations": [
+        "current Vitest/public dist consumption",
+        "fixture path and limited comparison description"
+      ],
+      "destination_sha256": "058673ac74b4aeb86a08e7f74babcf2884693cdad25f33de5c02253d04c7d9b1",
+      "byte_identical_to_source": false
+    },
+    {
+      "source_path": "packages/util/xml-format/tests/format.spec.ts",
+      "source_sha256": "a2f0803235a52d60590a2521ef133f63f3ac7b2ec037ace4601ba5dc95ab2f64",
+      "destination_path": "packages/util/xml-format/tests/format.spec.ts",
+      "adaptations": [
+        "current Vitest/public dist consumption"
+      ],
+      "destination_sha256": "a2f0803235a52d60590a2521ef133f63f3ac7b2ec037ace4601ba5dc95ab2f64",
+      "byte_identical_to_source": true
+    },
+    {
+      "source_path": "packages/util/xml-format/tests/options.spec.ts",
+      "source_sha256": "b2dfbba91757a3604ab5a2c5c2d28ff652976e62d0bfd1434bc16d5c3c23f380",
+      "destination_path": "packages/util/xml-format/tests/options.spec.ts",
+      "adaptations": [
+        "current Vitest/public dist consumption"
+      ],
+      "destination_sha256": "b2dfbba91757a3604ab5a2c5c2d28ff652976e62d0bfd1434bc16d5c3c23f380",
+      "byte_identical_to_source": true
+    },
+    {
+      "source_path": "packages/util/xml-format/evidence/differential/golden.json",
+      "source_sha256": "1014d81a86b32818e05f0b5cb29bc1335a3522a215a1fbf465a67c398cd04671",
+      "destination_path": "packages/util/xml-format/tests/fixtures/golden.json",
+      "adaptations": [],
+      "destination_sha256": "1014d81a86b32818e05f0b5cb29bc1335a3522a215a1fbf465a67c398cd04671",
+      "byte_identical_to_source": true
+    }
+  ],
+  "adaptations": [
+    "catalog development dependencies and Node engine",
+    "workspace TypeScript .ts imports and public dist exports",
+    "finite source golden fixture retained verbatim",
+    "Reject ordinary XML 1.0 illegal characters with TypeError",
+    "Reject duplicate emitted attribute names with TypeError",
+    "Use own declared optional fields; reject undeclared inherited names and preserve explicit __proto__ declarations"
+  ],
+  "not_imported": [
+    "old docs/spec/research/evidence prose",
+    "Python producer (not rerun)",
+    "timeout",
+    "brand"
+  ],
+  "source_files": [
+    {
+      "path": "packages/util/xml-format/README.md",
+      "sha256": "e7522b36c941c358f1897cb45509f8e123818c53b7f94366f53b56e3fc736a4a"
+    },
+    {
+      "path": "packages/util/xml-format/evidence/differential/README.md",
+      "sha256": "7d8103a1afbd3269058a0becd9e08e6a8159e598381d5ec561db4939170babe4"
+    },
+    {
+      "path": "packages/util/xml-format/evidence/differential/golden.json",
+      "sha256": "1014d81a86b32818e05f0b5cb29bc1335a3522a215a1fbf465a67c398cd04671"
+    },
+    {
+      "path": "packages/util/xml-format/evidence/differential/golden.py",
+      "sha256": "5e12e98eaa96a41b70610698379b1e5f13ccfa63c9c3a4126af9bc532351415e"
+    },
+    {
+      "path": "packages/util/xml-format/package.json",
+      "sha256": "f8e8269a8b0c4a84974b6b5f75554f29a4b3a957740a01af9a4f1717fdd2d2cc"
+    },
+    {
+      "path": "packages/util/xml-format/provenance.json",
+      "sha256": "9fbed45fd9864c84b39f0bddaf70786f6addc2aeaa04d115020ec27a2d0378a5"
+    },
+    {
+      "path": "packages/util/xml-format/src/escape.ts",
+      "sha256": "f1f30c9d08120826a6040695b5086d932bf66d9e5e28bbd6710548fb5b6252dc"
+    },
+    {
+      "path": "packages/util/xml-format/src/format.ts",
+      "sha256": "d088d29588996b91db165c224763b0aa0a7a1d2ce9aa3e2778780497ae2de4d9"
+    },
+    {
+      "path": "packages/util/xml-format/src/index.ts",
+      "sha256": "ccd32462e158a008d1d3a97351fb5c7d9f24e94cb8c44ddab3976e08dc364641"
+    },
+    {
+      "path": "packages/util/xml-format/src/options.ts",
+      "sha256": "5cdd797d412cf4fd5d7febcb4fdc97cef743de57a7d9c055d8c65704168babfd"
+    },
+    {
+      "path": "packages/util/xml-format/src/types.ts",
+      "sha256": "e95b8baa5c80cc78fb81837a3471bd7b4d86d2dbcb0e8dddb7e5f7c2943222cd"
+    },
+    {
+      "path": "packages/util/xml-format/tests/differential.spec.ts",
+      "sha256": "2f210cd1fea0ff31cc8aa9af047cdfeb4b20751ab0db15bfe5895f2b598ecfbe"
+    },
+    {
+      "path": "packages/util/xml-format/tests/format.spec.ts",
+      "sha256": "a2f0803235a52d60590a2521ef133f63f3ac7b2ec037ace4601ba5dc95ab2f64"
+    },
+    {
+      "path": "packages/util/xml-format/tests/options.spec.ts",
+      "sha256": "b2dfbba91757a3604ab5a2c5c2d28ff652976e62d0bfd1434bc16d5c3c23f380"
+    },
+    {
+      "path": "packages/util/xml-format/tsconfig.build.json",
+      "sha256": "15f17945c481f50a9660fbb507fddf5e9c85c26621088b83d0bb239587498bfd"
+    },
+    {
+      "path": "packages/util/xml-format/tsconfig.test.json",
+      "sha256": "fb42bfdd796263a76d2ff0686efd37b1777cdce5dd8abbbc3b79cbbb63677f20"
+    },
+    {
+      "path": "packages/util/xml-format/vitest.config.ts",
+      "sha256": "129501cb4c56c4b5b299eb8e0885302ed60aaaab3fd512d5925f368dc09e484d"
+    }
+  ]
+}
