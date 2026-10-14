@@ -28,6 +28,7 @@
 | [time](time/README.md) | 时间 | 待具名 |
 | [telemetry](telemetry/README.md) | 遥测 | 待具名 |
 | [common](common/README.md) | 共同纯表示 | 待具名 |
+| [util](util/README.md) | 纯文本格式化 | `unix-format`, `xml-format` |
 
 ## 阅读与维护
 

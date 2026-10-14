@@ -2256,6 +2256,10 @@
         {
           "id": "proof-implementation",
           "anchor": "证明与实现证据"
+        },
+        {
+          "id": "package-test-duty",
+          "anchor": "包级测试责任与边界"
         }
       ]
     },

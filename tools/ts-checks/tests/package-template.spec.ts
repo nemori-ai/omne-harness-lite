@@ -85,7 +85,7 @@ function adopted(root: string): string {
       join(root, member, file),
       file.endsWith('.ts') ? 'export const value = 1\n' : '# Actual accepted module\n',
     )
-  fs.mkdirSync(join(root, member, 'tests'))
+  fs.mkdirSync(join(root, member, 'tests'), { recursive: true })
   fs.writeFileSync(join(root, member, 'tests/value.spec.ts'), 'export {}\n')
   changeManifest(root, member, value => {
     value['omneHarness'] = {
@@ -113,17 +113,33 @@ describe('package creation', () => {
     expect(fs.readdirSync(join(root, 'packages'))).toEqual([])
   })
   it.each(VARIANTS)(
-    'creates %s with exact metadata and appropriate exports, without fake tests',
+    'creates %s with exact metadata, appropriate exports, and a draft public-entry test',
     variant => {
       const root = repository(),
-        group = variant === 'service-contract' ? 'core' : 'util'
+        group = variant === 'service-contract' ? 'identity' : 'util'
       createPackage({ root, group, name: 'sample', variant, write: true })
       const member = `packages/${group}/sample`
       const value = JSON.parse(fs.readFileSync(join(root, member, 'package.json'), 'utf8'))
       expect(value.omneHarness).toBeUndefined()
       expect(value.engines).toEqual({ node: '>=24 <25' })
+      expect(value.scripts.build).toBe('rm -rf dist && tsc -p tsconfig.build.json')
+      expect(value.scripts.test).toBe('pnpm run build && vitest run')
+      expect(value.files).toEqual(['dist'])
+      expect(Object.keys(value.exports['.'])).toEqual(['source', 'types', 'import'])
+      expect(value.exports['.'].source).toBe('./src/index.ts')
       expect('./cordis' in value.exports).toBe(variant !== 'module')
-      expect(fs.existsSync(join(root, member, 'tests'))).toBe(false)
+      const buildConfig = JSON.parse(
+        fs.readFileSync(join(root, member, 'tsconfig.build.json'), 'utf8'),
+      ) as { compilerOptions: { erasableSyntaxOnly?: boolean } }
+      const testConfig = JSON.parse(
+        fs.readFileSync(join(root, member, 'tsconfig.test.json'), 'utf8'),
+      ) as { include: string[] }
+      expect(buildConfig.compilerOptions.erasableSyntaxOnly).toBe(true)
+      expect(testConfig.include).toEqual(['tests/**/*.ts'])
+      const entryTest = fs.readFileSync(join(root, member, 'tests/public-entry.spec.ts'), 'utf8')
+      expect(entryTest).toContain("import('@omne-harness/sample')")
+      expect(entryTest).not.toContain('integration')
+      expect(entryTest).not.toContain('e2e')
       expect(
         inspectPackage(root, member, readTemplate(), evidence).findings.some(
           finding => finding.code === 'draft',
@@ -150,11 +166,21 @@ describe('package creation', () => {
       expect(fs.readdirSync(join(root, 'packages'))).toEqual([])
     },
   )
-  it('rejects a non-core public service contract and a symlinked group', () => {
+  it('creates a service contract under identity and access without a core finding', () => {
     const root = repository()
-    expect(() =>
-      createPackage({ root, group: 'util', name: 'sample', variant: 'service-contract' }),
-    ).toThrow('core')
+    for (const [group, name] of [
+      ['identity', 'authorization'],
+      ['access', 'public-contract'],
+    ] as const) {
+      createPackage({ root, group, name, variant: 'service-contract', write: true })
+      const member = `packages/${group}/${name}`
+      const findings = inspectPackage(root, member, readTemplate(), evidence).findings
+      expect(findings.some(finding => finding.reason.includes('belong to core'))).toBe(false)
+      expect(findings.some(finding => finding.code === 'draft')).toBe(true)
+    }
+  })
+  it('rejects a symlinked group', () => {
+    const root = repository()
     const outside = fs.mkdtempSync(join(tmpdir(), 'omne-outside-'))
     roots.push(outside)
     fs.symlinkSync(outside, join(root, 'packages/util'))
@@ -395,6 +421,7 @@ describe('template adoption and observation', () => {
       member = adopted(root)
     changeManifest(root, member, value => {
       ;(value['exports'] as Record<string, unknown>)['.'] = {
+        source: './src/index.ts',
         default: './dist/index.js',
         require: './dist/index.js',
         types: './dist/index.d.ts',
@@ -407,10 +434,10 @@ describe('template adoption and observation', () => {
     const root = repository(),
       member = adopted(root)
     fs.mkdirSync(join(root, member, 'dist'))
-    fs.mkdirSync(join(root, 'node_modules/@omne-harness-lite'), { recursive: true })
+    fs.mkdirSync(join(root, 'node_modules/@omne-harness'), { recursive: true })
     fs.writeFileSync(join(root, member, 'dist/index.js'), 'export const surface = "pure"')
     fs.writeFileSync(join(root, member, 'dist/cordis.js'), 'export const surface = "binding"')
-    fs.symlinkSync(join(root, member), join(root, 'node_modules/@omne-harness-lite/sample'))
+    fs.symlinkSync(join(root, member), join(root, 'node_modules/@omne-harness/sample'))
     changeManifest(root, member, value => {
       ;(value['exports'] as Record<string, unknown>)['.'] = {
         default: './dist/cordis.js',
@@ -420,11 +447,7 @@ describe('template adoption and observation', () => {
     })
     const actual = spawnSync(
       process.execPath,
-      [
-        '--input-type=module',
-        '-e',
-        'console.log((await import("@omne-harness-lite/sample")).surface)',
-      ],
+      ['--input-type=module', '-e', 'console.log((await import("@omne-harness/sample")).surface)'],
       { cwd: root, encoding: 'utf8' },
     )
     expect(actual.status).toBe(0)
@@ -451,7 +474,17 @@ describe('template adoption and observation', () => {
       ).toBe(true)
     },
   )
-  it('rejects emission drift and missing published Chinese documentation', () => {
+  it('keeps a thin specification out of the publish list', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.writeFileSync(join(root, member, 'SPEC.md'), '# Actual accepted module\n')
+    expect(
+      inspectPackage(root, member, readTemplate(), evidence).findings.some(
+        finding => finding.code === 'publication',
+      ),
+    ).toBe(false)
+  })
+  it('rejects emission drift and a publish list that omits dist', () => {
     const root = repository(),
       member = adopted(root)
     fs.writeFileSync(
@@ -462,7 +495,7 @@ describe('template adoption and observation', () => {
       }),
     )
     changeManifest(root, member, value => {
-      value['files'] = ['dist', 'README.md']
+      value['files'] = ['README.md', 'README_ZH.md']
     })
     const result = inspectPackage(root, member, readTemplate(), evidence)
     expect(result.findings.map(finding => finding.code)).toEqual(
@@ -481,6 +514,7 @@ describe('template adoption and observation', () => {
       excludedDirectories: [],
       integration: 'static-pass',
       findings: [],
+      dependencies: [],
       architectureUnknowns: 0,
       bindingUnknowns: [],
     } satisfies PackageScan
@@ -543,7 +577,7 @@ describe('template adoption and observation', () => {
     const result = inspectPackage(root, member, readTemplate(), evidence)
     expect(result.structure).toBe('pass')
     expect(result.excludedDirectories).toEqual(['dist'])
-    expect(result.tree.filter(node => node.kind === 'file')).toHaveLength(files.length + 9)
+    expect(result.tree.filter(node => node.kind === 'file')).toHaveLength(files.length + 10)
     fs.rmSync(join(root, member, 'verification/README.md'))
     expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
   })
@@ -558,6 +592,7 @@ describe('template adoption and observation', () => {
     const root = repository(),
       member = adopted(root)
     fs.rmSync(join(root, member, 'tests/value.spec.ts'))
+    fs.rmSync(join(root, member, 'tests/public-entry.spec.ts'))
     fs.writeFileSync(join(root, member, 'tests/README.md'), 'Test notes')
     expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
   })

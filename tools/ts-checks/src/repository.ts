@@ -12,6 +12,7 @@ import { registryHistoryBoundary } from './rules/registry-history-boundary.ts'
 import { syntaxImports, syntaxOf } from './syntax.ts'
 import { modelCredentialBoundary } from './rules/model-credential-boundary.ts'
 import { groupDirection } from './rules/group-direction.ts'
+import { noLegacyDependency } from './rules/no-legacy-dependency.ts'
 
 export const REPOSITORY_RULES = [
   sessionSeedBoundary,
@@ -23,6 +24,7 @@ export const REPOSITORY_RULES = [
   registryHistoryBoundary,
   modelCredentialBoundary,
   groupDirection,
+  noLegacyDependency,
 ] as const
 export function collectRepositorySources(root: string): SourceFile[] {
   root = resolve(root)
@@ -79,7 +81,7 @@ export function collectRepositorySources(root: string): SourceFile[] {
       const full = join(dir, name)
       if (statSync(full).isDirectory()) {
         if (!isLegacyDirectory(relative(root, full))) walk(full)
-      } else if (/\.[cm]?[jt]s$/u.test(name)) {
+      } else if (/\.[cm]?[jt]s$/u.test(name) || name === 'package.json') {
         const source: SourceFile = {
           path: relative(root, full).replaceAll('\\', '/'),
           text: readFileSync(full, 'utf8'),
@@ -116,5 +118,11 @@ export function collectRepositorySources(root: string): SourceFile[] {
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     }
   }
+  const workspace = join(root, 'pnpm-workspace.yaml')
+  if (existsSync(workspace))
+    sources.push({
+      path: 'pnpm-workspace.yaml',
+      text: readFileSync(workspace, 'utf8'),
+    })
   return sources
 }

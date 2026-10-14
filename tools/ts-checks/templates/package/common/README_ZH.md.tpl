@@ -1,4 +1,4 @@
-# @omne-harness-lite/{{PACKAGE_NAME}}
+# @omne-harness/{{PACKAGE_NAME}}
 
 PACKAGE_TEMPLATE_DRAFT
 [English](README.md)

@@ -6,7 +6,7 @@ import { sessionSeedBoundary, sessionMappingImmutable } from '../src/rules/sessi
 import { collectRepositorySources, REPOSITORY_RULES } from '../src/repository.ts'
 import { runRules } from '../src/index.ts'
 
-const seed = '@omne-harness-lite/session-tenancy-table/seed'
+const seed = '@omne-harness/session-tenancy-table/seed'
 const use = `import { seedHoldingTenant as seed } from '${seed}'; await seed(tx, session, tenant);`
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 test.each([

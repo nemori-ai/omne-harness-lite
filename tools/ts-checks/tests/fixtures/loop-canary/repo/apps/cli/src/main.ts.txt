@@ -1,3 +1,3 @@
-import { m } from '@omne-harness-lite/m'
+import { m } from '@omne-harness/m'
 
 export const main = () => m

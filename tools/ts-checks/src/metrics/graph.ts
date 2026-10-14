@@ -2,7 +2,7 @@ import { isTestPath, type SourceFile } from '../rule.ts'
 import { lineAt } from '../source-text.ts'
 import { syntaxImports, syntaxOf } from '../syntax.ts'
 
-const SCOPE = '@omne-harness-lite/'
+const SCOPE = '@omne-harness/'
 
 /** workspace 成员：`packages/<组>/<包>`、`apps/<应用>`、`examples/<示例>`。 */
 export interface Member {

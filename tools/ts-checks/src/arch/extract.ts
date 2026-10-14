@@ -320,7 +320,7 @@ class Extractor {
     const call = node.parent
     const wrapped =
       ts.isCallExpression(call) &&
-      ['@omne-harness-lite/kernel-basis', '@omne-harness-lite/kernel-basis/cordis'].some(module =>
+      ['@omne-harness/kernel-basis', '@omne-harness/kernel-basis/cordis'].some(module =>
         this.resolver.imported(call.expression, 'definePlugin', module),
       )
     if (apply === undefined || (!wrapped && name === undefined)) return
@@ -660,7 +660,7 @@ class Extractor {
       if (this.contextCall(node, context, active)) return
       if (
         // The root spelling belongs to historical snapshots, not the current public API.
-        ['@omne-harness-lite/kernel-basis', '@omne-harness-lite/kernel-basis/cordis'].some(module =>
+        ['@omne-harness/kernel-basis', '@omne-harness/kernel-basis/cordis'].some(module =>
           this.resolver.imported(node.expression, 'resolveOptional', module),
         ) &&
         node.arguments[0] !== undefined &&
@@ -904,7 +904,7 @@ class Extractor {
     if (!ts.isCallExpression(value)) return undefined
     if (
       value.arguments.length === 1 &&
-      ['@omne-harness-lite/kernel-basis', '@omne-harness-lite/kernel-basis/cordis'].some(module =>
+      ['@omne-harness/kernel-basis', '@omne-harness/kernel-basis/cordis'].some(module =>
         this.resolver.imported(value.expression, 'definePlugin', module),
       )
     ) {

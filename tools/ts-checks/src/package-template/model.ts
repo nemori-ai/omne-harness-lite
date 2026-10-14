@@ -1,5 +1,25 @@
+import type { PackageImport, Site } from '../arch/actual-model.ts'
+import type { ConformanceRow } from '../arch/conformance-model.ts'
+
 export const VARIANTS = ['module', 'cordis-module', 'service-contract', 'service-provider'] as const
 export type Variant = (typeof VARIANTS)[number]
+export type OverlayRule = 'undeclared-dependency' | 'member-cycle'
+export type DependencyRule = ConformanceRow['rule'] | OverlayRule
+export interface DependencyRow {
+  readonly id: string
+  readonly rule: DependencyRule
+  readonly state: 'deviation' | 'unknown' | 'converged'
+  readonly age: 'new' | 'stock' | 'unjudged'
+  readonly member: string
+  readonly targetMember?: string
+  readonly key: string
+  readonly reason: string
+  readonly expected: string
+  readonly sites: readonly Site[]
+  readonly relation?: PackageImport
+}
+/** Workspace path the checker can name. Create only writes the packages form. */
+export type MemberPath = string & { readonly __memberPath: unique symbol }
 
 export interface TemplateMarker {
   readonly id: string
@@ -62,6 +82,7 @@ export interface PackageScan {
   readonly excludedDirectories: readonly string[]
   readonly integration: 'deviation' | 'unknown' | 'static-pass'
   readonly findings: readonly Finding[]
+  readonly dependencies: readonly DependencyRow[]
   readonly architectureUnknowns: number
   readonly bindingUnknowns: readonly { readonly path: string; readonly reason: string }[]
 }

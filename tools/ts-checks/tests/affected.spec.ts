@@ -39,7 +39,7 @@ const member = (
 
 // base ← mid ← top（top 有验收）；custodian-user 依赖读自己 README 的 credential-custodian-local。
 const MEMBERS = [
-  member('packages.0.0.1.legacy/core/identity-values'),
+  member('packages/common/legal-identity'),
   member('packages/core/base'),
   member('packages/core/mid', ['@x/base']),
   member('packages.0.0.1.legacy/core/stream-assembly'),
@@ -54,13 +54,13 @@ const MEMBERS = [
   member('packages.0.0.1.legacy/frontend/governance-client-operations-local'),
   member('packages/tenancy/governance-center-entry-node'),
   member('apps/top', ['@x/mid'], { acceptance: 'vitest run --dir acceptance' }),
-  member('tools/core-verification', ['@x/base']),
-  member('tools/ts-checks', ['@x/identity-values']),
+  member('tools/core-verification'),
+  member('tools/ts-checks', ['@x/legal-identity']),
 ]
 
 const plan = (paths: string[], full = false) => planCheck(paths, MEMBERS, RULES, full)
 const describe_ = (checkPlan: CheckPlan) => describeCheckPlan(checkPlan, RULES, CONFIG).join('\n')
-const RESIDENT_BUILD = [{ path: 'packages.0.0.1.legacy/core/identity-values', reason: 'resident' }]
+const RESIDENT_BUILD = [{ path: 'packages/common/legal-identity', reason: 'resident' }]
 
 describe('路径模式', () => {
   it('`*` 不跨目录，`**` 跨目录，`**/` 也匹配零层目录', () => {
@@ -75,7 +75,7 @@ describe('路径模式', () => {
 })
 
 describe('影响面计划（真实规则）', () => {
-  it('纯文档：只需常驻检查；构建恰好是常驻检查需要的 identity-values，其余全跳并说出依据', () => {
+  it('纯文档：只需常驻检查；构建恰好是常驻检查需要的 legal-identity，其余全跳并说出依据', () => {
     const result = plan(['docs/development.md', 'README.md'])
     expect(result.mode).toBe('scoped')
     expect(result.files.map(file => [file.category, file.rule])).toEqual([
@@ -90,7 +90,7 @@ describe('影响面计划（真实规则）', () => {
     expect(text).toContain('判为只需常驻检查，跳过了类型检查、成员测试、验收、pytest')
     expect(text).toContain(`${CONFIG} 的 affected.residentPaths`)
     expect(text).toContain(
-      '构建：只构建 packages.0.0.1.legacy/core/identity-values——常驻检查需要：lint:rules 经',
+      '构建：只构建 packages/common/legal-identity——常驻检查需要：lint:rules 经',
     )
     expect(text).toContain('成员测试：没有要跑的成员')
   })
@@ -107,7 +107,7 @@ describe('影响面计划（真实规则）', () => {
       },
     ])
     expect(result.build).toEqual([
-      { path: 'packages.0.0.1.legacy/core/identity-values', reason: 'dependency' },
+      { path: 'packages/common/legal-identity', reason: 'dependency' },
       { path: 'packages/infra/leaf', reason: 'selected' },
       { path: 'tools/ts-checks', reason: 'selected' },
     ])
@@ -115,22 +115,18 @@ describe('影响面计划（真实规则）', () => {
     expect(result.python.run).toBe(false)
   })
 
-  it('底层成员的源码：反向依赖传递进来，并说出经谁；读核心源码的 core-verification 也进来', () => {
+  it('底层成员的源码：反向依赖传递进来，并说出经谁', () => {
     const result = plan(['packages/core/base/src/a.ts'])
     expect(result.test).toEqual([
       'packages/core/base',
       'packages/core/mid',
       'apps/top',
-      'tools/core-verification',
       'tools/ts-checks',
     ])
     const why = Object.fromEntries(result.members.map(entry => [entry.path, entry]))
     expect(why['packages/core/mid']?.dependsOn).toBe('packages/core/base')
     expect(why['apps/top']?.dependsOn).toBe('packages/core/mid')
-    expect(why['tools/core-verification']?.dependsOn).toBe('packages/core/base')
-    expect(why['tools/core-verification']?.reads).toEqual([
-      { path: 'packages/core/base/src/a.ts', pattern: 'packages/core/*/src/**' },
-    ])
+    expect(why['tools/core-verification']).toBeUndefined()
     expect(result.acceptance).toEqual(['apps/top'])
     expect(describe_(result)).toContain('apps/top：依赖 packages/core/mid')
   })
@@ -151,22 +147,16 @@ describe('影响面计划（真实规则）', () => {
     expect(result.build).toEqual(RESIDENT_BUILD)
   })
 
-  it('外部制品校验读取公共Schema：选实际拥有者与读者', () => {
+  it('没有读者的旧核心 schema 路径：影响面未知，回退全量', () => {
     const result = plan(['packages/core/messages/schema/messages.schema.json'])
-    expect(result.test).toEqual(['tools/core-verification'])
-    expect(result.members.every(entry => entry.changed.length === 0)).toBe(true)
-    expect(result.python.run).toBe(false)
+    expect(result.mode).toBe('full')
+    expect(result.files[0]?.category).toBe('unclassified')
   })
 
-  it('另一个成员的 schema/：那个成员与它的反向依赖，再加在役读者 core-verification', () => {
+  it('成员自己的 schema/：那个成员与它的反向依赖', () => {
     const result = plan(['packages/core/base/schema/base.schema.json'])
-    expect(result.files[0]).toMatchObject({ category: 'reader', owner: 'packages/core/base' })
-    expect(result.test).toEqual([
-      'packages/core/base',
-      'packages/core/mid',
-      'apps/top',
-      'tools/core-verification',
-    ])
+    expect(result.files[0]).toMatchObject({ category: 'member', owner: 'packages/core/base' })
+    expect(result.test).toEqual(['packages/core/base', 'packages/core/mid', 'apps/top'])
   })
 
   it('别的成员的 TLS 夹具：只选在役成员，不选已退役的外部读者', () => {
@@ -220,6 +210,15 @@ describe('影响面计划（真实规则）', () => {
     expect(plan(['pnpm-lock.yaml']).mode).toBe('full')
   })
 
+  it('选择配置和依赖规则：全量，理由指向全局文件', () => {
+    for (const path of ['turbo.json', 'docs/architecture/constraints.json']) {
+      const result = plan([path])
+      expect(result.mode).toBe('full')
+      expect(result.files[0]?.category).toBe('global')
+      expect(result.reason).toContain(path)
+    }
+  })
+
   it('没有规则认得的路径：全量，理由点名前几个并给总数', () => {
     const paths = ['a/1.txt', 'a/2.txt', 'a/3.txt', 'a/4.txt', 'a/5.txt', '.gitignore', 'docs/x.md']
     const result = plan(paths)
@@ -261,9 +260,9 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('规则点名的成员不存在：报错，不悄悄忽略', () => {
-    const without = MEMBERS.filter(entry => entry.path !== 'tools/core-verification')
+    const without = MEMBERS.filter(entry => entry.path !== 'packages/common/legal-identity')
     expect(() => planCheck(['docs/a.md'], without, RULES)).toThrow(
-      '影响面规则点名了不存在的成员：tools/core-verification',
+      '影响面规则点名了不存在的成员：packages/common/legal-identity',
     )
   })
 

@@ -13,6 +13,8 @@ policy revision 2 起，integration、轨道附加检查及 full 均使用完整
 
 ## 分支与任务
 
+本节到「稳定点与轨道演进」描述现行集成工具的行为。已接受的目标准入见[目标准入](#目标准入)。那个流程还没有接入，不能代替下面的现行步骤。
+
 main 保存完整集成结果。任意数量的 integration/<track> 保存已登记责任轨道。stable 指向 main 中经过完整检查的既有 checkpoint。轨道和 stable 不加用户名；工作及临时分支遵守人的署名约定。
 
 任务从真实 Issue 的 revision 和当前 attempt 开始。指定调度者记录并读回人的责任、分支、route、不可变 taskBase、写范围与条件定位。普通任务进入登记轨道；cross-track 或 global 完整单元进入 main，并具名受影响责任。目录不能自动决定路线。
@@ -58,6 +60,20 @@ stable 选择已有 main 提交，只要求旧 stable 是其祖先。首次创�
 轨道 registry 记录稳定 ID、owner、来源、状态、initial main anchor 与必要检查。新增或修改 registry 由 owner 提交并按当前受信规则验证后显式采用。bootstrap 用 expected absent 创建初始 ref 和 unit。暂停轨道拒绝新任务。owner 更换先交接未提升 prefix 与活动任务。
 
 退役只形成并核清单。删除 ref、工作树或唯一临时材料仍按[工作约定](workflow.md#责任与协作交接)和[发布边界](publication.md)取得明确授权。Git revert 不撤销外部副作用。
+
+## 目标准入
+
+PanQiWei 于 2026-10-14 接受 [RFC-0004 revision 1](../rfcs/RFC-0004-trunk-pr-admission.md#决定范围)。本节是目标。`github-gate`、合并队列和确认流程还没有接入。接入并完成本页其余各节的切换之前，发布仍按上面的现行工具步骤执行。
+
+目标有四条主干。`integration/<track>`、`main`、`stable` 和 `release`。代码单向提升。main 向轨道的同步是唯一反向流动。`release` 只定对外发布的位置。npm 发布细节留给后续提案。
+
+轨道只要求自动检查，并经合并队列合入。轨道的 unit 在合入后补建。main、stable 和 release 还要求一位 admin 在确认时填写说明。确认后由发布流程更新这些主干。admin 可以确认自己的变更。进入主干先有通过的 PR。
+
+选择规则不能由 PR 改写。检查器的受信版本记在 `github-gate`。四条主干上的检查器升级走该分支上的升级流程，并保留采用标签作为记录。这一目标同时决定 Issue #217 的设计。现行的 `policy-check` 与 `policy-adopt` 在切换完成前仍然有效。
+
+轨道和 main 的受影响检查，今天仍由 `make check-plan` 与 `make test-affected` 执行。 [RFC-0002 revision 2](../rfcs/RFC-0002-engineering-toolchain.md#影响面选择) 接受以后改用 turbo。替换前必须保留未识别文件转全量，并把 `turbo.json` 一类选择配置当成全局文件。准入基线要显式传入。准入不读取 PR 能写入的缓存。这些条件还没有在 turbo 上落地，所以现行命令不改。
+
+审计日志由谁查看、专用身份归谁、使用哪种 runner、缺口由谁处理，以及确认评论的具体格式，RFC-0004 没有给出值。这些空值不在本节补成默认。
 
 ## 未来启用
 

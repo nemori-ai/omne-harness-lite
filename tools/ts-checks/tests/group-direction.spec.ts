@@ -12,7 +12,7 @@ import {
 } from '../src/rules/group-direction.ts'
 
 const file = (path: string, text: string): SourceFile => ({ path, text })
-const imports = (name: string) => `import { x } from '@omne-harness-lite/${name}'\nvoid x\n`
+const imports = (name: string) => `import { x } from '@omne-harness/${name}'\nvoid x\n`
 
 const core = file('packages/core/storage/src/index.ts', 'export const x = 1\n')
 const sql = file('packages/infra/storage-sql/src/index.ts', imports('storage'))

@@ -49,6 +49,36 @@
         "path": "packages/storage/README.md",
         "anchor": "成员与依赖"
       }
+    },
+    {
+      "id": "target-storage-spec",
+      "path": "packages/storage/storage/SPEC.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages#storage#storage#README",
+      "path": "packages/storage/storage/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
     }
   ]
 }

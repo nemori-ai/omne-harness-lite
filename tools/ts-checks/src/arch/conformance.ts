@@ -430,6 +430,7 @@ function checkRoots(
     bySource.set(edge.path, [...(bySource.get(edge.path) ?? []), edge])
   for (const member of extraction.members) {
     if (member.path.startsWith('apps/') || member.path === 'packages/core/kernel-basis') continue
+    const reported = new Set<string>()
     for (const root of entries.filter(
       entry => entry.member === member.path && entry.subpath === '.',
     )) {
@@ -464,12 +465,15 @@ function checkRoots(
             edge.specifier.startsWith('@deepseek-ai/cordis/') ||
             edge.resolvedPath === `${member.path}/src/cordis.ts` ||
             edge.resolvedPath?.startsWith(`${member.path}/src/cordis/`)
-          )
+          ) {
+            const mark = `${path}\0${edge.specifier}\0${edge.symbol}`
+            if (reported.has(mark)) continue
+            reported.add(mark)
             add(edge, 'IC-4', 'deviation', `公开根 ${entry} 的源码依赖闭包引入 Cordis 绑定`, {
               member: member.path,
               path: entry,
             })
-          else if (edge.resolvedPath !== undefined) pending.push(edge.resolvedPath)
+          } else if (edge.resolvedPath !== undefined) pending.push(edge.resolvedPath)
           else if (edge.target.kind === 'workspace' || edge.target.kind === 'unresolved-local')
             add(edge, 'IC-4', 'unknown', `公开根 ${entry} 的源码依赖闭包存在未解析目标`, {
               member: member.path,

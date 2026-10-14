@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "package:calendar/calendar",
+    "kind": "member",
+    "source": {
+      "path": "docs/member-documentation.md",
+      "anchor": "成员包文档要求"
+    }
+  },
+  "documents": [
+    {
+      "id": "overview",
+      "path": "packages/calendar/calendar/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "overview-zh",
+      "path": "packages/calendar/calendar/README_ZH.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    }
+  ]
+}

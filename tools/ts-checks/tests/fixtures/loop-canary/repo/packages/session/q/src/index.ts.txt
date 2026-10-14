@@ -1,4 +1,4 @@
-import { m } from '@omne-harness-lite/m'
-import { p } from '@omne-harness-lite/p'
+import { m } from '@omne-harness/m'
+import { p } from '@omne-harness/p'
 
 export const q = () => m + p()

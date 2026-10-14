@@ -21,21 +21,32 @@ HEAD 与 BASE 分别读本版完整 workspace、源码、manifest 和解析配�
 ## 机械子集
 
 机械规则沿[产品包组织](../../../../docs/package-organization.md)按采用责任、公开入口和源码闭包判断。core与util目录名不授予许可。存量candidate、unknown及未映射继续报告unknown，不因迁移提高采用状态。domains保留原机读分组投影，不代替完整领域清单，也不按目录数量重标。
-| 身份 | 能判断的范围 | 不能据此证明 |
-|---|---|---|
-| LAYER-ENTRY | adopted 交互入口直接 import/export 业务存储契约或适配器，含类型引用 | 函数内部授权与间接调用的业务语义 |
-| LAYER-DIP | adopted 策略入口引用 adopted 交互、存储适配或装配源码 | 外部库的所有语义与运行注入方向 |
-| IC-1 | 同键多处定义；定义不属于已采用责任或未从真实exports公开 | 动态定义、运行提供者唯一性及完整契约拥有关系 |
-| IC-2 | 已识别 ctx.provide 旧形状，不能替代 Service 子类规则 | 回收、并存及在途状态 |
-| IC-3 | 定义是 Context 增补，或缺少 contract/owner | 签名/行为与契约完全一致 |
-| IC-4 | manifest各根exports映射源码的闭包引入Cordis或本包集成入口；保留原kernel-basis与apps例外 | 声明、实际制品、安装闭包和动态非字面量 |
-| IC-5 | 非装配消费者引用私有入口或已采用外侧实现；公开定义值闭包引入独立提供者；例外取BASE精确声明 | 声明、制品隔离、动态选择与同提交行为保证 |
+
+| 身份        | 能判断的范围                                                                                       | 不能据此证明                                 |
+| ----------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| LAYER-ENTRY | adopted 交互入口直接 import/export 业务存储契约或适配器，含类型引用                                | 函数内部授权与间接调用的业务语义             |
+| LAYER-DIP   | adopted 策略入口引用 adopted 交互、存储适配或装配源码                                              | 外部库的所有语义与运行注入方向               |
+| IC-1        | 同键多处定义；定义不属于已采用责任或未从真实exports公开                                            | 动态定义、运行提供者唯一性及完整契约拥有关系 |
+| IC-2        | 已识别 ctx.provide 旧形状，不能替代 Service 子类规则                                               | 回收、并存及在途状态                         |
+| IC-3        | 定义是 Context 增补，或缺少 contract/owner                                                         | 签名/行为与契约完全一致                      |
+| IC-4        | manifest各根exports映射源码的闭包引入Cordis或本包集成入口；例外只保留封存 kernel-basis 路径与 apps | 声明、实际制品、安装闭包和动态非字面量       |
+| IC-5        | 非装配消费者引用私有入口或已采用外侧实现；公开定义值闭包引入独立提供者；例外取BASE精确声明         | 声明、制品隔离、动态选择与同提交行为保证     |
 
 IC-5的源或目标责任没有采用时是unknown。具体装配豁免只归已采用的源文件；目标同包公开服务定义可以消费，但其值闭包不得引入独立提供者。IC-3允许的定义自有登记逻辑不因此成为独立提供者。
 尚不明确的例外不得当作符合。泛化存储契约即使满足 DIP，仍由 LAYER-ENTRY 判交互越界。
 已接受 IC-5 例外与分层要求相冲突时，该分层结果为 unknown 并指出原例外出处，等待负责人裁定。
 普通装配只豁免明确定位的源文件；没有 apps 通用分层豁免。
 单条 converged 只表示该条有限静态检查没有发现违规，不表示成员或系统整体符合。
+
+包扫描把上述符合性行原样投影到 `PackageScan.dependencies`。
+同一数组再加上 `undeclared-dependency` 和 `member-cycle`。
+这两个名字不是 `RuleId`。它们不能写入 `constraints.json`。省略规则列表也关不掉它们。
+`undeclared-dependency` 表示源码引用了另一个 workspace 成员，而导入方的 `dependencies`、`peerDependencies` 或 `devDependencies` 没有该包名。类型导入同样要声明。
+`member-cycle` 使用已经解析的 workspace 导入。这包括子路径 `cordis`，也包括解析到其他成员的相对导入。
+`unknown` 保持 `unknown`，不会被写成 `converged`。
+IC-4 仍在查看公开根闭包之前跳过 `apps/` 成员和 `packages/core/kernel-basis`。
+这个跳过不覆盖目标路径 `packages/assembly/kernel-basis`。
+这次改动不禁止应用里其他文件导入 Cordis。
 
 IC-6/9/10/11/13/14/16/18/19 及 LSP 保留行为义务；IC-7、SRP/OCP/ISP 留人工判断；
 IC-8和IC-12尚未接入机械规则。IC-15和IC-16的加载器已由实际成员交付，本静态规则尚未覆盖最终配置与来源，仍须核对实际组合证据。IC-17机制待设计。
