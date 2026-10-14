@@ -35,7 +35,7 @@ if (read.kind === 'ok') {
 
 行为拥有者是 `packages/common/README.md` 指向的架构节。本页不复制签名和失败种类。公开形状在 `src/types.ts`。读取成功不表示对象存在，也不表示调用方获得授权。
 
-架构节没有规定顺序的地方，本实现遵循 `tests/read-json.spec.ts` 里的字面用例。一个 token 同时超过 `maxDepth` 和 `maxItems` 时，结果是 `depth`。未闭合字符串里已经出现非法内容时，结果是 `syntax` `token`，先于 `budget` `string`，也先于 `truncated`。合法但没写完、并且超过 `maxStringLength` 的字符串是 `budget` `string`。合法、没写完、并且还在该预算内的字符串是 `truncated`。
+停止顺序在上面指向的架构节。`tests/read-json.spec.ts` 用字面用例锁住这个顺序。
 
 ## 设计
 

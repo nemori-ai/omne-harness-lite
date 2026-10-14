@@ -35,7 +35,7 @@ Use `readJsonBytes(bytes, limits)` when the input is a `Uint8Array`. The only ru
 
 The behavior owner is the architecture section linked from `packages/common/README.md`. This README does not copy the signature or the failure list. `src/types.ts` holds the public shapes. A successful read does not mean an object exists or that the caller is allowed to use it.
 
-Where the architecture section does not fix an order, `tests/read-json.spec.ts` holds the literal cases that this implementation follows. A token that exceeds both `maxDepth` and `maxItems` returns `depth`. An unterminated string that already contains illegal content is `syntax` `token`, before `budget` `string` and before `truncated`. A legal unfinished string that exceeds `maxStringLength` is `budget` `string`. A legal unfinished string inside that budget is `truncated`.
+The stop order is the architecture section linked above. `tests/read-json.spec.ts` locks the literal cases for that order.
 
 ## Design
 
