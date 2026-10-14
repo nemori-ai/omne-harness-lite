@@ -1,8 +1,8 @@
 # Worker 探针观察
 
-日期是 2026-10-15。脚本是 `tmp/issue-247/probe.mjs`。它不注册为生产提供者。数据库文件在临时目录，不用 `:memory:`。脚本被 gitignore 忽略，所以远端看不到脚本本身。本页保存命令、环境和观察到的结果。
+日期是 2026-10-15。脚本是 `packages/storage/storage/verification/worker-probe.mjs`。它不注册为生产提供者。数据库文件在临时目录，不用 `:memory:`。
 
-命令是 `node tmp/issue-247/probe.mjs`。退出码是 0。
+命令是 `node packages/storage/storage/verification/worker-probe.mjs`。退出码是 0。
 
 这次机器是 darwin arm64，Node v26.0.0，连接上的 `sqlite_version()` 是 3.53.0。3.53.0 不低于 3.51.3。它不是规格基线 Node 24.21.0 / SQLite 3.53.4。本机没有那组基线。这些观察不能写成基线证明，也不能写成 SQL-T01 或断电试验。
 
@@ -21,5 +21,12 @@
 | 同连接第二句主键冲突 | `rolled_back`。回滚后 `probe_ddl` 的表数量是 0 |
 | Worker 在回执写入后、响应发出前退出 | 退出码 0。新 Worker 用原身份 `query` 得到 `committed` |
 | 重启后的登记 | 新进程仍能用已登记的组合版本 `v1` 完成另一次 `commit` |
+| 端口拒绝事务语句 | `COMMIT` 和 `ROLLBACK` 被拒绝且未执行。`select 1` 执行了 |
+| 协议版本不是 `1` | `unsupported_protocol` |
+| 空命令数组 | `field_missing` |
+| 命令条数超过探针里的上限 | `command_limit` |
+| 已停止新准入 | `closing` |
+| 发送前队列已满 | 控制侧返回 `queue_full`，`sent` 为 false。没有把这条消息发给 Worker |
+| 慢语句期间持续提交 | 没有跑。不能据此声称内存已经证明有界 |
 
-物理断电没有做。行为模型没有做。2026-10-14 的主线程探针不算本页的观察。
+物理断电没有做。行为模型没有做。`ROLLBACK` 本身失败没有注入。2026-10-14 的主线程探针不算本页的观察。

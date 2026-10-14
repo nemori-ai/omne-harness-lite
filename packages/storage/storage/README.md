@@ -18,4 +18,4 @@ Node 基线、写连接、`WAL` 读回、SQLite 3.51.3 下限和四项必填上�
 
 ## 验证与维护
 
-验证场景在 [SPEC 的验证义务](SPEC.md#验证义务与未覆盖)。`commit` 和 `query` 的 Worker 探针是 `tmp/issue-247/probe.mjs`，说明见 [SQLite 提供者设计的探针](docs/sqlite-provider.md#探针)。探针是临时脚本，不是生产提供者。运行结果记在[探针观察](docs/probe-observations.md)。SPEC 里 2026-10-14 的探针是主线程上的 `node:sqlite` 读回。结果模型变化时，先改 SPEC，再改组入口里的链接。创建真实包前核对[成员文档规范](../../../docs/member-documentation.md)。
+验证场景在 [SPEC 的验证义务](SPEC.md#验证义务与未覆盖)。`commit` 和 `query` 的 Worker 探针是 `verification/worker-probe.mjs`，说明见 [SQLite 提供者设计的探针](docs/sqlite-provider.md#探针)。探针不是生产提供者。运行结果记在[探针观察](docs/probe-observations.md)。SPEC 里 2026-10-14 的探针是主线程上的 `node:sqlite` 读回。结果模型变化时，先改 SPEC，再改组入口里的链接。创建真实包前核对[成员文档规范](../../../docs/member-documentation.md)。

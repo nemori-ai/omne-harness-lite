@@ -30,17 +30,17 @@ Worker 一次处理一条消息。`node:sqlite` 的语句在这条消息里同�
 1. 控制侧入口核对必需字段。字段缺失时，`commit` 返回 `field_missing`。
 2. 控制侧入口核对 `participant` 不重复，并且每条命令的 `facts` 都是 JSON 值。不成立时，`commit` 返回 `participant_repeated` 或 `facts_not_json`。
 3. 控制侧入口用 RFC 8785 写出调用方排好的命令数组，再对写出的 UTF-8 字节计算 SHA-256。提供者不重排命令。
-4. 控制侧入口把操作身份、组合版本、命令和输入摘要发给 Worker。
-5. Worker 核对旧写代际已排除。未排除时，`commit` 返回 `writer_not_current`。
-6. Worker 在写连接上读取该租户、事务域和组合版本的登记。没有登记时，`commit` 返回 `combination_unregistered`。某条命令的 `participant` 不在登记中时，`commit` 返回 `participant_not_in_combination`。
-7. Worker 核对受理队列。尚未开始的操作已经达到 `admissionQueueLimit` 时，`commit` 返回 `queue_full`。否则操作进入队尾。
+4. 控制侧在发送前计算这条连接上尚未收到结果的 `commit` 数量。再发一条就会达到 `admissionQueueLimit` 时，控制侧返回 `queue_full`，不把消息发给 Worker。命令条数和单条字节也在发送前核对，超过上限返回 `command_limit`。协议版本不是 `1` 时返回 `unsupported_protocol`。命令数组为空时返回 `field_missing`。
+5. 控制侧入口把操作身份、组合版本、命令和输入摘要发给 Worker。
+6. Worker 核对旧写代际已排除。未排除时，`commit` 返回 `writer_not_current`。
+7. Worker 在写连接上读取该租户、事务域和组合版本的登记。没有登记时，`commit` 返回 `combination_unregistered`。某条命令的 `participant` 不在登记中时，`commit` 返回 `participant_not_in_combination`。Worker 再次核对尚未开始的数量，漏检时返回 `queue_full`。通过核对的操作进入队尾。
 8. 轮到该操作时，Worker 执行 `BEGIN IMMEDIATE`。等待写锁的时间以 `lockWaitMs` 为上限。
 9. Worker 在事务内按操作身份读取回执。回执存在且摘要相同时，Worker 用 `ROLLBACK` 结束这个还没有写入的事务，`commit` 返回已保存的回执。回执存在且摘要不同时，Worker 同样结束事务，`commit` 返回 `identity_conflict` 和已有回执。这两种情况都不执行命令。
 10. Worker 按命令数组的顺序，把每条命令交给它的参加者模块。参加者模块通过 `TransactionPort` 执行语句。
 11. Worker 写入已提交回执和待交接记录。
 12. Worker 执行 `COMMIT`。`COMMIT` 成功后，`commit` 返回 `committed`。
 
-第 5 到第 7 步发生在 `BEGIN IMMEDIATE` 之前。这时写连接上没有语句。登记读取使用这条写连接。这些拒绝不进入受理队列。
+第 4 步在发送之前完成，消息还没有进入 Worker。第 6 步和第 7 步发生在 `BEGIN IMMEDIATE` 之前。这时写连接上没有语句。登记读取使用这条写连接。这些拒绝不进入受理队列。
 
 第 8 到第 12 步在同一次消息里完成。事实、已提交回执和待交接记录在同一个事务里提交。
 
@@ -55,11 +55,11 @@ sequenceDiagram
     C->>E: commit
     E->>E: 核对字段和 JSON 值
     E->>E: RFC 8785 写出并计算摘要
-    E->>W: 身份、组合版本、命令、摘要
-    W->>W: 核对代际、登记和队列
-    alt 受理前拒绝
-        W-->>C: rejected_before_accept
-    else 已进入队列
+    E->>E: 发送前核对尚未返回的 commit 数量
+    alt 已达上限或其它受理前拒绝
+        E-->>C: rejected_before_accept
+    else 未达上限
+        E->>W: 身份、组合版本、命令、摘要
         W->>W: BEGIN IMMEDIATE
         W->>P: TransactionPort.execute
         P-->>W: 语句结果
@@ -139,11 +139,11 @@ sequenceDiagram
 
 ## 参加者端口
 
-参加者模块只拿到 SPEC 定义的 `TransactionPort`。端口只有 `execute`。端口不能提交、回滚或关闭连接。参加者模块拿不到 `node:sqlite` 的数据库句柄。`BEGIN IMMEDIATE`、`COMMIT` 和 `ROLLBACK` 由 Worker 执行。
+参加者模块只拿到 SPEC 定义的 `TransactionPort`。端口只有 `execute`。端口不能提交、回滚或关闭连接。语句去掉空白后的第一个词是 `BEGIN`、`COMMIT`、`ROLLBACK`、`END`、`SAVEPOINT` 或 `RELEASE` 时，端口拒绝该语句，不交给 SQLite。提供者的事务保持原状。参加者模块拿不到 `node:sqlite` 的数据库句柄。`BEGIN IMMEDIATE`、`COMMIT` 和 `ROLLBACK` 由 Worker 执行。
 
 ## 关闭
 
-1. 提供者停止新的准入。
+1. 提供者停止新的准入。此后新的 `commit` 返回 `closing`，不进入队列。队列里尚未开始的操作被撤下，不写回执。
 2. Worker 不打断正在执行的语句。调用方在 Worker 之外计算关闭期限。Worker 要等当前语句返回，才能处理关闭。
 3. 语句在期限内结束时，Worker 关闭写连接，提供者观察 Worker 退出。关闭结果是 `closed`。
 4. 期限到达时语句还没有结束，关闭结果是 `incomplete`，不是 `closed`。
@@ -151,7 +151,7 @@ sequenceDiagram
 
 ## 探针
 
-探针脚本是 `tmp/issue-247/probe.mjs`。它使用真实的 `node:sqlite` Worker 和隔离的数据库文件。探针是任务临时区里的临时脚本，不是生产提供者，不注册为包或入口。
+探针脚本是 `packages/storage/storage/verification/worker-probe.mjs`。它使用真实的 `node:sqlite` Worker 和隔离的数据库文件。探针不是生产提供者，不注册为包或入口。
 
 运行之后，结果记在[探针观察](probe-observations.md)。
 
@@ -164,7 +164,7 @@ sequenceDiagram
 本设计尚未选定下列机制。
 
 - 确认旧写代际已排除、旧事务已终止和数据库恢复已完成的方法。
-- 端口怎样拒绝经 `execute` 传入的事务控制语句，例如 `COMMIT`、`END` 和 `ROLLBACK`。
+- 端口怎样拒绝经 `execute` 传入的事务控制语句。规格已规定拒绝并不执行。实现时的错误对象形状未定。
 - `SqlValue`、`QueryRows` 和参加者模块入口的精确形状。
 - 事务域与租户的绑定怎样配置。
 - 读回的 PRAGMA 值与设定不符时，提供者怎样处置。

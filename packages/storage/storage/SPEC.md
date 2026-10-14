@@ -105,6 +105,9 @@ type RejectedBeforeAccept = {
     | "writer_not_current"
     | "facts_not_json"
     | "participant_repeated"
+    | "unsupported_protocol"
+    | "command_limit"
+    | "closing"
 }
 
 type CommitResult = Committed | RolledBack | Unknown | IdentityConflict | RejectedBeforeAccept
@@ -163,13 +166,16 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 
 | 原因 | 返回条件 |
 | --- | --- |
-| `field_missing` | 操作身份的任一项、组合版本、命令数组，或某条命令的 `participant` 或 `facts` 缺失 |
+| `field_missing` | 操作身份的任一项、组合版本、命令数组，或某条命令的 `participant` 或 `facts` 缺失。命令数组为空也算缺失 |
+| `unsupported_protocol` | `protocolVersion` 不是 `1` |
 | `participant_repeated` | 两条命令的 `participant` 相同 |
 | `facts_not_json` | 某条命令的 `facts` 含有非 JSON 值 |
+| `command_limit` | 命令条数超过 `maxCommandsPerCommit`，或一条命令的 RFC 8785 UTF-8 字节数超过 `maxCommandBytes` |
 | `writer_not_current` | 该事务域的旧写代际尚未排除 |
 | `combination_unregistered` | 该租户、事务域和组合版本下没有登记 |
 | `participant_not_in_combination` | 某条命令的 `participant` 不在该登记的参加者列表中 |
-| `queue_full` | 受理队列中尚未开始的操作已经达到提供者声明的上限 |
+| `queue_full` | 这条写连接上已经发出、尚未收到结果的 `commit` 达到 `admissionQueueLimit`。控制侧在发送前拒绝，不把这条消息发给 Worker |
+| `closing` | 提供者已经停止新的准入 |
 
 旧写代际尚未排除时，`commit` 返回 `writer_not_current`。这个操作没有回执。五项证明全部成立之前，`query` 对该身份返回未知。
 
@@ -179,9 +185,9 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 
 同一操作身份配到不同输入摘要时，提供者从 `commit` 返回 `identity_conflict`。这个结果带上已有回执。
 
-`commit` 返回 `rolled_back` 时，明确回滚回执已经持久保存。回滚之后提供者没有保存这份回执时，`commit` 返回 `unknown`。
+`commit` 返回 `rolled_back` 时，明确回滚回执已经持久保存。回滚之后提供者没有保存这份回执时，`commit` 返回 `unknown`。`ROLLBACK` 本身失败时，`commit` 也返回 `unknown`。
 
-能确定的受理前失败返回 `rejected_before_accept`。`commit` 返回 `unknown` 只用于上面不能判定的结果。
+能确定的受理前失败返回 `rejected_before_accept`。其余不能判定的结果返回 `unknown`。
 
 断开、超时、Worker 退出或取消观察时，调用方用同一身份调用 `query`。调用方在 `commit` 返回前失去响应时，也用同一身份调用 `query`。
 
@@ -217,6 +223,8 @@ interface TransactionPort {
 
 端口执行带参数的语句。端口不能提交、回滚或关闭连接。`BEGIN IMMEDIATE`、`COMMIT` 和 `ROLLBACK` 由提供者执行。参加者模块拿不到数据库句柄。`SqlValue` 和 `QueryRows` 的精确形状在提供者实现时确定。
 
+端口在执行前看语句去掉空白后的第一个词。这个词是 `BEGIN`、`COMMIT`、`ROLLBACK`、`END`、`SAVEPOINT` 或 `RELEASE` 时，端口拒绝该语句，不执行它。这次拒绝不提交、不回滚、不关闭提供者的事务。模块收到失败。模块因此不能完成命令时，提供者按明确的业务失败处理。比较第一个词时不区分大小写。
+
 ## 提供者义务
 
 SQLite 提供者在专用 Worker 内使用 `node:sqlite`。基线是 Node 24.21.0 内嵌的 SQLite 3.53.4。路线见[技术基础](../../../docs/architecture/technical-foundations.md#共同技术选择)。一个事务域使用一条写连接。命令在该连接的 `BEGIN IMMEDIATE` 中执行。提供者对每个连接读回 `journal_mode=WAL`、`synchronous=FULL` 和 `foreign_keys=ON`。Kysely 构造查询，并辅助迁移。提交边界是该连接上的事务。
@@ -238,7 +246,7 @@ SQLite 提供者启动时先核对四项配置。任一项缺失，或者不是�
 
 一个事务域只服务一个租户。租户之间不共用写连接。
 
-受理队列在持久受理之前。每条写连接有一个受理队列。队列在内存中，有上限，先进先出。上限是 `admissionQueueLimit`。重启后队列为空。SQLite 提供者不在租户之间轮转调度。
+受理队列在持久受理之前。每条写连接有一个受理队列。队列在内存中，有上限，先进先出。上限是 `admissionQueueLimit`。控制侧计算这条连接上已经发出、尚未收到结果的 `commit` 数量。再发一条就会达到上限时，控制侧返回 `queue_full`，并且不发送。Worker 收到消息之后仍做同一次核对，避免控制侧漏检。重启后队列为空。SQLite 提供者不在租户之间轮转调度。慢语句期间持续提交的资源上界，本规格还没有探针。没有这次探针，不能声称内存已经证明有界。
 
 默认的权威读取使用写连接。`query` 也使用写连接。SQLite 提供者不增加读连接。以后要增加读连接，由新的设计明确写出。
 
@@ -270,7 +278,7 @@ PostgreSQL 提供者使用独立的 `pg` 与 Kysely 事务租约。该提供者�
 
 操作、分页、事务大小、锁等待和维护各有提供者声明的有限上限。锁等待到期时，调用方把该操作记为未知。
 
-关闭先停止新的准入。提供者确认在途读取、语句、备份和消息的责任，然后观察连接关闭和 Worker 退出。已经发出的外部效果保持发出时的状态。
+关闭先停止新的准入。停止之后新到的 `commit` 返回 `closing`，不写入回执，也不进入队列。受理队列里尚未开始的操作被撤下，同样不写入回执。已经开始的语句跑完。提供者确认在途读取、语句、备份和消息的责任，然后观察连接关闭和 Worker 退出。已经发出的外部效果保持发出时的状态。
 
 SQLite 提供者不打断正在执行的 SQL。关闭等待当前语句结束。关闭期限到达而当前语句还没有结束时，关闭结果是未完成 `incomplete`，不是已关闭 `closed`。结束 Worker 不是干净的回滚。Worker 被结束之后，调用方按原身份查询在途操作。
 
@@ -281,11 +289,9 @@ SQLite 提供者不打断正在执行的 SQL。关闭等待当前语句结束。
 - 同一登记键再次登记不同的参加者列表时，`registerCombination` 返回什么。`RegisterResult` 没有对应原因。
 - 旧写代际尚未排除时，`registerCombination` 返回什么。`RegisterResult` 没有 `writer_not_current`。
 - 另一租户在已服务某租户的事务域上登记时，`registerCombination` 返回什么。
-- 下列 `commit` 输入没有对应的拒绝原因：协议版本不是 `1`、命令数组为空、命令条数超过 `maxCommandsPerCommit`、命令字节超过 `maxCommandBytes`。命令字节的计量口径也未定。
 - 调用方没有按 `participant` 排序时，提供者是否拒绝。现行规则下提供者不重排命令，摘要随顺序改变。
 - 多个拒绝条件同时成立时，返回哪个原因。[SQLite 提供者设计](docs/sqlite-provider.md#正常提交)的核对顺序是候选，不是承诺。
-- 哪些语句失败算明确的业务失败，哪些算提供者不能判定的结果。`ROLLBACK` 本身失败时怎样分类。
-- 关闭开始之后，受理队列中尚未开始的操作和新到的 `commit` 各返回什么。
+- 哪些语句失败算明确的业务失败。`ROLLBACK` 本身失败时，`commit` 返回 `unknown`。
 - `incomplete` 怎样对应装配的关闭报告。
 
 ## 验证义务与未覆盖
@@ -329,4 +335,4 @@ SQLite 提供者不打断正在执行的 SQL。关闭等待当前语句结束。
 
 这次探针的 Node 与 SQLite 版本不是规格基线 Node 24.21.0 和 SQLite 3.53.4。本机没有该基线。探针没有进入 Worker，也没有做断电试验。通知运输和 PostgreSQL 集群不在上述场景内。当 `synchronous` 为 `FULL` 时，普通进程终止证明进程级持久。
 
-#247 的 Worker 探针脚本是 `tmp/issue-247/probe.mjs`。它是临时脚本，不是生产提供者。运行之后，结果记入[探针观察](docs/probe-observations.md)。物理断电和 SQL-T01 不在 #247 内，仍未完成。行为模型也不在 #247 内。
+#247 的 Worker 探针脚本是 `verification/worker-probe.mjs`。它不是生产提供者。运行之后，结果记入[探针观察](docs/probe-observations.md)。物理断电和 SQL-T01 不在 #247 内，仍未完成。行为模型也不在 #247 内。慢语句期间持续提交的内存上界还没有探针。
