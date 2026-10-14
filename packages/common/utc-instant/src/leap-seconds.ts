@@ -72,7 +72,8 @@ export function readLeapSecondsList(text: string): LeapSecondsListRead {
   }
 }
 
-function decimal(digits: string): number {
+/** Reads a string of ASCII digits as a non-negative integer. */
+export function decimal(digits: string): number {
   let value = 0
   for (const digit of digits) value = value * 10 + digit.charCodeAt(0) - 48
   return value

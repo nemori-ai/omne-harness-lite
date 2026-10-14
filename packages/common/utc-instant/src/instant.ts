@@ -1,5 +1,5 @@
 import { leapSecondsListText } from './leap-seconds.generated.ts'
-import { readLeapSecondsList, type LeapSecondsListFailure } from './leap-seconds.ts'
+import { decimal, readLeapSecondsList, type LeapSecondsListFailure } from './leap-seconds.ts'
 
 let civilOf: (instant: Instant) => string
 let fractionOf: (instant: Instant) => string
@@ -184,12 +184,6 @@ function lastDayOfMonth(year: string, month: string): string {
     return value % 4 === 0 && (value % 100 !== 0 || value % 400 === 0) ? '29' : '28'
   }
   return month === '04' || month === '06' || month === '09' || month === '11' ? '30' : '31'
-}
-
-function decimal(digits: string): number {
-  let value = 0
-  for (const digit of digits) value = value * 10 + digit.charCodeAt(0) - 48
-  return value
 }
 
 /** Writes the text the instant was parsed from, fraction digits unchanged. */
