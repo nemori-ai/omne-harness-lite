@@ -1,16 +1,13 @@
-import { readFileSync } from 'node:fs'
+import { hostPolicySource } from './fixtures/contract-sources.ts'
 import { expect, test } from 'vitest'
 import { ogS42DynamicResolve } from '../src/index.ts'
 
 const path = 'tenancy-host/src/policy.ts'
-const source = readFileSync(
-  new URL('../../../apps.0.0.1.legacy/tenancy-host/src/policy.ts', import.meta.url),
-  'utf8',
-)
+const source = hostPolicySource
 const check = (text: string, location = path) =>
   ogS42DynamicResolve.check([{ path: location, text }])
 
-test('the actual host compares declared service keys without resolving capabilities', () => {
+test('the host fixture compares declared service keys without resolving capabilities', () => {
   expect(check(source)).toEqual([])
   expect(check(source, 'tenancy-host/src/other.ts').length).toBeGreaterThan(0)
 })

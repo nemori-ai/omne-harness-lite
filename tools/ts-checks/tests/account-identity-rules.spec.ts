@@ -1,6 +1,4 @@
-// 账号能力包的三条规则：内存夹具两向自测，另拿真实源码做「注入一处违反 ⇒ 被报出」的变异核对——
-// 证明规则在真实的代码形状上找得到它要查的调用点，而不只是在手写夹具上过。
-import { readFileSync } from 'node:fs'
+import { contractSource } from './fixtures/contract-sources.ts'
 import { describe, expect, it } from 'vitest'
 import {
   aiR8NoCredentialInWrite,
@@ -11,11 +9,7 @@ import {
 
 const AI = 'tenancy/account-identity-sql/src/'
 const file = (path: string, text: string): SourceFile => ({ path, text })
-const real = (path: string): SourceFile =>
-  file(
-    path,
-    readFileSync(new URL(`../../../packages.0.0.1.legacy/${path}`, import.meta.url), 'utf8'),
-  )
+
 const plugin = file(`${AI}plugin.ts`, 'const deps = { random: cryptoRandomSource }\n')
 
 describe('no-presentation-in-diagnostics', () => {
@@ -51,8 +45,8 @@ describe('no-presentation-in-diagnostics', () => {
     expect(noPresentationInDiagnostics.check([clean])).toEqual([])
   })
 
-  it('变异核对：在真实的 logins.ts 的随机源失败日志里带上出示物 ⇒ 报出；原文无违反', () => {
-    const original = real(`${AI}logins.ts`)
+  it('变异核对：在工具夹具的 logins.ts 的随机源失败日志里带上出示物 ⇒ 报出；原文无违反', () => {
+    const original = contractSource(`${AI}logins.ts`)
     expect(noPresentationInDiagnostics.check([original])).toEqual([])
     const anchor = "this.deps.diagnostics.error('random-source-unavailable', {"
     expect(original.text).toContain(anchor)
@@ -99,10 +93,10 @@ describe('no-random-source-inline', () => {
     expect(noRandomSourceInline.check([file(`${AI}logins.ts`, '')])).toHaveLength(1)
   })
 
-  it('变异核对：真实的 plugin.ts 原文无违反；把随机源换成别的 ⇒ 报出', () => {
-    const original = real(`${AI}plugin.ts`)
+  it('变异核对：工具夹具的 plugin.ts 原文无违反；把随机源换成别的 ⇒ 报出', () => {
+    const original = contractSource(`${AI}plugin.ts`)
     const others = ['presentation.ts', 'logins.ts', 'accounts.ts', 'deps.ts'].map(n =>
-      real(`${AI}${n}`),
+      contractSource(`${AI}${n}`),
     )
     expect(noRandomSourceInline.check([original, ...others])).toEqual([])
     expect(original.text).toContain('random: cryptoRandomSource')
@@ -147,9 +141,9 @@ describe('ai-r8-no-credential-in-write', () => {
     expect(aiR8NoCredentialInWrite.check([clean])).toEqual([])
   })
 
-  it('变异核对：真实的 accounts.ts 原文无违反；在第一个写事务回调开头调一次 credentials.derive( ⇒ 报出', () => {
-    const original = real(`${AI}accounts.ts`)
-    expect(aiR8NoCredentialInWrite.check([original, real(`${AI}logins.ts`)])).toEqual([])
+  it('变异核对：工具夹具的 accounts.ts 原文无违反；在第一个写事务回调开头调一次 credentials.derive( ⇒ 报出', () => {
+    const original = contractSource(`${AI}accounts.ts`)
+    expect(aiR8NoCredentialInWrite.check([original, contractSource(`${AI}logins.ts`)])).toEqual([])
     const anchor = 'return this.deps.persistence.write(async tx => {'
     expect(original.text).toContain(anchor)
     const mutated = file(
