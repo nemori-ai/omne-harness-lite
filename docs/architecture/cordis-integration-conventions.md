@@ -28,7 +28,7 @@
 
 契约与提供者共置时，可以另设同包的服务定义公开子入口，承载服务键、`Service`类及类型增补；该入口须满足IC-5的消费隔离要求。具体绑定插件仍从 `./cordis` 发布，引用同一服务定义，不复制类或键。子入口路径由成员exports和README明确，这项入口分责不要求拆包。
 
-根入口不import `@deepseek-ai/cordis`，也不导入本包任何Cordis集成入口。`core/kernel-basis`与 `apps/` 不受本条约束。
+根入口不import `@deepseek-ai/cordis`，也不导入本包任何Cordis集成入口。`apps/` 与封存成员 `core/kernel-basis` 不受本条约束。目标成员 `packages/assembly/kernel-basis` 的根入口遵守本条。
 
 ## IC-5
 

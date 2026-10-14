@@ -28,7 +28,7 @@ HEAD 与 BASE 分别读本版完整 workspace、源码、manifest 和解析配�
 | IC-1 | 同键多处定义；定义不属于已采用责任或未从真实exports公开 | 动态定义、运行提供者唯一性及完整契约拥有关系 |
 | IC-2 | 已识别 ctx.provide 旧形状，不能替代 Service 子类规则 | 回收、并存及在途状态 |
 | IC-3 | 定义是 Context 增补，或缺少 contract/owner | 签名/行为与契约完全一致 |
-| IC-4 | manifest各根exports映射源码的闭包引入Cordis或本包集成入口；保留原kernel-basis与apps例外 | 声明、实际制品、安装闭包和动态非字面量 |
+| IC-4 | manifest各根exports映射源码的闭包引入Cordis或本包集成入口；例外只保留封存 kernel-basis 路径与 apps | 声明、实际制品、安装闭包和动态非字面量 |
 | IC-5 | 非装配消费者引用私有入口或已采用外侧实现；公开定义值闭包引入独立提供者；例外取BASE精确声明 | 声明、制品隔离、动态选择与同提交行为保证 |
 
 IC-5的源或目标责任没有采用时是unknown。具体装配豁免只归已采用的源文件；目标同包公开服务定义可以消费，但其值闭包不得引入独立提供者。IC-3允许的定义自有登记逻辑不因此成为独立提供者。
@@ -44,6 +44,7 @@ IC-5的源或目标责任没有采用时是unknown。具体装配豁免只归已
 `member-cycle` 使用已经解析的 workspace 导入。这包括子路径 `cordis`，也包括解析到其他成员的相对导入。
 `unknown` 保持 `unknown`，不会被写成 `converged`。
 IC-4 仍在查看公开根闭包之前跳过 `apps/` 成员和 `packages/core/kernel-basis`。
+这个跳过不覆盖目标路径 `packages/assembly/kernel-basis`。
 这次改动不禁止应用里其他文件导入 Cordis。
 
 IC-6/9/10/11/13/14/16/18/19 及 LSP 保留行为义务；IC-7、SRP/OCP/ISP 留人工判断；
