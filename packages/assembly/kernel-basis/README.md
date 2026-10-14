@@ -8,9 +8,9 @@ Shared operation results, Cordis plugin helpers, and test-only context assembly.
 
 This member owns three public entries for business packages. The root exports operation results and does not import `@deepseek-ai/cordis`. `./cordis` exports `definePlugin` and `resolveOptional`. `./testing` assembles a Context for tests.
 
-The package declares no service keys and does not take other capabilities' Service definitions. Fiber state stays in Cordis. Product close order stays with the assembly close protocol. Probe files stay in the legacy tree until #270.
+The package declares no service keys and does not take other capabilities' Service definitions. Cordis owns fiber state. The assembly close protocol owns product close order. Probe files remain in the legacy tree until #270.
 
-Not implemented. The candidate signatures below are the contract #270 implements. Importing them today fails because the entries export nothing.
+#270 implements the signatures below. Importing them today fails because the entries export nothing.
 
 ## Usage
 
@@ -46,17 +46,17 @@ const plugin = definePlugin({
 
 `./testing` loads plugins into a Context for one test and disposes the fibers it started. Product source must not import it. #270 chooses the export name.
 
-A pure caller of the root does not start Cordis. A caller of `./cordis` uses Cordis 4.0.4 for validation, injection, and fiber lifecycle.
+A caller that imports only the root does not start Cordis. A caller of `./cordis` uses Cordis 4.0.4 for validation, injection, and fiber lifecycle.
 
 ## Contracts
 
-[SPEC.md](SPEC.md) owns the result shapes, `definePlugin`, `resolveOptional`, test assembly, the consumer table, and the Cordis evidence tiers.
+[SPEC.md](SPEC.md) owns the result shapes, `definePlugin`, `resolveOptional`, test assembly, the consumer table, and the Cordis evidence table.
 
 `Outcome<T, F>` is `{ ok: T } | { failure: F }`. `Ack<F>` is `{ ok: true } | { failure: F }`. `F` belongs to the caller. `isSuccess` is true when the object has `ok`.
 
 ## Design
 
-The root stays free of Cordis so a package can return a result without loading the kernel. `./cordis` is the thin project helper over Cordis. Required dependencies go in `inject`. Optional dependencies use `resolveOptional` at the call. `./testing` exists so tests do not each invent Context startup, and so that helper cannot be imported by product code.
+The root does not import Cordis. A package can return a result without loading the kernel. `./cordis` holds `definePlugin` and `resolveOptional`. Required dependencies go in `inject`. Optional dependencies use `resolveOptional` at the call. `./testing` gives tests one Context startup. Product source cannot import that entry.
 
 Cordis still owns composition, dependency injection, and lifecycle. The assembly package still owns evaluation, adoption, handoff, and the lease close protocol.
 

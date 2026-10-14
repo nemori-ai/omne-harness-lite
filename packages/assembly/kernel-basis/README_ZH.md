@@ -8,9 +8,9 @@
 
 本成员为业务包提供三个公开入口。根入口导出操作结果，并且不导入 `@deepseek-ai/cordis`。`./cordis` 导出 `definePlugin` 和 `resolveOptional`。`./testing` 为测试装配 Context。
 
-本包不声明服务键，不收回其他能力的 Service 定义。Fiber 状态留在 Cordis。产品关闭顺序留在 assembly 的关闭协议。探针文件留在旧树，直到 #270。
+本包不声明服务键，不收回其他能力的 Service 定义。Cordis 拥有 Fiber 状态。assembly 的关闭协议拥有产品关闭顺序。探针文件留在旧树，直到 #270。
 
-尚未实现。下面的签名是 #270 要兑现的契约。现在导入它们会失败，因为入口仍然是空导出。
+#270 实现下面的签名。现在导入它们会失败，因为入口仍然是空导出。
 
 ## 使用
 
@@ -46,17 +46,17 @@ const plugin = definePlugin({
 
 `./testing` 为一次测试把插件装进 Context，并撤除它自己启动的 Fiber。产品源码不得导入它。导出名由 #270 选定。
 
-只使用根入口的调用方不启动 Cordis。使用 `./cordis` 的调用方把校验、注入和 fiber 生命周期留给 Cordis 4.0.4。
+只导入根入口的调用方不启动 Cordis。使用 `./cordis` 的调用方用 Cordis 4.0.4 做校验、注入和 fiber 生命周期。
 
 ## 契约
 
-[SPEC.md](SPEC.md) 拥有结果形状、`definePlugin`、`resolveOptional`、测试装配、消费者对照和 Cordis 证据分档。
+[SPEC.md](SPEC.md) 拥有结果形状、`definePlugin`、`resolveOptional`、测试装配、消费者对照和 Cordis 证据表。
 
 `Outcome<T, F>` 是 `{ ok: T } | { failure: F }`。`Ack<F>` 是 `{ ok: true } | { failure: F }`。`F` 归调用方。对象带有 `ok` 时 `isSuccess` 为真。
 
 ## 设计
 
-根入口不依赖 Cordis，使一个包可以返回结果而不加载内核。`./cordis` 是贴着 Cordis 的薄辅助。必需依赖放进 `inject`。可选依赖在调用时用 `resolveOptional`。`./testing` 让测试不必各自再写一套 Context 启动，也让这份辅助进不了产品源码。
+根入口不导入 Cordis。调用方可以返回结果而不加载内核。`./cordis` 放 `definePlugin` 和 `resolveOptional`。必需依赖放进 `inject`。可选依赖在调用时用 `resolveOptional`。`./testing` 给测试一次 Context 启动。产品源码不能导入这个入口。
 
 Cordis 仍负责组合、依赖注入和生命周期。assembly 仍负责求值、采用、交接和租约关闭协议。
 
