@@ -1,6 +1,6 @@
 # 定义求值与装配交接行为规格
 
-本目录不是可运行包。下面从「一组租约」到「就绪、撤除和远端中断」的关闭行为，已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受，是该范围的现行契约。求值快照、绑定生效点、缺依赖失败和旧新推进权仍待确定。
+本目录是 workspace 包 `@omne-harness/assembly`。下面从「一组租约」到「就绪、撤除和远端中断」的关闭行为，已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受，是该范围的现行契约。求值快照、绑定生效点、缺依赖失败和旧新推进权仍待确定。
 
 谁必须关闭、配置代际如何留在原提供者，以及同级 Cordis effect 的完成顺序不是关闭顺序，只写在[Cordis 装配与服务生命周期](../../../docs/architecture/deployment/cordis-and-lifecycle.md)。改那些句子只改该页。改下面的报告结果只改本页。
 
@@ -102,12 +102,16 @@
 
 ## 验证
 
-本目录不是 workspace 包。关闭行为的探针在 `verification/close-protocol.test.ts`。进程在 `close` 完成前被杀死的探针在 `verification/process-kill.test.ts`。
+`tests/close-protocol.spec.ts` 从 `@omne-harness/assembly` 核对关闭行为。`tests/public-entry.spec.ts` 从包名核对公开导出。
 
-在本目录执行：
+在工作树根目录执行：
+
+`pnpm --filter @omne-harness/assembly test`
+
+`verification/close-protocol.test.ts` 与 `verification/process-kill.test.ts` 导入生产模块 `src/close-protocol.ts`。在本目录执行：
 
 `node --experimental-strip-types --test verification/close-protocol.test.ts verification/process-kill.test.ts`
 
-2026-10-14 用 Node v24.21.0 跑过该命令，21 项通过。其中进程杀死试验观察到子进程收到 SIGKILL，并且没有写出关闭报告。
+2026-10-14 在 Node v26.0.0 上跑过这两条命令。包测试 28 项通过。目录里的 node 测试 21 项通过。进程杀死试验观察到子进程收到 SIGKILL，并且没有写出关闭报告。仓库 engines 要求 Node `>=24.18.0 <25`。这次没有在该范围重跑。
 
-探针不覆盖真实后端和远端中断。没有可启动的网络、MCP、执行环境或数据库成员，因此没有做这些试验。Cordis 4.0.4 的依赖换代、调用方 Context、清理顺序和异常传播，用 `packages.0.0.1.legacy/core/kernel-basis` 里已有的 basis 探针核对，不把该旧包当成新的辅助层。
+这些测试没有覆盖真实后端，也没有覆盖远端中断。没有可启动的网络、MCP、执行环境或数据库成员，因此没有做这些试验。Cordis 4.0.4 的依赖换代、调用方 Context、清理顺序和异常传播，用 `packages.0.0.1.legacy/core/kernel-basis` 里已有的 basis 探针核对，不把该旧包当成新的辅助层。

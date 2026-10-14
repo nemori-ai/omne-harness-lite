@@ -1,2 +1,8 @@
-// PACKAGE_TEMPLATE_DRAFT: Export the accepted public functions/types here.
-export {}
+export {
+  createCloseProtocol,
+  LeaseId,
+  type Clock,
+  type CloseProtocol,
+  type CloseReport,
+  type Step,
+} from './close-protocol.ts'
