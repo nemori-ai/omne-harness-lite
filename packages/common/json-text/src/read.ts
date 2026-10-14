@@ -85,7 +85,7 @@ export function readJsonText(text: string, limits: JsonLimits): JsonRead {
 
 function readDecoded(text: string, byteLength: number, limits: JsonLimits): JsonRead {
   if (text.startsWith('\uFEFF')) return { kind: 'bom' }
-  if (byteLength > limits.maxBytes) return { kind: 'budget', name: 'bytes' }
+  if (byteLength > limits.maxBytes) return budget('bytes')
   if (/^[ \t\n\r]*$/.test(text)) return { kind: 'empty' }
   return scanDocument(text, limits)
 }
