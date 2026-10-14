@@ -75,12 +75,15 @@ function providerSource() {
         WHERE tenant = ? AND domain = ? AND operation = ? AND protocol = ? AND opkey = ?\`)
         .get(id.tenant, id.transactionDomain, id.operation, id.protocolVersion, id.operationKey)
     }
+    let portClosed = false
     function port(sql) {
+      if (portClosed) return { refused: true, reason: 'port_closed' }
       db.setAuthorizer(action => action === constants.SQLITE_TRANSACTION ? constants.SQLITE_DENY : constants.SQLITE_OK)
       try {
         db.exec(sql)
         return { refused: false }
       } catch (error) {
+        portClosed = true
         return { refused: true, reason: String(error.message) }
       } finally {
         db.setAuthorizer(null)
@@ -188,13 +191,18 @@ function providerSource() {
         return
       }
       if (message.type === 'ownership') {
+        portClosed = false
+        db.exec('DROP TABLE IF EXISTS escaped_after_error')
         db.exec('BEGIN IMMEDIATE')
         db.exec('CREATE TABLE IF NOT EXISTS port_guard (id INTEGER PRIMARY KEY)')
         db.prepare('INSERT INTO port_guard (id) VALUES (7)').run()
         const gate = port(message.sql)
-        db.exec('ROLLBACK')
+        const followup = message.followup ? port(message.followup) : null
+        let rollbackError = null
+        try { db.exec('ROLLBACK') } catch (error) { rollbackError = error.message }
         const left = db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name = 'port_guard'").get().n
-        parentPort.postMessage({ gate, tableLeft: left })
+        const escaped = db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name = 'escaped_after_error'").get().n
+        parentPort.postMessage({ gate, followup, tableLeft: left, escapedTable: escaped, rollbackError })
         return
       }
       if (message.type === 'execute') {
@@ -381,6 +389,12 @@ for (const sql of bypass) {
   bypassResults.push(await third.ask({ type: 'ownership', sql }))
 }
 record('port-cannot-end-provider-transaction', bypassResults)
+const lost = await third.ask({
+  type: 'ownership',
+  sql: 'INSERT OR ROLLBACK INTO port_guard (id) VALUES (7)',
+  followup: 'CREATE TABLE escaped_after_error (id INTEGER)',
+})
+record('statement-failure-closes-port', lost)
 
 record('unsupported-protocol', await third.ask({
   type: 'commit',
@@ -415,35 +429,71 @@ record('closing', await third.ask({
 
 let unanswered = 0
 const admissionQueueLimit = 1
-function reserveSend(message) {
+const releasedTokens = new Set()
+let tokenSeq = 0
+function releaseOnce(token) {
+  if (releasedTokens.has(token)) return { released: false, unanswered }
+  releasedTokens.add(token)
+  unanswered -= 1
+  return { released: true, unanswered }
+}
+function reserve(message) {
   if (unanswered >= admissionQueueLimit) {
     return { kind: 'rejected_before_accept', reason: 'queue_full', sent: false, unanswered, admissionQueueLimit }
   }
   unanswered += 1
-  return third.ask({ ...message, reserved: true }).finally(() => {
-    unanswered -= 1
-  })
+  const token = ++tokenSeq
+  return { sent: true, token, pending: third.ask({ ...message, reserved: true }) }
 }
-const firstReserved = reserveSend({
+const slotMessage = key => ({
   type: 'commit',
   generation: 1,
-  identity: { ...identity, operationKey: 'op-slot' },
+  identity: { ...identity, operationKey: key },
   combinationVersion: 'v1',
   commands,
 })
-const secondReserved = reserveSend({
-  type: 'commit',
-  generation: 1,
-  identity: { ...identity, operationKey: 'op-slot-2' },
-  combinationVersion: 'v1',
-  commands,
+const firstSlot = reserve(slotMessage('op-slot'))
+const secondSlot = reserve(slotMessage('op-slot-2'))
+record('queue-full-before-send', secondSlot.sent ? { sent: true } : secondSlot)
+const cancelledWhileInFlight = reserve(slotMessage('op-slot-cancel'))
+record('cancel-keeps-slot', cancelledWhileInFlight.sent
+  ? { sent: true, unanswered }
+  : { ...cancelledWhileInFlight, cancelledObservation: true })
+const firstResult = await firstSlot.pending
+record('first-slot', firstResult)
+const afterResult = releaseOnce(firstSlot.token)
+const lateAgain = releaseOnce(firstSlot.token)
+const afterRelease = reserve(slotMessage('op-slot-after'))
+record('slot-returns-once', {
+  afterResult,
+  lateAgain,
+  nextSent: afterRelease.sent === true,
+  unanswered,
 })
-record('queue-full-before-send', secondReserved instanceof Promise ? { sent: true } : secondReserved)
-record('first-slot', await firstReserved)
+if (afterRelease.pending) {
+  await afterRelease.pending
+  releaseOnce(afterRelease.token)
+}
+unanswered += 1
+const removedToken = ++tokenSeq
+const removal = releaseOnce(removedToken)
+const afterRemoval = reserve(slotMessage('op-slot-removed'))
+record('unstarted-removal-returns-slot', { removal, nextSent: afterRemoval.sent === true, unanswered })
+if (afterRemoval.pending) {
+  await afterRemoval.pending
+  releaseOnce(afterRemoval.token)
+}
+unanswered += 1
+const failedSend = ++tokenSeq
+record('send-failure-returns-slot', releaseOnce(failedSend))
 record('slow-sql-saturation', { ran: false, reason: 'not run in this probe' })
 
 await third.worker.terminate()
 
+const lostOk = lost.followup?.reason === 'port_closed' && lost.escapedTable === 0 && lost.tableLeft === 0 && lost.rollbackError
+const bypassOk = bypassResults.every(item => item.gate.refused === true && item.tableLeft === 0 && item.escapedTable === 0)
+const cancelOk = cancelledWhileInFlight.sent === false && cancelledWhileInFlight.unanswered === 1
+const onceOk = afterResult.released === true && lateAgain.released === false && afterRelease.sent === true
 const summary = {
   node: process.version,
   platform: process.platform,
@@ -454,3 +504,4 @@ const summary = {
 }
 console.log(JSON.stringify(summary, null, 2))
 rmSync(root, { recursive: true, force: true })
+if (!lostOk || !bypassOk || !cancelOk || !onceOk || secondSlot.sent !== false) process.exit(1)

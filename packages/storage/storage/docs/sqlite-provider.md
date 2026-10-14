@@ -30,9 +30,9 @@ Worker 一次处理一条消息。`node:sqlite` 的语句在这条消息里同�
 1. 控制侧入口核对必需字段。字段缺失时，`commit` 返回 `field_missing`。
 2. 控制侧入口核对 `participant` 不重复，并且每条命令的 `facts` 都是 JSON 值。不成立时，`commit` 返回 `participant_repeated` 或 `facts_not_json`。
 3. 控制侧入口用 RFC 8785 写出调用方排好的命令数组，再对写出的 UTF-8 字节计算 SHA-256。提供者不重排命令。
-4. 控制侧拥有这条连接的预留计数。个数已经等于 `admissionQueueLimit` 时，返回 `queue_full`，不发送。允许发送时先加一，再把带预留标记的消息发给 Worker。命令条数和单条字节也在发送前核对，超过上限返回 `command_limit`。协议版本不是 `1` 时返回 `unsupported_protocol`。命令数组为空时返回 `field_missing`。
+4. 控制侧拥有这条连接的预留计数。个数已经等于 `admissionQueueLimit` 时，返回 `queue_full`，不发送。允许发送时先加一，再把带预留标记的消息发给 Worker。命令条数和单条字节也在发送前核对，超过上限返回 `command_limit`。协议版本不是 `1` 时返回 `unsupported_protocol`。命令数组为空时返回 `field_missing`。预留在四种情况下各归还一次：结果已经由结果拥有者收下，操作在执行前被确认撤下，发送失败，Worker 退出。取消观察不归还仍在执行或已经发出的预留。已经归还的预留，迟到结果不再减一。
 5. Worker 核验消息带有预留。没有预留则拒绝执行。Worker 不因为个数已经等于上限而拒绝这条已经预留的请求。
-6. Worker 核对旧写代际已排除。未排除时，`commit` 返回 `writer_not_current`，控制侧交还结果后把预留减一。
+6. Worker 核对旧写代际已排除。未排除时，`commit` 返回 `writer_not_current`。结果由结果拥有者收下后，控制侧把这次预留归还一次。观察方是否还在，不影响这一次归还。
 7. Worker 在写连接上读取登记。没有登记时返回 `combination_unregistered`。参加者不在登记中时返回 `participant_not_in_combination`。通过核对的操作进入处理。
 8. 轮到该操作时，Worker 执行 `BEGIN IMMEDIATE`。等待写锁的时间以 `lockWaitMs` 为上限。
 9. Worker 在事务内按操作身份读取回执。回执存在且摘要相同时，Worker 用 `ROLLBACK` 结束这个还没有写入的事务，`commit` 返回已保存的回执。回执存在且摘要不同时，Worker 同样结束事务，`commit` 返回 `identity_conflict` 和已有回执。这两种情况都不执行命令。
@@ -55,7 +55,7 @@ sequenceDiagram
     C->>E: commit
     E->>E: 核对字段和 JSON 值
     E->>E: RFC 8785 写出并计算摘要
-    E->>E: 发送前核对尚未返回的 commit 数量
+    E->>E: 发送前核对尚未确认结束的预留
     alt 已达上限或其它受理前拒绝
         E-->>C: rejected_before_accept
     else 未达上限
@@ -82,12 +82,12 @@ sequenceDiagram
 
 ## 明确回滚
 
-1. 正常提交的第 10 步中，某条命令出现明确的业务失败。
-2. Worker 对这个事务执行 `ROLLBACK`。所有参加者的事实都不保留。
-3. Worker 开始第二个短事务。这个事务只写入明确回滚回执，然后执行 `COMMIT`。
-4. 第二个事务提交后，`commit` 返回 `rolled_back`。同一操作身份和同一输入摘要以后再次提交，得到这份明确回滚回执。
+1. 正常提交的第 10 步中，某条命令出现明确的业务失败。提供者关闭这次调用的端口。后面的 `execute` 不再把 SQL 交给 SQLite。
+2. Worker 撤下 authorizer，再确认事务。事务还在则执行 `ROLLBACK`。失败的语句已经结束事务时，Worker 不再执行参加者语句。`ROLLBACK` 因其他原因失败时，`commit` 返回 `unknown`。
+3. 事务已经结束时，Worker 开始第二个短事务。这个事务只写入明确回滚回执，然后执行 `COMMIT`。
+4. 第二个事务提交后，`commit` 返回 `rolled_back`。同一操作身份和同一输入摘要以后再次提交，得到这份明确回滚回执。第二个事务没有提交时，`commit` 返回 `unknown`。
 
-`ROLLBACK` 撤下第一个事务里的全部写入。明确回滚回执必须在回滚之后仍然存在，所以它写在第二个事务里。
+第一个事务里的写入不保留。事务还在时，由提供者的 `ROLLBACK` 撤下。语句已经结束事务时，SQLite 已经撤下这些写入。明确回滚回执必须在这之后仍然存在，所以它写在第二个事务里。
 
 两个事务在同一次处理中完成。两个事务之间，Worker 不处理别的消息。所以同一身份的另一次尝试不会在回执写入之前开始执行。
 
@@ -101,7 +101,12 @@ sequenceDiagram
     W->>DB: BEGIN IMMEDIATE
     W->>DB: 参加者语句
     DB-->>W: 明确的业务失败
-    W->>DB: ROLLBACK
+    W->>W: 关闭这次端口
+    alt 事务还在
+        W->>DB: ROLLBACK
+    else 语句已经结束事务
+        W->>W: 不再执行参加者语句
+    end
     W->>DB: BEGIN IMMEDIATE
     W->>DB: 只写入 rolled_back 回执
     W->>DB: COMMIT
@@ -115,6 +120,7 @@ sequenceDiagram
 - 第 8 步或第二个短事务等待写锁，时间超过 `lockWaitMs`。
 - `COMMIT` 报错，提供者不能确定事务是否已经提交。
 - 回滚之后，写入明确回滚回执的第二个事务没有提交。
+- `ROLLBACK` 因其他原因失败。
 
 能确定的受理前失败返回 `rejected_before_accept`。
 
@@ -133,17 +139,17 @@ sequenceDiagram
 | 旧事务已终止 | 新连接打开时，SQLite 结束死连接留下的未提交事务。提供者在下一次 `BEGIN IMMEDIATE` 之前不持有事务 |
 | 数据库恢复已完成 | `DatabaseSync` 打开成功，并且版本和三项 PRAGMA 读回成功。打开失败则这项不成立 |
 | 权威读取已成功 | 第 3 步在写连接上的读取成功 |
-| 该操作未进入受理队列 | 尚未交还结果的 `commit` 里没有这个操作身份 |
+| 该操作未进入受理队列 | 尚未确认结束的预留里没有这个操作身份 |
 
 受理队列只在内存中。重启后队列为空，旧队列中尚未开始的操作没有回执。
 
 ## 参加者端口
 
-参加者模块只拿到 `TransactionPort`。提供者在调用参加者期间用 SQLite authorizer 拒绝 `SQLITE_TRANSACTION`。注释、`NUL` 或多条语句里的提交和回滚也由 SQLite 拒绝。提供者自己写回执或回滚之前先撤下 authorizer。调用是事务内的 `execute(facts, port)`。`params` 只能是 `null`、布尔值、有限数、字符串或 `Uint8Array`。行的业务字段由参加者规定。
+参加者模块只拿到 `TransactionPort`。提供者在调用参加者期间用 SQLite authorizer 拒绝 `SQLITE_TRANSACTION`。注释、`NUL` 或多条语句里的提交和回滚也由 SQLite 拒绝。提供者自己写回执或回滚之前先撤下 authorizer。一条语句失败之后，这次调用的端口关闭，后面的 `execute` 不再把 SQL 交给 SQLite。调用是事务内的 `execute(facts, port)`。`params` 只能是 `null`、布尔值、有限数、字符串或 `Uint8Array`。行的业务字段由参加者规定。
 
 ## 关闭
 
-1. 提供者停止新的准入。此后新的 `commit` 返回 `closing`，不进入队列。队列里尚未开始的操作被撤下，不写回执。
+1. 提供者停止新的准入。此后新的 `commit` 返回 `closing`，不进入队列。队列里尚未开始的操作被确认撤下，不写回执，预留归还一次。
 2. Worker 不打断正在执行的语句。调用方在 Worker 之外计算关闭期限。Worker 要等当前语句返回，才能处理关闭。
 3. 语句在期限内结束时，Worker 关闭写连接，提供者观察 Worker 退出。关闭结果是 `closed`。
 4. 期限到达时语句还没有结束，关闭结果是 `incomplete`，不是 `closed`。
