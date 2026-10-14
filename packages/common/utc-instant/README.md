@@ -57,24 +57,24 @@ The behavior owner is the common-group README and the accepted #221 decision. Th
 | `parseDuration` | `syntax` | The text is not `PT<digits>[.<digits>]S` or `-PT<digits>[.<digits>]S`. |
 | `parseDuration` | `calendar-unit` | The text uses a designator other than seconds, for example `P1D`, `PT1M`, or `PT1H`. |
 | `readLeapSecondData` | `syntax` | A line does not match the IERS format, or the `#$` line or the `#@` line is missing or repeated. |
-| `readLeapSecondData` | `step` | Data rows do not advance, a row is not at midnight, or TAI-UTC changes by more than one second. |
+| `readLeapSecondData` | `step` | The first data row is not NTP `2272060800` with offset `10`, data rows do not advance, a row is not at midnight, or TAI-UTC changes by more than one second. |
 
 Leap-second rules:
 
 - Second 60 parses only on a day that the table lists as a positive insertion. A listed insertion stays valid after the table expiry.
-- The first data row of `leap-seconds.list` is the 1972-01-01 base offset. It is not an insertion. Each later `+1` row inserts `23:59:60` on the previous day.
+- The first data row of `leap-seconds.list` must be the 1972-01-01 base offset of 10. It is not an insertion. A list that starts later is truncated and fails as `step`. Each later `+1` row inserts `23:59:60` on the previous day. Lines may end with LF or CRLF.
 - A `-1` row deletes `23:59:59` on the previous day. The bundled table has no deletion. Tests use labelled test data for this rule.
 - Ordinary instants parse after the table expiry. This includes a month-end `23:59:59`.
 
 `parseInstant(text, table)` uses `table` instead of the bundled `leapSecondData`. A table comes from `readLeapSecondData(text, source)`. `leapSecondData.source` is a string. `leapSecondData.version` and `leapSecondData.expires` are `Instant` values. Compare them with `compareInstants`.
 
-`Instant`, `Duration`, and `LeapSecondData` are opaque. Their `toJSON` method throws a `TypeError`, so `JSON.stringify` cannot write `{}` for them. Write the text form with an encode function instead. `encodeInstant`, `compareInstants`, and `encodeDuration` throw a `TypeError` for a value that a parse function did not make.
+`Instant`, `Duration`, and `LeapSecondData` are opaque. Their `toJSON` and `toString` methods throw a `TypeError`, so `JSON.stringify` cannot write `{}` for them, and `String(value)` or a template literal cannot write `[object Object]`. Write the text form with an encode function instead. `encodeInstant`, `compareInstants`, and `encodeDuration` throw a `TypeError` for a value that a parse function did not make. `new value.constructor(...)` also throws a `TypeError`, because the constructors require a token that only the module holds.
 
 ## Design
 
 | Module | Responsibility |
 | --- | --- |
-| `src/index.ts` | Re-exports the seven runtime names and the three types. |
+| `src/index.ts` | Re-exports the seven runtime names and the types `Instant`, `Duration`, `LeapSecondData`, `InstantFailure`, `InstantParse`, `DurationFailure`, `DurationParse`, and `LeapSecondDataRead`. |
 | `src/instant.ts` | Owns `Instant` and `LeapSecondData`, parsing, encoding, comparison, and the assembly of `leapSecondData`. |
 | `src/duration.ts` | Owns `Duration`, its parsing, and its encoding. |
 | `src/leap-seconds.ts` | Reads the IERS format and returns plain data with civil text. It does not import `instant.ts`. |
@@ -82,7 +82,7 @@ Leap-second rules:
 
 An `Instant` stores two strings in private fields. The first is the fixed-width civil text `YYYY-MM-DDTHH:MM:SS`. The second is the fraction digits as written. `compareInstants` orders the civil text as a string. Then it compares the fraction digits one by one and reads a missing digit as `0`. Second 60 therefore sorts before the next midnight.
 
-A `Duration` stores its sign, its whole-second digits, and its fraction digits as strings. A `LeapSecondData` stores its source, its version and expiry instants, and the sets of insertion and deletion days.
+A `Duration` stores the accepted text in one private field. A `LeapSecondData` stores its source, its version and expiry instants, and the sets of insertion and deletion days.
 
 The generated module keeps the table inside `dist`. The package does not read the file system or the network at run time.
 

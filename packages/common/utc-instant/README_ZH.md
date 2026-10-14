@@ -57,24 +57,24 @@ parseDuration('P1D') // { ok: false, failure: { kind: 'calendar-unit' } }
 | `parseDuration` | `syntax` | 文本不是 `PT<数字>[.<数字>]S` 或 `-PT<数字>[.<数字>]S`。 |
 | `parseDuration` | `calendar-unit` | 文本使用了秒以外的单位，例如 `P1D`、`PT1M` 或 `PT1H`。 |
 | `readLeapSecondData` | `syntax` | 某一行不符合 IERS 格式，或 `#$` 行、`#@` 行缺失或重复。 |
-| `readLeapSecondData` | `step` | 数据行没有向后推进，某一行不在零点，或 TAI-UTC 的变化超过一秒。 |
+| `readLeapSecondData` | `step` | 第一行数据不是 NTP `2272060800` 偏移 `10`，数据行没有向后推进，某一行不在零点，或 TAI-UTC 的变化超过一秒。 |
 
 闰秒规则：
 
 - 只有表列为正闰秒插入的那一天，秒 60 才能解析。已列入的插入在表失效后仍然有效。
-- `leap-seconds.list` 的第一行数据是 1972-01-01 的起始偏差，不是一次插入。之后每一个 `+1` 行在前一天插入 `23:59:60`。
+- `leap-seconds.list` 的第一行数据必须是 1972-01-01 的起始偏差 10，不是一次插入。从更晚处开始的表是截断表，按 `step` 失败。之后每一个 `+1` 行在前一天插入 `23:59:60`。行尾可以是 LF 或 CRLF。
 - `-1` 行删除前一天的 `23:59:59`。内嵌表没有删除。测试用标明为测试数据的表覆盖这条规则。
 - 表失效后，普通时间点仍然可以解析，包括月末的 `23:59:59`。
 
 `parseInstant(text, table)` 用 `table` 代替内嵌的 `leapSecondData`。表由 `readLeapSecondData(text, source)` 得到。`leapSecondData.source` 是字符串。`leapSecondData.version` 和 `leapSecondData.expires` 是 `Instant`，用 `compareInstants` 比较。
 
-`Instant`、`Duration` 和 `LeapSecondData` 是不透明的值。它们的 `toJSON` 方法抛出 `TypeError`，所以 `JSON.stringify` 不会把它们写成 `{}`。需要文本时用编码函数。`encodeInstant`、`compareInstants` 和 `encodeDuration` 收到不是解析函数产生的值时，抛出 `TypeError`。
+`Instant`、`Duration` 和 `LeapSecondData` 是不透明的值。它们的 `toJSON` 和 `toString` 方法抛出 `TypeError`，所以 `JSON.stringify` 不会把它们写成 `{}`，`String(value)` 和模板字符串也不会写成 `[object Object]`。需要文本时用编码函数。`encodeInstant`、`compareInstants` 和 `encodeDuration` 收到不是解析函数产生的值时，抛出 `TypeError`。`new value.constructor(...)` 同样抛出 `TypeError`，因为构造函数要求只有模块自己持有的标记。
 
 ## 设计
 
 | 模块 | 职责 |
 | --- | --- |
-| `src/index.ts` | 重新导出七个运行时名字和三个类型。 |
+| `src/index.ts` | 重新导出七个运行时名字，以及类型 `Instant`、`Duration`、`LeapSecondData`、`InstantFailure`、`InstantParse`、`DurationFailure`、`DurationParse` 和 `LeapSecondDataRead`。 |
 | `src/instant.ts` | 拥有 `Instant` 和 `LeapSecondData`，负责解析、编码、比较，并组装 `leapSecondData`。 |
 | `src/duration.ts` | 拥有 `Duration` 及其解析和编码。 |
 | `src/leap-seconds.ts` | 读取 IERS 格式，返回带民用文本的普通数据。它不导入 `instant.ts`。 |
@@ -82,7 +82,7 @@ parseDuration('P1D') // { ok: false, failure: { kind: 'calendar-unit' } }
 
 `Instant` 用两个私有字段保存两个字符串。第一个是定宽的民用文本 `YYYY-MM-DDTHH:MM:SS`。第二个是原样的小数数字。`compareInstants` 先按字符串次序比较民用文本，再逐位比较小数，缺少的位按 `0` 读。因此秒 60 排在次日零点之前。
 
-`Duration` 用字符串保存符号、整秒数字和小数数字。`LeapSecondData` 保存来源、版本与失效时间点，以及插入日和删除日的集合。
+`Duration` 用一个私有字段保存被接受的原文。`LeapSecondData` 保存来源、版本与失效时间点，以及插入日和删除日的集合。
 
 生成模块让闰秒表进入 `dist`。本包运行时不读文件系统，也不访问网络。
 
