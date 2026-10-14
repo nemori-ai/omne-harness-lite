@@ -103,6 +103,42 @@ SDK是客户端统一编程入口，承接调用、观察、订阅及明确属�
 
 完整Harness客户端通过SDK使用系统；独立能力消费者可以直接使用所需能力及所选实现，不强制经过SDK。同组不要求共同安装或发布。首批SDK操作、传输、认证、兼容、缓存、订阅恢复及拥有式daemon启动沿[分层后续设计](architecture/layers-and-dependencies.md#待细化范围)明确，本页不补默认协议。
 
+## 最小 CLI 的接入边界
+
+最小 CLI 是 `apps/` 中尚未创建的应用成员。成员名未定，本页不建立目录。它拥有进程入口、命令解析、人读与机读呈现，以及本地状态目录。系统能力经 SDK 使用。它不导入 server-entry、服务端提供者、服务端业务存储、runtime 实例或服务端 Cordis 装配树。
+
+```mermaid
+flowchart LR
+  cli["CLI 应用"]
+  sdk["SDK"]
+  server["server-entry"]
+
+  cli -->|"使用系统能力"| sdk
+  sdk -->|"不进入服务端装配树"| server
+  cli -.->|"不依赖"| server
+```
+
+命令解析模块不导入 `@deepseek-ai/cordis`，也不导入 Cordis 绑定。这是该应用自己的承诺。现行 IC-4 仍写明 `core/kernel-basis` 与 `apps/` 不受「包根出口不得引入 Cordis」约束。本页不修改 IC-4，也不修改检查器。新应用若放在 `apps/` 下，仍落在这条既有例外里。检查器不会因为它导入 Cordis 而失败。以后若要给该应用加 Cordis 绑定，绑定放在该包的 `./cordis`，与命令解析分开。
+
+单独的 `--help` 或单独的 `--version` 写到 stdout 后退出 0。两者不能再带其他选项或位置参数。这条路径不打开、不创建 `OMNE_HOME`、`--home` 或业务存储。版本行来自构建产物旁的身份文件，不来自状态目录。TTY 上的后续交互呈现使用已采用的 pi-tui，只作为应用表现层。非 TTY 输出机器可读结果。以后实现命令循环时，可以参考 pi、DeepSeek Harness 的 CLI 和 kimi-code CLI 的分流。那些实现的存储、登录和服务端装配不进入本边界。
+
+```mermaid
+flowchart TD
+  entry["进程入口"]
+  parse["命令解析"]
+  entry --> parse
+  parse -->|"只有单独的 --help 或 --version"| stdout["写 stdout 并退出"]
+  parse -->|"其他命令"| branch{"是否 TTY"}
+  branch -->|"是"| tui["pi-tui 表现层"]
+  branch -->|"否"| machine["机读输出"]
+  tui --> sdkUse["SDK"]
+  machine --> sdkUse
+```
+
+开发工具留在 `tools/`。`tools/artifact-builder` 不依赖 CLI。旧 CLI 把该包列为 devDependency。`tools/ts-checks` 仍通过 workspace devDependency 使用 `packages.0.0.1.legacy` 下的 `identity-values`，该消费者保留到后续任务迁移。`scripts/package-cli.sh` 仍指向 `apps/cli/tools/package.ts`。本页不改该脚本，也不把 `apps/cli` 当作已经存在的成员。
+
+脱离仓库安装时，CLI 包拥有 `bin`、构建后的启动模块、构建身份资源和指向 SDK 包的依赖声明。进程不需要本仓库作为工作目录。本页不发布安装包。包模板仍无应用变体。这不构成额外准入。创建成员的门槛是 [apps 入口](../apps/README.md#建立与维护) 要求的应用规格和公开依赖，以及 [workspace](workspace.md) 对「尚无代码的承诺不建空成员」的要求。本卡不创建该成员。测试随未来的 CLI 应用、SDK、server-entry 和 `tools/ts-checks` 各自的包。本页不新增这些测试。
+
 ## 依赖方向与Cordis集成
 
 依赖按角色和公开契约判断，不按core、infra或util目录名取得许可。共同纯定义不依赖领域状态和提供者；能力契约不依赖实现它的提供者、SDK或应用；业务实现通过公开契约和显式依赖组合，产品装配负责选择提供者。

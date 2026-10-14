@@ -14,8 +14,24 @@
 
 先确认应用规格及其公开依赖，再建立真实成员。应用负责启动、配置、装配、就绪与退出；可复用业务归packages。应用目录不自动成为进程或微服务。成员拥有自身使用、配置、运行限制、契约及验证，不凭空目录声称支持部署。
 
+最小 CLI 的接入边界已记在[包组织](../docs/package-organization.md#最小-cli-的接入边界)。成员名仍未定，这里不创建目录。单独的 `--help` 或 `--version` 写到 stdout 后退出，不打开、不创建状态目录或业务存储。
+
+```mermaid
+flowchart TD
+  entry["进程入口"]
+  parse["命令解析"]
+  entry --> parse
+  parse -->|"只有单独的 --help 或 --version"| stdout["写 stdout 并退出"]
+  parse -->|"其他命令"| branch{"是否 TTY"}
+  branch -->|"是"| tui["pi-tui 表现层"]
+  branch -->|"否"| machine["机读输出"]
+  tui --> sdkUse["SDK"]
+  machine --> sdkUse
+  sdkUse --> serverUse["server-entry"]
+```
+
 <!-- documentation:placeholder -->
-具体成员、提供包及装配规格待设计；没有成员名时不伪造文件目标。
+具体成员名、提供包及其余装配规格仍待设计；没有成员名时不伪造文件目标。
 
 ## 旧应用
 
