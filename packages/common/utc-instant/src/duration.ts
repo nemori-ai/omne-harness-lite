@@ -1,12 +1,16 @@
 let textOf: (duration: Duration) => string
 
+// Only this module holds the token, so `new value.constructor(...)` from outside cannot mint.
+const MINT = Symbol('utc-instant mint')
+
 /** A signed length in SI seconds, kept as the exact digits it was written with. */
 class Duration {
   readonly #negative: boolean
   readonly #seconds: string
   readonly #fraction: string
 
-  constructor(negative: boolean, seconds: string, fraction: string) {
+  constructor(mint: symbol, negative: boolean, seconds: string, fraction: string) {
+    if (mint !== MINT) throw new TypeError('Only parseDuration can make a Duration')
     this.#negative = negative
     this.#seconds = seconds
     this.#fraction = fraction
@@ -54,7 +58,7 @@ export function parseDuration(text: string): DurationParse {
     return { ok: false, failure: { kind: calendarUnit ? 'calendar-unit' : 'syntax' } }
   }
   const [, sign, seconds = '', fraction = ''] = match
-  return { ok: true, value: new Duration(sign === '-', seconds, fraction) }
+  return { ok: true, value: new Duration(MINT, sign === '-', seconds, fraction) }
 }
 
 /** Writes the text the duration was parsed from, digits unchanged. */

@@ -6,12 +6,16 @@ let fractionOf: (instant: Instant) => string
 let inserts: (table: LeapSecondData, day: string) => boolean
 let deletes: (table: LeapSecondData, day: string) => boolean
 
+// Only this module holds the token, so `new value.constructor(...)` from outside cannot mint.
+const MINT = Symbol('utc-instant mint')
+
 /** A UTC instant: calendar fields to the second plus the exact fraction digits it was written with. */
 class Instant {
   readonly #civil: string
   readonly #fraction: string
 
-  constructor(civil: string, fraction: string) {
+  constructor(mint: symbol, civil: string, fraction: string) {
+    if (mint !== MINT) throw new TypeError('Only parseInstant can make an Instant')
     this.#civil = civil
     this.#fraction = fraction
   }
@@ -39,12 +43,14 @@ class LeapSecondData {
   readonly #deletions: ReadonlySet<string>
 
   constructor(
+    mint: symbol,
     source: string,
     version: Instant,
     expires: Instant,
     insertions: readonly string[],
     deletions: readonly string[],
   ) {
+    if (mint !== MINT) throw new TypeError('Only readLeapSecondData can make a LeapSecondData')
     this.#source = source
     this.#version = version
     this.#expires = expires
@@ -96,9 +102,10 @@ export function readLeapSecondData(text: string, source: string): LeapSecondData
   return {
     ok: true,
     value: new LeapSecondData(
+      MINT,
       source,
-      new Instant(version, ''),
-      new Instant(expires, ''),
+      new Instant(MINT, version, ''),
+      new Instant(MINT, expires, ''),
       insertions,
       deletions,
     ),
@@ -144,7 +151,7 @@ export function parseInstant(text: string, table: LeapSecondData = leapSecondDat
   const [, civil = '', fraction = '', zone] = match
   if (zone !== 'Z') return { ok: false, failure: { kind: 'offset' } }
   if (!inRange(civil)) return { ok: false, failure: { kind: 'range' } }
-  const value = new Instant(civil, fraction)
+  const value = new Instant(MINT, civil, fraction)
   const day = civil.slice(0, 10)
   const time = civil.slice(11)
   if (time === '23:59:59' && deletes(table, day))
