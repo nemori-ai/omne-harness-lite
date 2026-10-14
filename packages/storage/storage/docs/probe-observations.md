@@ -24,9 +24,10 @@
 | 注释、NUL 和多语句不能结束提供者事务 | `COMMIT` 后接 U+0000、`/* probe */ COMMIT`、`SELECT 1; BEGIN`、`-- probe` 换行后的 `ROLLBACK` 都返回 not authorized。四种情况下，事务内新建的表在提供者 `ROLLBACK` 之后数量都是 0 |
 | 语句失败后端口关闭 | `INSERT OR ROLLBACK` 命中已有主键，原因是 UNIQUE constraint failed。同一次调用的下一条 `CREATE TABLE escaped_after_error` 返回 `port_closed`，没有执行。`port_guard` 和 `escaped_after_error` 的表数量都是 0。提供者随后的 `ROLLBACK` 得到 cannot rollback - no transaction is active |
 | 发送前队列已满 | 上限为 1。第一条 `op-slot` 已预留并返回 `committed`。第二条在个数已经等于 1 时返回 `queue_full`，`sent` 为 false |
-| 取消观察不归还在途预留 | 第一条尚未结束时取消观察。下一条仍是 `queue_full`，`sent` 为 false，个数仍是 1。结果收下后归还一次，再归还一次时 `released` 为 false。归还之后下一条可以发送 |
-| 确认撤下尚未开始的预留 | 预留之后、发送之前确认撤下。个数回到 0，下一条可以发送 |
-| 发送失败归还预留 | 发送没有发出时归还一次，个数回到 0 |
+| 取消观察不归还在途预留 | 第一条 `op-slot` 已经 `postMessage`。父侧 `AbortController.abort()` 之后信号为 aborted，当时个数是 1，中止回调没有归还。下一条 `posted` 为 false，原因 `queue_full`。这条结果收下后归还一次；再归还时 `released` 为 false。随后下一条 `posted` 为 true。Worker 没有收到这个信号 |
+| 确认撤下尚未开始的预留 | 消息进入控制侧待发送数组，长度为 1。从数组撤下后长度为 0，这次没有 `postMessage`。归还后个数是 0，下一条 `posted` 为 true |
+| 发送失败归还预留 | `postMessage` 放入一个函数，抛出 `DataCloneError`，消息没有进入 Worker。归还一次后个数是 0 |
+| Worker 退出归还预留 | `park` 已经 `postMessage`。`terminate` 的退出码是 1。退出回调里归还一次；再归还时 `released` 为 false，个数是 0 |
 | 协议版本不是 `1` | `unsupported_protocol` |
 | 空命令数组 | `field_missing` |
 | 命令条数超过探针里的上限 | `command_limit` |

@@ -209,9 +209,11 @@ function providerSource() {
         parentPort.postMessage(port(message.sql))
         return
       }
-      if (message.type === 'hold') {
-        generation = message.generation
-        parentPort.postMessage({ held: true, generation })
+      if (message.type === 'park') {
+        const view = new Int32Array(message.sab)
+        Atomics.wait(view, 0, 0)
+        parentPort.postMessage({ parked: false })
+        return
       }
     })
   `
@@ -439,11 +441,24 @@ function releaseOnce(token) {
 }
 function reserve(message) {
   if (unanswered >= admissionQueueLimit) {
-    return { kind: 'rejected_before_accept', reason: 'queue_full', sent: false, unanswered, admissionQueueLimit }
+    return {
+      kind: 'rejected_before_accept',
+      reason: 'queue_full',
+      sent: false,
+      posted: false,
+      unanswered,
+      admissionQueueLimit,
+    }
   }
   unanswered += 1
   const token = ++tokenSeq
-  return { sent: true, token, pending: third.ask({ ...message, reserved: true }) }
+  const observer = new AbortController()
+  const unansweredAtAbort = { value: null }
+  observer.signal.addEventListener('abort', () => {
+    unansweredAtAbort.value = unanswered
+  })
+  const pending = third.ask({ ...message, reserved: true })
+  return { sent: true, posted: true, token, observer, unansweredAtAbort, pending }
 }
 const slotMessage = key => ({
   type: 'commit',
@@ -455,10 +470,13 @@ const slotMessage = key => ({
 const firstSlot = reserve(slotMessage('op-slot'))
 const secondSlot = reserve(slotMessage('op-slot-2'))
 record('queue-full-before-send', secondSlot.sent ? { sent: true } : secondSlot)
-const cancelledWhileInFlight = reserve(slotMessage('op-slot-cancel'))
-record('cancel-keeps-slot', cancelledWhileInFlight.sent
-  ? { sent: true, unanswered }
-  : { ...cancelledWhileInFlight, cancelledObservation: true })
+firstSlot.observer.abort()
+const duringCancel = reserve(slotMessage('op-slot-cancel'))
+record('cancel-keeps-slot', {
+  signalAborted: firstSlot.observer.signal.aborted,
+  unansweredAtAbort: firstSlot.unansweredAtAbort.value,
+  next: duringCancel.posted ? { posted: true } : { posted: false, reason: duringCancel.reason, unanswered: duringCancel.unanswered },
+})
 const firstResult = await firstSlot.pending
 record('first-slot', firstResult)
 const afterResult = releaseOnce(firstSlot.token)
@@ -467,33 +485,69 @@ const afterRelease = reserve(slotMessage('op-slot-after'))
 record('slot-returns-once', {
   afterResult,
   lateAgain,
-  nextSent: afterRelease.sent === true,
+  nextPosted: afterRelease.posted === true,
   unanswered,
 })
 if (afterRelease.pending) {
   await afterRelease.pending
   releaseOnce(afterRelease.token)
 }
+const outbound = []
 unanswered += 1
 const removedToken = ++tokenSeq
+outbound.push({ token: removedToken, message: slotMessage('op-slot-removed') })
+const queued = outbound.length
+const dropped = outbound.splice(outbound.findIndex(item => item.token === removedToken), 1)
 const removal = releaseOnce(removedToken)
-const afterRemoval = reserve(slotMessage('op-slot-removed'))
-record('unstarted-removal-returns-slot', { removal, nextSent: afterRemoval.sent === true, unanswered })
+const afterRemoval = reserve(slotMessage('op-slot-after-removal'))
+record('unstarted-removal-returns-slot', {
+  queued,
+  dropped: dropped.length,
+  outboundAfter: outbound.length,
+  removal,
+  nextPosted: afterRemoval.posted === true,
+  unanswered,
+})
 if (afterRemoval.pending) {
   await afterRemoval.pending
   releaseOnce(afterRemoval.token)
 }
 unanswered += 1
 const failedSend = ++tokenSeq
-record('send-failure-returns-slot', releaseOnce(failedSend))
+let sendError = null
+try {
+  third.worker.postMessage({ type: 'commit', reserved: true, cannotClone: () => {} })
+} catch (error) {
+  sendError = error.name
+}
+const failRelease = sendError === null ? { released: false, unanswered } : releaseOnce(failedSend)
+record('send-failure-returns-slot', { sendError, ...failRelease })
+let parkPosted = false
+const sab = new SharedArrayBuffer(4)
+unanswered += 1
+const exitToken = ++tokenSeq
+third.ask({ type: 'park', sab, reserved: true })
+parkPosted = true
+const slotExitCode = await new Promise(resolve => {
+  third.worker.once('exit', resolve)
+  third.worker.terminate()
+})
+const exitRelease = releaseOnce(exitToken)
+const exitLate = releaseOnce(exitToken)
+record('worker-exit-returns-slot', { exitCode: slotExitCode, posted: parkPosted, exitRelease, exitLate })
 record('slow-sql-saturation', { ran: false, reason: 'not run in this probe' })
-
-await third.worker.terminate()
 
 const lostOk = lost.followup?.reason === 'port_closed' && lost.escapedTable === 0 && lost.tableLeft === 0 && lost.rollbackError
 const bypassOk = bypassResults.every(item => item.gate.refused === true && item.tableLeft === 0 && item.escapedTable === 0)
-const cancelOk = cancelledWhileInFlight.sent === false && cancelledWhileInFlight.unanswered === 1
-const onceOk = afterResult.released === true && lateAgain.released === false && afterRelease.sent === true
+const cancel = observations.find(item => item.name === 'cancel-keeps-slot').value
+const removalSeen = observations.find(item => item.name === 'unstarted-removal-returns-slot').value
+const sendFailure = observations.find(item => item.name === 'send-failure-returns-slot').value
+const exitSlot = observations.find(item => item.name === 'worker-exit-returns-slot').value
+const cancelOk = cancel.signalAborted === true && cancel.unansweredAtAbort === 1 && cancel.next.posted === false
+const onceOk = afterResult.released === true && lateAgain.released === false && afterRelease.posted === true
+const removalOk = removalSeen.dropped === 1 && removalSeen.outboundAfter === 0 && removalSeen.removal.released === true && removalSeen.nextPosted === true
+const sendOk = sendFailure.sendError === 'DataCloneError' && sendFailure.released === true && sendFailure.unanswered === 0
+const exitOk = exitSlot.posted === true && exitSlot.exitRelease.released === true && exitSlot.exitLate.released === false && exitSlot.exitRelease.unanswered === 0
 const summary = {
   node: process.version,
   platform: process.platform,
@@ -504,4 +558,4 @@ const summary = {
 }
 console.log(JSON.stringify(summary, null, 2))
 rmSync(root, { recursive: true, force: true })
-if (!lostOk || !bypassOk || !cancelOk || !onceOk || secondSlot.sent !== false) process.exit(1)
+if (!lostOk || !bypassOk || !cancelOk || !onceOk || !removalOk || !sendOk || !exitOk || secondSlot.posted !== false) process.exit(1)
