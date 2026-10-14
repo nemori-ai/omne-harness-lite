@@ -895,6 +895,10 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 包模板当前为 typescript-package@2.0.0，精确保留 1.0.0 旧标识规则。
 `service-contract` 的创建和结构扫描不再要求 `packages/core`。
 `scan --json` 在 `dependencies` 上报告已判断的边。`unknown` 保持 `unknown`。
+`group-direction` 仍对 `packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 报告 `unregistered-group`。
+这次不改这条规则。
+若把这些组登记进路径表，同组的 `sdk` 导入 `server-entry` 会在成环前继续合法。
+后续实施者的使用表和诊断形状见[模板说明](templates/package/README_ZH.md#后续实施者)。
 `create-domain --group <名称>` 预览 package-domain@1.0.0 组文档草稿，加 `--write` 才创建。`scan --group <名称> --check` 检查组结构，与 `--member` 互斥。见[组模板](templates/domain/README.md)。Python 文档 inventory 独立检查登记、章节与占位，结构结果不能代替正文接受。
 
 `core-pure-imports` 仅在 `core/model-request-runtime/src/model-log-history.ts` 允许已采用的 `immutable` 根入口。该模块使用其私有纯集合，理由归模型历史拥有者的 ADR。相邻文件、其他 core 成员和库的私有子路径继续拒绝。

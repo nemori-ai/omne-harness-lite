@@ -48,6 +48,26 @@ The rules are the existing IC rows, the layer rows, `undeclared-dependency`, and
 This change does not edit that rule.
 Registering those groups on `GROUP_DIRECTION_POLICY` would leave a same-group import from `sdk` to `server-entry` legal until the two members form a cycle.
 
+## Later implementers
+
+This template creates drafts and reports dependency rows. It does not build the later product.
+
+| Later work | How to use the template | This card does not provide |
+| --- | --- | --- |
+| Minimal CLI | Apps do not use this template. The CLI lives in `apps/`. Command parsing does not import `@deepseek-ai/cordis`. | There is no app variant, and this card does not implement the command loop. |
+| Member test facility | A draft includes a `tests/` slot. The isolation test shows that an official skeleton can build and typecheck. | This card does not build a package test platform. |
+| Base capability | `service-contract` and `cordis-module` can create a draft in a target group. The target path for `kernel-basis` is `packages/assembly/kernel-basis`. | This card does not create that member, and it does not move the sealed package. |
+
+## Dependency diagnostics
+
+A `scan --json` row includes `rule`, `state`, `member`, `targetMember`, and `sites`.
+
+A type import with no declared dependency has `rule` `undeclared-dependency` and `state` `deviation`. The `reason` is `源码引用 workspace 包但未在 dependencies、peerDependencies 或 devDependencies 声明`. `tests/dependency-report.spec.ts` asserts that sentence.
+
+A cycle through a `./cordis` subpath and a relative import has `rule` `member-cycle` and `state` `deviation`. The `reason` starts with `成员之间成环`. The same test asserts that shape.
+
+`unknown` stays `unknown`. Exit code 0 from `--check` does not mean every dependency row has been judged.
+
 Keep definition uniqueness and public entry rules. Do not bypass inspection with a handwritten structure or a false adoption marker.
 A provider consumes the public promises instead of copying them.
 Private helper services do not automatically make a coordination package a public Service provider.

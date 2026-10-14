@@ -136,6 +136,7 @@ The package template is typescript-package@2.0.0. Exact 1.0.0 rules remain avail
 `group-direction` still reports `unregistered-group` for `packages/access`, `packages/identity`, `packages/agent`, and `packages/assembly`.
 This change does not edit that rule.
 Registering those groups on the path table would leave a same-group import from `sdk` to `server-entry` legal until the two members form a cycle.
+The later-implementer table and diagnostic shapes are in the [template guide](templates/package/README.md#later-implementers).
 `create-domain --group <name>` previews a package-domain@1.0.0 documentation draft. Add --write to create it.
 `scan --group <name> --check` checks group structure. It is mutually exclusive with --member.
 See the [group template](templates/domain/README.md). Python documentation inventory separately checks bindings, sections and placeholders.
