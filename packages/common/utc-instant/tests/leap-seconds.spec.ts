@@ -148,6 +148,15 @@ describe('leap-second table values', () => {
     expect(() => String(leapSecondData)).toThrow(TypeError)
     expect(() => `${leapSecondData}`).toThrow(TypeError)
   })
+
+  it('cannot be minted through .constructor', () => {
+    const Hidden = leapSecondData.constructor as new (...args: unknown[]) => unknown
+    expect(() => new Hidden()).toThrow(TypeError)
+    expect(
+      () =>
+        new Hidden('forged', leapSecondData.version, leapSecondData.expires, ['2016-12-31'], []),
+    ).toThrow(TypeError)
+  })
 })
 
 describe('readLeapSecondData', () => {

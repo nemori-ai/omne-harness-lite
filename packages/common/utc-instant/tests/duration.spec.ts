@@ -60,4 +60,10 @@ describe('SI second durations', () => {
     const forged = {} as Parameters<typeof encodeDuration>[0]
     expect(() => encodeDuration(forged)).toThrow(TypeError)
   })
+
+  it('cannot be minted through .constructor', () => {
+    const Hidden = duration('PT5S').constructor as new (...args: unknown[]) => unknown
+    expect(() => new Hidden(false, '5', '')).toThrow(TypeError)
+    expect(() => new Hidden('PT5S')).toThrow(TypeError)
+  })
 })

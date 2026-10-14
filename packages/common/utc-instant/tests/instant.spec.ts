@@ -75,6 +75,14 @@ describe('instant values', () => {
     expect(() => encodeInstant(forged)).toThrow(TypeError)
     expect(() => compareInstants(forged, instant('2026-10-14T12:00:00Z'))).toThrow(TypeError)
   })
+
+  it('cannot be minted through .constructor', () => {
+    const Hidden = instant('2026-10-14T12:00:00Z').constructor as new (
+      ...args: unknown[]
+    ) => unknown
+    expect(() => new Hidden('2026-10-14T12:00:00', '')).toThrow(TypeError)
+    expect(() => new Hidden()).toThrow(TypeError)
+  })
 })
 
 describe('compareInstants', () => {
