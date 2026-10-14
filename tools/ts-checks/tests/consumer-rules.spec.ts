@@ -1,6 +1,6 @@
 // offer-expiry 消费者（SC-OE-1/2）、凭据材料（SC-CV-1）、注册组合（S-5）、清除链解析（OG S-42）与存储边界（N-2）：
-// 内存夹具两向自测，加真实源码的变异核对。
-import { readFileSync } from 'node:fs'
+// 内存夹具两向自测，加最小语法夹具的变异核对。
+import { contractSource } from './fixtures/contract-sources.ts'
 import { describe, expect, it } from 'vitest'
 import {
   noDialectBypass,
@@ -16,11 +16,6 @@ const OG = 'tenancy/organization-governance-sql/src/'
 const AI = 'tenancy/account-identity-sql/src/'
 const AR = 'tenancy/account-registration-sequential/src/'
 const file = (path: string, text: string): SourceFile => ({ path, text })
-const real = (path: string): SourceFile =>
-  file(
-    path,
-    readFileSync(new URL(`../../../packages.0.0.1.legacy/${path}`, import.meta.url), 'utf8'),
-  )
 
 describe('sc-oe-1', () => {
   it('持久记录类型（*Record／*Row／*Table）以 OfferState 为字段 ⇒ 报出', () => {
@@ -53,9 +48,11 @@ describe('sc-oe-1', () => {
     expect(scOe1.check([clean, owner])).toEqual([])
   })
 
-  it('变异核对：真实的 OG records.ts 原文无违反；把 settled 改成 OfferState ⇒ 报出', () => {
-    const original = real(`${OG}records.ts`)
-    expect(scOe1.check([original, real('core/organization-governance/src/types.ts')])).toEqual([])
+  it('变异核对：工具夹具的 OG records.ts 原文无违反；把 settled 改成 OfferState ⇒ 报出', () => {
+    const original = contractSource(`${OG}records.ts`)
+    expect(
+      scOe1.check([original, contractSource('core/organization-governance/src/types.ts')]),
+    ).toEqual([])
     const anchor = 'readonly settled: SettledState | null'
     expect(original.text).toContain(anchor)
     const mutated = file(
@@ -111,8 +108,8 @@ describe('sc-oe-2', () => {
     expect(scOe2.check([clean])).toEqual([])
   })
 
-  it('变异核对：真实的 OG offers.ts 原文无违反；把 acceptable() 换成逐值比较 ⇒ 报出', () => {
-    const original = real(`${OG}offers.ts`)
+  it('变异核对：工具夹具的 OG offers.ts 原文无违反；把 acceptable() 换成逐值比较 ⇒ 报出', () => {
+    const original = contractSource(`${OG}offers.ts`)
     expect(scOe2.check([original])).toEqual([])
     const anchor = "if (!acceptable(state)) return fail('offerNoLongerValid')"
     expect(original.text.split(anchor)).toHaveLength(3)
@@ -162,10 +159,10 @@ describe('sc-cv-1', () => {
     expect(scCv1.check([clean, cv])).toEqual([])
   })
 
-  it('变异核对：真实的 AI 源码原文无违反；在 logins.ts 里拆材料 ⇒ 报出', () => {
+  it('变异核对：工具夹具的 AI 源码原文无违反；在 logins.ts 里拆材料 ⇒ 报出', () => {
     const names = ['accounts.ts', 'logins.ts', 'records.ts', 'schema.ts']
-    expect(scCv1.check(names.map(n => real(`${AI}${n}`)))).toEqual([])
-    const original = real(`${AI}logins.ts`)
+    expect(scCv1.check(names.map(n => contractSource(`${AI}${n}`)))).toEqual([])
+    const original = contractSource(`${AI}logins.ts`)
     const anchor = 'snapshot.credential_material as CredentialMaterial,'
     expect(original.text).toContain(anchor)
     const mutated = file(
@@ -234,10 +231,10 @@ describe('terminal-outcome-closed', () => {
     expect(terminalOutcomeClosed.check([file(`${AR}index.ts`, 'export {}')])).toHaveLength(1)
   })
 
-  it('变异核对：真实的 AR 源码原文无违反；追加一个返回第五个值的 register ⇒ 报出', () => {
+  it('变异核对：工具夹具的 AR 源码原文无违反；追加一个返回第五个值的 register ⇒ 报出', () => {
     // 常量属于公共定义，方法属于提供者；规则同时核对两者，不丢失第五值反例。
-    const types = real('core/account-registration/src/types.ts')
-    const original = real(`${AR}index.ts`)
+    const types = contractSource('core/account-registration/src/types.ts')
+    const original = contractSource(`${AR}index.ts`)
     expect(terminalOutcomeClosed.check([types, original])).toEqual([])
     const mutated = file(
       original.path,
@@ -286,8 +283,8 @@ describe('og-s42-dynamic-resolve', () => {
     expect(ogS42DynamicResolve.check([ar, og, test])).toEqual([])
   })
 
-  it('变异核对：真实的 OG plugin.ts 原文无违反；让它自己解析一次 ⇒ 报出', () => {
-    const original = real(`${OG}plugin.ts`)
+  it('变异核对：工具夹具的 OG plugin.ts 原文无违反；让它自己解析一次 ⇒ 报出', () => {
+    const original = contractSource(`${OG}plugin.ts`)
     expect(ogS42DynamicResolve.check([original])).toEqual([])
     const anchor = 'new OrganizationPurgeSqlService(ctx,'
     expect(original.text).toContain(anchor)
@@ -336,9 +333,9 @@ describe('no-dialect-bypass', () => {
     expect(noDialectBypass.check([clean, test, infra])).toEqual([])
   })
 
-  it('变异核对：真实的 tenancy 源码原文无违反；在 OG records.ts 里另开连接 ⇒ 报出', () => {
-    const original = real(`${OG}records.ts`)
-    expect(noDialectBypass.check([original, real(`${AI}schema.ts`)])).toEqual([])
+  it('变异核对：工具夹具的 tenancy 源码原文无违反；在 OG records.ts 里另开连接 ⇒ 报出', () => {
+    const original = contractSource(`${OG}records.ts`)
+    expect(noDialectBypass.check([original, contractSource(`${AI}schema.ts`)])).toEqual([])
     const mutated = file(
       original.path,
       `${original.text}\nconst side = new Kysely<OgDatabase>({ dialect })\n`,

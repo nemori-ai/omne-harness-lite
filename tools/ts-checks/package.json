@@ -5,7 +5,7 @@
   "type": "module",
   "description": "产品源码的结构检查：契约与节点 verification 点名的静态检查规则，每条规则带「故意违反就失败」自测",
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=24.0.0"
   },
   "bin": {
     "omne-ts-checks": "./dist/cli.js",

@@ -11,8 +11,13 @@ import {
   readConstraints,
   CONSTRAINT_PATH,
   LEGACY_CONSTRAINT_PATH,
+  constraintDependencies,
 } from '../src/arch/constraints.ts'
-import { RULE_IDS, type ArchitectureConstraints } from '../src/arch/conformance-model.ts'
+import {
+  activeRoles,
+  RULE_IDS,
+  type ArchitectureConstraints,
+} from '../src/arch/conformance-model.ts'
 import { readArchitectureSource } from '../src/arch/source.ts'
 import { readConformanceSensor } from '../src/loop/sensors/conformance.ts'
 import { readActualArchitecture } from '../src/arch/actual.ts'
@@ -664,6 +669,90 @@ describe('version-local constraint migration', () => {
     const input = readConstraints(root, readArchitectureSource(root).source)
     expect(input.path).toBe(CONSTRAINT_PATH)
     expect(input.value).toEqual(parseConstraints(readFileSync(join(root, CONSTRAINT_PATH), 'utf8')))
+    expect(
+      input.sources.some(source => /^(?:apps|packages)\.0\.0\.1\.legacy\//u.test(source.path)),
+    ).toBe(false)
+  })
+  const archivedSource = 'packages.0.0.1.legacy/core/retired/SPEC.md'
+  function retirementIntent(paths: readonly string[]): ArchitectureConstraints {
+    return {
+      schemaVersion: 2,
+      domains: [],
+      roles: [
+        {
+          id: 'retired',
+          paths,
+          layer: 'interaction',
+          domains: [],
+          status: 'adopted',
+          source: archivedSource,
+        },
+      ],
+      rules: [{ id: 'LAYER-ENTRY', source: 'docs/architecture/accepted.md#rules' }],
+    }
+  }
+  it('retires only unmatched historical roles without reading their sources or losing their deletion', () => {
+    const { root } = setup()
+    const path = `${ui}/src/retired.ts`
+    const intent = retirementIntent([path])
+    write(root, CONSTRAINT_PATH, JSON.stringify(intent))
+    const base = commit(root, 'retired source with no active implementation')
+    write(root, CONSTRAINT_PATH, JSON.stringify({ ...intent, roles: [] }))
+    write(root, path, "import {value} from '@example/sql'; export const reused = value")
+    const report = readConformance({ root, base })
+    expect(report.baseline?.source.commit).toBe(base)
+    expect(report.baseline?.retiredRoleIds).toEqual(['retired'])
+    expect(report.baseline?.value?.roles).toEqual(intent.roles)
+    expect(report.baseline === undefined ? undefined : activeRoles(report.baseline)).toEqual([])
+    expect(report.baseline?.sources.map(source => source.path)).toEqual([
+      'docs/architecture/accepted.md',
+    ])
+    expect(report.changes).toEqual([
+      expect.objectContaining({
+        id: 'global-architecture',
+        before: expect.stringContaining('retired'),
+        after: expect.not.stringContaining('retired'),
+      }),
+    ])
+    expect(report.rows.some(row => row.rule === 'LAYER-ENTRY' && row.state === 'deviation')).toBe(
+      false,
+    )
+    expect(constraintDependencies(root, base)).toEqual([
+      CONSTRAINT_PATH,
+      'docs/architecture/accepted.md',
+    ])
+    expect(() => readConformance({ root, revision: base })).toThrow(
+      'legacy source is not an active architecture input',
+    )
+  })
+  it.each([`${ui}/src/view.ts`, `${ui}/src/**`])(
+    'does not retire historical roles matching active source %s',
+    path => {
+      const { root, intent } = setup()
+      write(root, CONSTRAINT_PATH, JSON.stringify(retirementIntent([path])))
+      const base = commit(root, 'legacy source still governs active code')
+      write(root, CONSTRAINT_PATH, JSON.stringify(intent))
+      expect(() => readConformance({ root, base })).toThrow(
+        'legacy source is not an active architecture input',
+      )
+    },
+  )
+  it('rejects current legacy sources even when unmatched and keeps retained historical anchors version-local', () => {
+    const { root } = setup()
+    const intent = retirementIntent(['apps/gone/src/**'])
+    write(root, CONSTRAINT_PATH, JSON.stringify(intent))
+    expect(() => readConformance({ root })).toThrow(
+      'legacy source is not an active architecture input',
+    )
+    const broken = {
+      ...intent,
+      rules: [{ id: 'LAYER-ENTRY', source: 'docs/architecture/accepted.md#head-only' }],
+    }
+    write(root, CONSTRAINT_PATH, JSON.stringify(broken))
+    const base = commit(root, 'retired role alongside invalid active source')
+    write(root, CONSTRAINT_PATH, JSON.stringify({ ...broken, roles: [] }))
+    write(root, 'docs/architecture/accepted.md', '# Accepted\n\n## head-only\n')
+    expect(() => readConformance({ root, base })).toThrow('missing source anchor')
   })
   it('reads legacy BASE and current HEAD independently, without inventing changes for a path-only move', () => {
     const { root, intent } = setup()

@@ -84,8 +84,7 @@
       "packages/*/*/*.md",
       "apps/*/*.md",
       "tools/*/*.md",
-      "apps/*/deploy/**/*.md",
-      "packages.0.0.1.legacy/*/*/*.md"
+      "apps/*/deploy/**/*.md"
     ],
     "pythonPaths": [
       "Makefile",
