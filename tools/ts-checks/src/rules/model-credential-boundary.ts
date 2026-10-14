@@ -6,13 +6,13 @@ import { lineAt } from '../source-text.ts'
 import { nodeName, syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
 
 const cliBootstrap = 'apps/cli/src/session-model-directory.ts'
-const lookupEntry = '@omne-harness-lite/model-profile-directory-local/local-credentials'
+const lookupEntry = '@omne-harness/model-profile-directory-local/local-credentials'
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 const directory = 'packages/model/model-profile-directory-local/src/'
 const custodian = 'packages/infra/credential-custodian-local/src/'
-const bindingEntry = '@omne-harness-lite/model-profile-directory-local/tx-reads'
+const bindingEntry = '@omne-harness/model-profile-directory-local/tx-reads'
 const readerAdapter = 'examples/model-invocation-minimal-demo/src/assembly-inputs.ts'
-const replicaEntry = '@omne-harness-lite/credential-custodian-local/model-replica'
+const replicaEntry = '@omne-harness/credential-custodian-local/model-replica'
 type Token = string
 type Value = ReadonlySet<Token>
 const empty: Value = new Set()
@@ -61,21 +61,21 @@ function moduleKind(
   const resolved = target(file, specifier)
   if (
     resolved === bindingEntry ||
-    /^(?:packages\/model\/model-profile-directory-local\/(?:src|dist)\/|@omne-harness-lite\/model-profile-directory-local\/(?:src\/)?)tx-reads(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
+    /^(?:packages\/model\/model-profile-directory-local\/(?:src|dist)\/|@omne-harness\/model-profile-directory-local\/(?:src\/)?)tx-reads(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
       resolved,
     )
   )
     return 'binding'
   if (
     resolved === replicaEntry ||
-    /^(?:packages\/infra\/credential-custodian-local\/(?:src|dist)\/|@omne-harness-lite\/credential-custodian-local\/(?:src\/)?)model-replica(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
+    /^(?:packages\/infra\/credential-custodian-local\/(?:src|dist)\/|@omne-harness\/credential-custodian-local\/(?:src\/)?)model-replica(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
       resolved,
     )
   )
     return 'replica'
   if (
     resolved === lookupEntry ||
-    /^(?:packages\/model\/model-profile-directory-local\/(?:src|dist)\/|@omne-harness-lite\/model-profile-directory-local\/(?:src\/)?)local-credentials(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
+    /^(?:packages\/model\/model-profile-directory-local\/(?:src|dist)\/|@omne-harness\/model-profile-directory-local\/(?:src\/)?)local-credentials(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
       resolved,
     )
   )
@@ -174,7 +174,7 @@ function inReaderAdapter(node: ts.Node): boolean {
   return false
 }
 function custodianReadTypeOnly(syntax: ts.SourceFile, path: string, specifier: string): boolean {
-  if (path !== `${custodian}types.ts` || specifier !== '@omne-harness-lite/model-profile-directory')
+  if (path !== `${custodian}types.ts` || specifier !== '@omne-harness/model-profile-directory')
     return false
   return syntax.statements.every(statement => {
     if (
@@ -287,10 +287,10 @@ export const modelCredentialBoundary: Rule = {
         const resolved = target(file, ref.specifier)
         if (
           path.startsWith(custodian) &&
-          (resolved === '@omne-harness-lite/model-profile-directory' ||
-            resolved.startsWith('@omne-harness-lite/model-profile-directory/') ||
-            resolved === '@omne-harness-lite/model-profile-directory-local' ||
-            resolved.startsWith('@omne-harness-lite/model-profile-directory-local/') ||
+          (resolved === '@omne-harness/model-profile-directory' ||
+            resolved.startsWith('@omne-harness/model-profile-directory/') ||
+            resolved === '@omne-harness/model-profile-directory-local' ||
+            resolved.startsWith('@omne-harness/model-profile-directory-local/') ||
             resolved.startsWith('packages/model/model-profile-directory-local/')) &&
           !custodianReadTypeOnly(syntax, path, ref.specifier)
         ) {
@@ -342,9 +342,9 @@ export const modelCredentialBoundary: Rule = {
                 target(file, node.moduleSpecifier.text).startsWith(custodian) ||
                 target(file, node.moduleSpecifier.text).startsWith(directory) ||
                 [
-                  '@omne-harness-lite/credential-custodian-local',
-                  '@omne-harness-lite/model-profile-directory',
-                  '@omne-harness-lite/model-profile-directory/cordis',
+                  '@omne-harness/credential-custodian-local',
+                  '@omne-harness/model-profile-directory',
+                  '@omne-harness/model-profile-directory/cordis',
                   '@deepseek-ai/cordis',
                 ].includes(node.moduleSpecifier.text)
               )
@@ -352,7 +352,7 @@ export const modelCredentialBoundary: Rule = {
               if (clause?.isTypeOnly || spec.isTypeOnly) continue
               const imported = member(exports, original)
               if (
-                node.moduleSpecifier.text === '@omne-harness-lite/model-profile-directory/cordis' &&
+                node.moduleSpecifier.text === '@omne-harness/model-profile-directory/cordis' &&
                 original === 'BOUND_CREDENTIAL_REPLICA_READER'
               )
                 declare(spec.name.text, spec).add('reader-key')

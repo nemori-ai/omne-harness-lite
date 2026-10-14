@@ -34,7 +34,7 @@ test('killing the process during close writes no report', async () => {
   assert.equal(exitedEarly, false)
   child.kill('SIGKILL')
   const outcome = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
-    (resolve) => {
+    resolve => {
       child.once('exit', (code, signal) => resolve({ code, signal }))
     },
   )

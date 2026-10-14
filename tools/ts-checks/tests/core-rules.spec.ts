@@ -3,7 +3,7 @@ import { resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
-import { IDENTITY_TYPE_NAMES } from '@omne-harness-lite/identity-values'
+import { IDENTITY_TYPE_NAMES } from '@omne-harness/legal-identity'
 import {
   collectSources,
   corePureImports,
@@ -64,21 +64,21 @@ describe('core-pure-imports', () => {
     const path = 'core/tool-execution-runtime/src/original-issue.ts'
     expect(
       corePureImports.check([
-        file(path, "import type { AtomicStorage, StorageUnit } from '@omne-harness-lite/storage'"),
+        file(path, "import type { AtomicStorage, StorageUnit } from '@omne-harness/storage'"),
       ]),
     ).toEqual([])
     for (const specifier of [
-      '@omne-harness-lite/storage/src/unit.ts',
-      '@omne-harness-lite/storage/cordis',
-      '@omne-harness-lite/storage-sql',
-      '@omne-harness-lite/tool-execution-local',
+      '@omne-harness/storage/src/unit.ts',
+      '@omne-harness/storage/cordis',
+      '@omne-harness/storage-sql',
+      '@omne-harness/tool-execution-local',
     ])
       expect(
         corePureImports.check([file(path, `import type { Value } from '${specifier}'`)]),
       ).toHaveLength(1)
   })
   it('the context fixed graph grants only its own schema input site, without a handwritten compiler', () => {
-    const resource = "import '@omne-harness-lite/runtime-context/schema'"
+    const resource = "import '@omne-harness/runtime-context/schema'"
     expect(
       corePureImports.check([file('core/runtime-context/src/schema-inputs.ts', resource)]),
     ).toEqual([])
@@ -134,10 +134,7 @@ describe('core-pure-imports', () => {
     for (const subpath of ['code-runtime', 'schema-codegen'])
       expect(
         corePureImports.check([
-          file(
-            'core/messages/src/schema.ts',
-            `import '@omne-harness-lite/content-blocks/${subpath}'`,
-          ),
+          file('core/messages/src/schema.ts', `import '@omne-harness/content-blocks/${subpath}'`),
         ]),
       ).toHaveLength(1)
   })
@@ -149,13 +146,11 @@ describe('core-pure-imports', () => {
       ['loop-extension', 'skill-package', 'schema/v2'],
     ]) {
       const path = `core/${consumer}/src/schema.ts`
-      const allowed = `@omne-harness-lite/${dependency}/${subpath}`
+      const allowed = `@omne-harness/${dependency}/${subpath}`
       expect(corePureImports.check([file(path, `import '${allowed}'`)])).toEqual([])
       expect(corePureImports.check([file(path, `import '${allowed}/private'`)])).toHaveLength(1)
       expect(
-        corePureImports.check([
-          file(path, `import '@omne-harness-lite/${dependency}/src/schema.ts'`),
-        ]),
+        corePureImports.check([file(path, `import '@omne-harness/${dependency}/src/schema.ts'`)]),
       ).toHaveLength(1)
     }
     for (const [consumer, retired] of [
@@ -166,7 +161,7 @@ describe('core-pure-imports', () => {
     ]) {
       expect(
         corePureImports.check([
-          file(`core/${consumer}/src/index.ts`, `import '@omne-harness-lite/${retired}'`),
+          file(`core/${consumer}/src/index.ts`, `import '@omne-harness/${retired}'`),
         ]),
       ).toHaveLength(1)
     }
@@ -185,22 +180,22 @@ describe('core-pure-imports', () => {
       const path = `core/${pkg}/src/schema.ts`
       expect(
         corePureImports.check([
-          file(path, `import schema from '@omne-harness-lite/offer-expiry/schema/v1'`),
+          file(path, `import schema from '@omne-harness/offer-expiry/schema/v1'`),
         ]),
       ).toEqual([])
       for (const specifier of [
-        '@omne-harness-lite/offer-expiry/schema/v2',
-        '@omne-harness-lite/offer-expiry/schema/v1/private',
-        '@omne-harness-lite/offer-expiry/schema/v1.json',
-        '@omne-harness-lite/offer-expiry/schema/offer-expiry.v1.schema.json',
-        '@omne-harness-lite/offer-expiry/src/index.ts',
+        '@omne-harness/offer-expiry/schema/v2',
+        '@omne-harness/offer-expiry/schema/v1/private',
+        '@omne-harness/offer-expiry/schema/v1.json',
+        '@omne-harness/offer-expiry/schema/offer-expiry.v1.schema.json',
+        '@omne-harness/offer-expiry/src/index.ts',
       ])
         expect(corePureImports.check([file(path, `import '${specifier}'`)])).toHaveLength(1)
     }
     for (const pkg of ['content-blocks', 'tool-definition', 'arrival-events'])
       expect(
         corePureImports.check([
-          file(`core/${pkg}/src/index.ts`, `import '@omne-harness-lite/offer-expiry/schema/v1'`),
+          file(`core/${pkg}/src/index.ts`, `import '@omne-harness/offer-expiry/schema/v1'`),
         ]),
       ).toHaveLength(1)
   })
@@ -211,16 +206,16 @@ describe('core-pure-imports', () => {
         corePureImports.check([
           file(
             `core/${pkg}/src/schema.ts`,
-            `import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'`,
+            `import { createSchemaRuntime } from '@omne-harness/content-blocks/schema-runtime'`,
           ),
         ]),
       ).toEqual([])
       for (const specifier of [
-        '@omne-harness-lite/content-blocks/schema-runtime/private',
-        '@omne-harness-lite/content-blocks/schema-runtime.js',
-        '@omne-harness-lite/content-blocks/src/schema-runtime/index.ts',
-        '@omne-harness-lite/content-blocks/dist/schema-runtime/index.js',
-        '@omne-harness-lite/content-blocks/testing',
+        '@omne-harness/content-blocks/schema-runtime/private',
+        '@omne-harness/content-blocks/schema-runtime.js',
+        '@omne-harness/content-blocks/src/schema-runtime/index.ts',
+        '@omne-harness/content-blocks/dist/schema-runtime/index.js',
+        '@omne-harness/content-blocks/testing',
         'node:fs',
       ])
         expect(
@@ -231,7 +226,7 @@ describe('core-pure-imports', () => {
       corePureImports.check([
         file(
           'core/mcp-endpoint/src/schema.ts',
-          `import '@omne-harness-lite/content-blocks/json-runtime'`,
+          `import '@omne-harness/content-blocks/json-runtime'`,
         ),
       ]),
     ).toHaveLength(1)
@@ -239,7 +234,7 @@ describe('core-pure-imports', () => {
       corePureImports.check([
         file(
           'core/content-blocks/src/schema.ts',
-          `import '@omne-harness-lite/content-blocks/schema-runtime'`,
+          `import '@omne-harness/content-blocks/schema-runtime'`,
         ),
       ]),
     ).toHaveLength(1)
@@ -248,23 +243,23 @@ describe('core-pure-imports', () => {
   it('MCP 中性技术边只允许已批准 CB 根／Schema/runtime 子入口，不扩大为任意子路径', () => {
     const path = 'core/mcp-endpoint/src/values.ts'
     for (const statement of [
-      `import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'`,
-      `import schema from '@omne-harness-lite/content-blocks/schema'`,
-      `import { createSchemaRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'`,
-      `export type { SchemaDocument } from '@omne-harness-lite/content-blocks/schema-runtime'`,
-      `type Value = import('@omne-harness-lite/content-blocks').JsonValue`,
-      `const runtime = import('@omne-harness-lite/content-blocks/schema-runtime')`,
+      `import { readJsonStrict, writeJsonLossless } from '@omne-harness/content-blocks'`,
+      `import schema from '@omne-harness/content-blocks/schema'`,
+      `import { createSchemaRuntime } from '@omne-harness/content-blocks/schema-runtime'`,
+      `export type { SchemaDocument } from '@omne-harness/content-blocks/schema-runtime'`,
+      `type Value = import('@omne-harness/content-blocks').JsonValue`,
+      `const runtime = import('@omne-harness/content-blocks/schema-runtime')`,
       String.raw`import '\u0040omne-harness-lite/content-blocks/schema-runtime'`,
     ])
       expect(corePureImports.check([file(path, statement)])).toEqual([])
     for (const specifier of [
-      '@omne-harness-lite/content-blocks/schema-runtime/private',
-      '@omne-harness-lite/content-blocks/schema-testing',
-      '@omne-harness-lite/content-blocks/testing',
-      '@omne-harness-lite/content-blocks/json-runtime',
-      '@omne-harness-lite/content-blocks/src/json.ts',
-      '@omne-harness-lite/content-blocks/dist/index.js',
-      '@omne-harness-lite/asset-model/schema-runtime',
+      '@omne-harness/content-blocks/schema-runtime/private',
+      '@omne-harness/content-blocks/schema-testing',
+      '@omne-harness/content-blocks/testing',
+      '@omne-harness/content-blocks/json-runtime',
+      '@omne-harness/content-blocks/src/json.ts',
+      '@omne-harness/content-blocks/dist/index.js',
+      '@omne-harness/asset-model/schema-runtime',
       '../../content-blocks/src/index.ts',
       'node:fs',
       'node:child_process',
@@ -272,7 +267,7 @@ describe('core-pure-imports', () => {
       expect(corePureImports.check([file(path, `import '${specifier}'`)])).toHaveLength(1)
     for (const statement of [
       `const runtime = import(runtimePath)`,
-      `const runtime = import('@omne-harness-lite/content-blocks/' + name)`,
+      `const runtime = import('@omne-harness/content-blocks/' + name)`,
       `const runtime = require(runtimePath)`,
     ])
       expect(corePureImports.check([file(path, statement)])).toHaveLength(1)
@@ -280,10 +275,10 @@ describe('core-pure-imports', () => {
 
   it('AM 已迁出的旧 schema-runtime 不再是公开入口，即使包依赖仍批准', () => {
     for (const statement of [
-      `import { createSchemaRuntime } from '@omne-harness-lite/asset-model/schema-runtime'`,
-      `export { createSchemaRuntime } from '@omne-harness-lite/asset-model/schema-runtime'`,
-      `type Runtime = import('@omne-harness-lite/asset-model/schema-runtime').SchemaRuntime`,
-      `const runtime = import('@omne-harness-lite/asset-model/schema-runtime')`,
+      `import { createSchemaRuntime } from '@omne-harness/asset-model/schema-runtime'`,
+      `export { createSchemaRuntime } from '@omne-harness/asset-model/schema-runtime'`,
+      `type Runtime = import('@omne-harness/asset-model/schema-runtime').SchemaRuntime`,
+      `const runtime = import('@omne-harness/asset-model/schema-runtime')`,
       String.raw`import '\u0040omne-harness-lite/asset-model/schema-runtime'`,
     ]) {
       expect(
@@ -294,12 +289,12 @@ describe('core-pure-imports', () => {
       ).toHaveLength(1)
     }
     for (const specifier of [
-      '@omne-harness-lite/asset-model/schema-runtime/private',
-      '@omne-harness-lite/asset-model/schema-runtime.js',
-      '@omne-harness-lite/asset-model/src/schema-runtime.ts',
-      '@omne-harness-lite/asset-model/dist/schema-runtime.js',
-      '@omne-harness-lite/asset-model/testing',
-      '@omne-harness-lite/asset-model/unknown',
+      '@omne-harness/asset-model/schema-runtime/private',
+      '@omne-harness/asset-model/schema-runtime.js',
+      '@omne-harness/asset-model/src/schema-runtime.ts',
+      '@omne-harness/asset-model/dist/schema-runtime.js',
+      '@omne-harness/asset-model/testing',
+      '@omne-harness/asset-model/unknown',
       'node:fs',
       'node:child_process',
     ]) {
@@ -314,9 +309,9 @@ describe('core-pure-imports', () => {
   it.each(purePackages)('%s 不导入 Cordis、kernel、storage 或非 core 插件', pkg => {
     for (const specifier of [
       '@deepseek-ai/cordis',
-      '@omne-harness-lite/kernel-basis',
-      '@omne-harness-lite/storage',
-      '@omne-harness-lite/asset-governance',
+      '@omne-harness/kernel-basis',
+      '@omne-harness/storage',
+      '@omne-harness/asset-governance',
     ]) {
       const source = file(`core/${pkg}/src/index.ts`, `import type { Value } from '${specifier}'`)
       expect(corePureImports.check([source])).toHaveLength(1)
@@ -327,8 +322,8 @@ describe('core-pure-imports', () => {
     const good = [
       file(
         'core/content-blocks/src/index.ts',
-        `import { parseAccountId } from '@omne-harness-lite/identity-values'
-import schema from '@omne-harness-lite/identity-values/schema'
+        `import { parseAccountId } from '@omne-harness/identity-values'
+import schema from '@omne-harness/identity-values/schema'
 import Ajv from 'ajv/dist/2020.js'
 import { parse } from './strict.ts'
 import localSchema from '../schema/content-blocks.schema.json'`,
@@ -336,13 +331,13 @@ import localSchema from '../schema/content-blocks.schema.json'`,
       file('core/asset-model/src/hash.ts', `import { createHash } from 'node:crypto'`),
       file(
         'core/asset-evaluation/src/index.ts',
-        `import { writeJsonLossless } from '@omne-harness-lite/content-blocks'
+        `import { writeJsonLossless } from '@omne-harness/content-blocks'
 import { createHash } from 'node:crypto'`,
       ),
       file(
         'core/stream-assembly/src/index.ts',
         `import { Buffer } from 'node:buffer'
-import { ArrivalEnvelope } from '@omne-harness-lite/arrival-events'`,
+import { ArrivalEnvelope } from '@omne-harness/arrival-events'`,
       ),
       file('core/skill-package/src/parse.ts', `import { parseDocument } from 'yaml'`),
       file(
@@ -355,7 +350,7 @@ import { ArrivalEnvelope } from '@omne-harness-lite/arrival-events'`,
       corePureImports.check([
         file(
           'core/content-blocks/src/x.ts',
-          `import { createState } from '@omne-harness-lite/stream-assembly'`,
+          `import { createState } from '@omne-harness/stream-assembly'`,
         ),
       ]),
     ).toHaveLength(1)
@@ -372,7 +367,7 @@ import { ArrivalEnvelope } from '@omne-harness-lite/arrival-events'`,
       "export * from './cordis.ts'",
       "export type { Service } from './cordis.ts'",
       "const binding = import('./cordis.ts')",
-      "import { binding } from '@omne-harness-lite/storage/cordis/private'",
+      "import { binding } from '@omne-harness/storage/cordis/private'",
     ])
       expect(corePureImports.check([file(`core/${pkg}/src/index.ts`, body)])).toHaveLength(1)
   })
@@ -397,9 +392,9 @@ import { ArrivalEnvelope } from '@omne-harness-lite/arrival-events'`,
 
   it('不经私有 src、dist、未登记子入口或相对路径穿透包边界', () => {
     for (const specifier of [
-      '@omne-harness-lite/identity-values/src/values',
-      '@omne-harness-lite/identity-values/dist/index.js',
-      '@omne-harness-lite/identity-values/secret',
+      '@omne-harness/identity-values/src/values',
+      '@omne-harness/identity-values/dist/index.js',
+      '@omne-harness/identity-values/secret',
       '../../identity-values/src/index.ts',
       '../../../infra/clock/src/index.ts',
       '../schema/hidden.ts',
@@ -425,11 +420,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
         corePureImports.check([file('core/content-blocks/src/x.ts', source.text)]),
       ).toHaveLength(1)
     }
-    for (const specifier of [
-      'node:fs',
-      '@deepseek-ai/cordis',
-      '@omne-harness-lite/asset-governance',
-    ]) {
+    for (const specifier of ['node:fs', '@deepseek-ai/cordis', '@omne-harness/asset-governance']) {
       expect(
         corePureImports.check([file('core/asset-model/src/workspace.ts', `import '${specifier}'`)]),
       ).toHaveLength(1)
@@ -450,7 +441,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
         corePureImports.check([
           file(
             `core/${pkg}/src/json.ts`,
-            `import { readJsonStrict, writeJsonLossless } from '@omne-harness-lite/content-blocks'`,
+            `import { readJsonStrict, writeJsonLossless } from '@omne-harness/content-blocks'`,
           ),
         ]),
       ).toEqual([])
@@ -462,11 +453,11 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
       'core/content-blocks/src/x.ts',
       [
         `import '@deepseek-ai/cordis'`,
-        `export { Value } from '@omne-harness-lite/storage'`,
-        `type T = import('@omne-harness-lite/kernel-basis').Value`,
-        `const a = require('@omne-harness-lite/storage')`,
-        `const b = import('@omne-harness-lite/storage')`,
-        `import K = require('@omne-harness-lite/storage')`,
+        `export { Value } from '@omne-harness/storage'`,
+        `type T = import('@omne-harness/kernel-basis').Value`,
+        `const a = require('@omne-harness/storage')`,
+        `const b = import('@omne-harness/storage')`,
+        `import K = require('@omne-harness/storage')`,
         String.raw`import '\u0040omne-harness-lite/storage'`,
         `const d = import(computed)`,
         `const e = require('node:' + name)`,
@@ -504,7 +495,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
       })
       expect(bad.status).toBe(1)
       expect(bad.stderr).toContain('[core-pure-imports]')
-      writeFileSync(path, `import { parseAccountId } from '@omne-harness-lite/identity-values'`)
+      writeFileSync(path, `import { parseAccountId } from '@omne-harness/identity-values'`)
       const good = spawnSync(process.execPath, ['--experimental-strip-types', cli, dir], {
         encoding: 'utf8',
       })
@@ -567,16 +558,16 @@ describe('no-testing-import — 解码后的真实说明符', () => {
   it('静态、侧效应、动态、重导出、类型与 require 的 testing 入口都红', () => {
     const source = file(
       'core/kernel-basis/src/consumer.ts',
-      String.raw`import '@omne-harness-lite/offer-expiry/testing'
-export { testClock } from '@omne-harness-lite/offer-expiry/testing'
-type Clock = import('@omne-harness-lite/offer-expiry/testing').TestClock
-const testing = import('@omne-harness-lite/offer-expiry/testing')
-const clock = require('@omne-harness-lite/offer-expiry/testing')
-import Test = require('@omne-harness-lite/offer-expiry/testing')
+      String.raw`import '@omne-harness/offer-expiry/testing'
+export { testClock } from '@omne-harness/offer-expiry/testing'
+type Clock = import('@omne-harness/offer-expiry/testing').TestClock
+const testing = import('@omne-harness/offer-expiry/testing')
+const clock = require('@omne-harness/offer-expiry/testing')
+import Test = require('@omne-harness/offer-expiry/testing')
 import '\u0040omne-harness-lite/offer-expiry/testing'
-import '@omne-harness-lite/offer-expiry/testing/private'
-// import '@omne-harness-lite/offer-expiry/testing'
-const note = "from '@omne-harness-lite/offer-expiry/testing'"`,
+import '@omne-harness/offer-expiry/testing/private'
+// import '@omne-harness/offer-expiry/testing'
+const note = "from '@omne-harness/offer-expiry/testing'"`,
     )
     expect(noTestingImport.check([source]).map(value => value.line)).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8,
@@ -588,7 +579,7 @@ const note = "from '@omne-harness-lite/offer-expiry/testing'"`,
       noTestingImport.check([
         file(
           source.path,
-          `import '@omne-harness-lite/offer-expiry'; import '@omne-harness-lite/offer-expiry/schema'`,
+          `import '@omne-harness/offer-expiry'; import '@omne-harness/offer-expiry/schema'`,
         ),
       ]),
     ).toEqual([])
@@ -684,7 +675,7 @@ describe('identity SC-2 账号记录', () => {
   it('两个AccountId字段（含改名与品牌别名）必红；登录状态引用与合法账号记录不报', () => {
     const source = file(
       path,
-      `import { type AccountId as Account } from '@omne-harness-lite/identity-values'
+      `import { type AccountId as Account } from '@omne-harness/identity-values'
 type LinkedAccount = OpaqueIdentifier<'AccountId'>
 interface AccountRecord { id: Account; linked: LinkedAccount }
 interface LoginStateRow { login: LoginStateId; account: AccountId }`,
@@ -754,7 +745,7 @@ it('allows a data module to statically load its own exported Schema', () => {
   const violations = corePureImports.check([
     {
       path: 'core/content-blocks/src/schema.ts',
-      text: "import schema from '@omne-harness-lite/content-blocks/schema' with { type: 'json' }",
+      text: "import schema from '@omne-harness/content-blocks/schema' with { type: 'json' }",
     },
   ])
   expect(violations).toEqual([])

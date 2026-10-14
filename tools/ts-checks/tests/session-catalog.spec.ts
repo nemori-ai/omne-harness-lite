@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { sessionCatalogBoundary } from '../src/rules/session-catalog.ts'
 import { REPOSITORY_RULES } from '../src/repository.ts'
 
-const entry = '@omne-harness-lite/session-tenancy-table/maintenance'
+const entry = '@omne-harness/session-tenancy-table/maintenance'
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 const use = `import { readSessionCatalogIn as read } from '${entry}'; await storage.read(tx => read(tx));`
 it('checks the exact owner and provider test paths', () => {

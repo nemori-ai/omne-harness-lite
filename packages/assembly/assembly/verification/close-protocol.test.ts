@@ -65,7 +65,15 @@ test('close does not wait for the caller that started it', async () => {
 test('a second close joins the close already running', async () => {
   let runs = 0
   const protocol = createCloseProtocol({
-    steps: [{ name: 'once', when: 'always', run: () => { runs += 1 } }],
+    steps: [
+      {
+        name: 'once',
+        when: 'always',
+        run: () => {
+          runs += 1
+        },
+      },
+    ],
     drainTimeoutMs: 60_000,
     clock: immediateClock(),
   })
@@ -84,7 +92,9 @@ test('steps run in protocol order', async () => {
   const steps: Step[] = ['stop', 'drain', 'backend'].map(name => ({
     name,
     when: 'always' as const,
-    run: () => { order.push(name) },
+    run: () => {
+      order.push(name)
+    },
   }))
   const protocol = createCloseProtocol({
     steps,
@@ -101,9 +111,27 @@ test('a failed step is kept and a required later step still runs', async () => {
   const order: string[] = []
   const protocol = createCloseProtocol({
     steps: [
-      { name: 'drain', when: 'always', run: () => { throw new Error('drain broke') } },
-      { name: 'backend', when: 'always', run: () => { order.push('backend') } },
-      { name: 'drop-cache', when: 'if-no-failure', run: () => { order.push('drop-cache') } },
+      {
+        name: 'drain',
+        when: 'always',
+        run: () => {
+          throw new Error('drain broke')
+        },
+      },
+      {
+        name: 'backend',
+        when: 'always',
+        run: () => {
+          order.push('backend')
+        },
+      },
+      {
+        name: 'drop-cache',
+        when: 'if-no-failure',
+        run: () => {
+          order.push('drop-cache')
+        },
+      },
     ],
     drainTimeoutMs: 60_000,
     clock: immediateClock(),
@@ -120,7 +148,15 @@ test('a drain timeout is not a successful close', async () => {
   const clock = manualClock()
   let ran = false
   const protocol = createCloseProtocol({
-    steps: [{ name: 'backend', when: 'always', run: () => { ran = true } }],
+    steps: [
+      {
+        name: 'backend',
+        when: 'always',
+        run: () => {
+          ran = true
+        },
+      },
+    ],
     drainTimeoutMs: 10,
     clock,
   })
@@ -211,7 +247,15 @@ test('an empty waited set runs the steps when the timeout is zero', async () => 
   const clock = manualClock()
   const order: string[] = []
   const protocol = createCloseProtocol({
-    steps: [{ name: 'backend', when: 'always', run: () => { order.push('backend') } }],
+    steps: [
+      {
+        name: 'backend',
+        when: 'always',
+        run: () => {
+          order.push('backend')
+        },
+      },
+    ],
     drainTimeoutMs: 0,
     clock,
   })
@@ -257,7 +301,13 @@ test('exit stops admission before handoff and closes the backend after it', asyn
           assert.throws(() => protocol.admit('late'), /admission stopped/)
         },
       },
-      { name: 'backend', when: 'always', run: () => { order.push('backend') } },
+      {
+        name: 'backend',
+        when: 'always',
+        run: () => {
+          order.push('backend')
+        },
+      },
     ],
     drainTimeoutMs: 60_000,
     clock: immediateClock(),
@@ -299,7 +349,15 @@ test('an empty name during a stopped admission throws admission stopped', async 
 
 test('a zero timeout with a waited lease is timed-out', async () => {
   const protocol = createCloseProtocol({
-    steps: [{ name: 'backend', when: 'always', run: () => { throw new Error('ran') } }],
+    steps: [
+      {
+        name: 'backend',
+        when: 'always',
+        run: () => {
+          throw new Error('ran')
+        },
+      },
+    ],
     drainTimeoutMs: 0,
     clock: manualClock(),
   })

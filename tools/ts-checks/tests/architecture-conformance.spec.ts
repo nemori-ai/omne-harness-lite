@@ -28,8 +28,6 @@ import {
   temporaryDirectory,
   write,
 } from './fixtures/loop-canary/repository.ts'
-import type { Storage } from '../../../packages.0.0.1.legacy/core/storage/src/index.ts'
-
 afterEach(removeTemporaries)
 const ui = 'apps/ui',
   storage = 'packages/core/storage',
@@ -642,7 +640,7 @@ export const p = { name: 'p', inject: ['newDependency'], apply(ctx:Context) { ct
     const original = new Error('callback failure'),
       changed = new Error('provider changed failure')
     // This deliberately bad substitute has the public signature but does not preserve P-1.
-    const substitute: Pick<Storage, 'write'> = {
+    const substitute: { write: (operation: () => Promise<void>) => Promise<void> } = {
       async write() {
         throw changed
       },
@@ -651,7 +649,7 @@ export const p = { name: 'p', inject: ['newDependency'], apply(ctx:Context) { ct
       .write(async () => {
         throw original
       })
-      .catch(error => error)
+      .catch((error: unknown) => error)
     expect(observed).toBe(changed)
     expect(observed).not.toBe(original)
     expect(readConformance({ root }).coverage.find(row => row.id === 'LSP')).toMatchObject({

@@ -32,7 +32,7 @@ const fn = (over: Partial<ExplainedFunction>): ExplainedFunction => ({
   ...over,
 })
 
-const site = (path: string, line: number) => ({ path, line, specifier: '@omne-harness-lite/b' })
+const site = (path: string, line: number) => ({ path, line, specifier: '@omne-harness/b' })
 
 /** 五类各一条，外加一个只超 warn 的函数（不该出现）。 */
 const readings = (): HookReadings => ({

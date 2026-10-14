@@ -46,9 +46,9 @@ integration 的 `start`、`register` 使用专用准入采集。它只读取任�
 ## 运行模块检查
 
 ```sh
-pnpm --filter @omne-harness-lite/ts-checks exec vitest run \
+pnpm --filter @omne-harness/ts-checks exec vitest run \
   tests/delivery-observe.spec.ts tests/delivery-github-read.spec.ts
-pnpm --filter @omne-harness-lite/ts-checks typecheck
+pnpm --filter @omne-harness/ts-checks typecheck
 ```
 
 平台边界依据 GitHub 官方的[Issue依赖API](https://docs.github.com/en/rest/issues/issue-dependencies)、[Issue API](https://docs.github.com/en/rest/issues/issues)及[GraphQL对象](https://docs.github.com/en/graphql/reference/objects)。实际远端读回仍以采集结果为准。

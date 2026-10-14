@@ -473,8 +473,7 @@ function checkRoots(
               member: member.path,
               path: entry,
             })
-          }
-          else if (edge.resolvedPath !== undefined) pending.push(edge.resolvedPath)
+          } else if (edge.resolvedPath !== undefined) pending.push(edge.resolvedPath)
           else if (edge.target.kind === 'workspace' || edge.target.kind === 'unresolved-local')
             add(edge, 'IC-4', 'unknown', `公开根 ${entry} 的源码依赖闭包存在未解析目标`, {
               member: member.path,

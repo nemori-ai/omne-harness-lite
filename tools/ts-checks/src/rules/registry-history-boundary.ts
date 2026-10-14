@@ -4,7 +4,7 @@ import type { Rule, SourceFile, Violation } from '../rule.ts'
 import { lineAt } from '../source-text.ts'
 import { syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
 
-const entry = '@omne-harness-lite/evaluation-input-store/registry-history'
+const entry = '@omne-harness/evaluation-input-store/registry-history'
 function ownSource(path: string): boolean {
   return (
     /^packages\/assets\/evaluation-input-store\/(?:src|tests)\/.+\.ts$/u.test(path) &&
@@ -35,7 +35,7 @@ function restricted(file: SourceFile, specifier: string): boolean {
     /^packages\/assets\/evaluation-input-store\/(?:src|dist)\/registry-history(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
       target,
     ) ||
-    /^@omne-harness-lite\/evaluation-input-store\/(?:src\/)?registry-history(?:\.[cm]?[jt]s)?$/u.test(
+    /^@omne-harness\/evaluation-input-store\/(?:src\/)?registry-history(?:\.[cm]?[jt]s)?$/u.test(
       target,
     )
   )

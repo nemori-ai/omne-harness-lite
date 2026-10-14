@@ -2,6 +2,8 @@
 
 This directory owns `typescript-package@2.0.0`. It is a development resource, not a workspace product member.
 Public interfaces, behavior and acceptance remain with their existing owners.
+The required member shape is [package organization](../../../../docs/package-organization.md#成员的必选结构).
+This generator emits a `build` script that deletes `dist` first, `erasableSyntaxOnly` on the build configuration, and `"files": ["dist"]`. It emits the `source` export condition before `types`. Published packages omit `source`. It emits `tests/public-entry.spec.ts`, which imports the package name and checks the current public exports. Add integration only for a package that implements storage or an application service, and an end-to-end test only for the owner of a key user journey. See [package test duty](../../../../docs/verification.md#包级测试责任与边界).
 
 ## Create and inspect
 
@@ -25,15 +27,15 @@ Creation does not generate empty specs, fictitious services or passing placehold
 
 ## Resources and variants
 
-| Template resource | Purpose |
-| --- | --- |
-| manifest.json | Exact identity, version, file slots, required resources, variants and historical rules |
-| common/ | Manifest, TypeScript/Vitest configuration bilingual README drafts and bindings v2 registration |
-| variants/module/ | Public functions and values without a binding entry |
-| variants/cordis-module/ | Pure root and integration helpers or coordination bindings |
-| variants/service-contract/ | Pure public definitions and separate Service definitions, keys and typed events |
-| variants/service-provider/ | Independent factories and bindings that consume public Service definitions |
-| fragments/ | Writing guides for actual documentation topics, complete owned behavior specifications, schema, verification and decisions |
+| Template resource          | Purpose                                                                                                                    |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| manifest.json              | Exact identity, version, file slots, required resources, variants and historical rules                                     |
+| common/                    | Manifest, TypeScript/Vitest configuration bilingual README drafts and bindings v2 registration                             |
+| variants/module/           | Public functions and values without a binding entry                                                                        |
+| variants/cordis-module/    | Pure root and integration helpers or coordination bindings                                                                 |
+| variants/service-contract/ | Pure public definitions and separate Service definitions, keys and typed events                                            |
+| variants/service-provider/ | Independent factories and bindings that consume public Service definitions                                                 |
+| fragments/                 | Writing guides for actual documentation topics, complete owned behavior specifications, schema, verification and decisions |
 
 `service-contract` can be created in any kebab-case group, including `identity` and `access`. The directory name `core` does not grant create or scan permission.
 Ownership of Service definitions stays with [Product package organization](../../../../docs/package-organization.md).
@@ -52,11 +54,11 @@ Registering those groups on `GROUP_DIRECTION_POLICY` would leave a same-group im
 
 This template creates drafts and reports dependency rows. It does not build the later product.
 
-| Later work | How to use the template | This card does not provide |
-| --- | --- | --- |
-| Minimal CLI | Apps do not use this template. The CLI lives in `apps/`. Command parsing does not import `@deepseek-ai/cordis`. | There is no app variant, and this card does not implement the command loop. |
-| Member test facility | A draft includes a `tests/` slot. The isolation test shows that an official skeleton can build and typecheck. | This card does not build a package test platform. |
-| Base capability | `service-contract` and `cordis-module` can create a draft in a target group. The target path for `kernel-basis` is `packages/assembly/kernel-basis`. | This card does not create that member, and it does not move the sealed package. |
+| Later work           | How to use the template                                                                                                                              | This card does not provide                                                      |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Minimal CLI          | Apps do not use this template. The CLI lives in `apps/`. Command parsing does not import `@deepseek-ai/cordis`.                                      | There is no app variant, and this card does not implement the command loop.     |
+| Member test facility | A draft includes a `tests/` slot. The isolation test shows that an official skeleton can build and typecheck.                                        | This card does not build a package test platform.                               |
+| Base capability      | `service-contract` and `cordis-module` can create a draft in a target group. The target path for `kernel-basis` is `packages/assembly/kernel-basis`. | This card does not create that member, and it does not move the sealed package. |
 
 ## Dependency diagnostics
 

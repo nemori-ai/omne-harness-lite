@@ -12,10 +12,7 @@
       "target": "documentation.json"
     }
   ],
-  "requiredFiles": [
-    "README.md",
-    "documentation.json"
-  ],
+  "requiredFiles": ["README.md", "documentation.json"],
   "layout": {
     "files": [
       "README.md",

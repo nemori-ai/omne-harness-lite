@@ -80,15 +80,15 @@ describe('no-testing-import', () => {
   it('产品源码 import ./testing ⇒ 报出；测试文件豁免', () => {
     const bad = file(
       'tenancy/account-identity-sql/src/plugin.ts',
-      "import { bootAssembly } from '@omne-harness-lite/kernel-basis/testing'\n",
+      "import { bootAssembly } from '@omne-harness/kernel-basis/testing'\n",
     )
     const test = file(
       'tenancy/account-identity-sql/tests/x.spec.ts',
-      "import { testClock } from '@omne-harness-lite/offer-expiry/testing'\n",
+      "import { testClock } from '@omne-harness/offer-expiry/testing'\n",
     )
     const clean = file(
       'tenancy/account-identity-sql/src/plugin.ts',
-      "import { definePlugin } from '@omne-harness-lite/kernel-basis'\n",
+      "import { definePlugin } from '@omne-harness/kernel-basis'\n",
     )
     expect(noTestingImport.check([bad])).toHaveLength(1)
     expect(noTestingImport.check([test, clean])).toEqual([])

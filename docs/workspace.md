@@ -56,13 +56,13 @@ Python 当前服务于开发工具。
 
 ## 目标骨架与封存实现
 
-新packages与apps只提供文档入口和缺项登记，没有真实产品成员或可启动应用。最小 CLI 的依赖方向见[包组织](package-organization.md#最小-cli-的接入边界)。旧产品正文、应用及包分别保持在product.0.0.1.legacy、apps.0.0.1.legacy和packages.0.0.1.legacy；后缀不是发布版本。旧源用于核对及尚未退出的工具依赖，不授予架构采用。
+新packages与apps只提供文档入口和缺项登记，没有真实产品成员或可启动应用。最小 CLI 的依赖方向见[包组织](package-organization.md#最小-cli-的接入边界)。旧产品正文、应用及包分别保持在product.0.0.1.legacy、apps.0.0.1.legacy和packages.0.0.1.legacy；后缀不是发布版本。这些目录留在仓库里供核对。它们不是 pnpm workspace 成员，工具不再声明它们的包名。旧源不授予架构采用。
 
 新包区按目标能力组维护工程关系，已具名目标成员维护长期 SPEC 与内部设计。尚未具名的行为规格承接继续计缺项。新产品区的[正式正文](../.meta_harness/design/product/README.md)包含需求、能力及实现状态、阶段承诺和未决四块。文档落位不建立可执行成员，也不授予设计或实现接受；常规新增成员的公开承诺与模板准入要求保持。
 
 ## 现存实现与工具位置
 
-下面列的是封存实现及现存开发工具的位置。封存成员保留于workspace以解析工具的workspace依赖，不能算作新树的支持能力。静态遍历及默认检查、测试和验收目标排除任意层级中以`.legacy`结尾的目录。`make check`的按影响面和全量计划均遵守此规则。封存成员只可作为当前工具的显式构建依赖准备，不构成封存实现的质量接受。完整旧产品构建不属于新骨架验收。
+下面列的是封存实现及现存开发工具的位置。封存目录不在 pnpm workspace 里，不能算作新树的支持能力。静态遍历及默认检查、测试和验收目标排除任意层级中以`.legacy`结尾的目录。`make check`的按影响面和全量计划均遵守此规则。完整旧产品构建不属于新骨架验收。
 
 ```text
 package.json / pnpm-workspace.yaml     TypeScript workspace、版本 catalog 与根聚合命令

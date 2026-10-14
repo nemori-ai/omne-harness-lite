@@ -16,7 +16,7 @@
 | A6 | 成员检查 | `apps/cli` 下 `pnpm test` 与 `pnpm typecheck` 通过 |
 
 @@SPEC
-- 参与方公开面：`@omne-harness-lite/governance-client-operations`（`createGovernanceClient`、`runPrepared`、`close`、`exitStatus`、报告类型）；`@omne-harness-lite/client-local-state`（`openClientLocalState`、`ClientStateOpenFailure` 及其 `reason`）。
+- 参与方公开面：`@omne-harness/governance-client-operations`（`createGovernanceClient`、`runPrepared`、`close`、`exitStatus`、报告类型）；`@omne-harness/client-local-state`（`openClientLocalState`、`ClientStateOpenFailure` 及其 `reason`）。
 - 相邻模块：`parser.ts`（调用形状）、`input.ts`（`buildIntent`、`readSecrets`）、`presentation.ts`（`previewText`、`reportText`、未发起模板 `unopened`）、`validation.ts`（`validIntent`、`validReport`）、`version.ts`、`diagnostic.ts`。
 - 本次采用值：默认状态目录为 `<home>/.omne-harness-lite`，`--state-dir` 显式覆盖，目录必须是绝对路径；应用交付失败的退出状态为 70，人读被拒为 2，其余沿 `exitStatus`；帮助文本列出命令表每条命令与其选项。
 

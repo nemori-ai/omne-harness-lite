@@ -60,15 +60,18 @@ describe('成员清单', () => {
   it('本仓库：成员清单不含示例，且认得测试依赖', () => {
     const config = readTestRunsConfig()
     const members = listTestMembers(ROOT, config.affected.excludeRoots)
-    expect(members.map(member => member.path).sort()).toEqual([
-      'tools/artifact-builder',
-      'tools/core-verification',
-      'tools/ts-checks',
-    ])
+    expect(members.map(member => member.path)).toEqual(
+      expect.arrayContaining([
+        'tools/artifact-builder',
+        'tools/core-verification',
+        'tools/ts-checks',
+      ]),
+    )
+    expect(members.some(item => item.path.includes('.legacy'))).toBe(false)
     expect(members.some(item => item.path.startsWith('examples/'))).toBe(false)
-    // ts-checks 只在 devDependencies 里依赖 identity-values；改后者要重跑前者的测试。
     const checks = members.find(item => item.path === 'tools/ts-checks')
-    expect(checks?.dependencies).toContain('@omne-harness-lite/identity-values')
+    expect(checks?.dependencies).toContain('@omne-harness/legal-identity')
+    expect(checks?.dependencies).not.toContain('@omne-harness/identity-values')
     expect(listTestMembers(ROOT, []).some(item => item.path.startsWith('examples/'))).toBe(false)
     expect(existsSync(join(ROOT, 'examples'))).toBe(false)
   })

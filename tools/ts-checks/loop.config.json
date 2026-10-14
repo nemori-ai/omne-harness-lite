@@ -103,9 +103,7 @@
     }
   },
   "memberBudget": {
-    "excludeGroups": [
-      "examples"
-    ],
+    "excludeGroups": ["examples"],
     "baseline": true,
     "overAlert": {
       "warn": 8,

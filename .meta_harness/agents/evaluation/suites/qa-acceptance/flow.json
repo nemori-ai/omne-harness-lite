@@ -64,7 +64,7 @@
     "rebuild": [
       "pnpm",
       "--filter",
-      "@omne-harness-lite/cli",
+      "@omne-harness/cli",
       "run",
       "build"
     ],

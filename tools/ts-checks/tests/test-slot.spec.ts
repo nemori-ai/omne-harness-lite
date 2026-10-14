@@ -169,6 +169,16 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     expect(result.status).toBe(7)
   })
 
+  it('系统 bash 没有 EPOCHSECONDS 时仍执行命令', () => {
+    const result = spawnSync('/bin/bash', [SCRIPT, 'bash', '-c', 'echo ok'], {
+      encoding: 'utf8',
+      env: slotEnv({}),
+    })
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toBe('ok\n')
+    expect(result.stderr).not.toContain('EPOCHSECONDS')
+  })
+
   it('命令能看到自己持有名额，嵌套调用直接放行', () => {
     const result = slot([SCRIPT, 'bash', '-c', 'echo "$OMNE_TEST_SLOT_HELD"'])
     expect(result.status).toBe(0)

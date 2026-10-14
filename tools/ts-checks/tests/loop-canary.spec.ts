@@ -55,7 +55,7 @@ function canary(): { root: string; base: string } {
   write(
     root,
     'apps/cli/src/extra.ts',
-    "import { a } from '@omne-harness-lite/a'\n\nexport const extra = a\n",
+    "import { a } from '@omne-harness/a'\n\nexport const extra = a\n",
   )
   commit(root, 'after base')
   // 验收耗时：apps/cli 有 acceptance 脚本；它的慢记录在 strictRun 里种进账本。
@@ -63,7 +63,7 @@ function canary(): { root: string; base: string } {
   write(
     root,
     'apps/cli/package.json',
-    `${JSON.stringify({ name: '@omne-harness-lite/cli', scripts: { test: 'vitest run', acceptance: 'vitest run --config acceptance/vitest.config.ts' } })}\n`,
+    `${JSON.stringify({ name: '@omne-harness/cli', scripts: { test: 'vitest run', acceptance: 'vitest run --config acceptance/vitest.config.ts' } })}\n`,
   )
   commit(root, 'accepting member')
   // 并行工作树：两棵各自改 model/m（未提交也算）。

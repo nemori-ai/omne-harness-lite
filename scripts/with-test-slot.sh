@@ -23,6 +23,15 @@
 # 名额随持有它的进程退出而释放，不会因为异常退出而卡死。
 set -euo pipefail
 
+# Wall-clock seconds. Bash 5 provides EPOCHSECONDS; macOS /bin/bash 3.2 does not.
+unix_now() {
+    if [[ -n ${EPOCHSECONDS+x} ]]; then
+        printf '%s' "$EPOCHSECONDS"
+    else
+        date +%s
+    fi
+}
+
 if (( $# == 0 )); then
     echo "Usage: $0 <command> [args...]" >&2
     exit 2
@@ -58,7 +67,7 @@ clock_ticks="$(getconf CLK_TCK)"
 
 # 票与持有者登记同一格式：谁、从何时起、在哪个目录、跑什么命令。
 describe() {
-    printf 'pid=%s\nsince=%s\ncwd=%s\ncmd=%s\n' "$$" "$EPOCHSECONDS" "$PWD" "$command_line"
+    printf 'pid=%s\nsince=%s\ncwd=%s\ncmd=%s\n' "$$" "$(unix_now)" "$PWD" "$command_line"
 }
 
 field() {
@@ -72,16 +81,16 @@ field() {
 }
 
 # 登记还活着，就是登记它的进程还锁着它；锁已失效的顺手删掉。只在队列锁内调用。
+# 描述符号固定，macOS 自带 bash 3.2 没有 {变量} 这种自动分配。
 alive() {
-    local probe
     [[ -e $1 ]] || return 1
-    exec {probe}<"$1"
-    if flock --nonblock "$probe"; then
-        exec {probe}>&-
+    exec 8<"$1"
+    if flock --nonblock 8; then
+        exec 8>&-
         rm -f -- "$1"
         return 1
     fi
-    exec {probe}>&-
+    exec 8>&-
 }
 
 duration() {
@@ -105,17 +114,28 @@ json_string() {
     printf '"%s"' "$value"
 }
 
-# RFC 3339 时刻：strftime 的 %z 不带冒号（+0800），补上。
+# RFC 3339 时刻：%z 不带冒号（+0800），补上。bash 5 用内建；macOS bash 3.2 用 date。
 json_time() {
     local at
-    printf -v at '%(%Y-%m-%dT%H:%M:%S%z)T' "$1"
+    if (( BASH_VERSINFO[0] >= 4 )); then
+        printf -v at '%(%Y-%m-%dT%H:%M:%S%z)T' "$1"
+    else
+        at="$(date -r "$1" '+%Y-%m-%dT%H:%M:%S%z')"
+    fi
     printf '"%s:%s"' "${at:0:22}" "${at:22}"
 }
 
 # 机器负载（1、5、15 分钟平均），写成 JSON 数组。
 json_load() {
-    local one five fifteen rest
-    read -r one five fifteen rest </proc/loadavg
+    local one five fifteen rest raw
+    if [[ -r /proc/loadavg ]]; then
+        read -r one five fifteen rest </proc/loadavg
+    else
+        raw="$(sysctl -n vm.loadavg)"
+        raw="${raw#\{ }"
+        raw="${raw% \}}"
+        read -r one five fifteen <<<"$raw"
+    fi
     printf '[%s,%s,%s]' "$one" "$five" "$fifteen"
 }
 
@@ -132,7 +152,7 @@ read_child_ticks() {
 record() {
     local event=$1 line
     line="{\"event\":\"${event}\",\"command\":$(json_string "${command_line:0:500}"),\"cwd\":$(json_string "$PWD")"
-    line+=",\"pid\":$$,\"cores\":$(nproc),\"slots\":${slots},\"aheadOnArrival\":${ahead_on_arrival}"
+    line+=",\"pid\":$$,\"cores\":$(if command -v nproc >/dev/null 2>&1; then nproc; else getconf _NPROCESSORS_ONLN; fi),\"slots\":${slots},\"aheadOnArrival\":${ahead_on_arrival}"
     line+=",\"arrivedAt\":$(json_time "$started"),\"waitSeconds\":${waited}"
     if [[ $event == ran ]]; then
         line+=",\"slot\":${acquired},\"acquiredAt\":$(json_time "$acquired_at"),\"heldSeconds\":$(( ended_at - acquired_at ))"
@@ -171,26 +191,26 @@ take_turn() {
     if (( ticket_number == 0 )); then
         ticket_number=$(( newest + 1 ))
         ticket="$slot_dir/ticket-$ticket_number"
-        exec {ticket_fd}>"$ticket"
-        flock --nonblock "$ticket_fd"
-        describe >&"$ticket_fd"
+        exec 9>"$ticket"
+        flock --nonblock 9
+        describe >&9
     fi
 
     if (( ahead == 0 )); then
         for (( index = 1; index <= slots; index += 1 )); do
-            exec {slot_fd}>>"$slot_dir/slot-$index.lock"
-            if flock --nonblock "$slot_fd"; then
+            exec 7>>"$slot_dir/slot-$index.lock"
+            if flock --nonblock 7; then
                 # 换一个新文件再改名过去：上一任退出时两把锁未必同时失效，旧文件可能还锁着。
-                exec {holder_fd}>"$slot_dir/slot-$index.holder.$$"
-                flock --nonblock "$holder_fd"
-                describe >&"$holder_fd"
+                exec 6>"$slot_dir/slot-$index.holder.$$"
+                flock --nonblock 6
+                describe >&6
                 mv -f -- "$slot_dir/slot-$index.holder.$$" "$slot_dir/slot-$index.holder"
                 rm -f -- "$ticket"
-                exec {ticket_fd}>&-
+                exec 9>&-
                 acquired=$index
                 return 0
             fi
-            exec {slot_fd}>&-
+            exec 7>&-
         done
     fi
 
@@ -200,20 +220,20 @@ take_turn() {
         path="$slot_dir/slot-$index.holder"
         if alive "$path"; then
             since="$(field "$path" since)"
-            [[ $since =~ ^[0-9]+$ ]] || since=$EPOCHSECONDS
+            [[ $since =~ ^[0-9]+$ ]] || since=$(unix_now)
             cmd="$(field "$path" cmd)"
             (( ${#cmd} <= 160 )) || cmd="${cmd:0:160}…"
-            holders+=("名额 ${index}/${slots} 正由「${cmd}」占着，已 $(duration $(( EPOCHSECONDS - since )))（$(field "$path" cwd)，进程 $(field "$path" pid)）")
+            holders+=("名额 ${index}/${slots} 正由「${cmd}」占着，已 $(duration $(( $(unix_now) - since )))（$(field "$path" cwd)，进程 $(field "$path" pid)）")
             holder_ids+=("$(field "$path" pid)@${since}")
         fi
     done
 }
 
 in_queue() {
-    exec {queue_fd}>>"$slot_dir/queue.lock"
-    flock "$queue_fd"
+    exec 5>>"$slot_dir/queue.lock"
+    flock 5
     "$@"
-    exec {queue_fd}>&-
+    exec 5>&-
 }
 
 give_up() {
@@ -226,24 +246,29 @@ finish() {
     record ran
 }
 
-started=$EPOCHSECONDS
+started=$(unix_now)
 announced=0
 last_seen=''
 while :; do
     in_queue take_turn
     : "${ahead_on_arrival:=$ahead}"
-    waited=$(( EPOCHSECONDS - started ))
+    waited=$(( $(unix_now) - started ))
     if (( acquired )); then
         break
     fi
     if (( waited >= max_wait_seconds )); then
         status=75
-        ended_at=$EPOCHSECONDS
+        ended_at=$(unix_now)
         in_queue give_up
         echo "with-test-slot: 等了 ${waited} 秒仍没轮到（前面还有 ${ahead} 个，共 ${slots} 个名额，锁在 ${slot_dir}），命令没有执行" >&2
         exit 75
     fi
-    seen="${ahead}|${holder_ids[*]}"
+    # bash 3.2 with set -u treats an empty array expansion as unbound. bash 4.4+ does not.
+    if (( ${#holder_ids[@]} )); then
+        seen="${ahead}|${holder_ids[*]}"
+    else
+        seen="${ahead}|"
+    fi
     if [[ $seen != "$last_seen" ]]; then
         if (( ! announced )); then
             echo "with-test-slot: 排队中，前面还有 ${ahead} 个（共 ${slots} 个名额；每 ${poll_seconds} 秒看一次，最多等 ${max_wait_seconds} 秒）" >&2
@@ -251,30 +276,41 @@ while :; do
         else
             echo "with-test-slot: 前面还有 ${ahead} 个" >&2
         fi
-        for line in "${holders[@]}"; do
-            echo "with-test-slot:   ${line}" >&2
-        done
+        if (( ${#holders[@]} )); then
+            for line in "${holders[@]}"; do
+                echo "with-test-slot:   ${line}" >&2
+            done
+        fi
         if (( ${#holders[@]} == 0 && ahead == 0 )); then
             echo "with-test-slot:   名额的持有者没有登记（可能是旧版本的本脚本），用 fuser ${slot_dir}/slot-*.lock 查是谁" >&2
         fi
         last_seen=$seen
     fi
     # 关掉票的描述符再睡：本进程被杀时，票不会因为 sleep 还开着它而多活一轮。
-    sleep "$poll_seconds" {ticket_fd}>&-
+    sleep "$poll_seconds" 9>&-
 done
 
 if (( announced )); then
     echo "with-test-slot: 等了 ${waited} 秒，拿到名额 ${acquired}/${slots}" >&2
 fi
-acquired_at=$EPOCHSECONDS
+acquired_at=$(unix_now)
 load_at_acquire="$(json_load)"
-read_child_ticks
-ticks_before=$ticks
+if [[ -r /proc/$$/stat ]]; then
+    read_child_ticks
+    ticks_before=$ticks
+fi
 # 不用 exec：让本进程持有锁直到命令结束，命令留下的后台进程不会把名额带走。
 status=0
-OMNE_TEST_SLOT_HELD="$slot_dir/slot-$acquired.lock" "$@" {slot_fd}>&- {holder_fd}>&- || status=$?
-read_child_ticks
-cpu_ticks=$(( ticks - ticks_before ))
-ended_at=$EPOCHSECONDS
+if [[ -r /proc/$$/stat ]]; then
+    OMNE_TEST_SLOT_HELD="$slot_dir/slot-$acquired.lock" "$@" 7>&- 6>&- || status=$?
+    read_child_ticks
+    cpu_ticks=$(( ticks - ticks_before ))
+else
+    time_file="$(mktemp "${TMPDIR:-/tmp}/omne-slot-time.XXXXXX")"
+    OMNE_TEST_SLOT_HELD="$slot_dir/slot-$acquired.lock" /usr/bin/time -p -o "$time_file" "$@" 7>&- 6>&- || status=$?
+    cpu_ticks="$(awk -v clk="$clock_ticks" '$1=="user"{u=$2} $1=="sys"{s=$2} END {printf "%d", (u+s)*clk}' "$time_file")"
+    rm -f -- "$time_file"
+fi
+ended_at=$(unix_now)
 in_queue finish
 exit "$status"
