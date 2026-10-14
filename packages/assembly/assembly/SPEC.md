@@ -62,7 +62,7 @@
 
 `close` 在返回 promise 之前把准入设为 `stopped`。这发生在排空等待之前，也发生在任何步骤之前。此后的 `admit`，包括排空期间的 `admit`，抛出 `admission stopped`。
 
-排空接着等待，直到每个被等待的租约都被释放，或注入的时钟走完排空超时。关闭开始时等待集合非空，并且排空超时是 0，报告就是 `timed-out`。这次关闭不调用 `clock.delay`。时钟走完时等待集合已经为空，步骤照常执行。等待集合仍非空，报告是 `timed-out`。
+排空接着等待，直到每个被等待的租约都被释放，或注入的时钟走完排空超时。关闭开始时等待集合非空，并且排空超时是 0，报告就是 `timed-out`。这次关闭不调用 `clock.delay`。时钟走完时等待集合已经为空，步骤执行。等待集合仍非空，报告是 `timed-out`。
 
 `clock.delay` 拒绝时，关闭 promise 以该错误拒绝。报告不是 `timed-out`，也不是 `failed`。准入保持 `stopped`。
 
@@ -98,8 +98,14 @@
 
 就绪不是准入 `open`。部署页说明 fiber 处于 `ACTIVE` 并不表示存储可写或远端可达。
 
-撤除本地提供者，是对该实例调用 `close`。远端不可用时，本地实例留在原处。这不调用 `close`，也不因此把准入设为 `stopped`。
+撤除本地提供者，是对该实例调用 `close`。远端不可用时，本地实例留在原处。调用方不调用 `close`，也不把准入设为 `stopped`。
 
 ## 验证
 
-本目录没有可执行测试，也没有 workspace 包。真实后端、进程崩溃和远端中断不在本页的验证范围内。
+本目录不是 workspace 包。关闭行为的探针在 `verification/close-protocol.test.ts`。
+
+在本目录执行：
+
+`node --experimental-strip-types --test verification/close-protocol.test.ts`
+
+2026-10-14 用 Node v24.21.0 跑过该命令。探针不覆盖真实后端、进程崩溃和远端中断。Cordis 4.0.4 的依赖换代、调用方 Context、清理顺序和异常传播，用 `packages.0.0.1.legacy/core/kernel-basis` 里已有的 basis 探针核对，不把该旧包当成新的辅助层。
