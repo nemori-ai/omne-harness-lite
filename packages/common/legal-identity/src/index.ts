@@ -29,6 +29,14 @@ export interface TenantId {
   readonly account: AccountId
 }
 
+export type ScopeLayerIdentity =
+  | {
+      readonly name: 'ScopeLayerIdentity'
+      readonly layer: 'organization'
+      readonly organization: OrganizationId
+    }
+  | { readonly name: 'ScopeLayerIdentity'; readonly layer: 'tenant'; readonly tenant: TenantId }
+
 export interface IdentityTextError {
   readonly kind: 'identity-text-error'
   readonly code:
@@ -86,11 +94,15 @@ function parseJsonText<T>(
   return parseValue(value)
 }
 
+function isJsonObject(value: unknown): value is { readonly [key: string]: unknown } {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function readMembers<K extends string>(
   value: unknown,
   keys: readonly K[],
 ): IdentityTextResult<{ readonly [P in K]: unknown }> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return failure('type')
+  if (!isJsonObject(value)) return failure('type')
   if (!keys.every(key => Object.hasOwn(value, key))) return failure('missing-member')
   if (Object.keys(value).length !== keys.length) return failure('extra-member')
   return success(value as { readonly [P in K]: unknown })
@@ -202,4 +214,65 @@ export function tenantEquals(left: TenantId, right: TenantId): boolean {
     organizationEquals(left.organization, right.organization) &&
     accountEquals(left.account, right.account)
   )
+}
+
+function parseScopeLayerValue(value: unknown): IdentityTextResult<ScopeLayerIdentity> {
+  if (!isJsonObject(value)) return failure('type')
+  if (!Object.hasOwn(value, 'layer')) return failure('missing-member')
+  const layer = value['layer']
+  if (layer === 'organization') {
+    const members = readMembers(value, ['layer', 'organization'])
+    if (!members.ok) return members
+    const organization = parseAtomic(members.value.organization, ORGANIZATION_SPEC)
+    if (!organization.ok) return organization
+    return success(
+      mint<ScopeLayerIdentity>({
+        name: 'ScopeLayerIdentity',
+        layer,
+        organization: organization.value,
+      }),
+    )
+  }
+  if (layer === 'tenant') {
+    const members = readMembers(value, ['layer', 'tenant'])
+    if (!members.ok) return members
+    const pair = parseTenantValue(members.value.tenant)
+    if (!pair.ok) return pair
+    return success(
+      mint<ScopeLayerIdentity>({ name: 'ScopeLayerIdentity', layer, tenant: pair.value }),
+    )
+  }
+  return failure('family')
+}
+
+function scopeLayerMembers(value: ScopeLayerIdentity) {
+  return value.layer === 'organization'
+    ? { layer: value.layer, organization: value.organization.text }
+    : { layer: value.layer, tenant: tenantMembers(value.tenant) }
+}
+
+const SCOPE_LAYER_CODEC: IdentityTextCodec<ScopeLayerIdentity> = Object.freeze({
+  parse: (text: string) => parseJsonText(text, parseScopeLayerValue),
+  encode: (value: ScopeLayerIdentity) =>
+    isMinted(value, 'ScopeLayerIdentity')
+      ? success(JSON.stringify(scopeLayerMembers(value)))
+      : failure('type'),
+})
+
+/**
+ * Scope layer text is a JSON object whose `layer` is `organization` or `tenant`, plus one member
+ * named after that layer. Every other layer name is `family`.
+ */
+export function scopeLayerCodec(): IdentityTextCodec<ScopeLayerIdentity> {
+  return SCOPE_LAYER_CODEC
+}
+
+/** False unless both values came from parse. */
+export function scopeLayerEquals(left: ScopeLayerIdentity, right: ScopeLayerIdentity): boolean {
+  if (!isMinted(left, 'ScopeLayerIdentity') || !isMinted(right, 'ScopeLayerIdentity')) return false
+  if (left.layer === 'organization')
+    return (
+      right.layer === 'organization' && organizationEquals(left.organization, right.organization)
+    )
+  return right.layer === 'tenant' && tenantEquals(left.tenant, right.tenant)
 }
