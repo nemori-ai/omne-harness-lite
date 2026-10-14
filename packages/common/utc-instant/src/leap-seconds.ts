@@ -17,15 +17,18 @@ export type LeapSecondsListRead =
 const SECONDS_PER_DAY = 86_400
 // Days from 0000-03-01 to 1900-01-01, the NTP epoch, in the proleptic Gregorian calendar.
 const NTP_EPOCH_DAY = 693_901
+// 1972-01-01T00:00:00Z, when TAI-UTC became the integer 10. Every complete list starts here.
+const BASE_ROW = { ntp: 2_272_060_800, offset: 10 } as const
 
 const VERSION_LINE = /^#\$\s+(\d{1,10})\s*$/u
 const EXPIRY_LINE = /^#@\s+(\d{1,10})\s*$/u
 const DATA_LINE = /^(\d{1,10})\s+(\d{1,3})\s*(?:#.*)?$/u
 
 /**
- * Reads the IERS format. The first data row is the 1972-01-01 base offset, not a leap second.
- * Each later row changes TAI-UTC by +1 (a second 60 on the previous day) or -1 (a deleted second
- * 59 on the previous day). The `#h` hash is not checked here.
+ * Reads the IERS format. The first data row must be the 1972-01-01 base offset of 10, not a leap
+ * second; a list that starts anywhere else is truncated and fails as `step`. Each later row
+ * changes TAI-UTC by +1 (a second 60 on the previous day) or -1 (a deleted second 59 on the
+ * previous day). The `#h` hash is not checked here.
  */
 export function readLeapSecondsList(text: string): LeapSecondsListRead {
   const syntax = { ok: false, failure: { kind: 'syntax' } } as const
@@ -49,6 +52,7 @@ export function readLeapSecondsList(text: string): LeapSecondsListRead {
     }
   }
   if (version === undefined || expires === undefined || rows.length === 0) return syntax
+  if (rows[0]?.ntp !== BASE_ROW.ntp || rows[0].offset !== BASE_ROW.offset) return step
 
   const insertions: string[] = []
   const deletions: string[] = []
