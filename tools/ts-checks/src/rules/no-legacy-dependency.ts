@@ -84,6 +84,22 @@ function localInitializer(identifier: ts.Identifier): ts.Expression | undefined 
       scope.parameters.some(parameter => bindsName(parameter.name, identifier.text))
     )
       return undefined
+    if (
+      ts.isCatchClause(scope) &&
+      scope.variableDeclaration !== undefined &&
+      bindsName(scope.variableDeclaration.name, identifier.text)
+    )
+      return undefined
+    if (ts.isForStatement(scope) || ts.isForOfStatement(scope) || ts.isForInStatement(scope)) {
+      const initializer = scope.initializer
+      if (initializer !== undefined && ts.isVariableDeclarationList(initializer)) {
+        const declaration = initializer.declarations.find(item =>
+          bindsName(item.name, identifier.text),
+        )
+        if (declaration !== undefined)
+          return ts.isIdentifier(declaration.name) ? declaration.initializer : undefined
+      }
+    }
     if (!ts.isBlock(scope) && !ts.isSourceFile(scope)) continue
     for (const statement of scope.statements) {
       if (!ts.isVariableStatement(statement)) continue
