@@ -16,7 +16,7 @@
 
 ## 成员的必选结构
 
-PanQiWei 于 2026-10-14 接受 [RFC-0003 revision 1](rfcs/RFC-0003-source-packages.md#决定范围)。下面是新成员的目标形状。应用不使用这套结构。生成和扫描仍用 [包模板](../tools/ts-checks/templates/package/README_ZH.md)。该生成器还没有写出源码条件、先删除 `dist` 的 build，以及 `erasableSyntaxOnly`。
+PanQiWei 于 2026-10-14 接受 [RFC-0003 revision 1](rfcs/RFC-0003-source-packages.md#决定范围)。下面是新成员的目标形状。应用不使用这套结构。生成和扫描仍用 [包模板](../tools/ts-checks/templates/package/README_ZH.md)。该生成器已经写出先删除 `dist` 的 build，以及 `erasableSyntaxOnly`。源码条件仍未写出，因为名字尚未决定。
 
 每个新成员必须有这些文件。
 

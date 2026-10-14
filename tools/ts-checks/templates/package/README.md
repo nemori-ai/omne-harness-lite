@@ -3,7 +3,7 @@
 This directory owns `typescript-package@2.0.0`. It is a development resource, not a workspace product member.
 Public interfaces, behavior and acceptance remain with their existing owners.
 The required member shape is [package organization](../../../../docs/package-organization.md#成员的必选结构).
-This generator does not yet emit the source-condition export, a `build` script that deletes `dist` first, or `erasableSyntaxOnly`.
+This generator emits a `build` script that deletes `dist` first, and `erasableSyntaxOnly` on the build configuration. It does not yet emit the source-condition export, because that name is not decided.
 
 ## Create and inspect
 

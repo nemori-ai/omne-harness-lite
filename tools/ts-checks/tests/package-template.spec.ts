@@ -122,7 +122,16 @@ describe('package creation', () => {
       const value = JSON.parse(fs.readFileSync(join(root, member, 'package.json'), 'utf8'))
       expect(value.omneHarness).toBeUndefined()
       expect(value.engines).toEqual({ node: '>=24 <25' })
+      expect(value.scripts.build).toBe('rm -rf dist && tsc -p tsconfig.build.json')
       expect('./cordis' in value.exports).toBe(variant !== 'module')
+      const buildConfig = JSON.parse(
+        fs.readFileSync(join(root, member, 'tsconfig.build.json'), 'utf8'),
+      ) as { compilerOptions: { erasableSyntaxOnly?: boolean } }
+      const testConfig = JSON.parse(
+        fs.readFileSync(join(root, member, 'tsconfig.test.json'), 'utf8'),
+      ) as { include: string[] }
+      expect(buildConfig.compilerOptions.erasableSyntaxOnly).toBe(true)
+      expect(testConfig.include).toEqual(['tests/**/*.ts'])
       expect(fs.existsSync(join(root, member, 'tests'))).toBe(false)
       expect(
         inspectPackage(root, member, readTemplate(), evidence).findings.some(

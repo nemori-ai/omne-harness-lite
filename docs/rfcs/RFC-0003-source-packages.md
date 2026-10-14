@@ -57,7 +57,7 @@ owner: PanQiWei
 
 ### 源码包的正式模板结构
 
-新的产品源码包使用下面这一套结构。它以现有 `typescript-package@2.0.0` 的必选文件为底，并补上 RFC-0002 已经接受、而当前生成器还没有写出的三处。应用不使用这套模板。应用仍在 `apps/<成员>/`。
+新的产品源码包使用下面这一套结构。它以现有 `typescript-package@2.0.0` 的必选文件为底，并补上 RFC-0002 已经接受的三处。应用不使用这套模板。应用仍在 `apps/<成员>/`。
 
 每个新成员必须有这些文件。缺任何一个，模板生成不合格。
 
@@ -108,7 +108,7 @@ packages/<能力组>/<成员>/
 docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 ```
 
-`typescript-package@2.0.0` 今天已经生成必选文件、四种变体和 `src/cordis.ts`。它还没有生成源码条件、`build` 先删除 `dist`，以及 `erasableSyntaxOnly`。这三处是本提案要求模板补上的差额。现有模板 README 里的大树是可选资源角色，不是每个新包都要建满的目录。
+`typescript-package@2.0.0` 生成必选文件、四种变体和 `src/cordis.ts`。生成器已经写出 `build` 先删除 `dist`，以及 `erasableSyntaxOnly`。源码条件仍未写出，因为名字尚未决定。`files` 仍包含两份 README，因为检查器仍要求它们出现在发布清单里。现有模板 README 里的大树是可选资源角色，不是每个新包都要建满的目录。
 
 依赖层数的上限未定。未定之前，新包不得形成比解除当前工具依赖更深的链。具体数字等 PanQiWei 在看到首批依赖图之后裁定。
 
@@ -153,10 +153,10 @@ docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换或解除依据及确认者 |
 | --- | --- | --- | --- |
-| 成员定义、首批候选、声明与测试职责、正式模板结构 | [包组织](../package-organization.md#成员的必选结构)。[开发指南](../development.md#创建和整改产品包) 与 [成员文档](../member-documentation.md) 只保留指针 | 已写回 | 2026-10-14。生成器尚未补上三处差额 |
+| 成员定义、首批候选、声明与测试职责、正式模板结构 | [包组织](../package-organization.md#成员的必选结构)。[开发指南](../development.md#创建和整改产品包) 与 [成员文档](../member-documentation.md) 只保留指针 | 已写回 | 2026-10-14。同日生成器补上先删除 `dist` 的 build 和 `erasableSyntaxOnly`。源码条件名未定 |
 | workspace 的源码归属 | [workspace](../workspace.md) | 免除写回 | 2026-10-14 核对。该页写的是尚未退出的工具依赖和参考位置，不是新工作的导入做法。确认范围来自本卡落盘计划 |
 | 仍写着新工作应导入旧包的过渡句 | 清点列出的开发指南 | 待写回 | 本次没有把指南改成已经脱离。代码未切换。指示新工作导入旧包的句子留到切换时改 |
-| 模板准入缺口 | [包模板中文说明](../../tools/ts-checks/templates/package/README_ZH.md) 与 [英文说明](../../tools/ts-checks/templates/package/README.md) | 已写回 | 2026-10-14 只写入生成器尚未写出的三处。生成器代码未改 |
+| 模板准入缺口 | [包模板中文说明](../../tools/ts-checks/templates/package/README_ZH.md) 与 [英文说明](../../tools/ts-checks/templates/package/README.md) | 已写回 | 2026-10-14 生成器已写出先删除 `dist` 的 build 和 `erasableSyntaxOnly`。源码条件仍未写出 |
 
 ## 后继关系与维护
 

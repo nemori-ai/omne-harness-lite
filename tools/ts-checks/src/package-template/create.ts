@@ -58,7 +58,7 @@ function manifestText(input: CreateInput): string {
       exports: { '.': entry('index'), ...(binding ? { './cordis': entry('cordis') } : {}) },
       files: ['dist', 'README.md', 'README_ZH.md'],
       scripts: {
-        build: 'tsc -p tsconfig.build.json',
+        build: 'rm -rf dist && tsc -p tsconfig.build.json',
         typecheck: 'tsc -p tsconfig.test.json',
         test: 'vitest run',
       },

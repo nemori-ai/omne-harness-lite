@@ -144,7 +144,7 @@ pnpm format:write
 
 产品包先明确已接受的职责、公开接口与行为依据。建包时使用[版本化包模板](../tools/ts-checks/templates/package/README_ZH.md)，不要手写另一套结构。模板不能替代架构设计或技术接受。
 
-目标组及包边界先按[产品包组织](package-organization.md)确定。成员的必选文件和导出形状以[成员的必选结构](package-organization.md#成员的必选结构)为准。两层文档内容按[成员文档要求](member-documentation.md)组织。当前生成器的文件槽和操作由[包模板](../tools/ts-checks/templates/package/README_ZH.md)和[组模板](../tools/ts-checks/templates/domain/README.md)维护。生成器尚未写出源码条件、先删除 `dist` 的 build，以及 `erasableSyntaxOnly`。旧包不自动升级，新文档义务不重判旧版。
+目标组及包边界先按[产品包组织](package-organization.md)确定。成员的必选文件和导出形状以[成员的必选结构](package-organization.md#成员的必选结构)为准。两层文档内容按[成员文档要求](member-documentation.md)组织。当前生成器的文件槽和操作由[包模板](../tools/ts-checks/templates/package/README_ZH.md)和[组模板](../tools/ts-checks/templates/domain/README.md)维护。生成器已经写出先删除 `dist` 的 build，以及 `erasableSyntaxOnly`。源码条件仍未写出，因为名字尚未决定。旧包不自动升级，新文档义务不重判旧版。
 
 新能力组先有明确工程责任，再从仓库根预览和创建入口草稿：
 
