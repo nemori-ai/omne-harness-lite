@@ -37,6 +37,15 @@ IC-5的源或目标责任没有采用时是unknown。具体装配豁免只归已
 普通装配只豁免明确定位的源文件；没有 apps 通用分层豁免。
 单条 converged 只表示该条有限静态检查没有发现违规，不表示成员或系统整体符合。
 
+包扫描把上述符合性行原样投影到 `PackageScan.dependencies`。
+同一数组再加上 `undeclared-dependency` 和 `member-cycle`。
+这两个名字不是 `RuleId`。它们不能写入 `constraints.json`。省略规则列表也关不掉它们。
+`undeclared-dependency` 表示源码引用了另一个 workspace 成员，而导入方的 `dependencies`、`peerDependencies` 或 `devDependencies` 没有该包名。类型导入同样要声明。
+`member-cycle` 使用已经解析的 workspace 导入。这包括子路径 `cordis`，也包括解析到其他成员的相对导入。
+`unknown` 保持 `unknown`，不会被写成 `converged`。
+IC-4 仍在查看公开根闭包之前跳过 `apps/` 成员和 `packages/core/kernel-basis`。
+这次改动不禁止应用里其他文件导入 Cordis。
+
 IC-6/9/10/11/13/14/16/18/19 及 LSP 保留行为义务；IC-7、SRP/OCP/ISP 留人工判断；
 IC-8和IC-12尚未接入机械规则。IC-15和IC-16的加载器已由实际成员交付，本静态规则尚未覆盖最终配置与来源，仍须核对实际组合证据。IC-17机制待设计。
 这些状态须在 JSON、浏览器与 health 中保留。类型同形反例须显示无静态 LSP 证明。

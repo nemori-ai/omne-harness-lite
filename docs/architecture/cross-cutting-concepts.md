@@ -50,9 +50,36 @@
 
 多模态内容按结构化块及媒体类型表达。文字、图片和语音都可携带来源与引用，派生表示须能区分于原内容。人可见、模型可见与访问授权分别判断；隐藏于某个显示通道不构成保密边界。附件的可访问性、完整性、保留期和失效处理由内容及存储契约承接。
 
-公共JSON边界先执行严格UTF-8解码，在逐对象扫描时检测解码后重名键，保留数字原词法再交字段codec。禁止注释、尾逗号及空输入，任一语法错误拒绝整份输入。项数、深度、字符串和数字均有有限预算。JSON.parse之后无法找回已丢失的重名键和精度；增量解析必须兑现同一拒绝语义。
+公共JSON边界先执行严格UTF-8解码，在逐对象扫描时检测解码后重名键，保留数字原词法再交字段codec。禁止注释、尾逗号及空输入，任一语法错误拒绝整份输入。项数、深度、字符串和数字均有有限预算。JSON.parse之后无法找回已丢失的重名键和精度。增量解析必须兑现同一拒绝语义。精确签名与失败种类见[公共 JSON 文本读取](#json-text-reader)。
 
 每份公共形状只有一个拥有源，TS类型和编码从该源派生。校验不默认coercion、填默认或删除字段，拒绝无法保留精度和未知值语义的转换。具体Schema及严格JSON技术路线归[系统技术基础](technical-foundations.md#共同技术选择)，按需加载、首次编译及运行时换代归[缓存机制](data-and-state.md#缓存懒加载与预热)。活体对象、句柄、函数和Context不能进入序列化数据契约。
+
+<a id="json-text-reader"></a>
+
+#### 公共 JSON 文本读取
+
+公共 JSON 文本只有一个纯读取器。它不导入 Cordis、业务存储或插件树。调用方传入字节或已经解码的文本，以及自己的预算。
+
+```ts
+readJsonBytes(bytes, limits) -> JsonRead
+readJsonText(text, limits) -> JsonRead
+```
+
+`readJsonBytes` 对字节做致命 UTF-8 解码，并且不跳过 BOM。`readJsonText` 只接收已经完成致命解码的文本。文本含孤立代理项时，函数抛 `TypeError`。文本以 U+FEFF 开头时，结果是 `bom`。
+
+`limits` 的每个字段都是 1 到 `Number.MAX_SAFE_INTEGER` 的整数。缺字段或非法值抛 `TypeError`。读取器不提供默认预算。
+
+成功时，每个 JSON 数字都是源词法，不转成 JavaScript `number`。对象以 `entries` 保存键的出现顺序。键 `2` 在键 `1` 之前出现时，结果保持这个顺序。失败时不返回值，也不抛 `SyntaxError`。
+
+失败种类是 `utf8`、`bom`、`empty`、`syntax`、`duplicate-key` 和 `budget`。`syntax` 的原因是 `comment`、`trailing-comma`、`token`、`truncated` 或 `trailing-content`。`duplicate-key` 带父对象路径和解码后的键名。`budget` 的名目是 `bytes`、`depth`、`items`、`members`、`string` 或 `number`。
+
+读取器按下列顺序停止。字节先拒绝非法 UTF-8、BOM 和超过 `maxBytes` 的输入。然后拒绝空输入。只含空格、制表符、换行或回车的输入是空输入。对象键在扫描对应的值之前判定。解码后的键超过 `maxStringLength` 时，结果是 `budget` `string`。接受该键会使成员数超过 `maxMembers` 时，结果是 `budget` `members`。键已经出现过时，结果是 `duplicate-key`，并且不再扫描该值。下一个 token 会使深度或项数超限时，读取器在该 token 上返回对应的 `budget`。值没有写完，且尚未发生预算失败或重复键失败时，结果是 `truncated`。
+
+`{"a":1,"a":` 在 `maxMembers` 为 2 时是 `duplicate-key`。`{"a":[` 在 `maxDepth` 为 1 时是 `budget` `depth`。`{"a":` 是 `truncated`。
+
+字段 codec 在读取成功之后运行，由该形状的拥有者持有。缺席的键是 `undefined`。JSON `null` 不是缺席。字段拒绝已经出现的 `""`、`[]` 或 `{}` 时，失败种类是 `empty`。JSON 种类与字段要求不同时，失败种类是 `type`。`encode` 无法保留字段含义时返回 `type` 或 `precision`。它不返回缺席、`null` 或空值失败。读取成功不表示对象存在，也不表示调用方得到授权。
+
+对同一份完整文档，增量读取与一次读取给出同一个 `JsonFailure`。语法引擎在报错之后仍给出的值，或在重复键中保留的某一个值，都不是成功结果。编译、运行时、异步路径和缓存归[缓存机制](data-and-state.md#缓存懒加载与预热)。
 
 ## 消息、记录与流
 

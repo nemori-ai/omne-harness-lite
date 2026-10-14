@@ -24,8 +24,6 @@ function checkLocation(input: CreateInput): string {
   const name = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u
   if (!name.test(input.name) || !name.test(input.group) || input.name === 'docs')
     throw new Error('Use a lowercase leaf package name and group')
-  if (input.variant === 'service-contract' && input.group !== 'core')
-    throw new Error('Public Service definitions belong in packages/core')
   const root = resolve(input.root)
   const patterns = workspacePatterns(readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8'))
   if (!patterns.includes('packages/*/*')) throw new Error('Workspace does not adopt packages/*/*')

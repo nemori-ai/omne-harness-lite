@@ -8,10 +8,11 @@ Public interfaces, behavior and acceptance remain with their existing owners.
 Run from the repository root:
 
 ```sh
-pnpm package:template create --group core --name example-capability --variant service-contract
-pnpm package:template create --group core --name example-capability --variant service-contract --write
+pnpm package:template create --group identity --name authorization --variant service-contract
+pnpm package:template create --group identity --name authorization --variant service-contract --write
+pnpm package:template create --group access --name public-contract --variant module --write
 pnpm package:template scan --json
-pnpm package:template scan --member packages/core/storage --check
+pnpm package:template scan --member packages/identity/authorization --json
 ```
 
 Creation previews by default. `--write` refuses existing targets and symlinks.
@@ -34,11 +35,19 @@ Creation does not generate empty specs, fictitious services or passing placehold
 | variants/service-provider/ | Independent factories and bindings that consume public Service definitions |
 | fragments/ | Writing guides for actual documentation topics, complete owned behavior specifications, schema, verification and decisions |
 
-Templates 1.0.0 and 2.0.0 still restrict service-contract creation and inspection to core.
-The target ownership policy is in [Product package organization](../../../../docs/package-organization.md).
-Service definitions follow their capability owner. Architecture conformance now checks adopted roles and public exports.
-Template creation, adoption inspection and other lint checks retain their existing scope.
-The tool owner must adapt the applicable checks before creating public Service members in a new group.
+`service-contract` can be created in any kebab-case group, including `identity` and `access`. The directory name `core` does not grant create or scan permission.
+Ownership of Service definitions stays with [Product package organization](../../../../docs/package-organization.md).
+`scan --json` lists judged edges on each package `dependencies` array.
+A row includes `rule`, `state`, `member`, `targetMember`, and `sites`.
+The rules are the existing IC rows, the layer rows, `undeclared-dependency`, and `member-cycle`.
+`undeclared-dependency` and `member-cycle` are not `RuleId` values. They do not appear in `constraints.json`.
+`unknown` stays `unknown`.
+`--check` does not treat `unknown` as a pass. An `unknown` row alone does not make the exit code 1.
+
+`lint:rules` `group-direction` is a separate check. It still reports `unregistered-group` for `packages/access`, `packages/identity`, `packages/agent`, and `packages/assembly`.
+This change does not edit that rule.
+Registering those groups on `GROUP_DIRECTION_POLICY` would leave a same-group import from `sdk` to `server-entry` legal until the two members form a cycle.
+
 Keep definition uniqueness and public entry rules. Do not bypass inspection with a handwritten structure or a false adoption marker.
 A provider consumes the public promises instead of copying them.
 Private helper services do not automatically make a coordination package a public Service provider.
