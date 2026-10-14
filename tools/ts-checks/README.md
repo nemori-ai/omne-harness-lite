@@ -191,7 +191,9 @@ behavior of an archived product.
 and TypeScript-resolved module aliases. Test files retain the import check.
 They also reject archived paths passed to file readers, `URL`, `join`, or
 `resolve`. The path check follows local variable initializers within enclosing
-blocks and respects parameter shadowing. Plain strings supplied as deliberately
+blocks and follows explicitly selected fields of local object literals. Only the
+path argument of a file reader is checked. Destructured bindings stop lookup in
+outer scopes, and callback bodies are not treated as path arguments. Plain strings supplied as deliberately
 invalid checker input remain allowed. The check does not prove arbitrary dynamic
 paths, reassignment, indirect calls, or cross-module data flow. Run the tools
 without the archived directories to test the actual dependency chain.

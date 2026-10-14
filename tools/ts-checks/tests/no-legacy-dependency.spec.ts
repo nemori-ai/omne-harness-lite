@@ -67,6 +67,25 @@ function passed(path: string) { return readFileSync(path) }
     expect(noLegacyDependency.check([file('tools/check/tests/rule.spec.ts', text)])).toEqual([])
   })
 
+  it.each([
+    "readFile('./current.ts', 'utf8', () => { check({ path: 'packages.0.0.1.legacy/a.ts' }) })",
+    "const input = { path: './current.ts', text: 'packages.0.0.1.legacy/a.ts' }; readFileSync(input.path)",
+    "const input = { path: './current.ts', text: 'packages.0.0.1.legacy/a.ts' }; readFileSync(input['path'])",
+    "const path = 'packages.0.0.1.legacy/a.ts'; function read({ path }) { return readFileSync(path) }; read({ path: './current.ts' })",
+    "const path = 'packages.0.0.1.legacy/a.ts'; { const { path } = { path: './current.ts' }; readFileSync(path) }",
+    "const path = 'packages.0.0.1.legacy/a.ts'; function read([path]) { return readFileSync(path) }",
+    "const path = 'packages.0.0.1.legacy/a.ts'; { const [path] = ['./current.ts']; readFileSync(path) }",
+  ])('does not treat unrelated data or a shadowed binding as the file path: %s', text => {
+    expect(noLegacyDependency.check([file('tools/check/tests/rule.spec.ts', text)])).toEqual([])
+  })
+
+  it.each([
+    "const input = { path: 'packages.0.0.1.legacy/a.ts', text: './current.ts' }; readFileSync(input.path)",
+    "const input = { path: 'apps.0.0.1.legacy/a.ts', text: './current.ts' }; readFileSync(input['path'])",
+  ])('rejects an archived path selected from a local object: %s', text => {
+    expect(noLegacyDependency.check([file('tools/check/tests/rule.spec.ts', text)])).toHaveLength(1)
+  })
+
   it('rejects imports resolved through a TypeScript alias into an archived tree', () => {
     expect(
       noLegacyDependency.check([

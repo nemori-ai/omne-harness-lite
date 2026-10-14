@@ -65,6 +65,14 @@ const PATH_CALLS = new Set([
   'URL',
 ])
 
+function bindsName(name: ts.BindingName, identifier: string): boolean {
+  return ts.isIdentifier(name)
+    ? name.text === identifier
+    : name.elements.some(
+        element => ts.isBindingElement(element) && bindsName(element.name, identifier),
+      )
+}
+
 function localInitializer(identifier: ts.Identifier): ts.Expression | undefined {
   for (
     let scope: ts.Node | undefined = identifier.parent;
@@ -73,38 +81,101 @@ function localInitializer(identifier: ts.Identifier): ts.Expression | undefined 
   ) {
     if (
       ts.isFunctionLike(scope) &&
-      scope.parameters.some(
-        parameter => ts.isIdentifier(parameter.name) && parameter.name.text === identifier.text,
-      )
+      scope.parameters.some(parameter => bindsName(parameter.name, identifier.text))
     )
       return undefined
     if (!ts.isBlock(scope) && !ts.isSourceFile(scope)) continue
     for (const statement of scope.statements) {
       if (!ts.isVariableStatement(statement)) continue
       for (const declaration of statement.declarationList.declarations) {
-        if (ts.isIdentifier(declaration.name) && declaration.name.text === identifier.text)
-          return declaration.initializer
+        if (bindsName(declaration.name, identifier.text))
+          return ts.isIdentifier(declaration.name) ? declaration.initializer : undefined
       }
     }
   }
   return undefined
 }
 
-function pathContainsLegacy(node: ts.Node, seen = new Set<ts.Node>()): boolean {
-  if (seen.has(node)) return false
-  seen.add(node)
-  if (
-    ts.isStringLiteralLike(node) ||
-    ts.isTemplateHead(node) ||
-    ts.isTemplateMiddle(node) ||
-    ts.isTemplateTail(node)
-  )
-    return LEGACY_TREE.test(node.text)
-  if (ts.isIdentifier(node)) {
-    const initializer = localInitializer(node)
-    return initializer !== undefined && pathContainsLegacy(initializer, seen)
+function localValue(
+  expression: ts.Expression,
+  seen = new Set<ts.Node>(),
+): ts.Expression | undefined {
+  if (seen.has(expression)) return undefined
+  seen.add(expression)
+  if (ts.isIdentifier(expression)) {
+    const initializer = localInitializer(expression)
+    return initializer === undefined ? undefined : localValue(initializer, seen)
   }
-  return ts.forEachChild(node, child => pathContainsLegacy(child, seen) || undefined) === true
+  if (
+    ts.isParenthesizedExpression(expression) ||
+    ts.isAsExpression(expression) ||
+    ts.isSatisfiesExpression(expression)
+  )
+    return localValue(expression.expression, seen)
+  return expression
+}
+
+function pathArguments(
+  node: ts.CallExpression | ts.NewExpression,
+  name: string,
+): readonly ts.Expression[] {
+  const args = node.arguments ?? []
+  return ['join', 'resolve', 'URL'].includes(name) ? args : args.slice(0, 1)
+}
+
+function callName(expression: ts.Expression): string | undefined {
+  return ts.isIdentifier(expression)
+    ? expression.text
+    : ts.isPropertyAccessExpression(expression)
+      ? expression.name.text
+      : undefined
+}
+
+function pathContainsLegacy(expression: ts.Expression, seen = new Set<ts.Node>()): boolean {
+  if (seen.has(expression)) return false
+  seen.add(expression)
+  const value = localValue(expression)
+  if (value === undefined) return false
+  if (ts.isStringLiteralLike(value)) return LEGACY_TREE.test(value.text)
+  if (ts.isTemplateExpression(value))
+    return (
+      LEGACY_TREE.test(value.head.text) ||
+      value.templateSpans.some(
+        span => LEGACY_TREE.test(span.literal.text) || pathContainsLegacy(span.expression, seen),
+      )
+    )
+  if (ts.isBinaryExpression(value) && value.operatorToken.kind === ts.SyntaxKind.PlusToken)
+    return pathContainsLegacy(value.left, seen) || pathContainsLegacy(value.right, seen)
+  if (ts.isPropertyAccessExpression(value) || ts.isElementAccessExpression(value)) {
+    const name = ts.isPropertyAccessExpression(value)
+      ? value.name.text
+      : ts.isStringLiteralLike(value.argumentExpression)
+        ? value.argumentExpression.text
+        : undefined
+    const object = localValue(value.expression)
+    if (name === undefined || object === undefined || !ts.isObjectLiteralExpression(object))
+      return false
+    const property = object.properties.find(
+      property =>
+        ts.isPropertyAssignment(property) &&
+        (ts.isIdentifier(property.name) || ts.isStringLiteralLike(property.name)) &&
+        property.name.text === name,
+    )
+    return (
+      property !== undefined &&
+      ts.isPropertyAssignment(property) &&
+      pathContainsLegacy(property.initializer, seen)
+    )
+  }
+  if (ts.isCallExpression(value) || ts.isNewExpression(value)) {
+    const name = callName(value.expression)
+    return (
+      name !== undefined &&
+      PATH_CALLS.has(name) &&
+      pathArguments(value, name).some(argument => pathContainsLegacy(argument, seen))
+    )
+  }
+  return false
 }
 
 function sourceViolations(file: SourceFile): Violation[] {
@@ -144,7 +215,7 @@ function sourceViolations(file: SourceFile): Violation[] {
       if (
         name === undefined ||
         !PATH_CALLS.has(name) ||
-        !(node.arguments ?? []).some(argument => pathContainsLegacy(argument))
+        !pathArguments(node, name).some(argument => pathContainsLegacy(argument))
       )
         return
     } else if (
