@@ -16,6 +16,10 @@ class Duration {
     throw new TypeError('A Duration has no JSON form; write encodeDuration(duration) instead')
   }
 
+  toString(): never {
+    throw new TypeError('A Duration has no string form; write encodeDuration(duration) instead')
+  }
+
   static {
     textOf = duration => {
       const fraction = duration.#fraction === '' ? '' : `.${duration.#fraction}`

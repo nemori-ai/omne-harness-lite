@@ -20,6 +20,10 @@ class Instant {
     throw new TypeError('An Instant has no JSON form; write encodeInstant(instant) instead')
   }
 
+  toString(): never {
+    throw new TypeError('An Instant has no string form; write encodeInstant(instant) instead')
+  }
+
   static {
     civilOf = instant => instant.#civil
     fractionOf = instant => instant.#fraction
@@ -62,6 +66,10 @@ class LeapSecondData {
 
   toJSON(): never {
     throw new TypeError('LeapSecondData has no JSON form; keep the leap-seconds.list text instead')
+  }
+
+  toString(): never {
+    throw new TypeError('LeapSecondData has no string form; keep the leap-seconds.list text instead')
   }
 
   static {
