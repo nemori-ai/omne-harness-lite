@@ -102,10 +102,12 @@
 
 ## 验证
 
-本目录不是 workspace 包。关闭行为的探针在 `verification/close-protocol.test.ts`。
+本目录不是 workspace 包。关闭行为的探针在 `verification/close-protocol.test.ts`。进程在 `close` 完成前被杀死的探针在 `verification/process-kill.test.ts`。
 
 在本目录执行：
 
-`node --experimental-strip-types --test verification/close-protocol.test.ts`
+`node --experimental-strip-types --test verification/close-protocol.test.ts verification/process-kill.test.ts`
 
-2026-10-14 用 Node v24.21.0 跑过该命令。探针不覆盖真实后端、进程崩溃和远端中断。Cordis 4.0.4 的依赖换代、调用方 Context、清理顺序和异常传播，用 `packages.0.0.1.legacy/core/kernel-basis` 里已有的 basis 探针核对，不把该旧包当成新的辅助层。
+2026-10-14 用 Node v24.21.0 跑过该命令，21 项通过。其中进程杀死试验观察到子进程收到 SIGKILL，并且没有写出关闭报告。
+
+探针不覆盖真实后端和远端中断。没有可启动的网络、MCP、执行环境或数据库成员，因此没有做这些试验。Cordis 4.0.4 的依赖换代、调用方 Context、清理顺序和异常传播，用 `packages.0.0.1.legacy/core/kernel-basis` 里已有的 basis 探针核对，不把该旧包当成新的辅助层。
