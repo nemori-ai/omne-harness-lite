@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft utc-instant package; complete the accepted public contract before delivery",
+  "description": "UTC instants, SI-second durations, and compareInstants with a bundled IERS leap-second table",
   "engines": {
     "node": ">=24.18.0 <25"
   },
