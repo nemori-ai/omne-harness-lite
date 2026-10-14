@@ -294,7 +294,6 @@ describe('dependency rows', () => {
       reason: `公开根 ${widget}/src/index.ts 的源码依赖闭包引入 Cordis 绑定`,
       sites: [{ path: `${widget}/src/index.ts`, line: 1 }],
     }
-    // The types and import conditions share one source file. The root walk visits each condition.
-    expect(flagged).toEqual([expected, expected])
+    expect(flagged).toEqual([expected])
   })
 })

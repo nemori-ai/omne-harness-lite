@@ -25,11 +25,9 @@ export interface IsolatedWorkspace {
   dispose(): void
 }
 
-/** Temp checkout for the official template. It is not a product member. */
 export function isolatedProductWorkspace(): IsolatedWorkspace {
   const root = mkdtempSync(join(realpathSync(tmpdir()), 'omne-package-template-'))
   cpSync(join(repoRoot, 'tsconfig.base.json'), join(root, 'tsconfig.base.json'))
-  // Generated vitest.config.ts imports this host module by a root-relative path.
   cpSync(join(repoRoot, 'vitest.tiers.mts'), join(root, 'vitest.tiers.mts'))
   const host: unknown = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'))
   const engines = hostNode(host)

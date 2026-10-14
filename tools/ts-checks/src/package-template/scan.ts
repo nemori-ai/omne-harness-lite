@@ -109,8 +109,6 @@ export function inspectPackage(
       reason: row.reason,
     })
   }
-  // Dynamic keys and generic helpers are not necessarily violations of the file template.
-  // Keep them visible without claiming that a template marker verifies their semantics.
   const bindingUnknowns = [...evidence.actual.unknown, ...evidence.actual.importUnknown]
     .filter(item => item.member === member)
     .map(item => ({ path: item.path, reason: item.reason }))
@@ -147,7 +145,6 @@ function memberDependencies(
   const rows = dependencies ?? evidence.conformance.rows
   return rows.filter(row => row.member === member || row.targetMember === member)
 }
-/** Uses the existing workspace/source resolver and conformance facts; no second extractor. */
 export function scanPackages(root: string, members?: readonly string[]): PackageScan[] {
   root = resolve(root)
   const candidates = discoverProducts(root)
