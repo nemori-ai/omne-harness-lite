@@ -75,11 +75,50 @@ function providerSource() {
         WHERE tenant = ? AND domain = ? AND operation = ? AND protocol = ? AND opkey = ?\`)
         .get(id.tenant, id.transactionDomain, id.operation, id.protocolVersion, id.operationKey)
     }
+    function sqlWithoutComments(sql) {
+      let out = ''
+      let i = 0
+      let quote = ''
+      while (i < sql.length) {
+        const ch = sql[i]
+        const next = sql[i + 1]
+        if (quote) {
+          out += ch
+          if (ch === quote) quote = ''
+          else if (ch === '\\\\' ) i += 1
+          i += 1
+          continue
+        }
+        if (ch === "'" || ch === '"') {
+          quote = ch
+          out += ch
+          i += 1
+          continue
+        }
+        if (ch === '/' && next === '*') {
+          const end = sql.indexOf('*/', i + 2)
+          i = end === -1 ? sql.length : end + 2
+          out += ' '
+          continue
+        }
+        if (ch === '-' && next === '-') {
+          const end = sql.indexOf('\\n', i + 2)
+          i = end === -1 ? sql.length : end + 1
+          out += ' '
+          continue
+        }
+        out += ch
+        i += 1
+      }
+      return out
+    }
     function port(sql) {
-      const word = String(sql).trim().split(/\s+/)[0]
+      const stripped = sqlWithoutComments(String(sql))
+      if (stripped.includes(';')) return { refused: true, reason: 'multiple_statements' }
+      const word = stripped.trim().split(/\\s+/)[0]
       const upper = word ? word.toUpperCase() : ''
       if (['BEGIN', 'COMMIT', 'ROLLBACK', 'END', 'SAVEPOINT', 'RELEASE'].includes(upper)) {
-        return { refused: true, word: upper }
+        return { refused: true, reason: 'transaction_control', word: upper }
       }
       db.exec(sql)
       return { refused: false }
@@ -186,6 +225,16 @@ function providerSource() {
       }
       if (message.type === 'query') {
         parentPort.postMessage(query(message.identity))
+        return
+      }
+      if (message.type === 'ownership') {
+        db.exec('BEGIN IMMEDIATE')
+        db.exec('CREATE TABLE IF NOT EXISTS port_guard (id INTEGER PRIMARY KEY)')
+        db.prepare('INSERT INTO port_guard (id) VALUES (7)').run()
+        const gate = port(message.sql)
+        db.exec('ROLLBACK')
+        const left = db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name = 'port_guard'").get().n
+        parentPort.postMessage({ gate, tableLeft: left })
         return
       }
       if (message.type === 'execute') {
@@ -361,11 +410,17 @@ const registrationStillThere = await third.ask({
 record('registration-after-restart', registrationStillThere)
 
 const blocked = new Set(['BEGIN', 'COMMIT', 'ROLLBACK', 'END', 'SAVEPOINT', 'RELEASE'])
-const portResults = []
-for (const sql of ['commit', 'ROLLBACK', 'select 1']) {
-  portResults.push(await third.ask({ type: 'execute', sql }))
+const bypass = [
+  'SELECT 1; BEGIN',
+  '/* probe */ COMMIT',
+  'SELECT 1; BEGIN',
+  '-- probe\nROLLBACK',
+]
+const bypassResults = []
+for (const sql of bypass) {
+  bypassResults.push(await third.ask({ type: 'ownership', sql }))
 }
-record('port-refuses-transaction-sql', portResults)
+record('port-cannot-end-provider-transaction', bypassResults)
 
 record('unsupported-protocol', await third.ask({
   type: 'commit',
@@ -401,7 +456,7 @@ record('closing', await third.ask({
 let unanswered = 1
 const admissionQueueLimit = 1
 const beforeSend = unanswered >= admissionQueueLimit
-  ? { kind: 'rejected_before_accept', reason: 'queue_full', sent: false }
+  ? { kind: 'rejected_before_accept', reason: 'queue_full', sent: false, unanswered, admissionQueueLimit }
   : { sent: true }
 record('queue-full-before-send', beforeSend)
 record('slow-sql-saturation', { ran: false, reason: 'not run in this probe' })

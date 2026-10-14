@@ -30,10 +30,10 @@ Worker 一次处理一条消息。`node:sqlite` 的语句在这条消息里同�
 1. 控制侧入口核对必需字段。字段缺失时，`commit` 返回 `field_missing`。
 2. 控制侧入口核对 `participant` 不重复，并且每条命令的 `facts` 都是 JSON 值。不成立时，`commit` 返回 `participant_repeated` 或 `facts_not_json`。
 3. 控制侧入口用 RFC 8785 写出调用方排好的命令数组，再对写出的 UTF-8 字节计算 SHA-256。提供者不重排命令。
-4. 控制侧在发送前计算这条连接上尚未收到结果的 `commit` 数量。再发一条就会达到 `admissionQueueLimit` 时，控制侧返回 `queue_full`，不把消息发给 Worker。命令条数和单条字节也在发送前核对，超过上限返回 `command_limit`。协议版本不是 `1` 时返回 `unsupported_protocol`。命令数组为空时返回 `field_missing`。
+4. 控制侧在发送前计算这条连接上尚未把结果交还给调用方的 `commit` 个数。个数已经等于 `admissionQueueLimit` 时，控制侧返回 `queue_full`，不把消息发给 Worker。个数为 0 且上限至少为 1 时，第一条可以发送。命令条数和单条字节也在发送前核对，超过上限返回 `command_limit`。协议版本不是 `1` 时返回 `unsupported_protocol`。命令数组为空时返回 `field_missing`。
 5. 控制侧入口把操作身份、组合版本、命令和输入摘要发给 Worker。
 6. Worker 核对旧写代际已排除。未排除时，`commit` 返回 `writer_not_current`。
-7. Worker 在写连接上读取该租户、事务域和组合版本的登记。没有登记时，`commit` 返回 `combination_unregistered`。某条命令的 `participant` 不在登记中时，`commit` 返回 `participant_not_in_combination`。Worker 再次核对尚未开始的数量，漏检时返回 `queue_full`。通过核对的操作进入队尾。
+7. Worker 在写连接上读取该租户、事务域和组合版本的登记。没有登记时，`commit` 返回 `combination_unregistered`。某条命令的 `participant` 不在登记中时，`commit` 返回 `participant_not_in_combination`。Worker 使用和控制侧相同的计数。个数已经等于上限时返回 `queue_full`。通过核对的操作进入队尾。
 8. 轮到该操作时，Worker 执行 `BEGIN IMMEDIATE`。等待写锁的时间以 `lockWaitMs` 为上限。
 9. Worker 在事务内按操作身份读取回执。回执存在且摘要相同时，Worker 用 `ROLLBACK` 结束这个还没有写入的事务，`commit` 返回已保存的回执。回执存在且摘要不同时，Worker 同样结束事务，`commit` 返回 `identity_conflict` 和已有回执。这两种情况都不执行命令。
 10. Worker 按命令数组的顺序，把每条命令交给它的参加者模块。参加者模块通过 `TransactionPort` 执行语句。
@@ -129,17 +129,17 @@ sequenceDiagram
 
 | 证明 | 本设计的来源 |
 | --- | --- |
-| 旧写代际已排除 | 机制尚未选定 |
-| 旧事务已终止 | 机制尚未选定 |
-| 数据库恢复已完成 | 机制尚未选定 |
+| 旧写代际已排除 | 前一个 Worker 的退出已经被观察到，或这是崩溃后的新进程。新连接打开并读回版本和 PRAGMA 之后，库里的写代际已经加一 |
+| 旧事务已终止 | 新连接打开时，SQLite 结束死连接留下的未提交事务。提供者在下一次 `BEGIN IMMEDIATE` 之前不持有事务 |
+| 数据库恢复已完成 | `DatabaseSync` 打开成功，并且版本和三项 PRAGMA 读回成功。打开失败则这项不成立 |
 | 权威读取已成功 | 第 3 步在写连接上的读取成功 |
-| 该操作未进入受理队列 | 当前 Worker 的受理队列中没有这个操作身份 |
+| 该操作未进入受理队列 | 尚未交还结果的 `commit` 里没有这个操作身份 |
 
 受理队列只在内存中。重启后队列为空，旧队列中尚未开始的操作没有回执。
 
 ## 参加者端口
 
-参加者模块只拿到 SPEC 定义的 `TransactionPort`。端口只有 `execute`。端口不能提交、回滚或关闭连接。语句去掉空白后的第一个词是 `BEGIN`、`COMMIT`、`ROLLBACK`、`END`、`SAVEPOINT` 或 `RELEASE` 时，端口拒绝该语句，不交给 SQLite。提供者的事务保持原状。参加者模块拿不到 `node:sqlite` 的数据库句柄。`BEGIN IMMEDIATE`、`COMMIT` 和 `ROLLBACK` 由 Worker 执行。
+参加者模块只拿到 SPEC 定义的 `TransactionPort`。提供者在已打开的事务里，按命令顺序同步调用 `execute(facts, port)`。`params` 只能是 `null`、布尔值、有限数、字符串或 `Uint8Array`。端口先去掉引号外的注释，再拒绝引号外仍含分号的文本，然后拒绝第一个词是 `BEGIN`、`COMMIT`、`ROLLBACK`、`END`、`SAVEPOINT` 或 `RELEASE` 的语句。这些语句不交给 SQLite。提供者的事务保持原状。参加者模块拿不到数据库句柄。`BEGIN IMMEDIATE`、`COMMIT` 和 `ROLLBACK` 由 Worker 执行。
 
 ## 关闭
 
@@ -159,12 +159,12 @@ sequenceDiagram
 
 物理断电和 [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 仍未完成。本设计和探针都不证明断电耐久。
 
-行为模型不在 #247 内。`writer_not_current` 保持为明确的拒绝，不用模型省掉。
+行为模型不在 #247 内。`writer_not_current` 保持为明确的拒绝，不用模型省掉。单机恢复步骤写在上面的证明表和 SPEC 里。
 
-本设计尚未选定下列机制。
+本设计尚未选定下列事项。
 
-- 确认旧写代际已排除、旧事务已终止和数据库恢复已完成的方法。
-- 端口怎样拒绝经 `execute` 传入的事务控制语句。规格已规定拒绝并不执行。实现时的错误对象形状未定。
+- 确认旧写代际、旧事务和数据库恢复的单机步骤见上面的证明表。跨进程同时打开两条写连接不在这条路线里。
+- 端口拒绝事务控制语句的规则见 SPEC。错误对象的类名未定。
 - `SqlValue`、`QueryRows` 和参加者模块入口的精确形状。
 - 事务域与租户的绑定怎样配置。
 - 读回的 PRAGMA 值与设定不符时，提供者怎样处置。

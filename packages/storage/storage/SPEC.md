@@ -57,7 +57,13 @@ type RegisterResult =
     }
   | {
       readonly kind: "rejected_before_accept"
-      readonly reason: "field_missing" | "participant_repeated" | "participant_empty"
+      readonly reason:
+        | "field_missing"
+        | "participant_repeated"
+        | "participant_empty"
+        | "registration_conflict"
+        | "writer_not_current"
+        | "domain_occupied"
     }
 
 type FactCommand = {
@@ -153,6 +159,9 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 | `field_missing` | 租户、事务域、组合版本或参加者列表缺失 |
 | `participant_empty` | 参加者列表没有名字，或列表中有空字符串 |
 | `participant_repeated` | 同一个名字在参加者列表中出现两次或更多 |
+| `registration_conflict` | 同一登记键已经存在，且已保存的参加者列表与本次不同。列表相同则返回已保存的登记 |
+| `writer_not_current` | 该事务域的旧写代际尚未排除 |
+| `domain_occupied` | 该事务域已经绑定另一个租户 |
 
 登记和登记拒绝都不写入提交回执。
 
@@ -221,9 +230,11 @@ interface TransactionPort {
 }
 ```
 
-端口执行带参数的语句。端口不能提交、回滚或关闭连接。`BEGIN IMMEDIATE`、`COMMIT` 和 `ROLLBACK` 由提供者执行。参加者模块拿不到数据库句柄。`SqlValue` 和 `QueryRows` 的精确形状在提供者实现时确定。
+端口执行带参数的语句。`sql` 是字符串。`params` 的每一项只能是 `null`、布尔值、有限数、字符串或 `Uint8Array`。其他值端口拒绝，不执行。
 
-端口在执行前看语句去掉空白后的第一个词。这个词是 `BEGIN`、`COMMIT`、`ROLLBACK`、`END`、`SAVEPOINT` 或 `RELEASE` 时，端口拒绝该语句，不执行它。这次拒绝不提交、不回滚、不关闭提供者的事务。模块收到失败。模块因此不能完成命令时，提供者按明确的业务失败处理。比较第一个词时不区分大小写。
+端口先去掉不在引号内的 `/* */` 和 `--` 注释，再看剩下的文本。引号外还留有分号时，端口拒绝，不执行。然后取第一个词。这个词是 `BEGIN`、`COMMIT`、`ROLLBACK`、`END`、`SAVEPOINT` 或 `RELEASE` 时，端口拒绝，不执行。比较第一个词时不区分大小写。拒绝不提交、不回滚、不关闭提供者的事务。
+
+提供者在已经打开的事务里，按命令数组的顺序，同步调用登记名字对应的参加者函数。调用是 `execute(facts, port)`。模块收到端口拒绝时，这条命令失败。提供者按明确的业务失败处理。参加者模块拿不到数据库句柄。`BEGIN IMMEDIATE`、`COMMIT` 和 `ROLLBACK` 由提供者执行。`SqlValue` 就是上面列出的参数种类。`QueryRows` 是语句返回的行。行里的业务字段由参加者规定。
 
 ## 提供者义务
 
@@ -237,16 +248,18 @@ SQLite 提供者启动时先核对四项配置。任一项缺失，或者不是�
 
 | 配置 | 限制什么 |
 | --- | --- |
-| `admissionQueueLimit` | 受理队列中尚未开始的操作数 |
+| `admissionQueueLimit` | 一条写连接上，已经发出、尚未把结果交还给调用方的 `commit` 个数 |
 | `lockWaitMs` | 等待写锁的毫秒数 |
 | `maxCommandsPerCommit` | 一次 `commit` 的命令条数 |
 | `maxCommandBytes` | 一条命令的字节数 |
 
 提供者打开写连接之后，读取该连接上的 `sqlite_version()`。读数低于 3.51.3 时，提供者拒绝启动。这项核对在设置 `journal_mode=WAL` 之前完成。
 
-一个事务域只服务一个租户。租户之间不共用写连接。
+一个事务域只服务一个租户。第一次成功登记把事务域绑到该租户。之后另一租户对同一事务域登记，返回 `domain_occupied`。
 
-受理队列在持久受理之前。每条写连接有一个受理队列。队列在内存中，有上限，先进先出。上限是 `admissionQueueLimit`。控制侧计算这条连接上已经发出、尚未收到结果的 `commit` 数量。再发一条就会达到上限时，控制侧返回 `queue_full`，并且不发送。Worker 收到消息之后仍做同一次核对，避免控制侧漏检。重启后队列为空。SQLite 提供者不在租户之间轮转调度。慢语句期间持续提交的资源上界，本规格还没有探针。没有这次探针，不能声称内存已经证明有界。
+新写者由打开这条写连接的提供者恢复，不由调用方恢复。同一进程里，前一个 Worker 的退出被观察到之前，不打开下一个写者。新进程在崩溃之后打开数据库文件。打开成功时，SQLite 结束死连接留下的未提交事务，并完成 WAL 恢复。打开抛错时，恢复未完成，提供者不准入写。`query` 不能返回未提交，因为「数据库恢复已完成」不成立。打开并且版本和三项 PRAGMA 读回成功之后，提供者在库里把写代际加一。加一完成之前，`commit` 和 `registerCombination` 返回 `writer_not_current`。加一完成之后，旧代际被排除。此时没有提供者打开的事务，所以旧事务已经终止。
+
+受理队列在持久受理之前。每条写连接只有一个计数。计数的是已经发出、尚未把结果交还给调用方的 `commit`。个数已经等于 `admissionQueueLimit` 时，控制侧返回 `queue_full`，并且不发送。结果交还之后，个数减一。个数为 0 且上限至少为 1 时，第一条可以发送。Worker 使用同一个计数和同一次比较，不用「尚未开始」的另一套界限。重启后计数为 0。SQLite 提供者不在租户之间轮转调度。慢语句期间持续提交的内存上界还没有探针。没有这次探针，不能声称内存已经证明有界。
 
 默认的权威读取使用写连接。`query` 也使用写连接。SQLite 提供者不增加读连接。以后要增加读连接，由新的设计明确写出。
 
@@ -286,9 +299,6 @@ SQLite 提供者不打断正在执行的 SQL。关闭等待当前语句结束。
 
 下列结果本规格尚未决定。实现这些情况之前，先由负责人决定。
 
-- 同一登记键再次登记不同的参加者列表时，`registerCombination` 返回什么。`RegisterResult` 没有对应原因。
-- 旧写代际尚未排除时，`registerCombination` 返回什么。`RegisterResult` 没有 `writer_not_current`。
-- 另一租户在已服务某租户的事务域上登记时，`registerCombination` 返回什么。
 - 调用方没有按 `participant` 排序时，提供者是否拒绝。现行规则下提供者不重排命令，摘要随顺序改变。
 - 多个拒绝条件同时成立时，返回哪个原因。[SQLite 提供者设计](docs/sqlite-provider.md#正常提交)的核对顺序是候选，不是承诺。
 - 哪些语句失败算明确的业务失败。`ROLLBACK` 本身失败时，`commit` 返回 `unknown`。
