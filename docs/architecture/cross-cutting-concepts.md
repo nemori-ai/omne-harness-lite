@@ -52,6 +52,8 @@
 
 公共JSON边界先执行严格UTF-8解码，在逐对象扫描时检测解码后重名键，保留数字原词法再交字段codec。禁止注释、尾逗号及空输入，任一语法错误拒绝整份输入。项数、深度、字符串和数字均有有限预算。JSON.parse之后无法找回已丢失的重名键和精度。增量解析必须兑现同一拒绝语义。精确签名与失败种类见[公共 JSON 文本读取](#json-text-reader)。
 
+已经通过字段 codec 的 JSON 值，规范写出使用 RFC 8785。写出拒绝 `undefined`、BigInt、NaN、Infinity、Date 和函数，不自行转换。读取与写出是两个操作。读取器不提供写出。采用见 [RFC-0006](../rfcs/RFC-0006-json-canonical-text.md)。
+
 每份公共形状只有一个拥有源，TS类型和编码从该源派生。校验不默认coercion、填默认或删除字段，拒绝无法保留精度和未知值语义的转换。具体Schema及严格JSON技术路线归[系统技术基础](technical-foundations.md#共同技术选择)，按需加载、首次编译及运行时换代归[缓存机制](data-and-state.md#缓存懒加载与预热)。活体对象、句柄、函数和Context不能进入序列化数据契约。
 
 <a id="json-text-reader"></a>
