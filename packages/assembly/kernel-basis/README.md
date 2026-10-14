@@ -35,11 +35,18 @@ import { definePlugin, resolveOptional } from '@omne-harness/kernel-basis/cordis
 
 const plugin = definePlugin({
   name: 'example',
-  Config: exampleSchema,
+  Config: {
+    '~standard': {
+      version: 1 as const,
+      vendor: 'example',
+      validate: (value: unknown) => ({ value: value as { timeoutMs: number } }),
+    },
+  },
   inject: ['clock'],
-  apply(ctx) {
+  apply(ctx, config) {
     const optional = resolveOptional<{ ping(): void }>(ctx, 'probe')
     optional?.ping()
+    return config.timeoutMs
   },
 })
 ```

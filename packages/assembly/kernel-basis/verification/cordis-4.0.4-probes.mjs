@@ -95,6 +95,7 @@ async function providerReplacement() {
   await new Promise(resolve => setTimeout(resolve, 0))
   const afterSet = runs
   const seenAfterSet = [...seen]
+  const getAfterSet = root.get('svc')
   await provider.dispose()
   const afterDispose = runs
   await root.plugin({
@@ -108,8 +109,25 @@ async function providerReplacement() {
     afterProvide,
     afterSet,
     seenAfterSet,
+    getAfterSet,
     afterDispose,
     afterNextProvider: runs,
+  })
+}
+
+async function missingDependency() {
+  const root = new Context()
+  let ran = false
+  const waiting = await root.plugin({
+    name: 'needs-missing',
+    inject: ['missing'],
+    apply() {
+      ran = true
+    },
+  })
+  record('missing-dependency', {
+    stateWhenAwaitReturns: waiting.state,
+    applyRan: ran,
   })
 }
 
@@ -141,5 +159,6 @@ async function asyncErrorAfterActive() {
 await callerContext()
 await isolateVisibility()
 await providerReplacement()
+await missingDependency()
 await asyncErrorAfterActive()
 console.log(JSON.stringify({ node: process.version, results }, null, 2))

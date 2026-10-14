@@ -24,17 +24,50 @@ type Ack<F> = { ok: true } | { failure: F }
 `definePlugin` 的输入和返回值是同一组字段。
 
 ```ts
-type DefinePluginInput<C, Config> = {
-  name: string
-  Config: C
-  inject?: readonly string[]
-  apply: (ctx: Context, config: Config) => void | Promise<void>
+type SchemaSuccess<Output> = { readonly value: Output }
+type SchemaFailure = { readonly issues: readonly { readonly message: string }[] }
+type StandardSchema<Output> = {
+  readonly '~standard': {
+    readonly version: 1
+    readonly vendor: string
+    readonly validate: (value: unknown) => SchemaSuccess<Output> | SchemaFailure | Promise<SchemaSuccess<Output> | SchemaFailure>
+  }
 }
 
-function definePlugin<C, Config>(input: DefinePluginInput<C, Config>): DefinePluginInput<C, Config>
+type DefinedPlugin<Output> = {
+  name: string
+  Config: StandardSchema<Output>
+  inject?: readonly string[]
+  apply: (ctx: Context, config: Output) => void | Promise<void>
+}
+
+function definePlugin<Output>(input: DefinedPlugin<Output>): DefinedPlugin<Output>
 ```
 
-`Config` 是 Standard Schema。返回值不带 `provide` 或 `intercept`，也不声明服务键。Cordis 4.0.4 在调用 `apply` 之前校验 `Config`。校验失败时 fiber 进入失败状态，`apply` 不运行。不能静默跳过缺失的引用。
+`Config` 必须是上面的 Standard Schema。`apply` 的第二个参数就是该 schema 的 `Output`。数值 schema 不能配上接收字符串的 `apply`。返回值不带 `provide` 或 `intercept`，也不声明服务键。
+
+可以独立消费的例子：
+
+```ts
+type ClockConfig = { timeoutMs: number }
+
+const clockPlugin = definePlugin<ClockConfig>({
+  name: 'example',
+  Config: {
+    '~standard': {
+      version: 1,
+      vendor: 'example',
+      validate: value => ({ value: value as ClockConfig }),
+    },
+  },
+  inject: ['clock'],
+  apply(_ctx, config) {
+    return config.timeoutMs
+  },
+})
+```
+
+例子里的 `validate` 只用来表明输出类型。它不是本包提供的校验器。Cordis 4.0.4 在调用 `apply` 之前执行 `Config` 的校验。校验失败时 fiber 进入失败状态，`apply` 不运行。不能静默跳过缺失的引用。
 
 必需依赖写在 `inject`。可选依赖不写进 `inject`。
 
@@ -64,13 +97,23 @@ type TestAssembly = {
 
 type TestAssemblyStartFailed = {
   startError: unknown
-  disposeError?: unknown
+  disposeErrors: readonly unknown[]
+}
+
+type TestAssemblyDisposeFailed = {
+  disposeErrors: readonly unknown[]
 }
 ```
 
-函数接受 `readonly TestPlugin[]`，按数组顺序装载，并返回 `Promise<TestAssembly>`。`context` 是这次测试新建的 Context。`dispose` 只撤除这次调用已经启动的 Fiber，按启动的相反顺序。某个 `dispose` 拒绝时，`TestAssembly.dispose` 以该拒绝失败，不返回成功。
+函数接受 `readonly TestPlugin[]`。它先把每个插件交给新建 Context 的 `plugin`。`await plugin()` 返回时，必需依赖仍可能缺席。探针在 `@deepseek-ai/cordis@4.0.4` 上看到，缺席时该调用返回的 fiber `state` 为 0，`apply` 没有运行。因此函数不以单次 `await` 返回作为启动完成。
 
-某个 `apply` 抛错时，函数先撤除已经启动的 Fiber，包括失败的那一个。撤除成功时，函数抛出原来的 `startError`。撤除也失败时，函数抛出 `TestAssemblyStartFailed`，同时带上 `startError` 和 `disposeError`。不得吞掉 `disposeError`。
+列表前面的插件可以依赖列表后面的插件提供的服务。函数提交完全部列表之后，再看每个插件的 `apply` 是否已经运行。后面的 `provide` 若满足前面的 `inject`，前面的 `apply` 必须在函数返回前已经运行。
+
+若全部提交后仍有插件没有运行 `apply`，函数视为启动失败，不返回 `TestAssembly`。没有人提供的必需服务属于这种情况。
+
+`context` 是这次测试新建的 Context。`dispose` 只撤除这次调用已经启动的 Fiber，按启动的相反顺序。某一个 `dispose` 拒绝后，函数继续撤除其余已启动的 Fiber。全部尝试结束后，若有拒绝，`TestAssembly.dispose` 抛出 `TestAssemblyDisposeFailed`。`disposeErrors` 保留每一次拒绝。不得在第一次拒绝时停下。
+
+某个 `apply` 抛错，或提交完全部列表后仍有插件没有运行 `apply` 时，函数先撤除已经启动的 Fiber。撤除全部成功时，函数抛出原来的 `startError`。撤除有拒绝时，函数抛出 `TestAssemblyStartFailed`。`disposeErrors` 非空。不得吞掉其中的拒绝。
 
 函数不关闭调用方传入的资源，不选择后端，不规定业务关闭顺序。产品源码不得导入 `./testing`。产品关闭仍用 assembly 的关闭协议。
 
@@ -78,15 +121,15 @@ Cordis 负责运行中的依赖换代和 `fiber.restart`。测试装配不做这
 
 ## 消费者
 
-| 能力 | 入口 | 已接受依据 | 新源码调用点 | 为什么不直接用 Cordis |
-| --- | --- | --- | --- | --- |
-| 带值操作结果 | 根 | 包组织页的操作结果入口 | 无 | Cordis 没有这种结果类型 |
-| 无值操作结果 | 根 | 同上 | 无 | 同上 |
-| `definePlugin` | `./cordis` | [IC-14](../../../docs/architecture/cordis-integration-conventions.md) | 无 | Cordis 接受的插件对象可以省略 `Config` |
-| `resolveOptional` | `./cordis` | [IC-9](../../../docs/architecture/cordis-integration-conventions.md) | 无 | `ctx.get` 已经够用。辅助只固定缺席和类型断言 |
-| 测试装配 | `./testing` | 包组织页的 `./testing` 入口 | 无。具体测试作者待各成员落地 | Cordis 不提供「只撤除本次启动的 Fiber，并同时报告启动失败和撤除失败」 |
+| 能力 | 入口 | 已接受依据 | 具名计划消费 | 新源码调用点 | 为什么不直接用 Cordis |
+| --- | --- | --- | --- | --- | --- |
+| 带值操作结果 | 根 | 包组织页只登记了入口 | 待定。没有已接受成员契约点名调用方 | 无 | Cordis 没有这种结果类型 |
+| 无值操作结果 | 根 | 同上 | 待定。同上 | 无 | 同上 |
+| `definePlugin` | `./cordis` | [IC-14](../../../docs/architecture/cordis-integration-conventions.md) | IC-14 的函数插件 | 无 | Cordis 接受的插件对象可以省略 `Config` |
+| `resolveOptional` | `./cordis` | [IC-9](../../../docs/architecture/cordis-integration-conventions.md) | IC-9 的可选依赖读取 | 无 | `ctx.get` 已经够用。辅助只固定缺席和类型断言 |
+| 测试装配 | `./testing` | 包组织页只登记了入口 | 待定。没有已接受成员契约点名测试作者 | 无 | Cordis 的 `await plugin()` 返回不等于 `apply` 已运行，也不收集多次撤除失败 |
 
-旧包 `@omne-harness-lite/kernel-basis` 的 import 次数只是线索。它们不成为新消费者，也不要求恢复旧运行依赖。没有上表依据的辅助退出公开包。服务键留在各能力的定义拥有者。本卡不编造业务成员里的生产调用点。
+操作结果和测试装配的入口句已经接受。这不等于某个成员已经计划调用它们。这两项的具名计划消费交回 PanQiWei 决定范围。本卡不编造业务成员里的生产调用点，也不因此删掉已定的类型。旧包 import 次数只是线索。没有上表依据的辅助退出公开包。服务键留在各能力的定义拥有者。
 
 ## 入口闭包
 
@@ -100,13 +143,14 @@ Cordis 负责运行中的依赖换代和 `fiber.restart`。测试装配不做这
 
 npm 上的 `@deepseek-ai/cordis@4.0.4` 没有 `gitHead`。对应的上游发布提交是 [d0dca04e22f09fe04967090b2ee70587ecdad6cc](https://github.com/deepseek-ai/deepseek-harness/commit/d0dca04e22f09fe04967090b2ee70587ecdad6cc)，说明为 `release(vendor): cordis 4.0.4`。DeepSeek Harness 文档的 master 快照不是这个钉的保证。
 
-本卡探针在 `verification/cordis-4.0.4-probes.mjs`。它只导入 `@deepseek-ai/cordis@4.0.4`，不导入旧树。2026-10-15 在 Node.js v26.0.0 上运行，进程打印了四条结果后退出码为 0。
+本卡探针在 `verification/cordis-4.0.4-probes.mjs`。它只导入 `@deepseek-ai/cordis@4.0.4`，不导入旧树。2026-10-15 在 Node.js v26.0.0 上运行，进程打印五组结果后退出码为 0。
 
 | 行为 | 档 | 这次探针看到的结果 |
 | --- | --- | --- |
 | 服务方法里的 `this.ctx` 跟随调用方 | 探针结果 | 调用方 `dispose` 后，方法里登记的 effect 被撤掉。注册表 fiber 的 `state` 仍是 2 |
 | `isolate` 隐藏父级服务实例 | 探针结果 | 子插件读属性抛出 `cannot get property "scoped" without inject`。`get` 得到 `undefined` |
-| 同一提供者上 `set` 新值 | 探针结果 | 依赖该键的插件体不重跑。之后的 `get` 读到新值 |
+| 同一提供者上 `set` 新值 | 探针结果 | 插件体不重跑，`seenAfterSet` 仍是 `["a"]`。随后根上的 `get` 得到 `b` |
+| 必需依赖缺席时 `await plugin()` | 探针结果 | 返回的 fiber `state` 为 0，`apply` 没有运行 |
 | 撤掉提供者再装另一个提供者 | 探针结果 | 消费者插件体再跑一次。提供者出现前，插件体运行次数是 0 |
 | `apply` 返回后 effect 里的 Promise 拒绝 | 探针结果 | fiber 的 `state` 仍是 2。拒绝进入 `unhandledRejection`，消息是 `after-active` |
 | 配置在插件体之前按 Standard Schema 校验 | 项目陈述 | IC-14 引用 4.0.4 的 `registry.ts` 与 `fiber.ts`。本卡没有另写这条探针 |
@@ -119,7 +163,7 @@ npm 上的 `@deepseek-ai/cordis@4.0.4` 没有 `gitHead`。对应的上游发布�
 
 ## 验收对照
 
-C1。消费者表链接 IC-9、IC-14 和包组织页。新源码没有调用点。旧 import 只是线索。Fiber 状态辅助不进入公开入口。`resolveOptional` 写明 Cordis 的 `ctx.get` 已经够用。
+C1。`definePlugin` 和 `resolveOptional` 的计划消费是 IC-14 和 IC-9。操作结果和测试装配只有入口句，具名成员消费待定，交回范围决定。新源码没有调用点。旧 import 只是线索。Fiber 状态辅助不进入公开入口。
 
 C2。`definePlugin`、`resolveOptional` 和测试装配的类型、失败与撤除写在本文件。根入口不导入 Cordis。安装这个包仍会安装 Cordis。本包不侵占 assembly 的关闭协议。
 
