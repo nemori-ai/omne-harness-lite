@@ -121,8 +121,7 @@ if (!bundled.ok) throw new Error(`The bundled leap-seconds.list failed as ${bund
 /**
  * The IERS leap-seconds.list bundled with this package, downloaded from
  * https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list (byte-identical to the IANA copy).
- * Its `#$` line is 3992312697 (version 2026-07-06T07:44:57Z) and its `#@` line is 4023129600
- * (expires 2027-06-28T00:00:00Z).
+ * Read `version` and `expires` from the value; `resources/leap-seconds.list` is the file itself.
  */
 export const leapSecondData: LeapSecondData = bundled.value
 
