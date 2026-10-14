@@ -29,3 +29,6 @@
 ## 提案条目
 
 - [RFC-0001：系统技术基础与公共设施](RFC-0001-technical-foundations.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
+- [RFC-0002：工程工具链](RFC-0002-engineering-toolchain.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
+- [RFC-0003：新架构源码包](RFC-0003-source-packages.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
+- [RFC-0004：四条主干的 PR 准入与确认](RFC-0004-trunk-pr-admission.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。

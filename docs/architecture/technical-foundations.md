@@ -2,7 +2,7 @@
 
 本页维护系统共同技术路线、版本选择规则、必要理由和复核条件。领域、公开契约、提供者和应用分别维护自己的责任；各业务字段、终态及产品规则不由依赖清单决定。
 
-本路线由PanQiWei于2026-10-13接受[RFC-0001 revision4](../rfcs/RFC-0001-technical-foundations.md#决定范围)。本页及下列规范拥有者独立表达当前承诺；RFC保留方案与决定关系，不作为实施者必须拼读的第二规范。接受技术路线不表示提供者已实现、性能达标或平台已经支持。
+本路线由PanQiWei于2026-10-13接受[RFC-0001 revision4](../rfcs/RFC-0001-technical-foundations.md#决定范围)。编译与构建一行由 PanQiWei 于 2026-10-14 接受的 [RFC-0002 revision 1](../rfcs/RFC-0002-engineering-toolchain.md#决定范围) 后继。RFC-0001 的决定文字不改。本页及下列规范拥有者独立表达当前承诺。RFC 保留方案与决定关系，不作为实施者必须拼读的第二规范。接受技术路线不表示提供者已实现、性能达标或平台已经支持。catalog 在编译器切换完成前仍钉 TypeScript 6。精确版本以 lockfile 为准。
 
 ## 采用范围与边界
 
@@ -17,7 +17,7 @@
 | 项目与范围 | 采用路线及版本前提 | 替代与未选理由 | 实施准入和复核 |
 | --- | --- | --- | --- |
 | 产品与工程运行时 | Node24，产品SQLite发行基线24.21.0；现有开发工具engines保持原声明。Cordis保持4.0.4，不跟进DSH alpha | Bun1.4.3可作独立制品对照；完整Worker支持、diagnostics及原生库兼容须验证，不从Claude Code的选择推导兼容 | 精确补丁及制品摘要、原生依赖、ICU/tz、Cordis、Worker及关闭由应用验证。运行与构建归[workspace](../workspace.md) |
-| 编译与构建 | 保留catalog的TypeScript6与NodeNext/strict，库默认tsc输出ESM和声明，应用按需要使用现行esbuild | TS7.0.2根入口不能直接承接现有createProgram/createSourceFile消费者，另有unstable API但须迁移验证，不全仓替换。必要库bundle可单独比较tsdown0.23.1；tsup8.5.1停止积极维护，不新引入 | 现有TS API工具消费者、声明、独立安装与资源文件必须同步验证；bundle不代替类型检查，不按不同制品职责的耗时排名 |
+| 编译与构建 | 编译和类型检查采用 TypeScript 7，并保留 NodeNext 与 strict。仍调用 createProgram 或 createSourceFile 的工具从 @typescript/typescript6 导入。库默认 tsc 输出 ESM 和声明。应用按需要使用现行 esbuild。catalog 在切换完成前仍钉 TypeScript 6 | 不把这些编程接口直接改到 TypeScript 7 根入口。不把 Issue #227 的测量写成性能保证。tsup 8.5.1 停止积极维护，不新引入。必要库 bundle 可单独比较 tsdown 0.23.1 | 切换时用 TypeScript 6 再检查对外 .d.ts。catalog、声明、独立安装与资源文件必须同步验证。bundle 不代替类型检查。切换责任在 integration/engineering-toolchain。切换完成前，运行中的编译器版本以 lockfile 为准 |
 | 配置与数据Schema | 保留现行Zod4及Standard Schema。Zod4.6.5的纯同步支持子集使用显式z.compile并缓存，递归或其他不支持形状走明确的运行时路径。已由JSON Schema拥有形状的边界保留Ajv8，关闭coercion/default/remove。每份形状一个拥有源，派生TS类型 | TypeBox1.3.36及ArkType2.2.8保留为同义编译校验对照；局部耗时不授全仓切换，不能同时手写第三套字段。Standard Schema只是接口，不保证异步/高性能 | Cordis4.0.4配置验证保持同步，网络/文件检查归初始化。编译子集和callback纯度须验证，不能把回退或异步路径记为编译命中。Schema生成拒绝损失精度/未知语义的转换 |
 | 严格JSON与数值 | jsonc-parser3.3.1的visitor/scanner；逐对象检测解码后重名键，数值保留原词法后交字段codec | JSON.parse后已丢重名和精度。lossless-json4.3.1裸用会接受等值重复键。大增量输入可比较stream-json3.7.0，必须保留同一拒绝语义 | 禁注释/尾逗号/空输入，任一语法错误整份拒绝，严格UTF-8及项/深度/字符串/数字预算；具体责任见[共同表示](cross-cutting-concepts.md#表示与校验) |
 | 数据访问与迁移 | SQL提供者使用现行Kysely作为类型化查询构造与迁移辅助；字段/迁移归数据拥有者，提交归真实事务域 | 不首选统一ORM或全系统事件溯源，避免以对象活体替持久契约；原生参数化SQL可用于Kysely未覆盖路径，只有同一提供者拥有 | Worker内提供者显式适配node:sqlite执行和返回值，通用事务回调不跨线程。SQLite默认Migrator不保证DDL原子回滚。需要原子的迁移须在同连接事务中验证DDL、数据与迁移标记一起回滚；事务外恢复步骤另承诺可恢复性，不能替代原子性。迁移开闸/失败/恢复由[数据架构](data-and-state.md)承接 |

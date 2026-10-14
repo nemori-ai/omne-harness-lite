@@ -25,7 +25,9 @@
       "scripts/integration-check.sh",
       "tools/ts-checks/src/integration/**",
       "docs/engineering/integration-policy.json",
-      "docs/engineering/integration-bootstrap.json"
+      "docs/engineering/integration-bootstrap.json",
+      "docs/architecture/constraints.json",
+      "turbo.json"
     ],
     "readers": [
       {

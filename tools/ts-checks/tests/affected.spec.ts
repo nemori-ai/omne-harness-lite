@@ -220,6 +220,15 @@ describe('影响面计划（真实规则）', () => {
     expect(plan(['pnpm-lock.yaml']).mode).toBe('full')
   })
 
+  it('选择配置和依赖规则：全量，理由指向全局文件', () => {
+    for (const path of ['turbo.json', 'docs/architecture/constraints.json']) {
+      const result = plan([path])
+      expect(result.mode).toBe('full')
+      expect(result.files[0]?.category).toBe('global')
+      expect(result.reason).toContain(path)
+    }
+  })
+
   it('没有规则认得的路径：全量，理由点名前几个并给总数', () => {
     const paths = ['a/1.txt', 'a/2.txt', 'a/3.txt', 'a/4.txt', 'a/5.txt', '.gitignore', 'docs/x.md']
     const result = plan(paths)

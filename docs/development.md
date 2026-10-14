@@ -144,7 +144,7 @@ pnpm format:write
 
 产品包先明确已接受的职责、公开接口与行为依据。建包时使用[版本化包模板](../tools/ts-checks/templates/package/README_ZH.md)，不要手写另一套结构。模板不能替代架构设计或技术接受。
 
-目标组及包边界先按[产品包组织](package-organization.md)确定，两层文档内容按[成员文档要求](member-documentation.md)组织。当前版本与历史结构规则分别由[包模板](../tools/ts-checks/templates/package/README_ZH.md)和[组模板](../tools/ts-checks/templates/domain/README.md)维护。旧包不自动升级，新文档义务不重判旧版。
+目标组及包边界先按[产品包组织](package-organization.md)确定。成员的必选文件和导出形状以[成员的必选结构](package-organization.md#成员的必选结构)为准。两层文档内容按[成员文档要求](member-documentation.md)组织。当前生成器的文件槽和操作由[包模板](../tools/ts-checks/templates/package/README_ZH.md)和[组模板](../tools/ts-checks/templates/domain/README.md)维护。生成器尚未写出源码条件、先删除 `dist` 的 build，以及 `erasableSyntaxOnly`。旧包不自动升级，新文档义务不重判旧版。
 
 新能力组先有明确工程责任，再从仓库根预览和创建入口草稿：
 
@@ -227,6 +227,14 @@ make test-affected BASE="$TASK_BASE" TIER=slow
 ```
 
 `check-plan`只输出计划。`test-affected`先构建选中成员及依赖，默认只跑快层；慢层由`TIER=slow`选择，`TIER=all`合跑两层。选择依据包括实际改动、声明依赖及显式读者规则，不能仅凭“没修改那个包”省略消费者验证。
+
+[RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择) 接受用 `turbo run <task> --affected` 替换这份手写计算。替换还没有发生。现行命令继续使用 `tools/ts-checks` 的选择器。pnpm 的 `--filter "...[<since>]"` 在 git 工作树里匹配不到包，所以不能改用它。
+
+替换之前，选择器必须保留这些规则。全局文件改动判全量。测试读取成员目录以外的文件时带上对应成员。Python 工具、常驻检查和 legacy 排除保持原规则。没有规则认得的文件判全量，不按猜的范围少跑。`turbo.json` 和 `docs/architecture/constraints.json` 是全局文件。改动它们就是全量。
+
+不要用 `vitest --changed` 按文件选择测试。包 B 的测试可能经导出读取包 A 的 `dist`。turbo 会选中 B，但 B 可能一个测试都不跑并报告成功。至少等测试直接读源码之后再评估。
+
+turbo 接入准入时，基线用 `TURBO_SCM_BASE` 和 `TURBO_SCM_HEAD` 显式传入。不依赖 turbo 自己推断。准入不读取 PR 能写入的缓存。`--affected` 是否参考 `inputs`，以及能否从工作树以外读取配置，还没有验证。在这两项有结果之前，不把 turbo 换成现行命令。
 
 局部定位可直接运行一个成员或测试文件：
 

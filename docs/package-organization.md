@@ -14,6 +14,31 @@
 
 能力组允许增长。当前责任和下列目录不是未来能力的白名单，新增按[扩展指导](domains/extending-the-system.md)判断。
 
+## 成员的必选结构
+
+PanQiWei 于 2026-10-14 接受 [RFC-0003 revision 1](rfcs/RFC-0003-source-packages.md#决定范围)。下面是新成员的目标形状。应用不使用这套结构。生成和扫描仍用 [包模板](../tools/ts-checks/templates/package/README_ZH.md)。该生成器还没有写出源码条件、先删除 `dist` 的 build，以及 `erasableSyntaxOnly`。
+
+每个新成员必须有这些文件。
+
+```text
+packages/<能力组>/<成员>/
+├── package.json
+├── README.md
+├── README_ZH.md
+├── documentation.json
+├── src/index.ts
+├── tests/<行为>.spec.ts
+├── tsconfig.build.json
+├── tsconfig.test.json
+└── vitest.config.ts
+```
+
+`cordis-module`、`service-contract` 和 `service-provider` 再加 `src/cordis.ts`。`module` 不加这个文件。`src/index.ts` 不导入 `@deepseek-ai/cordis`。Cordis 绑定只从 `src/cordis.ts` 导出。
+
+`package.json` 把源码条件写在 `types` 前面。`files` 只发布 `dist`。`build` 先删除 `dist`，再编译。源码条件的名字尚未决定，不在本页新定。`tsconfig.build.json` 只包含 `src`，并打开 `erasableSyntaxOnly`。`tsconfig.test.json` 只包含 `tests`。测试导入本包时使用包名。
+
+`docs/`、`SPEC.md`、`schema/`、`verification/`、`adr/`、`examples/` 和 `resources/` 只有在里面有真实内容时才存在。模板不生成空目录。
+
 ## 目标目录
 
 以下是初始落点。能力组已建立文档骨架；具名叶子以导航和缺文件登记预留，不生成空实现包。叶子名称及成员划分仍须在具名消费者和精确承诺明确后确定。

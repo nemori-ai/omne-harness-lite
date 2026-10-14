@@ -1,6 +1,6 @@
 # 能力组与成员包文档
 
-本页维护`packages/<domain>/`能力组和`packages/<domain>/<package>/`成员包的文档要求。它供开发者、集成者及文档维护者选择正文位置、阅读路径和维护责任。模板及检查的具体操作归[开发指南](development.md#创建和整改产品包)和[模板工具](../tools/ts-checks/templates/package/README_ZH.md)。
+本页维护`packages/<domain>/`能力组和`packages/<domain>/<package>/`成员包的文档要求。它供开发者、集成者及文档维护者选择正文位置、阅读路径和维护责任。成员的必选文件见[包组织](package-organization.md#成员的必选结构)。模板及检查的具体操作归[开发指南](development.md#创建和整改产品包)和[模板工具](../tools/ts-checks/templates/package/README_ZH.md)。
 
 这里的domain指[产品包组织](package-organization.md)中的能力组，不自动对应DDD的domain或bounded context。能力组不是workspace成员，也不是运行时或部署边界。文档随其实际工程责任生长，不为目录对称创建空包。
 
