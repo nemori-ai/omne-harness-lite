@@ -48,6 +48,16 @@
 
 不发出事件。
 
+## held
+
+调用方不传入参数。返回当前仍被持有的名字。顺序与这些名字进入持有集合的 `admit` 顺序相同。
+
+这次调用不释放租约，不停止准入，也不让 `close` 的 promise 确定。
+
+名字被当前 id 的 `release` 移出之后，不再出现在返回值里。旧 id 不能拆掉同名新租约时，这个名字仍然出现。
+
+不发出事件。
+
 ## detachObserver
 
 调用方不传入参数。这次调用不释放租约，不停止准入，也不让 `close` 的 promise 确定。再调用一次仍然什么也不做。不发出事件。
@@ -56,7 +66,7 @@
 
 ## close
 
-调用方可以传入 `{ caller: leaseId }`。第一次调用建立唯一的关闭 promise。之后的调用，包括传入另一个 `caller`，都返回同一个 promise。被排除的调用方由第一次调用固定。
+调用方可以传入 `{ caller: leaseId }`。第一次调用建立唯一的关闭 promise。之后的调用，包括传入另一个 `caller`，以及从步骤或 `clock.delay` 里同步再次调用，都返回同一个 promise，不另起一次关闭。被排除的调用方由第一次调用固定。
 
 第一次的 `caller` 当时已被持有时，排空不等待它。该 id 当时未被持有时，排空等待每一个已持有的租约。
 
@@ -112,6 +122,6 @@
 
 `node --experimental-strip-types --test verification/close-protocol.test.ts verification/process-kill.test.ts`
 
-2026-10-14 在 Node v26.0.0 上跑过这两条命令。包测试 28 项通过。目录里的 node 测试 21 项通过。进程杀死试验观察到子进程收到 SIGKILL，并且没有写出关闭报告。仓库 engines 要求 Node `>=24.18.0 <25`。这次没有在该范围重跑。
+2026-10-14 在 Node v26.0.0 上跑过这两条命令。包测试 28 项通过。目录里的 node 测试 21 项通过。进程杀死试验观察到子进程收到 SIGKILL，并且没有写出关闭报告。本交付接受 Node v26.0.0 作为验证环境。仓库 engines 仍是 `>=24.18.0 <25`。本次接受不修改 engines。
 
 这些测试没有覆盖真实后端，也没有覆盖远端中断。没有可启动的网络、MCP、执行环境或数据库成员，因此没有做这些试验。Cordis 4.0.4 的依赖换代、调用方 Context、清理顺序和异常传播，用 `packages.0.0.1.legacy/core/kernel-basis` 里已有的 basis 探针核对，不把该旧包当成新的辅助层。
