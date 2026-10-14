@@ -56,7 +56,7 @@ Python 当前服务于开发工具。
 
 ## 目标骨架与封存实现
 
-新packages与apps只提供文档入口和缺项登记，没有真实产品成员或可启动应用。最小 CLI 的依赖方向见[包组织](package-organization.md#最小-cli-的接入边界)。旧产品正文、应用及包分别保持在product.0.0.1.legacy、apps.0.0.1.legacy和packages.0.0.1.legacy；后缀不是发布版本。这些目录留在仓库里供核对。它们不是 pnpm workspace 成员，工具不再声明它们的包名。旧源不授予架构采用。
+新packages与apps只提供文档入口和缺项登记，没有真实产品成员或可启动应用。最小 CLI 的依赖方向见[包组织](package-organization.md#最小-cli-的接入边界)。旧产品正文、应用及包分别保持在product.0.0.1.legacy、apps.0.0.1.legacy和packages.0.0.1.legacy；后缀不是发布版本。这些目录留在仓库里供核对。活动工具及其测试不能读取其中的源码或产物。规则测试使用工具自己拥有的最小夹具；隔离运行与历史链接检查分开，见[检查器运行说明](../tools/ts-checks/README.md#independence-from-archived-implementations)。它们不是 pnpm workspace 成员，工具不再声明它们的包名。旧源不授予架构采用。
 
 新包区按目标能力组维护工程关系，已具名目标成员维护长期 SPEC 与内部设计。尚未具名的行为规格承接继续计缺项。新产品区的[正式正文](../.meta_harness/design/product/README.md)包含需求、能力及实现状态、阶段承诺和未决四块。文档落位不建立可执行成员，也不授予设计或实现接受；常规新增成员的公开承诺与模板准入要求保持。
 

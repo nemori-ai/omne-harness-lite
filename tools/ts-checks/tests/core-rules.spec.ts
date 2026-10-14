@@ -1,8 +1,9 @@
-import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
+import { contractSource } from './fixtures/contract-sources.ts'
 import { IDENTITY_TYPE_NAMES } from '@omne-harness/legal-identity'
 import {
   collectSources,
@@ -20,8 +21,6 @@ import {
 
 const file = (path: string, text: string): SourceFile => ({ path, text })
 const root = fileURLToPath(new URL('../../../', import.meta.url))
-const real = (path: string): SourceFile =>
-  file(path, readFileSync(join(root, 'packages.0.0.1.legacy', path), 'utf8'))
 
 // 独立列出节点范围，防止新增规则遗漏一个包而测试仍通过。
 const purePackages = [
@@ -249,7 +248,7 @@ describe('core-pure-imports', () => {
       `export type { SchemaDocument } from '@omne-harness/content-blocks/schema-runtime'`,
       `type Value = import('@omne-harness/content-blocks').JsonValue`,
       `const runtime = import('@omne-harness/content-blocks/schema-runtime')`,
-      String.raw`import '\u0040omne-harness-lite/content-blocks/schema-runtime'`,
+      String.raw`import '\u0040omne-harness/content-blocks/schema-runtime'`,
     ])
       expect(corePureImports.check([file(path, statement)])).toEqual([])
     for (const specifier of [
@@ -279,7 +278,7 @@ describe('core-pure-imports', () => {
       `export { createSchemaRuntime } from '@omne-harness/asset-model/schema-runtime'`,
       `type Runtime = import('@omne-harness/asset-model/schema-runtime').SchemaRuntime`,
       `const runtime = import('@omne-harness/asset-model/schema-runtime')`,
-      String.raw`import '\u0040omne-harness-lite/asset-model/schema-runtime'`,
+      String.raw`import '\u0040omne-harness/asset-model/schema-runtime'`,
     ]) {
       expect(
         corePureImports.check([file('core/tool-definition/src/parameter.ts', statement)]),
@@ -458,7 +457,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
         `const a = require('@omne-harness/storage')`,
         `const b = import('@omne-harness/storage')`,
         `import K = require('@omne-harness/storage')`,
-        String.raw`import '\u0040omne-harness-lite/storage'`,
+        String.raw`import '\u0040omne-harness/storage'`,
         `const d = import(computed)`,
         `const e = require('node:' + name)`,
         `// import '@deepseek-ai/cordis'`,
@@ -499,7 +498,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
       const good = spawnSync(process.execPath, ['--experimental-strip-types', cli, dir], {
         encoding: 'utf8',
       })
-      expect(good.status).toBe(0)
+      expect(good.status, good.stderr).toBe(0)
       expect(good.stdout).toContain('PASS:')
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -564,7 +563,7 @@ type Clock = import('@omne-harness/offer-expiry/testing').TestClock
 const testing = import('@omne-harness/offer-expiry/testing')
 const clock = require('@omne-harness/offer-expiry/testing')
 import Test = require('@omne-harness/offer-expiry/testing')
-import '\u0040omne-harness-lite/offer-expiry/testing'
+import '\u0040omne-harness/offer-expiry/testing'
 import '@omne-harness/offer-expiry/testing/private'
 // import '@omne-harness/offer-expiry/testing'
 const note = "from '@omne-harness/offer-expiry/testing'"`,
@@ -688,8 +687,8 @@ interface LoginStateRow { login: LoginStateId; account: AccountId }`,
     ).toEqual([])
   })
 
-  it('真实AccountRow原文通过；向string自身份记录添加一个typed引用必红', () => {
-    const original = real(path)
+  it('最小AccountRow夹具通过；向string自身份记录添加一个typed引用必红', () => {
+    const original = contractSource(path)
     expect(identityAccountReferences.check([original])).toEqual([])
     const anchor = 'export interface AccountRow {'
     expect(original.text).toContain(anchor)

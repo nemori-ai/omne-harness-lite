@@ -32,7 +32,8 @@ export function conformanceBrowser(
     input = doc?.comparedWith === 'baseline' ? doc.baseline : doc?.current
   const rows = doc?.rows ?? []
   let limit = 60
-  const roles = input?.value?.roles ?? []
+  const retired = new Set(input?.retiredRoleIds ?? [])
+  const roles = input?.value?.roles.filter(role => !retired.has(role.id)) ?? []
   const domains = input?.value?.domains ?? doc?.current.value?.domains ?? []
   const option = (value: string, label: string) => ({ value, label })
   domain.setOptions([option('', '全部责任板块'), ...domains.map(row => option(row.id, row.label))])
@@ -114,6 +115,13 @@ export function conformanceBrowser(
       ? '全局预期未提供，符合性未判定。'
       : `实现 ${doc.current.source.commit} · 预期 ${doc.comparedWith} ${input?.source.commit ?? '无'} · ${input?.path ?? ''} · dirty ${doc.current.source.dirty} · 输入 ${input?.value === null ? '缺失' : '已发布'}。源码事实与预期分别读取。`
   const responsibility = required('conformance-responsibility')
+  if (input?.retiredRoleIds?.length)
+    responsibility.append(
+      el(
+        'p',
+        `历史版本 ${input.source.commit} 已退役 ${input.retiredRoleIds.length} 个无活跃源码的角色：${input.retiredRoleIds.join(', ')}。原始登记保留在预期差分中。`,
+      ),
+    )
   for (const d of domains) {
     const box = el('article', '')
     box.className = 'conformance-domain-card'

@@ -10,7 +10,11 @@ import {
   type ConstraintInput,
   type Layer,
 } from './conformance-model.ts'
-import type { SourceCoordinates } from './source.ts'
+import {
+  readArchitectureSource,
+  type ArchitectureSource,
+  type SourceCoordinates,
+} from './source.ts'
 
 export const CONSTRAINT_PATH = 'docs/architecture/constraints.json'
 export const LEGACY_CONSTRAINT_PATH = '.meta_harness/design/architecture/constraints.json'
@@ -159,7 +163,27 @@ export function readConstraints(root: string, source: SourceCoordinates): Constr
   return { ...document, source }
 }
 
-function readDocument(root: string, source: Pick<SourceCoordinates, 'kind' | 'commit'>) {
+export function readBaselineConstraints(
+  root: string,
+  baseline: ArchitectureSource,
+): ConstraintInput {
+  if (baseline.source.kind !== 'revision')
+    throw new Error('Historical constraint retirement requires a revision snapshot')
+  return {
+    ...readDocument(root, baseline.source, [...baseline.snapshot.texts.keys()]),
+    source: baseline.source,
+  }
+}
+
+const legacySource = (path: string) => /^(?:apps|packages)\.0\.0\.1\.legacy\//u.test(path)
+const matchesRolePath = (path: string, pattern: string) =>
+  pattern.endsWith('/**') ? path.startsWith(pattern.slice(0, -2)) : path === pattern
+
+function readDocument(
+  root: string,
+  source: Pick<SourceCoordinates, 'kind' | 'commit'>,
+  baselinePaths?: readonly string[],
+) {
   const read = versionReader(root, source)
   const present = CONSTRAINT_PATHS.flatMap(path => {
     const text = read(path)
@@ -173,8 +197,25 @@ function readDocument(root: string, source: Pick<SourceCoordinates, 'kind' | 'co
   if (selected === undefined) return { path: CONSTRAINT_PATH, value: null, sources: [] }
   try {
     const value = parseConstraints(selected.text)
-    const sources = validateConstraintSources(selected.path, value, read)
-    return { path: selected.path, value, sources }
+    const retiredRoleIds = value.roles
+      .filter(
+        role =>
+          baselinePaths !== undefined &&
+          legacySource(constraintSourcePath(selected.path, value.schemaVersion, role.source)) &&
+          !baselinePaths.some(path => role.paths.some(pattern => matchesRolePath(path, pattern))),
+      )
+      .map(role => role.id)
+    const retained = {
+      ...value,
+      roles: value.roles.filter(role => !retiredRoleIds.includes(role.id)),
+    }
+    const sources = validateConstraintSources(selected.path, retained, read)
+    return {
+      path: selected.path,
+      value,
+      sources,
+      ...(retiredRoleIds.length === 0 ? {} : { retiredRoleIds }),
+    }
   } catch (error) {
     throw new Error(
       `${source.kind} ${source.commit} ${selected.path}: ${error instanceof Error ? error.message : String(error)}`,
@@ -184,20 +225,12 @@ function readDocument(root: string, source: Pick<SourceCoordinates, 'kind' | 'co
 }
 
 export function constraintDependencies(root: string, revision?: string): readonly string[] {
-  const source = {
-    kind: revision === undefined ? 'worktree' : 'revision',
-    commit: git(root, ['rev-parse', '--verify', `${revision ?? 'HEAD'}^{commit}`]),
-  } satisfies Pick<SourceCoordinates, 'kind' | 'commit'>
-  const { path, value } = readDocument(root, source)
+  const { path, value, sources } =
+    revision === undefined
+      ? readDocument(root, { kind: 'worktree', commit: git(root, ['rev-parse', 'HEAD']) })
+      : readBaselineConstraints(root, readArchitectureSource(root, revision))
   if (value === null) return CONSTRAINT_PATHS
-  return [
-    path,
-    ...new Set(
-      [...value.domains, ...value.roles, ...value.rules, ...(value.importExceptions ?? [])].map(
-        row => constraintSourcePath(path, value.schemaVersion, row.source),
-      ),
-    ),
-  ]
+  return [path, ...sources.map(source => source.path)]
 }
 
 function versionReader(root: string, source: Pick<SourceCoordinates, 'kind' | 'commit'>) {
@@ -307,6 +340,10 @@ function validateConstraintSources(
     ...(value.importExceptions ?? []),
   ]) {
     const target = constraintSourcePath(path, value.schemaVersion, row.source)
+    if (legacySource(target))
+      throw new Error(
+        `${path} ${row.id}: legacy source is not an active architecture input: ${target}`,
+      )
     const text = read(target)
     if (text === undefined)
       throw new Error(`${path} ${row.id}: missing source ${row.source} (${target})`)
@@ -357,7 +394,7 @@ export function roleAt(
     .flatMap(role =>
       role.paths.flatMap(pattern => {
         const prefix = pattern.endsWith('/**') ? pattern.slice(0, -2) : undefined
-        return (prefix === undefined ? path === pattern : path.startsWith(prefix))
+        return matchesRolePath(path, pattern)
           ? [{ role, precision: prefix?.length ?? pattern.length + 1 }]
           : []
       }),

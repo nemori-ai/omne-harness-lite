@@ -51,6 +51,12 @@ export interface ConstraintInput {
   readonly source: SourceCoordinates
   readonly value: ArchitectureConstraints | null
   readonly sources: readonly { readonly path: string; readonly digest: string }[]
+  /** Retired only after matching the actual source snapshot at source.commit. */
+  readonly retiredRoleIds?: readonly string[]
+}
+export function activeRoles(input: ConstraintInput): readonly ArchitectureRole[] {
+  const retired = new Set(input.retiredRoleIds ?? [])
+  return input.value?.roles.filter(role => !retired.has(role.id)) ?? []
 }
 export interface ConstraintChange {
   readonly id: string
