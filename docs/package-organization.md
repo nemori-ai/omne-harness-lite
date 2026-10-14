@@ -178,8 +178,8 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 
 目标规则替代“所有Service定义集中core”和“仅以core/util目录判断跨包许可”的目录治理。现有成员仍保留真实路径、接口和行为，迁移须同步消费者、公开入口、构建、发布、资源读取及验证；路径变化不改变Schema身份或接受范围。
 
-当前typescript-package@2.0.0的service-contract创建与扫描仍限制core；架构静态检查的IC-1、IC-5及分组方向也仍使用旧路径投影。它们是尚待适配的工具范围，不能据旧检查失败否定目标组织，也不能据旧检查通过宣称新依赖政策成立。具体范围见[模板](../tools/ts-checks/templates/package/README_ZH.md)及[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。
+当前 typescript-package@2.0.0 的 service-contract 创建与结构扫描不再限制 core。IC-1 与 IC-5 按已采用责任和公开入口判断，不按 core 或 util 目录名许可。分组方向仍使用 `group-direction` 的三层路径表。`packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 会报告 `unregistered-group`。把这些组登记进路径表，会让同组 `sdk` 导入 `server-entry` 在成环前继续合法。不能据旧检查失败否定目标组织，也不能据旧检查通过宣称新依赖政策成立。具体范围见[模板](../tools/ts-checks/templates/package/README_ZH.md)及[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。
 
-在新组实施公共Service成员前，工具拥有者须完成相称模板和规则适配，保留唯一服务定义、纯入口、依赖方向、精确例外及未知报告。不能手写骨架或伪造采用标识绕过现行检查。此义务不阻碍本页目标设计和独立的文档维护。
+在新组实施公共 Service 成员前，分组方向仍须由工具拥有者适配。模板创建与结构扫描已经不再把 service-contract 限制在 core。保留唯一服务定义、纯入口、依赖方向、精确例外及未知报告。不能手写骨架或伪造采用标识绕过现行检查。此义务不阻碍本页目标设计和独立的文档维护。
 
 当前成员重组、工具适配、SDK安装闭包及真实维护成本尚需各自实施和验证任务。报告区分目标要求、现状、偏离、口径变化与未覆盖，沿[领域符合性](domains/verification.md)和[项目验证](verification.md)选择证据。
