@@ -48,7 +48,7 @@
 
 进程设置 `process.exitCode`，不调用 `process.exit()`。这样管道上的 stdout 在进程退出前写完。
 
-帮助文本的原文如下，最后一行之后有一个换行：
+帮助文本由 `renderHelp(productionCatalog)` 生成，不是另一份手写文档。生产目录的命令列表是空的，所以生成结果仍是下面的原文。最后一行之后有一个换行：
 
 ```text
 omne

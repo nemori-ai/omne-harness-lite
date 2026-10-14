@@ -69,7 +69,8 @@ Summary of the promises:
 
 Each module has one job:
 
-- `src/argv.ts` holds `parseArgv` and `helpText`. Parsing is a pure function over `string[]`.
+- `src/catalog.ts` holds the flag list, the command list, and `renderHelp`. `helpText` is `renderHelp` of the production catalog. That catalog has no commands, so the process help text stays the pinned string.
+- `src/argv.ts` holds `parseArgv`. Parsing is a pure function over `string[]` and a catalog. The default catalog is the production one.
 - `src/identity.ts` reads `cli-identity.json` beside the build module through `import.meta.url`.
 - `src/run.ts` maps a parsed command to output and an exit code. It is the only place that calls `readBuildIdentity`.
 - `src/bin.ts` passes `process.argv` and the process streams to `run`, then sets `process.exitCode`.
@@ -126,7 +127,7 @@ Not covered:
 
 To change the help text, a message, or an exit code, change [SPEC.md](SPEC.md), `src/argv.ts` or `src/run.ts`, and the literals in `tests/support/expected.ts` together.
 
-To add a command, add a new variant to `ParsedCommand`. The `switch` in `src/run.ts` then fails to compile until the new variant has a case. A command that needs the state directory calls `resolveStateDirectory`, then `ensureStateDirectory`. Help and version must not call either function. A command that calls the SDK adds the SDK as a dependency. Update the install-closure test and SPEC.md in the same change.
+To add a command, append a `CommandSpec` to a catalog. `renderHelp` includes it, and `run` calls its `run` function. The production catalog's command list is empty. A command that needs the state directory calls `resolveStateDirectory`, then `ensureStateDirectory`. Help and version must not call either function. A command that calls the SDK adds the SDK as a dependency. Update the install-closure test and SPEC.md in the same change.
 
 `scripts/package-cli.sh` still points to `apps/cli/tools/package.ts`. That file does not exist. Packaging for release is not part of this member yet.
 

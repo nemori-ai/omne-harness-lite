@@ -69,7 +69,8 @@ else {
 
 每个模块只做一件事：
 
-- `src/argv.ts` 放 `parseArgv` 和 `helpText`。解析是 `string[]` 上的纯函数。
+- `src/catalog.ts` 放旗标列表、命令列表和 `renderHelp`。`helpText` 是生产目录的 `renderHelp` 结果。该目录没有命令，所以进程帮助文本仍是锁定的原文。
+- `src/argv.ts` 放 `parseArgv`。解析是 `string[]` 和目录上的纯函数。默认目录是生产目录。
 - `src/identity.ts` 通过 `import.meta.url` 读取构建模块旁的 `cli-identity.json`。
 - `src/run.ts` 把解析结果映射为输出和退出码。只有它调用 `readBuildIdentity`。
 - `src/bin.ts` 把 `process.argv` 和进程的输出流交给 `run`，再设置 `process.exitCode`。
@@ -126,7 +127,7 @@ pnpm run typecheck
 
 修改帮助文本、消息或退出码时，同时修改 [SPEC.md](SPEC.md)、`src/argv.ts` 或 `src/run.ts`，以及 `tests/support/expected.ts` 中的字面量。
 
-新增命令时，给 `ParsedCommand` 加一个变体。`src/run.ts` 的 `switch` 在补上该分支之前无法通过编译。需要状态目录的命令先调用 `resolveStateDirectory`，再调用 `ensureStateDirectory`。help 和 version 不得调用这两个函数。调用 SDK 的命令要把 SDK 加为依赖，并在同一次修改中更新安装闭包测试和 SPEC.md。
+新增命令时，往目录里追加一条 `CommandSpec`。`renderHelp` 会带上它，`run` 调用它的 `run`。生产目录的命令列表是空的。需要状态目录的命令先调用 `resolveStateDirectory`，再调用 `ensureStateDirectory`。help 和 version 不得调用这两个函数。调用 SDK 的命令要把 SDK 加为依赖，并在同一次修改中更新安装闭包测试和 SPEC.md。
 
 `scripts/package-cli.sh` 仍指向 `apps/cli/tools/package.ts`。这个文件不存在。发布打包还不属于本成员。
 
