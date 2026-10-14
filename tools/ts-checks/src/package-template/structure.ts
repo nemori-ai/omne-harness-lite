@@ -216,8 +216,6 @@ export function checkStructure(
     if (variant !== 'module' && !canonicalEntry(exports['./cordis'], 'cordis'))
       add('exports', 'Binding entry must resolve to dist/cordis in both declarations and runtime')
   }
-  if (variant === 'service-contract' && !member.startsWith('packages/core/'))
-    add('variant', 'Public Service definition must belong to core')
   for (const file of ['src/index.ts', 'src/cordis.ts', 'README.md', 'README_ZH.md']) {
     const path = join(root, member, file)
     const stat = lstatSync(path, { throwIfNoEntry: false })

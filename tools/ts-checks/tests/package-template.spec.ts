@@ -116,7 +116,7 @@ describe('package creation', () => {
     'creates %s with exact metadata and appropriate exports, without fake tests',
     variant => {
       const root = repository(),
-        group = variant === 'service-contract' ? 'core' : 'util'
+        group = variant === 'service-contract' ? 'identity' : 'util'
       createPackage({ root, group, name: 'sample', variant, write: true })
       const member = `packages/${group}/sample`
       const value = JSON.parse(fs.readFileSync(join(root, member, 'package.json'), 'utf8'))
@@ -150,11 +150,21 @@ describe('package creation', () => {
       expect(fs.readdirSync(join(root, 'packages'))).toEqual([])
     },
   )
-  it('rejects a non-core public service contract and a symlinked group', () => {
+  it('creates a service contract under identity and access without a core finding', () => {
     const root = repository()
-    expect(() =>
-      createPackage({ root, group: 'util', name: 'sample', variant: 'service-contract' }),
-    ).toThrow('core')
+    for (const [group, name] of [
+      ['identity', 'authorization'],
+      ['access', 'public-contract'],
+    ] as const) {
+      createPackage({ root, group, name, variant: 'service-contract', write: true })
+      const member = `packages/${group}/${name}`
+      const findings = inspectPackage(root, member, readTemplate(), evidence).findings
+      expect(findings.some(finding => finding.reason.includes('belong to core'))).toBe(false)
+      expect(findings.some(finding => finding.code === 'draft')).toBe(true)
+    }
+  })
+  it('rejects a symlinked group', () => {
+    const root = repository()
     const outside = fs.mkdtempSync(join(tmpdir(), 'omne-outside-'))
     roots.push(outside)
     fs.symlinkSync(outside, join(root, 'packages/util'))
