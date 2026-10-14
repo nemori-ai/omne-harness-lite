@@ -54,7 +54,7 @@ parseDuration('P1D') // { ok: false, failure: { kind: 'calendar-unit' } }
 | `parseInstant` | `range` | 日历字段不可能成立，例如 `2026-02-29` 或 `24:00:00`。`23:59` 以外的秒 60 也是 `range`。 |
 | `parseInstant` | `leap-second` | 表没有在那一天插入秒 60（`detail: 'not-inserted'`），或表删除了那一天的秒 59（`detail: 'deleted'`）。 |
 | `parseInstant` | `leap-data-expired` | 秒 60 不在表中，并且该时间点不早于表的失效日。 |
-| `parseDuration` | `syntax` | 文本不是 `PT<数字>[.<数字>]S` 或 `-PT<数字>[.<数字>]S`。 |
+| `parseDuration` | `syntax` | 文本不是 `PT<数字>[.<数字>]S` 或 `-PT<数字>[.<数字>]S`。重复的秒单位，例如 `PT5S5S`，是 `syntax`，不是 `calendar-unit`。 |
 | `parseDuration` | `calendar-unit` | 文本使用了秒以外的单位，例如 `P1D`、`PT1M` 或 `PT1H`。 |
 | `readLeapSecondData` | `syntax` | 某一行不符合 IERS 格式，或 `#$` 行、`#@` 行缺失或重复。 |
 | `readLeapSecondData` | `step` | 第一行数据不是 NTP `2272060800` 偏移 `10`，数据行没有向后推进，某一行不在零点，或 TAI-UTC 的变化超过一秒。 |
@@ -105,6 +105,7 @@ parseDuration('P1D') // { ok: false, failure: { kind: 'calendar-unit' } }
 | 测试文件 | 核对内容 |
 | --- | --- |
 | `tests/public-entry.spec.ts` | 运行时导出的精确集合。 |
+| `tests/public-types.spec-d.ts` | 失败类型和结果类型从包入口导出。 |
 | `tests/instant.spec.ts` | 时间点文法、失败、往返、比较和不透明值。 |
 | `tests/duration.spec.ts` | 时长文法、`calendar-unit`、往返和不透明值。 |
 | `tests/leap-seconds.spec.ts` | 秒 60、失效边界、调用方提供的表、删除和读表失败。 |
@@ -123,5 +124,5 @@ parseDuration('P1D') // { ok: false, failure: { kind: 'calendar-unit' } }
 
 1. 从 IERS 来源下载当前文件到 `resources/leap-seconds.list`。不要编辑文件内容。
 2. 在本目录运行 `pnpm run leap-seconds:embed`。
-3. 更新 `src/instant.ts`、`tests/leap-seconds.spec.ts` 和两份 README 里的版本与失效日字面量。
+3. 更新 `tests/leap-seconds.spec.ts` 和两份 README 里内嵌表的版本与失效日字面量。包从文件推导这两个时间点，`src/instant.ts` 里没有要改的数字副本。
 4. 运行 `pnpm test` 和 `pnpm build`。

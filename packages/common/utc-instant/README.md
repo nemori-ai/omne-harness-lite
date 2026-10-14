@@ -54,7 +54,7 @@ The behavior owner is the common-group README and the accepted #221 decision. Th
 | `parseInstant` | `range` | A calendar field is impossible, for example `2026-02-29` or `24:00:00`. Second 60 outside `23:59` is also `range`. |
 | `parseInstant` | `leap-second` | The table does not insert second 60 on that day (`detail: 'not-inserted'`). Or the table deletes second 59 on that day (`detail: 'deleted'`). |
 | `parseInstant` | `leap-data-expired` | Second 60 is not listed, and the instant is at or after the table expiry. |
-| `parseDuration` | `syntax` | The text is not `PT<digits>[.<digits>]S` or `-PT<digits>[.<digits>]S`. |
+| `parseDuration` | `syntax` | The text is not `PT<digits>[.<digits>]S` or `-PT<digits>[.<digits>]S`. A repeated seconds designator such as `PT5S5S` is `syntax`, not `calendar-unit`. |
 | `parseDuration` | `calendar-unit` | The text uses a designator other than seconds, for example `P1D`, `PT1M`, or `PT1H`. |
 | `readLeapSecondData` | `syntax` | A line does not match the IERS format, or the `#$` line or the `#@` line is missing or repeated. |
 | `readLeapSecondData` | `step` | The first data row is not NTP `2272060800` with offset `10`, data rows do not advance, a row is not at midnight, or TAI-UTC changes by more than one second. |
@@ -105,6 +105,7 @@ Applicable tests are unit tests and contract tests through the public entry `@om
 | Test file | What it checks |
 | --- | --- |
 | `tests/public-entry.spec.ts` | The exact set of runtime exports. |
+| `tests/public-types.spec-d.ts` | The failure and result types are exported from the package entry. |
 | `tests/instant.spec.ts` | Instant grammar, failures, round trip, comparison, and opaque values. |
 | `tests/duration.spec.ts` | Duration grammar, `calendar-unit`, round trip, and opaque values. |
 | `tests/leap-seconds.spec.ts` | Second 60, the expiry boundary, caller tables, deletions, and table read failures. |
@@ -123,5 +124,5 @@ To update the leap-second table:
 
 1. Download the current file from the IERS source into `resources/leap-seconds.list`. Do not edit the file.
 2. Run `pnpm run leap-seconds:embed` in this directory.
-3. Update the version and expiry literals in `src/instant.ts`, in `tests/leap-seconds.spec.ts`, and in both READMEs.
+3. Update the bundled version and expiry literals in `tests/leap-seconds.spec.ts` and in both READMEs. The package derives those instants from the file, so `src/instant.ts` has no copy of the numbers to edit.
 4. Run `pnpm test` and `pnpm build`.
