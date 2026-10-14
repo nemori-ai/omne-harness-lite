@@ -40,6 +40,8 @@ describe('SI second durations', () => {
     '+PT5S',
     'PT 5S',
     'PT-5S',
+    'PT5S5S',
+    'PT0.5S0.5S',
   ])('refuses the malformed text %j as syntax', text => {
     expect(parseDuration(text)).toEqual({ ok: false, failure: { kind: 'syntax' } })
   })
