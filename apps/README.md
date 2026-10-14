@@ -29,7 +29,6 @@ flowchart TD
   branch -->|"否"| machine["机读输出"]
   tui --> sdkUse["SDK"]
   machine --> sdkUse
-  sdkUse --> serverUse["server-entry"]
 ```
 
 <!-- documentation:placeholder -->

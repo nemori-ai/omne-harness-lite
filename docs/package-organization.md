@@ -114,8 +114,8 @@ flowchart LR
   server["server-entry"]
 
   cli -->|"使用系统能力"| sdk
-  sdk -->|"不进入服务端装配树"| server
-  cli -.->|"不依赖"| server
+  cli -.->|"不导入"| server
+  sdk -.->|"不导入"| server
 ```
 
 命令解析模块不导入 `@deepseek-ai/cordis`，也不导入 Cordis 绑定。IC-4 仍允许 `apps/` 的包根出口引入 Cordis。检查器不会因为这类导入失败。若该应用要装配自己的进程，把 Cordis 绑定放在同包 `./cordis`。命令解析不调用这个入口。
@@ -135,7 +135,7 @@ flowchart TD
   machine --> sdkUse
 ```
 
-`tools/artifact-builder` 不依赖 CLI。`apps.0.0.1.legacy/cli` 把 artifact-builder 列为 devDependency。`tools/ts-checks` 的 devDependency 指向 `packages.0.0.1.legacy` 中的 `identity-values`。`scripts/package-cli.sh` 指向 `apps/cli/tools/package.ts`。仓库中没有这个成员。运行该脚本之前，先核对路径。
+`tools/artifact-builder` 不依赖 CLI。`apps.0.0.1.legacy/cli` 把 artifact-builder 列为 devDependency。`tools/ts-checks` 和 `tools/core-verification` 的 devDependency 都指向 `packages.0.0.1.legacy` 中的 `identity-values`。`scripts/package-cli.sh` 指向 `apps/cli/tools/package.ts`。仓库中没有这个成员。运行该脚本之前，先核对路径。
 
 发布到仓库之外时，CLI 包提供 `bin`、构建后的启动模块、构建身份文件，以及指向 SDK 包的依赖声明。启动不要求当前目录是本仓库。服务端包不进入这个安装闭包。包模板没有应用变体。缺少该变体并不阻止建包。建包前要同时满足两件事。[apps 入口](../apps/README.md#建立与维护)要求应用规格和公开依赖已经写明。[workspace](workspace.md)要求没有实现代码的承诺不建空成员。`help` 与 `version` 的测试归未来的 CLI 应用。SDK 调用的测试归 SDK。服务端接入的测试归 server-entry 和对应能力。模板与架构规则的测试归 `tools/ts-checks`。
 
