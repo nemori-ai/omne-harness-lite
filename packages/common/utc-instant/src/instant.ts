@@ -1,4 +1,4 @@
-import { leapSecondsList } from './leap-seconds.generated.ts'
+import { leapSecondsListText } from './leap-seconds.generated.ts'
 import { readLeapSecondsList, type LeapSecondsListFailure } from './leap-seconds.ts'
 
 let civilOf: (instant: Instant) => string
@@ -113,7 +113,7 @@ export function readLeapSecondData(text: string, source: string): LeapSecondData
 }
 
 const bundled = readLeapSecondData(
-  leapSecondsList,
+  leapSecondsListText,
   'https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list',
 )
 if (!bundled.ok) throw new Error(`The bundled leap-seconds.list failed as ${bundled.failure.kind}`)

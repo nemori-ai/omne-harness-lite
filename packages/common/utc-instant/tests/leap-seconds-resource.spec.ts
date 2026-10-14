@@ -7,7 +7,7 @@ const generated = readFileSync(new URL('../src/leap-seconds.generated.ts', impor
 
 describe('resources/leap-seconds.list', () => {
   it('is embedded unchanged in the generated module', () => {
-    expect(generated).toContain(`export const leapSecondsList = \`${resource}\`\n`)
+    expect(generated).toContain(`export const leapSecondsListText = \`${resource}\`\n`)
   })
 
   it('matches its own IERS #h hash', () => {
