@@ -140,6 +140,21 @@ describe('a caller-supplied table', () => {
 })
 
 describe('readLeapSecondData', () => {
+  it('reads CRLF line ends like LF, comments on data rows included', () => {
+    const crlf = table(
+      [
+        '#$\t3992312697',
+        '#@\t4133980800',
+        '2272060800\t10\t# 1 Jan 1972',
+        '2287785600\t11\t# 1 Jul 1972',
+      ].join('\r\n'),
+      'test data: CRLF',
+    )
+    expect(encodeInstant(crlf.version)).toBe('2026-07-06T07:44:57Z')
+    expect(encodeInstant(crlf.expires)).toBe('2031-01-01T00:00:00Z')
+    expect(parseInstant('1972-06-30T23:59:60Z', crlf)).toMatchObject({ ok: true })
+  })
+
   it.each([
     ['no version line', ['#@\t4133980800', '2272060800\t10']],
     ['no expiry line', ['#$\t3992312697', '2272060800\t10']],
