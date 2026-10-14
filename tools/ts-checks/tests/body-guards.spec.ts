@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   bodyProjectionInputs,
@@ -7,28 +6,60 @@ import {
 } from '../src/index.ts'
 
 const paths = [...new Set(CORE_BODY_PROJECTION_TARGETS.map(target => target.path))]
-const actualModules: readonly SourceFile[] = paths.map(path => ({
-  path,
-  text: readFileSync(new URL(`../../../packages.0.0.1.legacy/${path}`, import.meta.url), 'utf8'),
-}))
+const fixtureModules: readonly SourceFile[] = [
+  {
+    path: 'core/tool-definition/src/declarations.ts',
+    text: `
+export function toolAttributeDeclarations(body: ToolDefinition) { return [] }
+export function toolReferences(body: ToolDefinition) { return [] }
+`,
+  },
+  {
+    path: 'core/loop-extension/src/declarations.ts',
+    text: `
+export function loopExtensionAttributeDeclarations(body: LoopExtensionDefinition) { return [] }
+export function loopExtensionReferences(body: LoopExtensionDefinition) { return [] }
+`,
+  },
+  {
+    path: 'core/skill-package/src/declarations.ts',
+    text: `
+export function skillAttributeDeclarations(body: SkillPackage) { return [] }
+export function skillReferences(body: SkillPackage) { return [] }
+`,
+  },
+  {
+    path: 'core/mcp-endpoint/src/declarations.ts',
+    text: `
+export function deriveMcpDeclarations(body: McpEndpoint, actions: ActionSnapshot) { return [] }
+`,
+  },
+  {
+    path: 'core/slash-command/src/declarations.ts',
+    text: `
+export function slashCommandAttributeDeclarations(body: SlashCommandDefinition) { return [] }
+export function slashCommandReferences(body: SlashCommandDefinition) { return [] }
+`,
+  },
+]
 const slashPath = 'core/slash-command/src/declarations.ts'
 
-describe('body-projection-inputs — 已存在的正文模块', () => {
-  it('实际四类正文、七个声明／引用入口与 MCP 可选动作副本均通过', () => {
+describe('body-projection-inputs — 工具自有正文夹具', () => {
+  it('四类正文夹具、七个声明／引用入口与 MCP 可选动作副本均通过', () => {
     expect(paths.filter(path => path !== slashPath)).toHaveLength(4)
     expect(CORE_BODY_PROJECTION_TARGETS.filter(target => target.path !== slashPath)).toHaveLength(7)
     expect(
-      bodyProjectionInputs.check(actualModules.filter(file => file.path !== slashPath)),
+      bodyProjectionInputs.check(fixtureModules.filter(file => file.path !== slashPath)),
     ).toEqual([])
   })
 
-  it('Slash 两个真实入口追加后，五类正文九个锚均通过', () => {
+  it('Slash 两个入口夹具追加后，五类正文九个锚均通过', () => {
     expect(paths).toHaveLength(5)
     expect(CORE_BODY_PROJECTION_TARGETS).toHaveLength(9)
-    expect(bodyProjectionInputs.check(actualModules)).toEqual([])
+    expect(bodyProjectionInputs.check(fixtureModules)).toEqual([])
   })
 
-  for (const original of actualModules) {
+  for (const original of fixtureModules) {
     describe(original.path, () => {
       it('只存在本包时仍检查本包，不依赖工具包存在', () => {
         expect(bodyProjectionInputs.check([original])).toEqual([])
@@ -66,7 +97,7 @@ describe('body-projection-inputs — 已存在的正文模块', () => {
   }
 
   it.each(CORE_BODY_PROJECTION_TARGETS)('$functionName 丢锚不能用同包其它函数通过', target => {
-    const original = actualModules.find(value => value.path === target.path)
+    const original = fixtureModules.find(value => value.path === target.path)
     if (original === undefined) throw new Error(`缺少测试模块 ${target.path}`)
     const changed = original.text.replace(
       `function ${target.functionName}(`,
@@ -79,7 +110,7 @@ describe('body-projection-inputs — 已存在的正文模块', () => {
   })
 
   it.each(CORE_BODY_PROJECTION_TARGETS)('$functionName 不能增加持有方输入', target => {
-    const original = actualModules.find(value => value.path === target.path)
+    const original = fixtureModules.find(value => value.path === target.path)
     if (original === undefined) throw new Error(`缺少测试模块 ${target.path}`)
     const changed = original.text.replace(
       `function ${target.functionName}(`,
@@ -94,7 +125,7 @@ describe('body-projection-inputs — 已存在的正文模块', () => {
   })
 
   it('同文件多个入口逐个检查签名，模块导入错误只报告一次', () => {
-    const original = actualModules[0]
+    const original = fixtureModules[0]
     if (original === undefined) throw new Error('缺少工具正文模块')
     expect(
       bodyProjectionInputs.check([

@@ -118,6 +118,9 @@ export function collectRepositorySources(root: string): SourceFile[] {
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     }
   }
+  const manifest = join(root, 'package.json')
+  if (existsSync(manifest))
+    sources.push({ path: 'package.json', text: readFileSync(manifest, 'utf8') })
   const workspace = join(root, 'pnpm-workspace.yaml')
   if (existsSync(workspace))
     sources.push({

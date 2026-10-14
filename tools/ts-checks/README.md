@@ -25,7 +25,7 @@ That explicit base does not change the automatic hook's base. The internal 40-se
 
 ## Run and consume
 
-Use the repository's locked Node and pnpm versions. The normal command scans `packages/`, `apps/` and `examples/`, then runs repository rules over actual execution modules in `packages/`, `apps/`, `examples/`, `tools/` and `scripts/`:
+Use Node.js >=24.0.0 and the repository's pinned pnpm version. The normal command scans `packages/`, `apps/` and `examples/`, then runs repository rules over actual execution modules in `packages/`, `apps/`, `examples/`, `tools/` and `scripts/`:
 
 ```sh
 pnpm --filter @omne-harness/identity-values build
@@ -179,3 +179,42 @@ See [the full configuration and output description](README_ZH.md#实际装配与
 ## GitHub delivery observation
 
 The [delivery observer](src/delivery/README.md) reads an explicit configuration and capture. It reports card shape, phase waits, native dependency projections, stock and changes. It does not authorize dispatch or acceptance, and it does not infer current product support.
+
+## Independence from archived implementations
+
+The engineering tools do not load the archived `packages.0.0.1.legacy/` or
+`apps.0.0.1.legacy/` trees. Rule tests own minimal source strings and mutate
+those strings to test rejection. These fixtures test the checker, not the
+behavior of an archived product.
+
+`no-legacy-dependency` checks package manifests, workspace membership, imports,
+and TypeScript-resolved module aliases. Test files retain the import check.
+They also reject archived paths passed to file readers, `URL`, `join`, or
+`resolve`. The path check follows local variable initializers within enclosing
+blocks and follows explicitly selected fields of local object literals. Only the
+path argument of a file reader is checked. Destructured bindings stop lookup in
+outer scopes, and callback bodies are not treated as path arguments. Plain strings supplied as deliberately
+invalid checker input remain allowed. The check does not prove arbitrary dynamic
+paths, reassignment, indirect calls, or cross-module data flow. Run the tools
+without the archived directories to test the actual dependency chain.
+
+To reproduce that isolation from the repository root, use a disposable directory
+outside the checkout. The copy has no Git metadata, dependencies, build output,
+Python environment, or archived implementations:
+
+```sh
+isolated=$(mktemp -d)
+rsync -a --exclude=.git --exclude=.worktrees --exclude=tmp \
+  --exclude=node_modules --exclude=dist --exclude=.venv \
+  --exclude=packages.0.0.1.legacy --exclude=apps.0.0.1.legacy ./ "$isolated/"
+pnpm --dir "$isolated" install --frozen-lockfile --ignore-scripts
+pnpm --dir "$isolated" --filter '@omne-harness/ts-checks...' run build
+pnpm --dir "$isolated" --filter @omne-harness/ts-checks typecheck
+pnpm --dir "$isolated" --filter @omne-harness/ts-checks test
+```
+
+Run `make docs-check` separately in the checkout that retains the reference
+material. Historical documentation links are not executable dependencies.
+Report every failed command, including failures that also occur at the task
+baseline. These checks do not create an integration receipt or change the
+adopted runner. Runner adoption follows the [integration rules](../../docs/engineering/integration.md).

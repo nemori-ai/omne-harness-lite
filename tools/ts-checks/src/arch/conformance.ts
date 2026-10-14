@@ -1,6 +1,12 @@
 import { extractArchitecture } from './extract.ts'
 import { readArchitectureSource, type ArchitectureSource } from './source.ts'
-import { readConstraints, roleAt, semanticConstraints } from './constraints.ts'
+import {
+  readBaselineConstraints,
+  readConstraints,
+  roleAt,
+  semanticConstraints,
+} from './constraints.ts'
+import { activeRoles } from './conformance-model.ts'
 import type { ActualExtraction, PackageImport, Fact } from './actual-model.ts'
 import type { ActualArchitectureInput } from './actual.ts'
 import { publicEntries, StaticResolver, type PublicEntry } from './resolve.ts'
@@ -74,7 +80,7 @@ function rowsOf(
   snapshot: Snapshot,
 ): ConformanceRow[] {
   const rows: ConformanceRow[] = [],
-    intent = input.value
+    intent = input.value === null ? null : { ...input.value, roles: activeRoles(input) }
   const rules = new Map(intent?.rules.map(rule => [rule.id, rule]) ?? [])
   const entries = publicEntries(snapshot)
   const bySource = new Map<string, PackageImport[]>()
@@ -498,7 +504,7 @@ export function analyzeConformance(
   baseline?: ArchitectureSource,
 ) {
   const head = readConstraints(root, current.source),
-    base = baseline === undefined ? undefined : readConstraints(root, baseline.source)
+    base = baseline === undefined ? undefined : readBaselineConstraints(root, baseline)
   const headActual = extractArchitecture(current.snapshot),
     baseActual = baseline === undefined ? undefined : extractArchitecture(baseline.snapshot)
   const rows = rowsOf(headActual, base ?? head, current.snapshot)
