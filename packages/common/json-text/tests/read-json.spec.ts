@@ -420,3 +420,101 @@ describe('syntax', () => {
     })
   })
 })
+
+describe('duplicate keys', () => {
+  it('a repeated key is duplicate-key with the parent path and the decoded key', () => {
+    expect(readJsonText('{"a":1,"a":2}', roomy)).toEqual({
+      kind: 'duplicate-key',
+      path: [],
+      key: 'a',
+    })
+    expect(readJsonText('{"x":[{"a":1},{"b":1,"b":2}]}', roomy)).toEqual({
+      kind: 'duplicate-key',
+      path: ['x', 1],
+      key: 'b',
+    })
+    expect(readJsonText('[[{"k":{"a":0,"a":0}}]]', roomy)).toEqual({
+      kind: 'duplicate-key',
+      path: [0, 0, 'k'],
+      key: 'a',
+    })
+  })
+
+  it('keys equal after escape decoding are duplicates', () => {
+    expect(readJsonText('{"a":1,"\\u0061":2}', roomy)).toEqual({
+      kind: 'duplicate-key',
+      path: [],
+      key: 'a',
+    })
+    expect(readJsonText('{"\\n":1,"\\u000a":2}', roomy)).toEqual({
+      kind: 'duplicate-key',
+      path: [],
+      key: '\n',
+    })
+  })
+
+  it.each([
+    '{"a":1,"a"',
+    '{"a":1,"a":',
+    '{"a":1,"a":[',
+    '{"a":1,"a":01}',
+    '{"a":1,"a": /* note */ 2}',
+    '{"a":1,"a":2,}',
+  ])('the reader stops at the duplicate key in %j before its value', text => {
+    expect(readJsonText(text, roomy)).toEqual({ kind: 'duplicate-key', path: [], key: 'a' })
+  })
+
+  it('{"a":1,"a": with maxMembers 2 is duplicate-key', () => {
+    expect(readJsonText('{"a":1,"a":', { ...roomy, maxMembers: 2 })).toEqual({
+      kind: 'duplicate-key',
+      path: [],
+      key: 'a',
+    })
+  })
+
+  it('the same key in different objects is not a duplicate', () => {
+    expect(readJsonText('[{"a":1},{"a":2}]', roomy)).toEqual({
+      kind: 'ok',
+      value: {
+        kind: 'array',
+        items: [
+          { kind: 'object', entries: [{ key: 'a', value: { kind: 'number', lexeme: '1' } }] },
+          { kind: 'object', entries: [{ key: 'a', value: { kind: 'number', lexeme: '2' } }] },
+        ],
+      },
+    })
+    expect(readJsonText('{"a":{"a":1}}', roomy)).toEqual({
+      kind: 'ok',
+      value: {
+        kind: 'object',
+        entries: [
+          {
+            key: 'a',
+            value: {
+              kind: 'object',
+              entries: [{ key: 'a', value: { kind: 'number', lexeme: '1' } }],
+            },
+          },
+        ],
+      },
+    })
+  })
+
+  it('object prototype names are plain keys', () => {
+    expect(readJsonText('{"__proto__":1,"constructor":2}', roomy)).toEqual({
+      kind: 'ok',
+      value: {
+        kind: 'object',
+        entries: [
+          { key: '__proto__', value: { kind: 'number', lexeme: '1' } },
+          { key: 'constructor', value: { kind: 'number', lexeme: '2' } },
+        ],
+      },
+    })
+    expect(readJsonText('{"__proto__":1,"__proto__":2}', roomy)).toEqual({
+      kind: 'duplicate-key',
+      path: [],
+      key: '__proto__',
+    })
+  })
+})

@@ -3,6 +3,7 @@ import type {
   JsonEntry,
   JsonFailure,
   JsonLimits,
+  JsonPathSegment,
   JsonRead,
   JsonSyntaxReason,
   JsonValue,
@@ -179,6 +180,7 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
         if (token !== TOKEN.string) return syntax('token')
         const key = readString(scanner, text)
         if (typeof key !== 'string') return key
+        if (frame.keys.has(key)) return { kind: 'duplicate-key', path: pathTo(stack), key }
         frame.keys.add(key)
         frame.key = key
         frame.next = 'colon'
@@ -209,6 +211,11 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
           : stepObject(top, token)
     if (failure !== undefined) return failure
   }
+}
+
+/** The keys and indexes from the root down to the innermost open container. */
+function pathTo(stack: readonly Frame[]): JsonPathSegment[] {
+  return stack.slice(0, -1).map(frame => (frame.kind === 'array' ? frame.items.length : frame.key))
 }
 
 function readString(scanner: JSONScanner, text: string): JsonFailure | string {
