@@ -25,7 +25,7 @@ describe('body-projection-inputs — 精确推出模块', () => {
         file(
           bodyPath,
           `
-import type { AttributeDeclaration } from '@omne-harness-lite/asset-model'
+import type { AttributeDeclaration } from '@omne-harness/asset-model'
 import { type ToolDefinition as Body } from './types.ts'
 const schemaId = 'frozen-schema-id'
 export function declarations(value: Body): readonly AttributeDeclaration[] {
@@ -116,7 +116,7 @@ describe('parameter-judge-cache-owner — 作者 Schema 的实际作用域', () 
         file(
           path,
           `
-import { createSchemaRuntime as makeRuntime } from '@omne-harness-lite/content-blocks/schema-runtime'
+import { createSchemaRuntime as makeRuntime } from '@omne-harness/content-blocks/schema-runtime'
 export function createParameterJudge() {
   const runtime = makeRuntime([])
   const cache = new Map()
@@ -170,7 +170,7 @@ describe('single-tool-argument-parser — 具名封口及 raw 消费路径', () 
   const legal = [
     file(
       closePath,
-      `import { readJsonStrict as read } from '@omne-harness-lite/content-blocks'
+      `import { readJsonStrict as read } from '@omne-harness/content-blocks'
 export function acceptClose(raw: string) { return read(raw) }`,
     ),
     file(rawPath, `export function sendRaw(raw: string) { return raw }`),
@@ -185,8 +185,8 @@ export function acceptClose(raw: string) { return read(raw) }`,
     `JSON.parse(raw)`,
     String.raw`JSON['\u0070arse'](raw)`,
     `const read = JSON.parse; read(raw)`,
-    `import { readJsonStrict as read } from '@omne-harness-lite/content-blocks'; read(raw)`,
-    `import * as json from '@omne-harness-lite/content-blocks'; json.readJsonStrict(raw)`,
+    `import { readJsonStrict as read } from '@omne-harness/content-blocks'; read(raw)`,
+    `import * as json from '@omne-harness/content-blocks'; json.readJsonStrict(raw)`,
   ])('snapshot/closeOut 等其它 stream 路径解析必须红：%s', expression => {
     expect(
       rule.check([

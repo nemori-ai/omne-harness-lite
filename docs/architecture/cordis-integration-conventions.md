@@ -58,7 +58,7 @@
 
 ## IC-10
 
-事件名 `<范围>/<事件>`，全小写 kebab。范围是声明它的那个包的名字（不带 `@omne-harness-lite/`）。跨成员事件的范围取它所属定义包的名字，迁移途中暂时声明在别处也不改。通知（`emit`、`parallel`）的事件部分用过去分词，可带对象前缀（`session-log/appended`、`organization-governance/membership-changed`）；控制（`serial`、`bail`、`waterfall`）的事件部分用动词原形，说明被问的动作，如 `tool-admission/admit`。
+事件名 `<范围>/<事件>`，全小写 kebab。范围是声明它的那个包的名字（不带 `@omne-harness/`）。跨成员事件的范围取它所属定义包的名字，迁移途中暂时声明在别处也不改。通知（`emit`、`parallel`）的事件部分用过去分词，可带对象前缀（`session-log/appended`、`organization-governance/membership-changed`）；控制（`serial`、`bail`、`waterfall`）的事件部分用动词原形，说明被问的动作，如 `tool-admission/admit`。
 
 ## IC-11
 

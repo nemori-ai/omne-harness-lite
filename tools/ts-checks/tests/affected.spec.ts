@@ -39,7 +39,7 @@ const member = (
 
 // base ← mid ← top（top 有验收）；custodian-user 依赖读自己 README 的 credential-custodian-local。
 const MEMBERS = [
-  member('packages.0.0.1.legacy/core/identity-values'),
+  member('packages/common/legal-identity'),
   member('packages/core/base'),
   member('packages/core/mid', ['@x/base']),
   member('packages.0.0.1.legacy/core/stream-assembly'),
@@ -55,12 +55,12 @@ const MEMBERS = [
   member('packages/tenancy/governance-center-entry-node'),
   member('apps/top', ['@x/mid'], { acceptance: 'vitest run --dir acceptance' }),
   member('tools/core-verification', ['@x/base']),
-  member('tools/ts-checks', ['@x/identity-values']),
+  member('tools/ts-checks', ['@x/legal-identity']),
 ]
 
 const plan = (paths: string[], full = false) => planCheck(paths, MEMBERS, RULES, full)
 const describe_ = (checkPlan: CheckPlan) => describeCheckPlan(checkPlan, RULES, CONFIG).join('\n')
-const RESIDENT_BUILD = [{ path: 'packages.0.0.1.legacy/core/identity-values', reason: 'resident' }]
+const RESIDENT_BUILD = [{ path: 'packages/common/legal-identity', reason: 'resident' }]
 
 describe('路径模式', () => {
   it('`*` 不跨目录，`**` 跨目录，`**/` 也匹配零层目录', () => {
@@ -75,7 +75,7 @@ describe('路径模式', () => {
 })
 
 describe('影响面计划（真实规则）', () => {
-  it('纯文档：只需常驻检查；构建恰好是常驻检查需要的 identity-values，其余全跳并说出依据', () => {
+  it('纯文档：只需常驻检查；构建恰好是常驻检查需要的 legal-identity，其余全跳并说出依据', () => {
     const result = plan(['docs/development.md', 'README.md'])
     expect(result.mode).toBe('scoped')
     expect(result.files.map(file => [file.category, file.rule])).toEqual([
@@ -90,7 +90,7 @@ describe('影响面计划（真实规则）', () => {
     expect(text).toContain('判为只需常驻检查，跳过了类型检查、成员测试、验收、pytest')
     expect(text).toContain(`${CONFIG} 的 affected.residentPaths`)
     expect(text).toContain(
-      '构建：只构建 packages.0.0.1.legacy/core/identity-values——常驻检查需要：lint:rules 经',
+      '构建：只构建 packages/common/legal-identity——常驻检查需要：lint:rules 经',
     )
     expect(text).toContain('成员测试：没有要跑的成员')
   })
@@ -107,7 +107,7 @@ describe('影响面计划（真实规则）', () => {
       },
     ])
     expect(result.build).toEqual([
-      { path: 'packages.0.0.1.legacy/core/identity-values', reason: 'dependency' },
+      { path: 'packages/common/legal-identity', reason: 'dependency' },
       { path: 'packages/infra/leaf', reason: 'selected' },
       { path: 'tools/ts-checks', reason: 'selected' },
     ])

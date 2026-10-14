@@ -9,7 +9,7 @@ function extract(text: string, extra: Record<string, string> = {}) {
       new Map(
         Object.entries({
           'packages/session/example/package.json':
-            '{"name":"@omne-harness-lite/example","exports":{".":"./dist/index.js"}}',
+            '{"name":"@omne-harness/example","exports":{".":"./dist/index.js"}}',
           [source]: text,
           ...extra,
         }),
@@ -17,7 +17,7 @@ function extract(text: string, extra: Record<string, string> = {}) {
     ),
   )
 }
-const prelude = `import { definePlugin as plugin } from '@omne-harness-lite/kernel-basis'
+const prelude = `import { definePlugin as plugin } from '@omne-harness/kernel-basis'
 import { Context as C, Service } from '@deepseek-ai/cordis'
 `
 
@@ -73,11 +73,11 @@ export const actual = Object.assign(plugin({name:'managed',inject:['storage'],ap
 `,
       {
         'packages/session/example/package.json':
-          '{"name":"@omne-harness-lite/example","exports":{".":"./dist/index.js","./cordis":"./dist/cordis.js"}}',
+          '{"name":"@omne-harness/example","exports":{".":"./dist/index.js","./cordis":"./dist/cordis.js"}}',
         'packages/session/example/src/cordis.ts': "export {actual as Managed} from './plugin.js'",
         'apps/host/package.json': '{"name":"host"}',
         'apps/host/src/tree.ts':
-          "export function tree(){return [{id:'entry',plugin:{package:'@omne-harness-lite/example',export:'Managed'},config:{}}]}",
+          "export function tree(){return [{id:'entry',plugin:{package:'@omne-harness/example',export:'Managed'},config:{}}]}",
       },
     )
     expect(result.facts.find(f => f.kind === 'composition')).toMatchObject({
@@ -111,7 +111,7 @@ export const actual=${wrapper}
       {
         'apps/host/package.json': '{"name":"host"}',
         'apps/host/src/manifest.ts':
-          "import {actual} from '@omne-harness-lite/example';export const rows=[{id:'entry',plugin:actual}]",
+          "import {actual} from '@omne-harness/example';export const rows=[{id:'entry',plugin:actual}]",
       },
     )
     expect(result.facts.filter(f => f.kind === 'composition')).toEqual([])
@@ -126,20 +126,20 @@ export const actual=Object.assign(plugin({name:'managed',apply(ctx){ctx.provide(
       {
         'apps/host/package.json': '{"name":"host"}',
         'apps/host/src/manifest.ts':
-          "import {actual} from '@omne-harness-lite/example';export const rows=[{id:'entry',plugin:actual}]",
+          "import {actual} from '@omne-harness/example';export const rows=[{id:'entry',plugin:actual}]",
       },
     )
     expect(result.facts.filter(f => f.kind === 'composition')).toEqual([])
     expect(result.unknown.filter(f => f.kind === 'composition')).toHaveLength(1)
   })
   it.each([
-    ['@omne-harness-lite/example', 'Missing'],
-    ['@omne-harness-lite/example/private', 'Managed'],
+    ['@omne-harness/example', 'Missing'],
+    ['@omne-harness/example/private', 'Managed'],
     ['./provider', 'Managed'],
   ])('does not invent a tree target for %s#%s', (packageName, exported) => {
     const result = extract(`${prelude}export const actual=plugin({name:'managed',apply(ctx){}})`, {
       'packages/session/example/package.json':
-        '{"name":"@omne-harness-lite/example","exports":{"./cordis":"./dist/cordis.js"}}',
+        '{"name":"@omne-harness/example","exports":{"./cordis":"./dist/cordis.js"}}',
       'packages/session/example/src/cordis.ts': "export {actual as Managed} from './plugin.js'",
       'apps/host/package.json': '{"name":"host"}',
       'apps/host/src/tree.ts': `export const rows=[{id:'entry',plugin:{package:'${packageName}',export:'${exported}'},config:{}}]`,
@@ -147,7 +147,7 @@ export const actual=Object.assign(plugin({name:'managed',apply(ctx){ctx.provide(
     expect(result.facts.filter(f => f.kind === 'composition')).toEqual([])
     expect(result.unknown.filter(f => f.kind === 'composition')).toHaveLength(1)
   })
-  it.each(['@omne-harness-lite/kernel-basis', '@omne-harness-lite/kernel-basis/cordis'])(
+  it.each(['@omne-harness/kernel-basis', '@omne-harness/kernel-basis/cordis'])(
     'recognizes binding helpers from current and historical public entry %s',
     entry => {
       const result = extract(`
@@ -169,8 +169,8 @@ export const p = plugin({ name: 'p', inject: ['required'], apply(ctx) {
   )
 
   it.each([
-    '@omne-harness-lite/kernel-basis-other/cordis',
-    '@omne-harness-lite/kernel-basis/private',
+    '@omne-harness/kernel-basis-other/cordis',
+    '@omne-harness/kernel-basis/private',
   ])('does not trust helpers from %s', entry => {
     const result = extract(`
 import { definePlugin as plugin, resolveOptional as optional } from '${entry}'
@@ -216,7 +216,7 @@ export const manifest = [{ id: 'live-component', plugin: live }]
   it('resolves workspace public re-exports, aliases and static class keys without merging plugins', () => {
     const result = extract(
       `${prelude}
-import { KEY as storage } from '@omne-harness-lite/keys'
+import { KEY as storage } from '@omne-harness/keys'
 export const a = plugin({ name: 'a', inject: [storage], apply(ctx) {
   ctx.get(storage); ctx.get('clock'); ctx.provide('alpha', {});
   const ordinary = { get() {}, on() {}, provide() {} }; ordinary.get('fake'); ordinary.on('fake'); ordinary.provide('fake');
@@ -225,7 +225,7 @@ export const b = plugin({ name: 'b', apply(ctx) { ctx.get(storage); ctx.provide(
 `,
       {
         'packages/core/keys/package.json':
-          '{"name":"@omne-harness-lite/keys","exports":{".":"./dist/index.js"}}',
+          '{"name":"@omne-harness/keys","exports":{".":"./dist/index.js"}}',
         'packages/core/keys/src/index.ts': "export { KEY } from './keys.js'",
         'packages/core/keys/src/keys.ts':
           "import { Base } from './service.js'; export const KEY = Base.provide",
@@ -348,7 +348,7 @@ export const name = 'exported'; export const inject = ['clock']; export function
         'packages/session/example/src/index.ts': "export { actual as exported } from './plugin.js'",
         'apps/host/package.json': '{"name":"host"}',
         'apps/host/src/manifest.ts':
-          "import { exported as local, type Other } from '@omne-harness-lite/example'; export function build(){return [{name:'entry',plugin:local,config:factory()}]}",
+          "import { exported as local, type Other } from '@omne-harness/example'; export function build(){return [{name:'entry',plugin:local,config:factory()}]}",
       },
     )
     expect(result.facts.find(f => f.kind === 'composition')).toMatchObject({
@@ -368,7 +368,7 @@ export const name = 'exported'; export const inject = ['clock']; export function
     'retains plugin and provides for $label Context origin',
     ({ header, parameterType, extra }) => {
       const result = extract(
-        `import {definePlugin} from '@omne-harness-lite/kernel-basis';
+        `import {definePlugin} from '@omne-harness/kernel-basis';
 ${header};export const p=definePlugin({name:'p',apply(ctx:${parameterType}){ctx.provide('svc',{})}})`,
         extra,
       )

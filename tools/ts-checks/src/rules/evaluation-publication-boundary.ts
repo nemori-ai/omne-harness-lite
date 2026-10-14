@@ -4,8 +4,8 @@ import type { Rule, SourceFile, Violation } from '../rule.ts'
 import { lineAt } from '../source-text.ts'
 import { syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
 const entries = [
-  '@omne-harness-lite/evaluation-input-store/publication',
-  '@omne-harness-lite/evaluation-input-store/admitted',
+  '@omne-harness/evaluation-input-store/publication',
+  '@omne-harness/evaluation-input-store/admitted',
 ] as const
 type Entry = (typeof entries)[number]
 const namedPublishers = new Set([
@@ -38,7 +38,7 @@ function reference(file: SourceFile, specifier: string): Entry | undefined {
     (specifier.startsWith('.') ? normalize(join(dirname(file.path), specifier)) : specifier)
   if (entries.includes(target as Entry)) return target as Entry
   const local =
-    /^(?:packages\/assets\/evaluation-input-store\/(?:src|dist)\/|@omne-harness-lite\/evaluation-input-store\/(?:src\/)?)(publication|admitted)(?:\.d)?(?:\.[cm]?[jt]s)?$/u.exec(
+    /^(?:packages\/assets\/evaluation-input-store\/(?:src|dist)\/|@omne-harness\/evaluation-input-store\/(?:src\/)?)(publication|admitted)(?:\.d)?(?:\.[cm]?[jt]s)?$/u.exec(
       target,
     )
   return local ? entries.find(value => value.endsWith('/' + local[1])) : undefined

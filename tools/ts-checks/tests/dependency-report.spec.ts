@@ -77,7 +77,7 @@ describe('dependency rows', () => {
     write(
       root,
       `${authorization}/src/index.ts`,
-      "import { SqlStorage } from '@omne-harness-lite/storage-sql'\nvoid SqlStorage\n",
+      "import { SqlStorage } from '@omne-harness/storage-sql'\nvoid SqlStorage\n",
     )
     write(root, 'packages/infra/storage-sql/src/index.ts', 'export class SqlStorage {}\n')
     constraints(root, ['IC-5'], {
@@ -111,7 +111,7 @@ describe('dependency rows', () => {
         age: 'unjudged',
         member: authorization,
         targetMember: 'packages/infra/storage-sql',
-        key: '@omne-harness-lite/storage-sql#SqlStorage',
+        key: '@omne-harness/storage-sql#SqlStorage',
         reason: '非装配消费者引用私有入口或提供者实现，BASE无精确符号同提交例外',
         sites: [{ path: `${authorization}/src/index.ts`, line: 1 }],
       },
@@ -125,7 +125,7 @@ describe('dependency rows', () => {
     write(
       root,
       `${sdk}/src/index.ts`,
-      "import { route } from '@omne-harness-lite/server-entry/cordis'\nexport const client = route\n",
+      "import { route } from '@omne-harness/server-entry/cordis'\nexport const client = route\n",
     )
     write(root, `${entry}/src/cordis.ts`, 'export const route = 1\n')
     write(
@@ -155,23 +155,23 @@ describe('dependency rows', () => {
     write(
       root,
       `${sdk}/src/index.ts`,
-      "import type { Value } from '@omne-harness-lite/public-contract'\nexport type Alias = Value\n",
+      "import type { Value } from '@omne-harness/public-contract'\nexport type Alias = Value\n",
     )
     expect(rows(root, sdk).filter(row => row.rule === 'undeclared-dependency')).toEqual([
       {
-        id: JSON.stringify(['undeclared-dependency', sdk, '@omne-harness-lite/public-contract']),
+        id: JSON.stringify(['undeclared-dependency', sdk, '@omne-harness/public-contract']),
         rule: 'undeclared-dependency',
         state: 'deviation',
         age: 'unjudged',
         member: sdk,
         targetMember: contract,
-        key: '@omne-harness-lite/public-contract',
+        key: '@omne-harness/public-contract',
         reason:
           '源码引用 workspace 包但未在 dependencies、peerDependencies 或 devDependencies 声明',
         expected: 'dependencies、peerDependencies 或 devDependencies',
         sites: [{ path: `${sdk}/src/index.ts`, line: 1 }],
         relation: expect.objectContaining({
-          specifier: '@omne-harness-lite/public-contract',
+          specifier: '@omne-harness/public-contract',
           symbol: 'Value',
           type: true,
           member: sdk,
@@ -189,7 +189,7 @@ describe('dependency rows', () => {
     write(
       root,
       `${session}/src/index.ts`,
-      "import { readCredentialBindingIn, writeCredentialBindingIn } from '@omne-harness-lite/storage-sql'\nvoid readCredentialBindingIn\nvoid writeCredentialBindingIn\n",
+      "import { readCredentialBindingIn, writeCredentialBindingIn } from '@omne-harness/storage-sql'\nvoid readCredentialBindingIn\nvoid writeCredentialBindingIn\n",
     )
     write(root, `${session}/SPEC.md`, '# Session\n\n## transaction-read\n\nSame commit.\n')
     constraints(root, ['IC-5'], {
@@ -230,7 +230,7 @@ describe('dependency rows', () => {
           state: 'converged',
           member: session,
           targetMember: sql,
-          key: '@omne-harness-lite/storage-sql#readCredentialBindingIn',
+          key: '@omne-harness/storage-sql#readCredentialBindingIn',
           reason:
             '静态例外：docs/architecture/constraints.json packages/session/session/SPEC.md#transaction-read；共同存储 credential-binding，事务行为仍需证据',
         }),
@@ -239,7 +239,7 @@ describe('dependency rows', () => {
           state: 'deviation',
           member: session,
           targetMember: sql,
-          key: '@omne-harness-lite/storage-sql#writeCredentialBindingIn',
+          key: '@omne-harness/storage-sql#writeCredentialBindingIn',
           reason: '非装配消费者引用私有入口或提供者实现，BASE无精确符号同提交例外',
         }),
       ]),
@@ -253,7 +253,7 @@ describe('dependency rows', () => {
     write(
       root,
       `${authorization}/src/index.ts`,
-      "import { SqlStorage } from '@omne-harness-lite/storage-sql'\nvoid SqlStorage\n",
+      "import { SqlStorage } from '@omne-harness/storage-sql'\nvoid SqlStorage\n",
     )
     write(root, 'packages/infra/storage-sql/src/index.ts', 'export class SqlStorage {}\n')
     constraints(root, ['IC-5', 'IC-1'])

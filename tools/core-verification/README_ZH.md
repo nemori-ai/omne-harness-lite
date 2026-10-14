@@ -14,9 +14,9 @@
 
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts
-pnpm --filter @omne-harness-lite/core-verification... run build
-pnpm --filter @omne-harness-lite/core-verification run typecheck
-pnpm --filter @omne-harness-lite/core-verification run test
+pnpm --filter @omne-harness/core-verification... run build
+pnpm --filter @omne-harness/core-verification run typecheck
+pnpm --filter @omne-harness/core-verification run test
 ```
 
 存储有效性自测的两条稳定用例：
@@ -43,7 +43,7 @@ JSON 报告、执行参数和外键注入观察。父测试拥有子进程及私
 
 ```sh
 OMNE_CORE_VERIFICATION_EVIDENCE_ROOT=tmp/w6-core-verification/my-run \
-  pnpm --filter @omne-harness-lite/core-verification run test
+  pnpm --filter @omne-harness/core-verification run test
 ```
 
 配置根下分别创建 `storage`、`w1-public-consumers`、`asset-consumers`、`stream-consumers`、`packed-consumers`；
@@ -177,7 +177,7 @@ overrides 同时把传递的 `0.0.0` 依赖钉回这批 tarballs，避免从 reg
 只运行这条流组合和帧数负控：
 
 ```sh
-pnpm --filter @omne-harness-lite/core-verification exec vitest run tests/w6-stream-consumer.spec.ts --maxWorkers=1
+pnpm --filter @omne-harness/core-verification exec vitest run tests/w6-stream-consumer.spec.ts --maxWorkers=1
 ```
 
 `w6-stream-consumer` 通过 CB／CA → AR → SA → Messages／MR 的六个实际公开根入口运行13个固定场景，

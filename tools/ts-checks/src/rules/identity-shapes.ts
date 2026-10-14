@@ -1,5 +1,5 @@
 import ts from 'typescript'
-import { IDENTITY_TYPE_NAMES } from '@omne-harness-lite/identity-values'
+import { IDENTITY_TYPE_NAMES } from '@omne-harness/legal-identity'
 import { isTestPath, type Rule, type SourceFile, type Violation } from '../rule.ts'
 import { lineAt } from '../source-text.ts'
 import { hasTag, nodeName, syntaxOf, visitSyntax } from '../syntax.ts'
@@ -16,7 +16,7 @@ export interface IdentityCheckInputs {
   readonly decisionTargets: readonly IdentityDecisionTarget[]
 }
 
-/** 身份类型名单只从 identity-values 公开入口取得，不维护第二份领域名单。 */
+/** 身份类型名单只从 legal-identity 公开入口取得，不维护第二份领域名单。 */
 export const IDENTITY_CHECK_INPUTS: IdentityCheckInputs = Object.freeze({
   identityTypeNames: IDENTITY_TYPE_NAMES,
   physicalTypeNames: Object.freeze([

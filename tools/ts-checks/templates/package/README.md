@@ -3,7 +3,7 @@
 This directory owns `typescript-package@2.0.0`. It is a development resource, not a workspace product member.
 Public interfaces, behavior and acceptance remain with their existing owners.
 The required member shape is [package organization](../../../../docs/package-organization.md#成员的必选结构).
-This generator emits a `build` script that deletes `dist` first, and `erasableSyntaxOnly` on the build configuration. It does not yet emit the source-condition export, because that name is not decided.
+This generator emits a `build` script that deletes `dist` first, `erasableSyntaxOnly` on the build configuration, and `"files": ["dist"]`. It does not yet emit the source-condition export, because that name is not decided. It emits `tests/public-entry.spec.ts`, which imports the package name and checks the current public exports. Add integration only for a package that implements storage or an application service, and an end-to-end test only for the owner of a key user journey. See [package test duty](../../../../docs/verification.md#包级测试责任与边界).
 
 ## Create and inspect
 

@@ -1,6 +1,10 @@
+PACKAGE_TEMPLATE_DRAFT
+
+本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。源码条件名尚未决定，导出里没有该条件。
+
 # 定义求值与装配交接文档目标
 
-本目录预留采用依据、依赖绑定、就绪、撤除及换代交接的成员文档。依据为[上层责任](../../../docs/domains/assembly-and-handoff/README.md)和[目标包组织](../../../docs/package-organization.md)。目前没有 manifest、源码、公开导出或运行支持。
+本目录预留采用依据、依赖绑定、就绪、撤除及换代交接的成员文档。依据为[上层责任](../../../docs/domains/assembly-and-handoff/README.md)和[目标包组织](../../../docs/package-organization.md)。已有 workspace 草稿和空的 src/index.ts。公开行为尚未实现。
 
 ## 阅读路径
 
@@ -15,3 +19,4 @@
 预期调用方有三类，都还没有单独的运行成员。
 
 资源拥有者持有一组租约。他提供步骤和时钟，并调用 `close`。应用退出协调者把在途结果的交接放在关闭后端之前。观察者只调用 `detachObserver`。观察者离开不取消已持有的租约。
+默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。

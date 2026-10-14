@@ -1,3 +1,3 @@
-import { a } from '@omne-harness-lite/a'
+import { a } from '@omne-harness/a'
 
 export const n = a + 1

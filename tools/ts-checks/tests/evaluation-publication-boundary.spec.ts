@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { evaluationPublicationBoundary } from '../src/rules/evaluation-publication-boundary.ts'
-const entry = '@omne-harness-lite/evaluation-input-store/publication'
+const entry = '@omne-harness/evaluation-input-store/publication'
 const imported = `import { publishLocalInputs, captureSessionRecipe } from '${entry}';`
 test.each([
   'apps/cli/src/session-factory-assets.ts',
@@ -87,7 +87,7 @@ test.each([
   ).not.toEqual([])
 })
 
-const admitted = '@omne-harness-lite/evaluation-input-store/admitted'
+const admitted = '@omne-harness/evaluation-input-store/admitted'
 test('only the actual application bootstrap can construct an admitted source through its public entry', () => {
   expect(
     evaluationPublicationBoundary.check([

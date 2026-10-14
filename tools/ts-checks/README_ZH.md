@@ -2,7 +2,7 @@
 
 显式仓库的 Git 子进程由 [git-environment.ts](src/git-environment.ts) 隔离八项仓库定位变量。认证、Git 配置、OMNE runner/subject 与测试控制参数继续继承。Vitest 在加载测试文件前另清两个 OMNE root，防止普通 fixture 读写外部仓库；污染回归在被测入口显式注入环境。持续验证见 [repository-environment.spec.ts](tests/repository-environment.spec.ts) 与 [integration-transport.spec.ts](tests/integration-transport.spec.ts)。
 
-`evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`。
+`evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`。
 
 产品源码与开发示例（`packages/`、`apps/` 与 `examples/`）的结构检查：契约与 realization 节点 verification 点名的静态检查，
 规则检查文本、路径与 TypeScript 语法，不做跨文件类型分析。类型层的检查（失败集合闭合等）
@@ -22,7 +22,7 @@
 | `no-bail-control`                | basis `async-control-not-bail`                                                        | 不得调用 `ctx.bail(`，异步控制走 `serial`                                                                                                                                                                                                                                                                                                                                                | —                                                                                                                                                     |
 | `no-testing-import` | apps/tenancy-host verification | 产品源码不得 import testing 子入口；静态、侧效应、字面动态/require、重导出、类型与解码说明符均查，测试豁免 | 非字面说明符、通过函数传参的动态装载 |
 | `restricted-call-sites`          | AI S-30、OG S-42、入口契约 SC-1                                                       | `accounts.produce(` 与 `'organization-purge'` 只出现在 `tenancy/account-registration`（及定义它们的包）；`createPersonal(`、`activate(`、`purge(`、`sweepStaleSelections(`（`.m(` 与解构后的 `m(` 都算）同样只许在 AR 与定义它们的包（OG；AI）。入口层路由表不点名这四个，入口层包里出现即违反                                                                                           | `apps/` 不在扫描根内（装配调 `sweepStaleSelections` 不受查）；经别名或 `obj[name](` 调用                                                              |
-| `ops-import-whitelist`           | 入口契约 SC-2；入口节点约束第 5 条；主线 2026-09-23 裁决（cordis、zod 纳入）          | 入口层包 `src/ops/**` 只许导入 `@omne-harness-lite/kernel-basis`、`storage`、`offer-expiry`（恰这三个名，不含子入口）、`@deepseek-ai/cordis`、`zod`、`node:*`、`src/events.ts` 与 ops 目录内文件；动态导入的说明符须是字面量。`src/events.ts` 只许导入 `node:*`、`@deepseek-ai/cordis`、`zod`：不导入任何 `@omne-harness-lite/*`，也不做相对导入（它在白名单里，这两种都会让传递图越界） | 类型导入与运行时导入不分（都算）                                                                                                                      |
+| `ops-import-whitelist`           | 入口契约 SC-2；入口节点约束第 5 条；主线 2026-09-23 裁决（cordis、zod 纳入）          | 入口层包 `src/ops/**` 只许导入 `@omne-harness/kernel-basis`、`storage`、`offer-expiry`（恰这三个名，不含子入口）、`@deepseek-ai/cordis`、`zod`、`node:*`、`src/events.ts` 与 ops 目录内文件；动态导入的说明符须是字面量。`src/events.ts` 只许导入 `node:*`、`@deepseek-ai/cordis`、`zod`：不导入任何 `@omne-harness/*`，也不做相对导入（它在白名单里，这两种都会让传递图越界） | 类型导入与运行时导入不分（都算）                                                                                                                      |
 | `ops-event-whitelist`            | 入口契约 SC-2；入口节点约束第 5 条（事件订阅白名单）                                  | `src/ops/**` 里 Cordis 上下文（成员链含 `ctx`／`context`、标注为 `Context` 或由它们直接赋值的名字）的 `on`／`once` 第一个实参只能是从 `src/events.ts` 导入的 `serving`、`stopped`、`defect`，`emit`／`parallel`／`serial` 只能是 `listening`（具名导入可改名，命名空间导入的成员也认）；字符串字面量与计算出的名字报出                                                                   | Node 发射器（`server.on('error')`）不查；经解构（`const { on } = ctx`）、函数返回值或多次转手的上下文；`emit(thisArg, name)` 重载按首个实参判，会报出 |
 | `single-table-entry`             | 入口契约 S-28；入口节点约束第 4 条                                                    | 入口层包源码里 `selectFrom`／`insertInto`／`updateTable`／`deleteFrom`（及 `replaceInto`、`mergeInto`、各类 `join`、`createTable`／`alterTable`／`dropTable`、`lockRow`）的表名只能是 `'governance_center'`（可带 `as 别名`）或本包里定义为该字面量的常量；不出现 `sql` 模板与 `sql.raw(`                                                                                                | 成员表达式、拼接、数组等判不出的写法一律报出（按违反处理，不放过）；`createIndex(...).on(...)`                                                        |
 | `no-peer-address`                | 入口契约 S-16；入口节点约束第 2 条                                                    | 入口层包源码不出现 `remoteAddress`／`remotePort`／`remoteFamily`、`x-forwarded-for`／`x-real-ip`／`forwarded` 头（字面量或 `.forwarded`，大小写不论）                                                                                                                                                                                                                                    | 遍历 `rawHeaders` 并以非字面量方式比对；「不保存按来者的状态」（T-16 覆盖）                                                                           |
@@ -37,11 +37,11 @@
 | `sc-cv-1`                        | AI S-8；CV 节点 SC-CV-1                                                               | `tenancy/*` 除 CV 包外，对凭据材料值（标注为 `CredentialMaterial` 的名字、末段为 `material`／`credential_material` 的成员、`(… as CredentialMaterial)`）不做任何成员访问或下标、不交给正则 `.exec(`／`.test(` 或 `JSON.parse(`。品牌断言本身不算违反                                                                                                                                     | 经别的变量转手后再解析；`String.prototype.split.call(m)` 一类间接调用                                                                                 |
 | `terminal-outcome-closed`        | AR S-5；AR verification「S-5 四值闭合」                                               | AR 包的 `TERMINAL_OUTCOMES` 恰为 S-5 的四个字面量；`TerminalOutcome` 只由它派生；返回类型标注含 `TerminalOutcome` 的函数体（扣掉嵌套函数）里 `return '<字面量>'` 都在常量里；不出现 `as TerminalOutcome`／`<TerminalOutcome>`                                                                                                                                                            | 条件表达式或辅助函数给出的返回值（由类型检查兜底）                                                                                                    |
 | `og-s42-dynamic-resolve`         | OG S-42 第 4 行；AI S-30                                                              | `organization-purge` 服务经 `ctx.get(…)`、`resolveOptional(ctx, …)`、`inject: [...]`／`{...}`／`ctx.inject([...])` 解析只许在 AR（OG 自己也不许，它只 provide）；公共服务键另允许在宿主私有职责表比较声明，不能解析服务、导出或传出表                                                                                                                                                                     | 服务名经变量拼出后再解析                                                                                                                              |
-| `no-dialect-bypass`              | 架构评审 N-2；storage-sql 节点「Driver 的边界」；tenancy-host「同一存储、同一约束域」 | `tenancy/*/src` 不从 `@omne-harness-lite/storage-sql` 导入 `NodeSqliteDialect`、`NodeSqliteDriver`、`SqlStorage`、`openStorage`（具名导入，或命名空间／默认导入的成员），不 `new Kysely(`；测试豁免                                                                                                                                                                                      | 经别的包转手取得连接；`kysely` 的其他构造入口                                                                                                         |
+| `no-dialect-bypass`              | 架构评审 N-2；storage-sql 节点「Driver 的边界」；tenancy-host「同一存储、同一约束域」 | `tenancy/*/src` 不从 `@omne-harness/storage-sql` 导入 `NodeSqliteDialect`、`NodeSqliteDriver`、`SqlStorage`、`openStorage`（具名导入，或命名空间／默认导入的成员），不 `new Kysely(`；测试豁免                                                                                                                                                                                      | 经别的包转手取得连接；`kysely` 的其他构造入口                                                                                                         |
 
 ```sh
 pnpm run lint:rules          # 根：扫描 packages/、apps/ 与 examples/，有违反即退出 1
-pnpm --filter @omne-harness-lite/ts-checks test   # 规则自测
+pnpm --filter @omne-harness/ts-checks test   # 规则自测
 ```
 
 自测分四个文件：`tests/rules.spec.ts`（老规则）、`tests/entry-rules.spec.ts`（入口层包各条，另在临时目录造出整个包，
@@ -74,7 +74,7 @@ fixture 通过只证明检查器能检出指定反例，不证明尚未实现的
 `no-testing-import` 现在解析说明符，静态/侧效应 import、重导出、import-type、字面 import()/require() 与解码拼写都检查，
 注释/字符串示例不算导入；测试豁免保持。计算说明符不能由此规则确定是否指向 testing；十五纯模块另由 core-pure-imports 拒绝非字面说明符。
 
-当前批准的精确 Schema runtime 子入口是 `@omne-harness-lite/content-blocks/schema-runtime`；消费者必须已有 content-blocks 依赖。
+当前批准的精确 Schema runtime 子入口是 `@omne-harness/content-blocks/schema-runtime`；消费者必须已有 content-blocks 依赖。
 旧 asset-model/schema-runtime 已随实际提供者迁移移出登记，即使消费者仍依赖 asset-model 也会拒绝；相邻私有路径不获准。
 本包内部复用走相对路径，子入口登记不增加未经采用的 self import 或任意包依赖。
 
@@ -82,7 +82,7 @@ fixture 通过只证明检查器能检出指定反例，不证明尚未实现的
 包括 model-profile 的 `schema/v3` 和 asset-model 的 `schema/connector/v2`，只授予已有依赖的消费者。
 messages、model-response、loop-extension、asset-evaluation 的旧执行入口已移除；保留的冻结 Schema 用于现行契约的精确依赖，
 不恢复旧实现。相邻路径、未知版本和私有源码仍拒绝。model-response/loop-extension 的完整资源图也按已采用的依赖显式登记。
-可运行 `pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/core-rules.spec.ts` 核对允许与拒绝边界。
+可运行 `pnpm --filter @omne-harness/ts-checks exec vitest run tests/core-rules.spec.ts` 核对允许与拒绝边界。
 
 新增范围化规则的实际注册在 `src/rules/core-scoped.ts`：
 
@@ -107,7 +107,7 @@ stream 解析是否仅在已接受 close 路径可达、snapshot/closeOut/partia
 另行批准 content-blocks 根与精确 Schema/runtime 入口；不因此新增块语义的契约边、不允许任意子路径。
 MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留，不因工具依赖采用而获得编译/筛选远端 Schema 的责任。
 
-身份清单从 `@omne-harness-lite/identity-values` **公开入口**的 `IDENTITY_TYPE_NAMES` 取得，
+身份清单从 `@omne-harness/identity-values` **公开入口**的 `IDENTITY_TYPE_NAMES` 取得，
 没有第二份领域名单。`IDENTITY_CHECK_INPUTS` 暴露规则输入；物理类型名是这项语法检查的登记表示，
 新的消费者品牌须通过任务明确注册，不能仅因“名字像”就认定业务含义。
 消费者可通过 `createIdentityDecisionInputs({ ...IDENTITY_CHECK_INPUTS, decisionTargets: [{ path, functionName }] })`
@@ -123,7 +123,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 
 | 规则 | 来源 | 查什么 | 不覆盖 |
 |---|---|---|---|
-| `group-direction` | [realization「packages 的两层布局」](../../.meta_harness/design/architecture/README.md)；[workspace 规范](../../docs/workspace.md)「装配负责选择提供者」 | 成员产品源码（不含测试）经 `@omne-harness-lite/*` 字面导入形成的成员间边：只能指向同层或更内层；`packages/infra` 只由最外层与它自己依赖；成员之间、组之间不成环；出现没登记层位的新组即报出 | 测试里的导入；非字面说明符；相对路径越出包边界（由包公开入口约定承担）；**层位本身对不对**——那是设计正文定的，这里只核对方向 |
+| `group-direction` | [realization「packages 的两层布局」](../../.meta_harness/design/architecture/README.md)；[workspace 规范](../../docs/workspace.md)「装配负责选择提供者」 | 成员产品源码（不含测试）经 `@omne-harness/*` 字面导入形成的成员间边：只能指向同层或更内层；`packages/infra` 只由最外层与它自己依赖；成员之间、组之间不成环；出现没登记层位的新组即报出 | 测试里的导入；非字面说明符；相对路径越出包边界（由包公开入口约定承担）；**层位本身对不对**——那是设计正文定的，这里只核对方向 |
 
 层位与例外在 `src/rules/group-direction.ts` 的 `GROUP_DIRECTION_POLICY`，每条带 `source` 指回设计正文。它是机检投影，不是第二份权威。改层位先改 realization 的布局正文，再改这张表。`exceptions` 现在是空的，前端 SQLite 例外没有登记。
 
@@ -210,14 +210,14 @@ make scenario-status
 
 ## 实际架构 JSON
 
-公共入口为 `@omne-harness-lite/ts-checks/architecture`。公开类型在
+公共入口为 `@omne-harness/ts-checks/architecture`。公开类型在
 [`src/arch/actual.ts`](src/arch/actual.ts) 与 [`src/arch/actual-model.ts`](src/arch/actual-model.ts)。
 `readActualArchitecture({ root, revision?, base? })` 读取实际源码，不依赖 realization 或意图声明。
 `actualArchitectureOf(source)` 投影同一个 AST 抽取器的观测；`readArchitectureSource(root, revision?)`
 提供版本内的虚拟文件树；`compareActualArchitectures(before, after)` 计算稳定身份的新增与删除。
 
 ```sh
-pnpm --silent --filter @omne-harness-lite/ts-checks run architecture --root "$PWD"
+pnpm --silent --filter @omne-harness/ts-checks run architecture --root "$PWD"
 node --experimental-strip-types tools/ts-checks/src/arch/cli.ts --root "$PWD" --revision <commit> --base <commit> --out tmp/architecture.json
 ```
 
@@ -843,9 +843,9 @@ import { modelCredentialBoundary, type SourceFile } from './dist/index.js'
 const source: SourceFile = {
   path: 'examples/model-invocation-minimal-demo/src/bootstrap.ts',
   text: `
-    import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';
-    import { createModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';
-    import { localCredentialLookupPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis';
+    import { createCredentialBindingReader } from '@omne-harness/model-profile-directory-local/tx-reads';
+    import { createModelReplicaCustodian } from '@omne-harness/credential-custodian-local/model-replica';
+    import { localCredentialLookupPlugin } from '@omne-harness/model-profile-directory-local/cordis';
     import { ReplicaReader } from './assembly-inputs.ts';
     export function createAcceptanceApplication() {
       let replica;
@@ -877,7 +877,7 @@ import { REPOSITORY_RULES } from './dist/repository.js'
 
 const violations = runRules([{
   path: 'packages/model/example/src/runtime.ts',
-  text: "import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';",
+  text: "import { createCredentialBindingReader } from '@omne-harness/model-profile-directory-local/tx-reads';",
 }], REPOSITORY_RULES)
 assert(violations.some(v => v.rule === 'model-credential-boundary'))
 ```

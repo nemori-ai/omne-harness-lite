@@ -4,7 +4,7 @@ import type { Rule, SourceFile, Violation } from '../rule.ts'
 import { syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
 import { lineAt } from '../source-text.ts'
 
-const seedEntry = '@omne-harness-lite/session-tenancy-table/seed'
+const seedEntry = '@omne-harness/session-tenancy-table/seed'
 const seedImplementation = 'packages/session/session-tenancy-table/src/seed.ts'
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 function allowed(path: string): boolean {
@@ -26,7 +26,7 @@ function seedReference(file: SourceFile, specifier: string): boolean {
     /^packages\/session\/session-tenancy-table\/(?:src|dist)\/seed(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
       target,
     ) ||
-    /^@omne-harness-lite\/session-tenancy-table\/(?:src\/)?seed(?:\.[cm]?[jt]s)?$/u.test(target)
+    /^@omne-harness\/session-tenancy-table\/(?:src\/)?seed(?:\.[cm]?[jt]s)?$/u.test(target)
   )
 }
 

@@ -235,8 +235,8 @@
             {
               "op": "replace",
               "file": "packages/session/session-tenancy-table/src/reader.ts",
-              "find": "import type { TenantId } from '@omne-harness-lite/identity-values'\n",
-              "replace": "import type { TenantId } from '@omne-harness-lite/identity-values'\nimport { openStorage } from '@omne-harness-lite/storage-sql'\nimport { composeMigrations } from '@omne-harness-lite/storage'\nimport { sessionTenancyMigrations } from './migrations.ts'\n"
+              "find": "import type { TenantId } from '@omne-harness/identity-values'\n",
+              "replace": "import type { TenantId } from '@omne-harness/identity-values'\nimport { openStorage } from '@omne-harness/storage-sql'\nimport { composeMigrations } from '@omne-harness/storage'\nimport { sessionTenancyMigrations } from './migrations.ts'\n"
             },
             {
               "op": "replace",

@@ -1,4 +1,4 @@
-import { definePlugin } from '@omne-harness-lite/kernel-basis'
+import { definePlugin } from '@omne-harness/kernel-basis'
 export const aPlugin = definePlugin({
   name: 'a',
   inject: ['canaryUndeclared'],

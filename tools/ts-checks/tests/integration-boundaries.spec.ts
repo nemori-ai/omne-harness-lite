@@ -364,7 +364,7 @@ it.each(['1', 'retained-evidence'])(
   },
 )
 it.each([
-  { source: "import { fixture } from '@omne-harness-lite/kernel-basis/testing'", status: 1 },
+  { source: "import { fixture } from '@omne-harness/kernel-basis/testing'", status: 1 },
   { source: 'export const value = 1', status: 0 },
 ])('actual integration wrapper scans apps with exit $status', ({ source, status }) => {
   const home = mkdtempSync(join(tmpdir(), 'omne-wrapper-rules-'))

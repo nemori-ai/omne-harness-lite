@@ -31,10 +31,10 @@ function checkLocation(input: CreateInput): string {
   requireNewTarget(target)
   if (
     listWorkspaceMembers(fileTree(root), []).some(
-      member => member.name === `@omne-harness-lite/${input.name}`,
+      member => member.name === `@omne-harness/${input.name}`,
     )
   )
-    throw new Error(`Workspace package name already exists: @omne-harness-lite/${input.name}`)
+    throw new Error(`Workspace package name already exists: @omne-harness/${input.name}`)
   return target
 }
 function manifestText(input: CreateInput): string {
@@ -49,18 +49,18 @@ function manifestText(input: CreateInput): string {
   const binding = input.variant !== 'module'
   return JSON.stringify(
     {
-      name: `@omne-harness-lite/${input.name}`,
+      name: `@omne-harness/${input.name}`,
       version: '0.0.0',
       private: true,
       type: 'module',
       description: `Draft ${input.name} package; complete the accepted public contract before delivery`,
       engines: rootManifest['engines'],
       exports: { '.': entry('index'), ...(binding ? { './cordis': entry('cordis') } : {}) },
-      files: ['dist', 'README.md', 'README_ZH.md'],
+      files: ['dist'],
       scripts: {
         build: 'rm -rf dist && tsc -p tsconfig.build.json',
-        typecheck: 'tsc -p tsconfig.test.json',
-        test: 'vitest run',
+        typecheck: 'pnpm run build && tsc -p tsconfig.test.json',
+        test: 'pnpm run build && vitest run',
       },
       dependencies: binding ? { '@deepseek-ai/cordis': 'catalog:' } : {},
       devDependencies: { '@types/node': 'catalog:', typescript: 'catalog:', vitest: 'catalog:' },

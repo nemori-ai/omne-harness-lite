@@ -357,8 +357,8 @@ function allowedExternal(
       [
         '@deepseek-ai/cordis',
         '@standard-schema/spec',
-        '@omne-harness-lite/assembly-lifecycle/cordis',
-        '@omne-harness-lite/kernel-basis/cordis',
+        '@omne-harness/assembly-lifecycle/cordis',
+        '@omne-harness/kernel-basis/cordis',
       ].includes(specifier)
     )
       return true
@@ -380,33 +380,33 @@ function allowedExternal(
     ['messages', 'model-profile', 'model-response', 'loop-extension'].includes(pkg) &&
     PUBLIC_SUBPATHS[pkg]?.some(
       subpath =>
-        subpath.startsWith('schema/') && specifier === `@omne-harness-lite/${pkg}/${subpath}`,
+        subpath.startsWith('schema/') && specifier === `@omne-harness/${pkg}/${subpath}`,
     )
   )
     return true
   // D-068：AM3 的固定资源图显式纳入本包完整 AM2；只批准这个公开资源入口。
-  if (pkg === 'asset-model' && specifier === '@omne-harness-lite/asset-model/schema/v2') return true
-  if (pkg === 'skill-package' && specifier === '@omne-harness-lite/skill-package/schema/v2')
+  if (pkg === 'asset-model' && specifier === '@omne-harness/asset-model/schema/v2') return true
+  if (pkg === 'skill-package' && specifier === '@omne-harness/skill-package/schema/v2')
     return true
-  if (SCHEMA_JUDGE_OWNERS.has(pkg) && specifier === `@omne-harness-lite/${pkg}/schema`) return true
+  if (SCHEMA_JUDGE_OWNERS.has(pkg) && specifier === `@omne-harness/${pkg}/schema`) return true
   if (
     path === 'core/runtime-context/src/schema-inputs.ts' &&
-    specifier === '@omne-harness-lite/runtime-context/schema'
+    specifier === '@omne-harness/runtime-context/schema'
   )
     return true
   // tool-runtime/1 is a fixed graph owned by the public journal codec, not a dynamic compiler.
   if (
     path === 'core/tool-execution-runtime/src/schema-inputs.ts' &&
-    specifier === '@omne-harness-lite/tool-execution-runtime/journal-schema'
+    specifier === '@omne-harness/tool-execution-runtime/journal-schema'
   )
     return true
   if (
     dependencies.some(
       name =>
-        specifier === `@omne-harness-lite/${name}` ||
-        specifier === `@omne-harness-lite/${name}/schema` ||
+        specifier === `@omne-harness/${name}` ||
+        specifier === `@omne-harness/${name}/schema` ||
         PUBLIC_SUBPATHS[name]?.some(
-          subpath => specifier === `@omne-harness-lite/${name}/${subpath}`,
+          subpath => specifier === `@omne-harness/${name}/${subpath}`,
         ),
     )
   )

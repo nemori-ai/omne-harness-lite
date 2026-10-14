@@ -10,9 +10,9 @@ import { collectRepositorySources, REPOSITORY_RULES } from '../src/repository.ts
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 const p1r = 'packages/model/model-profile-directory-local/src/cordis.ts'
 const ccl = 'packages/infra/credential-custodian-local/src/model-replica.ts'
-const imports = `import { createCredentialBindingReader as makeReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';
-import { createModelReplicaCustodian as makeReplica, type ModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';
-import { localCredentialLookupPlugin as lookup } from '@omne-harness-lite/model-profile-directory-local/cordis';
+const imports = `import { createCredentialBindingReader as makeReader } from '@omne-harness/model-profile-directory-local/tx-reads';
+import { createModelReplicaCustodian as makeReplica, type ModelReplicaCustodian } from '@omne-harness/credential-custodian-local/model-replica';
+import { localCredentialLookupPlugin as lookup } from '@omne-harness/model-profile-directory-local/cordis';
 import { ReplicaReader } from './assembly-inputs.ts';`
 const app = (body: string) => `${imports}
 export function createAcceptanceApplication() {
@@ -32,7 +32,7 @@ test.each([
   'model-invocation-minimal-demo/src/bootstrap.ts',
 ])('app-root and repository paths %s', path => expect(check(valid, path)).toEqual([]))
 test('namespace, literal computed members, destructuring and ordinary aliases keep the same permissions', () => {
-  const text = `import * as d from '@omne-harness-lite/model-profile-directory-local/tx-reads'; import * as c from '@omne-harness-lite/credential-custodian-local/model-replica'; import * as plugins from '@omne-harness-lite/model-profile-directory-local/cordis'; import * as support from './assembly-inputs.ts';
+  const text = `import * as d from '@omne-harness/model-profile-directory-local/tx-reads'; import * as c from '@omne-harness/credential-custodian-local/model-replica'; import * as plugins from '@omne-harness/model-profile-directory-local/cordis'; import * as support from './assembly-inputs.ts';
  export function createAcceptanceApplication() {
  let replica;
  async function start() { const { ['createCredentialBindingReader']: f } = d; const alias = f; const reader = alias(storage); const reader2 = reader; const g = c['createModelReplicaCustodian']; replica = await g({readCredentialBindingIn: reader2}); const { readBoundReplicaIn: borrow } = replica; const operations = {readIn: borrow}; new support.ReplicaReader(ctx, operations); ctx.plugin(plugins.localCredentialLookupPlugin, {}); }
@@ -143,17 +143,17 @@ test.each([
   ['exported alias', `${imports} export const readerFactory = makeReader;`],
   [
     'namespace reexport',
-    `import * as ns from '@omne-harness-lite/model-profile-directory-local/tx-reads'; export { ns };`,
+    `import * as ns from '@omne-harness/model-profile-directory-local/tx-reads'; export { ns };`,
   ],
   [
     'direct reexport',
-    `export {createCredentialBindingReader} from '@omne-harness-lite/model-profile-directory-local/tx-reads';`,
+    `export {createCredentialBindingReader} from '@omne-harness/model-profile-directory-local/tx-reads';`,
   ],
   [
     'dynamic import',
-    `export function createAcceptanceApplication() { async function start() { const d = await import('@omne-harness-lite/model-profile-directory-local/tx-reads'); d.createCredentialBindingReader(storage); } }`,
+    `export function createAcceptanceApplication() { async function start() { const d = await import('@omne-harness/model-profile-directory-local/tx-reads'); d.createCredentialBindingReader(storage); } }`,
   ],
-  ['require', `const d = require('@omne-harness-lite/model-profile-directory-local/tx-reads');`],
+  ['require', `const d = require('@omne-harness/model-profile-directory-local/tx-reads');`],
   [
     'removed semantic outer function',
     valid.replace('createAcceptanceApplication', 'otherApplication'),
@@ -162,23 +162,23 @@ test.each([
 ])('rejects %s', (_name, text) => expect(check(text)).not.toEqual([]))
 
 test.each([
-  `import { createModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica'; const replica=createModelReplicaCustodian(config);`,
-  `import type { ModelReplicaCustodian as Replica } from '@omne-harness-lite/credential-custodian-local/model-replica'; const replica: Replica = supplied; replica.close();`,
-  `import type {ReadBoundReplicaIn} from '@omne-harness-lite/model-profile-directory-local/tx-reads'; const read: ReadBoundReplicaIn = supplied; read(unit,tenant,ref);`,
+  `import { createModelReplicaCustodian } from '@omne-harness/credential-custodian-local/model-replica'; const replica=createModelReplicaCustodian(config);`,
+  `import type { ModelReplicaCustodian as Replica } from '@omne-harness/credential-custodian-local/model-replica'; const replica: Replica = supplied; replica.close();`,
+  `import type {ReadBoundReplicaIn} from '@omne-harness/model-profile-directory-local/tx-reads'; const read: ReadBoundReplicaIn = supplied; read(unit,tenant,ref);`,
 ])('ordinary product modules cannot import or consume restricted values', text =>
   expect(check(text, 'packages/model/model-request-runtime-local/src/runtime.ts')).not.toEqual([]),
 )
 test.each([
-  `import type {ModelReplicaCustodian} from '@omne-harness-lite/credential-custodian-local/model-replica'; export const localCredentialLookupPlugin = definePlugin({ async apply(ctx, config) { const replica: ModelReplicaCustodian = supplied; await replica.close(); } });`,
-  `import {createModelReplicaCustodian} from '@omne-harness-lite/credential-custodian-local/model-replica'; export const localCredentialLookupPlugin = definePlugin({ async apply() { await createModelReplicaCustodian(options); } });`,
+  `import type {ModelReplicaCustodian} from '@omne-harness/credential-custodian-local/model-replica'; export const localCredentialLookupPlugin = definePlugin({ async apply(ctx, config) { const replica: ModelReplicaCustodian = supplied; await replica.close(); } });`,
+  `import {createModelReplicaCustodian} from '@omne-harness/credential-custodian-local/model-replica'; export const localCredentialLookupPlugin = definePlugin({ async apply() { await createModelReplicaCustodian(options); } });`,
 ])('P1r cannot construct or close the borrowed component', text =>
   expect(check(text, p1r)).not.toEqual([]),
 )
 test.each([
-  `import {createCredentialBindingReader} from '@omne-harness-lite/model-profile-directory-local/tx-reads';`,
-  `import * as renamed from '@omne-harness-lite/model-profile-directory-local/tx-reads';`,
-  `const reader = await import('@omne-harness-lite/model-profile-directory-local/tx-reads');`,
-  `const reader = require('@omne-harness-lite/model-profile-directory-local/tx-reads');`,
+  `import {createCredentialBindingReader} from '@omne-harness/model-profile-directory-local/tx-reads';`,
+  `import * as renamed from '@omne-harness/model-profile-directory-local/tx-reads';`,
+  `const reader = await import('@omne-harness/model-profile-directory-local/tx-reads');`,
+  `const reader = require('@omne-harness/model-profile-directory-local/tx-reads');`,
 ])('CCL cannot reverse import directory', text => expect(check(text, ccl)).not.toEqual([]))
 test('TS-resolved aliases do not evade forbidden imports', () => {
   expect(
@@ -334,8 +334,8 @@ test('CCL cannot lose a frozen options alias before unknown transfer', () =>
   ).not.toEqual([]))
 
 test.each([
-  "import type {ModelCatalog} from '@omne-harness-lite/model-profile-directory';",
-  "import {localCredentialLookupPlugin} from '@omne-harness-lite/model-profile-directory-local/cordis';",
+  "import type {ModelCatalog} from '@omne-harness/model-profile-directory';",
+  "import {localCredentialLookupPlugin} from '@omne-harness/model-profile-directory-local/cordis';",
   "import {readBinding} from '../../../model/model-profile-directory-local/src/records.ts';",
 ])('CCL has no reverse directory package dependency, including root/type/private modules', text =>
   expect(check(text, ccl)).not.toEqual([]),
@@ -415,7 +415,7 @@ test('namespace construction and a typed local arrow parameter cannot hide reade
   const text = valid
     .replace(
       imports,
-      `import * as binding from '@omne-harness-lite/model-profile-directory-local/tx-reads';\nimport type { ReadCredentialBindingIn as BindingRead } from '@omne-harness-lite/model-profile-directory-local/tx-reads';\n${imports}`,
+      `import * as binding from '@omne-harness/model-profile-directory-local/tx-reads';\nimport type { ReadCredentialBindingIn as BindingRead } from '@omne-harness/model-profile-directory-local/tx-reads';\n${imports}`,
     )
     .replace('makeReader(storage)', "binding['createCredentialBindingReader'](storage)")
     .replace(
@@ -433,7 +433,7 @@ test.each([
   "const thunk = () => borrowed['close'];",
   'const { close: end } = borrowed; const thunk = () => end;',
 ])('P1r root-type alias and %s preserve forbidden close execution', wrapper => {
-  const text = `import type { ModelReplicaCustodian as Borrowed } from '@omne-harness-lite/credential-custodian-local';
+  const text = `import type { ModelReplicaCustodian as Borrowed } from '@omne-harness/credential-custodian-local';
 export const localCredentialLookupPlugin = {
  async apply(ctx, options) {
   const borrowed: Borrowed = supplied;
@@ -505,7 +505,7 @@ test('root configured aliases have collector and actual built CLI parity', () =>
       'export const createCredentialBindingReader = () => () => undefined;',
     )
     const allowed = valid.replace(
-      '@omne-harness-lite/model-profile-directory-local/tx-reads',
+      '@omne-harness/model-profile-directory-local/tx-reads',
       '@binding',
     )
     const forbidden = allowed.replace(
@@ -582,7 +582,7 @@ test('retired app and unrelated example cannot own model credential factories', 
       modelCredentialBoundary.check([
         {
           path,
-          text: "import { createModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica'; const replica = await createModelReplicaCustodian(options);",
+          text: "import { createModelReplicaCustodian } from '@omne-harness/credential-custodian-local/model-replica'; const replica = await createModelReplicaCustodian(options);",
         },
       ]),
     ).not.toEqual([])
@@ -590,8 +590,8 @@ test('retired app and unrelated example cannot own model credential factories', 
 })
 
 test('application adapter can forward only its read method', () => {
-  const source = `import { BoundCredentialReplicaReaderService } from '@omne-harness-lite/model-profile-directory/cordis';
-import type { BoundCredentialReplicaReader as Operations } from '@omne-harness-lite/model-profile-directory';
+  const source = `import { BoundCredentialReplicaReaderService } from '@omne-harness/model-profile-directory/cordis';
+import type { BoundCredentialReplicaReader as Operations } from '@omne-harness/model-profile-directory';
 export class ReplicaReader extends BoundCredentialReplicaReaderService {
  constructor(ctx: Context, private readonly operations: Operations) { super(ctx) }
  readIn(...args) { return this.operations.readIn(...args) }
@@ -615,7 +615,7 @@ test.each([
   "const port = ctx.get('boundCredentialReplicaReader'); port.readIn(unit, tenant, ref);",
   "const port = ctx.get(READER); port['readIn'](unit, tenant, ref);",
 ])('reader service retrieval does not grant execution: %s', body => {
-  const imports = `import type {Context} from '@deepseek-ai/cordis'; import {BOUND_CREDENTIAL_REPLICA_READER as READER} from '@omne-harness-lite/model-profile-directory/cordis';`
+  const imports = `import type {Context} from '@deepseek-ai/cordis'; import {BOUND_CREDENTIAL_REPLICA_READER as READER} from '@omne-harness/model-profile-directory/cordis';`
   expect(check(`${imports} function wrong(ctx: Context) { ${body} }`)).not.toEqual([])
   expect(
     check(
@@ -645,22 +645,22 @@ test('read service cannot transfer into plugin config, wrong constructors or ano
 test('custodian may import its exact pure read type but no provider or other directory face', () => {
   const path = 'packages/infra/credential-custodian-local/src/types.ts'
   const allowed =
-    "import type {ReadBoundReplicaIn} from '@omne-harness-lite/model-profile-directory';"
+    "import type {ReadBoundReplicaIn} from '@omne-harness/model-profile-directory';"
   expect(check(allowed, path)).toEqual([])
   for (const statement of [
-    "import {ReadBoundReplicaIn} from '@omne-harness-lite/model-profile-directory';",
-    "import type {ModelCatalog} from '@omne-harness-lite/model-profile-directory';",
-    "import {createCredentialBindingReader} from '@omne-harness-lite/model-profile-directory-local/tx-reads';",
-    "import type {ReadBoundReplicaIn} from '@omne-harness-lite/model-profile-directory-local';",
+    "import {ReadBoundReplicaIn} from '@omne-harness/model-profile-directory';",
+    "import type {ModelCatalog} from '@omne-harness/model-profile-directory';",
+    "import {createCredentialBindingReader} from '@omne-harness/model-profile-directory-local/tx-reads';",
+    "import type {ReadBoundReplicaIn} from '@omne-harness/model-profile-directory-local';",
   ])
     expect(check(`${allowed}\n${statement}`, path)).not.toEqual([])
 })
 
 const cliDirectory = 'apps/cli/src/session-model-directory.ts'
 const nativeDirectory = `
-import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';
-import { createModelReplicaCustodian, type ModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';
-import { createLocalCredentialLookup } from '@omne-harness-lite/model-profile-directory-local/local-credentials';
+import { createCredentialBindingReader } from '@omne-harness/model-profile-directory-local/tx-reads';
+import { createModelReplicaCustodian, type ModelReplicaCustodian } from '@omne-harness/credential-custodian-local/model-replica';
+import { createLocalCredentialLookup } from '@omne-harness/model-profile-directory-local/local-credentials';
 export function createSessionModelDirectory() {
   let replica: ModelReplicaCustodian | undefined;
   async function start() {

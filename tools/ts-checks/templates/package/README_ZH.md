@@ -1,6 +1,6 @@
 # TypeScript 包模板
 
-本目录拥有 `typescript-package@2.0.0`，是开发资源，不是 workspace 产品成员。公开接口、行为与接受继续归原拥有者。完整目录与版本说明见[英文说明](README.md)。成员的必选形状见[包组织](../../../../docs/package-organization.md#成员的必选结构)。本生成器已经写出先删除 `dist` 的 build，以及 `erasableSyntaxOnly`。源码条件仍未写出，因为名字尚未决定。
+本目录拥有 `typescript-package@2.0.0`，是开发资源，不是 workspace 产品成员。公开接口、行为与接受继续归原拥有者。完整目录与版本说明见[英文说明](README.md)。成员的必选形状见[包组织](../../../../docs/package-organization.md#成员的必选结构)。本生成器已经写出先删除 `dist` 的 build、`erasableSyntaxOnly`，以及只发布 `dist` 的 `files`。源码条件仍未写出，因为名字尚未决定。生成器写出 `tests/public-entry.spec.ts`，从包名核对当前公开导出。单元、契约、集成和端到端按[包级测试责任与边界](../../../../docs/verification.md#包级测试责任与边界)选择。只有实现具体存储或应用服务的包增加集成测试。只有关键旅程的拥有者增加端到端测试。
 
 ## 创建与完整结构核对
 

@@ -182,7 +182,7 @@ const templateValues: Record<string, string> = {
   '本次关键行为、失败和边界': '新旧章节、条件、身份及绑定',
   具体参与者与声明边界: '真实解析器，平台响应用 fixture，不覆盖平台权限',
   '实际命令或方法；未具备则列缺口':
-    'pnpm --filter @omne-harness-lite/ts-checks test tests/delivery-observe.spec.ts',
+    'pnpm --filter @omne-harness/ts-checks test tests/delivery-observe.spec.ts',
   '按风险需要的角色、对象和接受者；不适用项及理由': '独立评审实现，Human 接受本卡结果',
   '实际限制及如何影响本次接受，不能把未运行写成通过': '平台真实权限须另核',
   'issue-result／adopted-source／decision／capability': 'decision',

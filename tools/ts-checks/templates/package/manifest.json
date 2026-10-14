@@ -40,6 +40,10 @@
     {
       "source": "common/documentation.json.tpl",
       "target": "documentation.json"
+    },
+    {
+      "source": "common/tests/public-entry.spec.ts.tpl",
+      "target": "tests/public-entry.spec.ts"
     }
   ],
   "variants": {
@@ -57,6 +61,10 @@
       {
         "source": "variants/cordis-module/src/cordis.ts.tpl",
         "target": "src/cordis.ts"
+      },
+      {
+        "source": "variants/cordis-module/tests/cordis-entry.spec.ts.tpl",
+        "target": "tests/cordis-entry.spec.ts"
       }
     ],
     "service-contract": [
@@ -67,6 +75,10 @@
       {
         "source": "variants/service-contract/src/cordis.ts.tpl",
         "target": "src/cordis.ts"
+      },
+      {
+        "source": "variants/service-contract/tests/cordis-entry.spec.ts.tpl",
+        "target": "tests/cordis-entry.spec.ts"
       }
     ],
     "service-provider": [
@@ -77,6 +89,10 @@
       {
         "source": "variants/service-provider/src/cordis.ts.tpl",
         "target": "src/cordis.ts"
+      },
+      {
+        "source": "variants/service-provider/tests/cordis-entry.spec.ts.tpl",
+        "target": "tests/cordis-entry.spec.ts"
       }
     ]
   },

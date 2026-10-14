@@ -5,5 +5,11 @@
     "outDir": "dist",
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "src/w1-public-consumer.ts",
+    "src/w6-asset-consumer.ts",
+    "src/w6-stream-consumer.ts",
+    "src/storage-fixture.ts"
+  ]
 }

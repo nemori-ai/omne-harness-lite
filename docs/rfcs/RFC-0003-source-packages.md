@@ -82,7 +82,7 @@ packages/<能力组>/<成员>/
 
 ```json
 {
-  "name": "@omne-harness-lite/<成员>",
+  "name": "@omne-harness/<成员>",
   "type": "module",
   "exports": {
     ".": {
@@ -108,7 +108,7 @@ packages/<能力组>/<成员>/
 docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 ```
 
-`typescript-package@2.0.0` 生成必选文件、四种变体和 `src/cordis.ts`。生成器已经写出 `build` 先删除 `dist`，以及 `erasableSyntaxOnly`。源码条件仍未写出，因为名字尚未决定。`files` 仍包含两份 README，因为检查器仍要求它们出现在发布清单里。现有模板 README 里的大树是可选资源角色，不是每个新包都要建满的目录。
+`typescript-package@2.0.0` 生成必选文件、四种变体和 `src/cordis.ts`。生成器已经写出 `build` 先删除 `dist`、`erasableSyntaxOnly`，以及只发布 `dist` 的 `files`。源码条件仍未写出，因为名字尚未决定。现有模板 README 里的大树是可选资源角色，不是每个新包都要建满的目录。
 
 依赖层数的上限未定。未定之前，新包不得形成比解除当前工具依赖更深的链。具体数字等 PanQiWei 在看到首批依赖图之后裁定。
 
@@ -162,4 +162,4 @@ docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 
 | 后继提案或更正依据 | 部分或全部取代的精确范围 | 当前规范入口 |
 | --- | --- | --- |
-| 无 | 本提案不取代包组织的分组。它在被接受之后，只为成员的建立和检查增加规则 | [包组织](../package-organization.md) |
+| [RFC-0005](RFC-0005-package-testing.md) revision 1，2026-10-14 接受 | 后继本提案「测试」那一行的责任划分。revision 1 的其余采用范围保持。该行原文保留 | [验证](../verification.md#包级测试责任与边界) |

@@ -28,10 +28,10 @@ That explicit base does not change the automatic hook's base. The internal 40-se
 Use the repository's locked Node and pnpm versions. The normal command scans `packages/`, `apps/` and `examples/`, then runs repository rules over actual execution modules in `packages/`, `apps/`, `examples/`, `tools/` and `scripts/`:
 
 ```sh
-pnpm --filter @omne-harness-lite/identity-values build
-pnpm --filter @omne-harness-lite/ts-checks build
-pnpm --filter @omne-harness-lite/ts-checks typecheck
-pnpm --filter @omne-harness-lite/ts-checks test
+pnpm --filter @omne-harness/identity-values build
+pnpm --filter @omne-harness/ts-checks build
+pnpm --filter @omne-harness/ts-checks typecheck
+pnpm --filter @omne-harness/ts-checks test
 pnpm run lint:rules
 ```
 
@@ -54,9 +54,9 @@ import { modelCredentialBoundary, type SourceFile } from './dist/index.js'
 const source: SourceFile = {
   path: 'examples/model-invocation-minimal-demo/src/bootstrap.ts',
   text: `
-    import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';
-    import { createModelReplicaCustodian } from '@omne-harness-lite/credential-custodian-local/model-replica';
-    import { localCredentialLookupPlugin } from '@omne-harness-lite/model-profile-directory-local/cordis';
+    import { createCredentialBindingReader } from '@omne-harness/model-profile-directory-local/tx-reads';
+    import { createModelReplicaCustodian } from '@omne-harness/credential-custodian-local/model-replica';
+    import { localCredentialLookupPlugin } from '@omne-harness/model-profile-directory-local/cordis';
     import { ReplicaReader } from './assembly-inputs.ts';
     export function createAcceptanceApplication() {
       let replica;
@@ -88,14 +88,14 @@ import { REPOSITORY_RULES } from './dist/repository.js'
 
 const violations = runRules([{
   path: 'packages/model/example/src/runtime.ts',
-  text: "import { createCredentialBindingReader } from '@omne-harness-lite/model-profile-directory-local/tx-reads';",
+  text: "import { createCredentialBindingReader } from '@omne-harness/model-profile-directory-local/tx-reads';",
 }], REPOSITORY_RULES)
 assert(violations.some(v => v.rule === 'model-credential-boundary'))
 ```
 
 ## Evaluation publication boundary
 
-`evaluation-publication-boundary` permits static imports of the public EIS publication entry in its component owner, the trusted acceptance bootstrap/tests, and the exact `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` fixture. That fixture constructs real SQL/governance/EIS sources for selection tests. The permission does not extend to runtime product sources or adjacent test files; re-exports, dynamic forwarding and private publication imports remain rejected. Run its focused positive and negative checks with `pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`.
+`evaluation-publication-boundary` permits static imports of the public EIS publication entry in its component owner, the trusted acceptance bootstrap/tests, and the exact `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` fixture. That fixture constructs real SQL/governance/EIS sources for selection tests. The permission does not extend to runtime product sources or adjacent test files; re-exports, dynamic forwarding and private publication imports remain rejected. Run its focused positive and negative checks with `pnpm --filter @omne-harness/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`.
 
 ## Model credential boundary
 
@@ -122,7 +122,7 @@ Existing pure-core, tenancy, entry and repository rules are described in the [Ch
 
 `core-pure-imports` uses an exact public-subpath list, including `model-profile/schema/v3` and `asset-model/schema/connector/v2`. Consumers still need an approved package dependency. Frozen schemas required by current contracts remain available; retired model execution entry points, adjacent private paths, and unknown versions are rejected. The response and loop schema graphs include their explicitly adopted dependencies.
 
-Run `pnpm --filter @omne-harness-lite/ts-checks exec vitest run tests/core-rules.spec.ts` for the positive and negative boundary checks.
+Run `pnpm --filter @omne-harness/ts-checks exec vitest run tests/core-rules.spec.ts` for the positive and negative boundary checks.
 
 The exact `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts` fixture may also use public EIS publication to establish real immutable history for D106 R7 acceptance. Neighboring runner tests and all runner product sources remain forbidden. The history rule allows runner product sources to import reader types only; runner tests may construct the real reader. No factory re-export or production publication authority is granted.
 

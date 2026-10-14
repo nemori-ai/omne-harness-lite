@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     ...testTiers(),
     setupFiles: ['./tests/setup-environment.ts'],
-    include: ['tests/**/*.spec.ts'],
+    include: ['tests/legacy-suite-exit.spec.ts'],
     typecheck: {
       enabled: true,
       include: ['tests/**/*.spec-d.ts'],

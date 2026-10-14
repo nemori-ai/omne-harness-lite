@@ -144,7 +144,7 @@
     ],
     "residentBuild": [
       {
-        "member": "packages.0.0.1.legacy/core/identity-values",
+        "member": "packages/common/legal-identity",
         "why": "lint:rules 经 tools/ts-checks/src/rules/identity-shapes.ts 导入它，入口指向 dist"
       }
     ]

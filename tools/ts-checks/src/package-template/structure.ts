@@ -119,13 +119,13 @@ function checkPublication(member: string, manifest: Record<string, unknown>): Fi
   const files = manifest['files']
   if (
     !Array.isArray(files) ||
-    !['dist', 'README.md', 'README_ZH.md'].every(file => files.includes(file))
+    !files.includes('dist')
   ) {
     return [
       {
         code: 'publication',
         path: `${member}/package.json`,
-        reason: 'Explicit files must include dist and both README files',
+        reason: 'Explicit files must include dist',
       },
     ]
   }
@@ -190,11 +190,6 @@ export function checkStructure(
     })
   if (variant === 'module' && existsSync(join(root, member, 'src/cordis.ts')))
     add('variant', 'Pure module variant cannot contain a binding entry')
-  if (
-    existsSync(join(root, member, 'SPEC.md')) &&
-    (!Array.isArray(manifest['files']) || !manifest['files'].includes('SPEC.md'))
-  )
-    add('publication', 'Owned thin specification must be included in the published package')
   if (manifest['type'] !== 'module') add('esm', 'Package must declare type: module')
   if (!object(manifest['scripts'])) add('scripts', 'Missing scripts')
   else

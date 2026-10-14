@@ -6,7 +6,7 @@
 
 | 传感器 | 种下的违规 | 在哪 |
 | ---------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
-| 方向（硬线） | core 依赖了 infra | `packages/core/a/src/index.ts` 导入 `@omne-harness-lite/b` |
+| 方向（硬线） | core 依赖了 infra | `packages/core/a/src/index.ts` 导入 `@omne-harness/b` |
 | 环（硬线） | 同组两个成员互相依赖 | `packages/session/p` ⇄ `packages/session/q` |
 | 实际装配 | 基线后插件新增 inject canaryUndeclared，保留具体服务标识；只报告变化，不推断偏离 | `packages/core/a/src/plugin.ts` 与完整 BASE 源码 |
 | 稳定依赖不稳定 | 被三个成员依赖的 m 依赖了不稳定的 n | `packages/model/m` → `packages/model/n` |

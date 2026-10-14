@@ -42,7 +42,7 @@ export async function packWorkspaceSupport(
       workspace.set(manifest.name, { path, manifest })
     }
   }
-  const targets = new Set(Object.keys(surfaces).map(name => '@omne-harness-lite/' + name))
+  const targets = new Set(Object.keys(surfaces).map(name => '@omne-harness/' + name))
   const visited = new Set<string>()
   const pending = [...targets]
   while (pending.length > 0) {

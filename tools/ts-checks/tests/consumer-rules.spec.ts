@@ -252,7 +252,7 @@ describe('og-s42-dynamic-resolve', () => {
     const entry = file(
       'tenancy/governance-center-entry-node/src/x.ts',
       [
-        "import { ORGANIZATION_PURGE_SERVICE } from '@omne-harness-lite/organization-governance'", // 1
+        "import { ORGANIZATION_PURGE_SERVICE } from '@omne-harness/organization-governance'", // 1
         'const p = ctx.get(ORGANIZATION_PURGE_SERVICE)', // 2（常量引用也在这一行）
         "const q = resolveOptional<Purge>(ctx, 'organization-purge')", // 3
         "export const plugin = definePlugin({ inject: ['storage', 'organization-purge'] })", // 4
@@ -273,7 +273,7 @@ describe('og-s42-dynamic-resolve', () => {
   it('合规：AR 解析；OG 定义并 provide；测试里解析', () => {
     const ar = file(
       `${AR}plugin.ts`,
-      "import { ORGANIZATION_PURGE_SERVICE } from '@omne-harness-lite/organization-governance'\ninject: ['organizations', ORGANIZATION_PURGE_SERVICE]\nctx.get(ORGANIZATION_PURGE_SERVICE)",
+      "import { ORGANIZATION_PURGE_SERVICE } from '@omne-harness/organization-governance'\ninject: ['organizations', ORGANIZATION_PURGE_SERVICE]\nctx.get(ORGANIZATION_PURGE_SERVICE)",
     )
     const og = file(
       `${OG}plugin.ts`,
@@ -304,9 +304,9 @@ describe('no-dialect-bypass', () => {
     const bad = file(
       `${OG}db.ts`,
       [
-        "import { openStorage, type StorageSqlConfig } from '@omne-harness-lite/storage-sql'", // 1
-        "import { NodeSqliteDialect as D } from '@omne-harness-lite/storage-sql'", // 2
-        "import * as sq from '@omne-harness-lite/storage-sql'", // 3
+        "import { openStorage, type StorageSqlConfig } from '@omne-harness/storage-sql'", // 1
+        "import { NodeSqliteDialect as D } from '@omne-harness/storage-sql'", // 2
+        "import * as sq from '@omne-harness/storage-sql'", // 3
         'const s = new sq.SqlStorage(x)', // 4
         'const db = new Kysely<Db>({ dialect: new D(opts) })', // 5
       ].join('\n'),
@@ -324,13 +324,13 @@ describe('no-dialect-bypass', () => {
       `${OG}records.ts`,
       [
         "import type { Kysely } from 'kysely'",
-        "import { narrow, type Storage } from '@omne-harness-lite/storage'",
+        "import { narrow, type Storage } from '@omne-harness/storage'",
         'export type Db = Kysely<OgDatabase>',
       ].join('\n'),
     )
     const test = file(
       'tenancy/organization-governance-sql/tests/support.ts',
-      "import { openStorage } from '@omne-harness-lite/storage-sql'\nnew Kysely({ dialect })",
+      "import { openStorage } from '@omne-harness/storage-sql'\nnew Kysely({ dialect })",
     )
     const infra = file('infra/storage-sql/src/open.ts', 'const db = new Kysely({ dialect })')
     expect(noDialectBypass.check([clean, test, infra])).toEqual([])

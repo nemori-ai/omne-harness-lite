@@ -7,12 +7,12 @@ describe('N4 migrated public boundaries', () => {
   it('allows the shared generic codec facade while retaining provider and private-path bans', () => {
     const path = 'core/model-request-runtime/src/image-codec.ts'
     expect(
-      corePureImports.check([file(path, "export type * from '@omne-harness-lite/image-codec'")]),
+      corePureImports.check([file(path, "export type * from '@omne-harness/image-codec'")]),
     ).toEqual([])
     for (const code of [
-      "export * from '@omne-harness-lite/image-codec/src/sharp-codec'",
-      "import '@omne-harness-lite/pi-ai-transport'",
-      "import '@omne-harness-lite/execution-environments-host'",
+      "export * from '@omne-harness/image-codec/src/sharp-codec'",
+      "import '@omne-harness/pi-ai-transport'",
+      "import '@omne-harness/execution-environments-host'",
     ])
       expect(corePureImports.check([file(path, code)])).toHaveLength(1)
   })
@@ -59,7 +59,7 @@ describe('N4 migrated public boundaries', () => {
       corePureImports.check([
         file(
           'core/model-request-runtime/src/retry-delay.ts',
-          "import '@omne-harness-lite/model-request-runtime-local'",
+          "import '@omne-harness/model-request-runtime-local'",
         ),
       ]),
     ).toHaveLength(1)
@@ -144,7 +144,7 @@ describe('stage 2 extracted definition boundaries', () => {
     ]) {
       expect(
         corePureImports.check([
-          file(path, `import type { Value } from '@omne-harness-lite/${dependency}'`),
+          file(path, `import type { Value } from '@omne-harness/${dependency}'`),
         ]),
       ).toEqual([])
     }
@@ -156,7 +156,7 @@ describe('stage 2 extracted definition boundaries', () => {
     ]) {
       expect(
         corePureImports.check([
-          file(path, `import type { Value } from '@omne-harness-lite/${dependency}'`),
+          file(path, `import type { Value } from '@omne-harness/${dependency}'`),
         ]),
       ).toHaveLength(1)
     }
@@ -202,8 +202,8 @@ describe('stage 2 extracted definition boundaries', () => {
     for (const text of [
       "import '@deepseek-ai/cordis'",
       "export * from './cordis.ts'",
-      `import '@omne-harness-lite/${owner}'`,
-      "import '@omne-harness-lite/model-request-runtime-local'",
+      `import '@omne-harness/${owner}'`,
+      "import '@omne-harness/model-request-runtime-local'",
       "import 'node:fs'",
     ])
       expect(corePureImports.check([file(`core/${owner}/src/index.ts`, text)])).toHaveLength(1)
@@ -213,7 +213,7 @@ describe('stage 2 extracted definition boundaries', () => {
       for (const text of [
         "import 'ajv'",
         "import 'node:module'",
-        "import '@omne-harness-lite/model-profile-directory-local/src/records.ts'",
+        "import '@omne-harness/model-profile-directory-local/src/records.ts'",
       ])
         expect(corePureImports.check([file(`core/${owner}/src/types.ts`, text)])).toHaveLength(1)
   })
@@ -230,7 +230,7 @@ describe('stage 2 extracted definition boundaries', () => {
       corePureImports.check([
         file(
           'core/tool-execution-runtime/src/schema-inputs.ts',
-          "import schema from '@omne-harness-lite/tool-execution-runtime/journal-schema'",
+          "import schema from '@omne-harness/tool-execution-runtime/journal-schema'",
         ),
       ]),
     ).toEqual([])
@@ -241,7 +241,7 @@ describe('stage 2 extracted definition boundaries', () => {
       for (const code of [
         "import 'node:module'",
         "import 'ajv'",
-        "import '@omne-harness-lite/tool-execution-runtime/journal-schema'",
+        "import '@omne-harness/tool-execution-runtime/journal-schema'",
       ])
         expect(corePureImports.check([file(path, code)])).toHaveLength(1)
     }
@@ -250,7 +250,7 @@ describe('stage 2 extracted definition boundaries', () => {
         corePureImports.check([
           file(
             'core/tool-execution-runtime/src/journal-codec.ts',
-            `import '@omne-harness-lite/${owner}'`,
+            `import '@omne-harness/${owner}'`,
           ),
         ]),
       ).toEqual([])

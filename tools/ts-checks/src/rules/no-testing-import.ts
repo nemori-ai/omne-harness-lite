@@ -6,7 +6,7 @@ import { syntaxImports, syntaxOf } from '../syntax.ts'
 export const noTestingImport: Rule = {
   id: 'no-testing-import',
   source: 'apps/tenancy-host verification · kernel-basis／offer-expiry 节点「./testing 只给测试」',
-  description: '产品源码不得 import @omne-harness-lite/*/testing',
+  description: '产品源码不得 import @omne-harness/*/testing',
   check(files) {
     const out: Violation[] = []
     for (const file of files) {
@@ -14,7 +14,7 @@ export const noTestingImport: Rule = {
       for (const ref of syntaxImports(syntaxOf(file))) {
         if (
           ref.specifier !== undefined &&
-          /^@omne-harness-lite\/[^/]+\/testing(?:\/|$)/.test(ref.specifier)
+          /^@omne-harness\/[^/]+\/testing(?:\/|$)/.test(ref.specifier)
         )
           out.push({
             rule: this.id,

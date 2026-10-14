@@ -1,6 +1,6 @@
 # 运行感知与一次模型请求能力组
 
-正式维护位置已具名，当前仍无真实workspace成员、源码或运行实例。以下为文档目标及待审细化，不授予实现或接受。
+`request-context` 和 `runtime-context` 已是 workspace 草稿，公开行为尚未实现。旧的 `packages.0.0.1.legacy/core/runtime-context` 不在 workspace 里。以下文档目标不授予实现或接受。
 
 ## 责任与范围
 

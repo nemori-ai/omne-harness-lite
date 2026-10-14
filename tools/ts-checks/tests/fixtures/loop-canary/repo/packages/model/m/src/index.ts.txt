@@ -1,4 +1,4 @@
 // 稳定依赖不稳定：m 被 p、q、cli 依赖（I = 1/4），却依赖了 n（I = 1/2）。
-import { n } from '@omne-harness-lite/n'
+import { n } from '@omne-harness/n'
 
 export const m = n + 1

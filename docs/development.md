@@ -167,6 +167,8 @@ pnpm package:template create --group core --name example-capability --variant se
 
 按职责选择module、cordis-module、service-contract或service-provider。公共Service定义随能力契约拥有者，独立能力从纯根导出，Cordis集成默认放 ./cordis。源码、行为契约、Schema、模型及必要说明的归属详见模板说明；能力组和成员包两层维护各自完整必要文档。生成草稿只报告模板来源，不写采用标识；占位须由真实承诺与验证替换，不生成空测试或假Service。
 
+测试按[包级测试责任与边界](verification.md#包级测试责任与边界)选择。默认准备单元测试，以及从公开入口做的契约测试。实现具体存储或应用服务时，再增加集成测试。拥有关键用户旅程时，再增加旅程测试。生成器写出 `tests/public-entry.spec.ts`，从包名核对当前公开导出。它不为每个包生成集成目录、端到端目录或全系统启动脚本。这些入口的目录名尚未决定。公开契约替换草稿导出时，替换这份入口测试。
+
 现存包整改先做只读盘点，再按精确版本核对实际结构：
 
 ```sh
@@ -239,8 +241,8 @@ turbo 接入准入时，基线用 `TURBO_SCM_BASE` 和 `TURBO_SCM_HEAD` 显式�
 局部定位可直接运行一个成员或测试文件：
 
 ```sh
-OMNE_TEST_TIER=fast pnpm --filter @omne-harness-lite/<包名> run test
-pnpm --filter @omne-harness-lite/<包名> exec vitest run <测试文件>
+OMNE_TEST_TIER=fast pnpm --filter @omne-harness/<包名> run test
+pnpm --filter @omne-harness/<包名> exec vitest run <测试文件>
 ```
 
 测试归层、时限和耗时账本归[测试运行器](../tools/ts-checks/README_ZH.md#测试运行)及[分层定义](../vitest.tiers.mts)。新增真实等待、子进程、网络或重CPU用例时，按真实成本选择层并说明原因，不把慢任务藏在快层。
@@ -371,7 +373,7 @@ gh pr create --base main --head <自己的工作分支> \
 | 链接、技能镜像或 agent 产物检查失败 | 修正源及其引用，按编译工具更新产物；**不要手改镜像或移出检查范围掩盖错误** |
 | `UNCOVERED` | 尚无相应模型任务——那是覆盖缺口，不是失败 |
 | 形式工具检查失败 | `make formal-tools` 看 Java/JAR 是否就位；缺环境、覆盖缺口与执行失败是三件事 |
-| `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness-lite/cli`、`@omne-harness-lite/tenancy-host` |
+| `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness/cli`、`@omne-harness/tenancy-host` |
 | `storage conformance · postgres` 显示 skipped | 未设 `OMNE_TEST_PG_URL`；跳过不是通过（[验证与证据](verification.md)） |
 | 不知道如何启动产品 | 先构建，再按 [CLI](../apps.0.0.1.legacy/cli/README.md) 或 [治理中心](../apps.0.0.1.legacy/tenancy-host/README.md) 的命令启动；制品打包不自动安装或发布服务 |
 

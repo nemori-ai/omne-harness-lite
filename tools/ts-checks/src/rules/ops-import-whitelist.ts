@@ -13,16 +13,16 @@ import {
 const THIRD_PARTY = new Set(['@deepseek-ai/cordis', 'zod'])
 const OPS_PACKAGES = new Set([
   // Adopted identity T2: admission signal and owned-work protocol; no governance operations.
-  '@omne-harness-lite/governance-center-entry',
-  '@omne-harness-lite/governance-center-entry/cordis',
-  '@omne-harness-lite/assembly-lifecycle/cordis',
-  '@omne-harness-lite/kernel-basis',
+  '@omne-harness/governance-center-entry',
+  '@omne-harness/governance-center-entry/cordis',
+  '@omne-harness/assembly-lifecycle/cordis',
+  '@omne-harness/kernel-basis',
   // 原根入口的同一组 Cordis 助手；只跟随入口迁移，不开放其他子路径。
-  '@omne-harness-lite/kernel-basis/cordis',
-  '@omne-harness-lite/storage',
-  '@omne-harness-lite/storage/cordis',
-  '@omne-harness-lite/offer-expiry',
-  '@omne-harness-lite/offer-expiry/cordis',
+  '@omne-harness/kernel-basis/cordis',
+  '@omne-harness/storage',
+  '@omne-harness/storage/cordis',
+  '@omne-harness/offer-expiry',
+  '@omne-harness/offer-expiry/cordis',
   ...THIRD_PARTY,
 ])
 const MAINTENANCE = `${ENTRY_SRC}maintenance/`
@@ -41,9 +41,9 @@ const READONLY_LEAVES = new Set([
   `${ENTRY_SRC}center-id/snapshot-structure`,
 ])
 const MAINTENANCE_PACKAGES = new Set([
-  '@omne-harness-lite/storage',
-  '@omne-harness-lite/offer-expiry',
-  '@omne-harness-lite/identity-values',
+  '@omne-harness/storage',
+  '@omne-harness/offer-expiry',
+  '@omne-harness/identity-values',
 ])
 const WORK_MODULE = `${ENTRY_SRC}work`
 
@@ -123,7 +123,7 @@ function judgeOpsImport(file: SourceFile, ref: ImportRef): string | undefined {
   if (specifier.startsWith('node:')) return undefined
   if (OPS_PACKAGES.has(specifier)) return undefined
   if (
-    specifier === '@omne-harness-lite/cordis-plugin-tree' &&
+    specifier === '@omne-harness/cordis-plugin-tree' &&
     pureTypeOnly(file, ref.index, ['AssemblyDeclaration'])
   )
     return undefined
@@ -143,7 +143,7 @@ function judgeOpsImport(file: SourceFile, ref: ImportRef): string | undefined {
 
 function judgeEventsImport(file: SourceFile, ref: ImportRef): string | undefined {
   if (
-    ref.specifier === '@omne-harness-lite/offer-expiry' &&
+    ref.specifier === '@omne-harness/offer-expiry' &&
     pureTypeOnly(file, ref.index, ['Instant'])
   )
     return undefined
@@ -211,9 +211,9 @@ function judgeReadonlyLeaf(file: SourceFile, ref: ImportRef): string | undefined
       [
         'node:module',
         'ajv/dist/2020.js',
-        '@omne-harness-lite/identity-values/schema',
-        '@omne-harness-lite/offer-expiry/schema',
-        '@omne-harness-lite/governance-center-entry/schema',
+        '@omne-harness/identity-values/schema',
+        '@omne-harness/offer-expiry/schema',
+        '@omne-harness/governance-center-entry/schema',
       ].includes(specifier)
     )
       return undefined
@@ -225,9 +225,9 @@ function judgeReadonlyLeaf(file: SourceFile, ref: ImportRef): string | undefined
       return undefined
   }
   if (module === `${ENTRY_SRC}center-id/snapshot`) {
-    if (specifier === '@omne-harness-lite/storage') return undefined
+    if (specifier === '@omne-harness/storage') return undefined
     if (
-      specifier === '@omne-harness-lite/governance-center-entry' &&
+      specifier === '@omne-harness/governance-center-entry' &&
       centerIdentityOnly(file, ref.index)
     )
       return undefined
@@ -241,7 +241,7 @@ function judgeReadonlyLeaf(file: SourceFile, ref: ImportRef): string | undefined
   }
   if (
     module === `${ENTRY_SRC}center-id/snapshot-structure` &&
-    specifier === '@omne-harness-lite/storage'
+    specifier === '@omne-harness/storage'
   )
     return undefined
   return `运维只读叶子导入了 ${specifier}；不得经叶子绕过治理与写入口边界`

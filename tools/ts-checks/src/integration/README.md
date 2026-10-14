@@ -120,10 +120,10 @@ checkpoint 直接使用已有 main C，不创建 stable 开发提交。旧 stabl
 ## 持续验证
 
 ```sh
-pnpm --filter @omne-harness-lite/ts-checks exec vitest run \
+pnpm --filter @omne-harness/ts-checks exec vitest run \
   tests/integration-context.spec.ts tests/integration-engine.spec.ts \
   tests/integration-transport.spec.ts tests/integration-boundaries.spec.ts
-pnpm --filter @omne-harness-lite/ts-checks typecheck
+pnpm --filter @omne-harness/ts-checks typecheck
 ```
 
 这些测试用临时真实 Git（含 bare 权威仓库）和受限只读 GitHub 响应。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。

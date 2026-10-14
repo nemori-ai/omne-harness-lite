@@ -1,6 +1,6 @@
 # 装配交接能力组
 
-本组说明定义求值、采用、绑定及换代交接的工程关系。依据为[领域责任](../../docs/domains/assembly-and-handoff/README.md)和[系统结构](../../docs/architecture/structure.md)。当前只有[assembly 文档目标](assembly/README.md)，尚无 workspace 成员或运行支持。
+本组说明定义求值、采用、绑定及换代交接的工程关系。依据为[领域责任](../../docs/domains/assembly-and-handoff/README.md)和[系统结构](../../docs/architecture/structure.md)。[assembly](assembly/README.md) 和 [kernel-basis](kernel-basis/README.md) 已是 workspace 草稿，公开行为尚未实现。旧实现仍在 `packages.0.0.1.legacy/core/kernel-basis`，该目录不在 workspace 里。没有运行支持。
 
 ## 责任与范围
 

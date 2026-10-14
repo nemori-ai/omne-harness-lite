@@ -59,7 +59,7 @@ function consume(owner: string) {
       `
         import assert from 'node:assert/strict';
         import { readFileSync } from 'node:fs';
-        import { SCHEMA_DEF_NAMES, validate } from '@omne-harness-lite/identity-values';
+        import { SCHEMA_DEF_NAMES, validate } from '@omne-harness/identity-values';
         import { schemaGraphs } from './dist/schema-inputs.js';
         import { fixedSchemaFingerprint } from '../../../scripts/build-fixed-schemas.mjs';
         assert.ok(SCHEMA_DEF_NAMES.length > 0);

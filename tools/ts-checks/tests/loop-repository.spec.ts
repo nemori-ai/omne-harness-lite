@@ -223,7 +223,7 @@ describe('入口', { timeout: 60_000 }, () => {
       write(
         root,
         'packages/core/a/src/probe.ts',
-        "import { b } from '@omne-harness-lite/b'\nexport const p = b\n",
+        "import { b } from '@omne-harness/b'\nexport const p = b\n",
       )
       const broken = run(root, home)
       expect(broken.stderr).toBe('')

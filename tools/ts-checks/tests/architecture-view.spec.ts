@@ -63,7 +63,7 @@ function source(code: Readonly<Record<string, string>>, commit: string): Archite
   const texts = new Map<string, string>()
   const members: ActualMember[] = Object.entries(code).map(([path, body]) => {
     const manifest = {
-      name: `@omne-harness-lite/${path.split('/').pop()}`,
+      name: `@omne-harness/${path.split('/').pop()}`,
       exports: { '.': './src/index.ts' },
     }
     texts.set(`${path}/package.json`, JSON.stringify(manifest))
@@ -256,7 +256,7 @@ describe('architecture view projection', () => {
       document({
         ...first,
         'packages/infra/sql':
-          "import {plugin as memory} from '@omne-harness-lite/memory';" +
+          "import {plugin as memory} from '@omne-harness/memory';" +
           first['packages/infra/sql'],
       }),
       bands,
@@ -324,7 +324,7 @@ describe('architecture view projection', () => {
     const doc = document({
       ...first,
       'packages/infra/consumer':
-        "import type {Storage} from '@omne-harness-lite/storage'; import {a,b} from '@omne-harness-lite/sql'",
+        "import type {Storage} from '@omne-harness/storage'; import {a,b} from '@omne-harness/sql'",
     })
     const graph = buildArchitectureView(doc, bands)
     expect(
@@ -341,8 +341,8 @@ describe('architecture view projection', () => {
       document({
         ...first,
         'apps/host':
-          "import {plugin as sql} from '@omne-harness-lite/sql'; import type {Storage} from '@omne-harness-lite/storage'",
-        'packages/infra/consumer': "import {a,b} from '@omne-harness-lite/storage'",
+          "import {plugin as sql} from '@omne-harness/sql'; import type {Storage} from '@omne-harness/storage'",
+        'packages/infra/consumer': "import {a,b} from '@omne-harness/storage'",
       }),
       bands,
     )
@@ -372,10 +372,10 @@ describe('architecture view projection', () => {
     )
   })
   it('preserves overview change evidence and BASE endpoints independently of group existence', () => {
-    const before = { ...first, 'apps/old': "import {plugin} from '@omne-harness-lite/sql'" }
+    const before = { ...first, 'apps/old': "import {plugin} from '@omne-harness/sql'" }
     const after = {
       ...first,
-      'apps/new': "import type {Storage} from '@omne-harness-lite/storage'",
+      'apps/new': "import type {Storage} from '@omne-harness/storage'",
     }
     const baseline = actualArchitectureOf(source(before, 'base'))
     const current = actualArchitectureOf(source(after, 'head'))

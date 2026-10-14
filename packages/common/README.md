@@ -1,6 +1,6 @@
 # 共同纯表示能力组
 
-本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。目前没有具名成员、workspace 包、公开入口或运行保证。
+本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面三份成员已经在 workspace 里，公开入口仍是空的，没有运行保证。
 
 ## 责任与范围
 
@@ -10,12 +10,13 @@
 
 ## 成员与依赖
 
-当前没有 workspace 成员，也没有 `package.json` 或公开运行入口。依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表是已采用的目标成员。它们尚非 workspace 成员。本卡不创建这些目录。
+依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的三个目录现在是 workspace 成员，并且仍是模板草稿。公开行为还没有实现。`src/index.ts` 不导出值。
 
 | 目标成员 | 状态 | 拥有的纯值 | 具名消费者 |
 | --- | --- | --- | --- |
-| `legal-identity` | 已采用，尚非 workspace 成员 | 合法身份文本、相等、租户组合 | `packages/identity/identity` 与 `packages/session/session` |
-| `utc-instant` | 已采用，尚非 workspace 成员 | 时间点、SI 时长、唯一比较 | `packages/identity/identity` 与 `packages/tool/tool` |
+| `json-text` | workspace 草稿。叶子名在本分支确定为 `json-text`。#242 当时没有裁定名字，并禁止从旧目录猜测 | 严格 JSON 文本读取 | 后续的配置读取、协议解码与持久记录读取。当前没有生产消费者 |
+| `legal-identity` | workspace 草稿。行为归 #243 | 合法身份文本、相等、租户组合 | `packages/identity/identity` 与 `packages/session/session` |
+| `utc-instant` | workspace 草稿。行为归 #244 | 时间点、SI 时长、唯一比较 | `packages/identity/identity` 与 `packages/tool/tool` |
 
 采用记录是 [Issue 221 技术设计采用](https://github.com/nemori-ai/omne-harness-lite/issues/221#issuecomment-6161958178)。
 
