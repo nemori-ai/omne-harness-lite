@@ -1,6 +1,6 @@
 # 共同纯表示能力组
 
-本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面三份成员已经在 workspace 里，公开入口仍是空的，没有运行保证。
+本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面三份成员已经在 workspace 里。`json-text` 已导出读取函数。另外两份成员的行为仍由各自的卡交付。
 
 ## 责任与范围
 
@@ -10,11 +10,11 @@
 
 ## 成员与依赖
 
-依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的三个目录现在是 workspace 成员，并且仍是模板草稿。公开行为还没有实现。`src/index.ts` 不导出值。
+依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的三个目录现在是 workspace 成员。`json-text` 的读取函数已经实现，负责人尚未接受。`legal-identity` 与 `utc-instant` 的其余行为仍是各自卡上的草稿。
 
 | 目标成员 | 状态 | 拥有的纯值 | 具名消费者 |
 | --- | --- | --- | --- |
-| `json-text` | workspace 草稿。叶子名在本分支确定为 `json-text`。#242 当时没有裁定名字，并禁止从旧目录猜测 | 严格 JSON 文本读取 | 后续的配置读取、协议解码与持久记录读取。当前没有生产消费者 |
+| `json-text` | 读取函数已实现，尚未接受。叶子名在本分支确定为 `json-text`。#242 当时没有裁定名字，并禁止从旧目录猜测 | 严格 JSON 文本读取 | 后续的配置读取、协议解码与持久记录读取。当前没有生产消费者 |
 | `legal-identity` | workspace 草稿。行为归 #243 | 合法身份文本、相等、租户组合 | `packages/identity/identity` 与 `packages/session/session` |
 | `utc-instant` | workspace 草稿。行为归 #244 | 时间点、SI 时长、唯一比较 | `packages/identity/identity` 与 `packages/tool/tool` |
 

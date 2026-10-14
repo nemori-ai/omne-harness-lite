@@ -35,13 +35,13 @@ if (read.kind === 'ok') {
 
 行为拥有者是 `packages/common/README.md` 指向的架构节。本页不复制签名和失败种类。公开形状在 `src/types.ts`。读取成功不表示对象存在，也不表示调用方获得授权。
 
-架构节没有规定顺序的地方，本实现遵循 `tests/read-json.spec.ts` 里的字面用例。例如一个 token 同时超过 `maxDepth` 和 `maxItems` 时，结果是 `depth`。
+架构节没有规定顺序的地方，本实现遵循 `tests/read-json.spec.ts` 里的字面用例。一个 token 同时超过 `maxDepth` 和 `maxItems` 时，结果是 `depth`。未闭合字符串里已经出现非法内容时，结果是 `syntax` `token`，先于 `budget` `string`，也先于 `truncated`。合法但没写完、并且超过 `maxStringLength` 的字符串是 `budget` `string`。合法、没写完、并且还在该预算内的字符串是 `truncated`。
 
 ## 设计
 
 `src/read.ts` 核对参数，解码字节，然后对 `jsonc-parser` 扫描器的 token 跑一个扫描循环。循环维护一个未闭合容器的栈。每个容器记录它下一个接受的 token。循环在第一次契约失败时返回，所以失败结果不带部分值。读取器不用 `jsonc-parser` 的 visitor，因为 visitor 在出错之后继续扫描，也会扫描重复键的值。
 
-扫描器把 `01` 拆成两个数字，并把 `1.` 当成一个数字。所以读取器取从 token 起点开始的整段数字字符，再按 RFC 8259 的数字语法核对。`src/index.ts` 只再导出两个函数和公开类型。扫描器 token 不公开。
+扫描器把 `01` 拆成两个数字，并把 `1.` 当成一个数字。所以读取器取从 token 起点开始的整段数字字符，再按 RFC 8259 的数字语法核对。输入结束时，扫描器报告字符串结束，并丢掉更早的非法转义或控制字符。读取器在使用解码长度之前，把原始 token 当作 JSON 字符串前缀来核对。`src/index.ts` 只再导出两个函数和公开类型。扫描器 token 不公开。
 
 ## 配置与运行
 

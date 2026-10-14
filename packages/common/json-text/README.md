@@ -35,13 +35,13 @@ Use `readJsonBytes(bytes, limits)` when the input is a `Uint8Array`. The only ru
 
 The behavior owner is the architecture section linked from `packages/common/README.md`. This README does not copy the signature or the failure list. `src/types.ts` holds the public shapes. A successful read does not mean an object exists or that the caller is allowed to use it.
 
-Where the architecture section does not fix an order, `tests/read-json.spec.ts` holds the literal cases that this implementation follows. An example is a token that exceeds both `maxDepth` and `maxItems`. The result is `depth`.
+Where the architecture section does not fix an order, `tests/read-json.spec.ts` holds the literal cases that this implementation follows. A token that exceeds both `maxDepth` and `maxItems` returns `depth`. An unterminated string that already contains illegal content is `syntax` `token`, before `budget` `string` and before `truncated`. A legal unfinished string that exceeds `maxStringLength` is `budget` `string`. A legal unfinished string inside that budget is `truncated`.
 
 ## Design
 
 `src/read.ts` checks the arguments, decodes the bytes, and runs one scan loop over the tokens of the `jsonc-parser` scanner. The loop keeps a stack of open containers. Each container records the token that it accepts next. The loop returns at the first contract failure, so a failure never carries a partial value. The reader does not use the `jsonc-parser` visitor, because the visitor continues after errors and scans the value of a duplicate key.
 
-The scanner splits `01` into two numbers and accepts `1.` as one number. The reader therefore takes the full run of number characters and checks it against the RFC 8259 number grammar. `src/index.ts` only re-exports the two functions and the public types. Scanner tokens are not public.
+The scanner splits `01` into two numbers and accepts `1.` as one number. The reader therefore takes the full run of number characters and checks it against the RFC 8259 number grammar. At the end of the input, the scanner reports end-of-string and drops an earlier illegal escape or control character. The reader checks the raw token as a JSON string prefix before it uses the decoded length. `src/index.ts` only re-exports the two functions and the public types. Scanner tokens are not public.
 
 ## Configuration and operation
 
