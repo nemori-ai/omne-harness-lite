@@ -17,7 +17,6 @@ export type StateDirectoryReadiness =
   | { readonly kind: 'ready'; readonly path: string }
   | { readonly kind: 'error'; readonly message: string }
 
-/** Picks the state directory path from `--home`, then `OMNE_HOME`, then `$HOME/.omne`; never touches the filesystem. */
 export function resolveStateDirectory(input: StateDirectoryInput): StateDirectoryResolution {
   const flag = input.flag?.trim()
   if (flag) return { kind: 'resolved', path: flag, source: 'flag' }
@@ -30,7 +29,6 @@ export function resolveStateDirectory(input: StateDirectoryInput): StateDirector
   return { kind: 'error', message: 'omne: no home directory for the default state path\n' }
 }
 
-/** Creates the directory and missing parents, or accepts an existing directory; never removes what occupies the path. */
 export function ensureStateDirectory(path: string): StateDirectoryReadiness {
   try {
     mkdirSync(path, { recursive: true })

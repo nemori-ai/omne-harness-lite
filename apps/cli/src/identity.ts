@@ -9,7 +9,6 @@ const invalidIdentity: BuildIdentityResult = {
   message: 'omne: build identity is missing or invalid\n',
 }
 
-/** Reads `cli-identity.json` beside this build module; no other version source is consulted. */
 export function readBuildIdentity(): BuildIdentityResult {
   let parsed: unknown
   try {
