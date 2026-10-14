@@ -6,7 +6,7 @@
     "node": ">=24.18.0 <25"
   },
   "scripts": {
-    "build": "pnpm -r --filter './packages/**' --filter './apps/**' --filter './packages.0.0.1.legacy/**' --filter './apps.0.0.1.legacy/**' --filter './tools/ts-checks' --filter './tools/core-verification' --filter './tools/artifact-builder' run build",
+    "build": "pnpm -r --filter './packages/**' --filter './apps/**' --filter './tools/ts-checks' --filter './tools/core-verification' --filter './tools/artifact-builder' run build",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm run build && pnpm run test:members",
     "test:members": "./scripts/with-test-slot.sh node --experimental-strip-types tools/ts-checks/src/testing/cli.ts run --all",
@@ -17,7 +17,7 @@
     "format:hook:install": "./scripts/install-format-hook.sh",
     "test:format": "./scripts/test-formatting.sh",
     "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run typecheck && pnpm run test:gate && pnpm run lint:rules",
-    "lint:rules": "pnpm --filter @omne-harness-lite/ts-checks run scan",
+    "lint:rules": "pnpm --filter @omne-harness/ts-checks run scan",
     "package:template": "node --experimental-strip-types tools/ts-checks/src/package-template/cli.ts"
   },
   "devDependencies": {

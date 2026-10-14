@@ -42,7 +42,7 @@ function complete(): { root: string; home: string; out: string; base: string } {
     '---\nid: PD-x\nstatus: draft\nrevision: 1\n---\n',
   )
   write(root, '.meta_harness/design/product/x/design.md', '# Product fixture\n')
-  write(root, 'packages/core/a/package.json', '{"name":"@omne-harness-lite/a"}\n')
+  write(root, 'packages/core/a/package.json', '{"name":"@omne-harness/a"}\n')
   write(
     root,
     'docs/architecture/constraints.json',
@@ -122,12 +122,12 @@ describe('严格模式', { timeout: 60_000 }, () => {
     write(
       root,
       'packages/core/a/src/index.ts',
-      "import { b } from '@omne-harness-lite/b'\nexport const a = b\n",
+      "import { b } from '@omne-harness/b'\nexport const a = b\n",
     )
     write(
       root,
       'packages/infra/b/src/index.ts',
-      "import { a } from '@omne-harness-lite/a'\nexport const b = a\n",
+      "import { a } from '@omne-harness/a'\nexport const b = a\n",
     )
     write(root, 'apps/demo/acceptance/locked.ts', 'export const changed = true')
     const result = run(

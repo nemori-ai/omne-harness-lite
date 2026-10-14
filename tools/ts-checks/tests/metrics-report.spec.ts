@@ -37,7 +37,7 @@ export function tangled(a: number, b: number) {
 const storage = file('packages/core/storage/src/index.ts', SOURCE)
 const consumer = file(
   'packages/tenancy/account-identity-sql/src/index.ts',
-  "import { simple } from '@omne-harness-lite/storage'\nexport const x = simple()\n",
+  "import { simple } from '@omne-harness/storage'\nexport const x = simple()\n",
 )
 const base = { files: [storage, consumer], policy: GROUP_DIRECTION_POLICY, thresholds, bands }
 

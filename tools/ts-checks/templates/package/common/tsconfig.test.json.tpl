@@ -7,5 +7,5 @@
     "sourceMap": false,
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+  "include": ["tests/**/*.ts"]
 }

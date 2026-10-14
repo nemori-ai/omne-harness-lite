@@ -1,5 +1,5 @@
 {
-  "name": "@omne-harness-lite/ts-checks",
+  "name": "@omne-harness/ts-checks",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -36,7 +36,7 @@
   "devDependencies": {
     "@jscpd/core": "catalog:",
     "@jscpd/tokenizer": "catalog:",
-    "@omne-harness-lite/identity-values": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
     "@types/node": "catalog:",

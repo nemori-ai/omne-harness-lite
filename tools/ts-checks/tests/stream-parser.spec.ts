@@ -8,7 +8,7 @@ import {
 const path = 'core/stream-assembly/src/close.ts'
 const fixture = (parse = 'readJsonStrict(rawArguments)'): SourceFile => ({
   path,
-  text: `import { readJsonStrict } from '@omne-harness-lite/content-blocks'
+  text: `import { readJsonStrict } from '@omne-harness/content-blocks'
 export function parseCollectedToolCall(opened: ToolOpening, rawArguments: string) {
   return ${parse}
 }
@@ -70,8 +70,8 @@ describe('single-tool-argument-parser — Stream 实现登记与结构有效性'
   )
 
   it.each([
-    `import { readJsonStrict as read } from '@omne-harness-lite/content-blocks'; read(raw)`,
-    `import * as json from '@omne-harness-lite/content-blocks'; json.readJsonStrict(raw)`,
+    `import { readJsonStrict as read } from '@omne-harness/content-blocks'; read(raw)`,
+    `import * as json from '@omne-harness/content-blocks'; json.readJsonStrict(raw)`,
     `const read = readJsonStrict; const alias = read; alias(raw)`,
     `const read = JSON.parse; read(raw)`,
     String.raw`const read = JSON['\u0070arse']; read(raw)`,

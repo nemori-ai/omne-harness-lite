@@ -144,7 +144,7 @@ pnpm format:write
 
 产品包先明确已接受的职责、公开接口与行为依据。建包时使用[版本化包模板](../tools/ts-checks/templates/package/README_ZH.md)，不要手写另一套结构。模板不能替代架构设计或技术接受。
 
-目标组及包边界先按[产品包组织](package-organization.md)确定，两层文档内容按[成员文档要求](member-documentation.md)组织。当前版本与历史结构规则分别由[包模板](../tools/ts-checks/templates/package/README_ZH.md)和[组模板](../tools/ts-checks/templates/domain/README.md)维护。旧包不自动升级，新文档义务不重判旧版。
+目标组及包边界先按[产品包组织](package-organization.md)确定。成员的必选文件和导出形状以[成员的必选结构](package-organization.md#成员的必选结构)为准。两层文档内容按[成员文档要求](member-documentation.md)组织。当前生成器的文件槽和操作由[包模板](../tools/ts-checks/templates/package/README_ZH.md)和[组模板](../tools/ts-checks/templates/domain/README.md)维护。生成器已经写出先删除 `dist` 的 build、`erasableSyntaxOnly`，以及 `source` 条件。发布时去掉 `source`。旧包不自动升级，新文档义务不重判旧版。
 
 新能力组先有明确工程责任，再从仓库根预览和创建入口草稿：
 
@@ -166,6 +166,8 @@ pnpm package:template create --group core --name example-capability --variant se
 ```
 
 按职责选择module、cordis-module、service-contract或service-provider。公共Service定义随能力契约拥有者，独立能力从纯根导出，Cordis集成默认放 ./cordis。源码、行为契约、Schema、模型及必要说明的归属详见模板说明；能力组和成员包两层维护各自完整必要文档。生成草稿只报告模板来源，不写采用标识；占位须由真实承诺与验证替换，不生成空测试或假Service。
+
+测试按[包级测试责任与边界](verification.md#包级测试责任与边界)选择。默认准备单元测试，以及从公开入口做的契约测试。实现具体存储或应用服务时，再增加集成测试。拥有关键用户旅程时，再增加旅程测试。生成器写出 `tests/public-entry.spec.ts`，从包名核对当前公开导出。它不为每个包生成集成目录、端到端目录或全系统启动脚本。这些入口的目录名尚未决定。公开契约替换草稿导出时，替换这份入口测试。
 
 现存包整改先做只读盘点，再按精确版本核对实际结构：
 
@@ -228,11 +230,19 @@ make test-affected BASE="$TASK_BASE" TIER=slow
 
 `check-plan`只输出计划。`test-affected`先构建选中成员及依赖，默认只跑快层；慢层由`TIER=slow`选择，`TIER=all`合跑两层。选择依据包括实际改动、声明依赖及显式读者规则，不能仅凭“没修改那个包”省略消费者验证。
 
+[RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择) 接受用 `turbo run <task> --affected` 替换这份手写计算。替换还没有发生。现行命令继续使用 `tools/ts-checks` 的选择器。pnpm 的 `--filter "...[<since>]"` 在 git 工作树里匹配不到包，所以不能改用它。
+
+替换之前，选择器必须保留这些规则。全局文件改动判全量。测试读取成员目录以外的文件时带上对应成员。Python 工具、常驻检查和 legacy 排除保持原规则。没有规则认得的文件判全量，不按猜的范围少跑。`turbo.json` 和 `docs/architecture/constraints.json` 是全局文件。改动它们就是全量。
+
+不要用 `vitest --changed` 按文件选择测试。包 B 的测试可能经导出读取包 A 的 `dist`。turbo 会选中 B，但 B 可能一个测试都不跑并报告成功。至少等测试直接读源码之后再评估。
+
+turbo 接入准入时，基线用 `TURBO_SCM_BASE` 和 `TURBO_SCM_HEAD` 显式传入。不依赖 turbo 自己推断。准入不读取 PR 能写入的缓存。`--affected` 是否参考 `inputs`，以及能否从工作树以外读取配置，还没有验证。在这两项有结果之前，不把 turbo 换成现行命令。
+
 局部定位可直接运行一个成员或测试文件：
 
 ```sh
-OMNE_TEST_TIER=fast pnpm --filter @omne-harness-lite/<包名> run test
-pnpm --filter @omne-harness-lite/<包名> exec vitest run <测试文件>
+OMNE_TEST_TIER=fast pnpm --filter @omne-harness/<包名> run test
+pnpm --filter @omne-harness/<包名> exec vitest run <测试文件>
 ```
 
 测试归层、时限和耗时账本归[测试运行器](../tools/ts-checks/README_ZH.md#测试运行)及[分层定义](../vitest.tiers.mts)。新增真实等待、子进程、网络或重CPU用例时，按真实成本选择层并说明原因，不把慢任务藏在快层。
@@ -363,7 +373,7 @@ gh pr create --base main --head <自己的工作分支> \
 | 链接、技能镜像或 agent 产物检查失败 | 修正源及其引用，按编译工具更新产物；**不要手改镜像或移出检查范围掩盖错误** |
 | `UNCOVERED` | 尚无相应模型任务——那是覆盖缺口，不是失败 |
 | 形式工具检查失败 | `make formal-tools` 看 Java/JAR 是否就位；缺环境、覆盖缺口与执行失败是三件事 |
-| `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness-lite/cli`、`@omne-harness-lite/tenancy-host` |
+| `No projects matched the filters` | 核对 `pnpm-workspace.yaml` 和成员 `package.json` 的实际包名；应用包括 `@omne-harness/cli`、`@omne-harness/tenancy-host` |
 | `storage conformance · postgres` 显示 skipped | 未设 `OMNE_TEST_PG_URL`；跳过不是通过（[验证与证据](verification.md)） |
 | 不知道如何启动产品 | 先构建，再按 [CLI](../apps.0.0.1.legacy/cli/README.md) 或 [治理中心](../apps.0.0.1.legacy/tenancy-host/README.md) 的命令启动；制品打包不自动安装或发布服务 |
 

@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
-import { openClientLocalState } from '@omne-harness-lite/client-local-state'
-import { createGovernanceClient } from '@omne-harness-lite/governance-client-operations'
+import { openClientLocalState } from '@omne-harness/client-local-state'
+import { createGovernanceClient } from '@omne-harness/governance-client-operations'
 import { buildIntent, readSecrets } from './input.ts'
 import { versionText } from './version.ts'
 

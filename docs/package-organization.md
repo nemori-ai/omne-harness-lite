@@ -2,7 +2,7 @@
 
 本页维护产品包的目标分组、包边界和扩展规则，供人和agent选择维护位置。顶层源码归属及开发环境由[workspace](workspace.md)维护，业务责任由[领域地图](domains/boundaries.md)维护，系统分层与依赖由[架构](architecture/layers-and-dependencies.md)约束。
 
-这些规则用于后续建包与迁移设计。下面的具名位置表达目标知识归属，不表示成员已经存在，也不接受该成员的精确接口或运行机制。新树从[包入口](../packages/README.md)读取目标组及缺项；旧成员从[legacy入口](../packages.0.0.1.legacy/README.md)查源。新成员准入与工具适配仍须明确任务。
+这些规则用于后续建包与迁移设计。下面写明叶子名的位置已经初始化为 RFC-0003 草稿。草稿不接受该成员的精确接口或运行机制。`<成员>` 和「具名」占位仍不建包。新树从[包入口](../packages/README.md)读取目标组及缺项；旧成员从[legacy入口](../packages.0.0.1.legacy/README.md)查源。新成员准入与工具适配仍须明确任务。
 
 ## 组织原则
 
@@ -14,9 +14,34 @@
 
 能力组允许增长。当前责任和下列目录不是未来能力的白名单，新增按[扩展指导](domains/extending-the-system.md)判断。
 
+## 成员的必选结构
+
+PanQiWei 于 2026-10-14 接受 [RFC-0003 revision 1](rfcs/RFC-0003-source-packages.md#决定范围)。下面是新成员的目标形状。应用不使用这套结构。生成和扫描仍用 [包模板](../tools/ts-checks/templates/package/README_ZH.md)。该生成器已经写出先删除 `dist` 的 build、`erasableSyntaxOnly`，以及写在 `types` 前面的 `source` 条件。
+
+每个新成员必须有这些文件。
+
+```text
+packages/<能力组>/<成员>/
+├── package.json
+├── README.md
+├── README_ZH.md
+├── documentation.json
+├── src/index.ts
+├── tests/<行为>.spec.ts
+├── tsconfig.build.json
+├── tsconfig.test.json
+└── vitest.config.ts
+```
+
+`cordis-module`、`service-contract` 和 `service-provider` 再加 `src/cordis.ts`。`module` 不加这个文件。`src/index.ts` 不导入 `@deepseek-ai/cordis`。Cordis 绑定只从 `src/cordis.ts` 导出。
+
+`package.json` 把 `source` 写在 `types` 前面，指向 `./src/index.ts`。仓库类型检查通过根 `tsconfig.base.json` 的 `customConditions` 打开它。`files` 只发布 `dist`。发布时去掉 `source`，外部只保留指向 `dist` 的 `types` 和 `import`。`build` 先删除 `dist`，再编译。`tsconfig.build.json` 只包含 `src`，并打开 `erasableSyntaxOnly`。`tsconfig.test.json` 只包含 `tests`。测试导入本包时使用包名。谁写哪一类测试，见[包级测试责任与边界](verification.md#包级测试责任与边界)。
+
+`docs/`、`SPEC.md`、`schema/`、`verification/`、`adr/`、`examples/` 和 `resources/` 只有在里面有真实内容时才存在。模板不生成空目录。
+
 ## 目标目录
 
-以下是初始落点。能力组已建立文档骨架；具名叶子以导航和缺文件登记预留，不生成空实现包。叶子名称及成员划分仍须在具名消费者和精确承诺明确后确定。
+以下是初始落点。写明叶子名的目录已初始化为 workspace 草稿，公开行为仍未实现。`<成员>`、`<具名时间能力>`、`<具名观测能力>` 和 `<具名纯表示>` 不是叶子名，这些位置不建包。叶子若还要拆分，仍须在具名消费者和精确承诺明确后确定。
 
 ```text
 packages/
@@ -33,7 +58,9 @@ packages/
 │   └── permissions/            权限配值与求值
 ├── workspace/workspace/        工作区身份与资源关联
 ├── session/session/            Session、Run与逻辑治理
-├── assembly/assembly/          求值、采用和装配交接
+├── assembly/
+│   ├── assembly/               求值、采用和装配交接
+│   └── kernel-basis/           操作结果、Cordis 插件辅助和测试装配
 ├── agent/agent/                Agent定义、Loop与extensions
 ├── model/model/                模型能力、请求和原结果
 ├── tool/tool/                  工具定义、执行和效果
@@ -51,13 +78,22 @@ packages/
 ├── storage/<成员>/             存储契约、机制与提供者
 ├── time/<具名时间能力>/        有独立消费者的时间能力
 ├── telemetry/<具名观测能力>/   有真实共同需要的观测能力
-└── common/<具名纯表示>/        经共同语义核对的纯定义
+├── common/<具名纯表示>/        经共同语义核对的纯定义
+└── util/
+    ├── unix-format/          按码位排版的终端文本
+    └── xml-format/           按字段声明渲染的 XML 文本
 apps/<应用成员>/               客户端表现、个人设备daemon或云节点装配
 tools/<开发工具>/              检查与开发工具
 scripts/                       仓库自动化
 ```
 
-同一能力组内可以增加具名提供者或独立适配成员，前提是包边界有依据。单成员组仍提供稳定知识位置，不为目录对称增加转发层。time、telemetry和common须有实际共同语义及消费者，不能成为收纳未归属代码的目录。
+同一能力组内可以增加具名提供者或独立适配成员，前提是包边界有依据。单成员组仍提供稳定知识位置，不为目录对称增加转发层。time、telemetry和common须有实际共同语义及消费者，不能成为收纳未归属代码的目录。`util` 只放纯文本格式化。`unix-format` 和 `xml-format` 从封存的 `packages.0.0.1.legacy/util` 迁入，输出由迁来的测试锁定。它们不进入 `common`，因为还没有两个已确认的共同消费者。
+
+装配组有两个目标成员。`assembly` 维护求值、采用和交接。`kernel-basis` 维护操作结果、Cordis 插件辅助和测试装配。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。
+
+`kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口只导出操作结果，并且不导入 `@deepseek-ai/cordis`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页只登记目标位置 `packages/assembly/kernel-basis`。
+
+现行实现仍在 `packages.0.0.1.legacy/core/kernel-basis`。该目录已经退出 pnpm workspace，所以 `packages/assembly/kernel-basis` 可以使用同名包。它现在是 workspace 草稿，公开行为尚未实现。本页不搬迁旧包。搬迁消费者、检查和探针另有任务。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
 
 ## 责任与能力组
 
@@ -69,7 +105,7 @@ scripts/                       仓库自动化
 | [资产与规则](domains/assets-and-rules/README.md) | assets | 共同持有、来源、设置与权限求值 |
 | [工作区](domains/workspaces/README.md) | workspace | 工作区身份及资源关系 |
 | [会话与工作](domains/sessions-and-work/README.md) | session | 逻辑工作、输入受理及消费协调 |
-| [装配交接](domains/assembly-and-handoff/README.md) | assembly | 定义采用、绑定和交接 |
+| [装配交接](domains/assembly-and-handoff/README.md) | assembly | 定义采用、绑定、交接和内核辅助 |
 | [Agent推进](domains/agent-progression/README.md) | agent | Loop与扩展推进 |
 | [模型调用](domains/model-invocation/README.md) | model | 请求、原执行、结果与费用 |
 | [工具执行](domains/tool-execution/README.md) | tool | 调用、执行与外部效果 |
@@ -102,6 +138,42 @@ access把完整Harness的接入知识就近组织。public-contract拥有系统�
 SDK是客户端统一编程入口，承接调用、观察、订阅及明确属于客户端的资源责任。它可以依赖客户端平台和传输适配，管理由客户端拥有的连接与句柄。它不能导入服务端接入实现、服务端提供者、服务端业务存储、runtime实例或Cordis装配树。server-entry按共同契约调用能力公开接口，不能导入SDK或穿透业务私有实现。
 
 完整Harness客户端通过SDK使用系统；独立能力消费者可以直接使用所需能力及所选实现，不强制经过SDK。同组不要求共同安装或发布。首批SDK操作、传输、认证、兼容、缓存、订阅恢复及拥有式daemon启动沿[分层后续设计](architecture/layers-and-dependencies.md#待细化范围)明确，本页不补默认协议。
+
+## 最小 CLI 的接入边界
+
+最小 CLI 放在 `apps/`。它拥有进程入口、命令解析、人读呈现、机读呈现和本地状态目录。它通过 SDK 使用系统能力。它不导入 server-entry、服务端提供者、服务端业务存储、runtime 实例或服务端 Cordis 装配树。
+
+```mermaid
+flowchart LR
+  cli["CLI 应用"]
+  sdk["SDK"]
+  server["server-entry"]
+
+  cli -->|"使用系统能力"| sdk
+  cli -.->|"不导入"| server
+  sdk -.->|"不导入"| server
+```
+
+命令解析模块不导入 `@deepseek-ai/cordis`，也不导入 Cordis 绑定。IC-4 仍允许 `apps/` 的包根出口引入 Cordis。检查器不会因为这类导入失败。若该应用要装配自己的进程，把 Cordis 绑定放在同包 `./cordis`。命令解析不调用这个入口。
+
+调用方只给出 `--help`，或只给出 `--version` 时，进程把结果写到 stdout，然后以 0 退出。再带上其他选项或位置参数，则这条短路不成立。这两条路径不打开、也不创建 `OMNE_HOME`、`--home` 或业务存储。版本文本来自构建产物旁的身份文件。TTY 上的交互呈现使用 pi-tui，并且只用于表现层。非 TTY 输出机器可读结果，不加载 TUI。实现命令循环时，只参考 pi、DeepSeek Harness CLI 和 kimi-code CLI 的分流。不采用它们的存储、登录或服务端装配。
+
+```mermaid
+flowchart TD
+  entry["进程入口"]
+  parse["命令解析"]
+  entry --> parse
+  parse -->|"只有单独的 --help 或 --version"| stdout["写 stdout 并退出"]
+  parse -->|"其他命令"| branch{"是否 TTY"}
+  branch -->|"是"| tui["pi-tui 表现层"]
+  branch -->|"否"| machine["机读输出"]
+  tui --> sdkUse["SDK"]
+  machine --> sdkUse
+```
+
+`tools/artifact-builder` 不依赖 CLI。`apps.0.0.1.legacy/cli` 把 artifact-builder 列为 devDependency。`tools/ts-checks` 从 `@omne-harness/legal-identity` 读取身份类型名单。`tools/core-verification` 不再声明旧包依赖，也不再保留会导入旧包的消费者源码。`scripts/build-fixed-schemas.mjs` 已删除；它只解析 `@omne-harness-lite/content-blocks`。参考树里的旧 `build` 脚本仍写着这个文件名，运行会失败。`scripts/package-cli.sh` 构建 `@omne-harness/cli`，并把 `apps/cli/dist` 打成新的 `.tar.gz`。它不安装、不上传。
+
+发布到仓库之外时，CLI 包提供 `bin`、构建后的启动模块、构建身份文件，以及指向 SDK 包的依赖声明。启动不要求当前目录是本仓库。服务端包不进入这个安装闭包。包模板没有应用变体。缺少该变体并不阻止建包。建包前要同时满足两件事。[apps 入口](../apps/README.md#建立与维护)要求应用规格和公开依赖已经写明。[workspace](workspace.md)要求没有实现代码的承诺不建空成员。`help` 与 `version` 的测试归 `apps/cli`。在有真实 SDK 调用之前，这个最小入口不声明 SDK 依赖。SDK 调用的测试归 SDK。服务端接入的测试归 server-entry 和对应能力。模板与架构规则的测试归 `tools/ts-checks`。
 
 ## 依赖方向与Cordis集成
 
@@ -142,8 +214,8 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 
 目标规则替代“所有Service定义集中core”和“仅以core/util目录判断跨包许可”的目录治理。现有成员仍保留真实路径、接口和行为，迁移须同步消费者、公开入口、构建、发布、资源读取及验证；路径变化不改变Schema身份或接受范围。
 
-当前typescript-package@2.0.0的service-contract创建与扫描仍限制core；架构静态检查的IC-1、IC-5及分组方向也仍使用旧路径投影。它们是尚待适配的工具范围，不能据旧检查失败否定目标组织，也不能据旧检查通过宣称新依赖政策成立。具体范围见[模板](../tools/ts-checks/templates/package/README_ZH.md)及[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。
+当前 typescript-package@2.0.0 的 service-contract 创建与结构扫描不再限制 core。IC-1 与 IC-5 按已采用责任和公开入口判断，不按 core 或 util 目录名许可。分组方向仍使用 `group-direction` 的三层路径表。`packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 会报告 `unregistered-group`。把这些组登记进路径表，会让同组 `sdk` 导入 `server-entry` 在成环前继续合法。不能据旧检查失败否定目标组织，也不能据旧检查通过宣称新依赖政策成立。具体范围见[模板](../tools/ts-checks/templates/package/README_ZH.md)及[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。
 
-在新组实施公共Service成员前，工具拥有者须完成相称模板和规则适配，保留唯一服务定义、纯入口、依赖方向、精确例外及未知报告。不能手写骨架或伪造采用标识绕过现行检查。此义务不阻碍本页目标设计和独立的文档维护。
+在新组实施公共 Service 成员前，分组方向仍须由工具拥有者适配。模板创建与结构扫描已经不再把 service-contract 限制在 core。保留唯一服务定义、纯入口、依赖方向、精确例外及未知报告。不能手写骨架或伪造采用标识绕过现行检查。此义务不阻碍本页目标设计和独立的文档维护。
 
 当前成员重组、工具适配、SDK安装闭包及真实维护成本尚需各自实施和验证任务。报告区分目标要求、现状、偏离、口径变化与未覆盖，沿[领域符合性](domains/verification.md)和[项目验证](verification.md)选择证据。

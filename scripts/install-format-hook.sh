@@ -6,9 +6,13 @@ if (( $# )); then
     exit 2
 fi
 
-repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+# Compare physical paths. macOS TMPDIR is /var/folders, and /var is a symlink to /private/var.
+physical_path() (
+    cd -P -- "$1" && pwd -P
+)
+repo_root="$(physical_path "$(dirname -- "${BASH_SOURCE[0]}")/..")"
 source "$repo_root/scripts/git-environment.sh"
-git_root="$(omne_repository_command git -C "$repo_root" rev-parse --show-toplevel)"
+git_root="$(physical_path "$(omne_repository_command git -C "$repo_root" rev-parse --show-toplevel)")"
 if [[ "$git_root" != "$repo_root" ]]; then
     echo "Installer must live in the repository's scripts directory." >&2
     exit 2

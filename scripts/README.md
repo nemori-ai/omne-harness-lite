@@ -6,10 +6,9 @@
 
 | 入口 | 作用 |
 |---|---|
-| [build-fixed-schemas.mjs](build-fixed-schemas.mjs) | 在已登记的成员或其同名包副本中运行，支持变异测试的临时目录。清理旧 `dist/generated`，执行该成员的 TypeScript 构建，再按 `schema-inputs` 生成全部固定校验图和输入摘要；任一步失败即删除两份产物并返回非零。未匹配登记目录或包身份时，在清理前拒绝。由成员的 `build` 脚本调用；生成目录随包发布，不纳入 Git |
-| [package-tenancy-host.sh](package-tenancy-host.sh) | 构建治理中心全新本地.tar.gz归档；不安装、不启动、不上传，见[中心开发入口](../apps.0.0.1.legacy/tenancy-host/README.md) |
-| [build-tenancy-image.sh](build-tenancy-image.sh) | 从已解压且核完整清单的治理中心app构建指定Linux架构镜像与独占新Docker save归档；不安装、不推送，见[Docker部署入口](../apps.0.0.1.legacy/tenancy-host/deploy/docker/README.md) |
-| [package-cli.sh](package-cli.sh) | 将现有CLI构建为指定的全新本地.tar.gz归档；不安装、不上传，使用与前提见[CLI开发入口](../apps.0.0.1.legacy/cli/README.md) |
+| [package-tenancy-host.sh](package-tenancy-host.sh) | 脚本仍执行 `apps/tenancy-host/tools/package.ts`。仓库里没有这个路径，它不会进入 `apps.0.0.1.legacy` |
+| [build-tenancy-image.sh](build-tenancy-image.sh) | 脚本仍执行 `apps/tenancy-host/tools/docker-image.ts`。仓库里没有这个路径，它不会进入 `apps.0.0.1.legacy` |
+| [package-cli.sh](package-cli.sh) | 构建 `@omne-harness/cli`，把 `apps/cli/dist` 写入一个尚不存在的绝对路径 `.tar.gz`。不安装、不上传 |
 | [check.sh](check.sh) | 定位仓库根，先取一个运行名额，算基线以来改动的影响面并打印计划，再依次运行常驻检查与计划里的各步，最后是严格模式的回路状态；任一步失败即停止并返回非零 |
 | [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
 | [format.sh](format.sh) | 用根配置和本地锁定 Prettier 检查或写入受维护文件；`staged` 模式只检查 Git index blob |

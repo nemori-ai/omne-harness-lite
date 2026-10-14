@@ -2,16 +2,19 @@
 
 This directory owns `typescript-package@2.0.0`. It is a development resource, not a workspace product member.
 Public interfaces, behavior and acceptance remain with their existing owners.
+The required member shape is [package organization](../../../../docs/package-organization.md#成员的必选结构).
+This generator emits a `build` script that deletes `dist` first, `erasableSyntaxOnly` on the build configuration, and `"files": ["dist"]`. It emits the `source` export condition before `types`. Published packages omit `source`. It emits `tests/public-entry.spec.ts`, which imports the package name and checks the current public exports. Add integration only for a package that implements storage or an application service, and an end-to-end test only for the owner of a key user journey. See [package test duty](../../../../docs/verification.md#包级测试责任与边界).
 
 ## Create and inspect
 
 Run from the repository root:
 
 ```sh
-pnpm package:template create --group core --name example-capability --variant service-contract
-pnpm package:template create --group core --name example-capability --variant service-contract --write
+pnpm package:template create --group identity --name authorization --variant service-contract
+pnpm package:template create --group identity --name authorization --variant service-contract --write
+pnpm package:template create --group access --name public-contract --variant module --write
 pnpm package:template scan --json
-pnpm package:template scan --member packages/core/storage --check
+pnpm package:template scan --member packages/identity/authorization --json
 ```
 
 Creation previews by default. `--write` refuses existing targets and symlinks.
@@ -24,21 +27,49 @@ Creation does not generate empty specs, fictitious services or passing placehold
 
 ## Resources and variants
 
-| Template resource | Purpose |
-| --- | --- |
-| manifest.json | Exact identity, version, file slots, required resources, variants and historical rules |
-| common/ | Manifest, TypeScript/Vitest configuration bilingual README drafts and bindings v2 registration |
-| variants/module/ | Public functions and values without a binding entry |
-| variants/cordis-module/ | Pure root and integration helpers or coordination bindings |
-| variants/service-contract/ | Pure public definitions and separate Service definitions, keys and typed events |
-| variants/service-provider/ | Independent factories and bindings that consume public Service definitions |
-| fragments/ | Writing guides for actual documentation topics, complete owned behavior specifications, schema, verification and decisions |
+| Template resource          | Purpose                                                                                                                    |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| manifest.json              | Exact identity, version, file slots, required resources, variants and historical rules                                     |
+| common/                    | Manifest, TypeScript/Vitest configuration bilingual README drafts and bindings v2 registration                             |
+| variants/module/           | Public functions and values without a binding entry                                                                        |
+| variants/cordis-module/    | Pure root and integration helpers or coordination bindings                                                                 |
+| variants/service-contract/ | Pure public definitions and separate Service definitions, keys and typed events                                            |
+| variants/service-provider/ | Independent factories and bindings that consume public Service definitions                                                 |
+| fragments/                 | Writing guides for actual documentation topics, complete owned behavior specifications, schema, verification and decisions |
 
-Templates 1.0.0 and 2.0.0 still restrict service-contract creation and inspection to core.
-The target ownership policy is in [Product package organization](../../../../docs/package-organization.md).
-Service definitions follow their capability owner. Architecture conformance now checks adopted roles and public exports.
-Template creation, adoption inspection and other lint checks retain their existing scope.
-The tool owner must adapt the applicable checks before creating public Service members in a new group.
+`service-contract` can be created in any kebab-case group, including `identity` and `access`. The directory name `core` does not grant create or scan permission.
+Ownership of Service definitions stays with [Product package organization](../../../../docs/package-organization.md).
+`scan --json` lists judged edges on each package `dependencies` array.
+A row includes `rule`, `state`, `member`, `targetMember`, and `sites`.
+The rules are the existing IC rows, the layer rows, `undeclared-dependency`, and `member-cycle`.
+`undeclared-dependency` and `member-cycle` are not `RuleId` values. They do not appear in `constraints.json`.
+`unknown` stays `unknown`.
+`--check` does not treat `unknown` as a pass. An `unknown` row alone does not make the exit code 1.
+
+`lint:rules` `group-direction` is a separate check. It still reports `unregistered-group` for `packages/access`, `packages/identity`, `packages/agent`, and `packages/assembly`.
+This change does not edit that rule.
+Registering those groups on `GROUP_DIRECTION_POLICY` would leave a same-group import from `sdk` to `server-entry` legal until the two members form a cycle.
+
+## Later implementers
+
+This template creates drafts and reports dependency rows. It does not build the later product.
+
+| Later work           | How to use the template                                                                                                                              | This card does not provide                                                      |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Minimal CLI          | Apps do not use this template. The CLI lives in `apps/`. Command parsing does not import `@deepseek-ai/cordis`.                                      | There is no app variant, and this card does not implement the command loop.     |
+| Member test facility | A draft includes a `tests/` slot. The isolation test shows that an official skeleton can build and typecheck.                                        | This card does not build a package test platform.                               |
+| Base capability      | `service-contract` and `cordis-module` can create a draft in a target group. The target path for `kernel-basis` is `packages/assembly/kernel-basis`. | This card does not create that member, and it does not move the sealed package. |
+
+## Dependency diagnostics
+
+A `scan --json` row includes `rule`, `state`, `member`, `targetMember`, and `sites`.
+
+A type import with no declared dependency has `rule` `undeclared-dependency` and `state` `deviation`. The `reason` is `源码引用 workspace 包但未在 dependencies、peerDependencies 或 devDependencies 声明`. `tests/dependency-report.spec.ts` asserts that sentence.
+
+A cycle through a `./cordis` subpath and a relative import has `rule` `member-cycle` and `state` `deviation`. The `reason` starts with `成员之间成环`. The same test asserts that shape.
+
+`unknown` stays `unknown`. Exit code 0 from `--check` does not mean every dependency row has been judged.
+
 Keep definition uniqueness and public entry rules. Do not bypass inspection with a handwritten structure or a false adoption marker.
 A provider consumes the public promises instead of copying them.
 Private helper services do not automatically make a coordination package a public Service provider.

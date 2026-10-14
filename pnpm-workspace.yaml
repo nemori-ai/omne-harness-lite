@@ -1,9 +1,6 @@
 packages:
   - packages/*/*
   - apps/*
-  # 现有开发工具的显式legacy依赖；不属于新目标实现。
-  - packages.0.0.1.legacy/*/*
-  - apps.0.0.1.legacy/*
   - tools/ts-checks
   - tools/core-verification
   - tools/artifact-builder
@@ -33,6 +30,7 @@ catalog:
   zod: 4.6.5
   '@standard-schema/spec': 1.1.0
   yaml: 2.9.1
+  jsonc-parser: 3.3.1
   elkjs: 0.12.0
   react: 19.3.0
   react-dom: 19.3.0
@@ -46,9 +44,6 @@ catalog:
   '@jscpd/tokenizer': 4.0.1
   '@stryker-mutator/core': 10.0.0
   '@stryker-mutator/vitest-runner': 10.0.0
-
-patchedDependencies:
-  '@earendil-works/pi-tui@1.0.0': apps.0.0.1.legacy/cli/patches/pi-tui-1.0.0.patch
 
 # 安装仍使用 --ignore-scripts；只允许显式构建这个已核对的原生依赖。
 onlyBuiltDependencies:

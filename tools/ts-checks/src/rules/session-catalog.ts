@@ -4,7 +4,7 @@ import type { Rule, SourceFile, Violation } from '../rule.ts'
 import { syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
 import { lineAt } from '../source-text.ts'
 
-const catalogEntry = '@omne-harness-lite/session-tenancy-table/maintenance'
+const catalogEntry = '@omne-harness/session-tenancy-table/maintenance'
 const catalogImplementation = 'packages/session/session-tenancy-table/src/maintenance.ts'
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 function allowed(path: string): boolean {
@@ -24,9 +24,7 @@ function catalogReference(file: SourceFile, specifier: string): boolean {
     /^packages\/session\/session-tenancy-table\/(?:src|dist)\/maintenance(?:\.d)?(?:\.[cm]?[jt]s)?$/u.test(
       target,
     ) ||
-    /^@omne-harness-lite\/session-tenancy-table\/(?:src\/)?maintenance(?:\.[cm]?[jt]s)?$/u.test(
-      target,
-    )
+    /^@omne-harness\/session-tenancy-table\/(?:src\/)?maintenance(?:\.[cm]?[jt]s)?$/u.test(target)
   )
 }
 

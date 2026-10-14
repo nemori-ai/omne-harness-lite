@@ -7,14 +7,14 @@ test('the tool definition can reuse pure close-control types without loading a C
     corePureImports.check([
       {
         path,
-        text: "import type { RetainedCloseControl } from '@omne-harness-lite/assembly-lifecycle'",
+        text: "import type { RetainedCloseControl } from '@omne-harness/assembly-lifecycle'",
       },
     ]),
   ).toEqual([])
   for (const specifier of [
-    '@omne-harness-lite/assembly-lifecycle/cordis',
-    '@omne-harness-lite/assembly-lifecycle/private',
-    '@omne-harness-lite/assembly-lifecycle/src/lifetime.ts',
+    '@omne-harness/assembly-lifecycle/cordis',
+    '@omne-harness/assembly-lifecycle/private',
+    '@omne-harness/assembly-lifecycle/src/lifetime.ts',
     '@deepseek-ai/cordis',
   ]) {
     expect(corePureImports.check([{ path, text: `import '${specifier}'` }])).toHaveLength(1)

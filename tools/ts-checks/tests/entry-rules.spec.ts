@@ -37,10 +37,10 @@ describe('ops-import-whitelist', () => {
     `${E}src/ops/server.ts`,
     [
       "import { createServer } from 'node:http'",
-      "import { definePlugin } from '@omne-harness-lite/kernel-basis'",
-      "import type { Storage } from '@omne-harness-lite/storage'",
-      "import { instantToRfc3339 } from '@omne-harness-lite/offer-expiry'",
-      "import { SERVING_EVENT as serving, STOPPED_EVENT as stopped } from '@omne-harness-lite/governance-center-entry'",
+      "import { definePlugin } from '@omne-harness/kernel-basis'",
+      "import type { Storage } from '@omne-harness/storage'",
+      "import { instantToRfc3339 } from '@omne-harness/offer-expiry'",
+      "import { SERVING_EVENT as serving, STOPPED_EVENT as stopped } from '@omne-harness/governance-center-entry'",
       "import { fullHealth } from './health.ts'",
       "import type { Context } from '@deepseek-ai/cordis'",
       "import { z } from 'zod'",
@@ -52,18 +52,18 @@ describe('ops-import-whitelist', () => {
   })
 
   it.each([
-    ['@omne-harness-lite/kernel-basis/cordis', 0],
-    ['@omne-harness-lite/kernel-basis/testing', 1],
-    ['@omne-harness-lite/kernel-basis/unknown', 1],
-    ['@omne-harness-lite/storage/cordis', 0],
-    ['@omne-harness-lite/governance-center-entry', 0],
-    ['@omne-harness-lite/governance-center-entry/cordis', 0],
-    ['@omne-harness-lite/governance-center-entry/private', 1],
-    ['@omne-harness-lite/assembly-lifecycle/cordis', 0],
-    ['@omne-harness-lite/assembly-lifecycle/private', 1],
-    ['@omne-harness-lite/offer-expiry/cordis', 0],
-    ['@omne-harness-lite/storage/cordis/private', 1],
-    ['@omne-harness-lite/offer-expiry/cordis/private', 1],
+    ['@omne-harness/kernel-basis/cordis', 0],
+    ['@omne-harness/kernel-basis/testing', 1],
+    ['@omne-harness/kernel-basis/unknown', 1],
+    ['@omne-harness/storage/cordis', 0],
+    ['@omne-harness/governance-center-entry', 0],
+    ['@omne-harness/governance-center-entry/cordis', 0],
+    ['@omne-harness/governance-center-entry/private', 1],
+    ['@omne-harness/assembly-lifecycle/cordis', 0],
+    ['@omne-harness/assembly-lifecycle/private', 1],
+    ['@omne-harness/offer-expiry/cordis', 0],
+    ['@omne-harness/storage/cordis/private', 1],
+    ['@omne-harness/offer-expiry/cordis/private', 1],
   ])('kernel 子入口按精确路径判断：%s', (specifier, violations) => {
     const input = file(`${E}src/ops/binding.ts`, `import { helper } from '${specifier}'`)
     expect(opsImportWhitelist.check([events, cleanOps, input])).toHaveLength(violations)
@@ -73,10 +73,10 @@ describe('ops-import-whitelist', () => {
     const bad = file(
       `${E}src/ops/bad.ts`,
       [
-        "import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity'",
+        "import { LOGINS_SERVICE } from '@omne-harness/account-identity'",
         "import { ROUTES } from '../routing/table.ts'",
         "import { Hono } from 'hono'",
-        "import { suite } from '@omne-harness-lite/storage/conformance'",
+        "import { suite } from '@omne-harness/storage/conformance'",
         'const m = await import(moduleName)',
         "import { readFileSync } from 'fs'",
       ].join('\n'),
@@ -86,12 +86,12 @@ describe('ops-import-whitelist', () => {
     expect(found.every(v => v.path === bad.path && v.rule === 'ops-import-whitelist')).toBe(true)
   })
 
-  it('事件声明模块导入任何 @omne-harness-lite/*、本包模块或别的第三方 ⇒ 报出', () => {
+  it('事件声明模块导入任何 @omne-harness/*、本包模块或别的第三方 ⇒ 报出', () => {
     const badEvents = file(
       'core/governance-center-entry/src/events.ts',
       [
-        "import type { LoginStateId } from '@omne-harness-lite/identity-values'",
-        "import { x } from '@omne-harness-lite/organization-governance'",
+        "import type { LoginStateId } from '@omne-harness/identity-values'",
+        "import { x } from '@omne-harness/organization-governance'",
         "import { y } from './routing/table.ts'",
         "import mitt from 'mitt'",
         "export const SERVING_EVENT = 'governance-center-entry/serving-started' as const",
@@ -103,7 +103,7 @@ describe('ops-import-whitelist', () => {
   it('合规：公共纯事件叶子只导入 Instant 类型', () => {
     const okEvents = file(
       'core/governance-center-entry/src/events.ts',
-      ["import type { Instant } from '@omne-harness-lite/offer-expiry'", events.text].join('\n'),
+      ["import type { Instant } from '@omne-harness/offer-expiry'", events.text].join('\n'),
     )
     expect(opsImportWhitelist.check([okEvents, cleanOps])).toEqual([])
   })
@@ -140,15 +140,15 @@ describe('D055 maintenance import boundary', () => {
     )
     const inputs = file(
       `${E}src/schema-inputs.ts`,
-      "import { createRequire } from 'node:module'; const a = require('@omne-harness-lite/governance-center-entry/schema'); const b = require('@omne-harness-lite/identity-values/schema'); const c = require('@omne-harness-lite/offer-expiry/schema')",
+      "import { createRequire } from 'node:module'; const a = require('@omne-harness/governance-center-entry/schema'); const b = require('@omne-harness/identity-values/schema'); const c = require('@omne-harness/offer-expiry/schema')",
     )
     expect(opsImportWhitelist.check([events, ops, schema, inputs])).toEqual([])
     for (const specifier of [
       './center-id/read-or-mint.ts',
-      '@omne-harness-lite/account-identity',
-      '@omne-harness-lite/governance-center-entry',
-      '@omne-harness-lite/governance-center-entry/cordis',
-      '@omne-harness-lite/governance-center-entry/schema/private',
+      '@omne-harness/account-identity',
+      '@omne-harness/governance-center-entry',
+      '@omne-harness/governance-center-entry/cordis',
+      '@omne-harness/governance-center-entry/schema/private',
       '../schema/governance-center-entry.schema.json',
       './generated/ordinary.cjs',
     ]) {
@@ -164,8 +164,8 @@ describe('D055 maintenance import boundary', () => {
     const source = file(
       `${E}src/maintenance/input.ts`,
       [
-        "import { SnapshotFailure } from '@omne-harness-lite/storage'",
-        "import { instantFromRfc3339 } from '@omne-harness-lite/offer-expiry'",
+        "import { SnapshotFailure } from '@omne-harness/storage'",
+        "import { instantFromRfc3339 } from '@omne-harness/offer-expiry'",
         "import { readSnapshotCenterId } from '../center-id/snapshot.ts'",
         "import { entryValidator } from '../routing/schema.ts'",
         "import { readJsonText } from '../json.ts'",
@@ -175,7 +175,7 @@ describe('D055 maintenance import boundary', () => {
     expect(opsImportWhitelist.check([events, ops, source])).toEqual([])
   })
   it('allows only the two migrated center identity names on the snapshot leaf', () => {
-    const target = '@omne-harness-lite/governance-center-entry'
+    const target = '@omne-harness/governance-center-entry'
     const read = file(
       `${E}src/center-id/snapshot.ts`,
       `import { isGovernanceCenterId as valid, type GovernanceCenterId } from '${target}'`,
@@ -208,13 +208,13 @@ describe('D055 maintenance import boundary', () => {
     ]) {
       const unsafe = file(
         `${E}src/${leaf}`,
-        "import { readOrMint } from './read-or-mint.ts'; import { x } from '@omne-harness-lite/account-identity'",
+        "import { readOrMint } from './read-or-mint.ts'; import { x } from '@omne-harness/account-identity'",
       )
       expect(opsImportWhitelist.check([events, ops, unsafe])).toHaveLength(2)
     }
     const schema = file(
       `${E}src/routing/schema.ts`,
-      "import { createRequire } from 'node:module'; import { Ajv2020 } from 'ajv/dist/2020.js'; const a = require('@omne-harness-lite/governance-center-entry/schema'); const b = require('@omne-harness-lite/identity-values/schema'); const c = require('@omne-harness-lite/offer-expiry/schema')",
+      "import { createRequire } from 'node:module'; import { Ajv2020 } from 'ajv/dist/2020.js'; const a = require('@omne-harness/governance-center-entry/schema'); const b = require('@omne-harness/identity-values/schema'); const c = require('@omne-harness/offer-expiry/schema')",
     )
     expect(opsImportWhitelist.check([events, ops, schema])).toEqual([])
   })
@@ -222,8 +222,8 @@ describe('D055 maintenance import boundary', () => {
     const source = file(
       `${E}src/maintenance/unsafe.ts`,
       [
-        "import { x } from '@omne-harness-lite/account-identity'",
-        "import { y } from '@omne-harness-lite/storage-sql'",
+        "import { x } from '@omne-harness/account-identity'",
+        "import { y } from '@omne-harness/storage-sql'",
         "import { decide } from '../routing/decide.ts'",
         "import { readOrMint } from '../center-id/read-or-mint.ts'",
         "import { plugin } from '../plugin.ts'",
@@ -238,7 +238,7 @@ describe('D055 maintenance import boundary', () => {
 
 describe('ops-event-whitelist', () => {
   const header =
-    "import { SERVING_EVENT as serving, STOPPED_EVENT as off, DEFECT_EVENT as defect, LISTENING_EVENT as listening } from '@omne-harness-lite/governance-center-entry'\n"
+    "import { SERVING_EVENT as serving, STOPPED_EVENT as off, DEFECT_EVENT as defect, LISTENING_EVENT as listening } from '@omne-harness/governance-center-entry'\n"
 
   it('合规：Cordis 上下文只订阅 serving/stopped/defect、只派发 listening；Node 发射器不管', () => {
     const clean = file(
@@ -255,7 +255,7 @@ describe('ops-event-whitelist', () => {
     )
     const namespaced = file(
       `${E}src/ops/ns.ts`,
-      "import * as events from '@omne-harness-lite/governance-center-entry'\nctx.on(events.SERVING_EVENT, () => {})\nctx.emit(events.LISTENING_EVENT)",
+      "import * as events from '@omne-harness/governance-center-entry'\nctx.on(events.SERVING_EVENT, () => {})\nctx.emit(events.LISTENING_EVENT)",
     )
     expect(opsEventWhitelist.check([clean, namespaced])).toEqual([])
   })
@@ -299,7 +299,7 @@ describe('ops-event-whitelist', () => {
 describe('T4 finite ops integration boundary', () => {
   const ops = file(
     `${E}src/ops/plugin.ts`,
-    "import type { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree'; import type { GovernanceCenterLogger } from '../work.ts'",
+    "import type { AssemblyDeclaration } from '@omne-harness/cordis-plugin-tree'; import type { GovernanceCenterLogger } from '../work.ts'",
   )
   it('permits only the adopted type and empty shared lifecycle leaf', () => {
     expect(
@@ -311,10 +311,10 @@ describe('T4 finite ops integration boundary', () => {
     ).toEqual([])
   })
   it.each([
-    "import { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree'",
-    "import type * as tree from '@omne-harness-lite/cordis-plugin-tree'",
-    "import { composePluginTree } from '@omne-harness-lite/cordis-plugin-tree'",
-    "import type { AssemblyDeclaration } from '@omne-harness-lite/cordis-plugin-tree/cordis'",
+    "import { AssemblyDeclaration } from '@omne-harness/cordis-plugin-tree'",
+    "import type * as tree from '@omne-harness/cordis-plugin-tree'",
+    "import { composePluginTree } from '@omne-harness/cordis-plugin-tree'",
+    "import type { AssemblyDeclaration } from '@omne-harness/cordis-plugin-tree/cordis'",
     "import type { EntryServices } from '../entry-dependencies.ts'",
   ])('rejects extra runtime, namespace, binding and governance access: %s', text => {
     expect(opsImportWhitelist.check([events, file(`${E}src/ops/plugin.ts`, text)])).toHaveLength(1)
@@ -326,7 +326,7 @@ describe('T4 finite ops integration boundary', () => {
         ops,
         file(
           `${E}src/work.ts`,
-          "import type { LoginsService } from '@omne-harness-lite/account-identity'",
+          "import type { LoginsService } from '@omne-harness/account-identity'",
         ),
       ]),
     ).toHaveLength(1)
@@ -335,8 +335,8 @@ describe('T4 finite ops integration boundary', () => {
     "import type { Context } from '@deepseek-ai/cordis'",
     "import { z } from 'zod'",
     "import { EventEmitter } from 'node:events'",
-    "import { Instant } from '@omne-harness-lite/offer-expiry'",
-    "import type * as expiry from '@omne-harness-lite/offer-expiry'",
+    "import { Instant } from '@omne-harness/offer-expiry'",
+    "import type * as expiry from '@omne-harness/offer-expiry'",
   ])('pure public event leaf rejects extra imports: %s', text => {
     expect(opsImportWhitelist.check([file(events.path, text), ops])).toHaveLength(1)
   })
@@ -433,7 +433,7 @@ describe('presentation-only-authn', () => {
       `${E}src/routing/authn.ts`,
       [
         'const judged = await logins.verify(handle)', // 1
-        "import { parseLoginStateId } from '@omne-harness-lite/identity-values'", // 2
+        "import { parseLoginStateId } from '@omne-harness/identity-values'", // 2
         'await logins.listEffective(payload.loginStateHandle as LoginStateId)', // 3
         'const id = <LoginStateId>payload.handle', // 4
         'const parsed = iv.parseLoginStateId(x)', // 5
@@ -446,7 +446,7 @@ describe('presentation-only-authn', () => {
     const clean = file(
       `${E}src/routing/authn.ts`,
       [
-        "import type { LoginStateId } from '@omne-harness-lite/identity-values'",
+        "import type { LoginStateId } from '@omne-harness/identity-values'",
         'const caller = await logins.exchange(presented)',
         'const ids: Promise<LoginStateId> = listed',
         'function f(x: ReadonlyArray<LoginStateId>): void {}',
@@ -594,7 +594,7 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
     const dir = writeTree({
       ['core/governance-center-entry/src/events.ts']: events.text,
       [`${E}src/ops/plugin.ts`]: [
-        "import { LOGINS_SERVICE } from '@omne-harness-lite/account-identity'",
+        "import { LOGINS_SERVICE } from '@omne-harness/account-identity'",
         "ctx.on('login.revoked', () => {})",
       ].join('\n'),
       [`${E}src/routing/leak.ts`]: [
@@ -627,8 +627,8 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
     const dir = writeTree({
       ['core/governance-center-entry/src/events.ts']: events.text,
       [`${E}src/ops/plugin.ts`]: [
-        "import { definePlugin } from '@omne-harness-lite/kernel-basis'",
-        "import { SERVING_EVENT as serving, LISTENING_EVENT as listening } from '@omne-harness-lite/governance-center-entry'",
+        "import { definePlugin } from '@omne-harness/kernel-basis'",
+        "import { SERVING_EVENT as serving, LISTENING_EVENT as listening } from '@omne-harness/governance-center-entry'",
         'ctx.on(serving, () => {})',
         'ctx.emit(listening)',
       ].join('\n'),
@@ -668,8 +668,8 @@ describe('R1-T5 strict JSON shape owner', () => {
     expect(opsImportWhitelist.check([events, ops, file(`${E}src/json.ts`, text)])).toHaveLength(1)
   })
   it.each([
-    "import type { AccountsService } from '@omne-harness-lite/account-identity'",
-    "export type { AccountsService } from '@omne-harness-lite/account-identity'",
+    "import type { AccountsService } from '@omne-harness/account-identity'",
+    "export type { AccountsService } from '@omne-harness/account-identity'",
     "export const call = () => globalThis.fetch('https://example.invalid')",
   ])('rejects dependencies or effects in the shape owner: %s', text => {
     expect(

@@ -22,8 +22,8 @@ test.each([
     'wrong public import',
     path,
     text.replace(
-      "'@omne-harness-lite/organization-governance/cordis'",
-      "'@omne-harness-lite/organization-governance'",
+      "'@omne-harness/organization-governance/cordis'",
+      "'@omne-harness/organization-governance'",
     ),
   ],
   ['call instead of comparison', path, text.replace('!row.provides.includes(key)', 'ctx.get(key)')],

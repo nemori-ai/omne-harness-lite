@@ -3,6 +3,7 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
+    "erasableSyntaxOnly": true,
     "rewriteRelativeImportExtensions": true
   },
   "include": ["src/**/*.ts"]

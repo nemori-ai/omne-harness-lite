@@ -28,8 +28,6 @@ import {
   temporaryDirectory,
   write,
 } from './fixtures/loop-canary/repository.ts'
-import type { Storage } from '../../../packages.0.0.1.legacy/core/storage/src/index.ts'
-
 afterEach(removeTemporaries)
 const ui = 'apps/ui',
   storage = 'packages/core/storage',
@@ -308,6 +306,23 @@ describe('global architecture conformance', () => {
     const actual = readActualArchitecture({ root })
     expect('conformance' in actual).toBe(false)
     git(root, 'status', '--short')
+  })
+  it('skips IC-4 for an apps member root and packages/core/kernel-basis', () => {
+    const { root, base } = setup()
+    const basis = 'packages/core/kernel-basis'
+    const cordis = "import {Context} from '@deepseek-ai/cordis'\nexport const bound = Context\n"
+    write(root, `${ui}/src/index.ts`, cordis)
+    write(root, `${policy}/src/index.ts`, cordis)
+    write(
+      root,
+      `${basis}/package.json`,
+      JSON.stringify({ name: '@example/kernel-basis', exports: { '.': './dist/index.js' } }),
+    )
+    write(root, `${basis}/src/index.ts`, cordis)
+    const deviations = readConformance({ root, base }).rows.filter(
+      row => row.rule === 'IC-4' && row.state === 'deviation',
+    )
+    expect(deviations.map(row => row.member)).toEqual([policy])
   })
   it('IC-1/2/3 distinguish a core Service declaration from duplicate declarations and direct provide', () => {
     const { root, base } = setup()
@@ -625,7 +640,7 @@ export const p = { name: 'p', inject: ['newDependency'], apply(ctx:Context) { ct
     const original = new Error('callback failure'),
       changed = new Error('provider changed failure')
     // This deliberately bad substitute has the public signature but does not preserve P-1.
-    const substitute: Pick<Storage, 'write'> = {
+    const substitute: { write: (operation: () => Promise<void>) => Promise<void> } = {
       async write() {
         throw changed
       },
@@ -634,7 +649,7 @@ export const p = { name: 'p', inject: ['newDependency'], apply(ctx:Context) { ct
       .write(async () => {
         throw original
       })
-      .catch(error => error)
+      .catch((error: unknown) => error)
     expect(observed).toBe(changed)
     expect(observed).not.toBe(original)
     expect(readConformance({ root }).coverage.find(row => row.id === 'LSP')).toMatchObject({

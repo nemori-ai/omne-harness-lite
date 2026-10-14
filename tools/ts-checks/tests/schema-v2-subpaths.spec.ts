@@ -32,7 +32,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         const path = `core/${consumer}/src/schema.ts`
         expect(
           corePureImports.check([
-            { path, text: `import schema from '@omne-harness-lite/${provider}/schema/v2'` },
+            { path, text: `import schema from '@omne-harness/${provider}/schema/v2'` },
           ]),
         ).toEqual([])
         for (const suffix of [
@@ -47,9 +47,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
           'dist/schema/v2.js',
         ])
           expect(
-            corePureImports.check([
-              { path, text: `import '@omne-harness-lite/${provider}/${suffix}'` },
-            ]),
+            corePureImports.check([{ path, text: `import '@omne-harness/${provider}/${suffix}'` }]),
           ).toHaveLength(1)
       })
     }
@@ -63,7 +61,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         corePureImports.check([
           {
             path: `core/${consumer}/src/schema.ts`,
-            text: `import '@omne-harness-lite/${provider}/schema/v2'`,
+            text: `import '@omne-harness/${provider}/schema/v2'`,
           },
         ]),
       ).toHaveLength(1)
@@ -71,7 +69,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         corePureImports.check([
           {
             path: `core/${provider}/src/schema.ts`,
-            text: `import '@omne-harness-lite/${provider}/schema/v2'`,
+            text: `import '@omne-harness/${provider}/schema/v2'`,
           },
         ]),
       ).toHaveLength(
@@ -89,7 +87,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
           corePureImports.check([
             {
               path: `core/${provider}/src/schema.ts`,
-              text: `import '@omne-harness-lite/${provider}/${suffix}'`,
+              text: `import '@omne-harness/${provider}/${suffix}'`,
             },
           ]),
         ).toHaveLength(1)
@@ -100,9 +98,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
     for (const provider of ['messages', 'loop-extension']) {
       const path = `core/${provider}/src/v3/schema.ts`
       expect(
-        corePureImports.check([
-          { path, text: `import '@omne-harness-lite/${provider}/schema/v3'` },
-        ]),
+        corePureImports.check([{ path, text: `import '@omne-harness/${provider}/schema/v3'` }]),
       ).toEqual([])
       for (const suffix of [
         'schema/v4',
@@ -111,9 +107,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         'schema/v3/testing',
       ])
         expect(
-          corePureImports.check([
-            { path, text: `import '@omne-harness-lite/${provider}/${suffix}'` },
-          ]),
+          corePureImports.check([{ path, text: `import '@omne-harness/${provider}/${suffix}'` }]),
         ).toHaveLength(1)
     }
   })
@@ -128,15 +122,11 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
     ] as const) {
       const path = `core/${consumer}/src/schema.ts`
       expect(
-        corePureImports.check([
-          { path, text: `import '@omne-harness-lite/${provider}/${subpath}'` },
-        ]),
+        corePureImports.check([{ path, text: `import '@omne-harness/${provider}/${subpath}'` }]),
       ).toEqual([])
       for (const suffix of [`${subpath}/private`, `${subpath}.json`, 'schema/v99'])
         expect(
-          corePureImports.check([
-            { path, text: `import '@omne-harness-lite/${provider}/${suffix}'` },
-          ]),
+          corePureImports.check([{ path, text: `import '@omne-harness/${provider}/${suffix}'` }]),
         ).toHaveLength(1)
     }
     for (const consumer of ['content-blocks', 'tool-definition'])
@@ -144,7 +134,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         corePureImports.check([
           {
             path: `core/${consumer}/src/schema.ts`,
-            text: "import '@omne-harness-lite/messages/schema/v6'",
+            text: "import '@omne-harness/messages/schema/v6'",
           },
         ]),
       ).toHaveLength(1)
@@ -154,11 +144,11 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
     const good = [
       {
         path: 'core/messages/src/types.ts',
-        text: "import type { ModelToolEntry } from '@omne-harness-lite/tool-definition'",
+        text: "import type { ModelToolEntry } from '@omne-harness/tool-definition'",
       },
       {
         path: 'core/messages/src/schema.ts',
-        text: "import toolsSchema from '@omne-harness-lite/tool-definition/schema'",
+        text: "import toolsSchema from '@omne-harness/tool-definition/schema'",
       },
       {
         path: 'core/messages/src/semantic-digest.ts',
@@ -169,8 +159,8 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
     for (const [path, text] of [
       ['core/messages/src/x.ts', "import 'node:fs'"],
       ['core/call-accounts/src/x.ts', "import { createHash } from 'node:crypto'"],
-      ['core/content-blocks/src/x.ts', "import '@omne-harness-lite/tool-definition'"],
-      ['core/tool-definition/src/x.ts', "import '@omne-harness-lite/messages'"],
+      ['core/content-blocks/src/x.ts', "import '@omne-harness/tool-definition'"],
+      ['core/tool-definition/src/x.ts', "import '@omne-harness/messages'"],
     ] as const)
       expect(corePureImports.check([{ path, text }])).toHaveLength(1)
   })
@@ -192,7 +182,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         corePureImports.check([
           {
             path: 'core/model-response/src/schema.ts',
-            text: `import '@omne-harness-lite/model-response/${suffix}'`,
+            text: `import '@omne-harness/model-response/${suffix}'`,
           },
         ]),
       ).toHaveLength(1)
@@ -203,7 +193,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
       corePureImports.check([
         {
           path: 'core/model-response/src/schema.ts',
-          text: "import schema from '@omne-harness-lite/skill-package/schema/v2'",
+          text: "import schema from '@omne-harness/skill-package/schema/v2'",
         },
       ]),
     ).toEqual([])
@@ -214,7 +204,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
       const path = `core/${consumer}/src/body.ts`
       expect(
         corePureImports.check([
-          { path, text: "import { skillBodyContract } from '@omne-harness-lite/skill-package/v2'" },
+          { path, text: "import { skillBodyContract } from '@omne-harness/skill-package/v2'" },
         ]),
       ).toEqual([])
       for (const suffix of [
@@ -228,9 +218,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         'dist/v2.js',
       ])
         expect(
-          corePureImports.check([
-            { path, text: `import '@omne-harness-lite/skill-package/${suffix}'` },
-          ]),
+          corePureImports.check([{ path, text: `import '@omne-harness/skill-package/${suffix}'` }]),
         ).toHaveLength(1)
     })
   }
@@ -241,7 +229,7 @@ describe('core-pure-imports — 精确旧冻结 v2 Schema 资源接线', () => {
         corePureImports.check([
           {
             path: `core/${consumer}/src/body.ts`,
-            text: "import '@omne-harness-lite/skill-package/v2'",
+            text: "import '@omne-harness/skill-package/v2'",
           },
         ]),
       ).toHaveLength(1)

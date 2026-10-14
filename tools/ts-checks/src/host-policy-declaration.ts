@@ -94,7 +94,7 @@ export function hostPolicyReferences(file: SourceFile): ReadonlySet<number> {
       if (
         ts.isImportDeclaration(declaration) &&
         ts.isStringLiteral(declaration.moduleSpecifier) &&
-        declaration.moduleSpecifier.text === '@omne-harness-lite/organization-governance/cordis'
+        declaration.moduleSpecifier.text === '@omne-harness/organization-governance/cordis'
       )
         allowed.add(node.getStart(source))
     }

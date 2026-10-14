@@ -9,7 +9,7 @@ import { edgeDelta } from '../src/loop/sensors/new-edges.ts'
 import { stableOnUnstable } from '../src/loop/sensors/stability.ts'
 import { parseWorktrees, sharedMembers } from '../src/loop/sensors/worktrees.ts'
 
-const site = (path: string) => ({ path, line: 1, specifier: '@omne-harness-lite/x' })
+const site = (path: string) => ({ path, line: 1, specifier: '@omne-harness/x' })
 
 describe('稳定的成员依赖了不稳定的成员', () => {
   const members = [
@@ -191,7 +191,7 @@ describe('相对基线新增的跨成员依赖', () => {
   const B = 'packages/core/b/src/index.ts'
   const C = 'packages/core/c/src/index.ts'
   const imports = (...names: string[]) =>
-    names.map(name => `import { x } from '@omne-harness-lite/${name}'`).join('\n') + '\n'
+    names.map(name => `import { x } from '@omne-harness/${name}'`).join('\n') + '\n'
 
   it('改动文件里新加的导入是新增；没改动的文件里的边不算；删掉的导入是消失', () => {
     const head = [file(A, imports('b')), file(B, imports('c')), file(C, '')]

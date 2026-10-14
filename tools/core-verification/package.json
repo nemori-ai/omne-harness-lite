@@ -1,46 +1,20 @@
 {
-  "name": "@omne-harness-lite/core-verification",
+  "name": "@omne-harness/core-verification",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "核心包的跨边界开发验证与一致性套件有效性自测",
+  "description": "确认本工具不再执行 legacy 消费者",
   "engines": {
     "node": ">=24.18.0 <25"
   },
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\"",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "vitest run",
-    "verify:packed": "node dist/w6-packed-consumer.js"
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "catalog:",
-    "@omne-harness-lite/arrival-events": "workspace:*",
-    "@omne-harness-lite/asset-evaluation": "workspace:*",
-    "@omne-harness-lite/asset-model": "workspace:*",
-    "@omne-harness-lite/call-accounts": "workspace:*",
-    "@omne-harness-lite/content-blocks": "workspace:*",
-    "@omne-harness-lite/identity-values": "workspace:*",
-    "@omne-harness-lite/kernel-basis": "workspace:*",
-    "@omne-harness-lite/loop-extension": "workspace:*",
-    "@omne-harness-lite/mcp-endpoint": "workspace:*",
-    "@omne-harness-lite/messages": "workspace:*",
-    "@omne-harness-lite/model-profile": "workspace:*",
-    "@omne-harness-lite/model-response": "workspace:*",
-    "@omne-harness-lite/offer-expiry": "workspace:*",
-    "@omne-harness-lite/skill-package": "workspace:*",
-    "@omne-harness-lite/slash-command": "workspace:*",
-    "@omne-harness-lite/storage": "workspace:*",
-    "@omne-harness-lite/storage-sql": "workspace:*",
-    "@omne-harness-lite/stream-assembly": "workspace:*",
-    "@omne-harness-lite/tool-definition": "workspace:*",
-    "@omne-harness-lite/unix-format": "workspace:*",
-    "@omne-harness-lite/xml-format": "workspace:*",
     "@types/node": "catalog:",
-    "ajv": "catalog:",
-    "kysely": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "zod": "catalog:"
+    "vitest": "catalog:"
   }
 }

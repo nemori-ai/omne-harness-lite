@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { registryHistoryBoundary } from '../src/rules/registry-history-boundary.ts'
-const entry = '@omne-harness-lite/evaluation-input-store/registry-history'
+const entry = '@omne-harness/evaluation-input-store/registry-history'
 const factory = `import {createRegistryHistoryReader as create} from '${entry}'; const reader = create(deps)`
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'
 const registry = 'packages/tools/asset-registry-local/src/registry.ts'

@@ -57,7 +57,7 @@
         "--dir",
         "{runner}",
         "--filter",
-        "@omne-harness-lite/ts-checks...",
+        "@omne-harness/ts-checks...",
         "run",
         "build"
       ],

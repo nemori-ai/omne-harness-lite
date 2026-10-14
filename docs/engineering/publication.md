@@ -47,3 +47,5 @@ Pause safely 与 Session pickup 的具体步骤沿[流程及恢复参考](skills
 ## 集成发布
 
 共享分支发布遵守[多层分支规则](integration.md)及其具名授权、固定候选、精确 CAS 与原子 tag 事务。已有授权在精确适用范围内沿用；缺失的实际权限不能由工具或绿测补出。超时先读 refs，Git 成功后的 Issue 投影由原单写者接续。
+
+[RFC-0004 revision 1](../rfcs/RFC-0004-trunk-pr-admission.md#决定范围) 接受 `release` 作为对外发布的主干位置。npm 的版本、支持范围和消费者安排仍由[首次发布政策](#首次发布政策待定)另定。`release` 的确认流程还没有接入。接入前，共享发布仍按上一句的现行工具事务执行。

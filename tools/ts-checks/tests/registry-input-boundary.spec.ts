@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { registryInputBoundary } from '../src/rules/registry-input-boundary.ts'
-const entry = '@omne-harness-lite/evaluation-input-store/registry-inputs'
+const entry = '@omne-harness/evaluation-input-store/registry-inputs'
 const named = `import { createRegistryInputReader } from '${entry}'; const reader = createRegistryInputReader(deps);`
 test.each([
   'packages/tools/asset-registry-local/src/input.ts',

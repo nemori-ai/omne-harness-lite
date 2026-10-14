@@ -11,7 +11,7 @@ export const ENTRY_SRC = `${ENTRY_PACKAGE}src/`
 export const ENTRY_OPS = `${ENTRY_SRC}ops/`
 /** T4: the pure event owner; Cordis augmentation stays in its binding entry. */
 export const ENTRY_EVENTS = 'core/governance-center-entry/src/events.ts'
-export const ENTRY_EVENTS_PACKAGE = '@omne-harness-lite/governance-center-entry'
+export const ENTRY_EVENTS_PACKAGE = '@omne-harness/governance-center-entry'
 /** 客户端面（TLS 监听与 HTTP 落地）。 */
 export const ENTRY_TRANSPORT = `${ENTRY_SRC}transport/`
 
