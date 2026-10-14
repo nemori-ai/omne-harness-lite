@@ -518,3 +518,174 @@ describe('duplicate keys', () => {
     })
   })
 })
+
+describe('budgets', () => {
+  const budget = (name: string) => ({ kind: 'budget', name })
+
+  it('a container that goes deeper than maxDepth is budget depth', () => {
+    expect(readJsonText('{"a":[', { ...roomy, maxDepth: 1 })).toEqual(budget('depth'))
+    expect(readJsonText('[[]]', { ...roomy, maxDepth: 1 })).toEqual(budget('depth'))
+    expect(readJsonText('{"a":{"b":{}}}', { ...roomy, maxDepth: 2 })).toEqual(budget('depth'))
+    expect(readJsonText('[[]]', { ...roomy, maxDepth: 2 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'array', items: [{ kind: 'array', items: [] }] },
+    })
+    expect(readJsonText('[1]', { ...roomy, maxDepth: 1 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'array', items: [{ kind: 'number', lexeme: '1' }] },
+    })
+  })
+
+  it('an unfinished nested value past maxDepth is budget depth, not truncated', () => {
+    expect(readJsonText('[[', { ...roomy, maxDepth: 1 })).toEqual(budget('depth'))
+  })
+
+  it('every JSON value counts toward maxItems, containers included and keys excluded', () => {
+    expect(readJsonText('[1]', { ...roomy, maxItems: 1 })).toEqual(budget('items'))
+    expect(readJsonText('[1]', { ...roomy, maxItems: 2 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'array', items: [{ kind: 'number', lexeme: '1' }] },
+    })
+    expect(readJsonText('null', { ...roomy, maxItems: 1 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'null' },
+    })
+    expect(readJsonText('{"a":1}', { ...roomy, maxItems: 1 })).toEqual(budget('items'))
+    expect(readJsonText('{"a":1}', { ...roomy, maxItems: 2 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'object', entries: [{ key: 'a', value: { kind: 'number', lexeme: '1' } }] },
+    })
+    expect(readJsonText('{"a":1,"b":2}', { ...roomy, maxItems: 2 })).toEqual(budget('items'))
+  })
+
+  it('maxItems counts the whole document', () => {
+    expect(readJsonText('[[1],[2]]', { ...roomy, maxItems: 4 })).toEqual(budget('items'))
+    expect(readJsonText('[[1],[2]]', { ...roomy, maxItems: 5 })).toEqual({
+      kind: 'ok',
+      value: {
+        kind: 'array',
+        items: [
+          { kind: 'array', items: [{ kind: 'number', lexeme: '1' }] },
+          { kind: 'array', items: [{ kind: 'number', lexeme: '2' }] },
+        ],
+      },
+    })
+    expect(readJsonText('[1,2', { ...roomy, maxItems: 2 })).toEqual(budget('items'))
+  })
+
+  it('a token past both maxDepth and maxItems is budget depth', () => {
+    expect(readJsonText('[[]]', { ...roomy, maxDepth: 1, maxItems: 1 })).toEqual(budget('depth'))
+    expect(readJsonText('[[]]', { ...roomy, maxDepth: 2, maxItems: 1 })).toEqual(budget('items'))
+  })
+
+  it('a key that would exceed maxMembers in its object is budget members', () => {
+    expect(readJsonText('{"a":1,"b":2}', { ...roomy, maxMembers: 1 })).toEqual(budget('members'))
+    expect(readJsonText('{"a":1,"b":2}', { ...roomy, maxMembers: 2 })).toEqual({
+      kind: 'ok',
+      value: {
+        kind: 'object',
+        entries: [
+          { key: 'a', value: { kind: 'number', lexeme: '1' } },
+          { key: 'b', value: { kind: 'number', lexeme: '2' } },
+        ],
+      },
+    })
+  })
+
+  it('maxMembers counts each object on its own', () => {
+    expect(readJsonText('[{"a":1},{"b":2}]', { ...roomy, maxMembers: 1 })).toEqual({
+      kind: 'ok',
+      value: {
+        kind: 'array',
+        items: [
+          { kind: 'object', entries: [{ key: 'a', value: { kind: 'number', lexeme: '1' } }] },
+          { kind: 'object', entries: [{ key: 'b', value: { kind: 'number', lexeme: '2' } }] },
+        ],
+      },
+    })
+  })
+
+  it('members is checked on the key, before duplicate-key and before the value', () => {
+    expect(readJsonText('{"a":1,"a":2}', { ...roomy, maxMembers: 1 })).toEqual(budget('members'))
+    expect(readJsonText('{"a":1,"b":', { ...roomy, maxMembers: 1 })).toEqual(budget('members'))
+  })
+
+  it('a string value longer than maxStringLength after decoding is budget string', () => {
+    expect(readJsonText('"abc"', { ...roomy, maxStringLength: 2 })).toEqual(budget('string'))
+    expect(readJsonText('"abc"', { ...roomy, maxStringLength: 3 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'string', value: 'abc' },
+    })
+    expect(readJsonText('"\\u0061\\u0062"', { ...roomy, maxStringLength: 2 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'string', value: 'ab' },
+    })
+  })
+
+  it('maxStringLength counts JavaScript string length', () => {
+    expect(readJsonText('"😀"', { ...roomy, maxStringLength: 1 })).toEqual(budget('string'))
+    expect(readJsonText('"😀"', { ...roomy, maxStringLength: 2 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'string', value: '😀' },
+    })
+  })
+
+  it('a key longer than maxStringLength is budget string, before members', () => {
+    expect(readJsonText('{"abc":1}', { ...roomy, maxStringLength: 2 })).toEqual(budget('string'))
+    expect(
+      readJsonText('{"a":1,"bcd":2}', { ...roomy, maxStringLength: 2, maxMembers: 1 }),
+    ).toEqual(budget('string'))
+  })
+
+  it('an unterminated string already past maxStringLength is budget string, not truncated', () => {
+    expect(readJsonText('"abcdef', { ...roomy, maxStringLength: 3 })).toEqual(budget('string'))
+    expect(readJsonText('{"abcdef', { ...roomy, maxStringLength: 3 })).toEqual(budget('string'))
+    expect(readJsonText('"ab', { ...roomy, maxStringLength: 3 })).toEqual({
+      kind: 'syntax',
+      reason: 'truncated',
+    })
+  })
+
+  it('an illegal string is syntax token, before maxStringLength', () => {
+    expect(readJsonText('"abcdef\\x"', { ...roomy, maxStringLength: 3 })).toEqual({
+      kind: 'syntax',
+      reason: 'token',
+    })
+  })
+
+  it('a number lexeme longer than maxNumberLength is budget number', () => {
+    expect(readJsonText('12345', { ...roomy, maxNumberLength: 4 })).toEqual(budget('number'))
+    expect(readJsonText('12345', { ...roomy, maxNumberLength: 5 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'number', lexeme: '12345' },
+    })
+    expect(readJsonText('[-1.5e+10]', { ...roomy, maxNumberLength: 7 })).toEqual(budget('number'))
+    expect(readJsonText('-1.5e+10', { ...roomy, maxNumberLength: 8 })).toEqual({
+      kind: 'ok',
+      value: { kind: 'number', lexeme: '-1.5e+10' },
+    })
+  })
+
+  it('an illegal number lexeme is syntax token, before maxNumberLength', () => {
+    expect(readJsonText('01', { ...roomy, maxNumberLength: 1 })).toEqual({
+      kind: 'syntax',
+      reason: 'token',
+    })
+  })
+
+  it('depth and items are checked before string and number budgets', () => {
+    expect(readJsonText('["abc"]', { ...roomy, maxItems: 1, maxStringLength: 1 })).toEqual(
+      budget('items'),
+    )
+    expect(readJsonText('[123]', { ...roomy, maxItems: 1, maxNumberLength: 1 })).toEqual(
+      budget('items'),
+    )
+  })
+
+  it('a token that is not a value is syntax token, not budget items', () => {
+    expect(readJsonText('[x]', { ...roomy, maxItems: 1 })).toEqual({
+      kind: 'syntax',
+      reason: 'token',
+    })
+  })
+})

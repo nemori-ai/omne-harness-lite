@@ -1,5 +1,6 @@
 import { createScanner, type JSONScanner } from 'jsonc-parser'
 import type {
+  JsonBudgetName,
   JsonEntry,
   JsonFailure,
   JsonLimits,
@@ -31,6 +32,16 @@ const TOKEN = {
 } as const
 const SCAN_OK = 0
 const SCAN_END_OF_STRING = 2
+
+const VALUE_STARTS: ReadonlySet<number> = new Set([
+  TOKEN.openBrace,
+  TOKEN.openBracket,
+  TOKEN.null,
+  TOKEN.true,
+  TOKEN.false,
+  TOKEN.string,
+  TOKEN.number,
+])
 
 /** An open container and the token it accepts next. */
 type Frame = ArrayFrame | ObjectFrame
@@ -83,6 +94,7 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
   const scanner = createScanner(text, false)
   const stack: Frame[] = []
   let root: JsonValue | undefined
+  let items = 0
 
   const complete = (value: JsonValue): void => {
     const parent = stack.at(-1)
@@ -107,6 +119,11 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
   }
 
   const startValue = (token: number): JsonFailure | undefined => {
+    if (!VALUE_STARTS.has(token)) return syntax('token')
+    const opensContainer = token === TOKEN.openBrace || token === TOKEN.openBracket
+    if (opensContainer && stack.length + 1 > limits.maxDepth) return budget('depth')
+    items += 1
+    if (items > limits.maxItems) return budget('items')
     switch (token) {
       case TOKEN.openBracket:
         stack.push({ kind: 'array', items: [], next: 'first-item' })
@@ -124,20 +141,19 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
         complete({ kind: 'boolean', value: false })
         return undefined
       case TOKEN.string: {
-        const value = readString(scanner, text)
+        const value = readString(scanner, text, limits.maxStringLength)
         if (typeof value !== 'string') return value
         complete({ kind: 'string', value })
         return undefined
       }
       case TOKEN.number: {
-        const lexeme = readNumber(text, scanner.getTokenOffset())
+        const lexeme = readNumber(text, scanner.getTokenOffset(), limits.maxNumberLength)
         if (typeof lexeme !== 'string') return lexeme
         complete({ kind: 'number', lexeme })
         return undefined
       }
-      default:
-        return syntax('token')
     }
+    return undefined
   }
 
   const stepArray = (frame: ArrayFrame, token: number): JsonFailure | undefined => {
@@ -178,8 +194,9 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
           return undefined
         }
         if (token !== TOKEN.string) return syntax('token')
-        const key = readString(scanner, text)
+        const key = readString(scanner, text, limits.maxStringLength)
         if (typeof key !== 'string') return key
+        if (frame.keys.size + 1 > limits.maxMembers) return budget('members')
         if (frame.keys.has(key)) return { kind: 'duplicate-key', path: pathTo(stack), key }
         frame.keys.add(key)
         frame.key = key
@@ -218,13 +235,16 @@ function pathTo(stack: readonly Frame[]): JsonPathSegment[] {
   return stack.slice(0, -1).map(frame => (frame.kind === 'array' ? frame.items.length : frame.key))
 }
 
-function readString(scanner: JSONScanner, text: string): JsonFailure | string {
+/** An unterminated string is truncated only when its decoded prefix is within budget. */
+function readString(scanner: JSONScanner, text: string, maxLength: number): JsonFailure | string {
   const error = scanner.getTokenError()
-  if (error === SCAN_OK) return scanner.getTokenValue()
   // The scanner also reports a raw line break as the end of a string, before the end of the text.
-  if (error === SCAN_END_OF_STRING && scanner.getPosition() === text.length)
-    return syntax('truncated')
-  return syntax('token')
+  const unterminated = error === SCAN_END_OF_STRING && scanner.getPosition() === text.length
+  if (error !== SCAN_OK && !unterminated) return syntax('token')
+  const value = scanner.getTokenValue()
+  if (value.length > maxLength) return budget('string')
+  if (unterminated) return syntax('truncated')
+  return value
 }
 
 const RFC_8259_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/
@@ -233,16 +253,21 @@ const RFC_8259_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/
  * The scanner splits `01` into two numbers and keeps `1.` as one, so the lexeme is
  * the whole run of number characters from the token start, checked against RFC 8259.
  */
-function readNumber(text: string, offset: number): JsonFailure | string {
+function readNumber(text: string, offset: number, maxLength: number): JsonFailure | string {
   let end = offset
   while (end < text.length && '0123456789+-.eE'.includes(text.charAt(end))) end += 1
   const lexeme = text.slice(offset, end)
   if (!RFC_8259_NUMBER.test(lexeme)) return syntax('token')
+  if (lexeme.length > maxLength) return budget('number')
   return lexeme
 }
 
 function syntax(reason: JsonSyntaxReason): JsonFailure {
   return { kind: 'syntax', reason }
+}
+
+function budget(name: JsonBudgetName): JsonFailure {
+  return { kind: 'budget', name }
 }
 
 function utf8Length(text: string): number {
