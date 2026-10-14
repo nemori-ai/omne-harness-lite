@@ -32,7 +32,6 @@ describe('second 60 with the bundled IERS table', () => {
     ['2016-06-30T23:59:60Z', 'a June end the table does not list'],
     ['1971-12-31T23:59:60Z', 'the day before the 1972-01-01 base offset'],
     ['1972-12-30T23:59:60Z', 'the day before a listed insertion day'],
-    ['2026-12-31T23:59:60Z', 'the last unlisted month end before expiry'],
   ])('refuses %s, %s', text => {
     expect(parseInstant(text)).toEqual({
       ok: false,
@@ -45,7 +44,7 @@ describe('second 60 with the bundled IERS table', () => {
   })
 })
 
-describe('the bundled table expiry', () => {
+describe('the bundled table', () => {
   it('names its IERS source, file version, and expiry', () => {
     expect(leapSecondData.source).toBe(
       'https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list',
@@ -53,27 +52,6 @@ describe('the bundled table expiry', () => {
     expect(encodeInstant(leapSecondData.version)).toBe('2026-07-06T07:44:57Z')
     expect(encodeInstant(leapSecondData.expires)).toBe('2027-06-28T00:00:00Z')
   })
-
-  it('still answers no for an unlisted second 60 the day before expiry', () => {
-    expect(parseInstant('2027-06-27T23:59:60Z')).toEqual({
-      ok: false,
-      failure: { kind: 'leap-second', detail: 'not-inserted' },
-    })
-  })
-
-  it.each(['2027-06-28T23:59:60Z', '2027-06-30T23:59:60Z', '2040-12-31T23:59:60.25Z'])(
-    'cannot judge %s because the table has expired',
-    text => {
-      expect(parseInstant(text)).toEqual({ ok: false, failure: { kind: 'leap-data-expired' } })
-    },
-  )
-
-  it.each(['2027-06-28T00:00:00Z', '2027-06-30T23:59:59Z', '2040-12-31T23:59:59.5Z'])(
-    'still reads the ordinary instant %s after expiry',
-    text => {
-      expect(encodeInstant(instant(text))).toBe(text)
-    },
-  )
 })
 
 function table(text: string, source: string) {
@@ -81,6 +59,39 @@ function table(text: string, source: string) {
   if (!read.ok) throw new Error(`test table failed as ${read.failure.kind}`)
   return read.value
 }
+
+describe('a table expiry', () => {
+  const expiring2031 = table(
+    ['#$\t3992312697', '#@\t4133980800', '2272060800\t10', '2287785600\t11'].join('\n'),
+    'test data, not IERS: expires 2031-01-01',
+  )
+
+  it('still answers no for an unlisted second 60 the day before expiry', () => {
+    expect(parseInstant('2030-12-31T23:59:60Z', expiring2031)).toEqual({
+      ok: false,
+      failure: { kind: 'leap-second', detail: 'not-inserted' },
+    })
+  })
+
+  it.each(['2031-01-01T23:59:60Z', '2031-06-30T23:59:60Z', '2040-12-31T23:59:60.25Z'])(
+    'cannot judge %s because the table has expired',
+    text => {
+      expect(parseInstant(text, expiring2031)).toEqual({
+        ok: false,
+        failure: { kind: 'leap-data-expired' },
+      })
+    },
+  )
+
+  it.each(['2031-01-01T00:00:00Z', '2031-06-30T23:59:59Z', '2040-12-31T23:59:59.5Z'])(
+    'still reads the ordinary instant %s after expiry',
+    text => {
+      const parsed = parseInstant(text, expiring2031)
+      if (!parsed.ok) throw new Error(`${text} failed as ${parsed.failure.kind}`)
+      expect(encodeInstant(parsed.value)).toBe(text)
+    },
+  )
+})
 
 describe('a caller-supplied table', () => {
   const negativeLeap = table(
