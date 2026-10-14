@@ -181,7 +181,7 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 
 `commit` 返回 `rolled_back` 时，明确回滚回执已经持久保存。回滚之后提供者没有保存这份回执时，`commit` 返回 `unknown`。
 
-`commit` 只在提供者不能判定结果时返回 `unknown`。能确定的受理前失败返回 `rejected_before_accept`，不返回 `unknown`。
+能确定的受理前失败返回 `rejected_before_accept`。`commit` 返回 `unknown` 只用于上面不能判定的结果。
 
 断开、超时、Worker 退出或取消观察时，调用方用同一身份调用 `query`。调用方在 `commit` 返回前失去响应时，也用同一身份调用 `query`。
 
