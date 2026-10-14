@@ -62,13 +62,13 @@ Cordis still owns composition, dependency injection, and lifecycle. The assembly
 
 ## Configuration and operation
 
-The candidate pin is `@deepseek-ai/cordis` 4.0.4 in the lockfile. This package adds no runtime configuration. Node.js `>=24.0.0` is the task rule for later probes. This package's `engines` field still says `>=24.18.0 <25`. That field is unchanged here. The engineering toolchain owns the engines edit.
+The candidate pin is `@deepseek-ai/cordis` 4.0.4, published from commit `d0dca04e22f09fe04967090b2ee70587ecdad6cc`. Installing this package also installs Cordis, even for a root-only caller. This package adds no runtime configuration. Node.js `>=24.0.0` is the task rule for probes. This package's `engines` field still says `>=24.18.0 <25`. That field is unchanged here. The engineering toolchain owns the engines edit.
 
 ## Verification
 
 Unit and contract tests belong to this member. #270 tests the three entries from the public imports. Root tests do not start Cordis. `./cordis` tests use Cordis 4.0.4, not a fake container. `./testing` tests show that the helper disposes fibers it started and does not close resources the caller passed in.
 
-The current tests only assert that the draft exports nothing. They do not prove the candidate contract. Cordis behaviors marked as hypotheses in SPEC.md have no probe run on this card. Integration and end-to-end tests do not apply. This package has no storage, application service, or user journey.
+The current tests only assert that the draft exports nothing. They do not prove the candidate contract. `verification/cordis-4.0.4-probes.mjs` records the Cordis 4.0.4 observations in SPEC.md. Integration and end-to-end tests do not apply. This package has no storage, application service, or user journey.
 
 ## Maintenance
 
