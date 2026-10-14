@@ -80,6 +80,57 @@ it('returns the same promise when a later close passes a different caller', asyn
   expect(protocol.held()).toEqual(['caller'])
 })
 
+it('a close from inside a step joins the close already running', async () => {
+  let runs = 0
+  let nested: Promise<unknown> | undefined
+  const protocol = createCloseProtocol({
+    steps: [
+      {
+        name: 'once',
+        when: 'always',
+        run: () => {
+          runs += 1
+          nested = protocol.close()
+        },
+      },
+    ],
+    drainTimeoutMs: 60_000,
+    clock: immediateClock(),
+  })
+  const first = protocol.close()
+  expect(nested).toBe(first)
+  expect(runs).toBe(1)
+  await expect(first).resolves.toEqual({ status: 'closed', steps: ['once'] })
+  await expect(nested).resolves.toEqual({ status: 'closed', steps: ['once'] })
+})
+
+it('a close from inside clock delay still finishes after the waited lease is released', async () => {
+  let delays = 0
+  const protocol = createCloseProtocol({
+    steps: [{ name: 'backend', when: 'always', run: () => {} }],
+    drainTimeoutMs: 60_000,
+    clock: {
+      delay() {
+        delays += 1
+        if (delays === 1) protocol.close()
+        return new Promise(() => {})
+      },
+    },
+  })
+  const lease = protocol.admit('work')
+  const first = protocol.close()
+  protocol.release(lease)
+  const result = await Promise.race([
+    first.then(report => ({ settled: true as const, report })),
+    new Promise<{ settled: false }>(resolve => {
+      setTimeout(() => resolve({ settled: false }), 50)
+    }),
+  ])
+  expect(result).toEqual({ settled: true, report: { status: 'closed', steps: ['backend'] } })
+  expect(delays).toBe(1)
+  expect(protocol.held()).toEqual([])
+})
+
 it('does not call the clock when a zero timeout still has leases to wait for', async () => {
   const delays: number[] = []
   const protocol = createCloseProtocol({
