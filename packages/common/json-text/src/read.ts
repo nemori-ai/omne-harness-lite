@@ -33,7 +33,7 @@ const TOKEN = {
 const SCAN_OK = 0
 const SCAN_END_OF_STRING = 2
 
-const VALUE_STARTS: ReadonlySet<number> = new Set([
+const VALUE_START_TOKENS = [
   TOKEN.openBrace,
   TOKEN.openBracket,
   TOKEN.null,
@@ -41,7 +41,15 @@ const VALUE_STARTS: ReadonlySet<number> = new Set([
   TOKEN.false,
   TOKEN.string,
   TOKEN.number,
-])
+] as const
+
+type ValueStartToken = (typeof VALUE_START_TOKENS)[number]
+
+const VALUE_STARTS: ReadonlySet<number> = new Set(VALUE_START_TOKENS)
+
+function isValueStart(token: number): token is ValueStartToken {
+  return VALUE_STARTS.has(token)
+}
 
 /** An open container and the token it accepts next. */
 type Frame = ArrayFrame | ObjectFrame
@@ -119,7 +127,7 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
   }
 
   const startValue = (token: number): JsonFailure | undefined => {
-    if (!VALUE_STARTS.has(token)) return syntax('token')
+    if (!isValueStart(token)) return syntax('token')
     const opensContainer = token === TOKEN.openBrace || token === TOKEN.openBracket
     if (opensContainer && stack.length + 1 > limits.maxDepth) return budget('depth')
     items += 1
@@ -152,8 +160,11 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
         complete({ kind: 'number', lexeme })
         return undefined
       }
+      default: {
+        const unreachable: never = token
+        return unreachable
+      }
     }
-    return undefined
   }
 
   const stepArray = (frame: ArrayFrame, token: number): JsonFailure | undefined => {
@@ -173,6 +184,10 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
       case 'item':
         if (token === TOKEN.closeBracket) return syntax('trailing-comma')
         return startValue(token)
+      default: {
+        const unreachable: never = frame.next
+        return unreachable
+      }
     }
   }
 
@@ -209,6 +224,10 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
         return undefined
       case 'value':
         return startValue(token)
+      default: {
+        const unreachable: never = frame.next
+        return unreachable
+      }
     }
   }
 
@@ -235,16 +254,53 @@ function pathTo(stack: readonly Frame[]): JsonPathSegment[] {
   return stack.slice(0, -1).map(frame => (frame.kind === 'array' ? frame.items.length : frame.key))
 }
 
-/** An unterminated string is truncated only when its decoded prefix is within budget. */
+/** Illegal string text is a token. A legal unterminated string within budget is truncated. */
 function readString(scanner: JSONScanner, text: string, maxLength: number): JsonFailure | string {
   const error = scanner.getTokenError()
   // The scanner also reports a raw line break as the end of a string, before the end of the text.
   const unterminated = error === SCAN_END_OF_STRING && scanner.getPosition() === text.length
   if (error !== SCAN_OK && !unterminated) return syntax('token')
+  // End of text replaces an earlier illegal escape or control with this end error.
+  const raw = text.slice(scanner.getTokenOffset(), scanner.getPosition())
+  if (!isJsonStringPrefix(raw)) return syntax('token')
   const value = scanner.getTokenValue()
   if (value.length > maxLength) return budget('string')
   if (unterminated) return syntax('truncated')
   return value
+}
+
+function isJsonStringPrefix(raw: string): boolean {
+  if (!raw.startsWith('"')) return false
+  let index = 1
+  while (index < raw.length) {
+    const code = raw.charCodeAt(index)
+    if (code === 0x22) return index === raw.length - 1
+    if (code < 0x20) return false
+    if (code !== 0x5c) {
+      index += 1
+      continue
+    }
+    index += 1
+    if (index >= raw.length) return true
+    const escaped = raw.charAt(index)
+    if ('"\\/bfnrt'.includes(escaped)) {
+      index += 1
+      continue
+    }
+    if (escaped !== 'u') return false
+    index += 1
+    let digits = 0
+    while (
+      digits < 4 &&
+      index < raw.length &&
+      '0123456789abcdefABCDEF'.includes(raw.charAt(index))
+    ) {
+      index += 1
+      digits += 1
+    }
+    if (digits < 4) return index === raw.length
+  }
+  return true
 }
 
 const RFC_8259_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/
