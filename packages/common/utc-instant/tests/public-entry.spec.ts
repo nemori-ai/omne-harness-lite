@@ -6,7 +6,9 @@ it('the public entry exports exactly the accepted runtime names', async () => {
     'compareInstants',
     'encodeDuration',
     'encodeInstant',
+    'leapSecondData',
     'parseDuration',
     'parseInstant',
+    'readLeapSecondData',
   ])
 })
