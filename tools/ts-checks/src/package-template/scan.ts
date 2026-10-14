@@ -1,5 +1,6 @@
 import { join, resolve } from 'node:path'
 import { readFileSync } from 'node:fs'
+import { dependencyRows } from '../arch/dependencies.ts'
 import { analyzeConformance } from '../arch/conformance.ts'
 import { readArchitectureSource } from '../arch/source.ts'
 import type { ActualExtraction } from '../arch/actual-model.ts'
@@ -8,6 +9,7 @@ import {
   object,
   older,
   parseMarker,
+  type DependencyRow,
   type PackageScan,
   type TemplateManifest,
   type Variant,
@@ -38,6 +40,7 @@ export function inspectPackage(
   member: string,
   template: TemplateManifest,
   evidence: ScanEvidence,
+  dependencies?: readonly DependencyRow[],
 ): PackageScan {
   const manifest = readObject(join(root, member, 'package.json'))
   const namespace = manifest['omneHarness']
@@ -97,12 +100,14 @@ export function inspectPackage(
         'No exact structural rules for the declared identity/version; current rules cannot certify it',
     })
   const structure = !supported ? 'uncovered' : findings.length === 0 ? 'pass' : 'fail'
-  const deviations = evidence.conformance.rows.filter(
-    row => row.member === member && row.state === 'deviation',
-  )
-  for (const row of deviations) {
-    if (row.member !== member || row.state !== 'deviation') continue
-    findings.push({ code: row.rule, path: row.sites[0]?.path ?? member, reason: row.reason })
+  const rows = memberDependencies(member, evidence, dependencies)
+  for (const row of rows) {
+    if (row.state !== 'deviation') continue
+    findings.push({
+      code: row.rule,
+      path: row.sites[0]?.path ?? row.member,
+      reason: row.reason,
+    })
   }
   // Dynamic keys and generic helpers are not necessarily violations of the file template.
   // Keep them visible without claiming that a template marker verifies their semantics.
@@ -121,16 +126,26 @@ export function inspectPackage(
     structure,
     tree: layout.tree,
     excludedDirectories: layout.excludedDirectories,
-    integration:
-      deviations.length > 0
-        ? 'deviation'
-        : architectureUnknowns > 0 || bindingUnknowns.length > 0
-          ? 'unknown'
-          : 'static-pass',
+    integration: rows.some(row => row.state === 'deviation')
+      ? 'deviation'
+      : architectureUnknowns > 0 ||
+          bindingUnknowns.length > 0 ||
+          rows.some(row => row.state === 'unknown')
+        ? 'unknown'
+        : 'static-pass',
     findings,
+    dependencies: rows,
     architectureUnknowns,
     bindingUnknowns,
   }
+}
+function memberDependencies(
+  member: string,
+  evidence: ScanEvidence,
+  dependencies: readonly DependencyRow[] | undefined,
+): readonly DependencyRow[] {
+  const rows = dependencies ?? evidence.conformance.rows
+  return rows.filter(row => row.member === member || row.targetMember === member)
 }
 /** Uses the existing workspace/source resolver and conformance facts; no second extractor. */
 export function scanPackages(root: string, members?: readonly string[]): PackageScan[] {
@@ -140,6 +155,13 @@ export function scanPackages(root: string, members?: readonly string[]): Package
   const analysis = analyzeConformance(root, source)
   const template = readTemplate()
   const products = source.members.filter(member => /^packages\/[^/]+\/[^/]+$/u.test(member.path))
+  const manifests = new Map(
+    products.map(member => [member.path, readObject(join(root, member.path, 'package.json'))]),
+  )
+  const dependencies = dependencyRows(
+    { actual: analysis.headActual, conformance: analysis.conformance },
+    manifests,
+  )
   if (
     candidates.join('\n') !==
     products
@@ -156,10 +178,16 @@ export function scanPackages(root: string, members?: readonly string[]): Package
   return products
     .filter(member => members === undefined || members.includes(member.path))
     .map(member =>
-      inspectPackage(root, member.path, template, {
-        actual: analysis.headActual,
-        conformance: analysis.conformance,
-      }),
+      inspectPackage(
+        root,
+        member.path,
+        template,
+        {
+          actual: analysis.headActual,
+          conformance: analysis.conformance,
+        },
+        dependencies,
+      ),
     )
 }
 export function scanExitCode(results: readonly PackageScan[], check: boolean): number {

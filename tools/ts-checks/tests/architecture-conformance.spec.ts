@@ -309,6 +309,23 @@ describe('global architecture conformance', () => {
     expect('conformance' in actual).toBe(false)
     git(root, 'status', '--short')
   })
+  it('skips IC-4 for an apps member root and packages/core/kernel-basis', () => {
+    const { root, base } = setup()
+    const basis = 'packages/core/kernel-basis'
+    const cordis = "import {Context} from '@deepseek-ai/cordis'\nexport const bound = Context\n"
+    write(root, `${ui}/src/index.ts`, cordis)
+    write(root, `${policy}/src/index.ts`, cordis)
+    write(
+      root,
+      `${basis}/package.json`,
+      JSON.stringify({ name: '@example/kernel-basis', exports: { '.': './dist/index.js' } }),
+    )
+    write(root, `${basis}/src/index.ts`, cordis)
+    const deviations = readConformance({ root, base }).rows.filter(
+      row => row.rule === 'IC-4' && row.state === 'deviation',
+    )
+    expect(deviations.map(row => row.member)).toEqual([policy])
+  })
   it('IC-1/2/3 distinguish a core Service declaration from duplicate declarations and direct provide', () => {
     const { root, base } = setup()
     write(

@@ -491,6 +491,7 @@ describe('template adoption and observation', () => {
       excludedDirectories: [],
       integration: 'static-pass',
       findings: [],
+      dependencies: [],
       architectureUnknowns: 0,
       bindingUnknowns: [],
     } satisfies PackageScan
