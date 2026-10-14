@@ -62,7 +62,7 @@ const clockPlugin = definePlugin<ClockConfig>({
   },
   inject: ['clock'],
   apply(_ctx, config) {
-    return config.timeoutMs
+    void config.timeoutMs
   },
 })
 ```

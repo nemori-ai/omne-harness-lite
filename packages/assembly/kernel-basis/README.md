@@ -46,7 +46,7 @@ const plugin = definePlugin({
   apply(ctx, config) {
     const optional = resolveOptional<{ ping(): void }>(ctx, 'probe')
     optional?.ping()
-    return config.timeoutMs
+    void config.timeoutMs
   },
 })
 ```
