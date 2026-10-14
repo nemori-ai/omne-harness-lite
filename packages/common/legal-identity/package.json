@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft legal-identity package; complete the accepted public contract before delivery",
+  "description": "Parse, encode, and compare legal identity text, and combine a parsed organization and account into a tenant",
   "engines": {
     "node": ">=24.18.0 <25"
   },
