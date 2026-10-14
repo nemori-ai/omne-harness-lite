@@ -18,7 +18,7 @@ function versionAtLeast(text, floor) {
 function providerSource() {
   return `
     import { parentPort } from 'node:worker_threads'
-    import { DatabaseSync } from 'node:sqlite'
+    import { DatabaseSync, constants } from 'node:sqlite'
     import { createHash } from 'node:crypto'
 
     function canonical(value) {
@@ -75,53 +75,16 @@ function providerSource() {
         WHERE tenant = ? AND domain = ? AND operation = ? AND protocol = ? AND opkey = ?\`)
         .get(id.tenant, id.transactionDomain, id.operation, id.protocolVersion, id.operationKey)
     }
-    function sqlWithoutComments(sql) {
-      let out = ''
-      let i = 0
-      let quote = ''
-      while (i < sql.length) {
-        const ch = sql[i]
-        const next = sql[i + 1]
-        if (quote) {
-          out += ch
-          if (ch === quote) quote = ''
-          else if (ch === '\\\\' ) i += 1
-          i += 1
-          continue
-        }
-        if (ch === "'" || ch === '"') {
-          quote = ch
-          out += ch
-          i += 1
-          continue
-        }
-        if (ch === '/' && next === '*') {
-          const end = sql.indexOf('*/', i + 2)
-          i = end === -1 ? sql.length : end + 2
-          out += ' '
-          continue
-        }
-        if (ch === '-' && next === '-') {
-          const end = sql.indexOf('\\n', i + 2)
-          i = end === -1 ? sql.length : end + 1
-          out += ' '
-          continue
-        }
-        out += ch
-        i += 1
-      }
-      return out
-    }
     function port(sql) {
-      const stripped = sqlWithoutComments(String(sql))
-      if (stripped.includes(';')) return { refused: true, reason: 'multiple_statements' }
-      const word = stripped.trim().split(/\\s+/)[0]
-      const upper = word ? word.toUpperCase() : ''
-      if (['BEGIN', 'COMMIT', 'ROLLBACK', 'END', 'SAVEPOINT', 'RELEASE'].includes(upper)) {
-        return { refused: true, reason: 'transaction_control', word: upper }
+      db.setAuthorizer(action => action === constants.SQLITE_TRANSACTION ? constants.SQLITE_DENY : constants.SQLITE_OK)
+      try {
+        db.exec(sql)
+        return { refused: false }
+      } catch (error) {
+        return { refused: true, reason: String(error.message) }
+      } finally {
+        db.setAuthorizer(null)
       }
-      db.exec(sql)
-      return { refused: false }
     }
     function commit(message) {
       if (message.closing) return { kind: 'rejected_before_accept', reason: 'closing' }
@@ -136,9 +99,6 @@ function providerSource() {
       }
       if (message.generation !== generation) {
         return { kind: 'rejected_before_accept', reason: 'writer_not_current' }
-      }
-      if (queue.length >= limit) {
-        return { kind: 'rejected_before_accept', reason: 'queue_full' }
       }
       const id = message.identity
       const reg = db.prepare(\`SELECT participants FROM registrations
@@ -411,7 +371,7 @@ record('registration-after-restart', registrationStillThere)
 
 const blocked = new Set(['BEGIN', 'COMMIT', 'ROLLBACK', 'END', 'SAVEPOINT', 'RELEASE'])
 const bypass = [
-  'SELECT 1; BEGIN',
+  'COMMIT' + String.fromCharCode(0) + 'ignored',
   '/* probe */ COMMIT',
   'SELECT 1; BEGIN',
   '-- probe\nROLLBACK',
@@ -453,12 +413,33 @@ record('closing', await third.ask({
   commands,
 }))
 
-let unanswered = 1
+let unanswered = 0
 const admissionQueueLimit = 1
-const beforeSend = unanswered >= admissionQueueLimit
-  ? { kind: 'rejected_before_accept', reason: 'queue_full', sent: false, unanswered, admissionQueueLimit }
-  : { sent: true }
-record('queue-full-before-send', beforeSend)
+function reserveSend(message) {
+  if (unanswered >= admissionQueueLimit) {
+    return { kind: 'rejected_before_accept', reason: 'queue_full', sent: false, unanswered, admissionQueueLimit }
+  }
+  unanswered += 1
+  return third.ask({ ...message, reserved: true }).finally(() => {
+    unanswered -= 1
+  })
+}
+const firstReserved = reserveSend({
+  type: 'commit',
+  generation: 1,
+  identity: { ...identity, operationKey: 'op-slot' },
+  combinationVersion: 'v1',
+  commands,
+})
+const secondReserved = reserveSend({
+  type: 'commit',
+  generation: 1,
+  identity: { ...identity, operationKey: 'op-slot-2' },
+  combinationVersion: 'v1',
+  commands,
+})
+record('queue-full-before-send', secondReserved instanceof Promise ? { sent: true } : secondReserved)
+record('first-slot', await firstReserved)
 record('slow-sql-saturation', { ran: false, reason: 'not run in this probe' })
 
 await third.worker.terminate()

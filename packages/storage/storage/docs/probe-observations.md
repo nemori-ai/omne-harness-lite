@@ -21,13 +21,12 @@
 | 同连接第二句主键冲突 | `rolled_back`。回滚后 `probe_ddl` 的表数量是 0 |
 | Worker 在回执写入后、响应发出前退出 | 退出码 0。新 Worker 用原身份 `query` 得到 `committed` |
 | 重启后的登记 | 新进程仍能用已登记的组合版本 `v1` 完成另一次 `commit` |
-| 端口拒绝事务语句 | `COMMIT` 与 `ROLLBACK` 被拒绝 |
-| 注释和多语句不能结束提供者事务 | `SELECT 1; BEGIN` 因分号被拒绝。`/* probe */ COMMIT` 和 `-- probe` 加换行再加 `ROLLBACK` 被识别为事务控制并拒绝。四种输入之后，事务内新建的表在 `ROLLBACK` 后数量都是 0 |
+| 注释、NUL 和多语句不能结束提供者事务 | `COMMIT` 后接 U+0000、`/* probe */ COMMIT`、`SELECT 1; BEGIN`、`-- probe` 换行后的 `ROLLBACK` 都返回 not authorized。四种情况下，事务内新建的表在提供者 `ROLLBACK` 之后数量都是 0 |
+| 发送前队列已满 | 上限为 1。第一条 `op-slot` 已预留并返回 `committed`。第二条在个数已经等于 1 时返回 `queue_full`，`sent` 为 false |
 | 协议版本不是 `1` | `unsupported_protocol` |
 | 空命令数组 | `field_missing` |
 | 命令条数超过探针里的上限 | `command_limit` |
 | 已停止新准入 | `closing` |
-| 发送前队列已满 | 尚未交还结果的个数已经等于上限 1。控制侧返回 `queue_full`，`sent` 为 false。第一条在个数为 0 时可以发送 |
 | 慢语句期间持续提交 | 没有跑。不能据此声称内存已经证明有界 |
 
 物理断电没有做。行为模型没有做。`ROLLBACK` 本身失败没有注入。2026-10-14 的主线程探针不算本页的观察。
