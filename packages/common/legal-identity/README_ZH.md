@@ -8,7 +8,7 @@
 
 本成员拥有合法身份文本、相等判断、租户组合，以及唯一的 `IDENTITY_TYPE_NAMES`。位置 `packages/common/legal-identity` 是共同组说明里已经采用的目标。
 
-Issue #243 实现了公开入口。入口包含五个 codec、五个相等函数、`tenant()` 和 `IDENTITY_TYPE_NAMES`。共同组说明仍把本成员写成草稿。那篇说明由它自己的写者维护。
+Issue #243 实现了公开入口。入口包含五个 codec、五个相等函数、`tenant()` 和 `IDENTITY_TYPE_NAMES`。共同组说明把本成员记为已实现。精确文本归本页。
 
 解析成功不表示对象存在、成员有效或授权允许该操作。账号注册、认证、凭证、成员关系、角色、授权、时钟和 session 行为归各自的拥有者。本包不导入 JSON 读取器、数据库、Cordis、身份服务，也不导入两棵 legacy 树。
 

@@ -8,7 +8,7 @@ Module package for legal identity values. It parses, encodes, and compares accou
 
 This member owns legal identity text, equality, tenant combination, and the single `IDENTITY_TYPE_NAMES` list. The location `packages/common/legal-identity` is the adopted target from the common-group README.
 
-Issue #243 implements the public entry. The entry has the five codecs, the five equality functions, `tenant()`, and `IDENTITY_TYPE_NAMES`. The common-group README still lists this member as a draft. That page has its own writer.
+Issue #243 implements the public entry. The entry has the five codecs, the five equality functions, `tenant()`, and `IDENTITY_TYPE_NAMES`. The common-group README records this member as implemented. The exact text rules stay on this page.
 
 A successful parse does not mean that the object exists, that the membership is valid, or that authorization allows the operation. Account registration, authentication, warrants, membership, roles, authorization, clocks, and session behavior stay with their owners. This package does not import the JSON reader, a database, Cordis, an identity service, or either legacy tree.
 

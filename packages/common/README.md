@@ -1,6 +1,6 @@
 # 共同纯表示能力组
 
-本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面三份成员已经在 workspace 里。`json-text` 已导出读取函数。`utc-instant` 已导出时间点、SI 时长和 `compareInstants`。`legal-identity` 的行为仍由 #243 交付。
+本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面三份成员已经在 workspace 里。`json-text` 已导出读取函数。`utc-instant` 已导出时间点、SI 时长和 `compareInstants`。`legal-identity` 已导出解析、编码、相等和 `tenant()`。
 
 ## 责任与范围
 
@@ -10,17 +10,17 @@
 
 ## 成员与依赖
 
-依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的三个目录现在是 workspace 成员。`json-text` 的读取函数已经实现，负责人尚未接受。`utc-instant` 的公开行为已经实现，过期对外结果的接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171766684)。`legal-identity` 的行为仍由 #243 交付。
+依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的三个目录现在是 workspace 成员。`json-text` 的读取函数已经实现，负责人尚未接受。`utc-instant` 的公开行为已经实现，过期对外结果的接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171766684)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
 
 | 目标成员 | 状态 | 拥有的纯值 | 具名消费者 |
 | --- | --- | --- | --- |
 | `json-text` | 读取函数已实现，尚未接受。叶子名在本分支确定为 `json-text`。#242 当时没有裁定名字，并禁止从旧目录猜测 | 严格 JSON 文本读取 | 后续的配置读取、协议解码与持久记录读取。当前没有生产消费者 |
-| `legal-identity` | workspace 草稿。行为归 #243 | 合法身份文本、相等、租户组合 | `packages/identity/identity` 与 `packages/session/session` |
+| `legal-identity` | 公开入口已实现。精确文本归成员 README。#243 已合并进 `integration/legacy-refactor` | 合法身份文本、相等、租户组合 | `packages/identity/identity` 与 `packages/session/session` |
 | `utc-instant` | 公开行为已实现。过期对外结果已由 PanQiWei 于 2026-10-14 接受，见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171766684)。整卡尚未接受 | 时间点、SI 时长、唯一比较 | `packages/identity/identity` 与 `packages/tool/tool` |
 
 采用记录是 [Issue 221 技术设计采用](https://github.com/nemori-ai/omne-harness-lite/issues/221#issuecomment-6161958178)。
 
-合法身份是带家族名的记录。账号、组织和登录状态的正文是家族前缀加 26 位 Crockford 字符。错前缀不能解析成另一家族。单独的 `a` 不合法。租户由已解析的组织与账号组成。`tenant()` 是进程内唯一组合函数。本组不铸造新的账号正文。解析成功不是对象存在、成员有效或授权允许。
+合法身份是带家族名的记录。账号、组织和登录状态的正文是家族前缀加 26 位 Crockford 字符。前缀分别是 `acc_`、`org_` 和 `lgn_`。字母表是 `0123456789abcdefghjkmnpqrstvwxyz`。错前缀不能解析成另一家族。单独的 `a` 不合法。租户由已解析的组织与账号组成。`tenant()` 是进程内唯一组合函数。本组不铸造新的账号正文。解析成功不是对象存在、成员有效或授权允许。
 
 时间点是 UTC 日历字段加精确小数。比较函数只有 `compareInstants`。它不调用 `Date` 或 `Number`。时长只表示 SI 秒。`P1D` 不是时长。计划时间是民用日期、时刻和时区，不是时间点。业务期限带规则名。到期判断留在业务拥有者。序号不是时间。观察时间不可用时，调用方不把序号改成上一个加一。
 
