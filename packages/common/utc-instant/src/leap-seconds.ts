@@ -36,7 +36,7 @@ export function readLeapSecondsList(text: string): LeapSecondsListRead {
   let version: number | undefined
   let expires: number | undefined
   const rows: { readonly ntp: number; readonly offset: number }[] = []
-  for (const line of text.split('\n')) {
+  for (const line of text.split(/\r?\n/u)) {
     if (line.startsWith('#$')) {
       const match = VERSION_LINE.exec(line)
       if (match === null || version !== undefined) return syntax
