@@ -131,6 +131,11 @@ The exact `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-su
 The private `omne-package-template` CLI creates drafts and inventories exact template adoption. See the [template guide](templates/package/README.md) and [development entry](../../docs/development.md#创建和整改产品包). It reuses the architecture reader. Structural results do not accept business or lifecycle behavior.
 
 The package template is typescript-package@2.0.0. Exact 1.0.0 rules remain available for older markers.
+`service-contract` creation and structure scan no longer require `packages/core`.
+`scan --json` reports judged edges on `dependencies`. `unknown` stays `unknown`.
+`group-direction` still reports `unregistered-group` for `packages/access`, `packages/identity`, `packages/agent`, and `packages/assembly`.
+This change does not edit that rule.
+Registering those groups on the path table would leave a same-group import from `sdk` to `server-entry` legal until the two members form a cycle.
 `create-domain --group <name>` previews a package-domain@1.0.0 documentation draft. Add --write to create it.
 `scan --group <name> --check` checks group structure. It is mutually exclusive with --member.
 See the [group template](templates/domain/README.md). Python documentation inventory separately checks bindings, sections and placeholders.
