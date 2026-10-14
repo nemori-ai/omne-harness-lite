@@ -6,7 +6,7 @@ The minimal `omne` command. This build prints help or its version. It has no oth
 
 ## Responsibility and status
 
-This app member owns the process entry `omne`, argument parsing, the build identity, and two public functions for the state directory. The boundary comes from [package organization](../../docs/package-organization.md#最小-cli-的接入边界). The member name, binary name, exit codes, messages, and state rules are proposals from #246. They are in [SPEC.md](SPEC.md). The repository owner accepts or replaces them in review.
+This app member owns the process entry `omne`, argument parsing, the build identity, and two public functions for the state directory. The boundary comes from [package organization](../../docs/package-organization.md#最小-cli-的接入边界). The member name, binary name, exit codes, messages, and state rules are accepted for #246 revision 1. They are in [SPEC.md](SPEC.md).
 
 Implemented today:
 
@@ -120,7 +120,7 @@ Not covered:
 - The process tests use piped stdio. No test allocates a TTY.
 - The unreadable-directory and read-only-parent cases skip when the tests run as root, because root bypasses these permissions.
 - Windows is not tested.
-- The local development machine runs Node v26. The tests have not run on Node 24.
+- The local development machine runs Node v26. PanQiWei accepted that version for this card's verification on 2026-10-14. Node 24 was not run. `engines.node` remains `>=24.18.0 <25`.
 - No test installs the package outside the workspace through `pnpm pack`.
 
 ## Maintenance
@@ -129,6 +129,6 @@ To change the help text, a message, or an exit code, change [SPEC.md](SPEC.md), 
 
 To add a command, append a `CommandSpec` through `defineCatalog`. `renderHelp` includes it, and `run` calls its `run` with a `CommandEnvironment`. The production catalog's command list is empty. A command that needs the state directory calls `resolveStateDirectory` with `homeFlag`, `environmentHome`, and `homeDirectory`, then `ensureStateDirectory`. It does not read `process.env` itself. Help and version must not call either function. A command that calls the SDK adds the SDK as a dependency. Update the install-closure test and SPEC.md in the same change.
 
-`scripts/package-cli.sh` still points to `apps/cli/tools/package.ts`. That file does not exist. Packaging for release is not part of this member yet.
+`scripts/package-cli.sh` builds this member and writes `apps/cli/dist` into a new `.tar.gz`. It does not install the command, upload a release, or configure an account. The archive is not the old B01 installer.
 
 Keep [README_ZH.md](README_ZH.md) in step with this file. Both files state the same promises.
