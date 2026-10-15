@@ -360,7 +360,7 @@
 ### UL-message · 消息
 
 - **宿主**：[会话日志](#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭
-- **身份**：「一条消息有稳定的身份」，且不能从会变的文本或时间戳算出来；具体方式正文未述。类型是确定的，不靠解析内容
+- **身份**：「一条消息有稳定的身份」，且不能从会变的文本、时间戳或日志位置算出来。潘其威于 2026-10-15 确认铸造规则在 `packages/common/message` 的说明里。会话受理时铸造。产品正文仍未改写该算法。类型是确定的，不靠解析内容
 - **生灭**：流式到达期间只是「正在长的块」→ 长成一条完整消息落盘，或按「流断在半路」收场 → 落盘后不改不删；**消息之间没有取代**，状态类提醒也一律追加。它对模型可不可读，可被后来的压缩摘要点名而改变，但那是算出来的，消息本身一字不动。一次工具执行的那条 `ToolInternalMessage` 不论执行怎么收场都照常收尾，一块都没交付过的就没有这条
 - **依据**：[PF-009 §4 消息](../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息)（rev 9）；[PF-009 §4 半条消息不是消息](../product.0.0.1.legacy/PF-009-context-message-types/design.md#半条消息不是消息)（rev 9）；[PF-009 §5.4](../product.0.0.1.legacy/PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么)（rev 9）；[PF-009 §5.6](../product.0.0.1.legacy/PF-009-context-message-types/design.md#56-流断在半路)（rev 9）；[PF-009 §5.8 执行帧就是这条消息的到达增量](../product.0.0.1.legacy/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 9）；[PF-009 §6.4](../product.0.0.1.legacy/PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)（rev 9）
 - **并入**：「排队的消息」——待处理与已承接是从日志派生的读法，不另立事实权威，持久投影仍可维护

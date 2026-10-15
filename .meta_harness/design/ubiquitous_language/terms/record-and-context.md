@@ -151,7 +151,7 @@
 > | **系统**，在中途 | `SystemReminderMessage` | 外面有信息进来了，你得知道 |
 > | **系统**，回头看 | `CompactionMessage` | 前面那一大段，概括起来是这样 |
 >
-> **前四种各家模型供应商都有，后三种是我们加的。**
+> **前四种各家模型供应商都有，后三种是我们加的。** 消息值是事实记录里的一个字段，不是日志条目本身。纯值在 `packages/common/message`。
 >
 > **EN**: **One entry of conversational record. Seven kinds, divided by who is
 > speaking**; **all but `SystemMessage` live in the session log** — `SystemMessage` is

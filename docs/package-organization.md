@@ -78,7 +78,13 @@ packages/
 ├── storage/<成员>/             存储契约、机制与提供者
 ├── time/<具名时间能力>/        有独立消费者的时间能力
 ├── telemetry/<具名观测能力>/   有真实共同需要的观测能力
-├── common/<具名纯表示>/        经共同语义核对的纯定义
+├── common/
+│   ├── json-text/              严格 JSON 文本读取
+│   ├── legal-identity/         合法身份文本
+│   ├── utc-instant/            UTC 时间点与 SI 时长
+│   ├── content-block/          已封闭的文本、思考、语音、图、文件
+│   ├── message/                事实记录中的消息字段
+│   └── stream-arrival/         流式交付的开块、填充、封块、削减、结束
 └── util/
     ├── unix-format/          按码位排版的终端文本
     └── xml-format/           按字段声明渲染的 XML 文本

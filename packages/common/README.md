@@ -1,6 +1,6 @@
 # 共同纯表示能力组
 
-本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面三份成员已经在 workspace 里。`json-text` 已导出读取函数。`utc-instant` 已导出时间点、SI 时长和 `compareInstants`。`legal-identity` 已导出解析、编码、相等和 `tenant()`。
+本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面六份成员已经在 workspace 里。`json-text` 已导出读取函数。`utc-instant` 已导出时间点、SI 时长和 `compareInstants`。`legal-identity` 已导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 已导出各自的纯校验。潘其威于 2026-10-15 确认后三份的包名和含义。
 
 ## 责任与范围
 
@@ -10,13 +10,16 @@
 
 ## 成员与依赖
 
-依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的三个目录现在是 workspace 成员。`json-text` 的读取函数已经实现，负责人尚未接受。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
+依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的六份目录现在是 workspace 成员。`json-text` 的读取函数已经实现，负责人尚未接受。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
 
 | 目标成员 | 状态 | 拥有的纯值 | 具名消费者 |
 | --- | --- | --- | --- |
 | `json-text` | 读取函数已实现，尚未接受。叶子名在本分支确定为 `json-text`。#242 当时没有裁定名字，并禁止从旧目录猜测 | 严格 JSON 文本读取 | 后续的配置读取、协议解码与持久记录读取。当前没有生产消费者 |
 | `legal-identity` | 公开入口已实现。精确文本归成员 README。#243 已合并进 `integration/legacy-refactor` | 合法身份文本、相等、租户组合 | `packages/identity/identity` 与 `packages/session/session` |
 | `utc-instant` | 公开行为已实现。revision 1 整卡已由 PanQiWei 于 2026-10-14 接受并关闭，见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996) | 时间点、SI 时长、唯一比较 | `packages/identity/identity` 与 `packages/tool/tool` |
+| `content-block` | 潘其威于 2026-10-15 确认含义。纯校验已导出 | 已封闭的文本、思考、语音、图、文件 | 模型、工具、会话、请求投影 |
+| `message` | 潘其威于 2026-10-15 确认含义。解析和相等已导出。不铸造身份 | 事实记录中的消息字段 | 会话、请求投影、模型 |
+| `stream-arrival` | 潘其威于 2026-10-15 确认含义。步骤校验已导出 | 开块、填充、封块、削减、结束 | 模型、工具、会话 |
 
 采用记录是 [Issue 221 技术设计采用](https://github.com/nemori-ai/omne-harness-lite/issues/221#issuecomment-6161958178)。
 
