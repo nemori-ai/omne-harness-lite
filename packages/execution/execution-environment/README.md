@@ -8,7 +8,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与阅读
 
-本目标承接领域中归属于执行环境能力的完整必要行为。公开类型尚未定，行为草案由[完整 SPEC](SPEC.md)维护；[内部设计](docs/internals.md)解释身份、状态、并发与恢复，[机制流程](docs/key-flows.md)保留单成员步骤。与外部能力协作从[组入口](../README.md)展开。
+本目标承接领域中归属于执行环境能力的完整必要行为。公开类型尚未定，行为草案由[完整 SPEC](SPEC.md)维护；[内部设计](docs/internals.md)解释身份、状态、并发与恢复，[机制流程](docs/key-flows.md)保留单成员步骤。宿主文件使用、环境抽象和 `./cordis` 接缝写在 [SPEC](SPEC.md#宿主文件使用)、[内部设计](docs/internals.md#环境抽象) 和 [机制流程](docs/key-flows.md#宿主文件使用)。PanQiWei 已接受该设计，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。包仍没有公开导出。与外部能力协作从[组入口](../README.md)展开。
 
 ## 独立与 Cordis 消费
 

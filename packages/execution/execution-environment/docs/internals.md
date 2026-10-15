@@ -65,6 +65,200 @@
 恢复围绕原身份查询、等待或对账，不盲目重发工具或宿主动作。后续读取和执行仍核验当前资格，旧输入不恢复已撤权利；原执行事实和结果仍被可靠保管，不因披露受限而删除。异构数据恢复须满足格式和提供者兼容条件，不能从数据可读推出原执行可热迁移。
 
 
+## 环境抽象
+
+状态：PanQiWei 已接受这一节的设计，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。它还不是 `src/index.ts` 的公开导出。形状沿 legacy 的执行环境核心契约。本成员这一刀实现其中的 `files`。`command` 只定义交接，不在这一刀实现。
+
+一次调用先形成落点，再按设施名取得租约。工具拿到的是设施，不是资源登记的写接口。落点选定之后，按设施名再核一次当前授权。这次核对不改选落点。
+
+```ts
+type EnvironmentBinding =
+  | { readonly kind: "host_machine" }
+  | { readonly kind: "stateless_sandbox"; readonly callId: string }
+  | { readonly kind: "session_sandbox"; readonly sessionId: string }
+  | { readonly kind: "tenant_sandbox"; readonly tenantId: string }
+
+type EnvironmentContinuity =
+  | { readonly kind: "not_guaranteed" }
+  | { readonly kind: "continuous"; readonly dataId: string; readonly revision: string }
+  | { readonly kind: "lost"; readonly previous: string }
+
+type FacilityResult<T> =
+  | { kind: "done"; requestId: string; value: T }
+  | { kind: "unresolved"; requestId: string }
+  | { kind: "rejected"; requestId: string; reason: FacilityReason }
+  | { kind: "unknown"; requestId: string }
+
+type FacilityReason =
+  | "invalidInput"
+  | "notAuthorized"
+  | "notFound"
+  | "conflict"
+  | "unsupported"
+  | "closed"
+  | "unavailable"
+  | "effectUnknown"
+
+type ObjectToken = { readonly token: string }
+
+type HandleGeneration = {
+  readonly object: ObjectToken
+  readonly generation: string
+}
+
+type FileRequest = {
+  readonly requestId: string
+  readonly originalCallId: string
+  readonly subjectId: string
+  readonly binding: EnvironmentBinding
+  readonly path: string
+  readonly named: ObjectToken | null
+}
+
+type FileFacility = {
+  readonly read: (request: FileRequest) => Promise<FacilityResult<{
+    object: ObjectToken
+    handle: HandleGeneration
+    bytes: Uint8Array
+  }>>
+  readonly stat: (request: FileRequest) => Promise<FacilityResult<{
+    object: ObjectToken
+    handle: HandleGeneration
+  }>>
+  readonly write: (request: FileRequest & { readonly bytes: Uint8Array }) => Promise<FacilityResult<{
+    object: ObjectToken
+    handle: HandleGeneration
+  }>>
+  readonly close: (request: FileRequest & { readonly handle: HandleGeneration }) => Promise<FacilityResult<{
+    handle: HandleGeneration
+  }>>
+}
+
+type CommandRequest = {
+  readonly requestId: string
+  readonly originalCallId: string
+  readonly subjectId: string
+  readonly binding: EnvironmentBinding
+  readonly executable: string
+  readonly args: readonly string[]
+  readonly cwd: string
+  readonly env: Readonly<Record<string, string>>
+}
+
+type CommandFacility = {
+  readonly start: (request: CommandRequest) => Promise<FacilityResult<{ processId: string }>>
+}
+
+type EnvironmentProvider = {
+  readonly name: string
+  readonly bindingKinds: readonly EnvironmentBinding["kind"][]
+  readonly facilities: ReadonlyMap<string, unknown>
+  readonly acquire: (placement: {
+    readonly binding: EnvironmentBinding
+    readonly continuity: EnvironmentContinuity
+    readonly tenantId: string
+    readonly callId: string
+  }) => Promise<
+    | { kind: "acquired"; lease: EnvironmentLease }
+    | { kind: "rejected"; reason: "missingFacility" }
+  >
+}
+
+type EnvironmentLease = {
+  readonly binding: EnvironmentBinding
+  readonly continuity: EnvironmentContinuity
+  readonly instance: { readonly id: string; readonly generation: string }
+  readonly facility: (name: string) => unknown | undefined
+  readonly release: () => Promise<{ kind: "released" } | { kind: "pending" }>
+}
+```
+
+绑定层是闭集，但每一层带自己的归属，不能只剩一个名字。寿命和谁看得见，沿已接受的[环境能力与寿命](../../../../docs/architecture/runtime/execution-environment.md#环境能力与寿命)。无状态沙箱只服务 `callId` 这一次调用，调用结束不保留状态。会话级沙箱归 `sessionId`，会话工作期间可以复用，有最大连续寿命，不承诺留下数据。租户级沙箱归 `tenantId`，计算实例可以停或换，数据跟租户一样长，并且要能备份、能迁移。宿主机归这次部署，大家共用，不隔离，也不能在沙箱失败时拿来顶上。
+
+`EnvironmentContinuity` 是这一刻还能不能接着用，不是再写一遍寿命。`not_guaranteed` 表示本来就没承诺留下。`continuous` 表示点名的那份数据还在。`lost` 表示上一份已经不在。会话还在，不能把 `lost` 说成旧沙箱还在。
+
+设施仍然按名字登记，和寿命正交。同一个会话级沙箱可以只提供 `files`，另一个只提供 `command`。宿主机也要声明自己提供哪些设施。
+
+`FileFacility` 的四个操作各有自己的结果。`stat` 和 `close` 不返回文件字节。对象在契约里是不透明的 `ObjectToken`。宿主提供者把设备号和 inode 放进这个 token。沙箱提供者以后用自己的 token。契约不把宿主 inode 写成所有落点的身份。
+
+`EnvironmentProvider.acquire` 接收已经选定的落点，返回租约。它不实现登记表的 `acquire`，也不重选绑定层。登记表依赖这个契约。提供者不知道登记表的服务类。
+
+`Files()` 从租约取出名为 `files` 的设施。`Shell()` 取出名为 `command` 的设施。要求的名字不在租约里，结果是拒绝，不改绑定层。这一刀的宿主提供者只登记 `host_machine` 上的 `files`。`command` 有接口，这一刀不提供实现。三种沙箱绑定层这一刀没有提供者。
+
+## Cordis 集成入口
+
+PanQiWei 已接受这一节的设计，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。Cordis 只负责装配。领域语义留在上一节的类型里。根入口 `src/index.ts` 导出那些类型和操作签名，不导入 `@deepseek-ai/cordis`，也不导入 `./cordis`。集成入口是本包的 `./cordis`。`package.json` 尚无这个导出。公开文件尚未建立。
+
+这一刀只有一个服务接缝。键是 `executionEnvironment`。定义写一次。
+
+```ts
+abstract class ExecutionEnvironmentService extends Service {
+  static readonly provide = "executionEnvironment"
+  constructor(ctx: Context) {
+    super(ctx, ExecutionEnvironmentService.provide)
+  }
+  abstract resolvePlacement(input: {
+    tenantId: string
+    callId: string
+    binding: EnvironmentBinding
+    facilities: readonly string[]
+  }): Promise<
+    | { kind: "placement"; binding: EnvironmentBinding; continuity: EnvironmentContinuity }
+    | { kind: "rejected"; reason: "notAuthorized" | "noMatchingEnvironment" }
+  >
+  abstract acquire(input: {
+    tenantId: string
+    callId: string
+    binding: EnvironmentBinding
+    facilities: readonly string[]
+  }): Promise<
+    | { kind: "acquired"; lease: EnvironmentLease }
+    | { kind: "rejected"; reason: "missingFacility" | "noMatchingEnvironment" | "notAuthorized" }
+  >
+  abstract registerProvider(provider: EnvironmentProvider): () => Promise<void>
+}
+const EXECUTION_ENVIRONMENT = ExecutionEnvironmentService.provide
+```
+
+类上写 `@owner packages/execution/execution-environment`。登记表实现继承这个类并提供键。设施提供者不继承它，也不另写键。它们把 `EnvironmentProvider` 交给 `registerProvider`。消费者从 `./cordis` 引用 `EXECUTION_ENVIRONMENT`。租户和调用身份是参数，不从 `ctx` 或插件实例推断。
+
+`registerProvider` 在方法里用 `this.ctx.effect` 登记，并返回撤除函数。登记落在调用方的 fiber 上。调用方卸下，登记就撤。登记表不自己记一份名单再等人来注销。
+
+宿主文件提供者不是第二个服务键。它是一个插件，`inject` 里写 `EXECUTION_ENVIRONMENT`，装上时调用 `registerProvider`，声明自己只覆盖 `host_machine` 和 `files`。插件树用包名 `@omne-harness/execution-environment` 和 `./cordis` 的这个导出名来标识它。配置只放可序列化的字段。回调和打开文件的函数不进插件树。
+
+沙箱提供者以后用同一个键登记，声明自己的绑定层。它不写进宿主插件的 `inject`。登记表在 `acquire` 时按绑定层现取。没有匹配的提供者，结果是 `noMatchingEnvironment` 或 `missingFacility`，不改用 `host_machine`。
+
+资源恢复是另一个接缝。它不进这个 `./cordis`。这一刀也不声明事件。
+
+## 宿主文件使用
+
+状态：PanQiWei 已接受这一节的设计，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。它不改写上文的准备顺序，也不新建设施目录或沙箱实现。
+
+文件使用发生在落点已经算完之后。条件选择仍按已接受规则决定宿主机或沙箱。环境提供者只对宿主机落点提供这一次文件使用。执行适配核对使用对象。观察与控制按同一次请求身份记下一种结果。`Files()` 消费读取、查看、写入和关闭这四项。编辑、补丁、查找和图片附件留在工具。`Shell()` 不进入这次确认。命令碰到的文件也不进入。
+
+一次使用的结果只能是下面一种。
+
+| 结果 | 同时成立的事实 |
+| --- | --- |
+| 读取已绑定 | 打开到的设备号与 inode 等于授权点名时的对象。字节来自该对象 |
+| 查看或写入已绑定 | 对象身份与点名一致。没有把文件字节当作查看或写入的完成载荷 |
+| 关闭已完成 | 该句柄代际有成功回执。没有文件字节 |
+| 未解析 | 路径上没有对象。没有读取，也没有写入 |
+| 拒绝 | 带有拒绝原因。落点保持为请求里的那一个 |
+| 未知 | 请求身份仍在。不知道动作是否已经作用到对象上。关闭没有成功回执时用这一结果 |
+
+句柄代际由使用时点的设备号、inode，以及提供者为这次句柄发出的代次组成。没有句柄的第一次打开由提供者发出句柄。元数据版本可以参与对象身份。它单独不是原子的外部写入防护。
+
+授权在使用前点名对象的设备号与 inode。点名可以落在工作区目录之外。工作区目录是地址，不是宿主机上的围栏。未点名则拒绝。路径含空字节则拒绝。
+
+宿主机实现打开路径时带上不跟随最后一段符号链接的标志，然后读取该描述符的设备号与 inode。两者与点名一致才读取或写入字节。不一致就关闭描述符并且不返回字节。最后一段是符号链接时，打开失败，结果是拒绝。中间目录被换成链接时，若打开到的对象不是点名对象，结果同样是拒绝。路径祖先里的符号链接本身不构成拒绝。平台路径可以经过符号链接到达点名对象。
+
+公开的 Node 文件接口没有 `openat`。核对发生在打开之后。完成的读取或写入可以声称字节属于点名对象。不能声称内核在拒绝前没有打开过另一个对象。声称把文件限制在授予根内的落点，本成员这次不实现。该类请求拒绝，不改由宿主机执行。授予根是该落点声明的根身份。请求不能另带一个绝对路径充当这个根。
+
+撤权之后的下一次使用重新核对当前授权。上一次已经返回的字节留在那一次结果里。同一路径上的后一次请求使用新的请求身份，并重新点名对象。关闭是另一次请求。有成功回执才表示该句柄代际已经关闭。没有成功回执时结果是未知。已经读到或写到的结果不因关闭失败被抹掉。调用方丢掉引用不是关闭成功。对已经关闭的描述符再次关闭，不是活句柄关闭失败。
+
+授权决定可以用替身。文件字节、符号链接和对象替换使用真实文件系统。
+
 ## 技术后续设计与来源缺项
 
 以下事项由技术或来源拥有者补足，不转成产品默认值投票。公开形状、机制与证据未定不删除既定必要行为。
