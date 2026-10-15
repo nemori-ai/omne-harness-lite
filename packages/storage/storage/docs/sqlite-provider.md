@@ -25,26 +25,30 @@ Worker 一次处理一条消息。`node:sqlite` 的语句在这条消息里同�
 
 ## 正常提交
 
-下列核对顺序是候选。SPEC 尚未决定多个拒绝条件同时成立时返回哪个原因。
+下列核对顺序描述单次提交怎样走过控制侧和 Worker。多个拒绝同时成立时，返回 [SPEC](../SPEC.md) 规定的第一个原因。
 
-1. 控制侧入口核对必需字段。字段缺失时，`commit` 返回 `field_missing`。
-2. 控制侧入口核对 `participant` 不重复，并且每条命令的 `facts` 都是 JSON 值。不成立时，`commit` 返回 `participant_repeated` 或 `facts_not_json`。
-3. 控制侧入口用 RFC 8785 写出调用方排好的命令数组，再对写出的 UTF-8 字节计算 SHA-256。提供者不重排命令。
-4. 控制侧拥有这条连接的预留计数。个数已经等于 `admissionQueueLimit` 时，返回 `queue_full`，不发送。允许发送时先加一，再把带预留标记的消息发给 Worker。命令条数和单条字节也在发送前核对，超过上限返回 `command_limit`。协议版本不是 `1` 时返回 `unsupported_protocol`。命令数组为空时返回 `field_missing`。预留在四种情况下各归还一次：结果已经由结果拥有者收下，操作在执行前被确认撤下，发送失败，Worker 退出。取消观察不归还仍在执行或已经发出的预留。已经归还的预留，迟到结果不再减一。
-5. Worker 核验消息带有预留。没有预留则拒绝执行。Worker 不因为个数已经等于上限而拒绝这条已经预留的请求。
-6. Worker 核对旧写代际已排除。未排除时，`commit` 返回 `writer_not_current`。结果由结果拥有者收下后，控制侧把这次预留归还一次。观察方是否还在，不影响这一次归还。
-7. Worker 在写连接上读取登记。没有登记时返回 `combination_unregistered`。参加者不在登记中时返回 `participant_not_in_combination`。通过核对的操作进入处理。
-8. 轮到该操作时，Worker 执行 `BEGIN IMMEDIATE`。等待写锁的时间以 `lockWaitMs` 为上限。
-9. Worker 在事务内按操作身份读取回执。回执存在且摘要相同时，Worker 用 `ROLLBACK` 结束这个还没有写入的事务，`commit` 返回已保存的回执。回执存在且摘要不同时，Worker 同样结束事务，`commit` 返回 `identity_conflict` 和已有回执。这两种情况都不执行命令。
-10. Worker 按命令数组的顺序，把每条命令交给它的参加者模块。参加者模块通过 `TransactionPort` 执行语句。
-11. Worker 写入已提交回执和待交接记录。
-12. Worker 执行 `COMMIT`。`COMMIT` 成功后，`commit` 返回 `committed`。
+1. 控制侧入口核对必需字段。字段缺失时，`commit` 返回 `field_missing`。命令数组为空时，同样返回 `field_missing`。
+2. 参加者重复时，`commit` 返回 `participant_repeated`。
+3. 某条命令的 `facts` 不是 JSON 值时，`commit` 返回 `facts_not_json`。
+4. 控制侧入口用 RFC 8785 写出调用方排好的命令数组，再对写出的 UTF-8 字节计算 SHA-256。提供者不重排命令。
+5. 协议版本不是 `1` 时，`commit` 返回 `unsupported_protocol`。不发送，也不增加预留。
+6. 命令条数或单条字节超过上限时，`commit` 返回 `command_limit`。不发送，也不增加预留。
+7. 这条写连接上尚未确认结束的预留个数已经等于 `admissionQueueLimit` 时，`commit` 返回 `queue_full`。不发送，也不增加预留。
+8. 第 1 到第 7 步都通过之后，控制侧先把预留加一，再把带预留标记的消息发给 Worker。预留在四种情况下各归还一次：结果已经由结果拥有者收下，操作在执行前被确认撤下，发送失败，Worker 退出。取消观察不归还仍在执行或已经发出的预留。已经归还的预留，迟到结果不再减一。
+9. Worker 核验消息带有预留。没有预留则拒绝执行。Worker 不因为个数已经等于上限而拒绝这条已经预留的请求。
+10. Worker 核对旧写代际已排除。未排除时，`commit` 返回 `writer_not_current`。结果由结果拥有者收下后，控制侧把这次预留归还一次。观察方是否还在，不影响这一次归还。
+11. Worker 在写连接上读取登记。没有登记时返回 `combination_unregistered`。参加者不在登记中时返回 `participant_not_in_combination`。通过核对的操作进入处理。
+12. 轮到该操作时，Worker 执行 `BEGIN IMMEDIATE`。等待写锁的时间以 `lockWaitMs` 为上限。
+13. Worker 在事务内按操作身份读取回执。回执存在且摘要相同时，Worker 用 `ROLLBACK` 结束这个还没有写入的事务，`commit` 返回已保存的回执。回执存在且摘要不同时，Worker 同样结束事务，`commit` 返回 `identity_conflict` 和已有回执。这两种情况都不执行命令。
+14. Worker 按命令数组的顺序，把每条命令交给它的参加者模块。参加者模块通过 `TransactionPort` 执行语句。
+15. Worker 写入已提交回执和待交接记录。
+16. Worker 执行 `COMMIT`。`COMMIT` 成功后，`commit` 返回 `committed`。
 
-第 4 步在发送之前完成，消息还没有进入 Worker。第 6 步和第 7 步发生在 `BEGIN IMMEDIATE` 之前。这时写连接上没有语句。登记读取使用这条写连接。这些拒绝不进入受理队列。
+第 1 到第 7 步在发送之前完成。消息还没有进入 Worker。第 10 步和第 11 步发生在 `BEGIN IMMEDIATE` 之前。这时写连接上没有语句。登记读取使用这条写连接。这些拒绝不进入受理队列。
 
-第 8 到第 12 步在同一次消息里完成。事实、已提交回执和待交接记录在同一个事务里提交。
+第 12 到第 16 步在同一次消息里完成。事实、已提交回执和待交接记录在同一个事务里提交。
 
-下面这张图用的是上面的候选顺序。多个拒绝同时成立时返回哪一个，仍以 SPEC 的未决项为准。
+下面这张图用的是上面的步骤。多个拒绝同时成立时返回哪一个，以 SPEC 的拒绝顺序为准。
 
 ```mermaid
 sequenceDiagram
@@ -53,12 +57,11 @@ sequenceDiagram
     participant W as Worker
     participant P as 参加者
     C->>E: commit
-    E->>E: 核对字段和 JSON 值
-    E->>E: RFC 8785 写出并计算摘要
-    E->>E: 发送前核对尚未确认结束的预留
-    alt 已达上限或其它受理前拒绝
+    E->>E: 核对字段、参加者、JSON、协议和命令限制
+    E->>E: 核对队列容量
+    alt 任一发送前拒绝
         E-->>C: rejected_before_accept
-    else 未达上限
+    else 全部通过后才预留并发送
         E->>W: 身份、组合版本、命令、摘要
         W->>W: BEGIN IMMEDIATE
         W->>P: TransactionPort.execute
@@ -71,7 +74,7 @@ sequenceDiagram
 
 ## 拒绝
 
-所有受理前拒绝都出现在正常提交的第 1 到第 7 步，在操作进入受理队列之前。拒绝不写入回执，也不占用队列位置。
+所有发送前拒绝都出现在正常提交的第 1、2、3、5、6、7 步。第 10 步和第 11 步也在操作进入受理队列之前。拒绝不写入回执，也不占用队列位置。
 
 拒绝之后，调用方可以用同一身份调用 `query`。这时没有回执，结果由五项证明决定。
 
@@ -82,7 +85,7 @@ sequenceDiagram
 
 ## 明确回滚
 
-1. 正常提交的第 10 步中，某条命令出现明确的业务失败。提供者关闭这次调用的端口。后面的 `execute` 不再把 SQL 交给 SQLite。
+1. 正常提交的第 14 步中，某条命令出现明确的业务失败。提供者关闭这次调用的端口。后面的 `execute` 不再把 SQL 交给 SQLite。
 2. Worker 撤下 authorizer，再确认事务。事务还在则执行 `ROLLBACK`。失败的语句已经结束事务时，Worker 不再执行参加者语句。`ROLLBACK` 因其他原因失败时，`commit` 返回 `unknown`。
 3. 事务已经结束时，Worker 开始第二个短事务。这个事务只写入明确回滚回执，然后执行 `COMMIT`。
 4. 第二个事务提交后，`commit` 返回 `rolled_back`。同一操作身份和同一输入摘要以后再次提交，得到这份明确回滚回执。第二个事务没有提交时，`commit` 返回 `unknown`。
@@ -117,7 +120,7 @@ sequenceDiagram
 
 `commit` 在下列情况下返回 `unknown`。
 
-- 第 8 步或第二个短事务等待写锁，时间超过 `lockWaitMs`。
+- 第 12 步或第二个短事务等待写锁，时间超过 `lockWaitMs`。
 - `COMMIT` 报错，提供者不能确定事务是否已经提交。
 - 回滚之后，写入明确回滚回执的第二个事务没有提交。
 - `ROLLBACK` 因其他原因失败。
@@ -150,9 +153,9 @@ sequenceDiagram
 ## 关闭
 
 1. 提供者停止新的准入。此后新的 `commit` 返回 `closing`，不进入队列。队列里尚未开始的操作被确认撤下，不写回执，预留归还一次。
-2. Worker 不打断正在执行的语句。调用方在 Worker 之外计算关闭期限。Worker 要等当前语句返回，才能处理关闭。
-3. 语句在期限内结束时，Worker 关闭写连接，提供者观察 Worker 退出。关闭结果是 `closed`。
-4. 期限到达时语句还没有结束，关闭结果是 `incomplete`，不是 `closed`。
+2. Worker 不打断正在执行的语句。关闭期限是存储提供者插件上的配置字段。数值仍空着。调用方在 Worker 之外使用这个字段计算期限。SQL 仍在执行时，提供者持有这条写连接的租约。
+3. 语句在期限内结束，并且提供者还没有给出 `incomplete` 时，Worker 关闭写连接，提供者调用 `release`，并观察 Worker 退出。关闭结果是 `closed`。
+4. 期限到达时语句还没有结束，提供者给出 `incomplete`，并且不释放该租约。此后语句结束，提供者仍不调用 `release`。该租约保持持有，直到装配 `close` 的报告已经确定。装配 `close` 在排空阶段等待这份租约。排空结束时租约仍被持有，装配报告是 `timed-out`，不是 `failed`。步骤不执行。报告确定之后的 `release` 不改写这份报告。这条释放限制由存储提供者承担。存储关闭不放进排空之后的步骤列表。
 5. 结束 Worker 不是回滚。调用方按原身份调用 `query`。
 
 ## 探针
@@ -176,4 +179,3 @@ sequenceDiagram
 - 读回的 PRAGMA 值与设定不符时，提供者怎样处置。
 - Worker 在操作途中退出时，控制侧给 `commit` 的调用方返回什么。调用方仍按 SPEC 用原身份查询。
 - 待交接记录的内容和消费方。
-- 关闭期限由谁给出。
