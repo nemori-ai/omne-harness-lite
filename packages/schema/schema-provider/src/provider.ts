@@ -9,11 +9,13 @@ import type {
   SchemaBudget,
   SchemaDefinition,
   SchemaId,
+  SchemaLease,
   SchemaProvider,
   SchemaRef,
   SchemaRevision,
   SchemaVerdict,
   StandardTyped,
+  SyncVerdict,
   UnavailableReason,
   ZodDefinition,
 } from './index.ts'
@@ -23,6 +25,8 @@ type Snapshot = {
   readonly revision: string
   readonly numbers: NumberProjection
   readonly check: (value: unknown) => CheckHit
+  leases: number
+  superseded: boolean
 }
 
 type FlightOutcome =
@@ -39,6 +43,7 @@ type Flight = {
   live: number
   readonly done: Promise<FlightOutcome>
   resolve: (outcome: FlightOutcome) => void
+  held: Snapshot | undefined
 }
 
 type Slot =
@@ -136,7 +141,7 @@ export function validate<T>(
       }
       return begin(domain, schema, read, signal, slot.attempts)
     case 'retired':
-      throw new Error(`slot ${slot.kind} is not produced`)
+      return begin(domain, schema, read, signal, 0)
     default: {
       const unreachable: never = slot
       return unreachable
@@ -154,10 +159,35 @@ export function lease<T>(
   schema: SchemaRef<T>,
   signal?: AbortSignal,
 ): Promise<LeaseOutcome<T>> {
-  void provider
-  void schema
-  void signal
-  throw new Error('not implemented')
+  if (signal?.aborted) return Promise.resolve({ kind: 'cancelled' })
+  const domain = domainOf(provider)
+  if (domain.closed) return Promise.resolve({ kind: 'refused', reason: 'closed' })
+  const slot = domain.slots.get(schema.id) ?? { kind: 'empty' as const }
+  switch (slot.kind) {
+    case 'ready':
+      return Promise.resolve(hold(domain, schema.id, slot.snapshot))
+    case 'refused':
+      return Promise.resolve({ kind: 'refused', reason: slot.reason })
+    case 'inflight':
+      return holdReady(domain, schema.id, follow(slot.flight, signal))
+    case 'empty':
+      return holdReady(domain, schema.id, beginFlight(domain, schema, signal, 0))
+    case 'cooling':
+      if (Date.now() < slot.retryNotBeforeMillis) {
+        return Promise.resolve({
+          kind: 'unavailable',
+          reason: slot.reason,
+          retryNotBeforeMillis: slot.retryNotBeforeMillis,
+        })
+      }
+      return holdReady(domain, schema.id, beginFlight(domain, schema, signal, slot.attempts))
+    case 'retired':
+      return holdReady(domain, schema.id, beginFlight(domain, schema, signal, 0))
+    default: {
+      const unreachable: never = slot
+      return unreachable
+    }
+  }
 }
 
 /**
@@ -165,9 +195,34 @@ export function lease<T>(
  * Shape owners call this when they publish a new revision. Request paths do not.
  */
 export function refresh(provider: SchemaProvider, id: SchemaId): void {
-  void provider
-  void id
-  throw new Error('not implemented')
+  const domain = domainOf(provider)
+  const slot = domain.slots.get(id)
+  if (slot === undefined) return
+  switch (slot.kind) {
+    case 'ready':
+      if (slot.snapshot.leases > 0) {
+        domain.slots.set(id, {
+          kind: 'retired',
+          snapshot: slot.snapshot,
+          leases: slot.snapshot.leases,
+        })
+        return
+      }
+      domain.slots.delete(id)
+      return
+    case 'cooling':
+    case 'refused':
+      domain.slots.delete(id)
+      return
+    case 'retired':
+    case 'inflight':
+    case 'empty':
+      return
+    default: {
+      const unreachable: never = slot
+      return unreachable
+    }
+  }
 }
 
 /**
@@ -186,9 +241,22 @@ function begin<T>(
   signal: AbortSignal | undefined,
   attempts: number,
 ): Promise<SchemaVerdict<T>> {
+  return beginFlight(domain, schema, signal, attempts).then(outcome =>
+    outcome.kind === 'cancelled' ? outcome : verdictFrom(outcome, read),
+  )
+}
+
+function beginFlight<T>(
+  domain: Domain,
+  schema: SchemaRef<T>,
+  signal: AbortSignal | undefined,
+  attempts: number,
+): Promise<FlightOutcome | { readonly kind: 'cancelled' }> {
+  const current = domain.slots.get(schema.id)
   const flight = createFlight()
+  if (current?.kind === 'retired') flight.held = current.snapshot
   domain.slots.set(schema.id, { kind: 'inflight', flight, attempts })
-  const pending = join<T>(flight, read, signal)
+  const pending = follow(flight, signal)
   void execute(domain, schema, flight, attempts)
   return pending
 }
@@ -198,7 +266,7 @@ function createFlight(): Flight {
   const done = new Promise<FlightOutcome>(settle => {
     resolve = settle
   })
-  return { live: 0, done, resolve }
+  return { live: 0, done, resolve, held: undefined }
 }
 
 function join<T>(
@@ -206,15 +274,24 @@ function join<T>(
   read: JsonRead,
   signal: AbortSignal | undefined,
 ): Promise<SchemaVerdict<T>> {
+  return follow(flight, signal).then(outcome =>
+    outcome.kind === 'cancelled' ? outcome : verdictFrom(outcome, read),
+  )
+}
+
+function follow(
+  flight: Flight,
+  signal: AbortSignal | undefined,
+): Promise<FlightOutcome | { readonly kind: 'cancelled' }> {
   flight.live += 1
   return new Promise(resolve => {
     let settled = false
-    const finish = (verdict: SchemaVerdict<T>) => {
+    const finish = (outcome: FlightOutcome | { readonly kind: 'cancelled' }) => {
       if (settled) return
       settled = true
       flight.live -= 1
       signal?.removeEventListener('abort', onAbort)
-      resolve(verdict)
+      resolve(outcome)
     }
     const onAbort = () => finish({ kind: 'cancelled' })
     if (signal?.aborted) {
@@ -224,7 +301,7 @@ function join<T>(
     if (signal !== undefined) signal.addEventListener('abort', onAbort)
     void flight.done.then(outcome => {
       if (settled) return
-      finish(verdictFrom(outcome, read))
+      finish(outcome)
     })
   })
 }
@@ -253,7 +330,7 @@ async function execute<T>(
   }
   const admitted = admit(definition, domain.budget)
   if (admitted.kind === 'refused') {
-    domain.slots.set(schema.id, admitted)
+    if (!restoreHeld(domain, schema.id, flight)) domain.slots.set(schema.id, admitted)
     flight.resolve(admitted)
     return
   }
@@ -264,13 +341,20 @@ async function execute<T>(
     recordFailure(domain, schema.id, flight, attempts, 'compile-failed')
     return
   }
-  const snapshot: Snapshot = { revision: admitted.revision, numbers: admitted.numbers, check }
+  if (flight.held !== undefined) flight.held.superseded = true
+  const snapshot: Snapshot = {
+    revision: admitted.revision,
+    numbers: admitted.numbers,
+    check,
+    leases: 0,
+    superseded: false,
+  }
   domain.slots.set(schema.id, { kind: 'ready', snapshot })
   flight.resolve({ kind: 'ready', snapshot })
 }
 
 function drop(domain: Domain, id: string, flight: Flight): void {
-  domain.slots.delete(id)
+  if (!restoreHeld(domain, id, flight)) domain.slots.delete(id)
   flight.resolve({ kind: 'dropped' })
 }
 
@@ -284,13 +368,22 @@ function recordFailure(
   const next = attempts + 1
   if (next >= domain.budget.maxAttempts) {
     const refused = { kind: 'refused' as const, reason: 'attempts-exhausted' as const }
-    domain.slots.set(id, refused)
+    if (!restoreHeld(domain, id, flight)) domain.slots.set(id, refused)
     flight.resolve(refused)
     return
   }
   const retryNotBeforeMillis = Date.now() + domain.budget.failureBackoffMs
-  domain.slots.set(id, { kind: 'cooling', attempts: next, reason, retryNotBeforeMillis })
+  if (!restoreHeld(domain, id, flight)) {
+    domain.slots.set(id, { kind: 'cooling', attempts: next, reason, retryNotBeforeMillis })
+  }
   flight.resolve({ kind: 'unavailable', reason, retryNotBeforeMillis })
+}
+
+function restoreHeld(domain: Domain, id: string, flight: Flight): boolean {
+  const held = flight.held
+  if (held === undefined || held.leases === 0) return false
+  domain.slots.set(id, { kind: 'retired', snapshot: held, leases: held.leases })
+  return true
 }
 
 function verdictFrom<T>(outcome: FlightOutcome, read: JsonRead): SchemaVerdict<T> {
@@ -309,7 +402,46 @@ function verdictFrom<T>(outcome: FlightOutcome, read: JsonRead): SchemaVerdict<T
   }
 }
 
-function checkSnapshot<T>(snapshot: Snapshot, read: JsonRead): SchemaVerdict<T> {
+function holdReady<T>(
+  domain: Domain,
+  id: string,
+  pending: Promise<FlightOutcome | { readonly kind: 'cancelled' }>,
+): Promise<LeaseOutcome<T>> {
+  return pending.then(outcome => {
+    if (outcome.kind === 'cancelled' || outcome.kind === 'dropped') return { kind: 'cancelled' }
+    if (outcome.kind === 'ready') return hold(domain, id, outcome.snapshot)
+    return outcome
+  })
+}
+
+function hold<T>(domain: Domain, id: string, snapshot: Snapshot): LeaseOutcome<T> {
+  snapshot.leases += 1
+  let released = false
+  const lease: SchemaLease<T> = {
+    revision: snapshot.revision,
+    get superseded() {
+      return snapshot.superseded
+    },
+    check(read) {
+      return checkSnapshot(snapshot, read)
+    },
+    release() {
+      if (released) return
+      released = true
+      snapshot.leases -= 1
+      const slot = domain.slots.get(id)
+      if (slot?.kind !== 'retired' || slot.snapshot !== snapshot) return
+      if (snapshot.leases === 0) domain.slots.delete(id)
+      else domain.slots.set(id, { kind: 'retired', snapshot, leases: snapshot.leases })
+    },
+    [Symbol.dispose]() {
+      lease.release()
+    },
+  }
+  return { kind: 'leased', lease }
+}
+
+function checkSnapshot<T>(snapshot: Snapshot, read: JsonRead): SyncVerdict<T> {
   if (read.kind !== 'ok') return { kind: 'unreadable', failure: read }
   const projected = project(read.value, snapshot.numbers)
   if (projected.kind === 'invalid') {
