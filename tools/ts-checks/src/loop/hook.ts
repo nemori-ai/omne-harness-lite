@@ -3,7 +3,7 @@ import { assemblyMetadata } from './sensors/assembly.ts'
 // 收工钩子的判断：宿主在 agent 收工时喂进一个 JSON，决定要不要把「这次变更里要解释的红项」作为事实反馈回去。
 // 这里只有纯函数与一个以依赖注入编排的 `stopHook`；读标准输入、跑 git、起 worker、写文件都在 stop-hook.ts。
 import { createHash } from 'node:crypto'
-import type { DirectionFinding, ImportSite } from '../metrics/graph.ts'
+import type { DependencyFinding, ImportSite } from '../deps/graph.ts'
 import { describeAgainstBase, type ExplainedFunction } from './against-base.ts'
 import type { HookConfig } from './config.ts'
 import type { Explain, HardLines } from './status.ts'
@@ -47,7 +47,7 @@ export interface HookReadings {
 const site = (at: Pick<ImportSite, 'path' | 'line'> | undefined) =>
   at === undefined ? '' : `（${at.path}:${at.line}）`
 
-function hardLineFinding(kind: string, finding: DirectionFinding): Finding {
+function hardLineFinding(kind: string, finding: DependencyFinding): Finding {
   const edges = finding.edges.map(edge => `${edge.from}→${edge.to}`).join(',')
   return {
     key: `${kind}\u0000${finding.kind}\u0000${edges === '' ? finding.message : edges}`,
@@ -94,7 +94,7 @@ function assemblyFindings(reading: Explain['assemblyDelta']): Finding[] {
 export function findingsOf(readings: HookReadings): Finding[] {
   const { explain, hardLines, alert } = readings
   let out: Finding[] = [
-    ...hardLines.direction.map(finding => hardLineFinding('方向违规', finding)),
+    ...hardLines.direction.map(finding => hardLineFinding('依赖违规', finding)),
     ...hardLines.cycles.map(finding => hardLineFinding('环', finding)),
   ]
   if (explain.conformance?.status === 'data') {

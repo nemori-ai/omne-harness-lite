@@ -33,7 +33,6 @@ function edge(from: string, to: string, extra: Partial<EdgeRow> = {}): EdgeRow {
     count: 1,
     sites: [],
     violating: false,
-    excepted: false,
     changed: false,
     ...extra,
   }
@@ -73,7 +72,6 @@ function report(edges: readonly EdgeRow[] = []): Report {
     functions: [],
     edges,
     findings: [],
-    exceptions: [],
     failedTests: [],
     staleDist: [],
   }
@@ -108,10 +106,10 @@ describe('structure layout', () => {
   it('draws layers as columns from the innermost on the left, unplaced groups last', () => {
     expect(result.layers.map(box => box.layer)).toEqual([0, 1, 2, undefined])
     expect(result.layers.map(box => box.label)).toEqual([
-      '第 0 层 · 最内层',
-      '第 1 层 · 领域与基础设施',
-      '第 2 层 · 装配',
-      '未登记层位的组',
+      '第 0 层 · 不依赖别的组',
+      '第 1 层',
+      '第 2 层',
+      '未分层的组',
     ])
     for (const [index, box] of result.layers.slice(1).entries()) {
       const left = result.layers[index] as Box
@@ -137,19 +135,18 @@ describe('structure layout', () => {
 describe('structure edges', () => {
   const edges = [
     edge('apps/cli', 'packages/infra/a', { violating: true }),
-    edge('packages/infra/a', 'packages/core/c0', { excepted: true }),
+    edge('packages/infra/a', 'packages/core/c0'),
     edge('packages/infra/b', 'packages/core/c1', { changed: true }),
     edge('packages/tools/t', 'packages/core/c2', { changed: true }),
     edge('packages/tools/t', 'packages/infra/b'),
     edge('apps/cli', 'packages/tools/t'),
   ]
 
-  it('draws violations, exceptions and changed edges up to the limit when nothing is selected', () => {
+  it('draws violations and changed edges up to the limit when nothing is selected', () => {
     const shown = visibleEdges(report(edges), { selected: null, groupLines: false, limit: 2 })
     expect(shown.note).toBe('')
     expect(shown.edges.map(item => [item.id, item.tone, item.dashed])).toEqual([
       ['apps/cli>packages/infra/a', 'bad', false],
-      ['packages/infra/a>packages/core/c0', 'except', true],
       ['packages/infra/b>packages/core/c1', 'changed', false],
       ['packages/tools/t>packages/core/c2', 'changed', false],
     ])
@@ -157,7 +154,7 @@ describe('structure edges', () => {
 
   it('keeps changed edges as card marks only and explains why when they exceed the limit', () => {
     const shown = visibleEdges(report(edges), { selected: null, groupLines: false, limit: 1 })
-    expect(shown.edges.map(item => item.tone)).toEqual(['bad', 'except'])
+    expect(shown.edges.map(item => item.tone)).toEqual(['bad'])
     expect(shown.note).toContain('本次变更触及 2 条')
   })
 

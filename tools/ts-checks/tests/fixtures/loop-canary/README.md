@@ -6,7 +6,7 @@
 
 | 传感器           | 种下的违规                                                                       | 在哪                                                             |
 | ---------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 方向（硬线）     | core 依赖了 infra                                                                | `packages/core/a/src/index.ts` 导入 `@omne-harness/b`            |
+| 依赖违规（硬线） | 共同纯定义依赖了领域成员（dependency-cruiser 的 `shared-stays-pure`）            | `packages/common/s/src/index.ts` 导入 `@omne-harness/b`          |
 | 环（硬线）       | 同组两个成员互相依赖                                                             | `packages/session/p` ⇄ `packages/session/q`                      |
 | 实际装配         | 基线后插件新增 inject canaryUndeclared，保留具体服务标识；只报告变化，不推断偏离 | `packages/core/a/src/plugin.ts` 与完整 BASE 源码                 |
 | 稳定依赖不稳定   | 被三个成员依赖的 m 依赖了不稳定的 n                                              | `packages/model/m` → `packages/model/n`                          |
@@ -17,6 +17,8 @@
 | 一起改却分属两组 | core/a 与 infra/b 连着一起改四次                                                 | 测试里造提交                                                     |
 | topic rev 翻动   | 一个 topic 两周内升了三次 rev                                                    | `.meta_harness/design/product/canary/README.md`，测试里造提交    |
 | 并行工作树       | 两棵工作树同时改 model/m                                                         | 测试里建工作树                                                   |
+
+成员都有只含包名与 `source` 入口的 `package.json`；拷进临时目录后按包名建 `node_modules/@omne-harness/*` 链接（`.gitignore` 忽略），dependency-cruiser 才能像装好依赖的检出那样解析成员间的导入。
 
 假仓库里的 TypeScript 文件以 `.ts.txt` 存放，拷进临时目录时去掉 `.txt`：这样本包的类型检查、
 vitest、格式检查都不把它们当本包的源码与用例。度量与回路状态只看仓库根的 `packages/`、`apps/`、

@@ -215,11 +215,10 @@ const EDGE_TYPES = { flow: FlowEdgeView }
 /**
  * 线与箭头都用页面 token，内联 style 里的 var() 随深浅色切换即时生效。
  * 普通导入取发起成员卡片的颜色（从黄卡出发的线是黄的），组间连线取发起组左边线的颜色；
- * 红、橙、蓝仍留给违规、例外与变更。
+ * 红、蓝仍留给违规与变更。
  */
-const EDGE_COLOR: Readonly<Record<'bad' | 'except' | 'changed', string>> = {
+const EDGE_COLOR: Readonly<Record<'bad' | 'changed', string>> = {
   bad: 'var(--bad)',
-  except: 'var(--except)',
   changed: 'var(--changed)',
 }
 

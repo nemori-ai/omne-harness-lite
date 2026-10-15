@@ -1,4 +1,4 @@
-import type { Member, MemberEdge } from '../metrics/graph.ts'
+import type { Member, MemberEdge } from '../deps/graph.ts'
 
 export interface Site {
   readonly path: string

@@ -13,6 +13,7 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { linkWorkspace } from '../../../src/deps/graph.ts'
 
 const made: string[] = []
 
@@ -70,4 +71,7 @@ export function copyCanary(root: string): void {
     }
   }
   restore(root)
+  // 像装好依赖的检出那样，让成员间的包导入能被 dependency-cruiser 解析；链接不进提交。
+  writeFileSync(join(root, '.gitignore'), 'node_modules/\n')
+  linkWorkspace(root, join(root, 'node_modules'))
 }

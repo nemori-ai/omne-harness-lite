@@ -504,6 +504,9 @@ importers:
       antd:
         specifier: 'catalog:'
         version: 6.6.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      dependency-cruiser:
+        specifier: 'catalog:'
+        version: 18.6.0
       elkjs:
         specifier: 'catalog:'
         version: 0.12.0

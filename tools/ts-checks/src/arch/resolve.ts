@@ -3,7 +3,7 @@ import ts from '@typescript/typescript6'
 import { isTestPath, type SourceFile } from '../rule.ts'
 import { syntaxOf } from '../syntax.ts'
 import { ownerOf } from '../testing/members.ts'
-import type { Member } from '../metrics/graph.ts'
+import type { Member } from '../deps/graph.ts'
 import type { Site, Snapshot } from './actual-model.ts'
 
 const ROOT = '/__arch__/'

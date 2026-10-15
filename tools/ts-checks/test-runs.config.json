@@ -46,7 +46,7 @@
           "examples/**/*.cts"
         ],
         "members": ["tools/ts-checks"],
-        "why": "ts-checks 的规则测试读真实产品源码，慢层 group-direction.spec.ts 经 collectMemberSources 读 packages、apps、examples 下全部 TS"
+        "why": "ts-checks 的规则测试读真实产品源码：no-legacy-dependency.spec.ts 经 collectRepositorySources 扫全仓，确认当前仓库没有 legacy 依赖"
       },
       {
         "paths": [

@@ -4,7 +4,7 @@ import { isLegacyDirectory, isLegacyFile } from '../check-scope.ts'
 import { git } from '../metrics/git.ts'
 import { readRevisionTexts } from '../metrics/revision-files.ts'
 import { listWorkspaceMembers, ownerOf, workspacePatterns, type Tree } from '../testing/members.ts'
-import type { Member } from '../metrics/graph.ts'
+import type { Member } from '../deps/graph.ts'
 import type { Snapshot } from './actual-model.ts'
 
 export type JsonValue =

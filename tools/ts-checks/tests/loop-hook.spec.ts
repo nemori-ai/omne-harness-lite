@@ -40,10 +40,12 @@ const readings = (): HookReadings => ({
   hardLines: {
     direction: [
       {
-        kind: 'outward-dependency',
-        message: 'packages/core/a 依赖了更外层的 packages/infra/b',
+        kind: 'dependency-rule',
+        rule: 'capability-not-sdk',
+        message:
+          '[capability-not-sdk] packages/core/a/src/x.ts 依赖了 packages/access/sdk/src/index.ts',
         sites: [site('packages/core/a/src/x.ts', 3)],
-        edges: [{ from: 'packages/core/a', to: 'packages/infra/b' }],
+        edges: [{ from: 'packages/core/a', to: 'packages/access/sdk' }],
       },
     ],
     cycles: [],
@@ -132,7 +134,7 @@ describe('收工钩子的判断', () => {
     expect(parsed['reason']).toBe(
       [
         '收工前的结构读数（事实，不是指令）。这次变更里有下面几处读数落在线外：',
-        '- ✗ 硬线 · 方向违规：packages/core/a 依赖了更外层的 packages/infra/b（packages/core/a/src/x.ts:3）',
+        '- ✗ 硬线 · 依赖违规：[capability-not-sdk] packages/core/a/src/x.ts 依赖了 packages/access/sdk/src/index.ts（packages/core/a/src/x.ts:3）',
         '- 超过 alert 的函数：apps/cli/src/x.ts:47 runCli 圈复杂度 35（alert 12），原 34',
         '- 新增的跨成员依赖：packages/a → packages/b（packages/a/src/y.ts:3）',
         '- 新增的稳定依赖不稳定的边：packages/a（I 0.25）→ packages/b（I 0.50）（packages/a/src/y.ts:3）',

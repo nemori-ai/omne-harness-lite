@@ -1,6 +1,7 @@
 // 传感器金丝雀：夹具里每个传感器各种了一处已知违规（见 fixtures/loop-canary/README.md），
 // 走与 `make loop-status STRICT=1` 相同的入口，逐项断言每个传感器都报出了种下的那一处。
 // 哪个传感器悄悄失灵（读错目录、范围漏了、算法改坏），这里会指名变红。
+import type { DependencyFinding } from '../src/deps/graph.ts'
 import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -77,8 +78,8 @@ function canary(): { root: string; base: string } {
 
 interface Status {
   readonly hardLines: {
-    readonly direction: readonly { readonly edges: readonly { from: string; to: string }[] }[]
-    readonly cycles: readonly { readonly edges: readonly { from: string; to: string }[] }[]
+    readonly direction: readonly Pick<DependencyFinding, 'rule' | 'edges'>[]
+    readonly cycles: readonly Pick<DependencyFinding, 'kind' | 'edges'>[]
     readonly sensors: { readonly status: string; readonly silent: readonly { sensor: string }[] }
   }
   readonly explain: {
@@ -176,12 +177,17 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
     const { root, base } = canary()
     const { result, status } = await strictRun(root, base)
 
-    expect(status.hardLines.direction.flatMap(finding => finding.edges)).toContainEqual({
-      from: 'packages/core/a',
-      to: 'packages/infra/b',
-    })
+    expect(status.hardLines.direction).toContainEqual(
+      expect.objectContaining({
+        rule: 'shared-stays-pure',
+        edges: [{ from: 'packages/common/s', to: 'packages/infra/b' }],
+      }),
+    )
     expect(
-      status.hardLines.cycles.flatMap(finding => finding.edges.map(edge => edge.from)).sort(),
+      status.hardLines.cycles
+        .filter(finding => finding.kind === 'member-cycle')
+        .flatMap(finding => finding.edges.map(edge => edge.from))
+        .sort(),
     ).toEqual(['packages/session/p', 'packages/session/q'])
     expect(status.explain.functions).toContainEqual(
       expect.objectContaining({ path: 'apps/cli/src/route.ts', name: 'route', level: 'alert' }),
@@ -253,7 +259,7 @@ describe('传感器金丝雀', { timeout: 120_000 }, () => {
 
     expect(status.hardLines.sensors).toMatchObject({ status: 'judged', silent: [] })
     expect(result.code).toBe(1)
-    expect(result.lines).toContainEqual(expect.stringMatching(/^ {2}✗ 方向违规 /u))
+    expect(result.lines).toContainEqual(expect.stringMatching(/^ {2}✗ 依赖违规 /u))
     expect(result.lines).toContainEqual(expect.stringMatching(/^ {2}✗ 环 /u))
   })
 
