@@ -876,3 +876,44 @@ it('defect: a same-id validate between follow and delivery starts a second load'
   expect(await validate(provider, schema, text)).toMatchObject({ kind: 'valid', revision: '2' })
   expect(loads).toBe(2)
 })
+
+it('defect: a canceller who left before publish spends the joiner delivery share', async () => {
+  for (const starter of ['lease', 'validate'] as const) {
+    for (let depth = 1; depth <= 4; depth += 1) {
+      const provider = createSchemaProvider({ ...budget, maxSnapshots: 1 })
+      const schema = defineSchema({
+        id: `A-${starter}-${depth}`,
+        load: async () =>
+          zodDefinition({ revision: 'A', numbers: 'exact-or-reject', schema: z.string() }),
+      })
+      const other = defineSchema({
+        id: `B-${starter}-${depth}`,
+        load: async () =>
+          zodDefinition({ revision: 'B', numbers: 'exact-or-reject', schema: z.string() }),
+      })
+      const aborter = new AbortController()
+      const first =
+        starter === 'lease'
+          ? lease(provider, schema, aborter.signal)
+          : validate(provider, schema, text, aborter.signal)
+      const joined = lease(provider, schema)
+      refresh(provider, schema.id)
+      aborter.abort()
+      const later = (remaining: number, run: () => void) => {
+        if (remaining === 0) run()
+        else queueMicrotask(() => later(remaining - 1, run))
+      }
+      const third = new Promise<Awaited<ReturnType<typeof lease>>>((resolve) => {
+        later(depth, () => resolve(lease(provider, other)))
+      })
+      const [starterResult, joiner, incoming] = await Promise.all([first, joined, third])
+      expect(starterResult.kind).toBe('cancelled')
+      expect(joiner.kind).toBe('leased')
+      if (joiner.kind !== 'leased') continue
+      expect(joiner.lease.check(text)).toMatchObject({ kind: 'valid', revision: 'A' })
+      expect(incoming).toEqual({ kind: 'refused', reason: 'budget-exhausted' })
+      joiner.lease.release()
+      expect(await lease(provider, other)).toMatchObject({ kind: 'leased', lease: { revision: 'B' } })
+    }
+  }
+})
