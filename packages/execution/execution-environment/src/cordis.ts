@@ -109,8 +109,8 @@ export class ExecutionEnvironmentRegistry extends ExecutionEnvironmentService {
     })
   }
 
-  registerProvider(provider: EnvironmentProvider) {
-    return this.ctx.effect(() => {
+  registerProvider(provider: EnvironmentProvider): () => Promise<void> {
+    const dispose = this.ctx.effect(() => {
       const providers = providersOf(this)
       providers.push(provider)
       return () => {
@@ -118,6 +118,7 @@ export class ExecutionEnvironmentRegistry extends ExecutionEnvironmentService {
         if (index >= 0) providers.splice(index, 1)
       }
     })
+    return () => Promise.resolve(dispose())
   }
 }
 
