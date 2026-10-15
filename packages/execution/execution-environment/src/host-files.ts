@@ -51,43 +51,22 @@ function openFailure(requestId: string, error: unknown): FacilityResult<never> {
   return { kind: 'unknown', requestId }
 }
 
-async function openNamed(
-  requestId: string,
-  path: string,
-  namedToken: string,
-  bindingKind: EnvironmentBinding['kind'],
-  flags: number,
-): Promise<
-  | { readonly kind: 'handle'; readonly handle: FileHandle; readonly object: ObjectToken }
-  | FacilityResult<never>
-> {
-  if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
-  if (path.includes('\0')) return reject(requestId, 'invalidInput')
-  if (namedToken === '') return reject(requestId, 'notAuthorized')
-
-  let handle: FileHandle
-  try {
-    handle = await open(pathWithoutTrailingSlash(path), flags | constants.O_NOFOLLOW)
-  } catch (error) {
-    return openFailure(requestId, error)
-  }
-
-  try {
-    const stat = await handle.stat({ bigint: true })
-    const object = { token: `${stat.dev}:${stat.ino}` }
-    if (object.token !== namedToken) {
-      await handle.close().catch(() => undefined)
-      return reject(requestId, 'conflict')
-    }
-    return { kind: 'handle', handle, object }
-  } catch {
-    await handle.close().catch(() => undefined)
-    return { kind: 'unknown', requestId }
-  }
-}
-
 function issuedKey(handle: HandleGeneration): string {
   return `${handle.object.token}\0${handle.generation}`
+}
+
+const internalState = new WeakMap<
+  FileFacility,
+  { readonly pendingCloseCount: () => number }
+>()
+
+/**
+ * Exposes internal state for tests only. Not part of the public package contract.
+ * @internal
+ */
+export function __unsafeHostFilesState(files: FileFacility): { readonly pendingCloseCount: number } {
+  const state = internalState.get(files)
+  return { pendingCloseCount: state?.pendingCloseCount() ?? 0 }
 }
 
 export function createHostFiles(): FileFacility {
@@ -96,6 +75,10 @@ export function createHostFiles(): FileFacility {
    *  A `FileHandle` means the previous close attempt failed and the descriptor is still open.
    */
   const handles = new Map<string, FileHandle | undefined>()
+
+  /** Opened descriptors that could not be closed on error paths, kept for continued cleanup. */
+  const pendingClose = new Set<FileHandle>()
+
   let nextGeneration = 1
 
   const issue = (object: ObjectToken): HandleGeneration => {
@@ -104,13 +87,78 @@ export function createHostFiles(): FileFacility {
     return handle
   }
 
-  return {
+  const trackFailedClose = (handle: FileHandle): void => {
+    pendingClose.add(handle)
+  }
+
+  const closeOrTrack = async (handle: FileHandle): Promise<void> => {
+    try {
+      await handle.close()
+    } catch {
+      trackFailedClose(handle)
+    }
+  }
+
+  const drainPendingClose = async (): Promise<void> => {
+    for (const handle of pendingClose) {
+      try {
+        await handle.close()
+        pendingClose.delete(handle)
+      } catch {
+        // remain in pendingClose for next drain
+      }
+    }
+  }
+
+  async function openNamed(
+    requestId: string,
+    path: string,
+    namedToken: string,
+    bindingKind: EnvironmentBinding['kind'],
+    flags: number,
+  ): Promise<
+    | { readonly kind: 'handle'; readonly handle: FileHandle; readonly object: ObjectToken }
+    | FacilityResult<never>
+  > {
+    if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
+    if (path.includes('\0')) return reject(requestId, 'invalidInput')
+    if (namedToken === '') return reject(requestId, 'notAuthorized')
+
+    let handle: FileHandle
+    try {
+      handle = await open(pathWithoutTrailingSlash(path), flags | constants.O_NOFOLLOW)
+    } catch (error) {
+      return openFailure(requestId, error)
+    }
+
+    try {
+      const stat = await handle.stat({ bigint: true })
+      const object = { token: `${stat.dev}:${stat.ino}` }
+
+      if (path.length > 1 && path.endsWith('/') && !stat.isDirectory()) {
+        await closeOrTrack(handle)
+        return { kind: 'unresolved', requestId }
+      }
+
+      if (object.token !== namedToken) {
+        await closeOrTrack(handle)
+        return reject(requestId, 'conflict')
+      }
+      return { kind: 'handle', handle, object }
+    } catch {
+      await closeOrTrack(handle)
+      return { kind: 'unknown', requestId }
+    }
+  }
+
+  const facility: FileFacility = {
     async read(request) {
       const requestId = request.requestId
       const path = request.path
       const named = request.named
       const namedToken = named === null ? '' : named.token
       const bindingKind = request.binding.kind
+      await drainPendingClose()
       const opened = await openNamed(requestId, path, namedToken, bindingKind, constants.O_RDONLY)
       if (opened.kind !== 'handle') return opened
 
@@ -128,7 +176,7 @@ export function createHostFiles(): FileFacility {
           value: { object: opened.object, handle, bytes },
         }
       } catch (error) {
-        await opened.handle.close().catch(() => undefined)
+        await closeOrTrack(opened.handle)
         if (errorCode(error) === 'EISDIR') return reject(requestId, 'unsupported')
         return { kind: 'unknown', requestId }
       }
@@ -140,6 +188,7 @@ export function createHostFiles(): FileFacility {
       const named = request.named
       const namedToken = named === null ? '' : named.token
       const bindingKind = request.binding.kind
+      await drainPendingClose()
       const opened = await openNamed(requestId, path, namedToken, bindingKind, constants.O_RDONLY)
       if (opened.kind !== 'handle') return opened
 
@@ -163,6 +212,7 @@ export function createHostFiles(): FileFacility {
       const namedToken = named === null ? '' : named.token
       const bindingKind = request.binding.kind
       const bytes = Uint8Array.from(request.bytes)
+      await drainPendingClose()
       const opened = await openNamed(requestId, path, namedToken, bindingKind, constants.O_RDWR)
       if (opened.kind !== 'handle') return opened
 
@@ -172,7 +222,7 @@ export function createHostFiles(): FileFacility {
         while (offset < bytes.byteLength) {
           const { bytesWritten } = await opened.handle.write(bytes, offset)
           if (bytesWritten <= 0) {
-            await opened.handle.close().catch(() => undefined)
+            await closeOrTrack(opened.handle)
             return { kind: 'unknown', requestId }
           }
           offset += bytesWritten
@@ -189,7 +239,7 @@ export function createHostFiles(): FileFacility {
           value: { object: opened.object, handle },
         }
       } catch {
-        await opened.handle.close().catch(() => undefined)
+        await closeOrTrack(opened.handle)
         return { kind: 'unknown', requestId }
       }
     },
@@ -204,6 +254,7 @@ export function createHostFiles(): FileFacility {
       const handleObject = { token: handle.object.token }
       const handleGeneration = handle.generation
       const returnedHandle: HandleGeneration = { object: handleObject, generation: handleGeneration }
+      await drainPendingClose()
 
       if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
       if (path.includes('\0')) return reject(requestId, 'invalidInput')
@@ -234,4 +285,7 @@ export function createHostFiles(): FileFacility {
       }
     },
   }
+
+  internalState.set(facility, { pendingCloseCount: () => pendingClose.size })
+  return facility
 }

@@ -13,6 +13,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createHostFiles, hostObjectToken, type FileRequest } from '@omne-harness/execution-environment'
+import {
+  createHostFiles as createHostFilesSource,
+  __unsafeHostFilesState,
+} from '../src/host-files'
 
 let injectCloseFailure = false
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -520,4 +524,55 @@ it('accepts a real directory through a trailing slash', async () => {
       handle: { object: named, generation: '1' },
     },
   })
+})
+
+it('leaves a regular file with a trailing slash unresolved on read', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'file-bytes')
+  const named = await hostObjectToken(path)
+  const result = await createHostFiles().read(request(`${path}/`, named, 'file-slash-read'))
+  expect(result).toEqual({ kind: 'unresolved', requestId: 'file-slash-read' })
+  expect(await readFile(path, 'utf8')).toBe('file-bytes')
+})
+
+it('leaves a regular file with a trailing slash unresolved on write and does not truncate it', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'file-bytes')
+  const named = await hostObjectToken(path)
+  const result = await createHostFiles().write({
+    ...request(`${path}/`, named, 'file-slash-write'),
+    bytes: text('new-bytes'),
+  })
+  expect(result).toEqual({ kind: 'unresolved', requestId: 'file-slash-write' })
+  expect(await readFile(path, 'utf8')).toBe('file-bytes')
+})
+
+it('leaves a regular file with a trailing slash unresolved on stat', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'file-bytes')
+  const named = await hostObjectToken(path)
+  const result = await createHostFiles().stat(request(`${path}/`, named, 'file-slash-stat'))
+  expect(result).toEqual({ kind: 'unresolved', requestId: 'file-slash-stat' })
+})
+
+it('keeps descriptors whose close failed on error paths for continued cleanup', async () => {
+  const root = await tree()
+  const conflictPath = join(root, 'conflict.txt')
+  const otherPath = join(root, 'other.txt')
+  await writeFile(conflictPath, 'conflict-bytes')
+  await writeFile(otherPath, 'other-bytes')
+  const wrongNamed = { token: 'wrong-token' }
+  const files = createHostFilesSource()
+
+  await withCloseFailure(async () => {
+    const result = await files.read(request(conflictPath, wrongNamed, 'conflict-close-fail'))
+    expect(result).toEqual({ kind: 'rejected', requestId: 'conflict-close-fail', reason: 'conflict' })
+    expect(__unsafeHostFilesState(files).pendingCloseCount).toBeGreaterThan(0)
+  })
+
+  await files.read(request(otherPath, await hostObjectToken(otherPath), 'drain'))
+  expect(__unsafeHostFilesState(files).pendingCloseCount).toBe(0)
 })
