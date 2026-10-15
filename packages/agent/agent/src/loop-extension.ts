@@ -46,8 +46,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function issueReason(path: readonly (string | number)[], value: unknown): RefusalReason {
-  if (path.includes('position')) return 'unknown-position'
-  if (path.includes('power')) return 'unknown-power'
+  if (path[0] === 'position') return 'unknown-position'
+  if (path[0] === 'power') return 'unknown-power'
   if (!path.includes('dimension') || !isRecord(value)) return 'malformed'
   if (value.position !== 'after_model_call' && value.position !== 'after_action') return 'dimension-not-allowed'
   if (!isRecord(value.dimension)) return 'malformed'

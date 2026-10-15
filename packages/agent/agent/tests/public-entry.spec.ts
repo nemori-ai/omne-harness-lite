@@ -480,6 +480,49 @@ it('classifies illegal dimensions separately from a missing required field', asy
   ).toEqual({ kind: 'refused', reason: 'dimension-not-allowed', index: 0 })
 })
 
+it('classifies the attribute that was submitted, not a later mutation', async () => {
+  const empty = { item: '' }
+  const pendingEmpty = judgeAgentDefinition({ ...legalDefinition, attributes: [empty] })
+  empty.item = 'model'
+  await expect(pendingEmpty).resolves.toEqual({ kind: 'refused', reason: 'unknown-attribute' })
+  const named = { item: 'persona' }
+  const pendingNamed = judgeAgentDefinition({ ...legalDefinition, attributes: [named] })
+  named.item = 'model'
+  await expect(pendingNamed).resolves.toEqual({ kind: 'refused', reason: 'unknown-attribute' })
+})
+
+it('does not treat an extra reference field as an unknown attribute', async () => {
+  expect(
+    await judgeAgentDefinition({
+      ...legalDefinition,
+      references: [{ capability: { category: 'Tool', name: 'read' }, item: 'persona' }],
+    }),
+  ).toEqual({ kind: 'refused', reason: 'malformed' })
+})
+
+it('does not treat extra dimension keys named position or power as unknown enums', async () => {
+  expect(
+    await judgeLoopExtensions([
+      {
+        name: 'e',
+        position: 'after_model_call',
+        power: 'observe',
+        dimension: { ending: 'complete_reply', position: 'before_action' },
+      },
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
+  expect(
+    await judgeLoopExtensions([
+      {
+        name: 'e',
+        position: 'after_action',
+        power: 'observe',
+        dimension: { scope: 'each', power: 'veto' },
+      },
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
+})
+
 it('classifies an attribute item string separately from a broken attribute', async () => {
   expect(
     await judgeAgentDefinition({

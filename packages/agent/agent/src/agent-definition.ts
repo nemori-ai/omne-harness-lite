@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { checkJson } from './check.ts'
+import { checkJson, copyPlain } from './check.ts'
 import {
   ATTRIBUTE_ITEMS,
   refused,
@@ -58,7 +58,9 @@ function readData(value: unknown, path: readonly (string | number)[]): unknown {
 }
 
 function issueReason(path: readonly (string | number)[], value: unknown): RefusalReason {
-  const itemIndex = path.indexOf('item')
+  const attributesAt = path.indexOf('attributes')
+  if (attributesAt < 0) return 'malformed'
+  const itemIndex = path.indexOf('item', attributesAt + 1)
   if (itemIndex < 0) return 'malformed'
   const item = readData(value, path.slice(0, itemIndex + 1))
   if (typeof item === 'string' && !isAttributeItem(item)) return 'unknown-attribute'
@@ -94,12 +96,14 @@ function acceptDefinition(parsed: Parsed): Judgment<AgentDefinition> {
 }
 
 export async function judgeAgentDefinition(value: unknown): Promise<Judgment<AgentDefinition>> {
-  const checked = await checkJson<Parsed>('agent.definition', definition, value)
+  const copied = copyPlain(value)
+  if (!copied.ok) return refused(copied.reason)
+  const checked = await checkJson<Parsed>('agent.definition', definition, copied.value)
   switch (checked.kind) {
     case 'local-refusal':
       return refused(checked.reason)
     case 'invalid':
-      return refused(issueReason(checked.issues[0].path, value))
+      return refused(issueReason(checked.issues[0].path, copied.value))
     case 'valid':
       return acceptDefinition(checked.value)
     default: {
