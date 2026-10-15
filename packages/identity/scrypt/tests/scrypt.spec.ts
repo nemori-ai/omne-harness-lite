@@ -36,9 +36,71 @@ it('uses the measured memory floor for the accepted profile', () => {
   expect(SCRYPT_PROFILE).toMatchObject({ N: 2 ** 17, r: 8, p: 1, keylen: 32, saltBytes: 16, inFlight: 1, queue: 4 })
 })
 
-it('refuses a profile Node would treat as a hidden default', () => {
-  const opened = openScrypt({ ...tiny, r: 0 })
-  expect(opened).toEqual({ ok: false, code: 'invalid_profile' })
+it('refuses each illegal profile field before a hash starts', () => {
+  const illegal: ScryptProfile[] = [
+    { ...tiny, N: 3 },
+    { ...tiny, r: 0 },
+    { ...tiny, p: 0 },
+    { ...tiny, keylen: 15 },
+    { ...tiny, keylen: 65 },
+    { ...tiny, saltBytes: 15 },
+    { ...tiny, saltBytes: 65 },
+    { ...tiny, inFlight: 0 },
+    { ...tiny, queue: 0 },
+  ]
+  for (const profile of illegal) {
+    expect(openScrypt(profile)).toEqual({ ok: false, code: 'invalid_profile' })
+  }
+})
+
+it('queues when the running count is full even if memory still fits', () => {
+  expect(
+    planAdmission({
+      running: 1,
+      runningMemory: 0,
+      queued: 0,
+      jobMemory: 10,
+      inFlight: 1,
+      queueLimit: 4,
+      memoryBudget: 100,
+    }),
+  ).toBe('queue')
+  expect(
+    planAdmission({
+      running: 0,
+      runningMemory: 90,
+      queued: 0,
+      jobMemory: 20,
+      inFlight: 2,
+      queueLimit: 4,
+      memoryBudget: 100,
+    }),
+  ).toBe('queue')
+})
+
+it('starts the queued job after the running job finishes', async () => {
+  const held = heldCompute()
+  const opened = openScrypt(tiny, held.compute)
+  if (!opened.ok) throw new Error('profile')
+  const first = opened.module.derive('one', allow)
+  if (!('done' in first)) throw new Error('expected a running job')
+  await Promise.resolve()
+  const second = opened.module.derive('two', allow)
+  if (!('done' in second)) throw new Error('expected a queued job')
+  expect(held.calls()).toBe(1)
+  held.release(1)
+  await first.done
+  await Promise.resolve()
+  expect(held.calls()).toBe(2)
+  held.release(2)
+  await expect(second.done).resolves.toMatchObject({ code: 'material' })
+})
+
+it('rejects a material that is not a scrypt string before compute', () => {
+  const opened = openScrypt(tiny)
+  if (!opened.ok) throw new Error('profile')
+  expect(opened.module.verify('not-a-material', 'secret')).toEqual({ code: 'unavailable' })
+  expect(opened.module.verify('$', 'secret')).toEqual({ code: 'mismatch' })
 })
 
 it('plans a single oversized job as memory_limit and a full queue as queue_full', () => {
@@ -66,7 +128,7 @@ it('plans a single oversized job as memory_limit and a full queue as queue_full'
   ).toBe('queue_full')
 })
 
-it('rejects a bad secret and a refused policy before compute', () => {
+it('rejects a bad secret and a refused policy before compute', async () => {
   const held = heldCompute()
   const opened = openScrypt(tiny, held.compute)
   if (!opened.ok) throw new Error('profile')
@@ -79,7 +141,18 @@ it('rejects a bad secret and a refused policy before compute', () => {
   expect(opened.module.derive('secret', undefined)).toEqual({ code: 'policy_missing' })
   const refused = opened.module.derive('secret', () => ({ ok: false }))
   expect(JSON.stringify(refused).includes('secret')).toBe(false)
-  expect(refused).toEqual({ code: 'policy_refused' })
+  expect(opened.module.derive('secret', () => {
+    throw new Error('policy-blew-up')
+  })).toEqual({ code: 'unavailable' })
+  expect(opened.module.derive(1 as unknown as string, allow)).toEqual({ code: 'invalid_secret' })
+  const broken: ScryptCompute = (_secret, _salt, _keylen, _cost, done) => {
+    done(null)
+  }
+  const failing = openScrypt(tiny, broken)
+  if (!failing.ok) throw new Error('profile')
+  const started = failing.module.derive('secret', allow)
+  if (!('done' in started)) throw new Error('expected a job')
+  await expect(started.done).resolves.toEqual({ code: 'unavailable' })
   expect(held.calls()).toBe(0)
 })
 
@@ -97,6 +170,7 @@ it('keeps a running slot after the caller stops waiting, and refuses a full queu
   expect(second.code).toBe('queued')
   expect(opened.module.derive('three', allow)).toEqual({ code: 'queue_full' })
   expect(second.cancelWaiting()).toBe('left_queue')
+  expect(second.cancelWaiting()).toBe('already_left')
   expect(await second.done).toEqual({ code: 'left_queue' })
   expect(held.calls()).toBe(1)
   held.release(1)
@@ -126,9 +200,8 @@ it('matches a derived secret and mismatches a different one', async () => {
   if (!opened.ok) throw new Error('profile')
   const started = opened.module.derive('correct-secret', allow)
   if (!('done' in started)) throw new Error('expected a job')
-  const derived = (await started.done) as { code: string; material?: string }
-  expect(derived.code).toBe('material')
-  if (derived.material === undefined) throw new Error('missing material')
+  const derived = await started.done
+  if (derived.code !== 'material') throw new Error(derived.code)
   const matched = opened.module.verify(derived.material, 'correct-secret')
   if (!('done' in matched)) throw new Error('expected verify job')
   await expect(matched.done).resolves.toEqual({ code: 'match' })
@@ -143,8 +216,8 @@ it('checks a stored material with its own cost when that cost still fits', async
   if (!wide.ok || !narrow.ok) throw new Error('profile')
   const started = narrow.module.derive('correct-secret', allow)
   if (!('done' in started)) throw new Error('expected a job')
-  const derived = (await started.done) as { code: string; material?: string }
-  if (derived.material === undefined) throw new Error('missing material')
+  const derived = await started.done
+  if (derived.code !== 'material') throw new Error(derived.code)
   const checked = wide.module.verify(derived.material, 'correct-secret')
   if (!('done' in checked)) throw new Error('expected verify')
   await expect(checked.done).resolves.toEqual({ code: 'match' })
@@ -158,9 +231,21 @@ it('refuses stored parameters above the opened profile before another hash', asy
   if (!wide.ok || !narrow.ok) throw new Error('profile')
   const started = wide.module.derive('secret', allow)
   if (!('done' in started)) throw new Error('expected a job')
-  const derived = (await started.done) as { code: string; material?: string }
-  if (derived.material === undefined) throw new Error('missing material')
+  const derived = await started.done
+  if (derived.code !== 'material') throw new Error(derived.code)
   expect(narrow.module.verify(derived.material, 'secret')).toEqual({ code: 'unavailable' })
+})
+
+it('refuses a stored r, p, or key length above the opened profile', async () => {
+  const opened = openScrypt(tiny)
+  if (!opened.ok) throw new Error('profile')
+  const started = opened.module.derive('secret', allow)
+  if (!('done' in started)) throw new Error('expected a job')
+  const derived = await started.done
+  if (derived.code !== 'material') throw new Error(derived.code)
+  expect(opened.module.verify(derived.material.replace('r=1', 'r=2'), 'secret')).toEqual({ code: 'unavailable' })
+  expect(opened.module.verify(derived.material.replace('p=1', 'p=2'), 'secret')).toEqual({ code: 'unavailable' })
+  expect(opened.module.verify(derived.material.replace('k=32', 'k=33'), 'secret')).toEqual({ code: 'unavailable' })
 })
 
 it('reports an unknown scheme as mismatch and a broken material as unavailable', () => {
@@ -184,9 +269,8 @@ it('derives and verifies the accepted profile on this host', async () => {
   if (!opened.ok) throw new Error('profile')
   const started = opened.module.derive('profile-secret', allow)
   if (!('done' in started)) throw new Error('expected a job')
-  const derived = (await started.done) as { code: string; material?: string }
-  expect(derived.code).toBe('material')
-  if (derived.material === undefined) throw new Error('missing material')
+  const derived = await started.done
+  if (derived.code !== 'material') throw new Error(derived.code)
   expect(derived.material.startsWith('$scrypt$v=1$n=131072,r=8,p=1,k=32$')).toBe(true)
   const checked = opened.module.verify(derived.material, 'profile-secret')
   if (!('done' in checked)) throw new Error('expected verify')

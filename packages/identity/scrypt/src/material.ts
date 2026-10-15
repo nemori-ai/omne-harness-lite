@@ -28,30 +28,52 @@ export function encodeMaterial(params: MaterialParams, salt: Uint8Array, key: Ui
 }
 
 export function decodeMaterial(material: string): DecodedMaterial | DecodeFailure {
+  const scheme = schemeOf(material)
+  if (scheme !== 'scrypt') return scheme
+  const body = bodyOf(material)
+  if (body === undefined) return 'unavailable'
+  return body
+}
+
+function schemeOf(material: string): 'scrypt' | DecodeFailure {
   if (!material.startsWith('$')) return 'unavailable'
+  const name = material.split('$')[1]
+  if (name !== SCRYPT_SCHEME) return 'mismatch'
+  return 'scrypt'
+}
+
+function bodyOf(material: string): DecodedMaterial | undefined {
   const parts = material.split('$')
-  if (parts.length < 2 || parts[1] !== SCRYPT_SCHEME) return 'mismatch'
-  if (parts.length !== 6) return 'unavailable'
+  if (parts.length !== 6) return undefined
   const version = parts[2]
   const paramText = parts[3]
   const saltText = parts[4]
   const keyText = parts[5]
   if (version !== VERSION || paramText === undefined || saltText === undefined || keyText === undefined) {
-    return 'unavailable'
+    return undefined
   }
+  const params = paramsFrom(paramText)
+  if (params === undefined) return undefined
+  return decodedBytes(saltText, keyText, params)
+}
+
+function paramsFrom(paramText: string): MaterialParams | undefined {
   const values = readParams(paramText)
-  if (values === undefined) return 'unavailable'
+  if (values === undefined) return undefined
   const params: MaterialParams = {
     N: values.get('n') ?? Number.NaN,
     r: values.get('r') ?? Number.NaN,
     p: values.get('p') ?? Number.NaN,
     keylen: values.get('k') ?? Number.NaN,
   }
-  if (!paramsFit(params)) return 'unavailable'
+  return paramsFit(params) ? params : undefined
+}
+
+function decodedBytes(saltText: string, keyText: string, params: MaterialParams): DecodedMaterial | undefined {
   const salt = strictBase64url(saltText)
   const key = strictBase64url(keyText)
-  if (salt === undefined || key === undefined) return 'unavailable'
-  if (salt.length < 16 || salt.length > 64 || key.length !== params.keylen) return 'unavailable'
+  if (salt === undefined || key === undefined) return undefined
+  if (salt.length < 16 || salt.length > 64 || key.length !== params.keylen) return undefined
   return { params, salt, key }
 }
 

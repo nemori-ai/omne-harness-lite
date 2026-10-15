@@ -21,30 +21,40 @@ export const SCRYPT_PROFILE: ScryptProfile = {
   queue: 4,
 }
 
-export function profileMemory(profile: ScryptProfile): number | undefined {
-  const one = memoryBytes(profile)
-  if (one === undefined || !Number.isSafeInteger(profile.inFlight) || profile.inFlight < 1) return undefined
-  const budget = one * profile.inFlight
-  return Number.isSafeInteger(budget) ? budget : undefined
+export interface AcceptedProfile {
+  readonly budget: number
+  readonly jobMemory: number
 }
 
-export function profileValid(profile: ScryptProfile): boolean {
+function countsOk(profile: ScryptProfile): boolean {
   return (
-    isPowerOfTwo(profile.N) &&
     Number.isSafeInteger(profile.r) &&
     profile.r >= 1 &&
     Number.isSafeInteger(profile.p) &&
     profile.p >= 1 &&
+    Number.isSafeInteger(profile.inFlight) &&
+    profile.inFlight >= 1 &&
+    Number.isSafeInteger(profile.queue) &&
+    profile.queue >= 1
+  )
+}
+
+function lengthsOk(profile: ScryptProfile): boolean {
+  return (
     Number.isSafeInteger(profile.keylen) &&
     profile.keylen >= 16 &&
     profile.keylen <= 64 &&
     Number.isSafeInteger(profile.saltBytes) &&
     profile.saltBytes >= 16 &&
-    profile.saltBytes <= 64 &&
-    Number.isSafeInteger(profile.inFlight) &&
-    profile.inFlight >= 1 &&
-    Number.isSafeInteger(profile.queue) &&
-    profile.queue >= 1 &&
-    profileMemory(profile) !== undefined
+    profile.saltBytes <= 64
   )
+}
+
+export function acceptedProfile(profile: ScryptProfile): AcceptedProfile | undefined {
+  if (!isPowerOfTwo(profile.N) || !countsOk(profile) || !lengthsOk(profile)) return undefined
+  const jobMemory = memoryBytes(profile)
+  if (jobMemory === undefined) return undefined
+  const budget = jobMemory * profile.inFlight
+  if (!Number.isSafeInteger(budget)) return undefined
+  return { budget, jobMemory }
 }
