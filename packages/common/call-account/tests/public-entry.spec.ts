@@ -1,3 +1,6 @@
+import { execFileSync } from 'node:child_process'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import {
   admitRevision,
@@ -98,6 +101,29 @@ it('uses billable when no ledger is known and refuses mixed units', () => {
   ])
   expect(payableAmount(value)).toEqual({ ok: { state: 'known', lexeme: '1.50', unit: 'USD' } })
   expect(sourceSubtotal(value, 'observation')).toEqual({ rejected: 'unit' })
+})
+
+it('keeps the original lexeme text through a JSON round trip', () => {
+  const value = account([{ state: 'known', lexeme: '1.50', unit: 'USD', source: 'ledger' }])
+  const judged = judgeCallAccount(value)
+  if (!('ok' in judged)) throw new Error('admission rejected')
+  const text = canonicalAccount(judged.ok)
+  const again = judgeCallAccount(JSON.parse(text))
+  expect(again).toEqual(judged)
+  expect(JSON.parse(text).cost[0].lexeme).toBe('1.50')
+  expect(JSON.parse(text).usage[0].lexeme).toBe('128')
+})
+
+it('imports the built package for a model or tool producer and a session consumer', () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+  const out = execFileSync(process.execPath, ['tests/independent-consumers.mjs'], {
+    cwd: root,
+    encoding: 'utf8',
+  })
+  expect(JSON.parse(out)).toEqual({
+    producer: 'tool_execution',
+    payable: { state: 'known', lexeme: '1.50', unit: 'USD' },
+  })
 })
 
 it('does not follow a later edit of the caller object', () => {

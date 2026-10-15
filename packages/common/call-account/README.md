@@ -40,7 +40,7 @@ Model and tool produce that value. Session calls `admitRevision` when a later sn
 
 `admitRevision` returns the next snapshot when its revision is greater. The same revision returns the first snapshot, whether the content matches or not. A different subject rejects as `subject`.
 
-`sourceSubtotal` adds only `known` amounts of one source. Provisional and unknown amounts stay out. Different units reject as `unit`. `payableAmount` returns the known `ledger` subtotal. When that subtotal is unknown, it returns the known `billable` subtotal. `supplier` and `observation` are not the payable amount. In the sample above the payable lexeme is `1.50`.
+`sourceSubtotal` adds only `known` amounts of one source. Provisional and unknown amounts stay out. Different units reject as `unit`. `payableAmount` returns the known `ledger` subtotal. When that subtotal is unknown, it returns the known `billable` subtotal. `supplier` and `observation` are not the payable amount. In the sample above the payable lexeme is `1.50`. `canonicalAccount` writes that lexeme as a JSON string. Parsing that JSON and judging it again returns the same lexeme text.
 
 ## Design
 

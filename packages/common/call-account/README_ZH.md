@@ -40,7 +40,7 @@ payableAmount(account)
 
 `admitRevision` 在下一份修订更大时返回下一份快照。修订相同则返回第一份，不论内容是否相同。subject 不同则拒绝码是 `subject`。
 
-`sourceSubtotal` 只加一个来源里 `known` 的金额。暂估和未知不进入。单位不同则拒绝码是 `unit`。`payableAmount` 返回已知 `ledger` 小计。该小计未知时，返回已知 `billable` 小计。`supplier` 和 `observation` 不是应付金额。上面的样例里应付词法是 `1.50`。
+`sourceSubtotal` 只加一个来源里 `known` 的金额。暂估和未知不进入。单位不同则拒绝码是 `unit`。`payableAmount` 返回已知 `ledger` 小计。该小计未知时，返回已知 `billable` 小计。`supplier` 和 `observation` 不是应付金额。上面的样例里应付词法是 `1.50`。`canonicalAccount` 把该词法写成 JSON 字符串。再解析并准入后，词法文本不变。
 
 ## 设计
 
