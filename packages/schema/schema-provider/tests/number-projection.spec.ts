@@ -49,7 +49,7 @@ it('defect: an inexact integer becomes a JavaScript number', async () => {
   expect(verdict).toEqual({
     kind: 'invalid',
     issues: [{ path: [], code: 'precision' }],
-    path: 'compiled',
+    path: 'projection',
     revision: '3',
   })
 })

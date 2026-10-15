@@ -61,6 +61,27 @@ it('defect: an acyclic JSON Schema is refused before it can validate', async () 
   })
 })
 
+it('defect: a local JSON Schema pointer is closed before the target is checked', async () => {
+  const { loads, run } = check(
+    {
+      $defs: { label: { type: 'string' } },
+      type: 'object',
+      properties: { name: { $ref: '#/$defs/label' } },
+      required: ['name'],
+      additionalProperties: false,
+    },
+    '{"name":"ada"}',
+  )
+  const verdict = await run()
+
+  expect(loads()).toBe(1)
+  expect(verdict).toMatchObject({
+    kind: 'valid',
+    value: { name: 'ada' },
+    path: 'compiled',
+  })
+})
+
 it('defect: a cyclic JSON Schema is compiled and reported as a hit', async () => {
   const { loads, run } = check(
     {
