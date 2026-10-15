@@ -1,16 +1,29 @@
 import { readJsonText, type JsonLimits, type JsonRead, type JsonValue } from '@omne-harness/json-text'
 
-const snapshots = new WeakMap<object, JsonValue>()
 const owned = new WeakSet<object>()
+
+type ArrayWork = {
+  readonly kind: 'array'
+  readonly items: JsonValue[]
+  readonly source: readonly unknown[]
+  index: number
+}
+
+type ObjectWork = {
+  readonly kind: 'object'
+  readonly entries: { key: string; value: JsonValue }[]
+  readonly source: readonly unknown[]
+  index: number
+}
+
+type Work = ArrayWork | ObjectWork
 
 export function readBodyText(text: string, limits: JsonLimits): JsonRead {
   const read = readJsonText(text, limits)
   if (read.kind !== 'ok') return read
-  const shot = copyNode(read.value, new WeakSet())
-  if (shot === undefined) return read
-  ownTree(shot)
-  snapshots.set(read.value, shot)
-  return read
+  const shot = copyTree(read.value)
+  if (shot === undefined) return { kind: 'syntax', reason: 'token' }
+  return { kind: 'ok', value: shot }
 }
 
 export function isReadBody(value: unknown): value is JsonValue {
@@ -18,80 +31,102 @@ export function isReadBody(value: unknown): value is JsonValue {
 }
 
 export function readSnapshot(value: unknown): JsonValue | undefined {
-  if (typeof value !== 'object' || value === null) return undefined
-  const shot = snapshots.get(value)
-  if (shot !== undefined) return shot
-  if (owned.has(value)) return value as JsonValue
-  return undefined
+  if (typeof value !== 'object' || value === null || !owned.has(value)) return undefined
+  return value as JsonValue
 }
 
 export function copyReadBody(value: unknown): JsonValue | undefined {
   const source = readSnapshot(value)
   if (source === undefined) return undefined
-  const copied = copyNode(source, new WeakSet())
-  if (copied === undefined) return undefined
-  ownTree(copied)
-  return copied
+  return copyTree(source)
 }
 
-function ownTree(value: JsonValue): void {
-  if (owned.has(value)) return
-  owned.add(value)
-  if (value.kind === 'array') {
-    for (let index = 0; index < value.items.length; index += 1) {
-      const item = value.items[index]
-      if (item !== undefined) ownTree(item)
+function copyTree(root: unknown): JsonValue | undefined {
+  const seen = new WeakSet<object>()
+  const opened = open(root, seen)
+  if (opened === undefined) return undefined
+  if (opened.kind === 'leaf') return opened.node
+  const stack: Work[] = [opened.work]
+  let done: JsonValue | undefined
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]
+    if (frame === undefined) return undefined
+    if (frame.index >= frame.source.length) {
+      done = finish(frame)
+      stack.pop()
+      const parent = stack[stack.length - 1]
+      if (parent !== undefined && done !== undefined) attach(parent, done)
+      continue
     }
-    return
+    const childSource = sourceChild(frame)
+    frame.index += 1
+    if (childSource === undefined) return undefined
+    const child = open(childSource, seen)
+    if (child === undefined) return undefined
+    if (child.kind === 'leaf') attach(frame, child.node)
+    else stack.push(child.work)
   }
-  if (value.kind === 'object') {
-    for (let index = 0; index < value.entries.length; index += 1) {
-      const entry = value.entries[index]
-      if (entry !== undefined) ownTree(entry.value)
-    }
-  }
+  return done
 }
 
-function copyNode(value: unknown, seen: WeakSet<object>): JsonValue | undefined {
-  if (typeof value !== 'object' || value === null) return undefined
-  if (seen.has(value)) return undefined
-  seen.add(value)
-  if (!('kind' in value)) return undefined
-  if (value.kind === 'null') return Object.freeze({ kind: 'null' })
-  if (value.kind === 'boolean') {
-    if (!('value' in value) || typeof value.value !== 'boolean') return undefined
-    return Object.freeze({ kind: 'boolean', value: value.value })
+function open(
+  source: unknown,
+  seen: WeakSet<object>,
+): { kind: 'leaf'; node: JsonValue } | { kind: 'work'; work: Work } | undefined {
+  if (typeof source !== 'object' || source === null) return undefined
+  if (seen.has(source)) return undefined
+  seen.add(source)
+  if (!('kind' in source)) return undefined
+  if (source.kind === 'null') return { kind: 'leaf', node: keep({ kind: 'null' }) }
+  if (source.kind === 'boolean') {
+    if (!('value' in source) || typeof source.value !== 'boolean') return undefined
+    return { kind: 'leaf', node: keep({ kind: 'boolean', value: source.value }) }
   }
-  if (value.kind === 'string') {
-    if (!('value' in value) || typeof value.value !== 'string') return undefined
-    return Object.freeze({ kind: 'string', value: value.value })
+  if (source.kind === 'string') {
+    if (!('value' in source) || typeof source.value !== 'string') return undefined
+    return { kind: 'leaf', node: keep({ kind: 'string', value: source.value }) }
   }
-  if (value.kind === 'number') {
-    if (!('lexeme' in value) || typeof value.lexeme !== 'string') return undefined
-    return Object.freeze({ kind: 'number', lexeme: value.lexeme })
+  if (source.kind === 'number') {
+    if (!('lexeme' in source) || typeof source.lexeme !== 'string') return undefined
+    return { kind: 'leaf', node: keep({ kind: 'number', lexeme: source.lexeme }) }
   }
-  if (value.kind === 'array') {
-    if (!('items' in value) || !Array.isArray(value.items)) return undefined
-    const items: JsonValue[] = []
-    for (let index = 0; index < value.items.length; index += 1) {
-      const item = copyNode(value.items[index], seen)
-      if (item === undefined) return undefined
-      items.push(item)
-    }
-    return Object.freeze({ kind: 'array', items: Object.freeze(items) })
+  if (source.kind === 'array') {
+    if (!('items' in source) || !Array.isArray(source.items)) return undefined
+    return { kind: 'work', work: { kind: 'array', items: [], source: source.items, index: 0 } }
   }
-  if (value.kind === 'object') {
-    if (!('entries' in value) || !Array.isArray(value.entries)) return undefined
-    const entries: { key: string; value: JsonValue }[] = []
-    for (let index = 0; index < value.entries.length; index += 1) {
-      const entry = value.entries[index]
-      if (typeof entry !== 'object' || entry === null || !('key' in entry) || typeof entry.key !== 'string') return undefined
-      if (!('value' in entry)) return undefined
-      const copied = copyNode(entry.value, seen)
-      if (copied === undefined) return undefined
-      entries.push(Object.freeze({ key: entry.key, value: copied }))
-    }
-    return Object.freeze({ kind: 'object', entries: Object.freeze(entries) })
+  if (source.kind === 'object') {
+    if (!('entries' in source) || !Array.isArray(source.entries)) return undefined
+    return { kind: 'work', work: { kind: 'object', entries: [], source: source.entries, index: 0 } }
   }
   return undefined
+}
+
+function sourceChild(frame: Work): unknown {
+  if (frame.kind === 'array') return frame.source[frame.index]
+  const entry = frame.source[frame.index]
+  if (typeof entry !== 'object' || entry === null || !('key' in entry) || typeof entry.key !== 'string') return undefined
+  if (!('value' in entry)) return undefined
+  return entry.value
+}
+
+function attach(frame: Work, child: JsonValue): undefined {
+  if (frame.kind === 'array') {
+    frame.items.push(child)
+    return undefined
+  }
+  const entry = frame.source[frame.index - 1]
+  if (typeof entry !== 'object' || entry === null || !('key' in entry) || typeof entry.key !== 'string') return undefined
+  frame.entries.push(Object.freeze({ key: entry.key, value: child }))
+  return undefined
+}
+
+function finish(frame: Work): JsonValue {
+  if (frame.kind === 'array') return keep({ kind: 'array', items: Object.freeze(frame.items) })
+  return keep({ kind: 'object', entries: Object.freeze(frame.entries) })
+}
+
+function keep(value: JsonValue): JsonValue {
+  const frozen = Object.freeze(value)
+  owned.add(frozen)
+  return frozen
 }

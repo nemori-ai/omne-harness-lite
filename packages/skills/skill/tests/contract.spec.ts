@@ -53,7 +53,8 @@ it('rejects a forged skill document without calling its functions', () => {
   })
   const entries = [{ key: 'name', value: { kind: 'string', value: 'review' } }]
   let calls = 0
-  entries.find = function (predicate) {
+  type Row = (typeof entries)[number]
+  entries.find = function (predicate: (value: Row, index: number, list: Row[]) => boolean): Row | undefined {
     calls += 1
     return Array.prototype.find.call(this, predicate)
   }

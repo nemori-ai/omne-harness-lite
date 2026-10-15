@@ -60,7 +60,9 @@ it('keeps pinned content after the caller changes the read document', () => {
   if (skills?.kind !== 'array') throw new Error('skills')
   const skill = skills.items[0]
   if (skill?.kind !== 'string') throw new Error('skill')
-  ;(skill as { value: string }).value = 'replacement'
+  expect(() => {
+    ;(skill as { value: string }).value = 'replacement'
+  }).toThrow(TypeError)
   expect(pinned.body).not.toBe(body)
   expect(pinned.version).toBe('v3')
   expect(pinned.source).toBe('workspace-w')
@@ -80,17 +82,21 @@ it('does not call getters or iterators installed after the body was read', () =>
   const name = body.entries[0]?.value
   if (name?.kind !== 'string') throw new Error('name')
   let reads = 0
-  Object.defineProperty(name, 'value', {
-    get() {
-      reads += 1
-      return 'other'
-    },
-  })
+  expect(() =>
+    Object.defineProperty(name, 'value', {
+      get() {
+        reads += 1
+        return 'other'
+      },
+    }),
+  ).toThrow(TypeError)
   let iterations = 0
-  body.entries[Symbol.iterator] = function () {
-    iterations += 1
-    return Array.prototype[Symbol.iterator].call(this)
-  }
+  expect(() => {
+    body.entries[Symbol.iterator] = function () {
+      iterations += 1
+      return Array.prototype[Symbol.iterator].call(this)
+    }
+  }).toThrow(TypeError)
   const pinned = pinBody({ identity: id.id, version: 'v3', source: 'workspace-w', body })
   expect(reads).toBe(0)
   expect(iterations).toBe(0)

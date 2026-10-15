@@ -47,15 +47,18 @@ it('does not call a getter installed on a read document', () => {
   const name = body.entries[0]?.value
   if (name?.kind !== 'string') throw new Error('name')
   let reads = 0
-  Object.defineProperty(name, 'value', {
-    get() {
-      reads += 1
-      return 'other'
-    },
-  })
+  expect(() =>
+    Object.defineProperty(name, 'value', {
+      get() {
+        reads += 1
+        return 'other'
+      },
+    }),
+  ).toThrow(TypeError)
   const port = toolBodyContract()
   expect(port.judge(body, { capabilityName: 'read_file' })).toEqual({ ok: true })
   expect(reads).toBe(0)
+  expect(name.value).toBe('read_file')
 })
 
 it('rejects a forged tool document without calling its functions', () => {
@@ -70,7 +73,8 @@ it('rejects a forged tool document without calling its functions', () => {
   })
   const entries = [{ key: 'name', value: { kind: 'string', value: 'read_file' } }]
   let calls = 0
-  entries.find = function (predicate) {
+  type Row = (typeof entries)[number]
+  entries.find = function (predicate: (value: Row, index: number, list: Row[]) => boolean): Row | undefined {
     calls += 1
     return Array.prototype.find.call(this, predicate)
   }
@@ -90,7 +94,9 @@ it('keeps a pinned skill reference after the read document changes', () => {
   if (composes?.kind !== 'object') throw new Error('composes')
   const skills = composes.entries[0]?.value
   if (skills?.kind !== 'array' || skills.items[0]?.kind !== 'string') throw new Error('skills')
-  ;(skills.items[0] as { value: string }).value = 'replacement'
+  expect(() => {
+    ;(skills.items[0] as { value: string }).value = 'replacement'
+  }).toThrow(TypeError)
   expect(pinned.body).not.toBe(original)
   expect(port.references(pinned.body)).toEqual([{ category: 'skill', name: 'review' }])
   expect(pinned.version).toBe('v3')
