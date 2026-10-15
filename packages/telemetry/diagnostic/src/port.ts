@@ -41,7 +41,7 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
     if (!accepting) return { status: 'rejected', reason: 'closed' }
     const correlation = parseCorrelation(input.correlation)
     const chain = redactChain(parseCallerChain(input.chain))
-    const bytes = measure(chain, correlation)
+    const bytes = sink === null ? measure(chain, correlation) : reservedBytes(chain, correlation)
     const room = reserve(bytes)
     if (room !== 'ready') return { status: 'rejected', reason: room }
     if (sink !== null && inFlight >= bounds.maxInFlight) {
@@ -106,7 +106,8 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
       last = record
       if (record.exportStatus === 'queued' || record.exportStatus === 'exporting') {
         record.exportStatus = 'closed_unexported'
-        record.chain = appendExport(record.chain, 'closed before export finished')
+        record.chain = appendExport(record.chain, CLOSED_UNEXPORTED_SUMMARY)
+        record.bytes = measure(record.chain, record.correlation)
         unfinished.push(record.id)
       } else if (record.exportStatus === 'exported') {
         exported += 1
@@ -148,8 +149,8 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
     let pending: Promise<void>
     try {
       pending = Promise.resolve(active.export(exportView(record), abort.signal))
-    } catch (error) {
-      noteExportFailure(record, error)
+    } catch {
+      noteExportFailure(record)
       inFlight -= 1
       return
     }
@@ -157,8 +158,8 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
       () => {
         if (record.exportStatus === 'exporting') record.exportStatus = 'exported'
       },
-      (error: unknown) => {
-        noteExportFailure(record, error)
+      () => {
+        noteExportFailure(record)
       },
     ).finally(() => {
       inFlight -= 1
@@ -167,11 +168,12 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
     })
   }
 
-  function noteExportFailure(record: StoredRecord, error: unknown): void {
+  function noteExportFailure(record: StoredRecord): void {
     if (abort.signal.aborted) return
     if (record.exportStatus !== 'exporting') return
     record.exportStatus = 'export_failed'
-    record.chain = appendExport(record.chain, exportFailureSummary(error))
+    record.chain = appendExport(record.chain, EXPORT_FAILED_SUMMARY)
+    record.bytes = measure(record.chain, record.correlation)
   }
 
   function reserve(bytes: number): 'ready' | 'queue_full' | 'bytes_full' {
@@ -229,13 +231,18 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
   return { bounds, admit, read, close }
 }
 
+const EXPORT_FAILED_SUMMARY = 'export failed'
+const CLOSED_UNEXPORTED_SUMMARY = 'closed before export finished'
+
 function isFinished(status: ExportStatus): boolean {
   return status === 'exported' || status === 'export_failed'
 }
 
-function exportFailureSummary(error: unknown): string {
-  if (error instanceof Error && error.message.length > 0) return error.message
-  return 'export failed'
+function reservedBytes(chain: FailureChain, correlation: Correlation): number {
+  return Math.max(
+    measure(appendExport(chain, EXPORT_FAILED_SUMMARY), correlation),
+    measure(appendExport(chain, CLOSED_UNEXPORTED_SUMMARY), correlation),
+  )
 }
 
 const MAX_TIMEOUT_MS = 2_147_483_647

@@ -47,11 +47,11 @@ The caller supplies `sink`. A null sink records a visible gap and still returns 
 
 ## Contracts
 
-`src/types.ts` holds the public shapes. `admit` returns `accepted`, `rejected`, or `gap`. Rejection reasons are `queue_full`, `bytes_full`, `in_flight_full`, and `closed`. A chain starts with one `origin`. Further caller causes are `attached`. Only the port appends `export`. The export byte count includes the chain and the correlation. A missing sink still refuses a record that does not fit those limits. `read` and the object passed to `sink.export` are copies.
+`src/types.ts` holds the public shapes. `admit` returns `accepted`, `rejected`, or `gap`. Rejection reasons are `queue_full`, `bytes_full`, `in_flight_full`, and `closed`. A chain starts with one `origin`. Further caller causes are `attached`. Only the port appends `export`. The export byte count includes the chain and the correlation. A record sent to a sink also reserves one later export cause. That cause is `export failed` when export fails, or `closed before export finished` when close reaches its deadline. Admission counts the larger of those two. The sink error text is not stored. The caller causes stay. A record that cannot hold the reserved cause inside `maxExportBytes` is `bytes_full` and is not stored. A missing sink does not reserve that cause, and it still refuses a record that does not fit the limit. `read` and the object passed to `sink.export` are copies.
 
 `read` returns the chain only when the requested tenant equals the stored tenant. A mismatch is `denied` and includes no chain. A released id is `absent`. Detail keys `secret`, `token`, and `authorization` are removed at admission.
 
-A sink that throws inside `export`, or returns a rejected promise, is an export failure. `admit` still returns. The caller chain stays, and the port appends an `export` cause that carries the sink error message. The in-flight count is released.
+A sink that throws inside `export`, or returns a rejected promise, is an export failure. `admit` still returns. The caller chain stays, and the port appends an `export` cause whose summary is `export failed`. The in-flight count is released. The stored chain and its byte count stay within the size reserved at admission.
 
 `close` reports the last record, flush, and transport separately. A deadline is `deadline` on flush and transport, not export success. The deadline timer stays referenced, so a process whose only wait is `close` still receives that report. A second `close` returns the same report. This report is not an assembly `CloseReport`. Flush counts records the port still holds at close.
 

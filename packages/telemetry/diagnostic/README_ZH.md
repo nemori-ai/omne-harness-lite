@@ -18,11 +18,11 @@
 
 ## 契约
 
-`src/types.ts` 持有公开形状。`admit` 返回 `accepted`、`rejected` 或 `gap`。拒绝原因是 `queue_full`、`bytes_full`、`in_flight_full` 和 `closed`。链以唯一的 `origin` 开始。调用方其后的原因是 `attached`。只有端口追加 `export`。导出字节同时计入失败链和关联字段。没有导出端时，放不进限额的记录仍然拒绝。`read` 和交给 `sink.export` 的对象都是副本。
+`src/types.ts` 持有公开形状。`admit` 返回 `accepted`、`rejected` 或 `gap`。拒绝原因是 `queue_full`、`bytes_full`、`in_flight_full` 和 `closed`。链以唯一的 `origin` 开始。调用方其后的原因是 `attached`。只有端口追加 `export`。导出字节同时计入失败链和关联字段。交给导出端的记录再预留一条后来的 `export` 原因。导出失败时摘要是 `export failed`，关闭到达截止时摘要是 `closed before export finished`。准入按两者中较大的字节数计算。导出端的错误文本不写入链。调用方的原因保留。预留后放不进 `maxExportBytes` 的记录是 `bytes_full`，不会被存下。没有导出端时不预留这条原因，放不进限额的记录仍然拒绝。`read` 和交给 `sink.export` 的对象都是副本。
 
 `read` 仅在请求租户等于记录租户时返回链。不一致时结果是 `denied`，响应里没有链。已经释放的 id 是 `absent`。详情键 `secret`、`token`、`authorization` 在进入时去掉。
 
-`export` 同步抛出或返回被拒绝的 Promise 都是导出失败。`admit` 仍然返回。调用方的链保留，端口追加一条带有导出端错误信息的 `export`。在途计数随即释放。
+`export` 同步抛出或返回被拒绝的 Promise 都是导出失败。`admit` 仍然返回。调用方的链保留，端口追加摘要为 `export failed` 的 `export`。在途计数随即释放。存下的链和它的字节数都不超过准入时预留的大小。
 
 `close` 分开报告最后一条记录、flush 和传输。截止时间到达时 flush 和传输是 `deadline`，不是导出成功。截止定时器保持引用，因此只等待 `close` 的进程仍能收到这份报告。再次 `close` 返回同一次报告。这份报告不是装配 `CloseReport`。Flush 只计关闭时端口仍持有的记录。
 

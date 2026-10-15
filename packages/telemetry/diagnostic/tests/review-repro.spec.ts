@@ -196,7 +196,7 @@ describe('review counterexamples', () => {
     if (visible.status !== 'visible') throw new Error('expected visible')
     expect(visible.exportStatus).toBe('export_failed')
     expect(visible.chain.causes.map(cause => cause.role)).toEqual(['origin', 'export'])
-    expect(visible.chain.causes[1]).toMatchObject({ role: 'export', summary: 'sync export failure' })
+    expect(visible.chain.causes[1]).toMatchObject({ role: 'export', summary: 'export failed' })
     const report = await port.close()
     expect(report.unfinished).toEqual([])
     expect(report.exportFailed).toContain(admitted.id)
@@ -288,16 +288,76 @@ describe('review counterexamples', () => {
     await port.close()
   })
 
-  it('accepts a record that fills the export byte limit exactly', () => {
-    const input = {
-      chain: { causes: [{ role: 'origin' as const, summary: 'ok' }] },
+  it('counts one bounded export cause inside the export byte limit', async () => {
+    const input: AdmitInput = {
+      chain: { causes: [{ role: 'origin', summary: 'ok' }] },
       correlation,
     }
-    const bytes = Buffer.byteLength(JSON.stringify({ chain: input.chain, correlation }), 'utf8')
-    const exact = portWith({ maxExportBytes: bytes }, { export: async () => undefined })
+    const occupied = (summary: string) =>
+      Buffer.byteLength(
+        JSON.stringify({
+          chain: { causes: [...input.chain.causes, { role: 'export', summary }] },
+          correlation,
+        }),
+        'utf8',
+      )
+    const reserved = Math.max(occupied('export failed'), occupied('closed before export finished'))
+    const payload = Buffer.byteLength(JSON.stringify({ chain: input.chain, correlation }), 'utf8')
+    expect(
+      portWith({ maxExportBytes: payload }, { export: async () => undefined }).admit(input),
+    ).toEqual({ status: 'rejected', reason: 'bytes_full' })
+    const exact = portWith({ maxExportBytes: reserved }, { export: async () => undefined })
     expect(exact.admit(input).status).toBe('accepted')
-    const over = portWith({ maxExportBytes: bytes - 1 }, { export: async () => undefined })
-    expect(over.admit(input)).toEqual({ status: 'rejected', reason: 'bytes_full' })
+    expect(
+      portWith({ maxExportBytes: reserved - 1 }, { export: async () => undefined }).admit(input),
+    ).toEqual({ status: 'rejected', reason: 'bytes_full' })
+
+    const huge = 'E'.repeat(100_000)
+    for (const mode of ['sync', 'async'] as const) {
+      const fail = () => {
+        throw new Error(huge)
+      }
+      const port = portWith({ maxQueue: 2, maxExportBytes: 1000, maxInFlight: 1 }, {
+        export: mode === 'sync' ? fail : async () => fail(),
+      })
+      const first = port.admit(input)
+      await new Promise(resolve => setImmediate(resolve))
+      if (first.status !== 'accepted') throw new Error('expected accepted')
+      const stored = port.read({ tenant: 'org/account', id: first.id })
+      if (stored.status !== 'visible') throw new Error('expected visible')
+      const actual = Buffer.byteLength(
+        JSON.stringify({ chain: stored.chain, correlation }),
+        'utf8',
+      )
+      expect(actual).toBeLessThanOrEqual(1000)
+      expect(stored.chain.causes[0]).toMatchObject({ role: 'origin', summary: 'ok' })
+      expect(stored.chain.causes[1]).toMatchObject({ role: 'export', summary: 'export failed' })
+      expect(port.admit(input).status).toBe('accepted')
+      await port.close()
+    }
+
+    const hanging = portWith({ maxQueue: 2, maxExportBytes: reserved * 2, maxInFlight: 2 }, {
+      export: () => new Promise(() => undefined),
+    })
+    const admitted = hanging.admit(input)
+    const second = hanging.admit(input)
+    expect(admitted.status).toBe('accepted')
+    expect(second.status).toBe('accepted')
+    await hanging.close()
+    if (admitted.status !== 'accepted' || second.status !== 'accepted') {
+      throw new Error('expected accepted')
+    }
+    let total = 0
+    for (const id of [admitted.id, second.id]) {
+      const visible = hanging.read({ tenant: 'org/account', id })
+      if (visible.status !== 'visible') throw new Error('expected visible')
+      expect(visible.chain.causes[1]).toMatchObject({
+        role: 'export',
+        summary: 'closed before export finished',
+      })
+      total += Buffer.byteLength(JSON.stringify({ chain: visible.chain, correlation }), 'utf8')
+    }
+    expect(total).toBeLessThanOrEqual(reserved * 2)
   })
 
   it('rejects fractional limits and a deadline the timer cannot represent', () => {
