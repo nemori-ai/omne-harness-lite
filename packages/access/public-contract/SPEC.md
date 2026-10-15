@@ -15,7 +15,7 @@ SDK 和服务端接入使用本页的结果表。它们不另写一套结果含�
 | 字段 | 要求 |
 | --- | --- |
 | `protocolVersion` | 字符串。唯一合法值是 `governance-public/1`。 |
-| `messageId` | 调用者生成的字符串。只用于把响应对应到这次发送。它不是去重键。 |
+| `messageId` | 调用者生成的字符串。只用于把响应对应到这次发送。它不是去重键。`create-organization` 的调用身份是 `body` 里的 `createCallId`，不是这个字段。 |
 | `operation` | 下文字段「操作」中的名字。 |
 | `loginProof` | 下表为「必填」时必须是服务端能核验的不透明字符串。诊断输出不能包含它。密码学形式归登录提供者。下表为「禁止」时不能出现。 |
 | `actingTenant` | 下表为「必填」时必须是已解析的租户标识，并且等于该登录的当前选择。下表为「禁止」时不能出现。它不是目标组织。 |
@@ -128,8 +128,8 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | `register-and-activate`、`issue-login` | `loginIdentifier`、`credential` | 无 | 任何其他键 |
 | `revoke-login` | `targetLoginId` | 无 | 任何其他键 |
 | `replace-credential` | `currentCredential`、`newCredential` | 无 | 任何其他键 |
-| `create-organization` | `name`、`governanceModelId` | 无 | 任何其他键 |
-| `query-create-organization` | `targetMessageId` | 无 | 任何其他键 |
+| `create-organization` | `createCallId`、`name`、`governanceModelId` | 无 | 任何其他键 |
+| `query-create-organization` | `targetCreateCallId`、`name`、`governanceModelId` | 无 | 任何其他键 |
 | `issue-member-invitation` | `invitedLoginIdentifier` | `duration` | `role` 及其他键 |
 | `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation` | `invitationId`、`expectedState` | 无 | 任何其他键。`expectedState` 只能是 `open` |
 | `query-invitation` | `invitationId` | 无 | 任何其他键 |
@@ -227,23 +227,27 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 ### `create-organization`
 
-需要有效登录。默认团队方案中，已激活账号可以创建团队组织。`body` 含 `name` 和 `governanceModelId`。`name` 非空。
+需要有效登录。默认团队方案中，已激活账号可以创建团队组织。`body` 含 `createCallId`、`name` 和 `governanceModelId`。`name` 非空。
 
-成功时，组织、创建者租户和初始治理共同成立。默认团队方案还包括首位超级管理员。服务端在同一次提交里保存这次调用的回执。回执按调用者账号和这次请求的 `messageId` 保存，并含已提交的 `outcome`。成功时还含 `organizationId` 和 `tenantId`。响应 `body` 含这两个标识。模型来源不可用时是 `basis-unavailable`。模型被拒绝时是 `denied`。这两条都保存对应的拒绝回执，不创建组织，也不改用默认团队方案。不返回可用的组织标识。
+`createCallId` 由调用者生成。唯一范围是该账号的 `create-organization` 调用。调用者要让不同的创建调用使用不同的 `createCallId`。它不是组织名称的去重键。信封里的 `messageId` 仍只对应这次发送。
 
-回执丢失时，这次调用保持 `unknown`。调用者用 `query-create-organization` 按这次 `messageId` 认回。`query-own-memberships` 只返回当前成员资格。名单里多出来的组织不能证明这次创建已经成立。没有回执，或回执读不出确定结果时，认回保持 `unknown`。同一账号的另一份登录用另一个 `messageId` 创建时，两次回执互相区分，不能把对方的组织当成这一次的成功。
+首次提交在同一次提交里把回执绑到这次的 `createCallId`、`name` 和 `governanceModelId`。成功时，组织、创建者租户和初始治理共同成立。默认团队方案还包括首位超级管理员。回执按调用者账号保存，并含已提交的 `outcome`。成功时还含 `organizationId` 和 `tenantId`。响应 `body` 含这两个标识。模型来源不可用时是 `basis-unavailable`。模型被拒绝时是 `denied`。这两条都保存对应的拒绝回执，不创建组织，也不改用默认团队方案。不返回可用的组织标识。
 
-同一个 `messageId` 再次提交 `create-organization` 不建立第二个组织，响应交出已保存的那一次结果。这不是名称去重。新的 `messageId` 是另一次创建，同名可以再建立组织。本操作没有创建键。
+同一 `createCallId` 再次提交，并且 `name` 与 `governanceModelId` 都与已绑定的输入相同，不建立第二个组织。响应交出已保存的那一次结果。同一 `createCallId` 配上不同的 `name` 或 `governanceModelId` 时，不能证明是同一次原调用。结果是 `conflict`，`body` 为空对象。不交出已保存的成功，也不回显原输入。
+
+并发首次提交同一个 `createCallId` 且输入相同时，只建立一个组织，回执只保存一份。后完成的相同输入交出这份结果。输入不同时，先完成绑定的那一次保存回执。另一份得到 `conflict` 和空 `body`。服务端不能判定哪一次先完成时，两份都保持 `unknown`。无法证明是同一原调用时，不把另一次成功交成这次成功。
+
+回执丢失时，这次调用保持 `unknown`。调用者用 `query-create-organization` 按这个 `createCallId` 认回。查询还要带上这次的 `name` 和 `governanceModelId`。与已绑定输入不一致时，结果是 `conflict`，空 `body`。`query-own-memberships` 只返回当前成员资格。名单里多出来的组织不能证明这次创建已经成立。没有回执，或回执读不出确定结果时，认回保持 `unknown`。
+
+新的 `createCallId` 是另一次创建，同名可以再建立组织。本操作没有创建键。
 
 个人组织由注册开通。本操作不创建第二个人组织，也不邀请他人加入个人组织。名称不参与去重。同名可以是不同组织。
 
-回执丢失是 `unknown`。
-
 ### `query-create-organization`
 
-需要有效登录。不带行事租户。`body` 含 `targetMessageId`，也就是那一次 `create-organization` 请求的 `messageId`。
+需要有效登录。不带行事租户。`body` 含 `targetCreateCallId`、`name` 和 `governanceModelId`。`targetCreateCallId` 是那一次创建的 `createCallId`。`name` 和 `governanceModelId` 是那一次的输入。
 
-只有该回执所属账号可以读取。查询使用提交时已经保存的回执，不读取成员名单来推断。回执的 `succeeded` 交出 `organizationId` 和 `tenantId`。回执的 `denied` 或 `basis-unavailable` 交出空 `body`，并使用该回执里的 `outcome`。没有回执，回执读不出确定结果，或 `targetMessageId` 不属于该账号时，结果是 `unknown`，`body` 为空对象。这个 `unknown` 不表示创建没有发生，也不表示已经成立。
+只有该回执所属账号可以读取。查询使用提交时已经保存的回执，不读取成员名单来推断。回执存在，且 `name` 与 `governanceModelId` 都与已绑定输入相同，`succeeded` 才交出 `organizationId` 和 `tenantId`。回执的 `denied` 或 `basis-unavailable` 在输入也相同的时候交出空 `body`，并使用该回执里的 `outcome`。输入与已绑定的值不同时，结果是 `conflict`，`body` 为空对象，不交出另一次成功。没有回执，回执读不出确定结果，或 `targetCreateCallId` 不属于该账号时，结果是 `unknown`，`body` 为空对象。这个 `unknown` 不表示创建没有发生，也不表示已经成立。
 
 这是读操作。它不创建组织。
 
