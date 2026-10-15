@@ -64,6 +64,16 @@ function corruptIdat(png: Buffer): Buffer {
   throw new Error('fixture has no IDAT')
 }
 
+function declaredPng(width: number, height: number): Buffer {
+  const header = Buffer.alloc(13)
+  header.writeUInt32BE(width, 0)
+  header.writeUInt32BE(height, 4)
+  header[8] = 8
+  header[9] = 2
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  return Buffer.concat([signature, chunk('IHDR', header), chunk('IEND', Buffer.alloc(0))])
+}
+
 function animatedWebp(): Buffer {
   const payload = Buffer.alloc(10)
   payload[0] = 0x02
@@ -75,6 +85,21 @@ function animatedWebp(): Buffer {
   riff.writeUInt32LE(4 + piece.length, 4)
   return riff
 }
+
+it('rejects a small png that declares a large frame before a raster exists', async () => {
+  const bytes = declaredPng(4096, 4096)
+  const gate = budget({
+    maxWidth: 4096,
+    maxHeight: 4096,
+    maxDecodedBytes: 1024,
+    maxInFlightBytes: 4096 * 4096 * 4,
+  })
+  const pending = open({ bytes, budget: gate })
+  expect(bytes.byteLength).toBeLessThan(100)
+  expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
+  expect(await pending).toEqual({ kind: 'rejected', reason: 'decoded-bytes' })
+  expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
+})
 
 it('rejects an illegal budget and starts a legal one at zero', async () => {
   expect(imageBudget({ ...budgetInput(), formats: [] })).toEqual({ kind: 'rejected', reason: 'formats' })
