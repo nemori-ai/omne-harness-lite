@@ -1,25 +1,235 @@
 name: gate-publish
+run-name: "gate-publish #${{ inputs.pr }}"
 
-# Empty shell. workflow_dispatch needs a file with this name on the default
-# branch. Dispatch it with --ref github-gate; that branch holds the real flow.
+# Runs only from the github-gate branch. The file with the same name on main
+# is an empty shell that exists so that workflow_dispatch can find it.
 
 on:
   workflow_dispatch:
     inputs:
       pr:
+        description: Pull request number
         required: true
         type: string
       head:
+        description: Expected PR head commit (40 hex characters)
         required: true
         type: string
       checkpoint:
+        description: Checkpoint name, only for a PR into stable
         required: false
         type: string
 
-permissions: {}
+permissions:
+  contents: read
+
+concurrency:
+  group: gate-publish-pr-${{ inputs.pr }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  shell:
+  plan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      base_ref: ${{ steps.plan.outputs.base_ref }}
+      base: ${{ steps.plan.outputs.base }}
+      mode: ${{ steps.plan.outputs.mode }}
     steps:
-      - run: echo "Dispatch this workflow with --ref github-gate." && exit 1
+      - name: Plan the publication
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ inputs.pr }}
+          H: ${{ inputs.head }}
+          CHECKPOINT: ${{ inputs.checkpoint }}
+        run: |
+          [[ "$GITHUB_REF" == refs/heads/github-gate ]] || { echo "rejected: run is not on github-gate"; exit 1; }
+          [[ "$PR" =~ ^[0-9]{1,6}$ ]] || { echo "rejected: pr"; exit 1; }
+          [[ "$H" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: head"; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" > pr.json
+          [ "$(jq -r .state pr.json)" = open ] || { echo "rejected: PR is not open"; exit 1; }
+          [ "$(jq -r .head.repo.full_name pr.json)" = "$GITHUB_REPOSITORY" ] || { echo "rejected: PR from a fork"; exit 1; }
+          [ "$(jq -r .head.sha pr.json)" = "$H" ] || { echo "rejected: PR head is not the expected commit"; exit 1; }
+          base_ref=$(jq -r .base.ref pr.json)
+          head_ref=$(jq -r .head.ref pr.json)
+          case "$base_ref" in
+            main)
+              [[ "$head_ref" == integration/* ]] || { echo "rejected: main accepts PRs only from integration/*"; exit 1; }
+              mode=merge ;;
+            integration/*)
+              [[ "$head_ref" != stable && "$head_ref" != release && "$head_ref" != github-gate ]] || { echo "rejected: head branch"; exit 1; }
+              mode=merge ;;
+            stable)
+              [ "$head_ref" = main ] || { echo "rejected: stable accepts PRs only from main"; exit 1; }
+              [[ "$CHECKPOINT" =~ ^[a-z0-9][a-z0-9.-]{0,39}$ ]] || { echo "rejected: checkpoint name is required for stable"; exit 1; }
+              mode=fast-forward ;;
+            *) echo "rejected: base branch $base_ref is not a trunk"; exit 1 ;;
+          esac
+          base=$(gh api "repos/$GITHUB_REPOSITORY/commits/$base_ref" --jq .sha 2>/dev/null || echo none)
+          {
+            echo "### Publication awaiting confirmation"
+            echo
+            echo "- PR: #$PR ($head_ref into $base_ref)"
+            echo "- Mode: $mode"
+            echo "- Target now: \`$base\`"
+            echo "- PR head: \`$H\`"
+            [ "$mode" = fast-forward ] && echo "- Checkpoint: \`omne/gate/checkpoint/$CHECKPOINT\`"
+            echo
+            echo "Tests are not run by this flow. The confirmation note must state which checks were run locally and their results."
+          } >> "$GITHUB_STEP_SUMMARY"
+          { echo "base_ref=$base_ref"; echo "base=$base"; echo "mode=$mode"; } >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: publish
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Read the confirmation and require a note
+        id: confirm
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" > approvals.json
+          sel='[.[]|select(.state=="approved")|select([.environments[].name]|index("publish"))]|last'
+          approver=$(jq -r "$sel|.user.login // \"\"" approvals.json)
+          note=$(jq -r "$sel|.comment // \"\"" approvals.json)
+          [ -n "$approver" ] || { echo "rejected: no approval record"; exit 1; }
+          [ -n "$(printf '%s' "$note" | tr -d '[:space:]')" ] || { echo "rejected: the confirmation note is empty"; exit 1; }
+          echo "approver=$approver" >> "$GITHUB_OUTPUT"
+          delim="NOTE_$(openssl rand -hex 16)"
+          { echo "note<<$delim"; printf '%s\n' "$note"; echo "$delim"; } >> "$GITHUB_OUTPUT"
+
+      - name: Mint publish identity token
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+          permission-workflows: write
+
+      - name: Build and verify the result without executing repository content
+        id: build
+        env:
+          TOKEN: ${{ steps.app.outputs.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          PR: ${{ inputs.pr }}
+          H: ${{ inputs.head }}
+          CHECKPOINT: ${{ inputs.checkpoint }}
+          BASE_REF: ${{ needs.plan.outputs.base_ref }}
+          B: ${{ needs.plan.outputs.base }}
+          MODE: ${{ needs.plan.outputs.mode }}
+          APPROVER: ${{ steps.confirm.outputs.approver }}
+        run: |
+          [[ "$H" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: head"; exit 1; }
+          [[ "$B" =~ ^([0-9a-f]{40}|none)$ ]] || { echo "rejected: base"; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/contents/gate/cutover.json?ref=$GITHUB_SHA" --jq .content | base64 -d > cutover.json
+          now_head=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .head.sha)
+          [ "$now_head" = "$H" ] || { echo "stopped: the PR head changed after dispatch"; exit 1; }
+          [ "$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .base.ref)" = "$BASE_REF" ] || { echo "stopped: the PR base changed"; exit 1; }
+
+          git init -q work && cd work
+          git remote add origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --no-tags origin "$H" "refs/heads/main:refs/remotes/origin/main"
+          git fetch -q origin 'refs/tags/omne/gate/*:refs/tags/omne/gate/*'
+          now_base=$(git ls-remote origin "refs/heads/$BASE_REF" | cut -f1); now_base=${now_base:-none}
+          [ "$now_base" = "$B" ] || { echo "stopped: $BASE_REF moved since dispatch"; exit 1; }
+          [ "$B" = none ] || git fetch -q --no-tags origin "$B"
+
+          # Every first-parent commit after the cutover point must carry a unit.
+          covered() {
+            local branch=$1 tip=$2 start c target
+            start=$(jq -r --arg b "$branch" '.[$b] // ""' ../cutover.json)
+            [[ "$start" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: no cutover point for $branch"; return 1; }
+            git fetch -q --no-tags origin "$start"
+            git merge-base --is-ancestor "$start" "$tip" || { echo "rejected: $tip does not contain the cutover point of $branch"; return 1; }
+            for c in $(git rev-list --first-parent "$start..$tip"); do
+              git rev-parse -q --verify "refs/tags/omne/gate/unit/$c" >/dev/null || { echo "stopped: $branch commit $c has no unit"; return 1; }
+              target=$(git cat-file -p "refs/tags/omne/gate/unit/$c" | sed '1,/^$/d' | jq -r .target)
+              [ "$target" = "refs/heads/$branch" ] || { echo "stopped: unit of $c records $target"; return 1; }
+            done
+          }
+
+          approver_id=$(gh api "users/$APPROVER" --jq .id)
+          approver_name=$(gh api "users/$APPROVER" --jq '.name // .login')
+          bot_id=$(gh api "users/${APP_SLUG}%5Bbot%5D" --jq .id)
+          export GIT_COMMITTER_NAME="${APP_SLUG}[bot]" GIT_COMMITTER_EMAIL="${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          head_ref=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .head.ref)
+          title=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .title)
+
+          if [ "$MODE" = merge ]; then
+            [ "$B" != none ] || { echo "rejected: target branch does not exist"; exit 1; }
+            if [ "$BASE_REF" = main ]; then covered "$head_ref" "$H"; fi
+            tree=$(git merge-tree --write-tree "$B" "$H") || { echo "stopped: merge conflict, resolve it on the source branch first"; exit 1; }
+            msg=$(printf 'Merge pull request #%s from %s\n\n%s\n\nConfirmed-by: %s\nGate-Run: %s\n' "$PR" "$head_ref" "$title" "$APPROVER" "$run_url")
+            C=$(GIT_AUTHOR_NAME="$approver_name" GIT_AUTHOR_EMAIL="${approver_id}+${APPROVER}@users.noreply.github.com" \
+                git commit-tree "$tree" -p "$B" -p "$H" -m "$msg")
+            [ "$(git rev-list --parents -n1 "$C")" = "$C $B $H" ] || { echo "rejected: parents"; exit 1; }
+            tag="omne/gate/unit/$C"
+          else
+            git merge-base --is-ancestor "$H" origin/main || { echo "rejected: $H is not on main"; exit 1; }
+            git rev-list --first-parent origin/main > ../main-fp.txt; grep -qx "$H" ../main-fp.txt || { echo "rejected: $H is not on the first-parent history of main"; exit 1; }
+            covered main "$H"
+            if [ "$B" != none ]; then git merge-base --is-ancestor "$B" "$H" || { echo "rejected: stable cannot fast-forward to $H"; exit 1; }; fi
+            C=$H
+            tag="omne/gate/checkpoint/$CHECKPOINT"
+          fi
+          git rev-parse -q --verify "refs/tags/$tag" >/dev/null && { echo "stopped: $tag already exists"; exit 1; }
+          record=$(jq -cn --arg target "refs/heads/$BASE_REF" --arg base "$B" --arg head "$H" --arg result "$C" \
+            --arg pr "$PR" --arg mode "$MODE" --arg approver "$APPROVER" --arg run "$run_url" --arg gate "$GITHUB_SHA" \
+            '{schema:"omne-gate-record:v1",target:$target,base:$base,head:$head,result:$result,pr:($pr|tonumber),mode:$mode,confirmedBy:$approver,run:$run,gate:$gate}')
+          git tag -a "$tag" -m "$record" "$C"
+          { echo "result=$C"; echo "tag=$tag"; } >> "$GITHUB_OUTPUT"
+          echo "built $C, tag $tag"
+
+      - name: Post the publication decision
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          PR: ${{ inputs.pr }}
+          H: ${{ inputs.head }}
+          BASE_REF: ${{ needs.plan.outputs.base_ref }}
+          B: ${{ needs.plan.outputs.base }}
+          C: ${{ steps.build.outputs.result }}
+          TAG: ${{ steps.build.outputs.tag }}
+          APPROVER: ${{ steps.confirm.outputs.approver }}
+          NOTE: ${{ steps.confirm.outputs.note }}
+        run: |
+          quoted=$(printf '%s\n' "$NOTE" | sed 's/^/> /')
+          body=$(printf '**Publication decision**\n\n- Target: `%s`, now `%s`\n- PR head: `%s`\n- Result: `%s`\n- Record tag: `%s`\n- Confirmed by: @%s (from the platform approval record)\n- Run: %s/%s/actions/runs/%s\n\nConfirmation note:\n\n%s\n' \
+            "$BASE_REF" "$B" "$H" "$C" "$TAG" "$APPROVER" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$quoted")
+          gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" --jq .html_url
+
+      - name: Update the target and create the record tag in one atomic push
+        env:
+          BASE_REF: ${{ needs.plan.outputs.base_ref }}
+          C: ${{ steps.build.outputs.result }}
+          TAG: ${{ steps.build.outputs.tag }}
+        run: |
+          cd work
+          git push --atomic origin "$C:refs/heads/$BASE_REF" "refs/tags/$TAG:refs/tags/$TAG"
+          [ "$(git ls-remote origin "refs/heads/$BASE_REF" | cut -f1)" = "$C" ] || { echo "push reported success but $BASE_REF is not $C"; exit 1; }
+          echo "published $BASE_REF = $C"
+
+      - name: Record the outcome
+        if: always() && steps.app.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          PR: ${{ inputs.pr }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="Publication outcome: $OUTCOME (run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)" --jq .html_url

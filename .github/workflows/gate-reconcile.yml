@@ -1,21 +1,68 @@
 name: gate-reconcile
 
-# On main this only starts the definition on github-gate, which holds the
-# real flow. Dispatch it with --ref github-gate to run the check directly.
+# Runs from github-gate. The file with the same name on main runs on a schedule
+# and only dispatches this definition. It reports gaps and never creates tags.
 
 on:
-  schedule:
-    - cron: '17 * * * *'
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
+
+concurrency:
+  group: gate-reconcile
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  dispatch:
+  reconcile:
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      contents: read
+      issues: write
     steps:
-      - env:
+      - name: Report trunk commits without a record
+        env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run gate-reconcile.yml --repo "$GITHUB_REPOSITORY" --ref github-gate
+        run: |
+          [[ "$GITHUB_REF" == refs/heads/github-gate ]] || { echo "rejected: run is not on github-gate"; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/contents/gate/cutover.json?ref=$GITHUB_SHA" --jq .content | base64 -d > cutover.json
+          git init -q work && cd work
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --filter=blob:none origin 'refs/heads/main:refs/remotes/origin/main' 'refs/heads/integration/*:refs/remotes/origin/integration/*' 'refs/tags/omne/gate/*:refs/tags/omne/gate/*'
+          git fetch -q --filter=blob:none origin 'refs/heads/stable:refs/remotes/origin/stable' 2>/dev/null || true
+          cutoff=$(( $(date -u +%s) - 1800 ))
+          gaps=0
+          report() {
+            local title=$1 body=$2
+            if [ -n "$(gh issue list -R "$GITHUB_REPOSITORY" --state all --search "\"$title\" in:title" --json number --jq '.[0].number // ""')" ]; then
+              echo "already reported: $title"
+            else
+              gh issue create -R "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+            fi
+            gaps=$((gaps+1))
+          }
+          for ref in $(git for-each-ref --format='%(refname:strip=3)' refs/remotes/origin/main refs/remotes/origin/integration); do
+            start=$(jq -r --arg b "$ref" '.[$b] // ""' ../cutover.json)
+            if ! [[ "$start" =~ ^[0-9a-f]{40}$ ]]; then
+              report "Gate gap: $ref has no cutover point" "The branch \`$ref\` is not listed in \`gate/cutover.json\` on github-gate. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+              continue
+            fi
+            for c in $(git rev-list --first-parent "$start..refs/remotes/origin/$ref"); do
+              [ "$(git show -s --format=%ct "$c")" -le "$cutoff" ] || continue
+              if git rev-parse -q --verify "refs/tags/omne/gate/unit/$c" >/dev/null; then
+                target=$(git cat-file -p "refs/tags/omne/gate/unit/$c" | sed '1,/^$/d' | jq -r .target)
+                [ "$target" = "refs/heads/$ref" ] && continue
+              fi
+              report "Gate gap: $ref ${c:0:12}" "Commit \`$c\` on the first-parent history of \`$ref\` has no matching \`omne/gate/unit\` record. An admin closes this gap with a named decision in this Issue. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            done
+          done
+          if git rev-parse -q --verify refs/remotes/origin/stable >/dev/null; then
+            s=$(git rev-parse refs/remotes/origin/stable)
+            found=$(git for-each-ref --points-at "$s" --format='%(refname)' 'refs/tags/omne/gate/checkpoint/' | head -n1)
+            [ -n "$found" ] || report "Gate gap: stable ${s:0:12}" "The tip \`$s\` of \`stable\` has no \`omne/gate/checkpoint\` tag."
+          fi
+          echo "gaps: $gaps"
