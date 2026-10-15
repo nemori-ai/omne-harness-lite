@@ -504,7 +504,7 @@ it('a long-lived synchronous transaction does not let another process steal the 
        opened.put({ id: childId, tenant: tenantB, purpose: 'model-send' }, 'child-secret')
        writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify({ start, end: Date.now() }))`,
     ],
-    { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' },
+    { cwd: fileURLToPath(new URL('..', import.meta.url)) },
   )
 
   let delayed = false
@@ -521,10 +521,16 @@ it('a long-lived synchronous transaction does not let another process steal the 
   injectedWriteSync = undefined
   const parentDuration = Date.now() - parentStart
 
+  const childStderr: string[] = []
+  child.stderr?.setEncoding('utf8')
+  child.stderr?.on('data', (chunk: string | Buffer) => {
+    childStderr.push(String(chunk))
+  })
+
   await new Promise<void>((resolve, reject) => {
     child.on('error', reject)
     child.on('exit', (code) => {
-      if (code !== 0) reject(new Error(`child exited ${code}: ${child.stderr}`))
+      if (code !== 0) reject(new Error(`child exited ${code}: ${childStderr.join('')}`))
       else resolve()
     })
   })
@@ -712,7 +718,9 @@ it('logs, errors, telemetry, and model context do not carry the synthetic secret
     }
   } finally {
     methods.forEach((name, index) => {
-      console[name] = originals[index]
+      const original = originals[index]
+      if (!original) throw new Error('console method missing')
+      console[name] = original
     })
   }
   expect(thrown.length).toBeGreaterThan(0)
