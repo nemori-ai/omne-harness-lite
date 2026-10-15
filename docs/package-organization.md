@@ -85,15 +85,19 @@ packages/
 │   ├── content-block/          已封闭的文本、思考、语音、图、文件
 │   ├── message/                事实记录中的消息字段
 │   └── stream-arrival/         流式交付的开块、填充、封块、削减、结束
-└── util/
-    ├── unix-format/          按码位排版的终端文本
-    └── xml-format/           按字段声明渲染的 XML 文本
+├── util/
+│   ├── unix-format/          按码位排版的终端文本
+│   └── xml-format/           按字段声明渲染的 XML 文本
+└── schema/
+    └── schema-provider/      形状校验、首次编译和有界缓存
 apps/<应用成员>/               客户端表现、个人设备daemon或云节点装配
 tools/<开发工具>/              检查与开发工具
 scripts/                       仓库自动化
 ```
 
 同一能力组内可以增加具名提供者或独立适配成员，前提是包边界有依据。单成员组仍提供稳定知识位置，不为目录对称增加转发层。time、telemetry和common须有实际共同语义及消费者，不能成为收纳未归属代码的目录。`util` 只放纯文本格式化。`unix-format` 和 `xml-format` 从封存的 `packages.0.0.1.legacy/util` 迁入，输出由迁来的测试锁定。它们不进入 `common`，因为还没有两个已确认的共同消费者。
+
+`schema` 只放 Schema 提供者。成员是 `packages/schema/schema-provider`。它做准入、首次编译、租约和槽位缓存。各业务形状仍由各自的拥有者持有。该组不是治理领域，也不是 `util` 或 `common`。提供者持有缓存和租约，不是纯表示。
 
 装配组有两个目标成员。`assembly` 维护求值、采用和交接。`kernel-basis` 维护操作结果、Cordis 插件辅助和测试装配。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。
 

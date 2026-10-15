@@ -18,7 +18,7 @@
 | --- | --- | --- | --- |
 | 产品与工程运行时 | Node24，产品SQLite发行基线24.21.0；现有开发工具engines保持原声明。Cordis保持4.0.4，不跟进DSH alpha | Bun1.4.3可作独立制品对照；完整Worker支持、diagnostics及原生库兼容须验证，不从Claude Code的选择推导兼容 | 精确补丁及制品摘要、原生依赖、ICU/tz、Cordis、Worker及关闭由应用验证。运行与构建归[workspace](../workspace.md) |
 | 编译与构建 | 编译和类型检查采用 TypeScript 7，并保留 NodeNext 与 strict。仍调用 createProgram 或 createSourceFile 的工具从 @typescript/typescript6 导入。库默认 tsc 输出 ESM 和声明。应用按需要使用现行 esbuild。catalog 在切换完成前仍钉 TypeScript 6 | 不把这些编程接口直接改到 TypeScript 7 根入口。不把 Issue #227 的测量写成性能保证。tsup 8.5.1 停止积极维护，不新引入。必要库 bundle 可单独比较 tsdown 0.23.1 | 切换时用 TypeScript 6 再检查对外 .d.ts。catalog、声明、独立安装与资源文件必须同步验证。bundle 不代替类型检查。切换责任在 integration/engineering-toolchain。切换完成前，运行中的编译器版本以 lockfile 为准 |
-| 配置与数据Schema | 保留现行Zod4及Standard Schema。Zod4.6.5的纯同步支持子集使用显式z.compile并缓存，递归或其他不支持形状走明确的运行时路径。已由JSON Schema拥有形状的边界保留Ajv8，关闭coercion/default/remove。每份形状一个拥有源，派生TS类型 | TypeBox1.3.36及ArkType2.2.8保留为同义编译校验对照；局部耗时不授全仓切换，不能同时手写第三套字段。Standard Schema只是接口，不保证异步/高性能 | Cordis4.0.4配置验证保持同步，网络/文件检查归初始化。编译子集和callback纯度须验证，不能把回退或异步路径记为编译命中。Schema生成拒绝损失精度/未知语义的转换 |
+| 配置与数据Schema | 保留现行Zod4及Standard Schema。Zod4.6.5的纯同步支持子集使用显式z.compile并缓存，递归或其他不支持形状走明确的运行时路径。已由JSON Schema拥有形状的边界保留Ajv8，关闭coercion/default/remove。每份形状一个拥有源，派生TS类型 | TypeBox1.3.36及ArkType2.2.8保留为同义编译校验对照；局部耗时不授全仓切换，不能同时手写第三套字段。Standard Schema只是接口，不保证异步/高性能 | Cordis4.0.4配置验证保持同步，网络/文件检查归初始化。编译子集和callback纯度须验证，不能把回退或异步路径记为编译命中。Schema生成拒绝损失精度/未知语义的转换。检查、预算与失败见[Schema提供者的检查与准入](#schema提供者的检查与准入) |
 | 严格JSON与数值 | 读取用 jsonc-parser 3.3.1 的扫描器，逐对象检测解码后重名键，数值保留原词法后交字段 codec。已接受实现不用 visitor。规范写出用 RFC 8785，见 [RFC-0006](../rfcs/RFC-0006-json-canonical-text.md) | JSON.parse 后已丢重名和精度。JSON.stringify 不保证键序和 RFC 8785 数字形式。lossless-json 4.3.1 裸用会接受等值重复键。大增量输入可比较 stream-json 3.7.0，必须保留同一拒绝语义 | 禁注释、尾逗号和空输入。任一语法错误整份拒绝。严格 UTF-8，以及项、深度、字符串和数字预算。写出拒绝非 JSON 值，不自行转换。具体责任见[共同表示](cross-cutting-concepts.md#表示与校验) |
 | 数据访问与迁移 | SQL提供者使用现行Kysely作为类型化查询构造与迁移辅助；字段/迁移归数据拥有者，提交归真实事务域 | 不首选统一ORM或全系统事件溯源，避免以对象活体替持久契约；原生参数化SQL可用于Kysely未覆盖路径，只有同一提供者拥有 | Worker内提供者显式适配node:sqlite执行和返回值，通用事务回调不跨线程。SQLite默认Migrator不保证DDL原子回滚。需要原子的迁移须在同连接事务中验证DDL、数据与迁移标记一起回滚；事务外恢复步骤另承诺可恢复性，不能替代原子性。迁移开闸/失败/恢复由[数据架构](data-and-state.md)承接 |
 | 本地SQLite | node:sqlite专用Worker，Node24.21.0内嵌SQLite3.53.4为基线；一事务域一写连接。WAL、FULL、foreign_keys开启并读回 | better-sqlite3 13.0.3专用Worker作原生维护成本对照。sqlite3 6.0.1可作需要运行中interrupt的提供者对照。libSQL0.18.0本地file路径仍同线程同步，Promise/池不足以离开控制线程 | 内嵌引擎须含WAL-reset修复，读回sqlite_version、compile_options、PRAGMA和物理存储前提。不扩大为系统唯一后端，见[基础设施采用政策](deployment/infrastructure-policy.md) |
@@ -53,6 +53,29 @@
 独立公开形状、完整必要行为、真实提供者及装配输入形成可消费的精确版本后，才开放依赖相应保证的能力。共同选择不能关闭STORAGE-T01、SQL-T01、MODEL或KERNEL的精确承接与符合性待办。共享契约、Schema、catalog/lock及装配拓扑具名单写，实际消费者按接口和条件传播，不从目标目录推断实现。
 
 Schema提供者先核支持编译子集、callback纯度、动态输入限制、依赖快照、新旧消费者以及完整编译内存预算；只按定义字节计费不足以证明有界。依赖动态Schema有界保证的消费者须先取得提供者和独立验收依据，静态或不依赖此性质的工作可独立推进。
+
+### Schema提供者的检查与准入
+
+检查使用 Zod 4.6.5 与 Ajv 8。Schema 提供者实现准入、编译缓存、租约和槽位。它不定义另一套 Schema 语言。位置是 `packages/schema/schema-provider`。它持有缓存和租约，不是纯表示，因此不放在 `packages/common`，也不放在 `packages/util`。
+
+```mermaid
+flowchart TD
+  read["JsonRead"] --> walk["遍历定义"]
+  walk -->|"callback、transform、default、catch、lazy、强制转换"| refuse["拒绝，不调用编译器"]
+  walk -->|"有环的 JSON Schema"| cycle["拒绝，不记为编译命中"]
+  walk -->|"允许的无环形状"| compile["z.compile 或 Ajv"]
+  compile --> check["检查投影后的值"]
+```
+
+提供者在调用 `z.compile` 或 Ajv 之前遍历定义。遍历拒绝 callback、`.transform`、`.default`、`.catch`、`z.lazy` 和强制转换。`z.compile` 成功不能作为子集通过的依据。
+
+有环的 JSON Schema 在运行时检查被另行接受之前拒绝。Ajv 对循环形状的编译结果不能记为编译命中。提供者也不另写 JSON Schema 解释器。该运行时检查开放后，其结果仍不能记为编译命中。
+
+预算按快照槽计数。一个槽表示一份在途编译、一份就绪产物、一条冷却记录，或一份仍有租约的旧修订。没有完整编译内存上界的动态 Schema 不开放。槽位计数和定义字节数都不能当作该上界。
+
+校验失败使用 `type`、`empty`、`precision`、`constraint` 和 `unrecognized-key`。Zod 与 Ajv 的原始错误只在提供者内对照到这五个编号。公共错误分类接受后，只改这一处对照。
+
+缓存键、并发的首次编译、旧租约，以及失败后不保留成功缓存，由[缓存机制](data-and-state.md#缓存懒加载与预热)规定。
 
 存储、队列、资源与调用提供者分别验证真实同提交、未知结果认回、旧写者排除、持久交接、有限项/字节/线程/连接界、公平前提、共享整项预留及真实退出。关闭和故障的实际结果分别报告，普通kill、干净重启、已配置FULL或一个名称不能证明断电耐久、跨节点恢复或安全隔离。
 

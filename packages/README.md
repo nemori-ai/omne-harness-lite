@@ -29,6 +29,7 @@
 | [telemetry](telemetry/README.md) | 遥测 | 待具名 |
 | [common](common/README.md) | 共同纯表示 | `json-text`, `legal-identity`, `utc-instant`, `content-block`, `message`, `stream-arrival` |
 | [util](util/README.md) | 纯文本格式化 | `unix-format`, `xml-format` |
+| [schema](schema/README.md) | Schema 提供者 | `schema-provider` |
 
 ## 阅读与维护
 
