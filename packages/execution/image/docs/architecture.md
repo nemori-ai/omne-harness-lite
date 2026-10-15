@@ -12,7 +12,7 @@
 
 ## 模块
 
-根入口导出 `imageBudget` 和 `open`。打开句柄导出 `encode` 和 `close`。解码库的类型只出现在适配器里。适配器由 [Cordis 集成](cordis.md) 交进根入口，调用方不导入它。
+根入口导出 `imageBudget` 和 `open`。打开句柄导出 `encode` 和 `close`。解码库的类型只出现在适配器里。根入口调用适配器。Cordis 插件调用根入口的同一组操作，不把适配器写成跨成员 `inject`。调用方不导入适配器。
 
 新增格式时改格式联合和适配器。`imageBudget`、`open` 和 `close` 的调用形状不变。替换解码库时，根入口和服务定义的签名不变。
 

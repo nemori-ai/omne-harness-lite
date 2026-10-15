@@ -1,20 +1,24 @@
-# 图像成员
+# @omne-harness/image
 
-状态：技术设计已接受，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/277#issuecomment-6198093789)。本目录没有 `package.json`，不是 workspace 成员，不能从这里导入或运行代码。
+[中文](README_ZH.md)
 
-本成员校验完整图像字节，并在预算内打开、编码和关闭。保存图像字节的调用方和准备模型输入的调用方使用同一份核对过的原始字节和声明。本成员不实现这两个调用方，也不决定 `Files()` 或 `Shell()` 的执行落点。
+Bounded image admission, encode, and close.
 
-## 职责与状态
+Status. The technical design is accepted in [issue 277](https://github.com/nemori-ai/omne-harness-lite/issues/277#issuecomment-6198093789). This directory is a workspace member. The six production ceilings are still caller input. This member does not store a default integer.
 
-本成员拥有图像字节的预算、声明、打开句柄和关闭。执行环境拥有落点、隔离和设施就绪。content-block 只判断封闭图像块的形状，不解码像素。附件存储、模型图片请求和供应商尺寸搜索不在本成员。
+## Responsibility and status
 
-六个预算维度沿已接受的资源预算。具体整数尚未测量，本成员不写入默认整数。
+This member owns the image budget, the declaration, the open handle, and close. An execution environment owns placement, isolation, and facility readiness. content-block checks the shape of a closed image block and does not decode pixels. Attachment storage, model image requests, and vendor size search stay outside this member.
 
-## 使用
+Callers who store image bytes and callers who prepare model input share one checked buffer and one declaration. This member does not implement those callers. It does not choose a `Files()` or `Shell()` placement.
 
-调用方先提交六个维度。通过之后，把同一预算对象交给打开操作。
+## Usage
+
+Pass six dimensions to `imageBudget`. Pass the same budget object to `open`.
 
 ```typescript
+import { imageBudget, open } from '@omne-harness/image'
+
 const created = imageBudget({
   formats: profile.formats,
   maxWidth: profile.maxWidth,
@@ -25,9 +29,9 @@ const created = imageBudget({
 })
 ```
 
-`created.kind` 为 `rejected` 时，没有预算对象。
+When `created.kind` is `rejected`, there is no budget object.
 
-Files 在打开成功时保存原始字节和声明，然后关闭。这里的保存不是 `Files()` 元工具的落点选择。
+A caller that stores bytes keeps `verifiedBytes` and the declaration, then closes. That store is not the `Files()` placement choice.
 
 ```typescript
 const opened = await open({ bytes, budget })
@@ -43,35 +47,41 @@ const stored = {
 await opened.handle.close()
 ```
 
-Model 在关闭前可以编码。编码不替换 `verifiedBytes`。
+A caller that prepares model input can encode before close. Encode does not replace `verifiedBytes`.
 
 ```typescript
 const encoded = await opened.handle.encode({ format: 'png' })
 await opened.handle.close()
 ```
 
-打开操作不接收计时器。调用方用自己的计时器与打开操作赛跑时，原来的 Promise 继续。计时器先完成不释放预留，也不证明原生工作已停止。
+`open` takes no timer. A caller timer that wins the race does not release the reservation and does not prove that native work stopped.
 
-独立调用方使用根入口，自己传入完整字节和预算对象。Cordis 调用方使用同一组操作。装配选择解码器，调用方不导入解码库。
+A direct caller uses the root entry and passes the bytes and the budget. A Cordis caller uses the same operations through the `image` service in `./cordis`. The caller does not import the decoder.
 
-## 契约
+## Contracts
 
-公开形状见[模型](docs/model.md)。打开、编码和关闭的步骤见[关键流程](docs/key-flow.md)。结果、失败、预留和关闭见 [SPEC](SPEC.md)。模块边界见[架构](docs/architecture.md)。Cordis 装配见[集成](docs/cordis.md)。根入口不导入 Cordis。
+The public shape is in [model](docs/model.md). Open, encode, and close steps are in [key flow](docs/key-flow.md). Results, failures, reservation, and close are in [SPEC](SPEC.md). Module boundaries are in [architecture](docs/architecture.md). Cordis assembly is in [integration](docs/cordis.md). The root entry does not import Cordis.
 
-## 设计
+## Design
 
-打开句柄同时拥有光栅和一份预留。关闭句柄不再拥有它们。调用方用 `heldReservation()` 读取预算对象上的预留快照。模块边界、旧实现对照和要避开的问题见[架构](docs/architecture.md)。
+An open handle owns the raster and one reservation. A closed handle owns neither. `heldReservation()` reads the snapshot on the budget object. The reservation table is a `WeakMap` keyed by that object. Only `imageBudget` can construct the key.
 
-## 配置与运行
+`src/index.ts` owns the public operations. `src/container.ts` reads png, jpeg, and webp headers before a raster exists. `src/adapter.ts` owns sharp 0.35.3. `src/cordis.ts` owns the service key `image` and the plugin.
 
-预算数字由调用方传入。本成员不读取环境变量，也不保存默认上限。原生库的名字和版本写在调用方的 profile 里，不写进本目录。
+## Configuration and operation
 
-输入是一份完整缓冲。流式输入不在本成员。
+The caller passes the budget numbers. This member reads no environment variable and stores no default ceiling. The input is one complete buffer. A stream is outside this member.
 
-## 验证
+Build deletes `dist` before `tsc`.
 
-设计已接受，运行验证尚未执行。实现之后，单元和契约测试从公开入口覆盖预算拒绝、打开前拒绝、编码和关闭。替身不代替这条公开入口上的真实解码。执行环境的隔离测试不覆盖本成员。
+## Verification
 
-## 维护
+`pnpm --filter @omne-harness/image test` runs the unit and contract tests from the public entry and from `./cordis`.
 
-改变预算、拒绝原因或句柄状态时，同时改 SPEC 和[模型](docs/model.md)。content-block 的图像形状保持不变。成为 workspace 成员时再添加 `package.json`，并同步组入口和包组织里的叶子说明。
+The command passed on Darwin 25.5.0 arm64 with Node v26.0.0, sharp 0.35.3, and libvips 8.18.3. The member engine range is `>=24.18.0 <25`. Node 24 did not run. The caller-timeout case used a 2048 by 2048 fixture PNG and a 1 ms timeout. Those fixture numbers are not production ceilings. `nativeStop` stayed `not-proven`.
+
+An execution-environment isolation test does not cover this member.
+
+## Maintenance
+
+When the budget, a reject reason, or a handle state changes, change SPEC and [model](docs/model.md) in the same change. The content-block image shape stays unchanged.

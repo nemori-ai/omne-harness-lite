@@ -1,6 +1,6 @@
 # 图像成员的 Cordis 集成
 
-状态：技术设计已接受，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/277#issuecomment-6198093789)。行为条件在 [SPEC](../SPEC.md)。本成员还不是 workspace 成员，现在不发布服务键，也不提供可装载插件。
+状态：技术设计已接受，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/277#issuecomment-6198093789)。行为条件在 [SPEC](../SPEC.md)。本成员是 workspace 成员。服务键是 `image`，插件从 `./cordis` 装载。
 
 ## 入口
 
@@ -12,7 +12,7 @@
 
 预算对象是数据，不是服务。插件配置携带六个维度。缺值、非有限数或非正数使插件加载失败，fiber 进入失败。模块里不写默认整数。
 
-解码适配器由这个插件构造并交给根入口。它不是另一个成员的服务，也不写进 `inject` 的跨成员依赖。必需依赖出现时才写入 `inject`。本接缝不把租户、会话或执行落点写成依赖。
+解码适配器在本成员内部。根入口调用它。插件调用根入口的同一组操作，不把适配器写进 `inject`。必需依赖出现时才写入 `inject`。本接缝不把租户、会话或执行落点写成依赖。
 
 租户和会话不从 Context、isolate 或插件实例推断。解码字节和预算由调用方传入。
 
