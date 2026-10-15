@@ -45,9 +45,7 @@ Service 定义的归属沿[产品包组织](../../../../docs/package-organizatio
 `unknown` 保持 `unknown`。
 `--check` 不把 `unknown` 当成通过。仅有 `unknown` 行时，退出码也不会变成 1。
 
-`lint:rules` 的 `group-direction` 是另一项检查。它对 `packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 仍报告 `unregistered-group`。
-这次不改这条规则。
-若把这些组登记进 `GROUP_DIRECTION_POLICY`，同组的 `sdk` 导入 `server-entry` 会一直合法，直到两个成员成环。
+分组方向是另一项检查，由 `pnpm run lint:deps` 的 dependency-cruiser 规则判，见 [ts-checks](../../README_ZH.md#依赖图与依赖规则)。同组的 `sdk` 导入 `server-entry` 直接违反 `sdk-not-server`。
 
 ## 后续实施者
 

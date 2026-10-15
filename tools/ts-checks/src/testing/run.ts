@@ -173,7 +173,7 @@ export async function runMembers(
   tier: RunTier,
   onDone: (run: MemberRun, finished: number) => void,
 ): Promise<MemberRun[]> {
-  const runs = new Array<MemberRun>(members.length)
+  const runs = Array.from<MemberRun>({ length: members.length })
   let next = 0
   let finished = 0
   const worker = async () => {

@@ -1,8 +1,6 @@
 // 传感器的纯计算部分：稳定依赖不稳定、一起改却分属两组、没有断言的测试、相对基线新增的边、工作树清单。
 // 读 git 的那几层在 loop-repository.spec.ts 用临时仓库测。
 import { describe, expect, it } from 'vitest'
-import { memberGraph } from '../src/metrics/graph.ts'
-import type { SourceFile } from '../src/rule.ts'
 import { casesWithoutAssertions } from '../src/loop/sensors/assertions.ts'
 import { cochange, parseCommitMembers } from '../src/loop/sensors/cochange.ts'
 import { edgeDelta } from '../src/loop/sensors/new-edges.ts'
@@ -186,55 +184,31 @@ describe('没有断言的测试', () => {
 })
 
 describe('相对基线新增的跨成员依赖', () => {
-  const file = (path: string, text: string): SourceFile => ({ path, text })
-  const A = 'packages/core/a/src/index.ts'
-  const B = 'packages/core/b/src/index.ts'
-  const C = 'packages/core/c/src/index.ts'
-  const imports = (...names: string[]) =>
-    names.map(name => `import { x } from '@omne-harness/${name}'`).join('\n') + '\n'
+  const edge = (from: string, to: string, path = `${from}/src/index.ts`) => ({
+    from,
+    to,
+    sites: [{ path, line: 1, specifier: `@omne-harness/${to.split('/').pop() ?? ''}` }],
+  })
 
-  it('改动文件里新加的导入是新增；没改动的文件里的边不算；删掉的导入是消失', () => {
-    const head = [file(A, imports('b')), file(B, imports('c')), file(C, '')]
-    const graph = memberGraph(head)
-    const delta = edgeDelta({
-      headEdges: graph.edges,
-      members: graph.members,
-      changedPaths: new Set([A]),
-      baseFiles: [file(A, imports('c'))],
-    })
-    expect(delta.added.map(edge => `${edge.from} → ${edge.to} ${edge.site?.path}`)).toEqual([
-      `packages/core/a → packages/core/b ${A}`,
+  it('当前有、基线没有的边是新增，带当前的第一个导入处；基线有、当前没有的是消失', () => {
+    const delta = edgeDelta(
+      [edge('packages/core/a', 'packages/core/b'), edge('packages/core/b', 'packages/core/c')],
+      [edge('packages/core/a', 'packages/core/c'), edge('packages/core/b', 'packages/core/c')],
+    )
+    expect(delta.added.map(item => `${item.from} → ${item.to} ${item.site?.path}`)).toEqual([
+      'packages/core/a → packages/core/b packages/core/a/src/index.ts',
     ])
-    expect(delta.removed.map(edge => `${edge.from} → ${edge.to}`)).toEqual([
+    expect(delta.removed.map(item => `${item.from} → ${item.to}`)).toEqual([
       'packages/core/a → packages/core/c',
     ])
   })
 
-  it('同一条边在没改动的文件里也有导入：不算新增', () => {
-    const other = 'packages/core/a/src/other.ts'
-    const head = [file(A, imports('b')), file(other, imports('b')), file(B, '')]
-    const graph = memberGraph(head)
-    const delta = edgeDelta({
-      headEdges: graph.edges,
-      members: graph.members,
-      changedPaths: new Set([A]),
-      baseFiles: [file(A, '')],
-    })
-    expect(delta.added).toEqual([])
-  })
-
-  it('基线上还没有的文件贡献空集；基线上有、现在删了的文件里的边算作消失', () => {
-    const gone = 'packages/core/a/src/gone.ts'
-    const head = [file(A, imports('b')), file(B, ''), file(C, '')]
-    const graph = memberGraph(head)
-    const delta = edgeDelta({
-      headEdges: graph.edges,
-      members: graph.members,
-      changedPaths: new Set([A, gone]),
-      baseFiles: [file(gone, imports('c'))],
-    })
-    expect(delta.added.map(edge => edge.to)).toEqual(['packages/core/b'])
-    expect(delta.removed.map(edge => edge.to)).toEqual(['packages/core/c'])
+  it('两边都有的边，导入处换了文件也不算新增', () => {
+    const delta = edgeDelta(
+      [edge('packages/core/a', 'packages/core/b', 'packages/core/a/src/other.ts')],
+      [edge('packages/core/a', 'packages/core/b')],
+    )
+    expect(delta).toEqual({ added: [], removed: [] })
   })
 })
 

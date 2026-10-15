@@ -4,7 +4,7 @@
 // application/hit.clj:28-77；arch-view 89907df8 删掉了整套箭头走线）。
 import type { EdgeRow, Report } from '../report.ts'
 
-export type EdgeTone = 'bad' | 'except' | 'changed' | 'plain' | 'group'
+export type EdgeTone = 'bad' | 'changed' | 'plain' | 'group'
 
 export interface VisibleEdge {
   readonly id: string
@@ -28,22 +28,19 @@ export interface EdgeSelection {
   readonly note: string
 }
 
-/** 违规最重，其次已登记例外，再次本次变更触及的。 */
-export function worstOf(edges: readonly EdgeRow[]): 'bad' | 'except' | 'changed' | '' {
+/** 违规最重，其次本次变更触及的。 */
+export function worstOf(edges: readonly EdgeRow[]): 'bad' | 'changed' | '' {
   if (edges.some(edge => edge.violating)) return 'bad'
-  if (edges.some(edge => edge.excepted)) return 'except'
   return edges.some(edge => edge.changed) ? 'changed' : ''
 }
 
 function toneOf(edge: EdgeRow): EdgeTone {
   if (edge.violating) return 'bad'
-  if (edge.excepted) return 'except'
   return edge.changed ? 'changed' : 'plain'
 }
 
 function widthOf(edge: EdgeRow): number {
-  if (edge.violating) return 2.4
-  return edge.excepted ? 2 : 1.4
+  return edge.violating ? 2.4 : 1.4
 }
 
 function memberEdge(edge: EdgeRow, dashed: boolean): VisibleEdge {
@@ -96,13 +93,12 @@ export function visibleEdges(report: Report, state: EdgeState): EdgeSelection {
     })
     return { edges, note: '' }
   }
-  const touched = drawable.filter(edge => edge.changed && !edge.violating && !edge.excepted)
+  const touched = drawable.filter(edge => edge.changed && !edge.violating)
   const drawTouched = touched.length <= state.limit
   const edges = [
     ...(state.groupLines ? groupEdges(report) : []),
     ...drawable.flatMap(edge => {
       if (edge.violating) return [memberEdge(edge, false)]
-      if (edge.excepted) return [memberEdge(edge, true)]
       return edge.changed && drawTouched ? [memberEdge(edge, false)] : []
     }),
   ]

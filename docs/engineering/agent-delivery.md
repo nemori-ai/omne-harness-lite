@@ -47,7 +47,7 @@
 
 协调者先核读取范围与分页完整性、排序、依赖及现存attempt。Ready只是之前的观察，开始前仍核当前必要输入和条件；不能从空列表、closed或Project状态推出资格。返回候选时说明为什么可做、等什么、哪些无法判定。
 
-获准取任务后，由队列的单一调度写者发放执行权；worker向该协调者交领取请求或候选，不自行竞争修改共享摘要。协调者登记attempt并读回，给执行者明确卡修订、检出／分支、写范围、依据、验证、完成及停止点，随后派发。工作类型决定加载哪些专项输入，规模决定选哪个pstack流程。
+获准取任务后，由本卡指定的单一调度者发放执行权，调度者须是 `publish` environment 的 reviewer；worker向该协调者交领取请求或候选，不自行竞争修改共享摘要。协调者登记attempt并读回，给执行者明确卡修订、检出／分支、写范围、依据、验证、完成及停止点，随后派发。工作类型决定加载哪些专项输入，规模决定选哪个pstack流程。
 
 接手会话先在本卡评论声明认卡，注明负责的人、宿主及会话或agent实例、当前修订、授权依据和现存执行核对结果。已有派发就引用该决定；尚未派发就向本卡指定调度者请求领取。认卡评论不授执行权，不新增认领Stage，也不代替唯一attempt读回。已获调度或正文单写职责时，在授权内直接完成登记和更新，不重复请示。
 
@@ -87,7 +87,7 @@ RFC采用按[提案及决定关系](../rfcs/README.md#现行源与维护)和[RFC
 
 ## 多层集成的交接
 
-[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/ts-checks/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。主干发布在切换前仍按现行集成工具执行。切换后的确认流程以 [目标准入](integration.md#目标准入) 为准。那个流程还没有接入。
+[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/ts-checks/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。主干的进入按[现行准入](integration.md#现行准入)执行：开 PR，派发 `gate-publish`，由 admin 填写说明后确认。agent 代为确认时在说明中注明代为确认的人。
 
 binding放在“当前执行与交接”，派发后替换未派发的计划文字。attempt、branch、route、completionTarget、taskBase和writeScope以唯一真实binding为编辑源。相邻记录从路线与采用登记解析的直接目标分支、实际开工taskSource、目标targetBase及观察时点，以及生成的context路径和核验回执。这些读回项留在JSON外，不增加v1字段。原taskBase与实际开工HEAD分别保留；目标前进后须重新核对targetBase。不得手工制造context或将本地缓存当授权源。
 

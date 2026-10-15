@@ -119,15 +119,16 @@ describe('严格模式', { timeout: 60_000 }, () => {
   )
   it('engineering keeps direction, cycle and acceptance-lock hard failures', () => {
     const { root, home, out, base } = complete()
+    // common 依赖领域成员是方向违规；两边互相导入成环。
     write(
       root,
-      'packages/core/a/src/index.ts',
-      "import { b } from '@omne-harness/b'\nexport const a = b\n",
+      'packages/common/s/src/index.ts',
+      "import { b } from '../../../infra/b/src/index.ts'\nexport const s = b\n",
     )
     write(
       root,
       'packages/infra/b/src/index.ts',
-      "import { a } from '@omne-harness/a'\nexport const b = a\n",
+      "import { s } from '../../../common/s/src/index.ts'\nexport const b = s\n",
     )
     write(root, 'apps/demo/acceptance/locked.ts', 'export const changed = true')
     const result = run(
@@ -358,7 +359,7 @@ describe('严格模式', { timeout: 60_000 }, () => {
     expect(result.stdout).toContain(
       '  ✗ 传感器没数据 1 个：sensors.assertions（成员里没有测试文件）',
     )
-    expect(result.stdout).toContain('  方向违规 0')
+    expect(result.stdout).toContain('  依赖违规 0')
   })
 
   it('有成员有验收、这个提交却没有验收的耗时记录：验收耗时没数据，退出 1', () => {

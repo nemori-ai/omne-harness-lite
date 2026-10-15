@@ -2,7 +2,7 @@
 // 范围、按成员汇总与排序。它按词法记号找相同的片段，改了名字的重复查不出。
 import { createRequire } from 'node:module'
 import { Detector, MemoryStore, type IClone } from '@jscpd/core'
-import { memberOf } from '../../metrics/graph.ts'
+import { memberOf } from '../../deps/graph.ts'
 import type { SourceFile } from '../../rule.ts'
 
 // @jscpd/tokenizer 4.0.1 的 ESM 入口（dist/index.mjs）里有 141 处不带扩展名的

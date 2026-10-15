@@ -1,0 +1,59 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "ignore": [
+    "**/*.legacy/**",
+    "**/tmp/**",
+    "**/dist/**"
+  ],
+  "workspaces": {
+    ".": {
+      "entry": [
+        "scripts/*.{mjs,ts}"
+      ],
+      "project": [
+        "scripts/**/*.{mjs,ts}"
+      ],
+      "ignoreDependencies": [
+        "oxfmt"
+      ]
+    },
+    "packages/*/*": {
+      "entry": [
+        "src/index.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
+    "apps/*": {
+      "entry": [
+        "src/index.ts",
+        "src/bin.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
+    "tools/ts-checks": {
+      "entry": [
+        "src/index.ts",
+        "src/**/cli.ts",
+        "src/**/*-cli.ts",
+        "src/loop/stop-hook.ts",
+        "src/arch/flow/main.tsx",
+        "src/metrics/flow/*.tsx"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ]
+    },
+    "tools/artifact-builder": {
+      "entry": [
+        "src/index.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
+    }
+  }
+}

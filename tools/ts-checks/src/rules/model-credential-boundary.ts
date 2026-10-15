@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { dirname, join, normalize } from 'node:path/posix'
 import type { Rule, SourceFile, Violation } from '../rule.ts'
 import { isTestPath } from '../rule.ts'
@@ -597,7 +597,6 @@ export const modelCredentialBoundary: Rule = {
         argument: ts.Expression,
         input: Value,
       ): boolean => {
-        const called = evaluate(node.expression)
         if (replicaArgument(node, argument))
           return [...input].every(token => token === 'readCredentialBindingIn:binding-reader')
         if (lookupArgument(node, argument, input)) return true

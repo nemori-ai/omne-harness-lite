@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/turbo/schema.json",
+  "agentGuidance": false,
+  "globalDependencies": [
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "tsconfig.base.json",
+    "tools/repo-config/**"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "@omne-harness/core-verification#build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": []
+    }
+  }
+}

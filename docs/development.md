@@ -92,7 +92,7 @@ Java、TLC、Alloy的查找路径、JAR及环境变量归[环境与实际执行]
 
 ### 格式化
 
-TS/JS 格式由根配置和锁定的本地 Prettier 统一处理：
+TS/JS 格式由根配置 `.oxfmtrc.json` 和锁定的本地 oxfmt 统一处理：
 
 ```sh
 pnpm format:check
@@ -101,11 +101,28 @@ pnpm format:write
 
 局部修改只传入本次有写权限的仓库相对文件，例如
 `pnpm format:write -- tools/spec-tools/src/x.ts`。
-范围包括 `packages/`、`apps/`、`tools/`、`scripts/` 下的 TS/JS 源码、测试及所属配置，
+范围包括 `tools/`、`scripts/`、`examples/` 下的 TS/JS 源码、测试及所属配置，
 和根 TS/测试配置；**不含**上游原件、provenance、JSONL 黄金文件、依赖、构建输出与临时目录。
+`packages/` 与 `apps/` 暂不纳入，重排时间由源码包负责人另定；Markdown 不在范围内。
+
+编辑器装 `oxc.oxc-vscode` 扩展（`.vscode/extensions.json` 推荐），它调用工作区里的 oxfmt，与命令行同一版本、同一配置。
 
 需要本地提交检查时，确认没有既有 `pre-commit` hook 后运行 `pnpm format:hook:install`。
 安装器不覆盖已有 hook；所装检查只读 Git index 中已暂存的文件，**不 stash、不改工作区**。
+
+### 通用静态检查
+
+```sh
+pnpm lint:oxlint   # oxlint 正确性规则，范围 tools/、scripts/
+pnpm lint:deps     # dependency-cruiser：无法解析的导入、文件级运行时循环与 legacy 引用，范围 tools/、scripts/、packages/、apps/
+pnpm lint:report   # 只报告：全部目录的 oxlint（含 vitest 测试风格规则）与 knip
+```
+
+tsconfig、oxlint 与 dependency-cruiser 的共享规则在 [repo-config](../tools/repo-config/README.md) 预设里维护，根目录的配置文件只引用它；oxfmt 不支持 `extends`，配置留在根目录。
+
+`lint:oxlint` 与 `lint:deps` 违反即失败，`make check` 每次都跑。oxlint 暂不检查 `packages/` 与 `apps/`，与格式范围一起由源码包负责人另定；dependency-cruiser 的规则是结构护栏，对源码包同样失败。
+dependency-cruiser 用类型检查的 `source` 条件解析跨包导入，`dist` 与依赖只作叶子不深入；它自带一份 TypeScript 6 解析 `.ts`（见 `pnpm-workspace.yaml` 的 `packageExtensions`）。方向规则按[产品包组织](package-organization.md#依赖方向与cordis集成)写成成员路径，成员与组之间的环由 ts-checks 在同一张图上算；`lint:deps` 的入口是 `tools/ts-checks/src/deps/cli.ts`。
+Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和源码字符串里的 legacy 路径，仍由 `pnpm run lint:rules` 检查；legacy 的导入边归 `lint:deps`。
 
 ## 开始一次交付
 
@@ -228,15 +245,21 @@ make test-affected BASE="$TASK_BASE"
 make test-affected BASE="$TASK_BASE" TIER=slow
 ```
 
-`check-plan`只输出计划。`test-affected`先构建选中成员及依赖，默认只跑快层；慢层由`TIER=slow`选择，`TIER=all`合跑两层。选择依据包括实际改动、声明依赖及显式读者规则，不能仅凭“没修改那个包”省略消费者验证。
+`check-plan`只输出计划。`test-affected`先构建选中成员及其上游，默认只跑快层；慢层由`TIER=slow`选择，`TIER=all`合跑两层。选择依据包括实际改动、依赖关系及显式读者规则，不能仅凭“没修改那个包”省略消费者验证。
 
-[RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择) 接受用 `turbo run <task> --affected` 替换这份手写计算。替换还没有发生。现行命令继续使用 `tools/ts-checks` 的选择器。pnpm 的 `--filter "...[<since>]"` 在 git 工作树里匹配不到包，所以不能改用它。
+按 [RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择)，改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出；构建由 `turbo run build` 编排，按依赖先构建上游，本机读写 `.turbo/` 缓存。类型检查和成员测试仍由 `tools/ts-checks` 逐成员执行，测试耗时账本与验收账本照旧写出。
 
-替换之前，选择器必须保留这些规则。全局文件改动判全量。测试读取成员目录以外的文件时带上对应成员。Python 工具、常驻检查和 legacy 排除保持原规则。没有规则认得的文件判全量，不按猜的范围少跑。`turbo.json` 和 `docs/architecture/constraints.json` 是全局文件。改动它们就是全量。
+turbo 不提供的规则留在 `tools/ts-checks/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
+
+RFC-0002 的四条约束这样落实：
+- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；成员目录下出现 `turbo.json` 直接报错；`**/turbo.json`、`tools/repo-config/**` 和本配置文件都是全局文件。
+- 基线显式传入：合并点经 `TURBO_SCM_BASE` 传给 turbo，不让它自己推断。
+- 未识别文件按全量处理：由上面的规则判。
+- 准入不读 PR 能写入的缓存：`OMNE_ADMISSION=1` 时构建只写不读本地缓存（`--cache=local:w`）。
+
+检查脚本调用 turbo 时关闭遥测与常驻进程。
 
 不要用 `vitest --changed` 按文件选择测试。包 B 的测试可能经导出读取包 A 的 `dist`。turbo 会选中 B，但 B 可能一个测试都不跑并报告成功。至少等测试直接读源码之后再评估。
-
-turbo 接入准入时，基线用 `TURBO_SCM_BASE` 和 `TURBO_SCM_HEAD` 显式传入。不依赖 turbo 自己推断。准入不读取 PR 能写入的缓存。`--affected` 是否参考 `inputs`，以及能否从工作树以外读取配置，还没有验证。在这两项有结果之前，不把 turbo 换成现行命令。
 
 局部定位可直接运行一个成员或测试文件：
 
@@ -401,4 +424,4 @@ Git维护当前终态；正式RFC保留进入审议的方案与最小决定关�
 
 ## 多层分支操作
 
-先从[集成规则](engineering/integration.md)核实际采用与任务路线，再按[工具指南](../tools/ts-checks/src/integration/README.md)运行 status/start/prepare/verify/publish/resume。未采用建设仍按既有任务工作。工作树根、runner 根和 subject 根有不同职责；检查器使用实际 subject，规则来自 adopted runner。
+先从[集成规则](engineering/integration.md)核实际采用与任务路线，再按[工具指南](../tools/ts-checks/src/integration/README.md)运行 status、start 和 task-sync。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`，不再在本机运行 prepare、verify 和 publish。未采用建设仍按既有任务工作。工作树根、runner 根和 subject 根有不同职责；检查器使用实际 subject，规则来自 adopted runner。

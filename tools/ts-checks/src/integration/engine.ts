@@ -1,16 +1,7 @@
 import { policyHandoff, policyCheck, adoptPolicy } from './policy-adoption.ts'
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
 import { prepare, seal, type Prepare } from './candidate.ts'
 import { activationCheck, activate, bootstrap } from './adoption.ts'
-import {
-  baselines,
-  contextPath,
-  loadIntegration,
-  requireCurrentAdoption,
-  writeContext,
-  type Legacy,
-} from './context.ts'
+import { baselines, loadIntegration, taskWorkspace, writeContext, type Legacy } from './context.ts'
 import {
   currentAdmission,
   deliveryConfig,
@@ -19,7 +10,7 @@ import {
   confirmConditions,
   admissionDigest,
 } from './authority.ts'
-import { clean, repository, requireAncestor } from './git.ts'
+import { repository, requireAncestor } from './git.ts'
 import { activeTrack } from './policy.ts'
 import { same, IntegrationError } from './parse.ts'
 import { targetHead } from './transport.ts'
@@ -109,7 +100,7 @@ export async function openIntegration({ root }: { root: string }): Promise<Integ
   }
 }
 function start(root: string, command: Extract<Command, { kind: 'register' | 'start' }>): unknown {
-  const state = requireCurrentAdoption(root),
+  const state = taskWorkspace(root),
     config = deliveryConfig(root, state.policy, state.source),
     scope = { task: command.issue, authority: command.authority },
     capture = currentAdmission(config, scope)

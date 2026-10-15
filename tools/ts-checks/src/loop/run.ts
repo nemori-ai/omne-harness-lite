@@ -1,5 +1,5 @@
 // 回路状态的一次运行：只读源码与 git，回答「整洁的各项指标各在哪条带上、这次变更里有哪些红项要解释、哪些成员超了预算」。
-// 除硬线外一切只报告：结果码 1 只在方向违规或环、给了基线且验收锁被破、严格模式下开着的传感器没数据时。
+// 除硬线外一切只报告：结果码 1 只在依赖违规或环、给了基线且验收锁被破、严格模式下开着的传感器没数据时。
 // 命令行外壳在 cli.ts。
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { baselines } from '../integration/context.ts'
@@ -8,11 +8,10 @@ import { join, resolve } from 'node:path'
 import { readAcceptanceLockConfig } from '../acceptance/lock.ts'
 import { readMetricsConfig, type MetricsConfig } from '../metrics/config.ts'
 import { changedFiles, changedLines, coordinates, git, type Coordinates } from '../metrics/git.ts'
-import { memberGraph, memberOf, type Member } from '../metrics/graph.ts'
+import { memberOf, revisionGraph, workingGraph } from '../deps/graph.ts'
 import { buildReport, isMeasuredSource, type Report } from '../metrics/report.ts'
 import { baseTextsOf, collectMemberSources } from '../metrics/sources.ts'
 import { readTestRunsConfig } from '../testing/config.ts'
-import { GROUP_DIRECTION_POLICY } from '../rules/group-direction.ts'
 import { isTestPath, type SourceFile } from '../rule.ts'
 import { judgeMember, type MemberBaseline, type MemberBudget } from './budget.ts'
 import { readCatalogue } from './catalogue.ts'
@@ -125,7 +124,7 @@ export function measuredReport(
 ): Report {
   return buildReport({
     files,
-    policy: GROUP_DIRECTION_POLICY,
+    graph: workingGraph(root),
     thresholds: metrics.thresholds,
     bands: metrics.bands,
     ...(change === undefined
@@ -171,30 +170,16 @@ export function readAssertions(
   return data(tests.flatMap(file => casesWithoutAssertions(file, config)))
 }
 
+/** 当前图（度量报告里的成员边）与基线合并点上的图比；基线图由 dependency-cruiser 在那个提交上算，按提交缓存。 */
 export function readNewEdges(
-  files: readonly SourceFile[],
+  root: string,
+  report: Report,
   change: Change | undefined,
   enabled: boolean,
 ): Reading<EdgeDelta> {
   if (!enabled) return noData(OFF)
   if (change === undefined) return noData('没给基线')
-  const head = memberGraph(files)
-  const members = new Map<string, Member>(head.members.map(member => [member.path, member]))
-  for (const path of change.paths) {
-    const member = memberOf(path)
-    if (member !== undefined && !members.has(member.path)) members.set(member.path, member)
-  }
-  const baseFiles: SourceFile[] = []
-  for (const [path, text] of change.baseTexts)
-    if (text !== undefined) baseFiles.push({ path, text })
-  return data(
-    edgeDelta({
-      headEdges: head.edges,
-      members: [...members.values()],
-      changedPaths: change.paths,
-      baseFiles,
-    }),
-  )
+  return data(edgeDelta(report.edges, revisionGraph(root, change.mergeBase).edges))
 }
 
 async function readSensors(
@@ -218,7 +203,7 @@ async function readSensors(
     cochange: readCochange(root, sensors.cochange),
     duplication: await readDuplication(files, sensors.duplication),
     assertions: readAssertions(files, sensors.assertions),
-    newEdges: readNewEdges(files, change, sensors.newEdges.enabled),
+    newEdges: readNewEdges(root, report, change, sensors.newEdges.enabled),
     topicChurn: sensors.topicChurn.enabled
       ? readTopicChurn(root, sensors.topicChurn.productRoot, windowStart)
       : noData(OFF),
@@ -486,11 +471,15 @@ function baselineOf(
   return { baseline: baselineSnapshot(snapshots, mergeBase, ancestry, at.head), from }
 }
 
-/** 方向违规与环：全仓的，与 `make metrics`、`lint:rules` 同一份策略。 */
+/**
+ * 依赖违规与环：dependency-cruiser 的规则加成员、组间的环，与 `make metrics`、`lint:deps` 同一张图。
+ * 无法解析的导入不算硬线：它由 `lint:deps` 门禁与类型检查拦，没装依赖的树里外部包也会落进这一类。
+ */
 export function directionLines(report: Report): Pick<HardLines, 'direction' | 'cycles'> {
+  const findings = report.findings.filter(finding => finding.rule !== 'no-unresolvable')
   return {
-    cycles: report.findings.filter(finding => finding.kind.endsWith('cycle')),
-    direction: report.findings.filter(finding => !finding.kind.endsWith('cycle')),
+    cycles: findings.filter(finding => finding.kind.endsWith('cycle')),
+    direction: findings.filter(finding => !finding.kind.endsWith('cycle')),
   }
 }
 

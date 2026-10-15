@@ -5,7 +5,8 @@ import type { HookReadings } from './hook.ts'
 
 /** 线程发回的结果：没碰产品源码，或碰了且量出的读数。 */
 export type WorkerResult =
-  { readonly touched: false } | { readonly touched: true; readonly readings: HookReadings }
+  | { readonly touched: false }
+  | { readonly touched: true; readonly readings: HookReadings }
 
 /** 碰了产品源码 → 读数；没碰 → undefined。超过时限就终止线程并以超时拒绝。 */
 export function measureInWorker(

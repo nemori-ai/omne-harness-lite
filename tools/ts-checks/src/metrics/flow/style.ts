@@ -44,7 +44,6 @@ export const STRUCTURE_STYLE = `
 .structure-card-links { margin-left:auto; display:flex; gap:4px; }
 .structure-link { padding:0 4px; border-radius:3px; border:1px solid color-mix(in srgb, var(--fg) 25%, transparent); color:var(--muted); font-size:10px; }
 .structure-link-bad { border-color:var(--bad); color:var(--bad); }
-.structure-link-except { border-color:var(--except); color:var(--except); }
 .structure-link-changed { border-color:var(--changed); color:var(--changed); }
 .structure-card { transition:box-shadow .12s ease, opacity .15s cubic-bezier(.23,1,.32,1); }
 .structure-card-muted { opacity:.35; }

@@ -8,7 +8,7 @@
 // 使用「工厂函数返回一组方法」的写法，照那样算一个工厂就是一个单元。这里让有名字的内层函数、对象
 // 字面量方法与类字段箭头函数各自成单元，只有匿名回调并入外层。
 import { createHash } from 'node:crypto'
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import type { SourceFile } from '../rule.ts'
 import { nodeName, syntaxOf } from '../syntax.ts'
 

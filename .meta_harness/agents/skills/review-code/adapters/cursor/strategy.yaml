@@ -1,0 +1,4 @@
+version: 1
+host: cursor
+skill: review-code
+mode: copy

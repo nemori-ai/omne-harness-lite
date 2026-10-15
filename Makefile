@@ -1,4 +1,4 @@
-.PHONY: check check-plan agents-check docs-check docs-inventory delivery-check design-check formal-tools test product-check acceptance metrics test-affected test-tier test-triage mutation role-eval acceptance-lock scenario-status loop-status loop-health
+.PHONY: check check-plan declarations-check agents-check docs-check docs-inventory delivery-check design-check formal-tools test product-check acceptance metrics test-affected test-tier test-triage mutation role-eval acceptance-lock scenario-status loop-status loop-health
 
 TEST_RUNS := node --experimental-strip-types tools/ts-checks/src/testing/cli.ts
 
@@ -10,6 +10,10 @@ check:
 # 只算影响面、不跑：判成什么、每一步跑还是跳、选中哪些成员与为什么。BASE 给基线（缺省 BASELINE，再缺省 main），FULL=1 全量。
 check-plan:
 	$(TEST_RUNS) plan $(if $(BASE),--base "$(BASE)")
+
+# 声明兼容：用 TypeScript 6 读全部成员 dist 里的 `.d.ts`（成员用 TypeScript 7 构建）；只检查已构建的成员，没有 dist 的列出来。
+declarations-check:
+	pnpm run check:declarations
 
 agents-check:
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness --check

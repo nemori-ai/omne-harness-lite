@@ -2,7 +2,7 @@
 // 数两两同时被碰到的次数。批量改动（一次碰了太多成员的提交）不计。
 // 解析与计数是纯函数；读 git 只在 `readCommitMembers` 一处。
 import { git } from '../../metrics/git.ts'
-import { memberOf } from '../../metrics/graph.ts'
+import { memberOf } from '../../deps/graph.ts'
 
 export interface CochangeOptions {
   readonly maxMembersPerCommit: number

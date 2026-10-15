@@ -324,6 +324,21 @@ if (args[1] === 'graphql') {
       c => c.id === Number(endpoint.split('/').at(-1)),
     )
     if (p.directCommentChange) Object.assign(result, p.directCommentChange)
+  } else if (endpoint === 'repos/owner/repo/environments/publish') {
+    if (p.environmentUnreadable) process.exit(96)
+    result = p.environment || {
+      name: 'publish',
+      protection_rules: [
+        {
+          type: 'required_reviewers',
+          reviewers: [{ type: 'User', reviewer: { login: 'human', node_id: 'U_human' } }],
+        },
+      ],
+    }
+  } else if (endpoint.startsWith('orgs/owner/teams/')) {
+    const [, , , slug, , login] = endpoint.split('/')
+    if (!((p.teams || {})[slug] || []).includes(login)) process.exit(97)
+    result = { state: 'active' }
   } else process.exit(94)
 }
 process.stdout.write(JSON.stringify(result))

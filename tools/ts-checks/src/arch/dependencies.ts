@@ -1,6 +1,6 @@
 import type { ActualExtraction, PackageImport } from './actual-model.ts'
 import type { Conformance, ConformanceRow } from './conformance-model.ts'
-import { cycles } from '../metrics/graph.ts'
+import { cycles } from '../deps/graph.ts'
 import { object, type DependencyRow, type MemberPath } from '../package-template/model.ts'
 
 const KEBAB = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u

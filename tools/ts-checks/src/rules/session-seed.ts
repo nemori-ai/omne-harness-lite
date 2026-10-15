@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { dirname, join, normalize } from 'node:path/posix'
 import type { Rule, SourceFile, Violation } from '../rule.ts'
 import { syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
@@ -167,7 +167,7 @@ export const sessionMappingImmutable: Rule = {
           forbidden = target?.toLowerCase() === 'session_tenancy'
         }
         const forbiddenSql = (text: string | undefined): boolean =>
-          text !== undefined && /\b(?:update|delete\s+from)\s+["`\[]?session_tenancy\b/iu.test(text)
+          text !== undefined && /\b(?:update|delete\s+from)\s+["`[]?session_tenancy\b/iu.test(text)
         if (
           ts.isCallExpression(node) &&
           ts.isPropertyAccessExpression(node.expression) &&

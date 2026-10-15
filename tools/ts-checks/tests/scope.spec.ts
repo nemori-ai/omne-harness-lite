@@ -15,7 +15,7 @@ import {
   patternToRegExp,
   planCheck,
   type CheckPlan,
-} from '../src/testing/affected.ts'
+} from '../src/testing/scope.ts'
 import { readTestRunsConfig } from '../src/testing/config.ts'
 import { fileTree, listWorkspaceMembers, type WorkspaceMember } from '../src/testing/members.ts'
 import { commitChanges, replayTable } from '../src/testing/replay.ts'
@@ -58,7 +58,37 @@ const MEMBERS = [
   member('tools/ts-checks', ['@x/legal-identity']),
 ]
 
-const plan = (paths: string[], full = false) => planCheck(paths, MEMBERS, RULES, full)
+/**
+ * 模拟 turbo 的 `--affected`：成员目录里有任何文件改动就选中它（按包计，含文档），再加上依赖它的成员。
+ * 退役目录不是 workspace 成员，turbo 不认得。
+ */
+function turboLike(paths: readonly string[], members: readonly WorkspaceMember[]): Set<string> {
+  const active = members.filter(entry => !entry.path.includes('.legacy'))
+  const owners = new Set(
+    paths.flatMap(path => {
+      const owner = active
+        .filter(entry => path.startsWith(`${entry.path}/`))
+        .sort((a, b) => b.path.length - a.path.length)[0]
+      return owner === undefined ? [] : [owner.path]
+    }),
+  )
+  const byName = new Map(active.map(entry => [entry.name, entry.path]))
+  for (let grew = true; grew;) {
+    grew = false
+    for (const entry of active)
+      if (
+        !owners.has(entry.path) &&
+        entry.dependencies.some(name => owners.has(byName.get(name) ?? ''))
+      ) {
+        owners.add(entry.path)
+        grew = true
+      }
+  }
+  return owners
+}
+const planWith = (paths: string[], members: readonly WorkspaceMember[], full = false) =>
+  planCheck(paths, members, RULES, turboLike(paths, members), full)
+const plan = (paths: string[], full = false) => planWith(paths, MEMBERS, full)
 const describe_ = (checkPlan: CheckPlan) => describeCheckPlan(checkPlan, RULES, CONFIG).join('\n')
 const RESIDENT_BUILD = [{ path: 'packages/common/legal-identity', reason: 'resident' }]
 
@@ -95,7 +125,7 @@ describe('影响面计划（真实规则）', () => {
     expect(text).toContain('成员测试：没有要跑的成员')
   })
 
-  it('叶子成员的源码：它自己，加上读全部产品源码的 ts-checks；ts-checks 的依赖进构建', () => {
+  it('叶子成员的源码：它自己，加上读全部产品源码的 ts-checks；上游由 turbo 先构建，不进清单', () => {
     const result = plan(['packages/infra/leaf/src/a.ts'])
     expect(result.test).toEqual(['packages/infra/leaf', 'tools/ts-checks'])
     expect(result.members).toEqual([
@@ -107,7 +137,7 @@ describe('影响面计划（真实规则）', () => {
       },
     ])
     expect(result.build).toEqual([
-      { path: 'packages/common/legal-identity', reason: 'dependency' },
+      { path: 'packages/common/legal-identity', reason: 'resident' },
       { path: 'packages/infra/leaf', reason: 'selected' },
       { path: 'tools/ts-checks', reason: 'selected' },
     ])
@@ -115,7 +145,7 @@ describe('影响面计划（真实规则）', () => {
     expect(result.python.run).toBe(false)
   })
 
-  it('底层成员的源码：反向依赖传递进来，并说出经谁', () => {
+  it('底层成员的源码：turbo 选出的下游进来，并说出是因为依赖', () => {
     const result = plan(['packages/core/base/src/a.ts'])
     expect(result.test).toEqual([
       'packages/core/base',
@@ -124,19 +154,23 @@ describe('影响面计划（真实规则）', () => {
       'tools/ts-checks',
     ])
     const why = Object.fromEntries(result.members.map(entry => [entry.path, entry]))
-    expect(why['packages/core/mid']?.dependsOn).toBe('packages/core/base')
-    expect(why['apps/top']?.dependsOn).toBe('packages/core/mid')
+    expect(why['packages/core/mid']?.downstream).toBe(true)
+    expect(why['apps/top']?.downstream).toBe(true)
     expect(why['tools/core-verification']).toBeUndefined()
     expect(result.acceptance).toEqual(['apps/top'])
-    expect(describe_(result)).toContain('apps/top：依赖 packages/core/mid')
+    expect(describe_(result)).toContain('apps/top：依赖了改动过的成员（turbo --affected）')
   })
 
-  it('没有测试读它的成员 README：不算成员改动，只需常驻检查', () => {
+  it('没有测试读它的成员 README：不算成员改动，但 turbo 按包计，仍选中那个成员并说明只改了文档', () => {
     const result = plan(['packages/infra/plain/README.md'])
     expect(result.files[0]).toMatchObject({ category: 'resident', rule: 'packages/*/*/*.md' })
     expect(result.files[0]?.owner).toBeUndefined()
-    expect(result.test).toEqual([])
-    expect(result.build).toEqual(RESIDENT_BUILD)
+    expect(result.test).toEqual(['packages/infra/plain'])
+    expect(result.members).toEqual([
+      { path: 'packages/infra/plain', changed: [], reads: [], documentsOnly: true },
+    ])
+    expect(describe_(result)).toContain('成员目录里只改了文档')
+    expect(result.reason).toContain('依赖方 0 个、只因读者规则 0 个、只改了文档 1 个')
   })
 
   it('退役成员的 README 不再触发读者或成员测试', () => {
@@ -261,15 +295,18 @@ describe('影响面计划（真实规则）', () => {
 
   it('规则点名的成员不存在：报错，不悄悄忽略', () => {
     const without = MEMBERS.filter(entry => entry.path !== 'packages/common/legal-identity')
-    expect(() => planCheck(['docs/a.md'], without, RULES)).toThrow(
+    expect(() => planCheck(['docs/a.md'], without, RULES, new Set())).toThrow(
       '影响面规则点名了不存在的成员：packages/common/legal-identity',
     )
   })
 
-  it('成员根与部署说明的 .md 只需常驻检查；tests/ 下的 .md 是夹具，算成员改动', () => {
-    expect(
-      plan(['packages/infra/leaf/README.md', 'apps/top/deploy/docker/README.md']).test,
-    ).toEqual([])
+  it('成员根与部署说明的 .md 不算成员改动，但 turbo 按包计仍选中成员；tests/ 下的 .md 是夹具，算成员改动', () => {
+    const docs = plan(['packages/infra/leaf/README.md', 'apps/top/deploy/docker/README.md'])
+    expect(docs.files.map(file => file.category)).toEqual(['resident', 'resident'])
+    expect(docs.members.map(entry => [entry.path, entry.documentsOnly])).toEqual([
+      ['packages/infra/leaf', true],
+      ['apps/top', true],
+    ])
     // loop-canary.spec.ts 把这份 README 复制进临时仓、改它的 revision 行再断言修订次数。
     const fixture = plan([
       'tools/ts-checks/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/README.md',
@@ -278,13 +315,13 @@ describe('影响面计划（真实规则）', () => {
     expect(fixture.test).toEqual(['tools/ts-checks'])
   })
 
-  it('依赖成环：反向闭包照样停下，环上的成员都进来', () => {
+  it('依赖成环：turbo 选出的环上成员都进来', () => {
     const ring = [
       ...MEMBERS,
       member('packages/infra/ring-a', ['@x/ring-b']),
       member('packages/infra/ring-b', ['@x/ring-a']),
     ]
-    const result = planCheck(['packages/infra/ring-a/data/x.json'], ring, RULES)
+    const result = planWith(['packages/infra/ring-a/data/x.json'], ring)
     expect([...result.test].sort()).toEqual(['packages/infra/ring-a', 'packages/infra/ring-b'])
   })
 
@@ -310,7 +347,7 @@ describe('影响面计划（真实规则）', () => {
 describe('真实仓库', () => {
   it('规则点名的成员都存在', () => {
     const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
-    expect(() => planCheck([], members, RULES)).not.toThrow()
+    expect(() => planCheck([], members, RULES, new Set())).not.toThrow()
   })
 
   it('基线不存在：引擎报错，不改判全量', () => {

@@ -14,4 +14,4 @@
 
 <!-- 指出条款/术语/示例或具体入口，说明需要核对的含义和归属。适用任务卡、demo、其他报告按实际影响接续；不适用删除。 -->
 
-<!-- 采用多层集成时附 operation、B/S/C、各卡 taskBase/历史 tuple、真实 receipt 及 Git 观察；声明 completionTarget 与实际运输，未知保留。技术运输不自动生成 Closes 或宣称接受。规则见 docs/engineering/integration.md。 -->
+<!-- 进入轨道、main 或 stable 的 PR 写明关联的卡、本地运行的检查及结果；发布由 gate-publish 流程在确认后完成，确认不等于交付接受。技术运输不自动生成 Closes。规则见 docs/engineering/integration.md 的“现行准入”。 -->

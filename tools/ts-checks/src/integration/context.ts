@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { remoteRefs, fetchObject } from './transport.ts'
 import { parseTaskBinding, type TaskBinding } from '../delivery/binding.ts'
@@ -6,6 +6,7 @@ import { blob, git, maybeBlob, maybeRef, repository, ancestor, clean } from './g
 import {
   ADOPTION_PREFIX,
   DESCRIPTOR_PATH,
+  POLICY_PATH,
   parseDescriptor,
   parsePolicy,
   type Policy,
@@ -30,7 +31,8 @@ export type Context = {
   root: string
   gitDir: string
   branch: string
-  anchor: string
+  /** Adoption anchor of the retired adoption path; null for contexts written without adoption. */
+  anchor: string | null
   targetBase: string
   tasks: TaskAudit[]
   ownerTask: TaskBinding | null
@@ -196,7 +198,7 @@ export function parseContext(value: unknown): Context {
     root: string(v.root, 'root'),
     gitDir: string(v.gitDir, 'gitDir'),
     branch: typeof v.branch === 'string' ? v.branch : string(v.branch, 'branch'),
-    anchor: sha(v.anchor),
+    anchor: v.anchor === null ? null : sha(v.anchor),
     targetBase: sha(v.targetBase),
     tasks: array(v.tasks, 'tasks').map(parseAudit),
     ownerTask: v.ownerTask === null ? null : parseTaskBinding(v.ownerTask),
@@ -205,6 +207,48 @@ export function parseContext(value: unknown): Context {
 }
 export function contextPath(root: string): string {
   return join(repository(root).gitDir, 'omne-integration-context.json')
+}
+/** Reads this tree's task context and checks that it belongs to this tree and branch. */
+export function readContext(root: string): Context {
+  const info = repository(root),
+    path = contextPath(root),
+    context = parseContext(json(readFileSync(path, 'utf8'), path))
+  same(
+    [context.root, context.gitDir, context.branch],
+    [info.root, info.gitDir, info.branch],
+    'Context belongs to another tree, branch or adoption',
+  )
+  return context
+}
+export type Workspace = {
+  policy: Policy
+  source: PolicySource
+  context: Context | null
+  anchor: string | null
+}
+/**
+ * Task admission reads the policy committed at this tree's HEAD. It needs no adoption anchor:
+ * trunk publication is enforced by the platform, and this check only keeps local work on its task.
+ */
+export function taskWorkspace(root: string): Workspace {
+  const info = repository(root)
+  const descriptor = maybeBlob(root, info.head, DESCRIPTOR_PATH)
+  const path =
+    descriptor === null
+      ? POLICY_PATH
+      : parseDescriptor(json(descriptor.text, DESCRIPTOR_PATH)).policyPath
+  const file = maybeBlob(root, info.head, path)
+  if (file === null) throw new IntegrationError('unknown', `Committed ${path} is missing`)
+  const policy = parsePolicy(json(file.text, 'policy'))
+  const anchorFile = join(info.commonDir, 'omne-integration', 'anchor.json')
+  return {
+    policy,
+    source: { commit: info.head, path, blob: file.oid, digest: digest(file.text) },
+    context: existsSync(contextPath(root)) ? readContext(root) : null,
+    anchor: existsSync(anchorFile)
+      ? sha(fields(json(readFileSync(anchorFile, 'utf8'), 'anchor'), ['anchor'], 'anchor').anchor)
+      : null,
+  }
 }
 export function writeContext(root: string, context: Context): void {
   writeFileSync(contextPath(root), `${JSON.stringify(context, null, 2)}\n`, { flag: 'wx' })
@@ -326,12 +370,9 @@ function loadKnown(
     return { kind: 'unknown', reason: 'Adoption anchor ref is missing' }
   const path = contextPath(info.root)
   if (existsSync(path)) {
-    const context = parseContext(json(readFileSync(path, 'utf8'), path))
-    same(
-      [context.root, context.gitDir, context.branch, context.anchor],
-      [info.root, info.gitDir, info.branch, anchor],
-      'Context belongs to another tree, branch or adoption',
-    )
+    const context = readContext(info.root)
+    if (context.anchor !== null)
+      same(context.anchor, anchor, 'Context belongs to another tree, branch or adoption')
     return { kind: 'adopted', anchor, policy, source: adoption.policy, context }
   }
   const legacy = adoption.legacy.find(
@@ -389,29 +430,30 @@ export function requireCurrentAdoption(
   }
   return state
 }
+/**
+ * Without a task context a tree checks against the explicit base, or the caller's default.
+ * With one, the fixed targetBase and the task audits apply.
+ */
 export function baselines(
   root: string,
   explicitBase?: string,
 ): { state: IntegrationState['kind']; targetBase: string | undefined; audits: TaskAudit[] } {
-  const state = loadIntegration(root)
-  if (state.kind === 'unknown') throw new IntegrationError('unknown', state.reason)
-  if (state.kind === 'pending' || state.kind === 'legacy')
-    return { state: state.kind, targetBase: explicitBase, audits: [] }
-  if (state.context === null)
-    throw new IntegrationError('unknown', 'Adopted tree has no task or candidate context')
+  if (!existsSync(contextPath(root)))
+    return { state: 'pending', targetBase: explicitBase, audits: [] }
+  const context = readContext(root)
   if (explicitBase !== undefined)
     same(
       maybeRef(root, `${explicitBase}^{commit}`),
-      state.context.targetBase,
+      context.targetBase,
       'Explicit base differs from fixed targetBase',
     )
   return {
     state: 'adopted',
-    targetBase: state.context.targetBase,
+    targetBase: context.targetBase,
     audits:
-      state.context.operation === null && state.context.ownerTask !== null
-        ? [{ binding: state.context.ownerTask, taskSource: repository(root).head }]
-        : state.context.tasks,
+      context.operation === null && context.ownerTask !== null
+        ? [{ binding: context.ownerTask, taskSource: repository(root).head }]
+        : context.tasks,
   }
 }
 

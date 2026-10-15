@@ -5,7 +5,7 @@ import { newOperation, operationHome, readRecord, writeRecord } from './records.
 import { currentCapture, deliveryConfig, readAuthority, captureDigest } from './authority.ts'
 import { requireAncestor, git, lines } from './git.ts'
 import { parseUpdates } from './publish.ts'
-import { canonical, digest, fields, same, sha, string, IntegrationError } from './parse.ts'
+import { canonical, digest, fields, same, IntegrationError } from './parse.ts'
 import { pendingPrefix } from './units.ts'
 
 export function registerTrack(root: string, entry: unknown): unknown {

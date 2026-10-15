@@ -4,6 +4,7 @@ packages:
   - tools/ts-checks
   - tools/core-verification
   - tools/artifact-builder
+  - tools/repo-config
 
 # 版本只在这里钉一次；成员用 `catalog:` 引用。改版本先改这里，再重生锁文件。
 catalog:
@@ -24,8 +25,14 @@ catalog:
   kysely: 0.29.6
   pg: 8.23.0
   '@types/pg': 8.15.6
-  typescript: 6.0.3
+  typescript: 7.0.2
+  '@typescript/typescript6': 6.0.2
   vitest: 4.1.11
+  oxfmt: 0.73.0
+  oxlint: 1.88.0
+  dependency-cruiser: 18.6.0
+  knip: 6.41.0
+  turbo: 2.11.7
   '@vitest/coverage-v8': 4.1.11
   zod: 4.6.5
   '@standard-schema/spec': 1.1.0
@@ -48,3 +55,9 @@ catalog:
 # 安装仍使用 --ignore-scripts；只允许显式构建这个已核对的原生依赖。
 onlyBuiltDependencies:
   - node-pty@1.1.0
+
+# dependency-cruiser 18 只认 TypeScript 6 以下的编译器，没有它就不解析 .ts。只给它补一份 TypeScript 6，成员仍用 catalog 的 TypeScript 7。
+packageExtensions:
+  dependency-cruiser:
+    dependencies:
+      typescript: 6.0.3

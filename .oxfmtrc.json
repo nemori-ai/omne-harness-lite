@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "arrowParens": "avoid",
+  "printWidth": 100,
+  "semi": false,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "proseWrap": "preserve",
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    "**/node_modules/",
+    "**/dist/",
+    "**/tmp/",
+    "**/.worktrees/",
+    "**/generated/",
+    "**/upstream/",
+    "**/provenance.json",
+    "**/*.jsonl",
+    "spec/",
+    "**/*.legacy/",
+    "packages/",
+    "apps/"
+  ]
+}

@@ -2,7 +2,7 @@
 // 这里只有纯函数；读 git、跑传感器、写文件都在 cli.ts。
 import { basename } from 'node:path'
 import type { AssemblyDelta, AssemblyObservations } from './sensors/assembly.ts'
-import type { DirectionFinding } from '../metrics/graph.ts'
+import type { DependencyFinding } from '../deps/graph.ts'
 import { describeFunction } from '../metrics/report.ts'
 import { BAND_WORDS, judgeIndicator, type Band, type Comparison } from './bands.ts'
 import { BUDGET_LABELS, type ItemComparison, type MemberBudget } from './budget.ts'
@@ -163,8 +163,8 @@ export type RangeLine =
   | { readonly status: 'judged'; readonly violations: readonly string[] }
 
 export interface HardLines {
-  readonly direction: readonly DirectionFinding[]
-  readonly cycles: readonly DirectionFinding[]
+  readonly direction: readonly DependencyFinding[]
+  readonly cycles: readonly DependencyFinding[]
   readonly acceptanceLock: RangeLine
   readonly sensors: SensorLine
 }
@@ -252,7 +252,7 @@ function headerLines(view: StatusView): string[] {
 }
 
 function hardLineLines(lines: HardLines): string[] {
-  const finding = (label: string, found: readonly DirectionFinding[]) => {
+  const finding = (label: string, found: readonly DependencyFinding[]) => {
     const first = found[0]
     return first === undefined
       ? `  ${label} 0`
@@ -266,7 +266,7 @@ function hardLineLines(lines: HardLines): string[] {
         : `  ✗ ${label} ${bad} ${line.violations.length} 处：${line.violations[0] ?? ''}${line.violations.length > 1 ? ' 等' : ''}`
   return [
     '## 硬线',
-    finding('方向违规', lines.direction),
+    finding('依赖违规', lines.direction),
     finding('环', lines.cycles),
     range(lines.acceptanceLock, '验收锁', '没破', '破'),
     sensorLine(lines.sensors),

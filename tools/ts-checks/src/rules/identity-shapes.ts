@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { IDENTITY_TYPE_NAMES } from '@omne-harness/legal-identity'
 import { isTestPath, type Rule, type SourceFile, type Violation } from '../rule.ts'
 import { lineAt } from '../source-text.ts'

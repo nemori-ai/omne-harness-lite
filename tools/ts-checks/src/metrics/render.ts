@@ -40,7 +40,7 @@ export const STYLE = `
   --ink:#1c2128; --on-ink:#ffffff;
   --bad-fill:#f8d2cf; --mid-fill:#fbeebf; --good-fill:#dcefdc;
   --bad:#c0392b; --mid:#b98900; --good:#3f8a4b;
-  --nodata:#e5e7eb; --edge:#9aa0a6; --changed:#1f6feb; --except:#c77700;
+  --nodata:#e5e7eb; --edge:#9aa0a6; --changed:#1f6feb;
   --r-panel:12px; --r-item:8px; --r-ctrl:6px; --ctrl-h:32px; --sticky-top:0px;
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
   --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
@@ -51,7 +51,7 @@ export const STYLE = `
   --ink:#e6e8eb; --on-ink:#121417;
   --bad-fill:rgb(74,40,24); --mid-fill:rgb(61,58,24); --good-fill:rgb(30,74,56);
   --bad:rgb(224,122,74); --mid:rgb(212,192,90); --good:rgb(95,181,138);
-  --nodata:#2a2d31; --edge:#6b7076; --changed:#58a6ff; --except:#e09a2d;
+  --nodata:#2a2d31; --edge:#6b7076; --changed:#58a6ff;
   --shadow-float:0 14px 36px -14px rgba(0,0,0,.7), 0 2px 6px rgba(0,0,0,.4); } }
 * { box-sizing: border-box; }
 /* 细滚动条：轨道透明、滑块圆头；半径 = 宽度的一半，跟着 --sb-size 走，不是组件圆角标度的一员。 */
@@ -90,7 +90,7 @@ pre.summary { margin:20px 0 0; padding:16px 20px; background:var(--panel); borde
   font-size:12.5px; line-height:1.75; overflow-x:auto; color:var(--fg); }
 #hover { position:fixed; z-index:30; display:none; max-width:520px; background:var(--panel); border:1px solid var(--line); border-radius:10px;
   padding:10px 12px; box-shadow:var(--shadow-float); font-size:12.5px; line-height:1.55; pointer-events:none; }
-#hover b { display:block; margin-top:6px; font-weight:600; } #hover div.bad { color:var(--bad); } #hover div.except { color:var(--except); }
+#hover b { display:block; margin-top:6px; font-weight:600; } #hover div.bad { color:var(--bad); }
 .legend { display:flex; flex-wrap:wrap; align-items:center; gap:6px 20px; color:var(--muted); font-size:12.5px; margin:0 0 14px; }
 .legend span { white-space:normal; }
 .swatch { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-2px; margin-right:6px; border:1px solid var(--line-strong); }
@@ -112,10 +112,8 @@ tr.changed td.fn { font-weight:600; }
 .ui-function-table.ui-function-table .ant-table-thead > tr > th.ant-table-column-sort { background-color:var(--panel-2); }
 .controls { margin:0 0 12px; }
 ul.plain { margin:4px 0; padding-left:18px; } ul.plain li { margin:2px 0; }
-.bad { color:var(--bad); } .except { color:var(--except); }
+.bad { color:var(--bad); }
 .empty { color:var(--muted); padding:6px 0; }
-/* 方向违规与例外并排；DOM 顺序不变，窄屏回到上下。 */
-.report-pair { display:grid; grid-template-columns:repeat(auto-fit, minmax(420px, 1fr)); gap:0 24px; }
 .report-block > div { padding:12px 16px; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-panel); }
 @media (max-width:760px) { body { padding:20px 16px 64px; } }
 `
@@ -146,7 +144,7 @@ for (const edge of report.edges) {
   incoming.set(edge.to, [...(incoming.get(edge.to) ?? []), edge])
 }
 // 违规排最前，其次已登记例外，再次本次变更触及的。
-const rankEdge = edge => edge.violating ? 0 : edge.excepted ? 1 : edge.changed ? 2 : 3
+const rankEdge = edge => edge.violating ? 0 : edge.changed ? 1 : 2
 const sorted = edges => [...edges].sort((a, b) => rankEdge(a) - rankEdge(b))
 let selected = null
 let showGroupLines = false
@@ -184,7 +182,7 @@ function showHover(event, path) {
     if (edges.length === 0) return
     hover.append($('b', { text: title + '（' + edges.length + '）' }))
     for (const edge of edges.slice(0, 10))
-      hover.append($('div', { class: edge.violating ? 'bad' : edge.excepted ? 'except' : '', text: label(edge) + (edge.violating ? '  违规' : edge.excepted ? '  已登记例外' : '') + (edge.changed ? '  本次变更触及' : '') }))
+      hover.append($('div', { class: edge.violating ? 'bad' : '', text: label(edge) + (edge.violating ? '  违规' : '') + (edge.changed ? '  本次变更触及' : '') }))
     if (edges.length > 10) hover.append($('div', { class: 'empty', text: '… 另 ' + (edges.length - 10) + ' 条，点成员看全部' }))
   }
   list('它依赖的', out, edge => short(path) + ' → ' + short(edge.to))
@@ -234,8 +232,8 @@ function renderSide() {
     $('p', { text: '依赖它的 ' + member.fanIn + ' 个 · 它依赖的 ' + member.fanOut + ' 个 · 不稳定度 ' + member.instability.toFixed(2) + '（0 最稳定，越多人依赖越该稳定）' }),
     $('p', { text: '覆盖率：' + (report.coverageEnabled ? coverage : '未开启') }))
   const out = sorted(outgoing.get(selected) ?? []), inc = sorted(incoming.get(selected) ?? [])
-  const edgeItem = (edge, other) => $('li', { class: edge.violating ? 'bad' : edge.excepted ? 'except' : '' },
-    other + '（' + edge.count + ' 处导入' + (edge.violating ? '，违规' : edge.excepted ? '，已登记例外' : '') + (edge.changed ? '，本次变更触及' : '') + '）', siteList(edge.sites))
+  const edgeItem = (edge, other) => $('li', { class: edge.violating ? 'bad' : '' },
+    other + '（' + edge.count + ' 处导入' + (edge.violating ? '，违规' : '') + (edge.changed ? '，本次变更触及' : '') + '）', siteList(edge.sites))
   side.append($('h4', { text: '它依赖的（' + out.length + '）' }), out.length ? $('ul', { class: 'plain' }, ...out.map(edge => edgeItem(edge, edge.to))) : $('div', { class: 'empty', text: '无' }))
   side.append($('h4', { text: '依赖它的（' + inc.length + '）' }), inc.length ? $('ul', { class: 'plain' }, ...inc.map(edge => edgeItem(edge, edge.from))) : $('div', { class: 'empty', text: '无' }))
 }
@@ -271,13 +269,10 @@ function renderDetail() {
   if (total > rows.length) detail.append($('div', { class: 'empty', text: '只显示前 ' + rows.length + ' 条，共 ' + total + ' 条；点成员缩小范围。' }))
 }
 
-// ---- 方向发现与例外 ----
+// ---- 依赖违规与环（dependency-cruiser） ----
 const findings = document.getElementById('findings')
-if (report.findings.length === 0) findings.append($('div', { class: 'empty', text: '没有方向违规，也没有环。' }))
+if (report.findings.length === 0) findings.append($('div', { class: 'empty', text: '没有依赖违规，也没有环。' }))
 else findings.append($('ul', { class: 'plain' }, ...report.findings.map(finding => $('li', { class: 'bad' }, finding.message, siteList(finding.sites.slice(0, 8))))))
-const exceptions = document.getElementById('exceptions')
-if (report.exceptions.length === 0) exceptions.append($('div', { class: 'empty', text: '无。' }))
-else exceptions.append($('ul', { class: 'plain' }, ...report.exceptions.map(item => $('li', { class: 'except', text: item.from + ' → ' + item.to + '：' + item.reason }))))
 
 const initial = decodeURIComponent(location.hash.slice(1))
 if (memberByPath.has(initial)) select(initial)
@@ -323,8 +318,7 @@ ${architecture === undefined ? '' : architectureMarkup(architecture)}
 <span>卡片上的数字＝函数评级分的均值加一个标准差；组框左边线＝组内最差成员</span>
 <span>粗边框＝基线以来有变更；▲n＝本次变更里超阈值的函数个数</span>
 <span>入 n＝n 个成员依赖它，出 n＝它依赖 n 个成员；悬停看清单，点成员看明细并画出它的线</span>
-<span style="color:var(--bad)">红＝方向违规或环</span>
-<span style="color:var(--except)">橙＝已登记例外</span>
+<span style="color:var(--bad)">红＝依赖违规或环</span>
 <span style="color:var(--changed)">蓝＝本次变更触及的导入</span>
 <span>其余导入取发起成员卡片的颜色；沿线的小点从依赖方流向被依赖方</span>
 </div>
@@ -335,10 +329,7 @@ ${architecture === undefined ? '' : architectureMarkup(architecture)}
 <aside id="structure-side" class="structure-side" aria-label="成员详情"></aside>
 </div>
 <div id="hover"></div>
-<div class="report-pair">
-<section class="report-block"><h2>方向违规与环</h2><div id="findings"></div></section>
-<section class="report-block"><h2>已登记的例外</h2><div id="exceptions"></div></section>
-</div>
+<section class="report-block"><h2>依赖违规与环</h2><div id="findings"></div></section>
 <div id="detail"></div>
 </section>
 </main>

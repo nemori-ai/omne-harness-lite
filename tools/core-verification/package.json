@@ -5,7 +5,7 @@
   "type": "module",
   "description": "确认本工具不再执行 legacy 消费者",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\"",

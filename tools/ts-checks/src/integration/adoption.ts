@@ -20,7 +20,7 @@ import {
   observeUpdates,
 } from './transport.ts'
 import { blob, clean, git, maybeRef, repository, requireAncestor } from './git.ts'
-import { canonical, digest, fields, json, same, sha, IntegrationError } from './parse.ts'
+import { canonical, digest, fields, json, same, IntegrationError } from './parse.ts'
 import { currentCapture, deliveryConfig, readAuthority, captureDigest } from './authority.ts'
 import { newOperation, operationHome, readRecord, writeRecord } from './records.ts'
 import { materializeRunner, runCommands, checkCommandEvidence } from './verify.ts'
