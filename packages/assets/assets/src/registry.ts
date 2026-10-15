@@ -8,7 +8,7 @@ export function createCategoryRegistry(): CategoryRegistry {
       const category = contract.category
       if (category === '') throw new TypeError('category name is empty')
       if (ports.has(category)) throw new TypeError('category already registered')
-      const schema = copyTree(contract.schema)
+      const schema = copyTree(contract.schema, false)
       if (schema === undefined) throw new TypeError('schema could not be copied')
       ports.set(category, Object.freeze({ ...contract, category, schema }))
     },
