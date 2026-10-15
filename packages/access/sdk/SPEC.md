@@ -24,15 +24,56 @@ SDK 依赖公开契约，以及调用者提供的传输适配接口。它不依�
 
 安装闭包以 SDK 发布产物的依赖清单为准。源码能够编译不能代替该清单。
 
-## 使用示例
+## 设计签名
 
-调用形状如下。`messageId` 由调用者生成，示例里的值只是占位。`revoke-login` 的字段表禁止行事租户。字段表写明必填的操作才带上当前选择。
+下面的类型和函数是设计形状。本包不导出它们。它们不是已经可安装的调用。
+
+消息对象仍是公开契约里的请求和响应。本页不另写字段或 `outcome`。
 
 ```ts
-import { governanceOperation } from "@omne-harness/public-contract";
+type TransportReport =
+  | { kind: "response"; bytes: Uint8Array }
+  | { kind: "not-sent" }
+  | { kind: "uncertain" };
 
-export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
-  return governanceOperation({
+type GovernanceTransport = {
+  send(bytes: Uint8Array): Promise<TransportReport>;
+};
+
+type CallerResult =
+  | { kind: "response"; message: unknown }
+  | { kind: "uncertain" };
+
+type GovernanceClient = {
+  submit(message: unknown): Promise<CallerResult>;
+};
+```
+
+`GovernanceTransport` 由调用者交入。`submit` 接收公开契约的共同消息。下面的函数是同一种设计形状。适配报告 `not-sent` 时再送一次。第二次仍是 `not-sent`，或报告 `uncertain` 时，调用者得到 `uncertain`。已经得到带相同 `messageId` 的响应时，不再发送。
+
+```ts
+async function submitOnce(
+  transport: GovernanceTransport,
+  bytes: Uint8Array,
+): Promise<CallerResult> {
+  const first = await transport.send(bytes);
+  if (first.kind === "response") return { kind: "response", message: first.bytes };
+  if (first.kind === "uncertain") return { kind: "uncertain" };
+  const second = await transport.send(bytes);
+  if (second.kind === "response") return { kind: "response", message: second.bytes };
+  return { kind: "uncertain" };
+}
+```
+
+`uncertain` 不是业务成功，也不是没有发生。`response` 分支里的 `message` 是按公开契约读出的响应，不是原始字节。只有 `messageId` 与这次发送相同，才进入这个分支。响应没有 `messageId` 时，客户端不把它记到这次调用上。
+
+```ts
+function revokeOwnLogin(
+  client: GovernanceClient,
+  proof: string,
+  targetLoginId: string,
+): Promise<CallerResult> {
+  return client.submit({
     protocolVersion: "governance-public/1",
     messageId: "caller-generated",
     operation: "revoke-login",
@@ -42,7 +83,7 @@ export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
 }
 ```
 
-`revoke-login` 的字段表禁止行事租户。这个调用不带 `actingTenant`。字段表写明必填的操作才带上当前选择。
+`messageId` 的值只是占位。`revoke-login` 的字段表禁止行事租户。这个调用不带 `actingTenant`。字段表写明必填的操作才带上当前选择。响应没有 `messageId` 时，客户端不把它记到这次调用上。
 
 ## 验证
 

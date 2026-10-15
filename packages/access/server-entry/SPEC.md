@@ -18,6 +18,29 @@
 
 服务端接入依赖公开契约。它依赖身份与授权的公开入口。公开契约不依赖服务端接入。SDK 不依赖服务端接入。
 
+## 设计签名
+
+下面的类型和函数是设计形状。本包不导出它们。它们不是已经可安装的调用。共同消息和 `outcome` 只引用公开契约。
+
+```ts
+type GovernanceEntry = {
+  receive(protectedBytes: Uint8Array): Promise<unknown>;
+};
+```
+
+`receive` 的输入是已经完成传输保护的字节。返回值是公开契约的响应。传输保护失败时，调用者没有这份响应，对外保持 `unknown`。
+
+```ts
+function receiveRevoke(
+  entry: GovernanceEntry,
+  protectedBytes: Uint8Array,
+): Promise<unknown> {
+  return entry.receive(protectedBytes);
+}
+```
+
+接入先按公开契约做严格 JSON 读取。读取失败时返回 `protocol-rejected`，没有业务效果。协议检查通过后，接入把登录证明交给 identity 的公开入口，把通过身份检查的请求交给 authorization 的公开入口。它们返回的 `denied` 和 `basis-unavailable` 原样成为响应的 `outcome`。接入不改写这两个结果，也不把存储对象放进响应。
+
 ## 验证
 
 入口不另写结果含义。入口在坏 JSON 上没有业务效果。版本不是 `governance-public/1` 时是 `protocol-rejected`。版本是 `governance-public/1` 时，`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 不核验登录。登录证明的结果不被入口改写。下列输入的结果以公开契约为准。
