@@ -144,6 +144,37 @@ describe('createDiagnosticPort', () => {
     })
   })
 
+  it('keeps a model failure beside an origin and an attached cause', async () => {
+    const port = createDiagnosticPort({
+      bounds: bounds({ maxExportBytes: 1000 }),
+      closeDeadlineMs: 20,
+      sink: sinkOf(async () => undefined),
+    })
+    const failure = { kind: 'unknown' as const, callId: 'call-9' }
+    const result = keepBusinessResult(failure, port, {
+      chain: {
+        causes: [
+          { role: 'origin', summary: 'provider threw' },
+          { role: 'attached', summary: 'retry not confirmed' },
+        ],
+      },
+      correlation,
+    })
+    expect(result.business).toBe(failure)
+    expect(result.diagnostic).not.toBe(failure)
+    expect(result.diagnostic.status).toBe('accepted')
+    await new Promise(resolve => setTimeout(resolve, 10))
+    if (result.diagnostic.status !== 'accepted') throw new Error('expected accepted')
+    const visible = port.read({ tenant: 'org/account', id: result.diagnostic.id })
+    expect(visible.status).toBe('visible')
+    if (visible.status !== 'visible') throw new Error('expected visible')
+    expect(visible.chain.causes.map(cause => cause.role)).toEqual(['origin', 'attached'])
+    expect(visible.chain.causes.map(cause => cause.summary)).toEqual([
+      'provider threw',
+      'retry not confirmed',
+    ])
+  })
+
   it('records a visible gap when no sink is supplied', () => {
     const port = createDiagnosticPort({ bounds: bounds(), closeDeadlineMs: 5, sink: null })
     const result = keepBusinessResult({ kind: 'Committed' as const }, port, {
