@@ -17,7 +17,7 @@ Session 保存会话事实，Agent 决定 Loop 下一步，Model 和 Tool 保存
 
 ## F-SW01 创建、版本采用与 reload
 
-对应 [J-SW01](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw01)。创建采用 ST01/ST02，新 Run 采用 ST06，普通接续及 reload 采用 ST08 至 ST11。身份、设置、定义与工作区拥有者提供当前可核验依据，Session 负责本会话采用。
+对应 [J-SW01](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw01)。创建采用 ST01/ST02，新 Run 采用 ST06，普通接续及 reload 采用 ST08 至 ST11。身份、设置、定义与工作区拥有者提供当前可核验依据，Session 负责本会话采用。换代时，撤销旧推进权和保存接续依据一起成立，否则换代还没发生。原执行不因撤权销毁。
 
 ```mermaid
 sequenceDiagram
@@ -87,7 +87,7 @@ flowchart TD
 
 ## F-SW03 工作推进、结果交接与恢复
 
-对应 [J-SW03](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw03)，采用 ST06 至 ST10、ST14 至 ST16、ST20 和 ST26。Session 的责任止于合法工作及交接，Loop、流式和真实执行仍由各自拥有者维护。
+对应 [J-SW03](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw03)，采用 ST06 至 ST10、ST14 至 ST16、ST20 和 ST26。Session 的责任止于合法工作及交接，Loop、流式和真实执行仍由各自拥有者维护。正常发出时，发起者在登记时生成稳定调用身份。固定输入、调用身份和准入一起提交。模型受理和结果容量预留在同一真实事务里成立，否则不算已经发出。
 
 ```mermaid
 sequenceDiagram
@@ -200,7 +200,7 @@ flowchart TD
 
 ## F-SW06 插队、单调用控制与 Run 取消
 
-对应 [J-SW06](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw06)，采用 ST18、ST19 及 ST20。控制发出、逻辑处置、真实确认分别保存。
+对应 [J-SW06](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw06)，采用 ST18、ST19 及 ST20。控制发出、逻辑处置、真实确认分别保存。取消一旦生效，会话就记录 Run 的逻辑终态。真实收场之后另报。强制或非强制只影响停止有多急。
 
 ```mermaid
 flowchart TD
