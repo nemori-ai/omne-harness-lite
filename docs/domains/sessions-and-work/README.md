@@ -40,7 +40,7 @@ flowchart TD
   mint --> write["同一次写入键和身份"]
 ```
 
-人能看到的内容来自会话日志的投影。用量和费用在会话收到模型响应的流式增量、流完成或工具结果时入账。后到的费用追加一条，标明迟到。
+人能看到的内容来自会话日志的投影。用量和费用在会话收到模型响应的流式增量、流完成或工具结果时入账。同一主体、同一费用来源的更后修订替换先前的已知金额，并标明迟到。
 
 ```mermaid
 sequenceDiagram
@@ -51,12 +51,12 @@ sequenceDiagram
   Session->>Session: 记下用量和费用
   Tool->>Session: 工具结果
   Session->>Session: 记下这笔账
-  Note over Session: 后到的费用追加一条，标明迟到
+  Note over Session: 更后修订替换同一来源的已知金额，并标明迟到
 ```
 
 会话在收到一份账时写下它。这条记录表示会话已经收到。载体是模型响应的一次流式增量、该流的完成，或一次已完成工具执行的工具结果。
 
-后到的费用是另一份账。`subject` 相同，`receipt` 为 `late`，`revision` 加一。先到的那份保持 `received` 和原来的 `revision`。
+后到的费用标明 `receipt` 为 `late`，`revision` 加一。同一 `subject`、同一 `cost.source` 时，这条修订替换先前的已知金额。
 
 ```json
 {
@@ -84,7 +84,7 @@ sequenceDiagram
 }
 ```
 
-同一份已收到的账再次送达时，会话仍保留这一份。`revision` 保持不变。
+同一 `revision` 再次送达时，不另加一笔金额。求和已知金额只使用最新 `revision`。上面两份账求和时只取 `1.50`。
 
 ## 协作与依赖
 

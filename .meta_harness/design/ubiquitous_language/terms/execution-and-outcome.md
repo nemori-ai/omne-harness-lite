@@ -363,14 +363,17 @@
 > **中**：一次[模型调用](#ul-model-call--一次模型调用--model-call)或一次[工具执行](#ul-tool-execution--工具执行--tool-execution)**身上的一项属性**：
 > **它花了什么、产出了多少的账**——用量、费用、砍掉了多少增量、落在哪、跑了多久。
 > **每一次调用或执行各留一份，进[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)、不进给模型看的上下文**；
-> **费用拿不到记「未知」，不记零**，拿到了再补一条；按尝试记明细、按运行汇总。
+> **费用拿不到记「未知」，不记零**。同一主体、同一费用来源的更后修订替换先前的已知金额。
+> 同一修订再次送达不另加一笔。求和已知金额只使用最新修订。按尝试记明细、按运行汇总。
 >
 > **EN**: An attribute of one **model call** or one **tool execution**: **the account of
 > what it consumed and produced** — usage, cost, how many increments were trimmed, where it
 > ran, how long it took. **One per call or execution, written to the session log and never
 > into the model-facing context**; **a cost that cannot be obtained is recorded as
-> "unknown", never as zero**, and corrected by a later entry when it arrives; itemised per
-> attempt, summed per run.
+> "unknown", never as zero**. A later revision for the same subject and the same cost
+> source replaces the earlier known amount. A repeated delivery of the same revision does
+> not add a second amount. Summing known amounts uses the latest revision only. Itemised
+> per attempt, summed per run.
 
 - **形态**：属性
 - **出处**：[PF-006 §5.4 每一次执行都留一份账](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 24） ·
@@ -385,7 +388,7 @@
 - **注意 ③**：**运行终结之后才到的账照样落、归那个运行，并标明是迟到的**——
   [I-11](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) 只禁止终结之后再发起新动作，不禁止补记已发起的那些
 - **字段**：一份账是 JSON。`subject.kind` 是 `model_call` 或 `tool_execution`。`usage`、`cost`、`trimmed` 各自成组。`place` 是落点。`duration` 是 `utc-instant` 能解析的时长字符串，或 `{ "state": "unknown" }`。它与用量词法分属两个字段。`receipt` 是 `received` 或 `late`。`revision` 是十进制数字字符串，从 `0` 起。
-- **金额**：`state` 为 `known` 或 `provisional` 时带十进制 `lexeme` 和 `unit`。`state` 为 `unknown` 时只带 `unit`。求和只加 `known`。
+- **金额**：`state` 为 `known` 或 `provisional` 时带十进制 `lexeme` 和 `unit`。`state` 为 `unknown` 时只带 `unit`。同一 `subject`、同一 `cost.source` 的更后 `revision` 替换先前的已知金额。同一 `revision` 再次送达不另加一笔金额。求和已知金额只使用最新 `revision`。
 - **来源**：`cost.source` 是 `supplier`、`observation`、`billable` 或 `ledger`。前三种是会话收到的报告。`ledger` 归业务账的拥有者。
 - **削减**：会话把 `TrimRecord.removed` 写入 `trimmed.lexeme`。流装配不持有这份账。
 
