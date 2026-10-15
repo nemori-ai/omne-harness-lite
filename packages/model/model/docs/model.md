@@ -1,6 +1,6 @@
 # 模型凭据的抽象与建模
 
-状态是待审。本页拥有引用、存在性和解析的模型。它不改 [SPEC](../SPEC.md) 已接受的调用、重试和结果保管承诺。包内模块关系见 [architecture](architecture.md)。Cordis 装配见 [cordis](cordis.md)。发送顺序见 [key-flow](key-flow.md#凭据解析)。
+凭据引用与解析规则已由 D-04 接受，并写入 [SPEC](../SPEC.md)。本页拥有引用、存在性和解析的模型。它不改 SPEC 已接受的调用、重试和结果保管承诺。包内模块关系见 [architecture](architecture.md)。Cordis 装配见 [cordis](cordis.md)。发送顺序见 [key-flow](key-flow.md#凭据解析)。
 
 档案的身份、同名求值和模态仍由 [profile-and-modality](profile-and-modality.md) 拥有。原结果、ACK 和费用仍由 [consumption-and-cost](consumption-and-cost.md) 拥有。本页不复制那两份行为正文。
 
@@ -70,7 +70,9 @@ flowchart TD
 
 未获准的官方发送停在第一步，拿不到工厂秘密。本租户没有这一行、但还有任意其他行时，缺的那个身份是 `absent`。其他行包括另一个身份，也包括已经撤销的行。别的租户持有同一身份时是 `denied`，即使本租户一行都没有，也不用工厂秘密。
 
-`present` 不接收发送资格。用途不符或保管已关闭时，它返回 `denied`，不是 `present: false`。同一身份只在别的租户手里，或者本租户没有这一行时，它返回 `known` 且 `present` 为 false。`resolve` 对前一种才是 `denied`。`unavailable` 只在整份保管打不开或任一行读失败时出现。凭据身份不能是空串，也不能含空格。
+`present` 不接收发送资格。用途不符或保管已关闭时，它返回 `denied`，不是 `present: false`。同一身份只在别的租户手里，或者本租户没有这一行时，它返回 `known` 且 `present` 为 false。`resolve` 对前一种才是 `denied`。`unavailable` 只在整份保管打不开、任一行读失败或同一持有者出现多行冲突时出现。凭据身份不能是空串，也不能含空格。
+
+本地保管库每次 `present` 和 `resolve` 都从磁盘刷新状态，因此保留的句柄和 Cordis 服务都能观察到其他进程或句柄造成的轮换、撤销或文件损坏。如果文件在打开后被损坏，后续解析返回 `unavailable`，而不是继续返回旧值。
 
 `put` 把该持有者写成 `active`，可以盖过已撤销或读不出的行。`rotate` 只换秘密，不改生命状态。已撤销的行轮换后仍是 `denied`。`markUnreadable` 只把 `active` 改成 `unreadable`。
 

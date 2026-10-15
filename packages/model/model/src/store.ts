@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import {
   loadState,
@@ -27,20 +27,14 @@ export type LocalCustodian = CredentialPort & {
 export function createLocalCustodian(path: string, factorySecret: string): LocalCustodian {
   const state: CustodianState = { closed: false, factorySecret, bindings: [] }
   mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, JSON.stringify(storeState(state)))
+  atomicSave(path, state)
   return live(path, state)
 }
 
 export function openLocalCustodian(path: string): LocalCustodian | { readonly kind: 'unavailable' } {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(readFileSync(path, 'utf8'))
-  } catch {
-    return { kind: 'unavailable' }
-  }
-  const state = loadState(parsed)
-  if (!state) return { kind: 'unavailable' }
-  return live(path, state)
+  const refreshed = refresh(path, { closed: false, factorySecret: '', bindings: [] })
+  if ('kind' in refreshed) return refreshed
+  return live(path, refreshed)
 }
 
 function live(path: string, initial: CustodianState): LocalCustodian {
@@ -49,15 +43,20 @@ function live(path: string, initial: CustodianState): LocalCustodian {
   const note = (outcome: Resolution['kind'], tenantMatch: boolean) => {
     notes.push({ stage: 'resolve', outcome, tenantMatch })
   }
-  const save = () => {
-    writeFileSync(path, JSON.stringify(storeState(state)))
-  }
   return {
     path,
     present(reference) {
+      if (state.closed) return { kind: 'denied' }
+      const refreshed = refresh(path, state)
+      if ('kind' in refreshed) return { kind: 'unavailable' }
+      state = refreshed
       return present(state, reference)
     },
     resolve(reference, face) {
+      if (state.closed) return { kind: 'denied' }
+      const refreshed = refresh(path, state)
+      if ('kind' in refreshed) return { kind: 'unavailable' }
+      state = refreshed
       const decision = resolve(state, reference, face)
       const binding = state.bindings.find((item) => sameHolder(item, reference))
       note(decision.kind, binding !== undefined)
@@ -65,6 +64,9 @@ function live(path: string, initial: CustodianState): LocalCustodian {
     },
     diagnostics: () => notes,
     put(reference: CredentialReference, secret: string) {
+      if (state.closed) return
+      const refreshed = refresh(path, state)
+      if ('kind' in refreshed) return
       const binding = {
         id: reference.id,
         tenant: reference.tenant,
@@ -72,41 +74,79 @@ function live(path: string, initial: CustodianState): LocalCustodian {
         secret,
         life: 'active' as const,
       }
-      state = {
-        ...state,
-        bindings: [...state.bindings.filter((item) => !sameHolder(item, reference)), binding],
+      const next = {
+        ...refreshed,
+        bindings: [...refreshed.bindings.filter((item) => !sameHolder(item, reference)), binding],
       }
-      save()
+      if (atomicSave(path, next)) state = next
     },
     rotate(reference: CredentialReference, secret: string) {
-      state = {
-        ...state,
-        bindings: state.bindings.map((item) =>
+      if (state.closed) return
+      const refreshed = refresh(path, state)
+      if ('kind' in refreshed) return
+      const next = {
+        ...refreshed,
+        bindings: refreshed.bindings.map((item) =>
           sameHolder(item, reference) ? { ...item, secret } : item,
         ),
       }
-      save()
+      if (atomicSave(path, next)) state = next
     },
     revoke(reference: CredentialReference) {
-      state = {
-        ...state,
-        bindings: state.bindings.map((item) =>
-          sameHolder(item, reference) ? { ...item, life: 'revoked' } : item,
+      if (state.closed) return
+      const refreshed = refresh(path, state)
+      if ('kind' in refreshed) return
+      const next = {
+        ...refreshed,
+        bindings: refreshed.bindings.map((item) =>
+          sameHolder(item, reference) ? { ...item, life: 'revoked' as const } : item,
         ),
       }
-      save()
+      if (atomicSave(path, next)) state = next
     },
     markUnreadable(reference) {
-      state = {
-        ...state,
-        bindings: state.bindings.map((item) =>
-          sameHolder(item, reference) && item.life === 'active' ? { ...item, life: 'unreadable' } : item,
+      if (state.closed) return
+      const refreshed = refresh(path, state)
+      if ('kind' in refreshed) return
+      const next = {
+        ...refreshed,
+        bindings: refreshed.bindings.map((item) =>
+          sameHolder(item, reference) && item.life === 'active' ? { ...item, life: 'unreadable' as const } : item,
         ),
       }
-      save()
+      if (atomicSave(path, next)) state = next
     },
     close() {
       state = { ...state, closed: true }
     },
+  }
+}
+
+function refresh(path: string, current: CustodianState): CustodianState | { readonly kind: 'unavailable' } {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileSync(path, 'utf8'))
+  } catch {
+    return { kind: 'unavailable' }
+  }
+  const loaded = loadState(parsed)
+  if (!loaded) return { kind: 'unavailable' }
+  // The closed flag is per-process; keep the current process decision.
+  return { ...loaded, closed: current.closed }
+}
+
+function atomicSave(path: string, state: CustodianState): boolean {
+  const tmpPath = `${path}.tmp`
+  try {
+    writeFileSync(tmpPath, JSON.stringify(storeState(state)))
+    renameSync(tmpPath, path)
+    return true
+  } catch {
+    try {
+      unlinkSync(tmpPath)
+    } catch {
+      // Cleanup of the temporary file is best-effort.
+    }
+    return false
   }
 }

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
@@ -267,6 +267,111 @@ it('call execution does not import the store and the root does not import cordis
   expect(deliverSource.includes('store.ts')).toBe(false)
   expect(executeSource.includes('store.ts')).toBe(false)
   expect(indexSource.includes('@deepseek-ai/cordis')).toBe(false)
+})
+
+it('an existing handle observes later rotations and revocations made by another handle', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const first = createLocalCustodian(path, FACTORY)
+  const ref = reference()
+  first.put(ref, SECRET)
+  const second = openLocalCustodian(path)
+  if ('kind' in second) throw new Error('store missing')
+  second.rotate(ref, ROTATED)
+  expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
+  second.revoke(ref)
+  expect(first.resolve(ref, face()).kind).toBe('denied')
+  expect(first.present(ref)).toMatchObject({ kind: 'known', present: true })
+})
+
+it('a Cordis service observes later rotations made by another handle', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const seeded = createLocalCustodian(path, FACTORY)
+  const ref = reference()
+  seeded.put(ref, SECRET)
+  const ctx = new Context()
+  const fiber = ctx.plugin(LocalCredentialPlugin, { path, factorySecret: FACTORY })
+  await fiber
+  const second = openLocalCustodian(path)
+  if ('kind' in second) throw new Error('store missing')
+  second.rotate(ref, ROTATED)
+  expect(ctx.modelCredential?.resolve(ref, face())).toEqual({
+    kind: 'value',
+    scope: 'tenant',
+    value: ROTATED,
+  })
+  await fiber.dispose()
+})
+
+it('a later writer modifying another binding does not overwrite a revocation saved by another handle', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const first = createLocalCustodian(path, FACTORY)
+  const refA = reference()
+  first.put(refA, SECRET)
+  const second = openLocalCustodian(path)
+  if ('kind' in second) throw new Error('store missing')
+  second.revoke(refA)
+  const otherId = credentialId('cred-b')
+  if (!otherId) throw new Error('fixture id')
+  const refB = reference({ id: otherId })
+  first.put(refB, 'secret-b')
+  const reopened = openLocalCustodian(path)
+  if ('kind' in reopened) throw new Error('store missing')
+  expect(reopened.resolve(refA, face()).kind).toBe('denied')
+  expect(reopened.resolve(refB, face())).toEqual({ kind: 'value', scope: 'tenant', value: 'secret-b' })
+})
+
+it('a failed write keeps the last saved snapshot intact and does not publish the new secret', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const first = createLocalCustodian(path, FACTORY)
+  const ref = reference()
+  first.put(ref, SECRET)
+  const backup = join(dir, 'store-backup.json')
+  writeFileSync(backup, readFileSync(path, 'utf8'))
+  // Replace the file with a directory so the atomic rename fails.
+  rmSync(path)
+  mkdirSync(path)
+  first.rotate(ref, ROTATED)
+  // The in-memory handle must not publish the uncommitted secret.
+  expect(first.resolve(ref, face())).not.toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
+  // Restore the last confirmed snapshot.
+  rmSync(path, { recursive: true })
+  writeFileSync(path, readFileSync(backup, 'utf8'))
+  const reopened = openLocalCustodian(path)
+  if ('kind' in reopened) throw new Error('store missing')
+  expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
+})
+
+it('a store with conflicting rows for the same holder is unavailable', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  writeFileSync(
+    path,
+    JSON.stringify({
+      closed: false,
+      factorySecret: FACTORY,
+      bindings: [
+        {
+          id: 'cred-a',
+          tenant: { organization: 'org_abcdefghjkmnpqrstvwxyz2345', account: 'acc_abcdefghjkmnpqrstvwxyz2345' },
+          purpose: 'model-send',
+          secret: SECRET,
+          life: 'active',
+        },
+        {
+          id: 'cred-a',
+          tenant: { organization: 'org_abcdefghjkmnpqrstvwxyz2345', account: 'acc_abcdefghjkmnpqrstvwxyz2345' },
+          purpose: 'model-send',
+          secret: 'other-secret',
+          life: 'revoked',
+        },
+      ],
+    }),
+  )
+  expect(openLocalCustodian(path)).toEqual({ kind: 'unavailable' })
 })
 
 it('logs, errors, telemetry, and model context do not carry the synthetic secret', async () => {

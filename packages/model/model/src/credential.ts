@@ -150,9 +150,13 @@ export function loadState(raw: unknown): CustodianState | undefined {
   if (typeof body.closed !== 'boolean' || factorySecret === undefined) return undefined
   if (!Array.isArray(body.bindings)) return undefined
   const bindings: Binding[] = []
+  const seen = new Set<string>()
   for (const row of body.bindings) {
     const parsed = loadBinding(row)
     if (!parsed) return undefined
+    const key = `${parsed.id}:${parsed.tenant.organization.text}:${parsed.tenant.account.text}:${parsed.purpose}`
+    if (seen.has(key)) return undefined
+    seen.add(key)
     bindings.push(parsed)
   }
   return { closed: body.closed, factorySecret, bindings }

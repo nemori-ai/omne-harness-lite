@@ -1,6 +1,4 @@
-PACKAGE_TEMPLATE_DRAFT
-
-本成员已按 RFC-0003 初始化。凭据引用、存在性查询、解析和本地保管库从根入口导出。`source` 条件指向本包源码。发布时去掉它。其余行为仍以 SPEC 为准。D-04 接受前，待审设计不写入 SPEC。
+本成员已按 RFC-0003 初始化。凭据引用、存在性查询、解析和本地保管库从根入口导出。`source` 条件指向本包源码。发布时去掉它。其余行为仍以 SPEC 为准。凭据引用与解析切片已由 D-04 接受并写入 SPEC。
 
 # model 文档目标
 
@@ -9,6 +7,29 @@ PACKAGE_TEMPLATE_DRAFT
 ## 责任与使用
 
 本成员沿[SPEC](SPEC.md)承担完整行为。凭据的独立消费走根入口，不要求启动 Cordis。系统集成走 `src/cordis.ts` 的 `modelCredential`。档案选择、结果保管和费用的公开形状仍待设计。
+
+### 独立消费入口
+
+根入口导出两个管理函数，用途不同：
+
+- `createLocalCustodian(path, factorySecret)`：在 `path` 处新建本地保管库。如果 `path` 已存在文件，它会覆盖该文件。只用于初始化。
+- `openLocalCustodian(path)`：按 `path` 打开已有保管库。文件缺失、损坏或含冲突行时返回 `{ kind: 'unavailable' }`，不会创建文件。
+
+```ts
+import { createLocalCustodian, openLocalCustodian, credentialId, MODEL_SEND } from '@omne-harness/model'
+import { tenant } from '@omne-harness/legal-identity'
+
+const custodian = createLocalCustodian('/var/lib/omne/credentials.json', 'factory-secret')
+custodian.put({ id: credentialId('my-key')!, tenant: tenant(org, acc), purpose: MODEL_SEND }, 'tenant-secret')
+
+// 另一个进程或同一进程稍后重开
+const reopened = openLocalCustodian('/var/lib/omne/credentials.json')
+if (!('kind' in reopened)) {
+  const decision = reopened.resolve({ id: credentialId('my-key')!, tenant: tenant(org, acc), purpose: MODEL_SEND }, { authorized: true, official: false })
+}
+```
+
+`present` 和 `resolve` 每次从磁盘读取当前状态，因此保留的句柄和已注入的 Cordis 服务都能观察到后续轮换、撤销或损坏。管理操作写盘前也会先刷新，并以临时文件加重命名的方式原子写入；写入失败时不发布新状态，原快照保持不变。
 
 ## 契约与设计
 
