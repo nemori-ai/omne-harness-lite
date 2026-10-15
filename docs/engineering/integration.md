@@ -128,7 +128,9 @@ Project 可由原单投影写者维护可选 Integration target 与 Integration 
 
 采用前的完整construction通过PR提交到main，再从干净的精确main检出执行activation-check、具名adopt决定和activate。construction进入main但adoption未成功期间，普通检查返回unknown；这是受控接入窗口，不能把提交当采用。
 
-已采用检出先bootstrap，工作树再依据真实Issue派发取得context。main没有任务context时，不直接运行带任务基线的check-plan或make check，也不伪造Issue绑定；通过checkpoint prepare和verify运行完整检查。无需发布stable时可停在verified，checkpoint发布另受实际任务授权约束。
+已采用检出先bootstrap，工作树再依据真实Issue派发取得context。main没有任务context时，不直接运行带任务基线的check-plan或make check，也不伪造Issue绑定。
+
+第一阶段的检查责任按[现行准入](#现行准入)执行：提交 PR 的人在有 task context 的任务工作树中运行检查，确认者在说明中写明实际命令和结果。没有任务 context 的 main 本身，例如进入 stable 的 PR，第一阶段没有正式检查入口；确认者写明实际运行的命令及其限制，不写成正式回执。checkpoint prepare 和 verify 只在 admin 临时恢复原规则集时作为恢复手段使用。第二阶段由报告身份在候选上运行必需检查。
 
 当前full profile验证工程工具入口启动、runner/subject锁定依赖安装、真实Git采用与模板迁移场景、开发者上下文查询及工程静态检查。首次启用只执行这一组检查；此前已验证且输入未变的行为证据沿用原记录。`packages.0.0.1.legacy/`与`apps.0.0.1.legacy/`不进入工程静态扫描，也不执行封存产品的全量构建、类型、测试或验收。工具自身的安装、构建和测试也不得依赖这两个旧目录。当前源码与正式采用的检查器版本分别核对；当前源码通过不表示旧受信版本已解除依赖。若受信版本仍消费旧实现，停止该执行链并按采用规则交接，不把新版的独立检查记为旧版正式回执。新packages/apps仍是产品骨架，产品传感器没有输入时如实报告无数据，工程检查通过不代替产品质量结论。新版产品的startup、数据迁移及严格产品传感器门槛须由未来真实成员提供证据。
 
