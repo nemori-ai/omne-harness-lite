@@ -1,6 +1,6 @@
 # 定义求值与装配交接行为规格
 
-本目录是 workspace 包 `@omne-harness/assembly`。下面从「一组租约」到「就绪、撤除和远端中断」的关闭行为，已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受，是该范围的现行契约。[采用与重装](#adoption)已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受。求值快照、绑定生效、缺依赖失败和旧新推进权以该节为现行行为。关闭协议的报告种类不在该节改写。
+本目录是 workspace 包 `@omne-harness/assembly`。下面从「一组租约」到「就绪、撤除和远端中断」的关闭行为，已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受，是该范围的现行契约。[采用与重装](#adoption)已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受。其中[定义到消费者](#definition-to-consumer)已由 [后续技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186960235) 接受。求值快照、绑定生效、缺依赖失败和旧新推进权以该节为现行行为。关闭协议的报告种类不在该节改写。
 
 谁必须关闭、配置代际如何留在原提供者，以及同级 Cordis effect 的完成顺序不是关闭顺序，只写在[Cordis 装配与服务生命周期](../../../docs/architecture/deployment/cordis-and-lifecycle.md)。改那些句子只改该页。改下面的报告结果只改本页。
 
@@ -197,7 +197,9 @@ runtime 启动前取得已校验的装配依据。同一位置的扩展按装配
 
 ### 定义到消费者
 
-下面的走查补目标范围第 5 项。它不改写本节上文已接受的句子。
+<a id="definition-to-consumer"></a>
+
+本走查是现行行为。它不改写本节上文的句子。
 
 给定一次求值的主体、范围、定义版本、扩展顺序和必需能力。下面用这些输入走一遍成功路径，以及缺依赖和选择漂移。依赖的身份和版本记在装配清单里。这份记录就是本次可追溯的依赖选择。它不是 Schema 编译提供者的依赖快照，也不是另一份持久对象。
 
