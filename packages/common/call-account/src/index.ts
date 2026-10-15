@@ -10,23 +10,8 @@ export type Amount =
   | { readonly state: 'unknown'; readonly unit: string }
   | { readonly state: 'known' | 'provisional'; readonly lexeme: string; readonly unit: string }
 
-export type UsageItem =
-  | { readonly name: string; readonly state: 'unknown'; readonly unit: string }
-  | {
-      readonly name: string
-      readonly state: 'known' | 'provisional'
-      readonly lexeme: string
-      readonly unit: string
-    }
-
-export type CostItem =
-  | { readonly source: CostSource; readonly state: 'unknown'; readonly unit: string }
-  | {
-      readonly source: CostSource
-      readonly state: 'known' | 'provisional'
-      readonly lexeme: string
-      readonly unit: string
-    }
+export type UsageItem = Amount & { readonly name: string }
+export type CostItem = Amount & { readonly source: CostSource }
 
 export type CallAccount = {
   readonly subject: { readonly kind: SubjectKind; readonly id: string }
@@ -71,16 +56,18 @@ export function judgeCallAccount(value: unknown): AccountResult {
   if (!exactKeys(value, ['subject', 'usage', 'cost', 'trimmed', 'place', 'duration', 'receipt', 'revision']))
     return rejected('extra')
   const subject = judgeSubject(value.subject)
-  if (typeof subject === 'string') return rejected(subject)
+  if ('rejected' in subject) return subject
   const usage = judgeUsage(value.usage)
-  if (typeof usage === 'string') return rejected(usage)
+  if ('rejected' in usage) return usage
   const cost = judgeCost(value.cost)
-  if (typeof cost === 'string') return rejected(cost)
+  if ('rejected' in cost) return cost
   const trimmed = judgeTrimmed(value.trimmed)
-  if (typeof trimmed === 'string') return rejected(trimmed)
+  if ('rejected' in trimmed) return trimmed
   const scalars = judgeScalars(value)
   if ('rejected' in scalars) return scalars
-  return { ok: { subject, usage, cost, trimmed, ...scalars.ok } }
+  return {
+    ok: { subject: subject.ok, usage: usage.ok, cost: cost.ok, trimmed: trimmed.ok, ...scalars.ok },
+  }
 }
 
 export function admitRevision(previous: unknown, next: unknown): AccountResult {
@@ -147,9 +134,10 @@ export function canonicalAccount(account: CallAccount): string {
   return JSON.stringify(account)
 }
 
-function judgeTrimmed(value: unknown): Amount | AccountRejection {
+function judgeTrimmed(value: unknown): Checked<Amount> {
   const amount = judgeAmount(value)
-  return amount === 'extra' ? 'trimmed' : amount
+  if ('rejected' in amount && amount.rejected === 'extra') return rejected('trimmed')
+  return amount
 }
 
 function judgeScalars(
@@ -161,13 +149,13 @@ function judgeScalars(
   | { readonly rejected: AccountRejection } {
   if (typeof value.place !== 'string' || value.place.length === 0) return rejected('place')
   const duration = judgeDuration(value.duration)
-  if (typeof duration === 'string') return rejected(duration)
+  if ('rejected' in duration) return duration
   if (!isReceipt(value.receipt)) return rejected('receipt')
   if (typeof value.revision !== 'string' || !REVISION.test(value.revision)) return rejected('revision')
   return {
     ok: {
       place: value.place,
-      duration: duration.value,
+      duration: duration.ok,
       receipt: value.receipt,
       revision: value.revision,
     },
@@ -178,58 +166,51 @@ function isReceipt(value: unknown): value is CallAccount['receipt'] {
   return value === 'received' || value === 'late'
 }
 
-function judgeSubject(value: unknown): CallAccount['subject'] | AccountRejection {
-  if (!isRecord(value) || !exactKeys(value, ['kind', 'id'])) return 'subject'
-  if (value.kind !== 'model_call' && value.kind !== 'tool_execution') return 'subject'
-  if (typeof value.id !== 'string' || value.id.length === 0) return 'subject'
-  return { kind: value.kind, id: value.id }
+function judgeSubject(value: unknown): Checked<CallAccount['subject']> {
+  if (!isRecord(value) || !exactKeys(value, ['kind', 'id'])) return rejected('subject')
+  if (!isSubjectKind(value.kind)) return rejected('subject')
+  if (typeof value.id !== 'string' || value.id.length === 0) return rejected('subject')
+  return { ok: { kind: value.kind, id: value.id } }
 }
 
-function judgeUsage(value: unknown): readonly UsageItem[] | AccountRejection {
-  if (!Array.isArray(value)) return 'usage'
+function judgeUsage(value: unknown): Checked<readonly UsageItem[]> {
+  if (!Array.isArray(value)) return rejected('usage')
   const items: UsageItem[] = []
   for (const item of value) {
-    if (!isRecord(item) || typeof item.name !== 'string' || item.name.length === 0) return 'usage'
+    if (!isRecord(item) || typeof item.name !== 'string' || item.name.length === 0) return rejected('usage')
     const amount = judgeAmount(item, ['name'])
-    if (typeof amount === 'string') return amount === 'extra' ? 'usage' : amount
-    items.push(amount.state === 'unknown' ? { name: item.name, ...amount } : { name: item.name, ...amount })
+    if ('rejected' in amount) return rejected(amount.rejected === 'extra' ? 'usage' : amount.rejected)
+    items.push({ name: item.name, ...amount.ok })
   }
-  return items
+  return { ok: items }
 }
 
-function judgeCost(value: unknown): readonly CostItem[] | AccountRejection {
-  if (!Array.isArray(value)) return 'cost'
+function judgeCost(value: unknown): Checked<readonly CostItem[]> {
+  if (!Array.isArray(value)) return rejected('cost')
   const items: CostItem[] = []
   for (const item of value) {
-    if (!isRecord(item) || !isCostSource(item.source)) return 'cost'
+    if (!isRecord(item) || !isCostSource(item.source)) return rejected('cost')
     const amount = judgeAmount(item, ['source'])
-    if (typeof amount === 'string') return amount === 'extra' ? 'cost' : amount
-    items.push(
-      amount.state === 'unknown'
-        ? { source: item.source, ...amount }
-        : { source: item.source, ...amount },
-    )
+    if ('rejected' in amount) return rejected(amount.rejected === 'extra' ? 'cost' : amount.rejected)
+    items.push({ source: item.source, ...amount.ok })
   }
-  return items
+  return { ok: items }
 }
 
-function judgeAmount(value: unknown, extras: readonly string[] = []): Amount | AccountRejection {
-  if (!isRecord(value) || !isAmountState(value.state)) return value && isRecord(value) ? 'lexeme' : 'extra'
-  if (!exactKeys(value, amountKeys(value.state, extras))) return 'extra'
-  if (typeof value.unit !== 'string' || value.unit.length === 0) return 'unit'
-  if (value.state === 'unknown') return { state: 'unknown', unit: value.unit }
+function judgeAmount(value: unknown, extras: readonly string[] = []): Checked<Amount> {
+  if (!isRecord(value)) return rejected('extra')
+  if (!isAmountState(value.state)) return rejected('lexeme')
+  if (!exactKeys(value, amountKeys(value.state, extras))) return rejected('extra')
+  if (typeof value.unit !== 'string' || value.unit.length === 0) return rejected('unit')
+  if (value.state === 'unknown') return { ok: { state: 'unknown', unit: value.unit } }
   return knownAmount(value.state, value.lexeme, value.unit)
 }
 
-function knownAmount(
-  state: 'known' | 'provisional',
-  lexeme: unknown,
-  unit: string,
-): Amount | AccountRejection {
-  if (typeof lexeme !== 'string') return 'lexeme'
+function knownAmount(state: 'known' | 'provisional', lexeme: unknown, unit: string): Checked<Amount> {
+  if (typeof lexeme !== 'string') return rejected('lexeme')
   const parsed = parseLexeme(lexeme, unit)
-  if (typeof parsed === 'string') return parsed
-  return { state, lexeme, unit }
+  if (typeof parsed === 'string') return rejected(parsed)
+  return { ok: { state, lexeme, unit } }
 }
 
 function isAmountState(value: unknown): value is Amount['state'] {
@@ -241,16 +222,20 @@ function amountKeys(state: Amount['state'], extras: readonly string[]): readonly
   return [...base, ...extras]
 }
 
-function judgeDuration(
-  value: unknown,
-): { readonly value: CallAccount['duration'] } | AccountRejection {
+function judgeDuration(value: unknown): Checked<CallAccount['duration']> {
   if (isRecord(value) && exactKeys(value, ['state']) && value.state === 'unknown')
-    return { value: { state: 'unknown' } }
-  if (typeof value !== 'string') return 'duration'
+    return { ok: { state: 'unknown' } }
+  if (typeof value !== 'string') return rejected('duration')
   const parsed = parseDuration(value)
-  if (!parsed.ok) return 'duration'
-  return { value }
+  if (!parsed.ok) return rejected('duration')
+  return { ok: value }
 }
+
+function isSubjectKind(value: unknown): value is SubjectKind {
+  return value === 'model_call' || value === 'tool_execution'
+}
+
+type Checked<T> = { readonly ok: T } | { readonly rejected: AccountRejection }
 
 function compareRevision(left: string, right: string): number {
   const a = BigInt(left)
