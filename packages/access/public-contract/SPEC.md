@@ -37,7 +37,7 @@ SDK 和服务端接入使用本页的结果表。它们不另写一套结果含�
 
 这些协议拒绝发生在身份核验和授权判断之前。
 
-严格读取没有给出恰好一个可信的 `protocolVersion`，或没有给出恰好一个可信的 `messageId` 时，响应仍是 `protocol-rejected`，`body` 为空对象，没有业务效果。响应的 `protocolVersion` 写 `governance-public/1`。它只表示这份拒绝按本协议发出。它不表示接受了请求里的版本，也不协商版本。请求没有给出恰好一个可信 `messageId` 时，响应不写 `messageId`。服务端不从重复键里挑选一个值。
+严格读取没有给出恰好一个可信的 `protocolVersion`，或没有给出恰好一个可信的 `messageId` 时，响应仍是 `protocol-rejected`，`body` 为空对象，没有业务效果。响应的 `protocolVersion` 写 `governance-public/1`。它只表示这份拒绝按本协议发出。它不回写请求里的版本，也不协商版本。`messageId` 恰好一个可信时，响应写这个 `messageId`，即使版本不可信。`messageId` 缺失、重复或不可信时，响应不写 `messageId`。服务端不从重复键里挑选一个值。
 
 SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `messageId` 的 `protocol-rejected` 不记到任何一次调用上。该次调用的字节可能已经发出时，调用者仍没有可信答复。零字节再送只按下面的共同规则。
 
@@ -95,7 +95,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 
 调用者在收到终端响应之前，把可能已经提交的操作保持为 `unknown`。连接断开、超时和响应丢失都是 `unknown`。它们不是 `succeeded`，也不是「没有发生」。
 
-本页每一个操作都使用这一条再送规则。传输适配报告请求字节没有发出时，SDK 自动再送一次。字节已经发出，或适配不能证明没有发出时，SDK 不自动再送。未知效果不能靠这次再送重做。调用者自己发起的下一次调用是一次新调用，并遵守该操作自己的重复规则。各操作不再另写再送句。
+本页每一个操作都使用这一条再送规则。传输适配报告请求字节没有发出时，SDK 自动再送一次。字节已经发出，或适配不能证明没有发出时，SDK 不自动再送。未知效果不能靠这次再送重做。调用者自己发起的下一次调用是一次新调用，并遵守该操作自己的重复规则。
 
 SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`。客户端应用可以保存屏幕投影。投影失败不改变已经返回的 `succeeded`。清掉投影不把 `unknown` 变成成功或没有发生。下一次调用仍以该次服务端结果为准。本协议不设缓存时限。
 
@@ -147,7 +147,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 `credential`、`currentCredential` 和 `newCredential` 只出现在请求里。响应和诊断不包含它们。
 
-邀请的 `state` 只取 `open`、`accepted`、`rejected`、`withdrawn`、`expired` 之一。隶属请求的 `state` 只取 `pending`、`accepted`、`rejected`、`withdrawn`、`invalid`、`expired` 之一。已生效隶属的预期状态是 `effective`。
+邀请的 `state` 只取 `open`、`accepted`、`rejected`、`withdrawn`、`expired` 之一。隶属请求的 `state` 只取 `pending`、`accepted`、`rejected`、`withdrawn`、`invalid`、`expired` 之一。已生效隶属的 `state` 只取 `effective` 或 `released`。
 
 没有另行列出的 `denied`、`not-visible`、`basis-unavailable`、`conflict`、`protocol-rejected` 和 `stage-not-provided`，`body` 都是空对象。
 
@@ -162,7 +162,8 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | 邀请名单的 `succeeded` | `invitations`、`completeness` 为 `complete` |
 | `open-affiliation-request` 的 `succeeded` | `requestId`、`state` 为 `pending`、`expiresAt` |
 | 隶属请求处置的 `succeeded` | 接受时含 `affiliationId` 和 `state` 为 `effective`。拒绝或撤回时含 `requestId` 和对应的 `state` |
-| 有权看见的隶属 `no-change` | `requestId` 或 `affiliationId`，以及已经形成的 `state` |
+| 隶属请求处置的有权看见的 `no-change` | `requestId`，以及已经形成的请求 `state` |
+| `release-affiliation` 的有权看见的 `no-change` | `affiliationId`，`state` 为 `released` |
 | `query-affiliation-request` 和隶属名单的 `succeeded` | 单条含 `requestId`、`state`、`expiresAt`、`superiorOrganizationId`、`subordinateOrganizationId`。名单用 `affiliationRequests` 和 `completeness` |
 | `switch-current-tenant` 的 `succeeded`、`query-current-tenant` 的 `succeeded` | `tenantId`。`no-change`、`denied` 和 `basis-unavailable` 不含 `tenantId` |
 | `query-own-valid-logins` 的 `succeeded` | `logins`、`completeness` |
