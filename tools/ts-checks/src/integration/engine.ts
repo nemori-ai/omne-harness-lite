@@ -7,7 +7,7 @@ import {
   baselines,
   contextPath,
   loadIntegration,
-  requireCurrentAdoption,
+  taskWorkspace,
   writeContext,
   type Legacy,
 } from './context.ts'
@@ -109,7 +109,7 @@ export async function openIntegration({ root }: { root: string }): Promise<Integ
   }
 }
 function start(root: string, command: Extract<Command, { kind: 'register' | 'start' }>): unknown {
-  const state = requireCurrentAdoption(root),
+  const state = taskWorkspace(root),
     config = deliveryConfig(root, state.policy, state.source),
     scope = { task: command.issue, authority: command.authority },
     capture = currentAdmission(config, scope)

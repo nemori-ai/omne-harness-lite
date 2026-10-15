@@ -270,6 +270,75 @@ export function captureDigest(capture: DeliveryCapture): string {
     }),
   )
 }
+export const DISPATCH_ENVIRONMENT = 'publish'
+const API_HEADERS = [
+  '-H',
+  'Accept: application/vnd.github+json',
+  '-H',
+  'X-GitHub-Api-Version: 2026-03-10',
+]
+/** A user or team named as required reviewer of the publish environment may dispatch. */
+function isDispatchReviewer(policy: Policy, actor: Record<string, unknown>, read: GhRead): boolean {
+  const login = string(actor.login, 'authority author login'),
+    nodeId = string(actor.node_id, 'authority author node_id')
+  let environment: Record<string, unknown>
+  try {
+    environment = record(
+      read(
+        [
+          'api',
+          '--method',
+          'GET',
+          ...API_HEADERS,
+          `repos/${policy.repository}/environments/${DISPATCH_ENVIRONMENT}`,
+        ],
+        policy.timeouts.networkMs,
+      ),
+      'environment',
+    )
+  } catch {
+    throw new IntegrationError('unknown', `Cannot read the ${DISPATCH_ENVIRONMENT} environment`)
+  }
+  const rules = array(environment.protection_rules, 'protection_rules').map(item =>
+    record(item, 'protection rule'),
+  )
+  const reviewers = rules
+    .filter(rule => rule.type === 'required_reviewers')
+    .flatMap(rule => array(rule.reviewers, 'reviewers').map(item => record(item, 'reviewer')))
+  if (reviewers.length === 0)
+    throw new IntegrationError(
+      'unknown',
+      `The ${DISPATCH_ENVIRONMENT} environment has no required reviewers`,
+    )
+  for (const entry of reviewers) {
+    const reviewer = record(entry.reviewer, 'reviewer')
+    if (entry.type === 'User' && reviewer.login === login && reviewer.node_id === nodeId)
+      return true
+    if (entry.type === 'Team') {
+      const org = policy.repository.split('/')[0],
+        slug = string(reviewer.slug, 'team slug')
+      try {
+        const membership = record(
+          read(
+            [
+              'api',
+              '--method',
+              'GET',
+              ...API_HEADERS,
+              `orgs/${org}/teams/${slug}/memberships/${login}`,
+            ],
+            policy.timeouts.networkMs,
+          ),
+          'team membership',
+        )
+        if (membership.state === 'active') return true
+      } catch {
+        // An unreadable or absent membership never grants dispatch.
+      }
+    }
+  }
+  return false
+}
 export function readAuthority(
   policy: Policy,
   url: string,
@@ -315,17 +384,26 @@ export function readAuthority(
     'Authority comment changed during capture',
   )
   const decision = parseDecision(section(text(raw.body, 'body'), 'omne-integration-authority:v1'))
-  if (
-    !policy.owners.some(
-      owner =>
-        owner.login === user.login &&
-        owner.nodeId === user.node_id &&
-        owner.actions.includes(decision.action),
+  if (decision.action === 'dispatch') {
+    // Dispatch follows the reviewers who confirm trunk publication, not the adopted owner list.
+    if (!isDispatchReviewer(policy, user, read))
+      throw new IntegrationError(
+        'refused',
+        `Comment actor is not a reviewer of the ${DISPATCH_ENVIRONMENT} environment`,
+      )
+  } else {
+    if (
+      !policy.owners.some(
+        owner =>
+          owner.login === user.login &&
+          owner.nodeId === user.node_id &&
+          owner.actions.includes(decision.action),
+      )
     )
-  )
-    throw new IntegrationError('refused', 'Comment actor is not a policy owner for this action')
+      throw new IntegrationError('refused', 'Comment actor is not a policy owner for this action')
+    same(decision.policyRevision, policy.revision, 'Authority policy revision changed')
+  }
   same(decision.responsible, user.login, 'Decision responsible actor mismatch')
-  same(decision.policyRevision, policy.revision, 'Authority policy revision changed')
   for (const comment of issue.comments) {
     const revocation = section(comment.body, 'omne-integration-revocation:v1')
     if (revocation === undefined) continue

@@ -8,6 +8,7 @@ import {
   symlinkSync,
   readdirSync,
   existsSync,
+  realpathSync,
 } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -275,8 +276,12 @@ it('reads the hook root and each worktree own immutable task baseline', async ()
   const other = join(f.home, 'other')
   git(f.root, ['worktree', 'add', '-b', 'human/other', other, newer])
   expect(touchedBase(f.root, 'not-a-primary')).toBe(f.main)
-  expect(() => touchedBase(other, 'main')).toThrow('no task')
-  expect(readWorktrees(f.root, 'main')[0]?.problem).toContain('上下文未知')
+  // Without a task context the hook falls back to the merge base with the primary branch;
+  // this worktree changed no product source, so there is nothing to measure.
+  expect(touchedBase(other, 'main')).toBeUndefined()
+  expect(readWorktrees(f.root, 'main')).toEqual([
+    { path: realpathSync(other), branch: 'human/other', members: ['packages/core/first'] },
+  ])
   const info = repository(other)
   const binding = { ...f.binding, branch: 'human/other', taskBase: newer, attempt: 'other' }
   mkdirSync(join(other, 'packages/core/second'), { recursive: true })
@@ -317,7 +322,11 @@ it('bootstraps a real clone and never uses lost adoption as positive absence', (
   git(f.home, ['clone', f.remote, clone])
   expect(loadIntegration(clone).kind).toBe('unknown')
   expect(bootstrap(clone)).toMatchObject({ kind: 'adopted', context: null })
-  expect(() => baselines(clone, 'main')).toThrow('no task')
+  expect(baselines(clone, 'main')).toMatchObject({
+    state: 'pending',
+    targetBase: 'main',
+    audits: [],
+  })
   git(f.remote, ['update-ref', '-d', 'refs/tags/omne/integration/adoption/1'])
   expect(() => bootstrap(clone)).toThrow('lost')
 })
@@ -521,7 +530,7 @@ it('rejects unregistered or paused routes and comments from a different actor or
     revision: 1,
     attempt: 'one',
   }
-  await expect(engine.execute(command)).rejects.toThrow('not a policy owner')
+  await expect(engine.execute(command)).rejects.toThrow('not a reviewer of the publish environment')
   observed.comments[0].user = { login: 'human', node_id: 'U_human' }
   observed.comments.push({
     ...observed.comments[0],

@@ -1,6 +1,6 @@
 # 分支集成工具行为契约
 
-自 2026-10-15 起，四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行。本工具的 prepare、verify 和 publish 不再用于 `integration/*`、main 和 stable，只在 admin 临时恢复原规则集时作为恢复手段。status、start、register、task-sync 等任务入口照常使用。
+自 2026-10-15 起，四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行。本工具的 prepare、verify 和 publish 不再用于 `integration/*`、main 和 stable，只在 admin 临时恢复原规则集时作为恢复手段。status、start、register、task-sync 等任务入口照常使用。start 和 register 不需要 bootstrap 或采用锚点：policy 和交付配置从当前 HEAD 读取，派发评论的作者须是 `publish` environment 的 reviewer（个人或 team 成员），不再比对 owner 名单和 policy 修订号。没有 task context 的检出，baselines 退回显式基线，`scripts/check.sh` 再退回 `origin/main`。
 
 本模块兑现[多层分支规则](../../../../docs/engineering/integration.md)。公开类型及输入解析归本目录源码。正式采用从可信main及不可变tag读取。以下承诺约束实现；配置、提交与实际采用分别判断。
 
