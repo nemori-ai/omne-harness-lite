@@ -18,4 +18,4 @@
 
 <!-- 对应版本、准备、操作→预期；体验为真实还是 mock。重点代码/条款和可回答的因果/范围问题；完全没覆盖的场景不能写成已修复。 -->
 
-<!-- 采用多层集成时附 operation、B/S/C、各卡 taskBase/历史 tuple、真实 receipt 及 Git 观察；声明 completionTarget 与实际运输，未知保留。技术运输不自动生成 Closes 或宣称接受。规则见 docs/engineering/integration.md。 -->
+<!-- 进入轨道、main 或 stable 的 PR 写明关联的卡、本地运行的检查及结果；发布由 gate-publish 流程在确认后完成，确认不等于交付接受。技术运输不自动生成 Closes。规则见 docs/engineering/integration.md 的“现行准入”。 -->
