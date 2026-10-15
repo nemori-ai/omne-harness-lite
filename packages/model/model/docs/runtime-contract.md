@@ -122,7 +122,7 @@ export type Termination =
   | Readonly<{ kind: 'failed'; fault: ModelFault }>
   | Readonly<{ kind: 'interrupted'; control: ModelOperationId }>
 export type Settlement = Readonly<{
-  version: ResultVersion; termination: Termination; cursor: OutputCursor
+  version: ResultVersion; termination: Termination; cursor: OutputCursor; source: DurableEvidence
 }>
 export type CustodyState =
   | Readonly<{ kind: 'producer' }>
@@ -172,6 +172,8 @@ export type AckReceipt = Readonly<{
 `recovered` 只说明认回原受理。受理成功表示容量与原工作共同成立；它不表示供应商收到请求。受理事实、发出意图、真实发送及供应商回执各自保留。外部错误、内部保存失败和策略不可用不能相互冒名。`unclassified` 必须附安全诊断定位，不覆盖已有可识别原因。
 
 `DurableEvidence` 是耐久记录定位，摘要只校验内容一致性。确认者不能用摘要自证已处理或已保管。Model 通过该 owner 的受信证据适配器读取并验证原租户、调用、结果版本、consumer 与位置、当前承接责任及真实耐久状态。processed 记录保存该业务要求的结果和完成事实；retained 记录还保存内容或可恢复引用、必要保留期限及待交付责任。后者不能依赖即将获准清理的 Model 唯一副本。
+
+Settlement.source 由 Model 在原结果真实收场及必要保存共同成立时产生，定位该租户、call、结果版本和真实终局。inspect 与每页结果给出同一来源，消费方不自己拼摘要。受信参加者按此证据核验原记录；来源引用本身不授予正文读取，也不解除原结果保管。
 
 ## 普通调用面与实例观察
 
