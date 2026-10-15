@@ -152,7 +152,7 @@ function digestCheck(check: unknown, seen: Set<object>): string {
 function packData(value: unknown, seen: Set<object>): unknown {
   if (typeof value === 'function') return undefined
   if (value instanceof RegExp) return `${value.source}/${value.flags}`
-  if (typeof value === 'bigint') return value.toString()
+  if (typeof value === 'bigint') return value
   if (Array.isArray(value)) return value.map(item => packData(item, seen))
   if (!isRecord(value)) return value
   if (record(value.def) !== undefined) return digestNode(value, seen)
@@ -298,6 +298,8 @@ function resolveRef(
 }
 
 function canonical(value: unknown): string {
+  if (typeof value === 'bigint') return `bigint:${value.toString()}`
+  if (value === undefined) return 'undefined'
   if (Array.isArray(value)) return `[${value.map(item => canonical(item)).join(',')}]`
   if (!isRecord(value)) return JSON.stringify(value) ?? 'null'
   const keys = Object.keys(value).sort()
@@ -330,21 +332,38 @@ function refused(node: Record<string, unknown>): boolean {
   if (typeof node.type === 'string' && REFUSED_TYPES.has(node.type)) return true
   const def = record(node.def)
   if (def?.coerce === true || typeof def?.error === 'function') return true
+  const internal = engineWhen(node)
   if (def !== undefined && Array.isArray(def.checks)) {
     for (const check of def.checks) {
-      if (callerCheck(check)) return true
+      if (callerCheck(check, internal)) return true
     }
   }
-  return callerCheck(node)
+  return callerCheck(node, internal)
 }
 
-function callerCheck(node: unknown): boolean {
+/** The `when` installed by this schema's own `.min`. A caller callback is a different function. */
+function engineWhen(schema: Record<string, unknown>): Function | undefined {
+  const min = schema.min
+  if (typeof min !== 'function') return undefined
+  let sample: { def?: { checks?: unknown[] } }
+  try {
+    sample = min.call(schema, 0) as { def?: { checks?: unknown[] } }
+  } catch {
+    return undefined
+  }
+  const checks = sample.def?.checks
+  if (!Array.isArray(checks) || checks.length === 0) return undefined
+  const last = checks[checks.length - 1]
+  const when = record(record(record(last)?._zod)?.def)?.when
+  return typeof when === 'function' ? when : undefined
+}
+
+function callerCheck(node: unknown, internal: Function | undefined): boolean {
   const marker = record(node)
   const zodDef = marker === undefined ? undefined : record(record(marker._zod)?.def)
   if (zodDef === undefined) return false
   if (typeof zodDef.fn === 'function' || typeof zodDef.error === 'function') return true
-  // Zod's own guards are named `_when…`. A caller-supplied `when` keeps the caller's name.
-  if (typeof zodDef.when === 'function' && !zodDef.when.name.startsWith('_when')) return true
+  if (typeof zodDef.when === 'function' && zodDef.when !== internal) return true
   return typeof zodDef.check === 'string' && CALLBACK_CHECKS.has(zodDef.check)
 }
 
@@ -368,7 +387,6 @@ function children(def: Record<string, unknown>): readonly unknown[] {
   }
   if (Array.isArray(def.options)) found.push(...def.options)
   if (Array.isArray(def.items)) found.push(...def.items)
-  if (Array.isArray(def.checks)) found.push(...def.checks)
   return found
 }
 

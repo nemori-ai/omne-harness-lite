@@ -53,7 +53,7 @@ type Flight = {
 type Slot =
   | { readonly kind: 'empty' }
   | { readonly kind: 'inflight'; readonly flight: Flight; readonly attempts: number }
-  | { readonly kind: 'ready'; readonly snapshot: Snapshot }
+  | { readonly kind: 'ready'; readonly snapshot: Snapshot; readonly reload: boolean }
   | {
       readonly kind: 'cooling'
       readonly attempts: number
@@ -280,9 +280,10 @@ function begin<T>(
   signal: AbortSignal | undefined,
   attempts: number,
 ): Promise<SchemaVerdict<T>> {
-  return beginFlight(domain, schema, signal, attempts).then(outcome =>
-    outcome.kind === 'cancelled' ? outcome : verdictFrom(outcome, read),
-  )
+  return beginFlight(domain, schema, signal, attempts).then(outcome => {
+    if (outcome.kind === 'ready') finishReloadDelivery(domain, schema.id, outcome.snapshot)
+    return outcome.kind === 'cancelled' ? outcome : verdictFrom(outcome, read)
+  })
 }
 
 function beginFlight<T>(
@@ -354,6 +355,7 @@ function leasedHeld(slot: Slot | undefined): Snapshot | undefined {
 function evictable(slot: Slot): boolean {
   switch (slot.kind) {
     case 'ready':
+      if (slot.reload) return false
       return slot.snapshot.leases === 0
     case 'cooling':
       if (slot.held !== undefined && slot.held.leases > 0) return false
@@ -467,9 +469,8 @@ async function execute<T>(
     noteReload(domain, schema.id, flight)
     return
   }
-  const held = flight.held
-  if (held !== undefined && held.revision === admitted.revision && held.digest !== admitted.digest) {
-    restoreHeld(domain, schema.id, flight)
+  if (hasRevisionConflict(domain, schema.id, flight, admitted.revision, admitted.digest)) {
+    if (!restoreHeld(domain, schema.id, flight)) domain.slots.delete(schema.id)
     flight.resolve({ kind: 'refused', reason: 'revision-conflict' })
     noteReload(domain, schema.id, flight)
     return
@@ -493,7 +494,7 @@ async function execute<T>(
   }
   if (flight.held !== undefined && flight.held.leases > 0) domain.retained.add(flight.held)
   markSuperseded(domain, schema.id, snapshot, flight.held)
-  domain.slots.set(schema.id, { kind: 'ready', snapshot })
+  domain.slots.set(schema.id, { kind: 'ready', snapshot, reload: flight.reload })
   flight.resolve({ kind: 'ready', snapshot })
   noteReload(domain, schema.id, flight)
 }
@@ -567,9 +568,39 @@ function markSuperseded(
 /** A refresh during this flight belongs to the next consumer, on every settlement path. */
 function noteReload(domain: Domain, id: string, flight: Flight): void {
   if (!flight.reload) return
+  const slot = domain.slots.get(id)
+  // A ready result still has to reach its waiters. Deleting it here lets another id take the budget first.
+  if (slot?.kind === 'ready' && slot.reload) return
   const held = activeHeld(flight)
   if (held !== undefined) domain.retained.add(held)
   domain.slots.delete(id)
+}
+
+function finishReloadDelivery(domain: Domain, id: string, snapshot: Snapshot): void {
+  const slot = domain.slots.get(id)
+  if (slot?.kind !== 'ready' || !slot.reload || slot.snapshot !== snapshot) return
+  if (snapshot.leases > 0) domain.retained.add(snapshot)
+  domain.slots.delete(id)
+}
+
+function hasRevisionConflict(
+  domain: Domain,
+  id: string,
+  flight: Flight,
+  revision: string,
+  digest: string,
+): boolean {
+  const seen = new Set<Snapshot>()
+  const candidates = [flight.held, residentSnapshot(domain.slots.get(id))]
+  for (const snapshot of domain.retained) {
+    if (snapshot.id === id) candidates.push(snapshot)
+  }
+  for (const snapshot of candidates) {
+    if (snapshot === undefined || seen.has(snapshot) || snapshot.leases === 0) continue
+    seen.add(snapshot)
+    if (snapshot.revision === revision && snapshot.digest !== digest) return true
+  }
+  return false
 }
 
 function restoreHeld(domain: Domain, id: string, flight: Flight): boolean {
@@ -611,6 +642,7 @@ function holdReady<T>(
 function hold<T>(domain: Domain, id: string, snapshot: Snapshot): LeaseOutcome<T> {
   snapshot.leases += 1
   if (residentSnapshot(domain.slots.get(id)) !== snapshot) domain.retained.add(snapshot)
+  finishReloadDelivery(domain, id, snapshot)
   let released = false
   const lease: SchemaLease<T> = {
     revision: snapshot.revision,

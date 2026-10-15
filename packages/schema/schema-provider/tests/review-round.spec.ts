@@ -680,7 +680,10 @@ it('defect: a caller when named like an engine guard still runs', async () => {
     kind: 'valid',
     path: 'compiled',
   })
-  expect(await validate(provider, stock, text)).toMatchObject({ kind: 'invalid', path: 'compiled' })
+  expect(await validate(provider, stock, readJsonText('"a"', limits))).toMatchObject({
+    kind: 'invalid',
+    path: 'compiled',
+  })
 })
 
 it('defect: a refreshed lease frees its budget before the lease is delivered', async () => {
