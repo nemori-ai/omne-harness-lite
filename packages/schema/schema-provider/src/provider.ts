@@ -53,7 +53,12 @@ type Flight = {
 type Slot =
   | { readonly kind: 'empty' }
   | { readonly kind: 'inflight'; readonly flight: Flight; readonly attempts: number }
-  | { readonly kind: 'ready'; readonly snapshot: Snapshot; readonly reload: boolean }
+  | {
+      readonly kind: 'ready'
+      readonly snapshot: Snapshot
+      readonly reload: boolean
+      readonly flight?: Flight
+    }
   | {
       readonly kind: 'cooling'
       readonly attempts: number
@@ -156,11 +161,15 @@ export function validate<T>(
   const slot = domain.slots.get(schema.id) ?? { kind: 'empty' as const }
   switch (slot.kind) {
     case 'ready':
+      if (slot.reload && (slot.flight === undefined || slot.flight.live === 0)) {
+        completeDelivery(domain, schema.id)
+        return begin(domain, schema, read, signal, 0)
+      }
       return Promise.resolve(checkSnapshot(slot.snapshot, read))
     case 'refused':
       return Promise.resolve({ kind: 'refused', reason: slot.reason })
     case 'inflight':
-      return join<T>(slot.flight, read, signal)
+      return join<T>(domain, schema.id, slot.flight, read, signal)
     case 'empty':
       return begin(domain, schema, read, signal, 0)
     case 'cooling':
@@ -197,6 +206,10 @@ export function lease<T>(
   const slot = domain.slots.get(schema.id) ?? { kind: 'empty' as const }
   switch (slot.kind) {
     case 'ready':
+      if (slot.reload && (slot.flight === undefined || slot.flight.live === 0)) {
+        completeDelivery(domain, schema.id)
+        return holdReady(domain, schema.id, beginFlight(domain, schema, signal, 0))
+      }
       return Promise.resolve(hold(domain, schema.id, slot.snapshot))
     case 'refused':
       return Promise.resolve({ kind: 'refused', reason: slot.reason })
@@ -232,6 +245,7 @@ export function refresh(provider: SchemaProvider, id: SchemaId): void {
   if (slot === undefined) return
   switch (slot.kind) {
     case 'ready':
+      if (slot.reload) return
       if (slot.snapshot.leases > 0) {
         domain.slots.set(id, {
           kind: 'retired',
@@ -281,7 +295,7 @@ function begin<T>(
   attempts: number,
 ): Promise<SchemaVerdict<T>> {
   return beginFlight(domain, schema, signal, attempts).then(outcome => {
-    if (outcome.kind === 'ready') finishReloadDelivery(domain, schema.id, outcome.snapshot)
+    completeDelivery(domain, schema.id)
     return outcome.kind === 'cancelled' ? outcome : verdictFrom(outcome, read)
   })
 }
@@ -396,13 +410,16 @@ function createFlight(): Flight {
 }
 
 function join<T>(
+  domain: Domain,
+  id: string,
   flight: Flight,
   read: JsonRead,
   signal: AbortSignal | undefined,
 ): Promise<SchemaVerdict<T>> {
-  return follow(flight, signal).then(outcome =>
-    outcome.kind === 'cancelled' ? outcome : verdictFrom(outcome, read),
-  )
+  return follow(flight, signal).then(outcome => {
+    completeDelivery(domain, id)
+    return outcome.kind === 'cancelled' ? outcome : verdictFrom(outcome, read)
+  })
 }
 
 function follow(
@@ -494,7 +511,12 @@ async function execute<T>(
   }
   if (flight.held !== undefined && flight.held.leases > 0) domain.retained.add(flight.held)
   markSuperseded(domain, schema.id, snapshot, flight.held)
-  domain.slots.set(schema.id, { kind: 'ready', snapshot, reload: flight.reload })
+  domain.slots.set(schema.id, {
+    kind: 'ready',
+    snapshot,
+    reload: flight.reload,
+    ...(flight.reload ? { flight } : {}),
+  })
   flight.resolve({ kind: 'ready', snapshot })
   noteReload(domain, schema.id, flight)
 }
@@ -576,10 +598,11 @@ function noteReload(domain: Domain, id: string, flight: Flight): void {
   domain.slots.delete(id)
 }
 
-function finishReloadDelivery(domain: Domain, id: string, snapshot: Snapshot): void {
+function completeDelivery(domain: Domain, id: string): void {
   const slot = domain.slots.get(id)
-  if (slot?.kind !== 'ready' || !slot.reload || slot.snapshot !== snapshot) return
-  if (snapshot.leases > 0) domain.retained.add(snapshot)
+  if (slot?.kind !== 'ready' || !slot.reload) return
+  if (slot.flight !== undefined && slot.flight.live > 0) return
+  if (slot.snapshot.leases > 0) domain.retained.add(slot.snapshot)
   domain.slots.delete(id)
 }
 
@@ -633,8 +656,9 @@ function holdReady<T>(
   pending: Promise<FlightOutcome | { readonly kind: 'cancelled' }>,
 ): Promise<LeaseOutcome<T>> {
   return pending.then(outcome => {
-    if (outcome.kind === 'cancelled' || outcome.kind === 'dropped') return { kind: 'cancelled' }
     if (outcome.kind === 'ready') return hold(domain, id, outcome.snapshot)
+    completeDelivery(domain, id)
+    if (outcome.kind === 'cancelled' || outcome.kind === 'dropped') return { kind: 'cancelled' }
     return outcome
   })
 }
@@ -642,7 +666,7 @@ function holdReady<T>(
 function hold<T>(domain: Domain, id: string, snapshot: Snapshot): LeaseOutcome<T> {
   snapshot.leases += 1
   if (residentSnapshot(domain.slots.get(id)) !== snapshot) domain.retained.add(snapshot)
-  finishReloadDelivery(domain, id, snapshot)
+  completeDelivery(domain, id)
   let released = false
   const lease: SchemaLease<T> = {
     revision: snapshot.revision,
