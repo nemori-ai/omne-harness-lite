@@ -4,7 +4,7 @@
 
 ## 客户端职责
 
-SDK 是调用者使用完整 Harness 治理消息的客户端入口。它持有调用者提供的传输适配，以及调用者交给它的登录证明。它把请求交给传输适配，并把响应对回同一次 `messageId`。
+SDK 是调用者使用完整 Harness 治理消息的客户端入口。它持有调用者提供的传输适配，以及调用者交给它的登录证明。它把请求交给传输适配。它只把带有相同 `messageId` 的响应交给该次调用。没有 `messageId` 的 `protocol-rejected` 不记到任何一次调用上。该次调用的字节可能已经发出时，调用者仍没有可信答复。
 
 注册和签发登录之前，调用者必须已经选定对端信任材料。信任核验失败时，SDK 不发送凭据或登录证明。
 
@@ -12,7 +12,7 @@ SDK 对同一个 `outcome` 使用公开契约里的解释。它不另定拒绝�
 
 ## 自动再送与缓存
 
-传输适配报告请求字节没有发出时，SDK 自动再送一次。适配不能证明这一点时，SDK 不自动再送。调用者自己发起的下一次调用是一次新调用，并遵守该操作自己的重复规则。
+本页每一个治理操作都使用这一条再送规则。传输适配报告请求字节没有发出时，SDK 自动再送一次。字节已经发出，或适配不能证明没有发出时，SDK 不自动再送。未知效果不能靠这次再送重做。调用者自己发起的下一次调用是一次新调用，并遵守该操作自己的重复规则。
 
 SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`。客户端应用可以保存屏幕投影。投影失败不改变已经返回的 `succeeded`。清掉投影不把 `unknown` 变成成功或没有发生。
 
@@ -29,7 +29,7 @@ SDK 依赖公开契约，以及调用者提供的传输适配接口。它不依�
 调用形状如下。`messageId` 由调用者生成，示例里的值只是占位。`revoke-login` 的字段表禁止行事租户。字段表写明必填的操作才带上当前选择。
 
 ```ts
-import { governanceOperation } from "@omne/access-public-contract";
+import { governanceOperation } from "@omne-harness/public-contract";
 
 export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
   return governanceOperation({

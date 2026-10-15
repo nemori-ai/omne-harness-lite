@@ -21,7 +21,7 @@ SDK 和服务端接入使用本页的结果表。它们不另写一套结果含�
 | `actingTenant` | 下表为「必填」时必须是已解析的租户标识，并且等于该登录的当前选择。下表为「禁止」时不能出现。它不是目标组织。 |
 | `body` | 该操作的对象。没有额外输入时是空对象。可省略的 `body` 字段只在下表列出。 |
 
-响应使用同一个 `protocolVersion` 和同一个 `messageId`。`outcome` 取下节的对外结果。`body` 只放该结果允许公开的字段。
+请求给出恰好一个可信的 `protocolVersion` 和恰好一个可信的 `messageId` 时，响应使用这两个值。`outcome` 取下节的对外结果。`body` 只放该结果允许公开的字段。
 
 `messageId` 不把「签发登录」变成只签发一次。同一次业务重试是否产生新事实，由该操作自己的规则决定。
 
@@ -37,6 +37,10 @@ SDK 和服务端接入使用本页的结果表。它们不另写一套结果含�
 
 这些协议拒绝发生在身份核验和授权判断之前。
 
+严格读取没有给出恰好一个可信的 `protocolVersion`，或没有给出恰好一个可信的 `messageId` 时，响应仍是 `protocol-rejected`，`body` 为空对象，没有业务效果。响应的 `protocolVersion` 写 `governance-public/1`。它只表示这份拒绝按本协议发出。它不表示接受了请求里的版本，也不协商版本。请求没有给出恰好一个可信 `messageId` 时，响应不写 `messageId`。服务端不从重复键里挑选一个值。
+
+SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `messageId` 的 `protocol-rejected` 不记到任何一次调用上。该次调用的字节可能已经发出时，调用者仍没有可信答复。零字节再送只按下面的共同规则。
+
 信封字段按操作闭合。
 
 | 操作 | `loginProof` | `actingTenant` | 可省略的 `body` 字段 |
@@ -45,7 +49,7 @@ SDK 和服务端接入使用本页的结果表。它们不另写一套结果含�
 | `revoke-login`、`replace-credential`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations` | 必填 | 禁止 | 无 |
 | `issue-member-invitation`、`open-affiliation-request` | 必填 | 必填 | `duration` |
 | `query-organization-members` | 必填 | 必填 | `includeRemoved` |
-| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression` | 必填 | 必填 | 无 |
+| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression` | 必填 | 必填 | 无 |
 
 `disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 不进入这张表。
 
@@ -55,7 +59,7 @@ SDK 和服务端接入使用本页的结果表。它们不另写一套结果含�
 
 1. 严格 JSON 读取。失败则 `protocol-rejected`。不读取账号库。
 2. 版本不是 `governance-public/1` 时，结果是 `protocol-rejected`。这包括操作名是 `disable-subject`、`restore-subject`、`end-subject` 或 `reopen-after-media-loss` 的消息。操作名不在本页时，也是 `protocol-rejected`。版本是 `governance-public/1` 且操作名是这四个时，立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录。不读取账号库。
-3. 按上表检查封闭字段。类型不符、表外字段、禁止字段出现、未列入可省略清单的缺字段，都是 `protocol-rejected`。可省略字段可以不出现。这一步仍不读取账号库。必填 `loginProof` 缺失或空字符串不在这一步拒绝。`leave-organization` 的 `body` 若出现目标成员字段，也是 `protocol-rejected`。
+3. 按信封表和下面的 body 表检查封闭字段。类型不符、表外字段、禁止字段出现、未列入可省略清单的缺字段，都是 `protocol-rejected`。可省略字段可以不出现。这一步仍不读取账号库。必填 `loginProof` 缺失或空字符串不在这一步拒绝。`leave-organization` 的 `body` 若出现目标成员字段，也是 `protocol-rejected`。
 4. 上表要求登录证明时，把缺失、空字符串、未签发、已撤销，以及不是本部署签发的证明，交给 identity。对外是同一份 `denied`。时间或权威登录记录不可得时，identity 返回 `basis-unavailable`。服务端接入不改写这两个结果，也不另持一份登录表。传输保护不证明调用者是谁。裸账号标识、证书、地址、旧连接和调用者自报的授权结果都不是当前登录。
 5. 发起者账号只取这份证明核验出的账号。`body` 里的账号、组织和租户都是目标。
 6. 上表要求行事租户时，核对该值等于该登录的当前选择。不等则 `denied`，响应不包含实际选择。行事租户所属组织与目标组织不同，本身不是冲突。
@@ -91,7 +95,7 @@ SDK 和服务端接入使用本页的结果表。它们不另写一套结果含�
 
 调用者在收到终端响应之前，把可能已经提交的操作保持为 `unknown`。连接断开、超时和响应丢失都是 `unknown`。它们不是 `succeeded`，也不是「没有发生」。
 
-SDK 只在传输适配报告「请求字节没有发出」时自动再送一次。适配不能证明这一点时，SDK 不自动再送。调用者可以自己发起一次新调用。新调用遵守该操作自己的重复规则。
+本页每一个操作都使用这一条再送规则。传输适配报告请求字节没有发出时，SDK 自动再送一次。字节已经发出，或适配不能证明没有发出时，SDK 不自动再送。未知效果不能靠这次再送重做。调用者自己发起的下一次调用是一次新调用，并遵守该操作自己的重复规则。各操作不再另写再送句。
 
 SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`。客户端应用可以保存屏幕投影。投影失败不改变已经返回的 `succeeded`。清掉投影不把 `unknown` 变成成功或没有发生。下一次调用仍以该次服务端结果为准。本协议不设缓存时限。
 
@@ -109,29 +113,92 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 并发控制核对调用者有权看见的预期状态。本协议不另造整数版本号。预期状态在提交时核对。调用者无权看见目标时返回 `not-visible`，不返回 `conflict`。
 
+
+## body 字段
+
+键值都是 JSON。标识、名称、角色、状态、时间和时长是非空字符串。`includeRemoved`、`admitted` 和 `persistentSettingsUpdated` 是布尔值。`parameters` 是一个 JSON 对象。对象内部的键不属于信封，第 3 步不把它们当成表外字段。时长字符串的单位和解析归部署配置。本页不另定单位。超出该操作授权范围是 `denied`，不建立对象。
+
+空字符串的必填字符串与缺键相同，是 `protocol-rejected`。必填 `loginProof` 仍按第 4 步，不在第 3 步拒绝。
+
+| 操作 | 必填 body 键 | 可省略 | 禁止 |
+| --- | --- | --- | --- |
+| `public-health`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-issued-invitations`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`leave-organization` | 无。`body` 是空对象 | 无 | 任何键。`leave-organization` 还禁止 `accountId` |
+| `register-and-activate`、`issue-login` | `loginIdentifier`、`credential` | 无 | 任何其他键 |
+| `revoke-login` | `targetLoginId` | 无 | 任何其他键 |
+| `replace-credential` | `currentCredential`、`newCredential` | 无 | 任何其他键 |
+| `create-organization` | `name`、`governanceModelId` | 无 | 任何其他键 |
+| `issue-member-invitation` | `invitedLoginIdentifier` | `duration` | `role` 及其他键 |
+| `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation` | `invitationId`、`expectedState` | 无 | 任何其他键。`expectedState` 只能是 `open` |
+| `query-invitation` | `invitationId` | 无 | 任何其他键 |
+| `remove-member` | `organizationId`、`accountId`、`expectedRole` | 无 | 任何其他键 |
+| `change-member-role` | `organizationId`、`accountId`、`expectedRole`、`targetRole` | 无 | 任何其他键 |
+| `switch-current-tenant` | `tenantId` | 无 | 任何其他键 |
+| `query-organization` | `organizationId` | 无 | 任何其他键 |
+| `query-organization-members` | `organizationId` | `includeRemoved` | 任何其他键。省略时 `includeRemoved` 为 false |
+| `release-affiliation` | `affiliationId`、`expectedState` | 无 | 任何其他键。`expectedState` 只能是 `effective` |
+| `open-affiliation-request` | `superiorOrganizationId`、`subordinateOrganizationId` | `duration` | 任何其他键 |
+| `accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request` | `requestId`、`expectedState` | 无 | 任何其他键。`expectedState` 只能是 `pending` |
+| `query-affiliation-request` | `requestId` | 无 | 任何其他键 |
+| `judge-admission` | `resource`、`action`、`parameters`、`scopeId` | 无 | `subject`、`admitted` 及其他键 |
+| `submit-authorization-expression` | `expression`、`action`、`object`、`parameters` | 无 | 任何其他键 |
+| `withdraw-authorization-expression` | `expressionId` | 无 | 任何其他键 |
+
+`loginIdentifier` 是账号在注册时固定的登录标识。`loginId` 和 `targetLoginId` 是一份登录的标识。两者不是同一个键。
+
+`credential`、`currentCredential` 和 `newCredential` 只出现在请求里。响应和诊断不包含它们。
+
+邀请的 `state` 只取 `open`、`accepted`、`rejected`、`withdrawn`、`expired` 之一。隶属请求的 `state` 只取 `pending`、`accepted`、`rejected`、`withdrawn`、`invalid`、`expired` 之一。已生效隶属的预期状态是 `effective`。
+
+没有另行列出的 `denied`、`not-visible`、`basis-unavailable`、`conflict`、`protocol-rejected` 和 `stage-not-provided`，`body` 都是空对象。
+
+| 结果 | body |
+| --- | --- |
+| `register-and-activate` 的 `succeeded` | `accountId`、`organizationId`、`tenantId`。不含 `loginProof` |
+| `issue-login` 的 `succeeded` | `loginIdentifier`、`issuedAt`、`tenantId`、`loginProof`。`loginProof` 只在这一次响应出现 |
+| `create-organization` 的 `succeeded` | `organizationId`、`tenantId` |
+| `issue-member-invitation` 的 `succeeded` | `invitationId`、`state` 为 `open`、`expiresAt` |
+| 邀请处置的 `succeeded` 或有权看见的 `no-change` | `invitationId`、`state`。`state` 是已经形成的那一个终结 |
+| `query-invitation` 的 `succeeded` | `invitationId`、`state`、`expiresAt`、`organizationId`、`invitedAccountId` |
+| 邀请名单的 `succeeded` | `invitations`、`completeness` 为 `complete` |
+| `open-affiliation-request` 的 `succeeded` | `requestId`、`state` 为 `pending`、`expiresAt` |
+| 隶属请求处置的 `succeeded` | 接受时含 `affiliationId` 和 `state` 为 `effective`。拒绝或撤回时含 `requestId` 和对应的 `state` |
+| 有权看见的隶属 `no-change` | `requestId` 或 `affiliationId`，以及已经形成的 `state` |
+| `query-affiliation-request` 和隶属名单的 `succeeded` | 单条含 `requestId`、`state`、`expiresAt`、`superiorOrganizationId`、`subordinateOrganizationId`。名单用 `affiliationRequests` 和 `completeness` |
+| `switch-current-tenant` 的 `succeeded`、`query-current-tenant` 的 `succeeded` | `tenantId`。`no-change`、`denied` 和 `basis-unavailable` 不含 `tenantId` |
+| `query-own-valid-logins` 的 `succeeded` | `logins`、`completeness` |
+| `query-own-memberships` 的 `succeeded` | `memberships`、`completeness` |
+| `query-organization` 的 `succeeded` | `organizationId`、`name`、`kind`。有上级时才有 `superiorOrganizationId` |
+| `query-organization-members` 的 `succeeded` | `members`、`completeness` |
+| `public-health` 的 `succeeded` | `protocolVersion` 为 `governance-public/1` |
+| `judge-admission` 的 `succeeded` | `admitted` 为 true。不含许可秘密 |
+| `judge-admission` 的 `need-decision` | `decisionRequestId` |
+| 表达已记录且持久设置尚未更新的 `succeeded` | `persistentSettingsUpdated` 为 false |
+| `revoke-login`、`replace-credential`、`leave-organization`、`remove-member`、`change-member-role` 的 `succeeded` | 空对象 |
+
+
 ## 操作
 
 下面每项都对应授权规格操作表中的一行，或该行已经写出的终结方式。消费许可不是独立的客户端消息。动作的拥有者在执行该动作时消费。客户端不能发送消费消息来增加或扣掉许可。
 
 ### `register-and-activate`
 
-不带登录证明。`body` 含登录标识和凭据材料。凭据材料只出现在这次请求里。
+不带登录证明。`body` 含 `loginIdentifier` 和 `credential`。`credential` 只出现在这次请求里。
 
 留存期内，同一登录标识和同一凭据接续原来的未激活注册。激活完成时，账号、唯一个人组织和个人租户共同成立，返回 `succeeded`。`body` 含三个标识。不含登录证明。成功不表示已经登录。不同凭据不能认领该记录。账号已经激活时返回 `not-loginable`，不覆盖原账号。已判定到期的未激活记录不复活。此后同一标识的注册是新的一次。
 
 其他条件不足或依据不可得也是 `not-loginable`。回执丢失是 `unknown`。认回用一次新的 `issue-login`。那里的 `succeeded` 表示账号已经可以登录。`uniform-auth-failure` 不证明激活没有发生。重复注册失败也不能证明此前没有激活。
 
-SDK 不自动再送。
+
 
 ### `issue-login`
 
-不带既有登录证明。`body` 含登录标识和凭据材料。
+不带既有登录证明。`body` 含 `loginIdentifier` 和 `credential`。
 
 成功时签发一份新的独立登录。`body` 含登录标识、签发时间、该登录的当前租户，以及只返回这一次的登录证明。登录证明是不透明字符串。诊断输出不能包含它。最长有效期和空闲期限在签发时按当时的部署配置冻结。同一账号的另一次成功登录是另一份登录，不合并。
 
 时间或期限依据不可得时，直接返回 `basis-unavailable`，不签发。这个选择不经过「凭据已经匹配」的分支。账号不存在、未激活和凭据错误都是 `uniform-auth-failure`。两个结果不同，但 `basis-unavailable` 不能被用来确认凭据是对的。
 
-丢失回执后的再次调用是一次新的签发，可以再产生一份登录。调用者不能假定两次只产生一份。若调用者还持有另一份有效登录，可以用有效登录名单里的标识撤销那份没有交还证明的登录。查询结果不包含可拿来冒充登录的材料。SDK 不自动再送。
+丢失回执后的再次调用是一次新的签发，可以再产生一份登录。调用者不能假定两次只产生一份。若调用者还持有另一份有效登录，可以用有效登录名单里的标识撤销那份没有交还证明的登录。查询结果不包含可拿来冒充登录的材料。
 
 ### `revoke-login`
 
@@ -143,7 +210,7 @@ SDK 不自动再送。
 
 已经通过核验的重复撤销是 `no-change`。发起登录已经失效时，不能再取得资格。清除客户端显示不是撤销成功。
 
-SDK 不自动再送。`unknown` 之后，调用者用另一份仍有效的登录查询或再次撤销来认回。查询结果不包含可拿来冒充登录的材料。
+`unknown` 之后，调用者用另一份仍有效的登录查询或再次撤销来认回。查询结果不包含可拿来冒充登录的材料。
 
 ### `replace-credential`
 
@@ -151,25 +218,25 @@ SDK 不自动再送。`unknown` 之后，调用者用另一份仍有效的登录
 
 成功时，新凭据和本账号全部旧登录失效共同成立，包括发起这次操作的登录。不签发新登录。不改变角色、成员、租户或历史归属。响应不含凭据。
 
-新凭据和全部旧登录失效同一次提交。中途崩溃对调用者保持 `unknown`。恢复后不能留下新凭据仍搭配旧登录有效。认回用新凭据做一次 `issue-login`。那里的 `succeeded` 表示更换已经成立。旧凭据得到的 `uniform-auth-failure` 或 `basis-unavailable` 都不证明更换没有发生。再次 `replace-credential` 是一次新的更换。SDK 不自动再送。进程崩溃、操作系统崩溃或断电后的恢复不复活旧凭据或旧登录。
+新凭据和全部旧登录失效同一次提交。中途崩溃对调用者保持 `unknown`。恢复后不能留下新凭据仍搭配旧登录有效。认回用新凭据做一次 `issue-login`。那里的 `succeeded` 表示更换已经成立。旧凭据得到的 `uniform-auth-failure` 或 `basis-unavailable` 都不证明更换没有发生。再次 `replace-credential` 是一次新的更换。进程崩溃、操作系统崩溃或断电后的恢复不复活旧凭据或旧登录。
 
 ### `create-organization`
 
-需要有效登录。默认团队方案中，已激活账号可以创建团队组织。`body` 含非空名称和所采用的治理模型标识。
+需要有效登录。默认团队方案中，已激活账号可以创建团队组织。`body` 含 `name` 和 `governanceModelId`。`name` 非空。
 
-成功时，组织、创建者租户和初始治理共同成立。默认团队方案还包括首位超级管理员。`body` 含组织标识和创建者租户标识。模型来源不可用时是 `basis-unavailable`。模型被拒绝时是 `denied`。两条都不创建组织，也不改用默认团队方案。不返回可用的组织标识。`unknown` 之后，调用者用调用前的本人成员资格快照对照 `query-own-memberships`。多出来的组织才算这次创建已经成立。再次调用是另一次创建。
+成功时，组织、创建者租户和初始治理共同成立。默认团队方案还包括首位超级管理员。`body` 含 `organizationId` 和 `tenantId`。模型来源不可用时是 `basis-unavailable`。模型被拒绝时是 `denied`。两条都不创建组织，也不改用默认团队方案。不返回可用的组织标识。`unknown` 之后，调用者保持 `unknown`。`query-own-memberships` 只返回当前成员资格。名单里比调用前多出的组织不能证明这次 `create-organization` 已经成立。同一账号的另一份登录或其他调用可能已经创建了那个组织。本页不保存、也不提供按这次 `messageId` 查询创建结果的读面。无法核成这一次调用时，结果保持 `unknown`。再次调用是另一次创建，可以再建立一个组织。本操作没有创建键。
 
-个人组织由注册开通。本操作不创建第二个人组织，也不邀请他人加入个人组织。名称不参与去重。同名可以是不同组织。本操作没有创建键。
+个人组织由注册开通。本操作不创建第二个人组织，也不邀请他人加入个人组织。名称不参与去重。同名可以是不同组织。
 
-回执丢失是 `unknown`。SDK 不自动再送。
+回执丢失是 `unknown`。
 
 ### 成员邀请
 
 `issue-member-invitation`、`accept-member-invitation`、`reject-member-invitation` 和 `withdraw-member-invitation` 共同实现操作表中的「发出并接受成员邀请」。
 
-发出要求当前模型下的发起资格。默认团队由本组织当前有效超级管理员发起。其他已采用模型按 identity ID-12 核验发起资格。个人组织不接受该操作，对外是 `denied`。`body` 含被邀请账号的登录标识。标识不能解析成已激活账号时，缺失和未激活使用同一个 `not-visible`。不先按标识查询再决定是否授权。成功时邀请处于待处理。`body` 含邀请标识和发出时固定的到期时刻。`body` 可以带授权范围内的时长。超出范围是 `denied`，不建立邀请。省略时长时，使用提交当时该部署配置里的成员邀请默认时长。不携带角色。默认团队的接受结果是普通成员。其他已采用模型的接受角色沿 identity ID-12。邀请载荷不写角色。
+发出要求当前模型下的发起资格。默认团队由本组织当前有效超级管理员发起。其他已采用模型按 identity ID-12 核验发起资格。个人组织不接受该操作，对外是 `denied`。`body` 含 `invitedLoginIdentifier`。标识不能解析成已激活账号时，缺失和未激活使用同一个 `not-visible`。不先按标识查询再决定是否授权。成功时邀请处于待处理。`body` 含 `invitationId`、`state` 为 `open`，以及 `expiresAt`。`body` 可以带 `duration`。超出范围是 `denied`，不建立邀请。省略 `duration` 时，使用提交当时该部署配置里的成员邀请默认时长。不携带 `role`。默认团队的接受结果是普通成员。其他已采用模型的接受角色沿 identity ID-12。邀请载荷不写角色。
 
-接受、拒绝和撤回的 `body` 含邀请标识，以及预期状态 `open`。行事租户是调用者的当前选择，可以是个人租户。邀请所属组织从邀请记录读取。两者不同不是冲突。
+接受、拒绝和撤回的 `body` 含 `invitationId` 和 `expectedState`。`expectedState` 只能是 `open`。行事租户是调用者的当前选择，可以是个人租户。邀请所属组织从邀请记录读取。两者不同不是冲突。
 
 判定按这个次序，先命中的结果生效。
 
@@ -179,7 +246,7 @@ SDK 不自动再送。`unknown` 之后，调用者用另一份仍有效的登录
 4. 接受时被邀请账号已经是有效成员。结果是 `no-change`。角色不变，租户不变。该邀请在同一次提交里形成与此一致的一个终结。
 5. 接受成功时，稳定租户和接受终结在同一次提交里成立。默认团队的角色是普通成员。其他已采用模型的角色沿 identity ID-12。不恢复旧管理员权。
 
-无资格的其他情况是 `denied`。依据不可得是 `basis-unavailable`。回执丢失是 `unknown`。SDK 不自动再送。角色变更不通过重复邀请完成。
+无资格的其他情况是 `denied`。依据不可得是 `basis-unavailable`。回执丢失是 `unknown`。角色变更不通过重复邀请完成。
 
 ### `query-own-valid-logins`
 
@@ -189,19 +256,19 @@ SDK 不自动再送。`unknown` 之后，调用者用另一份仍有效的登录
 
 发起登录无效是 `denied`，且没有登录数组。名单无法完整读出时是 `basis-unavailable`，没有登录数组。
 
-这是读操作。它不签发、不撤销、不刷新空闲计时，也不写入业务事实。SDK 不自动再送。调用者没有可信答复时是 `unknown`。调用者可以自己再查询。
+这是读操作。它不签发、不撤销、不刷新空闲计时，也不写入业务事实。调用者没有可信答复时是 `unknown`。调用者可以自己再查询。
 
 ### 退出、移除和调整角色
 
 `leave-organization`、`remove-member` 和 `change-member-role` 实现操作表中的「退出组织、移除成员、调整角色」。
 
-`leave-organization` 不带目标成员。目标固定为登录证明上的账号。请求里若出现目标成员字段，按封闭字段拒绝。个人组织上的退出是 `denied`，成员不变。
+`leave-organization` 的 `body` 是空对象。目标账号固定为登录证明上的账号。目标组织是 `actingTenant` 所属组织。请求里若出现 `accountId` 或其他目标成员字段，按封闭字段拒绝。个人组织上的退出是 `denied`，成员不变。
 
 `remove-member` 和 `change-member-role` 的行动者必须具有该组织已采用模型规定的处置资格。默认团队的这个资格是当前有效超级管理员。`body` 含组织标识、目标成员标识，以及调用者看到的当前角色。调整角色还含目标角色。目标不是本人时，退出规则不适用。提交时如果当前角色已经不同，有权看见该成员的调用者得到 `conflict`，成员资格不变。无权看见时是 `not-visible`。
 
 两位管理员并发移除或降级对方不能都成功。失败的一方返回 `denied`，即使请求里的预期角色仍与提交前看到的角色相同。最后一位超级管理员的具体原因只留在内部。对外仍是 `denied`。
 
-成功只改变身份领域的资格事实。它不承诺其他业务的工作已经停止。回执丢失是 `unknown`。SDK 不自动再送。退出和移除都不删除租户或资源。
+成功只改变身份领域的资格事实。它不承诺其他业务的工作已经停止。回执丢失是 `unknown`。退出和移除都不删除租户或资源。
 
 ### `switch-current-tenant`
 
@@ -209,27 +276,27 @@ SDK 不自动再送。`unknown` 之后，调用者用另一份仍有效的登录
 
 成功只改变这一份登录之后的请求所选租户。既有对象归属不变。响应含新的当前租户。目标就是当前选择时，是 `no-change`，选择不变。
 
-无资格或依据不可得时，原选择保持。前者是 `denied`，后者是 `basis-unavailable`。两者都不返回实际选择。显式行事租户与当前选择冲突是 `denied`，不进入业务，也不返回实际选择。回执丢失是 `unknown`。认回时调用 `query-current-tenant`。该操作禁止行事租户，只凭登录证明返回这一份登录的当前选择。SDK 不自动再送。
+无资格或依据不可得时，原选择保持。前者是 `denied`，后者是 `basis-unavailable`。两者都不返回实际选择。显式行事租户与当前选择冲突是 `denied`，不进入业务，也不返回实际选择。回执丢失是 `unknown`。认回时调用 `query-current-tenant`。该操作禁止行事租户，只凭登录证明返回这一份登录的当前选择。
 
 ### `release-affiliation`
 
 需要上级组织当前有处置资格的人。默认团队是该上级的当前有效超级管理员。`body` 含已生效隶属的标识，以及调用者看到的状态 `effective`。
 
-成功时解除该隶属。下级身份解除是 `denied`。同一人管理双方时，仍必须以上级身份行事。具有上级处置资格的人对已经解除的同一隶属再次解除，得到 `no-change`。默认团队的这个资格是上级组织的当前有效超级管理员。这个 `no-change` 表示该隶属已经解除。未知标识是 `not-visible`。状态已变且调用者有权看见时是 `conflict`。回执丢失是 `unknown`。SDK 不自动再送。
+成功时解除该隶属。下级身份解除是 `denied`。同一人管理双方时，仍必须以上级身份行事。具有上级处置资格的人对已经解除的同一隶属再次解除，得到 `no-change`。默认团队的这个资格是上级组织的当前有效超级管理员。这个 `no-change` 表示该隶属已经解除。未知标识是 `not-visible`。状态已变且调用者有权看见时是 `conflict`。回执丢失是 `unknown`。
 
 ### 隶属请求
 
 `open-affiliation-request`、`accept-affiliation-request`、`reject-affiliation-request` 和 `withdraw-affiliation-request` 实现「处理隶属请求」。
 
-打开请求的 `body` 含上级组织和下级组织。个人组织不能参与，对外是 `denied`。可以带授权范围内的时长。超出范围是 `denied`，不建立请求。省略时长时，使用提交当时该部署配置里的隶属请求默认时长。这个默认时长与成员邀请的默认时长分开。接收方处理前，发起组织已经不存在则该请求失效。有权看见的调用者得到 `no-change`，`body.state` 为 `invalid`。无权看见的调用者得到 `not-visible`。失效不能建立关系，之后也不能被接受、拒绝或撤回覆盖。目标组织不存在时，请求过期。有权看见的调用者得到 `no-change`，`body.state` 为 `expired`。无权看见的调用者得到 `not-visible`。下级身份解除已生效隶属时是 `denied`。已采用模型规定的上级处置资格才可以解除。默认团队的这个资格是上级组织的当前有效超级管理员。
+打开请求的 `body` 含 `superiorOrganizationId` 和 `subordinateOrganizationId`。个人组织不能参与，对外是 `denied`。可以带 `duration`。超出范围是 `denied`，不建立请求。省略 `duration` 时，使用提交当时该部署配置里的隶属请求默认时长。这个默认时长与成员邀请的默认时长分开。接收方处理前，发起组织已经不存在则该请求失效。有权看见的调用者得到 `no-change`，`body.state` 为 `invalid`。无权看见的调用者得到 `not-visible`。失效不能建立关系，之后也不能被接受、拒绝或撤回覆盖。目标组织不存在时，请求过期。有权看见的调用者得到 `no-change`，`body.state` 为 `expired`。无权看见的调用者得到 `not-visible`。下级身份解除已生效隶属时是 `denied`。已采用模型规定的上级处置资格才可以解除。默认团队的这个资格是上级组织的当前有效超级管理员。
 
 双方确认后，接受成功只建立隶属。不新建租户，不授予权限。每组织至多一个上级，不能自隶属或形成环。会造成环或第二个上级的提交返回 `denied`，`body` 为空，不建立关系。
 
-预期状态是 `pending`。已经终结时，有权看见的调用者得到 `no-change`，`body` 携带已经形成的那一个终结。回执丢失是 `unknown`。查询不可用时不把关系写成未建立或已解除，对外是 `basis-unavailable`。SDK 不自动再送。
+预期状态是 `pending`。已经终结时，有权看见的调用者得到 `no-change`，`body` 携带已经形成的那一个终结。回执丢失是 `unknown`。查询不可用时不把关系写成未建立或已解除，对外是 `basis-unavailable`。
 
 ### `judge-admission`
 
-需要该次判断所要求的可信身份和行事范围。`body` 含资源、动作、生效参数，以及判断所需的范围标识。不含调用者自报的允许结论。
+需要该次判断所要求的可信身份和行事范围。`body` 含 `resource`、`action`、`parameters` 和 `scopeId`。不含调用者自报的允许结论。出现 `subject` 或 `admitted` 是 `protocol-rejected`。
 
 成功的对外结果不是单一的 `succeeded`。它是下面四个之一。
 
@@ -244,17 +311,17 @@ SDK 不自动再送。`unknown` 之后，调用者用另一份仍有效的登录
 
 对象按公开契约要求隐藏时，先返回 `not-visible`。这包括该对象同时没有跨租户授予的情况。披露表要求隐藏对象与不存在使用同一表现。对象可见且没有跨租户授予时，结果是 `denied`。明确禁止不被批准覆盖，对外仍是 `denied`。
 
-`need-decision` 的等待超时不写成批准、拒绝或终局。SDK 不缓存这次允许，也不自动再送。调用者稍后再次判断是一次新的当前判断。
+`need-decision` 的等待超时不写成批准、拒绝或终局。SDK 不缓存这次允许。调用者稍后再次判断是一次新的当前判断。
 
 ### 授权表达与撤回
 
 `submit-authorization-expression` 和 `withdraw-authorization-expression` 实现操作表中的表达与撤回。消费不是客户端操作。
 
-表达的 `body` 含原表达、动作、对象和生效参数。含义不能确定时不扩大范围，对外是 `basis-unavailable`，不保存成允许。单次批准只覆盖明确动作。
+表达的 `body` 含 `expression`、`action`、`object` 和 `parameters`。含义不能确定时不扩大范围，对外是 `basis-unavailable`，不保存成允许。单次批准只覆盖明确动作。
 
-撤回的 `body` 含原表达标识。成功时留下撤回事实，并保留原表达。无资格是 `denied`。提交结果未知时，对外是 `unknown`。该结果不把原表达改成已撤回，也不把未知写成已经生效。读取故障不把原表达写成已撤回，对外是 `basis-unavailable`。
+撤回的 `body` 含 `expressionId`。成功时留下撤回事实，并保留原表达。无资格是 `denied`。提交结果未知时，对外是 `unknown`。该结果不把原表达改成已撤回，也不把未知写成已经生效。读取故障不把原表达写成已撤回，对外是 `basis-unavailable`。
 
-表达记录已经提交、持久设置的更新尚未发生时，结果是 `succeeded`。`body` 写明持久设置尚未因此更新。持久设置的这次写入已经失败、表达也没有成为持久设置时，结果是 `basis-unavailable`。写入结果未知是 `unknown`。`basis-unavailable` 和 `unknown` 都不报告规则已经生效。已消费的许可不能复用。重复提交同一决定不增加许可，有权调用者得到 `no-change`。SDK 不自动再送。
+表达记录已经提交、持久设置的更新尚未发生时，结果是 `succeeded`。`body` 写明持久设置尚未因此更新。持久设置的这次写入已经失败、表达也没有成为持久设置时，结果是 `basis-unavailable`。写入结果未知是 `unknown`。`basis-unavailable` 和 `unknown` 都不报告规则已经生效。已消费的许可不能复用。重复提交同一决定不增加许可，有权调用者得到 `no-change`。
 
 ## 当前读面
 
@@ -264,67 +331,67 @@ SDK 不自动再送。`unknown` 之后，调用者用另一份仍有效的登录
 
 不带登录证明，也不带行事租户。`body` 为空对象。
 
-成功时，`body` 只有 `protocolVersion` 为 `governance-public/1`。它表示对端按本协议作了回答。它不表示登录有效，也不表示治理写入可用。不读取账号库。不刷新空闲计时。SDK 不自动再送。调用者没有可信答复时是 `unknown`。传输保护失败属于这一类，不是 `basis-unavailable`。
+成功时，`body` 只有 `protocolVersion` 为 `governance-public/1`。它表示对端按本协议作了回答。它不表示登录有效，也不表示治理写入可用。不读取账号库。不刷新空闲计时。调用者没有可信答复时是 `unknown`。传输保护失败属于这一类，不是 `basis-unavailable`。
 
 ### `query-current-tenant`
 
 需要有效登录。`body` 为空对象。
 
-成功时返回这一份登录的当前租户。从未切换时，返回该登录所属方案规定的初始选择。默认个人方案的初始选择是个人租户。读不到当前选择时是 `basis-unavailable`，不编造个人租户。登录无效是 `denied`。SDK 不自动再送。
+成功时返回这一份登录的当前租户。从未切换时，返回该登录所属方案规定的初始选择。默认个人方案的初始选择是个人租户。读不到当前选择时是 `basis-unavailable`，不编造个人租户。登录无效是 `denied`。
 
 ### `query-own-memberships`
 
 需要有效登录。`body` 为空对象。
 
-成功时只返回调用者自己的当前有效成员资格。每一项含组织标识、租户标识和角色。不含其他账号。`completeness` 为 `complete`。无法完整读出时是 `basis-unavailable`，没有数组。SDK 不自动再送。
+成功时只返回调用者自己的当前有效成员资格。每一项含组织标识、租户标识和角色。不含其他账号。`completeness` 为 `complete`。无法完整读出时是 `basis-unavailable`，没有数组。
 
 ### `query-organization`
 
 需要有效登录，以及该组织的当前有效成员资格。`body` 含组织标识。
 
-成功时返回组织标识、持久名称、种类，以及上级组织标识。没有上级时不编造上级。名称按保存的原文返回。调用者看不见该组织时是 `not-visible`。不返回成员名单。SDK 不自动再送。
+成功时返回组织标识、持久名称、种类，以及上级组织标识。没有上级时不编造上级。名称按保存的原文返回。调用者看不见该组织时是 `not-visible`。不返回成员名单。
 
 ### `query-organization-members`
 
 需要有效登录。行事租户必须等于当前选择，但它不必是 `body` 里那个组织的租户。成员资格按 `body` 的组织单独核对。`body` 含组织标识。`includeRemoved` 省略时为 false。
 
-false 时，具有该读面资格的人得到该组织当前有效成员和角色。默认团队的这个资格是当前有效成员。其他模型沿 identity ID-12。true 时，只有具有已解除成员读资格的人得到已解除成员，数组里没有当前有效成员。默认团队的这个资格是当前有效超级管理员。其他模型沿 identity ID-12。没有该资格的人把 true 送入时是 `denied`，并且没有成员数组。不改成只返回有效成员。看不见该组织时是 `not-visible`，包括同时送入 `includeRemoved: true`。SDK 不自动再送。
+false 时，具有该读面资格的人得到该组织当前有效成员和角色。默认团队的这个资格是当前有效成员。其他模型沿 identity ID-12。true 时，只有具有已解除成员读资格的人得到已解除成员，数组里没有当前有效成员。默认团队的这个资格是当前有效超级管理员。其他模型沿 identity ID-12。没有该资格的人把 true 送入时是 `denied`，并且没有成员数组。不改成只返回有效成员。看不见该组织时是 `not-visible`，包括同时送入 `includeRemoved: true`。
 
 ### `query-invitation`
 
 需要有效登录。`body` 含邀请标识。
 
-被邀请账号，或发出组织里具有该读资格的人，可以得到该邀请的当前终结状态、到期时刻和双方标识。默认团队的这个资格是当前有效超级管理员。其他人是 `not-visible`。未找到也是 `not-visible`。状态无法判定时是 `basis-unavailable`，不把未判定说成待处理或过期。SDK 不自动再送。
+被邀请账号，或发出组织里具有该读资格的人，可以得到该邀请的当前终结状态、到期时刻和双方标识。默认团队的这个资格是当前有效超级管理员。其他人是 `not-visible`。未找到也是 `not-visible`。状态无法判定时是 `basis-unavailable`，不把未判定说成待处理或过期。
 
 ### `query-received-invitations`
 
 需要有效登录。`body` 为空对象。
 
-成功时只返回调用者自己收到的成员邀请。没有跨账号的超级管理员入口。`completeness` 为 `complete`。SDK 不自动再送。
+成功时只返回调用者自己收到的成员邀请。没有跨账号的超级管理员入口。`completeness` 为 `complete`。
 
 ### `query-issued-invitations`
 
 需要有效登录。调用者必须具有 `actingTenant` 所属组织上该读面的模型资格。默认团队的这个资格是当前有效超级管理员。`body` 为空对象。
 
-成功时返回该组织发出的成员邀请。个人组织没有这个读面，对外是 `denied`。普通成员是 `denied`，没有数组。SDK 不自动再送。
+成功时返回该组织发出的成员邀请。个人组织没有这个读面，对外是 `denied`。普通成员是 `denied`，没有数组。
 
 ### `query-received-affiliation-requests`
 
 需要有效登录。调用者必须具有 `actingTenant` 所属组织上该读面的模型资格。默认团队的这个资格是当前有效超级管理员。`body` 为空对象。
 
-成功时返回该组织收到的隶属请求。普通成员是 `denied`，没有数组。SDK 不自动再送。
+成功时返回该组织收到的隶属请求。普通成员是 `denied`，没有数组。
 
 ### `query-issued-affiliation-requests`
 
 需要有效登录。调用者必须具有 `actingTenant` 所属组织上该读面的模型资格。默认团队的这个资格是当前有效超级管理员。`body` 为空对象。
 
-成功时返回该组织发出的隶属请求。发出方要用它在 `unknown` 之后认回撤回或打开是否成立。普通成员是 `denied`，没有数组。SDK 不自动再送。
+成功时返回该组织发出的隶属请求。发出方要用它在 `unknown` 之后认回撤回或打开是否成立。普通成员是 `denied`，没有数组。
 
 ### `query-affiliation-request`
 
 需要有效登录。`body` 含隶属请求标识。
 
-只有请求两端组织里具有该读资格的人可以读取。默认团队的这个资格是当前有效超级管理员。其他人，以及未找到，都是 `not-visible`。状态无法判定时是 `basis-unavailable`。SDK 不自动再送。
+只有请求两端组织里具有该读资格的人可以读取。默认团队的这个资格是当前有效超级管理员。其他人，以及未找到，都是 `not-visible`。状态无法判定时是 `basis-unavailable`。
 
 ## 本阶段不提供的操作
 
@@ -360,7 +427,7 @@ sdk does not import server-entry
 调用形状如下。`messageId` 由调用者生成，下面的值只是占位。
 
 ```ts
-import { governanceOperation } from "@omne/access-public-contract";
+import { governanceOperation } from "@omne-harness/public-contract";
 
 export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
   return governanceOperation({
