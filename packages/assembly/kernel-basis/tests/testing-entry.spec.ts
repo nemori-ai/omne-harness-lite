@@ -126,6 +126,66 @@ it('disposes an already started plugin when a later registration throws', async 
   expect(observer).toBeDefined()
 })
 
+it('rejects undefined thrown by plugin registration and disposes the started plugin', async () => {
+  const events: string[] = []
+  let observer: Context | undefined
+  const outcome = await startTestAssembly([
+    {
+      name: 'observer',
+      apply(ctx) {
+        observer = ctx
+        ctx.effect(() => () => {
+          events.push('observer-stop')
+        })
+        ctx.on('internal/plugin', () => {
+          throw undefined
+        })
+      },
+    },
+    {
+      name: 'second',
+      apply() {
+        events.push('second')
+      },
+    },
+  ]).then(
+    () => ({ rejected: false as const }),
+    (error: unknown) => ({ rejected: true as const, error }),
+  )
+
+  expect(outcome).toEqual({ rejected: true, error: undefined })
+  expect(events).toEqual(['observer-stop'])
+  expect(observer).toBeDefined()
+})
+
+it('collects a dispose rejection when registration throws undefined', async () => {
+  const thrown = await startTestAssembly([
+    {
+      name: 'observer',
+      apply(ctx) {
+        const fiber = ctx.fiber as { dispose: () => Promise<void> }
+        const original = fiber.dispose
+        fiber.dispose = async () => {
+          await original.call(fiber)
+          throw new Error('dispose-boom')
+        }
+        ctx.on('internal/plugin', () => {
+          throw undefined
+        })
+      },
+    },
+    { name: 'second', apply() {} },
+  ]).then(
+    () => 'resolved',
+    (error: unknown) => error,
+  )
+
+  expect(thrown).toBeInstanceOf(TestAssemblyStartFailed)
+  if (!(thrown instanceof TestAssemblyStartFailed)) return
+  expect(thrown.startError).toBeUndefined()
+  expect(thrown.disposeErrors).toEqual([expect.objectContaining({ message: 'dispose-boom' })])
+})
+
 it('fails startup when a required service is never provided and does not return an assembly', async () => {
   let ran = false
   await expect(

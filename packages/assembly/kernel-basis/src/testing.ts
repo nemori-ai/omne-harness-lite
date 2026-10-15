@@ -45,14 +45,14 @@ export async function startTestAssembly(
   const context = new Context()
   const submitted: Fiber[] = []
   const started: Fiber[] = []
-  let startError: unknown
+  let failure: StartFailure | undefined
 
   for (const plugin of plugins) {
     let fiber: Fiber
     try {
       fiber = context.plugin(cordisPlugin(plugin, started, submitted))
     } catch (error) {
-      startError = error
+      failure = { error }
       break
     }
     submitted.push(fiber)
@@ -60,13 +60,13 @@ export async function startTestAssembly(
     try {
       await fiber
     } catch (error) {
-      startError = error
+      failure = { error }
       break
     }
   }
 
-  if (startError === undefined) startError = await waitForApplies(submitted)
-  if (startError !== undefined) await failStart(disposalOrder(submitted, started), startError)
+  if (failure === undefined) failure = await waitForApplies(submitted)
+  if (failure !== undefined) await failStart(disposalOrder(submitted, started), failure.error)
 
   const pending = submitted.find((fiber) => !started.includes(publicOrInner(started, fiber)))
   if (pending !== undefined) {
@@ -110,14 +110,16 @@ function publicOrInner(candidates: readonly Fiber[], inner: Fiber): Fiber {
   return candidates.find((fiber) => fiber === inner || Object.getPrototypeOf(fiber) === inner) ?? inner
 }
 
-async function waitForApplies(fibers: readonly Fiber[]): Promise<unknown> {
+type StartFailure = { error: unknown }
+
+async function waitForApplies(fibers: readonly Fiber[]): Promise<StartFailure | undefined> {
   for (;;) {
     const busy = fibers.filter((fiber) => fiber.state === LOADING || fiber.inertia !== undefined)
     if (busy.length === 0) break
     try {
       await Promise.all(busy.map((fiber) => fiber))
     } catch (error) {
-      return error
+      return { error }
     }
   }
   for (const fiber of fibers) {
@@ -125,7 +127,7 @@ async function waitForApplies(fibers: readonly Fiber[]): Promise<unknown> {
     try {
       await fiber
     } catch (error) {
-      return error
+      return { error }
     }
   }
   return undefined
