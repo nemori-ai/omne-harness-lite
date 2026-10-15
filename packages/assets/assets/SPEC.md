@@ -211,7 +211,7 @@ PanQiWei 于 2026-10-15 接受这组编程类型，记录见 [Issue 272](https:/
 
 共同资产导出 `capabilityId`、`createCategoryRegistry`、`unknownCategory` 和 `pinBody`。类别是非空字符串。`register` 拒绝空类别名和重复登记。`lookup` 找不到类别时，`unknownCategory` 返回 `unknown-category`。`pinBody` 原样保存身份、版本、来源和正文。
 
-`BodyContract` 的字段是 `category`、`schema`、`judge`、`deriveDeclarations`、`references`。判断失败时，声明和引用函数拒绝未通过判断的正文。本成员不依赖装配、Tool 或 Skill 的实现包。
+`BodyContract` 的字段是 `category`、`schema`、`judge`、`deriveDeclarations`、`references`。`judge` 的失败结果带 `ok: false`。声明和引用接收同一次判断的上下文。判断失败时它们抛出，不返回声明或引用。本成员不依赖装配、Tool 或 Skill 的实现包。
 
 `@omne-harness/tool` 登记 `tool`。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用。`@omne-harness/skill` 登记 `skill`。`tools` 里每一条都必须是 `tool` 身份。读判断不执行正文里的函数。Skill 包不依赖 Tool 包。
 
