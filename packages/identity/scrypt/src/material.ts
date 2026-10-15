@@ -3,6 +3,23 @@ import { isPowerOfTwo, memoryBytes, type ScryptCost } from './memory.ts'
 export const SCRYPT_SCHEME = 'scrypt'
 
 const VERSION = 'v=1'
+const MAX_PARAM_DIGITS = 16
+const MAX_FIELD_BYTES = 64
+const MAX_FIELD_TEXT = base64urlChars(MAX_FIELD_BYTES)
+const MAX_MATERIAL_CHARS = materialCeiling()
+
+function base64urlChars(bytes: number): number {
+  const groups = Math.floor(bytes / 3) * 4
+  const rest = bytes % 3
+  return rest === 0 ? groups : groups + rest + 1
+}
+
+function materialCeiling(): number {
+  const digits = '1'.repeat(MAX_PARAM_DIGITS)
+  const params = `n=${digits},r=${digits},p=${digits},k=${digits}`
+  const field = 'A'.repeat(MAX_FIELD_TEXT)
+  return `$scrypt$v=1$${params}$${field}$${field}`.length
+}
 
 export interface MaterialParams extends ScryptCost {
   readonly keylen: number
@@ -30,6 +47,7 @@ export function encodeMaterial(params: MaterialParams, salt: Uint8Array, key: Ui
 export function decodeMaterial(material: string): DecodedMaterial | DecodeFailure {
   const scheme = schemeOf(material)
   if (scheme !== 'scrypt') return scheme
+  if (material.length > MAX_MATERIAL_CHARS) return 'unavailable'
   const body = bodyOf(material)
   if (body === undefined) return 'unavailable'
   return body
@@ -37,9 +55,8 @@ export function decodeMaterial(material: string): DecodedMaterial | DecodeFailur
 
 function schemeOf(material: string): 'scrypt' | DecodeFailure {
   if (!material.startsWith('$')) return 'unavailable'
-  const name = material.split('$')[1]
-  if (name !== SCRYPT_SCHEME) return 'mismatch'
-  return 'scrypt'
+  if (material === '$scrypt' || material.startsWith('$scrypt$')) return 'scrypt'
+  return 'mismatch'
 }
 
 function bodyOf(material: string): DecodedMaterial | undefined {
@@ -70,6 +87,7 @@ function paramsFrom(paramText: string): MaterialParams | undefined {
 }
 
 function decodedBytes(saltText: string, keyText: string, params: MaterialParams): DecodedMaterial | undefined {
+  if (saltText.length > MAX_FIELD_TEXT || keyText.length > MAX_FIELD_TEXT) return undefined
   const salt = strictBase64url(saltText)
   const key = strictBase64url(keyText)
   if (salt === undefined || key === undefined) return undefined

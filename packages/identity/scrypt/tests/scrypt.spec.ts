@@ -277,3 +277,75 @@ it('derives and verifies the accepted profile on this host', async () => {
   await expect(checked.done).resolves.toEqual({ code: 'match' })
   await expect(opened.module.close()).resolves.toEqual({ code: 'closed' })
 })
+
+it('keeps the profile accepted at open when the caller mutates it', async () => {
+  const mutable = { ...tiny }
+  const opened = openScrypt(mutable)
+  if (!opened.ok) throw new Error('profile')
+  const started = opened.module.derive('alias-secret', allow)
+  if (!('done' in started)) throw new Error('expected a job')
+  mutable.N = 32
+  const derived = await started.done
+  if (derived.code !== 'material') throw new Error(derived.code)
+  expect(derived.material.includes('n=16,')).toBe(true)
+  const checked = opened.module.verify(derived.material, 'alias-secret')
+  if (!('done' in checked)) throw new Error('expected verify')
+  await expect(checked.done).resolves.toEqual({ code: 'match' })
+})
+
+it('rejects a safe integer that is not a power of two before compute', () => {
+  let calls = 0
+  const compute: ScryptCompute = () => {
+    calls += 1
+  }
+  expect(openScrypt({ ...tiny, N: 2 ** 32 + 1 }, compute)).toEqual({ ok: false, code: 'invalid_profile' })
+  const opened = openScrypt(tiny, compute)
+  if (!opened.ok) throw new Error('profile')
+  const salt = Buffer.alloc(16).toString('base64url')
+  const key = Buffer.alloc(32).toString('base64url')
+  expect(opened.module.verify(`$scrypt$v=1$n=4294967297,r=1,p=1,k=32$${salt}$${key}`, 'secret')).toEqual({
+    code: 'unavailable',
+  })
+  expect(calls).toBe(0)
+})
+
+it('settles a synchronous compute failure and refuses a short key', async () => {
+  const failing = openScrypt(tiny, () => {
+    throw new Error('synthetic-compute-failure')
+  })
+  if (!failing.ok) throw new Error('profile')
+  const started = failing.module.derive('synthetic-secret', allow)
+  if (!('done' in started)) throw new Error('expected a job')
+  await expect(started.done).resolves.toEqual({ code: 'unavailable' })
+  await expect(failing.module.close()).resolves.toEqual({ code: 'closed' })
+  const shortKey = openScrypt(tiny, (_secret, _salt, _keylen, _cost, done) => {
+    done(undefined, new Uint8Array(1))
+  })
+  if (!shortKey.ok) throw new Error('profile')
+  const broken = shortKey.module.derive('synthetic-short-key', allow)
+  if (!('done' in broken)) throw new Error('expected a job')
+  await expect(broken.done).resolves.toEqual({ code: 'unavailable' })
+})
+
+it('rejects an oversized material and secret before decode or compute', () => {
+  const held = heldCompute()
+  const opened = openScrypt(tiny, held.compute)
+  if (!opened.ok) throw new Error('profile')
+  const key = Buffer.alloc(32).toString('base64url')
+  const huge = 'A'.repeat(1024 * 1024)
+  const material = `$scrypt$v=1$n=16,r=1,p=1,k=32$${huge}$${key}`
+  const original = Buffer.from.bind(Buffer)
+  let decodedHuge = false
+  Buffer.from = ((value: unknown, ...args: unknown[]) => {
+    if (value === huge) decodedHuge = true
+    return original(value as string, ...(args as []))
+  }) as typeof Buffer.from
+  try {
+    expect(opened.module.verify(material, 'secret')).toEqual({ code: 'unavailable' })
+  } finally {
+    Buffer.from = original
+  }
+  expect(decodedHuge).toBe(false)
+  expect(opened.module.derive('a'.repeat(4097), allow)).toEqual({ code: 'unavailable' })
+  expect(held.calls()).toBe(0)
+})

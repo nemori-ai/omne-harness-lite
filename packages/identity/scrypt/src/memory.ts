@@ -15,5 +15,11 @@ export function memoryBytes(cost: ScryptCost): number | undefined {
 }
 
 export function isPowerOfTwo(value: number): boolean {
-  return Number.isSafeInteger(value) && value >= 2 && (value & (value - 1)) === 0
+  if (!Number.isSafeInteger(value) || value < 2) return false
+  let rest = value
+  while (rest > 1) {
+    if (rest % 2 !== 0) return false
+    rest = rest / 2
+  }
+  return true
 }

@@ -63,6 +63,13 @@ interface Slot {
 
 type HashValue = Uint8Array | { code: 'unavailable' }
 
+/** Largest secret this package will copy into scrypt. Not a composition rule. */
+const SECRET_UTF8_LIMIT = 4096
+
+function secretFits(secret: string): boolean {
+  return Buffer.byteLength(secret, 'utf8') <= SECRET_UTF8_LIMIT
+}
+
 function aboveProfile(params: MaterialParams, profile: ScryptProfile): boolean {
   return params.N > profile.N || params.r > profile.r || params.p > profile.p || params.keylen > profile.keylen
 }
@@ -87,6 +94,15 @@ export function openScrypt(
 ): { ok: true; module: ScryptModule } | { ok: false; code: 'invalid_profile' } {
   const accepted = acceptedProfile(profile)
   if (accepted === undefined) return { ok: false, code: 'invalid_profile' }
+  const opened: ScryptProfile = {
+    N: profile.N,
+    r: profile.r,
+    p: profile.p,
+    keylen: profile.keylen,
+    saltBytes: profile.saltBytes,
+    inFlight: profile.inFlight,
+    queue: profile.queue,
+  }
   const { budget, jobMemory } = accepted
 
   let stopped = false
@@ -101,8 +117,8 @@ export function openScrypt(
       runningMemory,
       queued: queue.length + extraQueued,
       jobMemory: memory,
-      inFlight: profile.inFlight,
-      queueLimit: profile.queue,
+      inFlight: opened.inFlight,
+      queueLimit: opened.queue,
       memoryBudget: budget,
     }
   }
@@ -139,6 +155,7 @@ export function openScrypt(
     memory: number,
     work: (finish: (value: T) => void) => void,
     leaveValue: T,
+    failValue: T,
   ): { code: AdmissionRefusal } | Admitted<T> {
     if (stopped) return { code: 'stopped' }
     const decision = planAdmission(view(0, memory))
@@ -157,10 +174,21 @@ export function openScrypt(
         settle(leaveValue)
       },
       launch(doneRunning) {
-        work(value => {
-          if (!slot.left) settle(value)
+        let released = false
+        const release = () => {
+          if (released) return
+          released = true
           doneRunning()
-        })
+        }
+        try {
+          work(value => {
+            if (!slot.left) settle(value)
+            release()
+          })
+        } catch {
+          if (!slot.left) settle(failValue)
+          release()
+        }
       },
     }
     const handle: Admitted<T> = {
@@ -196,9 +224,10 @@ export function openScrypt(
     | { decoded: Exclude<ReturnType<typeof decodeMaterial>, DecodeFailure>; cost: number }
     | { code: 'mismatch' | 'unavailable' } {
     if (typeof secret !== 'string') return { code: 'unavailable' }
+    if (!secretFits(secret)) return { code: 'unavailable' }
     const decoded = decodeMaterial(material)
     if (decoded === 'mismatch' || decoded === 'unavailable') return { code: decoded }
-    if (aboveProfile(decoded.params, profile)) return { code: 'unavailable' }
+    if (aboveProfile(decoded.params, opened)) return { code: 'unavailable' }
     const cost = memoryBytes(decoded.params)
     if (cost === undefined || cost > jobMemory) return { code: 'unavailable' }
     return { decoded, cost }
@@ -207,30 +236,31 @@ export function openScrypt(
   const module: ScryptModule = {
     derive(secret, policy) {
       if (typeof secret !== 'string') return { code: 'invalid_secret' }
+      if (!secretFits(secret)) return { code: 'unavailable' }
       const policyCode = assessPolicy(policy, secret)
       if (policyCode !== 'ok') return { code: policyCode }
       let salt: Buffer
       try {
-        salt = randomBytes(profile.saltBytes)
+        salt = randomBytes(opened.saltBytes)
       } catch {
         return { code: 'unavailable' }
       }
       return admit<DeriveDone>(jobMemory, finish => {
-        runHash(secret, salt, profile.keylen, profile, value => {
-          if (!(value instanceof Uint8Array)) {
+        runHash(secret, salt, opened.keylen, opened, value => {
+          if (!(value instanceof Uint8Array) || value.length !== opened.keylen) {
             finish({ code: 'unavailable' })
             return
           }
           finish({
             code: 'material',
             material: encodeMaterial(
-              { N: profile.N, r: profile.r, p: profile.p, keylen: profile.keylen },
+              { N: opened.N, r: opened.r, p: opened.p, keylen: opened.keylen },
               salt,
               value,
             ),
           })
         })
-      }, { code: 'left_queue' })
+      }, { code: 'left_queue' }, { code: 'unavailable' })
     },
     verify(material, secret) {
       const ready = readyVerify(material, secret)
@@ -243,7 +273,7 @@ export function openScrypt(
           }
           finish({ code: timingSafeEqual(value, ready.decoded.key) ? 'match' : 'mismatch' })
         })
-      }, { code: 'left_queue' })
+      }, { code: 'left_queue' }, { code: 'unavailable' })
     },
     async close() {
       stopped = true

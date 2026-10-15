@@ -6,11 +6,11 @@
 
 ## 职责与状态
 
-本包做派生和校验。它不登录、不保存账号、不保管密钥。PanQiWei 已在 #276 接受契约，成员位置是 `packages/identity/scrypt`。接受的负载是 `SCRYPT_PROFILE`。测试在 Node v26.0.0 上运行。声明的 engines 仍是 `>=24.18.0 <25`。
+本包做派生和校验。它不登录、不保存账号、不保管密钥。成员位置是 `packages/identity/scrypt`。部署负载是 `SCRYPT_PROFILE`。测量平台是 Node v26.0.0。声明的 engines 是 `>=24.18.0 <25`。
 
 ## 使用
 
-用一份完整配置调用 `openScrypt`。`SCRYPT_PROFILE` 是本卡接受的那一份。没有 Cordis 入口。
+用一份完整配置调用 `openScrypt`。`SCRYPT_PROFILE` 是部署配置。没有 Cordis 入口。
 
 ```ts
 import { SCRYPT_PROFILE, openScrypt } from '@omne-harness/scrypt'
@@ -35,7 +35,7 @@ await opened.module.close()
 
 ## 配置与运行
 
-传入完整的 `ScryptProfile`。缺字段、0 或非有限数会使 `openScrypt` 返回 `invalid_profile`。接受的配置是 N = 131072、r = 8、p = 1、32 字节输出、16 字节盐、同时 1 份计算、队列 4 份。口令长度规则留在调用方传入的函数里。
+传入完整的 `ScryptProfile`。缺字段、0 或非有限数会使 `openScrypt` 返回 `invalid_profile`。`N` 必须是大于 1 的安全整数 2 的幂。`openScrypt` 复制已接受的字段，调用方事后修改原对象不会改变这个模块。UTF-8 超过 4096 字节的秘密，或长过合法盐和结果的材料，在计算前得到 `unavailable`。接受的配置是 N = 131072、r = 8、p = 1、32 字节输出、16 字节盐、同时 1 份计算、队列 4 份。口令长度规则留在调用方传入的函数里。
 
 ## 验证
 
