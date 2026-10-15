@@ -295,7 +295,7 @@ sequenceDiagram
 <a id="credential-resolve"></a>
 ## 凭据解析
 
-承接待审的 [model](model.md)。每次获准的真实发出都重新解析。同一次发送的后续输出不再解析。存在性查询是另一次操作。发送本身只调用 `resolve`。
+承接已由 D-04 接受的 [model](model.md)。每次获准的真实发出都重新解析。同一次发送的后续输出不再解析。存在性查询是另一次操作。发送本身只调用 `resolve`。
 
 ```mermaid
 sequenceDiagram

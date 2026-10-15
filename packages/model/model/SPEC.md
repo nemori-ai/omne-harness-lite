@@ -88,9 +88,9 @@ Session 拥有工作身份、有效推进和选择事实，request-context 拥�
 
 凭据保管由 `packages/model/model` 拥有。本地保管库存储秘密和绑定。Cordis 服务键为 `modelCredential`；独立调用也可以不启动 Cordis，直接使用根入口的函数。两种入口看到的五种结果相同。
 
-保管库文件包含工厂秘密和绑定列表。路径上还没有文件时，Cordis 插件用配置里的工厂秘密新建保管库；根入口对缺失文件返回 `unavailable`，不新建。路径上已有文件时，插件打开文件并使用文件里的工厂秘密，不用本次配置里的值。文件损坏或同一持有者出现多行冲突时，`present` 和 `resolve` 返回 `unavailable`，不修改文件。
+保管库文件包含工厂秘密和绑定列表。路径上还没有文件时，Cordis 插件用配置里的工厂秘密新建保管库；`openLocalCustodian` 对缺失文件返回 `unavailable`，不新建。路径上已有文件时，插件打开文件并使用文件里的工厂秘密，不用本次配置里的值。文件损坏或同一持有者出现多行冲突时，`present` 和 `resolve` 返回 `unavailable`，不修改文件。
 
-`present` 和 `resolve` 每次从磁盘刷新当前状态；保留的句柄和 Cordis 服务都能观察到后续轮换、撤销或文件损坏。管理操作（`put`、`rotate`、`revoke`、`markUnreadable`）写盘前先刷新，再基于当前状态修改，并以临时文件加重命名的方式原子写入。写入失败时不发布新状态，已确认的旧快照保持不变。
+`present` 和 `resolve` 每次从磁盘刷新当前状态；保留的句柄和 Cordis 服务都能观察到后续轮换、撤销或文件损坏。管理操作（`put`、`rotate`、`revoke`、`markUnreadable`）写盘前先刷新，再基于当前状态修改，并持有文件锁完成“读当前状态—修改—发布”。写入采用临时文件、`fsync` 及重命名；临时文件名唯一，不会覆盖其他写者。写入失败（包括锁等待超时、临时文件写入失败或重命名失败）时抛出异常，不发布新状态，已确认的旧快照保持不变。
 
 绑定寿命是 `active`、`revoked` 或 `unreadable`。`put` 把该持有者写成 `active`，可以盖过已撤销或读不出的行。`rotate` 只换秘密，不改生命状态；已撤销的行轮换后 `resolve` 仍是 `denied`。`markUnreadable` 只把 `active` 改成 `unreadable`。
 

@@ -1,6 +1,6 @@
 # model 包内架构
 
-状态是待审。本页拥有本成员里模块怎么摆、各自守什么。对象形状见 [model](model.md)。Cordis 的服务、插件和 fiber 见 [cordis](cordis.md)。顺序见 [key-flow](key-flow.md)。行为承诺仍在 [SPEC](../SPEC.md)。档案与模态的行为正文在 [profile-and-modality](profile-and-modality.md)。结果、ACK 和费用的行为正文在 [consumption-and-cost](consumption-and-cost.md)。
+凭据引用与解析切片已由 D-04 接受。本页拥有本成员里模块怎么摆、各自守什么。对象形状见 [model](model.md)。Cordis 的服务、插件和 fiber 见 [cordis](cordis.md)。顺序见 [key-flow](key-flow.md)。行为承诺仍在 [SPEC](../SPEC.md)。档案与模态的行为正文在 [profile-and-modality](profile-and-modality.md)。结果、ACK 和费用的行为正文在 [consumption-and-cost](consumption-and-cost.md)。
 
 ```mermaid
 classDiagram

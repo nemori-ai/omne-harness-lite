@@ -11,7 +11,7 @@
 目标成员的职责、状态和读取顺序从[model 入口](model/README.md)进入，再按任务核对下面的规格与专题。
 
 
-状态：设计待用户确认。这里维护目标能力组的正式文档；组不是 workspace 成员、runtime 或进程，没有组级统一 SPEC。
+状态：能力组整体设计仍待确认，但 Issue 279 的凭据引用与发送时解析已由 D-04 接受，并写入 [model/model 的 SPEC](model/SPEC.md)。这里维护目标能力组的正式文档；组不是 workspace 成员、runtime 或进程，没有组级统一 SPEC。
 
 ### 成员与边界
 

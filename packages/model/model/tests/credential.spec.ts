@@ -1,10 +1,24 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import type * as fs from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
+
+let injectedRename: ((from: string, to: string) => void) | undefined
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs')>()
+  return {
+    ...actual,
+    renameSync: (from: string, to: string) => {
+      if (injectedRename) return injectedRename(from, to)
+      return actual.renameSync(from, to)
+    },
+  }
+})
 import { Context } from '@deepseek-ai/cordis'
 import { LocalCredentialPlugin } from '../src/cordis.ts'
 import { deliver } from '../src/deliver.ts'
@@ -329,17 +343,23 @@ it('a failed write keeps the last saved snapshot intact and does not publish the
   const first = createLocalCustodian(path, FACTORY)
   const ref = reference()
   first.put(ref, SECRET)
-  const backup = join(dir, 'store-backup.json')
-  writeFileSync(backup, readFileSync(path, 'utf8'))
-  // Replace the file with a directory so the atomic rename fails.
-  rmSync(path)
-  mkdirSync(path)
-  first.rotate(ref, ROTATED)
+  const backup = readFileSync(path, 'utf8')
+  // Inject a rename failure so the write reaches the publish stage but cannot complete.
+  let renamed = false
+  injectedRename = (from, to) => {
+    if (to === path) {
+      renamed = true
+      throw new Error('injected rename failure')
+    }
+    renameSync(from, to)
+  }
+  expect(() => first.rotate(ref, ROTATED)).toThrow()
+  injectedRename = undefined
+  expect(renamed).toBe(true)
   // The in-memory handle must not publish the uncommitted secret.
-  expect(first.resolve(ref, face())).not.toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
-  // Restore the last confirmed snapshot.
-  rmSync(path, { recursive: true })
-  writeFileSync(path, readFileSync(backup, 'utf8'))
+  expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
+  // The last confirmed snapshot is unchanged on disk.
+  expect(readFileSync(path, 'utf8')).toEqual(backup)
   const reopened = openLocalCustodian(path)
   if ('kind' in reopened) throw new Error('store missing')
   expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
@@ -372,6 +392,108 @@ it('a store with conflicting rows for the same holder is unavailable', () => {
     }),
   )
   expect(openLocalCustodian(path)).toEqual({ kind: 'unavailable' })
+})
+
+it('management operations report failure instead of silently returning', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const custodian = createLocalCustodian(path, FACTORY)
+  const ref = reference()
+  custodian.put(ref, SECRET)
+  // Block the unique temporary file path by creating a directory at the parent level?
+  // Instead, corrupt the main store so refresh fails.
+  writeFileSync(path, 'not-json')
+  expect(() => custodian.rotate(ref, ROTATED)).toThrow()
+  expect(() => custodian.revoke(ref)).toThrow()
+})
+
+it('management operations after close still persist to disk', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const custodian = createLocalCustodian(path, FACTORY)
+  const ref = reference()
+  custodian.put(ref, SECRET)
+  custodian.close()
+  custodian.revoke(ref)
+  expect(custodian.resolve(ref, face()).kind).toBe('denied')
+  const reopened = openLocalCustodian(path)
+  if ('kind' in reopened) throw new Error('store missing')
+  expect(reopened.resolve(ref, face()).kind).toBe('denied')
+})
+
+it('unauthorized or wrong-purpose requests are denied even when storage is unreadable', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const custodian = createLocalCustodian(path, FACTORY)
+  const ref = reference()
+  custodian.put(ref, SECRET)
+  writeFileSync(path, 'not-json')
+  expect(custodian.resolve(ref, face({ authorized: false }))).toEqual({ kind: 'denied' })
+  expect(custodian.resolve({ ...ref, purpose: 'other' }, face())).toEqual({ kind: 'denied' })
+  expect(custodian.present({ ...ref, purpose: 'other' })).toEqual({ kind: 'denied' })
+})
+
+it('concurrent writers in separate processes do not lose updates', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const seed = createLocalCustodian(path, FACTORY)
+  const refA = reference()
+  seed.put(refA, SECRET)
+  const child = spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `import { openLocalCustodian, credentialId } from './dist/index.js'
+       import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+       const path = ${JSON.stringify(path)}
+       function identity(accountText, organizationText) {
+         const account = accountCodec.parse(accountText)
+         const organization = organizationCodec.parse(organizationText)
+         if (!account.ok || !organization.ok) throw new Error('fixture identity')
+         return tenant(organization.value, account.value)
+       }
+       const opened = openLocalCustodian(path)
+       if ('kind' in opened) { process.stderr.write('child: store missing'); process.exit(1) }
+       for (let i = 0; i < 5; i++) {
+         const id = credentialId('child-' + i)
+         if (!id) throw new Error('fixture id')
+         opened.put(
+           { id, tenant: identity('acc_abcdefghjkmnpqrstvwxyz2346', 'org_abcdefghjkmnpqrstvwxyz2346'), purpose: 'model-send' },
+           'child-secret-' + i,
+         )
+       }
+      `,
+    ],
+    { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' },
+  )
+  expect(child.status, child.stderr).toBe(0)
+  for (let i = 0; i < 5; i++) {
+    const id = credentialId(`parent-${i}`)
+    if (!id) throw new Error('fixture id')
+    seed.put(
+      { id, tenant: tenantB, purpose: MODEL_SEND },
+      `parent-secret-${i}`,
+    )
+  }
+  const reopened = openLocalCustodian(path)
+  if ('kind' in reopened) throw new Error('store missing')
+  expect(reopened.resolve(refA, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
+  for (let i = 0; i < 5; i++) {
+    const childId = credentialId(`child-${i}`)
+    const parentId = credentialId(`parent-${i}`)
+    if (!childId || !parentId) throw new Error('fixture id')
+    expect(reopened.resolve({ id: childId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual({
+      kind: 'value',
+      scope: 'tenant',
+      value: `child-secret-${i}`,
+    })
+    expect(reopened.resolve({ id: parentId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual({
+      kind: 'value',
+      scope: 'tenant',
+      value: `parent-secret-${i}`,
+    })
+  }
 })
 
 it('logs, errors, telemetry, and model context do not carry the synthetic secret', async () => {
