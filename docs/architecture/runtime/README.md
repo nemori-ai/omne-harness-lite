@@ -120,3 +120,12 @@ flowchart TD
 [流中在途内容的故障保留](streaming-and-consumption.md#在途内容的局部对账)与[不可用工具应答分类](tool-runtime.md#不可用应答的分类边界)保留为局部对账。跨会话派发仍需补齐授权和可靠投递契约。持续利益对齐仍是长期承诺，本阶段不在运行专题展开专项设计。
 
 系统架构负责人确认目标语义及采用范围。各专题维护者更新规则时同步相关图、流程入口和登记；实现符合性另行报告，不能靠改写目标正文消除偏离。
+
+## #342 主干契约候选
+
+以下是待技术接受的细化候选，不改变上文十二页已接受正文的范围，也不表示生产实现已完成。
+
+- [对象与责任模型](runtime-contract-model.md)区分原工作、原调用、执行实例、句柄与保管责任。
+- [Model操作](../../../packages/model/model/docs/runtime-contract.md)、[Tool操作](../../../packages/tool/tool/docs/runtime-contract.md)、[Session操作](../../../packages/session/session/docs/runtime-contract.md)、[Agent操作](../../../packages/agent/agent/docs/runtime-contract.md)各自拥有精确候选形状、必要协议及参数/依赖划分。
+- [Cordis集成](runtime-contract-integration.md)拥有共同宿主、事件、配置和IC对账，各成员集成专题拥有独有接缝。
+- [后继实现与验证](runtime-contract-handoff.md)说明四条实现线及相邻能力如何消费候选，哪些生产与组合证据仍须补齐。

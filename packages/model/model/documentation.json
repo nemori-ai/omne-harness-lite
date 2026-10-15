@@ -39,6 +39,51 @@
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []
+    },
+    {
+      "id": "runtime-contract",
+      "path": "packages/model/model/docs/runtime-contract.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "reference-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "runtime-examples",
+      "path": "packages/model/model/docs/runtime-examples.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "runtime-integration",
+      "path": "packages/model/model/docs/runtime-integration.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
     }
   ]
 }

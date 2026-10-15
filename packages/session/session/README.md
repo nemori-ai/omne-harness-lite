@@ -26,3 +26,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 SPEC 的不变量与验证场景是持续义务，尚无本次运行证据。成员维护者改变行为时同步公开形状、机制、消费者及验证，组维护者同步跨成员协作与导航。关键未知只暂停依赖路径。
 默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+
+## #342 主干运行契约候选
+
+[操作与必要协议](docs/runtime-contract.md)、[消费及失败场景](docs/runtime-examples.md)、[Cordis集成设计](docs/runtime-integration.md)共同构成待技术接受的主干候选。签名尚未成为生产导出，当前已接受范围仍以上文状态为准。共同对象、装配与后继验证从[运行架构入口](../../../docs/architecture/runtime/README.md#342-主干契约候选)展开。

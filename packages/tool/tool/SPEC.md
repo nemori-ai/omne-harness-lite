@@ -140,3 +140,7 @@ Agent 换代后认回原 Tool；工具自身确认丢失后失败收束且不自
 最终结果允许块全集及嵌套投影沿 MODEL-E01 保留来源证据缺口，已知文本、图片、模型可见性及实际模态校验仍有效。过程在途内容故障保留需技术衔接。明确缺项见[问题登记](../../../.meta_harness/design/product/tool-execution/design.md#未决问题与待定事项)，不将精确 API、引擎和数值伪装为产品问题。
 
 修改定义、调用匹配、结果保管或控制协议时同步独立消费者、Agent、Session、环境、HITL、Skill、MCP、Context 和相应验证。提供者补自己真实承担的机制与限制，不另写一份更弱的公共保证。当前没有运行实现、存储或故障测试，本规格不授予实施或符合性接受。
+
+## #342 主干运行契约候选
+
+[操作与必要协议](docs/runtime-contract.md)、[消费及失败场景](docs/runtime-examples.md)、[Cordis集成设计](docs/runtime-integration.md)共同构成待技术接受的主干候选。签名尚未成为生产导出，当前已接受范围仍以上文状态为准。共同对象、装配与后继验证从[运行架构入口](../../../docs/architecture/runtime/README.md#342-主干契约候选)展开。

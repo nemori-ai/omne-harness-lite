@@ -21,3 +21,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 SPEC及专题维护持续验证义务；实际测试、模型、提供者和装配证据尚缺。修改时同步公开消费者和组导航；未决按[产品第四块](../../../.meta_harness/design/product/model-invocation/design.md#未决问题与待定事项)及技术拥有者闭合。
 默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+
+## #342 主干运行契约候选
+
+[操作与必要协议](docs/runtime-contract.md)、[消费及失败场景](docs/runtime-examples.md)、[Cordis集成设计](docs/runtime-integration.md)共同构成待技术接受的主干候选。签名尚未成为生产导出，当前已接受范围仍以上文状态为准。共同对象、装配与后继验证从[运行架构入口](../../../docs/architecture/runtime/README.md#342-主干契约候选)展开。
