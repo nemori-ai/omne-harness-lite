@@ -42,7 +42,7 @@ flowchart TD
 
 6. [入站输入分类、去重与持久受理](session-and-run.md#输入受理与分流)。
 7. [普通输入排队、卡片答复路由与控制指令分流](session-and-run.md#输入受理与分流)。
-8. [Run 创建、已有 Run 唤醒与推进者确定](session-and-run.md#run-创建与推进权)。
+8. [Run 创建、已有 Run 唤醒与推进者确定](session-and-run.md#run-创建与推进权)。新 Run 开始时是否重装，见[何时重装](assembly-and-change.md#何时重装)。
 9. [attempt 建立、恢复对账与原工作接续](session-and-run.md#attempt-与原工作接续)。
 10. [当前步骤承接输入与读取运行条件](agent-runtime.md#启动与运行条件)。
 
