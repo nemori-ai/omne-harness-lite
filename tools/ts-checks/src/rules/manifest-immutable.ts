@@ -5,7 +5,7 @@ import { syntaxOf, visitSyntax } from '../syntax.ts'
 
 const forbiddenMethods = new Set(['updateTable', 'deleteFrom', 'replaceInto', 'mergeInto'])
 const mutationSql =
-  /\b(?:update|delete\s+from|replace\s+into|insert\s+or\s+replace\s+into|merge\s+into)\s+["`\[]?assembly_manifest_(?:record|table)\b/iu
+  /\b(?:update|delete\s+from|replace\s+into|insert\s+or\s+replace\s+into|merge\s+into)\s+["`[]?assembly_manifest_(?:record|table)\b/iu
 
 /** Scoped AST check; it does not claim whole-program alias or generated SQL analysis. */
 export const manifestImmutable: Rule = {

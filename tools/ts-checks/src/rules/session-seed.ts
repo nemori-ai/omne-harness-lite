@@ -167,7 +167,7 @@ export const sessionMappingImmutable: Rule = {
           forbidden = target?.toLowerCase() === 'session_tenancy'
         }
         const forbiddenSql = (text: string | undefined): boolean =>
-          text !== undefined && /\b(?:update|delete\s+from)\s+["`\[]?session_tenancy\b/iu.test(text)
+          text !== undefined && /\b(?:update|delete\s+from)\s+["`[]?session_tenancy\b/iu.test(text)
         if (
           ts.isCallExpression(node) &&
           ts.isPropertyAccessExpression(node.expression) &&

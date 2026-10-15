@@ -120,7 +120,7 @@ function patternsOf(texts: ReadonlyMap<string, string>): string[] {
   if (yaml === undefined) throw new Error('Actual architecture requires pnpm-workspace.yaml')
   const patterns = workspacePatterns(yaml)
   for (const pattern of patterns)
-    if (/[?{}\[\]]/u.test(pattern))
+    if (/[?{}[\]]/u.test(pattern))
       throw new Error(`Unsupported workspace pattern ${pattern}: only whole-segment * is supported`)
   return patterns
 }

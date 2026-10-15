@@ -52,7 +52,7 @@ export function safePath(path: string): string {
     isAbsolute(path) ||
     path.includes('\\') ||
     path.split('/').some(part => part === '..' || part === '.' || part === '') ||
-    /[?\[\]{}]/u.test(path) ||
+    /[?[\]{}]/u.test(path) ||
     (path.includes('*') && !path.endsWith('/**')) ||
     path.slice(0, -3).includes('*')
   )

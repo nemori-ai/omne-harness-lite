@@ -39,7 +39,7 @@ export function publicEntries(snapshot: Snapshot): PublicEntry[] {
       const paths = exportPaths(value)
       if (paths.length === 0)
         result.push({ member: member.path, specifier: pkg['name'], subpath: key })
-      for (const path of [...new Set(paths)]) {
+      for (const path of new Set(paths)) {
         const source = path
           .replace(/^\.\/dist\//u, './src/')
           .replace(/\.d\.mts$|\.mjs$/u, '.mts')
