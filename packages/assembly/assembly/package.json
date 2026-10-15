@@ -22,7 +22,9 @@
     "typecheck": "pnpm run build && tsc -p tsconfig.test.json",
     "test": "pnpm run build && vitest run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/agent": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

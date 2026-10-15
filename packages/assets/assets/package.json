@@ -23,6 +23,7 @@
     "test": "pnpm run build && vitest run"
   },
   "dependencies": {
+    "@omne-harness/agent": "workspace:*",
     "@omne-harness/json-text": "workspace:*"
   },
   "devDependencies": {
