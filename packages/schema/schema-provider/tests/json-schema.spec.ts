@@ -61,6 +61,20 @@ it('defect: an acyclic JSON Schema is refused before it can validate', async () 
   })
 })
 
+it('defect: an encoded local pointer hides a cycle and compiles', async () => {
+  const { loads, run } = check(
+    {
+      $defs: { 'a/b': { $ref: '#/$defs/a~1b' } },
+      type: 'object',
+      properties: { name: { $ref: '#/$defs/a~1b' } },
+    },
+    '{"name":"ada"}',
+  )
+
+  expect(await run()).toEqual({ kind: 'refused', reason: 'runtime-path-closed' })
+  expect(loads()).toBe(1)
+})
+
 it('defect: a local JSON Schema pointer is closed before the target is checked', async () => {
   const { loads, run } = check(
     {

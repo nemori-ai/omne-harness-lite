@@ -3,6 +3,7 @@ import {
   createSchemaProvider,
   defineSchema,
   lease,
+  refresh,
   validate,
   zodDefinition,
   type SchemaBudget,
@@ -122,6 +123,27 @@ it('defect: a released lease still occupies the only snapshot slot', async () =>
     reason: 'budget-exhausted',
   })
 
+  outcome.lease.release()
+
+  expect(await validate(provider, incoming.schema, read)).toEqual(heldResult)
+  expect(incoming.loads()).toBe(1)
+})
+
+it('defect: releasing a retired lease still occupies the only snapshot slot', async () => {
+  const provider = createSchemaProvider(budget)
+  const held = named('chat.message')
+  const incoming = named('chat.other')
+  const outcome = await lease(provider, held.schema)
+
+  expect(outcome.kind).toBe('leased')
+  if (outcome.kind !== 'leased') return
+  refresh(provider, held.schema.id)
+  expect(await validate(provider, incoming.schema, read)).toEqual({
+    kind: 'refused',
+    reason: 'budget-exhausted',
+  })
+
+  outcome.lease.release()
   outcome.lease.release()
 
   expect(await validate(provider, incoming.schema, read)).toEqual(heldResult)
