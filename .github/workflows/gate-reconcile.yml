@@ -35,7 +35,6 @@ jobs:
           git fetch -q --filter=blob:none origin 'refs/heads/main:refs/remotes/origin/main' 'refs/heads/integration/*:refs/remotes/origin/integration/*' 'refs/tags/omne/gate/*:refs/tags/omne/gate/*'
           stable_listing=$(git ls-remote origin refs/heads/stable | awk '$2=="refs/heads/stable"{print $1}')
           if [ -n "$stable_listing" ]; then git fetch -q --filter=blob:none origin 'refs/heads/stable:refs/remotes/origin/stable'; fi
-          cutoff=$(( $(date -u +%s) - 1800 ))
           gaps=0
           report() {
             local title=$1 body=$2
@@ -60,18 +59,22 @@ jobs:
             fi
             commits=$(git rev-list --first-parent "$start..refs/remotes/origin/$ref")
             for c in $commits; do
-              ct=$(git show -s --format=%ct "$c")
-              [ "$ct" -le "$cutoff" ] || continue
               if git rev-parse -q --verify "refs/tags/omne/gate/unit/$c" >/dev/null; then
+                points=$(git rev-parse "refs/tags/omne/gate/unit/$c^{commit}")
                 target=$(git cat-file -p "refs/tags/omne/gate/unit/$c" | sed '1,/^$/d' | jq -r .target)
-                [ "$target" = "refs/heads/$ref" ] && continue
+                [ "$points" = "$c" ] && [ "$target" = "refs/heads/$ref" ] && continue
               fi
               report "Gate gap: $ref ${c:0:12}" "Commit \`$c\` on the first-parent history of \`$ref\` has no matching \`omne/gate/unit\` record. An admin closes this gap with a named decision in this Issue. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             done
           done
           if git rev-parse -q --verify refs/remotes/origin/stable >/dev/null; then
             s=$(git rev-parse refs/remotes/origin/stable)
-            git rev-parse -q --verify "refs/tags/omne/gate/stable/$s" >/dev/null \
-              || report "Gate gap: stable ${s:0:12}" "The tip \`$s\` of \`stable\` has no \`omne/gate/stable/$s\` record."
+            ok=no
+            if git rev-parse -q --verify "refs/tags/omne/gate/stable/$s" >/dev/null; then
+              points=$(git rev-parse "refs/tags/omne/gate/stable/$s^{commit}")
+              target=$(git cat-file -p "refs/tags/omne/gate/stable/$s" | sed '1,/^$/d' | jq -r .target)
+              [ "$points" = "$s" ] && [ "$target" = refs/heads/stable ] && ok=yes
+            fi
+            [ "$ok" = yes ] || report "Gate gap: stable ${s:0:12}" "The tip \`$s\` of \`stable\` has no matching \`omne/gate/stable/$s\` record."
           fi
           echo "gaps: $gaps"

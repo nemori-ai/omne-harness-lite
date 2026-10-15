@@ -167,6 +167,7 @@ jobs:
             for c in $commits; do
               git rev-parse -q --verify "refs/tags/omne/gate/unit/$c" >/dev/null || { echo "stopped: $branch commit $c has no unit"; return 1; }
               target=$(git cat-file -p "refs/tags/omne/gate/unit/$c" | sed '1,/^$/d' | jq -r .target) || { echo "stopped: cannot read the unit of $c"; return 1; }
+              [ "$(git rev-parse "refs/tags/omne/gate/unit/$c^{commit}")" = "$c" ] || { echo "stopped: unit of $c points elsewhere"; return 1; }
               [ "$target" = "refs/heads/$branch" ] || { echo "stopped: unit of $c records $target"; return 1; }
             done
           }
