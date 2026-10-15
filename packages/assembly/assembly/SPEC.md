@@ -1,6 +1,6 @@
 # 定义求值与装配交接行为规格
 
-本目录是 workspace 包 `@omne-harness/assembly`。下面从「一组租约」到「就绪、撤除和远端中断」的关闭行为，已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受，是该范围的现行契约。[采用与重装](#adoption)已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受。求值快照、绑定生效、缺依赖失败和旧新推进权以该节为现行行为。关闭协议的报告种类不在该节改写。
+本目录是 workspace 包 `@omne-harness/assembly`。下面从「一组租约」到「就绪、撤除和远端中断」的关闭行为，已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受，是该范围的现行契约。[采用与重装](#adoption)已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受。其中[定义到消费者](#definition-to-consumer)已由 [后续技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186960235) 接受。求值快照、绑定生效、缺依赖失败和旧新推进权以该节为现行行为。关闭协议的报告种类不在该节改写。
 
 谁必须关闭、配置代际如何留在原提供者，以及同级 Cordis effect 的完成顺序不是关闭顺序，只写在[Cordis 装配与服务生命周期](../../../docs/architecture/deployment/cordis-and-lifecycle.md)。改那些句子只改该页。改下面的报告结果只改本页。
 
@@ -194,3 +194,21 @@ sequenceDiagram
 原调用归旧的执行拥有者，直到收场或可靠交接。迟到结果须已有仍有效的接收方或可靠记录。旧推进者不得推进新工作。装配不接收、不保存、不重放该结果。协作协议的具体接口归 #262。
 
 runtime 启动前取得已校验的装配依据。同一位置的扩展按装配声明的顺序执行。本节不指定 AgentDefinition 的包拥有者，也不新造扩展接口。
+
+### 定义到消费者
+
+<a id="definition-to-consumer"></a>
+
+本走查是现行行为。它不改写本节上文的句子。
+
+给定一次求值的主体、范围、定义版本、扩展顺序和必需能力。下面用这些输入走一遍成功路径，以及缺依赖和选择漂移。依赖的身份和版本记在装配清单里。这份记录就是本次可追溯的依赖选择。它不是 Schema 编译提供者的依赖快照，也不是另一份持久对象。
+
+成功。主体是租户 `tenant-a`，范围含工作区 `workspace-w`。AgentDefinition 的身份是 `AgentDefinition/coding`，写明版本 `v2`。定义按声明顺序要求两个扩展，`loop-ext/format` 在前，`loop-ext/policy` 在后。必需能力是 `Tool/read_file` 和 `Skill/review`，这两项没有写明版本。
+
+求值先固定主体和范围，再按定义声明选出必需身份。每个身份在该作用域里解析成当时的合法胜出者。`Tool/read_file` 解析为 `v3`，`Skill/review` 解析为 `v1`。定义本身固定为写明的 `v2`。
+
+这些结果进入本次执行的采用依据。固定的请求输入记下主体 `tenant-a`、范围 `workspace-w` 和定义版本 `v2`。装配清单记下求值来源、锁定的依赖身份与版本，以及扩展顺序 `loop-ext/format`、`loop-ext/policy`。runtime 启动前取得这份已校验的采用依据。它按清单里的扩展顺序执行。它不另向提供方重取已记下的 `v2`、`v3`、`v1` 正文。
+
+缺依赖。其他输入相同，`Skill/review` 在该作用域没有合法定义。调用方得到失败记录。种类是缺合法定义。身份是 `Skill/review`。不形成新的采用依据。已有旧采用时保持旧采用。runtime 不取得新的依据。
+
+选择漂移。收集开始时 `Tool/read_file` 的胜出者是 `v3`。发布前该身份的胜出者再次变化。这次收集不完整，不发布新的清单。调用方得到失败记录，旧的合法采用保持不变。runtime 继续使用旧依据，不把 `v3` 和后来的版本拼进同一次采用。
