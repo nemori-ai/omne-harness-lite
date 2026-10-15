@@ -1,4 +1,4 @@
-/// <reference lib="dom" />
+/// <reference lib="dom" preserve="true" />
 // 审讯页的表单控件、视图切换与折叠区由 antd 渲染。页面标记仍写原生控件：加载时逐个换成 antd 组件，
 // id、可见文字与选项照搬，脚本按 id 取句柄读写。这样标记在没有脚本时仍可读，文字只在标记里维护一份。
 import { useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from 'react'

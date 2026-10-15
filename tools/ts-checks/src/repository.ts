@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
 import { join, relative, dirname, resolve } from 'node:path'
 import { isLegacyDirectory } from './check-scope.ts'
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import type { SourceFile } from './rule.ts'
 import { sessionSeedBoundary, sessionMappingImmutable } from './rules/session-seed.ts'
 import { sessionCatalogBoundary } from './rules/session-catalog.ts'

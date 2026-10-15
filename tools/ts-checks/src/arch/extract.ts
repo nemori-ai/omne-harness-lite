@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { memberEdges } from '../metrics/graph.ts'
 import { nodeName, visitSyntax } from '../syntax.ts'
 import type {

@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { dirname, join, normalize } from 'node:path/posix'
 import type { Rule, SourceFile, Violation } from '../rule.ts'
 import { lineAt } from '../source-text.ts'

@@ -1,4 +1,4 @@
-/// <reference lib="dom" />
+/// <reference lib="dom" preserve="true" />
 import { createRoot } from 'react-dom/client'
 import type { ArchitectureFlowApi, FlowHandle, FlowProps } from './api.ts'
 import { architectureSvg } from './export-svg.ts'
