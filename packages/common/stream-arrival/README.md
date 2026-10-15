@@ -6,7 +6,7 @@ One step of a streaming delivery. The steps are open, fill, close, trim, and fin
 
 ## Responsibility and status
 
-PanQiWei confirmed this member on 2026-10-15. A step belongs to one streaming delivery. It is not an inbound intake and it is not a Cordis dispatch. Model and tool keep their own send and execution behavior and consume this vocabulary.
+A step belongs to one streaming delivery. It is not an inbound intake and it is not a Cordis dispatch. Model and tool keep their own send and execution behavior and consume this vocabulary.
 
 The package does not assign indexes, store a log, or carry usage and cost bodies.
 
@@ -38,4 +38,4 @@ The package reads no environment. The emitting runtime assigns the index.
 
 ## Maintenance
 
-Meaning changes need PanQiWei. Execution facts stay in model and tool.
+Execution facts stay in model and tool.

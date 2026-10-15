@@ -6,7 +6,7 @@ Closed content blocks for text, thinking, voice, image, and file.
 
 ## Responsibility and status
 
-PanQiWei confirmed this member on 2026-10-15. The package publishes one closed content block and `judgeContentBlock`. A closed block is text, thinking, voice, image, or file, with its id, visibility, and media type. Tool calls, tool results, and a block that is still growing are not values of this package. Tenant, standing, and causality stay off the block.
+This member publishes one closed content block and `judgeContentBlock`. A closed block is text, thinking, voice, image, or file, with its id, visibility, and media type. Tool calls, tool results, and a block that is still growing are not values of this package. Tenant, standing, and causality stay off the block.
 
 Consumers are model, tool, session, and request projection. The package does not own those facts.
 
@@ -43,4 +43,4 @@ The package reads no environment and has no defaults. The caller passes the valu
 
 ## Maintenance
 
-Meaning changes need PanQiWei. Tool execution fields stay in the tool package.
+Tool execution fields stay in the tool package.

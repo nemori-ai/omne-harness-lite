@@ -6,7 +6,7 @@ The message field inside a fact record, plus parse and equality for `MessageId`.
 
 ## Responsibility and status
 
-PanQiWei confirmed this member on 2026-10-15. A message is a field of one fact record in the session log. It is not the log entry. `SystemMessage` is a request view and is not one of the six log roles.
+A message is a field of one fact record in the session log. It is not the log entry. `SystemMessage` is a request view and is not one of the six log roles.
 
 This package parses and compares ids. The session mints `msg_` plus 16 unguessable bytes when it accepts a message into the log. Projection stays with the session. This package exports no mint function.
 
@@ -39,4 +39,4 @@ The package reads no environment. The session owns entropy and the admission key
 
 ## Maintenance
 
-Meaning changes need PanQiWei. Minting stays in session.
+Minting stays in session.
