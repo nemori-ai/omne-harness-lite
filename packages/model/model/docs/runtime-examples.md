@@ -6,6 +6,8 @@
 
 独立程序先准备 FixedModelRequest 和显式 ModelTransport，再消费 executeModel 返回的事实。它不创建 Session、Run 或 attempt，不获得自动重试、保管和 ACK。请求含有托管附件或凭据时，传输适配器继续满足原资源访问规则。
 
+prepare 拒绝不支持的表示时，流以 not-started/rejected 交回原 unsupported，start 不发生。start 前取消返回 not-started/cancelled；开始之后 signal 只请求停止。收到真实停止确认才得到 ended/interrupted，失联则得到 ended/failed，完成与取消竞争时保留实际 completed。上述独立结果没有伪造的托管控制身份。
+
 托管独立程序先登记自己的 consumer owner、work、position 和 purpose。它用当前主体、明确租户、原 call、受理 operation、固定 request 与容量调用 admit。成功之后即使暂时找不到活体，也只用原 admission 查询事实。commit-unknown 同样只按原身份认回；不得换 call 再发。
 
 受理 operation、读取 operation 和 ACK operation 必须分别固定，各自重试复用。实例 ID 只用于核对活体，不代替 call。主体、租户或结果版本缺失属于边界拒绝，不靠零值或默认 Session 补齐。

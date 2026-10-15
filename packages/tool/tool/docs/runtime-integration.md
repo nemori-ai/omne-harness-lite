@@ -9,7 +9,8 @@
 ```ts
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { ToolRuntime } from '../index.js'
+import type { ToolRuntime, ToolDirectory, ToolInstanceHost, DurableEvidence } from '../index.js'
+import type { Outcome } from '@omne-harness/kernel-basis'
 
 /** @owner packages/tool/tool */
 export abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
@@ -27,9 +28,44 @@ export abstract class ToolRuntimeService<P, B extends ContentBlock> extends Serv
   abstract readonly instances: ToolRuntime<P, B>['instances']
 }
 export const toolRuntimeKey = ToolRuntimeService.provide
+
+export type ToolPublication = Extract<Awaited<ReturnType<ToolInstanceHost<never>['publish']>>, { ok: unknown }>['ok']
+export type ToolRegistrationInput<P> = Readonly<{
+  publication: Parameters<ToolInstanceHost<P>['publish']>
+  authority: DurableEvidence
+}>
+export type ToolRegistrationFailure =
+  | Readonly<{ kind: 'denied' | 'stale-publication' | 'conflict' }>
+  | Readonly<{ kind: 'invalid'; reason: string }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+export type ToolRegistration = Readonly<{
+  receipt: ToolPublication
+  release(): Promise<Readonly<{ removed: boolean }>>
+}>
+export interface ToolPublicationAuthority<P> {
+  check(input: ToolRegistrationInput<P>): Outcome<void, ToolRegistrationFailure>
+}
+/** @owner packages/tool/tool */
+export declare class ToolInstancesService<P> extends Service implements ToolDirectory<P> {
+  static readonly provide = 'toolInstances'
+  constructor(ctx: Context, authority: ToolPublicationAuthority<P>)
+  readonly connect: ToolDirectory<P>['connect']
+  register(input: ToolRegistrationInput<P>): Promise<Outcome<ToolRegistration, ToolRegistrationFailure>>
+}
+export const toolInstancesKey = ToolInstancesService.provide
 ```
 
 定义入口将 Context 的 `toolRuntime` 增补为这一抽象类，主体类型由装配的可信身份适配器专化，运行时仍核验输入。接口同形不证明授权。具体插件不得再次ctx.provide这个键。消费者导入定义入口的键常量，提供者选择归应用装配。
+
+## 登记输入与撤除协议
+
+ToolInstancesService 是包含 register 实现的具体服务，上面只给其声明。提供者插件静态 inject `toolPublicationAuthority`，用当前 Context 和该能力构造服务。PublicationAuthority 属于本域消费接缝，具体适配器核原领域权威；不是任意调用者可实现后传入的准入回调。authority 是当前受信宿主取得的原实例资格证据，含租户、工作身份、实例和代次，不能仅以 token 或 handle.instance 自证。
+
+register 的 publication 逐项复用根 publish 参数。authority.check 核证据来源、当前发布资格、handle 身份及调用 fiber 所属宿主；核权失败返回 denied，原实例已被替换返回 stale-publication，不能取得源返回 unavailable。check 是同步最终核验，与 effect 内目录写入在同一不可让出的本地动作中完成；当前资格变更沿同一排序域生效。需要异步获取的证明由宿主提前准备，但此处仍核当前发布代次。不能提供同步当前核验的适配器返回 unavailable，不先放行再异步补核。调用 fiber 已退出时不再登记。根操作仍逐次核业务权限，登记从不授发起权。
+
+目录在成功的 caller-fiber effect 内生成不可猜测的 registration token，回执复用本域 publish 结果。相同 fiber、相同原实例和同一 handle 对象重复登记认回同一 receipt/release；同身份但 handle 或资格内容不同返回 conflict。其他 fiber 不共享原贡献，未撤的原绑定与新登记冲突。只有旧贡献已撤且新发布资格成立时才登记后继，不以覆盖 Map 的方式接管。键为显式租户与原工作身份；Agent 额外包含 Session/Run，来自核验的 authority，不从 Context 推导。
+
+宿主 publish 在对应实例 fiber 内调用 register，成功后向根消费者返回 receipt。宿主 withdraw 按 receipt.registration 定位自己持有的原贡献，调用 release；它不接受另一个宿主的 token。release 只条件撤除自己的目录项，不取消原工作，重复调用 removed=false；fiber 自动 disposer 使用同一幂等撤除。晚到旧 release 比较 token，不能删除后继。宿主内部持有这一个原 contribution 的释放资源，不另建需要用户手动清理的贡献者清单。纯根宿主的其他失败沿原 Reply；登记 conflict 映射 invalid(field='publication')，stale-publication 映射 stale-instance，denied/unavailable 保留原类别和安全诊断。
 
 ## 依赖与定义拥有者
 
@@ -41,7 +77,8 @@ export const toolRuntimeKey = ToolRuntimeService.provide
 | toolBindings | ToolBindings | Tool | 准备/执行局部必需；固定原executor，不把当前新版替换已启动调用 |
 | toolEnvironments | ToolEnvironment | Tool | 准备及安全resume局部必需；环境失败不降为宿主直接执行 |
 | toolDecisions | ToolDecisionBridge | Tool | 原等待答复阶段局部必需；缺失保持等待，不造默认答案 |
-| toolInstances | ToolDirectory + register | Tool | 具体目录Service；本Tool实例贡献fiber拥有登记 |
+| toolInstances | ToolInstancesService | Tool | 具体目录Service；本Tool实例贡献fiber拥有登记 |
+| toolPublicationAuthority | ToolPublicationAuthority | Tool 定义入口 | 目录必需；核当前宿主、原实例资格及authority来源，不能只核字符串相同 |
 | toolInstanceHost | ToolInstanceHost | Tool | 独立宿主必需；原事实/控制可经门面处理，无活体仍可查 |
 | toolClock | ToolClock | Tool | 计时执行段必需；恢复沿具名持续时间来源，不能重新计满 |
 | toolResultPolicy | ResultPolicy | Tool | 结果处理必需；固定B及版本，缺失保留原输出与明确失败，不重做效果 |
@@ -58,7 +95,7 @@ processBatchBytes、observerBufferBytes、resultPageBytes 为正整数；process
 
 等待、前后台、名额及全文保留均属Tool业务事实，不以Fiber状态判断。register撤除不会释放并发名额、给Ask填答案或删除delivery。迟到全文沿recordLateResult产生独立结果版本。
 
-运行实例登记的贡献权限只交受信宿主。目录register验证原实例资格和token，在调用方fiber的effect中增加并条件撤除；query不授发布权。Session无实例登记时此段不适用。计划卸载先完成业务交接再dispose；依赖突然消失时保留未知，不用自动撤登记声称外部效果被撤回。
+运行实例登记的贡献权限只交受信宿主。目录register验证原实例资格和token，在调用方fiber的effect中增加并条件撤除；connect不授发布权。计划卸载先完成业务交接再dispose；依赖突然消失时保留未知，不用自动撤登记声称外部效果被撤回。
 
 ## 验证义务
 

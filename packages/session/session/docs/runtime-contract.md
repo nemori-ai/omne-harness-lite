@@ -110,6 +110,7 @@ export type WorkSnapshot = Readonly<{
   waiting: readonly Waiting[]; consumptions: readonly Consumption[]
   controls: readonly ControlProgress[]; unresolved: readonly SessionOperationId[]
   creation: SessionCreation; tasks: readonly RecoveryTask[]
+  idle: Readonly<{ observation: IdleObservation; commit: DurableEvidence }> | null
 }>
 ```
 
@@ -319,7 +320,25 @@ export type Relation =
   | Readonly<{ kind: 'main'; resident: boolean }>
   | Readonly<{ kind: 'child'; parent: SessionId; basis: DurableEvidence }>
   | Readonly<{ kind: 'handoff'; origin: SessionId; basis: DurableEvidence }>
+export type ClockSample = Readonly<{ at: string; protocol: Adoption; source: DurableEvidence }>
+export type IdleCoverage = Readonly<{
+  own: DurableEvidence; relations: DurableEvidence
+  children: readonly Readonly<{ session: SessionId; work: DurableEvidence }>[]
+  calls: readonly Readonly<{ producer: ProducerRef; state: DurableEvidence }>[]
+  completeScope: DurableEvidence
+}>
+export type IdleObservation =
+  | Readonly<{
+      kind: 'interval'; started: string; through: ClockSample; elapsedMs: string
+      coverage: IdleCoverage; source: DurableEvidence
+    }>
+  | Readonly<{ kind: 'interrupted'; at: ClockSample; cause: DurableEvidence; source: DurableEvidence }>
+  | Readonly<{ kind: 'unknown'; at: ClockSample; scope: DurableEvidence; source: DurableEvidence }>
 export interface SessionManagement<P> {
+  inspectIdle(input: Access<P>): Reply<IdleObservation>
+  recordIdle(input: Mutation<P> & Readonly<{
+    expected: SessionRevision; observation: IdleObservation
+  }>): Reply<CommitReceipt>
   create(input: Mutation<P> & Readonly<{ creation: SessionCreation }>): Reply<Readonly<{ receipt: CommitReceipt; state: WorkSnapshot }>>
   completeInitialization(input: Mutation<P> & Readonly<{ result: InitializationResult }>): Reply<CommitReceipt>
   change(input: Mutation<P> & Readonly<{ declaration: DeclarationChange }>): Reply<CommitReceipt>
@@ -395,7 +414,7 @@ export type MutationName =
   | 'preserveResult' | 'completeConsumption' | 'recordProgress' | 'release'
   | 'commitDerived'
   | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change'
-  | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'interrupt' | 'receive'
+  | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'recordIdle' | 'interrupt' | 'receive'
 type Mutations = Pick<SessionWork<never> & SessionManagement<never> & SessionReconciliation<never>, MutationName>
 export type SessionCommand = {
   readonly [K in MutationName]: Readonly<{
@@ -411,6 +430,21 @@ export interface SessionIdentityBridge<P> {
 export interface SessionEvidenceBridge {
   prepare(command: SessionCommand): Reply<readonly GuardCommand[]>
 }
+export interface SessionClock {
+  sample(): Reply<ClockSample>
+  waitUntil(instant: string, signal: AbortSignal): Promise<'elapsed' | 'cancelled'>
+}
+export interface SessionIdleInput<P> {
+  inspect(input: Access<P> & Readonly<{ time: ClockSample }>): Reply<IdleObservation>
+  prepare(input: Access<P>, command: Extract<SessionCommand, {
+    kind: 'recordIdle' | 'considerAutoArchive'
+  }>): Reply<readonly GuardCommand[]>
+}
+export interface SessionContextInput<P> {
+  prepare(input: Access<P>, command: Extract<SessionCommand, {
+    kind: 'create' | 'change' | 'startRun' | 'reload'
+  }>): Reply<readonly GuardCommand[]>
+}
 export interface SessionTransactionPort<P> {
   commit<K extends MutationName>(input: Readonly<{
     command: Extract<SessionCommand, { kind: K }>; guards: readonly GuardCommand[]
@@ -425,13 +459,14 @@ export interface SessionTransactionPort<P> {
   }>>
 }
 export interface SessionNotifier {
-  committed(input: Readonly<{ tenant: TenantId; session: SessionId; revision: SessionRevision }>): Promise<void>
+  committed(input: Readonly<{ tenant: TenantId; session: SessionId; revision: SessionRevision; source: DurableEvidence }>): Promise<void>
 }
 export type SessionConfiguration = Readonly<{
   maximumPageBytes: number; maximumPendingPage: number; reconciliationDelayMs: number
 }>
 export type SessionDependencies<P> = Readonly<{
   identity: SessionIdentityBridge<P>; evidence: SessionEvidenceBridge
+  clock: SessionClock; idle: SessionIdleInput<P>; context: SessionContextInput<P>
   transactions: SessionTransactionPort<P>
   notifier: Readonly<{ current(): SessionNotifier | null }>
 }>
@@ -439,6 +474,14 @@ export declare function createSessionService<P>(
   dependencies: SessionDependencies<P>, configuration: SessionConfiguration,
 ): SessionService<P>
 ```
+
+SessionClock 是时间来源和等待能力，ClockSample.at、started 及 waitUntil 参数使用 utc-instant 的合法编码字符串，持久化不用运行对象。sample 失败不能用系统时间补默认；墙钟差本身不证明连续空闲。SessionIdleInput 是本域消费适配，组合时钟连续性、Session 原区间、关系和生产者全部在途工作，原始事实继续归各拥有者。它不能只看 Run 或当前活体目录。elapsedMs 是非负十进制整数，其来源必须证明覆盖整个区间；普通进程重启不重置已确认 started。来源无法证明离线区间、时钟回拨或有未决工作时返回 unknown，不能按墙钟补齐。后续若原来源补证才可重新确认，不能无依据追溯空闲。
+
+management.inspectIdle 先取 clock.sample，再以当前主体/tenant/session 调用 idle.inspect；它返回可核查观察，不写 SE31。recordIdle 独立提交这一观察及来源，适用于自动归档关闭、常驻和未到期状态。提供者经 idle.prepare 得到原 Session revision、关系范围、全部子方及生产调用的具名参加者，复核 observation 与其来源，和 SE31/原操作回执共同提交。相同 operation 同输入认回，异输入冲突；响应未知走 queryOperation。新增工作、关系改变或调用变更使旧覆盖失效，recordIdle 返回 changed，不能把过期观察变成新空闲区间。新工作在其原受理点中断本域旧空闲，跨域新调用与子方变化由上述共同保护参加者使旧覆盖不可用于归档。
+
+considerAutoArchive 的 idleEvidence 必须指向已确认 recordIdle 的原 CommitReceipt.source，或此前等价 SE31 的原解释版本。idle.prepare 在裁定时重新核当前租户配置、常驻/关系、所有子方、全部工作/调用及连续时间。这些参加者与 Session 归档提交在同一 transactionDomain/已登记组合中保护，不能“先查全空闲再单独归档”。当前源不可达、观察为 unknown 或组合缺席返回 unavailable；仍有未结工作返回 not-due，不归档；不以空数组冒充已覆盖。配置关闭、常驻、未到期分别返回 disabled/exempt/not-due。归档成立保存原区间、配置、裁定时刻及完整覆盖，并沿原控制/级联责任继续；不等待物理全停。启用或解除常驻不重置 started，可能立即到期；撤销归档建立新的起点。恢复者从 readWork.idle、原操作和可靠扫描重建维护，不以本机计时器状态恢复。
+
+SessionContextInput 是具名 Runtime Context 消费接缝，context.prepare 按 create/change/startRun/reload 生成注册、来源和当前允许范围的参加者需求。create 固定合法初值及必需注册；context-registration 的 registration 引用 Runtime Context 原增加/更新/移除决定，必须含原提交身份、块/作用域身份、前注册修订和变更种类。change 验证当前原状态、更新不改固定身份、移除不破坏必需项；同原决定认回，不新造注册。startRun/reload 核当前采用及本次应取快照的注册条件，完整内容读取归 Agent 当前条件端口。缺来源/版本或当前资格不能提交，不把历史快照当允许缓存。context 的 guards 与身份、Session 自身条件共同裁定；evidence 不再重复生成这组参加者。
 
 GuardCommand 是参加者拥有的版本化 JSON 需求材料，不是签名后的 allowed 布尔或新的权限模型。owner/protocol 指向实际已登记的身份、资产、Context、Agent、生产者或保管契约；participant 在 Worker 中验证来源、目标与最新权威条件，提交时重新裁定。Session 自己的参数、原操作身份及共同结果在 SessionCommand 中封闭定义，不能放进 facts 逃避公开契约。
 
@@ -450,13 +493,16 @@ commit 校验命令所需完整参加者集合，不信任调用者挑选的 gua
 
 读操作仍由 transaction port 的身份/披露边界核权，不能因为 commit 使用 identity bridge 就忽略读取。evidence bridge 不可用时可以继续不依赖它的合法读/控制或已持久任务核对；实际命令缺必要事实时才拒绝相应变更。不能把全站停机当作必然回退。
 
-notifier 是调用期可选能力。一次提交之后重新获取当前 notifier，缺席不阻止提交；失败保留可观测诊断并由 pending/readWork 恢复工作，不回滚成功回执。若某装配把它作为唯一唤醒路径而不扫描耐久待办，该装配不符合可靠受理。读到 old notifier 后的在途调用按其生命周期结束，不能缓存为长期必需引用。
+notifier.committed 的 revision/source 取自该次原 CommitReceipt，重试保持原值；R1 通知晚于 R2 时仍传 R1.source，不能读最新 WorkSnapshot 拼接。notifier 是调用期可选能力。一次提交之后重新获取当前 notifier，缺席不阻止提交；失败保留可观测诊断并由 pending/readWork 恢复工作，不回滚成功回执。若某装配把它作为唯一唤醒路径而不扫描耐久待办，该装配不符合可靠受理。读到 old notifier 后的在途调用按其生命周期结束，不能缓存为长期必需引用。
 
 | 值或依赖 | 分类与换代责任 |
 | --- | --- |
 | principal、tenant、session、目标、operation、固定输入/证据 | 操作参数；每次重新核验，原操作相同内容认回，租户不从 Context 推导 |
 | identity | 必需可信身份到当前守卫需求的适配；不能返回永久许可，替换不改变历史主体 |
 | evidence | 必需按命令取采用/来源/保管/Agent 解释需求的适配；旧版恢复须仍可解释原采用，缺版本明确不可用 |
+| clock | 必需时间来源与等待能力；有采用和来源，墙钟不证明跨重启连续空闲 |
+| idle | 空闲维护/裁定阶段必需；组合完整范围和当前参加者，缺席不阻断无关读/控制 |
+| context | 创建、声明和推进采用阶段的具名输入；当前注册/来源/资格由原拥有者参加裁定 |
 | transactions | 必需本域原子命令与权威读能力；选择的提供者兑现组合版本、跨进程写裁定及持久性 |
 | notifier.current | 可选能力解析器；提交后按次获取，不决定业务事实是否成立 |
 | configuration | 有限正页/批容量及非负核对间隔；加载时验证，不能通过缩页改变逻辑输入批界 |

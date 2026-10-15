@@ -270,23 +270,29 @@ export interface ModelRuntime<P> {
 独立函数 `executeModel` 执行一次供应商请求，不重试、不保管、不 ACK。其 signal 请求该次传输停止，返回事实仍须区分请求取消与真实停止。托管模式的观察 signal 不传给它。托管模式只有原调用的有效控制可以请求传输停止。
 
 ```ts
+export type TransportFailure = Extract<ModelFailure, { kind: 'denied' | 'invalid' | 'unsupported' | 'unavailable' }>
+export type TransportTermination = Exclude<Termination, { kind: 'interrupted' }>
+  | Readonly<{ kind: 'interrupted'; stop: 'confirmed' }>
 export type TransportFact =
   | Readonly<{ kind: 'output'; block: VisibleBlock }>
   | Readonly<{ kind: 'trim'; index: string; removed: string; reason: string }>
   | Readonly<{ kind: 'account'; event: string; value: CallAccount }>
-  | Readonly<{ kind: 'ended'; termination: Termination }>
+  | Readonly<{ kind: 'ended'; termination: TransportTermination }>
+export type IndependentModelFact = TransportFact
+  | Readonly<{ kind: 'not-started'; reason: 'cancelled' }>
+  | Readonly<{ kind: 'not-started'; reason: 'rejected'; failure: TransportFailure }>
 export interface PreparedTransport {
   start(signal: AbortSignal): AsyncIterable<TransportFact>
   close(): Promise<void>
 }
 export interface ModelTransport {
-  prepare(request: FixedModelRequest, supplier: Supplier): Reply<PreparedTransport>
+  prepare(request: FixedModelRequest, supplier: Supplier): Promise<Outcome<PreparedTransport, TransportFailure>>
 }
 export declare function executeModel(
   request: FixedModelRequest,
   transport: ModelTransport,
   signal: AbortSignal,
-): AsyncIterable<TransportFact>
+): AsyncIterable<IndependentModelFact>
 export type ExecutionRef = Readonly<{
   tenant: TenantId; call: ModelCallId; instance: ModelInstanceId; generation: string
 }>
@@ -416,6 +422,10 @@ export declare function createModelRuntime<P>(
 ```
 
 `executeModel` 选用 request.suppliers 的首项，仅执行一次。需要另一供应商时调用者必须形成新的明确执行，不能把此函数冒充托管 fallback。`prepare` 可以建立无业务内容及秘密外传的连接；它不发送模型请求。`start` 在调用时启动不可撤回的发送并返回流，不能把发送延迟到第一次迭代。准备资源的调用者在所有成功、拒绝和异常路径调用 close；close 不声称撤回外部效果。
+
+独立调用在 start 前观察到 signal 已取消时，只返回 not-started/cancelled，不调用 start。prepare 的四种声明失败原样放入 not-started/rejected，不改成托管提交失败，也不抛异常代替该结果；准备过程意外抛错映射为 unavailable 及安全诊断。已取得资源始终 close。开始发送后不再允许 not-started，signal 仅请求停止；只有传输确认停止才返回 ended/interrupted，未确认且失联返回 ended/failed 的 stream-lost，不虚构停止。竞争中实际 completed 仍报告 completed。流上恰好一个终结结果，消费者主动放弃读取不代表已取得终结事实，释放时仍关闭本次资源。
+
+TransportTermination 不携带托管控制身份。托管协调者消费真实 interrupted 时，必须关联已持久的原 ControlState.operation 后才能形成 Termination.interrupted；没有有效控制关联的自发断流形成 failed。not-started/rejected 的 denied、invalid、unsupported、unavailable 分别映射为本次 dispatch 的 excluded、input-rejected、modality、upstream-unavailable 故障并保留原诊断；只允许原重试政策决定后续。托管取消在 start 前成立时不产生 dispatch 发送事实，按原控制收场。独立函数不自行生成 ModelOperationId。
 
 实际传输返回每个 index 的最新表示。增长片段按固定 mode 归并。关闭时产生 sealed；合法终止只出现一次。未终止就耗尽或抛错视为传输失联，由执行函数产出有诊断的 failed，不能报 completed。账目事件按供应商采用、dispatch 与 event 身份去重，同 event 不同值拒绝并记录矛盾。修正账目必须有新 revision 和原事件关系。纯函数本身没有足够身份时，只交事实给调用者，不自建账本。
 

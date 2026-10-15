@@ -52,8 +52,14 @@ sequenceDiagram
 
 ## 资格与输入分类检查
 
-principal、tenant、Session/Run/attempt、原操作及当前动作参数显式传入。固定定义、请求及原 continuation 被可靠保管，当前权限仍由参加者在提交/实际发起点核验。identity/evidence/transactions 是构造能力，notifier 是调用期可选取得，页容量属于纯配置。Context 与 Fiber 不进入这份业务数据契约。
+principal、tenant、Session/Run/attempt、原操作及当前动作参数显式传入。固定定义、请求及原 continuation 被可靠保管，当前权限仍由参加者在提交/实际发起点核验。identity/evidence/transactions/clock/idle/context 是构造能力，notifier 是调用期可选取得，页容量属于纯配置。Context 与 Fiber 不进入这份业务数据契约。
 
 SESSION 的 root 操作没有公开 append(events) 或直接修改推进布尔的方法。recordProgress 的 Agent 材料须经精确 schema 和原位置验证；未知 JSON 不能得到可信结论。原生产 facts 同样验证原 source，不让任意调用者自报工具完成或 Model ACK。
 
 类型消费只验证参数和返回形状。唯一推进、输入批界、原操作未知、终态竞争、实际外部动作及跨进程提交需另有模型和提供者证据。状态图、静态类型和文档链接均不证明断电耐久或授权源已经实现。
+
+## 空闲维护与原提交通知
+
+自动归档关闭时，恢复协调者也可 inspectIdle，取得带时钟来源、完整子方/调用覆盖的观察，再以原 operation 和 expected 提交 recordIdle。回执未知时查询该 operation；重启读取 readWork.idle，保持已确认起点。开启自动归档后，将该记录的 CommitReceipt.source 交 considerAutoArchive，后者重新核当前配置和全部相关事实，不能仅比较时间。新子方或 Run 外工具在两步之间受理时，旧覆盖失效；recordIdle 返回 changed，或归档裁定返回 not-due。来源不明返回 unavailable，不能认定空闲。
+
+R1 完成后 notifier 延迟，R2 已提交。通知仍传 R1 回执的 revision/source；不能通过 readWork 取 R2.source 给 R1 使用。通知失败不回滚 R1，扫描按原持久事实接续。

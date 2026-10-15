@@ -8,7 +8,8 @@
 
 ```ts
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { AgentRuntime } from '../index.js'
+import type { AgentRuntime, AgentDirectory, AgentInstanceHost, Evidence } from '../index.js'
+import type { Outcome } from '@omne-harness/kernel-basis'
 
 /** @owner packages/agent/agent */
 export abstract class AgentRuntimeService<P> extends Service implements AgentRuntime<P> {
@@ -20,9 +21,44 @@ export abstract class AgentRuntimeService<P> extends Service implements AgentRun
   abstract readonly instances: AgentRuntime<P>['instances']
 }
 export const agentRuntimeKey = AgentRuntimeService.provide
+
+export type AgentPublication = Extract<Awaited<ReturnType<AgentInstanceHost<never>['publish']>>, { ok: unknown }>['ok']
+export type AgentRegistrationInput<P> = Readonly<{
+  publication: Parameters<AgentInstanceHost<P>['publish']>
+  authority: Evidence
+}>
+export type AgentRegistrationFailure =
+  | Readonly<{ kind: 'denied' | 'stale-publication' | 'conflict' }>
+  | Readonly<{ kind: 'invalid'; reason: string }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+export type AgentRegistration = Readonly<{
+  receipt: AgentPublication
+  release(): Promise<Readonly<{ removed: boolean }>>
+}>
+export interface AgentPublicationAuthority<P> {
+  check(input: AgentRegistrationInput<P>): Outcome<void, AgentRegistrationFailure>
+}
+/** @owner packages/agent/agent */
+export declare class AgentInstancesService<P> extends Service implements AgentDirectory<P> {
+  static readonly provide = 'agentInstances'
+  constructor(ctx: Context, authority: AgentPublicationAuthority<P>)
+  readonly connect: AgentDirectory<P>['connect']
+  register(input: AgentRegistrationInput<P>): Promise<Outcome<AgentRegistration, AgentRegistrationFailure>>
+}
+export const agentInstancesKey = AgentInstancesService.provide
 ```
 
 定义入口将 Context 的 `agentRuntime` 增补为这一抽象类，主体类型由装配的可信身份适配器专化，运行时仍核验输入。接口同形不证明授权。具体插件不得再次ctx.provide这个键。消费者导入定义入口的键常量，提供者选择归应用装配。
+
+## 登记输入与撤除协议
+
+AgentInstancesService 是包含 register 实现的具体服务，上面只给其声明。提供者插件静态 inject `agentPublicationAuthority`，用当前 Context 和该能力构造服务。PublicationAuthority 属于本域消费接缝，具体适配器核原领域权威；不是任意调用者可实现后传入的准入回调。authority 是当前受信宿主取得的原实例资格证据，含租户、工作身份、实例和代次，不能仅以 token 或 handle.instance 自证。
+
+register 的 publication 逐项复用根 publish 参数。authority.check 核证据来源、当前发布资格、handle 身份及调用 fiber 所属宿主；核权失败返回 denied，原实例已被替换返回 stale-publication，不能取得源返回 unavailable。check 是同步最终核验，与 effect 内目录写入在同一不可让出的本地动作中完成；当前资格变更沿同一排序域生效。需要异步获取的证明由宿主提前准备，但此处仍核当前发布代次。不能提供同步当前核验的适配器返回 unavailable，不先放行再异步补核。调用 fiber 已退出时不再登记。根操作仍逐次核业务权限，登记从不授发起权。
+
+目录在成功的 caller-fiber effect 内生成不可猜测的 registration token，回执复用本域 publish 结果。相同 fiber、相同原实例和同一 handle 对象重复登记认回同一 receipt/release；同身份但 handle 或资格内容不同返回 conflict。其他 fiber 不共享原贡献，未撤的原绑定与新登记冲突。只有旧贡献已撤且新发布资格成立时才登记后继，不以覆盖 Map 的方式接管。键为显式租户与原工作身份；Agent 额外包含 Session/Run，来自核验的 authority，不从 Context 推导。
+
+宿主 publish 在对应实例 fiber 内调用 register，成功后向根消费者返回 receipt。宿主 withdraw 按 receipt.registration 定位自己持有的原贡献，调用 release；它不接受另一个宿主的 token。release 只条件撤除自己的目录项，不取消原工作，重复调用 removed=false；fiber 自动 disposer 使用同一幂等撤除。晚到旧 release 比较 token，不能删除后继。宿主内部持有这一个原 contribution 的释放资源，不另建需要用户手动清理的贡献者清单。纯根宿主的其他失败沿原 Reply；登记 conflict 映射 invalid(field='publication')，stale-publication 映射 stale-advance，denied/unavailable 保留原类别和安全诊断。
 
 ## 依赖与定义拥有者
 
@@ -40,7 +76,8 @@ export const agentRuntimeKey = AgentRuntimeService.provide
 | agentHumans | HumanDecisions | Agent | 出卡/认回阶段局部必需；HITL拥有卡与唯一答复 |
 | agentMaterials | AgentMaterials | Agent | 消费保管/读取必需；不能只存在Agent fiber内存 |
 | agentReads | RegisteredReads | Agent | 具名外读阶段局部必需；不暴露任意网络/脚本 |
-| agentInstances | AgentDirectory + register | Agent | 具体目录Service；Agent贡献撤除不控制Model/Tool贡献 |
+| agentInstances | AgentInstancesService | Agent | 具体目录Service；Agent贡献撤除不控制Model/Tool贡献 |
+| agentPublicationAuthority | AgentPublicationAuthority | Agent 定义入口 | 目录必需；核当前宿主、原实例资格及authority来源，不能只核字符串相同 |
 | agentInstanceHost | AgentInstanceHost | Agent | 保留/启动/登记宿主必需；reserve不授予Session推进权 |
 | agentClock | AgentClock | Agent | 退避等待阶段必需；不决定Run终态 |
 
@@ -56,7 +93,7 @@ observerBufferBytes 为正整数，reconciliationDelayMs、denialBackoffMs 为�
 
 Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Request Context/HITL的完整服务定义若以后成为各原拥有者的公共接缝，应在同一采用中将本消费投影适配到该定义，不能保留两个含义相同的权威服务面。当前这些Agent端口拥有者是实际消费形状的Agent成员，未授予外域业务写权。
 
-运行实例登记的贡献权限只交受信宿主。目录register验证原实例资格和token，在调用方fiber的effect中增加并条件撤除；query不授发布权。Session无实例登记时此段不适用。计划卸载先完成业务交接再dispose；依赖突然消失时保留未知，不用自动撤登记声称外部效果被撤回。
+运行实例登记的贡献权限只交受信宿主。目录register验证原实例资格和token，在调用方fiber的effect中增加并条件撤除；connect不授发布权。计划卸载先完成业务交接再dispose；依赖突然消失时保留未知，不用自动撤登记声称外部效果被撤回。
 
 ## 验证义务
 

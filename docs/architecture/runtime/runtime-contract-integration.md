@@ -46,7 +46,7 @@ flowchart TB
 
 Cordis 4.0.4 的 Service 方法 `this.ctx` 是调用方 Context。Model/Tool 的 schedule 若直接在此处 `this.ctx.plugin(...)`，从 Agent 调用时会生成 Agent 子 fiber，违反独立寿命。采用的宿主设计在构造时捕获执行宿主自己的 Context，schedule 将显式业务身份交入该宿主，由其在自己 Context 上建立实例贡献 fiber。实际注册在该实例插件内调用目录 Service.register，继续遵守 IC-13 的 caller-fiber 归属。捕获宿主只用于生命周期，不用于推断租户或绕过当前资格。
 
-注册表用 `this.ctx.effect` 配对登记与条件撤除。登记项带稳定工作键、实例身份、代次及 contribution token。受信宿主必须先证明该实例合法在场；冲突登记拒绝，原贡献同值认回。旧 disposer 仅在 token 与当前项一致时移除，不能撤新实例。查询核当前身份/tenant/资源动作，返回受限句柄或无活体路由；无活体不证明事实不存在。注册表不另记贡献者清单或等待用户手动注销。
+注册表用 `this.ctx.effect` 配对登记与条件撤除。登记项带稳定工作键、实例身份、代次及 contribution token。受信宿主必须先证明该实例合法在场；冲突登记拒绝，仅同一 fiber 的原贡献同值认回；新贡献先等旧贡献明确撤除。精确 register 输入、资格依赖、回执和 release 归三份成员集成页。旧 disposer 仅在 token 与当前项一致时移除，不能撤新实例。查询核当前身份/tenant/资源动作，返回受限句柄或无活体路由；无活体不证明事实不存在。注册表不另记贡献者清单或等待用户手动注销。
 
 API 门面可以将 directory 暴露为只读查询面，但宿主注册必须经自身 fiber 的 `ctx.get(目录键).register`。不得通过 Agent 缓存的目录代理登记，不把普通对象 `ctx.provide` 当具有 caller-context 跟踪的注册表。
 
@@ -123,6 +123,8 @@ API 门面可以将 directory 暴露为只读查询面，但宿主注册必须�
 
 固定采用 Cordis 4.0.4，发布来源沿 kernel-basis 已记录的 `d0dca04e22f09fe04967090b2ee70587ecdad6cc`。本次实际使用安装的发布包及其 src，记录 lib/index.js 内容 hash；未声称重新构建并比较上游 Git 产物。现有 basis 中旧 `packages/core/kernel-basis` probe 路径不可作为当前可运行位置，使用现行 `packages/assembly/kernel-basis` 的公开入口测试及任务临时探针补核所用主张。
 
-已运行的机制输入包括 caller-context、独立执行宿主、必需依赖换代、可选按次获取、条件撤除、serial/bail 和通知异常；kernel-basis 的23项测试及类型检查通过。错误地使用 caller Context 建执行子 fiber 的变体触发预期失败。通知探针发现 parallel 返回 AggregateError，断言按实际固定版本精确检查内部错误，不把它误记成单个 Error。
+已运行的机制输入包括 caller-context、独立执行宿主、必需依赖换代、可选按次获取、原贡献撤除、serial/bail 和通知异常；kernel-basis 的23项测试及类型检查通过。错误地使用 caller Context 建执行子 fiber 的变体触发预期失败。通知探针发现 parallel 返回 AggregateError，断言按实际固定版本精确检查内部错误，不把它误记成单个 Error。
+
+同键后继发布后旧 disposer 晚到的交错不在这组生命周期探针内，不能将“撤 Model 不撤 Tool”扩大为该性质的验证；它继续作为 F-04 的明确后继验证输入。
 
 这些结果支持上述局部机制选择，不证明四个 runtime 已实现、Storage/身份源已可用、启动围栏完备、断电持久、实际跨租户隔离或生产部署通过。W6 需对精确候选分别作 choice、expression、plan 判断；技术接受仍另行进行。

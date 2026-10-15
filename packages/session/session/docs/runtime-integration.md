@@ -33,9 +33,12 @@ export const sessionWorkKey = SessionWorkService.provide
 | sessionTransactions | SessionTransactionPort | Session | 权威读/写必需；同提交参加者和原操作认回归真实提供者 |
 | sessionIdentity | SessionIdentityBridge | Session | 变更阶段必需；读接口由transaction port独立核权，不靠可见性授权 |
 | sessionEvidence | SessionEvidenceBridge | Session | 依命令局部必需；缺某采用源仅阻止需要它的命令，完整参加者集合仍必需 |
+| sessionClock | SessionClock | Session | 空闲取证/等待阶段必需；原时间来源与连续性不能由宿主墙钟替代 |
+| sessionIdleInput | SessionIdleInput | Session | 空闲维护/裁定阶段必需；完整源范围及同提交参加者，缺席不阻断无关操作 |
+| sessionContextInput | SessionContextInput | Session | 创建/声明/推进采用阶段必需；消费Runtime Context原决定和当前条件 |
 | sessionNotifier | SessionNotifier | Session | 可选，不在inject；每次提交后现取，缺席/失败不回滚提交 |
 
-Session 没有每会话根Context或实例目录。长期服务与恢复协调者服务全部显式tenant/session操作。门面权威读依赖transactions；身份和证据准备按命令在子fiber取得，核心读与已有控制核对不因无关资产源撤除全站停机。纯工厂依然得到完整identity/evidence接口，局部缺失映射为相应命令失败，不把必要guard当可选。notifier.current在调用点解析当前sessionNotifier。
+Session 没有每会话根Context或实例目录。长期服务与恢复协调者服务全部显式tenant/session操作。门面权威读依赖transactions；身份和证据准备按命令在子fiber取得，核心读与已有控制核对不因无关资产源撤除全站停机。纯工厂依然得到完整identity/evidence/clock/idle/context接口，局部缺失映射为相应命令失败，不把必要guard当可选。notifier.current在调用点解析当前sessionNotifier。
 
 每个实际插件的inject使用定义键常量数组字面量。局部阶段适配器由本域提供者实现，方法在所需子fiber内取能力，等待依赖与业务等人分开；阶段结束释放该子fiber。公开纯工厂不接收Cordis Context，适配器负责把阶段失败变为根契约的精确结果。服务换代不能把旧在途对象悄悄换成新对象。
 
@@ -47,7 +50,7 @@ maximumPageBytes、maximumPendingPage 为正整数，reconciliationDelayMs 为�
 
 Session的控制先经原子操作形成逻辑事实及传播责任，再由当前恢复协调者联系Model/Tool。不能用事件监听调用成功代替共同提交，不能把所有领域对象作为Session子插件。
 
-运行实例登记的贡献权限只交受信宿主。目录register验证原实例资格和token，在调用方fiber的effect中增加并条件撤除；query不授发布权。Session无实例登记时此段不适用。计划卸载先完成业务交接再dispose；依赖突然消失时保留未知，不用自动撤登记声称外部效果被撤回。
+Session 不登记运行实例。计划卸载先完成业务交接再dispose；依赖突然消失时保留未知，不用自动撤登记声称外部效果被撤回。
 
 ## 验证义务
 
