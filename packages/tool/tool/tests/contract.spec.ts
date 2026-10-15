@@ -15,9 +15,9 @@ it('accepts read_file and records skill references without making them required'
 
 it('rejects a tool body whose name is not the capability name', () => {
   const port = toolBodyContract()
-  expect(port.judge({ name: 'write_file' }, { capabilityName: 'read_file' })).toEqual({
-    rejected: 'name-mismatch',
-  })
-  expect(() => port.references({ name: '' })).toThrow(/failed judgment/)
-  expect(() => port.deriveDeclarations({ name: '' })).toThrow(/failed judgment/)
+  const body = { name: 'write_file', composes: { skills: ['review'] } }
+  const context = { capabilityName: 'read_file' }
+  expect(port.judge(body, context)).toEqual({ ok: false, rejected: 'name-mismatch' })
+  expect(() => port.deriveDeclarations(body, context)).toThrow(/failed judgment/)
+  expect(() => port.references(body, context)).toThrow(/failed judgment/)
 })

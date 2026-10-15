@@ -22,9 +22,11 @@ it('reads a skill body without running a script and records required tool identi
 
 it('rejects a skill body whose name is not the capability name', () => {
   const port = skillBodyContract()
-  expect(port.judge({ name: 'other' }, { capabilityName: 'review' })).toEqual({
-    rejected: 'name-mismatch',
-  })
+  const body = { name: 'other', tools: [{ category: 'tool', name: 'read_file' }] }
+  const context = { capabilityName: 'review' }
+  expect(port.judge(body, context)).toEqual({ ok: false, rejected: 'name-mismatch' })
+  expect(() => port.deriveDeclarations(body, context)).toThrow(/failed judgment/)
+  expect(() => port.references(body, context)).toThrow(/failed judgment/)
 })
 
 it('rejects a skill tool reference that is not a tool identity', () => {
