@@ -151,7 +151,16 @@ function copyJson(value: unknown): unknown {
 }
 
 function own(value: Record<string, unknown>, key: string): unknown {
-  return Object.hasOwn(value, key) ? value[key] : undefined
+  const descriptor = Object.getOwnPropertyDescriptor(value, key)
+  if (descriptor === undefined || descriptor.enumerable !== true) return undefined
+  return descriptor.value
+}
+
+function hasHiddenOwn(value: object): boolean {
+  return Object.getOwnPropertyNames(value).some(key => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    return descriptor !== undefined && descriptor.enumerable !== true
+  })
 }
 
 function isLogRole(role: string): role is LogMessageRole {
@@ -175,6 +184,7 @@ export function judgePart(
   value: unknown,
 ): { readonly ok: MessagePart } | { readonly rejected: PartRejection } {
   if (!isJsonValue(value)) return { rejected: 'json' }
+  if (isPlainRecord(value) && hasHiddenOwn(value)) return { rejected: 'json' }
   const kind = isPlainRecord(value) ? own(value, 'kind') : undefined
   if (typeof kind === 'string' && !isKnownPartKind(kind)) return { rejected: 'unknown' }
   if (isPlainRecord(value) && typeof kind === 'string' && isToolKind(kind)) {

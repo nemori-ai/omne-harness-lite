@@ -56,7 +56,9 @@ sequenceDiagram
 
 会话在收到一份账时写下它。这条记录表示会话已经收到。载体是模型响应的一次流式增量、该流的完成，或一次已完成工具执行的工具结果。
 
-后到的费用标明 `receipt` 为 `late`，`revision` 加一。同一 `subject`、同一 `cost.source` 时，这条修订替换先前的已知金额。
+后到的费用标明 `receipt` 为 `late`，`revision` 加一。更大的 `revision` 整份替换同一 `subject` 的旧快照。上面两份都是 `billable`。应付金额在没有已知 `ledger` 时取最新修订的 `1.50`，不把 `1.25` 与 `1.50` 相加。
+
+同一 `revision` 再次送达且内容相同，不另加金额。内容不同则保持第一份。新修订若把该来源写成 `unknown` 或 `provisional`，旧的 `known` 不再进入求和。`USD` 的 `lexeme` 最多两位小数，`1.234` 的拒绝码是 `precision`。不同单位不相加。
 
 ```json
 {
@@ -84,7 +86,7 @@ sequenceDiagram
 }
 ```
 
-同一 `revision` 再次送达时，不另加一笔金额。求和已知金额只使用最新 `revision`。上面两份账求和时只取 `1.50`。
+同一 `revision` 再次送达且内容相同，不另加一笔金额。内容不同则保持第一份。求和只使用最新修订里 `state` 为 `known` 的金额。上面这个 `billable` 例子在没有已知 `ledger` 时，应付金额是 `1.50`。
 
 ## 协作与依赖
 

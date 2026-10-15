@@ -6,7 +6,7 @@
 
 本责任承接模型定义/能力及一次请求的实际执行、原输出、收场、费用和结果保管。模型选择、请求输入计算与执行各有角色，不把它们塞进Session或Agent的内存。
 
-模型不会执行回复中的工具建议。独立调用可以没有Session，调用应用仍承担消费、治理和适用授权。已封闭内容块消费 `packages/common/content-block`。流式步骤消费 `packages/common/stream-arrival`。费用正文仍归本责任。会话在收到流式增量或流完成时记下这笔账。同一主体、同一费用来源的更后修订替换先前的已知金额，并标明迟到。
+模型不会执行回复中的工具建议。独立调用可以没有Session，调用应用仍承担消费、治理和适用授权。已封闭内容块消费 `packages/common/content-block`。流式步骤消费 `packages/common/stream-arrival`。费用正文仍归本责任。会话在收到流式增量或流完成时记下这笔账。应付金额的取法在调用账目词条里。token 用量的词法在下一句。
 
 token 类别名归本责任。`input` 是类别名的例子。token 用量的 `lexeme` 是整数。带小数位的词法拒绝，拒绝码是 `precision`。
 

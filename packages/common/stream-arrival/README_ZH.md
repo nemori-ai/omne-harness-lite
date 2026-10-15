@@ -8,7 +8,7 @@
 
 一个步骤属于一次流式交付。它不是入站受理，也不是 Cordis 派发。模型与工具保留自己的发出和执行，并消费这套词汇。
 
-本包不分配序号，不保存日志，也不携带用量和费用的正文。`judgeStreamArrival` 只核对一个步骤名和一个序号是否在场。它不给步骤排序。`assembleStream` 把一个目标的步骤折成进行中的装配，或折成已经收场的终态。它要求 `seq` 按序到达。间隙或回退都会被拒绝。它不重排。
+本包不分配序号，不保存日志，也不携带用量和费用的正文。`judgeStreamArrival` 只核对一个步骤名和一个序号是否在场。它不给步骤排序。`assembleStream` 把一个目标的步骤折成进行中的装配，或折成已经收场的终态。序号、重复和续接的规则在下面的契约里。它不重排。
 
 ## 使用
 
@@ -42,7 +42,13 @@ assembleStream({
 
 `STREAM_ARRIVAL_STEPS` 是 `open`、`fill`、`close`、`trim`、`finish`。其他步骤名，包括 `event`，得到 `{ rejected: 'step' }`。缺少序号得到 `{ rejected: 'index' }`。该判断只读 `{ step, index }`。
 
-`assembleStream` 返回 `{ ok }` 或 `{ rejected, at, assembly }`。`ok.phase` 是 `live` 或 `ended`。已经收场的装配带 `terminal`。`terminal.kind` 是 `complete`、`truncated`、`failed` 或 `cancelled`。只有 `complete` 带 `message`。终态之后的新步骤是 `late`，先前的装配保持不变。开块 `head` 不是 JSON 时，拒绝码是 `json`。`assembleStream` 在准入时复制 `id`、`role` 和 JSON `head`。之后修改调用方对象不改变已返回的装配。`from` 必须是先前的返回值。手写的 `{ phase: 'live' }` 被拒绝。`stopped` 即使还没有封块也是终态。之后的 `close` 或 `finish` 是 `late`。`close` 可以带 `block`。缺省时封住已累积的片段。给出时，该 JSON 值就是封住的部件。它的 `text` 或 `inline` 与累积正文不一致时，拒绝码是 `conflict`，先前的装配保持不变。
+`assembleStream` 返回 `{ ok }` 或 `{ rejected, at, assembly }`。`ok.phase` 是 `live` 或 `ended`。已经收场的装配带 `terminal`。`terminal.kind` 是 `complete`、`truncated`、`failed` 或 `cancelled`。只有 `complete` 带 `message`。
+
+`index` 是发出该目标的 runtime 分配的十进制非负整数。作用域是这一个目标。第一个开块可以是任意安全整数，包括 `8`。后一个开块必须更大，中间可以跳号。`seq` 属于这一块。第一段填充必须是 `0`，下一段必须是上一数字加一。新的间隙或回退拒绝码是 `seq`。
+
+重复先于顺序检查。身份是 `fill` 的块序号加 `seq`，以及其他步骤的步骤名加块序号。`finish` 的身份不带序号。同一身份、同一内容再次到达是空操作，文本不加倍。同一身份、不同内容是 `conflict`。开块的不同内容是 `index`。
+
+`from` 必须是同一次 `id` 与 `role` 的先前返回值。终态之后，已接受步骤的同值重放保持该终态。新的步骤是 `late`。开块 `head` 不是 JSON 时，拒绝码是 `json`。准入时复制 `id`、`role` 和 JSON `head`。之后修改调用方对象不改变已返回的装配。手写的 `{ phase: 'live' }` 被拒绝。`stopped` 即使还没有封块也是终态。之后的 `close` 或 `finish` 是 `late`。`close` 可以带 `block`。缺省时封住已累积的片段。给出时，该 JSON 值就是封住的部件。它的 `text` 或 `inline` 与累积正文不一致时，拒绝码是 `conflict`，先前的装配保持不变。
 
 ## 设计
 

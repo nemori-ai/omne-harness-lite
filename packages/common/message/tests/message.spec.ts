@@ -106,6 +106,17 @@ it('keeps an own __proto__ key and does not inherit its fields', () => {
   expect(Object.getPrototypeOf(judged.ok)).toBe(Object.prototype)
 })
 
+it('rejects a tool part whose required fields are not enumerable', () => {
+  expect(
+    judgePart(
+      Object.defineProperties({}, {
+        kind: { value: 'tool_call' },
+        callId: { value: 'c1' },
+      }),
+    ),
+  ).toEqual({ rejected: 'json' })
+})
+
 it('rejects a part whose kind and callId are only inherited', () => {
   expect(judgePart(Object.create({ kind: 'tool_call', callId: 'c1' }))).toEqual({
     rejected: 'json',
