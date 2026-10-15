@@ -10,13 +10,13 @@
 
 | 具名目标 | 文档及状态 | 允许协作 |
 | --- | --- | --- |
-| `execution/execution-environment` | [阅读入口](execution-environment/README.md)、[完整行为](execution-environment/SPEC.md)、[内部设计](execution-environment/docs/internals.md)；没有运行成员 | 消费可信身份、领域明确来源及本次合法条件；通过公开边界与资源、资产、工具、装配及 Context 协作，不持有邻域事实 |
+| `execution/execution-environment` | [阅读入口](execution-environment/README.md)、[完整行为](execution-environment/SPEC.md)、[架构](execution-environment/docs/architecture.md)、[模型](execution-environment/docs/model.md)；没有运行成员 | 消费可信身份、领域明确来源及本次合法条件；通过公开边界与资源、资产、工具、装配及 Context 协作，不持有邻域事实 |
 
 成员目标是已有包组织的名字，不能从文档目录推定服务键、进程或数据表。实际成员成立前须有技术接受、构建计划及真实公开入口。
 
 ## 关键协作
 
-[工程设计](docs/architecture.md)维护组合验证分工；[领域交接](../../docs/domains/execution-environments/architecture.md)及[跨领域流程](../../docs/domains/execution-environments/key-flows.md)说明邻接关系。成员精确机制见[执行环境内部设计](execution-environment/docs/internals.md)与[机制流程](execution-environment/docs/key-flows.md)，组不重复算法或状态机。
+[工程设计](docs/architecture.md)维护组合验证分工；[领域交接](../../docs/domains/execution-environments/architecture.md)及[跨领域流程](../../docs/domains/execution-environments/key-flows.md)说明邻接关系。成员精确机制见[架构](execution-environment/docs/architecture.md)、[关键流程](execution-environment/docs/key-flow.md)、[模型](execution-environment/docs/model.md) 与 [Cordis 集成](execution-environment/docs/cordis.md)，组不重复算法或状态机。
 
 ## 组合验证
 
