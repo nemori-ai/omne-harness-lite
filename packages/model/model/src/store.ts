@@ -34,18 +34,22 @@ export type LocalCustodian = CredentialPort & {
   close(): void
 }
 
-// Disable proper-lockfile's stale recovery: this lock is held only for the
-// duration of a single synchronous transaction and released in a finally block.
-// A leftover lock means the owning process crashed and must be cleaned up
-// manually by removing `${path}.lock`.
-const STALE_NEVER_MS = 2 ** 31 - 1
+// Disable proper-lockfile's time-based takeover by setting `stale` to the
+// largest safe integer. With this value no finite clock jump can make a live
+// holder's lock appear stale, so another writer cannot steal it. We still
+// periodically update the lockfile mtime within Node's timer limit to keep the
+// library's internal bookkeeping happy. Crash recovery is manual: a leftover
+// `${path}.lock` means the owning process died and must be removed by an
+// operator after all writers are stopped.
+const STALE_NEVER_MS = Number.MAX_SAFE_INTEGER
+const LOCK_UPDATE_MS = 2 ** 31 - 1
 const LOCK_WAIT_TIMEOUT_MS = 30_000
 
 function acquireLockSync(path: string): () => void {
   const start = Date.now()
   while (true) {
     try {
-      return lockSync(path, { realpath: false, stale: STALE_NEVER_MS })
+      return lockSync(path, { realpath: false, stale: STALE_NEVER_MS, update: LOCK_UPDATE_MS })
     } catch (error: unknown) {
       const code = (error as NodeJS.ErrnoException | undefined)?.code
       if (code !== 'ELOCKED') throw error
