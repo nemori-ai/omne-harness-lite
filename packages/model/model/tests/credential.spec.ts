@@ -152,7 +152,30 @@ it('revocation rejects the next resolve and keeps the earlier send', () => {
   const next = custodian.resolve(ref, face())
   expect(sent.send).toEqual({ sent: true, value: SECRET })
   expect(next.kind).toBe('denied')
-  expect(custodian.present(ref)).toMatchObject({ present: false })
+  expect(custodian.present(ref)).toMatchObject({ kind: 'known', present: true })
+})
+
+it('another tenant cannot replace or rotate this tenant secret', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const custodian = createLocalCustodian(join(dir, 'store.json'), FACTORY)
+  const ref = reference()
+  custodian.put(ref, SECRET)
+  const other = reference({ tenant: tenantB })
+  custodian.put(other, 'from-b')
+  custodian.rotate(other, 'hijack')
+  expect(custodian.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
+  expect(custodian.resolve(other, face())).toEqual({ kind: 'value', scope: 'tenant', value: 'hijack' })
+  custodian.revoke(other)
+  expect(custodian.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
+  expect(custodian.resolve(other, face({ official: true }))).toEqual({ kind: 'denied' })
+})
+
+it('a purpose other than model-send is denied by present', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const custodian = createLocalCustodian(join(dir, 'store.json'), FACTORY)
+  const bad: CredentialQuery = { ...reference(), purpose: 'other' }
+  expect(custodian.present(bad)).toEqual({ kind: 'denied' })
+  expect(ordinary(custodian.present(bad))).not.toContain(SECRET)
 })
 
 it('a restarted process reads the current secret from the same store', () => {
@@ -208,12 +231,16 @@ it('inject resolves the current secret and fiber disposal stops the next open', 
     record: { reference: ref },
     send: { sent: true, value: SECRET },
   })
+  const first = sent.outcome()
   await fiber.dispose()
+  const again = ctx.plugin(LocalCredentialPlugin, { path, factorySecret: FACTORY })
+  await again
+  expect(sent.outcome()).toEqual(first)
   const reopened = openLocalCustodian(path)
   if ('kind' in reopened) throw new Error('store missing after close')
-  expect(reopened.resolve(ref, face()).kind).toBe('denied')
+  expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
   expect(readFileSync(path, 'utf8')).toContain(SECRET)
-  expect(JSON.stringify(sent.outcome()?.record)).not.toContain(SECRET)
+  expect(JSON.stringify(first?.record)).not.toContain(SECRET)
 })
 
 it('a corrupt store through the plugin resolves unavailable', async () => {
