@@ -14,7 +14,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 契约与设计
 
-[SPEC](SPEC.md)完整维护非类型行为，[内部设计](docs/internals.md)维护本成员机制、精确流程与后续设计义务。[组入口](../README.md)维护依赖及协作。公开类型尚待形成，不复制旧签名。
+[SPEC](SPEC.md)完整维护非类型行为，[内部设计](docs/internals.md)维护本成员机制、精确流程与后续设计义务。[组入口](../README.md)维护依赖及协作。公开类型是已接受的 `BodyContract` 与 `CategoryRegistry`，见 [SPEC](SPEC.md#accepted-public-types)。
 
 ## 配置与运行
 

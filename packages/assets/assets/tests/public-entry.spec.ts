@@ -1,6 +1,11 @@
 import { expect, it } from 'vitest'
+import * as assets from '@omne-harness/assets'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
-  const root = (await import('@omne-harness/assets')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+it('exports the registry, identity, and pin operations', () => {
+  expect(Object.keys(assets).sort()).toEqual([
+    'capabilityId',
+    'createCategoryRegistry',
+    'pinBody',
+    'unknownCategory',
+  ])
 })
