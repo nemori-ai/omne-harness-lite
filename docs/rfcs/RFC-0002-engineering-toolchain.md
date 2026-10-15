@@ -112,7 +112,8 @@ owner: PanQiWei
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换或解除依据及确认者 |
 | --- | --- | --- | --- |
-| 编译与构建改为 TypeScript 7，旧编程接口走兼容包 | [技术基础](../architecture/technical-foundations.md) 的编译行，源头是 RFC-0001 revision 4 | 已写回 | 2026-10-14 写入目标条款。catalog 仍钉 TypeScript 6。实现未切换 |
+| 编译与构建改为 TypeScript 7，旧编程接口走兼容包 | [技术基础](../architecture/technical-foundations.md) 的编译行，源头是 RFC-0001 revision 4 | 已写回 | 2026-10-14 写入目标条款。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 切换：catalog 钉 TypeScript 7.0.2，`make declarations-check` 用 TypeScript 6 再检查对外 `.d.ts` |
+| 格式化改用 oxfmt | [开发指南](../development.md#格式化) | 已写回 | 2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 切换。`packages/` 与 `apps/` 暂不纳入，重排时间由源码包负责人另定。范围内的重排差异只有 dev tools 的 10 个文件，接受记录见 #310 |
 | 通用工具优先、专有检查留下 | [质量与风险](../engineering/quality.md)。根 `AGENTS.md` 已有「复用成熟机制」，不另写工具名单 | 已写回 | 2026-10-14 写入 quality.md。工具尚未接入 |
 | 影响面选择 | [开发指南](../development.md#迭代中的受影响测试)。现行算法仍是 `tools/ts-checks` 的 affected 选择器 | 已写回 | 2026-10-14 接受 revision 2。turbo 尚未替换该选择器。全局文件清单已包含 `turbo.json` 和 `docs/architecture/constraints.json` |
 
@@ -120,4 +121,4 @@ owner: PanQiWei
 
 | 后继提案或更正依据 | 部分或全部取代的精确范围 | 当前规范入口 |
 | --- | --- | --- |
-| 本提案 revision 1，2026-10-14 接受 | 只取代 RFC-0001 revision 4「编译与构建」中「保留 catalog 的 TypeScript 6」这一条款。其余条款不动。RFC-0001 的 status 不改。目标已写入技术基础页。catalog 仍钉 TypeScript 6，实现未切换 | [技术基础](../architecture/technical-foundations.md) |
+| 本提案 revision 1，2026-10-14 接受 | 只取代 RFC-0001 revision 4「编译与构建」中「保留 catalog 的 TypeScript 6」这一条款。其余条款不动。RFC-0001 的 status 不改。目标已写入技术基础页。2026-10-15 由 #310 切换实现 | [技术基础](../architecture/technical-foundations.md) |
