@@ -8,25 +8,45 @@
 
 一个步骤属于一次流式交付。它不是入站受理，也不是 Cordis 派发。模型与工具保留自己的发出和执行，并消费这套词汇。
 
-本包不分配序号，不保存日志，也不携带用量和费用的正文。这次初始化停在五个步骤名和序号是否在场。流式合成与终态规则仍留给后续拥有者。
+本包不分配序号，不保存日志，也不携带用量和费用的正文。`judgeStreamArrival` 只核对一个步骤名和一个序号是否在场。它不给步骤排序。`assembleStream` 把一个目标的步骤折成进行中的装配，或折成已经收场的终态。
 
 ## 使用
 
 ```ts
-import { judgeStreamArrival } from '@omne-harness/stream-arrival'
+import { assembleStream, judgeStreamArrival } from '@omne-harness/stream-arrival'
 
-judgeStreamArrival({ step: 'open', index: '0' })
+judgeStreamArrival({ step: 'finish', index: '9' })
+
+assembleStream({
+  target: { id: 'msg_abcdefghijklmnopqrstuv', role: 'assistant' },
+  steps: [
+    {
+      step: 'open',
+      index: '0',
+      mode: 'append',
+      head: { kind: 'text', id: 'b1', visibility: { toHuman: true, toModel: true } },
+    },
+    { step: 'fill', index: '0', seq: '0', chunk: 'hello' },
+    { step: 'fill', index: '0', seq: '1', chunk: 'hello' },
+    { step: 'close', index: '0' },
+    { step: 'finish', index: '0' },
+  ],
+})
 ```
+
+调用方取消是 `end: { kind: 'cancelled' }`。它不是步骤。观察者断开不增加步骤，也不增加 `end`。
 
 没有 Cordis 入口。
 
 ## 契约
 
-`STREAM_ARRIVAL_STEPS` 是 `open`、`fill`、`close`、`trim`、`finish`。其他步骤名，包括 `event`，得到 `{ rejected: 'step' }`。缺少序号得到 `{ rejected: 'index' }`。
+`STREAM_ARRIVAL_STEPS` 是 `open`、`fill`、`close`、`trim`、`finish`。其他步骤名，包括 `event`，得到 `{ rejected: 'step' }`。缺少序号得到 `{ rejected: 'index' }`。该判断只读 `{ step, index }`。
+
+`assembleStream` 返回 `{ ok }` 或 `{ rejected, at, assembly }`。`ok.phase` 是 `live` 或 `ended`。已经收场的装配带 `terminal`。`terminal.kind` 是 `complete`、`truncated`、`failed` 或 `cancelled`。只有 `complete` 带 `message`。终态之后的新步骤是 `late`，先前的装配保持不变。
 
 ## 设计
 
-`src/index.ts` 拥有步骤表和 `judgeStreamArrival`。
+`src/index.ts` 拥有步骤表、`judgeStreamArrival` 和 `assembleStream`。
 
 ## 配置与运行
 
@@ -34,7 +54,7 @@ judgeStreamArrival({ step: 'open', index: '0' })
 
 ## 验证
 
-`pnpm --filter @omne-harness/stream-arrival test` 运行 `tests/public-entry.spec.ts`。这份测试同时承担单元和契约。它从公开入口核对步骤名和序号拒绝。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
+`pnpm --filter @omne-harness/stream-arrival test` 运行 `tests/public-entry.spec.ts` 和 `tests/assembly.spec.ts`。这些测试同时承担单元和契约。它们核对步骤名、序号拒绝，以及装配案例 S1 到 S10。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
 
 ## 维护
 
