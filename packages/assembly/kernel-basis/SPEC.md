@@ -1,6 +1,6 @@
 # kernel-basis 行为规格
 
-本文件是 `@omne-harness/kernel-basis` 的目标契约，已由 PanQiWei 在 [#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)中接受。`./cordis` 已导出 `definePlugin` 与 `resolveOptional`。根入口 `src/index.ts` 仍是空导出。根上的操作结果和 `./testing` 尚未实现。本文件的类型契约不因这两处实现而改写。
+本文件是 `@omne-harness/kernel-basis` 的目标契约，已由 PanQiWei 在 [#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)中接受。根入口导出操作结果。`./cordis` 导出 `definePlugin` 与 `resolveOptional`。`./testing` 导出 `startTestAssembly`。根入口的源码和声明不导入 Cordis。
 
 包组织页已经接受三份入口。根入口导出操作结果，并且不导入 `@deepseek-ai/cordis`。插件辅助从 `./cordis` 导出。测试装配从 `./testing` 导出。本包不声明服务键，不收回其他能力的 Service 定义。
 
@@ -81,7 +81,7 @@ Cordis 已经接受一个插件对象。`definePlugin` 多做的是强制 `Confi
 
 ## 测试装配
 
-`./testing` 导出一个函数。#270 选定它的标识符。标识符变化不得改变下面的形状。
+`./testing` 导出 `startTestAssembly`。标识符变化不得改变下面的形状。
 
 ```ts
 type TestPlugin = {
@@ -123,13 +123,13 @@ Cordis 负责运行中的依赖换代和 `fiber.restart`。测试装配不做这
 
 | 能力 | 入口 | 已接受依据 | 具名计划消费 | 新源码调用点 | 为什么不直接用 Cordis |
 | --- | --- | --- | --- | --- | --- |
-| 带值操作结果 | 根 | 包组织页只登记了入口 | 待定。没有已接受成员契约点名调用方 | 无 | Cordis 没有这种结果类型 |
-| 无值操作结果 | 根 | 同上 | 待定。同上 | 无 | 同上 |
+| 带值操作结果 | 根 | 包组织页登记了入口。PanQiWei 在 #270 把本次范围扩到这个入口 | 本包根入口测试 | 无业务成员调用点 | Cordis 没有这种结果类型 |
+| 无值操作结果 | 根 | 同上 | 同上 | 无业务成员调用点 | 同上 |
 | `definePlugin` | `./cordis` | [IC-14](../../../docs/architecture/cordis-integration-conventions.md) | IC-14 的函数插件 | 无 | Cordis 接受的插件对象可以省略 `Config` |
 | `resolveOptional` | `./cordis` | [IC-9](../../../docs/architecture/cordis-integration-conventions.md) | IC-9 的可选依赖读取 | 无 | `ctx.get` 已经够用。辅助只固定缺席和类型断言 |
-| 测试装配 | `./testing` | 包组织页只登记了入口 | 待定。没有已接受成员契约点名测试作者 | 无 | Cordis 的 `await plugin()` 返回不等于 `apply` 已运行，也不收集多次撤除失败 |
+| 测试装配 | `./testing` | 包组织页登记了入口。PanQiWei 在 #270 把本次范围扩到这个入口。导出名是 `startTestAssembly` | 本包 `./testing` 测试 | 无业务成员调用点 | Cordis 的 `await plugin()` 返回不等于 `apply` 已运行，也不收集多次撤除失败 |
 
-操作结果和测试装配的入口句已经接受。这不等于某个成员已经计划调用它们。这两项的具名计划消费交回 PanQiWei 决定范围。本卡不编造业务成员里的生产调用点，也不因此删掉已定的类型。旧包 import 次数只是线索。没有上表依据的辅助退出公开包。服务键留在各能力的定义拥有者。
+操作结果和测试装配已由 PanQiWei 纳入 #270 本次范围。公开入口由本包测试消费。没有业务成员里的生产调用点。旧包 import 次数只是线索。服务键留在各能力的定义拥有者。
 
 ## 入口闭包
 
@@ -163,10 +163,10 @@ npm 上的 `@deepseek-ai/cordis@4.0.4` 没有 `gitHead`。对应的上游发布�
 
 ## 验收对照
 
-C1。`definePlugin` 和 `resolveOptional` 的计划消费是 IC-14 和 IC-9。操作结果和测试装配只有入口句，具名成员消费待定，交回范围决定。新源码没有调用点。旧 import 只是线索。Fiber 状态辅助不进入公开入口。
+C1。`definePlugin` 和 `resolveOptional` 的计划消费是 IC-14 和 IC-9。根入口操作结果和 `startTestAssembly` 已由 PanQiWei 纳入 #270 本次范围，公开入口由本包测试消费。没有业务成员里的生产调用点。旧 import 只是线索。Fiber 状态辅助不进入公开入口。
 
 C2。`definePlugin`、`resolveOptional` 和测试装配的类型、失败与撤除写在本文件。根入口不导入 Cordis。安装这个包仍会安装 Cordis。本包不侵占 assembly 的关闭协议。
 
 C3。版本钉到 npm 4.0.4 和发布提交 `d0dca04e22f09fe04967090b2ee70587ecdad6cc`。影响契约的四项未知已有探针结果。配置校验和 effect 次序已有本包测试中的探针结果。`ACTIVE` 不是业务就绪仍是项目陈述。
 
-C4。本次交付实现了 `definePlugin`、`resolveOptional` 和上表新增的两条探针。测试装配的导出名仍未选定。根入口的操作结果仍未实现。D-04 才接受技术选择。D-05 才接受整卡结果。
+C4。本次交付实现了根入口操作结果、`definePlugin`、`resolveOptional` 和 `startTestAssembly`。D-04 才接受技术选择。D-05 才接受整卡结果。
