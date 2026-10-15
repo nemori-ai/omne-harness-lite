@@ -812,3 +812,67 @@ it('defect: cancelling after ready leaves the refreshed snapshot unevictable', a
     expect(await lease(provider, another)).toMatchObject({ kind: 'leased' })
   }
 })
+
+it('defect: a same-id lease between follow and hold admits a second snapshot', async () => {
+  let loads = 0
+  const provider = createSchemaProvider({ ...budget, maxSnapshots: 1 })
+  const schema = defineSchema({
+    id: 'A',
+    load: async () =>
+      zodDefinition({
+        revision: String(++loads),
+        numbers: 'exact-or-reject',
+        schema: z.string(),
+      }),
+  })
+  const pending = lease(provider, schema)
+  refresh(provider, schema.id)
+  const concurrent = new Promise<Awaited<ReturnType<typeof lease>>>((resolve) => {
+    queueMicrotask(() => queueMicrotask(() => resolve(lease(provider, schema))))
+  })
+  const [first, second] = await Promise.all([pending, concurrent])
+  expect(first.kind).toBe('leased')
+  expect(second.kind).toBe('leased')
+  if (first.kind !== 'leased' || second.kind !== 'leased') return
+  expect(first.lease.revision).toBe('1')
+  expect(second.lease.revision).toBe('1')
+  expect(loads).toBe(1)
+  expect(first.lease.check(text)).toMatchObject({ kind: 'valid' })
+  expect(second.lease.check(text)).toMatchObject({ kind: 'valid' })
+  const other = defineSchema({
+    id: 'B',
+    load: async () =>
+      zodDefinition({ revision: 'B', numbers: 'exact-or-reject', schema: z.string() }),
+  })
+  expect(await lease(provider, other)).toEqual({ kind: 'refused', reason: 'budget-exhausted' })
+  first.lease.release()
+  first.lease.release()
+  expect(await lease(provider, other)).toEqual({ kind: 'refused', reason: 'budget-exhausted' })
+  second.lease.release()
+  expect(await lease(provider, other)).toMatchObject({ kind: 'leased', lease: { revision: 'B' } })
+})
+
+it('defect: a same-id validate between follow and delivery starts a second load', async () => {
+  let loads = 0
+  const provider = createSchemaProvider({ ...budget, maxSnapshots: 1 })
+  const schema = defineSchema({
+    id: 'A-validate',
+    load: async () =>
+      zodDefinition({
+        revision: String(++loads),
+        numbers: 'exact-or-reject',
+        schema: z.string(),
+      }),
+  })
+  const pending = validate(provider, schema, text)
+  refresh(provider, schema.id)
+  const concurrent = new Promise<Awaited<ReturnType<typeof validate>>>((resolve) => {
+    queueMicrotask(() => queueMicrotask(() => resolve(validate(provider, schema, text))))
+  })
+  const [first, second] = await Promise.all([pending, concurrent])
+  expect(first).toMatchObject({ kind: 'valid', revision: '1' })
+  expect(second).toMatchObject({ kind: 'valid', revision: '1' })
+  expect(loads).toBe(1)
+  expect(await validate(provider, schema, text)).toMatchObject({ kind: 'valid', revision: '2' })
+  expect(loads).toBe(2)
+})
