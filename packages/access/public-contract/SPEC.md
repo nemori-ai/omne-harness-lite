@@ -54,7 +54,7 @@ SDK 和服务端接入使用本页的结果表。它们不另写一套结果含�
 服务端接入按下面的次序处理一份已经完成传输保护的消息。前一步已经给出终端结果时，不再做后面的步骤。
 
 1. 严格 JSON 读取。失败则 `protocol-rejected`。不读取账号库。
-2. 操作名是 `disable-subject`、`restore-subject`、`end-subject` 或 `reopen-after-media-loss` 时，立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录。不读取账号库。版本不是 `governance-public/1` 也不改变这个结果。版本不是 `governance-public/1` 且操作名不是这四个时，结果是 `protocol-rejected`。其他操作名不在本页时，也是 `protocol-rejected`。
+2. 版本不是 `governance-public/1` 时，结果是 `protocol-rejected`。这包括操作名是 `disable-subject`、`restore-subject`、`end-subject` 或 `reopen-after-media-loss` 的消息。操作名不在本页时，也是 `protocol-rejected`。版本是 `governance-public/1` 且操作名是这四个时，立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录。不读取账号库。
 3. 按上表检查封闭字段。类型不符、表外字段、禁止字段出现、未列入可省略清单的缺字段，都是 `protocol-rejected`。可省略字段可以不出现。这一步仍不读取账号库。必填 `loginProof` 缺失或空字符串不在这一步拒绝。`leave-organization` 的 `body` 若出现目标成员字段，也是 `protocol-rejected`。
 4. 上表要求登录证明时，把缺失、空字符串、未签发、已撤销，以及不是本部署签发的证明，交给 identity。对外是同一份 `denied`。时间或权威登录记录不可得时，identity 返回 `basis-unavailable`。服务端接入不改写这两个结果，也不另持一份登录表。传输保护不证明调用者是谁。裸账号标识、证书、地址、旧连接和调用者自报的授权结果都不是当前登录。
 5. 发起者账号只取这份证明核验出的账号。`body` 里的账号、组织和租户都是目标。
@@ -328,7 +328,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 ## 本阶段不提供的操作
 
-下列名字先于封闭字段和登录核验。服务端立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录证明。不查询主体是否存在。
+下列名字在版本已经是 `governance-public/1` 之后，先于封闭字段和登录核验。服务端立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录证明。不查询主体是否存在。版本不是 `governance-public/1` 时，第 2 步已经是 `protocol-rejected`，不到这里。
 
 | operation | 对外结果 |
 | --- | --- |
@@ -377,7 +377,7 @@ export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
 
 ## 这些输入的结果
 
-字段表要求 `loginProof` 时，缺失或空字符串只有 `denied`。字段表禁止该字段时，出现该字段是 `protocol-rejected`。留存期内同标识同凭据的接续在激活完成时是 `succeeded`。已经激活后再注册是 `not-loginable`。陌生账号接受邀请是 `not-visible`。过期且调用者有权看见的邀请，返回已有的过期终结，不写成新的接受。看不见时是 `not-visible`。`query-current-tenant` 不带行事租户，并能返回当前选择。`issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏 `body`、坏证明和非本协议版本下都是 `stage-not-provided`。
+字段表要求 `loginProof` 时，缺失或空字符串只有 `denied`。字段表禁止该字段时，出现该字段是 `protocol-rejected`。留存期内同标识同凭据的接续在激活完成时是 `succeeded`。已经激活后再注册是 `not-loginable`。陌生账号接受邀请是 `not-visible`。过期且调用者有权看见的邀请，返回已有的过期终结，不写成新的接受。看不见时是 `not-visible`。`query-current-tenant` 不带行事租户，并能返回当前选择。`issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。版本是 `governance-public/1` 时，`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏 `body` 和坏证明下都是 `stage-not-provided`。版本不是 `governance-public/1` 时是 `protocol-rejected`。
 
 重复 `protocolVersion` 的读取结果由 json-text 的 `duplicate-key` 表示。本页把该结果映射为 `protocol-rejected`。json-text 不选择一个版本。
 

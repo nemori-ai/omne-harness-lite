@@ -53,5 +53,5 @@ SDK 不另写结果含义。必须遵守的客户端规则是自动再送条件�
 - 陌生账号接受邀请是 `not-visible`。过期且有权看见的邀请返回已有的过期终结。看不见时是 `not-visible`。
 - `query-current-tenant` 不带行事租户。
 - `issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。
-- `disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏正文、坏证明和非本协议版本下都是 `stage-not-provided`。
+- 版本是 `governance-public/1` 时，`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏正文和坏证明下都是 `stage-not-provided`。版本不是 `governance-public/1` 时是 `protocol-rejected`。
 
