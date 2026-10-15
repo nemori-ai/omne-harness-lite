@@ -571,6 +571,80 @@ it.each(['body', 'comment', 'relation', 'stage', 'closure'] as const)(
     expect(existsSync(contextPath(f.root))).toBe(false)
   },
 )
+describe('dispatch by publish environment reviewers', () => {
+  async function dispatch(
+    f: ReturnType<typeof fixture>,
+    change: (platform: Record<string, unknown>) => void = () => {},
+    policyRevision: string = common.policyRevision,
+  ) {
+    f.authority(
+      {
+        ...common,
+        policyRevision,
+        basis: [...common.basis],
+        action: 'dispatch',
+        task: f.binding,
+        confirmations: [],
+      },
+      1,
+    )
+    const path = join(f.home, 'platform.json'),
+      platform = JSON.parse(readFileSync(path, 'utf8'))
+    change(platform)
+    writeFileSync(path, JSON.stringify(platform))
+    return (await openIntegration({ root: f.root })).execute({
+      kind: 'start',
+      authority: f.binding.dispatch,
+      issue: f.binding.issue.url,
+      revision: 1,
+      attempt: 'one',
+    })
+  }
+  const team = (members: string[]) => (platform: Record<string, unknown>) => {
+    platform.environment = {
+      name: 'publish',
+      protection_rules: [
+        { type: 'required_reviewers', reviewers: [{ type: 'Team', reviewer: { slug: 'leads' } }] },
+      ],
+    }
+    platform.teams = { leads: members }
+  }
+
+  it('starts in a tree that was never bootstrapped and ignores the policy revision', async () => {
+    const f = fixture()
+    rmSync(join(f.root, '.git', 'omne-integration'), { recursive: true, force: true })
+    git(f.root, ['config', '--local', '--unset', 'omne.integrationAdopted'])
+    const context = await dispatch(f, undefined, 'retired-revision')
+    expect(context).toMatchObject({ anchor: null, targetBase: f.initial, ownerTask: f.binding })
+    expect(baselines(f.root)).toMatchObject({ state: 'adopted', targetBase: f.initial })
+  })
+  it('accepts a member of a reviewer team', async () => {
+    await expect(dispatch(fixture(), team(['human']))).resolves.toMatchObject({
+      ownerTask: { attempt: 'one' },
+    })
+  })
+  it.each([
+    ['a team that does not include the author', team(['someone-else']), 'not a reviewer'],
+    [
+      'an unreadable environment',
+      (platform: Record<string, unknown>) => {
+        platform.environmentUnreadable = true
+      },
+      'Cannot read the publish environment',
+    ],
+    [
+      'an environment without required reviewers',
+      (platform: Record<string, unknown>) => {
+        platform.environment = { name: 'publish', protection_rules: [] }
+      },
+      'no required reviewers',
+    ],
+  ])('refuses %s and writes no context', async (_, change, message) => {
+    const f = fixture()
+    await expect(dispatch(f, change)).rejects.toThrow(message)
+    expect(existsSync(contextPath(f.root))).toBe(false)
+  })
+})
 it('keeps unrelated platform changes out of admission readback', async () => {
   const f = fixture(true),
     platform = join(f.home, 'platform.json'),
@@ -649,7 +723,7 @@ it.each(['valid', 'revoked', 'direct-mismatch', 'actor-id'] as const)(
           ? 'revocation'
           : evidence === 'direct-mismatch'
             ? 'changed during capture'
-            : 'not a policy owner',
+            : 'not a reviewer of the publish environment',
       )
       expect(existsSync(contextPath(f.root))).toBe(false)
     }

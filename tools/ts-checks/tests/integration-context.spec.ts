@@ -52,7 +52,7 @@ describe('integration construction and binding', () => {
       audits: [],
     })
   })
-  it('fails closed when a new clone has a committed descriptor but no verified anchor', () => {
+  it('keeps adoption unknown in a new clone while checks fall back to the explicit base', () => {
     const root = fixture()
     mkdirSync(join(root, 'docs/engineering'), { recursive: true })
     const source = readFileSync(
@@ -63,7 +63,11 @@ describe('integration construction and binding', () => {
     git(root, ['add', '.'])
     git(root, ['commit', '-m', 'Committed descriptor'])
     expect(loadIntegration(root)).toMatchObject({ kind: 'unknown' })
-    expect(() => baselines(root, 'main')).toThrow('Bootstrap required')
+    expect(baselines(root, 'main')).toMatchObject({
+      state: 'pending',
+      targetBase: 'main',
+      audits: [],
+    })
     rmSync(join(root, 'docs/engineering/integration-bootstrap.json'))
     expect(loadIntegration(root)).toMatchObject({ kind: 'unknown' })
   })

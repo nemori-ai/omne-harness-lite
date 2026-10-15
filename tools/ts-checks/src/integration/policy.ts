@@ -13,6 +13,7 @@ import {
 } from './parse.ts'
 
 export const DESCRIPTOR_PATH = 'docs/engineering/integration-bootstrap.json'
+export const POLICY_PATH = 'docs/engineering/integration-policy.json'
 export const ADOPTION_PREFIX = 'refs/tags/omne/integration/adoption/'
 export const UNIT_PREFIX = 'refs/tags/omne/integration/unit/'
 export type Descriptor = ReturnType<typeof parseDescriptor>
