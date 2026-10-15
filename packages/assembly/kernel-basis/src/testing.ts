@@ -40,49 +40,40 @@ export async function startTestAssembly(
   plugins: readonly TestPlugin[],
 ): Promise<TestAssembly> {
   const context = new Context()
-  const fibers: Fiber[] = []
-  let startError: unknown
+  const loaded = await loadPlugins(context, plugins)
+  if (loaded.startError !== undefined) await failStart(loaded.fibers, loaded.startError)
+  const pending = loaded.fibers.find((fiber) => fiber.state !== ACTIVE)
+  if (pending !== undefined) {
+    await failStart(loaded.fibers, new Error(`Test plugin "${pluginName(pending)}" did not run apply`))
+  }
+  return {
+    context,
+    async dispose() {
+      const disposeErrors = await disposeStarted(loaded.fibers)
+      if (disposeErrors.length > 0) throw new TestAssemblyDisposeFailed(disposeErrors)
+    },
+  }
+}
 
+async function loadPlugins(
+  context: Context,
+  plugins: readonly TestPlugin[],
+): Promise<{ fibers: Fiber[]; startError: unknown }> {
+  const fibers: Fiber[] = []
   for (const plugin of plugins) {
     const fiber = context.plugin(cordisPlugin(plugin))
     fibers.push(fiber)
     try {
       await fiber
     } catch (error) {
-      startError = error
-      break
+      return { fibers, startError: error }
     }
   }
+  return { fibers, startError: undefined }
+}
 
-  if (startError === undefined) {
-    for (const fiber of fibers) {
-      if (fiber.state === ACTIVE) continue
-      try {
-        await fiber
-      } catch (error) {
-        startError = error
-        break
-      }
-    }
-  }
-
-  if (startError !== undefined) {
-    await failStart(fibers, startError)
-  }
-
-  const pending = fibers.find((fiber) => fiber.state !== ACTIVE)
-  if (pending !== undefined) {
-    const name = pending.runtime?.name ?? 'plugin'
-    await failStart(fibers, new Error(`Test plugin "${name}" did not run apply`))
-  }
-
-  return {
-    context,
-    async dispose() {
-      const disposeErrors = await disposeStarted(fibers)
-      if (disposeErrors.length > 0) throw new TestAssemblyDisposeFailed(disposeErrors)
-    },
-  }
+function pluginName(fiber: Fiber): string {
+  return fiber.runtime?.name ?? 'plugin'
 }
 
 function cordisPlugin(plugin: TestPlugin): TestPlugin {

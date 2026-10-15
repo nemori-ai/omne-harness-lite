@@ -62,6 +62,12 @@ it('disposes started fibers in reverse order when apply throws', async () => {
           throw new Error('boom')
         },
       },
+      {
+        name: 'after',
+        apply() {
+          order.push('after')
+        },
+      },
     ]),
   ).rejects.toThrow('boom')
   expect(order).toEqual(['first'])
