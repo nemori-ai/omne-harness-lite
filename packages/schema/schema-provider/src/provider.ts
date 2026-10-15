@@ -28,6 +28,11 @@ type Snapshot = {
 type FlightOutcome =
   | { readonly kind: 'ready'; readonly snapshot: Snapshot }
   | { readonly kind: 'refused'; readonly reason: RefusalReason }
+  | {
+      readonly kind: 'unavailable'
+      readonly reason: UnavailableReason
+      readonly retryNotBeforeMillis: number
+    }
   | { readonly kind: 'dropped' }
 
 type Flight = {
@@ -38,7 +43,7 @@ type Flight = {
 
 type Slot =
   | { readonly kind: 'empty' }
-  | { readonly kind: 'inflight'; readonly flight: Flight }
+  | { readonly kind: 'inflight'; readonly flight: Flight; readonly attempts: number }
   | { readonly kind: 'ready'; readonly snapshot: Snapshot }
   | {
       readonly kind: 'cooling'
@@ -118,8 +123,16 @@ export function validate<T>(
     case 'inflight':
       return join<T>(slot.flight, read, signal)
     case 'empty':
-      return begin(domain, schema, read, signal)
+      return begin(domain, schema, read, signal, 0)
     case 'cooling':
+      if (Date.now() < slot.retryNotBeforeMillis) {
+        return Promise.resolve({
+          kind: 'unavailable',
+          reason: slot.reason,
+          retryNotBeforeMillis: slot.retryNotBeforeMillis,
+        })
+      }
+      return begin(domain, schema, read, signal, slot.attempts)
     case 'retired':
       throw new Error(`slot ${slot.kind} is not produced`)
     default: {
@@ -170,11 +183,12 @@ function begin<T>(
   schema: SchemaRef<T>,
   read: JsonRead,
   signal: AbortSignal | undefined,
+  attempts: number,
 ): Promise<SchemaVerdict<T>> {
   const flight = createFlight()
-  domain.slots.set(schema.id, { kind: 'inflight', flight })
+  domain.slots.set(schema.id, { kind: 'inflight', flight, attempts })
   const pending = join<T>(flight, read, signal)
-  void execute(domain, schema, flight)
+  void execute(domain, schema, flight, attempts)
   return pending
 }
 
@@ -214,12 +228,26 @@ function join<T>(
   })
 }
 
-async function execute<T>(domain: Domain, schema: SchemaRef<T>, flight: Flight): Promise<void> {
-  const definition = await schema.load()
+async function execute<T>(
+  domain: Domain,
+  schema: SchemaRef<T>,
+  flight: Flight,
+  attempts: number,
+): Promise<void> {
+  let definition: SchemaDefinition<T>
+  try {
+    definition = await schema.load()
+  } catch {
+    if (flight.live === 0) {
+      drop(domain, schema.id, flight)
+      return
+    }
+    recordFailure(domain, schema.id, flight, attempts, 'load-failed')
+    return
+  }
   // Every waiter left before compile, so this flight must not publish a snapshot.
   if (flight.live === 0) {
-    domain.slots.delete(schema.id)
-    flight.resolve({ kind: 'dropped' })
+    drop(domain, schema.id, flight)
     return
   }
   const admitted = admit(definition, domain.budget)
@@ -228,13 +256,40 @@ async function execute<T>(domain: Domain, schema: SchemaRef<T>, flight: Flight):
     flight.resolve(admitted)
     return
   }
-  const snapshot: Snapshot = {
-    revision: admitted.revision,
-    numbers: admitted.numbers,
-    check: compileZod(admitted.schema),
+  let check: Snapshot['check']
+  try {
+    check = compileZod(admitted.schema)
+  } catch {
+    recordFailure(domain, schema.id, flight, attempts, 'compile-failed')
+    return
   }
+  const snapshot: Snapshot = { revision: admitted.revision, numbers: admitted.numbers, check }
   domain.slots.set(schema.id, { kind: 'ready', snapshot })
   flight.resolve({ kind: 'ready', snapshot })
+}
+
+function drop(domain: Domain, id: string, flight: Flight): void {
+  domain.slots.delete(id)
+  flight.resolve({ kind: 'dropped' })
+}
+
+function recordFailure(
+  domain: Domain,
+  id: string,
+  flight: Flight,
+  attempts: number,
+  reason: UnavailableReason,
+): void {
+  const next = attempts + 1
+  if (next >= domain.budget.maxAttempts) {
+    const refused = { kind: 'refused' as const, reason: 'attempts-exhausted' as const }
+    domain.slots.set(id, refused)
+    flight.resolve(refused)
+    return
+  }
+  const retryNotBeforeMillis = Date.now() + domain.budget.failureBackoffMs
+  domain.slots.set(id, { kind: 'cooling', attempts: next, reason, retryNotBeforeMillis })
+  flight.resolve({ kind: 'unavailable', reason, retryNotBeforeMillis })
 }
 
 function verdictFrom<T>(outcome: FlightOutcome, read: JsonRead): SchemaVerdict<T> {
@@ -242,6 +297,7 @@ function verdictFrom<T>(outcome: FlightOutcome, read: JsonRead): SchemaVerdict<T
     case 'ready':
       return checkSnapshot(outcome.snapshot, read)
     case 'refused':
+    case 'unavailable':
       return outcome
     case 'dropped':
       return { kind: 'cancelled' }
