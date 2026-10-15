@@ -97,9 +97,9 @@ scripts/                       仓库自动化
 
 装配组有两个目标成员。`assembly` 维护求值、采用和交接。`kernel-basis` 维护操作结果、Cordis 插件辅助和测试装配。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。
 
-`kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口只导出操作结果，并且不导入 `@deepseek-ai/cordis`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页只登记目标位置 `packages/assembly/kernel-basis`。
+`kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口只导出操作结果，并且不导入 `@deepseek-ai/cordis`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页登记成员位置 `packages/assembly/kernel-basis`，具体实现范围见下段。
 
-现行实现仍在 `packages.0.0.1.legacy/core/kernel-basis`。该目录已经退出 pnpm workspace，所以 `packages/assembly/kernel-basis` 可以使用同名包。它现在是 workspace 草稿，公开行为尚未实现。本页不搬迁旧包。搬迁消费者、检查和探针另有任务。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
+`packages/assembly/kernel-basis` 已是 workspace 成员，`./cordis` 的 `definePlugin` 与 `resolveOptional` 已实现。根操作结果及 `./testing` 仍待实现。封存实现 `packages.0.0.1.legacy/core/kernel-basis` 已退出 workspace，只供来源核对，新成员不依赖旧源码或探针。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
 
 ## 责任与能力组
 
