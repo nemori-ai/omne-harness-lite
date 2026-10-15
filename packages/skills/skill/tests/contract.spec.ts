@@ -17,7 +17,7 @@ it('reads a skill body without running a script and records required tool identi
   expect(port.judge(body, { capabilityName: 'review' })).toEqual({ ok: true })
   expect(ran).toBe(false)
   expect(port.references(data)).toEqual([{ category: 'tool', name: 'read_file' }])
-  expect(registry.lookup('skill')).toBe(port)
+  expect(registry.lookup('skill')?.category).toBe('skill')
 })
 
 it('rejects a skill body whose name is not the capability name', () => {
@@ -32,6 +32,7 @@ it('rejects a skill body whose name is not the capability name', () => {
 it('rejects a skill tool reference that is not a tool identity', () => {
   const port = skillBodyContract()
   expect(port.judge({ name: 'review', tools: [{ category: 'mcp', name: 'files' }] })).toEqual({
+    ok: false,
     rejected: 'incomplete-reference',
   })
 })

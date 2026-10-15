@@ -1,60 +1,65 @@
-import { capabilityId, type BodyContract, type JsonValue } from '@omne-harness/assets'
+import {
+  capabilityId,
+  refusal,
+  type BodyContract,
+  type Declarations,
+  type JsonValue,
+  type Judgment,
+} from '@omne-harness/assets'
 
-const schema: JsonValue = { kind: 'tool-body' }
+const schema: JsonValue = {
+  kind: 'tool-body',
+  properties: { name: 'string', composes: { skills: 'string[]' } },
+}
 
 export function toolBodyContract(): BodyContract {
-  return Object.freeze({
+  return {
     category: 'tool',
     schema,
-    judge(body, context) {
-      const record = recordOf(body)
-      if (record === undefined || typeof record.name !== 'string' || record.name === '') {
-        return Object.freeze({ rejected: 'incomplete-reference' })
-      }
-      if (context?.capabilityName !== undefined && record.name !== context.capabilityName) {
-        return Object.freeze({ rejected: 'name-mismatch' })
-      }
-      if (!skillNames(record.composes)) return Object.freeze({ rejected: 'incomplete-reference' })
-      return Object.freeze({ ok: true })
+    judge,
+    deriveDeclarations(body, context) {
+      const decision = judge(body, context)
+      if (!decision.ok) throw new TypeError('tool body failed judgment')
+      return { entries: [] }
     },
-    deriveDeclarations(body) {
-      assertJudged(body)
-      return Object.freeze({ entries: Object.freeze([]) })
-    },
-    references(body) {
-      const record = assertJudged(body)
-      const names = skillNames(record.composes)
+    references(body, context) {
+      const decision = judge(body, context)
+      if (!decision.ok) throw new TypeError('tool body failed judgment')
+      const names = skillNames(recordOf(body)?.composes)
       if (names === undefined) throw new TypeError('tool body failed judgment')
-      return Object.freeze(
-        names.map(name => {
-          const id = capabilityId('skill', name)
-          if (!id.ok) throw new TypeError('skill reference is incomplete')
-          return id.id
-        }),
-      )
+      return names.map(name => {
+        const id = capabilityId('skill', name)
+        if (!id.ok) throw new TypeError('tool body failed judgment')
+        return id.id
+      })
     },
-  })
-}
-
-function assertJudged(body: unknown): Record<string, unknown> {
-  const record = recordOf(body)
-  if (record === undefined || typeof record.name !== 'string' || record.name === '') {
-    throw new TypeError('tool body failed judgment')
   }
-  if (!skillNames(record.composes)) throw new TypeError('tool body failed judgment')
-  return record
 }
 
-function recordOf(body: unknown): Record<string, unknown> | undefined {
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) return undefined
-  return body as Record<string, unknown>
+function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
+  const record = recordOf(body)
+  const name = record?.name
+  if (typeof name !== 'string' || name === '') return refusal('incomplete-reference')
+  if (context?.capabilityName !== undefined && name !== context.capabilityName) return refusal('name-mismatch')
+  if (skillNames(record?.composes) === undefined) return refusal('incomplete-reference')
+  return { ok: true }
 }
 
 function skillNames(composes: unknown): readonly string[] | undefined {
   if (composes === undefined) return []
-  if (composes === null || typeof composes !== 'object' || Array.isArray(composes)) return undefined
-  const skills = (composes as { skills?: unknown }).skills
-  if (skills === undefined) return []
-  if (!Array.isArray(skills) || skills.some(item => typeof item !== 'string' || item === '')) return undefined
-  return skills as string[]
+  const record = recordOf(composes)
+  if (record === undefined) return undefined
+  return stringList(record.skills)
+}
+
+function stringList(value: unknown): readonly string[] | undefined {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) return undefined
+  if (value.some(item => typeof item !== 'string' || item === '')) return undefined
+  return value as string[]
+}
+
+function recordOf(body: unknown): { [key: string]: unknown } | undefined {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return undefined
+  return body as { [key: string]: unknown }
 }

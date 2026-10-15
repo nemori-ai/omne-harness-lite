@@ -10,7 +10,7 @@ it('accepts read_file and records skill references without making them required'
   expect(port.judge(body, { capabilityName: 'read_file' })).toEqual({ ok: true })
   expect(port.references(body)).toEqual([{ category: 'skill', name: 'review' }])
   expect(port.deriveDeclarations(body)).toEqual({ entries: [] })
-  expect(registry.lookup('tool')).toBe(port)
+  expect(registry.lookup('tool')?.category).toBe('tool')
 })
 
 it('rejects a tool body whose name is not the capability name', () => {

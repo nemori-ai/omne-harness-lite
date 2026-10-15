@@ -1,5 +1,6 @@
 export {
   capabilityId,
+  refusal,
   type BodyContract,
   type CapabilityId,
   type CategoryRegistry,
