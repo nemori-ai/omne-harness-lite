@@ -1,5 +1,6 @@
 import {
   capabilityId,
+  isReadBody,
   readBodyText,
   refusal,
   type BodyContract,
@@ -46,6 +47,7 @@ export function toolBodyContract(): BodyContract {
 }
 
 function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
+  if (!isReadBody(body)) return refusal('incomplete-reference')
   const name = stringField(body, 'name')
   if (name === undefined || name === '') return refusal('incomplete-reference')
   if (context?.capabilityName !== undefined && name !== context.capabilityName) return refusal('name-mismatch')
@@ -59,10 +61,11 @@ function skillNames(body: unknown): readonly string[] | undefined {
   if (!isObject(composes)) return undefined
   const skills = field(composes, 'skills')
   if (skills === undefined) return []
-  if (skills.kind !== 'array') return undefined
+  if (!isReadBody(skills) || skills.kind !== 'array' || !Array.isArray(skills.items)) return undefined
   const names: string[] = []
-  for (const item of skills.items) {
-    if (item.kind !== 'string' || item.value === '') return undefined
+  for (let index = 0; index < skills.items.length; index += 1) {
+    const item = skills.items[index]
+    if (!isReadBody(item) || item.kind !== 'string' || typeof item.value !== 'string' || item.value === '') return undefined
     names.push(item.value)
   }
   return names
@@ -70,15 +73,20 @@ function skillNames(body: unknown): readonly string[] | undefined {
 
 function stringField(body: unknown, key: string): string | undefined {
   const value = field(body, key)
-  if (value === undefined || value.kind !== 'string') return undefined
+  if (value === undefined || value.kind !== 'string' || typeof value.value !== 'string') return undefined
   return value.value
 }
 
 function field(body: unknown, key: string): JsonValue | undefined {
   if (!isObject(body)) return undefined
-  return body.entries.find(entry => entry.key === key)?.value
+  for (let index = 0; index < body.entries.length; index += 1) {
+    const entry = body.entries[index]
+    if (typeof entry !== 'object' || entry === null || entry.key !== key) continue
+    return entry.value
+  }
+  return undefined
 }
 
 function isObject(body: unknown): body is JsonValue & { readonly kind: 'object' } {
-  return typeof body === 'object' && body !== null && 'kind' in body && body.kind === 'object' && 'entries' in body && Array.isArray(body.entries)
+  return isReadBody(body) && body.kind === 'object' && Array.isArray(body.entries)
 }

@@ -5,6 +5,7 @@ it('exports the registry, identity, and pin operations', () => {
   expect(Object.keys(assets).sort()).toEqual([
     'capabilityId',
     'createCategoryRegistry',
+    'isReadBody',
     'pinBody',
     'readBodyText',
     'refusal',

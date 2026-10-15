@@ -41,6 +41,26 @@ it('does not call a function on an object that was not read as text', () => {
   expect(ran).toBe(false)
 })
 
+it('rejects a forged skill document without calling its functions', () => {
+  const port = skillBodyContract()
+  expect(port.judge({ kind: 'object', entries: [{ key: 'name', value: { kind: 'string', value: 7 } }] })).toEqual({
+    ok: false,
+    rejected: 'incomplete-reference',
+  })
+  expect(port.judge({ kind: 'object', entries: [null] })).toEqual({
+    ok: false,
+    rejected: 'incomplete-reference',
+  })
+  const entries = [{ key: 'name', value: { kind: 'string', value: 'review' } }]
+  let calls = 0
+  entries.find = function (predicate) {
+    calls += 1
+    return Array.prototype.find.call(this, predicate)
+  }
+  expect(port.judge({ kind: 'object', entries })).toEqual({ ok: false, rejected: 'incomplete-reference' })
+  expect(calls).toBe(0)
+})
+
 it('rejects a skill body whose name is not the capability name', () => {
   const port = skillBodyContract()
   const body = document('{"name":"other","tools":[{"category":"tool","name":"read_file"}]}')
