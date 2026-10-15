@@ -146,7 +146,7 @@ Service 方法若使用调用方 Context，在其中通过 `this.ctx.effect()` �
 <a id="kernel-t01"></a>
 ### KERNEL-T01 已采用内核辅助边界的承接
 
-本项为来源与契约承接待办。封存 kernel-basis 的目标成员是 `packages/assembly/kernel-basis`，位置归[产品包组织](../../package-organization.md)。该成员尚未建立。现行实现仍在封存路径。具体 Cordis 采用版本及探针范围仍须由当前维护者固定并可复跑。辅助函数行为与官方内核保证不能合并。目标位置不表示运行或生命周期已经验证。
+本项为来源与契约承接待办。目标成员是 `packages/assembly/kernel-basis`，位置归[产品包组织](../../package-organization.md)。该目录已是 workspace 成员。`./cordis` 导出 `definePlugin` 与 `resolveOptional`。根入口的操作结果和 `./testing` 仍只有入口登记，具名消费未定，因此未实现。`packages.0.0.1.legacy/core/kernel-basis` 只供核对原范围，不是现行成员。辅助函数行为与官方内核保证不能合并。目标位置不表示运行或生命周期已经验证。
 
 承接责任为内核辅助成员、装配组及来源验证维护者。待办是固定实际采用版本，定位公共辅助契约与可复跑资源，分别核验调用方 Context、Fiber 状态、依赖撤除、事件及清理行为。
 

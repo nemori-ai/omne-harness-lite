@@ -1,6 +1,6 @@
 # kernel-basis 行为规格
 
-本文件是 `@omne-harness/kernel-basis` 的目标契约，已由 PanQiWei 在 [#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)中接受。`src` 仍是空导出，本文件不表示实现已经交付。实现和探针文件搬迁归 #270。
+本文件是 `@omne-harness/kernel-basis` 的目标契约，已由 PanQiWei 在 [#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)中接受。`./cordis` 已导出 `definePlugin` 与 `resolveOptional`。根入口 `src/index.ts` 仍是空导出。根上的操作结果和 `./testing` 尚未实现。本文件的类型契约不因这两处实现而改写。
 
 包组织页已经接受三份入口。根入口导出操作结果，并且不导入 `@deepseek-ai/cordis`。插件辅助从 `./cordis` 导出。测试装配从 `./testing` 导出。本包不声明服务键，不收回其他能力的 Service 定义。
 
@@ -153,13 +153,13 @@ npm 上的 `@deepseek-ai/cordis@4.0.4` 没有 `gitHead`。对应的上游发布�
 | 必需依赖缺席时 `await plugin()` | 探针结果 | 返回的 fiber `state` 为 0，`apply` 没有运行 |
 | 撤掉提供者再装另一个提供者 | 探针结果 | 消费者插件体再跑一次。提供者出现前，插件体运行次数是 0 |
 | `apply` 返回后 effect 里的 Promise 拒绝 | 探针结果 | fiber 的 `state` 仍是 2。拒绝进入 `unhandledRejection`，消息是 `after-active` |
-| 配置在插件体之前按 Standard Schema 校验 | 项目陈述 | IC-14 引用 4.0.4 的 `registry.ts` 与 `fiber.ts`。本卡没有另写这条探针 |
-| effect 释放次序 | 项目陈述 | 生命周期页。完成顺序不是业务关闭顺序。本卡没有另写这条探针 |
+| 配置在插件体之前按 Standard Schema 校验 | 探针结果 | 非法配置时 `apply` 不运行，失败稳定后的 fiber 状态是 `FAILED`。`validate` 返回 Promise 时抛出 `TypeError`，消息是 `Async config validation is not supported`。合法配置把 schema 的 `value` 交给 `apply`。类型里的 Promise 分支保留。 |
+| effect 释放次序 | 探针结果 | 同一条 fiber 上，后登记的 effect 可以在先登记的 effect 仍在释放时结束。同一个 effect 内部，disposer 按登记逆序运行，并等待前一个 Promise。该完成顺序不是产品关闭顺序。 |
 | `ACTIVE` 不是业务就绪 | 项目陈述 | 生命周期页 |
 
 已发布源码里 `_getState` 在 fiber 仍有 uid、没有 `_error`、epoch 不是 inactive 时返回 2。上表的 2 是这个返回值。
 
-旧探针文件仍在 `packages.0.0.1.legacy/core/kernel-basis`。搬迁归 #270。本规格不把旧包当成新的辅助层。
+配置校验和 effect 释放的新观察在本包测试里。旧探针文件仍在 `packages.0.0.1.legacy/core/kernel-basis`。本规格不把旧包当成新的辅助层，也不从旧路径导入。
 
 ## 验收对照
 
@@ -167,6 +167,6 @@ C1。`definePlugin` 和 `resolveOptional` 的计划消费是 IC-14 和 IC-9。�
 
 C2。`definePlugin`、`resolveOptional` 和测试装配的类型、失败与撤除写在本文件。根入口不导入 Cordis。安装这个包仍会安装 Cordis。本包不侵占 assembly 的关闭协议。
 
-C3。版本钉到 npm 4.0.4 和发布提交 `d0dca04e22f09fe04967090b2ee70587ecdad6cc`。影响契约的四项未知已有探针结果。配置校验和 effect 次序仍是项目陈述，本卡没有另写探针。
+C3。版本钉到 npm 4.0.4 和发布提交 `d0dca04e22f09fe04967090b2ee70587ecdad6cc`。影响契约的四项未知已有探针结果。配置校验和 effect 次序已有本包测试中的探针结果。`ACTIVE` 不是业务就绪仍是项目陈述。
 
-C4。#270 按本文件实现公开行为、选定测试装配的导出名，并搬迁旧探针文件。本文件不声称生产包已经实现。D-03 接受技术选择。D-04 才接受整卡结果。
+C4。本次交付实现了 `definePlugin`、`resolveOptional` 和上表新增的两条探针。测试装配的导出名仍未选定。根入口的操作结果仍未实现。D-04 才接受技术选择。D-05 才接受整卡结果。
