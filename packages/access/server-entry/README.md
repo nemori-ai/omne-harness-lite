@@ -17,3 +17,7 @@
 ## 验证
 
 `tests/public-entry.spec.ts` 仍只核对公开导出。治理入口的实现测试未运行。长期个人负责人尚未具名。
+
+## English promise
+
+This member owns the entry duties for the governance protocol. Outcome meanings stay in the public contract. The entry stops at the first terminal result and does not rewrite an identity result. It does not export a runnable governance route. The page does not choose HTTP, WebSocket, or stdio.

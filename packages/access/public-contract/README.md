@@ -31,3 +31,7 @@ governanceOperation({
 本阶段核对的是规格是否让同一输入只有一个对外结果。实现测试未运行。`tests/public-entry.spec.ts` 仍只核对包的公开导出是否为空。集成测试和端到端测试不适用，因为还没有治理服务器。
 
 长期个人负责人尚未具名。
+
+## English promise
+
+This member owns the governance message `governance-public/1`. Identity and authorization still own the business facts. The package does not export a runnable governance operation. Callers read `SPEC.md` for fields and outcomes.

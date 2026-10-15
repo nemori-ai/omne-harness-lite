@@ -44,4 +44,13 @@ export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
 
 ## 验证
 
-本页的核对是阅读公开契约，并确认 SDK 没有第二套结果含义。必须观察到的客户端规则是自动再送条件和不缓存允许。实现测试未运行。长期个人负责人尚未具名。
+本页的核对是阅读公开契约，并确认 SDK 没有第二套结果含义。必须观察到的客户端规则是自动再送条件和不缓存允许。下列观察的结果句子在公开契约，本页不另写含义。这些观察尚未运行实现测试。
+
+- 缺登录证明只有 `denied`。
+- 留存期内的接续在激活完成时是 `succeeded`。已经激活后再注册是 `not-loginable`。
+- 陌生账号接受邀请是 `not-visible`。过期邀请返回已有的过期终结。
+- `query-current-tenant` 不带行事租户。
+- `issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。
+- 四个阶段外操作在坏正文和坏证明下都是 `stage-not-provided`。
+
+长期个人负责人尚未具名。

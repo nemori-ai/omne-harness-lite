@@ -17,3 +17,7 @@ SDK 把请求交给调用者提供的传输适配。传输适配证明请求字�
 ## 验证
 
 `tests/public-entry.spec.ts` 仍只核对公开导出。治理行为的实现测试未运行。长期个人负责人尚未具名。
+
+## English promise
+
+This member owns the client duties for the governance protocol. Outcome meanings stay in the public contract. The SDK resends once only when the transport proves the request bytes were not sent. It does not cache an allow result. It does not export a runnable governance operation.
