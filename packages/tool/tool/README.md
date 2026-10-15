@@ -21,4 +21,4 @@ PACKAGE_TEMPLATE_DRAFT
 ## 验证与维护
 
 SPEC及专题维护持续验证义务；实际测试、模型、提供者和装配证据尚缺。修改时同步公开消费者和组导航；未决按[产品第四块](../../../.meta_harness/design/product/tool-execution/design.md#未决问题与待定事项)及技术拥有者闭合。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+默认测试责任是单元和契约。命令是 `pnpm --filter @omne-harness/tool test`。`tests/public-entry.spec.ts` 核对公开导出。集成测试和端到端测试不适用：本卡只交付正文端口，不交付存储或执行旅程。
