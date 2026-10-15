@@ -1,6 +1,6 @@
 PACKAGE_TEMPLATE_DRAFT
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+本成员导出 `toolBodyContract`，作为已接受的资产类别端口。执行、等待和结果保管仍按本页其余章节，那些行为尚未在这个入口实现。
 
 # tool 文档目标
 
