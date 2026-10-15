@@ -57,6 +57,7 @@ type Slot =
 type Domain = {
   readonly budget: SchemaBudget
   readonly slots: Map<string, Slot>
+  closed: boolean
 }
 
 const domains = new WeakMap<SchemaProvider, Domain>()
@@ -96,7 +97,7 @@ export function jsonSchemaDefinition<T>(spec: {
  */
 export function createSchemaProvider(budget: SchemaBudget): SchemaProvider {
   const provider = {} as SchemaProvider
-  domains.set(provider, { budget, slots: new Map() })
+  domains.set(provider, { budget, slots: new Map(), closed: false })
   return provider
 }
 
@@ -114,6 +115,7 @@ export function validate<T>(
   if (read.kind !== 'ok') return Promise.resolve({ kind: 'unreadable', failure: read })
   if (signal?.aborted) return Promise.resolve({ kind: 'cancelled' })
   const domain = domainOf(provider)
+  if (domain.closed) return Promise.resolve({ kind: 'refused', reason: 'closed' })
   const slot = domain.slots.get(schema.id) ?? { kind: 'empty' as const }
   switch (slot.kind) {
     case 'ready':
@@ -174,8 +176,7 @@ export function refresh(provider: SchemaProvider, id: SchemaId): void {
  * Calling `close` twice leaves the provider closed.
  */
 export function close(provider: SchemaProvider): void {
-  void provider
-  throw new Error('not implemented')
+  domainOf(provider).closed = true
 }
 
 function begin<T>(
