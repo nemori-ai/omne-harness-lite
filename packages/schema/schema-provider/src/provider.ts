@@ -10,7 +10,6 @@ import type {
   SchemaDefinition,
   SchemaId,
   SchemaLease,
-  SchemaProvider,
   SchemaRef,
   SchemaRevision,
   SchemaVerdict,
@@ -66,13 +65,20 @@ type Domain = {
   closed: boolean
 }
 
+const providerBrand: unique symbol = Symbol('schema-provider')
+
+/** One cache owner for one execution domain. Callers cannot construct it. Workers do not share it. */
+export type SchemaProvider = { readonly [providerBrand]: true }
+
 const domains = new WeakMap<SchemaProvider, Domain>()
 
 export function defineSchema<T>(spec: {
   readonly id: string
   readonly load: () => Promise<SchemaDefinition<T>>
 }): SchemaRef<T> {
-  return { id: spec.id as SchemaId, load: spec.load }
+  if (spec.id === '') throw new TypeError('schema id must not be empty')
+  const id = spec.id as SchemaId
+  return { id, load: spec.load }
 }
 
 export function zodDefinition<S extends StandardTyped<unknown>>(spec: {
@@ -102,9 +108,19 @@ export function jsonSchemaDefinition<T>(spec: {
  * Compiles nothing. Does not import Cordis.
  */
 export function createSchemaProvider(budget: SchemaBudget): SchemaProvider {
-  const provider = {} as SchemaProvider
+  requireSafeInteger('maxSnapshots', budget.maxSnapshots, 1)
+  requireSafeInteger('maxConstructDepth', budget.maxConstructDepth, 1)
+  requireSafeInteger('maxConstructNodes', budget.maxConstructNodes, 1)
+  requireSafeInteger('maxAttempts', budget.maxAttempts, 1)
+  requireSafeInteger('failureBackoffMs', budget.failureBackoffMs, 0)
+  const provider = { [providerBrand]: true as const }
   domains.set(provider, { budget, slots: new Map(), closed: false })
   return provider
+}
+
+function requireSafeInteger(name: string, value: number, minimum: number): void {
+  if (Number.isSafeInteger(value) && value >= minimum) return
+  throw new TypeError(`${name} must be a safe integer greater than or equal to ${minimum}`)
 }
 
 /**
@@ -489,7 +505,7 @@ function checkSnapshot<T>(snapshot: Snapshot, read: JsonRead): SyncVerdict<T> {
     return {
       kind: 'invalid',
       issues: projected.issues,
-      path: 'compiled',
+      path: 'projection',
       revision: snapshot.revision,
     }
   }

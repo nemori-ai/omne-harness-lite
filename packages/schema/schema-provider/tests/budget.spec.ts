@@ -69,6 +69,7 @@ it('defect: createSchemaProvider accepts a budget outside the safe integer range
     { ...legal, failureBackoffMs: -1 },
     { ...legal, maxSnapshots: 1.5 },
   ]
+  expect(() => createSchemaProvider(legal)).not.toThrow()
   for (const candidate of illegal) {
     expect(() => createSchemaProvider(candidate)).toThrow(TypeError)
   }

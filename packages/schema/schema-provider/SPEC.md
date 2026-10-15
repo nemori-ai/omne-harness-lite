@@ -28,7 +28,7 @@
 
 <a id="projection"></a>
 
-`valid.value` 是投影后的值。本包丢弃引擎输出。`exact-or-reject` 只在数字转换可逆时产生 JavaScript 数字，否则问题码是 `precision`。`lexeme` 把源词法交给检查器。对象的 `entries` 顺序在投影时保留。
+`valid.value` 是投影后的值。本包丢弃引擎输出。`exact-or-reject` 只在数字转换可逆时产生 JavaScript 数字，否则问题码是 `precision`。投影失败的 path 是 `projection`，因为这次失败发生在进入编译产物之前。`lexeme` 把源词法交给检查器。对象的 `entries` 顺序在投影时保留。
 
 <a id="issues"></a>
 

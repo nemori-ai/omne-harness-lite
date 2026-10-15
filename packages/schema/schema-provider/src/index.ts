@@ -2,7 +2,6 @@ import type { JsonFailure, JsonRead } from '@omne-harness/json-text'
 
 declare const schemaIdBrand: unique symbol
 declare const schemaRevisionBrand: unique symbol
-declare const providerBrand: unique symbol
 
 /** Stable shape name. One owner per id. Contains no tenant or request data. */
 export type SchemaId = string & { readonly [schemaIdBrand]: true }
@@ -67,6 +66,8 @@ export {
   zodDefinition,
 } from './provider.ts'
 
+export type { SchemaProvider } from './provider.ts'
+
 /**
  * Budget for one execution domain. Every field is required. The module has no default magnitudes.
  * `maxSnapshots` counts resident entries. It is not a byte size.
@@ -78,9 +79,6 @@ export type SchemaBudget = {
   readonly failureBackoffMs: number
   readonly maxAttempts: number
 }
-
-/** One cache owner for one execution domain. Callers cannot construct it. Workers do not share it. */
-export type SchemaProvider = { readonly [providerBrand]: true }
 
 export type IssueCode = 'type' | 'empty' | 'precision' | 'constraint' | 'unrecognized-key'
 
@@ -99,7 +97,7 @@ export type RefusalReason =
 
 export type UnavailableReason = 'load-failed' | 'compile-failed'
 
-export type CheckPath = 'compiled' | 'runtime'
+export type CheckPath = 'compiled' | 'runtime' | 'projection'
 
 /** Result of a check that already holds an admitted snapshot. */
 export type SyncVerdict<T> =

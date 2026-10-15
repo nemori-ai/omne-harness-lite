@@ -5,6 +5,7 @@ import {
   jsonSchemaDefinition,
   validate,
   zodDefinition,
+  type CheckPath,
   type IssueCode,
   type SchemaBudget,
   type SchemaIssue,
@@ -32,8 +33,12 @@ const budget: SchemaBudget = {
 
 const codes: readonly IssueCode[] = ['type', 'empty', 'precision', 'constraint', 'unrecognized-key']
 
-function expectIssues(verdict: SchemaVerdict<unknown>, issues: readonly SchemaIssue[]) {
-  expect(verdict).toMatchObject({ kind: 'invalid', path: 'compiled', issues })
+function expectIssues(
+  verdict: SchemaVerdict<unknown>,
+  issues: readonly SchemaIssue[],
+  path: CheckPath = 'compiled',
+) {
+  expect(verdict).toMatchObject({ kind: 'invalid', path, issues })
   if (verdict.kind !== 'invalid') return
   for (const issue of verdict.issues) {
     expect(Object.keys(issue).sort()).toEqual(['code', 'path'])
@@ -71,9 +76,11 @@ it('defect: Zod failures keep the library message', async () => {
   expectIssues(await validate(provider, schema, readJsonText('{"name":"long","n":1}', limits)), [
     { path: ['name'], code: 'constraint' },
   ])
-  expectIssues(await validate(provider, schema, readJsonText('{"name":"ada","n":9007199254740993}', limits)), [
-    { path: ['n'], code: 'precision' },
-  ])
+  expectIssues(
+    await validate(provider, schema, readJsonText('{"name":"ada","n":9007199254740993}', limits)),
+    [{ path: ['n'], code: 'precision' }],
+    'projection',
+  )
 })
 
 it('defect: Ajv failures keep the library message', async () => {
