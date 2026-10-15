@@ -89,9 +89,9 @@
 > 每次工具执行的账、一次尝试开始这个事实，**它们不会在组装时变成消息**。
 > **它记的是发生了什么，不是模型该看什么。**
 >
-> **EN**: **An append-only ledger** of what happened within one session. **Messages are
-> only part of it**; the rest are things that are not messages at all — the account of
-> each tool execution, the fact that an attempt began — **and none of them turn into
+> **EN**: **An append-only ledger** of what happened within one session. **A message is a
+> field inside one kind of fact record**; the other entries are not messages — the account
+> of each tool execution, the fact that an attempt began — **and none of them turn into
 > messages at assembly time**. **It records what happened, not what the model ought to
 > see.**
 
@@ -151,7 +151,7 @@
 > | **系统**，在中途 | `SystemReminderMessage` | 外面有信息进来了，你得知道 |
 > | **系统**，回头看 | `CompactionMessage` | 前面那一大段，概括起来是这样 |
 >
-> **前四种各家模型供应商都有，后三种是我们加的。** 消息值是事实记录里的一个字段，不是日志条目本身。纯值在 `packages/common/message`。
+> **前四种各家模型供应商都有，后三种是我们加的。** 纯值在 `packages/common/message`。
 >
 > **EN**: **A message is a field of a fact record. Seven kinds, divided by who is
 > speaking**; **for every kind except `SystemMessage`, the fact record that carries it
