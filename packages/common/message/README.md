@@ -8,7 +8,7 @@ The message field inside a fact record, plus parse and equality for `MessageId`.
 
 PanQiWei confirmed this member on 2026-10-15. A message is a field of one fact record in the session log. It is not the log entry. `SystemMessage` is a request view and is not one of the six log roles.
 
-This package parses and compares ids. The session mints an id when it accepts a message into the log. This package exports no mint function.
+This package parses and compares ids. The session mints `msg_` plus 16 unguessable bytes when it accepts a message into the log. Projection stays with the session. This package exports no mint function.
 
 ## Usage
 

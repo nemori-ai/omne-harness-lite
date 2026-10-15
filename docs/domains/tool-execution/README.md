@@ -6,7 +6,7 @@
 
 工具定义说明可调用动作，工具runtime承担一次实际执行、等待、结果及外部效果。工具入口可以访问领域能力，但不接管该领域事实和业务完成。
 
-独立工具调用不强制Session；环境供给、准入及调用方的业务采用分别负责。工具结果和执行账归本责任。流式步骤消费 `packages/common/stream-arrival`。已封闭内容块消费 `packages/common/content-block`。
+独立工具调用不强制Session；环境供给、准入及调用方的业务采用分别负责。工具结果和执行账归本责任。会话在收到工具结果时记下这笔账。后到的费用追加并标明迟到。流式步骤消费 `packages/common/stream-arrival`。已封闭内容块消费 `packages/common/content-block`。
 
 ## 模块角色与事实归属
 

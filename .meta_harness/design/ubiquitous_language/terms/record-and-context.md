@@ -85,7 +85,7 @@
 ### UL-session-log · 会话日志 · Session Log
 
 > **中**：**一份只增不改的流水账**，记录一个[会话](agent-runtime-loop.md#ul-session--会话--session)里发生过的事。
-> **[消息](#ul-message--消息--message)只是它的一部分，其余是各种不是消息的事**——
+> **[消息](#ul-message--消息--message)是某一类事实记录里的字段，日志里其余条目不是消息**——
 > 每次工具执行的账、一次尝试开始这个事实，**它们不会在组装时变成消息**。
 > **它记的是发生了什么，不是模型该看什么。**
 >
@@ -138,7 +138,7 @@
 
 ### UL-message · 消息 · Message
 
-> **中**：**一条对话记录。七种，按「谁在说话」分**；**除 `SystemMessage` 之外都落在[会话日志](#ul-session-log--会话日志--session-log)里**，
+> **中**：**消息是事实记录里的一个字段。七种，按「谁在说话」分**；**除 `SystemMessage` 之外，承载它的事实记录落在[会话日志](#ul-session-log--会话日志--session-log)里**，
 > `SystemMessage` 不落日志、每次组装时现算：
 >
 > | 谁在说 | 这一种 | 说的是什么 |
@@ -153,9 +153,10 @@
 >
 > **前四种各家模型供应商都有，后三种是我们加的。** 消息值是事实记录里的一个字段，不是日志条目本身。纯值在 `packages/common/message`。
 >
-> **EN**: **One entry of conversational record. Seven kinds, divided by who is
-> speaking**; **all but `SystemMessage` live in the session log** — `SystemMessage` is
-> never written there and is computed afresh at every assembly. The first four exist at
+> **EN**: **A message is a field of a fact record. Seven kinds, divided by who is
+> speaking**; **for every kind except `SystemMessage`, the fact record that carries it
+> lives in the session log**. `SystemMessage` is never written there and is computed
+> afresh at every assembly. The first four exist at
 > every model vendor; the last three (`ToolInternalMessage`, `SystemReminderMessage`,
 > `CompactionMessage`) are ours.
 
