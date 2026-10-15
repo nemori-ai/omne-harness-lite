@@ -16,7 +16,7 @@
 
 ## 成员的必选结构
 
-PanQiWei 于 2026-10-14 接受 [RFC-0003 revision 1](rfcs/RFC-0003-source-packages.md#决定范围)。下面是新成员的目标形状。应用不使用这套结构。生成和扫描仍用 [包模板](../tools/ts-checks/templates/package/README_ZH.md)。该生成器已经写出先删除 `dist` 的 build、`erasableSyntaxOnly`，以及写在 `types` 前面的 `source` 条件。
+PanQiWei 于 2026-10-14 接受 [RFC-0003 revision 1](rfcs/RFC-0003-source-packages.md#决定范围)。下面是新成员的目标形状。应用不使用这套结构。生成和扫描仍用 [包模板](../tools/ts-checks/templates/package/README_ZH.md)。该生成器已经写出先删除 `dist` 的 build、不先构建的 typecheck、`erasableSyntaxOnly`，以及写在 `types` 前面的 `source` 条件。
 
 每个新成员必须有这些文件。
 
@@ -35,7 +35,7 @@ packages/<能力组>/<成员>/
 
 `cordis-module`、`service-contract` 和 `service-provider` 再加 `src/cordis.ts`。`module` 不加这个文件。`src/index.ts` 不导入 `@deepseek-ai/cordis`。Cordis 绑定只从 `src/cordis.ts` 导出。
 
-`package.json` 把 `source` 写在 `types` 前面，指向 `./src/index.ts`。仓库类型检查通过根 `tsconfig.base.json` 的 `customConditions` 打开它。`files` 只发布 `dist`。发布时去掉 `source`，外部只保留指向 `dist` 的 `types` 和 `import`。`build` 先删除 `dist`，再编译。`tsconfig.build.json` 只包含 `src`，并打开 `erasableSyntaxOnly`。`tsconfig.test.json` 只包含 `tests`。测试导入本包时使用包名。谁写哪一类测试，见[包级测试责任与边界](verification.md#包级测试责任与边界)。
+`package.json` 把 `source` 写在 `types` 前面，指向 `./src/index.ts`。仓库类型检查通过根 `tsconfig.base.json` 的 `customConditions` 打开它。`files` 只发布 `dist`。发布时去掉 `source`，外部只保留指向 `dist` 的 `types` 和 `import`。`build` 先删除 `dist`，再编译。`tsconfig.build.json` 只包含 `src`，并打开 `erasableSyntaxOnly`。`tsconfig.test.json` 只包含 `tests`。`typecheck` 只运行 `tsc -p tsconfig.test.json`，不先构建，被测试导入的源码经 `source` 条件一并检查。测试导入本包时使用包名。谁写哪一类测试，见[包级测试责任与边界](verification.md#包级测试责任与边界)。
 
 `docs/`、`SPEC.md`、`schema/`、`verification/`、`adr/`、`examples/` 和 `resources/` 只有在里面有真实内容时才存在。模板不生成空目录。
 
@@ -214,8 +214,8 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 
 目标规则替代“所有Service定义集中core”和“仅以core/util目录判断跨包许可”的目录治理。现有成员仍保留真实路径、接口和行为，迁移须同步消费者、公开入口、构建、发布、资源读取及验证；路径变化不改变Schema身份或接受范围。
 
-当前 typescript-package@2.0.0 的 service-contract 创建与结构扫描不再限制 core。IC-1 与 IC-5 按已采用责任和公开入口判断，不按 core 或 util 目录名许可。分组方向仍使用 `group-direction` 的三层路径表。`packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 会报告 `unregistered-group`。把这些组登记进路径表，会让同组 `sdk` 导入 `server-entry` 在成环前继续合法。不能据旧检查失败否定目标组织，也不能据旧检查通过宣称新依赖政策成立。具体范围见[模板](../tools/ts-checks/templates/package/README_ZH.md)及[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。
+当前 typescript-package@2.0.0 的 service-contract 创建与结构扫描不再限制 core。IC-1 与 IC-5 按已采用责任和公开入口判断，不按 core 或 util 目录名许可。具体范围见[模板](../tools/ts-checks/templates/package/README_ZH.md)及[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。
 
-在新组实施公共 Service 成员前，分组方向仍须由工具拥有者适配。模板创建与结构扫描已经不再把 service-contract 限制在 core。保留唯一服务定义、纯入口、依赖方向、精确例外及未知报告。不能手写骨架或伪造采用标识绕过现行检查。此义务不阻碍本页目标设计和独立的文档维护。
+分组方向已由工具适配：旧的三层路径表退役，本节与[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)中能按成员路径表达的规则写在根 `.dependency-cruiser.cjs`，由 `pnpm run lint:deps` 检查，clean loop 的硬线读同一张依赖图，见[依赖规则](../tools/ts-checks/README_ZH.md#依赖图与依赖规则)。已表达的有：SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务成员不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具，以及成员和组之间不成环。契约不依赖其提供者、提供者经接口接入这类按角色判断的规则，仓库还没有机读的角色标记，暂未表达，仍靠评审。不能手写骨架或伪造采用标识绕过现行检查。
 
 当前成员重组、工具适配、SDK安装闭包及真实维护成本尚需各自实施和验证任务。报告区分目标要求、现状、偏离、口径变化与未覆盖，沿[领域符合性](domains/verification.md)和[项目验证](verification.md)选择证据。

@@ -38,7 +38,8 @@ export function conditionApplies(scope: string | undefined, target: string): boo
 }
 
 export type Route =
-  { kind: 'track'; track: string } | { kind: 'global' | 'cross-track'; owners: string[] }
+  | { kind: 'track'; track: string }
+  | { kind: 'global' | 'cross-track'; owners: string[] }
 export type TaskBinding = {
   schemaVersion: 1
   issue: IssueIdentity

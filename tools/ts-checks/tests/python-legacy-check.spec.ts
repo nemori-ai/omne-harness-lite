@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, inject, it } from 'vitest'
 import { pythonStep, type PlanFile } from '../src/testing/steps.ts'
-import { planCheck } from '../src/testing/affected.ts'
+import { planCheck } from '../src/testing/scope.ts'
 
 declare module 'vitest' {
   export interface ProvidedContext {
@@ -62,6 +62,7 @@ it.each(['local', 'runner'])(
           residentPaths: [],
           residentBuild: [],
         },
+        new Set(),
         true,
       ),
     }

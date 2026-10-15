@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import type { Rule, Violation, SourceFile } from '../rule.ts'
 import { ENTRY_EVENTS, ENTRY_OPS, ENTRY_SRC, productSourceIn } from '../layout.ts'
 import {

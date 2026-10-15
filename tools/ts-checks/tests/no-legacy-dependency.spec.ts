@@ -24,7 +24,7 @@ describe('no-legacy-dependency', () => {
     ])
   })
 
-  it('rejects a source import and a source path, and allows the new scope plus a doc mention', () => {
+  it('rejects a source path, leaves import edges to dependency-cruiser, and allows the new scope plus a doc mention', () => {
     const imported = file(
       'packages/common/json-text/src/index.ts',
       "import { x } from '@omne-harness-lite/storage'\n",
@@ -35,10 +35,7 @@ describe('no-legacy-dependency', () => {
       "import { IDENTITY_TYPE_NAMES } from '@omne-harness/legal-identity'\n",
     )
     const note = file('docs/workspace.md', '旧目录留在 packages.0.0.1.legacy/ 供核对。\n')
-    expect(noLegacyDependency.check([imported, path]).map(item => item.path)).toEqual([
-      imported.path,
-      path.path,
-    ])
+    expect(noLegacyDependency.check([imported, path]).map(item => item.path)).toEqual([path.path])
     expect(noLegacyDependency.check([current, note])).toEqual([])
   })
 
@@ -95,18 +92,6 @@ function passed(path: string) { return readFileSync(path) }
     expect(noLegacyDependency.check([file('tools/check/tests/rule.spec.ts', text)])).toHaveLength(1)
   })
 
-  it('rejects imports resolved through a TypeScript alias into an archived tree', () => {
-    expect(
-      noLegacyDependency.check([
-        {
-          path: 'tools/check/tests/rule.spec.ts',
-          text: "import { value } from '@old/value'",
-          resolvedModules: { '@old/value': 'packages.0.0.1.legacy/core/value/src/index.ts' },
-        },
-      ]),
-    ).toHaveLength(1)
-  })
-
   it('includes the root manifest in the repository dependency check', () => {
     const root = mkdtempSync(join(tmpdir(), 'legacy-manifest-'))
     try {
@@ -127,7 +112,7 @@ function passed(path: string) { return readFileSync(path) }
   it('does not exempt a former consumer path, and finds none in the current repository', () => {
     const parked = file(
       'tools/core-verification/src/w1-public-consumer.ts',
-      "import { fail } from '@omne-harness-lite/kernel-basis'\n",
+      "const old = '../../packages.0.0.1.legacy/core/kernel-basis/src/index.ts'\n",
     )
     expect(noLegacyDependency.check([parked]).map(item => item.path)).toEqual([parked.path])
     const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)))

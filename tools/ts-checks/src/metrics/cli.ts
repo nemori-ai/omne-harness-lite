@@ -3,11 +3,11 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { GROUP_DIRECTION_POLICY } from '../rules/group-direction.ts'
+import { workingGraph } from '../deps/graph.ts'
 import { readMetricsConfig } from './config.ts'
 import { measureCoverage } from './coverage.ts'
 import { changedLines, commitShape, coordinates } from './git.ts'
-import { memberOf } from './graph.ts'
+import { memberOf } from '../deps/graph.ts'
 import { renderPage } from './render.ts'
 import { buildReport, summaryLines, type CoverageInput } from './report.ts'
 import { baseTextsOf, collectMemberSources } from './sources.ts'
@@ -89,7 +89,7 @@ function main(): void {
 
   const report = buildReport({
     files,
-    policy: GROUP_DIRECTION_POLICY,
+    graph: workingGraph(root),
     thresholds: config.thresholds,
     bands: config.bands,
     ...(changed === undefined ? {} : { changed, baseTexts }),
@@ -137,7 +137,7 @@ function main(): void {
   )
   writeFileSync(
     join(outDir, 'graph.json'),
-    `${JSON.stringify({ meta, layout: report.layout, edges: report.edges, findings: report.findings, exceptions: report.exceptions }, null, 1)}\n`,
+    `${JSON.stringify({ meta, layout: report.layout, edges: report.edges, findings: report.findings }, null, 1)}\n`,
   )
   const actual = readActualArchitecture({
     root,

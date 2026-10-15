@@ -16,8 +16,6 @@ const LAYER_PAD_BOTTOM = 18
 const LAYER_GAP = 56
 const MAX_COLUMNS = 4
 
-export const LAYER_NAMES: readonly string[] = ['最内层', '领域与基础设施', '装配']
-
 export interface Box {
   readonly x: number
   readonly y: number
@@ -102,10 +100,16 @@ export function structureLayout(report: Report): StructureLayout {
     report.layout.flatMap((groups, index) =>
       groups.length === 0
         ? []
-        : [{ layer: index, label: `第 ${index} 层 · ${LAYER_NAMES[index] ?? ''}`, groups }],
+        : [
+            {
+              layer: index,
+              label: index === 0 ? '第 0 层 · 不依赖别的组' : `第 ${index} 层`,
+              groups,
+            },
+          ],
     )
   if (unplacedGroups.length > 0)
-    columns.push({ layer: undefined, label: '未登记层位的组', groups: unplacedGroups })
+    columns.push({ layer: undefined, label: '未分层的组', groups: unplacedGroups })
   const target = Math.max(
     0,
     ...columns.flatMap(column =>

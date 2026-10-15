@@ -4,11 +4,16 @@ import { isLegacyDirectory, isLegacyFile } from '../check-scope.ts'
 import { git } from '../metrics/git.ts'
 import { readRevisionTexts } from '../metrics/revision-files.ts'
 import { listWorkspaceMembers, ownerOf, workspacePatterns, type Tree } from '../testing/members.ts'
-import type { Member } from '../metrics/graph.ts'
+import type { Member } from '../deps/graph.ts'
 import type { Snapshot } from './actual-model.ts'
 
 export type JsonValue =
-  null | boolean | number | string | readonly JsonValue[] | { readonly [key: string]: JsonValue }
+  | null
+  | boolean
+  | number
+  | string
+  | readonly JsonValue[]
+  | { readonly [key: string]: JsonValue }
 export interface ActualMember {
   readonly id: string
   readonly path: string
@@ -115,7 +120,7 @@ function patternsOf(texts: ReadonlyMap<string, string>): string[] {
   if (yaml === undefined) throw new Error('Actual architecture requires pnpm-workspace.yaml')
   const patterns = workspacePatterns(yaml)
   for (const pattern of patterns)
-    if (/[?{}\[\]]/u.test(pattern))
+    if (/[?{}[\]]/u.test(pattern))
       throw new Error(`Unsupported workspace pattern ${pattern}: only whole-segment * is supported`)
   return patterns
 }

@@ -50,10 +50,15 @@ pnpm run format:check
 pnpm run test:format
 # 按计划：构建（被选中的成员及其依赖，加上常驻检查要的成员）、类型检查、成员测试（快层再慢层）。
 step build
+# 常驻：成员用 TypeScript 7 构建，dist 里的声明要能被 TypeScript 6 读；读的是磁盘上现有的 dist。
+pnpm run check:declarations
 step typecheck
 step test
 # 常驻：结构规则、验收的覆盖声明与提交署名；它导入的成员已在上面构建。
 pnpm run lint:rules
+# 常驻：oxlint 的正确性规则与 dependency-cruiser 的环和 legacy 规则；dev tools 违反即失败，packages/ 与 apps/ 只报告。
+pnpm run lint:oxlint
+pnpm run lint:deps
 # 按计划：可执行验收，驱动上面构建出来的 dist/；计划里没有带验收的成员时为当前提交记一份「跳过」的账本。
 step acceptance
 

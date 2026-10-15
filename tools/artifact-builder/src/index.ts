@@ -7,7 +7,8 @@ import { spawn } from 'node:child_process'
 const nodeVersion = '24.21.0'
 const pnpmVersion = '10.28.1'
 export type Entry =
-  { path: string; kind: 'file'; sha256: string } | { path: string; kind: 'link'; target: string }
+  | { path: string; kind: 'file'; sha256: string }
+  | { path: string; kind: 'link'; target: string }
 export interface PackagingRuntime {
   run(command: string, args: readonly string[], cwd: string): Promise<void>
   output(text: string): Promise<void>

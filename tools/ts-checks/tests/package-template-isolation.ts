@@ -16,7 +16,8 @@ import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
-const tsc = require.resolve('typescript/bin/tsc')
+// TypeScript 7 declares package exports without `./bin/tsc`; locate the bin from its manifest.
+const tsc = join(dirname(require.resolve('typescript/package.json')), 'bin/tsc')
 
 export interface IsolatedWorkspace {
   readonly root: string
@@ -27,7 +28,8 @@ export interface IsolatedWorkspace {
 
 export function isolatedProductWorkspace(): IsolatedWorkspace {
   const root = mkdtempSync(join(realpathSync(tmpdir()), 'omne-package-template-'))
-  cpSync(join(repoRoot, 'tsconfig.base.json'), join(root, 'tsconfig.base.json'))
+  // 根 tsconfig.base.json 只是指向共享预设的 extends；隔离工作区里直接放预设本身。
+  cpSync(join(repoRoot, 'tools/repo-config/tsconfig.base.json'), join(root, 'tsconfig.base.json'))
   cpSync(join(repoRoot, 'vitest.tiers.mts'), join(root, 'vitest.tiers.mts'))
   const host: unknown = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'))
   const engines = hostNode(host)

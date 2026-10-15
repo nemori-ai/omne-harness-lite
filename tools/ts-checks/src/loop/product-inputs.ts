@@ -1,6 +1,6 @@
 import { isLegacyDirectory } from '../check-scope.ts'
 import { git } from '../metrics/git.ts'
-import { memberOf } from '../metrics/graph.ts'
+import { memberOf } from '../deps/graph.ts'
 import { isMeasuredSource } from '../metrics/report.ts'
 import { isTestPath, type SourceFile } from '../rule.ts'
 

@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { productSourceIn } from '../layout.ts'
 import type { Rule, Violation } from '../rule.ts'
 import { lineAt, resolveRelative } from '../source-text.ts'

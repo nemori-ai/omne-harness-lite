@@ -1,5 +1,6 @@
 // `make check` 里按计划执行的几步：pytest、构建、类型检查、成员测试（快慢两层）、可执行验收；
-// 以及它们共用的「跑一批成员的脚本并写耗时账本」。计划由 `affected.ts` 算，这里只照着执行、照实说跳了什么。
+// 以及它们共用的「跑一批成员的脚本并写耗时账本」。计划由 `scope.ts` 算（受影响的成员由 turbo 给出），
+// 这里只照着执行、照实说跳了什么。构建交给 turbo，类型检查与测试仍由本工具逐成员跑。
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { baselines } from '../integration/context.ts'
@@ -7,7 +8,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { changedFiles, coordinates, type Coordinates } from '../metrics/git.ts'
-import { describeCheckPlan, planCheck, type CheckPlan } from './affected.ts'
+import { describeCheckPlan, planCheck, type CheckPlan } from './scope.ts'
+import { admissionRequested, affectedMembers, turboBuild } from './turbo.ts'
 import {
   CONFIG_PATH,
   effectiveParallelism,
@@ -60,7 +62,14 @@ export function computePlan(root: string, baseRef: string, full: boolean): PlanF
   const at = coordinates(root, baseRef)
   if (at.base === undefined) throw new Error(`算不出基线 ${baseRef} 的合并点`)
   const members = listWorkspaceMembers(fileTree(root), config.affected.excludeRoots)
-  const plan = planCheck(changedFiles(root, at.base.mergeBase), members, config.affected, full)
+  const affected = affectedMembers(root, members, at.base.mergeBase)
+  const plan = planCheck(
+    changedFiles(root, at.base.mergeBase),
+    members,
+    config.affected,
+    affected,
+    full,
+  )
   return { head: at.head, dirty: at.dirty, base: at.base, plan }
 }
 
@@ -153,27 +162,34 @@ export function pythonStep(root: string, file: PlanFile): number {
       ])
 }
 
-/** 按计划逐个点名，`-r` 按拓扑顺序构建依赖。 */
-export function pnpmStep(root: string, file: PlanFile, script: 'build' | 'typecheck'): number {
-  const name = script === 'build' ? '构建' : '类型检查'
-  const paths = script === 'build' ? file.plan.build.map(entry => entry.path) : file.plan.typecheck
+/** 构建：按计划点名，turbo 先构建它们的上游；`OMNE_ADMISSION=1` 时本地缓存只写不读。 */
+export function buildStep(root: string, file: PlanFile): number {
+  const paths = file.plan.build.map(entry => entry.path)
   if (paths.length === 0) {
-    console.log(`${name}：跳过——没有被选中的成员`)
+    console.log('构建：跳过——没有被选中的成员')
+    return 0
+  }
+  console.log(`构建：${paths.length} 个成员及其上游——${paths.join('、')}`)
+  const names = membersAt(root, paths).map(member => member.name)
+  return turboBuild(root, names, admissionRequested(process.env))
+}
+
+/** 类型检查：按计划逐个点名；不依赖构建，嵌套的归档目录由 typecheck-member.ts 排除。 */
+export function typecheckStep(root: string, file: PlanFile): number {
+  const paths = file.plan.typecheck
+  if (paths.length === 0) {
+    console.log('类型检查：跳过——没有被选中的成员')
     return 0
   }
   const members = membersAt(root, paths)
-  console.log(`${name}：${paths.length} 个成员——${paths.join('、')}`)
+  console.log(`类型检查：${paths.length} 个成员——${paths.join('、')}`)
   return spawnInherited(root, 'pnpm', [
     '-r',
     ...members.flatMap(member => ['--filter', member.name]),
-    ...(script === 'typecheck'
-      ? [
-          'exec',
-          process.execPath,
-          '--experimental-strip-types',
-          fileURLToPath(new URL('./typecheck-member.ts', import.meta.url)),
-        ]
-      : ['run', script]),
+    'exec',
+    process.execPath,
+    '--experimental-strip-types',
+    fileURLToPath(new URL('./typecheck-member.ts', import.meta.url)),
   ])
 }
 

@@ -145,9 +145,7 @@ The private `omne-package-template` CLI creates drafts and inventories exact tem
 The package template is typescript-package@2.0.0. Exact 1.0.0 rules remain available for older markers.
 `service-contract` creation and structure scan no longer require `packages/core`.
 `scan --json` reports judged edges on `dependencies`. `unknown` stays `unknown`.
-`group-direction` still reports `unregistered-group` for `packages/access`, `packages/identity`, `packages/agent`, and `packages/assembly`.
-This change does not edit that rule.
-Registering those groups on the path table would leave a same-group import from `sdk` to `server-entry` legal until the two members form a cycle.
+Group direction is checked by dependency-cruiser through `pnpm run lint:deps` ([dependency rules](README_ZH.md#依赖图与依赖规则)); there is no group layer table. A same-group import from `sdk` to `server-entry` violates `sdk-not-server` directly.
 The later-implementer table and diagnostic shapes are in the [template guide](templates/package/README.md#later-implementers).
 `create-domain --group <name>` previews a package-domain@1.0.0 documentation draft. Add --write to create it.
 `scan --group <name> --check` checks group structure. It is mutually exclusive with --member.

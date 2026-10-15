@@ -7,7 +7,7 @@ import {
   firstAdoptionCommit,
 } from './context.ts'
 import { activeTrack, type Mode } from './policy.ts'
-import { canonical, digest, same, sha, string, IntegrationError } from './parse.ts'
+import { same, sha, IntegrationError } from './parse.ts'
 import { clean, git, GitError, parents, repository, requireAncestor } from './git.ts'
 import {
   newOperation,
@@ -21,7 +21,8 @@ import { targetHead } from './transport.ts'
 import { combineTasks, pendingPrefix, completePrefix } from './units.ts'
 
 export type Source =
-  { kind: 'work' | 'main'; source: string } | { kind: 'track'; track: string; source: string }
+  | { kind: 'work' | 'main'; source: string }
+  | { kind: 'track'; track: string; source: string }
 export type Prepare = {
   kind: 'prepare'
   mode: Mode

@@ -1,5 +1,5 @@
 import { runInNewContext } from 'node:vm'
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { expect, it } from 'vitest'
 import { architectureScript } from '../src/arch/render.ts'
 

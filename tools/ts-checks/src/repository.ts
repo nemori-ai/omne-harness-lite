@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
 import { join, relative, dirname, resolve } from 'node:path'
 import { isLegacyDirectory } from './check-scope.ts'
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import type { SourceFile } from './rule.ts'
 import { sessionSeedBoundary, sessionMappingImmutable } from './rules/session-seed.ts'
 import { sessionCatalogBoundary } from './rules/session-catalog.ts'
@@ -11,7 +11,6 @@ import { manifestImmutable } from './rules/manifest-immutable.ts'
 import { registryHistoryBoundary } from './rules/registry-history-boundary.ts'
 import { syntaxImports, syntaxOf } from './syntax.ts'
 import { modelCredentialBoundary } from './rules/model-credential-boundary.ts'
-import { groupDirection } from './rules/group-direction.ts'
 import { noLegacyDependency } from './rules/no-legacy-dependency.ts'
 
 export const REPOSITORY_RULES = [
@@ -23,7 +22,6 @@ export const REPOSITORY_RULES = [
   manifestImmutable,
   registryHistoryBoundary,
   modelCredentialBoundary,
-  groupDirection,
   noLegacyDependency,
 ] as const
 export function collectRepositorySources(root: string): SourceFile[] {

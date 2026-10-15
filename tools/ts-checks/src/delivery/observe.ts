@@ -621,7 +621,7 @@ export function observeDelivery(
           )
     }
   }
-  for (const [creation, urls] of creations)
+  for (const urls of creations.values())
     if (urls.length > 1)
       for (const url of urls)
         add(

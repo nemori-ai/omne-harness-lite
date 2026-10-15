@@ -104,11 +104,13 @@ export function writeDraft(plan: DraftPlan): void {
         if (node.directory) rmdirSync(node.path)
         else unlinkSync(node.path)
       } catch (cleanupError) {
-        if (!(
-          cleanupError instanceof Error &&
-          'code' in cleanupError &&
-          cleanupError.code === 'ENOTEMPTY'
-        ))
+        if (
+          !(
+            cleanupError instanceof Error &&
+            'code' in cleanupError &&
+            cleanupError.code === 'ENOTEMPTY'
+          )
+        )
           throw new AggregateError([error, cleanupError], 'Draft creation and cleanup failed')
       }
     }

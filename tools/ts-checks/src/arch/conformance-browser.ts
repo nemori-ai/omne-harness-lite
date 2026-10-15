@@ -1,4 +1,4 @@
-/// <reference lib="dom" />
+/// <reference lib="dom" preserve="true" />
 import type { ArchitectureView, SelectedArchitecture } from './view.ts'
 import type { ConformanceRow } from './conformance-model.ts'
 import type { ReportUiApi } from './flow/controls-api.ts'

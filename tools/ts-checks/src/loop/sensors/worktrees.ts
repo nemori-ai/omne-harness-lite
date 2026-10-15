@@ -3,7 +3,7 @@
 import { statSync } from 'node:fs'
 import { baselines, readContext } from '../../integration/context.ts'
 import { changedFiles, git } from '../../metrics/git.ts'
-import { memberOf } from '../../metrics/graph.ts'
+import { memberOf } from '../../deps/graph.ts'
 
 export interface WorktreeEntry {
   readonly path: string

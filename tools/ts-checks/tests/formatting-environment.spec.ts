@@ -25,8 +25,7 @@ function formattedRepository() {
     'scripts/format.sh',
     'scripts/install-format-hook.sh',
     'scripts/pre-commit-format',
-    '.prettierrc.json',
-    '.prettierignore',
+    '.oxfmtrc.json',
   ])
     copyFileSync(join(runner, path), join(root, path))
   symlinkSync(join(runner, 'node_modules'), join(root, 'node_modules'))

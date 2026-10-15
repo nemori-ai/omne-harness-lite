@@ -1,6 +1,6 @@
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { isLegacyFile } from '../check-scope.ts'
 
 export function hasArchivedDirectories(root: string): boolean {

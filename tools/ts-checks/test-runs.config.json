@@ -14,7 +14,8 @@
       "scripts/check.sh",
       "tools/ts-checks/test-runs.config.json",
       "tools/ts-checks/src/metrics/git.ts",
-      "tools/ts-checks/src/testing/affected.ts",
+      "tools/ts-checks/src/testing/scope.ts",
+      "tools/ts-checks/src/testing/turbo.ts",
       "tools/ts-checks/src/testing/members.ts",
       "tools/ts-checks/src/testing/cli.ts",
       "tools/ts-checks/src/testing/config.ts",
@@ -27,7 +28,8 @@
       "docs/engineering/integration-policy.json",
       "docs/engineering/integration-bootstrap.json",
       "docs/architecture/constraints.json",
-      "turbo.json"
+      "**/turbo.json",
+      "tools/repo-config/**"
     ],
     "readers": [
       {
@@ -46,7 +48,7 @@
           "examples/**/*.cts"
         ],
         "members": ["tools/ts-checks"],
-        "why": "ts-checks 的规则测试读真实产品源码，慢层 group-direction.spec.ts 经 collectMemberSources 读 packages、apps、examples 下全部 TS"
+        "why": "ts-checks 的规则测试读真实产品源码：no-legacy-dependency.spec.ts 经 collectRepositorySources 扫全仓，确认当前仓库没有 legacy 依赖"
       },
       {
         "paths": [
@@ -115,8 +117,10 @@
       ".github/**",
       ".vscode/**",
       ".editorconfig",
-      ".prettierrc.json",
-      ".prettierignore",
+      ".oxfmtrc.json",
+      ".oxlintrc.json",
+      ".dependency-cruiser.cjs",
+      "knip.json",
       "scripts/*.md",
       "scripts/format.sh",
       "scripts/install-format-hook.sh",

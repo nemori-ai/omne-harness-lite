@@ -4,14 +4,14 @@ import { isTestPath, type SourceFile } from '../rule.ts'
 import { functionMetrics, nestedUnits, unitDigests } from './complexity.ts'
 import { touches, type ChangedLines, type CommitShape } from './git.ts'
 import {
-  evaluateDirection,
-  memberGraph,
+  cycles,
   memberOf,
-  type DirectionFinding,
-  type GroupDirectionPolicy,
+  type DependencyFinding,
+  type DependencyGraph,
   type ImportSite,
-  type MemberGraph,
-} from './graph.ts'
+  type Member,
+  type MemberEdge,
+} from '../deps/graph.ts'
 
 /** 函数级的「要解释」线：超过 warn 列入清单，超过 alert 另计。 */
 export interface Thresholds {
@@ -95,7 +95,6 @@ export interface EdgeRow {
   readonly count: number
   readonly sites: readonly ImportSite[]
   readonly violating: boolean
-  readonly excepted: boolean
   /** 有导入处落在基线以来改动的行里。 */
   readonly changed: boolean
 }
@@ -119,8 +118,7 @@ export interface Report {
   readonly members: readonly MemberRow[]
   readonly functions: readonly FunctionRow[]
   readonly edges: readonly EdgeRow[]
-  readonly findings: readonly DirectionFinding[]
-  readonly exceptions: GroupDirectionPolicy['exceptions']
+  readonly findings: readonly DependencyFinding[]
   readonly commits?: CommitShape
   /** 覆盖率那一趟里测试退出码非零的成员。度量照出，测试结论另算。 */
   readonly failedTests: readonly string[]
@@ -267,7 +265,8 @@ function coverageOf(
 
 export interface BuildInput {
   readonly files: readonly SourceFile[]
-  readonly policy: GroupDirectionPolicy
+  /** dependency-cruiser 给出的成员图与违规，见 `deps/graph.ts`。 */
+  readonly graph: DependencyGraph
   readonly thresholds: Thresholds
   readonly bands: Bands
   /** 基线以来改动的文件与行区间；缺席表示没有基线。 */
@@ -281,18 +280,65 @@ export interface BuildInput {
   readonly commits?: CommitShape
 }
 
+interface LayoutGraph {
+  readonly members: readonly Member[]
+  readonly edges: readonly MemberEdge[]
+}
+
+/**
+ * 组的层号，由依赖图本身得出：不依赖别的组的在第 0 层，其余在它所依赖的组之上一层；成环的组并作一处。
+ * 层位不再人工登记，方向由 dependency-cruiser 的规则判，这里只决定画面上的上下次序。
+ */
+export function groupLayers(graph: LayoutGraph): ReadonlyMap<string, number> {
+  const groupOf = new Map(graph.members.map(member => [member.path, member.group]))
+  const groups = [...new Set(groupOf.values())].sort()
+  const targets = new Map<string, Set<string>>(groups.map(group => [group, new Set<string>()]))
+  for (const edge of graph.edges) {
+    const from = groupOf.get(edge.from)
+    const to = groupOf.get(edge.to)
+    if (from !== undefined && to !== undefined && from !== to) targets.get(from)?.add(to)
+  }
+  const component = new Map<string, string>(groups.map(group => [group, group]))
+  for (const cycle of cycles(
+    groups,
+    [...targets].flatMap(([from, tos]) => [...tos].map(to => ({ from, to }))),
+  ))
+    for (const group of cycle) component.set(group, cycle[0] ?? group)
+  const layer = new Map<string, number>()
+  const visiting = new Set<string>()
+  const layerOf = (node: string): number => {
+    const known = layer.get(node)
+    if (known !== undefined) return known
+    visiting.add(node)
+    let depth = 0
+    for (const group of groups) {
+      if (component.get(group) !== node) continue
+      for (const target of targets.get(group) ?? []) {
+        const next = component.get(target) ?? target
+        if (next === node || visiting.has(next)) continue
+        depth = Math.max(depth, layerOf(next) + 1)
+      }
+    }
+    visiting.delete(node)
+    layer.set(node, depth)
+    return depth
+  }
+  return new Map(groups.map(group => [group, layerOf(component.get(group) ?? group)]))
+}
+
 function layoutOf(
-  graph: MemberGraph,
-  policy: GroupDirectionPolicy,
+  graph: LayoutGraph,
+  layers: ReadonlyMap<string, number>,
   memberRows: ReadonlyMap<string, MemberRow>,
   bands: Bands,
 ): GroupRow[][] {
   const groupOf = new Map(graph.members.map(member => [member.path, member.group]))
-  const present = new Set(groupOf.values())
+  const count = Math.max(-1, ...layers.values()) + 1
   // 行从最外层排到最内层，与画面自上而下一致。
-  const layerRows = [...policy.layers]
-    .map((layer, index) => ({ index, groups: layer.groups.filter(group => present.has(group)) }))
-    .reverse()
+  const layerRows = Array.from({ length: count }, (_, index) => ({
+    index,
+    groups: [...layers].filter(([, layer]) => layer === index).map(([group]) => group),
+  })).reverse()
 
   const groupEdges = graph.edges
     .map(edge => ({ from: groupOf.get(edge.from) ?? '', to: groupOf.get(edge.to) ?? '' }))
@@ -309,7 +355,7 @@ function layoutOf(
     undirected(graph.edges),
   )
 
-  const layout: GroupRow[][] = policy.layers.map(() => [])
+  const layout: GroupRow[][] = Array.from({ length: count }, () => [])
   layerRows.forEach((row, rowIndex) => {
     layout[row.index] = (groupOrder[rowIndex] ?? []).map((group, groupIndex) => {
       const members = memberOrder[rowIndex]?.[groupIndex] ?? []
@@ -326,13 +372,19 @@ function layoutOf(
 
 /** 路径一律相对于仓库根。 */
 export function buildReport(input: BuildInput): Report {
-  const { files, policy, thresholds, bands, changed, coverage } = input
-  const graph = memberGraph(files)
-  const findings = evaluateDirection(graph, policy)
-  const layerOf = new Map<string, number>()
-  policy.layers.forEach((layer, index) => {
-    for (const group of layer.groups) layerOf.set(group, index)
-  })
+  const { files, thresholds, bands, changed, coverage } = input
+  // 成员取依赖图里的与源码里出现的并集：没有导入也没被导入的成员同样要度量。
+  const known = new Map(input.graph.members.map(member => [member.path, member]))
+  for (const file of files) {
+    const member = memberOf(file.path)
+    if (member !== undefined && !known.has(member.path)) known.set(member.path, member)
+  }
+  const graph: LayoutGraph = {
+    members: [...known.values()].sort((a, b) => a.path.localeCompare(b.path)),
+    edges: input.graph.edges,
+  }
+  const findings = input.graph.findings
+  const layerOf = groupLayers(graph)
 
   // 跑了测试却一条语句都没命中：几乎总是测试在子进程或别处执行，不是真的零覆盖，按缺数据处理。
   const lineTotals = new Map<string, { total: number; covered: number }>()
@@ -441,7 +493,6 @@ export function buildReport(input: BuildInput): Report {
   const violating = new Set(
     findings.flatMap(finding => finding.edges.map(edge => `${edge.from}\u0000${edge.to}`)),
   )
-  const excepted = new Set(policy.exceptions.map(entry => `${entry.from}\u0000${entry.to}`))
   const edges: EdgeRow[] = graph.edges.map(edge => {
     const key = `${edge.from}\u0000${edge.to}`
     return {
@@ -450,7 +501,6 @@ export function buildReport(input: BuildInput): Report {
       count: edge.sites.length,
       sites: edge.sites.slice(0, 5),
       violating: violating.has(key),
-      excepted: excepted.has(key),
       changed: edge.sites.some(site => {
         const ranges = changed?.get(site.path)
         return ranges !== undefined && touches(ranges, site.line, site.line)
@@ -463,12 +513,11 @@ export function buildReport(input: BuildInput): Report {
     bands,
     coverageEnabled: coverage !== undefined,
     hasBase: changed !== undefined,
-    layout: layoutOf(graph, policy, new Map(members.map(row => [row.path, row])), bands),
+    layout: layoutOf(graph, layerOf, new Map(members.map(row => [row.path, row])), bands),
     members,
     functions,
     edges,
     findings,
-    exceptions: policy.exceptions,
     ...(input.commits === undefined ? {} : { commits: input.commits }),
     failedTests: [...(coverage?.members ?? [])].filter(([, code]) => code !== 0).map(([m]) => m),
     staleDist: coverage?.staleDist ?? [],
@@ -521,7 +570,7 @@ export function summaryLines(report: Report, context: SummaryContext): string[] 
   const red = report.members.filter(member => member.band === 'red').length
   const yellow = report.members.filter(member => member.band === 'yellow').length
   lines.push(
-    `结构：方向违规 ${directionCount}，环 ${cycleCount}，已登记例外 ${report.exceptions.length}` +
+    `结构：依赖违规 ${directionCount}，环 ${cycleCount}` +
       (report.hasBase ? `，变更触及的跨成员导入 ${newEdges.length} 条` : '') +
       `；成员风险 红 ${red}、黄 ${yellow}、绿 ${report.members.length - red - yellow}`,
   )

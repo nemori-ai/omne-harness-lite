@@ -20,7 +20,6 @@ import {
 } from '../src/arch/view.ts'
 import { renderPage } from '../src/metrics/render.ts'
 import { buildReport } from '../src/metrics/report.ts'
-import { GROUP_DIRECTION_POLICY } from '../src/rules/group-direction.ts'
 
 const bands = { green: 8, yellow: 12, red: 20 }
 it('rejects JSON output paths that would overwrite report artifacts before writing', () => {
@@ -412,7 +411,7 @@ describe('architecture view projection', () => {
     const html = renderPage(
       buildReport({
         files: [],
-        policy: GROUP_DIRECTION_POLICY,
+        graph: { members: [], edges: [], findings: [] },
         thresholds: { warn: 10, alert: 12 },
         bands,
       }),

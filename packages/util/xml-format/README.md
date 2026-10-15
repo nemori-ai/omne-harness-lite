@@ -37,7 +37,7 @@ The call above returns `<root x="😀"/>`.
 
 `FormattingOptions` selects indent size and manual attributes. The default indent and the maximum indent are the exported constants `DEFAULT_INDENT_SIZE` and `MAX_INDENT_SIZE`. The functions do not read the environment or the filesystem.
 
-Node `>=24.18.0 <25`. There is no runtime dependency.
+Node `>=24`. There is no runtime dependency.
 
 ## Verification
 

@@ -7,7 +7,7 @@ import {
 import { readArchitectureSource } from './source.ts'
 import { productSource } from './resolve.ts'
 import { buildReport, type Report } from '../metrics/report.ts'
-import { GROUP_DIRECTION_POLICY } from '../rules/group-direction.ts'
+import { revisionGraph, workingGraph } from '../deps/graph.ts'
 import type { MetricsConfig } from '../metrics/config.ts'
 import { conformanceOf } from './conformance.ts'
 import type { Conformance } from './conformance-model.ts'
@@ -56,7 +56,11 @@ export function readArchitectureReport(
     conformance: conformanceOf(input.root, currentSource, baselineSource),
     report: buildReport({
       files,
-      policy: GROUP_DIRECTION_POLICY,
+      // 与抽取同一个版本：给了 revision 读那个提交，否则读工作树。
+      graph:
+        input.revision === undefined
+          ? workingGraph(input.root)
+          : revisionGraph(input.root, input.revision),
       thresholds: config.thresholds,
       bands: config.bands,
       ...(baselineSource === undefined ? {} : { changed, baseTexts }),
