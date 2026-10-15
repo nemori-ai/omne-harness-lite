@@ -13,7 +13,8 @@ PACKAGE_TEMPLATE_DRAFT
 ## 契约与设计
 
 - [行为入口](SPEC.md)与原专题共同保持完整承诺。
-- [内部设计](docs/internals.md)解释机制、依赖与未决。
+- [抽象与建模](docs/model.md)、[Cordis 接缝](docs/cordis.md)、[包内架构](docs/architecture.md)、[关键流程](docs/key-flow.md) 是本包 `docs/` 的四块。
+- [档案与模态](docs/profile-and-modality.md) 和 [消费与费用](docs/consumption-and-cost.md) 保持行为正文。未闭合项见 [open-questions](docs/open-questions.md)。
 - [原具名专题 profile-and-modality.md](docs/profile-and-modality.md)保持唯一行为正文。
 - [原具名专题 consumption-and-cost.md](docs/consumption-and-cost.md)保持唯一行为正文。
 

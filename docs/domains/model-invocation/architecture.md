@@ -19,3 +19,42 @@ Session 拥有选择事实、工作及有效推进关系，模型维护求值所
 
 
 完整行为读[能力组](../../../packages/model/README.md)，精确机制与流程随成员维护。
+
+## 凭据引用与保管
+
+本节是 Issue 279 的待审技术设计。它不修改上文角色表的已有行，也不表示成员已经实现。已接受的上层规则仍以[数据保护](../../architecture/security/data-and-privacy.md#凭据与秘密生命周期)和[模型请求运行时](../../architecture/runtime/model-runtime.md)为准。
+
+模型调用记录保存凭据身份、租户和用途。秘密值由凭据保管持有。获准的真实发出当时，按当前资格解析。存在性查询不返回秘密值。这个引用不是 Runtime Context 的块。Context 继续拥有注册块和一次请求的派生输入。身份与授权提供租户和当前资格，不保存模型秘密。资产与规则参与档案求值，档案自身不存凭据。Session 在会话路径上治理工作的发起、取消和消费位置，不执行这次解析。没有 Session 的独立调用由调用应用治理生命周期。
+
+| 角色 | 拥有的事实 | 不拥有 |
+| --- | --- | --- |
+| 调用记录 | 凭据身份、租户、用途 | 秘密值、密封副本 |
+| 凭据保管 | 秘密值、当前绑定、读取资格的判定 | 档案选择、接收方、重试 |
+| 发出前复核 | 目标、权限、接收方、完整输入 | 保管库里的秘密正文 |
+
+```mermaid
+sequenceDiagram
+  participant Id as 身份与授权
+  participant Profile as 档案求值
+  participant Call as 调用记录
+  participant Keep as 凭据保管
+  participant Send as 真实发出
+  Id-->>Call: 当前租户与资格
+  Profile-->>Call: 可用档案，不含秘密
+  Call->>Keep: 存在性查询
+  Keep-->>Call: 是否存在，无秘密值
+  Call->>Keep: 获准发送时解析，参数携带租户
+  alt 当前资格允许且值可读
+    Keep-->>Send: 仅本次使用的值
+    Send->>Send: 发出
+  else 拒绝或暂时不能判断
+    Keep-->>Call: 停止该次发送的结果
+    Note over Send: 不发送
+  end
+```
+
+Runtime Context 不在上图中。它继续负责注册块和派生输入，不承载凭据引用，也不把秘密交给模型或工具。
+
+本交付把调用记录和凭据保管放在同一成员 `packages/model/model` 的两个角色里。公开表面是存在性查询和获准发送时的解析。保管库的存储布局留在该成员内部。调用执行依赖这个操作类型，不依赖保管库的表结构。Cordis 只装配这一道接缝，服务定义与本地保管实现同成员共置。精确模块和集成入口见[包内架构](../../../packages/model/model/docs/architecture.md)、[建模](../../../packages/model/model/docs/model.md)和 [Cordis](../../../packages/model/model/docs/cordis.md)。
+
+另有一种切法是在 `packages/model` 下新增兄弟成员，专管保管。组规则要求，只有独立消费、依赖隔离、替换或验证收益已经明确，内部接口才成为兄弟成员。当前只有一个要验收的本地保管，最小消费者可以调用本成员的公开解析入口，不必启动完整调用执行。因此本交付不新增兄弟包。出现第二个真实保管后端时，再把保管角色拆出去。那个拆分不在本卡。

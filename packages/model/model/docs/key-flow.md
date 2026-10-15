@@ -292,4 +292,28 @@ sequenceDiagram
 
 模态点查询使用可重建增量投影，单会话单模态点查询为常数代价；完整列表和物化按实际量评价。模型 TTFT 与端到端首次输出分开，排队、转换、组装、发出、重试和清理分别有定位事实。具体指标尺度与后端不在图中补定。
 
+<a id="credential-resolve"></a>
+## 凭据解析
+
+承接待审的 [model](model.md)。每次获准的真实发出都重新解析。同一次发送的后续输出不再解析。
+
+```mermaid
+sequenceDiagram
+  participant Call as 调用记录
+  participant Keep as 本地保管库
+  participant Send as 发送端
+  Call->>Keep: present
+  Keep-->>Call: 是否存在，无秘密
+  Call->>Keep: resolve
+  alt value
+    Keep-->>Send: 仅本次的值
+    Send->>Send: 发出并记下该值
+  else absent unreadable denied unavailable
+    Keep-->>Call: 该种类
+    Note over Send: 不发送
+  end
+```
+
+轮换后的下一次解析看到新值。撤销后的新解析是 `denied`。已经记入发送端的那一次保持已发送。进程重新打开同一保管库后，按打开时的绑定读取。关闭后的新解析停止，不改写已经发出的记录。
+
 持续验证见[费用及保护](consumption-and-cost.md#持续验证义务)、[模态投影性能](profile-and-modality.md#验证与待闭合输入)与[观测规格](../SPEC.md#观测资源与验证)。费用去重及清理接续继续依 MODEL-M02；秘密绑定精确形状继续依 MODEL-M04。

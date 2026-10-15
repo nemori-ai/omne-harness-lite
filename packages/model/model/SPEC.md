@@ -18,13 +18,13 @@ Session 拥有工作身份、有效推进和选择事实，request-context 拥�
 
 | 产品旅程及能力 | 对应流程 | 行为拥有位置 | 持续验证 |
 | --- | --- | --- | --- |
-| J-MD01，CAP-MD01、04、12 | [档案维护](docs/key-flows.md#flow-md01) | [身份与修订](docs/profile-and-modality.md#身份修订及撤回)、[请求资格](#请求资格身份与固定输入) | [档案反例](docs/profile-and-modality.md#验证与待闭合输入)、[数据保护反例](docs/consumption-and-cost.md#持续验证义务) |
-| J-MD02，CAP-MD02、03、05、06 | [会话选择协作](docs/key-flows.md#flow-md01) | [同名求值](docs/profile-and-modality.md#同名求值选择及列表) | [合法选择反例](docs/profile-and-modality.md#验证与待闭合输入) |
-| J-MD03，CAP-MD05、06、12、13 | [转换与组装](docs/key-flows.md#flow-md02) | [模态表示](docs/profile-and-modality.md#模态投影与实际表示)、[转换契约](docs/profile-and-modality.md#转换件的共同契约)、[最终输入](#请求资格身份与固定输入) | [限额、转换及投影反例](docs/profile-and-modality.md#验证与待闭合输入)、[主规格反例](#观测资源与验证) |
-| J-MD04，CAP-MD06、07、08、11、13 | [发出与流收场](docs/key-flows.md#flow-md03) | [真实发出](#调用和各次真实发出)、[流式](#流式和首内容)、[策略](#重试与策略)、[故障交接](#故障交接) | [首内容、独立调用与否决反例](#观测资源与验证) |
-| J-MD05，CAP-MD09、10、11、12 | [控制与恢复](docs/key-flows.md#flow-md04) | [控制](#控制取消与晚到事实)、[换代恢复](#换代恢复和耐久) | [原身份与未知反例](#观测资源与验证)、[取消结果反例](docs/consumption-and-cost.md#持续验证义务) |
-| J-MD06，CAP-MD09、10、11、12 | [双路径 ACK](docs/key-flows.md#flow-md05) | [ACK](docs/consumption-and-cost.md#ack-的前提与效果)、[清理](docs/consumption-and-cost.md#清理范围与读写保护) | [保管、完成、回执未知及竞态](docs/consumption-and-cost.md#持续验证义务) |
-| J-MD07，CAP-MD04、11、12、13 | [费用与查询](docs/key-flows.md#flow-md06) | [费用](docs/consumption-and-cost.md#真实费用和账目边界)、[保护](docs/consumption-and-cost.md#数据保护与异常)、[观测](#观测资源与验证) | [账目及披露反例](docs/consumption-and-cost.md#持续验证义务)、[点查询与重建](docs/profile-and-modality.md#验证与待闭合输入) |
+| J-MD01，CAP-MD01、04、12 | [档案维护](docs/key-flow.md#flow-md01) | [身份与修订](docs/profile-and-modality.md#身份修订及撤回)、[请求资格](#请求资格身份与固定输入) | [档案反例](docs/profile-and-modality.md#验证与待闭合输入)、[数据保护反例](docs/consumption-and-cost.md#持续验证义务) |
+| J-MD02，CAP-MD02、03、05、06 | [会话选择协作](docs/key-flow.md#flow-md01) | [同名求值](docs/profile-and-modality.md#同名求值选择及列表) | [合法选择反例](docs/profile-and-modality.md#验证与待闭合输入) |
+| J-MD03，CAP-MD05、06、12、13 | [转换与组装](docs/key-flow.md#flow-md02) | [模态表示](docs/profile-and-modality.md#模态投影与实际表示)、[转换契约](docs/profile-and-modality.md#转换件的共同契约)、[最终输入](#请求资格身份与固定输入) | [限额、转换及投影反例](docs/profile-and-modality.md#验证与待闭合输入)、[主规格反例](#观测资源与验证) |
+| J-MD04，CAP-MD06、07、08、11、13 | [发出与流收场](docs/key-flow.md#flow-md03) | [真实发出](#调用和各次真实发出)、[流式](#流式和首内容)、[策略](#重试与策略)、[故障交接](#故障交接) | [首内容、独立调用与否决反例](#观测资源与验证) |
+| J-MD05，CAP-MD09、10、11、12 | [控制与恢复](docs/key-flow.md#flow-md04) | [控制](#控制取消与晚到事实)、[换代恢复](#换代恢复和耐久) | [原身份与未知反例](#观测资源与验证)、[取消结果反例](docs/consumption-and-cost.md#持续验证义务) |
+| J-MD06，CAP-MD09、10、11、12 | [双路径 ACK](docs/key-flow.md#flow-md05) | [ACK](docs/consumption-and-cost.md#ack-的前提与效果)、[清理](docs/consumption-and-cost.md#清理范围与读写保护) | [保管、完成、回执未知及竞态](docs/consumption-and-cost.md#持续验证义务) |
+| J-MD07，CAP-MD04、11、12、13 | [费用与查询](docs/key-flow.md#flow-md06) | [费用](docs/consumption-and-cost.md#真实费用和账目边界)、[保护](docs/consumption-and-cost.md#数据保护与异常)、[观测](#观测资源与验证) | [账目及披露反例](docs/consumption-and-cost.md#持续验证义务)、[点查询与重建](docs/profile-and-modality.md#验证与待闭合输入) |
 
 请求表示选择与组装的实际行为归 [request-context 的 RQ-04](../../context/request-context/SPEC.md#rq-04-模态与可追溯表示)，本域提供档案约束及转换件共同契约。工具允许块全集及嵌套投影仍受 MODEL-E01 限制，本表不宣称完整覆盖该来源缺口。
 
@@ -45,7 +45,7 @@ Session 拥有工作身份、有效推进和选择事实，request-context 拥�
 
 进入会话日志的跨边界事实是未发出就失败、真实收场、停止尚未回报，以及消费侧已保存结果。每次重试、首内容边界、容量预留、在途块和费用金额留在本成员。记入标准见[必须进入日志的事实](../../../docs/architecture/runtime/session-and-run.md#必须进入日志的事实)。
 
-受理的最小对接是现行规则。租户身份是参数。缺租户或跨租户默认拒绝。结果确认的前提见[ACK](docs/consumption-and-cost.md#ack-的前提与效果)。样例见 [F-SW03](../../session/session/docs/key-flows.md#f-sw03) 和[双路径 ACK](docs/key-flows.md#flow-md05)。
+受理的最小对接是现行规则。租户身份是参数。缺租户或跨租户默认拒绝。结果确认的前提见[ACK](docs/consumption-and-cost.md#ack-的前提与效果)。样例见 [F-SW03](../../session/session/docs/key-flows.md#f-sw03) 和[双路径 ACK](docs/key-flow.md#flow-md05)。
 
 | 项 | 规则 |
 | --- | --- |
