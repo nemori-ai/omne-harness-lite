@@ -249,6 +249,25 @@ it('refuses to read a directory as file bytes', async () => {
   expect(result).toEqual({ kind: 'rejected', requestId: 'directory', reason: 'unsupported' })
 })
 
+it('reads a directory through a symlink dot path when the directory is named', async () => {
+  const root = await tree()
+  const dir = join(root, 'dir')
+  await mkdir(dir)
+  await writeFile(join(dir, 'secret.txt'), 'secret-bytes')
+  const link = join(root, 'link')
+  await symlink(dir, link)
+  const named = await hostObjectToken(dir)
+  const result = await createHostFiles().stat(request(`${link}/.`, named, 'dot'))
+  expect(result).toEqual({
+    kind: 'done',
+    requestId: 'dot',
+    value: {
+      object: named,
+      handle: { object: named, generation: '1' },
+    },
+  })
+})
+
 it('refuses a directory symlink when the path ends with a slash', async () => {
   const root = await tree()
   const dir = join(root, 'dir')

@@ -1,6 +1,5 @@
 import { constants } from 'node:fs'
 import { lstat, open } from 'node:fs/promises'
-import { basename, dirname } from 'node:path'
 import type {
   FacilityReason,
   FacilityResult,
@@ -30,14 +29,10 @@ function reject(requestId: string, reason: FacilityReason): FacilityResult<never
   return { kind: 'rejected', requestId, reason }
 }
 
-function lastRealPath(path: string): string {
+function pathWithoutTrailingSlash(path: string): string {
   let current = path
   while (current.length > 1 && current.endsWith('/')) current = current.slice(0, -1)
-  const base = basename(current)
-  if (base !== '.' && base !== '..') return current
-  const parent = dirname(current)
-  if (parent === current) return current
-  return lastRealPath(parent)
+  return current
 }
 
 async function openNamed(
@@ -51,7 +46,7 @@ async function openNamed(
   if (request.path.includes('\0')) return reject(request.requestId, 'invalidInput')
   if (request.named === null) return reject(request.requestId, 'notAuthorized')
   try {
-    const linked = await lstat(lastRealPath(request.path))
+    const linked = await lstat(pathWithoutTrailingSlash(request.path))
     if (linked.isSymbolicLink()) return reject(request.requestId, 'unsupported')
   } catch (error) {
     const failure = openFailure(request.requestId, error)
@@ -67,7 +62,7 @@ async function openNamed(
     const stat = await handle.stat({ bigint: true })
     const object = { token: `${stat.dev}:${stat.ino}` }
     if (object.token !== request.named.token) {
-      await handle.close()
+      await handle.close().catch(() => undefined)
       return reject(request.requestId, 'conflict')
     }
     return { kind: 'handle', handle, object }

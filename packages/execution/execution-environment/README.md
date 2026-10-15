@@ -8,7 +8,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与阅读
 
-本目标承接领域中归属于执行环境能力的完整必要行为。根入口导出环境类型和宿主文件操作。`./cordis` 导出服务键、登记表和宿主文件插件。行为由[完整 SPEC](SPEC.md)维护。设计分成 [架构](docs/architecture.md)、[关键流程](docs/key-flow.md)、[模型](docs/model.md) 和 [Cordis 集成](docs/cordis.md)。PanQiWei 已接受该设计，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。与外部能力协作从[组入口](../README.md)展开。
+本目标承接领域中归属于执行环境能力的完整必要行为。根入口导出环境类型和宿主文件操作。`./cordis` 导出服务键、登记表和宿主文件插件。行为由[完整 SPEC](SPEC.md)维护。设计分成 [架构](docs/architecture.md)、[关键流程](docs/key-flow.md)、[模型](docs/model.md) 和 [Cordis 集成](docs/cordis.md)。PanQiWei 已接受其中的宿主文件使用、环境抽象和 Cordis 服务，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。架构和关键流程的其余节仍是草案。与外部能力协作从[组入口](../README.md)展开。
 
 ## 独立与 Cordis 消费
 

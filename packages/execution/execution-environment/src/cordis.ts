@@ -29,6 +29,16 @@ function providersOf(service: object): EnvironmentProvider[] | undefined {
   return (service as RegistryRecord)[liveProviders]
 }
 
+function providersFor(service: object, input: PlacementInput): {
+  layer: EnvironmentProvider[]
+  matched: EnvironmentProvider | undefined
+} {
+  const list = providersOf(service) ?? []
+  const layer = list.filter((provider) => provider.bindingKinds.includes(input.binding.kind))
+  const matched = layer.find((provider) => input.facilities.every((name) => provider.facilities.has(name)))
+  return { layer, matched }
+}
+
 /**
  * @owner packages/execution/execution-environment
  */
@@ -92,21 +102,18 @@ export class ExecutionEnvironmentRegistry extends ExecutionEnvironmentService {
   }
 
   async resolvePlacement(input: PlacementInput) {
-    const provider = providersOf(this)?.find((candidate) =>
-      candidate.bindingKinds.includes(input.binding.kind),
-    )
-    if (!provider) return { kind: 'rejected' as const, reason: 'noMatchingEnvironment' as const }
-    return { kind: 'placement' as const, binding: input.binding, continuity: provider.continuity }
+    const { matched } = providersFor(this, input)
+    if (!matched) return { kind: 'rejected' as const, reason: 'noMatchingEnvironment' as const }
+    return { kind: 'placement' as const, binding: input.binding, continuity: matched.continuity }
   }
 
   async acquire(input: PlacementInput) {
-    const layer = providersOf(this)?.filter((provider) => provider.bindingKinds.includes(input.binding.kind))
-    if (!layer || layer.length === 0) return { kind: 'rejected' as const, reason: 'noMatchingEnvironment' as const }
-    const provider = layer.find((candidate) => input.facilities.every((name) => candidate.facilities.has(name)))
-    if (!provider) return { kind: 'rejected' as const, reason: 'missingFacility' as const }
-    return provider.acquire({
+    const { layer, matched } = providersFor(this, input)
+    if (layer.length === 0) return { kind: 'rejected' as const, reason: 'noMatchingEnvironment' as const }
+    if (!matched) return { kind: 'rejected' as const, reason: 'missingFacility' as const }
+    return matched.acquire({
       binding: input.binding,
-      continuity: provider.continuity,
+      continuity: matched.continuity,
       tenantId: input.tenantId,
       callId: input.callId,
     })

@@ -144,3 +144,44 @@ it('uses the matched provider continuity for a session sandbox', async () => {
   })
   expect(acquired).toMatchObject({ kind: 'acquired', lease: { binding, continuity } })
 })
+
+it('uses the same provider continuity for placement and lease', async () => {
+  const ctx = new Context()
+  await ctx.plugin(ExecutionEnvironmentRegistry, {})
+  const service = ctx.get(EXECUTION_ENVIRONMENT)
+  const filesContinuity = { kind: 'continuous' as const, dataId: 'files-data', revision: '1' }
+  const commandContinuity = { kind: 'continuous' as const, dataId: 'command-data', revision: '9' }
+  const binding = { kind: 'session_sandbox' as const, sessionId: 'session-1' }
+  const leaseFor = (continuity: typeof filesContinuity) => ({
+    binding,
+    continuity,
+    instance: { id: 'session', generation: '1' },
+    facility: () => undefined,
+    async release() {
+      return { kind: 'released' as const }
+    },
+  })
+  service.registerProvider({
+    name: 'session-files',
+    bindingKinds: ['session_sandbox'],
+    continuity: filesContinuity,
+    facilities: new Map([['files', {}]]),
+    async acquire(placement) {
+      return { kind: 'acquired', lease: leaseFor(placement.continuity) }
+    },
+  })
+  service.registerProvider({
+    name: 'session-command',
+    bindingKinds: ['session_sandbox'],
+    continuity: commandContinuity,
+    facilities: new Map([['command', {}]]),
+    async acquire(placement) {
+      return { kind: 'acquired', lease: leaseFor(placement.continuity) }
+    },
+  })
+  const input = { tenantId: 'tenant-a', callId: 'call-1', binding }
+  const placed = await service.resolvePlacement({ ...input, facilities: ['command'] })
+  const acquired = await service.acquire({ ...input, facilities: ['command'] })
+  expect(placed).toEqual({ kind: 'placement', binding, continuity: commandContinuity })
+  expect(acquired).toMatchObject({ kind: 'acquired', lease: { continuity: commandContinuity } })
+})

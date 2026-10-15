@@ -40,6 +40,6 @@ const EXECUTION_ENVIRONMENT = ExecutionEnvironmentService.provide
 
 宿主文件提供者不是第二个服务键。它是一个插件，导出名字是 `hostFilesPlugin`。`inject` 里写 `EXECUTION_ENVIRONMENT`，装上时调用 `registerProvider`，声明自己只覆盖 `host_machine` 和 `files`。插件树用包名 `@omne-harness/execution-environment` 和 `./cordis` 的 `hostFilesPlugin` 来标识它。配置只放可序列化的字段。回调和打开文件的函数不进插件树。
 
-沙箱提供者以后用同一个键登记，声明自己的绑定层。它不写进宿主插件的 `inject`。登记表在 `acquire` 时按绑定层现取。没有匹配的提供者，结果是 `noMatchingEnvironment` 或 `missingFacility`，不改用 `host_machine`。
+沙箱提供者以后用同一个键登记，声明自己的绑定层和连续性。它不写进宿主插件的 `inject`。登记表按绑定层和所要设施匹配同一个提供者。落点和租约都用这个提供者的连续性。没有匹配的提供者，`acquire` 的结果是 `noMatchingEnvironment` 或 `missingFacility`，不改用 `host_machine`。
 
 资源恢复是另一个接缝。它不进这个 `./cordis`。这一刀也不声明事件。
