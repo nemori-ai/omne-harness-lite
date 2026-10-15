@@ -105,7 +105,7 @@
   [结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)也不是
   （**原始结果从来没进过日志**），agent 取回全文是**往后追加两条**
 - **注意 ②**：**它归[会话](agent-runtime-loop.md#ul-session--会话--session)，不归[运行](agent-runtime-loop.md#ul-run--运行--run)**
-- **注意 ③**：**从外面进来的普通消息，是以消息的身份落进日志的**——
+- **注意 ③**：**从外面进来的普通消息，作为事实记录里的消息字段落进日志**——
   **受理事实与待处理资格一起持久成立**；卡片答复、控制指令及结算事实不作为普通消息入队。**不存在「先收着，组装时再做成消息」这一步**。
   **一处不在此列**：[会话空闲时 runtime context 的生产方推来的变更一律丢弃](../../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#610-注入的上下文变了没有运行在跑时什么都不做)，
   **它根本不成为一条到达，也就不落日志**
