@@ -116,7 +116,7 @@ it('keeps disposing after one fiber dispose rejects', async () => {
     {
       name: 'second',
       apply(ctx) {
-        const fiber = ctx.fiber as unknown as { dispose: () => Promise<void> }
+        const fiber = ctx.fiber as { dispose: () => Promise<void> }
         const original = fiber.dispose
         fiber.dispose = async () => {
           await original.call(fiber)
@@ -139,7 +139,7 @@ it('collects a dispose rejection when startup fails', async () => {
       {
         name: 'first',
         apply(ctx) {
-          const fiber = ctx.fiber as unknown as { dispose: () => Promise<void> }
+          const fiber = ctx.fiber as { dispose: () => Promise<void> }
           const original = fiber.dispose
           fiber.dispose = async () => {
             await original.call(fiber)

@@ -1,7 +1,9 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 
+type CordisFiberState = typeof import('@deepseek-ai/cordis').FiberState
+
 /** Cordis 4.0.4 FiberState.ACTIVE. A const enum cannot be value-imported. */
-const ACTIVE = 2
+const ACTIVE = 2 satisfies CordisFiberState['ACTIVE']
 
 export type TestPlugin = {
   name: string
