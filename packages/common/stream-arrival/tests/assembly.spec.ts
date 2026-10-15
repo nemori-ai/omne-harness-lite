@@ -144,6 +144,63 @@ it('S10 equals the one-shot message blocks', () => {
   expect(streamed.terminal.message).toEqual(oneShot.ok)
 })
 
+function live(result: AssembleResult): StreamAssembly {
+  if (!('ok' in result) || result.ok.phase !== 'live') throw new Error('expected live')
+  return result.ok
+}
+
+it('keeps the admitted id and head after the caller edits them', () => {
+  const tgt = target()
+  const mutableVisibility = { toHuman: true, toModel: true }
+  const mutableHead = { kind: 'text', id: 'b1', visibility: mutableVisibility }
+  const opened = assembleStream({
+    target: tgt,
+    steps: [
+      { step: 'open', index: '0', mode: 'append', head: mutableHead },
+      { step: 'fill', index: '0', seq: '0', chunk: text },
+    ],
+  })
+  mutableVisibility.toHuman = false
+  mutableHead.id = 'changed'
+  ;(tgt as { id: string }).id = 'msg_zzzzzzzzzzzzzzzzzzzzzz'
+  expect(
+    assembleStream({
+      target: target(),
+      from: live(opened),
+      steps: [close, finish],
+    }),
+  ).toEqual({
+    ok: {
+      phase: 'ended',
+      terminal: {
+        kind: 'complete',
+        message: { id, role: 'assistant', blocks: [oneFill] },
+        trims: [],
+      },
+    },
+  })
+})
+
+it('does not adopt a mutated target id', () => {
+  const tgt = target()
+  const opened = assembleStream({ target: tgt, steps: [open, fill0, close] })
+  const prior = live(opened)
+  ;(tgt as { id: string }).id = 'msg_zzzzzzzzzzzzzzzzzzzzzz'
+  const done = assembleStream({ target: tgt, from: prior, steps: [finish] })
+  expect(done).toEqual({ rejected: 'step', detail: 'target', at: 0, assembly: prior })
+  if (!('rejected' in done)) throw new Error('expected target rejection')
+  expect(done.assembly).toBe(prior)
+})
+
+it('rejects a hand-built live value as from', () => {
+  expect(assembleStream({ target: target(), from: { phase: 'live' }, steps: [open] })).toEqual({
+    rejected: 'step',
+    detail: 'from',
+    at: 0,
+    assembly: { phase: 'live' },
+  })
+})
+
 it('rejects an open head that contains a bigint', () => {
   expect(
     assembleStream({

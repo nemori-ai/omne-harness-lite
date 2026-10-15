@@ -361,10 +361,14 @@ function decimalIndex(index: string): number | undefined {
   return value
 }
 
+function admitTarget(target: AssemblyTarget): AssemblyTarget {
+  return { id: target.id, role: target.role }
+}
+
 function fresh(target: AssemblyTarget): LiveState {
   return {
     phase: 'live',
-    target,
+    target: admitTarget(target),
     blocks: [],
     trims: [],
     nextIndex: 0,

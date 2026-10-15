@@ -42,7 +42,7 @@ assembleStream({
 
 `STREAM_ARRIVAL_STEPS` 是 `open`、`fill`、`close`、`trim`、`finish`。其他步骤名，包括 `event`，得到 `{ rejected: 'step' }`。缺少序号得到 `{ rejected: 'index' }`。该判断只读 `{ step, index }`。
 
-`assembleStream` 返回 `{ ok }` 或 `{ rejected, at, assembly }`。`ok.phase` 是 `live` 或 `ended`。已经收场的装配带 `terminal`。`terminal.kind` 是 `complete`、`truncated`、`failed` 或 `cancelled`。只有 `complete` 带 `message`。终态之后的新步骤是 `late`，先前的装配保持不变。开块 `head` 不是 JSON 时，拒绝码是 `json`。
+`assembleStream` 返回 `{ ok }` 或 `{ rejected, at, assembly }`。`ok.phase` 是 `live` 或 `ended`。已经收场的装配带 `terminal`。`terminal.kind` 是 `complete`、`truncated`、`failed` 或 `cancelled`。只有 `complete` 带 `message`。终态之后的新步骤是 `late`，先前的装配保持不变。开块 `head` 不是 JSON 时，拒绝码是 `json`。`assembleStream` 在准入时复制 `id`、`role` 和 JSON `head`。之后修改调用方对象不改变已返回的装配。`from` 必须是先前的返回值。手写的 `{ phase: 'live' }` 被拒绝。
 
 ## 设计
 
