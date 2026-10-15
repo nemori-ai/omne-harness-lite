@@ -21,7 +21,9 @@ SDK 和服务端接入使用本页的结果表。它们不另写一套结果含�
 | `actingTenant` | 下表为「必填」时必须是已解析的租户标识，并且等于该登录的当前选择。下表为「禁止」时不能出现。它不是目标组织。 |
 | `body` | 该操作的对象。没有额外输入时是空对象。可省略的 `body` 字段只在下表列出。 |
 
-请求给出恰好一个可信的 `protocolVersion` 和恰好一个可信的 `messageId` 时，响应使用这两个值。`outcome` 取下节的对外结果。`body` 只放该结果允许公开的字段。
+请求的 `protocolVersion` 恰好是一个字符串，并且该字符串是 `governance-public/1` 时，这个版本才可信。可靠读出的其他版本字符串不可信。`messageId` 恰好是一个字符串时，这个 `messageId` 可信。请求同时给出可信版本和可信 `messageId` 时，响应使用这两个值。`outcome` 取下节的对外结果。`body` 只放该结果允许公开的字段。
+
+所有 `protocol-rejected` 响应的 `protocolVersion` 都是 `governance-public/1`。正常回写请求里的版本，只发生在该版本已经是 `governance-public/1` 时。
 
 `messageId` 不把「签发登录」变成只签发一次。同一次业务重试是否产生新事实，由该操作自己的规则决定。
 
@@ -46,7 +48,7 @@ SDK 只把带有相同 `messageId` 的响应交给该次调用。没有 `message
 | 操作 | `loginProof` | `actingTenant` | 可省略的 `body` 字段 |
 | --- | --- | --- | --- |
 | `public-health`、`register-and-activate`、`issue-login` | 禁止 | 禁止 | 无 |
-| `revoke-login`、`replace-credential`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations` | 必填 | 禁止 | 无 |
+| `revoke-login`、`replace-credential`、`query-own-valid-logins`、`query-current-tenant`、`query-own-memberships`、`query-received-invitations`、`query-create-organization` | 必填 | 禁止 | 无 |
 | `issue-member-invitation`、`open-affiliation-request` | 必填 | 必填 | `duration` |
 | `query-organization-members` | 必填 | 必填 | `includeRemoved` |
 | `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation`、`query-invitation`、`create-organization`、`leave-organization`、`remove-member`、`change-member-role`、`switch-current-tenant`、`query-organization`、`query-issued-invitations`、`accept-affiliation-request`、`reject-affiliation-request`、`withdraw-affiliation-request`、`release-affiliation`、`query-received-affiliation-requests`、`query-issued-affiliation-requests`、`query-affiliation-request`、`judge-admission`、`submit-authorization-expression`、`withdraw-authorization-expression` | 必填 | 必填 | 无 |
@@ -127,6 +129,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | `revoke-login` | `targetLoginId` | 无 | 任何其他键 |
 | `replace-credential` | `currentCredential`、`newCredential` | 无 | 任何其他键 |
 | `create-organization` | `name`、`governanceModelId` | 无 | 任何其他键 |
+| `query-create-organization` | `targetMessageId` | 无 | 任何其他键 |
 | `issue-member-invitation` | `invitedLoginIdentifier` | `duration` | `role` 及其他键 |
 | `accept-member-invitation`、`reject-member-invitation`、`withdraw-member-invitation` | `invitationId`、`expectedState` | 无 | 任何其他键。`expectedState` 只能是 `open` |
 | `query-invitation` | `invitationId` | 无 | 任何其他键 |
@@ -155,7 +158,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | --- | --- |
 | `register-and-activate` 的 `succeeded` | `accountId`、`organizationId`、`tenantId`。不含 `loginProof` |
 | `issue-login` 的 `succeeded` | `loginIdentifier`、`issuedAt`、`tenantId`、`loginProof`。`loginProof` 只在这一次响应出现 |
-| `create-organization` 的 `succeeded` | `organizationId`、`tenantId` |
+| `create-organization` 的 `succeeded`，以及该回执查询得到的 `succeeded` | `organizationId`、`tenantId` |
 | `issue-member-invitation` 的 `succeeded` | `invitationId`、`state` 为 `open`、`expiresAt` |
 | 邀请处置的 `succeeded` 或有权看见的 `no-change` | `invitationId`、`state`。`state` 是已经形成的那一个终结 |
 | `query-invitation` 的 `succeeded` | `invitationId`、`state`、`expiresAt`、`organizationId`、`invitedAccountId` |
@@ -173,7 +176,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | `public-health` 的 `succeeded` | `protocolVersion` 为 `governance-public/1` |
 | `judge-admission` 的 `succeeded` | `admitted` 为 true。不含许可秘密 |
 | `judge-admission` 的 `need-decision` | `decisionRequestId` |
-| 表达已记录且持久设置尚未更新的 `succeeded` | `persistentSettingsUpdated` 为 false |
+| 表达已记录且持久设置尚未更新的 `succeeded` | `expressionId`，`persistentSettingsUpdated` 为 false |
 | `revoke-login`、`replace-credential`、`leave-organization`、`remove-member`、`change-member-role` 的 `succeeded` | 空对象 |
 
 
@@ -225,11 +228,23 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 需要有效登录。默认团队方案中，已激活账号可以创建团队组织。`body` 含 `name` 和 `governanceModelId`。`name` 非空。
 
-成功时，组织、创建者租户和初始治理共同成立。默认团队方案还包括首位超级管理员。`body` 含 `organizationId` 和 `tenantId`。模型来源不可用时是 `basis-unavailable`。模型被拒绝时是 `denied`。两条都不创建组织，也不改用默认团队方案。不返回可用的组织标识。`unknown` 之后，调用者保持 `unknown`。`query-own-memberships` 只返回当前成员资格。名单里比调用前多出的组织不能证明这次 `create-organization` 已经成立。同一账号的另一份登录或其他调用可能已经创建了那个组织。本页不保存、也不提供按这次 `messageId` 查询创建结果的读面。无法核成这一次调用时，结果保持 `unknown`。再次调用是另一次创建，可以再建立一个组织。本操作没有创建键。
+成功时，组织、创建者租户和初始治理共同成立。默认团队方案还包括首位超级管理员。服务端在同一次提交里保存这次调用的回执。回执按调用者账号和这次请求的 `messageId` 保存，并含已提交的 `outcome`。成功时还含 `organizationId` 和 `tenantId`。响应 `body` 含这两个标识。模型来源不可用时是 `basis-unavailable`。模型被拒绝时是 `denied`。这两条都保存对应的拒绝回执，不创建组织，也不改用默认团队方案。不返回可用的组织标识。
+
+回执丢失时，这次调用保持 `unknown`。调用者用 `query-create-organization` 按这次 `messageId` 认回。`query-own-memberships` 只返回当前成员资格。名单里多出来的组织不能证明这次创建已经成立。没有回执，或回执读不出确定结果时，认回保持 `unknown`。同一账号的另一份登录用另一个 `messageId` 创建时，两次回执互相区分，不能把对方的组织当成这一次的成功。
+
+同一个 `messageId` 再次提交 `create-organization` 不建立第二个组织，响应交出已保存的那一次结果。这不是名称去重。新的 `messageId` 是另一次创建，同名可以再建立组织。本操作没有创建键。
 
 个人组织由注册开通。本操作不创建第二个人组织，也不邀请他人加入个人组织。名称不参与去重。同名可以是不同组织。
 
 回执丢失是 `unknown`。
+
+### `query-create-organization`
+
+需要有效登录。不带行事租户。`body` 含 `targetMessageId`，也就是那一次 `create-organization` 请求的 `messageId`。
+
+只有该回执所属账号可以读取。查询使用提交时已经保存的回执，不读取成员名单来推断。回执的 `succeeded` 交出 `organizationId` 和 `tenantId`。回执的 `denied` 或 `basis-unavailable` 交出空 `body`，并使用该回执里的 `outcome`。没有回执，回执读不出确定结果，或 `targetMessageId` 不属于该账号时，结果是 `unknown`，`body` 为空对象。这个 `unknown` 不表示创建没有发生，也不表示已经成立。
+
+这是读操作。它不创建组织。
 
 ### 成员邀请
 
@@ -322,7 +337,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 撤回的 `body` 含 `expressionId`。成功时留下撤回事实，并保留原表达。无资格是 `denied`。提交结果未知时，对外是 `unknown`。该结果不把原表达改成已撤回，也不把未知写成已经生效。读取故障不把原表达写成已撤回，对外是 `basis-unavailable`。
 
-表达记录已经提交、持久设置的更新尚未发生时，结果是 `succeeded`。`body` 写明持久设置尚未因此更新。持久设置的这次写入已经失败、表达也没有成为持久设置时，结果是 `basis-unavailable`。写入结果未知是 `unknown`。`basis-unavailable` 和 `unknown` 都不报告规则已经生效。已消费的许可不能复用。重复提交同一决定不增加许可，有权调用者得到 `no-change`。
+表达记录已经提交、持久设置的更新尚未发生时，结果是 `succeeded`。服务端在这次成功里产生 `expressionId`，并放进响应 `body`。撤回使用这个 `expressionId`。请求里的 `expression` 是表达内容，不是该标识。`body` 还含 `persistentSettingsUpdated` 为 false。持久设置的这次写入已经失败、表达也没有成为持久设置时，结果是 `basis-unavailable`，不产生 `expressionId`。写入结果未知是 `unknown`。`basis-unavailable` 和 `unknown` 都不报告规则已经生效。已消费的许可不能复用。重复提交同一决定不增加许可，有权调用者得到 `no-change`。
 
 ## 当前读面
 
