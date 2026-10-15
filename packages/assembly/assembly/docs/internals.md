@@ -34,7 +34,7 @@
 
 <a id="full-replacement"></a>
 
-状态：#264 设计候选，待技术接受。关闭协议的报告结果仍以上文为准。
+状态：已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受。关闭协议的报告结果仍以上文为准。
 
 同一次收集若靠数据库事务或某一种 Cordis 布局来保证原子，那种布局就会变成产品要求。架构页不允许这样做。发布要么整份替换上一份完整目录，要么不发布。系统 slash command 只要求做一次 reload。它不拥有资产类别的正文。
 

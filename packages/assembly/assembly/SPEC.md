@@ -1,6 +1,6 @@
 # 定义求值与装配交接行为规格
 
-本目录是 workspace 包 `@omne-harness/assembly`。下面从「一组租约」到「就绪、撤除和远端中断」的关闭行为，已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受，是该范围的现行契约。求值快照、绑定生效点、缺依赖失败和旧新推进权仍待确定。
+本目录是 workspace 包 `@omne-harness/assembly`。下面从「一组租约」到「就绪、撤除和远端中断」的关闭行为，已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受，是该范围的现行契约。[采用与重装](#adoption)已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受。求值快照、绑定生效、缺依赖失败和旧新推进权以该节为现行行为。关闭协议的报告种类不在该节改写。
 
 谁必须关闭、配置代际如何留在原提供者，以及同级 Cordis effect 的完成顺序不是关闭顺序，只写在[Cordis 装配与服务生命周期](../../../docs/architecture/deployment/cordis-and-lifecycle.md)。改那些句子只改该页。改下面的报告结果只改本页。
 
@@ -130,7 +130,7 @@
 
 <a id="adoption"></a>
 
-状态：#264 设计候选，待技术接受。从「一组租约」到「就绪、撤除和远端中断」的已接受句子保持原样。页首「求值快照、绑定生效点、缺依赖失败和旧新推进权仍待确定」在本节被接受之前仍然有效。本节给出这些事项的候选行为。关闭协议的报告种类不在本节改写。
+状态：已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受，是该节的现行行为。从「一组租约」到「就绪、撤除和远端中断」的已接受句子保持原样。关闭协议的报告种类不在本节改写。
 
 ### 记录
 

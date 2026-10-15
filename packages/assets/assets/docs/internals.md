@@ -20,7 +20,7 @@
 
 <a id="category-provider-seam"></a>
 
-状态：#264 设计候选，待技术接受。本节的接受状态独立于上文。
+状态：已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受。本节的接受状态独立于上文。
 
 注册表若导入每个类别的实现包，共同治理就要识别每一种专有正文。扩展指导不允许这种分支。提供者自己登记。注册表只接收候选项，并按版本取回正文。Tool 与 Skill 的正文形状不同。缝在登记操作上。
 

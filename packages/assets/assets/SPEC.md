@@ -180,7 +180,7 @@ AR-J05 的设置与权限主行为分别由 [settings](../settings/SPEC.md#journ
 
 <a id="category-provider"></a>
 
-状态：#264 设计候选，待技术接受。上文仍是「候选、待用户确认」。本节的接受状态与上文分开。本节不定义编程语言里的类型名。
+状态：已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受，是该节的现行行为。上文仍是「候选、待用户确认」。本节的接受状态与上文分开。本节不定义编程语言里的类型名。
 
 与上文的关系：
 
