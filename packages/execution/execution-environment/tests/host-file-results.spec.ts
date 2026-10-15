@@ -268,6 +268,33 @@ it('reads a directory through a symlink dot path when the directory is named', a
   })
 })
 
+it('refuses dotdot when it names a different object', async () => {
+  const root = await tree()
+  const dir = join(root, 'dir')
+  await mkdir(dir)
+  const inside = join(dir, 'inside.txt')
+  const outside = join(root, 'outside.txt')
+  await writeFile(inside, 'inside-bytes')
+  await writeFile(outside, 'outside-bytes')
+  const named = await hostObjectToken(inside)
+  const result = await createHostFiles().read(request(join(dir, '..', 'outside.txt'), named, 'dotdot'))
+  expect(result).toEqual({ kind: 'rejected', requestId: 'dotdot', reason: 'conflict' })
+  expect(JSON.stringify(result)).not.toContain('outside-bytes')
+})
+
+it('refuses a sandbox binding and does not return the host file bytes', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'host-bytes')
+  const named = await hostObjectToken(path)
+  const result = await createHostFiles().read({
+    ...request(path, named, 'sandbox'),
+    binding: { kind: 'stateless_sandbox', callId: 'call-1' },
+  })
+  expect(result).toEqual({ kind: 'rejected', requestId: 'sandbox', reason: 'unsupported' })
+  expect(JSON.stringify(result)).not.toContain('host-bytes')
+})
+
 it('refuses a directory symlink when the path ends with a slash', async () => {
   const root = await tree()
   const dir = join(root, 'dir')
