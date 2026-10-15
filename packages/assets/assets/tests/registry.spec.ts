@@ -25,6 +25,31 @@ function document(text: string): JsonValue {
   return read.value
 }
 
+it('copies a deep schema without overflowing the stack and rejects a cycle', () => {
+  const registry = createCategoryRegistry()
+  let schema: { kind: 'array'; items: unknown[] } = { kind: 'array', items: [{ kind: 'number', lexeme: '0' }] }
+  for (let depth = 0; depth < 4000; depth += 1) schema = { kind: 'array', items: [schema] }
+  registry.register({
+    category: 'deep',
+    schema: schema as never,
+    judge: () => ({ ok: true }),
+    deriveDeclarations: () => ({ entries: [] }),
+    references: () => [],
+  })
+  expect(registry.lookup('deep')?.schema.kind).toBe('array')
+  const cycle: { kind: 'array'; items: unknown[] } = { kind: 'array', items: [] }
+  cycle.items.push(cycle)
+  expect(() =>
+    registry.register({
+      category: 'cycle',
+      schema: cycle as never,
+      judge: () => ({ ok: true }),
+      deriveDeclarations: () => ({ entries: [] }),
+      references: () => [],
+    }),
+  ).toThrow(/schema could not be copied/)
+})
+
 it('rejects an empty category name before it can be registered', () => {
   const registry = createCategoryRegistry()
   expect(() =>

@@ -67,8 +67,8 @@ it('rejects a skill body whose name is not the capability name', () => {
   const body = document('{"name":"other","tools":[{"category":"tool","name":"read_file"}]}')
   const context = { capabilityName: 'review' }
   expect(port.judge(body, context)).toEqual({ ok: false, rejected: 'name-mismatch' })
-  expect(() => port.deriveDeclarations(body, context)).toThrow(/failed judgment/)
-  expect(() => port.references(body, context)).toThrow(/failed judgment/)
+  expect(() => port.deriveDeclarations(body, context)).toThrow(/failed judgment: name-mismatch/)
+  expect(() => port.references(body, context)).toThrow(/failed judgment: name-mismatch/)
 })
 
 it('rejects a skill tool reference that is not a tool identity', () => {

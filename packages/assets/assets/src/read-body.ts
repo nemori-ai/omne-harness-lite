@@ -22,7 +22,7 @@ export function readBodyText(text: string, limits: JsonLimits): JsonRead {
   const read = readJsonText(text, limits)
   if (read.kind !== 'ok') return read
   const shot = copyTree(read.value)
-  if (shot === undefined) return { kind: 'syntax', reason: 'token' }
+  if (shot === undefined) throw new TypeError('read document could not be copied')
   return { kind: 'ok', value: shot }
 }
 
@@ -41,7 +41,7 @@ export function copyReadBody(value: unknown): JsonValue | undefined {
   return copyTree(source)
 }
 
-function copyTree(root: unknown): JsonValue | undefined {
+export function copyTree(root: unknown): JsonValue | undefined {
   const seen = new WeakSet<object>()
   const opened = open(root, seen)
   if (opened === undefined) return undefined
@@ -55,7 +55,7 @@ function copyTree(root: unknown): JsonValue | undefined {
       done = finish(frame)
       stack.pop()
       const parent = stack[stack.length - 1]
-      if (parent !== undefined && done !== undefined) attach(parent, done)
+      if (parent !== undefined && done !== undefined && !attach(parent, done)) return undefined
       continue
     }
     const childSource = sourceChild(frame)
@@ -63,8 +63,9 @@ function copyTree(root: unknown): JsonValue | undefined {
     if (childSource === undefined) return undefined
     const child = open(childSource, seen)
     if (child === undefined) return undefined
-    if (child.kind === 'leaf') attach(frame, child.node)
-    else stack.push(child.work)
+    if (child.kind === 'leaf') {
+      if (!attach(frame, child.node)) return undefined
+    } else stack.push(child.work)
   }
   return done
 }
@@ -109,15 +110,15 @@ function sourceChild(frame: Work): unknown {
   return entry.value
 }
 
-function attach(frame: Work, child: JsonValue): undefined {
+function attach(frame: Work, child: JsonValue): boolean {
   if (frame.kind === 'array') {
     frame.items.push(child)
-    return undefined
+    return true
   }
   const entry = frame.source[frame.index - 1]
-  if (typeof entry !== 'object' || entry === null || !('key' in entry) || typeof entry.key !== 'string') return undefined
+  if (typeof entry !== 'object' || entry === null || !('key' in entry) || typeof entry.key !== 'string') return false
   frame.entries.push(Object.freeze({ key: entry.key, value: child }))
-  return undefined
+  return true
 }
 
 function finish(frame: Work): JsonValue {

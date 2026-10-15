@@ -108,6 +108,6 @@ it('rejects a tool body whose name is not the capability name', () => {
   const body = document('{"name":"write_file","composes":{"skills":["review"]}}')
   const context = { capabilityName: 'read_file' }
   expect(port.judge(body, context)).toEqual({ ok: false, rejected: 'name-mismatch' })
-  expect(() => port.deriveDeclarations(body, context)).toThrow(/failed judgment/)
-  expect(() => port.references(body, context)).toThrow(/failed judgment/)
+  expect(() => port.deriveDeclarations(body, context)).toThrow(/failed judgment: name-mismatch/)
+  expect(() => port.references(body, context)).toThrow(/failed judgment: name-mismatch/)
 })
