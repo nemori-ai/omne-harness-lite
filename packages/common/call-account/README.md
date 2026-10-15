@@ -36,11 +36,17 @@ Model and tool produce that value. Session calls `admitRevision` when a later sn
 
 ## Contracts
 
-`judgeCallAccount` returns `{ ok }` or `{ rejected }`. An unknown amount has `unit` and no `lexeme`. A known or provisional amount has both. `USD` with more than two decimal places, and a `token` lexeme with a decimal fraction, reject as `precision`. A duration string must be an SI-second duration that `utc-instant` accepts. `{ "state": "unknown" }` is also a duration.
+`judgeCallAccount` returns `{ ok }` or `{ rejected }`. It admits only the keys of a closed account. An unknown key rejects as `extra`. An unknown amount has `unit` and no `lexeme`. A known or provisional amount has both. Public types are the package entry. The account meaning stays with the call-account term. This section does not copy those types.
 
-`admitRevision` returns the next snapshot when its revision is greater. The same revision returns the first snapshot, whether the content matches or not. A different subject rejects as `subject`.
+`USD` allows at most two decimal places. A `token` lexeme allows no decimal fraction. Exceeding either bound rejects as `precision`. Any other non-empty unit keeps an ordinary non-negative decimal lexeme. This member does not add a further decimal cap, and it does not claim that a currency or business unit policy was checked. Units compare as exact strings. They are not converted. This bound is the adopted scope of the D-05 decision for this delivery. It does not treat every unit as already settled by #263. The account meaning stays with the [call account term](../../../.meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md). Token category names stay with [model invocation](../../../docs/domains/model-invocation/README.md).
 
-`sourceSubtotal` adds only `known` amounts of one source. Provisional and unknown amounts stay out. Different units reject as `unit`. `payableAmount` returns the known `ledger` subtotal. When that subtotal is unknown, it returns the known `billable` subtotal. `supplier` and `observation` are not the payable amount. In the sample above the payable lexeme is `1.50`. `canonicalAccount` writes that lexeme as a JSON string. Parsing that JSON and judging it again returns the same lexeme text.
+A duration string must be an SI-second duration that `utc-instant` accepts. `{ "state": "unknown" }` is also a duration.
+
+`admitRevision` returns the next snapshot only when its revision is greater. A lower or equal revision keeps the earlier snapshot. A different subject rejects as `subject`.
+
+`sourceSubtotal` adds only `known` amounts of one source. Provisional and unknown amounts stay out of the sum. When no `known` amount participates, the subtotal is `unknown`. The mixed-unit check applies only to amounts that participate. One participating amount keeps its original lexeme. A sum of several amounts may drop trailing zeros, and the value stays exact. Different units reject as `unit`. `payableAmount` returns the known `ledger` subtotal. When that subtotal is unknown, it returns the known `billable` subtotal. `supplier` and `observation` are not the payable amount. In the sample above the payable lexeme is `1.50`.
+
+`canonicalAccount` serializes the account value the caller already holds. It does not admit again, sort keys, or promise a general canonical JSON form. After admission, parsing that JSON and judging it again keeps the input amount lexemes.
 
 ## Design
 
@@ -54,7 +60,7 @@ The package reads no environment. `engines.node` stays `>=24.18.0 <25`.
 
 ## Verification
 
-`pnpm --filter @omne-harness/call-account test` runs `tests/public-entry.spec.ts`. The tests cover an unknown cost, `precision`, revision replacement, the `1.50` payable amount, and mixed units. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
+`pnpm --filter @omne-harness/call-account typecheck` and `pnpm --filter @omne-harness/call-account test` cover the public entry. The tests cover an unknown cost, `precision`, revision replacement, the `1.50` payable amount, mixed units, a JSON round trip, and a separate process that imports the package name. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
 
 ## Maintenance
 

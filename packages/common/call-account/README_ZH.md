@@ -36,11 +36,17 @@ payableAmount(account)
 
 ## 契约
 
-`judgeCallAccount` 返回 `{ ok }` 或 `{ rejected }`。未知金额只有 `unit`，没有 `lexeme`。已知和暂估同时有这两项。`USD` 超过两位小数，或 `token` 词法带小数，拒绝码是 `precision`。时长字符串必须是 `utc-instant` 能接受的 SI 秒。`{ "state": "unknown" }` 也是一种时长。
+`judgeCallAccount` 返回 `{ ok }` 或 `{ rejected }`。它只准入一份封闭账的已知键。未知键的拒绝码是 `extra`。未知金额只有 `unit`，没有 `lexeme`。已知和暂估同时有这两项。公开类型在包入口。账的含义留在调用账目词条。本节不复制第二套类型。
 
-`admitRevision` 在下一份修订更大时返回下一份快照。修订相同则返回第一份，不论内容是否相同。subject 不同则拒绝码是 `subject`。
+`USD` 最多两位小数。`token` 词法不许小数。超过则拒绝码是 `precision`。其他非空单位保留普通非负十进制词法。本成员不另加小数位上限，也不表示已经核验了该币种或业务单位的精度政策。单位按精确字符串区分，不换算。这一范围是本次 D-05 明确采用的支持边界，不是 #263 已经裁定了所有单位。账的含义留在[调用账目词条](../../../.meta_harness/design/ubiquitous_language/terms/execution-and-outcome.md)。token 类别名留在[模型调用](../../../docs/domains/model-invocation/README.md)。
 
-`sourceSubtotal` 只加一个来源里 `known` 的金额。暂估和未知不进入。单位不同则拒绝码是 `unit`。`payableAmount` 返回已知 `ledger` 小计。该小计未知时，返回已知 `billable` 小计。`supplier` 和 `observation` 不是应付金额。上面的样例里应付词法是 `1.50`。`canonicalAccount` 把该词法写成 JSON 字符串。再解析并准入后，词法文本不变。
+时长字符串必须是 `utc-instant` 能接受的 SI 秒。`{ "state": "unknown" }` 也是一种时长。
+
+`admitRevision` 只在下一份修订更大时返回下一份快照。更低或相同的修订保留先到的快照。subject 不同则拒绝码是 `subject`。
+
+`sourceSubtotal` 只加一个来源里 `known` 的金额。暂估和未知不进入求和。没有 `known` 项参与时，小计是 `unknown`。混单位检查只针对参与求和的项。只有一项参与时保留原词法。多项相加的结果可能去掉尾随的零，数值保持精确。单位不同则拒绝码是 `unit`。`payableAmount` 返回已知 `ledger` 小计。该小计未知时，返回已知 `billable` 小计。`supplier` 和 `observation` 不是应付金额。上面的样例里应付词法是 `1.50`。
+
+`canonicalAccount` 对调用方已经持有的账目值做 JSON 序列化。它不再次准入，不排序键，也不保证一种通用的规范 JSON。准入之后，解析该 JSON 并再次准入，输入金额的词法保持不变。
 
 ## 设计
 
@@ -54,7 +60,7 @@ payableAmount(account)
 
 ## 验证
 
-`pnpm --filter @omne-harness/call-account test` 运行 `tests/public-entry.spec.ts`。测试覆盖未知费用、`precision`、修订替换、应付金额 `1.50` 和混单位。本包是纯值，所以没有存储集成测试，也没有用户旅程端到端测试。
+`pnpm --filter @omne-harness/call-account typecheck` 和 `pnpm --filter @omne-harness/call-account test` 覆盖公开入口。测试覆盖未知费用、`precision`、修订替换、应付金额 `1.50`、混单位、JSON 往返，以及另一个只按包名导入的进程。本包是纯值，所以没有存储集成测试，也没有用户旅程端到端测试。
 
 ## 维护
 

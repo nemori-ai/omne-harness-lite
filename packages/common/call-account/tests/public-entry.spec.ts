@@ -127,9 +127,10 @@ it('imports the built package for a model or tool producer and a session consume
 })
 
 it('does not follow a later edit of the caller object', () => {
-  const value = account([{ state: 'known', lexeme: '0.02', unit: 'USD', source: 'ledger' }])
+  const cost: unknown[] = [{ state: 'known', lexeme: '0.02', unit: 'USD', source: 'ledger' }]
+  const value = account(cost)
   const judged = judgeCallAccount(value)
-  value.cost[0] = { state: 'known', lexeme: '9.00', unit: 'USD', source: 'ledger' }
+  cost[0] = { state: 'known', lexeme: '9.00', unit: 'USD', source: 'ledger' }
   expect(payableAmount('ok' in judged ? judged.ok : value)).toEqual({
     ok: { state: 'known', lexeme: '0.02', unit: 'USD' },
   })
