@@ -160,6 +160,7 @@ export function loadState(raw: unknown): CustodianState | undefined {
 
 export function storeState(state: CustodianState): StoredCustodian {
   return {
+    // A process close stays in memory. The next open reads the bindings.
     closed: false,
     factorySecret: state.factorySecret,
     bindings: state.bindings.map((item) => ({
@@ -173,27 +174,39 @@ export function storeState(state: CustodianState): StoredCustodian {
 }
 
 function loadBinding(row: unknown): Binding | undefined {
-  const item = record(row)
-  const tenantRow = item ? record(item.tenant) : undefined
-  if (!item || !tenantRow) return undefined
-  const idText = text(item.id)
-  const secret = text(item.secret)
-  const organizationText = text(tenantRow.organization)
-  const accountText = text(tenantRow.account)
-  const life = bindingLife(item.life)
-  if (!idText || secret === undefined || item.purpose !== MODEL_SEND || !life) return undefined
-  if (!organizationText || !accountText) return undefined
-  const id = credentialId(idText)
-  const organization = organizationCodec.parse(organizationText)
-  const account = accountCodec.parse(accountText)
+  const stored = storedRow(row)
+  if (!stored) return undefined
+  const id = credentialId(stored.id)
+  const organization = organizationCodec.parse(stored.organization)
+  const account = accountCodec.parse(stored.account)
   if (!id || !organization.ok || !account.ok) return undefined
   return {
     id,
     tenant: tenant(organization.value, account.value),
     purpose: MODEL_SEND,
-    secret,
-    life,
+    secret: stored.secret,
+    life: stored.life,
   }
+}
+
+function storedRow(row: unknown): {
+  readonly id: string
+  readonly secret: string
+  readonly organization: string
+  readonly account: string
+  readonly life: BindingLife
+} | undefined {
+  const item = record(row)
+  const tenantRow = item ? record(item.tenant) : undefined
+  if (!item || !tenantRow) return undefined
+  const id = text(item.id)
+  const secret = text(item.secret)
+  const organization = text(tenantRow.organization)
+  const account = text(tenantRow.account)
+  const life = bindingLife(item.life)
+  if (!id || secret === undefined || item.purpose !== MODEL_SEND || !life) return undefined
+  if (!organization || !account) return undefined
+  return { id, secret, organization, account, life }
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {
