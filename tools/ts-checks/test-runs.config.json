@@ -14,7 +14,8 @@
       "scripts/check.sh",
       "tools/ts-checks/test-runs.config.json",
       "tools/ts-checks/src/metrics/git.ts",
-      "tools/ts-checks/src/testing/affected.ts",
+      "tools/ts-checks/src/testing/scope.ts",
+      "tools/ts-checks/src/testing/turbo.ts",
       "tools/ts-checks/src/testing/members.ts",
       "tools/ts-checks/src/testing/cli.ts",
       "tools/ts-checks/src/testing/config.ts",
@@ -27,7 +28,8 @@
       "docs/engineering/integration-policy.json",
       "docs/engineering/integration-bootstrap.json",
       "docs/architecture/constraints.json",
-      "turbo.json"
+      "**/turbo.json",
+      "tools/repo-config/**"
     ],
     "readers": [
       {

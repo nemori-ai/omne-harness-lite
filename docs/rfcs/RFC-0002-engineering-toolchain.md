@@ -118,7 +118,7 @@ owner: PanQiWei
 | 依赖方向与循环用 dependency-cruiser | 同上；方向规则的出处见[产品包组织](../package-organization.md#依赖方向与cordis集成) | 已写回 | 2026-10-15 由 #310 接入。无法解析的导入、文件级运行时循环、legacy 引用与能按成员路径表达的方向规则对全部目录作门禁，成员与组之间的环在同一张图上算；启用 `source` 条件，`dist` 保留不深入。ts-checks 的 `group-direction` 与自写成员图退役，clean loop 的硬线、新增跨成员依赖、`make metrics` 与架构报告都读这张图。dependency-cruiser 18 只支持 TypeScript 6 以下，经 `packageExtensions` 单独配 TypeScript 6.0.3。按角色判断的方向暂未表达 |
 | 无用依赖用 knip | 同上 | 已写回 | 2026-10-15 由 #310 接入，只报告 |
 | 通用工具优先、专有检查留下 | [质量与风险](../engineering/quality.md)。根 `AGENTS.md` 已有「复用成熟机制」，不另写工具名单 | 已写回 | 2026-10-14 写入 quality.md。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 接入 oxlint、dependency-cruiser 与 knip，见下面三行 |
-| 影响面选择 | [开发指南](../development.md#迭代中的受影响测试)。现行算法仍是 `tools/ts-checks` 的 affected 选择器 | 已写回 | 2026-10-14 接受 revision 2。turbo 尚未替换该选择器。全局文件清单已包含 `turbo.json` 和 `docs/architecture/constraints.json` |
+| 影响面选择 | [开发指南](../development.md#迭代中的受影响测试) | 已写回 | 2026-10-14 接受 revision 2。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 替换：成员选择用 `turbo ls --affected`，构建用 `turbo run build`；读者、全局、Python、常驻与未识别文件的规则留在 `test-runs.config.json`。turbo 2.11.7 实测：`--affected` 默认不参考任务 `inputs`（只在 `futureFlags.affectedUsingTaskInputs` 下参考，未采用）；`TURBO_ROOT_TURBO_JSON` 能从检出之外读根配置，但成员目录下的 `turbo.json` 仍会生效，因此一律拒绝。四条约束的落实见开发指南 |
 
 ## 后继关系与维护
 

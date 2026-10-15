@@ -6,7 +6,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "pnpm -r --filter './packages/**' --filter './apps/**' --filter './tools/ts-checks' --filter './tools/core-verification' --filter './tools/artifact-builder' run build",
+    "build": "TURBO_TELEMETRY_DISABLED=1 TURBO_DAEMON=false TURBO_NO_UPDATE_NOTIFIER=1 turbo run build --output-logs=errors-only",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm run build && pnpm run test:members",
     "test:members": "./scripts/with-test-slot.sh node --experimental-strip-types tools/ts-checks/src/testing/cli.ts run --all",
@@ -29,6 +29,7 @@
     "dependency-cruiser": "catalog:",
     "knip": "catalog:",
     "oxfmt": "catalog:",
-    "oxlint": "catalog:"
+    "oxlint": "catalog:",
+    "turbo": "catalog:"
   }
 }

@@ -245,15 +245,21 @@ make test-affected BASE="$TASK_BASE"
 make test-affected BASE="$TASK_BASE" TIER=slow
 ```
 
-`check-plan`只输出计划。`test-affected`先构建选中成员及依赖，默认只跑快层；慢层由`TIER=slow`选择，`TIER=all`合跑两层。选择依据包括实际改动、声明依赖及显式读者规则，不能仅凭“没修改那个包”省略消费者验证。
+`check-plan`只输出计划。`test-affected`先构建选中成员及其上游，默认只跑快层；慢层由`TIER=slow`选择，`TIER=all`合跑两层。选择依据包括实际改动、依赖关系及显式读者规则，不能仅凭“没修改那个包”省略消费者验证。
 
-[RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择) 接受用 `turbo run <task> --affected` 替换这份手写计算。替换还没有发生。现行命令继续使用 `tools/ts-checks` 的选择器。pnpm 的 `--filter "...[<since>]"` 在 git 工作树里匹配不到包，所以不能改用它。
+按 [RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择)，改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出；构建由 `turbo run build` 编排，按依赖先构建上游，本机读写 `.turbo/` 缓存。类型检查和成员测试仍由 `tools/ts-checks` 逐成员执行，测试耗时账本与验收账本照旧写出。
 
-替换之前，选择器必须保留这些规则。全局文件改动判全量。测试读取成员目录以外的文件时带上对应成员。Python 工具、常驻检查和 legacy 排除保持原规则。没有规则认得的文件判全量，不按猜的范围少跑。`turbo.json` 和 `docs/architecture/constraints.json` 是全局文件。改动它们就是全量。
+turbo 不提供的规则留在 `tools/ts-checks/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
+
+RFC-0002 的四条约束这样落实：
+- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；成员目录下出现 `turbo.json` 直接报错；`**/turbo.json`、`tools/repo-config/**` 和本配置文件都是全局文件。
+- 基线显式传入：合并点经 `TURBO_SCM_BASE` 传给 turbo，不让它自己推断。
+- 未识别文件按全量处理：由上面的规则判。
+- 准入不读 PR 能写入的缓存：`OMNE_ADMISSION=1` 时构建只写不读本地缓存（`--cache=local:w`）。
+
+检查脚本调用 turbo 时关闭遥测与常驻进程。
 
 不要用 `vitest --changed` 按文件选择测试。包 B 的测试可能经导出读取包 A 的 `dist`。turbo 会选中 B，但 B 可能一个测试都不跑并报告成功。至少等测试直接读源码之后再评估。
-
-turbo 接入准入时，基线用 `TURBO_SCM_BASE` 和 `TURBO_SCM_HEAD` 显式传入。不依赖 turbo 自己推断。准入不读取 PR 能写入的缓存。`--affected` 是否参考 `inputs`，以及能否从工作树以外读取配置，还没有验证。在这两项有结果之前，不把 turbo 换成现行命令。
 
 局部定位可直接运行一个成员或测试文件：
 

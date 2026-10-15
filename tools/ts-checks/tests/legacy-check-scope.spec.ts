@@ -7,8 +7,8 @@ import { collectSources } from '../src/index.ts'
 import { collectRepositorySources } from '../src/repository.ts'
 import { collectMemberSources } from '../src/metrics/sources.ts'
 import { listAcceptanceFiles } from '../src/acceptance/coverage.ts'
-import { planCheck } from '../src/testing/affected.ts'
-import { pnpmStep, type PlanFile } from '../src/testing/steps.ts'
+import { planCheck } from '../src/testing/scope.ts'
+import { typecheckStep, type PlanFile } from '../src/testing/steps.ts'
 import type { AffectedRules } from '../src/testing/config.ts'
 import type { WorkspaceMember } from '../src/testing/members.ts'
 
@@ -56,14 +56,14 @@ describe('legacy check boundaries', () => {
   })
 
   it.each([true, false])('full=%s retains active checks and only required legacy builds', full => {
-    const plan = planCheck(['unknown.txt'], members, rules, full)
+    const plan = planCheck(['unknown.txt'], members, rules, new Set(), full)
     expect(plan.mode).toBe('full')
     expect(plan.typecheck).toEqual(['tools/live', 'tools/old.legacy-not'])
     expect(plan.test).toEqual(plan.typecheck)
     expect(plan.acceptance).toEqual(plan.typecheck)
+    // 退役成员不进构建清单；在役成员的上游由 turbo 构建。
     expect(plan.build).toEqual([
       { path: 'tools/live', reason: 'selected' },
-      { path: 'packages/old.legacy/core', reason: 'dependency' },
       { path: 'tools/old.legacy-not', reason: 'selected' },
     ])
   })
@@ -73,16 +73,22 @@ describe('legacy check boundaries', () => {
       ['packages.legacy/a.ts', 'tools/nested.legacy/package.json'],
       members,
       rules,
+      new Set(),
     )
     expect(plan.mode).toBe('scoped')
     expect(plan.files.map(file => file.category)).toEqual(['excluded', 'excluded'])
     expect([plan.build, plan.typecheck, plan.test, plan.acceptance]).toEqual([[], [], [], []])
     expect(plan.python.run).toBe(false)
     expect(() =>
-      planCheck([], members, {
-        ...rules,
-        readers: [{ paths: ['docs/**'], members: ['tools/missing'], why: 'fixture' }],
-      }),
+      planCheck(
+        [],
+        members,
+        {
+          ...rules,
+          readers: [{ paths: ['docs/**'], members: ['tools/missing'], why: 'fixture' }],
+        },
+        new Set(),
+      ),
     ).toThrow('不存在的成员')
   })
 
@@ -147,10 +153,11 @@ describe('legacy check boundaries', () => {
       [],
       [member('tools/live', '@fixture/live'), member('packages.legacy/old', '@fixture/old')],
       rules,
+      new Set(),
       true,
     )
     const file: PlanFile = { head: '', dirty: false, base: { ref: '', mergeBase: '' }, plan }
-    expect(pnpmStep(root, file, 'typecheck')).not.toBe(0)
+    expect(typecheckStep(root, file)).not.toBe(0)
     expect(() => readFileSync(join(root, 'root-shortcut'))).toThrow()
     put(
       root,
@@ -160,6 +167,6 @@ describe('legacy check boundaries', () => {
         scripts: { typecheck: 'node -e "process.exit(0)"' },
       }),
     )
-    expect(pnpmStep(root, file, 'typecheck')).toBe(0)
+    expect(typecheckStep(root, file)).toBe(0)
   })
 })

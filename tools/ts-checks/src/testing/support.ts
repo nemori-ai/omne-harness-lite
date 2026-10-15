@@ -1,5 +1,5 @@
 // 测试运行入口与变异入口共用的几件事：读命令行参数、运行目录的时间戳、先把目标成员连同依赖构建一遍。
-import { spawnSync } from 'node:child_process'
+import { admissionRequested, turboBuildCaptured } from './turbo.ts'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { TestMember } from './members.ts'
@@ -47,13 +47,13 @@ export function buildTargets(
 ): boolean {
   const started = Date.now()
   process.stdout.write(`构建 ${targets.length} 个成员及其依赖 …`)
-  const built = spawnSync(
-    'pnpm',
-    [...targets.flatMap(member => ['--filter', `${member.name}...`]), 'run', 'build'],
-    { cwd: root, encoding: 'utf8' },
+  const built = turboBuildCaptured(
+    root,
+    targets.map(member => member.name),
+    admissionRequested(process.env),
   )
   const buildLog = join(runDir, 'build.log')
-  writeFileSync(buildLog, `${built.stdout}${built.stderr}`)
+  writeFileSync(buildLog, built.output)
   console.log(` ${Math.round((Date.now() - started) / 1000)} 秒`)
   if (built.status === 0) return true
   console.log(`构建失败（退出码 ${built.status ?? -1}），没有运行。日志：${buildLog}`)
