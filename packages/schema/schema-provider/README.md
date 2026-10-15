@@ -67,9 +67,22 @@ This package requires Node.js `>=24.18.0 <25`, the same range as the template an
 
 ## Verification
 
-`pnpm test` builds, then runs vitest. The existing test checks export names.
+`pnpm test` builds, then runs vitest. The tests call the public exports. They observe how many times `load` runs, and the returned `kind`, `reason`, `path`, `issues`, `value`, and `superseded`.
 
-Later behavior tests cover admission refusal, `revision-conflict`, keeping leased snapshots when slots are full, and compiling once for a concurrent first use. This package owns no end-to-end journey and no storage service, so it has no integration test and no end-to-end test.
+The tests cover these behaviors:
+
+- The root entry exports the public function names.
+- A strict object returns `valid` with the projected value. `.default` returns `refused` with `unsupported-construct`. A failed `JsonRead` returns `unreadable` and the original failure.
+- Two overlapping first checks of one id call `load` once. Aborting one caller returns `cancelled` for that caller. The other check uses the shared snapshot.
+- A compile failure returns `unavailable` with `compile-failed` until `failureBackoffMs` has elapsed. After `maxAttempts`, the result is `refused` with `attempts-exhausted`.
+- `close` makes a later `validate` return `refused` with `closed`. A second `close` stays closed. A check that already joined finishes on the snapshot it joined.
+- `exact-or-reject` returns `precision` when an integer cannot be a JavaScript number. An exact integer stays that number. `lexeme` passes the source lexeme to the checker, and `valid.value` is that lexeme.
+- `lease` checks the admitted revision. After `refresh`, a new `validate` uses the new revision, `superseded` is true, and the outstanding `check` still returns the old revision.
+- With `maxSnapshots` set to the leased snapshot alone, a new shape returns `refused` with `budget-exhausted`. The outstanding `check` still succeeds.
+- An acyclic JSON Schema returns `valid` or `invalid` with `path` `compiled`. A cyclic JSON Schema returns `refused` with `runtime-path-closed`. Ajv runs with coercion, defaults, and removal of additional keys disabled.
+- An invalid result uses only `type`, `empty`, `precision`, `constraint`, or `unrecognized-key`. Each issue has `path` and `code`.
+
+This package has no end-to-end journey and no storage service, so it has no integration test and no end-to-end test.
 
 ## Maintenance
 

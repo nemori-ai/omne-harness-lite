@@ -67,9 +67,22 @@ const verdict = await validate(provider, chatMessage, read)
 
 ## 验证
 
-`pnpm test` 先构建再跑 vitest。现有测试核对导出名称。
+`pnpm test` 先构建再跑 vitest。测试调用公开导出。它们观察 `load` 的调用次数，以及返回的 `kind`、`reason`、`path`、`issues`、`value` 和 `superseded`。
 
-准入拒绝、`revision-conflict`、槽位耗尽时保留有租约的快照，以及同一次首次使用只编译一次，由后续行为测试覆盖。本包不拥有端到端旅程，也不实现存储服务，因此没有集成测试和端到端测试。
+测试覆盖这些行为：
+
+- 根入口导出公开函数名。
+- 严格对象返回 `valid` 和投影后的值。`.default` 返回 `refused`，原因是 `unsupported-construct`。失败的 `JsonRead` 返回 `unreadable`，并带上原来的失败。
+- 同一个 id 的两次重叠首次检查只调用一次 `load`。取消其中一个调用方，该调用返回 `cancelled`。另一个检查使用共享快照。
+- 编译失败在 `failureBackoffMs` 结束前返回 `unavailable`，原因是 `compile-failed`。达到 `maxAttempts` 后，结果是 `refused`，原因是 `attempts-exhausted`。
+- `close` 之后的 `validate` 返回 `refused`，原因是 `closed`。再次 `close` 仍是关闭。已经加入的检查按加入时的快照做完。
+- `exact-or-reject` 在整数不能成为 JavaScript 数字时返回 `precision`。精确整数保持为该数字。`lexeme` 把源词法交给检查器，`valid.value` 仍是该词法。
+- `lease` 检查准入时的修订。`refresh` 之后，新的 `validate` 使用新修订，`superseded` 为真，未释放的 `check` 仍返回旧修订。
+- `maxSnapshots` 只够已握住的快照时，新形状返回 `refused`，原因是 `budget-exhausted`。未释放的 `check` 仍然成功。
+- 无环 JSON Schema 返回 `valid` 或 `invalid`，`path` 为 `compiled`。有环 JSON Schema 返回 `refused`，原因是 `runtime-path-closed`。Ajv 关闭 coercion、default 和 remove。
+- 校验失败只使用 `type`、`empty`、`precision`、`constraint` 或 `unrecognized-key`。每条问题只有 `path` 和 `code`。
+
+本包不拥有端到端旅程，也不实现存储服务，因此没有集成测试和端到端测试。
 
 ## 维护
 
