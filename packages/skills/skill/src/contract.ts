@@ -2,6 +2,7 @@ import {
   capabilityId,
   isReadBody,
   readBodyText,
+  readSnapshot,
   refusal,
   type BodyContract,
   type JsonValue,
@@ -78,15 +79,17 @@ function stringField(body: unknown, key: string): string | undefined {
 }
 
 function field(body: unknown, key: string): JsonValue | undefined {
-  if (!isObject(body)) return undefined
-  for (let index = 0; index < body.entries.length; index += 1) {
-    const entry = body.entries[index]
-    if (typeof entry !== 'object' || entry === null || entry.key !== key) continue
+  const document = readSnapshot(body)
+  if (document === undefined || document.kind !== 'object' || !Array.isArray(document.entries)) return undefined
+  for (let index = 0; index < document.entries.length; index += 1) {
+    const entry = document.entries[index]
+    if (entry === undefined || entry.key !== key) continue
     return entry.value
   }
   return undefined
 }
 
-function isObject(body: unknown): body is JsonValue & { readonly kind: 'object' } {
-  return isReadBody(body) && body.kind === 'object' && Array.isArray(body.entries)
+function isObject(body: unknown): boolean {
+  const document = readSnapshot(body)
+  return document !== undefined && document.kind === 'object' && Array.isArray(document.entries)
 }

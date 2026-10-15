@@ -41,6 +41,23 @@ it('does not treat an object literal as a read document', () => {
   expect(ran).toBe(false)
 })
 
+it('does not call a getter installed on a read document', () => {
+  const body = document('{"name":"read_file"}')
+  if (body.kind !== 'object') throw new Error('object')
+  const name = body.entries[0]?.value
+  if (name?.kind !== 'string') throw new Error('name')
+  let reads = 0
+  Object.defineProperty(name, 'value', {
+    get() {
+      reads += 1
+      return 'other'
+    },
+  })
+  const port = toolBodyContract()
+  expect(port.judge(body, { capabilityName: 'read_file' })).toEqual({ ok: true })
+  expect(reads).toBe(0)
+})
+
 it('rejects a forged tool document without calling its functions', () => {
   const port = toolBodyContract()
   expect(port.judge({ kind: 'object', entries: [{ key: 'name', value: { kind: 'string', value: 7 } }] })).toEqual({

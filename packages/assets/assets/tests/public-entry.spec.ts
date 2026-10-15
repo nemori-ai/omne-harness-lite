@@ -8,6 +8,7 @@ it('exports the registry, identity, and pin operations', () => {
     'isReadBody',
     'pinBody',
     'readBodyText',
+    'readSnapshot',
     'refusal',
     'unknownCategory',
   ])

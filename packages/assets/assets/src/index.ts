@@ -11,6 +11,6 @@ export {
   type JsonValue,
   type Judgment,
 } from './identity.ts'
-export { isReadBody, readBodyText } from './read-body.ts'
+export { isReadBody, readBodyText, readSnapshot } from './read-body.ts'
 export { createCategoryRegistry, unknownCategory } from './registry.ts'
 export { pinBody, type PinnedBody } from './adoption.ts'

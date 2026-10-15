@@ -1,39 +1,53 @@
 import { readJsonText, type JsonLimits, type JsonRead, type JsonValue } from '@omne-harness/json-text'
 
-const readBodies = new WeakSet<object>()
+const snapshots = new WeakMap<object, JsonValue>()
+const owned = new WeakSet<object>()
 
 export function readBodyText(text: string, limits: JsonLimits): JsonRead {
   const read = readJsonText(text, limits)
-  if (read.kind === 'ok') remember(read.value)
+  if (read.kind !== 'ok') return read
+  const shot = copyNode(read.value, new WeakSet())
+  if (shot === undefined) return read
+  ownTree(shot)
+  snapshots.set(read.value, shot)
   return read
 }
 
 export function isReadBody(value: unknown): value is JsonValue {
-  return typeof value === 'object' && value !== null && readBodies.has(value)
+  return readSnapshot(value) !== undefined
+}
+
+export function readSnapshot(value: unknown): JsonValue | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const shot = snapshots.get(value)
+  if (shot !== undefined) return shot
+  if (owned.has(value)) return value as JsonValue
+  return undefined
 }
 
 export function copyReadBody(value: unknown): JsonValue | undefined {
-  if (!isReadBody(value)) return undefined
-  const copied = copyNode(value, new WeakSet())
+  const source = readSnapshot(value)
+  if (source === undefined) return undefined
+  const copied = copyNode(source, new WeakSet())
   if (copied === undefined) return undefined
-  remember(copied)
+  ownTree(copied)
   return copied
 }
 
-function remember(value: JsonValue): void {
-  if (readBodies.has(value)) return
-  readBodies.add(value)
+function ownTree(value: JsonValue): void {
+  if (owned.has(value)) return
+  owned.add(value)
   if (value.kind === 'array') {
     for (let index = 0; index < value.items.length; index += 1) {
       const item = value.items[index]
-      if (item !== undefined) remember(item)
+      if (item !== undefined) ownTree(item)
     }
     return
   }
   if (value.kind === 'object') {
     for (let index = 0; index < value.entries.length; index += 1) {
       const entry = value.entries[index]
-      if (entry !== undefined) remember(entry.value)
+      if (entry !== undefined) ownTree(entry.value)
     }
   }
 }

@@ -72,6 +72,34 @@ it('keeps pinned content after the caller changes the read document', () => {
   expect(pinnedSkills.items[0].value).toBe('review')
 })
 
+it('does not call getters or iterators installed after the body was read', () => {
+  const id = capabilityId('tool', 'read_file')
+  if (!id.ok) throw new Error('identity')
+  const body = document('{"name":"read_file","composes":{"skills":["review"]}}')
+  if (body.kind !== 'object') throw new Error('object')
+  const name = body.entries[0]?.value
+  if (name?.kind !== 'string') throw new Error('name')
+  let reads = 0
+  Object.defineProperty(name, 'value', {
+    get() {
+      reads += 1
+      return 'other'
+    },
+  })
+  let iterations = 0
+  body.entries[Symbol.iterator] = function () {
+    iterations += 1
+    return Array.prototype[Symbol.iterator].call(this)
+  }
+  const pinned = pinBody({ identity: id.id, version: 'v3', source: 'workspace-w', body })
+  expect(reads).toBe(0)
+  expect(iterations).toBe(0)
+  if (pinned.body.kind !== 'object') throw new Error('pinned')
+  const pinnedName = pinned.body.entries[0]?.value
+  if (pinnedName?.kind !== 'string') throw new Error('pinned name')
+  expect(pinnedName.value).toBe('read_file')
+})
+
 it('rejects a pin whose body was not read', () => {
   const id = capabilityId('tool', 'read_file')
   if (!id.ok) throw new Error('identity')

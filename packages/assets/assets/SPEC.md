@@ -209,7 +209,7 @@ Cordis 按组合挂载提供者。提供者向装配侧的注册表登记。注�
 
 PanQiWei 于 2026-10-15 接受这组编程类型，记录见 [Issue 272](https://github.com/nemori-ai/omne-harness-lite/issues/272#issuecomment-6194044008)。上文「类别提供方」的操作不变。
 
-共同资产导出 `capabilityId`、`createCategoryRegistry`、`unknownCategory`、`isReadBody` 和 `pinBody`。类别是非空字符串。`register` 拒绝空类别名和重复登记。`lookup` 找不到类别时，`unknownCategory` 返回 `unknown-category`。`pinBody` 保存固定当时的身份、版本、来源和正文内容。调用方事后修改原对象，不改变已经固定的内容。未经 `readBodyText` 的正文被拒绝。
+共同资产导出 `capabilityId`、`createCategoryRegistry`、`unknownCategory`、`isReadBody` 和 `pinBody`。类别是非空字符串。`register` 拒绝空类别名和重复登记。`lookup` 找不到类别时，`unknownCategory` 返回 `unknown-category`。`pinBody` 保存读取当时记下的正文内容。调用方事后修改原对象，或换上取值函数和迭代器，不改变已经固定的内容，也不会在固定时被调用。未经 `readBodyText` 的正文被拒绝。
 
 `BodyContract` 的字段是 `category`、`schema`、`judge`、`deriveDeclarations`、`references`。正文文本先经 `readBodyText`。它调用 `@omne-harness/json-text` 的 `readJsonText`，不另写解析器。`judge` 只接受这份读取结果。对象字面量、伪造的种类和空条目都返回 `incomplete-reference`。判断不调用传入的函数。`judge` 的失败结果带 `ok: false`。声明和引用接收同一次判断的上下文。判断失败时它们抛出，不返回声明或引用。
 
