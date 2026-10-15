@@ -72,8 +72,7 @@ export type MessageRejection =
   | ContentBlockRejection
 
 export type MessageJudgment =
-  | { readonly ok: Message }
-  | { readonly rejected: MessageRejection; readonly blockIndex?: number }
+  { readonly ok: Message } | { readonly rejected: MessageRejection; readonly blockIndex?: number }
 
 const MESSAGE_KEYS = ['id', 'role', 'blocks'] as const
 const TOOL_KINDS = ['tool_call', 'tool_result'] as const
