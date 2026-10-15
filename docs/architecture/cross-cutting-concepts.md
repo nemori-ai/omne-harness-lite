@@ -52,6 +52,8 @@
 
 公共JSON边界先执行严格UTF-8解码，在逐对象扫描时检测解码后重名键，保留数字原词法再交字段codec。禁止注释、尾逗号及空输入，任一语法错误拒绝整份输入。项数、深度、字符串和数字均有有限预算。JSON.parse之后无法找回已丢失的重名键和精度。增量解析必须兑现同一拒绝语义。精确签名与失败种类见[公共 JSON 文本读取](#json-text-reader)。
 
+已经通过字段 codec 的 JSON 值，规范写出使用 RFC 8785。写出拒绝 `undefined`、BigInt、NaN、Infinity、Date 和函数，不自行转换。读取与写出是两个操作。读取器不提供写出。采用见 [RFC-0006](../rfcs/RFC-0006-json-canonical-text.md)。
+
 每份公共形状只有一个拥有源，TS类型和编码从该源派生。校验不默认coercion、填默认或删除字段，拒绝无法保留精度和未知值语义的转换。具体Schema及严格JSON技术路线归[系统技术基础](technical-foundations.md#共同技术选择)，按需加载、首次编译及运行时换代归[缓存机制](data-and-state.md#缓存懒加载与预热)。活体对象、句柄、函数和Context不能进入序列化数据契约。
 
 <a id="json-text-reader"></a>
@@ -258,18 +260,40 @@ OTel的forceFlush完成不自动表示每条记录导出成功。提供者核对
 <a id="common-t02"></a>
 ### COMMON-T02 内容块的精确契约承接
 
-本项为契约承接待办。内容块、附件引用、模态与可见性声明的现行形状和必要行为须由共同内容拥有者确认。具体输入约束、不可变性、消费资格及引用资源不能从目录或请求适配实现反推。
+`packages/common/content-block` 发布已经封闭的文本、思考、语音、图和文件，以及块身份、可见性和媒体类型。工具调用、工具结果和仍在增长的块不是这个成员的值。工具执行字段归工具。
 
-承接责任为共同内容、消息、Model、Tool 与各内容消费者。待办是确认实际公开类型和行为拥有者，迁移消费者并保留媒体、可见性及资源引用的适用范围。
+```mermaid
+flowchart TD
+  block["已封闭内容块"]
+  block --> text["text 文本"]
+  block --> thinking["thinking 思考"]
+  block --> voice["voice 语音"]
+  block --> image["image 图"]
+  block --> file["file 文件"]
+  outside["不进入这个成员"]
+  outside --> call["工具调用"]
+  outside --> result["工具结果"]
+  outside --> growing["仍在增长的块"]
+```
+
+承接责任为共同内容、消息、Model、Tool 与各内容消费者。
 
 [封存来源](../../packages.0.0.1.legacy/core/content-blocks/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="common-t03"></a>
 ### COMMON-T03 消息形状与消费行为的承接
 
-本项为契约承接待办。消息身份、内容、关联和对外投影的精确共同契约尚须定位现行拥有者。消息表示、记录保存、流式到达和可读资格分别成立，不能将其中一个成员当作全部消息责任。
+`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。系统提示不进该成员。会话在受理进日志时铸造身份。日志、投影和铸造归会话。这次初始化的公开入口停在角色词汇、解析和相等。完整消息载荷仍留给后续拥有者。
 
-承接责任为消息、Session、Context、Model 与实际投影消费者。待办是确认共同形状和各方必要行为，核对合法输入、关联、可见性及真实消费者；来源不足的局部分支保持未判定。
+```mermaid
+flowchart TD
+  log["会话日志"] --> fact["事实记录"]
+  fact --> field["消息字段"]
+  field --> roles["六种日志角色"]
+  assembly["请求组装"] --> system["SystemMessage"]
+  session["会话"] -->|"受理进日志时铸造身份"| field
+  member["packages/common/message"] -->|"解析与相等"| field
+```
 
 [封存来源](../../packages.0.0.1.legacy/core/messages/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
