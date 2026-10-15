@@ -115,54 +115,15 @@ profile开放前须验证死循环、内存/栈/输出耗尽、恶意模块加�
 | 受限 JS | 已采用的 QuickJS WASM 0.32.0，且监督、桥接和本页否定测试满足。 | 受限 guest 在专用 Worker 中运行。 | 名称本身不证明隔离。不符合就拒绝该档位，不回退未验证的同进程执行。 |
 | 操作系统隔离 | 有明确的操作系统隔离和可终止设施，并且该环境已经验证。 | 仅对已验证的 shell、原生扩展或浏览器声称隔离。 | 本页不声明 Windows、macOS 或容器已经支持。未验证就拒绝。 |
 
-## 可复跑与仍待验证的否定场景
+## 仍待验证的否定场景
 
-下面的脚本只检查两件机器事实。路径字符串可以位于目录内，而解析后的对象位于目录外。子进程刚启动时还没有退出码，结束后才有退出码。对一个不存在的进程号发信号，不是已退出记录。
+路径字符串位于目录内、解析后的对象位于目录外，以及子进程在退出码出现之前已经启动，这两项性质由单次探针观察。完整脚本、输入、运行方法和各次平台结果不放在本页。可复跑材料在 [R1 评审评论](https://github.com/nemori-ai/omne-harness-lite/pull/311#issuecomment-6190859268)。单次输出只证明该次环境，不证明仓库要求的全部 Node 范围，也不证明产品隔离已经实现。
 
-```js
-import { spawn } from "node:child_process"
-import { mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-
-const root = await mkdtemp(join(tmpdir(), "omne-268-probe-"))
-const outside = await mkdtemp(join(tmpdir(), "omne-268-outside-"))
-const outsideFile = join(outside, "secret.txt")
-const link = join(root, "link")
-await writeFile(outsideFile, "other-tenant")
-await symlink(outsideFile, link)
-const child = spawn(process.execPath, ["-e", "process.exit(3)"], { stdio: "ignore" })
-const spawnedBeforeExit = child.exitCode === null
-const exitCode = await new Promise((resolve, reject) => {
-  child.once("exit", resolve)
-  child.once("error", reject)
-})
-let missingPidIsExit = true
-try {
-  process.kill(2147483647, 0)
-} catch (error) {
-  missingPidIsExit = !(error && error.code === "ESRCH")
-}
-console.log(JSON.stringify({
-  node: process.version,
-  platform: process.platform,
-  linkLooksInside: link.startsWith(root),
-  resolvedStaysInside: (await realpath(link)).startsWith(root),
-  spawnedBeforeExit,
-  exitCode,
-  missingPidIsExit,
-}))
-await rm(root, { recursive: true, force: true })
-await rm(outside, { recursive: true, force: true })
-```
-
-把脚本存成一个 `.mjs` 文件后执行 `node` 该文件。2026-10-15 在 darwin、Node v26.0.0 上的输出是 `linkLooksInside` 为 true，`resolvedStaysInside` 为 false，`spawnedBeforeExit` 为 true，`exitCode` 为 3，`missingPidIsExit` 为 false。仓库要求的 Node 是 `>=24.18.0 <25`。这次输出不证明该范围内的行为。
-
-| 场景 | 还缺的环境 | 责任 | 现在 |
-| --- | --- | --- | --- |
-| 检查和使用之间对象被换掉 | 能在使用时绑定已检查对象的文件设施 | 环境提供者 | 待验证。不能记成通过。 |
-| 跨租户读取 | 两个租户的真实对象 | 身份与授权，以及环境提供者 | 待验证。 |
-| 子进程拿到未允许的变量 | 能启动并检查子进程环境的设施 | 执行适配 | 待验证。 |
-| 退出观察失败 | 监督者无法取得回收状态的产品运行时 | 观察与控制 | 待验证。一次查不到保持未知，不能写成已退出。 |
+| 场景 | 所需性质 | 还缺的环境 | 责任 | 现在 |
+| --- | --- | --- | --- | --- |
+| 检查和使用之间对象被换掉 | 用到的对象必须就是所检查的对象，否则拒绝 | 能在使用时绑定已检查对象的文件设施 | 环境提供者 | 待验证。不能记成通过。 |
+| 跨租户读取 | 未点名的其他租户对象必须拒绝 | 两个租户的真实对象 | 身份与授权，以及环境提供者 | 待验证。 |
+| 子进程拿到未允许的变量 | 子进程环境只含允许的名单 | 能启动并检查子进程环境的设施 | 执行适配 | 待验证。 |
+| 退出观察失败 | 没有回收状态就保持未知，不写成已退出 | 监督者无法取得回收状态的产品运行时 | 观察与控制 | 待验证。 |
 
 当前产品责任候选包括[执行环境](../../../.meta_harness/design/product/execution-environments/README.md)、[工具执行](../../../.meta_harness/design/product/tool-execution/README.md)和[工作区](../../../.meta_harness/design/product/workspaces/README.md)。这些 topic 仍为草案；已接受运行架构继续有效。受限JS路线已经采用，任意Node插件、OS隔离profile和实际提供者的符合性仍须分别承接；现有可信集成契约不因此覆盖不可信代码。
