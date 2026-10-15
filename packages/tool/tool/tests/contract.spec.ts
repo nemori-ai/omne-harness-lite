@@ -13,6 +13,19 @@ it('accepts read_file and records skill references without making them required'
   expect(registry.lookup('tool')?.category).toBe('tool')
 })
 
+it('does not treat an object literal as a read document', () => {
+  const port = toolBodyContract()
+  let ran = false
+  const body = {
+    name: 'read_file',
+    run() {
+      ran = true
+    },
+  }
+  expect(port.judge(body)).toEqual({ ok: false, rejected: 'incomplete-reference' })
+  expect(ran).toBe(false)
+})
+
 it('rejects a tool body whose name is not the capability name', () => {
   const port = toolBodyContract()
   const body = { name: 'write_file', composes: { skills: ['review'] } }

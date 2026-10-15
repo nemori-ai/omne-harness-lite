@@ -20,6 +20,20 @@ it('reads a skill body without running a script and records required tool identi
   expect(registry.lookup('skill')?.category).toBe('skill')
 })
 
+it('does not call a function on an object that was not read as text', () => {
+  const port = skillBodyContract()
+  let ran = false
+  const body = {
+    name: 'review',
+    tools: [{ category: 'tool', name: 'read_file' }],
+    run() {
+      ran = true
+    },
+  }
+  expect(port.judge(body)).toEqual({ ok: false, rejected: 'incomplete-reference' })
+  expect(ran).toBe(false)
+})
+
 it('rejects a skill body whose name is not the capability name', () => {
   const port = skillBodyContract()
   const body = { name: 'other', tools: [{ category: 'tool', name: 'read_file' }] }
