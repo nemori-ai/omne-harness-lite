@@ -27,6 +27,7 @@ catalog:
   typescript: 7.0.2
   '@typescript/typescript6': 6.0.2
   vitest: 4.1.11
+  oxfmt: 0.73.0
   '@vitest/coverage-v8': 4.1.11
   zod: 4.6.5
   '@standard-schema/spec': 1.1.0

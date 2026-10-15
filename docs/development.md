@@ -92,7 +92,7 @@ Java、TLC、Alloy的查找路径、JAR及环境变量归[环境与实际执行]
 
 ### 格式化
 
-TS/JS 格式由根配置和锁定的本地 Prettier 统一处理：
+TS/JS 格式由根配置 `.oxfmtrc.json` 和锁定的本地 oxfmt 统一处理：
 
 ```sh
 pnpm format:check
@@ -101,8 +101,11 @@ pnpm format:write
 
 局部修改只传入本次有写权限的仓库相对文件，例如
 `pnpm format:write -- tools/spec-tools/src/x.ts`。
-范围包括 `packages/`、`apps/`、`tools/`、`scripts/` 下的 TS/JS 源码、测试及所属配置，
+范围包括 `tools/`、`scripts/`、`examples/` 下的 TS/JS 源码、测试及所属配置，
 和根 TS/测试配置；**不含**上游原件、provenance、JSONL 黄金文件、依赖、构建输出与临时目录。
+`packages/` 与 `apps/` 暂不纳入，重排时间由源码包负责人另定；Markdown 不在范围内。
+
+编辑器装 `oxc.oxc-vscode` 扩展（`.vscode/extensions.json` 推荐），它调用工作区里的 oxfmt，与命令行同一版本、同一配置。
 
 需要本地提交检查时，确认没有既有 `pre-commit` hook 后运行 `pnpm format:hook:install`。
 安装器不覆盖已有 hook；所装检查只读 Git index 中已暂存的文件，**不 stash、不改工作区**。

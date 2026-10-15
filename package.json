@@ -23,6 +23,6 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "catalog:",
-    "prettier": "3.9.6"
+    "oxfmt": "catalog:"
   }
 }

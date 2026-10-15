@@ -55,7 +55,7 @@ it(
 
 it('rejects an always-successful formatter instead of reporting an empty self-test pass', () => {
   const fake = temporaryDirectory('format-negative-')
-  for (const dir of ['scripts', '.vscode', 'node_modules/prettier/bin'])
+  for (const dir of ['scripts', '.vscode', 'node_modules/oxfmt/bin'])
     mkdirSync(join(fake, dir), { recursive: true })
   for (const path of [
     'scripts/test-formatting.sh',
@@ -64,16 +64,19 @@ it('rejects an always-successful formatter instead of reporting an empty self-te
     'scripts/pre-commit-format',
     'scripts/install-format-hook.sh',
     '.vscode/settings.json',
-    '.prettierrc.json',
-    '.prettierignore',
+    '.oxfmtrc.json',
+    'pnpm-workspace.yaml',
   ])
     copyFileSync(join(runner, path), join(fake, path))
-  writeFileSync(
-    join(fake, 'node_modules/prettier/package.json'),
-    JSON.stringify({ version: '3.9.6' }),
+  const pinned = /\n {2}oxfmt: (\S+)\n/u.exec(
+    readFileSync(join(runner, 'pnpm-workspace.yaml'), 'utf8'),
   )
   writeFileSync(
-    join(fake, 'node_modules/prettier/bin/prettier.cjs'),
+    join(fake, 'node_modules/oxfmt/package.json'),
+    JSON.stringify({ version: pinned?.[1] }),
+  )
+  writeFileSync(
+    join(fake, 'node_modules/oxfmt/bin/oxfmt'),
     '#!/usr/bin/env node\nprocess.exit(0)\n',
     { mode: 0o755 },
   )
