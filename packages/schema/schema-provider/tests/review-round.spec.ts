@@ -587,3 +587,122 @@ it('defect: a lease taken during refresh stays current after the next revision',
   })
   expect(await lease(provider, third)).toMatchObject({ kind: 'leased' })
 })
+
+it('defect: bigint and undefined literals share a digest with string and null', async () => {
+  const cases = [
+    {
+      name: 'bigint-string',
+      first: z.literal(1n),
+      second: z.literal('1'),
+      sample: readJsonText('"1"', limits),
+    },
+    {
+      name: 'undefined-null',
+      first: z.literal(undefined),
+      second: z.literal(null),
+      sample: readJsonText('null', limits),
+    },
+  ]
+  for (const candidate of cases) {
+    const provider = createSchemaProvider(budget)
+    let shape: z.ZodType = candidate.first
+    const schema = defineSchema({
+      id: candidate.name,
+      load: async () => zodDefinition({ revision: '1', numbers: 'exact-or-reject', schema: shape }),
+    })
+    const prior = await lease(provider, schema)
+    expect(prior.kind).toBe('leased')
+    if (prior.kind !== 'leased') continue
+    shape = candidate.second
+    refresh(provider, schema.id)
+    expect(await lease(provider, schema)).toEqual({ kind: 'refused', reason: 'revision-conflict' })
+    expect(prior.lease.superseded).toBe(false)
+    expect(prior.lease.check(candidate.sample).kind).toBe('invalid')
+  }
+})
+
+it('defect: refresh during load skips a same-revision conflict', async () => {
+  let release: () => void = () => {}
+  const gate = new Promise<void>(settle => {
+    release = settle
+  })
+  let shape: z.ZodType = z.string().min(1)
+  const provider = createSchemaProvider(budget)
+  const schema = defineSchema({
+    id: 'same-revision',
+    load: async () => {
+      const captured = shape
+      await gate
+      return zodDefinition({ revision: '1', numbers: 'exact-or-reject', schema: captured })
+    },
+  })
+  const pending = lease(provider, schema)
+  shape = z.string().min(5)
+  refresh(provider, schema.id)
+  release()
+  const prior = await pending
+  expect(prior.kind).toBe('leased')
+  if (prior.kind !== 'leased') return
+  expect(await lease(provider, schema)).toEqual({ kind: 'refused', reason: 'revision-conflict' })
+  expect(prior.lease.superseded).toBe(false)
+  expect(prior.lease.check(readJsonText('"abc"', limits))).toMatchObject({ kind: 'valid', revision: '1' })
+})
+
+it('defect: a caller when named like an engine guard still runs', async () => {
+  let calls = 0
+  const provider = createSchemaProvider(budget)
+  const schema = defineSchema({
+    id: 'caller-when',
+    load: async () =>
+      zodDefinition({
+        revision: '1',
+        numbers: 'exact-or-reject',
+        schema: z.string().min(3, {
+          when: function _whenFromCaller() {
+            calls += 1
+            return true
+          },
+        } as { message?: string }),
+      }),
+  })
+  expect(await validate(provider, schema, text)).toEqual({
+    kind: 'refused',
+    reason: 'unsupported-construct',
+  })
+  expect(calls).toBe(0)
+
+  const stock = defineSchema({
+    id: 'stock-min',
+    load: async () =>
+      zodDefinition({ revision: '1', numbers: 'exact-or-reject', schema: z.string().min(3) }),
+  })
+  expect(await validate(provider, stock, readJsonText('"abc"', limits))).toMatchObject({
+    kind: 'valid',
+    path: 'compiled',
+  })
+  expect(await validate(provider, stock, text)).toMatchObject({ kind: 'invalid', path: 'compiled' })
+})
+
+it('defect: a refreshed lease frees its budget before the lease is delivered', async () => {
+  const provider = createSchemaProvider({ ...budget, maxSnapshots: 1 })
+  const one = defineSchema({
+    id: 'one',
+    load: async () => zodDefinition({ revision: '1', numbers: 'exact-or-reject', schema: z.string() }),
+  })
+  const two = defineSchema({
+    id: 'two',
+    load: async () => zodDefinition({ revision: '2', numbers: 'exact-or-reject', schema: z.string() }),
+  })
+  const pending = lease(provider, one)
+  refresh(provider, one.id)
+  const concurrent = new Promise<Awaited<ReturnType<typeof lease>>>((resolve) => {
+    queueMicrotask(() => resolve(lease(provider, two)))
+  })
+  const [first, second] = await Promise.all([pending, concurrent])
+  expect(first.kind).toBe('leased')
+  expect(second).toEqual({ kind: 'refused', reason: 'budget-exhausted' })
+  if (first.kind !== 'leased') return
+  expect(first.lease.check(text)).toMatchObject({ kind: 'valid' })
+  first.lease.release()
+  expect(await lease(provider, two)).toMatchObject({ kind: 'leased', lease: { revision: '2' } })
+})
