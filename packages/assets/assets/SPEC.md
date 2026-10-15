@@ -209,7 +209,7 @@ Cordis 按组合挂载提供者。提供者向装配侧的注册表登记。注�
 
 PanQiWei 于 2026-10-15 接受这组编程类型，记录见 [Issue 272](https://github.com/nemori-ai/omne-harness-lite/issues/272#issuecomment-6194044008)。上文「类别提供方」的操作不变。
 
-共同资产导出 `capabilityId`、`createCategoryRegistry`、`unknownCategory`、`isReadBody` 和 `pinBody`。类别是非空字符串。`register` 拒绝空类别名和重复登记。`lookup` 找不到类别时，`unknownCategory` 返回 `unknown-category`。`readBodyText` 返回的正文是冻结副本。`readSnapshot` 只在参数就是这份副本时返回它，否则返回空。`isReadBody` 表示同一次判断。调用方不能改写副本，也不能在上面安装取值函数。复制失败时抛出，不把它说成 token 语法错误。`pinBody` 再复制这份冻结正文。登记端口时，`schema` 也按同一条迭代复制，成环或无法复制时拒绝。判断和固定都不读取调用方后来换上的函数。未经 `readBodyText` 的正文被拒绝。判断失败后，声明和引用抛出的错误带上同一次拒绝原因。
+共同资产导出 `capabilityId`、`createCategoryRegistry`、`unknownCategory`、`isReadBody` 和 `pinBody`。类别是非空字符串。`register` 拒绝空类别名和重复登记。`lookup` 找不到类别时，`unknownCategory` 返回 `unknown-category`。`readBodyText` 返回的正文是冻结副本。`readSnapshot` 只在参数就是这份副本时返回它，否则返回空。`isReadBody` 表示同一次判断。调用方不能改写副本，也不能在上面安装取值函数。复制失败时抛出，不把它说成 token 语法错误。`pinBody` 再复制这份冻结正文。登记端口时复制的 `schema` 只是冻结副本，不是 `readBodyText` 的结果。成环或无法复制时拒绝。`judge` 和 `pinBody` 不接受它。判断和固定都不读取调用方后来换上的函数。未经 `readBodyText` 的正文被拒绝。判断失败后，声明和引用抛出的错误带上同一次拒绝原因。
 
 `BodyContract` 的字段是 `category`、`schema`、`judge`、`deriveDeclarations`、`references`。正文文本先经 `readBodyText`。它调用 `@omne-harness/json-text` 的 `readJsonText`，不另写解析器。`judge` 只接受这份读取结果。对象字面量、伪造的种类和空条目都返回 `incomplete-reference`。判断不调用传入的函数。`judge` 的失败结果带 `ok: false`。声明和引用接收同一次判断的上下文。判断失败时它们抛出，不返回声明或引用。
 

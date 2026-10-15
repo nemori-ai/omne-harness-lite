@@ -21,7 +21,7 @@ type Work = ArrayWork | ObjectWork
 export function readBodyText(text: string, limits: JsonLimits): JsonRead {
   const read = readJsonText(text, limits)
   if (read.kind !== 'ok') return read
-  const shot = copyTree(read.value)
+  const shot = copyTree(read.value, true)
   if (shot === undefined) throw new TypeError('read document could not be copied')
   return { kind: 'ok', value: shot }
 }
@@ -38,12 +38,12 @@ export function readSnapshot(value: unknown): JsonValue | undefined {
 export function copyReadBody(value: unknown): JsonValue | undefined {
   const source = readSnapshot(value)
   if (source === undefined) return undefined
-  return copyTree(source)
+  return copyTree(source, true)
 }
 
-export function copyTree(root: unknown): JsonValue | undefined {
+export function copyTree(root: unknown, trust: boolean): JsonValue | undefined {
   const seen = new WeakSet<object>()
-  const opened = open(root, seen)
+  const opened = open(root, seen, trust)
   if (opened === undefined) return undefined
   if (opened.kind === 'leaf') return opened.node
   const stack: Work[] = [opened.work]
@@ -52,7 +52,7 @@ export function copyTree(root: unknown): JsonValue | undefined {
     const frame = stack[stack.length - 1]
     if (frame === undefined) return undefined
     if (frame.index >= frame.source.length) {
-      done = finish(frame)
+      done = finish(frame, trust)
       stack.pop()
       const parent = stack[stack.length - 1]
       if (parent !== undefined && done !== undefined && !attach(parent, done)) return undefined
@@ -61,7 +61,7 @@ export function copyTree(root: unknown): JsonValue | undefined {
     const childSource = sourceChild(frame)
     frame.index += 1
     if (childSource === undefined) return undefined
-    const child = open(childSource, seen)
+    const child = open(childSource, seen, trust)
     if (child === undefined) return undefined
     if (child.kind === 'leaf') {
       if (!attach(frame, child.node)) return undefined
@@ -73,23 +73,24 @@ export function copyTree(root: unknown): JsonValue | undefined {
 function open(
   source: unknown,
   seen: WeakSet<object>,
+  trust: boolean,
 ): { kind: 'leaf'; node: JsonValue } | { kind: 'work'; work: Work } | undefined {
   if (typeof source !== 'object' || source === null) return undefined
   if (seen.has(source)) return undefined
   seen.add(source)
   if (!('kind' in source)) return undefined
-  if (source.kind === 'null') return { kind: 'leaf', node: keep({ kind: 'null' }) }
+  if (source.kind === 'null') return { kind: 'leaf', node: keep({ kind: 'null' }, trust) }
   if (source.kind === 'boolean') {
     if (!('value' in source) || typeof source.value !== 'boolean') return undefined
-    return { kind: 'leaf', node: keep({ kind: 'boolean', value: source.value }) }
+    return { kind: 'leaf', node: keep({ kind: 'boolean', value: source.value }, trust) }
   }
   if (source.kind === 'string') {
     if (!('value' in source) || typeof source.value !== 'string') return undefined
-    return { kind: 'leaf', node: keep({ kind: 'string', value: source.value }) }
+    return { kind: 'leaf', node: keep({ kind: 'string', value: source.value }, trust) }
   }
   if (source.kind === 'number') {
     if (!('lexeme' in source) || typeof source.lexeme !== 'string') return undefined
-    return { kind: 'leaf', node: keep({ kind: 'number', lexeme: source.lexeme }) }
+    return { kind: 'leaf', node: keep({ kind: 'number', lexeme: source.lexeme }, trust) }
   }
   if (source.kind === 'array') {
     if (!('items' in source) || !Array.isArray(source.items)) return undefined
@@ -121,13 +122,13 @@ function attach(frame: Work, child: JsonValue): boolean {
   return true
 }
 
-function finish(frame: Work): JsonValue {
-  if (frame.kind === 'array') return keep({ kind: 'array', items: Object.freeze(frame.items) })
-  return keep({ kind: 'object', entries: Object.freeze(frame.entries) })
+function finish(frame: Work, trust: boolean): JsonValue {
+  if (frame.kind === 'array') return keep({ kind: 'array', items: Object.freeze(frame.items) }, trust)
+  return keep({ kind: 'object', entries: Object.freeze(frame.entries) }, trust)
 }
 
-function keep(value: JsonValue): JsonValue {
+function keep(value: JsonValue, trust: boolean): JsonValue {
   const frozen = Object.freeze(value)
-  owned.add(frozen)
+  if (trust) owned.add(frozen)
   return frozen
 }
