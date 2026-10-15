@@ -78,7 +78,7 @@ Build deletes `dist` before `tsc`.
 
 `pnpm --filter @omne-harness/image test` runs the unit and contract tests from the public entry and from `./cordis`.
 
-The command passed on Darwin 25.5.0 arm64 with Node v26.0.0, sharp 0.35.3, and libvips 8.18.3. The member engine range is `>=24.18.0 <25`. Node 24 did not run. The caller-timeout case used a 2048 by 2048 fixture PNG and a 1 ms timeout. Those fixture numbers are not production ceilings. `nativeStop` stayed `not-proven`.
+The command passed on Darwin 25.5.0 arm64 with Node v26.0.0, sharp 0.35.3, and libvips 8.18.3. Budget and close for this card are accepted only on Node 26. The member engine range is `>=26.0.0 <27`. Other Node versions did not run and are not claimed. The caller-timeout case used a 2048 by 2048 fixture PNG and a 1 ms timeout. Those fixture numbers are not production ceilings. `nativeStop` stayed `not-proven`.
 
 An execution-environment isolation test does not cover this member.
 
