@@ -30,17 +30,17 @@ export function toolBodyContract(): BodyContract {
     judge,
     deriveDeclarations(body, context) {
       const decision = judge(body, context)
-      if (!decision.ok) throw new TypeError('tool body failed judgment')
+      if (!decision.ok) throw new TypeError(`tool body failed judgment: ${decision.rejected}`)
       return { entries: [] }
     },
     references(body, context) {
       const decision = judge(body, context)
-      if (!decision.ok) throw new TypeError('tool body failed judgment')
+      if (!decision.ok) throw new TypeError(`tool body failed judgment: ${decision.rejected}`)
       const names = skillNames(body)
-      if (names === undefined) throw new TypeError('tool body failed judgment')
+      if (names === undefined) throw new TypeError('tool body failed judgment: incomplete-reference')
       return names.map(name => {
         const id = capabilityId('skill', name)
-        if (!id.ok) throw new TypeError('tool body failed judgment')
+        if (!id.ok) throw new TypeError('tool body failed judgment: incomplete-reference')
         return id.id
       })
     },
