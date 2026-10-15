@@ -76,20 +76,40 @@ function readPng(bytes: Uint8Array): Container {
   return { format: 'png', width: note.width, height: note.height, orientation: note.orientation }
 }
 
-function tiffOrientation(tiff: Buffer): number | undefined {
+const TIFF_SHORT_TYPE = 3
+const TIFF_ORIENTATION_TAG = 0x0112
+
+type TiffReader = {
+  readonly read16: (offset: number) => number
+  readonly read32: (offset: number) => number
+}
+
+function tiffReader(tiff: Buffer): TiffReader | undefined {
   if (tiff.length < 8) return undefined
   const order = tiff.toString('ascii', 0, 2)
   if (order !== 'II' && order !== 'MM') return undefined
   const little = order === 'II'
-  const read16 = (offset: number) => (little ? tiff.readUInt16LE(offset) : tiff.readUInt16BE(offset))
-  const read32 = (offset: number) => (little ? tiff.readUInt32LE(offset) : tiff.readUInt32BE(offset))
-  const ifd = read32(4)
-  if (ifd + 2 > tiff.length) return undefined
-  const count = read16(ifd)
+  return {
+    read16: (offset: number) => (little ? tiff.readUInt16LE(offset) : tiff.readUInt16BE(offset)),
+    read32: (offset: number) => (little ? tiff.readUInt32LE(offset) : tiff.readUInt32BE(offset)),
+  }
+}
+
+function tiffOrientation(tiff: Buffer): number | undefined {
+  const reader = tiffReader(tiff)
+  if (reader === undefined) return undefined
+  if (reader.read16(2) !== 42) return undefined
+  const ifd = reader.read32(4)
+  if (ifd < 8 || ifd + 2 > tiff.length) return undefined
+  const count = reader.read16(ifd)
+  if (ifd + 2 + count * 12 > tiff.length) return undefined
   for (let index = 0; index < count; index += 1) {
     const entry = ifd + 2 + index * 12
-    if (entry + 12 > tiff.length) return undefined
-    if (read16(entry) === 0x0112) return read16(entry + 8)
+    if (reader.read16(entry) !== TIFF_ORIENTATION_TAG) continue
+    const type = reader.read16(entry + 2)
+    const componentCount = reader.read32(entry + 4)
+    if (type !== TIFF_SHORT_TYPE || componentCount !== 1) return undefined
+    return reader.read16(entry + 8)
   }
   return undefined
 }
@@ -284,6 +304,8 @@ function webpHead(bytes: Uint8Array): Buffer | 'truncated' | 'not-image' {
 function readWebp(bytes: Uint8Array): Container {
   const view = webpHead(bytes)
   if (typeof view === 'string') return view
+  const riffSize = view.readUInt32LE(4)
+  if (8 + riffSize > view.length) return 'truncated'
   const note: WebpNote = { width: 0, height: 0, orientation: 1, sawHeader: false, sawBits: false }
   let offset = 12
   while (offset + 8 <= view.length) {

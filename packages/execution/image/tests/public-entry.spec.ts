@@ -86,6 +86,78 @@ function animatedWebp(): Buffer {
   return riff
 }
 
+type ExifDefect = 'bad-magic' | 'bad-type' | 'bad-count'
+
+function applyTiffDefect(tiff: Buffer, defect: ExifDefect): void {
+  if (defect === 'bad-magic') tiff.writeUInt16LE(0, 2)
+  else if (defect === 'bad-type') tiff.writeUInt16LE(2, 10)
+  else if (defect === 'bad-count') tiff.writeUInt32LE(0, 12)
+}
+
+function corruptPngExif(png: Buffer, defect: ExifDefect): Buffer {
+  const copy = Buffer.from(png)
+  let offset = 8
+  while (offset + 12 <= copy.length) {
+    const size = copy.readUInt32BE(offset)
+    const type = copy.toString('ascii', offset + 4, offset + 8)
+    if (type === 'eXIf') {
+      const data = copy.subarray(offset + 8, offset + 8 + size)
+      applyTiffDefect(data, defect)
+      const body = copy.subarray(offset + 4, offset + 8 + size)
+      copy.writeUInt32BE(crc32(body) >>> 0, offset + 8 + size)
+      return copy
+    }
+    offset += 12 + size
+  }
+  throw new Error('eXIf not found')
+}
+
+function corruptJpegExif(jpeg: Buffer, defect: ExifDefect): Buffer {
+  const copy = Buffer.from(jpeg)
+  let offset = 2
+  while (offset + 4 < copy.length) {
+    if (copy[offset] !== 0xff) {
+      offset += 1
+      continue
+    }
+    const marker = copy[offset + 1]
+    if (marker === 0xd8) {
+      offset += 2
+      continue
+    }
+    if (marker === 0xd9) break
+    if (marker === 0x00 || marker === 0xff) {
+      offset += 2
+      continue
+    }
+    if (marker === 0xda) break
+    const length = copy.readUInt16BE(offset + 2)
+    if (marker === 0xe1) {
+      const tiff = copy.subarray(offset + 4 + 6, offset + 2 + length)
+      applyTiffDefect(tiff, defect)
+      return copy
+    }
+    offset += 2 + length
+  }
+  throw new Error('APP1 not found')
+}
+
+function corruptWebpExif(webp: Buffer, defect: ExifDefect): Buffer {
+  const copy = Buffer.from(webp)
+  let offset = 12
+  while (offset + 8 <= copy.length) {
+    const tag = copy.toString('ascii', offset, offset + 4)
+    const size = copy.readUInt32LE(offset + 4)
+    if (tag === 'EXIF') {
+      const data = copy.subarray(offset + 8, offset + 8 + size)
+      applyTiffDefect(data, defect)
+      return copy
+    }
+    offset += 8 + size + (size % 2)
+  }
+  throw new Error('EXIF not found')
+}
+
 it('rejects a small png that declares a large frame before a raster exists', async () => {
   const bytes = declaredPng(4096, 4096)
   const gate = budget({
@@ -429,6 +501,81 @@ it('does not import Cordis from the root entry', async () => {
   expect(source.includes('sharp')).toBe(false)
   expect(built.includes('@deepseek-ai/cordis')).toBe(false)
   expect(built.includes('sharp')).toBe(false)
+})
+
+it('copies input bytes before the container check so caller mutation cannot bypass the format allow list', async () => {
+  const bytes = Buffer.from(await pixels('png', 8, 4))
+  const original = Buffer.from(bytes)
+  const jpeg = Buffer.from(await pixels('jpeg', 8, 4))
+  const gate = budget({ formats: ['image/png'] })
+  const pending = open({ bytes, budget: gate })
+  bytes.set(jpeg.subarray(0, bytes.length))
+  const opened = await pending
+  expect(opened.kind).toBe('opened')
+  if (opened.kind !== 'opened') return
+  expect(opened.verifiedBytes).not.toBe(bytes)
+  expect(Buffer.from(opened.verifiedBytes).equals(original)).toBe(true)
+  expect(await sharp(opened.verifiedBytes).metadata().then(m => m.format)).toBe('png')
+  expect(gate.heldReservation()).toEqual({ count: 1, bytes: 8 * 4 * 4 })
+  await opened.handle.close()
+})
+
+it('snapshots the requested encode format before await', async () => {
+  const bytes = await pixels('png', 8, 4)
+  const gate = budget()
+  const opened = await open({ bytes, budget: gate })
+  if (opened.kind !== 'opened') throw new Error(opened.reason)
+  const request: { format: ImageFormat } = { format: 'png' }
+  const pending = opened.handle.encode(request)
+  request.format = 'jpeg'
+  const result = await pending
+  expect(result.kind).toBe('encoded')
+  if (result.kind !== 'encoded') return
+  expect(result.mediaType).toBe('image/png')
+  const meta = await sharp(result.bytes).metadata()
+  expect(meta.format).toBe('png')
+  expect(meta.width).toBe(8)
+  expect(meta.height).toBe(4)
+  await opened.handle.close()
+})
+
+it('ignores malformed EXIF orientation so an oversized raster is not reserved', async () => {
+  const defects = ['bad-magic', 'bad-type', 'bad-count'] as const
+  for (const format of ['png', 'jpeg', 'webp'] as const) {
+    for (const defect of defects) {
+      const base = Buffer.from(await pixels(format, 8, 4, 6))
+      const bytes =
+        format === 'png'
+          ? corruptPngExif(base, defect)
+          : format === 'jpeg'
+            ? corruptJpegExif(base, defect)
+            : corruptWebpExif(base, defect)
+      const gate = budget({ maxWidth: 4, maxHeight: 8, maxDecodedBytes: 4 * 8 * 4 })
+      const pending = open({ bytes, budget: gate })
+      expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
+      expect(await pending).toEqual({ kind: 'rejected', reason: 'width' })
+      expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
+    }
+  }
+})
+
+it('rejects a webp whose RIFF declared size exceeds the file length before reserving', async () => {
+  const base = Buffer.from(await pixels('webp', 8, 4))
+  for (const extra of [2, 1000]) {
+    const copy = Buffer.from(base)
+    copy.writeUInt32LE(copy.readUInt32LE(4) + extra, 4)
+    const gate = budget()
+    const pending = open({ bytes: copy, budget: gate })
+    expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
+    expect(await pending).toEqual({ kind: 'rejected', reason: 'truncated' })
+    expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
+  }
+
+  const valid = budget()
+  const opened = await open({ bytes: base, budget: valid })
+  expect(opened.kind).toBe('opened')
+  if (opened.kind !== 'opened') return
+  await opened.handle.close()
 })
 
 function budgetInput(): BudgetInput {

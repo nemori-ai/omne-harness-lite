@@ -188,7 +188,8 @@ function reject(reason: ImageRejectReason): OpenResult {
 export function open(input: { readonly bytes: Uint8Array; readonly budget: ImageBudget }): Promise<OpenResult> {
   const pool = pools.get(input.budget)
   if (pool === undefined) return Promise.resolve(reject('decode'))
-  const container = readContainer(input.bytes)
+  const bytes = new Uint8Array(input.bytes)
+  const container = readContainer(bytes)
   if (typeof container === 'string') return Promise.resolve(reject(container))
   const mediaType = mediaTypeByFormat[container.format]
   if (!pool.formats.includes(mediaType)) return Promise.resolve(reject('format'))
@@ -198,7 +199,7 @@ export function open(input: { readonly bytes: Uint8Array; readonly budget: Image
   if (reason !== undefined || estimate === undefined) return Promise.resolve(reject(reason ?? 'decoded-bytes'))
   pool.count += 1
   pool.bytes += estimate
-  return finishOpen(input.bytes, pool, mediaType, oriented.width, oriented.height, estimate)
+  return finishOpen(bytes, pool, mediaType, oriented.width, oriented.height, estimate)
 }
 
 async function finishOpen(
@@ -237,15 +238,16 @@ function createHandle(
   const handle: OpenImageHandle = {
     phase: 'open',
     async encode(request) {
+      const format = request.format
       if (closed !== undefined || pixels === null) return { kind: 'rejected', reason: 'closed' }
-      if (!IMAGE_FORMATS.includes(request.format)) return { kind: 'rejected', reason: 'encode' }
+      if (!IMAGE_FORMATS.includes(format)) return { kind: 'rejected', reason: 'encode' }
       encoding += 1
       try {
-        const encoded = await encodeRaster(pixels, width, height, request.format)
+        const encoded = await encodeRaster(pixels, width, height, format)
         if (encoded === undefined) return { kind: 'rejected', reason: 'encode' }
         return {
           kind: 'encoded',
-          mediaType: mediaTypeByFormat[request.format],
+          mediaType: mediaTypeByFormat[format],
           bytes: encoded.bytes,
           orientation: 'absent',
           exif: 'absent',
