@@ -15,7 +15,8 @@ function checkout(): string {
   write(root, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n  - apps/*\n')
   write(root, 'package.json', JSON.stringify({ engines: { node: '>=24 <25' } }))
   cpSync(
-    fileURLToPath(new URL('../../../tsconfig.base.json', import.meta.url)),
+    // 根 tsconfig.base.json 只是指向共享预设的 extends；快照里直接放预设本身。
+    fileURLToPath(new URL('../../repo-config/tsconfig.base.json', import.meta.url)),
     join(root, 'tsconfig.base.json'),
   )
   write(root, 'docs/architecture/accepted.md', '# Accepted\n')

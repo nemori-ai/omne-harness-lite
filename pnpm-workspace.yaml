@@ -4,6 +4,7 @@ packages:
   - tools/ts-checks
   - tools/core-verification
   - tools/artifact-builder
+  - tools/repo-config
 
 # 版本只在这里钉一次；成员用 `catalog:` 引用。改版本先改这里，再重生锁文件。
 catalog:

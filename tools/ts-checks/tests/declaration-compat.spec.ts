@@ -15,7 +15,11 @@ afterAll(() => {
 function checkout(dists: Record<string, Record<string, string> | undefined>): string {
   const root = mkdtempSync(join(tmpdir(), 'declaration-compat-'))
   temporaries.push(root)
-  copyFileSync(join(repository, 'tsconfig.base.json'), join(root, 'tsconfig.base.json'))
+  // 根 tsconfig.base.json 只是指向共享预设的 extends；临时仓库里直接放预设本身。
+  copyFileSync(
+    join(repository, 'tools/repo-config/tsconfig.base.json'),
+    join(root, 'tsconfig.base.json'),
+  )
   for (const [member, files] of Object.entries(dists)) {
     mkdirSync(join(root, member), { recursive: true })
     if (files === undefined) continue
