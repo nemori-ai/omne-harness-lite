@@ -90,7 +90,7 @@ else {
 
 运行要求：
 
-- Node `>=24.18.0 <25`，来自 `engines.node`。
+- Node `>=24`，来自 `engines.node`。
 - 不安装运行时依赖。
 - 构建需要 `typescript`。构建从 `package.json` 写出 `dist/cli-identity.json`。
 

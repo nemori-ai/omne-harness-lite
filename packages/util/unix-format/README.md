@@ -32,7 +32,7 @@ Column width uses Unicode code points, not UTF-16 code units.
 
 `UnixFormatOptions` still describes indent, heading style, and table width. Each function reads only its own fields. `formatSection` does not read `maxWidth`. `formatTable` does not read `indent`. The functions do not read the environment or the filesystem.
 
-Node `>=24.18.0 <25`. There is no runtime dependency.
+Node `>=24`. There is no runtime dependency.
 
 ## Verification
 

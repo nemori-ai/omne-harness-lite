@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Draft model package; complete the accepted public contract before delivery",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {
@@ -19,7 +19,7 @@
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
-    "typecheck": "pnpm run build && tsc -p tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.test.json",
     "test": "pnpm run build && vitest run"
   },
   "dependencies": {},

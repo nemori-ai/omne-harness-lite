@@ -123,6 +123,7 @@ describe('package creation', () => {
       expect(value.omneHarness).toBeUndefined()
       expect(value.engines).toEqual({ node: '>=24 <25' })
       expect(value.scripts.build).toBe('rm -rf dist && tsc -p tsconfig.build.json')
+      expect(value.scripts.typecheck).toBe('tsc -p tsconfig.test.json')
       expect(value.scripts.test).toBe('pnpm run build && vitest run')
       expect(value.files).toEqual(['dist'])
       expect(Object.keys(value.exports['.'])).toEqual(['source', 'types', 'import'])
