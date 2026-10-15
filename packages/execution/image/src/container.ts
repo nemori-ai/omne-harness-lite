@@ -141,8 +141,8 @@ function startOfFrame(marker: number): boolean {
 }
 
 function noteJpeg(note: JpegNote, marker: number, segment: Buffer): 'truncated' | undefined {
-  if (marker === 0xe1) {
-    const found = exifOrientation(segment)
+  if (marker === 0xe1 && segment.length >= 6 && segment.toString('ascii', 0, 6) === 'Exif\0\0') {
+    const found = exifOrientation(segment.subarray(6))
     if (found === 'truncated') return found
     if (typeof found === 'number') note.orientation = found
   }

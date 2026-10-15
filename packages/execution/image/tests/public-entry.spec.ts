@@ -607,6 +607,52 @@ it('rejects EXIF orientation with count=2 before a rotated raster exceeding the 
   }
 })
 
+it('opens a JPEG with XMP APP1 and does not treat non-Exif APP1 as truncated', async () => {
+  const xmp =
+    '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:format>image/jpeg</dc:format></rdf:Description></rdf:RDF></x:xmpmeta>'
+  const bytes = await sharp({
+    create: { width: 8, height: 4, channels: 3, background: { r: 12, g: 34, b: 56 } },
+  })
+    .withXmp(xmp)
+    .jpeg()
+    .toBuffer()
+  const gate = budget()
+  const opened = await open({ bytes, budget: gate })
+  expect(opened.kind).toBe('opened')
+  if (opened.kind !== 'opened') return
+  expect(opened.declaration).toEqual({
+    mediaType: 'image/jpeg',
+    orientedWidth: 8,
+    orientedHeight: 4,
+    trusted: false,
+  })
+  await opened.handle.close()
+})
+
+it('applies EXIF orientation in a JPEG that also has XMP', async () => {
+  const xmp =
+    '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:format>image/jpeg</dc:format></rdf:Description></rdf:RDF></x:xmpmeta>'
+  const bytes = await sharp({
+    create: { width: 8, height: 4, channels: 3, background: { r: 12, g: 34, b: 56 } },
+  })
+    .withMetadata({ orientation: 6 })
+    .withXmp(xmp)
+    .jpeg()
+    .toBuffer()
+  const tight = budget({ maxWidth: 8, maxHeight: 4 })
+  expect(await open({ bytes, budget: tight })).toEqual({ kind: 'rejected', reason: 'height' })
+  expect(tight.heldReservation()).toEqual({ count: 0, bytes: 0 })
+
+  const gate = budget({ maxWidth: 4, maxHeight: 8, maxDecodedBytes: 4 * 8 * 4 })
+  const opened = await open({ bytes, budget: gate })
+  expect(opened.kind).toBe('opened')
+  if (opened.kind !== 'opened') return
+  expect(opened.declaration.orientedWidth).toBe(4)
+  expect(opened.declaration.orientedHeight).toBe(8)
+  expect(gate.heldReservation()).toEqual({ count: 1, bytes: 4 * 8 * 4 })
+  await opened.handle.close()
+})
+
 it('rejects a webp whose RIFF declared size exceeds the file length before reserving', async () => {
   const base = Buffer.from(await pixels('webp', 8, 4))
   for (const extra of [2, 1000]) {
