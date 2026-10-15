@@ -25,9 +25,20 @@ type Snapshot = {
   readonly check: (value: unknown) => CheckHit
 }
 
+type FlightOutcome =
+  | { readonly kind: 'ready'; readonly snapshot: Snapshot }
+  | { readonly kind: 'refused'; readonly reason: RefusalReason }
+  | { readonly kind: 'dropped' }
+
+type Flight = {
+  live: number
+  readonly done: Promise<FlightOutcome>
+  resolve: (outcome: FlightOutcome) => void
+}
+
 type Slot =
   | { readonly kind: 'empty' }
-  | { readonly kind: 'inflight' }
+  | { readonly kind: 'inflight'; readonly flight: Flight }
   | { readonly kind: 'ready'; readonly snapshot: Snapshot }
   | {
       readonly kind: 'cooling'
@@ -95,8 +106,8 @@ export function validate<T>(
   read: JsonRead,
   signal?: AbortSignal,
 ): Promise<SchemaVerdict<T>> {
-  void signal
   if (read.kind !== 'ok') return Promise.resolve({ kind: 'unreadable', failure: read })
+  if (signal?.aborted) return Promise.resolve({ kind: 'cancelled' })
   const domain = domainOf(provider)
   const slot = domain.slots.get(schema.id) ?? { kind: 'empty' as const }
   switch (slot.kind) {
@@ -104,9 +115,10 @@ export function validate<T>(
       return Promise.resolve(checkSnapshot(slot.snapshot, read))
     case 'refused':
       return Promise.resolve({ kind: 'refused', reason: slot.reason })
-    case 'empty':
-      return open(domain, schema, read)
     case 'inflight':
+      return join<T>(slot.flight, read, signal)
+    case 'empty':
+      return begin(domain, schema, read, signal)
     case 'cooling':
     case 'retired':
       throw new Error(`slot ${slot.kind} is not produced`)
@@ -153,16 +165,68 @@ export function close(provider: SchemaProvider): void {
   throw new Error('not implemented')
 }
 
-async function open<T>(
+function begin<T>(
   domain: Domain,
   schema: SchemaRef<T>,
   read: JsonRead,
+  signal: AbortSignal | undefined,
 ): Promise<SchemaVerdict<T>> {
+  const flight = createFlight()
+  domain.slots.set(schema.id, { kind: 'inflight', flight })
+  const pending = join<T>(flight, read, signal)
+  void execute(domain, schema, flight)
+  return pending
+}
+
+function createFlight(): Flight {
+  let resolve: (outcome: FlightOutcome) => void = () => {}
+  const done = new Promise<FlightOutcome>(settle => {
+    resolve = settle
+  })
+  return { live: 0, done, resolve }
+}
+
+function join<T>(
+  flight: Flight,
+  read: JsonRead,
+  signal: AbortSignal | undefined,
+): Promise<SchemaVerdict<T>> {
+  flight.live += 1
+  return new Promise(resolve => {
+    let settled = false
+    const finish = (verdict: SchemaVerdict<T>) => {
+      if (settled) return
+      settled = true
+      flight.live -= 1
+      signal?.removeEventListener('abort', onAbort)
+      resolve(verdict)
+    }
+    const onAbort = () => finish({ kind: 'cancelled' })
+    if (signal?.aborted) {
+      finish({ kind: 'cancelled' })
+      return
+    }
+    if (signal !== undefined) signal.addEventListener('abort', onAbort)
+    void flight.done.then(outcome => {
+      if (settled) return
+      finish(verdictFrom(outcome, read))
+    })
+  })
+}
+
+async function execute<T>(domain: Domain, schema: SchemaRef<T>, flight: Flight): Promise<void> {
   const definition = await schema.load()
+  // Every waiter left before compile, so this flight must not publish a snapshot.
+  if (flight.live === 0) {
+    domain.slots.delete(schema.id)
+    flight.resolve({ kind: 'dropped' })
+    return
+  }
   const admitted = admit(definition, domain.budget)
   if (admitted.kind === 'refused') {
     domain.slots.set(schema.id, admitted)
-    return admitted
+    flight.resolve(admitted)
+    return
   }
   const snapshot: Snapshot = {
     revision: admitted.revision,
@@ -170,7 +234,22 @@ async function open<T>(
     check: compileZod(admitted.schema),
   }
   domain.slots.set(schema.id, { kind: 'ready', snapshot })
-  return checkSnapshot(snapshot, read)
+  flight.resolve({ kind: 'ready', snapshot })
+}
+
+function verdictFrom<T>(outcome: FlightOutcome, read: JsonRead): SchemaVerdict<T> {
+  switch (outcome.kind) {
+    case 'ready':
+      return checkSnapshot(outcome.snapshot, read)
+    case 'refused':
+      return outcome
+    case 'dropped':
+      return { kind: 'cancelled' }
+    default: {
+      const unreachable: never = outcome
+      return unreachable
+    }
+  }
 }
 
 function checkSnapshot<T>(snapshot: Snapshot, read: JsonRead): SchemaVerdict<T> {
