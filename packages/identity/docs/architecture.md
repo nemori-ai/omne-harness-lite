@@ -62,7 +62,7 @@ CAP-ID01 至 CAP-ID12 的完整定义由产品正文拥有；此表只定位消�
 
 精确公开形状、语义错误、提交与查询关联、配置生效细则、治理及认证扩展协议、缓存和性能尺度由对应成员继续设计。验证义务见两份 SPEC，不表示已建立或运行验证资源。产品缺口与邻域承接归[问题登记](../../../.meta_harness/design/product/identity-and-authorization/design.md#未决问题与待定事项)，没有依据的配置和授权策略不由实现者补定。
 
-有效上层为执行仓库[项目要求](../../../docs/requirements.md)、[身份安全架构](../../../docs/architecture/security/identity-and-authorization.md)、[数据与状态](../../../docs/architecture/data-and-state.md)、[跨系统技术约定](../../../docs/architecture/cross-cutting-concepts.md)及[身份领域责任](../../../docs/domains/identity-and-authorization/README.md)。本次产品输入为[身份与授权候选](../../../.meta_harness/design/product/identity-and-authorization/design.md)，其采用范围以产品正文及成员的现行候选声明为准；过程来源报告不作为长期依据。
+有效上层为执行仓库[项目要求](../../../docs/requirements.md)、[身份安全架构](../../../docs/architecture/security/identity-and-authorization.md)、[数据与状态](../../../docs/architecture/data-and-state.md)、[跨系统技术约定](../../../docs/architecture/cross-cutting-concepts.md)及[身份领域责任](../../../docs/domains/identity-and-authorization/README.md)。本次产品输入为[身份与授权候选](../../../.meta_harness/design/product/identity-and-authorization/design.md)，其采用范围以产品正文及成员 SPEC 的现行状态声明为准；过程来源报告不作为长期依据。
 
 ## 后续技术义务
 

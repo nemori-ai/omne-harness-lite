@@ -6,7 +6,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与状态
 
-本目录维护目标成员的行为与机制文档，尚无实现成员、公开导出或运行入口。支持未核实，目标公开形状及技术采用仍待确认。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)判断，不以文档存在证明兑现。
+本目录维护目标成员的行为与机制文档，尚无实现成员、公开导出或运行入口。支持未核实，业务规则采用范围见 [SPEC](SPEC.md)，精确公开形状及机制仍待确定。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/identity-and-authorization/design.md)判断，不以文档存在证明兑现。
 
 ## 使用与集成
 
