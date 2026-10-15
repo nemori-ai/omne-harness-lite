@@ -53,7 +53,7 @@ AgentDefinition 保存声明，装配清单保存本次求值及采用依据，A
 - 新 Run 开始时，系统比较当前采用依据和这次求值。求值结果已变化时才重装。未变化时保持当前组合。这次重装是该 Run 的装配。它不在已有活体的执行中途更换该活体的结构绑定。
 - Run 执行中，租户通过系统 slash command 显式要求 reload。该命令沿用已有的[系统工作流](../../domains/slash-commands/README.md#范围与边界)，不新增资产类别。
 
-没有走到入口时，新的选择可以保存。保存的选择不是采用依据。正在运行的组合保持不变，并告知调用方新选择尚未采用。重装失败时保持旧的合法采用，并返回原因。成功的重装进入[reload 与推进权交接](#reload-与推进权交接)。
+没有走到入口时，新的选择可以保存。保存的选择不是采用依据。正在运行的组合保持不变，并告知调用方新选择尚未采用。重装失败时保持旧的合法采用，并返回原因。新 Run 的成功重装形成该 Run 的采用依据。显式 reload 的成功重装进入[reload 与推进权交接](#reload-与推进权交接)。
 
 ```mermaid
 flowchart TD
@@ -67,8 +67,8 @@ flowchart TD
   winner --> check{校验}
   pinned --> check
   check -->|失败| old[保持旧的合法采用并返回原因]
-  check -->|成功| basis[形成新的采用依据]
-  basis --> handoff[进入 reload 交接]
+  check -->|成功，且入口是新 Run| runBasis[形成该 Run 的采用依据]
+  check -->|成功，且入口是显式 reload| handoff[进入 reload 交接]
   outside[未走到上述入口] --> saved[保存的选择不是采用依据]
 ```
 
@@ -89,16 +89,20 @@ sequenceDiagram
     participant O as 原推进者
     participant N as 新推进者
     participant X as 原模型或工具执行
+    Note over G,P: 入口见何时重装。本图从校验候选开始。候选通过校验前不得取得业务推进资格。
     G->>P: 读取、求值并校验候选
     alt 候选无效
         P-->>G: 原因，保持旧采用状态
+        Note over G: 不调用 close
     else 候选有效且允许交接
         G->>O: 撤销旧推进权并保存接续依据
         Note over O,X: 原执行不因撤销推进权而销毁
+        Note over O: 切换新准入前，旧租约留在原提供者
         G->>N: 原 Run、新 attempt 与候选装配
         N->>X: 按原调用身份查询或等待
         N-->>G: 已接续的工作与当前状态
     end
+    Note over G: 取消优先于迟到候选。旧实例退出不在本图，由资源拥有者调用 close。
 ```
 
 交接必须保护原调用、未消费结果、卡片及扩展判断。旧推进者失去发起权后，不能继续执行新动作；真实执行仍可回写结果。取消优先于迟到候选，较早的候选不能覆盖较新的选择。
