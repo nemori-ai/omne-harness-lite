@@ -112,8 +112,8 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | 客户端状态与资源管理 | 支持环境、连接和订阅生命周期、缓存同步与恢复，是否提供拥有式本地启动。 | SDK 与客户端拥有者；[客户端状态与资源管理](layers-and-dependencies.md#客户端状态与资源管理)。 |
 | 多模态能力范围 | 文字、图片与语音的具体格式、组合方式和阶段支持范围。 | 产品及相应能力的公开契约拥有者；[上游依据与适用范围](drivers-and-constraints.md#上游依据与适用范围)、[模态表示与完整输入限制](runtime/request-context.md#模态表示与完整输入限制)。 |
 | 工作认领与并发推进 | 调度、认领、单一有效推进者及可靠输入承接的具体协议。 | Session/Run 治理及提供者；[Run 创建与推进权](runtime/session-and-run.md#run-创建与推进权)、[attempt 与原工作接续](runtime/session-and-run.md#attempt-与原工作接续)。 |
-| Loop 步骤与扩展恢复 | step 切分、连续否决计数、稳定调用身份、非确定输入记录、人工等待和扩展撤除后的接续。 | Agent Loop、扩展与装配交接契约拥有者；[一轮推进](runtime/agent-runtime.md#一轮推进)、[等待与恢复](runtime/loop-extensions.md#等待与恢复)。 |
-| 装配与请求的一致性 | 快照键、原子发起准入、版本复核、并发及新旧推进权交接协议。 | 装配与调用发起边界拥有者；[细化与验证责任](runtime/assembly-and-change.md#细化与验证责任)、[输入来源与组装](runtime/request-context.md#输入来源与组装)。 |
+| Loop 步骤与扩展恢复 | step 切分、非确定输入记录、人工等待和扩展撤除后的接续。 | Agent Loop、扩展与装配交接契约拥有者；[一轮推进](runtime/agent-runtime.md#一轮推进)、[等待与恢复](runtime/loop-extensions.md#等待与恢复)。 |
+| 装配与请求的一致性 | 版本复核、并发协议及交接的存储布局。 | 装配与调用发起边界拥有者；[细化与验证责任](runtime/assembly-and-change.md#细化与验证责任)、[输入来源与组装](runtime/request-context.md#输入来源与组装)。 |
 | 工作区指导加载 | 首次访问的判据、指导文件规范版本和合并协议。 | 工作区指导加载与 Runtime Context 拥有者；[更新、通知与读取](runtime/runtime-context.md#更新通知与读取)。 |
 | 模型适配与失联判定 | 状态码映射、退避参数、请求快照格式及失联判据。 | Model runtime 与模型适配器拥有者；[验证责任与细化范围](runtime/model-runtime.md#验证责任与细化范围)。 |
 | 策略参数与故障兜底 | 循环守卫、预算、时限、轮数、重试、退避和超时的具体规则及参数。 | 各策略与能力拥有者；[循环守卫与终态扩展](runtime/loop-extensions.md#循环守卫与终态扩展)、[长期运行与验证义务](runtime/agent-runtime.md#长期运行与验证义务)、[存储与关键服务降级](runtime/control-and-recovery.md#存储与关键服务降级)。 |

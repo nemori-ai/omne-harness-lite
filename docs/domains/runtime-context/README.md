@@ -19,7 +19,7 @@
 | 模态与预算计算 | 按模型能力选表示、评估完整输入及压缩 |
 | 发起协调 | 固定实际采用并复核最终条件 |
 
-不可重算会话数据与可重算投影分别维护，缓存不是第二权威。
+不可重算会话数据与可重算投影分别维护，缓存不是第二权威。交给会话日志的事实分别见 [runtime-context 规格](../../../packages/context/runtime-context/SPEC.md#rc-02-原块与注册的必要条件)和 [request-context 规格](../../../packages/context/request-context/SPEC.md)。
 
 ## 协作与依赖
 

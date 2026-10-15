@@ -87,6 +87,25 @@ Run 结束后仍可能存在后台工具、迟到结果、费用或保管责任�
 
 模型与工具也可以由程序直接调用。调用者明确提供合法身份、输入、控制及结果消费责任，不必暗建 Session 或 Run。各调用契约见[模型运行时](model-runtime.md#独立调用)和[工具运行时](tool-runtime.md#独立调用)。
 
+## 必须进入日志的事实
+
+一条事实进入会话日志，当且仅当它已经发生，并且缺了它就不能恢复下列之一。会话身份与初始化、待处理队列、唯一未终结的 Run、唯一有效推进者、未完成的等待、消费位置、已生效的取消、不可反转的终态或归档。
+
+这样的事实是依据。只解释发生过什么的留痕可以保存。留痕不改变队列、推进资格、等待或终态。能重新读取的当前值、runtime 内部步骤和 Cordis 通知不进入这套标准。
+
+会话规格规定种类准入、效力、整批提交，以及一条事实能否改变推进资格或 Run 终态。调用者不能自填种类取得治理权。各领域只规定自己的事实。日志的追加、分页和恢复只由会话规定。
+
+```mermaid
+flowchart TD
+  start[候选事实] --> happened{已经发生}
+  happened -->|否| out[不进入会话日志]
+  happened -->|是| recover{缺了它就不能恢复身份、队列、Run、推进者、等待、消费位置、取消或终态}
+  recover -->|是| basis[依据]
+  recover -->|否| other{当前值、内部步骤或 Cordis 通知}
+  other -->|是| out
+  other -->|否| trace[留痕。可以保存。不改变治理]
+```
+
 ## 依据
 
 Agent 工作推进的当前产品责任候选见[Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)，受理与队列见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，会话交接也见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。两者仍为草案；本页既有承诺继续按实际接受范围执行，不因候选修订扩大采用。
