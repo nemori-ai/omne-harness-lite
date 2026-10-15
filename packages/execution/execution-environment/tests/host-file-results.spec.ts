@@ -16,7 +16,7 @@ import { createHostFiles, hostObjectToken, type FileRequest } from '@omne-harnes
 import {
   createHostFiles as createHostFilesSource,
   __unsafeHostFilesState,
-} from '../src/host-files'
+} from '../src/host-files.ts'
 
 let injectCloseFailure = false
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -49,7 +49,11 @@ async function tree() {
   return root
 }
 
-function request(path: string, named: FileRequest['named'], requestId: string): FileRequest {
+type MutableFileRequest = {
+  -readonly [K in keyof FileRequest]: FileRequest[K]
+}
+
+function request(path: string, named: FileRequest['named'], requestId: string): MutableFileRequest {
   return {
     requestId,
     originalCallId: 'call-1',

@@ -8,7 +8,7 @@ import {
   ExecutionEnvironmentRegistry,
   hostFilesPlugin,
 } from '@omne-harness/execution-environment/cordis'
-import type { FileFacility } from '@omne-harness/execution-environment'
+import type { EnvironmentContinuity, FileFacility } from '@omne-harness/execution-environment'
 
 const roots: string[] = []
 
@@ -30,9 +30,9 @@ it('registers host files, drops them on unload, and refuses a sandbox with no pr
   const path = join(root, 'notes.txt')
   await writeFile(path, 'leased-bytes')
   const ctx = new Context()
-  await ctx.plugin(ExecutionEnvironmentRegistry, {})
-  const host = await ctx.plugin(hostFilesPlugin, {})
-  const service = ctx.get(EXECUTION_ENVIRONMENT)
+  await ctx.plugin(ExecutionEnvironmentRegistry)
+  const host = await ctx.plugin(hostFilesPlugin)
+  const service = ctx.get(EXECUTION_ENVIRONMENT)!
   const acquired = await service.acquire({
     tenantId: 'tenant-a',
     callId: 'call-1',
@@ -79,9 +79,9 @@ it('registers host files, drops them on unload, and refuses a sandbox with no pr
 
 it('rejects a command request and keeps the host binding for files', async () => {
   const ctx = new Context()
-  await ctx.plugin(ExecutionEnvironmentRegistry, {})
-  await ctx.plugin(hostFilesPlugin, {})
-  const service = ctx.get(EXECUTION_ENVIRONMENT)
+  await ctx.plugin(ExecutionEnvironmentRegistry)
+  await ctx.plugin(hostFilesPlugin)
+  const service = ctx.get(EXECUTION_ENVIRONMENT)!
   const missing = await service.acquire({
     tenantId: 'tenant-a',
     callId: 'call-1',
@@ -105,8 +105,8 @@ it('rejects a command request and keeps the host binding for files', async () =>
 
 it('uses the matched provider continuity for a session sandbox', async () => {
   const ctx = new Context()
-  await ctx.plugin(ExecutionEnvironmentRegistry, {})
-  const service = ctx.get(EXECUTION_ENVIRONMENT)
+  await ctx.plugin(ExecutionEnvironmentRegistry)
+  const service = ctx.get(EXECUTION_ENVIRONMENT)!
   const continuity = { kind: 'continuous' as const, dataId: 'data-1', revision: '3' }
   service.registerProvider({
     name: 'session-files',
@@ -147,12 +147,12 @@ it('uses the matched provider continuity for a session sandbox', async () => {
 
 it('uses the same provider continuity for placement and lease', async () => {
   const ctx = new Context()
-  await ctx.plugin(ExecutionEnvironmentRegistry, {})
-  const service = ctx.get(EXECUTION_ENVIRONMENT)
+  await ctx.plugin(ExecutionEnvironmentRegistry)
+  const service = ctx.get(EXECUTION_ENVIRONMENT)!
   const filesContinuity = { kind: 'continuous' as const, dataId: 'files-data', revision: '1' }
   const commandContinuity = { kind: 'continuous' as const, dataId: 'command-data', revision: '9' }
   const binding = { kind: 'session_sandbox' as const, sessionId: 'session-1' }
-  const leaseFor = (continuity: typeof filesContinuity) => ({
+  const leaseFor = (continuity: EnvironmentContinuity) => ({
     binding,
     continuity,
     instance: { id: 'session', generation: '1' },
