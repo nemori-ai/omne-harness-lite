@@ -201,6 +201,29 @@ it('rejects a hand-built live value as from', () => {
   })
 })
 
+it('ends when stopped before any block closes', () => {
+  const stopped = assembleStream({
+    target: target(),
+    steps: [open, fill0],
+    end: { kind: 'stopped' },
+  })
+  expect(stopped).toEqual({
+    ok: {
+      phase: 'ended',
+      terminal: { kind: 'truncated', blocks: [], trims: [] },
+    },
+  })
+  if (!('ok' in stopped)) throw new Error('expected ended')
+  const later = assembleStream({
+    target: target(),
+    from: stopped.ok,
+    steps: [close, finish],
+  })
+  expect(later).toEqual({ rejected: 'late', at: 0, assembly: stopped.ok })
+  if (!('rejected' in later)) throw new Error('expected late')
+  expect(later.assembly).toBe(stopped.ok)
+})
+
 it('rejects an open head that contains a bigint', () => {
   expect(
     assembleStream({

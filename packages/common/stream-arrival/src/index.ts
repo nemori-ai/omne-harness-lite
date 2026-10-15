@@ -562,7 +562,6 @@ function applyLive(state: LiveState, step: AssemblyStep): Applied {
 
 function settle(state: LiveState, end: StreamEnd): Applied {
   const blocks = closedParts(state)
-  if (end.kind === 'stopped' && blocks.length === 0) return { rejected: 'empty' }
   const trims = state.trims
   const terminal: StreamTerminal =
     end.kind === 'stopped'
