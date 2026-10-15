@@ -1,6 +1,6 @@
 import type { JsonRead } from '@omne-harness/json-text'
 import { admit } from './admit.ts'
-import { compileZod, type CheckHit } from './engine.ts'
+import { compileJsonSchema, compileZod, type CheckHit } from './engine.ts'
 import type {
   JsonSchemaDefinition,
   LeaseOutcome,
@@ -368,7 +368,8 @@ async function execute<T>(
   }
   let check: Snapshot['check']
   try {
-    check = compileZod(admitted.schema)
+    check =
+      admitted.engine === 'zod' ? compileZod(admitted.schema) : compileJsonSchema(admitted.document)
   } catch {
     recordFailure(domain, schema.id, flight, attempts, 'compile-failed')
     return
