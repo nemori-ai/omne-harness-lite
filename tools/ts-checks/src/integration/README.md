@@ -1,5 +1,7 @@
 # 使用分支集成工具
 
+自 2026-10-15 起，四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行。本工具的 prepare、verify 和 publish 不再用于 `integration/*`、main 和 stable，只在 admin 临时恢复原规则集时作为恢复手段。status、start、register、task-sync 等任务入口照常使用。
+
 从仓库根运行。行为承诺归 [SPEC](SPEC.md)，工程节奏归[多层分支规则](../../../../docs/engineering/integration.md)。采用状态从可信main、正式tag和实际context读取；首次接入记录见[工程启用任务](https://github.com/nemori-ai/omne-harness-lite/issues/195)。命令存在不授予项目 ref 或平台写权限。
 
 ## 先观察

@@ -1,5 +1,7 @@
 # 分支集成工具行为契约
 
+自 2026-10-15 起，四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行。本工具的 prepare、verify 和 publish 不再用于 `integration/*`、main 和 stable，只在 admin 临时恢复原规则集时作为恢复手段。status、start、register、task-sync 等任务入口照常使用。
+
 本模块兑现[多层分支规则](../../../../docs/engineering/integration.md)。公开类型及输入解析归本目录源码。正式采用从可信main及不可变tag读取。以下承诺约束实现；配置、提交与实际采用分别判断。
 
 ## 采用与身份

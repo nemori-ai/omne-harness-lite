@@ -505,15 +505,27 @@ main 以上的确认检查只有发布身份能写，规则集要求的检查对
 - 当前 admin 获得确认和手动更新的权限。本次不另改名单。
 - 发布身份加入 owners 仍须一次 policy 升级。升级本身尚未做。
 
+2026-10-15，AIEPhoenix 按接受评论的授权确定了上面 6 项未决事项，记录见 [#249 的方案评论](https://github.com/nemori-ai/omne-harness-lite/issues/249#issuecomment-6183449887)。PanQiWei 在 [#249 的回复](https://github.com/nemori-ai/omne-harness-lite/issues/249#issuecomment-6184002508)中确认了切换时间、门铃文件的一次例外、确认者名单和 SPEC 修订的授权。
+
+1. 审计日志由组织和项目的管理者按需要查看，不设固定周期。
+2. 专用身份的 App 归组织所有。密钥只放在对应 environment 的 secrets 中。管理者按安全情况决定是否轮换，不定期更换。
+3. 使用 GitHub 托管 runner。
+4. 缺口 Issue 不设处理时限，由该轨道 owner 或任一 admin 处理。缺口存在时相应主干的提升被拦住。
+5. 第一阶段不自动读取集成条件。确认者在确认前核对卡上的条件，并在说明中引用。评论格式和 I07、I08、I09、I11 的拆分修改留到第二阶段。
+6. `github-gate` 的改动由组织和项目的管理者按需要审阅。
+
+实施分两个阶段。第一阶段只接入确认：四条主干都经 PR 进入，确认者为仓库 admin，轨道的确认暂代自动检查，不使用合并队列，只创建发布身份。第一阶段的流程不读取 policy，所以发布身份不加入 owners。第二阶段在 turbo 构建体系建立后进行：接入自动检查和合并队列，取消轨道的确认，创建报告身份，实施受信检查器的升级流程。第一阶段于 2026-10-15 切换，切换点和之前历史的处理见 [#208 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/208#issuecomment-6184302633)。
+
 ## 写回现行正文
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换或解除依据及确认者 |
 | --- | --- | --- | --- |
-| 四条主干、两档准入、合入后补 unit、确认后发布 | [integration.md](../engineering/integration.md#目标准入)。现行工具步骤保留在该页前面各节 | 已写回 | 2026-10-14 写入目标。平台未接入，现行步骤仍有效 |
-| 发布身份加入 owners，以及 I07、I08、I09、I11 | `integration-policy.json` 与集成工具 `SPEC.md` | 待写回 | 身份、密钥和评论格式还没有具体值。本次不改机器配置和 SPEC |
-| 检查器受信版本的升级流程 | integration.md 目标准入已记录方向。`policy-adoption.ts` 的契约未改 | 待写回 | 工具尚未拆成两半。现行 policy-check 与 policy-adopt 仍有效 |
-| 发布的操作步骤 | [agent-delivery.md](../engineering/agent-delivery.md) 只加指针。`branch-integration` 技能未改 | 已写回 | 2026-10-14。技能仍描述现行工具 |
-| release 主干与对外发布的关系 | [publication.md](../engineering/publication.md#集成发布) | 已写回 | 2026-10-14。npm 细节仍待定。确认流程未接入 |
+| 四条主干、确认后发布（第一阶段） | [integration.md](../engineering/integration.md#现行准入) | 已写回 | 2026-10-15 切换，AIEPhoenix。本机工具的发布步骤不再用于四条主干 |
+| 轨道经合并队列自动合并、合入后补 unit（第二阶段） | integration.md“第二阶段目标” | 待写回 | 等 turbo 构建体系与自动检查 |
+| 发布身份加入 owners，以及 I07、I08、I09、I11 | `integration-policy.json` 与集成工具 `SPEC.md` | 待写回 | 第一阶段不读取 policy，SPEC 只加适用范围说明。拆分修改留到第二阶段 |
+| 检查器受信版本的升级流程 | integration.md“第二阶段目标”已记录方向。`policy-adoption.ts` 的契约未改 | 待写回 | 工具尚未拆成两半。现行 policy-check 与 policy-adopt 仍有效 |
+| 发布的操作步骤 | [agent-delivery.md](../engineering/agent-delivery.md)、`branch-integration` 技能、[开发指南](../development.md#多层分支操作) | 已写回 | 2026-10-15，AIEPhoenix |
+| release 主干与对外发布的关系 | [publication.md](../engineering/publication.md#集成发布) | 已写回 | 2026-10-14。npm 细节仍待定。release 分支尚未创建 |
 | 远程检查的工作流说明 | `.github/workflows/check.yml` | 待写回 | 远程 CI 仍关闭。工作流留到检查任务改变时再改 |
 
 ## 后继关系与维护
