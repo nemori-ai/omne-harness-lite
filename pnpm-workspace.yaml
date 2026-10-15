@@ -28,6 +28,9 @@ catalog:
   '@typescript/typescript6': 6.0.2
   vitest: 4.1.11
   oxfmt: 0.73.0
+  oxlint: 1.88.0
+  dependency-cruiser: 18.6.0
+  knip: 6.41.0
   '@vitest/coverage-v8': 4.1.11
   zod: 4.6.5
   '@standard-schema/spec': 1.1.0
@@ -50,3 +53,9 @@ catalog:
 # 安装仍使用 --ignore-scripts；只允许显式构建这个已核对的原生依赖。
 onlyBuiltDependencies:
   - node-pty@1.1.0
+
+# dependency-cruiser 18 只认 TypeScript 6 以下的编译器，没有它就不解析 .ts。只给它补一份 TypeScript 6，成员仍用 catalog 的 TypeScript 7。
+packageExtensions:
+  dependency-cruiser:
+    dependencies:
+      typescript: 6.0.3

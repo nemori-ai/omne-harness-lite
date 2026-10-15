@@ -392,7 +392,7 @@ export function describeCheckPlan(
     )
   lines.push('步骤：')
   lines.push(
-    '  常驻：agents-check、docs-check、design-check、format:check、test:format、lint:rules、loop-status STRICT',
+    '  常驻：agents-check、docs-check、design-check、format:check、test:format、check:declarations、lint:rules、lint:oxlint、lint:deps、loop-status STRICT',
   )
   lines.push(`  pytest：${plan.python.run ? '跑' : '跳过'}——${plan.python.reason}`)
   if (plan.mode === 'full') {

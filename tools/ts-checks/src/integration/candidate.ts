@@ -7,7 +7,7 @@ import {
   firstAdoptionCommit,
 } from './context.ts'
 import { activeTrack, type Mode } from './policy.ts'
-import { canonical, digest, same, sha, string, IntegrationError } from './parse.ts'
+import { same, sha, IntegrationError } from './parse.ts'
 import { clean, git, GitError, parents, repository, requireAncestor } from './git.ts'
 import {
   newOperation,

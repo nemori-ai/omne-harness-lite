@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { remoteRefs, fetchObject } from './transport.ts'
 import { parseTaskBinding, type TaskBinding } from '../delivery/binding.ts'

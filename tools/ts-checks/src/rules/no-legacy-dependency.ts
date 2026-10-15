@@ -1,7 +1,7 @@
 import ts from '@typescript/typescript6'
 import { isTestPath, type Rule, type SourceFile, type Violation } from '../rule.ts'
 import { lineAt } from '../source-text.ts'
-import { syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
+import { syntaxOf, visitSyntax } from '../syntax.ts'
 
 const LEGACY_PACKAGE = /@omne-harness-lite\//u
 const LEGACY_TREE = /(?:apps|packages)\.0\.0\.1\.legacy(?:[/\\]|$)/u
@@ -197,23 +197,9 @@ function pathContainsLegacy(expression: ts.Expression, seen = new Set<ts.Node>()
 function sourceViolations(file: SourceFile): Violation[] {
   if (file.path.endsWith('.md')) return []
   const syntax = syntaxOf(file)
+  // Import edges to the legacy trees and packages belong to dependency-cruiser (`pnpm run lint:deps`).
+  // This rule keeps what an import graph cannot see: manifests, the workspace list and legacy paths in strings.
   const violations: Violation[] = []
-  for (const ref of syntaxImports(syntax)) {
-    if (ref.specifier === undefined) continue
-    const resolved = file.resolvedModules?.[ref.specifier]
-    if (
-      !LEGACY_PACKAGE.test(ref.specifier) &&
-      !LEGACY_TREE.test(ref.specifier) &&
-      (resolved === undefined || !LEGACY_TREE.test(resolved))
-    )
-      continue
-    violations.push({
-      rule: 'no-legacy-dependency',
-      path: file.path,
-      line: lineAt(file.text, ref.index),
-      message: `源码重新引入了 legacy 依赖：${ref.specifier}`,
-    })
-  }
   const importedNames = new Map<string, string>()
   visitSyntax(syntax, node => {
     if (ts.isImportSpecifier(node))
@@ -244,8 +230,6 @@ function sourceViolations(file: SourceFile): Violation[] {
       !LEGACY_TREE.test(node.text)
     )
       return
-    const already = violations.some(item => item.line === lineAt(file.text, node.getStart(syntax)))
-    if (already) return
     violations.push({
       rule: 'no-legacy-dependency',
       path: file.path,
@@ -260,7 +244,8 @@ function sourceViolations(file: SourceFile): Violation[] {
 export const noLegacyDependency: Rule = {
   id: 'no-legacy-dependency',
   source: 'Issue #241 C5',
-  description: 'package.json 与源码不得重新依赖 legacy 目录或 @omne-harness-lite 包',
+  description:
+    'package.json、pnpm workspace 与源码字符串不得重新依赖 legacy 目录或 @omne-harness-lite 包；导入边归 dependency-cruiser',
   check(files) {
     const violations: Violation[] = []
     for (const file of files) {

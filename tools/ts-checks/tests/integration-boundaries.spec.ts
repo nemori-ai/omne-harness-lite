@@ -26,7 +26,7 @@ import {
 } from '../src/integration/context.ts'
 import { touchedBase } from '../src/loop/hook-measure.ts'
 import { readWorktrees } from '../src/loop/sensors/worktrees.ts'
-import { bootstrap, activationCheck, activate } from '../src/integration/adoption.ts'
+import { bootstrap, activationCheck } from '../src/integration/adoption.ts'
 import { policyCheck, adoptPolicy } from '../src/integration/policy-adoption.ts'
 import { activeTrack } from '../src/integration/policy.ts'
 import {

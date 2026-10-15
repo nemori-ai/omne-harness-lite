@@ -104,11 +104,10 @@ function main(argv: readonly string[]): number {
   const catalogue = config.sensors.catalogue
   const catalogueText = readIfFile(join(root, catalogue.path))
 
-  const notes = [
-    ...(trend.badLines.length === 0
+  const notes =
+    trend.badLines.length === 0
       ? []
-      : [`趋势 ${trendPath} 第 ${trend.badLines.join('、')} 行读不了，已跳过`]),
-  ]
+      : [`趋势 ${trendPath} 第 ${trend.badLines.join('、')} 行读不了，已跳过`]
   const debt = debtBlock(trend.snapshots, config, trendPath)
   const health: Health = {
     conformance: readConformanceSensor(root, config.sensors.architecture.enabled),
