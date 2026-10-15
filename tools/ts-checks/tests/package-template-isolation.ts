@@ -28,7 +28,8 @@ export interface IsolatedWorkspace {
 
 export function isolatedProductWorkspace(): IsolatedWorkspace {
   const root = mkdtempSync(join(realpathSync(tmpdir()), 'omne-package-template-'))
-  cpSync(join(repoRoot, 'tsconfig.base.json'), join(root, 'tsconfig.base.json'))
+  // 根 tsconfig.base.json 只是指向共享预设的 extends；隔离工作区里直接放预设本身。
+  cpSync(join(repoRoot, 'tools/repo-config/tsconfig.base.json'), join(root, 'tsconfig.base.json'))
   cpSync(join(repoRoot, 'vitest.tiers.mts'), join(root, 'vitest.tiers.mts'))
   const host: unknown = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'))
   const engines = hostNode(host)

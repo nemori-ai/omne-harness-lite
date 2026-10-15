@@ -34,7 +34,8 @@ function fixture() {
       rules: [{ id: 'IC-4', source: 'docs/architecture/policy.md' }],
     }),
   )
-  cpSync(join(repo, 'tsconfig.base.json'), join(root, 'tsconfig.base.json'))
+  // 根 tsconfig.base.json 只是指向共享预设的 extends；隔离工作区里直接放预设本身。
+  cpSync(join(repo, 'tools/repo-config/tsconfig.base.json'), join(root, 'tsconfig.base.json'))
   writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n')
   writeFileSync(join(root, 'package.json'), JSON.stringify({ engines: { node: '>=24 <25' } }))
   execFileSync('git', ['init', '-q', root])

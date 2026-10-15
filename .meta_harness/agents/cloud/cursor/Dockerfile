@@ -1,6 +1,6 @@
 # Cloud Agent image for omne-harness-lite.
 # Cursor checks out the repository. Do not COPY the project into this image.
-# NODE_VERSION must satisfy the root package.json engines range (>=24.18.0 <25).
+# NODE_VERSION must satisfy the root package.json engines range (>=24).
 # PNPM_VERSION must match the root package.json packageManager field.
 
 FROM ubuntu:24.04

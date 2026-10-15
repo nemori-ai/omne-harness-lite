@@ -118,6 +118,8 @@ pnpm lint:deps     # dependency-cruiser：无法解析的导入、文件级运�
 pnpm lint:report   # 只报告：全部目录的 oxlint（含 vitest 测试风格规则）与 knip
 ```
 
+tsconfig、oxlint 与 dependency-cruiser 的共享规则在 [repo-config](../tools/repo-config/README.md) 预设里维护，根目录的配置文件只引用它；oxfmt 不支持 `extends`，配置留在根目录。
+
 `lint:oxlint` 与 `lint:deps` 违反即失败，`make check` 每次都跑。oxlint 暂不检查 `packages/` 与 `apps/`，与格式范围一起由源码包负责人另定；dependency-cruiser 的规则是结构护栏，对源码包同样失败。
 dependency-cruiser 用类型检查的 `source` 条件解析跨包导入，`dist` 与依赖只作叶子不深入；它自带一份 TypeScript 6 解析 `.ts`（见 `pnpm-workspace.yaml` 的 `packageExtensions`）。方向规则按[产品包组织](package-organization.md#依赖方向与cordis集成)写成成员路径，成员与组之间的环由 ts-checks 在同一张图上算；`lint:deps` 的入口是 `tools/ts-checks/src/deps/cli.ts`。
 Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和源码字符串里的 legacy 路径，仍由 `pnpm run lint:rules` 检查；legacy 的导入边归 `lint:deps`。

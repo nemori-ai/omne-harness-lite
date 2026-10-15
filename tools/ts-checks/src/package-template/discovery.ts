@@ -37,6 +37,20 @@ function children(root: string, path: string, segment: string): string[] {
     throw new Error(`${child}: product discovery rejects links and unexpected non-directory nodes`)
   })
 }
+/**
+ * Temporary rule while legacy-refactor is in progress (https://github.com/nemori-ai/omne-harness-lite/issues/325): a member
+ * directory with a README.md but neither `package.json` nor `src/` only holds planning documents
+ * and is not a member yet. An empty or stray directory still fails discovery. Remove this rule
+ * when legacy-refactor completes; every member directory then needs a manifest again.
+ */
+export function isPlannedMember(root: string, path: string): boolean {
+  const has = (name: string) => lstatSync(join(root, path, name), { throwIfNoEntry: false })
+  return (
+    has('package.json') === undefined &&
+    has('src') === undefined &&
+    has('README.md')?.isFile() === true
+  )
+}
 /** Verify filesystem candidates before the architecture resolver filters non-file manifests. */
 export function discoverProducts(root: string): string[] {
   const patterns = workspacePatterns(
@@ -53,6 +67,7 @@ export function discoverProducts(root: string): string[] {
       paths = paths.flatMap(path => children(root, path, segment))
     for (const path of paths) {
       requireDirectory(root, path)
+      if (isPlannedMember(root, path)) continue
       if (!lstatSync(join(root, path, 'package.json'), { throwIfNoEntry: false })?.isFile())
         throw new Error(`${path}/package.json: product discovery requires a real manifest file`)
       products.add(path)
