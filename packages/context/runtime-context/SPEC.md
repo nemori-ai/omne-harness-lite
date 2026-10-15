@@ -1,6 +1,8 @@
 # runtime-context 长期行为规格
 
-状态：注册与读取的最小对接是现行规则。目标成员为 `context/runtime-context`，还不是实际包。字节编码、存储、Provider 和数值仍不在这里定。
+状态：注册与更新、当前读取、作用域与租户资格、并发认回及未知结果处置已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。
+
+目标成员为 `context/runtime-context`，还不是实际包。字节编码、存储、Provider 和数值仍不在这里定。
 
 产品输入归[运行感知与一次请求](../../../.meta_harness/design/product/runtime-context/design.md)，组合责任归[领域架构](../../../docs/domains/runtime-context/architecture.md)。源码及旧实现不构成本规格依据。
 

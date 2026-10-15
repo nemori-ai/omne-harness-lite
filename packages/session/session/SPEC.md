@@ -1,6 +1,8 @@
 # Session长期行为规格
 
-控制的最小对接是现行规则。目标成员为`packages/session/session`，此目录只有行为文档，没有实际实现成员。本规格表达已具依据的必要行为，不定义尚未确定的公开类型、存储提供者或认领协议。
+状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。
+
+目标成员为`packages/session/session`，此目录只有行为文档，没有实际实现成员。本规格表达已具依据的必要行为，不定义尚未确定的公开类型、存储提供者或认领协议。
 
 业务含义归[产品稿](../../../.meta_harness/design/product/sessions-and-work/design.md)，数据结构与算法归[领域架构](docs/internals.md)。术语以[当前统一语言](../../../.meta_harness/design/ubiquitous_language/index.md)为锚点，系统保证沿[数据与状态](../../../docs/architecture/data-and-state.md)及已接受运行架构。旧输入快照只用于追溯，不授予冲突设计继续采用。
 

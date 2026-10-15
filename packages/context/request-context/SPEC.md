@@ -1,6 +1,8 @@
 # request-context 长期行为规格
 
-状态：组装的最小对接是现行规则。目标成员为 `context/request-context`，还不是实际包。本规格拥有派生输入、模态与预算的必要行为，不选择 Provider、存储、压缩算法或数值。
+状态：请求组装的输入输出、独立与托管读取边界、候选重算、固定采用认回及失败处置已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。
+
+目标成员为 `context/request-context`，还不是实际包。本规格拥有派生输入、模态与预算的必要行为，不选择 Provider、存储、压缩算法或数值。
 
 产品输入归[运行感知与一次请求](../../../.meta_harness/design/product/runtime-context/design.md)，供给保证归[runtime-context](../runtime-context/SPEC.md)，跨成员交接归[领域架构](../../../docs/domains/runtime-context/architecture.md)。
 
