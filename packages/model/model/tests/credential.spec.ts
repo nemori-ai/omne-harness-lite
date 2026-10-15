@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -398,6 +398,7 @@ it('a failed rename keeps the last saved snapshot intact and does not publish th
   const reopened = openLocalCustodian(path)
   if ('kind' in reopened) throw new Error('store missing')
   expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
+  expect(readdirSync(dir).filter((name) => name.endsWith('.tmp'))).toEqual([])
 })
 
 it('a short write is retried until the whole snapshot is persisted', () => {
@@ -441,6 +442,7 @@ it('a write that makes no progress aborts and keeps the old snapshot', () => {
   injectedWriteSync = undefined
   expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
   expect(readFileSync(path, 'utf8')).toEqual(backup)
+  expect(readdirSync(dir).filter((name) => name.endsWith('.tmp'))).toEqual([])
 })
 
 it('a post-rename confirmation failure reports the update may be visible', () => {
@@ -461,6 +463,94 @@ it('a post-rename confirmation failure reports the update may be visible', () =>
   if ('kind' in reopened) throw new Error('store missing')
   expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
 })
+
+it('a long-lived synchronous transaction does not let another process steal the lock', async () => {
+  // This test intentionally holds the lock through a multi-second synchronous pause.
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const goPath = join(dir, 'go')
+  const resultPath = join(dir, 'child-result.json')
+  const first = createLocalCustodian(path, FACTORY)
+  const refA = reference()
+  first.put(refA, SECRET)
+  const otherId = credentialId('cred-b')
+  if (!otherId) throw new Error('fixture id')
+
+  const child = spawn(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `import { openLocalCustodian, credentialId } from './dist/index.js'
+       import { existsSync, writeFileSync } from 'node:fs'
+       import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+       function identity(accountText, organizationText) {
+         const account = accountCodec.parse(accountText)
+         const organization = organizationCodec.parse(organizationText)
+         if (!account.ok || !organization.ok) throw new Error('fixture identity')
+         return tenant(organization.value, account.value)
+       }
+       const start = Date.now()
+       while (!existsSync(${JSON.stringify(goPath)})) {
+         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+       }
+       const tenantB = identity('acc_abcdefghjkmnpqrstvwxyz2346', 'org_abcdefghjkmnpqrstvwxyz2346')
+       const opened = openLocalCustodian(${JSON.stringify(path)})
+       if ('kind' in opened) { process.stderr.write('child: store missing'); process.exit(1) }
+       const childId = credentialId('cred-c')
+       if (!childId) throw new Error('fixture id')
+       const refA = { id: credentialId('cred-a'), tenant: identity('acc_abcdefghjkmnpqrstvwxyz2345', 'org_abcdefghjkmnpqrstvwxyz2345'), purpose: 'model-send' }
+       opened.revoke(refA)
+       opened.put({ id: childId, tenant: tenantB, purpose: 'model-send' }, 'child-secret')
+       writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify({ start, end: Date.now() }))`,
+    ],
+    { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' },
+  )
+
+  let delayed = false
+  injectedWriteSync = (fd: number, buffer: Buffer, offset: number, length: number) => {
+    if (offset === 0 && !delayed) {
+      delayed = true
+      writeFileSync(goPath, '')
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 6500)
+    }
+    return globalThis.__actualFs.writeSync(fd, buffer, offset, length)
+  }
+  const parentStart = Date.now()
+  first.put({ id: otherId, tenant: tenantB, purpose: MODEL_SEND }, 'parent-secret')
+  injectedWriteSync = undefined
+  const parentDuration = Date.now() - parentStart
+
+  await new Promise<void>((resolve, reject) => {
+    child.on('error', reject)
+    child.on('exit', (code) => {
+      if (code !== 0) reject(new Error(`child exited ${code}: ${child.stderr}`))
+      else resolve()
+    })
+  })
+
+  const result = JSON.parse(readFileSync(resultPath, 'utf8'))
+  // The child must have waited for the parent's lock, not stolen it.
+  expect(result.end - result.start).toBeGreaterThanOrEqual(6000)
+  expect(parentDuration).toBeGreaterThanOrEqual(6500)
+
+  const reopened = openLocalCustodian(path)
+  if ('kind' in reopened) throw new Error('store missing')
+  const childId = credentialId('cred-c')
+  if (!childId) throw new Error('fixture id')
+  // The child's revoke survived the overlap.
+  expect(reopened.resolve(refA, face()).kind).toBe('denied')
+  expect(reopened.resolve({ id: otherId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual({
+    kind: 'value',
+    scope: 'tenant',
+    value: 'parent-secret',
+  })
+  expect(reopened.resolve({ id: childId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual({
+    kind: 'value',
+    scope: 'tenant',
+    value: 'child-secret',
+  })
+}, 20_000)
 
 it('a store with conflicting rows for the same holder is unavailable', () => {
   const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))

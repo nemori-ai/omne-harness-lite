@@ -34,10 +34,36 @@ export type LocalCustodian = CredentialPort & {
   close(): void
 }
 
+// Disable proper-lockfile's stale recovery: this lock is held only for the
+// duration of a single synchronous transaction and released in a finally block.
+// A leftover lock means the owning process crashed and must be cleaned up
+// manually by removing `${path}.lock`.
+const STALE_NEVER_MS = 2 ** 31 - 1
+const LOCK_WAIT_TIMEOUT_MS = 30_000
+
+function acquireLockSync(path: string): () => void {
+  const start = Date.now()
+  while (true) {
+    try {
+      return lockSync(path, { realpath: false, stale: STALE_NEVER_MS })
+    } catch (error: unknown) {
+      const code = (error as NodeJS.ErrnoException | undefined)?.code
+      if (code !== 'ELOCKED') throw error
+      if (Date.now() - start > LOCK_WAIT_TIMEOUT_MS) {
+        throw Object.assign(new Error(`timed out waiting for credential store lock at ${path}`), {
+          code: 'ELOCKED',
+        })
+      }
+      // Back off without yielding the event loop, since the public API is sync.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+    }
+  }
+}
+
 export function createLocalCustodian(path: string, factorySecret: string): LocalCustodian {
   mkdirSync(dirname(path), { recursive: true })
   const state: CustodianState = { closed: false, factorySecret, bindings: [] }
-  const release = lockSync(path, { realpath: false, stale: 5000 })
+  const release = acquireLockSync(path)
   try {
     const result = atomicSave(path, state)
     if (!result.ok) {
@@ -138,7 +164,7 @@ function mutate(
   holder: { state: CustodianState },
   change: (refreshed: CustodianState) => CustodianState,
 ): void {
-  const release = lockSync(path, { realpath: false, stale: 5000 })
+  const release = acquireLockSync(path)
   try {
     const refreshed = refresh(path, holder.state)
     if ('kind' in refreshed) throw new Error(`credential store at ${path} is unavailable`)
@@ -174,9 +200,12 @@ function refresh(path: string, current: CustodianState): CustodianState | { read
 function atomicSave(
   path: string,
   state: CustodianState,
-): { readonly ok: true } | { readonly ok: false; readonly phase: 'temp-write' | 'rename' | 'published' } {
+): { readonly ok: true } | { readonly ok: false; readonly phase: 'temp-write' | 'published' } {
   const tmpPath = `${path}.${process.pid}.${Date.now()}.${tmpCounter++}.tmp`
   let fd: number | undefined
+  // 'published' means the main file has already been replaced; failures after
+  // that point leave the new state potentially visible and must be verified.
+  let phase: 'temp-write' | 'published' = 'temp-write'
   try {
     fd = openSync(tmpPath, 'w')
     writeAll(fd, JSON.stringify(storeState(state)))
@@ -184,6 +213,7 @@ function atomicSave(
     closeSync(fd)
     fd = undefined
     renameSync(tmpPath, path)
+    phase = 'published'
     // On POSIX, also sync the parent directory so the rename is durable.
     if (process.platform !== 'win32') {
       const dirFd = openSync(dirname(path), 'r')
@@ -202,24 +232,15 @@ function atomicSave(
         // Cleanup of a half-open file descriptor is best-effort.
       }
     }
-    // Determine whether the rename had already happened. If it did, the new
-    // snapshot may already be visible even though confirmation failed.
+    // Always attempt to remove our own unique temporary file. If the rename
+    // already happened, the temporary file no longer exists and unlink fails
+    // safely; otherwise we clean up the partial snapshot.
     try {
-      readFileSync(path, 'utf8')
-      // The target file is readable. We cannot tell if it holds the old or new
-      // state without parsing, but the rename likely succeeded. Report the
-      // ambiguous phase so callers verify instead of assuming the old value.
-      return { ok: false, phase: 'published' }
+      unlinkSync(tmpPath)
     } catch {
-      // The target file is not readable; rename did not complete or the store
-      // is otherwise broken. The old snapshot, if any, should still be intact.
-      try {
-        unlinkSync(tmpPath)
-      } catch {
-        // Cleanup of the temporary file is best-effort.
-      }
-      return { ok: false, phase: 'temp-write' }
+      // Cleanup of the temporary file is best-effort.
     }
+    return { ok: false, phase }
   }
 }
 
