@@ -17,7 +17,7 @@ const report = await protocol.close()
 
 ## 阅读路径
 
-要查一组租约的 `admit`、`release`、`held`、`detachObserver` 或 `close` 结果时，读[行为规格](SPEC.md)。行为规格里从「一组租约」到「就绪、撤除和远端中断」的句子已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受。`held` 与关闭重入的句子由本卡技术接受写回。两个实例和时钟由调用方提供的理由见[内部设计](docs/internals.md)。谁必须关闭见[Cordis 装配与服务生命周期](../../../docs/architecture/deployment/cordis-and-lifecycle.md)。
+要查一组租约的 `admit`、`release`、`held`、`detachObserver` 或 `close` 结果时，读[行为规格](SPEC.md)。#264 的采用、发布、入口和失败记录是[采用与换上](SPEC.md#adoption)，状态为设计候选，待技术接受。行为规格里从「一组租约」到「就绪、撤除和远端中断」的句子已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受。`held` 与关闭重入的句子由本卡技术接受写回。两个实例和时钟由调用方提供的理由见[内部设计](docs/internals.md)。谁必须关闭见[Cordis 装配与服务生命周期](../../../docs/architecture/deployment/cordis-and-lifecycle.md)。
 
 各能力提供者、原工作与应用装配是预期消费者。实际产品成员从[包入口](../../README.md)辨认。封存实现从[legacy 入口](../../../packages.0.0.1.legacy/README.md)查证。
 
