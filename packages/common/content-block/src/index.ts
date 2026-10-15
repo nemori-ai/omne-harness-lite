@@ -44,13 +44,33 @@ export interface FileContentBlock {
 export type ContentBlock =
   TextContentBlock | ThinkingContentBlock | MediaContentBlock | FileContentBlock
 
-export type ContentBlockRejection = 'kind' | 'id' | 'visibility' | 'text' | 'media' | 'file'
+export type ContentBlockRejection = 'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file'
 
 export type ContentBlockJudgment =
   { readonly ok: ContentBlock } | { readonly rejected: ContentBlockRejection }
 
+/** Legal keys of each kind. `judgeContentBlock` reads this table and does not keep a second list. */
+const BLOCK_KEYS: Readonly<Record<ContentBlockKind, readonly string[]>> = {
+  text: ['kind', 'id', 'visibility', 'text'],
+  thinking: ['kind', 'id', 'visibility', 'text'],
+  voice: ['kind', 'id', 'visibility', 'mediaType', 'inline'],
+  image: ['kind', 'id', 'visibility', 'mediaType', 'inline'],
+  file: ['kind', 'id', 'visibility', 'storage', 'key', 'mediaType'],
+}
+
+const VISIBILITY_KEYS = ['toHuman', 'toModel'] as const
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isContentBlockKind(kind: string): kind is ContentBlockKind {
+  return (CONTENT_BLOCK_KINDS as readonly string[]).includes(kind)
+}
+
+function hasUnknownKey(value: Record<string, unknown>, legal: readonly string[]): boolean {
+  const allowed = new Set<string>(legal)
+  return Object.keys(value).some(key => !allowed.has(key))
 }
 
 function visibilityOf(value: unknown): Visibility | undefined {
@@ -62,7 +82,12 @@ function visibilityOf(value: unknown): Visibility | undefined {
 /** Admit one closed content block. Tool calls, tool results, and growing blocks are rejected. */
 export function judgeContentBlock(value: unknown): ContentBlockJudgment {
   if (!isRecord(value) || typeof value.kind !== 'string') return { rejected: 'kind' }
-  if (!CONTENT_BLOCK_KINDS.includes(value.kind as ContentBlockKind)) return { rejected: 'kind' }
+  if (!isContentBlockKind(value.kind)) return { rejected: 'kind' }
+  const kind = value.kind
+  if (hasUnknownKey(value, BLOCK_KEYS[kind])) return { rejected: 'extra' }
+  if (isRecord(value.visibility) && hasUnknownKey(value.visibility, VISIBILITY_KEYS)) {
+    return { rejected: 'extra' }
+  }
   if (typeof value.id !== 'string' || value.id.length === 0) return { rejected: 'id' }
   const visibility = visibilityOf(value.visibility)
   if (visibility === undefined) return { rejected: 'visibility' }

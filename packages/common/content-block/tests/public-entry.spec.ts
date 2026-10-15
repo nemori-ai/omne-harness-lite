@@ -57,6 +57,23 @@ it('admits each closed kind', () => {
   })
 })
 
+it('rejects an unknown key on a text block', () => {
+  expect(
+    judgeContentBlock({ kind: 'text', id: 'b1', visibility, text: 'hello', tenant: 'a' }),
+  ).toEqual({ rejected: 'extra' })
+})
+
+it('rejects an unknown key inside visibility', () => {
+  expect(
+    judgeContentBlock({
+      kind: 'text',
+      id: 'b1',
+      visibility: { toHuman: true, toModel: false, tenant: 'a' },
+      text: 'hello',
+    }),
+  ).toEqual({ rejected: 'extra' })
+})
+
 it('rejects a tool call and a missing kind', () => {
   expect(judgeContentBlock({ kind: 'tool_call', id: 'b1', visibility })).toEqual({
     rejected: 'kind',
