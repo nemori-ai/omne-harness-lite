@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
@@ -267,4 +267,51 @@ it('call execution does not import the store and the root does not import cordis
   expect(deliverSource.includes('store.ts')).toBe(false)
   expect(executeSource.includes('store.ts')).toBe(false)
   expect(indexSource.includes('@deepseek-ai/cordis')).toBe(false)
+})
+
+it('logs, errors, telemetry, and model context do not carry the synthetic secret', async () => {
+  const lines: string[] = []
+  const methods = ['log', 'info', 'warn', 'error', 'debug'] as const
+  const originals = methods.map((name) => console[name])
+  for (const name of methods) {
+    console[name] = (...args: unknown[]) => {
+      lines.push(args.map((item) => String(item)).join(' '))
+    }
+  }
+  let thrown = ''
+  try {
+    const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+    const custodian = createLocalCustodian(join(dir, 'store.json'), FACTORY)
+    const ref = reference()
+    custodian.put(ref, SECRET)
+    const present = custodian.present(ref)
+    const denied = custodian.resolve(ref, face({ authorized: false }))
+    expect(ordinary(present)).not.toContain(SECRET)
+    expect(ordinary(denied)).not.toContain(SECRET)
+    expect(ordinary(denied)).not.toContain(FACTORY)
+    expect(ordinary(custodian.diagnostics())).not.toContain(SECRET)
+    const ctx = new Context()
+    try {
+      await ctx.plugin(LocalCredentialPlugin, { path: '', factorySecret: SECRET })
+    } catch (error) {
+      thrown = error instanceof Error ? `${error.name} ${error.message}` : String(error)
+    }
+  } finally {
+    methods.forEach((name, index) => {
+      console[name] = originals[index]
+    })
+  }
+  expect(thrown.length).toBeGreaterThan(0)
+  expect(thrown).not.toContain(SECRET)
+  expect(thrown).not.toContain(FACTORY)
+  const logged = lines.join('\n')
+  expect(logged).not.toContain(SECRET)
+  expect(logged).not.toContain(FACTORY)
+  const sources = readdirSync(new URL('../src/', import.meta.url))
+    .filter((name) => name.endsWith('.ts'))
+    .map((name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8'))
+    .join('\n')
+  expect(sources.includes('console.')).toBe(false)
+  expect(sources.includes('telemetry')).toBe(false)
+  expect(sources.includes('runtime-context')).toBe(false)
 })
