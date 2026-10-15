@@ -260,7 +260,7 @@ OTel的forceFlush完成不自动表示每条记录导出成功。提供者核对
 <a id="common-t02"></a>
 ### COMMON-T02 内容块的精确契约承接
 
-`packages/common/content-block` 发布已经封闭的文本、思考、语音、图和文件，以及块身份、可见性和媒体类型。工具调用、工具结果和仍在增长的块不是这个成员的值。工具执行字段归工具。
+`packages/common/content-block` 发布已经封闭的文本、思考、语音、图和文件，以及块身份、可见性和媒体类型。工具调用、工具结果和仍在增长的块不是这个成员的值。`tool_call` 和 `tool_result` 由工具领域发布。`judgeContentBlock` 拒绝块上或 `visibility` 里的未知键，拒绝码是 `extra`。判断不靠丢掉该键返回通过。
 
 ```mermaid
 flowchart TD
@@ -283,7 +283,7 @@ flowchart TD
 <a id="common-t03"></a>
 ### COMMON-T03 消息形状与消费行为的承接
 
-`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。系统提示不进该成员。会话在受理进日志时铸造身份。日志、投影和铸造归会话。这次初始化的公开入口停在角色词汇、解析和相等。完整消息载荷仍留给后续拥有者。
+`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。消息值是 `{ id, role, blocks }`。`id` 是 `parseMessageId` 接受的字符串。`role` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction` 之一。`blocks` 按到达顺序，不能为空。部件是已封闭内容块，或带非空 `callId` 的 `tool_call`、`tool_result`。`SystemMessage` 由请求组装发布，不进该成员。会话在受理进日志时铸造身份并写日志。该成员不铸造。
 
 ```mermaid
 flowchart TD
@@ -292,7 +292,7 @@ flowchart TD
   field --> roles["六种日志角色"]
   assembly["请求组装"] --> system["SystemMessage"]
   session["会话"] -->|"受理进日志时铸造身份"| field
-  member["packages/common/message"] -->|"解析与相等"| field
+  member["packages/common/message"] -->|"发布消息值、解析与相等"| field
 ```
 
 [封存来源](../../packages.0.0.1.legacy/core/messages/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。

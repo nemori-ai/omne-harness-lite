@@ -384,6 +384,40 @@
   带着开口的时刻；[停机之后靠它判断能不能重发](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)
 - **注意 ③**：**运行终结之后才到的账照样落、归那个运行，并标明是迟到的**——
   [I-11](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) 只禁止终结之后再发起新动作，不禁止补记已发起的那些
+- **字段**：一份账是 JSON。`subject.kind` 是 `model_call` 或 `tool_execution`。`usage`、`cost`、`trimmed` 分开。`place` 是落点。`duration` 是 `utc-instant` 能解析的时长字符串，或 `{ "state": "unknown" }`，不是 `Number`。`receipt` 是 `received` 或 `late`。`revision` 是十进制数字字符串，从 `0` 起。
+- **金额**：`state` 为 `known` 或 `provisional` 时带十进制 `lexeme` 和 `unit`。`state` 为 `unknown` 时带 `unit`，没有 `lexeme`。求和跳过 `unknown` 和 `provisional`，不把它们当成零。
+- **来源**：`cost.source` 是 `supplier`、`observation`、`billable` 或 `ledger`。前三种是会话已经收到的报告。`ledger` 是业务账拥有者的记录。这里只写明差别，不实现那本账。
+- **削减**：装配里的 `TrimRecord.removed` 由会话写入 `trimmed.lexeme`。装配不写这份账。
+- **U1**：已知用量和未知费用分开。未知费用没有 `lexeme`。
+
+```json
+{
+  "subject": { "kind": "model_call", "id": "call_01" },
+  "usage": [{ "name": "input", "state": "known", "lexeme": "128", "unit": "token" }],
+  "cost": [{ "state": "unknown", "unit": "USD", "source": "supplier" }],
+  "trimmed": { "state": "known", "lexeme": "20", "unit": "token" },
+  "place": "provider-a",
+  "duration": "PT1.5S",
+  "receipt": "received",
+  "revision": "0"
+}
+```
+
+- **U5**：仍是上面那份对象。`duration` 是 `PT1.5S`。`usage` 的 `lexeme` 是 `128`，`unit` 是 `token`。这是两个字段，两种单位。
+- **U6**：`source` 为 `ledger`。周围这句话说明业务账的拥有者保存该记录。
+
+```json
+{
+  "subject": { "kind": "model_call", "id": "call_01" },
+  "usage": [{ "name": "input", "state": "known", "lexeme": "128", "unit": "token" }],
+  "cost": [{ "state": "known", "lexeme": "0.02", "unit": "USD", "source": "ledger" }],
+  "trimmed": { "state": "unknown", "unit": "token" },
+  "place": "provider-a",
+  "duration": { "state": "unknown" },
+  "receipt": "received",
+  "revision": "0"
+}
+```
 
 ### UL-attachment · 附件 · Attachment
 

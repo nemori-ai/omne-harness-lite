@@ -54,6 +54,51 @@ sequenceDiagram
   Note over Session: 后到的费用追加一条，标明迟到
 ```
 
+会话在收到一份账时写下它。记录说的是会话收到了账，不证明上游已经发出。载体是模型响应的一次流式增量、该流的完成，或一次已完成工具执行的工具结果。
+
+**U3**：后到的费用是新对象。`subject` 相同，`receipt` 为 `late`，`revision` 为 `1`。第一份保持 `received` 和 `revision` `0`。
+
+```json
+{
+  "subject": { "kind": "tool_execution", "id": "exec_01" },
+  "usage": [{ "name": "input", "state": "known", "lexeme": "4", "unit": "token" }],
+  "cost": [{ "state": "known", "lexeme": "1.25", "unit": "USD", "source": "billable" }],
+  "trimmed": { "state": "unknown", "unit": "token" },
+  "place": "provider-a",
+  "duration": "PT1.5S",
+  "receipt": "received",
+  "revision": "0"
+}
+```
+
+```json
+{
+  "subject": { "kind": "tool_execution", "id": "exec_01" },
+  "usage": [{ "name": "input", "state": "known", "lexeme": "4", "unit": "token" }],
+  "cost": [{ "state": "known", "lexeme": "1.50", "unit": "USD", "source": "billable" }],
+  "trimmed": { "state": "unknown", "unit": "token" },
+  "place": "provider-a",
+  "duration": "PT1.5S",
+  "receipt": "late",
+  "revision": "1"
+}
+```
+
+**U4**：同一份已收到的账再送达一次，仍然是这一份。没有第二份，也没有 `revision` `1`。
+
+```json
+{
+  "subject": { "kind": "model_call", "id": "call_02" },
+  "usage": [{ "name": "input", "state": "known", "lexeme": "16", "unit": "token" }],
+  "cost": [{ "state": "known", "lexeme": "0.01", "unit": "USD", "source": "supplier" }],
+  "trimmed": { "state": "known", "lexeme": "20", "unit": "token" },
+  "place": "provider-a",
+  "duration": "PT1.5S",
+  "receipt": "received",
+  "revision": "0"
+}
+```
+
 ## 协作与依赖
 
 受理消费交付面输入及[命令展开](../slash-commands/README.md)，使用治理提供的合法身份与资格。受理成功须有可恢复去处，不把临时消息发送当作可靠接手。
