@@ -24,15 +24,79 @@ SDK 依赖公开契约，以及调用者提供的传输适配接口。它不依�
 
 安装闭包以 SDK 发布产物的依赖清单为准。源码能够编译不能代替该清单。
 
-## 使用示例
+## 设计签名
 
-调用形状如下。`messageId` 由调用者生成，示例里的值只是占位。`revoke-login` 的字段表禁止行事租户。字段表写明必填的操作才带上当前选择。
+下面的类型和函数是设计形状。本包不导出它们。它们不是已经可安装的调用。
+
+消息对象仍是公开契约里的请求和响应。本页不另写字段或 `outcome`。
 
 ```ts
-import { governanceOperation } from "@omne-harness/public-contract";
+type TransportReport =
+  | { kind: "response"; bytes: Uint8Array }
+  | { kind: "not-sent" }
+  | { kind: "uncertain" };
 
-export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
-  return governanceOperation({
+type GovernanceTransport = {
+  send(bytes: Uint8Array): Promise<TransportReport>;
+};
+
+type PublicResponse = {
+  protocolVersion: string;
+  messageId: string;
+  outcome: string;
+  body: unknown;
+};
+
+type CallerResult =
+  | { kind: "response"; message: PublicResponse }
+  | { kind: "uncertain" };
+
+type GovernanceClient = {
+  submit(message: unknown): Promise<CallerResult>;
+};
+```
+
+`GovernanceTransport` 由调用者交入。`submit` 接收公开契约的共同消息，并带上这次发送的 `messageId`。传输字节先按公开契约读取，再核对这个 `messageId`。对上了才成为 `response`。读不出，或 `messageId` 不是这一次，结果是 `uncertain`，不再交成 `response`。
+
+```ts
+type ReadReport =
+  | { kind: "message"; response: PublicResponse }
+  | { kind: "unreadable" };
+
+async function submitOnce(
+  transport: GovernanceTransport,
+  bytes: Uint8Array,
+  expectedMessageId: string,
+  readPublicContract: (input: Uint8Array) => ReadReport,
+): Promise<CallerResult> {
+  const matched = (report: TransportReport): CallerResult | undefined => {
+    if (report.kind !== "response") return undefined;
+    const read = readPublicContract(report.bytes);
+    if (read.kind !== "message" || read.response.messageId !== expectedMessageId) {
+      return { kind: "uncertain" };
+    }
+    return { kind: "response", message: read.response };
+  };
+  const first = await transport.send(bytes);
+  if (first.kind === "uncertain") return { kind: "uncertain" };
+  const firstResult = matched(first);
+  if (firstResult) return firstResult;
+  const second = await transport.send(bytes);
+  const secondResult = matched(second);
+  if (secondResult) return secondResult;
+  return { kind: "uncertain" };
+}
+```
+
+`readPublicContract` 表示公开契约的严格读取。成功时 `response` 是那份共同响应，至少含 `protocolVersion`、`messageId`、`outcome` 和 `body`。`body` 里的结果字段仍只由公开契约定义。本页不实现解析器。核对通过后，调用者拿到的是这份 `response`，不是读取标签。适配报告 `not-sent` 时，`matched` 没有结果，函数再送一次。第二次仍是 `not-sent`，或任一次报告 `uncertain`，调用者得到 `uncertain`。`uncertain` 不是业务成功，也不是没有发生。
+
+```ts
+function revokeOwnLogin(
+  client: GovernanceClient,
+  proof: string,
+  targetLoginId: string,
+): Promise<CallerResult> {
+  return client.submit({
     protocolVersion: "governance-public/1",
     messageId: "caller-generated",
     operation: "revoke-login",
@@ -42,7 +106,7 @@ export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
 }
 ```
 
-`revoke-login` 的字段表禁止行事租户。这个调用不带 `actingTenant`。字段表写明必填的操作才带上当前选择。
+`messageId` 的值只是占位。`revoke-login` 的字段表禁止行事租户。这个调用不带 `actingTenant`。字段表写明必填的操作才带上当前选择。
 
 ## 验证
 
