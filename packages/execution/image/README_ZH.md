@@ -66,7 +66,7 @@ await opened.handle.close()
 
 打开句柄同时拥有光栅和一份预留。关闭句柄不再拥有它们。调用方用 `heldReservation()` 读取预算对象上的预留快照。预留表是以这个对象为键的 `WeakMap`。只有 `imageBudget` 能造出这个键。
 
-`src/index.ts` 拥有公开操作。`open` 在容器检查前复制输入字节，因此异步期间调用方修改原缓冲区不会影响本次打开的 `verifiedBytes` 和声明。`encode` 在调用时固定请求的 format，调用方在 await 前修改请求对象不影响本次编码。`src/container.ts` 在光栅出现前读取 png、jpeg 和 webp 头，并核对 WebP 的 RIFF 声明长度；方向 5–8 只在 EXIF `0x0112` 标签为合法 TIFF SHORT 且 count 为 1 时才生效。`src/adapter.ts` 拥有 sharp 0.35.3。`src/cordis.ts` 拥有服务键 `image` 和插件。
+`src/index.ts` 拥有公开操作。`open` 在容器检查前复制输入字节，因此异步期间调用方修改原缓冲区不会影响本次打开的 `verifiedBytes` 和声明。`encode` 在调用时固定请求的 format，调用方在 await 前修改请求对象不影响本次编码。`src/container.ts` 在光栅出现前读取 png、jpeg 和 webp 头，并核对 WebP 的 RIFF 声明长度；方向 5–8 只在 EXIF `0x0112` 标签为合法 TIFF SHORT、count 为 1 且值在 1–8 之间时才生效，否则在光栅出现前按截断拒绝。`src/adapter.ts` 拥有 sharp 0.35.3。`src/cordis.ts` 拥有服务键 `image` 和插件。
 
 ## 配置与运行
 

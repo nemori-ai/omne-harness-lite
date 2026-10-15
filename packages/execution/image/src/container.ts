@@ -52,7 +52,8 @@ function notePng(note: PngNote, type: string, data: Buffer): Stop | undefined {
     note.sawHeader = true
   } else if (type === 'eXIf') {
     const found = exifOrientation(data)
-    if (found !== undefined) note.orientation = found
+    if (found === 'truncated') return found
+    if (typeof found === 'number') note.orientation = found
   } else if (type === 'acTL') {
     if (data.length !== 8) return 'truncated'
     if (data.readUInt32BE(0) !== 1) return 'multi-frame'
@@ -84,6 +85,8 @@ type TiffReader = {
   readonly read32: (offset: number) => number
 }
 
+type OrientationResult = number | 'truncated' | undefined
+
 function tiffReader(tiff: Buffer): TiffReader | undefined {
   if (tiff.length < 8) return undefined
   const order = tiff.toString('ascii', 0, 2)
@@ -95,26 +98,38 @@ function tiffReader(tiff: Buffer): TiffReader | undefined {
   }
 }
 
-function tiffOrientation(tiff: Buffer): number | undefined {
-  const reader = tiffReader(tiff)
-  if (reader === undefined) return undefined
-  if (reader.read16(2) !== 42) return undefined
+function tiffHeaderValid(reader: TiffReader, tiff: Buffer): boolean {
+  if (reader.read16(2) !== 42) return false
   const ifd = reader.read32(4)
-  if (ifd < 8 || ifd + 2 > tiff.length) return undefined
+  if (ifd < 8 || ifd + 2 > tiff.length) return false
   const count = reader.read16(ifd)
-  if (ifd + 2 + count * 12 > tiff.length) return undefined
+  return ifd + 2 + count * 12 <= tiff.length
+}
+
+function orientationEntry(reader: TiffReader, entry: number): OrientationResult {
+  if (reader.read16(entry) !== TIFF_ORIENTATION_TAG) return undefined
+  if (reader.read16(entry + 2) !== TIFF_SHORT_TYPE) return 'truncated'
+  if (reader.read32(entry + 4) !== 1) return 'truncated'
+  const value = reader.read16(entry + 8)
+  if (value < 1 || value > 8) return 'truncated'
+  return value
+}
+
+function tiffOrientation(tiff: Buffer): OrientationResult {
+  const reader = tiffReader(tiff)
+  if (reader === undefined || !tiffHeaderValid(reader, tiff)) return 'truncated'
+  const ifd = reader.read32(4)
+  const count = reader.read16(ifd)
   for (let index = 0; index < count; index += 1) {
     const entry = ifd + 2 + index * 12
-    if (reader.read16(entry) !== TIFF_ORIENTATION_TAG) continue
-    const type = reader.read16(entry + 2)
-    const componentCount = reader.read32(entry + 4)
-    if (type !== TIFF_SHORT_TYPE || componentCount !== 1) return undefined
-    return reader.read16(entry + 8)
+    const found = orientationEntry(reader, entry)
+    if (found === undefined) continue
+    return found
   }
   return undefined
 }
 
-function exifOrientation(segment: Buffer): number | undefined {
+function exifOrientation(segment: Buffer): OrientationResult {
   if (segment.length >= 8 && segment.toString('ascii', 0, 4) === 'Exif') return tiffOrientation(segment.subarray(6))
   return tiffOrientation(segment)
 }
@@ -128,7 +143,8 @@ function startOfFrame(marker: number): boolean {
 function noteJpeg(note: JpegNote, marker: number, segment: Buffer): 'truncated' | undefined {
   if (marker === 0xe1) {
     const found = exifOrientation(segment)
-    if (found !== undefined) note.orientation = found
+    if (found === 'truncated') return found
+    if (typeof found === 'number') note.orientation = found
   }
   if (!startOfFrame(marker)) return undefined
   if (segment.length < 5) return 'truncated'
@@ -255,9 +271,10 @@ function noteVp8l(note: WebpNote, data: Buffer): undefined {
   return undefined
 }
 
-function noteWebpExif(note: WebpNote, data: Buffer): undefined {
+function noteWebpExif(note: WebpNote, data: Buffer): Stop | undefined {
   const found = exifOrientation(data)
-  if (found !== undefined) note.orientation = found
+  if (found === 'truncated') return found
+  if (typeof found === 'number') note.orientation = found
   return undefined
 }
 
