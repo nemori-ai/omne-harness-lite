@@ -54,7 +54,7 @@ SDK 和服务端接入使用本页的结果表。它们不另写一套结果含�
 服务端接入按下面的次序处理一份已经完成传输保护的消息。前一步已经给出终端结果时，不再做后面的步骤。
 
 1. 严格 JSON 读取。失败则 `protocol-rejected`。不读取账号库。
-2. 操作名是 `disable-subject`、`restore-subject`、`end-subject` 或 `reopen-after-media-loss` 时，立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录。不读取账号库。版本不是 `governance-public/1`，或其他操作名不在本页，则 `protocol-rejected`。
+2. 操作名是 `disable-subject`、`restore-subject`、`end-subject` 或 `reopen-after-media-loss` 时，立刻返回 `stage-not-provided` 和空 `body`。忽略其余字段。不核验登录。不读取账号库。版本不是 `governance-public/1` 也不改变这个结果。版本不是 `governance-public/1` 且操作名不是这四个时，结果是 `protocol-rejected`。其他操作名不在本页时，也是 `protocol-rejected`。
 3. 按上表检查封闭字段。类型不符、表外字段、禁止字段出现、未列入可省略清单的缺字段，都是 `protocol-rejected`。可省略字段可以不出现。这一步仍不读取账号库。必填 `loginProof` 缺失或空字符串不在这一步拒绝。`leave-organization` 的 `body` 若出现目标成员字段，也是 `protocol-rejected`。
 4. 上表要求登录证明时，把缺失、空字符串、未签发、已撤销，以及不是本部署签发的证明，交给 identity。对外是同一份 `denied`。时间或权威登录记录不可得时，identity 返回 `basis-unavailable`。服务端接入不改写这两个结果，也不另持一份登录表。传输保护不证明调用者是谁。裸账号标识、证书、地址、旧连接和调用者自报的授权结果都不是当前登录。
 5. 发起者账号只取这份证明核验出的账号。`body` 里的账号、组织和租户都是目标。
@@ -221,7 +221,7 @@ SDK 不自动再送。`unknown` 之后，调用者用另一份仍有效的登录
 
 `open-affiliation-request`、`accept-affiliation-request`、`reject-affiliation-request` 和 `withdraw-affiliation-request` 实现「处理隶属请求」。
 
-打开请求的 `body` 含上级组织和下级组织。个人组织不能参与，对外是 `denied`。可以带授权范围内的时长。超出范围是 `denied`，不建立请求。省略时长时，使用提交当时该部署配置里的隶属请求默认时长。这个默认时长与成员邀请的默认时长分开。接收方处理前，发起组织已经不存在则该请求失效。有权看见的调用者得到 `no-change`，`body.state` 为 `invalid`。无权看见的调用者得到 `not-visible`。失效不能建立关系，之后也不能被接受、拒绝或撤回覆盖。目标组织不存在时，请求过期。有权看见的调用者得到 `no-change`，`body.state` 为 `expired`。下级身份解除已生效隶属时是 `denied`。已采用模型规定的上级处置资格才可以解除。默认团队的这个资格是上级组织的当前有效超级管理员。
+打开请求的 `body` 含上级组织和下级组织。个人组织不能参与，对外是 `denied`。可以带授权范围内的时长。超出范围是 `denied`，不建立请求。省略时长时，使用提交当时该部署配置里的隶属请求默认时长。这个默认时长与成员邀请的默认时长分开。接收方处理前，发起组织已经不存在则该请求失效。有权看见的调用者得到 `no-change`，`body.state` 为 `invalid`。无权看见的调用者得到 `not-visible`。失效不能建立关系，之后也不能被接受、拒绝或撤回覆盖。目标组织不存在时，请求过期。有权看见的调用者得到 `no-change`，`body.state` 为 `expired`。无权看见的调用者得到 `not-visible`。下级身份解除已生效隶属时是 `denied`。已采用模型规定的上级处置资格才可以解除。默认团队的这个资格是上级组织的当前有效超级管理员。
 
 双方确认后，接受成功只建立隶属。不新建租户，不授予权限。每组织至多一个上级，不能自隶属或形成环。会造成环或第二个上级的提交返回 `denied`，`body` 为空，不建立关系。
 
@@ -254,7 +254,7 @@ SDK 不自动再送。`unknown` 之后，调用者用另一份仍有效的登录
 
 撤回的 `body` 含原表达标识。成功时留下撤回事实，并保留原表达。无资格是 `denied`。提交结果未知时，对外是 `unknown`。该结果不把原表达改成已撤回，也不把未知写成已经生效。读取故障不把原表达写成已撤回，对外是 `basis-unavailable`。
 
-表达已经写入、持久设置尚未更新时，结果是 `succeeded`。`body` 写明持久设置尚未因此更新。持久规则的写入本身失败、表达也没有作为持久设置生效时，结果是 `basis-unavailable`。写入结果未知是 `unknown`。`basis-unavailable` 和 `unknown` 都不报告规则已经生效。已消费的许可不能复用。重复提交同一决定不增加许可，有权调用者得到 `no-change`。SDK 不自动再送。
+表达记录已经提交、持久设置的更新尚未发生时，结果是 `succeeded`。`body` 写明持久设置尚未因此更新。持久设置的这次写入已经失败、表达也没有成为持久设置时，结果是 `basis-unavailable`。写入结果未知是 `unknown`。`basis-unavailable` 和 `unknown` 都不报告规则已经生效。已消费的许可不能复用。重复提交同一决定不增加许可，有权调用者得到 `no-change`。SDK 不自动再送。
 
 ## 当前读面
 
@@ -264,7 +264,7 @@ SDK 不自动再送。`unknown` 之后，调用者用另一份仍有效的登录
 
 不带登录证明，也不带行事租户。`body` 为空对象。
 
-成功时，`body` 只有 `protocolVersion` 为 `governance-public/1`。它表示对端按本协议作了回答。它不表示登录有效，也不表示治理写入可用。不读取账号库。不刷新空闲计时。SDK 不自动再送。连接失败不是 `basis-unavailable`。调用者没有可信答复时是 `unknown`。
+成功时，`body` 只有 `protocolVersion` 为 `governance-public/1`。它表示对端按本协议作了回答。它不表示登录有效，也不表示治理写入可用。不读取账号库。不刷新空闲计时。SDK 不自动再送。调用者没有可信答复时是 `unknown`。传输保护失败属于这一类，不是 `basis-unavailable`。
 
 ### `query-current-tenant`
 
@@ -288,7 +288,7 @@ SDK 不自动再送。`unknown` 之后，调用者用另一份仍有效的登录
 
 需要有效登录。行事租户必须等于当前选择，但它不必是 `body` 里那个组织的租户。成员资格按 `body` 的组织单独核对。`body` 含组织标识。`includeRemoved` 省略时为 false。
 
-false 时，任何当前有效成员得到该组织当前有效成员和角色。true 时，只有具有该读资格的人得到已解除成员，数组里没有当前有效成员。默认团队的这个资格是当前有效超级管理员。没有该资格的人把 true 送入时是 `denied`，并且没有成员数组。不改成只返回有效成员。看不见该组织时是 `not-visible`。SDK 不自动再送。
+false 时，具有该读面资格的人得到该组织当前有效成员和角色。默认团队的这个资格是当前有效成员。其他模型沿 identity ID-12。true 时，只有具有已解除成员读资格的人得到已解除成员，数组里没有当前有效成员。默认团队的这个资格是当前有效超级管理员。其他模型沿 identity ID-12。没有该资格的人把 true 送入时是 `denied`，并且没有成员数组。不改成只返回有效成员。看不见该组织时是 `not-visible`，包括同时送入 `includeRemoved: true`。SDK 不自动再送。
 
 ### `query-invitation`
 
@@ -377,7 +377,7 @@ export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
 
 ## 这些输入的结果
 
-缺 `loginProof` 只有 `denied`。留存期内同标识同凭据的接续在激活完成时是 `succeeded`。已经激活后再注册是 `not-loginable`。陌生账号接受邀请是 `not-visible`。过期邀请返回已有的过期终结，不写成新的接受。`query-current-tenant` 不带行事租户，并能返回当前选择。`issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。四个阶段外操作在坏 `body` 和坏证明下都是 `stage-not-provided`。
+字段表要求 `loginProof` 时，缺失或空字符串只有 `denied`。字段表禁止该字段时，出现该字段是 `protocol-rejected`。留存期内同标识同凭据的接续在激活完成时是 `succeeded`。已经激活后再注册是 `not-loginable`。陌生账号接受邀请是 `not-visible`。过期且调用者有权看见的邀请，返回已有的过期终结，不写成新的接受。看不见时是 `not-visible`。`query-current-tenant` 不带行事租户，并能返回当前选择。`issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏 `body`、坏证明和非本协议版本下都是 `stage-not-provided`。
 
 重复 `protocolVersion` 的读取结果由 json-text 的 `duplicate-key` 表示。本页把该结果映射为 `protocol-rejected`。json-text 不选择一个版本。
 

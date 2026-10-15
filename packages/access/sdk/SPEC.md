@@ -48,10 +48,10 @@ export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
 
 SDK 不另写结果含义。必须遵守的客户端规则是自动再送条件和不缓存允许。下列输入的结果以公开契约为准。
 
-- 缺登录证明只有 `denied`。
+- 字段表要求登录证明时，缺失或空字符串只有 `denied`。字段表禁止该字段时，出现该字段是 `protocol-rejected`。
 - 留存期内的接续在激活完成时是 `succeeded`。已经激活后再注册是 `not-loginable`。
-- 陌生账号接受邀请是 `not-visible`。过期邀请返回已有的过期终结。
+- 陌生账号接受邀请是 `not-visible`。过期且有权看见的邀请返回已有的过期终结。看不见时是 `not-visible`。
 - `query-current-tenant` 不带行事租户。
 - `issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。
-- 四个阶段外操作在坏正文和坏证明下都是 `stage-not-provided`。
+- `disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏正文、坏证明和非本协议版本下都是 `stage-not-provided`。
 

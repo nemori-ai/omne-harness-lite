@@ -4,7 +4,7 @@
 
 ## 入口职责
 
-服务端接入接受已经完成传输保护的字节。传输保护失败时，调用者得到的是连接失败，不是业务结果。远程字节流必须具备保密和完整。本页不把 HTTP、WebSocket 或 stdio 定成传输，也不选定具体保护协议。
+服务端接入接受已经完成传输保护的字节。传输保护失败时，调用者没有可信答复，对外是 `unknown`，不是 `basis-unavailable`，也不是业务结果。远程字节流必须具备保密和完整。本页不把 HTTP、WebSocket 或 stdio 定成传输，也不选定具体保护协议。
 
 接入用公开契约指定的严格 JSON 读取这些字节。读取失败是 `protocol-rejected`。它不挑选重复的 `protocolVersion`。
 
@@ -22,10 +22,10 @@
 
 入口不另写结果含义。入口在坏 JSON 上没有业务效果。`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 不核验登录。登录证明的结果不被入口改写。下列输入的结果以公开契约为准。
 
-- 缺登录证明只有 `denied`。
+- 字段表要求登录证明时，缺失或空字符串只有 `denied`。字段表禁止该字段时，出现该字段是 `protocol-rejected`。
 - 留存期内的接续在激活完成时是 `succeeded`。已经激活后再注册是 `not-loginable`。
-- 陌生账号接受邀请是 `not-visible`。过期邀请返回已有的过期终结。
+- 陌生账号接受邀请是 `not-visible`。过期且有权看见的邀请返回已有的过期终结。看不见时是 `not-visible`。
 - `query-current-tenant` 不带行事租户。
 - `issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。
-- 四个阶段外操作在坏正文和坏证明下都是 `stage-not-provided`。
+- `disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏正文、坏证明和非本协议版本下都是 `stage-not-provided`。
 
