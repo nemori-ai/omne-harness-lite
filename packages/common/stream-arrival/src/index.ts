@@ -181,7 +181,7 @@ const PART_KINDS = [
 const STEP_KEYS: Readonly<Record<StreamArrivalStep, readonly string[]>> = {
   open: ['step', 'index', 'mode', 'head'],
   fill: ['step', 'index', 'seq', 'chunk'],
-  close: ['step', 'index'],
+  close: ['step', 'index', 'block'],
   trim: ['step', 'index', 'removed', 'reason'],
   finish: ['step', 'index'],
 }
@@ -263,6 +263,8 @@ interface FillStep {
 interface CloseStep {
   readonly step: 'close'
   readonly index: string
+  /** Present means this JSON value is the sealed part. Absent seals the fragments. */
+  readonly block?: unknown
 }
 
 interface TrimStep {
@@ -405,7 +407,8 @@ function parseStep(value: unknown): Parsed {
   if (hasUnknownKey(value, STEP_KEYS[name])) return { rejected: 'step' }
   const index = admitted.ok.index
   if (decimalIndex(index) === undefined) return { rejected: 'index' }
-  if (name === 'close' || name === 'finish') return { step: { step: name, index } }
+  if (name === 'close') return parseClose(value, index)
+  if (name === 'finish') return { step: { step: name, index } }
   if (name === 'open') return parseOpen(value, index)
   if (name === 'fill') return parseFill(value, index)
   return parseTrim(value, index)
@@ -418,6 +421,12 @@ function parseOpen(value: Record<string, unknown>, index: string): Parsed {
   const head = copyJson(value.head)
   if (!isPlainRecord(head)) return { rejected: 'json' }
   return { step: { step: 'open', index, mode: value.mode, head } }
+}
+
+function parseClose(value: Record<string, unknown>, index: string): Parsed {
+  if (!Object.hasOwn(value, 'block')) return { step: { step: 'close', index } }
+  if (!isJsonValue(value.block)) return { rejected: 'json' }
+  return { step: { step: 'close', index, block: copyJson(value.block) } }
 }
 
 function parseFill(value: Record<string, unknown>, index: string): Parsed {
@@ -507,17 +516,30 @@ function applyFill(state: LiveState, step: FillStep): Applied {
   return { state: { ...state, blocks: replaceBlock(state.blocks, next) } }
 }
 
+function bodyConflicts(block: OpenBlock, sealed: MessagePart): boolean {
+  const field = BODY[block.kind].field
+  if (field !== 'text' && field !== 'inline') return false
+  const record = sealed as unknown as Record<string, unknown>
+  return record[field] !== block.body
+}
+
+function seal(state: LiveState, index: number, candidate: unknown, open: OpenBlock): Applied {
+  const judged = judgePart(candidate)
+  if ('rejected' in judged) return { rejected: 'block', detail: judged.rejected }
+  if (bodyConflicts(open, judged.ok)) return { rejected: 'conflict' }
+  const closed: ClosedBlock = { slot: 'closed', index, part: judged.ok }
+  return { state: { ...state, blocks: replaceBlock(state.blocks, closed) } }
+}
+
 function applyClose(state: LiveState, step: CloseStep): Applied {
   const block = blockAt(state, step.index)
   if (block === undefined) return { rejected: 'unopened' }
   if (block.slot !== 'open') return { rejected: 'closed' }
+  if (step.block !== undefined) return seal(state, block.index, step.block, block)
   const field = BODY[block.kind].field
   const head = copyJson(block.head) as Record<string, unknown>
   const candidate = field === undefined ? head : { ...head, [field]: block.body }
-  const judged = judgePart(candidate)
-  if ('rejected' in judged) return { rejected: 'block', detail: judged.rejected }
-  const closed: ClosedBlock = { slot: 'closed', index: block.index, part: judged.ok }
-  return { state: { ...state, blocks: replaceBlock(state.blocks, closed) } }
+  return seal(state, block.index, candidate, block)
 }
 
 function applyTrim(state: LiveState, step: TrimStep): Applied {

@@ -201,6 +201,103 @@ it('rejects a hand-built live value as from', () => {
   })
 })
 
+it('seals a close block that matches the accumulated text', () => {
+  const provided = { ...block, id: 'b9' }
+  expect(
+    assembleStream({
+      target: target(),
+      steps: [open, fill0, fill1, { step: 'close', index: '0', block: provided }, finish],
+    }),
+  ).toEqual({
+    ok: {
+      phase: 'ended',
+      terminal: {
+        kind: 'complete',
+        message: { id, role: 'assistant', blocks: [provided] },
+        trims: [],
+      },
+    },
+  })
+})
+
+it('rejects a close block whose text disagrees and keeps the prior assembly', () => {
+  const opened = assembleStream({ target: target(), steps: [open, fill0] })
+  const prior = live(opened)
+  const done = assembleStream({
+    target: target(),
+    from: prior,
+    steps: [{ step: 'close', index: '0', block: { ...oneFill, text: 'other' } }],
+  })
+  expect(done).toEqual({ rejected: 'conflict', at: 0, assembly: prior })
+  if (!('rejected' in done)) throw new Error('expected conflict')
+  expect(done.assembly).toBe(prior)
+})
+
+it('rejects a close block whose inline body disagrees', () => {
+  expect(
+    assembleStream({
+      target: target(),
+      steps: [
+        {
+          step: 'open',
+          index: '0',
+          mode: 'append',
+          head: { kind: 'voice', id: 'b3', visibility, mediaType: 'audio/ogg' },
+        },
+        { step: 'fill', index: '0', seq: '0', chunk: 'ogg' },
+        {
+          step: 'close',
+          index: '0',
+          block: {
+            kind: 'voice',
+            id: 'b3',
+            visibility,
+            mediaType: 'audio/ogg',
+            inline: 'other',
+          },
+        },
+      ],
+    }),
+  ).toEqual({ rejected: 'conflict', at: 2, assembly: { phase: 'live' } })
+})
+
+it('seals a tool_call close block when arguments differ from the fill', () => {
+  const sealed = { kind: 'tool_call', callId: 'c1', arguments: '{"a":2}' }
+  expect(
+    assembleStream({
+      target: target(),
+      steps: [
+        { step: 'open', index: '0', mode: 'append', head: { kind: 'tool_call', callId: 'c1' } },
+        { step: 'fill', index: '0', seq: '0', chunk: '{"a":1}' },
+        { step: 'close', index: '0', block: sealed },
+        finish,
+      ],
+    }),
+  ).toEqual({
+    ok: {
+      phase: 'ended',
+      terminal: {
+        kind: 'complete',
+        message: { id, role: 'assistant', blocks: [sealed] },
+        trims: [],
+      },
+    },
+  })
+})
+
+it('rejects a close block that is not JSON and keeps the prior assembly', () => {
+  const opened = assembleStream({ target: target(), steps: [open, fill0] })
+  const prior = live(opened)
+  const done = assembleStream({
+    target: target(),
+    from: prior,
+    steps: [{ step: 'close', index: '0', block: { ...oneFill, text: 1n } }],
+  })
+  expect(done).toEqual({ rejected: 'json', at: 0, assembly: prior })
+  if (!('rejected' in done)) throw new Error('expected json')
+  expect(done.assembly).toBe(prior)
+})
+
 it('ends when stopped before any block closes', () => {
   const stopped = assembleStream({
     target: target(),
