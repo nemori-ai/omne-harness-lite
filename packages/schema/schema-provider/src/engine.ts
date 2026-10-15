@@ -18,25 +18,52 @@ export function compileZod(schema: StandardTyped<unknown>): (value: unknown) => 
 }
 
 function mapIssues(
-  issues: readonly { readonly code: string; readonly path: readonly PropertyKey[] }[],
+  issues: readonly {
+    readonly code: string
+    readonly path: readonly PropertyKey[]
+    readonly keys?: readonly PropertyKey[]
+    readonly origin?: string
+    readonly minimum?: number | bigint
+  }[],
 ): readonly [SchemaIssue, ...SchemaIssue[]] {
-  const mapped = issues.map(issue => ({
-    path: issue.path.filter(
-      (segment): segment is string | number =>
-        typeof segment === 'string' || typeof segment === 'number',
-    ),
-    code: issueCode(issue.code),
-  }))
+  const mapped: SchemaIssue[] = []
+  for (const issue of issues) {
+    const path = issuePath(issue.path)
+    if (issue.code === 'unrecognized_keys' && issue.keys !== undefined && issue.keys.length > 0) {
+      for (const key of issue.keys) {
+        if (typeof key === 'string' || typeof key === 'number') {
+          mapped.push({ path: [...path, key], code: 'unrecognized-key' })
+        }
+      }
+      continue
+    }
+    mapped.push({ path, code: issueCode(issue) })
+  }
   const first = mapped[0]
   if (first === undefined) return [{ path: [], code: 'constraint' }]
   return [first, ...mapped.slice(1)]
 }
 
-function issueCode(code: string): IssueCode {
-  if (code === 'invalid_type') return 'type'
-  if (code === 'unrecognized_keys') return 'unrecognized-key'
+function issuePath(path: readonly PropertyKey[]): (string | number)[] {
+  return path.filter(
+    (segment): segment is string | number => typeof segment === 'string' || typeof segment === 'number',
+  )
+}
+
+function issueCode(issue: {
+  readonly code: string
+  readonly origin?: string
+  readonly minimum?: number | bigint
+}): IssueCode {
+  if (issue.code === 'invalid_type') return 'type'
+  if (issue.code === 'unrecognized_keys') return 'unrecognized-key'
+  if (issue.code === 'too_small' && issue.minimum === 1 && EMPTY_ORIGINS.has(issue.origin ?? '')) {
+    return 'empty'
+  }
   return 'constraint'
 }
+
+const EMPTY_ORIGINS: ReadonlySet<string> = new Set(['string', 'array', 'set', 'map'])
 
 /** Ajv runs only after admission has allowed an acyclic document. */
 export function compileJsonSchema(
