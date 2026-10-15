@@ -1,10 +1,12 @@
 # 客户端 SDK 行为规格
 
-状态：Issue 274 修订 1 已接受的治理协议里，客户端职责写入本页。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。本目录还不是可运行的治理 SDK。`src` 不导出治理操作。
+本页拥有治理协议的客户端职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。
 
 ## 客户端职责
 
 SDK 是调用者使用完整 Harness 治理消息的客户端入口。它持有调用者提供的传输适配，以及调用者交给它的登录证明。它把请求交给传输适配，并把响应对回同一次 `messageId`。
+
+注册和签发登录之前，调用者必须已经选定对端信任材料。信任核验失败时，SDK 不发送凭据或登录证明。
 
 SDK 对同一个 `outcome` 使用公开契约里的解释。它不另定拒绝原因，也不把超时写成没有业务效果。
 
@@ -20,11 +22,11 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 SDK 依赖公开契约，以及调用者提供的传输适配接口。它不依赖服务端接入。它不依赖服务器存储类型。
 
-安装闭包以 SDK 成为发布产物之后的依赖清单为准。源码能够编译不能代替该清单。现在还没有这份治理实现的发布产物，所以闭包核对未运行。
+安装闭包以 SDK 发布产物的依赖清单为准。源码能够编译不能代替该清单。
 
 ## 使用示例
 
-下面的对象说明调用方向。它不是本包现在导出的函数。
+调用形状如下。`messageId` 由调用者生成，示例里的值只是占位。`revoke-login` 的字段表禁止行事租户。字段表写明必填的操作才带上当前选择。
 
 ```ts
 import { governanceOperation } from "@omne/access-public-contract";
@@ -44,7 +46,7 @@ export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
 
 ## 验证
 
-本页的核对是阅读公开契约，并确认 SDK 没有第二套结果含义。必须观察到的客户端规则是自动再送条件和不缓存允许。下列观察的结果句子在公开契约，本页不另写含义。这些观察尚未运行实现测试。
+SDK 不另写结果含义。必须遵守的客户端规则是自动再送条件和不缓存允许。下列输入的结果以公开契约为准。
 
 - 缺登录证明只有 `denied`。
 - 留存期内的接续在激活完成时是 `succeeded`。已经激活后再注册是 `not-loginable`。
@@ -53,4 +55,3 @@ export function revokeOwnLogin(proof: string, targetLoginId: string): unknown {
 - `issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。
 - 四个阶段外操作在坏正文和坏证明下都是 `stage-not-provided`。
 
-长期个人负责人尚未具名。

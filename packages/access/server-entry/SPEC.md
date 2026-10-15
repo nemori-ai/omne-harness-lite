@@ -1,16 +1,16 @@
 # 服务端接入行为规格
 
-状态：Issue 274 修订 1 已接受的治理协议里，入口职责写入本页。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。本目录还不是可运行的治理服务器。`src` 不导出治理路由。
+本页拥有治理协议的入口职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。
 
 ## 入口职责
 
-服务端接入接受已经完成传输保护的字节。传输保护失败时，调用者得到的是连接失败，不是业务结果。远程链路上，传输保护包括通常称为 TLS 的保护。本页不选择 HTTP、WebSocket 或 stdio。
+服务端接入接受已经完成传输保护的字节。传输保护失败时，调用者得到的是连接失败，不是业务结果。远程字节流必须具备保密和完整。本页不把 HTTP、WebSocket 或 stdio 定成传输，也不选定具体保护协议。
 
 接入用公开契约指定的严格 JSON 读取这些字节。读取失败是 `protocol-rejected`。它不挑选重复的 `protocolVersion`。
 
-接入按公开契约的判定次序处理。前一步已经给出终端结果时，不再做后面的步骤。四个本阶段不提供的操作名在封闭字段和登录核验之前返回 `stage-not-provided`。
+接入按公开契约的判定次序处理。前一步已经给出终端结果时，不再做后面的步骤。`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在封闭字段和登录核验之前返回 `stage-not-provided`。
 
-必填登录证明的缺失、空字符串、未签发、已撤销和其他中心交给 identity。对外是同一份 `denied`。时间或权威记录不可得时，identity 返回 `basis-unavailable`。接入不改写这两个结果，也不另持一份登录表。
+必填登录证明的缺失、空字符串、未签发、已撤销，以及不是本部署签发的证明，交给 identity。对外是同一份 `denied`。时间或权威记录不可得时，identity 返回 `basis-unavailable`。接入不改写这两个结果，也不另持一份登录表。
 
 发起者只取证明核验出的账号。请求体里的账号、组织和租户是目标。通过协议检查的请求交给 identity 与 authorization 的公开入口。接入不把存储对象放进公开响应。
 
@@ -20,7 +20,7 @@
 
 ## 验证
 
-本页的核对是阅读公开契约的判定次序，并确认入口没有第二套结果含义。必须观察到的入口规则是坏 JSON 没有业务效果，阶段外操作不核验登录，登录证明的结果不被入口改写。下列观察的结果句子在公开契约，本页不另写含义。这些观察尚未运行实现测试。真实服务器不在本卡。
+入口不另写结果含义。入口在坏 JSON 上没有业务效果。`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 不核验登录。登录证明的结果不被入口改写。下列输入的结果以公开契约为准。
 
 - 缺登录证明只有 `denied`。
 - 留存期内的接续在激活完成时是 `succeeded`。已经激活后再注册是 `not-loginable`。
@@ -29,4 +29,3 @@
 - `issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。
 - 四个阶段外操作在坏正文和坏证明下都是 `stage-not-provided`。
 
-长期个人负责人尚未具名。
