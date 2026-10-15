@@ -184,7 +184,7 @@ AR-J05 的设置与权限主行为分别由 [settings](../settings/SPEC.md#journ
 
 与上文的关系：
 
-- 「具体公开类型、类别扩展协议及发布入口尚待设计」仍然有效。本节只写操作和两个样例。
+- 「类别扩展协议及发布入口尚待设计」仍然有效。公开类型见[已接受的公开类型](#accepted-public-types)。本节的操作和两个样例仍然有效。
 - 「不另指定时跟随当前版」与项目要求里「未写明版本则采用当时的合法胜出者」指向同一选版结果。已捕获的调用内容不因新版本改变。
 
 类别提供者列出候选项，并按点名的版本交出正文。候选项说明六件事：身份与版本、治理所需信息、交互、失败、资源、验证责任。身份是类别加 name。提供者不决定本次采用。来源、类别校验或存储不可取得时，返回可辨的失败，不把未核验内容当成合法空定义。
@@ -202,3 +202,19 @@ Cordis 按组合挂载提供者。提供者向装配侧的注册表登记。注�
 成功。求值写明版本 `v2`。提供者按 `v2` 交出正文。正文是该 Skill 的任务指令。固定为 `v2` 不豁免资格。资格不成立时，提供者返回失败，种类是候选被拒绝，不交出正文。正文一经记入采用依据，后续读取仍是这份记录。尚未取用的另一 Skill，后续取用读取当时的合法版本。
 
 失败。身份里的类别没有已接受的拥有者。提供者返回失败。种类是无类别拥有者。装配侧不解释该正文，也不采用。
+
+## 已接受的公开类型
+
+<a id="accepted-public-types"></a>
+
+PanQiWei 于 2026-10-15 接受这组编程类型，记录见 [Issue 272](https://github.com/nemori-ai/omne-harness-lite/issues/272#issuecomment-6194044008)。上文「类别提供方」的操作不变。
+
+共同资产导出 `capabilityId`、`createCategoryRegistry`、`unknownCategory`、`isReadBody` 和 `pinBody`。类别是非空字符串。`register` 拒绝空类别名和重复登记。`lookup` 找不到类别时，`unknownCategory` 返回 `unknown-category`。`readBodyText` 返回的正文是冻结副本。调用方不能改写它，也不能在上面安装取值函数。`pinBody` 再复制这份冻结正文。判断和固定都不读取调用方后来换上的函数。未经 `readBodyText` 的正文被拒绝。
+
+`BodyContract` 的字段是 `category`、`schema`、`judge`、`deriveDeclarations`、`references`。正文文本先经 `readBodyText`。它调用 `@omne-harness/json-text` 的 `readJsonText`，不另写解析器。`judge` 只接受这份读取结果。对象字面量、伪造的种类和空条目都返回 `incomplete-reference`。判断不调用传入的函数。`judge` 的失败结果带 `ok: false`。声明和引用接收同一次判断的上下文。判断失败时它们抛出，不返回声明或引用。
+
+本次不调用 `@omne-harness/schema-provider`。`schema` 是类别拥有者随端口给出的说明文档，由同一次文本读取得到。正文是否合法由 `judge` 决定。公开入口是 `readBodyText` 和 `judge`。验证命令是 `pnpm --filter @omne-harness/assets test`。
+
+能力身份是类别加 name。本卡不重新定义 `AccountId`、`OrganizationId`、`TenantId`、`LoginStateId` 或 `ScopeLayerIdentity`。这些值不是本卡的输入，所以本成员不依赖 `@omne-harness/legal-identity`。本成员不依赖装配、Tool 或 Skill 的实现包。
+
+`@omne-harness/tool` 登记 `tool`。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用。`@omne-harness/skill` 登记 `skill`。`tools` 里每一条都必须是 `tool` 身份。读判断不执行正文里的函数。Skill 包不依赖 Tool 包。
