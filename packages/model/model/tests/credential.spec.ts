@@ -153,6 +153,8 @@ it('revocation rejects the next resolve and keeps the earlier send', () => {
   expect(sent.send).toEqual({ sent: true, value: SECRET })
   expect(next.kind).toBe('denied')
   expect(custodian.present(ref)).toMatchObject({ kind: 'known', present: true })
+  custodian.markUnreadable(ref)
+  expect(custodian.resolve(ref, face()).kind).toBe('denied')
 })
 
 it('another tenant cannot replace or rotate this tenant secret', () => {

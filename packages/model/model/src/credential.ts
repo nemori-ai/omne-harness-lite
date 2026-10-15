@@ -61,13 +61,14 @@ export type CredentialPort = {
   diagnostics(): readonly Diagnostic[]
 }
 
+type BindingLife = 'active' | 'revoked' | 'unreadable'
+
 type Binding = {
   readonly id: CredentialId
   readonly tenant: TenantId
   readonly purpose: CredentialPurpose
   readonly secret: string
-  readonly revoked: boolean
-  readonly unreadable: boolean
+  readonly life: BindingLife
 }
 
 export type CustodianState = {
@@ -76,19 +77,24 @@ export type CustodianState = {
   readonly bindings: readonly Binding[]
 }
 
+export function sameHolder(
+  item: { readonly id: CredentialId; readonly tenant: TenantId },
+  reference: CredentialQuery,
+): boolean {
+  return item.id === reference.id && tenantEquals(item.tenant, reference.tenant)
+}
+
 export function credentialId(value: string): CredentialId | undefined {
   if (value.length === 0 || value.includes(' ')) return undefined
   return value as CredentialId
 }
 
 export function present(state: CustodianState, reference: CredentialQuery): Presence {
-  if (state.closed) return { kind: 'denied' }
-  const binding = state.bindings.find(
-    (item) => item.id === reference.id && tenantEquals(item.tenant, reference.tenant),
-  )
+  if (state.closed || reference.purpose !== MODEL_SEND) return { kind: 'denied' }
+  const binding = state.bindings.find((item) => sameHolder(item, reference))
   return {
     kind: 'known',
-    present: binding !== undefined && !binding.revoked,
+    present: binding !== undefined,
     id: reference.id,
     tenant: reference.tenant,
     purpose: binding?.purpose ?? MODEL_SEND,
@@ -101,25 +107,21 @@ export function resolve(
   face: SendFace,
 ): Resolution {
   if (state.closed || !face.authorized || reference.purpose !== MODEL_SEND) return { kind: 'denied' }
-  const binding = state.bindings.find((item) => item.id === reference.id)
-  if (!binding) {
-    const tenantHasBinding = state.bindings.some((item) =>
-      tenantEquals(item.tenant, reference.tenant),
-    )
-    if (face.official && !tenantHasBinding) {
-      return { kind: 'value', scope: 'factory', value: state.factorySecret }
-    }
-    return { kind: 'absent' }
-  }
-  if (
-    !tenantEquals(binding.tenant, reference.tenant) ||
-    binding.purpose !== reference.purpose ||
-    binding.revoked
-  ) {
-    return { kind: 'denied' }
-  }
-  if (binding.unreadable) return { kind: 'unreadable' }
+  const binding = state.bindings.find((item) => sameHolder(item, reference))
+  if (!binding) return missing(state, reference, face)
+  if (binding.life === 'revoked') return { kind: 'denied' }
+  if (binding.life === 'unreadable') return { kind: 'unreadable' }
   return { kind: 'value', scope: 'tenant', value: binding.secret }
+}
+
+function missing(state: CustodianState, reference: CredentialQuery, face: SendFace): Resolution {
+  const heldByOther = state.bindings.some((item) => item.id === reference.id)
+  if (heldByOther) return { kind: 'denied' }
+  const tenantHasBinding = state.bindings.some((item) => tenantEquals(item.tenant, reference.tenant))
+  if (face.official && !tenantHasBinding) {
+    return { kind: 'value', scope: 'factory', value: state.factorySecret }
+  }
+  return { kind: 'absent' }
 }
 
 export type StoredTenant = {
@@ -132,8 +134,7 @@ export type StoredBinding = {
   readonly tenant: StoredTenant
   readonly purpose: CredentialPurpose
   readonly secret: string
-  readonly revoked: boolean
-  readonly unreadable: boolean
+  readonly life: BindingLife
 }
 
 export type StoredCustodian = {
@@ -143,9 +144,10 @@ export type StoredCustodian = {
 }
 
 export function loadState(raw: unknown): CustodianState | undefined {
-  if (!raw || typeof raw !== 'object') return undefined
-  const body = raw as Partial<StoredCustodian>
-  if (typeof body.closed !== 'boolean' || typeof body.factorySecret !== 'string') return undefined
+  const body = record(raw)
+  if (!body) return undefined
+  const factorySecret = text(body.factorySecret)
+  if (typeof body.closed !== 'boolean' || factorySecret === undefined) return undefined
   if (!Array.isArray(body.bindings)) return undefined
   const bindings: Binding[] = []
   for (const row of body.bindings) {
@@ -153,40 +155,57 @@ export function loadState(raw: unknown): CustodianState | undefined {
     if (!parsed) return undefined
     bindings.push(parsed)
   }
-  return { closed: body.closed, factorySecret: body.factorySecret, bindings }
+  return { closed: body.closed, factorySecret, bindings }
 }
 
 export function storeState(state: CustodianState): StoredCustodian {
   return {
-    closed: state.closed,
+    closed: false,
     factorySecret: state.factorySecret,
     bindings: state.bindings.map((item) => ({
       id: item.id,
       tenant: { organization: item.tenant.organization.text, account: item.tenant.account.text },
       purpose: item.purpose,
       secret: item.secret,
-      revoked: item.revoked,
-      unreadable: item.unreadable,
+      life: item.life,
     })),
   }
 }
 
 function loadBinding(row: unknown): Binding | undefined {
-  if (!row || typeof row !== 'object') return undefined
-  const item = row as Partial<StoredBinding>
-  if (typeof item.id !== 'string' || item.purpose !== MODEL_SEND) return undefined
-  if (typeof item.secret !== 'string' || typeof item.revoked !== 'boolean') return undefined
-  if (typeof item.unreadable !== 'boolean' || !item.tenant) return undefined
-  const id = credentialId(item.id)
-  const organization = organizationCodec.parse(item.tenant.organization)
-  const account = accountCodec.parse(item.tenant.account)
+  const item = record(row)
+  const tenantRow = item ? record(item.tenant) : undefined
+  if (!item || !tenantRow) return undefined
+  const idText = text(item.id)
+  const secret = text(item.secret)
+  const organizationText = text(tenantRow.organization)
+  const accountText = text(tenantRow.account)
+  const life = bindingLife(item.life)
+  if (!idText || secret === undefined || item.purpose !== MODEL_SEND || !life) return undefined
+  if (!organizationText || !accountText) return undefined
+  const id = credentialId(idText)
+  const organization = organizationCodec.parse(organizationText)
+  const account = accountCodec.parse(accountText)
   if (!id || !organization.ok || !account.ok) return undefined
   return {
     id,
     tenant: tenant(organization.value, account.value),
-    purpose: item.purpose,
-    secret: item.secret,
-    revoked: item.revoked,
-    unreadable: item.unreadable,
+    purpose: MODEL_SEND,
+    secret,
+    life,
   }
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  return value as Record<string, unknown>
+}
+
+function text(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
+function bindingLife(value: unknown): BindingLife | undefined {
+  if (value === 'active' || value === 'revoked' || value === 'unreadable') return value
+  return undefined
 }

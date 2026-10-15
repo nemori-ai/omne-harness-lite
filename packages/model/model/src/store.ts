@@ -1,10 +1,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { tenantEquals } from '@omne-harness/legal-identity'
 import {
   loadState,
   present,
   resolve,
+  sameHolder,
   storeState,
   type CredentialPort,
   type CredentialReference,
@@ -59,8 +59,8 @@ function live(path: string, initial: CustodianState): LocalCustodian {
     },
     resolve(reference, face) {
       const decision = resolve(state, reference, face)
-      const binding = state.bindings.find((item) => item.id === reference.id)
-      note(decision.kind, Boolean(binding && tenantEquals(binding.tenant, reference.tenant)))
+      const binding = state.bindings.find((item) => sameHolder(item, reference))
+      note(decision.kind, binding !== undefined)
       return decision
     },
     diagnostics: () => notes,
@@ -70,12 +70,11 @@ function live(path: string, initial: CustodianState): LocalCustodian {
         tenant: reference.tenant,
         purpose: reference.purpose,
         secret,
-        revoked: false,
-        unreadable: false,
+        life: 'active' as const,
       }
       state = {
         ...state,
-        bindings: [...state.bindings.filter((item) => item.id !== reference.id), binding],
+        bindings: [...state.bindings.filter((item) => !sameHolder(item, reference)), binding],
       }
       save()
     },
@@ -83,7 +82,7 @@ function live(path: string, initial: CustodianState): LocalCustodian {
       state = {
         ...state,
         bindings: state.bindings.map((item) =>
-          item.id === reference.id ? { ...item, secret } : item,
+          sameHolder(item, reference) ? { ...item, secret } : item,
         ),
       }
       save()
@@ -92,7 +91,7 @@ function live(path: string, initial: CustodianState): LocalCustodian {
       state = {
         ...state,
         bindings: state.bindings.map((item) =>
-          item.id === reference.id ? { ...item, revoked: true } : item,
+          sameHolder(item, reference) ? { ...item, life: 'revoked' } : item,
         ),
       }
       save()
@@ -101,14 +100,13 @@ function live(path: string, initial: CustodianState): LocalCustodian {
       state = {
         ...state,
         bindings: state.bindings.map((item) =>
-          item.id === reference.id ? { ...item, unreadable: true } : item,
+          sameHolder(item, reference) && item.life === 'active' ? { ...item, life: 'unreadable' } : item,
         ),
       }
       save()
     },
     close() {
       state = { ...state, closed: true }
-      save()
     },
   }
 }

@@ -6,6 +6,7 @@ import { deliver, type CallRecord } from './deliver.ts'
 export function deliverInjected(ctx: Context, record: CallRecord, face: SendFace) {
   let outcome: ReturnType<typeof deliver> | undefined
   const fiber = ctx.inject([ModelCredentialService.provide], (inner) => {
+    if (outcome !== undefined) return
     const service = inner.modelCredential
     if (!(service instanceof ModelCredentialService)) {
       outcome = { record, send: { sent: false } }
