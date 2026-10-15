@@ -91,14 +91,12 @@ PF-009 要求用户已经看见的内容在故障后仍可查，同时另一段�
 
 到达语法的产品来源在 [MODEL-E02 到达语法的跨产品来源承接](../../../.meta_harness/design/product/model-invocation/design.md#model-e02)维护完整跨产品承接缺项。模型结果 ACK 的当前产品责任候选见[模型调用的结果承接与清理](../../../.meta_harness/design/product/model-invocation/design.md#j-md06)，可靠交接的候选责任见[会话与工作的故障接续](../../../.meta_harness/design/product/sessions-and-work/design.md#故障后接续原工作并保留真实结果与成本)。两者仍为草案；本页既有承诺按实际接受范围执行。
 
-## 未决问题与待办事项
-
-以下事项沿本页已接受要求继续承接。来源定位不表示现行契约已经完整或验证已通过。
+## 现行契约
 
 <a id="stream-t01"></a>
 ### STREAM-T01 到达流公共契约的承接
 
-`packages/common/stream-arrival` 发布一次流式交付上的开块、填充、封块、削减和结束。它不是入站受理，也不是 Cordis 派发。模型与工具保留各自的发出和执行，并消费这套词汇。`judgeStreamArrival` 只核对步骤名和序号是否在场，不给步骤排序。`assembleStream` 把同一次交付折成 `live` 或 `ended`。它不重排。序号、重复和续接的精确规则在该成员说明里。
+本项是现行契约。附件保留、断线协议和产品责任入口的草案不在本项里。`packages/common/stream-arrival` 发布一次流式交付上的开块、填充、封块、削减和结束。它不是入站受理，也不是 Cordis 派发。模型与工具保留各自的发出和执行，并消费这套词汇。`judgeStreamArrival` 只核对步骤名和序号是否在场，不给步骤排序。`assembleStream` 把同一次交付折成 `live` 或 `ended`。它不重排。序号、重复和续接的精确规则在该成员说明里。
 
 序号由发出该目标的 runtime 分配。去重范围是这一个目标。模型目标是一次模型调用加 dispatch。工具目标是一次工具执行。装配器不分配序号。同一目标最多记一次账。全局内容哈希不是去重范围。用量和费用的正文不在这个成员里。
 
