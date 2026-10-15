@@ -76,25 +76,11 @@ export function judgeCallAccount(value: unknown): AccountResult {
   if (typeof usage === 'string') return rejected(usage)
   const cost = judgeCost(value.cost)
   if (typeof cost === 'string') return rejected(cost)
-  const trimmed = judgeAmount(value.trimmed)
-  if (typeof trimmed === 'string') return rejected(trimmed === 'extra' ? 'trimmed' : trimmed)
-  if (typeof value.place !== 'string' || value.place.length === 0) return rejected('place')
-  const duration = judgeDuration(value.duration)
-  if (typeof duration === 'string') return rejected(duration)
-  if (value.receipt !== 'received' && value.receipt !== 'late') return rejected('receipt')
-  if (typeof value.revision !== 'string' || !REVISION.test(value.revision)) return rejected('revision')
-  return {
-    ok: {
-      subject,
-      usage,
-      cost,
-      trimmed,
-      place: value.place,
-      duration: duration.value,
-      receipt: value.receipt,
-      revision: value.revision,
-    },
-  }
+  const trimmed = judgeTrimmed(value.trimmed)
+  if (typeof trimmed === 'string') return rejected(trimmed)
+  const scalars = judgeScalars(value)
+  if ('rejected' in scalars) return scalars
+  return { ok: { subject, usage, cost, trimmed, ...scalars.ok } }
 }
 
 export function admitRevision(previous: unknown, next: unknown): AccountResult {
@@ -115,18 +101,35 @@ export function sourceSubtotal(account: unknown, source: unknown): SubtotalResul
   const judged = judgeCallAccount(account)
   if ('rejected' in judged) return judged
   if (!isCostSource(source)) return rejected('source')
-  const rows = judged.ok.cost.filter(item => item.source === source && item.state === 'known')
+  const rows = knownCosts(judged.ok.cost, source)
   if (rows.length === 0) return { ok: { state: 'unknown' } }
+  return sumKnown(rows)
+}
+
+function knownCosts(
+  cost: readonly CostItem[],
+  source: CostSource,
+): readonly { readonly lexeme: string; readonly unit: string }[] {
+  const rows: { lexeme: string; unit: string }[] = []
+  for (const item of cost) {
+    if (item.source === source && item.state === 'known') rows.push({ lexeme: item.lexeme, unit: item.unit })
+  }
+  return rows
+}
+
+function sumKnown(
+  rows: readonly { readonly lexeme: string; readonly unit: string }[],
+): SubtotalResult {
   const unit = rows[0]?.unit
   if (unit === undefined || rows.some(item => item.unit !== unit)) return rejected('unit')
-  if (rows.length === 1 && rows[0]?.state === 'known') {
-    return { ok: { state: 'known', lexeme: rows[0].lexeme, unit } }
+  const only = rows[0]
+  if (rows.length === 1 && only !== undefined) {
+    return { ok: { state: 'known', lexeme: only.lexeme, unit } }
   }
   let total = parseLexeme('0', unit)
   if (typeof total === 'string') return rejected(total)
   for (const item of rows) {
-    if (item.state === 'unknown') continue
-    const parsed = parseLexeme(item.lexeme, item.unit)
+    const parsed = parseLexeme(item.lexeme, unit)
     if (typeof parsed === 'string') return rejected(parsed)
     total = addDecimals(total, parsed)
   }
@@ -142,6 +145,37 @@ export function payableAmount(account: unknown): PayableResult {
 
 export function canonicalAccount(account: CallAccount): string {
   return JSON.stringify(account)
+}
+
+function judgeTrimmed(value: unknown): Amount | AccountRejection {
+  const amount = judgeAmount(value)
+  return amount === 'extra' ? 'trimmed' : amount
+}
+
+function judgeScalars(
+  value: Record<string, unknown>,
+):
+  | {
+      readonly ok: Pick<CallAccount, 'place' | 'duration' | 'receipt' | 'revision'>
+    }
+  | { readonly rejected: AccountRejection } {
+  if (typeof value.place !== 'string' || value.place.length === 0) return rejected('place')
+  const duration = judgeDuration(value.duration)
+  if (typeof duration === 'string') return rejected(duration)
+  if (!isReceipt(value.receipt)) return rejected('receipt')
+  if (typeof value.revision !== 'string' || !REVISION.test(value.revision)) return rejected('revision')
+  return {
+    ok: {
+      place: value.place,
+      duration: duration.value,
+      receipt: value.receipt,
+      revision: value.revision,
+    },
+  }
+}
+
+function isReceipt(value: unknown): value is CallAccount['receipt'] {
+  return value === 'received' || value === 'late'
 }
 
 function judgeSubject(value: unknown): CallAccount['subject'] | AccountRejection {
@@ -180,20 +214,31 @@ function judgeCost(value: unknown): readonly CostItem[] | AccountRejection {
 }
 
 function judgeAmount(value: unknown, extras: readonly string[] = []): Amount | AccountRejection {
-  if (!isRecord(value)) return 'extra'
-  const allowed =
-    value.state === 'unknown'
-      ? ['state', 'unit', ...extras]
-      : ['state', 'lexeme', 'unit', ...extras]
-  if (!exactKeys(value, allowed)) return 'extra'
-  if (value.state !== 'unknown' && value.state !== 'known' && value.state !== 'provisional')
-    return 'lexeme'
+  if (!isRecord(value) || !isAmountState(value.state)) return value && isRecord(value) ? 'lexeme' : 'extra'
+  if (!exactKeys(value, amountKeys(value.state, extras))) return 'extra'
   if (typeof value.unit !== 'string' || value.unit.length === 0) return 'unit'
   if (value.state === 'unknown') return { state: 'unknown', unit: value.unit }
-  if (typeof value.lexeme !== 'string') return 'lexeme'
-  const parsed = parseLexeme(value.lexeme, value.unit)
-  if (parsed === 'lexeme' || parsed === 'precision') return parsed
-  return { state: value.state, lexeme: value.lexeme, unit: value.unit }
+  return knownAmount(value.state, value.lexeme, value.unit)
+}
+
+function knownAmount(
+  state: 'known' | 'provisional',
+  lexeme: unknown,
+  unit: string,
+): Amount | AccountRejection {
+  if (typeof lexeme !== 'string') return 'lexeme'
+  const parsed = parseLexeme(lexeme, unit)
+  if (typeof parsed === 'string') return parsed
+  return { state, lexeme, unit }
+}
+
+function isAmountState(value: unknown): value is Amount['state'] {
+  return value === 'unknown' || value === 'known' || value === 'provisional'
+}
+
+function amountKeys(state: Amount['state'], extras: readonly string[]): readonly string[] {
+  const base = state === 'unknown' ? ['state', 'unit'] : ['state', 'lexeme', 'unit']
+  return [...base, ...extras]
 }
 
 function judgeDuration(
@@ -215,8 +260,10 @@ function compareRevision(left: string, right: string): number {
 }
 
 function isCostSource(value: unknown): value is CostSource {
-  return typeof value === 'string' && (COST_SOURCES as readonly string[]).includes(value)
+  return typeof value === 'string' && costSources.has(value)
 }
+
+const costSources = new Set<string>(COST_SOURCES)
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
