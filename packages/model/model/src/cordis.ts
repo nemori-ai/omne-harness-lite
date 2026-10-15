@@ -7,7 +7,7 @@ import {
 } from './store.ts'
 import type {
   CredentialPort,
-  CredentialReference,
+  CredentialQuery,
   Presence,
   Resolution,
   SendFace,
@@ -23,12 +23,18 @@ export class ModelCredentialService extends Service {
     this.port = port
   }
 
-  present(reference: CredentialReference): Presence {
+  present(reference: CredentialQuery): Presence {
     return this.port.present(reference)
   }
 
-  resolve(reference: CredentialReference, face: SendFace): Resolution {
+  resolve(reference: CredentialQuery, face: SendFace): Resolution {
     return this.port.resolve(reference, face)
+  }
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    modelCredential?: ModelCredentialService
   }
 }
 

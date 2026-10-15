@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { LocalCredentialPlugin, ModelCredentialService } from '../src/cordis.ts'
+import { LocalCredentialPlugin } from '../src/cordis.ts'
 import { deliver } from '../src/deliver.ts'
 import { deliverInjected } from '../src/execute.ts'
 import {
@@ -14,6 +14,7 @@ import {
   createLocalCustodian,
   credentialId,
   openLocalCustodian,
+  type CredentialQuery,
   type CredentialReference,
   type SendFace,
 } from '../src/index.ts'
@@ -64,14 +65,17 @@ it('cross-tenant, wrong purpose, and missing qualification do not send', () => {
   const custodian = createLocalCustodian(join(dir, 'store.json'), FACTORY)
   const ref = reference()
   custodian.put(ref, SECRET)
+  const bad: CredentialQuery = { ...ref, purpose: 'other' }
   const cases = [
     deliver({ reference: reference({ tenant: tenantB }) }, custodian, face()),
-    deliver({ reference: reference({ purpose: 'other' as never }) }, custodian, face()),
     deliver({ reference: ref }, custodian, face({ authorized: false })),
   ]
   for (const result of cases) {
     expect(result.send).toEqual({ sent: false })
   }
+  const wrongPurpose = custodian.resolve(bad, face())
+  expect(wrongPurpose).toEqual({ kind: 'denied' })
+  expect(ordinary(wrongPurpose)).not.toContain(SECRET)
 })
 
 it('an unreadable binding does not fall back to the factory secret', () => {
@@ -223,8 +227,7 @@ it('a corrupt store through the plugin resolves unavailable', async () => {
   const sent = deliverInjected(ctx, { reference: ref }, face())
   await sent.fiber
   expect(sent.outcome()?.send).toEqual({ sent: false })
-  const service = (ctx as { modelCredential?: ModelCredentialService }).modelCredential
-  expect(service?.resolve(ref, face())).toEqual({ kind: 'unavailable' })
+  expect(ctx.modelCredential?.resolve(ref, face())).toEqual({ kind: 'unavailable' })
   expect(readFileSync(path, 'utf8')).toBe('not-json')
 })
 

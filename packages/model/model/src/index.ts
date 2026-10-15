@@ -4,6 +4,7 @@ export {
   type CredentialId,
   type CredentialPort,
   type CredentialPurpose,
+  type CredentialQuery,
   type CredentialReference,
   type Diagnostic,
   type Presence,

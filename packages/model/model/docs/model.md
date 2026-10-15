@@ -4,7 +4,7 @@
 
 档案的身份、同名求值和模态仍由 [profile-and-modality](profile-and-modality.md) 拥有。原结果、ACK 和费用仍由 [consumption-and-cost](consumption-and-cost.md) 拥有。本页不复制那两份行为正文。
 
-调用记录只保存引用。引用含凭据身份、租户和用途。本交付的用途取值是 `model-send`。更宽的用途词表不在本卡。
+调用记录只保存引用。引用含凭据身份、租户和用途。本交付的用途取值是 `model-send`。更宽的用途词表不在本卡。查询可以带一个别的用途字符串，解析结果是 `denied`。能写入保管库的引用仍然只有 `model-send`。
 
 租户标识使用 `packages/common/legal-identity` 的 `TenantId`。凭据身份是本成员自己的标识，不是 `TenantId`，也不是登录出示物。持有引用不构成读取授权。
 

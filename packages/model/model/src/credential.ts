@@ -20,6 +20,12 @@ export type CredentialReference = {
   readonly purpose: CredentialPurpose
 }
 
+export type CredentialQuery = {
+  readonly id: CredentialId
+  readonly tenant: TenantId
+  readonly purpose: string
+}
+
 export type SendFace = {
   readonly authorized: boolean
   readonly official: boolean
@@ -50,8 +56,8 @@ export type Diagnostic = {
 }
 
 export type CredentialPort = {
-  present(reference: CredentialReference): Presence
-  resolve(reference: CredentialReference, face: SendFace): Resolution
+  present(reference: CredentialQuery): Presence
+  resolve(reference: CredentialQuery, face: SendFace): Resolution
   diagnostics(): readonly Diagnostic[]
 }
 
@@ -75,7 +81,7 @@ export function credentialId(value: string): CredentialId | undefined {
   return value as CredentialId
 }
 
-export function present(state: CustodianState, reference: CredentialReference): Presence {
+export function present(state: CustodianState, reference: CredentialQuery): Presence {
   if (state.closed) return { kind: 'denied' }
   const binding = state.bindings.find(
     (item) => item.id === reference.id && tenantEquals(item.tenant, reference.tenant),
@@ -85,13 +91,13 @@ export function present(state: CustodianState, reference: CredentialReference): 
     present: binding !== undefined && !binding.revoked,
     id: reference.id,
     tenant: reference.tenant,
-    purpose: reference.purpose,
+    purpose: binding?.purpose ?? MODEL_SEND,
   }
 }
 
 export function resolve(
   state: CustodianState,
-  reference: CredentialReference,
+  reference: CredentialQuery,
   face: SendFace,
 ): Resolution {
   if (state.closed || !face.authorized || reference.purpose !== MODEL_SEND) return { kind: 'denied' }
