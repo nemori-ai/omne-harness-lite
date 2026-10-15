@@ -481,7 +481,11 @@ management.inspectIdle 先取 clock.sample，再以当前主体/tenant/session �
 
 considerAutoArchive 的 idleEvidence 必须指向已确认 recordIdle 的原 CommitReceipt.source，或此前等价 SE31 的原解释版本。idle.prepare 在裁定时重新核当前租户配置、常驻/关系、所有子方、全部工作/调用及连续时间。这些参加者与 Session 归档提交在同一 transactionDomain/已登记组合中保护，不能“先查全空闲再单独归档”。当前源不可达、观察为 unknown 或组合缺席返回 unavailable；仍有未结工作返回 not-due，不归档；不以空数组冒充已覆盖。配置关闭、常驻、未到期分别返回 disabled/exempt/not-due。归档成立保存原区间、配置、裁定时刻及完整覆盖，并沿原控制/级联责任继续；不等待物理全停。启用或解除常驻不重置 started，可能立即到期；撤销归档建立新的起点。恢复者从 readWork.idle、原操作和可靠扫描重建维护，不以本机计时器状态恢复。
 
-SessionContextInput 是具名 Runtime Context 消费接缝，context.prepare 按 create/change/startRun/reload 生成注册、来源和当前允许范围的参加者需求。create 固定合法初值及必需注册；context-registration 的 registration 引用 Runtime Context 原增加/更新/移除决定，必须含原提交身份、块/作用域身份、前注册修订和变更种类。change 验证当前原状态、更新不改固定身份、移除不破坏必需项；同原决定认回，不新造注册。startRun/reload 核当前采用及本次应取快照的注册条件，完整内容读取归 Agent 当前条件端口。缺来源/版本或当前资格不能提交，不把历史快照当允许缓存。context 的 guards 与身份、Session 自身条件共同裁定；evidence 不再重复生成这组参加者。
+SessionContextInput 是具名 Runtime Context 消费接缝，context.prepare 按 create/change/startRun/reload 生成注册、来源和当前允许范围的参加者需求。create 固定合法初值及必需注册。context-registration 的 registration 引用已可靠准备、尚未生效的增加/更新/移除材料，不是 Runtime Context 先提交的注册决定。材料绑定本次 Mutation.operation、tenant/session、固定块身份、变更种类、来源/配置、允许消费者、必需标记和恢复依据；增加的前注册为明确不存在，更新/移除带所依据的前注册修订。其具名解释协议和来源由 context.prepare 验证，不能把任意历史 evidence 当该材料。
+
+Session.change 是注册决定的唯一提交点。它在同一提交中保存注册集合变更、恢复事实和原操作结果；Runtime Context 只消费已确认的 Session 决定。首次增加不要求任何先前注册决定。change 拒绝时材料仍只是候选，不能供给新注册；提交未知时保持同一 Mutation.operation 查询，不先使 Runtime Context 生效、再补 Session 记录。同 operation 同材料认回，异材料冲突。源内容仍由生产者另行提交，不与注册决定混作一次跨拥有者提交。更新核前状态且不改固定块身份；移除不破坏必需项，也不删除原源或其他会话注册。
+
+startRun/reload 核当前采用及本次应取快照的注册条件，完整内容读取归 Agent 当前条件端口。缺来源/版本或当前资格不能提交，不把历史快照当允许缓存。context 的 guards 与身份、Session 自身条件共同裁定；evidence 不再重复生成这组参加者。
 
 GuardCommand 是参加者拥有的版本化 JSON 需求材料，不是签名后的 allowed 布尔或新的权限模型。owner/protocol 指向实际已登记的身份、资产、Context、Agent、生产者或保管契约；participant 在 Worker 中验证来源、目标与最新权威条件，提交时重新裁定。Session 自己的参数、原操作身份及共同结果在 SessionCommand 中封闭定义，不能放进 facts 逃避公开契约。
 

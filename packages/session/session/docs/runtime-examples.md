@@ -63,3 +63,5 @@ SESSION 的 root 操作没有公开 append(events) 或直接修改推进布尔�
 自动归档关闭时，恢复协调者也可 inspectIdle，取得带时钟来源、完整子方/调用覆盖的观察，再以原 operation 和 expected 提交 recordIdle。回执未知时查询该 operation；重启读取 readWork.idle，保持已确认起点。开启自动归档后，将该记录的 CommitReceipt.source 交 considerAutoArchive，后者重新核当前配置和全部相关事实，不能仅比较时间。新子方或 Run 外工具在两步之间受理时，旧覆盖失效；recordIdle 返回 changed，或归档裁定返回 not-due。来源不明返回 unavailable，不能认定空闲。
 
 R1 完成后 notifier 延迟，R2 已提交。通知仍传 R1 回执的 revision/source；不能通过 readWork 取 R2.source 给 R1 使用。通知失败不回滚 R1，扫描按原持久事实接续。
+
+首次添加 Context 块时，接入准备绑定原 operation 的未生效变更材料，调用 Session.change。Session 共同提交注册与恢复事实后，Runtime Context 才消费该决定。Session 返回拒绝不改变注册；返回未知则查询同 operation，不能先注册再补日志。更新/移除同样由 Session 提交，并核材料所引用的前注册仍是当前版本。
