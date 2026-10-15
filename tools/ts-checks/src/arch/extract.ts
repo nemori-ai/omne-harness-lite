@@ -415,13 +415,15 @@ class Extractor {
   }
   discoverClassPlugin(node: ts.ClassDeclaration, context: WalkContext): void {
     const member = context.member
-    if (!(
-      this.serviceBase(node) === undefined &&
-      node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.ExportKeyword) &&
-      node.members.some(
-        item => ts.isConstructorDeclaration(item) && this.contextType(item.parameters[0]?.type),
+    if (
+      !(
+        this.serviceBase(node) === undefined &&
+        node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.ExportKeyword) &&
+        node.members.some(
+          item => ts.isConstructorDeclaration(item) && this.contextType(item.parameters[0]?.type),
+        )
       )
-    ))
+    )
       return
 
     const name = this.classPluginName(node, context)

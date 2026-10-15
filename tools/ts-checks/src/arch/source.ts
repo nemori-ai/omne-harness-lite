@@ -8,7 +8,12 @@ import type { Member } from '../metrics/graph.ts'
 import type { Snapshot } from './actual-model.ts'
 
 export type JsonValue =
-  null | boolean | number | string | readonly JsonValue[] | { readonly [key: string]: JsonValue }
+  | null
+  | boolean
+  | number
+  | string
+  | readonly JsonValue[]
+  | { readonly [key: string]: JsonValue }
 export interface ActualMember {
   readonly id: string
   readonly path: string
