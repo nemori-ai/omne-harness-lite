@@ -260,18 +260,40 @@ OTel的forceFlush完成不自动表示每条记录导出成功。提供者核对
 <a id="common-t02"></a>
 ### COMMON-T02 内容块的精确契约承接
 
-本项为契约承接待办。内容块、附件引用、模态与可见性声明的现行形状和必要行为须由共同内容拥有者确认。具体输入约束、不可变性、消费资格及引用资源不能从目录或请求适配实现反推。
+`packages/common/content-block` 发布已经封闭的文本、思考、语音、图和文件，以及块身份、可见性和媒体类型。工具调用、工具结果和仍在增长的块不是这个成员的值。工具执行字段归工具。
 
-承接责任为共同内容、消息、Model、Tool 与各内容消费者。待办是确认实际公开类型和行为拥有者，迁移消费者并保留媒体、可见性及资源引用的适用范围。
+```mermaid
+flowchart TD
+  block["已封闭内容块"]
+  block --> text["text 文本"]
+  block --> thinking["thinking 思考"]
+  block --> voice["voice 语音"]
+  block --> image["image 图"]
+  block --> file["file 文件"]
+  outside["不进入这个成员"]
+  outside --> call["工具调用"]
+  outside --> result["工具结果"]
+  outside --> growing["仍在增长的块"]
+```
+
+承接责任为共同内容、消息、Model、Tool 与各内容消费者。
 
 [封存来源](../../packages.0.0.1.legacy/core/content-blocks/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="common-t03"></a>
 ### COMMON-T03 消息形状与消费行为的承接
 
-本项为契约承接待办。消息身份、内容、关联和对外投影的精确共同契约尚须定位现行拥有者。消息表示、记录保存、流式到达和可读资格分别成立，不能将其中一个成员当作全部消息责任。
+`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。系统提示不进该成员。会话在受理进日志时铸造身份。日志、投影和铸造归会话。这次初始化的公开入口停在角色词汇、解析和相等。完整消息载荷仍留给后续拥有者。
 
-承接责任为消息、Session、Context、Model 与实际投影消费者。待办是确认共同形状和各方必要行为，核对合法输入、关联、可见性及真实消费者；来源不足的局部分支保持未判定。
+```mermaid
+flowchart TD
+  log["会话日志"] --> fact["事实记录"]
+  fact --> field["消息字段"]
+  field --> roles["六种日志角色"]
+  assembly["请求组装"] --> system["SystemMessage"]
+  session["会话"] -->|"受理进日志时铸造身份"| field
+  member["packages/common/message"] -->|"解析与相等"| field
+```
 
 [封存来源](../../packages.0.0.1.legacy/core/messages/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 

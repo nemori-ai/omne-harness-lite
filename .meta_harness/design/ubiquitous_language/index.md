@@ -325,9 +325,9 @@
 | [UL-occurrence](terms/record-and-context.md#ul-occurrence--发生的事--occurrence) | 发生的事 | Occurrence | 留下记录之前的那个东西，**判断打在它身上** |
 | [UL-record-entry](terms/record-and-context.md#ul-record-entry--记录条目--record-entry) | 记录条目 | Record Entry | 一条不可变条目，**产出多条只有两个原因** |
 | [UL-entry-standing](terms/record-and-context.md#ul-entry-standing--条目效力--entry-standing) | 条目效力 | Entry Standing | 丢了会怎样——**依据 / 留痕 / 瞬态** |
-| [UL-session-log](terms/record-and-context.md#ul-session-log--会话日志--session-log) | 会话日志 | Session Log | **只增不改的流水账**，消息只是它的一部分 |
+| [UL-session-log](terms/record-and-context.md#ul-session-log--会话日志--session-log) | 会话日志 | Session Log | **只增不改的流水账**，消息是某一类事实记录里的字段 |
 | [UL-session-log-projection](terms/record-and-context.md#ul-session-log-projection--会话日志投影--session-log-projection) | 会话日志投影 | Session Log Projection | 从日志派生的视图，**不是第二份权威**；重算必得同一答案 |
-| [UL-message](terms/record-and-context.md#ul-message--消息--message) | 消息 | Message | 一条对话记录，**七种，按谁在说话分**；除 `SystemMessage` 外都落日志 |
+| [UL-message](terms/record-and-context.md#ul-message--消息--message) | 消息 | Message | 事实记录里的消息字段，**七种，按谁在说话分**；除 `SystemMessage` 外都落日志 |
 | [UL-interruption-reminder](terms/record-and-context.md#ul-interruption-reminder--中断提醒--interruption-reminder) | 中断提醒 | Interruption Reminder | 回复流断在半路后**不分情形都补**的那条提醒；本身不取得待处理资格，不重开工作 |
 | [UL-placeholder-message](terms/record-and-context.md#ul-placeholder-message--占位消息--placeholder-message) | 占位消息 | Placeholder Message | 交不出真实结果时放在调用位置上的 `ToolMessage`，**必须写明原因**；不是失败 |
 | [UL-placeholder-reason](terms/record-and-context.md#ul-placeholder-reason--占位原因--placeholder-reason) | 占位原因 | Placeholder Reason | 占位上写的「为什么此刻没有结果」；**是原因不是收场** |
