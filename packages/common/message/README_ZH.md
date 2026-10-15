@@ -41,7 +41,7 @@ import { judgeMessage } from '@omne-harness/message'
 
 `LOG_MESSAGE_ROLES` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction`。`parseMessageId` 拒绝空串、缺少 `msg_` 前缀，以及不在 `[A-Za-z0-9_-]{22,64}` 里的正文。`messageIdEquals` 是逐字相等。
 
-`judgeMessage` 返回 `{ ok }` 或 `{ rejected }`。部件失败还返回 `blockIndex`。`rejected` 是 `shape`、`missing`、`null`、`empty`、`unknown`、`extra`、`prefix`、`body`、`callId`，或内容块的拒绝码。`tenant` 这类未知键是 `extra`。成功值只含 `id`、`role` 和 `blocks`。
+`judgeMessage` 返回 `{ ok }` 或 `{ rejected }`。部件失败还返回 `blockIndex`。`rejected` 是 `shape`、`missing`、`null`、`empty`、`unknown`、`extra`、`prefix`、`body`、`callId`、`json`，或内容块的拒绝码。`tenant` 这类未知键是 `extra`。不是 JSON 的部件是 `json`。JSON 值是 null、布尔、字符串、有限数字，或由这些值组成的数组或普通对象。判断只复制自有键。自有键 `__proto__` 仍是自有键。成功值只含 `id`、`role` 和 `blocks`。
 
 ## 设计
 

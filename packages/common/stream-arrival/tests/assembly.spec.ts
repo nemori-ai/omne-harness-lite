@@ -144,6 +144,32 @@ it('S10 equals the one-shot message blocks', () => {
   expect(streamed.terminal.message).toEqual(oneShot.ok)
 })
 
+it('rejects an open head that contains a bigint', () => {
+  expect(
+    assembleStream({
+      target: target(),
+      steps: [{ step: 'open', index: '0', mode: 'append', head: { ...head, extra: 1n } }],
+    }),
+  ).toEqual({ rejected: 'json', at: 0, assembly: { phase: 'live' } })
+})
+
+it('rejects an open head that contains a function or a cycle', () => {
+  expect(
+    assembleStream({
+      target: target(),
+      steps: [{ step: 'open', index: '0', mode: 'append', head: { ...head, extra: () => 1 } }],
+    }),
+  ).toEqual({ rejected: 'json', at: 0, assembly: { phase: 'live' } })
+  const cyclic: Record<string, unknown> = { ...head }
+  cyclic.extra = cyclic
+  expect(
+    assembleStream({
+      target: target(),
+      steps: [{ step: 'open', index: '0', mode: 'append', head: cyclic }],
+    }),
+  ).toEqual({ rejected: 'json', at: 0, assembly: { phase: 'live' } })
+})
+
 it('trim keeps the closed part and records removed and reason', () => {
   expect(
     assembleStream({

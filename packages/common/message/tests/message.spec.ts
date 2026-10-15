@@ -59,3 +59,55 @@ it('keeps other own keys on a tool part', () => {
     ok: { kind: 'tool_call', callId: 'call_1', arguments: '{"a":1}' },
   })
 })
+
+it('rejects a tool_result whose payload is a function', () => {
+  expect(
+    judgeMessage(message('tool', [{ kind: 'tool_result', callId: 'c1', payload: () => 1 }])),
+  ).toEqual({ rejected: 'json', blockIndex: 0 })
+})
+
+it('rejects a tool_result whose payload is a bigint', () => {
+  expect(
+    judgeMessage(message('tool', [{ kind: 'tool_result', callId: 'c1', payload: 1n }])),
+  ).toEqual({ rejected: 'json', blockIndex: 0 })
+})
+
+it('rejects a cycle, a non-finite number, and undefined', () => {
+  const cyclic: Record<string, unknown> = { kind: 'tool_result', callId: 'c1' }
+  cyclic.self = cyclic
+  expect(judgePart(cyclic)).toEqual({ rejected: 'json' })
+  expect(judgePart({ kind: 'tool_result', callId: 'c1', n: Number.NaN })).toEqual({
+    rejected: 'json',
+  })
+  expect(judgePart({ kind: 'tool_result', callId: 'c1', n: Number.POSITIVE_INFINITY })).toEqual({
+    rejected: 'json',
+  })
+  expect(judgePart({ kind: 'tool_result', callId: 'c1', payload: undefined })).toEqual({
+    rejected: 'json',
+  })
+})
+
+it('keeps nested JSON values and does not share them with the caller', () => {
+  const payload = { n: 1, list: [true, null, 'a'] }
+  const judged = judgePart({ kind: 'tool_result', callId: 'c1', payload })
+  payload.n = 2
+  expect(judged).toEqual({
+    ok: { kind: 'tool_result', callId: 'c1', payload: { n: 1, list: [true, null, 'a'] } },
+  })
+})
+
+it('keeps an own __proto__ key and does not inherit its fields', () => {
+  const text = '{"kind":"tool_call","callId":"c1","__proto__":{"injected":true}}'
+  const judged = judgePart(JSON.parse(text))
+  expect(judged).toEqual({ ok: JSON.parse(text) })
+  if (!('ok' in judged)) throw new Error('expected ok')
+  expect(Object.hasOwn(judged.ok, '__proto__')).toBe(true)
+  expect(Object.hasOwn(judged.ok, 'injected')).toBe(false)
+  expect(Object.getPrototypeOf(judged.ok)).toBe(Object.prototype)
+})
+
+it('rejects a part whose kind and callId are only inherited', () => {
+  expect(judgePart(Object.create({ kind: 'tool_call', callId: 'c1' }))).toEqual({
+    rejected: 'json',
+  })
+})

@@ -41,7 +41,7 @@ There is no Cordis entry.
 
 `LOG_MESSAGE_ROLES` is `user`, `assistant`, `tool`, `tool_internal`, `system_reminder`, `compaction`. `parseMessageId` rejects an empty string, a missing `msg_` prefix, and a body outside `[A-Za-z0-9_-]{22,64}`. `messageIdEquals` is exact string equality.
 
-`judgeMessage` returns `{ ok }` or `{ rejected }`. A part failure also returns `blockIndex`. `rejected` is `shape`, `missing`, `null`, `empty`, `unknown`, `extra`, `prefix`, `body`, `callId`, or a content-block rejection. An unknown key such as `tenant` is `extra`. A successful value contains only `id`, `role`, and `blocks`.
+`judgeMessage` returns `{ ok }` or `{ rejected }`. A part failure also returns `blockIndex`. `rejected` is `shape`, `missing`, `null`, `empty`, `unknown`, `extra`, `prefix`, `body`, `callId`, `json`, or a content-block rejection. An unknown key such as `tenant` is `extra`. A part that is not JSON is `json`. JSON is null, a boolean, a string, a finite number, or an array or plain object of JSON values. The judge copies own keys. An own `__proto__` key stays an own key. A successful value contains only `id`, `role`, and `blocks`.
 
 ## Design
 

@@ -41,8 +41,8 @@ export function messageIdEquals(left: MessageId, right: MessageId): boolean {
 }
 
 /**
- * A tool part. The tool domain owns the payload, so every key besides `kind` and `callId`
- * passes through untouched. The judge only requires a non-empty `callId`.
+ * A tool part. The tool domain owns the payload. Every other own key is kept when the value
+ * is JSON. The judge requires a non-empty own `callId`.
  */
 export interface ToolPart {
   readonly kind: 'tool_call' | 'tool_result'
@@ -69,6 +69,7 @@ export type MessageRejection =
   | 'prefix'
   | 'body'
   | 'callId'
+  | 'json'
   | ContentBlockRejection
 
 export type MessageJudgment =
@@ -84,6 +85,75 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) return false
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
+}
+
+/** JSON is null, a boolean, a string, a finite number, or an array or plain object of those. */
+function isJsonValue(value: unknown, seen: WeakSet<object> = new WeakSet()): boolean {
+  if (value === null) return true
+  switch (typeof value) {
+    case 'boolean':
+    case 'string':
+      return true
+    case 'number':
+      return Number.isFinite(value)
+    case 'object':
+      return jsonContainer(value, seen)
+    default:
+      return false
+  }
+}
+
+function jsonContainer(value: object, seen: WeakSet<object>): boolean {
+  if (seen.has(value)) return false
+  if (Array.isArray(value)) return jsonItems(value, seen)
+  if (!isPlainRecord(value)) return false
+  seen.add(value)
+  for (const key of Object.keys(value)) {
+    if (!isJsonValue(value[key], seen)) {
+      seen.delete(value)
+      return false
+    }
+  }
+  seen.delete(value)
+  return true
+}
+
+function jsonItems(value: readonly unknown[], seen: WeakSet<object>): boolean {
+  seen.add(value)
+  for (const item of value) {
+    if (!isJsonValue(item, seen)) {
+      seen.delete(value)
+      return false
+    }
+  }
+  seen.delete(value)
+  return true
+}
+
+/** Own enumerable keys only. `__proto__` is a data property, not a prototype assignment. */
+function copyJson(value: unknown): unknown {
+  if (value === null || typeof value !== 'object') return value
+  if (Array.isArray(value)) return value.map(item => copyJson(item))
+  const copy: Record<string, unknown> = {}
+  for (const key of Object.keys(value)) {
+    Object.defineProperty(copy, key, {
+      value: copyJson((value as Record<string, unknown>)[key]),
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    })
+  }
+  return copy
+}
+
+function own(value: Record<string, unknown>, key: string): unknown {
+  return Object.hasOwn(value, key) ? value[key] : undefined
+}
+
 function isLogRole(role: string): role is LogMessageRole {
   return (LOG_MESSAGE_ROLES as readonly string[]).includes(role)
 }
@@ -96,26 +166,21 @@ function isKnownPartKind(kind: string): boolean {
   return (CONTENT_BLOCK_KINDS as readonly string[]).includes(kind) || isToolKind(kind)
 }
 
-function copyRecord(value: Record<string, unknown>): Record<string, unknown> {
-  const copy: Record<string, unknown> = {}
-  for (const key of Object.keys(value)) copy[key] = value[key]
-  return copy
-}
-
 /**
  * One part. A string kind outside the seven closed names is `unknown`.
  * A missing or non-string kind falls through to `judgeContentBlock` and is `kind`.
+ * A value that is not JSON is `json`. Kind and `callId` must be own keys.
  */
 export function judgePart(
   value: unknown,
 ): { readonly ok: MessagePart } | { readonly rejected: PartRejection } {
-  const kind = isRecord(value) ? value.kind : undefined
+  if (!isJsonValue(value)) return { rejected: 'json' }
+  const kind = isPlainRecord(value) ? own(value, 'kind') : undefined
   if (typeof kind === 'string' && !isKnownPartKind(kind)) return { rejected: 'unknown' }
-  if (isRecord(value) && typeof kind === 'string' && isToolKind(kind)) {
-    if (typeof value.callId !== 'string' || value.callId.length === 0) {
-      return { rejected: 'callId' }
-    }
-    return { ok: copyRecord(value) as ToolPart }
+  if (isPlainRecord(value) && typeof kind === 'string' && isToolKind(kind)) {
+    const callId = own(value, 'callId')
+    if (typeof callId !== 'string' || callId.length === 0) return { rejected: 'callId' }
+    return { ok: copyJson(value) as ToolPart }
   }
   const judged = judgeContentBlock(value)
   if ('rejected' in judged) return { rejected: judged.rejected }

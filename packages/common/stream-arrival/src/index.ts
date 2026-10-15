@@ -23,6 +23,71 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) return false
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
+}
+
+/** JSON is null, a boolean, a string, a finite number, or an array or plain object of those. */
+function isJsonValue(value: unknown, seen: WeakSet<object> = new WeakSet()): boolean {
+  if (value === null) return true
+  switch (typeof value) {
+    case 'boolean':
+    case 'string':
+      return true
+    case 'number':
+      return Number.isFinite(value)
+    case 'object':
+      return jsonContainer(value, seen)
+    default:
+      return false
+  }
+}
+
+function jsonContainer(value: object, seen: WeakSet<object>): boolean {
+  if (seen.has(value)) return false
+  if (Array.isArray(value)) return jsonItems(value, seen)
+  if (!isPlainRecord(value)) return false
+  seen.add(value)
+  for (const key of Object.keys(value)) {
+    if (!isJsonValue(value[key], seen)) {
+      seen.delete(value)
+      return false
+    }
+  }
+  seen.delete(value)
+  return true
+}
+
+function jsonItems(value: readonly unknown[], seen: WeakSet<object>): boolean {
+  seen.add(value)
+  for (const item of value) {
+    if (!isJsonValue(item, seen)) {
+      seen.delete(value)
+      return false
+    }
+  }
+  seen.delete(value)
+  return true
+}
+
+/** Own enumerable keys only. `__proto__` is a data property, not a prototype assignment. */
+function copyJson(value: unknown): unknown {
+  if (value === null || typeof value !== 'object') return value
+  if (Array.isArray(value)) return value.map(item => copyJson(item))
+  const copy: Record<string, unknown> = {}
+  for (const key of Object.keys(value)) {
+    Object.defineProperty(copy, key, {
+      value: copyJson((value as Record<string, unknown>)[key]),
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    })
+  }
+  return copy
+}
+
 /** Admit one streaming-delivery step. Cordis dispatch and inbound intake are not steps. */
 export function judgeStreamArrival(value: unknown): StreamArrivalJudgment {
   if (!isRecord(value) || typeof value.step !== 'string') return { rejected: 'step' }
@@ -91,6 +156,7 @@ export type AssemblyRejection =
   | 'block'
   | 'empty'
   | 'late'
+  | 'json'
 
 export type AssembleResult =
   | { readonly ok: StreamAssembly }
@@ -213,7 +279,8 @@ interface FinishStep {
 
 type AssemblyStep = OpenStep | FillStep | CloseStep | TrimStep | FinishStep
 
-type Parsed = { readonly step: AssemblyStep } | { readonly rejected: 'step' | 'index' | 'seq' }
+type Parsed =
+  { readonly step: AssemblyStep } | { readonly rejected: 'step' | 'index' | 'seq' | 'json' }
 
 type Applied =
   | { readonly state: InternalState }
@@ -270,12 +337,6 @@ function appendKind(kind: PartKind): AppendKind | undefined {
 function hasUnknownKey(value: Record<string, unknown>, legal: readonly string[]): boolean {
   const allowed = new Set<string>(legal)
   return Object.keys(value).some(key => !allowed.has(key))
-}
-
-function copyRecord(value: Record<string, unknown>): Record<string, unknown> {
-  const copy: Record<string, unknown> = {}
-  for (const key of Object.keys(value)) copy[key] = value[key]
-  return copy
 }
 
 function stable(value: unknown): string {
@@ -348,8 +409,11 @@ function parseStep(value: unknown): Parsed {
 
 function parseOpen(value: Record<string, unknown>, index: string): Parsed {
   if (value.mode !== 'append' && value.mode !== 'replace') return { rejected: 'step' }
-  if (!isRecord(value.head)) return { rejected: 'step' }
-  return { step: { step: 'open', index, mode: value.mode, head: copyRecord(value.head) } }
+  if (!isJsonValue(value.head)) return { rejected: 'json' }
+  if (!isPlainRecord(value.head)) return { rejected: 'step' }
+  const head = copyJson(value.head)
+  if (!isPlainRecord(head)) return { rejected: 'json' }
+  return { step: { step: 'open', index, mode: value.mode, head } }
 }
 
 function parseFill(value: Record<string, unknown>, index: string): Parsed {
@@ -444,8 +508,8 @@ function applyClose(state: LiveState, step: CloseStep): Applied {
   if (block === undefined) return { rejected: 'unopened' }
   if (block.slot !== 'open') return { rejected: 'closed' }
   const field = BODY[block.kind].field
-  const candidate =
-    field === undefined ? copyRecord(block.head) : { ...block.head, [field]: block.body }
+  const head = copyJson(block.head) as Record<string, unknown>
+  const candidate = field === undefined ? head : { ...head, [field]: block.body }
   const judged = judgePart(candidate)
   if ('rejected' in judged) return { rejected: 'block', detail: judged.rejected }
   const closed: ClosedBlock = { slot: 'closed', index: block.index, part: judged.ok }
