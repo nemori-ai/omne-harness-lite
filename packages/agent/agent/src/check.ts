@@ -7,6 +7,7 @@ import {
   zodDefinition,
   type SchemaBudget,
   type SchemaIssue,
+  type SchemaProvider,
   type SchemaVerdict,
 } from '@omne-harness/schema-provider'
 import type { z } from 'zod'
@@ -35,64 +36,103 @@ export type Checked<T> =
 
 type Plain =
   | { readonly ok: true; readonly value: unknown }
-  | { readonly ok: false; readonly reason: 'executable' | 'malformed' }
+  | { readonly ok: false; readonly reason: 'executable' | 'malformed'; readonly index: number }
 
-function plainJson(value: unknown, seen = new Set<object>()): Plain {
-  if (value === null || typeof value === 'boolean' || typeof value === 'string') {
+type Walk = {
+  ancestors: Set<object>
+  nodes: number
+  bytes: number
+}
+
+function plainJson(value: unknown, walk: Walk, depth: number, index: number): Plain {
+  if (depth > limits.maxDepth || walk.nodes > limits.maxItems || walk.bytes > limits.maxBytes) {
+    return { ok: false, reason: 'malformed', index }
+  }
+  walk.nodes += 1
+  if (value === null || typeof value === 'boolean') return { ok: true, value }
+  if (typeof value === 'string') {
+    walk.bytes += value.length
+    if (value.length > limits.maxStringLength || walk.bytes > limits.maxBytes) {
+      return { ok: false, reason: 'malformed', index }
+    }
     return { ok: true, value }
   }
   if (typeof value === 'number') {
-    return Number.isFinite(value) ? { ok: true, value } : { ok: false, reason: 'malformed' }
-  }
-  if (typeof value === 'function') return { ok: false, reason: 'executable' }
-  if (typeof value !== 'object') return { ok: false, reason: 'malformed' }
-  if (seen.has(value)) return { ok: false, reason: 'malformed' }
-  seen.add(value)
-  if (Array.isArray(value)) {
-    if (Object.getPrototypeOf(value) !== Array.prototype) return { ok: false, reason: 'malformed' }
-    const copy: unknown[] = []
-    for (const key of Reflect.ownKeys(value)) {
-      if (key === 'length') continue
-      if (typeof key !== 'string' || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length) {
-        return ownKeyRefusal(value, key)
-      }
+    if (!Number.isFinite(value)) return { ok: false, reason: 'malformed', index }
+    const digits = JSON.stringify(value)
+    walk.bytes += digits.length
+    if (digits.length > limits.maxNumberLength || walk.bytes > limits.maxBytes) {
+      return { ok: false, reason: 'malformed', index }
     }
-    for (let index = 0; index < value.length; index += 1) {
-      const child = readOwn(value, String(index))
-      if (!child.ok) return child
-      const nested = plainJson(child.value, seen)
-      if (!nested.ok) return nested
-      copy.push(nested.value)
-    }
-    return { ok: true, value: copy }
+    return { ok: true, value }
   }
-  const prototype = Object.getPrototypeOf(value)
-  if (prototype !== Object.prototype && prototype !== null) return { ok: false, reason: 'malformed' }
-  const copy: Record<string, unknown> = {}
+  if (typeof value === 'function') return { ok: false, reason: 'executable', index }
+  if (typeof value !== 'object') return { ok: false, reason: 'malformed', index }
+  if (walk.ancestors.has(value)) return { ok: false, reason: 'malformed', index }
+  walk.ancestors.add(value)
+  try {
+    if (Array.isArray(value)) return copyArray(value, walk, depth, index)
+    return copyObject(value, walk, depth, index)
+  } finally {
+    walk.ancestors.delete(value)
+  }
+}
+
+function copyArray(value: unknown[], walk: Walk, depth: number, index: number): Plain {
+  if (Object.getPrototypeOf(value) !== Array.prototype) return { ok: false, reason: 'malformed', index }
+  if (value.length > limits.maxItems) return { ok: false, reason: 'malformed', index }
+  const copy: unknown[] = []
   for (const key of Reflect.ownKeys(value)) {
-    if (typeof key !== 'string') return ownKeyRefusal(value, key)
-    const child = readOwn(value, key)
-    if (!child.ok) return child
-    const nested = plainJson(child.value, seen)
+    if (key === 'length') continue
+    if (typeof key !== 'string' || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length) {
+      return ownKeyRefusal(value, key, index)
+    }
+  }
+  for (let itemIndex = 0; itemIndex < value.length; itemIndex += 1) {
+    const child = readOwn(value, String(itemIndex), index)
+    if (!child.ok) return { ...child, index: depth === 0 ? itemIndex : index }
+    const nested = plainJson(child.value, walk, depth + 1, depth === 0 ? itemIndex : index)
     if (!nested.ok) return nested
-    copy[key] = nested.value
+    copy.push(nested.value)
   }
   return { ok: true, value: copy }
 }
 
-function ownKeyRefusal(value: object, key: string | symbol): Plain {
-  const description = Object.getOwnPropertyDescriptor(value, key)
-  if (description !== undefined && (typeof description.value === 'function' || typeof description.get === 'function')) {
-    return { ok: false, reason: 'executable' }
+function copyObject(value: object, walk: Walk, depth: number, index: number): Plain {
+  const prototype = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) return { ok: false, reason: 'malformed', index }
+  const keys = Reflect.ownKeys(value)
+  if (keys.length > limits.maxMembers) return { ok: false, reason: 'malformed', index }
+  const copy = Object.create(null) as Record<string, unknown>
+  for (const key of keys) {
+    if (typeof key !== 'string') return ownKeyRefusal(value, key, index)
+    const child = readOwn(value, key, index)
+    if (!child.ok) return child
+    const nested = plainJson(child.value, walk, depth + 1, index)
+    if (!nested.ok) return nested
+    Object.defineProperty(copy, key, {
+      value: nested.value,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    })
   }
-  return { ok: false, reason: 'malformed' }
+  return { ok: true, value: copy }
 }
 
-function readOwn(value: object, key: string): Plain {
+function ownKeyRefusal(value: object, key: string | symbol, index: number): Plain {
   const description = Object.getOwnPropertyDescriptor(value, key)
-  if (description === undefined) return { ok: false, reason: 'malformed' }
+  if (description !== undefined && (typeof description.value === 'function' || typeof description.get === 'function')) {
+    return { ok: false, reason: 'executable', index }
+  }
+  return { ok: false, reason: 'malformed', index }
+}
+
+function readOwn(value: object, key: string, index: number): Plain {
+  const description = Object.getOwnPropertyDescriptor(value, key)
+  if (description === undefined) return { ok: false, reason: 'malformed', index }
   if (typeof description.get === 'function' || typeof description.set === 'function') {
-    return { ok: false, reason: 'executable' }
+    return { ok: false, reason: 'executable', index }
   }
   return { ok: true, value: description.value }
 }
@@ -116,26 +156,53 @@ function settle<T>(verdict: SchemaVerdict<T>): Checked<T> {
   }
 }
 
-export async function checkJson<T>(id: string, schema: z.ZodType<T>, value: unknown): Promise<Checked<T>> {
-  const plain = plainJson(value)
-  if (!plain.ok) return { kind: 'local-refusal', reason: plain.reason }
-  const encoded = JSON.stringify(plain.value)
+async function validatePlain<T>(
+  provider: SchemaProvider,
+  id: string,
+  schema: z.ZodType<T>,
+  plain: unknown,
+): Promise<Checked<T>> {
+  const encoded = JSON.stringify(plain)
   if (typeof encoded !== 'string') return { kind: 'local-refusal', reason: 'malformed' }
   const read: JsonRead = readJsonText(encoded, limits)
   if (read.kind !== 'ok') return { kind: 'local-refusal', reason: 'malformed' }
-  const provider = createSchemaProvider(budget)
+  const ref = defineSchema({
+    id,
+    load: async () =>
+      zodDefinition({
+        revision: '1',
+        numbers: 'exact-or-reject',
+        schema,
+      }),
+  })
+  return settle(await validate<T>(provider, ref, read))
+}
+
+export function openCheckDomain(): SchemaProvider {
+  return createSchemaProvider(budget)
+}
+
+export function closeCheckDomain(provider: SchemaProvider): void {
+  close(provider)
+}
+
+export function copyPlain(value: unknown): Plain {
+  return plainJson(value, { ancestors: new Set(), nodes: 0, bytes: 0 }, 0, 0)
+}
+
+export async function checkJson<T>(
+  id: string,
+  schema: z.ZodType<T>,
+  value: unknown,
+  domain?: SchemaProvider,
+): Promise<Checked<T>> {
+  const plain = copyPlain(value)
+  if (!plain.ok) return { kind: 'local-refusal', reason: plain.reason }
+  if (domain !== undefined) return validatePlain(domain, id, schema, plain.value)
+  const owned = openCheckDomain()
   try {
-    const ref = defineSchema({
-      id,
-      load: async () =>
-        zodDefinition({
-          revision: '1',
-          numbers: 'exact-or-reject',
-          schema,
-        }),
-    })
-    return settle(await validate<T>(provider, ref, read))
+    return await validatePlain(owned, id, schema, plain.value)
   } finally {
-    close(provider)
+    closeCheckDomain(owned)
   }
 }

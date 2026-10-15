@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { checkJson } from './check.ts'
+import { checkJson, closeCheckDomain, copyPlain, openCheckDomain } from './check.ts'
 import {
   POSITIONS,
   POWERS,
@@ -98,8 +98,11 @@ function shape(value: Parsed): Judgment<LoopExtensionDeclaration> {
   }
 }
 
-export async function judgeLoopExtension(value: unknown): Promise<Judgment<LoopExtensionDeclaration>> {
-  const checked = await checkJson<Parsed>('agent.loop-extension', declaration, value)
+export async function judgeLoopExtension(
+  value: unknown,
+  domain?: ReturnType<typeof openCheckDomain>,
+): Promise<Judgment<LoopExtensionDeclaration>> {
+  const checked = await checkJson<Parsed>('agent.loop-extension', declaration, value, domain)
   if (checked.kind === 'local-refusal') return refused(checked.reason)
   if (checked.kind !== 'valid') {
     if (checked.kind === 'invalid') return refused(issueReason(checked.issues[0].path, value))
@@ -111,12 +114,20 @@ export async function judgeLoopExtension(value: unknown): Promise<Judgment<LoopE
 export async function judgeLoopExtensions(
   value: unknown,
 ): Promise<BatchJudgment<LoopExtensionDeclaration>> {
-  if (!Array.isArray(value)) return { kind: 'refused', reason: 'malformed', index: 0 }
-  const accepted: LoopExtensionDeclaration[] = []
-  for (let index = 0; index < value.length; index += 1) {
-    const judged = await judgeLoopExtension(value[index])
-    if (judged.kind === 'refused') return { kind: 'refused', reason: judged.reason, index }
-    accepted.push(judged.value)
+  const copied = copyPlain(value)
+  if (!copied.ok) return { kind: 'refused', reason: copied.reason, index: copied.index }
+  if (!Array.isArray(copied.value)) return { kind: 'refused', reason: 'malformed', index: 0 }
+  const items = copied.value
+  const domain = openCheckDomain()
+  try {
+    const accepted: LoopExtensionDeclaration[] = []
+    for (let index = 0; index < items.length; index += 1) {
+      const judged = await judgeLoopExtension(items[index], domain)
+      if (judged.kind === 'refused') return { kind: 'refused', reason: judged.reason, index }
+      accepted.push(judged.value)
+    }
+    return { kind: 'accepted', value: accepted }
+  } finally {
+    closeCheckDomain(domain)
   }
-  return { kind: 'accepted', value: accepted }
 }

@@ -116,7 +116,9 @@ Session 保证一个 Run 只有一个有效推进者，本成员在每次影响�
 
 本节只描述 Issue 273 已实现的可观察判断。它不把 [definition.md](definition.md) 整页转为已接受契约。整卡接受仍由该 Issue 的具名决定记录。
 
-公开入口是 `judgeAgentDefinition` 与 `judgeLoopExtensions`。成功结果是声明数据。拒绝结果只有 `kind` 与 `reason`。原因包括 `malformed`、`duplicate-capability`、`unknown-attribute`、`unknown-position`、`unknown-power`、`dimension-missing`、`dimension-not-allowed`、`power-above-ceiling`、`executable`、`checker-failed`。
+公开入口是 `judgeAgentDefinition` 与 `judgeLoopExtensions`。成功结果是声明数据。单项拒绝只有 `kind` 与 `reason`。一批扩展被拒绝时还有 `index`。容器不合法时 `index` 为 0。某一项不合法时 `index` 是该项序号。原因包括 `malformed`、`duplicate-capability`、`unknown-attribute`、`unknown-position`、`unknown-power`、`dimension-missing`、`dimension-not-allowed`、`power-above-ceiling`、`executable`、`checker-failed`。
+
+一次判断的整份输入，以及一批扩展的整份输入，都受这些限额约束。深度不超过 20。单个对象成员不超过 80。数组长度不超过 200。字符串不超过 10000。数字的 JSON 文本不超过 100。合计不超过 100000 字节。超过限额得到 `malformed`。`checker-failed` 只表示校验器故障，不表示输入写坏。内部编译预算不是调用方配置。
 
 `references` 与 `attributes` 必须是数组。空数组合法。缺席和 null 拒绝。同一 capability 的 category 与 name 至多一次。attribute 的成功结果只保留 `item`，允许的 item 是 `first_token_wait_limit`、`post_first_token_stall_limit`、`model`。未写版本的结果是 `then-legal-winner`。写明非空版本的结果是 `pinned`。本入口不读取资产库。
 
