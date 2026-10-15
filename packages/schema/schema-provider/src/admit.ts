@@ -20,6 +20,7 @@ export type Admission =
       readonly revision: string
       readonly numbers: NumberProjection
       readonly schema: StandardTyped<unknown>
+      readonly digest: string
     }
   | {
       readonly kind: 'allowed'
@@ -27,6 +28,7 @@ export type Admission =
       readonly revision: string
       readonly numbers: NumberProjection
       readonly document: Readonly<Record<string, unknown>>
+      readonly digest: string
     }
   | { readonly kind: 'refused'; readonly reason: 'unsupported-construct' | 'runtime-path-closed' }
 
@@ -44,6 +46,7 @@ export function admit(definition: SchemaDefinition<unknown>, budget: ConstructBu
     revision: definition.revision,
     numbers: definition.numbers,
     schema: definition.schema,
+    digest: digestZod(definition.schema),
   }
 }
 
@@ -55,13 +58,36 @@ function admitJsonSchema(
   const found = walkJsonSchema(document, budget)
   if (found === 'cycle') return { kind: 'refused', reason: 'runtime-path-closed' }
   if (found === 'budget') return { kind: 'refused', reason: 'unsupported-construct' }
+  const digest = canonical(document)
   return {
     kind: 'allowed',
     engine: 'json-schema',
-    revision: canonical(document),
+    revision: digest,
     numbers,
     document,
+    digest,
   }
+}
+
+function digestZod(schema: object): string {
+  return digestNode(schema, new Set())
+}
+
+function digestNode(node: unknown, seen: Set<object>): string {
+  if (!isRecord(node)) return JSON.stringify(node) ?? 'null'
+  if (seen.has(node)) return '#'
+  seen.add(node)
+  const type = typeof node.type === 'string' ? node.type : ''
+  const def = record(node.def)
+  const shape = def === undefined ? undefined : record(def.shape)
+  const keys =
+    shape === undefined
+      ? ''
+      : Object.keys(shape)
+          .sort()
+          .map(key => `${JSON.stringify(key)}:${digestNode(shape[key], seen)}`)
+          .join(',')
+  return `${type}(${keys})`
 }
 
 function walkJsonSchema(

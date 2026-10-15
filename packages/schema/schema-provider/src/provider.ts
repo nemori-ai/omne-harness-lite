@@ -23,6 +23,7 @@ import { project } from './project.ts'
 
 type Snapshot = {
   readonly revision: string
+  readonly digest: string
   readonly numbers: NumberProjection
   readonly check: (value: unknown) => CheckHit
   leases: number
@@ -366,6 +367,12 @@ async function execute<T>(
     flight.resolve(admitted)
     return
   }
+  const held = flight.held
+  if (held !== undefined && held.revision === admitted.revision && held.digest !== admitted.digest) {
+    restoreHeld(domain, schema.id, flight)
+    flight.resolve({ kind: 'refused', reason: 'revision-conflict' })
+    return
+  }
   let check: Snapshot['check']
   try {
     check =
@@ -377,6 +384,7 @@ async function execute<T>(
   if (flight.held !== undefined) flight.held.superseded = true
   const snapshot: Snapshot = {
     revision: admitted.revision,
+    digest: admitted.digest,
     numbers: admitted.numbers,
     check,
     leases: 0,
