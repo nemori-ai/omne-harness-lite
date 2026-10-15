@@ -274,19 +274,19 @@
 
 ```mermaid
 classDiagram
-  class 账号
-  class 组织
-  class 租户
-  class 成员资格
-  class 凭据
-  class 登录状态
-  账号 "1" --> "1" 凭据 : 证明本人
-  账号 "1" --> "*" 登录状态 : 每次成功签发一份
-  账号 "1" --> "*" 成员资格
-  组织 "1" --> "*" 成员资格
-  成员资格 --> 租户 : 同一组织与账号沿用原租户
-  组织 "1" --> "*" 租户
-  账号 "1" --> "*" 租户
+  class Account["账号"]
+  class Org["组织"]
+  class Tenant["租户"]
+  class Membership["成员资格"]
+  class Credential["凭据"]
+  class Login["登录状态"]
+  Account "1" --> "1" Credential : 证明本人
+  Account "1" --> "*" Login : 每次成功签发一份
+  Account "1" --> "*" Membership
+  Org "1" --> "*" Membership
+  Membership --> Tenant : 同一组织与账号沿用原租户
+  Org "1" --> "*" Tenant
+  Account "1" --> "*" Tenant
 ```
 
 角色附在成员资格上。它不是租户的一个字段。
