@@ -1,12 +1,12 @@
 # execution/execution-environment 长期行为候选
 
-状态：具名成员目标的完整行为草案。只有文档目录，运行成员及公开类型尚未成立，未获产品或技术接受。本规格维护必要行为，不预造方法、事件、Schema、执行引擎或存储字段。技术义务见[问题](../../../.meta_harness/design/product/execution-environments/design.md#未决问题与待定事项)，不能用公开形状未定抹去以下可检验规则。
+状态：具名成员目标的完整行为草案。只有文档目录，运行成员及公开类型尚未成立，[局部技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/268#issuecomment-6187949335)仅覆盖文件使用对象授权、进程退出观察和活动句柄的本次对象及代际语义；其余行为草案不因本次接受转正。本规格维护必要行为，不预造方法、事件、Schema、执行引擎或存储字段。技术义务见[问题](../../../.meta_harness/design/product/execution-environments/design.md#未决问题与待定事项)，不能用公开形状未定抹去以下可检验规则。
 
 ## 责任、消费者与采用范围
 
 环境对工具发起方、独立调用方、执行适配、工作区/装配消费者、资源控制者、托管数据消费者及 Context 承诺设施、实际落点、资源条件及真实结果。身份与授权拥有准入，工具拥有原执行和外部效果，工作区拥有逻辑身份及参与，Session/Run 拥有逻辑工作，运行时各自拥有物理生命周期。受控宿主接口与原调用拥有者承接越过执行域寿命的宿主工作，本规格不把这些责任并入一个万能环境对象。
 
-独立消费须提供可核验主体及本次要求；系统组合须明确谁提供可信准入、谁保管调用、谁确认数据保存和谁可靠承接结果。库操作成功不证明系统组合成功。采用范围来自[项目要求](../../../docs/requirements.md)、[正式领域](../../../docs/domains/execution-environments/README.md)、[运行环境](../../../docs/architecture/runtime/execution-environment.md)及[执行隔离](../../../docs/architecture/security/execution-isolation.md)。阶段清单等待负责人选择；本稿及检查不授予实施准入。
+独立消费须提供可核验主体及本次要求；系统组合须明确谁提供可信准入、谁保管调用、谁确认数据保存和谁可靠承接结果。库操作成功不证明系统组合成功。采用范围来自[项目要求](../../../docs/requirements.md)、[正式领域](../../../docs/domains/execution-environments/README.md)、[运行环境](../../../docs/architecture/runtime/execution-environment.md)及[执行隔离](../../../docs/architecture/security/execution-isolation.md)。[阶段选择](https://github.com/nemori-ai/omne-harness-lite/issues/268#issuecomment-6189563335)将 J-EE01 至 J-EE08、CAP-EE01 至 CAP-EE12 纳入单机第一版承诺，不表示产品草案整体接受或实现已完成；本稿及检查不授予尚未明确机制的实施准入。
 
 ## 身份、选择与准入
 
