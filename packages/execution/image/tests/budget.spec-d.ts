@@ -19,6 +19,6 @@ const ceilingsAreHidden: CeilingKeys = false
 void ceilingsAreHidden
 
 const forged = { heldReservation: () => ({ count: 0, bytes: 0 }) }
-// @ts-expect-error a literal object is not a budget
+// @ts-expect-error
 const rejected: ImageBudget = forged
 void rejected

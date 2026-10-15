@@ -1,6 +1,6 @@
 # 图像成员模型
 
-状态：技术设计已接受，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/277#issuecomment-6198093789)。签名尚未实现。行为条件在 [SPEC](../SPEC.md)。
+状态：技术设计已接受，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/277#issuecomment-6198093789)。行为条件在 [SPEC](../SPEC.md)。
 
 预算对象同时是策略门的结果和预留表的身份。六个上限留在对象内部。公开字段不重复它们。只有 `imageBudget` 能造出这个对象。调用方用 `heldReservation()` 读计数和字节。打开和关闭改这张表。
 

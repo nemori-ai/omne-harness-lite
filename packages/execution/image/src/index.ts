@@ -114,14 +114,16 @@ function positive(value: number): boolean {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
 }
 
-function formatsOf(input: readonly ImageMediaType[]): BudgetRejectReason | readonly ImageMediaType[] {
-  if (input.length === 0) return 'formats'
+function formatsOf(input: readonly ImageMediaType[] | undefined): BudgetRejectReason | readonly ImageMediaType[] {
+  if (!Array.isArray(input) || input.length === 0) return 'formats'
   const seen = new Set<ImageMediaType>()
+  const formats: ImageMediaType[] = []
   for (const format of input) {
     if (!IMAGE_FORMATS.some(name => mediaTypeByFormat[name] === format) || seen.has(format)) return 'formats'
     seen.add(format)
+    formats.push(format)
   }
-  return input
+  return formats
 }
 
 export function imageBudget(input: BudgetInput): BudgetResult {
@@ -219,24 +221,30 @@ function createHandle(
 ): { handle: OpenImageHandle; declaration: ImageDeclaration; verifiedBytes: Uint8Array } {
   let pixels: Buffer | null = raster
   let closed: ClosedImageHandle | undefined
+  let encoding = 0
   const handle: OpenImageHandle = {
     phase: 'open',
     async encode(request) {
       if (closed !== undefined || pixels === null) return { kind: 'rejected', reason: 'closed' }
       if (!IMAGE_FORMATS.includes(request.format)) return { kind: 'rejected', reason: 'encode' }
-      const encoded = await encodeRaster(pixels, width, height, request.format)
-      if (encoded === undefined) return { kind: 'rejected', reason: 'encode' }
-      return {
-        kind: 'encoded',
-        mediaType: mediaTypeByFormat[request.format],
-        bytes: encoded.bytes,
-        orientation: 'absent',
-        exif: 'absent',
+      encoding += 1
+      try {
+        const encoded = await encodeRaster(pixels, width, height, request.format)
+        if (encoded === undefined) return { kind: 'rejected', reason: 'encode' }
+        return {
+          kind: 'encoded',
+          mediaType: mediaTypeByFormat[request.format],
+          bytes: encoded.bytes,
+          orientation: 'absent',
+          exif: 'absent',
+        }
+      } finally {
+        encoding -= 1
       }
     },
     async close() {
       if (closed !== undefined) return { kind: 'closed', handle: closed }
-      if (pixels === null) return { kind: 'still-open', handle }
+      if (pixels === null || encoding > 0) return { kind: 'still-open', handle }
       pixels = null
       release(pool, estimate)
       const settled: ClosedImageHandle = {

@@ -76,7 +76,7 @@ function animatedWebp(): Buffer {
   return riff
 }
 
-it('rejects an illegal budget and starts a legal one at zero', () => {
+it('rejects an illegal budget and starts a legal one at zero', async () => {
   expect(imageBudget({ ...budgetInput(), formats: [] })).toEqual({ kind: 'rejected', reason: 'formats' })
   expect(imageBudget({ ...budgetInput(), formats: ['image/png', 'image/png'] })).toEqual({
     kind: 'rejected',
@@ -103,13 +103,28 @@ it('rejects an illegal budget and starts a legal one at zero', () => {
     kind: 'rejected',
     reason: 'max-in-flight-bytes',
   })
+  expect(
+    imageBudget({
+      maxWidth: 1,
+      maxHeight: 1,
+      maxDecodedBytes: 4,
+      maxConcurrentDecodes: 1,
+      maxInFlightBytes: 4,
+    } as BudgetInput),
+  ).toEqual({ kind: 'rejected', reason: 'formats' })
 
-  const created = imageBudget(budgetInput())
-  expect(created.kind).toBe('budget')
-  if (created.kind !== 'budget') return
-  expect(created.budget.heldReservation()).toEqual({ count: 0, bytes: 0 })
-  expect('maxWidth' in created.budget).toBe(false)
-  expect(Object.keys(created.budget)).toEqual(['heldReservation'])
+  const formats = ['image/png'] as ['image/png']
+  const owned = imageBudget({ ...budgetInput(), formats })
+  formats[0] = 'image/jpeg' as 'image/png'
+  expect(owned.kind).toBe('budget')
+  if (owned.kind !== 'budget') return
+  const png = await pixels('png', 8, 4)
+  const opened = await open({ bytes: png, budget: owned.budget })
+  expect(opened.kind).toBe('opened')
+  if (opened.kind === 'opened') await opened.handle.close()
+  expect(owned.budget.heldReservation()).toEqual({ count: 0, bytes: 0 })
+  expect('maxWidth' in owned.budget).toBe(false)
+  expect(Object.keys(owned.budget)).toEqual(['heldReservation'])
 })
 
 it('rejects empty, truncated, foreign, and multi-frame bytes before taking a reservation', async () => {
@@ -176,6 +191,61 @@ it('opens one frame, keeps the input bytes, and releases the reservation on clos
     expect(await closed.handle.close()).toBe(closed.handle)
     expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
   }
+})
+
+it('budgets orientation 5 through 8 on png, jpeg, and webp', async () => {
+  for (const format of ['png', 'jpeg', 'webp'] as const) {
+    const bytes = await pixels(format, 8, 4, 6)
+    const tight = budget({ maxWidth: 8, maxHeight: 4 })
+    const pending = open({ bytes, budget: tight })
+    expect(tight.heldReservation()).toEqual({ count: 0, bytes: 0 })
+    expect(await pending).toEqual({ kind: 'rejected', reason: 'height' })
+
+    const gate = budget({ maxWidth: 4, maxHeight: 8, maxDecodedBytes: 4 * 8 * 4 })
+    const opened = await open({ bytes, budget: gate })
+    expect(opened.kind).toBe('opened')
+    if (opened.kind !== 'opened') continue
+    expect(opened.declaration.orientedWidth).toBe(4)
+    expect(opened.declaration.orientedHeight).toBe(8)
+    await opened.handle.close()
+  }
+})
+
+it('rejects a scan that stops before the container ends, without holding a reservation', async () => {
+  const jpeg = await pixels('jpeg', 8, 4)
+  const scan = jpeg.indexOf(Buffer.from([0xff, 0xda]))
+  const cut = jpeg.subarray(0, scan + 4)
+  const gate = budget()
+  const pending = open({ bytes: cut, budget: gate })
+  expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
+  expect(await pending).toEqual({ kind: 'rejected', reason: 'truncated' })
+
+  const header = Buffer.alloc(10)
+  header.writeUIntLE(7, 4, 3)
+  header.writeUIntLE(3, 7, 3)
+  const piece = Buffer.concat([Buffer.from('VP8X'), Buffer.alloc(4), header])
+  piece.writeUInt32LE(10, 4)
+  const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP'), piece])
+  webp.writeUInt32LE(4 + piece.length, 4)
+  const bare = budget()
+  const headerOnly = open({ bytes: webp, budget: bare })
+  expect(bare.heldReservation()).toEqual({ count: 0, bytes: 0 })
+  expect(await headerOnly).toEqual({ kind: 'rejected', reason: 'truncated' })
+})
+
+it('stays open when close runs during encode', async () => {
+  const bytes = await pixels('png', 8, 4)
+  const gate = budget()
+  const opened = await open({ bytes, budget: gate })
+  if (opened.kind !== 'opened') throw new Error(opened.reason)
+  const encoding = opened.handle.encode({ format: 'jpeg' })
+  const early = await opened.handle.close()
+  expect(early).toEqual({ kind: 'still-open', handle: opened.handle })
+  expect(gate.heldReservation()).toEqual({ count: 1, bytes: 8 * 4 * 4 })
+  expect((await encoding).kind).toBe('encoded')
+  const closed = await opened.handle.close()
+  expect(closed.kind).toBe('closed')
+  expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
 })
 
 it('budgets orientation 5 through 8 on the swapped edges and leaves the input bytes intact', async () => {
@@ -262,8 +332,7 @@ it('rejects a full reservation and releases a reservation when decode fails befo
 })
 
 it(
-  // A 2048 px PNG is heavy enough that a 1 ms caller timeout finishes before decode.
-  'keeps the reservation when the caller stops waiting for a large open',
+  'keeps the reservation when a 1 ms caller timeout beats a 2048 px decode',
   { tags: ['slow'], timeout: 30_000 },
   async () => {
     const bytes = await pixels('png', 2048, 2048)
