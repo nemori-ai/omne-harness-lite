@@ -38,7 +38,7 @@ classDiagram
 
 定义拥有者是 `packages/model/model`。根入口 `src/index.ts` 导出引用类型和操作类型，不导入 `@deepseek-ai/cordis`。`src/cordis.ts` 上的服务类标注 `@owner packages/model/model`。本交付尚未另立契约 ID。
 
-同一个 isolate 里这道接缝只有一个提供者。调用执行把 `modelCredential` 写入 `inject`，不导入保管库模块。租户、用途和是否获准发送都是 `resolve` 的参数。不从 `ctx`、插件实例或谁装了这个插件来推断租户。
+同一个 isolate 里这道接缝只有一个提供者。`src/execute.ts` 的 `deliverInjected` 把 `modelCredential` 写入 `inject`，再调用 `deliver`。该文件不导入保管库模块。租户、用途和是否获准发送都是 `resolve` 的参数。不从 `ctx`、插件实例或谁装了这个插件来推断租户。
 
 模型执行器不是 Agent 的子 Fiber。跨边界只传业务身份和这次发送任务，不传 Context 或 Fiber。
 

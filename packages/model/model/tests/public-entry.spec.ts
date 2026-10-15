@@ -1,6 +1,14 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
-  const root = (await import('@omne-harness/model')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+it('the public entry exports credential resolution and not the store schema', async () => {
+  const root = await import('@omne-harness/model')
+  expect(Object.keys(root).sort()).toEqual(
+    [
+      'MODEL_SEND',
+      'createLocalCustodian',
+      'credentialId',
+      'deliver',
+      'openLocalCustodian',
+    ].sort(),
+  )
 })

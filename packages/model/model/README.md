@@ -1,6 +1,6 @@
 PACKAGE_TEMPLATE_DRAFT
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+本成员已按 RFC-0003 初始化。凭据引用、存在性查询、解析和本地保管库从根入口导出。`source` 条件指向本包源码。发布时去掉它。其余行为仍以 SPEC 为准。D-04 接受前，待审设计不写入 SPEC。
 
 # model 文档目标
 
@@ -8,7 +8,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 责任与使用
 
-本成员沿[SPEC](SPEC.md)承担完整行为。独立消费通过未来公开入口及显式依赖，不要求启动Cordis；系统集成通过同包Cordis适配满足共同IC、合法身份及业务交接。公开形状、导出、安装闭包、配置、资源限额和提供者尚待设计，不虚构命令。
+本成员沿[SPEC](SPEC.md)承担完整行为。凭据的独立消费走根入口，不要求启动 Cordis。系统集成走 `src/cordis.ts` 的 `modelCredential`。档案选择、结果保管和费用的公开形状仍待设计。
 
 ## 契约与设计
 
@@ -20,5 +20,5 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 验证与维护
 
-SPEC及专题维护持续验证义务；实际测试、模型、提供者和装配证据尚缺。修改时同步公开消费者和组导航；未决按[产品第四块](../../../.meta_harness/design/product/model-invocation/design.md#未决问题与待定事项)及技术拥有者闭合。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+SPEC及专题维护持续验证义务。凭据解析有成员测试。模型执行器、真实提供者和完整装配仍缺。修改时同步公开消费者和组导航。未决按[产品第四块](../../../.meta_harness/design/product/model-invocation/design.md#未决问题与待定事项)及技术拥有者闭合。
+默认测试责任是单元和契约。`tests/credential.spec.ts` 覆盖解析、拒绝、轮换、重启和 Cordis 关闭。`tests/public-entry.spec.ts` 从包名核对根入口导出。
