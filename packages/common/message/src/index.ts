@@ -187,13 +187,19 @@ export function judgePart(
   return { ok: judged.ok }
 }
 
-/** Admit one log message field. This package does not mint ids. */
-export function judgeMessage(value: unknown): MessageJudgment {
-  if (!isRecord(value)) return { rejected: 'shape' }
+interface MessageFields {
+  readonly id: MessageId
+  readonly role: LogMessageRole
+  readonly blocks: readonly unknown[]
+}
+
+function messageFields(
+  value: Record<string, unknown>,
+): { readonly ok: MessageFields } | { readonly rejected: MessageRejection } {
   const legal = new Set<string>(MESSAGE_KEYS)
   if (Object.keys(value).some(key => !legal.has(key))) return { rejected: 'extra' }
-  if (!('id' in value) || !('role' in value) || !('blocks' in value)) return { rejected: 'missing' }
-  if (value.id === null || value.role === null || value.blocks === null) return { rejected: 'null' }
+  if (MESSAGE_KEYS.some(key => !(key in value))) return { rejected: 'missing' }
+  if (MESSAGE_KEYS.some(key => value[key] === null)) return { rejected: 'null' }
   if (
     typeof value.id !== 'string' ||
     typeof value.role !== 'string' ||
@@ -205,11 +211,29 @@ export function judgeMessage(value: unknown): MessageJudgment {
   if (!id.ok) return { rejected: id.error }
   if (!isLogRole(value.role)) return { rejected: 'unknown' }
   if (value.blocks.length === 0) return { rejected: 'empty' }
-  const blocks: MessagePart[] = []
-  for (let index = 0; index < value.blocks.length; index += 1) {
-    const part = judgePart(value.blocks[index])
+  return { ok: { id: id.value, role: value.role, blocks: value.blocks } }
+}
+
+function judgeBlocks(
+  blocks: readonly unknown[],
+):
+  | { readonly ok: readonly MessagePart[] }
+  | { readonly rejected: MessageRejection; readonly blockIndex: number } {
+  const admitted: MessagePart[] = []
+  for (let index = 0; index < blocks.length; index += 1) {
+    const part = judgePart(blocks[index])
     if ('rejected' in part) return { rejected: part.rejected, blockIndex: index }
-    blocks.push(part.ok)
+    admitted.push(part.ok)
   }
-  return { ok: { id: id.value, role: value.role, blocks } }
+  return { ok: admitted }
+}
+
+/** Admit one log message field. This package does not mint ids. */
+export function judgeMessage(value: unknown): MessageJudgment {
+  if (!isRecord(value)) return { rejected: 'shape' }
+  const fields = messageFields(value)
+  if ('rejected' in fields) return { rejected: fields.rejected }
+  const blocks = judgeBlocks(fields.ok.blocks)
+  if ('rejected' in blocks) return blocks
+  return { ok: { id: fields.ok.id, role: fields.ok.role, blocks: blocks.ok } }
 }

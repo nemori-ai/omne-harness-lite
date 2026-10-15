@@ -567,19 +567,19 @@ function applyFinish(state: LiveState): Applied {
   }
 }
 
+/** One step table. `assembleStream` does not switch on the step name. */
+const APPLY: Readonly<
+  Record<StreamArrivalStep, (state: LiveState, step: AssemblyStep) => Applied>
+> = {
+  open: (state, step) => (step.step === 'open' ? applyOpen(state, step) : { rejected: 'step' }),
+  fill: (state, step) => (step.step === 'fill' ? applyFill(state, step) : { rejected: 'step' }),
+  close: (state, step) => (step.step === 'close' ? applyClose(state, step) : { rejected: 'step' }),
+  trim: (state, step) => (step.step === 'trim' ? applyTrim(state, step) : { rejected: 'step' }),
+  finish: (state, step) => (step.step === 'finish' ? applyFinish(state) : { rejected: 'step' }),
+}
+
 function applyLive(state: LiveState, step: AssemblyStep): Applied {
-  switch (step.step) {
-    case 'open':
-      return applyOpen(state, step)
-    case 'fill':
-      return applyFill(state, step)
-    case 'close':
-      return applyClose(state, step)
-    case 'trim':
-      return applyTrim(state, step)
-    case 'finish':
-      return applyFinish(state)
-  }
+  return APPLY[step.step](state, step)
 }
 
 function settle(state: LiveState, end: StreamEnd): Applied {
@@ -600,49 +600,65 @@ function sameTarget(left: AssemblyTarget, right: AssemblyTarget): boolean {
   return left.id === right.id && left.role === right.role
 }
 
+interface Fold {
+  readonly state: InternalState
+  readonly published: StreamAssembly
+}
+
+type Folded = { readonly fold: Fold }
+
+function resume(input: AssembleInput): Folded | AssembleResult {
+  if (input.from === undefined) {
+    const state = fresh(input.target)
+    return { fold: { state, published: publish(state) } }
+  }
+  const existing = carried(input.from)
+  if (existing === undefined) return reject('step', 0, input.from, 'from')
+  if (!sameTarget(existing.target, input.target)) return reject('step', 0, input.from, 'target')
+  return { fold: { state: existing, published: input.from } }
+}
+
+function takeStep(fold: Fold, value: unknown, at: number): Folded | AssembleResult {
+  const parsed = parseStep(value)
+  if ('rejected' in parsed) return reject(parsed.rejected, at, fold.published)
+  const key = stepKey(parsed.step)
+  const fp = stable(parsed.step)
+  const seen = fold.state.ledger.get(key)
+  if (seen !== undefined) {
+    if (seen === fp) return { fold }
+    return reject(parsed.step.step === 'open' ? 'index' : 'conflict', at, fold.published)
+  }
+  if (fold.state.phase === 'ended') return reject('late', at, fold.published)
+  const applied = applyLive(fold.state, parsed.step)
+  if ('rejected' in applied) return reject(applied.rejected, at, fold.published, applied.detail)
+  const state = remember(applied.state, key, fp)
+  return { fold: { state, published: publish(state) } }
+}
+
+function takeEnd(fold: Fold, end: StreamEnd | undefined, at: number): AssembleResult {
+  if (end === undefined) return { ok: fold.published }
+  if (!isStreamEnd(end)) return reject('step', at, fold.published)
+  const endFp = stable(end)
+  const seenEnd = fold.state.ledger.get('end')
+  if (seenEnd !== undefined) {
+    if (seenEnd === endFp) return { ok: fold.published }
+    return reject('conflict', at, fold.published)
+  }
+  if (fold.state.phase === 'ended') return reject('late', at, fold.published)
+  const settled = settle(fold.state, end)
+  if ('rejected' in settled) return reject(settled.rejected, at, fold.published, settled.detail)
+  return { ok: publish(remember(settled.state, 'end', endFp)) }
+}
+
 /** Pure fold of one target. A novel step after a terminal returns `late` and the previous assembly. */
 export function assembleStream(input: AssembleInput): AssembleResult {
-  let state: InternalState
-  let published: StreamAssembly
-  if (input.from === undefined) {
-    state = fresh(input.target)
-    published = publish(state)
-  } else {
-    const existing = carried(input.from)
-    if (existing === undefined) return reject('step', 0, input.from, 'from')
-    if (!sameTarget(existing.target, input.target)) return reject('step', 0, input.from, 'target')
-    state = existing
-    published = input.from
-  }
-
+  const started = resume(input)
+  if (!('fold' in started)) return started
+  let fold = started.fold
   for (let at = 0; at < input.steps.length; at += 1) {
-    const parsed = parseStep(input.steps[at])
-    if ('rejected' in parsed) return reject(parsed.rejected, at, published)
-    const key = stepKey(parsed.step)
-    const fp = stable(parsed.step)
-    const seen = state.ledger.get(key)
-    if (seen !== undefined) {
-      if (seen === fp) continue
-      return reject(parsed.step.step === 'open' ? 'index' : 'conflict', at, published)
-    }
-    if (state.phase === 'ended') return reject('late', at, published)
-    const applied = applyLive(state, parsed.step)
-    if ('rejected' in applied) return reject(applied.rejected, at, published, applied.detail)
-    state = remember(applied.state, key, fp)
-    published = publish(state)
+    const next = takeStep(fold, input.steps[at], at)
+    if (!('fold' in next)) return next
+    fold = next.fold
   }
-
-  if (input.end === undefined) return { ok: published }
-  if (!isStreamEnd(input.end)) return reject('step', input.steps.length, published)
-  const endFp = stable(input.end)
-  const seenEnd = state.ledger.get('end')
-  if (seenEnd !== undefined) {
-    if (seenEnd === endFp) return { ok: published }
-    return reject('conflict', input.steps.length, published)
-  }
-  if (state.phase === 'ended') return reject('late', input.steps.length, published)
-  const settled = settle(state, input.end)
-  if ('rejected' in settled)
-    return reject(settled.rejected, input.steps.length, published, settled.detail)
-  return { ok: publish(remember(settled.state, 'end', endFp)) }
+  return takeEnd(fold, input.end, input.steps.length)
 }

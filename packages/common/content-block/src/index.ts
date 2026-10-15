@@ -44,18 +44,105 @@ export interface FileContentBlock {
 export type ContentBlock =
   TextContentBlock | ThinkingContentBlock | MediaContentBlock | FileContentBlock
 
-export type ContentBlockRejection = 'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file'
+export type ContentBlockRejection =
+  'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file'
 
 export type ContentBlockJudgment =
   { readonly ok: ContentBlock } | { readonly rejected: ContentBlockRejection }
 
-/** Legal keys of each kind. `judgeContentBlock` reads this table and does not keep a second list. */
-const BLOCK_KEYS: Readonly<Record<ContentBlockKind, readonly string[]>> = {
-  text: ['kind', 'id', 'visibility', 'text'],
-  thinking: ['kind', 'id', 'visibility', 'text'],
-  voice: ['kind', 'id', 'visibility', 'mediaType', 'inline'],
-  image: ['kind', 'id', 'visibility', 'mediaType', 'inline'],
-  file: ['kind', 'id', 'visibility', 'storage', 'key', 'mediaType'],
+interface BlockRule {
+  readonly keys: readonly string[]
+  readonly admit: (
+    value: Record<string, unknown>,
+    id: BlockId,
+    visibility: Visibility,
+  ) => ContentBlockJudgment
+}
+
+function admitWritten(
+  kind: 'text' | 'thinking',
+  value: Record<string, unknown>,
+  id: BlockId,
+  visibility: Visibility,
+): ContentBlockJudgment {
+  if (typeof value.text !== 'string') return { rejected: 'text' }
+  return { ok: { kind, id, visibility, text: value.text } }
+}
+
+function admitText(
+  value: Record<string, unknown>,
+  id: BlockId,
+  visibility: Visibility,
+): ContentBlockJudgment {
+  return admitWritten('text', value, id, visibility)
+}
+
+function admitThinking(
+  value: Record<string, unknown>,
+  id: BlockId,
+  visibility: Visibility,
+): ContentBlockJudgment {
+  return admitWritten('thinking', value, id, visibility)
+}
+
+function admitMedia(
+  kind: 'voice' | 'image',
+  value: Record<string, unknown>,
+  id: BlockId,
+  visibility: Visibility,
+): ContentBlockJudgment {
+  if (typeof value.mediaType !== 'string' || typeof value.inline !== 'string')
+    return { rejected: 'media' }
+  return { ok: { kind, id, visibility, mediaType: value.mediaType, inline: value.inline } }
+}
+
+function admitVoice(
+  value: Record<string, unknown>,
+  id: BlockId,
+  visibility: Visibility,
+): ContentBlockJudgment {
+  return admitMedia('voice', value, id, visibility)
+}
+
+function admitImage(
+  value: Record<string, unknown>,
+  id: BlockId,
+  visibility: Visibility,
+): ContentBlockJudgment {
+  return admitMedia('image', value, id, visibility)
+}
+
+function admitFile(
+  value: Record<string, unknown>,
+  id: BlockId,
+  visibility: Visibility,
+): ContentBlockJudgment {
+  if (
+    typeof value.storage !== 'string' ||
+    typeof value.key !== 'string' ||
+    typeof value.mediaType !== 'string'
+  ) {
+    return { rejected: 'file' }
+  }
+  return {
+    ok: {
+      kind: 'file',
+      id,
+      visibility,
+      storage: value.storage,
+      key: value.key,
+      mediaType: value.mediaType,
+    },
+  }
+}
+
+/** One table for legal keys and admission. `judgeContentBlock` does not keep a second list. */
+const BLOCKS: Readonly<Record<ContentBlockKind, BlockRule>> = {
+  text: { keys: ['kind', 'id', 'visibility', 'text'], admit: admitText },
+  thinking: { keys: ['kind', 'id', 'visibility', 'text'], admit: admitThinking },
+  voice: { keys: ['kind', 'id', 'visibility', 'mediaType', 'inline'], admit: admitVoice },
+  image: { keys: ['kind', 'id', 'visibility', 'mediaType', 'inline'], admit: admitImage },
+  file: { keys: ['kind', 'id', 'visibility', 'storage', 'key', 'mediaType'], admit: admitFile },
 }
 
 const VISIBILITY_KEYS = ['toHuman', 'toModel'] as const
@@ -83,41 +170,13 @@ function visibilityOf(value: unknown): Visibility | undefined {
 export function judgeContentBlock(value: unknown): ContentBlockJudgment {
   if (!isRecord(value) || typeof value.kind !== 'string') return { rejected: 'kind' }
   if (!isContentBlockKind(value.kind)) return { rejected: 'kind' }
-  const kind = value.kind
-  if (hasUnknownKey(value, BLOCK_KEYS[kind])) return { rejected: 'extra' }
+  const rule = BLOCKS[value.kind]
+  if (hasUnknownKey(value, rule.keys)) return { rejected: 'extra' }
   if (isRecord(value.visibility) && hasUnknownKey(value.visibility, VISIBILITY_KEYS)) {
     return { rejected: 'extra' }
   }
   if (typeof value.id !== 'string' || value.id.length === 0) return { rejected: 'id' }
   const visibility = visibilityOf(value.visibility)
   if (visibility === undefined) return { rejected: 'visibility' }
-  const id = value.id as BlockId
-  if (value.kind === 'text' || value.kind === 'thinking') {
-    if (typeof value.text !== 'string') return { rejected: 'text' }
-    return { ok: { kind: value.kind, id, visibility, text: value.text } }
-  }
-  if (value.kind === 'voice' || value.kind === 'image') {
-    if (typeof value.mediaType !== 'string' || typeof value.inline !== 'string')
-      return { rejected: 'media' }
-    return {
-      ok: { kind: value.kind, id, visibility, mediaType: value.mediaType, inline: value.inline },
-    }
-  }
-  if (
-    typeof value.storage !== 'string' ||
-    typeof value.key !== 'string' ||
-    typeof value.mediaType !== 'string'
-  ) {
-    return { rejected: 'file' }
-  }
-  return {
-    ok: {
-      kind: 'file',
-      id,
-      visibility,
-      storage: value.storage,
-      key: value.key,
-      mediaType: value.mediaType,
-    },
-  }
+  return rule.admit(value, value.id as BlockId, visibility)
 }
