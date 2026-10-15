@@ -1,10 +1,13 @@
 // 回放：对一条分支上最近的若干个 first-parent 提交，各以父提交为基线、以它本身为改动算一次计划（只算不跑）。
-// 成员清单取那个提交上的（当时的 workspace 与依赖），路径规则取现在的配置——回放量的是现行规则放在过去会怎么判。
+// 成员清单取那个提交上的（当时的 workspace），路径规则取现在的配置——回放量的是现行规则放在过去会怎么判。
+// 受影响的成员由 turbo 比较父提交与该提交给出；turbo 的包依赖图取当前工作树的，这是一个近似：
+// 那之后改过的依赖关系会按现在的算。
 // 用来在改规则前后看「判全量的有几个、是不是该全量」，不进 `make check`。
 import { git, nulSeparated } from '../metrics/git.ts'
-import { planCheck, sample, type CheckPlan } from './affected.ts'
+import { planCheck, sample, type CheckPlan } from './scope.ts'
+import { affectedMembers } from './turbo.ts'
 import type { AffectedRules } from './config.ts'
-import { gitTree, listWorkspaceMembers, type WorkspaceMember } from './members.ts'
+import { fileTree, gitTree, listWorkspaceMembers, type WorkspaceMember } from './members.ts'
 
 export interface ReplayRow {
   readonly commit: string
@@ -44,6 +47,7 @@ export function replay(
   count: number,
   rules: AffectedRules,
 ): ReplayRow[] {
+  const current = listWorkspaceMembers(fileTree(root), rules.excludeRoots)
   const commits = git(root, ['rev-list', '--first-parent', `--max-count=${count}`, ref])
     .split('\n')
     .filter(line => line !== '')
@@ -53,7 +57,11 @@ export function replay(
     const changed = commitChanges(root, commit)
     try {
       const members = listWorkspaceMembers(gitTree(root, commit), rules.excludeRoots)
-      const plan = planCheck(changed, members, rulesAt(rules, members))
+      const known = new Set(members.map(member => member.path))
+      const affected = new Set(
+        [...affectedMembers(root, current, `${commit}^1`, commit)].filter(path => known.has(path)),
+      )
+      const plan = planCheck(changed, members, rulesAt(rules, members), affected)
       const because = plan.files
         .filter(file => file.category === 'global' || file.category === 'unclassified')
         .map(file => file.path)

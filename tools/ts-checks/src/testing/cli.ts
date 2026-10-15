@@ -27,7 +27,8 @@ import {
   computePlan,
   describePlanFile,
   fullRequested,
-  pnpmStep,
+  buildStep,
+  typecheckStep,
   pythonStep,
   readPlanFile,
   recordedRun,
@@ -97,8 +98,8 @@ async function step(argv: readonly string[]): Promise<number> {
   if (planPath === undefined) for (const line of describePlanFile(ROOT, file)) console.log(line)
   const steps: Record<Step, () => number | Promise<number>> = {
     python: () => pythonStep(ROOT, file),
-    build: () => pnpmStep(ROOT, file, 'build'),
-    typecheck: () => pnpmStep(ROOT, file, 'typecheck'),
+    build: () => buildStep(ROOT, file),
+    typecheck: () => typecheckStep(ROOT, file),
     test: () => testStep(ROOT, file),
     acceptance: () => acceptanceStep(ROOT, file),
   }

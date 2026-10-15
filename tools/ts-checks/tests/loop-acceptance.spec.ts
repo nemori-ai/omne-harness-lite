@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { acceptanceMeasured } from '../src/loop/run.ts'
 import { acceptanceRun, readAcceptanceTiming, timingOf } from '../src/loop/sensors/acceptance.ts'
 import type { Coordinates } from '../src/metrics/git.ts'
-import { planCheck } from '../src/testing/affected.ts'
+import { planCheck } from '../src/testing/scope.ts'
 import type { LedgerFile } from '../src/testing/ledger.ts'
 import { recordSkippedAcceptance } from '../src/testing/steps.ts'
 import { removeTemporaries, temporaryDirectory } from './fixtures/loop-canary/repository.ts'
@@ -228,15 +228,20 @@ describe('验收耗时传感器', () => {
       branch: 'x',
       dirty: true,
     }
-    const plan = planCheck([], [], {
-      excludeRoots: [],
-      globalPaths: [],
-      readers: [],
-      memberDocuments: [],
-      pythonPaths: [],
-      residentPaths: [],
-      residentBuild: [],
-    })
+    const plan = planCheck(
+      [],
+      [],
+      {
+        excludeRoots: [],
+        globalPaths: [],
+        readers: [],
+        memberDocuments: [],
+        pythonPaths: [],
+        residentPaths: [],
+        residentBuild: [],
+      },
+      new Set(),
+    )
     const path = recordSkippedAcceptance(at, { OMNE_ACCEPTANCE_LEDGER_HOME: ledgers }, plan, BASE, [
       'apps/cli',
     ])

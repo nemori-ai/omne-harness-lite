@@ -6,9 +6,10 @@
 // 又被 stream-assembly 读），三者都算；归类只记第一类。命中全局或落进「其余」（没有规则认得它）的，
 // 整份计划判全量：判不准就多跑，不按猜的范围少跑。
 //
-// 成员按 package.json 声明的 workspace 依赖求反向传递闭包。pnpm 自带的 `--filter "...[<since>]"`
-// 做的是同一件事，但它在 git 工作树里匹配不到任何包（2026-10-01 在 pnpm 10.28.1 上验证：主检出选中 41 个，
-// 同一提交的工作树选中 0 个），而实施都在工作树里进行，所以这里自己算。
+// 改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出（turbo.ts）；这里不再自己求依赖闭包。
+// turbo 按包计改动，成员目录里只改文档也会选中那个成员：比原先的「成员文档不算改动」多跑，不少跑。
+// turbo 不认成员目录以外的读取（2026-10-15 在 turbo 2.11.7 上验证：`--affected` 默认不看任务 inputs），
+// 读者规则仍在这里。
 import { isLegacyDirectory, isLegacyFile } from '../check-scope.ts'
 import type { AffectedRules } from './config.ts'
 import { ownerOf, type WorkspaceMember } from './members.ts'
@@ -91,11 +92,13 @@ export interface PlannedMember {
   readonly changed: readonly string[]
   /** 它的测试读、被改了的成员外路径（读者规则）。 */
   readonly reads: readonly { readonly path: string; readonly pattern: string }[]
-  /** 它（直接）依赖的、已被选中的成员：沿反向依赖走到它的那一步。 */
-  readonly dependsOn?: string
+  /** 自己没改、也不因读者规则，只因依赖了改动过的成员而被 turbo 选中。 */
+  readonly downstream?: true
+  /** 成员目录里只改了文档：turbo 按包计改动，照样选中它。 */
+  readonly documentsOnly?: true
 }
 
-export type BuildReason = 'selected' | 'dependency' | 'resident'
+export type BuildReason = 'selected' | 'resident'
 
 export interface CheckPlan {
   readonly mode: 'full' | 'scoped'
@@ -104,7 +107,7 @@ export interface CheckPlan {
   readonly files: readonly ClassifiedFile[]
   /** 按范围时被选中的成员及原因；全量时为空（所有在役成员）。 */
   readonly members: readonly PlannedMember[]
-  /** 要构建的成员：被选中的、它们的传递依赖、常驻检查需要的；只取有 build 脚本的。 */
+  /** 要构建的成员：被选中的与常驻检查需要的；上游依赖由 turbo 先构建。只取有 build 脚本的。 */
   readonly build: readonly { readonly path: string; readonly reason: BuildReason }[]
   readonly typecheck: readonly string[]
   readonly test: readonly string[]
@@ -156,55 +159,10 @@ function fullPlan(
   }
 }
 
-/** 沿声明的依赖往下走：这些成员连同它们直接、间接依赖的成员。 */
-function dependencyClosure(
-  start: Iterable<string>,
-  members: readonly WorkspaceMember[],
-): Set<string> {
-  const byName = new Map(members.map(member => [member.name, member]))
-  const byPath = new Map(members.map(member => [member.path, member]))
-  const reached = new Set(start)
-  const queue = [...reached]
-  for (let head = queue.shift(); head !== undefined; head = queue.shift())
-    for (const name of byPath.get(head)?.dependencies ?? []) {
-      const target = byName.get(name)
-      if (target !== undefined && !reached.has(target.path)) {
-        reached.add(target.path)
-        queue.push(target.path)
-      }
-    }
-  return reached
-}
-
-/** 沿反向依赖往上走：返回每个被走到的成员是经哪个成员走到的。 */
-function dependentClosure(
-  start: Iterable<string>,
-  members: readonly WorkspaceMember[],
-): Map<string, string> {
-  const byName = new Map(members.map(member => [member.name, member]))
-  const dependentsOf = new Map<string, string[]>()
-  for (const member of members)
-    for (const name of member.dependencies) {
-      const target = byName.get(name)
-      if (target !== undefined)
-        dependentsOf.set(target.path, [...(dependentsOf.get(target.path) ?? []), member.path])
-    }
-  const via = new Map<string, string>()
-  const reached = new Set(start)
-  const queue = [...reached]
-  for (let head = queue.shift(); head !== undefined; head = queue.shift())
-    for (const dependent of dependentsOf.get(head) ?? [])
-      if (!reached.has(dependent)) {
-        reached.add(dependent)
-        via.set(dependent, head)
-        queue.push(dependent)
-      }
-  return via
-}
-
 function selectMembers(
   files: readonly ClassifiedFile[],
   members: readonly WorkspaceMember[],
+  affected: ReadonlySet<string>,
 ): PlannedMember[] {
   const changed = new Map<string, string[]>()
   const reads = new Map<string, { path: string; pattern: string }[]>()
@@ -216,43 +174,42 @@ function selectMembers(
         reads.set(member, [...(reads.get(member) ?? []), { path: file.path, pattern: hit.pattern }])
   }
   // 读者不沿反向依赖传播：读文件的是那个成员的测试，依赖它的成员不读。
-  const via = dependentClosure(changed.keys(), members)
   return members.flatMap(member => {
     const own = changed.get(member.path) ?? []
     const read = reads.get(member.path) ?? []
-    const dependsOn = via.get(member.path)
-    if (own.length === 0 && read.length === 0 && dependsOn === undefined) return []
+    const byTurbo = affected.has(member.path)
+    if (own.length === 0 && read.length === 0 && !byTurbo) return []
+    const inside = files.some(file => file.path.startsWith(`${member.path}/`))
     return [
       {
         path: member.path,
         changed: own,
         reads: read,
-        ...(dependsOn === undefined ? {} : { dependsOn }),
+        ...(byTurbo && own.length === 0
+          ? inside
+            ? { documentsOnly: true as const }
+            : { downstream: true as const }
+          : {}),
       },
     ]
   })
 }
 
+/** 要构建的成员：被选中的与常驻检查需要的；它们依赖的上游由 turbo 按依赖先构建。只取有 build 脚本的。 */
 function buildList(
   selected: ReadonlySet<string>,
   members: readonly WorkspaceMember[],
   rules: AffectedRules,
 ): CheckPlan['build'] {
-  const forTests = dependencyClosure(selected, members)
-  const forResident = dependencyClosure(
-    rules.residentBuild.map(entry => entry.member),
-    members,
-  )
+  const resident = new Set(rules.residentBuild.map(entry => entry.member))
   return members
     .filter(member => member.scripts['build'] !== undefined)
     .flatMap(member => {
       const reason: BuildReason | undefined = selected.has(member.path)
         ? 'selected'
-        : forTests.has(member.path)
-          ? 'dependency'
-          : forResident.has(member.path)
-            ? 'resident'
-            : undefined
+        : resident.has(member.path)
+          ? 'resident'
+          : undefined
       return reason === undefined ? [] : [{ path: member.path, reason }]
     })
 }
@@ -270,23 +227,29 @@ function scopedReason(
   const own = planned.filter(member => member.changed.length > 0).length
   const readers = planned.filter(member => member.changed.length === 0 && member.reads.length > 0)
   const dependents = planned.filter(
-    member => member.changed.length === 0 && member.reads.length === 0,
+    member => member.downstream === true && member.reads.length === 0,
+  )
+  const documents = planned.filter(
+    member => member.documentsOnly === true && member.reads.length === 0,
   )
   return (
     `${files.length} 个改动文件，成员 ${planned.length} 个` +
-    `（自己改了 ${own} 个、依赖方 ${dependents.length} 个、只因读者规则 ${readers.length} 个）` +
+    `（自己改了 ${own} 个、依赖方 ${dependents.length} 个、只因读者规则 ${readers.length} 个` +
+    (documents.length === 0 ? '' : `、只改了文档 ${documents.length} 个`) +
+    '）' +
     `；pytest ${python ? '跑' : '不跑'}`
   )
 }
 
 /**
- * 由改动过的文件、成员清单与规则算出执行计划；纯函数。`full` 为真（`FULL=1`）直接给全量计划。
- * 规则里点名了不存在的成员就抛错。
+ * 由改动过的文件、成员清单、规则与 turbo 判为受影响的成员算出执行计划；纯函数。
+ * `full` 为真（`FULL=1`）直接给全量计划。规则里点名了不存在的成员就抛错。
  */
 export function planCheck(
   changedPaths: readonly string[],
   members: readonly WorkspaceMember[],
   rules: AffectedRules,
+  affected: ReadonlySet<string>,
   full = false,
 ): CheckPlan {
   checkRuleMembers(members, rules)
@@ -314,6 +277,7 @@ export function planCheck(
   const planned = selectMembers(
     files,
     members.filter(member => !isLegacyDirectory(member.path)),
+    affected,
   )
   const selected = new Set(planned.map(member => member.path))
   const pythonHits = files.filter(file => file.python !== undefined)
@@ -360,7 +324,8 @@ function whyMember(member: PlannedMember): string {
         2,
       )}`,
     )
-  if (member.dependsOn !== undefined) parts.push(`依赖 ${member.dependsOn}`)
+  if (member.downstream === true) parts.push('依赖了改动过的成员（turbo --affected）')
+  if (member.documentsOnly === true) parts.push('成员目录里只改了文档（turbo 按包计改动）')
   return parts.join('；')
 }
 
@@ -401,7 +366,7 @@ export function describeCheckPlan(
     lines.push(`  成员测试：全部 ${plan.test.length} 个成员的快、慢两层`)
   } else {
     const resident = plan.build.filter(entry => entry.reason === 'resident').map(e => e.path)
-    const forTests = plan.build.filter(entry => entry.reason !== 'resident').map(e => e.path)
+    const forTests = plan.build.filter(entry => entry.reason === 'selected').map(e => e.path)
     const residentWhy = rules.residentBuild
       .filter(entry => resident.includes(entry.member))
       .map(entry => entry.why)
@@ -412,7 +377,7 @@ export function describeCheckPlan(
     lines.push(
       forTests.length === 0
         ? `  构建：只构建 ${residentNote}`
-        : `  构建：${plan.build.length} 个——被选中的成员及其依赖 ${sample(forTests, 6)}` +
+        : `  构建：${plan.build.length} 个——被选中的成员 ${sample(forTests, 6)}，turbo 先构建它们的上游` +
             (resident.length === 0 ? '' : `；另有 ${residentNote}`),
     )
     lines.push(

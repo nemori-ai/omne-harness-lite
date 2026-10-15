@@ -328,8 +328,12 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     mkdirSync(join(memberDir, 'src'), { recursive: true })
     mkdirSync(join(memberDir, 'tests'))
     writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n')
-    writeFileSync(join(root, 'package.json'), '{ "name": "fixture-root", "private": true }\n')
-    writeFileSync(join(root, '.gitignore'), 'node_modules\ndist\n.stryker-tmp*\n')
+    // turbo 解析 workspace 时要求根清单写明包管理器，与真实仓库一致。
+    writeFileSync(
+      join(root, 'package.json'),
+      '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    )
+    writeFileSync(join(root, '.gitignore'), 'node_modules\ndist\n.stryker-tmp*\n.turbo\n')
     copyFileSync(ROOT_TIERS, join(root, 'vitest.tiers.mts'))
     // 真构建出 dist：测试按包名导入自己时走的是它（sandbox 里由插过桩的 src 重新构建）。
     writeFileSync(
