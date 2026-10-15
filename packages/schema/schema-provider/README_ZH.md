@@ -4,7 +4,7 @@
 
 本包校验一份 `JsonRead`，并在本执行域内缓存编译结果。公开类型在 `src/index.ts`。类型不能表达的行为在 [SPEC.md](SPEC.md)。内部模块在 [docs/architecture.md](docs/architecture.md)。
 
-根入口导出公开函数。检查逻辑尚未兑现 [SPEC.md](SPEC.md) 的条款。
+根入口已实现 [SPEC.md](SPEC.md) 的静态校验、准入、缓存与租约行为。动态档仍关闭，快照个数不构成编译内存上界。
 
 ## 职责与状态
 

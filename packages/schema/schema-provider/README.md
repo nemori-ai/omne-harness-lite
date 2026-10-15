@@ -4,7 +4,7 @@
 
 This package checks one `JsonRead` and caches the compiled artifact for one execution domain. Public types live in `src/index.ts`. Behavior that types do not express lives in [SPEC.md](SPEC.md). Module structure lives in [docs/architecture.md](docs/architecture.md).
 
-The root entry exports the public functions. The check logic does not yet fulfill [SPEC.md](SPEC.md).
+The root entry implements the static validation, admission, cache, and lease behavior in [SPEC.md](SPEC.md). Dynamic profiles remain closed. Snapshot counts do not bound compilation memory.
 
 ## Responsibility and status
 
