@@ -23,7 +23,9 @@
     "test": "pnpm run build && vitest run"
   },
   "dependencies": {
-    "@omne-harness/json-text": "workspace:*"
+    "@omne-harness/json-text": "workspace:*",
+    "ajv": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
