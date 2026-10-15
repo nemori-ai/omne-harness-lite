@@ -3,7 +3,6 @@ import { isPowerOfTwo, memoryBytes, type ScryptCost } from './memory.ts'
 export const SCRYPT_SCHEME = 'scrypt'
 
 const VERSION = 'v=1'
-const DECIMAL = /^(0|[1-9][0-9]{0,15})$/
 
 export interface MaterialParams extends ScryptCost {
   readonly keylen: number
@@ -71,19 +70,14 @@ function paramsFit(params: MaterialParams): boolean {
 }
 
 function readParams(text: string): Map<string, number> | undefined {
-  const fields = text.split(',')
-  if (fields.length !== 4) return undefined
-  const values = new Map<string, number>()
-  for (const field of fields) {
-    const splitAt = field.indexOf('=')
-    if (splitAt <= 0) return undefined
-    const key = field.slice(0, splitAt)
-    const value = field.slice(splitAt + 1)
-    if (!DECIMAL.test(value) || values.has(key)) return undefined
-    values.set(key, Number(value))
-  }
-  if (!values.has('n') || !values.has('r') || !values.has('p') || !values.has('k')) return undefined
-  return values
+  const match = /^n=(0|[1-9][0-9]{0,15}),r=(0|[1-9][0-9]{0,15}),p=(0|[1-9][0-9]{0,15}),k=(0|[1-9][0-9]{0,15})$/.exec(text)
+  if (match === null) return undefined
+  return new Map([
+    ['n', Number(match[1])],
+    ['r', Number(match[2])],
+    ['p', Number(match[3])],
+    ['k', Number(match[4])],
+  ])
 }
 
 function strictBase64url(text: string): Uint8Array | undefined {

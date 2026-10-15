@@ -70,7 +70,12 @@ it('rejects a bad secret and a refused policy before compute', () => {
   const held = heldCompute()
   const opened = openScrypt(tiny, held.compute)
   if (!opened.ok) throw new Error('profile')
-  expect(opened.module.derive('', allow)).toEqual({ code: 'invalid_secret' })
+  let policyCalls = 0
+  expect(opened.module.derive('', () => {
+    policyCalls += 1
+    return { ok: false }
+  })).toEqual({ code: 'policy_refused' })
+  expect(policyCalls).toBe(1)
   expect(opened.module.derive('secret', undefined)).toEqual({ code: 'policy_missing' })
   const refused = opened.module.derive('secret', () => ({ ok: false }))
   expect(JSON.stringify(refused).includes('secret')).toBe(false)
@@ -130,6 +135,21 @@ it('matches a derived secret and mismatches a different one', async () => {
   const missed = opened.module.verify(derived.material, 'other-secret')
   if (!('done' in missed)) throw new Error('expected verify job')
   await expect(missed.done).resolves.toEqual({ code: 'mismatch' })
+})
+
+it('checks a stored material with its own cost when that cost still fits', async () => {
+  const wide = openScrypt({ ...tiny, N: 32 })
+  const narrow = openScrypt(tiny)
+  if (!wide.ok || !narrow.ok) throw new Error('profile')
+  const started = narrow.module.derive('correct-secret', allow)
+  if (!('done' in started)) throw new Error('expected a job')
+  const derived = (await started.done) as { code: string; material?: string }
+  if (derived.material === undefined) throw new Error('missing material')
+  const checked = wide.module.verify(derived.material, 'correct-secret')
+  if (!('done' in checked)) throw new Error('expected verify')
+  await expect(checked.done).resolves.toEqual({ code: 'match' })
+  const reordered = derived.material.replace('n=16,r=1,p=1,k=32', 'r=1,p=1,k=32,n=16')
+  expect(wide.module.verify(reordered, 'correct-secret')).toEqual({ code: 'unavailable' })
 })
 
 it('refuses stored parameters above the opened profile before another hash', async () => {

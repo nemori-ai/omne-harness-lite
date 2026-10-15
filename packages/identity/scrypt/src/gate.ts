@@ -140,15 +140,21 @@ export function openScrypt(
     return handle
   }
 
-  function runHash(secret: string, salt: Uint8Array, keylen: number, finish: (value: unknown) => void): void {
-    compute(secret, salt, keylen, profile, (error, key) => {
+  function runHash(
+    secret: string,
+    salt: Uint8Array,
+    keylen: number,
+    cost: { N: number; r: number; p: number },
+    finish: (value: unknown) => void,
+  ): void {
+    compute(secret, salt, keylen, cost, (error, key) => {
       finish(error === undefined || error === null ? key : { code: 'unavailable' })
     })
   }
 
   const module: ScryptModule = {
     derive(secret, policy) {
-      if (typeof secret !== 'string' || secret.length === 0) return { code: 'invalid_secret' }
+      if (typeof secret !== 'string') return { code: 'invalid_secret' }
       if (typeof policy !== 'function') return { code: 'policy_missing' }
       let verdict: ReturnType<PasswordPolicy>
       try {
@@ -165,7 +171,7 @@ export function openScrypt(
         return { code: 'unavailable' }
       }
       return admit(jobMemory, finish => {
-        runHash(secret, salt, profile.keylen, value => {
+        runHash(secret, salt, profile.keylen, profile, value => {
           if (value instanceof Uint8Array) {
             finish({
               code: 'material',
@@ -196,7 +202,7 @@ export function openScrypt(
       const cost = memoryBytes(decoded.params)
       if (cost === undefined || cost > jobMemory) return { code: 'unavailable' }
       return admit(cost, finish => {
-        runHash(secret, decoded.salt, decoded.params.keylen, value => {
+        runHash(secret, decoded.salt, decoded.params.keylen, decoded.params, value => {
           if (!(value instanceof Uint8Array) || value.length !== decoded.key.length) {
             finish({ code: 'unavailable' })
             return
