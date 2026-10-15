@@ -176,7 +176,8 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 | `public-health` 的 `succeeded` | `protocolVersion` 为 `governance-public/1` |
 | `judge-admission` 的 `succeeded` | `admitted` 为 true。不含许可秘密 |
 | `judge-admission` 的 `need-decision` | `decisionRequestId` |
-| 表达已记录且持久设置尚未更新的 `succeeded` | `expressionId`，`persistentSettingsUpdated` 为 false |
+| 表达已记录、持久设置尚未发生且这次写入没有失败的 `succeeded` | `expressionId`，`persistentSettingsUpdated` 为 false |
+| 已有 `expressionId` 的同一决定再次提交的 `no-change` | `expressionId` |
 | `revoke-login`、`replace-credential`、`leave-organization`、`remove-member`、`change-member-role` 的 `succeeded` | 空对象 |
 
 
@@ -337,7 +338,7 @@ SDK 不缓存准入允许、登录证明或凭据。它不提供 `prefer-copy`�
 
 撤回的 `body` 含 `expressionId`。成功时留下撤回事实，并保留原表达。无资格是 `denied`。提交结果未知时，对外是 `unknown`。该结果不把原表达改成已撤回，也不把未知写成已经生效。读取故障不把原表达写成已撤回，对外是 `basis-unavailable`。
 
-表达记录已经提交、持久设置的更新尚未发生时，结果是 `succeeded`。服务端在这次成功里产生 `expressionId`，并放进响应 `body`。撤回使用这个 `expressionId`。请求里的 `expression` 是表达内容，不是该标识。`body` 还含 `persistentSettingsUpdated` 为 false。持久设置的这次写入已经失败、表达也没有成为持久设置时，结果是 `basis-unavailable`，不产生 `expressionId`。写入结果未知是 `unknown`。`basis-unavailable` 和 `unknown` 都不报告规则已经生效。已消费的许可不能复用。重复提交同一决定不增加许可，有权调用者得到 `no-change`。
+表达记录已经提交、持久设置的更新尚未发生、这次写入也没有失败时，结果是 `succeeded`。服务端在这次成功里产生 `expressionId`，并放进响应 `body`。撤回使用这个 `expressionId`。请求里的 `expression` 是表达内容，不是该标识。`body` 还含 `persistentSettingsUpdated` 为 false。持久设置的这次写入已经失败、表达也没有成为持久设置时，结果是 `basis-unavailable`，不产生 `expressionId`。写入结果未知是 `unknown`。`basis-unavailable` 和 `unknown` 都不报告规则已经生效。已消费的许可不能复用。已经产生 `expressionId` 的同一决定再次提交，不增加许可。有权调用者得到 `no-change`，`body` 含已有的 `expressionId`。第一次提交仍按上面的 `succeeded` 或 `basis-unavailable`。
 
 ## 当前读面
 
