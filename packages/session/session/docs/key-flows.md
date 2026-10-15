@@ -17,7 +17,7 @@ Session 保存会话事实，Agent 决定 Loop 下一步，Model 和 Tool 保存
 
 ## F-SW01 创建、版本采用与 reload
 
-对应 [J-SW01](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw01)。创建采用 ST01/ST02，新 Run 采用 ST06，普通接续及 reload 采用 ST08 至 ST11。身份、设置、定义与工作区拥有者提供当前可核验依据，Session 负责本会话采用。
+对应 [J-SW01](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw01)。创建采用 ST01/ST02，新 Run 采用 ST06，普通接续及 reload 采用 ST08 至 ST11。身份、设置、定义与工作区拥有者提供当前可核验依据，Session 负责本会话采用。换代时，撤销旧推进权和保存接续依据一起成立，否则换代不成立。原执行不因撤权销毁。
 
 ```mermaid
 sequenceDiagram
@@ -87,7 +87,7 @@ flowchart TD
 
 ## F-SW03 工作推进、结果交接与恢复
 
-对应 [J-SW03](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw03)，采用 ST06 至 ST10、ST14 至 ST16、ST20 和 ST26。Session 的责任止于合法工作及交接，Loop、流式和真实执行仍由各自拥有者维护。
+对应 [J-SW03](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw03)，采用 ST06 至 ST10、ST14 至 ST16、ST20 和 ST26。Session 的责任止于合法工作及交接，Loop、流式和真实执行仍由各自拥有者维护。正常发出时，发起者在登记时生成稳定调用身份。固定输入、调用身份和准入一起提交。模型受理和结果容量预留在同一真实事务里成立，否则不算已经发出。
 
 ```mermaid
 sequenceDiagram
@@ -179,9 +179,9 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     U[请求修改本会话选择] --> K{操作类别}
-    K -->|三轴模式| M{具资格用户且不突破上界}
-    M -->|Agent 或不合法| R[拒绝，原值保持]
-    M -->|通过| MC[共同提交被修改维度及回执]
+    K -->|三轴模式| M{修改资格且不突破上界}
+    M -->|本会话租户，或 Agent 经 HITL 由人显式授权| MC[共同提交被修改维度及回执]
+    M -->|直接写、未经人授权或不合法| R[拒绝，原值保持]
     MC --> CTX[向运行消费者提示，下次使用取得当前值]
     K -->|模型路由| L{合法目标与当前资格}
     L -->|非法或无依据| R
@@ -200,7 +200,7 @@ flowchart TD
 
 ## F-SW06 插队、单调用控制与 Run 取消
 
-对应 [J-SW06](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw06)，采用 ST18、ST19 及 ST20。控制发出、逻辑处置、真实确认分别保存。
+对应 [J-SW06](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw06)，采用 ST18、ST19 及 ST20。控制发出、逻辑处置、真实确认分别保存。取消一旦生效，会话就记录 Run 的逻辑终态。模型和工具随后另行报告真实收场。强制或非强制只影响停止请求有多急。
 
 ```mermaid
 flowchart TD
@@ -223,14 +223,11 @@ flowchart TD
     Q --> CONT
     P --> CONT
     E --> CONT
-    K -->|Run 取消| R[共同保存意图、撤新发起资格与传播责任]
-    R --> SEND[控制该 Run 模型及前台工具]
-    SEND --> TYPE{取消方式}
-    TYPE -->|优雅| WAIT[等待适用收尾，期间不得正常推进]
-    TYPE -->|强制且条件成立| END[提交唯一被取消终态，标明未明效果]
-    WAIT -->|收尾条件成立| END
-    C --> REC[按原目标跟踪真实收场与费用]
-    END --> REC
+    K -->|Run 取消| R[共同保存意图并撤销新发起资格]
+    R --> END[取消生效时提交唯一被取消终态]
+    END --> SEND[向该 Run 模型及前台工具传播停止]
+    SEND --> REC[跟踪真实收场与费用]
+    C --> REC
     X --> REC
 ```
 

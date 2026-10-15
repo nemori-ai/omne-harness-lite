@@ -1,4 +1,6 @@
-import { resolve } from 'node:path'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { collectRepositorySources } from '../src/repository.ts'
@@ -38,6 +40,88 @@ describe('no-legacy-dependency', () => {
       path.path,
     ])
     expect(noLegacyDependency.check([current, note])).toEqual([])
+  })
+
+  it.each([
+    "readFileSync('../../../packages.0.0.1.legacy/core/a.ts', 'utf8')",
+    "fs.readFile(new URL('../../../apps.0.0.1.legacy/cli/a.ts', import.meta.url))",
+    "readFileSync(join(root, 'packages.0.0.1.legacy', path), 'utf8')",
+    "const old = '../../../packages.0.0.1.legacy/core/a.ts'; readFileSync(old, 'utf8')",
+    "const old = '../../../apps.0.0.1.legacy/'; const path = `${old}cli/a.ts`; fs.readFileSync(path)",
+    "import { readFileSync as read } from 'node:fs'; read('../../../packages.0.0.1.legacy/a.ts')",
+    'new URL(`../../../packages.0.0.1.legacy/${path}`, import.meta.url)',
+  ])('rejects a test that consumes an archived path: %s', text => {
+    expect(
+      noLegacyDependency.check([file('tools/check/tests/rule.spec.ts', text)]).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('keeps legacy text as test data and resolves local path declarations without crossing scopes', () => {
+    const text = `
+const bad = { path: 'packages.0.0.1.legacy/core/a.ts', text: "readFileSync('apps.0.0.1.legacy/a.ts')" }
+function input() { const path = 'packages.0.0.1.legacy/a.ts'; return { path } }
+function current() { const path = './current.ts'; return readFileSync(path) }
+const path = 'packages.0.0.1.legacy/a.ts'
+function passed(path: string) { return readFileSync(path) }
+`
+    expect(noLegacyDependency.check([file('tools/check/tests/rule.spec.ts', text)])).toEqual([])
+  })
+
+  it.each([
+    "readFile('./current.ts', 'utf8', () => { check({ path: 'packages.0.0.1.legacy/a.ts' }) })",
+    "const input = { path: './current.ts', text: 'packages.0.0.1.legacy/a.ts' }; readFileSync(input.path)",
+    "const input = { path: './current.ts', text: 'packages.0.0.1.legacy/a.ts' }; readFileSync(input['path'])",
+    "const path = 'packages.0.0.1.legacy/a.ts'; function read({ path }) { return readFileSync(path) }; read({ path: './current.ts' })",
+    "const path = 'packages.0.0.1.legacy/a.ts'; { const { path } = { path: './current.ts' }; readFileSync(path) }",
+    "const path = 'packages.0.0.1.legacy/a.ts'; function read([path]) { return readFileSync(path) }",
+    "const path = 'packages.0.0.1.legacy/a.ts'; { const [path] = ['./current.ts']; readFileSync(path) }",
+    "const path = 'packages.0.0.1.legacy/a.ts'; for (const { path } of [{ path: './current.ts' }]) { readFileSync(path) }",
+    "const path = 'packages.0.0.1.legacy/a.ts'; try {} catch ({ path }) { readFileSync(path) }",
+    "const path = 'packages.0.0.1.legacy/a.ts'; for (const [path] in { current: true }) { readFileSync(path) }",
+    "const path = 'packages.0.0.1.legacy/a.ts'; for (let { path } = { path: './current.ts' }; false;) { readFileSync(path) }",
+  ])('does not treat unrelated data or a shadowed binding as the file path: %s', text => {
+    expect(noLegacyDependency.check([file('tools/check/tests/rule.spec.ts', text)])).toEqual([])
+  })
+
+  it.each([
+    "const input = { path: 'packages.0.0.1.legacy/a.ts', text: './current.ts' }; readFileSync(input.path)",
+    "const input = { path: 'apps.0.0.1.legacy/a.ts', text: './current.ts' }; readFileSync(input['path'])",
+  ])('rejects an archived path selected from a local object: %s', text => {
+    expect(noLegacyDependency.check([file('tools/check/tests/rule.spec.ts', text)])).toHaveLength(1)
+  })
+
+  it('still detects an initialized legacy path in a for statement', () => {
+    const text = "for (let path = 'packages.0.0.1.legacy/a.ts'; false;) { readFileSync(path) }"
+    expect(noLegacyDependency.check([file('tools/check/tests/rule.spec.ts', text)])).toHaveLength(1)
+  })
+
+  it('rejects imports resolved through a TypeScript alias into an archived tree', () => {
+    expect(
+      noLegacyDependency.check([
+        {
+          path: 'tools/check/tests/rule.spec.ts',
+          text: "import { value } from '@old/value'",
+          resolvedModules: { '@old/value': 'packages.0.0.1.legacy/core/value/src/index.ts' },
+        },
+      ]),
+    ).toHaveLength(1)
+  })
+
+  it('includes the root manifest in the repository dependency check', () => {
+    const root = mkdtempSync(join(tmpdir(), 'legacy-manifest-'))
+    try {
+      writeFileSync(
+        join(root, 'package.json'),
+        JSON.stringify({
+          devDependencies: { '@omne-harness-lite/storage': 'workspace:*' },
+        }),
+      )
+      expect(noLegacyDependency.check(collectRepositorySources(root))).toEqual([
+        expect.objectContaining({ path: 'package.json', rule: 'no-legacy-dependency' }),
+      ])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('does not exempt a former consumer path, and finds none in the current repository', () => {

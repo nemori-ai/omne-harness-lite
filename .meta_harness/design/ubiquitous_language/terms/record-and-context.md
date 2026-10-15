@@ -85,13 +85,13 @@
 ### UL-session-log · 会话日志 · Session Log
 
 > **中**：**一份只增不改的流水账**，记录一个[会话](agent-runtime-loop.md#ul-session--会话--session)里发生过的事。
-> **[消息](#ul-message--消息--message)只是它的一部分，其余是各种不是消息的事**——
+> **[消息](#ul-message--消息--message)是某一类事实记录里的字段，日志里其余条目不是消息**——
 > 每次工具执行的账、一次尝试开始这个事实，**它们不会在组装时变成消息**。
 > **它记的是发生了什么，不是模型该看什么。**
 >
-> **EN**: **An append-only ledger** of what happened within one session. **Messages are
-> only part of it**; the rest are things that are not messages at all — the account of
-> each tool execution, the fact that an attempt began — **and none of them turn into
+> **EN**: **An append-only ledger** of what happened within one session. **A message is a
+> field inside one kind of fact record**; the other entries are not messages — the account
+> of each tool execution, the fact that an attempt began — **and none of them turn into
 > messages at assembly time**. **It records what happened, not what the model ought to
 > see.**
 
@@ -105,7 +105,7 @@
   [结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)也不是
   （**原始结果从来没进过日志**），agent 取回全文是**往后追加两条**
 - **注意 ②**：**它归[会话](agent-runtime-loop.md#ul-session--会话--session)，不归[运行](agent-runtime-loop.md#ul-run--运行--run)**
-- **注意 ③**：**从外面进来的普通消息，是以消息的身份落进日志的**——
+- **注意 ③**：**从外面进来的普通消息，作为事实记录里的消息字段落进日志**——
   **受理事实与待处理资格一起持久成立**；卡片答复、控制指令及结算事实不作为普通消息入队。**不存在「先收着，组装时再做成消息」这一步**。
   **一处不在此列**：[会话空闲时 runtime context 的生产方推来的变更一律丢弃](../../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#610-注入的上下文变了没有运行在跑时什么都不做)，
   **它根本不成为一条到达，也就不落日志**
@@ -138,7 +138,7 @@
 
 ### UL-message · 消息 · Message
 
-> **中**：**一条对话记录。七种，按「谁在说话」分**；**除 `SystemMessage` 之外都落在[会话日志](#ul-session-log--会话日志--session-log)里**，
+> **中**：**消息是事实记录里的一个字段。七种，按「谁在说话」分**；**除 `SystemMessage` 之外，承载它的事实记录落在[会话日志](#ul-session-log--会话日志--session-log)里**，
 > `SystemMessage` 不落日志、每次组装时现算：
 >
 > | 谁在说 | 这一种 | 说的是什么 |
@@ -152,12 +152,15 @@
 > | **系统**，回头看 | `CompactionMessage` | 前面那一大段，概括起来是这样 |
 >
 > **前四种各家模型供应商都有，后三种是我们加的。**
+> 六种日志角色由 `packages/common/message` 发布。`SystemMessage` 由请求组装发布，不是日志字段。
 >
-> **EN**: **One entry of conversational record. Seven kinds, divided by who is
-> speaking**; **all but `SystemMessage` live in the session log** — `SystemMessage` is
-> never written there and is computed afresh at every assembly. The first four exist at
+> **EN**: **A message is a field of a fact record. Seven kinds, divided by who is
+> speaking**; **for every kind except `SystemMessage`, the fact record that carries it
+> lives in the session log**. `SystemMessage` is never written there and is computed
+> afresh at every assembly. The first four exist at
 > every model vendor; the last three (`ToolInternalMessage`, `SystemReminderMessage`,
-> `CompactionMessage`) are ours.
+> `CompactionMessage`) are ours. `packages/common/message` publishes the six log roles.
+> Request assembly publishes `SystemMessage`. It is not a log field.
 
 - **形态**：对象
 - **出处**：[PF-009 §4 消息](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息) · [七种消息](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#七种消息按谁在说话分)（rev 9）
@@ -279,10 +282,14 @@
 > **中**：**一条消息装的是若干个块，不是一段文本。**块分几类：
 > **文本 · 思考 · 语音 · 图 · 文件 · 工具调用 · 工具结果**
 > （工具结果**自己又是一串块**，所以工具也能返回图）。
+> 五种已封闭块由 `packages/common/content-block` 发布：文本、思考、语音、图、文件。
+> `tool_call` 和 `tool_result` 由工具领域发布。
 >
 > **EN**: **A message holds a number of blocks, not a span of text.** The kinds are
 > text, thinking, voice, image, file, tool call and tool result — **a tool result being
 > itself a series of blocks**, which is how a tool can return an image.
+> `packages/common/content-block` publishes the five closed kinds: text, thinking, voice, image, and file.
+> The tool domain publishes `tool_call` and `tool_result`.
 
 - **形态**：对象
 - **出处**：[PF-009 §4 消息的内容是一串块](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9）

@@ -363,14 +363,20 @@
 > **中**：一次[模型调用](#ul-model-call--一次模型调用--model-call)或一次[工具执行](#ul-tool-execution--工具执行--tool-execution)**身上的一项属性**：
 > **它花了什么、产出了多少的账**——用量、费用、砍掉了多少增量、落在哪、跑了多久。
 > **每一次调用或执行各留一份，进[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)、不进给模型看的上下文**；
-> **费用拿不到记「未知」，不记零**，拿到了再补一条；按尝试记明细、按运行汇总。
+> **费用拿不到记「未知」，不记零**。更大的修订整份替换同一主体的旧快照。
+> 同一修订、内容相同的再次送达不另加金额。内容不同则保持第一份。
+> `supplier`、`observation`、`billable` 与 `ledger` 不相加。应付金额取最新修订的已知 `ledger`，否则取已知 `billable`。
+> 按尝试记明细、按运行汇总。
 >
 > **EN**: An attribute of one **model call** or one **tool execution**: **the account of
 > what it consumed and produced** — usage, cost, how many increments were trimmed, where it
 > ran, how long it took. **One per call or execution, written to the session log and never
 > into the model-facing context**; **a cost that cannot be obtained is recorded as
-> "unknown", never as zero**, and corrected by a later entry when it arrives; itemised per
-> attempt, summed per run.
+> "unknown", never as zero**. A higher revision replaces the whole earlier snapshot for
+> that subject. The same revision with the same content does not add an amount. Different
+> content keeps the first snapshot. `supplier`, `observation`, `billable`, and `ledger`
+> are not added together. The payable amount is the latest known `ledger`, or else the
+> latest known `billable`. Itemised per attempt, summed per run.
 
 - **形态**：属性
 - **出处**：[PF-006 §5.4 每一次执行都留一份账](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#每一次执行都留一份账)（rev 24） ·
@@ -384,6 +390,43 @@
   带着开口的时刻；[停机之后靠它判断能不能重发](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)
 - **注意 ③**：**运行终结之后才到的账照样落、归那个运行，并标明是迟到的**——
   [I-11](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) 只禁止终结之后再发起新动作，不禁止补记已发起的那些
+- **字段**：一份账是 JSON。`subject.kind` 是 `model_call` 或 `tool_execution`。`usage`、`cost`、`trimmed` 各自成组。`place` 是落点。`duration` 是 `utc-instant` 能解析的时长字符串，或 `{ "state": "unknown" }`。它与用量词法分属两个字段。`receipt` 是 `received` 或 `late`。`revision` 是十进制数字字符串，从 `0` 起。
+- **金额**：`state` 为 `known` 或 `provisional` 时带十进制 `lexeme` 和 `unit`。`state` 为 `unknown` 时只带 `unit`。一份账是某个 `subject` 在某个 `revision` 上的整份快照。`cost` 数组里的每一项是这一份快照上的一笔独立费用，身份是它在数组中的位置。两笔相同 `source` 的费用是两笔账，都进入该来源在这份快照上的小计。
+- **修订**：更大的 `revision` 整份替换同一 `subject` 的旧快照。新快照里不是 `known` 的金额不进入求和，被替换的旧 `known` 也不再进入。同一 `subject` 与同一 `revision` 再次送达且内容相同，不另加金额。内容不同则保持第一份，不在同一修订里静默替换。
+- **结算**：`supplier`、`observation`、`billable` 是三份报告，`ledger` 是业务账。它们描述同一次消费，不相加。该 `subject` 的应付金额取最新 `revision` 上的 `ledger` 已知金额。没有已知 `ledger` 时，取最新 `revision` 上的 `billable` 已知金额。`supplier` 与 `observation` 不进入应付金额。因此 supplier `1.00`、billable `1.50`、ledger `1.50` 的应付金额是 `1.50`。
+- **词法**：金额 `lexeme` 是 `0` 或非零开头的十进制数字，小数点后的位数由 `unit` 规定。`USD` 最多两位小数。`1.234` 拒绝，拒绝码是 `precision`。不同 `unit` 不相加，也不换算。token 用量的整数规则归模型调用。
+- **来源**：`cost.source` 是 `supplier`、`observation`、`billable` 或 `ledger`。前三种是会话收到的报告。`ledger` 归业务账的拥有者。
+- **削减**：会话把 `TrimRecord.removed` 写入 `trimmed.lexeme`。流装配不持有这份账。
+
+一份已收到的账可以同时带已知用量和未知费用。
+
+```json
+{
+  "subject": { "kind": "model_call", "id": "call_01" },
+  "usage": [{ "name": "input", "state": "known", "lexeme": "128", "unit": "token" }],
+  "cost": [{ "state": "unknown", "unit": "USD", "source": "supplier" }],
+  "trimmed": { "state": "known", "lexeme": "20", "unit": "token" },
+  "place": "provider-a",
+  "duration": "PT1.5S",
+  "receipt": "received",
+  "revision": "0"
+}
+```
+
+`source` 为 `ledger` 时，费用是业务账拥有者的记录。
+
+```json
+{
+  "subject": { "kind": "model_call", "id": "call_01" },
+  "usage": [{ "name": "input", "state": "known", "lexeme": "128", "unit": "token" }],
+  "cost": [{ "state": "known", "lexeme": "0.02", "unit": "USD", "source": "ledger" }],
+  "trimmed": { "state": "unknown", "unit": "token" },
+  "place": "provider-a",
+  "duration": { "state": "unknown" },
+  "receipt": "received",
+  "revision": "0"
+}
+```
 
 ### UL-attachment · 附件 · Attachment
 

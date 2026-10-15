@@ -173,7 +173,26 @@ Agent runtime 等待模型结果，是推进 Agent Loop 所需的数据与控制
 
 ### 组合保证由谁承担
 
-协调者负责组合关系与交接规则，参与方仍对自己的事实和公开承诺负责。协调不意味着把所有状态收进同一对象或让所有执行共享一个生命周期。
+协调者负责组合关系与交接规则，参与方仍对自己的事实和公开承诺负责。协调不意味着把所有状态收进同一对象或让所有执行共享一个生命周期。会话日志里的事实按拥有者分开。记入标准见[必须进入日志的事实](runtime/session-and-run.md#必须进入日志的事实)。Session 不持有其他领域的事实。
+
+```mermaid
+classDiagram
+  class SessionLog["会话日志"] {
+    封套
+    种类准入
+    效力与整批提交
+  }
+  class SessionWork["会话与工作"]
+  class Agent
+  class ModelCall["模型调用"]
+  class ToolExec["工具执行"]
+  class Context
+  SessionWork ..> SessionLog : 治理事实
+  Agent ..> SessionLog : 登记与扩展结论
+  ModelCall ..> SessionLog : 跨边界收场
+  ToolExec ..> SessionLog : 执行与交付
+  Context ..> SessionLog : 注册与自有输入
+```
 
 | 整体保证 | 协调责任与参与方 | 必须明确的边界 |
 |---|---|---|

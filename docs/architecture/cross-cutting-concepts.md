@@ -52,6 +52,8 @@
 
 公共JSON边界先执行严格UTF-8解码，在逐对象扫描时检测解码后重名键，保留数字原词法再交字段codec。禁止注释、尾逗号及空输入，任一语法错误拒绝整份输入。项数、深度、字符串和数字均有有限预算。JSON.parse之后无法找回已丢失的重名键和精度。增量解析必须兑现同一拒绝语义。精确签名与失败种类见[公共 JSON 文本读取](#json-text-reader)。
 
+已经通过字段 codec 的 JSON 值，规范写出使用 RFC 8785。写出拒绝 `undefined`、BigInt、NaN、Infinity、Date 和函数，不自行转换。读取与写出是两个操作。读取器不提供写出。采用见 [RFC-0006](../rfcs/RFC-0006-json-canonical-text.md)。
+
 每份公共形状只有一个拥有源，TS类型和编码从该源派生。校验不默认coercion、填默认或删除字段，拒绝无法保留精度和未知值语义的转换。具体Schema及严格JSON技术路线归[系统技术基础](technical-foundations.md#共同技术选择)，按需加载、首次编译及运行时换代归[缓存机制](data-and-state.md#缓存懒加载与预热)。活体对象、句柄、函数和Context不能进入序列化数据契约。
 
 <a id="json-text-reader"></a>
@@ -219,12 +221,12 @@ OTel的forceFlush完成不自动表示每条记录导出成功。提供者核对
 
 ### 当前承接与后续设计
 
-以下事项定位精确契约的承接责任与待核对来源，不表示已定位完整现行契约，也不表示已经完成目标架构的迁移或验证。
+以下事项定位仍在承接的精确契约。内容块、消息字段和流式到达的现行契约分别是 [COMMON-T02](cross-cutting-concepts.md#common-t02)、[COMMON-T03](cross-cutting-concepts.md#common-t03) 和 [STREAM-T01](runtime/streaming-and-consumption.md#stream-t01)。
 
-| 范围 | 现行契约承接待办 |
+| 范围 | 仍在承接的契约 |
 |---|---|
-| 身份、精确内容与消息 | [COMMON-T01 共享身份值的精确契约承接](cross-cutting-concepts.md#common-t01)、[COMMON-T02 内容块的精确契约承接](cross-cutting-concepts.md#common-t02)、[COMMON-T03 消息形状与消费行为的承接](cross-cutting-concepts.md#common-t03) |
-| 到达流、记录与提交 | [STREAM-T01 到达流公共契约的承接](runtime/streaming-and-consumption.md#stream-t01)、[SESSION-T01 会话日志与固定读取的契约承接](runtime/session-and-run.md#session-t01)、[STORAGE-T01 公共事务与确认契约的承接](data-and-state.md#storage-t01) |
+| 共享身份值 | [COMMON-T01 共享身份值的精确契约承接](cross-cutting-concepts.md#common-t01) |
+| 会话日志、记录与提交 | [SESSION-T01 会话日志与固定读取的契约承接](runtime/session-and-run.md#session-t01)、[STORAGE-T01 公共事务与确认契约的承接](data-and-state.md#storage-t01) |
 | 客户端与治理入口 | [SDK-T01 客户端治理操作的公开契约承接](layers-and-dependencies.md#sdk-t01)、[IDENTITY-T02 治理入口的精确边界承接](security/identity-and-authorization.md#identity-t02) |
 | 生命周期与独立调用 | [LIFECYCLE-T01 装配生命周期公共契约承接](deployment/cordis-and-lifecycle.md#lifecycle-t01)、[MODEL-T01 模型请求运行时契约的承接](runtime/model-runtime.md#model-t01)、[TOOL-T01 工具执行与原执行账契约承接](runtime/tool-runtime.md#tool-t01) |
 | 时间与动态上下文 | [COMMON-T04 时间服务与到期值契约承接](cross-cutting-concepts.md#common-t04)、[RUNTIME-CONTEXT-T01 注册与读取行为契约承接](runtime/runtime-context.md#runtime-context-t01) |
@@ -237,14 +239,14 @@ OTel的forceFlush完成不自动表示每条记录导出成功。提供者核对
 | 登录入口租户冲突 | 产品规则已由 PF-001 拥有，PF-017 已同步入口流程与验收。[身份与授权产品草案](../../.meta_harness/design/product/identity-and-authorization/README.md)是当前产品责任入口，尚待接受。治理接口仍须定义拒绝表达、校验次序和测试，再切换消费者。 | 身份产品、治理入口及客户端维护者 |
 | 共享时间与版本表达 | 明确时间精度、编码、时长范围和转换，核对现有不同类型；业务到期规则及各版本作用域保持独立。 | 公共值与各协议拥有者 |
 | 观测基础契约 | 细化关联字段、事件分类、传播、脱敏及可靠记录要求，连接实际运行边界；不把诊断流升级为业务事实。 | 观测、各能力与安全维护者 |
-| 内容与流式契约 | 附件保留与跨节点读取、到达流允许表示及断线协议继续细化。[运行感知与一次模型请求的产品草案](../../.meta_harness/design/product/runtime-context/design.md#5-当前值与变化感知)是当前候选责任入口，尚待确认。完整状态快照是否适用前值要求、扩展提醒在正文中交代前值是否足够，仍由产品拥有者裁定；技术拥有者随后对账现有消息表示及精确字段。本页不增字段或提升候选采用状态。 | 内容、消息、流式消费及相应产品拥有者 |
+| 内容与流式契约 | 消息字段和流式到达的精确规则已在 COMMON-T03 与 STREAM-T01。附件保留、跨节点读取和断线协议继续细化。完整状态快照是否适用前值要求、扩展提醒在正文中交代前值是否足够，仍由产品拥有者裁定。 | 内容、消息、流式消费及相应产品拥有者 |
 | 记录与通知 | 细化记录封装的适用字段、寿命归属和通知交付模型，不要求所有记录填满同一字段表，也不恢复已暂缓的 Connector 设计。 | 记录、通知及相应产品拥有者 |
 
 产品来源承接涉及 [PRODUCT-E01 发生与记录条目的跨产品承接](../../.meta_harness/design/product/README.md#product-e01)、身份与资产、消息、非常态、Run、入站队列、治理入口及日程等专题。跨领域记录来源的完整分配由该产品待办维护。当前产品草案仅提供候选责任入口；本页既有架构承诺及产品采用范围仍按实际接受记录执行。
 
 ## 未决问题与待办事项
 
-以下事项沿本页已接受要求继续承接。来源定位不表示现行契约已经完整或验证已通过。
+COMMON-T02 与 COMMON-T03 是现行契约，锚点留在本节。COMMON-T01 与 COMMON-T04 仍在承接。来源定位不表示这两项尚未承接的契约已经完整。
 
 <a id="common-t01"></a>
 ### COMMON-T01 共享身份值的精确契约承接
@@ -258,18 +260,40 @@ OTel的forceFlush完成不自动表示每条记录导出成功。提供者核对
 <a id="common-t02"></a>
 ### COMMON-T02 内容块的精确契约承接
 
-本项为契约承接待办。内容块、附件引用、模态与可见性声明的现行形状和必要行为须由共同内容拥有者确认。具体输入约束、不可变性、消费资格及引用资源不能从目录或请求适配实现反推。
+本项是现行契约。`packages/common/content-block` 发布已经封闭的文本、思考、语音、图和文件，以及块身份、可见性和媒体类型。工具调用、工具结果和仍在增长的块不是这个成员的值。`tool_call` 和 `tool_result` 由工具领域发布。块上或 `visibility` 里的未知键得到 `extra`。成功值只含该种类的已知键。
 
-承接责任为共同内容、消息、Model、Tool 与各内容消费者。待办是确认实际公开类型和行为拥有者，迁移消费者并保留媒体、可见性及资源引用的适用范围。
+```mermaid
+flowchart TD
+  block["已封闭内容块"]
+  block --> text["text 文本"]
+  block --> thinking["thinking 思考"]
+  block --> voice["voice 语音"]
+  block --> image["image 图"]
+  block --> file["file 文件"]
+  outside["不进入这个成员"]
+  outside --> call["工具调用"]
+  outside --> result["工具结果"]
+  outside --> growing["仍在增长的块"]
+```
+
+承接责任为共同内容、消息、Model、Tool 与各内容消费者。
 
 [封存来源](../../packages.0.0.1.legacy/core/content-blocks/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 
 <a id="common-t03"></a>
 ### COMMON-T03 消息形状与消费行为的承接
 
-本项为契约承接待办。消息身份、内容、关联和对外投影的精确共同契约尚须定位现行拥有者。消息表示、记录保存、流式到达和可读资格分别成立，不能将其中一个成员当作全部消息责任。
+本项是现行契约。`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。消息值是 `{ id, role, blocks }`。`id` 是 `parseMessageId` 接受的字符串。`role` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction` 之一。`blocks` 按到达顺序，不能为空。部件是已封闭内容块，或带非空 `callId` 的 `tool_call`、`tool_result`。`SystemMessage` 由请求组装发布，不进该成员。会话在受理进日志时铸造身份并写日志。该成员不铸造。
 
-承接责任为消息、Session、Context、Model 与实际投影消费者。待办是确认共同形状和各方必要行为，核对合法输入、关联、可见性及真实消费者；来源不足的局部分支保持未判定。
+```mermaid
+flowchart TD
+  log["会话日志"] --> fact["事实记录"]
+  fact --> field["消息字段"]
+  field --> roles["六种日志角色"]
+  assembly["请求组装"] --> system["SystemMessage"]
+  session["会话"] -->|"受理进日志时铸造身份"| field
+  member["packages/common/message"] -->|"发布消息值、解析与相等"| field
+```
 
 [封存来源](../../packages.0.0.1.legacy/core/messages/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
 

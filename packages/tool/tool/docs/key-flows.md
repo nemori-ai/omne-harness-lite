@@ -6,7 +6,7 @@
 
 Tool 拥有逻辑调用、真实执行、内部等待、原结果、效果、账目和交付责任。发起协调者可以是 Agent 或独立消费者，独立消费无需 Session。Session 拥有已有关联的逻辑工作及取消资格，不能替 Tool 写物理停止；HITL 拥有卡片和有效决定，身份与授权解释动作许可。装配、资产、设置、环境、内容保管和原消费者分别提供其事实。一次包装工具执行成功不表示被调用领域业务已完成。
 
-工具专有机制的唯一源为 [SPEC](../SPEC.md)及三个必要专题，本页组织其协作。母检出现行 `docs/architecture/runtime/tool-runtime.md`、`streaming-and-consumption.md`、`control-and-recovery.md` 和 `security/identity-and-authorization.md` 拥有共同上层约束，旧 inputs 只定位既有来源；新明确决定优先。冻结架构的 dummy 分类未决按已记录 Q03 接续为同类别逻辑调用，不新增产品选择。
+工具专有机制的唯一源为 [SPEC](../SPEC.md)及三个必要专题，本页组织其协作。母检出现行 `docs/architecture/runtime/tool-runtime.md`、`streaming-and-consumption.md`、`control-and-recovery.md` 和 `security/identity-and-authorization.md` 拥有共同上层约束，旧 inputs 只定位既有来源；新明确决定优先。dummy 的归类见产品[定义、已知能力与一次执行](../../../../.meta_harness/design/product/tool-execution/design.md#定义已知能力与一次执行)。
 
 | 产品旅程 | 流程 | Tool 的交接与成员依据 |
 | --- | --- | --- |

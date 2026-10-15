@@ -1,0 +1,33 @@
+{
+  "name": "@omne-harness/message",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Message field values and MessageId parse and equality",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "pnpm run build && tsc -p tsconfig.test.json",
+    "test": "pnpm run build && vitest run"
+  },
+  "dependencies": {
+    "@omne-harness/content-block": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

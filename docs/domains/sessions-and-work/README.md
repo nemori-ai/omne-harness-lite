@@ -18,7 +18,75 @@
 | Run/推进治理 | 本次工作、attempt、唯一有效推进者和逻辑收束 |
 | 消费与历史承接 | 原调用关联、消费位置、可靠取得内容及后续处理 |
 
-日志表达需要记录的事实，不替代各执行账或资源状态；共享值由实际定义拥有者维护。
+日志表达需要记录的事实，不替代各执行账或资源状态。共享值由实际定义拥有者维护。会话必须记住的事实在[事件目录](../../../packages/session/session/docs/session-log-events.md)。活跃、休眠和等待结束不单独立条目。记入标准见[必须进入日志的事实](../../architecture/runtime/session-and-run.md#必须进入日志的事实)。
+
+会话在受理进日志时铸造消息身份，格式是 `msg_` 加 16 字节不可猜文本。同一次受理返回已有身份。用户输入用那次提交身份。模型回复用模型调用和 dispatch。工具消息用工具调用身份。提醒用来源引用。压缩用那次操作的提交身份。键和身份一次写入。解析与相等在 `packages/common/message`。
+
+```mermaid
+flowchart TD
+  admit["受理进日志"] --> kind{"这次受理"}
+  kind -->|"用户输入"| submission["提交身份"]
+  kind -->|"模型回复"| dispatch["模型调用和 dispatch"]
+  kind -->|"工具消息"| toolCall["工具调用身份"]
+  kind -->|"提醒"| source["来源引用"]
+  kind -->|"压缩"| compaction["该次操作的提交身份"]
+  submission --> hit{"该键已有身份"}
+  dispatch --> hit
+  toolCall --> hit
+  source --> hit
+  compaction --> hit
+  hit -->|"有"| keep["返回已有身份"]
+  hit -->|"无"| mint["铸造 msg_ 加 16 字节不可猜文本"]
+  mint --> write["同一次写入键和身份"]
+```
+
+人能看到的内容来自会话日志的投影。用量和费用在会话收到模型响应的流式增量、流完成或工具结果时入账。同一主体、同一费用来源的更后修订替换先前的已知金额，并标明迟到。
+
+```mermaid
+sequenceDiagram
+  participant Model as 模型调用
+  participant Session as 会话
+  participant Tool as 工具执行
+  Model->>Session: 流式增量或流完成
+  Session->>Session: 记下用量和费用
+  Tool->>Session: 工具结果
+  Session->>Session: 记下这笔账
+  Note over Session: 更后修订替换同一来源的已知金额，并标明迟到
+```
+
+会话在收到一份账时写下它。这条记录表示会话已经收到。载体是模型响应的一次流式增量、该流的完成，或一次已完成工具执行的工具结果。
+
+后到的费用标明 `receipt` 为 `late`，`revision` 加一。更大的 `revision` 整份替换同一 `subject` 的旧快照。上面两份都是 `billable`。应付金额在没有已知 `ledger` 时取最新修订的 `1.50`，不把 `1.25` 与 `1.50` 相加。
+
+同一 `revision` 再次送达且内容相同，不另加金额。内容不同则保持第一份。新修订若把该来源写成 `unknown` 或 `provisional`，旧的 `known` 不再进入求和。`USD` 的 `lexeme` 最多两位小数，`1.234` 的拒绝码是 `precision`。不同单位不相加。
+
+```json
+{
+  "subject": { "kind": "tool_execution", "id": "exec_01" },
+  "usage": [{ "name": "input", "state": "known", "lexeme": "4", "unit": "token" }],
+  "cost": [{ "state": "known", "lexeme": "1.25", "unit": "USD", "source": "billable" }],
+  "trimmed": { "state": "unknown", "unit": "token" },
+  "place": "provider-a",
+  "duration": "PT1.5S",
+  "receipt": "received",
+  "revision": "0"
+}
+```
+
+```json
+{
+  "subject": { "kind": "tool_execution", "id": "exec_01" },
+  "usage": [{ "name": "input", "state": "known", "lexeme": "4", "unit": "token" }],
+  "cost": [{ "state": "known", "lexeme": "1.50", "unit": "USD", "source": "billable" }],
+  "trimmed": { "state": "unknown", "unit": "token" },
+  "place": "provider-a",
+  "duration": "PT1.5S",
+  "receipt": "late",
+  "revision": "1"
+}
+```
+
+同一 `revision` 再次送达且内容相同，不另加一笔金额。内容不同则保持第一份。求和只使用最新修订里 `state` 为 `known` 的金额。上面这个 `billable` 例子在没有已知 `ledger` 时，应付金额是 `1.50`。
 
 ## 协作与依赖
 

@@ -10,7 +10,11 @@ domains 和 roles/rules 的身份分别唯一。入口路径为仓库相对路�
 角色匹配优先最精确路径；同精度冲突、candidate、unknown 与未映射都不能作采用的层次证据。
 空规则列表合法且不同于文件缺失。缺失以INPUT unknown保留坐标和原因，不能声称整体符合。未知规则、坏JSON、越界路径和重复身份必须失败。
 
-schemaVersion 2的source是仓库根相对Markdown路径，可附锚点。历史schemaVersion 1保留具名根前缀与同目录相对形式；不通过搜索哪个文件存在来选择基准。每个source的文件及锚点都从输入相同版本读取，坏引用拒绝。工作树中的符号链接不能让读取越出检出；历史版只读取该commit中的普通文件。
+schemaVersion 2的source是仓库根相对Markdown路径，可附锚点。历史schemaVersion 1保留具名根前缀与同目录相对形式；不通过搜索哪个文件存在来选择基准。有效source的文件及锚点都从输入相同版本读取，坏引用拒绝。工作树中的符号链接不能让读取越出检出；历史版只读取该commit中的普通文件。
+
+当前输入拒绝来源位于 `packages.0.0.1.legacy/` 或 `apps.0.0.1.legacy/` 的登记，包括用 `--revision` 选择的当前版本。只在 BASE 比较中，工具可退休来源位于这两个根、且路径在该版本实际源码快照中全部零命中的角色。匹配沿用精确路径和末尾 `/**` 规则，快照沿用架构读取器的活动范围。历史角色仍命中源码时拒绝旧来源；domains、rules 和 importExceptions 没有退休豁免。
+
+退休角色不参与机械判定、报告责任映射或来源读取。输入仍保留原始 `value`，并在同一输入的 `retiredRoleIds` 列出退休 ID，版本归 `source.commit`。原始值继续参与预期差分，因此删除登记仍是可见变化。有效来源继续核对正文、锚点和摘要；退休角色不能让另一条有效登记的来源免于校验。
 全局输入与原有效 realization 例外分别保留拥有者，不复制插件绑定。
 
 HEAD 与 BASE 分别读本版完整 workspace、源码、manifest 和解析配置。
@@ -59,7 +63,7 @@ IC-8和IC-12尚未接入机械规则。IC-15和IC-16的加载器已由实际成�
 BASE 实现对 BASE 预期构成存量；新违规与存量分别表示。无 BASE 时分类未判。
 HEAD 和 BASE 的全局预期及原节点预期变化单列。删除最后规则或整个文件也保留变化。
 JSON格式、行号和集合排序不造成预期变更；路径、角色状态、依据、规则或例外变化属于语义变化。
-每版输入携带source文件的SHA256。sourceChanges独立报告依据路径及字节变化，不并入changes或architectureChanges语义计数；它不证明含义变化。JSON、HTML和hook显示两类变化，所有摘要仍保留未知范围。
+每版输入携带有效source文件的SHA256；退休角色的来源不读取，也不伪造摘要。sourceChanges独立报告有效依据路径及字节变化，不并入changes或architectureChanges语义计数；它不证明含义变化。JSON、HTML和hook显示两类变化，所有摘要仍保留未知范围。
 成员筛选在完整两版解析、比较与分类之后投影，不改变规则或解析上下文。
 
 actual.json 与默认实际 JSON API 不读取或包含意图。报告附加 conformance.json 与图的符合性字段。

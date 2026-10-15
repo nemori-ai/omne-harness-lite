@@ -217,6 +217,18 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(yaml@2.9.1))
 
+  packages/common/content-block:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(yaml@2.9.1))
+
   packages/common/json-text:
     dependencies:
       jsonc-parser:
@@ -234,6 +246,38 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(yaml@2.9.1))
 
   packages/common/legal-identity:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(yaml@2.9.1))
+
+  packages/common/message:
+    dependencies:
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../content-block
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(yaml@2.9.1))
+
+  packages/common/stream-arrival:
+    dependencies:
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../message
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
