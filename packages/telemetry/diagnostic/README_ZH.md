@@ -34,7 +34,7 @@
 
 ## 验证
 
-在本目录运行 `pnpm test`。它先构建，再运行公开入口测试、`tests/diagnostic-port.spec.ts` 和 `tests/review-repro.spec.ts`。其中一项用 `node:fs` 把记录写进临时目录，一项在父目录不存在时期待写入抛错，一项在关闭截止时中止延迟写入并期待没有文件。这些测试不导入 Pino 或 OpenTelemetry SDK，也不选定生产限额。
+在本目录运行 `pnpm test`。它先构建，再运行公开入口测试、`tests/diagnostic-port.spec.ts`、`tests/review-repro.spec.ts` 和 `tests/pino-sink.spec.ts`。Pino 10.4.0 只作为开发依赖给最后这份测试使用。实现源码不导入它，`dependencies` 保持为空。其中一项用 `node:fs` 把记录写进临时目录，一项在父目录不存在时期待写入抛错，一项在关闭截止时中止延迟写入并期待没有文件。这些测试不导入 Pino 或 OpenTelemetry SDK，也不选定生产限额。
 
 ## 维护
 

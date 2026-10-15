@@ -25,6 +25,7 @@
   "dependencies": {},
   "devDependencies": {
     "@types/node": "catalog:",
+    "pino": "10.4.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
