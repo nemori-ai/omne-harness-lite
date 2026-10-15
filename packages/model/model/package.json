@@ -34,10 +34,12 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
-    "@omne-harness/legal-identity": "workspace:*"
+    "@omne-harness/legal-identity": "workspace:*",
+    "proper-lockfile": "^4.1.2"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/proper-lockfile": "^4.1.4",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

@@ -6,10 +6,10 @@ import {
   readFileSync,
   renameSync,
   unlinkSync,
-  writeFileSync,
   writeSync,
 } from 'node:fs'
 import { dirname } from 'node:path'
+import { lockSync } from 'proper-lockfile'
 import {
   loadState,
   present,
@@ -37,9 +37,17 @@ export type LocalCustodian = CredentialPort & {
 export function createLocalCustodian(path: string, factorySecret: string): LocalCustodian {
   mkdirSync(dirname(path), { recursive: true })
   const state: CustodianState = { closed: false, factorySecret, bindings: [] }
-  const release = acquireLock(lockPath(path))
+  const release = lockSync(path, { realpath: false, stale: 5000 })
   try {
-    if (!atomicSave(path, state)) throw new Error(`failed to create credential store at ${path}`)
+    const result = atomicSave(path, state)
+    if (!result.ok) {
+      if (result.phase === 'published') {
+        throw new Error(
+          `credential store creation at ${path} confirmation incomplete; verify state before retry`,
+        )
+      }
+      throw new Error(`failed to create credential store at ${path}`)
+    }
     return live(path, state)
   } finally {
     release()
@@ -130,12 +138,20 @@ function mutate(
   holder: { state: CustodianState },
   change: (refreshed: CustodianState) => CustodianState,
 ): void {
-  const release = acquireLock(lockPath(path))
+  const release = lockSync(path, { realpath: false, stale: 5000 })
   try {
     const refreshed = refresh(path, holder.state)
     if ('kind' in refreshed) throw new Error(`credential store at ${path} is unavailable`)
     const next = change(refreshed)
-    if (!atomicSave(path, next)) throw new Error(`failed to update credential store at ${path}`)
+    const result = atomicSave(path, next)
+    if (!result.ok) {
+      if (result.phase === 'published') {
+        throw new Error(
+          `credential store update at ${path} confirmation incomplete; verify state before retry`,
+        )
+      }
+      throw new Error(`failed to update credential store at ${path}`)
+    }
     holder.state = next
   } finally {
     release()
@@ -155,12 +171,15 @@ function refresh(path: string, current: CustodianState): CustodianState | { read
   return { ...loaded, closed: current.closed }
 }
 
-function atomicSave(path: string, state: CustodianState): boolean {
+function atomicSave(
+  path: string,
+  state: CustodianState,
+): { readonly ok: true } | { readonly ok: false; readonly phase: 'temp-write' | 'rename' | 'published' } {
   const tmpPath = `${path}.${process.pid}.${Date.now()}.${tmpCounter++}.tmp`
   let fd: number | undefined
   try {
     fd = openSync(tmpPath, 'w')
-    writeSync(fd, JSON.stringify(storeState(state)))
+    writeAll(fd, JSON.stringify(storeState(state)))
     fsyncSync(fd)
     closeSync(fd)
     fd = undefined
@@ -174,7 +193,7 @@ function atomicSave(path: string, state: CustodianState): boolean {
         closeSync(dirFd)
       }
     }
-    return true
+    return { ok: true }
   } catch {
     if (fd !== undefined) {
       try {
@@ -183,66 +202,35 @@ function atomicSave(path: string, state: CustodianState): boolean {
         // Cleanup of a half-open file descriptor is best-effort.
       }
     }
+    // Determine whether the rename had already happened. If it did, the new
+    // snapshot may already be visible even though confirmation failed.
     try {
-      unlinkSync(tmpPath)
+      readFileSync(path, 'utf8')
+      // The target file is readable. We cannot tell if it holds the old or new
+      // state without parsing, but the rename likely succeeded. Report the
+      // ambiguous phase so callers verify instead of assuming the old value.
+      return { ok: false, phase: 'published' }
     } catch {
-      // Cleanup of the temporary file is best-effort.
+      // The target file is not readable; rename did not complete or the store
+      // is otherwise broken. The old snapshot, if any, should still be intact.
+      try {
+        unlinkSync(tmpPath)
+      } catch {
+        // Cleanup of the temporary file is best-effort.
+      }
+      return { ok: false, phase: 'temp-write' }
     }
-    return false
+  }
+}
+
+function writeAll(fd: number, data: string): void {
+  const buffer = Buffer.from(data)
+  let offset = 0
+  while (offset < buffer.length) {
+    const written = writeSync(fd, buffer, offset, buffer.length - offset)
+    if (written === 0) throw new Error('file write made no progress')
+    offset += written
   }
 }
 
 let tmpCounter = 0
-
-function lockPath(storePath: string): string {
-  return `${storePath}.lock`
-}
-
-const LOCK_TIMEOUT_MS = Number(process.env.OMNE_CREDENTIAL_LOCK_TIMEOUT_MS ?? '5000')
-
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch {
-    return false
-  }
-}
-
-function acquireLock(lockPath: string): () => void {
-  const start = Date.now()
-  while (true) {
-    try {
-      const fd = openSync(lockPath, 'wx')
-      closeSync(fd)
-      writeFileSync(lockPath, String(process.pid))
-      return () => {
-        try {
-          unlinkSync(lockPath)
-        } catch {
-          // Lock release is best-effort; stale locks are reclaimed by PID check.
-        }
-      }
-    } catch {
-      // Lock held or race; check whether the owner is still alive.
-      try {
-        const text = readFileSync(lockPath, 'utf8')
-        const pid = Number(text)
-        if (Number.isFinite(pid) && !isProcessAlive(pid)) {
-          unlinkSync(lockPath)
-          continue
-        }
-      } catch {
-        // Lock file may have been released between open and read; retry.
-      }
-      if (Date.now() - start > LOCK_TIMEOUT_MS) {
-        throw new Error(`timed out waiting for credential store lock at ${lockPath}`)
-      }
-      // Busy-wait backoff for synchronous code paths.
-      const deadline = Date.now() + 10
-      while (Date.now() < deadline) {
-        // spin
-      }
-    }
-  }
-}

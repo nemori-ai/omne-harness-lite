@@ -1,21 +1,56 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import type * as fs from 'node:fs'
 import { mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { expect, it, vi } from 'vitest'
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __actualFs: typeof import('node:fs')
+}
+
 let injectedRename: ((from: string, to: string) => void) | undefined
+let injectedWriteSync:
+  | ((fd: number, buffer: Buffer, offset: number, length: number) => number)
+  | undefined
+let injectedFsyncSync: ((fd: number, flags: string | undefined) => void) | undefined
+
+const fdFlags = new Map<number, string>()
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>()
+  globalThis.__actualFs = actual
   return {
     ...actual,
+    openSync: (path: string, flags: unknown, mode?: unknown) => {
+      const fd = (actual.openSync as any)(path, flags, mode)
+      fdFlags.set(fd as number, String(flags))
+      return fd
+    },
+    closeSync: (fd: number) => {
+      fdFlags.delete(fd)
+      return actual.closeSync(fd)
+    },
     renameSync: (from: string, to: string) => {
       if (injectedRename) return injectedRename(from, to)
       return actual.renameSync(from, to)
+    },
+    writeSync: (fd: number, buffer: unknown, offset?: unknown, length?: unknown, ...rest: unknown[]) => {
+      if (
+        injectedWriteSync &&
+        Buffer.isBuffer(buffer) &&
+        typeof offset === 'number' &&
+        typeof length === 'number'
+      ) {
+        return injectedWriteSync(fd, buffer, offset, length)
+      }
+      return (actual.writeSync as any)(fd, buffer, offset, length, ...rest)
+    },
+    fsyncSync: (fd: number) => {
+      if (injectedFsyncSync) return injectedFsyncSync(fd, fdFlags.get(fd))
+      return actual.fsyncSync(fd)
     },
   }
 })
@@ -337,7 +372,7 @@ it('a later writer modifying another binding does not overwrite a revocation sav
   expect(reopened.resolve(refB, face())).toEqual({ kind: 'value', scope: 'tenant', value: 'secret-b' })
 })
 
-it('a failed write keeps the last saved snapshot intact and does not publish the new secret', () => {
+it('a failed rename keeps the last saved snapshot intact and does not publish the new secret', () => {
   const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
   const path = join(dir, 'store.json')
   const first = createLocalCustodian(path, FACTORY)
@@ -346,12 +381,12 @@ it('a failed write keeps the last saved snapshot intact and does not publish the
   const backup = readFileSync(path, 'utf8')
   // Inject a rename failure so the write reaches the publish stage but cannot complete.
   let renamed = false
-  injectedRename = (from, to) => {
+  injectedRename = (from: string, to: string) => {
     if (to === path) {
       renamed = true
       throw new Error('injected rename failure')
     }
-    renameSync(from, to)
+    return globalThis.__actualFs.renameSync(from, to)
   }
   expect(() => first.rotate(ref, ROTATED)).toThrow()
   injectedRename = undefined
@@ -363,6 +398,68 @@ it('a failed write keeps the last saved snapshot intact and does not publish the
   const reopened = openLocalCustodian(path)
   if ('kind' in reopened) throw new Error('store missing')
   expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
+})
+
+it('a short write is retried until the whole snapshot is persisted', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const first = createLocalCustodian(path, FACTORY)
+  const ref = reference()
+  first.put(ref, SECRET)
+  let shortWritten = false
+  injectedWriteSync = (fd: number, buffer: Buffer, offset: number, length: number) => {
+    if (!shortWritten && offset === 0) {
+      shortWritten = true
+      const partial = Math.min(17, length)
+      globalThis.__actualFs.writeSync(fd, buffer, 0, partial)
+      return partial
+    }
+    return globalThis.__actualFs.writeSync(fd, buffer, offset, length)
+  }
+  first.rotate(ref, ROTATED)
+  injectedWriteSync = undefined
+  expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
+  const reopened = openLocalCustodian(path)
+  if ('kind' in reopened) throw new Error('store missing')
+  expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
+})
+
+it('a write that makes no progress aborts and keeps the old snapshot', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const first = createLocalCustodian(path, FACTORY)
+  const ref = reference()
+  first.put(ref, SECRET)
+  const backup = readFileSync(path, 'utf8')
+  injectedWriteSync = (fd: number, buffer: Buffer, offset: number, length: number) => {
+    if (offset === 0) {
+      return Math.min(17, length)
+    }
+    return 0
+  }
+  expect(() => first.rotate(ref, ROTATED)).toThrow()
+  injectedWriteSync = undefined
+  expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
+  expect(readFileSync(path, 'utf8')).toEqual(backup)
+})
+
+it('a post-rename confirmation failure reports the update may be visible', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const first = createLocalCustodian(path, FACTORY)
+  const ref = reference()
+  first.put(ref, SECRET)
+  injectedFsyncSync = (fd: number, flags: string | undefined) => {
+    if (flags === 'r') throw new Error('injected dir fsync failure')
+    return globalThis.__actualFs.fsyncSync(fd)
+  }
+  expect(() => first.rotate(ref, ROTATED)).toThrow(/confirmation incomplete/)
+  injectedFsyncSync = undefined
+  // The rename already published the new snapshot; subsequent reads see it.
+  expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
+  const reopened = openLocalCustodian(path)
+  if ('kind' in reopened) throw new Error('store missing')
+  expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
 })
 
 it('a store with conflicting rows for the same holder is unavailable', () => {
