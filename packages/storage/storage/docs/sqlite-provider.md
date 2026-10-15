@@ -150,9 +150,9 @@ sequenceDiagram
 ## 关闭
 
 1. 提供者停止新的准入。此后新的 `commit` 返回 `closing`，不进入队列。队列里尚未开始的操作被确认撤下，不写回执，预留归还一次。
-2. Worker 不打断正在执行的语句。调用方在 Worker 之外计算关闭期限。Worker 要等当前语句返回，才能处理关闭。
+2. Worker 不打断正在执行的语句。关闭期限是存储提供者插件上的配置字段。数值仍空着。调用方在 Worker 之外使用这个字段计算期限。Worker 要等当前语句返回，才能处理关闭。
 3. 语句在期限内结束时，Worker 关闭写连接，提供者观察 Worker 退出。关闭结果是 `closed`。
-4. 期限到达时语句还没有结束，关闭结果是 `incomplete`，不是 `closed`。
+4. 期限到达时语句还没有结束，关闭结果是 `incomplete`，不是 `closed`。装配侧报告是 `timed-out`，不是 `failed`。这次 `timed-out` 之后步骤不执行，租约持有到 `release`。
 5. 结束 Worker 不是回滚。调用方按原身份调用 `query`。
 
 ## 探针
@@ -176,4 +176,3 @@ sequenceDiagram
 - 读回的 PRAGMA 值与设定不符时，提供者怎样处置。
 - Worker 在操作途中退出时，控制侧给 `commit` 的调用方返回什么。调用方仍按 SPEC 用原身份查询。
 - 待交接记录的内容和消费方。
-- 关闭期限由谁给出。
