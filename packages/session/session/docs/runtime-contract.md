@@ -102,7 +102,7 @@ export type RecoveryTask =
       value: Exclude<RoutedInput, { kind: 'ordinary' }>; state: 'pending' | 'unknown'
     }>
 export type WorkSnapshot = Readonly<{
-  session: SessionId; tenant: TenantId; revision: SessionRevision; interpreter: Adoption
+  session: SessionId; tenant: TenantId; revision: SessionRevision; interpreter: Adoption; source: DurableEvidence
   lifecycle: 'initializing' | 'dormant' | 'active' | 'archived'
   definition: Readonly<{ name: string; adopted: Adoption }>
   execution: Adoption; declarations: DurableEvidence
@@ -140,7 +140,7 @@ export type SessionFailure =
 export type Reply<T> = Promise<Outcome<T, SessionFailure>>
 export type CommitReceipt = Readonly<{
   operation: SessionOperationId; revision: SessionRevision
-  first: EntryId; last: EntryId; recovered: boolean
+  first: EntryId; last: EntryId; recovered: boolean; source: DurableEvidence
 }>
 export type OperationResolution =
   | Readonly<{ kind: 'committed'; receipt: CommitReceipt }>
@@ -176,6 +176,10 @@ export type Control =
 export type RunConclusion =
   | Readonly<{ kind: 'complete'; beforeTerminal: DurableEvidence }>
   | Readonly<{ kind: 'fail'; cause: DurableEvidence }>
+export type DerivedMessage =
+  | Readonly<{ kind: 'compaction'; message: Message; derivation: DurableEvidence; original: DurableEvidence }>
+  | Readonly<{ kind: 'context-reminder'; message: Message; source: DurableEvidence }>
+  | Readonly<{ kind: 'background-placeholder'; message: Message; producer: Extract<ProducerRef, { kind: 'tool' }>; source: DurableEvidence }>
 export interface SessionWork<P> {
   accept(input: Mutation<P> & Readonly<{ value: RoutedInput }>): Reply<CommitReceipt>
   readWork(input: Access<P>): Reply<WorkSnapshot>
@@ -208,6 +212,9 @@ export interface SessionWork<P> {
   recordProgress(input: AdvanceWrite<P> & Readonly<{
     passage: DurableEvidence; resume: Continuation; waiting: readonly Waiting[]
   }>): Reply<CommitReceipt>
+  commitDerived(input: AdvanceWrite<P> & Readonly<{
+    value: DerivedMessage; judgment: DurableEvidence; resume: Continuation
+  }>): Reply<CommitReceipt>
   release(input: AdvanceWrite<P> & Readonly<{ resume: Continuation }>): Reply<CommitReceipt>
   control(input: Mutation<P> & Readonly<{ intent: Control }>): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress }>>
   finishRun(input: AdvanceWrite<P> & Readonly<{ conclusion: RunConclusion }>): Reply<Readonly<{ receipt: CommitReceipt; terminal: RunTerminal }>>
@@ -236,12 +243,17 @@ export interface SessionWork<P> {
 | completeConsumption | 当前推进及原消费位置、必要扩展结论、业务处理/消息准入与完成依据、后续位置 | 已取消业务不继续；先处理路径不强制额外全文副本；消息拒绝保留真实原结果 |
 | completeExternalConsumption | 原 Run 外关联、当前消费者资格、原处理结果与消息准入 | 不改变 Run 位置或取得 advance；已取消投递不得形成后继普通输入 |
 | recordProgress | 受信 Agent 原经过、合法状态迁移、实际等待集合和可恢复位置 | 不是任意追加日志接口，不接受调用者编造有效决定或跳过整批屏障 |
+| commitDerived | 压缩共同结果、当前感知提醒或原工具后台占位，以及必要准入和接续位置 | 按具名来源验证，不能用任意消息绕过普通输入/结果处理；占位不解除真实结果交付 |
 | release | 原 advance 撤销与原位置/待办一起保存 | 不终结 Run，不取消独立 Model/Tool，旧资格不能自行重新生效 |
 | control | 原意图、适用逻辑处置、撤资格和传播/核对责任 | 取消 Run 同提交唯一 cancelled 终态；实际停止另查，强制不改变逻辑终态时点 |
 | finishRun | 原有效推进、当前队列/等待/模式与 beforeTerminal 结论、唯一终态及撤资格 | 取消先成立不能完成，旧终态不改。afterTerminal 只能后置观察/处理 |
 | queryOperation | 原提交身份、范围、回执及权威认回 | 不可用不回空记录；attempt-rejected 不证明整个原操作未提交 |
 
 所有共享结果由提供者用既有日志原生事实表达。调用者不拼 SE 编号，不直接写表或任意 facts。创建/受理、条目范围、操作认回、治理状态及权威读取进度共同提交。展示投影在提交后更新并标明覆盖，通知可以重复或丢失，任务仍由权威状态恢复。
+
+WorkSnapshot.source 是 Session 为该完整权威位置生成的记录证据，可交合法历史读取者解析固定范围；它不授予额外读取资格。commitDerived 校验实际来源、消息角色和完整准入经过。compaction 必须由 Request Context 的 derivation 同时证明摘要及排除原块清单，original 定位原范围；二者与对应消息同提交，不允许半份压缩。context-reminder 只保存获准感知及必要前后值；background-placeholder 核 Tool 原转换及消费关联，只追加一次占位，不写真实终局或解除 delivery。所有分支保存后续 continuation，重复同 operation 认回，内容冲突拒绝。消息前/后扩展沿 Agent 位置协议，尚无所需准入结论时不能提交。
+
+CommitReceipt.source 是 Session 在该操作共同提交时生成的原提交记录证据，绑定操作、范围、结果种类和实际内容摘要，认回时保持相同值。commitDerived 的 source 可由 Request Context 核对已提交的原压缩消息及排除名单，随后接续原 preparation；不由 Agent 将 EntryId 自行包装成证据。queryOperation 的 committed 回执同样返回它，提交未知期间不能提前 resume 为已压缩。
 
 readBatch 按已经提交的 BatchId 读取原 ordered 中的完整消息，包含原 InputId 和来源；分段游标绑定租户、会话、主体范围、批次、内容修订及偏移，每页重新核权。所有页按 ordered 覆盖且不重复，exhausted 才表示完整。首批和后续批都保留这一读取能力，不能要求调用者重扫原生日志或依赖受理者内存。readRequest 按 consumption 解析原 request 证据，返回生产者拥有的精确 schema 和原固定请求数据。受信 codec 将其还原为 Model/Tool 请求并核对身份、摘要及原采用；未知 schema 不得重构新请求。保管参加者在 bind 时就保证此路径可恢复，正文可以在实际材料拥有者处，读取失败仍明确不可用。
 
@@ -381,6 +393,7 @@ export type MutationName =
   | 'accept' | 'startRun' | 'takeInputs' | 'claim' | 'reload' | 'bindCall'
   | 'bindExternalCall' | 'completeExternalConsumption'
   | 'preserveResult' | 'completeConsumption' | 'recordProgress' | 'release'
+  | 'commitDerived'
   | 'control' | 'finishRun' | 'create' | 'completeInitialization' | 'change'
   | 'setRelation' | 'configureAutoArchive' | 'considerAutoArchive' | 'interrupt' | 'receive'
 type Mutations = Pick<SessionWork<never> & SessionManagement<never> & SessionReconciliation<never>, MutationName>

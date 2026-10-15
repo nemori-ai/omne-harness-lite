@@ -133,6 +133,7 @@ export type DeliveryState =
   | Readonly<{ kind: 'released'; delivery: ToolDeliveryId; consumer: ConsumerRef; evidence: DurableEvidence }>
 export type ToolState = Readonly<{
   call: ToolCallId; revision: ToolRevision; wait: WaitState
+  source: DurableEvidence; foreground: ForegroundReturn | null
   relation: 'foreground' | 'background'; effect: Effect
   foregroundElapsedMs: string; delivery: DeliveryState
   supplements: readonly Readonly<{
@@ -309,6 +310,8 @@ prepareStart 原子核对队首/名额、未取消、原定义与实现匹配、
 前台累计时间由耐久的累计量及当前计时段决定。进入任何内部等待前保存累计量，内部等待期间不累计；退出等待后新段从实际恢复点开始。后台关系不累计前台时间，重启不把累计量归零。时钟倒退或来源不可用报告故障，不能增大剩余上限。跨进程恢复需要宿主可验证的持续时间来源，不能直接相减两台不相关的单调时钟。
 
 达到 foregroundMs 时，许可后台且当前无 Ask 则保存同 call 后台关系与前台占位，否则保存停止意图，实际停止另查。backgroundAfterMs 是偏好阈值，同样不越过作者许可或 Ask。重复转换认回原控制，已经后台不产生第二占位，不能回前台。
+
+ToolState.foreground 保存已经确定的前台返回。转后台时与原转换共同固定 background 分支，后续收场仍保留该占位事实；始终前台时在真实收场后固定 final。source 由 Tool 为该权威状态产生，能核验原转换和消费关系，供 Session.commitDerived 保存一次后台占位。lookup 返回此耐久事实，不依赖活体 observe 才能恢复；占位只解除本步前台等待，不解除最终结果 delivery。
 
 openWait 要求前台且未收场，保存原 wait、HITL 原卡及接续依据，才能报告等待已成立。Ask 不设置超时，不提供默认答案。acceptDecision 通过 HITL 拥有者核验原卡唯一有效决定，再与原等待和后续责任共同提交；未回答、拒绝及批准是不同决定。业务取消可使等待失效，不能把取消填成答案。
 

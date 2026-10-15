@@ -59,6 +59,7 @@ export type FixedModelRequest = Readonly<{
   profile: Adoption
   suppliers: readonly [Supplier, ...Supplier[]]
   fallback: boolean
+  retryPolicy: Adoption
   parameters: readonly Parameter[]
   system: readonly ContentBlock[]
   messages: readonly Message[]
@@ -303,10 +304,17 @@ export type DispatchPlan = Readonly<{
 export type RetryDecision =
   | Readonly<{ kind: 'stop'; fault: ModelFault }>
   | Readonly<{ kind: 'retry'; supplier: Supplier; notBefore: string; basis: Adoption }>
+export type RetryPosition = Readonly<{
+  operation: ModelOperationId; dispatch: DispatchId; policy: Adoption; consumer: ConsumerRef
+}>
+export type RetryResolution =
+  | Readonly<{ kind: 'pending'; position: RetryPosition }>
+  | Readonly<{ kind: 'decided'; position: RetryPosition; decision: RetryDecision; source: DurableEvidence }>
 export type RecoveryRecord = Readonly<{
   state: CallState; request: FixedModelRequest; capacity: ResultCapacity
   initiator: ActorRef; admission: ModelOperationId
   execution: ExecutionRef | null; retry: RetryDecision | null
+  retryPosition: RetryPosition | null
   unresolved: readonly ModelOperationId[]
   tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[]
 }>
@@ -337,8 +345,9 @@ export interface ModelCommands<P> {
     call: ModelCallId; dispatch: DispatchId; operation: ModelOperationId
     source: DurableEvidence; fact: LateDispatchFact
   }>): Reply<Readonly<{ revision: Revision; recovered: boolean }>>
+  prepareRetry(input: WriteContext & Readonly<{ dispatch: DispatchId }>): Reply<RetryPosition>
   decideRetry(input: WriteContext & Readonly<{
-    dispatch: DispatchId; decision: RetryDecision
+    position: RetryPosition; decision: RetryDecision; source: DurableEvidence
   }>): Reply<Revision>
   settle(input: WriteContext & Readonly<{ termination: Termination }>): Reply<Settlement>
   control(input: Mutation<P> & Readonly<{
@@ -367,10 +376,12 @@ export type SendResult =
 export interface ModelSendBoundary<P> {
   send(input: SendDemand<P>, signal: AbortSignal): Promise<SendResult>
 }
-export interface ModelRetryPolicy {
-  decide(input: Readonly<{
+export interface ModelRetryPolicy<P> {
+  decide(input: CallAccess<P> & Readonly<{
+    position: RetryPosition; initiator: ActorRef
     request: FixedModelRequest; dispatches: readonly DispatchRecord[]; failure: ModelFault
-  }>): Reply<RetryDecision>
+  }>): Reply<RetryResolution>
+  inspect(input: CallAccess<P> & Readonly<{ position: RetryPosition }>): Reply<RetryResolution>
 }
 export type Publication = Readonly<{
   execution: ExecutionRef; registration: string
@@ -391,7 +402,7 @@ export type ModelConfiguration = Readonly<{
   retryBackoffMs: number; cleanupRetryMs: number
 }>
 export type ModelDependencies<P> = Readonly<{
-  commands: ModelCommands<P>; send: ModelSendBoundary<P>; retry: ModelRetryPolicy
+  commands: ModelCommands<P>; send: ModelSendBoundary<P>; retry: ModelRetryPolicy<P>
   instances: ModelInstanceHost<P>; clock: ModelClock
 }>
 export interface ModelProvider<P> {
@@ -472,6 +483,10 @@ R 先于 S 则不发；S 先于 R 则是已经启动的在途请求，撤权触�
 原实例在输出前记录 dispatch 意图。真实发送与数据库提交不能成为同一事务，因此 recordSend 未确认时保留原 dispatch 并查询，不另造 dispatch。运行中的供应商流即使观察者全部退出仍由 Model 宿主消费并保存。
 
 首内容前合法失败进入 retry-decision，原消费者仍等待同一个 call。策略决定持久之后才准备下一 dispatch。允许 fallback 时按原供应商顺序各至多一次；不允许时只允许首供应商退避后再试一次。`retryBackoffMs` 是默认退避，策略不能突破次数、接收方和首内容边界。策略自身超时/失去依赖按不可用终止重试，不能让最后一个 Agent 句柄负责触发。
+
+prepareRetry 为该 dispatch 保存唯一策略 operation、固定 retryPolicy 及原策略消费位置，再调用 retry.decide。RetryPosition.consumer 是策略拥有者的原内部位置，关联原 call/dispatch，不借用失效 Agent 的推进资格。decide 同身份同输入认回原判断，内部非确定读取、调用和必要经过由该策略协调者保存；pending 不代表失败，也不提前让主 Loop 消费。响应丢失或恢复时 inspect 原 position，不能重新生成策略身份付费判断。decided.source 核验原位置及真实决定后由 decideRetry 保存，源未知保持核对。
+
+策略协调者的寿命归 Model 宿主或其独立依赖，原 Agent 退出不卸载它。策略需要系统托管数据时仍以当前受信主体和显式 tenant 核权，内部效果有自己的可恢复调用身份；它不能借策略位置发与原判断无关的工作。Run 取消、原调用终局或当前准入撤销后，不再进行新的策略业务效果；已开始的原内部调用可收场保管。采用缺失或确证策略不可用才按不再试收束，纯查询故障保持未知。已决定但提交未知先查认，不让替换的策略覆盖旧结论。后继实际 send 仍独立核当前围栏，不以决定为永久许可。
 
 为覆盖首片已接收而未保存的窗口，提供者在任何可能观察内容的接收动作前调用 openReceiveWindow。其提交把尚无首内容的状态从 none-proven 改为 uncertain。传输不得在窗口开始之前后台预读；无法禁用预读时，须在 start 前打开覆盖整个预读期间的窗口。仅打开网络连接但未接收模型内容，不自行算首内容。
 
