@@ -253,12 +253,44 @@ function beginFlight<T>(
   attempts: number,
 ): Promise<FlightOutcome | { readonly kind: 'cancelled' }> {
   const current = domain.slots.get(schema.id)
+  if (current === undefined && !reserve(domain)) {
+    return Promise.resolve({ kind: 'refused', reason: 'budget-exhausted' })
+  }
   const flight = createFlight()
   if (current?.kind === 'retired') flight.held = current.snapshot
   domain.slots.set(schema.id, { kind: 'inflight', flight, attempts })
   const pending = follow(flight, signal)
   void execute(domain, schema, flight, attempts)
   return pending
+}
+
+function reserve(domain: Domain): boolean {
+  if (domain.slots.size < domain.budget.maxSnapshots) return true
+  for (const [id, slot] of domain.slots) {
+    if (!evictable(slot)) continue
+    domain.slots.delete(id)
+    return true
+  }
+  return false
+}
+
+function evictable(slot: Slot): boolean {
+  switch (slot.kind) {
+    case 'ready':
+      return slot.snapshot.leases === 0
+    case 'cooling':
+      return Date.now() >= slot.retryNotBeforeMillis
+    case 'retired':
+      return slot.snapshot.leases === 0
+    case 'empty':
+    case 'inflight':
+    case 'refused':
+      return false
+    default: {
+      const unreachable: never = slot
+      return unreachable
+    }
+  }
 }
 
 function createFlight(): Flight {
