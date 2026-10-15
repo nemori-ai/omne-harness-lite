@@ -361,6 +361,146 @@ it('reports a shared capability as a duplicate and ignores later mutation of the
   expect(reads).toBe(0)
 })
 
+it('applies the JSON value count and UTF-8 byte budget to a whole extension batch', async () => {
+  const shortest = { name: 'n', position: 'attempt_started', power: 'observe' }
+  const accepted = await judgeLoopExtensions(Array.from({ length: 49 }, () => ({ ...shortest })))
+  expect(accepted).toEqual({
+    kind: 'accepted',
+    value: Array.from({ length: 49 }, () => ({ ...shortest })),
+  })
+  expect(await judgeLoopExtensions(Array.from({ length: 50 }, () => ({ ...shortest })))).toEqual({
+    kind: 'refused',
+    reason: 'malformed',
+    index: 0,
+  })
+  const zhong = '中'.repeat(9000)
+  expect(
+    await judgeLoopExtensions(
+      Array.from({ length: 4 }, () => ({ name: zhong, position: 'attempt_started', power: 'observe' })),
+    ),
+  ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
+  const letters = 'a'.repeat(1996)
+  expect(
+    await judgeLoopExtensions(
+      Array.from({ length: 49 }, () => ({ name: letters, position: 'attempt_started', power: 'observe' })),
+    ),
+  ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
+})
+
+it('accepts a definition of 200 JSON values and refuses 49 capabilities', async () => {
+  const references = [
+    ...Array.from({ length: 45 }, (_, index) => ({
+      capability: { category: 'Tool', name: `t${index}` },
+    })),
+    ...Array.from({ length: 3 }, (_, index) => ({
+      capability: { category: 'Tool', name: `r${index}` },
+      resident: true,
+    })),
+  ]
+  const accepted = await judgeAgentDefinition({
+    category: 'AgentDefinition',
+    name: 'coding',
+    references,
+    attributes: [],
+  })
+  expect(accepted.kind).toBe('accepted')
+  if (accepted.kind === 'accepted') {
+    expect(accepted.value.references).toHaveLength(48)
+    expect(accepted.value.references[0]).toEqual({ capability: { category: 'Tool', name: 't0' } })
+    expect(accepted.value.references[45]).toEqual({
+      capability: { category: 'Tool', name: 'r0' },
+      resident: true,
+    })
+  }
+  expect(
+    await judgeAgentDefinition({
+      category: 'AgentDefinition',
+      name: 'coding',
+      references: Array.from({ length: 49 }, (_, index) => ({
+        capability: { category: 'Tool', name: `t${index}` },
+      })),
+      attributes: [],
+    }),
+  ).toEqual({ kind: 'refused', reason: 'malformed' })
+})
+
+it('classifies illegal dimensions separately from a missing required field', async () => {
+  expect(
+    await judgeLoopExtensions([
+      { name: 'e', position: 'after_model_call', power: 'observe', dimension: { ending: 'nope' } },
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
+  expect(
+    await judgeLoopExtensions([
+      { name: 'e', position: 'after_action', power: 'observe', dimension: { scope: 'nope' } },
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
+  expect(
+    await judgeLoopExtensions([
+      {
+        name: 'e',
+        position: 'after_model_call',
+        power: 'observe',
+        dimension: { ending: 'complete_reply', extra: true },
+      },
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
+  expect(
+    await judgeLoopExtensions([
+      {
+        name: 'e',
+        position: 'after_action',
+        power: 'observe',
+        dimension: { ending: 'failure', scope: 'each' },
+      },
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
+  expect(
+    await judgeLoopExtensions([
+      { name: 'e', position: 'after_model_call', power: 'observe', dimension: 'ending' },
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
+  expect(
+    await judgeLoopExtensions([{ name: 'e', position: 'after_action', power: 'observe' }]),
+  ).toEqual({ kind: 'refused', reason: 'dimension-missing', index: 0 })
+  expect(
+    await judgeLoopExtensions([
+      { name: 'e', position: 'after_action', power: 'observe', dimension: { ending: 'failure' } },
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'dimension-missing', index: 0 })
+  expect(
+    await judgeLoopExtensions([
+      { name: 'e', position: 'after_model_call', power: 'observe', dimension: { scope: 'each' } },
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'dimension-missing', index: 0 })
+  expect(
+    await judgeLoopExtensions([
+      { name: 'e', position: 'before_terminal', power: 'observe', dimension: 'ending' },
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'dimension-not-allowed', index: 0 })
+})
+
+it('classifies an attribute item string separately from a broken attribute', async () => {
+  expect(
+    await judgeAgentDefinition({
+      ...legalDefinition,
+      attributes: [{ item: '' }],
+    }),
+  ).toEqual({ kind: 'refused', reason: 'unknown-attribute' })
+  expect(
+    await judgeAgentDefinition({
+      ...legalDefinition,
+      attributes: [{}],
+    }),
+  ).toEqual({ kind: 'refused', reason: 'malformed' })
+  expect(
+    await judgeAgentDefinition({
+      ...legalDefinition,
+      attributes: [{ item: 1 }],
+    }),
+  ).toEqual({ kind: 'refused', reason: 'malformed' })
+})
+
 it('keeps the package free of assembly, assets, and cordis dependencies', () => {
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
     dependencies?: Record<string, string>

@@ -41,29 +41,21 @@ type Plain =
 type Walk = {
   ancestors: Set<object>
   nodes: number
-  bytes: number
 }
 
 function plainJson(value: unknown, walk: Walk, depth: number, index: number): Plain {
-  if (depth > limits.maxDepth || walk.nodes > limits.maxItems || walk.bytes > limits.maxBytes) {
-    return { ok: false, reason: 'malformed', index }
-  }
+  if (depth > limits.maxDepth) return { ok: false, reason: 'malformed', index }
   walk.nodes += 1
+  if (walk.nodes > limits.maxItems) return { ok: false, reason: 'malformed', index: 0 }
   if (value === null || typeof value === 'boolean') return { ok: true, value }
   if (typeof value === 'string') {
-    walk.bytes += value.length
-    if (value.length > limits.maxStringLength || walk.bytes > limits.maxBytes) {
-      return { ok: false, reason: 'malformed', index }
-    }
+    if (value.length > limits.maxStringLength) return { ok: false, reason: 'malformed', index }
     return { ok: true, value }
   }
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return { ok: false, reason: 'malformed', index }
     const digits = JSON.stringify(value)
-    walk.bytes += digits.length
-    if (digits.length > limits.maxNumberLength || walk.bytes > limits.maxBytes) {
-      return { ok: false, reason: 'malformed', index }
-    }
+    if (digits.length > limits.maxNumberLength) return { ok: false, reason: 'malformed', index }
     return { ok: true, value }
   }
   if (typeof value === 'function') return { ok: false, reason: 'executable', index }
@@ -80,7 +72,6 @@ function plainJson(value: unknown, walk: Walk, depth: number, index: number): Pl
 
 function copyArray(value: unknown[], walk: Walk, depth: number, index: number): Plain {
   if (Object.getPrototypeOf(value) !== Array.prototype) return { ok: false, reason: 'malformed', index }
-  if (value.length > limits.maxItems) return { ok: false, reason: 'malformed', index }
   const copy: unknown[] = []
   for (const key of Reflect.ownKeys(value)) {
     if (key === 'length') continue
@@ -156,16 +147,25 @@ function settle<T>(verdict: SchemaVerdict<T>): Checked<T> {
   }
 }
 
+function readPlainDocument(value: unknown): JsonRead | undefined {
+  const encoded = JSON.stringify(value)
+  if (typeof encoded !== 'string') return undefined
+  return readJsonText(encoded, limits)
+}
+
+export function jsonTextWithinBudget(value: unknown): boolean {
+  const read = readPlainDocument(value)
+  return read !== undefined && read.kind === 'ok'
+}
+
 async function validatePlain<T>(
   provider: SchemaProvider,
   id: string,
   schema: z.ZodType<T>,
   plain: unknown,
 ): Promise<Checked<T>> {
-  const encoded = JSON.stringify(plain)
-  if (typeof encoded !== 'string') return { kind: 'local-refusal', reason: 'malformed' }
-  const read: JsonRead = readJsonText(encoded, limits)
-  if (read.kind !== 'ok') return { kind: 'local-refusal', reason: 'malformed' }
+  const read = readPlainDocument(plain)
+  if (read === undefined || read.kind !== 'ok') return { kind: 'local-refusal', reason: 'malformed' }
   const ref = defineSchema({
     id,
     load: async () =>
@@ -187,7 +187,7 @@ export function closeCheckDomain(provider: SchemaProvider): void {
 }
 
 export function copyPlain(value: unknown): Plain {
-  return plainJson(value, { ancestors: new Set(), nodes: 0, bytes: 0 }, 0, 0)
+  return plainJson(value, { ancestors: new Set(), nodes: 0 }, 0, 0)
 }
 
 export async function checkJson<T>(
