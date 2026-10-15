@@ -2,6 +2,7 @@ import type { NumberProjection, SchemaBudget, SchemaDefinition, StandardTyped } 
 
 const REFUSED_TYPES: ReadonlySet<string> = new Set([
   'default',
+  'prefault',
   'catch',
   'lazy',
   'pipe',
@@ -57,7 +58,7 @@ function admitJsonSchema(
 ): Admission {
   const found = walkJsonSchema(document, budget)
   if (found === 'cycle') return { kind: 'refused', reason: 'runtime-path-closed' }
-  if (found === 'budget') return { kind: 'refused', reason: 'unsupported-construct' }
+  if (found === 'unsupported' || found === 'budget') return { kind: 'refused', reason: 'unsupported-construct' }
   const digest = canonical(document)
   return {
     kind: 'allowed',
@@ -74,72 +75,177 @@ function digestZod(schema: object): string {
 }
 
 function digestNode(node: unknown, seen: Set<object>): string {
+  if (typeof node === 'bigint') return JSON.stringify(node.toString())
   if (!isRecord(node)) return JSON.stringify(node) ?? 'null'
   if (seen.has(node)) return '#'
   seen.add(node)
-  const type = typeof node.type === 'string' ? node.type : ''
   const def = record(node.def)
-  const shape = def === undefined ? undefined : record(def.shape)
-  const keys =
-    shape === undefined
-      ? ''
-      : Object.keys(shape)
-          .sort()
-          .map(key => `${JSON.stringify(key)}:${digestNode(shape[key], seen)}`)
-          .join(',')
-  return `${type}(${keys})`
+  if (def === undefined) return digestCheck(node)
+  const parts: string[] = []
+  if (typeof def.type === 'string') parts.push(def.type)
+  if (Array.isArray(def.values)) {
+    parts.push(`values=${def.values.map(value => digestNode(value, seen)).join(',')}`)
+  }
+  if (Array.isArray(def.checks)) parts.push(`checks=${def.checks.map(check => digestCheck(check)).join('&')}`)
+  const shape = record(def.shape)
+  if (shape !== undefined) {
+    const keys = Object.keys(shape).sort()
+    parts.push(
+      `shape={${keys.map(key => `${JSON.stringify(key)}:${digestNode(shape[key], seen)}`).join(',')}}`,
+    )
+  }
+  for (const key of [
+    'element',
+    'innerType',
+    'rest',
+    'keyType',
+    'valueType',
+    'left',
+    'right',
+    'in',
+    'out',
+    'catchall',
+  ] as const) {
+    if (def[key] !== undefined) parts.push(`${key}=${digestNode(def[key], seen)}`)
+  }
+  if (Array.isArray(def.options)) {
+    parts.push(`options=${def.options.map(option => digestNode(option, seen)).join('|')}`)
+  }
+  if (Array.isArray(def.items)) parts.push(`items=${def.items.map(item => digestNode(item, seen)).join('|')}`)
+  return parts.join(';')
 }
+
+function digestCheck(check: unknown): string {
+  const marker = record(check)
+  const zodDef = marker === undefined ? undefined : record(record(marker._zod)?.def)
+  const source = zodDef ?? marker
+  if (source === undefined) return ''
+  const data: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(source)) {
+    if (typeof value === 'function' || isRecord(value)) continue
+    data[key] = value instanceof RegExp ? value.source : value
+  }
+  return canonical(data)
+}
+
+const SCHEMA_NODES: ReadonlySet<string> = new Set([
+  'additionalProperties',
+  'unevaluatedProperties',
+  'items',
+  'additionalItems',
+  'contains',
+  'not',
+  'if',
+  'then',
+  'else',
+  'propertyNames',
+  'unevaluatedItems',
+  'contentSchema',
+])
+
+const SCHEMA_ARRAYS: ReadonlySet<string> = new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems'])
+
+const SCHEMA_MAPS: ReadonlySet<string> = new Set([
+  'properties',
+  '$defs',
+  'definitions',
+  'dependentSchemas',
+  'patternProperties',
+])
 
 function walkJsonSchema(
   document: Readonly<Record<string, unknown>>,
   budget: ConstructBudget,
-): 'ok' | 'cycle' | 'budget' {
-  const stack = new Set<object>()
-  const seen = new Set<object>()
+): 'ok' | 'cycle' | 'unsupported' | 'budget' {
+  const anchors = new Map<string, Record<string, unknown>>()
+  const counted = new Set<object>()
   let count = 0
-  let overBudget = false
 
-  function walk(node: unknown, depth: number): boolean {
-    if (!isRecord(node)) return false
-    if (stack.has(node)) return true
-    if (seen.has(node)) return false
+  const collect = (node: unknown, depth: number): 'ok' | 'budget' => {
+    if (!isRecord(node) || counted.has(node)) return 'ok'
+    counted.add(node)
     count += 1
-    if (depth > budget.maxConstructDepth || count > budget.maxConstructNodes) {
-      overBudget = true
-      return false
+    if (depth > budget.maxConstructDepth || count > budget.maxConstructNodes) return 'budget'
+    if (typeof node.$id === 'string' && node.$id.startsWith('#')) anchors.set(node.$id, node)
+    for (const child of schemaChildren(node)) {
+      if (collect(child, depth + 1) === 'budget') return 'budget'
     }
-    stack.add(node)
-    seen.add(node)
-    if (typeof node.$ref === 'string') {
-      const target = resolveLocal(document, node.$ref)
-      if (target !== undefined && walk(target, depth + 1)) return true
-    }
-    for (const value of Object.values(node)) {
-      if (walk(value, depth + 1)) return true
-    }
-    stack.delete(node)
-    return false
+    return 'ok'
   }
+  if (collect(document, 1) === 'budget') return 'budget'
 
-  if (walk(document, 1)) return 'cycle'
-  return overBudget ? 'budget' : 'ok'
+  const visiting = new Set<object>()
+  const linked = new Set<object>()
+  const link = (node: unknown): 'ok' | 'cycle' | 'unsupported' => {
+    if (!isRecord(node)) return 'ok'
+    if (visiting.has(node)) return 'cycle'
+    if (linked.has(node)) return 'ok'
+    visiting.add(node)
+    if (node.$ref !== undefined) {
+      if (typeof node.$ref !== 'string') return 'unsupported'
+      const resolved = resolveRef(document, anchors, node.$ref)
+      if (resolved === undefined) return 'unsupported'
+      const status = link(resolved)
+      if (status !== 'ok') return status
+    }
+    for (const child of schemaChildren(node)) {
+      const status = link(child)
+      if (status !== 'ok') return status
+    }
+    visiting.delete(node)
+    linked.add(node)
+    return 'ok'
+  }
+  return link(document)
 }
 
-function resolveLocal(document: Readonly<Record<string, unknown>>, ref: string): unknown {
+function schemaChildren(node: Record<string, unknown>): readonly unknown[] {
+  const found: unknown[] = []
+  for (const key of SCHEMA_NODES) {
+    const value = node[key]
+    if (isRecord(value)) found.push(value)
+    else if (key === 'items' && Array.isArray(value)) found.push(...value)
+  }
+  for (const key of SCHEMA_ARRAYS) {
+    const value = node[key]
+    if (Array.isArray(value)) found.push(...value)
+  }
+  for (const key of SCHEMA_MAPS) {
+    const value = node[key]
+    if (isRecord(value)) found.push(...Object.values(value))
+  }
+  return found
+}
+
+function resolveRef(
+  document: Readonly<Record<string, unknown>>,
+  anchors: ReadonlyMap<string, Record<string, unknown>>,
+  ref: string,
+): Record<string, unknown> | undefined {
   if (ref === '#') return document
-  if (!ref.startsWith('#/')) return undefined
-  let current: unknown = document
-  for (const raw of ref.slice(2).split('/')) {
-    if (!isRecord(current)) return undefined
-    const key = decodePointer(raw)
-    current = current[key]
-    if (current === undefined) return undefined
+  if (ref.startsWith('#/')) {
+    let current: unknown = document
+    let keys: string[]
+    try {
+      keys = ref
+        .slice(2)
+        .split('/')
+        .map(segment => decodeURIComponent(segment).replace(/~1/g, '/').replace(/~0/g, '~'))
+    } catch {
+      return undefined
+    }
+    for (const key of keys) {
+      if (Array.isArray(current)) {
+        const index = Number(key)
+        current = Number.isInteger(index) ? current[index] : undefined
+      } else if (isRecord(current)) current = current[key]
+      else return undefined
+      if (current === undefined) return undefined
+    }
+    return isRecord(current) ? current : undefined
   }
-  return current
-}
-
-function decodePointer(segment: string): string {
-  return decodeURIComponent(segment.replace(/~1/g, '/').replace(/~0/g, '~'))
+  if (ref.startsWith('#')) return anchors.get(ref)
+  return undefined
 }
 
 function canonical(value: unknown): string {
@@ -174,10 +280,21 @@ function allowed(
 function refused(node: Record<string, unknown>): boolean {
   if (typeof node.type === 'string' && REFUSED_TYPES.has(node.type)) return true
   const def = record(node.def)
-  if (def?.coerce === true) return true
-  const marker = record(node._zod)
-  const zodDef = marker === undefined ? undefined : record(marker.def)
-  return typeof zodDef?.check === 'string' && CALLBACK_CHECKS.has(zodDef.check)
+  if (def?.coerce === true || typeof def?.error === 'function') return true
+  if (def !== undefined && Array.isArray(def.checks)) {
+    for (const check of def.checks) {
+      if (callerCheck(check)) return true
+    }
+  }
+  return callerCheck(node)
+}
+
+function callerCheck(node: unknown): boolean {
+  const marker = record(node)
+  const zodDef = marker === undefined ? undefined : record(record(marker._zod)?.def)
+  if (zodDef === undefined) return false
+  if (typeof zodDef.fn === 'function') return true
+  return typeof zodDef.check === 'string' && CALLBACK_CHECKS.has(zodDef.check)
 }
 
 function children(def: Record<string, unknown>): readonly unknown[] {

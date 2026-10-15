@@ -70,8 +70,14 @@ function projectObject(
   const issues: SchemaIssue[] = []
   for (const entry of entries) {
     const child = projectAt(entry.value, numbers, [...path, entry.key])
-    if (child.kind === 'value') projected[entry.key] = child.value
-    else issues.push(...child.issues)
+    if (child.kind === 'value') {
+      Object.defineProperty(projected, entry.key, {
+        value: child.value,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      })
+    } else issues.push(...child.issues)
   }
   return pack(projected, issues)
 }

@@ -78,15 +78,16 @@ export function compileJsonSchema(
   }).compile(structuredClone(document))
   return value => {
     if (validate(value) === true) return { ok: true }
-    return { ok: false, issues: mapAjv(validate.errors) }
+    return { ok: false, issues: mapAjv(validate.errors, value) }
   }
 }
 
 function mapAjv(
   errors: ErrorObject[] | null | undefined,
+  instance: unknown,
 ): readonly [SchemaIssue, ...SchemaIssue[]] {
   const mapped = (errors ?? []).map(error => ({
-    path: ajvPath(error),
+    path: ajvPath(error, instance),
     code: ajvCode(error),
   }))
   const first = mapped[0]
@@ -94,15 +95,20 @@ function mapAjv(
   return [first, ...mapped.slice(1)]
 }
 
-function ajvPath(error: ErrorObject): (string | number)[] {
-  const path = error.instancePath
-    .split('/')
-    .slice(1)
-    .filter(segment => segment.length > 0)
-    .map(segment => {
-      const decoded = decodePointer(segment)
-      return /^\d+$/.test(decoded) ? Number(decoded) : decoded
-    })
+function ajvPath(error: ErrorObject, instance: unknown): (string | number)[] {
+  const path: (string | number)[] = []
+  let current: unknown = instance
+  for (const segment of error.instancePath.split('/').slice(1)) {
+    const key = unescapePointer(segment)
+    if (Array.isArray(current) && /^[0-9]+$/.test(key)) {
+      const index = Number(key)
+      path.push(index)
+      current = current[index]
+    } else {
+      path.push(key)
+      current = isObject(current) ? current[key] : undefined
+    }
+  }
   const extra = error.params['additionalProperty']
   if (error.keyword === 'additionalProperties' && typeof extra === 'string') path.push(extra)
   return path
@@ -117,6 +123,10 @@ function ajvCode(error: ErrorObject): IssueCode {
 
 const EMPTY_KEYWORDS: ReadonlySet<string> = new Set(['minLength', 'minItems', 'minProperties'])
 
-function decodePointer(segment: string): string {
-  return decodeURIComponent(segment.replace(/~1/g, '/').replace(/~0/g, '~'))
+function unescapePointer(segment: string): string {
+  return segment.replace(/~1/g, '/').replace(/~0/g, '~')
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

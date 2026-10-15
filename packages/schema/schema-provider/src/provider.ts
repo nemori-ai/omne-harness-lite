@@ -42,8 +42,11 @@ type FlightOutcome =
 type Flight = {
   live: number
   readonly done: Promise<FlightOutcome>
+  readonly settled: boolean
   resolve: (outcome: FlightOutcome) => void
   held: Snapshot | undefined
+  /** A refresh arrived while this load was still running. Later consumers must load again. */
+  reload: boolean
 }
 
 type Slot =
@@ -55,13 +58,16 @@ type Slot =
       readonly attempts: number
       readonly reason: UnavailableReason
       readonly retryNotBeforeMillis: number
+      readonly held?: Snapshot
     }
-  | { readonly kind: 'refused'; readonly reason: RefusalReason }
+  | { readonly kind: 'refused'; readonly reason: RefusalReason; readonly held?: Snapshot }
   | { readonly kind: 'retired'; readonly snapshot: Snapshot; readonly leases: number }
 
 type Domain = {
   readonly budget: SchemaBudget
   readonly slots: Map<string, Slot>
+  /** Leased snapshots that are no longer the current slot. They still occupy the budget. */
+  readonly retained: Set<Snapshot>
   closed: boolean
 }
 
@@ -81,18 +87,26 @@ export function defineSchema<T>(spec: {
   return { id, load: spec.load }
 }
 
-export function zodDefinition<S extends StandardTyped<unknown>>(spec: {
+type StandardOutput<S> = S extends { readonly '~standard': { readonly types?: infer Types } }
+  ? [NonNullable<Types>] extends [never]
+    ? unknown
+    : NonNullable<Types> extends { readonly output: infer T }
+      ? T
+      : unknown
+  : unknown
+
+export function zodDefinition<S extends StandardTyped<StandardOutput<S>>>(spec: {
   readonly revision: string
   readonly schema: S
   readonly numbers: NumberProjection
-}): ZodDefinition<S['~standard']['types'] extends { readonly output: infer T } ? T : unknown> {
+}): ZodDefinition<StandardOutput<S>> {
   return {
     origin: 'static',
     engine: 'zod',
     revision: spec.revision as SchemaRevision,
     schema: spec.schema,
     numbers: spec.numbers,
-  } as ZodDefinition<S['~standard']['types'] extends { readonly output: infer T } ? T : unknown>
+  }
 }
 
 export function jsonSchemaDefinition<T>(spec: {
@@ -114,7 +128,7 @@ export function createSchemaProvider(budget: SchemaBudget): SchemaProvider {
   requireSafeInteger('maxAttempts', budget.maxAttempts, 1)
   requireSafeInteger('failureBackoffMs', budget.failureBackoffMs, 0)
   const provider = { [providerBrand]: true as const }
-  domains.set(provider, { budget, slots: new Map(), closed: false })
+  domains.set(provider, { budget, slots: new Map(), retained: new Set(), closed: false })
   return provider
 }
 
@@ -229,10 +243,16 @@ export function refresh(provider: SchemaProvider, id: SchemaId): void {
       return
     case 'cooling':
     case 'refused':
+      if (slot.held !== undefined && slot.held.leases > 0) {
+        domain.slots.set(id, { kind: 'retired', snapshot: slot.held, leases: slot.held.leases })
+        return
+      }
       domain.slots.delete(id)
       return
-    case 'retired':
     case 'inflight':
+      slot.flight.reload = true
+      return
+    case 'retired':
     case 'empty':
       return
     default: {
@@ -270,25 +290,61 @@ function beginFlight<T>(
   attempts: number,
 ): Promise<FlightOutcome | { readonly kind: 'cancelled' }> {
   const current = domain.slots.get(schema.id)
-  if (current === undefined && !reserve(domain)) {
+  const keeping = leasedHeld(current)
+  if (keeping !== undefined) {
+    if (!admitAnother(domain, schema.id)) {
+      return Promise.resolve({ kind: 'refused', reason: 'budget-exhausted' })
+    }
+  } else if (current === undefined && !reserve(domain)) {
     return Promise.resolve({ kind: 'refused', reason: 'budget-exhausted' })
   }
   const flight = createFlight()
-  if (current?.kind === 'retired') flight.held = current.snapshot
+  if (keeping !== undefined) flight.held = keeping
   domain.slots.set(schema.id, { kind: 'inflight', flight, attempts })
   const pending = follow(flight, signal)
-  void execute(domain, schema, flight, attempts)
+  void execute(domain, schema, flight, attempts).catch(() => {
+    refuseAdmission(domain, schema.id, flight)
+  })
   return pending
 }
 
+function occupancy(domain: Domain): number {
+  return domain.slots.size + domain.retained.size
+}
+
 function reserve(domain: Domain): boolean {
-  if (domain.slots.size < domain.budget.maxSnapshots) return true
+  if (occupancy(domain) < domain.budget.maxSnapshots) return true
   for (const [id, slot] of domain.slots) {
     if (!evictable(slot)) continue
     domain.slots.delete(id)
-    return true
+    if (occupancy(domain) < domain.budget.maxSnapshots) return true
   }
   return false
+}
+
+/** A new snapshot beside one that a lease still holds needs its own budget unit. */
+function admitAnother(domain: Domain, keepId: string): boolean {
+  if (occupancy(domain) < domain.budget.maxSnapshots) return true
+  for (const [id, slot] of domain.slots) {
+    if (id === keepId || !evictable(slot)) continue
+    domain.slots.delete(id)
+    if (occupancy(domain) < domain.budget.maxSnapshots) return true
+  }
+  return false
+}
+
+function residentSnapshot(slot: Slot | undefined): Snapshot | undefined {
+  if (slot?.kind === 'ready' || slot?.kind === 'retired') return slot.snapshot
+  if (slot?.kind === 'cooling' || slot?.kind === 'refused') return slot.held
+  return undefined
+}
+
+function leasedHeld(slot: Slot | undefined): Snapshot | undefined {
+  if (slot?.kind === 'retired' && slot.snapshot.leases > 0) return slot.snapshot
+  if ((slot?.kind === 'cooling' || slot?.kind === 'refused') && slot.held !== undefined && slot.held.leases > 0) {
+    return slot.held
+  }
+  return undefined
 }
 
 function evictable(slot: Slot): boolean {
@@ -296,6 +352,7 @@ function evictable(slot: Slot): boolean {
     case 'ready':
       return slot.snapshot.leases === 0
     case 'cooling':
+      if (slot.held !== undefined && slot.held.leases > 0) return false
       return Date.now() >= slot.retryNotBeforeMillis
     case 'retired':
       return slot.snapshot.leases === 0
@@ -315,7 +372,21 @@ function createFlight(): Flight {
   const done = new Promise<FlightOutcome>(settle => {
     resolve = settle
   })
-  return { live: 0, done, resolve, held: undefined }
+  let settled = false
+  return {
+    live: 0,
+    done,
+    held: undefined,
+    reload: false,
+    get settled() {
+      return settled
+    },
+    resolve(outcome) {
+      if (settled) return
+      settled = true
+      resolve(outcome)
+    },
+  }
 }
 
 function join<T>(
@@ -377,9 +448,17 @@ async function execute<T>(
     drop(domain, schema.id, flight)
     return
   }
-  const admitted = admit(definition, domain.budget)
+  let admitted: ReturnType<typeof admit>
+  try {
+    admitted = admit(definition, domain.budget)
+  } catch {
+    refuseAdmission(domain, schema.id, flight)
+    return
+  }
   if (admitted.kind === 'refused') {
-    if (!restoreHeld(domain, schema.id, flight)) domain.slots.set(schema.id, admitted)
+    const held = activeHeld(flight)
+    if (held === undefined) domain.slots.set(schema.id, admitted)
+    else domain.slots.set(schema.id, { kind: 'refused', reason: admitted.reason, held })
     flight.resolve(admitted)
     return
   }
@@ -406,8 +485,10 @@ async function execute<T>(
     leases: 0,
     superseded: false,
   }
+  if (flight.held !== undefined && flight.held.leases > 0) domain.retained.add(flight.held)
   domain.slots.set(schema.id, { kind: 'ready', snapshot })
   flight.resolve({ kind: 'ready', snapshot })
+  if (flight.reload && snapshot.leases === 0) domain.slots.delete(schema.id)
 }
 
 function drop(domain: Domain, id: string, flight: Flight): void {
@@ -423,17 +504,36 @@ function recordFailure(
   reason: UnavailableReason,
 ): void {
   const next = attempts + 1
+  const held = activeHeld(flight)
   if (next >= domain.budget.maxAttempts) {
     const refused = { kind: 'refused' as const, reason: 'attempts-exhausted' as const }
-    if (!restoreHeld(domain, id, flight)) domain.slots.set(id, refused)
+    domain.slots.set(id, held === undefined ? refused : { ...refused, held })
     flight.resolve(refused)
     return
   }
   const retryNotBeforeMillis = Date.now() + domain.budget.failureBackoffMs
-  if (!restoreHeld(domain, id, flight)) {
-    domain.slots.set(id, { kind: 'cooling', attempts: next, reason, retryNotBeforeMillis })
-  }
+  domain.slots.set(id, {
+    kind: 'cooling',
+    attempts: next,
+    reason,
+    retryNotBeforeMillis,
+    ...(held === undefined ? {} : { held }),
+  })
   flight.resolve({ kind: 'unavailable', reason, retryNotBeforeMillis })
+}
+
+function activeHeld(flight: Flight): Snapshot | undefined {
+  const held = flight.held
+  if (held === undefined || held.leases === 0) return undefined
+  return held
+}
+
+function refuseAdmission(domain: Domain, id: string, flight: Flight): void {
+  if (flight.settled) return
+  const held = activeHeld(flight)
+  const refused = { kind: 'refused' as const, reason: 'unsupported-construct' as const }
+  domain.slots.set(id, held === undefined ? refused : { ...refused, held })
+  flight.resolve(refused)
 }
 
 function restoreHeld(domain: Domain, id: string, flight: Flight): boolean {
@@ -473,6 +573,7 @@ function holdReady<T>(
 
 function hold<T>(domain: Domain, id: string, snapshot: Snapshot): LeaseOutcome<T> {
   snapshot.leases += 1
+  if (residentSnapshot(domain.slots.get(id)) !== snapshot) domain.retained.add(snapshot)
   let released = false
   const lease: SchemaLease<T> = {
     revision: snapshot.revision,
@@ -486,6 +587,7 @@ function hold<T>(domain: Domain, id: string, snapshot: Snapshot): LeaseOutcome<T
       if (released) return
       released = true
       snapshot.leases -= 1
+      if (snapshot.leases === 0) domain.retained.delete(snapshot)
       const slot = domain.slots.get(id)
       if (slot?.kind !== 'retired' || slot.snapshot !== snapshot) return
       if (snapshot.leases === 0) domain.slots.delete(id)

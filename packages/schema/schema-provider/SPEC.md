@@ -16,39 +16,39 @@
 
 <a id="subset"></a>
 
-提供者在调用 `z.compile` 或 Ajv 之前遍历定义。callback、`.transform`、`.default`、`.catch`、`z.lazy` 和强制转换得到 `refused`，原因是 `unsupported-construct`。`z.compile` 成功不能作为子集通过的依据。
+提供者在调用 `z.compile` 或 Ajv 之前遍历定义。callback、错误回调、`.transform`、`.default`、`.prefault`、`.catch`、`z.lazy` 和强制转换得到 `refused`，原因是 `unsupported-construct`。调用方函数在编译前被拒绝，执行次数为零。引擎自带的检查实现不在此列。`z.compile` 成功不能作为子集通过的依据。
 
 <a id="cycle"></a>
 
-有环的 JSON Schema 得到 `refused`，原因是 `runtime-path-closed`。该结果不能记为编译命中。本包不另写 JSON Schema 解释器。
+有环的 JSON Schema 得到 `refused`，原因是 `runtime-path-closed`。该结果不能记为编译命中。引用只沿 Schema 位置解析，包括本地指针和 `#` 锚点。`const`、`enum` 里的 `$ref` 是数据，不当成 Schema 依赖。无法解析或非法的引用在编译前得到 `unsupported-construct`。本包不另写 JSON Schema 解释器。
 
 <a id="digest"></a>
 
-缓存键包含形状 id、revision、结构摘要、编译器身份和数字投影。同一 id 和同一 revision 的结构摘要与已有快照不一致时，结果是 `refused`，原因是 `revision-conflict`。旧快照保持不变。
+缓存键包含形状 id、revision、结构摘要、编译器身份和数字投影。摘要覆盖影响检查结果的定义和依赖，包括约束参数、字面量、数组元素和嵌套形状。同一 id 和同一 revision 的结构摘要与已有快照不一致时，结果是 `refused`，原因是 `revision-conflict`。旧快照保持不变。
 
 <a id="projection"></a>
 
-`valid.value` 是投影后的值。本包丢弃引擎输出。`exact-or-reject` 只在数字转换可逆时产生 JavaScript 数字，否则问题码是 `precision`。投影失败的 path 是 `projection`，因为这次失败发生在进入编译产物之前。`lexeme` 把源词法交给检查器。对象的 `entries` 顺序在投影时保留。
+`valid.value` 是投影后的值。本包丢弃引擎输出。`exact-or-reject` 只在数字转换可逆时产生 JavaScript 数字，否则问题码是 `precision`。投影失败的 path 是 `projection`，因为这次失败发生在进入编译产物之前。`lexeme` 把源词法交给检查器。对象的 `entries` 顺序在投影时保留。投影保留全部自有键，包括 `__proto__`，供检查器看到真实输入。
 
 <a id="issues"></a>
 
-校验失败的问题码是 `type`、`empty`、`precision`、`constraint` 或 `unrecognized-key`。Zod 与 Ajv 的原始错误只在本包内对照到这些编号。
+校验失败的问题码是 `type`、`empty`、`precision`、`constraint` 或 `unrecognized-key`。Zod 与 Ajv 的原始错误只在本包内对照到这些编号。问题路径保留空键、字面百分号和数字对象键。数组下标仍是数字。路径转换不抛出。
 
 ## 所有权、失败与寿命
 
 <a id="slot"></a>
 
-一个执行域只有一个提供者。每个形状 id 一个槽。一个槽表示一份在途编译、一份就绪产物、一条冷却记录，或一份仍有租约的旧修订。`maxSnapshots` 数这些槽。它不是字节上界。
+一个执行域只有一个提供者。每个形状 id 一个槽。一个槽表示一份在途编译、一份就绪产物、一条冷却记录，或一份仍有租约的旧修订。`maxSnapshots` 计入在途项、当前槽，以及仍被租约持有的旧快照。旧快照离开当前槽后仍然占用预算。它不是字节上界。
 
-槽位不足时，提供者只淘汰租约数为零且冷却已结束的条目。腾不出槽时，新消费者得到 `refused`，原因是 `budget-exhausted`。仍有租约的快照不被淘汰，也不被覆盖。
+槽位不足时，提供者只淘汰租约数为零且冷却已结束的条目。腾不出槽时，新消费者得到 `refused`，原因是 `budget-exhausted`。仍有租约的快照不被淘汰，也不被覆盖。准入抛出时，等待者得到 `refused`，在途状态被清掉，随后的调用不再挂起。
 
 <a id="inflight"></a>
 
-同一键的并发首次调用共享一次加载和一次编译。一个调用的取消只返回 `cancelled`。其他等待者继续。全部等待者都在编译开始前取消时，这次编译不留下就绪产物。
+同一键的并发首次调用共享一次加载和一次编译。一个调用的取消只返回 `cancelled`。其他等待者继续。全部等待者都在编译开始前取消时，这次编译不留下就绪产物。加载期间到来的 `refresh` 留给后续消费者：已经在等待的调用按本次结果完成，下一次使用重新加载。
 
 <a id="failure"></a>
 
-编译或加载失败不留下成功缓存。等待者得到 `unavailable`，并带 `retryNotBeforeMillis`。冷却未结束时，再次调用返回同一个 `unavailable`，不再编译。同一修订的失败次数达到 `maxAttempts` 后，结果变为 `refused`，原因是 `attempts-exhausted`。
+编译或加载失败不留下成功缓存。等待者得到 `unavailable`，并带 `retryNotBeforeMillis`。冷却未结束时，再次调用返回同一个 `unavailable`，不再编译。同一修订的失败次数达到 `maxAttempts` 后，结果变为 `refused`，原因是 `attempts-exhausted`。持有旧租约时，新加载的冷却和失败次数仍然保留，旧租约可以继续检查。
 
 <a id="lease"></a>
 
