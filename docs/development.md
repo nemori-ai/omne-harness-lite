@@ -110,6 +110,18 @@ pnpm format:write
 需要本地提交检查时，确认没有既有 `pre-commit` hook 后运行 `pnpm format:hook:install`。
 安装器不覆盖已有 hook；所装检查只读 Git index 中已暂存的文件，**不 stash、不改工作区**。
 
+### 通用静态检查
+
+```sh
+pnpm lint:oxlint   # oxlint 正确性规则，范围 tools/、scripts/
+pnpm lint:deps     # dependency-cruiser：无法解析的导入、文件级运行时循环与 legacy 引用，范围 tools/、scripts/、packages/、apps/
+pnpm lint:report   # 只报告：全部目录的 oxlint（含 vitest 测试风格规则）与 knip
+```
+
+`lint:oxlint` 与 `lint:deps` 违反即失败，`make check` 每次都跑。oxlint 暂不检查 `packages/` 与 `apps/`，与格式范围一起由源码包负责人另定；dependency-cruiser 的规则是结构护栏，对源码包同样失败。
+dependency-cruiser 用类型检查的 `source` 条件解析跨包导入，`dist` 与依赖只作叶子不深入；它自带一份 TypeScript 6 解析 `.ts`（见 `pnpm-workspace.yaml` 的 `packageExtensions`）。分组方向还没有写进配置，等新包组登记层位后再加。
+Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和源码字符串里的 legacy 路径，仍由 `pnpm run lint:rules` 检查；legacy 的导入边归 `lint:deps`。
+
 ## 开始一次交付
 
 1. 明确本次目标、写范围、长期承诺拥有者和完成判断。按[任务地图](context-map.md)选择主场景；已有契约足够的局部修改直接推进，新保证或含义冲突先回拥有者。

@@ -16,13 +16,19 @@
     "format:staged": "./scripts/format.sh staged",
     "format:hook:install": "./scripts/install-format-hook.sh",
     "test:format": "./scripts/test-formatting.sh",
-    "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run check:declarations && pnpm run typecheck && pnpm run test:gate && pnpm run lint:rules",
+    "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run check:declarations && pnpm run typecheck && pnpm run test:gate && pnpm run lint:rules && pnpm run lint:oxlint && pnpm run lint:deps",
     "check:declarations": "node --experimental-strip-types tools/ts-checks/src/declarations/cli.ts",
     "lint:rules": "pnpm --filter @omne-harness/ts-checks run scan",
+    "lint:oxlint": "oxlint -c .oxlintrc.json --report-unused-disable-directives tools scripts",
+    "lint:deps": "depcruise --config .dependency-cruiser.cjs --output-type err tools scripts packages apps",
+    "lint:report": "oxlint -c .oxlintrc.json -W correctness --vitest-plugin tools scripts packages apps && knip --no-exit-code",
     "package:template": "node --experimental-strip-types tools/ts-checks/src/package-template/cli.ts"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "catalog:",
-    "oxfmt": "catalog:"
+    "dependency-cruiser": "catalog:",
+    "knip": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:"
   }
 }
