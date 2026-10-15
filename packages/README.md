@@ -29,6 +29,7 @@
 | [telemetry](telemetry/README.md) | 遥测 | 待具名 |
 | [common](common/README.md) | 共同纯表示 | 待具名 |
 | [util](util/README.md) | 纯文本格式化 | `unix-format`, `xml-format` |
+| [schema](schema/README.md) | Schema 提供者 | `schema-provider` |
 
 ## 阅读与维护
 
