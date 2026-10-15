@@ -46,9 +46,7 @@ The rules are the existing IC rows, the layer rows, `undeclared-dependency`, and
 `unknown` stays `unknown`.
 `--check` does not treat `unknown` as a pass. An `unknown` row alone does not make the exit code 1.
 
-`lint:rules` `group-direction` is a separate check. It still reports `unregistered-group` for `packages/access`, `packages/identity`, `packages/agent`, and `packages/assembly`.
-This change does not edit that rule.
-Registering those groups on `GROUP_DIRECTION_POLICY` would leave a same-group import from `sdk` to `server-entry` legal until the two members form a cycle.
+Group direction is a separate check: the dependency-cruiser rules behind `pnpm run lint:deps`, see [ts-checks](../../README_ZH.md#依赖图与依赖规则). A same-group import from `sdk` to `server-entry` violates `sdk-not-server` directly.
 
 ## Later implementers
 
