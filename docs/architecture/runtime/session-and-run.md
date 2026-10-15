@@ -95,6 +95,17 @@ Run 结束后仍可能存在后台工具、迟到结果、费用或保管责任�
 
 会话规格规定种类准入、效力、整批提交，以及一条事实能否改变推进资格或 Run 终态。调用者不能自填种类取得治理权。各领域只规定自己的事实。日志的追加、分页和恢复只由会话规定。
 
+```mermaid
+flowchart TD
+  start[候选事实] --> happened{已经发生}
+  happened -->|否| out[不进入会话日志]
+  happened -->|是| recover{缺了它就不能恢复身份、队列、Run、推进者、等待、消费位置、取消或终态}
+  recover -->|是| basis[依据]
+  recover -->|否| other{当前值、内部步骤或 Cordis 通知}
+  other -->|是| out
+  other -->|否| trace[留痕。可以保存。不改变治理]
+```
+
 ## 依据
 
 Agent 工作推进的当前产品责任候选见[Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)，受理与队列见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，会话交接也见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。两者仍为草案；本页既有承诺继续按实际接受范围执行，不因候选修订扩大采用。

@@ -92,6 +92,23 @@
 
 模型和工具不挂成 Agent 的子 Fiber。它们在各自的执行器上运行。执行器只有自己需要 Cordis 时才另建根。跨线程只传业务身份和任务，不传 Context、Fiber 或闭包。租户是操作参数，不从 Context 推断。
 
+```mermaid
+flowchart TB
+  tree[插件树]
+  root[长期 Cordis 根]
+  scope[会话作用域]
+  ident[会话身份]
+  reg[调用方 fiber 上的登记]
+  model[模型执行器]
+  tool[工具执行器]
+  root --- tree
+  root --> scope
+  scope --> ident
+  scope --> reg
+  scope -->|业务身份和任务| model
+  scope -->|业务身份和任务| tool
+```
+
 ## IC-18
 
 跨边界操作显式携带租户身份。租户身份是操作的参数（或参数里的身份值），不从 `ctx`、isolate 标签、插件实例或「谁装了这个插件」推断；不把「不 inject 就够不着」当访问控制。
