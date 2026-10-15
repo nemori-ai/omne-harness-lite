@@ -1,7 +1,7 @@
 # Cordis 集成
 
 
-PanQiWei 已接受这一节的设计，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。Cordis 只负责装配。领域语义留在[模型](model.md)。根入口 `src/index.ts` 导出那些类型和操作签名，不导入 `@deepseek-ai/cordis`，也不导入 `./cordis`。集成入口是本包的 `./cordis`。`package.json` 尚无这个导出。公开文件尚未建立。
+PanQiWei 已接受这一节的设计，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。Cordis 只负责装配。领域语义留在[模型](model.md)。根入口 `src/index.ts` 导出那些类型和操作签名，不导入 `@deepseek-ai/cordis`，也不导入 `./cordis`。集成入口是本包的 `./cordis`。`package.json` 导出这个入口。
 
 这一刀只有一个服务接缝。键是 `executionEnvironment`。定义写一次。
 

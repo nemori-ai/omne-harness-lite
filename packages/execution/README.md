@@ -10,7 +10,7 @@
 
 | 具名目标 | 文档及状态 | 允许协作 |
 | --- | --- | --- |
-| `execution/execution-environment` | [阅读入口](execution-environment/README.md)、[完整行为](execution-environment/SPEC.md)、[架构](execution-environment/docs/architecture.md)、[模型](execution-environment/docs/model.md)；没有运行成员 | 消费可信身份、领域明确来源及本次合法条件；通过公开边界与资源、资产、工具、装配及 Context 协作，不持有邻域事实 |
+| `execution/execution-environment` | [阅读入口](execution-environment/README.md)、[完整行为](execution-environment/SPEC.md)、[架构](execution-environment/docs/architecture.md)、[模型](execution-environment/docs/model.md)；宿主文件设施已有包测试，应用尚未装上插件 | 消费可信身份、领域明确来源及本次合法条件；通过公开边界与资源、资产、工具、装配及 Context 协作，不持有邻域事实 |
 
 成员目标是已有包组织的名字，不能从文档目录推定服务键、进程或数据表。实际成员成立前须有技术接受、构建计划及真实公开入口。
 
@@ -20,7 +20,7 @@
 
 ## 组合验证
 
-本组技术拥有者协调真实成员与相邻消费者，按完整 SPEC 的持续验证义务核对身份、授权、并发、未知、取消与原效果责任。验证须绑定具体提供者、版本、环境及故障前提。本轮没有运行验证证据，mock、图及结构通过不证明真实组合保证。
+本组技术拥有者协调真实成员与相邻消费者，按完整 SPEC 的持续验证义务核对身份、授权、并发、未知、取消与原效果责任。验证须绑定具体提供者、版本、环境及故障前提。宿主文件这一刀有包测试。组内组合、沙箱和命令设施仍没有运行验证证据。mock、图及结构通过不证明真实组合保证。
 
 ## 维护
 

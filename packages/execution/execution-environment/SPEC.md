@@ -1,6 +1,6 @@
 # execution/execution-environment 长期行为候选
 
-状态：具名成员目标的完整行为草案。只有文档目录，运行成员及公开类型尚未成立，[局部技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/268#issuecomment-6187949335)仅覆盖文件使用对象授权、进程退出观察和活动句柄的本次对象及代际语义；下文“最小调用事实”的语义交接另由[补交技术采用](https://github.com/nemori-ai/omne-harness-lite/issues/268#issuecomment-6190967601)接受，不包括具体字段、编码或存储。其余行为草案不因本次接受转正。本规格维护必要行为，不预造方法、事件、Schema、执行引擎或存储字段。技术义务见[问题](../../../.meta_harness/design/product/execution-environments/design.md#未决问题与待定事项)，不能用公开形状未定抹去以下可检验规则。
+状态：具名成员目标的完整行为草案。宿主文件使用和 `executionEnvironment` 服务已有公开入口与包测试。`command`、三种沙箱提供者和本规格其余行为仍未实现。[局部技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/268#issuecomment-6187949335)仅覆盖文件使用对象授权、进程退出观察和活动句柄的本次对象及代际语义；下文“最小调用事实”的语义交接另由[补交技术采用](https://github.com/nemori-ai/omne-harness-lite/issues/268#issuecomment-6190967601)接受，不包括具体字段、编码或存储。其余行为草案不因本次接受转正。本规格维护必要行为，不预造方法、事件、Schema、执行引擎或存储字段。技术义务见[问题](../../../.meta_harness/design/product/execution-environments/design.md#未决问题与待定事项)，不能用公开形状未定抹去以下可检验规则。
 
 ## 责任、消费者与采用范围
 

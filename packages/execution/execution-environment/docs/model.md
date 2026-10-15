@@ -4,7 +4,7 @@
 
 ## 环境抽象
 
-状态：PanQiWei 已接受这一节的设计，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。它还不是 `src/index.ts` 的公开导出。形状沿 legacy 的执行环境核心契约。本成员这一刀实现其中的 `files`。`command` 只定义交接，不在这一刀实现。
+状态：PanQiWei 已接受这一节的设计，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/278#issuecomment-6197369869)。这些类型从包根入口导出。根入口不导入 Cordis。形状沿 legacy 的执行环境核心契约。本成员这一刀实现其中的 `files`。`command` 只定义交接，不在这一刀实现。
 
 一次调用先形成落点，再按设施名取得租约。工具拿到的是设施，不是资源登记的写接口。落点选定之后，按设施名再核一次当前授权。这次核对不改选落点。
 
