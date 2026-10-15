@@ -23,11 +23,11 @@ main 保存完整集成结果。任意数量的 integration/<track> 保存已登
 
 [policy registry](integration-policy.json) 登记轨道身份、owner、状态和固定起点。revision 3 按以下责任划分轨道；正式准入仍取决于该 revision 的实际采用与 bootstrap，不能仅凭本表开工。
 
-| 轨道 | 责任与适用任务 |
-| --- | --- |
-| `integration/legacy-refactor` | 将 0.0.1.legacy 已支持的功能迁入新的文档体系、架构和包结构；以已确认能力清单防止功能遗漏，不借重构扩大到全部 0.1.0 范围 |
-| `integration/engineering-toolchain` | 持续改进研发工具链，包括 lint、make check、CI/CD、pre-commit hooks 及相关脚手架、检查工具和工程流程 |
-| `integration/development` | 首次接入使用的历史轨道；revision 3 将其设为 retiring，停止新任务准入。核清未提升成果及交接责任后，按明确授权删除 ref，保留历史登记与标签 |
+| 轨道                                | 责任与适用任务                                                                                                                           |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `integration/legacy-refactor`       | 将 0.0.1.legacy 已支持的功能迁入新的文档体系、架构和包结构；以已确认能力清单防止功能遗漏，不借重构扩大到全部 0.1.0 范围                  |
+| `integration/engineering-toolchain` | 持续改进研发工具链，包括 lint、make check、CI/CD、pre-commit hooks 及相关脚手架、检查工具和工程流程                                      |
+| `integration/development`           | 首次接入使用的历史轨道；revision 3 将其设为 retiring，停止新任务准入。核清未提升成果及交接责任后，按明确授权删除 ref，保留历史登记与标签 |
 
 新轨道按 registry 的 initialMain 从已确认 main 提交创建，创建由 `gate-track` 流程执行，见[现行准入](#现行准入)。后续 main 变化通过 FI 同步，不改写起点。任务 route 必须明确选择轨道；global 或跨轨道完整结果仍按具名责任进入 main，不设置隐含默认轨道。
 
@@ -71,6 +71,7 @@ PanQiWei 于 2026-10-14 接受 [RFC-0004 revision 1](../rfcs/RFC-0004-trunk-pr-a
 
 - 四条主干只经 PR 进入，个人工作分支不受限制。轨道接受个人分支或 main 的 PR。main 只接受 `integration/*` 的 PR。stable 只接受 main 的 PR，并且只快进到 main 的 first-parent 历史上的提交。
 - 派发 `github-gate` 分支上的 `gate-publish` 流程，传入 PR 号和 PR head 的完整提交号。合入 stable 时还要传 checkpoint 名称。命令见 `github-gate` 分支的 `gate/README.md`。
+- 任务卡的派发评论由 `publish` environment 的 reviewer 发出，`start` 据此核对，不再要求 bootstrap 或采用锚点。没有 task context 的检出也能运行本地检查，基线退回 `origin/main`。
 - 一位 admin 在 Actions 的 `publish` environment 中确认，必须填写说明。admin 可以确认自己的 PR。agent 可以用 admin 的凭据代为确认，说明中注明代为确认的人。
 - 确认后，发布身份 `omne-harness-lite-publish` 构造合并提交。第一父为目标，第二父为 PR head，有冲突就停止，冲突先在来源分支解决。它在一次原子推送中更新目标并创建记录标签，推送比较派发时读到的目标。合并写 `omne/gate/unit/<结果提交号>`。stable 写 `omne/gate/stable/<提交号>` 和 `omne/gate/checkpoint/<名称>`，同一提交只能进入 stable 一次：另一次发布已把 stable 推进到同一提交时，记录已存在，整次推送失败。标签正文是 `omne-gate-record:v1` JSON。
 - 发布 main 前，流程核对来源轨道自切换点起每个 first-parent 提交都有目标为该轨道的 unit。发布 stable 前，对 main 做同样的核对。有缺口就停止。

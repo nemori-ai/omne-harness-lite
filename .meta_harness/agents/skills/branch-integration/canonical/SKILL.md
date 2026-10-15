@@ -7,7 +7,7 @@ description: 在本项目把成果送入轨道、main 或 stable，做 FI/RI、s
 
 先进入任务明确的执行仓库/worktree，核 cwd、branch、HEAD 和已有写者。读取执行仓库 `docs/engineering/integration.md`，它拥有路线、节奏、双基线及权限；实际命令和精确输入归 `tools/ts-checks/src/integration/README.md` 与相邻 SPEC。不要从 skill 安装路径推断目标仓库。
 
-任务开工、路线和 task-sync 仍用该 CLI，先运行 status。pending 按旧任务路线继续，不因技能可见而启用。adopted 缺 anchor/context/真实授权为 unknown，不能用 main 或离线 JSON 替代。首次建设完整提交和具名采用由负责人处理；工具不提交或丢弃现有修改。
+任务开工、路线和 task-sync 仍用该 CLI。start 核对派发评论作者是 `publish` environment 的 reviewer，不需要 bootstrap；没有派发就不运行 start，也不手造 context。没有 context 时本地检查以 `origin/main` 为基线。首次建设完整提交和具名采用由负责人处理；工具不提交或丢弃现有修改。
 
 任务仍由现有 Issue 当前 revision/attempt 和正文单写者拥有。核人的责任、route、completionTarget、原 taskBase、写范围及阶段条件；Project 只是派生视图。integration 条件按实际目标生效，最终结果条件留 acceptance。
 
