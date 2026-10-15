@@ -2,6 +2,12 @@ import sharp from 'sharp'
 
 type ImageFormat = 'png' | 'jpeg' | 'webp'
 
+const encoders = {
+  png: (pipeline: ReturnType<typeof sharp>) => pipeline.png(),
+  jpeg: (pipeline: ReturnType<typeof sharp>) => pipeline.jpeg(),
+  webp: (pipeline: ReturnType<typeof sharp>) => pipeline.webp(),
+} as const
+
 export async function decodeRaster(
   bytes: Uint8Array,
   width: number,
@@ -33,11 +39,8 @@ export async function encodeRaster(
   format: ImageFormat,
 ): Promise<{ readonly bytes: Buffer; readonly orientation: undefined; readonly exif: undefined } | undefined> {
   try {
-    let pipeline = sharp(pixels, { raw: { width, height, channels: 4 } })
-    if (format === 'png') pipeline = pipeline.png()
-    if (format === 'jpeg') pipeline = pipeline.jpeg()
-    if (format === 'webp') pipeline = pipeline.webp()
-    const encoded = await pipeline.toBuffer()
+    const encode = encoders[format]
+    const encoded = await encode(sharp(pixels, { raw: { width, height, channels: 4 } })).toBuffer()
     const meta = await sharp(encoded).metadata()
     if (meta.orientation !== undefined || meta.exif !== undefined) return undefined
     if (meta.width !== width || meta.height !== height) return undefined

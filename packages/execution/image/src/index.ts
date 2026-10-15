@@ -166,6 +166,21 @@ function decodedBytes(width: number, height: number): number | undefined {
   return Number.isSafeInteger(bytes) ? bytes : undefined
 }
 
+function overLimit(
+  pool: Pool,
+  width: number,
+  height: number,
+  estimate: number | undefined,
+): ImageRejectReason | undefined {
+  if (width > pool.maxWidth) return 'width'
+  if (height > pool.maxHeight) return 'height'
+  if (estimate === undefined) return 'decoded-bytes'
+  if (estimate > pool.maxDecodedBytes) return 'decoded-bytes'
+  if (pool.count + 1 > pool.maxConcurrentDecodes) return 'concurrent'
+  if (pool.bytes + estimate > pool.maxInFlightBytes) return 'in-flight-bytes'
+  return undefined
+}
+
 function reject(reason: ImageRejectReason): OpenResult {
   return { kind: 'rejected', reason }
 }
@@ -179,11 +194,8 @@ export function open(input: { readonly bytes: Uint8Array; readonly budget: Image
   if (!pool.formats.includes(mediaType)) return Promise.resolve(reject('format'))
   const oriented = orientedSize(container.width, container.height, container.orientation)
   const estimate = decodedBytes(oriented.width, oriented.height)
-  if (oriented.width > pool.maxWidth) return Promise.resolve(reject('width'))
-  if (oriented.height > pool.maxHeight) return Promise.resolve(reject('height'))
-  if (estimate === undefined || estimate > pool.maxDecodedBytes) return Promise.resolve(reject('decoded-bytes'))
-  if (pool.count + 1 > pool.maxConcurrentDecodes) return Promise.resolve(reject('concurrent'))
-  if (pool.bytes + estimate > pool.maxInFlightBytes) return Promise.resolve(reject('in-flight-bytes'))
+  const reason = overLimit(pool, oriented.width, oriented.height, estimate)
+  if (reason !== undefined || estimate === undefined) return Promise.resolve(reject(reason ?? 'decoded-bytes'))
   pool.count += 1
   pool.bytes += estimate
   return finishOpen(input.bytes, pool, mediaType, oriented.width, oriented.height, estimate)

@@ -211,6 +211,44 @@ it('budgets orientation 5 through 8 on png, jpeg, and webp', async () => {
   }
 })
 
+it('opens a lossless webp as a single frame', async () => {
+  const bytes = await sharp({
+    create: { width: 8, height: 4, channels: 3, background: { r: 9, g: 8, b: 7 } },
+  })
+    .webp({ lossless: true })
+    .toBuffer()
+  const gate = budget()
+  const opened = await open({ bytes, budget: gate })
+  expect(opened.kind).toBe('opened')
+  if (opened.kind !== 'opened') return
+  expect(opened.declaration).toEqual({
+    mediaType: 'image/webp',
+    orientedWidth: 8,
+    orientedHeight: 4,
+    trusted: false,
+  })
+  await opened.handle.close()
+})
+
+it('rejects a png chunk whose crc does not match, without holding a reservation', async () => {
+  const png = Buffer.from(await pixels('png', 8, 4))
+  const size = png.readUInt32BE(8)
+  const crcAt = 8 + 8 + size
+  png.writeUInt32BE((png.readUInt32BE(crcAt) + 1) >>> 0, crcAt)
+  const gate = budget()
+  const pending = open({ bytes: png, budget: gate })
+  expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
+  expect(await pending).toEqual({ kind: 'rejected', reason: 'truncated' })
+})
+
+it('rejects a png whose signature differs by one byte', async () => {
+  const png = Buffer.from(await pixels('png', 8, 4))
+  png[1] = 0x00
+  const gate = budget()
+  expect(await open({ bytes: png, budget: gate })).toEqual({ kind: 'rejected', reason: 'not-image' })
+  expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
+})
+
 it('rejects a scan that stops before the container ends, without holding a reservation', async () => {
   const jpeg = await pixels('jpeg', 8, 4)
   const scan = jpeg.indexOf(Buffer.from([0xff, 0xda]))
