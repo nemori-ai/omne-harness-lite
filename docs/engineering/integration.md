@@ -13,7 +13,7 @@ policy revision 2 起，integration、轨道附加检查及 full 均使用完整
 
 ## 分支与任务
 
-本节到「稳定点与轨道演进」描述现行集成工具的行为。已接受的目标准入见[目标准入](#目标准入)。那个流程还没有接入，不能代替下面的现行步骤。
+本节到「稳定点与轨道演进」描述本机集成工具的行为。自 2026-10-15 起，四条主干的进入按[现行准入](#现行准入)执行。下面各节中候选发布、unit 标签和 stable checkpoint 的步骤不再用于四条主干，只在 admin 临时恢复原规则集时作为恢复手段。任务开工、路线、taskBase 和 task-sync 仍按本节。
 
 main 保存完整集成结果。任意数量的 integration/<track> 保存已登记责任轨道。stable 指向 main 中经过完整检查的既有 checkpoint。轨道和 stable 不加用户名；工作及临时分支遵守人的署名约定。
 
@@ -29,11 +29,11 @@ main 保存完整集成结果。任意数量的 integration/<track> 保存已登
 | `integration/engineering-toolchain` | 持续改进研发工具链，包括 lint、make check、CI/CD、pre-commit hooks 及相关脚手架、检查工具和工程流程 |
 | `integration/development` | 首次接入使用的历史轨道；revision 3 将其设为 retiring，停止新任务准入。核清未提升成果及交接责任后，按明确授权删除 ref，保留历史登记与标签 |
 
-新轨道按 registry 的 initialMain 从已确认 main 提交创建。后续 main 变化通过 FI 同步，不改写起点。任务 route 必须明确选择轨道；global 或跨轨道完整结果仍按具名责任进入 main，不设置隐含默认轨道。
+新轨道按 registry 的 initialMain 从已确认 main 提交创建，创建由 `gate-track` 流程执行，见[现行准入](#现行准入)。后续 main 变化通过 FI 同步，不改写起点。任务 route 必须明确选择轨道；global 或跨轨道完整结果仍按具名责任进入 main，不设置隐含默认轨道。
 
-GitHub 对 `integration/**/*` 分别实施三项保护：只有仓库管理员可删除，所有人禁止非快进更新，创建与更新仅允许现行具名发布者 PanQiWei。删除权限不代替退役清单和具体动作授权。新增或更换发布者时同步平台权限与已采用 policy。
+GitHub 对 `integration/**/*` 分别实施三项保护：只有仓库管理员可删除，所有人禁止非快进更新，创建与更新只允许发布身份 `omne-harness-lite-publish`。删除权限不代替退役清单和具体动作授权。
 
-main 与 stable 禁止删除和非快进更新，创建与更新仅允许 PanQiWei。adoption、unit、checkpoint 标签禁止修改和删除，无 bypass。平台保护不验证回执、任务接受或跨 ref 原子性，这些仍由集成流程承担；管理员修改规则本身属于管理权限。
+main 与 stable 禁止删除和非快进更新，创建与更新只允许发布身份。adoption、unit、checkpoint 标签禁止修改和删除，无 bypass。平台保护不验证任务接受；管理员修改规则本身属于管理权限。
 
 ## 完整集成
 
@@ -61,19 +61,34 @@ stable 选择已有 main 提交，只要求旧 stable 是其祖先。首次创�
 
 退役只形成并核清单。删除 ref、工作树或唯一临时材料仍按[工作约定](workflow.md#责任与协作交接)和[发布边界](publication.md)取得明确授权。Git revert 不撤销外部副作用。
 
-## 目标准入
+## 现行准入
 
-PanQiWei 于 2026-10-14 接受 [RFC-0004 revision 1](../rfcs/RFC-0004-trunk-pr-admission.md#决定范围)。本节是目标。`github-gate`、合并队列和确认流程还没有接入。接入并完成本页其余各节的切换之前，发布仍按上面的现行工具步骤执行。
+PanQiWei 于 2026-10-14 接受 [RFC-0004 revision 1](../rfcs/RFC-0004-trunk-pr-admission.md#决定范围)。2026-10-15 起按第一阶段执行，切换记录见 [Issue #208](https://github.com/nemori-ai/omne-harness-lite/issues/208#issuecomment-6184302633)。
 
-目标有四条主干。`integration/<track>`、`main`、`stable` 和 `release`。代码单向提升。main 向轨道的同步是唯一反向流动。`release` 只定对外发布的位置。npm 发布细节留给后续提案。
+四条主干是 `integration/<track>`、`main`、`stable` 和 `release`。代码单向提升。main 向轨道的同步是唯一反向流动。`release` 只定对外发布的位置，还没有创建。
 
-轨道只要求自动检查，并经合并队列合入。轨道的 unit 在合入后补建。main、stable 和 release 还要求一位 admin 在确认时填写说明。确认后由发布流程更新这些主干。admin 可以确认自己的变更。进入主干先有通过的 PR。
+第一阶段的规则如下。
 
-选择规则不能由 PR 改写。检查器的受信版本记在 `github-gate`。四条主干上的检查器升级走该分支上的升级流程，并保留采用标签作为记录。这一目标同时决定 Issue #217 的设计。现行的 `policy-check` 与 `policy-adopt` 在切换完成前仍然有效。
+- 四条主干只经 PR 进入，个人工作分支不受限制。轨道接受个人分支或 main 的 PR。main 只接受 `integration/*` 的 PR。stable 只接受 main 的 PR，并且只快进到 main 的 first-parent 历史上的提交。
+- 派发 `github-gate` 分支上的 `gate-publish` 流程，传入 PR 号和 PR head 的完整提交号。合入 stable 时还要传 checkpoint 名称。命令见 `github-gate` 分支的 `gate/README.md`。
+- 一位 admin 在 Actions 的 `publish` environment 中确认，必须填写说明。admin 可以确认自己的 PR。agent 可以用 admin 的凭据代为确认，说明中注明代为确认的人。
+- 确认后，发布身份 `omne-harness-lite-publish` 构造合并提交。第一父为目标，第二父为 PR head，有冲突就停止，冲突先在来源分支解决。它在一次原子推送中更新目标并创建记录标签。合并写 `omne/gate/unit/<提交号>`，stable 写 `omne/gate/checkpoint/<名称>`。标签正文是 `omne-gate-record:v1` JSON。
+- 发布 main 前，流程核对来源轨道自切换点起每个 first-parent 提交都有目标为该轨道的 unit。发布 stable 前，对 main 做同样的核对。有缺口就停止。
+- 流程不运行测试。自动检查具备之前，确认暂代轨道的自动检查，说明中写明本地运行了哪些检查及结果。确认不等于交付接受。
+- `gate-reconcile` 每小时从 main 触发一次。它为切换点之后没有记录的主干提交开缺口 Issue，不创建标签。缺口不设处理时限，由该轨道 owner 或任一 admin 在缺口 Issue 中写具名决定后闭合。
+- 新轨道由 `gate-track` 流程在 admin 确认后从 main 的 first-parent 提交创建，并写 `omne/gate/track/<轨道名>` 起点标签。轨道仍须在 registry 登记 owner 与责任。
+
+平台配置如下。main、轨道和 stable 的创建与更新只允许发布身份。`github-gate` 只有 admin 能创建和更新，禁止删除和非快进。`omne/gate/*` 标签只有发布身份能创建，任何人不能修改或删除。仓库只允许 merge commit。`publish` environment 的确认者为 admin，关闭管理员跳过，只接受 `github-gate` 上的运行。切换点记在 `github-gate` 的 `gate/cutover.json`。切换点之前的历史按 #208 的决定整体认可，不补记录。
+
+发布身份的 App 归组织所有，密钥只放在 `publish` environment，不放仓库级 secrets。审计日志、`github-gate` 的改动和密钥轮换由组织和项目的管理者按需要处理，不设固定周期。流程使用 GitHub 托管 runner。
+
+本机集成工具的 prepare、verify 和 publish 不再用于四条主干。`policy-check`、`policy-adopt` 和采用标签保持原状，第一阶段的流程不读取它们。
+
+### 第二阶段目标
+
+turbo 构建体系建立后进入第二阶段。轨道改为自动检查通过后经合并队列自动合并，取消轨道的确认。增加报告身份和按改动范围的必需检查。受信检查器的版本记在 `github-gate`，升级走该分支上的升级流程，这同时决定 Issue #217 的设计。集成条件评论的格式随之确定。
 
 轨道和 main 的受影响检查，今天仍由 `make check-plan` 与 `make test-affected` 执行。 [RFC-0002 revision 2](../rfcs/RFC-0002-engineering-toolchain.md#影响面选择) 接受以后改用 turbo。替换前必须保留未识别文件转全量，并把 `turbo.json` 一类选择配置当成全局文件。准入基线要显式传入。准入不读取 PR 能写入的缓存。这些条件还没有在 turbo 上落地，所以现行命令不改。
-
-审计日志由谁查看、专用身份归谁、使用哪种 runner、缺口由谁处理，以及确认评论的具体格式，RFC-0004 没有给出值。这些空值不在本节补成默认。
 
 ## 未来启用
 
