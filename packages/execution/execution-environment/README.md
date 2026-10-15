@@ -12,7 +12,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 独立与 Cordis 消费
 
-独立消费者须提供可核验主体、原工作与实际依赖，沿 SPEC 的采用前提消费。宿主文件这一刀可以从包名和 `./cordis` 调用。这不构成整份 SPEC 的运行支持声明。Cordis 集成沿[统一 IC 约定](../../../docs/architecture/cordis-integration-conventions.md)设计装配、依赖与撤除；内核不提供领域授权、耐久、安全隔离或外部效果回滚。
+独立消费者须提供可核验主体、原工作与实际依赖，沿 SPEC 的采用前提消费。宿主文件这一刀可以从包名和 `./cordis` 调用。这不构成整份 SPEC 的运行支持声明。宿主文件设施的调用方负责在使用前按当前授权点名对象并提供 `named`；本设施只核对打开到的对象与 `named` 一致，`hostObjectToken` 只识别对象、不授予访问权。Cordis 集成沿[统一 IC 约定](../../../docs/architecture/cordis-integration-conventions.md)设计装配、依赖与撤除；内核不提供领域授权、耐久、安全隔离或外部效果回滚。
 
 ## 配置、验证与维护
 

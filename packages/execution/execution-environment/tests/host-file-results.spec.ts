@@ -1,8 +1,37 @@
-import { lstat, mkdir, mkdtemp, rename, rm, symlink, writeFile } from 'node:fs/promises'
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  open,
+  readFile,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { createHostFiles, hostObjectToken, type FileRequest } from '@omne-harness/execution-environment'
+
+let injectCloseFailure = false
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    open: async (...args: Parameters<typeof actual.open>) => {
+      const handle = await actual.open(...args)
+      const originalClose = handle.close.bind(handle)
+      handle.close = async () => {
+        if (injectCloseFailure) {
+          throw new Error('injected close failure')
+        }
+        return originalClose()
+      }
+      return handle
+    },
+  }
+})
 
 const roots: string[] = []
 
@@ -28,6 +57,13 @@ function request(path: string, named: FileRequest['named'], requestId: string): 
 }
 
 const text = (value: string) => new TextEncoder().encode(value)
+
+function withCloseFailure<T>(action: () => Promise<T>): Promise<T> {
+  injectCloseFailure = true
+  return action().finally(() => {
+    injectCloseFailure = false
+  })
+}
 
 it('refuses an unnamed file and does not return its bytes', async () => {
   const root = await tree()
@@ -344,4 +380,144 @@ it('issues a new handle generation for the second read', async () => {
   const second = await files.read(request(path, named, 'gen-2'))
   expect(first).toMatchObject({ kind: 'done', value: { handle: { generation: '1' } } })
   expect(second).toMatchObject({ kind: 'done', value: { handle: { generation: '2' } } })
+})
+
+it('returns unknown on close when the read-time close failed', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'close-fail-bytes')
+  const named = await hostObjectToken(path)
+  const files = createHostFiles()
+
+  await withCloseFailure(async () => {
+    const read = await files.read(request(path, named, 'read-close-fail'))
+    expect(read.kind).toBe('done')
+    if (read.kind !== 'done') return
+
+    const firstClose = await files.close({
+      ...request(path, named, 'first-close'),
+      handle: read.value.handle,
+    })
+    expect(firstClose).toEqual({ kind: 'unknown', requestId: 'first-close' })
+  })
+
+  const secondClose = await files.close({
+    ...request(path, named, 'second-close'),
+    handle: { object: named, generation: '1' },
+  })
+  expect(secondClose).toEqual({
+    kind: 'done',
+    requestId: 'second-close',
+    value: { handle: { object: named, generation: '1' } },
+  })
+})
+
+it('returns unknown on close when the stat-time close failed', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'stat-close-fail')
+  const named = await hostObjectToken(path)
+  const files = createHostFiles()
+
+  await withCloseFailure(async () => {
+    const stat = await files.stat(request(path, named, 'stat-close-fail'))
+    expect(stat.kind).toBe('done')
+    if (stat.kind !== 'done') return
+
+    const closed = await files.close({
+      ...request(path, named, 'close-stat-fail'),
+      handle: stat.value.handle,
+    })
+    expect(closed).toEqual({ kind: 'unknown', requestId: 'close-stat-fail' })
+  })
+})
+
+it('returns unknown on close when the write-time close failed, but the bytes were written', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'old')
+  const named = await hostObjectToken(path)
+  const files = createHostFiles()
+
+  await withCloseFailure(async () => {
+    const written = new TextEncoder().encode('new')
+    const write = await files.write({ ...request(path, named, 'write-close-fail'), bytes: written })
+    expect(write.kind).toBe('done')
+    if (write.kind !== 'done') return
+
+    const firstClose = await files.close({
+      ...request(path, named, 'close-write-fail'),
+      handle: write.value.handle,
+    })
+    expect(firstClose).toEqual({ kind: 'unknown', requestId: 'close-write-fail' })
+  })
+
+  expect(await readFile(path, 'utf8')).toBe('new')
+
+  const secondClose = await files.close({
+    ...request(path, named, 'close-write-retry'),
+    handle: { object: named, generation: '1' },
+  })
+  expect(secondClose).toMatchObject({ kind: 'done' })
+})
+
+it('uses the request identity captured at call time even if the request object is mutated', async () => {
+  const root = await tree()
+  const originalPath = join(root, 'original.txt')
+  const swappedPath = join(root, 'swapped.txt')
+  await writeFile(originalPath, 'original-bytes')
+  await writeFile(swappedPath, 'swapped-bytes')
+  const originalNamed = await hostObjectToken(originalPath)
+  const swappedNamed = await hostObjectToken(swappedPath)
+  const expectedObject = { token: originalNamed.token }
+  const files = createHostFiles()
+
+  const req = request(originalPath, originalNamed, 'original-id')
+  const pending = files.read(req)
+  req.requestId = 'mutated-id'
+  req.path = swappedPath
+  ;(req.named as { token: string }).token = swappedNamed.token
+  const result = await pending
+
+  expect(result).toEqual({
+    kind: 'done',
+    requestId: 'original-id',
+    value: {
+      object: expectedObject,
+      handle: { object: expectedObject, generation: '1' },
+      bytes: text('original-bytes'),
+    },
+  })
+})
+
+it('uses the byte snapshot captured at call time even if the source array is mutated', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'old')
+  const named = await hostObjectToken(path)
+  const files = createHostFiles()
+
+  const bytes = new TextEncoder().encode('new')
+  const pending = files.write({ ...request(path, named, 'snapshot-write'), bytes })
+  bytes[0] = 'X'.charCodeAt(0)
+  const result = await pending
+
+  expect(result.kind).toBe('done')
+  expect(await readFile(path, 'utf8')).toBe('new')
+})
+
+it('accepts a real directory through a trailing slash', async () => {
+  const root = await tree()
+  const dir = join(root, 'dir')
+  await mkdir(dir)
+  const named = await hostObjectToken(dir)
+  const result = await createHostFiles().stat(request(`${dir}/`, named, 'dir-slash'))
+  expect(result).toEqual({
+    kind: 'done',
+    requestId: 'dir-slash',
+    value: {
+      object: named,
+      handle: { object: named, generation: '1' },
+    },
+  })
 })
