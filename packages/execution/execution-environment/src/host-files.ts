@@ -12,7 +12,7 @@ import type {
 const generation = '1'
 
 export async function hostObjectToken(path: string): Promise<ObjectToken> {
-  const stat = await lstat(path)
+  const stat = await lstat(path, { bigint: true })
   return { token: `${stat.dev}:${stat.ino}` }
 }
 
@@ -38,44 +38,76 @@ async function openNamed(
   try {
     handle = await open(request.path, flags | constants.O_NOFOLLOW)
   } catch (error) {
-    const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined
-    if (code === 'ENOENT') return { kind: 'unresolved', requestId: request.requestId }
-    if (code === 'ELOOP' || code === 'EMLINK') return reject(request.requestId, 'unsupported')
+    return openFailure(request.requestId, error)
+  }
+  try {
+    const stat = await handle.stat({ bigint: true })
+    const object = { token: `${stat.dev}:${stat.ino}` }
+    if (object.token !== request.named.token) {
+      await handle.close()
+      return reject(request.requestId, 'conflict')
+    }
+    return { kind: 'handle', handle, object }
+  } catch {
+    await handle.close().catch(() => undefined)
     return { kind: 'unknown', requestId: request.requestId }
   }
-  const stat = await handle.stat()
-  const object = { token: `${stat.dev}:${stat.ino}` }
-  if (object.token !== request.named.token) {
-    await handle.close()
-    return reject(request.requestId, 'conflict')
+}
+
+function errorCode(error: unknown): unknown {
+  return error && typeof error === 'object' && 'code' in error ? error.code : undefined
+}
+
+function openFailure(requestId: string, error: unknown): FacilityResult<never> {
+  const code = errorCode(error)
+  if (code === 'ENOENT') return { kind: 'unresolved', requestId }
+  if (code === 'ELOOP' || code === 'EMLINK' || code === 'ENOTDIR' || code === 'EISDIR') {
+    return reject(requestId, 'unsupported')
   }
-  return { kind: 'handle', handle, object }
+  if (code === 'EINVAL') return reject(requestId, 'invalidInput')
+  if (code === 'EACCES' || code === 'EPERM') return reject(requestId, 'notAuthorized')
+  return { kind: 'unknown', requestId }
+}
+
+function issuedKey(handle: HandleGeneration): string {
+  return `${handle.object.token}\n${handle.generation}`
 }
 
 export function createHostFiles(): FileFacility {
+  const issued = new Set<string>()
+  const issue = (object: ObjectToken): HandleGeneration => {
+    const handle = handleFor(object)
+    issued.add(issuedKey(handle))
+    return handle
+  }
   return {
     async read(request) {
       const opened = await openNamed(request, constants.O_RDONLY)
       if (opened.kind !== 'handle') return opened
       try {
         const bytes = new Uint8Array(await opened.handle.readFile())
+        const handle = issue(opened.object)
+        await opened.handle.close().catch(() => undefined)
         return {
           kind: 'done',
           requestId: request.requestId,
-          value: { object: opened.object, handle: handleFor(opened.object), bytes },
+          value: { object: opened.object, handle, bytes },
         }
-      } finally {
-        await opened.handle.close()
+      } catch (error) {
+        await opened.handle.close().catch(() => undefined)
+        if (errorCode(error) === 'EISDIR') return reject(request.requestId, 'unsupported')
+        return { kind: 'unknown', requestId: request.requestId }
       }
     },
     async stat(request) {
       const opened = await openNamed(request, constants.O_RDONLY)
       if (opened.kind !== 'handle') return opened
-      await opened.handle.close()
+      const handle = issue(opened.object)
+      await opened.handle.close().catch(() => undefined)
       return {
         kind: 'done',
         requestId: request.requestId,
-        value: { object: opened.object, handle: handleFor(opened.object) },
+        value: { object: opened.object, handle },
       }
     },
     async write(request) {
@@ -86,26 +118,28 @@ export function createHostFiles(): FileFacility {
         let offset = 0
         while (offset < request.bytes.byteLength) {
           const { bytesWritten } = await opened.handle.write(request.bytes, offset)
-          if (bytesWritten <= 0) return { kind: 'unknown', requestId: request.requestId }
+          if (bytesWritten <= 0) {
+            await opened.handle.close().catch(() => undefined)
+            return { kind: 'unknown', requestId: request.requestId }
+          }
           offset += bytesWritten
         }
+        const handle = issue(opened.object)
+        await opened.handle.close().catch(() => undefined)
         return {
           kind: 'done',
           requestId: request.requestId,
-          value: { object: opened.object, handle: handleFor(opened.object) },
+          value: { object: opened.object, handle },
         }
       } catch {
-        return { kind: 'unknown', requestId: request.requestId }
-      } finally {
         await opened.handle.close().catch(() => undefined)
+        return { kind: 'unknown', requestId: request.requestId }
       }
     },
     async close(request) {
-      const opened = await openNamed(request, constants.O_RDONLY)
-      if (opened.kind !== 'handle') return opened
-      try {
-        await opened.handle.close()
-      } catch {
+      if (request.binding.kind !== 'host_machine') return reject(request.requestId, 'unsupported')
+      if (request.named === null) return reject(request.requestId, 'notAuthorized')
+      if (request.handle.object.token !== request.named.token || !issued.has(issuedKey(request.handle))) {
         return { kind: 'unknown', requestId: request.requestId }
       }
       return {

@@ -110,13 +110,14 @@ export class ExecutionEnvironmentRegistry extends ExecutionEnvironmentService {
   }
 
   registerProvider(provider: EnvironmentProvider) {
-    const providers = providersOf(this)
-    providers.push(provider)
-    const remove = () => {
-      const index = providers.indexOf(provider)
-      if (index >= 0) providers.splice(index, 1)
-    }
-    return this.ctx.effect(() => remove)
+    return this.ctx.effect(() => {
+      const providers = providersOf(this)
+      providers.push(provider)
+      return () => {
+        const index = providers.indexOf(provider)
+        if (index >= 0) providers.splice(index, 1)
+      }
+    })
   }
 }
 
@@ -125,8 +126,6 @@ export const hostFilesPlugin = {
   Config: emptyConfig,
   inject: [EXECUTION_ENVIRONMENT],
   apply(ctx: Context) {
-    const service = ctx.get(EXECUTION_ENVIRONMENT)
-    if (!service) throw new Error('executionEnvironment is not provided')
-    service.registerProvider(hostFileProvider())
+    ctx.executionEnvironment.registerProvider(hostFileProvider())
   },
 }

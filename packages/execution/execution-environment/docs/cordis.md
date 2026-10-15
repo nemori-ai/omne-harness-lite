@@ -38,7 +38,7 @@ const EXECUTION_ENVIRONMENT = ExecutionEnvironmentService.provide
 
 `registerProvider` 在方法里用 `this.ctx.effect` 登记，并返回撤除函数。登记落在调用方的 fiber 上。调用方卸下，登记就撤。登记表不自己记一份名单再等人来注销。
 
-宿主文件提供者不是第二个服务键。它是一个插件，`inject` 里写 `EXECUTION_ENVIRONMENT`，装上时调用 `registerProvider`，声明自己只覆盖 `host_machine` 和 `files`。插件树用包名 `@omne-harness/execution-environment` 和 `./cordis` 的这个导出名来标识它。配置只放可序列化的字段。回调和打开文件的函数不进插件树。
+宿主文件提供者不是第二个服务键。它是一个插件，导出名字是 `hostFilesPlugin`。`inject` 里写 `EXECUTION_ENVIRONMENT`，装上时调用 `registerProvider`，声明自己只覆盖 `host_machine` 和 `files`。插件树用包名 `@omne-harness/execution-environment` 和 `./cordis` 的 `hostFilesPlugin` 来标识它。配置只放可序列化的字段。回调和打开文件的函数不进插件树。
 
 沙箱提供者以后用同一个键登记，声明自己的绑定层。它不写进宿主插件的 `inject`。登记表在 `acquire` 时按绑定层现取。没有匹配的提供者，结果是 `noMatchingEnvironment` 或 `missingFacility`，不改用 `host_machine`。
 

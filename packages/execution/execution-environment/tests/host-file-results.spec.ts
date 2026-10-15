@@ -87,7 +87,7 @@ it('reads through an ancestor symlink when the final object is the named one', a
   await writeFile(file, 'real-bytes')
   await symlink(real, join(root, 'via'))
   const named = await hostObjectToken(file)
-  const stat = await lstat(file)
+  const stat = await lstat(file, { bigint: true })
   expect(named.token).toBe(`${stat.dev}:${stat.ino}`)
   const result = await createHostFiles().read(request(join(root, 'via', 'notes.txt'), named, 'ancestor'))
   expect(result).toEqual({
@@ -217,4 +217,34 @@ it('does not reuse the first completion after the path names a new object', asyn
       bytes: text('first-bytes'),
     },
   })
+})
+
+it('returns unknown when close has no issued handle and keeps the earlier bytes', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'kept-bytes')
+  const named = await hostObjectToken(path)
+  const files = createHostFiles()
+  const first = await files.read(request(path, named, 'kept'))
+  const closed = await files.close({
+    ...request(path, named, 'missing-receipt'),
+    handle: { object: named, generation: 'not-issued' },
+  })
+  expect(closed).toEqual({ kind: 'unknown', requestId: 'missing-receipt' })
+  expect(first).toEqual({
+    kind: 'done',
+    requestId: 'kept',
+    value: {
+      object: named,
+      handle: { object: named, generation: '1' },
+      bytes: text('kept-bytes'),
+    },
+  })
+})
+
+it('refuses to read a directory as file bytes', async () => {
+  const root = await tree()
+  const named = await hostObjectToken(root)
+  const result = await createHostFiles().read(request(root, named, 'directory'))
+  expect(result).toEqual({ kind: 'rejected', requestId: 'directory', reason: 'unsupported' })
 })
