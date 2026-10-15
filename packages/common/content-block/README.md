@@ -27,7 +27,7 @@ There is no Cordis entry. Build deletes `dist` before `tsc`.
 
 ## Contracts
 
-`judgeContentBlock` returns `{ ok }` or `{ rejected }`. `rejected` is `kind`, `id`, `visibility`, `text`, `media`, or `file`. `CONTENT_BLOCK_KINDS` is `text`, `thinking`, `voice`, `image`, `file`.
+`judgeContentBlock` returns `{ ok }` or `{ rejected }`. `rejected` is `kind`, `extra`, `id`, `visibility`, `text`, `media`, or `file`. An unknown key on the block, or inside `visibility`, is `extra`. A successful value contains only the keys of that kind. `CONTENT_BLOCK_KINDS` is `text`, `thinking`, `voice`, `image`, `file`.
 
 ## Design
 

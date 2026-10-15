@@ -40,7 +40,7 @@ flowchart TD
   mint --> write["同一次写入键和身份"]
 ```
 
-人能看到的内容来自会话日志的投影。用量和费用在会话收到模型响应的流式增量、流完成或工具结果时入账。后到的费用追加一条，标明迟到。
+人能看到的内容来自会话日志的投影。用量和费用在会话收到模型响应的流式增量、流完成或工具结果时入账。同一主体、同一费用来源的更后修订替换先前的已知金额，并标明迟到。
 
 ```mermaid
 sequenceDiagram
@@ -51,8 +51,42 @@ sequenceDiagram
   Session->>Session: 记下用量和费用
   Tool->>Session: 工具结果
   Session->>Session: 记下这笔账
-  Note over Session: 后到的费用追加一条，标明迟到
+  Note over Session: 更后修订替换同一来源的已知金额，并标明迟到
 ```
+
+会话在收到一份账时写下它。这条记录表示会话已经收到。载体是模型响应的一次流式增量、该流的完成，或一次已完成工具执行的工具结果。
+
+后到的费用标明 `receipt` 为 `late`，`revision` 加一。更大的 `revision` 整份替换同一 `subject` 的旧快照。上面两份都是 `billable`。应付金额在没有已知 `ledger` 时取最新修订的 `1.50`，不把 `1.25` 与 `1.50` 相加。
+
+同一 `revision` 再次送达且内容相同，不另加金额。内容不同则保持第一份。新修订若把该来源写成 `unknown` 或 `provisional`，旧的 `known` 不再进入求和。`USD` 的 `lexeme` 最多两位小数，`1.234` 的拒绝码是 `precision`。不同单位不相加。
+
+```json
+{
+  "subject": { "kind": "tool_execution", "id": "exec_01" },
+  "usage": [{ "name": "input", "state": "known", "lexeme": "4", "unit": "token" }],
+  "cost": [{ "state": "known", "lexeme": "1.25", "unit": "USD", "source": "billable" }],
+  "trimmed": { "state": "unknown", "unit": "token" },
+  "place": "provider-a",
+  "duration": "PT1.5S",
+  "receipt": "received",
+  "revision": "0"
+}
+```
+
+```json
+{
+  "subject": { "kind": "tool_execution", "id": "exec_01" },
+  "usage": [{ "name": "input", "state": "known", "lexeme": "4", "unit": "token" }],
+  "cost": [{ "state": "known", "lexeme": "1.50", "unit": "USD", "source": "billable" }],
+  "trimmed": { "state": "unknown", "unit": "token" },
+  "place": "provider-a",
+  "duration": "PT1.5S",
+  "receipt": "late",
+  "revision": "1"
+}
+```
+
+同一 `revision` 再次送达且内容相同，不另加一笔金额。内容不同则保持第一份。求和只使用最新修订里 `state` 为 `known` 的金额。上面这个 `billable` 例子在没有已知 `ledger` 时，应付金额是 `1.50`。
 
 ## 协作与依赖
 

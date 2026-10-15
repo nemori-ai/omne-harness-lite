@@ -27,7 +27,7 @@ judgeContentBlock({
 
 ## 契约
 
-`judgeContentBlock` 返回 `{ ok }` 或 `{ rejected }`。`rejected` 是 `kind`、`id`、`visibility`、`text`、`media` 或 `file`。`CONTENT_BLOCK_KINDS` 是 `text`、`thinking`、`voice`、`image`、`file`。
+`judgeContentBlock` 返回 `{ ok }` 或 `{ rejected }`。`rejected` 是 `kind`、`extra`、`id`、`visibility`、`text`、`media` 或 `file`。块上或 `visibility` 里的未知键是 `extra`。成功值只含该种类的已知键。`CONTENT_BLOCK_KINDS` 是 `text`、`thinking`、`voice`、`image`、`file`。
 
 ## 设计
 
