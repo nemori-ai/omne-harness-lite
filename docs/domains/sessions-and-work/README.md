@@ -18,7 +18,7 @@
 | Run/推进治理 | 本次工作、attempt、唯一有效推进者和逻辑收束 |
 | 消费与历史承接 | 原调用关联、消费位置、可靠取得内容及后续处理 |
 
-日志表达需要记录的事实，不替代各执行账或资源状态。共享值由实际定义拥有者维护。会话必须记住的事实在[事件目录](../../../packages/session/session/docs/session-log-events.md)。活跃、休眠和等待结束不单独立条目。什么必须记入见[什么必须被记住](../../architecture/runtime/session-and-run.md#什么必须被记住)。
+日志表达需要记录的事实，不替代各执行账或资源状态。共享值由实际定义拥有者维护。会话必须记住的事实在[事件目录](../../../packages/session/session/docs/session-log-events.md)。活跃、休眠和等待结束不单独立条目。记入标准见[必须进入日志的事实](../../architecture/runtime/session-and-run.md#必须进入日志的事实)。
 
 ## 协作与依赖
 
