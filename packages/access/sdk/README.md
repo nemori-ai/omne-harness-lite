@@ -1,18 +1,21 @@
-PACKAGE_TEMPLATE_DRAFT
+# 客户端 SDK
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
-
-# 客户端 SDK 文档目标
-
-<!-- documentation:placeholder -->
-
-本目录预留完整 Harness 的客户端统一入口及客户端拥有的连接和句柄的成员文档。依据为[上层责任](../../../docs/architecture/layers-and-dependencies.md)和[目标包组织](../../../docs/package-organization.md)。已有 workspace 草稿和空的 src/index.ts。公开行为尚未实现。文档不表示成员已获技术采用。
+本成员拥有治理协议的客户端职责。消息和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。本页的行为在[行为规格](SPEC.md)。
 
 ## 阅读路径
 
-客户端应用是预期消费者。公开形状、调用前提与用法尚未确定。非类型行为的待承接项见[行为规格](SPEC.md)，内部结构见[内部设计](docs/internals.md)。实际产品成员从[包入口](../../README.md)辨认，封存实现从[legacy 入口](../../../packages.0.0.1.legacy/README.md)查证。
+客户端实现者先读公开契约的结果表，再读本成员的自动再送和缓存规则。内部说明见[内部设计](docs/internals.md)。
 
-## 边界与承接
+## 使用
 
-SDK 不依赖服务端私有实现或 Cordis 装配树。技术拥有者须与具名消费者确认公开契约、采用范围及依赖边界，再由成员维护者补使用、配置、失败与验证说明。文档维护者核对登记与导航。长期个人负责人尚未具名。没有已接受契约或真实入口时在此停止。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+SDK 把请求交给调用者提供的传输适配。注册和签发登录之前，调用者必须已经选定对端信任材料。信任核验失败时，SDK 不发送凭据或登录证明。传输适配证明请求字节没有发出时，SDK 自动再送一次。它不缓存准入允许。
+
+安装闭包不包含服务端接入，也不包含服务器存储类型。
+
+## 验证
+
+`tests/public-entry.spec.ts` 核对当前公开导出。结果句子在公开契约。
+
+## English promise
+
+This member owns the client duties for the governance protocol. Outcome meanings stay in the public contract. The SDK resends once only when the transport proves the request bytes were not sent. It does not cache an allow result. A failed trust check sends neither a credential nor a login proof.
