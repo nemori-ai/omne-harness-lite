@@ -295,15 +295,17 @@ sequenceDiagram
 <a id="credential-resolve"></a>
 ## 凭据解析
 
-承接待审的 [model](model.md)。每次获准的真实发出都重新解析。同一次发送的后续输出不再解析。
+承接待审的 [model](model.md)。每次获准的真实发出都重新解析。同一次发送的后续输出不再解析。存在性查询是另一次操作。发送本身只调用 `resolve`。
 
 ```mermaid
 sequenceDiagram
   participant Call as 调用记录
   participant Keep as 本地保管库
   participant Send as 发送端
+  Note over Call,Keep: 存在性查询单独发生
   Call->>Keep: present
   Keep-->>Call: 是否存在，无秘密
+  Note over Call,Send: 获准的真实发出
   Call->>Keep: resolve
   alt value
     Keep-->>Send: 仅本次的值

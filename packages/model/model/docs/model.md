@@ -45,6 +45,37 @@ classDiagram
 
 没有租户绑定、且本次档案是官方档案时，解析可以使用部署默认凭据，范围记为 `factory`。租户绑定仍在但值不可读时，结果是 `unreadable`，不使用部署默认凭据，也不使用其他租户的值。
 
+`resolve` 按下面的顺序取舍。前面的结果一旦成立，后面的不再看。
+
+```mermaid
+flowchart TD
+  gate{关闭、未获准或用途不是 model-send}
+  row{本租户有这一身份}
+  other{别的租户持有这个身份}
+  any{本租户还有任意一行}
+  official{本次是官方档案}
+  gate -->|是| denied[denied]
+  gate -->|否| row
+  row -->|active| tenantValue["value，范围 tenant"]
+  row -->|revoked| denied
+  row -->|unreadable| unreadable[unreadable]
+  row -->|没有| other
+  other -->|是| denied
+  other -->|否| any
+  any -->|是| absent[absent]
+  any -->|否| official
+  official -->|是| factoryValue["value，范围 factory"]
+  official -->|否| absent
+```
+
+未获准的官方发送停在第一步，拿不到工厂秘密。本租户没有这一行、但还有任意其他行时，缺的那个身份是 `absent`。其他行包括另一个身份，也包括已经撤销的行。别的租户持有同一身份时是 `denied`，即使本租户一行都没有，也不用工厂秘密。
+
+`present` 不接收发送资格。用途不符或保管已关闭时，它返回 `denied`，不是 `present: false`。同一身份只在别的租户手里，或者本租户没有这一行时，它返回 `known` 且 `present` 为 false。`resolve` 对前一种才是 `denied`。`unavailable` 只在整份保管打不开或任一行读失败时出现。凭据身份不能是空串，也不能含空格。
+
+`put` 把该持有者写成 `active`，可以盖过已撤销或读不出的行。`rotate` 只换秘密，不改生命状态。已撤销的行轮换后仍是 `denied`。`markUnreadable` 只把 `active` 改成 `unreadable`。
+
+发送端收到的记录只有发没发。不是 `value` 时，记录是 `{ sent: false }`，不再带那五种种类。发出时记录带上这次的秘密值。调用记录不带。诊断留在本地保管上，字段是 `stage`、`outcome`、`tenantMatch`。`tenantMatch` 表示同一身份且同一租户的行存在。诊断不含秘密。Cordis 服务不转发这份诊断。
+
 四个模块各只有一个变化原因。
 
 | 模块 | 只因什么而变 | 公开给调用执行的事实 |

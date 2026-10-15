@@ -22,7 +22,7 @@ Session 拥有选择事实、工作及有效推进关系，模型维护求值所
 
 ## 凭据引用与保管
 
-本节是 Issue 279 的待审技术设计。它不修改上文角色表的已有行，也不表示成员已经实现。已接受的上层规则仍以[数据保护](../../architecture/security/data-and-privacy.md#凭据与秘密生命周期)和[模型请求运行时](../../architecture/runtime/model-runtime.md)为准。
+本节是 Issue 279 的待审技术设计。它不修改上文角色表的已有行。成员里已经有对应实现，接受仍看 D-04。已接受的上层规则仍以[数据保护](../../architecture/security/data-and-privacy.md#凭据与秘密生命周期)和[模型请求运行时](../../architecture/runtime/model-runtime.md)为准。
 
 模型调用记录保存凭据身份、租户和用途。秘密值由凭据保管持有。获准的真实发出当时，按当前资格解析。存在性查询不返回秘密值。这个引用不是 Runtime Context 的块。Context 继续拥有注册块和一次请求的派生输入。身份与授权提供租户和当前资格，不保存模型秘密。资产与规则参与档案求值，档案自身不存凭据。Session 在会话路径上治理工作的发起、取消和消费位置，不执行这次解析。没有 Session 的独立调用由调用应用治理生命周期。
 
