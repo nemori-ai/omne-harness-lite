@@ -49,23 +49,39 @@ type GovernanceClient = {
 };
 ```
 
-`GovernanceTransport` 由调用者交入。`submit` 接收公开契约的共同消息。下面的函数是同一种设计形状。适配报告 `not-sent` 时再送一次。第二次仍是 `not-sent`，或报告 `uncertain` 时，调用者得到 `uncertain`。已经得到带相同 `messageId` 的响应时，不再发送。
+`GovernanceTransport` 由调用者交入。`submit` 接收公开契约的共同消息，并带上这次发送的 `messageId`。传输字节先按公开契约读取，再核对这个 `messageId`。对上了才成为 `response`。读不出，或 `messageId` 不是这一次，结果是 `uncertain`，不再交成 `response`。
 
 ```ts
+type ReadReport =
+  | { kind: "message"; messageId?: string }
+  | { kind: "unreadable" };
+
 async function submitOnce(
   transport: GovernanceTransport,
   bytes: Uint8Array,
+  expectedMessageId: string,
+  readPublicContract: (input: Uint8Array) => ReadReport,
 ): Promise<CallerResult> {
+  const matched = (report: TransportReport): CallerResult | undefined => {
+    if (report.kind !== "response") return undefined;
+    const read = readPublicContract(report.bytes);
+    if (read.kind !== "message" || read.messageId !== expectedMessageId) {
+      return { kind: "uncertain" };
+    }
+    return { kind: "response", message: read };
+  };
   const first = await transport.send(bytes);
-  if (first.kind === "response") return { kind: "response", message: first.bytes };
   if (first.kind === "uncertain") return { kind: "uncertain" };
+  const firstResult = matched(first);
+  if (firstResult) return firstResult;
   const second = await transport.send(bytes);
-  if (second.kind === "response") return { kind: "response", message: second.bytes };
+  const secondResult = matched(second);
+  if (secondResult) return secondResult;
   return { kind: "uncertain" };
 }
 ```
 
-`uncertain` 不是业务成功，也不是没有发生。`response` 分支里的 `message` 是按公开契约读出的响应，不是原始字节。只有 `messageId` 与这次发送相同，才进入这个分支。响应没有 `messageId` 时，客户端不把它记到这次调用上。
+`readPublicContract` 表示公开契约的严格读取。本页不实现解析器。适配报告 `not-sent` 时，`matched` 没有结果，函数再送一次。第二次仍是 `not-sent`，或任一次报告 `uncertain`，调用者得到 `uncertain`。`uncertain` 不是业务成功，也不是没有发生。
 
 ```ts
 function revokeOwnLogin(
@@ -83,7 +99,7 @@ function revokeOwnLogin(
 }
 ```
 
-`messageId` 的值只是占位。`revoke-login` 的字段表禁止行事租户。这个调用不带 `actingTenant`。字段表写明必填的操作才带上当前选择。响应没有 `messageId` 时，客户端不把它记到这次调用上。
+`messageId` 的值只是占位。`revoke-login` 的字段表禁止行事租户。这个调用不带 `actingTenant`。字段表写明必填的操作才带上当前选择。
 
 ## 验证
 
