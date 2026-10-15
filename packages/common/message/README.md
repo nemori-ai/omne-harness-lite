@@ -41,7 +41,7 @@ There is no Cordis entry.
 
 `LOG_MESSAGE_ROLES` is `user`, `assistant`, `tool`, `tool_internal`, `system_reminder`, `compaction`. `parseMessageId` rejects an empty string, a missing `msg_` prefix, and a body outside `[A-Za-z0-9_-]{22,64}`. `messageIdEquals` is exact string equality.
 
-`judgeMessage` returns `{ ok }` or `{ rejected }`. A part failure also returns `blockIndex`. `rejected` is `shape`, `missing`, `null`, `empty`, `unknown`, `extra`, `prefix`, `body`, `callId`, or a content-block rejection. An unknown key such as `tenant` is `extra`. The judge does not build `ok` by dropping that key.
+`judgeMessage` returns `{ ok }` or `{ rejected }`. A part failure also returns `blockIndex`. `rejected` is `shape`, `missing`, `null`, `empty`, `unknown`, `extra`, `prefix`, `body`, `callId`, or a content-block rejection. An unknown key such as `tenant` is `extra`. A successful value contains only `id`, `role`, and `blocks`.
 
 ## Design
 
@@ -67,7 +67,7 @@ The package reads no environment. The session owns entropy and the admission key
 
 ## Verification
 
-`pnpm --filter @omne-harness/message test` runs `tests/public-entry.spec.ts` and `tests/message.spec.ts`. Those files are the unit tests and the contract tests. They check parse, exact equality, the absence of a mint export, and message judgments M1 through M7. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
+`pnpm --filter @omne-harness/message test` runs `tests/public-entry.spec.ts` and `tests/message.spec.ts`. Those files are the unit tests and the contract tests. They check parse, exact equality, the absence of a mint export, and which message fields are accepted or rejected. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
 
 ## Maintenance
 

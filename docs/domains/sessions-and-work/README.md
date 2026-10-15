@@ -54,9 +54,9 @@ sequenceDiagram
   Note over Session: 后到的费用追加一条，标明迟到
 ```
 
-会话在收到一份账时写下它。记录说的是会话收到了账，不证明上游已经发出。载体是模型响应的一次流式增量、该流的完成，或一次已完成工具执行的工具结果。
+会话在收到一份账时写下它。这条记录表示会话已经收到。载体是模型响应的一次流式增量、该流的完成，或一次已完成工具执行的工具结果。
 
-**U3**：后到的费用是新对象。`subject` 相同，`receipt` 为 `late`，`revision` 为 `1`。第一份保持 `received` 和 `revision` `0`。
+后到的费用是另一份账。`subject` 相同，`receipt` 为 `late`，`revision` 加一。先到的那份保持 `received` 和原来的 `revision`。
 
 ```json
 {
@@ -84,20 +84,7 @@ sequenceDiagram
 }
 ```
 
-**U4**：同一份已收到的账再送达一次，仍然是这一份。没有第二份，也没有 `revision` `1`。
-
-```json
-{
-  "subject": { "kind": "model_call", "id": "call_02" },
-  "usage": [{ "name": "input", "state": "known", "lexeme": "16", "unit": "token" }],
-  "cost": [{ "state": "known", "lexeme": "0.01", "unit": "USD", "source": "supplier" }],
-  "trimmed": { "state": "known", "lexeme": "20", "unit": "token" },
-  "place": "provider-a",
-  "duration": "PT1.5S",
-  "receipt": "received",
-  "revision": "0"
-}
-```
+同一份已收到的账再次送达时，会话仍保留这一份。`revision` 保持不变。
 
 ## 协作与依赖
 

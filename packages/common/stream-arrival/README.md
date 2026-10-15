@@ -54,7 +54,7 @@ The package reads no environment. The emitting runtime assigns the index.
 
 ## Verification
 
-`pnpm --filter @omne-harness/stream-arrival test` runs `tests/public-entry.spec.ts` and `tests/assembly.spec.ts`. Those files are the unit tests and the contract tests. They check the step names, index rejection, and assembly cases S1 through S10. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
+`pnpm --filter @omne-harness/stream-arrival test` runs `tests/public-entry.spec.ts` and `tests/assembly.spec.ts`. Those files are the unit tests and the contract tests. They check the step names, index rejection, and the assembly terminals, including a repeated delivery, a truncated delivery, a late step, and a caller cancel. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
 
 ## Maintenance
 

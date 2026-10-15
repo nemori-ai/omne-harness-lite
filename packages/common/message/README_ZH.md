@@ -41,7 +41,7 @@ import { judgeMessage } from '@omne-harness/message'
 
 `LOG_MESSAGE_ROLES` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction`。`parseMessageId` 拒绝空串、缺少 `msg_` 前缀，以及不在 `[A-Za-z0-9_-]{22,64}` 里的正文。`messageIdEquals` 是逐字相等。
 
-`judgeMessage` 返回 `{ ok }` 或 `{ rejected }`。部件失败还返回 `blockIndex`。`rejected` 是 `shape`、`missing`、`null`、`empty`、`unknown`、`extra`、`prefix`、`body`、`callId`，或内容块的拒绝码。`tenant` 这类未知键是 `extra`。判断不靠丢掉该键来返回 `ok`。
+`judgeMessage` 返回 `{ ok }` 或 `{ rejected }`。部件失败还返回 `blockIndex`。`rejected` 是 `shape`、`missing`、`null`、`empty`、`unknown`、`extra`、`prefix`、`body`、`callId`，或内容块的拒绝码。`tenant` 这类未知键是 `extra`。成功值只含 `id`、`role` 和 `blocks`。
 
 ## 设计
 
@@ -67,7 +67,7 @@ flowchart TD
 
 ## 验证
 
-`pnpm --filter @omne-harness/message test` 运行 `tests/public-entry.spec.ts` 和 `tests/message.spec.ts`。这些测试同时承担单元和契约。它们核对解析、逐字相等、没有导出铸造函数，以及消息判断 M1 到 M7。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
+`pnpm --filter @omne-harness/message test` 运行 `tests/public-entry.spec.ts` 和 `tests/message.spec.ts`。这些测试同时承担单元和契约。它们核对解析、逐字相等、没有铸造导出，以及消息字段的接受和拒绝。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
 
 ## 维护
 

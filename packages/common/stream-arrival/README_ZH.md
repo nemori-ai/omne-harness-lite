@@ -54,7 +54,7 @@ assembleStream({
 
 ## 验证
 
-`pnpm --filter @omne-harness/stream-arrival test` 运行 `tests/public-entry.spec.ts` 和 `tests/assembly.spec.ts`。这些测试同时承担单元和契约。它们核对步骤名、序号拒绝，以及装配案例 S1 到 S10。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
+`pnpm --filter @omne-harness/stream-arrival test` 运行 `tests/public-entry.spec.ts` 和 `tests/assembly.spec.ts`。这些测试同时承担单元和契约。它们核对步骤名、序号拒绝，以及装配终态，包括重复送达、截断、迟到步骤和调用方取消。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
 
 ## 维护
 

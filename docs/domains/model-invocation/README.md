@@ -8,20 +8,7 @@
 
 模型不会执行回复中的工具建议。独立调用可以没有Session，调用应用仍承担消费、治理和适用授权。已封闭内容块消费 `packages/common/content-block`。流式步骤消费 `packages/common/stream-arrival`。费用正文仍归本责任。会话在收到流式增量或流完成时记下这笔账。后到的费用追加并标明迟到。
 
-token 类别名归本责任。本页还没有写 token 的小数位数。**U2** 把 token 的约定刻度定为 `0`，也就是只接受整数词法。`lexeme` `0.10` 多出了小数位，拒绝码是 `precision`。`input` 只是类别名的例子。类别清单仍由模型成员拥有。
-
-```json
-{
-  "subject": { "kind": "model_call", "id": "call_01" },
-  "usage": [{ "name": "input", "state": "known", "lexeme": "0.10", "unit": "token" }],
-  "cost": [{ "state": "unknown", "unit": "USD", "source": "observation" }],
-  "trimmed": { "state": "unknown", "unit": "token" },
-  "place": "provider-a",
-  "duration": "PT1.5S",
-  "receipt": "received",
-  "revision": "0"
-}
-```
+token 类别名归本责任。`input` 是类别名的例子。token 用量的 `lexeme` 是整数。带小数位的词法拒绝，拒绝码是 `precision`。
 
 ## 模块角色与事实归属
 

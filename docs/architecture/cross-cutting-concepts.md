@@ -260,7 +260,7 @@ OTel的forceFlush完成不自动表示每条记录导出成功。提供者核对
 <a id="common-t02"></a>
 ### COMMON-T02 内容块的精确契约承接
 
-`packages/common/content-block` 发布已经封闭的文本、思考、语音、图和文件，以及块身份、可见性和媒体类型。工具调用、工具结果和仍在增长的块不是这个成员的值。`tool_call` 和 `tool_result` 由工具领域发布。`judgeContentBlock` 拒绝块上或 `visibility` 里的未知键，拒绝码是 `extra`。判断不靠丢掉该键返回通过。
+`packages/common/content-block` 发布已经封闭的文本、思考、语音、图和文件，以及块身份、可见性和媒体类型。工具调用、工具结果和仍在增长的块不是这个成员的值。`tool_call` 和 `tool_result` 由工具领域发布。块上或 `visibility` 里的未知键得到 `extra`。成功值只含该种类的已知键。
 
 ```mermaid
 flowchart TD
