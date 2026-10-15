@@ -72,8 +72,9 @@ PanQiWei 于 2026-10-14 接受 [RFC-0004 revision 1](../rfcs/RFC-0004-trunk-pr-a
 - 四条主干只经 PR 进入，个人工作分支不受限制。轨道接受个人分支或 main 的 PR。main 只接受 `integration/*` 的 PR。stable 只接受 main 的 PR，并且只快进到 main 的 first-parent 历史上的提交。
 - 派发 `github-gate` 分支上的 `gate-publish` 流程，传入 PR 号和 PR head 的完整提交号。合入 stable 时还要传 checkpoint 名称。命令见 `github-gate` 分支的 `gate/README.md`。
 - 一位 admin 在 Actions 的 `publish` environment 中确认，必须填写说明。admin 可以确认自己的 PR。agent 可以用 admin 的凭据代为确认，说明中注明代为确认的人。
-- 确认后，发布身份 `omne-harness-lite-publish` 构造合并提交。第一父为目标，第二父为 PR head，有冲突就停止，冲突先在来源分支解决。它在一次原子推送中更新目标并创建记录标签。合并写 `omne/gate/unit/<提交号>`，stable 写 `omne/gate/checkpoint/<名称>`。标签正文是 `omne-gate-record:v1` JSON。
+- 确认后，发布身份 `omne-harness-lite-publish` 构造合并提交。第一父为目标，第二父为 PR head，有冲突就停止，冲突先在来源分支解决。它在一次原子推送中更新目标并创建记录标签，推送比较派发时读到的目标。合并写 `omne/gate/unit/<结果提交号>`。stable 写 `omne/gate/stable/<提交号>` 和 `omne/gate/checkpoint/<名称>`，同一提交只能进入 stable 一次：另一次发布已把 stable 推进到同一提交时，记录已存在，整次推送失败。标签正文是 `omne-gate-record:v1` JSON。
 - 发布 main 前，流程核对来源轨道自切换点起每个 first-parent 提交都有目标为该轨道的 unit。发布 stable 前，对 main 做同样的核对。有缺口就停止。
+- 已知限制：admin 停用规则集后直接推送主干，平台不能阻止，只能事后发现，依据是组织审计日志和定时核对。其中一种情形流程也无法区分：admin 在流程最后读取目标与推送之间，把 stable 直接推到本次要发布的同一提交。这时流程仍会写入记录。
 - 流程不运行测试。自动检查具备之前，确认暂代轨道的自动检查，说明中写明本地运行了哪些检查及结果。确认不等于交付接受。
 - `gate-reconcile` 每小时从 main 触发一次。它为切换点之后没有记录的主干提交开缺口 Issue，不创建标签。缺口不设处理时限，由该轨道 owner 或任一 admin 在缺口 Issue 中写具名决定后闭合。
 - 新轨道由 `gate-track` 流程在 admin 确认后从 main 的 first-parent 提交创建，并写 `omne/gate/track/<轨道名>` 起点标签。轨道仍须在 registry 登记 owner 与责任。
