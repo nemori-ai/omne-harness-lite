@@ -2,7 +2,7 @@
 id: PD-identity-and-authorization
 title: 身份与授权
 status: draft
-revision: 1
+revision: 2
 relations:
   supersedes: []
   depends-on: []
@@ -11,7 +11,7 @@ relations:
 
 # 身份与授权
 
-本 topic 维护产品需求、能力定义、状态记录、版本承诺与有效未决。负责人已定的能力及阶段决定保持；整体正文默认待审。领域责任正文已接受，详细分解已评审的范围与正式维护位置分别判断，迁移不表示技术或交付接受。
+本 topic 维护产品需求、能力定义、状态记录、版本承诺与有效未决。负责人已定的能力及阶段决定保持；[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖灾后开放边界与发起组织不存在时的隶属请求处置，其余正文默认待审。领域责任正文已接受，详细分解已评审的范围与正式维护位置分别判断，迁移不表示技术或交付接受。
 
 ## 阅读入口
 
