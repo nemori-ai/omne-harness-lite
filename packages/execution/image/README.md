@@ -56,7 +56,7 @@ await opened.handle.close()
 
 `open` takes no timer. A caller timer that wins the race does not release the reservation and does not prove that native work stopped.
 
-A direct caller uses the root entry and passes the bytes and the budget. A Cordis caller uses the same operations through the `image` service in `./cordis`. The caller does not import the decoder.
+A direct caller uses the root entry and passes the bytes and the budget. A Cordis caller loads `./cordis`. The `image` service `open` takes only the bytes. The budget is the plugin config. Encode and close stay on the handle. The caller does not import the decoder.
 
 ## Contracts
 
