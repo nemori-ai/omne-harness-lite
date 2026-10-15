@@ -1,6 +1,6 @@
 # 身份与授权能力组
 
-本组维护身份与授权的工程分解。只有目标成员文档，没有真实 workspace 成员、package.json、源码或已核实运行支持。本组操作规格的正式落位不表示那些规格已经技术接受。
+本组维护身份与授权的工程分解。`scrypt` 是已创建的 workspace 成员，提供有界口令派生与校验。identity 与 authorization 仍以各自规格为主。本组操作规格的正式落位不表示那些规格已经技术接受。
 
 合法身份与时间点的已采用纯值归[共同纯表示](../common/README.md)。identity 消费这些纯值，并拥有存在、成员关系和登录事实。authorization 拥有授权决定。纯值目标成员尚非 workspace 成员。
 
@@ -14,6 +14,7 @@
 | --- | --- |
 | identity | [入口](identity/README.md)；主体、治理、认证、登录及当前租户的 [SPEC](identity/SPEC.md) |
 | authorization | [入口](authorization/README.md)；表达、范围、准入、撤回与消费的 [SPEC](authorization/SPEC.md) |
+| scrypt | [入口](scrypt/README_ZH.md)；有界派生、校验与关闭的 [SPEC](scrypt/SPEC.md) |
 
 identity 不依赖 Session、HITL、工具或模型业务生命周期。authorization 消费 identity、合法权限及原操作公开事实，不访问其私有实现。共享定义只由实际公开契约维护。
 

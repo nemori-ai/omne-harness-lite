@@ -51,7 +51,8 @@ packages/
 │   └── server-entry/           系统协议接入与能力路由
 ├── identity/
 │   ├── identity/               主体、成员、登录与组织关系
-│   └── authorization/          授权及共同动作准入
+│   ├── authorization/          授权及共同动作准入
+│   └── scrypt/                 有界 scrypt 派生与校验
 ├── assets/
 │   ├── assets/                 共同定义、版本、持有与来源
 │   ├── settings/               设置配值与求值
