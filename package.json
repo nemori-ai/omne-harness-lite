@@ -20,7 +20,7 @@
     "check:declarations": "node --experimental-strip-types tools/ts-checks/src/declarations/cli.ts",
     "lint:rules": "pnpm --filter @omne-harness/ts-checks run scan",
     "lint:oxlint": "oxlint -c .oxlintrc.json --report-unused-disable-directives tools scripts",
-    "lint:deps": "depcruise --config .dependency-cruiser.cjs --output-type err tools scripts packages apps",
+    "lint:deps": "node --experimental-strip-types tools/ts-checks/src/deps/cli.ts",
     "lint:report": "oxlint -c .oxlintrc.json -W correctness --vitest-plugin tools scripts packages apps && knip --no-exit-code",
     "package:template": "node --experimental-strip-types tools/ts-checks/src/package-template/cli.ts"
   },

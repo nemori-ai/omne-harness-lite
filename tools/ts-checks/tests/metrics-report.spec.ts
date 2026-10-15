@@ -18,7 +18,7 @@ import {
   summaryLines,
   type CoverageInput,
 } from '../src/metrics/report.ts'
-import { GROUP_DIRECTION_POLICY } from '../src/rules/group-direction.ts'
+import type { DependencyGraph } from '../src/deps/graph.ts'
 
 const thresholds = { warn: 10, alert: 12 }
 const bands = { green: 8, yellow: 12, red: 20 }
@@ -39,7 +39,26 @@ const consumer = file(
   'packages/tenancy/account-identity-sql/src/index.ts',
   "import { simple } from '@omne-harness/storage'\nexport const x = simple()\n",
 )
-const base = { files: [storage, consumer], policy: GROUP_DIRECTION_POLICY, thresholds, bands }
+// dependency-cruiser 给出的图：tenancy 的产品源码第 1 行导入了 core/storage。
+const graph: DependencyGraph = {
+  members: [
+    { path: 'packages/core/storage', group: 'packages/core', name: 'storage' },
+    {
+      path: 'packages/tenancy/account-identity-sql',
+      group: 'packages/tenancy',
+      name: 'account-identity-sql',
+    },
+  ],
+  edges: [
+    {
+      from: 'packages/tenancy/account-identity-sql',
+      to: 'packages/core/storage',
+      sites: [{ path: consumer.path, line: 1, specifier: '@omne-harness/storage' }],
+    },
+  ],
+  findings: [],
+}
+const base = { files: [storage, consumer], graph, thresholds, bands }
 
 describe('crap 与评级', () => {
   it('CRAP = CC² × (1 − 覆盖率)³ + CC', () => {
@@ -198,7 +217,7 @@ describe('buildReport', () => {
     ])
   })
 
-  it('成员带均值、标准差、风险值与色带；扇入扇出与不稳定度；布局按层给出', () => {
+  it('成员带均值、标准差、风险值与色带；扇入扇出与不稳定度；布局按依赖图分层', () => {
     const report = buildReport(base)
     const [core, tenancy] = report.members
     // simple 1 分、tangled 5 分：均值 3，总体标准差 2。
@@ -208,7 +227,6 @@ describe('buildReport', () => {
     expect(report.layout.map(layer => layer.map(group => [group.group, group.members]))).toEqual([
       [['packages/core', ['packages/core/storage']]],
       [['packages/tenancy', ['packages/tenancy/account-identity-sql']]],
-      [],
     ])
   })
 

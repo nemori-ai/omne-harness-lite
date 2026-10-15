@@ -1,4 +1,4 @@
-import { memberOf, type Member } from '../src/metrics/graph.ts'
+import { memberOf, type Member } from '../src/deps/graph.ts'
 import type { Snapshot } from '../src/arch/actual-model.ts'
 
 export function snapshotOf(texts: ReadonlyMap<string, string>): Snapshot {

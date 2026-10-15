@@ -117,17 +117,17 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 `tests/core-rules.spec.ts` 包含十五包逐一禁止依赖、允许公开入口、字面量解码、真实 CLI 退出值、
 身份规则正反例与真实 AccountRow 的内存变异。变异不修改产品源码。
 
-## 跨组依赖方向
+## 依赖图与依赖规则
 
-`group-direction` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，随 `pnpm run lint:rules` 执行，有违反即退出 1。
+仓库只有一张依赖图，由 dependency-cruiser 按根 `.dependency-cruiser.cjs` 生成，入口在 `src/deps/graph.ts`。`pnpm run lint:deps`（`src/deps/cli.ts`）、[回路状态](#回路状态)的硬线与新增跨成员依赖、[结构度量](#结构度量)和[实际架构](#全局实际架构视图)的报告都读它，本包不再自写导入解析或层位表。
 
-| 规则              | 来源                                                                                                                                                     | 查什么                                                                                                                                                                                 | 不覆盖                                                                                                                       |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `group-direction` | [realization「packages 的两层布局」](../../.meta_harness/design/architecture/README.md)；[workspace 规范](../../docs/workspace.md)「装配负责选择提供者」 | 成员产品源码（不含测试）经 `@omne-harness/*` 字面导入形成的成员间边：只能指向同层或更内层；`packages/infra` 只由最外层与它自己依赖；成员之间、组之间不成环；出现没登记层位的新组即报出 | 测试里的导入；非字面说明符；相对路径越出包边界（由包公开入口约定承担）；**层位本身对不对**——那是设计正文定的，这里只核对方向 |
+- 规则：无法解析的导入、文件级运行时循环、legacy 引用，以及按[产品包组织](../../docs/package-organization.md#依赖方向与cordis集成)与[系统分层](../../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)写成成员路径的方向规则（SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具）。每条规则的 `comment` 指回出处。要按角色判断的规则（契约不依赖提供者等）还没有机读的角色，没有写。
+- 成员边：产品源码（不含测试）解析到另一个成员的依赖，类型导入也算。成员与组之间的环由这些边算出。导入处的行号按说明符在文件里第一次出现的位置找。
+- 规则与解析选项（`tsconfig.base.json` 的 `source` 条件）只从运行检查器的仓库读，被检查的检出改不了。
+- 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交与规则文件摘要缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
+- 耗时：本机全仓一次约 3 秒，基线命中缓存约 10 毫秒。
 
-层位与例外在 `src/rules/group-direction.ts` 的 `GROUP_DIRECTION_POLICY`，每条带 `source` 指回设计正文。它是机检投影，不是第二份权威。改层位先改 realization 的布局正文，再改这张表。`exceptions` 现在是空的，前端 SQLite 例外没有登记。
-
-`packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 不在这张路径表上。落地这些成员后，`group-direction` 仍报告 `unregistered-group`。这次不改这条规则。若把这些组登记进路径表，同组的 `sdk` 导入 `server-entry` 会一直合法，直到两个成员成环。
+自测：`tests/deps-graph.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
 
 ## 提交署名
 
@@ -346,15 +346,14 @@ make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，�
 | 每函数覆盖率                      | crapper `coverage.py`                                                        | 原实现按整个行区间求比例，区间内没有行记 0%。这里内层单元的行从外层扣掉，外层只剩声明时不给数                                                                  |
 | CRAP 公式、风险值、评分与色带     | crapper `crap.py`；uml-viewer `domain/config.clj`、`application/overlay.clj` | 一致。原实现「缺数据一律算最差」；这里没跑覆盖率的成员按圈复杂度评级，跑了却没数据的成员单独标出                                                               |
 | 父节点取最差子节点                | uml-viewer `application/hierarchy.clj`                                       | 一致                                                                                                                                                           |
-| 方向违规 = 内层依赖外层，同层合法 | uml-viewer `domain/policy.clj`                                               | 另加三条它没有的：没登记层位的组报出（原实现会把它静默放进最底行且永不违规）、`infra` 只由装配层选用、成员与组的环                                             |
 | 环检测                            | dependency-checker `core/graph.clj`（Tarjan 强连通分量）                     | 一致                                                                                                                                                           |
 | 扇入、扇出、不稳定度              | dependency-checker `core/stats.clj`                                          | 没有移植抽象度与主序列距离：那套判法会把稳定而没有抽象的叶子一律判进「痛苦区」，对纯数据契约包不成立                                                           |
-| 行内重心法排序、最内层在底        | uml-viewer `engine/layout.clj`                                               | 布局交给浏览器的流式排版，只移植了分行与行内顺序                                                                                                               |
+| 行内重心法排序、最内层在底        | uml-viewer `engine/layout.clj`                                               | 布局交给浏览器的流式排版，只移植了分行与行内顺序。分层不再人工登记，由依赖图算：不依赖别的组的在第 0 层，其余在所依赖的组之上；方向违规由 dependency-cruiser 判 |
 | 默认只画三角标记与悬停清单        | uml-viewer `application/hit.clj`；arch-view 删掉箭头走线的那次提交           | 没有移植走线。原作者在这上面反复返工，最后的结论就是标记加清单；这里只在选中成员时画它自己的线                                                                 |
 | 函数文本摘要判变更                | mutator `functions.py`、`engine.py`                                          | 内层单元的行不算在外层头上                                                                                                                                     |
 | 超阈值的处置判据                  | swarm-forge six-pack 分支 `roles/cleaner.prompt`                             | 措辞改写，判据一致                                                                                                                                             |
 
-读数时的边界见[验证规范](../../docs/verification.md#检查入口)那一行的「不能声称」。自测：`tests/metrics-complexity.spec.ts`、`tests/metrics-report.spec.ts`、`tests/group-direction.spec.ts`。
+读数时的边界见[验证规范](../../docs/verification.md#检查入口)那一行的「不能声称」。自测：`tests/metrics-complexity.spec.ts`、`tests/metrics-report.spec.ts`、`tests/deps-graph.spec.ts`。
 
 ## 回路状态
 
@@ -368,7 +367,7 @@ make loop-status SNAPSHOT=1            # 干净的工作树上追加一条趋势
 make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make check 的最后一步
 ```
 
-**除硬线外一切只报告。**退出码 1 只在硬线被破时：方向违规或环（与 `make metrics`、`lint:rules` 的 `group-direction` 同一份策略），
+**除硬线外一切只报告。**退出码 1 只在硬线被破时：依赖违规或环（与 `make metrics`、`lint:deps` 读[同一张依赖图](#依赖图与依赖规则)；无法解析的导入归 `lint:deps`，不算硬线），
 或给了`BASE`且[验收锁](#验收锁)被破，或严格模式下有开着的传感器没数据；
 2 是工具自己出错（参数、配置、git）；其余报告项再多也是 0。
 
@@ -584,7 +583,7 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 3. 工作目录取输入的 `cwd`，没有就用进程的当前目录；不在 git 仓库里 → 不反馈。`loop.config.json` 的 `hook.enabled` 为 `false` → 不反馈。
 4. 这次变更（相对与 `primaryBranch` 的合并点，求不出就只看未提交的；已提交、未提交、未跟踪都算）没碰产品源码、全局 `constraints.json` 或其引用的Markdown源 → 不反馈。
 5. 量**静态那部分**读数：变更函数里超 alert、且比基线涨了或新出现的（与 `make loop-status` 同一个判法，见上「要解释的函数与基线比」，基线是这里的合并点；
-   反馈的那一行末尾补「原 N」「新出现」或拿不准的原因，原来就超线、这次没变差的不反馈）、新增的跨成员依赖、其中稳定依赖不稳定的、改动过的测试文件里没有断言的用例，加方向违规与环两条硬线（全仓的）。
+   反馈的那一行末尾补「原 N」「新出现」或拿不准的原因，原来就超线、这次没变差的不反馈）、新增的跨成员依赖、其中稳定依赖不稳定的、改动过的测试文件里没有断言的用例，加依赖违规与环两条硬线（全仓的）。
    不跑重复代码（全仓二十多秒）、覆盖率、工作树与 topic 那几项。量在 worker 线程里跑，超过 `hook.timeoutSeconds`（初值 40；宿主那侧另配 60）就放弃。
    同时按 BASE 的架构预期判断新增偏离，分别报告全局及原节点预期的语义改动；机械范围见 [CONFORMANCE](src/arch/CONFORMANCE.md)。仅修改预期也可产生反馈，未发布新全局预期的节点继续由原声明传感器消费。
 6. 没有红项 → 不反馈。同一分支上同一组读数已经反馈过 → 不反馈：每条取「类别＋位置（路径与函数名、或成员对）」，**不含行号**，排序后求哈希，
@@ -915,9 +914,7 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 包模板当前为 typescript-package@2.0.0，精确保留 1.0.0 旧标识规则。
 `service-contract` 的创建和结构扫描不再要求 `packages/core`。
 `scan --json` 在 `dependencies` 上报告已判断的边。`unknown` 保持 `unknown`。
-`group-direction` 仍对 `packages/access`、`packages/identity`、`packages/agent` 和 `packages/assembly` 报告 `unregistered-group`。
-这次不改这条规则。
-若把这些组登记进路径表，同组的 `sdk` 导入 `server-entry` 会在成环前继续合法。
+分组方向由 dependency-cruiser 按[依赖规则](#依赖图与依赖规则)检查，不再有组的层位表；同组的 `sdk` 导入 `server-entry` 直接违反 `sdk-not-server`。
 后续实施者的使用表和诊断形状见[模板说明](templates/package/README_ZH.md#后续实施者)。
 `create-domain --group <名称>` 预览 package-domain@1.0.0 组文档草稿，加 `--write` 才创建。`scan --group <名称> --check` 检查组结构，与 `--member` 互斥。见[组模板](templates/domain/README.md)。Python 文档 inventory 独立检查登记、章节与占位，结构结果不能代替正文接受。
 

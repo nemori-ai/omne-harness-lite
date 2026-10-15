@@ -216,26 +216,27 @@ describe('入口', { timeout: 60_000 }, () => {
 
   // 归慢层：子进程：在临时 git 仓库里反复起回路入口 CLI 子进程与 git 子进程。
   it(
-    '硬线破了（core 依赖了 infra）：退出 1，硬线一段标出；撤掉后退出 0',
+    '硬线破了（SDK 导入了 server-entry）：退出 1，硬线一段标出；撤掉后退出 0',
     { tags: ['slow'] },
     () => {
       const { root, home } = members()
+      write(root, 'packages/access/server-entry/src/index.ts', 'export const entry = 1\n')
       write(
         root,
-        'packages/core/a/src/probe.ts',
-        "import { b } from '@omne-harness/b'\nexport const p = b\n",
+        'packages/access/sdk/src/probe.ts',
+        "import { entry } from '../../server-entry/src/index.ts'\nexport const p = entry\n",
       )
       const broken = run(root, home)
       expect(broken.stderr).toBe('')
       expect(broken.status).toBe(1)
       expect(broken.stdout).toMatch(
-        /✗ 方向违规 1：packages\/core\/a 依赖了更外层的 packages\/infra\/b/u,
+        /✗ 依赖违规 1：\[sdk-not-server\] packages\/access\/sdk\/src\/probe\.ts 依赖了 packages\/access\/server-entry\/src\/index\.ts/u,
       )
-      expect(broken.stdout).toContain('packages/core/a/src/probe.ts:1')
-      rmSync(join(root, 'packages/core/a/src/probe.ts'))
+      expect(broken.stdout).toContain('packages/access/sdk/src/probe.ts:1')
+      rmSync(join(root, 'packages/access/sdk/src/probe.ts'))
       const fixed = run(root, home)
       expect(fixed.status).toBe(0)
-      expect(fixed.stdout).toContain('  方向违规 0')
+      expect(fixed.stdout).toContain('  依赖违规 0')
     },
   )
 

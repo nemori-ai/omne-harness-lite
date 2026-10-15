@@ -1,5 +1,6 @@
 import ts from '@typescript/typescript6'
-import { memberEdges } from '../metrics/graph.ts'
+import type { ImportSite, MemberEdge } from '../deps/graph.ts'
+import { isTestPath } from '../rule.ts'
 import { nodeName, visitSyntax } from '../syntax.ts'
 import type {
   ActualExtraction,
@@ -1061,7 +1062,7 @@ class Extractor {
       configurationFiles: [...this.resolver.configurationFiles].sort(),
       unknown: [...this.unknown.values()],
       imports: this.imports,
-      edges: memberEdges(this.resolver.files, this.snapshot.members),
+      edges: memberEdgesOf(this.imports),
       members: this.snapshot.analysisMembers ?? this.snapshot.members,
       serviceIdentifiers: {
         attempted: this.attempts.size,
@@ -1071,6 +1072,25 @@ class Extractor {
     }
   }
 }
+/** 产品源码（不含测试）里跨成员的导入，按成员对归并；导入已由本抽取器按该版本的配置解析过。 */
+function memberEdgesOf(imports: readonly ImportFact[]): MemberEdge[] {
+  const edges = new Map<string, { from: string; to: string; sites: ImportSite[] }>()
+  for (const item of imports) {
+    if (!item.path.startsWith(`${item.member}/src/`) || isTestPath(item.path)) continue
+    const key = `${item.member}\u0000${item.target}`
+    let edge = edges.get(key)
+    if (edge === undefined) {
+      edge = { from: item.member, to: item.target, sites: [] }
+      edges.set(key, edge)
+    }
+    if (!edge.sites.some(site => site.path === item.path && site.line === item.line))
+      edge.sites.push({ path: item.path, line: item.line, specifier: item.specifier })
+  }
+  return [...edges.values()].sort((a, b) =>
+    a.from === b.from ? a.to.localeCompare(b.to) : a.from.localeCompare(b.from),
+  )
+}
+
 export function extractArchitecture(snapshot: Snapshot): ActualExtraction {
   return new Extractor(snapshot).run()
 }

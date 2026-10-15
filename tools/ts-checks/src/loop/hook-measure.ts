@@ -4,7 +4,7 @@
 import { baselines, readContext } from '../integration/context.ts'
 import type { MetricsConfig } from '../metrics/config.ts'
 import { changedFiles, git } from '../metrics/git.ts'
-import { memberOf } from '../metrics/graph.ts'
+import { memberOf } from '../deps/graph.ts'
 import { isMeasuredSource } from '../metrics/report.ts'
 import { collectMemberSources } from '../metrics/sources.ts'
 import type { LoopConfig } from './config.ts'
@@ -73,7 +73,7 @@ export function measureForHook(
     {
       stability: readStability(report, config.sensors.stability),
       assertions: readAssertions(changedTests, config.sensors.assertions),
-      newEdges: readNewEdges(files, change, config.sensors.newEdges.enabled),
+      newEdges: readNewEdges(root, report, change, config.sensors.newEdges.enabled),
       duplication: noData('收工钩子不跑重复代码'),
     },
     change,

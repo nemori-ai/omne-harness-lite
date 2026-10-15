@@ -45,6 +45,7 @@
     "@typescript/typescript6": "catalog:",
     "@xyflow/react": "catalog:",
     "antd": "catalog:",
+    "dependency-cruiser": "catalog:",
     "elkjs": "catalog:",
     "esbuild": "catalog:",
     "react": "catalog:",
