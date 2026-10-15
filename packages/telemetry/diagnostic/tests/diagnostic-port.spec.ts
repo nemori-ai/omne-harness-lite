@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createDiagnosticPort,
   type AdmitInput,
+  type CallerChain,
   type DiagnosticBounds,
   type DiagnosticPort,
   type DiagnosticSink,
@@ -36,7 +37,7 @@ function bounds(partial: Partial<DiagnosticBounds> = {}): DiagnosticBounds {
   }
 }
 
-function chain(summary: string, detail?: Record<string, string>) {
+function chain(summary: string, detail?: Record<string, string>): CallerChain {
   const origin = detail
     ? { role: 'origin' as const, summary, detail }
     : { role: 'origin' as const, summary }
@@ -81,9 +82,9 @@ describe('createDiagnosticPort', () => {
   })
 
   it('refuses a new record when the queue is full', async () => {
-    let release = () => undefined
+    let release: () => void = () => {}
     const gate = new Promise<void>(resolve => {
-      release = resolve
+      release = () => resolve()
     })
     const port = createDiagnosticPort({
       bounds: bounds({ maxQueue: 1, maxExportBytes: 1000, maxInFlight: 1 }),

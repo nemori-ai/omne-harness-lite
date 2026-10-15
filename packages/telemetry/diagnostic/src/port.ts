@@ -42,15 +42,12 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
     const correlation = parseCorrelation(input.correlation)
     const chain = redactChain(parseCallerChain(input.chain))
     const bytes = measure(chain, correlation)
-    if (occupyingCount() >= bounds.maxQueue) {
-      return { status: 'rejected', reason: 'queue_full' }
-    }
-    if (bytes > bounds.maxExportBytes || occupyingBytes() + bytes > bounds.maxExportBytes) {
-      return { status: 'rejected', reason: 'bytes_full' }
-    }
+    const room = reserve(bytes)
+    if (room !== 'ready') return { status: 'rejected', reason: room }
     if (sink !== null && inFlight >= bounds.maxInFlight) {
       return { status: 'rejected', reason: 'in_flight_full' }
     }
+    releaseFinished(bytes)
     const id = nextId()
     if (sink === null) {
       records.set(id, { id, chain, correlation, bytes, exportStatus: 'gap' })
@@ -83,7 +80,6 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
         abort.abort()
         settleClose(true)
       }, closeDeadlineMs)
-      closeTimer.unref()
       pump()
       settleClose(false)
     })
@@ -136,46 +132,92 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
 
   function pump(): void {
     if (sink === null) return
+    const active = sink
     while (queue.length > 0 && inFlight < bounds.maxInFlight) {
       const id = queue.shift()
       if (id === undefined) continue
       const record = records.get(id)
       if (!record || record.exportStatus !== 'queued') continue
-      record.exportStatus = 'exporting'
-      inFlight += 1
-      void sink
-        .export(exportView(record), abort.signal)
-        .then(() => {
-          if (record.exportStatus === 'exporting') record.exportStatus = 'exported'
-        })
-        .catch(() => {
-          if (abort.signal.aborted) return
-          if (record.exportStatus === 'exporting') {
-            record.exportStatus = 'export_failed'
-            record.chain = appendExport(record.chain, 'export failed')
-          }
-        })
-        .finally(() => {
-          inFlight -= 1
-          pump()
-          settleClose(false)
-        })
+      beginExport(active, record)
     }
   }
 
-  function occupyingCount(): number {
-    let count = 0
+  function beginExport(active: NonNullable<typeof sink>, record: StoredRecord): void {
+    record.exportStatus = 'exporting'
+    inFlight += 1
+    let pending: Promise<void>
+    try {
+      pending = Promise.resolve(active.export(exportView(record), abort.signal))
+    } catch (error) {
+      noteExportFailure(record, error)
+      inFlight -= 1
+      return
+    }
+    void pending.then(
+      () => {
+        if (record.exportStatus === 'exporting') record.exportStatus = 'exported'
+      },
+      (error: unknown) => {
+        noteExportFailure(record, error)
+      },
+    ).finally(() => {
+      inFlight -= 1
+      pump()
+      settleClose(false)
+    })
+  }
+
+  function noteExportFailure(record: StoredRecord, error: unknown): void {
+    if (abort.signal.aborted) return
+    if (record.exportStatus !== 'exporting') return
+    record.exportStatus = 'export_failed'
+    record.chain = appendExport(record.chain, exportFailureSummary(error))
+  }
+
+  function reserve(bytes: number): 'ready' | 'queue_full' | 'bytes_full' {
+    if (bytes > bounds.maxExportBytes) return 'bytes_full'
+    const finished = finishedBytes()
+    let count = records.size
+    let total = byteTotal()
+    let index = 0
+    while (count + 1 > bounds.maxQueue || total + bytes > bounds.maxExportBytes) {
+      const next = finished[index]
+      if (next === undefined) {
+        return count + 1 > bounds.maxQueue ? 'queue_full' : 'bytes_full'
+      }
+      count -= 1
+      total -= next
+      index += 1
+    }
+    return 'ready'
+  }
+
+  function releaseFinished(bytes: number): void {
+    while (records.size + 1 > bounds.maxQueue || byteTotal() + bytes > bounds.maxExportBytes) {
+      const id = oldestFinishedId()
+      if (id === undefined) return
+      records.delete(id)
+    }
+  }
+
+  function finishedBytes(): number[] {
+    const sizes: number[] = []
     for (const record of records.values()) {
-      if (occupies(record.exportStatus)) count += 1
+      if (isFinished(record.exportStatus)) sizes.push(record.bytes)
     }
-    return count
+    return sizes
   }
 
-  function occupyingBytes(): number {
+  function oldestFinishedId(): string | undefined {
+    for (const [id, record] of records) {
+      if (isFinished(record.exportStatus)) return id
+    }
+    return undefined
+  }
+
+  function byteTotal(): number {
     let total = 0
-    for (const record of records.values()) {
-      if (occupies(record.exportStatus)) total += record.bytes
-    }
+    for (const record of records.values()) total += record.bytes
     return total
   }
 
@@ -187,9 +229,16 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
   return { bounds, admit, read, close }
 }
 
-function occupies(status: ExportStatus): boolean {
-  return status === 'queued' || status === 'exporting' || status === 'gap'
+function isFinished(status: ExportStatus): boolean {
+  return status === 'exported' || status === 'export_failed'
 }
+
+function exportFailureSummary(error: unknown): string {
+  if (error instanceof Error && error.message.length > 0) return error.message
+  return 'export failed'
+}
+
+const MAX_TIMEOUT_MS = 2_147_483_647
 
 function parseBounds(bounds: DiagnosticBounds): DiagnosticBounds {
   for (const key of ['profile', 'os', 'node', 'load'] as const) {
@@ -200,8 +249,8 @@ function parseBounds(bounds: DiagnosticBounds): DiagnosticBounds {
   }
   for (const key of ['maxQueue', 'maxExportBytes', 'maxInFlight'] as const) {
     const value = bounds[key]
-    if (!Number.isFinite(value) || value <= 0) {
-      throw new TypeError(`${key} must be a finite positive number`)
+    if (!Number.isInteger(value) || value <= 0) {
+      throw new TypeError(`${key} must be a positive integer`)
     }
   }
   return {
@@ -217,8 +266,8 @@ function parseBounds(bounds: DiagnosticBounds): DiagnosticBounds {
 }
 
 function parseDeadline(value: number): number {
-  if (!Number.isFinite(value) || value < 0) {
-    throw new TypeError('closeDeadlineMs must be a finite non-negative number')
+  if (!Number.isInteger(value) || value < 0 || value > MAX_TIMEOUT_MS) {
+    throw new TypeError('closeDeadlineMs must be an integer from 0 through 2147483647')
   }
   return value
 }

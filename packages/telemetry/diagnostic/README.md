@@ -49,17 +49,21 @@ The caller supplies `sink`. A null sink records a visible gap and still returns 
 
 `src/types.ts` holds the public shapes. `admit` returns `accepted`, `rejected`, or `gap`. Rejection reasons are `queue_full`, `bytes_full`, `in_flight_full`, and `closed`. A chain starts with one `origin`. Further caller causes are `attached`. Only the port appends `export`. The export byte count includes the chain and the correlation. A missing sink still refuses a record that does not fit those limits. `read` and the object passed to `sink.export` are copies.
 
-`read` returns the chain only when the requested tenant equals the stored tenant. A mismatch is `denied` and includes no chain. Detail keys `secret`, `token`, and `authorization` are removed at admission.
+`read` returns the chain only when the requested tenant equals the stored tenant. A mismatch is `denied` and includes no chain. A released id is `absent`. Detail keys `secret`, `token`, and `authorization` are removed at admission.
 
-`close` reports the last record, flush, and transport separately. A deadline is `deadline` on flush and transport, not export success. A second `close` returns the same report. This report is not an assembly `CloseReport`.
+A sink that throws inside `export`, or returns a rejected promise, is an export failure. `admit` still returns. The caller chain stays, and the port appends an `export` cause that carries the sink error message. The in-flight count is released.
+
+`close` reports the last record, flush, and transport separately. A deadline is `deadline` on flush and transport, not export success. The deadline timer stays referenced, so a process whose only wait is `close` still receives that report. A second `close` returns the same report. This report is not an assembly `CloseReport`. Flush counts records the port still holds at close.
 
 ## Design
 
-One port owns the in-memory queue, the byte count, and the in-flight count. Callers do not share that map. The sink is the only export adapter. Over-limit behavior in this member is reject. A new record that does not fit is not stored. An admitted record stays until export, export failure, or close.
+One port owns the in-memory queue, the byte count, and the in-flight count. Callers do not share that map. The sink is the only export adapter. Over-limit behavior in this member is reject. A new record that does not fit is not stored.
+
+Every stored record counts toward `maxQueue` and `maxExportBytes`, including finished ones. Queued, exporting, gap, and closed-unexported records stay. An exported or export-failed record stays readable until a later admission needs that room. The port then releases the oldest finished record, then the next, until the new record fits both limits. A released id reads as `absent`. If the records that are not finished still fill a limit, the new record is rejected and nothing already stored is removed. The ceiling is the caller's `maxQueue` and `maxExportBytes`. Retention duration stays unset. The caller's business result is not stored here. The sink has already received its copy before an exported record can be released. Adoption follows the accepted rule that observation memory stays bounded, and #275 has no accepted retention duration to copy.
 
 ## Configuration and operation
 
-`profile`, `os`, `node`, and `load` are required non-empty strings. `maxQueue`, `maxExportBytes`, and `maxInFlight` must be finite positive numbers. `overLimit` is `reject` only. `closeDeadlineMs` must be a finite non-negative number. The package has no production default for any of these. The caller names the deployment profile those numbers belong to. Node engines for this package follow the existing new-package range `>=24.18.0 <25`.
+`profile`, `os`, `node`, and `load` are required non-empty strings. `maxQueue`, `maxExportBytes`, and `maxInFlight` must be positive integers. `overLimit` is `reject` only. `closeDeadlineMs` must be an integer from 0 through 2147483647, which is the largest delay `setTimeout` keeps as given. The package has no production default for any of these. The caller names the deployment profile those numbers belong to. Node engines for this package follow the existing new-package range `>=24.18.0 <25`.
 
 ## Verification
 

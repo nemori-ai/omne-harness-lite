@@ -20,17 +20,21 @@
 
 `src/types.ts` 持有公开形状。`admit` 返回 `accepted`、`rejected` 或 `gap`。拒绝原因是 `queue_full`、`bytes_full`、`in_flight_full` 和 `closed`。链以唯一的 `origin` 开始。调用方其后的原因是 `attached`。只有端口追加 `export`。导出字节同时计入失败链和关联字段。没有导出端时，放不进限额的记录仍然拒绝。`read` 和交给 `sink.export` 的对象都是副本。
 
-`read` 仅在请求租户等于记录租户时返回链。不一致时结果是 `denied`，响应里没有链。详情键 `secret`、`token`、`authorization` 在进入时去掉。
+`read` 仅在请求租户等于记录租户时返回链。不一致时结果是 `denied`，响应里没有链。已经释放的 id 是 `absent`。详情键 `secret`、`token`、`authorization` 在进入时去掉。
 
-`close` 分开报告最后一条记录、flush 和传输。截止时间到达时 flush 和传输是 `deadline`，不是导出成功。再次 `close` 返回同一次报告。这份报告不是装配 `CloseReport`。
+`export` 同步抛出或返回被拒绝的 Promise 都是导出失败。`admit` 仍然返回。调用方的链保留，端口追加一条带有导出端错误信息的 `export`。在途计数随即释放。
+
+`close` 分开报告最后一条记录、flush 和传输。截止时间到达时 flush 和传输是 `deadline`，不是导出成功。截止定时器保持引用，因此只等待 `close` 的进程仍能收到这份报告。再次 `close` 返回同一次报告。这份报告不是装配 `CloseReport`。Flush 只计关闭时端口仍持有的记录。
 
 ## 设计
 
-一个端口拥有进程内队列、字节计数和在途计数。调用方不共享这张表。导出端是唯一的导出适配器。本成员的超限行为是拒绝。放不下的新记录不会被存下。已接受的记录保留到导出、导出失败或关闭。
+一个端口拥有进程内队列、字节计数和在途计数。调用方不共享这张表。导出端是唯一的导出适配器。本成员的超限行为是拒绝。放不下的新记录不会被存下。
+
+每条仍在表里的记录都计入 `maxQueue` 和 `maxExportBytes`，包括已经结束的记录。排队、导出中、缺口和关闭时未导出的记录留下。导出成功或导出失败的记录，在后来的准入需要位置之前仍可读取。端口按从旧到新释放这些已结束记录，直到新记录同时满足两个限额。被释放的 id 读回是 `absent`。未结束的记录仍占满限额时，新记录被拒绝，已存记录不动。上限就是调用方给出的 `maxQueue` 和 `maxExportBytes`。保留时长仍然未设。调用方的业务结果不存放在这里。导出成功的记录在可以释放之前，导出端已经拿到副本。采用依据是已接受的观测内存有界，以及 #275 没有可照抄的保留时长。
 
 ## 配置与运行
 
-`profile`、`os`、`node`、`load` 必须是非空字符串。`maxQueue`、`maxExportBytes`、`maxInFlight` 必须是有限正数。`overLimit` 只能是 `reject`。`closeDeadlineMs` 必须是有限非负数。本包不为这些字段提供生产默认值。调用方点名这些数字所属的部署剖面。本包 engines 沿用既有新包范围 `>=24.18.0 <25`。
+`profile`、`os`、`node`、`load` 必须是非空字符串。`maxQueue`、`maxExportBytes`、`maxInFlight` 必须是正整数。`overLimit` 只能是 `reject`。`closeDeadlineMs` 必须是 0 到 2147483647 的整数，这是 `setTimeout` 原样保留的最大延迟。本包不为这些字段提供生产默认值。调用方点名这些数字所属的部署剖面。本包 engines 沿用既有新包范围 `>=24.18.0 <25`。
 
 ## 验证
 
