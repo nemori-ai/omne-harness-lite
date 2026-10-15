@@ -8,7 +8,7 @@ The message field inside a fact record, plus parse and equality for `MessageId`.
 
 A message is a field of one fact record in the session log. It is not the log entry. `SystemMessage` is a request view and is not one of the six log roles.
 
-This package parses and compares ids. The session mints `msg_` plus 16 unguessable bytes when it accepts a message into the log. Projection stays with the session. This package exports no mint function.
+This package parses and compares ids. The session mints `msg_` plus 16 unguessable bytes when it accepts a message into the log. Projection stays with the session. This package exports no mint function. This initialization stops at the role list, parse, and equality. The full message payload stays with a later owner.
 
 ## Usage
 
@@ -29,13 +29,27 @@ There is no Cordis entry.
 
 `src/index.ts` owns the role list, the brand, `parseMessageId`, and `messageIdEquals`.
 
+The message field sits on a fact record in the session log. `SystemMessage` is assembled for a request and stays off that log.
+
+```mermaid
+flowchart TD
+  fact["Fact record in the session log"] --> field["Message field"]
+  field --> user["user"]
+  field --> assistant["assistant"]
+  field --> tool["tool"]
+  field --> internal["tool_internal"]
+  field --> reminder["system_reminder"]
+  field --> compaction["compaction"]
+  assembly["Request assembly"] --> system["SystemMessage"]
+```
+
 ## Configuration and operation
 
 The package reads no environment. The session owns entropy and the admission key.
 
 ## Verification
 
-`pnpm --filter @omne-harness/message test` rejects a string without `msg_` and checks that `mintMessageId` is not exported.
+`pnpm --filter @omne-harness/message test` runs `tests/public-entry.spec.ts`. That file is the unit test and the contract test. It checks parse, exact equality, and the absence of a mint export. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
 
 ## Maintenance
 

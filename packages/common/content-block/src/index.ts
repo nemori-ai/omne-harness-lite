@@ -42,22 +42,12 @@ export interface FileContentBlock {
 }
 
 export type ContentBlock =
-  | TextContentBlock
-  | ThinkingContentBlock
-  | MediaContentBlock
-  | FileContentBlock
+  TextContentBlock | ThinkingContentBlock | MediaContentBlock | FileContentBlock
 
-export type ContentBlockRejection =
-  | 'kind'
-  | 'id'
-  | 'visibility'
-  | 'text'
-  | 'media'
-  | 'file'
+export type ContentBlockRejection = 'kind' | 'id' | 'visibility' | 'text' | 'media' | 'file'
 
 export type ContentBlockJudgment =
-  | { readonly ok: ContentBlock }
-  | { readonly rejected: ContentBlockRejection }
+  { readonly ok: ContentBlock } | { readonly rejected: ContentBlockRejection }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -82,13 +72,27 @@ export function judgeContentBlock(value: unknown): ContentBlockJudgment {
     return { ok: { kind: value.kind, id, visibility, text: value.text } }
   }
   if (value.kind === 'voice' || value.kind === 'image') {
-    if (typeof value.mediaType !== 'string' || typeof value.inline !== 'string') return { rejected: 'media' }
-    return { ok: { kind: value.kind, id, visibility, mediaType: value.mediaType, inline: value.inline } }
+    if (typeof value.mediaType !== 'string' || typeof value.inline !== 'string')
+      return { rejected: 'media' }
+    return {
+      ok: { kind: value.kind, id, visibility, mediaType: value.mediaType, inline: value.inline },
+    }
   }
-  if (typeof value.storage !== 'string' || typeof value.key !== 'string' || typeof value.mediaType !== 'string') {
+  if (
+    typeof value.storage !== 'string' ||
+    typeof value.key !== 'string' ||
+    typeof value.mediaType !== 'string'
+  ) {
     return { rejected: 'file' }
   }
   return {
-    ok: { kind: 'file', id, visibility, storage: value.storage, key: value.key, mediaType: value.mediaType },
+    ok: {
+      kind: 'file',
+      id,
+      visibility,
+      storage: value.storage,
+      key: value.key,
+      mediaType: value.mediaType,
+    },
   }
 }

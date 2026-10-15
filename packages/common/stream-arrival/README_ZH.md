@@ -8,7 +8,7 @@
 
 一个步骤属于一次流式交付。它不是入站受理，也不是 Cordis 派发。模型与工具保留自己的发出和执行，并消费这套词汇。
 
-本包不分配序号，不保存日志，也不携带用量和费用的正文。
+本包不分配序号，不保存日志，也不携带用量和费用的正文。这次初始化停在五个步骤名和序号是否在场。流式合成与终态规则仍留给后续拥有者。
 
 ## 使用
 
@@ -34,7 +34,7 @@ judgeStreamArrival({ step: 'open', index: '0' })
 
 ## 验证
 
-`pnpm --filter @omne-harness/stream-arrival test` 核对五个名字，并拒绝 `event`。
+`pnpm --filter @omne-harness/stream-arrival test` 运行 `tests/public-entry.spec.ts`。这份测试同时承担单元和契约。它从公开入口核对步骤名和序号拒绝。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
 
 ## 维护
 

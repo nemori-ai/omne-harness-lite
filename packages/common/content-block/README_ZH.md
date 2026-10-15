@@ -33,13 +33,29 @@ judgeContentBlock({
 
 `src/index.ts` 拥有种类、块类型和 `judgeContentBlock`。
 
+已封闭的块是下面五种之一。工具调用、工具结果和仍在增长的块留在本成员外面。
+
+```mermaid
+flowchart TD
+  block["已封闭内容块"]
+  block --> text["text 文本"]
+  block --> thinking["thinking 思考"]
+  block --> voice["voice 语音"]
+  block --> image["image 图"]
+  block --> file["file 文件"]
+  outside["不进入这个成员"]
+  outside --> call["工具调用"]
+  outside --> result["工具结果"]
+  outside --> growing["仍在增长的块"]
+```
+
 ## 配置与运行
 
 包不读环境，也没有默认值。调用方传入值。
 
 ## 验证
 
-`pnpm --filter @omne-harness/content-block test` 运行公开入口测试。测试接受文本块，并拒绝 `tool_call`。
+`pnpm --filter @omne-harness/content-block test` 运行 `tests/public-entry.spec.ts`。这份测试同时承担单元和契约。它从公开入口核对接受和拒绝。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
 
 ## 维护
 

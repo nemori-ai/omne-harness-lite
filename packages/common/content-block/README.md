@@ -33,13 +33,29 @@ There is no Cordis entry. Build deletes `dist` before `tsc`.
 
 `src/index.ts` owns the kinds, the block types, and `judgeContentBlock`.
 
+A closed block is one of five kinds. A tool call, a tool result, and a block that is still growing stay outside this member.
+
+```mermaid
+flowchart TD
+  block["Closed content block"]
+  block --> text["text"]
+  block --> thinking["thinking"]
+  block --> voice["voice"]
+  block --> image["image"]
+  block --> file["file"]
+  outside["Outside this member"]
+  outside --> call["Tool call"]
+  outside --> result["Tool result"]
+  outside --> growing["Block still growing"]
+```
+
 ## Configuration and operation
 
 The package reads no environment and has no defaults. The caller passes the value.
 
 ## Verification
 
-`pnpm --filter @omne-harness/content-block test` runs the public-entry tests. They admit a text block and reject `tool_call`.
+`pnpm --filter @omne-harness/content-block test` runs `tests/public-entry.spec.ts`. That file is the unit test and the contract test. It checks admit and reject results from the public entry. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
 
 ## Maintenance
 

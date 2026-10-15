@@ -15,7 +15,9 @@ export type MessageId = string & { readonly [messageIdBrand]: true }
 
 export type MessageIdParseError = 'empty' | 'prefix' | 'body'
 
-export type MessageIdParse = { readonly ok: true; readonly value: MessageId } | { readonly ok: false; readonly error: MessageIdParseError }
+export type MessageIdParse =
+  | { readonly ok: true; readonly value: MessageId }
+  | { readonly ok: false; readonly error: MessageIdParseError }
 
 const BODY = /^[A-Za-z0-9_-]{22,64}$/
 

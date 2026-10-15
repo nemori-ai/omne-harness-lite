@@ -7,7 +7,8 @@ export interface StreamArrival {
   readonly index: string
 }
 
-export type StreamArrivalJudgment = { readonly ok: StreamArrival } | { readonly rejected: 'step' | 'index' }
+export type StreamArrivalJudgment =
+  { readonly ok: StreamArrival } | { readonly rejected: 'step' | 'index' }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

@@ -20,9 +20,39 @@
 
 日志表达需要记录的事实，不替代各执行账或资源状态。共享值由实际定义拥有者维护。
 
-会话在受理进日志时铸造消息身份，格式是 `msg_` 加 16 字节不可猜文本。同一次受理返回已有身份。用户输入用那次提交身份，模型回复用模型调用和 dispatch，工具消息用工具调用身份，提醒用来源引用，压缩用那次操作的提交身份。键和身份一次写入。解析与相等在 `packages/common/message`。
+会话在受理进日志时铸造消息身份，格式是 `msg_` 加 16 字节不可猜文本。同一次受理返回已有身份。用户输入用那次提交身份。模型回复用模型调用和 dispatch。工具消息用工具调用身份。提醒用来源引用。压缩用那次操作的提交身份。键和身份一次写入。解析与相等在 `packages/common/message`。
+
+```mermaid
+flowchart TD
+  admit["受理进日志"] --> kind{"这次受理"}
+  kind -->|"用户输入"| submission["提交身份"]
+  kind -->|"模型回复"| dispatch["模型调用和 dispatch"]
+  kind -->|"工具消息"| toolCall["工具调用身份"]
+  kind -->|"提醒"| source["来源引用"]
+  kind -->|"压缩"| compaction["该次操作的提交身份"]
+  submission --> hit{"该键已有身份"}
+  dispatch --> hit
+  toolCall --> hit
+  source --> hit
+  compaction --> hit
+  hit -->|"有"| keep["返回已有身份"]
+  hit -->|"无"| mint["铸造 msg_ 加 16 字节不可猜文本"]
+  mint --> write["同一次写入键和身份"]
+```
 
 人能看到的内容来自会话日志的投影。用量和费用在会话收到模型响应的流式增量、流完成或工具结果时入账。后到的费用追加一条，标明迟到。
+
+```mermaid
+sequenceDiagram
+  participant Model as 模型调用
+  participant Session as 会话
+  participant Tool as 工具执行
+  Model->>Session: 流式增量或流完成
+  Session->>Session: 记下用量和费用
+  Tool->>Session: 工具结果
+  Session->>Session: 记下这笔账
+  Note over Session: 后到的费用追加一条，标明迟到
+```
 
 ## 协作与依赖
 
