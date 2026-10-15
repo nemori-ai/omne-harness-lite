@@ -71,6 +71,7 @@ export type RefusalReason =
   | 'dimension-not-allowed'
   | 'power-above-ceiling'
   | 'executable'
+  | 'checker-failed'
 
 export type Judgment<T> =
   | { readonly kind: 'accepted'; readonly value: T }

@@ -26,24 +26,37 @@ const ceiling: Record<Position, readonly Power[]> = {
   after_terminal: ['observe'],
 }
 
+const dimension = z.union([
+  z.strictObject({ ending: z.enum(['complete_reply', 'failure']) }),
+  z.strictObject({ scope: z.enum(['each', 'batch']) }),
+])
+
 const declaration = z.strictObject({
   name: z.string().min(1),
   position: z.enum(POSITIONS),
   power: z.enum(POWERS),
   source: z.enum(['workspace', 'author']).optional(),
-  dimension: z
-    .strictObject({
-      ending: z.enum(['complete_reply', 'failure']).optional(),
-      scope: z.enum(['each', 'batch']).optional(),
-    })
-    .optional(),
+  dimension: dimension.optional(),
 })
 
 type Parsed = z.output<typeof declaration>
 
-function issueReason(path: readonly (string | number)[]): RefusalReason {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function issueReason(path: readonly (string | number)[], value: unknown): RefusalReason {
   if (path.includes('position')) return 'unknown-position'
   if (path.includes('power')) return 'unknown-power'
+  if (path.includes('dimension') && isRecord(value)) {
+    const needsDimension = value.position === 'after_model_call' || value.position === 'after_action'
+    if (!needsDimension) return 'dimension-not-allowed'
+    const dimension = value.dimension
+    if (!isRecord(dimension) || Object.keys(dimension).length === 0) return 'dimension-missing'
+    if (value.position === 'after_model_call' && !('ending' in dimension)) return 'dimension-missing'
+    if (value.position === 'after_action' && !('scope' in dimension)) return 'dimension-missing'
+    return 'dimension-not-allowed'
+  }
   return 'malformed'
 }
 
@@ -51,8 +64,8 @@ function shape(value: Parsed): Judgment<LoopExtensionDeclaration> {
   const allowed = value.source === 'workspace' ? (['observe'] as const) : ceiling[value.position]
   if (!allowed.includes(value.power)) return refused('power-above-ceiling')
   if (value.position === 'after_model_call') {
-    if (value.dimension?.ending === undefined || value.dimension.scope !== undefined) {
-      return refused(value.dimension === undefined ? 'dimension-missing' : 'dimension-not-allowed')
+    if (value.dimension === undefined || !('ending' in value.dimension)) {
+      return refused('dimension-missing')
     }
     return {
       kind: 'accepted',
@@ -65,8 +78,8 @@ function shape(value: Parsed): Judgment<LoopExtensionDeclaration> {
     }
   }
   if (value.position === 'after_action') {
-    if (value.dimension?.scope === undefined || value.dimension.ending !== undefined) {
-      return refused(value.dimension === undefined ? 'dimension-missing' : 'dimension-not-allowed')
+    if (value.dimension === undefined || !('scope' in value.dimension)) {
+      return refused('dimension-missing')
     }
     return {
       kind: 'accepted',
@@ -89,7 +102,7 @@ export async function judgeLoopExtension(value: unknown): Promise<Judgment<LoopE
   const checked = await checkJson<Parsed>('agent.loop-extension', declaration, value)
   if (checked.kind === 'local-refusal') return refused(checked.reason)
   if (checked.kind !== 'valid') {
-    if (checked.kind === 'invalid') return refused(issueReason(checked.issues[0].path))
+    if (checked.kind === 'invalid') return refused(issueReason(checked.issues[0].path, value))
     return refused('malformed')
   }
   return shape(checked.value)

@@ -18,7 +18,7 @@ const reference = z.strictObject({
   resident: z.boolean().optional(),
 })
 
-const attribute = z.looseObject({
+const attribute = z.strictObject({
   item: z.enum(ATTRIBUTE_ITEMS),
 })
 
@@ -51,7 +51,7 @@ export async function judgeAgentDefinition(value: unknown): Promise<Judgment<Age
   }
   const seen = new Set<string>()
   for (const referenceValue of checked.value.references) {
-    const key = `${referenceValue.capability.category}\n${referenceValue.capability.name}`
+    const key = JSON.stringify([referenceValue.capability.category, referenceValue.capability.name])
     if (seen.has(key)) return refused('duplicate-capability')
     seen.add(key)
   }
@@ -71,7 +71,7 @@ export async function judgeAgentDefinition(value: unknown): Promise<Judgment<Age
       name: checked.value.name,
       version,
       references: checked.value.references.map(stripResident),
-      attributes: checked.value.attributes,
+      attributes: checked.value.attributes.map((declaration) => ({ item: declaration.item })),
     },
   }
 }

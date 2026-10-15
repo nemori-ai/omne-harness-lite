@@ -8,7 +8,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 责任与使用
 
-调用方从包入口调用 `judgeAgentDefinition` 或 `judgeLoopExtensions`。成功结果带声明数据。`judgeLoopExtensions` 按提交顺序返回，一项非法则整批拒绝并带 `index`。拒绝结果的 `reason` 是 `malformed`、`duplicate-capability`、`unknown-attribute`、`unknown-position`、`unknown-power`、`dimension-missing`、`dimension-not-allowed`、`power-above-ceiling` 或 `executable`。结果里没有权限或句柄。本包依赖 `@omne-harness/schema-provider` 做静态校验，不依赖装配包或资产包。测试命令是本目录的 `pnpm test`。
+调用方从包入口调用 `judgeAgentDefinition` 或 `judgeLoopExtensions`。成功结果带声明数据。`judgeLoopExtensions` 按提交顺序返回，一项非法则整批拒绝并带 `index`。拒绝结果的 `reason` 是 `malformed`、`duplicate-capability`、`unknown-attribute`、`unknown-position`、`unknown-power`、`dimension-missing`、`dimension-not-allowed`、`power-above-ceiling`、`executable` 或 `checker-failed`。成功的 attribute 只保留 `item`。公开入口是 `judgeAgentDefinition` 与 `judgeLoopExtensions`。本包依赖 `@omne-harness/schema-provider` 做静态校验，不依赖装配包或资产包。测试命令是本目录的 `pnpm test`。
 
 ## 契约与设计
 

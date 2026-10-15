@@ -1,5 +1,5 @@
 export { judgeAgentDefinition } from './agent-definition.ts'
-export { judgeLoopExtension, judgeLoopExtensions } from './loop-extension.ts'
+export { judgeLoopExtensions } from './loop-extension.ts'
 export type {
   AgentDefinition,
   AssetReference,

@@ -53,15 +53,13 @@ it('refuses a missing references slot, a null slot, a duplicate capability, and 
   ).toMatchObject({ kind: 'refused', reason: 'unknown-attribute' })
 })
 
-it('keeps an extra attribute field and refuses a repeated item', async () => {
-  const judged = await judgeAgentDefinition({
-    ...legalDefinition,
-    attributes: [{ item: 'model', kind: 'setting' }],
-  })
-  expect(judged).toMatchObject({
-    kind: 'accepted',
-    value: { attributes: [{ item: 'model', kind: 'setting' }] },
-  })
+it('rejects attribute fields other than item', async () => {
+  expect(
+    await judgeAgentDefinition({
+      ...legalDefinition,
+      attributes: [{ item: 'model', kind: 'setting' }],
+    }),
+  ).toMatchObject({ kind: 'refused', reason: 'malformed' })
   expect(
     await judgeAgentDefinition({
       ...legalDefinition,
@@ -177,6 +175,38 @@ it('lets an assembly caller and an asset caller share the public entry', async (
     kind: 'accepted',
     value: { version: { kind: 'pinned', version: 'v2' } },
   })
+})
+
+it('refuses host objects, hidden functions, and colliding capability text', async () => {
+  const base = { category: 'AgentDefinition', name: 'coding', references: [], attributes: [] }
+  const proto = Object.create({ toJSON: () => base }) as object
+  expect(await judgeAgentDefinition(proto)).toMatchObject({ kind: 'refused', reason: 'malformed' })
+  const hidden = Object.defineProperty({ ...base }, 'run', { value() {}, enumerable: false })
+  expect(await judgeAgentDefinition(hidden)).toMatchObject({ kind: 'refused', reason: 'executable' })
+  expect(await judgeAgentDefinition({ ...base, version: new Date('2020-01-01T00:00:00.000Z') })).toMatchObject({
+    kind: 'refused',
+    reason: 'malformed',
+  })
+  expect(await judgeAgentDefinition({ ...base, version: new String('v2') })).toMatchObject({
+    kind: 'refused',
+    reason: 'malformed',
+  })
+  expect(await judgeAgentDefinition({ ...base, attributes: [{ item: 'model', limit: Infinity }] })).toMatchObject({
+    kind: 'refused',
+    reason: 'malformed',
+  })
+  expect(
+    await judgeAgentDefinition({
+      ...base,
+      references: [
+        { capability: { category: 'a\nb', name: 'c' } },
+        { capability: { category: 'a', name: 'b\nc' } },
+      ],
+    }),
+  ).toMatchObject({ kind: 'accepted' })
+  expect(
+    await judgeLoopExtensions([{ name: 'e', position: 'after_model_call', power: 'observe', dimension: {} }]),
+  ).toMatchObject({ kind: 'refused', reason: 'dimension-missing', index: 0 })
 })
 
 it('keeps the package free of assembly, assets, and cordis dependencies', () => {
