@@ -61,7 +61,7 @@ One port owns the in-memory queue, the byte count, and the in-flight count. Call
 
 ## Verification
 
-From this directory, `pnpm test` builds and runs the public-entry test and `tests/diagnostic-port.spec.ts`. Those tests use a synthetic sink. They do not prove that a real log backend exits. They do not choose production limits.
+From this directory, `pnpm test` builds and runs the public-entry test and `tests/diagnostic-port.spec.ts`. One test writes a record into a temporary directory with `node:fs`. Another expects that write to throw when the parent directory is absent. A third aborts a delayed write at the close deadline and expects no file. These tests do not import Pino or the OpenTelemetry SDK, and they do not choose production limits.
 
 ## Maintenance
 

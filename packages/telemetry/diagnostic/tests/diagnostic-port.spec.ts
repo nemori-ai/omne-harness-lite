@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   createDiagnosticPort,
@@ -213,5 +216,111 @@ describe('createDiagnosticPort', () => {
     expect(report.transport).toEqual({ kind: 'deadline' })
     expect(report.lastRecord.kind).toBe('unhanded')
     await expect(diagnosticClose).resolves.toBe(report)
+  })
+
+  it('writes an admitted record into a directory the caller chooses', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'diagnostic-export-'))
+    try {
+      const port = createDiagnosticPort({
+        bounds: bounds({ maxExportBytes: 1000 }),
+        closeDeadlineMs: 50,
+        sink: sinkOf(async (record, signal) => {
+          const { writeFile } = await import('node:fs/promises')
+          await writeFile(join(dir, `${record.id}.json`), JSON.stringify(record), { signal })
+        }),
+      })
+      const committed = { kind: 'Committed' as const }
+      const result = keepBusinessResult(committed, port, {
+        chain: chain('committed'),
+        correlation,
+      })
+      expect(result.business).toBe(committed)
+      await new Promise(resolve => setTimeout(resolve, 30))
+      if (result.diagnostic.status !== 'accepted') throw new Error('expected accepted')
+      const text = await readFile(join(dir, `${result.diagnostic.id}.json`), 'utf8')
+      expect(text).toContain('"summary":"committed"')
+      const visible = port.read({ tenant: 'org/account', id: result.diagnostic.id })
+      expect(visible.status).toBe('visible')
+      if (visible.status !== 'visible') throw new Error('expected visible')
+      expect(visible.exportStatus).toBe('exported')
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps the business result when the directory write fails', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'diagnostic-missing-'))
+    try {
+      const port = createDiagnosticPort({
+        bounds: bounds({ maxExportBytes: 1000 }),
+        closeDeadlineMs: 20,
+        sink: sinkOf(async (record, signal) => {
+          const { writeFile } = await import('node:fs/promises')
+          await writeFile(
+            join(dir, 'missing-parent', `${record.id}.json`),
+            JSON.stringify(record),
+            {
+              signal,
+            },
+          )
+        }),
+      })
+      const committed = { kind: 'Committed' as const }
+      const result = keepBusinessResult(committed, port, {
+        chain: chain('committed'),
+        correlation,
+      })
+      await new Promise(resolve => setTimeout(resolve, 20))
+      expect(result.business).toBe(committed)
+      if (result.diagnostic.status !== 'accepted') throw new Error('expected accepted')
+      const visible = port.read({ tenant: 'org/account', id: result.diagnostic.id })
+      expect(visible.status).toBe('visible')
+      if (visible.status !== 'visible') throw new Error('expected visible')
+      expect(visible.exportStatus).toBe('export_failed')
+      expect(visible.chain.causes.map(cause => cause.role)).toEqual(['origin', 'export'])
+      await expect(
+        stat(join(dir, 'missing-parent', `${result.diagnostic.id}.json`)),
+      ).rejects.toThrow()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not leave a file when close aborts a delayed write', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'diagnostic-close-'))
+    try {
+      const port = createDiagnosticPort({
+        bounds: bounds({ maxExportBytes: 1000 }),
+        closeDeadlineMs: 20,
+        sink: sinkOf(
+          (record, signal) =>
+            new Promise((resolve, reject) => {
+              const timer = setTimeout(() => {
+                void import('node:fs/promises')
+                  .then(({ writeFile }) =>
+                    writeFile(join(dir, `${record.id}.json`), JSON.stringify(record)),
+                  )
+                  .then(resolve, reject)
+              }, 200)
+              signal.addEventListener('abort', () => {
+                clearTimeout(timer)
+                reject(new Error('closed'))
+              })
+            }),
+        ),
+      })
+      const admitted = port.admit({ chain: chain('committed'), correlation })
+      const business = { status: 'closed' as const }
+      const diagnosticClose = port.close()
+      expect(business.status).toBe('closed')
+      const report = await diagnosticClose
+      expect(report.flush).toEqual({ kind: 'deadline' })
+      expect(report.transport).toEqual({ kind: 'deadline' })
+      expect(report.unfinished).toHaveLength(1)
+      if (admitted.status !== 'accepted') throw new Error('expected accepted')
+      await expect(stat(join(dir, `${admitted.id}.json`))).rejects.toThrow()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 })
