@@ -1,0 +1,22 @@
+export { createDiagnosticPort } from './port.ts'
+export type {
+  AdmitInput,
+  AdmitResult,
+  CallerCause,
+  CallerChain,
+  Correlation,
+  DiagnosticBounds,
+  DiagnosticCause,
+  DiagnosticCloseReport,
+  DiagnosticPort,
+  DiagnosticPortOptions,
+  DiagnosticSink,
+  ExportCause,
+  ExportStatus,
+  ExportedRecord,
+  FailureChain,
+  FlushFact,
+  LastRecordFact,
+  ReadResult,
+  TransportFact,
+} from './types.ts'
