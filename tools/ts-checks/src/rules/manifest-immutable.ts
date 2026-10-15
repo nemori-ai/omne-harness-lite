@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import type { Rule, Violation } from '../rule.ts'
 import { lineAt } from '../source-text.ts'
 import { syntaxOf, visitSyntax } from '../syntax.ts'

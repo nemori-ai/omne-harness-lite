@@ -1,4 +1,4 @@
-/// <reference lib="dom" />
+/// <reference lib="dom" preserve="true" />
 import type { ArchitectureView, RelationKind, ViewEdge, ViewNode, ViewSelection } from './view.ts'
 import type { selectArchitectureView } from './view.ts'
 import type { ELK, ElkNode } from 'elkjs'

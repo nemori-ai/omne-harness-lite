@@ -1,5 +1,5 @@
 import { posix } from 'node:path'
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { isTestPath, type SourceFile } from '../rule.ts'
 import { syntaxOf } from '../syntax.ts'
 import { ownerOf } from '../testing/members.ts'

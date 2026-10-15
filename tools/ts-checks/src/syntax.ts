@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import type { SourceFile } from './rule.ts'
 
 const cache = new WeakMap<SourceFile, ts.SourceFile>()

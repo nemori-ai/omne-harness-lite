@@ -16,12 +16,13 @@
     "format:staged": "./scripts/format.sh staged",
     "format:hook:install": "./scripts/install-format-hook.sh",
     "test:format": "./scripts/test-formatting.sh",
-    "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run typecheck && pnpm run test:gate && pnpm run lint:rules",
+    "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run check:declarations && pnpm run typecheck && pnpm run test:gate && pnpm run lint:rules",
+    "check:declarations": "node --experimental-strip-types tools/ts-checks/src/declarations/cli.ts",
     "lint:rules": "pnpm --filter @omne-harness/ts-checks run scan",
     "package:template": "node --experimental-strip-types tools/ts-checks/src/package-template/cli.ts"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "catalog:",
-    "prettier": "3.9.6"
+    "oxfmt": "catalog:"
   }
 }

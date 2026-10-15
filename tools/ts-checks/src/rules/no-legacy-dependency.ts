@@ -1,4 +1,4 @@
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { isTestPath, type Rule, type SourceFile, type Violation } from '../rule.ts'
 import { lineAt } from '../source-text.ts'
 import { syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'

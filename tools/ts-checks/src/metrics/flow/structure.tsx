@@ -1,4 +1,4 @@
-/// <reference lib="dom" />
+/// <reference lib="dom" preserve="true" />
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { createRoot } from 'react-dom/client'
 import {

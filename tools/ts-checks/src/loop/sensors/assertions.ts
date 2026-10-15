@@ -5,7 +5,7 @@
 // 类型测试文件（路径匹配 typeTestPattern）里编译器就是断言者：`@ts-expect-error` 指令要求下一行编译失败，
 // 调用、带类型注解的声明与 `satisfies` 要求「这样写编译得过」，这几种也算断言。
 // 只读语法，不解析类型，也不跨文件。
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import type { SourceFile } from '../../rule.ts'
 import { syntaxOf, visitSyntax } from '../../syntax.ts'
 

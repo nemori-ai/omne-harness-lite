@@ -29,7 +29,13 @@ const firstMatch = (path: string, patterns: readonly string[]) =>
   patterns.find(pattern => patternToRegExp(pattern).test(path))
 
 export type FileCategory =
-  'excluded' | 'global' | 'reader' | 'member' | 'python' | 'resident' | 'unclassified'
+  | 'excluded'
+  | 'global'
+  | 'reader'
+  | 'member'
+  | 'python'
+  | 'resident'
+  | 'unclassified'
 
 export interface ClassifiedFile {
   readonly path: string

@@ -16,7 +16,8 @@ import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
-const tsc = require.resolve('typescript/bin/tsc')
+// TypeScript 7 declares package exports without `./bin/tsc`; locate the bin from its manifest.
+const tsc = join(dirname(require.resolve('typescript/package.json')), 'bin/tsc')
 
 export interface IsolatedWorkspace {
   readonly root: string

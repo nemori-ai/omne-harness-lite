@@ -152,7 +152,11 @@ export interface GroupDirectionPolicy {
 }
 
 export type DirectionFindingKind =
-  'unregistered-group' | 'outward-dependency' | 'assembly-only' | 'member-cycle' | 'group-cycle'
+  | 'unregistered-group'
+  | 'outward-dependency'
+  | 'assembly-only'
+  | 'member-cycle'
+  | 'group-cycle'
 
 export interface DirectionFinding {
   readonly kind: DirectionFindingKind

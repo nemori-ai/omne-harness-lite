@@ -103,7 +103,8 @@ export function readTrend(path: string): TrendRead {
 }
 
 export type SnapshotDecision =
-  { readonly write: true } | { readonly write: false; readonly reason: string }
+  | { readonly write: true }
+  | { readonly write: false; readonly reason: string }
 
 /** 干净的工作树上，给了 `--snapshot` 或 HEAD 正是主线的头，才写；同一个提交已有就不再写。 */
 export function snapshotDecision(input: {

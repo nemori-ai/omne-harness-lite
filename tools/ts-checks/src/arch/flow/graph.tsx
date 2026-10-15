@@ -1,4 +1,4 @@
-/// <reference lib="dom" />
+/// <reference lib="dom" preserve="true" />
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from 'react'
 import {
   Background,
