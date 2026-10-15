@@ -7,7 +7,7 @@ import type {
   PlacementInput,
 } from './model.ts'
 
-const liveProviders = Symbol.for('omne.executionEnvironment.providers')
+const liveProviders = Symbol('omne.executionEnvironment.providers')
 
 const emptyConfig = {
   '~standard': {
@@ -25,10 +25,8 @@ const emptyConfig = {
 
 type RegistryRecord = { [liveProviders]?: EnvironmentProvider[] }
 
-function providersOf(service: object): EnvironmentProvider[] {
-  const list = (service as RegistryRecord)[liveProviders]
-  if (!list) throw new Error('execution environment registry has no provider list')
-  return list
+function providersOf(service: object): EnvironmentProvider[] | undefined {
+  return (service as RegistryRecord)[liveProviders]
 }
 
 /**
@@ -61,9 +59,12 @@ function hostFileProvider(): EnvironmentProvider {
   return {
     name: 'host-files',
     bindingKinds: ['host_machine'],
+    continuity: hostContinuity,
     facilities: new Map([['files', files]]),
     async acquire(placement) {
-      if (placement.binding.kind !== 'host_machine') return { kind: 'rejected', reason: 'missingFacility' }
+      if (!this.bindingKinds.includes(placement.binding.kind)) {
+        return { kind: 'rejected', reason: 'noMatchingEnvironment' }
+      }
       return {
         kind: 'acquired',
         lease: {
@@ -91,19 +92,21 @@ export class ExecutionEnvironmentRegistry extends ExecutionEnvironmentService {
   }
 
   async resolvePlacement(input: PlacementInput) {
-    const matched = providersOf(this).some((provider) => provider.bindingKinds.includes(input.binding.kind))
-    if (!matched) return { kind: 'rejected' as const, reason: 'noMatchingEnvironment' as const }
-    return { kind: 'placement' as const, binding: input.binding, continuity: hostContinuity }
+    const provider = providersOf(this)?.find((candidate) =>
+      candidate.bindingKinds.includes(input.binding.kind),
+    )
+    if (!provider) return { kind: 'rejected' as const, reason: 'noMatchingEnvironment' as const }
+    return { kind: 'placement' as const, binding: input.binding, continuity: provider.continuity }
   }
 
   async acquire(input: PlacementInput) {
-    const layer = providersOf(this).filter((provider) => provider.bindingKinds.includes(input.binding.kind))
-    if (layer.length === 0) return { kind: 'rejected' as const, reason: 'noMatchingEnvironment' as const }
+    const layer = providersOf(this)?.filter((provider) => provider.bindingKinds.includes(input.binding.kind))
+    if (!layer || layer.length === 0) return { kind: 'rejected' as const, reason: 'noMatchingEnvironment' as const }
     const provider = layer.find((candidate) => input.facilities.every((name) => candidate.facilities.has(name)))
     if (!provider) return { kind: 'rejected' as const, reason: 'missingFacility' as const }
     return provider.acquire({
       binding: input.binding,
-      continuity: hostContinuity,
+      continuity: provider.continuity,
       tenantId: input.tenantId,
       callId: input.callId,
     })
@@ -112,6 +115,7 @@ export class ExecutionEnvironmentRegistry extends ExecutionEnvironmentService {
   registerProvider(provider: EnvironmentProvider): () => Promise<void> {
     const dispose = this.ctx.effect(() => {
       const providers = providersOf(this)
+      if (!providers) return () => undefined
       providers.push(provider)
       return () => {
         const index = providers.indexOf(provider)

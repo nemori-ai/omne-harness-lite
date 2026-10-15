@@ -98,6 +98,49 @@ it('rejects a command request and keeps the host binding for files', async () =>
   expect(files.kind).toBe('acquired')
   if (files.kind !== 'acquired') return
   expect(files.lease.binding).toEqual({ kind: 'host_machine' })
+  expect(files.lease.continuity).toEqual({ kind: 'not_guaranteed' })
   expect(files.lease.facility('command')).toBeUndefined()
   expect(files.lease.facility('files')).toBeDefined()
+})
+
+it('uses the matched provider continuity for a session sandbox', async () => {
+  const ctx = new Context()
+  await ctx.plugin(ExecutionEnvironmentRegistry, {})
+  const service = ctx.get(EXECUTION_ENVIRONMENT)
+  const continuity = { kind: 'continuous' as const, dataId: 'data-1', revision: '3' }
+  service.registerProvider({
+    name: 'session-files',
+    bindingKinds: ['session_sandbox'],
+    continuity,
+    facilities: new Map([['files', {}]]),
+    async acquire(placement) {
+      return {
+        kind: 'acquired',
+        lease: {
+          binding: placement.binding,
+          continuity: placement.continuity,
+          instance: { id: 'session', generation: '1' },
+          facility: () => undefined,
+          async release() {
+            return { kind: 'released' }
+          },
+        },
+      }
+    },
+  })
+  const binding = { kind: 'session_sandbox' as const, sessionId: 'session-1' }
+  const placed = await service.resolvePlacement({
+    tenantId: 'tenant-a',
+    callId: 'call-1',
+    binding,
+    facilities: ['files'],
+  })
+  expect(placed).toEqual({ kind: 'placement', binding, continuity })
+  const acquired = await service.acquire({
+    tenantId: 'tenant-a',
+    callId: 'call-1',
+    binding,
+    facilities: ['files'],
+  })
+  expect(acquired).toMatchObject({ kind: 'acquired', lease: { binding, continuity } })
 })

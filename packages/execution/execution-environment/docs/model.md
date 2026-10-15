@@ -89,6 +89,7 @@ type CommandFacility = {
 type EnvironmentProvider = {
   readonly name: string
   readonly bindingKinds: readonly EnvironmentBinding["kind"][]
+  readonly continuity: EnvironmentContinuity
   readonly facilities: ReadonlyMap<string, unknown>
   readonly acquire: (placement: {
     readonly binding: EnvironmentBinding
@@ -97,7 +98,7 @@ type EnvironmentProvider = {
     readonly callId: string
   }) => Promise<
     | { kind: "acquired"; lease: EnvironmentLease }
-    | { kind: "rejected"; reason: "missingFacility" }
+    | { kind: "rejected"; reason: "missingFacility" | "noMatchingEnvironment" }
   >
 }
 
@@ -118,6 +119,6 @@ type EnvironmentLease = {
 
 `FileFacility` 的四个操作各有自己的结果。`stat` 和 `close` 不返回文件字节。对象在契约里是不透明的 `ObjectToken`。宿主提供者把设备号和 inode 放进这个 token。沙箱提供者以后用自己的 token。契约不把宿主 inode 写成所有落点的身份。
 
-`EnvironmentProvider.acquire` 接收已经选定的落点，返回租约。它不实现登记表的 `acquire`，也不重选绑定层。登记表依赖这个契约。提供者不知道登记表的服务类。
+`EnvironmentProvider` 声明自己能提供的连续性。宿主是 `not_guaranteed`。登记表把匹配到的提供者的连续性写进落点和租约，不把宿主的连续性套到别的绑定层上。`acquire` 接收已经选定的落点，返回租约。它不实现登记表的 `acquire`，也不重选绑定层。绑定层不是自己声明的那一层时，拒绝理由是 `noMatchingEnvironment`。登记表依赖这个契约。提供者不知道登记表的服务类。
 
 `Files()` 从租约取出名为 `files` 的设施。`Shell()` 取出名为 `command` 的设施。要求的名字不在租约里，结果是拒绝，不改绑定层。这一刀的宿主提供者只登记 `host_machine` 上的 `files`。`command` 有接口，这一刀不提供实现。三种沙箱绑定层这一刀没有提供者。

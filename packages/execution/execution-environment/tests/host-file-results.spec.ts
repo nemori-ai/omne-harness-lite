@@ -139,7 +139,7 @@ it('confirms identity on write and a later read returns the written bytes', asyn
     requestId: 'reread',
     value: {
       object: named,
-      handle: { object: named, generation: '1' },
+      handle: { object: named, generation: '2' },
       bytes: written,
     },
   })
@@ -204,7 +204,7 @@ it('does not reuse the first completion after the path names a new object', asyn
     requestId: 'renamed',
     value: {
       object: secondNamed,
-      handle: { object: secondNamed, generation: '1' },
+      handle: { object: secondNamed, generation: '2' },
       bytes: text('second-bytes'),
     },
   })
@@ -247,4 +247,55 @@ it('refuses to read a directory as file bytes', async () => {
   const named = await hostObjectToken(root)
   const result = await createHostFiles().read(request(root, named, 'directory'))
   expect(result).toEqual({ kind: 'rejected', requestId: 'directory', reason: 'unsupported' })
+})
+
+it('refuses a directory symlink when the path ends with a slash', async () => {
+  const root = await tree()
+  const dir = join(root, 'dir')
+  await mkdir(dir)
+  await writeFile(join(dir, 'secret.txt'), 'secret-bytes')
+  const link = join(root, 'link')
+  await symlink(dir, link)
+  const named = await hostObjectToken(dir)
+  const result = await createHostFiles().stat(request(`${link}/`, named, 'slash'))
+  expect(result).toEqual({ kind: 'rejected', requestId: 'slash', reason: 'unsupported' })
+  expect(JSON.stringify(result)).not.toContain('secret-bytes')
+})
+
+it('leaves a path through a non-directory unresolved', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'file-bytes')
+  const named = await hostObjectToken(path)
+  const result = await createHostFiles().read(request(`${path}/child`, named, 'notdir'))
+  expect(result).toEqual({ kind: 'unresolved', requestId: 'notdir' })
+})
+
+it('refuses a NUL path on close and keeps the earlier bytes', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'kept-bytes')
+  const named = await hostObjectToken(path)
+  const files = createHostFiles()
+  const first = await files.read(request(path, named, 'kept-nul'))
+  expect(first.kind).toBe('done')
+  if (first.kind !== 'done') return
+  const closed = await files.close({
+    ...request(`${path}\0`, named, 'nul-close'),
+    handle: first.value.handle,
+  })
+  expect(closed).toEqual({ kind: 'rejected', requestId: 'nul-close', reason: 'invalidInput' })
+  expect(first.value.bytes).toEqual(text('kept-bytes'))
+})
+
+it('issues a new handle generation for the second read', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'twice')
+  const named = await hostObjectToken(path)
+  const files = createHostFiles()
+  const first = await files.read(request(path, named, 'gen-1'))
+  const second = await files.read(request(path, named, 'gen-2'))
+  expect(first).toMatchObject({ kind: 'done', value: { handle: { generation: '1' } } })
+  expect(second).toMatchObject({ kind: 'done', value: { handle: { generation: '2' } } })
 })

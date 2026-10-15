@@ -85,6 +85,7 @@ export type CommandFacility = {
 export type EnvironmentProvider = {
   readonly name: string
   readonly bindingKinds: readonly EnvironmentBinding['kind'][]
+  readonly continuity: EnvironmentContinuity
   readonly facilities: ReadonlyMap<string, unknown>
   readonly acquire: (placement: {
     readonly binding: EnvironmentBinding
@@ -93,7 +94,7 @@ export type EnvironmentProvider = {
     readonly callId: string
   }) => Promise<
     | { readonly kind: 'acquired'; readonly lease: EnvironmentLease }
-    | { readonly kind: 'rejected'; readonly reason: 'missingFacility' }
+    | { readonly kind: 'rejected'; readonly reason: 'missingFacility' | 'noMatchingEnvironment' }
   >
 }
 
