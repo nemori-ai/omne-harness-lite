@@ -25,7 +25,7 @@ Worker 一次处理一条消息。`node:sqlite` 的语句在这条消息里同�
 
 ## 正常提交
 
-下列核对顺序是候选。SPEC 尚未决定多个拒绝条件同时成立时返回哪个原因。
+下列核对顺序描述单次提交怎样走过控制侧和 Worker。多个拒绝同时成立时，返回 [SPEC](../SPEC.md) 规定的第一个原因。
 
 1. 控制侧入口核对必需字段。字段缺失时，`commit` 返回 `field_missing`。
 2. 控制侧入口核对 `participant` 不重复，并且每条命令的 `facts` 都是 JSON 值。不成立时，`commit` 返回 `participant_repeated` 或 `facts_not_json`。
@@ -44,7 +44,7 @@ Worker 一次处理一条消息。`node:sqlite` 的语句在这条消息里同�
 
 第 8 到第 12 步在同一次消息里完成。事实、已提交回执和待交接记录在同一个事务里提交。
 
-下面这张图用的是上面的候选顺序。多个拒绝同时成立时返回哪一个，仍以 SPEC 的未决项为准。
+下面这张图用的是上面的步骤。多个拒绝同时成立时返回哪一个，以 SPEC 的拒绝顺序为准。
 
 ```mermaid
 sequenceDiagram

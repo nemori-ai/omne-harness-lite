@@ -292,16 +292,26 @@ PostgreSQL 提供者使用独立的 `pg` 与 Kysely 事务租约。该提供者�
 
 关闭先停止新的准入。停止之后新到的 `commit` 返回 `closing`，不写入回执，也不进入队列。受理队列里尚未开始的操作被撤下，同样不写入回执。已经开始的语句跑完。提供者确认在途读取、语句、备份和消息的责任，然后观察连接关闭和 Worker 退出。已经发出的外部效果保持发出时的状态。
 
-SQLite 提供者不打断正在执行的 SQL。关闭等待当前语句结束。关闭期限到达而当前语句还没有结束时，关闭结果是未完成 `incomplete`，不是已关闭 `closed`。结束 Worker 不是干净的回滚。Worker 被结束之后，调用方按原身份查询在途操作。
+SQLite 提供者不打断正在执行的 SQL。关闭等待当前语句结束。关闭期限到达而当前语句还没有结束时，关闭结果是未完成 `incomplete`，不是已关闭 `closed`。装配侧的关闭报告则是 `timed-out`。这不是 `failed`。仍在执行的语句留在等待名单里，其后的步骤不再执行。结束 Worker 不是干净的回滚。Worker 被结束之后，调用方按原身份查询在途操作。
+
+多个拒绝条件同时成立时，`commit` 返回下面顺序中的第一个原因，然后停止。`queue_full` 时不发送，也不增加预留。
+
+1. `field_missing`
+2. `participant_repeated`
+3. `facts_not_json`
+4. `unsupported_protocol`
+5. `command_limit`
+6. `queue_full`
+7. `writer_not_current`
+8. `combination_unregistered`
+9. `participant_not_in_combination`
 
 ## 尚未决定
 
 下列结果本规格尚未决定。实现这些情况之前，先由负责人决定。
 
 - 调用方没有按 `participant` 排序时，提供者是否拒绝。现行规则下提供者不重排命令，摘要随顺序改变。
-- 多个拒绝条件同时成立时，返回哪个原因。[SQLite 提供者设计](docs/sqlite-provider.md#正常提交)的核对顺序是候选，不是承诺。
 - 哪些语句失败算明确的业务失败。`ROLLBACK` 本身失败时，`commit` 返回 `unknown`。
-- `incomplete` 怎样对应装配的关闭报告。
 
 ## 验证义务与未覆盖
 
