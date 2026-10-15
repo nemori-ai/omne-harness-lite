@@ -33,19 +33,23 @@ jobs:
           git init -q work && cd work
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch -q --filter=blob:none origin 'refs/heads/main:refs/remotes/origin/main' 'refs/heads/integration/*:refs/remotes/origin/integration/*' 'refs/tags/omne/gate/*:refs/tags/omne/gate/*'
-          git fetch -q --filter=blob:none origin 'refs/heads/stable:refs/remotes/origin/stable' 2>/dev/null || true
+          stable_listing=$(git ls-remote origin refs/heads/stable | awk '$2=="refs/heads/stable"{print $1}')
+          if [ -n "$stable_listing" ]; then git fetch -q --filter=blob:none origin 'refs/heads/stable:refs/remotes/origin/stable'; fi
           cutoff=$(( $(date -u +%s) - 1800 ))
           gaps=0
           report() {
             local title=$1 body=$2
-            if [ -n "$(gh issue list -R "$GITHUB_REPOSITORY" --state all --search "\"$title\" in:title" --json number --jq '.[0].number // ""')" ]; then
+            local existing
+            existing=$(gh issue list -R "$GITHUB_REPOSITORY" --state all --search "\"$title\" in:title" --json number --jq '.[0].number // ""')
+            if [ -n "$existing" ]; then
               echo "already reported: $title"
             else
               gh issue create -R "$GITHUB_REPOSITORY" --title "$title" --body "$body"
             fi
             gaps=$((gaps+1))
           }
-          for ref in $(git for-each-ref --format='%(refname:strip=3)' refs/remotes/origin/main refs/remotes/origin/integration); do
+          refs=$(git for-each-ref --format='%(refname:strip=3)' refs/remotes/origin/main refs/remotes/origin/integration)
+          for ref in $refs; do
             start=$(jq -r --arg b "$ref" '.[$b] // ""' ../cutover.json)
             if [ -z "$start" ] && [[ "$ref" == integration/* ]]; then
               start=$(git rev-parse -q --verify "refs/tags/omne/gate/track/${ref#integration/}^{commit}" || true)
@@ -54,8 +58,10 @@ jobs:
               report "Gate gap: $ref has no cutover point" "The branch \`$ref\` is not listed in \`gate/cutover.json\` on github-gate and has no \`omne/gate/track\` start tag. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
               continue
             fi
-            for c in $(git rev-list --first-parent "$start..refs/remotes/origin/$ref"); do
-              [ "$(git show -s --format=%ct "$c")" -le "$cutoff" ] || continue
+            commits=$(git rev-list --first-parent "$start..refs/remotes/origin/$ref")
+            for c in $commits; do
+              ct=$(git show -s --format=%ct "$c")
+              [ "$ct" -le "$cutoff" ] || continue
               if git rev-parse -q --verify "refs/tags/omne/gate/unit/$c" >/dev/null; then
                 target=$(git cat-file -p "refs/tags/omne/gate/unit/$c" | sed '1,/^$/d' | jq -r .target)
                 [ "$target" = "refs/heads/$ref" ] && continue
@@ -65,7 +71,7 @@ jobs:
           done
           if git rev-parse -q --verify refs/remotes/origin/stable >/dev/null; then
             s=$(git rev-parse refs/remotes/origin/stable)
-            found=$(git for-each-ref --points-at "$s" --format='%(refname)' 'refs/tags/omne/gate/checkpoint/' | head -n1)
+            found=$(git for-each-ref --count=1 --points-at "$s" --format='%(refname)' 'refs/tags/omne/gate/checkpoint/')
             [ -n "$found" ] || report "Gate gap: stable ${s:0:12}" "The tip \`$s\` of \`stable\` has no \`omne/gate/checkpoint\` tag."
           fi
           echo "gaps: $gaps"

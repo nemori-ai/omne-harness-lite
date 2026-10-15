@@ -48,7 +48,9 @@ jobs:
           [[ "$TRACK" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "rejected: track"; exit 1; }
           [[ "$BASE" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: base"; exit 1; }
           [[ "$ISSUE" =~ ^[0-9]{1,6}$ ]] || { echo "rejected: issue"; exit 1; }
-          [ -z "$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK")" ] || { echo "rejected: integration/$TRACK or its start tag already exists"; exit 1; }
+          existing=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK" \
+            | awk -v a="refs/heads/integration/$TRACK" -v b="refs/tags/omne/gate/track/$TRACK" '$2==a||$2==b{print $1}')
+          [ -z "$existing" ] || { echo "rejected: integration/$TRACK or its start tag already exists"; exit 1; }
           {
             echo "### Track creation awaiting confirmation"
             echo
@@ -111,7 +113,9 @@ jobs:
           git fetch -q --filter=blob:none --no-tags origin "refs/heads/main:refs/remotes/origin/main"
           git rev-list --first-parent origin/main > ../main-fp.txt
           grep -qx "$BASE" ../main-fp.txt || { echo "rejected: $BASE is not on the first-parent history of main"; exit 1; }
-          [ -z "$(git ls-remote origin "refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK")" ] || { echo "stopped: integration/$TRACK or its start tag already exists"; exit 1; }
+          existing=$(git ls-remote origin "refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK" \
+            | awk -v a="refs/heads/integration/$TRACK" -v b="refs/tags/omne/gate/track/$TRACK" '$2==a||$2==b{print $1}')
+          [ -z "$existing" ] || { echo "stopped: integration/$TRACK or its start tag already exists"; exit 1; }
           bot_id=$(gh api "users/${APP_SLUG}%5Bbot%5D" --jq .id)
           export GIT_COMMITTER_NAME="${APP_SLUG}[bot]" GIT_COMMITTER_EMAIL="${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
           run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
@@ -123,6 +127,7 @@ jobs:
           body=$(printf '**Track creation decision**\n\n- Branch: `integration/%s`\n- Start: `%s`\n- Record tag: `omne/gate/track/%s`\n- Confirmed by: @%s (from the platform approval record)\n- Run: %s\n\nConfirmation note:\n\n%s\n' \
             "$TRACK" "$BASE" "$TRACK" "$APPROVER" "$run_url" "$quoted")
           gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE/comments" -f body="$body" --jq .html_url
-          git push --atomic origin "$BASE:refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK:refs/tags/omne/gate/track/$TRACK"
-          [ "$(git ls-remote origin "refs/heads/integration/$TRACK" | cut -f1)" = "$BASE" ] || { echo "push reported success but the branch is not $BASE"; exit 1; }
+          git push --atomic --force-with-lease="refs/heads/integration/$TRACK:" origin "$BASE:refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK:refs/tags/omne/gate/track/$TRACK"
+          after=$(git ls-remote origin "refs/heads/integration/$TRACK" | awk -v r="refs/heads/integration/$TRACK" '$2==r{print $1}')
+          [ "$after" = "$BASE" ] || { echo "push reported success but the branch is not $BASE"; exit 1; }
           echo "created integration/$TRACK at $BASE"

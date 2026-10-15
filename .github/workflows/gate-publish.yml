@@ -64,7 +64,9 @@ jobs:
               [[ "$head_ref" == integration/* ]] || { echo "rejected: main accepts PRs only from integration/*"; exit 1; }
               mode=merge ;;
             integration/*)
-              [[ "$head_ref" != stable && "$head_ref" != release && "$head_ref" != github-gate ]] || { echo "rejected: head branch"; exit 1; }
+              case "$head_ref" in
+                integration/*|stable|release|github-gate) echo "rejected: a track accepts PRs only from main or a personal branch"; exit 1 ;;
+              esac
               mode=merge ;;
             stable)
               [ "$head_ref" = main ] || { echo "rejected: stable accepts PRs only from main"; exit 1; }
@@ -72,7 +74,8 @@ jobs:
               mode=fast-forward ;;
             *) echo "rejected: base branch $base_ref is not a trunk"; exit 1 ;;
           esac
-          base=$(gh api "repos/$GITHUB_REPOSITORY/commits/$base_ref" --jq .sha 2>/dev/null || echo none)
+          base=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/heads/$base_ref" | awk -v r="refs/heads/$base_ref" '$2==r{print $1}')
+          base=${base:-none}
           {
             echo "### Publication awaiting confirmation"
             echo
@@ -146,7 +149,7 @@ jobs:
           git remote add origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch -q --no-tags origin "$H" "refs/heads/main:refs/remotes/origin/main"
           git fetch -q origin 'refs/tags/omne/gate/*:refs/tags/omne/gate/*'
-          now_base=$(git ls-remote origin "refs/heads/$BASE_REF" | cut -f1); now_base=${now_base:-none}
+          now_base=$(git ls-remote origin "refs/heads/$BASE_REF" | awk -v r="refs/heads/$BASE_REF" '$2==r{print $1}'); now_base=${now_base:-none}
           [ "$now_base" = "$B" ] || { echo "stopped: $BASE_REF moved since dispatch"; exit 1; }
           [ "$B" = none ] || git fetch -q --no-tags origin "$B"
 
@@ -158,11 +161,12 @@ jobs:
               start=$(git rev-parse -q --verify "refs/tags/omne/gate/track/${branch#integration/}^{commit}" || true)
             fi
             [[ "$start" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: no cutover point or track start tag for $branch"; return 1; }
-            git fetch -q --no-tags origin "$start"
+            git fetch -q --no-tags origin "$start" || { echo "stopped: cannot fetch the start of $branch"; return 1; }
             git merge-base --is-ancestor "$start" "$tip" || { echo "rejected: $tip does not contain the cutover point of $branch"; return 1; }
-            for c in $(git rev-list --first-parent "$start..$tip"); do
+            commits=$(git rev-list --first-parent "$start..$tip") || { echo "stopped: cannot read the history of $branch"; return 1; }
+            for c in $commits; do
               git rev-parse -q --verify "refs/tags/omne/gate/unit/$c" >/dev/null || { echo "stopped: $branch commit $c has no unit"; return 1; }
-              target=$(git cat-file -p "refs/tags/omne/gate/unit/$c" | sed '1,/^$/d' | jq -r .target)
+              target=$(git cat-file -p "refs/tags/omne/gate/unit/$c" | sed '1,/^$/d' | jq -r .target) || { echo "stopped: cannot read the unit of $c"; return 1; }
               [ "$target" = "refs/heads/$branch" ] || { echo "stopped: unit of $c records $target"; return 1; }
             done
           }
@@ -173,6 +177,12 @@ jobs:
           export GIT_COMMITTER_NAME="${APP_SLUG}[bot]" GIT_COMMITTER_EMAIL="${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
           run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           head_ref=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .head.ref)
+          case "$BASE_REF:$head_ref" in
+            main:integration/*|stable:main) ;;
+            integration/*:integration/*|integration/*:stable|integration/*:release|integration/*:github-gate) echo "rejected: head branch $head_ref cannot enter $BASE_REF"; exit 1 ;;
+            integration/*:*) ;;
+            *) echo "rejected: head branch $head_ref cannot enter $BASE_REF"; exit 1 ;;
+          esac
           title=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .title)
 
           if [ "$MODE" = merge ]; then
@@ -220,12 +230,15 @@ jobs:
       - name: Update the target and create the record tag in one atomic push
         env:
           BASE_REF: ${{ needs.plan.outputs.base_ref }}
+          B: ${{ needs.plan.outputs.base }}
           C: ${{ steps.build.outputs.result }}
           TAG: ${{ steps.build.outputs.tag }}
         run: |
           cd work
-          git push --atomic origin "$C:refs/heads/$BASE_REF" "refs/tags/$TAG:refs/tags/$TAG"
-          [ "$(git ls-remote origin "refs/heads/$BASE_REF" | cut -f1)" = "$C" ] || { echo "push reported success but $BASE_REF is not $C"; exit 1; }
+          expect=$B; [ "$expect" = none ] && expect=
+          git push --atomic --force-with-lease="refs/heads/$BASE_REF:$expect" origin "$C:refs/heads/$BASE_REF" "refs/tags/$TAG:refs/tags/$TAG"
+          after=$(git ls-remote origin "refs/heads/$BASE_REF" | awk -v r="refs/heads/$BASE_REF" '$2==r{print $1}')
+          [ "$after" = "$C" ] || { echo "push reported success but $BASE_REF is not $C"; exit 1; }
           echo "published $BASE_REF = $C"
 
       - name: Record the outcome
