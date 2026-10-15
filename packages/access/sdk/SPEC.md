@@ -40,8 +40,15 @@ type GovernanceTransport = {
   send(bytes: Uint8Array): Promise<TransportReport>;
 };
 
+type PublicResponse = {
+  protocolVersion: string;
+  messageId: string;
+  outcome: string;
+  body: unknown;
+};
+
 type CallerResult =
-  | { kind: "response"; message: unknown }
+  | { kind: "response"; message: PublicResponse }
   | { kind: "uncertain" };
 
 type GovernanceClient = {
@@ -53,7 +60,7 @@ type GovernanceClient = {
 
 ```ts
 type ReadReport =
-  | { kind: "message"; messageId?: string }
+  | { kind: "message"; response: PublicResponse }
   | { kind: "unreadable" };
 
 async function submitOnce(
@@ -65,10 +72,10 @@ async function submitOnce(
   const matched = (report: TransportReport): CallerResult | undefined => {
     if (report.kind !== "response") return undefined;
     const read = readPublicContract(report.bytes);
-    if (read.kind !== "message" || read.messageId !== expectedMessageId) {
+    if (read.kind !== "message" || read.response.messageId !== expectedMessageId) {
       return { kind: "uncertain" };
     }
-    return { kind: "response", message: read };
+    return { kind: "response", message: read.response };
   };
   const first = await transport.send(bytes);
   if (first.kind === "uncertain") return { kind: "uncertain" };
@@ -81,7 +88,7 @@ async function submitOnce(
 }
 ```
 
-`readPublicContract` 表示公开契约的严格读取。本页不实现解析器。适配报告 `not-sent` 时，`matched` 没有结果，函数再送一次。第二次仍是 `not-sent`，或任一次报告 `uncertain`，调用者得到 `uncertain`。`uncertain` 不是业务成功，也不是没有发生。
+`readPublicContract` 表示公开契约的严格读取。成功时 `response` 是那份共同响应，至少含 `protocolVersion`、`messageId`、`outcome` 和 `body`。`body` 里的结果字段仍只由公开契约定义。本页不实现解析器。核对通过后，调用者拿到的是这份 `response`，不是读取标签。适配报告 `not-sent` 时，`matched` 没有结果，函数再送一次。第二次仍是 `not-sent`，或任一次报告 `uncertain`，调用者得到 `uncertain`。`uncertain` 不是业务成功，也不是没有发生。
 
 ```ts
 function revokeOwnLogin(
