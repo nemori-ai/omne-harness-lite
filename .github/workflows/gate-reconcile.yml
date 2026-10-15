@@ -71,7 +71,7 @@ jobs:
           done
           if git rev-parse -q --verify refs/remotes/origin/stable >/dev/null; then
             s=$(git rev-parse refs/remotes/origin/stable)
-            found=$(git for-each-ref --count=1 --points-at "$s" --format='%(refname)' 'refs/tags/omne/gate/checkpoint/')
-            [ -n "$found" ] || report "Gate gap: stable ${s:0:12}" "The tip \`$s\` of \`stable\` has no \`omne/gate/checkpoint\` tag."
+            git rev-parse -q --verify "refs/tags/omne/gate/stable/$s" >/dev/null \
+              || report "Gate gap: stable ${s:0:12}" "The tip \`$s\` of \`stable\` has no \`omne/gate/stable/$s\` record."
           fi
           echo "gaps: $gaps"

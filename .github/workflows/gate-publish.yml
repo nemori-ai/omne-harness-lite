@@ -83,7 +83,7 @@ jobs:
             echo "- Mode: $mode"
             echo "- Target now: \`$base\`"
             echo "- PR head: \`$H\`"
-            [ "$mode" = fast-forward ] && echo "- Checkpoint: \`omne/gate/checkpoint/$CHECKPOINT\`"
+            [ "$mode" = fast-forward ] && echo "- Records: \`omne/gate/stable/<result>\` and \`omne/gate/checkpoint/$CHECKPOINT\`"
             echo
             echo "Tests are not run by this flow. The confirmation note must state which checks were run locally and their results."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -185,6 +185,7 @@ jobs:
           esac
           title=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .title)
 
+          extra=
           if [ "$MODE" = merge ]; then
             [ "$B" != none ] || { echo "rejected: target branch does not exist"; exit 1; }
             if [ "$BASE_REF" = main ]; then covered "$head_ref" "$H"; fi
@@ -200,14 +201,22 @@ jobs:
             covered main "$H"
             if [ "$B" != none ]; then git merge-base --is-ancestor "$B" "$H" || { echo "rejected: stable cannot fast-forward to $H"; exit 1; }; fi
             C=$H
-            tag="omne/gate/checkpoint/$CHECKPOINT"
+            # The record is named by the commit, so one commit can enter stable only once.
+            # If another publication already moved stable to C, this tag exists and the
+            # atomic push fails, even though git push skips the lease for an unchanged ref.
+            tag="omne/gate/stable/$C"
+            extra="omne/gate/checkpoint/$CHECKPOINT"
           fi
-          git rev-parse -q --verify "refs/tags/$tag" >/dev/null && { echo "stopped: $tag already exists"; exit 1; }
+          for t in "$tag" ${extra:+"$extra"}; do
+            git rev-parse -q --verify "refs/tags/$t" >/dev/null && { echo "stopped: $t already exists"; exit 1; }
+          done
           record=$(jq -cn --arg target "refs/heads/$BASE_REF" --arg base "$B" --arg head "$H" --arg result "$C" \
-            --arg pr "$PR" --arg mode "$MODE" --arg approver "$APPROVER" --arg run "$run_url" --arg gate "$GITHUB_SHA" \
-            '{schema:"omne-gate-record:v1",target:$target,base:$base,head:$head,result:$result,pr:($pr|tonumber),mode:$mode,confirmedBy:$approver,run:$run,gate:$gate}')
+            --arg pr "$PR" --arg mode "$MODE" --arg approver "$APPROVER" --arg run "$run_url" --arg gate "$GITHUB_SHA" --arg checkpoint "${extra:-}" \
+            '{schema:"omne-gate-record:v1",target:$target,base:$base,head:$head,result:$result,pr:($pr|tonumber),mode:$mode,confirmedBy:$approver,run:$run,gate:$gate}
+             + (if $checkpoint == "" then {} else {checkpoint:$checkpoint} end)')
           git tag -a "$tag" -m "$record" "$C"
-          { echo "result=$C"; echo "tag=$tag"; } >> "$GITHUB_OUTPUT"
+          [ -z "${extra:-}" ] || git tag -a "$extra" -m "$record" "$C"
+          { echo "result=$C"; echo "tag=$tag"; echo "extra=${extra:-}"; } >> "$GITHUB_OUTPUT"
           echo "built $C, tag $tag"
 
       - name: Post the publication decision
@@ -219,12 +228,13 @@ jobs:
           B: ${{ needs.plan.outputs.base }}
           C: ${{ steps.build.outputs.result }}
           TAG: ${{ steps.build.outputs.tag }}
+          EXTRA: ${{ steps.build.outputs.extra }}
           APPROVER: ${{ steps.confirm.outputs.approver }}
           NOTE: ${{ steps.confirm.outputs.note }}
         run: |
           quoted=$(printf '%s\n' "$NOTE" | sed 's/^/> /')
-          body=$(printf '**Publication decision**\n\n- Target: `%s`, now `%s`\n- PR head: `%s`\n- Result: `%s`\n- Record tag: `%s`\n- Confirmed by: @%s (from the platform approval record)\n- Run: %s/%s/actions/runs/%s\n\nConfirmation note:\n\n%s\n' \
-            "$BASE_REF" "$B" "$H" "$C" "$TAG" "$APPROVER" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$quoted")
+          body=$(printf '**Publication decision**\n\n- Target: `%s`, now `%s`\n- PR head: `%s`\n- Result: `%s`\n- Record tag: `%s` %s\n- Confirmed by: @%s (from the platform approval record)\n- Run: %s/%s/actions/runs/%s\n\nConfirmation note:\n\n%s\n' \
+            "$BASE_REF" "$B" "$H" "$C" "$TAG" "${EXTRA:+and \`$EXTRA\`}" "$APPROVER" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$quoted")
           gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" --jq .html_url
 
       - name: Update the target and create the record tag in one atomic push
@@ -233,10 +243,13 @@ jobs:
           B: ${{ needs.plan.outputs.base }}
           C: ${{ steps.build.outputs.result }}
           TAG: ${{ steps.build.outputs.tag }}
+          EXTRA: ${{ steps.build.outputs.extra }}
         run: |
           cd work
           expect=$B; [ "$expect" = none ] && expect=
-          git push --atomic --force-with-lease="refs/heads/$BASE_REF:$expect" origin "$C:refs/heads/$BASE_REF" "refs/tags/$TAG:refs/tags/$TAG"
+          refspecs=("$C:refs/heads/$BASE_REF" "refs/tags/$TAG:refs/tags/$TAG")
+          [ -z "$EXTRA" ] || refspecs+=("refs/tags/$EXTRA:refs/tags/$EXTRA")
+          git push --atomic --force-with-lease="refs/heads/$BASE_REF:$expect" origin "${refspecs[@]}"
           after=$(git ls-remote origin "refs/heads/$BASE_REF" | awk -v r="refs/heads/$BASE_REF" '$2==r{print $1}')
           [ "$after" = "$C" ] || { echo "push reported success but $BASE_REF is not $C"; exit 1; }
           echo "published $BASE_REF = $C"
