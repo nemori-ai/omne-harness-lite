@@ -395,3 +395,195 @@ it('defect: JSON Schema issue paths rewrite object keys', async () => {
     issues: [{ path: [0], code: 'type' }],
   })
 })
+
+it('defect: regex, enum, and format changes share one digest', async () => {
+  const cases = [
+    { name: 'regex', first: z.string().regex(/^a$/), second: z.string().regex(/^b$/) },
+    { name: 'flags', first: z.string().regex(/a/), second: z.string().regex(/a/i) },
+    { name: 'enum', first: z.enum(['a', 'b']), second: z.enum(['a', 'c']) },
+    { name: 'format', first: z.email(), second: z.url() },
+  ]
+  for (const candidate of cases) {
+    const provider = createSchemaProvider(budget)
+    let shape: z.ZodType = candidate.first
+    const schema = defineSchema({
+      id: candidate.name,
+      load: async () => zodDefinition({ revision: '1', numbers: 'exact-or-reject', schema: shape }),
+    })
+    const prior = await lease(provider, schema)
+    expect(prior.kind).toBe('leased')
+    if (prior.kind !== 'leased') continue
+    shape = candidate.second
+    refresh(provider, schema.id)
+    expect(await lease(provider, schema)).toEqual({ kind: 'refused', reason: 'revision-conflict' })
+    expect(prior.lease.superseded).toBe(false)
+  }
+})
+
+it('defect: a check error or when callback still runs', async () => {
+  let errorCalls = 0
+  let whenCalls = 0
+  const provider = createSchemaProvider(budget)
+  const errorSchema = defineSchema({
+    id: 'check-error',
+    load: async () =>
+      zodDefinition({
+        revision: '1',
+        numbers: 'exact-or-reject',
+        schema: z.string().min(3, {
+          error: () => {
+            errorCalls += 1
+            return 'custom'
+          },
+        }),
+      }),
+  })
+  // Zod stores `when` at runtime. The published parameter type does not list it.
+  const whenSchema = defineSchema({
+    id: 'check-when',
+    load: async () =>
+      zodDefinition({
+        revision: '1',
+        numbers: 'exact-or-reject',
+        schema: z.string().min(3, {
+          when(): boolean {
+            whenCalls += 1
+            return true
+          },
+        } as { message?: string }),
+      }),
+  })
+  expect(await validate(provider, errorSchema, text)).toEqual({
+    kind: 'refused',
+    reason: 'unsupported-construct',
+  })
+  expect(await validate(provider, whenSchema, text)).toEqual({
+    kind: 'refused',
+    reason: 'unsupported-construct',
+  })
+  expect(errorCalls).toBe(0)
+  expect(whenCalls).toBe(0)
+})
+
+it('defect: a tuple or dependencies cycle compiles', async () => {
+  const documents = [
+    { id: 'tuple-cycle', document: { type: 'array', items: [{ $ref: '#' }] } },
+    { id: 'dependencies-cycle', document: { type: 'object', dependencies: { x: { $ref: '#' } } } },
+  ] as const
+  for (const candidate of documents) {
+    const provider = createSchemaProvider(budget)
+    const schema = defineSchema({
+      id: candidate.id,
+      load: async () =>
+        jsonSchemaDefinition({ document: candidate.document, numbers: 'exact-or-reject' }),
+    })
+    expect(await validate(provider, schema, readJsonText('[]', limits))).toEqual({
+      kind: 'refused',
+      reason: 'runtime-path-closed',
+    })
+  }
+})
+
+it('defect: an in-flight replacement does not count the leased snapshot', async () => {
+  let release: () => void = () => {}
+  const gate = new Promise<void>(settle => {
+    release = settle
+  })
+  let loads = 0
+  const provider = createSchemaProvider({ ...budget, maxSnapshots: 2 })
+  const schema = defineSchema({
+    id: 'parallel-refresh',
+    load: async () => {
+      loads += 1
+      if (loads === 2) await gate
+      return zodDefinition({
+        revision: String(loads),
+        numbers: 'exact-or-reject',
+        schema: z.string(),
+      })
+    },
+  })
+  const old = await lease(provider, schema)
+  expect(old.kind).toBe('leased')
+  if (old.kind !== 'leased') return
+  refresh(provider, schema.id)
+  const newerPromise = lease(provider, schema)
+  const other = defineSchema({
+    id: 'other',
+    load: async () =>
+      zodDefinition({ revision: 'other', numbers: 'exact-or-reject', schema: z.string() }),
+  })
+  expect(await lease(provider, other)).toEqual({ kind: 'refused', reason: 'budget-exhausted' })
+  release()
+  const newer = await newerPromise
+  expect(newer.kind).toBe('leased')
+  if (newer.kind !== 'leased') return
+  expect(old.lease.check(text)).toMatchObject({ kind: 'valid', revision: '1' })
+  expect(newer.lease.check(text)).toMatchObject({ kind: 'valid', revision: '2' })
+  expect(old.lease.superseded).toBe(true)
+})
+
+it('defect: refresh during a failed load is discarded', async () => {
+  let release: () => void = () => {}
+  const gate = new Promise<void>(settle => {
+    release = settle
+  })
+  let revision = '1'
+  let loads = 0
+  const provider = createSchemaProvider({ ...budget, maxAttempts: 1 })
+  const schema = defineSchema({
+    id: 'failure-refresh',
+    load: async () => {
+      loads += 1
+      const captured = revision
+      await gate
+      if (captured === '1') throw new Error('old revision failure')
+      return zodDefinition({ revision: captured, numbers: 'exact-or-reject', schema: z.string() })
+    },
+  })
+  const first = validate(provider, schema, text)
+  revision = '2'
+  refresh(provider, schema.id)
+  release()
+  expect(await first).toEqual({ kind: 'refused', reason: 'attempts-exhausted' })
+  expect(await validate(provider, schema, text)).toMatchObject({ kind: 'valid', revision: '2' })
+  expect(loads).toBe(2)
+})
+
+it('defect: a lease taken during refresh stays current after the next revision', async () => {
+  let release: () => void = () => {}
+  const gate = new Promise<void>(settle => {
+    release = settle
+  })
+  let revision = '1'
+  const provider = createSchemaProvider({ ...budget, maxSnapshots: 2 })
+  const schema = defineSchema({
+    id: 'leased-refresh',
+    load: async () => {
+      const captured = revision
+      await gate
+      return zodDefinition({ revision: captured, numbers: 'exact-or-reject', schema: z.string() })
+    },
+  })
+  const first = lease(provider, schema)
+  revision = '2'
+  refresh(provider, schema.id)
+  release()
+  const old = await first
+  expect(old.kind).toBe('leased')
+  if (old.kind !== 'leased') return
+  const newer = await lease(provider, schema)
+  expect(newer.kind).toBe('leased')
+  if (newer.kind !== 'leased') return
+  expect(old.lease.revision).toBe('1')
+  expect(newer.lease.revision).toBe('2')
+  expect(old.lease.superseded).toBe(true)
+  expect(old.lease.check(text)).toMatchObject({ kind: 'valid', revision: '1' })
+  old.lease.release()
+  const third = defineSchema({
+    id: 'after-release',
+    load: async () =>
+      zodDefinition({ revision: 'third', numbers: 'exact-or-reject', schema: z.string() }),
+  })
+  expect(await lease(provider, third)).toMatchObject({ kind: 'leased' })
+})

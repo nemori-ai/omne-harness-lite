@@ -80,13 +80,16 @@ function digestNode(node: unknown, seen: Set<object>): string {
   if (seen.has(node)) return '#'
   seen.add(node)
   const def = record(node.def)
-  if (def === undefined) return digestCheck(node)
+  if (def === undefined) return digestCheck(node, seen)
   const parts: string[] = []
-  if (typeof def.type === 'string') parts.push(def.type)
-  if (Array.isArray(def.values)) {
-    parts.push(`values=${def.values.map(value => digestNode(value, seen)).join(',')}`)
+  const data: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(def)) {
+    if (CHILD_KEYS.has(key)) continue
+    const packed = packData(value, seen)
+    if (packed !== undefined) data[key] = packed
   }
-  if (Array.isArray(def.checks)) parts.push(`checks=${def.checks.map(check => digestCheck(check)).join('&')}`)
+  parts.push(canonical(data))
+  if (Array.isArray(def.checks)) parts.push(`checks=${def.checks.map(check => digestCheck(check, seen)).join('&')}`)
   const shape = record(def.shape)
   if (shape !== undefined) {
     const keys = Object.keys(shape).sort()
@@ -115,17 +118,50 @@ function digestNode(node: unknown, seen: Set<object>): string {
   return parts.join(';')
 }
 
-function digestCheck(check: unknown): string {
+const CHILD_KEYS: ReadonlySet<string> = new Set([
+  'shape',
+  'checks',
+  'options',
+  'items',
+  'element',
+  'innerType',
+  'rest',
+  'keyType',
+  'valueType',
+  'left',
+  'right',
+  'in',
+  'out',
+  'catchall',
+])
+
+function digestCheck(check: unknown, seen: Set<object>): string {
   const marker = record(check)
   const zodDef = marker === undefined ? undefined : record(record(marker._zod)?.def)
   const source = zodDef ?? marker
   if (source === undefined) return ''
   const data: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(source)) {
-    if (typeof value === 'function' || isRecord(value)) continue
-    data[key] = value instanceof RegExp ? value.source : value
+    const packed = packData(value, seen)
+    if (packed !== undefined) data[key] = packed
   }
   return canonical(data)
+}
+
+/** Data that changes check behavior. Functions are omitted; regular expressions keep source and flags. */
+function packData(value: unknown, seen: Set<object>): unknown {
+  if (typeof value === 'function') return undefined
+  if (value instanceof RegExp) return `${value.source}/${value.flags}`
+  if (typeof value === 'bigint') return value.toString()
+  if (Array.isArray(value)) return value.map(item => packData(item, seen))
+  if (!isRecord(value)) return value
+  if (record(value.def) !== undefined) return digestNode(value, seen)
+  const packed: Record<string, unknown> = {}
+  for (const [key, child] of Object.entries(value)) {
+    const next = packData(child, seen)
+    if (next !== undefined) packed[key] = next
+  }
+  return packed
 }
 
 const SCHEMA_NODES: ReadonlySet<string> = new Set([
@@ -203,18 +239,31 @@ function schemaChildren(node: Record<string, unknown>): readonly unknown[] {
   const found: unknown[] = []
   for (const key of SCHEMA_NODES) {
     const value = node[key]
-    if (isRecord(value)) found.push(value)
-    else if (key === 'items' && Array.isArray(value)) found.push(...value)
+    if (Array.isArray(value)) {
+      found.push(...value.filter(isSchemaObject))
+      continue
+    }
+    if (isSchemaObject(value)) found.push(value)
   }
   for (const key of SCHEMA_ARRAYS) {
     const value = node[key]
-    if (Array.isArray(value)) found.push(...value)
+    if (Array.isArray(value)) found.push(...value.filter(isSchemaObject))
   }
   for (const key of SCHEMA_MAPS) {
     const value = node[key]
-    if (isRecord(value)) found.push(...Object.values(value))
+    if (isSchemaObject(value)) found.push(...Object.values(value).filter(isSchemaObject))
+  }
+  const dependencies = node.dependencies
+  if (isSchemaObject(dependencies)) {
+    for (const child of Object.values(dependencies)) {
+      if (isSchemaObject(child)) found.push(child)
+    }
   }
   return found
+}
+
+function isSchemaObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function resolveRef(
@@ -249,8 +298,8 @@ function resolveRef(
 }
 
 function canonical(value: unknown): string {
-  if (!isRecord(value)) return JSON.stringify(value) ?? 'null'
   if (Array.isArray(value)) return `[${value.map(item => canonical(item)).join(',')}]`
+  if (!isRecord(value)) return JSON.stringify(value) ?? 'null'
   const keys = Object.keys(value).sort()
   return `{${keys.map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`
 }
@@ -293,7 +342,9 @@ function callerCheck(node: unknown): boolean {
   const marker = record(node)
   const zodDef = marker === undefined ? undefined : record(record(marker._zod)?.def)
   if (zodDef === undefined) return false
-  if (typeof zodDef.fn === 'function') return true
+  if (typeof zodDef.fn === 'function' || typeof zodDef.error === 'function') return true
+  // Zod's own guards are named `_when…`. A caller-supplied `when` keeps the caller's name.
+  if (typeof zodDef.when === 'function' && !zodDef.when.name.startsWith('_when')) return true
   return typeof zodDef.check === 'string' && CALLBACK_CHECKS.has(zodDef.check)
 }
 

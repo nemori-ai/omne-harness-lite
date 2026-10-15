@@ -21,6 +21,7 @@ import type {
 import { project } from './project.ts'
 
 type Snapshot = {
+  readonly id: string
   readonly revision: string
   readonly digest: string
   readonly numbers: NumberProjection
@@ -244,6 +245,7 @@ export function refresh(provider: SchemaProvider, id: SchemaId): void {
     case 'cooling':
     case 'refused':
       if (slot.held !== undefined && slot.held.leases > 0) {
+        domain.retained.delete(slot.held)
         domain.slots.set(id, { kind: 'retired', snapshot: slot.held, leases: slot.held.leases })
         return
       }
@@ -291,11 +293,13 @@ function beginFlight<T>(
 ): Promise<FlightOutcome | { readonly kind: 'cancelled' }> {
   const current = domain.slots.get(schema.id)
   const keeping = leasedHeld(current)
-  if (keeping !== undefined) {
+  if (keeping !== undefined && !domain.retained.has(keeping)) {
     if (!admitAnother(domain, schema.id)) {
       return Promise.resolve({ kind: 'refused', reason: 'budget-exhausted' })
     }
-  } else if (current === undefined && !reserve(domain)) {
+    // Count the leased snapshot from the moment the replacement flight is accepted.
+    domain.retained.add(keeping)
+  } else if (keeping === undefined && current === undefined && !reserve(domain)) {
     return Promise.resolve({ kind: 'refused', reason: 'budget-exhausted' })
   }
   const flight = createFlight()
@@ -460,12 +464,14 @@ async function execute<T>(
     if (held === undefined) domain.slots.set(schema.id, admitted)
     else domain.slots.set(schema.id, { kind: 'refused', reason: admitted.reason, held })
     flight.resolve(admitted)
+    noteReload(domain, schema.id, flight)
     return
   }
   const held = flight.held
   if (held !== undefined && held.revision === admitted.revision && held.digest !== admitted.digest) {
     restoreHeld(domain, schema.id, flight)
     flight.resolve({ kind: 'refused', reason: 'revision-conflict' })
+    noteReload(domain, schema.id, flight)
     return
   }
   let check: Snapshot['check']
@@ -476,8 +482,8 @@ async function execute<T>(
     recordFailure(domain, schema.id, flight, attempts, 'compile-failed')
     return
   }
-  if (flight.held !== undefined) flight.held.superseded = true
   const snapshot: Snapshot = {
+    id: schema.id,
     revision: admitted.revision,
     digest: admitted.digest,
     numbers: admitted.numbers,
@@ -486,13 +492,20 @@ async function execute<T>(
     superseded: false,
   }
   if (flight.held !== undefined && flight.held.leases > 0) domain.retained.add(flight.held)
+  markSuperseded(domain, schema.id, snapshot, flight.held)
   domain.slots.set(schema.id, { kind: 'ready', snapshot })
   flight.resolve({ kind: 'ready', snapshot })
-  if (flight.reload && snapshot.leases === 0) domain.slots.delete(schema.id)
+  noteReload(domain, schema.id, flight)
 }
 
 function drop(domain: Domain, id: string, flight: Flight): void {
-  if (!restoreHeld(domain, id, flight)) domain.slots.delete(id)
+  if (!flight.reload) {
+    if (!restoreHeld(domain, id, flight)) domain.slots.delete(id)
+  } else {
+    const held = activeHeld(flight)
+    if (held !== undefined) domain.retained.add(held)
+    domain.slots.delete(id)
+  }
   flight.resolve({ kind: 'dropped' })
 }
 
@@ -509,6 +522,7 @@ function recordFailure(
     const refused = { kind: 'refused' as const, reason: 'attempts-exhausted' as const }
     domain.slots.set(id, held === undefined ? refused : { ...refused, held })
     flight.resolve(refused)
+    noteReload(domain, id, flight)
     return
   }
   const retryNotBeforeMillis = Date.now() + domain.budget.failureBackoffMs
@@ -520,6 +534,7 @@ function recordFailure(
     ...(held === undefined ? {} : { held }),
   })
   flight.resolve({ kind: 'unavailable', reason, retryNotBeforeMillis })
+  noteReload(domain, id, flight)
 }
 
 function activeHeld(flight: Flight): Snapshot | undefined {
@@ -534,11 +549,33 @@ function refuseAdmission(domain: Domain, id: string, flight: Flight): void {
   const refused = { kind: 'refused' as const, reason: 'unsupported-construct' as const }
   domain.slots.set(id, held === undefined ? refused : { ...refused, held })
   flight.resolve(refused)
+  noteReload(domain, id, flight)
+}
+
+function markSuperseded(
+  domain: Domain,
+  id: string,
+  current: Snapshot,
+  held: Snapshot | undefined,
+): void {
+  if (held !== undefined && held !== current) held.superseded = true
+  for (const previous of domain.retained) {
+    if (previous.id === id && previous !== current) previous.superseded = true
+  }
+}
+
+/** A refresh during this flight belongs to the next consumer, on every settlement path. */
+function noteReload(domain: Domain, id: string, flight: Flight): void {
+  if (!flight.reload) return
+  const held = activeHeld(flight)
+  if (held !== undefined) domain.retained.add(held)
+  domain.slots.delete(id)
 }
 
 function restoreHeld(domain: Domain, id: string, flight: Flight): boolean {
   const held = flight.held
   if (held === undefined || held.leases === 0) return false
+  domain.retained.delete(held)
   domain.slots.set(id, { kind: 'retired', snapshot: held, leases: held.leases })
   return true
 }
