@@ -1,3 +1,7 @@
+import type { JsonValue } from '@omne-harness/json-text'
+
+export type { JsonLimits, JsonRead, JsonValue } from '@omne-harness/json-text'
+
 declare const capabilityIdBrand: unique symbol
 
 export type CapabilityId = {
@@ -17,14 +21,6 @@ export type JudgeContext = {
 export type Declarations = {
   readonly entries: readonly string[]
 }
-
-export type JsonValue =
-  | null
-  | boolean
-  | string
-  | number
-  | readonly JsonValue[]
-  | { readonly [key: string]: JsonValue }
 
 export type BodyContract = {
   readonly category: string

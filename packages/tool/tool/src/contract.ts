@@ -1,16 +1,25 @@
 import {
   capabilityId,
+  readBodyText,
   refusal,
   type BodyContract,
-  type Declarations,
   type JsonValue,
   type Judgment,
 } from '@omne-harness/assets'
 
-const schema: JsonValue = {
-  kind: 'tool-body',
-  properties: { name: 'string', composes: { skills: 'string[]' } },
-}
+const schemaRead = readBodyText(
+  '{"kind":"tool-body","properties":{"name":"string","composes":{"skills":"string[]"}}}',
+  {
+    maxBytes: 1000,
+    maxDepth: 8,
+    maxItems: 64,
+    maxMembers: 16,
+    maxStringLength: 200,
+    maxNumberLength: 20,
+  },
+)
+if (schemaRead.kind !== 'ok') throw new TypeError('tool schema text is not a document')
+const schema: JsonValue = schemaRead.value
 
 export function toolBodyContract(): BodyContract {
   return {
@@ -25,7 +34,7 @@ export function toolBodyContract(): BodyContract {
     references(body, context) {
       const decision = judge(body, context)
       if (!decision.ok) throw new TypeError('tool body failed judgment')
-      const names = skillNames(recordOf(body)?.composes)
+      const names = skillNames(body)
       if (names === undefined) throw new TypeError('tool body failed judgment')
       return names.map(name => {
         const id = capabilityId('skill', name)
@@ -37,29 +46,39 @@ export function toolBodyContract(): BodyContract {
 }
 
 function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
-  const record = recordOf(body)
-  const name = record?.name
-  if (typeof name !== 'string' || name === '') return refusal('incomplete-reference')
+  const name = stringField(body, 'name')
+  if (name === undefined || name === '') return refusal('incomplete-reference')
   if (context?.capabilityName !== undefined && name !== context.capabilityName) return refusal('name-mismatch')
-  if (skillNames(record?.composes) === undefined) return refusal('incomplete-reference')
+  if (skillNames(body) === undefined) return refusal('incomplete-reference')
   return { ok: true }
 }
 
-function skillNames(composes: unknown): readonly string[] | undefined {
-  if (composes === undefined) return []
-  const record = recordOf(composes)
-  if (record === undefined) return undefined
-  return stringList(record.skills)
+function skillNames(body: unknown): readonly string[] | undefined {
+  const composes = field(body, 'composes')
+  if (composes === undefined) return isObject(body) ? [] : undefined
+  if (!isObject(composes)) return undefined
+  const skills = field(composes, 'skills')
+  if (skills === undefined) return []
+  if (skills.kind !== 'array') return undefined
+  const names: string[] = []
+  for (const item of skills.items) {
+    if (item.kind !== 'string' || item.value === '') return undefined
+    names.push(item.value)
+  }
+  return names
 }
 
-function stringList(value: unknown): readonly string[] | undefined {
-  if (value === undefined) return []
-  if (!Array.isArray(value)) return undefined
-  if (value.some(item => typeof item !== 'string' || item === '')) return undefined
-  return value as string[]
+function stringField(body: unknown, key: string): string | undefined {
+  const value = field(body, key)
+  if (value === undefined || value.kind !== 'string') return undefined
+  return value.value
 }
 
-function recordOf(body: unknown): { [key: string]: unknown } | undefined {
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) return undefined
-  return body as { [key: string]: unknown }
+function field(body: unknown, key: string): JsonValue | undefined {
+  if (!isObject(body)) return undefined
+  return body.entries.find(entry => entry.key === key)?.value
+}
+
+function isObject(body: unknown): body is JsonValue & { readonly kind: 'object' } {
+  return typeof body === 'object' && body !== null && 'kind' in body && body.kind === 'object' && 'entries' in body && Array.isArray(body.entries)
 }

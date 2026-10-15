@@ -1,4 +1,5 @@
-import type { BodyContract, CategoryRegistry, JsonValue } from './identity.ts'
+import type { JsonValue } from '@omne-harness/json-text'
+import type { BodyContract, CategoryRegistry } from './identity.ts'
 
 export function createCategoryRegistry(): CategoryRegistry {
   const ports = new Map<string, BodyContract>()
@@ -25,9 +26,16 @@ export function unknownCategory(
 }
 
 function freezeJson(value: JsonValue): JsonValue {
-  if (value === null || typeof value !== 'object') return value
-  if (Array.isArray(value)) return Object.freeze(value.map(item => freezeJson(item)))
-  const copy: { [key: string]: JsonValue } = {}
-  for (const [key, item] of Object.entries(value)) copy[key] = freezeJson(item)
-  return Object.freeze(copy)
+  if (value.kind === 'array') {
+    return Object.freeze({ kind: 'array', items: Object.freeze(value.items.map(item => freezeJson(item))) })
+  }
+  if (value.kind === 'object') {
+    return Object.freeze({
+      kind: 'object',
+      entries: Object.freeze(
+        value.entries.map(entry => Object.freeze({ key: entry.key, value: freezeJson(entry.value) })),
+      ),
+    })
+  }
+  return Object.freeze(value)
 }

@@ -6,6 +6,7 @@ it('exports the registry, identity, and pin operations', () => {
     'capabilityId',
     'createCategoryRegistry',
     'pinBody',
+    'readBodyText',
     'refusal',
     'unknownCategory',
   ])

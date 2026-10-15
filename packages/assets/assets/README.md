@@ -1,16 +1,16 @@
 PACKAGE_TEMPLATE_DRAFT
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+本成员导出身份、正文读取、类别注册和固定版本。执行和发布不在这个入口。导出条件 `source` 指向本包源码。发布时去掉它。
 
 # assets
 
 ## 职责与状态
 
-本目录维护目标成员的行为与机制文档，尚无实现成员、公开导出或运行入口。支持未核实，目标公开形状及技术采用仍待确认。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/assets-and-rules/design.md)判断，不以文档存在证明兑现。
+本目录维护本成员的行为与机制文档。公开导出是身份、`readBodyText`、类别注册和 `pinBody`。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/assets-and-rules/design.md)判断，不以文档存在证明兑现。
 
 ## 使用与集成
 
-独立消费从 [SPEC](SPEC.md)读取明确输入、结果、资格和生命周期责任；目前不能提供可运行示例或命令。Cordis 消费须在公开契约明确后沿[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)设计装配，不能将活体 Context 当作业务数据。
+独立消费从 [SPEC](SPEC.md)读取明确输入、结果、资格和生命周期责任。正文文本用 `readBodyText` 读取后再交给类别 `judge`。Cordis 消费须在公开契约明确后沿[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)设计装配，不能将活体 Context 当作业务数据。
 
 ## 契约与设计
 

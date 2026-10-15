@@ -1,12 +1,27 @@
 import { expect, it } from 'vitest'
-import { createCategoryRegistry } from '@omne-harness/assets'
+import { createCategoryRegistry, readBodyText, type JsonLimits, type JsonValue } from '@omne-harness/assets'
 import { toolBodyContract } from '@omne-harness/tool'
+
+const limits: JsonLimits = {
+  maxBytes: 1_000,
+  maxDepth: 10,
+  maxItems: 100,
+  maxMembers: 100,
+  maxStringLength: 100,
+  maxNumberLength: 100,
+}
+
+function document(text: string): JsonValue {
+  const read = readBodyText(text, limits)
+  if (read.kind !== 'ok') throw new Error(read.kind)
+  return read.value
+}
 
 it('accepts read_file and records skill references without making them required', () => {
   const registry = createCategoryRegistry()
   const port = toolBodyContract()
   registry.register(port)
-  const body = { name: 'read_file', composes: { skills: ['review'] } }
+  const body = document('{"name":"read_file","composes":{"skills":["review"]}}')
   expect(port.judge(body, { capabilityName: 'read_file' })).toEqual({ ok: true })
   expect(port.references(body)).toEqual([{ category: 'skill', name: 'review' }])
   expect(port.deriveDeclarations(body)).toEqual({ entries: [] })
@@ -28,7 +43,7 @@ it('does not treat an object literal as a read document', () => {
 
 it('rejects a tool body whose name is not the capability name', () => {
   const port = toolBodyContract()
-  const body = { name: 'write_file', composes: { skills: ['review'] } }
+  const body = document('{"name":"write_file","composes":{"skills":["review"]}}')
   const context = { capabilityName: 'read_file' }
   expect(port.judge(body, context)).toEqual({ ok: false, rejected: 'name-mismatch' })
   expect(() => port.deriveDeclarations(body, context)).toThrow(/failed judgment/)

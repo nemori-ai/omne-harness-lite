@@ -1,14 +1,25 @@
 import {
   capabilityId,
+  readBodyText,
   refusal,
   type BodyContract,
+  type JsonValue,
   type Judgment,
 } from '@omne-harness/assets'
 
-const schema = {
-  kind: 'skill-body',
-  properties: { name: 'string', tools: { category: 'tool', name: 'string' } },
-} as const
+const schemaRead = readBodyText(
+  '{"kind":"skill-body","properties":{"name":"string","tools":{"category":"tool","name":"string"}}}',
+  {
+    maxBytes: 1000,
+    maxDepth: 8,
+    maxItems: 64,
+    maxMembers: 16,
+    maxStringLength: 200,
+    maxNumberLength: 20,
+  },
+)
+if (schemaRead.kind !== 'ok') throw new TypeError('skill schema text is not a document')
+const schema: JsonValue = schemaRead.value
 
 export function skillBodyContract(): BodyContract {
   return {
@@ -23,7 +34,7 @@ export function skillBodyContract(): BodyContract {
     references(body, context) {
       const decision = judge(body, context)
       if (!decision.ok) throw new TypeError('skill body failed judgment')
-      const refs = toolRefs(recordOf(body)?.tools)
+      const refs = toolRefs(body)
       if (refs === undefined) throw new TypeError('skill body failed judgment')
       return refs.map(ref => {
         const id = capabilityId(ref.category, ref.name)
@@ -35,37 +46,39 @@ export function skillBodyContract(): BodyContract {
 }
 
 function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
-  const record = recordOf(body)
-  const name = record?.name
-  if (typeof name !== 'string' || name === '') return refusal('incomplete-reference')
+  const name = stringField(body, 'name')
+  if (name === undefined || name === '') return refusal('incomplete-reference')
   if (context?.capabilityName !== undefined && name !== context.capabilityName) return refusal('name-mismatch')
-  if (toolRefs(record?.tools) === undefined) return refusal('incomplete-reference')
+  if (toolRefs(body) === undefined) return refusal('incomplete-reference')
   return { ok: true }
 }
 
-function toolRefs(tools: unknown): readonly { category: string; name: string }[] | undefined {
-  if (tools === undefined) return []
-  if (!Array.isArray(tools)) return undefined
+function toolRefs(body: unknown): readonly { category: string; name: string }[] | undefined {
+  const tools = field(body, 'tools')
+  if (tools === undefined) return isObject(body) ? [] : undefined
+  if (tools.kind !== 'array') return undefined
   const refs: { category: string; name: string }[] = []
-  for (const item of tools) {
-    const id = toolIdentity(item)
-    if (id === undefined) return undefined
-    refs.push(id)
+  for (const item of tools.items) {
+    if (!isObject(item)) return undefined
+    const category = stringField(item, 'category')
+    const name = stringField(item, 'name')
+    if (category !== 'tool' || name === undefined || name === '') return undefined
+    refs.push({ category, name })
   }
   return refs
 }
 
-function toolIdentity(item: unknown): { category: string; name: string } | undefined {
-  const record = recordOf(item)
-  if (record === undefined) return undefined
-  const category = record.category
-  const name = record.name
-  if (typeof category !== 'string' || category === '' || typeof name !== 'string' || name === '') return undefined
-  if (category !== 'tool') return undefined
-  return { category, name }
+function stringField(body: unknown, key: string): string | undefined {
+  const value = field(body, key)
+  if (value === undefined || value.kind !== 'string') return undefined
+  return value.value
 }
 
-function recordOf(body: unknown): { [key: string]: unknown } | undefined {
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) return undefined
-  return body as { [key: string]: unknown }
+function field(body: unknown, key: string): JsonValue | undefined {
+  if (!isObject(body)) return undefined
+  return body.entries.find(entry => entry.key === key)?.value
+}
+
+function isObject(body: unknown): body is JsonValue & { readonly kind: 'object' } {
+  return typeof body === 'object' && body !== null && 'kind' in body && body.kind === 'object' && 'entries' in body && Array.isArray(body.entries)
 }
