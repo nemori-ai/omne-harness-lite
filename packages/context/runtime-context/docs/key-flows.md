@@ -5,7 +5,7 @@
 <a id="rc-f01"></a>
 ## RC-F01 attempt 当前快照与后续变化
 
-承接 [RC-J01](../../../../.meta_harness/design/product/runtime-context/design.md#rc-j01)，能力 CAP-RC01、03、04。Session 先供给会话注册和模式事实，Runtime Context 从原来源按各消费者当前资格取值。模式创建默认与后续用户修改由 Session 拥有，Context 不设置模式，Agent 无模式修改入口。
+承接 [RC-J01](../../../../.meta_harness/design/product/runtime-context/design.md#rc-j01)，能力 CAP-RC01、03、04。Session 先供给会话注册和模式事实，Runtime Context 从原来源按各消费者当前资格取值。模式创建默认与后续修改由 Session 拥有。Context 不设置模式。谁可以改模式见[产品模式规则](../../../../.meta_harness/design/product/sessions-and-work/design.md#按协作需要调整三个独立模式)。
 
 ```mermaid
 sequenceDiagram
