@@ -154,7 +154,10 @@ jobs:
           covered() {
             local branch=$1 tip=$2 start c target
             start=$(jq -r --arg b "$branch" '.[$b] // ""' ../cutover.json)
-            [[ "$start" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: no cutover point for $branch"; return 1; }
+            if [ -z "$start" ] && [[ "$branch" == integration/* ]]; then
+              start=$(git rev-parse -q --verify "refs/tags/omne/gate/track/${branch#integration/}^{commit}" || true)
+            fi
+            [[ "$start" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: no cutover point or track start tag for $branch"; return 1; }
             git fetch -q --no-tags origin "$start"
             git merge-base --is-ancestor "$start" "$tip" || { echo "rejected: $tip does not contain the cutover point of $branch"; return 1; }
             for c in $(git rev-list --first-parent "$start..$tip"); do

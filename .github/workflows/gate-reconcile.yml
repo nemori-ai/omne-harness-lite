@@ -47,8 +47,11 @@ jobs:
           }
           for ref in $(git for-each-ref --format='%(refname:strip=3)' refs/remotes/origin/main refs/remotes/origin/integration); do
             start=$(jq -r --arg b "$ref" '.[$b] // ""' ../cutover.json)
+            if [ -z "$start" ] && [[ "$ref" == integration/* ]]; then
+              start=$(git rev-parse -q --verify "refs/tags/omne/gate/track/${ref#integration/}^{commit}" || true)
+            fi
             if ! [[ "$start" =~ ^[0-9a-f]{40}$ ]]; then
-              report "Gate gap: $ref has no cutover point" "The branch \`$ref\` is not listed in \`gate/cutover.json\` on github-gate. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+              report "Gate gap: $ref has no cutover point" "The branch \`$ref\` is not listed in \`gate/cutover.json\` on github-gate and has no \`omne/gate/track\` start tag. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
               continue
             fi
             for c in $(git rev-list --first-parent "$start..refs/remotes/origin/$ref"); do

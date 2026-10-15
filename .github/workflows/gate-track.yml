@@ -1,0 +1,128 @@
+name: gate-track
+run-name: "gate-track integration/${{ inputs.track }}"
+
+# Runs only from the github-gate branch. The file with the same name on main
+# is an empty shell that exists so that workflow_dispatch can find it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Track name without the integration/ prefix
+        required: true
+        type: string
+      base:
+        description: Commit on the first-parent history of main (40 hex characters)
+        required: true
+        type: string
+      issue:
+        description: Issue that receives the decision comment
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gate-track-${{ inputs.track }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Plan the track
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRACK: ${{ inputs.track }}
+          BASE: ${{ inputs.base }}
+          ISSUE: ${{ inputs.issue }}
+        run: |
+          [[ "$GITHUB_REF" == refs/heads/github-gate ]] || { echo "rejected: run is not on github-gate"; exit 1; }
+          [[ "$TRACK" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "rejected: track"; exit 1; }
+          [[ "$BASE" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: base"; exit 1; }
+          [[ "$ISSUE" =~ ^[0-9]{1,6}$ ]] || { echo "rejected: issue"; exit 1; }
+          [ -z "$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK")" ] || { echo "rejected: integration/$TRACK or its start tag already exists"; exit 1; }
+          {
+            echo "### Track creation awaiting confirmation"
+            echo
+            echo "- Branch: \`integration/$TRACK\`"
+            echo "- Start: \`$BASE\` (must be on the first-parent history of main)"
+            echo "- Decision comment: #$ISSUE"
+            echo
+            echo "The track must also be registered with its owner in integration-policy.json."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  create:
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: publish
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Read the confirmation and require a note
+        id: confirm
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" > approvals.json
+          sel='[.[]|select(.state=="approved")|select([.environments[].name]|index("publish"))]|last'
+          approver=$(jq -r "$sel|.user.login // \"\"" approvals.json)
+          note=$(jq -r "$sel|.comment // \"\"" approvals.json)
+          [ -n "$approver" ] || { echo "rejected: no approval record"; exit 1; }
+          [ -n "$(printf '%s' "$note" | tr -d '[:space:]')" ] || { echo "rejected: the confirmation note is empty"; exit 1; }
+          echo "approver=$approver" >> "$GITHUB_OUTPUT"
+          delim="NOTE_$(openssl rand -hex 16)"
+          { echo "note<<$delim"; printf '%s\n' "$note"; echo "$delim"; } >> "$GITHUB_OUTPUT"
+
+      - name: Mint publish identity token
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Create the branch and the start tag in one atomic push
+        env:
+          TOKEN: ${{ steps.app.outputs.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          TRACK: ${{ inputs.track }}
+          BASE: ${{ inputs.base }}
+          ISSUE: ${{ inputs.issue }}
+          APPROVER: ${{ steps.confirm.outputs.approver }}
+          NOTE: ${{ steps.confirm.outputs.note }}
+        run: |
+          [[ "$TRACK" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "rejected: track"; exit 1; }
+          [[ "$BASE" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: base"; exit 1; }
+          git init -q work && cd work
+          git remote add origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --filter=blob:none --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+          git rev-list --first-parent origin/main > ../main-fp.txt
+          grep -qx "$BASE" ../main-fp.txt || { echo "rejected: $BASE is not on the first-parent history of main"; exit 1; }
+          [ -z "$(git ls-remote origin "refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK")" ] || { echo "stopped: integration/$TRACK or its start tag already exists"; exit 1; }
+          bot_id=$(gh api "users/${APP_SLUG}%5Bbot%5D" --jq .id)
+          export GIT_COMMITTER_NAME="${APP_SLUG}[bot]" GIT_COMMITTER_EMAIL="${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          record=$(jq -cn --arg target "refs/heads/integration/$TRACK" --arg start "$BASE" --arg approver "$APPROVER" \
+            --arg issue "$ISSUE" --arg run "$run_url" --arg gate "$GITHUB_SHA" \
+            '{schema:"omne-gate-record:v1",target:$target,mode:"track-create",result:$start,issue:($issue|tonumber),confirmedBy:$approver,run:$run,gate:$gate}')
+          git tag -a "omne/gate/track/$TRACK" -m "$record" "$BASE"
+          quoted=$(printf '%s\n' "$NOTE" | sed 's/^/> /')
+          body=$(printf '**Track creation decision**\n\n- Branch: `integration/%s`\n- Start: `%s`\n- Record tag: `omne/gate/track/%s`\n- Confirmed by: @%s (from the platform approval record)\n- Run: %s\n\nConfirmation note:\n\n%s\n' \
+            "$TRACK" "$BASE" "$TRACK" "$APPROVER" "$run_url" "$quoted")
+          gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE/comments" -f body="$body" --jq .html_url
+          git push --atomic origin "$BASE:refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK:refs/tags/omne/gate/track/$TRACK"
+          [ "$(git ls-remote origin "refs/heads/integration/$TRACK" | cut -f1)" = "$BASE" ] || { echo "push reported success but the branch is not $BASE"; exit 1; }
+          echo "created integration/$TRACK at $BASE"
