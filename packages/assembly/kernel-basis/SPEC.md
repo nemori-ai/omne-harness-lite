@@ -163,7 +163,7 @@ npm 上的 `@deepseek-ai/cordis@4.0.4` 没有 `gitHead`。对应的上游发布�
 
 ## 验收对照
 
-C1。`definePlugin` 和 `resolveOptional` 的计划消费是 IC-14 和 IC-9。操作结果和测试装配只有入口句，具名成员消费待定，交回范围决定。新源码没有调用点。旧 import 只是线索。Fiber 状态辅助不进入公开入口。
+C1。`definePlugin` 和 `resolveOptional` 的计划消费是 IC-14 和 IC-9。根入口操作结果和 `startTestAssembly` 已由 PanQiWei 纳入 #270 本次范围，公开入口由本包测试消费。没有业务成员里的生产调用点。旧 import 只是线索。Fiber 状态辅助不进入公开入口。
 
 C2。`definePlugin`、`resolveOptional` 和测试装配的类型、失败与撤除写在本文件。根入口不导入 Cordis。安装这个包仍会安装 Cordis。本包不侵占 assembly 的关闭协议。
 

@@ -2,7 +2,8 @@ import { Context, type Fiber } from '@deepseek-ai/cordis'
 
 type CordisFiberState = typeof import('@deepseek-ai/cordis').FiberState
 
-/** Cordis 4.0.4 FiberState.ACTIVE. A const enum cannot be value-imported. */
+const PENDING = 0 satisfies CordisFiberState['PENDING']
+const LOADING = 1 satisfies CordisFiberState['LOADING']
 const ACTIVE = 2 satisfies CordisFiberState['ACTIVE']
 
 export type TestPlugin = {
@@ -42,47 +43,102 @@ export async function startTestAssembly(
   plugins: readonly TestPlugin[],
 ): Promise<TestAssembly> {
   const context = new Context()
-  const loaded = await loadPlugins(context, plugins)
-  if (loaded.startError !== undefined) await failStart(loaded.fibers, loaded.startError)
-  const pending = loaded.fibers.find((fiber) => fiber.state !== ACTIVE)
-  if (pending !== undefined) {
-    await failStart(loaded.fibers, new Error(`Test plugin "${pluginName(pending)}" did not run apply`))
+  const submitted: Fiber[] = []
+  const started: Fiber[] = []
+  let startError: unknown
+
+  for (const plugin of plugins) {
+    let fiber: Fiber
+    try {
+      fiber = context.plugin(cordisPlugin(plugin, started, submitted))
+    } catch (error) {
+      startError = error
+      break
+    }
+    submitted.push(fiber)
+    adoptPublicFiber(started, fiber)
+    try {
+      await fiber
+    } catch (error) {
+      startError = error
+      break
+    }
   }
+
+  if (startError === undefined) startError = await waitForApplies(submitted)
+  if (startError !== undefined) await failStart(disposalOrder(submitted, started), startError)
+
+  const pending = submitted.find((fiber) => !started.includes(publicOrInner(started, fiber)))
+  if (pending !== undefined) {
+    await failStart(
+      disposalOrder(submitted, started),
+      new Error(`Test plugin "${pluginName(pending)}" did not run apply`),
+    )
+  }
+
+  const order = disposalOrder(submitted, started)
   return {
     context,
     async dispose() {
-      const disposeErrors = await disposeStarted(loaded.fibers)
+      const disposeErrors = await disposeStarted(order)
       if (disposeErrors.length > 0) throw new TestAssemblyDisposeFailed(disposeErrors)
     },
   }
 }
 
-async function loadPlugins(
-  context: Context,
-  plugins: readonly TestPlugin[],
-): Promise<{ fibers: Fiber[]; startError: unknown }> {
-  const fibers: Fiber[] = []
-  for (const plugin of plugins) {
-    const fiber = context.plugin(cordisPlugin(plugin))
-    fibers.push(fiber)
+function cordisPlugin(plugin: TestPlugin, started: Fiber[], submitted: Fiber[]): TestPlugin {
+  const apply = (ctx: Context) => {
+    rememberStart(started, submitted, ctx.fiber)
+    return plugin.apply(ctx)
+  }
+  if (plugin.inject === undefined) return { name: plugin.name, apply }
+  return { name: plugin.name, inject: plugin.inject, apply }
+}
+
+function rememberStart(started: Fiber[], submitted: Fiber[], inner: Fiber): void {
+  const fiber = publicOrInner(submitted, inner)
+  if (!started.includes(fiber)) started.push(fiber)
+}
+
+function adoptPublicFiber(started: Fiber[], fiber: Fiber): void {
+  const inner = Object.getPrototypeOf(fiber) as Fiber
+  const index = started.indexOf(inner)
+  if (index !== -1) started[index] = fiber
+}
+
+function publicOrInner(candidates: readonly Fiber[], inner: Fiber): Fiber {
+  return candidates.find((fiber) => fiber === inner || Object.getPrototypeOf(fiber) === inner) ?? inner
+}
+
+async function waitForApplies(fibers: readonly Fiber[]): Promise<unknown> {
+  for (;;) {
+    const busy = fibers.filter((fiber) => fiber.state === LOADING || fiber.inertia !== undefined)
+    if (busy.length === 0) break
+    try {
+      await Promise.all(busy.map((fiber) => fiber))
+    } catch (error) {
+      return error
+    }
+  }
+  for (const fiber of fibers) {
+    if (fiber.state === ACTIVE || fiber.state === PENDING) continue
     try {
       await fiber
     } catch (error) {
-      return { fibers, startError: error }
+      return error
     }
   }
-  return { fibers, startError: undefined }
+  return undefined
+}
+
+function disposalOrder(submitted: readonly Fiber[], started: readonly Fiber[]): Fiber[] {
+  const startedSet = new Set(started)
+  const unstarted = submitted.filter((fiber) => !startedSet.has(fiber))
+  return [...[...started].reverse(), ...unstarted]
 }
 
 function pluginName(fiber: Fiber): string {
-  return fiber.runtime?.name ?? 'plugin'
-}
-
-function cordisPlugin(plugin: TestPlugin): TestPlugin {
-  if (plugin.inject === undefined) {
-    return { name: plugin.name, apply: plugin.apply }
-  }
-  return { name: plugin.name, inject: plugin.inject, apply: plugin.apply }
+  return fiber.runtime?.name ?? fiber.name ?? 'plugin'
 }
 
 async function failStart(fibers: readonly Fiber[], startError: unknown): Promise<never> {
@@ -95,7 +151,7 @@ async function failStart(fibers: readonly Fiber[], startError: unknown): Promise
 
 async function disposeStarted(fibers: readonly Fiber[]): Promise<unknown[]> {
   const disposeErrors: unknown[] = []
-  for (const fiber of [...fibers].reverse()) {
+  for (const fiber of fibers) {
     try {
       await fiber.dispose()
     } catch (error) {

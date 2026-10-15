@@ -6,26 +6,124 @@ import {
   TestAssemblyStartFailed,
 } from '@omne-harness/kernel-basis/testing'
 
-it('runs an earlier plugin after a later plugin provides its inject', async () => {
-  let seen = false
+it('disposes in reverse start order when a later plugin starts an earlier one', async () => {
+  const events: string[] = []
   const assembly = await startTestAssembly([
     {
       name: 'consumer',
-      inject: ['clock'],
-      apply(ctx: Context) {
-        seen = ctx.get('clock') === 'ticking'
+      inject: ['svc'],
+      apply(ctx) {
+        events.push('start-consumer')
+        ctx.effect(() => () => {
+          events.push('stop-consumer')
+        })
       },
     },
     {
-      name: 'clock',
+      name: 'provider',
       apply(ctx) {
-        ctx.provide('clock', 'ticking')
+        events.push('start-provider')
+        ctx.provide('svc', 1)
+        ctx.effect(() => () => {
+          events.push('stop-provider')
+        })
       },
     },
   ])
 
-  expect(seen).toBe(true)
   await assembly.dispose()
+  expect(events).toEqual(['start-provider', 'start-consumer', 'stop-consumer', 'stop-provider'])
+})
+
+it('waits for an async apply that starts after a later plugin provides its dependency', async () => {
+  const events: string[] = []
+  const assembly = await startTestAssembly([
+    {
+      name: 'consumer',
+      inject: ['svc'],
+      apply(ctx) {
+        events.push('start-consumer')
+        return new Promise<void>((resolve) => {
+          setTimeout(resolve, 10)
+        }).then(() => {
+          ctx.effect(() => () => {
+            events.push('stop-consumer')
+          })
+          events.push('consumer-done')
+        })
+      },
+    },
+    {
+      name: 'provider',
+      apply(ctx) {
+        events.push('start-provider')
+        ctx.provide('svc', 1)
+        ctx.effect(() => () => {
+          events.push('stop-provider')
+        })
+      },
+    },
+  ])
+
+  expect(events).toEqual(['start-provider', 'start-consumer', 'consumer-done'])
+  await assembly.dispose()
+  expect(events).toEqual([
+    'start-provider',
+    'start-consumer',
+    'consumer-done',
+    'stop-consumer',
+    'stop-provider',
+  ])
+})
+
+it('preserves the error thrown by an async apply', async () => {
+  const original = new Error('async-boom')
+  const thrown = await startTestAssembly([
+    {
+      name: 'consumer',
+      inject: ['svc'],
+      apply() {
+        return new Promise<void>((resolve) => {
+          setTimeout(resolve, 10)
+        }).then(() => {
+          throw original
+        })
+      },
+    },
+    {
+      name: 'provider',
+      apply(ctx) {
+        ctx.provide('svc', 1)
+      },
+    },
+  ]).catch((error: unknown) => error)
+
+  expect(thrown).toBe(original)
+})
+
+it('disposes an already started plugin when a later registration throws', async () => {
+  const events: string[] = []
+  const original = new Error('registration-failed')
+  let observer: Context | undefined
+  const thrown = await startTestAssembly([
+    {
+      name: 'observer',
+      apply(ctx) {
+        observer = ctx
+        ctx.effect(() => () => {
+          events.push('observer-stop')
+        })
+        ctx.on('internal/plugin', () => {
+          throw original
+        })
+      },
+    },
+    { name: 'second', apply() {} },
+  ]).catch((error: unknown) => error)
+
+  expect(thrown).toBe(original)
+  expect(events).toEqual(['observer-stop'])
+  expect(observer).toBeDefined()
 })
 
 it('fails startup when a required service is never provided and does not return an assembly', async () => {
