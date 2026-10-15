@@ -4,10 +4,15 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   createDiagnosticPort,
-  keepBusinessResult,
+  type AdmitInput,
   type DiagnosticBounds,
+  type DiagnosticPort,
   type DiagnosticSink,
 } from '@omne-harness/diagnostic'
+
+function beside<T>(business: T, port: DiagnosticPort, input: AdmitInput) {
+  return { business, diagnostic: port.admit(input) }
+}
 
 const correlation = {
   tenant: 'org/account',
@@ -25,7 +30,7 @@ function bounds(partial: Partial<DiagnosticBounds> = {}): DiagnosticBounds {
     load: 'synthetic-one-record',
     overLimit: 'reject',
     maxQueue: 2,
-    maxExportBytes: 80,
+    maxExportBytes: 4000,
     maxInFlight: 1,
     ...partial,
   }
@@ -55,18 +60,18 @@ describe('createDiagnosticPort', () => {
 
   it('keeps an accepted record when a later admit is refused', async () => {
     const port = createDiagnosticPort({
-      bounds: bounds(),
+      bounds: bounds({ maxExportBytes: 500 }),
       closeDeadlineMs: 20,
       sink: sinkOf(async () => undefined),
     })
-    const first = keepBusinessResult({ kind: 'Committed' as const }, port, {
+    const first = beside({ kind: 'Committed' as const }, port, {
       chain: chain('committed'),
       correlation,
     })
     expect(first.business.kind).toBe('Committed')
     expect(first.diagnostic.status).toBe('accepted')
     await new Promise(resolve => setTimeout(resolve, 10))
-    const second = port.admit({ chain: chain('x'.repeat(200)), correlation })
+    const second = port.admit({ chain: chain('x'.repeat(2000)), correlation })
     expect(second).toEqual({ status: 'rejected', reason: 'bytes_full' })
     if (first.diagnostic.status !== 'accepted') throw new Error('expected accepted')
     const visible = port.read({ tenant: 'org/account', id: first.diagnostic.id })
@@ -126,8 +131,13 @@ describe('createDiagnosticPort', () => {
         throw new Error('sink down')
       }),
     })
-    const result = keepBusinessResult({ kind: 'Committed' as const }, port, {
-      chain: chain('committed', { secret: 'hide-me', code: 'lock' }),
+    const result = beside({ kind: 'Committed' as const }, port, {
+      chain: chain('committed', {
+        secret: 'hide-me',
+        token: 't',
+        authorization: 'a',
+        code: 'lock',
+      }),
       correlation,
     })
     expect(result.business.kind).toBe('Committed')
@@ -141,6 +151,8 @@ describe('createDiagnosticPort', () => {
     const origin = visible.chain.causes[0]
     if (origin?.role === 'export') throw new Error('origin was overwritten')
     expect(origin?.detail?.secret).toBeUndefined()
+    expect(origin?.detail?.token).toBeUndefined()
+    expect(origin?.detail?.authorization).toBeUndefined()
     expect(origin?.detail?.code).toBe('lock')
     expect(port.read({ tenant: 'other-tenant', id: result.diagnostic.id })).toEqual({
       status: 'denied',
@@ -154,7 +166,7 @@ describe('createDiagnosticPort', () => {
       sink: sinkOf(async () => undefined),
     })
     const failure = { kind: 'unknown' as const, callId: 'call-9' }
-    const result = keepBusinessResult(failure, port, {
+    const result = beside(failure, port, {
       chain: {
         causes: [
           { role: 'origin', summary: 'provider threw' },
@@ -180,7 +192,7 @@ describe('createDiagnosticPort', () => {
 
   it('records a visible gap when no sink is supplied', () => {
     const port = createDiagnosticPort({ bounds: bounds(), closeDeadlineMs: 5, sink: null })
-    const result = keepBusinessResult({ kind: 'Committed' as const }, port, {
+    const result = beside({ kind: 'Committed' as const }, port, {
       chain: chain('committed'),
       correlation,
     })
@@ -230,7 +242,7 @@ describe('createDiagnosticPort', () => {
         }),
       })
       const committed = { kind: 'Committed' as const }
-      const result = keepBusinessResult(committed, port, {
+      const result = beside(committed, port, {
         chain: chain('committed'),
         correlation,
       })
@@ -266,7 +278,7 @@ describe('createDiagnosticPort', () => {
         }),
       })
       const committed = { kind: 'Committed' as const }
-      const result = keepBusinessResult(committed, port, {
+      const result = beside(committed, port, {
         chain: chain('committed'),
         correlation,
       })

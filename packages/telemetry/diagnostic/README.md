@@ -8,12 +8,12 @@ Bounded failure-chain port. Issue #275 owns this member.
 
 Storage callers and later model callers pass a failure chain in beside their own result. This package admits, reads, and closes that chain. It does not replace `CommitResult`, assembly `CloseReport`, or a storage `incomplete` result.
 
-Implemented: `createDiagnosticPort`, `keepBusinessResult`, and the public result types. The package tests cover queue, byte, and in-flight refusal, export failure, a missing sink, tenant denial, and close. PanQiWei authorized this member for the #275 delivery on 2026-10-15. Event names, retention duration, and production numeric limits are not accepted. This package does not import the OpenTelemetry SDK, Pino, Cordis, or either legacy tree.
+Implemented: `createDiagnosticPort` and the public result types. The package tests cover queue, byte, and in-flight refusal, export failure, a missing sink, tenant denial, and close. PanQiWei authorized this member for the #275 delivery on 2026-10-15. Event names, retention duration, and production numeric limits are not accepted. This package does not import the OpenTelemetry SDK, Pino, Cordis, or either legacy tree.
 
 ## Usage
 
 ```ts
-import { createDiagnosticPort, keepBusinessResult } from '@omne-harness/diagnostic'
+import { createDiagnosticPort } from '@omne-harness/diagnostic'
 
 const port = createDiagnosticPort({
   bounds: {
@@ -35,17 +35,19 @@ const port = createDiagnosticPort({
   closeDeadlineMs: 50,
 })
 
-const outcome = keepBusinessResult(commitResult, port, {
-  chain: { causes: [{ role: 'origin', summary: commitResult.kind }] },
+const diagnostic = port.admit({
+  chain: { causes: [{ role: 'origin', summary: 'committed' }] },
   correlation: { tenant: identity.tenant },
 })
 ```
+
+`commitResult` stays in the caller. `diagnostic` is only the admission.
 
 The caller supplies `sink`. A null sink records a visible gap and still returns the business value. `close` returns a diagnostic report. The caller closes the business resource without awaiting that promise. There is no `./cordis` entry. `package.json` `files` publishes `dist` only.
 
 ## Contracts
 
-`src/types.ts` holds the public shapes. `admit` returns `accepted`, `rejected`, or `gap`. Rejection reasons are `queue_full`, `bytes_full`, `in_flight_full`, and `closed`. A chain starts with one `origin`. Further caller causes are `attached`. Only the port appends `export`.
+`src/types.ts` holds the public shapes. `admit` returns `accepted`, `rejected`, or `gap`. Rejection reasons are `queue_full`, `bytes_full`, `in_flight_full`, and `closed`. A chain starts with one `origin`. Further caller causes are `attached`. Only the port appends `export`. The export byte count includes the chain and the correlation. A missing sink still refuses a record that does not fit those limits. `read` and the object passed to `sink.export` are copies.
 
 `read` returns the chain only when the requested tenant equals the stored tenant. A mismatch is `denied` and includes no chain. Detail keys `secret`, `token`, and `authorization` are removed at admission.
 
@@ -61,7 +63,7 @@ One port owns the in-memory queue, the byte count, and the in-flight count. Call
 
 ## Verification
 
-From this directory, `pnpm test` builds and runs the public-entry test and `tests/diagnostic-port.spec.ts`. One test writes a record into a temporary directory with `node:fs`. Another expects that write to throw when the parent directory is absent. A third aborts a delayed write at the close deadline and expects no file. These tests do not import Pino or the OpenTelemetry SDK, and they do not choose production limits.
+From this directory, `pnpm test` builds and runs the public-entry test, `tests/diagnostic-port.spec.ts`, and `tests/review-repro.spec.ts`. One test writes a record into a temporary directory with `node:fs`. Another expects that write to throw when the parent directory is absent. A third aborts a delayed write at the close deadline and expects no file. These tests do not import Pino or the OpenTelemetry SDK, and they do not choose production limits.
 
 ## Maintenance
 

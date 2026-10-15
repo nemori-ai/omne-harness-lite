@@ -8,7 +8,7 @@
 
 存储调用方和后来的模型调用方在自己的结果旁边送入一条失败链。本包负责接受、读取和关闭这条链。它不替换 `CommitResult`、装配 `CloseReport`，也不替换存储的 `incomplete`。
 
-已实现 `createDiagnosticPort`、`keepBusinessResult` 和公开结果类型。包测试覆盖队列、字节、在途拒绝、导出失败、缺少导出端、跨租户拒绝和关闭。PanQiWei 于 2026-10-15 授权本成员进入 #275 的交付。事件名、保留时长和生产数字限额尚未接受。本包不导入 OpenTelemetry SDK、Pino、Cordis 或两棵 legacy。
+已实现 `createDiagnosticPort` 和公开结果类型。包测试覆盖队列、字节、在途拒绝、导出失败、缺少导出端、跨租户拒绝和关闭。PanQiWei 于 2026-10-15 授权本成员进入 #275 的交付。事件名、保留时长和生产数字限额尚未接受。本包不导入 OpenTelemetry SDK、Pino、Cordis 或两棵 legacy。
 
 ## 使用
 
@@ -18,7 +18,7 @@
 
 ## 契约
 
-`src/types.ts` 持有公开形状。`admit` 返回 `accepted`、`rejected` 或 `gap`。拒绝原因是 `queue_full`、`bytes_full`、`in_flight_full` 和 `closed`。链以唯一的 `origin` 开始。调用方其后的原因是 `attached`。只有端口追加 `export`。
+`src/types.ts` 持有公开形状。`admit` 返回 `accepted`、`rejected` 或 `gap`。拒绝原因是 `queue_full`、`bytes_full`、`in_flight_full` 和 `closed`。链以唯一的 `origin` 开始。调用方其后的原因是 `attached`。只有端口追加 `export`。导出字节同时计入失败链和关联字段。没有导出端时，放不进限额的记录仍然拒绝。`read` 和交给 `sink.export` 的对象都是副本。
 
 `read` 仅在请求租户等于记录租户时返回链。不一致时结果是 `denied`，响应里没有链。详情键 `secret`、`token`、`authorization` 在进入时去掉。
 
@@ -34,7 +34,7 @@
 
 ## 验证
 
-在本目录运行 `pnpm test`。它先构建，再运行公开入口测试和 `tests/diagnostic-port.spec.ts`。其中一项用 `node:fs` 把记录写进临时目录，一项在父目录不存在时期待写入抛错，一项在关闭截止时中止延迟写入并期待没有文件。这些测试不导入 Pino 或 OpenTelemetry SDK，也不选定生产限额。
+在本目录运行 `pnpm test`。它先构建，再运行公开入口测试、`tests/diagnostic-port.spec.ts` 和 `tests/review-repro.spec.ts`。其中一项用 `node:fs` 把记录写进临时目录，一项在父目录不存在时期待写入抛错，一项在关闭截止时中止延迟写入并期待没有文件。这些测试不导入 Pino 或 OpenTelemetry SDK，也不选定生产限额。
 
 ## 维护
 

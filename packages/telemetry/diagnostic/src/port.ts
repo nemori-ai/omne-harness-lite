@@ -1,9 +1,9 @@
 import type {
   AdmitInput,
   AdmitResult,
+  CallerCause,
   Correlation,
   DiagnosticBounds,
-  DiagnosticCause,
   DiagnosticCloseReport,
   DiagnosticPort,
   DiagnosticPortOptions,
@@ -30,36 +30,35 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
   const records = new Map<string, StoredRecord>()
   const queue: string[] = []
   let inFlight = 0
-  let closed = false
+  let accepting = true
   let sequence = 0
-  let pumping = false
   let closePromise: Promise<DiagnosticCloseReport> | null = null
+  let closeResolve: ((report: DiagnosticCloseReport) => void) | null = null
+  let closeTimer: ReturnType<typeof setTimeout> | null = null
   const abort = new AbortController()
 
   function admit(input: AdmitInput): AdmitResult {
-    if (closed) return { status: 'rejected', reason: 'closed' }
+    if (!accepting) return { status: 'rejected', reason: 'closed' }
     const correlation = parseCorrelation(input.correlation)
     const chain = redactChain(parseCallerChain(input.chain))
-    const bytes = measure(chain)
-    if (sink === null) {
-      const id = nextId()
-      records.set(id, { id, chain, correlation, bytes, exportStatus: 'gap' })
-      return { status: 'gap', reason: 'sink_absent', id }
-    }
-    if (unfinishedCount() >= bounds.maxQueue) {
+    const bytes = measure(chain, correlation)
+    if (occupyingCount() >= bounds.maxQueue) {
       return { status: 'rejected', reason: 'queue_full' }
     }
-    const queuedBytes = unfinishedBytes()
-    if (bytes > bounds.maxExportBytes || queuedBytes + bytes > bounds.maxExportBytes) {
+    if (bytes > bounds.maxExportBytes || occupyingBytes() + bytes > bounds.maxExportBytes) {
       return { status: 'rejected', reason: 'bytes_full' }
     }
-    if (inFlight >= bounds.maxInFlight) {
+    if (sink !== null && inFlight >= bounds.maxInFlight) {
       return { status: 'rejected', reason: 'in_flight_full' }
     }
     const id = nextId()
+    if (sink === null) {
+      records.set(id, { id, chain, correlation, bytes, exportStatus: 'gap' })
+      return { status: 'gap', reason: 'sink_absent', id }
+    }
     records.set(id, { id, chain, correlation, bytes, exportStatus: 'queued' })
     queue.push(id)
-    void pump()
+    pump()
     return { status: 'accepted', id }
   }
 
@@ -68,20 +67,36 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
     const record = records.get(input.id)
     if (!record) return { status: 'absent' }
     if (record.correlation.tenant !== input.tenant) return { status: 'denied' }
-    return { status: 'visible', exportStatus: record.exportStatus, chain: record.chain }
+    return {
+      status: 'visible',
+      exportStatus: record.exportStatus,
+      chain: copyChain(record.chain),
+    }
   }
 
   function close(): Promise<DiagnosticCloseReport> {
     if (closePromise) return closePromise
-    closed = true
+    accepting = false
     closePromise = new Promise(resolve => {
-      const timer = setTimeout(() => {
+      closeResolve = resolve
+      closeTimer = setTimeout(() => {
         abort.abort()
-        resolve(finishClose())
+        settleClose(true)
       }, closeDeadlineMs)
-      timer.unref()
+      closeTimer.unref()
+      pump()
+      settleClose(false)
     })
     return closePromise
+  }
+
+  function settleClose(forced: boolean): void {
+    if (!closeResolve) return
+    if (!forced && (queue.length > 0 || inFlight > 0)) return
+    const resolve = closeResolve
+    closeResolve = null
+    if (closeTimer) clearTimeout(closeTimer)
+    resolve(finishClose())
   }
 
   function finishClose(): DiagnosticCloseReport {
@@ -119,48 +134,47 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
     return { status: 'closed', unfinished, exportFailed, lastRecord, flush, transport }
   }
 
-  async function pump(): Promise<void> {
-    if (pumping || sink === null) return
-    pumping = true
-    try {
-      while (!closed && queue.length > 0 && inFlight < bounds.maxInFlight) {
-        const id = queue.shift()
-        if (id === undefined) continue
-        const record = records.get(id)
-        if (!record || record.exportStatus !== 'queued') continue
-        record.exportStatus = 'exporting'
-        inFlight += 1
-        try {
-          await sink.export(exportView(record), abort.signal)
+  function pump(): void {
+    if (sink === null) return
+    while (queue.length > 0 && inFlight < bounds.maxInFlight) {
+      const id = queue.shift()
+      if (id === undefined) continue
+      const record = records.get(id)
+      if (!record || record.exportStatus !== 'queued') continue
+      record.exportStatus = 'exporting'
+      inFlight += 1
+      void sink
+        .export(exportView(record), abort.signal)
+        .then(() => {
           if (record.exportStatus === 'exporting') record.exportStatus = 'exported'
-        } catch {
+        })
+        .catch(() => {
+          if (abort.signal.aborted) return
           if (record.exportStatus === 'exporting') {
             record.exportStatus = 'export_failed'
             record.chain = appendExport(record.chain, 'export failed')
           }
-        } finally {
+        })
+        .finally(() => {
           inFlight -= 1
-        }
-      }
-    } finally {
-      pumping = false
-      if (!closed && queue.length > 0 && inFlight < bounds.maxInFlight) void pump()
+          pump()
+          settleClose(false)
+        })
     }
   }
 
-  function unfinishedCount(): number {
+  function occupyingCount(): number {
     let count = 0
     for (const record of records.values()) {
-      if (record.exportStatus === 'queued' || record.exportStatus === 'exporting') count += 1
+      if (occupies(record.exportStatus)) count += 1
     }
     return count
   }
 
-  function unfinishedBytes(): number {
+  function occupyingBytes(): number {
     let total = 0
     for (const record of records.values()) {
-      if (record.exportStatus === 'queued' || record.exportStatus === 'exporting')
-        total += record.bytes
+      if (occupies(record.exportStatus)) total += record.bytes
     }
     return total
   }
@@ -173,15 +187,8 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
   return { bounds, admit, read, close }
 }
 
-export function keepBusinessResult<T>(
-  business: T,
-  port: DiagnosticPort,
-  input: AdmitInput,
-): {
-  readonly business: T
-  readonly diagnostic: AdmitResult
-} {
-  return { business, diagnostic: port.admit(input) }
+function occupies(status: ExportStatus): boolean {
+  return status === 'queued' || status === 'exporting' || status === 'gap'
 }
 
 function parseBounds(bounds: DiagnosticBounds): DiagnosticBounds {
@@ -197,7 +204,16 @@ function parseBounds(bounds: DiagnosticBounds): DiagnosticBounds {
       throw new TypeError(`${key} must be a finite positive number`)
     }
   }
-  return bounds
+  return {
+    profile: bounds.profile,
+    os: bounds.os,
+    node: bounds.node,
+    load: bounds.load,
+    overLimit: 'reject',
+    maxQueue: bounds.maxQueue,
+    maxExportBytes: bounds.maxExportBytes,
+    maxInFlight: bounds.maxInFlight,
+  }
 }
 
 function parseDeadline(value: number): number {
@@ -209,18 +225,13 @@ function parseDeadline(value: number): number {
 
 function parseCorrelation(value: Correlation): Correlation {
   if (value.tenant.length === 0) throw new TypeError('tenant is required')
-  const correlation: Correlation = { tenant: value.tenant }
-  return copyOptional(correlation, value)
-}
-
-function copyOptional(correlation: Correlation, value: Correlation): Correlation {
   const next: {
     tenant: string
     work?: string
     attempt?: string
     instance?: string
     generation?: string
-  } = { tenant: correlation.tenant }
+  } = { tenant: value.tenant }
   for (const key of ['work', 'attempt', 'instance', 'generation'] as const) {
     const field = value[key]
     if (field === undefined) continue
@@ -230,26 +241,29 @@ function copyOptional(correlation: Correlation, value: Correlation): Correlation
   return next
 }
 
-function parseCallerChain(chain: FailureChain): FailureChain {
-  const causes = chain.causes
-  const first = causes[0]
-  if (first === undefined || first.role !== 'origin') {
-    throw new TypeError('chain must start with one origin')
-  }
-  let origins = 0
-  const copied: DiagnosticCause[] = []
-  for (const cause of causes) {
-    if (cause.role === 'export') throw new TypeError('export cause is port-owned')
-    if (cause.role === 'origin') origins += 1
+function parseCallerChain(chain: AdmitInput['chain']): FailureChain {
+  const copied: CallerCause[] = []
+  chain.causes.forEach((cause, index) => {
+    if (cause.role !== 'origin' && cause.role !== 'attached') {
+      throw new TypeError('caller cause must be attached')
+    }
+    if (index === 0 && cause.role !== 'origin') {
+      throw new TypeError('chain must start with one origin')
+    }
+    if (index > 0 && cause.role !== 'attached') {
+      throw new TypeError('caller cause must be attached')
+    }
     if (cause.summary.length === 0) throw new TypeError('cause summary is required')
     copied.push(copyCallerCause(cause))
+  })
+  const [origin, ...rest] = copied
+  if (origin === undefined || origin.role !== 'origin') {
+    throw new TypeError('chain must start with one origin')
   }
-  if (origins !== 1) throw new TypeError('chain must start with one origin')
-  return { causes: copied }
+  return { causes: [origin, ...rest] }
 }
 
-function copyCallerCause(cause: DiagnosticCause): DiagnosticCause {
-  if (cause.role === 'export') throw new TypeError('export cause is port-owned')
+function copyCallerCause(cause: CallerCause): CallerCause {
   if (!cause.detail) return { role: cause.role, summary: cause.summary }
   return { role: cause.role, summary: cause.summary, detail: { ...cause.detail } }
 }
@@ -258,9 +272,7 @@ function redactChain(chain: FailureChain): FailureChain {
   return {
     causes: chain.causes.map(cause => {
       if (cause.role === 'export' || !cause.detail) {
-        return cause.role === 'export'
-          ? { role: 'export', summary: cause.summary }
-          : { role: cause.role, summary: cause.summary }
+        return { role: cause.role, summary: cause.summary }
       }
       const detail: Record<string, string> = {}
       for (const [key, value] of Object.entries(cause.detail)) {
@@ -272,19 +284,30 @@ function redactChain(chain: FailureChain): FailureChain {
   }
 }
 
-function appendExport(chain: FailureChain, summary: string): FailureChain {
-  return { causes: [...chain.causes, { role: 'export', summary }] }
+function copyChain(chain: FailureChain): FailureChain {
+  return {
+    causes: chain.causes.map(cause => {
+      if (cause.role === 'export' || !cause.detail) {
+        return { role: cause.role, summary: cause.summary }
+      }
+      return { role: cause.role, summary: cause.summary, detail: { ...cause.detail } }
+    }),
+  }
 }
 
-function measure(chain: FailureChain): number {
-  return Buffer.byteLength(JSON.stringify(chain), 'utf8')
+function appendExport(chain: FailureChain, summary: string): FailureChain {
+  return { causes: [...copyChain(chain).causes, { role: 'export', summary }] }
+}
+
+function measure(chain: FailureChain, correlation: Correlation): number {
+  return Buffer.byteLength(JSON.stringify({ chain, correlation }), 'utf8')
 }
 
 function exportView(record: StoredRecord): ExportedRecord {
   return {
     id: record.id,
-    chain: record.chain,
-    correlation: record.correlation,
+    chain: copyChain(record.chain),
+    correlation: { ...record.correlation },
     bytes: record.bytes,
   }
 }

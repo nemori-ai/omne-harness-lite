@@ -1,8 +1,16 @@
-export type CallerCause = {
-  readonly role: 'origin' | 'attached'
+export type OriginCause = {
+  readonly role: 'origin'
   readonly summary: string
   readonly detail?: Readonly<Record<string, string>>
 }
+
+export type AttachedCause = {
+  readonly role: 'attached'
+  readonly summary: string
+  readonly detail?: Readonly<Record<string, string>>
+}
+
+export type CallerCause = OriginCause | AttachedCause
 
 export type ExportCause = {
   readonly role: 'export'
@@ -10,6 +18,10 @@ export type ExportCause = {
 }
 
 export type DiagnosticCause = CallerCause | ExportCause
+
+export type CallerChain = {
+  readonly causes: readonly [OriginCause, ...AttachedCause[]]
+}
 
 export type FailureChain = {
   readonly causes: readonly DiagnosticCause[]
@@ -35,7 +47,7 @@ export type DiagnosticBounds = {
 }
 
 export type AdmitInput = {
-  readonly chain: FailureChain
+  readonly chain: CallerChain
   readonly correlation: Correlation
 }
 
