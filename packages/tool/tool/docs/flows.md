@@ -16,8 +16,8 @@ sequenceDiagram
   A->>A: 纯投影 content 与 attachments
   Note over A,S: attachments 只生成地址文本，content ref 独立成立
   A->>S: 文本、内容 ref、原结果关联
-  S->>M: 固定请求及完整 ToolDefinition
-  M->>M: 转换工具描述与供应商 payload 形状
+  S->>M: 固定请求及中立工具声明
+  M->>M: 映射供应商 payload 形状
   alt 请求含模型可见内容 ref
     M->>R: 实际发送前核权读取精确内容
     R-->>M: 有界媒体租约或明确失败

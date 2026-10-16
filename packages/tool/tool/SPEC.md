@@ -802,7 +802,7 @@ projectToolResult 是不读字节的纯投影，检查完整结果的块形状�
 
 ToolMessage 的消费者沿原 call、resultVersion 与消费位置保存投影。data、original 不自动进入请求。content ref 和附件都须被结果保管协议承接，并核来源归属及当前披露资格；内容 ref 不靠“属于附件列表”证明合法性。Agent、Session、Request Context 在这条模型路径中只选择及保管引用和地址文本。模型治理领域仅在实际请求发送前加载模型可见 content ref 的字节，核当前读取及外传资格、内容完整性、媒体格式和最终预算。附件地址文本不进入媒体读取计划，也不增加图片或语音模态约束。已有可靠 transcript 可按原规则选择，不能为提前投影而装载字节生成它。转换不改原 ToolResult，失败不重跑工具。
 
-完整 ToolDefinition 连同精确采用进入 Model 的工具声明转换。模型可见的 description 由 Model adapter 使用 definition.description 和 programmable===true 的许可含义组装；省略或 false 说明不支持可编程调用。此规则不封闭未来可纳入描述的定义字段。ToolPresentation 仅是发现摘要，不能作为完整模型 payload 输入。单函数参数、多命令选择与参数封装、供应商支持的字段均由 Model adapter 映射；不能表达时明确 unsupported，不静默丢掉命令或改用错误参数。转换不授予实际执行权限。
+请求组装者消费完整 ToolDefinition 及其精确采用，生成 Model 请求契约中的工具声明。description 由原 description 和 programmable===true 的许可含义组装；省略或 false 说明不支持可编程调用。此规则不封闭未来可纳入描述的定义字段。ToolPresentation 只是发现摘要，不能代替完整投影输入。组装者保存声明名称及参数到原工具、采用与 command 的路由，多命令选择和参数封装在这一步完成。Model 只消费名称、说明、参数 schema 和共享消息，不导入 ToolDefinition 或访问工具注册表。Model adapter 只映射供应商格式；两层转换均不能静默丢命令、放宽约束或改变权限，不能表达时明确失败。
 
 这些是本域交付和 Model 消费的已明确设计边界，非当前源码支持声明。共享块、Message 校验及 Model adapter 的契约同步与实现迁移由各拥有者承担，实际发送协议归 [Model](../../model/model/SPEC.md)。
 

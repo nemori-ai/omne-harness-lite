@@ -25,7 +25,7 @@ CAP-TL06 与 CAP-TL08 的作者入口由 ToolExecutionContext 的 wait 与 emit 
 
 ## 验收层次
 
-P14 至 P16 补齐内容 ref/附件地址分流、完整 ToolDefinition 的模型转换、配置允许项与合法装载、Cordis 目录和发现隔离，覆盖 CAP-TL01、02、04、07、09、11 的相应边界。反例见[结果分流、装载与依赖隔离](scenarios.md#结果分流装载与依赖隔离)。HITL 双边协议沿 Q-HI02/Q-HI03，按决定留到该功能实现时细化，不能据单侧 validator 声称交接完整。
+P14 至 P16 补齐内容 ref/附件地址分流、工具定义到模型声明的组装投影、配置允许项与合法装载、Cordis 目录和发现隔离，覆盖 CAP-TL01、02、04、07、09、11 的相应边界。反例见[结果分流、装载与依赖隔离](scenarios.md#结果分流装载与依赖隔离)。HITL 双边协议沿 Q-HI02/Q-HI03，按决定留到该功能实现时细化，不能据单侧 validator 声称交接完整。
 
 自定义等待由 ToolWaitContract、ToolWaitSchemaSnapshot 与 ToolWaitResponseValidator 承接 CAP-TL06，见 [P12](../SPEC.md#p12-等待-schema-与响应提交)。普通/结构化返回、ToolReturnDeclaration、ToolReturnValidator 与 ToolResult.data 承接 CAP-TL07 及 Code 的程序数据边界，见 [P13](../SPEC.md#p13-双返回形态与程序输出契约)。[等待与返回反例](scenarios.md#等待-schema-与双返回的验证)覆盖非法提交不结束等待、schema 换代、输出违约、真实效果保留和两种消费者。只有覆盖这些协议的模型或提供者证据才能支持相应验证声明。
 

@@ -13,7 +13,7 @@
 | 地址文本恰好像 URL、JSON 或媒体标记 | 仍为文本，不自动解析成媒体、不发网络读取 |
 | 发送前失权、内容缺失、摘要不符或超预算 | 不发送残缺请求；关闭媒体租约，原结果继续保管，不重执行工具 |
 | 投影重试或附件块身份冲突 | 重试沿原结果和消息位置；数量不符、重复及碰撞拒绝，不追加第二份消息 |
-| ToolDefinition 为单函数或多命令 | Model adapter 保留精确命令与 schema，description 包含原描述及 programmable 语义；不能表达时 unsupported |
+| ToolDefinition 为单函数或多命令 | 请求组装者保留原工具/命令路由与 schema，description 包含原描述及 programmable 语义；Model 只消费中立声明，供应商不能表达时 unsupported |
 | 配置含未声明路径、重叠路径、无效默认值或越权来源 | 装载失败，不发布部分贡献，不把配置合并进调用 A 或 DI 的 E |
 | 新配置失败、旧调用恢复、旧贡献 token 迟到 release | 后续候选不半更新；旧调用使用原采用；旧 token 不能删除新贡献 |
 | 只撤 Catalog 或 Directory 提供者 | 持久读、控制与结果交接仍可用；相应发现或 connect 明确 unavailable；与目录存在但无路由区分 |
