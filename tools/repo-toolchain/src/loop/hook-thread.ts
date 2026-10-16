@@ -15,9 +15,12 @@ export function measureInWorker(
   timeoutMs: number,
 ): Promise<HookReadings | undefined> {
   return new Promise((done, fail) => {
-    const worker = new Worker(new URL('./hook-worker.ts', import.meta.url), {
-      workerData: { root, primaryBranch },
-    })
+    const worker = new Worker(
+      new URL(`./hook-worker.${import.meta.url.endsWith('.ts') ? 'ts' : 'js'}`, import.meta.url),
+      {
+        workerData: { root, primaryBranch },
+      },
+    )
     const timer = setTimeout(() => {
       fail(new Error(`量读数超过 ${timeoutMs / 1000} 秒，已放弃`))
       worker.terminate().catch(() => {

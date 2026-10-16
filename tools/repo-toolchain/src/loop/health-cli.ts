@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // 只读、只报告：退出码 0 正常，2 是工具自己出错（参数、配置、git、写不了产物）。
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'

@@ -9,6 +9,7 @@ import {
   agentRole,
   inspect,
   isAcceptancePath,
+  isPlaceholderEntry,
   judge,
   parseAcceptanceLockConfig,
   readAcceptanceLockConfig,
@@ -45,6 +46,24 @@ describe('验收锁：判断', () => {
     expect(isAcceptancePath('apps/cli/tests/a.spec.ts', config)).toBe(false)
     expect(isAcceptancePath('docs/acceptance/a.md', config)).toBe(false)
     expect(isAcceptancePath('apps/cli/node_modules/x/acceptance/a.ts', config)).toBe(false)
+  })
+
+  it('模板占位：只有验收目录里的 README.md、index.md 带独立一行占位标记才算', () => {
+    const marked = '# Acceptance\n\n<!-- documentation:placeholder -->\n'
+    expect(isPlaceholderEntry('packages/a/b/acceptance/README.md', marked)).toBe(true)
+    expect(isPlaceholderEntry('packages/a/b/acceptance/fixtures/index.md', marked)).toBe(true)
+    expect(
+      isPlaceholderEntry('packages/a/b/acceptance/README.md', '# Acceptance\n\nreal steps\n'),
+    ).toBe(false)
+    expect(isPlaceholderEntry('packages/a/b/acceptance/notes.md', marked)).toBe(false)
+    expect(isPlaceholderEntry('packages/a/b/acceptance/x.acceptance.ts', marked)).toBe(false)
+    expect(
+      isPlaceholderEntry(
+        'packages/a/b/acceptance/README.md',
+        'see <!-- documentation:placeholder --> here\n',
+      ),
+    ).toBe(false)
+    expect(isPlaceholderEntry('packages/a/b/acceptance/README.md', undefined)).toBe(false)
   })
 
   it('角色取提交信息里最后一条 Agent-Role', () => {
@@ -179,6 +198,33 @@ describe('验收锁：读 Git', () => {
     expect(report.changes).toEqual([])
     expect(report.commits).toHaveLength(2)
     expect(report.violations).toHaveLength(2)
+  })
+
+  it('模板占位的验收入口：实施者新增、改动、删除都不破锁；写成真实内容照常计入', () => {
+    const { root, base } = repository()
+    const entry = 'packages/core/x/acceptance/README.md'
+    const index = 'packages/core/x/acceptance/fixtures/index.md'
+    const marked = (title: string) => `# ${title}\n\n<!-- documentation:placeholder -->\n`
+    write(root, entry, marked('Acceptance'))
+    write(root, index, marked('Fixtures'))
+    commit(root, 'feat: 新建包骨架\n\nAgent-Role: developer')
+    write(root, entry, marked('Acceptance of x'))
+    commit(root, 'docs: 改占位标题\n\nAgent-Role: developer')
+    rmSync(join(root, index))
+    commit(root, 'chore: 去掉夹具入口\n\nAgent-Role: developer')
+    const quiet = inspect(root, base, config)
+    expect(quiet.changes).toEqual([])
+    expect(quiet.commits).toEqual([])
+    expect(quiet.violations).toEqual([])
+    write(root, entry, '# Acceptance of x\n\nStep 1: run the CLI.\n')
+    const written = commit(root, 'docs: 写验收说明\n\nAgent-Role: developer')
+    const report = inspect(root, base, config)
+    expect(report.changes).toEqual([{ status: 'added', path: entry }])
+    expect(report.violations).toEqual([
+      `提交 ${written.slice(0, 9)}（Agent-Role: developer）改了验收文件：${entry}`,
+    ])
+    write(root, entry, marked('again'))
+    expect(inspect(root, base, config).uncommitted).toEqual([])
   })
 
   it('工作树里未提交、未跟踪的验收改动都算', () => {

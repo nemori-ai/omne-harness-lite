@@ -460,6 +460,35 @@ export const manifest=[{id:'known',plugin:live},{id:'dynamic',plugin:resolveRunt
       )?.key,
     ).toBe('before')
   })
+  it('lists package-name extends in the configuration chain without applying them', () => {
+    const root = workspace()
+    member(
+      root,
+      'packages/live',
+      '@vendor/live',
+      native('aliased', 'ctx.provide(KEY,{})').replace(
+        'import type',
+        "import {KEY} from '@private'; import type",
+      ),
+    )
+    write(root, 'packages/live/src/key.ts', "export const KEY='kept'\n")
+    write(root, 'packages/live/config/local.json', '{"compilerOptions":{"baseUrl":".."}}')
+    write(
+      root,
+      'packages/live/config/base.json',
+      '{"extends":["@scope/preset/tsconfig.json","./local.json"],"compilerOptions":{"paths":{"@private":["./src/key.ts"]}}}',
+    )
+    write(root, 'packages/live/tsconfig.json', '{"extends":"./config/base.json"}')
+    commit(root, 'installed extends')
+    const configuration = readActualArchitecture({ root }).current
+    expect(configuration.scope.configuration.installedExtends).toEqual([
+      'packages/live/config/base.json -> @scope/preset/tsconfig.json',
+    ])
+    expect(configuration.scope.configuration.appliedToResolution).toContain(
+      'packages/live/config/local.json',
+    )
+    expect(configuration.facts.find(item => item.kind === 'provides')?.key).toBe('kept')
+  })
   it('keeps source movement and line changes out of relationship differences while preserving their sites', () => {
     const root = workspace()
     const code = native('stable', "ctx.provide('page',{});ctx.provide(dynamic(),{})")

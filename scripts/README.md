@@ -24,10 +24,7 @@
 基线在脚本开头解析一次（没给就用 `origin/main`，本地没有这个引用就用 `main`）并导出为 `BASELINE`，
 影响面与最后的回路状态共用它。
 
-设置 `OMNE_SUBJECT_ROOT` 时，`check.sh` 转入 [integration-check.sh](integration-check.sh)。
-该入口保留 Python、格式、自测、构建、类型、快慢测试、规则与验收步骤，末尾显式执行 `loop --strict --scope engineering`。
-日常集成沿影响面计划，只有 full profile 设置 `FULL=1`。工程范围的输入证据与拒绝条件见[回路状态](../tools/repo-toolchain/README_ZH.md#回路状态)。
-普通本地 `make check` 仍使用默认严格范围。格式自测在自身入口清除两个 OMNE root，保证 fixture 和 Git hook 检查自己的沙盒；正式格式检查仍读取真实 subject。
+设置 `OMNE_SUBJECT_ROOT` 时，`format.sh` 的检查模式检查该目录所在的仓库，规则仍取脚本自己的检出。格式自测在自身入口清除 `OMNE_SUBJECT_ROOT` 与 `OMNE_RUNNER_ROOT`，保证 fixture 和 Git hook 检查自己的沙盒。
 
 脚本先跑 `tools/test-runner/src/testing/cli.ts plan`：按 [test-runs.config.json](../tools/test-runner/test-runs.config.json) 的 `affected` 规则
 给每个改动文件归类，打印判成什么、每一步跑还是跳、选中哪些成员与为什么，计划写进被忽略的 `tmp/check-plan/plan.json`
@@ -123,7 +120,7 @@
 
 合并前，在待合并的提交上计算影响面，再运行所需检查。`make check` 已按共同配置生成影响面计划；用 `make check-plan` 核对选中的范围、依据与跳过条件。实际结果写进 PR，规则归[整洁回路](../docs/clean-loop.md#回路怎么转)。
 
-当前 GitHub 可见字段将 `main` 报为未保护，保护详情与 Rulesets 接口读取受限，规则细节仍未核实。正式接入时须落实共享分支及采用 tag 的保护，条件归[多层集成](../docs/engineering/integration.md)。本地候选检查不能代替平台门禁。
+主干与记录标签的平台保护归[多层集成](../docs/engineering/integration.md#现行准入)。本地检查不能代替平台门禁。
 
 恢复自动触发时，先核对现有 runner 的在线状态、标签和执行权限；需要新增或重新注册时再按下文操作。在仓库设置里启用 `Check`，命令为 `gh workflow enable Check`，再把工作流文件开头注释掉的三种触发放回 `on:` 之下。核对真实触发和结果后，才能确认正式检查已接通。工作流定义的行为如下。
 

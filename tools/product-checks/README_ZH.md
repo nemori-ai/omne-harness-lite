@@ -185,7 +185,7 @@ make scenario-status
 
 ## 模型凭据的逐符号结构守卫
 
-`model-credential-boundary` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，正常 CLI 同时扫描实际 `packages/`、`apps/`、`examples/`、`tools/`、`scripts/` 执行模块及配置别名解析结果。collector 先规范化仓库根路径，末尾斜杠不会改变根 `tsconfig` 的别名解析。它采用 D-075、目录 v3 V3-10、CCL rev2 MCR-V7 与 D-092 的装配权限。
+`model-credential-boundary` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，正常 CLI 同时扫描实际 `packages/`、`apps/`、`examples/`、`tools/`、`scripts/` 执行模块及配置别名解析结果。collector 先规范化仓库根路径，末尾斜杠不会改变根 `tsconfig` 的别名解析。配置的 `extends` 写相对路径时按文件读；写包名时按 Node 的规则从该配置所在目录解析，读到锁文件钉住的那份安装；解析不到就报错停止。它采用 D-075、目录 v3 V3-10、CCL rev2 MCR-V7 与 D-092 的装配权限。
 
 | 符号                            | 允许点                                                                                                     |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -265,3 +265,9 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 精确路径 `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts` 可通过 EIS 公开发布入口建立 D106 R7 验收的真实不可变历史。相邻 runner 测试和全部 runner 产品源码仍禁止发布。历史边界规则只允许 runner 产品源码导入 reader 类型，测试可构造真实 reader；不允许工厂转发，也不授予产品侧发布权。
 
 `core-pure-imports` 仅在 `core/model-request-runtime/src/model-log-history.ts` 允许已采用的 `immutable` 根入口。该模块使用其私有纯集合，理由归模型历史拥有者的 ADR。相邻文件、其他 core 成员和库的私有子路径继续拒绝。
+
+## 提交署名的历史审计基线
+
+`lint:rules` 调用 repo-toolchain 的 `commit-attribution` 之后，用 [`commit-attribution-baseline.json`](commit-attribution-baseline.json) 过滤：只跳过清单里确切提交（完整 40 位 SHA）中“把 agent 列为共同作者”的行。作者、提交者是 agent，或有“产出者”行，照常报告；清单之外的提交照常检查。
+
+清单每条写完整 SHA 与原因，整份清单引用一条具名决定（现为 [#356 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/356#issuecomment-6214198516)）。格式不对时报错退出，不当作空清单。本文件在仓库工具链变更闸门的保护路径内，增加条目要经确认。“本仓库可达的全部历史在基线之外没有作者式署名”的断言在 `tests/attribution-baseline.spec.ts`。

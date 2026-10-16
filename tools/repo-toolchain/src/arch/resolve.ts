@@ -82,6 +82,8 @@ export class StaticResolver {
   readonly modulePath: (specifier: string, file: ts.SourceFile) => string | undefined
   readonly snapshot: Snapshot
   readonly configurationFiles = new Set<string>()
+  /** Package-name extends point at installed modules, which are not version-local: `<config> -> <specifier>`. */
+  readonly installedExtends = new Set<string>()
   publicDeclarations(path: string): readonly (Site & { readonly offset: number })[] {
     const tree = this.program.getSourceFile(ROOT + path)
     const module = tree === undefined ? undefined : this.checker.getSymbolAtLocation(tree)
@@ -94,6 +96,22 @@ export class StaticResolver {
         offset: node.getStart(),
       }))
     })
+  }
+  /** Drops package-name extends so that only this version's files configure resolution; records each one dropped. */
+  private withoutInstalledExtends(path: string, text: string): string {
+    const parsed = ts.parseConfigFileTextToJson(path, text)
+    const config: unknown = parsed.config
+    if (parsed.error !== undefined || typeof config !== 'object' || config === null) return text
+    const { extends: declared, ...rest } = config as { extends?: unknown }
+    const bases =
+      typeof declared === 'string' ? [declared] : Array.isArray(declared) ? declared : []
+    const installed = bases.filter(
+      base => typeof base === 'string' && !base.startsWith('.') && !posix.isAbsolute(base),
+    )
+    if (installed.length === 0) return text
+    for (const base of installed) this.installedExtends.add(`${path} -> ${String(base)}`)
+    const local = bases.filter(base => !installed.includes(base))
+    return JSON.stringify(local.length === 0 ? rest : { ...rest, extends: local })
   }
   constructor(snapshot: Snapshot) {
     this.snapshot = snapshot
@@ -128,8 +146,10 @@ export class StaticResolver {
       useCaseSensitiveFileNames: true,
       fileExists: path => texts.has(path),
       readFile: path => {
-        if (texts.has(path)) this.configurationFiles.add(path.slice(ROOT.length))
-        return texts.get(path)
+        const text = texts.get(path)
+        if (text === undefined) return undefined
+        this.configurationFiles.add(path.slice(ROOT.length))
+        return this.withoutInstalledExtends(path.slice(ROOT.length), text)
       },
       readDirectory: root =>
         [...texts.keys()].filter(path => path.startsWith(root) && /\.[cm]?tsx?$/u.test(path)),

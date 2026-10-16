@@ -14,14 +14,13 @@ Use Node.js >=24.0.0 and the repository's pinned pnpm version. The normal comman
 
 ```sh
 pnpm --filter @omne-harness/identity-values build
-pnpm run build:tools
 pnpm --filter @omne-harness/product-checks build
 pnpm --filter @omne-harness/product-checks typecheck
 pnpm --filter @omne-harness/product-checks test
 pnpm run lint:rules
 ```
 
-The CLI exits 1 on violations and prints their rule, source path and line. A successful scan of an absent consumer supplies no evidence about that consumer. The CLI's repository scan uses this tool's checkout; explicit CLI arguments choose additional package roots, not an arbitrary replacement repository. The repository collector normalizes its root before reading configurations, so a trailing slash does not change root `tsconfig` alias resolution.
+The CLI exits 1 on violations and prints their rule, source path and line. A successful scan of an absent consumer supplies no evidence about that consumer. The CLI's repository scan uses this tool's checkout; explicit CLI arguments choose additional package roots, not an arbitrary replacement repository. The repository collector normalizes its root before reading configurations, so a trailing slash does not change root `tsconfig` alias resolution. A relative `extends` is read as a file. A package-name `extends` resolves with Node rules from the directory of that configuration, so the collector reads the installed copy that the lockfile pins. If it does not resolve, the collector stops with an error.
 
 | Built module          | Public surface                                                                                                                       |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -163,5 +162,13 @@ pnpm --dir "$isolated" --filter @omne-harness/product-checks test
 Run `make docs-check` separately in the checkout that retains the reference
 material. Historical documentation links are not executable dependencies.
 Report every failed command, including failures that also occur at the task
-baseline. These checks do not create an integration receipt or change the
-adopted runner. Runner adoption follows the [integration rules](../../docs/engineering/integration.md).
+baseline. These checks do not publish a branch or record an integration. The
+confirmer of a trunk PR writes the commands that ran and their results in the
+confirmation note. The [integration rules](../../docs/engineering/integration.md#检查责任)
+own this duty.
+
+## Commit attribution audit baseline
+
+After `lint:rules` runs the repo-toolchain `commit-attribution` rule, it filters the result with [`commit-attribution-baseline.json`](commit-attribution-baseline.json). The filter skips only the "agent listed as co-author" lines in the exact commits that the file lists by full 40-character SHA. An agent author or committer, or a "generated with" line, is still reported. Commits outside the list are checked as usual.
+
+Each entry has the full SHA and a reason. The file refers to one named decision ([decision on #356](https://github.com/nemori-ai/omne-harness-lite/issues/356#issuecomment-6214198516)). A malformed file is an error, not an empty list. The file is on the repository toolchain gate path, so a new entry needs a confirmation. The assertion that the reachable history has no author-style attribution outside the baseline is in `tests/attribution-baseline.spec.ts`.

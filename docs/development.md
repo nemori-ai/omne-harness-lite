@@ -120,11 +120,34 @@ pnpm lint:deps     # dependency-cruiser：无法解析的导入、文件级运�
 pnpm lint:report   # 只报告：全部目录的 oxlint（含 vitest 测试风格规则）与 knip
 ```
 
-tsconfig、oxlint 与 dependency-cruiser 的共享规则在 [repo-config](../tools/repo-config/README.md) 预设里维护，根目录的配置文件只引用它；oxfmt 不支持 `extends`，配置留在根目录。
+tsconfig、oxlint 与 dependency-cruiser 的共享规则在 [repo-config](../tools/repo-config/README.md) 预设里维护。根目录的配置文件只引用安装的预设，版本见[仓库工具链的版本](#仓库工具链的版本)。oxfmt 不支持 `extends`，配置留在根目录。
 
 `lint:oxlint` 与 `lint:deps` 违反即失败，`make check` 每次都跑。oxlint 暂不检查 `packages/` 与 `apps/`，与格式范围一起由源码包负责人另定；dependency-cruiser 的规则是结构护栏，对源码包同样失败。
-dependency-cruiser 用类型检查的 `source` 条件解析跨包导入，`dist` 与依赖只作叶子不深入；它自带一份 TypeScript 6 解析 `.ts`（见 `pnpm-workspace.yaml` 的 `packageExtensions`）。方向规则按[产品包组织](package-organization.md#依赖方向与cordis集成)写成成员路径，成员与组之间的环由 ts-checks 在同一张图上算；`lint:deps` 的入口是 `tools/repo-toolchain/src/deps/cli.ts`。
+dependency-cruiser 用类型检查的 `source` 条件解析跨包导入，`dist` 与依赖只作叶子不深入；它自带一份 TypeScript 6 解析 `.ts`（见 `pnpm-workspace.yaml` 的 `packageExtensions`）。方向规则按[产品包组织](package-organization.md#依赖方向与cordis集成)写成成员路径，成员与组之间的环由 repo-toolchain 在同一张图上算；`lint:deps` 运行钉住的 repo-toolchain 的 `omne-deps`。
 Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和源码字符串里的 legacy 路径，仍由 `pnpm run lint:rules` 检查；legacy 的导入边归 `lint:deps`。
+
+### 仓库工具链的版本
+
+检查器 `@omne-harness/repo-toolchain` 与配置预设 `@omne-harness/repo-config` 发布在 npm。`pnpm-workspace.yaml` 的 catalog 钉它们的精确版本。根 `package.json` 与 `tools/product-checks`、`tools/dev-flow`、`tools/test-runner` 用 `catalog:` 引用它们。`linkWorkspacePackages: false` 让普通版本号只从 registry 解析，所以安装的是 npm 上的包，不是工作区 `tools/repo-toolchain`、`tools/repo-config` 的源码。锁文件记录每个包的 integrity，可以与 npm 上的 `dist.integrity` 对照。
+
+钉住的版本承担这些检查：
+
+- 根命令 `check:declarations`、`lint:deps` 与 `make metrics`、`loop-status`、`loop-health`、`acceptance-lock` 运行安装包的命令：`omne-declarations`、`omne-deps`、`omne-metrics`、`omne-loop-status`、`omne-loop-health`、`omne-acceptance-lock`。
+- 三个工具成员导入的也是钉住的版本。`lint:rules`、影响面计划与成员测试的编排都不读工作区的 repo-toolchain。
+- 根 `tsconfig.base.json` 与 `.dependency-cruiser.cjs` 按包名引用预设。`.oxlintrc.json` 的 `extends` 只接受相对路径，所以写成 `./node_modules/@omne-harness/repo-config/oxlint.json`，指向的仍是安装的预设。
+
+改工作区的 `tools/repo-toolchain` 或 `tools/repo-config` 不改变这些检查的结果，只影响这两个成员自己的构建、类型检查与测试。收工钩子（`.meta_harness/agents/hooks`）仍运行执行检出里的 `tools/repo-toolchain` 源码。它给 agent 读数，不是准入检查。
+
+升级按下面的顺序做：
+
+1. 在一个 PR 里改 `tools/repo-toolchain` 或 `tools/repo-config`，并提高它 `package.json` 里的版本号。这个 PR 改到仓库工具链路径，经变更闸门确认；它仍由当前钉住的版本检查。
+2. 这个 PR 进入轨道或 main 以后，经 `gate-release` 发布新版本，见[现行准入](engineering/integration.md#现行准入)。
+3. 再开一个只改 catalog 钉子与锁文件的 PR。它改到 `pnpm-workspace.yaml` 与 `pnpm-lock.yaml`，经仓库工具链变更闸门确认。确认者核对它的改动只有这两处；只有这样，用旧版本检查目标分支才等价于用旧版本检查候选。
+4. 用旧版本在目标分支上、用新版本在组合候选上各跑一遍 `make check`。PR 说明写两次的结果与差别，以及新版本删除或放宽的每一项检查；确认说明引用 PR 说明。旧版本的失败如实保留。
+5. 新版本在组合候选上的结果不得比旧版本在目标分支上的结果多出失败；两边都有的既有失败如实列出。不满足时不确认。
+6. 新版本有问题时，再开一个 PR 把钉子改回旧版本，同样按第 3 至 5 步运行与确认。npm 上已经发布的版本不再修改。
+
+这一流程的决定来源是 [RFC-0008](rfcs/RFC-0008-repo-toolchain-trust.md)。
 
 ## 开始一次交付
 
@@ -175,16 +198,23 @@ pnpm package:template scan --group example-capabilities --check --json
 
 组默认只生成README.md与documentation.json，不创建假成员、空专题、源码或采用标识。完成实际内容后再运行检查。组内已有成员的能力组不能用创建命令覆盖，按模板要求逐项整改。
 
-当前service-contract创建和扫描仍限制core，下面命令展示实际支持范围，不是新成员必须归core的目标政策。新组公共Service的模板及静态规则适配须先由工具拥有者完成，不通过手写骨架或伪造标识绕过。
+service-contract的创建与扫描不限制能力组，公共Service定义随能力契约拥有者落入所属组。不通过手写骨架或伪造标识绕过模板。
 
 从仓库根先预览，再创建草稿：
 
 ```sh
-pnpm package:template create --group core --name example-capability --variant service-contract
-pnpm package:template create --group core --name example-capability --variant service-contract --write
+pnpm package:template create --group identity --name example-capability --variant service-contract
+pnpm package:template create --group identity --name example-capability --variant service-contract --write
 ```
 
 按职责选择module、cordis-module、service-contract或service-provider。公共Service定义随能力契约拥有者，独立能力从纯根导出，Cordis集成默认放 ./cordis。源码、行为契约、Schema、模型及必要说明的归属详见模板说明；能力组和成员包两层维护各自完整必要文档。生成草稿只报告模板来源，不写采用标识；占位须由真实承诺与验证替换，不生成空测试或假Service。
+
+当前模板 `typescript-package@3.0.0` 一次生成[完整骨架](package-organization.md#完整生成树)：包根 `index.md` 与 `SPEC.md`、docs 六个专题，以及每个固定目录的 `README.md` 与 `index.md`。各文件的职责见[成员文档](member-documentation.md#固定骨架)。草稿读数分两类：
+
+- 代码与包根 README 带 `PACKAGE_TEMPLATE_DRAFT`。扫描报告 `draft`，结构判失败，`--check` 退出 1，不能写采用标识。
+- 其余 Markdown 带文档占位标记，并已登记在 `documentation.json`。它们不阻止采用标识，但 inventory 读作 `placeholder-only` 并计为缺项。
+
+刚生成的 `acceptance/` 只有入口文件，没有可执行场景。此时不要求验收配置，扫描读作“无可执行验收场景”，测试运行器也不选这个成员跑验收。写入第一个 `*.acceptance.ts` 场景时，由验收的拥有者一并加入 `vitest.acceptance.config.ts` 与 `package.json` 的 `acceptance` 脚本。
 
 测试按[包级测试责任与边界](verification.md#包级测试责任与边界)选择。默认准备单元测试，以及从公开入口做的契约测试。实现具体存储或应用服务时，再增加集成测试。拥有关键用户旅程时，再增加旅程测试。生成器写出 `tests/public-entry.spec.ts`，从包名核对当前公开导出。它不为每个包生成集成目录、端到端目录或全系统启动脚本。这些入口的目录名尚未决定。公开契约替换草稿导出时，替换这份入口测试。
 
@@ -192,10 +222,10 @@ pnpm package:template create --group core --name example-capability --variant se
 
 ```sh
 pnpm package:template scan --json
-pnpm package:template scan --member packages/core/storage --check
+pnpm package:template scan --member packages/common/json-text --check
 ```
 
-逐包核对全部目录、文件和资源归属，完成模板全量适配及适用集成责任的人工核验后，才能添加 omneHarness.packageTemplate 的 id/version/variant。保留原公开能力、源码、Schema 身份及模型义务，不批量抬升标识。不完整、未核对和仍有适用偏离的包保持无标识。[逐包核对记录](../tools/dev-flow/templates/package/adoption-review.md)只记录此前版本采用范围，不表示已完成当前模板迁移。标识表示完整模板采用，不表示全系统或业务验收。
+未标识的现有成员按当前模板判定，因此会报告缺少骨架节点；这一读数不是迁移要求，迁移须另行授权。逐包核对全部目录、文件和资源归属，完成模板全量适配及适用集成责任的人工核验后，才能添加 omneHarness.packageTemplate 的 id/version/variant。保留原公开能力、源码、Schema 身份及模型义务，不批量抬升标识。不完整、未核对和仍有适用偏离的包保持无标识。[逐包核对记录](../tools/dev-flow/templates/package/adoption-review.md)只记录此前版本采用范围，不表示已完成当前模板迁移。标识表示完整模板采用，不表示全系统或业务验收。
 
 TS检查目录、必需文件、草稿及精确版本；Python文档盘点检查局部登记、必要章节和占位。组与成员各自维护一份documentation.json，工具默认发现两层登记，不在项目根重复登记成员目标。普通盘点退出0只表示执行成功，须阅读缺项和unknown；显式组检查不提供历史采用认证，也不替代成员扫描。
 
@@ -254,7 +284,7 @@ make test-affected BASE="$TASK_BASE" TIER=slow
 turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
 
 RFC-0002 的四条约束这样落实：
-- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；成员目录下出现 `turbo.json` 直接报错；`**/turbo.json`、`tools/repo-config/**` 和本配置文件都是全局文件。
+- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；成员目录下出现 `turbo.json` 直接报错；`**/turbo.json` 和本配置文件都是全局文件。根配置的预设和检查器来自钉住的 npm 包，改版本就是改锁文件与 `pnpm-workspace.yaml`，它们也是全局文件。
 - 基线显式传入：合并点经 `TURBO_SCM_BASE` 传给 turbo，不让它自己推断。
 - 未识别文件按全量处理：由上面的规则判。
 - 准入不读 PR 能写入的缓存：`OMNE_ADMISSION=1` 时构建只写不读本地缓存（`--cache=local:w`）。
@@ -410,7 +440,7 @@ gh pr create --base main --head <自己的工作分支> \
 
 ## 终态与过程材料
 
-Git维护当前终态；正式RFC保留进入审议的方案与最小决定关系，真实Issue保留本次交付记录，范围见[四类长期成果与普通任务](engineering/documentation.md#四类长期成果与普通任务)。其他开发流水与决策形成史不作为永久正文。领域与成员各自维护完整必要文档；公开类型表达形状，`SPEC.md` 承担必要行为契约，不重复类型。使用说明、机制设计或选择理由按需另文维护，薄 SPEC 不是整个体系的厚度上限。测试、模型及可复跑验证资源随实际拥有者维护；ADR 只说明当前选择、必要理由和复核条件。项目要求与系统技术预期分别归[项目要求](requirements.md)和[架构](architecture/README.md)，产品与独立设计输入保持meta原源。尚未交接的具体旧技术承诺继续原责任，不复制成包内第二份权威。
+Git维护当前终态；正式RFC保留进入审议的方案与最小决定关系，真实Issue保留本次交付记录，范围见[四类长期成果与普通任务](engineering/documentation.md#四类长期成果与普通任务)。其他开发流水与决策形成史不作为永久正文。领域与成员各自维护完整必要文档；公开类型表达形状，`SPEC.md` 承担必要行为契约，不重复类型。新成员的使用定位、机制设计与对象模型有固定专题位置，其余指南与选择理由按需另文维护；薄 SPEC 不是整个体系的厚度上限。测试、模型及可复跑验证资源随实际拥有者维护；ADR 只说明当前选择、必要理由和复核条件。项目要求与系统技术预期分别归[项目要求](requirements.md)和[架构](architecture/README.md)，产品与独立设计输入保持meta原源。尚未交接的具体旧技术承诺继续原责任，不复制成包内第二份权威。
 
 未进入正式RFC的候选、逐轮讨论和评审、临时计划、进度及某次执行的输入与输出，写在本工作树`tmp/<task>/`。RFC与Issue的规定记录由其拥有者维护，不将全部过程材料提交。不要求永久追溯，不提交这些材料，不通过改名、搬进 research/ADR/fixtures 或建立 Git 历史链接台账继续入库。`.meta_harness/design/record/` 整体被忽略，不是新材料的落点。
 
@@ -426,4 +456,4 @@ Git维护当前终态；正式RFC保留进入审议的方案与最小决定关�
 
 ## 多层分支操作
 
-先从[集成规则](engineering/integration.md)核实际采用与任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`，不再在本机运行 prepare、verify 和 publish。未采用建设仍按既有任务工作。工作树根、runner 根和 subject 根有不同职责；检查器使用实际 subject，规则来自 adopted runner。
+先从[集成规则](engineering/integration.md)核任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。同步目标分支时，先在工作分支上用 `git merge` 合并远端目标提交并提交，再运行 task-sync 让 `targetBase` 前进；taskBase 不变。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。

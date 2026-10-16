@@ -10,6 +10,10 @@ owner: Brian Lee
 
 规则与维护责任见[RFC入口](README.md)。PanQiWei 于 2026-10-14 接受本提案 revision 1，决定见[接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/249#issuecomment-6164587010)。本文是该决定的正式文本。它不是实施许可，规范写回尚未发生。
 
+> **更正标注（2026-10-16）**：受信检查器版本的载体与升级方式已由 [RFC-0008](RFC-0008-repo-toolchain-trust.md) 部分取代，精确范围见其「决定范围」。#332 曾直接改动本提案的两处正文，已撤回：「问题与有效输入」中集成工具契约的路径恢复为原文 `tools/ts-checks/src/integration/SPEC.md`（该契约现位于 [`tools/dev-flow/src/integration/SPEC.md`](../../tools/dev-flow/src/integration/SPEC.md)）；写回表“检查器受信版本的升级流程”一行曾被改为“已写回，改由仓库钉子承载”，恢复为原来的待写回含义后，按 RFC-0008 的接受记为免除写回。
+
+> **更正标注（2026-10-16）**：采用标签与 policy registry 作为受信来源的条款、本机集成工具在四条主干上的角色与改造计划，以及流程失效时“用本机工具完成发布”的恢复方式，已由 [RFC-0009](RFC-0009-adoption-and-local-tool-retirement.md) 部分取代，精确范围见其「决定范围」的 12 项。原文保留。写回表“发布身份加入 owners，以及 I07、I08、I09、I11”一行按 RFC-0009 的接受记为免除写回。
+
 ## 问题与有效输入
 
 现行规则要求每次共享发布同时创建一个不可变的 unit 标签。这个要求由本地的集成工具执行，GitHub 不知道它。在 GitHub 上合并 PR 不需要 unit 标签，所以合并可以绕过记录。
@@ -63,7 +67,7 @@ owner: Brian Lee
 | 当前要求或承诺 | 核对修订与条款 | 本提案受什么约束 |
 | --- | --- | --- |
 | [多层分支规则](../engineering/integration.md) | main `6d0e6ee03a57`，“完整集成”“两条基线”“权限、候选与恢复”“稳定点与轨道演进”“清理与政策接续”“首次接入范围与操作入口” | 完整前缀运输、双基线审计、不可变记录和轨道责任保持不变。采用链保留为记录，检查器升级改走本提案的升级流程 |
-| 集成工具契约 `tools/dev-flow/src/integration/SPEC.md` | 同上修订，I01、I02、I07、I08、I11 | 集成条件的决定保持不变。main、stable 和 release 的发布流程沿用 I04、I09 的候选与比较语义。I07、I08、I11 以及 I01、I02 中检查器版本的来源要修改，见正文 |
+| 集成工具契约 `tools/ts-checks/src/integration/SPEC.md` | 同上修订，I01、I02、I07、I08、I11 | 集成条件的决定保持不变。main、stable 和 release 的发布流程沿用 I04、I09 的候选与比较语义。I07、I08、I11 以及 I01、I02 中检查器版本的来源要修改，见正文 |
 | [agent交付操作](../engineering/agent-delivery.md)、[交付协议](../engineering/delivery.md) | 同上修订 | Issue 仍是任务的唯一来源。确认不代替集成条件的决定，也不代替交付接受 |
 | [验证说明](../verification.md) | 同上修订 | 检查通过不代替语义或行为接受 |
 | #208 的决定 | [PanQiWei 于 2026-10-13 的回复](https://github.com/nemori-ai/omne-harness-lite/issues/208#issuecomment-6145844711) | 认可方向并同意立项。方案仍须按本入口审议 |
@@ -522,8 +526,8 @@ main 以上的确认检查只有发布身份能写，规则集要求的检查对
 | --- | --- | --- | --- |
 | 四条主干、确认后发布（第一阶段） | [integration.md](../engineering/integration.md#现行准入) | 已写回 | 2026-10-15 切换，AIEPhoenix。本机工具的发布步骤不再用于四条主干 |
 | 轨道经合并队列自动合并、合入后补 unit（第二阶段） | integration.md“第二阶段目标” | 待写回 | 等 turbo 构建体系与自动检查 |
-| 发布身份加入 owners，以及 I07、I08、I09、I11 | `integration-policy.json` 与集成工具 `SPEC.md` | 待写回 | 第一阶段不读取 policy，SPEC 只加适用范围说明。拆分修改留到第二阶段 |
-| 检查器受信版本的升级流程 | integration.md“第二阶段目标”已记录方向。`policy-adoption.ts` 的契约未改 | 待写回 | 工具尚未拆成两半。现行 policy-check 与 policy-adopt 仍有效 |
+| 发布身份加入 owners，以及 I07、I08、I09、I11 | `integration-policy.json` 与集成工具 `SPEC.md` | 免除写回 | [RFC-0009](RFC-0009-adoption-and-local-tool-retirement.md) revision 1，2026-10-16 接受，取代本行范围：policy 不再有 owners，本机工具删除，不再拆分改造。确认者 AIEPhoenix（本提案维护者与集成规则的受影响拥有者），2026-10-16 |
+| 检查器受信版本的升级流程 | integration.md“第二阶段目标”已记录方向。`policy-adoption.ts` 的契约未改 | 免除写回 | [RFC-0008](RFC-0008-repo-toolchain-trust.md) revision 1，2026-10-16 接受，取代本行范围；改由仓库钉子承载，见 RFC-0008 的写回表。确认者 AIEPhoenix（本提案维护者与集成规则的受影响拥有者），2026-10-16 |
 | 发布的操作步骤 | [agent-delivery.md](../engineering/agent-delivery.md)、`branch-integration` 技能、[开发指南](../development.md#多层分支操作) | 已写回 | 2026-10-15，AIEPhoenix |
 | release 主干与对外发布的关系 | [publication.md](../engineering/publication.md#集成发布) | 已写回 | 2026-10-14。npm 细节仍待定。release 分支尚未创建 |
 | 远程检查的工作流说明 | `.github/workflows/check.yml` | 待写回 | 远程 CI 仍关闭。工作流留到检查任务改变时再改 |
@@ -532,4 +536,5 @@ main 以上的确认检查只有发布身份能写，规则集要求的检查对
 
 | 后继提案或更正依据 | 部分或全部取代的精确范围 | 当前规范入口 |
 | --- | --- | --- |
-| 无 | 无 | [多层分支规则](../engineering/integration.md) |
+| [RFC-0008](RFC-0008-repo-toolchain-trust.md) revision 1，2026-10-16 接受 | 部分取代：受信检查器版本的载体与升级方式，精确范围见 RFC-0008「决定范围」的 8 项。本提案其余条款保持，原文保留 | [RFC-0008](RFC-0008-repo-toolchain-trust.md) 写回表所列的现行源；其余为[多层分支规则](../engineering/integration.md) |
+| [RFC-0009](RFC-0009-adoption-and-local-tool-retirement.md) revision 1，2026-10-16 接受 | 部分取代：采用标签与 policy registry 作为受信来源的条款、本机集成工具的角色与改造计划、流程失效时的恢复方式，精确范围见 RFC-0009「决定范围」的 12 项。本提案其余条款保持，原文保留 | [RFC-0009](RFC-0009-adoption-and-local-tool-retirement.md) 写回表所列的现行源；其余为[多层分支规则](../engineering/integration.md) |

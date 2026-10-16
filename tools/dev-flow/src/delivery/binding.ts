@@ -30,12 +30,6 @@ export function parseConditionScope(value: unknown, phase: string): string {
     )
   return branch(scope, 'condition.scope')
 }
-export function conditionApplies(scope: string | undefined, target: string): boolean {
-  const layer = target.startsWith('refs/heads/integration/')
-    ? 'track'
-    : target.replace('refs/heads/', '')
-  return scope === undefined || scope === 'all' || scope === target || scope === layer
-}
 
 export type Route =
   | { kind: 'track'; track: string }

@@ -8,8 +8,16 @@ packages:
   - tools/artifact-builder
   - tools/repo-config
 
+# 普通版本号只从 registry 解析，不链接到同名的工作区成员；工作区成员之间要链接就写 workspace:。
+# 检查器的钉子依赖这一条：钉住的 repo-toolchain、repo-config 必须装 npm 上的包。
+linkWorkspacePackages: false
+
 # 版本只在这里钉一次；成员用 `catalog:` 引用。改版本先改这里，再重生锁文件。
 catalog:
+  # 检查器与配置预设：仓库检查运行 npm 上的这两个精确版本，不运行工作区 tools/ 下的同名成员。
+  # 升级先发新版本，再开只改这两行的 PR，见 docs/development.md「仓库工具链的版本」。
+  '@omne-harness/repo-toolchain': 0.0.5
+  '@omne-harness/repo-config': 0.0.3
   '@babel/helper-validator-identifier': 8.0.6
   validate-npm-package-name: 8.0.0
   '@types/validate-npm-package-name': 4.0.2

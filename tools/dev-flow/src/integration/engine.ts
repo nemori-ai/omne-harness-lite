@@ -1,8 +1,5 @@
-import { policyHandoff, policyCheck, adoptPolicy } from './policy-adoption.ts'
-import { prepare, seal, type Prepare } from './candidate.ts'
-import { activationCheck, activate, bootstrap } from './adoption.ts'
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
-import { loadIntegration, taskWorkspace, writeContext, type Legacy } from './context.ts'
+import { taskWorkspace, writeContext, type Context } from './context.ts'
 import {
   currentAdmission,
   deliveryConfig,
@@ -14,14 +11,9 @@ import {
 import { repository, requireAncestor } from './git.ts'
 import { activeTrack } from './policy.ts'
 import { same, IntegrationError } from './parse.ts'
-import { targetHead } from './transport.ts'
-import { verify } from './verify.ts'
-import { publish, resume } from './publish.ts'
-import { registerTrack, bootstrapTrackPlan, bootstrapTrack, retireTrack } from './tracks.ts'
+import { remoteTarget, routeTarget, taskStatus, taskSync } from './sync.ts'
 
 export type Command =
-  | Prepare
-  | { kind: 'bootstrap' | 'policy-handoff' | 'policy-check' }
   | {
       kind: 'register' | 'start'
       authority: string
@@ -29,15 +21,7 @@ export type Command =
       revision: number
       attempt: string
     }
-  | { kind: 'seal' | 'verify' | 'resume'; operation: string }
-  | {
-      kind: 'publish' | 'activate' | 'track-bootstrap' | 'policy-adopt'
-      operation: string
-      authority: string
-    }
-  | { kind: 'activation-check'; legacy: Legacy[] }
-  | { kind: 'track-register'; entry: unknown }
-  | { kind: 'track-bootstrap-plan' | 'track-retire'; track: string }
+  | { kind: 'task-sync'; target: string }
 export type Query =
   | { kind: 'status' }
   | { kind: 'baselines'; purpose: 'task-check' | 'audit' | 'sensor'; explicitBase?: string }
@@ -52,62 +36,28 @@ export async function openIntegration({ root }: { root: string }): Promise<Integ
     async inspect(query) {
       switch (query.kind) {
         case 'status':
-          return loadIntegration(actual)
+          return taskStatus(actual)
         case 'baselines':
           return baselines(actual, query.explicitBase)
       }
     },
     async execute(command) {
       switch (command.kind) {
-        case 'policy-handoff':
-          return policyHandoff(actual)
-        case 'policy-check':
-          return policyCheck(actual)
-        case 'policy-adopt':
-          return adoptPolicy(actual, command.operation, command.authority)
-        case 'bootstrap':
-          return bootstrap(actual)
         case 'register':
         case 'start':
           return start(actual, command)
-        case 'prepare':
-          return prepare(actual, command)
-        case 'seal':
-          return seal(actual, command.operation)
-        case 'verify':
-          return verify(actual, command.operation)
-        case 'publish':
-          return publish(actual, command.operation, command.authority)
-        case 'resume':
-          return resume(actual, command.operation)
-        case 'activation-check':
-          return activationCheck(actual, command.legacy)
-        case 'activate':
-          return activate(actual, command.operation, command.authority)
-        case 'track-register':
-          return registerTrack(actual, command.entry)
-        case 'track-bootstrap-plan':
-          return bootstrapTrackPlan(actual, command.track)
-        case 'track-bootstrap':
-          return bootstrapTrack(actual, command.operation, command.authority)
-        case 'track-retire':
-          return retireTrack(actual, command.track)
-        default: {
-          const exhaustive: never = command
-          return exhaustive
-        }
+        case 'task-sync':
+          return taskSync(actual, command.target)
       }
     },
   }
 }
-function start(root: string, command: Extract<Command, { kind: 'register' | 'start' }>): unknown {
+function start(root: string, command: Extract<Command, { kind: 'register' | 'start' }>): Context {
   const state = taskWorkspace(root),
     config = deliveryConfig(root, state.policy, state.source),
     scope = { task: command.issue, authority: command.authority },
     capture = currentAdmission(config, scope)
   const decision = readAuthority(state.policy, command.authority, capture)
-  if (decision.action !== 'dispatch')
-    throw new IntegrationError('refused', 'Recorded dispatch authority required')
   same(
     [
       decision.task.issue.url,
@@ -125,22 +75,10 @@ function start(root: string, command: Extract<Command, { kind: 'register' | 'sta
   const info = repository(root)
   same(info.branch, task.binding.branch, 'Task branch does not match this worktree')
   requireAncestor(root, task.binding.taskBase, info.head)
-  const target =
-    task.binding.route.kind === 'track'
-      ? `refs/heads/${activeTrack(state.policy, task.binding.route.track).branch}`
-      : 'refs/heads/main'
-  const targetBase = targetHead(root, state.policy, target)
-  if (targetBase === null)
-    throw new IntegrationError('unknown', 'Task route target has not been bootstrapped')
-  confirmConditions(
-    config,
-    capture,
-    task.binding,
-    'start',
-    target,
-    decision.confirmations,
-    state.policy,
-  )
+  if (task.binding.route.kind === 'track') activeTrack(state.policy, task.binding.route.track)
+  const target = routeTarget(state.policy, task.binding.route)
+  const targetBase = remoteTarget(root, state.policy, target)
+  confirmConditions(config, capture, task.binding, target, decision.confirmations, state.policy)
   if (state.context !== null) {
     same(
       state.context.ownerTask,
@@ -154,12 +92,11 @@ function start(root: string, command: Extract<Command, { kind: 'register' | 'sta
     admissionDigest(capture),
     'Task inputs changed during dispatch readback',
   )
-  const context = {
-    schemaVersion: 1 as const,
+  const context: Context = {
+    schemaVersion: 1,
     root: info.root,
     gitDir: info.gitDir,
     branch: info.branch,
-    anchor: state.anchor,
     targetBase,
     tasks: [{ binding: task.binding, taskSource: info.head }],
     ownerTask: task.binding,

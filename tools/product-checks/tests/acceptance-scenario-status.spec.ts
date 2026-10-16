@@ -13,7 +13,9 @@ afterEach(() => {
 })
 const cli = fileURLToPath(new URL('../src/acceptance/scenario-status-cli.ts', import.meta.url))
 const run = (...args: string[]) =>
-  spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], { encoding: 'utf8' })
+  spawnSync(process.execPath, ['--conditions=source', '--experimental-strip-types', cli, ...args], {
+    encoding: 'utf8',
+  })
 const temporary = () => {
   const root = mkdtempSync(join(tmpdir(), 'scenario-'))
   made.push(root)

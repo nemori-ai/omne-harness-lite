@@ -5,8 +5,7 @@
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
-    "tsconfig.base.json",
-    "tools/repo-config/**"
+    "tsconfig.base.json"
   ],
   "tasks": {
     "build": {

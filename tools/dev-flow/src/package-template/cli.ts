@@ -93,7 +93,7 @@ try {
         }
         for (const item of results) {
           process.stdout.write(
-            `${item.path}: ${item.adoption} / ${item.variant} / structure=${item.structure} / integration=${item.integration}; owned nodes=${item.tree.length}; architecture unknowns=${item.architectureUnknowns}; binding unknowns=${item.bindingUnknowns.length}\n`,
+            `${item.path}: ${item.adoption} / ${item.variant} / structure=${item.structure} / integration=${item.integration}; acceptance=${item.acceptance === 'executable' ? 'executable scenarios' : 'no executable scenarios'}; owned nodes=${item.tree.length}; architecture unknowns=${item.architectureUnknowns}; binding unknowns=${item.bindingUnknowns.length}\n`,
           )
           for (const finding of item.findings)
             process.stdout.write(`  ${finding.code}: ${finding.path}: ${finding.reason}\n`)

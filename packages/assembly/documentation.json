@@ -83,25 +83,6 @@
         "path": "docs/member-documentation.md",
         "anchor": "行为契约与完整文档"
       }
-    },
-    {
-      "id": "target-assembly-entry",
-      "path": "packages/assembly/assembly/README.md",
-      "kind": "entry",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "gapAllowanceSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "行为契约与完整文档"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
     }
   ]
 }

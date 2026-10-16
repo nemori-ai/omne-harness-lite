@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, lstatSync } from 'node:fs'
 import { join } from 'node:path'
-import { object, type Finding, type Variant } from './model.ts'
+import { object, type Finding, type PackageScan, type Variant } from './model.ts'
 import { safeRelative } from './template.ts'
 
 export function readObject(path: string): Record<string, unknown> {
@@ -237,5 +237,94 @@ export function checkStructure(
         reason: 'Complete the accepted contract and remove the draft placeholder before adoption',
       })
   }
+  return findings
+}
+type TreeNode = PackageScan['tree'][number]
+function realFile(root: string, member: string, tree: readonly TreeNode[], path: string): boolean {
+  return (
+    tree.some(node => node.path === path && node.kind === 'file') &&
+    readFileSync(join(root, member, path), 'utf8').trim() !== ''
+  )
+}
+/** Rule set 3: each docs topic lives in exactly one place, a file or a directory with entries. */
+export function checkTopics(
+  root: string,
+  member: string,
+  topics: readonly string[],
+  tree: readonly TreeNode[],
+): Finding[] {
+  const findings: Finding[] = []
+  for (const topic of topics) {
+    const file = `docs/${topic}.md`,
+      directory = `docs/${topic}`
+    const hasFile = tree.some(node => node.path === file)
+    const hasDirectory = tree.some(node => node.path === directory && node.kind === 'directory')
+    if (hasFile && hasDirectory)
+      findings.push({
+        code: 'topic-duplicate',
+        path: `${member}/${directory}`,
+        reason: `Topic ${topic} has both ${file} and ${directory}/; keep one location`,
+      })
+    else if (hasDirectory) {
+      for (const entry of ['README.md', 'index.md'])
+        if (!realFile(root, member, tree, `${directory}/${entry}`))
+          findings.push({
+            code: 'topic-entry-missing',
+            path: `${member}/${directory}/${entry}`,
+            reason: `Topic directory ${directory}/ requires README.md and index.md`,
+          })
+    } else if (!realFile(root, member, tree, file))
+      findings.push({
+        code: 'topic-missing',
+        path: `${member}/${file}`,
+        reason: `Topic ${topic} requires ${file} or ${directory}/ with README.md and index.md`,
+      })
+  }
+  return findings
+}
+/** Executable scenarios: *.acceptance.ts files under acceptance/, outside acceptance/fixtures/. */
+export function acceptanceScenarios(tree: readonly TreeNode[]): string[] {
+  return tree
+    .filter(
+      node =>
+        node.kind === 'file' &&
+        node.path.startsWith('acceptance/') &&
+        !node.path.startsWith('acceptance/fixtures/') &&
+        node.path.endsWith('.acceptance.ts'),
+    )
+    .map(node => node.path)
+}
+/** Rule set 3: configuration follows executable scenarios, not the acceptance directory. */
+export function checkAcceptance(
+  member: string,
+  manifest: Record<string, unknown>,
+  tree: readonly TreeNode[],
+): Finding[] {
+  const findings: Finding[] = []
+  const scenarios = acceptanceScenarios(tree).length
+  const config = tree.some(
+    node => node.path === 'vitest.acceptance.config.ts' && node.kind === 'file',
+  )
+  const scripts = manifest['scripts']
+  const script = object(scripts) ? scripts['acceptance'] : undefined
+  if (scenarios > 0 && !config)
+    findings.push({
+      code: 'acceptance',
+      path: `${member}/vitest.acceptance.config.ts`,
+      reason: 'Executable acceptance scenarios require vitest.acceptance.config.ts',
+    })
+  if (scenarios > 0 && (typeof script !== 'string' || script.trim() === ''))
+    findings.push({
+      code: 'acceptance',
+      path: `${member}/package.json`,
+      reason: 'Executable acceptance scenarios require an acceptance script',
+    })
+  if (scenarios === 0 && config)
+    findings.push({
+      code: 'acceptance',
+      path: `${member}/vitest.acceptance.config.ts`,
+      reason:
+        'vitest.acceptance.config.ts requires an acceptance/**/*.acceptance.ts scenario outside acceptance/fixtures/',
+    })
   return findings
 }

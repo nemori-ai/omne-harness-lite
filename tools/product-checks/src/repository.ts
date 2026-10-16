@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { join, relative, dirname, resolve } from 'node:path'
 import { isLegacyDirectory } from '@omne-harness/repo-toolchain/core/check-scope'
 import ts from '@typescript/typescript6'
@@ -36,13 +37,7 @@ export function collectRepositorySources(root: string): SourceFile[] {
       throw new Error(ts.flattenDiagnosticMessageText(parsed.error.messageText, '\n'))
     const body: { extends?: string; compilerOptions?: Record<string, unknown> } = parsed.config
     let inherited: ts.CompilerOptions = {}
-    if (body.extends !== undefined) {
-      if (!body.extends.startsWith('.'))
-        throw new Error('repository guard requires an explicit local compiler configuration base')
-      let parent = resolve(dirname(config), body.extends)
-      if (!existsSync(parent)) parent += '.json'
-      inherited = readOptions(parent)
-    }
+    if (body.extends !== undefined) inherited = readOptions(extendedConfig(config, body.extends))
     const explicit = body.compilerOptions ?? {}
     const converted = ts.convertCompilerOptionsFromJson(
       {
@@ -56,6 +51,20 @@ export function collectRepositorySources(root: string): SourceFile[] {
     const options = { ...inherited, ...converted.options }
     optionsCache.set(config, options)
     return options
+  }
+  /** 相对路径按文件解析；包名按 Node 的规则从这份配置所在的目录解析，读到的是锁文件钉住的那份安装。 */
+  function extendedConfig(config: string, base: string): string {
+    if (base.startsWith('.')) {
+      const parent = resolve(dirname(config), base)
+      return existsSync(parent) ? parent : `${parent}.json`
+    }
+    try {
+      return createRequire(config).resolve(base)
+    } catch {
+      throw new Error(
+        `repository guard cannot resolve the compiler configuration base ${base} from ${relative(root, config)}`,
+      )
+    }
   }
   function compilerOptions(full: string): ts.CompilerOptions {
     let directory = dirname(full)

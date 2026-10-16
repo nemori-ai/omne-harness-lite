@@ -52,6 +52,9 @@ export function repository(): string {
   // 本机 git 可能早于 `init -b`，用 symbolic-ref 定主线分支名。
   git(root, 'init', '-q')
   git(root, 'symbolic-ref', 'HEAD', 'refs/heads/main')
+  // 开发者的全局忽略（例如 `.venv`）不能决定临时仓库收哪些文件：本仓库只用自己的 .gitignore。
+  write(root, '.git/no-global-excludes', '')
+  git(root, 'config', 'core.excludesFile', join(root, '.git/no-global-excludes'))
   write(root, 'README.md', 'repo\n')
   commit(root, 'init')
   return root

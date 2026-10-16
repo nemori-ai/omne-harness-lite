@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-`@omne-harness/repo-toolchain` 是本仓库的检查器包，计划发布到 npm，首次发布前保留 `private`。它提供规则引擎、提交署名、依赖图、声明兼容、结构度量、实际架构抽取、审讯页与 clean loop。根目录钉精确版本以后，本地检查运行发布的版本。
+`@omne-harness/repo-toolchain` 是本仓库的检查器包，发布在 npm。它提供规则引擎、提交署名、依赖图、声明兼容、结构度量、实际架构抽取、审讯页与 clean loop。仓库在 `pnpm-workspace.yaml` 的 catalog 里钉它的精确版本，根目录的检查与三个工具成员都运行 npm 上的那个版本，不运行本目录的源码。改了本目录，要先发新版本，再开改钉子的 PR，见[开发指南](../../docs/development.md#仓库工具链的版本)。
 
 三个不发布的工具成员经本包的子路径导入它，本包不引用它们：
 
@@ -25,13 +25,24 @@
 
 `exports` 的子路径对应 `src` 下的模块，例如 `@omne-harness/repo-toolchain/core/task-context`。`.` 导出规则类型、`collectSources`、`runRules(files, rules)` 与实际架构 API；`./architecture` 导出实际架构 API。`loop/run`、`loop/hook-measure` 与 `loop/sensors/*` 只供本仓库其他工具成员的测试使用，不作公开承诺。发布时去掉指向 `src` 的 `source` 条件。
 
+命令入口（`bin`）都指向 `dist`，从安装的包运行：
+
+| 命令 | 源码入口 | 作用 |
+| --- | --- | --- |
+| `omne-deps` | `src/deps/cli.ts` | 依赖规则与成员、组之间的环 |
+| `omne-declarations` | `src/declarations/cli.ts` | 用 TypeScript 6 读成员 dist 里的声明 |
+| `omne-metrics` | `src/metrics/cli.ts` | 结构度量与审讯页 |
+| `omne-loop-status` | `src/loop/cli.ts` | 回路状态 |
+| `omne-loop-health` | `src/loop/health-cli.ts` | 流程体检页 |
+| `omne-acceptance-lock` | `src/acceptance/cli.ts` | 验收锁 |
+| `omne-architecture` | `src/arch/cli.ts` | 实际架构 JSON |
+
 ## 构建与测试
 
 ```sh
 pnpm --filter @omne-harness/repo-toolchain build      # tsc，再把审讯页内联的第三方代码预打包到 dist
 pnpm --filter @omne-harness/repo-toolchain typecheck
 pnpm --filter @omne-harness/repo-toolchain test
-pnpm run build:tools                                  # 工具成员的 CLI 读本包的 dist，调用前先构建（turbo 有缓存）
 ```
 
 审讯页内联的 React、@xyflow/react、antd 与 elkjs 在构建时写入 `dist/report/flow/architecture/page-assets.json`。从 `dist` 运行时读取这个文件，从源码运行时现场打包，所以发布的包不依赖这些界面库。
@@ -65,7 +76,7 @@ pnpm run build:tools                                  # 工具成员的 CLI 读�
 
 报告写成 `commit <短号>:<提交信息里的行号>`。它认的是 `src/commits.ts` 里列出的那批名字，新出现的工具要加进去；
 它**不核对**来源 trailer 有没有写、写得对不对——哪些提交有 agent 参与，工具看不出来。
-浅克隆时只查克隆下来的那些提交；不在 git 检出里运行时通过提示会写明「未检查」。自测：`tests/commit-attribution.spec.ts`。
+浅克隆时只查克隆下来的那些提交；不在 git 检出里运行时通过提示会写明「未检查」。自测：`tests/commit-attribution.spec.ts`。本仓库已在共享历史里、不能改写的提交，由 [product-checks 的历史审计基线](../product-checks/README_ZH.md#提交署名的历史审计基线)逐条列出；本包不读基线，`attributionViolations` 照常报告全部违反。
 
 ## 验收锁
 
@@ -75,6 +86,8 @@ pnpm run build:tools                                  # 工具成员的 CLI 读�
 ```sh
 make acceptance-lock BASE=<任务基线提交或分支>
 ```
+
+模板生成的验收入口不算验收内容：`acceptance/` 下名为 `README.md` 或 `index.md`、变化后（删除时看变化前）仍有独立一行文档占位标记的文件，增删改都不计入；去掉标记、写入真实内容的改动照常计入（RFC-0007）。
 
 **基线提交就是清单**：Git 按内容寻址，派发时不必另存一份哈希。工具拿基线与 HEAD 的合并点同当前工作树比，输出三样：
 
@@ -125,8 +138,10 @@ CLI 的 stdout 只有 JSON。`--out` 另写同一份 JSON。参数、Git、works
 产品测试排除，开发成员可用于静态解析，但不独立抽取其插件。manifest 和配置取本版内容。
 配置的 `read` 清单与 `appliedToResolution` 清单分开；后者记录实际选中及 extends 读取的配置。
 每个导入先用所属成员的 tsconfig.json、tsconfig.build.json，再用根配置；应用其模块解析选项。
-这不复现 compiler build：仍分析全部产品 src TypeScript，不依赖 include/exclude，不加载安装包、
-标准库或安装包的 extends，也不运行 project references。workspace dist exports 静态映射到 src。
+这不复现 compiler build：仍分析全部产品 src TypeScript，不依赖 include/exclude，不加载安装包和
+标准库，也不运行 project references。workspace dist exports 静态映射到 src。
+按包名写的 extends（例如 `@omne-harness/repo-config/tsconfig.base.json`）指向安装的模块，不在该版本的文件里。
+抽取不应用它的选项，把它记进 `configuration.installedExtends`，格式为 `<配置文件> -> <说明符>`。
 
 `facts` 保留服务定义、候选提供、必需与可选取用、事件、插件和静态装配；`imports` 区分类型与运行导入，
 含 ESM import/export/dynamic import、空 named 子句、TypeScript `import()` 类型、外部包和成员内导入。
@@ -263,8 +278,8 @@ make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make che
 它要求给 `BASE` 与 `OUT`（缺了按用法错退出 2），草稿写进 `OUT/proposals/`，不写趋势快照（与 `SNAPSHOT=1` 同用也是用法错）——
 回路目录里一个字节都不动。`make check` 的最后一步就是它，见[自动化入口](../../scripts/README.md)。
 
-工程集成由 `integration-check.sh` 显式传 `--strict --scope engineering`。CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须与 strict 同用。
-工具复用当前传感器的源码清单，并枚举固定 targetBase、实际 merge-base、每个任务 taskBase 的 Git 树，按同一规则统计源码和测试。相同提交去重。未采用集成机制的普通测试仓库使用有效显式 base 及其 merge-base。
+CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须与 strict 同用。仓库的 `make check` 不传范围，使用默认 `all`。
+工具复用当前传感器的源码清单，并枚举固定 targetBase、实际 merge-base、每个任务 taskBase 的 Git 树，按同一规则统计源码和测试。相同提交去重。没有 task context 的仓库使用有效显式 base 及其 merge-base。
 只有当前与全部基线的两类计数均为零，duplication、assertions 启用但无数据时才列入 `hardLines.sensors.notApplicable`，原因码为 `engineering-without-product-inputs`。
 `status.json` 的 `scope.evidence` 保存当前计数和各基线的精确提交、计数。原始 `sensors` 仍是 no-data；终端与 Markdown 点名工程范围不适用。关闭项仍列 `off`，其他启用的无数据项仍列 `silent` 并失败。
 最后一个输入被删除或迁入 legacy 时，历史输入仍阻止豁免。无效 context、无效基线、缺对象、读取错误及无法分类的历史链接或子模块按工具错误失败。输入范围沿现有扫描器，包括 legacy、构建产物、测试和声明文件规则。

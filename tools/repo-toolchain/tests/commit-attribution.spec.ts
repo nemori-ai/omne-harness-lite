@@ -2,8 +2,7 @@
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   attributionViolations,
@@ -121,12 +120,7 @@ describe('commit-attribution', () => {
     expect(parsed[1]).toMatchObject({ authorName: 'n2', committerEmail: 'ce2', trailers: '' })
   })
 
-  it('本仓库当前可达的全部历史没有作者式署名', () => {
-    const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
-    const commits = readCommits(root)
-    expect(commits.length).toBeGreaterThan(0)
-    expect(attributionViolations(commits)).toEqual([])
-  })
+  // 本仓库历史的断言与它的审计基线一起归 tools/product-checks（tests/attribution-baseline.spec.ts）。
 })
 
 describe('来源 trailer', () => {

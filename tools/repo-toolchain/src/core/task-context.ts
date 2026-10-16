@@ -37,7 +37,7 @@ export type TaskContext = {
   operation: string | null
 }
 export type Baselines = {
-  state: 'pending' | 'adopted'
+  state: 'pending' | 'bound'
   targetBase: string | undefined
   audits: TaskContextAudit[]
 }
@@ -147,7 +147,7 @@ export function readTaskContext(root: string): TaskContext {
     context.gitDir !== info.gitDir ||
     context.branch !== info.branch
   )
-    throw new TaskContextError('stale', 'Context belongs to another tree, branch or adoption')
+    throw new TaskContextError('stale', 'Context belongs to another tree or branch')
   return context
 }
 
@@ -162,7 +162,7 @@ export function baselines(root: string, explicitBase?: string): Baselines {
   if (explicitBase !== undefined && commitOf(root, explicitBase) !== context.targetBase)
     throw new TaskContextError('stale', 'Explicit base differs from fixed targetBase')
   return {
-    state: 'adopted',
+    state: 'bound',
     targetBase: context.targetBase,
     audits:
       context.operation === null && context.ownerTask !== null

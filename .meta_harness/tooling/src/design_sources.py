@@ -7,6 +7,11 @@ from omne_harness_lite_spec_tools.documentation_inputs import Inputs, discover, 
 from source_links import ModuleSources
 
 
+# 暂行规则（#325）：设计文档仍链接到封存的 legacy 源码，作为历史证据。新成员尚未承接这些实现，
+# 链接暂不改写；目标文件存在时放行并逐条计数报告。legacy-refactor 同步 main 后由 #325 改写链接并删除本规则。
+LEGACY_ARCHIVES = ("packages.0.0.1.legacy", "apps.0.0.1.legacy")
+
+
 def _sources(root: Path) -> list[Path]:
     return sorted(path for path in root.rglob("*.md")
                   if not any(part.endswith(".legacy") for part in path.relative_to(root).parts[:-1])
@@ -14,7 +19,7 @@ def _sources(root: Path) -> list[Path]:
                   and not path.is_relative_to(root / "record"))
 
 
-def check_links(root: Path, source_root: Path | None = None) -> list[str]:
+def check_links(root: Path, source_root: Path | None = None, notes: list[str] | None = None) -> list[str]:
     root = root.resolve()
     errors: list[str] = []
     if not root.is_dir():
@@ -60,6 +65,11 @@ def check_links(root: Path, source_root: Path | None = None) -> list[str]:
                             else:
                                 allowed |= actual in {execution / "docs/engineering/github-delivery.json",
                                                       execution / "docs/architecture/constraints.json"}
+                        if not allowed and execution and actual.is_file() and any(
+                                actual.is_relative_to(execution / name) for name in LEGACY_ARCHIVES):
+                            allowed = True
+                            if notes is not None:
+                                notes.append(f"{label}interim legacy link (#325): {value}")
                         if not allowed:
                             raise ValueError(f"link escapes design root: {value}")
                         data = inputs.read_bytes(target.relative_to(boundary).as_posix(), navigation=True)

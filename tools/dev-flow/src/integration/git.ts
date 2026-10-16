@@ -77,7 +77,7 @@ export function repository(root: string): {
 }
 export function clean(root: string): { head: string; tree: string } {
   if (git(root, ['status', '--porcelain=v1', '--untracked-files=all']) !== '')
-    throw new IntegrationError('refused', `Candidate is not clean: ${root}`)
+    throw new IntegrationError('refused', `Worktree is not clean: ${root}`)
   return {
     head: sha(git(root, ['rev-parse', 'HEAD'])),
     tree: sha(git(root, ['rev-parse', 'HEAD^{tree}'])),
@@ -96,12 +96,6 @@ export function maybeBlob(
 ): ReturnType<typeof blob> | null {
   if (maybeRef(root, `${sha(commit)}:${path}`) === null) return null
   return blob(root, commit, path)
-}
-export function parents(root: string, commit: string): string[] {
-  return git(root, ['show', '-s', '--format=%P', sha(commit)])
-    .split(' ')
-    .filter(Boolean)
-    .map(item => sha(item))
 }
 export function lines(value: string): string[] {
   return value === '' ? [] : value.split('\n')

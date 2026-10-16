@@ -151,4 +151,4 @@ Project保留活动与近期项，达到容量前移出已结束项，Issue历�
 
 完成 track 后已接受的结果仍可能被后续完整 RI 携带。有权 owner 对每个历史 identity/revision/attempt 与当前输入分别重核，历史 tuple 和 taskBase 不被新修订覆盖。当前 attempt 仍唯一，不因历史集合变成多执行队列。
 
-Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 发布后投影失败，保留技术回执由原写者接续，不重放 ref 事务。本工具只读平台。
+Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。本工具只读平台。

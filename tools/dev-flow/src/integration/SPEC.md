@@ -1,63 +1,52 @@
 # 分支集成工具行为契约
 
-自 2026-10-15 起，四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行。本工具的 prepare、verify 和 publish 不再用于 `integration/*`、main 和 stable，只在 admin 临时恢复原规则集时作为恢复手段。status、start、register、task-sync 等任务入口照常使用。start 和 register 不需要 bootstrap 或采用锚点：policy 和交付配置从当前 HEAD 读取，派发评论的作者须是 `publish` environment 的 reviewer（个人或 team 成员），不再比对 owner 名单和 policy 修订号。没有 task context 的检出，baselines 退回显式基线，`scripts/check.sh` 再退回 `origin/main`。
+本工具只承担任务工作树的开工准入、状态读取、基线与 task-sync。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。采用、本机发布与旧建轨道命令及其条款已按 [RFC-0009](../../../../docs/rfcs/RFC-0009-adoption-and-local-tool-retirement.md) 删除，原 I01、I02、I04、I05、I07、I09、I10、I11 随之删除。保留条款沿用原编号。
 
-本模块兑现[多层分支规则](../../../../docs/engineering/integration.md)。公开类型及输入解析归本目录源码。正式采用从可信main及不可变tag读取。以下承诺约束实现；配置、提交与实际采用分别判断。
+本模块兑现[多层分支规则](../../../../docs/engineering/integration.md)。公开类型及输入解析归本目录源码，命令用法归 [README](README.md)。以下承诺约束实现。
 
-## 采用与身份
-
-I01。共同 loader 只从实际 Git 仓库的正式 main 提交读取 bootstrap descriptor。当前正式来源没有 descriptor 时返回 pending，不联网、不要求新任务 context。descriptor 已提交而采用对象、可信来源或 context 缺失时返回 unknown。候选删除 descriptor 不解除已采用规则。显式 bootstrap 查询完整权威 tag 命名空间；查无首次采用 tag 才产生限定该次观察的 positive absence。
-
-I02。采用 tag 固定提交、policy blob、具名决定和 legacy 树范围。新 clone 必须 bootstrap。legacy 豁免匹配实际 tree 身份、原分支、原 HEAD 祖先与原任务绑定。新任务不能沿用旧豁免。activate 核对 construction 完整提交确认、clean HEAD、机制资源、实际检查和启用的 delivery 前提。它不替用户提交、丢弃或迁移工作。
+## 任务与 policy
 
 I03。任务事实来自现有 Issue 的唯一 `omne-integration-binding:v1` JSON 区块，精确格式归 delivery/binding.ts。当前 revision 和 attempt、身份、责任、路线、taskBase 与写范围必须匹配。context 仅缓存事实。平台 Stage、关闭及交付接受不由本模块写入。
 
-## 候选与验证
+policy 固定读当前 HEAD 提交中的 `docs/engineering/integration-policy.json`。HEAD 中没有该文件时为 unknown。`parsePolicy` 只接受 `schemaVersion`、`revision`、`repository`、`deliveryConfig`、`tracks`、`transport` 与 `timeouts`，`timeouts` 只接受 `networkMs`，已删除或未知的字段拒绝。轨道条目只接受 `id`、`branch`、`owner`、`source`、`status` 与 `initialMain`；`status` 取 active、paused、retiring 或 retired。开工只接受 active 的轨道；`status` 与 task-sync 按登记读取任何状态的轨道，未登记的轨道拒绝。
 
-I04。operation ID 在候选提交前生成。操作固定 B、各 S、policy 和每张卡。除 stable 外，C 第一父为 B，各 S 与 B 均为 C 祖先。源分支后来前进不修改固定 S。目标变化后旧候选失效。冲突保留在专属候选树，工具不选冲突一侧。
+## 两条基线
 
-I05。RI 和 joint 从轨道初始 anchor 到 S 的 first-parent 单元 tag 重建来源。工具自动推导每卡集合，拒绝缺 tag、外来直接提交、来源不全和不相容的重复任务。FI 继承 main，不凭此创建业务任务。调用者提供的集合仅用于精确比较。
+I06。task context 保存 `targetBase` 与每卡的 `taskBase`/`taskSource`。
 
-I06。targetBase 用于 B..C 影响检查。taskBase..taskSource 逐提交审计保留已撤销的改动、合法 QA/main 和合并父判断。各检查边界消费共同 loader；全局 main 趋势仍用 main。
+- `targetBase` 是最近一次同步进来的目标提交，用于影响面与组合检查。开工时它是 `start` 读到的远端目标分支提交，之后只由 task-sync 前进。
+- `taskBase` 在开工时固定，任何同步都不改变它。taskBase..taskSource 的逐提交审计保留已撤销的改动和合并父判断。
 
-I07。verify 从已采用提交物化受信 runner，命令 manifest 和 checker 来自 runner。C 只提供被测产品、测试及构建输入。实际命令成功、候选 HEAD/tree/clean 前后不变才封存 receipt。回执绑定命令、退出码、日志 digest、B/S/C、任务集合和 policy/tool 对象。旧耗时 ledger 不构成成功证明。候选自身规则不能放宽已采用规则。
+各检查边界通过 `@omne-harness/repo-toolchain` 的共同 loader 读取 context。全局 main 趋势仍用 main。`baselines` 有 context 时返回固定 `targetBase`，显式 base 与之不同时为 stale；没有 context 时返回显式 base。
 
-显式仓库的 Git 调用及 verify 工程子命令删除继承的 `GIT_DIR`、`GIT_WORK_TREE`、`GIT_INDEX_FILE`、`GIT_COMMON_DIR`、`GIT_OBJECT_DIRECTORY`、`GIT_ALTERNATE_OBJECT_DIRECTORIES`、`GIT_NAMESPACE`、`GIT_SHALLOW_FILE`。仓库、对象库及引用由显式目录决定，linked worktree 仍由 Git 自身发现。原认证、Git 配置、超时、输入输出及错误分类保持；verify 继续绑定正式 OMNE runner/subject。此约定不隔离任意 Git 配置。
+context 的读格式不变：`schemaVersion` 为 1，`operation` 保留并写 `null`。新 context 不写 `anchor`；读取旧 context 时接受并忽略 `anchor` 键。
 
-## 授权与更新
+## 授权与开工
 
-I08。生产授权读取真实 Issue comment。固定只读 `gh api GET` 核对 repository、Issue 非 PR、comment URL、作者 login/node ID、严格 action schema 和精确动作输入。dispatch、adopt、publish、policy-adopt 与 track-bootstrap 各有自己的必需字段。本地 JSON 仅作为草稿或观察。关键步骤再读当前任务和条件决定，未知拒绝。
+I08。生产授权读取真实 Issue comment。固定只读 `gh api GET` 核对 repository、评论所在 Issue、评论 URL、评论与采集时的正文、作者和更新时间一致，以及严格 action schema。唯一支持的 action 是 dispatch。评论作者须是 `publish` environment 的 required reviewer：个人 reviewer 按 login 与 node ID 匹配，team reviewer 按 active 成员身份匹配；environment 读不到或没有 reviewer 时为 unknown。决定的 responsible 须等于作者。决定只接受 schemaVersion、action、responsible、basis、task 与 confirmations，其他字段拒绝。本地 JSON 仅作为草稿或观察。
 
 `start` 与 `register` 的平台读取限于任务闭包、授权卡及任务 Project 状态，范围归 [准入采集](../delivery/SPEC.md#任务准入采集)。闭包包含精确 Issue 条件目标、原生 blockedBy、原生父卡及正文父卡。独立授权卡完整读取评论以核对撤销声明，不读取其无关关系。每次最多 32 个 Issue、8 个边层级，缺页、解析错误、身份不符或超限均为 unknown。
 
-准入继续核对直接授权评论与已采评论的一致性、owner login/node ID、撤销声明、精确绑定及现行条件确认。工具只核对目标卡偏离，不以准入闭包声称全仓创建标识唯一或循环覆盖。配置 Stage 字段与任务 membership 必须确认，完整读取后的空 Stage 合法。
+准入核对撤销声明、精确绑定、卡未关闭、工作树分支等于 binding 的分支、taskBase 是 HEAD 的祖先，以及每个 start 条件在派发决定中有当前摘要的确认。工具只核对目标卡偏离，不以准入闭包声称全仓创建标识唯一或循环覆盖。配置 Stage 字段与任务 membership 必须确认，完整读取后的空 Stage 合法。
 
-创建 context 前重新采集同一范围。摘要包括完整闭包内容、独立授权评论和任务 Stage。相关正文、评论、关系、Stage 或闭包变化均拒绝写入。无关 Issue 历史或其他 Project item 不进入读取及摘要。已有同绑定 context 仍按现行幂等读回处理。其他集成操作继续使用全库采集。
+创建 context 前重新采集同一范围。摘要包括完整闭包内容、独立授权评论和任务 Stage。相关正文、评论、关系、Stage 或闭包变化均拒绝写入。无关 Issue 历史或其他 Project item 不进入读取及摘要。已有同绑定 context 时原样返回；已绑定另一任务时拒绝。context 只新建，不覆盖。
 
-I09。publish 先证明 B 是 C 祖先，再在更新点比较 expected B。remote 使用精确 lease、无 `+` refspec 和 atomic branch/tag push。local bare 使用带 oldOID 的 update-ref 事务。branch 与 immutable unit/checkpoint tag 同时成功或全部失败。拒绝 non-FF、checked-out ref、tag 碰撞及不支持 atomic 的远端。
+## 状态与同步
 
-I10。stable 选取已存在的 main 提交 C。旧 stable 只需是 C 祖先，不要求 C 第一父等于旧 stable。首次创建固定明确 audit base。stable 不产生开发提交。
+I12。`status` 不改 context。没有 context 时报告未绑定，不读远端。已绑定时报告绑定的卡、修订、attempt、`taskBase`、`targetBase`、远端目标分支及其当前提交，以及 `targetBase` 与远端目标的关系：相等为 current，是其祖先为 behind，其他为 diverged。远端读不到时为 unknown。
 
-I11。事务前封存 intent。发送一次后，失败或超时先读真实 refs。resume 不重发事务。B 且 tag 不存在是未观察发布；C 或包含 C 的后继且 tag 精确匹配是已发布；分裂、碰撞或读取失败是 unknown。Git 发布、交付接受和 Issue 投影是不同事实。
+I13。task-sync 只在下列条件全部满足时把 `targetBase` 更新为 T：
+
+- 本工作树已绑定任务，context 可读。
+- 远端目标分支可读，T 是它的当前提交或祖先。
+- T 是本地提交，并且是当前 HEAD 的祖先。
+- 当前 `targetBase` 是 T 的祖先。
+- 工作树没有未提交的改动，未跟踪文件也算改动。
+
+任一条件不满足就拒绝，context 不变。T 等于当前 `targetBase` 时成功，不写文件。更新只替换 `targetBase`，其他键的值与顺序不变。新内容先写入同目录的临时文件，写前再比对原文件字节，未变才 rename 覆盖；原文件已变化时为 stale，临时文件删除。读者只会看到旧文件或新文件。
 
 ## 验证义务与限制
 
-持续测试必须驱动真实隔离 Git 与 CLI，覆盖 pending 不联网、新 clone 缺 anchor、双基线、完整 prefix、checker 自降、dirty/HEAD 改变、B<P<Q CAS、non-FF、atomic tag 失败和未知恢复。GitHub 响应模拟只能证明解析及只读协议。真实 Rulesets、Actions、权限与宿主加载需在未来部署启用前另核。
+持续测试必须驱动真实隔离 Git 与 CLI，覆盖：policy、轨道与派发决定字段的正反例；不读取采用文件、锚点或标签的开工；reviewer 与 team 成员的派发、撤销和不相关平台变化；status 的未绑定、已绑定、behind、diverged 与远端读取失败；task-sync 的正常前进、T 等于 targetBase、未绑定，以及 T 未合并、T 不在远端目标历史、targetBase 后退或跳到另一条历史、工作树有改动、远端读不到等反例，每个反例都不改 context；同步后 baselines 使用新 targetBase、审计仍从 taskBase 开始。GitHub 响应模拟只能证明解析及只读协议。真实 Rulesets、Actions、权限与宿主加载不由本模块的测试证明。
 
-Git 更新语义沿[git-push](https://git-scm.com/docs/git-push)和[git-update-ref](https://git-scm.com/docs/git-update-ref)。平台读取沿[Get an issue comment](https://docs.github.com/en/rest/issues/comments#get-an-issue-comment)。这些来源不代替实际运行证据。
-
-未采用泛用仓库边界：普通 Git 仓库没有 main/origin-main、任何 remote、历史 committed descriptor、adoption refs 或 latch 时，共同 loader 返回 generic-unadopted pending，保留现有工具的显式 SHA 行为。出现任一采用线索后缺可信 main 仍 unknown；不把 HEAD 当可信 policy 来源。
-
-历史聚合以完整稳定 Issue identity、revision、attempt 为键。同一卡不同历史 tuple 分别保留 taskBase/taskSource 和原 unit 包含关系，不代表多个当前绑定；同 tuple 的完整 binding 不一致或 source ancestry 分叉仍拒绝。RI/joint/checkpoint 为每个过期 tuple 分别取得 exact owner 重核并审计，不能取最新 taskBase 吞掉旧历史。
-
-幂等身份是已创建的 operation。publish/resume 对同 operation 只接续或观察，不另建 commit/tag。每次 prepare 是新的构造请求并分配新 UUID；中断后先从 tmp/integration 找回已有 operation/draft，不能把重复 prepare 当自动重试。
-
-首次 activation-check 的 full 检查使用限定的 bootstrap-check 执行范围：实际 root/gitDir、clean construction/main SHA、descriptor digest、operation 与 adoption namespace。共同 loader 的每个消费者在此范围内重新读取权威 main 和完整 namespace，只有精确 main 不变且尚无任何采用 refs/latch/cache 才返回当次 positive-absence pending。检查结束再核一次；普通 status 不缓存这个结果。范围参数不是权限，不延伸到 runner 的另一 gitDir、其他树或工作候选；保留任一已知采用线索时，缺失 tag/cache 仍为 unknown。
-
-采用 refs 的不可覆盖、不可删除保护是实际部署前提。positive-absence 是当次查询结果，不是历史未采用证明。新 clone 和权威同时失去全部历史线索时，Git 无法判别历史；初次采用或恢复依据由具名 owner 核对，空 namespace 不自行授予采用权限。已知线索缺失仍按 I01 拒绝，不放宽任何既有采用丢失检查。
-
-Git 网络 ls-remote、fetch、push 均有有限预算。已采用操作使用 policy networkMs；首次 bootstrap 使用 30 秒预算。缺失对象才 fetch；超时或读取失败保留 unknown，发布后只观察，不自动重发。
-
-变更入口重新读取权威采用 namespace 的完整连续链，核当前最新 anchor 与本地 context/候选一致；已出现新 anchor 时旧 clone 的 prepare/verify/publish 拒绝，要求明确 bootstrap 与任务交接。status 仍是本地观察。发布更新前再核采用链，但这次读取与目标 branch 的 CAS 不属于跨 ref 原子事务。政策升级由具名 owner 从 handoff 开始冻结发布，核所有 clone 的在途操作，完成采用和接续后恢复；缺该协作前提不得并发升级与发布。工具不宣称可阻止同凭据操作者绕过此约定。
-
-首次 activation-check 与 policy-check 都核 construction/subject 和 trusted runner 的前后 clean、HEAD、tree。activate、policy-adopt 和 publish 在消费检查证据时重核每项成功退出及日志 digest；日志改变或缺失使证据失效。
+Git 网络读取使用 policy 的 `timeouts.networkMs`，fetch 仅在本地缺对象时执行。超时或读取失败为 unknown。平台读取沿[Get an issue comment](https://docs.github.com/en/rest/issues/comments#get-an-issue-comment)。这些来源不代替实际运行证据。

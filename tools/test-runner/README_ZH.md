@@ -42,8 +42,9 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 以 `.legacy` 结尾目录中的改动先记为排除，不触发未知路径全量回退。其余改动文件按顺序归到第一类命中的：
 
 1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh`、本配置文件、
-   测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`scope.ts`／`turbo.ts` 与 repo-toolchain 的 `src/core/workspace.ts`、取改动的 `src/core/git.ts`，以及任何位置的 `turbo.json` 与 `tools/repo-config/`）：整份计划判全量——
+   测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`scope.ts`／`turbo.ts`，以及任何位置的 `turbo.json`）：整份计划判全量——
    引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围；
+   引擎从 repo-toolchain 导入的 `core/workspace`、`core/git` 与根配置的预设来自钉住的 npm 包，改它们的版本就是改锁文件与 `pnpm-workspace.yaml`，同样判全量；
 2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；
    每条记录实际读者和依据；`packages`、`apps`、`examples` 下的 TS → product-checks；成员清单 → test-runner；
    工程协议及当前产品设计输入 → dev-flow 与 product-checks；

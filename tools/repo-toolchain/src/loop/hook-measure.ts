@@ -34,9 +34,9 @@ export function isProductSource(path: string): boolean {
  */
 export function touchedBase(root: string, primaryBranch: string): string | undefined {
   const selected = baselines(root)
-  if (selected.state === 'adopted') {
+  if (selected.state === 'bound') {
     const base = readTaskContext(root).ownerTask?.taskBase ?? selected.targetBase
-    if (base === undefined) throw new Error('Missing adopted hook baseline')
+    if (base === undefined) throw new Error('Missing hook baseline in the task context')
     return base
   }
   let base = 'HEAD'
