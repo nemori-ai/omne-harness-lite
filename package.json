@@ -19,7 +19,7 @@
     "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run check:declarations && pnpm run typecheck && pnpm run test:gate && pnpm run lint:rules && pnpm run lint:oxlint && pnpm run lint:deps",
     "check:declarations": "omne-declarations",
     "lint:rules": "pnpm --filter @omne-harness/product-checks run scan",
-    "lint:oxlint": "oxlint -c .oxlintrc.json --report-unused-disable-directives tools scripts",
+    "lint:oxlint": "oxlint -c .oxlintrc.json --report-unused-disable-directives tools scripts packages apps",
     "lint:deps": "omne-deps",
     "lint:report": "oxlint -c .oxlintrc.json -W correctness --vitest-plugin tools scripts packages apps && knip --no-exit-code",
     "package:template": "node --experimental-strip-types tools/dev-flow/src/package-template/cli.ts"

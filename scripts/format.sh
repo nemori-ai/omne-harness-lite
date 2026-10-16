@@ -31,8 +31,7 @@ is_format_target() {
         .oxfmtrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/check.yml)
             return 0
             ;;
-        # packages/ and apps/ stay outside the scope until their owner schedules the reformat.
-        examples/*|tools/*|scripts/*)
+        examples/*|tools/*|scripts/*|packages/*|apps/*)
             case "$name" in
                 *.js|*.jsx|*.cjs|*.mjs|*.ts|*.tsx|*.mts|*.cts|package.json|tsconfig*.json|vitest.config.*)
                     return 0

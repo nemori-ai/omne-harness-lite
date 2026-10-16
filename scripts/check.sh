@@ -53,7 +53,7 @@ step typecheck
 step test
 # 常驻：结构规则、验收的覆盖声明与提交署名；它导入的成员已在上面构建。
 pnpm run lint:rules
-# 常驻：oxlint 的正确性规则与 dependency-cruiser 的环和 legacy 规则；dev tools 违反即失败，packages/ 与 apps/ 只报告。
+# 常驻：oxlint 的正确性规则与 dependency-cruiser 的环和 legacy 规则；tools、scripts、packages 与 apps 违反即失败。
 pnpm run lint:oxlint
 pnpm run lint:deps
 # 按计划：可执行验收，驱动上面构建出来的 dist/；计划里没有带验收的成员时为当前提交记一份「跳过」的账本。

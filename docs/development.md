@@ -103,9 +103,9 @@ pnpm format:write
 
 局部修改只传入本次有写权限的仓库相对文件，例如
 `pnpm format:write -- tools/spec-tools/src/x.ts`。
-范围包括 `tools/`、`scripts/`、`examples/` 下的 TS/JS 源码、测试及所属配置，
+范围包括 `tools/`、`scripts/`、`examples/`、`packages/`、`apps/` 下的 TS/JS 源码、测试及所属配置，
 和根 TS/测试配置；**不含**上游原件、provenance、JSONL 黄金文件、依赖、构建输出与临时目录。
-`packages/` 与 `apps/` 暂不纳入，重排时间由源码包负责人另定；Markdown 不在范围内。
+Markdown 不在范围内。
 
 编辑器装 `oxc.oxc-vscode` 扩展（`.vscode/extensions.json` 推荐），它调用工作区里的 oxfmt，与命令行同一版本、同一配置。
 
@@ -115,14 +115,14 @@ pnpm format:write
 ### 通用静态检查
 
 ```sh
-pnpm lint:oxlint   # oxlint 正确性规则，范围 tools/、scripts/
+pnpm lint:oxlint   # oxlint 正确性规则，范围 tools/、scripts/、packages/、apps/
 pnpm lint:deps     # dependency-cruiser：无法解析的导入、文件级运行时循环与 legacy 引用，范围 tools/、scripts/、packages/、apps/
 pnpm lint:report   # 只报告：全部目录的 oxlint（含 vitest 测试风格规则）与 knip
 ```
 
 tsconfig、oxlint 与 dependency-cruiser 的共享规则在 [repo-config](../tools/repo-config/README.md) 预设里维护。根目录的配置文件只引用安装的预设，版本见[仓库工具链的版本](#仓库工具链的版本)。oxfmt 不支持 `extends`，配置留在根目录。
 
-`lint:oxlint` 与 `lint:deps` 违反即失败，`make check` 每次都跑。oxlint 暂不检查 `packages/` 与 `apps/`，与格式范围一起由源码包负责人另定；dependency-cruiser 的规则是结构护栏，对源码包同样失败。
+`lint:oxlint` 与 `lint:deps` 违反即失败，`make check` 每次都跑。oxlint 检查工具、脚本、源码包与应用；dependency-cruiser 对这些目录的依赖违规同样失败。
 dependency-cruiser 用类型检查的 `source` 条件解析跨包导入，`dist` 与依赖只作叶子不深入；它自带一份 TypeScript 6 解析 `.ts`（见 `pnpm-workspace.yaml` 的 `packageExtensions`）。方向规则按[产品包组织](package-organization.md#依赖方向与cordis集成)写成成员路径，成员与组之间的环由 repo-toolchain 在同一张图上算；`lint:deps` 运行钉住的 repo-toolchain 的 `omne-deps`。
 Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和源码字符串里的 legacy 路径，仍由 `pnpm run lint:rules` 检查；legacy 的导入边归 `lint:deps`。
 
