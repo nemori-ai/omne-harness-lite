@@ -32,5 +32,7 @@ if [[ -e "$hook_path" || -L "$hook_path" ]]; then
     exit 1
 fi
 
+# A repository initialised without Git templates has no hooks directory yet.
+mkdir -p -- "$(dirname -- "$hook_path")"
 install -m 0755 -- "$source_hook" "$hook_path"
 echo "Installed formatting pre-commit hook at $hook_path"
