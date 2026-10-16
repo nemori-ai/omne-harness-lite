@@ -8,9 +8,10 @@ import {
   type ModuleKind,
 } from './module-graph.ts'
 
-it('exports the body port, the identity decoders and the default result policy identity', () => {
+it('exports the body port, the identity decoders, the default result policy and the contract functions', () => {
   expect(Object.keys(tool).sort()).toEqual([
     'TOOL_IDENTITY_MAX_LENGTH',
+    'createDefaultParameterCodec',
     'decodeToolCallId',
     'decodeToolCursor',
     'decodeToolDeliveryId',
@@ -19,8 +20,19 @@ it('exports the body port, the identity decoders and the default result policy i
     'decodeToolResultVersion',
     'decodeToolRevision',
     'decodeToolWaitId',
+    'defaultResultPolicy',
     'defaultResultPolicyAdoption',
     'defaultResultPolicyRules',
+    'defineCommandTool',
+    'defineFunctionTool',
+    'defineToolOperation',
+    'defineToolWaitContract',
+    'evaluateToolAvailability',
+    'judgeToolDefinition',
+    'judgeToolState',
+    'presentTool',
+    'projectToolResult',
+    'renderToolResult',
     'toolBodyContract',
   ])
 })

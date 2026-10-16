@@ -1,7 +1,26 @@
 // Every exported type name of the accepted public contract imports from the package root.
 // Generated from docs/public-api.md at commit e6c6e593 by the ticket 02 migration script.
-// 168 type names. The 12 function names stay in public-api.md until M2 and M3 implement them.
+// 168 type names. The second test imports the eleven contract functions that ticket 03 moved from
+// the public-api signature list into source, and checks each against its accepted signature.
+// `executeTool`, `createIndependentToolScope` and `createToolRuntime` stay in public-api.md.
+import type { BlockId, ContentBlock } from '@omne-harness/content-block'
+import type { JsonValue } from '@omne-harness/json-text'
+import type { Outcome } from '@omne-harness/kernel-basis'
 import { expectTypeOf, it } from 'vitest'
+import {
+  defineCommandTool,
+  defineFunctionTool,
+  defineToolOperation,
+  defineToolWaitContract,
+  evaluateToolAvailability,
+  judgeToolDefinition,
+  judgeToolState,
+  presentTool,
+  projectToolResult,
+  renderToolResult,
+  createDefaultParameterCodec,
+  defaultResultPolicy,
+} from '@omne-harness/tool'
 import type {
   ToolIdentity,
   ToolCallId,
@@ -175,4 +194,42 @@ import type {
 
 it('resolves every public type name from the package root', () => {
   expectTypeOf<ToolCallId>().not.toEqualTypeOf<ToolOperationId>()
+})
+
+type Rejection = Readonly<{ field: string; reason: string }>
+
+it('resolves every implemented contract function from the package root with its accepted signature', () => {
+  expectTypeOf(judgeToolDefinition).toEqualTypeOf<
+    (value: unknown) => Outcome<ToolDefinition, Rejection>
+  >()
+  expectTypeOf(judgeToolState).toEqualTypeOf<(value: unknown) => Outcome<ToolState, Rejection>>()
+  expectTypeOf(presentTool).toEqualTypeOf<(definition: ToolDefinition) => ToolPresentation>()
+  expectTypeOf(evaluateToolAvailability).toEqualTypeOf<
+    (facts: AvailabilityFacts) => ToolAvailability
+  >()
+  expectTypeOf(projectToolResult).toEqualTypeOf<
+    (
+      value: ToolResult<ContentBlock>,
+      attachmentBlockIds: readonly BlockId[],
+    ) => Outcome<readonly ToolMessageContentBlock[], Rejection>
+  >()
+  expectTypeOf(defineToolWaitContract<string, 'ask'>).toEqualTypeOf<
+    (
+      definition: ToolWaitProtocolDefinition<string, 'ask'>,
+    ) => Outcome<ToolWaitContract<string, 'ask'>, Readonly<{ reason: string }>>
+  >()
+  expectTypeOf(defineToolOperation).returns.toEqualTypeOf<
+    Outcome<ToolOperation<unknown, ContentBlock, ToolOperationParameters>, Rejection>
+  >()
+  expectTypeOf(defineFunctionTool<string, ToolMessageContentBlock>).returns.toEqualTypeOf<
+    Outcome<ToolAuthorRegistration<string, ToolMessageContentBlock>, Rejection>
+  >()
+  expectTypeOf(defineCommandTool<string, ToolMessageContentBlock>).returns.toEqualTypeOf<
+    Outcome<ToolAuthorRegistration<string, ToolMessageContentBlock>, Rejection>
+  >()
+  expectTypeOf(renderToolResult).toBeFunction()
+  expectTypeOf(createDefaultParameterCodec).returns.toEqualTypeOf<
+    Outcome<ParameterCodec<JsonValue>, Rejection>
+  >()
+  expectTypeOf(defaultResultPolicy).toEqualTypeOf<ResultPolicy<ToolMessageContentBlock>>()
 })

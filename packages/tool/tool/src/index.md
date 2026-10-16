@@ -14,8 +14,19 @@
 - [持久状态与协议记录](records.ts)。
 - [输出保管、持久读取与账目](custody.ts)。
 - [程序编排接缝](program.ts)。
-- [默认结果政策的身份](result-policy.ts)。
+- [默认结果政策](result-policy.ts)。
 - [可复算的采用摘要](adoption.ts)。
+- [定义判定](judge-definition.ts)。
+- [状态判定](judge-state.ts)。
+- [呈现与可用性判定](catalog.ts)。
+- [操作与作者注册](registration.ts)。
+- [等待协议句柄](wait-contract.ts)。
+- [默认参数 codec](parameter-codec.ts)。
+- [结果渲染](result-rendering.ts)。
+- [结果投影](result-projection.ts)。
+- [封闭形状检查](shape.ts)。
+- [json-text 树检查](json-tree.ts)。
+- [共用引用值形状](value-shapes.ts)。
 - [Cordis 服务定义入口](cordis.ts)。
 - [源码导航](../docs/public-api.md)。
 - [包索引](../index.md)。

@@ -1,6 +1,6 @@
 # tool/tool 长期行为规格
 
-状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。当前源码实现资产正文端口，根入口导出全部公开契约类型和品牌身份解码函数，`./cordis` 导出服务定义、服务键和事件增补。运行契约的函数、runtime 及提供者尚未实现。HITL 双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
+状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。当前源码实现资产正文端口和契约函数。根入口导出全部公开契约类型、品牌身份解码函数、默认结果政策，以及定义判定、状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染和结果投影。`./cordis` 导出服务定义、服务键和事件增补。独立执行函数、runtime 及提供者尚未实现。HITL 双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
 
 正文端口负责工具资产的读取与判定。执行、等待、结果保管和恢复由运行契约规定。
 
@@ -8,7 +8,7 @@
 
 `toolBodyContract` 登记类别 `tool`。调用方先用 `@omne-harness/assets` 的 `readBodyText` 读取正文。`judge` 不接受对象字面量，也不接受伪造的读取结果，并且不调用传入的函数。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用，不成为必需依赖。判断失败时，声明和引用抛出，不返回结果。`pinBody` 保存当时的正文内容。验证命令是 `pnpm --filter @omne-harness/tool test`。
 
-当前 `toolBodyContract` 仅兑现上述正文端口。`programmable` 的布尔校验、声明投影及运行时准入属于下述设计增量，尚无生产实现证据；已有端口接受记录不覆盖这些新增行为。
+`toolBodyContract` 已实现 `programmable` 的布尔校验与声明投影。只有布尔 `true` 产生声明项 `programmable`。省略或 `false` 不产生声明项。非布尔值以 `invalid-programmable` 拒绝，不按真值转换。运行时准入属于下述设计增量，尚无生产实现证据；已有端口接受记录不覆盖这些新增行为。
 
 ## 用途、调用方与公开边界
 
@@ -147,9 +147,9 @@ Agent 换代后认回原 Tool；工具自身确认丢失后失败收束且不自
 
 ## 主干运行契约
 
-本节规定主干运行契约。精确类型归源码 [src/index.ts](src/index.ts)，[public-api](docs/public-api.md) 是源码导航并保留尚未实现的函数签名。消费及失败场景归 [context](docs/context.md)，对象模型与装配分别归 [object-model](docs/object-model.md) 和 [cordis](docs/cordis.md)。
+本节规定主干运行契约。精确类型归源码 [src/index.ts](src/index.ts)，[public-api](docs/public-api.md) 是源码导航，并保留独立执行函数和 runtime 工厂尚未实现的签名。消费及失败场景归 [context](docs/context.md)，对象模型与装配分别归 [object-model](docs/object-model.md) 和 [cordis](docs/cordis.md)。
 
-当前生产根入口导出资产正文端口、全部公开类型、品牌身份解码函数和默认结果政策的身份。下述函数、runtime、executor 和结果处理尚未实现。共同对象关系见[运行对象模型](../../../docs/architecture/runtime/runtime-contract-model.md)。
+当前生产根入口导出资产正文端口、全部公开类型、品牌身份解码函数、默认结果政策和契约函数。契约函数只做同步的判定、构造与投影。下述独立执行函数、runtime、executor 和托管结果处理尚未实现。共同对象关系见[运行对象模型](../../../docs/architecture/runtime/runtime-contract-model.md)。
 
 Tool 拥有一次原调用、真实执行、等待、控制、原结果、效果与交付关系。它不替被调用领域写私有状态，不拥有 Run 终态。前台转后台改变等待关系，仍是同一执行。全文保留与待交付关系分开，下面没有 Model ACK 或按其规则清理 Tool 全文的操作。
 

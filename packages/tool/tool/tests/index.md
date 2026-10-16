@@ -3,8 +3,17 @@
 - [测试范围与运行入口](README.md)。
 - [根入口导出与导入方向测试](public-entry.spec.ts)。
 - [品牌身份解码测试](identity.spec.ts)。
-- [默认结果政策身份测试](result-policy.spec.ts)。
+- [默认结果政策测试](result-policy.spec.ts)。
 - [资产正文端口测试](contract.spec.ts)。
+- [资产正文 programmable 测试](body-programmable.spec.ts)。
+- [定义判定测试](definition-judgment.spec.ts)。
+- [状态判定测试](state-judgment.spec.ts)。
+- [呈现与可用性测试](catalog.spec.ts)。
+- [作者注册与等待契约测试](author-registration.spec.ts)。
+- [默认参数 codec 测试](parameter-codec.spec.ts)。
+- [结果渲染与结构化判定测试](result-rendering.spec.ts)。
+- [结果投影测试](result-projection.spec.ts)。
+- [合法值构造器](tool-values.ts)。
 - [Cordis 入口与依赖方向测试](cordis-entry.spec.ts)。
 - [公开类型名导入测试](public-api-names.spec-d.ts)。
 - [公开类型负编译测试](contract.spec-d.ts)。
