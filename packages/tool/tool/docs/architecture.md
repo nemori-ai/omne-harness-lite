@@ -1,19 +1,19 @@
 # tool 内部架构
 
-本页规定 Tool 实现的内部模块与构造方法。下列各节从契约包的[领域架构](../../tool-contract/docs/architecture.md)整段迁入，含义未改。领域位置、责任边界与设计状态仍归契约包。本包当前只有工厂构造形状，下述机制尚未实现。
+本页规定 Tool 实现的内部模块与构造方法。下列各节从契约包的[领域架构](../../tool-contract/docs/architecture.md)整段迁入，含义未改。领域位置、责任边界与设计状态仍归契约包。本包已实现独立执行（工单 04）。受理、推进协程与下述提供者尚未实现。
 
 ## 内部模块与依赖
 
-| 模块 | 拥有 | 向外依赖 |
-| --- | --- | --- |
-| definition | 定义判定、参数 codec、紧凑呈现与纯可用性判定 | 资产名称、JSON 和消费者能力的显式输入 |
-| author | 普通/结构化返回适配、固定 renderer/codec、独立执行函数、作者上下文接口 | 受限 E、显式执行作用域、结果政策；不依赖 Cordis 或本域存储 |
-| call | 聚合不变量、状态决定、具名命令与读取投影 | 受信 guard 快照及本域提交适配 |
-| coordination | 持久待办推进、原执行认回、答复/控制/暂停/交接 | 明确外域端口；没有任意容器查找 |
-| execution | 固定绑定、真实发起边界、事实流及原控制 | 环境与外部工具真实协议 |
-| custody | 原输出、正式结果、过程与附件的保管、分页及交付 | 存储与当前读取/承接资格 |
-| composition | Code 子调用预留、可信来源、父退出后责任 | 正规 Tool 门面和具体 Code 执行域 |
-| cordis | Service 定义、阶段适配器、独立 host、目录贡献 | 固定 Cordis 4.0.4 与共同 IC |
+| 模块         | 拥有                                                                   | 向外依赖                                                   |
+| ------------ | ---------------------------------------------------------------------- | ---------------------------------------------------------- |
+| definition   | 定义判定、参数 codec、紧凑呈现与纯可用性判定                           | 资产名称、JSON 和消费者能力的显式输入                      |
+| author       | 普通/结构化返回适配、固定 renderer/codec、独立执行函数、作者上下文接口 | 受限 E、显式执行作用域、结果政策；不依赖 Cordis 或本域存储 |
+| call         | 聚合不变量、状态决定、具名命令与读取投影                               | 受信 guard 快照及本域提交适配                              |
+| coordination | 持久待办推进、原执行认回、答复/控制/暂停/交接                          | 明确外域端口；没有任意容器查找                             |
+| execution    | 固定绑定、真实发起边界、事实流及原控制                                 | 环境与外部工具真实协议                                     |
+| custody      | 原输出、正式结果、过程与附件的保管、分页及交付                         | 存储与当前读取/承接资格                                    |
+| composition  | Code 子调用预留、可信来源、父退出后责任                                | 正规 Tool 门面和具体 Code 执行域                           |
+| cordis       | Service 定义、阶段适配器、独立 host、目录贡献                          | 固定 Cordis 4.0.4 与共同 IC                                |
 
 这些是职责分解，不预设新包、进程或每项一层 class。Commands 的具体提供者可以把本域状态、队列、回执和待办放在同一存储事务；不得把外部执行和 SQL 提交描述为一个原子动作。派生投影可重建，原输出和源事实的保管不能靠重跑工具恢复。
 
@@ -35,7 +35,7 @@ Code 宿主注入受限程序环境、ToolRuntime、ToolChildren、来源签发�
 
 ## Tool 内部实施规格
 
-本页规定内部构造方法。行为协议归 [protocols](../../tool-contract/SPEC.md#tool-操作协议)，公开类型归 [public-api](../../tool-contract/docs/public-api.md)，对象关系归 [object-model](../../tool-contract/docs/object-model.md)。契约函数已在 `tool-contract` 实现；独立执行、runtime 和下述提供者尚未实现。
+本页规定内部构造方法。行为协议归 [protocols](../../tool-contract/SPEC.md#tool-操作协议)，公开类型归 [public-api](../../tool-contract/docs/public-api.md)，对象关系归 [object-model](../../tool-contract/docs/object-model.md)。契约函数已在 `tool-contract` 实现。独立执行已在本包实现，实现选择见 [SPEC](../SPEC.md)。runtime 和下述提供者尚未实现。
 
 ### 聚合和事务提供者
 

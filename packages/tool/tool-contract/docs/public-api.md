@@ -27,6 +27,7 @@
 - [results.ts](../src/results.ts)：结果、附件、效果、终局、准入失败、`Reply`、等待与交付状态、`ToolState`、结果页和查询结果。
 - [judge-state.ts](../src/judge-state.ts)：`judgeToolState`，按阶段与前后台关系封闭检查 `ToolState`，再检查类型表达不了的字段关系。
 - [result-policy.ts](../src/result-policy.ts)：默认结果政策 `defaultResultPolicy`、规则集 `defaultResultPolicyRules` 与采用 `defaultResultPolicyAdoption`（G3）。
+- [adoption.ts](../src/adoption.ts)：`describedAdoption(rules)` 按发布的规则集给出采用，`digest` 是 `sha256:` 加规则集 JSON 文本的 SHA-256。各实现与 Cordis 定义包用它给出同一摘要。
 - [result-rendering.ts](../src/result-rendering.ts)：`renderToolResult`，按作者种类选择普通渲染或结构化判定。renderer 与程序编码的失败、抛出的异常和不是 `Outcome` 的返回值都成为失败 `Outcome`，异常消息保留为原因。文本工厂的返回值不是 `Outcome` 时也是失败。
 - [result-projection.ts](../src/result-projection.ts)：`projectToolResult`，把结果投影为模型消息块，不读取字节。
 
@@ -110,18 +111,10 @@ ProgramTools.call 交回唯一 ToolResult 封装，其 data 为程序值，conte
 
 ## 尚未实现的函数（M2/M3 实现后移除）
 
-下列签名已接受，尚未实现。按 G8，它们进入不含 Cordis 的实现包 `@omne-harness/tool` 的根入口，本契约包不导出它们。G1 的账本工厂也进入 `@omne-harness/tool`。G4 的宿主时钟、G5 的本地启动协调器和 G7 的绑定登记表进入 `@omne-harness/tool-host-local`。这些签名随所在包实现给出。其他已接受的函数已在本包源码实现，导航见上文各节。
+下列签名已接受，尚未实现。按 G8，它进入不含 Cordis 的实现包 `@omne-harness/tool` 的根入口，本契约包不导出它。G1 的账本工厂也进入 `@omne-harness/tool`。G4 的宿主时钟、G5 的本地启动协调器和 G7 的绑定登记表进入 `@omne-harness/tool-host-local`。这些签名随所在包实现给出。`createIndependentToolScope` 与 `executeTool` 已在 `@omne-harness/tool` 实现，导航见该包的 [public-api](../../tool/docs/public-api.md)。其他已接受的函数已在本包源码实现，导航见上文各节。
 
 ```ts
-declare function createIndependentToolScope(
-  input: IndependentToolScopeInput,
-): Outcome<ToolExecutionScope, Readonly<{ field: string; reason: string }>>
-declare function executeTool<A, R, E>(
-  argumentsValue: A, executor: ToolExecutor<A, R, E>, environment: E, scope: ToolExecutionScope,
-): Promise<Outcome<R, Readonly<{ reason: string; effect: 'not-started' | 'unknown' }>>>
 declare function createToolRuntime<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>, configuration: ToolConfiguration,
 ): ToolProvider<P, B>
 ```
-
-`createIndependentToolScope` 的签名是 G2 写回的形状：`limits` 不是正安全整数时返回失败，不创建作用域。

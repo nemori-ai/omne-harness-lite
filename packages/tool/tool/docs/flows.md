@@ -4,4 +4,4 @@
 
 本页将说明本实现的推进协程、独立执行和恢复的时序、状态变化与失败分支。
 
-当前只有工厂构造形状。内部机制见 [architecture](architecture.md)。目录职责见 [README](README.md)。
+当前只有独立执行与工厂构造形状。独立执行的顺序、屏障与收尾规则见 [SPEC](../SPEC.md)。内部机制见 [architecture](architecture.md)。目录职责见 [README](README.md)。

@@ -528,6 +528,9 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
+      '@omne-harness/kernel-basis':
+        specifier: workspace:*
+        version: link:../../assembly/kernel-basis
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../tool-contract

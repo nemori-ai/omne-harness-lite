@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as tool from '@omne-harness/tool'
 import { describeImport, memberPath, walkModules, type ModuleKind } from './module-graph.ts'
@@ -13,8 +14,8 @@ function forbidden(specifier: string): boolean {
   )
 }
 
-it('root entry exports no values until ticket 04 adds the execution functions', () => {
-  expect(Object.keys(tool)).toEqual([])
+it('root entry exports the two independent execution functions', () => {
+  expect(Object.keys(tool).sort()).toEqual(['createIndependentToolScope', 'executeTool'])
 })
 
 describe('implementation has no Cordis', () => {
@@ -40,4 +41,26 @@ describe('implementation has no Cordis', () => {
     ]
     expect(declared.filter(forbidden)).toEqual([])
   })
+
+  it('reaches Cordis in its install closure only through kernel-basis', () => {
+    // kernel-basis owns Outcome and has a production dependency on Cordis (open item O8). Until
+    // its owner moves Outcome to a package without Cordis, those are the accepted routes: direct,
+    // and through the contract package. A new route fails here.
+    expect(routesToCordis(memberPath('.'), [])).toEqual([
+      ['@omne-harness/kernel-basis', '@deepseek-ai/cordis'],
+      ['@omne-harness/tool-contract', '@omne-harness/kernel-basis', '@deepseek-ai/cordis'],
+    ])
+  })
 })
+
+/** Production dependency routes from a workspace package to Cordis, through workspace packages. */
+function routesToCordis(directory: string, route: readonly string[]): string[][] {
+  const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as {
+    dependencies?: Record<string, string>
+  }
+  return Object.entries(manifest.dependencies ?? {}).flatMap(([name, range]) => {
+    if (name === '@deepseek-ai/cordis') return [[...route, name]]
+    if (!range.startsWith('workspace:') || route.includes(name)) return []
+    return routesToCordis(realpathSync(join(directory, 'node_modules', name)), [...route, name])
+  })
+}
