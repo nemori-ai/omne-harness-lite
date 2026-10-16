@@ -16,6 +16,23 @@ import { fileURLToPath } from 'node:url'
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const cli = join(repo, 'tools/dev-flow/src/package-template/cli.ts')
 const roots: string[] = []
+/** Nodes that template 3.0.0 generates and versions 2.0.0 and 1.0.0 did not. */
+const SKELETON_ONLY = [
+  'index.md',
+  'SPEC.md',
+  'docs',
+  'schema',
+  'verification',
+  'adr',
+  'examples',
+  'resources',
+  'acceptance',
+  'src/README.md',
+  'src/index.md',
+  'tests/README.md',
+  'tests/index.md',
+  'tests/fixtures',
+]
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
@@ -77,7 +94,7 @@ it('runs real preview/write/scan paths and rejects a Cordis leak despite a curre
   const manifestPath = join(root, member, 'package.json')
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
   manifest.omneHarness = {
-    packageTemplate: { id: 'typescript-package', version: '2.0.0', variant: 'module' },
+    packageTemplate: { id: 'typescript-package', version: '3.0.0', variant: 'module' },
   }
   writeFileSync(manifestPath, JSON.stringify(manifest))
   const clean = run(root, ['scan', '--member', member, '--check', '--json'])
@@ -185,38 +202,44 @@ it('previews, writes and checks domain drafts through the real CLI', () => {
   expect(run(root, ['scan', '--group', 'sample', '--check']).status).toBe(1)
 }, 20_000)
 
-it('keeps the exact old package marker and reports older through the real CLI', () => {
-  const root = fixture()
-  const create = ['create', '--group', 'util', '--name', 'old', '--variant', 'module']
-  expect(run(root, [...create, '--write']).status).toBe(0)
-  const member = 'packages/util/old'
-  for (const file of ['README.md', 'README_ZH.md'])
+it.each(['1.0.0', '2.0.0'])(
+  'keeps the exact %s package marker and reports older through the real CLI',
+  version => {
+    const root = fixture()
+    const create = ['create', '--group', 'util', '--name', 'old', '--variant', 'module']
+    expect(run(root, [...create, '--write']).status).toBe(0)
+    const member = 'packages/util/old'
+    for (const file of ['README.md', 'README_ZH.md'])
+      writeFileSync(
+        join(root, member, file),
+        '# Value\n\nThis fixture exports the constant value 1.\n',
+      )
+    writeFileSync(join(root, member, 'src/index.ts'), 'export const value = 1\n')
+    mkdirSync(join(root, member, 'tests'), { recursive: true })
     writeFileSync(
-      join(root, member, file),
-      '# Value\n\nThis fixture exports the constant value 1.\n',
+      join(root, member, 'tests/value.spec.ts'),
+      "import { expect, it } from 'vitest'\nimport { value } from '../src/index.ts'\nit('exports one', () => expect(value).toBe(1))\n",
     )
-  writeFileSync(join(root, member, 'src/index.ts'), 'export const value = 1\n')
-  mkdirSync(join(root, member, 'tests'), { recursive: true })
-  writeFileSync(
-    join(root, member, 'tests/value.spec.ts'),
-    "import { expect, it } from 'vitest'\nimport { value } from '../src/index.ts'\nit('exports one', () => expect(value).toBe(1))\n",
-  )
-  rmSync(join(root, member, 'documentation.json'))
-  const manifestPath = join(root, member, 'package.json')
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-  manifest.omneHarness = {
-    packageTemplate: { id: 'typescript-package', version: '1.0.0', variant: 'module' },
-  }
-  writeFileSync(manifestPath, JSON.stringify(manifest))
-  const before = readFileSync(manifestPath)
-  const inventory = run(root, ['scan', '--member', member, '--json'])
-  expect(inventory.status).toBe(0)
-  expect(JSON.parse(inventory.stdout).packages[0]).toMatchObject({
-    adoption: 'older',
-    structure: 'pass',
-  })
-  expect(run(root, ['scan', '--member', member, '--check']).status).toBe(1)
-  expect(run(root, create).status).toBe(2)
-  expect(run(root, [...create, '--write']).status).toBe(2)
-  expect(readFileSync(manifestPath)).toEqual(before)
-}, 20_000)
+    for (const path of SKELETON_ONLY)
+      rmSync(join(root, member, path), { recursive: true, force: true })
+    if (version === '1.0.0') rmSync(join(root, member, 'documentation.json'))
+    const manifestPath = join(root, member, 'package.json')
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    manifest.omneHarness = {
+      packageTemplate: { id: 'typescript-package', version, variant: 'module' },
+    }
+    writeFileSync(manifestPath, JSON.stringify(manifest))
+    const before = readFileSync(manifestPath)
+    const inventory = run(root, ['scan', '--member', member, '--json'])
+    expect(inventory.status).toBe(0)
+    expect(JSON.parse(inventory.stdout).packages[0]).toMatchObject({
+      adoption: 'older',
+      structure: 'pass',
+    })
+    expect(run(root, ['scan', '--member', member, '--check']).status).toBe(1)
+    expect(run(root, create).status).toBe(2)
+    expect(run(root, [...create, '--write']).status).toBe(2)
+    expect(readFileSync(manifestPath)).toEqual(before)
+  },
+  20_000,
+)

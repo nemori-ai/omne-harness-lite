@@ -13,7 +13,13 @@ import {
   type TemplateManifest,
   type Variant,
 } from './model.ts'
-import { checkStructure, readObject } from './structure.ts'
+import {
+  acceptanceScenarios,
+  checkAcceptance,
+  checkStructure,
+  checkTopics,
+  readObject,
+} from './structure.ts'
 import { readTemplate } from './template.ts'
 import { checkLayout } from './layout.ts'
 import { discoverProducts } from './discovery.ts'
@@ -72,6 +78,12 @@ export function inspectPackage(
     ...layout.findings,
     ...checkStructure(root, member, manifest, selected, required),
   ]
+  // Historical versions keep rule set 2; only the current rules read topics and acceptance content.
+  if (previous === undefined)
+    findings.push(
+      ...checkTopics(root, member, template.topics, layout.tree),
+      ...checkAcceptance(member, manifest, layout.tree),
+    )
   if (adoption === 'current' || adoption === 'unmarked')
     for (const node of layout.tree) {
       if (node.kind !== 'file' || !node.path.startsWith('docs/') || !node.path.endsWith('.md'))
@@ -121,6 +133,7 @@ export function inspectPackage(
     ...(marker === undefined ? {} : { marker }),
     variant: selected,
     structure,
+    acceptance: acceptanceScenarios(layout.tree).length > 0 ? 'executable' : 'none',
     tree: layout.tree,
     excludedDirectories: layout.excludedDirectories,
     integration: rows.some(row => row.state === 'deviation')
