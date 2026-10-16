@@ -15,6 +15,12 @@ catalogs:
     '@jscpd/tokenizer':
       specifier: 4.0.1
       version: 4.0.1
+    '@omne-harness/repo-config':
+      specifier: 0.0.3
+      version: 0.0.3
+    '@omne-harness/repo-toolchain':
+      specifier: 0.0.3
+      version: 0.0.3
     '@stryker-mutator/core':
       specifier: 10.0.0
       version: 10.0.0
@@ -88,6 +94,12 @@ importers:
 
   .:
     devDependencies:
+      '@omne-harness/repo-config':
+        specifier: 'catalog:'
+        version: 0.0.3
+      '@omne-harness/repo-toolchain':
+        specifier: 'catalog:'
+        version: 0.0.3(vitest@4.1.11)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.11(vitest@4.1.11)
@@ -466,8 +478,8 @@ importers:
   tools/dev-flow:
     devDependencies:
       '@omne-harness/repo-toolchain':
-        specifier: workspace:*
-        version: link:../repo-toolchain
+        specifier: 'catalog:'
+        version: 0.0.3(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -484,8 +496,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/common/legal-identity
       '@omne-harness/repo-toolchain':
-        specifier: workspace:*
-        version: link:../repo-toolchain
+        specifier: 'catalog:'
+        version: 0.0.3(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -556,8 +568,8 @@ importers:
   tools/test-runner:
     devDependencies:
       '@omne-harness/repo-toolchain':
-        specifier: workspace:*
-        version: link:../repo-toolchain
+        specifier: 'catalog:'
+        version: 0.0.3(vitest@4.1.11)
       '@stryker-mutator/core':
         specifier: 'catalog:'
         version: 10.0.0(@types/node@24.13.6)
@@ -1169,6 +1181,20 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.4
       '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.4
+
+  '@omne-harness/repo-config@0.0.3':
+    resolution: {integrity: sha512-aEw6ZlUaN2yYnFxS7Tn0H0fnCCf2fwuDm63q373RwJ6tv22dV6GYgOw9r93lF3AYHCffhn1aLw1BkYtWUaSJpQ==}
+    engines: {node: '>=24'}
+
+  '@omne-harness/repo-toolchain@0.0.3':
+    resolution: {integrity: sha512-52ubwdCqqi2BBxvyZvSEbAJ7t9ZMElQB1/xjpCr1qXOJkdEmjAeII67OyperfSlwHOT+DbRKTMPPcoyiXtQkaw==}
+    engines: {node: '>=24'}
+    hasBin: true
+    peerDependencies:
+      vitest: ^4.1.11
+    peerDependenciesMeta:
+      vitest:
+        optional: true
 
   '@opentelemetry/api@1.9.1':
     resolution: {integrity: sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q==}
@@ -3861,6 +3887,19 @@ snapshots:
       '@emnapi/runtime': 1.11.2
       '@tybys/wasm-util': 0.10.4
     optional: true
+
+  '@omne-harness/repo-config@0.0.3': {}
+
+  '@omne-harness/repo-toolchain@0.0.3(vitest@4.1.11)':
+    dependencies:
+      '@jscpd/core': 4.0.1
+      '@jscpd/tokenizer': 4.0.1
+      '@types/node': 24.13.6
+      '@typescript/typescript6': 6.0.2
+      dependency-cruiser: 18.6.0
+      yaml: 2.9.1
+    optionalDependencies:
+      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   '@opentelemetry/api@1.9.1':
     optional: true

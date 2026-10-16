@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@omne-harness/legal-identity": "workspace:*",
-    "@omne-harness/repo-toolchain": "workspace:*",
+    "@omne-harness/repo-toolchain": "catalog:",
     "@types/node": "catalog:",
     "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",

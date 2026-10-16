@@ -79,7 +79,7 @@ packages.0.0.1.legacy/frontend/governance-client-operations-local
                                        治理协议运输、本地完整状态与共享治理用例
 apps.0.0.1.legacy/cli/                             治理CLI应用；文件输入增量
 tools/artifact-builder/                TS 开发成员；应用归档文件校验与独占发布
-tools/repo-toolchain/                  TS 开发成员；检查器包，计划发布到 npm
+tools/repo-toolchain/                  TS 开发成员；检查器包，发布到 npm
 tools/product-checks/                  TS 开发成员；本仓库的产品规则与 lint:rules，不发布
 tools/dev-flow/                        TS 开发成员；开工准入、任务绑定与包模板，不发布
 tools/test-runner/                     TS 开发成员；影响面计划、成员测试与变异，不发布
@@ -112,7 +112,7 @@ CI 配置（`.github/workflows/`）只负责触发条件、执行环境和调用
 `tool.uv.workspace.members` 指向 `tools/spec-tools`，`workspace = true` 绑定本地成员。
 
 TS workspace 由 pnpm 管理，成员范围由[`pnpm-workspace.yaml`](../pnpm-workspace.yaml)声明，
-并用 `catalog` 把第三方依赖的版本钉一次
+并用 `catalog` 把第三方依赖以及仓库检查器与预设的版本钉一次
 （成员写 `catalog:`）。每个成员自带 `build`／`typecheck`／`test` 脚本；根命令的构建与类型检查用 `pnpm -r` 聚合，
 测试由 [tools/test-runner 的测试运行入口](../tools/test-runner/README_ZH.md#测试运行)逐成员调用各自的 `test` 脚本
 （成员清单仍读 `pnpm-workspace.yaml`）。测试框架是 vitest（`*.spec.ts` 运行时、`*.spec-d.ts` 类型测试）。
@@ -125,9 +125,9 @@ Node 与 pnpm 的精确版本由根 `package.json` 的
 
 仓库工具链分为四个成员：
 
-- `tools/repo-toolchain` 是检查器包 `@omne-harness/repo-toolchain`，计划发布到 npm。它只依赖 npm 包，不依赖其他工具成员。
+- `tools/repo-toolchain` 是检查器包 `@omne-harness/repo-toolchain`，发布到 npm。它只依赖 npm 包，不依赖其他工具成员。
 - `tools/product-checks`、`tools/dev-flow` 和 `tools/test-runner` 不发布。它们只经 `@omne-harness/repo-toolchain` 的子路径导入它，不互相导入。
-- 这三个成员的 CLI 运行时读 `repo-toolchain` 的 `dist`。根命令在调用它们之前运行 `pnpm run build:tools`。
+- 根目录和这三个成员都用 catalog 钉住的 npm 版本，不链接到工作区的 `tools/repo-toolchain`。版本与升级流程见[开发指南](development.md#仓库工具链的版本)。
 - 工具链的仓库专用配置在仓库根的 `repo-toolchain.config.json`。
 
 这些方向由 dependency-cruiser 预设的 `toolchain-*` 规则检查，包内分层见 [repo-toolchain 的说明](../tools/repo-toolchain/README_ZH.md#包内分层)。改动这四个成员或这份配置的 PR 经仓库工具链变更闸门确认，见[现行准入](engineering/integration.md#现行准入)。

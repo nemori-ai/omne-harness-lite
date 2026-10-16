@@ -14,7 +14,6 @@ Use Node.js >=24.0.0 and the repository's pinned pnpm version. The normal comman
 
 ```sh
 pnpm --filter @omne-harness/identity-values build
-pnpm run build:tools
 pnpm --filter @omne-harness/product-checks build
 pnpm --filter @omne-harness/product-checks typecheck
 pnpm --filter @omne-harness/product-checks test

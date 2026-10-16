@@ -29,6 +29,6 @@ step typecheck
 step test
 node --experimental-strip-types "$runner/tools/product-checks/src/cli.ts" packages apps
 step acceptance
-node --experimental-strip-types "$runner/tools/repo-toolchain/src/loop/cli.ts" ${BASELINE:+--base "$BASELINE"} --out "$plan_dir/loop" --strict --scope engineering
+"$runner/node_modules/.bin/omne-loop-status" ${BASELINE:+--base "$BASELINE"} --out "$plan_dir/loop" --strict --scope engineering
 }
 omne_repository_command main "$@"

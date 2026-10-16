@@ -13,10 +13,8 @@
       "vitest.tiers.mts",
       "scripts/check.sh",
       "tools/test-runner/test-runs.config.json",
-      "tools/repo-toolchain/src/core/git.ts",
       "tools/test-runner/src/testing/scope.ts",
       "tools/test-runner/src/testing/turbo.ts",
-      "tools/repo-toolchain/src/core/workspace.ts",
       "tools/test-runner/src/testing/cli.ts",
       "tools/test-runner/src/testing/config.ts",
       "tools/test-runner/src/testing/run.ts",
@@ -28,8 +26,7 @@
       "docs/engineering/integration-policy.json",
       "docs/engineering/integration-bootstrap.json",
       "docs/architecture/constraints.json",
-      "**/turbo.json",
-      "tools/repo-config/**"
+      "**/turbo.json"
     ],
     "readers": [
       {
