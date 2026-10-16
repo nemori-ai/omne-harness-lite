@@ -89,8 +89,98 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           { echo "base_ref=$base_ref"; echo "base=$base"; echo "mode=$mode"; } >> "$GITHUB_OUTPUT"
 
-  publish:
+  # Repository toolchain gate. A PR from a personal branch into a track changes the
+  # repository; every other publication (track into main, main into a track or stable)
+  # carries commits that already entered a track this way. The protected path list
+  # lives on github-gate (gate/toolchain-paths.txt) and is read from this run's commit,
+  # so a PR cannot edit it. Hits are the files the target will change after publication,
+  # computed from the same merge-tree result that publish builds.
+  scope:
     needs: plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      toolchain: ${{ steps.scope.outputs.toolchain }}
+    steps:
+      - name: Find protected toolchain paths that this publication changes
+        id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TOKEN: ${{ github.token }}
+          PR: ${{ inputs.pr }}
+          H: ${{ inputs.head }}
+          BASE_REF: ${{ needs.plan.outputs.base_ref }}
+          B: ${{ needs.plan.outputs.base }}
+          MODE: ${{ needs.plan.outputs.mode }}
+        run: |
+          [[ "$H" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: head"; exit 1; }
+          [[ "$B" =~ ^([0-9a-f]{40}|none)$ ]] || { echo "rejected: base"; exit 1; }
+          head_ref=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .head.ref)
+          if [ "$MODE" != merge ] || [[ "$BASE_REF" != integration/* ]] || [ "$head_ref" = main ]; then
+            echo "toolchain=false" >> "$GITHUB_OUTPUT"
+            echo "Toolchain gate: not applicable ($head_ref into $BASE_REF)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/contents/gate/toolchain-paths.txt?ref=$GITHUB_SHA" --jq .content | base64 -d > paths.txt
+          mapfile -t specs < <(sed -e 's/#.*//' -e 's/[[:space:]]*$//' -e '/^$/d' paths.txt)
+          [ "${#specs[@]}" -gt 0 ] || { echo "stopped: the toolchain path list is empty"; exit 1; }
+          git init -q work && cd work
+          git remote add origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --no-tags origin "$H" "$B" || { echo "stopped: cannot fetch the PR head and target"; exit 1; }
+          tree=$(git merge-tree --write-tree "$B" "$H") || { echo "stopped: merge conflict, resolve it on the source branch first"; exit 1; }
+          pathspecs=(); for p in "${specs[@]}"; do pathspecs+=(":(glob)$p"); done
+          git diff-tree -r --name-only "$B" "$tree" -- "${pathspecs[@]}" > ../hits.txt || { echo "stopped: cannot compare the result with the target"; exit 1; }
+          cd ..
+          if [ -s hits.txt ]; then
+            echo "toolchain=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Repository toolchain paths changed"
+              echo
+              echo "This publication changes $(wc -l < hits.txt) protected path(s). A second confirmation in \`repo-toolchain-review\` is required, with a note that states why."
+              echo
+              sed 's/^/- `/; s/$/`/' hits.txt | head -200
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "toolchain=false" >> "$GITHUB_OUTPUT"
+            echo "Toolchain gate: no protected path changes." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  toolchain-review:
+    needs: [plan, scope]
+    if: needs.scope.outputs.toolchain == 'true'
+    runs-on: ubuntu-latest
+    environment: repo-toolchain-review
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      approver: ${{ steps.confirm.outputs.approver }}
+      note: ${{ steps.confirm.outputs.note }}
+    steps:
+      - name: Read the toolchain confirmation and require a note
+        id: confirm
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" > approvals.json
+          sel='[.[]|select(.state=="approved")|select([.environments[].name]|index("repo-toolchain-review"))]|last'
+          approver=$(jq -r "$sel|.user.login // \"\"" approvals.json)
+          note=$(jq -r "$sel|.comment // \"\"" approvals.json)
+          [ -n "$approver" ] || { echo "rejected: no toolchain approval record"; exit 1; }
+          [ -n "$(printf '%s' "$note" | tr -d '[:space:]')" ] || { echo "rejected: the toolchain confirmation note is empty"; exit 1; }
+          echo "approver=$approver" >> "$GITHUB_OUTPUT"
+          delim="NOTE_$(openssl rand -hex 16)"
+          { echo "note<<$delim"; printf '%s\n' "$note"; echo "$delim"; } >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: [plan, scope, toolchain-review]
+    # A skipped toolchain review would skip this job by default; run it only when the
+    # review succeeded or was not required.
+    if: >-
+      !cancelled() && needs.plan.result == 'success' && needs.scope.result == 'success' &&
+      (needs.toolchain-review.result == 'success' ||
+       (needs.toolchain-review.result == 'skipped' && needs.scope.outputs.toolchain == 'false'))
     runs-on: ubuntu-latest
     environment: publish
     permissions:
@@ -232,10 +322,18 @@ jobs:
           EXTRA: ${{ steps.build.outputs.extra }}
           APPROVER: ${{ steps.confirm.outputs.approver }}
           NOTE: ${{ steps.confirm.outputs.note }}
+          TOOLCHAIN: ${{ needs.scope.outputs.toolchain }}
+          TC_APPROVER: ${{ needs.toolchain-review.outputs.approver }}
+          TC_NOTE: ${{ needs.toolchain-review.outputs.note }}
         run: |
           quoted=$(printf '%s\n' "$NOTE" | sed 's/^/> /')
-          body=$(printf '**Publication decision**\n\n- Target: `%s`, now `%s`\n- PR head: `%s`\n- Result: `%s`\n- Record tag: `%s` %s\n- Confirmed by: @%s (from the platform approval record)\n- Run: %s/%s/actions/runs/%s\n\nConfirmation note:\n\n%s\n' \
-            "$BASE_REF" "$B" "$H" "$C" "$TAG" "${EXTRA:+and \`$EXTRA\`}" "$APPROVER" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$quoted")
+          toolchain=
+          if [ "$TOOLCHAIN" = true ]; then
+            tc_quoted=$(printf '%s\n' "$TC_NOTE" | sed 's/^/> /')
+            toolchain=$(printf '\nRepository toolchain confirmation by @%s (paths are listed in the run summary):\n\n%s\n' "$TC_APPROVER" "$tc_quoted")
+          fi
+          body=$(printf '**Publication decision**\n\n- Target: `%s`, now `%s`\n- PR head: `%s`\n- Result: `%s`\n- Record tag: `%s` %s\n- Confirmed by: @%s (from the platform approval record)\n- Run: %s/%s/actions/runs/%s\n\nConfirmation note:\n\n%s\n%s' \
+            "$BASE_REF" "$B" "$H" "$C" "$TAG" "${EXTRA:+and \`$EXTRA\`}" "$APPROVER" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$quoted" "$toolchain")
           gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" --jq .html_url
 
       - name: Update the target and create the record tag in one atomic push
