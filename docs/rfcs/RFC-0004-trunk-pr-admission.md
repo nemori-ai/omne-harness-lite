@@ -523,7 +523,7 @@ main 以上的确认检查只有发布身份能写，规则集要求的检查对
 | 四条主干、确认后发布（第一阶段） | [integration.md](../engineering/integration.md#现行准入) | 已写回 | 2026-10-15 切换，AIEPhoenix。本机工具的发布步骤不再用于四条主干 |
 | 轨道经合并队列自动合并、合入后补 unit（第二阶段） | integration.md“第二阶段目标” | 待写回 | 等 turbo 构建体系与自动检查 |
 | 发布身份加入 owners，以及 I07、I08、I09、I11 | `integration-policy.json` 与集成工具 `SPEC.md` | 待写回 | 第一阶段不读取 policy，SPEC 只加适用范围说明。拆分修改留到第二阶段 |
-| 检查器受信版本的升级流程 | integration.md“第二阶段目标”已记录方向。`policy-adoption.ts` 的契约未改 | 待写回 | 工具尚未拆成两半。现行 policy-check 与 policy-adopt 仍有效 |
+| 检查器受信版本的升级流程 | [开发指南](../development.md#仓库工具链的版本)与 integration.md“第二阶段目标”。`policy-adoption.ts` 的契约未改 | 已写回，改由仓库钉子承载 | 2026-10-16，卡 [#332](https://github.com/nemori-ai/omne-harness-lite/issues/332)，AIEPhoenix。检查器以 npm 包发布，`pnpm-workspace.yaml` 的 catalog 钉精确版本，不在 `github-gate` 上存受信版本文件；升级先发版本、再开改钉子的 PR，新旧版本各跑一遍。现行 policy-check 与 policy-adopt 仍有效 |
 | 发布的操作步骤 | [agent-delivery.md](../engineering/agent-delivery.md)、`branch-integration` 技能、[开发指南](../development.md#多层分支操作) | 已写回 | 2026-10-15，AIEPhoenix |
 | release 主干与对外发布的关系 | [publication.md](../engineering/publication.md#集成发布) | 已写回 | 2026-10-14。npm 细节仍待定。release 分支尚未创建 |
 | 远程检查的工作流说明 | `.github/workflows/check.yml` | 待写回 | 远程 CI 仍关闭。工作流留到检查任务改变时再改 |

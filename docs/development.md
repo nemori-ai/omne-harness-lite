@@ -120,11 +120,31 @@ pnpm lint:deps     # dependency-cruiser：无法解析的导入、文件级运�
 pnpm lint:report   # 只报告：全部目录的 oxlint（含 vitest 测试风格规则）与 knip
 ```
 
-tsconfig、oxlint 与 dependency-cruiser 的共享规则在 [repo-config](../tools/repo-config/README.md) 预设里维护，根目录的配置文件只引用它；oxfmt 不支持 `extends`，配置留在根目录。
+tsconfig、oxlint 与 dependency-cruiser 的共享规则在 [repo-config](../tools/repo-config/README.md) 预设里维护。根目录的配置文件只引用安装的预设，版本见[仓库工具链的版本](#仓库工具链的版本)。oxfmt 不支持 `extends`，配置留在根目录。
 
 `lint:oxlint` 与 `lint:deps` 违反即失败，`make check` 每次都跑。oxlint 暂不检查 `packages/` 与 `apps/`，与格式范围一起由源码包负责人另定；dependency-cruiser 的规则是结构护栏，对源码包同样失败。
-dependency-cruiser 用类型检查的 `source` 条件解析跨包导入，`dist` 与依赖只作叶子不深入；它自带一份 TypeScript 6 解析 `.ts`（见 `pnpm-workspace.yaml` 的 `packageExtensions`）。方向规则按[产品包组织](package-organization.md#依赖方向与cordis集成)写成成员路径，成员与组之间的环由 ts-checks 在同一张图上算；`lint:deps` 的入口是 `tools/repo-toolchain/src/deps/cli.ts`。
+dependency-cruiser 用类型检查的 `source` 条件解析跨包导入，`dist` 与依赖只作叶子不深入；它自带一份 TypeScript 6 解析 `.ts`（见 `pnpm-workspace.yaml` 的 `packageExtensions`）。方向规则按[产品包组织](package-organization.md#依赖方向与cordis集成)写成成员路径，成员与组之间的环由 repo-toolchain 在同一张图上算；`lint:deps` 运行钉住的 repo-toolchain 的 `omne-deps`。
 Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和源码字符串里的 legacy 路径，仍由 `pnpm run lint:rules` 检查；legacy 的导入边归 `lint:deps`。
+
+### 仓库工具链的版本
+
+检查器 `@omne-harness/repo-toolchain` 与配置预设 `@omne-harness/repo-config` 发布在 npm。`pnpm-workspace.yaml` 的 catalog 钉它们的精确版本。根 `package.json` 与 `tools/product-checks`、`tools/dev-flow`、`tools/test-runner` 用 `catalog:` 引用它们。`linkWorkspacePackages: false` 让普通版本号只从 registry 解析，所以安装的是 npm 上的包，不是工作区 `tools/repo-toolchain`、`tools/repo-config` 的源码。锁文件记录每个包的 integrity，可以与 npm 上的 `dist.integrity` 对照。
+
+钉住的版本承担这些检查：
+
+- 根命令 `check:declarations`、`lint:deps` 与 `make metrics`、`loop-status`、`loop-health`、`acceptance-lock` 运行安装包的命令：`omne-declarations`、`omne-deps`、`omne-metrics`、`omne-loop-status`、`omne-loop-health`、`omne-acceptance-lock`。
+- `scripts/integration-check.sh` 运行受信检出自己 `node_modules` 里的 `omne-loop-status`。
+- 三个工具成员导入的也是钉住的版本。`lint:rules`、影响面计划与成员测试的编排都不读工作区的 repo-toolchain。
+- 根 `tsconfig.base.json` 与 `.dependency-cruiser.cjs` 按包名引用预设。`.oxlintrc.json` 的 `extends` 只接受相对路径，所以写成 `./node_modules/@omne-harness/repo-config/oxlint.json`，指向的仍是安装的预设。
+
+改工作区的 `tools/repo-toolchain` 或 `tools/repo-config` 不改变这些检查的结果，只影响这两个成员自己的构建、类型检查与测试。收工钩子（`.meta_harness/agents/hooks`）仍运行执行检出里的 `tools/repo-toolchain` 源码。它给 agent 读数，不是准入检查。
+
+升级按下面的顺序做：
+
+1. 在一个 PR 里改 `tools/repo-toolchain` 或 `tools/repo-config`，并提高它 `package.json` 里的版本号。这个 PR 仍由当前钉住的版本检查。
+2. 这个 PR 进入轨道或 main 以后，经 `gate-release` 发布新版本，见[现行准入](engineering/integration.md#现行准入)。
+3. 再开一个只改 catalog 钉子与锁文件的 PR。用旧版本在目标分支上、用新版本在组合候选上各跑一遍 `make check`，PR 说明写两次的结果与差别。旧版本的失败如实保留。这个 PR 改到 `pnpm-workspace.yaml`，经仓库工具链变更闸门确认。
+4. 新版本有问题时，再开一个 PR 把钉子改回旧版本。npm 上已经发布的版本不再修改。
 
 ## 开始一次交付
 
@@ -254,7 +274,7 @@ make test-affected BASE="$TASK_BASE" TIER=slow
 turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
 
 RFC-0002 的四条约束这样落实：
-- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；成员目录下出现 `turbo.json` 直接报错；`**/turbo.json`、`tools/repo-config/**` 和本配置文件都是全局文件。
+- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；成员目录下出现 `turbo.json` 直接报错；`**/turbo.json` 和本配置文件都是全局文件。根配置的预设和检查器来自钉住的 npm 包，改版本就是改锁文件与 `pnpm-workspace.yaml`，它们也是全局文件。
 - 基线显式传入：合并点经 `TURBO_SCM_BASE` 传给 turbo，不让它自己推断。
 - 未识别文件按全量处理：由上面的规则判。
 - 准入不读 PR 能写入的缓存：`OMNE_ADMISSION=1` 时构建只写不读本地缓存（`--cache=local:w`）。

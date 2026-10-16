@@ -2,7 +2,7 @@
 
 [中文说明](README_ZH.md)
 
-`@omne-harness/repo-toolchain` is this repository's checker package. It is published on npm. It provides the rule engine, commit attribution, the dependency graph, declaration compatibility, structure metrics, actual architecture extraction, the review page and the clean loop. After the root pins an exact version, local checks run the published version.
+`@omne-harness/repo-toolchain` is this repository's checker package. It is published on npm. It provides the rule engine, commit attribution, the dependency graph, declaration compatibility, structure metrics, actual architecture extraction, the review page and the clean loop. The repository pins its exact version in the catalog of `pnpm-workspace.yaml`. The root checks and the three tool members run that version from npm, not the sources in this directory. After a change here, publish a new version first, then open a PR that changes the pin. See the [development guide](../../docs/development.md#仓库工具链的版本).
 
 Three unpublished tool members import this package through its subpaths. This package does not import them:
 

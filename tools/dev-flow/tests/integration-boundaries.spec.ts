@@ -165,6 +165,16 @@ function wrapperFixture() {
     )
   const setup = join(home, 'dependencies.bash'),
     trace = join(home, 'trace')
+  // The pinned checker runs from the runner's own node_modules; record it like the other stages.
+  mkdirSync(join(runner, 'node_modules/.bin'), { recursive: true })
+  writeFileSync(
+    join(runner, 'node_modules/.bin/omne-loop-status'),
+    `#!/usr/bin/env bash
+printf '%s|%s|%s|%s\\n' loop "$OMNE_TEST_SLOT_HELD" "$FULL" "loop $*" >> "$OMNE_TRACE"
+[[ loop != "$OMNE_FAIL_STAGE" ]]
+`,
+    { mode: 0o755 },
+  )
   writeFileSync(
     setup,
     `
@@ -175,7 +185,6 @@ record() {
 node() {
   case "$2" in
     */testing/cli.ts) if [[ "$3" == plan ]]; then record plan "$@"; else record "$4" "$@"; fi ;;
-    */loop/cli.ts) record loop "$@" ;;
     */integration/cli.ts) printf '{"targetBase":"%s"}' "$BASELINE" ;;
     */src/cli.ts) record rules "$@" ;;
     *) command node "$@" ;;
@@ -402,6 +411,11 @@ it.each([
     readFileSync(new URL('../../../repo-toolchain.config.json', import.meta.url)),
   )
   symlinkSync(fileURLToPath(new URL('../..', import.meta.url)), join(runner, 'tools'))
+  // The pinned checker runs from the runner's own node_modules, not through node and the workspace sources.
+  mkdirSync(join(runner, 'node_modules/.bin'), { recursive: true })
+  writeFileSync(join(runner, 'node_modules/.bin/omne-loop-status'), '#!/bin/sh\nexit 0\n', {
+    mode: 0o755,
+  })
   const setup = join(home, 'dependencies.bash')
   writeFileSync(
     setup,
@@ -409,7 +423,7 @@ it.each([
 node() {
   case "$2" in
     "$OMNE_RUNNER_ROOT/tools/product-checks/src/cli.ts") command "$OMNE_REAL_NODE" "$@" ;;
-    "$OMNE_RUNNER_ROOT/tools/test-runner/src/testing/cli.ts"|"$OMNE_RUNNER_ROOT/tools/repo-toolchain/src/loop/cli.ts") return 0 ;;
+    "$OMNE_RUNNER_ROOT/tools/test-runner/src/testing/cli.ts") return 0 ;;
     *) return 97 ;;
   esac
 }

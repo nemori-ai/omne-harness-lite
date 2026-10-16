@@ -19,7 +19,7 @@
     "delivery": "node --experimental-strip-types src/delivery/cli.ts"
   },
   "devDependencies": {
-    "@omne-harness/repo-toolchain": "workspace:*",
+    "@omne-harness/repo-toolchain": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

@@ -19,9 +19,6 @@ if [[ -z "${OMNE_TEST_SLOT_HELD:-}" ]]; then
     exec ./scripts/with-test-slot.sh ./scripts/check.sh
 fi
 
-# 工具成员经包入口导入 repo-toolchain 的 dist，先构建它（turbo 有缓存）。
-pnpm run --silent build:tools
-
 # 基线取 BASELINE；没给就用 origin/main，本地没有这个引用就用 main。影响面与回路状态共用它。
 baseline="$(node --experimental-strip-types tools/dev-flow/src/integration/cli.ts baselines ${BASELINE:+--base "$BASELINE"} | node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>process.stdout.write(JSON.parse(s).targetBase??""))')"
 if [[ -z "$baseline" ]]; then
