@@ -1,12 +1,19 @@
 // 依赖图：dependency-cruiser 的输出怎样收成成员边与违规，成员、组之间的环，以及按提交取的基线图。
-import { readdirSync } from 'node:fs'
+import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { graphOf, revisionGraph, workingGraph, type CruiseOutput } from '../src/deps/graph.ts'
+import {
+  graphOf,
+  requireCruiserTypeScript,
+  revisionGraph,
+  workingGraph,
+  type CruiseOutput,
+} from '../src/deps/graph.ts'
 import {
   commit,
   git,
   removeTemporaries,
+  temporaryDirectory,
   repository,
   write,
 } from './fixtures/loop-canary/repository.ts'
@@ -148,5 +155,18 @@ describe('真实检出上的依赖图', { timeout: 60_000 }, () => {
     expect(readdirSync(cache).filter(name => name.startsWith(base))).toHaveLength(1)
     expect(readdirSync(cache).filter(name => name.startsWith('tree-'))).toEqual([])
     expect(git(root, 'status', '--porcelain')).toBe('M packages/model/b/src/index.ts')
+  })
+})
+
+describe('dependency-cruiser 的 TypeScript', () => {
+  it('找不到 TypeScript 就报错，不让 .ts 被悄悄漏掉；同级 node_modules 里有它就放行', () => {
+    const root = temporaryDirectory('omne-cruiser-ts-')
+    const bin = join(root, 'node_modules/dependency-cruiser/bin/dependency-cruiser.mjs')
+    mkdirSync(join(bin, '..'), { recursive: true })
+    writeFileSync(bin, '')
+    expect(() => requireCruiserTypeScript(bin)).toThrow('dependency-cruiser 找不到 TypeScript')
+    mkdirSync(join(root, 'node_modules/typescript'), { recursive: true })
+    writeFileSync(join(root, 'node_modules/typescript/package.json'), '{}')
+    expect(() => requireCruiserTypeScript(bin)).not.toThrow()
   })
 })

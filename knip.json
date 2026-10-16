@@ -42,10 +42,14 @@
         "src/loop/stop-hook.ts",
         "src/archive/vitest-archive.ts",
         "src/report/flow/architecture/main.tsx",
-        "src/report/flow/metrics/*.tsx"
+        "src/report/flow/metrics/*.tsx",
+        "src/report/prebuild.ts"
       ],
       "project": [
         "src/**/*.{ts,tsx}"
+      ],
+      "ignoreDependencies": [
+        "dependency-cruiser"
       ]
     },
     "tools/dev-flow": {

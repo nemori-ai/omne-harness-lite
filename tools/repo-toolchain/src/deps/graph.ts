@@ -9,13 +9,14 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { createRequire } from 'node:module'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isTestPath } from '../core/rule.ts'
 import { runnerRoot } from '../core/subject.ts'
@@ -154,19 +155,40 @@ function cruiseTsconfig(): string {
 const ROOTS = ['packages', 'apps', 'examples', 'tools', 'scripts']
 const SCOPE = '@omne-harness/'
 
-/** 本包自己装的 dependency-cruiser；它的 exports 不含 package.json，从包目录直接定位。src/deps 与 dist/deps 同深。 */
+/**
+ * 本包自己依赖的 dependency-cruiser。它的 exports 只有 import 条件、不含 package.json，所以按 Node 的查找顺序
+ * 从本模块往上找 node_modules/dependency-cruiser：工作区里是本包的 node_modules，安装后是 pnpm 放在本包旁边的那一份。
+ */
 function cruiserBin(): string {
-  return fileURLToPath(
-    new URL('../../node_modules/dependency-cruiser/bin/dependency-cruiser.mjs', import.meta.url),
-  )
+  for (let dir = dirname(fileURLToPath(import.meta.url)); ; dir = dirname(dir)) {
+    const bin = join(dir, 'node_modules', 'dependency-cruiser', 'bin', 'dependency-cruiser.mjs')
+    if (existsSync(bin)) return bin
+    if (dirname(dir) === dir) throw new Error('找不到本包依赖的 dependency-cruiser')
+  }
+}
+
+/**
+ * dependency-cruiser 自己找 TypeScript 来解析 .ts；找不到时它不报错，只是把 .ts 全部漏掉，依赖图变空却照样通过。
+ * 所以先按它的位置往上找 typescript，找不到就停下。pnpm 下由使用方的 packageExtensions 给它加上 typescript。
+ */
+export function requireCruiserTypeScript(bin: string): void {
+  for (let dir = dirname(realpathSync(bin)); ; dir = dirname(dir)) {
+    if (existsSync(join(dir, 'node_modules', 'typescript', 'package.json'))) return
+    if (dirname(dir) === dir)
+      throw new Error(
+        'dependency-cruiser 找不到 TypeScript，无法解析 .ts。用 pnpm 时在 pnpm-workspace.yaml 的 packageExtensions 里给 dependency-cruiser 加上 typescript 依赖。',
+      )
+  }
 }
 
 /** 对一棵检出跑 dependency-cruiser，取 JSON；违规不算失败，读不出 JSON 才算。 */
 export function cruise(root: string): CruiseOutput {
   const roots = ROOTS.filter(dir => existsSync(join(root, dir)))
   if (roots.length === 0) return { modules: [], summary: { violations: [] } }
+  const bin = cruiserBin()
+  requireCruiserTypeScript(bin)
   const args = [
-    cruiserBin(),
+    bin,
     '--config',
     cruiseConfig(),
     '--ts-config',

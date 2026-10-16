@@ -1,7 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import { gzipSync } from 'node:zlib'
-import { transformSync } from 'esbuild'
+import { pageAssets } from './flow/architecture/bundle.ts'
 import { architectureBrowser } from './architecture-browser.ts'
 import { architectureLayoutInput } from './architecture-layout.ts'
 import { architectureViewport } from './viewport.ts'
@@ -9,26 +7,9 @@ import { architectureMatrix } from './matrix.ts'
 import { conformanceBrowser } from './conformance-browser.ts'
 import { selectArchitectureView, type ArchitectureView } from '../arch/view.ts'
 
-let elk: string | undefined
-
-/**
- * elkjs 不发布压缩过的 elk.bundled.js（只有 elk-worker.min.js），这里在生成页面时压缩一次并缓存。
- * 它的版权声明是普通注释，压缩会删掉，所以先摘出带 Copyright 的声明块，去重后放回开头。
- */
+/** Minified elk.bundled.js with its copyright notices; see `pageAssets`. */
 export function elkScript(): string {
-  if (elk !== undefined) return elk
-  const source = readFileSync(
-    createRequire(import.meta.url).resolve('elkjs/lib/elk.bundled.js'),
-    'utf8',
-  )
-  const notices = [
-    ...new Set(
-      (source.match(/\/\*[\s\S]*?\*\//gu) ?? []).filter(text => text.includes('Copyright')),
-    ),
-  ]
-  const code = transformSync(source, { minify: true, legalComments: 'none', target: 'es2020' }).code
-  elk = `${notices.join('\n')}\n${code}`
-  return elk
+  return pageAssets().elk
 }
 
 export function architectureMarkup(graph: ArchitectureView): string {

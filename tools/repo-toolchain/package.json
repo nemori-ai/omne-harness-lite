@@ -147,29 +147,157 @@
       "import": "./dist/archive/archive-project.js"
     }
   },
+  "files": [
+    "dist",
+    "README.md",
+    "README_ZH.md"
+  ],
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json && node dist/report/prebuild.js",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "metrics": "node --experimental-strip-types src/metrics/cli.ts",
     "architecture": "node --experimental-strip-types src/arch/cli.ts"
   },
-  "devDependencies": {
+  "dependencies": {
     "@jscpd/core": "catalog:",
     "@jscpd/tokenizer": "catalog:",
     "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
+    "dependency-cruiser": "catalog:",
+    "yaml": "catalog:"
+  },
+  "peerDependencies": {
+    "vitest": "^4.1.11"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@typescript/typescript6": "catalog:",
     "@xyflow/react": "catalog:",
     "antd": "catalog:",
-    "dependency-cruiser": "catalog:",
     "elkjs": "catalog:",
     "esbuild": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "yaml": "catalog:"
+    "vitest": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./architecture": {
+        "types": "./dist/arch/actual.d.ts",
+        "import": "./dist/arch/actual.js"
+      },
+      "./acceptance/lock": {
+        "types": "./dist/acceptance/lock.d.ts",
+        "import": "./dist/acceptance/lock.js"
+      },
+      "./arch/actual-model": {
+        "types": "./dist/arch/actual-model.d.ts",
+        "import": "./dist/arch/actual-model.js"
+      },
+      "./arch/conformance": {
+        "types": "./dist/arch/conformance.d.ts",
+        "import": "./dist/arch/conformance.js"
+      },
+      "./arch/conformance-model": {
+        "types": "./dist/arch/conformance-model.d.ts",
+        "import": "./dist/arch/conformance-model.js"
+      },
+      "./arch/constraints": {
+        "types": "./dist/arch/constraints.d.ts",
+        "import": "./dist/arch/constraints.js"
+      },
+      "./arch/dependencies": {
+        "types": "./dist/arch/dependencies.d.ts",
+        "import": "./dist/arch/dependencies.js"
+      },
+      "./arch/source": {
+        "types": "./dist/arch/source.d.ts",
+        "import": "./dist/arch/source.js"
+      },
+      "./commits": {
+        "types": "./dist/commits.d.ts",
+        "import": "./dist/commits.js"
+      },
+      "./core/check-scope": {
+        "types": "./dist/core/check-scope.d.ts",
+        "import": "./dist/core/check-scope.js"
+      },
+      "./core/git": {
+        "types": "./dist/core/git.d.ts",
+        "import": "./dist/core/git.js"
+      },
+      "./core/git-environment": {
+        "types": "./dist/core/git-environment.d.ts",
+        "import": "./dist/core/git-environment.js"
+      },
+      "./core/rule": {
+        "types": "./dist/core/rule.d.ts",
+        "import": "./dist/core/rule.js"
+      },
+      "./core/scan": {
+        "types": "./dist/core/scan.d.ts",
+        "import": "./dist/core/scan.js"
+      },
+      "./core/source-text": {
+        "types": "./dist/core/source-text.d.ts",
+        "import": "./dist/core/source-text.js"
+      },
+      "./core/syntax": {
+        "types": "./dist/core/syntax.d.ts",
+        "import": "./dist/core/syntax.js"
+      },
+      "./core/task-context": {
+        "types": "./dist/core/task-context.d.ts",
+        "import": "./dist/core/task-context.js"
+      },
+      "./core/test-ledger": {
+        "types": "./dist/core/test-ledger.d.ts",
+        "import": "./dist/core/test-ledger.js"
+      },
+      "./core/workspace": {
+        "types": "./dist/core/workspace.d.ts",
+        "import": "./dist/core/workspace.js"
+      },
+      "./loop/config": {
+        "types": "./dist/loop/config.d.ts",
+        "import": "./dist/loop/config.js"
+      },
+      "./loop/hook-measure": {
+        "types": "./dist/loop/hook-measure.d.ts",
+        "import": "./dist/loop/hook-measure.js"
+      },
+      "./loop/run": {
+        "types": "./dist/loop/run.d.ts",
+        "import": "./dist/loop/run.js"
+      },
+      "./loop/sensors/acceptance": {
+        "types": "./dist/loop/sensors/acceptance.d.ts",
+        "import": "./dist/loop/sensors/acceptance.js"
+      },
+      "./loop/sensors/worktrees": {
+        "types": "./dist/loop/sensors/worktrees.d.ts",
+        "import": "./dist/loop/sensors/worktrees.js"
+      },
+      "./product/scenarios": {
+        "types": "./dist/product/scenarios.d.ts",
+        "import": "./dist/product/scenarios.js"
+      },
+      "./archive/archive-project": {
+        "types": "./dist/archive/archive-project.d.ts",
+        "import": "./dist/archive/archive-project.js"
+      }
+    }
   }
 }

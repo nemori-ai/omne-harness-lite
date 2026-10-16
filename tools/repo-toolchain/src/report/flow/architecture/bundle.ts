@@ -1,7 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { buildSync, transformSync } from 'esbuild'
 
 export interface FlowBundle {
   /** Self-contained IIFE: React, @xyflow/react and both islands. It sets `window.ArchitectureFlow` and `window.StructureFlow`. */
@@ -10,15 +9,40 @@ export interface FlowBundle {
   readonly style: string
 }
 
-let cached: FlowBundle | undefined
+/** Everything a page inlines from third-party code: the flow island and elkjs. */
+export interface PageAssets {
+  readonly flow: FlowBundle
+  /** elk.bundled.js, minified, with its copyright notices kept at the top. */
+  readonly elk: string
+}
+
+/** Written next to the built module by `prebuild.ts`; the published package ships it instead of its UI dependencies. */
+export const PAGE_ASSETS_FILE = 'page-assets.json'
+
+let cached: PageAssets | undefined
 
 /**
- * Bundle the island at page-generation time. React 19 ships no browser build, so the page cannot
- * inline it like elkjs; esbuild resolves it from node_modules here and the result is inlined.
- * Works from `src/` (the .tsx entry) and from `dist/` (the tsc output).
+ * The prebuilt assets when the build wrote them, otherwise bundle now. React 19 ships no browser
+ * build, so the page cannot inline it like elkjs; esbuild resolves it from node_modules and the
+ * result is inlined. Bundling works from `src/` (the .tsx entry) and from `dist/` (the tsc output).
  */
-export function architectureFlowBundle(): FlowBundle {
+export function pageAssets(): PageAssets {
   if (cached !== undefined) return cached
+  const prebuilt = fileURLToPath(new URL(PAGE_ASSETS_FILE, import.meta.url))
+  cached = existsSync(prebuilt)
+    ? (JSON.parse(readFileSync(prebuilt, 'utf8')) as PageAssets)
+    : buildPageAssets()
+  return cached
+}
+
+export function architectureFlowBundle(): FlowBundle {
+  return pageAssets().flow
+}
+
+/** Bundle and minify with esbuild. Only the build and source checkouts need esbuild and the UI packages. */
+export function buildPageAssets(): PageAssets {
+  const require = createRequire(import.meta.url)
+  const { buildSync, transformSync } = require('esbuild') as typeof import('esbuild')
   const entry = ['./main.tsx', './main.js']
     .map(name => fileURLToPath(new URL(name, import.meta.url)))
     .find(path => existsSync(path))
@@ -40,9 +64,17 @@ export function architectureFlowBundle(): FlowBundle {
   const script = result.outputFiles.find(file => file.path.endsWith('.js'))?.text
   if (script === undefined) throw new Error('Architecture flow bundle produced no script')
   const style = transformSync(
-    readFileSync(createRequire(import.meta.url).resolve('@xyflow/react/dist/style.css'), 'utf8'),
+    readFileSync(require.resolve('@xyflow/react/dist/style.css'), 'utf8'),
     { loader: 'css', minify: true },
   ).code
-  cached = { script, style }
-  return cached
+  // elkjs ships no minified elk.bundled.js (only elk-worker.min.js). Its copyright notices are plain
+  // comments that minification drops, so take the blocks that mention Copyright and put them back first.
+  const source = readFileSync(require.resolve('elkjs/lib/elk.bundled.js'), 'utf8')
+  const notices = [
+    ...new Set(
+      (source.match(/\/\*[\s\S]*?\*\//gu) ?? []).filter(text => text.includes('Copyright')),
+    ),
+  ]
+  const code = transformSync(source, { minify: true, legalComments: 'none', target: 'es2020' }).code
+  return { flow: { script, style }, elk: `${notices.join('\n')}\n${code}` }
 }
