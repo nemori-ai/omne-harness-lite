@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { remoteRefs, fetchObject } from './transport.ts'
+import { TASK_CONTEXT_FILE } from '../core/task-context.ts'
 import { parseTaskBinding, type TaskBinding } from '../delivery/binding.ts'
 import { blob, git, maybeBlob, maybeRef, repository, ancestor, clean } from './git.ts'
 import {
@@ -206,7 +207,7 @@ export function parseContext(value: unknown): Context {
   }
 }
 export function contextPath(root: string): string {
-  return join(repository(root).gitDir, 'omne-integration-context.json')
+  return join(repository(root).gitDir, TASK_CONTEXT_FILE)
 }
 /** Reads this tree's task context and checks that it belongs to this tree and branch. */
 export function readContext(root: string): Context {
