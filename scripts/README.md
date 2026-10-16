@@ -67,8 +67,10 @@
 ## 运行名额
 
 多棵工作树、多个 agent 各自起全量检查时，CPU 被压满，本来能过的用例会越过时限。
-[with-test-slot.sh](with-test-slot.sh) 用文件锁把这些重负载的命令排成队：
+[with-test-slot.sh](with-test-slot.sh) 把这些重负载的命令排成队：
 `scripts/with-test-slot.sh <命令> [参数…]` 拿到名额才执行命令，并原样返回它的退出码。
+实现在 [with-test-slot.mjs](with-test-slot.mjs)，只用 Node 标准库，macOS、Linux 与 Windows 通用；
+`with-test-slot.sh` 只转发给它。不经 shell 时可直接运行 `node scripts/with-test-slot.mjs <命令> [参数…]`。
 
 经它执行的入口：`make check`（整套占一个名额）、根 `pnpm run test` 与 `pnpm run check` 的测试一步、
 `make test-affected`、`make test-tier`、`make test-triage`、`make mutation`、`make metrics COVERAGE=1`。已经持有名额的进程再调用它
@@ -76,22 +78,23 @@
 进程被杀也不会留下卡死的锁。
 
 **先来后到**：进队时领一张号（锁目录里的 `ticket-<号>`），名额空出时只有号码最小的那张活票去拿，
-与谁隔多久看一次无关。票和持有者登记（`slot-<序号>.holder`）都由登记它的进程锁住，进程退出或被杀，
-锁随之失效：排在中间的被杀掉，后面的照常往前挪，失效的文件由下一个看队列的进程删掉。
+与谁隔多久看一次无关。票和名额（`slot-<序号>.lock`）都是独占创建的文件，记着登记它的进程号与心跳间隔，
+登记者定时刷新它的修改时间。进程不在了，或心跳停了超过三个间隔，登记就失效：排在中间的被杀掉，后面的照常往前挪，
+失效的文件由下一个看队列的进程删掉。队列的增删在 `queue.lock` 目录内进行，目录由 `mkdir` 原子创建。
 
 | 环境变量 | 初值 | 含义 |
 |---|---|---|
 | `OMNE_TEST_SLOTS` | 1 | 同时允许几套在跑 |
-| `OMNE_TEST_SLOT_DIR` | `/tmp/omne-test-slots-<uid>` | 锁文件目录；同一用户的全部检出共用。要跨用户排队，把它指到一个共享可写的目录 |
+| `OMNE_TEST_SLOT_DIR` | `/tmp/omne-test-slots-<uid>`；Windows 为系统临时目录下的 `omne-test-slots-<用户名>` | 锁文件目录；同一用户的全部检出共用，不随 `TMPDIR` 变化。要跨用户排队，把它指到一个共享可写的目录 |
 | `OMNE_TEST_SLOT_POLL_SECONDS` | 5 | 没轮到时隔多久再看一次 |
 | `OMNE_TEST_SLOT_MAX_WAIT_SECONDS` | 7200 | 最多等多久；超过即以 **75** 退出，命令**没有执行** |
 | `OMNE_TEST_SLOT_LEDGER` | `${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl` | 运行账本，见下文 |
 
 排队时在标准错误报「前面还有 N 个」，以及每个名额正被什么命令占着、占了多久、在哪个目录、进程号；
 前面的人数或持有者变了再报一次，拿到名额时报等了多久。75 表示「没轮到」，既不是检查失败也不是通过；
-要么稍后再跑，要么先看是谁占着（`cat <锁目录>/slot-*.holder`，或 `fuser <锁目录>/slot-*.lock`）。
-还没并入这一版的检出用的是旧脚本：它与新脚本抢同一把名额锁，互斥照旧，但不领号，可能插队；
-它占着名额时排队者会报「持有者没有登记」。
+要么稍后再跑，要么先看是谁占着（`cat <锁目录>/slot-*.lock`）。
+还没并入这一版的检出用的是基于 `flock` 的旧脚本，它与新脚本使用不同的登记方式，彼此不互斥；同一台机器上的检出应一起更新。
+旧脚本在 macOS 与 Windows 上无法运行。
 
 一个名额等于整台机器，几分钟的受影响范围测试仍要排在几十分钟的全量覆盖率或变异测试后面；
 按任务大小分配名额要等数据再定（[#57](https://github.com/nemori-ai/omne-harness-lite/issues/57) 第二步）。

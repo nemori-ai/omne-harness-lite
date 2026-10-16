@@ -155,6 +155,7 @@ function wrapperFixture() {
     'check.sh',
     'integration-check.sh',
     'with-test-slot.sh',
+    'with-test-slot.mjs',
     'git-environment.sh',
   ])
     writeFileSync(

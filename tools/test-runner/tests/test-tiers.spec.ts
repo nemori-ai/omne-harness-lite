@@ -166,11 +166,20 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
   afterAll(() => rmSync(subject, { recursive: true, force: true }))
   writeFileSync(
     join(subject, 'pnpm-workspace.yaml'),
-    'packages:\n  - tools/*\n  - packages.0.0.1.legacy/core/*\n',
+    'packages:\n  - packages/*/*\n  - tools/*\n  - packages.0.0.1.legacy/core/*\n',
   )
+  // 计划经 turbo 选成员，turbo 要读被检查仓库根的 package.json 与 packageManager。
+  writeFileSync(
+    join(subject, 'package.json'),
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+  )
+  // 影响面规则点名的成员都要在，否则计划报错；外加一个退役目录里的成员。
   for (const path of [
+    'packages/common/legal-identity',
     'tools/repo-toolchain',
-    'tools/core-verification',
+    'tools/dev-flow',
+    'tools/product-checks',
+    'tools/test-runner',
     'packages.0.0.1.legacy/core/identity-values',
   ]) {
     mkdirSync(join(subject, path), { recursive: true })
