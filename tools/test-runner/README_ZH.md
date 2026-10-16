@@ -45,9 +45,9 @@ make acceptance                            # 构建有 acceptance 脚本的成�
    测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`scope.ts`／`turbo.ts` 与 repo-toolchain 的 `src/core/workspace.ts`、取改动的 `src/core/git.ts`，以及任何位置的 `turbo.json` 与 `tools/repo-config/`）：整份计划判全量——
    引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围；
 2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；
-   每条记录实际读者和依据；核心成员的 `schema/`、`src/`及测试夹具 → core-verification；
-   `packages`、`apps`、`examples` 下的 TS 与成员清单、工程协议及当前产品设计输入 → 本包；
-   `docs/clean-loop.md`、整洁之道对照表、`scripts/with-test-slot.sh` → 本包；
+   每条记录实际读者和依据；`packages`、`apps`、`examples` 下的 TS → product-checks；成员清单 → test-runner；
+   工程协议及当前产品设计输入 → dev-flow 与 product-checks；
+   `docs/clean-loop.md`、整洁之道对照表、`scripts/with-test-slot.sh` → repo-toolchain 与 test-runner；
 3. **成员文件**：按最长的成员目录前缀归属。哪些成员进来由 turbo 的 `--affected` 给出：改了文件的成员，与按 `package.json` 声明的依赖
    直接、间接依赖它的成员（含 `devDependencies`，因为测试可能导入生产代码不导入的包）。turbo 按包计改动：
    成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）在这里归「只需常驻检查」，但 turbo 仍选中那个成员，计划里标「只改了文档」；
@@ -57,7 +57,7 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 5. **只需常驻检查**（`residentPaths`）：文档、设计区、research、`examples/`、`.github/`、格式配置、`tools/model-probe/` 等；
 6. 其余（没有规则认得的，如 `.gitignore`）：整份计划判全量，理由点名前几个文件与总数。
 
-读者、成员文件与 Python 工具三种归属可以同时成立（另一个成员的 `schema/` 既是那个成员的文件又被 core-verification 读），三者都算。
+读者、成员文件与 Python 工具三种归属可以同时成立（另一个成员的 `schema/` 既是那个成员的文件又被别的成员的测试读），三者都算。
 被选中的成员定下之后：测试、类型检查、验收各取其中有对应脚本的；构建取其中有 `build` 脚本的，
 另加 `residentBuild` 列的成员（`lint:rules` 导入它的 `dist`），纯文档改动也构建它；它们的上游由 `turbo run build` 按依赖先构建。
 `FULL=1` 或 `--full` 直接给全量计划。算不出计划——基线不存在、取不到改动、规则点名的成员不存在、turbo 出错、成员目录下有 `turbo.json`——就报错退出，不改判全量。
@@ -149,8 +149,8 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 - 判定会抖（Stryker 的 perTest 判定已知会抖，上游 #6073）：一个存活要复跑确认，再决定补不补测试。
 - `static` 标记的变异体在模块加载时就求值，Stryker 只能为它跑全部测试，成本高。
 - 慢层的测试不参与：只被慢层测试守着的代码会显示为无覆盖或存活。
-- 只跑本成员自己的测试：靠别的成员的测试守着的代码（比如 storage 的契约由 storage-sql 与 core-verification
-  的一致性套件守着）会显示为无覆盖，那是变异的盲区，不是这份代码没人测。
+- 只跑本成员自己的测试：靠别的成员的测试守着的代码（比如一个契约只由它的提供者的
+  一致性套件守着）会显示为无覆盖，那是变异的盲区，不是这份代码没人测。
 
 自测：`tests/mutation.spec.ts`，其中一条在夹具项目上真起 Stryker（归慢层）：没断言的测试留下存活变异体，
 在只按包名导入自己的测试文件里补上断言后被杀；只变异改动行；跑完不留 sandbox。

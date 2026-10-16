@@ -171,7 +171,7 @@ flowchart TD
   machine --> sdkUse
 ```
 
-`tools/artifact-builder` 不依赖 CLI。`apps.0.0.1.legacy/cli` 把 artifact-builder 列为 devDependency。`tools/product-checks` 从 `@omne-harness/legal-identity` 读取身份类型名单。`tools/core-verification` 不再声明旧包依赖，也不再保留会导入旧包的消费者源码。`scripts/build-fixed-schemas.mjs` 已删除；它只解析 `@omne-harness-lite/content-blocks`。参考树里的旧 `build` 脚本仍写着这个文件名，运行会失败。`scripts/package-cli.sh` 构建 `@omne-harness/cli`，并把 `apps/cli/dist` 打成新的 `.tar.gz`。它不安装、不上传。
+`tools/artifact-builder` 不依赖 CLI。`apps.0.0.1.legacy/cli` 把 artifact-builder 列为 devDependency。`tools/product-checks` 从 `@omne-harness/legal-identity` 读取身份类型名单。`tools/core-verification` 已删除（#332）。`scripts/build-fixed-schemas.mjs` 已删除；它只解析 `@omne-harness-lite/content-blocks`。参考树里的旧 `build` 脚本仍写着这个文件名，运行会失败。`scripts/package-cli.sh` 构建 `@omne-harness/cli`，并把 `apps/cli/dist` 打成新的 `.tar.gz`。它不安装、不上传。
 
 发布到仓库之外时，CLI 包提供 `bin`、构建后的启动模块、构建身份文件，以及指向 SDK 包的依赖声明。启动不要求当前目录是本仓库。服务端包不进入这个安装闭包。包模板没有应用变体。缺少该变体并不阻止建包。建包前要同时满足两件事。[apps 入口](../apps/README.md#建立与维护)要求应用规格和公开依赖已经写明。[workspace](workspace.md)要求没有实现代码的承诺不建空成员。`help` 与 `version` 的测试归 `apps/cli`。在有真实 SDK 调用之前，这个最小入口不声明 SDK 依赖。SDK 调用的测试归 SDK。服务端接入的测试归 server-entry 和对应能力。模板与架构规则的测试归 `tools/repo-toolchain`。
 

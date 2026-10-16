@@ -84,7 +84,6 @@ tools/product-checks/                  TS 开发成员；本仓库的产品规�
 tools/dev-flow/                        TS 开发成员；开工准入、任务绑定与包模板，不发布
 tools/test-runner/                     TS 开发成员；影响面计划、成员测试与变异，不发布
 tools/repo-config/                     配置成员；共享的 tsconfig、oxlint 与 dependency-cruiser 预设
-tools/core-verification/               TS 开发成员；core 真实组合与验证套件有效性自测
 pyproject.toml                         Python 开发环境聚合，package = false
 uv.lock                                Python workspace 统一锁文件
 tools/spec-tools/                      Python 开发成员；跨仓库 Markdown 导航与工具环境检查

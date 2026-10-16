@@ -64,7 +64,6 @@ describe('成员清单', () => {
     expect(members.map(member => member.path)).toEqual(
       expect.arrayContaining([
         'tools/artifact-builder',
-        'tools/core-verification',
         'tools/dev-flow',
         'tools/product-checks',
         'tools/repo-toolchain',
