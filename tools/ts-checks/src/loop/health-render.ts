@@ -1,6 +1,6 @@
 // 流程体检页与它的文字摘要。页面自包含：样式取审讯页的同一套，走向图是内联 SVG，不带脚本，不引任何外部地址。
 // 每一块要么有数据，要么写明「没有数据」与原因，不留空白、不画空图。纯函数。
-import { escapeHtml, STYLE } from '../metrics/render.ts'
+import { escapeHtml, STYLE } from '../report/render.ts'
 import { RUN_TIERS, TIER_NAMES } from '../testing/config.ts'
 import { BAND_WORDS, type Band, type Lines } from './bands.ts'
 import { BUDGET_LABELS } from './budget.ts'

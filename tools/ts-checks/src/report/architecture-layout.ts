@@ -1,5 +1,5 @@
 import type { ElkNode } from 'elkjs'
-import type { SelectedArchitecture, RelationKind } from './view.ts'
+import type { SelectedArchitecture, RelationKind } from '../arch/view.ts'
 
 /** Geometry only. Self-contained so the offline page uses the same adapter. */
 export function architectureLayoutInput(

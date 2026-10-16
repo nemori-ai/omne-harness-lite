@@ -1,6 +1,6 @@
 // 结构图的几何：层是横向的列（第 0 层最左），组是层内的容器，成员是组内网格里的卡片。
 // 分组与组内顺序是 report.layout 给的事实（行内排序已按重心法排好），这里只摆位置，不改归属。
-import type { Report } from '../report.ts'
+import type { Report } from '../../../metrics/report.ts'
 
 export const CARD_WIDTH = 188
 export const CARD_HEIGHT = 58

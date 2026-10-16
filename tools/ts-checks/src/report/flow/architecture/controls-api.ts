@@ -1,4 +1,4 @@
-import type { FunctionTableProps } from '../../metrics/flow/function-table.tsx'
+import type { FunctionTableProps } from '../metrics/function-table.tsx'
 
 /** 下拉的一个选项。disabled 的选项可见但不可选。 */
 export interface SelectOption {

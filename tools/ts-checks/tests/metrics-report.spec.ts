@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import type { SourceFile } from '../src/index.ts'
 import { lineHitsFrom } from '../src/metrics/coverage.ts'
 import { coordinates, parseDiff, shapeOf, touches } from '../src/core/git.ts'
-import { renderPage } from '../src/metrics/render.ts'
+import { renderPage } from '../src/report/render.ts'
 import {
   bandOf,
   barycenterOrder,

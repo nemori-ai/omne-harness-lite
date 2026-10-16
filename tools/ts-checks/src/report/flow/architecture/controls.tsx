@@ -5,7 +5,7 @@ import { useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from 'r
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { Button, Checkbox, Collapse, ConfigProvider, Radio, Segmented, Select, theme } from 'antd'
-import { FunctionTable } from '../../metrics/flow/function-table.tsx'
+import { FunctionTable } from '../metrics/function-table.tsx'
 import type {
   ButtonHandle,
   CheckboxHandle,

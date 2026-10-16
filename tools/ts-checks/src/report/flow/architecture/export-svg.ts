@@ -1,4 +1,4 @@
-import type { ViewNode } from '../view.ts'
+import type { ViewNode } from '../../../arch/view.ts'
 import type { FlowProps } from './api.ts'
 import { NODE_HEIGHT, NODE_WIDTH, positionsOf, routesOf } from './geometry.ts'
 

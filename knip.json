@@ -40,8 +40,8 @@
         "src/**/cli.ts",
         "src/**/*-cli.ts",
         "src/loop/stop-hook.ts",
-        "src/arch/flow/main.tsx",
-        "src/metrics/flow/*.tsx"
+        "src/report/flow/architecture/main.tsx",
+        "src/report/flow/metrics/*.tsx"
       ],
       "project": [
         "src/**/*.{ts,tsx}"

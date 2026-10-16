@@ -1,7 +1,7 @@
 /// <reference lib="dom" preserve="true" />
-import type { ArchitectureView, SelectedArchitecture } from './view.ts'
-import type { ConformanceRow } from './conformance-model.ts'
-import type { ReportUiApi } from './flow/controls-api.ts'
+import type { ArchitectureView, SelectedArchitecture } from '../arch/view.ts'
+import type { ConformanceRow } from '../arch/conformance-model.ts'
+import type { ReportUiApi } from './flow/architecture/controls-api.ts'
 
 /** Separate intent navigation from source graph layout. All external values enter through textContent. */
 export function conformanceBrowser(

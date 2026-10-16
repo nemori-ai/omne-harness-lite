@@ -1,5 +1,5 @@
 import type { ElkNode } from 'elkjs'
-import type { RelationKind, SelectedArchitecture, ViewNode } from '../view.ts'
+import type { RelationKind, SelectedArchitecture, ViewNode } from '../../../arch/view.ts'
 
 /** What the vanilla page hands to the React island. Geometry comes from ELK, never from the island. */
 export interface FlowProps {

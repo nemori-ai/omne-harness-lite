@@ -1,4 +1,4 @@
-// 审讯页。结构图是 React Flow 岛（src/metrics/flow/）：层是横向的列、组是层内容器、成员是卡片，
+// 审讯页。结构图是 React Flow 岛（src/report/flow/metrics/）：层是横向的列、组是层内容器、成员是卡片，
 // 几何与画哪些线由该目录的纯函数算出，本文件留明细、悬停清单与选择状态。
 // 做法取自 Robert C. Martin 的 uml-viewer 与它的前身 arch-view（按其逻辑重写，不搬原文）：
 // - 默认不逐条画连线，只在卡片上标入/出、悬停时列出捆在一起的「从 → 到」，违规排前并标红：
@@ -6,14 +6,14 @@
 //   画线的取舍见 flow/edges.ts。
 // - 评分到颜色：评分不超过 5 时在「差 → 中」之间取色，否则在「中 → 好」之间取色（draw.clj:34-48），
 //   见 flow/structure.tsx 的 toneOf；覆盖率单元格的取色见 flow/function-table.tsx（draw.clj:61-66）。
-// 表单控件、函数表与折叠区由 antd 渲染（src/arch/flow/controls.tsx），本文件的脚本经句柄读写。
+// 表单控件、函数表与折叠区由 antd 渲染（src/report/flow/architecture/controls.tsx），本文件的脚本经句柄读写。
 // - 端点没有框的边跳过（提交 2f532e27）；成员名只显示最后一段（提交 70fffa0c）。
-import type { Report } from './report.ts'
+import type { Report } from '../metrics/report.ts'
 import type { ArchitectureView } from '../arch/view.ts'
-import { architectureMarkup, architectureScript } from '../arch/render.ts'
-import { architectureFlowBundle } from '../arch/flow/bundle.ts'
-import { FLOW_STYLE } from '../arch/flow/style.ts'
-import { STRUCTURE_STYLE } from './flow/style.ts'
+import { architectureMarkup, architectureScript } from './architecture-render.ts'
+import { architectureFlowBundle } from './flow/architecture/bundle.ts'
+import { FLOW_STYLE } from './flow/architecture/style.ts'
+import { STRUCTURE_STYLE } from './flow/metrics/style.ts'
 
 export interface PageContext {
   readonly head: string

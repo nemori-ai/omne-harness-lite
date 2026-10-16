@@ -2,7 +2,7 @@
 // 未选中时违规与已登记例外始终画出，本次变更触及的边不超过上限才逐条画，超过只留卡片上的入/出标记。
 // 这是 uml-viewer 走过的弯路换来的取舍：大变更下逐条画只会糊成一团（unclebob/uml-viewer@0171682
 // application/hit.clj:28-77；arch-view 89907df8 删掉了整套箭头走线）。
-import type { EdgeRow, Report } from '../report.ts'
+import type { EdgeRow, Report } from '../../../metrics/report.ts'
 
 export type EdgeTone = 'bad' | 'changed' | 'plain' | 'group'
 

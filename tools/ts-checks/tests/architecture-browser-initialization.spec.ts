@@ -1,7 +1,7 @@
 import { runInNewContext } from 'node:vm'
 import ts from '@typescript/typescript6'
 import { expect, it } from 'vitest'
-import { architectureScript } from '../src/arch/render.ts'
+import { architectureScript } from '../src/report/architecture-render.ts'
 
 it('initializes the emitted conformance browser without module imports and shows retired roles separately', () => {
   const script = architectureScript()

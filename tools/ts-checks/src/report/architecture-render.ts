@@ -2,12 +2,12 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { gzipSync } from 'node:zlib'
 import { transformSync } from 'esbuild'
-import { architectureBrowser } from './browser.ts'
-import { architectureLayoutInput } from './layout.ts'
+import { architectureBrowser } from './architecture-browser.ts'
+import { architectureLayoutInput } from './architecture-layout.ts'
 import { architectureViewport } from './viewport.ts'
 import { architectureMatrix } from './matrix.ts'
 import { conformanceBrowser } from './conformance-browser.ts'
-import { selectArchitectureView, type ArchitectureView } from './view.ts'
+import { selectArchitectureView, type ArchitectureView } from '../arch/view.ts'
 
 let elk: string | undefined
 

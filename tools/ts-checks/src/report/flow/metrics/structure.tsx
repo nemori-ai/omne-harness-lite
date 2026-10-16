@@ -18,8 +18,8 @@ import {
   type ReactFlowInstance,
   useKeyPress,
 } from '@xyflow/react'
-import type { EdgeRow, MemberRow, Report } from '../report.ts'
-import { ZOOM_KEYS } from '../../arch/flow/graph.tsx'
+import type { EdgeRow, MemberRow, Report } from '../../../metrics/report.ts'
+import { ZOOM_KEYS } from '../architecture/graph.tsx'
 import type { StructureFlowApi, StructureHandle, StructureProps } from './api.ts'
 import { visibleEdges, worstOf, type EdgeState, type VisibleEdge } from './edges.ts'
 import { structureLayout, type GroupBox, type LayerBox, type StructureLayout } from './layout.ts'

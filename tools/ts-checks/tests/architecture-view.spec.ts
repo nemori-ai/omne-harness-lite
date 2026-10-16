@@ -18,7 +18,7 @@ import {
   selectArchitectureView,
   type ViewSelection,
 } from '../src/arch/view.ts'
-import { renderPage } from '../src/metrics/render.ts'
+import { renderPage } from '../src/report/render.ts'
 import { buildReport } from '../src/metrics/report.ts'
 
 const bands = { green: 8, yellow: 12, red: 20 }

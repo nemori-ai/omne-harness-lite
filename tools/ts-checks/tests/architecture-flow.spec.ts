@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ElkNode } from 'elkjs'
-import { architectureFlowBundle } from '../src/arch/flow/bundle.ts'
-import { architectureSvg } from '../src/arch/flow/export-svg.ts'
-import type { FlowProps } from '../src/arch/flow/api.ts'
+import { architectureFlowBundle } from '../src/report/flow/architecture/bundle.ts'
+import { architectureSvg } from '../src/report/flow/architecture/export-svg.ts'
+import type { FlowProps } from '../src/report/flow/architecture/api.ts'
 import {
   RELATIONS,
   type SelectedArchitecture,

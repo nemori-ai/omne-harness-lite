@@ -17,8 +17,8 @@ import {
   type ReactFlowInstance,
   useKeyPress,
 } from '@xyflow/react'
-import type { Band } from '../../metrics/report.ts'
-import type { ViewEdge, ViewNode } from '../view.ts'
+import type { Band } from '../../../metrics/report.ts'
+import type { ViewEdge, ViewNode } from '../../../arch/view.ts'
 import type { FlowProps } from './api.ts'
 import { edgeStroke, nodeAnnotations, nodeTitle } from './export-svg.ts'
 import { NODE_HEIGHT, NODE_WIDTH, positionsOf, routesOf, type EdgeRoute } from './geometry.ts'

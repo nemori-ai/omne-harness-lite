@@ -1,5 +1,5 @@
 /// <reference lib="dom" preserve="true" />
-import type { SelectedArchitecture, RelationKind, ViewNode, ViewEdge } from './view.ts'
+import type { SelectedArchitecture, RelationKind, ViewNode, ViewEdge } from '../arch/view.ts'
 
 /** A second presentation of the selected overview. Rows are sources, columns are targets. */
 export function architectureMatrix(

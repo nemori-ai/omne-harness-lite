@@ -1,7 +1,7 @@
 /// <reference lib="dom" preserve="true" />
 // 函数表的展示。筛选、排序与截断仍由页面脚本完成，这里只按给定顺序画出行，表头点击交回脚本改排序键。
 import { Table, type TableColumnsType } from 'antd'
-import type { FunctionRow } from '../report.ts'
+import type { FunctionRow } from '../../../metrics/report.ts'
 import { toneOf } from './structure.tsx'
 
 export type SortKey = 'score' | 'cc' | 'cov' | 'path'

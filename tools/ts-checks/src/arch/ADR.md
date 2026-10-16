@@ -26,7 +26,7 @@
 依据：负责人要求用 React 19 与最新的 @xyflow/react 美化架构视图。
 本记录只推翻 2026-10-03 记录中「没有引入第二套架构 DSL 或 React 渲染栈」的后半句，其余决定不变。
 
-关系图的展示层改为 `src/arch/flow/` 中的 React 岛。@xyflow/react 12.12.0 负责画布、平移、缩放、小地图、节点与边的交互。
+关系图的展示层改为 `src/report/flow/architecture/` 中的 React 岛。@xyflow/react 12.12.0 负责画布、平移、缩放、小地图、节点与边的交互。
 ELK 仍只计算位置与路由。边按 ELK 的折线绘制，节点不可拖动，所以屏幕上的图与导出的 SVG 使用同一份几何。
 依赖矩阵、侧栏、详情与符合性面板仍是原生 DOM，不迁入 React。
 
@@ -42,8 +42,8 @@ SVG 导出不再克隆屏幕上的 SVG，因为节点已是 HTML。导出由同�
 本记录修改 2026-10-08 记录中「依赖矩阵、侧栏、详情与符合性面板仍是原生 DOM」的范围：结构图也进入 React 岛。
 其余原生 DOM 部分不变，包括复杂度面板的明细、函数表、悬停清单、方向发现与例外。
 
-结构图的组件归 `src/metrics/flow/`。同一个 bundle 入口（`flow/main.tsx`）同时设置 `window.ArchitectureFlow` 与 `window.StructureFlow`，页面只内联一份 React。
-因此 bundle 改由 `renderPage` 内联一次，`architectureMarkup` 不再内联它。arch 的 bundle 入口由此运行时依赖 `src/metrics/flow/`。
+结构图的组件归 `src/report/flow/metrics/`。同一个 bundle 入口（`flow/main.tsx`）同时设置 `window.ArchitectureFlow` 与 `window.StructureFlow`，页面只内联一份 React。
+因此 bundle 改由 `renderPage` 内联一次，`architectureMarkup` 不再内联它。arch 的 bundle 入口由此运行时依赖 `src/report/flow/metrics/`。
 结构图的几何不用 ELK，由 `flow/layout.ts` 按层、组和组内顺序确定地计算。连线默认不全画，用 ELK 按全部边布局会让卡片位置随选择变化。
 连线用 React Flow 的贝塞尔边，在屏幕上计算路径。直角走线（smoothstep）让同侧出发的线共用竖段而重叠，所以不用。结构图没有 SVG 导出，所以不要求屏幕与导出共用几何。
 画哪些线的规则不变，由 `flow/edges.ts` 实现。原来的三角标记改为卡片上的「入/出」计数，颜色规则不变。
@@ -69,7 +69,7 @@ elkjs 的版权声明是普通注释，压缩前摘出并放回压缩代码的�
 antd 进入已有的 esbuild bundle，只打包用到的组件，并按生产模式压缩。代价：bundle 脚本从约 413 KB 增加到约 1026 KB。
 
 页面标记仍写原生控件。bundle 加载时把下拉、复选框、按钮、视图切换与折叠区替换为 antd 组件，id、可见文字与选项照搬。
-页面脚本经句柄（`src/arch/flow/controls-api.ts`）读写控件，筛选、布局与跳转逻辑不变。
+页面脚本经句柄（`src/report/flow/architecture/controls-api.ts`）读写控件，筛选、布局与跳转逻辑不变。
 没有另设隐藏的原生控件做双向同步：两套状态与两棵可访问性树没有边界价值。
 函数表改用 antd Table。筛选、排序与 400 行截断仍由页面脚本完成，表格只按给定顺序展示。
 仍为原生实现的部分：侧栏的目录组、节点与关系清单，矩阵与关系图，以及符合性面板里按预期变化动态生成的折叠条目。

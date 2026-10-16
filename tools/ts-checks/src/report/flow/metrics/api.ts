@@ -1,4 +1,4 @@
-import type { Report } from '../report.ts'
+import type { Report } from '../../../metrics/report.ts'
 import type { EdgeState } from './edges.ts'
 
 /** 原生页面交给结构图岛的东西。几何与画哪些线都由本目录的纯函数从 report 算出。 */

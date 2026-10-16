@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { EdgeRow, GroupRow, MemberRow, Report } from '../src/metrics/report.ts'
-import { visibleEdges } from '../src/metrics/flow/edges.ts'
-import { columnsFor, structureLayout, type Box } from '../src/metrics/flow/layout.ts'
+import { visibleEdges } from '../src/report/flow/metrics/edges.ts'
+import { columnsFor, structureLayout, type Box } from '../src/report/flow/metrics/layout.ts'
 
 function member(path: string, group: string, layer: number): MemberRow {
   return {

@@ -284,7 +284,7 @@ stdout 仍只有实际架构 JSON，报告路径写到 stderr。构建后也可�
 公开投影为 `buildArchitectureView(document, bands)` 和 `selectArchitectureView(graph, selection)`，
 经同一个 architecture 入口导出。数据类型归 [view.ts](src/arch/view.ts)，
 类型表达不出的行为归 [薄规格](src/arch/SPEC.md)，回归见 [视图测试](tests/architecture-view.spec.ts)。
-关系图由 React 19 与 @xyflow/react 展示（`src/arch/flow/`），ELK 仍负责位置与路由，节点不可拖动。
+关系图由 React 19 与 @xyflow/react 展示（`src/report/flow/architecture/`），ELK 仍负责位置与路由，节点不可拖动。
 表单控件、视图切换、折叠区与函数表由 antd 6 渲染（`flow/controls.tsx`），与 React Flow 打进同一个 bundle；页面标记仍写原生控件，加载时替换，id 与文字不变。
 React 19 没有浏览器单文件构建，所以 `renderPage` 生成页面时用 esbuild 把岛打成一个 IIFE 内联（`flow/bundle.ts`），
 从 `src/` 与 `dist/` 都能运行，页面仍离线自包含。关系图模式的 SVG 导出由同一份几何生成（`flow/export-svg.ts`），
@@ -328,7 +328,7 @@ make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，�
 - **成员风险值** = 成员内函数评级分的均值加一个总体标准差，单个最差函数不至于把整个成员染红；它在色带点上分段线性地换成 1 到 10 的评分再取色。组框左边线取组内最差成员。
 - **函数是否变更**比对函数自身文本的摘要，不看 diff 行号：挪位置、上方插入代码都不算变。
 - **行内排序**用重心法：按相邻成员位置的平均值排五轮，让相连的成员靠近。
-- **结构图**由 React Flow 岛展示（`src/metrics/flow/`），与架构视图共用同一个内联 bundle。层是横向的列，第 0 层在最左；组是层内的容器；成员是组内网格中的卡片，组内顺序沿用行内排序。几何（`flow/layout.ts`）与画哪些线（`flow/edges.ts`）都是纯函数，回归见 [结构图测试](tests/metrics-structure.spec.ts)。滚轮翻页，按住 ⌘（Windows 为 Ctrl）加滚轮缩放，拖动空白处平移。
+- **结构图**由 React Flow 岛展示（`src/report/flow/metrics/`），与架构视图共用同一个内联 bundle。层是横向的列，第 0 层在最左；组是层内的容器；成员是组内网格中的卡片，组内顺序沿用行内排序。几何（`flow/layout.ts`）与画哪些线（`flow/edges.ts`）都是纯函数，回归见 [结构图测试](tests/metrics-structure.spec.ts)。滚轮翻页，按住 ⌘（Windows 为 Ctrl）加滚轮缩放，拖动空白处平移。
 - **扇入、扇出与不稳定度**：依赖它的成员数、它依赖的成员数、出 ÷（入 + 出）。
 - 阈值与色带在 `metrics.config.json`，不写死在代码里：`thresholds`（函数级的「要解释」线）、`bands`（成员着色）与 `page.changedEdgeLimit`（见下）。
 - **审讯页画哪些线**：选中一个成员时只画它自己的线（指向它的用虚线），别处只留违规。悬停在成员上等同于临时选中它，离开后恢复点击定下的选中。选中或悬停时，它的线加粗发光，普通导入的线取发起成员卡片的颜色（违规、例外、变更仍为红、橙、蓝），沿线有小点从依赖方流向被依赖方，与它不相邻的成员淡化；系统设置减少动态效果时不显示小点。组间连线同样加粗发光、取发起组左边线的颜色，但没有流动小点。点画布、层或组的空白处取消选中。未选中时违规与已登记例外始终画出；本次变更触及的边不超过 `page.changedEdgeLimit` 条才逐条画，超过就只留卡片上的蓝色「入/出」标记，并在画布底部注明——大变更下逐条画只会糊成一团。连线是贝塞尔曲线，箭头指向被依赖的成员。

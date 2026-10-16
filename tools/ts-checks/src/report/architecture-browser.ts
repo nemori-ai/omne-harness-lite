@@ -1,13 +1,19 @@
 /// <reference lib="dom" preserve="true" />
-import type { ArchitectureView, RelationKind, ViewEdge, ViewNode, ViewSelection } from './view.ts'
-import type { selectArchitectureView } from './view.ts'
+import type {
+  ArchitectureView,
+  RelationKind,
+  ViewEdge,
+  ViewNode,
+  ViewSelection,
+} from '../arch/view.ts'
+import type { selectArchitectureView } from '../arch/view.ts'
 import type { ELK, ElkNode } from 'elkjs'
-import type { architectureLayoutInput } from './layout.ts'
+import type { architectureLayoutInput } from './architecture-layout.ts'
 import type { architectureViewport } from './viewport.ts'
 import type { architectureMatrix } from './matrix.ts'
 import type { conformanceBrowser } from './conformance-browser.ts'
-import type { ArchitectureFlowApi, FlowHandle, FlowProps } from './flow/api.ts'
-import type { ReportUiApi } from './flow/controls-api.ts'
+import type { ArchitectureFlowApi, FlowHandle, FlowProps } from './flow/architecture/api.ts'
+import type { ReportUiApi } from './flow/architecture/controls-api.ts'
 
 /** Embedded after TypeScript erasure. Only the supplied projection function crosses this boundary. */
 export function architectureBrowser(
