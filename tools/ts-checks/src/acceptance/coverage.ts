@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { isLegacyDirectory } from '../core/check-scope.ts'
 import type { Violation } from '../core/rule.ts'
 import { readProductTopics, SCENARIO_ID, type ProductTopic } from '../product/scenarios.ts'
-import type { RunScript } from '../testing/config.ts'
+import type { RunScript } from '../core/test-ledger.ts'
 import { isAcceptancePath, type AcceptanceLockConfig } from './lock.ts'
 
 export const ACCEPTANCE_COVERS_RULE = 'acceptance-covers'

@@ -1,42 +1,12 @@
 // 耗时账本：把各成员 vitest 的 JSON 报告与计时报告汇总成成员、文件、用例三级的耗时、导入耗时、
 // 贴着自身时限的用例与失败清单。纯函数。
 import { relative } from 'node:path'
-import type { Parallelism, RunScript, RunTier } from './config.ts'
+import type { Failure, Ledger } from '../core/test-ledger.ts'
+export type { Failure, Ledger, LedgerFile, RunMeta } from '../core/test-ledger.ts'
 import type { TimingReport } from './timing-reporter.ts'
 
 /** vitest 的默认用例时限。计时报告缺失（成员没跑到报告器那一步）时，贴线按它判，并在账本里标明是假定的。 */
 export const VITEST_DEFAULT_TIMEOUT_SECONDS = 5
-
-/** 一次运行的抬头：`ledger.json` 的 `meta`。读它的有体检页（测试）与回路的验收耗时传感器。 */
-export interface RunMeta {
-  readonly script: RunScript
-  /** 跑的是哪一层；早于分层的账本没有这一栏，读时按 `all`。 */
-  readonly tier: RunTier
-  readonly head: string
-  readonly branch: string
-  readonly dirty: boolean
-  /** 跑的是全部成员（`--all`，或判为全量的计划）时为 null。 */
-  readonly base: { readonly ref: string; readonly mergeBase: string } | null
-  readonly startedAt: string
-  readonly parallel: Parallelism
-  readonly cores: number
-  /** 按影响面选成员时那份计划的模式与理由；`--all` 为 null。 */
-  readonly plan: { readonly mode: 'full' | 'scoped'; readonly reason: string } | null
-  /**
-   * 按计划跑验收时写：计划没选中、因而没跑的有验收的成员，与为什么。有它的账本对它列出的成员也算交代过了
-   * （回路的验收耗时传感器据此认「本次影响面不含带验收的成员」）。
-   */
-  readonly scope?: { readonly reason: string; readonly skipped: readonly string[] }
-  /** 这次跑了的成员目录。 */
-  readonly members: readonly string[]
-  /** 整次运行的墙钟，取整到秒。 */
-  readonly wallSeconds: number
-}
-
-/** 运行目录里的 `ledger.json`。 */
-export interface LedgerFile extends Ledger {
-  readonly meta: RunMeta
-}
 
 /** vitest `--reporter=json` 的形状里这里用到的部分。 */
 export interface VitestJsonReport {
@@ -64,71 +34,6 @@ export interface MemberRun {
   readonly report?: VitestJsonReport
   /** 计时报告；与 JSON 报告同理可能没有。 */
   readonly timing?: TimingReport
-}
-
-export interface Failure {
-  readonly member: string
-  /** 仓库相对的测试文件；整个成员没出报告时为 undefined。 */
-  readonly file?: string
-  /** 用例全名；文件级失败（收集或加载出错）时为 undefined。 */
-  readonly test?: string
-  readonly message: string
-}
-
-export interface Ledger {
-  readonly members: readonly {
-    readonly member: string
-    readonly exitCode: number
-    readonly wallSeconds: number
-    readonly files: number
-    /** 跑了的用例（通过或失败）。 */
-    readonly tests: number
-    /** 没跑的用例：`.skip`、`.todo`、被层过滤掉的（文件里还有别的用例要跑时，它们以跳过出现在报告里）。 */
-    readonly skipped: number
-    readonly failed: number
-    /** 各文件用例耗时之和（从第一条用例开始到最后一条结束，不含导入）。 */
-    readonly fileSeconds: number
-    /** 各文件导入耗时之和；没有计时报告时不写。墙钟减去两者之和是进程启动、类型检查与并行重叠。 */
-    readonly collectSeconds?: number
-  }[]
-  readonly files: readonly {
-    readonly member: string
-    readonly file: string
-    readonly seconds: number
-    /** 跑了的用例。 */
-    readonly tests: number
-    /** 跑了的用例里归慢层的（带 `slow` 标签，含整文件的）；没有计时报告时一律按快层，为 0。 */
-    readonly slowTests: number
-    /** 跑了的快层用例的耗时之和。 */
-    readonly fastSeconds: number
-    /** 跑了的用例里最长的一条。 */
-    readonly longestSeconds: number
-    /** 导入这个测试文件（含它的依赖与 describe 回调）的耗时；没有计时报告时不写。 */
-    readonly collectSeconds?: number
-  }[]
-  /** 耗时达到自身时限 × `nearTimeoutRatio` 的用例，按占时限的比例从高到低。 */
-  readonly nearTimeout: readonly {
-    readonly member: string
-    readonly file: string
-    readonly test: string
-    readonly seconds: number
-    readonly timeoutSeconds: number
-    /** 时限取自计时报告为 false；拿不到、按 vitest 默认时限假定的为 true。 */
-    readonly timeoutAssumed: boolean
-    /** 这条用例归慢层。 */
-    readonly slow: boolean
-  }[]
-  /**
-   * 快层里超出单条预算的用例，按耗时从高到低：耗时 ≥ 自身时限与 vitest 默认时限中较小的那个 × `nearTimeoutRatio`。
-   * 自带更宽时限的也按默认时限判——快层的预算不随用例自己放宽的时限放宽。
-   */
-  readonly fastOverBudget: readonly {
-    readonly member: string
-    readonly file: string
-    readonly test: string
-    readonly seconds: number
-  }[]
-  readonly failures: readonly Failure[]
 }
 
 /** 什么都没跑的账本正文（计划跳过了全部验收时用）。 */

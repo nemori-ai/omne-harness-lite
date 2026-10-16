@@ -1,61 +1,20 @@
 // 测试运行的策略只在 `test-runs.config.json` 里定一次；这里读它、校验它，并接受环境变量的临时覆盖。
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-/**
- * 运行器逐成员跑的脚本：`test` 是成员的测试，`acceptance` 是成员的可执行验收（`docs/workspace.md`「可执行验收」）。
- * 两种运行共用并行度与账本格式，账本各放一处，互不混入。
- */
-export const RUN_SCRIPTS = ['test', 'acceptance'] as const
-export type RunScript = (typeof RUN_SCRIPTS)[number]
-
-const LEDGER_HOMES: Readonly<Record<RunScript, { readonly env: string; readonly dir: string }>> = {
-  test: { env: 'OMNE_TEST_LEDGER_HOME', dir: 'test-ledger' },
-  acceptance: { env: 'OMNE_ACCEPTANCE_LEDGER_HOME', dir: 'acceptance-ledger' },
-}
-
-export function isRunScript(value: unknown): value is RunScript {
-  return (RUN_SCRIPTS as readonly unknown[]).includes(value)
-}
-
-/**
- * 测试分为快慢两层（docs/verification.md「测试分层」）：`all` 两层都跑。层的定义在仓库根 `vitest.tiers.mts`，
- * 运行器只经下面这个环境变量告诉成员这一轮跑哪一层（本包构建的 rootDir 是 src，引不到根上的文件，
- * 名字在这里重抄一遍，由自测钉住两边一致）。
- */
-export const RUN_TIERS = ['fast', 'slow', 'all'] as const
-export type RunTier = (typeof RUN_TIERS)[number]
-export const TEST_TIER_ENV = 'OMNE_TEST_TIER'
-
-export function isRunTier(value: unknown): value is RunTier {
-  return (RUN_TIERS as readonly unknown[]).includes(value)
-}
-
-/** 摘要与体检页里怎么称呼各层。 */
-export const TIER_NAMES: Readonly<Record<RunTier, string>> = {
-  fast: '快层',
-  slow: '慢层',
-  all: '两层',
-}
-
-/** 账本根：环境变量给了用它，否则是主检出的 `tmp/<脚本>-ledger/`。下面一层是提交，再下一层是每次运行。 */
-export function ledgerHome(
-  script: RunScript,
-  mainRoot: string,
-  env: Readonly<Record<string, string | undefined>>,
-): string {
-  const { env: name, dir } = LEDGER_HOMES[script]
-  const value = env[name]
-  return value === undefined || value === '' ? join(mainRoot, 'tmp', dir) : value
-}
-
-export interface Parallelism {
-  /** 同时跑几个成员的测试。 */
-  readonly memberConcurrency: number
-  /** 每个成员的 vitest 最多起几个工作进程。两者之积不该超过核数。 */
-  readonly vitestMaxWorkers: number
-}
+export {
+  RUN_SCRIPTS,
+  RUN_TIERS,
+  TEST_TIER_ENV,
+  TIER_NAMES,
+  isRunScript,
+  isRunTier,
+  ledgerHome,
+  type Parallelism,
+  type RunScript,
+  type RunTier,
+} from '../core/test-ledger.ts'
+import type { Parallelism } from '../core/test-ledger.ts'
 
 /**
  * 影响面的路径规则（`src/testing/affected.ts`）。路径模式都相对仓库根：`*` 不跨目录，`**` 跨目录。

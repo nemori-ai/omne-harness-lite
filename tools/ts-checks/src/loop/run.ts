@@ -10,7 +10,6 @@ import { changedFiles, changedLines, coordinates, git, type Coordinates } from '
 import { memberOf, revisionGraph, workingGraph } from '../deps/graph.ts'
 import { buildReport, isMeasuredSource, type Report } from '../metrics/report.ts'
 import { baseTextsOf, collectMemberSources } from '../metrics/sources.ts'
-import { readTestRunsConfig } from '../testing/config.ts'
 import { isTestPath, type SourceFile } from '../core/rule.ts'
 import { judgeMember, type MemberBaseline, type MemberBudget } from './budget.ts'
 import { readCatalogue } from './catalogue.ts'
@@ -561,7 +560,7 @@ export async function runLoopStatus(
     shortHead: at.shortHead,
     dirty: at.dirty,
     env,
-    excludeRoots: readTestRunsConfig().affected.excludeRoots,
+    excludeRoots: config.sensors.acceptance.excludeRoots,
   })
 
   const trendPath = join(home, 'trend.jsonl')

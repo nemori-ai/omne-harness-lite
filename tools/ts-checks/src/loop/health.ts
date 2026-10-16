@@ -1,7 +1,7 @@
 // 债的走向、对照表条数、各传感器最近一次有数据。全是纯函数：读文件、跑 git 在 health-cli.ts，
 // 「现在」由调用方注入。每一块要么有数据，要么写明没有数据的原因。
 import { shapeOf } from '../core/git.ts'
-import { isRunTier, type RunTier } from '../testing/config.ts'
+import { isRunTier, type RunTier } from '../core/test-ledger.ts'
 import type { Band, Lines } from './bands.ts'
 import { CATEGORIES, type Category } from './catalogue.ts'
 import { BUDGET_ITEMS, INDICATORS, type BudgetItem, type LoopConfig } from './config.ts'

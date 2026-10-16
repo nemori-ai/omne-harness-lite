@@ -6,8 +6,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { listTestMembers } from '../../core/workspace.ts'
-import { ledgerHome } from '../../testing/config.ts'
-import type { LedgerFile } from '../../testing/ledger.ts'
+import { ledgerHome } from '../../core/test-ledger.ts'
+import type { LedgerFile } from '../../core/test-ledger.ts'
 import { data, noData, type Reading } from '../reading.ts'
 
 export interface AcceptanceTiming {
@@ -115,7 +115,7 @@ export interface AcceptanceLocation {
   readonly shortHead: string
   readonly dirty: boolean
   readonly env: Readonly<Record<string, string | undefined>>
-  /** 与测试运行同一份的排除根目录。 */
+  /** 回路配置 `sensors.acceptance.excludeRoots`，与测试运行的排除根目录一致。 */
   readonly excludeRoots: readonly string[]
 }
 

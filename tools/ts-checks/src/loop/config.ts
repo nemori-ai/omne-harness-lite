@@ -96,8 +96,11 @@ export interface LoopConfig {
       readonly windowDays: number
     }
     readonly worktrees: { readonly enabled: boolean }
-    /** 验收耗时：读 `make acceptance` 写下的账本。 */
-    readonly acceptance: { readonly enabled: boolean }
+    /**
+     * 验收耗时：读 `make acceptance` 写下的账本。`excludeRoots` 下的成员不算有验收的成员，
+     * 须与测试运行配置 `affected.excludeRoots` 一致，由自测核对。
+     */
+    readonly acceptance: { readonly enabled: boolean; readonly excludeRoots: readonly string[] }
     readonly architecture: { readonly enabled: boolean }
     readonly catalogue: { readonly path: string; readonly doctrinePath: string }
   }
@@ -219,6 +222,13 @@ function indicator(value: unknown, name: string): IndicatorConfig {
   }
 }
 
+function roots(value: unknown, name: string): string[] {
+  if (value === undefined) return []
+  if (!Array.isArray(value) || !value.every(item => typeof item === 'string' && item !== ''))
+    throw new Error(`${name} 须为仓库相对目录的数组（可以为空）`)
+  return value
+}
+
 function groups(value: unknown, name: string): string[] {
   if (!Array.isArray(value) || !value.every(item => typeof item === 'string' && item !== ''))
     throw new Error(`${name} 须为成员组名的数组（可以为空）`)
@@ -305,7 +315,10 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
         windowDays: integer(topicChurn['windowDays'], 'sensors.topicChurn.windowDays'),
       },
       worktrees: { enabled: bool(worktrees['enabled'], 'sensors.worktrees.enabled') },
-      acceptance: { enabled: bool(acceptance['enabled'], 'sensors.acceptance.enabled') },
+      acceptance: {
+        enabled: bool(acceptance['enabled'], 'sensors.acceptance.enabled'),
+        excludeRoots: roots(acceptance['excludeRoots'], 'sensors.acceptance.excludeRoots'),
+      },
       architecture: { enabled: bool(architecture['enabled'], 'sensors.architecture.enabled') },
       catalogue: {
         path: text(catalogue['path'], 'sensors.catalogue.path'),

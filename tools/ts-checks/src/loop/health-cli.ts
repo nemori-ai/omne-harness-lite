@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'n
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { coordinates, git } from '../core/git.ts'
-import { ledgerHome as testLedgerHome } from '../testing/config.ts'
+import { ledgerHome as testLedgerHome } from '../core/test-ledger.ts'
 import { countPending, readCatalogue, readIfFile } from './catalogue.ts'
 import { readLoopConfig } from './config.ts'
 import {

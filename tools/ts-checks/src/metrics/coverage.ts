@@ -16,7 +16,7 @@ import {
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isLegacyDirectory, isLegacyFile } from '../core/check-scope.ts'
-import { hasArchivedDirectories } from '../testing/archive-project.ts'
+import { hasArchivedDirectories } from '../core/check-scope.ts'
 import type { CoverageInput, LineHits } from './report.ts'
 
 interface IstanbulFile {

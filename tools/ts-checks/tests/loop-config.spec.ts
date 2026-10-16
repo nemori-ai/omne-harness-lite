@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { LOOP_CONFIG_PATH, parseLoopConfig, readLoopConfig } from '../src/loop/config.ts'
+import { readTestRunsConfig } from '../src/testing/config.ts'
 
 const raw = (): Record<string, unknown> => JSON.parse(readFileSync(LOOP_CONFIG_PATH, 'utf8'))
 
@@ -28,6 +29,9 @@ describe('回路配置', () => {
     expect(config.sensors.assertions.assertionPattern.test('expectTypeOf')).toBe(true)
     expect(config.sensors.assertions.helperPattern).toBeUndefined()
     expect(config.sensors.architecture).toEqual({ enabled: true })
+    expect(config.sensors.acceptance.excludeRoots).toEqual(
+      readTestRunsConfig().affected.excludeRoots,
+    )
     for (const id of [
       'addedAssemblyFacts',
       'removedAssemblyFacts',

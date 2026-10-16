@@ -161,7 +161,8 @@
       "enabled": true
     },
     "acceptance": {
-      "enabled": true
+      "enabled": true,
+      "excludeRoots": ["examples"]
     },
     "catalogue": {
       "path": "docs/clean-loop.md",

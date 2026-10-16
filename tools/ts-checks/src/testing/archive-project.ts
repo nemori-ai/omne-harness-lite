@@ -1,16 +1,9 @@
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import ts from '@typescript/typescript6'
-import { isLegacyFile } from '../core/check-scope.ts'
+import { hasArchivedDirectories, isLegacyFile } from '../core/check-scope.ts'
 
-export function hasArchivedDirectories(root: string): boolean {
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (!entry.isDirectory() || ['node_modules', '.git'].includes(entry.name)) continue
-    if (entry.name.endsWith('.legacy') || hasArchivedDirectories(join(root, entry.name)))
-      return true
-  }
-  return false
-}
+export { hasArchivedDirectories }
 
 export interface ScopedProject {
   readonly path: string
