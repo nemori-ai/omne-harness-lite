@@ -7,8 +7,8 @@
 ## 先观察
 
 ```sh
-node --experimental-strip-types tools/ts-checks/src/integration/cli.ts status
-node --experimental-strip-types tools/ts-checks/src/integration/cli.ts baselines
+node --experimental-strip-types tools/repo-toolchain/src/integration/cli.ts status
+node --experimental-strip-types tools/repo-toolchain/src/integration/cli.ts baselines
 ```
 
 `--root` 指定实际被操作的 Git 工作树。引擎核 root、gitDir、分支及采用 anchor。`status` 只读本地。pending 使用原工具默认；adopted 缺 context、anchor 或可信 main 为 unknown，不接受显式 `--base` 绕过。无任何采用线索或 remote 的普通 Git 仓库继续支持原来的显式 SHA 检查。
@@ -16,7 +16,7 @@ node --experimental-strip-types tools/ts-checks/src/integration/cli.ts baselines
 变更命令统一读取严格 JSON：
 
 ```sh
-node --experimental-strip-types tools/ts-checks/src/integration/cli.ts execute \
+node --experimental-strip-types tools/repo-toolchain/src/integration/cli.ts execute \
   --root "$SUBJECT" --input "$COMMAND_FILE"
 ```
 
@@ -128,10 +128,10 @@ checkpoint 直接使用已有 main C，不创建 stable 开发提交。旧 stabl
 ## 持续验证
 
 ```sh
-pnpm --filter @omne-harness/ts-checks exec vitest run \
+pnpm --filter @omne-harness/repo-toolchain exec vitest run \
   tests/integration-context.spec.ts tests/integration-engine.spec.ts \
   tests/integration-transport.spec.ts tests/integration-boundaries.spec.ts
-pnpm --filter @omne-harness/ts-checks typecheck
+pnpm --filter @omne-harness/repo-toolchain typecheck
 ```
 
 这些测试用临时真实 Git（含 bare 权威仓库）和受限只读 GitHub 响应。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。

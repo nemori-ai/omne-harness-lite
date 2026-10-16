@@ -1,5 +1,5 @@
 {
-  "name": "@omne-harness/ts-checks",
+  "name": "@omne-harness/repo-toolchain",
   "version": "0.0.0",
   "private": true,
   "type": "module",

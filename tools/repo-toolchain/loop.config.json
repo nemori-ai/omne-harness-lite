@@ -166,7 +166,7 @@
     },
     "catalogue": {
       "path": "docs/clean-loop.md",
-      "doctrinePath": "tools/ts-checks/resources/clean-loop-entries.md"
+      "doctrinePath": "tools/repo-toolchain/resources/clean-loop-entries.md"
     },
     "architecture": {
       "enabled": true

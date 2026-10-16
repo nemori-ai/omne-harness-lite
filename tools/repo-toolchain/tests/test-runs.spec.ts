@@ -43,12 +43,12 @@ describe('成员清单', () => {
       '  - packages/*/*',
       "  - 'apps/*'",
       '  # 注释',
-      '  - tools/ts-checks # 行尾注释',
+      '  - tools/repo-toolchain # 行尾注释',
       '',
       'catalog:',
       '  - not/a/member',
     ].join('\n')
-    expect(workspacePatterns(yaml)).toEqual(['packages/*/*', 'apps/*', 'tools/ts-checks'])
+    expect(workspacePatterns(yaml)).toEqual(['packages/*/*', 'apps/*', 'tools/repo-toolchain'])
   })
 
   it('认不出的成员模式报错，不悄悄漏掉成员', () => {
@@ -64,12 +64,12 @@ describe('成员清单', () => {
       expect.arrayContaining([
         'tools/artifact-builder',
         'tools/core-verification',
-        'tools/ts-checks',
+        'tools/repo-toolchain',
       ]),
     )
     expect(members.some(item => item.path.includes('.legacy'))).toBe(false)
     expect(members.some(item => item.path.startsWith('examples/'))).toBe(false)
-    const checks = members.find(item => item.path === 'tools/ts-checks')
+    const checks = members.find(item => item.path === 'tools/repo-toolchain')
     expect(checks?.dependencies).toContain('@omne-harness/legal-identity')
     expect(checks?.dependencies).not.toContain('@omne-harness/identity-values')
     expect(listTestMembers(ROOT, []).some(item => item.path.startsWith('examples/'))).toBe(false)
@@ -120,7 +120,7 @@ describe('成员清单', () => {
     expect(
       accepting.some(item => item.path.split('/').some(part => part.endsWith('.legacy'))),
     ).toBe(false)
-    expect(accepting.some(item => item.path === 'tools/ts-checks')).toBe(false)
+    expect(accepting.some(item => item.path === 'tools/repo-toolchain')).toBe(false)
   })
 })
 

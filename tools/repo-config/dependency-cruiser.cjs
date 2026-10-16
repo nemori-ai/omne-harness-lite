@@ -1,5 +1,5 @@
 // dependency-cruiser is the repository's one dependency graph (RFC-0002). `pnpm run lint:deps` and the clean loop read
-// the same run through tools/ts-checks/src/deps; member and group cycles are computed there from this graph.
+// the same run through tools/repo-toolchain/src/deps; member and group cycles are computed there from this graph.
 // Structural guards fail for dev tools and product sources alike.
 //
 // Direction rules project docs/package-organization.md and docs/architecture/layers-and-dependencies.md onto member

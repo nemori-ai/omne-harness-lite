@@ -1,7 +1,7 @@
 # 整洁回路
 
 这一页讲两件事：**这个仓库靠什么让敏捷流程、架构设计和代码编写持续待在整洁的范围里**，以及
-**[整洁回路的条目集合](../tools/ts-checks/resources/clean-loop-entries.md)里每一条在这里由谁来管**。
+**[整洁回路的条目集合](../tools/repo-toolchain/resources/clean-loop-entries.md)里每一条在这里由谁来管**。
 它是开发文档：只讲这个仓库怎么开发，不规定被设计的系统该是什么样。
 
 ## 三句话
@@ -58,8 +58,8 @@
 
 **长期验证跟着场景走。**验收场景和声明覆盖它们的可执行验收随产品持续维护，不按任务数量复制。`make scenario-status`分别报告当前产品的覆盖声明、执行与接受；缺编号场景的topic单列未覆盖。覆盖声明不证明验收已执行、通过或交付已接受。实际运行和接受分别核对。合并前按影响面选择必要验收，验收耗时由传感器报告。放置和维护规则归[源码布局](workspace.md#目录与内容归属)。
 
-阈值、窗口与开关都在 [`tools/ts-checks/loop.config.json`](../tools/ts-checks/loop.config.json) 与
-[`metrics.config.json`](../tools/ts-checks/metrics.config.json) 里。它们是负责人的判断，可以改，**改的理由写进那次提交**；
+阈值、窗口与开关都在 [`tools/repo-toolchain/loop.config.json`](../tools/repo-toolchain/loop.config.json) 与
+[`metrics.config.json`](../tools/repo-toolchain/metrics.config.json) 里。它们是负责人的判断，可以改，**改的理由写进那次提交**；
 不为了让某次交付变绿而放宽。负责人 2026-10-02 照试点时量到的分布定过一轮（成员预算的两组线、红色成员数只与基线比、
 topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，都还没有用多轮真实交付校准过。
 
@@ -73,12 +73,12 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 | 验收有没有被动过 | `make acceptance-lock BASE=<任务基线>` |
 | 场景的验收覆盖声明及工具状态标签 | `make scenario-status` |
 | 只跑可执行验收 | `make acceptance`（缺省先构建；`make check` 里它排在构建之后） |
-| 合并前三条硬线（方向与环、验收锁、传感器有数据）破没破 | `make check` 的最后一步；单独跑是 `make loop-status STRICT=1 BASE=<基线> OUT=<目录>`，之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/ts-checks/README_ZH.md#验收耗时) |
+| 合并前三条硬线（方向与环、验收锁、传感器有数据）破没破 | `make check` 的最后一步；单独跑是 `make loop-status STRICT=1 BASE=<基线> OUT=<目录>`，之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/repo-toolchain/README_ZH.md#验收耗时) |
 | 在主线上留一条趋势 | 干净的主线提交上跑 `make loop-status`，它自己追加一条快照；别的提交上要留就加 `SNAPSHOT=1` |
 | 提交大小、测试耗时与结构指标的走向 | `make loop-health`，出一张离线可开的页面 |
 
 每个入口覆盖什么、**不能声称什么**，在[验证与证据](verification.md#检查入口)；传感器各自的算法、出处与查不出的东西，在
-[tools/ts-checks](../tools/ts-checks/README_ZH.md)。这里不抄第二份。
+[tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md)。这里不抄第二份。
 
 ## 清理任务
 
@@ -90,7 +90,7 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 
 ## 条目对照表
 
-[条目集合](../tools/ts-checks/resources/clean-loop-entries.md)的每一条，在这里归到五类之一：
+[条目集合](../tools/repo-toolchain/resources/clean-loop-entries.md)的每一条，在这里归到五类之一：
 
 | 类别 | 意思 |
 |---|---|

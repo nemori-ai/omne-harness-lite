@@ -41,7 +41,7 @@ const MEMBERS = [
   member('packages/core/alpha'),
   member('packages/core/alpha-extra'),
   member('apps/cli'),
-  member('tools/ts-checks'),
+  member('tools/repo-toolchain'),
   member('examples/demo'),
 ]
 
@@ -82,7 +82,7 @@ describe('范围：改动行按成员分组', () => {
       ['packages/core/alpha/README.md', [[1, 1]]],
       ['packages/core/alpha-extra/src/b.mts', [[7, 7]]],
       ['apps/cli/src/main.tsx', [[1, Number.POSITIVE_INFINITY]]],
-      ['tools/ts-checks/src/cli.ts', [[1, 4]]],
+      ['tools/repo-toolchain/src/cli.ts', [[1, 4]]],
       ['examples/demo/src/x.ts', [[1, 4]]],
     ])
     const targets = changedTargets(changed, MEMBERS)
@@ -267,10 +267,10 @@ describe('sandbox 与配置', () => {
 })
 
 const cliRoot = temporary('mutation-cli-')
-for (const path of ['packages/core/canary/src', 'tools/ts-checks'])
+for (const path of ['packages/core/canary/src', 'tools/repo-toolchain'])
   mkdirSync(join(cliRoot, path), { recursive: true })
 writeFileSync(join(cliRoot, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n  - tools/*\n')
-for (const path of ['packages/core/canary', 'tools/ts-checks'])
+for (const path of ['packages/core/canary', 'tools/repo-toolchain'])
   writeFileSync(
     join(cliRoot, path, 'package.json'),
     JSON.stringify({ name: `@fixture/${path.split('/').at(-1)}`, scripts: { test: 'vitest run' } }),
@@ -300,7 +300,7 @@ describe('入口的参数', () => {
   it('--base 与 --members 二选一；不是产品成员的拒绝', () => {
     expect(cli('run', '--plan-only').status).toBe(2)
     expect(cli('run', '--base', 'HEAD', '--members', 'apps/cli', '--plan-only').status).toBe(2)
-    const tool = cli('run', '--members', 'tools/ts-checks', '--plan-only')
+    const tool = cli('run', '--members', 'tools/repo-toolchain', '--plan-only')
     expect(tool.status).toBe(2)
     expect(tool.stderr).toContain('只变异产品源码')
     expect(cli('run', '--members', 'packages/core/nope', '--plan-only').stderr).toContain(

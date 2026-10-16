@@ -119,14 +119,14 @@ export function integrationFixture(
       'integration/transport.ts',
       'delivery/binding.ts',
     ]) {
-      const target = join(root, 'tools/ts-checks/src', path)
+      const target = join(root, 'tools/repo-toolchain/src', path)
       mkdirSync(join(target, '..'), { recursive: true })
       writeFileSync(target, readFileSync(new URL('../../src/' + path, import.meta.url)))
     }
     const checker = join(root, 'check.mjs')
     writeFileSync(
       checker,
-      "import {baselines} from './tools/ts-checks/src/core/task-context.ts';process.stdout.write(JSON.stringify(baselines(process.argv[2]))+'\\n');\n" +
+      "import {baselines} from './tools/repo-toolchain/src/core/task-context.ts';process.stdout.write(JSON.stringify(baselines(process.argv[2]))+'\\n');\n" +
         readFileSync(checker, 'utf8'),
     )
   }

@@ -37,7 +37,7 @@
 | 上游机制在固定版本下提供与不提供什么 | [.meta_harness/design/basis/](../.meta_harness/design/basis/README.md)及有效来源/probe | 读数受上游版本和实际验证范围约束，不能自动把上游保证授予本系统 |
 | 持续研究与条件性知识 | [.meta_harness/research/](../.meta_harness/research/README.md)及[agent研究入口](../.meta_harness/agents/research/README.md) | 根research职责/结构仍待负责人定义；读实际入口，不恢复旧模板或从目录推定结论采用 |
 | 项目独有skills/roles、适配及持续评估资源 | [.meta_harness/agents/](../.meta_harness/agents/README.md)、[tooling](../.meta_harness/tooling/README.md) | canonical是源；.meta_harness下宿主目录是生成物，根.agents/.claude/.codex暴露入口，不手改产物 |
-| 派生视图、结构库存、来源/符合性观察 | [设计views](../.meta_harness/design/views/README.md)、[spec-tools](../tools/spec-tools/README.md)、[ts-checks](../tools/ts-checks/README_ZH.md)、[verification](verification.md) | 视图用于定位源，报告用于定位偏离/未知。由真实输入重新生成，不手填结果或把观察变成权威 |
+| 派生视图、结构库存、来源/符合性观察 | [设计views](../.meta_harness/design/views/README.md)、[spec-tools](../tools/spec-tools/README.md)、[repo-toolchain](../tools/repo-toolchain/README_ZH.md)、[verification](verification.md) | 视图用于定位源，报告用于定位偏离/未知。由真实输入重新生成，不手填结果或把观察变成权威 |
 | 保留技术源、封存PF与旧实现 | [旧技术入口](../.meta_harness/design/architecture/README.md)、产品及包/应用入口中的legacy导航 | 只作核对出处或尚未承接的材料；旧接受、当前消费者或绿测不能批准冲突设计继续采用 |
 | 候选、单次调查、访谈、逐轮评审、原始输出及调度状态 | 工作树tmp/<task>/，规则归[终态与过程材料](development.md#终态与过程材料) | 不成为永久第二规范；cloud接续保存正式成果的要求不等于提交全部临时材料。运行时业务数据仍由对应领域/存储承担，不以tmp充当Session持久存储 |
 

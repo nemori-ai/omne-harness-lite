@@ -169,7 +169,7 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
     'packages:\n  - tools/*\n  - packages.0.0.1.legacy/core/*\n',
   )
   for (const path of [
-    'tools/ts-checks',
+    'tools/repo-toolchain',
     'tools/core-verification',
     'packages.0.0.1.legacy/core/identity-values',
   ]) {

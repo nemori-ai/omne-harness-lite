@@ -86,7 +86,7 @@ commit 的 author 与 committer 只有实际负责的人。commit、PR 标题和
 - `Harness: <宿主名>`，例如 `codex` 或 `claude-code`。
 - `Agent-Role: <角色名>`，主会话写 `main`。
 
-署名回答谁负责，来源回答怎样产生；来源不表示作者身份，也不转移责任。可以用 `git log --format='%h %(trailers:key=Agent-Role,valueonly)'` 按来源复核。[提交署名检查](tools/ts-checks/README_ZH.md#提交署名)拦作者式工具署名，但不能判断哪些提交实际有 agent 参与或来源是否如实填写。
+署名回答谁负责，来源回答怎样产生；来源不表示作者身份，也不转移责任。可以用 `git log --format='%h %(trailers:key=Agent-Role,valueonly)'` 按来源复核。[提交署名检查](tools/repo-toolchain/README_ZH.md#提交署名)拦作者式工具署名，但不能判断哪些提交实际有 agent 参与或来源是否如实填写。
 
 ## 提交与 PR 表达
 
@@ -148,7 +148,7 @@ squash 标题按最终 diff 整理，正文只保留必要理由和结果，并�
 
 报告先写结论、范围、结果与限制，再给可访问入口和必要方法；长报告可折叠，但链接不替代摘要。
 状态区分已执行、未执行、不适用、执行失败；缺数据不写成零。工具口径与命令归
-[验证规范](docs/verification.md#检查入口)和[度量/变异工具](tools/ts-checks/README_ZH.md#结构度量)。
+[验证规范](docs/verification.md#检查入口)和[度量/变异工具](tools/repo-toolchain/README_ZH.md#结构度量)。
 现有覆盖率以成员自己的语句行覆盖和 CRAP 为主，不虚构分支或改动行覆盖；变异只跑快层和本成员，
 跨成员、子进程、慢层等未量到部分写清。超时/工具错误不冒充断言杀死，高覆盖率不代表断言充分。
 工具可提供分母时同时给覆盖/总数，新增代码改变分母也须说明。不为报告增加数值硬线。

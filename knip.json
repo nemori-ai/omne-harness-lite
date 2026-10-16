@@ -34,7 +34,7 @@
         "src/**/*.ts"
       ]
     },
-    "tools/ts-checks": {
+    "tools/repo-toolchain": {
       "entry": [
         "src/index.ts",
         "src/**/cli.ts",

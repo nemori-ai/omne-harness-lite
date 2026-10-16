@@ -487,7 +487,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
       const path = join(src, 'index.ts')
       writeFileSync(path, `import { Context } from '@deepseek-ai/cordis'`)
       expect(runRules(collectSources(dir), RULES).map(v => v.rule)).toContain('core-pure-imports')
-      const cli = resolve(root, 'tools/ts-checks/src/cli.ts')
+      const cli = resolve(root, 'tools/repo-toolchain/src/cli.ts')
       const bad = spawnSync(process.execPath, ['--experimental-strip-types', cli, dir], {
         encoding: 'utf8',
       })

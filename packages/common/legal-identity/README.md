@@ -120,6 +120,6 @@ The tests do not cover a type-level ban on hand-built objects, because the accep
 
 ## Maintenance
 
-Named consumers are `packages/identity/identity`, `packages/session/session`, and the `identity-shapes` check in `tools/ts-checks`. The check imports `IDENTITY_TYPE_NAMES` from this package. #220 receives a `{ parse, encode }` pair and does not import a parser file.
+Named consumers are `packages/identity/identity`, `packages/session/session`, and the `identity-shapes` check in `tools/repo-toolchain`. The check imports `IDENTITY_TYPE_NAMES` from this package. #220 receives a `{ parse, encode }` pair and does not import a parser file.
 
 To add an atomic family, declare its spec constant, include that row in `IDENTITY_SPECS`, then add its type, codec, equality function, and tests. That change also changes `IDENTITY_TYPE_NAMES`, so synchronize the `identity-shapes` owner. A change to a prefix, the alphabet, a failure code, or the check order changes the public contract. Synchronize the named consumers and the common-group README before you change it.

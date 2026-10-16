@@ -11,7 +11,7 @@ fi
 cd -- "$subject"
 mkdir -p "$subject/tmp"
 plan_dir="$(mktemp -d "$subject/tmp/check-plan.XXXXXX")"
-testing=(node --experimental-strip-types "$runner/tools/ts-checks/src/testing/cli.ts")
+testing=(node --experimental-strip-types "$runner/tools/repo-toolchain/src/testing/cli.ts")
 "${testing[@]}" plan ${BASELINE:+--base "$BASELINE"} --json "$plan_dir/plan.json"
 step() { "${testing[@]}" step "$1" --plan "$plan_dir/plan.json"; }
 python=(uv run --project "$runner" --locked python)
@@ -27,8 +27,8 @@ bash "$runner/scripts/test-formatting.sh"
 step build
 step typecheck
 step test
-node --experimental-strip-types "$runner/tools/ts-checks/src/cli.ts" packages apps
+node --experimental-strip-types "$runner/tools/repo-toolchain/src/cli.ts" packages apps
 step acceptance
-node --experimental-strip-types "$runner/tools/ts-checks/src/loop/cli.ts" ${BASELINE:+--base "$BASELINE"} --out "$plan_dir/loop" --strict --scope engineering
+node --experimental-strip-types "$runner/tools/repo-toolchain/src/loop/cli.ts" ${BASELINE:+--base "$BASELINE"} --out "$plan_dir/loop" --strict --scope engineering
 }
 omne_repository_command main "$@"

@@ -1,4 +1,4 @@
-# ts-checks
+# repo-toolchain
 
 Structural checks for this repository's TypeScript product sources and trusted application assemblies. Each rule names its public contract or system constraint and has passing fixtures plus deliberate violations. This is a private workspace development tool; it is not a runtime plugin or a security sandbox.
 
@@ -29,9 +29,9 @@ Use Node.js >=24.0.0 and the repository's pinned pnpm version. The normal comman
 
 ```sh
 pnpm --filter @omne-harness/identity-values build
-pnpm --filter @omne-harness/ts-checks build
-pnpm --filter @omne-harness/ts-checks typecheck
-pnpm --filter @omne-harness/ts-checks test
+pnpm --filter @omne-harness/repo-toolchain build
+pnpm --filter @omne-harness/repo-toolchain typecheck
+pnpm --filter @omne-harness/repo-toolchain test
 pnpm run lint:rules
 ```
 
@@ -108,7 +108,7 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 
 ## Evaluation publication boundary
 
-`evaluation-publication-boundary` permits static imports of the public EIS publication entry in its component owner, the trusted acceptance bootstrap/tests, and the exact `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` fixture. That fixture constructs real SQL/governance/EIS sources for selection tests. The permission does not extend to runtime product sources or adjacent test files; re-exports, dynamic forwarding and private publication imports remain rejected. Run its focused positive and negative checks with `pnpm --filter @omne-harness/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`.
+`evaluation-publication-boundary` permits static imports of the public EIS publication entry in its component owner, the trusted acceptance bootstrap/tests, and the exact `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` fixture. That fixture constructs real SQL/governance/EIS sources for selection tests. The permission does not extend to runtime product sources or adjacent test files; re-exports, dynamic forwarding and private publication imports remain rejected. Run its focused positive and negative checks with `pnpm --filter @omne-harness/repo-toolchain exec vitest run tests/evaluation-publication-boundary.spec.ts`.
 
 ## Model credential boundary
 
@@ -135,7 +135,7 @@ Existing pure-core, tenancy, entry and repository rules are described in the [Ch
 
 `core-pure-imports` uses an exact public-subpath list, including `model-profile/schema/v3` and `asset-model/schema/connector/v2`. Consumers still need an approved package dependency. Frozen schemas required by current contracts remain available; retired model execution entry points, adjacent private paths, and unknown versions are rejected. The response and loop schema graphs include their explicitly adopted dependencies.
 
-Run `pnpm --filter @omne-harness/ts-checks exec vitest run tests/core-rules.spec.ts` for the positive and negative boundary checks.
+Run `pnpm --filter @omne-harness/repo-toolchain exec vitest run tests/core-rules.spec.ts` for the positive and negative boundary checks.
 
 The exact `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts` fixture may also use public EIS publication to establish real immutable history for D106 R7 acceptance. Neighboring runner tests and all runner product sources remain forbidden. The history rule allows runner product sources to import reader types only; runner tests may construct the real reader. No factory re-export or production publication authority is granted.
 
@@ -207,9 +207,9 @@ rsync -a --exclude=.git --exclude=.worktrees --exclude=tmp \
   --exclude=node_modules --exclude=dist --exclude=.venv \
   --exclude=packages.0.0.1.legacy --exclude=apps.0.0.1.legacy ./ "$isolated/"
 pnpm --dir "$isolated" install --frozen-lockfile --ignore-scripts
-pnpm --dir "$isolated" --filter '@omne-harness/ts-checks...' run build
-pnpm --dir "$isolated" --filter @omne-harness/ts-checks typecheck
-pnpm --dir "$isolated" --filter @omne-harness/ts-checks test
+pnpm --dir "$isolated" --filter '@omne-harness/repo-toolchain...' run build
+pnpm --dir "$isolated" --filter @omne-harness/repo-toolchain typecheck
+pnpm --dir "$isolated" --filter @omne-harness/repo-toolchain test
 ```
 
 Run `make docs-check` separately in the checkout that retains the reference

@@ -477,7 +477,7 @@ importers:
 
   tools/repo-config: {}
 
-  tools/ts-checks:
+  tools/repo-toolchain:
     devDependencies:
       '@jscpd/core':
         specifier: 'catalog:'

@@ -87,7 +87,7 @@ RFC采用按[提案及决定关系](../rfcs/README.md#现行源与维护)和[RFC
 
 ## 多层集成的交接
 
-[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/ts-checks/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。主干的进入按[现行准入](integration.md#现行准入)执行：开 PR，派发 `gate-publish`，由 admin 填写说明后确认。agent 代为确认时在说明中注明代为确认的人。
+[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/repo-toolchain/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。主干的进入按[现行准入](integration.md#现行准入)执行：开 PR，派发 `gate-publish`，由 admin 填写说明后确认。agent 代为确认时在说明中注明代为确认的人。
 
 binding放在“当前执行与交接”，派发后替换未派发的计划文字。attempt、branch、route、completionTarget、taskBase和writeScope以唯一真实binding为编辑源。相邻记录从路线与采用登记解析的直接目标分支、实际开工taskSource、目标targetBase及观察时点，以及生成的context路径和核验回执。这些读回项留在JSON外，不增加v1字段。原taskBase与实际开工HEAD分别保留；目标前进后须重新核对targetBase。不得手工制造context或将本地缓存当授权源。
 

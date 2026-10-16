@@ -485,7 +485,7 @@ test('root configured aliases have collector and actual built CLI parity', () =>
   try {
     const directory = join(root, 'packages/model/model-profile-directory-local/src')
     const source = join(root, 'examples/model-invocation-minimal-demo/src')
-    const tool = join(root, 'tools/ts-checks')
+    const tool = join(root, 'tools/repo-toolchain')
     mkdirSync(directory, { recursive: true })
     mkdirSync(source, { recursive: true })
     mkdirSync(tool, { recursive: true })

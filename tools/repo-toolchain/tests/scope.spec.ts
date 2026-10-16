@@ -23,7 +23,7 @@ import { computePlan, fullRequested, readPlanFile } from '../src/testing/steps.t
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const RULES = readTestRunsConfig().affected
-const CONFIG = 'tools/ts-checks/test-runs.config.json'
+const CONFIG = 'tools/repo-toolchain/test-runs.config.json'
 
 const SCRIPTS = { build: 'tsc', typecheck: 'tsc', test: 'vitest run' }
 const member = (
@@ -55,7 +55,7 @@ const MEMBERS = [
   member('packages/tenancy/governance-center-entry-node'),
   member('apps/top', ['@x/mid'], { acceptance: 'vitest run --dir acceptance' }),
   member('tools/core-verification'),
-  member('tools/ts-checks', ['@x/legal-identity']),
+  member('tools/repo-toolchain', ['@x/legal-identity']),
 ]
 
 /**
@@ -127,11 +127,11 @@ describe('影响面计划（真实规则）', () => {
 
   it('叶子成员的源码：它自己，加上读全部产品源码的 ts-checks；上游由 turbo 先构建，不进清单', () => {
     const result = plan(['packages/infra/leaf/src/a.ts'])
-    expect(result.test).toEqual(['packages/infra/leaf', 'tools/ts-checks'])
+    expect(result.test).toEqual(['packages/infra/leaf', 'tools/repo-toolchain'])
     expect(result.members).toEqual([
       { path: 'packages/infra/leaf', changed: ['packages/infra/leaf/src/a.ts'], reads: [] },
       {
-        path: 'tools/ts-checks',
+        path: 'tools/repo-toolchain',
         changed: [],
         reads: [{ path: 'packages/infra/leaf/src/a.ts', pattern: 'packages/**/*.ts' }],
       },
@@ -139,7 +139,7 @@ describe('影响面计划（真实规则）', () => {
     expect(result.build).toEqual([
       { path: 'packages/common/legal-identity', reason: 'resident' },
       { path: 'packages/infra/leaf', reason: 'selected' },
-      { path: 'tools/ts-checks', reason: 'selected' },
+      { path: 'tools/repo-toolchain', reason: 'selected' },
     ])
     expect(result.acceptance).toEqual([])
     expect(result.python.run).toBe(false)
@@ -151,7 +151,7 @@ describe('影响面计划（真实规则）', () => {
       'packages/core/base',
       'packages/core/mid',
       'apps/top',
-      'tools/ts-checks',
+      'tools/repo-toolchain',
     ])
     const why = Object.fromEntries(result.members.map(entry => [entry.path, entry]))
     expect(why['packages/core/mid']?.downstream).toBe(true)
@@ -202,7 +202,7 @@ describe('影响面计划（真实规则）', () => {
     for (const file of ['README.md', 'design.md', 'acceptance.md']) {
       const result = plan([`.meta_harness/design/product/skills/${file}`])
       expect(result.files[0]?.category).toBe('reader')
-      expect(result.test).toEqual(['tools/ts-checks'])
+      expect(result.test).toEqual(['tools/repo-toolchain'])
     }
   })
 
@@ -309,10 +309,10 @@ describe('影响面计划（真实规则）', () => {
     ])
     // loop-canary.spec.ts 把这份 README 复制进临时仓、改它的 revision 行再断言修订次数。
     const fixture = plan([
-      'tools/ts-checks/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/README.md',
+      'tools/repo-toolchain/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/README.md',
     ])
-    expect(fixture.files[0]).toMatchObject({ category: 'member', owner: 'tools/ts-checks' })
-    expect(fixture.test).toEqual(['tools/ts-checks'])
+    expect(fixture.files[0]).toMatchObject({ category: 'member', owner: 'tools/repo-toolchain' })
+    expect(fixture.test).toEqual(['tools/repo-toolchain'])
   })
 
   it('依赖成环：turbo 选出的环上成员都进来', () => {
@@ -329,7 +329,7 @@ describe('影响面计划（真实规则）', () => {
     const result = plan(['examples/model-invocation-minimal-demo/src/bootstrap.ts'])
     expect(result.mode).toBe('scoped')
     expect(result.acceptance).toEqual([])
-    expect(result.test).toEqual(['tools/ts-checks'])
+    expect(result.test).toEqual(['tools/repo-toolchain'])
     expect(result.build.some(entry => entry.path.startsWith('examples/'))).toBe(false)
   })
 
@@ -339,7 +339,7 @@ describe('影响面计划（真实规则）', () => {
       owner: 'packages/infra/leaf',
     })
     const example = plan(['examples/demo/src/main.ts', 'examples/demo/README.md'])
-    expect(example.test).toEqual(['tools/ts-checks'])
+    expect(example.test).toEqual(['tools/repo-toolchain'])
     expect(example.files.map(file => file.category)).toEqual(['resident', 'reader'])
   })
 })

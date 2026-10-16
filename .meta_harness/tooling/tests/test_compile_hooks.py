@@ -120,7 +120,7 @@ def test_check_reports_missing_or_different_hook_files(source, tmp_path, capsys)
 # --- 入库的那条命令：真的拿 shell 跑一遍 ------------------------------------------------------------------------------
 
 DECLARED = Path(__file__).parents[2] / "agents/hooks/hooks.yaml"
-TOOL = "tools/ts-checks"
+TOOL = "tools/repo-toolchain"
 # 替身脚本：印出「跑的是哪一份、标准输入收到了什么」。
 STAND_IN = "import { readFileSync } from 'node:fs'\nprocess.stdout.write(`${process.argv[1]}|${readFileSync(0, 'utf8')}`)\n"
 

@@ -142,4 +142,4 @@ docs/
 
 角色起点由本页维护，任务路由由 context-map 维护；局部细节继续随领域／成员，不在各入口复制相同正文。发现失效路径交对应源维护者，导航调整交文档维护者。
 
-工作分支同步、轨道提升及稳定点从[多层分支集成](engineering/integration.md)进入；实际命令与启用前提由[工具指南](../tools/ts-checks/src/integration/README.md)维护。
+工作分支同步、轨道提升及稳定点从[多层分支集成](engineering/integration.md)进入；实际命令与启用前提由[工具指南](../tools/repo-toolchain/src/integration/README.md)维护。

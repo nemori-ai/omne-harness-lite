@@ -403,8 +403,8 @@ it.each([
     `
 node() {
   case "$2" in
-    "$OMNE_RUNNER_ROOT/tools/ts-checks/src/cli.ts") command "$OMNE_REAL_NODE" "$@" ;;
-    "$OMNE_RUNNER_ROOT/tools/ts-checks/src/testing/cli.ts"|"$OMNE_RUNNER_ROOT/tools/ts-checks/src/loop/cli.ts") return 0 ;;
+    "$OMNE_RUNNER_ROOT/tools/repo-toolchain/src/cli.ts") command "$OMNE_REAL_NODE" "$@" ;;
+    "$OMNE_RUNNER_ROOT/tools/repo-toolchain/src/testing/cli.ts"|"$OMNE_RUNNER_ROOT/tools/repo-toolchain/src/loop/cli.ts") return 0 ;;
     *) return 97 ;;
   esac
 }

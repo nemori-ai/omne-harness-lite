@@ -1,8 +1,8 @@
-# ts-checks
+# repo-toolchain
 
 显式仓库的 Git 子进程由 [git-environment.ts](src/core/git-environment.ts) 隔离八项仓库定位变量。认证、Git 配置、OMNE runner/subject 与测试控制参数继续继承。Vitest 在加载测试文件前另清两个 OMNE root，防止普通 fixture 读写外部仓库；污染回归在被测入口显式注入环境。持续验证见 [repository-environment.spec.ts](tests/repository-environment.spec.ts) 与 [integration-transport.spec.ts](tests/integration-transport.spec.ts)。
 
-`evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`。
+`evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness/repo-toolchain exec vitest run tests/evaluation-publication-boundary.spec.ts`。
 
 产品源码与开发示例（`packages/`、`apps/` 与 `examples/`）的结构检查：契约与 realization 节点 verification 点名的静态检查，
 规则检查文本、路径与 TypeScript 语法，不做跨文件类型分析。类型层的检查（失败集合闭合等）
@@ -41,7 +41,7 @@
 
 ```sh
 pnpm run lint:rules          # 根：扫描 packages/、apps/ 与 examples/，有违反即退出 1
-pnpm --filter @omne-harness/ts-checks test   # 规则自测
+pnpm --filter @omne-harness/repo-toolchain test   # 规则自测
 ```
 
 自测分四个文件：`tests/rules.spec.ts`（老规则）、`tests/entry-rules.spec.ts`（入口层包各条，另在临时目录造出整个包，
@@ -82,7 +82,7 @@ fixture 通过只证明检查器能检出指定反例，不证明尚未实现的
 包括 model-profile 的 `schema/v3` 和 asset-model 的 `schema/connector/v2`，只授予已有依赖的消费者。
 messages、model-response、loop-extension、asset-evaluation 的旧执行入口已移除；保留的冻结 Schema 用于现行契约的精确依赖，
 不恢复旧实现。相邻路径、未知版本和私有源码仍拒绝。model-response/loop-extension 的完整资源图也按已采用的依赖显式登记。
-可运行 `pnpm --filter @omne-harness/ts-checks exec vitest run tests/core-rules.spec.ts` 核对允许与拒绝边界。
+可运行 `pnpm --filter @omne-harness/repo-toolchain exec vitest run tests/core-rules.spec.ts` 核对允许与拒绝边界。
 
 新增范围化规则的实际注册在 `src/rules/core-scoped.ts`：
 
@@ -210,15 +210,15 @@ make scenario-status
 
 ## 实际架构 JSON
 
-公共入口为 `@omne-harness/ts-checks/architecture`。公开类型在
+公共入口为 `@omne-harness/repo-toolchain/architecture`。公开类型在
 [`src/arch/actual.ts`](src/arch/actual.ts) 与 [`src/arch/actual-model.ts`](src/arch/actual-model.ts)。
 `readActualArchitecture({ root, revision?, base? })` 读取实际源码，不依赖 realization 或意图声明。
 `actualArchitectureOf(source)` 投影同一个 AST 抽取器的观测；`readArchitectureSource(root, revision?)`
 提供版本内的虚拟文件树；`compareActualArchitectures(before, after)` 计算稳定身份的新增与删除。
 
 ```sh
-pnpm --silent --filter @omne-harness/ts-checks run architecture --root "$PWD"
-node --experimental-strip-types tools/ts-checks/src/arch/cli.ts --root "$PWD" --revision <commit> --base <commit> --out tmp/architecture.json
+pnpm --silent --filter @omne-harness/repo-toolchain run architecture --root "$PWD"
+node --experimental-strip-types tools/repo-toolchain/src/arch/cli.ts --root "$PWD" --revision <commit> --base <commit> --out tmp/architecture.json
 ```
 
 CLI 的 stdout 只有 JSON。`--out` 另写同一份 JSON。参数、Git、workspace、manifest 或配置错误退出 2，
@@ -260,7 +260,7 @@ CommonJS require 不在本抽取器范围内。根任务容器与 node_modules �
 ## 全局实际架构视图
 
 ```sh
-node --experimental-strip-types tools/ts-checks/src/arch/cli.ts --root "$PWD" --base <精确提交> --report tmp/architecture > tmp/architecture.stdout.json
+node --experimental-strip-types tools/repo-toolchain/src/arch/cli.ts --root "$PWD" --base <精确提交> --report tmp/architecture > tmp/architecture.stdout.json
 ```
 
 `--report` 生成 `report.html`、`graph.json`、`actual.json` 和 `summary.md`。
@@ -594,7 +594,7 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 并用 `systemMessage` 给用户一句警告：没量出读数、原因的前 300 个字符、日志在哪。**钩子自己出错从不拦住 agent，但不闷声**——
 不出这一句，「钩子坏了」与「没有红项」在会话里看起来一模一样。
 
-**跑的是哪一份脚本**由宿主配置里的命令定（`hooks.yaml`）：会话所在的工作树里有这份脚本且装了依赖（认 `tools/ts-checks/node_modules/typescript`），
+**跑的是哪一份脚本**由宿主配置里的命令定（`hooks.yaml`）：会话所在的工作树里有这份脚本且装了依赖（认 `tools/repo-toolchain/node_modules/typescript`），
 跑它自己的；否则跑主检出里的那一份，量的仍是会话所在的那棵工作树。刚 `git worktree add` 出来、还没装依赖的工作树走的就是后一条——
 2026-10-02 第一次在真实会话里触发时正是栽在这里：脚本在新工作树里加载不了解析器，只记了日志。主检出自己也没装依赖时，结果是上面那句警告。
 

@@ -173,7 +173,7 @@ function factTarget(
 export function buildArchitectureView(
   document: ActualArchitectureDocument,
   bands: Bands,
-  configSource = 'tools/ts-checks/metrics.config.json (running tool)',
+  configSource = 'tools/repo-toolchain/metrics.config.json (running tool)',
 ): ArchitectureView {
   const nodes = new Map(
     memberNodes(document.current, document.baseline, bands).map(node => [node.id, node]),

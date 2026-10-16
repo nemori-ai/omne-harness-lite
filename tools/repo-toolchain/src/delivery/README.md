@@ -7,7 +7,7 @@
 在仓库根运行以下命令。配置须为`github-delivery-config@2`、协议2，采集须为`github-delivery-capture@1`、协议2，包含原始正文和各层完整性。输出报告为`github-delivery-report@4`、协议2，TaskBinding仍为版本1。旧配置、协议1采集与版本1/2/3报告输入退出2，不转换。
 
 ```sh
-node --experimental-strip-types tools/ts-checks/src/delivery/cli.ts \
+node --experimental-strip-types tools/repo-toolchain/src/delivery/cli.ts \
   --config docs/engineering/github-delivery.json \
   --capture tmp/<task>/capture.json \
   --report tmp/<task>/delivery-report.json
@@ -20,7 +20,7 @@ node --experimental-strip-types tools/ts-checks/src/delivery/cli.ts \
 先在交互环境配置 `gh` 的仓库与 Projects 读取权限。工具不读取或打印 token。
 
 ```sh
-node --experimental-strip-types tools/ts-checks/src/delivery/cli.ts \
+node --experimental-strip-types tools/repo-toolchain/src/delivery/cli.ts \
   --config docs/engineering/github-delivery.json \
   --live \
   --save-capture tmp/<task>/capture.json \
@@ -46,9 +46,9 @@ integration 的 `start`、`register` 使用专用准入采集。它只读取任�
 ## 运行模块检查
 
 ```sh
-pnpm --filter @omne-harness/ts-checks exec vitest run \
+pnpm --filter @omne-harness/repo-toolchain exec vitest run \
   tests/delivery-observe.spec.ts tests/delivery-github-read.spec.ts
-pnpm --filter @omne-harness/ts-checks typecheck
+pnpm --filter @omne-harness/repo-toolchain typecheck
 ```
 
 平台边界依据 GitHub 官方的[Issue依赖API](https://docs.github.com/en/rest/issues/issue-dependencies)、[Issue API](https://docs.github.com/en/rest/issues/issues)及[GraphQL对象](https://docs.github.com/en/graphql/reference/objects)。实际远端读回仍以采集结果为准。

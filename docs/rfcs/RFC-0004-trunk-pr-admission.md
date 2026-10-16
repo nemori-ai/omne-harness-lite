@@ -63,7 +63,7 @@ owner: Brian Lee
 | 当前要求或承诺 | 核对修订与条款 | 本提案受什么约束 |
 | --- | --- | --- |
 | [多层分支规则](../engineering/integration.md) | main `6d0e6ee03a57`，“完整集成”“两条基线”“权限、候选与恢复”“稳定点与轨道演进”“清理与政策接续”“首次接入范围与操作入口” | 完整前缀运输、双基线审计、不可变记录和轨道责任保持不变。采用链保留为记录，检查器升级改走本提案的升级流程 |
-| 集成工具契约 `tools/ts-checks/src/integration/SPEC.md` | 同上修订，I01、I02、I07、I08、I11 | 集成条件的决定保持不变。main、stable 和 release 的发布流程沿用 I04、I09 的候选与比较语义。I07、I08、I11 以及 I01、I02 中检查器版本的来源要修改，见正文 |
+| 集成工具契约 `tools/repo-toolchain/src/integration/SPEC.md` | 同上修订，I01、I02、I07、I08、I11 | 集成条件的决定保持不变。main、stable 和 release 的发布流程沿用 I04、I09 的候选与比较语义。I07、I08、I11 以及 I01、I02 中检查器版本的来源要修改，见正文 |
 | [agent交付操作](../engineering/agent-delivery.md)、[交付协议](../engineering/delivery.md) | 同上修订 | Issue 仍是任务的唯一来源。确认不代替集成条件的决定，也不代替交付接受 |
 | [验证说明](../verification.md) | 同上修订 | 检查通过不代替语义或行为接受 |
 | #208 的决定 | [PanQiWei 于 2026-10-13 的回复](https://github.com/nemori-ai/omne-harness-lite/issues/208#issuecomment-6145844711) | 认可方向并同意立项。方案仍须按本入口审议 |

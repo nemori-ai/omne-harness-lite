@@ -64,7 +64,7 @@ describe('总是一起改却分属两组的成员', () => {
   it('解析 git log：每个提交碰过的成员，只看 packages/ 与 apps/', () => {
     const log =
       '\u0000\n\npackages/core/a/src/x.ts\npackages/core/a/README.md\nexamples/demo/src/y.ts\ndocs/z.md\n' +
-      '\u0000\n\napps/cli/src/main.ts\n\u0000\n\ntools/ts-checks/src/x.ts\n'
+      '\u0000\n\napps/cli/src/main.ts\n\u0000\n\ntools/repo-toolchain/src/x.ts\n'
     expect(parseCommitMembers(log)).toEqual([['packages/core/a'], ['apps/cli'], []])
   })
 

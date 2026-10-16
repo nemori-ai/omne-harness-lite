@@ -19,7 +19,7 @@ owner: PanQiWei
 | [包组织](../package-organization.md) | `packages/<能力组>/<成员>/`。第一层不是 workspace 成员。契约、实现、提供者和 Cordis 适配就近维护 | 本提案不另写一套分组。它只规定成员如何成为可安装、可检查的包 |
 | [Issue #241](https://github.com/nemori-ai/omne-harness-lite/issues/241) 的 I-05 | 共同值目标是 `packages/common/legal-identity` 与 `packages/common/utc-instant`。`kernel-basis` 是独立 assembly 成员。设计接受不等于产品实现 | 这些位置可以进入首批候选。缺技术接受的部分不获得实施资格 |
 | [RFC-0002](RFC-0002-engineering-toolchain.md) | 工具侧拥有 TypeScript 7、oxlint、dependency-cruiser、源码条件导出和可擦除语法的检查责任 | 成员规则引用该提案。本提案不复制工具选型 |
-| 清点 `tmp/issue-241/inventory.md` | `tools/ts-checks` 导入旧 `identity-values`。`tools/core-verification` 有 21 个旧包名、28 条 devDependency。新包目录尚无 `package.json` | 首批成员只覆盖已点名且解除依赖所必需的承接。没有点名拥有者的旧包保持未知 |
+| 清点 `tmp/issue-241/inventory.md` | `tools/repo-toolchain` 导入旧 `identity-values`。`tools/core-verification` 有 21 个旧包名、28 条 devDependency。新包目录尚无 `package.json` | 首批成员只覆盖已点名且解除依赖所必需的承接。没有点名拥有者的旧包保持未知 |
 
 ## 建议与改变范围
 
@@ -39,7 +39,7 @@ owner: PanQiWei
 
 | 候选成员 | 已点名的消费者 | 今天的状态 |
 | --- | --- | --- |
-| `packages/common/legal-identity` | `tools/ts-checks` 的身份形状规则 | 目录不是包。旧消费者导入 `@omne-harness-lite/identity-values` |
+| `packages/common/legal-identity` | `tools/repo-toolchain` 的身份形状规则 | 目录不是包。旧消费者导入 `@omne-harness-lite/identity-values` |
 | `packages/common/utc-instant` | 需要共同时间值的成员。具体导入点由建包任务列出 | 目录不是包 |
 | `packages/assembly/kernel-basis` | 业务成员的公开入口，按包组织的现有句子 | 现行代码仍在 legacy。本提案不搬迁 |
 | `packages/storage` 下的事务规格成员 | 调用存储的参加者。精确包名尚未在已接受设计里钉死 | 规格已接受。包未建立。名称未定，不在这里新造一个名字 |
@@ -117,7 +117,7 @@ docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 - 旧的三层方向检查还按 legacy 的 core、util、领域、应用来分组。新分组要用包组织的能力组，而不是那三层。
 - SDK 与 server-entry 的同组依赖识别尚未按 #218 的边界适配。
 - 应用模板还不能表达「应用装配 Cordis、命令解析不导入 Cordis」。
-- 建包顺序是：先有被 `tools/ts-checks` 实际导入的身份包，再移开该导入。其他首批候选只有在具名消费者需要时才建立。没有消费者的预留目录保持目录。
+- 建包顺序是：先有被 `tools/repo-toolchain` 实际导入的身份包，再移开该导入。其他首批候选只有在具名消费者需要时才建立。没有消费者的预留目录保持目录。
 
 可以并行的范围：身份包的契约草案，和与它无导入关系的文档写回。不能并行的范围：两个写者同时改根锁文件、包模板或 Issue 摘要。
 
@@ -141,7 +141,7 @@ docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 
 - 有权决定者：PanQiWei。
 - 决定日期及对应 revision：2026-10-14，revision 1。记录为 https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165074528 。
-- 采用范围：本提案 revision 1 的方案，包括源码包的正式模板结构。模板文件继续由 `tools/ts-checks` 的包模板维护，不在仓库根另设模板目录。
+- 采用范围：本提案 revision 1 的方案，包括源码包的正式模板结构。模板文件继续由 `tools/repo-toolchain` 的包模板维护，不在仓库根另设模板目录。
 - 不采用范围及必要理由：不建立全部目标目录，不搬迁 legacy，不实施 RFC-0002 的工具升级，不把根上的模板目录当作第二份结构。存储包名、依赖层数上限，以及尚未点名的旧依赖拥有者，仍未决定。源码条件名已由 RFC-0002 定为 `source`。
 - 未决与依赖停止点：
   - 存储成员的包名。裁定者是 PanQiWei。恢复输入是已接受的存储规格和具名消费者。
@@ -156,7 +156,7 @@ docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 | 成员定义、首批候选、声明与测试职责、正式模板结构 | [包组织](../package-organization.md#成员的必选结构)。[开发指南](../development.md#创建和整改产品包) 与 [成员文档](../member-documentation.md) 只保留指针 | 已写回 | 2026-10-14。同日生成器补上先删除 `dist` 的 build 和 `erasableSyntaxOnly`。源码条件名未定。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 让模板与现有 28 个成员的 `typecheck` 不再先构建 |
 | workspace 的源码归属 | [workspace](../workspace.md) | 免除写回 | 2026-10-14 核对。该页写的是尚未退出的工具依赖和参考位置，不是新工作的导入做法。确认范围来自本卡落盘计划 |
 | 仍写着新工作应导入旧包的过渡句 | 清点列出的开发指南 | 待写回 | 本次没有把指南改成已经脱离。代码未切换。指示新工作导入旧包的句子留到切换时改 |
-| 模板准入缺口 | [包模板中文说明](../../tools/ts-checks/templates/package/README_ZH.md) 与 [英文说明](../../tools/ts-checks/templates/package/README.md) | 已写回 | 2026-10-14 生成器已写出先删除 `dist` 的 build 和 `erasableSyntaxOnly`。源码条件仍未写出 |
+| 模板准入缺口 | [包模板中文说明](../../tools/repo-toolchain/templates/package/README_ZH.md) 与 [英文说明](../../tools/repo-toolchain/templates/package/README.md) | 已写回 | 2026-10-14 生成器已写出先删除 `dist` 的 build 和 `erasableSyntaxOnly`。源码条件仍未写出 |
 
 ## 后继关系与维护
 

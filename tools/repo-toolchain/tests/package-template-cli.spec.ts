@@ -14,7 +14,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
-const cli = join(repo, 'tools/ts-checks/src/package-template/cli.ts')
+const cli = join(repo, 'tools/repo-toolchain/src/package-template/cli.ts')
 const roots: string[] = []
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })

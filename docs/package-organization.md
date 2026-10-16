@@ -16,7 +16,7 @@
 
 ## 成员的必选结构
 
-PanQiWei 于 2026-10-14 接受 [RFC-0003 revision 1](rfcs/RFC-0003-source-packages.md#决定范围)。下面是新成员的目标形状。应用不使用这套结构。生成和扫描仍用 [包模板](../tools/ts-checks/templates/package/README_ZH.md)。该生成器已经写出先删除 `dist` 的 build、不先构建的 typecheck、`erasableSyntaxOnly`，以及写在 `types` 前面的 `source` 条件。
+PanQiWei 于 2026-10-14 接受 [RFC-0003 revision 1](rfcs/RFC-0003-source-packages.md#决定范围)。下面是新成员的目标形状。应用不使用这套结构。生成和扫描仍用 [包模板](../tools/repo-toolchain/templates/package/README_ZH.md)。该生成器已经写出先删除 `dist` 的 build、不先构建的 typecheck、`erasableSyntaxOnly`，以及写在 `types` 前面的 `source` 条件。
 
 每个新成员必须有这些文件。
 
@@ -93,7 +93,7 @@ scripts/                       仓库自动化
 
 `kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口只导出操作结果，并且不导入 `@deepseek-ai/cordis`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页只登记目标位置 `packages/assembly/kernel-basis`。
 
-现行实现仍在 `packages.0.0.1.legacy/core/kernel-basis`。该目录已经退出 pnpm workspace，所以 `packages/assembly/kernel-basis` 可以使用同名包。它现在是 workspace 草稿，公开行为尚未实现。本页不搬迁旧包。搬迁消费者、检查和探针另有任务。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
+现行实现仍在 `packages.0.0.1.legacy/core/kernel-basis`。该目录已经退出 pnpm workspace，所以 `packages/assembly/kernel-basis` 可以使用同名包。它现在是 workspace 草稿，公开行为尚未实现。本页不搬迁旧包。搬迁消费者、检查和探针另有任务。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/repo-toolchain/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
 
 ## 责任与能力组
 
@@ -171,9 +171,9 @@ flowchart TD
   machine --> sdkUse
 ```
 
-`tools/artifact-builder` 不依赖 CLI。`apps.0.0.1.legacy/cli` 把 artifact-builder 列为 devDependency。`tools/ts-checks` 从 `@omne-harness/legal-identity` 读取身份类型名单。`tools/core-verification` 不再声明旧包依赖，也不再保留会导入旧包的消费者源码。`scripts/build-fixed-schemas.mjs` 已删除；它只解析 `@omne-harness-lite/content-blocks`。参考树里的旧 `build` 脚本仍写着这个文件名，运行会失败。`scripts/package-cli.sh` 构建 `@omne-harness/cli`，并把 `apps/cli/dist` 打成新的 `.tar.gz`。它不安装、不上传。
+`tools/artifact-builder` 不依赖 CLI。`apps.0.0.1.legacy/cli` 把 artifact-builder 列为 devDependency。`tools/repo-toolchain` 从 `@omne-harness/legal-identity` 读取身份类型名单。`tools/core-verification` 不再声明旧包依赖，也不再保留会导入旧包的消费者源码。`scripts/build-fixed-schemas.mjs` 已删除；它只解析 `@omne-harness-lite/content-blocks`。参考树里的旧 `build` 脚本仍写着这个文件名，运行会失败。`scripts/package-cli.sh` 构建 `@omne-harness/cli`，并把 `apps/cli/dist` 打成新的 `.tar.gz`。它不安装、不上传。
 
-发布到仓库之外时，CLI 包提供 `bin`、构建后的启动模块、构建身份文件，以及指向 SDK 包的依赖声明。启动不要求当前目录是本仓库。服务端包不进入这个安装闭包。包模板没有应用变体。缺少该变体并不阻止建包。建包前要同时满足两件事。[apps 入口](../apps/README.md#建立与维护)要求应用规格和公开依赖已经写明。[workspace](workspace.md)要求没有实现代码的承诺不建空成员。`help` 与 `version` 的测试归 `apps/cli`。在有真实 SDK 调用之前，这个最小入口不声明 SDK 依赖。SDK 调用的测试归 SDK。服务端接入的测试归 server-entry 和对应能力。模板与架构规则的测试归 `tools/ts-checks`。
+发布到仓库之外时，CLI 包提供 `bin`、构建后的启动模块、构建身份文件，以及指向 SDK 包的依赖声明。启动不要求当前目录是本仓库。服务端包不进入这个安装闭包。包模板没有应用变体。缺少该变体并不阻止建包。建包前要同时满足两件事。[apps 入口](../apps/README.md#建立与维护)要求应用规格和公开依赖已经写明。[workspace](workspace.md)要求没有实现代码的承诺不建空成员。`help` 与 `version` 的测试归 `apps/cli`。在有真实 SDK 调用之前，这个最小入口不声明 SDK 依赖。SDK 调用的测试归 SDK。服务端接入的测试归 server-entry 和对应能力。模板与架构规则的测试归 `tools/repo-toolchain`。
 
 ## 依赖方向与Cordis集成
 
@@ -214,8 +214,8 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 
 目标规则替代“所有Service定义集中core”和“仅以core/util目录判断跨包许可”的目录治理。现有成员仍保留真实路径、接口和行为，迁移须同步消费者、公开入口、构建、发布、资源读取及验证；路径变化不改变Schema身份或接受范围。
 
-当前 typescript-package@2.0.0 的 service-contract 创建与结构扫描不再限制 core。IC-1 与 IC-5 按已采用责任和公开入口判断，不按 core 或 util 目录名许可。具体范围见[模板](../tools/ts-checks/templates/package/README_ZH.md)及[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。
+当前 typescript-package@2.0.0 的 service-contract 创建与结构扫描不再限制 core。IC-1 与 IC-5 按已采用责任和公开入口判断，不按 core 或 util 目录名许可。具体范围见[模板](../tools/repo-toolchain/templates/package/README_ZH.md)及[符合性报告](../tools/repo-toolchain/src/arch/CONFORMANCE.md)。
 
-分组方向已由工具适配：旧的三层路径表退役，本节与[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)中能按成员路径表达的规则写在根 `.dependency-cruiser.cjs`，由 `pnpm run lint:deps` 检查，clean loop 的硬线读同一张依赖图，见[依赖规则](../tools/ts-checks/README_ZH.md#依赖图与依赖规则)。已表达的有：SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务成员不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具，以及成员和组之间不成环。契约不依赖其提供者、提供者经接口接入这类按角色判断的规则，仓库还没有机读的角色标记，暂未表达，仍靠评审。不能手写骨架或伪造采用标识绕过现行检查。
+分组方向已由工具适配：旧的三层路径表退役，本节与[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)中能按成员路径表达的规则写在根 `.dependency-cruiser.cjs`，由 `pnpm run lint:deps` 检查，clean loop 的硬线读同一张依赖图，见[依赖规则](../tools/repo-toolchain/README_ZH.md#依赖图与依赖规则)。已表达的有：SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务成员不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具，以及成员和组之间不成环。契约不依赖其提供者、提供者经接口接入这类按角色判断的规则，仓库还没有机读的角色标记，暂未表达，仍靠评审。不能手写骨架或伪造采用标识绕过现行检查。
 
 当前成员重组、工具适配、SDK安装闭包及真实维护成本尚需各自实施和验证任务。报告区分目标要求、现状、偏离、口径变化与未覆盖，沿[领域符合性](domains/verification.md)和[项目验证](verification.md)选择证据。
