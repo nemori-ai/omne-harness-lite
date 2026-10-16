@@ -2,7 +2,7 @@
 
 本页是 #342 的装配候选，尚未技术接受或生产实现。领域和操作边界先由[对象模型](runtime-contract-model.md)及四成员 runtime-contract 确定。这里消费 [IC-1 至 IC-19](../cordis-integration-conventions.md)，选择服务定义、依赖、宿主与撤除协议，不把 Cordis 机制当作领域授权或持久提交。
 
-成员的精确接缝分别归 [Session](../../../packages/session/session/docs/runtime-integration.md)、[Agent](../../../packages/agent/agent/docs/runtime-integration.md)、[Model](../../../packages/model/model/docs/runtime-integration.md)、[Tool](../../../packages/tool/tool/docs/runtime-integration.md)。这些表是候选设计，生产服务图、事件矩阵及绑定读数以后从实际源码生成，不另立手写实现权威。
+成员的精确接缝分别归 [Session](../../../packages/session/session/docs/runtime-integration.md)、[Agent](../../../packages/agent/agent/docs/runtime-integration.md)、[Model](../../../packages/model/model/docs/runtime-integration.md)、[Tool](../../../packages/tool/tool/docs/cordis.md)。Tool 的成员集成设计已接受，本页共同集成及其余成员仍为候选。生产服务图、事件矩阵及绑定读数从实际源码生成，不另立手写实现权威。
 
 ## 根入口、定义与提供者
 

@@ -1,6 +1,6 @@
 # Agent 的四成员消费链
 
-本页消费 [Agent 候选](runtime-contract.md)、[Session 候选](../../../session/session/docs/runtime-contract.md)、[Model 候选](../../../model/model/docs/runtime-contract.md)和 [Tool 候选](../../../tool/tool/docs/runtime-contract.md)。顺序是协议要求；尚未运行生产提供者，不能把图当作耐久或外部效果验证。
+本页消费 [Agent 候选](runtime-contract.md)、[Session 候选](../../../session/session/docs/runtime-contract.md)、[Model 候选](../../../model/model/docs/runtime-contract.md)和 [Tool 已接受契约](../../../tool/tool/docs/public-api.md)。顺序是协议要求；尚未运行生产提供者，不能把图当作耐久或外部效果验证。
 
 ## 从输入到原结果
 

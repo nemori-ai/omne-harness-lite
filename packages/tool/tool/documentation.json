@@ -41,27 +41,12 @@
       "requiredSections": []
     },
     {
-      "id": "runtime-contract",
-      "path": "packages/tool/tool/docs/runtime-contract.md",
-      "kind": "contract",
-      "required": true,
-      "visibility": "internal",
-      "basis": "candidate",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "行为契约与完整文档"
-      },
-      "inspectionProfile": "reference-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "runtime-examples",
-      "path": "packages/tool/tool/docs/runtime-examples.md",
+      "id": "index",
+      "path": "packages/tool/tool/index.md",
       "kind": "guide",
       "required": true,
       "visibility": "internal",
-      "basis": "candidate",
+      "basis": "adopted",
       "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
@@ -71,12 +56,256 @@
       "requiredSections": []
     },
     {
-      "id": "runtime-integration",
-      "path": "packages/tool/tool/docs/runtime-integration.md",
+      "id": "docs-overview",
+      "path": "packages/tool/tool/docs/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "docs-index",
+      "path": "packages/tool/tool/docs/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "architecture",
+      "path": "packages/tool/tool/docs/architecture.md",
       "kind": "architecture",
       "required": true,
       "visibility": "internal",
-      "basis": "candidate",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "target-tool-design",
+          "anchor": "tool-内部实施规格"
+        },
+        {
+          "id": "placed-packages-tool-tool-docs-open-questions-md",
+          "anchor": "tool-设计状态与外部缺项"
+        }
+      ]
+    },
+    {
+      "id": "flows",
+      "path": "packages/tool/tool/docs/flows.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "placed-packages-tool-tool-docs-key-flows-md",
+          "anchor": "工具执行的关键协作流程"
+        }
+      ]
+    },
+    {
+      "id": "object-model",
+      "path": "packages/tool/tool/docs/object-model.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "public-api",
+      "path": "packages/tool/tool/docs/public-api.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "reference-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "context",
+      "path": "packages/tool/tool/docs/context.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "cordis",
+      "path": "packages/tool/tool/docs/cordis.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "protocols",
+      "path": "packages/tool/tool/SPEC.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "reference-v1",
+      "requiredSections": [
+        {
+          "id": "protocols",
+          "anchor": "tool-操作协议"
+        },
+        {
+          "id": "composition",
+          "anchor": "code-与-tool-的组合协议"
+        },
+        {
+          "id": "placed-packages-tool-tool-docs-definition-and-invocation-md",
+          "anchor": "定义可用性与发起"
+        },
+        {
+          "id": "placed-packages-tool-tool-docs-wait-control-and-recovery-md",
+          "anchor": "等待控制与恢复"
+        },
+        {
+          "id": "placed-packages-tool-tool-docs-results-and-retention-md",
+          "anchor": "结果过程与保管"
+        }
+      ]
+    },
+    {
+      "id": "coverage",
+      "path": "packages/tool/tool/verification/coverage.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "verification-scenarios",
+      "path": "packages/tool/tool/verification/scenarios.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "tl-v01",
+          "anchor": "tl-v01"
+        },
+        {
+          "id": "tl-v02",
+          "anchor": "tl-v02"
+        },
+        {
+          "id": "tl-v05",
+          "anchor": "tl-v05"
+        },
+        {
+          "id": "tl-v06",
+          "anchor": "tl-v06"
+        },
+        {
+          "id": "tl-v03",
+          "anchor": "tl-v03"
+        },
+        {
+          "id": "tl-v04",
+          "anchor": "tl-v04"
+        },
+        {
+          "id": "tl-v07",
+          "anchor": "tl-v07"
+        }
+      ]
+    },
+    {
+      "id": "verification-overview",
+      "path": "packages/tool/tool/verification/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "verification-index",
+      "path": "packages/tool/tool/verification/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
       "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",

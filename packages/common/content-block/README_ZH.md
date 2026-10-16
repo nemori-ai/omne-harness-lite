@@ -31,6 +31,8 @@ judgeContentBlock({
 
 ## 设计
 
+[引用式内容块契约](docs/public-api.md)补充 Tool 消息内容的多模态 ref，尚未实现。附件地址保持文本，只有 Model 发送阶段加载选中的内容 ref。
+
 `src/index.ts` 拥有种类、块类型和 `judgeContentBlock`。
 
 已封闭的块是下面五种之一。工具调用、工具结果和仍在增长的块留在本成员外面。

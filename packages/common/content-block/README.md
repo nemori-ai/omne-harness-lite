@@ -31,6 +31,8 @@ There is no Cordis entry. Build deletes `dist` before `tsc`.
 
 ## Design
 
+The [reference-block design](docs/public-api.md) adds explicit media references for Tool message content. It is not implemented. Attachment addresses remain text; only Model loads selected content references at send time.
+
 `src/index.ts` owns the kinds, the block types, and `judgeContentBlock`.
 
 A closed block is one of five kinds. A tool call, a tool result, and a block that is still growing stay outside this member.
