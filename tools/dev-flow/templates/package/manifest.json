@@ -1,16 +1,54 @@
 {
   "format": 1,
   "id": "typescript-package",
-  "version": "2.0.0",
+  "version": "3.0.0",
+  "ruleSet": 3,
+  "topics": [
+    "architecture",
+    "flows",
+    "object-model",
+    "public-api",
+    "context",
+    "cordis"
+  ],
   "requiredFiles": [
     "package.json",
     "README.md",
     "README_ZH.md",
+    "index.md",
+    "SPEC.md",
+    "documentation.json",
     "tsconfig.build.json",
     "tsconfig.test.json",
     "vitest.config.ts",
     "src/index.ts",
-    "documentation.json"
+    "tests/public-entry.spec.ts",
+    "docs/README.md",
+    "docs/index.md",
+    "src/README.md",
+    "src/index.md",
+    "tests/README.md",
+    "tests/index.md",
+    "tests/fixtures/README.md",
+    "tests/fixtures/index.md",
+    "schema/README.md",
+    "schema/index.md",
+    "verification/README.md",
+    "verification/index.md",
+    "verification/models/README.md",
+    "verification/models/index.md",
+    "verification/proofs/README.md",
+    "verification/proofs/index.md",
+    "adr/README.md",
+    "adr/index.md",
+    "examples/README.md",
+    "examples/index.md",
+    "resources/README.md",
+    "resources/index.md",
+    "acceptance/README.md",
+    "acceptance/index.md",
+    "acceptance/fixtures/README.md",
+    "acceptance/fixtures/index.md"
   ],
   "common": [
     {
@@ -44,6 +82,130 @@
     {
       "source": "common/tests/public-entry.spec.ts.tpl",
       "target": "tests/public-entry.spec.ts"
+    },
+    {
+      "source": "common/index.md.tpl",
+      "target": "index.md"
+    },
+    {
+      "source": "common/SPEC.md.tpl",
+      "target": "SPEC.md"
+    },
+    {
+      "source": "common/docs/README.md.tpl",
+      "target": "docs/README.md"
+    },
+    {
+      "source": "common/docs/index.md.tpl",
+      "target": "docs/index.md"
+    },
+    {
+      "source": "common/src/README.md.tpl",
+      "target": "src/README.md"
+    },
+    {
+      "source": "common/tests/README.md.tpl",
+      "target": "tests/README.md"
+    },
+    {
+      "source": "common/tests/fixtures/README.md.tpl",
+      "target": "tests/fixtures/README.md"
+    },
+    {
+      "source": "common/tests/fixtures/index.md.tpl",
+      "target": "tests/fixtures/index.md"
+    },
+    {
+      "source": "common/schema/README.md.tpl",
+      "target": "schema/README.md"
+    },
+    {
+      "source": "common/schema/index.md.tpl",
+      "target": "schema/index.md"
+    },
+    {
+      "source": "common/verification/README.md.tpl",
+      "target": "verification/README.md"
+    },
+    {
+      "source": "common/verification/index.md.tpl",
+      "target": "verification/index.md"
+    },
+    {
+      "source": "common/verification/models/README.md.tpl",
+      "target": "verification/models/README.md"
+    },
+    {
+      "source": "common/verification/models/index.md.tpl",
+      "target": "verification/models/index.md"
+    },
+    {
+      "source": "common/verification/proofs/README.md.tpl",
+      "target": "verification/proofs/README.md"
+    },
+    {
+      "source": "common/verification/proofs/index.md.tpl",
+      "target": "verification/proofs/index.md"
+    },
+    {
+      "source": "common/adr/README.md.tpl",
+      "target": "adr/README.md"
+    },
+    {
+      "source": "common/adr/index.md.tpl",
+      "target": "adr/index.md"
+    },
+    {
+      "source": "common/examples/README.md.tpl",
+      "target": "examples/README.md"
+    },
+    {
+      "source": "common/examples/index.md.tpl",
+      "target": "examples/index.md"
+    },
+    {
+      "source": "common/resources/README.md.tpl",
+      "target": "resources/README.md"
+    },
+    {
+      "source": "common/resources/index.md.tpl",
+      "target": "resources/index.md"
+    },
+    {
+      "source": "common/acceptance/README.md.tpl",
+      "target": "acceptance/README.md"
+    },
+    {
+      "source": "common/acceptance/index.md.tpl",
+      "target": "acceptance/index.md"
+    },
+    {
+      "source": "common/acceptance/fixtures/README.md.tpl",
+      "target": "acceptance/fixtures/README.md"
+    },
+    {
+      "source": "common/acceptance/fixtures/index.md.tpl",
+      "target": "acceptance/fixtures/index.md"
+    },
+    {
+      "source": "common/docs/architecture.md.tpl",
+      "target": "docs/architecture.md"
+    },
+    {
+      "source": "common/docs/flows.md.tpl",
+      "target": "docs/flows.md"
+    },
+    {
+      "source": "common/docs/object-model.md.tpl",
+      "target": "docs/object-model.md"
+    },
+    {
+      "source": "common/docs/public-api.md.tpl",
+      "target": "docs/public-api.md"
+    },
+    {
+      "source": "common/docs/context.md.tpl",
+      "target": "docs/context.md"
     }
   ],
   "variants": {
@@ -51,6 +213,18 @@
       {
         "source": "variants/module/src/index.ts.tpl",
         "target": "src/index.ts"
+      },
+      {
+        "source": "variants/module/docs/cordis.md.tpl",
+        "target": "docs/cordis.md"
+      },
+      {
+        "source": "variants/module/src/index.md.tpl",
+        "target": "src/index.md"
+      },
+      {
+        "source": "variants/module/tests/index.md.tpl",
+        "target": "tests/index.md"
       }
     ],
     "cordis-module": [
@@ -65,6 +239,18 @@
       {
         "source": "variants/cordis-module/tests/cordis-entry.spec.ts.tpl",
         "target": "tests/cordis-entry.spec.ts"
+      },
+      {
+        "source": "variants/binding/docs/cordis.md.tpl",
+        "target": "docs/cordis.md"
+      },
+      {
+        "source": "variants/binding/src/index.md.tpl",
+        "target": "src/index.md"
+      },
+      {
+        "source": "variants/binding/tests/index.md.tpl",
+        "target": "tests/index.md"
       }
     ],
     "service-contract": [
@@ -79,6 +265,18 @@
       {
         "source": "variants/service-contract/tests/cordis-entry.spec.ts.tpl",
         "target": "tests/cordis-entry.spec.ts"
+      },
+      {
+        "source": "variants/binding/docs/cordis.md.tpl",
+        "target": "docs/cordis.md"
+      },
+      {
+        "source": "variants/binding/src/index.md.tpl",
+        "target": "src/index.md"
+      },
+      {
+        "source": "variants/binding/tests/index.md.tpl",
+        "target": "tests/index.md"
       }
     ],
     "service-provider": [
@@ -93,10 +291,150 @@
       {
         "source": "variants/service-provider/tests/cordis-entry.spec.ts.tpl",
         "target": "tests/cordis-entry.spec.ts"
+      },
+      {
+        "source": "variants/binding/docs/cordis.md.tpl",
+        "target": "docs/cordis.md"
+      },
+      {
+        "source": "variants/binding/src/index.md.tpl",
+        "target": "src/index.md"
+      },
+      {
+        "source": "variants/binding/tests/index.md.tpl",
+        "target": "tests/index.md"
       }
     ]
   },
   "previousVersions": {
+    "2.0.0": {
+      "requiredFiles": [
+        "package.json",
+        "README.md",
+        "README_ZH.md",
+        "tsconfig.build.json",
+        "tsconfig.test.json",
+        "vitest.config.ts",
+        "src/index.ts",
+        "documentation.json"
+      ],
+      "variantRequiredFiles": {
+        "module": [],
+        "cordis-module": [
+          "src/cordis.ts",
+          "SPEC.md"
+        ],
+        "service-contract": [
+          "src/cordis.ts",
+          "SPEC.md"
+        ],
+        "service-provider": [
+          "src/cordis.ts",
+          "SPEC.md"
+        ]
+      },
+      "layout": {
+        "files": [
+          "package.json",
+          "README.md",
+          "README_ZH.md",
+          "AGENTS.md",
+          "CLAUDE.md",
+          "SPEC.md",
+          "tsconfig.build.json",
+          "tsconfig.test.json",
+          "vitest.config.ts",
+          "vitest.acceptance.config.ts",
+          "src/**/*.ts",
+          "tests/**/*.ts",
+          "tests/**/*.mjs",
+          "tests/**/*.py",
+          "tests/**/*.md",
+          "tests/fixtures/**/*",
+          "schema/**/*.json",
+          "schema/README.md",
+          "verification/README.md",
+          "verification/models/**/*.tla",
+          "verification/models/**/*.cfg",
+          "verification/models/**/*.als",
+          "verification/models/**/*.md",
+          "verification/models/**/*.ts",
+          "verification/models/**/*.py",
+          "verification/models/**/*.json",
+          "verification/models/**/*.smt2",
+          "verification/proofs/**/*.md",
+          "verification/proofs/**/*.tex",
+          "verification/proofs/**/*.lean",
+          "verification/proofs/**/*.v",
+          "verification/proofs/**/*.dfy",
+          "verification/proofs/**/*.smt2",
+          "adr/**/*.md",
+          "acceptance/**/*.ts",
+          "acceptance/**/*.md",
+          "acceptance/fixtures/**/*",
+          "examples/**/*.ts",
+          "examples/**/*.mjs",
+          "examples/**/*.md",
+          "provenance.json",
+          "UPSTREAM.md",
+          "LICENSE",
+          "LICENSE.*",
+          "resources/**/*.json",
+          "resources/**/*.jinja",
+          "resources/**/*.model",
+          "resources/**/*.md",
+          "resources/**/LICENSE",
+          "resources/**/LICENSE.*",
+          "documentation.json",
+          "docs/**/*.md",
+          "docs/**/*.svg",
+          "docs/**/*.png",
+          "docs/**/*.webp"
+        ],
+        "requiredDirectories": [
+          "src",
+          "tests"
+        ],
+        "ignoredDirectories": [
+          "node_modules",
+          "dist",
+          "generated",
+          "coverage",
+          "tmp"
+        ],
+        "companions": [
+          {
+            "path": "verification",
+            "requires": [
+              "verification/README.md"
+            ]
+          },
+          {
+            "path": "acceptance",
+            "requires": [
+              "vitest.acceptance.config.ts"
+            ]
+          },
+          {
+            "path": "vitest.acceptance.config.ts",
+            "requires": [
+              "acceptance"
+            ]
+          }
+        ],
+        "requiredFileGroups": [
+          {
+            "patterns": [
+              "tests/**/*.spec.ts",
+              "tests/**/*.spec-d.ts",
+              "tests/basis/**/*.test.ts"
+            ],
+            "minimum": 1
+          }
+        ]
+      },
+      "ruleSet": 2
+    },
     "1.0.0": {
       "requiredFiles": [
         "package.json",
@@ -109,9 +447,18 @@
       ],
       "variantRequiredFiles": {
         "module": [],
-        "cordis-module": ["src/cordis.ts", "SPEC.md"],
-        "service-contract": ["src/cordis.ts", "SPEC.md"],
-        "service-provider": ["src/cordis.ts", "SPEC.md"]
+        "cordis-module": [
+          "src/cordis.ts",
+          "SPEC.md"
+        ],
+        "service-contract": [
+          "src/cordis.ts",
+          "SPEC.md"
+        ],
+        "service-provider": [
+          "src/cordis.ts",
+          "SPEC.md"
+        ]
       },
       "layout": {
         "files": [
@@ -164,25 +511,44 @@
           "resources/**/LICENSE",
           "resources/**/LICENSE.*"
         ],
-        "requiredDirectories": ["src", "tests"],
-        "ignoredDirectories": ["node_modules", "dist", "generated", "coverage", "tmp"],
+        "requiredDirectories": [
+          "src",
+          "tests"
+        ],
+        "ignoredDirectories": [
+          "node_modules",
+          "dist",
+          "generated",
+          "coverage",
+          "tmp"
+        ],
         "companions": [
           {
             "path": "verification",
-            "requires": ["verification/README.md"]
+            "requires": [
+              "verification/README.md"
+            ]
           },
           {
             "path": "acceptance",
-            "requires": ["vitest.acceptance.config.ts"]
+            "requires": [
+              "vitest.acceptance.config.ts"
+            ]
           },
           {
             "path": "vitest.acceptance.config.ts",
-            "requires": ["acceptance"]
+            "requires": [
+              "acceptance"
+            ]
           }
         ],
         "requiredFileGroups": [
           {
-            "patterns": ["tests/**/*.spec.ts", "tests/**/*.spec-d.ts", "tests/basis/**/*.test.ts"],
+            "patterns": [
+              "tests/**/*.spec.ts",
+              "tests/**/*.spec-d.ts",
+              "tests/basis/**/*.test.ts"
+            ],
             "minimum": 1
           }
         ]
@@ -195,6 +561,7 @@
       "package.json",
       "README.md",
       "README_ZH.md",
+      "index.md",
       "AGENTS.md",
       "CLAUDE.md",
       "SPEC.md",
@@ -203,6 +570,8 @@
       "vitest.config.ts",
       "vitest.acceptance.config.ts",
       "src/**/*.ts",
+      "src/README.md",
+      "src/index.md",
       "tests/**/*.ts",
       "tests/**/*.mjs",
       "tests/**/*.py",
@@ -210,7 +579,9 @@
       "tests/fixtures/**/*",
       "schema/**/*.json",
       "schema/README.md",
+      "schema/index.md",
       "verification/README.md",
+      "verification/index.md",
       "verification/models/**/*.tla",
       "verification/models/**/*.cfg",
       "verification/models/**/*.als",
@@ -248,33 +619,49 @@
       "docs/**/*.png",
       "docs/**/*.webp"
     ],
-    "requiredDirectories": ["src", "tests"],
-    "ignoredDirectories": ["node_modules", "dist", "generated", "coverage", "tmp"],
+    "requiredDirectories": [
+      "src",
+      "tests"
+    ],
+    "ignoredDirectories": [
+      "node_modules",
+      "dist",
+      "generated",
+      "coverage",
+      "tmp"
+    ],
     "companions": [
       {
         "path": "verification",
-        "requires": ["verification/README.md"]
-      },
-      {
-        "path": "acceptance",
-        "requires": ["vitest.acceptance.config.ts"]
-      },
-      {
-        "path": "vitest.acceptance.config.ts",
-        "requires": ["acceptance"]
+        "requires": [
+          "verification/README.md"
+        ]
       }
     ],
     "requiredFileGroups": [
       {
-        "patterns": ["tests/**/*.spec.ts", "tests/**/*.spec-d.ts", "tests/basis/**/*.test.ts"],
+        "patterns": [
+          "tests/**/*.spec.ts",
+          "tests/**/*.spec-d.ts",
+          "tests/basis/**/*.test.ts"
+        ],
         "minimum": 1
       }
     ]
   },
   "variantRequiredFiles": {
     "module": [],
-    "cordis-module": ["src/cordis.ts", "SPEC.md"],
-    "service-contract": ["src/cordis.ts", "SPEC.md"],
-    "service-provider": ["src/cordis.ts", "SPEC.md"]
+    "cordis-module": [
+      "src/cordis.ts",
+      "tests/cordis-entry.spec.ts"
+    ],
+    "service-contract": [
+      "src/cordis.ts",
+      "tests/cordis-entry.spec.ts"
+    ],
+    "service-provider": [
+      "src/cordis.ts",
+      "tests/cordis-entry.spec.ts"
+    ]
   }
 }

@@ -26,6 +26,10 @@ export interface TemplateManifest {
   readonly format: 1
   readonly id: string
   readonly version: string
+  /** Rule set 3 adds the docs topics and the content-based acceptance condition. */
+  readonly ruleSet: 3
+  /** Each topic is either docs/<topic>.md or docs/<topic>/ with README.md and index.md. */
+  readonly topics: readonly string[]
   readonly common: readonly FileTemplate[]
   readonly variants: Readonly<Record<Variant, readonly FileTemplate[]>>
   readonly requiredFiles: readonly string[]
@@ -56,6 +60,8 @@ export interface PackageScan {
   readonly marker?: TemplateMarker
   readonly variant: Variant
   readonly structure: 'pass' | 'fail' | 'uncovered'
+  /** Whether acceptance/ holds executable scenarios (*.acceptance.ts outside acceptance/fixtures/). */
+  readonly acceptance: 'executable' | 'none'
   readonly tree: readonly {
     readonly path: string
     readonly kind: 'file' | 'directory' | 'symlink' | 'other'

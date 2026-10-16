@@ -16,7 +16,7 @@ The [delivery observer](../dev-flow/src/delivery/README.md) reads an explicit Is
 
 The private `omne-package-template` CLI creates drafts and inventories exact template adoption. See the [template guide](../dev-flow/templates/package/README.md) and [development entry](../../docs/development.md#创建和整改产品包). It reuses the architecture reader. Structural results do not accept business or lifecycle behavior.
 
-The package template is typescript-package@2.0.0. Exact 1.0.0 rules remain available for older markers.
+The package template is typescript-package@3.0.0 and creates the complete skeleton. Exact 2.0.0 and 1.0.0 rules remain available for older markers.
 `service-contract` creation and structure scan no longer require `packages/core`.
 `scan --json` reports judged edges on `dependencies`. `unknown` stays `unknown`.
 Group direction is checked by dependency-cruiser through `pnpm run lint:deps` ([dependency rules](../repo-toolchain/README_ZH.md#依赖图与依赖规则)); there is no group layer table. A same-group import from `sdk` to `server-entry` violates `sdk-not-server` directly.

@@ -89,6 +89,13 @@ export function readTemplate(directory = TEMPLATE_DIRECTORY): TemplateManifest {
     value['format'] !== 1 ||
     value['id'] !== 'typescript-package' ||
     !version(value['version']) ||
+    value['ruleSet'] !== 3 ||
+    !Array.isArray(value['topics']) ||
+    value['topics'].length === 0 ||
+    !value['topics'].every(
+      topic => typeof topic === 'string' && /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(topic),
+    ) ||
+    new Set(value['topics']).size !== value['topics'].length ||
     !fileList(value['common']) ||
     !stringArray(value['requiredFiles']) ||
     !layoutRules(value['layout']) ||
