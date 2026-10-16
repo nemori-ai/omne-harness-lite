@@ -185,7 +185,7 @@ make scenario-status
 
 ## 模型凭据的逐符号结构守卫
 
-`model-credential-boundary` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，正常 CLI 同时扫描实际 `packages/`、`apps/`、`examples/`、`tools/`、`scripts/` 执行模块及配置别名解析结果。collector 先规范化仓库根路径，末尾斜杠不会改变根 `tsconfig` 的别名解析。它采用 D-075、目录 v3 V3-10、CCL rev2 MCR-V7 与 D-092 的装配权限。
+`model-credential-boundary` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，正常 CLI 同时扫描实际 `packages/`、`apps/`、`examples/`、`tools/`、`scripts/` 执行模块及配置别名解析结果。collector 先规范化仓库根路径，末尾斜杠不会改变根 `tsconfig` 的别名解析。配置的 `extends` 写相对路径时按文件读；写包名时按 Node 的规则从该配置所在目录解析，读到锁文件钉住的那份安装；解析不到就报错停止。它采用 D-075、目录 v3 V3-10、CCL rev2 MCR-V7 与 D-092 的装配权限。
 
 | 符号                            | 允许点                                                                                                     |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------- |

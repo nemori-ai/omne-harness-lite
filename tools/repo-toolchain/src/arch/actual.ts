@@ -51,6 +51,8 @@ export interface ActualArchitecture {
     readonly configuration: {
       readonly read: readonly string[]
       readonly appliedToResolution: readonly string[]
+      /** Package-name extends that were not applied, as `<config> -> <specifier>`. */
+      readonly installedExtends: readonly string[]
       readonly policy: string
     }
     readonly limitations: readonly string[]
@@ -174,6 +176,7 @@ export function actualArchitectureOf(input: ArchitectureSource): ActualArchitect
           ...new Set([...input.discoveredConfigurationFiles, ...extraction.configurationFiles]),
         ].sort(),
         appliedToResolution: extraction.configurationFiles,
+        installedExtends: extraction.installedExtends,
         policy:
           'Each importer uses its member tsconfig.json, then tsconfig.build.json, then root tsconfig.json or tsconfig.base.json; extends and module-resolution options use only this version. Workspace manifest exports supply source aliases. All selected product src TypeScript files are analyzed regardless of include/exclude.',
       },
@@ -181,7 +184,7 @@ export function actualArchitectureOf(input: ArchitectureSource): ActualArchitect
         'Static TypeScript AST only; no product execution, runtime provider selection, process or external resource observation.',
         'Development members are listed and available for static resolution, but are not independently analyzed. Product tests are excluded.',
         'No installed modules or standard library are loaded. Workspace dist exports are projected to matching src TypeScript paths; missing source and computed expressions may remain unknown.',
-        'Configuration participates in static module resolution, not a compiler build: include/exclude, project-reference builds, installed extends, runtime condition selection and type-checking correctness are not reproduced.',
+        'Configuration participates in static module resolution, not a compiler build: include/exclude, project-reference builds, runtime condition selection and type-checking correctness are not reproduced. Package-name extends point at installed modules; they are listed under configuration.installedExtends and their options are not applied.',
         'Import observations cover ESM import/export, empty named clauses, dynamic imports and TypeScript import types; CommonJS require calls are outside this extractor.',
         'Root task containers and node_modules are excluded. Workspace member dist/coverage build directories are excluded from resolution; same-named members and src directories remain inputs.',
         'No tenant isolation, transaction, lifecycle or resource ownership guarantee is inferred.',

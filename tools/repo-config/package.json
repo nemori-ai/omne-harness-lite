@@ -1,6 +1,6 @@
 {
   "name": "@omne-harness/repo-config",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "仓库共享的 tsconfig、oxlint 与 dependency-cruiser 配置预设；根配置只用 extends 引用它",
   "license": "UNLICENSED",
   "repository": {

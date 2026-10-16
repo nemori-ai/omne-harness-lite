@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // `pnpm run lint:deps`：dependency-cruiser 的规则违规，加上成员与组之间的环。有任何一项退出 1，工具出错退出 2。
 // 与 clean loop、`make metrics` 读同一张图（deps/graph.ts），规则只从运行检查器的仓库读。
 import { resolve } from 'node:path'
