@@ -43,7 +43,7 @@
 
 **3. 新增依赖方向违规，规则检查报红（第 8 问）**
 - **证据**：`packages/session/session-tenancy-table/src/reader.ts:10 [group-direction] packages/session/session-tenancy-table 直接依赖了 packages/infra/storage-sql；packages/infra 只由装配层选用`，`FAIL: ts-checks 发现 1 处违反`，退出 1。度量摘要同样报「方向违规 1」。
-- **附带**：`@omne-harness/storage-sql` 在本包 `package.json` 里只是 `devDependencies`，`src/` 却在运行时导入它。`package.json` 又在写入范围之外。
+- **附带**：`@omne-harness-lite/storage-sql` 在本包 `package.json` 里只是 `devDependencies`，`src/` 却在运行时导入它。`package.json` 又在写入范围之外。
 - **后果**：验收「仓库规则检查通过」不成立；交付说明「`pnpm run lint:rules` 通过」与输出相反。
 - **需要做**：`openSessionTenancyReader` 不能以现在的形态留在本包 `src/`，放哪里见「范围外待裁决」第 1 条。
 

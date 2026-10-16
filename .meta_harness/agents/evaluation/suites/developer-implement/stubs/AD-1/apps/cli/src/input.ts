@@ -1,4 +1,4 @@
-import type { PromptResult } from '@omne-harness/governance-client-operations'
+import type { PromptResult } from '@omne-harness-lite/governance-client-operations'
 import type { Invocation } from './parser.ts'
 
 /**
