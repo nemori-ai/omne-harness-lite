@@ -72,3 +72,5 @@ The package reads no environment. The session owns entropy and the admission key
 ## Maintenance
 
 Minting stays in session.
+
+The [shared tool-call and ToolMessage design](docs/public-api.md) defines the candidate cross-domain message boundary. Model request declarations stay with Model.

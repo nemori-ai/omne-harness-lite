@@ -2,7 +2,7 @@
 
 本页维护产品包的目标分组、包边界和扩展规则，供人和agent选择维护位置。顶层源码归属及开发环境由[workspace](workspace.md)维护，业务责任由[领域地图](domains/boundaries.md)维护，系统分层与依赖由[架构](architecture/layers-and-dependencies.md)约束。
 
-这些规则用于后续建包与迁移设计。下面写明叶子名的位置已经初始化为 RFC-0003 草稿。草稿不接受该成员的精确接口或运行机制。`<成员>` 和「具名」占位仍不建包。新树从[包入口](../packages/README.md)读取目标组及缺项；旧成员从[legacy入口](../packages.0.0.1.legacy/README.md)查源。新成员准入与工具适配仍须明确任务。
+这些规则用于后续建包与迁移设计。初始目录树中写明叶子名的位置已经初始化为 RFC-0003 草稿。草稿不接受该成员的精确接口或运行机制。后续候选包另列，并标明初始化状态。`<成员>` 和「具名」占位仍不建包。新树从[包入口](../packages/README.md)读取目标组及缺项；旧成员从[legacy入口](../packages.0.0.1.legacy/README.md)查源。新成员准入与工具适配仍须明确任务。
 
 ## 组织原则
 
@@ -109,6 +109,23 @@ scripts/                       仓库自动化
 `kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口只导出操作结果，并且不导入 `@deepseek-ai/cordis`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页登记成员位置 `packages/assembly/kernel-basis`，具体实现范围见下段。
 
 `packages/assembly/kernel-basis` 已是 workspace 成员。根入口导出操作结果，`./cordis` 导出 `definePlugin` 与 `resolveOptional`，`./testing` 导出 `startTestAssembly`。封存实现 `packages.0.0.1.legacy/core/kernel-basis` 已退出 workspace，只供来源核对，新成员不依赖旧源码或探针。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/ts-checks/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
+
+<a id="模型组的候选扩展"></a>
+### 模型组的成员与采用范围
+
+`0.0.0 → 0.1.0` 的模型适配和请求沿用项目维护的 pi-ai 技术栈。model-contract、model-cordis-contract 与 model 已初始化为 workspace 骨架，非 pi-ai 设计已接受，并按下表职责拥有文档；源码入口仍为空。model-host-local、pi、厂商家族及 tokenizer 成员尚未初始化。不保留聚合全部实现的安装门面。
+
+| 成员，位于 packages/model 下 | 包边界 | 设计状态 |
+| --- | --- | --- |
+| model-contract | 纯领域值、操作、必要纯函数与提供者协议；普通消费者和 adapter 作者不安装运行实现 | 已接受 |
+| model-cordis-contract | 唯一 Cordis 服务定义、键、增补及定义自有登记表；不安装 Model 运行提供者 | 已接受 |
+| model | 可复用领域执行与实际工厂，按契约注入依赖，不安装 Cordis | 已接受 |
+| model-host-local | 单机调度、时钟、目录装载及 Cordis 插件，复用 model | 已接受 |
+| pi-ai-transport | 共享 pi 请求机制、HTTP/SSE、连接资源及取消 | 候选，pi-ai 相关 |
+| pi-ai-openai、pi-ai-anthropic、pi-ai-google、pi-ai-deepseek、pi-ai-xai、pi-ai-qwen、pi-ai-moonshot、pi-ai-zai | 按厂商家族内聚型号定义、请求与响应适配、完整计量、模板、资源和验证 | 候选，pi-ai 相关 |
+| tokenizer-tiktoken、tokenizer-huggingface | 封装分词引擎的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 候选，pi-ai 相关 |
+
+具体型号默认作为家族内的精确绑定，不按型号逐一建包。依赖方向、拆分依据、装配责任和实际建包条件由[模型组架构](../packages/model/docs/architecture.md#成员与新增条件)维护。本页登记成员位置及初始化状态，不复制接口或支持型号清单。model-host-local 的设计已接受但尚未初始化。pi-ai 传输、厂商家族与相关 tokenizer 引擎设计仍为候选；后续运行成员随实际实现及验证切片建立。
 
 ## 责任与能力组
 

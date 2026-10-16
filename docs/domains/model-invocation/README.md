@@ -20,7 +20,7 @@ token 类别名归本责任。`input` 是类别名的例子。token 用量的 `l
 | 结果保管/结算 | 待承接内容、费用及清理条件 |
 | 实际消费者 | 可靠取得、业务采用和原处理位置，归调用方 |
 
-提供者隐藏传输机制，跨提供者的共享含义由原能力契约维护，不能各自重定义成功。交给会话日志的事实见[模型规格](../../../packages/model/model/SPEC.md#调用和各次真实发出)。
+提供者隐藏传输机制，跨提供者的共享含义由原能力契约维护，不能各自重定义成功。交给会话日志的事实见[模型规格](../../../packages/model/model-contract/SPEC.md#调用和各次真实发出)。
 
 ## 协作与依赖
 
@@ -51,4 +51,4 @@ token 类别名归本责任。`input` 是类别名的例子。token 用量的 `l
 
 ## 正式产品与技术承接
 
-[产品正文](../../../.meta_harness/design/product/model-invocation/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/model/README.md)展开工程依赖与成员机制。细化技术仍为待审，正式位置不升级原已接受领域正文的范围，也不表示成员已实现。
+[产品正文](../../../.meta_harness/design/product/model-invocation/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/model/README.md)展开工程依赖与成员机制。本域非 pi-ai 细化设计已接受，pi-ai 相关设计仍为候选。设计接受不表示成员已经实现或通过运行验证。

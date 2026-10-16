@@ -274,7 +274,7 @@ Run 取消撤销新推进资格并请求停止前台关联工具，后台和无�
 
 本项为技术义务。消息内容中的多模态引用供本次模型直接感知；附件只提供文本地址，让 agent 决定是否另行读取。共享值、消息校验、保管和模型发送须共同兑现此边界，不自动开放任意嵌套块。
 
-责任由 Tool、共享内容与消息、Model 及 Context 拥有者承担。实际实现与验证尚未完成，不能声称已可用。持续义务见[技术原文](../../../../packages/model/model/docs/open-questions.md#model-e01)。
+责任由 Tool、共享内容与消息、Model 及 Context 拥有者承担。实际实现与验证尚未完成，不能声称已可用。持续义务见[技术原文](../../../../packages/model/model/docs/architecture.md#model-e01)。
 
 <a id="tool-m01"></a>
 ### TOOL-M01 公开形状与独立函数消费

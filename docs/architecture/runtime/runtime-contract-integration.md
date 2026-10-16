@@ -1,12 +1,14 @@
 # 四成员主干契约的 Cordis 集成候选
 
-本页是 #342 的装配候选，尚未技术接受或生产实现。领域和操作边界先由[对象模型](runtime-contract-model.md)及四成员 runtime-contract 确定。这里消费 [IC-1 至 IC-19](../cordis-integration-conventions.md)，选择服务定义、依赖、宿主与撤除协议，不把 Cordis 机制当作领域授权或持久提交。
+本页是 #342 的装配候选，尚未技术接受或生产实现。领域和操作边界先由[对象模型](runtime-contract-model.md)及四成员 SPEC 与 public-api 确定。这里消费 [IC-1 至 IC-19](../cordis-integration-conventions.md)，选择服务定义、依赖、宿主与撤除协议，不把 Cordis 机制当作领域授权或持久提交。
 
-成员的精确接缝分别归 [Session](../../../packages/session/session/docs/runtime-integration.md)、[Agent](../../../packages/agent/agent/docs/runtime-integration.md)、[Model](../../../packages/model/model/docs/runtime-integration.md)、[Tool](../../../packages/tool/tool-cordis-contract/docs/cordis.md)。Tool 的成员集成设计已接受，本页共同集成及其余成员仍为候选。生产服务图、事件矩阵及绑定读数从实际源码生成，不另立手写实现权威。
+成员的精确接缝分别归 [Session](../../../packages/session/session/docs/runtime-integration.md)、[Agent](../../../packages/agent/agent/docs/runtime-integration.md)、[Model](../../../packages/model/model-cordis-contract/docs/cordis.md)、[Tool](../../../packages/tool/tool-cordis-contract/docs/cordis.md)。Tool 和 Model 的成员集成设计已接受，其中 Model 的 pi-ai 相关细化仍为候选。本页共同集成及 Session、Agent 成员设计保持原候选状态。生产服务图、事件矩阵及绑定读数从实际源码生成，不另立手写实现权威。
 
 ## 根入口、定义与提供者
 
-根入口继续公开纯值、操作类型、独立函数和工厂，不导入 Cordis。按 #343 模板，各域拆成契约成员与提供者成员两个兄弟成员。契约成员的 `./cordis`（`src/cordis.ts`）是定义入口，持有抽象 Service、键、Context/Events 增补和运行实例登记协议。提供者成员的 `./cordis` 只发布具体提供者插件，继承同一定义。消费者可以导入契约成员的根和定义入口，不能依赖提供者成员。新增 exports 属于后继实现，本卡不新增生产 API。
+成员根入口不导入 Cordis。公开契约、可复用领域实现和具名宿主按实际安装及消费边界划分，不固定为两个包。领域消费者引用契约；独立程序和应用装配可显式选择实现工厂。Cordis 定义入口持有唯一 Service、键、Context/Events 增补及运行实例登记协议，业务提供者插件继承同一定义，不复制键或类型。各域精确成员分配以其组架构和实际公开入口为准。
+
+Model 的目标为 model-contract、model-cordis-contract、model 和 model-host-local，详见[模型组边界](../../../packages/model/docs/architecture.md#契约包的公开边界)。纯契约不导出执行工厂；框架定义从 model-cordis-contract/cordis 发布，独立执行工厂归无 Cordis 的 model，具体宿主插件归 model-host-local/cordis。其余领域的目标及迁移状态分别由成员拥有，不由本页批量改名。新增 exports 属于后继实现，本卡不新增生产 API。
 
 每个定义类在唯一位置写 static provide；导出键常量取自它，具体子类不再次 provide 同键。抽象服务复用根接口的索引方法类型。定义入口不得引入被选中的业务提供者；后继必须同时检查源码值边、声明和实际产物。运行实例目录是含登记逻辑的具体 Service，查询与贡献权限分开，不能只用 TypeScript interface 代替 Service 定义。
 
@@ -80,7 +82,7 @@ API 门面可以将 directory 暴露为只读查询面，但宿主注册必须�
 | --- | --- | --- |
 | session/work-committed | Session 定义入口，parallel | tenant、SessionId、revision、原 source；恢复调度者按身份过滤，再读权威状态 |
 | agent/instance-retired | Agent 定义入口，parallel | tenant、SessionId、RunId、实例、原因；观察/路由刷新，不表示 Run 终态 |
-| model/call-changed | Model 定义入口，parallel | tenant、call、revision；读原调用，不携带正文/秘密 |
+| model-cordis-contract/call-changed | Model 定义入口，parallel | tenant、call、revision；读原调用，不携带正文/秘密 |
 | tool-cordis-contract/call-changed | Tool 定义入口，parallel | tenant、call、revision；读原事实，不据通知解除 delivery |
 
 事件在各定义入口唯一增补 Events，JSDoc 写 @mode parallel 与每项 @param。发送方在 await 外捕获，包括 AggregateError 中的监听失败，只记安全诊断，不改变已提交成功结果。不得漏接 Promise。消费者不能因一个监听失败取消其他租户；身份过滤是路由隔离，实际读取仍核权。通知可丢失和重复，可靠性由原领域待办扫描承担。

@@ -72,3 +72,5 @@ flowchart TD
 ## 维护
 
 铸造留在会话。
+
+[共享工具调用与 ToolMessage 设计](docs/public-api.md)维护跨领域消息值候选。模型请求声明仍归 Model。

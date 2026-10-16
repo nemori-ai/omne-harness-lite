@@ -1,55 +1,29 @@
 # 模型调用能力组
 
-正式维护位置已具名，当前仍无真实workspace成员、源码或运行实例。以下为文档目标及待审细化，不授予实现或接受。
-
-## 责任与范围
-
-工程范围由[领域责任](../../docs/domains/model-invocation/README.md)与[产品正文](../../.meta_harness/design/product/model-invocation/design.md)约束。本组拥有成员分解、公开依赖、组协作及组合验证导航。
+本组拥有模型档案、完整请求校验、真实发出、原输出、结果保管及费用事实的工程组织。产品 CAP-MD01 至 CAP-MD13 已全部接受并承诺在 0.1.0 交付；非 pi-ai 技术设计已接受，pi-ai 相关细化仍为候选；源码实现与运行验证分别判断。
 
 ## 成员与依赖
 
-目标成员的职责、状态和读取顺序从[model 入口](model/README.md)进入，再按任务核对下面的规格与专题。
-
-
-状态：设计待用户确认。这里维护目标能力组的正式文档；组不是 workspace 成员、runtime 或进程，没有组级统一 SPEC。
-
-### 成员与边界
-
-| 目标成员 | 工程责任 | 阅读入口 |
+| 成员 | 责任与实际状态 | 阅读入口 |
 | --- | --- | --- |
-| model/model | 档案与模态能力、调用、真实发出、原结果、ACK 与费用责任 | [长期规格](model/SPEC.md) |
+| model-contract | 已接受设计、已初始化骨架；拥有共同协议、公开值与端口，根源码为空 | [成员入口](model-contract/README_ZH.md)、[行为规格](model-contract/SPEC.md) |
+| model-cordis-contract | 已接受设计、已初始化骨架；拥有 Cordis 定义和登记协议，根及 ./cordis 源码为空 | [成员入口](model-cordis-contract/README_ZH.md)、[行为规格](model-cordis-contract/SPEC.md) |
+| model | 已接受设计、已有骨架；拥有可复用执行与协调设计，根源码为空 | [成员入口](model/README_ZH.md)、[实现规格](model/SPEC.md) |
 
-成员可在内部按档案、转换、执行、保管与结算组织。具名提供者或平台适配只有在独立消费、依赖隔离、替换或验证收益明确后才成为兄弟成员；目录大小或每个内部接口不自动决定拆包。
+目标分为 `model-contract`、`model-cordis-contract`、可复用实现 `model` 和单机宿主 `model-host-local`，再组合已采用 pi 技术栈的共享传输、八个厂商家族及两类 tokenizer 引擎包。两个契约成员的文档已落位，model 保留可复用实现设计并暂存宿主装配设计；model-host-local 尚未初始化，不保留聚合安装门面。完整职责、共同依赖前置和初始化条件见[组架构](docs/architecture.md#成员与新增条件)。具体型号在家族内独立绑定和验证。
 
-模型成员消费 identity、assets、context 的公开保证及显式存储依赖，不导入 Agent、Session、SDK 或应用私有实现。发起及消费协调者通过模型公开契约工作。Cordis 装配入口与独立入口分开；本候选不定义未经接受的导出或 API。
+## 责任与范围
 
-关键旅程及跨边界顺序见[关键流程](model/docs/key-flows.md)，能力、规格与持续验证的对应入口见[成员对应表](model/SPEC.md#能力旅程与持续验证入口)。
-
-### 协作和组合验证
-
-档案供给和输入组装在同次采用边界一致，模型执行保存真实发出和原结果，消费者接好后确认，模型完成清理及未结费用责任。跨边界技术协议由实际协调者拥有，不能在组页再写第二份状态机。
-
-成员验证首内容、重试、ACK 与清理行为。Context 和发起协调者验证最终输入、模态及限额。身份和接入验证请求、读取、确认及外传资格。组合验证覆盖替换消费者、持久承接、提交未知和迟到成本；单个假适配器通过不能代替真实传输及存储证据。
-
-### 维护
-
-改共同承诺时同步实际提供者、消费协调者和验证资源。改提供者只补自身真实限制，不能降低共同规则。新增业务、秘密绑定或通道时先取得采用依据，不将旧单通道字段扩成全系统约束。
-
-长期行为归成员[规格](model/SPEC.md)及其专题，领域分责归[领域架构](../../docs/domains/model-invocation/architecture.md)，用户后果归[产品设计](../../.meta_harness/design/product/model-invocation/design.md)。本批不实施成员重组，也不生成实际包。
-
-
-工程关系见[组设计](docs/architecture.md)。成员目标已有文档，不等于真实包；公开入口、安装闭包和提供者映射尚待设计。
+[产品设计](../../.meta_harness/design/product/model-invocation/design.md)定义承诺，[领域架构](../../docs/domains/model-invocation/architecture.md)划分业务责任，[组架构](docs/architecture.md)决定工程组织。进入成员后，先看[内部架构](model/docs/architecture.md)与[流程](model/docs/flows.md)，再按需读对象模型、公开接口设计、SPEC 和 Cordis 装配。
 
 ## 关键协作
 
-档案、执行、转换、保管和费用在目标 model/model 内组织。request-context 负责实际表示、预算和压缩；Session 保存选择；发起和消费方负责原用途，Model 不反向导入其私有实现。
-
-流程从[组协作入口](docs/key-flows.md)导航到协调成员。
+Context 选择表示、组装、分配预算及压缩，消费 Model 的计量和校验结论。Model 固定参数与供应商采用，校验完整请求，并在实际发送前核实媒体和最终 payload。Session 保存选择；原发起者保存用途和消费位置。Model 不反向依赖 Agent、Session 或 Tool 的实现。
 
 ## 组合验证
 
-Model 成员验证档案、真实发出、首内容、重试、ACK、清理和费用。与 Context、原消费方、身份及存储组合验证最终输入同次采用、消费者换代、提交未知、迟到费用及普通耐久。真实提供者、传输与存储执行证据尚缺。
+[能力覆盖](model-contract/verification/coverage.md)连接产品承诺、内部 module、流程和反例。跨领域验证覆盖同次输入采用、消费者换代、提交未知、首内容、不重复发送、ACK 清理、迟到费用及普通断电耐久。单个模拟 adapter 通过不代替真实供应商和存储证据。
 
 ## 维护
 
-修改行为同步成员SPEC、原具名专题、实际消费者及相称验证；修改工程分解同步组导航和登记。具名维护人尚缺，由项目负责人指定；职责拥有者不等于已派发个人。产品、组工程和成员机制分别维护唯一正文。
+行为变更回成员 SPEC，工程分解回组架构，用户后果回产品。提供者记录具体支持范围和验证，不能降低共同契约。组页不另建状态机、服务定义或第二套错误集合。

@@ -97,6 +97,21 @@
           "anchor": "维护"
         }
       ]
+    },
+    {
+      "id": "tool-message-boundary",
+      "path": "packages/common/message/docs/public-api.md",
+      "kind": "reference",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "reference-v1",
+      "requiredSections": []
     }
   ]
 }
