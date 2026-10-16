@@ -14,7 +14,11 @@
 
 身份为 `RFC-` 加四位递增序号，正式文件为 `RFC-编号-短名.md`。集成写者核对所有现存号后分配，编号不复用。并行作者写独立草稿，不争写编号或当前规范。
 
-单篇front-matter唯一维护review、accepted、rejected或withdrawn状态。accepted注明精确revision与范围，不代表规范已切换或实现完成。决定状态不重开；新技术决定另开提案。部分或全部被后继取代是独立范围关系，不覆盖原决定。
+正式提案入库时，在[项目文档登记](../documentation.json)中登记为应有目标：`kind` 为 `architecture`，要求依据指向本节，必要章节至少为模板的问题与有效输入、建议与改变范围、实质备选、验证与消费者切换、决定范围、写回现行正文、后继关系与维护，提案自有的必要章节另行追加。被取代的提案继续登记。登记只计量章节是否存在、是否仍为占位，不判断决定与写回是否准确。
+
+单篇front-matter唯一维护review、accepted、rejected、withdrawn或superseded状态。accepted注明精确revision与范围，不代表规范已切换或实现完成。决定状态不重开；新技术决定另开提案。
+
+被后继取代是独立范围关系，不覆盖原决定。后继提案取代某篇已接受提案的全部采用范围（已由其他后继取代的部分除外）时，被取代的提案在后继接受后把status改为superseded，并加`supersededBy: RFC-编号`指向后继。原接受记录、方案与决定范围保持原文，正文加更正标注说明取代关系。只取代部分范围时不改status，只在后继关系表记录精确范围。
 
 ## 现行源与维护
 
@@ -33,3 +37,4 @@
 - [RFC-0003：新架构源码包](RFC-0003-source-packages.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
 - [RFC-0004：四条主干的 PR 准入与确认](RFC-0004-trunk-pr-admission.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
 - [RFC-0005：源码包的测试责任](RFC-0005-package-testing.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
+- [RFC-0007：源码包与包模板](RFC-0007-source-packages-and-templates.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
