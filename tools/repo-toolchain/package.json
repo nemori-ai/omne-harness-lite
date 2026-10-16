@@ -1,9 +1,15 @@
 {
   "name": "@omne-harness/repo-toolchain",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.0.1",
   "type": "module",
   "description": "仓库工具链：规则引擎、提交署名、依赖图、声明兼容、结构度量、实际架构抽取与 clean loop",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nemori-ai/omne-harness-lite.git",
+    "directory": "tools/repo-toolchain"
+  },
+  "homepage": "https://github.com/nemori-ai/omne-harness-lite/tree/main/tools/repo-toolchain#readme",
   "engines": {
     "node": ">=24"
   },
@@ -162,7 +168,8 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "metrics": "node --experimental-strip-types src/metrics/cli.ts",
-    "architecture": "node --experimental-strip-types src/arch/cli.ts"
+    "architecture": "node --experimental-strip-types src/arch/cli.ts",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "@jscpd/core": "catalog:",
