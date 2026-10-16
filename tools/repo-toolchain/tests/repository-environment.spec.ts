@@ -3,14 +3,6 @@
 import { copyFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import {
-  ancestor,
-  clean,
-  git,
-  maybeRef,
-  repository as coordinates,
-} from '../src/integration/git.ts'
-import { remoteRefs } from '../src/integration/transport.ts'
 import { fileAt, git as metricsGit } from '../src/core/git.ts'
 import { readRevisionTexts } from '../src/core/revision-files.ts'
 import { readCommits } from '../src/commits.ts'
@@ -70,7 +62,7 @@ it.each([
   write(a, 'identity', 'A second')
   const head = commit(a, 'A second')
   write(b, 'identity', 'B')
-  const foreignHead = commit(b, 'B')
+  commit(b, 'B')
   write(a, 'identity', 'dirty A')
   const externalIndex = join(b, 'external-index')
   copyFileSync(join(b, '.git/index'), externalIndex)
@@ -95,24 +87,11 @@ it.each([
   const value = paths[key]
   if (value === undefined) throw new Error('Missing hostile fixture')
   vi.stubEnv(key, value)
-  expect(git(a, ['rev-parse', 'HEAD'])).toBe(head)
   expect(metricsGit(a, ['rev-parse', 'HEAD'])).toBe(head)
-  expect(coordinates(a).commonDir).toBe(join(a, '.git'))
-  expect(() => clean(a)).toThrow('not clean')
-  expect(maybeRef(a, 'HEAD')).toBe(head)
-  expect(maybeRef(a, `${foreignHead}^{object}`)).toBeNull()
-  expect(git(a, ['diff', '--', 'identity'])).toContain('dirty A')
-  expect(maybeRef(a, 'refs/heads/missing')).toBeNull()
-  expect(ancestor(a, first, head)).toBe(true)
   expect(fileAt(a, head, 'identity')).toBe('A second')
   expect(readRevisionTexts(a, head, ['identity']).get('identity')).toBe('A second')
   expect(readCommits(a).map(record => record.sha)).toContain(first)
-  expect(remoteRefs(a, a, 10_000).get('refs/heads/main')).toBe(head)
-  const object = git(a, ['hash-object', '-w', '--stdin'], 'unique local object ' + key)
-  git(a, ['add', 'identity'])
   vi.unstubAllEnvs()
-  expect(fixtureGit(a, 'cat-file', '-p', object)).toBe('unique local object ' + key)
-  expect(fixtureGit(a, 'show', ':identity')).toBe('dirty A')
   expect({
     index: readFileSync(externalIndex),
     gitIndex: readFileSync(join(b, '.git/index')),

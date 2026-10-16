@@ -19,8 +19,11 @@ if [[ -z "${OMNE_TEST_SLOT_HELD:-}" ]]; then
     exec ./scripts/with-test-slot.sh ./scripts/check.sh
 fi
 
+# 工具成员经包入口导入 repo-toolchain 的 dist，先构建它（turbo 有缓存）。
+pnpm run --silent build:tools
+
 # 基线取 BASELINE；没给就用 origin/main，本地没有这个引用就用 main。影响面与回路状态共用它。
-baseline="$(node --experimental-strip-types tools/repo-toolchain/src/integration/cli.ts baselines ${BASELINE:+--base "$BASELINE"} | node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>process.stdout.write(JSON.parse(s).targetBase??""))')"
+baseline="$(node --experimental-strip-types tools/dev-flow/src/integration/cli.ts baselines ${BASELINE:+--base "$BASELINE"} | node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>process.stdout.write(JSON.parse(s).targetBase??""))')"
 if [[ -z "$baseline" ]]; then
     baseline=main
     if git rev-parse --verify --quiet origin/main >/dev/null; then
@@ -29,12 +32,12 @@ if [[ -z "$baseline" ]]; then
 fi
 export BASELINE="$baseline"
 
-# 先算影响面：基线以来改了什么、每一步跑还是跳、跑哪些成员、为什么（规则在 tools/repo-toolchain/test-runs.config.json）。
+# 先算影响面：基线以来改了什么、每一步跑还是跳、跑哪些成员、为什么（规则在 tools/test-runner/test-runs.config.json）。
 # FULL=1 给全量计划；算不出（基线不存在、取不到改动、规则点名了不存在的成员）就在这里失败，不改判全量。
 # 合并后没有自动补跑：负责人不定时让一个会话手动跑一次 make check FULL=1。
 plan_dir=tmp/check-plan
 rm -rf "$plan_dir"
-test_runs=(node --experimental-strip-types tools/repo-toolchain/src/testing/cli.ts)
+test_runs=(node --experimental-strip-types tools/test-runner/src/testing/cli.ts)
 "${test_runs[@]}" plan --base "$baseline" --json "$plan_dir/plan.json"
 step() {
     "${test_runs[@]}" step "$1" --plan "$plan_dir/plan.json"

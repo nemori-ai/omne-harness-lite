@@ -219,7 +219,7 @@ Issue 协议已采用，日常入口仍以[配置](engineering/github-delivery.j
 
 多层集成机制的状态从实际采用tag及bootstrap读回。采用后，工作分支通常进入已登记且active的 integration 轨道，完整 RI 进入 main，stable 选择已有 main checkpoint。FI 将 main 的变化同步到轨道。人的工作是确定路线、completionTarget、必要条件和集成责任，具体操作可委派给获授权的 agent。
 
-采用条件、任务绑定、候选验证与未知发布恢复归[集成规则](engineering/integration.md)和[工具指南](../tools/repo-toolchain/src/integration/README.md)。Git 已集成、任务接受、Issue 写回及关闭分别读回，运输成功不自动结束全部责任。
+采用条件、任务绑定、候选验证与未知发布恢复归[集成规则](engineering/integration.md)和[工具指南](../tools/dev-flow/src/integration/README.md)。Git 已集成、任务接受、Issue 写回及关闭分别读回，运输成功不自动结束全部责任。
 
 ## 已有机制与待补齐的接入
 

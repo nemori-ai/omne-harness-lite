@@ -1,6 +1,6 @@
 # 多层分支集成
 
-本页拥有工程路线、双基线与权限规则。精确工具行为归[集成工具契约](../../tools/repo-toolchain/src/integration/SPEC.md)，命令归其[README](../../tools/repo-toolchain/src/integration/README.md)。任务仍归[现有交付协议](delivery.md)，不新增活动队列或自动接受规则。
+本页拥有工程路线、双基线与权限规则。精确工具行为归[集成工具契约](../../tools/dev-flow/src/integration/SPEC.md)，命令归其[README](../../tools/dev-flow/src/integration/README.md)。任务仍归[现有交付协议](delivery.md)，不新增活动队列或自动接受规则。
 
 ## 采用状态
 

@@ -156,7 +156,7 @@ docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 | 成员定义、首批候选、声明与测试职责、正式模板结构 | [包组织](../package-organization.md#成员的必选结构)。[开发指南](../development.md#创建和整改产品包) 与 [成员文档](../member-documentation.md) 只保留指针 | 已写回 | 2026-10-14。同日生成器补上先删除 `dist` 的 build 和 `erasableSyntaxOnly`。源码条件名未定。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 让模板与现有 28 个成员的 `typecheck` 不再先构建 |
 | workspace 的源码归属 | [workspace](../workspace.md) | 免除写回 | 2026-10-14 核对。该页写的是尚未退出的工具依赖和参考位置，不是新工作的导入做法。确认范围来自本卡落盘计划 |
 | 仍写着新工作应导入旧包的过渡句 | 清点列出的开发指南 | 待写回 | 本次没有把指南改成已经脱离。代码未切换。指示新工作导入旧包的句子留到切换时改 |
-| 模板准入缺口 | [包模板中文说明](../../tools/repo-toolchain/templates/package/README_ZH.md) 与 [英文说明](../../tools/repo-toolchain/templates/package/README.md) | 已写回 | 2026-10-14 生成器已写出先删除 `dist` 的 build 和 `erasableSyntaxOnly`。源码条件仍未写出 |
+| 模板准入缺口 | [包模板中文说明](../../tools/dev-flow/templates/package/README_ZH.md) 与 [英文说明](../../tools/dev-flow/templates/package/README.md) | 已写回 | 2026-10-14 生成器已写出先删除 `dist` 的 build 和 `erasableSyntaxOnly`。源码条件仍未写出 |
 
 ## 后继关系与维护
 

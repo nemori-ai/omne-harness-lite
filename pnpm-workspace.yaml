@@ -2,6 +2,9 @@ packages:
   - packages/*/*
   - apps/*
   - tools/repo-toolchain
+  - tools/dev-flow
+  - tools/product-checks
+  - tools/test-runner
   - tools/core-verification
   - tools/artifact-builder
   - tools/repo-config

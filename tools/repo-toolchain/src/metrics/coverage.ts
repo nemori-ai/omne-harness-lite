@@ -14,9 +14,9 @@ import {
   statSync,
 } from 'node:fs'
 import { join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { isLegacyDirectory, isLegacyFile } from '../core/check-scope.ts'
 import { hasArchivedDirectories } from '../core/check-scope.ts'
+import { VITEST_ARCHIVE_ENTRY } from '../archive/archive-project.ts'
 import type { CoverageInput, LineHits } from './report.ts'
 
 interface IstanbulFile {
@@ -101,12 +101,11 @@ export function measureCoverage(
         (existsSync(distDir) && hasArchivedDirectories(distDir))
       ) {
         const optionsPath = join(outDir, `${slug}.archive-options.json`)
-        const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js'
         const prepared = spawnSync(
           process.execPath,
           [
             '--experimental-strip-types',
-            fileURLToPath(new URL(`../testing/vitest-archive.${extension}`, import.meta.url)),
+            VITEST_ARCHIVE_ENTRY,
             'vitest run',
             'coverage',
             optionsPath,

@@ -1,0 +1,160 @@
+{
+  "parallel": {
+    "memberConcurrency": 2,
+    "vitestMaxWorkers": 4
+  },
+  "affected": {
+    "excludeRoots": ["examples"],
+    "globalPaths": [
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "tsconfig*.json",
+      "vitest.tiers.mts",
+      "scripts/check.sh",
+      "tools/test-runner/test-runs.config.json",
+      "tools/repo-toolchain/src/core/git.ts",
+      "tools/test-runner/src/testing/scope.ts",
+      "tools/test-runner/src/testing/turbo.ts",
+      "tools/repo-toolchain/src/core/workspace.ts",
+      "tools/test-runner/src/testing/cli.ts",
+      "tools/test-runner/src/testing/config.ts",
+      "tools/test-runner/src/testing/run.ts",
+      "tools/test-runner/src/testing/steps.ts",
+      "tools/test-runner/src/testing/support.ts",
+      "tools/test-runner/src/testing/timing-reporter.ts",
+      "scripts/integration-check.sh",
+      "tools/dev-flow/src/integration/**",
+      "docs/engineering/integration-policy.json",
+      "docs/engineering/integration-bootstrap.json",
+      "docs/architecture/constraints.json",
+      "**/turbo.json",
+      "tools/repo-config/**"
+    ],
+    "readers": [
+      {
+        "paths": [
+          "packages/**/*.ts",
+          "packages/**/*.tsx",
+          "packages/**/*.mts",
+          "packages/**/*.cts",
+          "apps/**/*.ts",
+          "apps/**/*.tsx",
+          "apps/**/*.mts",
+          "apps/**/*.cts",
+          "examples/**/*.ts",
+          "examples/**/*.tsx",
+          "examples/**/*.mts",
+          "examples/**/*.cts"
+        ],
+        "members": ["tools/product-checks"],
+        "why": "product-checks 的规则测试读真实产品源码：no-legacy-dependency.spec.ts 经 collectRepositorySources 扫全仓，确认当前仓库没有 legacy 依赖"
+      },
+      {
+        "paths": [
+          "packages/*/*/package.json",
+          "apps/*/package.json",
+          "tools/*/package.json",
+          "examples/*/package.json"
+        ],
+        "members": ["tools/test-runner"],
+        "why": "test-runner 的 tests/test-runs.spec.ts 读全部成员的 package.json"
+      },
+      {
+        "paths": [
+          "docs/clean-loop.md",
+          "tools/repo-toolchain/resources/clean-loop-entries.md",
+          "scripts/with-test-slot.sh"
+        ],
+        "members": ["tools/repo-toolchain", "tools/test-runner"],
+        "why": "repo-toolchain 的 loop-catalogue.spec.ts 读 clean-loop 与整洁之道对照表，test-runner 的 test-slot.spec.ts 执行 with-test-slot.sh"
+      },
+      {
+        "paths": [
+          "docs/engineering/github-delivery.json",
+          ".github/ISSUE_TEMPLATE/work-item.md",
+          ".github/ISSUE_TEMPLATE/task.md",
+          ".meta_harness/design/product/*/README.md",
+          ".meta_harness/design/product/*/design.md",
+          ".meta_harness/design/product/*/acceptance.md"
+        ],
+        "members": ["tools/dev-flow", "tools/product-checks"],
+        "why": "dev-flow 的 delivery 读取普通任务协议；product-checks 的 scenario-status 从当前产品 README、正文及编号场景读取长期覆盖，变化须运行真实消费者测试"
+      }
+    ],
+    "memberDocuments": [
+      "packages/*/*/*.md",
+      "apps/*/*.md",
+      "tools/*/*.md",
+      "apps/*/deploy/**/*.md"
+    ],
+    "pythonPaths": [
+      "Makefile",
+      "pyproject.toml",
+      "uv.lock",
+      "tools/spec-tools/**",
+      ".meta_harness/tooling/**",
+      ".meta_harness/agents/**",
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".meta_harness/README.md",
+      ".meta_harness/AGENTS.md",
+      ".meta_harness/CLAUDE.md",
+      ".cursor",
+      ".cursor/**",
+      ".meta_harness/.gitignore"
+    ],
+    "residentPaths": [
+      "README.md",
+      "CONTRIBUTING.md",
+      ".agents",
+      ".claude",
+      ".codex",
+      "docs/**",
+      ".meta_harness/design/**",
+      ".meta_harness/research/**",
+      "examples/**",
+      ".github/**",
+      ".vscode/**",
+      ".editorconfig",
+      ".oxfmtrc.json",
+      ".oxlintrc.json",
+      ".dependency-cruiser.cjs",
+      "knip.json",
+      "scripts/*.md",
+      "scripts/format.sh",
+      "scripts/install-format-hook.sh",
+      "scripts/pre-commit-format",
+      "scripts/test-formatting.sh",
+      "scripts/model-probe.mjs",
+      "scripts/package-cli.sh",
+      "scripts/package-tenancy-host.sh",
+      "scripts/build-tenancy-image.sh",
+      "packages/**/*.md",
+      "apps/**/*.md",
+      "tools/*.md",
+      "tools/model-probe/**"
+    ],
+    "residentBuild": [
+      {
+        "member": "packages/common/legal-identity",
+        "why": "lint:rules 经 tools/product-checks/src/rules/identity-shapes.ts 导入它，入口指向 dist"
+      },
+      {
+        "member": "tools/repo-toolchain",
+        "why": "product-checks、dev-flow 与 test-runner 的 CLI 经包入口导入它，入口指向 dist"
+      }
+    ]
+  },
+  "ledger": {
+    "slowFileSeconds": 10,
+    "nearTimeoutRatio": 0.5,
+    "top": 5
+  },
+  "triage": {
+    "repeats": 3
+  },
+  "mutation": {
+    "testTimeoutSeconds": 60
+  }
+}

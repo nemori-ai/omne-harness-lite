@@ -159,9 +159,9 @@ Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和
 
 ## 创建和整改产品包
 
-产品包先明确已接受的职责、公开接口与行为依据。建包时使用[版本化包模板](../tools/repo-toolchain/templates/package/README_ZH.md)，不要手写另一套结构。模板不能替代架构设计或技术接受。
+产品包先明确已接受的职责、公开接口与行为依据。建包时使用[版本化包模板](../tools/dev-flow/templates/package/README_ZH.md)，不要手写另一套结构。模板不能替代架构设计或技术接受。
 
-目标组及包边界先按[产品包组织](package-organization.md)确定。成员的必选文件和导出形状以[成员的必选结构](package-organization.md#成员的必选结构)为准。两层文档内容按[成员文档要求](member-documentation.md)组织。当前生成器的文件槽和操作由[包模板](../tools/repo-toolchain/templates/package/README_ZH.md)和[组模板](../tools/repo-toolchain/templates/domain/README.md)维护。生成器已经写出先删除 `dist` 的 build、`erasableSyntaxOnly`，以及 `source` 条件。发布时去掉 `source`。旧包不自动升级，新文档义务不重判旧版。
+目标组及包边界先按[产品包组织](package-organization.md)确定。成员的必选文件和导出形状以[成员的必选结构](package-organization.md#成员的必选结构)为准。两层文档内容按[成员文档要求](member-documentation.md)组织。当前生成器的文件槽和操作由[包模板](../tools/dev-flow/templates/package/README_ZH.md)和[组模板](../tools/dev-flow/templates/domain/README.md)维护。生成器已经写出先删除 `dist` 的 build、`erasableSyntaxOnly`，以及 `source` 条件。发布时去掉 `source`。旧包不自动升级，新文档义务不重判旧版。
 
 新能力组先有明确工程责任，再从仓库根预览和创建入口草稿：
 
@@ -193,7 +193,7 @@ pnpm package:template scan --json
 pnpm package:template scan --member packages/core/storage --check
 ```
 
-逐包核对全部目录、文件和资源归属，完成模板全量适配及适用集成责任的人工核验后，才能添加 omneHarness.packageTemplate 的 id/version/variant。保留原公开能力、源码、Schema 身份及模型义务，不批量抬升标识。不完整、未核对和仍有适用偏离的包保持无标识。[逐包核对记录](../tools/repo-toolchain/templates/package/adoption-review.md)只记录此前版本采用范围，不表示已完成当前模板迁移。标识表示完整模板采用，不表示全系统或业务验收。
+逐包核对全部目录、文件和资源归属，完成模板全量适配及适用集成责任的人工核验后，才能添加 omneHarness.packageTemplate 的 id/version/variant。保留原公开能力、源码、Schema 身份及模型义务，不批量抬升标识。不完整、未核对和仍有适用偏离的包保持无标识。[逐包核对记录](../tools/dev-flow/templates/package/adoption-review.md)只记录此前版本采用范围，不表示已完成当前模板迁移。标识表示完整模板采用，不表示全系统或业务验收。
 
 TS检查目录、必需文件、草稿及精确版本；Python文档盘点检查局部登记、必要章节和占位。组与成员各自维护一份documentation.json，工具默认发现两层登记，不在项目根重复登记成员目标。普通盘点退出0只表示执行成功，须阅读缺项和unknown；显式组检查不提供历史采用认证，也不替代成员扫描。
 
@@ -249,7 +249,7 @@ make test-affected BASE="$TASK_BASE" TIER=slow
 
 按 [RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择)，改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出；构建由 `turbo run build` 编排，按依赖先构建上游，本机读写 `.turbo/` 缓存。类型检查和成员测试仍由 `tools/repo-toolchain` 逐成员执行，测试耗时账本与验收账本照旧写出。
 
-turbo 不提供的规则留在 `tools/repo-toolchain/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
+turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
 
 RFC-0002 的四条约束这样落实：
 - 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；成员目录下出现 `turbo.json` 直接报错；`**/turbo.json`、`tools/repo-config/**` 和本配置文件都是全局文件。
@@ -424,4 +424,4 @@ Git维护当前终态；正式RFC保留进入审议的方案与最小决定关�
 
 ## 多层分支操作
 
-先从[集成规则](engineering/integration.md)核实际采用与任务路线，再按[工具指南](../tools/repo-toolchain/src/integration/README.md)运行 status、start 和 task-sync。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`，不再在本机运行 prepare、verify 和 publish。未采用建设仍按既有任务工作。工作树根、runner 根和 subject 根有不同职责；检查器使用实际 subject，规则来自 adopted runner。
+先从[集成规则](engineering/integration.md)核实际采用与任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`，不再在本机运行 prepare、verify 和 publish。未采用建设仍按既有任务工作。工作树根、runner 根和 subject 根有不同职责；检查器使用实际 subject，规则来自 adopted runner。

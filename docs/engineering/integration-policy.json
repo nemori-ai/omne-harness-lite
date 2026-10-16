@@ -57,7 +57,9 @@
         "--dir",
         "{runner}",
         "--filter",
-        "@omne-harness/repo-toolchain...",
+        "@omne-harness/product-checks...",
+        "--filter",
+        "@omne-harness/test-runner...",
         "run",
         "build"
       ],
@@ -142,7 +144,7 @@
       "argv": [
         "node",
         "--experimental-strip-types",
-        "{runner}/tools/repo-toolchain/src/integration/cli.ts",
+        "{runner}/tools/dev-flow/src/integration/cli.ts",
         "baselines",
         "--root",
         "{subject}"
@@ -231,10 +233,10 @@
     "networkMs": 30000
   },
   "requiredFiles": [
-    "tools/repo-toolchain/src/integration/cli.ts",
-    "tools/repo-toolchain/src/integration/engine.ts",
-    "tools/repo-toolchain/src/integration/SPEC.md",
-    "tools/repo-toolchain/src/delivery/binding.ts",
+    "tools/dev-flow/src/integration/cli.ts",
+    "tools/dev-flow/src/integration/engine.ts",
+    "tools/dev-flow/src/integration/SPEC.md",
+    "tools/dev-flow/src/delivery/binding.ts",
     "docs/engineering/integration.md",
     ".meta_harness/agents/skills/branch-integration/canonical/SKILL.md"
   ],

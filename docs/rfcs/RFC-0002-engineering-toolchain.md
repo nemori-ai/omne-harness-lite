@@ -42,7 +42,7 @@ owner: PanQiWei
 
 ### 影响面选择
 
-这一节是 revision 2，已于 2026-10-14 接受。#227 只写了影响面计算有一部分可以交给 turborepo，没有给出机制，也没有在工作树里验证。`tools/repo-toolchain/src/testing/affected.ts` 手写的原因是，pnpm 的 `--filter "...[<since>]"` 在 git 工作树里匹配不到任何包，而实施都在工作树里进行。
+这一节是 revision 2，已于 2026-10-14 接受。#227 只写了影响面计算有一部分可以交给 turborepo，没有给出机制，也没有在工作树里验证。`tools/test-runner/src/testing/affected.ts` 手写的原因是，pnpm 的 `--filter "...[<since>]"` 在 git 工作树里匹配不到任何包，而实施都在工作树里进行。
 
 建议用 `turbo run <task> --affected` 替换这份手写计算。AIEPhoenix 在 macOS arm64、turbo 2.11.7、pnpm 10.28.1 上，从 main `6d0e6ee0` 的干净工作树做了一次对照。被测的仍是旧成员。结果只说明选择机制，不代表新包的规模。pnpm 在这三行里仍是 0 个包。第三行的 pnpm 没有测。
 

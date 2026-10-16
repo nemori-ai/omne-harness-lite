@@ -49,7 +49,7 @@ jobs:
         run: uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-root .
         env:
           PYTHONDONTWRITEBYTECODE: '1'
-      # 并行度的初值在 tools/repo-toolchain/test-runs.config.json；这两个仓库变量留空即用初值，
+      # 并行度的初值在 tools/test-runner/test-runs.config.json；这两个仓库变量留空即用初值，
       # runner 主机核数不同时再设。make check 自己会占一个运行名额，与主机上别的全量检查排队。
       - name: make check
         run: nice -n 10 make check

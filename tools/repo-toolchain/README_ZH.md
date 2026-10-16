@@ -1,6 +1,6 @@
 # repo-toolchain
 
-显式仓库的 Git 子进程由 [git-environment.ts](src/core/git-environment.ts) 隔离八项仓库定位变量。认证、Git 配置、OMNE runner/subject 与测试控制参数继续继承。Vitest 在加载测试文件前另清两个 OMNE root，防止普通 fixture 读写外部仓库；污染回归在被测入口显式注入环境。持续验证见 [repository-environment.spec.ts](tests/repository-environment.spec.ts) 与 [integration-transport.spec.ts](tests/integration-transport.spec.ts)。
+显式仓库的 Git 子进程由 [git-environment.ts](src/core/git-environment.ts) 隔离八项仓库定位变量。认证、Git 配置、OMNE runner/subject 与测试控制参数继续继承。Vitest 在加载测试文件前另清两个 OMNE root，防止普通 fixture 读写外部仓库；污染回归在被测入口显式注入环境。持续验证见 [repository-environment.spec.ts](tests/repository-environment.spec.ts) 与 [integration-transport.spec.ts](../dev-flow/tests/integration-transport.spec.ts)。
 
 `evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness/repo-toolchain exec vitest run tests/evaluation-publication-boundary.spec.ts`。
 
@@ -762,7 +762,7 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 
 归因只报告，不改变那次运行的结论。重跑的日志与报告在运行目录的 `triage/` 下。
 
-策略都在 [test-runs.config.json](test-runs.config.json)，不写死在代码里。自测：`tests/test-runs.spec.ts`；
+策略都在 [test-runs.config.json](../test-runner/test-runs.config.json)，不写死在代码里。自测：`tests/test-runs.spec.ts`；
 运行名额脚本的行为核对在 `tests/test-slot.spec.ts`，脚本本身见[自动化入口](../../scripts/README.md#运行名额)。
 
 ## 差分变异
@@ -910,13 +910,13 @@ assert(violations.some(v => v.rule === 'model-credential-boundary'))
 
 ## 包模板与采用扫描
 
-私有 omne-package-template CLI 创建草稿并盘点精确模板采用。见[模板说明](templates/package/README_ZH.md)与[开发入口](../../docs/development.md#创建和整改产品包)。扫描复用架构读取器，结构结果不接受业务或生命周期行为。
+私有 omne-package-template CLI 创建草稿并盘点精确模板采用。见[模板说明](../dev-flow/templates/package/README_ZH.md)与[开发入口](../../docs/development.md#创建和整改产品包)。扫描复用架构读取器，结构结果不接受业务或生命周期行为。
 
 包模板当前为 typescript-package@2.0.0，精确保留 1.0.0 旧标识规则。
 `service-contract` 的创建和结构扫描不再要求 `packages/core`。
 `scan --json` 在 `dependencies` 上报告已判断的边。`unknown` 保持 `unknown`。
 分组方向由 dependency-cruiser 按[依赖规则](#依赖图与依赖规则)检查，不再有组的层位表；同组的 `sdk` 导入 `server-entry` 直接违反 `sdk-not-server`。
-后续实施者的使用表和诊断形状见[模板说明](templates/package/README_ZH.md#后续实施者)。
-`create-domain --group <名称>` 预览 package-domain@1.0.0 组文档草稿，加 `--write` 才创建。`scan --group <名称> --check` 检查组结构，与 `--member` 互斥。见[组模板](templates/domain/README.md)。Python 文档 inventory 独立检查登记、章节与占位，结构结果不能代替正文接受。
+后续实施者的使用表和诊断形状见[模板说明](../dev-flow/templates/package/README_ZH.md#后续实施者)。
+`create-domain --group <名称>` 预览 package-domain@1.0.0 组文档草稿，加 `--write` 才创建。`scan --group <名称> --check` 检查组结构，与 `--member` 互斥。见[组模板](../dev-flow/templates/domain/README.md)。Python 文档 inventory 独立检查登记、章节与占位，结构结果不能代替正文接受。
 
 `core-pure-imports` 仅在 `core/model-request-runtime/src/model-log-history.ts` 允许已采用的 `immutable` 根入口。该模块使用其私有纯集合，理由归模型历史拥有者的 ADR。相邻文件、其他 core 成员和库的私有子路径继续拒绝。

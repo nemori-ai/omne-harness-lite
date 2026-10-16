@@ -3,42 +3,160 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "产品源码的结构检查：契约与节点 verification 点名的静态检查规则，每条规则带「故意违反就失败」自测",
+  "description": "仓库工具链：规则引擎、提交署名、依赖图、声明兼容、结构度量、实际架构抽取与 clean loop",
   "engines": {
     "node": ">=24"
   },
   "bin": {
-    "omne-ts-checks": "./dist/cli.js",
-    "omne-architecture": "./dist/arch/cli.js",
-    "omne-package-template": "./dist/package-template/cli.js",
-    "omne-delivery": "./dist/delivery/cli.js"
+    "omne-architecture": "./dist/arch/cli.js"
   },
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
     "./architecture": {
+      "source": "./src/arch/actual.ts",
       "types": "./dist/arch/actual.d.ts",
       "import": "./dist/arch/actual.js"
+    },
+    "./acceptance/lock": {
+      "source": "./src/acceptance/lock.ts",
+      "types": "./dist/acceptance/lock.d.ts",
+      "import": "./dist/acceptance/lock.js"
+    },
+    "./arch/actual-model": {
+      "source": "./src/arch/actual-model.ts",
+      "types": "./dist/arch/actual-model.d.ts",
+      "import": "./dist/arch/actual-model.js"
+    },
+    "./arch/conformance": {
+      "source": "./src/arch/conformance.ts",
+      "types": "./dist/arch/conformance.d.ts",
+      "import": "./dist/arch/conformance.js"
+    },
+    "./arch/conformance-model": {
+      "source": "./src/arch/conformance-model.ts",
+      "types": "./dist/arch/conformance-model.d.ts",
+      "import": "./dist/arch/conformance-model.js"
+    },
+    "./arch/constraints": {
+      "source": "./src/arch/constraints.ts",
+      "types": "./dist/arch/constraints.d.ts",
+      "import": "./dist/arch/constraints.js"
+    },
+    "./arch/dependencies": {
+      "source": "./src/arch/dependencies.ts",
+      "types": "./dist/arch/dependencies.d.ts",
+      "import": "./dist/arch/dependencies.js"
+    },
+    "./arch/source": {
+      "source": "./src/arch/source.ts",
+      "types": "./dist/arch/source.d.ts",
+      "import": "./dist/arch/source.js"
+    },
+    "./commits": {
+      "source": "./src/commits.ts",
+      "types": "./dist/commits.d.ts",
+      "import": "./dist/commits.js"
+    },
+    "./core/check-scope": {
+      "source": "./src/core/check-scope.ts",
+      "types": "./dist/core/check-scope.d.ts",
+      "import": "./dist/core/check-scope.js"
+    },
+    "./core/git": {
+      "source": "./src/core/git.ts",
+      "types": "./dist/core/git.d.ts",
+      "import": "./dist/core/git.js"
+    },
+    "./core/git-environment": {
+      "source": "./src/core/git-environment.ts",
+      "types": "./dist/core/git-environment.d.ts",
+      "import": "./dist/core/git-environment.js"
+    },
+    "./core/rule": {
+      "source": "./src/core/rule.ts",
+      "types": "./dist/core/rule.d.ts",
+      "import": "./dist/core/rule.js"
+    },
+    "./core/scan": {
+      "source": "./src/core/scan.ts",
+      "types": "./dist/core/scan.d.ts",
+      "import": "./dist/core/scan.js"
+    },
+    "./core/source-text": {
+      "source": "./src/core/source-text.ts",
+      "types": "./dist/core/source-text.d.ts",
+      "import": "./dist/core/source-text.js"
+    },
+    "./core/syntax": {
+      "source": "./src/core/syntax.ts",
+      "types": "./dist/core/syntax.d.ts",
+      "import": "./dist/core/syntax.js"
+    },
+    "./core/task-context": {
+      "source": "./src/core/task-context.ts",
+      "types": "./dist/core/task-context.d.ts",
+      "import": "./dist/core/task-context.js"
+    },
+    "./core/test-ledger": {
+      "source": "./src/core/test-ledger.ts",
+      "types": "./dist/core/test-ledger.d.ts",
+      "import": "./dist/core/test-ledger.js"
+    },
+    "./core/workspace": {
+      "source": "./src/core/workspace.ts",
+      "types": "./dist/core/workspace.d.ts",
+      "import": "./dist/core/workspace.js"
+    },
+    "./loop/config": {
+      "source": "./src/loop/config.ts",
+      "types": "./dist/loop/config.d.ts",
+      "import": "./dist/loop/config.js"
+    },
+    "./loop/hook-measure": {
+      "source": "./src/loop/hook-measure.ts",
+      "types": "./dist/loop/hook-measure.d.ts",
+      "import": "./dist/loop/hook-measure.js"
+    },
+    "./loop/run": {
+      "source": "./src/loop/run.ts",
+      "types": "./dist/loop/run.d.ts",
+      "import": "./dist/loop/run.js"
+    },
+    "./loop/sensors/acceptance": {
+      "source": "./src/loop/sensors/acceptance.ts",
+      "types": "./dist/loop/sensors/acceptance.d.ts",
+      "import": "./dist/loop/sensors/acceptance.js"
+    },
+    "./loop/sensors/worktrees": {
+      "source": "./src/loop/sensors/worktrees.ts",
+      "types": "./dist/loop/sensors/worktrees.d.ts",
+      "import": "./dist/loop/sensors/worktrees.js"
+    },
+    "./product/scenarios": {
+      "source": "./src/product/scenarios.ts",
+      "types": "./dist/product/scenarios.d.ts",
+      "import": "./dist/product/scenarios.js"
+    },
+    "./archive/archive-project": {
+      "source": "./src/archive/archive-project.ts",
+      "types": "./dist/archive/archive-project.d.ts",
+      "import": "./dist/archive/archive-project.js"
     }
   },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "scan": "node --experimental-strip-types src/cli.ts ../../packages ../../apps",
     "metrics": "node --experimental-strip-types src/metrics/cli.ts",
-    "architecture": "node --experimental-strip-types src/arch/cli.ts",
-    "package:template": "node --experimental-strip-types src/package-template/cli.ts",
-    "delivery": "node --experimental-strip-types src/delivery/cli.ts"
+    "architecture": "node --experimental-strip-types src/arch/cli.ts"
   },
   "devDependencies": {
     "@jscpd/core": "catalog:",
     "@jscpd/tokenizer": "catalog:",
-    "@omne-harness/legal-identity": "workspace:*",
-    "@stryker-mutator/core": "catalog:",
-    "@stryker-mutator/vitest-runner": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

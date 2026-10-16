@@ -97,7 +97,7 @@ about: 一次可以独立接受的结果
 | 本次读回的目标HEAD | {{start回执targetBase及观察时点；后续集成重新核}} |
 | task context路径与核验 | {{工具生成路径、成功回执、所核revision/attempt与工作树；未生成明说}} |
 
-不涉及Git交付时，本小节改为“不适用”并写本卡明确约定的成果入口及理由。仍保留认卡、派发和进展信息。工具操作归[集成指南](https://github.com/nemori-ai/omne-harness-lite/blob/main/tools/repo-toolchain/src/integration/README.md#任务与执行权)，不手工制造context。
+不涉及Git交付时，本小节改为“不适用”并写本卡明确约定的成果入口及理由。仍保留认卡、派发和进展信息。工具操作归[集成指南](https://github.com/nemori-ai/omne-harness-lite/blob/main/tools/dev-flow/src/integration/README.md#任务与执行权)，不手工制造context。
 
 ### 当前进展
 

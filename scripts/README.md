@@ -29,7 +29,7 @@
 日常集成沿影响面计划，只有 full profile 设置 `FULL=1`。工程范围的输入证据与拒绝条件见[回路状态](../tools/repo-toolchain/README_ZH.md#回路状态)。
 普通本地 `make check` 仍使用默认严格范围。格式自测在自身入口清除两个 OMNE root，保证 fixture 和 Git hook 检查自己的沙盒；正式格式检查仍读取真实 subject。
 
-脚本先跑 `tools/repo-toolchain/src/testing/cli.ts plan`：按 [test-runs.config.json](../tools/repo-toolchain/test-runs.config.json) 的 `affected` 规则
+脚本先跑 `tools/test-runner/src/testing/cli.ts plan`：按 [test-runs.config.json](../tools/test-runner/test-runs.config.json) 的 `affected` 规则
 给每个改动文件归类，打印判成什么、每一步跑还是跳、选中哪些成员与为什么，计划写进被忽略的 `tmp/check-plan/plan.json`
 （算不出计划就在这里失败，不改判全量；`make check-plan` 只打印不跑）。之后的顺序是：
 
@@ -112,7 +112,7 @@
 | `loadAtAcquire`、`loadAtEnd` | 拿到名额时与结束时的机器负载（1、5、15 分钟平均）；与测试耗时账本里的超时对时间，看负载到多少开始超时 |
 | `exitCode` | 命令的退出码；放弃时是 75 |
 
-脚本的行为由 `tools/repo-toolchain/tests/test-slot.spec.ts` 核对。
+脚本的行为由 `tools/test-runner/tests/test-slot.spec.ts` 核对。
 
 ## CI
 
@@ -136,7 +136,7 @@
 `main` 在 `<提交>/`，夜间在 `nightly/<日期>-<提交>/`。这个目录没有自动清理。
 
 runner 与别的任务共用主机，并行度过高时本来一两秒的用例会被挤过时限。
-测试并行度的初值在 [test-runs.config.json](../tools/repo-toolchain/test-runs.config.json)，本地与 CI 同用一份；
+测试并行度的初值在 [test-runs.config.json](../tools/test-runner/test-runs.config.json)，本地与 CI 同用一份；
 runner 主机核数不同时，设仓库变量 `OMNE_TEST_MEMBER_CONCURRENCY`（同时跑几个成员）与
 `OMNE_VITEST_MAX_WORKERS`（每个成员几个工作进程），留空即用初值。本地临时调整用环境变量
 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS`。`make check` 自带运行名额，

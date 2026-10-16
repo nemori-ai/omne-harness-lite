@@ -40,11 +40,41 @@
         "src/**/cli.ts",
         "src/**/*-cli.ts",
         "src/loop/stop-hook.ts",
+        "src/archive/vitest-archive.ts",
         "src/report/flow/architecture/main.tsx",
         "src/report/flow/metrics/*.tsx"
       ],
       "project": [
         "src/**/*.{ts,tsx}"
+      ]
+    },
+    "tools/dev-flow": {
+      "entry": [
+        "src/**/cli.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
+    "tools/product-checks": {
+      "entry": [
+        "src/cli.ts",
+        "src/**/*-cli.ts",
+        "src/rules/index.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
+    "tools/test-runner": {
+      "entry": [
+        "src/**/cli.ts",
+        "src/testing/timing-reporter.ts",
+        "src/testing/typecheck-member.ts",
+        "src/mutation/sandbox-build.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
       ]
     },
     "tools/artifact-builder": {

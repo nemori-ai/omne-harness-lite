@@ -6,7 +6,7 @@ Structural checks for this repository's TypeScript product sources and trusted a
 
 ## Ordinary tasks and long-lived product scenarios
 
-The [delivery observer](src/delivery/README.md) reads an explicit Issue capture and reports known facts, deviations, and unknowns. It does not authorize dispatch or acceptance. The formal configuration remains disabled. Each task uses the ordinary protocol to define its identity, result, scope, and acceptance responsibility.
+The [delivery observer](../dev-flow/src/delivery/README.md) reads an explicit Issue capture and reports known facts, deviations, and unknowns. It does not authorize dispatch or acceptance. The formal configuration remains disabled. Each task uses the ordinary protocol to define its identity, result, scope, and acceptance responsibility.
 
 `make scenario-status` reads current product topics and coverage declarations independently of Issues. It reports execution and acceptance as unknown when evidence is absent. Topics without numbered scenarios remain explicitly uncovered. The [product contract](src/product/SPEC.md) defines discovery and failure behavior.
 
@@ -141,16 +141,16 @@ The exact `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-su
 
 ## Package scaffolding
 
-The private `omne-package-template` CLI creates drafts and inventories exact template adoption. See the [template guide](templates/package/README.md) and [development entry](../../docs/development.md#创建和整改产品包). It reuses the architecture reader. Structural results do not accept business or lifecycle behavior.
+The private `omne-package-template` CLI creates drafts and inventories exact template adoption. See the [template guide](../dev-flow/templates/package/README.md) and [development entry](../../docs/development.md#创建和整改产品包). It reuses the architecture reader. Structural results do not accept business or lifecycle behavior.
 
 The package template is typescript-package@2.0.0. Exact 1.0.0 rules remain available for older markers.
 `service-contract` creation and structure scan no longer require `packages/core`.
 `scan --json` reports judged edges on `dependencies`. `unknown` stays `unknown`.
 Group direction is checked by dependency-cruiser through `pnpm run lint:deps` ([dependency rules](README_ZH.md#依赖图与依赖规则)); there is no group layer table. A same-group import from `sdk` to `server-entry` violates `sdk-not-server` directly.
-The later-implementer table and diagnostic shapes are in the [template guide](templates/package/README.md#later-implementers).
+The later-implementer table and diagnostic shapes are in the [template guide](../dev-flow/templates/package/README.md#later-implementers).
 `create-domain --group <name>` previews a package-domain@1.0.0 documentation draft. Add --write to create it.
 `scan --group <name> --check` checks group structure. It is mutually exclusive with --member.
-See the [group template](templates/domain/README.md). Python documentation inventory separately checks bindings, sections and placeholders.
+See the [group template](../dev-flow/templates/domain/README.md). Python documentation inventory separately checks bindings, sections and placeholders.
 
 ## Actual assembly observations
 
@@ -177,7 +177,7 @@ See [the full configuration and output description](README_ZH.md#实际装配与
 
 ## GitHub delivery observation
 
-The [delivery observer](src/delivery/README.md) reads an explicit configuration and capture. It reports card shape, phase waits, native dependency projections, stock and changes. It does not authorize dispatch or acceptance, and it does not infer current product support.
+The [delivery observer](../dev-flow/src/delivery/README.md) reads an explicit configuration and capture. It reports card shape, phase waits, native dependency projections, stock and changes. It does not authorize dispatch or acceptance, and it does not infer current product support.
 
 ## Independence from archived implementations
 

@@ -145,7 +145,7 @@ Project保留活动与近期项，达到容量前移出已结束项，Issue历�
 
 ## 多层集成的交接
 
-[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/repo-toolchain/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。
+[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/dev-flow/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。
 
 原交付条件表可增加“适用目标”列；未声明为 all。integration 条件按本次实际 track/main/stable 或登记完整 ref 核对，start/acceptance 保持 all。最终包含结果的条件放 acceptance。现有阶段环观察未完整覆盖目标层细化，未知不得说成全图无环。
 
