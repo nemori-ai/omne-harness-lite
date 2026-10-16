@@ -1,6 +1,6 @@
-import type { Rule, SourceFile, Violation } from '../rule.ts'
+import type { Rule, SourceFile, Violation } from '../core/rule.ts'
 import { CREDENTIAL_VERIFICATION, tenancyPackageOf } from '../layout.ts'
-import { codeMatches, lineAt, viewsOf } from '../source-text.ts'
+import { codeMatches, lineAt, viewsOf } from '../core/source-text.ts'
 
 /**
  * SC-CV-1（credential-verification 节点 verification；AI 契约 S-8「凭据材料不以可读形式保存、消费者只存不读」）：

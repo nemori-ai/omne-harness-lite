@@ -1,6 +1,6 @@
 import ts from '@typescript/typescript6'
-import type { SourceFile } from './rule.ts'
-import { syntaxOf, visitSyntax } from './syntax.ts'
+import type { SourceFile } from './core/rule.ts'
+import { syntaxOf, visitSyntax } from './core/syntax.ts'
 
 /** Permit the host's private declaration comparison, without resolving a purge service. */
 export function hostPolicyReferences(file: SourceFile): ReadonlySet<number> {

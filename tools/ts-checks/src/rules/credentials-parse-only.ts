@@ -1,6 +1,6 @@
-import type { Rule } from '../rule.ts'
+import type { Rule } from '../core/rule.ts'
 import { ENTRY_SRC, productSourceIn } from '../layout.ts'
-import { scanCode } from '../source-text.ts'
+import { scanCode } from '../core/source-text.ts'
 
 /**
  * 入口 verification「`credentials` 只调 `parse`」、design「本节点约束」第 7 条（契约 S-19）：

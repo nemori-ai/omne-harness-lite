@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs'
 import { join } from 'node:path'
 import { readProductTopics } from '../../product/scenarios.ts'
-import { git } from '../../metrics/git.ts'
+import { git } from '../../core/git.ts'
 import { noData, data, type Reading } from '../reading.ts'
 
 export interface TopicChurn {

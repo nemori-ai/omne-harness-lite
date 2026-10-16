@@ -2,7 +2,7 @@
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { coordinates, git } from '../metrics/git.ts'
+import { coordinates, git } from '../core/git.ts'
 import { ledgerHome as testLedgerHome } from '../testing/config.ts'
 import { countPending, readCatalogue, readIfFile } from './catalogue.ts'
 import { readLoopConfig } from './config.ts'

@@ -4,7 +4,7 @@
 // 宿主把退出码 2 一律当拦截，所以这里不经 make、不透传任何子进程的退出码。判断在 hook.ts。
 import { appendFileSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import { git } from '../metrics/git.ts'
+import { git } from '../core/git.ts'
 import { readIfFile } from './catalogue.ts'
 import { readLoopConfig } from './config.ts'
 import { stopHook, type HookDeps } from './hook.ts'

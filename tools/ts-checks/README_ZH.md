@@ -1,6 +1,6 @@
 # ts-checks
 
-显式仓库的 Git 子进程由 [git-environment.ts](src/git-environment.ts) 隔离八项仓库定位变量。认证、Git 配置、OMNE runner/subject 与测试控制参数继续继承。Vitest 在加载测试文件前另清两个 OMNE root，防止普通 fixture 读写外部仓库；污染回归在被测入口显式注入环境。持续验证见 [repository-environment.spec.ts](tests/repository-environment.spec.ts) 与 [integration-transport.spec.ts](tests/integration-transport.spec.ts)。
+显式仓库的 Git 子进程由 [git-environment.ts](src/core/git-environment.ts) 隔离八项仓库定位变量。认证、Git 配置、OMNE runner/subject 与测试控制参数继续继承。Vitest 在加载测试文件前另清两个 OMNE root，防止普通 fixture 读写外部仓库；污染回归在被测入口显式注入环境。持续验证见 [repository-environment.spec.ts](tests/repository-environment.spec.ts) 与 [integration-transport.spec.ts](tests/integration-transport.spec.ts)。
 
 `evaluation-publication-boundary` 仅允许 EIS 自身、受信验收 bootstrap/tests，以及精确的 `packages/model/model-request-runtime-local/tests/session-selection-fixture.ts` 通过静态公开入口访问发布面。该 fixture 为选择测试构造真实 SQL／治理／EIS 来源；许可不扩展到 runtime 产品源码或相邻测试文件，转导出、动态转发和私有发布入口仍拒绝。正反验证命令：`pnpm --filter @omne-harness/ts-checks exec vitest run tests/evaluation-publication-boundary.spec.ts`。
 
@@ -8,7 +8,7 @@
 规则检查文本、路径与 TypeScript 语法，不做跨文件类型分析。类型层的检查（失败集合闭合等）
 在各包的 `tests/*.spec-d.ts` 里，不在这里。
 
-新规则（`restricted-call-sites` 的扩展与其后各条）跑在 `src/source-text.ts` 的词法视图上：
+新规则（`restricted-call-sites` 的扩展与其后各条）跑在 `src/core/source-text.ts` 的词法视图上：
 注释与字符串、模板、正则字面量的内容不算代码，括号按代码配对。`no-bail-control` 与
 `restricted-call-sites` 的前两项仍逐行扫原文。新增 core 与身份规则使用已锁定 TypeScript 的语法树，
 不构造类型检查 Program。按路径写死的位置集中在 `src/layout.ts`，入口层包的路径以
@@ -691,7 +691,7 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 以 `.legacy` 结尾目录中的改动先记为排除，不触发未知路径全量回退。其余改动文件按顺序归到第一类命中的：
 
 1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh`、本配置文件、
-   测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`scope.ts`／`turbo.ts`／`members.ts` 与取改动的 `src/metrics/git.ts`，以及任何位置的 `turbo.json` 与 `tools/repo-config/`）：整份计划判全量——
+   测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`scope.ts`／`turbo.ts` 与 `src/core/workspace.ts`、取改动的 `src/core/git.ts`，以及任何位置的 `turbo.json` 与 `tools/repo-config/`）：整份计划判全量——
    引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围；
 2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；
    每条记录实际读者和依据；核心成员的 `schema/`、`src/`及测试夹具 → core-verification；

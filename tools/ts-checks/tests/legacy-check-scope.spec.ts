@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { isLegacyDirectory, isLegacyFile } from '../src/check-scope.ts'
+import { isLegacyDirectory, isLegacyFile } from '../src/core/check-scope.ts'
 import { collectSources } from '../src/index.ts'
 import { collectRepositorySources } from '../src/repository.ts'
 import { collectMemberSources } from '../src/metrics/sources.ts'
@@ -10,7 +10,7 @@ import { listAcceptanceFiles } from '../src/acceptance/coverage.ts'
 import { planCheck } from '../src/testing/scope.ts'
 import { typecheckStep, type PlanFile } from '../src/testing/steps.ts'
 import type { AffectedRules } from '../src/testing/config.ts'
-import type { WorkspaceMember } from '../src/testing/members.ts'
+import type { WorkspaceMember } from '../src/core/workspace.ts'
 
 const roots: string[] = []
 afterEach(() => {

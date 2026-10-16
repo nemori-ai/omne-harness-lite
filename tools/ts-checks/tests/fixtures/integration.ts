@@ -109,7 +109,7 @@ export function integrationFixture(
   if (options.runnerMutation) writeFileSync(join(root, 'runner-dirty-trigger'), 'fixture')
   if (options.sharedLoader) {
     for (const path of [
-      'git-environment.ts',
+      'core/git-environment.ts',
       'integration/context.ts',
       'integration/git.ts',
       'integration/parse.ts',

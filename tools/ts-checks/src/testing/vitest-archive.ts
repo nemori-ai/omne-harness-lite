@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import ts from '@typescript/typescript6'
 import { createVitest, parseCLI, resolveConfig } from 'vitest/node'
 import { hasArchivedDirectories, scopedProject } from './archive-project.ts'
-import { isLegacyDirectory, isLegacyFile } from '../check-scope.ts'
+import { isLegacyDirectory, isLegacyFile } from '../core/check-scope.ts'
 
 export async function archiveVitestArgs(
   member: string,

@@ -3,7 +3,7 @@
 // 基线上的圈复杂度用度量同一套解析与算法（`functionMetrics`）对基线提交上的文件文本算，
 // 只取这些函数所在的文件，不扫全仓。结果的形状与说明文字在 against-base.ts。
 import { functionMetrics, MODULE_UNIT, type FunctionMetric } from '../metrics/complexity.ts'
-import { fileAt, git } from '../metrics/git.ts'
+import { fileAt, git } from '../core/git.ts'
 import type { FunctionRow } from '../metrics/report.ts'
 import type { AgainstBase, ExplainedFunction } from './against-base.ts'
 

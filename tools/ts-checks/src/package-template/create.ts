@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { fileTree, listWorkspaceMembers, workspacePatterns } from '../testing/members.ts'
+import { fileTree, listWorkspaceMembers, workspacePatterns } from '../core/workspace.ts'
 import { object, type Variant, type TemplateMarker } from './model.ts'
 import { readTemplate, TEMPLATE_DIRECTORY } from './template.ts'
 import { planDraft, requireNewTarget, writeDraft } from './draft.ts'

@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { readRevisionTexts } from '../src/metrics/revision-files.ts'
+import { readRevisionTexts } from '../src/core/revision-files.ts'
 import {
   commit,
   git,

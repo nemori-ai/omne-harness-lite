@@ -1,6 +1,6 @@
-import type { Rule, SourceFile, Violation } from '../rule.ts'
+import type { Rule, SourceFile, Violation } from '../core/rule.ts'
 import { ENTRY_EVENTS_PACKAGE, ENTRY_OPS, productSourceIn } from '../layout.ts'
-import { codeMatches, firstArgument, lineAt, namedImportsOf, viewsOf } from '../source-text.ts'
+import { codeMatches, firstArgument, lineAt, namedImportsOf, viewsOf } from '../core/source-text.ts'
 
 const SUBSCRIBE = new Set(['SERVING_EVENT', 'STOPPED_EVENT', 'DEFECT_EVENT'])
 const DISPATCH = new Set(['LISTENING_EVENT'])

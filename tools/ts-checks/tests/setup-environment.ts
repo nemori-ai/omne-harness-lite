@@ -1,4 +1,4 @@
-import { repositoryEnv } from '../src/git-environment.ts'
+import { repositoryEnv } from '../src/core/git-environment.ts'
 
 const env = repositoryEnv(process.env)
 delete env['OMNE_SUBJECT_ROOT']

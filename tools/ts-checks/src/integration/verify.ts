@@ -1,5 +1,5 @@
 import { scopeViolations } from './audit.ts'
-import { repositoryEnv } from '../git-environment.ts'
+import { repositoryEnv } from '../core/git-environment.ts'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

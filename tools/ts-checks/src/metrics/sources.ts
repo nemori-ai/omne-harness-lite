@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { isLegacyDirectory } from '../check-scope.ts'
-import type { SourceFile } from '../rule.ts'
-import { fileAt } from './git.ts'
+import { isLegacyDirectory } from '../core/check-scope.ts'
+import type { SourceFile } from '../core/rule.ts'
+import { fileAt } from '../core/git.ts'
 import { memberOf } from '../deps/graph.ts'
 
 /** 成员目录下的 TypeScript 源，路径相对于仓库根；不进 node_modules、dist 与覆盖率产物。 */

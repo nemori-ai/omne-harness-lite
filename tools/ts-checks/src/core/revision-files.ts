@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { repositoryEnv } from '../git-environment.ts'
+import { repositoryEnv } from './git-environment.ts'
 import { git } from './git.ts'
 
 function blobTexts(output: Buffer, ids: readonly string[]): Map<string, string> {

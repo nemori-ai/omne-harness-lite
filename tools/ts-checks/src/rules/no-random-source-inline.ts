@@ -1,11 +1,11 @@
-import type { Rule, Violation } from '../rule.ts'
+import type { Rule, Violation } from '../core/rule.ts'
 import {
   ACCOUNT_IDENTITY_PLUGIN_MODULE,
   ACCOUNT_IDENTITY_RANDOM_MODULE,
   ACCOUNT_IDENTITY_SRC,
   productSourceIn,
 } from '../layout.ts'
-import { codeMatches, lineAt, viewsOf } from '../source-text.ts'
+import { codeMatches, lineAt, viewsOf } from '../core/source-text.ts'
 
 /** 生产路径的随机源（出示物模块导出的那一个）；插件体要么不传，要么传的就是它。 */
 const PRODUCTION_SOURCE = 'cryptoRandomSource'

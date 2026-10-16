@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
-import { parseDiff } from '../src/metrics/git.ts'
+import { parseDiff } from '../src/core/git.ts'
 import { memberLines, summarizeMember, type MutationReport } from '../src/mutation/report.ts'
 import {
   changedTargets,
@@ -25,7 +25,7 @@ import {
   type MutationTarget,
 } from '../src/mutation/scope.ts'
 import { sandboxContainer, strykerConfig } from '../src/mutation/stryker.ts'
-import type { TestMember } from '../src/testing/members.ts'
+import type { TestMember } from '../src/core/workspace.ts'
 
 const CLI = fileURLToPath(new URL('../src/mutation/cli.ts', import.meta.url))
 const TS_CHECKS_MODULES = fileURLToPath(new URL('../node_modules', import.meta.url))

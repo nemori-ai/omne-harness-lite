@@ -1,6 +1,6 @@
-import type { Rule, Violation } from '../rule.ts'
+import type { Rule, Violation } from '../core/rule.ts'
 import { ENTRY_OPS, ENTRY_TRANSPORT, tenancyPackageOf } from '../layout.ts'
-import { codeMatches, importsOf, lineAt, viewsOf } from '../source-text.ts'
+import { codeMatches, importsOf, lineAt, viewsOf } from '../core/source-text.ts'
 
 const NETWORK_MODULES = /^(?:node:)?(?:http|https|net|tls)$/
 

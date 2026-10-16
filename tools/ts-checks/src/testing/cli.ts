@@ -6,7 +6,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { coordinates } from '../metrics/git.ts'
+import { coordinates } from '../core/git.ts'
 import { baselines } from '../integration/context.ts'
 import {
   isRunScript,
@@ -19,7 +19,7 @@ import {
   type RunTier,
 } from './config.ts'
 import type { Failure } from './ledger.ts'
-import { listTestMembers } from './members.ts'
+import { listTestMembers } from '../core/workspace.ts'
 import { replay, replayTable } from './replay.ts'
 import {
   acceptanceStep,

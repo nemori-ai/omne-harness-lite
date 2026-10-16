@@ -1,6 +1,6 @@
-import { isTestPath, type Rule, type Violation } from '../rule.ts'
+import { isTestPath, type Rule, type Violation } from '../core/rule.ts'
 import { OFFER_EXPIRY } from '../layout.ts'
-import { codeMatches, lineAt, matchClose, namedFunctionBodies, viewsOf } from '../source-text.ts'
+import { codeMatches, lineAt, matchClose, namedFunctionBodies, viewsOf } from '../core/source-text.ts'
 
 const consumerSource = (path: string) => !isTestPath(path) && !path.startsWith(OFFER_EXPIRY)
 

@@ -1,11 +1,11 @@
 import { hostPolicyReferences } from '../host-policy-declaration.ts'
-import { isTestPath, type Rule, type Violation } from '../rule.ts'
+import { isTestPath, type Rule, type Violation } from '../core/rule.ts'
 import {
   ACCOUNT_REGISTRATION,
   ORGANIZATION_GOVERNANCE,
   ORGANIZATION_GOVERNANCE_DEFINITION,
 } from '../layout.ts'
-import { codeMatches, lineAt, matchClose, viewsOf } from '../source-text.ts'
+import { codeMatches, lineAt, matchClose, viewsOf } from '../core/source-text.ts'
 
 const PURGE_KEY = `(?:['"\`](?:organizationPurge|organization-purge)['"\`]|\\bORGANIZATION_PURGE_SERVICE\\b)`
 

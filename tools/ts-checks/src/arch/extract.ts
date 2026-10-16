@@ -1,7 +1,7 @@
 import ts from '@typescript/typescript6'
 import type { ImportSite, MemberEdge } from '../deps/graph.ts'
-import { isTestPath } from '../rule.ts'
-import { nodeName, visitSyntax } from '../syntax.ts'
+import { isTestPath } from '../core/rule.ts'
+import { nodeName, visitSyntax } from '../core/syntax.ts'
 import type {
   ActualExtraction,
   Fact,

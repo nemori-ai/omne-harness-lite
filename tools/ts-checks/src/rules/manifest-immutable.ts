@@ -1,7 +1,7 @@
 import ts from '@typescript/typescript6'
-import type { Rule, Violation } from '../rule.ts'
-import { lineAt } from '../source-text.ts'
-import { syntaxOf, visitSyntax } from '../syntax.ts'
+import type { Rule, Violation } from '../core/rule.ts'
+import { lineAt } from '../core/source-text.ts'
+import { syntaxOf, visitSyntax } from '../core/syntax.ts'
 
 const forbiddenMethods = new Set(['updateTable', 'deleteFrom', 'replaceInto', 'mergeInto'])
 const mutationSql =

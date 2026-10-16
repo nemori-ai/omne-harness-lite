@@ -1,6 +1,6 @@
 import { lstatSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { workspacePatterns } from '../testing/members.ts'
+import { workspacePatterns } from '../core/workspace.ts'
 import { checkLayout } from './layout.ts'
 import { readDomainTemplate } from './domain-template.ts'
 

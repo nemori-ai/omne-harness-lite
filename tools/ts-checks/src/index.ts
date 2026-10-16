@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { isLegacyDirectory } from './check-scope.ts'
-import type { Rule, SourceFile, Violation } from './rule.ts'
+import { isLegacyDirectory } from './core/check-scope.ts'
+import type { Rule, SourceFile, Violation } from './core/rule.ts'
 import { aiR8NoCredentialInWrite } from './rules/ai-r8-no-credential-in-write.ts'
 import { credentialsParseOnly } from './rules/credentials-parse-only.ts'
 import { corePureImports } from './rules/core-pure-imports.ts'
@@ -33,7 +33,7 @@ import { scOe1, scOe2 } from './rules/sc-oe.ts'
 import { singleTableEntry } from './rules/single-table-entry.ts'
 import { terminalOutcomeClosed } from './rules/terminal-outcome-closed.ts'
 
-export type { Rule, SourceFile, Violation } from './rule.ts'
+export type { Rule, SourceFile, Violation } from './core/rule.ts'
 export {
   readActualArchitecture,
   actualArchitectureOf,
@@ -58,7 +58,7 @@ export type {
   ImportUnknown,
   ArchitectureSource,
 } from './arch/actual.ts'
-export { isTestPath, scanLines } from './rule.ts'
+export { isTestPath, scanLines } from './core/rule.ts'
 export { modelCredentialBoundary } from './rules/model-credential-boundary.ts'
 export { CORE_PURE_DEPENDENCIES, PUBLIC_SUBPATHS } from './rules/core-pure-imports.ts'
 export {

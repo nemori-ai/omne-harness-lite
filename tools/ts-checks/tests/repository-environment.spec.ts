@@ -11,10 +11,10 @@ import {
   repository as coordinates,
 } from '../src/integration/git.ts'
 import { remoteRefs } from '../src/integration/transport.ts'
-import { fileAt, git as metricsGit } from '../src/metrics/git.ts'
-import { readRevisionTexts } from '../src/metrics/revision-files.ts'
+import { fileAt, git as metricsGit } from '../src/core/git.ts'
+import { readRevisionTexts } from '../src/core/revision-files.ts'
 import { readCommits } from '../src/commits.ts'
-import { repositoryEnv } from '../src/git-environment.ts'
+import { repositoryEnv } from '../src/core/git-environment.ts'
 import {
   commit,
   git as fixtureGit,

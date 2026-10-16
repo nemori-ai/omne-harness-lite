@@ -1,8 +1,8 @@
-import { isLegacyDirectory } from '../check-scope.ts'
-import { git } from '../metrics/git.ts'
+import { isLegacyDirectory } from '../core/check-scope.ts'
+import { git } from '../core/git.ts'
 import { memberOf } from '../deps/graph.ts'
 import { isMeasuredSource } from '../metrics/report.ts'
-import { isTestPath, type SourceFile } from '../rule.ts'
+import { isTestPath, type SourceFile } from '../core/rule.ts'
 
 export interface ProductInputs {
   readonly sources: number

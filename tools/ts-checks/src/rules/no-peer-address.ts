@@ -1,6 +1,6 @@
-import type { Rule } from '../rule.ts'
+import type { Rule } from '../core/rule.ts'
 import { ENTRY_SRC, productSourceIn } from '../layout.ts'
-import { scanCode } from '../source-text.ts'
+import { scanCode } from '../core/source-text.ts'
 
 /**
  * 入口 verification「不读对端地址」、design「本节点约束」第 2 条（契约 S-16 不按来者区别对待）：

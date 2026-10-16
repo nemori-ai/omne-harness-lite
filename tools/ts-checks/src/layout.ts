@@ -1,7 +1,7 @@
 // 规则按路径写死的那几处，路径一律相对于扫描根（`packages/`）。
 // 未迁布局沿精确节点 verification；T4 服务端集成与事件坐标由成员 SPEC 接续。
 // 边界变化须有采用依据，不能通过扩大白名单掩盖违规。
-import { isTestPath } from './rule.ts'
+import { isTestPath } from './core/rule.ts'
 
 export const TENANCY = 'tenancy/'
 

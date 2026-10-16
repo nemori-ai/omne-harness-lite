@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileAt, git } from '../../metrics/git.ts'
+import { fileAt, git } from '../../core/git.ts'
 import { analyzeConformance, readConformance } from '../../arch/conformance.ts'
 import { readArchitectureSource } from '../../arch/source.ts'
 import { CONSTRAINT_PATH, CONSTRAINT_PATHS } from '../../arch/constraints.ts'

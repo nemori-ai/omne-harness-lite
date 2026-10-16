@@ -2,11 +2,10 @@
 // 依赖按 package.json 的声明算，而不是按源码导入——测试可能导入生产代码不导入的包。
 // 清单可以从工作树读，也可以从某个提交读（回放历史上的提交时用），两者走同一套解析。
 import { execFileSync } from 'node:child_process'
-import { repositoryEnv } from '../git-environment.ts'
+import { repositoryEnv } from './git-environment.ts'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { isLegacyDirectory } from '../check-scope.ts'
-import type { RunScript } from './config.ts'
+import { isLegacyDirectory } from './check-scope.ts'
 
 export interface WorkspaceMember {
   /** 仓库相对目录，例如 `packages/core/messages`。 */
@@ -173,7 +172,7 @@ export function listWorkspaceMembers(
 /** 有 `script` 脚本的成员，带上脚本原文。 */
 export function withScript(
   members: readonly WorkspaceMember[],
-  scriptName: RunScript,
+  scriptName: string,
 ): TestMember[] {
   return members.flatMap(member => {
     const script = member.scripts[scriptName]
@@ -187,7 +186,7 @@ export function withScript(
 export function listTestMembers(
   root: string,
   excludeRoots: readonly string[],
-  scriptName: RunScript = 'test',
+  scriptName: string = 'test',
 ): TestMember[] {
   return withScript(
     listWorkspaceMembers(fileTree(root), excludeRoots).filter(

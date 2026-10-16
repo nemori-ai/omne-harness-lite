@@ -1,8 +1,8 @@
 // 报告组装。着色评分、汇总规则、行内排序与依赖度量照 Robert C. Martin 的工具按其逻辑重写
 // （原仓库无许可证，不搬原文），出处逐处标注；与原实现的有意差异也在标注处说明。
-import { isTestPath, type SourceFile } from '../rule.ts'
+import { isTestPath, type SourceFile } from '../core/rule.ts'
 import { functionMetrics, nestedUnits, unitDigests } from './complexity.ts'
-import { touches, type ChangedLines, type CommitShape } from './git.ts'
+import { touches, type ChangedLines, type CommitShape } from '../core/git.ts'
 import {
   cycles,
   memberOf,

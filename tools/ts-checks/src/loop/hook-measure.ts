@@ -3,7 +3,7 @@
 // 只在量读数的线程里加载（它带进 TypeScript 解析器），主线程不碰。
 import { baselines, readContext } from '../integration/context.ts'
 import type { MetricsConfig } from '../metrics/config.ts'
-import { changedFiles, git } from '../metrics/git.ts'
+import { changedFiles, git } from '../core/git.ts'
 import { memberOf } from '../deps/graph.ts'
 import { isMeasuredSource } from '../metrics/report.ts'
 import { collectMemberSources } from '../metrics/sources.ts'

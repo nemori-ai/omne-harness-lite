@@ -1,8 +1,8 @@
 import ts from '@typescript/typescript6'
 import { productSourceIn } from '../layout.ts'
-import type { Rule, SourceFile, Violation } from '../rule.ts'
-import { lineAt } from '../source-text.ts'
-import { nodeName, syntaxOf, visitSyntax } from '../syntax.ts'
+import type { Rule, SourceFile, Violation } from '../core/rule.ts'
+import { lineAt } from '../core/source-text.ts'
+import { nodeName, syntaxOf, visitSyntax } from '../core/syntax.ts'
 
 export interface CoreFunctionTarget {
   readonly path: string

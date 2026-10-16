@@ -1,7 +1,7 @@
 import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
 import { parse } from 'yaml'
-import { isLegacyDirectory } from '../check-scope.ts'
+import { isLegacyDirectory } from '../core/check-scope.ts'
 
 export const SCENARIO_ID = /^[A-Z]{1,3}\d{1,3}[a-z]?$/u
 const CELL_SPLIT = /(?<!\\)\|/u

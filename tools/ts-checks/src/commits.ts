@@ -1,8 +1,8 @@
 // 署名：作者与提交者只能是人，提交信息里不得有把 agent 列为作者或共同作者的行。
 // 来源 trailer（`Harness:`、`Agent-Role:`）记的是「怎么产生的」，不表示作者身份，不在禁止之列。规则正文在根 AGENTS.md「署名与分支」。
 import { execFileSync } from 'node:child_process'
-import { repositoryEnv } from './git-environment.ts'
-import type { Violation } from './rule.ts'
+import { repositoryEnv } from './core/git-environment.ts'
+import type { Violation } from './core/rule.ts'
 
 export const COMMIT_ATTRIBUTION_RULE = 'commit-attribution'
 

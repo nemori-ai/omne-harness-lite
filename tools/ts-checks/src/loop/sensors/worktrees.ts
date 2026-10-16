@@ -2,7 +2,7 @@
 // 哪些成员被两棵以上同时在改——同时改得越多，合回主线时越容易互相踩。
 import { statSync } from 'node:fs'
 import { baselines, readContext } from '../../integration/context.ts'
-import { changedFiles, git } from '../../metrics/git.ts'
+import { changedFiles, git } from '../../core/git.ts'
 import { memberOf } from '../../deps/graph.ts'
 
 export interface WorktreeEntry {

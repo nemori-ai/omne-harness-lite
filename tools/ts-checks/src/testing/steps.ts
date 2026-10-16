@@ -7,7 +7,7 @@ import { baselines } from '../integration/context.ts'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
-import { changedFiles, coordinates, type Coordinates } from '../metrics/git.ts'
+import { changedFiles, coordinates, type Coordinates } from '../core/git.ts'
 import { describeCheckPlan, planCheck, type CheckPlan } from './scope.ts'
 import { admissionRequested, affectedMembers, turboBuild } from './turbo.ts'
 import {
@@ -27,7 +27,7 @@ import {
   withScript,
   type TestMember,
   type WorkspaceMember,
-} from './members.ts'
+} from '../core/workspace.ts'
 import { runMembers, slugOf } from './run.ts'
 import { buildTargets, timestamp } from './support.ts'
 

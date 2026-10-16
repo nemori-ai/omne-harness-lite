@@ -1,4 +1,4 @@
-import type { SourceFile } from '../../src/rule.ts'
+import type { SourceFile } from '../../src/core/rule.ts'
 
 const sources: Readonly<Record<string, string>> = {
   'tenancy/account-identity-sql/src/logins.ts': `

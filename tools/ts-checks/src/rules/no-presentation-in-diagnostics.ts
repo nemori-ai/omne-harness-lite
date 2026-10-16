@@ -1,6 +1,6 @@
-import type { Rule, SourceFile, Violation } from '../rule.ts'
+import type { Rule, SourceFile, Violation } from '../core/rule.ts'
 import { ACCOUNT_IDENTITY_SRC, productSourceIn } from '../layout.ts'
-import { codeMatches, lineAt, matchClose, viewsOf } from '../source-text.ts'
+import { codeMatches, lineAt, matchClose, viewsOf } from '../core/source-text.ts'
 
 /**
  * 诊断输出的调用：日志方法（Cordis logger 与本包 `diagnostics` 外观的同名方法）、事件派发、错误构造。

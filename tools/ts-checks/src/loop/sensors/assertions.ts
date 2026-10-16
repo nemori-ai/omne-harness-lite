@@ -6,8 +6,8 @@
 // 调用、带类型注解的声明与 `satisfies` 要求「这样写编译得过」，这几种也算断言。
 // 只读语法，不解析类型，也不跨文件。
 import ts from '@typescript/typescript6'
-import type { SourceFile } from '../../rule.ts'
-import { syntaxOf, visitSyntax } from '../../syntax.ts'
+import type { SourceFile } from '../../core/rule.ts'
+import { syntaxOf, visitSyntax } from '../../core/syntax.ts'
 
 export interface AssertionPatterns {
   readonly assertionPattern: RegExp

@@ -3,7 +3,7 @@
 import { createRequire } from 'node:module'
 import { Detector, MemoryStore, type IClone } from '@jscpd/core'
 import { memberOf } from '../../deps/graph.ts'
-import type { SourceFile } from '../../rule.ts'
+import type { SourceFile } from '../../core/rule.ts'
 
 // @jscpd/tokenizer 4.0.1 的 ESM 入口（dist/index.mjs）里有 141 处不带扩展名的
 // `reprism/languages/*` 导入，而 reprism 没有 exports 映射，Node 的 ESM 解析找不到它们；

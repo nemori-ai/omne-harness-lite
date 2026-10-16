@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { repositoryEnv } from '../git-environment.ts'
+import { repositoryEnv } from '../core/git-environment.ts'
 import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { IntegrationError, sha } from './parse.ts'

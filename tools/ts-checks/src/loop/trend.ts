@@ -3,7 +3,7 @@
 // 「上一次的带位」与「基线快照」都按提交祖先关系从这里找，不按记录时间。
 import { appendFileSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { git } from '../metrics/git.ts'
+import { git } from '../core/git.ts'
 import type { Band } from './bands.ts'
 import { BUDGET_ITEMS, type BudgetItem } from './config.ts'
 

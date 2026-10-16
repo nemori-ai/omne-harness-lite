@@ -1,6 +1,6 @@
 import { lstatSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { workspacePatterns } from '../testing/members.ts'
+import { workspacePatterns } from '../core/workspace.ts'
 import { checkLayout } from './layout.ts'
 import { checkDirectories, planDraft, writeDraft } from './draft.ts'
 import { DOMAIN_TEMPLATE_DIRECTORY, groupName, readDomainTemplate } from './domain-template.ts'

@@ -1,7 +1,7 @@
 // 总是一起改却分属两组的成员：读 HEAD 上最近若干个非合并提交各自碰过哪些成员，
 // 数两两同时被碰到的次数。批量改动（一次碰了太多成员的提交）不计。
 // 解析与计数是纯函数；读 git 只在 `readCommitMembers` 一处。
-import { git } from '../../metrics/git.ts'
+import { git } from '../../core/git.ts'
 import { memberOf } from '../../deps/graph.ts'
 
 export interface CochangeOptions {

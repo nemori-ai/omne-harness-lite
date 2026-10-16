@@ -5,7 +5,7 @@ import { closeSync, existsSync, openSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { hasArchivedDirectories } from './archive-project.ts'
-import type { TestMember } from './members.ts'
+import type { TestMember } from '../core/workspace.ts'
 import {
   TEST_TIER_ENV,
   VITEST_MAX_WORKERS_ENV,

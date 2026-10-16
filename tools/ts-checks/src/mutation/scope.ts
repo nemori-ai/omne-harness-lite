@@ -1,8 +1,8 @@
 // 变异的范围：改动碰到的产品源码行（或点名成员的全部产品源码），按成员分组，写成 Stryker 的 `mutate` 条目。
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { touches, type ChangedLines } from '../metrics/git.ts'
-import { ownerOf, type TestMember } from '../testing/members.ts'
+import { touches, type ChangedLines } from '../core/git.ts'
+import { ownerOf, type TestMember } from '../core/workspace.ts'
 
 /** 只变异当前 workspace 里的产品源码。legacy 目录只供阅读，不进入变异。开发工具不属于产品源码。 */
 export const MUTATION_ROOTS = ['packages', 'apps'] as const

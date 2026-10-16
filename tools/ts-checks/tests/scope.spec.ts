@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { baselines } from '../src/integration/context.ts'
-import { changedFiles, coordinates } from '../src/metrics/git.ts'
+import { changedFiles, coordinates } from '../src/core/git.ts'
 import {
   classify,
   describeCheckPlan,
@@ -17,7 +17,7 @@ import {
   type CheckPlan,
 } from '../src/testing/scope.ts'
 import { readTestRunsConfig } from '../src/testing/config.ts'
-import { fileTree, listWorkspaceMembers, type WorkspaceMember } from '../src/testing/members.ts'
+import { fileTree, listWorkspaceMembers, type WorkspaceMember } from '../src/core/workspace.ts'
 import { commitChanges, replayTable } from '../src/testing/replay.ts'
 import { computePlan, fullRequested, readPlanFile } from '../src/testing/steps.ts'
 

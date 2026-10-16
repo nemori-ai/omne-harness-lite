@@ -7,7 +7,7 @@ import { buildArchitectureView } from './view.ts'
 import { readMetricsConfig } from '../metrics/config.ts'
 import { renderPage } from '../metrics/render.ts'
 import { summaryLines } from '../metrics/report.ts'
-import { git } from '../metrics/git.ts'
+import { git } from '../core/git.ts'
 import { projectConformance, readConformance } from './conformance.ts'
 
 function argumentsOf(args: readonly string[]): {

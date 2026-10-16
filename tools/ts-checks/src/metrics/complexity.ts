@@ -9,8 +9,8 @@
 // 字面量方法与类字段箭头函数各自成单元，只有匿名回调并入外层。
 import { createHash } from 'node:crypto'
 import ts from '@typescript/typescript6'
-import type { SourceFile } from '../rule.ts'
-import { nodeName, syntaxOf } from '../syntax.ts'
+import type { SourceFile } from '../core/rule.ts'
+import { nodeName, syntaxOf } from '../core/syntax.ts'
 
 /** 一个计分单元：有名字的函数。匿名回调并入它所在的单元。 */
 export interface FunctionMetric {

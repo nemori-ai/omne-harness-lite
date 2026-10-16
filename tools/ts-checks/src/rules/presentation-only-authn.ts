@@ -1,6 +1,6 @@
-import type { Rule, Violation } from '../rule.ts'
+import type { Rule, Violation } from '../core/rule.ts'
 import { ENTRY_SRC, productSourceIn } from '../layout.ts'
-import { codeMatches, lineAt, scanCode, viewsOf } from '../source-text.ts'
+import { codeMatches, lineAt, scanCode, viewsOf } from '../core/source-text.ts'
 
 /**
  * 入口 verification「只凭出示物认人」、design「本节点约束」第 8 条（契约 S-11；AI v2 S-30「只有 S-44 认出示物」）：

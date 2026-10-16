@@ -1,4 +1,4 @@
-import type { Rule, SourceFile, Violation } from '../rule.ts'
+import type { Rule, SourceFile, Violation } from '../core/rule.ts'
 import {
   ACCOUNT_REGISTRATION_SRC,
   ACCOUNT_REGISTRATION_DEFINITION_SRC,
@@ -13,7 +13,7 @@ import {
   namedFunctionBodies,
   stringLiteralValue,
   viewsOf,
-} from '../source-text.ts'
+} from '../core/source-text.ts'
 
 /** AR 契约 S-5 的终结结果集合：恰这四个值，没有第五个，也没有「其他」。 */
 const S5_OUTCOMES = [

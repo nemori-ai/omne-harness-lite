@@ -1,4 +1,4 @@
-import { isTestPath, scanLines, type Rule } from '../rule.ts'
+import { isTestPath, scanLines, type Rule } from '../core/rule.ts'
 
 /** basis `async-control-not-bail`：异步控制判定必须走 `serial`，`ctx.bail(` 在产品源码里一律禁用。 */
 export const noBailControl: Rule = {

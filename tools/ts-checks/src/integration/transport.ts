@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { repositoryEnv } from '../git-environment.ts'
+import { repositoryEnv } from '../core/git-environment.ts'
 import type { Policy } from './policy.ts'
 import { ancestor, git, GitError, lines, maybeRef } from './git.ts'
 import { branch, canonical, sha, IntegrationError } from './parse.ts'

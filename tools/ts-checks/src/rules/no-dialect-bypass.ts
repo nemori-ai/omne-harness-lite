@@ -1,6 +1,6 @@
-import type { Rule, Violation } from '../rule.ts'
+import type { Rule, Violation } from '../core/rule.ts'
 import { tenancyPackageOf } from '../layout.ts'
-import { codeMatches, lineAt, namedImportsOf, viewsOf } from '../source-text.ts'
+import { codeMatches, lineAt, namedImportsOf, viewsOf } from '../core/source-text.ts'
 
 const STORAGE_SQL = /^@omne-harness\/storage-sql(?:\/|$)/
 const BYPASS = new Set(['NodeSqliteDialect', 'NodeSqliteDriver', 'SqlStorage', 'openStorage'])

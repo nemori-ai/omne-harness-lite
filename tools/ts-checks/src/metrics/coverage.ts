@@ -15,7 +15,7 @@ import {
 } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isLegacyDirectory, isLegacyFile } from '../check-scope.ts'
+import { isLegacyDirectory, isLegacyFile } from '../core/check-scope.ts'
 import { hasArchivedDirectories } from '../testing/archive-project.ts'
 import type { CoverageInput, LineHits } from './report.ts'
 

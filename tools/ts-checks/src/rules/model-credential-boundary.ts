@@ -1,9 +1,9 @@
 import ts from '@typescript/typescript6'
 import { dirname, join, normalize } from 'node:path/posix'
-import type { Rule, SourceFile, Violation } from '../rule.ts'
-import { isTestPath } from '../rule.ts'
-import { lineAt } from '../source-text.ts'
-import { nodeName, syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
+import type { Rule, SourceFile, Violation } from '../core/rule.ts'
+import { isTestPath } from '../core/rule.ts'
+import { lineAt } from '../core/source-text.ts'
+import { nodeName, syntaxImports, syntaxOf, visitSyntax } from '../core/syntax.ts'
 
 const cliBootstrap = 'apps/cli/src/session-model-directory.ts'
 const lookupEntry = '@omne-harness/model-profile-directory-local/local-credentials'

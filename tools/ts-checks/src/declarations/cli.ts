@@ -2,7 +2,7 @@
 // 退出码 0 表示兼容，1 表示成员声明里有诊断，2 表示用法或工具出错。
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { fileTree, listWorkspaceMembers } from '../testing/members.ts'
+import { fileTree, listWorkspaceMembers } from '../core/workspace.ts'
 import { checkDeclarations, renderDeclarationReport } from './compat.ts'
 
 const USAGE = '用法：[--root <检出目录>]'

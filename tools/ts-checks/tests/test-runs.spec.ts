@@ -12,7 +12,7 @@ import {
   listWorkspaceMembers,
   ownerOf,
   workspacePatterns,
-} from '../src/testing/members.ts'
+} from '../src/core/workspace.ts'
 import {
   effectiveParallelism,
   ledgerHome,

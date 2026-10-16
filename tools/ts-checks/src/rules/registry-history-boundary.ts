@@ -1,8 +1,8 @@
 import ts from '@typescript/typescript6'
 import { dirname, join, normalize } from 'node:path/posix'
-import type { Rule, SourceFile, Violation } from '../rule.ts'
-import { lineAt } from '../source-text.ts'
-import { syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
+import type { Rule, SourceFile, Violation } from '../core/rule.ts'
+import { lineAt } from '../core/source-text.ts'
+import { syntaxImports, syntaxOf, visitSyntax } from '../core/syntax.ts'
 
 const entry = '@omne-harness/evaluation-input-store/registry-history'
 function ownSource(path: string): boolean {

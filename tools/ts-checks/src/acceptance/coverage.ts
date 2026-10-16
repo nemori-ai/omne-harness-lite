@@ -3,8 +3,8 @@
 // 场景含义变了会换新编号，覆盖旧编号的验收在这里被点名——这是这份检查存在的理由。
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { isLegacyDirectory } from '../check-scope.ts'
-import type { Violation } from '../rule.ts'
+import { isLegacyDirectory } from '../core/check-scope.ts'
+import type { Violation } from '../core/rule.ts'
 import { readProductTopics, SCENARIO_ID, type ProductTopic } from '../product/scenarios.ts'
 import type { RunScript } from '../testing/config.ts'
 import { isAcceptancePath, type AcceptanceLockConfig } from './lock.ts'

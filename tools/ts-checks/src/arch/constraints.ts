@@ -1,7 +1,7 @@
 import { lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { isAbsolute, join, posix, relative } from 'node:path'
-import { fileAt, git } from '../metrics/git.ts'
+import { fileAt, git } from '../core/git.ts'
 import {
   RULE_IDS,
   type ArchitectureConstraints,

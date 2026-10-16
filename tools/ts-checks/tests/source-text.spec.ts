@@ -7,7 +7,7 @@ import {
   matchClose,
   namedFunctionBodies,
   namedImportsOf,
-} from '../src/source-text.ts'
+} from '../src/core/source-text.ts'
 
 const file = (text: string, path = 'tenancy/x/src/a.ts') => ({ path, text })
 

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { repositoryEnv } from '../git-environment.ts'
+import { repositoryEnv } from './git-environment.ts'
 import { dirname, resolve } from 'node:path'
 
 const MEMBER_ROOTS = ['packages', 'apps', 'examples'] as const

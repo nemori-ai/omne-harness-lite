@@ -1,7 +1,7 @@
 import ts from '@typescript/typescript6'
-import { isTestPath, type Rule, type SourceFile, type Violation } from '../rule.ts'
-import { lineAt } from '../source-text.ts'
-import { syntaxOf, visitSyntax } from '../syntax.ts'
+import { isTestPath, type Rule, type SourceFile, type Violation } from '../core/rule.ts'
+import { lineAt } from '../core/source-text.ts'
+import { syntaxOf, visitSyntax } from '../core/syntax.ts'
 
 const LEGACY_PACKAGE = /@omne-harness-lite\//u
 const LEGACY_TREE = /(?:apps|packages)\.0\.0\.1\.legacy(?:[/\\]|$)/u

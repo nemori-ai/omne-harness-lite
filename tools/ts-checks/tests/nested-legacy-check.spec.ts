@@ -7,7 +7,7 @@ import { afterEach, expect, it } from 'vitest'
 import { typecheckMember } from '../src/testing/typecheck-member.ts'
 import { runMembers } from '../src/testing/run.ts'
 import { scopedProject } from '../src/testing/archive-project.ts'
-import type { TestMember } from '../src/testing/members.ts'
+import type { TestMember } from '../src/core/workspace.ts'
 
 const roots: string[] = []
 afterEach(() => {

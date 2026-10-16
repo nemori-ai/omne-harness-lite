@@ -1,8 +1,8 @@
 import ts from '@typescript/typescript6'
 import { productSourceIn } from '../layout.ts'
-import type { Rule, Violation } from '../rule.ts'
-import { lineAt, resolveRelative } from '../source-text.ts'
-import { syntaxImports, syntaxOf } from '../syntax.ts'
+import type { Rule, Violation } from '../core/rule.ts'
+import { lineAt, resolveRelative } from '../core/source-text.ts'
+import { syntaxImports, syntaxOf } from '../core/syntax.ts'
 
 /** 当前已接受节点 design 的依赖表；工具依赖（如 content-blocks 无损写）也明确登记。 */
 export const CORE_PURE_DEPENDENCIES: Readonly<Record<string, readonly string[]>> = {

@@ -1,5 +1,5 @@
-import { isTestPath, scanLines, type Rule, type SourceFile, type Violation } from '../rule.ts'
-import { codeMatches, lineAt, viewsOf } from '../source-text.ts'
+import { isTestPath, scanLines, type Rule, type SourceFile, type Violation } from '../core/rule.ts'
+import { codeMatches, lineAt, viewsOf } from '../core/source-text.ts'
 
 /** 只许定义它们的包与注册组合调用的方法（入口 verification SC-1 行的新增限定）。 */
 const RESTRICTED_METHODS: readonly {

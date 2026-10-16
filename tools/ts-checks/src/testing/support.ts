@@ -2,7 +2,7 @@
 import { admissionRequested, turboBuildCaptured } from './turbo.ts'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { TestMember } from './members.ts'
+import type { TestMember } from '../core/workspace.ts'
 
 export interface Flags {
   readonly values: ReadonlyMap<string, string>

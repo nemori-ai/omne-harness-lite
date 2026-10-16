@@ -17,7 +17,7 @@ import {
 import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isTestPath } from '../rule.ts'
+import { isTestPath } from '../core/rule.ts'
 
 /** workspace 成员：`packages/<组>/<包>`、`apps/<应用>`、`examples/<示例>`。 */
 export interface Member {

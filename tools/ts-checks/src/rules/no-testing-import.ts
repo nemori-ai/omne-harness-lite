@@ -1,6 +1,6 @@
-import { isTestPath, type Rule, type Violation } from '../rule.ts'
-import { lineAt } from '../source-text.ts'
-import { syntaxImports, syntaxOf } from '../syntax.ts'
+import { isTestPath, type Rule, type Violation } from '../core/rule.ts'
+import { lineAt } from '../core/source-text.ts'
+import { syntaxImports, syntaxOf } from '../core/syntax.ts'
 
 /** 装配节点 verification 点名：产品源码不得 import 任何包的 `./testing` 子入口（测试装配、可控时钟只给测试）。 */
 export const noTestingImport: Rule = {

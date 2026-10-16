@@ -1,6 +1,6 @@
-import type { Rule, Violation } from '../rule.ts'
+import type { Rule, Violation } from '../core/rule.ts'
 import { ACCOUNT_IDENTITY_SRC, productSourceIn } from '../layout.ts'
-import { codeMatches, isCode, lineAt, matchClose, viewsOf } from '../source-text.ts'
+import { codeMatches, isCode, lineAt, matchClose, viewsOf } from '../core/source-text.ts'
 
 /**
  * AI design R-8（节点 verification「持锁段里没有 credentials 调用」一行的形式 ①）：

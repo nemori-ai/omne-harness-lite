@@ -3,11 +3,11 @@
 // 受影响的成员由 turbo 比较父提交与该提交给出；turbo 的包依赖图取当前工作树的，这是一个近似：
 // 那之后改过的依赖关系会按现在的算。
 // 用来在改规则前后看「判全量的有几个、是不是该全量」，不进 `make check`。
-import { git, nulSeparated } from '../metrics/git.ts'
+import { git, nulSeparated } from '../core/git.ts'
 import { planCheck, sample, type CheckPlan } from './scope.ts'
 import { affectedMembers } from './turbo.ts'
 import type { AffectedRules } from './config.ts'
-import { fileTree, gitTree, listWorkspaceMembers, type WorkspaceMember } from './members.ts'
+import { fileTree, gitTree, listWorkspaceMembers, type WorkspaceMember } from '../core/workspace.ts'
 
 export interface ReplayRow {
   readonly commit: string

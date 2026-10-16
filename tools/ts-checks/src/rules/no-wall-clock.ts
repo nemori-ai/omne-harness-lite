@@ -1,7 +1,7 @@
 import ts from '@typescript/typescript6'
-import { isTestPath, type Rule, type Violation } from '../rule.ts'
-import { lineAt } from '../source-text.ts'
-import { nodeName, syntaxOf, visitSyntax } from '../syntax.ts'
+import { isTestPath, type Rule, type Violation } from '../core/rule.ts'
+import { lineAt } from '../core/source-text.ts'
+import { nodeName, syntaxOf, visitSyntax } from '../core/syntax.ts'
 
 /**
  * SC-OE-3（offer-expiry 节点）：消费者不得另用墙钟；领域时间只从 clock 服务取。

@@ -6,7 +6,7 @@ import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { runLoopStatus } from '../src/loop/run.ts'
-import { coordinates } from '../src/metrics/git.ts'
+import { coordinates } from '../src/core/git.ts'
 import type { LedgerFile } from '../src/testing/ledger.ts'
 import {
   commit,

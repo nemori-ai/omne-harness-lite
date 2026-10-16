@@ -5,7 +5,7 @@
 // 读数带上「跳过」，一份都没跑时耗时指标如实是没数据，而不是 0 秒。
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { listTestMembers } from '../../testing/members.ts'
+import { listTestMembers } from '../../core/workspace.ts'
 import { ledgerHome } from '../../testing/config.ts'
 import type { LedgerFile } from '../../testing/ledger.ts'
 import { data, noData, type Reading } from '../reading.ts'

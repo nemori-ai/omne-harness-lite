@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { collectRepositorySources } from '../src/repository.ts'
 import { noLegacyDependency } from '../src/rules/no-legacy-dependency.ts'
-import type { SourceFile } from '../src/rule.ts'
+import type { SourceFile } from '../src/core/rule.ts'
 
 const file = (path: string, text: string): SourceFile => ({ path, text })
 

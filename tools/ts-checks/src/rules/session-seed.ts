@@ -1,8 +1,8 @@
 import ts from '@typescript/typescript6'
 import { dirname, join, normalize } from 'node:path/posix'
-import type { Rule, SourceFile, Violation } from '../rule.ts'
-import { syntaxImports, syntaxOf, visitSyntax } from '../syntax.ts'
-import { lineAt } from '../source-text.ts'
+import type { Rule, SourceFile, Violation } from '../core/rule.ts'
+import { syntaxImports, syntaxOf, visitSyntax } from '../core/syntax.ts'
+import { lineAt } from '../core/source-text.ts'
 
 const seedEntry = '@omne-harness/session-tenancy-table/seed'
 const seedImplementation = 'packages/session/session-tenancy-table/src/seed.ts'

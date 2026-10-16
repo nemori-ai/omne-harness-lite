@@ -1,5 +1,5 @@
 import ts from '@typescript/typescript6'
-import type { Rule, Violation, SourceFile } from '../rule.ts'
+import type { Rule, Violation, SourceFile } from '../core/rule.ts'
 import { ENTRY_EVENTS, ENTRY_OPS, ENTRY_SRC, productSourceIn } from '../layout.ts'
 import {
   importsOf,
@@ -7,7 +7,7 @@ import {
   resolveRelative,
   withoutExtension,
   type ImportRef,
-} from '../source-text.ts'
+} from '../core/source-text.ts'
 
 /** 非治理的第三方：内核与 config 校验（主线 2026-09-23 裁决纳入白名单）。 */
 const THIRD_PARTY = new Set(['@deepseek-ai/cordis', 'zod'])

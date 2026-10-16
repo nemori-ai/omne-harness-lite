@@ -10,9 +10,9 @@
 // turbo 按包计改动，成员目录里只改文档也会选中那个成员：比原先的「成员文档不算改动」多跑，不少跑。
 // turbo 不认成员目录以外的读取（2026-10-15 在 turbo 2.11.7 上验证：`--affected` 默认不看任务 inputs），
 // 读者规则仍在这里。
-import { isLegacyDirectory, isLegacyFile } from '../check-scope.ts'
+import { isLegacyDirectory, isLegacyFile } from '../core/check-scope.ts'
 import type { AffectedRules } from './config.ts'
-import { ownerOf, type WorkspaceMember } from './members.ts'
+import { ownerOf, type WorkspaceMember } from '../core/workspace.ts'
 
 /** `*` 不跨目录；`**` 跨目录，`**\/` 也匹配零层目录。 */
 export function patternToRegExp(pattern: string): RegExp {
