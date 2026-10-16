@@ -4,4 +4,4 @@
 
 本页将说明本提供者内部对象的职责、身份、状态、关联、组合及生命周期，并配 UML 类图。建模不要求实现改成 class。
 
-本成员当前只有模板草稿。公共行为归契约成员的 [SPEC](../../tool/SPEC.md) 与 [设计专题](../../tool/docs/index.md)，本页只补本提供者真实承担的部分。目录职责见 [README](README.md)。
+本成员当前只有模板草稿。公共行为归契约成员的 [SPEC](../../tool-contract/SPEC.md) 与 [设计专题](../../tool-contract/docs/index.md)，本页只补本提供者真实承担的部分。目录职责见 [README](README.md)。

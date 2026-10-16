@@ -11,5 +11,5 @@ it('consumes the contract member through the workspace package', () => {
   const manifest = JSON.parse(readFileSync(memberPath('package.json'), 'utf8')) as {
     dependencies?: Record<string, string>
   }
-  expect(manifest.dependencies).toMatchObject({ '@omne-harness/tool': 'workspace:*' })
+  expect(manifest.dependencies).toMatchObject({ '@omne-harness/tool-contract': 'workspace:*' })
 })

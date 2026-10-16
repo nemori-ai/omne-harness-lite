@@ -515,6 +515,6 @@ spawn/delegate 的直属派发可查询状态及已有报告。handoff 创建确
 - [Q-SK08](../skills/design.md#q-sk08-只有依赖或脚本设施不足时正文是否仍可读取)拥有技能仅依赖或脚本设施不足时 read 返回正文还是替换件的来源分歧，本页不选答案。
 - [领域对象待裁](../../domain_objects/pending.md)继续维护跨会话工作对象、一次派发、Agent 间消息与外部目标的建模缺项；不能由命令名补造身份、存储或生命周期。
 - [领域对象清单](../../domain_objects/objects.md)保留 meta 与工具关系及 handoff 是否有报告的未裁内容。handoff 的工具返回仍只确认创建，不等报告。
-- Code 的精确协议与验证义务由 [TOOL-M05](../../../../packages/tool/tool/docs/architecture.md#tool-m05)统一定位，Tool、执行环境、Agent、Context 与装配拥有者承接。产品细化不表示语言、公开签名、隔离提供者或恢复协议已获技术接受。
+- Code 的精确协议与验证义务由 [TOOL-M05](../../../../packages/tool/tool-contract/docs/architecture.md#tool-m05)统一定位，Tool、执行环境、Agent、Context 与装配拥有者承接。产品细化不表示语言、公开签名、隔离提供者或恢复协议已获技术接受。
 
 Engram 和 Stop 的占位不是待实施任务，也不是其他元工具设计或交付的前置条件。Stop 不展开功能定义。

@@ -11,7 +11,7 @@
 - [使用示例](examples/index.md)。
 - [运行资源](resources/index.md)。
 - [独立验收](acceptance/index.md)。
-- [契约成员](../tool/index.md)。
+- [契约成员](../tool-contract/index.md)。
 - [文档登记](documentation.json)。
 - [成员配置](package.json)。
 - [构建配置](tsconfig.build.json)。

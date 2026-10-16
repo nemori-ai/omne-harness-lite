@@ -1,6 +1,6 @@
 # tool-host-local 设计索引
 
-先查 [SPEC](../SPEC.md) 与契约成员的 [SPEC](../../tool/SPEC.md)，再按 [主题职责](README.md) 选择正文。
+先查 [SPEC](../SPEC.md) 与契约成员的 [SPEC](../../tool-contract/SPEC.md)，再按 [主题职责](README.md) 选择正文。
 
 - [内部架构](architecture.md)。
 - [业务与数据流](flows.md)。

@@ -8,7 +8,7 @@
 
 ## 成员与依赖
 
-目标成员的职责、状态和读取顺序从[tool 入口](tool/README.md)进入，再按任务核对下面的规格与专题。
+目标成员的职责、状态和读取顺序从[tool 入口](tool-contract/README.md)进入，再按任务核对下面的规格与专题。
 
 本组的实际成员是 `tool` 和 `tool-host-local`。`tool` 包含 package.json、资产正文端口及成员测试。运行实例和长期执行提供者尚未实现。`tool-host-local` 是单机提供者成员的模板草稿，两个入口都不导出值，依赖 `tool`。`tool` 不依赖它。
 
@@ -16,10 +16,10 @@
 
 | 目标成员 | 承担的行为 | 阅读入口 |
 | --- | --- | --- |
-| tool/tool | 工具定义、逻辑调用、真实执行、内部等待、控制、结果、执行账和原交付责任 | [SPEC](tool/SPEC.md)，以及其引用的同成员专题。 |
+| tool/tool-contract | 工具定义、逻辑调用、真实执行、内部等待、控制、结果、执行账和原交付责任 | [SPEC](tool-contract/SPEC.md)，以及其引用的同成员专题。 |
 | tool/tool-host-local | 单机提供者草稿，尚无已接受的提供者行为 | [包入口](tool-host-local/README_ZH.md)与[包索引](tool-host-local/index.md)。 |
 
-产品的[旅程与能力](../../.meta_harness/design/product/tool-execution/design.md#关键用户旅程)、[关键协作流程](tool/docs/flows.md#工具执行的关键协作流程)和[成员验证对照](tool/SPEC.md#旅程能力与验证入口)用于定位组合义务，不是另一份业务规则源。
+产品的[旅程与能力](../../.meta_harness/design/product/tool-execution/design.md#关键用户旅程)、[关键协作流程](tool-contract/docs/flows.md#工具执行的关键协作流程)和[成员验证对照](tool-contract/SPEC.md#旅程能力与验证入口)用于定位组合义务，不是另一份业务规则源。
 
 共同持有、设置和权限归 assets；发起与业务采用归实际协调者；环境归 execution；Skill 资源与 MCP 发现连接分别归其成员。Tool 通过公开能力完成包装动作，不接管被调用领域的业务状态。跨组提交和消息采用协议归真实协调者。
 
@@ -27,7 +27,7 @@
 
 后续增加提供者或独立适配须说明实际消费者、安装或平台依赖隔离、替换和验证收益。类型存在、目录变大和插件可能性不足以决定拆包。组不提供合并 SPEC，成员维护完整行为，组维护导航和依赖边界。
 
-组合验证与本组维护由实际发起、环境和消费协调者共同承担，范围见[成员验证义务](tool/SPEC.md#持续验证义务)。工具执行、存储、并发及外部效果的提供者验证尚未完成。
+组合验证与本组维护由实际发起、环境和消费协调者共同承担，范围见[成员验证义务](tool-contract/SPEC.md#持续验证义务)。工具执行、存储、并发及外部效果的提供者验证尚未完成。
 
 
 工程关系见[组设计](docs/architecture.md)。成员目标已有文档，不等于真实包；公开入口、安装闭包和提供者映射尚待设计。

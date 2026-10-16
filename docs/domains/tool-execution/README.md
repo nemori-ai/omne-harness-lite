@@ -18,7 +18,7 @@
 | 控制与收场 | 取消、转后台等操作的实际结果 |
 | 原消费者 | 结果保管/可靠承接及业务继续，按原契约分责 |
 
-内部等待不是完成，效果未知不同于已知没有执行。原调用和包装工具的业务对象分别拥有。交给会话日志的事实见[工具规格](../../../packages/tool/tool/SPEC.md#必要持久事实与确认)。
+内部等待不是完成，效果未知不同于已知没有执行。原调用和包装工具的业务对象分别拥有。交给会话日志的事实见[工具规格](../../../packages/tool/tool-contract/SPEC.md#必要持久事实与确认)。
 
 ## 协作与依赖
 
@@ -26,7 +26,7 @@
 
 人工等待交[HITL](../human-intervention/README.md)，答复回原工具等待点，后续按原资格解释。后台寿命按工具声明管理，不能从Agent或Run结束自动推断其结束。
 
-Agent 脚本组合或编排工具受[可编程调用许可](../../../.meta_harness/design/product/tool-execution/design.md#可编程调用许可)约束。工具作者声明许可，发起协调者提供可信来源，Tool 执行准入核对目标许可。独立 SDK 消费与脚本编排的边界由[定义专题](../../../packages/tool/tool/SPEC.md#可编程调用的定义与准入)细化。
+Agent 脚本组合或编排工具受[可编程调用许可](../../../.meta_harness/design/product/tool-execution/design.md#可编程调用许可)约束。工具作者声明许可，发起协调者提供可信来源，Tool 执行准入核对目标许可。独立 SDK 消费与脚本编排的边界由[定义专题](../../../packages/tool/tool-contract/SPEC.md#可编程调用的定义与准入)细化。
 
 ## 主路径与交接
 

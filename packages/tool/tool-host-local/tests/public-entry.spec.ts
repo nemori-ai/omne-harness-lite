@@ -41,12 +41,12 @@ describe('root entry has no Cordis', () => {
     const text = [
       "import '@deepseek-ai/cordis'",
       "export * from './cordis.js'",
-      "const d = await import('@omne-harness/tool/cordis')",
+      "const d = await import('@omne-harness/tool-contract/cordis')",
     ].join('\n')
     expect(specifiersOf(text).filter(forbiddenFromRoot)).toEqual([
       '@deepseek-ai/cordis',
       './cordis.js',
-      '@omne-harness/tool/cordis',
+      '@omne-harness/tool-contract/cordis',
     ])
   })
 })

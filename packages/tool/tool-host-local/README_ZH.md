@@ -76,4 +76,4 @@ tool-host-local/
 └── tsconfig.build.json / tsconfig.test.json / vitest.config.ts
 ```
 
-本提供者的公共契约归契约成员 [`@omne-harness/tool`](../tool/README_ZH.md)。完整文件导航见 [index](index.md)。主题职责见 [docs/README](docs/README.md)。
+本提供者的公共契约归契约成员 [`@omne-harness/tool-contract`](../tool-contract/README_ZH.md)。完整文件导航见 [index](index.md)。主题职责见 [docs/README](docs/README.md)。

@@ -6,7 +6,7 @@
 
 目标成员 `packages/tool/tool` 拥有工具专有定义、逻辑调用、真实执行、内部等待、控制实际结果、原结果、效果确定性及交付关系。真实执行的提供者兑现共同契约，定义与实现共置不合并二者版本和生命周期。
 
-业务拥有者定义等待的请求/回应 schema 和工具输出性质；Schema 提供者负责通用形状检查。HITL 或资源响应拥有者在确认有效回应前完成校验，Tool 只接续原有效回应。成员的 [P12](../../../packages/tool/tool/SPEC.md#p12-等待-schema-与响应提交)规定无效提交不消费等待，[P13](../../../packages/tool/tool/SPEC.md#p13-双返回形态与程序输出契约)规定双返回归一化及程序数据校验。Code 和模型分别消费合法程序值与展示投影，不改变原结果与效果的拥有者。
+业务拥有者定义等待的请求/回应 schema 和工具输出性质；Schema 提供者负责通用形状检查。HITL 或资源响应拥有者在确认有效回应前完成校验，Tool 只接续原有效回应。成员的 [P12](../../../packages/tool/tool-contract/SPEC.md#p12-等待-schema-与响应提交)规定无效提交不消费等待，[P13](../../../packages/tool/tool-contract/SPEC.md#p13-双返回形态与程序输出契约)规定双返回归一化及程序数据校验。Code 和模型分别消费合法程序值与展示投影，不改变原结果与效果的拥有者。
 
 Tool 通过公开能力访问被调用领域，不修改其私有状态或接管业务完成。包装工具的执行事实和被操作的业务对象分别有自己的身份和拥有者。
 
@@ -32,7 +32,7 @@ Tool 通过公开能力访问被调用领域，不修改其私有状态或接管
 
 ## 完整成员设计承接
 
-以下说明成员设计在领域中的责任。公开形状由 [Tool public-api](../../../packages/tool/tool/docs/public-api.md) 唯一维护，[对象模型](../../../packages/tool/tool/docs/object-model.md)区分持久调用、实例协程与目录句柄，[操作协议](../../../packages/tool/tool/SPEC.md#tool-操作协议)规定跨域提交和未知处理。领域层不复制类型。
+以下说明成员设计在领域中的责任。公开形状由 [Tool public-api](../../../packages/tool/tool-contract/docs/public-api.md) 唯一维护，[对象模型](../../../packages/tool/tool-contract/docs/object-model.md)区分持久调用、实例协程与目录句柄，[操作协议](../../../packages/tool/tool-contract/SPEC.md#tool-操作协议)规定跨域提交和未知处理。领域层不复制类型。
 
 | 协作边界 | Tool 的责任 | 邻接拥有者必须提供 |
 | --- | --- | --- |
@@ -60,4 +60,4 @@ flowchart TD
     Code --> Children[父子关联和后继责任]
 ```
 
-成员逐能力覆盖与真实组合验收入口见 [coverage](../../../packages/tool/tool/verification/coverage.md)。这些邻接提供者的实现与接受仍由各自拥有者负责。无法参与共同围栏或保管协议的组合不得声明满足该项保证；保留未知而不降低目标。
+成员逐能力覆盖与真实组合验收入口见 [coverage](../../../packages/tool/tool-contract/verification/coverage.md)。这些邻接提供者的实现与接受仍由各自拥有者负责。无法参与共同围栏或保管协议的组合不得声明满足该项保证；保留未知而不降低目标。

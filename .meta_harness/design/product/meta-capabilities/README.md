@@ -20,7 +20,7 @@ relations:
 - [能力与状态](design.md#能力定义与实现状态记录表)、[阶段承诺](design.md#阶段与版本支持承诺)和[未决](design.md#未决问题与待定事项)分别记录定义、实际证据和待承接责任。
 - [Meta Capability 词义](../../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability)拥有统一概念。
 - [工具执行产品](../tool-execution/design.md#可编程调用许可)拥有目标工具的 programmable 声明和缺省拒绝。
-- [Tool 领域](../../../../docs/domains/tool-execution/README.md)和[Tool 成员](../../../../packages/tool/tool/README.md)拥有调用、准入及真实执行责任。
+- [Tool 领域](../../../../docs/domains/tool-execution/README.md)和[Tool 成员](../../../../packages/tool/tool-contract/README.md)拥有调用、准入及真实执行责任。
 
 ## 维护
 
