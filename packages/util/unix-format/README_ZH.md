@@ -32,7 +32,7 @@ formatSection('SYNOPSIS', 'my_tool command [params]')
 
 `UnixFormatOptions` 仍描述缩进、标题样式和表格宽度。每个函数只读取自己的字段。`formatSection` 不读取 `maxWidth`。`formatTable` 不读取 `indent`。这些函数不读环境变量，也不读文件系统。
 
-Node `>=24.18.0 <25`。没有运行时依赖。
+Node `>=24`。没有运行时依赖。
 
 ## 验证
 

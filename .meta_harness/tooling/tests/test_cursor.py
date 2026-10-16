@@ -103,7 +103,7 @@ def installed(source, tmp_path):
     workspace = tmp_path / "separate worktree"
     workspace.mkdir()
     subprocess.run(["git", "init", "-q", str(workspace)], check=True)
-    tool = workspace / "tools/ts-checks"
+    tool = workspace / "tools/repo-toolchain"
     (tool / "src/loop").mkdir(parents=True)
     (tool / "package.json").write_text('{"type":"module"}')
     (tool / "node_modules/typescript").mkdir(parents=True)
@@ -146,7 +146,7 @@ def test_hostile_git_cannot_redirect_adapter_project_or_canonical_commands(insta
     index = (foreign / ".git/index").read_bytes()
     env = {**os.environ, "GIT_DIR": str(foreign / ".git"), "GIT_WORK_TREE": str(foreign),
            "GIT_INDEX_FILE": str(foreign / ".git/index")}
-    tool = workspace / "tools/ts-checks/src/loop/stop-hook.ts"
+    tool = workspace / "tools/repo-toolchain/src/loop/stop-hook.ts"
     tool.write_text("import {execFileSync} from 'node:child_process';" + tool.read_text() +
                    "if(execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim()!==process.cwd())process.exit(9);")
     assert invoke(installed, env=env) == ({"followup_message": "new measured facts"}, "")
@@ -196,13 +196,13 @@ def test_measurement_faults_are_observable_without_followup(installed, script, c
     config = json.loads(path.read_text())
     config["timeout"] = 1
     path.write_text(json.dumps(config))
-    (workspace / "tools/ts-checks/src/loop/stop-hook.ts").write_text(script)
+    (workspace / "tools/repo-toolchain/src/loop/stop-hook.ts").write_text(script)
     output, stderr = invoke(installed)
     assert output == {} and code in stderr
 
 
 def test_missing_tooling_and_invalid_input_are_diagnostic(installed):
-    (installed[1] / "tools/ts-checks/node_modules/typescript/package.json").unlink()
+    (installed[1] / "tools/repo-toolchain/node_modules/typescript/package.json").unlink()
     assert "lack compatible" in invoke(installed)[1]
     assert invoke(installed, text="invalid")[0] == {}
     assert "adapter-failed" in invoke(installed, text="invalid")[1]
@@ -251,7 +251,7 @@ def test_native_plugin_command_uses_host_substitution_despite_inherited_root(ins
 
 def test_git_common_fallback_runs_main_tool_but_measures_target(installed, tmp_path):
     package, main = installed
-    for args in (["add", "tools/ts-checks/src", "tools/ts-checks/package.json"],
+    for args in (["add", "tools/repo-toolchain/src", "tools/repo-toolchain/package.json"],
                  ["-c", "user.name=fixture", "-c", "user.email=fixture@invalid", "commit", "-qm", "tool"]):
         subprocess.run(["git", *args], cwd=main, check=True)
     worktree = tmp_path / "fresh target"

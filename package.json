@@ -3,25 +3,35 @@
   "private": true,
   "packageManager": "pnpm@10.28.1",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "scripts": {
-    "build": "pnpm -r --filter './packages/**' --filter './apps/**' --filter './tools/ts-checks' --filter './tools/core-verification' --filter './tools/artifact-builder' run build",
+    "build": "TURBO_TELEMETRY_DISABLED=1 TURBO_DAEMON=false TURBO_NO_UPDATE_NOTIFIER=1 turbo run build --output-logs=errors-only",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm run build && pnpm run test:members",
-    "test:members": "./scripts/with-test-slot.sh node --experimental-strip-types tools/ts-checks/src/testing/cli.ts run --all",
-    "test:gate": "./scripts/with-test-slot.sh node --experimental-strip-types tools/ts-checks/src/testing/cli.ts step test",
+    "test:members": "./scripts/with-test-slot.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts run --all",
+    "test:gate": "./scripts/with-test-slot.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts step test",
     "format:write": "./scripts/format.sh write",
     "format:check": "./scripts/format.sh check",
     "format:staged": "./scripts/format.sh staged",
     "format:hook:install": "./scripts/install-format-hook.sh",
     "test:format": "./scripts/test-formatting.sh",
-    "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run typecheck && pnpm run test:gate && pnpm run lint:rules",
-    "lint:rules": "pnpm --filter @omne-harness/ts-checks run scan",
-    "package:template": "node --experimental-strip-types tools/ts-checks/src/package-template/cli.ts"
+    "check": "pnpm run format:check && pnpm run test:format && pnpm run build && pnpm run check:declarations && pnpm run typecheck && pnpm run test:gate && pnpm run lint:rules && pnpm run lint:oxlint && pnpm run lint:deps",
+    "check:declarations": "omne-declarations",
+    "lint:rules": "pnpm --filter @omne-harness/product-checks run scan",
+    "lint:oxlint": "oxlint -c .oxlintrc.json --report-unused-disable-directives tools scripts",
+    "lint:deps": "omne-deps",
+    "lint:report": "oxlint -c .oxlintrc.json -W correctness --vitest-plugin tools scripts packages apps && knip --no-exit-code",
+    "package:template": "node --experimental-strip-types tools/dev-flow/src/package-template/cli.ts"
   },
   "devDependencies": {
+    "@omne-harness/repo-config": "catalog:",
+    "@omne-harness/repo-toolchain": "catalog:",
     "@vitest/coverage-v8": "catalog:",
-    "prettier": "3.9.6"
+    "dependency-cruiser": "catalog:",
+    "knip": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "turbo": "catalog:"
   }
 }

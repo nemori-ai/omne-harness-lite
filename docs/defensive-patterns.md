@@ -44,7 +44,7 @@ DP 编号供开发模型评估精确说明在比较哪一条提醒。
 | DP-09 | 没有 | 检查表第 19 问（只在 L3 问） |
 | DP-10 | 部分：`make design-check`核现行源导航、领域对象对账，不执行模型；模型命令、配置及前提由实际成员的models/verification维护，沿[模型执行说明](verification.md#环境与实际执行)核对；绑定依据的语义复核是否过期没有通用检查 | 检查表第 20 问：模型与故障注入有没有实际运行的输出 |
 
-规则各自查什么、查不出什么，见 [tools/ts-checks](../tools/ts-checks/README_ZH.md)；「部分」的意思是只盖住了那一条的一个角，不是那一条有了保证。
+规则各自查什么、查不出什么，见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md)；「部分」的意思是只盖住了那一条的一个角，不是那一条有了保证。
 
 ## 当前指导
 

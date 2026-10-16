@@ -21,7 +21,7 @@ PF 分解后的当前产品正文从[产品入口](../product/README.md)进入�
 
 ## 已承接信息从哪里读取
 
-共同集成保证归[Cordis集成约定](../../../docs/architecture/cordis-integration-conventions.md)，采用定位归[机读约束](../../../docs/architecture/constraints.json)，机械规则覆盖归执行仓库`tools/ts-checks/src/arch/CONFORMANCE.md`。阶段后端选择归[基础设施采用](../../../docs/architecture/deployment/infrastructure-policy.md)。它们与目标架构、实际成员契约分别拥有不同信息，不从路径或绿色结构报告推断行为已兑现。
+共同集成保证归[Cordis集成约定](../../../docs/architecture/cordis-integration-conventions.md)，采用定位归[机读约束](../../../docs/architecture/constraints.json)，机械规则覆盖归执行仓库`tools/repo-toolchain/src/arch/CONFORMANCE.md`。阶段后端选择归[基础设施采用](../../../docs/architecture/deployment/infrastructure-policy.md)。它们与目标架构、实际成员契约分别拥有不同信息，不从路径或绿色结构报告推断行为已兑现。
 
 身份、组织、登录、注册、治理入口和客户端的精确行为沿[身份与治理责任](../../../docs/domains/identity-and-authorization/README.md)定位实际成员。装配、插件树、Storage/Clock与Session相关承诺沿[架构入口](../../../docs/architecture/README.md)和[领域导航](../../../docs/domains/README.md)展开，不再消费旧施工页。
 

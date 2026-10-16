@@ -37,7 +37,7 @@ formatXml({ x: '😀' }, schema)
 
 `FormattingOptions` 选择缩进和手工属性。默认缩进和最大缩进是导出的 `DEFAULT_INDENT_SIZE` 与 `MAX_INDENT_SIZE`。这些函数不读环境变量，也不读文件系统。
 
-Node `>=24.18.0 <25`。没有运行时依赖。
+Node `>=24`。没有运行时依赖。
 
 ## 验证
 

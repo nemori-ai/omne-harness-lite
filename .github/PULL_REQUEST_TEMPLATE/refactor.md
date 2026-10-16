@@ -19,4 +19,4 @@
 
 <!-- 必要 demo/命令、版本与操作→预期；具体路径/条款和重点追问：职责/成本是否转移，公共入口/生命周期是否保持，未关闭项有什么影响。 -->
 
-<!-- 采用多层集成时附 operation、B/S/C、各卡 taskBase/历史 tuple、真实 receipt 及 Git 观察；声明 completionTarget 与实际运输，未知保留。技术运输不自动生成 Closes 或宣称接受。规则见 docs/engineering/integration.md。 -->
+<!-- 进入轨道、main 或 stable 的 PR 写明关联的卡、本地运行的检查及结果；发布由 gate-publish 流程在确认后完成，确认不等于交付接受。技术运输不自动生成 Closes。规则见 docs/engineering/integration.md 的“现行准入”。 -->

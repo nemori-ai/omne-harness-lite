@@ -74,7 +74,7 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 
 Issue条件表是依赖语义唯一源，每项有稳定条件ID、类型、目标、阻塞阶段、所需结果／满足判据、确认责任与证据入口。排序是Priority或建议，不是硬依赖；父子仅分解。阻塞阶段为start、integration、acceptance。各阶段启动前读取自己的条件；进行中的卡可被integration阻塞而继续不依赖它的部分。
 
-条件类型采用有限集合：issue-result（明确前置结果）、adopted-source（现行规范已接受及切换）、decision（具名产品／架构决定）、capability（真实可用及已验证能力）。表格的结构、解析版本及接口归[实际工具拥有者](../../tools/ts-checks/README.md)；无法机械判断的条件由具名确认者核，不能让agent猜自然语言通过。
+条件类型采用有限集合：issue-result（明确前置结果）、adopted-source（现行规范已接受及切换）、decision（具名产品／架构决定）、capability（真实可用及已验证能力）。表格的结构、解析版本及接口归[实际工具拥有者](../../tools/repo-toolchain/README.md)；无法机械判断的条件由具名确认者核，不能让agent猜自然语言通过。
 
 整项Issue结果是整个开始阶段的前置时，可将该行投影为原生blocked by；只阻塞集成／接受或外部决定的条件不作全卡阻塞投影。原生边是条件表派生，不单独授权维护。首版集成写者人工核对投影；以后自动化仍需获准。未解释的原生边、漏边或悬空目标报告冲突，不能静默删边或让Ready覆盖它。
 
@@ -117,7 +117,7 @@ Issue条件表是依赖语义唯一源，每项有稳定条件ID、类型、目�
 
 ## 5. 调度、认领与cloud接续
 
-每个队列只有一个调度写者发放执行权，多个agent执行独立交付或独立子任务。可以静态分区互不重叠的队列，但不能有两个调度者竞争同一卡。人类assignee、Project拖动和API“读空→写入→读回”不构成原子锁；首版不承诺无人值守跨调度者独占。
+调度者由 `publish` environment 的 reviewer 担任，与派发校验和 PR 确认使用同一份名单。每张卡只有一个调度写者发放执行权，在卡的“调度者”一栏写明；多个调度者可以各管不同的卡，多个 agent 执行独立交付或独立子任务，但不能有两个调度者竞争同一卡。人类assignee、Project拖动和API“读空→写入→读回”不构成原子锁；首版不承诺无人值守跨调度者独占。
 
 调度者读回当前依据与条件，核对现存执行，写入唯一当前attempt摘要并确认成功，才派发。摘要含attempt、人的责任、独立分支、授权范围、输入修订和最后成功保存的Git提交。同一Issue整个正文只有一个集成写者，默认由调度写者兼任；卡owner授权范围／修订／条件变化后交该写者集成，worker只提供候选及交接建议。不能因各写不同小节就并发整段更新正文。决定者可独立发表决定评论，正文集成写者核对评论与精确修订，不替决定者授予接受。worker在自己的分支产出并提交交接建议，不争写共享摘要。切换调度者先交接、确认前任不再发放；无法确认则停止新派发，不用更新时间当租约。
 
@@ -131,7 +131,7 @@ Project权限不赋予私有仓库权限，参与者必须能合法读取必要�
 
 读取接口完整分页每层关系，记录仓库、Project、时点、输入协议、缺失权限和完整性。GitHub跨对象无已证全局快照；条件复核绑定实际读取修订，派发和接受前重读关键输入，发现变化重判，不能承诺原子多源一致性。外部受控变化通过单写交接，不能阻止所有第三方修改。
 
-首版观察工具的目标能力包括读取、校验、依赖观察、待复核及存量／差量输出；不自动发布、认领或接受。将来获准的写入命令与只读检查分开，必须明确目标及授权；agent可按已获准范围使用实际宿主工具操作，不以本项目检查器未实现为由冒称全自动支持。机读形状、接入配置和解析器由[实际工具拥有者](../../tools/ts-checks/README.md)维护，不预造产品包或默认后台agent服务。
+首版观察工具的目标能力包括读取、校验、依赖观察、待复核及存量／差量输出；不自动发布、认领或接受。将来获准的写入命令与只读检查分开，必须明确目标及授权；agent可按已获准范围使用实际宿主工具操作，不以本项目检查器未实现为由冒称全自动支持。机读形状、接入配置和解析器由[实际工具拥有者](../../tools/repo-toolchain/README.md)维护，不预造产品包或默认后台agent服务。
 
 分页不全、权限不足、来源失效、格式无法解析、限流或平台故障分别unknown／input-error，不能当空队列或全ready。只读观察不增门禁。平台不可用停止新认领、状态切换和接受写入；已获授权的隔离任务可沿已核依据继续不依赖变化的部分。输出标过期，缓存不允许编辑并回灌。远端也不可用时如实声明保存局限。
 
@@ -145,10 +145,10 @@ Project保留活动与近期项，达到容量前移出已结束项，Issue历�
 
 ## 多层集成的交接
 
-[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/ts-checks/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。
+[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/dev-flow/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。
 
 原交付条件表可增加“适用目标”列；未声明为 all。integration 条件按本次实际 track/main/stable 或登记完整 ref 核对，start/acceptance 保持 all。最终包含结果的条件放 acceptance。现有阶段环观察未完整覆盖目标层细化，未知不得说成全图无环。
 
 完成 track 后已接受的结果仍可能被后续完整 RI 携带。有权 owner 对每个历史 identity/revision/attempt 与当前输入分别重核，历史 tuple 和 taskBase 不被新修订覆盖。当前 attempt 仍唯一，不因历史集合变成多执行队列。
 
-Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 发布后投影失败，保留技术回执由原写者接续，不重放 ref 事务。本工具只读平台。
+Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。本工具只读平台。

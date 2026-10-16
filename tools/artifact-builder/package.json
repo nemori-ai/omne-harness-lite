@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Development-only portable application artifact inventory and exclusive publication",
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {

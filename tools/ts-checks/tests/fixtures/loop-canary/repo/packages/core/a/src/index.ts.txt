@@ -1,4 +1,0 @@
-// 方向违规：core 依赖了 infra。
-import { b } from '@omne-harness/b'
-
-export const a = b + 1

@@ -1,0 +1,4 @@
+{
+  "name": "@omne-harness/p",
+  "exports": { ".": { "source": "./src/index.ts" } }
+}
