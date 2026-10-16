@@ -17,6 +17,7 @@
 | 目标成员 | 承担的行为 | 阅读入口 |
 | --- | --- | --- |
 | tool/tool-contract | 工具定义、逻辑调用、真实执行、内部等待、控制、结果、执行账和原交付责任 | [SPEC](tool-contract/SPEC.md)，以及其引用的同成员专题。 |
+| tool/tool | 不含 Cordis 的领域实现：独立执行、runtime 工厂、受理决定器与记录仓端口。当前只有构造形状 | [包入口](tool/README_ZH.md)与[包索引](tool/index.md)。 |
 | tool/tool-cordis-contract | Tool 的 Cordis 服务定义、服务键、事件与实例目录，不含 Tool 实现 | [包入口](tool-cordis-contract/README_ZH.md)与 [Cordis 定义](tool-cordis-contract/docs/cordis.md)。 |
 | tool/tool-host-local | 单机提供者草稿，尚无已接受的提供者行为 | [包入口](tool-host-local/README_ZH.md)与[包索引](tool-host-local/index.md)。 |
 

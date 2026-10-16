@@ -17,7 +17,7 @@
 | [result-rendering.spec.ts](result-rendering.spec.ts) | 结构化判定：带 `content` 的普通对象对普通作者仍是普通值。普通返回按程序编码填 `data`，渲染失败不抛出 |
 | [result-projection.spec.ts](result-projection.spec.ts) | `projectToolResult`：附件身份数量不等、重复或与已有块冲突时拒绝。地址文本使用固定前缀和 JSON 定位 |
 | [tool-values.ts](tool-values.ts) | 契约函数测试用的合法值构造器，不是测试文件 |
-| [public-api-names.spec-d.ts](public-api-names.spec-d.ts) | 已接受契约的 168 个类型名都能从根入口导入。名单从迁移前的 public-api 机械生成。已实现的契约函数也能从根入口导入，并符合已接受的签名 |
+| [public-api-names.spec-d.ts](public-api-names.spec-d.ts) | 已接受契约的 166 个类型名都能从根入口导入。名单从迁移前的 public-api 机械生成，拆包时 `ToolConfiguration` 与 `ToolDependencies` 移到 `@omne-harness/tool`。已实现的契约函数也能从根入口导入，并符合已接受的签名 |
 | [contract.spec-d.ts](contract.spec-d.ts) | 公开类型的负编译用例，例如品牌身份不能互换、后台收场不接受 `no-response`、Ask 没有 deadline |
 | [module-graph.ts](module-graph.ts) | 导入图遍历工具，读取静态导入、再导出、裸副作用导入和动态 `import()` |
 

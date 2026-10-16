@@ -3,7 +3,7 @@ import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { ToolAuthorLimits, ToolDecision } from './author-context.ts'
+import type { ToolDecision } from './author-context.ts'
 import type { ToolCatalog, ToolInspection } from './authoring.ts'
 import type { RawOutput, ToolOutputCustody, ToolReads } from './custody.ts'
 import type { FixedToolRequest, ToolAvailability } from './definitions.ts'
@@ -204,29 +204,6 @@ export interface ToolClock {
   ): Reply<Readonly<{ milliseconds: string; evidence: DurableEvidence }>>
   waitUntil(instant: string, signal: AbortSignal): Promise<'elapsed' | 'cancelled'>
 }
-export type ToolConfiguration = ToolAuthorLimits &
-  Readonly<{
-    processBatchBytes: number
-    processBatchDelayMs: number
-    observerBufferBytes: number
-    resultPageBytes: number
-    reconciliationDelayMs: number
-  }>
-export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
-  commands: ToolCommands<P, B>
-  bindings: ToolBindings<P, B, E>
-  environments: ToolEnvironment<P, E>
-  decisions: ToolDecisionBridge<P>
-  instances: ToolInstanceHost<P>
-  clock: ToolClock
-  resultPolicy: ResultPolicy<B>
-  authority: ToolStartAuthority<P>
-  resources: ToolResourceResponses<P>
-  custody: ToolOutputCustody<P>
-  catalog: ToolCatalog<P>
-  reads: ToolReads<P, B>
-  children: ToolChildren<P>
-}>
 export interface ToolProvider<P, B extends ContentBlock> {
   readonly runtime: ToolRuntime<P, B>
   recover(input: Access<P>): Reply<Readonly<{ scheduled: string }>>
