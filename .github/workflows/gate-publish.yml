@@ -139,7 +139,10 @@ jobs:
               echo
               echo "This publication changes $(wc -l < hits.txt) protected path(s). A second confirmation in \`repo-toolchain-review\` is required, with a note that states why."
               echo
-              sed 's/^/- `/; s/$/`/' hits.txt | head -200
+              # No pipe into head: with pipefail, head closing early would fail the step.
+              sed -n '1,200{s/^/- `/;s/$/`/;p;}' hits.txt
+              total=$(wc -l < hits.txt)
+              if [ "$total" -gt 200 ]; then echo "- … and $(( total - 200 )) more"; fi
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "toolchain=false" >> "$GITHUB_OUTPUT"
