@@ -7,7 +7,7 @@
  * break out of the markup.
  */
 
-const XML_NAME = /^[A-Za-z_][A-Za-z0-9_.\-]*$/
+const XML_NAME = /^[A-Za-z_][A-Za-z0-9_.-]*$/
 
 /** Escape text for use as element content. */
 export function escapeXmlContent(text: string): string {

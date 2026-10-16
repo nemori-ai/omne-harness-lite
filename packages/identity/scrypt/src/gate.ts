@@ -328,7 +328,7 @@ export function openScrypt(
           entry.leave()
         }
       }
-      await Promise.all([...active])
+      await Promise.all(active)
       return { code: 'closed' }
     },
   }
