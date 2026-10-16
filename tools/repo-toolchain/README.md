@@ -40,7 +40,7 @@ The commands (`bin`) point at `dist`. Run them from the installed package:
 | `omne-metrics` | `src/metrics/cli.ts` | Structure metrics and the review page |
 | `omne-loop-status` | `src/loop/cli.ts` | Clean loop status |
 | `omne-loop-health` | `src/loop/health-cli.ts` | Process health page |
-| `omne-acceptance-lock` | `src/acceptance/cli.ts` | Acceptance lock |
+| `omne-acceptance-lock` | `src/acceptance/cli.ts` | Acceptance lock. A `README.md` or `index.md` under `acceptance/` that still has the documentation placeholder line is a template placeholder and does not count as an acceptance change |
 | `omne-architecture` | `src/arch/cli.ts` | Actual architecture JSON |
 
 The actual architecture extraction reads only the files of one revision. A package-name `extends` (for example `@omne-harness/repo-config/tsconfig.base.json`) points at an installed module. The extraction does not apply its options and lists it under `configuration.installedExtends` as `<config file> -> <specifier>`.
