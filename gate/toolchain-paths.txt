@@ -8,8 +8,11 @@
 turbo.json
 package.json
 # The whole file is protected, including product dependency versions in the catalog.
-# Once the checker packages are pinned in package.json, this entry can be narrowed.
+# The checker packages are pinned in its catalog (RFC-0008), so this entry stays whole.
 pnpm-workspace.yaml
+# The lockfile records what the pins resolve to; a lockfile-only change can swap the
+# installed checker, so it is protected with the pins.
+pnpm-lock.yaml
 Makefile
 scripts/check.sh
 scripts/integration-check.sh
@@ -32,17 +35,15 @@ scripts/test-formatting.sh
 knip.json
 docs/architecture/constraints.json
 
-# Checkers, presets and the legacy exit guard
+# Checkers and presets
 # #332 split tools/ts-checks into the published repo-toolchain and three unpublished
-# members. The old paths stay listed so that the PR which removes them is gated too.
+# members, and deleted tools/core-verification.
 tools/repo-toolchain/**
 tools/product-checks/**
 tools/dev-flow/**
 tools/test-runner/**
 repo-toolchain.config.json
 tools/repo-config/**
-tools/ts-checks/**
-tools/core-verification/**
 
 # Documentation, design and agent checks
 tools/spec-tools/**
