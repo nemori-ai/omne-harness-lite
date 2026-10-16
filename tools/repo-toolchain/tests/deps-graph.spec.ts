@@ -156,6 +156,41 @@ describe('真实检出上的依赖图', { timeout: 60_000 }, () => {
     expect(readdirSync(cache).filter(name => name.startsWith('tree-'))).toEqual([])
     expect(git(root, 'status', '--porcelain')).toBe('M packages/model/b/src/index.ts')
   })
+
+  it('工具链的分层：每条规则种一处违规都被报出，CLI 入口与向下的依赖放行', () => {
+    const root = repository()
+    write(root, 'tsconfig.base.json', '{}\n')
+    const at = (path: string, text: string) => write(root, `tools/repo-toolchain/src/${path}`, text)
+    write(root, 'tools/test-runner/src/run.ts', 'export const run = 1\n')
+    at('core/git.ts', 'export const git = 1\n')
+    at('loop/run.ts', "import { git } from '../core/git.ts'\nexport const loop = git\n")
+    at('report/render.ts', "import { loop } from '../loop/run.ts'\nexport const page = loop\n")
+    at('arch/view.ts', "import { page } from '../report/render.ts'\nexport const view = page\n")
+    at('metrics/report.ts', "import { view } from '../arch/view.ts'\nexport const report = view\n")
+    at(
+      'core/scan.ts',
+      "import { report } from '../metrics/report.ts'\nexport const scan = report\n",
+    )
+    at(
+      'deps/graph.ts',
+      "import { run } from '../../../test-runner/src/run.ts'\nexport const graph = run\n",
+    )
+    at(
+      'metrics/cli.ts',
+      "import { view } from '../arch/view.ts'\nimport { loop } from '../loop/run.ts'\nexport const cli = [view, loop]\n",
+    )
+    const found = workingGraph(root)
+      .findings.filter(finding => finding.kind === 'dependency-rule')
+      .map(finding => `${finding.rule} ${finding.sites[0]?.path ?? ''}`)
+      .sort()
+    expect(found).toEqual([
+      'toolchain-checks-not-pages tools/repo-toolchain/src/arch/view.ts',
+      'toolchain-core-stays-low tools/repo-toolchain/src/core/scan.ts',
+      'toolchain-metrics-below-arch tools/repo-toolchain/src/metrics/report.ts',
+      'toolchain-not-unpublished tools/repo-toolchain/src/deps/graph.ts',
+      'toolchain-report-below-loop tools/repo-toolchain/src/report/render.ts',
+    ])
+  })
 })
 
 describe('dependency-cruiser 的 TypeScript', () => {
