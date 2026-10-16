@@ -10,7 +10,7 @@ owner: Brian Lee
 
 规则与维护责任见[RFC入口](README.md)。本提案部分取代 [RFC-0004](RFC-0004-trunk-pr-admission.md) revision 1：采用标签与 policy registry 作为受信来源的条款、本机集成工具在四条主干上的角色与改造计划，以及流程失效时的恢复方式。精确取代范围见「决定范围」。RFC-0004 的其他条款不变，RFC-0004 保持 accepted。
 
-本提案承接 [RFC-0008](RFC-0008-repo-toolchain-trust.md)「决定范围」中留给后续提案的部分：采用命令与本机发布命令的退役及相应的恢复路径，以及 task-sync 的实现方式、`track-retire` 与检查命令清单的删除。来源是 [#290 的实施方案](https://github.com/nemori-ai/omne-harness-lite/issues/290#issuecomment-6188641420)「流程工具怎么改」与落地顺序中的退役一步。提案采用、规范写回、实现和交付接受分别判断。2026-10-16 采用本提案 revision 1，记录见 [#362 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/362#issuecomment-6217265901)。规范写回尚未发生。
+本提案承接 [RFC-0008](RFC-0008-repo-toolchain-trust.md)「决定范围」中留给后续提案的部分：采用命令与本机发布命令的退役及相应的恢复路径，以及 task-sync 的实现方式、`track-retire` 与检查命令清单的删除。来源是 [#290 的实施方案](https://github.com/nemori-ai/omne-harness-lite/issues/290#issuecomment-6188641420)「流程工具怎么改」与落地顺序中的退役一步。提案采用、规范写回、实现和交付接受分别判断。2026-10-16 采用本提案 revision 1，记录见 [#362 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/362#issuecomment-6217265901)。规范写回与实施由 [#364](https://github.com/nemori-ai/omne-harness-lite/issues/364) 承接，见「写回现行正文」。
 
 ## 问题与有效输入
 
