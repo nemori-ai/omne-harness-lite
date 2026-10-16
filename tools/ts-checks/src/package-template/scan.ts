@@ -1,6 +1,6 @@
 import { join, resolve } from 'node:path'
 import { readFileSync } from 'node:fs'
-import { dependencyRows } from '../arch/dependencies.ts'
+import { dependencyRows, type DependencyRow } from '../arch/dependencies.ts'
 import { analyzeConformance } from '../arch/conformance.ts'
 import { readArchitectureSource } from '../arch/source.ts'
 import type { ActualExtraction } from '../arch/actual-model.ts'
@@ -9,7 +9,6 @@ import {
   object,
   older,
   parseMarker,
-  type DependencyRow,
   type PackageScan,
   type TemplateManifest,
   type Variant,

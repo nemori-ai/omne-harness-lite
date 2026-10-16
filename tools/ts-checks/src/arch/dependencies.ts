@@ -1,8 +1,28 @@
-import type { ActualExtraction, PackageImport } from './actual-model.ts'
+import type { ActualExtraction, PackageImport, Site } from './actual-model.ts'
 import type { Conformance, ConformanceRow } from './conformance-model.ts'
 import { cycles } from '../deps/graph.ts'
-import { object, type DependencyRow, type MemberPath } from '../package-template/model.ts'
 
+export type OverlayRule = 'undeclared-dependency' | 'member-cycle'
+export type DependencyRule = ConformanceRow['rule'] | OverlayRule
+export interface DependencyRow {
+  readonly id: string
+  readonly rule: DependencyRule
+  readonly state: 'deviation' | 'unknown' | 'converged'
+  readonly age: 'new' | 'stock' | 'unjudged'
+  readonly member: string
+  readonly targetMember?: string
+  readonly key: string
+  readonly reason: string
+  readonly expected: string
+  readonly sites: readonly Site[]
+  readonly relation?: PackageImport
+}
+/** Workspace path the checker can name. Create only writes the packages form. */
+export type MemberPath = string & { readonly __memberPath: unique symbol }
+
+function object(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 const KEBAB = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u
 const BLOCKS = ['dependencies', 'peerDependencies', 'devDependencies'] as const
 
