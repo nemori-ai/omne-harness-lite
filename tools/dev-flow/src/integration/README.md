@@ -21,7 +21,7 @@ node --experimental-strip-types tools/dev-flow/src/integration/cli.ts baselines 
 
 目标分支由 binding 的 route 决定：track 路线是 registry 登记的 `integration/<轨道>`，global 与 cross-track 路线是 `main`。远端位置取 policy 的 `transport.location`。
 
-`baselines` 输出检查用的基线。有 context 时输出固定的 `targetBase` 与本任务的审计范围；`--base` 给出的提交与 `targetBase` 不同时拒绝，错误码为 `stale`。没有 context 时 `targetBase` 是 `--base` 的值，`scripts/check.sh` 在它为空时退回 `origin/main`。输出中的 `state` 为 `pending`（没有 context）或 `adopted`（有 context）。这两个值来自 `@omne-harness/repo-toolchain` 的读格式，不表示任何采用机制。
+`baselines` 输出检查用的基线。有 context 时输出固定的 `targetBase` 与本任务的审计范围；`--base` 给出的提交与 `targetBase` 不同时拒绝，错误码为 `stale`。没有 context 时 `targetBase` 是 `--base` 的值，`scripts/check.sh` 在它为空时退回 `origin/main`。输出中的 `state` 来自 `@omne-harness/repo-toolchain` 的读格式：没有 context 时为 `pending`；有 context 时 0.0.4 输出 `adopted`，0.0.5 起输出 `bound`。消费钉住版本的成员只判断它是否为 `pending`，所以两个版本下的结果相同。
 
 ## 执行命令
 

@@ -394,7 +394,7 @@ describe('计划文件', () => {
     expect(readPlanFile(ROOT, planFile({})).head).toBe(head)
   })
 
-  it.skipIf(fixed.state !== 'adopted')('与固定基线不同的真实提交：拒绝执行', () => {
+  it.skipIf(fixed.state === 'pending')('与固定基线不同的真实提交：拒绝执行', () => {
     expect(() =>
       readPlanFile(ROOT, planFile({ base: { ref: `${baseRef}^`, mergeBase: head } })),
     ).toThrow('Explicit base differs from fixed targetBase')
