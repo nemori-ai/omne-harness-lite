@@ -57,7 +57,9 @@
         "--dir",
         "{runner}",
         "--filter",
-        "@omne-harness/ts-checks...",
+        "@omne-harness/product-checks...",
+        "--filter",
+        "@omne-harness/test-runner...",
         "run",
         "build"
       ],
@@ -142,7 +144,7 @@
       "argv": [
         "node",
         "--experimental-strip-types",
-        "{runner}/tools/ts-checks/src/integration/cli.ts",
+        "{runner}/tools/dev-flow/src/integration/cli.ts",
         "baselines",
         "--root",
         "{subject}"
@@ -161,7 +163,7 @@
         "OMNE_RUNNER_ROOT",
         "pnpm",
         "--dir",
-        "{runner}/tools/ts-checks",
+        "{runner}/tools/dev-flow",
         "exec",
         "vitest",
         "run",
@@ -231,10 +233,10 @@
     "networkMs": 30000
   },
   "requiredFiles": [
-    "tools/ts-checks/src/integration/cli.ts",
-    "tools/ts-checks/src/integration/engine.ts",
-    "tools/ts-checks/src/integration/SPEC.md",
-    "tools/ts-checks/src/delivery/binding.ts",
+    "tools/dev-flow/src/integration/cli.ts",
+    "tools/dev-flow/src/integration/engine.ts",
+    "tools/dev-flow/src/integration/SPEC.md",
+    "tools/dev-flow/src/delivery/binding.ts",
     "docs/engineering/integration.md",
     ".meta_harness/agents/skills/branch-integration/canonical/SKILL.md"
   ],

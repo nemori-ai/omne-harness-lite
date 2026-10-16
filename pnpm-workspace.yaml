@@ -1,8 +1,10 @@
 packages:
   - packages/*/*
   - apps/*
-  - tools/ts-checks
-  - tools/core-verification
+  - tools/repo-toolchain
+  - tools/dev-flow
+  - tools/product-checks
+  - tools/test-runner
   - tools/artifact-builder
   - tools/repo-config
 

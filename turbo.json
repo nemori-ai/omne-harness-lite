@@ -16,12 +16,6 @@
       "outputs": [
         "dist/**"
       ]
-    },
-    "@omne-harness/core-verification#build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": []
     }
   }
 }
