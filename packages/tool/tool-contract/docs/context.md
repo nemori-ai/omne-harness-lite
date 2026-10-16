@@ -17,7 +17,7 @@ flowchart LR
   Consumer[原消费者] --> Results[交付与全文读取]
 ```
 
-独立消费与 Harness 接入的设计形状见 [public-api](public-api.md)，该页导航到源码中已导出的类型，并单列尚未实现的函数。需要托管状态的路径必须具备相应提供者，纯独立路径不暗建 Session。装配依赖和资源撤除见 [Cordis](../../tool-cordis-contract/docs/cordis.md)。
+独立消费与 Harness 接入的设计形状见 [public-api](public-api.md)，该页导航到源码中已导出的类型，并单列尚未实现的函数。需要托管状态的路径必须具备相应提供者，纯独立路径不暗建 Session。其他领域的生产代码只依赖本包；编写 Cordis 插件时另加 `@omne-harness/tool-cordis-contract`，服务定义与登记协议见其 [cordis](../../tool-cordis-contract/docs/cordis.md)。独立执行与 runtime 工厂在不含 Cordis 的 `@omne-harness/tool`，独立程序与应用装配按需选择它。
 
 ## 原消费场景的前提
 
@@ -116,4 +116,4 @@ stateDiagram-v2
 
 先读 [architecture](architecture.md) 确认本包责任，再读 [object-model](object-model.md) 区分值、实体、协程和依赖；[public-api](public-api.md) 给唯一设计形状，[protocols](../SPEC.md#tool-操作协议) 给每次调用的守卫、提交与未知处理。接入 Code 再读 [composition](../SPEC.md#code-与-tool-的组合协议)，Cordis 集成读 [cordis](../../tool-cordis-contract/docs/cordis.md)。[coverage](../verification/coverage.md) 将这些入口对回全部产品能力。
 
-纯作者路径可分别取 ParameterCodec、evaluateToolAvailability、presentTool、executeTool 和 renderToolResult。它们只消费显式输入；托管路径才组合身份、存储、环境、事实流和恢复。Catalog、过程读取、内容读取与账目范围查询按各自权限开放，不把一个万能Tool句柄交给程序。
+纯作者路径可分别取本包的 ParameterCodec、evaluateToolAvailability、presentTool、renderToolResult，以及 `@omne-harness/tool` 的 executeTool。它们只消费显式输入；托管路径才组合身份、存储、环境、事实流和恢复。Catalog、过程读取、内容读取与账目范围查询按各自权限开放，不把一个万能Tool句柄交给程序。

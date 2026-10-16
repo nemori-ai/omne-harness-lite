@@ -627,7 +627,7 @@ release 使用独立 ReleaseRecord，绑定原准备、资源和独立保管证�
 
 Tool 的事务只决定本域是否预留启动。受信执行边界再使用 ToolStartAuthority，核当前身份/授权、Session 或独立工作资格、推进代次、批决定、调用方式许可、固定定义和执行绑定、实际环境代次，以及 programmatic 子调用的原父程序推进屏障。prepare 生成包含各拥有者版本的 permit，permit 本身不授权执行。
 
-第一版提供者采用同机的启动协调器和耐久受理台账。相关拥有者通过 invalidate 将资格失效纳入该协调器的同一排序域，再确认该失效已生效。Session 归档的业务事实可以先保存，但不得在围栏失效未成立时对外声称新发起已经被阻止；这项集成义务归共同集成正文。准入资料不可读时拒绝新的 consume，不能读过期缓存放行。
+Tool 实现必须提供启动排序域和耐久受理台账。单机做法归 [tool-host-local](../tool-host-local/SPEC.md)。相关拥有者通过 invalidate 将资格失效纳入同一排序域，再确认该失效已生效。Session 归档的业务事实可以先保存，但不得在围栏失效未成立时对外声称新发起已经被阻止；这项集成义务归共同集成正文。准入资料不可读时拒绝新的 consume，不能读过期缓存放行。
 
 executor 先以原 start operation 保存不可执行的待发胶囊，取得 executorReceipt。consume 只能由这个受信执行边界调用。它核票据与当前 guard，在同一排序内将原胶囊从待发变为唯一可执行受理记录，形成 acceptance。胶囊在 consume 前不能运行，consume 后只由原执行桥按同一 startId 推进。外部工具受理或请求交给受信外发桥的这一点是启动线性化点；不是远端效果已完成。绑定的 start/resume 封装这一过程，不能把 consume 与任意函数调用自由拼接。
 
@@ -845,7 +845,7 @@ ToolBindingRegistry 在当前 tenant、来源及登记资格下接受受信装�
 
 新配置须整体校验后才供后续采用，失败不发布半新半旧注册，保留此前仍合法的候选。FixedToolRequest.settings 指向原设置快照，和 definition/executor 一起用于执行、settle 与恢复；不再新增同义配置快照字段。原版本或秘密引用无法合法恢复时明确 unavailable，不能改取最新值继续。当前资格撤回仍约束受保护动作，旧快照不授永久许可。
 
-从 Tool 治理视角，作者提供定义及操作，Tool 提供类别校验、注册与合法装载。草稿发布、持有、所有权和合法候选选择继续由资产及装配拥有者提供输入，不要求 Tool 再造发布治理。文件写入不代表登记；撤登记只阻止后续采用，不表示在途调用取消或副作用回滚。Cordis 的贡献 effect、旧 token 条件撤除及在途能力交接归 [装配](../tool-cordis-contract/docs/cordis.md#作者装载与贡献登记)。
+从 Tool 治理视角，作者提供定义及操作，Tool 提供类别校验、注册与合法装载。草稿发布、持有、所有权和合法候选选择继续由资产及装配拥有者提供输入，不要求 Tool 再造发布治理。文件写入不代表登记；撤登记只阻止后续采用，不表示在途调用取消或副作用回滚。Cordis 的贡献 effect、旧 token 条件撤除及在途能力交接归 [装配](../tool-host-local/docs/cordis.md#作者装载与贡献登记)。
 
 ### P16 目录与发现的故障隔离
 
@@ -863,7 +863,7 @@ ToolRuntime 的持久操作不以前置 connect 成功为条件。目录或发�
 
 ToolHandle 绑定原实例及发布代次。目录提供者撤除使原观察流以 ended/unavailable 结束，原实例或贡献被替换以 stale-instance 结束；旧 handle 后续 observe 也不能读取或静默切到新代。connect 取得句柄到交回之间须核代次未失效。已交快照仍保留原版本意义，在途读取不得跨代拼接。这里需要提供者显式活性守卫，Cordis 不自动吊销任意 JS 引用。
 
-目录换代只使发布子 fiber 重建原实例的合法贡献，不重启 driver 或 executor，不重新 start/resume。Commands/Reads 自身的必需依赖失效仍可使相应门面不可用，这条隔离不承诺全域高可用。精确依赖和贡献撤除见 [Cordis](../tool-cordis-contract/docs/cordis.md#阶段装配与换代)。
+目录换代只使发布子 fiber 重建原实例的合法贡献，不重启 driver 或 executor，不重新 start/resume。Commands/Reads 自身的必需依赖失效仍可使相应门面不可用，这条隔离不承诺全域高可用。精确依赖和贡献撤除见 [Cordis](../tool-host-local/docs/cordis.md#阶段装配与换代)。
 
 ## Code 与 Tool 的组合协议
 

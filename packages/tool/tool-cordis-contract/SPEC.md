@@ -9,4 +9,6 @@
 3. 根入口不导出值，也不导入 Cordis。
 4. 事件名以包名为范围，为 `tool-cordis-contract/call-changed`（IC-10）。
 
+契约 SPEC 的 [G1–G9 总表](../tool-contract/SPEC.md#342-契约缺口决定)没有归属本包的决定。服务定义的归属由四包拆分确定。
+
 文档导航见 [index](index.md)。

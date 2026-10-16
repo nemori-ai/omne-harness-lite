@@ -76,4 +76,4 @@ tool-host-local/
 └── tsconfig.build.json / tsconfig.test.json / vitest.config.ts
 ```
 
-The public contract of this provider belongs to the contract member [`@omne-harness/tool-contract`](../tool-contract/README.md). The full file navigation is in [index](index.md). The topic responsibilities are in [docs/README](docs/README.md).
+The public contract of this provider belongs to the contract package [`@omne-harness/tool-contract`](../tool-contract/README.md). The full file navigation is in [index](index.md). The topic responsibilities are in [docs/README](docs/README.md).

@@ -1,4 +1,4 @@
-// The root entry of the Tool contract member. It does not import Cordis or a provider member.
+// The root entry of the Tool contract package. It does not import Cordis or another Tool package.
 export { toolBodyContract } from './contract.ts'
 export { describedAdoption, type AdoptionRules } from './adoption.ts'
 export * from './identity.ts'

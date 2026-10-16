@@ -341,7 +341,7 @@ sequenceDiagram
     Note over N,D: 无目录路由不等于调用不存在
 ```
 
-Code 子调用见本页[父子调用时序](#code-子调用时序)。Cordis 换代次序见 [cordis](../../tool-cordis-contract/docs/cordis.md#阶段装配与换代)。
+Code 子调用见本页[父子调用时序](#code-子调用时序)。Cordis 换代次序见 [cordis](../../tool-host-local/docs/cordis.md#阶段装配与换代)。
 
 ## Code 子调用时序
 
