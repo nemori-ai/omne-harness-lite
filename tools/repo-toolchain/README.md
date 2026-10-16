@@ -2,7 +2,7 @@
 
 [中文说明](README_ZH.md)
 
-`@omne-harness/repo-toolchain` is this repository's checker package. It is planned for npm and stays `private` until the first release. It provides the rule engine, commit attribution, the dependency graph, declaration compatibility, structure metrics, actual architecture extraction, the review page and the clean loop. After the root pins an exact version, local checks run the published version.
+`@omne-harness/repo-toolchain` is this repository's checker package. It is published on npm. It provides the rule engine, commit attribution, the dependency graph, declaration compatibility, structure metrics, actual architecture extraction, the review page and the clean loop. After the root pins an exact version, local checks run the published version.
 
 Three unpublished tool members import this package through its subpaths. This package does not import them:
 
@@ -23,7 +23,6 @@ Three unpublished tool members import this package through its subpaths. This pa
 pnpm --filter @omne-harness/repo-toolchain build      # tsc, then prebuild the review page's third-party code into dist
 pnpm --filter @omne-harness/repo-toolchain typecheck
 pnpm --filter @omne-harness/repo-toolchain test
-pnpm run build:tools                                  # tool member CLIs read this package's dist; build it first (turbo caches it)
 ```
 
 The build writes the React, @xyflow/react, antd and elkjs code that the review page inlines to `dist/report/flow/architecture/page-assets.json`. A run from `dist` reads that file. A run from the sources bundles at page generation. The published package therefore does not depend on these UI libraries.
@@ -31,6 +30,20 @@ The build writes the React, @xyflow/react, antd and elkjs code that the review p
 ## Public entries
 
 The `exports` subpaths map to modules under `src`, for example `@omne-harness/repo-toolchain/core/task-context`. `.` exports the rule types, `collectSources`, `runRules(files, rules)` and the actual architecture API. `./architecture` exports the actual architecture API. `loop/run`, `loop/hook-measure` and `loop/sensors/*` exist for the tests of the other tool members in this repository and carry no public promise. The published manifest drops the `source` condition, which points at `src`.
+
+The commands (`bin`) point at `dist`. Run them from the installed package:
+
+| Command | Source entry | Purpose |
+| --- | --- | --- |
+| `omne-deps` | `src/deps/cli.ts` | Dependency rules, and cycles between members and groups |
+| `omne-declarations` | `src/declarations/cli.ts` | Reads member `dist` declarations with TypeScript 6 |
+| `omne-metrics` | `src/metrics/cli.ts` | Structure metrics and the review page |
+| `omne-loop-status` | `src/loop/cli.ts` | Clean loop status |
+| `omne-loop-health` | `src/loop/health-cli.ts` | Process health page |
+| `omne-acceptance-lock` | `src/acceptance/cli.ts` | Acceptance lock |
+| `omne-architecture` | `src/arch/cli.ts` | Actual architecture JSON |
+
+The actual architecture extraction reads only the files of one revision. A package-name `extends` (for example `@omne-harness/repo-config/tsconfig.base.json`) points at an installed module. The extraction does not apply its options and lists it under `configuration.installedExtends` as `<config file> -> <specifier>`.
 
 `make design-check` checks current design sources, domain objects, and generated inputs. `make loop-health` reports trends, test timings, and Git history.
 

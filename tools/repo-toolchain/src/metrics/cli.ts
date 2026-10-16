@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // 结构度量入口：只读源码与 git，产出摘要、数据与审讯页。度量只报告，不判失败——
 // 方向规则的失败由 `lint:rules` 承担；这里退出码非零只表示工具自己出错。
 import { baselines } from '../core/task-context.ts'

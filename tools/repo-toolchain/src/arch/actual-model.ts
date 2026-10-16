@@ -100,6 +100,7 @@ export interface ActualExtraction {
   readonly packageImports: readonly PackageImport[]
   readonly importUnknown: readonly ImportUnknown[]
   readonly configurationFiles: readonly string[]
+  readonly installedExtends: readonly string[]
 }
 export interface Snapshot {
   readonly texts: ReadonlyMap<string, string>

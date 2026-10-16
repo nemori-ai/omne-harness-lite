@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // 回路状态的命令行外壳：解析参数、调 run.ts、打印、给退出码。
 // 退出码 1 只在硬线被破时；2 是工具自己出错（参数、配置、git）。
 import { resolve } from 'node:path'

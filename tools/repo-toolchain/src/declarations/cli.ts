@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // 声明兼容检查入口：先构建，再用 TypeScript 6 读全部成员 dist 里的 `.d.ts`。
 // 退出码 0 表示兼容，1 表示成员声明里有诊断，2 表示用法或工具出错。
 import { resolve } from 'node:path'

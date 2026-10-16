@@ -51,6 +51,7 @@ const emptyActual: ActualExtraction = {
   packageImports: [],
   importUnknown: [],
   configurationFiles: [],
+  installedExtends: [],
 }
 const emptyConformance: Conformance = {
   schemaVersion: 1,

@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-`@omne-harness/repo-toolchain` 是本仓库的检查器包，计划发布到 npm，首次发布前保留 `private`。它提供规则引擎、提交署名、依赖图、声明兼容、结构度量、实际架构抽取、审讯页与 clean loop。根目录钉精确版本以后，本地检查运行发布的版本。
+`@omne-harness/repo-toolchain` 是本仓库的检查器包，发布在 npm。它提供规则引擎、提交署名、依赖图、声明兼容、结构度量、实际架构抽取、审讯页与 clean loop。根目录钉精确版本以后，本地检查运行发布的版本。
 
 三个不发布的工具成员经本包的子路径导入它，本包不引用它们：
 
@@ -25,13 +25,24 @@
 
 `exports` 的子路径对应 `src` 下的模块，例如 `@omne-harness/repo-toolchain/core/task-context`。`.` 导出规则类型、`collectSources`、`runRules(files, rules)` 与实际架构 API；`./architecture` 导出实际架构 API。`loop/run`、`loop/hook-measure` 与 `loop/sensors/*` 只供本仓库其他工具成员的测试使用，不作公开承诺。发布时去掉指向 `src` 的 `source` 条件。
 
+命令入口（`bin`）都指向 `dist`，从安装的包运行：
+
+| 命令 | 源码入口 | 作用 |
+| --- | --- | --- |
+| `omne-deps` | `src/deps/cli.ts` | 依赖规则与成员、组之间的环 |
+| `omne-declarations` | `src/declarations/cli.ts` | 用 TypeScript 6 读成员 dist 里的声明 |
+| `omne-metrics` | `src/metrics/cli.ts` | 结构度量与审讯页 |
+| `omne-loop-status` | `src/loop/cli.ts` | 回路状态 |
+| `omne-loop-health` | `src/loop/health-cli.ts` | 流程体检页 |
+| `omne-acceptance-lock` | `src/acceptance/cli.ts` | 验收锁 |
+| `omne-architecture` | `src/arch/cli.ts` | 实际架构 JSON |
+
 ## 构建与测试
 
 ```sh
 pnpm --filter @omne-harness/repo-toolchain build      # tsc，再把审讯页内联的第三方代码预打包到 dist
 pnpm --filter @omne-harness/repo-toolchain typecheck
 pnpm --filter @omne-harness/repo-toolchain test
-pnpm run build:tools                                  # 工具成员的 CLI 读本包的 dist，调用前先构建（turbo 有缓存）
 ```
 
 审讯页内联的 React、@xyflow/react、antd 与 elkjs 在构建时写入 `dist/report/flow/architecture/page-assets.json`。从 `dist` 运行时读取这个文件，从源码运行时现场打包，所以发布的包不依赖这些界面库。
@@ -125,8 +136,10 @@ CLI 的 stdout 只有 JSON。`--out` 另写同一份 JSON。参数、Git、works
 产品测试排除，开发成员可用于静态解析，但不独立抽取其插件。manifest 和配置取本版内容。
 配置的 `read` 清单与 `appliedToResolution` 清单分开；后者记录实际选中及 extends 读取的配置。
 每个导入先用所属成员的 tsconfig.json、tsconfig.build.json，再用根配置；应用其模块解析选项。
-这不复现 compiler build：仍分析全部产品 src TypeScript，不依赖 include/exclude，不加载安装包、
-标准库或安装包的 extends，也不运行 project references。workspace dist exports 静态映射到 src。
+这不复现 compiler build：仍分析全部产品 src TypeScript，不依赖 include/exclude，不加载安装包和
+标准库，也不运行 project references。workspace dist exports 静态映射到 src。
+按包名写的 extends（例如 `@omne-harness/repo-config/tsconfig.base.json`）指向安装的模块，不在该版本的文件里。
+抽取不应用它的选项，把它记进 `configuration.installedExtends`，格式为 `<配置文件> -> <说明符>`。
 
 `facts` 保留服务定义、候选提供、必需与可选取用、事件、插件和静态装配；`imports` 区分类型与运行导入，
 含 ESM import/export/dynamic import、空 named 子句、TypeScript `import()` 类型、外部包和成员内导入。

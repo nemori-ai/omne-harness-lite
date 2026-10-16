@@ -1060,6 +1060,7 @@ class Extractor {
       packageImports: this.packageImports,
       importUnknown: this.importUnknown,
       configurationFiles: [...this.resolver.configurationFiles].sort(),
+      installedExtends: [...this.resolver.installedExtends].sort(),
       unknown: [...this.unknown.values()],
       imports: this.imports,
       edges: memberEdgesOf(this.imports),

@@ -21,7 +21,7 @@ pnpm --filter @omne-harness/product-checks test
 pnpm run lint:rules
 ```
 
-The CLI exits 1 on violations and prints their rule, source path and line. A successful scan of an absent consumer supplies no evidence about that consumer. The CLI's repository scan uses this tool's checkout; explicit CLI arguments choose additional package roots, not an arbitrary replacement repository. The repository collector normalizes its root before reading configurations, so a trailing slash does not change root `tsconfig` alias resolution.
+The CLI exits 1 on violations and prints their rule, source path and line. A successful scan of an absent consumer supplies no evidence about that consumer. The CLI's repository scan uses this tool's checkout; explicit CLI arguments choose additional package roots, not an arbitrary replacement repository. The repository collector normalizes its root before reading configurations, so a trailing slash does not change root `tsconfig` alias resolution. A relative `extends` is read as a file. A package-name `extends` resolves with Node rules from the directory of that configuration, so the collector reads the installed copy that the lockfile pins. If it does not resolve, the collector stops with an error.
 
 | Built module          | Public surface                                                                                                                       |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
