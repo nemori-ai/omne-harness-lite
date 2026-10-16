@@ -381,7 +381,6 @@ const registrationStillThere = await third.ask({
 })
 record('registration-after-restart', registrationStillThere)
 
-const blocked = new Set(['BEGIN', 'COMMIT', 'ROLLBACK', 'END', 'SAVEPOINT', 'RELEASE'])
 const bypass = [
   'COMMIT' + String.fromCharCode(0) + 'ignored',
   '/* probe */ COMMIT',
