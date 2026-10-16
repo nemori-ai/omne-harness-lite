@@ -4,7 +4,7 @@
 
 Development flow tools. This member is not published.
 
-- [integration](src/integration/README.md): `start`, the task context, baselines and task-sync. `@omne-harness/repo-toolchain` owns the read format of the task context in `core/task-context`; this member writes the context and validates all of it.
+- [integration](src/integration/README.md): `start`, the task context, `status`, baselines and `task-sync`, which moves the target baseline forward after you merge the target branch. `@omne-harness/repo-toolchain` owns the read format of the task context in `core/task-context`; this member writes the context and validates all of it.
 - [delivery](src/delivery/README.md): reads Issues and the project board and reports card shape, phase waits and dependency projections.
 - The package template: see below.
 

@@ -31,7 +31,7 @@ function main(argv: readonly string[]): number {
   const ranges = auditRanges(root, base)
   if (ranges.length === 0) ranges.push({ label: 'legacy task', base: base ?? 'main', head: 'HEAD' })
   const reports = ranges.map(range =>
-    inspect(root, range.base, config, range.head, selected.state === 'adopted'),
+    inspect(root, range.base, config, range.head, selected.state === 'bound'),
   )
   for (const range of ranges) console.log(`${range.label}: ${range.base}..${range.head}`)
   for (const report of reports) for (const line of render(report, config)) console.log(line)

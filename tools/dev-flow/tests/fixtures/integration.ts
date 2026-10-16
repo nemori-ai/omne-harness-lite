@@ -1,12 +1,8 @@
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { randomUUID } from 'node:crypto'
-import { git, blob } from '../../src/integration/git.ts'
+import { git } from '../../src/integration/git.ts'
 import { parsePolicy } from '../../src/integration/policy.ts'
-import { annotatedObject } from '../../src/integration/transport.ts'
-import { latchAnchor } from '../../src/integration/context.ts'
-import { digest } from '../../src/integration/parse.ts'
 import type { TaskBinding } from '../../src/delivery/binding.ts'
 import type { Decision } from '../../src/integration/authority.ts'
 import type { Condition } from '../../src/delivery/protocol.ts'
@@ -24,9 +20,32 @@ export function init(root: string, bare = false): void {
   for (const key of ['user.name', 'user.email'])
     git(root, ['config', key, git(process.cwd(), ['config', key])])
 }
-export function integrationFixture(
-  options: { sharedLoader?: boolean; runnerMutation?: boolean; admissionOnly?: boolean } = {},
-) {
+/** The registry shape the tools read; tests vary it to probe parsePolicy. */
+export function policyDocument(initialMain: string, location: string) {
+  return {
+    schemaVersion: 1,
+    revision: '1',
+    repository: 'owner/repo',
+    deliveryConfig: 'docs/engineering/github-delivery.json',
+    tracks: [
+      {
+        id: 'runtime',
+        branch: 'integration/runtime',
+        owner: 'human',
+        source: 'https://github.com/owner/repo/issues/1',
+        status: 'active',
+        initialMain,
+      },
+    ],
+    transport: { kind: 'local-bare', location },
+    timeouts: { networkMs: 30000 },
+  }
+}
+/**
+ * A task worktree on `human/task` with a local bare remote that has `main` and the track
+ * `integration/runtime`. No adoption descriptor, anchor or tag exists.
+ */
+export function integrationFixture(options: { admissionOnly?: boolean } = {}) {
   const home = mkdtempSync(join(tmpdir(), 'omne-integration-engine-')),
     root = join(home, 'work'),
     remote = join(home, 'remote.git'),
@@ -36,52 +55,8 @@ export function integrationFixture(
   mkdirSync(bin)
   const initial = commit(root, '.gitignore', 'tmp/\n')
   mkdirSync(join(root, 'docs/engineering'), { recursive: true })
-  const policy = parsePolicy({
-    schemaVersion: 1,
-    revision: '1',
-    repository: 'owner/repo',
-    deliveryConfig: 'docs/engineering/github-delivery.json',
-    owners: [
-      {
-        login: 'human',
-        nodeId: 'U_human',
-        actions: ['adopt', 'dispatch', 'publish', 'policy-adopt', 'track-bootstrap'],
-      },
-    ],
-    tracks: [
-      {
-        id: 'runtime',
-        branch: 'integration/runtime',
-        owner: 'human',
-        source: 'https://github.com/owner/repo/issues/1',
-        status: 'active',
-        initialMain: initial,
-        checks: [],
-      },
-    ],
-    commands: [{ id: 'check', argv: ['node', '{runner}/check.mjs', '{subject}'], cwd: 'runner' }],
-    profiles: { integration: ['check'], full: ['check'] },
-    checkpointCoverage: {
-      startup: ['check'],
-      install: ['check'],
-      migration: ['check'],
-      mainPath: ['check'],
-    },
-    timeouts: { commandMs: 30000, networkMs: 30000 },
-    requiredFiles: ['check.mjs'],
-    transport: { kind: 'local-bare', location: remote },
-  })
+  const policy = parsePolicy(policyDocument(initial, remote))
   writeFileSync(join(root, 'docs/engineering/integration-policy.json'), JSON.stringify(policy))
-  writeFileSync(
-    join(root, 'docs/engineering/integration-bootstrap.json'),
-    JSON.stringify({
-      schemaVersion: 1,
-      repository: 'owner/repo',
-      policyPath: 'docs/engineering/integration-policy.json',
-      adoptionPrefix: 'refs/tags/omne/integration/adoption/',
-      remote: 'origin',
-    }),
-  )
   writeFileSync(
     join(root, 'docs/engineering/github-delivery.json'),
     JSON.stringify({
@@ -102,72 +77,11 @@ export function integrationFixture(
       writers: { stage: 'human', body: 'human' },
     }),
   )
-  writeFileSync(
-    join(root, 'check.mjs'),
-    "import {existsSync,readFileSync,writeFileSync} from 'node:fs';import{join}from'node:path';import{execFileSync}from'node:child_process';const root=process.argv[2];if(existsSync(join(root,'bad')))process.exit(7);if(existsSync(join(root,'dirty-trigger')))writeFileSync(join(root,'untracked-result'),'changed');if(existsSync(join(root,'runner-dirty-trigger')))writeFileSync(new URL('changed-runner',import.meta.url),'changed');if(existsSync(join(root,'head-trigger')))execFileSync('git',['commit','--allow-empty','-m','Changed HEAD'],{cwd:root});process.stdout.write('trusted checker ran\\n');",
-  )
-  if (options.runnerMutation) writeFileSync(join(root, 'runner-dirty-trigger'), 'fixture')
-  if (options.sharedLoader) {
-    for (const path of ['core/git-environment.ts', 'core/git.ts', 'core/task-context.ts']) {
-      const target = join(root, 'tools/repo-toolchain/src', path)
-      mkdirSync(join(target, '..'), { recursive: true })
-      writeFileSync(
-        target,
-        readFileSync(new URL('../../../repo-toolchain/src/' + path, import.meta.url)),
-      )
-    }
-    const checker = join(root, 'check.mjs')
-    writeFileSync(
-      checker,
-      "import {baselines} from './tools/repo-toolchain/src/core/task-context.ts';process.stdout.write(JSON.stringify(baselines(process.argv[2]))+'\\n');\n" +
-        readFileSync(checker, 'utf8'),
-    )
-  }
   git(root, ['add', '.'])
   git(root, ['commit', '-m', 'Committed fixture policy'])
-  const main = git(root, ['rev-parse', 'HEAD']),
-    b = blob(root, main, 'docs/engineering/integration-policy.json')
-  const source = {
-    commit: main,
-    path: 'docs/engineering/integration-policy.json',
-    blob: b.oid,
-    digest: digest(b.text),
-  }
+  const main = git(root, ['rev-parse', 'HEAD'])
   git(root, ['remote', 'add', 'origin', remote])
-  git(root, ['push', 'origin', 'main'])
-  const ref = 'refs/tags/omne/integration/adoption/1',
-    anchor = annotatedObject(root, ref.slice(10), main, {
-      schemaVersion: 1,
-      repository: 'owner/repo',
-      policy: source,
-      previous: null,
-      decision: 'https://github.com/owner/repo/issues/1#issuecomment-1',
-      constructionHead: main,
-      legacy: [],
-    })
-  git(root, ['update-ref', ref, anchor])
-  git(root, ['push', 'origin', ref])
-  latchAnchor(root, anchor)
-  const bootstrapId = randomUUID(),
-    bootstrapRef = `refs/tags/omne/integration/unit/${bootstrapId}`
-  const unit = annotatedObject(root, bootstrapRef.slice(10), initial, {
-    schemaVersion: 1,
-    operation: bootstrapId,
-    mode: 'track-bootstrap',
-    target: 'refs/heads/integration/runtime',
-    base: null,
-    sources: [initial],
-    candidate: initial,
-    tasks: [],
-    policy: source,
-    verification: 'fixture-bootstrap',
-  })
-  git(root, [
-    'push',
-    'origin',
-    `${initial}:refs/heads/integration/runtime`,
-    `${unit}:${bootstrapRef}`,
-  ])
+  git(root, ['push', 'origin', 'main', `${initial}:refs/heads/integration/runtime`])
   git(root, ['checkout', '-b', 'human/task'])
   const binding: TaskBinding = {
     schemaVersion: 1,
@@ -184,7 +98,7 @@ export function integrationFixture(
     route: { kind: 'track', track: 'runtime' },
     completionTarget: 'stable',
     taskBase: main,
-    writeScope: ['feature', 'bad', 'check.mjs', 'dirty-trigger', 'head-trigger'],
+    writeScope: ['feature'],
     dispatch: 'https://github.com/owner/repo/issues/1#issuecomment-1',
     conditions: [],
     authorization: [],
@@ -369,8 +283,6 @@ process.stdout.write(JSON.stringify(result))
     bin,
     main,
     initial,
-    anchor,
-    source,
     policy,
     binding,
     calls,

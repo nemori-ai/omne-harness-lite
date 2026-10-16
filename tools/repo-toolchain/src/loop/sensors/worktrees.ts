@@ -69,7 +69,7 @@ export function readWorktrees(root: string, primaryBranch: string): WorktreeChan
     try {
       const selected = baselines(entry.path)
       const taskBase =
-        selected.state === 'adopted' ? readTaskContext(entry.path).ownerTask?.taskBase : undefined
+        selected.state === 'bound' ? readTaskContext(entry.path).ownerTask?.taskBase : undefined
       mergeBase =
         taskBase ?? selected.targetBase ?? git(entry.path, ['merge-base', primaryBranch, 'HEAD'])
     } catch {

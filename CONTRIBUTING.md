@@ -204,4 +204,4 @@ Profiling 发现可复现、已有原因证据的明显性能问题时，不能�
 调整其中一项时先修改其所有者，再同步必要入口；
 不要在多份贡献指南、PR 模板和 AGENTS.md 中复制一套会独立演化的规则。
 
-共享分支交付按[现行准入](docs/engineering/integration.md#现行准入)经 PR 进入，确认说明写明本地运行的检查及结果。Issue 的结果接受、Stage 与关闭按原交付协议处理；技术运输不自动生成 Closes。未采用树沿旧流程。
+共享分支交付按[现行准入](docs/engineering/integration.md#现行准入)经 PR 进入，确认说明写明本地运行的检查及结果。Issue 的结果接受、Stage 与关闭按原交付协议处理；技术运输不自动生成 Closes。

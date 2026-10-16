@@ -47,7 +47,7 @@
 | 产品、概念或对象治理 | 在 meta 的相应区接续；起草产品加载 `product-design`，改词条加载 `ubiquitous-language`，改对象条目加载 `domain-objects`。仅消费已有正文不加载治理技能 |
 | 文档、AGENTS、skills 或角色维护 | 新建或修订文档必须加载 `asd-ste100`；AGENTS 加载 `write-agents-md`，skill 加载官方 `skill-creator`，角色加载 `design-subagents`。按[维护指南](docs/maintenance.md)同步真实消费者 |
 | 对话建卡、取任务或更新交付 | 从[agent交付操作](docs/engineering/agent-delivery.md)核对实际启用范围、唯一卡、条件和具名决定；Project、关闭与绿测不授予接受。未启用时形成获准任务草稿 |
-| 分支同步、轨道提升或稳定点 | [多层分支规则](docs/engineering/integration.md)拥有采用、运输与双基线；加载 `branch-integration` 找实际工具。pending 不授新准入，Git 运输不代替交付接受 |
+| 分支同步、轨道提升或稳定点 | [多层分支规则](docs/engineering/integration.md)拥有轨道、准入、运输与双基线；加载 `branch-integration` 找实际工具。没有 task context 不伪造绑定，Git 运输不代替交付接受 |
 | 隔离并行、接续或交付 | [工作约定](docs/engineering/workflow.md#责任与协作交接)拥有每写者隔离、共享单写与清理条件；[交付边界](docs/engineering/publication.md)拥有保存与权限；[贡献指南](CONTRIBUTING.md)拥有报告和接受 |
 | Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本。未覆盖行为保留假设并以源码或验证补足，不自动采用上游保证 |
 

@@ -310,9 +310,9 @@ export function auditHistory(
   explicitBase: string | undefined,
   config: AcceptanceLockConfig,
 ) {
-  const adopted = baselines(root, explicitBase).state === 'adopted'
+  const bound = baselines(root, explicitBase).state === 'bound'
   return auditRanges(root, explicitBase).map(range => ({
     ...range,
-    acceptance: inspect(root, range.base, config, range.head, adopted),
+    acceptance: inspect(root, range.base, config, range.head, bound),
   }))
 }

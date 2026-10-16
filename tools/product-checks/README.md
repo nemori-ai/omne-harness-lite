@@ -162,8 +162,10 @@ pnpm --dir "$isolated" --filter @omne-harness/product-checks test
 Run `make docs-check` separately in the checkout that retains the reference
 material. Historical documentation links are not executable dependencies.
 Report every failed command, including failures that also occur at the task
-baseline. These checks do not create an integration receipt or change the
-adopted runner. Runner adoption follows the [integration rules](../../docs/engineering/integration.md).
+baseline. These checks do not publish a branch or record an integration. The
+confirmer of a trunk PR writes the commands that ran and their results in the
+confirmation note. The [integration rules](../../docs/engineering/integration.md#检查责任)
+own this duty.
 
 ## Commit attribution audit baseline
 

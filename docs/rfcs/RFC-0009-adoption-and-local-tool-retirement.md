@@ -10,7 +10,7 @@ owner: Brian Lee
 
 规则与维护责任见[RFC入口](README.md)。本提案部分取代 [RFC-0004](RFC-0004-trunk-pr-admission.md) revision 1：采用标签与 policy registry 作为受信来源的条款、本机集成工具在四条主干上的角色与改造计划，以及流程失效时的恢复方式。精确取代范围见「决定范围」。RFC-0004 的其他条款不变，RFC-0004 保持 accepted。
 
-本提案承接 [RFC-0008](RFC-0008-repo-toolchain-trust.md)「决定范围」中留给后续提案的部分：采用命令与本机发布命令的退役及相应的恢复路径，以及 task-sync 的实现方式、`track-retire` 与检查命令清单的删除。来源是 [#290 的实施方案](https://github.com/nemori-ai/omne-harness-lite/issues/290#issuecomment-6188641420)「流程工具怎么改」与落地顺序中的退役一步。提案采用、规范写回、实现和交付接受分别判断。2026-10-16 采用本提案 revision 1，记录见 [#362 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/362#issuecomment-6217265901)。规范写回尚未发生。
+本提案承接 [RFC-0008](RFC-0008-repo-toolchain-trust.md)「决定范围」中留给后续提案的部分：采用命令与本机发布命令的退役及相应的恢复路径，以及 task-sync 的实现方式、`track-retire` 与检查命令清单的删除。来源是 [#290 的实施方案](https://github.com/nemori-ai/omne-harness-lite/issues/290#issuecomment-6188641420)「流程工具怎么改」与落地顺序中的退役一步。提案采用、规范写回、实现和交付接受分别判断。2026-10-16 采用本提案 revision 1，记录见 [#362 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/362#issuecomment-6217265901)。规范写回与实施由 [#364](https://github.com/nemori-ai/omne-harness-lite/issues/364) 承接，见「写回现行正文」。
 
 ## 问题与有效输入
 
@@ -169,10 +169,10 @@ RFC-0004 设想第二阶段把现行本机工具拆成“检查一半”与“�
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换或解除依据及确认者 |
 | --- | --- | --- | --- |
-| 采用机制退役、policy registry 瘦身、恢复方式 | [集成规则](../engineering/integration.md) | 待写回 | 未切换 |
-| 命令退役、`status` 与 `task-sync` | 集成工具 [README](../../tools/dev-flow/src/integration/README.md) 与 [SPEC](../../tools/dev-flow/src/integration/SPEC.md) | 待写回 | 未切换 |
-| 开发者操作 | [开发指南](../development.md)、`branch-integration` 与 `claim` skill | 待写回 | 未切换 |
-| 路径清单 | `github-gate` 的 `gate/toolchain-paths.txt` | 待写回 | 由 admin 修改 |
+| 采用机制退役、policy registry 瘦身、恢复方式 | [集成规则](../engineering/integration.md) | 已写回 | #364，2026-10-16。删除采用状态、未来启用与首次接入等节，改写两条基线、恢复方式与 policy registry 的说明。#364 修订 3 删去其余历史说法，`timeouts` 只留 `networkMs` |
+| 命令退役、`status` 与 `task-sync` | 集成工具 [README](../../tools/dev-flow/src/integration/README.md) 与 [SPEC](../../tools/dev-flow/src/integration/SPEC.md) | 已写回 | #364，2026-10-16。README 按现存命令重写；SPEC 删除退役命令的条款，新增 `status` 与 `task-sync` 的条款。#364 修订 3 删除 policy 的 `timeouts.commandMs` 与派发决定的 `policyRevision` |
+| 开发者操作 | [开发指南](../development.md)、`branch-integration` 与 `claim` skill | 已写回 | #364，2026-10-16。开发指南与 `branch-integration` skill 改为新的 task-sync 做法，删除本机发布与采用的说法；`claim` skill 改用 `status` 读回 context。#364 修订 3 删去开发指南中已删命令的历史说明 |
+| 路径清单 | `github-gate` 的 `gate/toolchain-paths.txt` | 待写回 | #364 合入后由 admin 修改 |
 
 ## 后继关系与维护
 

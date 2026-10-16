@@ -42,7 +42,7 @@
 4. 传感器有数据——一项指标量不出来不等于它是好的。严格模式（`make loop-status STRICT=1 BASE=… OUT=…`）下，
    配置里开着的传感器有哪个没数据就判失败并指名；传感器自己会不会悄悄失灵，由一份种了已知违规的小夹具每次跟着测试跑来守。
 
-工程集成显式使用 `--strict --scope engineering`。只有当前树、固定 targetBase、实际 merge-base 和每个 taskBase 均无受维护产品源码与测试时，duplication 与 assertions 的无数据读数才标为工程范围不适用。
+`--strict --scope engineering` 是 `omne-loop-status` 的工程范围严格模式，需要时显式传入；`make check` 的严格一步不传 `--scope`。只有当前树、固定 targetBase、实际 merge-base 和每个 taskBase 均无受维护产品源码与测试时，duplication 与 assertions 的无数据读数才标为工程范围不适用。
 原始 no-data 保留，报告给出精确提交与计数。任何一处仍有输入、基线未知、读取失败或其他启用传感器无数据，均不能用此范围放行。
 关闭的传感器单列 off。普通本地检查与默认 strict 继续要求所有启用传感器有数据；方向、环与验收锁在两种范围中都生效。
 

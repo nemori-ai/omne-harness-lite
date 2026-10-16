@@ -4,7 +4,7 @@
 命令的准确目标由根 [Makefile](../Makefile) 与 [scripts/check.sh](../scripts/check.sh) 维护，
 实际参数与退出语义以各 CLI 的 `--help` 为准。
 
-静态检查排除任意层级中以`.legacy`结尾的目录，包括格式、文档遍历、源码规则及实际架构抽取。`no-legacy-dependency` 另外拦住 package.json、pnpm workspace 和源码重新引入这些目录或 `@omne-harness-lite/` 包名。文档里的标明字面值不在这条规则的扫描范围内。`make check`的按影响面、未知路径回退及`FULL=1`均不选择其中的类型检查、测试和验收。当前工具所需的workspace依赖可单独构建准备；显式封存来源核对继续按其拥有者承诺读取。准备与来源核对不构成封存实现的质量接受。当前成员内部的归档测试也从Vitest发现和类型检查根文件中排除。Python两条执行路径在收集前排除`.legacy`目录及其conftest。覆盖率度量保留成员原有排除配置，另外排除归档测试、源码和新鲜度输入。源码中的generated、tmp、dist或coverage目录不因名称而豁免后缀核对。TypeScript仍检查当前代码的显式导入依赖；不能通过排除导入诊断把当前错误变成成功。带归档输入但不能识别的检查脚本明确报错，不能声称已排除。文档体系及其开发工具的交付不以封存实现的全量构建、测试为验收门槛，也不能将未验证的封存实现写成已通过。新目标目录缺少源码或证据时，保留缺项与无法判定状态。已有验证结论在其源码、输入和适用条件未变时直接引用，不为重复收集相同结果重跑。工程集成使用采用 policy 中的完整`check`编排，末尾显式传`--strict --scope engineering`。当前树和所有有效审计基线均无产品源码与测试时，仅 duplication 和 assertions 的原始 no-data 标为不适用，并保存计数依据。其余无数据与方向、环、验收锁仍失败，精确规则见[整洁回路](clean-loop.md#回路怎么转)。普通本地`make check`与默认 strict 保持原门槛。integration 按影响面执行，full 设置`FULL=1`并保留四类 checkpoint 覆盖。
+静态检查排除任意层级中以`.legacy`结尾的目录，包括格式、文档遍历、源码规则及实际架构抽取。`no-legacy-dependency` 另外拦住 package.json、pnpm workspace 和源码重新引入这些目录或 `@omne-harness-lite/` 包名。文档里的标明字面值不在这条规则的扫描范围内。`make check`的按影响面、未知路径回退及`FULL=1`均不选择其中的类型检查、测试和验收。当前工具所需的workspace依赖可单独构建准备；显式封存来源核对继续按其拥有者承诺读取。准备与来源核对不构成封存实现的质量接受。当前成员内部的归档测试也从Vitest发现和类型检查根文件中排除。Python两条执行路径在收集前排除`.legacy`目录及其conftest。覆盖率度量保留成员原有排除配置，另外排除归档测试、源码和新鲜度输入。源码中的generated、tmp、dist或coverage目录不因名称而豁免后缀核对。TypeScript仍检查当前代码的显式导入依赖；不能通过排除导入诊断把当前错误变成成功。带归档输入但不能识别的检查脚本明确报错，不能声称已排除。文档体系及其开发工具的交付不以封存实现的全量构建、测试为验收门槛，也不能将未验证的封存实现写成已通过。新目标目录缺少源码或证据时，保留缺项与无法判定状态。已有验证结论在其源码、输入和适用条件未变时直接引用，不为重复收集相同结果重跑。`omne-loop-status` 的 `--strict --scope engineering` 是工程范围的严格模式：当前树和所有有效审计基线均无产品源码与测试时，仅 duplication 和 assertions 的原始 no-data 标为不适用，并保存计数依据。其余无数据与方向、环、验收锁仍失败，精确规则见[整洁回路](clean-loop.md#回路怎么转)。`make check` 的严格一步不传 `--scope`，保持默认门槛。`make check` 默认按影响面执行，全量设置`FULL=1`。
 
 ## 检查入口
 
@@ -127,7 +127,7 @@ SHA-256；当前环境是否安装、仓库是否定义了模型，是两个问�
 
 ## 集成的两条基线
 
-采用后的检查由[共同 loader](../tools/repo-toolchain/src/core/task-context.ts)取得固定 targetBase 与各卡 taskBase/taskSource。影响面按目标 B，验收锁按原任务逐提交审计并补 B..C；合法运输父保留其来源。显式 BASE 不能替代丢失 context。全局 main 趋势及未采用任务仍按原含义。候选执行证据和未来部署边界见[工具指南](../tools/dev-flow/src/integration/README.md)。
+有 task context 的检查由[共同 loader](../tools/repo-toolchain/src/core/task-context.ts)取得 targetBase 与本任务的 taskBase/taskSource。影响面按 targetBase，验收锁按原任务从 taskBase 逐提交审计，并补 targetBase 到 HEAD 的改动；合法运输父保留其来源。显式 BASE 与 targetBase 不同时拒绝。没有 context 的检出以显式基线或 `origin/main` 为基线。全局 main 趋势仍按 main。targetBase 只由 task-sync 前进，见[工具指南](../tools/dev-flow/src/integration/README.md#同步目标分支)。
 
 ## 包级测试责任与边界
 

@@ -488,7 +488,7 @@ function hardLinesOf(
   sensors: SensorLine,
 ): HardLines {
   const history = auditHistory(root, base, readAcceptanceLockConfig())
-  const adopted = baselines(root, base).state === 'adopted'
+  const bound = baselines(root, base).state === 'bound'
   const range = (judge: (base: string) => readonly string[]): RangeLine =>
     base === undefined
       ? { status: 'unjudged', reason: '没给基线' }
@@ -498,7 +498,7 @@ function hardLinesOf(
     acceptanceLock: range(() =>
       history.flatMap(item =>
         item.acceptance.violations.map(message =>
-          adopted ? `${item.label} ${item.base}..${item.head}: ${message}` : message,
+          bound ? `${item.label} ${item.base}..${item.head}: ${message}` : message,
         ),
       ),
     ),

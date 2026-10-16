@@ -133,7 +133,6 @@ Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和
 钉住的版本承担这些检查：
 
 - 根命令 `check:declarations`、`lint:deps` 与 `make metrics`、`loop-status`、`loop-health`、`acceptance-lock` 运行安装包的命令：`omne-declarations`、`omne-deps`、`omne-metrics`、`omne-loop-status`、`omne-loop-health`、`omne-acceptance-lock`。
-- `scripts/integration-check.sh` 运行受信检出自己 `node_modules` 里的 `omne-loop-status`。
 - 三个工具成员导入的也是钉住的版本。`lint:rules`、影响面计划与成员测试的编排都不读工作区的 repo-toolchain。
 - 根 `tsconfig.base.json` 与 `.dependency-cruiser.cjs` 按包名引用预设。`.oxlintrc.json` 的 `extends` 只接受相对路径，所以写成 `./node_modules/@omne-harness/repo-config/oxlint.json`，指向的仍是安装的预设。
 
@@ -457,4 +456,4 @@ Git维护当前终态；正式RFC保留进入审议的方案与最小决定关�
 
 ## 多层分支操作
 
-先从[集成规则](engineering/integration.md)核实际采用与任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`，不再在本机运行 prepare、verify 和 publish。未采用建设仍按既有任务工作。工作树根、runner 根和 subject 根有不同职责；检查器使用实际 subject，规则来自 adopted runner。
+先从[集成规则](engineering/integration.md)核任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。同步目标分支时，先在工作分支上用 `git merge` 合并远端目标提交并提交，再运行 task-sync 让 `targetBase` 前进；taskBase 不变。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。

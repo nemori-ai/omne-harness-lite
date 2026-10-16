@@ -21,10 +21,8 @@
       "tools/test-runner/src/testing/steps.ts",
       "tools/test-runner/src/testing/support.ts",
       "tools/test-runner/src/testing/timing-reporter.ts",
-      "scripts/integration-check.sh",
       "tools/dev-flow/src/integration/**",
       "docs/engineering/integration-policy.json",
-      "docs/engineering/integration-bootstrap.json",
       "docs/architecture/constraints.json",
       "**/turbo.json"
     ],

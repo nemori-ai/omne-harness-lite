@@ -141,7 +141,7 @@ function parseRun(argv: readonly string[]): RunRequest {
   const resolved = baselines(ROOT, flags.values.get('--base'))
   if (
     !all &&
-    resolved.state !== 'adopted' &&
+    resolved.state === 'pending' &&
     !flags.values.has('--base') &&
     !flags.switches.has('--default-base')
   )

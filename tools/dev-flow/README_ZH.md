@@ -4,7 +4,7 @@
 
 开发流程工具，不发布：
 
-- [integration](src/integration/README.md)：开工 `start`、task context、基线与 task-sync。task context 的读取格式由 repo-toolchain 的 `core/task-context` 定义；本成员负责写入与完整校验。
+- [integration](src/integration/README.md)：开工 `start`、task context、`status`、基线，以及合并目标分支后让目标基线前进的 `task-sync`。task context 的读取格式由 repo-toolchain 的 `core/task-context` 定义；本成员负责写入与完整校验。
 - [delivery](src/delivery/README.md)：读取 Issue 与看板，报告交付卡的形状、阶段等待与依赖投影。
 - 包模板：见下文。
 

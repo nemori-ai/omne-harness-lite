@@ -9,9 +9,6 @@ if (( $# )); then
 fi
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-if [[ -n "${OMNE_SUBJECT_ROOT:-}" ]]; then
-    exec bash "$repo_root/scripts/integration-check.sh"
-fi
 cd -- "$repo_root"
 
 # 整套检查占一个运行名额：同一台机器上别的全量检查在跑时排队，而不是一起把 CPU 压满。
