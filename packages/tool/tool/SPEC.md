@@ -34,25 +34,29 @@
 
 检查顺序是：作用域是否已关闭或取消，是否有提供者，请求形状，key 的历史，活动等待，历史容量。
 
-请求形状按闭合字段检查。Ask 只允许 `kind`、`key`、`contract`、`request`。Resource 另有 `deadline`。多余字段返回 `invalid`。`contract` 只核形状：`kind` 与请求一致，`expiry` 合法，`adoption` 四个字段是字符串，`request.maxBytes` 与 `response.maxBytes` 是正安全整数。契约包的句柄标记不公开，所以本包不能核对品牌。`maxBytes` 不是正安全整数时返回 `unsupported`。`request` 必须是合法的标签 JSON 树，且编码后不超过 `contract.request.maxBytes`，否则返回 `invalid`。Resource 的 `deadline` 为字符串时，契约的 `expiry` 必须是 `supported`，且值必须是 ISO 8601 时刻，否则返回 `invalid`。
+请求形状按闭合字段检查。Ask 只允许 `kind`、`key`、`contract`、`request`。Resource 另有 `deadline`。多余字段返回 `invalid`。`contract` 只核形状：`kind` 与请求一致，`expiry` 合法，`adoption` 四个字段是字符串，`request.maxBytes` 与 `response.maxBytes` 是正安全整数。契约包的句柄标记不公开，所以本包不能核对品牌。`maxBytes` 不是正安全整数时返回 `unsupported`。`request` 必须是合法的标签 JSON 树，且编码后不超过 `contract.request.maxBytes`，否则返回 `invalid`。树的检查用显式栈，走到容器自身之内返回 `invalid`（原因含 `cycle`），访问超过一百万个节点返回 `invalid`（原因含 `budget`）；共享子树每次到达都计数。这份检查镜像契约包的私有检查器，节点上限与它相同；谁拥有这份共用走法是契约拥有者的未决项。Resource 的 `deadline` 为字符串时，契约的 `expiry` 必须是 `supported`，且值必须是 ISO 8601 时刻，否则返回 `invalid`。
 
 输入摘要由 kind、adoption、deadline 和请求的规范 JSON 文本组成。同 key 同摘要共享原记录：已结束则返回原结果，在途则共享同一个 Promise，提供者不会被再次调用。同 key 异摘要返回 `conflict`。有活动等待时开放别的 key 返回 `busy`。
 
 新 key 先预留历史容量。预留量是 `contract.request.maxBytes + contract.response.maxBytes + key 的字节数`。预留量超过 `authorWaitHistoryBytes` 返回 `too-large`。条数达到 `authorWaitHistoryItems` 或剩余字节不足返回 `capacity`。旧记录不淘汰，仍可认回。
 
-开放先设输出屏障：等待调用时刻之前受理的全部输出都已交给接收者，才把请求交给提供者。屏障期间作者仍可 emit，这些输出不属于该屏障。屏障因输出故障失败时，等待位置保留，同 key 同输入重试会再次开放。屏障因取消或关闭失败时，等待以该失败结束。
+开放先设输出屏障：等待调用时刻之前受理的全部输出都已交给接收者，才把请求交给提供者。屏障期间作者仍可 emit，这些输出不属于该屏障。屏障因输出故障失败时，等待返回该故障，但位置保留并仍是活动等待：同 key 同输入重试会再次开放，别的 key 返回 `busy`，直到该位置结束。一次执行只有一个未结束的逻辑等待。屏障因取消或关闭失败时，等待以该失败结束。
 
-提供者的结果按值接收。提供者返回失败时，该失败就是等待的结果。提供者抛出异常时，等待返回 `unknown`，`operation` 为 `wait:<key>`。提供者的回答与中断竞争：先到的生效。
+提供者的结果按值接收。提供者返回失败时，该失败就是等待的结果。提供者抛出异常时，等待返回 `unknown`，`operation` 为 `wait:<key>`。提供者的回答与中断竞争：先到的生效。回答到达后、交给作者之前，作用域再看一次取消标志：已取消则等待以 `cancelled` 结束，回答不交给作者；否则交出回答，之后的取消不撤销它。
+
+回答的 `value` 受协议的 `response.maxBytes` 约束：`value` 的 JSON 文本超过该上限，或没有 JSON 文本，等待返回 `unavailable`，`operation` 为 `wait:<key>`，回答不交给作者。`no-answer`、`declined`、`expired` 没有 `value`，不量。该失败与提供者返回的失败一样成为该 key 的结果，同 key 同输入认回它，提供者不再被调用。
 
 ### 取消
 
 信号中止时作用域立即取消。活动等待以 `cancelled` 结束。之后的新原语返回 `cancelled`。已交给作者的回答不撤销。取消标志盖过 `returned`，所以中止后的 `finish('returned')` 返回 `cancelled`。
 
+作用域在信号上登记一个中止监听器。取消时，以及 `finish` 的 Promise 结束后，监听器从信号上移除。此后信号再中止，作用域不再改变：新原语返回 `closed`。
+
 ### finish
 
 `finish` 调用时同步关闭新受理。同一 exit 再次调用得到同一个 Promise。不同 exit 返回 `conflict`。
 
-`finish('returned')` 先看活动等待。存在活动等待时，等待以 `closed` 结束，收尾返回 `invalid`。否则等待调用时刻之前受理的输出全部交接完成。取消先于或发生在等待期间都返回 `cancelled`。输出故障返回该故障。
+`finish('returned')` 先看活动等待。存在活动等待时（在途的，或因输出故障保留的位置），等待以 `closed` 结束，收尾返回 `invalid`；等待已因取消结束时收尾返回 `cancelled`。否则等待调用时刻之前受理的输出全部交接完成。取消先于或发生在等待期间都返回 `cancelled`。输出故障返回该故障。
 
 `finish('failed')` 不等待输出。活动等待以 `closed` 结束。已取消时仍成功。接收者继续承担它已接下的输出。
 
@@ -65,7 +69,8 @@
 | `finish` 的 exit 与首次不同                                                                                                                                                   | `conflict`                                                                                                                                                                       |
 | 作者有活动等待却正常返回                                                                                                                                                      | `finish('returned')` 返回 `invalid`，等待以 `closed` 结束                                                                                                                        |
 | 接收者返回失败                                                                                                                                                                | 该 emit 返回那个失败。输出账记下第一条故障。之后的屏障返回该故障：接收者的失败是 `unavailable` 或 `unknown` 时原样返回，否则包成 `unavailable`，`operation` 为 `emit:<sequence>` |
-| 接收者或提供者抛出异常                                                                                                                                                        | `unknown`，`operation` 为 `emit:<sequence>` 或 `wait:<key>`                                                                                                                      |
+| 回答的 `value` 超过 `contract.response.maxBytes` 或没有 JSON 文本                                                                                                             | `unavailable`，`operation` 为 `wait:<key>`；回答不交给作者                                                                                                                       |
+| 接收者或提供者抛出异常，或返回的值不是 Outcome                                                                                                                                | `unknown`，`operation` 为 `emit:<sequence>` 或 `wait:<key>`                                                                                                                      |
 | 作用域的程序缺陷                                                                                                                                                              | 抛出异常                                                                                                                                                                         |
 
 ### executeTool

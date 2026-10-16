@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { succeed } from '@omne-harness/kernel-basis'
 import type {
   IndependentToolScopeInput,
   ToolAuthorLimits,
+  ToolExecutionScope,
   ToolProcessUpdate,
 } from '@omne-harness/tool-contract'
 import { createIndependentToolScope } from '@omne-harness/tool'
@@ -71,6 +72,29 @@ describe('1 createIndependentToolScope', () => {
     expect(createIndependentToolScope(input({ signal: {} as AbortSignal }))).toEqual({
       failure: { field: 'signal', reason: 'type' },
     })
+  })
+
+  it('1 scope: the abort listener leaves the signal once the execution finished or was cancelled', async () => {
+    const finished = new AbortController()
+    const add = vi.spyOn(finished.signal, 'addEventListener')
+    const remove = vi.spyOn(finished.signal, 'removeEventListener')
+    const created = unwrap(createIndependentToolScope(input({ signal: finished.signal })))
+    expect(add).toHaveBeenCalledTimes(1)
+    const listener = add.mock.calls[0]?.[1]
+    expect(remove).not.toHaveBeenCalled()
+    expect(await created.finish('returned')).toEqual({ ok: undefined })
+    expect(remove).toHaveBeenCalledWith('abort', listener)
+    // Without the listener, an abort after the settlement no longer reaches the execution.
+    finished.abort()
+    const late = await created.context.emit(append('log', 'late'))
+    expect('failure' in late && late.failure.kind).toBe('closed')
+
+    const cancelled = new AbortController()
+    const addedToCancelled = vi.spyOn(cancelled.signal, 'addEventListener')
+    const removedFromCancelled = vi.spyOn(cancelled.signal, 'removeEventListener')
+    unwrap(createIndependentToolScope(input({ signal: cancelled.signal })))
+    cancelled.abort()
+    expect(removedFromCancelled).toHaveBeenCalledWith('abort', addedToCancelled.mock.calls[0]?.[1])
   })
 })
 
@@ -325,6 +349,13 @@ describe('5 wait', () => {
       const outcome = await s.context.wait({ ...ask('confirm'), request } as never)
       expect('failure' in outcome && outcome.failure.kind, name).toBe('invalid')
     }
+    // A cycle is rejected as a cycle, not by growing the text up to a large byte budget.
+    const wide = { ...ask('confirm', 'x', askContract(4_000_000)), request: cyclic }
+    const cycle = await s.context.wait(wide as never)
+    expect('failure' in cycle && cycle.failure).toEqual({
+      kind: 'invalid',
+      reason: expect.stringMatching(/cycle/) as string,
+    })
     const large = await s.context.wait(ask('confirm', 'x'.repeat(100), askContract(64)))
     expect('failure' in large && large.failure.kind).toBe('invalid')
     expect(waiter.requests).toEqual([])
@@ -333,6 +364,98 @@ describe('5 wait', () => {
     expect(waiter.requests).toHaveLength(1)
     waiter.answers[0]?.resolve(succeed(answer))
     expect(await fits).toEqual({ ok: answer })
+  })
+
+  // Slow: the walk must visit a million nodes before the budget fires (about one second of CPU).
+  it(
+    '5 wait: a request that reaches more than a million nodes is rejected by the node budget',
+    { tags: ['slow'] },
+    async () => {
+      // The history could hold the record and the provider would answer at once: only the node
+      // budget keeps the request from the provider.
+      let forwarded = 0
+      const { scope: s } = scope({
+        waits: {
+          wait: async () => {
+            forwarded += 1
+            return succeed({ kind: 'declined' })
+          },
+        } as never,
+        limits: limits({ authorWaitHistoryBytes: 300_000_000 }),
+      })
+      // One array of 1001 nulls shared by 1001 parents: 1,003,003 visits, about 5 MB of text.
+      const row = { kind: 'array', items: Array.from({ length: 1_001 }, () => ({ kind: 'null' })) }
+      const shared = { kind: 'array', items: Array.from({ length: 1_001 }, () => row) }
+      const request = { ...ask('confirm', 'x', askContract(100_000_000)), request: shared }
+      const outcome = await s.context.wait(request as never)
+      expect('failure' in outcome && outcome.failure).toEqual({
+        kind: 'invalid',
+        reason: expect.stringMatching(/nodes/) as string,
+      })
+      expect(forwarded).toBe(0)
+    },
+  )
+
+  it('5 wait: a wait position kept after an output fault stays the active wait', async () => {
+    const waiter = manualWaiter()
+    const { scope: s } = scope({
+      process: { receive: async () => failing('capacity', 'receiver full') },
+      waits: waiter.waits,
+    })
+    expect(await s.context.emit(append('log', 'one'))).toEqual({
+      failure: { kind: 'capacity', reason: 'receiver full' },
+    })
+    const fault = { kind: 'unavailable', operation: 'emit:1', reason: 'capacity: receiver full' }
+    expect(await s.context.wait(ask('confirm'))).toEqual({ failure: fault })
+    // One unfinished logical wait per execution (P11): another key is busy, the same key retries.
+    const other = await s.context.wait(ask('other'))
+    expect('failure' in other && other.failure.kind).toBe('busy')
+    expect(await s.context.wait(ask('confirm'))).toEqual({ failure: fault })
+    expect(waiter.requests).toEqual([])
+    // The position is still open, so a normal return is the author's protocol error.
+    const closed = await s.finish('returned')
+    expect('failure' in closed && closed.failure.kind).toBe('invalid')
+  })
+
+  it('5 wait: the history reservation counts the key bytes', async () => {
+    const waiter = manualWaiter()
+    // askContract(100) reserves 200 bytes; the one-byte key decides whether the record fits.
+    const tight = scope({ waits: waiter.waits, limits: limits({ authorWaitHistoryBytes: 200 }) })
+    const refused = await tight.scope.context.wait(ask('k', 'proceed?', askContract(100)))
+    expect('failure' in refused && refused.failure.kind).toBe('too-large')
+    const exact = scope({ waits: waiter.waits, limits: limits({ authorWaitHistoryBytes: 201 }) })
+    const pending = exact.scope.context.wait(ask('k', 'proceed?', askContract(100)))
+    await settled()
+    expect(waiter.requests).toHaveLength(1)
+    waiter.answers[0]?.resolve(succeed(answer))
+    expect(await pending).toEqual({ ok: answer })
+  })
+
+  it('5 wait: a reply whose value exceeds the response limit is unavailable and never reaches the author', async () => {
+    const waiter = manualWaiter()
+    const { scope: s } = scope({ waits: waiter.waits })
+    // askContract(32) bounds the response value at 32 bytes of JSON text.
+    const request = ask('confirm', 'proceed?', askContract(32))
+    const pending = s.context.wait(request)
+    await settled()
+    waiter.answers[0]?.resolve(succeed({ kind: 'answer', value: 'y'.repeat(40) }))
+    const oversized = {
+      kind: 'unavailable',
+      operation: 'wait:confirm',
+      reason: 'the response needs 42 of 32 bytes',
+    }
+    expect(await pending).toEqual({ failure: oversized })
+    expect(await s.context.wait(request)).toEqual({ failure: oversized })
+    expect(waiter.requests).toHaveLength(1)
+    // A reply without a value, and a value within the limit, are handed over.
+    const declined = s.context.wait(ask('second', 'proceed?', askContract(32)))
+    await settled()
+    waiter.answers[1]?.resolve(succeed({ kind: 'declined' }))
+    expect(await declined).toEqual({ ok: { kind: 'declined' } })
+    const fits = s.context.wait(ask('third', 'proceed?', askContract(32)))
+    await settled()
+    waiter.answers[2]?.resolve(succeed({ kind: 'answer', value: 'y'.repeat(30) }))
+    expect(await fits).toEqual({ ok: { kind: 'answer', value: 'y'.repeat(30) } })
   })
 
   it('5 wait: without a provider wait is unsupported', async () => {
@@ -394,9 +517,68 @@ describe('6 cancellation', () => {
     const closed = await s.finish('returned')
     expect('failure' in closed && closed.failure.kind).toBe('cancelled')
   })
+
+  it('6 cancel: an abort confirmed before the hand-over makes the wait cancelled, after it the answer stays', async () => {
+    const seen = { cancelled: 0, answered: 0 }
+    for (let k = 0; k <= 8; k += 1) {
+      const controller = new AbortController()
+      const waiter = manualWaiter()
+      const holder: { scope: ToolExecutionScope | null; probe: Promise<unknown> | null } = {
+        scope: null,
+        probe: null,
+      }
+      // Registered before the scope's own listener, so it runs before the scope learns of the
+      // abort. An in-flight same-key re-entry returns the very promise the author holds; a
+      // handed-over one returns a new promise. That tells hand-over from not-yet without any lag.
+      controller.signal.addEventListener('abort', () => {
+        holder.probe = holder.scope?.context.wait(ask('confirm')) ?? null
+      })
+      const s = unwrap(
+        createIndependentToolScope(input({ signal: controller.signal, waits: waiter.waits })),
+      )
+      holder.scope = s
+      const pending = s.context.wait(ask('confirm'))
+      await settled()
+      waiter.answers[0]?.resolve(succeed(answer))
+      for (let tick = 0; tick < k; tick += 1) await Promise.resolve()
+      controller.abort()
+      const outcome = await pending
+      if (holder.probe === pending) {
+        seen.cancelled += 1
+        expect('failure' in outcome && outcome.failure.kind, `k=${k}`).toBe('cancelled')
+      } else {
+        seen.answered += 1
+        expect(outcome, `k=${k}`).toEqual({ ok: answer })
+        expect(await holder.probe, `k=${k}`).toEqual({ ok: answer })
+      }
+      expect(await pending, `k=${k}`).toEqual(outcome)
+    }
+    expect(seen.cancelled).toBeGreaterThan(0)
+    expect(seen.answered).toBeGreaterThan(0)
+  })
 })
 
 describe('7 finish', () => {
+  it('7 finish: returned followed by a synchronous abort is cancelled, not a success', async () => {
+    const { scope: s, controller } = scope()
+    const closing = s.finish('returned')
+    controller.abort()
+    const outcome = await closing
+    expect('failure' in outcome && outcome.failure.kind).toBe('cancelled')
+  })
+
+  it('7 finish: returned right after an abort with an open wait is cancelled, not invalid', async () => {
+    const waiter = manualWaiter()
+    const { scope: s, controller } = scope({ waits: waiter.waits })
+    const pending = s.context.wait(ask('confirm'))
+    await settled()
+    controller.abort()
+    const closed = await s.finish('returned')
+    expect('failure' in closed && closed.failure.kind).toBe('cancelled')
+    const outcome = await pending
+    expect('failure' in outcome && outcome.failure.kind).toBe('cancelled')
+  })
+
   it('7 finish: closes new acceptance at once and joins existing output', async () => {
     const { receiver, release } = manualReceiver()
     const { scope: s } = scope({ process: receiver })
@@ -486,6 +668,37 @@ describe('9 named failures are values', () => {
     expect(await output).toEqual({ failure: { kind: 'capacity', reason: 'receiver full' } })
     expect(await s.context.wait(ask('confirm'))).toEqual({
       failure: { kind: 'unavailable', operation: 'emit:1', reason: 'capacity: receiver full' },
+    })
+  })
+
+  it('9 failures: a receiver or provider that returns a value that is not an Outcome is unknown, not success', async () => {
+    const notOutcome = 'the provider returned a value that is not an Outcome'
+    const bare = scope({ process: { receive: async () => undefined } as never })
+    expect(await bare.scope.context.emit(append('log', 'one'))).toEqual({
+      failure: { kind: 'unknown', operation: 'emit:1', reason: notOutcome },
+    })
+    const unwrapped = scope({
+      waits: { wait: async () => ({ kind: 'answer', value: 'yes' }) } as never,
+    })
+    expect(await unwrapped.scope.context.wait(ask('confirm'))).toEqual({
+      failure: { kind: 'unknown', operation: 'wait:confirm', reason: notOutcome },
+    })
+  })
+
+  it('9 failures: the barrier reports the first fault when later outputs also fail', async () => {
+    const waiter = manualWaiter()
+    const { scope: s } = scope({
+      process: { receive: async ({ sequence }) => failing('capacity', `full at ${sequence}`) },
+      waits: waiter.waits,
+    })
+    expect(await s.context.emit(append('log', 'one'))).toEqual({
+      failure: { kind: 'capacity', reason: 'full at 1' },
+    })
+    expect(await s.context.emit(append('log', 'two'))).toEqual({
+      failure: { kind: 'capacity', reason: 'full at 2' },
+    })
+    expect(await s.context.wait(ask('confirm'))).toEqual({
+      failure: { kind: 'unavailable', operation: 'emit:1', reason: 'capacity: full at 1' },
     })
   })
 
