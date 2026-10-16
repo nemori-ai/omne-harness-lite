@@ -45,7 +45,7 @@ export function parsePolicy(value: unknown) {
   const tracks = array(v.tracks, 'tracks').map(parseTrack)
   if (new Set(tracks.map(track => track.id)).size !== tracks.length)
     throw new IntegrationError('input-error', 'Duplicate track')
-  const t = fields(v.timeouts, ['commandMs', 'networkMs'], 'timeouts')
+  const t = fields(v.timeouts, ['networkMs'], 'timeouts')
   const transport = fields(v.transport, ['kind', 'location'], 'transport')
   return {
     schemaVersion: literal(v.schemaVersion, 1, 'schemaVersion'),
@@ -53,10 +53,7 @@ export function parsePolicy(value: unknown) {
     repository: string(v.repository, 'repository'),
     deliveryConfig: safePath(v.deliveryConfig, 'deliveryConfig'),
     tracks,
-    timeouts: {
-      commandMs: integer(t.commandMs, 'commandMs'),
-      networkMs: integer(t.networkMs, 'networkMs'),
-    },
+    timeouts: { networkMs: integer(t.networkMs, 'networkMs') },
     transport: {
       kind: choice(transport.kind, ['remote', 'local-bare'], 'transport.kind'),
       location: string(transport.location, 'transport.location'),

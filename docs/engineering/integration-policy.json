@@ -34,7 +34,6 @@
     "location": "origin"
   },
   "timeouts": {
-    "commandMs": 3600000,
     "networkMs": 30000
   }
 }

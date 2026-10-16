@@ -27,7 +27,6 @@ function fixture() {
 }
 const common = {
   schemaVersion: 1,
-  policyRevision: '1',
   responsible: 'human',
   basis: ['fixture authority'],
 } as const

@@ -38,7 +38,7 @@ export function policyDocument(initialMain: string, location: string) {
       },
     ],
     transport: { kind: 'local-bare', location },
-    timeouts: { commandMs: 30000, networkMs: 30000 },
+    timeouts: { networkMs: 30000 },
   }
 }
 /**

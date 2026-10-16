@@ -22,7 +22,6 @@ function fixture(admissionOnly = false) {
 }
 const common = {
   schemaVersion: 1,
-  policyRevision: '1',
   responsible: 'human',
   basis: ['fixture explicit authorization'],
 } as const
@@ -123,12 +122,12 @@ describe('dispatch by publish environment reviewers', () => {
   async function dispatch(
     f: ReturnType<typeof fixture>,
     change: (platform: Record<string, unknown>) => void = () => {},
-    policyRevision: string = common.policyRevision,
+    extra: Record<string, unknown> = {},
   ) {
     f.authority(
       {
         ...common,
-        policyRevision,
+        ...extra,
         basis: [...common.basis],
         action: 'dispatch',
         task: f.binding,
@@ -158,18 +157,25 @@ describe('dispatch by publish environment reviewers', () => {
     platform.teams = { leads: members }
   }
 
-  it('starts without an adoption descriptor or anchor and ignores the policy revision', async () => {
+  it('starts without an adoption descriptor, anchor or tag', async () => {
     const f = fixture()
     expect(existsSync(join(f.root, 'docs/engineering/integration-bootstrap.json'))).toBe(false)
     expect(existsSync(join(repository(f.root).commonDir, 'omne-integration'))).toBe(false)
     expect(git(f.remote, ['for-each-ref', '--format=%(refname)', 'refs/tags/'])).toBe('')
-    const context = await dispatch(f, undefined, 'retired-revision')
+    const context = await dispatch(f)
     expect(context).toMatchObject({ targetBase: f.initial, ownerTask: f.binding, operation: null })
     expect(context).not.toHaveProperty('anchor')
     const written = JSON.parse(readFileSync(contextPath(f.root), 'utf8'))
     expect(written).toEqual(context)
     expect(Object.keys(written)).not.toContain('anchor')
     expect(baselines(f.root)).toMatchObject({ targetBase: f.initial })
+  })
+  it('refuses a dispatch that still carries the retired policyRevision and writes no context', async () => {
+    const f = fixture()
+    await expect(dispatch(f, undefined, { policyRevision: '1' })).rejects.toThrow(
+      'dispatch: unknown fields policyRevision',
+    )
+    expect(existsSync(contextPath(f.root))).toBe(false)
   })
   it('accepts a member of a reviewer team', async () => {
     await expect(dispatch(fixture(), team(['human']))).resolves.toMatchObject({

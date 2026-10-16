@@ -41,7 +41,6 @@ async function bound(): Promise<Fixture> {
   f.authority(
     {
       schemaVersion: 1,
-      policyRevision: '1',
       responsible: 'human',
       basis: ['fixture authority'],
       action: 'dispatch',

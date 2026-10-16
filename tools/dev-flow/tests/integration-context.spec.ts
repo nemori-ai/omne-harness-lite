@@ -69,6 +69,13 @@ describe('policy registry', () => {
     const { transport: _, ...missing } = document
     expect(() => parsePolicy(missing)).toThrow('transport must be an object')
   })
+  it('refuses the retired command timeout', () => {
+    const document = policyDocument(commit, '/remote.git')
+    expect(parsePolicy(document).timeouts).toEqual({ networkMs: 30000 })
+    expect(() =>
+      parsePolicy({ ...document, timeouts: { commandMs: 30000, networkMs: 30000 } }),
+    ).toThrow('timeouts: unknown fields commandMs')
+  })
 })
 
 describe('task context and commands', () => {

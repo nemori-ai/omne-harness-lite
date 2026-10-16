@@ -33,14 +33,11 @@ import {
   IntegrationError,
 } from './parse.ts'
 
-type CommonDecision = {
+/** The only authority this tool reads: a dispatch decision for one task. */
+export type Decision = {
   schemaVersion: 1
-  policyRevision: string
   responsible: string
   basis: string[]
-}
-/** The only authority this tool reads: a dispatch decision for one task. */
-export type Decision = CommonDecision & {
   action: 'dispatch'
   task: TaskBinding
   confirmations: Confirmation[]
@@ -59,21 +56,20 @@ function confirmations(value: unknown): Confirmation[] {
 }
 function parseDecision(value: unknown): Decision {
   const v = record(value, 'decision')
-  const common: CommonDecision = {
-    schemaVersion: literal(v.schemaVersion, 1, 'schemaVersion'),
-    policyRevision: string(v.policyRevision, 'policyRevision'),
-    responsible: string(v.responsible, 'responsible'),
-    basis: strings(v.basis, 'basis'),
-  }
-  if (common.basis.length === 0) throw new IntegrationError('unknown', 'Authority basis is missing')
+  const schemaVersion = literal(v.schemaVersion, 1, 'schemaVersion')
+  const responsible = string(v.responsible, 'responsible')
+  const basis = strings(v.basis, 'basis')
+  if (basis.length === 0) throw new IntegrationError('unknown', 'Authority basis is missing')
   if (v.action !== 'dispatch') throw new IntegrationError('unknown', 'Unsupported authority action')
   fields(
     v,
-    ['schemaVersion', 'policyRevision', 'responsible', 'basis', 'action', 'task', 'confirmations'],
+    ['schemaVersion', 'responsible', 'basis', 'action', 'task', 'confirmations'],
     'dispatch',
   )
   return {
-    ...common,
+    schemaVersion,
+    responsible,
+    basis,
     action: 'dispatch',
     task: parseTaskBinding(v.task),
     confirmations: confirmations(v.confirmations),

@@ -1,6 +1,6 @@
 # 使用分支集成工具
 
-本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证、发布或写平台。采用、本机发布与旧建轨道命令已按 [RFC-0009](../../../../docs/rfcs/RFC-0009-adoption-and-local-tool-retirement.md) 删除。
+本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证、发布或写平台。
 
 从仓库根运行。行为承诺归 [SPEC](SPEC.md)，工程节奏归[多层分支规则](../../../../docs/engineering/integration.md)。policy 固定读当前 HEAD 提交中的 `docs/engineering/integration-policy.json`，交付配置按 policy 的 `deliveryConfig` 读取。命令存在不授予项目 ref 或平台写权限。
 
@@ -89,7 +89,7 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 URL 为 policy `repository` 中的 Issue comment。工具固定只读 `gh api GET`，核对评论所在 Issue、评论 URL 与采集时内容一致。评论作者须是 `publish` environment 的 required reviewer：个人 reviewer 按 login 与 node ID 匹配，team reviewer 按 active 成员身份匹配。author_association 不授予权。
 
-评论中放一个 `json omne-integration-authority:v1` 区块，只支持 `dispatch` 一种 action。字段为 schemaVersion=1、action、policyRevision、responsible（须等于评论作者）、basis（非空依据数组）、task（完整 binding）和 confirmations（每项 issue/condition/digest/evidence）。policyRevision 必填，但不与当前 policy 比对。精确运行时 schema 归 [authority.ts](authority.ts)，unknown 字段不接受。
+评论中放一个 `json omne-integration-authority:v1` 区块，只支持 `dispatch` 一种 action。字段为 schemaVersion=1、action、responsible（须等于评论作者）、basis（非空依据数组）、task（完整 binding）和 confirmations（每项 issue/condition/digest/evidence）。精确运行时 schema 归 [authority.ts](authority.ts)，其他字段拒绝。
 
 撤销评论用 `json omne-integration-revocation:v1`，字段为 schemaVersion、`decisions`（被撤销决定 URL 的数组）与 basis。出现适用撤销则拒绝，需新的派发决定。完整撤销治理仍由交付协议拥有。
 
@@ -104,4 +104,4 @@ pnpm run typecheck
 
 测试文件为 `integration-boundaries`、`integration-context`、`integration-engine`、`integration-sync` 与 `integration-transport` 五个 `.spec.ts`。它们用临时真实 Git（含 bare 远端）和受限只读 GitHub 响应。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
 
-网络读取使用 policy 的 `timeouts.networkMs`。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。
+网络读取使用 policy 的 `timeouts.networkMs`，`timeouts` 不接受其他字段。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。

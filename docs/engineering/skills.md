@@ -159,7 +159,7 @@ port 的 [Claude hooks](https://github.com/michael-denyer/pstack-claude/blob/60a
 
 ## 项目分支集成技能
 
-涉及工作分支同步、FI/RI、联合候选、checkpoint、采用或恢复时，加载自有 [branch-integration](../../.meta_harness/agents/skills/branch-integration/canonical/SKILL.md)。它从[共同规则](integration.md)和实际 CLI 展开，不替代 pstack 通用方法，也不因宿主发现而启用采用或授予外部动作。pending 时沿旧任务路线。
+涉及工作分支同步、FI/RI、checkpoint、主干准入或流程失效恢复时，加载自有 [branch-integration](../../.meta_harness/agents/skills/branch-integration/canonical/SKILL.md)。它从[共同规则](integration.md)和实际 CLI 展开，不替代 pstack 通用方法，也不因宿主发现而授予外部动作。
 
 ## 项目设计判断的边界
 
