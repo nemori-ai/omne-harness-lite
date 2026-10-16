@@ -25,9 +25,18 @@ tool/
 │   ├── public-api.md         公开定义导航与设计声明
 │   ├── context.md            消费与系统定位
 │   └── cordis.md              集成责任
-├── src/                      当前公开定义与实现
-├── tests/                    当前成员测试
-└── verification/             覆盖矩阵和持续验证场景，含 README.md + index.md
+├── src/                      README.md + index.md，当前公开定义与实现
+├── tests/                    README.md + index.md，当前成员测试
+│   └── fixtures/             README.md + index.md，占位
+├── schema/                   README.md + index.md，占位
+├── verification/             README.md + index.md，覆盖矩阵和持续验证场景
+│   ├── models/               README.md + index.md，占位
+│   └── proofs/               README.md + index.md，占位
+├── adr/                      README.md + index.md，占位
+├── examples/                 README.md + index.md，占位
+├── resources/                README.md + index.md，占位
+├── acceptance/               README.md + index.md，占位
+└── tsconfig.build.json / tsconfig.test.json / vitest.config.ts
 ```
 
-树中列出 docs 的全部主题；验证资源见 [verification](verification/index.md)。设计阅读路径见[文档索引](docs/index.md)。六主题的职责见[文档说明](docs/README.md)。其他模板目录尚未建立，完整目录要求见[成员文档规范](../../../docs/member-documentation.md)。
+树中列出 docs 的全部主题；验证资源见 [verification](verification/index.md)。设计阅读路径见[文档索引](docs/index.md)。六主题的职责见[文档说明](docs/README.md)。标为占位的目录只有职责说明，不表示已有 Schema、模型、证明、决策、示例、运行资源或验收能力。文件导航见 [index](index.md)，完整目录要求见[成员文档规范](../../../docs/member-documentation.md)。
