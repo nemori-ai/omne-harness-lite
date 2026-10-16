@@ -76,7 +76,7 @@ pnpm --filter @omne-harness/repo-toolchain test
 
 报告写成 `commit <短号>:<提交信息里的行号>`。它认的是 `src/commits.ts` 里列出的那批名字，新出现的工具要加进去；
 它**不核对**来源 trailer 有没有写、写得对不对——哪些提交有 agent 参与，工具看不出来。
-浅克隆时只查克隆下来的那些提交；不在 git 检出里运行时通过提示会写明「未检查」。自测：`tests/commit-attribution.spec.ts`。
+浅克隆时只查克隆下来的那些提交；不在 git 检出里运行时通过提示会写明「未检查」。自测：`tests/commit-attribution.spec.ts`。本仓库已在共享历史里、不能改写的提交，由 [product-checks 的历史审计基线](../product-checks/README_ZH.md#提交署名的历史审计基线)逐条列出；本包不读基线，`attributionViolations` 照常报告全部违反。
 
 ## 验收锁
 

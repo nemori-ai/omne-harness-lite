@@ -1,0 +1,22 @@
+{
+  "rule": "commit-attribution",
+  "decision": "https://github.com/nemori-ai/omne-harness-lite/issues/356#issuecomment-6214198516",
+  "commits": [
+    {
+      "sha": "7e9431f5b5f9f8285d0c5fecc2c07f588483eb58",
+      "reason": "已在共享历史中的 Cursor co-author trailer，不改写历史"
+    },
+    {
+      "sha": "e8e014ad89c356ed6fb9b7918dda46189480f573",
+      "reason": "已在共享历史中的 Cursor co-author trailer，不改写历史"
+    },
+    {
+      "sha": "d7d480e4b3284615e8199dcff5770a4af5882bc5",
+      "reason": "已在共享历史中的 Cursor co-author trailer，不改写历史"
+    },
+    {
+      "sha": "f519bb7a46f5f426baa346cd48e7ef010e759241",
+      "reason": "已在共享历史中的 Cursor co-author trailer，不改写历史"
+    }
+  ]
+}
