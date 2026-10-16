@@ -204,9 +204,15 @@ jobs:
             outcome="dry run: every step ran, npm publish used --dry-run, nothing was published"
             registry='not applicable'
           else
-            # The registry can take a short while to serve a new version.
-            for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
-              view=$(npm view "$NAME@$VERSION" --json 2>/dev/null) && break
+            # The registry can take a few minutes to serve a new version. Only a document that
+            # names exactly this version counts as read back; anything else keeps waiting.
+            view=''
+            for _ in $(seq 30); do
+              candidate=$(npm view "$NAME@$VERSION" --json 2>/dev/null || true)
+              if jq -e --arg v "$VERSION" 'type == "object" and .version == $v' >/dev/null 2>&1 <<<"$candidate"; then
+                view=$candidate
+                break
+              fi
               sleep 10
             done
             if [ -z "${view:-}" ]; then
