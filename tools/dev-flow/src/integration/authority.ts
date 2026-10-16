@@ -4,7 +4,7 @@ import {
   type AdmissionCapture,
   type AdmissionScope,
 } from '../delivery/admission.ts'
-import { collectDelivery, runGhRead, type GhRead } from '../delivery/github-read.ts'
+import { runGhRead, type GhRead } from '../delivery/github-read.ts'
 import {
   InputError,
   parseConfig,
@@ -15,23 +15,16 @@ import {
   type CapturedIssue,
   type Condition,
 } from '../delivery/protocol.ts'
-import { observeDelivery } from '../delivery/observe.ts'
-import {
-  conditionApplies,
-  parseTaskBinding,
-  readTaskBinding,
-  type TaskBinding,
-} from '../delivery/binding.ts'
+import { parseTaskBinding, readTaskBinding, type TaskBinding } from '../delivery/binding.ts'
 import { blob } from './git.ts'
-import type { Policy, Mode } from './policy.ts'
-import { parseAudit, type PolicySource, type TaskAudit } from './context.ts'
+import type { Policy } from './policy.ts'
+import type { PolicySource } from './context.ts'
 import {
   array,
   fields,
   json,
   literal,
   section,
-  sha,
   string,
   strings,
   canonical,
@@ -46,47 +39,13 @@ type CommonDecision = {
   responsible: string
   basis: string[]
 }
-export type Decision = CommonDecision &
-  (
-    | { action: 'dispatch'; task: TaskBinding; confirmations: Confirmation[] }
-    | {
-        action: 'publish'
-        operation: string
-        candidate: string
-        expectedBase: string | null
-        sources: string[]
-        tasks: TaskAudit[]
-        receiptDigest: string
-        allowedRefs: string[]
-        confirmations: Confirmation[]
-        revalidations: Revalidation[]
-      }
-    | {
-        action: 'adopt'
-        policyCommit: string
-        constructionHead: string
-        constructionComplete: true
-        legacyDigest: string
-        bootstrapBasis: string
-        checksDigest: string
-      }
-    | {
-        action: 'policy-adopt'
-        previous: string
-        policyCommit: string
-        handoffDigest: string
-        checksDigest: string
-      }
-    | {
-        action: 'track-bootstrap'
-        track: string
-        mainAnchor: string
-        allowedRefs: string[]
-        expectedAbsent: true
-      }
-  )
+/** The only authority this tool reads: a dispatch decision for one task. */
+export type Decision = CommonDecision & {
+  action: 'dispatch'
+  task: TaskBinding
+  confirmations: Confirmation[]
+}
 export type Confirmation = { issue: string; condition: string; digest: string; evidence: string }
-export type Revalidation = { historical: string; current: string; evidence: string }
 function confirmations(value: unknown): Confirmation[] {
   return array(value, 'confirmations').map(item => {
     const v = fields(item, ['issue', 'condition', 'digest', 'evidence'], 'confirmation')
@@ -98,7 +57,7 @@ function confirmations(value: unknown): Confirmation[] {
     }
   })
 }
-export function parseDecision(value: unknown): Decision {
+function parseDecision(value: unknown): Decision {
   const v = record(value, 'decision')
   const common: CommonDecision = {
     schemaVersion: literal(v.schemaVersion, 1, 'schemaVersion'),
@@ -107,107 +66,17 @@ export function parseDecision(value: unknown): Decision {
     basis: strings(v.basis, 'basis'),
   }
   if (common.basis.length === 0) throw new IntegrationError('unknown', 'Authority basis is missing')
-  const commonKeys = ['schemaVersion', 'policyRevision', 'responsible', 'basis', 'action']
-  switch (v.action) {
-    case 'dispatch':
-      fields(v, [...commonKeys, 'task', 'confirmations'], 'dispatch')
-      return {
-        ...common,
-        action: 'dispatch',
-        task: parseTaskBinding(v.task),
-        confirmations: confirmations(v.confirmations),
-      }
-    case 'publish':
-      fields(
-        v,
-        [
-          ...commonKeys,
-          'operation',
-          'candidate',
-          'expectedBase',
-          'sources',
-          'tasks',
-          'receiptDigest',
-          'allowedRefs',
-          'confirmations',
-          'revalidations',
-        ],
-        'publish',
-      )
-      return {
-        ...common,
-        action: 'publish',
-        operation: string(v.operation, 'operation'),
-        candidate: sha(v.candidate),
-        expectedBase: v.expectedBase === null ? null : sha(v.expectedBase),
-        sources: array(v.sources, 'sources').map(item => sha(item)),
-        tasks: array(v.tasks, 'tasks').map(parseAudit),
-        receiptDigest: string(v.receiptDigest, 'receiptDigest'),
-        allowedRefs: strings(v.allowedRefs, 'allowedRefs'),
-        confirmations: confirmations(v.confirmations),
-        revalidations: array(v.revalidations, 'revalidations').map(item => {
-          const r = fields(item, ['historical', 'current', 'evidence'], 'revalidation')
-          return {
-            historical: string(r.historical, 'historical'),
-            current: string(r.current, 'current'),
-            evidence: string(r.evidence, 'evidence'),
-          }
-        }),
-      }
-    case 'adopt':
-      fields(
-        v,
-        [
-          ...commonKeys,
-          'policyCommit',
-          'constructionHead',
-          'constructionComplete',
-          'legacyDigest',
-          'bootstrapBasis',
-          'checksDigest',
-        ],
-        'adopt',
-      )
-      return {
-        ...common,
-        action: 'adopt',
-        policyCommit: sha(v.policyCommit),
-        constructionHead: sha(v.constructionHead),
-        constructionComplete: literal(v.constructionComplete, true, 'constructionComplete'),
-        legacyDigest: string(v.legacyDigest, 'legacyDigest'),
-        bootstrapBasis: string(v.bootstrapBasis, 'bootstrapBasis'),
-        checksDigest: string(v.checksDigest, 'checksDigest'),
-      }
-    case 'policy-adopt':
-      fields(
-        v,
-        [...commonKeys, 'previous', 'policyCommit', 'handoffDigest', 'checksDigest'],
-        'policy-adopt',
-      )
-      return {
-        ...common,
-        action: 'policy-adopt',
-        previous: sha(v.previous),
-        policyCommit: sha(v.policyCommit),
-        handoffDigest: string(v.handoffDigest, 'handoffDigest'),
-        checksDigest: string(v.checksDigest, 'checksDigest'),
-      }
-    case 'track-bootstrap':
-      fields(
-        v,
-        [...commonKeys, 'track', 'mainAnchor', 'allowedRefs', 'expectedAbsent'],
-        'track-bootstrap',
-      )
-      return {
-        ...common,
-        action: 'track-bootstrap',
-        track: string(v.track, 'track'),
-        mainAnchor: sha(v.mainAnchor),
-        allowedRefs: strings(v.allowedRefs, 'allowedRefs'),
-        expectedAbsent: literal(v.expectedAbsent, true, 'expectedAbsent'),
-      }
-    default:
-      throw new IntegrationError('unknown', 'Unsupported authority action')
+  if (v.action !== 'dispatch') throw new IntegrationError('unknown', 'Unsupported authority action')
+  fields(
+    v,
+    ['schemaVersion', 'policyRevision', 'responsible', 'basis', 'action', 'task', 'confirmations'],
+    'dispatch',
+  )
+  return {
+    ...common,
+    action: 'dispatch',
+    task: parseTaskBinding(v.task),
+    confirmations: confirmations(v.confirmations),
   }
 }
 export function deliveryConfig(root: string, policy: Policy, source: PolicySource): DeliveryConfig {
@@ -219,20 +88,6 @@ export function deliveryConfig(root: string, policy: Policy, source: PolicySourc
   if (config.project.id === null || config.writers.stage === null || config.writers.body === null)
     throw new IntegrationError('unknown', 'Project or single writers are not configured')
   return config
-}
-export function currentCapture(config: DeliveryConfig, read: GhRead = runGhRead): DeliveryCapture {
-  const capture = collectDelivery(config, read)
-  if (
-    capture.collection.errors.length > 0 ||
-    capture.collection.issues !== 'complete' ||
-    capture.collection.project !== 'complete' ||
-    capture.issues.some(issue => !issue.commentsComplete || !issue.relationsComplete)
-  )
-    throw new IntegrationError(
-      'unknown',
-      'Current Issue, comment, relation or Project capture is incomplete',
-    )
-  return capture
 }
 export function currentAdmission(
   config: DeliveryConfig,
@@ -261,16 +116,7 @@ export function admissionDigest(capture: AdmissionCapture): string {
     }),
   )
 }
-export function captureDigest(capture: DeliveryCapture): string {
-  return digest(
-    canonical({
-      repository: capture.repository,
-      projectId: capture.projectId,
-      issues: capture.issues,
-    }),
-  )
-}
-export const DISPATCH_ENVIRONMENT = 'publish'
+const DISPATCH_ENVIRONMENT = 'publish'
 const API_HEADERS = [
   '-H',
   'Accept: application/vnd.github+json',
@@ -384,25 +230,12 @@ export function readAuthority(
     'Authority comment changed during capture',
   )
   const decision = parseDecision(section(text(raw.body, 'body'), 'omne-integration-authority:v1'))
-  if (decision.action === 'dispatch') {
-    // Dispatch follows the reviewers who confirm trunk publication, not the adopted owner list.
-    if (!isDispatchReviewer(policy, user, read))
-      throw new IntegrationError(
-        'refused',
-        `Comment actor is not a reviewer of the ${DISPATCH_ENVIRONMENT} environment`,
-      )
-  } else {
-    if (
-      !policy.owners.some(
-        owner =>
-          owner.login === user.login &&
-          owner.nodeId === user.node_id &&
-          owner.actions.includes(decision.action),
-      )
+  // Dispatch follows the reviewers who confirm trunk publication.
+  if (!isDispatchReviewer(policy, user, read))
+    throw new IntegrationError(
+      'refused',
+      `Comment actor is not a reviewer of the ${DISPATCH_ENVIRONMENT} environment`,
     )
-      throw new IntegrationError('refused', 'Comment actor is not a policy owner for this action')
-    same(decision.policyRevision, policy.revision, 'Authority policy revision changed')
-  }
   same(decision.responsible, user.login, 'Decision responsible actor mismatch')
   for (const comment of issue.comments) {
     const revocation = section(comment.body, 'omne-integration-revocation:v1')
@@ -430,19 +263,16 @@ export function currentTask(
   if (binding === undefined) throw new IntegrationError('unknown', 'Task binding is missing')
   return { binding, issue }
 }
+/** Every start-phase condition of the card needs a current confirmation in the dispatch decision. */
 export function confirmConditions(
   config: DeliveryConfig,
-  capture: DeliveryCapture | AdmissionCapture,
+  capture: AdmissionCapture,
   task: TaskBinding,
-  phase: 'start' | 'integration',
   target: string,
   confirmed: Confirmation[],
   policy: Policy,
 ): void {
-  const report =
-    capture.kind === 'github-admission-capture'
-      ? observeAdmission(config, capture)
-      : observeDelivery(config, capture)
+  const report = observeAdmission(config, capture)
   if (report.findings.some(f => f.object === task.issue.url && f.category === 'deviation'))
     throw new IntegrationError('unknown', 'Task card has protocol deviations')
   const card = report.cards.find(card => card.issue === task.issue.url)
@@ -459,8 +289,7 @@ export function confirmConditions(
       !policy.tracks.some(track => `refs/heads/${track.branch}` === scope)
     )
       throw new IntegrationError('unknown', `Condition ${condition.id} names an unregistered track`)
-    if (condition.phase !== phase || (phase === 'integration' && !conditionApplies(scope, target)))
-      continue
+    if (condition.phase !== 'start') continue
     if (
       !confirmed.some(
         item =>
@@ -477,39 +306,4 @@ export function confirmConditions(
 }
 export function conditionDigest(condition: Condition): string {
   return digest(canonical(condition))
-}
-export function revalidateTask(
-  capture: DeliveryCapture,
-  audit: TaskAudit,
-  mode: Mode,
-  revalidations: Revalidation[],
-): TaskBinding {
-  const current = currentTask(capture, audit.binding)
-  const exact = canonical(current.binding) === canonical(audit.binding)
-  if (!exact || current.issue.state === 'closed') {
-    if (!['ri', 'joint', 'checkpoint'].includes(mode))
-      throw new IntegrationError(
-        'stale',
-        'Original task revision or attempt is no longer current/open',
-      )
-    if (
-      !revalidations.some(
-        item =>
-          item.historical === digest(canonical(audit)) &&
-          item.current ===
-            digest(
-              canonical({
-                binding: current.binding,
-                state: current.issue.state,
-                updatedAt: current.issue.updatedAt,
-              }),
-            ),
-      )
-    )
-      throw new IntegrationError(
-        'stale',
-        'Historical unit requires exact owner revalidation against current Issue inputs',
-      )
-  }
-  return current.binding
 }

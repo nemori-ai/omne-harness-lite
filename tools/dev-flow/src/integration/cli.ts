@@ -1,48 +1,19 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openIntegration, type Command } from './engine.ts'
-import { array, choice, fields, integer, json, sha, string, IntegrationError } from './parse.ts'
+import { fields, integer, json, sha, string, IntegrationError } from './parse.ts'
 import { TaskContextError } from '@omne-harness/repo-toolchain/core/task-context'
-import { modes } from './policy.ts'
-import { parseAudit } from './context.ts'
-import { validatePrepare, type Source } from './candidate.ts'
 
-function parseProvenance(value: unknown) {
-  const v = fields(value, ['harness', 'role'], 'provenance')
-  return { harness: string(v.harness, 'harness'), role: string(v.role, 'role') }
-}
 export function parseCommand(value: unknown): Command {
   const v = fields(
     value,
-    [
-      'kind',
-      'mode',
-      'sources',
-      'track',
-      'checkpoint',
-      'declaredTasks',
-      'initialAudit',
-      'authority',
-      'issue',
-      'revision',
-      'attempt',
-      'operation',
-      'legacy',
-      'entry',
-      'title',
-      'provenance',
-    ],
+    ['kind', 'authority', 'issue', 'revision', 'attempt', 'target'],
     'command',
   )
   switch (v.kind) {
-    case 'policy-handoff':
-    case 'policy-check':
-    case 'bootstrap':
-      fields(v, ['kind'], 'bootstrap')
-      return { kind: v.kind }
     case 'register':
     case 'start':
-      fields(v, ['kind', 'authority', 'issue', 'revision', 'attempt'], 'start')
+      fields(v, ['kind', 'authority', 'issue', 'revision', 'attempt'], v.kind)
       return {
         kind: v.kind,
         authority: string(v.authority, 'authority'),
@@ -50,78 +21,9 @@ export function parseCommand(value: unknown): Command {
         revision: integer(v.revision, 'revision'),
         attempt: string(v.attempt, 'attempt'),
       }
-    case 'prepare':
-      fields(
-        v,
-        [
-          'kind',
-          'mode',
-          'sources',
-          'track',
-          'checkpoint',
-          'declaredTasks',
-          'initialAudit',
-          'title',
-          'provenance',
-        ],
-        'prepare',
-      )
-      return validatePrepare({
-        kind: 'prepare',
-        ...(v.title === undefined ? {} : { title: string(v.title, 'title') }),
-        ...(v.provenance === undefined ? {} : { provenance: parseProvenance(v.provenance) }),
-        mode: choice(v.mode, modes, 'mode'),
-        sources: array(v.sources, 'sources').map((item): Source => {
-          const s = fields(item, ['kind', 'source', 'track'], 'source'),
-            kind = choice(s.kind, ['main', 'track', 'work'], 'source.kind')
-          if (kind !== 'track') fields(s, ['kind', 'source'], 'source')
-          return kind === 'track'
-            ? { kind, source: sha(s.source), track: string(s.track, 'track') }
-            : { kind, source: sha(s.source) }
-        }),
-        ...(v.track === undefined ? {} : { track: string(v.track, 'track') }),
-        ...(v.checkpoint === undefined ? {} : { checkpoint: string(v.checkpoint, 'checkpoint') }),
-        ...(v.initialAudit === undefined ? {} : { initialAudit: sha(v.initialAudit) }),
-        ...(v.declaredTasks === undefined
-          ? {}
-          : { declaredTasks: array(v.declaredTasks, 'declaredTasks').map(parseAudit) }),
-      })
-    case 'seal':
-    case 'verify':
-    case 'resume':
-      fields(v, ['kind', 'operation'], v.kind)
-      return { kind: v.kind, operation: string(v.operation, 'operation') }
-    case 'publish':
-    case 'policy-adopt':
-    case 'activate':
-    case 'track-bootstrap':
-      fields(v, ['kind', 'operation', 'authority'], v.kind)
-      return {
-        kind: v.kind,
-        operation: string(v.operation, 'operation'),
-        authority: string(v.authority, 'authority'),
-      }
-    case 'activation-check': {
-      fields(v, ['kind', 'legacy'], v.kind)
-      const legacy = array(v.legacy, 'legacy').map(item => {
-        const l = fields(item, ['root', 'gitDir', 'branch', 'head', 'task'], 'legacy')
-        return {
-          root: string(l.root, 'root'),
-          gitDir: string(l.gitDir, 'gitDir'),
-          branch: string(l.branch, 'branch'),
-          head: sha(l.head),
-          task: string(l.task, 'task'),
-        }
-      })
-      return { kind: v.kind, legacy }
-    }
-    case 'track-register':
-      fields(v, ['kind', 'entry'], v.kind)
-      return { kind: v.kind, entry: v.entry }
-    case 'track-bootstrap-plan':
-    case 'track-retire':
-      fields(v, ['kind', 'track'], v.kind)
-      return { kind: v.kind, track: string(v.track, 'track') }
+    case 'task-sync':
+      fields(v, ['kind', 'target'], v.kind)
+      return { kind: v.kind, target: sha(v.target, 'target') }
     default:
       throw new IntegrationError('input-error', 'Unsupported integration command')
   }
