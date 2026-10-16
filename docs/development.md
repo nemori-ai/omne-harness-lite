@@ -25,6 +25,8 @@ git status --short
 
 完整检查需要 Git、Bash、Make、[uv](https://docs.astral.sh/uv/getting-started/installation/)，
 以及根 `package.json` 的 `engines`/`packageManager` 指定的 Node 与 pnpm。
+
+支持在 macOS、Linux 与 Windows 上开发。`make check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 WSL2 的 Linux 发行版里检出仓库并运行它们，不支持在 PowerShell 或 cmd 中直接运行。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。
 Python 范围由 [pyproject.toml](../pyproject.toml) 声明，uv 管理解释器与虚拟环境——
 **不要依赖系统 `python` 恰好存在**。使用coding agent参与本项目迭代维护时，先完成下一节的插件初始化。仓库依赖在实际使用的检出中准备：
 

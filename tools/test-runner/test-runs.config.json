@@ -69,7 +69,8 @@
         "paths": [
           "docs/clean-loop.md",
           "tools/repo-toolchain/resources/clean-loop-entries.md",
-          "scripts/with-test-slot.sh"
+          "scripts/with-test-slot.sh",
+          "scripts/with-test-slot.mjs"
         ],
         "members": ["tools/repo-toolchain", "tools/test-runner"],
         "why": "repo-toolchain 的 loop-catalogue.spec.ts 读 clean-loop 与整洁之道对照表，test-runner 的 test-slot.spec.ts 执行 with-test-slot.sh"
