@@ -559,6 +559,30 @@ describe('6 cancellation', () => {
 })
 
 describe('7 finish', () => {
+  it('7 finish: a returned finish that finds the wait active ends it closed, even with the answer in flight', async () => {
+    const seen = { closed: 0, answered: 0 }
+    for (let k = 0; k <= 8; k += 1) {
+      const waiter = manualWaiter()
+      const { scope: s } = scope({ waits: waiter.waits })
+      const pending = s.context.wait(ask('confirm'))
+      await settled()
+      waiter.answers[0]?.resolve(succeed(answer))
+      for (let tick = 0; tick < k; tick += 1) await Promise.resolve()
+      const closing = await s.finish('returned')
+      const outcome = await pending
+      if ('failure' in closing) {
+        seen.closed += 1
+        expect(closing.failure.kind, `k=${k}`).toBe('invalid')
+        expect('failure' in outcome && outcome.failure.kind, `k=${k}`).toBe('closed')
+      } else {
+        seen.answered += 1
+        expect(outcome, `k=${k}`).toEqual({ ok: answer })
+      }
+    }
+    expect(seen.closed).toBeGreaterThan(0)
+    expect(seen.answered).toBeGreaterThan(0)
+  })
+
   it('7 finish: returned followed by a synchronous abort is cancelled, not a success', async () => {
     const { scope: s, controller } = scope()
     const closing = s.finish('returned')

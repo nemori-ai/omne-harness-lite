@@ -60,6 +60,16 @@ function unavailableOperation(operation: string, reason: string): Failure {
 }
 
 /** Reads an outcome that a provider returned. A value of another shape is a provider defect. */
+/** Reads what a receiver or provider settled with: an Outcome, or a throw that becomes unknown. */
+function readExternal(
+  operation: string,
+): [(value: unknown) => Result<unknown>, (error: unknown) => Result<unknown>] {
+  return [
+    value => readOutcome(value, operation),
+    error => fail(unknownOperation(operation, describeThrown(error))),
+  ]
+}
+
 function readOutcome(value: unknown, operation: string): Result<unknown> {
   if (typeof value === 'object' && value !== null) {
     if ('ok' in value) return succeed(value.ok)
@@ -504,10 +514,7 @@ class Execution {
     const operation = `emit:${sequence}`
     const delivery = this.tail
       .then(() => receiver.receive({ sequence: String(sequence), update }))
-      .then(
-        value => readOutcome(value, operation),
-        (error: unknown) => fail(unknownOperation(operation, describeThrown(error))),
-      )
+      .then(...readExternal(operation))
     this.tail = delivery.then(() => undefined)
     return delivery
   }
@@ -589,14 +596,17 @@ class Execution {
       .then((): Promise<unknown> =>
         entry.request.kind === 'ask' ? waits.wait(entry.request) : waits.wait(entry.request),
       )
-      .then(
-        value => readOutcome(value, operation),
-        (error: unknown) => fail(unknownOperation(operation, describeThrown(error))),
-      )
+      .then(...readExternal(operation))
     const raced = await Promise.race([external, entry.interrupt.promise])
     // An abort that lands between the answer and this continuation still wins: the executor
     // confirmed the cancellation before the hand-over (P11).
     if (this.cancelled) return this.settle(entry, fail(cancellation()))
+    // A finish that lands in the same window found this wait active, so the wait ends closed.
+    if (this.closure !== null)
+      return this.settle(
+        entry,
+        fail(named('closed', `the execution ${this.closure} with this wait open`)),
+      )
     if ('failure' in raced) return this.settle(entry, raced)
     return this.settle(entry, judgeReply(raced.ok, entry.responseMax, operation))
   }
