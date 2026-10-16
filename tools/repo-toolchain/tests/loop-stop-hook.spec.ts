@@ -19,12 +19,14 @@ import {
 afterEach(removeTemporaries)
 
 const script = fileURLToPath(new URL('../src/loop/stop-hook.ts', import.meta.url))
+// 夹具仓库没有回路配置：配置由运行检查器的仓库（本仓库）提供。
+const runner = fileURLToPath(new URL('../../../', import.meta.url))
 const hook = (cwd: string, home: string, input: string) =>
   spawnSync(process.execPath, ['--experimental-strip-types', script], {
     cwd,
     input,
     encoding: 'utf8',
-    env: { ...process.env, OMNE_METRICS_HOME: home },
+    env: { ...process.env, OMNE_METRICS_HOME: home, OMNE_RUNNER_ROOT: runner },
   })
 
 const tangled = `export function tangled(x: number): number {\n${Array.from(

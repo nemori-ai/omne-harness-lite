@@ -1,7 +1,6 @@
-// 度量的阈值、色带与页面参数只在 `metrics.config.json` 里定一次；这里读它并校验，`make metrics` 与
+// 度量的阈值、色带与页面参数只在仓库根 `repo-toolchain.config.json` 的 `metrics` 一节里定一次；这里读它并校验，`make metrics` 与
 // `make loop-status` 共用同一份。
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { readToolchainSection, toolchainConfigPath } from '../core/toolchain-config.ts'
 import type { Bands, Thresholds } from './report.ts'
 
 export interface MetricsConfig {
@@ -12,9 +11,9 @@ export interface MetricsConfig {
   readonly coverage: { readonly roots: readonly string[] }
 }
 
-export function readMetricsConfig(): MetricsConfig {
-  const path = fileURLToPath(new URL('../../metrics.config.json', import.meta.url))
-  const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
+export function readMetricsConfig(file: string = toolchainConfigPath()): MetricsConfig {
+  const path = `${file} metrics`
+  const parsed: unknown = readToolchainSection('metrics', file)
   const config = parsed as Partial<MetricsConfig>
   const warn = config.thresholds?.warn
   const alert = config.thresholds?.alert

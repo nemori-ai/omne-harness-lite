@@ -18,6 +18,7 @@ import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isTestPath } from '../core/rule.ts'
+import { runnerRoot } from '../core/subject.ts'
 
 /** workspace 成员：`packages/<组>/<包>`、`apps/<应用>`、`examples/<示例>`。 */
 export interface Member {
@@ -142,11 +143,14 @@ export interface CruiseOutput {
   readonly summary: { readonly violations: readonly CruiseViolation[] }
 }
 
-/** 运行检查器的那个仓库：规则只从它读，被检查的检出改不了规则。 */
-const RUNNER = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
-export const CRUISE_CONFIG = join(RUNNER, '.dependency-cruiser.cjs')
+/** 规则只从运行检查器的仓库读（见 core/subject.ts），被检查的检出改不了规则。 */
+export function cruiseConfig(): string {
+  return join(runnerRoot(), '.dependency-cruiser.cjs')
+}
 /** 解析选项（条件名等）同样取运行检查器的仓库的，被检查的检出改不了解析方式。 */
-const CRUISE_TSCONFIG = join(RUNNER, 'tsconfig.base.json')
+function cruiseTsconfig(): string {
+  return join(runnerRoot(), 'tsconfig.base.json')
+}
 const ROOTS = ['packages', 'apps', 'examples', 'tools', 'scripts']
 const SCOPE = '@omne-harness/'
 
@@ -164,9 +168,9 @@ export function cruise(root: string): CruiseOutput {
   const args = [
     cruiserBin(),
     '--config',
-    CRUISE_CONFIG,
+    cruiseConfig(),
     '--ts-config',
-    CRUISE_TSCONFIG,
+    cruiseTsconfig(),
     '--output-type',
     'json',
   ]
@@ -187,7 +191,7 @@ export function cruise(root: string): CruiseOutput {
 
 function ruleComments(): ReadonlyMap<string, string> {
   const require = createRequire(import.meta.url)
-  const config = require(CRUISE_CONFIG) as {
+  const config = require(cruiseConfig()) as {
     forbidden?: readonly { readonly name: string; readonly comment?: string }[]
   }
   return new Map((config.forbidden ?? []).map(rule => [rule.name, rule.comment ?? '']))
@@ -426,7 +430,7 @@ export function revisionGraph(root: string, revision: string): DependencyGraph {
   const commit = git(root, ['rev-parse', '--verify', `${revision}^{commit}`])
     .toString()
     .trim()
-  const rules = createHash('sha256').update(readFileSync(CRUISE_CONFIG)).digest('hex').slice(0, 12)
+  const rules = createHash('sha256').update(readFileSync(cruiseConfig())).digest('hex').slice(0, 12)
   const directory = cacheDirectory(root)
   const cached = join(directory, `${commit}-${rules}.json`)
   if (existsSync(cached)) return JSON.parse(readFileSync(cached, 'utf8')) as DependencyGraph

@@ -58,8 +58,8 @@
 
 **长期验证跟着场景走。**验收场景和声明覆盖它们的可执行验收随产品持续维护，不按任务数量复制。`make scenario-status`分别报告当前产品的覆盖声明、执行与接受；缺编号场景的topic单列未覆盖。覆盖声明不证明验收已执行、通过或交付已接受。实际运行和接受分别核对。合并前按影响面选择必要验收，验收耗时由传感器报告。放置和维护规则归[源码布局](workspace.md#目录与内容归属)。
 
-阈值、窗口与开关都在 [`tools/repo-toolchain/loop.config.json`](../tools/repo-toolchain/loop.config.json) 与
-[`metrics.config.json`](../tools/repo-toolchain/metrics.config.json) 里。它们是负责人的判断，可以改，**改的理由写进那次提交**；
+阈值、窗口与开关都在仓库根 [`repo-toolchain.config.json`](../repo-toolchain.config.json) 的 `loop` 与
+`metrics` 两节里。它们是负责人的判断，可以改，**改的理由写进那次提交**；
 不为了让某次交付变绿而放宽。负责人 2026-10-02 照试点时量到的分布定过一轮（成员预算的两组线、红色成员数只与基线比、
 topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，都还没有用多轮真实交付校准过。
 

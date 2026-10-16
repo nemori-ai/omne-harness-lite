@@ -1,15 +1,14 @@
 // 声明兼容检查入口：先构建，再用 TypeScript 6 读全部成员 dist 里的 `.d.ts`。
 // 退出码 0 表示兼容，1 表示成员声明里有诊断，2 表示用法或工具出错。
 import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { fileTree, listWorkspaceMembers } from '../core/workspace.ts'
 import { checkDeclarations, renderDeclarationReport } from './compat.ts'
+import { subjectRoot } from '../core/subject.ts'
 
 const USAGE = '用法：[--root <检出目录>]'
-const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 
 function main(argv: readonly string[]): number {
-  let root = ROOT
+  let root = subjectRoot()
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index + 1]
     if (argv[index] !== '--root' || value === undefined || value === '')

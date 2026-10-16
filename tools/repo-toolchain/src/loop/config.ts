@@ -1,8 +1,7 @@
-// 回路状态的阈值、窗口与开关只在 `loop.config.json` 里定一次。这里只读它、校验它：
+// 回路状态的阈值、窗口与开关只在仓库根 `repo-toolchain.config.json` 的 `loop` 一节里定一次。这里只读它、校验它：
 // 缺项或类型不对一律报错，不悄悄换成默认值——那些数字是试点后要校准的起步值，必须看得见。
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { validLines, type Lines } from './bands.ts'
+import { readToolchainSection, toolchainConfigPath } from '../core/toolchain-config.ts'
 
 export const INDICATORS = [
   'redMembers',
@@ -121,8 +120,6 @@ export interface HookConfig {
 /** commits：主线最近几个提交；runs：最近几次全量测试运行。 */
 export const HEALTH_WINDOWS = ['commits', 'runs'] as const
 export type HealthWindow = (typeof HEALTH_WINDOWS)[number]
-
-export const LOOP_CONFIG_PATH = fileURLToPath(new URL('../../loop.config.json', import.meta.url))
 
 type Raw = Readonly<Record<string, unknown>>
 
@@ -330,11 +327,11 @@ export function parseLoopConfig(parsed: unknown): LoopConfig {
   }
 }
 
-export function readLoopConfig(path: string = LOOP_CONFIG_PATH): LoopConfig {
+export function readLoopConfig(path: string = toolchainConfigPath()): LoopConfig {
   try {
-    return parseLoopConfig(JSON.parse(readFileSync(path, 'utf8')))
+    return parseLoopConfig(readToolchainSection('loop', path))
   } catch (error) {
-    throw new Error(`${path}: ${error instanceof Error ? error.message : String(error)}`, {
+    throw new Error(`${path} loop: ${error instanceof Error ? error.message : String(error)}`, {
       cause: error,
     })
   }

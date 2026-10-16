@@ -1,9 +1,10 @@
 // 回路配置：仓库里那一份读得进来且是简报给的初值；缺项、类型不对、线的次序不对、多出认不出的项都报错，不悄悄用默认。
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { LOOP_CONFIG_PATH, parseLoopConfig, readLoopConfig } from '../src/loop/config.ts'
+import { parseLoopConfig, readLoopConfig } from '../src/loop/config.ts'
+import { readToolchainSection } from '../src/core/toolchain-config.ts'
 
-const raw = (): Record<string, unknown> => JSON.parse(readFileSync(LOOP_CONFIG_PATH, 'utf8'))
+const raw = (): Record<string, unknown> =>
+  structuredClone(readToolchainSection('loop')) as Record<string, unknown>
 
 describe('回路配置', () => {
   it('仓库里那一份：读得进来，初值与起步表一致', () => {

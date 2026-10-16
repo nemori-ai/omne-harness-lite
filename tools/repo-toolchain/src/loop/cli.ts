@@ -1,14 +1,13 @@
 // 回路状态的命令行外壳：解析参数、调 run.ts、打印、给退出码。
 // 退出码 1 只在硬线被破时；2 是工具自己出错（参数、配置、git）。
 import { resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { runLoopStatus, type RunOptions } from './run.ts'
 import { parseScope } from './product-inputs.ts'
+import { subjectRoot } from '../core/subject.ts'
 
 const USAGE =
   '用法：loop-status [--base <ref>] [--snapshot] [--out <dir>] [--strict] [--scope all|engineering] [--root <检出目录>]'
 /** 被量的检出缺省是本工具所在的检出；测试用 `--root` 指向临时仓库。 */
-const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 
 function parseArgs(argv: readonly string[]): RunOptions {
   const values = new Map<string, string>()
@@ -31,7 +30,7 @@ function parseArgs(argv: readonly string[]): RunOptions {
     snapshot,
     strict,
     scope: parseScope(values.get('--scope')),
-    root: resolve(values.get('--root') ?? process.env['OMNE_SUBJECT_ROOT'] ?? ROOT),
+    root: resolve(values.get('--root') ?? subjectRoot()),
     ...(base === undefined ? {} : { base }),
     ...(out === undefined ? {} : { out }),
   }

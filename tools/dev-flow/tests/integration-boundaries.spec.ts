@@ -396,6 +396,10 @@ it.each([
     wrapper,
     readFileSync(new URL('../../../scripts/integration-check.sh', import.meta.url)),
   )
+  writeFileSync(
+    join(runner, 'repo-toolchain.config.json'),
+    readFileSync(new URL('../../../repo-toolchain.config.json', import.meta.url)),
+  )
   symlinkSync(fileURLToPath(new URL('../..', import.meta.url)), join(runner, 'tools'))
   const setup = join(home, 'dependencies.bash')
   writeFileSync(

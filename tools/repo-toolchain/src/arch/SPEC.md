@@ -19,7 +19,7 @@ D-115
 - 规划与架构预期没有输入时显示“未提供”。配置选择与运行绑定没有观察时显示“未观测”。
 - N3 的预期与符合性作为附加文档消费实际事实，行为归 [CONFORMANCE.md](CONFORMANCE.md)；actual JSON 保持独立。
   具体 unknown 保留。未识别写法仍可能漏检，unknown 的条数不表示全部缺口。
-- 圈复杂度复用 functionMetrics。色带和阈值使用当前工具的 metrics.config.json，来源在页内显示。
+- 圈复杂度复用 functionMetrics。色带和阈值使用运行检查器的仓库根 `repo-toolchain.config.json` 的 `metrics` 一节，来源在页内显示。
   空函数集合显示“无函数”，覆盖率缺席不记为零。
 - 原复杂度面板继续拥有函数过滤、风险、覆盖率、方向发现及例外。
   metrics 入口的函数变化对照 merge-base，页面显示实际 merge-base 和架构的精确 BASE。

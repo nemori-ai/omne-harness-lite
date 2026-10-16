@@ -3,7 +3,6 @@
 import { baselines } from '../core/task-context.ts'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { workingGraph } from '../deps/graph.ts'
 import { readMetricsConfig } from './config.ts'
 import { measureCoverage } from './coverage.ts'
@@ -15,6 +14,7 @@ import { baseTextsOf, collectMemberSources } from './sources.ts'
 import { readActualArchitecture } from '../arch/actual.ts'
 import { buildArchitectureView } from '../arch/view.ts'
 import { readConformance } from '../arch/conformance.ts'
+import { subjectRoot } from '../core/subject.ts'
 
 interface Options {
   readonly base?: string
@@ -50,9 +50,7 @@ function parseArgs(argv: readonly string[]): Options {
 function main(): void {
   const options = parseArgs(process.argv.slice(2))
   const config = readMetricsConfig()
-  const root = resolve(
-    process.env['OMNE_SUBJECT_ROOT'] ?? fileURLToPath(new URL('../../../../', import.meta.url)),
-  )
+  const root = resolve(subjectRoot())
   const at = coordinates(root, baselines(root, options.base).targetBase)
   const outDir = resolve(
     options.out ??

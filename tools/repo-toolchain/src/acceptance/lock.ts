@@ -1,13 +1,12 @@
 // 验收锁：验收文件归负责的人与主线，实施的 agent 只能运行它，不能改它。
 // 这里核对的是「自任务基线以来，谁动过验收文件」：基线提交就是当时的清单（Git 按内容寻址，不必另存一份哈希），
 // 交回时拿它与当前工作树比，并把这段范围里碰过验收文件的提交逐个列出、按来源 trailer 判断是不是验收的拥有者改的。
-// 谁算拥有者、哪个目录算验收，只在 `acceptance-lock.config.json` 里定一次。
+// 谁算拥有者、哪个目录算验收，只在仓库根 `repo-toolchain.config.json` 的 `acceptanceLock` 一节里定一次。
 import { execFileSync } from 'node:child_process'
 import { repositoryEnv } from '../core/git-environment.ts'
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { readCommits, type CommitRecord } from '../commits.ts'
 import { auditRanges, baselines } from '../core/task-context.ts'
+import { readToolchainSection, toolchainConfigPath } from '../core/toolchain-config.ts'
 
 export interface AcceptanceLockConfig {
   /** 成员所在的根目录；只有它们下面的验收目录受这把锁管。 */
@@ -17,8 +16,6 @@ export interface AcceptanceLockConfig {
   /** 可以改验收的角色（来源 trailer `Agent-Role` 的值）。没有这条 trailer 的提交按人写的算。 */
   readonly ownerRoles: readonly string[]
 }
-
-const CONFIG_PATH = fileURLToPath(new URL('../../acceptance-lock.config.json', import.meta.url))
 
 function names(value: unknown, name: string): string[] {
   if (
@@ -42,8 +39,10 @@ export function parseAcceptanceLockConfig(raw: unknown): AcceptanceLockConfig {
   }
 }
 
-export function readAcceptanceLockConfig(path: string = CONFIG_PATH): AcceptanceLockConfig {
-  return parseAcceptanceLockConfig(JSON.parse(readFileSync(path, 'utf8')))
+export function readAcceptanceLockConfig(
+  path: string = toolchainConfigPath(),
+): AcceptanceLockConfig {
+  return parseAcceptanceLockConfig(readToolchainSection('acceptanceLock', path))
 }
 
 export function isAcceptancePath(path: string, config: AcceptanceLockConfig): boolean {

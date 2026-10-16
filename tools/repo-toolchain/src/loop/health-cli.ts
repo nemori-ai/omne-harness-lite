@@ -1,7 +1,6 @@
 // 只读、只报告：退出码 0 正常，2 是工具自己出错（参数、配置、git、写不了产物）。
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { coordinates, git } from '../core/git.ts'
 import { ledgerHome as testLedgerHome } from '../core/test-ledger.ts'
 import { countPending, readCatalogue, readIfFile } from './catalogue.ts'
@@ -21,9 +20,9 @@ import { loopHome } from './home.ts'
 import { noData, type Reading } from './reading.ts'
 import { readTrend } from './trend.ts'
 import { readConformanceSensor } from './sensors/conformance.ts'
+import { subjectRoot } from '../core/subject.ts'
 
 const USAGE = '用法：loop-health [--out <dir>] [--root <检出目录>]'
-const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 interface Options {
   readonly out?: string
   readonly root: string
@@ -41,7 +40,7 @@ function parseArgs(argv: readonly string[]): Options {
   }
   const out = values.get('--out')
   return {
-    root: resolve(values.get('--root') ?? ROOT),
+    root: resolve(values.get('--root') ?? subjectRoot()),
     ...(out === undefined ? {} : { out }),
   }
 }

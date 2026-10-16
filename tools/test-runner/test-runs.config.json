@@ -33,6 +33,11 @@
     ],
     "readers": [
       {
+        "paths": ["repo-toolchain.config.json"],
+        "members": ["tools/repo-toolchain", "tools/product-checks", "tools/test-runner"],
+        "why": "repo-toolchain 的回路、度量与验收锁读这份配置；product-checks 的 lint:rules 与 scenario-status、test-runner 的 test-runs.spec.ts 读其中的 loop 与 acceptanceLock 两节"
+      },
+      {
         "paths": [
           "packages/**/*.ts",
           "packages/**/*.tsx",

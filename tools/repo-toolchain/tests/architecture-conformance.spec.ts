@@ -923,7 +923,12 @@ describe('version-local constraint migration', () => {
           stop_hook_active: false,
           cwd: root,
         }),
-        env: { ...process.env, OMNE_METRICS_HOME: home },
+        env: {
+          ...process.env,
+          OMNE_METRICS_HOME: home,
+          // 夹具仓库没有回路配置：配置由运行检查器的仓库（本仓库）提供。
+          OMNE_RUNNER_ROOT: fileURLToPath(new URL('../../../', import.meta.url)),
+        },
       },
     )
     expect(performance.now() - started).toBeLessThan(40_000)
