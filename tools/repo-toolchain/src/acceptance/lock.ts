@@ -3,6 +3,8 @@
 // 交回时拿它与当前工作树比，并把这段范围里碰过验收文件的提交逐个列出、按来源 trailer 判断是不是验收的拥有者改的。
 // 谁算拥有者、哪个目录算验收，只在仓库根 `repo-toolchain.config.json` 的 `acceptanceLock` 一节里定一次。
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { repositoryEnv } from '../core/git-environment.ts'
 import { readCommits, type CommitRecord } from '../commits.ts'
 import { auditRanges, baselines } from '../core/task-context.ts'
@@ -52,6 +54,19 @@ export function isAcceptancePath(path: string, config: AcceptanceLockConfig): bo
     !segments.includes('node_modules') &&
     segments.slice(1, -1).includes(config.directory)
   )
+}
+
+/** 模板生成的验收入口占位：验收目录里的 README.md、index.md 仍带这一行标记时，只是占位，不是验收内容。 */
+export const PLACEHOLDER_MARKER = '<!-- documentation:placeholder -->'
+const ENTRY_NAMES = new Set(['README.md', 'index.md'])
+
+/**
+ * 纯函数：这个验收文件在这次变化里是否只是模板占位。`content` 取变化后的内容，删除时取变化前的内容；
+ * 读不到内容（undefined）不算占位，照常计入。
+ */
+export function isPlaceholderEntry(path: string, content: string | undefined): boolean {
+  if (!ENTRY_NAMES.has(path.slice(path.lastIndexOf('/') + 1)) || content === undefined) return false
+  return content.split('\n').some(line => line.trim() === PLACEHOLDER_MARKER)
 }
 
 /** 提交信息里最后一条 `Agent-Role:` 的值；没有则为 undefined。 */
@@ -140,6 +155,23 @@ function lines(text: string): string[] {
   return text.split('\n').filter(line => line !== '')
 }
 
+/** 某个版本里的文件内容；不存在时为 undefined。 */
+function contentAt(root: string, revision: string, path: string): string | undefined {
+  try {
+    return git(root, ['show', `${revision}:${path}`])
+  } catch {
+    return undefined
+  }
+}
+
+function worktreeContent(root: string, path: string): string | undefined {
+  try {
+    return readFileSync(join(root, path), 'utf8')
+  } catch {
+    return undefined
+  }
+}
+
 const STATUS = { A: 'added', M: 'modified', D: 'deleted', T: 'modified' } as const
 
 function changesSince(
@@ -161,12 +193,20 @@ function changesSince(
     const [code, path] = line.split('\t')
     const status = STATUS[code as keyof typeof STATUS]
     if (path === undefined || status === undefined) throw new Error(`认不出的 git diff 行：${line}`)
-    if (isAcceptancePath(path, config)) changes.push({ status, path })
+    if (!isAcceptancePath(path, config)) continue
+    const content =
+      status === 'deleted'
+        ? contentAt(root, mergeBase, path)
+        : head === 'HEAD'
+          ? worktreeContent(root, path)
+          : contentAt(root, head, path)
+    if (!isPlaceholderEntry(path, content)) changes.push({ status, path })
   }
   for (const path of head === 'HEAD'
     ? lines(git(root, ['ls-files', '--others', '--exclude-standard']))
     : [])
-    if (isAcceptancePath(path, config)) changes.push({ status: 'added', path })
+    if (isAcceptancePath(path, config) && !isPlaceholderEntry(path, worktreeContent(root, path)))
+      changes.push({ status: 'added', path })
   return changes.sort((a, b) => a.path.localeCompare(b.path))
 }
 
@@ -175,6 +215,10 @@ function uncommittedPaths(root: string, config: AcceptanceLockConfig): string[] 
   const untracked = lines(git(root, ['ls-files', '--others', '--exclude-standard']))
   return [...new Set([...tracked, ...untracked])]
     .filter(path => isAcceptancePath(path, config))
+    .filter(
+      path =>
+        !isPlaceholderEntry(path, worktreeContent(root, path) ?? contentAt(root, 'HEAD', path)),
+    )
     .sort()
 }
 
@@ -197,7 +241,16 @@ function touchesSince(
       ...(integration ? ['--cc'] : ['-m']),
       record.sha,
     ])
-    const files = [...new Set(lines(names))].filter(path => isAcceptancePath(path, config)).sort()
+    const files = [...new Set(lines(names))]
+      .filter(path => isAcceptancePath(path, config))
+      .filter(
+        path =>
+          !isPlaceholderEntry(
+            path,
+            contentAt(root, record.sha, path) ?? contentAt(root, `${record.sha}^`, path),
+          ),
+      )
+      .sort()
     if (files.length > 0) touches.push({ record, files })
   }
   return touches
