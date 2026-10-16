@@ -6,7 +6,9 @@ import { Worker } from 'node:worker_threads'
 const MIN_SQLITE = [3, 51, 3]
 
 function versionAtLeast(text, floor) {
-  const parts = String(text).split('.').map(part => Number(part))
+  const parts = String(text)
+    .split('.')
+    .map(part => Number(part))
   for (let i = 0; i < floor.length; i += 1) {
     const got = parts[i] ?? 0
     if (got > floor[i]) return true
@@ -398,36 +400,48 @@ const lost = await third.ask({
 })
 record('statement-failure-closes-port', lost)
 
-record('unsupported-protocol', await third.ask({
-  type: 'commit',
-  generation: 1,
-  identity: { ...identity, protocolVersion: '9', operationKey: 'op-proto' },
-  combinationVersion: 'v1',
-  commands,
-}))
-record('empty-commands', await third.ask({
-  type: 'commit',
-  generation: 1,
-  identity: { ...identity, operationKey: 'op-empty' },
-  combinationVersion: 'v1',
-  commands: [],
-}))
-record('command-limit', await third.ask({
-  type: 'commit',
-  generation: 1,
-  enforceCommandLimit: true,
-  identity: { ...identity, operationKey: 'op-limit' },
-  combinationVersion: 'v1',
-  commands: [commands[0], commands[0]],
-}))
-record('closing', await third.ask({
-  type: 'commit',
-  generation: 1,
-  closing: true,
-  identity: { ...identity, operationKey: 'op-close' },
-  combinationVersion: 'v1',
-  commands,
-}))
+record(
+  'unsupported-protocol',
+  await third.ask({
+    type: 'commit',
+    generation: 1,
+    identity: { ...identity, protocolVersion: '9', operationKey: 'op-proto' },
+    combinationVersion: 'v1',
+    commands,
+  }),
+)
+record(
+  'empty-commands',
+  await third.ask({
+    type: 'commit',
+    generation: 1,
+    identity: { ...identity, operationKey: 'op-empty' },
+    combinationVersion: 'v1',
+    commands: [],
+  }),
+)
+record(
+  'command-limit',
+  await third.ask({
+    type: 'commit',
+    generation: 1,
+    enforceCommandLimit: true,
+    identity: { ...identity, operationKey: 'op-limit' },
+    combinationVersion: 'v1',
+    commands: [commands[0], commands[0]],
+  }),
+)
+record(
+  'closing',
+  await third.ask({
+    type: 'commit',
+    generation: 1,
+    closing: true,
+    identity: { ...identity, operationKey: 'op-close' },
+    combinationVersion: 'v1',
+    commands,
+  }),
+)
 
 let unanswered = 0
 const admissionQueueLimit = 1
@@ -475,7 +489,9 @@ const duringCancel = reserve(slotMessage('op-slot-cancel'))
 record('cancel-keeps-slot', {
   signalAborted: firstSlot.observer.signal.aborted,
   unansweredAtAbort: firstSlot.unansweredAtAbort.value,
-  next: duringCancel.posted ? { posted: true } : { posted: false, reason: duringCancel.reason, unanswered: duringCancel.unanswered },
+  next: duringCancel.posted
+    ? { posted: true }
+    : { posted: false, reason: duringCancel.reason, unanswered: duringCancel.unanswered },
 })
 const firstResult = await firstSlot.pending
 record('first-slot', firstResult)
@@ -497,7 +513,10 @@ unanswered += 1
 const removedToken = ++tokenSeq
 outbound.push({ token: removedToken, message: slotMessage('op-slot-removed') })
 const queued = outbound.length
-const dropped = outbound.splice(outbound.findIndex(item => item.token === removedToken), 1)
+const dropped = outbound.splice(
+  outbound.findIndex(item => item.token === removedToken),
+  1,
+)
 const removal = releaseOnce(removedToken)
 const afterRemoval = reserve(slotMessage('op-slot-after-removal'))
 record('unstarted-removal-returns-slot', {
@@ -534,20 +553,44 @@ const slotExitCode = await new Promise(resolve => {
 })
 const exitRelease = releaseOnce(exitToken)
 const exitLate = releaseOnce(exitToken)
-record('worker-exit-returns-slot', { exitCode: slotExitCode, posted: parkPosted, exitRelease, exitLate })
+record('worker-exit-returns-slot', {
+  exitCode: slotExitCode,
+  posted: parkPosted,
+  exitRelease,
+  exitLate,
+})
 record('slow-sql-saturation', { ran: false, reason: 'not run in this probe' })
 
-const lostOk = lost.followup?.reason === 'port_closed' && lost.escapedTable === 0 && lost.tableLeft === 0 && lost.rollbackError
-const bypassOk = bypassResults.every(item => item.gate.refused === true && item.tableLeft === 0 && item.escapedTable === 0)
+const lostOk =
+  lost.followup?.reason === 'port_closed' &&
+  lost.escapedTable === 0 &&
+  lost.tableLeft === 0 &&
+  lost.rollbackError
+const bypassOk = bypassResults.every(
+  item => item.gate.refused === true && item.tableLeft === 0 && item.escapedTable === 0,
+)
 const cancel = observations.find(item => item.name === 'cancel-keeps-slot').value
 const removalSeen = observations.find(item => item.name === 'unstarted-removal-returns-slot').value
 const sendFailure = observations.find(item => item.name === 'send-failure-returns-slot').value
 const exitSlot = observations.find(item => item.name === 'worker-exit-returns-slot').value
-const cancelOk = cancel.signalAborted === true && cancel.unansweredAtAbort === 1 && cancel.next.posted === false
-const onceOk = afterResult.released === true && lateAgain.released === false && afterRelease.posted === true
-const removalOk = removalSeen.dropped === 1 && removalSeen.outboundAfter === 0 && removalSeen.removal.released === true && removalSeen.nextPosted === true
-const sendOk = sendFailure.sendError === 'DataCloneError' && sendFailure.released === true && sendFailure.unanswered === 0
-const exitOk = exitSlot.posted === true && exitSlot.exitRelease.released === true && exitSlot.exitLate.released === false && exitSlot.exitRelease.unanswered === 0
+const cancelOk =
+  cancel.signalAborted === true && cancel.unansweredAtAbort === 1 && cancel.next.posted === false
+const onceOk =
+  afterResult.released === true && lateAgain.released === false && afterRelease.posted === true
+const removalOk =
+  removalSeen.dropped === 1 &&
+  removalSeen.outboundAfter === 0 &&
+  removalSeen.removal.released === true &&
+  removalSeen.nextPosted === true
+const sendOk =
+  sendFailure.sendError === 'DataCloneError' &&
+  sendFailure.released === true &&
+  sendFailure.unanswered === 0
+const exitOk =
+  exitSlot.posted === true &&
+  exitSlot.exitRelease.released === true &&
+  exitSlot.exitLate.released === false &&
+  exitSlot.exitRelease.unanswered === 0
 const summary = {
   node: process.version,
   platform: process.platform,
@@ -558,4 +601,14 @@ const summary = {
 }
 console.log(JSON.stringify(summary, null, 2))
 rmSync(root, { recursive: true, force: true })
-if (!lostOk || !bypassOk || !cancelOk || !onceOk || !removalOk || !sendOk || !exitOk || secondSlot.posted !== false) process.exit(1)
+if (
+  !lostOk ||
+  !bypassOk ||
+  !cancelOk ||
+  !onceOk ||
+  !removalOk ||
+  !sendOk ||
+  !exitOk ||
+  secondSlot.posted !== false
+)
+  process.exit(1)

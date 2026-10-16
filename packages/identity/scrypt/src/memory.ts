@@ -6,7 +6,11 @@ export interface ScryptCost {
 
 /** Smallest maxmem OpenSSL 3.6.2 accepted. Measured, not 128*N*r. */
 export function memoryBytes(cost: ScryptCost): number | undefined {
-  if (!Number.isSafeInteger(cost.N) || !Number.isSafeInteger(cost.r) || !Number.isSafeInteger(cost.p)) {
+  if (
+    !Number.isSafeInteger(cost.N) ||
+    !Number.isSafeInteger(cost.r) ||
+    !Number.isSafeInteger(cost.p)
+  ) {
     return undefined
   }
   const bytes = 128 * cost.r * (cost.N + cost.p + 2)

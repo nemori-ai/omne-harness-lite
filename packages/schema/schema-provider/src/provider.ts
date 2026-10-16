@@ -370,7 +370,11 @@ function residentSnapshot(slot: Slot | undefined): Snapshot | undefined {
 
 function leasedHeld(slot: Slot | undefined): Snapshot | undefined {
   if (slot?.kind === 'retired' && slot.snapshot.leases > 0) return slot.snapshot
-  if ((slot?.kind === 'cooling' || slot?.kind === 'refused') && slot.held !== undefined && slot.held.leases > 0) {
+  if (
+    (slot?.kind === 'cooling' || slot?.kind === 'refused') &&
+    slot.held !== undefined &&
+    slot.held.leases > 0
+  ) {
     return slot.held
   }
   return undefined
@@ -687,7 +691,10 @@ function verdictFrom<T>(outcome: FlightOutcome, read: JsonRead): SchemaVerdict<T
 function holdFlight<T>(
   domain: Domain,
   id: string,
-  watched: { result: Promise<FlightOutcome | { readonly kind: 'cancelled' }>; claim?: DeliveryClaim },
+  watched: {
+    result: Promise<FlightOutcome | { readonly kind: 'cancelled' }>
+    claim?: DeliveryClaim
+  },
 ): Promise<LeaseOutcome<T>> {
   return watched.result.then(outcome => {
     if (outcome.kind === 'ready') {

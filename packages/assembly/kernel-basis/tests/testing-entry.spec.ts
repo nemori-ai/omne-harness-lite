@@ -43,7 +43,7 @@ it('waits for an async apply that starts after a later plugin provides its depen
       inject: ['svc'],
       apply(ctx) {
         events.push('start-consumer')
-        return new Promise<void>((resolve) => {
+        return new Promise<void>(resolve => {
           setTimeout(resolve, 10)
         }).then(() => {
           ctx.effect(() => () => {
@@ -83,7 +83,7 @@ it('preserves the error thrown by an async apply', async () => {
       name: 'consumer',
       inject: ['svc'],
       apply() {
-        return new Promise<void>((resolve) => {
+        return new Promise<void>(resolve => {
           setTimeout(resolve, 10)
         }).then(() => {
           throw original

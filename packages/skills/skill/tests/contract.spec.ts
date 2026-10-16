@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest'
-import { createCategoryRegistry, readBodyText, type JsonLimits, type JsonValue } from '@omne-harness/assets'
+import {
+  createCategoryRegistry,
+  readBodyText,
+  type JsonLimits,
+  type JsonValue,
+} from '@omne-harness/assets'
 import { skillBodyContract } from '@omne-harness/skill'
 
 const limits: JsonLimits = {
@@ -43,7 +48,9 @@ it('does not call a function on an object that was not read as text', () => {
 
 it('rejects a forged skill document without calling its functions', () => {
   const port = skillBodyContract()
-  expect(port.judge({ kind: 'object', entries: [{ key: 'name', value: { kind: 'string', value: 7 } }] })).toEqual({
+  expect(
+    port.judge({ kind: 'object', entries: [{ key: 'name', value: { kind: 'string', value: 7 } }] }),
+  ).toEqual({
     ok: false,
     rejected: 'incomplete-reference',
   })
@@ -54,11 +61,16 @@ it('rejects a forged skill document without calling its functions', () => {
   const entries = [{ key: 'name', value: { kind: 'string', value: 'review' } }]
   let calls = 0
   type Row = (typeof entries)[number]
-  entries.find = function (predicate: (value: Row, index: number, list: Row[]) => boolean): Row | undefined {
+  entries.find = function (
+    predicate: (value: Row, index: number, list: Row[]) => boolean,
+  ): Row | undefined {
     calls += 1
     return Array.prototype.find.call(this, predicate)
   }
-  expect(port.judge({ kind: 'object', entries })).toEqual({ ok: false, rejected: 'incomplete-reference' })
+  expect(port.judge({ kind: 'object', entries })).toEqual({
+    ok: false,
+    rejected: 'incomplete-reference',
+  })
   expect(calls).toBe(0)
 })
 
@@ -73,7 +85,9 @@ it('rejects a skill body whose name is not the capability name', () => {
 
 it('rejects a skill tool reference that is not a tool identity', () => {
   const port = skillBodyContract()
-  expect(port.judge(document('{"name":"review","tools":[{"category":"mcp","name":"files"}]}'))).toEqual({
+  expect(
+    port.judge(document('{"name":"review","tools":[{"category":"mcp","name":"files"}]}')),
+  ).toEqual({
     ok: false,
     rejected: 'incomplete-reference',
   })

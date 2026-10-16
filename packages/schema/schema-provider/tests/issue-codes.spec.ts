@@ -67,9 +67,10 @@ it('defect: Zod failures keep the library message', async () => {
   expectIssues(await validate(provider, schema, readJsonText('{"name":1,"n":1}', limits)), [
     { path: ['name'], code: 'type' },
   ])
-  expectIssues(await validate(provider, schema, readJsonText('{"name":"ada","n":1,"extra":true}', limits)), [
-    { path: ['extra'], code: 'unrecognized-key' },
-  ])
+  expectIssues(
+    await validate(provider, schema, readJsonText('{"name":"ada","n":1,"extra":true}', limits)),
+    [{ path: ['extra'], code: 'unrecognized-key' }],
+  )
   expectIssues(await validate(provider, schema, readJsonText('{"name":"","n":1}', limits)), [
     { path: ['name'], code: 'empty' },
   ])
@@ -105,9 +106,10 @@ it('defect: Ajv failures keep the library message', async () => {
   expectIssues(await validate(provider, schema, readJsonText('{"name":1,"n":1}', limits)), [
     { path: ['name'], code: 'type' },
   ])
-  expectIssues(await validate(provider, schema, readJsonText('{"name":"ada","n":1,"extra":true}', limits)), [
-    { path: ['extra'], code: 'unrecognized-key' },
-  ])
+  expectIssues(
+    await validate(provider, schema, readJsonText('{"name":"ada","n":1,"extra":true}', limits)),
+    [{ path: ['extra'], code: 'unrecognized-key' }],
+  )
   expectIssues(await validate(provider, schema, readJsonText('{"name":"","n":1}', limits)), [
     { path: ['name'], code: 'empty' },
   ])

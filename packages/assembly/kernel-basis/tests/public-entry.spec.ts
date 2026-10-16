@@ -11,7 +11,9 @@ it('exports operation results from the root and does not export cordis helpers',
   expect('resolveOptional' in root).toBe(false)
   expect('startTestAssembly' in root).toBe(false)
 
-  const parsed: unknown = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  const parsed: unknown = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  )
   expect(parsed).toMatchObject({
     dependencies: { '@deepseek-ai/cordis': 'catalog:' },
     engines: { node: '>=24.18.0 <25' },

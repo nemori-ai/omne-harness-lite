@@ -45,7 +45,11 @@ const revision4 = {
   revision: '4',
 } as const
 
-function messageSchema(): { schema: SchemaRef<{ name: string }>; loads: () => number; publish: (revision: string) => void } {
+function messageSchema(): {
+  schema: SchemaRef<{ name: string }>
+  loads: () => number
+  publish: (revision: string) => void
+} {
   let loads = 0
   let revision = '3'
   const schema = defineSchema({

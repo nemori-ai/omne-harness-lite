@@ -7,7 +7,5 @@
     "sourceMap": false,
     "rewriteRelativeImportExtensions": true
   },
-  "include": [
-    "tests/**/*.ts"
-  ]
+  "include": ["tests/**/*.ts"]
 }

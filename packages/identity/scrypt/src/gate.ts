@@ -2,7 +2,12 @@ import { randomBytes } from 'node:crypto'
 import { timingSafeEqual } from 'node:crypto'
 import { nodeScryptCompute, type ScryptCompute } from './hash.ts'
 import { memoryBytes } from './memory.ts'
-import { decodeMaterial, encodeMaterial, type DecodeFailure, type MaterialParams } from './material.ts'
+import {
+  decodeMaterial,
+  encodeMaterial,
+  type DecodeFailure,
+  type MaterialParams,
+} from './material.ts'
 import { acceptedProfile, type ScryptProfile } from './profile.ts'
 
 export type PasswordPolicy = (secret: string) => { ok: true } | { ok: false }
@@ -18,7 +23,9 @@ export type DeriveRefusal =
 
 export type CancelResult = 'left_queue' | 'stopped_waiting' | 'already_left'
 
-export type DeriveDone = { code: 'material'; material: string } | { code: 'unavailable' | 'left_queue' }
+export type DeriveDone =
+  | { code: 'material'; material: string }
+  | { code: 'unavailable' | 'left_queue' }
 
 export type VerifyDone = { code: 'match' | 'mismatch' | 'unavailable' | 'left_queue' }
 
@@ -31,8 +38,14 @@ export interface Admitted<T> {
 }
 
 export interface ScryptModule {
-  derive(secret: string, policy: PasswordPolicy | undefined): { code: DeriveRefusal } | Admitted<DeriveDone>
-  verify(material: string, secret: string): { code: 'mismatch' | 'unavailable' | AdmissionRefusal } | Admitted<VerifyDone>
+  derive(
+    secret: string,
+    policy: PasswordPolicy | undefined,
+  ): { code: DeriveRefusal } | Admitted<DeriveDone>
+  verify(
+    material: string,
+    secret: string,
+  ): { code: 'mismatch' | 'unavailable' | AdmissionRefusal } | Admitted<VerifyDone>
   close(): Promise<{ code: 'closed' }>
 }
 
@@ -46,9 +59,12 @@ export interface AdmissionView {
   readonly memoryBudget: number
 }
 
-export function planAdmission(view: AdmissionView): 'run' | 'queue' | 'memory_limit' | 'queue_full' {
+export function planAdmission(
+  view: AdmissionView,
+): 'run' | 'queue' | 'memory_limit' | 'queue_full' {
   if (view.jobMemory > view.memoryBudget) return 'memory_limit'
-  if (view.running < view.inFlight && view.runningMemory + view.jobMemory <= view.memoryBudget) return 'run'
+  if (view.running < view.inFlight && view.runningMemory + view.jobMemory <= view.memoryBudget)
+    return 'run'
   if (view.queued >= view.queueLimit) return 'queue_full'
   return 'queue'
 }
@@ -71,7 +87,12 @@ function secretFits(secret: string): boolean {
 }
 
 function aboveProfile(params: MaterialParams, profile: ScryptProfile): boolean {
-  return params.N > profile.N || params.r > profile.r || params.p > profile.p || params.keylen > profile.keylen
+  return (
+    params.N > profile.N ||
+    params.r > profile.r ||
+    params.p > profile.p ||
+    params.keylen > profile.keylen
+  )
 }
 
 function assessPolicy(
@@ -81,7 +102,8 @@ function assessPolicy(
   if (typeof policy !== 'function') return 'policy_missing'
   try {
     const verdict = policy(secret)
-    if (verdict === null || typeof verdict !== 'object' || typeof verdict.ok !== 'boolean') return 'unavailable'
+    if (verdict === null || typeof verdict !== 'object' || typeof verdict.ok !== 'boolean')
+      return 'unavailable'
     return verdict.ok ? 'ok' : 'policy_refused'
   } catch {
     return 'unavailable'
@@ -216,11 +238,18 @@ export function openScrypt(
     finish: (value: HashValue) => void,
   ): void {
     compute(secret, salt, keylen, cost, (error, key) => {
-      finish(error === undefined || error === null ? key ?? { code: 'unavailable' } : { code: 'unavailable' })
+      finish(
+        error === undefined || error === null
+          ? (key ?? { code: 'unavailable' })
+          : { code: 'unavailable' },
+      )
     })
   }
 
-  function readyVerify(material: string, secret: string):
+  function readyVerify(
+    material: string,
+    secret: string,
+  ):
     | { decoded: Exclude<ReturnType<typeof decodeMaterial>, DecodeFailure>; cost: number }
     | { code: 'mismatch' | 'unavailable' } {
     if (typeof secret !== 'string') return { code: 'unavailable' }
@@ -245,35 +274,51 @@ export function openScrypt(
       } catch {
         return { code: 'unavailable' }
       }
-      return admit<DeriveDone>(jobMemory, finish => {
-        runHash(secret, salt, opened.keylen, opened, value => {
-          if (!(value instanceof Uint8Array) || value.length !== opened.keylen) {
-            finish({ code: 'unavailable' })
-            return
-          }
-          finish({
-            code: 'material',
-            material: encodeMaterial(
-              { N: opened.N, r: opened.r, p: opened.p, keylen: opened.keylen },
-              salt,
-              value,
-            ),
+      return admit<DeriveDone>(
+        jobMemory,
+        finish => {
+          runHash(secret, salt, opened.keylen, opened, value => {
+            if (!(value instanceof Uint8Array) || value.length !== opened.keylen) {
+              finish({ code: 'unavailable' })
+              return
+            }
+            finish({
+              code: 'material',
+              material: encodeMaterial(
+                { N: opened.N, r: opened.r, p: opened.p, keylen: opened.keylen },
+                salt,
+                value,
+              ),
+            })
           })
-        })
-      }, { code: 'left_queue' }, { code: 'unavailable' })
+        },
+        { code: 'left_queue' },
+        { code: 'unavailable' },
+      )
     },
     verify(material, secret) {
       const ready = readyVerify(material, secret)
       if (!('decoded' in ready)) return ready
-      return admit<VerifyDone>(ready.cost, finish => {
-        runHash(secret, ready.decoded.salt, ready.decoded.params.keylen, ready.decoded.params, value => {
-          if (!(value instanceof Uint8Array) || value.length !== ready.decoded.key.length) {
-            finish({ code: 'unavailable' })
-            return
-          }
-          finish({ code: timingSafeEqual(value, ready.decoded.key) ? 'match' : 'mismatch' })
-        })
-      }, { code: 'left_queue' }, { code: 'unavailable' })
+      return admit<VerifyDone>(
+        ready.cost,
+        finish => {
+          runHash(
+            secret,
+            ready.decoded.salt,
+            ready.decoded.params.keylen,
+            ready.decoded.params,
+            value => {
+              if (!(value instanceof Uint8Array) || value.length !== ready.decoded.key.length) {
+                finish({ code: 'unavailable' })
+                return
+              }
+              finish({ code: timingSafeEqual(value, ready.decoded.key) ? 'match' : 'mismatch' })
+            },
+          )
+        },
+        { code: 'left_queue' },
+        { code: 'unavailable' },
+      )
     },
     async close() {
       stopped = true

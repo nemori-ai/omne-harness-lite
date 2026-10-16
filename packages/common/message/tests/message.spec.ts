@@ -109,10 +109,13 @@ it('keeps an own __proto__ key and does not inherit its fields', () => {
 it('rejects a tool part whose required fields are not enumerable', () => {
   expect(
     judgePart(
-      Object.defineProperties({}, {
-        kind: { value: 'tool_call' },
-        callId: { value: 'c1' },
-      }),
+      Object.defineProperties(
+        {},
+        {
+          kind: { value: 'tool_call' },
+          callId: { value: 'c1' },
+        },
+      ),
     ),
   ).toEqual({ rejected: 'json' })
 })
