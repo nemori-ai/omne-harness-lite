@@ -3,7 +3,15 @@ import type { BlockId, ContentBlock, TextContentBlock } from '@omne-harness/cont
 import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
 import { toolResultShape } from './result-policy.ts'
 import type { Attachment, ToolMessageContentBlock, ToolResult } from './results.ts'
-import { filled, item, judgeAt, list, type Check, type ShapeRejection } from './shape.ts'
+import {
+  filled,
+  firstRepeat,
+  item,
+  judgeAt,
+  list,
+  type Check,
+  type ShapeRejection,
+} from './shape.ts'
 
 /** P14: the fixed prefix of an attachment address text. */
 const ADDRESS_PREFIX = '附件地址（按需读取）：'
@@ -20,16 +28,6 @@ type Projection = Readonly<{
   attachments: readonly Attachment[]
   ids: readonly BlockId[]
 }>
-
-/** The index of the first value that an earlier value repeats, or -1. */
-function firstRepeat(values: readonly string[]): number {
-  const seen = new Set<string>()
-  for (const [index, value] of values.entries()) {
-    if (seen.has(value)) return index
-    seen.add(value)
-  }
-  return -1
-}
 
 /** The identity rules of P14, in the order that a rejection reports them. */
 const IDENTITY_RULES: readonly ((projection: Projection) => ShapeRejection | undefined)[] = [

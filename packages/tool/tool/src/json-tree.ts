@@ -1,6 +1,6 @@
 // The tagged JSON tree of @omne-harness/json-text as an untrusted value: a closed check and the
 // UTF-8 size of its JSON text. Both walk the tree with an explicit stack, so a deep tree cannot
-// overflow the call stack.
+// overflow the call stack. A checked tree shares no node, so its size is the size of its text.
 import type { JsonEntry, JsonValue } from '@omne-harness/json-text'
 import { succeed } from '@omne-harness/kernel-basis'
 import { isPlainObject, item, member, reject, slot, type Check, type Checked } from './shape.ts'
@@ -94,45 +94,80 @@ function ownList(value: object, at: string, key: string): Checked<readonly unkno
   return succeed(items)
 }
 
-type Task = Readonly<{ value: unknown; at: string; place: (tree: JsonValue) => void }>
-type Walk = { readonly tasks: Task[]; readonly seen: Set<object>; readonly built: object[] }
+/** The containers on the path from the root to a node. A container on its own path is a cycle. */
+type Ancestors = Readonly<{ node: object; parent: Ancestors }> | null
+
+type Task = Readonly<{
+  value: unknown
+  at: string
+  ancestors: Ancestors
+  place: (tree: JsonValue) => void
+}>
+type Walk = { readonly tasks: Task[]; readonly built: object[]; visits: number }
+
+/**
+ * The most nodes that one check visits. A shared subtree counts each time it is reached, so a
+ * tree that shares one container on every level cannot make the copy grow without bound.
+ */
+const JSON_TREE_MAX_NODES = 1_000_000
+
+function onPath(ancestors: Ancestors, node: object): boolean {
+  for (let link = ancestors; link !== null; link = link.parent) if (link.node === node) return true
+  return false
+}
 
 function walkArray(walk: Walk, node: object, task: Task): Checked<JsonValue> {
   const items = ownList(node, task.at, 'items')
   if ('failure' in items) return items
+  const ancestors = { node, parent: task.ancestors }
   const out: JsonValue[] = items.ok.map(() => ({ kind: 'null' }))
   items.ok.forEach((child, index) => {
     const at = item(member(task.at, 'items'), index)
-    walk.tasks.push({ value: child, at, place: tree => (out[index] = tree) })
+    walk.tasks.push({ value: child, at, ancestors, place: tree => (out[index] = tree) })
   })
   const tree: JsonValue = { kind: 'array', items: out }
   walk.built.push(out, tree)
   return succeed(tree)
 }
 
+/** One object entry: closed to `key` and `value`, and its key is a string. */
+function closedEntry(
+  entry: unknown,
+  at: string,
+): Checked<Readonly<{ key: string; value: unknown }>> {
+  if (!isPlainObject(entry)) return reject(at, 'type')
+  for (const key of Reflect.ownKeys(entry))
+    if (key !== 'key' && key !== 'value') return reject(member(at, String(key)), 'unknown-field')
+  const name = own(entry, at, 'key')
+  if ('failure' in name) return name
+  if (typeof name.ok !== 'string') return reject(member(at, 'key'), 'type')
+  const child = own(entry, at, 'value')
+  if ('failure' in child) return child
+  return succeed({ key: name.ok, value: child.ok })
+}
+
 function walkObject(walk: Walk, node: object, task: Task): Checked<JsonValue> {
   const entries = ownList(node, task.at, 'entries')
   if ('failure' in entries) return entries
+  const ancestors = { node, parent: task.ancestors }
   const out: JsonEntry[] = []
   const keys = new Set<string>()
   for (const [index, entry] of entries.ok.entries()) {
     const at = item(member(task.at, 'entries'), index)
-    if (!isPlainObject(entry)) return reject(at, 'type')
-    for (const key of Reflect.ownKeys(entry))
-      if (key !== 'key' && key !== 'value') return reject(member(at, String(key)), 'unknown-field')
-    const name = own(entry, at, 'key')
-    if ('failure' in name) return name
-    if (typeof name.ok !== 'string') return reject(member(at, 'key'), 'type')
-    if (keys.has(name.ok)) return reject(member(at, 'key'), 'duplicate')
-    keys.add(name.ok)
-    const child = own(entry, at, 'value')
-    if ('failure' in child) return child
-    const placed: { key: string; value: JsonValue } = { key: name.ok, value: { kind: 'null' } }
+    const closed = closedEntry(entry, at)
+    if ('failure' in closed) return closed
+    if (keys.has(closed.ok.key)) return reject(member(at, 'key'), 'duplicate')
+    keys.add(closed.ok.key)
+    const placed: { key: string; value: JsonValue } = {
+      key: closed.ok.key,
+      value: { kind: 'null' },
+    }
     out.push(placed)
     walk.built.push(placed)
     walk.tasks.push({
-      value: child.ok,
+      value: closed.ok.value,
       at: member(at, 'value'),
+      ancestors,
       place: tree => (placed.value = tree),
     })
   }
@@ -141,36 +176,38 @@ function walkObject(walk: Walk, node: object, task: Task): Checked<JsonValue> {
   return succeed(tree)
 }
 
+function visit(walk: Walk, task: Task): Checked<JsonValue> {
+  walk.visits += 1
+  if (walk.visits > JSON_TREE_MAX_NODES) return reject(task.at, 'budget')
+  const closed = closedNode(task.value, task.at)
+  if ('failure' in closed) return closed
+  const { node, kind } = closed.ok
+  const read = NODES[kind].leaf
+  if (read !== undefined) {
+    const leafTree = read(node, task.at)
+    if ('ok' in leafTree) Object.freeze(leafTree.ok)
+    return leafTree
+  }
+  if (onPath(task.ancestors, node)) return reject(task.at, 'cycle')
+  return kind === 'array' ? walkArray(walk, node, task) : walkObject(walk, node, task)
+}
+
 /**
  * A closed json-text tree. A number keeps its source lexeme and must follow the JSON number
- * grammar. Object keys are unique. A container that occurs twice, as in a cycle, is rejected.
- * The copy is frozen.
+ * grammar. Object keys are unique. A container may be shared by several parents, but a container
+ * inside itself is a cycle and is rejected. The walk visits at most `JSON_TREE_MAX_NODES` nodes,
+ * counting a shared subtree each time. The copy is frozen and shares no node with the input.
  */
 export const jsonValue: Check<JsonValue> = (value, at) => {
   let root: JsonValue = { kind: 'null' }
   const walk: Walk = {
-    tasks: [{ value, at, place: tree => (root = tree) }],
-    seen: new Set(),
+    tasks: [{ value, at, ancestors: null, place: tree => (root = tree) }],
     built: [],
+    visits: 0,
   }
   for (let task = walk.tasks.pop(); task !== undefined; task = walk.tasks.pop()) {
-    const closed = closedNode(task.value, task.at)
-    if ('failure' in closed) return closed
-    const { node, kind } = closed.ok
-    const read = NODES[kind].leaf
-    if (read === undefined) {
-      // A container that occurs twice would make the walk repeat or never end.
-      if (walk.seen.has(node)) return reject(task.at, 'repeated-container')
-      walk.seen.add(node)
-    }
-    const tree =
-      read !== undefined
-        ? read(node, task.at)
-        : kind === 'array'
-          ? walkArray(walk, node, task)
-          : walkObject(walk, node, task)
+    const tree = visit(walk, task)
     if ('failure' in tree) return tree
-    if (read !== undefined) Object.freeze(tree.ok)
     task.place(tree.ok)
   }
   for (const built of walk.built) Object.freeze(built)
@@ -191,44 +228,45 @@ export function jsonTextBytes(tree: JsonValue): number {
   const parts: string[] = []
   const pending: (JsonValue | string)[] = [tree]
   for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
-    if (typeof next === 'string') {
-      parts.push(next)
-      continue
-    }
-    switch (next.kind) {
-      case 'null':
-        parts.push('null')
-        break
-      case 'boolean':
-        parts.push(next.value ? 'true' : 'false')
-        break
-      case 'string':
-        parts.push(JSON.stringify(next.value))
-        break
-      case 'number':
-        parts.push(next.lexeme)
-        break
-      case 'array':
-        parts.push('[')
-        pending.push(']')
-        next.items.toReversed().forEach((child, index, reversed) => {
-          pending.push(child)
-          if (index < reversed.length - 1) pending.push(',')
-        })
-        break
-      case 'object':
-        parts.push('{')
-        pending.push('}')
-        next.entries.toReversed().forEach((entry, index, reversed) => {
-          pending.push(entry.value, `${JSON.stringify(entry.key)}:`)
-          if (index < reversed.length - 1) pending.push(',')
-        })
-        break
-      default: {
-        const exhaustive: never = next
-        return exhaustive
-      }
-    }
+    if (typeof next === 'string') parts.push(next)
+    else if (next.kind === 'array' || next.kind === 'object')
+      parts.push(openContainer(next, pending))
+    else parts.push(leafText(next))
   }
   return encoder.encode(parts.join('')).byteLength
+}
+
+function leafText(node: Leaf): string {
+  switch (node.kind) {
+    case 'null':
+      return 'null'
+    case 'boolean':
+      return node.value ? 'true' : 'false'
+    case 'string':
+      return JSON.stringify(node.value)
+    case 'number':
+      return node.lexeme
+    default: {
+      const exhaustive: never = node
+      return exhaustive
+    }
+  }
+}
+
+/**
+ * Returns the opening bracket of a container and pushes the rest of its text in reverse order,
+ * so that the parts pop in text order.
+ */
+function openContainer(node: Exclude<JsonValue, Leaf>, pending: (JsonValue | string)[]): string {
+  const close = node.kind === 'array' ? ']' : '}'
+  const members: readonly (readonly (JsonValue | string)[])[] =
+    node.kind === 'array'
+      ? node.items.map(child => [child])
+      : node.entries.map(entry => [`${JSON.stringify(entry.key)}:`, entry.value])
+  pending.push(close)
+  members.toReversed().forEach((parts, index, reversed) => {
+    pending.push(...parts.toReversed())
+    if (index < reversed.length - 1) pending.push(',')
+  })
+  return node.kind === 'array' ? '[' : '{'
 }

@@ -14,7 +14,7 @@
 - [definitions.ts](../src/definitions.ts)：参数契约、返回声明、工具定义、可用性、调用参数、资源 scope 与固定请求。
 - [judge-definition.ts](../src/judge-definition.ts)：`judgeToolDefinition`，按 P02、P13 和 P15 对未知输入做封闭字段与类型检查。
 
-契约函数的失败值用 `field` 给出被拒绝的字段路径，例如 `commands[1].name`。根值本身被拒绝时，`field` 是所求类型名，例如 `ToolDefinition`。`reason` 是 `missing`、`type`、`empty`、`blank`、`duplicate`、`unknown-field`、`accessor` 等具名原因。判定只读取自身数据属性，不调用 getter 或输入中的函数。成功值是冻结的副本。省略的可选字段在副本中仍然省略。
+契约函数的失败值用 `field` 给出被拒绝的字段路径，例如 `commands[1].name`。根值本身被拒绝时，`field` 是所求类型名，例如 `ToolDefinition`。`reason` 是 `missing`、`type`、`empty`、`blank`、`duplicate`、`unknown-field`、`accessor` 等具名原因。判定只读取数据属性，不调用 getter 或输入中的函数。访问器属性以 `accessor` 被拒绝。值字段只读取自身属性。作者能力（例如 executor 与 codec）可以是类实例，所以它的方法与 `adoption` 可以来自原型链。读取输入时抛出的异常（例如 Proxy 的 trap）不传出，整个值以 `unreadable` 被拒绝。json-text 树可以共享子树，但不能成环（`cycle`）。共享子树每到达一次就计数一次，一次判定最多访问 1 000 000 个节点（`budget`）。成功值是冻结的副本。省略的可选字段在副本中仍然省略。
 
 `judgeToolDefinition` 检查与 schema 词汇无关的参数说明规则：每条说明有路径和非空白文本，同一路径只说明一次。哪些参数由 schema 声明取决于词汇，本成员没有词汇解释器，所以判定不从 schema 推导参数清单。`defaults` 是否满足设置 schema 也不在本函数检查。
 
@@ -27,7 +27,7 @@
 - [results.ts](../src/results.ts)：结果、附件、效果、终局、准入失败、`Reply`、等待与交付状态、`ToolState`、结果页和查询结果。
 - [judge-state.ts](../src/judge-state.ts)：`judgeToolState`，按阶段与前后台关系封闭检查 `ToolState`，再检查类型表达不了的字段关系。
 - [result-policy.ts](../src/result-policy.ts)：默认结果政策 `defaultResultPolicy`、规则集 `defaultResultPolicyRules` 与采用 `defaultResultPolicyAdoption`（G3）。
-- [result-rendering.ts](../src/result-rendering.ts)：`renderToolResult`，按作者种类选择普通渲染或结构化判定。
+- [result-rendering.ts](../src/result-rendering.ts)：`renderToolResult`，按作者种类选择普通渲染或结构化判定。renderer 与程序编码的失败、抛出的异常和不是 `Outcome` 的返回值都成为失败 `Outcome`，异常消息保留为原因。文本工厂的返回值不是 `Outcome` 时也是失败。
 - [result-projection.ts](../src/result-projection.ts)：`projectToolResult`，把结果投影为模型消息块，不读取字节。
 
 默认结果政策只接受文本块与共享引用块，拒绝 thinking、inline 媒体、inline 文件、嵌套容器和未知分支，规则归 [P14](../SPEC.md#p14-附件引用与模型交付)。采用的 `digest` 是 `sha256:` 加规则集 JSON 文本的 SHA-256 十六进制值，读者可以重新计算。`judge` 拒绝时，`reason` 是规则集 `reject` 中的规则名。消息工具部件（`tool_call`、`tool_result`）和带 `blocks` 或 `content` 成员的值属于嵌套容器。被接受的种类形状不对时，`reason` 是 `invalid-` 加 content-block 的拒绝原因。`judgeResult` 也检查卸载原件的摘要块和附件引用。
@@ -88,7 +88,7 @@ ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToo
 - [authoring.ts](../src/authoring.ts)：声明与设置、消费者 profile、检查输入、用法、呈现、`ToolCatalog`、参数与输出 codec、返回校验器、程序输出、`ToolAuthor`、操作句柄、作者注册、装载器、绑定登记表、文本结果工厂与可用性事实。
 - [registration.ts](../src/registration.ts)：`defineToolOperation`、`defineFunctionTool` 与 `defineCommandTool`。构造时拒绝空命令表、非法名称、返回模式与作者种类不符，以及程序契约与声明不符。
 - [catalog.ts](../src/catalog.ts)：`presentTool` 与 `evaluateToolAvailability`。可用性判定不自做授权，按顺序列出全部未满足的条件。
-- [parameter-codec.ts](../src/parameter-codec.ts)：`createDefaultParameterCodec(limits)`，用 `@omne-harness/json-text` 严格解析生效参数。`complete=false` 返回 `incomplete`，重复键与半截 JSON 返回 `invalid`，都不产生参数值。采用摘要覆盖解析预算。
+- [parameter-codec.ts](../src/parameter-codec.ts)：`createDefaultParameterCodec(limits)`，用 `@omne-harness/json-text` 严格解析生效参数。`complete=false` 返回 `incomplete`，重复键、半截 JSON 与不是对象的输入返回 `invalid`，都不产生参数值。采用摘要覆盖解析预算。
 
 ## 持久状态与协议记录
 

@@ -23,7 +23,7 @@ import {
   decimal,
   filled,
   identity,
-  judgeAt,
+  judgeUnknown,
   list,
   literal,
   nullable,
@@ -250,15 +250,23 @@ const STATE_RULES: readonly StateRule[] = [
     holds: state => state.relation !== 'background' || state.foreground?.kind === 'background',
   },
   {
-    // An unavailable result never started the original tool (dummy, start rejection).
+    // Only a call whose execution never started may settle as unavailable (dummy, first start
+    // rejection). A started execution, also one that already ended, ends otherwise (342 waits).
+    field: 'execution',
+    reason: 'unavailable-after-start',
+    holds: state => !settledUnavailable(state) || state.execution.kind === 'not-started',
+  },
+  {
+    // The unavailable result of a first start rejection records effect=not-started (342 values).
     field: 'effect',
     reason: 'unavailable-with-effect',
-    holds: state =>
-      state.phase !== 'settled' ||
-      state.terminal.kind !== 'unavailable' ||
-      state.effect.kind === 'not-started',
+    holds: state => !settledUnavailable(state) || state.effect.kind === 'not-started',
   },
 ]
+
+function settledUnavailable(state: ToolState): boolean {
+  return state.phase === 'settled' && state.terminal.kind === 'unavailable'
+}
 
 /**
  * Judges an untrusted value as a Tool state. The check is closed and follows the phase and
@@ -268,7 +276,7 @@ const STATE_RULES: readonly StateRule[] = [
 export function judgeToolState(
   value: unknown,
 ): Outcome<ToolState, Readonly<{ field: string; reason: string }>> {
-  const shaped = judgeAt(stateShape, value, 'ToolState')
+  const shaped = judgeUnknown(stateShape, value, 'ToolState')
   if ('failure' in shaped) return shaped
   const broken = STATE_RULES.find(rule => !rule.holds(shaped.ok))
   if (broken === undefined) return shaped

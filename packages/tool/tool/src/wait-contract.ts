@@ -5,7 +5,7 @@ import type { ToolWaitContract, ToolWaitProtocolDefinition } from './author-cont
 import type { ToolValueSchema } from './definitions.ts'
 import {
   describeRejection,
-  judgeAt,
+  judgeUnknown,
   literal,
   member,
   positiveSafeInteger,
@@ -72,7 +72,7 @@ export function isToolWaitContract(value: unknown): boolean {
 export function defineToolWaitContract<A, K extends 'ask' | 'resource'>(
   definition: ToolWaitProtocolDefinition<A, K>,
 ): Outcome<ToolWaitContract<A, K>, Readonly<{ reason: string }>> {
-  const checked = judgeAt(waitProtocol, definition, 'definition')
+  const checked = judgeUnknown(waitProtocol, definition, 'definition')
   if ('failure' in checked) return fail({ reason: describeRejection(checked.failure) })
   const handle = { ...checked.ok }
   Object.defineProperty(handle, waitContractMark, { value: true })

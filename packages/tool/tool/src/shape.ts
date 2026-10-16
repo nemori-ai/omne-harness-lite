@@ -1,5 +1,6 @@
 // Closed shape checks for untrusted values. Each check reads own data properties only, never
-// calls a getter or a function of the input, and returns a frozen rebuilt copy.
+// calls a getter or a function of the input, and returns a frozen rebuilt copy. Only an author
+// capability check reads the prototype chain, through `inheritedSlot`.
 import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
 
 /** The field path that a check rejects, such as `commands[1].name`, and why. */
@@ -29,6 +30,18 @@ export function judgeAt<T>(check: Check<T>, value: unknown, root: string): Check
   return reject(root, checked.failure.reason)
 }
 
+/**
+ * `judgeAt` for an entry point that takes `unknown`. Reading the input can still throw, for
+ * example through a Proxy trap; the whole value is then rejected as `unreadable`.
+ */
+export function judgeUnknown<T>(check: Check<T>, value: unknown, root: string): Checked<T> {
+  try {
+    return judgeAt(check, value, root)
+  } catch {
+    return reject(root, 'unreadable')
+  }
+}
+
 type Slot =
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'accessor' }>
@@ -40,6 +53,18 @@ export function slot(value: object, key: PropertyKey): Slot {
   if (descriptor === undefined) return { kind: 'absent' }
   if (!('value' in descriptor)) return { kind: 'accessor' }
   return { kind: 'value', value: descriptor.value }
+}
+
+/**
+ * Reads one property from the object or its prototype chain without running a getter. The
+ * nearest property that has the key decides, as for an ordinary read.
+ */
+export function inheritedSlot(value: object, key: PropertyKey): Slot {
+  for (let holder: object | null = value; holder !== null; holder = Object.getPrototypeOf(holder)) {
+    const read = slot(holder, key)
+    if (read.kind !== 'absent') return read
+  }
+  return { kind: 'absent' }
 }
 
 export function isPlainObject(value: unknown): value is object {
@@ -214,17 +239,21 @@ export function unique<T>(
   suffix = '',
 ): Check<readonly T[]> {
   return refine(check, (values, at) => {
-    const seen = new Set<string>()
-    for (const [index, value] of values.entries()) {
-      const name = key(value)
-      if (seen.has(name)) {
-        const field = suffix === '' ? item(at, index) : member(item(at, index), suffix)
-        return { field, reason: 'duplicate' }
-      }
-      seen.add(name)
-    }
-    return undefined
+    const index = firstRepeat(values.map(key))
+    if (index < 0) return undefined
+    const field = suffix === '' ? item(at, index) : member(item(at, index), suffix)
+    return { field, reason: 'duplicate' }
   })
+}
+
+/** The index of the first value that an earlier value repeats, or -1. */
+export function firstRepeat(values: readonly string[]): number {
+  const seen = new Set<string>()
+  for (const [index, value] of values.entries()) {
+    if (seen.has(value)) return index
+    seen.add(value)
+  }
+  return -1
 }
 
 /** Adapts a Tool identity decoder, whose failure names the identity type, to a field path. */

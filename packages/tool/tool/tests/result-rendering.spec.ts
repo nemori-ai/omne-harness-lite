@@ -93,6 +93,170 @@ describe('result rendering', () => {
     })
   })
 
+  it('result rendering: program data of exactly maxBytes fits, one byte more is too large', () => {
+    // `{"count":3}` is 11 bytes of JSON text.
+    const program = (maxBytes: number) =>
+      ({
+        kind: 'json',
+        adoption: adoption('count'),
+        schema: valueSchema('count', maxBytes),
+        encode: () => succeed(json('{"count":3}')),
+      }) as const
+    const render = (maxBytes: number) =>
+      renderToolResult(
+        { count: 3 },
+        { ...ordinaryAuthor(), program: program(maxBytes) },
+        textFactory,
+        defaultResultPolicy,
+      )
+    expect('ok' in render(11)).toBe(true)
+    expect(render(10)).toEqual({ failure: { reason: 'program: too-large' } })
+  })
+
+  it('result rendering: structured data of exactly maxBytes fits, one byte more is too large', () => {
+    const withData = {
+      ...result([text('t', 'done')]),
+      data: {
+        kind: 'json',
+        contract: adoption('count'),
+        schema: valueSchema('count').identity,
+        value: json('{"count":3}'),
+      },
+    } as const
+    const render = (maxBytes: number) =>
+      renderToolResult(
+        withData,
+        {
+          ...structuredAuthor(),
+          program: {
+            kind: 'json',
+            adoption: adoption('count'),
+            schema: valueSchema('count', maxBytes),
+          },
+        },
+        textFactory,
+        defaultResultPolicy,
+      )
+    expect(render(11)).toEqual({ ok: withData })
+    expect(render(10)).toEqual({ failure: { reason: 'data: too-large' } })
+  })
+
+  it('result rendering: rejects a duplicate key in an object-form tree from encode or in data', () => {
+    const duplicate = {
+      kind: 'object',
+      entries: [
+        { key: 'count', value: { kind: 'number', lexeme: '1' } },
+        { key: 'count', value: { kind: 'number', lexeme: '2' } },
+      ],
+    } as const
+    const program = {
+      kind: 'json',
+      adoption: adoption('count'),
+      schema: valueSchema('count'),
+      encode: () => succeed(duplicate),
+    } as const
+    expect(
+      renderToolResult({}, { ...ordinaryAuthor(), program }, textFactory, defaultResultPolicy),
+    ).toEqual({ failure: { reason: 'program: data.value.entries[1].key: duplicate' } })
+    const withData = {
+      ...result([text('t', 'done')]),
+      data: {
+        kind: 'json',
+        contract: adoption('count'),
+        schema: valueSchema('count').identity,
+        value: duplicate,
+      },
+    } as const
+    const structured = {
+      ...structuredAuthor(),
+      program: { kind: 'json', adoption: adoption('count'), schema: valueSchema('count') },
+    } as const
+    expect(renderToolResult(withData, structured, textFactory, defaultResultPolicy)).toEqual({
+      failure: { reason: 'policy: data.value.entries[1].key: duplicate' },
+    })
+  })
+
+  it('result rendering: an encode output that shares a container is accepted', () => {
+    const one = {
+      kind: 'object',
+      entries: [{ key: 'n', value: { kind: 'number', lexeme: '1' } }],
+    } as const
+    const shared = { kind: 'array', items: [one, one] } as const
+    const program = {
+      kind: 'json',
+      adoption: adoption('pair'),
+      schema: valueSchema('pair'),
+      encode: () => succeed(shared),
+    } as const
+    const rendered = renderToolResult(
+      {},
+      { ...ordinaryAuthor(), program },
+      textFactory,
+      defaultResultPolicy,
+    )
+    expect('ok' in rendered && rendered.ok.data).toEqual({
+      kind: 'json',
+      contract: adoption('pair'),
+      schema: valueSchema('pair').identity,
+      value: json('[{"n":1},{"n":1}]'),
+    })
+  })
+
+  it('result rendering: a throwing renderer or encode is a result failure with its message', () => {
+    const boom = () => {
+      throw new Error('renderer broke')
+    }
+    expect(
+      renderToolResult(
+        {},
+        { ...ordinaryAuthor(), renderer: { render: boom } },
+        textFactory,
+        defaultResultPolicy,
+      ),
+    ).toEqual({ failure: { reason: 'render: renderer broke' } })
+    const program = {
+      kind: 'json',
+      adoption: adoption('count'),
+      schema: valueSchema('count'),
+      encode: () => {
+        throw new TypeError('encode broke')
+      },
+    } as const
+    expect(
+      renderToolResult({}, { ...ordinaryAuthor(), program }, textFactory, defaultResultPolicy),
+    ).toEqual({ failure: { reason: 'program: encode broke' } })
+  })
+
+  it('result rendering: a capability return that is not an Outcome is a result failure', () => {
+    const shapes: readonly (readonly [unknown, string])[] = [
+      [null, 'text: not-an-outcome'],
+      [{ ok: undefined }, 'text: ok: type'],
+      [{ ok: null }, 'text: ok: type'],
+      [{ failure: { reason: 3 } }, 'text: not-an-outcome'],
+    ]
+    for (const [returned, reason] of shapes) {
+      const factory = { text: () => returned } as unknown as typeof textFactory
+      expect(renderToolResult({}, ordinaryAuthor(), factory, defaultResultPolicy)).toEqual({
+        failure: { reason },
+      })
+    }
+    const renderer = { render: () => ({ ok: 7 }) } as unknown as ReturnType<
+      typeof ordinaryAuthor
+    >['renderer']
+    expect(
+      renderToolResult({}, { ...ordinaryAuthor(), renderer }, textFactory, defaultResultPolicy),
+    ).toEqual({ failure: { reason: 'render: ok: type' } })
+  })
+
+  it('result rendering: an author of neither kind is a failure Outcome', () => {
+    const author = { ...ordinaryAuthor(), kind: 'other' } as unknown as ReturnType<
+      typeof ordinaryAuthor
+    >
+    expect(renderToolResult({}, author, textFactory, defaultResultPolicy)).toEqual({
+      failure: { reason: 'author: kind' },
+    })
+  })
+
   it('result rendering: a renderer failure is a result failure, not a thrown error', () => {
     const author = { ...ordinaryAuthor(), renderer: { render: () => fail({ reason: 'cycle' }) } }
     expect(renderToolResult({}, author, textFactory, defaultResultPolicy)).toEqual({

@@ -206,6 +206,55 @@ describe('author registration', () => {
       failure: { field: 'operation.parameters.kind', reason: 'executor-owned' },
     })
   })
+
+  it('author registration: reads author capabilities without running a getter', () => {
+    class Executor {
+      execute() {
+        return Promise.resolve({ count: 1 })
+      }
+    }
+    const define = (executor: unknown, codec = ordinaryAuthor().codec) =>
+      defineToolOperation({
+        parameters: { kind: 'declared', value: parameters() },
+        returns: ordinaryReturns,
+        author: { ...ordinaryAuthor(), executor: executor as never, codec },
+      })
+    expect('ok' in define(new Executor())).toBe(true)
+    let reads = 0
+    const getter = () => {
+      reads += 1
+      throw new Error('getter ran')
+    }
+    const owned = Object.defineProperty({}, 'execute', { get: getter })
+    class Inherited {
+      get execute() {
+        return getter()
+      }
+    }
+    for (const executor of [owned, new Inherited()])
+      expect(define(executor)).toEqual({
+        failure: { field: 'author.executor.execute', reason: 'accessor' },
+      })
+    const codec = Object.defineProperty({ ...ordinaryAuthor().codec }, 'adoption', { get: getter })
+    expect(define(new Executor(), codec)).toEqual({
+      failure: { field: 'author.codec.adoption', reason: 'accessor' },
+    })
+    expect(reads).toBe(0)
+  })
+
+  it('author registration: rejects a command table whose Proxy traps throw, without throwing', () => {
+    const hostile = new Proxy(
+      { shell: { summary: 'Run a command.', operation: shellOperation() } },
+      {
+        ownKeys: () => {
+          throw new Error('trap')
+        },
+      },
+    )
+    expect(defineCommandTool({ metadata: metadata(), commands: hostile })).toEqual({
+      failure: { field: 'input', reason: 'unreadable' },
+    })
+  })
 })
 
 describe('wait contract', () => {
@@ -249,6 +298,17 @@ describe('wait contract', () => {
       defineToolWaitContract(ask as unknown as ToolWaitProtocolDefinition<string, 'ask'>),
     ).toEqual({
       failure: { reason: 'expiry: value' },
+    })
+  })
+
+  it('author registration: a wait contract whose Proxy traps throw is rejected, not thrown', () => {
+    const hostile = new Proxy(protocol('ask', 'forbidden'), {
+      getOwnPropertyDescriptor: () => {
+        throw new Error('trap')
+      },
+    })
+    expect(defineToolWaitContract(hostile)).toEqual({
+      failure: { reason: 'definition: unreadable' },
     })
   })
 

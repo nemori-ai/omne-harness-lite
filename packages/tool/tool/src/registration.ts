@@ -23,7 +23,8 @@ import {
   toolDefinitionMetadata,
 } from './judge-definition.ts'
 import {
-  judgeAt,
+  inheritedSlot,
+  judgeUnknown,
   list,
   literal,
   member,
@@ -33,6 +34,7 @@ import {
   slot,
   variant,
   type Check,
+  type Checked,
   type ShapeRejection,
 } from './shape.ts'
 import { adoption, sameAdoption, sameSchemaIdentity } from './value-shapes.ts'
@@ -45,15 +47,28 @@ const fn: Check<unknown> = (value, at) =>
   typeof value === 'function' ? succeed(value) : reject(at, 'type')
 
 /**
+ * Reads a member of an author capability. A class instance keeps its methods on its prototype,
+ * so the read follows the prototype chain. It never runs a getter: an accessor is rejected.
+ */
+function capabilityMember(value: object, at: string, key: string): Checked<unknown> {
+  const read = inheritedSlot(value, key)
+  if (read.kind === 'accessor') return reject(member(at, key), 'accessor')
+  // An absent member reads as undefined, which the member check rejects as `type`.
+  return succeed(read.kind === 'value' ? read.value : undefined)
+}
+
+/**
  * An author capability such as an executor or a codec. It may be a class instance, so its
  * methods may come from its prototype. The reference is kept, not copied.
  */
 function capability(...methods: readonly string[]): Check<unknown> {
   return (value, at) => {
     if (typeof value !== 'object' || value === null) return reject(at, 'type')
-    for (const method of methods)
-      if (typeof Reflect.get(value, method) !== 'function')
-        return reject(member(at, method), 'type')
+    for (const method of methods) {
+      const read = capabilityMember(value, at, method)
+      if ('failure' in read) return read
+      if (typeof read.ok !== 'function') return reject(member(at, method), 'type')
+    }
     return succeed(value)
   }
 }
@@ -64,7 +79,9 @@ function adopted(check: Check<unknown>): Check<unknown> {
     const checked = check(value, at)
     if ('failure' in checked) return checked
     // `check` accepted an object, so the adoption can be read from it.
-    const named = adoption(Reflect.get(value as object, 'adoption'), member(at, 'adoption'))
+    const read = capabilityMember(value as object, at, 'adoption')
+    if ('failure' in read) return read
+    const named = adoption(read.ok, member(at, 'adoption'))
     return 'failure' in named ? named : checked
   }
 }
@@ -202,7 +219,7 @@ export function defineToolOperation<
   B extends ContentBlock,
   P extends ToolOperationParameters,
 >(input: ToolOperationSpec<A, R, E, B, P>): Outcome<ToolOperation<E, B, P>, Rejection> {
-  const checked = judgeAt(operationSpec, input, 'input')
+  const checked = judgeUnknown(operationSpec, input, 'input')
   if ('failure' in checked) return checked
   // The author passed the closed check of its kind above.
   const spec = { ...checked.ok, author: checked.ok.author as AnyAuthor }
@@ -235,7 +252,7 @@ export function defineFunctionTool<E, B extends ContentBlock>(
     operation: ToolOperation<E, B, Extract<ToolOperationParameters, { kind: 'declared' }>>
   }>,
 ): Outcome<ToolAuthorRegistration<E, B>, Rejection> {
-  const checked = judgeAt(
+  const checked = judgeUnknown(
     record({ metadata: toolDefinitionMetadata, operation: operationHandle }),
     input,
     'input',
@@ -290,7 +307,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
     >
   }>,
 ): Outcome<ToolAuthorRegistration<E, B>, Rejection> {
-  const checked = judgeAt(
+  const checked = judgeUnknown(
     record({ metadata: toolDefinitionMetadata, commands: commandTable }),
     input,
     'input',

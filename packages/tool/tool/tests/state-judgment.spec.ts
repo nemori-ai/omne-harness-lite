@@ -131,11 +131,71 @@ describe('state judgment', () => {
     })
   })
 
+  it('state judgment: accepts unavailable only for an execution that never started', () => {
+    const neverStarted = {
+      ...settledInBackground(),
+      terminal: { kind: 'unavailable', reason: 'revoked' },
+      execution: { kind: 'not-started' },
+      effect: { kind: 'not-started' },
+    }
+    expect(judgeToolState(neverStarted)).toEqual({ ok: neverStarted })
+    const start = decoded(decodeToolOperationId('start-1'))
+    for (const execution of [
+      { kind: 'ended', evidence: evidence('ended') },
+      { kind: 'live', start },
+      { kind: 'starting', start },
+    ])
+      expect(rejection({ ...neverStarted, execution })).toEqual({
+        field: 'execution',
+        reason: 'unavailable-after-start',
+      })
+  })
+
   it('state judgment: rejects an unavailable terminal whose effect is not not-started', () => {
-    const state = { ...settledInBackground(), terminal: { kind: 'unavailable', reason: 'revoked' } }
+    const state = {
+      ...settledInBackground(),
+      terminal: { kind: 'unavailable', reason: 'revoked' },
+      execution: { kind: 'not-started' },
+    }
     expect(rejection(state)).toEqual({ field: 'effect', reason: 'unavailable-with-effect' })
-    expect(judgeToolState({ ...state, effect: { kind: 'not-started' } })).toEqual({
-      ok: { ...state, effect: { kind: 'not-started' } },
+  })
+
+  it('state judgment: keeps accepting the legal states next to the unavailable rule', () => {
+    const {
+      instance: _instance,
+      wait: _wait,
+      ...common
+    } = running() as Extract<ToolState, { phase: 'running' }>
+    const acceptedInBackground = {
+      ...common,
+      phase: 'accepted',
+      relation: 'background',
+      wait: { kind: 'none' },
+      foreground: { kind: 'background', call, reason: 'user' },
+      effect: { kind: 'not-started' },
+      execution: { kind: 'not-started' },
+      queue: { kind: 'none' },
+    }
+    const foregroundFinal = {
+      ...settledInBackground(),
+      relation: 'foreground',
+      foreground: { kind: 'final', result: decoded(decodeToolResultVersion('result-1')) },
+    }
+    const rejectedResume = {
+      ...settledInBackground(),
+      terminal: { kind: 'interrupted', reason: 'interruption' },
+      execution: { kind: 'suspended', checkpoint: evidence('checkpoint') },
+    }
+    for (const state of [acceptedInBackground, foregroundFinal, rejectedResume])
+      expect(judgeToolState(state)).toEqual({ ok: state })
+  })
+
+  it('state judgment: rejects a hostile value without throwing', () => {
+    const hostile = new Proxy(running(), {
+      getOwnPropertyDescriptor: () => {
+        throw new Error('trap')
+      },
     })
+    expect(rejection(hostile)).toEqual({ field: 'ToolState', reason: 'unreadable' })
   })
 })

@@ -15,7 +15,7 @@ import {
   bool,
   filled,
   item,
-  judgeAt,
+  judgeUnknown,
   list,
   literal,
   member,
@@ -205,5 +205,5 @@ const toolDefinition: Check<ToolDefinition> = variant('kind', {
 export function judgeToolDefinition(
   value: unknown,
 ): Outcome<ToolDefinition, Readonly<{ field: string; reason: string }>> {
-  return judgeAt(toolDefinition, value, 'ToolDefinition')
+  return judgeUnknown(toolDefinition, value, 'ToolDefinition')
 }

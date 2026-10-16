@@ -67,6 +67,13 @@ describe('parameter codec', () => {
     expect(codec({ ...limits, maxDepth: 4 }).adoption.digest).not.toBe(codec().adoption.digest)
   })
 
+  it('parameter codec: arguments that are not an object are invalid, not a thrown error', () => {
+    for (const input of [null, undefined, 'x'])
+      expect(codec().parse(input as unknown as ToolArguments)).toEqual({
+        failure: { kind: 'invalid', reason: 'type' },
+      })
+  })
+
   it('parameter codec: rejects a budget that is not a positive safe integer, without throwing', () => {
     expect(createDefaultParameterCodec({ ...limits, maxItems: 0 })).toEqual({
       failure: { field: 'limits.maxItems', reason: 'range' },

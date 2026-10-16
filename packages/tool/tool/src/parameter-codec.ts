@@ -61,6 +61,9 @@ export function createDefaultParameterCodec(
     Object.freeze({
       adoption,
       parse(input: Parameters<ParameterCodec<JsonValue>['parse']>[0]) {
+        // The binding may pass any value here, so a non-object is invalid, not a thrown error.
+        if (typeof input !== 'object' || input === null)
+          return fail({ kind: 'invalid', reason: 'type' } as const)
         if (input.complete !== true)
           return fail({ kind: 'incomplete', reason: 'incomplete' } as const)
         if (typeof input.effective !== 'string')

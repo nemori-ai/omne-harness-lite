@@ -131,7 +131,60 @@ describe('definition judgment', () => {
     cyclic.entries.push({ key: 'self', value: cyclic })
     expect(
       rejection({ ...functionDefinition(), parameters: { ...parameters([]), schema: cyclic } }),
-    ).toEqual({ field: 'parameters.schema.entries[0].value', reason: 'repeated-container' })
+    ).toEqual({ field: 'parameters.schema.entries[0].value', reason: 'cycle' })
+  })
+
+  it('definition judgment: accepts a container shared by two parents and copies it twice', () => {
+    const string = {
+      kind: 'object',
+      entries: [{ key: 'type', value: { kind: 'string', value: 'string' } }],
+    }
+    const schema = {
+      kind: 'object',
+      entries: [
+        { key: 'source', value: string },
+        { key: 'target', value: { kind: 'array', items: [string] } },
+      ],
+    }
+    const definition = { ...functionDefinition(), parameters: { ...parameters([]), schema } }
+    const judged = judgeToolDefinition(definition)
+    expect(judged).toEqual({ ok: definition })
+    if (!('ok' in judged) || judged.ok.kind !== 'function') throw new Error('not accepted')
+    const copied = judged.ok.parameters.schema
+    expect(copied.kind === 'object' && copied.entries[0]?.value).not.toBe(string)
+  })
+
+  it('definition judgment: counts a shared subtree each time it is reached', () => {
+    let shared: unknown = { kind: 'null' }
+    for (let level = 0; level < 24; level += 1) shared = { kind: 'array', items: [shared, shared] }
+    const schema = { kind: 'object', entries: [{ key: 'wide', value: shared }] }
+    const judged = judgeToolDefinition({
+      ...functionDefinition(),
+      parameters: { ...parameters([]), schema },
+    })
+    expect('failure' in judged && judged.failure.reason).toBe('budget')
+  })
+
+  it('definition judgment: rejects a duplicate key in an object-form schema tree', () => {
+    const schema = {
+      kind: 'object',
+      entries: [
+        { key: 'type', value: { kind: 'string', value: 'object' } },
+        { key: 'type', value: { kind: 'string', value: 'string' } },
+      ],
+    }
+    expect(
+      rejection({ ...functionDefinition(), parameters: { ...parameters([]), schema } }),
+    ).toEqual({ field: 'parameters.schema.entries[1].key', reason: 'duplicate' })
+  })
+
+  it('definition judgment: rejects a value whose Proxy traps throw, without throwing', () => {
+    const hostile = new Proxy(functionDefinition(), {
+      ownKeys: () => {
+        throw new Error('trap')
+      },
+    })
+    expect(rejection(hostile)).toEqual({ field: 'ToolDefinition', reason: 'unreadable' })
   })
 
   it('definition judgment: returns a frozen copy and does not run a getter of the input', () => {
