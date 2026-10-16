@@ -180,21 +180,6 @@
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []
-    },
-    {
-      "id": "placed-packages-tool-tool-README-md",
-      "path": "packages/tool/tool/README.md",
-      "kind": "architecture",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "能力组文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
     }
   ]
 }

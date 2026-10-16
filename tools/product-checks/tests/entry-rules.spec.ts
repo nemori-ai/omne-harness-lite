@@ -586,7 +586,9 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
     return root
   }
   const runCli = (dir: string) =>
-    spawnSync(process.execPath, ['--experimental-strip-types', cli, dir], { encoding: 'utf8' })
+    spawnSync(process.execPath, ['--conditions=source', '--experimental-strip-types', cli, dir], {
+      encoding: 'utf8',
+    })
 
   // 归慢层：子进程＋重 CPU：起真实 CLI 子进程，它会扫描整个仓库的执行模块。
   it('违反的包 ⇒ runRules 报出各条、CLI 退出 1 并逐条打印', { tags: ['slow'] }, () => {

@@ -72,7 +72,7 @@ it('runs real preview/write/scan paths and rejects a Cordis leak despite a curre
       join(root, member, file),
       file.endsWith('.ts') ? 'export const example = 1\n' : '# Completed fixture\n',
     )
-  mkdirSync(join(root, member, 'tests'))
+  mkdirSync(join(root, member, 'tests'), { recursive: true })
   writeFileSync(join(root, member, 'tests/value.spec.ts'), 'export {}\n')
   const manifestPath = join(root, member, 'package.json')
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
@@ -196,10 +196,10 @@ it('keeps the exact old package marker and reports older through the real CLI', 
       '# Value\n\nThis fixture exports the constant value 1.\n',
     )
   writeFileSync(join(root, member, 'src/index.ts'), 'export const value = 1\n')
-  mkdirSync(join(root, member, 'tests'))
+  mkdirSync(join(root, member, 'tests'), { recursive: true })
   writeFileSync(
     join(root, member, 'tests/value.spec.ts'),
-    "import { expect, it } from 'vitest'\nimport { value } from '@omne-harness/repo-toolchain'\nit('exports one', () => expect(value).toBe(1))\n",
+    "import { expect, it } from 'vitest'\nimport { value } from '../src/index.ts'\nit('exports one', () => expect(value).toBe(1))\n",
   )
   rmSync(join(root, member, 'documentation.json'))
   const manifestPath = join(root, member, 'package.json')

@@ -27,7 +27,7 @@ bash "$runner/scripts/test-formatting.sh"
 step build
 step typecheck
 step test
-node --experimental-strip-types "$runner/tools/product-checks/src/cli.ts" packages apps
+node --conditions=source --experimental-strip-types "$runner/tools/product-checks/src/cli.ts" packages apps
 step acceptance
 "$runner/node_modules/.bin/omne-loop-status" ${BASELINE:+--base "$BASELINE"} --out "$plan_dir/loop" --strict --scope engineering
 }

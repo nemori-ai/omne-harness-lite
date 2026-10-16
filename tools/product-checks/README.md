@@ -164,3 +164,9 @@ material. Historical documentation links are not executable dependencies.
 Report every failed command, including failures that also occur at the task
 baseline. These checks do not create an integration receipt or change the
 adopted runner. Runner adoption follows the [integration rules](../../docs/engineering/integration.md).
+
+## Commit attribution audit baseline
+
+After `lint:rules` runs the repo-toolchain `commit-attribution` rule, it filters the result with [`commit-attribution-baseline.json`](commit-attribution-baseline.json). The filter skips only the "agent listed as co-author" lines in the exact commits that the file lists by full 40-character SHA. An agent author or committer, or a "generated with" line, is still reported. Commits outside the list are checked as usual.
+
+Each entry has the full SHA and a reason. The file refers to one named decision ([decision on #356](https://github.com/nemori-ai/omne-harness-lite/issues/356#issuecomment-6214198516)). A malformed file is an error, not an empty list. The file is on the repository toolchain gate path, so a new entry needs a confirmation. The assertion that the reachable history has no author-style attribution outside the baseline is in `tests/attribution-baseline.spec.ts`.

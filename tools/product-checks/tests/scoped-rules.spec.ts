@@ -325,12 +325,20 @@ console.log(JSON.stringify(result))
 process.exit(result.length > 0 ? 1 : 0)
 `,
     )
-    const bad = spawnSync(process.execPath, ['--experimental-strip-types', runner, 'bad'], {
-      encoding: 'utf8',
-    })
-    const good = spawnSync(process.execPath, ['--experimental-strip-types', runner, 'good'], {
-      encoding: 'utf8',
-    })
+    const bad = spawnSync(
+      process.execPath,
+      ['--conditions=source', '--experimental-strip-types', runner, 'bad'],
+      {
+        encoding: 'utf8',
+      },
+    )
+    const good = spawnSync(
+      process.execPath,
+      ['--conditions=source', '--experimental-strip-types', runner, 'good'],
+      {
+        encoding: 'utf8',
+      },
+    )
     expect(bad.status).toBe(1)
     expect(JSON.parse(bad.stdout)).toEqual([
       expect.objectContaining({ rule: 'body-projection-inputs' }),

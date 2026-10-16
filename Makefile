@@ -94,4 +94,4 @@ acceptance-lock:
 
 # 场景状态分开报告覆盖声明、执行和接受；未知保留未知。只读、只报告。
 scenario-status:
-	node --experimental-strip-types tools/product-checks/src/acceptance/scenario-status-cli.ts
+	node --conditions=source --experimental-strip-types tools/product-checks/src/acceptance/scenario-status-cli.ts
