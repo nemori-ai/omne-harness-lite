@@ -1,7 +1,7 @@
 // 收工钩子要的静态读数：与 `make loop-status BASE=…` 同一套步骤，但只跑度量报告、稳定依赖、
 // 改动过的测试里没有断言的用例与新增依赖；不跑重复代码（全仓要二十多秒）、覆盖率、工作树与 topic 那几项。
 // 只在量读数的线程里加载（它带进 TypeScript 解析器），主线程不碰。
-import { baselines, readContext } from '../integration/context.ts'
+import { baselines, readTaskContext } from '../core/task-context.ts'
 import type { MetricsConfig } from '../metrics/config.ts'
 import { changedFiles, git } from '../core/git.ts'
 import { memberOf } from '../deps/graph.ts'
@@ -35,7 +35,7 @@ export function isProductSource(path: string): boolean {
 export function touchedBase(root: string, primaryBranch: string): string | undefined {
   const selected = baselines(root)
   if (selected.state === 'adopted') {
-    const base = readContext(root).ownerTask?.taskBase ?? selected.targetBase
+    const base = readTaskContext(root).ownerTask?.taskBase ?? selected.targetBase
     if (base === undefined) throw new Error('Missing adopted hook baseline')
     return base
   }

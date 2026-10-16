@@ -3,11 +3,11 @@
 // `run` 跑受影响或全部成员的某一层（`--script acceptance` 改跑可执行验收）并写耗时账本；
 // `replay` 对主线上最近的提交逐个算计划（只算不跑）；`triage` 对一次运行里的失败做隔离重跑。
 // `step`、`run` 的退出码反映那一步是否通过；`plan`、`replay` 只在引擎出错时非零；`triage` 只报告，非零表示工具自己出错。
+import { baselines } from '../core/task-context.ts'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { coordinates } from '../core/git.ts'
-import { baselines } from '../integration/context.ts'
 import {
   isRunScript,
   isRunTier,

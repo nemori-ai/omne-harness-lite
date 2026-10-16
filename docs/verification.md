@@ -127,7 +127,7 @@ SHA-256；当前环境是否安装、仓库是否定义了模型，是两个问�
 
 ## 集成的两条基线
 
-采用后的检查由[共同 loader](../tools/ts-checks/src/integration/context.ts)取得固定 targetBase 与各卡 taskBase/taskSource。影响面按目标 B，验收锁按原任务逐提交审计并补 B..C；合法运输父保留其来源。显式 BASE 不能替代丢失 context。全局 main 趋势及未采用任务仍按原含义。候选执行证据和未来部署边界见[工具指南](../tools/ts-checks/src/integration/README.md)。
+采用后的检查由[共同 loader](../tools/ts-checks/src/core/task-context.ts)取得固定 targetBase 与各卡 taskBase/taskSource。影响面按目标 B，验收锁按原任务逐提交审计并补 B..C；合法运输父保留其来源。显式 BASE 不能替代丢失 context。全局 main 趋势及未采用任务仍按原含义。候选执行证据和未来部署边界见[工具指南](../tools/ts-checks/src/integration/README.md)。
 
 ## 包级测试责任与边界
 

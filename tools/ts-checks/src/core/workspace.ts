@@ -170,10 +170,7 @@ export function listWorkspaceMembers(
 }
 
 /** 有 `script` 脚本的成员，带上脚本原文。 */
-export function withScript(
-  members: readonly WorkspaceMember[],
-  scriptName: string,
-): TestMember[] {
+export function withScript(members: readonly WorkspaceMember[], scriptName: string): TestMember[] {
   return members.flatMap(member => {
     const script = member.scripts[scriptName]
     return script === undefined

@@ -1,4 +1,4 @@
-import { baselines } from './integration/context.ts'
+import { baselines } from './core/task-context.ts'
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'

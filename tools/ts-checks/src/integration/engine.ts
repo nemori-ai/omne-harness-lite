@@ -1,7 +1,8 @@
 import { policyHandoff, policyCheck, adoptPolicy } from './policy-adoption.ts'
 import { prepare, seal, type Prepare } from './candidate.ts'
 import { activationCheck, activate, bootstrap } from './adoption.ts'
-import { baselines, loadIntegration, taskWorkspace, writeContext, type Legacy } from './context.ts'
+import { baselines } from '../core/task-context.ts'
+import { loadIntegration, taskWorkspace, writeContext, type Legacy } from './context.ts'
 import {
   currentAdmission,
   deliveryConfig,

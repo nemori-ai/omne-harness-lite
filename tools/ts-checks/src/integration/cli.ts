@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { openIntegration, type Command } from './engine.ts'
 import { array, choice, fields, integer, json, sha, string, IntegrationError } from './parse.ts'
+import { TaskContextError } from '../core/task-context.ts'
 import { modes } from './policy.ts'
 import { parseAudit } from './context.ts'
 import { validatePrepare, type Source } from './candidate.ts'
@@ -169,7 +170,7 @@ if (
 ) {
   main(process.argv.slice(2)).catch(error => {
     process.stderr.write(
-      `${JSON.stringify({ code: error instanceof IntegrationError ? error.code : 'unknown', message: error instanceof Error ? error.message : String(error) })}\n`,
+      `${JSON.stringify({ code: error instanceof IntegrationError || error instanceof TaskContextError ? error.code : 'unknown', message: error instanceof Error ? error.message : String(error) })}\n`,
     )
     process.exitCode = 2
   })

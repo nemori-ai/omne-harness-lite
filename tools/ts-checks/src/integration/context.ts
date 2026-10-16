@@ -430,33 +430,6 @@ export function requireCurrentAdoption(
   }
   return state
 }
-/**
- * Without a task context a tree checks against the explicit base, or the caller's default.
- * With one, the fixed targetBase and the task audits apply.
- */
-export function baselines(
-  root: string,
-  explicitBase?: string,
-): { state: IntegrationState['kind']; targetBase: string | undefined; audits: TaskAudit[] } {
-  if (!existsSync(contextPath(root)))
-    return { state: 'pending', targetBase: explicitBase, audits: [] }
-  const context = readContext(root)
-  if (explicitBase !== undefined)
-    same(
-      maybeRef(root, `${explicitBase}^{commit}`),
-      context.targetBase,
-      'Explicit base differs from fixed targetBase',
-    )
-  return {
-    state: 'adopted',
-    targetBase: context.targetBase,
-    audits:
-      context.operation === null && context.ownerTask !== null
-        ? [{ binding: context.ownerTask, taskSource: repository(root).head }]
-        : context.tasks,
-  }
-}
-
 export function firstAdoptionCommit(root: string, anchor: string): string {
   let adoption = parseAdoption(readTag(root, anchor).body)
   const seen = new Set<string>([anchor])

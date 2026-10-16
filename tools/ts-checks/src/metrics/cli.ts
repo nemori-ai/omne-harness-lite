@@ -1,5 +1,6 @@
 // 结构度量入口：只读源码与 git，产出摘要、数据与审讯页。度量只报告，不判失败——
 // 方向规则的失败由 `lint:rules` 承担；这里退出码非零只表示工具自己出错。
+import { baselines } from '../core/task-context.ts'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +15,6 @@ import { baseTextsOf, collectMemberSources } from './sources.ts'
 import { readActualArchitecture } from '../arch/actual.ts'
 import { buildArchitectureView } from '../arch/view.ts'
 import { readConformance } from '../arch/conformance.ts'
-import { baselines } from '../integration/context.ts'
 
 interface Options {
   readonly base?: string

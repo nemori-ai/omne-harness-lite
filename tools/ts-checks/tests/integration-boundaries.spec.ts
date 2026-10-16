@@ -18,12 +18,12 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { init, commit, integrationFixture } from './fixtures/integration.ts'
 import { git, repository } from '../src/integration/git.ts'
 import {
-  baselines,
   loadIntegration,
   writeContext,
   firstAdoptionScope,
   BOOTSTRAP_CHECK_ENV,
 } from '../src/integration/context.ts'
+import { baselines } from '../src/core/task-context.ts'
 import { touchedBase } from '../src/loop/hook-measure.ts'
 import { readWorktrees } from '../src/loop/sensors/worktrees.ts'
 import { bootstrap, activationCheck } from '../src/integration/adoption.ts'
@@ -43,7 +43,7 @@ import { publish } from '../src/integration/publish.ts'
 import { digest, canonical, object, string } from '../src/integration/parse.ts'
 import { pendingPrefix, unitFor } from '../src/integration/units.ts'
 import { annotatedObject } from '../src/integration/transport.ts'
-import { auditHistory } from '../src/integration/audit.ts'
+import { auditHistory } from '../src/acceptance/lock.ts'
 import { runLoopStatus } from '../src/loop/run.ts'
 
 const homes: string[] = []

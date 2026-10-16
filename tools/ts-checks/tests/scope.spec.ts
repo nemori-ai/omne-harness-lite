@@ -1,13 +1,13 @@
 // 影响面的计划：用仓库里真实的路径规则（test-runs.config.json）、一份造出来的成员清单，核对每类改动被判成什么、
 // 选中谁、为什么；规则一旦退化（例如读者规则丢了、全局清单漏了锁文件），这里会变红。
 // 另核对取改动的那一步：改名拆成两侧、基线不存在时报错而不是改判全量。
+import { baselines } from '../src/core/task-context.ts'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { baselines } from '../src/integration/context.ts'
 import { changedFiles, coordinates } from '../src/core/git.ts'
 import {
   classify,

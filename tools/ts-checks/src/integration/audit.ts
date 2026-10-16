@@ -1,35 +1,10 @@
-import { baselines, requireAdopted, readTag } from './context.ts'
-import { inspect, type AcceptanceLockConfig } from '../acceptance/lock.ts'
+import { baselines } from '../core/task-context.ts'
+import { requireAdopted, readTag } from './context.ts'
 import { git, lines, parents, requireAncestor, ancestor } from './git.ts'
 import { remoteRefs, fetchObject, targetHead } from './transport.ts'
 import { UNIT_PREFIX } from './policy.ts'
 import { parseUnit } from './units.ts'
 
-export function auditRanges(
-  root: string,
-  explicitBase?: string,
-): { label: string; base: string; head: string }[] {
-  const resolved = baselines(root, explicitBase)
-  const ranges = resolved.audits.map(task => ({
-    label: `${task.binding.issue.url}@${task.binding.revision}/${task.binding.attempt}`,
-    base: task.binding.taskBase,
-    head: task.taskSource,
-  }))
-  if (resolved.targetBase !== undefined)
-    ranges.push({ label: 'target integration edits', base: resolved.targetBase, head: 'HEAD' })
-  return ranges
-}
-export function auditHistory(
-  root: string,
-  explicitBase: string | undefined,
-  config: AcceptanceLockConfig,
-) {
-  const adopted = baselines(root, explicitBase).state === 'adopted'
-  return auditRanges(root, explicitBase).map(range => ({
-    ...range,
-    acceptance: inspect(root, range.base, config, range.head, adopted),
-  }))
-}
 /** Imported histories retain their own audits. Only the work line and merge edits belong to this task's write scope. */
 export function scopeViolations(root: string): string[] {
   const resolved = baselines(root),

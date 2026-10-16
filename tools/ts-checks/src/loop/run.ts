@@ -1,11 +1,10 @@
 // 回路状态的一次运行：只读源码与 git，回答「整洁的各项指标各在哪条带上、这次变更里有哪些红项要解释、哪些成员超了预算」。
 // 除硬线外一切只报告：结果码 1 只在依赖违规或环、给了基线且验收锁被破、严格模式下开着的传感器没数据时。
 // 命令行外壳在 cli.ts。
+import { auditRanges, baselines } from '../core/task-context.ts'
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { baselines } from '../integration/context.ts'
-import { auditHistory, auditRanges } from '../integration/audit.ts'
 import { join, resolve } from 'node:path'
-import { readAcceptanceLockConfig } from '../acceptance/lock.ts'
+import { auditHistory, readAcceptanceLockConfig } from '../acceptance/lock.ts'
 import { readMetricsConfig, type MetricsConfig } from '../metrics/config.ts'
 import { changedFiles, changedLines, coordinates, git, type Coordinates } from '../core/git.ts'
 import { memberOf, revisionGraph, workingGraph } from '../deps/graph.ts'

@@ -110,6 +110,8 @@ export function integrationFixture(
   if (options.sharedLoader) {
     for (const path of [
       'core/git-environment.ts',
+      'core/git.ts',
+      'core/task-context.ts',
       'integration/context.ts',
       'integration/git.ts',
       'integration/parse.ts',
@@ -124,7 +126,7 @@ export function integrationFixture(
     const checker = join(root, 'check.mjs')
     writeFileSync(
       checker,
-      "import {baselines} from './tools/ts-checks/src/integration/context.ts';process.stdout.write(JSON.stringify(baselines(process.argv[2]))+'\\n');\n" +
+      "import {baselines} from './tools/ts-checks/src/core/task-context.ts';process.stdout.write(JSON.stringify(baselines(process.argv[2]))+'\\n');\n" +
         readFileSync(checker, 'utf8'),
     )
   }

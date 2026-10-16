@@ -1,7 +1,7 @@
 // 并行工作树：主检出以外、带分支的工作树有几棵，各自相对主线合并点改过哪些成员，
 // 哪些成员被两棵以上同时在改——同时改得越多，合回主线时越容易互相踩。
+import { baselines, readTaskContext } from '../../core/task-context.ts'
 import { statSync } from 'node:fs'
-import { baselines, readContext } from '../../integration/context.ts'
 import { changedFiles, git } from '../../core/git.ts'
 import { memberOf } from '../../deps/graph.ts'
 
@@ -69,7 +69,7 @@ export function readWorktrees(root: string, primaryBranch: string): WorktreeChan
     try {
       const selected = baselines(entry.path)
       const taskBase =
-        selected.state === 'adopted' ? readContext(entry.path).ownerTask?.taskBase : undefined
+        selected.state === 'adopted' ? readTaskContext(entry.path).ownerTask?.taskBase : undefined
       mergeBase =
         taskBase ?? selected.targetBase ?? git(entry.path, ['merge-base', primaryBranch, 'HEAD'])
     } catch {

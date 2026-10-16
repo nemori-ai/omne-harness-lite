@@ -1,6 +1,12 @@
 import type { Rule, Violation } from '../core/rule.ts'
 import { ENTRY_SRC, productSourceIn } from '../layout.ts'
-import { codeMatches, firstArgument, lineAt, stringLiteralValue, viewsOf } from '../core/source-text.ts'
+import {
+  codeMatches,
+  firstArgument,
+  lineAt,
+  stringLiteralValue,
+  viewsOf,
+} from '../core/source-text.ts'
 
 const TABLE = 'governance_center'
 

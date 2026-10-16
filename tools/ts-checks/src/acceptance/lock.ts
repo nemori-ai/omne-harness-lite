@@ -7,6 +7,7 @@ import { repositoryEnv } from '../core/git-environment.ts'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { readCommits, type CommitRecord } from '../commits.ts'
+import { auditRanges, baselines } from '../core/task-context.ts'
 
 export interface AcceptanceLockConfig {
   /** 成员所在的根目录；只有它们下面的验收目录受这把锁管。 */
@@ -249,4 +250,17 @@ export function render(report: LockReport, config: AcceptanceLockConfig): string
     for (const violation of report.violations) out.push(`    ${violation}`)
   }
   return out
+}
+
+/** Every audit range of this tree with the acceptance edits it carries. */
+export function auditHistory(
+  root: string,
+  explicitBase: string | undefined,
+  config: AcceptanceLockConfig,
+) {
+  const adopted = baselines(root, explicitBase).state === 'adopted'
+  return auditRanges(root, explicitBase).map(range => ({
+    ...range,
+    acceptance: inspect(root, range.base, config, range.head, adopted),
+  }))
 }

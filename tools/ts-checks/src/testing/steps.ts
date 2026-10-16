@@ -1,9 +1,9 @@
 // `make check` 里按计划执行的几步：pytest、构建、类型检查、成员测试（快慢两层）、可执行验收；
 // 以及它们共用的「跑一批成员的脚本并写耗时账本」。计划由 `scope.ts` 算（受影响的成员由 turbo 给出），
 // 这里只照着执行、照实说跳了什么。构建交给 turbo，类型检查与测试仍由本工具逐成员跑。
+import { baselines } from '../core/task-context.ts'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { baselines } from '../integration/context.ts'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'

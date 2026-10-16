@@ -1,8 +1,8 @@
 // 差分变异入口：只变异基线以来改动碰到的产品源码行（或点名成员的全部产品源码），逐成员跑 Stryker 的快层，
 // 列出存活与无覆盖的变异体，读数写进主检出的 `tmp/mutation-ledger/`。
 // 只报告（负责人 2026-10-02 定）：变异体存活不影响退出码；Stryker 起不来、初跑失败、没写出报告才退出非零。
+import { baselines } from '../core/task-context.ts'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { baselines } from '../integration/context.ts'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { changedLines, coordinates, type Coordinates } from '../core/git.ts'

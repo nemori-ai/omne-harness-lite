@@ -1,9 +1,8 @@
 // 验收锁入口：`--base <ref>` 给任务基线。退出码 0 表示没有不该改验收的角色动过它，1 表示锁被破，2 表示用法或 Git 出错。
+import { auditRanges, baselines } from '../core/task-context.ts'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inspect, readAcceptanceLockConfig, render } from './lock.ts'
-import { baselines } from '../integration/context.ts'
-import { auditRanges } from '../integration/audit.ts'
 
 const USAGE = '用法：--base <基线提交或分支> [--root <检出目录>]'
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
