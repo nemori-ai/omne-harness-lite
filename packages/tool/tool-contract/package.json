@@ -12,11 +12,6 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./cordis": {
-      "source": "./src/cordis.ts",
-      "types": "./dist/cordis.d.ts",
-      "import": "./dist/cordis.js"
     }
   },
   "files": [
@@ -28,7 +23,6 @@
     "test": "pnpm run build && vitest run"
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/assets": "workspace:*",
     "@omne-harness/call-account": "workspace:*",
     "@omne-harness/content-block": "workspace:*",

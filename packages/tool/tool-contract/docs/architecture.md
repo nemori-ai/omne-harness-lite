@@ -56,7 +56,7 @@ Code 是具体 Tool 执行者的一种组合应用，不增加第四 runtime。�
 
 ## 责任边界和继续阅读
 
-外域接缝见 [治理领域架构](../../../../docs/domains/tool-execution/architecture.md)。参数、依赖和 OOP 见 [object-model](object-model.md)，协议见 [protocols](../SPEC.md#tool-操作协议)，Cordis 装配见 [cordis](cordis.md)，产品覆盖与验证见 [coverage](../verification/coverage.md)。文本、内容 ref 与附件地址分流归 P14；共享类型迁移和真实发送验证沿 MODEL-E01，不以政策接缝扩大任意嵌套许可。
+外域接缝见 [治理领域架构](../../../../docs/domains/tool-execution/architecture.md)。参数、依赖和 OOP 见 [object-model](object-model.md)，协议见 [protocols](../SPEC.md#tool-操作协议)，Cordis 装配见 [cordis](../../tool-cordis-contract/docs/cordis.md)，产品覆盖与验证见 [coverage](../verification/coverage.md)。文本、内容 ref 与附件地址分流归 P14；共享类型迁移和真实发送验证沿 MODEL-E01，不以政策接缝扩大任意嵌套许可。
 
 ## Code 宿主构造
 

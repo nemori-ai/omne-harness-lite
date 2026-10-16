@@ -111,6 +111,6 @@ MCP 动作通过工具契约接入。远端刷新影响后续调用，断线保�
 
 实际启动采用具名许可与失效共同排序。Tool 先保存原启动与名额，受信执行边界在当前身份、工作资格、调用方式、批决定和固定绑定成立时消费唯一许可。资格失效先成立则禁止发出，启动受理先成立则按在途控制；不承诺撤回已发远端效果。各状态拥有者须在共同围栏失效后才能确认新发起已被阻止，不能只靠异步通知维持此保证。
 
-Tool 侧完整 [操作协议](../../../packages/tool/tool-contract/SPEC.md#tool-操作协议)、[对象模型](../../../packages/tool/tool-contract/docs/object-model.md)及 [Cordis装配](../../../packages/tool/tool-contract/docs/cordis.md)拥有精确机制。环境准备/释放、等待答复、停止和检查点都使用原操作查询未知。原输出先保管后投影，过程先保存后展示，事实查询独立于活体目录。
+Tool 侧完整 [操作协议](../../../packages/tool/tool-contract/SPEC.md#tool-操作协议)、[对象模型](../../../packages/tool/tool-contract/docs/object-model.md)及 [Cordis装配](../../../packages/tool/tool-cordis-contract/docs/cordis.md)拥有精确机制。环境准备/释放、等待答复、停止和检查点都使用原操作查询未知。原输出先保管后投影，过程先保存后展示，事实查询独立于活体目录。
 
 Code 是 Tool 执行者的一种组合。原子调用按真实目标队列和当前资格发起，父子关联与未完责任先持久保存，父程序终止不销毁子调用责任。具体 [组合协议](../../../packages/tool/tool-contract/SPEC.md#code-与-tool-的组合协议)不替语言和执行环境提供者选型，也不改变 Code 的产品阶段。

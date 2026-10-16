@@ -1,36 +1,36 @@
-// The Cordis service definitions of the Tool contract member: abstract Services, the service
-// keys, the `tool/call-changed` event and the instance directory. Provider plugins live in
-// `@omne-harness/tool-host-local/cordis`. This entry does not import a provider member.
+// The Cordis service definitions of Tool: abstract Services, the service keys, the
+// `tool-cordis-contract/call-changed` event and the instance directory. Provider plugins live in
+// `@omne-harness/tool-host-local/cordis`. This entry does not import a Tool implementation.
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/kernel-basis'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { describedAdoption } from './adoption.ts'
-import type {
-  DurableEvidence,
-  ResultPolicy,
-  ToolAccounts,
-  ToolBindingRegistry,
-  ToolBindings,
-  ToolCallId,
-  ToolCatalog,
-  ToolChildren,
-  ToolClock,
-  ToolCommands,
-  ToolDecisionBridge,
-  ToolDirectory,
-  ToolEnvironment,
-  ToolInstanceHost,
-  ToolOffloader,
-  ToolOutputCustody,
-  ToolReads,
-  ToolResourceResponses,
-  ToolRevision,
-  ToolRuntime,
-  ToolStartAuthority,
-} from './index.ts'
+import {
+  describedAdoption,
+  type DurableEvidence,
+  type ResultPolicy,
+  type ToolAccounts,
+  type ToolBindingRegistry,
+  type ToolBindings,
+  type ToolCallId,
+  type ToolCatalog,
+  type ToolChildren,
+  type ToolClock,
+  type ToolCommands,
+  type ToolDecisionBridge,
+  type ToolDirectory,
+  type ToolEnvironment,
+  type ToolInstanceHost,
+  type ToolOffloader,
+  type ToolOutputCustody,
+  type ToolReads,
+  type ToolResourceResponses,
+  type ToolRevision,
+  type ToolRuntime,
+  type ToolStartAuthority,
+} from '@omne-harness/tool-contract'
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolRuntimeService<P, B extends ContentBlock>
   extends Service
   implements ToolRuntime<P, B>
@@ -58,7 +58,7 @@ export abstract class ToolRuntimeService<P, B extends ContentBlock>
 }
 export const toolRuntimeKey = ToolRuntimeService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolCommandsService<P, B extends ContentBlock>
   extends Service
   implements ToolCommands<P, B>
@@ -105,7 +105,7 @@ export abstract class ToolCommandsService<P, B extends ContentBlock>
 }
 export const toolCommandsKey = ToolCommandsService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolBindingsService<P, B extends ContentBlock, E>
   extends Service
   implements ToolBindings<P, B, E>, ToolBindingRegistry<P, E, B>
@@ -121,7 +121,7 @@ export abstract class ToolBindingsService<P, B extends ContentBlock, E>
 }
 export const toolBindingsKey = ToolBindingsService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolEnvironmentService<P, E>
   extends Service
   implements ToolEnvironment<P, E>
@@ -137,7 +137,7 @@ export abstract class ToolEnvironmentService<P, E>
 }
 export const toolEnvironmentsKey = ToolEnvironmentService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolDecisionBridgeService<P>
   extends Service
   implements ToolDecisionBridge<P>
@@ -175,7 +175,7 @@ export interface ToolPublicationAuthority<P> {
   check(input: ToolRegistrationInput<P>): Outcome<void, ToolRegistrationFailure>
 }
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolPublicationAuthorityService<P>
   extends Service
   implements ToolPublicationAuthority<P>
@@ -191,7 +191,7 @@ export const toolPublicationAuthorityKey = ToolPublicationAuthorityService.provi
 const directoryNotImplemented =
   'toolInstances register and connect are not implemented until ticket 13 (M7)'
 const directoryAdoption = describedAdoption({
-  owner: '@omne-harness/tool-contract',
+  owner: '@omne-harness/tool-cordis-contract',
   name: 'toolInstances',
   revision: '0',
 })
@@ -202,7 +202,7 @@ const directoryAdoption = describedAdoption({
  * `unavailable`, because `ToolRegistrationFailure` has no `unsupported` variant. Neither
  * method throws or reports success.
  *
- * @owner packages/tool/tool-contract
+ * @owner packages/tool/tool-cordis-contract
  */
 export class ToolInstancesService<P> extends Service implements ToolDirectory<P> {
   static readonly provide = 'toolInstances'
@@ -222,7 +222,7 @@ export class ToolInstancesService<P> extends Service implements ToolDirectory<P>
 }
 export const toolInstancesKey = ToolInstancesService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolInstanceHostService<P> extends Service implements ToolInstanceHost<P> {
   static readonly provide = 'toolInstanceHost'
   constructor(ctx: Context) {
@@ -236,7 +236,7 @@ export abstract class ToolInstanceHostService<P> extends Service implements Tool
 }
 export const toolInstanceHostKey = ToolInstanceHostService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolClockService extends Service implements ToolClock {
   static readonly provide = 'toolClock'
   constructor(ctx: Context) {
@@ -249,7 +249,7 @@ export abstract class ToolClockService extends Service implements ToolClock {
 }
 export const toolClockKey = ToolClockService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ResultPolicyService<B extends ContentBlock>
   extends Service
   implements ResultPolicy<B>
@@ -264,7 +264,7 @@ export abstract class ResultPolicyService<B extends ContentBlock>
 }
 export const toolResultPolicyKey = ResultPolicyService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolReadsService<P, B extends ContentBlock>
   extends Service
   implements ToolReads<P, B>
@@ -284,7 +284,7 @@ export abstract class ToolReadsService<P, B extends ContentBlock>
 }
 export const toolReadsKey = ToolReadsService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolCatalogService<P> extends Service implements ToolCatalog<P> {
   static readonly provide = 'toolCatalog'
   constructor(ctx: Context) {
@@ -296,7 +296,7 @@ export abstract class ToolCatalogService<P> extends Service implements ToolCatal
 }
 export const toolCatalogKey = ToolCatalogService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolStartAuthorityService<P>
   extends Service
   implements ToolStartAuthority<P>
@@ -313,7 +313,7 @@ export abstract class ToolStartAuthorityService<P>
 }
 export const toolStartAuthorityKey = ToolStartAuthorityService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolResourceResponsesService<P>
   extends Service
   implements ToolResourceResponses<P>
@@ -331,7 +331,7 @@ export abstract class ToolResourceResponsesService<P>
 }
 export const toolResourceResponsesKey = ToolResourceResponsesService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolOutputCustodyService<P> extends Service implements ToolOutputCustody<P> {
   static readonly provide = 'toolOutputCustody'
   constructor(ctx: Context) {
@@ -343,7 +343,7 @@ export abstract class ToolOutputCustodyService<P> extends Service implements Too
 }
 export const toolOutputCustodyKey = ToolOutputCustodyService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolChildrenService<P> extends Service implements ToolChildren<P> {
   static readonly provide = 'toolChildren'
   constructor(ctx: Context) {
@@ -360,7 +360,7 @@ export abstract class ToolChildrenService<P> extends Service implements ToolChil
 }
 export const toolChildrenKey = ToolChildrenService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolAccountsService<P> extends Service implements ToolAccounts<P> {
   static readonly provide = 'toolAccounts'
   constructor(ctx: Context) {
@@ -370,7 +370,7 @@ export abstract class ToolAccountsService<P> extends Service implements ToolAcco
 }
 export const toolAccountsKey = ToolAccountsService.provide
 
-/** @owner packages/tool/tool-contract */
+/** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolOffloaderService<P, B extends ContentBlock>
   extends Service
   implements ToolOffloader<P, B>
@@ -417,6 +417,10 @@ declare module '@deepseek-ai/cordis' {
      * @param call - the call that changed.
      * @param revision - the call revision after the change.
      */
-    'tool/call-changed'(tenant: TenantId, call: ToolCallId, revision: ToolRevision): void
+    'tool-cordis-contract/call-changed'(
+      tenant: TenantId,
+      call: ToolCallId,
+      revision: ToolRevision,
+    ): void
   }
 }

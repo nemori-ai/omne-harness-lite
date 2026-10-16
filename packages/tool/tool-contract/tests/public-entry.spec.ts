@@ -1,3 +1,5 @@
+import { readFileSync, realpathSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as tool from '@omne-harness/tool-contract'
 import {
@@ -27,6 +29,7 @@ it('exports the body port, the identity decoders, the default result policy and 
     'defineFunctionTool',
     'defineToolOperation',
     'defineToolWaitContract',
+    'describedAdoption',
     'evaluateToolAvailability',
     'judgeToolDefinition',
     'judgeToolState',
@@ -37,16 +40,56 @@ it('exports the body port, the identity decoders, the default result policy and 
   ])
 })
 
-/** A root graph must not reach Cordis, a Cordis entry of any package, or the provider member. */
+/** The other Tool packages. The contract package must not depend on any of them. */
+const toolMember = /^@omne-harness\/tool(-cordis-contract|-host-local)?(\/|$)/u
+
+/** A root graph must not reach Cordis, a Cordis entry of any package, or another Tool package. */
 function forbiddenFromRoot(specifier: string): boolean {
   return (
     specifier === '@deepseek-ai/cordis' ||
     specifier.startsWith('@deepseek-ai/cordis/') ||
     /^@omne-harness\/[^/]+\/cordis$/u.test(specifier) ||
-    specifier === '@omne-harness/tool-host-local' ||
-    specifier.startsWith('@omne-harness/tool-host-local/') ||
+    toolMember.test(specifier) ||
     /(^|\/)cordis(\.d)?\.(ts|js)$/u.test(specifier)
   )
+}
+
+describe('contract package depends on no Tool member', () => {
+  it('lists neither Cordis nor another Tool package in its manifest', () => {
+    const manifest = JSON.parse(readFileSync(memberPath('package.json'), 'utf8')) as {
+      exports: Record<string, unknown>
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+    }
+    const declared = [
+      ...Object.keys(manifest.dependencies ?? {}),
+      ...Object.keys(manifest.devDependencies ?? {}),
+    ]
+    expect(
+      declared.filter(name => toolMember.test(name) || name.startsWith('@deepseek-ai/')),
+    ).toEqual([])
+    expect(Object.keys(manifest.exports)).not.toContain('./cordis')
+  })
+
+  it('reaches Cordis in its install closure only through kernel-basis', () => {
+    // kernel-basis owns Outcome and has a production dependency on Cordis. Until its owner moves
+    // Outcome to a package without Cordis, that is the one accepted route. A new route fails here.
+    expect(routesToCordis(memberPath('.'), [])).toEqual([
+      ['@omne-harness/kernel-basis', '@deepseek-ai/cordis'],
+    ])
+  })
+})
+
+/** Production dependency routes from a workspace package to Cordis, through workspace packages. */
+function routesToCordis(directory: string, route: readonly string[]): string[][] {
+  const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as {
+    dependencies?: Record<string, string>
+  }
+  return Object.entries(manifest.dependencies ?? {}).flatMap(([name, range]) => {
+    if (name === '@deepseek-ai/cordis') return [[...route, name]]
+    if (!range.startsWith('workspace:') || route.includes(name)) return []
+    return routesToCordis(realpathSync(join(directory, 'node_modules', name)), [...route, name])
+  })
 }
 
 describe('root entry has no Cordis', () => {

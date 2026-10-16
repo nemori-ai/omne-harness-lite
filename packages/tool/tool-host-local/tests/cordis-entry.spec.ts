@@ -7,9 +7,12 @@ it('draft cordis entry exports nothing until the accepted binding replaces it', 
   expect(Object.keys(cordis)).toEqual([])
 })
 
-it('consumes the contract member through the workspace package', () => {
+it('consumes the contract and Cordis definition packages through the workspace', () => {
   const manifest = JSON.parse(readFileSync(memberPath('package.json'), 'utf8')) as {
     dependencies?: Record<string, string>
   }
-  expect(manifest.dependencies).toMatchObject({ '@omne-harness/tool-contract': 'workspace:*' })
+  expect(manifest.dependencies).toMatchObject({
+    '@omne-harness/tool-contract': 'workspace:*',
+    '@omne-harness/tool-cordis-contract': 'workspace:*',
+  })
 })

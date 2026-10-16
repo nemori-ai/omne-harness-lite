@@ -3,39 +3,42 @@ import { Service } from '@deepseek-ai/cordis'
 import { resolveOptional } from '@omne-harness/kernel-basis/cordis'
 import { startTestAssembly } from '@omne-harness/kernel-basis/testing'
 import { describe, expect, it } from 'vitest'
-import * as cordis from '@omne-harness/tool-contract/cordis'
+import * as cordis from '@omne-harness/tool-cordis-contract/cordis'
 import {
   ToolClockService,
   ToolInstancesService,
   toolClockKey,
   toolInstancesKey,
   type ToolPublicationAuthority,
-} from '@omne-harness/tool-contract/cordis'
+} from '@omne-harness/tool-cordis-contract/cordis'
 import { decodeToolCallId, decodeToolInstanceId, type ToolClock } from '@omne-harness/tool-contract'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import { describeImport, memberPath, walkModules, type ModuleKind } from './module-graph.ts'
 
-/** The key table of docs/cordis.md, plus the facade key `toolRuntime`. */
-const documentedKeys = [
-  'toolRuntime',
-  'toolCommands',
-  'toolBindings',
-  'toolEnvironments',
-  'toolDecisions',
-  'toolInstances',
-  'toolPublicationAuthority',
-  'toolInstanceHost',
-  'toolClock',
-  'toolResultPolicy',
-  'toolReads',
-  'toolCatalog',
-  'toolStartAuthority',
-  'toolResourceResponses',
-  'toolOutputCustody',
-  'toolChildren',
-  'toolAccounts',
-  'toolOffloader',
-]
+/** The key table of docs/cordis.md, plus the facade key `toolRuntime`: key constant to its class. */
+const documentedPairs = {
+  toolRuntimeKey: 'ToolRuntimeService',
+  toolCommandsKey: 'ToolCommandsService',
+  toolBindingsKey: 'ToolBindingsService',
+  toolEnvironmentsKey: 'ToolEnvironmentService',
+  toolDecisionsKey: 'ToolDecisionBridgeService',
+  toolInstancesKey: 'ToolInstancesService',
+  toolPublicationAuthorityKey: 'ToolPublicationAuthorityService',
+  toolInstanceHostKey: 'ToolInstanceHostService',
+  toolClockKey: 'ToolClockService',
+  toolResultPolicyKey: 'ResultPolicyService',
+  toolReadsKey: 'ToolReadsService',
+  toolCatalogKey: 'ToolCatalogService',
+  toolStartAuthorityKey: 'ToolStartAuthorityService',
+  toolResourceResponsesKey: 'ToolResourceResponsesService',
+  toolOutputCustodyKey: 'ToolOutputCustodyService',
+  toolChildrenKey: 'ToolChildrenService',
+  toolAccountsKey: 'ToolAccountsService',
+  toolOffloaderKey: 'ToolOffloaderService',
+} as const
+
+/** The Tool implementation packages. The definition package must not depend on either. */
+const implementation = /^@omne-harness\/tool(-host-local)?(\/|$)/u
 
 const exported = Object.entries(cordis as Record<string, unknown>)
 const keyConstants = exported.filter(([name]) => name.endsWith('Key'))
@@ -45,21 +48,26 @@ const serviceClasses = exported.filter(
 )
 
 describe('service keys', () => {
-  it('exports 18 unique keys, the documented ones', () => {
+  it('exports 18 unique keys, one per documented pair', () => {
     const keys = keyConstants.map(([, value]) => value)
     expect(keys).toHaveLength(18)
     expect(new Set(keys).size).toBe(18)
-    expect([...keys].sort()).toEqual([...documentedKeys].sort())
+    expect(keyConstants.map(([name]) => name).sort()).toEqual(Object.keys(documentedPairs).sort())
   })
 
-  it('takes every key from the static provide of exactly one service class', () => {
+  it.each(Object.entries(documentedPairs))(
+    'takes %s from the static provide of %s',
+    (key, type) => {
+      const exports = cordis as Record<string, unknown>
+      const definition = exports[type] as { provide: string } | undefined
+      expect(serviceClasses.map(([name]) => name)).toContain(type)
+      expect(exports[key]).toBe(definition?.provide)
+    },
+  )
+
+  it('has one service class per key, no more', () => {
     expect(serviceClasses).toHaveLength(18)
-    const provides = serviceClasses.map(([, type]) => type.provide)
-    expect(new Set(provides).size).toBe(18)
-    for (const [name, value] of keyConstants) {
-      const owners = serviceClasses.filter(([, type]) => type.provide === value)
-      expect(owners, name).toHaveLength(1)
-    }
+    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(18)
   })
 
   it('names each service class after its port, with the Service suffix', () => {
@@ -67,7 +75,7 @@ describe('service keys', () => {
   })
 })
 
-describe('contract cordis entry has no provider', () => {
+describe('cordis definition entry has no Tool implementation', () => {
   const entries: readonly (readonly [ModuleKind, string])[] = [
     ['source', 'src/cordis.ts'],
     ['javascript', 'dist/cordis.js'],
@@ -75,23 +83,25 @@ describe('contract cordis entry has no provider', () => {
   ]
   it.each(entries)('in the %s graph from %s', (kind, entry) => {
     const graph = walkModules(memberPath(entry), kind)
-    const provider = graph.imports.filter(edge =>
-      /^@omne-harness\/tool-host-local(\/|$)/u.test(edge.specifier),
-    )
+    const provider = graph.imports.filter(edge => implementation.test(edge.specifier))
     expect(provider.map(describeImport)).toEqual([])
     expect(graph.imports.map(edge => edge.specifier)).toContain('@deepseek-ai/cordis')
   })
 
-  it('depends on Cordis and not on the provider member', () => {
+  it('depends on Cordis and the contract package, not on a Tool implementation', () => {
     const manifest = JSON.parse(readFileSync(memberPath('package.json'), 'utf8')) as {
       dependencies?: Record<string, string>
       devDependencies?: Record<string, string>
     }
-    expect(manifest.dependencies).toMatchObject({ '@deepseek-ai/cordis': 'catalog:' })
-    expect(Object.keys(manifest.dependencies ?? {})).not.toContain('@omne-harness/tool-host-local')
-    expect(Object.keys(manifest.devDependencies ?? {})).not.toContain(
-      '@omne-harness/tool-host-local',
-    )
+    expect(manifest.dependencies).toMatchObject({
+      '@deepseek-ai/cordis': 'catalog:',
+      '@omne-harness/tool-contract': 'workspace:*',
+    })
+    const declared = [
+      ...Object.keys(manifest.dependencies ?? {}),
+      ...Object.keys(manifest.devDependencies ?? {}),
+    ]
+    expect(declared.filter(name => implementation.test(name))).toEqual([])
   })
 })
 
@@ -131,7 +141,7 @@ describe('under Cordis 4.0.4', () => {
       expect(connected).toMatchObject({
         failure: {
           kind: 'unsupported',
-          adoption: { owner: '@omne-harness/tool-contract', name: 'toolInstances' },
+          adoption: { owner: '@omne-harness/tool-cordis-contract', name: 'toolInstances' },
         },
       })
       const registered = await directory?.register({

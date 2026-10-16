@@ -28,7 +28,8 @@
     "test": "pnpm run build && vitest run"
   },
   "dependencies": {
-    "@omne-harness/tool-contract": "workspace:*"
+    "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/tool-cordis-contract": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

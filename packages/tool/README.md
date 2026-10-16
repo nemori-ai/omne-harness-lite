@@ -12,11 +12,12 @@
 
 本组的实际成员是 `tool` 和 `tool-host-local`。`tool` 包含 package.json、资产正文端口及成员测试。运行实例和长期执行提供者尚未实现。`tool-host-local` 是单机提供者成员的模板草稿，两个入口都不导出值，依赖 `tool`。`tool` 不依赖它。
 
-本组维护工具调用、执行、结果和外部效果的工程知识，服从[领域协作](../../docs/domains/tool-execution/architecture.md)与[冻结包组织](../../docs/package-organization.md)。按 #343 模板，本组只有两个成员：契约成员 `tool/tool` 和单机提供者成员 `tool/tool-host-local`。不为定义、runtime、dummy 或前后台再造其他平行成员。
+本组维护工具调用、执行、结果和外部效果的工程知识，服从[领域协作](../../docs/domains/tool-execution/architecture.md)与[冻结包组织](../../docs/package-organization.md)。本组按安装闭包分成四个包，依赖方向是 `tool-host-local` → {`tool`, `tool-cordis-contract`} → `tool-contract`。其他领域的生产代码只依赖 `tool-contract`，编写 Cordis 插件时另加 `tool-cordis-contract`。不为定义、runtime、dummy 或前后台再造其他平行成员。
 
 | 目标成员 | 承担的行为 | 阅读入口 |
 | --- | --- | --- |
 | tool/tool-contract | 工具定义、逻辑调用、真实执行、内部等待、控制、结果、执行账和原交付责任 | [SPEC](tool-contract/SPEC.md)，以及其引用的同成员专题。 |
+| tool/tool-cordis-contract | Tool 的 Cordis 服务定义、服务键、事件与实例目录，不含 Tool 实现 | [包入口](tool-cordis-contract/README_ZH.md)与 [Cordis 定义](tool-cordis-contract/docs/cordis.md)。 |
 | tool/tool-host-local | 单机提供者草稿，尚无已接受的提供者行为 | [包入口](tool-host-local/README_ZH.md)与[包索引](tool-host-local/index.md)。 |
 
 产品的[旅程与能力](../../.meta_harness/design/product/tool-execution/design.md#关键用户旅程)、[关键协作流程](tool-contract/docs/flows.md#工具执行的关键协作流程)和[成员验证对照](tool-contract/SPEC.md#旅程能力与验证入口)用于定位组合义务，不是另一份业务规则源。

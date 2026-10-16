@@ -7,7 +7,7 @@
 3. [public-api](public-api.md)：公开入口和设计声明。
 4. [flows](flows.md)：操作时序及七条业务旅程。
 5. [context](context.md)：消费者使用与系统定位。
-6. [cordis](cordis.md)：装配和资源交接。
+6. [cordis](../../tool-cordis-contract/docs/cordis.md)：装配和资源交接，归 `tool-cordis-contract`。
 
 编写工具函数时，从 [emit 与 wait 示例](flows.md#作者调用-emit-和-wait)进入，再核对 [作者上下文声明](public-api.md#作者执行上下文)与 [P11 行为](../SPEC.md#p11-作者输出与等待原语)。这些类型已从根入口导出，`executeTool` 与 `createIndependentToolScope` 尚未实现。
 

@@ -2,7 +2,7 @@
 
 本页是 #342 的装配候选，尚未技术接受或生产实现。领域和操作边界先由[对象模型](runtime-contract-model.md)及四成员 runtime-contract 确定。这里消费 [IC-1 至 IC-19](../cordis-integration-conventions.md)，选择服务定义、依赖、宿主与撤除协议，不把 Cordis 机制当作领域授权或持久提交。
 
-成员的精确接缝分别归 [Session](../../../packages/session/session/docs/runtime-integration.md)、[Agent](../../../packages/agent/agent/docs/runtime-integration.md)、[Model](../../../packages/model/model/docs/runtime-integration.md)、[Tool](../../../packages/tool/tool-contract/docs/cordis.md)。Tool 的成员集成设计已接受，本页共同集成及其余成员仍为候选。生产服务图、事件矩阵及绑定读数从实际源码生成，不另立手写实现权威。
+成员的精确接缝分别归 [Session](../../../packages/session/session/docs/runtime-integration.md)、[Agent](../../../packages/agent/agent/docs/runtime-integration.md)、[Model](../../../packages/model/model/docs/runtime-integration.md)、[Tool](../../../packages/tool/tool-cordis-contract/docs/cordis.md)。Tool 的成员集成设计已接受，本页共同集成及其余成员仍为候选。生产服务图、事件矩阵及绑定读数从实际源码生成，不另立手写实现权威。
 
 ## 根入口、定义与提供者
 
@@ -81,7 +81,7 @@ API 门面可以将 directory 暴露为只读查询面，但宿主注册必须�
 | session/work-committed | Session 定义入口，parallel | tenant、SessionId、revision、原 source；恢复调度者按身份过滤，再读权威状态 |
 | agent/instance-retired | Agent 定义入口，parallel | tenant、SessionId、RunId、实例、原因；观察/路由刷新，不表示 Run 终态 |
 | model/call-changed | Model 定义入口，parallel | tenant、call、revision；读原调用，不携带正文/秘密 |
-| tool/call-changed | Tool 定义入口，parallel | tenant、call、revision；读原事实，不据通知解除 delivery |
+| tool-cordis-contract/call-changed | Tool 定义入口，parallel | tenant、call、revision；读原事实，不据通知解除 delivery |
 
 事件在各定义入口唯一增补 Events，JSDoc 写 @mode parallel 与每项 @param。发送方在 await 外捕获，包括 AggregateError 中的监听失败，只记安全诊断，不改变已提交成功结果。不得漏接 Promise。消费者不能因一个监听失败取消其他租户；身份过滤是路由隔离，实际读取仍核权。通知可丢失和重复，可靠性由原领域待办扫描承担。
 

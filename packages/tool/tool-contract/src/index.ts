@@ -1,5 +1,6 @@
 // The root entry of the Tool contract member. It does not import Cordis or a provider member.
 export { toolBodyContract } from './contract.ts'
+export { describedAdoption, type AdoptionRules } from './adoption.ts'
 export * from './identity.ts'
 export {
   defaultResultPolicy,

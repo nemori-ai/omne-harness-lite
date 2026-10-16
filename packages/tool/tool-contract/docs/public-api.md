@@ -4,7 +4,7 @@
 
 公开类型的唯一定义在 [src/index.ts](../src/index.ts) 及其导出模块。本页是源码导航，不保留手写类型声明。本页只保留尚未实现的函数签名，见[尚未实现的函数](#尚未实现的函数m2m3-实现后移除)。函数实现后，签名移入源码，本页删除对应条目。
 
-服务定义、18 个服务键和 `tool/call-changed` 事件增补由 `@omne-harness/tool-contract/cordis` 导出，源码是 [src/cordis.ts](../src/cordis.ts)，装配规则归 [cordis](cordis.md)。行为、调用资格、参数与依赖分类归 [SPEC 的运行契约](../SPEC.md#342-主干运行契约候选)。消费路径见 [context](context.md)，对象关系见 [object-model](object-model.md)。
+服务定义、18 个服务键和 `tool-cordis-contract/call-changed` 事件增补由 `@omne-harness/tool-cordis-contract/cordis` 导出，本包不导出它们。源码是 [tool-cordis-contract/src/cordis.ts](../../tool-cordis-contract/src/cordis.ts)，装配规则归 [cordis](../../tool-cordis-contract/docs/cordis.md)。行为、调用资格、参数与依赖分类归 [SPEC 的运行契约](../SPEC.md#342-主干运行契约候选)。消费路径见 [context](context.md)，对象关系见 [object-model](object-model.md)。
 
 ## 值、定义和固定请求
 

@@ -27,6 +27,5 @@
 - [封闭形状检查](shape.ts)。
 - [json-text 树检查](json-tree.ts)。
 - [共用引用值形状](value-shapes.ts)。
-- [Cordis 服务定义入口](cordis.ts)。
 - [源码导航](../docs/public-api.md)。
 - [包索引](../index.md)。

@@ -1,12 +1,12 @@
 # @omne-harness/tool-contract
 
-与 [README.md](README.md) 是同一成员。设计已接受。根入口导出全部公开类型、品牌身份解码函数、默认结果政策和契约函数，`./cordis` 导出服务定义与服务键。独立执行函数与 runtime 尚未实现。
+与 [README.md](README.md) 是同一成员。设计已接受。根入口导出全部公开类型、品牌身份解码函数、默认结果政策和契约函数，服务定义与服务键在 [`@omne-harness/tool-cordis-contract`](../tool-cordis-contract/README_ZH.md)。独立执行函数与 runtime 尚未实现。
 
 <a id="342-主干运行契约候选"></a>
 
 ## 主干运行契约
 
-[公开设计定义](docs/public-api.md)、[行为与必要协议](SPEC.md#342-主干运行契约候选)、[消费及失败场景](docs/context.md)、[Cordis集成设计](docs/cordis.md)共同构成已接受的运行设计。公开类型与契约函数已从根入口导出，定义在 [src](src/index.ts)。独立执行函数和 runtime 工厂的签名尚未实现，保留在 public-api。共同对象、装配与后继验证从[运行架构入口](../../../docs/architecture/runtime/README.md)展开。
+[公开设计定义](docs/public-api.md)、[行为与必要协议](SPEC.md#342-主干运行契约候选)、[消费及失败场景](docs/context.md)、[Cordis集成设计](../tool-cordis-contract/docs/cordis.md)共同构成已接受的运行设计。公开类型与契约函数已从根入口导出，定义在 [src](src/index.ts)。独立执行函数和 runtime 工厂的签名尚未实现，保留在 public-api。共同对象、装配与后继验证从[运行架构入口](../../../docs/architecture/runtime/README.md)展开。
 
 ## 目录结构与文档职责
 

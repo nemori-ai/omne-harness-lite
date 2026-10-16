@@ -9,7 +9,6 @@
 | [object-model.md](object-model.md) | 对象职责、身份、关联、生命周期及参数与依赖的区分 |
 | [public-api.md](public-api.md) | 实际导出索引与唯一设计定义 |
 | [context.md](context.md) | 独立消费、系统定位和典型调用场景 |
-| [cordis.md](cordis.md) | Cordis 依赖、服务、启动、撤除和交接 |
 
 持续覆盖与验证场景归 [verification](../verification/README.md)，单次模型和评审证据留任务 tmp。本目录不另设行为专题或验证报告。主题需要拆分时可升级为同名目录，并提供 README 和 index。
 

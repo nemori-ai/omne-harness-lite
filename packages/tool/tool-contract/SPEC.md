@@ -147,7 +147,7 @@ Agent 换代后认回原 Tool；工具自身确认丢失后失败收束且不自
 
 ## 主干运行契约
 
-本节规定主干运行契约。精确类型归源码 [src/index.ts](src/index.ts)，[public-api](docs/public-api.md) 是源码导航，并保留独立执行函数和 runtime 工厂尚未实现的签名。消费及失败场景归 [context](docs/context.md)，对象模型与装配分别归 [object-model](docs/object-model.md) 和 [cordis](docs/cordis.md)。
+本节规定主干运行契约。精确类型归源码 [src/index.ts](src/index.ts)，[public-api](docs/public-api.md) 是源码导航，并保留独立执行函数和 runtime 工厂尚未实现的签名。消费及失败场景归 [context](docs/context.md)，对象模型与装配分别归 [object-model](docs/object-model.md) 和 [cordis](../tool-cordis-contract/docs/cordis.md)。
 
 当前生产根入口导出资产正文端口、全部公开类型、品牌身份解码函数、默认结果政策和契约函数。契约函数只做同步的判定、构造与投影。下述独立执行函数、runtime、executor 和托管结果处理尚未实现。共同对象关系见[运行对象模型](../../../docs/architecture/runtime/runtime-contract-model.md)。
 
@@ -845,7 +845,7 @@ ToolBindingRegistry 在当前 tenant、来源及登记资格下接受受信装�
 
 新配置须整体校验后才供后续采用，失败不发布半新半旧注册，保留此前仍合法的候选。FixedToolRequest.settings 指向原设置快照，和 definition/executor 一起用于执行、settle 与恢复；不再新增同义配置快照字段。原版本或秘密引用无法合法恢复时明确 unavailable，不能改取最新值继续。当前资格撤回仍约束受保护动作，旧快照不授永久许可。
 
-从 Tool 治理视角，作者提供定义及操作，Tool 提供类别校验、注册与合法装载。草稿发布、持有、所有权和合法候选选择继续由资产及装配拥有者提供输入，不要求 Tool 再造发布治理。文件写入不代表登记；撤登记只阻止后续采用，不表示在途调用取消或副作用回滚。Cordis 的贡献 effect、旧 token 条件撤除及在途能力交接归 [装配](docs/cordis.md#作者装载与贡献登记)。
+从 Tool 治理视角，作者提供定义及操作，Tool 提供类别校验、注册与合法装载。草稿发布、持有、所有权和合法候选选择继续由资产及装配拥有者提供输入，不要求 Tool 再造发布治理。文件写入不代表登记；撤登记只阻止后续采用，不表示在途调用取消或副作用回滚。Cordis 的贡献 effect、旧 token 条件撤除及在途能力交接归 [装配](../tool-cordis-contract/docs/cordis.md#作者装载与贡献登记)。
 
 ### P16 目录与发现的故障隔离
 
@@ -863,7 +863,7 @@ ToolRuntime 的持久操作不以前置 connect 成功为条件。目录或发�
 
 ToolHandle 绑定原实例及发布代次。目录提供者撤除使原观察流以 ended/unavailable 结束，原实例或贡献被替换以 stale-instance 结束；旧 handle 后续 observe 也不能读取或静默切到新代。connect 取得句柄到交回之间须核代次未失效。已交快照仍保留原版本意义，在途读取不得跨代拼接。这里需要提供者显式活性守卫，Cordis 不自动吊销任意 JS 引用。
 
-目录换代只使发布子 fiber 重建原实例的合法贡献，不重启 driver 或 executor，不重新 start/resume。Commands/Reads 自身的必需依赖失效仍可使相应门面不可用，这条隔离不承诺全域高可用。精确依赖和贡献撤除见 [Cordis](docs/cordis.md#阶段装配与换代)。
+目录换代只使发布子 fiber 重建原实例的合法贡献，不重启 driver 或 executor，不重新 start/resume。Commands/Reads 自身的必需依赖失效仍可使相应门面不可用，这条隔离不承诺全域高可用。精确依赖和贡献撤除见 [Cordis](../tool-cordis-contract/docs/cordis.md#阶段装配与换代)。
 
 ## Code 与 Tool 的组合协议
 

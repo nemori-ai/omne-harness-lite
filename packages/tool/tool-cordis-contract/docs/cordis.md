@@ -1,15 +1,15 @@
 # Tool 的 Cordis 集成
 
-本页消费[根操作契约](public-api.md)，规定 Tool 独有的服务定义、依赖及生命周期。设计已接受，提供者尚未实现。共同约束归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，加载成功不表示业务就绪。
+本页消费[根操作契约](../../tool-contract/docs/public-api.md)，规定 Tool 独有的服务定义、依赖及生命周期。设计已接受，提供者尚未实现。共同约束归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，加载成功不表示业务就绪。
 
 ## 服务定义与入口
 
-Tool 按 #343 模板拆成两个成员。契约成员 `@omne-harness/tool-contract` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。提供者成员 `@omne-harness/tool-host-local` 的 `./cordis` 发布限定名具体提供者，并继承这些定义。消费者只依赖契约成员，不依赖提供者成员。下列代码给出 [src/cordis.ts](../src/cordis.ts) 中这些定义的公开形状，源码是唯一定义；该文件还给出其余服务定义类、18 个键常量和事件增补。ToolInstancesService 的登记与查询尚未实现，实现前两者返回具名失败。实现不得复制方法形状，索引类型随根契约同步。
+`@omne-harness/tool-cordis-contract` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。它依赖纯契约包 `@omne-harness/tool-contract` 的类型，不依赖任何 Tool 实现。单机宿主 `@omne-harness/tool-host-local` 的 `./cordis` 发布限定名具体提供者，并继承这些定义。编写 Cordis 插件的消费者依赖本包与契约包，不依赖实现包。下列代码给出 [src/cordis.ts](../src/cordis.ts) 中这些定义的公开形状，源码是唯一定义；该文件还给出其余服务定义类、18 个键常量和事件增补。ToolInstancesService 的登记与查询尚未实现，实现前两者返回具名失败。实现不得复制方法形状，索引类型随根契约同步。
 
 ```ts
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { ToolRuntime, ToolDirectory, ToolInstanceHost, DurableEvidence, ToolBindings, ToolBindingRegistry } from './index.js'
+import type { ToolRuntime, ToolDirectory, ToolInstanceHost, DurableEvidence, ToolBindings, ToolBindingRegistry } from '@omne-harness/tool-contract'
 import type { Outcome } from '@omne-harness/kernel-basis'
 
 /** @owner packages/tool/tool-contract */
@@ -72,7 +72,7 @@ export abstract class ToolBindingsService<P, B extends ContentBlock, E> extends 
 export const toolBindingsKey = ToolBindingsService.provide
 ```
 
-契约成员 `./cordis` 将 Context 的 `toolRuntime` 增补为这一抽象类，主体类型由装配的可信身份适配器专化，运行时仍核验输入。接口同形不证明授权。具体插件不得再次ctx.provide这个键。消费者从契约成员 `./cordis` 导入键常量，提供者选择归应用装配。
+本包 `./cordis` 将 Context 的 `toolRuntime` 增补为这一抽象类，主体类型由装配的可信身份适配器专化，运行时仍核验输入。接口同形不证明授权。具体插件不得再次ctx.provide这个键。消费者从契约成员 `./cordis` 导入键常量，提供者选择归应用装配。
 
 ## 登记输入与撤除协议
 
@@ -95,7 +95,7 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 | toolEnvironments | ToolEnvironment | Tool | 准备及安全resume局部必需；环境失败不降为宿主直接执行 |
 | toolDecisions | ToolDecisionBridge | Tool | 原等待答复阶段局部必需；缺失保持等待，不造默认答案 |
 | toolInstances | ToolInstancesService | Tool | 具体目录Service；本Tool实例贡献fiber拥有登记 |
-| toolPublicationAuthority | ToolPublicationAuthority | Tool 契约成员 `./cordis` | 目录必需；核当前宿主、原实例资格及authority来源，不能只核字符串相同 |
+| toolPublicationAuthority | ToolPublicationAuthority | `tool-cordis-contract/cordis` | 目录必需；核当前宿主、原实例资格及authority来源，不能只核字符串相同 |
 | toolInstanceHost | ToolInstanceHost | Tool | 独立宿主必需；原事实/控制可经门面处理，无活体仍可查 |
 | toolClock | ToolClock | Tool | 计时执行段必需；恢复沿具名持续时间来源，不能重新计满 |
 | toolResultPolicy | ResultPolicy | Tool | 结果处理必需；固定B及版本，缺失保留原输出与明确失败，不重做效果 |
@@ -122,7 +122,7 @@ Tool 门面只把 Commands/Reads 作为持久操作的静态必需依赖。Catal
 
 `programmable` 是定义数据。同一服务实例内的数据变化不自动触发 Cordis inject 重跑，声明变化由原定义采用与准入路径处理。桥接同步更新可调用集合，已取得的旧入口仍须经过当前准入。不能把“注册表已删除”当作全部旧句柄失效或全部排队动作已停止的证明。
 
-Cordis 撤除的是登记、监听和具名可释放资源。`startRejection`、启动是否发生、结果交付与释放责任是跨重启仍须成立的 Tool 事实，按 [SPEC](../SPEC.md#342-值定义和固定请求)保存，不放进 effect 闭包，也不让 disposer 改写业务终局。需要先停止准入、结清或交接、再撤资源时，由具名协调者显式等待；多个 effect 的卸载不提供这种完成顺序。外部操作已发出或结果未知时，撤除不能声称回滚。
+Cordis 撤除的是登记、监听和具名可释放资源。`startRejection`、启动是否发生、结果交付与释放责任是跨重启仍须成立的 Tool 事实，按 [SPEC](../../tool-contract/SPEC.md#342-值定义和固定请求)保存，不放进 effect 闭包，也不让 disposer 改写业务终局。需要先停止准入、结清或交接、再撤资源时，由具名协调者显式等待；多个 effect 的卸载不提供这种完成顺序。外部操作已发出或结果未知时，撤除不能声称回滚。
 
 上述机制沿固定采用的 Cordis 4.0.4 核对。[调用方 effect 归属](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)、[提供者换代与插件重跑](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)及[释放顺序与持久事实的边界](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)分别拥有机制依据；业务兑现仍须由本成员提供者验证。
 
@@ -130,7 +130,7 @@ Cordis 撤除的是登记、监听和具名可释放资源。`startRejection`、
 
 authorBufferBytes、authorBufferItems、authorWaitHistoryBytes、authorWaitHistoryItems、processBatchBytes、observerBufferBytes、resultPageBytes 为正安全整数；processBatchDelayMs、reconciliationDelayMs 为非负安全整数。作者输出容量覆盖 P11 的在途内容、累计状态及记录数量，不能只限制观察者缓冲。并发、前台时限、转后台偏好来自每次固定请求及治理设置，不从插件树中的租户推导，不在此私配一套覆盖值。
 
-契约成员 `./cordis` 唯一声明 `tool/call-changed`，载荷为tenant、ToolCallId、ToolRevision。JSDoc写`@mode parallel`及每项`@param`。通知不带消息正文、凭据或附件地址；发送者捕获监听失败，保留原提交结果，由权威扫描恢复通知遗漏。会话事件先按显式身份过滤，数据动作再核权。
+本包 `./cordis` 唯一声明 `tool-cordis-contract/call-changed`，载荷为tenant、ToolCallId、ToolRevision。JSDoc写`@mode parallel`及每项`@param`。通知不带消息正文、凭据或附件地址；发送者捕获监听失败，保留原提交结果，由权威扫描恢复通知遗漏。会话事件先按显式身份过滤，数据动作再核权。
 
 等待、前后台、名额及全文保留均属Tool业务事实，不以Fiber状态判断。register撤除不会释放并发名额、给Ask填答案或删除delivery。迟到全文沿recordLateResult产生独立结果版本。
 
@@ -158,20 +158,20 @@ ToolResult 的 data 与 content 同属原结果保管，退出时一起交接。
 
 ## 验证义务
 
-本成员实现至少验证根入口无Cordis、契约成员 `./cordis` 不引提供者成员、静态键唯一、必需/局部/可选依赖的实际撤除范围、旧引用拒绝及当前身份核验。当前真实4.0.4探针仅支持共同页所列机制，根操作的持久性、跨进程、外部效果和业务接受须另由实际提供者证明。
+本成员实现至少验证根入口无Cordis、本包 `./cordis` 不引任何 Tool 实现、静态键唯一、必需/局部/可选依赖的实际撤除范围、旧引用拒绝及当前身份核验。当前真实4.0.4探针仅支持共同页所列机制，根操作的持久性、跨进程、外部效果和业务接受须另由实际提供者证明。
 
 
 ## 作者装载与贡献登记
 
-工具作者的声明配置 C 与一次调用 A、环境能力 E 分开。实际工具插件经受信 ToolLoader 取得固定定义、执行器和设置采用，校验允许配值路径、合法来源及逐命令契约，再构造作者注册。配置声明沿 [P15](../SPEC.md#p15-配置声明与合法装载)，不把治理 settings 写成进程插件树的租户覆盖表。序列化插件配置仍按 IC-14 校验；实际服务、加载器和秘密解析能力通过构造或阶段 DI 注入。
+工具作者的声明配置 C 与一次调用 A、环境能力 E 分开。实际工具插件经受信 ToolLoader 取得固定定义、执行器和设置采用，校验允许配值路径、合法来源及逐命令契约，再构造作者注册。配置声明沿 [P15](../../tool-contract/SPEC.md#p15-配置声明与合法装载)，不把治理 settings 写成进程插件树的租户覆盖表。序列化插件配置仍按 IC-14 校验；实际服务、加载器和秘密解析能力通过构造或阶段 DI 注入。
 
-ToolBindingsService.register 在当前资格下接收 ToolLoadedRegistration。契约成员 `./cordis` 拥有登记语义；具体实现保存调用方 ctx，验证当前加载及贡献资格后，用该 ctx.effect 配对登记和条件撤除。异步核验结束时再次检查调用方生命周期，不能在已撤除 fiber 下遗留贡献。每项回执只撤自己的 token，旧 release 不删除新贡献。根 Context 登记只限测试或装配入口，不能冒充插件贡献的自动归属。
+ToolBindingsService.register 在当前资格下接收 ToolLoadedRegistration。本包 `./cordis` 拥有登记语义；具体实现保存调用方 ctx，验证当前加载及贡献资格后，用该 ctx.effect 配对登记和条件撤除。异步核验结束时再次检查调用方生命周期，不能在已撤除 fiber 下遗留贡献。每项回执只撤自己的 token，旧 release 不删除新贡献。根 Context 登记只限测试或装配入口，不能冒充插件贡献的自动归属。
 
 登记提供者不重造资产优先级、持有或发布规则。它消费合法候选选择，冲突时明确拒绝，不默认覆盖。新配置/定义只有完整装载成功才进入后续候选；旧调用的采用及恢复能力由独立执行宿主持有，不能仅因贡献 effect 撤除就丢掉。计划卸载先关新采用、排空或交接后撤资源，突然失依赖保留未知。register 的回执是运行期贡献，不是持久工具调用受理回执。
 
 ## 阶段装配与换代
 
-各 key 的定义只在契约成员 `./cordis`。表中组合作为具体插件的静态字面量 inject，不能使用运行期依赖名数组。跨领域实际提供者继承或适配原拥有者定义，不在 Tool 重造授权、环境、HITL 或存储服务。
+各 key 的定义只在本包 `./cordis`。表中组合作为具体插件的静态字面量 inject，不能使用运行期依赖名数组。跨领域实际提供者继承或适配原拥有者定义，不在 Tool 重造授权、环境、HITL 或存储服务。
 
 | 插件职责 | 静态必需键 | 局部阶段能力及退出 |
 | --- | --- | --- |
@@ -185,7 +185,7 @@ ToolBindingsService.register 在当前资格下接收 ToolLoadedRegistration。�
 
 Commands 提供者整体不能把 Catalog 设为静态必需依赖。新准入的定义核验在局部阶段完成；原操作认回、控制及持久事实提交不依赖最新发现。长期 ToolInstanceHost 也不静态依赖目录，实例发布在其独立子 fiber 中 inject 目录和发布资格。Catalog、Directory 与持久 Commands/Reads、长期宿主不得共用一个会连带卸载的提供者 fiber。目录换代只重建发布，不重启业务执行。
 
-缺席、空目录和旧 handle 的精确结果归 [P16](../SPEC.md#p16-目录与发现的故障隔离)。适配器用当前服务取得句柄后核其发布代次，提供者自有活性守卫使旧流和旧 handle 失效。不能声称 ctx.get 或 disposer 自动撤销所有已持引用。这一分解遵循 IC-8/9/13，仍须真实撤除及换代测试证明。
+缺席、空目录和旧 handle 的精确结果归 [P16](../../tool-contract/SPEC.md#p16-目录与发现的故障隔离)。适配器用当前服务取得句柄后核其发布代次，提供者自有活性守卫使旧流和旧 handle 失效。不能声称 ctx.get 或 disposer 自动撤销所有已持引用。这一分解遵循 IC-8/9/13，仍须真实撤除及换代测试证明。
 
 纯工厂拿到的是具有这些协议的阶段适配器，不是所有实际后端的永久引用。适配器在阶段开始检查必需提供者，缺席立即给 unavailable，不无限等待 Cordis PENDING。已进入阶段的提供者换代时，未完成操作返回可对账的 unavailable/commit-unknown；调用者按原 operation 查询。异常保留阶段和身份，不能吞成成功。
 
@@ -208,4 +208,4 @@ sequenceDiagram
     Note over A,F: 任一未知保留原责任 不以dispose代交接
 ```
 
-Code 桥接退出先关闭程序新发起并记录 child 责任，再释放执行域。子 Tool 实例仍属于独立宿主。具体顺序由显式协调等待完成；Cordis effect 的并发释放不保证这个次序。完整根协议见 [P09](../SPEC.md#p09-账目恢复与退出)。
+Code 桥接退出先关闭程序新发起并记录 child 责任，再释放执行域。子 Tool 实例仍属于独立宿主。具体顺序由显式协调等待完成；Cordis effect 的并发释放不保证这个次序。完整根协议见 [P09](../../tool-contract/SPEC.md#p09-账目恢复与退出)。
