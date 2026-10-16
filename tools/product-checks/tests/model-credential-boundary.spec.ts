@@ -534,7 +534,11 @@ test('root configured aliases have collector and actual built CLI parity', () =>
       recursive: true,
     })
     writeFileSync(join(tool, 'package.json'), JSON.stringify({ type: 'module' }))
-    // The CLI reads loop and acceptance-lock configuration through the linked repo-toolchain package.
+    // The CLI reads its configuration from the repository it runs in, as in the real layout.
+    cpSync(
+      fileURLToPath(new URL('../../../repo-toolchain.config.json', import.meta.url)),
+      join(root, 'repo-toolchain.config.json'),
+    )
     symlinkSync(
       fileURLToPath(new URL('../node_modules', import.meta.url)),
       join(root, 'node_modules'),

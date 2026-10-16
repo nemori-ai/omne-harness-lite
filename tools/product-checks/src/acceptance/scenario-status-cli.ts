@@ -1,12 +1,15 @@
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readLoopConfig } from '@omne-harness/repo-toolchain/loop/config'
+import { toolchainConfigPath } from '@omne-harness/repo-toolchain/core/toolchain-config'
 import { inspectCoverage } from './coverage.ts'
 import { readAcceptanceLockConfig } from '@omne-harness/repo-toolchain/acceptance/lock'
 import { renderScenarioStatus, scenarioStatuses } from './scenario-status.ts'
 
 const USAGE = '用法：scenario-status [--root <检出目录>]'
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
+// 本成员只在本仓库里运行：配置取运行检查器的仓库，也就是本仓库。
+const CONFIG = toolchainConfigPath(resolve(process.env['OMNE_RUNNER_ROOT'] || ROOT))
 
 function main(argv: readonly string[]): number {
   let root = ROOT
@@ -16,8 +19,8 @@ function main(argv: readonly string[]): number {
       throw new Error(`认不出的参数 ${argv[index] ?? ''}\n${USAGE}`)
     if (argv[index] === '--root') root = resolve(value)
   }
-  const productRoot = readLoopConfig().sensors.topicChurn.productRoot
-  const coverage = inspectCoverage(root, productRoot, readAcceptanceLockConfig())
+  const productRoot = readLoopConfig(CONFIG).sensors.topicChurn.productRoot
+  const coverage = inspectCoverage(root, productRoot, readAcceptanceLockConfig(CONFIG))
   const notes =
     coverage.violations.length === 0
       ? []

@@ -145,6 +145,11 @@
       "source": "./src/archive/archive-project.ts",
       "types": "./dist/archive/archive-project.d.ts",
       "import": "./dist/archive/archive-project.js"
+    },
+    "./core/toolchain-config": {
+      "source": "./src/core/toolchain-config.ts",
+      "types": "./dist/core/toolchain-config.d.ts",
+      "import": "./dist/core/toolchain-config.js"
     }
   },
   "files": [
@@ -297,6 +302,10 @@
       "./archive/archive-project": {
         "types": "./dist/archive/archive-project.d.ts",
         "import": "./dist/archive/archive-project.js"
+      },
+      "./core/toolchain-config": {
+        "types": "./dist/core/toolchain-config.d.ts",
+        "import": "./dist/core/toolchain-config.js"
       }
     }
   }

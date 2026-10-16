@@ -8,11 +8,15 @@ import { attributionViolations, readCommits } from '@omne-harness/repo-toolchain
 import { collectSources, runRules } from '@omne-harness/repo-toolchain/core/scan'
 import { RULES } from './rules/index.ts'
 import { readLoopConfig } from '@omne-harness/repo-toolchain/loop/config'
+import { toolchainConfigPath } from '@omne-harness/repo-toolchain/core/toolchain-config'
 import { collectRepositorySources, REPOSITORY_RULES } from './repository.ts'
 
-const repositoryRoot = resolve(
-  process.env['OMNE_SUBJECT_ROOT'] ?? fileURLToPath(new URL('../../../', import.meta.url)),
+// 本成员不发布，只在本仓库里运行：运行检查器的仓库就是它所在的仓库，配置从那里读，不看当前目录。
+const runnerRoot = resolve(
+  process.env['OMNE_RUNNER_ROOT'] || fileURLToPath(new URL('../../../', import.meta.url)),
 )
+const config = toolchainConfigPath(runnerRoot)
+const repositoryRoot = resolve(process.env['OMNE_SUBJECT_ROOT'] ?? runnerRoot)
 if (existsSync(join(repositoryRoot, '.git'))) baselines(repositoryRoot)
 const roots = (process.argv.length > 2 ? process.argv.slice(2) : ['packages']).map(p =>
   resolve(process.env['OMNE_SUBJECT_ROOT'] ?? process.cwd(), p),
@@ -22,8 +26,8 @@ violations.push(...runRules(collectRepositorySources(repositoryRoot), REPOSITORY
 // 验收的覆盖声明：声明的场景要在产品区的 acceptance.md 里存在。产品区的位置与回路的读法同一份配置。
 const coverage = inspectCoverage(
   repositoryRoot,
-  readLoopConfig().sensors.topicChurn.productRoot,
-  readAcceptanceLockConfig(),
+  readLoopConfig(config).sensors.topicChurn.productRoot,
+  readAcceptanceLockConfig(config),
 )
 violations.push(...coverage.violations)
 let commitsNote = '提交署名 未检查（不在 git 检出内）'
