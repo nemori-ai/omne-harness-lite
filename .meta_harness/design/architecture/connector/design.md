@@ -1,6 +1,6 @@
 # Connector 仍有效的接入约束
 
-当前PF-002／PF-014已将连接件整体条件性搁置，不构成当前交付承诺。先决定是否仍作为资产，再决定是否恢复设计。本页保留现有Schema采用的值约束和条件性跨模块设计，不释放提供者施工。Connector 提供者、可信交接、入站来源事实仍未实现；产品的新事件目录、订阅与处理身份规则尚未在完整技术形状中收口。下列保留形状说明现有资产 Schema 的边界，不能据此直接实现完整连接件。
+当前PF-002／PF-014已将连接件整体条件性搁置，不构成当前交付承诺。先决定是否仍作为资产，再决定是否恢复设计。本页保留原 Schema 的历史值约束和条件性跨模块设计，不释放提供者施工。Connector 提供者、可信交接、入站来源事实仍未实现。产品的新事件目录、订阅与处理身份规则尚未在完整技术形状中收口。下文“现有”仅指封存版本中的形状，不表示新架构存在连接件 Schema 或实现。恢复范围后，技术拥有者必须重新核对这些输入及其消费者。
 
 ## 值与身份
 
@@ -46,7 +46,7 @@
 每个接收边界重验，不信上游已校验；非法值进入业务判断之前拒绝，不记作受理的业务结论。不能丢掉多余／坏成员、裁空白、大小写归一化或部分保留附件来修补。
 现有值的拒绝集合闭合，多处违例固定按 `target_unknown > channel_empty > envelope_empty > malformed` 取最高项，与遍历顺序无关。malformed判据为其余Schema形状失败，内嵌SessionRef／AttachmentRef／Instant违例沿该项收场。嵌入资产形状时按资产闭合集合携带原名；不另造同义错误。Schema合法仅证明形状，不证明可信、会话可访问或附件可读。
 
-Schema唯一源在 [Asset Model资源](../../../../packages.0.0.1.legacy/core/asset-model/schema/resources/connector.schema.json)，公开URI保持。它能约束单值形状；不证明交接认证、实际账号一致、声明求值、去重或投递进展。
+原 Schema 的历史依据为[封存资源快照](https://github.com/nemori-ai/omne-harness-lite/blob/481f9f45f76f7a36a2c3cd05cc42b640d77a421a/packages.0.0.1.legacy/core/asset-model/schema/resources/connector.schema.json)。该快照解释下文保留的形状和拒绝值，不是当前公共接口，也不授予原 URI 的新采用。新共同资产的[类别正文端口](../../../../packages/assets/assets/SPEC.md#accepted-public-types)没有连接件类别。连接件技术拥有者须在范围恢复后确定公开形状、Schema 身份及验证入口。单值形状合法仍不证明交接认证、实际账号一致、声明求值、去重或投递进展。
 
 ## 阻断实施的未决
 
@@ -62,6 +62,6 @@ Schema唯一源在 [Asset Model资源](../../../../packages.0.0.1.legacy/core/as
 
 ## 验证义务
 
-现有形状用独立原Schema和规范输入校验，不新增状态模型：单值约束与两分量相等不需要TLA／Alloy。验证应分开报告Schema、实际拒绝值、受理和真实组合。
+保留形状可用原 Schema 核对历史规范输入，不表示新成员验证通过。恢复范围后，由连接件技术拥有者建立正式 Schema 和对应实例。单值约束与两分量相等本身不要求新增 TLA 或 Alloy 模型。验证应分开报告 Schema、实际拒绝值、受理和真实组合。
 必须配对空channel与空白channel、双缺内容与空串／空数组、未知kind与合法但不可达会话、正文加credential／target、多处违例次序。来源／externalId原样和重投不变、租户隔离及资格、斜杠文本原样落日志、附件类型与顺序、无读／管理面、持有凭据只能经写面修改均有消费者义务。
 交接、处理身份、编辑去重、事件目录等未决未闭合时，相应场景保持未完成，不以Schema通过代替。
