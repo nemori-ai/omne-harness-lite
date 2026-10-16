@@ -488,15 +488,23 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
       writeFileSync(path, `import { Context } from '@deepseek-ai/cordis'`)
       expect(runRules(collectSources(dir), RULES).map(v => v.rule)).toContain('core-pure-imports')
       const cli = resolve(root, 'tools/product-checks/src/cli.ts')
-      const bad = spawnSync(process.execPath, ['--experimental-strip-types', cli, dir], {
-        encoding: 'utf8',
-      })
+      const bad = spawnSync(
+        process.execPath,
+        ['--conditions=source', '--experimental-strip-types', cli, dir],
+        {
+          encoding: 'utf8',
+        },
+      )
       expect(bad.status).toBe(1)
       expect(bad.stderr).toContain('[core-pure-imports]')
       writeFileSync(path, `import { parseAccountId } from '@omne-harness/identity-values'`)
-      const good = spawnSync(process.execPath, ['--experimental-strip-types', cli, dir], {
-        encoding: 'utf8',
-      })
+      const good = spawnSync(
+        process.execPath,
+        ['--conditions=source', '--experimental-strip-types', cli, dir],
+        {
+          encoding: 'utf8',
+        },
+      )
       expect(good.status, good.stderr).toBe(0)
       expect(good.stdout).toContain('PASS:')
     } finally {

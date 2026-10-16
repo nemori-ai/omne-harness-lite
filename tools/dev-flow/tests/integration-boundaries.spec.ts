@@ -183,7 +183,9 @@ record() {
   [[ "$1" != "$OMNE_FAIL_STAGE" ]]
 }
 node() {
-  case "$2" in
+  local script=
+  for argument in "$@"; do case "$argument" in --*) ;; *) script=$argument; break ;; esac; done
+  case "$script" in
     */testing/cli.ts) if [[ "$3" == plan ]]; then record plan "$@"; else record "$4" "$@"; fi ;;
     */integration/cli.ts) printf '{"targetBase":"%s"}' "$BASELINE" ;;
     */src/cli.ts) record rules "$@" ;;
@@ -421,7 +423,9 @@ it.each([
     setup,
     `
 node() {
-  case "$2" in
+  local script=
+  for argument in "$@"; do case "$argument" in --*) ;; *) script=$argument; break ;; esac; done
+  case "$script" in
     "$OMNE_RUNNER_ROOT/tools/product-checks/src/cli.ts") command "$OMNE_REAL_NODE" "$@" ;;
     "$OMNE_RUNNER_ROOT/tools/test-runner/src/testing/cli.ts") return 0 ;;
     *) return 97 ;;
