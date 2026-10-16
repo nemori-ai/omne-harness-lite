@@ -141,10 +141,14 @@ Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和
 
 升级按下面的顺序做：
 
-1. 在一个 PR 里改 `tools/repo-toolchain` 或 `tools/repo-config`，并提高它 `package.json` 里的版本号。这个 PR 仍由当前钉住的版本检查。
+1. 在一个 PR 里改 `tools/repo-toolchain` 或 `tools/repo-config`，并提高它 `package.json` 里的版本号。这个 PR 改到仓库工具链路径，经变更闸门确认；它仍由当前钉住的版本检查。
 2. 这个 PR 进入轨道或 main 以后，经 `gate-release` 发布新版本，见[现行准入](engineering/integration.md#现行准入)。
-3. 再开一个只改 catalog 钉子与锁文件的 PR。用旧版本在目标分支上、用新版本在组合候选上各跑一遍 `make check`，PR 说明写两次的结果与差别。旧版本的失败如实保留。这个 PR 改到 `pnpm-workspace.yaml`，经仓库工具链变更闸门确认。
-4. 新版本有问题时，再开一个 PR 把钉子改回旧版本。npm 上已经发布的版本不再修改。
+3. 再开一个只改 catalog 钉子与锁文件的 PR。它改到 `pnpm-workspace.yaml` 与 `pnpm-lock.yaml`，经仓库工具链变更闸门确认。确认者核对它的改动只有这两处；只有这样，用旧版本检查目标分支才等价于用旧版本检查候选。
+4. 用旧版本在目标分支上、用新版本在组合候选上各跑一遍 `make check`。PR 说明写两次的结果与差别，以及新版本删除或放宽的每一项检查；确认说明引用 PR 说明。旧版本的失败如实保留。
+5. 新版本在组合候选上的结果不得比旧版本在目标分支上的结果多出失败；两边都有的既有失败如实列出。不满足时不确认。
+6. 新版本有问题时，再开一个 PR 把钉子改回旧版本，同样按第 3 至 5 步运行与确认。npm 上已经发布的版本不再修改。
+
+这一流程的决定来源是 [RFC-0008](rfcs/RFC-0008-repo-toolchain-trust.md)。
 
 ## 开始一次交付
 
