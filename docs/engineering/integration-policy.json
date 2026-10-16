@@ -163,7 +163,7 @@
         "OMNE_RUNNER_ROOT",
         "pnpm",
         "--dir",
-        "{runner}/tools/repo-toolchain",
+        "{runner}/tools/dev-flow",
         "exec",
         "vitest",
         "run",

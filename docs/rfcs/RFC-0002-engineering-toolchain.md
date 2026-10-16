@@ -24,13 +24,13 @@ owner: PanQiWei
 
 ## 建议与改变范围
 
-建议把通用的格式化、检查、依赖方向、无用依赖报告和任务缓存交给成熟工具。项目专有的 Cordis 服务关系和领域知识继续由 `tools/repo-toolchain` 一类工具拥有。编译和类型检查改用 TypeScript 7。仍要旧编程接口的工具从 `@typescript/typescript6` 导入。
+建议把通用的格式化、检查、依赖方向、无用依赖报告和任务缓存交给成熟工具。项目专有的 Cordis 服务关系和领域知识继续由 `tools/ts-checks` 一类工具拥有。编译和类型检查改用 TypeScript 7。仍要旧编程接口的工具从 `@typescript/typescript6` 导入。
 
 | 受影响拥有者 | 现行保证或机制 | 拟改变内容 | 必须保持的条件与例外 |
 | --- | --- | --- | --- |
 | 技术基础的编译条款 | 保留 TypeScript 6 | 编译和类型检查用 TypeScript 7。旧编程接口的调用方使用官方兼容包 | 对外 `.d.ts` 不因换编译器而改变。兼容包的行为与 TypeScript 6 相同 |
 | 格式化 | Prettier | 换 oxfmt。行宽 100、无分号、单引号、`trailingComma: all`、箭头函数单参数不加括号 | 重排差异要人接受后才实施。本提案不把重排标成已完成 |
-| 任务编排 | `pnpm -r` 按依赖顺序执行，默认并发不超过 4。影响面由 `tools/repo-toolchain` 手写计算 | 用 turborepo 按输入缓存 `build` 和 `typecheck`。没改的成员跳过。影响面改用 `turbo run <task> --affected`，规则见下方补充 | 与下面的并发项二选一。上了 turborepo 就不再把 pnpm 并发调到核数。替换完成前，现行选择器继续执行，并保留未识别文件转全量 |
+| 任务编排 | `pnpm -r` 按依赖顺序执行，默认并发不超过 4。影响面由 `tools/ts-checks` 手写计算 | 用 turborepo 按输入缓存 `build` 和 `typecheck`。没改的成员跳过。影响面改用 `turbo run <task> --affected`，规则见下方补充 | 与下面的并发项二选一。上了 turborepo 就不再把 pnpm 并发调到核数。替换完成前，现行选择器继续执行，并保留未识别文件转全量 |
 | pnpm 并发 | 默认 `min(核数, 4)` | 若不上 turborepo，把 `workspace-concurrency` 设为 `-1`，即核数减一 | CI 共享机器可以另设上限。这一项不是 turborepo 的补充 |
 | 正确性检查 | 约 30 条自写结构规则，按单文件做语法分析 | oxlint 的正确性规则作门禁。测试风格规则只报告 | 新包从第一天打开正确性规则。`valid-expect` 和 `expect-expect` 的命中尚未逐条核实，不提前当成缺陷 |
 | 依赖方向 | 自写规则约束分组方向，不查文件循环 | dependency-cruiser 检查方向和循环。分组方向用配置表达 | 配置保留 `dist` 但不深入它。排除 `dist` 会让跨包导入消失。Cordis 服务关系继续自写 |
@@ -42,7 +42,7 @@ owner: PanQiWei
 
 ### 影响面选择
 
-这一节是 revision 2，已于 2026-10-14 接受。#227 只写了影响面计算有一部分可以交给 turborepo，没有给出机制，也没有在工作树里验证。`tools/test-runner/src/testing/affected.ts` 手写的原因是，pnpm 的 `--filter "...[<since>]"` 在 git 工作树里匹配不到任何包，而实施都在工作树里进行。
+这一节是 revision 2，已于 2026-10-14 接受。#227 只写了影响面计算有一部分可以交给 turborepo，没有给出机制，也没有在工作树里验证。`tools/ts-checks/src/testing/affected.ts` 手写的原因是，pnpm 的 `--filter "...[<since>]"` 在 git 工作树里匹配不到任何包，而实施都在工作树里进行。
 
 建议用 `turbo run <task> --affected` 替换这份手写计算。AIEPhoenix 在 macOS arm64、turbo 2.11.7、pnpm 10.28.1 上，从 main `6d0e6ee0` 的干净工作树做了一次对照。被测的仍是旧成员。结果只说明选择机制，不代表新包的规模。pnpm 在这三行里仍是 0 个包。第三行的 pnpm 没有测。
 
@@ -77,7 +77,7 @@ owner: PanQiWei
 | 方案 | 如何满足目标 | 代价、风险和失败后果 | 推荐或放弃理由 |
 | --- | --- | --- | --- |
 | 继续 TypeScript 6，只提高 pnpm 并发 | 少改编译条款 | 层与层的等待还在。旧编程接口的迁移被推迟，新包第一天就带上这条等待 | 放弃。#227 已把换编译器作为输入接受 |
-| TypeScript 7，编程接口也直接改到新 API | 不引入兼容包 | `tools/repo-toolchain` 和 `tools/core-verification` 今天调用 `createProgram` 和 `createSourceFile`。一次性迁移超出本提案的证据 | 放弃。兼容包保持这些调用的行为 |
+| TypeScript 7，编程接口也直接改到新 API | 不引入兼容包 | `tools/ts-checks` 和 `tools/core-verification` 今天调用 `createProgram` 和 `createSourceFile`。一次性迁移超出本提案的证据 | 放弃。兼容包保持这些调用的行为 |
 | 保留 Prettier | 没有重排差异 | 格式检查继续用较慢的实现 | 保留为可退回的备选。推荐 oxfmt，但重排差异未接受前不实施 |
 | 自写规则继续承担「谁导入谁」 | 不增加 dependency-cruiser | 文件循环继续看不见 | 放弃通用部分。专有服务关系留下 |
 

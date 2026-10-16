@@ -120,6 +120,6 @@ tenantCodec.encode(pair)
 
 ## 维护
 
-已点名的消费者是 `packages/identity/identity`、`packages/session/session`，以及 `tools/repo-toolchain` 的 `identity-shapes`。该检查从本包导入 `IDENTITY_TYPE_NAMES`。#220 接收 `{ parse, encode }` 这一对，不导入解析实现文件。
+已点名的消费者是 `packages/identity/identity`、`packages/session/session`，以及 `tools/product-checks` 的 `identity-shapes`。该检查从本包导入 `IDENTITY_TYPE_NAMES`。#220 接收 `{ parse, encode }` 这一对，不导入解析实现文件。
 
 新增原子家族时，先声明它的 spec 常量，把这一行放进 `IDENTITY_SPECS`，再加它的类型、codec、相等函数和测试。这项修改也会改变 `IDENTITY_TYPE_NAMES`，所以要同步 `identity-shapes` 的拥有者。修改前缀、字母表、失败码或检查顺序都会改变公开契约。修改前先同步已点名的消费者和共同组说明。

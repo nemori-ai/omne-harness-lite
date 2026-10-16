@@ -247,7 +247,7 @@ make test-affected BASE="$TASK_BASE" TIER=slow
 
 `check-plan`只输出计划。`test-affected`先构建选中成员及其上游，默认只跑快层；慢层由`TIER=slow`选择，`TIER=all`合跑两层。选择依据包括实际改动、依赖关系及显式读者规则，不能仅凭“没修改那个包”省略消费者验证。
 
-按 [RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择)，改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出；构建由 `turbo run build` 编排，按依赖先构建上游，本机读写 `.turbo/` 缓存。类型检查和成员测试仍由 `tools/repo-toolchain` 逐成员执行，测试耗时账本与验收账本照旧写出。
+按 [RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择)，改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出；构建由 `turbo run build` 编排，按依赖先构建上游，本机读写 `.turbo/` 缓存。类型检查和成员测试仍由 `tools/test-runner` 逐成员执行，测试耗时账本与验收账本照旧写出。
 
 turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
 
@@ -268,7 +268,7 @@ OMNE_TEST_TIER=fast pnpm --filter @omne-harness/<包名> run test
 pnpm --filter @omne-harness/<包名> exec vitest run <测试文件>
 ```
 
-测试归层、时限和耗时账本归[测试运行器](../tools/repo-toolchain/README_ZH.md#测试运行)及[分层定义](../vitest.tiers.mts)。新增真实等待、子进程、网络或重CPU用例时，按真实成本选择层并说明原因，不把慢任务藏在快层。
+测试归层、时限和耗时账本归[测试运行器](../tools/test-runner/README_ZH.md#测试运行)及[分层定义](../vitest.tiers.mts)。新增真实等待、子进程、网络或重CPU用例时，按真实成本选择层并说明原因，不把慢任务藏在快层。
 
 ### 失败与未知的处理
 
@@ -404,7 +404,7 @@ gh pr create --base main --head <自己的工作分支> \
 
 研发环境初始化后，先读[agent交付操作](engineering/agent-delivery.md)及[配置](engineering/github-delivery.json)的启用范围，再按[工作类型](engineering/work-types.md)选择必要输入和验证。配置未启用时，只做获准的草稿、只读观察或接入准备；不从封存PF或Git历史重新继承任务。平台配置完成不能代替默认分支模板、凭证、具名写者和真实任务验证。
 
-协议启用后的建卡、取任务、更新与决定记录由操作页提供顺序；卡或模板不替代当前SPEC和设计。只读工具的完整输入、输出与限制由实际[repo-toolchain](../tools/repo-toolchain/README.md)维护，不能靠一次工具通过自动派发或接受。
+协议启用后的建卡、取任务、更新与决定记录由操作页提供顺序；卡或模板不替代当前SPEC和设计。只读工具的完整输入、输出与限制由实际[dev-flow](../tools/dev-flow/README.md)维护，不能靠一次工具通过自动派发或接受。
 
 ## 终态与过程材料
 

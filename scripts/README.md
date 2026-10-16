@@ -36,8 +36,8 @@
 1. 常驻：`agents-check`、`docs-check`、`design-check`；
 2. 按计划：`make test`（pytest）；
 3. 常驻：`pnpm run format:check`、`pnpm run test:format`；
-4. 按计划：构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）、类型检查、成员测试——被选中成员的快层再慢层（[分层](../tools/repo-toolchain/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」；
-5. 常驻：`pnpm run lint:rules`（也核[验收的覆盖声明](../tools/repo-toolchain/README_ZH.md#验收的覆盖声明)与提交署名）；
+4. 按计划：构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）、类型检查、成员测试——被选中成员的快层再慢层（[分层](../tools/test-runner/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」；
+5. 常驻：`pnpm run lint:rules`（也核[验收的覆盖声明](../tools/product-checks/README_ZH.md#验收的覆盖声明)与提交署名）；
 6. 按计划：可执行验收——只跑被选中、带 `acceptance` 脚本的成员，驱动上面构建出来的 `dist/`，任何一份不过整套检查就失败；
    耗时记录写进主检出的 `tmp/acceptance-ledger/`，是下一步验收耗时传感器的读数来源。计划里一个带验收的成员都没有时，为当前提交记一份标着「本次影响面不含带验收的成员」的账本，传感器认它。
    现在只有 `apps/cli` 一份，约 10～16 秒。
