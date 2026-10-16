@@ -16,7 +16,7 @@ it('exports operation results from the root and does not export cordis helpers',
   )
   expect(parsed).toMatchObject({
     dependencies: { '@deepseek-ai/cordis': 'catalog:' },
-    engines: { node: '>=24.18.0 <25' },
+    engines: { node: '>=24' },
   })
 
   const indexJs = readFileSync(new URL('../dist/index.js', import.meta.url), 'utf8')
