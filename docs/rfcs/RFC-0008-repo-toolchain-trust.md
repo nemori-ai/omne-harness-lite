@@ -12,6 +12,8 @@ owner: Brian Lee
 
 本提案把 [#290 的实施方案](https://github.com/nemori-ai/omne-harness-lite/issues/290#issuecomment-6188641420)中已经由卡 [#332](https://github.com/nemori-ai/omne-harness-lite/issues/332) 实施的受信机制写成正式提案。该方案「本次实施采用的决定」第 4 项约定“正式文本写成新 RFC，部分后继 RFC-0004”。方案中尚未实施的部分（采用命令与本机发布命令的退役等）不在本提案内，见「决定范围」的不采用范围。提案采用、规范写回、实现和交付接受分别判断。2026-10-16 采用本提案 revision 1，记录见 [#354 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/354#issuecomment-6213174060)。
 
+> **更正标注（2026-10-16）**：「受信版本的载体与升级」中列举的仓库检查包含 `scripts/integration-check.sh`。该脚本已按 [RFC-0009](RFC-0009-adoption-and-local-tool-retirement.md) 删除。原文保留，本更正不改变本提案的决定。
+
 ## 问题与有效输入
 
 RFC-0004 规定由 `github-gate` 上的一个文件记录受信检查器的提交号，升级经一条专门的升级流程：新旧检查器都运行，确认后原子更新 main、受信版本文件与采用标签。这一设计同时决定了 #217。第二阶段才实施这条升级流程。

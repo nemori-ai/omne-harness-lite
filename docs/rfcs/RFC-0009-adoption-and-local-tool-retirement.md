@@ -169,10 +169,10 @@ RFC-0004 设想第二阶段把现行本机工具拆成“检查一半”与“�
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换或解除依据及确认者 |
 | --- | --- | --- | --- |
-| 采用机制退役、policy registry 瘦身、恢复方式 | [集成规则](../engineering/integration.md) | 待写回 | 未切换 |
-| 命令退役、`status` 与 `task-sync` | 集成工具 [README](../../tools/dev-flow/src/integration/README.md) 与 [SPEC](../../tools/dev-flow/src/integration/SPEC.md) | 待写回 | 未切换 |
-| 开发者操作 | [开发指南](../development.md)、`branch-integration` 与 `claim` skill | 待写回 | 未切换 |
-| 路径清单 | `github-gate` 的 `gate/toolchain-paths.txt` | 待写回 | 由 admin 修改 |
+| 采用机制退役、policy registry 瘦身、恢复方式 | [集成规则](../engineering/integration.md) | 已写回 | #364，2026-10-16。删除采用状态、未来启用与首次接入等节，改写两条基线、恢复方式与 policy registry 的说明 |
+| 命令退役、`status` 与 `task-sync` | 集成工具 [README](../../tools/dev-flow/src/integration/README.md) 与 [SPEC](../../tools/dev-flow/src/integration/SPEC.md) | 已写回 | #364，2026-10-16。README 按现存命令重写；SPEC 删除退役命令的条款，新增 `status` 与 `task-sync` 的条款 |
+| 开发者操作 | [开发指南](../development.md)、`branch-integration` 与 `claim` skill | 已写回 | #364，2026-10-16。开发指南与 `branch-integration` skill 改为新的 task-sync 做法，删除本机发布与采用的说法；`claim` skill 改用 `status` 读回 context |
+| 路径清单 | `github-gate` 的 `gate/toolchain-paths.txt` | 待写回 | #364 合入后由 admin 修改 |
 
 ## 后继关系与维护
 

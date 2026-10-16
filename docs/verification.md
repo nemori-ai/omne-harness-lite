@@ -127,7 +127,7 @@ SHA-256；当前环境是否安装、仓库是否定义了模型，是两个问�
 
 ## 集成的两条基线
 
-采用后的检查由[共同 loader](../tools/repo-toolchain/src/core/task-context.ts)取得固定 targetBase 与各卡 taskBase/taskSource。影响面按目标 B，验收锁按原任务逐提交审计并补 B..C；合法运输父保留其来源。显式 BASE 不能替代丢失 context。全局 main 趋势及未采用任务仍按原含义。候选执行证据和未来部署边界见[工具指南](../tools/dev-flow/src/integration/README.md)。
+有 task context 的检查由[共同 loader](../tools/repo-toolchain/src/core/task-context.ts)取得 targetBase 与本任务的 taskBase/taskSource。影响面按 targetBase，验收锁按原任务从 taskBase 逐提交审计，并补 targetBase 到 HEAD 的改动；合法运输父保留其来源。显式 BASE 与 targetBase 不同时拒绝。没有 context 的检出以显式基线或 `origin/main` 为基线。全局 main 趋势仍按 main。targetBase 只由 task-sync 前进，见[工具指南](../tools/dev-flow/src/integration/README.md#同步目标分支)。
 
 ## 包级测试责任与边界
 

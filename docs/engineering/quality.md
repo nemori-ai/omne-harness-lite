@@ -59,7 +59,7 @@
 
 ## 集成候选证据
 
-[分支集成](integration.md)把 targetBase 的影响检查与每卡 taskBase 的逐提交审计分别保存。受信 runner 的实际命令、结果和 clean C 才能形成候选证据；旧耗时 ledger、分支各自绿测及名为 full 的配置不能替代规定组合检查。现有四条硬线保留，不新增数值门槛。
+[分支集成](integration.md)把 targetBase 的影响检查与每卡 taskBase 的逐提交审计分别保存。组合检查须在实际合并结果上运行；旧耗时 ledger 和分支各自绿测不能替代它。现有四条硬线保留，不新增数值门槛。
 
 ## 区分四层就绪状态
 

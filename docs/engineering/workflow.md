@@ -52,4 +52,4 @@
 
 ## 共享集成与隔离
 
-工作树单写与任务权限继续按本页执行。涉及 work、轨道、main 或 stable 运输时，读取[多层分支规则](integration.md)：Issue 拥有 revision/attempt/route，集成 owner 拥有候选和精确 ref 事务。先观察共同采用状态；pending/原任务豁免不因文件生成而变成新准入。完整运输事实不替代接受。
+工作树单写与任务权限继续按本页执行。涉及 work、轨道、main 或 stable 运输时，读取[多层分支规则](integration.md)：Issue 拥有 revision/attempt/route，集成 owner 拥有候选和精确 ref 事务。开工以真实派发与 `start` 的准入为准，文件生成或手写 context 不构成准入。完整运输事实不替代接受。
