@@ -1,6 +1,6 @@
 # TypeScript package template
 
-This directory owns `typescript-package@2.0.0`. It is a development resource, not a workspace product member.
+This directory owns `typescript-package@3.0.0`. It is a development resource, not a workspace product member.
 Public interfaces, behavior and acceptance remain with their existing owners.
 The required member shape is [package organization](../../../../docs/package-organization.md#成员的必选结构).
 This generator emits a `build` script that deletes `dist` first, `erasableSyntaxOnly` on the build configuration, and `"files": ["dist"]`. It emits the `source` export condition before `types`. Published packages omit `source`. It emits `tests/public-entry.spec.ts`, which imports the package name and checks the current public exports. Add integration only for a package that implements storage or an application service, and an end-to-end test only for the owner of a key user journey. See [package test duty](../../../../docs/verification.md#包级测试责任与边界).
@@ -22,20 +22,22 @@ It validates inputs before writing and removes its incomplete new package on fai
 It does not install dependencies or execute package code. Use a trusted checkout without concurrent directory replacement.
 
 The result reports its template identity, version and variant. A generated draft has **no adoption marker**.
-Files contain `PACKAGE_TEMPLATE_DRAFT`. Complete accepted interfaces, behavior and real verification before removing placeholders.
-Creation does not generate empty specs, fictitious services or passing placeholder tests.
+Code files and the root READMEs contain `PACKAGE_TEMPLATE_DRAFT`. Complete accepted interfaces, behavior and real verification before removing these placeholders.
+The other Markdown files carry documentation placeholders. See "Complete skeleton" below.
+Creation does not generate fictitious services or passing placeholder tests.
 
 ## Resources and variants
 
 | Template resource          | Purpose                                                                                                                    |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | manifest.json              | Exact identity, version, file slots, required resources, variants and historical rules                                     |
-| common/                    | Manifest, TypeScript/Vitest configuration bilingual README drafts and bindings v2 registration                             |
+| common/                    | Manifest, TypeScript/Vitest configuration, bilingual README drafts, bindings v2 registration and the shared skeleton Markdown |
 | variants/module/           | Public functions and values without a binding entry                                                                        |
 | variants/cordis-module/    | Pure root and integration helpers or coordination bindings                                                                 |
 | variants/service-contract/ | Pure public definitions and separate Service definitions, keys and typed events                                            |
 | variants/service-provider/ | Independent factories and bindings that consume public Service definitions                                                 |
-| fragments/                 | Writing guides for actual documentation topics, complete owned behavior specifications, schema, verification and decisions |
+| variants/module/, variants/binding/ | Variant-specific `src/index.md`, `tests/index.md` and `docs/cordis.md`                                       |
+| fragments/                 | Writing guides for owned behavior specifications, schema, verification and decisions, and optional topics outside the skeleton |
 
 `service-contract` can be created in any kebab-case group, including `identity` and `access`. The directory name `core` does not grant create or scan permission.
 Ownership of Service definitions stays with [Product package organization](../../../../docs/package-organization.md).
@@ -46,7 +48,7 @@ The rules are the existing IC rows, the layer rows, `undeclared-dependency`, and
 `unknown` stays `unknown`.
 `--check` does not treat `unknown` as a pass. An `unknown` row alone does not make the exit code 1.
 
-Group direction is a separate check: the dependency-cruiser rules behind `pnpm run lint:deps`, see [ts-checks](../../../repo-toolchain/README_ZH.md#依赖图与依赖规则). A same-group import from `sdk` to `server-entry` violates `sdk-not-server` directly.
+Group direction is a separate check: the dependency-cruiser rules behind `pnpm run lint:deps`, see [repo-toolchain](../../../repo-toolchain/README_ZH.md#依赖图与依赖规则). A same-group import from `sdk` to `server-entry` violates `sdk-not-server` directly.
 
 ## Later implementers
 
@@ -73,39 +75,36 @@ A provider consumes the public promises instead of copying them.
 Private helper services do not automatically make a coordination package a public Service provider.
 Choose a variant from responsibility review, not directory names or a single extracted provide fact.
 
+## Complete skeleton
+
+Version 3.0.0 creates the complete skeleton from [RFC-0007](../../../../docs/rfcs/RFC-0007-source-packages-and-templates.md). [Package organization](../../../../docs/package-organization.md#完整生成树) lists the nodes. [Member documentation](../../../../docs/member-documentation.md#固定骨架) states the role of each file. Every skeleton node is required. The scan fails when one is missing.
+
 ```text
 packages/<group>/<name>/
-├── package.json                     Explicit exports, scripts, publishing and adopted version
-├── README.md / README_ZH.md          Actual responsibilities, entries, examples and boundaries
-├── documentation.json              Required files, sections and formal requirement sources
-├── docs/                           Conditional topics and declared static images
-├── SPEC.md                          Owned behavior beyond types; required for binding variants
-├── src/
-│   ├── index.ts                     Pure public root
-│   ├── cordis.ts                    Binding variants only
-│   └── <modules or subdirectories>  TypeScript implementation and public types
-├── tests/
-│   ├── <checks>.spec.ts/.spec-d.ts  Actual tests and public type checks
-│   └── fixtures/                   Test inputs, not current business specifications
-├── schema/                         External JSON Schema resources with stable identity
-├── resources/                      Runtime data and licensed upstream artifacts
-├── verification/
-│   ├── README.md                    Properties, assumptions, commands and evidence ownership
-│   ├── models/                     TLA+/Alloy or algorithm models and configurations
-│   └── proofs/                     Arguments or machine proof sources
-├── adr/                            Implementation decisions with continuing consumers
-├── acceptance/                     Independent acceptance owner's scenarios
-├── examples/                       Actual package use examples
+├── package.json, README.md, README_ZH.md, index.md, SPEC.md, documentation.json
+├── docs/              README.md + index.md; architecture, flows, object-model, public-api, context, cordis
+├── src/               README.md + index.md; index.ts; cordis.ts for binding variants only
+├── tests/             README.md + index.md; public-entry.spec.ts; cordis-entry.spec.ts for binding variants only
+│   └── fixtures/      README.md + index.md
+├── schema/            README.md + index.md
+├── verification/      README.md + index.md
+│   ├── models/        README.md + index.md
+│   └── proofs/        README.md + index.md
+├── adr/               README.md + index.md
+├── examples/          README.md + index.md
+├── resources/         README.md + index.md
+├── acceptance/        README.md + index.md
+│   └── fixtures/      README.md + index.md
 ├── tsconfig.build.json
 ├── tsconfig.test.json
 └── vitest.config.ts
 ```
 
-The tree shows available resource roles, not a requirement to create every optional directory.
+Each docs topic is either `docs/<topic>.md` or `docs/<topic>/` with README.md and index.md, never both.
+A missing topic reports `topic-missing`. A topic directory without an entry reports `topic-entry-missing`. A file and a directory together report `topic-duplicate`.
 The manifest declares all file slots. Source filenames and module counts vary within declared TypeScript slots.
-Schema, runtime resources, models, proofs and fixtures must occupy their declared locations and formats.
-Verification requires its README. Acceptance requires its separate Vitest configuration.
-A declared directory must contain actual resources. Do not add empty directories to imitate the template.
+Schema, runtime resources, models, proofs and fixtures must occupy their declared locations and formats. Verification requires its README.
+Acceptance configuration follows executable scenarios, not the directory. When `acceptance/` holds a `*.acceptance.ts` file outside `acceptance/fixtures/`, the package needs `vitest.acceptance.config.ts` and an `acceptance` script. The configuration requires at least one such scenario. A violation reports `acceptance`. With entry files only, no configuration is required and the scan reports `acceptance: none`.
 
 Types and necessary validation express shape. SPEC states the complete necessary behavior beyond public types and references its accepted basis.
 The specification has no fixed thickness limit. Shared guarantees stay with their owner instead of being copied.
@@ -153,7 +152,7 @@ After complete adaptation and manual integration review, an existing or complete
   "omneHarness": {
     "packageTemplate": {
       "id": "typescript-package",
-      "version": "2.0.0",
+      "version": "3.0.0",
       "variant": "service-provider"
     }
   }
@@ -162,7 +161,7 @@ After complete adaptation and manual integration review, an existing or complete
 
 Do not mark an incomplete tree, unresolved applicable obligation or unverified provider as adopted.
 The [1.0.0 adoption review](adoption-review.md) describes the earlier template adoption scope.
-It does not establish 2.0.0 adoption or replace current contracts and markers.
+It does not establish 2.0.0 or 3.0.0 adoption or replace current contracts and markers.
 The scanner is read-only. There is no automatic adoption or version upgrade command.
 
 Marker states are current, older, unmarked, invalid and unknown.
@@ -178,8 +177,9 @@ The manifest is the single current version source. Change its version when relea
 Existing packages keep their adopted version until their complete migration is checked.
 Unknown identities and future versions cannot be certified with current rules.
 
-Version 2.0.0 adds mandatory documentation.json and conditional documentation slots.
-previousVersions preserves the exact 1.0.0 required files, variants and complete layout.
+Version 3.0.0 adds the complete skeleton, the docs topic alternatives and acceptance configuration that follows executable scenarios. Its rule set is 3.
+previousVersions preserves the exact 2.0.0 and 1.0.0 required files, variants and complete layouts. Both keep ruleSet 2: no topic check, and `acceptance/` and `vitest.acceptance.config.ts` still require each other.
+Version 2.0.0 added mandatory documentation.json and conditional documentation slots. Version 1.0.0 has neither.
 Existing 1.0.0 markers remain older. They do not acquire the new registration requirement.
 A supported historical entry needs its exact required files, variant requirements, complete layout and immutable ruleSet 2 semantics.
 Without those rules, report uncovered. Future incompatible checking behavior requires a separate rule engine.
@@ -188,7 +188,8 @@ The withdrawn preliminary limited checker is not a published historical template
 ## Documentation and group drafts
 
 [Member documentation requirements](../../../../docs/member-documentation.md) own the required content.
-Both package READMEs contain seven required sections. Each section starts with a documentation placeholder.
+Both package READMEs contain seven required sections. Each section starts with a documentation placeholder. A "Directory structure and documentation roles" section shows the initial tree at creation.
+Every other skeleton Markdown file has a file-level placeholder before its first second-level heading and a placeholder under each section to complete. documentation.json registers all of them.
 The bindings v2 registration uses paths relative to the repository root and stable section IDs.
 Its adopted basis records the structural requirement, not acceptance of draft content.
 
@@ -202,13 +203,14 @@ pnpm package:template scan --group example --json --check
 uv run --locked omne-documentation inventory --root . --out tmp/documentation-inventory
 ```
 
-Use fragments/docs only when a topic has actual readers. Default creation does not copy these fragments.
-Register required topic files and sections in the owning documentation.json after adding actual content.
+fragments/docs keeps only the optional topics outside the skeleton: configuration, maintenance and guides. Use them only when a topic has actual readers. Default creation does not copy them.
+The former internals, api and usage fragments are now the architecture, public-api and context topics.
+Register optional topic files and sections in the owning documentation.json after adding actual content.
 The layout permits Markdown, SVG, PNG and WebP under docs. Empty directories and other formats fail.
 
 The TypeScript scanner checks layout, required registration and draft sentinels.
 The Python inventory checks bindings v2, source references, sections, placeholders and unknown applicability.
-A section placeholder appears as missing-section with reason `section body: placeholder-only`.
+A file-level placeholder makes the whole file `placeholder-only`. A section placeholder appears as missing-section with reason `section body: placeholder-only`. Both count as gaps. Neither blocks the adoption marker.
 An inventory exit of 0 means that the report completed, including gaps. Inspect its rows.
 Neither tool proves content sufficiency, independent installation, business behavior or semantic acceptance.
 
@@ -220,7 +222,7 @@ They do not certify historical group adoption. Older packages and groups outside
 ## Long-lived specifications and single-delivery input
 
 The [SPEC writing guide](fragments/specification/SPEC.md.tpl) covers owned behavior, failure, lifecycle, composition, and persistent verification.
-The [internal design fragment](fragments/docs/internals.md.tpl) explains the mechanism, responsibility, failure handling, and necessary reasons.
+The generated `docs/architecture.md` explains the mechanism, responsibility, failure handling, and necessary reasons.
 Use both only for real owned obligations. The public entry remains the data-shape authority.
 
 A single-delivery specification describes one task's implementation scope and acceptance input.

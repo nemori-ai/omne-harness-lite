@@ -199,16 +199,23 @@ pnpm package:template scan --group example-capabilities --check --json
 
 组默认只生成README.md与documentation.json，不创建假成员、空专题、源码或采用标识。完成实际内容后再运行检查。组内已有成员的能力组不能用创建命令覆盖，按模板要求逐项整改。
 
-当前service-contract创建和扫描仍限制core，下面命令展示实际支持范围，不是新成员必须归core的目标政策。新组公共Service的模板及静态规则适配须先由工具拥有者完成，不通过手写骨架或伪造标识绕过。
+service-contract的创建与扫描不限制能力组，公共Service定义随能力契约拥有者落入所属组。不通过手写骨架或伪造标识绕过模板。
 
 从仓库根先预览，再创建草稿：
 
 ```sh
-pnpm package:template create --group core --name example-capability --variant service-contract
-pnpm package:template create --group core --name example-capability --variant service-contract --write
+pnpm package:template create --group identity --name example-capability --variant service-contract
+pnpm package:template create --group identity --name example-capability --variant service-contract --write
 ```
 
 按职责选择module、cordis-module、service-contract或service-provider。公共Service定义随能力契约拥有者，独立能力从纯根导出，Cordis集成默认放 ./cordis。源码、行为契约、Schema、模型及必要说明的归属详见模板说明；能力组和成员包两层维护各自完整必要文档。生成草稿只报告模板来源，不写采用标识；占位须由真实承诺与验证替换，不生成空测试或假Service。
+
+当前模板 `typescript-package@3.0.0` 一次生成[完整骨架](package-organization.md#完整生成树)：包根 `index.md` 与 `SPEC.md`、docs 六个专题，以及每个固定目录的 `README.md` 与 `index.md`。各文件的职责见[成员文档](member-documentation.md#固定骨架)。草稿读数分两类：
+
+- 代码与包根 README 带 `PACKAGE_TEMPLATE_DRAFT`。扫描报告 `draft`，结构判失败，`--check` 退出 1，不能写采用标识。
+- 其余 Markdown 带文档占位标记，并已登记在 `documentation.json`。它们不阻止采用标识，但 inventory 读作 `placeholder-only` 并计为缺项。
+
+刚生成的 `acceptance/` 只有入口文件，没有可执行场景。此时不要求验收配置，扫描读作“无可执行验收场景”，测试运行器也不选这个成员跑验收。写入第一个 `*.acceptance.ts` 场景时，由验收的拥有者一并加入 `vitest.acceptance.config.ts` 与 `package.json` 的 `acceptance` 脚本。
 
 测试按[包级测试责任与边界](verification.md#包级测试责任与边界)选择。默认准备单元测试，以及从公开入口做的契约测试。实现具体存储或应用服务时，再增加集成测试。拥有关键用户旅程时，再增加旅程测试。生成器写出 `tests/public-entry.spec.ts`，从包名核对当前公开导出。它不为每个包生成集成目录、端到端目录或全系统启动脚本。这些入口的目录名尚未决定。公开契约替换草稿导出时，替换这份入口测试。
 
@@ -216,10 +223,10 @@ pnpm package:template create --group core --name example-capability --variant se
 
 ```sh
 pnpm package:template scan --json
-pnpm package:template scan --member packages/core/storage --check
+pnpm package:template scan --member packages/common/json-text --check
 ```
 
-逐包核对全部目录、文件和资源归属，完成模板全量适配及适用集成责任的人工核验后，才能添加 omneHarness.packageTemplate 的 id/version/variant。保留原公开能力、源码、Schema 身份及模型义务，不批量抬升标识。不完整、未核对和仍有适用偏离的包保持无标识。[逐包核对记录](../tools/dev-flow/templates/package/adoption-review.md)只记录此前版本采用范围，不表示已完成当前模板迁移。标识表示完整模板采用，不表示全系统或业务验收。
+未标识的现有成员按当前模板判定，因此会报告缺少骨架节点；这一读数不是迁移要求，迁移须另行授权。逐包核对全部目录、文件和资源归属，完成模板全量适配及适用集成责任的人工核验后，才能添加 omneHarness.packageTemplate 的 id/version/variant。保留原公开能力、源码、Schema 身份及模型义务，不批量抬升标识。不完整、未核对和仍有适用偏离的包保持无标识。[逐包核对记录](../tools/dev-flow/templates/package/adoption-review.md)只记录此前版本采用范围，不表示已完成当前模板迁移。标识表示完整模板采用，不表示全系统或业务验收。
 
 TS检查目录、必需文件、草稿及精确版本；Python文档盘点检查局部登记、必要章节和占位。组与成员各自维护一份documentation.json，工具默认发现两层登记，不在项目根重复登记成员目标。普通盘点退出0只表示执行成功，须阅读缺项和unknown；显式组检查不提供历史采用认证，也不替代成员扫描。
 
@@ -434,7 +441,7 @@ gh pr create --base main --head <自己的工作分支> \
 
 ## 终态与过程材料
 
-Git维护当前终态；正式RFC保留进入审议的方案与最小决定关系，真实Issue保留本次交付记录，范围见[四类长期成果与普通任务](engineering/documentation.md#四类长期成果与普通任务)。其他开发流水与决策形成史不作为永久正文。领域与成员各自维护完整必要文档；公开类型表达形状，`SPEC.md` 承担必要行为契约，不重复类型。使用说明、机制设计或选择理由按需另文维护，薄 SPEC 不是整个体系的厚度上限。测试、模型及可复跑验证资源随实际拥有者维护；ADR 只说明当前选择、必要理由和复核条件。项目要求与系统技术预期分别归[项目要求](requirements.md)和[架构](architecture/README.md)，产品与独立设计输入保持meta原源。尚未交接的具体旧技术承诺继续原责任，不复制成包内第二份权威。
+Git维护当前终态；正式RFC保留进入审议的方案与最小决定关系，真实Issue保留本次交付记录，范围见[四类长期成果与普通任务](engineering/documentation.md#四类长期成果与普通任务)。其他开发流水与决策形成史不作为永久正文。领域与成员各自维护完整必要文档；公开类型表达形状，`SPEC.md` 承担必要行为契约，不重复类型。新成员的使用定位、机制设计与对象模型有固定专题位置，其余指南与选择理由按需另文维护；薄 SPEC 不是整个体系的厚度上限。测试、模型及可复跑验证资源随实际拥有者维护；ADR 只说明当前选择、必要理由和复核条件。项目要求与系统技术预期分别归[项目要求](requirements.md)和[架构](architecture/README.md)，产品与独立设计输入保持meta原源。尚未交接的具体旧技术承诺继续原责任，不复制成包内第二份权威。
 
 未进入正式RFC的候选、逐轮讨论和评审、临时计划、进度及某次执行的输入与输出，写在本工作树`tmp/<task>/`。RFC与Issue的规定记录由其拥有者维护，不将全部过程材料提交。不要求永久追溯，不提交这些材料，不通过改名、搬进 research/ADR/fixtures 或建立 Git 历史链接台账继续入库。`.meta_harness/design/record/` 整体被忽略，不是新材料的落点。
 

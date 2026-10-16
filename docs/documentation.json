@@ -2226,6 +2226,22 @@
           "anchor": "成员包文档要求"
         },
         {
+          "id": "fixed-skeleton",
+          "anchor": "固定骨架"
+        },
+        {
+          "id": "topic-roles",
+          "anchor": "专题职责"
+        },
+        {
+          "id": "directory-entries",
+          "anchor": "目录入口"
+        },
+        {
+          "id": "placeholders-and-completion",
+          "anchor": "占位与完成"
+        },
+        {
           "id": "maintenance",
           "anchor": "阅读与维护路径"
         },

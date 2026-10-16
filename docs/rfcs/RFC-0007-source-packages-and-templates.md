@@ -8,7 +8,13 @@ owner: PanQiWei
 
 # RFC-0007：源码包与包模板
 
-规则与维护责任见[RFC入口](README.md)。本提案取代 [RFC-0003](RFC-0003-source-packages.md) revision 1 除「测试」一行以外的全部采用范围。「测试」一行已由 [RFC-0005](RFC-0005-package-testing.md) 取代，本提案只引用。本提案把 RFC-0003 仍然有效的条款、[#332](https://github.com/nemori-ai/omne-harness-lite/issues/332) 已经实施的工具归属变化，以及 [#343](https://github.com/nemori-ai/omne-harness-lite/issues/343) 要求的统一模板骨架写在一处。它不是实施许可。提案采用、规范写回、模板实现和交付接受分别判断。2026-10-16 采用本提案 revision 1，记录见 [#352 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/352#issuecomment-6212688730)。规范写回尚未发生。
+规则与维护责任见[RFC入口](README.md)。本提案取代 [RFC-0003](RFC-0003-source-packages.md) revision 1 除「测试」一行以外的全部采用范围。「测试」一行已由 [RFC-0005](RFC-0005-package-testing.md) 取代，本提案只引用。本提案把 RFC-0003 仍然有效的条款、[#332](https://github.com/nemori-ai/omne-harness-lite/issues/332) 已经实施的工具归属变化，以及 [#343](https://github.com/nemori-ai/omne-harness-lite/issues/343) 要求的统一模板骨架写在一处。它不是实施许可。提案采用、规范写回、模板实现和交付接受分别判断。2026-10-16 采用本提案 revision 1，记录见 [#352 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/352#issuecomment-6212688730)。规范写回与模板实施由 [#358](https://github.com/nemori-ai/omne-harness-lite/issues/358) 完成，模板版本为 `typescript-package@3.0.0`，见「写回现行正文」。
+
+> **更正标注（2026-10-16）**：实施 #358 时发现本提案有三处表述与同节或现行约定不一致。原文保留，本标注只更正读法，不改变本提案的决定。
+>
+> 1. 「占位、不适用与完成」的状态表把“刚生成的骨架”的结构扫描写作“通过，并报告 `draft`”。同节上一段写明 `PACKAGE_TEMPLATE_DRAFT` 的读数“与现行规则相同”，即 `draft` 使结构判失败、`--check` 退出 1。实施按后者：结构扫描为失败，并报告 `draft`。
+> 2. 同一状态表把骨架章节的 inventory 读数写作 `placeholder-only`。文件级占位读作 `placeholder-only`；章节级占位的 `status` 是 `missing-section`，`reason` 是 `section body: placeholder-only`。实施在每个骨架文件的首个二级标题前放文件级占位，因此文件读作 `placeholder-only`，其章节读作 `missing-section`。
+> 3. 「验收目录的配置条件」把可执行场景的判定写作 `*.ts`。现行约定（[workspace](../workspace.md) 的可执行验收与 `tools/product-checks` 的覆盖检查）只认 `*.acceptance.ts`。实施按 `*.acceptance.ts` 判定，`acceptance/` 下的辅助 `.ts` 不算场景。
 
 RFC-0003 的比较基准是接受时的原文，即写回提交 [`a50bcb0b`](https://github.com/nemori-ai/omne-harness-lite/blob/a50bcb0b/docs/rfcs/RFC-0003-source-packages.md) 中的版本。每条条款标出来源：
 
@@ -321,16 +327,16 @@ packages/<能力组>/<成员>/
 | 成员定义、成员规则、`package.json` 形状（沿用） | [包组织](../package-organization.md#成员的必选结构) | 已写回 | 指 RFC-0003 revision 1 的写回事实；本提案不改变含义 |
 | 源码条件名、包名作用域、类型检查入口（修改） | [包组织](../package-organization.md#成员的必选结构) | 已写回 | RFC-0002 与 #310 实施时写回 |
 | 首批候选现状、模板与检查器的归属、已知缺口（修改） | [包组织](../package-organization.md#现有成员与工具适配)、[workspace](../workspace.md) | 已写回 | #332 实施时写回 |
-| 同上，指南中的残余旧说法 | [开发指南](../development.md#创建和整改产品包)及其他引用 `tools/ts-checks` 的正文 | 待写回 | 接受后核对 |
+| 同上，指南中的残余旧说法 | [开发指南](../development.md#创建和整改产品包)及其他引用 `tools/ts-checks` 的正文 | 已写回 | #358，2026-10-16：删去“仍限制core”，模板说明的链接文字改为 repo-toolchain |
 | RFC 修订与后继关系、取代状态 | [RFC-0003](RFC-0003-source-packages.md) 的状态、后继关系表与更正标注；[RFC入口](README.md)规则、导航与[RFC模板](.templates/rfc.md) | 已写回 | 2026-10-16 随本提案入库 |
-| 完整生成树、每目录入口、专题职责（新增） | [包组织](../package-organization.md)「成员的必选结构」与「文档归属与维护路径」 | 待写回 | 未切换 |
-| 成员文档要求、占位与完成 | [成员文档](../member-documentation.md)「成员包文档要求」「行为契约与完整文档」「按需专题与持续资源」「阅读与维护路径」「检查与结论边界」 | 待写回 | 未切换 |
-| 固定文件的创建义务与按需另文的范围 | [文档治理](../engineering/documentation.md)「最低内容与维护」及两层成员文档相关要求 | 待写回 | 未切换 |
-| README 与 index 分工、拆页与登记 | [维护指南](../maintenance.md)「控制内容粒度」「新增正文与拆页」「登记目标与留空」 | 待写回 | 未切换 |
-| 建包与整改操作 | [开发指南](../development.md)「创建和整改产品包」「终态与过程材料」 | 待写回 | 模板未实施前须写明缺口 |
-| 模板使用说明 | [包模板中文说明](../../tools/dev-flow/templates/package/README_ZH.md)与[英文说明](../../tools/dev-flow/templates/package/README.md) | 待写回 | 未切换 |
-| 登记与投影 | `docs/documentation.json`、受影响成员的 `documentation.json`、[知识地图](../knowledge-map.md)与[体系上下文](../knowledge-map-agent.md)及关联 SVG | 待写回 | 未切换 |
-| 验收目录的配置条件与验收锁 | [验证说明](../verification.md)、测试运行器与模板说明 | 待写回 | 未切换 |
+| 完整生成树、每目录入口、专题职责（新增） | [包组织](../package-organization.md)「成员的必选结构」与「文档归属与维护路径」 | 已写回 | #358，2026-10-16 |
+| 成员文档要求、占位与完成 | [成员文档](../member-documentation.md)「成员包文档要求」「行为契约与完整文档」「按需专题与持续资源」「阅读与维护路径」「检查与结论边界」 | 已写回 | #358，2026-10-16：新增「固定骨架」「专题职责」「目录入口」「占位与完成」，改写「按需专题与持续资源」 |
+| 固定文件的创建义务与按需另文的范围 | [文档治理](../engineering/documentation.md)「最低内容与维护」及两层成员文档相关要求 | 已写回 | #358，2026-10-16 |
+| README 与 index 分工、拆页与登记 | [维护指南](../maintenance.md)「控制内容粒度」「新增正文与拆页」「登记目标与留空」 | 已写回 | #358，2026-10-16 |
+| 建包与整改操作 | [开发指南](../development.md)「创建和整改产品包」「终态与过程材料」 | 已写回 | #358，2026-10-16，与模板 3.0.0 同时切换 |
+| 模板使用说明 | [包模板中文说明](../../tools/dev-flow/templates/package/README_ZH.md)与[英文说明](../../tools/dev-flow/templates/package/README.md) | 已写回 | #358，2026-10-16 |
+| 登记与投影 | `docs/documentation.json`、受影响成员的 `documentation.json`、[知识地图](../knowledge-map.md)与[体系上下文](../knowledge-map-agent.md)及关联 SVG | 已写回 | #358，2026-10-16：`docs/documentation.json` 登记成员文档的四个新章节；新包的 `documentation.json` 由模板登记；知识地图、体系上下文与 SVG 逐句核对后无需改动；现有成员不迁移，其登记不变 |
+| 验收目录的配置条件与验收锁 | [验证说明](../verification.md)、测试运行器与模板说明 | 已写回 | #358，2026-10-16：验收锁的占位例外随 `@omne-harness/repo-toolchain` 0.0.4 生效；测试运行器按 `acceptance` 脚本选成员，行为不变 |
 | 测试责任 | [RFC-0005](RFC-0005-package-testing.md) 与[验证](../verification.md#包级测试责任与边界) | 不适用 | 由 RFC-0005 拥有 |
 
 接受后由执行者继续梳理上表以外的真实消费者，交付时给出从已接受条款到现行文档、工具与消费者的同步清单。
