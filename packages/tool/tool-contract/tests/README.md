@@ -19,7 +19,7 @@
 | [tool-values.ts](tool-values.ts) | 契约函数测试用的合法值构造器，不是测试文件 |
 | [public-api-names.spec-d.ts](public-api-names.spec-d.ts) | 已接受契约的 166 个类型名都能从根入口导入。名单从迁移前的 public-api 机械生成，拆包时 `ToolConfiguration` 与 `ToolDependencies` 移到 `@omne-harness/tool`。已实现的契约函数也能从根入口导入，并符合已接受的签名 |
 | [contract.spec-d.ts](contract.spec-d.ts) | 公开类型的负编译用例，例如品牌身份不能互换、后台收场不接受 `no-response`、Ask 没有 deadline |
-| [module-graph.ts](module-graph.ts) | 导入图遍历工具，读取静态导入、再导出、裸副作用导入和动态 `import()` |
+| [module-graph.ts](module-graph.ts) | 导入图遍历工具，读取静态导入、再导出、裸副作用导入和动态 `import()`。各 Tool 包各有一份同样的副本，因为测试不能跨包导入相对路径 |
 
 运行命令为 `pnpm --filter @omne-harness/tool-contract test`。该命令先构建，再运行 vitest，并对 `*.spec-d.ts` 做类型检查。`pnpm --filter @omne-harness/tool-contract typecheck` 单独检查全部测试源码。现有测试不覆盖独立执行、等待、控制、结果保管或恢复。Cordis 定义的测试在 `tool-cordis-contract`。这些行为实现后须补齐验证，义务见 [verification](../verification/index.md)。
 

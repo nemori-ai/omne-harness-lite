@@ -627,7 +627,7 @@ release 使用独立 ReleaseRecord，绑定原准备、资源和独立保管证�
 
 Tool 的事务只决定本域是否预留启动。受信执行边界再使用 ToolStartAuthority，核当前身份/授权、Session 或独立工作资格、推进代次、批决定、调用方式许可、固定定义和执行绑定、实际环境代次，以及 programmatic 子调用的原父程序推进屏障。prepare 生成包含各拥有者版本的 permit，permit 本身不授权执行。
 
-Tool 实现必须提供启动排序域和耐久受理台账。单机做法归 [tool-host-local](../tool-host-local/SPEC.md)。相关拥有者通过 invalidate 将资格失效纳入同一排序域，再确认该失效已生效。Session 归档的业务事实可以先保存，但不得在围栏失效未成立时对外声称新发起已经被阻止；这项集成义务归共同集成正文。准入资料不可读时拒绝新的 consume，不能读过期缓存放行。
+Tool 实现必须提供启动排序域。第一版单机做法采用同机的启动协调器和耐久受理台账，归 [tool-host-local](../tool-host-local/SPEC.md)。相关拥有者通过 invalidate 将资格失效纳入同一排序域，再确认该失效已生效。Session 归档的业务事实可以先保存，但不得在围栏失效未成立时对外声称新发起已经被阻止；这项集成义务归共同集成正文。准入资料不可读时拒绝新的 consume，不能读过期缓存放行。
 
 executor 先以原 start operation 保存不可执行的待发胶囊，取得 executorReceipt。consume 只能由这个受信执行边界调用。它核票据与当前 guard，在同一排序内将原胶囊从待发变为唯一可执行受理记录，形成 acceptance。胶囊在 consume 前不能运行，consume 后只由原执行桥按同一 startId 推进。外部工具受理或请求交给受信外发桥的这一点是启动线性化点；不是远端效果已完成。绑定的 start/resume 封装这一过程，不能把 consume 与任意函数调用自由拼接。
 

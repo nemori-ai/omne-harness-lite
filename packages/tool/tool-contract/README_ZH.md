@@ -13,7 +13,7 @@
 本包按公开契约、内部设计和验证职责组织文档。实际目录如下。
 
 ```text
-tool/
+tool-contract/
 ├── README.md / README_ZH.md   包职责与使用入口
 ├── index.md                  文件与阅读路径
 ├── SPEC.md                   行为唯一正文
@@ -23,9 +23,8 @@ tool/
 │   ├── flows.md              业务与数据流
 │   ├── object-model.md       对象模型
 │   ├── public-api.md         源码导航与尚未实现的函数签名
-│   ├── context.md            消费与系统定位
-│   └── cordis.md              集成责任
-├── src/                      README.md + index.md，公开类型、身份解码、契约函数、服务定义与正文端口
+│   └── context.md            消费与系统定位
+├── src/                      README.md + index.md，公开类型、身份解码、契约函数与正文端口
 ├── tests/                    README.md + index.md，成员测试与类型测试
 │   └── fixtures/             README.md + index.md，占位
 ├── schema/                   README.md + index.md，占位
