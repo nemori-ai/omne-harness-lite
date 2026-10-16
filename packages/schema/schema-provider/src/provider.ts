@@ -182,7 +182,7 @@ export function validate<T>(
     case 'empty':
       return begin(domain, schema, read, signal, 0)
     case 'cooling':
-      if (Date.now() < slot.retryNotBeforeMillis) {
+      if (/* wall-clock: operation-timing -- retry after schema load or compilation failure */ Date.now() < slot.retryNotBeforeMillis) {
         return Promise.resolve({
           kind: 'unavailable',
           reason: slot.reason,
@@ -227,7 +227,7 @@ export function lease<T>(
     case 'empty':
       return holdFlight(domain, schema.id, beginFlight(domain, schema, signal, 0))
     case 'cooling':
-      if (Date.now() < slot.retryNotBeforeMillis) {
+      if (/* wall-clock: operation-timing -- retry after schema load or compilation failure */ Date.now() < slot.retryNotBeforeMillis) {
         return Promise.resolve({
           kind: 'unavailable',
           reason: slot.reason,
@@ -387,7 +387,7 @@ function evictable(slot: Slot): boolean {
       return slot.snapshot.leases === 0
     case 'cooling':
       if (slot.held !== undefined && slot.held.leases > 0) return false
-      return Date.now() >= slot.retryNotBeforeMillis
+      return /* wall-clock: operation-timing -- retain failed compilation slots until retry cooldown ends */ Date.now() >= slot.retryNotBeforeMillis
     case 'retired':
       return slot.snapshot.leases === 0
     case 'empty':
@@ -577,7 +577,7 @@ function recordFailure(
     noteReload(domain, id, flight)
     return
   }
-  const retryNotBeforeMillis = Date.now() + domain.budget.failureBackoffMs
+  const retryNotBeforeMillis = /* wall-clock: operation-timing -- schedule the next schema load or compilation attempt */ Date.now() + domain.budget.failureBackoffMs
   domain.slots.set(id, {
     kind: 'cooling',
     attempts: next,

@@ -24,7 +24,7 @@
 
 | 规则                             | 来源                                                                                  | 查什么                                                                                                                                                                                                                                                                                                                                                                         | 不覆盖                                                                                                                                                |
 | -------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `no-wall-clock`                  | offer-expiry 节点 SC-OE-3                                                             | 原生产范围保留，infra 与测试豁免；CG1/D047仅另豁免 `frontend/governance-client-operations-local/src/observation-time.ts` 的副本显示时刻；Date.now、performance.now、无参 new Date，含解码成员与同文件 const/解构别名                                                                                                                                                           | 跨文件/可变赋值/函数传参/动态成员的数据流                                                                                                             |
+| `no-wall-clock`                  | offer-expiry 节点 SC-OE-3                                                             | 生产源码逐调用检查，测试豁免；非领域取时以类别与理由标注，见下文；Date.now、performance.now、无参 new Date，含解码成员与同文件 const/解构别名                                                                                                                                                           | 跨文件/可变赋值/函数传参/动态成员的数据流                                                                                                             |
 | `no-bail-control`                | basis `async-control-not-bail`                                                        | 不得调用 `ctx.bail(`，异步控制走 `serial`                                                                                                                                                                                                                                                                                                                                      | —                                                                                                                                                     |
 | `no-testing-import`              | apps/tenancy-host verification                                                        | 产品源码不得 import testing 子入口；静态、侧效应、字面动态/require、重导出、类型与解码说明符均查，测试豁免                                                                                                                                                                                                                                                                     | 非字面说明符、通过函数传参的动态装载                                                                                                                  |
 | `restricted-call-sites`          | AI S-30、OG S-42、入口契约 SC-1                                                       | `accounts.produce(` 与 `'organization-purge'` 只出现在 `tenancy/account-registration`（及定义它们的包）；`createPersonal(`、`activate(`、`purge(`、`sweepStaleSelections(`（`.m(` 与解构后的 `m(` 都算）同样只许在 AR 与定义它们的包（OG；AI）。入口层路由表不点名这四个，入口层包里出现即违反                                                                                 | `apps/` 不在扫描根内（装配调 `sweepStaleSelections` 不受查）；经别名或 `obj[name](../repo-toolchain/` 调用                                                              |
@@ -75,8 +75,30 @@ fixture 通过只证明检查器能检出指定反例，不证明尚未实现的
 新增无参 new Date 与 performance.now 的必红反例，合法 new Date(explicitInstant)、注释和字面量不误报。
 不另建同义规则。
 
-`no-wall-clock` 已改用 AST，同文件 const/解构别名、解码成员和 globalThis 访问也检查；原生产范围及 infra/测试例外保留。
+`no-wall-clock` 已改用 AST，同文件 const/解构别名、解码成员和 globalThis 访问也检查；测试例外保留；`infra/` 与旧 frontend 文件不再按路径豁免。
 不跟踪跨文件、可变赋值、函数传参或动态成员的数据流，不证明 clock 的租约/回拨保证。
+
+### 非领域取时的逐调用标注
+
+领域时间仍由 Clock 提供。等待、重试间隔等操作计时与业务期限的区别归[时间、顺序与版本](../../docs/architecture/cross-cutting-concepts.md#时间顺序与版本)。直接取时的非领域用途使用下面的单行块注释。
+
+```ts
+const started = /* wall-clock: operation-timing -- measure local lock wait */ Date.now()
+```
+
+类别有四种。
+
+| 类别               | 用途                                                 |
+| ------------------ | ---------------------------------------------------- |
+| `operation-timing` | 本机操作的等待耗时或重试间隔                         |
+| `internal-name`    | 内部临时名称中的时间成分，不承担唯一性或业务期限保证 |
+| `clock-source`     | Clock 提供者读取其声明的底层时间源                   |
+| `observation-time` | 只用于显示的本机观察时刻，不作为业务事实或授权依据   |
+
+注释采用示例中的固定前缀与分隔空格，包含一个类别、`--` 和非空理由。注释与取时表达式必须同处一行，中间只能有空格或制表符。它只放行紧接着的一个调用或无参构造。同一行的其他调用仍检查。标注放在声明前、括号外或前一行不生效。未知类别、空理由、多行注释和行注释也不生效。`new Date(value)` 只是转换，无需标注。
+
+规则验证标注的形状和位置，不能证明理由真实。评审者须核对每处用途及其拥有者契约。不得用操作计时类别绕过可信业务时间要求。生产扫描包含 `packages/`、`apps/` 和 `examples/` 中传入的源码；目录名不授予豁免。
+
 `no-testing-import` 现在解析说明符，静态/侧效应 import、重导出、import-type、字面 import()/require() 与解码拼写都检查，
 注释/字符串示例不算导入；测试豁免保持。计算说明符不能由此规则确定是否指向 testing；十五纯模块另由 core-pure-imports 拒绝非字面说明符。
 
