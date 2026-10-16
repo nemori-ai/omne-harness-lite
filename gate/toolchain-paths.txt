@@ -15,7 +15,6 @@ pnpm-workspace.yaml
 pnpm-lock.yaml
 Makefile
 scripts/check.sh
-scripts/integration-check.sh
 scripts/with-test-slot.sh
 scripts/git-environment.sh
 vitest.tiers.mts
@@ -54,7 +53,6 @@ uv.lock
 # Delivery and integration configuration
 docs/engineering/integration-policy.json
 docs/engineering/github-delivery.json
-docs/engineering/integration-bootstrap.json
 
 # CI definitions in the repository tree (the real flows live on github-gate)
 .github/workflows/**
