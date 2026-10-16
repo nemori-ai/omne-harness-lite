@@ -60,8 +60,8 @@ function git(cwd, args) {
 function compatible(root) {
   try {
     return (
-      statSync(resolve(root, 'tools/ts-checks/src/loop/stop-hook.ts')).isFile() &&
-      statSync(resolve(root, 'tools/ts-checks/node_modules/typescript/package.json')).isFile()
+      statSync(resolve(root, 'tools/repo-toolchain/src/loop/stop-hook.ts')).isFile() &&
+      statSync(resolve(root, 'tools/repo-toolchain/node_modules/typescript/package.json')).isFile()
     )
   } catch (error) {
     if (error.code === 'ENOENT') return false

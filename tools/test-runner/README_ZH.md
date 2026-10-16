@@ -1,0 +1,156 @@
+# test-runner
+
+[English](README.md)
+
+测试运行器：按影响面计划成员的构建、类型检查、测试与验收，逐成员运行并写耗时账本，另提供差分变异测试。规则在 [`test-runs.config.json`](test-runs.config.json)。本成员不发布，turbo 完全接替以后删除。账本的读取格式由 repo-toolchain 的 `core/test-ledger` 定义，clean loop 与体检页按它读取。
+
+## 测试运行
+
+`src/testing/` 是本包的第三入口：算一次改动的影响面（`make check` 的执行计划）、决定跑哪些成员的测试、以多大的并行度跑、把时间花在哪记成账本、
+失败之后单独重跑归类。它替代了根脚本里原先的 `pnpm -r run test`。同一个运行器也跑成员的可执行验收（`--script acceptance`）。
+
+```sh
+make check-plan [BASE=<基线>]              # 只算影响面并打印计划：判成什么、每一步跑还是跳、选中谁与为什么；FULL=1 全量
+make test-affected BASE=<基线提交或分支>   # 只构建并测试受这次改动影响的成员的快层；BASE 缺省 main，TIER=slow|all 换层
+make test-affected BASE=<基线> PLAN=1     # 只列受影响范围与层，不构建也不运行
+make test-tier TIER=slow                   # 先构建，再跑全部成员的某一层
+make test-triage RUN=<运行目录>            # 把那次运行里的失败逐条单独重跑并归类（测试或验收的运行都行）
+pnpm run test                              # 全量两层：先构建，再跑全部成员
+pnpm run test:gate                         # make check 的测试一步：按影响面计划跑被选中成员的快层再慢层（基线 BASELINE，缺省 main；FULL=1 全部）
+make acceptance                            # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；NO_BUILD=1 不构建
+```
+
+**分层。**测试分快慢两层，定义只在仓库根 [`vitest.tiers.mts`](../../vitest.tiers.mts) 写一处：一个 `slow` 标签（带慢层时限 120 秒），
+以及把环境变量 `OMNE_TEST_TIER`（`fast`／`slow`，不设为两层）翻成 vitest 的 `tagsFilter`、`passWithNoTests` 与 `experimental.preParse`。
+每个成员的 vitest 配置在 `test` 里先展开 `testTiers()`。一个测试归慢层：整个文件在开头注释里写 `@module-tag slow`，单条用例写 `{ tags: ['slow'] }`，
+并写一句为什么慢。时限的先后：用例自己写的（选项里的 `timeout` 或 `test(名字, 函数, 毫秒)`）＞ 慢层标签的 ＞ 成员配置的 `testTimeout` ＞ vitest 默认 5 秒。
+运行器的 `--tier fast|slow|all` 把层经 `OMNE_TEST_TIER` 交给每个成员（`all` 时置空，不让外面环境里的残留漏进来），慢层另加 `--typecheck.enabled=false`
+（`*.spec-d.ts` 都归快层）；`--base` 缺省 `fast`，`--all` 缺省 `all`，验收不分层、不接受 `--tier`。层记在账本的 `meta.tier`，
+慢层与快层运行的目录名带 `-slow`／`-fast` 后缀。被滤掉的用例在报告里是跳过，账本把它们计进「没跑」，不计进「用例」。
+整个文件都被滤掉时 vitest 不导入它；用例名或标签不是字面量时静态解析看不出，照常导入、导入后再过滤。
+自测：`tests/test-tiers.spec.ts` 真起 vitest 核对三种层各跑了什么、整文件归慢的在快层下不被导入、没有慢测试的项目在慢层下退出 0、标签写错会报错。
+
+**验收**（`run --all --script acceptance`）：选的是 `package.json` 里有 `acceptance` 脚本的成员（同样排除 `affected.excludeRoots` 和 `.legacy` 目录），
+逐个跑 `pnpm run acceptance`，并行度、vitest 报告、账本格式都与测试相同；账本根另放在主检出的 `tmp/acceptance-ledger/`
+（`OMNE_ACCEPTANCE_LEDGER_HOME` 可改），不混进体检页读的测试账本。每份 `ledger.json` 的 `meta.script` 写着跑的是哪一种，
+`triage` 照它经同一个脚本重跑（`pnpm run <脚本> <文件> -t …`，验收的那份带着自己的 vitest 配置）。`--all` 缺省不构建（由调用方先构建），
+给 `--build` 才构建；`--base` 缺省构建，`--no-build` 跳过。`make check` 不调 `make acceptance`，而是按计划跑 `step acceptance`：
+只跑被选中、带验收的成员（驱动前面构建好的 `dist/`，不再构建），任何一份不过整套检查就失败；一个都没有时记一份「跳过」的账本（见[验收耗时](../repo-toolchain/README_ZH.md#验收耗时)）。
+
+**影响面怎么算**（`src/testing/scope.ts` 归类改动文件，`src/testing/turbo.ts` 调 turbo 选成员；规则在 `test-runs.config.json` 的 `affected`）。改动文件取基线合并点到当前工作树的全部差异，
+含未提交与未跟踪的文件，改名拆成删与增两侧，文件名原样（不受 git 的引号转义影响）。完整成员清单读 `pnpm-workspace.yaml`，用于解析声明依赖。直接检查、测试及验收目标排除 `affected.excludeRoots` 下的成员和任意层级中以 `.legacy` 结尾的目录。`FULL=1`、未知路径回退和 `run --all` 均应用这一排除。必要的封存构建依赖可准备，但不运行其类型检查、测试和验收。`.legacy-not` 不属于排除后缀。
+以 `.legacy` 结尾目录中的改动先记为排除，不触发未知路径全量回退。其余改动文件按顺序归到第一类命中的：
+
+1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh`、本配置文件、
+   测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`scope.ts`／`turbo.ts` 与 repo-toolchain 的 `src/core/workspace.ts`、取改动的 `src/core/git.ts`，以及任何位置的 `turbo.json` 与 `tools/repo-config/`）：整份计划判全量——
+   引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围；
+2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；
+   每条记录实际读者和依据；`packages`、`apps`、`examples` 下的 TS → product-checks；成员清单 → test-runner；
+   工程协议及当前产品设计输入 → dev-flow 与 product-checks；
+   `docs/clean-loop.md`、整洁之道对照表、`scripts/with-test-slot.sh` → repo-toolchain 与 test-runner；
+3. **成员文件**：按最长的成员目录前缀归属。哪些成员进来由 turbo 的 `--affected` 给出：改了文件的成员，与按 `package.json` 声明的依赖
+   直接、间接依赖它的成员（含 `devDependencies`，因为测试可能导入生产代码不导入的包）。turbo 按包计改动：
+   成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）在这里归「只需常驻检查」，但 turbo 仍选中那个成员，计划里标「只改了文档」；
+   这比原先「成员文档不算改动」多跑，不少跑。`tests/` 等其余目录里的 `.md` 可能是夹具
+   （本包 `loop-canary.spec.ts` 就改写夹具里的 README 再断言），照成员改动算；
+4. **Python 工具**（`pythonPaths`）：跑 pytest；根 `Makefile` 也在这一类——`make check` 只经它跑常驻的几步与 `make test`，成员测试不经 make；
+5. **只需常驻检查**（`residentPaths`）：文档、设计区、research、`examples/`、`.github/`、格式配置、`tools/model-probe/` 等；
+6. 其余（没有规则认得的，如 `.gitignore`）：整份计划判全量，理由点名前几个文件与总数。
+
+读者、成员文件与 Python 工具三种归属可以同时成立（另一个成员的 `schema/` 既是那个成员的文件又被别的成员的测试读），三者都算。
+被选中的成员定下之后：测试、类型检查、验收各取其中有对应脚本的；构建取其中有 `build` 脚本的，
+另加 `residentBuild` 列的成员（`lint:rules` 导入它的 `dist`），纯文档改动也构建它；它们的上游由 `turbo run build` 按依赖先构建。
+`FULL=1` 或 `--full` 直接给全量计划。算不出计划——基线不存在、取不到改动、规则点名的成员不存在、turbo 出错、成员目录下有 `turbo.json`——就报错退出，不改判全量。
+turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基线显式传入、`OMNE_ADMISSION=1` 时只写不读缓存、关闭遥测与常驻进程）在 `src/testing/turbo.ts`。
+
+`cli.ts replay [--ref main] [--count 40]` 对一条分支最近的 first-parent 提交逐个以父提交为基线算计划（成员清单取那个提交上的、规则取现在的，只算不跑；turbo 的包依赖图取当前工作树的，是一个近似），
+改规则前后用它看「判全量的有几个、该不该全量」。
+
+**不能声称**：没被选中的成员通过；测试读了某个路径却没写进读者规则，改它时就漏选——规则是查出来的现状，不是机器推导的，
+新增一处这样的读取要同时补一条规则；环境变量、外部服务与时间不在影响面里。合并后没有自动补跑，全量由负责人不定时让一个会话手动跑 `make check FULL=1`。
+自测：`tests/affected.spec.ts` 用真实规则与一份造出来的成员清单核对各类改动的判法，另在临时仓库核对改名与非 ASCII 文件名。
+
+**怎么跑。**`make test-affected` 先 `pnpm --filter '<成员>...' run build` 把目标成员连同它们的依赖构建一遍（测试执行的是依赖的 `dist/`；
+`make check` 则由前面的构建一步按计划构建），
+再同时跑 `parallel.memberConcurrency` 个成员，每个成员的 vitest 至多起 `parallel.vitestMaxWorkers` 个工作进程。
+一个成员失败不拦其余的，结束时列全失败；退出码只反映测试是否全过。两个并行度可用环境变量
+`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时覆盖——后者是 vitest 自己认的变量，
+会盖过成员配置里的 `maxWorkers`。初值 2 × 4 是在 8 核主机上量出来的：pnpm 默认的 4 个成员并行、
+每个成员最多 7 个工作进程时，全量要 18 到 22 分钟且有十几条用例被挤过时限；2 × 4 约 13 分钟。
+
+**耗时账本。**每次运行在**主检出**的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/`（`OMNE_TEST_LEDGER_HOME` 可改根目录，
+`--out` 可直接指定）留下：
+
+| 文件                                              | 内容                                                                                                                                                                                                        |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `summary.md`                                      | 同时打印到标准输出：总数与墙钟、逐条失败、最慢的成员、超过 `ledger.slowFileSeconds` 的文件、导入耗时最多的成员、贴着自身时限的用例，以及「归层」一行（见下）                                                |
+| `ledger.json`                                     | 运行坐标（提交、是否干净、基线、并行度、核数、计划的模式与理由；按计划跑验收时另有 `scope`：跳过了谁、为什么）与成员、文件两级的用例耗时与导入耗时、贴着时限的用例（`nearTimeout`，带各自的时限）、失败清单 |
+| `<成员>.log`、`<成员>.json`、`<成员>.timing.json` | 各成员的原始输出、vitest 的 JSON 报告、计时报告                                                                                                                                                             |
+| `build.log`                                       | 受影响范围运行时的构建输出                                                                                                                                                                                  |
+
+**计时报告**是运行器随 JSON 报告一起挂给 vitest 的报告器（`src/testing/timing-reporter.ts`），补上 JSON 报告没有的两样：
+每个文件的导入耗时（vitest 的 `collectDuration`：导入测试模块及其依赖、执行 describe 回调），每条用例解析后的时限与标签。
+**贴着时限**指耗时 ≥ 用例自身时限 × `ledger.nearTimeoutRatio`（初值 0.5：空闲时就占掉一半时限的用例，机器一忙就会越线），
+按占时限的比例排；时限 0（vitest 里是不设时限）的不列；成员没写出计时报告时按 vitest 默认的 5 秒算，并在摘要里注明有几条是这样假定的。
+成员的 `fileSeconds` 是各文件用例耗时之和（从第一条用例开始到最后一条结束），`collectSeconds` 是各文件导入耗时之和；
+墙钟减去两者是进程启动、类型检查与并行重叠。同一文件里同名的用例取第一条的时限。
+
+**归层**一行只列事实，按计时报告里的标签分层：快层用例合计超过 `ledger.slowFileSeconds` 的文件、快层里超过单条预算的用例
+（耗时 ≥ 自身时限与 vitest 默认时限中较小的那个 × `nearTimeoutRatio`：自带更宽时限的用例也按默认时限判，快层的预算不随它放宽；
+这两项是快层的预算没守住），以及全归慢层、却每条都不到 vitest 默认时限 × `nearTimeoutRatio` 的一半、整份不到 `slowFileSeconds` 的一半的文件
+（归慢了却其实守得住；回快层的线取一半，是因为空闲与忙时的读数差一倍上下，同一条线会让贴着它的文件来回被点名）。各列前 `ledger.top` 个。只量这一次跑到的那一层：快层运行里看不到慢层，反之亦然；
+受机器负载影响，一次的读数只是线索。
+
+**失败归因。**`triage` 读那次运行的账本，把每处失败单独重跑 `triage.repeats` 次（一次只起一个工作进程、
+旁边不跑别的），用例名转义并加锚后交给 vitest 的 `-t`，再从 JSON 报告里核对这条用例确实跑了：
+
+| 归类           | 重跑看到了什么                                                                                                                                                               |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 隔离仍失败     | 每次单独跑都不过。与同时运行的其他负载无关                                                                                                                                   |
+| 隔离时过时不过 | 单独跑就不稳定                                                                                                                                                               |
+| 隔离稳定通过   | 每次单独跑都过；此时再把它所在的文件整个单独跑一次，一并报告。它只说明这不是该用例单独的逻辑错误——原失败可能来自并行负载，也可能来自用例之间的相互影响或执行顺序，工具不区分 |
+| 未能单独重跑   | 名字没选中、没有报告，或失败不在任何测试文件里（例如类型检查），要看日志                                                                                                     |
+
+归因只报告，不改变那次运行的结论。重跑的日志与报告在运行目录的 `triage/` 下。
+
+策略都在 [test-runs.config.json](test-runs.config.json)，不写死在代码里。自测：`tests/test-runs.spec.ts`；
+运行名额脚本的行为核对在 `tests/test-slot.spec.ts`，脚本本身见[自动化入口](../../scripts/README.md#运行名额)。
+
+## 差分变异
+
+`make mutation [BASE=<基线>]` 回答「这次改动碰到的代码，测试守不守得住」：把改动行上的代码逐处改坏（变异体），
+看有没有测试因此失败。`src/mutation/` 是 [Stryker](https://stryker-mutator.io/) 10 与它的 vitest runner 上面薄薄的一层，
+变异算子、插桩、调度与判定都是 Stryker 的，这里只做三件事：
+
+- **范围**：基线合并点到工作树（含未提交、未跟踪）的改动，取新一侧的行号（与[结构度量](../repo-toolchain/README_ZH.md#结构度量)同一份 diff 解析），
+  只留 `packages/`、`apps/` 成员 `src/` 下的源码（不含 `*.d.ts`），按成员写成 Stryker 的 `mutate` 条目 `文件:起-止`；
+  未跟踪的文件整份变异。`MEMBERS=<成员目录,…>` 改为变异点名成员 `src/` 下的全部源码。`PLAN=1` 只列范围。
+- **运行**：先构建这些成员及其依赖，再逐成员调用 Stryker：成员目录为工作目录、只跑**快层**（`OMNE_TEST_TIER=fast`）、
+  并行度取 `test-runs.config.json` 的 `parallel.vitestMaxWorkers`（环境变量 `VITEST_MAX_WORKERS` 可改）。
+  sandbox 放在与成员**同深度**的 `.stryker-tmp-*` 目录（被 `.gitignore` 忽略）：不少测试用 `import.meta.dirname`
+  拼相对路径读成员外的规格与根配置，换了深度就读不到。sandbox 里先把成员的 `node_modules` 软链进来再构建成员
+  （`src/mutation/sandbox-build.ts`），跑完连容器目录一起删掉。不就地改源码。
+  初跑跑本成员的全部快层，不按「直接导入了被变异文件」挑测试：不少测试按自己的包名导入，走的是 sandbox 里由插过桩的
+  源码重新构建的 `dist`，vitest 认不出它们与 `src` 的关系；之后每个变异体按逐条覆盖只跑碰到它的测试。
+  Stryker 给每个语句插桩记覆盖，CPU 重的用例会慢上几倍，平时守得住 5 秒的在初跑里就会超时；所以 sandbox 里另写一份
+  vitest 配置，展开成员自己的那份，只把没写自己时限的用例的时限放宽到 `mutation.testTimeoutSeconds`（初值 60 秒）。
+  成员的配置不动；变异体本身的超时由 Stryker 另判。初跑仍超时，说明有用例插桩后超过这个时限：比如 content-blocks
+  解码 4 MiB 的那条，点名整个成员时插桩了它碰到的全部文件，60 秒跑不完；只变异改动行时，只要改动不在它经过的文件里就不受影响。
+  调大时限的代价是碰到它的每个变异体都要跑那么久，这类成员只用差分范围。
+- **读数**：读每个成员的 `mutation.json`，只计落在要变异的行上的变异体（跨到范围外的另记一个数），
+  汇总被杀、超时、存活、无覆盖、编译错误、运行错误与分数（测出来的占测出来与没测出来之和），
+  逐条列出存活与无覆盖的「文件:行 算子 原文 → 替换」。原件、`summary.md`、`summary.json` 与各成员日志写进
+  主检出的 `tmp/mutation-ledger/<提交短号>[-dirty]/<时间>/`（环境变量 `OMNE_MUTATION_LEDGER_HOME` 可改）。
+
+**只报告**（负责人 2026-10-02 定）：变异体存活不影响退出码，不进 `make check`；Stryker 起不来、初跑失败、
+没写出报告才退出 1，参数错退出 2。读数的边界：
+
+- 存活少不等于测试好：只量了改动行，没改的代码不在内；变异算子之外的错误写法量不到。
+- 判定会抖（Stryker 的 perTest 判定已知会抖，上游 #6073）：一个存活要复跑确认，再决定补不补测试。
+- `static` 标记的变异体在模块加载时就求值，Stryker 只能为它跑全部测试，成本高。
+- 慢层的测试不参与：只被慢层测试守着的代码会显示为无覆盖或存活。
+- 只跑本成员自己的测试：靠别的成员的测试守着的代码（比如一个契约只由它的提供者的
+  一致性套件守着）会显示为无覆盖，那是变异的盲区，不是这份代码没人测。
+
+自测：`tests/mutation.spec.ts`，其中一条在夹具项目上真起 Stryker（归慢层）：没断言的测试留下存活变异体，
+在只按包名导入自己的测试文件里补上断言后被杀；只变异改动行；跑完不留 sandbox。

@@ -7,13 +7,13 @@ Codex 的 `.codex/hooks.json`。两端在 `Stop`、`SubagentStop` 上读同一�
 `Stop` 一组不带 matcher，`SubagentStop` 一组的 matcher 是子代理类型名用 `|` 连起来。
 生成物不手改；没有 `hooks.yaml` 或列表为空时不产出这两个文件。
 
-现在只有一条：`loop-stop-facts`，在会话收工（`Stop`）与 developer 子代理收工（`SubagentStop`）时跑执行仓库的收工钩子（`tools/ts-checks/src/loop/stop-hook.ts`，
-说明在 `tools/ts-checks/README_ZH.md`「收工钩子」一节）。
+现在只有一条：`loop-stop-facts`，在会话收工（`Stop`）与 developer 子代理收工（`SubagentStop`）时跑执行仓库的收工钩子（`tools/repo-toolchain/src/loop/stop-hook.ts`，
+说明在 `tools/repo-toolchain/README_ZH.md`「收工钩子」一节）。
 它核对产品源码、全局架构约束及其引用的 Markdown 依据，有要报告的读数时反馈。触发与基线选择以执行仓库的工具为准。
-新增偏离对 BASE 的预期判断，预期语义改动另列。机械范围归执行仓库的 `tools/ts-checks/src/arch/CONFORMANCE.md`。
+新增偏离对 BASE 的预期判断，预期语义改动另列。机械范围归执行仓库的 `tools/repo-toolchain/src/arch/CONFORMANCE.md`。
 同一分支上同一组读数只反馈一次；钩子自己出错从不拦人，只给用户一句警告。
 
-命令先选择有脚本与依赖的检出，否则回退到主检出脚本。实际受检根来自事件payload.cwd；不能从脚本位置或单次工具workdir推断受检候选。回退脚本的配置可能仍按脚本位置读取，去重状态按git common目录或OMNE_METRICS_HOME保存。精确分工归[工具说明](../../../tools/ts-checks/README_ZH.md#收工钩子)。不在Git仓库里时命令退出0，这不证明检查已发生。
+命令先选择有脚本与依赖的检出，否则回退到主检出脚本。实际受检根来自事件payload.cwd；不能从脚本位置或单次工具workdir推断受检候选。回退脚本的配置可能仍按脚本位置读取，去重状态按git common目录或OMNE_METRICS_HOME保存。精确分工归[工具说明](../../../tools/repo-toolchain/README_ZH.md#收工钩子)。不在Git仓库里时命令退出0，这不证明检查已发生。
 
 独立任务允许各写者使用隔离工作树，共享对象仍单写，具体条件归[协作交接](../../../docs/engineering/workflow.md#责任与协作交接)。每个写者须核对宿主传入的真实cwd与自己的检出；按绝对路径写别树、设置exec的workdir或源码重新生成，都不能证明hook观察已切换。原生宿主调用未核实的部分继续报告未覆盖，不以单树禁令代替证据。
 
@@ -34,7 +34,7 @@ Claude Code 与 Codex 的 `Stop` 已有真实会话执行证据，包括本工�
 ## 怎么关
 
 - 临时关一次会话：环境变量 `OMNE_LOOP_HOOK=off`，脚本立即退出、什么都不做。
-- 长期关：`tools/ts-checks/loop.config.json` 的 `hook.enabled` 置 `false`。
+- 长期关：`tools/repo-toolchain/loop.config.json` 的 `hook.enabled` 置 `false`。
 - 拿掉这条钩子：从 `hooks.yaml` 删掉它并重新编译。
 
 采用多层集成后，测量入口按实际 cwd 工作树读取共同 context；不从另一个树借 taskBase 或 targetBase。缺输入报告 unknown/error，pending 保持原读法。规则归执行仓库 `docs/engineering/integration.md`；生成和静态检查不证明宿主实际执行。

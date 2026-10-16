@@ -1,0 +1,27 @@
+{
+  "name": "@omne-harness/dev-flow",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "开发流程工具：开工准入、任务绑定、Issue 与看板读取，以及新建成员的包模板",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "omne-delivery": "./dist/delivery/cli.js",
+    "omne-package-template": "./dist/package-template/cli.js"
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "package:template": "node --experimental-strip-types src/package-template/cli.ts",
+    "delivery": "node --experimental-strip-types src/delivery/cli.ts"
+  },
+  "devDependencies": {
+    "@omne-harness/repo-toolchain": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
