@@ -1,6 +1,6 @@
 # 引用式内容块契约
 
-本页拥有工具多模态结果所需的共享值契约，已接受设计，尚未实现。当前 [源码](../src/index.ts) 的 image/voice 只支持 inline，message 的实际校验也尚不接受本页 ref 分支。下列定义只表达新增部分；既有其他导出保持由源码拥有，实现接管后本页改为导航。
+本页拥有工具多模态结果所需的共享值契约，已接受设计。[源码](../src/index.ts) 已实现下列类型，`judgeContentBlock` 按本页规则判断 ref 分支的形状。message 的块校验转交 `judgeContentBlock`，因此也接受同一形状。Tool 投影归 Tool，发送阶段的加载归 Model。下列定义只表达新增部分；既有其他导出保持由源码拥有，实现接管后本页改为导航。
 
 ```ts
 import type { BlockId, Visibility, ContentBlock as ExistingContentBlock } from '../src/index.js'
