@@ -1,8 +1,8 @@
 # Worker 探针观察
 
-日期是 2026-10-15。脚本是 `packages/storage/storage/verification/worker-probe.mjs`。它不注册为生产提供者。数据库文件在临时目录，不用 `:memory:`。
+日期是 2026-10-15。脚本是 `tools/storage-probe/worker-probe.mjs`。它不注册为生产提供者。数据库文件在临时目录，不用 `:memory:`。
 
-命令是 `node packages/storage/storage/verification/worker-probe.mjs`。退出码是 0。
+命令是 `node tools/storage-probe/worker-probe.mjs`。退出码是 0。
 
 这次机器是 darwin arm64，Node v26.0.0，连接上的 `sqlite_version()` 是 3.53.0。3.53.0 不低于 3.51.3。它不是规格基线 Node 24.21.0 / SQLite 3.53.4。本机没有那组基线。这些观察不能写成基线证明，也不能写成 SQL-T01 或断电试验。
 

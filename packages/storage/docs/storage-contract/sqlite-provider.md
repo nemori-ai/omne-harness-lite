@@ -2,7 +2,7 @@
 
 本设计已由 PanQiWei 在 [#247 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/247#issuecomment-6176738073)中接受。本页不授予生产实施资格。这里没有包、源码或生产提供者。
 
-公共结果、拒绝原因、配置项和五项证明以 [SPEC](../SPEC.md) 为准。下面走查 SQLite 提供者怎样得到这些结果。尚未决定的返回值见 [SPEC 的尚未决定](../SPEC.md#尚未决定)。
+公共结果、拒绝原因、配置项和五项证明以 [SPEC](SPEC.md) 为准。下面走查 SQLite 提供者怎样得到这些结果。尚未决定的返回值见 [SPEC 的尚未决定](SPEC.md#尚未决定)。
 
 ## 部件与归属
 
@@ -25,7 +25,7 @@ Worker 一次处理一条消息。`node:sqlite` 的语句在这条消息里同�
 
 ## 正常提交
 
-下列核对顺序描述单次提交怎样走过控制侧和 Worker。多个拒绝同时成立时，返回 [SPEC](../SPEC.md) 规定的第一个原因。
+下列核对顺序描述单次提交怎样走过控制侧和 Worker。多个拒绝同时成立时，返回 [SPEC](SPEC.md) 规定的第一个原因。
 
 1. 控制侧入口核对必需字段。字段缺失时，`commit` 返回 `field_missing`。命令数组为空时，同样返回 `field_missing`。
 2. 参加者重复时，`commit` 返回 `participant_repeated`。
@@ -160,7 +160,7 @@ sequenceDiagram
 
 ## 探针
 
-探针脚本是 `packages/storage/storage/verification/worker-probe.mjs`。它使用真实的 `node:sqlite` Worker 和隔离的数据库文件。探针不是生产提供者，不注册为包或入口。
+探针脚本是 `tools/storage-probe/worker-probe.mjs`。它使用真实的 `node:sqlite` Worker 和隔离的数据库文件。探针不是生产提供者，不注册为包或入口。
 
 运行之后，结果记在[探针观察](probe-observations.md)。
 

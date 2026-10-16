@@ -32,6 +32,7 @@ The group root contains no package.json or executable verification resources. Li
 
 manifest.json permits Markdown, SVG, PNG and WebP under docs. It also permits optional bilingual navigation and local agent instructions.
 Unknown files, empty directories, links and special nodes fail. An unknown child directory must have a real package manifest.
+Planning documents belong in a named topic under docs, even when a future member name is known. A README without a package manifest does not exempt a member directory from discovery. The domain scan has no planned-member category.
 Real member directories belong to the package scanner. docs is reserved and cannot be a member name.
 
 Explicit scan --group --check returns 1 for structural gaps or draft sentinels and 2 for invalid input.

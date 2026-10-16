@@ -12,6 +12,7 @@
 | [dev-flow](dev-flow/README.md) | 开发流程工具：开工准入与 task context、任务绑定、Issue 与看板读取、包模板；不发布 |
 | [test-runner](test-runner/README.md) | 影响面计划、逐成员测试与验收、耗时账本、差分变异；不发布，turbo 接替后删除 |
 | [repo-config](repo-config/README.md) | 共享的 tsconfig、oxlint 与 dependency-cruiser 配置预设；根配置只用 `extends` 或 `require` 引用它 |
+| [storage-probe](storage-probe/README.md) | 存储事务设计的 Node 标准库 Worker 探针，不提供生产存储实现 |
 | [model-probe](model-probe/README.md) | OpenRouter 公开目录和受预算控制的模型适配探针；Node 标准库工具，显式付费入口，不提供产品 adapter |
 
 设计链自身的身份、登记、冻结与形式任务检查归

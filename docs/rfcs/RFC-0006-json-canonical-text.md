@@ -21,7 +21,7 @@ owner: PanQiWei
 | [RFC-0001](RFC-0001-technical-foundations.md) revision 4，「严格JSON与数值」 | 读取用 jsonc-parser 3.3.1。禁止 `JSON.parse` 作为严格边界。增量读取必须保留同一拒绝语义 | 本提案不改读取库，不把 visitor 写回已接受实现 |
 | [公共 JSON 文本读取](../architecture/cross-cutting-concepts.md#json-text-reader) | 签名、预算、失败顺序、数字保留源词法 | 读取成功之后才运行字段 codec。写出不是读取的逆操作 |
 | [json-text 实现接受](https://github.com/nemori-ai/omne-harness-lite/issues/242#issuecomment-6173933512) | 2026-10-15。范围是两个读取函数、公开结果类型、六项预算、失败顺序、扫描器实现和叶子名 | 不含分块读取、规范写出、`stream-json` |
-| [存储事务规格](../../packages/storage/storage/SPEC.md)「公开类型」 | 协议版本 1 的摘要输入是命令数组的规范 JSON：键字典序、命令按 participant 排序、无空白、UTF-8 | 排序和空白规则保持。本提案补「规范 JSON」用哪一套写出算法 |
+| [存储事务规格](../../packages/storage/docs/storage-contract/SPEC.md)「公开类型」 | 协议版本 1 的摘要输入是命令数组的规范 JSON：键字典序、命令按 participant 排序、无空白、UTF-8 | 排序和空白规则保持。本提案补「规范 JSON」用哪一套写出算法 |
 
 ## 建议与改变范围
 
@@ -70,7 +70,7 @@ PanQiWei 于 2026-10-15 接受本提案 revision 1。接受之后，规范写出
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换或解除依据及确认者 |
 | --- | --- | --- | --- |
-| 规范写出采用 RFC 8785 | [技术基础](../architecture/technical-foundations.md)「严格JSON与数值」；[共同表示](../architecture/cross-cutting-concepts.md#表示与校验)；[存储事务规格](../../packages/storage/storage/SPEC.md)「公开类型」的摘要算法句 | 已写回 | PanQiWei，2026-10-15 接受 revision 1。同日写入这三处现行正文 |
+| 规范写出采用 RFC 8785 | [技术基础](../architecture/technical-foundations.md)「严格JSON与数值」；[共同表示](../architecture/cross-cutting-concepts.md#表示与校验)；[存储事务规格](../../packages/storage/docs/storage-contract/SPEC.md)「公开类型」的摘要算法句 | 已写回 | PanQiWei，2026-10-15 接受 revision 1。同日写入这三处现行正文 |
 | 读取侧保持已接受实现 | [公共 JSON 文本读取](../architecture/cross-cutting-concepts.md#json-text-reader) 与 `packages/common/json-text` | 免除写回 | 读取契约已经写在架构页。2026-10-15 的实现接受不改变该契约 |
 
 ## 后继关系与维护

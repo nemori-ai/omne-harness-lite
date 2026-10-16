@@ -177,17 +177,20 @@ describe('domain discovery and layout', () => {
     expect(() => discoverProducts(root)).toThrow('real manifest')
   })
 
-  // 暂行规则（legacy-refactor 完成后删除，见 #325）：有 README.md、既没有 package.json 也没有 src/ 的成员目录只有规划。
-  it('lists a documented member directory with neither manifest nor src as planned, not as a member', () => {
+  it('rejects planning documents in a member slot and accepts them under group docs', () => {
     const root = repository()
     completed(root)
     fs.mkdirSync(join(root, 'packages/sample/storage'))
     fs.writeFileSync(join(root, 'packages/sample/storage/README.md'), '# storage\n')
+    expect(() => discoverProducts(root)).toThrow('real manifest')
+    expect(scanDomains(root)[0]?.structure).toBe('fail')
+    fs.mkdirSync(join(root, 'packages/sample/docs'))
+    fs.renameSync(
+      join(root, 'packages/sample/storage'),
+      join(root, 'packages/sample/docs/storage-contract'),
+    )
     expect(discoverProducts(root)).toEqual([])
-    expect(scanDomains(root)[0]).toMatchObject({
-      structure: 'pass',
-      members: [],
-      planned: ['packages/sample/storage'],
-    })
+    expect(scanDomains(root)[0]).toMatchObject({ structure: 'pass', members: [] })
+    expect(scanDomains(root)[0]).not.toHaveProperty('planned')
   })
 })

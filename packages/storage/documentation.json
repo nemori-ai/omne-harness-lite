@@ -52,7 +52,7 @@
     },
     {
       "id": "target-storage-spec",
-      "path": "packages/storage/storage/SPEC.md",
+      "path": "packages/storage/docs/storage-contract/SPEC.md",
       "kind": "contract",
       "required": true,
       "visibility": "internal",
@@ -67,7 +67,7 @@
     },
     {
       "id": "placed-packages#storage#storage#README",
-      "path": "packages/storage/storage/README.md",
+      "path": "packages/storage/docs/storage-contract/README.md",
       "kind": "entry",
       "required": true,
       "visibility": "internal",
@@ -82,7 +82,7 @@
     },
     {
       "id": "placed-packages#storage#storage#docs#sqlite-provider",
-      "path": "packages/storage/storage/docs/sqlite-provider.md",
+      "path": "packages/storage/docs/storage-contract/sqlite-provider.md",
       "kind": "architecture",
       "required": true,
       "visibility": "internal",
@@ -97,7 +97,7 @@
     },
     {
       "id": "placed-packages#storage#storage#docs#probe-observations",
-      "path": "packages/storage/storage/docs/probe-observations.md",
+      "path": "packages/storage/docs/storage-contract/probe-observations.md",
       "kind": "verification",
       "required": true,
       "visibility": "internal",

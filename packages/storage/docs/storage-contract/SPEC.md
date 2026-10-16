@@ -1,6 +1,6 @@
 # 存储事务行为
 
-目标文档在 `packages/storage/storage`。本目录记录规格。workspace 包、源码和运行入口尚未建立。PanQiWei 于 2026-10-14 认可本规格的结果模型。断电耐久的提供者符合性仍由 [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 承接。系统行为以[数据与状态](../../../docs/architecture/data-and-state.md)为准。
+目标文档在 `packages/storage/docs/storage-contract`。本目录记录规格。workspace 包、源码和运行入口尚未建立。PanQiWei 于 2026-10-14 认可本规格的结果模型。断电耐久的提供者符合性仍由 [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 承接。系统行为以[数据与状态](../../../../docs/architecture/data-and-state.md)为准。
 
 [#247](https://github.com/nemori-ai/omne-harness-lite/issues/247) 补入的下列条款已由 PanQiWei 在[技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/247#issuecomment-6176738073)中接受：
 
@@ -135,7 +135,7 @@ type QueryResult = Committed | RolledBack | Unknown | NotCommitted
 
 `NotCommitted` 的五项证明由提供者构造。调用方代码不组装这个对象。
 
-协议版本 `1` 的输入摘要算法是 SHA-256。摘要写成十六进制小写。输入是命令数组的规范 JSON。调用方先按 `participant` 字典序排列命令。同一 `commit` 里 `participant` 重复时，提供者拒绝，不计算摘要。规范写出算法是 RFC 8785，见 [RFC-0006](../../../docs/rfcs/RFC-0006-json-canonical-text.md)。对象键按该标准排序。数组顺序保持调用方交给写出的顺序。JSON 中间没有空白。编码是 UTF-8。写出拒绝非 JSON 值，不自行转换。调用方不传入摘要。更换排序、空白或算法时，协议版本改为新的字符串。
+协议版本 `1` 的输入摘要算法是 SHA-256。摘要写成十六进制小写。输入是命令数组的规范 JSON。调用方先按 `participant` 字典序排列命令。同一 `commit` 里 `participant` 重复时，提供者拒绝，不计算摘要。规范写出算法是 RFC 8785，见 [RFC-0006](../../../../docs/rfcs/RFC-0006-json-canonical-text.md)。对象键按该标准排序。数组顺序保持调用方交给写出的顺序。JSON 中间没有空白。编码是 UTF-8。写出拒绝非 JSON 值，不自行转换。调用方不传入摘要。更换排序、空白或算法时，协议版本改为新的字符串。
 
 提供者在计算摘要之前做两项核对。任一项不成立时，`commit` 返回受理前拒绝。提供者不计算摘要，不写入回执，操作也不进入受理队列。
 
@@ -236,11 +236,11 @@ interface TransactionPort {
 
 ## 提供者义务
 
-SQLite 提供者在专用 Worker 内使用 `node:sqlite`。基线是 Node 24.21.0 内嵌的 SQLite 3.53.4。路线见[技术基础](../../../docs/architecture/technical-foundations.md#共同技术选择)。一个事务域使用一条写连接。命令在该连接的 `BEGIN IMMEDIATE` 中执行。提供者对每个连接读回 `journal_mode=WAL`、`synchronous=FULL` 和 `foreign_keys=ON`。Kysely 构造查询，并辅助迁移。提交边界是该连接上的事务。
+SQLite 提供者在专用 Worker 内使用 `node:sqlite`。基线是 Node 24.21.0 内嵌的 SQLite 3.53.4。路线见[技术基础](../../../../docs/architecture/technical-foundations.md#共同技术选择)。一个事务域使用一条写连接。命令在该连接的 `BEGIN IMMEDIATE` 中执行。提供者对每个连接读回 `journal_mode=WAL`、`synchronous=FULL` 和 `foreign_keys=ON`。Kysely 构造查询，并辅助迁移。提交边界是该连接上的事务。
 
 正在执行的 SQL 执行到结束。AbortSignal 只释放观察方，不归还仍在执行的预留。观察方释放后，原操作仍有结果拥有者。
 
-SQLite 提供者怎样兑现下列义务，见 [SQLite 提供者设计](docs/sqlite-provider.md)。
+SQLite 提供者怎样兑现下列义务，见 [SQLite 提供者设计](sqlite-provider.md)。
 
 SQLite 提供者启动时先核对四项配置。任一项缺失，或者不是有限正数，提供者拒绝启动。装配者给出数值。本规格不规定数值。
 
@@ -354,4 +354,4 @@ SQLite 提供者不打断正在执行的 SQL。关闭等待当前语句结束。
 
 这次探针的 Node 与 SQLite 版本不是规格基线 Node 24.21.0 和 SQLite 3.53.4。本机没有该基线。探针没有进入 Worker，也没有做断电试验。通知运输和 PostgreSQL 集群不在上述场景内。当 `synchronous` 为 `FULL` 时，普通进程终止证明进程级持久。
 
-#247 的 Worker 探针脚本是 `verification/worker-probe.mjs`。它不是生产提供者。运行之后，结果记入[探针观察](docs/probe-observations.md)。物理断电和 SQL-T01 不在 #247 内，仍未完成。行为模型也不在 #247 内。慢语句期间持续提交的内存上界还没有探针。
+#247 的 Worker 探针脚本是 [存储 Worker 探针](../../../../tools/storage-probe/README.md)。它不是生产提供者。运行之后，结果记入[探针观察](probe-observations.md)。物理断电和 SQL-T01 不在 #247 内，仍未完成。行为模型也不在 #247 内。慢语句期间持续提交的内存上界还没有探针。
