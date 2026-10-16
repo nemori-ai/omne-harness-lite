@@ -10,6 +10,8 @@ owner: PanQiWei
 
 规则与维护责任见[RFC入口](README.md)。本提案记录 [Issue #241 的补充评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165378893)，标识是 `package-testing-boundaries-20261014-241`。它后继 [RFC-0003](RFC-0003-source-packages.md) revision 1 里「测试」那一行。RFC-0003 的 status 保持 accepted。PanQiWei 于 2026-10-14 接受本提案 revision 1，记录见[接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165681764)。现行说明在[验证](../verification.md#包级测试责任与边界)。
 
+> **更正标注（2026-10-16）**：「验证与消费者切换」中的 `tools/ts-checks` 包模板说明，现位于 [`tools/dev-flow/templates/package`](../../tools/dev-flow/templates/package/README_ZH.md)（#332 拆分工具成员）。原文保留，本标注只更新位置，不改变本提案的决定。
+
 ## 问题与有效输入
 
 RFC-0003 revision 1 要求成员测试在源码可直接执行时读源码，并且禁止用旧 `dist` 让缺少产物的测试通过。它没有规定单元、契约、集成和端到端分别由谁承担，也没有规定例外怎样写明。
@@ -72,7 +74,7 @@ RFC-0003 revision 1 要求成员测试在源码可直接执行时读源码，并
 | `docs/verification.md` | 增加「包级测试责任与边界」。这是统一说明入口 |
 | `docs/engineering/quality.md` | 加一条指向该节的引用 |
 | `docs/member-documentation.md` | 每个成员说明公开承诺、适用测试种类、必要的真实依赖或替身、独立运行入口、未覆盖和不适用理由。已有成员文档能写下这些时，不另造台账 |
-| `docs/development.md` 和 `tools/dev-flow` 的包模板说明 | 说明怎样按职责选择、生成和运行测试 |
+| `docs/development.md` 和 `tools/ts-checks` 的包模板说明 | 说明怎样按职责选择、生成和运行测试 |
 | 交付卡模板、工程工作类型说明、适用的角色指引 | 补上契约测试、隔离边界和例外。只改真正引用了旧分工的文件。agent 指引改维护源并生成投影 |
 
 #242、#243、#244 的默认责任是自身单元、公开契约和独立消费。它们不启动治理服务、Session、数据库或完整 CLI。#245 验证自身状态、公开结果、受控时钟和必要进程边界。#246 在自身进程入口验证命令、输出、退出码和文件系统行为。该批的 help 和 version 不是完整业务旅程。#247 要写明未来提供者的真实数据库和 Worker 集成测试。当前探针不是生产提供者的符合性接受。#248 要写明公开契约和 Cordis 集成证据的责任。内核探针不扩展成每个业务包都运行的全系统旅程。这些卡消费写回后的规则。不在七张卡里复制本提案全文。
