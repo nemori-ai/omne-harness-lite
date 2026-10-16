@@ -8,7 +8,7 @@ owner: PanQiWei
 
 # RFC-0007：源码包与包模板
 
-规则与维护责任见[RFC入口](README.md)。本提案取代 [RFC-0003](RFC-0003-source-packages.md) revision 1 除「测试」一行以外的全部采用范围。「测试」一行已由 [RFC-0005](RFC-0005-package-testing.md) 取代，本提案只引用。本提案把 RFC-0003 仍然有效的条款、[#332](https://github.com/nemori-ai/omne-harness-lite/issues/332) 已经实施的工具归属变化，以及 [#343](https://github.com/nemori-ai/omne-harness-lite/issues/343) 要求的统一模板骨架写在一处。它不是实施许可。提案采用、规范写回、模板实现和交付接受分别判断。2026-10-16 采用本提案 revision 1，记录见 [#352 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/352#issuecomment-6212688730)。规范写回与模板实施由 [#358](https://github.com/nemori-ai/omne-harness-lite/issues/358) 完成，模板版本为 `typescript-package@3.0.0`，见「写回现行正文」。
+规则与维护责任见[RFC入口](README.md)。本提案取代 [RFC-0003](RFC-0003-source-packages.md) revision 1 除「测试」一行以外的全部采用范围。「测试」一行已由 [RFC-0005](RFC-0005-package-testing.md) 取代，本提案只引用。本提案把 RFC-0003 仍然有效的条款、[#332](https://github.com/nemori-ai/omne-harness-lite/issues/332) 已经实施的工具归属变化，以及 [#343](https://github.com/nemori-ai/omne-harness-lite/issues/343) 要求的统一模板骨架写在一处。它不是实施许可。提案采用、规范写回、模板实现和交付接受分别判断。2026-10-16 采用本提案 revision 1，记录见 [#352 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/352#issuecomment-6212688730)。规范写回与模板实施由 [#358](https://github.com/nemori-ai/omne-harness-lite/issues/358) 承接，模板版本为 `typescript-package@3.0.0`，见「写回现行正文」。
 
 > **更正标注（2026-10-16）**：实施 #358 时发现本提案有三处表述与同节或现行约定不一致。原文保留，本标注只更正读法，不改变本提案的决定。
 >
