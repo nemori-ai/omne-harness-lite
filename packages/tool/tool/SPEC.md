@@ -1,6 +1,6 @@
 # tool/tool 长期行为规格
 
-状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。当前源码只实现资产正文端口，运行契约及提供者尚未实现。HITL 双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
+状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。当前源码实现资产正文端口，根入口导出全部公开契约类型和品牌身份解码函数，`./cordis` 导出服务定义、服务键和事件增补。运行契约的函数、runtime 及提供者尚未实现。HITL 双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
 
 正文端口负责工具资产的读取与判定。执行、等待、结果保管和恢复由运行契约规定。
 
@@ -147,9 +147,9 @@ Agent 换代后认回原 Tool；工具自身确认丢失后失败收束且不自
 
 ## 主干运行契约
 
-本节规定主干运行契约。精确定义归 [public-api](docs/public-api.md)，消费及失败场景归 [context](docs/context.md)，对象模型与装配分别归 [object-model](docs/object-model.md) 和 [cordis](docs/cordis.md)。
+本节规定主干运行契约。精确类型归源码 [src/index.ts](src/index.ts)，[public-api](docs/public-api.md) 是源码导航并保留尚未实现的函数签名。消费及失败场景归 [context](docs/context.md)，对象模型与装配分别归 [object-model](docs/object-model.md) 和 [cordis](docs/cordis.md)。
 
-当前生产根入口只有资产正文端口。下述 runtime、executor 和结果接口尚未实现。共同对象关系见[运行对象模型](../../../docs/architecture/runtime/runtime-contract-model.md)。
+当前生产根入口导出资产正文端口、全部公开类型、品牌身份解码函数和默认结果政策的身份。下述函数、runtime、executor 和结果处理尚未实现。共同对象关系见[运行对象模型](../../../docs/architecture/runtime/runtime-contract-model.md)。
 
 Tool 拥有一次原调用、真实执行、等待、控制、原结果、效果与交付关系。它不替被调用领域写私有状态，不拥有 Run 终态。前台转后台改变等待关系，仍是同一执行。全文保留与待交付关系分开，下面没有 Model ACK 或按其规则清理 Tool 全文的操作。
 
@@ -321,9 +321,27 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 
 ### 完整设计与协议拥有者
 
-本节与 [protocols](#tool-操作协议) 共同构成行为规范。P01 至 P09 分别规定操作身份、准入队列、环境、启动、输出、等待、控制计时、保管及恢复退出的精确提交边界；类型只在 public-api。接口对应对象、寿命及依赖见 [object-model](docs/object-model.md)。[coverage](verification/coverage.md)逐项对齐十二项产品能力及验收反例。
+本节与 [protocols](#tool-操作协议) 共同构成行为规范。P01 至 P09 分别规定操作身份、准入队列、环境、启动、输出、等待、控制计时、保管及恢复退出的精确提交边界；类型只在源码，导航见 public-api。接口对应对象、寿命及依赖见 [object-model](docs/object-model.md)。[coverage](verification/coverage.md)逐项对齐十二项产品能力及验收反例。
 
 Code 的父子预留、可信来源、前台计时、可靠结果承接和控制原因边界见 [composition](#code-与-tool-的组合协议)。其语言/引擎和执行域具体提供者另行固定采用，不在 Tool 治理规格中虚构选型。MODEL-E01 的共享 ref 迁移仍待实施，不以泛型或接口完整性核销。
+
+<a id="342-契约缺口决定"></a>
+
+### 契约缺口决定（G1–G9）
+
+下列决定于 2026-10-16 接受。它们补齐公开契约的可实施点，并按两成员拆分重新归属入口。契约成员是 `@omne-harness/tool`，提供者成员是 `@omne-harness/tool-host-local`。
+
+| 编号 | 决定 | 归属成员 |
+| --- | --- | --- |
+| G1 | 账本工厂 `createToolLedger(store, guards, clock)` 返回 `{ commands, reads }`。记录仓端口 `ToolLedgerStore` 按事务域读取一组记录，再按修订号原子提交一组写入 | 提供者成员根入口 |
+| G2 | `createIndependentToolScope(input)` 构造独立执行作用域：本地接收者、显式上限、内存等待历史，按 [P11](#p11-作者输出与等待原语) 只承诺 `local` 回执。输入类型是 `IndependentToolScopeInput` | 契约成员根入口 |
+| G3 | 具名默认结果政策只接受文本块与共享引用块，拒绝 thinking、inline 媒体与嵌套容器（[P14](#p14-附件引用与模型交付)）。其身份是 `defaultResultPolicyAdoption` | 契约成员根入口 |
+| G4 | 宿主时钟适配器：同进程单调时钟加进程 epoch，跨进程比较返回 unknown（[P07](#p07-计时控制与检查点)） | 提供者成员根入口 |
+| G5 | 本地启动协调器实现 [P04](#p04-实际发起围栏) 的同机排序域。其他拥有者通过 `invalidate` 进入同一排序域。耐久受理台账依赖记录仓 | 提供者成员根入口 |
+| G6 | `./testing` 入口：契约成员提供端口一致性套件，提供者成员提供真实 runtime 的测试装配、非耐久记录仓和记录仓一致性用例。套件不依赖测试框架，返回用例列表，用 `node:assert` 判定 | 两个成员的 `./testing` |
+| G7 | `ToolBindingRegistry` 由提供者成员实现。`ToolLoader` 的设置读取与作者工厂仍是构造依赖 | 提供者成员根入口 |
+| G8 | `createToolRuntime` 进入提供者成员根入口。`executeTool` 与 `createIndependentToolScope` 留在契约成员根入口，按 IC-5 作为契约词汇 | 见本行 |
+| G9 | 提供者成员命名为 `packages/tool/tool-host-local` | 提供者成员 |
 
 ## 定义、可用性与发起
 

@@ -1,51 +1,172 @@
-import { readdirSync, readFileSync } from 'node:fs'
-import { expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { Service } from '@deepseek-ai/cordis'
+import { resolveOptional } from '@omne-harness/kernel-basis/cordis'
+import { startTestAssembly } from '@omne-harness/kernel-basis/testing'
+import { describe, expect, it } from 'vitest'
+import * as cordis from '@omne-harness/tool/cordis'
+import {
+  ToolClockService,
+  ToolInstancesService,
+  toolClockKey,
+  toolInstancesKey,
+  type ToolPublicationAuthority,
+} from '@omne-harness/tool/cordis'
+import { decodeToolCallId, decodeToolInstanceId, type ToolClock } from '@omne-harness/tool'
+import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+import { describeImport, memberPath, walkModules, type ModuleKind } from './module-graph.ts'
 
-const dist = new URL('../dist/', import.meta.url)
+/** The key table of docs/cordis.md, plus the facade key `toolRuntime`. */
+const documentedKeys = [
+  'toolRuntime',
+  'toolCommands',
+  'toolBindings',
+  'toolEnvironments',
+  'toolDecisions',
+  'toolInstances',
+  'toolPublicationAuthority',
+  'toolInstanceHost',
+  'toolClock',
+  'toolResultPolicy',
+  'toolReads',
+  'toolCatalog',
+  'toolStartAuthority',
+  'toolResourceResponses',
+  'toolOutputCustody',
+  'toolChildren',
+  'toolAccounts',
+  'toolOffloader',
+]
 
-function builtModules(): string[] {
-  return readdirSync(dist, { recursive: true, encoding: 'utf8' }).filter(file =>
-    file.endsWith('.js'),
-  )
-}
+const exported = Object.entries(cordis as Record<string, unknown>)
+const keyConstants = exported.filter(([name]) => name.endsWith('Key'))
+const serviceClasses = exported.filter(
+  (entry): entry is [string, typeof Service & { provide: string }] =>
+    typeof entry[1] === 'function' && entry[1].prototype instanceof Service,
+)
 
-/** Follows relative imports from one built module and returns every module that it reaches. */
-function reachable(entry: string): Set<string> {
-  const seen = new Set<string>()
-  const pending = [entry]
-  for (let file = pending.pop(); file !== undefined; file = pending.pop()) {
-    if (seen.has(file)) continue
-    seen.add(file)
-    const source = readFileSync(new URL(file, dist), 'utf8')
-    for (const match of source.matchAll(/\bfrom\s+['"](\.{1,2}\/[^'"]+)['"]/gu)) {
-      const target = new URL(match[1] as string, new URL(file, dist))
-      pending.push(target.href.slice(dist.href.length))
+describe('service keys', () => {
+  it('exports 18 unique keys, the documented ones', () => {
+    const keys = keyConstants.map(([, value]) => value)
+    expect(keys).toHaveLength(18)
+    expect(new Set(keys).size).toBe(18)
+    expect([...keys].sort()).toEqual([...documentedKeys].sort())
+  })
+
+  it('takes every key from the static provide of exactly one service class', () => {
+    expect(serviceClasses).toHaveLength(18)
+    const provides = serviceClasses.map(([, type]) => type.provide)
+    expect(new Set(provides).size).toBe(18)
+    for (const [name, value] of keyConstants) {
+      const owners = serviceClasses.filter(([, type]) => type.provide === value)
+      expect(owners, name).toHaveLength(1)
     }
-  }
-  return seen
+  })
+
+  it('names each service class after its port, with the Service suffix', () => {
+    for (const [name] of serviceClasses) expect(name).toMatch(/^[A-Z][A-Za-z]+Service$/u)
+  })
+})
+
+describe('contract cordis entry has no provider', () => {
+  const entries: readonly (readonly [ModuleKind, string])[] = [
+    ['source', 'src/cordis.ts'],
+    ['javascript', 'dist/cordis.js'],
+    ['declaration', 'dist/cordis.d.ts'],
+  ]
+  it.each(entries)('in the %s graph from %s', (kind, entry) => {
+    const graph = walkModules(memberPath(entry), kind)
+    const provider = graph.imports.filter(edge =>
+      /^@omne-harness\/tool-host-local(\/|$)/u.test(edge.specifier),
+    )
+    expect(provider.map(describeImport)).toEqual([])
+    expect(graph.imports.map(edge => edge.specifier)).toContain('@deepseek-ai/cordis')
+  })
+
+  it('depends on Cordis and not on the provider member', () => {
+    const manifest = JSON.parse(readFileSync(memberPath('package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+    }
+    expect(manifest.dependencies).toMatchObject({ '@deepseek-ai/cordis': 'catalog:' })
+    expect(Object.keys(manifest.dependencies ?? {})).not.toContain('@omne-harness/tool-host-local')
+    expect(Object.keys(manifest.devDependencies ?? {})).not.toContain(
+      '@omne-harness/tool-host-local',
+    )
+  })
+})
+
+describe('under Cordis 4.0.4', () => {
+  const allow: ToolPublicationAuthority<string> = { check: () => ({ ok: undefined }) }
+
+  it('resolves a provider through the abstract definition key', async () => {
+    class FixedClock extends ToolClockService {
+      readonly now: ToolClock['now'] = () => '0'
+      readonly begin: ToolClock['begin'] = async () => ({ failure: unsupported })
+      readonly elapsed: ToolClock['elapsed'] = async () => ({ failure: unsupported })
+      readonly waitUntil: ToolClock['waitUntil'] = async () => 'cancelled'
+    }
+    const assembly = await startTestAssembly([
+      { name: 'clock', apply: ctx => void new FixedClock(ctx) },
+    ])
+    try {
+      const clock = resolveOptional<ToolClockService>(assembly.context, toolClockKey)
+      expect(clock).toBeInstanceOf(FixedClock)
+      expect(clock?.now()).toBe('0')
+    } finally {
+      await assembly.dispose()
+    }
+  })
+
+  it('directory replies named failures until ticket 13 and never throws', async () => {
+    const assembly = await startTestAssembly([
+      { name: 'directory', apply: ctx => void new ToolInstancesService(ctx, allow) },
+    ])
+    try {
+      const directory = resolveOptional<ToolInstancesService<string>>(
+        assembly.context,
+        toolInstancesKey,
+      )
+      expect(directory).toBeInstanceOf(ToolInstancesService)
+      const connected = await directory?.connect({ principal: 'p', tenant: owner, call })
+      expect(connected).toMatchObject({
+        failure: {
+          kind: 'unsupported',
+          adoption: { owner: '@omne-harness/tool', name: 'toolInstances' },
+        },
+      })
+      const registered = await directory?.register({
+        publication: [
+          { tenant: owner, call, instance, generation: '1' },
+          { instance, observe: async function* () {} },
+        ],
+        authority: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
+      })
+      expect(registered).toMatchObject({ failure: { kind: 'unavailable' } })
+    } finally {
+      await assembly.dispose()
+    }
+  })
+})
+
+function decoded<T>(outcome: { ok: T } | { failure: unknown }): T {
+  if ('failure' in outcome) throw new Error('fixture identity text does not decode')
+  return outcome.ok
 }
 
-it('draft cordis entry exports nothing until the accepted binding replaces it', async () => {
-  const cordis = (await import('@omne-harness/tool/cordis')) as Record<string, unknown>
-  expect(Object.keys(cordis)).toEqual([])
-})
+function parsed<T>(result: { ok: true; value: T } | { ok: false }): T {
+  if (!result.ok) throw new Error('fixture identity text does not parse')
+  return result.value
+}
 
-it('keeps the root entry graph free of Cordis and of the binding module', () => {
-  const graph = reachable('index.js')
-  expect(builtModules()).toEqual(expect.arrayContaining([...graph]))
-  expect(graph.size).toBeGreaterThan(1)
-  expect(graph.has('cordis.js')).toBe(false)
-  for (const file of graph)
-    expect(readFileSync(new URL(file, dist), 'utf8')).not.toContain('@deepseek-ai/cordis')
-})
+const owner = tenant(
+  parsed(organizationCodec.parse(`org_${'0'.repeat(26)}`)),
+  parsed(accountCodec.parse(`acc_${'1'.repeat(26)}`)),
+)
+const call = decoded(decodeToolCallId('call_1'))
+const instance = decoded(decodeToolInstanceId('instance_1'))
 
-it('depends on no provider member and declares no Cordis dependency while the binding is a draft', () => {
-  const manifest = JSON.parse(
-    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-  ) as {
-    dependencies?: Record<string, string>
-  }
-  const dependencies = Object.keys(manifest.dependencies ?? {})
-  expect(dependencies).not.toContain('@omne-harness/tool-host-local')
-  expect(dependencies).not.toContain('@deepseek-ai/cordis')
-})
+const unsupported = {
+  kind: 'unsupported',
+  adoption: { owner: 'test', name: 'clock', revision: '1', digest: 'd' },
+  reason: 'not used',
+} as const

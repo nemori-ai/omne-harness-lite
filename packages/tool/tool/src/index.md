@@ -3,6 +3,19 @@
 - [源码职责与现状](README.md)。
 - [根入口](index.ts)。
 - [资产正文端口](contract.ts)。
-- [Cordis 入口草稿](cordis.ts)。
-- [公开接口设计](../docs/public-api.md)。
+- [品牌身份与解码函数](identity.ts)。
+- [定义与固定请求](definitions.ts)。
+- [返回与执行事实](results.ts)。
+- [普通操作与实例目录](operations.ts)。
+- [作者执行上下文](author-context.ts)。
+- [执行者与账本命令端口](execution.ts)。
+- [提供者端口与 runtime 工厂输入](ports.ts)。
+- [定义、作者适配与独立消费](authoring.ts)。
+- [持久状态与协议记录](records.ts)。
+- [输出保管、持久读取与账目](custody.ts)。
+- [程序编排接缝](program.ts)。
+- [默认结果政策的身份](result-policy.ts)。
+- [可复算的采用摘要](adoption.ts)。
+- [Cordis 服务定义入口](cordis.ts)。
+- [源码导航](../docs/public-api.md)。
 - [包索引](../index.md)。

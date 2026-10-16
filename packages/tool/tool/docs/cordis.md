@@ -4,7 +4,7 @@
 
 ## 服务定义与入口
 
-Tool 按 #343 模板拆成两个成员。契约成员 `@omne-harness/tool` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。提供者成员 `@omne-harness/tool-host-local` 的 `./cordis` 发布限定名具体提供者，并继承这些定义。消费者只依赖契约成员，不依赖提供者成员。根接口尚未导出，因此代码是未来声明形状，不是当前可导入示例。实现不得复制方法形状，索引类型随根契约同步。
+Tool 按 #343 模板拆成两个成员。契约成员 `@omne-harness/tool` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。提供者成员 `@omne-harness/tool-host-local` 的 `./cordis` 发布限定名具体提供者，并继承这些定义。消费者只依赖契约成员，不依赖提供者成员。下列代码给出 [src/cordis.ts](../src/cordis.ts) 中这些定义的公开形状，源码是唯一定义；该文件还给出其余服务定义类、18 个键常量和事件增补。ToolInstancesService 的登记与查询尚未实现，实现前两者返回具名失败。实现不得复制方法形状，索引类型随根契约同步。
 
 ```ts
 import { Context, Service } from '@deepseek-ai/cordis'

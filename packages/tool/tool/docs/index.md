@@ -9,7 +9,7 @@
 5. [context](context.md)：消费者使用与系统定位。
 6. [cordis](cordis.md)：装配和资源交接。
 
-编写工具函数时，从 [emit 与 wait 示例](flows.md#作者调用-emit-和-wait)进入，再核对 [作者上下文声明](public-api.md#作者执行上下文)与 [P11 行为](../SPEC.md#p11-作者输出与等待原语)。这些接口已完成设计接受，尚未成为包的实际导出。
+编写工具函数时，从 [emit 与 wait 示例](flows.md#作者调用-emit-和-wait)进入，再核对 [作者上下文声明](public-api.md#作者执行上下文)与 [P11 行为](../SPEC.md#p11-作者输出与等待原语)。这些类型已从根入口导出，`executeTool` 与 `createIndependentToolScope` 尚未实现。
 
 自定义等待读取 [P12](../SPEC.md#p12-等待-schema-与响应提交)和 [请求响应流程](flows.md#自定义等待协议与无效提交)。普通返回、直接 ToolResult 和 Code 输出声明读取 [P13](../SPEC.md#p13-双返回形态与程序输出契约)及 [settle 流程](flows.md#两种返回在-settle-汇合)。
 

@@ -525,9 +525,30 @@ importers:
 
   packages/tool/tool:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../../assets/assets
+      '@omne-harness/call-account':
+        specifier: workspace:*
+        version: link:../../common/call-account
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/kernel-basis':
+        specifier: workspace:*
+        version: link:../../assembly/kernel-basis
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/schema-provider':
+        specifier: workspace:*
+        version: link:../../schema/schema-provider
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
