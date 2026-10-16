@@ -37,7 +37,8 @@ export function skillBodyContract(): BodyContract {
       const decision = judge(body, context)
       if (!decision.ok) throw new TypeError(`skill body failed judgment: ${decision.rejected}`)
       const refs = toolRefs(body)
-      if (refs === undefined) throw new TypeError('skill body failed judgment: incomplete-reference')
+      if (refs === undefined)
+        throw new TypeError('skill body failed judgment: incomplete-reference')
       return refs.map(ref => {
         const id = capabilityId(ref.category, ref.name)
         if (!id.ok) throw new TypeError('skill body failed judgment: incomplete-reference')
@@ -51,7 +52,8 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
   if (!isReadBody(body)) return refusal('incomplete-reference')
   const name = stringField(body, 'name')
   if (name === undefined || name === '') return refusal('incomplete-reference')
-  if (context?.capabilityName !== undefined && name !== context.capabilityName) return refusal('name-mismatch')
+  if (context?.capabilityName !== undefined && name !== context.capabilityName)
+    return refusal('name-mismatch')
   if (toolRefs(body) === undefined) return refusal('incomplete-reference')
   return { ok: true }
 }
@@ -74,13 +76,15 @@ function toolRefs(body: unknown): readonly { category: string; name: string }[] 
 
 function stringField(body: unknown, key: string): string | undefined {
   const value = field(body, key)
-  if (value === undefined || value.kind !== 'string' || typeof value.value !== 'string') return undefined
+  if (value === undefined || value.kind !== 'string' || typeof value.value !== 'string')
+    return undefined
   return value.value
 }
 
 function field(body: unknown, key: string): JsonValue | undefined {
   const document = readSnapshot(body)
-  if (document === undefined || document.kind !== 'object' || !Array.isArray(document.entries)) return undefined
+  if (document === undefined || document.kind !== 'object' || !Array.isArray(document.entries))
+    return undefined
   for (let index = 0; index < document.entries.length; index += 1) {
     const entry = document.entries[index]
     if (entry === undefined || entry.key !== key) continue

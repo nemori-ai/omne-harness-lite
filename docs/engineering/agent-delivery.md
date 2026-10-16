@@ -47,7 +47,7 @@
 
 协调者先核读取范围与分页完整性、排序、依赖及现存attempt。Ready只是之前的观察，开始前仍核当前必要输入和条件；不能从空列表、closed或Project状态推出资格。返回候选时说明为什么可做、等什么、哪些无法判定。
 
-获准取任务后，由队列的单一调度写者发放执行权；worker向该协调者交领取请求或候选，不自行竞争修改共享摘要。协调者登记attempt并读回，给执行者明确卡修订、检出／分支、写范围、依据、验证、完成及停止点，随后派发。工作类型决定加载哪些专项输入，规模决定选哪个pstack流程。
+获准取任务后，由本卡指定的单一调度者发放执行权，调度者须是 `publish` environment 的 reviewer；worker向该协调者交领取请求或候选，不自行竞争修改共享摘要。协调者登记attempt并读回，给执行者明确卡修订、检出／分支、写范围、依据、验证、完成及停止点，随后派发。工作类型决定加载哪些专项输入，规模决定选哪个pstack流程。
 
 接手会话先在本卡评论声明认卡，注明负责的人、宿主及会话或agent实例、当前修订、授权依据和现存执行核对结果。已有派发就引用该决定；尚未派发就向本卡指定调度者请求领取。认卡评论不授执行权，不新增认领Stage，也不代替唯一attempt读回。已获调度或正文单写职责时，在授权内直接完成登记和更新，不重复请示。
 
@@ -87,12 +87,12 @@ RFC采用按[提案及决定关系](../rfcs/README.md#现行源与维护)和[RFC
 
 ## 多层集成的交接
 
-[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/ts-checks/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。主干发布在切换前仍按现行集成工具执行。切换后的确认流程以 [目标准入](integration.md#目标准入) 为准。那个流程还没有接入。
+[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/dev-flow/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。主干的进入按[现行准入](integration.md#现行准入)执行：开 PR，派发 `gate-publish`，由 admin 填写说明后确认。agent 代为确认时在说明中注明代为确认的人。
 
-binding放在“当前执行与交接”，派发后替换未派发的计划文字。attempt、branch、route、completionTarget、taskBase和writeScope以唯一真实binding为编辑源。相邻记录从路线与采用登记解析的直接目标分支、实际开工taskSource、目标targetBase及观察时点，以及生成的context路径和核验回执。这些读回项留在JSON外，不增加v1字段。原taskBase与实际开工HEAD分别保留；目标前进后须重新核对targetBase。不得手工制造context或将本地缓存当授权源。
+binding放在“当前执行与交接”，派发后替换未派发的计划文字。attempt、branch、route、completionTarget、taskBase和writeScope以唯一真实binding为编辑源。相邻记录从路线与 policy registry 的轨道登记解析的直接目标分支、实际开工taskSource、目标targetBase及观察时点，以及生成的context路径和核验回执。这些读回项留在JSON外，不增加v1字段。原taskBase与实际开工HEAD分别保留；目标前进后须重新核对targetBase。不得手工制造context或将本地缓存当授权源。
 
 原交付条件表可增加“适用目标”列；未声明为 all。integration 条件按本次实际 track/main/stable 或登记完整 ref 核对，start/acceptance 保持 all。最终包含结果的条件放 acceptance。现有阶段环观察未完整覆盖目标层细化，未知不得说成全图无环。
 
 完成 track 后已接受的结果仍可能被后续完整 RI 携带。有权 owner 对每个历史 identity/revision/attempt 与当前输入分别重核，历史 tuple 和 taskBase 不被新修订覆盖。当前 attempt 仍唯一，不因历史集合变成多执行队列。
 
-Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 发布后投影失败，保留技术回执由原写者接续，不重放 ref 事务。本工具只读平台。
+Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。本工具只读平台。

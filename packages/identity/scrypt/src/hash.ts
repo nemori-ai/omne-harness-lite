@@ -18,10 +18,16 @@ export function hashScrypt(
   const maxmem = memoryBytes(cost)
   if (maxmem === undefined) return Promise.reject(new Error('scrypt cost is not a safe integer'))
   return new Promise((resolve, reject) => {
-    scrypt(Buffer.from(secret, 'utf8'), salt, keylen, { N: cost.N, r: cost.r, p: cost.p, maxmem }, (error, key) => {
-      if (error !== null) reject(error)
-      else resolve(key)
-    })
+    scrypt(
+      Buffer.from(secret, 'utf8'),
+      salt,
+      keylen,
+      { N: cost.N, r: cost.r, p: cost.p, maxmem },
+      (error, key) => {
+        if (error !== null) reject(error)
+        else resolve(key)
+      },
+    )
   })
 }
 

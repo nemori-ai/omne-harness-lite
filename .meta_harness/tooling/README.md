@@ -193,7 +193,7 @@ loop_count 大于零或 stop_hook_active 已真时不再测量。native loop_lim
 
 workspace_roots 或 event cwd 必须唯一确定真实目标。多根且 cwd 不能唯一消歧时不选第一项；cwd 与单根冲突同样拒绝。
 进程 cwd 和转交测量的 payload.cwd 都归一到目标。插件根只定位资源，不作为被测仓库。
-目标须有兼容 tools/ts-checks/stop-hook 及 TypeScript 依赖，或 Git common 主检出有该组合；两者都没有则诊断并退出。
+目标须有兼容 tools/repo-toolchain/stop-hook 及 TypeScript 依赖，或 Git common 主检出有该组合；两者都没有则诊断并退出。
 这是 OMNE 仓库/worktree 支持，不承诺在任意仓库安装即具备测量能力。Git common fallback 的配置仍归实际工具，不能误报为目标配置。
 项目 hooks.json 的命令通过 Git 根定位 `.cursor`，支持从子目录进入，忽略继承的插件环境变量。
 manifest 指向 plugin-hooks.json；原生插件命令使用准确的 `${CURSOR_PLUGIN_ROOT}` 占位符，由宿主替换为本插件安装根。

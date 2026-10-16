@@ -1,4 +1,9 @@
-import { readJsonText, type JsonLimits, type JsonRead, type JsonValue } from '@omne-harness/json-text'
+import {
+  readJsonText,
+  type JsonLimits,
+  type JsonRead,
+  type JsonValue,
+} from '@omne-harness/json-text'
 
 const owned = new WeakSet<object>()
 
@@ -106,7 +111,13 @@ function open(
 function sourceChild(frame: Work): unknown {
   if (frame.kind === 'array') return frame.source[frame.index]
   const entry = frame.source[frame.index]
-  if (typeof entry !== 'object' || entry === null || !('key' in entry) || typeof entry.key !== 'string') return undefined
+  if (
+    typeof entry !== 'object' ||
+    entry === null ||
+    !('key' in entry) ||
+    typeof entry.key !== 'string'
+  )
+    return undefined
   if (!('value' in entry)) return undefined
   return entry.value
 }
@@ -117,13 +128,20 @@ function attach(frame: Work, child: JsonValue): boolean {
     return true
   }
   const entry = frame.source[frame.index - 1]
-  if (typeof entry !== 'object' || entry === null || !('key' in entry) || typeof entry.key !== 'string') return false
+  if (
+    typeof entry !== 'object' ||
+    entry === null ||
+    !('key' in entry) ||
+    typeof entry.key !== 'string'
+  )
+    return false
   frame.entries.push(Object.freeze({ key: entry.key, value: child }))
   return true
 }
 
 function finish(frame: Work, trust: boolean): JsonValue {
-  if (frame.kind === 'array') return keep({ kind: 'array', items: Object.freeze(frame.items) }, trust)
+  if (frame.kind === 'array')
+    return keep({ kind: 'array', items: Object.freeze(frame.items) }, trust)
   return keep({ kind: 'object', entries: Object.freeze(frame.entries) }, trust)
 }
 

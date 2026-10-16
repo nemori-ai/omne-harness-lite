@@ -15,7 +15,7 @@ hooks:
       unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
       GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE;
       t="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0;
-      s=tools/ts-checks;
+      s=tools/repo-toolchain;
       { [ -e "$t/$s/src/loop/stop-hook.ts" ] && [ -e "$t/$s/node_modules/typescript/package.json" ]; }
       || t="$(cd "$t" && cd "$(git rev-parse --git-common-dir)/.." && pwd)";
       exec node --experimental-strip-types "$t/$s/src/loop/stop-hook.ts"

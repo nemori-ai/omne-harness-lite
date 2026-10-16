@@ -332,30 +332,28 @@ Harness 提供资产身份、版本、持有、来源、流转、设置与权限
 
 ### 实现状态记录
 
-记录日期为 2026-10-11，观察检出为 project-documentation-system 工作树，分支 panqiwei/project-documentation-system，HEAD 为 `7d3a24091aa7cff63eea4aab77f6c57c009f514b`。这里只读部分源码及实际成员契约，未核实适用发布装配、端到端验证或交付接受。目标不能推导为已支持，测试文件存在也不等于已运行。
-
-“已有基础实现”只描述已读行为。“部分覆盖”说明有具体实现及未闭合范围。“未核实”不表示没有实现。源码路径定位这次只读观察。下表记录其覆盖和限制，不声称已运行验证；实现拥有者须在相同版本及适用装配下补足验证证据。
+观察日期为 2026-10-16，依据为 legacy-refactor 同步候选 `6e1cea7567a3ec343dd3bfb44e99cf5deb022d3c` 的新成员源码与规格。封存实现不计入当前支持。共同资产已提供正文读取、类别注册和固定正文入口。settings 与 permissions 的源码仍为空导出，assembly 只实现租约关闭协议。类别端口及公开类型的技术接受与其余长期候选分别按成员规格判断。
 
 | 能力 | 已观察实现及限制 | 验证与接受 | 依据或缺项 |
 | --- | --- | --- | --- |
-| CAP-AR01 | 已有共同资产模型及正文契约接入；开放类别的完整治理接入未核实 | 均未核实 | [模型入口](../../../../packages.0.0.1.legacy/core/asset-model/src/declarations.ts)、[成员规格](../../../../packages.0.0.1.legacy/core/asset-model/SPEC.md) |
-| CAP-AR02 | 已有能力键、归属与作者约束表示；实际创作及跨层署名的完整流程未核实 | 均未核实 | [身份值](../../../../packages.0.0.1.legacy/core/asset-model/src/values.ts)、[校验](../../../../packages.0.0.1.legacy/core/asset-model/src/judge.ts) |
-| CAP-AR03 | 已有版本序列校验、固定/跟随选版及追加发布入口；用户创作和发布确认未核实 | 均未核实 | [选版](../../../../packages.0.0.1.legacy/core/asset-evaluation/src/holdings.ts)、[发布](../../../../packages.0.0.1.legacy/assets/evaluation-input-store/src/publication.ts) |
-| CAP-AR04 | 已有同层唯一持有检查、禁用及整层持有替换；逐项管理资格和完整移除写面未核实 | 均未核实 | [选择](../../../../packages.0.0.1.legacy/core/asset-evaluation/src/selection.ts)、[发布](../../../../packages.0.0.1.legacy/assets/evaluation-input-store/src/publication.ts) |
-| CAP-AR05 | 已有给定事实上的合法选择和本机来源资格核验；资产定义自行声明 immutable 的支持未核实，分享及工作区真实来源接入不在已读入口支持范围 | 均未核实 | [选择](../../../../packages.0.0.1.legacy/core/asset-evaluation/src/selection.ts)、[来源读取](../../../../packages.0.0.1.legacy/assets/evaluation-input-store/src/data.ts) |
-| CAP-AR06 | 部分覆盖：已有引用及循环检查，可达 Plugin 或非根 AgentDefinition 有 categoryUnsupported 分支；完整组合与流转前核对未核实 | 均未核实 | [组合求值](../../../../packages.0.0.1.legacy/core/asset-evaluation/src/compute.ts)、[声明](../../../../packages.0.0.1.legacy/core/asset-model/src/declarations.ts) |
-| CAP-AR07 | 已有显式工作区载体读取及过滤基础；本机来源入口拒绝 workspace/shared/carrier，双目录真实发现及组合未核实 | 均未核实 | [载体读取](../../../../packages.0.0.1.legacy/core/asset-evaluation/src/workspace.ts)、[来源读取](../../../../packages.0.0.1.legacy/assets/evaluation-input-store/src/data.ts) |
-| CAP-AR08 | 已有工作区保守求值及命令型默认禁用；租户逐件启用写面和真实环境守卫未核实 | 均未核实 | [求值](../../../../packages.0.0.1.legacy/core/asset-evaluation/src/compute.ts)、[禁用](../../../../packages.0.0.1.legacy/core/asset-evaluation/src/selection.ts) |
-| CAP-AR09 | 已有生效资产设置及锁定求值；独立配值写面未核实，合法 null 配值的处理有条件性静态疑点 | 均未核实；疑点未运行复现 | [设置求值](../../../../packages.0.0.1.legacy/core/asset-evaluation/src/compute.ts)；静态疑点为声明域若合法接受 null，求值中的 `final?.assignment.value ?? declaration.default` 可能把显式 null 改为默认，声明域及行为尚未完整核实 |
-| CAP-AR10 | 已有按能力汇集的权限求值、上界及工作区保守值；实际调用完整授权及守卫未核实 | 均未核实 | [权限求值](../../../../packages.0.0.1.legacy/core/asset-evaluation/src/permissions.ts)、[配值收集](../../../../packages.0.0.1.legacy/core/asset-evaluation/src/holdings.ts) |
-| CAP-AR11 | 已有求值诊断、来源依据及使用时可用性报告；用户查询入口、披露资格和完整解释呈现未核实 | 均未核实 | [求值结果](../../../../packages.0.0.1.legacy/core/asset-evaluation/src/compute.ts)、[报告](../../../../packages.0.0.1.legacy/core/asset-registry/src/report.ts) |
-| CAP-AR12 | 观察到复制血缘表示与局部校验，未核实首次/重复复制、授权和确认提交的完整操作链 | 均未核实 | [血缘表示](../../../../packages.0.0.1.legacy/core/asset-model/schema/asset-model.schema.json)、[校验](../../../../packages.0.0.1.legacy/core/asset-model/src/judge.ts) |
-| CAP-AR13 | 已有分享表示；本机来源入口拒绝 shared，完整资产确认、撤销及不复活流程未核实 | 均未核实 | [来源读取](../../../../packages.0.0.1.legacy/assets/evaluation-input-store/src/data.ts)、[治理增量缺项](../../../../packages.0.0.1.legacy/core/organization-governance/SPEC.md) |
-| CAP-AR14 | 已有租户/组织所有权表示；现读发布入口保护既有 owner 不变，不能充当提升写面，完整操作未核实 | 均未核实 | [模型](../../../../packages.0.0.1.legacy/core/asset-model/src/types.ts)、[发布](../../../../packages.0.0.1.legacy/assets/evaluation-input-store/src/publication.ts) |
-| CAP-AR15 | 已有本地 registry reload 及 manifest 提交后发布快照；工作区读取和真实运行交接未核实 | 均未核实 | [registry](../../../../packages.0.0.1.legacy/tools/asset-registry-local/src/registry.ts)、[manifest](../../../../packages.0.0.1.legacy/assets/assembly-manifest-store/src/store.ts) |
-| CAP-AR16 | 已有本机 atomic 发布、修订竞争及 manifest 持久写路径；故障恢复、回执丢失、完整秘密与遥测边界未核实 | 均未核实 | [发布](../../../../packages.0.0.1.legacy/assets/evaluation-input-store/src/publication.ts)、[manifest](../../../../packages.0.0.1.legacy/assets/assembly-manifest-store/src/store.ts) |
+| CAP-AR01 | 已实现能力身份、正文读取和类别注册；共同持有、发布及完整治理尚未实现 | 本次未重验行为或作交付接受 | [公开类型与入口](../../../../packages/assets/assets/SPEC.md#accepted-public-types) |
+| CAP-AR02 | 已实现类别加 name 的能力身份；所有者、作者、持有者及创作来源的共同操作尚未实现 | 本次未重验行为或作交付接受 | [身份入口](../../../../packages/assets/assets/src/identity.ts)、[身份与创作承接](../../../../packages/assets/assets/SPEC.md#identity) |
+| CAP-AR03 | pinBody 可固定已读取正文、版本及来源；草稿、版本发布和固定或跟随选版尚未实现 | 本次未重验行为或作交付接受 | [固定正文](../../../../packages/assets/assets/src/adoption.ts)、[发布义务](../../../../packages/assets/assets/SPEC.md#definition-and-version) |
+| CAP-AR04 | 持有、禁用、再启用及移除尚未实现，配值依附关系待共同兑现 | 本次未重验行为或作交付接受 | [持有承接](../../../../packages/assets/assets/SPEC.md#holding) |
+| CAP-AR05 | 合法来源、资格过滤及不可替换约束的实际求值尚未实现 | 本次未重验行为或作交付接受 | [候选求值承接](../../../../packages/assets/assets/SPEC.md#candidate-resolution) |
+| CAP-AR06 | 类别端口可给出能力引用；递归展开、循环检查及流转前依赖核对尚未实现 | 本次未重验行为或作交付接受 | [类别端口](../../../../packages/assets/assets/SPEC.md#accepted-public-types)、[组合义务](../../../../packages/assets/assets/SPEC.md#composition) |
+| CAP-AR07 | 工作区共享和 local 来源发现、资格核验及组合求值尚未实现 | 本次未重验行为或作交付接受 | [工作区来源承接](../../../../packages/assets/assets/SPEC.md#candidate-resolution) |
+| CAP-AR08 | 工作区保守权限、命令型接入逐件启用及真实消费守卫尚未实现 | 本次未重验行为或作交付接受 | [权限承接](../../../../packages/assets/permissions/SPEC.md#workspace)、[设置承接](../../../../packages/assets/settings/SPEC.md#workspace) |
+| CAP-AR09 | 设置声明、合法配值及锁定求值尚未实现；显式合法 null 值的保持仍须由 settings 验证 | 本次未重验行为或作交付接受 | [设置拥有者](../../../../packages/assets/settings/SPEC.md) |
+| CAP-AR10 | 权限上界、明确禁止及合法挑选尚未实现 | 本次未重验行为或作交付接受 | [权限拥有者](../../../../packages/assets/permissions/SPEC.md) |
+| CAP-AR11 | 正文读取及类别判断已有局部拒绝结果；完整求值解释、来源报告和披露资格尚未实现 | 本次未重验行为或作交付接受 | [局部判断](../../../../packages/assets/assets/SPEC.md#accepted-public-types)、[解释与恢复义务](../../../../packages/assets/assets/SPEC.md#failure-and-recovery) |
+| CAP-AR12 | 复制、重复复制、血缘与确认提交尚未实现；继续保留长期义务 | 本次未重验行为或作交付接受 | [复制承接](../../../../packages/assets/assets/SPEC.md#copy) |
+| CAP-AR13 | 分享确认、撤销及关系结束后不复活尚未实现；继续保留长期义务 | 本次未重验行为或作交付接受 | [分享承接](../../../../packages/assets/assets/SPEC.md#sharing) |
+| CAP-AR14 | 人工提升和相应分享处置尚未实现；租户或组织身份表示不证明提升操作存在 | 本次未重验行为或作交付接受 | [提升承接](../../../../packages/assets/assets/SPEC.md#promotion) |
+| CAP-AR15 | 采用与重装已有已接受行为；求值快照、绑定生效及真实运行交接尚未实现 | 本次未重验行为或作交付接受 | [采用与重装](../../../../packages/assembly/assembly/SPEC.md#adoption)、[当前实现边界](../../../../packages/assembly/assembly/README.md) |
+| CAP-AR16 | 公共治理提交、原结果查询及 manifest 持久发布尚未实现；耐久、秘密与遥测边界仍由实际提供者兑现 | 本次未重验行为或作交付接受 | [治理失败与恢复](../../../../packages/assets/assets/SPEC.md#failure-and-recovery)、[装配采用记录](../../../../packages/assembly/assembly/SPEC.md#adoption) |
 
-实现拥有者在实现或验证变化时更新观察，注明版本、装配、覆盖与证据；产品维护者维护能力定义，负责人决定阶段及交付接受。具体状态记录只约束对应观察范围，不扩大为系统发布支持。
+实现拥有者在实现和验证变化时更新覆盖、限制及证据。产品能力及阶段承诺保持不变。下表的规格链接说明承接责任，不能作为实现通过或整卡接受的证明。
 
 ## 阶段与版本支持承诺
 

@@ -8,7 +8,7 @@
 
 ## 成员与依赖
 
-要读提交结果、未知、未提交、取消或关闭时，打开 [storage 目标文档](storage/README.md) 及其 [事务行为](storage/SPEC.md)。该目录是目标文档，workspace 包尚未建立。真实包在具名消费者和公开入口接受之后建立。依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。
+要读提交结果、未知、未提交、取消或关闭时，打开 [storage 目标文档](docs/storage-contract/README.md) 及其 [事务行为](docs/storage-contract/SPEC.md)。该目录是目标文档，workspace 包尚未建立。真实包在具名消费者和公开入口接受之后建立。依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。
 
 <!-- documentation:placeholder -->
 
@@ -16,11 +16,11 @@ SQLite 提供者与 PostgreSQL 提供者尚未建立。它们以后补充自己�
 
 ## 关键协作
 
-调用方、提交协调者、事实拥有者的命令和存储提供者参加同一次提交。结果与失败在[事务行为](storage/SPEC.md)。
+调用方、提交协调者、事实拥有者的命令和存储提供者参加同一次提交。结果与失败在[事务行为](docs/storage-contract/SPEC.md)。
 
 ## 组合验证
 
-组合验证检查共同提交、未知结果和恢复。场景在[验证义务](storage/SPEC.md#验证义务与未覆盖)。可执行验证资源尚未建立。当 `synchronous` 为 `FULL` 时，普通进程终止证明进程级持久。断电耐久另以故障试验为证据。
+组合验证检查共同提交、未知结果和恢复。场景在[验证义务](docs/storage-contract/SPEC.md#验证义务与未覆盖)。[存储 Worker 探针](../../tools/storage-probe/README.md)保留现有设计验证。生产提供者的符合性套件尚未建立。当 `synchronous` 为 `FULL` 时，普通进程终止证明进程级持久。断电耐久另以故障试验为证据。
 
 ## 维护
 

@@ -27,7 +27,10 @@ function document(text: string): JsonValue {
 
 it('copies a deep schema without overflowing the stack and rejects a cycle', () => {
   const registry = createCategoryRegistry()
-  let schema: { kind: 'array'; items: unknown[] } = { kind: 'array', items: [{ kind: 'number', lexeme: '0' }] }
+  let schema: { kind: 'array'; items: unknown[] } = {
+    kind: 'array',
+    items: [{ kind: 'number', lexeme: '0' }],
+  }
   for (let depth = 0; depth < 4000; depth += 1) schema = { kind: 'array', items: [schema] }
   registry.register({
     category: 'deep',
@@ -95,7 +98,8 @@ it('keeps pinned content after the caller changes the read document', () => {
   const pinnedComposes = pinned.body.entries[1]?.value
   if (pinnedComposes?.kind !== 'object') throw new Error('pinned composes')
   const pinnedSkills = pinnedComposes.entries[0]?.value
-  if (pinnedSkills?.kind !== 'array' || pinnedSkills.items[0]?.kind !== 'string') throw new Error('pinned skill')
+  if (pinnedSkills?.kind !== 'array' || pinnedSkills.items[0]?.kind !== 'string')
+    throw new Error('pinned skill')
   expect(pinnedSkills.items[0].value).toBe('review')
 })
 
@@ -134,7 +138,9 @@ it('does not call getters or iterators installed after the body was read', () =>
 it('rejects a pin whose body was not read', () => {
   const id = capabilityId('tool', 'read_file')
   if (!id.ok) throw new Error('identity')
-  expect(() => pinBody({ identity: id.id, version: 'v3', source: 'workspace-w', body: { name: 'read_file' } })).toThrow(/body was not read/)
+  expect(() =>
+    pinBody({ identity: id.id, version: 'v3', source: 'workspace-w', body: { name: 'read_file' } }),
+  ).toThrow(/body was not read/)
 })
 
 it('rejects a second registration of the same category and reports an unknown category', () => {
@@ -156,7 +162,10 @@ it('stores two category ports without reading their bodies', () => {
   registry.register(skill)
   expect(registry.lookup('tool')?.judge(document('{"name":"read_file"}'))).toEqual({ ok: true })
   expect(registry.lookup('skill')?.judge(document('{"name":"review"}'))).toEqual({ ok: true })
-  expect(registry.lookup('tool')?.judge(document('{"name":"review"}'))).toEqual({ ok: false, rejected: 'name-mismatch' })
+  expect(registry.lookup('tool')?.judge(document('{"name":"review"}'))).toEqual({
+    ok: false,
+    rejected: 'name-mismatch',
+  })
 })
 
 function contract(category: string): BodyContract {
@@ -165,9 +174,16 @@ function contract(category: string): BodyContract {
     schema: { kind: 'null' },
     judge(body) {
       const record = body as JsonValue
-      const name = record.kind === 'object' ? record.entries.find(entry => entry.key === 'name')?.value : undefined
+      const name =
+        record.kind === 'object'
+          ? record.entries.find(entry => entry.key === 'name')?.value
+          : undefined
       const text = name?.kind === 'string' ? name.value : undefined
-      if (text === category || (category === 'tool' && text === 'read_file') || (category === 'skill' && text === 'review')) {
+      if (
+        text === category ||
+        (category === 'tool' && text === 'read_file') ||
+        (category === 'skill' && text === 'review')
+      ) {
         return { ok: true }
       }
       return { ok: false, rejected: 'name-mismatch' }

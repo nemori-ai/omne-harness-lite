@@ -90,7 +90,7 @@ The version source is a file that the build writes. This keeps the printed versi
 
 Requirements:
 
-- Node `>=24.18.0 <25`, from `engines.node`.
+- Node `>=24`, from `engines.node`.
 - The member has no runtime dependency to install.
 - The build needs `typescript`. It writes `dist/cli-identity.json` from `package.json`.
 

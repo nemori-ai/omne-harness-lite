@@ -17,7 +17,8 @@ export interface StreamArrival {
 }
 
 export type StreamArrivalJudgment =
-  { readonly ok: StreamArrival } | { readonly rejected: 'step' | 'index' }
+  | { readonly ok: StreamArrival }
+  | { readonly rejected: 'step' | 'index' }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -133,7 +134,8 @@ export type StreamTerminal =
 
 /** Callers see `live`, or `ended` with a terminal. Continuation state is not part of this type. */
 export type StreamAssembly =
-  { readonly phase: 'live' } | { readonly phase: 'ended'; readonly terminal: StreamTerminal }
+  | { readonly phase: 'live' }
+  | { readonly phase: 'ended'; readonly terminal: StreamTerminal }
 
 export interface AssembleInput {
   readonly target: AssemblyTarget
@@ -282,7 +284,8 @@ interface FinishStep {
 type AssemblyStep = OpenStep | FillStep | CloseStep | TrimStep | FinishStep
 
 type Parsed =
-  { readonly step: AssemblyStep } | { readonly rejected: 'step' | 'index' | 'seq' | 'json' }
+  | { readonly step: AssemblyStep }
+  | { readonly rejected: 'step' | 'index' | 'seq' | 'json' }
 
 type Applied =
   | { readonly state: InternalState }

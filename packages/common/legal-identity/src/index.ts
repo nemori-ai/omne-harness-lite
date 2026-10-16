@@ -44,7 +44,13 @@ export type ScopeLayerIdentity =
 export interface IdentityTextError {
   readonly kind: 'identity-text-error'
   readonly code:
-    'type' | 'lexicon' | 'whitespace' | 'case' | 'extra-member' | 'missing-member' | 'family'
+    | 'type'
+    | 'lexicon'
+    | 'whitespace'
+    | 'case'
+    | 'extra-member'
+    | 'missing-member'
+    | 'family'
 }
 
 export type IdentityTextResult<T> =

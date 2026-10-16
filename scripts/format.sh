@@ -9,10 +9,11 @@ usage() {
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 runner_root="$repo_root"
 source "$runner_root/scripts/git-environment.sh"
-prettier="$runner_root/node_modules/.bin/prettier"
+oxfmt="$runner_root/node_modules/.bin/oxfmt"
+config="$runner_root/.oxfmtrc.json"
 
-if [[ ! -x "$prettier" ]]; then
-    echo "Prettier is not installed; run pnpm install --frozen-lockfile --ignore-scripts." >&2
+if [[ ! -x "$oxfmt" ]]; then
+    echo "oxfmt is not installed; run pnpm install --frozen-lockfile --ignore-scripts." >&2
     exit 2
 fi
 
@@ -27,10 +28,10 @@ is_format_target() {
         *.legacy/*|*/node_modules/*|*/dist/*|*/tmp/*|*/.worktrees/*|*/generated/*|*/upstream/*|spec/*|*.jsonl)
             return 1
             ;;
-        .prettierrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/check.yml)
+        .oxfmtrc.json|.vscode/settings.json|.vscode/extensions.json|.github/workflows/check.yml)
             return 0
             ;;
-        packages/*|apps/*|examples/*|tools/*|scripts/*)
+        examples/*|tools/*|scripts/*|packages/*|apps/*)
             case "$name" in
                 *.js|*.jsx|*.cjs|*.mjs|*.ts|*.tsx|*.mts|*.cts|package.json|tsconfig*.json|vitest.config.*)
                     return 0
@@ -50,42 +51,48 @@ is_format_target() {
     return 1
 }
 
-run_prettier() {
+# oxfmt cannot combine --check with --stdin-filepath: format the text and compare the bytes.
+check_text() {
+    local source="$1" path="$2" formatted
+    formatted="$(mktemp)"
+    if ! (cd -- "$runner_root" && "$oxfmt" --config "$config" --stdin-filepath "$path" <"$source" >"$formatted") ||
+        ! cmp -s -- "$source" "$formatted"; then
+        rm -f -- "$formatted"
+        return 1
+    fi
+    rm -f -- "$formatted"
+}
+
+run_formatter() {
     local mode="$1"
     shift
     if (( $# == 0 )); then
         echo "No formatting targets found."
         return 0
     fi
+    # A tracked link to a missing file is an error, not an empty target. oxfmt drops an
+    # unreadable path silently when other paths match (Prettier exited 2). Remove this guard when
+    # oxfmt reports every unmatched explicit path.
+    local path dangling=0 failed=0
+    for path in "$@"; do
+        if [[ -L "$path" && ! -e "$path" ]]; then
+            echo "Dangling symbolic link in the formatting scope: $path" >&2
+            dangling=1
+        fi
+    done
+    (( dangling == 0 )) || return 2
     if [[ "$mode" == check && "$repo_root" != "$runner_root" ]]; then
-        node - "$runner_root" "$repo_root" "$@" <<'NODE'
-const fs = require('node:fs')
-const path = require('node:path')
-const [runner, subject, ...files] = process.argv.slice(2)
-const prettier = require(path.join(runner, 'node_modules/prettier'))
-async function check() {
-    const config = await prettier.resolveConfig(path.join(runner, '.prettierrc.json'))
-    let failed = false
-    for (const file of files) {
-        const policyPath = path.join(runner, file)
-        const info = await prettier.getFileInfo(policyPath, { ignorePath: path.join(runner, '.prettierignore') })
-        if (info.ignored || info.inferredParser === null) continue
-        if (!await prettier.check(fs.readFileSync(path.join(subject, file), 'utf8'), { ...config, filepath: policyPath })) {
-            process.stderr.write(`Formatting differs: ${path.join(subject, file)}\n`)
-            failed = true
-        }
-    }
-    process.exitCode = failed ? 1 : 0
-}
-check().catch(error => { process.stderr.write(`${error.message}\n`); process.exitCode = 2 })
-NODE
-        return "$?"
+        for path in "$@"; do
+            if ! check_text "$repo_root/$path" "$path"; then
+                echo "Formatting differs: $repo_root/$path" >&2
+                failed=1
+            fi
+        done
+        return "$failed"
     fi
-    "$prettier" "--$mode" \
-        --config "$runner_root/.prettierrc.json" \
-        --ignore-path "$runner_root/.prettierignore" \
-        --ignore-unknown \
-        "$@"
+    # The scope filter above admits only file types that oxfmt formats; ignorePatterns in the
+    # config is a second guard for the same exclusions.
+    "$oxfmt" "--$mode" --config "$config" "$@"
 }
 
 collect_default_targets() {
@@ -108,13 +115,14 @@ run_staged_check() {
         fi
         matched=1
         echo "Checking staged $path"
-        if ! omne_staged_command git -C "$repo_root" show --no-textconv ":$path" |
-            "$prettier" --check \
-                --config "$runner_root/.prettierrc.json" \
-                --ignore-path "$runner_root/.prettierignore" \
-                --stdin-filepath "$repo_root/$path"; then
+        local staged
+        staged="$(mktemp)"
+        omne_staged_command git -C "$repo_root" show --no-textconv ":$path" >"$staged"
+        if ! check_text "$staged" "$path"; then
+            echo "Not formatted: $path" >&2
             failed=1
         fi
+        rm -f -- "$staged"
     done < <(omne_staged_command git -C "$repo_root" diff --cached --name-only --diff-filter=ACMR -z)
 
     if (( matched == 0 )); then
@@ -160,7 +168,7 @@ case "$mode" in
             done
         fi
         cd -- "$repo_root"
-        run_prettier "$mode" "${targets[@]}"
+        run_formatter "$mode" "${targets[@]}"
         ;;
     *)
         usage

@@ -60,7 +60,12 @@ export type AdmitResult =
     }
 
 export type ExportStatus =
-  'queued' | 'exporting' | 'exported' | 'export_failed' | 'closed_unexported' | 'gap'
+  | 'queued'
+  | 'exporting'
+  | 'exported'
+  | 'export_failed'
+  | 'closed_unexported'
+  | 'gap'
 
 export type ReadResult =
   | { readonly status: 'absent' }

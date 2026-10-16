@@ -46,7 +46,8 @@ function mapIssues(
 
 function issuePath(path: readonly PropertyKey[]): (string | number)[] {
   return path.filter(
-    (segment): segment is string | number => typeof segment === 'string' || typeof segment === 'number',
+    (segment): segment is string | number =>
+      typeof segment === 'string' || typeof segment === 'number',
   )
 }
 

@@ -1,5 +1,13 @@
 import { expect, it } from 'vitest'
-import { capabilityId, createCategoryRegistry, isReadBody, pinBody, readBodyText, type JsonLimits, type JsonValue } from '@omne-harness/assets'
+import {
+  capabilityId,
+  createCategoryRegistry,
+  isReadBody,
+  pinBody,
+  readBodyText,
+  type JsonLimits,
+  type JsonValue,
+} from '@omne-harness/assets'
 import { toolBodyContract } from '@omne-harness/tool'
 
 const limits: JsonLimits = {
@@ -38,7 +46,9 @@ it('does not treat a registered schema literal as a read body', () => {
   })
   const id = capabilityId('tool', 'read_file')
   if (!id.ok) throw new Error('identity')
-  expect(() => pinBody({ identity: id.id, version: 'v1', source: 's', body: stored })).toThrow(/body was not read/)
+  expect(() => pinBody({ identity: id.id, version: 'v1', source: 's', body: stored })).toThrow(
+    /body was not read/,
+  )
 })
 
 it('accepts read_file and records skill references without making them required', () => {
@@ -87,7 +97,9 @@ it('does not call a getter installed on a read document', () => {
 
 it('rejects a forged tool document without calling its functions', () => {
   const port = toolBodyContract()
-  expect(port.judge({ kind: 'object', entries: [{ key: 'name', value: { kind: 'string', value: 7 } }] })).toEqual({
+  expect(
+    port.judge({ kind: 'object', entries: [{ key: 'name', value: { kind: 'string', value: 7 } }] }),
+  ).toEqual({
     ok: false,
     rejected: 'incomplete-reference',
   })
@@ -98,11 +110,16 @@ it('rejects a forged tool document without calling its functions', () => {
   const entries = [{ key: 'name', value: { kind: 'string', value: 'read_file' } }]
   let calls = 0
   type Row = (typeof entries)[number]
-  entries.find = function (predicate: (value: Row, index: number, list: Row[]) => boolean): Row | undefined {
+  entries.find = function (
+    predicate: (value: Row, index: number, list: Row[]) => boolean,
+  ): Row | undefined {
     calls += 1
     return Array.prototype.find.call(this, predicate)
   }
-  expect(port.judge({ kind: 'object', entries })).toEqual({ ok: false, rejected: 'incomplete-reference' })
+  expect(port.judge({ kind: 'object', entries })).toEqual({
+    ok: false,
+    rejected: 'incomplete-reference',
+  })
   expect(calls).toBe(0)
 })
 
