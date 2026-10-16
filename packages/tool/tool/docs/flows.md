@@ -29,7 +29,7 @@ sequenceDiagram
   Note over A,P: 后续是否读取附件，由 agent 另发合法调用
 ```
 
-读取或转换失败时不进入图中的发送步骤，原结果继续保管。原身份、当前授权和取消检查沿 [P14](../SPEC.md#p14-附件引用与模型交付)及 [Model 规范](../../../model/model/SPEC.md)，图不表示实际实现已经完成。
+读取或转换失败时不进入图中的发送步骤，原结果继续保管。原身份、当前授权和取消检查沿 [P14](../SPEC.md#p14-附件引用与模型交付)及 [Model 规范](../../../model/model-contract/SPEC.md)，图不表示实际实现已经完成。
 
 ## 作者调用 emit 和 wait
 

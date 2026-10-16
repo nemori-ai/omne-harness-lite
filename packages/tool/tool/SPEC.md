@@ -197,7 +197,7 @@ Tool 的这些类型由 Tool 自己拥有，不导入 Model 的身份或 ACK 类
 
 ResultPage.source 由 Tool 原结果保存操作产生，定位租户、call、精确结果版本、delivery 及实际来源。相同版本各页使用同一来源。消费方将其交给 Session 或原消费者的受信参加者验证，不自填摘要证明结果真实。读取此证据不自动授予解除 delivery 或读取其他版本的资格。
 
-`B` 由具名 ResultPolicy 验证。面向模型的许可集合及附件地址投影归 [P14](#p14-附件引用与模型交付)，不把 ContentBlock 库存当许可，也不发明递归容器。提供者缺能力时保留原结果与失败原因，不重跑工具、不删除原件。共享 ref 尚未实现，跟踪见 [MODEL-E01](../../model/model/docs/open-questions.md#model-e01)。
+`B` 由具名 ResultPolicy 验证。面向模型的许可集合及附件地址投影归 [P14](#p14-附件引用与模型交付)，不把 ContentBlock 库存当许可，也不发明递归容器。提供者缺能力时保留原结果与失败原因，不重跑工具、不删除原件。共享 ref 尚未实现，跟踪见 [MODEL-E01](../../model/model/docs/architecture.md#model-e01)。
 
 <a id="342-普通操作与实例目录"></a>
 
@@ -822,7 +822,7 @@ ToolMessage 的消费者沿原 call、resultVersion 与消费位置保存投影�
 
 请求组装者消费完整 ToolDefinition 及其精确采用，生成 Model 请求契约中的工具声明。description 由原 description 和 programmable===true 的许可含义组装；省略或 false 说明不支持可编程调用。此规则不封闭未来可纳入描述的定义字段。ToolPresentation 只是发现摘要，不能代替完整投影输入。组装者保存声明名称及参数到原工具、采用与 command 的路由，多命令选择和参数封装在这一步完成。Model 只消费名称、说明、参数 schema 和共享消息，不导入 ToolDefinition 或访问工具注册表。Model adapter 只映射供应商格式；两层转换均不能静默丢命令、放宽约束或改变权限，不能表达时明确失败。
 
-这些是本域交付和 Model 消费的已明确设计边界，非当前源码支持声明。共享块、Message 校验及 Model adapter 的契约同步与实现迁移由各拥有者承担，实际发送协议归 [Model](../../model/model/SPEC.md)。
+这些是本域交付和 Model 消费的已明确设计边界，非当前源码支持声明。共享块、Message 校验及 Model adapter 的契约同步与实现迁移由各拥有者承担，实际发送协议归 [Model](../../model/model-contract/SPEC.md)。
 
 ### P15 配置声明与合法装载
 

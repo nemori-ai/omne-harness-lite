@@ -144,7 +144,7 @@ Code 的具体语言适配器从经过验证的 data 解码本语言值，禁止
 <a id="tool-e01"></a>
 ### TOOL-E01 共享引用契约的迁移验证
 
-沿 [MODEL-E01](../../../model/model/docs/open-questions.md#model-e01) 跟踪共享 ref、消息校验和发送阶段读取。Tool 作者明确选择直接感知的 content ref 或按需读取的附件地址；ResultPolicy 校验完整结果，projectToolResult 纯投影，Model 才加载直接感知内容。接口尚未实现，不授权任意递归容器；实际转换失败不删除原件。
+沿 [MODEL-E01](../../../model/model/docs/architecture.md#model-e01) 跟踪共享 ref、消息校验和发送阶段读取。Tool 作者明确选择直接感知的 content ref 或按需读取的附件地址；ResultPolicy 校验完整结果，projectToolResult 纯投影，Model 才加载直接感知内容。接口尚未实现，不授权任意递归容器；实际转换失败不删除原件。
 
 <a id="tool-m01"></a>
 ### TOOL-M01 公开形状与独立函数消费
