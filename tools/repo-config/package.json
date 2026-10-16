@@ -1,8 +1,14 @@
 {
   "name": "@omne-harness/repo-config",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.0.1",
   "description": "仓库共享的 tsconfig、oxlint 与 dependency-cruiser 配置预设；根配置只用 extends 引用它",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nemori-ai/omne-harness-lite.git",
+    "directory": "tools/repo-config"
+  },
+  "homepage": "https://github.com/nemori-ai/omne-harness-lite/tree/main/tools/repo-config#readme",
   "engines": {
     "node": ">=24"
   },
@@ -15,6 +21,10 @@
   "files": [
     "tsconfig.base.json",
     "oxlint.json",
-    "dependency-cruiser.cjs"
-  ]
+    "dependency-cruiser.cjs",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
