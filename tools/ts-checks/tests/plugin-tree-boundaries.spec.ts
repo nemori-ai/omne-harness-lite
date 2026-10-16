@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { corePureImports } from '../src/index.ts'
+import { corePureImports } from '../src/rules/index.ts'
 
 it('keeps tree binding dependencies confined to the binding closure', () => {
   const check = (name: string, target: string) =>

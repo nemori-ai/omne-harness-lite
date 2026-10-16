@@ -5,8 +5,9 @@ import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { contractSource } from './fixtures/contract-sources.ts'
 import { IDENTITY_TYPE_NAMES } from '@omne-harness/legal-identity'
+import { collectSources, runRules, type SourceFile } from '../src/index.ts'
 import {
-  collectSources,
+  RULES,
   corePureImports,
   createIdentityDecisionInputs,
   IDENTITY_CHECK_INPUTS,
@@ -15,9 +16,7 @@ import {
   identityScopeColumns,
   noWallClock,
   noTestingImport,
-  runRules,
-  type SourceFile,
-} from '../src/index.ts'
+} from '../src/rules/index.ts'
 
 const file = (path: string, text: string): SourceFile => ({ path, text })
 const root = fileURLToPath(new URL('../../../', import.meta.url))
@@ -487,7 +486,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
       mkdirSync(src, { recursive: true })
       const path = join(src, 'index.ts')
       writeFileSync(path, `import { Context } from '@deepseek-ai/cordis'`)
-      expect(runRules(collectSources(dir)).map(v => v.rule)).toContain('core-pure-imports')
+      expect(runRules(collectSources(dir), RULES).map(v => v.rule)).toContain('core-pure-imports')
       const cli = resolve(root, 'tools/ts-checks/src/cli.ts')
       const bad = spawnSync(process.execPath, ['--experimental-strip-types', cli, dir], {
         encoding: 'utf8',

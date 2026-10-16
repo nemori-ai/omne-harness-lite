@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CORE_PURE_DEPENDENCIES, PUBLIC_SUBPATHS, corePureImports } from '../src/index.ts'
+import { CORE_PURE_DEPENDENCIES, PUBLIC_SUBPATHS, corePureImports } from '../src/rules/index.ts'
 
 const providers = [
   'call-accounts',

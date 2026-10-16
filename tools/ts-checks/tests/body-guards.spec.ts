@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  bodyProjectionInputs,
-  CORE_BODY_PROJECTION_TARGETS,
-  type SourceFile,
-} from '../src/index.ts'
+import { type SourceFile } from '../src/index.ts'
+import { bodyProjectionInputs, CORE_BODY_PROJECTION_TARGETS } from '../src/rules/index.ts'
 
 const paths = [...new Set(CORE_BODY_PROJECTION_TARGETS.map(target => target.path))]
 const fixtureModules: readonly SourceFile[] = [

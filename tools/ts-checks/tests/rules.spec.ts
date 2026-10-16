@@ -1,13 +1,13 @@
 // 每条规则的「故意违反就失败」自测：违反的夹具必须被报出，干净的夹具必须无违反。
 import { describe, expect, it } from 'vitest'
+import { runRules, type SourceFile } from '../src/index.ts'
 import {
+  RULES,
   noBailControl,
   noTestingImport,
   noWallClock,
   restrictedCallSites,
-  runRules,
-  type SourceFile,
-} from '../src/index.ts'
+} from '../src/rules/index.ts'
 
 const file = (path: string, text: string): SourceFile => ({ path, text })
 
@@ -97,9 +97,10 @@ describe('no-testing-import', () => {
 
 describe('runRules', () => {
   it('汇总全部规则', () => {
-    const violations = runRules([
-      file('tenancy/x/src/a.ts', "Date.now(); ctx.bail('e'); accounts.produce(1)\n"),
-    ])
+    const violations = runRules(
+      [file('tenancy/x/src/a.ts', "Date.now(); ctx.bail('e'); accounts.produce(1)\n")],
+      RULES,
+    )
     expect(violations.map(v => v.rule).sort()).toEqual([
       'no-bail-control',
       'no-wall-clock',

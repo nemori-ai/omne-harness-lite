@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { modelCredentialBoundary } from '../src/index.ts'
+import { modelCredentialBoundary } from '../src/rules/index.ts'
 import { collectRepositorySources, REPOSITORY_RULES } from '../src/repository.ts'
 
 const bootstrap = 'examples/model-invocation-minimal-demo/src/bootstrap.ts'

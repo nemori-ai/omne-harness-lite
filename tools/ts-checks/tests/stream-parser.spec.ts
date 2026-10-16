@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  CORE_TOOL_ARGUMENT_PARSER_INPUTS,
-  singleToolArgumentParser,
-  type SourceFile,
-} from '../src/index.ts'
+import { type SourceFile } from '../src/index.ts'
+import { CORE_TOOL_ARGUMENT_PARSER_INPUTS, singleToolArgumentParser } from '../src/rules/index.ts'
 
 const path = 'core/stream-assembly/src/close.ts'
 const fixture = (parse = 'readJsonStrict(rawArguments)'): SourceFile => ({

@@ -6,8 +6,9 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import { collectSources, runRules, type SourceFile } from '../src/index.ts'
 import {
-  collectSources,
+  RULES,
   credentialsParseOnly,
   noNetworkListenInTenancy,
   noPeerAddress,
@@ -15,10 +16,8 @@ import {
   opsImportWhitelist,
   presentationOnlyAuthn,
   restrictedCallSites,
-  runRules,
   singleTableEntry,
-  type SourceFile,
-} from '../src/index.ts'
+} from '../src/rules/index.ts'
 
 const E = 'tenancy/governance-center-entry-node/'
 const file = (path: string, text: string): SourceFile => ({ path, text })
@@ -605,7 +604,7 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
         'accounts.activate(a, w)',
       ].join('\n'),
     })
-    const rules = new Set(runRules(collectSources(dir)).map(v => v.rule))
+    const rules = new Set(runRules(collectSources(dir), RULES).map(v => v.rule))
     expect([...rules].sort()).toEqual([
       'credentials-parse-only',
       'no-network-listen-in-tenancy',

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { corePureImports } from '../src/index.ts'
+import { corePureImports } from '../src/rules/index.ts'
 
 test('the tool definition can reuse pure close-control types without loading a Cordis face', () => {
   const path = 'core/tool-execution-runtime/src/runtime-provider.ts'

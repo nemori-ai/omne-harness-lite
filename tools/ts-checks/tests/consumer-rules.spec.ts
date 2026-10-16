@@ -2,6 +2,7 @@
 // 内存夹具两向自测，加最小语法夹具的变异核对。
 import { contractSource } from './fixtures/contract-sources.ts'
 import { describe, expect, it } from 'vitest'
+import { type SourceFile } from '../src/index.ts'
 import {
   noDialectBypass,
   ogS42DynamicResolve,
@@ -9,8 +10,7 @@ import {
   scOe1,
   scOe2,
   terminalOutcomeClosed,
-  type SourceFile,
-} from '../src/index.ts'
+} from '../src/rules/index.ts'
 
 const OG = 'tenancy/organization-governance-sql/src/'
 const AI = 'tenancy/account-identity-sql/src/'

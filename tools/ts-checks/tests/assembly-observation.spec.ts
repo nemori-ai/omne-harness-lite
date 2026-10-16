@@ -1,6 +1,6 @@
 import { hostPolicySource } from './fixtures/contract-sources.ts'
 import { expect, test } from 'vitest'
-import { ogS42DynamicResolve } from '../src/index.ts'
+import { ogS42DynamicResolve } from '../src/rules/index.ts'
 
 const path = 'tenancy-host/src/policy.ts'
 const source = hostPolicySource

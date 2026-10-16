@@ -50,7 +50,7 @@ pnpm --filter @omne-harness/ts-checks test   # 规则自测
 `tests/source-text.spec.ts` 守词法视图本身。变异核对的锚点是真实源码里的一段文字，产品源码改写后锚点失配会让测试失败——
 那时更新锚点，不删核对。
 
-加规则：在 `src/rules/` 写一个 `Rule`，登记进 `src/index.ts` 的 `RULES`，并补「故意违反就失败、合规就通过」的两向夹具。
+加规则：在 `src/rules/` 写一个 `Rule`，登记进 `src/rules/index.ts` 的 `RULES`，并补「故意违反就失败、合规就通过」的两向夹具。
 规则的来源条款写进 `source` 字段，README 表里同时写「不覆盖」。
 
 ## Core 交付的规则

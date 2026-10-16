@@ -1,11 +1,11 @@
 import { contractSource } from './fixtures/contract-sources.ts'
 import { describe, expect, it } from 'vitest'
+import { type SourceFile } from '../src/index.ts'
 import {
   aiR8NoCredentialInWrite,
   noPresentationInDiagnostics,
   noRandomSourceInline,
-  type SourceFile,
-} from '../src/index.ts'
+} from '../src/rules/index.ts'
 
 const AI = 'tenancy/account-identity-sql/src/'
 const file = (path: string, text: string): SourceFile => ({ path, text })

@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url'
 import { inspectCoverage } from './acceptance/coverage.ts'
 import { readAcceptanceLockConfig } from './acceptance/lock.ts'
 import { attributionViolations, readCommits } from './commits.ts'
-import { collectSources, RULES, runRules } from './index.ts'
+import { collectSources, runRules } from './core/scan.ts'
+import { RULES } from './rules/index.ts'
 import { readLoopConfig } from './loop/config.ts'
 import { collectRepositorySources, REPOSITORY_RULES } from './repository.ts'
 
@@ -16,7 +17,7 @@ if (existsSync(join(repositoryRoot, '.git'))) baselines(repositoryRoot)
 const roots = (process.argv.length > 2 ? process.argv.slice(2) : ['packages']).map(p =>
   resolve(process.env['OMNE_SUBJECT_ROOT'] ?? process.cwd(), p),
 )
-const violations = roots.flatMap(root => runRules(collectSources(root)))
+const violations = roots.flatMap(root => runRules(collectSources(root), RULES))
 violations.push(...runRules(collectRepositorySources(repositoryRoot), REPOSITORY_RULES))
 // 验收的覆盖声明：声明的场景要在产品区的 acceptance.md 里存在。产品区的位置与回路的读法同一份配置。
 const coverage = inspectCoverage(

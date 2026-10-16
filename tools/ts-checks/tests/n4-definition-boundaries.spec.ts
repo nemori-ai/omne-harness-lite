@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { corePureImports, ogS42DynamicResolve, restrictedCallSites } from '../src/index.ts'
+import { corePureImports, ogS42DynamicResolve, restrictedCallSites } from '../src/rules/index.ts'
 
 const file = (path: string, text: string) => ({ path, text })
 
