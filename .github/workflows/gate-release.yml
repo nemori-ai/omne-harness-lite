@@ -1,0 +1,224 @@
+name: gate-release
+run-name: "gate-release ${{ inputs.package }} @ ${{ inputs.commit }}${{ inputs.dry_run && ' (dry run)' || '' }}"
+
+# Runs only from the github-gate branch. Publishes one repository toolchain package to npm
+# through trusted publishing (GitHub OIDC, no stored token) with a provenance attestation.
+# The version comes from the package.json of the commit, which must already have passed
+# gate-publish into main or a track. A version that exists on npm is never published again.
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to publish
+        required: true
+        type: choice
+        options:
+          - repo-toolchain
+          - repo-config
+      commit:
+        description: Commit to publish from (40 hex characters); must carry an omne/gate/unit record on main or a track
+        required: true
+        type: string
+      issue:
+        description: Issue that receives the decision comment
+        required: true
+        type: string
+      dry_run:
+        description: Run every step, but publish with npm --dry-run
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gate-release-${{ inputs.package }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+# A version is absent only when npm answers E404; any other failure stops instead of being read as absent.
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      name: ${{ steps.plan.outputs.name }}
+      version: ${{ steps.plan.outputs.version }}
+      target: ${{ steps.plan.outputs.target }}
+    steps:
+      - name: Plan the release
+        id: plan
+        env:
+          PACKAGE: ${{ inputs.package }}
+          COMMIT: ${{ inputs.commit }}
+          ISSUE: ${{ inputs.issue }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          [[ "$GITHUB_REF" == refs/heads/github-gate ]] || { echo "rejected: run is not on github-gate"; exit 1; }
+          [[ "$PACKAGE" =~ ^(repo-toolchain|repo-config)$ ]] || { echo "rejected: package"; exit 1; }
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: commit"; exit 1; }
+          [[ "$ISSUE" =~ ^[0-9]{1,6}$ ]] || { echo "rejected: issue"; exit 1; }
+          git init -q work && cd work
+          git remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
+          # The commit must be a gated result: an omne/gate/unit record that points at it, on the
+          # first-parent history of main or of a track.
+          unit=$(git ls-remote origin "refs/tags/omne/gate/unit/$COMMIT" | awk -v r="refs/tags/omne/gate/unit/$COMMIT" '$2==r{print $1}')
+          [ -n "$unit" ] || { echo "rejected: $COMMIT has no omne/gate/unit record"; exit 1; }
+          git fetch -q --filter=blob:none --no-tags origin "refs/heads/main:refs/remotes/origin/main" "refs/heads/integration/*:refs/remotes/origin/integration/*" \
+            || { echo "stopped: cannot fetch main and the tracks"; exit 1; }
+          target=''
+          for ref in $(git for-each-ref --format='%(refname)' refs/remotes/origin); do
+            if git rev-list --first-parent "$ref" | grep -qx "$COMMIT"; then target=${ref#refs/remotes/origin/}; break; fi
+          done
+          [ -n "$target" ] || { echo "rejected: $COMMIT is not on the first-parent history of main or a track"; exit 1; }
+          git fetch -q --depth 1 --no-tags origin "$COMMIT" || { echo "stopped: cannot fetch $COMMIT"; exit 1; }
+          manifest=$(git show "$COMMIT:tools/$PACKAGE/package.json") || { echo "rejected: tools/$PACKAGE/package.json is missing at $COMMIT"; exit 1; }
+          name=$(jq -r .name <<<"$manifest")
+          version=$(jq -r .version <<<"$manifest")
+          [ "$name" = "@omne-harness/$PACKAGE" ] || { echo "rejected: package name is $name"; exit 1; }
+          [ "$(jq -r '.private // false' <<<"$manifest")" = false ] || { echo "rejected: $name is private at $COMMIT"; exit 1; }
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "rejected: version $version"; exit 1; }
+          if found=$(npm view "$name@$version" version 2>err.txt); then
+            [ -z "$found" ] || { echo "rejected: $name@$version is already on npm; a published version is never published again"; exit 1; }
+          elif ! grep -q E404 err.txt; then
+            cat err.txt; echo "stopped: cannot read $name from npm"; exit 1
+          fi
+          { echo "name=$name"; echo "version=$version"; echo "target=$target"; } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Release awaiting confirmation"
+            echo
+            echo "- Package: \`$name@$version\`$([ "$DRY_RUN" = true ] && echo ' (dry run: npm publish --dry-run)')"
+            echo "- Commit: \`$COMMIT\` on \`$target\`, record \`omne/gate/unit/$COMMIT\`"
+            echo "- Decision comment: #$ISSUE"
+            echo
+            echo "The confirmation note must state which checks were run on this commit and their results."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: npm-release
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      # Trusted publishing: npm exchanges the GitHub OIDC token for a short-lived publish credential.
+      id-token: write
+    steps:
+      - name: Read the confirmation and require a note
+        id: confirm
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" > approvals.json
+          sel='[.[]|select(.state=="approved")|select([.environments[].name]|index("npm-release"))]|last'
+          approver=$(jq -r "$sel|.user.login // \"\"" approvals.json)
+          note=$(jq -r "$sel|.comment // \"\"" approvals.json)
+          [ -n "$approver" ] || { echo "rejected: no approval record"; exit 1; }
+          [ -n "$(printf '%s' "$note" | tr -d '[:space:]')" ] || { echo "rejected: the confirmation note is empty"; exit 1; }
+          echo "approver=$approver" >> "$GITHUB_OUTPUT"
+          delim="NOTE_$(openssl rand -hex 16)"
+          { echo "note<<$delim"; printf '%s\n' "$note"; echo "$delim"; } >> "$GITHUB_OUTPUT"
+
+      # No registry-url: it would write an .npmrc that reads NODE_AUTH_TOKEN, which trusted publishing does not use.
+      # No package-manager cache: admission does not read caches that a PR can write.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+
+      - name: Check out the commit
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          git init -q src && cd src
+          git remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
+          git fetch -q --depth 1 --no-tags origin "$COMMIT"
+          git checkout -q --detach FETCH_HEAD
+          [ "$(git rev-parse HEAD)" = "$COMMIT" ] || { echo "stopped: checkout is not $COMMIT"; exit 1; }
+
+      - name: Install and pack
+        id: pack
+        working-directory: src
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          corepack enable
+          pnpm --version
+          pnpm install --frozen-lockfile --ignore-scripts
+          if [ "$(jq -r '.scripts.build // ""' "tools/$PACKAGE/package.json")" != "" ]; then
+            pnpm --filter "$NAME" run build
+          fi
+          # pnpm replaces catalog: with exact versions and applies publishConfig; npm then publishes the tarball.
+          mkdir -p ../out
+          pnpm --filter "$NAME" pack --pack-destination ../out
+          tarball=$(ls ../out/*.tgz)
+          [ "$(echo "$tarball" | wc -l)" -eq 1 ] || { echo "stopped: expected one tarball"; exit 1; }
+          echo "tarball=$(realpath "$tarball")" >> "$GITHUB_OUTPUT"
+          echo "local=$(sha512sum "$tarball" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish with provenance
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          npm --version
+          if found=$(npm view "$NAME@$VERSION" version 2>err.txt); then
+            [ -z "$found" ] || { echo "stopped: $NAME@$VERSION appeared on npm after planning"; exit 1; }
+          elif ! grep -q E404 err.txt; then
+            cat err.txt; echo "stopped: cannot read $NAME from npm"; exit 1
+          fi
+          args=(publish "$TARBALL" --provenance --access public)
+          [ "$DRY_RUN" = true ] && args+=(--dry-run)
+          npm "${args[@]}"
+
+      - name: Read back and record the decision
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ needs.plan.outputs.name }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          TARGET: ${{ needs.plan.outputs.target }}
+          COMMIT: ${{ inputs.commit }}
+          ISSUE: ${{ inputs.issue }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          LOCAL: ${{ steps.pack.outputs.local }}
+          APPROVER: ${{ steps.confirm.outputs.approver }}
+          NOTE: ${{ steps.confirm.outputs.note }}
+        run: |
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          quoted=$(printf '%s\n' "$NOTE" | sed 's/^/> /')
+          if [ "$DRY_RUN" = true ]; then
+            outcome="dry run: every step ran, npm publish used --dry-run, nothing was published"
+            registry='not applicable'
+          else
+            # The registry can take a short while to serve a new version.
+            for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              view=$(npm view "$NAME@$VERSION" --json 2>/dev/null) && break
+              sleep 10
+            done
+            if [ -z "${view:-}" ]; then
+              outcome="NOT CONFIRMED: $NAME@$VERSION is not readable on npm; check the publish step before retrying"
+              registry='unreadable'
+            else
+              integrity=$(jq -r .dist.integrity <<<"$view")
+              attest=$(jq -r 'if .dist.attestations then "present" else "missing" end' <<<"$view")
+              outcome="published; provenance $attest"
+              registry="integrity \`$integrity\`"
+            fi
+          fi
+          body=$(printf '**Release decision**\n\n- Package: `%s@%s`\n- Commit: `%s` on `%s`, record `omne/gate/unit/%s`\n- Outcome: %s\n- Registry: %s\n- Local tarball sha512: `%s`\n- Confirmed by: @%s (from the platform approval record)\n- Run: %s\n\nConfirmation note:\n\n%s\n' \
+            "$NAME" "$VERSION" "$COMMIT" "$TARGET" "$COMMIT" "$outcome" "$registry" "$LOCAL" "$APPROVER" "$run_url" "$quoted")
+          gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE/comments" -f body="$body" --jq .html_url \
+            || { echo "published state: $outcome; but the decision comment was not written"; exit 1; }
+          case "$outcome" in NOT*) exit 1 ;; esac
