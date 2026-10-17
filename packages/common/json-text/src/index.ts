@@ -1,3 +1,4 @@
+export { judgeJsonValue } from './judge.ts'
 export { readJsonBytes, readJsonText } from './read.ts'
 export type {
   JsonBudgetName,
@@ -7,5 +8,7 @@ export type {
   JsonPathSegment,
   JsonRead,
   JsonSyntaxReason,
+  JsonTreePath,
   JsonValue,
+  JsonValueJudgment,
 } from './types.ts'

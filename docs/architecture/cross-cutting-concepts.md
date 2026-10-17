@@ -60,11 +60,12 @@
 
 #### 公共 JSON 文本读取
 
-公共 JSON 文本只有一个纯读取器。它不导入 Cordis、业务存储或插件树。调用方传入字节或已经解码的文本，以及自己的预算。
+公共 JSON 文本只有一个纯读取器，以及一个处理值树的判定函数。它们不导入 Cordis、业务存储或插件树。读取器的调用方传入字节或已经解码的文本，以及自己的预算。
 
 ```ts
 readJsonBytes(bytes, limits) -> JsonRead
 readJsonText(text, limits) -> JsonRead
+judgeJsonValue(value, limits?) -> JsonValueJudgment
 ```
 
 `readJsonBytes` 对字节做致命 UTF-8 解码，并且不跳过 BOM。`readJsonText` 只接收已经完成致命解码的文本。`readJsonText` 的文本含孤立代理项时抛 `TypeError`。JSON 源码里的 `\u` 转义不因此抛 `TypeError`。文本以 U+FEFF 开头时，结果是 `bom`。
@@ -90,6 +91,42 @@ readJsonText(text, limits) -> JsonRead
 字段 codec 在读取成功之后运行，由该形状的拥有者持有。缺席的键是 `undefined`。JSON `null` 不是缺席。字段拒绝已经出现的 `""`、`[]` 或 `{}` 时，失败种类是 `empty`。JSON 种类与字段要求不同时，失败种类是 `type`。`encode` 无法保留字段含义时返回 `type` 或 `precision`。它不返回缺席、`null` 或空值失败。读取成功不表示对象存在，也不表示调用方得到授权。
 
 对同一份完整文档，增量读取与一次读取给出同一个 `JsonFailure`。语法引擎在报错之后仍给出的值，或在重复键中保留的某一个值，都不是成功结果。编译、运行时、异步路径和缓存归[缓存机制](data-and-state.md#缓存懒加载与预热)。
+
+**值树判定。** 读取成功的 `value` 是值树，即 `JsonValue`。成员在内存里构造、从别处收到的值也可能要当作值树使用。值树的合法条件只在这里定义一次，使用者不复制数字文法、重复键与环的检查。
+
+```ts
+type JsonTreePath = readonly (string | number)[]
+type JsonValueJudgment =
+  | Readonly<{ ok: JsonValue }>
+  | Readonly<{ rejected: 'missing' | 'type' | 'value' | 'unknown-field' | 'duplicate' | 'cycle' | 'budget' | 'accessor' | 'unreadable'; path: JsonTreePath }>
+judgeJsonValue(value: unknown, limits?: Readonly<{ maxVisits: number }>) -> JsonValueJudgment
+```
+
+只有这一个判定入口，没有布尔版。调用方要布尔时，看结果里有没有 `ok`。
+
+合法的值树由带 `kind` 的纯对象组成，键按 `kind` 闭合：`null` 只有 `kind`；`boolean` 和 `string` 加 `value`；`number` 加 `lexeme`；`array` 加 `items`；`object` 加 `entries`，每一项只有 `key` 和 `value`。`string` 的值与对象键可以是任意字符串，包括孤立代理项，所以 `readJsonText` 的每一份产出都合法。`lexeme` 必须符合 RFC 8259 的数字语法，与读取器用的是同一条规则。同一个对象的 `entries` 键不重复。回指自己祖先的容器是环，被拒绝。同一个容器可以被几个父节点共用。判定用显式的栈走树，很深的树不抛 `RangeError`。
+
+成功时 `ok` 是冻结的副本，不与输入共享任何节点。共用的子树在副本里各有一份。输入之后再变，副本不变。
+
+失败带 `rejected` 和 `path`。`path` 是值树的结构路径：值树节点的字段名，或 `items`、`entries` 的下标，例如 `['entries', 0, 'value', 'items', 2]`。它从传入的值算起，空路径是根。它不是 `JsonPathSegment`，后者表示 JSON 文档里的逻辑路径。各原因和路径的对应是：
+
+| `rejected` | 含义 | `path` 指向 |
+|---|---|---|
+| `missing` | 必需的字段或列表位置不存在 | 缺的那一项，末段是缺的字段名或下标 |
+| `value` | `kind` 不是六种之一，类型不是字符串也算 | 该节点的 `kind` 字段 |
+| `type` | 字段类型不对。节点不是纯对象，`value` 类型不对，`lexeme` 不合 RFC 8259，`items` 或 `entries` 不是列表，对象项不是纯对象，`key` 不是字符串 | 类型不对的字段；节点或对象项本身不对时是它自己 |
+| `unknown-field` | 节点或对象项有多余的自有键，符号键也算 | 多余的键，末段是该键的名字 |
+| `duplicate` | `entries` 里的键重复 | 第二个重复项的键，即 `[…, 'entries', j, 'key']` |
+| `cycle` | 容器回指自己的祖先 | 回指祖先的那个字段 |
+| `accessor` | 要读的属性是访问器属性 | 访问器属性所在的字段 |
+| `budget` | 访问次数会超过 `maxVisits` | 读它的槽位会超出上限的那个列表，即 `items` 或 `entries` 字段 |
+| `unreadable` | 读取输入时抛出异常，例如 Proxy 的 trap；或列表报告的长度不是非负安全整数 | 根，空路径，整值拒绝 |
+
+一次判定只报告一个失败。同时有几处失败时，报告哪一处不作承诺。
+
+两条保证：判定只读自有数据属性，不调用 getter，访问器属性以 `accessor` 拒绝；读取输入时抛出的异常不会传出，整值以 `unreadable` 拒绝；列表报告的长度不是非负安全整数时同样以 `unreadable` 拒绝。`limits` 不是对象，`maxVisits` 读取时抛出异常，或 `maxVisits` 不是 1 到 `Number.MAX_SAFE_INTEGER` 的整数时，抛 `TypeError`。这是调用方参数的错误，不是值的失败。
+
+`maxVisits` 默认是 1 000 000。每次到达一个节点计一次，共用的子树每次到达都计，所以一个层层共用子树的小输入不能让副本无限变大。列表的槽位也在读取之前计入：读一个列表之前，判定先把它的长度与剩余的访问额度比较，剩余额度已扣除排队等待的节点。长度超出时，以 `budget` 拒绝，指向该列表，一个槽位也不读。所以输入声称的长度不能让判定读取超过 `maxVisits` 个槽位。判定在访问上限内接受 `readJsonText` 的全部产出。用比默认更大的读取预算读出的树，要传相应的 `maxVisits`。
 
 ## 消息、记录与流
 

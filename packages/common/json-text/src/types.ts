@@ -47,3 +47,26 @@ export type JsonSyntaxReason =
 export type JsonBudgetName = 'bytes' | 'depth' | 'items' | 'members' | 'string' | 'number'
 /** An object key or an array index on the way from the root to a parent object. */
 export type JsonPathSegment = string | number
+
+/**
+ * The structural path from the root of a value tree to one of its fields: a field name of a
+ * tree node, or an index into `items` or `entries`. It is not a `JsonPathSegment` path, which
+ * names the logical path in a JSON document. The empty path is the root.
+ */
+export type JsonTreePath = readonly (string | number)[]
+
+export type JsonValueJudgment =
+  | { readonly ok: JsonValue }
+  | {
+      readonly rejected:
+        | 'missing'
+        | 'type'
+        | 'value'
+        | 'unknown-field'
+        | 'duplicate'
+        | 'cycle'
+        | 'budget'
+        | 'accessor'
+        | 'unreadable'
+      readonly path: JsonTreePath
+    }

@@ -85,6 +85,11 @@ describe('consumption sample', () => {
         const code = readFileSync(new URL(name, source), 'utf8')
         return [...code.matchAll(/(?:from|import)\s+'([^']+)'/g)].map(match => match[1])
       })
-    expect([...new Set(specifiers)].sort()).toEqual(['./read.ts', './types.ts', 'jsonc-parser'])
+    expect([...new Set(specifiers)].sort()).toEqual([
+      './judge.ts',
+      './read.ts',
+      './types.ts',
+      'jsonc-parser',
+    ])
   })
 })
