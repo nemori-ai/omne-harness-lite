@@ -1,0 +1,44 @@
+{
+  "name": "@omne-harness/model-host-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local credential custody for the Model capability: file-backed custodian and its Cordis provider plugin",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "pnpm run build && vitest run"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/model": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/model-cordis-contract": "workspace:*",
+    "proper-lockfile": "^4.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/proper-lockfile": "^4.1.4",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
