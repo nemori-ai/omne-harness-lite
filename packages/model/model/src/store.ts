@@ -20,9 +20,7 @@ import {
   type CredentialReference,
   type CustodianState,
   type Diagnostic,
-  type Presence,
   type Resolution,
-  type SendFace,
 } from './credential.ts'
 
 export type LocalCustodian = CredentialPort & {
