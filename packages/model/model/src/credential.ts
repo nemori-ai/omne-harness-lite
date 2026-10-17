@@ -27,11 +27,18 @@ export type CustodianState = {
   readonly bindings: readonly Binding[]
 }
 
+// legal-identity has no separate mint check; equality with itself holds only for a minted tenant.
+// A copied tenant would otherwise look like a tenant without bindings and be offered the factory secret.
+function isMinted(tenant: TenantId): boolean {
+  return tenantEquals(tenant, tenant)
+}
+
 export function judgePresence(
   state: CustodianState,
   reference: CredentialQuery,
 ): CredentialPresence {
-  if (state.closed || reference.purpose !== MODEL_SEND) return { kind: 'denied' }
+  if (!isMinted(reference.tenant) || state.closed || reference.purpose !== MODEL_SEND)
+    return { kind: 'denied' }
   const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
   return {
     kind: 'known',
@@ -47,7 +54,12 @@ export function judgeResolution(
   reference: CredentialQuery,
   face: SendFace,
 ): CredentialResolution {
-  if (state.closed || !face.authorized || reference.purpose !== MODEL_SEND)
+  if (
+    !isMinted(reference.tenant) ||
+    state.closed ||
+    !face.authorized ||
+    reference.purpose !== MODEL_SEND
+  )
     return { kind: 'denied' }
   const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
   if (!binding) return missing(state, reference, face)
@@ -65,6 +77,8 @@ function missing(
   if (heldByOther) return { kind: 'denied' }
   const tenantHasBinding = state.bindings.some(item => tenantEquals(item.tenant, reference.tenant))
   if (face.official && !tenantHasBinding) {
+    // A binding holder that equals nobody could belong to the asking tenant, so "no binding" is unproven.
+    if (state.bindings.some(item => !isMinted(item.tenant))) return { kind: 'denied' }
     return { kind: 'value', scope: 'factory', value: state.factorySecret }
   }
   return { kind: 'absent' }

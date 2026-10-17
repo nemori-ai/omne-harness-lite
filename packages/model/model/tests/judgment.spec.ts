@@ -97,3 +97,30 @@ it('reports presence by holder: the same id under another tenant is not present'
     present: false,
   })
 })
+
+it('denies a querying tenant that was never minted, however official the send is', () => {
+  const unminted = structuredClone(tenantA)
+  const other: CredentialReference = { id: id('cred-x'), tenant: unminted, purpose: MODEL_SEND }
+  const official = { ...face, official: true }
+  expect(judgeResolution(state([held('active')]), other, official)).toEqual({ kind: 'denied' })
+  expect(judgeResolution(state([]), other, official)).toEqual({ kind: 'denied' })
+  expect(judgePresence(state([held('active')]), other)).toEqual({ kind: 'denied' })
+})
+
+it('denies a querying tenant that was never minted on an unofficial face as well', () => {
+  const other: CredentialReference = {
+    id: id('cred-x'),
+    tenant: structuredClone(tenantA),
+    purpose: MODEL_SEND,
+  }
+  expect(judgeResolution(state([held('active')]), other, face)).toEqual({ kind: 'denied' })
+  expect(judgePresence(state([held('active')]), other)).toEqual({ kind: 'denied' })
+})
+
+it('does not offer the factory secret while a binding holder cannot be recognised', () => {
+  const official = { ...face, official: true }
+  const other: CredentialReference = { id: id('cred-x'), tenant: tenantA, purpose: MODEL_SEND }
+  const snapshot = state([held('active', structuredClone(tenantA))])
+  expect(judgeResolution(snapshot, other, official)).toEqual({ kind: 'denied' })
+  expect(judgeResolution(snapshot, other, face)).toEqual({ kind: 'absent' })
+})
