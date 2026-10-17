@@ -7,7 +7,7 @@
 
 新增负例须证明纯契约不能导入 executeModel/createModelRuntime 或 ModelConfiguration，Cordis 消费者不从具体插件取得 Service 定义；生成声明不得穿透实现源码。正例覆盖 adapter 只消费纯契约即可实现相应端口，以及消费者和实现共享同一品牌/Service 身份。其他实现不必采用 model 工厂的配置结构。
 
-正例检查独立函数不需要 Session、托管受理/原查询/目录/读取/processed ACK 可以连接、提供者具有恢复入口。负例检查缺少租户、混用 instance 与 call、使用未验证操作字符串、普通消费者发布实例、裸 saved 布尔代替交接证据、伪造独立函数 Session 参数和调用者越权访问 quiesce 均不能通过类型检查。
+正例检查独立函数不需要原工作、托管受理/原查询/目录/读取/processed ACK 可以连接、提供者具有恢复入口。负例检查缺少租户、混用 instance 与 call、使用未验证操作字符串、普通消费者发布实例、裸 saved 布尔代替交接证据、伪造独立函数的托管身份参数和调用者越权访问 quiesce 均不能通过类型检查。对 `ModelCalls.cancel` 与 `ModelCommands.control` 传入 `reason` 字段，被多余属性检查拒绝，因为取消输入不携带原因。
 
 这些正例使用声明的消费者持久完成函数，不实现它，不能据此声称其 DurableEvidence 为真。类型检查也不能证明不同 operation 的字符串不同、主体当前有权或附件已耐久；这些是运行边界与协议的验证责任。探针脚本与原始输出归任务 tmp，不是公开导出。
 

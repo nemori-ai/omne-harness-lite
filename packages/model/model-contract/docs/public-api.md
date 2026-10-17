@@ -210,7 +210,7 @@ export interface ModelCalls<P> {
   admit(input: Admit<P>): Reply<Admission>
   inspect(input: CallAccess<P> & Readonly<{ admission: ModelOperationId }>): Reply<Lookup>
   dispatches(input: CallAccess<P>): Reply<readonly DispatchRecord[]>
-  cancel(input: Mutation<P> & Readonly<{ reason: 'user' | 'run-cancelled' | 'session-archived' }>): Reply<ControlState>
+  cancel(input: Mutation<P>): Reply<ControlState>
 }
 export interface ModelConsumption<P> {
   beginRead(input: Mutation<P> & Readonly<{ result: ResultVersion }>): Reply<ReadStart>
@@ -355,9 +355,7 @@ export interface ModelCommands<P> {
     position: RetryPosition; decision: RetryDecision; source: DurableEvidence
   }>): Reply<Revision>
   settle(input: WriteContext & Readonly<{ termination: Termination }>): Reply<Settlement>
-  control(input: Mutation<P> & Readonly<{
-    reason: 'user' | 'run-cancelled' | 'session-archived'
-  }>): Reply<ControlState>
+  control(input: Mutation<P>): Reply<ControlState>
   acquireRead(input: Mutation<P> & Readonly<{ result: ResultVersion }>): Reply<ReadStart>
   nextRead(input: CallAccess<P> & Readonly<{ read: ReadId; after: string }>): Reply<ReadState>
   endRead(input: CallAccess<P> & Readonly<{ read: ReadId }>): Reply<ReadState>
@@ -426,7 +424,7 @@ export interface ModelProvider<P> {
 
 ## 档案与请求准备
 
-这些接口供维护入口、Session 列表及请求组装者分别消费。它们不扩展 ModelRuntime 的控制权限。规则及准备/发送两阶段区别见 [准备协议](../SPEC.md#档案与请求准备协议)。
+这些接口供维护入口、选择列表的调用方及组装方分别消费。它们不扩展 ModelRuntime 的控制权限。规则及准备/发送两阶段区别见 [准备协议](../SPEC.md#档案与请求准备协议)。
 
 ```ts
 export type ModelModality = 'text' | 'image' | 'voice'

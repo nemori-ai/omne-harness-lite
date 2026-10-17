@@ -25,7 +25,7 @@ model-cordis-contract 的根只导出纯类型，Cordis 值和增补仅在 ./cor
 | modelRetryPolicy | ModelRetryPolicy | Model | 策略阶段局部必需；由稳定适配器在子fiber取得，缺失按根协议不再试，不能卸载原结果查询 |
 | modelInstances | ModelInstancesService | Model | 具体目录 Service；宿主负责装载，查询与受信贡献分开，登记归Model实例fiber |
 | modelPublicationAuthority | ModelPublicationAuthority | Model 定义入口 | 目录必需；核当前宿主、原实例资格及authority来源，不能只核字符串相同 |
-| modelInstanceHost | ModelInstanceHost | Model | 执行宿主必需；捕获自身Context调度，不使用Agent调用方Context |
+| modelInstanceHost | ModelInstanceHost | Model | 执行宿主必需；捕获自身Context调度，不使用调用方的 Context |
 | modelHostAuthority | ModelHostAuthority | Model | 宿主必需；从原事实与当前可信资格构造 drive 输入 |
 | modelClock | ModelClock | Model | 执行/清理等待必需；失去时保持未完责任，不伪造经过时间 |
 
