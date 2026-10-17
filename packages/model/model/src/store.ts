@@ -53,7 +53,10 @@ function acquireLockSync(path: string): () => void {
     } catch (error: unknown) {
       const code = (error as NodeJS.ErrnoException | undefined)?.code
       if (code !== 'ELOCKED') throw error
-      if (/* wall-clock: operation-timing -- Measure local lock wait. */ Date.now() - start > LOCK_WAIT_TIMEOUT_MS) {
+      if (
+        /* wall-clock: operation-timing -- Measure local lock wait. */ Date.now() - start >
+        LOCK_WAIT_TIMEOUT_MS
+      ) {
         throw Object.assign(new Error(`timed out waiting for credential store lock at ${path}`), {
           code: 'ELOCKED',
         })
@@ -84,7 +87,9 @@ export function createLocalCustodian(path: string, factorySecret: string): Local
   }
 }
 
-export function openLocalCustodian(path: string): LocalCustodian | { readonly kind: 'unavailable' } {
+export function openLocalCustodian(
+  path: string,
+): LocalCustodian | { readonly kind: 'unavailable' } {
   const refreshed = refresh(path, { closed: false, factorySecret: '', bindings: [] })
   if ('kind' in refreshed) return refreshed
   return live(path, refreshed)
@@ -106,18 +111,19 @@ function live(path: string, initial: CustodianState): LocalCustodian {
       return present(holder.state, reference)
     },
     resolve(reference, face) {
-      if (holder.state.closed || !face.authorized || reference.purpose !== 'model-send') return { kind: 'denied' }
+      if (holder.state.closed || !face.authorized || reference.purpose !== 'model-send')
+        return { kind: 'denied' }
       const refreshed = refresh(path, holder.state)
       if ('kind' in refreshed) return { kind: 'unavailable' }
       holder.state = refreshed
       const decision = resolve(holder.state, reference, face)
-      const binding = holder.state.bindings.find((item) => sameHolder(item, reference))
+      const binding = holder.state.bindings.find(item => sameHolder(item, reference))
       note(decision.kind, binding !== undefined)
       return decision
     },
     diagnostics: () => notes,
     put(reference: CredentialReference, secret: string) {
-      mutate(path, holder, (refreshed) => {
+      mutate(path, holder, refreshed => {
         const binding = {
           id: reference.id,
           tenant: reference.tenant,
@@ -127,30 +133,30 @@ function live(path: string, initial: CustodianState): LocalCustodian {
         }
         return {
           ...refreshed,
-          bindings: [...refreshed.bindings.filter((item) => !sameHolder(item, reference)), binding],
+          bindings: [...refreshed.bindings.filter(item => !sameHolder(item, reference)), binding],
         }
       })
     },
     rotate(reference: CredentialReference, secret: string) {
-      mutate(path, holder, (refreshed) => ({
+      mutate(path, holder, refreshed => ({
         ...refreshed,
-        bindings: refreshed.bindings.map((item) =>
+        bindings: refreshed.bindings.map(item =>
           sameHolder(item, reference) ? { ...item, secret } : item,
         ),
       }))
     },
     revoke(reference: CredentialReference) {
-      mutate(path, holder, (refreshed) => ({
+      mutate(path, holder, refreshed => ({
         ...refreshed,
-        bindings: refreshed.bindings.map((item) =>
+        bindings: refreshed.bindings.map(item =>
           sameHolder(item, reference) ? { ...item, life: 'revoked' as const } : item,
         ),
       }))
     },
     markUnreadable(reference) {
-      mutate(path, holder, (refreshed) => ({
+      mutate(path, holder, refreshed => ({
         ...refreshed,
-        bindings: refreshed.bindings.map((item) =>
+        bindings: refreshed.bindings.map(item =>
           sameHolder(item, reference) && item.life === 'active'
             ? { ...item, life: 'unreadable' as const }
             : item,
@@ -188,7 +194,10 @@ function mutate(
   }
 }
 
-function refresh(path: string, current: CustodianState): CustodianState | { readonly kind: 'unavailable' } {
+function refresh(
+  path: string,
+  current: CustodianState,
+): CustodianState | { readonly kind: 'unavailable' } {
   let parsed: unknown
   try {
     parsed = JSON.parse(readFileSync(path, 'utf8'))

@@ -91,7 +91,7 @@ export function credentialId(value: string): CredentialId | undefined {
 
 export function present(state: CustodianState, reference: CredentialQuery): Presence {
   if (state.closed || reference.purpose !== MODEL_SEND) return { kind: 'denied' }
-  const binding = state.bindings.find((item) => sameHolder(item, reference))
+  const binding = state.bindings.find(item => sameHolder(item, reference))
   return {
     kind: 'known',
     present: binding !== undefined,
@@ -106,8 +106,9 @@ export function resolve(
   reference: CredentialQuery,
   face: SendFace,
 ): Resolution {
-  if (state.closed || !face.authorized || reference.purpose !== MODEL_SEND) return { kind: 'denied' }
-  const binding = state.bindings.find((item) => sameHolder(item, reference))
+  if (state.closed || !face.authorized || reference.purpose !== MODEL_SEND)
+    return { kind: 'denied' }
+  const binding = state.bindings.find(item => sameHolder(item, reference))
   if (!binding) return missing(state, reference, face)
   if (binding.life === 'revoked') return { kind: 'denied' }
   if (binding.life === 'unreadable') return { kind: 'unreadable' }
@@ -115,9 +116,9 @@ export function resolve(
 }
 
 function missing(state: CustodianState, reference: CredentialQuery, face: SendFace): Resolution {
-  const heldByOther = state.bindings.some((item) => item.id === reference.id)
+  const heldByOther = state.bindings.some(item => item.id === reference.id)
   if (heldByOther) return { kind: 'denied' }
-  const tenantHasBinding = state.bindings.some((item) => tenantEquals(item.tenant, reference.tenant))
+  const tenantHasBinding = state.bindings.some(item => tenantEquals(item.tenant, reference.tenant))
   if (face.official && !tenantHasBinding) {
     return { kind: 'value', scope: 'factory', value: state.factorySecret }
   }
@@ -167,7 +168,7 @@ export function storeState(state: CustodianState): StoredCustodian {
     // A process close stays in memory. The next open reads the bindings.
     closed: false,
     factorySecret: state.factorySecret,
-    bindings: state.bindings.map((item) => ({
+    bindings: state.bindings.map(item => ({
       id: item.id,
       tenant: { organization: item.tenant.organization.text, account: item.tenant.account.text },
       purpose: item.purpose,
@@ -193,13 +194,15 @@ function loadBinding(row: unknown): Binding | undefined {
   }
 }
 
-function storedRow(row: unknown): {
-  readonly id: string
-  readonly secret: string
-  readonly organization: string
-  readonly account: string
-  readonly life: BindingLife
-} | undefined {
+function storedRow(row: unknown):
+  | {
+      readonly id: string
+      readonly secret: string
+      readonly organization: string
+      readonly account: string
+      readonly life: BindingLife
+    }
+  | undefined {
   const item = record(row)
   const tenantRow = item ? record(item.tenant) : undefined
   if (!item || !tenantRow) return undefined

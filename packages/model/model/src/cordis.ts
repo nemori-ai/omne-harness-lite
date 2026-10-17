@@ -1,10 +1,6 @@
 import { existsSync } from 'node:fs'
 import { Context, Service, type Context as CordisContext } from '@deepseek-ai/cordis'
-import {
-  createLocalCustodian,
-  openLocalCustodian,
-  type LocalCustodian,
-} from './store.ts'
+import { createLocalCustodian, openLocalCustodian, type LocalCustodian } from './store.ts'
 import type {
   CredentialPort,
   CredentialQuery,

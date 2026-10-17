@@ -19,7 +19,7 @@ let injectedFsyncSync: ((fd: number, flags: string | undefined) => void) | undef
 
 const fdFlags = new Map<number, string>()
 
-vi.mock('node:fs', async (importOriginal) => {
+vi.mock('node:fs', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs')>()
   globalThis.__actualFs = actual
   return {
@@ -37,7 +37,13 @@ vi.mock('node:fs', async (importOriginal) => {
       if (injectedRename) return injectedRename(from, to)
       return actual.renameSync(from, to)
     },
-    writeSync: (fd: number, buffer: unknown, offset?: unknown, length?: unknown, ...rest: unknown[]) => {
+    writeSync: (
+      fd: number,
+      buffer: unknown,
+      offset?: unknown,
+      length?: unknown,
+      ...rest: unknown[]
+    ) => {
       if (
         injectedWriteSync &&
         Buffer.isBuffer(buffer) &&
@@ -215,7 +221,11 @@ it('another tenant cannot replace or rotate this tenant secret', () => {
   custodian.put(other, 'from-b')
   custodian.rotate(other, 'hijack')
   expect(custodian.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
-  expect(custodian.resolve(other, face())).toEqual({ kind: 'value', scope: 'tenant', value: 'hijack' })
+  expect(custodian.resolve(other, face())).toEqual({
+    kind: 'value',
+    scope: 'tenant',
+    value: 'hijack',
+  })
   custodian.revoke(other)
   expect(custodian.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
   expect(custodian.resolve(other, face({ official: true }))).toEqual({ kind: 'denied' })
@@ -369,7 +379,11 @@ it('a later writer modifying another binding does not overwrite a revocation sav
   const reopened = openLocalCustodian(path)
   if ('kind' in reopened) throw new Error('store missing')
   expect(reopened.resolve(refA, face()).kind).toBe('denied')
-  expect(reopened.resolve(refB, face())).toEqual({ kind: 'value', scope: 'tenant', value: 'secret-b' })
+  expect(reopened.resolve(refB, face())).toEqual({
+    kind: 'value',
+    scope: 'tenant',
+    value: 'secret-b',
+  })
 })
 
 it('a failed rename keeps the last saved snapshot intact and does not publish the new secret', () => {
@@ -398,7 +412,7 @@ it('a failed rename keeps the last saved snapshot intact and does not publish th
   const reopened = openLocalCustodian(path)
   if ('kind' in reopened) throw new Error('store missing')
   expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
-  expect(readdirSync(dir).filter((name) => name.endsWith('.tmp'))).toEqual([])
+  expect(readdirSync(dir).filter(name => name.endsWith('.tmp'))).toEqual([])
 })
 
 it('a short write is retried until the whole snapshot is persisted', () => {
@@ -442,7 +456,7 @@ it('a write that makes no progress aborts and keeps the old snapshot', () => {
   injectedWriteSync = undefined
   expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: SECRET })
   expect(readFileSync(path, 'utf8')).toEqual(backup)
-  expect(readdirSync(dir).filter((name) => name.endsWith('.tmp'))).toEqual([])
+  expect(readdirSync(dir).filter(name => name.endsWith('.tmp'))).toEqual([])
 })
 
 it('a post-rename confirmation failure reports the update may be visible', () => {
@@ -529,7 +543,7 @@ it('a long-lived synchronous transaction does not let another process steal the 
 
   await new Promise<void>((resolve, reject) => {
     child.on('error', reject)
-    child.on('exit', (code) => {
+    child.on('exit', code => {
       if (code !== 0) reject(new Error(`child exited ${code}: ${childStderr.join('')}`))
       else resolve()
     })
@@ -569,14 +583,20 @@ it('a store with conflicting rows for the same holder is unavailable', () => {
       bindings: [
         {
           id: 'cred-a',
-          tenant: { organization: 'org_abcdefghjkmnpqrstvwxyz2345', account: 'acc_abcdefghjkmnpqrstvwxyz2345' },
+          tenant: {
+            organization: 'org_abcdefghjkmnpqrstvwxyz2345',
+            account: 'acc_abcdefghjkmnpqrstvwxyz2345',
+          },
           purpose: 'model-send',
           secret: SECRET,
           life: 'active',
         },
         {
           id: 'cred-a',
-          tenant: { organization: 'org_abcdefghjkmnpqrstvwxyz2345', account: 'acc_abcdefghjkmnpqrstvwxyz2345' },
+          tenant: {
+            organization: 'org_abcdefghjkmnpqrstvwxyz2345',
+            account: 'acc_abcdefghjkmnpqrstvwxyz2345',
+          },
           purpose: 'model-send',
           secret: 'other-secret',
           life: 'revoked',
@@ -664,10 +684,7 @@ it('concurrent writers in separate processes do not lose updates', () => {
   for (let i = 0; i < 5; i++) {
     const id = credentialId(`parent-${i}`)
     if (!id) throw new Error('fixture id')
-    seed.put(
-      { id, tenant: tenantB, purpose: MODEL_SEND },
-      `parent-secret-${i}`,
-    )
+    seed.put({ id, tenant: tenantB, purpose: MODEL_SEND }, `parent-secret-${i}`)
   }
   const reopened = openLocalCustodian(path)
   if ('kind' in reopened) throw new Error('store missing')
@@ -676,12 +693,16 @@ it('concurrent writers in separate processes do not lose updates', () => {
     const childId = credentialId(`child-${i}`)
     const parentId = credentialId(`parent-${i}`)
     if (!childId || !parentId) throw new Error('fixture id')
-    expect(reopened.resolve({ id: childId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual({
-      kind: 'value',
-      scope: 'tenant',
-      value: `child-secret-${i}`,
-    })
-    expect(reopened.resolve({ id: parentId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual({
+    expect(reopened.resolve({ id: childId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual(
+      {
+        kind: 'value',
+        scope: 'tenant',
+        value: `child-secret-${i}`,
+      },
+    )
+    expect(
+      reopened.resolve({ id: parentId, tenant: tenantB, purpose: MODEL_SEND }, face()),
+    ).toEqual({
       kind: 'value',
       scope: 'tenant',
       value: `parent-secret-${i}`,
@@ -692,10 +713,10 @@ it('concurrent writers in separate processes do not lose updates', () => {
 it('logs, errors, telemetry, and model context do not carry the synthetic secret', async () => {
   const lines: string[] = []
   const methods = ['log', 'info', 'warn', 'error', 'debug'] as const
-  const originals = methods.map((name) => console[name])
+  const originals = methods.map(name => console[name])
   for (const name of methods) {
     console[name] = (...args: unknown[]) => {
-      lines.push(args.map((item) => String(item)).join(' '))
+      lines.push(args.map(item => String(item)).join(' '))
     }
   }
   let thrown = ''
@@ -730,8 +751,8 @@ it('logs, errors, telemetry, and model context do not carry the synthetic secret
   expect(logged).not.toContain(SECRET)
   expect(logged).not.toContain(FACTORY)
   const sources = readdirSync(new URL('../src/', import.meta.url))
-    .filter((name) => name.endsWith('.ts'))
-    .map((name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8'))
+    .filter(name => name.endsWith('.ts'))
+    .map(name => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8'))
     .join('\n')
   expect(sources.includes('console.')).toBe(false)
   expect(sources.includes('telemetry')).toBe(false)
