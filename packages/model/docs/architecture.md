@@ -1,6 +1,6 @@
 # 模型调用组的工程关系
 
-产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 传输、厂商家族及其 tokenizer 引擎/资源/装配细化仍为候选；该例外不改变已定的阶段技术栈选择。model-contract 与 model-cordis-contract 的源码入口仍为空；model 已有凭据切片，模型执行工厂与完整宿主尚未实现。当前凭据源码尚待按本页边界迁移，包存在不证明完整能力可用。
+产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 传输、厂商家族及其 tokenizer 引擎/资源/装配细化仍为候选；该例外不改变已定的阶段技术栈选择。model-contract 与 model-cordis-contract 的源码入口目前只落地凭据切片，其余声明标为 pending；model 已有凭据判定，模型执行工厂与完整宿主尚未实现。凭据源码已按本页边界迁移，包存在不证明完整能力可用。
 
 ## 依赖方向
 
@@ -124,7 +124,7 @@ TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥�
 
 ## 文档归属与迁移
 
-正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员源码入口仍为空；model 已实现凭据判定，model-host-local 已实现本地凭据保管，其他运行工厂尚未实现。
+正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员的源码入口只落地凭据切片；model 已实现凭据判定，model-host-local 已实现本地凭据保管，其他运行工厂尚未实现。
 
 | 内容 | 当前拥有者与后续归属 |
 | --- | --- |
@@ -276,7 +276,7 @@ materialize 先取得实际发送容量，再按原来源及当前资格逐个�
 
 ## 凭据切片的现有装配边界
 
-凭据引用与发送前解析已有实现。公开类型已在 model-contract，服务定义已在 model-cordis-contract，本地保管与插件已迁入 model-host-local，model 源码不再使用 Cordis 与 proper-lockfile。model 的包清单仍声明这两项依赖和 model-cordis-contract，`./cordis`、`./execute` 入口也还在（空模块），安装隔离要等这些随收口删除后才满足本节要求。根入口不启动 Cordis 不等于安装隔离。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
+凭据引用与发送前解析已有实现，现状分四类：既有保管实现在 model-host-local，契约在 model-contract，判定在 model，运行工厂与其他宿主尚未实现。公开类型已在 model-contract，服务定义已在 model-cordis-contract，本地保管与插件在 model-host-local。model 源码与包清单都不含 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口。根入口不启动 Cordis 不等于安装隔离，安装隔离须由实际安装闭包报告证明；model 的报告已由 `install-closure` 产生，`forbidden` 为空且场景运行通过，运行方式与范围见 [model 测试说明](../model/tests/README.md#安装闭包)。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
 
 凭据切片按以下责任迁移，沿用现有四成员，不另建凭据包。
 
@@ -290,6 +290,6 @@ materialize 先取得实际发送容量，再按原来源及当前资格逐个�
 
 model 的生产安装闭包不得含 Cordis 或 model-cordis-contract、model-host-local，也不得因凭据切片固定本地文件存储。model-host-local 可以安装 Cordis 和 proper-lockfile，其根入口的本地工厂不启动 Cordis；选择这个具体宿主不承诺安装无 Cordis。独立领域消费者使用 model 和自己选择的端口实现。model-cordis-contract 不得反向导入 model 来取得凭据类型。
 
-原 credential.ts 混合公开契约、内部判定及磁盘编码，没有整文件迁入契约包：判定与状态快照形状留在 model，磁盘编码随本地提供者在 model-host-local。快照类型（`Binding`、`BindingLife`、`CustodianState`）是[判定对保管状态的显式依赖形状](../model/docs/public-api.md#已实现的凭据入口)：它们从 model 根入口与 `judgePresence`、`judgeResolution` 一并导出，不进任何契约包。其中 `Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。已考虑把它们收窄成读端口，并否决：租户匹配会散到每个宿主，工厂秘密仍留在依赖形状里。model-host-local 构造快照并调用 model 的判定，model 不依赖 model-host-local。迁移保留凭据五种结果、租户资格、轮换与撤销可见性及保存未知语义，不改变发送前受信授权要求。旧的 model 框架入口只剩空模块，随收口删除，不保留转导使安装依赖回流。当前可导入入口以[判定入口](../model/docs/public-api.md#已实现的凭据入口)与[本地保管入口](../model-host-local/docs/public-api.md)为准。
+原 credential.ts 混合公开契约、内部判定及磁盘编码，没有整文件迁入契约包：判定与状态快照形状留在 model，磁盘编码随本地提供者在 model-host-local。快照类型（`Binding`、`BindingLife`、`CustodianState`）是[判定对保管状态的显式依赖形状](../model/docs/public-api.md#已实现的凭据入口)：它们从 model 根入口与 `judgePresence`、`judgeResolution` 一并导出，不进任何契约包。其中 `Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。已考虑把它们收窄成读端口，并否决：租户匹配会散到每个宿主，工厂秘密仍留在依赖形状里。model-host-local 构造快照并调用 model 的判定，model 不依赖 model-host-local。迁移保留凭据五种结果、租户资格、轮换与撤销可见性及保存未知语义，不改变发送前受信授权要求。旧的 model 框架入口已删除，不保留转导使安装依赖回流。当前可导入入口以[判定入口](../model/docs/public-api.md#已实现的凭据入口)与[本地保管入口](../model-host-local/docs/public-api.md)为准。
 
 装配、动态换代与收尾由宿主按[装配设计](../model/docs/cordis.md#纯实现与-cordis-装配的分工)兑现。安装隔离须检查实际包产物、公开声明和完整生产安装闭包；集成能力须以服务装载、依赖缺席、换代、在途固定采用及收尾用例验证。文档采用不表示源码迁移或组合验证完成。

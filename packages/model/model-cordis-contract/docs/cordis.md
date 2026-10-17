@@ -8,7 +8,7 @@
 
 精确声明见 [public-api](public-api.md#服务定义与入口)。
 
-凭据的 ModelCredentialService、modelCredential 键和 Context 增补已在本定义入口的 [`./cordis`](public-api.md#凭据服务定义)落地，是唯一定义。服务键为 `modelCredential`，是抽象定义，只有 `present` 与 `resolve`，诊断读取不在服务上。定义不持有端口；实现不得把端口或保管者放在服务实例上，须放进闭包，model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住它。定义引用 model-contract 的凭据操作类型，不导入 model。`LocalCredentialPlugin` 在 model-host-local 的 `./cordis` 继承这个定义。model 的包清单仍声明对本包的依赖，源码已不引用，随旧入口一起删除。服务不核验调用方资格：`SendFace` 的授权字段和引用里的 `tenant` 都由调用方自报，同一 isolate 的任意插件可以请求另一租户的凭据。这一项在 [SPEC](../SPEC.md#凭据服务)登记为未决。
+凭据的 ModelCredentialService、modelCredential 键和 Context 增补已在本定义入口的 [`./cordis`](public-api.md#凭据服务定义)落地，是唯一定义。服务键为 `modelCredential`，是抽象定义，只有 `present` 与 `resolve`，诊断读取不在服务上。定义不持有端口；实现不得把端口或保管者放在服务实例上，须放进闭包，model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住它。定义引用 model-contract 的凭据操作类型，不导入 model。`LocalCredentialPlugin` 在 model-host-local 的 `./cordis` 继承这个定义。model 不依赖本包。服务不核验调用方资格：`SendFace` 的授权字段和引用里的 `tenant` 都由调用方自报，同一 isolate 的任意插件可以请求另一租户的凭据。这一项在 [SPEC](../SPEC.md#凭据服务)登记为未决。
 
 model-cordis-contract 的根只导出纯类型，Cordis 值和增补仅在 ./cordis；安装该包明确带入 Cordis。业务操作使用抽象 Service；实例与转换目录保留定义自有的具体登记逻辑，限 IC-3 允许的范围。业务插件及阶段适配器归 model-host-local；可复用领域执行归不依赖 Cordis 的 model。
 

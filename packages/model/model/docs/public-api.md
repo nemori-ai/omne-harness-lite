@@ -61,6 +61,5 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 | 消费入口 | 实际源码与能力 |
 | --- | --- |
 | `@omne-harness/model` | [index.ts](../src/index.ts) 导出 `deliver`、调用记录与发送回执类型，以及存在性与解析的判定函数 `judgePresence`、`judgeResolution` 和它们读取的状态快照类型 `CustodianState`、`Binding`、`BindingLife` |
-| `@omne-harness/model/cordis`、`@omne-harness/model/execute` | 源码为空模块。保管与插件迁出后没有内容，入口声明随收口删除，调用者不要依赖 |
 
-判定只读调用者传入的状态快照，不读文件，也不依赖保管实现。快照类型是判定对保管状态的显式依赖形状，从 model 根入口导出，不进任何契约包；`Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。[credential.ts](../src/credential.ts) 拥有判定与快照形状。调用记录与发送回执归 [deliver.ts](../src/deliver.ts)。行为承诺归 [SPEC](../SPEC.md#凭据引用与解析)。这些入口不实现上文 executeModel 或 createModelRuntime，也不证明完整模型调用已交付。
+包只有根入口一个导出路径，`@omne-harness/model/cordis` 与 `@omne-harness/model/execute` 不再解析。判定只读调用者传入的状态快照，不读文件，也不依赖保管实现。查询租户未经 legal-identity 铸造时，两个判定都返回 `denied`，先于其他判定；快照里有绑定的租户未经铸造时，本应给出工厂秘密的解析同样返回 `denied`。快照类型是判定对保管状态的显式依赖形状，从 model 根入口导出，不进任何契约包；`Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。[credential.ts](../src/credential.ts) 拥有判定与快照形状。调用记录与发送回执归 [deliver.ts](../src/deliver.ts)。行为承诺归 [SPEC](../SPEC.md#凭据引用与解析)。这些入口不实现上文 executeModel 或 createModelRuntime，也不证明完整模型调用已交付。

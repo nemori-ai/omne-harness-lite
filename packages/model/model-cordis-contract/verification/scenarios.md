@@ -8,4 +8,4 @@
 
 至少覆盖同步当前资格核验、caller-fiber 登记、同身份冲突、token 条件撤除、旧释放不删后继、转换器取得后固定采用及撤除排空。装配组合检查由[宿主设计](../../model/docs/cordis.md#接入检查)拥有。
 
-当前仅运行模板 build、typecheck 与空入口测试；尚无 Service、目录、插件或生产生命周期验证。检查根值依赖、声明、实际 import 与安装闭包时，Cordis 契约可安装框架，但不得安装 Model 业务实现或厂商包。
+当前只有凭据服务 `ModelCredentialService` 的定义，以及对应的发布、转发、随提供者撤除测试，加上 build、typecheck、导出清单与安装闭包；其余 Service、目录、插件与生产生命周期尚无定义，也没有验证。检查根值依赖、声明、实际 import 与安装闭包时，Cordis 契约可安装框架，但不得安装 Model 业务实现或厂商包。

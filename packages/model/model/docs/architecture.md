@@ -399,10 +399,9 @@ classDiagram
 | --- | --- |
 | [credential.ts](../src/credential.ts) | 存在性与解析取舍的判定，以及判定读取的状态快照形状。判定只读快照，不读文件。引用、五种结果和端口的类型归 model-contract |
 | [deliver.ts](../src/deliver.ts) | 只依赖 CredentialPort，在发送前解析；不导入存储实现 |
-| [cordis.ts](../src/cordis.ts)、[execute.ts](../src/execute.ts) | 两个入口迁出保管与插件后只剩空模块，入口声明留待收口删除 |
 
 凭据的对象模型、顺序和装配分别归[对象](object-model.md#已实现的凭据对象)、[流程](flows.md#凭据解析)和[装配](cordis.md#凭据服务)。这些实际实现不表示 executeModel、createModelRuntime 或完整发送围栏已经实现。
 
-凭据公开类型已在 model-contract，服务定义在 model-cordis-contract，本地保管与插件已迁入 model-host-local，源码不再使用 Cordis 与 proper-lockfile；包清单里的这两项依赖和 model-cordis-contract 依赖，以及 `./cordis`、`./execute` 两个空入口，随收口删除。判定与保管的接口是状态快照：host-local 构造快照并调用本包的判定，本包不依赖 host-local。精确归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。
+凭据切片现状分四类：既有保管实现在 model-host-local，契约在 model-contract，判定在本包，运行工厂与其他宿主尚未实现。服务定义在 model-cordis-contract。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，也没有 `./cordis`、`./execute` 入口。判定与保管的接口是状态快照：host-local 构造快照并调用本包的判定，本包不依赖 host-local。精确归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。
 
 托管发送适配器须在可信内部构造 authorized 与 official，并核对固定的 tenant/factory 选择。普通调用者传入的布尔值不构成 ModelSendBoundary 的授权证据。凭据通用解析允许的官方默认回退不能覆盖托管协议对 tenant 引用失效时禁止转 factory 的要求。该适配尚未实现，不能用凭据单元测试宣称发送围栏已经闭合。

@@ -25,7 +25,7 @@ The target production dependency closure excludes Cordis, Model implementations,
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model-contract typecheck` and `pnpm --filter @omne-harness/model-contract test`, plus `make docs-check`. Current tests check the empty template entries only. Protocol, resource, and installation obligations remain in [verification](verification/index.md).
+Run `pnpm --filter @omne-harness/model-contract typecheck` and `pnpm --filter @omne-harness/model-contract test`, plus `make docs-check`. Current tests cover the landed credential types and the three runtime values of the root entry (`MODEL_SEND`, `decodeCredentialId`, `sameCredentialHolder`), the export inventory, the type-consumption probes, and the install-closure facility; declarations marked `pending` in the inventory are not implemented. Protocol, resource, and production-capability obligations remain in [verification](verification/index.md).
 
 ## Maintenance
 

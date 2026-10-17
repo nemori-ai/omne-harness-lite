@@ -25,7 +25,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model-cordis-contract typecheck`、`pnpm --filter @omne-harness/model-cordis-contract test` 及 `make docs-check`。当前测试仅核模板空入口；协议、资源和安装验证仍按[持续义务](verification/index.md)执行。
+运行 `pnpm --filter @omne-harness/model-cordis-contract typecheck`、`pnpm --filter @omne-harness/model-cordis-contract test` 及 `make docs-check`。当前测试覆盖根入口没有运行时导出、`./cordis` 只导出凭据服务定义 `ModelCredentialService` 与键 `modelCredentialKey`（含服务发布、转发与随提供者撤除的行为）、导出清单和安装闭包设施；清单里标为 `pending` 的其余服务定义尚未实现。协议、资源和生产生命周期的验证仍按[持续义务](verification/index.md)执行。
 
 ## 维护
 

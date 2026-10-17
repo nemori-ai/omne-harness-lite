@@ -1,6 +1,6 @@
 # Model 宿主装配设计
 
-本页暂存 model-host-local 的具体装配设计，该宿主目前只实现本地凭据保管，凭据插件的行为见其[Cordis 集成](../../model-host-local/docs/cordis.md)。领域执行工厂归本成员，托管运行的 Service、键、事件及登记表由[model-cordis-contract](../../model-cordis-contract/docs/cordis.md)唯一拥有；共同登记协议归[其 SPEC](../../model-cordis-contract/SPEC.md)。本页不重复服务类或登记算法。
+本成员没有 `./cordis` 入口，包只有根入口，本页不描述 model 的任何导出。本页暂存 model-host-local 的具体装配设计，该宿主目前只实现本地凭据保管，凭据插件的行为见其[Cordis 集成](../../model-host-local/docs/cordis.md)。领域执行工厂归本成员，托管运行的 Service、键、事件及登记表由[model-cordis-contract](../../model-cordis-contract/docs/cordis.md)唯一拥有；共同登记协议归[其 SPEC](../../model-cordis-contract/SPEC.md)。本页不重复服务类或登记算法。
 
 ## 纯实现与 Cordis 装配的分工
 

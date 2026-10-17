@@ -29,4 +29,4 @@ Context 选择表示、组装、分配预算及压缩，消费 Model 的计量�
 
 行为变更回成员 SPEC，工程分解回组架构，用户后果回产品。提供者记录具体支持范围和验证，不能降低共同契约。组页不另建状态机、服务定义或第二套错误集合。
 
-凭据切片的当前入口见[判定入口](model/docs/public-api.md#已实现的凭据入口)与[本地保管入口](model-host-local/docs/public-api.md)。model 源码已不使用 Cordis 与 proper-lockfile，其包清单里的旧依赖及空入口尚待收口，安装隔离的实际限制见[组架构](docs/architecture.md#凭据切片的现有装配边界)。
+凭据切片的当前入口见[判定入口](model/docs/public-api.md#已实现的凭据入口)与[本地保管入口](model-host-local/docs/public-api.md)。model 源码与包清单都不含 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口。model 的安装闭包报告已产生（`forbidden` 为空、场景运行通过），范围见[组架构](docs/architecture.md#凭据切片的现有装配边界)。

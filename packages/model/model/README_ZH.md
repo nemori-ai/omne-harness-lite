@@ -4,7 +4,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与状态
 
-本成员拥有可复用 Model 领域实现设计，已有凭据存在性与解析的判定，本地保管归 [model-host-local](../model-host-local/README_ZH.md)；托管运行和工厂尚未实现。公共值、操作与提供者协议归 [model-contract](../model-contract/README_ZH.md)，框架定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。设计、实现与运行验证分别判断。
+本成员拥有可复用 Model 领域实现设计，已有凭据存在性与解析的判定，本地保管归 [model-host-local](../model-host-local/README_ZH.md)；托管运行和工厂尚未实现。凭据切片现状分四类：既有保管实现在 [model-host-local](../model-host-local/README_ZH.md)，契约在 [model-contract](../model-contract/README_ZH.md)，判定在本成员，运行工厂与其他宿主尚未实现。公共值、操作与提供者协议归 [model-contract](../model-contract/README_ZH.md)，框架定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。设计、实现与运行验证分别判断。
 
 ## 使用
 
@@ -16,15 +16,15 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 设计
 
-[设计索引](docs/index.md)按架构、流程、内部对象、公开入口、消费和 Cordis 装配展开。宿主装配设计暂在本成员，model-host-local 目前只承载本地凭据保管。
+[设计索引](docs/index.md)按架构、流程、内部对象、公开入口、消费和 Cordis 装配展开。宿主装配设计暂存于 [docs/cordis.md](docs/cordis.md)，它不对应本成员的任何导出；model-host-local 目前只承载本地凭据保管。
 
 ## 配置与运行
 
-构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis；源码已不使用 Cordis 与 proper-lockfile，包清单里的旧依赖随收口删除，在此之前安装闭包仍含它们。包不自动安装所有厂商或词表。
+构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口，没有 `./cordis` 与 `./execute`。`pnpm --filter @omne-harness/model run install-closure` 对本成员做打包、隔离安装、入口解析与场景运行，并以 `--out` 写出报告；最近一次运行 `forbidden` 为空、全部检查通过（见[测试说明](tests/README.md#安装闭包)）。包不自动安装所有厂商或词表。
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。现有测试覆盖凭据判定与根入口导出；保管、持久化与 Cordis 插件的测试在 model-host-local，不证明托管运行、流式或结果保管已经实现。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
+运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。现有测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，不证明托管运行、流式或结果保管已经实现。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
 
 ## 维护
 

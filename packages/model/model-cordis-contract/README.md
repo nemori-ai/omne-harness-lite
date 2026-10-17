@@ -25,7 +25,7 @@ Framework definitions belong in `./cordis`; the root permits pure types only. Th
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model-cordis-contract typecheck` and `pnpm --filter @omne-harness/model-cordis-contract test`, plus `make docs-check`. Current tests check the empty template entries only. Protocol, resource, and installation obligations remain in [verification](verification/index.md).
+Run `pnpm --filter @omne-harness/model-cordis-contract typecheck` and `pnpm --filter @omne-harness/model-cordis-contract test`, plus `make docs-check`. Current tests cover the root entry having no runtime export, `./cordis` exporting only the credential service definition `ModelCredentialService` and its key `modelCredentialKey` (including publication, forwarding, and removal with the provider), the export inventory, and the install-closure facility; the remaining service definitions marked `pending` in the inventory are not implemented. Protocol, resource, and production-lifecycle obligations remain in [verification](verification/index.md).
 
 ## Maintenance
 

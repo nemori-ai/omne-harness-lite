@@ -25,7 +25,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model-contract typecheck`、`pnpm --filter @omne-harness/model-contract test` 及 `make docs-check`。当前测试仅核模板空入口；协议、资源和安装验证仍按[持续义务](verification/index.md)执行。
+运行 `pnpm --filter @omne-harness/model-contract typecheck`、`pnpm --filter @omne-harness/model-contract test` 及 `make docs-check`。当前测试覆盖已落地的凭据类型与根入口的三个运行时值（`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`）、导出清单、类型消费探针和安装闭包设施；清单里标为 `pending` 的声明尚未实现。协议、资源和生产能力的验证仍按[持续义务](verification/index.md)执行。
 
 ## 维护
 

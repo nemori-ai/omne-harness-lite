@@ -6,4 +6,3 @@
 
 - [凭据判定与状态快照](credential.ts)。
 - [独立发送接缝](deliver.ts)。
-- [cordis.ts](cordis.ts) 与 [execute.ts](execute.ts)：空模块，保管与插件已迁入 model-host-local，入口声明随收口删除。
