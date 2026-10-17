@@ -1,6 +1,6 @@
 # 装配交接能力组
 
-本组说明定义求值、采用、绑定及换代交接的工程关系。依据为[领域责任](../../docs/domains/assembly-and-handoff/README.md)和[系统结构](../../docs/architecture/structure.md)。[assembly](assembly/README.md) 的关闭协议已经实现。采用与重装的行为规格已经技术接受，生产实现尚未存在。[kernel-basis](kernel-basis/README.md) 已实现根操作结果、`definePlugin`、`resolveOptional` 和 `startTestAssembly`。旧实现仍在 `packages.0.0.1.legacy/core/kernel-basis`，该目录不在 workspace 里。没有整组运行支持。
+本组说明定义求值、采用、绑定及换代交接的工程关系。依据为[领域责任](../../docs/domains/assembly-and-handoff/README.md)和[系统结构](../../docs/architecture/structure.md)。[assembly](assembly/README.md) 的关闭协议已经实现。采用与重装的行为规格已经技术接受，生产实现尚未存在。[kernel-basis](kernel-basis/README.md) 已实现 Cordis 插件辅助 `definePlugin`、`resolveOptional` 和测试装配 `startTestAssembly`，根入口为空导出。操作结果归 [operation-result](../common/operation-result/README.md)。旧实现仍在 `packages.0.0.1.legacy/core/kernel-basis`，该目录不在 workspace 里。没有整组运行支持。
 
 ## 责任与范围
 
