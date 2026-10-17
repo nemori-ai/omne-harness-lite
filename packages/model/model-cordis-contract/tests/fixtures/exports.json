@@ -76,6 +76,13 @@
             { "name": "ModelDiagnosticsService", "kind": "class", "pending": true },
             { "name": "modelDiagnosticsKey", "kind": "value", "pending": true }
           ]
+        },
+        {
+          "title": "凭据服务定义",
+          "names": [
+            { "name": "ModelCredentialService", "kind": "class", "pending": false },
+            { "name": "modelCredentialKey", "kind": "value", "pending": false }
+          ]
         }
       ]
     }
@@ -100,9 +107,11 @@
         "modelPublicationAuthority",
         "modelConverters",
         "modelInstances",
-        "modelConverterAuthority"
+        "modelConverterAuthority",
+        "modelCredential"
       ],
-      "pending": true
+      "pending": true,
+      "landed": ["modelCredential"]
     },
     {
       "module": "@deepseek-ai/cordis",

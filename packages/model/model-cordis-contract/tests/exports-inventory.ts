@@ -38,6 +38,12 @@ export type Augmentation = Readonly<{
   interface: string
   members: readonly string[]
   pending: boolean
+  /**
+   * Members that are already built while the augmentation as a whole is still pending. The built
+   * set must equal this list exactly, so a pending augmentation cannot grow unnoticed. Every name
+   * must also be one of `members`, so a misnamed built member is not accepted for a listed one.
+   */
+  landed?: readonly string[]
 }>
 
 export type EntryComparison = Readonly<{
@@ -202,8 +208,17 @@ export function compareAugmentations(
       augmentation.interface,
     )
     const label = `${augmentation.module} ${augmentation.interface}`
+    const unlisted = (augmentation.landed ?? []).filter(
+      name => !augmentation.members.includes(name),
+    )
+    if (unlisted.length > 0)
+      problems.push(`${label}: landed ${unlisted.join(', ')} are not listed in members`)
     if (augmentation.pending) {
-      if (built.length > 0) problems.push(`${label}: pending but built members ${built.join(', ')}`)
+      const landed = [...(augmentation.landed ?? [])].sort()
+      if (JSON.stringify(built) !== JSON.stringify(landed))
+        problems.push(
+          `${label}: pending, built members ${built.join(', ') || 'none'} differ from landed ${landed.join(', ') || 'none'}`,
+        )
     } else if (JSON.stringify(built) !== JSON.stringify([...augmentation.members].sort()))
       problems.push(`${label}: built members ${built.join(', ')} differ from the inventory`)
   }

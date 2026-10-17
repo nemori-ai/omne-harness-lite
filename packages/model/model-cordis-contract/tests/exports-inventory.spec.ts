@@ -184,6 +184,30 @@ describe('compareAugmentations', () => {
   it('rejects a pending augmentation that is already built', () => {
     expect(compareAugmentations(augmentation(['x/changed'], true), declarations)).toHaveLength(1)
   })
+
+  it('lets a pending augmentation land members, and only exactly the landed ones', () => {
+    const landed = (names: string[]) => {
+      const base = augmentation(['x/changed', 'y/changed'], true)
+      return {
+        ...base,
+        augmentations: [{ ...base.augmentations[0]!, landed: names }],
+      }
+    }
+    expect(compareAugmentations(landed(['x/changed']), declarations)).toEqual([])
+    expect(compareAugmentations(landed([]), declarations)).toHaveLength(1)
+    expect(compareAugmentations(landed(['x/changed', 'y/changed']), declarations)).toHaveLength(1)
+  })
+
+  it('rejects a landed name that is not a member of the augmentation', () => {
+    const base = augmentation(['x/other'], true)
+    const misnamed = {
+      ...base,
+      augmentations: [{ ...base.augmentations[0]!, landed: ['x/changed'] }],
+    }
+    expect(compareAugmentations(misnamed, declarations)).toEqual([
+      'host Events: landed x/changed are not listed in members',
+    ])
+  })
 })
 
 describe('public-api page against the inventory', () => {
