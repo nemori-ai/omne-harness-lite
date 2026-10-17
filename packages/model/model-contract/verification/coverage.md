@@ -17,8 +17,9 @@
 | CAP-MD11 真实费用 | 原 dispatch 事实；账目投影；[流程](../../model/docs/flows.md#flow-md06) | DispatchRecord、LateDispatchFact、共享 CallAccount | [费用事实](../SPEC.md#真实费用和账目边界) | 多 observer 重复入账、两次真实费被合并、未知填零、迟到复活原工作；校准统计口径不明不得借用；账目查询由其拥有者实现 |
 | CAP-MD12 数据保护 | 各操作守卫；发送与披露；[流程](../../model/docs/flows.md#flow-md06) | Access、来源证据、发送围栏、ModelMediaReader | [保护](../SPEC.md#数据保护与异常)、[准备协议](../SPEC.md#档案与请求准备协议) | 跨租户、接收方改变、伪 source、撤权后发出、秘密入错误；ModelDiagnostics 最小字段与保留机制已接受，权限/具体数值仍待采用 |
 | CAP-MD13 性能与观测 | 历史增量投影；阶段观测；[流程](../../model/docs/flows.md#flow-md09) | 模态覆盖依据、ModelDiagnostics、阶段观测、游标与有限缓冲 | [投影](../SPEC.md#转换与历史投影协议)、[观测](../SPEC.md#展示诊断与实施证据) | 点查扫描全历史、重建不一致、混同 TTFT、缓冲无界；固定资源在途排空、缓存不能绕权；真实性能量测和诊断入口待实现 |
+| 消费者工作守卫与 owner 声明（跨 CAP-MD09、CAP-MD12） | 调用推进；发送；持久事实；[流程](../../model/docs/flows.md#flow-md04)、[策略点](../../model/docs/flows.md#flow-md03) | ConsumerRef、CallState.control、消费者工作守卫参加者（形状待定） | [资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送) | 重试决定中的调用原工作资格失效，资格随后恢复，策略决定重试：守卫仍答不合格，S 不发出；未声明守卫或免守卫的 owner 受理被拒绝，返回 invalid(field='consumer.owner')。见[持续验证义务](scenarios.md#持续验证义务)。守卫参加者的形状尚未进入 public-api，守卫不可逆须经组合验证 |
 
-内部 module 的 interface、状态及依赖分类见[架构](../../model/docs/architecture.md#内部-module-与-interface)。上表覆盖全部 13 项产品能力；主路径以外，[两种独立调用](../../model/docs/flows.md#flow-md07)适用于 CAP-MD06..12，[宿主恢复](../../model/docs/flows.md#flow-md08)串联执行、保管及账目。一个能力在表中有位置不代表行为测试已通过。
+内部 module 的 interface、状态及依赖分类见[架构](../../model/docs/architecture.md#内部-module-与-interface)。上表覆盖全部 13 项产品能力，另有一行跨能力的消费者工作守卫与 owner 声明；主路径以外，[两种独立调用](../../model/docs/flows.md#flow-md07)适用于 CAP-MD06..12，[宿主恢复](../../model/docs/flows.md#flow-md08)串联执行、保管及账目。一个能力在表中有位置不代表行为测试已通过。
 
 ## 设计验收与实现验收
 
