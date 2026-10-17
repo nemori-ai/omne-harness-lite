@@ -303,7 +303,7 @@ function isJsonStringPrefix(raw: string): boolean {
   return true
 }
 
-const RFC_8259_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/
+export const RFC_8259_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/
 
 /**
  * The scanner splits `01` into two numbers and keeps `1.` as one, so the lexeme is
