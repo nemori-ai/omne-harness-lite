@@ -12,6 +12,16 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    },
+    "./execute": {
+      "source": "./src/execute.ts",
+      "types": "./dist/execute.d.ts",
+      "import": "./dist/execute.js"
     }
   },
   "files": [
@@ -22,9 +32,14 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "pnpm run build && vitest run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
+    "proper-lockfile": "^4.1.2"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/proper-lockfile": "^4.1.4",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

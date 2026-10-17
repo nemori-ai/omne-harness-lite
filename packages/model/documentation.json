@@ -93,7 +93,7 @@
     },
     {
       "id": "placed-packages-model-model-docs-key-flows-md",
-      "path": "packages/model/model/docs/key-flows.md",
+      "path": "packages/model/model/docs/key-flow.md",
       "kind": "architecture",
       "required": true,
       "visibility": "internal",
@@ -102,6 +102,51 @@
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "能力组文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages-model-model-docs-model-md",
+      "path": "packages/model/model/docs/model.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "按需专题与持续资源"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages-model-model-docs-cordis-md",
+      "path": "packages/model/model/docs/cordis.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "按需专题与持续资源"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "placed-packages-model-model-docs-architecture-md",
+      "path": "packages/model/model/docs/architecture.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "按需专题与持续资源"
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []

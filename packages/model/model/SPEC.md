@@ -18,13 +18,13 @@ Session 拥有工作身份、有效推进和选择事实，request-context 拥�
 
 | 产品旅程及能力 | 对应流程 | 行为拥有位置 | 持续验证 |
 | --- | --- | --- | --- |
-| J-MD01，CAP-MD01、04、12 | [档案维护](docs/key-flows.md#flow-md01) | [身份与修订](docs/profile-and-modality.md#身份修订及撤回)、[请求资格](#请求资格身份与固定输入) | [档案反例](docs/profile-and-modality.md#验证与待闭合输入)、[数据保护反例](docs/consumption-and-cost.md#持续验证义务) |
-| J-MD02，CAP-MD02、03、05、06 | [会话选择协作](docs/key-flows.md#flow-md01) | [同名求值](docs/profile-and-modality.md#同名求值选择及列表) | [合法选择反例](docs/profile-and-modality.md#验证与待闭合输入) |
-| J-MD03，CAP-MD05、06、12、13 | [转换与组装](docs/key-flows.md#flow-md02) | [模态表示](docs/profile-and-modality.md#模态投影与实际表示)、[转换契约](docs/profile-and-modality.md#转换件的共同契约)、[最终输入](#请求资格身份与固定输入) | [限额、转换及投影反例](docs/profile-and-modality.md#验证与待闭合输入)、[主规格反例](#观测资源与验证) |
-| J-MD04，CAP-MD06、07、08、11、13 | [发出与流收场](docs/key-flows.md#flow-md03) | [真实发出](#调用和各次真实发出)、[流式](#流式和首内容)、[策略](#重试与策略)、[故障交接](#故障交接) | [首内容、独立调用与否决反例](#观测资源与验证) |
-| J-MD05，CAP-MD09、10、11、12 | [控制与恢复](docs/key-flows.md#flow-md04) | [控制](#控制取消与晚到事实)、[换代恢复](#换代恢复和耐久) | [原身份与未知反例](#观测资源与验证)、[取消结果反例](docs/consumption-and-cost.md#持续验证义务) |
-| J-MD06，CAP-MD09、10、11、12 | [双路径 ACK](docs/key-flows.md#flow-md05) | [ACK](docs/consumption-and-cost.md#ack-的前提与效果)、[清理](docs/consumption-and-cost.md#清理范围与读写保护) | [保管、完成、回执未知及竞态](docs/consumption-and-cost.md#持续验证义务) |
-| J-MD07，CAP-MD04、11、12、13 | [费用与查询](docs/key-flows.md#flow-md06) | [费用](docs/consumption-and-cost.md#真实费用和账目边界)、[保护](docs/consumption-and-cost.md#数据保护与异常)、[观测](#观测资源与验证) | [账目及披露反例](docs/consumption-and-cost.md#持续验证义务)、[点查询与重建](docs/profile-and-modality.md#验证与待闭合输入) |
+| J-MD01，CAP-MD01、04、12 | [档案维护](docs/key-flow.md#flow-md01) | [身份与修订](docs/profile-and-modality.md#身份修订及撤回)、[请求资格](#请求资格身份与固定输入) | [档案反例](docs/profile-and-modality.md#验证与待闭合输入)、[数据保护反例](docs/consumption-and-cost.md#持续验证义务) |
+| J-MD02，CAP-MD02、03、05、06 | [会话选择协作](docs/key-flow.md#flow-md01) | [同名求值](docs/profile-and-modality.md#同名求值选择及列表) | [合法选择反例](docs/profile-and-modality.md#验证与待闭合输入) |
+| J-MD03，CAP-MD05、06、12、13 | [转换与组装](docs/key-flow.md#flow-md02) | [模态表示](docs/profile-and-modality.md#模态投影与实际表示)、[转换契约](docs/profile-and-modality.md#转换件的共同契约)、[最终输入](#请求资格身份与固定输入) | [限额、转换及投影反例](docs/profile-and-modality.md#验证与待闭合输入)、[主规格反例](#观测资源与验证) |
+| J-MD04，CAP-MD06、07、08、11、13 | [发出与流收场](docs/key-flow.md#flow-md03) | [真实发出](#调用和各次真实发出)、[流式](#流式和首内容)、[策略](#重试与策略)、[故障交接](#故障交接) | [首内容、独立调用与否决反例](#观测资源与验证) |
+| J-MD05，CAP-MD09、10、11、12 | [控制与恢复](docs/key-flow.md#flow-md04) | [控制](#控制取消与晚到事实)、[换代恢复](#换代恢复和耐久) | [原身份与未知反例](#观测资源与验证)、[取消结果反例](docs/consumption-and-cost.md#持续验证义务) |
+| J-MD06，CAP-MD09、10、11、12 | [双路径 ACK](docs/key-flow.md#flow-md05) | [ACK](docs/consumption-and-cost.md#ack-的前提与效果)、[清理](docs/consumption-and-cost.md#清理范围与读写保护) | [保管、完成、回执未知及竞态](docs/consumption-and-cost.md#持续验证义务) |
+| J-MD07，CAP-MD04、11、12、13 | [费用与查询](docs/key-flow.md#flow-md06) | [费用](docs/consumption-and-cost.md#真实费用和账目边界)、[保护](docs/consumption-and-cost.md#数据保护与异常)、[观测](#观测资源与验证) | [账目及披露反例](docs/consumption-and-cost.md#持续验证义务)、[点查询与重建](docs/profile-and-modality.md#验证与待闭合输入) |
 
 请求表示选择与组装的实际行为归 [request-context 的 RQ-04](../../context/request-context/SPEC.md#rq-04-模态与可追溯表示)，本域提供档案约束及转换件共同契约。工具允许块全集及嵌套投影仍受 MODEL-E01 限制，本表不宣称完整覆盖该来源缺口。
 
@@ -39,13 +39,72 @@ Session 拥有工作身份、有效推进和选择事实，request-context 拥�
 
 不得借档案不是资产而取消主体、秘密、外传和读取检查，也不得另造按账号、Run 或单次调用颁发的模型执行许可。共同设置规则仍由 assets 维护。
 
+## 凭据引用与解析
+
+本成员提供凭据引用、存在性查询和发送前解析。秘密只留在本成员内部；调用记录、诊断、日志、错误消息和遥测只携带引用，不携带秘密值。
+
+凭据引用由凭据身份、租户和用途组成。凭据身份是本成员自己的标识，不是租户身份，也不是登录出示物。租户使用 `TenantId`。本交付的用途只取 `model-send`。引用本身不授予读取或发送授权。
+
+公开操作是 `present`（存在性）和 `resolve`（获准发送时解析）。两者都接受一个用途字符串。用途不是 `model-send` 时，两者都返回 `denied`。
+
+### 存在性
+
+`present` 不判断发送资格。结果分三种：
+
+- `known`：带上 `present`（布尔值）、`id`、`tenant`、`purpose`。同一身份且同一租户的行存在时 `present` 为 true，即使该行的寿命是 `revoked` 或 `unreadable`。同一身份只在别的租户手里，或者本租户没有这一行时，`present` 为 false。
+- `denied`：保管已关闭或用途不符。
+- `unavailable`：保管或存储整体不能判断。
+
+### 解析结果
+
+`resolve` 在获准发送时按当前资格返回五种结果之一。只有 `value` 携带秘密，并且只用于这一次发送。
+
+| 结果 | 含义 | 发送端行为 |
+| --- | --- | --- |
+| `value` | 当前资格允许 | 发出，并记下本次采用的值。`scope` 为 `tenant` 或 `factory`。 |
+| `absent` | 没有这份凭据 | 不发送。 |
+| `unreadable` | 引用在，值暂时读不出 | 不发送。 |
+| `denied` | 跨租户、用途不符、无发送资格、已撤销或保管已关闭 | 不发送。 |
+| `unavailable` | 保管或存储暂时不能判断 | 不发送，也不得报成 `absent`。 |
+
+### 解析取舍顺序
+
+`resolve` 按以下顺序判断，前面的结果一旦成立，后面的不再看：
+
+1. 保管已关闭、发送未获准或用途不是 `model-send`：返回 `denied`。
+2. 本租户有这一身份的行：
+   - `active`：返回 `value`，范围 `tenant`。
+   - `revoked`：返回 `denied`。
+   - `unreadable`：返回 `unreadable`。
+3. 本租户没有这一行：
+   - 别的租户持有同一身份：返回 `denied`，不使用工厂秘密，不使用其他租户的值。
+   - 本租户还有其他任意一行：返回 `absent`。
+   - 本租户没有任何一行，且本次档案是官方档案：返回 `value`，范围 `factory`。
+   - 否则：返回 `absent`。
+
+已撤销或暂时读不出的行仍然存在，因此 `present` 为 true；只有 `resolve` 才按寿命分别返回 `denied` 或 `unreadable`。租户绑定仍在但值不可读时，不使用部署默认凭据，也不使用其他租户的值。未获准的官方发送拿不到工厂秘密。
+
+### 保管与接缝
+
+凭据保管由 `packages/model/model` 拥有。本地保管库存储秘密和绑定。Cordis 服务键为 `modelCredential`；独立调用也可以不启动 Cordis，直接使用根入口的函数。两种入口看到的五种结果相同。
+
+保管库文件包含工厂秘密和绑定列表。路径上还没有文件时，Cordis 插件用配置里的工厂秘密新建保管库；`openLocalCustodian` 对缺失文件返回 `unavailable`，不新建。路径上已有文件时，插件打开文件并使用文件里的工厂秘密，不用本次配置里的值。文件损坏或同一持有者出现多行冲突时，`present` 和 `resolve` 返回 `unavailable`，不修改文件。
+
+`present` 和 `resolve` 每次从磁盘刷新当前状态；保留的句柄和 Cordis 服务都能观察到后续轮换、撤销或文件损坏。管理操作（`put`、`rotate`、`revoke`、`markUnreadable`）写盘前先刷新，再基于当前状态修改，并持有文件锁完成“读当前状态—修改—发布”。文件锁不按时间过期，因此持锁进程活着时其他写者只能等待；若持锁进程崩溃，残留锁文件 `${path}.lock` 需在所有写者停止后手工删除。写入采用临时文件、`fsync` 及重命名；临时文件名唯一，不会覆盖其他写者。
+
+发布前失败（锁等待超时、临时文件写入失败、`fsync` 失败或重命名失败）时抛出异常，不发布新状态，已确认的旧快照保持不变。重命名成功后、后续确认（如父目录 `fsync`）失败时，新状态可能已发布；此时抛出 `confirmation incomplete; verify state before retry`，调用方必须核实当前文件状态后再决定重试。
+
+绑定寿命是 `active`、`revoked` 或 `unreadable`。`put` 把该持有者写成 `active`，可以盖过已撤销或读不出的行。`rotate` 只换秘密，不改生命状态；已撤销的行轮换后 `resolve` 仍是 `denied`。`markUnreadable` 只把 `active` 改成 `unreadable`。
+
+`close()` 只把当前进程标成关闭，随后的 `present` 和 `resolve` 返回 `denied`。关闭不删除绑定，不把停止状态写进保管库文件，也不改写已经交给发送端的值。关闭之后对绑定的修改仍可能写入文件；下一个进程按打开时的绑定读取。
+
 ## 调用和各次真实发出
 
 逻辑调用有稳定身份及最终完成、失败或被中断的结局。每次真实发出单独辨认，以档案允许的单个供应商处理。供应商变更或同家重发都是新发出，不是修改旧记录。未发出失败与已经发出的拒绝分别保存。
 
 进入会话日志的跨边界事实是未发出就失败、真实收场、停止尚未回报，以及消费侧已保存结果。每次重试、首内容边界、容量预留、在途块和费用金额留在本成员。记入标准见[必须进入日志的事实](../../../docs/architecture/runtime/session-and-run.md#必须进入日志的事实)。
 
-受理的最小对接是现行规则。租户身份是参数。缺租户或跨租户默认拒绝。结果确认的前提见[ACK](docs/consumption-and-cost.md#ack-的前提与效果)。样例见 [F-SW03](../../session/session/docs/key-flows.md#f-sw03) 和[双路径 ACK](docs/key-flows.md#flow-md05)。
+受理的最小对接是现行规则。租户身份是参数。缺租户或跨租户默认拒绝。结果确认的前提见[ACK](docs/consumption-and-cost.md#ack-的前提与效果)。样例见 [F-SW03](../../session/session/docs/key-flows.md#f-sw03) 和[双路径 ACK](docs/key-flow.md#flow-md05)。
 
 | 项 | 规则 |
 | --- | --- |
