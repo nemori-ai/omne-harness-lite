@@ -1,15 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 
-it('exports operation results from the root and does not export cordis helpers', async () => {
+it('has no runtime exports at the root and keeps cordis helpers on their own entries', async () => {
   const root = await import('@omne-harness/kernel-basis')
-  expect(typeof root.succeed).toBe('function')
-  expect(typeof root.ack).toBe('function')
-  expect(typeof root.fail).toBe('function')
-  expect(typeof root.isSuccess).toBe('function')
-  expect('definePlugin' in root).toBe(false)
-  expect('resolveOptional' in root).toBe(false)
-  expect('startTestAssembly' in root).toBe(false)
+  expect(Object.keys(root)).toEqual([])
 
   const parsed: unknown = JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),

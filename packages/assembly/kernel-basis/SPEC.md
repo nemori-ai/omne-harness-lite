@@ -1,23 +1,8 @@
 # kernel-basis 行为规格
 
-本文件是 `@omne-harness/kernel-basis` 的目标契约，已由 PanQiWei 在 [#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)中接受。根入口导出操作结果。`./cordis` 导出 `definePlugin` 与 `resolveOptional`。`./testing` 导出 `startTestAssembly`。根入口的源码和声明不导入 Cordis。
+本文件是 `@omne-harness/kernel-basis` 的目标契约，已由 PanQiWei 在 [#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)中接受。根入口为空导出。`./cordis` 导出 `definePlugin` 与 `resolveOptional`。`./testing` 导出 `startTestAssembly`。操作结果归 `@omne-harness/operation-result`，依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851)，契约见该成员的 [SPEC.md](../../common/operation-result/SPEC.md)。
 
-包组织页已经接受三份入口。根入口导出操作结果，并且不导入 `@deepseek-ai/cordis`。插件辅助从 `./cordis` 导出。测试装配从 `./testing` 导出。本包不声明服务键，不收回其他能力的 Service 定义。
-
-## 操作结果
-
-根入口提供两种结果。失败字面量 `F` 由调用方契约规定。本包不规定共同的失败词汇。
-
-```ts
-type Outcome<T, F> = { ok: T } | { failure: F }
-type Ack<F> = { ok: true } | { failure: F }
-```
-
-`succeed(value)` 返回 `{ ok: value }`。`ack()` 返回 `{ ok: true }`。`fail(failure)` 返回 `{ failure }`。不存在字符串 `'ok'`。
-
-`isSuccess` 对 `Outcome` 和 `Ack` 都成立的条件是结果对象带有 `ok`。带值成功里 `ok` 是载荷 `T`。无值成功里 `ok` 只是 `true`，不携带业务载荷。两种类型不合并成一个信封。
-
-根入口的源码、声明和运行不导入 Cordis。#270 在实现时核对安装闭包是否引入 Cordis。入口分开不等于安装闭包已经隔离。
+本成员只服务 Cordis 集成与测试。根入口为空，并且不导入 `@deepseek-ai/cordis`。插件辅助从 `./cordis` 导出。测试装配从 `./testing` 导出。本包不声明服务键，不收回其他能力的 Service 定义。
 
 ## 插件辅助
 
@@ -123,21 +108,17 @@ Cordis 负责运行中的依赖换代和 `fiber.restart`。测试装配不做这
 
 | 能力 | 入口 | 已接受依据 | 具名计划消费 | 新源码调用点 | 为什么不直接用 Cordis |
 | --- | --- | --- | --- | --- | --- |
-| 带值操作结果 | 根 | 包组织页登记了入口。PanQiWei 在 #270 把本次范围扩到这个入口 | 本包根入口测试 | 无业务成员调用点 | Cordis 没有这种结果类型 |
-| 无值操作结果 | 根 | 同上 | 同上 | 无业务成员调用点 | 同上 |
 | `definePlugin` | `./cordis` | [IC-14](../../../docs/architecture/cordis-integration-conventions.md) | IC-14 的函数插件 | 无 | Cordis 接受的插件对象可以省略 `Config` |
 | `resolveOptional` | `./cordis` | [IC-9](../../../docs/architecture/cordis-integration-conventions.md) | IC-9 的可选依赖读取 | 无 | `ctx.get` 已经够用。辅助只固定缺席和类型断言 |
 | 测试装配 | `./testing` | 包组织页登记了入口。PanQiWei 在 #270 把本次范围扩到这个入口。导出名是 `startTestAssembly` | 本包 `./testing` 测试 | 无业务成员调用点 | Cordis 的 `await plugin()` 返回不等于 `apply` 已运行，也不收集多次撤除失败 |
 
-操作结果和测试装配已由 PanQiWei 纳入 #270 本次范围。公开入口由本包测试消费。没有业务成员里的生产调用点。旧包 import 次数只是线索。服务键留在各能力的定义拥有者。
+测试装配已由 PanQiWei 纳入 #270 本次范围。公开入口由本包测试消费。没有业务成员里的生产调用点。旧包 import 次数只是线索。服务键留在各能力的定义拥有者。
 
 ## 入口闭包
 
-根入口的源码不导入 `@deepseek-ai/cordis`。#270 生成的根声明也不得引用 Cordis。调用根入口的 `succeed`、`ack`、`fail` 和 `isSuccess` 不得创建 Context。
+安装本包就会安装 Cordis。`package.json` 把 `@deepseek-ai/cordis` 放在 `dependencies` 里。本包只服务 Cordis 集成与测试。根入口为空导出，源码和生成的声明都不引用 Cordis。需要操作结果的调用方安装 `@omne-harness/operation-result`，那个成员的 `dependencies` 为空。
 
 `./cordis` 和 `./testing` 的源码与声明可以引用 Cordis。
-
-当前 `package.json` 把 `@deepseek-ai/cordis` 放在整个包的 `dependencies` 里。安装这个包就会安装 Cordis，即使调用方只用根入口。一个包给不出两套安装闭包。这次不把 Cordis 改成可选依赖。根入口的源码隔离不等于安装隔离。
 
 ## Cordis 证据
 
@@ -163,10 +144,10 @@ npm 上的 `@deepseek-ai/cordis@4.0.4` 没有 `gitHead`。对应的上游发布�
 
 ## 验收对照
 
-C1。`definePlugin` 和 `resolveOptional` 的计划消费是 IC-14 和 IC-9。根入口操作结果和 `startTestAssembly` 已由 PanQiWei 纳入 #270 本次范围，公开入口由本包测试消费。没有业务成员里的生产调用点。旧 import 只是线索。Fiber 状态辅助不进入公开入口。
+C1。`definePlugin` 和 `resolveOptional` 的计划消费是 IC-14 和 IC-9。`startTestAssembly` 已由 PanQiWei 纳入 #270 本次范围，公开入口由本包测试消费。没有业务成员里的生产调用点。旧 import 只是线索。Fiber 状态辅助不进入公开入口。
 
-C2。`definePlugin`、`resolveOptional` 和测试装配的类型、失败与撤除写在本文件。根入口不导入 Cordis。安装这个包仍会安装 Cordis。本包不侵占 assembly 的关闭协议。
+C2。`definePlugin`、`resolveOptional` 和测试装配的类型、失败与撤除写在本文件。根入口为空导出，不导入 Cordis。安装这个包仍会安装 Cordis。本包不侵占 assembly 的关闭协议。
 
 C3。版本钉到 npm 4.0.4 和发布提交 `d0dca04e22f09fe04967090b2ee70587ecdad6cc`。影响契约的四项未知已有探针结果。配置校验和 effect 次序已有本包测试中的探针结果。`ACTIVE` 不是业务就绪仍是项目陈述。
 
-C4。本次交付实现了根入口操作结果、`definePlugin`、`resolveOptional` 和 `startTestAssembly`。D-04 才接受技术选择。D-05 才接受整卡结果。
+C4。本次交付实现了 `definePlugin`、`resolveOptional` 和 `startTestAssembly`。D-04 才接受技术选择。D-05 才接受整卡结果。

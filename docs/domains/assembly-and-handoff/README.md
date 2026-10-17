@@ -26,7 +26,7 @@
 
 必需与可选依赖明确，缺必需不能宣称就绪。独立能力根与集成入口分别维护；业务不读取产品装配入口或依赖宿主私有表示。
 
-内核辅助是同组的另一个成员，名字是 `kernel-basis`。它不是求值、采用和交接成员 `assembly`。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。目录和封存路径归[产品包组织](../../package-organization.md)。
+内核辅助是同组的另一个成员，名字是 `kernel-basis`。它提供 Cordis 插件辅助和测试装配。操作结果归 `packages/common/operation-result`。它不是求值、采用和交接成员 `assembly`。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。目录和封存路径归[产品包组织](../../package-organization.md)。
 
 ## 主路径与交接
 

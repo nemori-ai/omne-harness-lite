@@ -107,7 +107,7 @@ packages/
 ├── session/session/            Session、Run与逻辑治理
 ├── assembly/
 │   ├── assembly/               求值、采用和装配交接
-│   └── kernel-basis/           操作结果、Cordis 插件辅助和测试装配
+│   └── kernel-basis/           Cordis 插件辅助和测试装配
 ├── agent/agent/                Agent定义、Loop与extensions
 ├── model/model/                模型能力、请求和原结果
 ├── tool/tool/                  工具定义、执行和效果
@@ -133,7 +133,9 @@ packages/
 │   ├── utc-instant/            UTC 时间点与 SI 时长
 │   ├── content-block/          已封闭的文本、思考、语音、图、文件
 │   ├── message/                事实记录中的消息字段
-│   └── stream-arrival/         流式交付的开块、填充、封块、削减、结束
+│   ├── stream-arrival/         流式交付的开块、填充、封块、削减、结束
+│   ├── call-account/           一次模型调用或工具执行的调用账目
+│   └── operation-result/       带值成功、无值确认与失败两种操作结果
 ├── util/
 │   ├── unix-format/          按码位排版的终端文本
 │   └── xml-format/           按字段声明渲染的 XML 文本
@@ -148,11 +150,11 @@ scripts/                       仓库自动化
 
 `schema` 只放 Schema 提供者。成员是 `packages/schema/schema-provider`。它做准入、首次编译、租约和槽位缓存。各业务形状仍由各自的拥有者持有。该组不是治理领域，也不是 `util` 或 `common`。提供者持有缓存和租约，不是纯表示。
 
-装配组有两个目标成员。`assembly` 维护求值、采用和交接。`kernel-basis` 维护操作结果、Cordis 插件辅助和测试装配。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。
+装配组有两个目标成员。`assembly` 维护求值、采用和交接。`kernel-basis` 维护 Cordis 插件辅助和测试装配。业务成员可以依赖 `kernel-basis` 的公开入口。业务成员不读取 `assembly` 来取得全局服务或隐式依赖。
 
-`kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口只导出操作结果，并且不导入 `@deepseek-ai/cordis`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页登记成员位置 `packages/assembly/kernel-basis`，具体实现范围见下段。
+`kernel-basis` 不声明服务键。它不收回其他能力的 Service 定义。根入口为空导出，并且不导入 `@deepseek-ai/cordis`。操作结果归 `packages/common/operation-result`。插件辅助从同包 `./cordis` 导出。测试装配从同包 `./testing` 导出。本页登记成员位置 `packages/assembly/kernel-basis`，具体实现范围见下段。
 
-`packages/assembly/kernel-basis` 已是 workspace 成员。根入口导出操作结果，`./cordis` 导出 `definePlugin` 与 `resolveOptional`，`./testing` 导出 `startTestAssembly`。封存实现 `packages.0.0.1.legacy/core/kernel-basis` 已退出 workspace，只供来源核对，新成员不依赖旧源码或探针。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/repo-toolchain/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
+`packages/assembly/kernel-basis` 已是 workspace 成员。根入口为空导出，`./cordis` 导出 `definePlugin` 与 `resolveOptional`，`./testing` 导出 `startTestAssembly`。封存实现 `packages.0.0.1.legacy/core/kernel-basis` 已退出 workspace，只供来源核对，新成员不依赖旧源码或探针。检查器在查看公开根之前跳过 `packages/core/kernel-basis`。说明见[符合性报告](../tools/repo-toolchain/src/arch/CONFORMANCE.md)。目标成员不使用该跳过。
 
 ## 责任与能力组
 
