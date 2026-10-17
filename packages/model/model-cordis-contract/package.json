@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft model-cordis-contract package; complete the accepted public contract before delivery",
+  "description": "Cordis Service classes and keys that expose the Model contract (@omne-harness/model-contract)",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -29,7 +29,10 @@
     "install-closure": "node --experimental-strip-types tests/install/cli.ts"
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "catalog:"
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft model-contract package; complete the accepted public contract before delivery",
+  "description": "Public type contract of the Model capability: calls, provider operations, profiles, conversion, host drivers and diagnostics",
   "engines": {
     "node": ">=24.18.0 <25"
   },
@@ -23,7 +23,14 @@
     "test": "pnpm run build && vitest run",
     "install-closure": "node --experimental-strip-types tests/install/cli.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/message": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "@typescript/typescript6": "catalog:",

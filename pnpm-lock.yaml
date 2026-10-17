@@ -533,6 +533,25 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/model/model-contract:
+    dependencies:
+      '@omne-harness/call-account':
+        specifier: workspace:*
+        version: link:../../common/call-account
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -552,6 +571,15 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
