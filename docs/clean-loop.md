@@ -1,7 +1,7 @@
 # 整洁回路
 
 这一页讲两件事：**这个仓库靠什么让敏捷流程、架构设计和代码编写持续待在整洁的范围里**，以及
-**[整洁回路的条目集合](../tools/ts-checks/resources/clean-loop-entries.md)里每一条在这里由谁来管**。
+**[整洁回路的条目集合](../tools/repo-toolchain/resources/clean-loop-entries.md)里每一条在这里由谁来管**。
 它是开发文档：只讲这个仓库怎么开发，不规定被设计的系统该是什么样。
 
 ## 三句话
@@ -42,7 +42,7 @@
 4. 传感器有数据——一项指标量不出来不等于它是好的。严格模式（`make loop-status STRICT=1 BASE=… OUT=…`）下，
    配置里开着的传感器有哪个没数据就判失败并指名；传感器自己会不会悄悄失灵，由一份种了已知违规的小夹具每次跟着测试跑来守。
 
-工程集成显式使用 `--strict --scope engineering`。只有当前树、固定 targetBase、实际 merge-base 和每个 taskBase 均无受维护产品源码与测试时，duplication 与 assertions 的无数据读数才标为工程范围不适用。
+`--strict --scope engineering` 是 `omne-loop-status` 的工程范围严格模式，需要时显式传入；`make check` 的严格一步不传 `--scope`。只有当前树、固定 targetBase、实际 merge-base 和每个 taskBase 均无受维护产品源码与测试时，duplication 与 assertions 的无数据读数才标为工程范围不适用。
 原始 no-data 保留，报告给出精确提交与计数。任何一处仍有输入、基线未知、读取失败或其他启用传感器无数据，均不能用此范围放行。
 关闭的传感器单列 off。普通本地检查与默认 strict 继续要求所有启用传感器有数据；方向、环与验收锁在两种范围中都生效。
 
@@ -58,8 +58,8 @@
 
 **长期验证跟着场景走。**验收场景和声明覆盖它们的可执行验收随产品持续维护，不按任务数量复制。`make scenario-status`分别报告当前产品的覆盖声明、执行与接受；缺编号场景的topic单列未覆盖。覆盖声明不证明验收已执行、通过或交付已接受。实际运行和接受分别核对。合并前按影响面选择必要验收，验收耗时由传感器报告。放置和维护规则归[源码布局](workspace.md#目录与内容归属)。
 
-阈值、窗口与开关都在 [`tools/ts-checks/loop.config.json`](../tools/ts-checks/loop.config.json) 与
-[`metrics.config.json`](../tools/ts-checks/metrics.config.json) 里。它们是负责人的判断，可以改，**改的理由写进那次提交**；
+阈值、窗口与开关都在仓库根 [`repo-toolchain.config.json`](../repo-toolchain.config.json) 的 `loop` 与
+`metrics` 两节里。它们是负责人的判断，可以改，**改的理由写进那次提交**；
 不为了让某次交付变绿而放宽。负责人 2026-10-02 照试点时量到的分布定过一轮（成员预算的两组线、红色成员数只与基线比、
 topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，都还没有用多轮真实交付校准过。
 
@@ -73,12 +73,12 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 | 验收有没有被动过 | `make acceptance-lock BASE=<任务基线>` |
 | 场景的验收覆盖声明及工具状态标签 | `make scenario-status` |
 | 只跑可执行验收 | `make acceptance`（缺省先构建；`make check` 里它排在构建之后） |
-| 合并前三条硬线（方向与环、验收锁、传感器有数据）破没破 | `make check` 的最后一步；单独跑是 `make loop-status STRICT=1 BASE=<基线> OUT=<目录>`，之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/ts-checks/README_ZH.md#验收耗时) |
+| 合并前三条硬线（方向与环、验收锁、传感器有数据）破没破 | `make check` 的最后一步；单独跑是 `make loop-status STRICT=1 BASE=<基线> OUT=<目录>`，之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/repo-toolchain/README_ZH.md#验收耗时) |
 | 在主线上留一条趋势 | 干净的主线提交上跑 `make loop-status`，它自己追加一条快照；别的提交上要留就加 `SNAPSHOT=1` |
 | 提交大小、测试耗时与结构指标的走向 | `make loop-health`，出一张离线可开的页面 |
 
 每个入口覆盖什么、**不能声称什么**，在[验证与证据](verification.md#检查入口)；传感器各自的算法、出处与查不出的东西，在
-[tools/ts-checks](../tools/ts-checks/README_ZH.md)。这里不抄第二份。
+[tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md)。这里不抄第二份。
 
 ## 清理任务
 
@@ -90,7 +90,7 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 
 ## 条目对照表
 
-[条目集合](../tools/ts-checks/resources/clean-loop-entries.md)的每一条，在这里归到五类之一：
+[条目集合](../tools/repo-toolchain/resources/clean-loop-entries.md)的每一条，在这里归到五类之一：
 
 | 类别 | 意思 |
 |---|---|
@@ -207,7 +207,7 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 | 独立性 | 评审问法 | 会一起变的是不是放在一起、不会一起变的有没有被捆在一起；每个新边界藏住哪项决定、谁受其变化牵动（选择·整洁方面要问的） | 已有 |
 | 画边界 | 归人 | 能力怎么拆是负责人或主会话亲写的判断，agent 只评审与反驳 | 已有 |
 | 边界的形态 | 评审问法 | 跨进程之后哪些保证失效；新依赖接得多紧、隔得多远及其具体变更后果（选择·反向核对／整洁方面要问的） | 已有 |
-| 策略与层次 | 传感器 | 组的层位与依赖方向规则 | 已有 |
+| 策略与层次 | 传感器 | dependency-cruiser 的依赖方向规则与成员、组之间的环 | 已有 |
 | 业务规则 | 不采 | 不按 Entities／Use Cases 分层；取「从需求长出能力，契约写性质」，见 [.meta_harness](../.meta_harness/AGENTS.md) | 已有 |
 | 尖叫的架构 | 评审问法 | 契约里不出现内核与装配的机制词（选择·三条纪律：契约写性质，提供者写绑定） | 已有 |
 | 依赖规则 | 传感器 | 依赖方向规则（硬线一）；审讯页把违反的边标红 | 已有 |

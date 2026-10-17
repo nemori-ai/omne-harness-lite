@@ -92,21 +92,6 @@
       "requiredSections": []
     },
     {
-      "id": "placed-packages#human-intervention#human-intervention#README",
-      "path": "packages/human-intervention/human-intervention/README.md",
-      "kind": "entry",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
       "id": "placed-packages#human-intervention#human-intervention#docs#key-flows",
       "path": "packages/human-intervention/human-intervention/docs/key-flows.md",
       "kind": "architecture",

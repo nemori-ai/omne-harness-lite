@@ -46,7 +46,12 @@ it('defect: .catch compiles and replaces a bad value', async () => {
 })
 
 it('defect: z.lazy compiles a recursive shape as a native hit', async () => {
-  expect(await admit(z.lazy(() => z.string()), '"ada"')).toEqual(refused)
+  expect(
+    await admit(
+      z.lazy(() => z.string()),
+      '"ada"',
+    ),
+  ).toEqual(refused)
 })
 
 it('defect: .pipe compiles and checks the output schema', async () => {
@@ -54,5 +59,10 @@ it('defect: .pipe compiles and checks the output schema', async () => {
 })
 
 it('defect: .transform compiles and rewrites the value', async () => {
-  expect(await admit(z.string().transform(value => value.trim()), '" ada "')).toEqual(refused)
+  expect(
+    await admit(
+      z.string().transform(value => value.trim()),
+      '" ada "',
+    ),
+  ).toEqual(refused)
 })

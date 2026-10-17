@@ -39,9 +39,7 @@ export class TestAssemblyDisposeFailed extends Error {
   }
 }
 
-export async function startTestAssembly(
-  plugins: readonly TestPlugin[],
-): Promise<TestAssembly> {
+export async function startTestAssembly(plugins: readonly TestPlugin[]): Promise<TestAssembly> {
   const context = new Context()
   const submitted: Fiber[] = []
   const started: Fiber[] = []
@@ -68,7 +66,7 @@ export async function startTestAssembly(
   if (failure === undefined) failure = await waitForApplies(submitted)
   if (failure !== undefined) await failStart(disposalOrder(submitted, started), failure.error)
 
-  const pending = submitted.find((fiber) => !started.includes(publicOrInner(started, fiber)))
+  const pending = submitted.find(fiber => !started.includes(publicOrInner(started, fiber)))
   if (pending !== undefined) {
     await failStart(
       disposalOrder(submitted, started),
@@ -107,17 +105,19 @@ function adoptPublicFiber(started: Fiber[], fiber: Fiber): void {
 }
 
 function publicOrInner(candidates: readonly Fiber[], inner: Fiber): Fiber {
-  return candidates.find((fiber) => fiber === inner || Object.getPrototypeOf(fiber) === inner) ?? inner
+  return (
+    candidates.find(fiber => fiber === inner || Object.getPrototypeOf(fiber) === inner) ?? inner
+  )
 }
 
 type StartFailure = { error: unknown }
 
 async function waitForApplies(fibers: readonly Fiber[]): Promise<StartFailure | undefined> {
   for (;;) {
-    const busy = fibers.filter((fiber) => fiber.state === LOADING || fiber.inertia !== undefined)
+    const busy = fibers.filter(fiber => fiber.state === LOADING || fiber.inertia !== undefined)
     if (busy.length === 0) break
     try {
-      await Promise.all(busy.map((fiber) => fiber))
+      await Promise.all(busy.map(fiber => fiber))
     } catch (error) {
       return { error }
     }
@@ -135,7 +135,7 @@ async function waitForApplies(fibers: readonly Fiber[]): Promise<StartFailure | 
 
 function disposalOrder(submitted: readonly Fiber[], started: readonly Fiber[]): Fiber[] {
   const startedSet = new Set(started)
-  const unstarted = submitted.filter((fiber) => !startedSet.has(fiber))
+  const unstarted = submitted.filter(fiber => !startedSet.has(fiber))
   return [...[...started].reverse(), ...unstarted]
 }
 

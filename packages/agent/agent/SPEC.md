@@ -111,3 +111,18 @@ Session 保证一个 Run 只有一个有效推进者，本成员在每次影响�
 5. 独立调用无 Run 时可靠承接，不制造工作身份；工具全文保留不受模型 ACK 清理影响。
 
 公开协议细化位置见[流程缺项](docs/key-flows.md#protocol-gaps)。上述是持续验证义务，不是已运行证据。能力实现状态与阶段支持只读[产品同页记录](../../../.meta_harness/design/product/agent-progression/design.md#能力定义与实现状态记录表)。
+
+## 声明判断
+
+本节只描述 Issue 273 已实现的可观察判断。它不把 [definition.md](definition.md) 整页转为已接受契约。整卡接受仍由该 Issue 的具名决定记录。
+
+公开入口是 `judgeAgentDefinition` 与 `judgeLoopExtensions`。成功结果是声明数据。单项拒绝只有 `kind` 与 `reason`。一批扩展被拒绝时还有 `index`。容器不合法时 `index` 为 0。某一项不合法时 `index` 是该项序号。原因包括 `malformed`、`duplicate-capability`、`unknown-attribute`、`unknown-position`、`unknown-power`、`dimension-missing`、`dimension-not-allowed`、`power-above-ceiling`、`executable`、`checker-failed`。
+
+一次判断的整份输入，以及一批扩展的整份输入，都受这些限额约束。深度不超过 20。单个对象成员不超过 80。JSON 值个数不超过 200，容器计入，键不计入，第 201 个值拒绝。字符串不超过 10000。数字的 JSON 文本不超过 100。字节数是这一次判断的整份 JSON 文本的 UTF-8 长度，不超过 100000，一批扩展按整批文本计算。超过限额得到 `malformed`。整份文本超过限额时 `index` 为 0。`checker-failed` 只表示校验器故障，不表示输入写坏。内部编译预算不是调用方配置。
+
+`references` 与 `attributes` 必须是数组。空数组合法。缺席和 null 拒绝。同一 capability 的 category 与 name 至多一次。attribute 的成功结果只保留 `item`，允许的 item 是 `first_token_wait_limit`、`post_first_token_stall_limit`、`model`。未写版本的结果是 `then-legal-winner`。写明非空版本的结果是 `pinned`。本入口不读取资产库。
+
+扩展按提交顺序返回。`after_model_call` 要求 `dimension.ending`。`after_action` 要求 `dimension.scope`。`after_terminal` 的 power 上限是 `observe`。动作之后的位置不允许 `veto`。`source` 为 `workspace` 时 power 上限是 `observe`。函数、访问器、`Date`、装箱字符串和非有限数字拒绝。判断不加载模块，也不返回权限或句柄。
+
+装配包与资产包通过各自测试只导入这个公开入口。本成员不依赖这两个包。持续验证命令是各成员目录的 `pnpm test`。
+

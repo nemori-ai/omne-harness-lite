@@ -1,2 +1,22 @@
-// PACKAGE_TEMPLATE_DRAFT: Export the accepted public functions/types here.
-export {}
+export { createHostFiles, hostObjectToken } from './host-files.ts'
+export type {
+  AcquireResult,
+  CommandFacility,
+  CommandRequest,
+  EnvironmentBinding,
+  EnvironmentContinuity,
+  EnvironmentLease,
+  EnvironmentProvider,
+  ExecutionEnvironment,
+  FacilityReason,
+  FacilityResult,
+  FileCloseValue,
+  FileFacility,
+  FileIdentityValue,
+  FileReadValue,
+  FileRequest,
+  HandleGeneration,
+  ObjectToken,
+  PlacementInput,
+  PlacementResult,
+} from './model.ts'

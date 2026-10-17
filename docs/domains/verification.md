@@ -29,7 +29,7 @@ inspectable只表示支持的结构存在。分责是否充分、是否复制精
 | 观察 | 入口及限制 |
 | --- | --- |
 | 文件、章节与导航 | make docs-check、make docs-inventory，不证明语义或采用 |
-| 源码/类型、声明与方向 | [检查工具](../../tools/ts-checks/README_ZH.md)及实际成员，保留解析unknown |
+| 源码/类型、声明与方向 | [检查工具](../../tools/repo-toolchain/README_ZH.md)及实际成员，保留解析unknown |
 | 入口及安装闭包 | 独立消费实际 exports 和产物，并在 SDK 声明支持的平台上验证；只检查 manifest 不够 |
 | 并发、失败、取消和恢复 | 实际协调契约的模型/测试/探针及装配，有限前提不称无条件证明 |
 | 长期积累与性能 | 成员冷加载、追加、组装、恢复及资源度量，不编统一阈值 |

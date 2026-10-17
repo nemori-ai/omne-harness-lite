@@ -10,6 +10,8 @@ owner: PanQiWei
 
 规则与维护责任见[RFC入口](README.md)。本提案记录 [Issue #241 的补充评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165378893)，标识是 `package-testing-boundaries-20261014-241`。它后继 [RFC-0003](RFC-0003-source-packages.md) revision 1 里「测试」那一行。RFC-0003 的 status 保持 accepted。PanQiWei 于 2026-10-14 接受本提案 revision 1，记录见[接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165681764)。现行说明在[验证](../verification.md#包级测试责任与边界)。
 
+> **更正标注（2026-10-16）**：「验证与消费者切换」中的 `tools/ts-checks` 包模板说明，现位于 [`tools/dev-flow/templates/package`](../../tools/dev-flow/templates/package/README_ZH.md)（#332 拆分工具成员）。原文保留，本标注只更新位置，不改变本提案的决定。
+
 ## 问题与有效输入
 
 RFC-0003 revision 1 要求成员测试在源码可直接执行时读源码，并且禁止用旧 `dist` 让缺少产物的测试通过。它没有规定单元、契约、集成和端到端分别由谁承担，也没有规定例外怎样写明。

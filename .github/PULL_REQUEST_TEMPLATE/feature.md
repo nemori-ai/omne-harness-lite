@@ -22,4 +22,4 @@
 <!-- 有没有 demo：对应 HEAD、准备、访问/命令、操作→预期、有效期、真实/mock。没有则说明原因和替代入口。 -->
 <!-- 具体代码/契约位置、为什么重要、建议追问；不用“全部测试通过”代替 reviewer 判断。 -->
 
-<!-- 采用多层集成时附 operation、B/S/C、各卡 taskBase/历史 tuple、真实 receipt 及 Git 观察；声明 completionTarget 与实际运输，未知保留。技术运输不自动生成 Closes 或宣称接受。规则见 docs/engineering/integration.md。 -->
+<!-- 进入轨道、main 或 stable 的 PR 写明关联的卡、本地运行的检查及结果；发布由 gate-publish 流程在确认后完成，确认不等于交付接受。技术运输不自动生成 Closes。规则见 docs/engineering/integration.md 的“现行准入”。 -->

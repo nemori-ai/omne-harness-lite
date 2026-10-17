@@ -141,7 +141,7 @@ agent 必须能感知当前落点及上次痕迹是否仍在；环境过期、�
 
 产品影响：影响 CAP-EE02、03、06 及 INV-EE03、05、15 的可实施性。
 
-维护责任：条件协调、环境资源与原工具调用拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment/docs/internals.md#q-ee02-选择准备与实际发起的协调边界)。
+维护责任：条件协调、环境资源与原工具调用拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment/docs/architecture.md#q-ee02-选择准备与实际发起的协调边界)。
 
 ### Q-EE03 受限执行域、宿主桥接与监督证据
 
@@ -149,7 +149,7 @@ agent 必须能感知当前落点及上次痕迹是否仍在；环境过期、�
 
 产品影响：影响 CAP-EE08、09；机制未验证时不能授予不可信代码该运行方式。
 
-维护责任：执行隔离、受控宿主接口、工具与部署拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment/docs/internals.md#q-ee03-受限执行域宿主桥接与监督证据)。
+维护责任：执行隔离、受控宿主接口、工具与部署拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment/docs/architecture.md#q-ee03-受限执行域宿主桥接与监督证据)。
 
 ### Q-EE04 托管数据与计算分别恢复
 
@@ -157,7 +157,7 @@ agent 必须能感知当前落点及上次痕迹是否仍在；环境过期、�
 
 产品影响：影响 CAP-EE05、10、12 及数据耐久、共享冲突与恢复接受证据。
 
-维护责任：数据托管、存储与部署拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment/docs/internals.md#q-ee04-托管数据与计算分别恢复)。
+维护责任：数据托管、存储与部署拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment/docs/architecture.md#q-ee04-托管数据与计算分别恢复)。
 
 ### Q-EE05 设施控制、观察及原结果交接协议
 
@@ -165,7 +165,7 @@ agent 必须能感知当前落点及上次痕迹是否仍在；环境过期、�
 
 产品影响：影响 CAP-EE04、09、11、12 及资源关闭、痕迹供给和结果不丢失。
 
-维护责任：设施提供者、原调用与 Runtime Context 拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment/docs/internals.md#q-ee05-设施控制观察及原结果交接协议)。
+维护责任：设施提供者、原调用与 Runtime Context 拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment/docs/architecture.md#q-ee05-设施控制观察及原结果交接协议)。
 
 ### Q-EE06 运行实现与真实提供者尚未核实
 
@@ -173,7 +173,7 @@ agent 必须能感知当前落点及上次痕迹是否仍在；环境过期、�
 
 产品影响：影响能力实现状态、阶段接受与后续施工准入。
 
-维护责任：实际提供者、实现与验证拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment/docs/internals.md#q-ee06-运行实现与真实提供者尚未核实)。
+维护责任：实际提供者、实现与验证拥有者。完整约束、处理方向与承接义务见[技术唯一位置](../../../../packages/execution/execution-environment/docs/architecture.md#q-ee06-运行实现与真实提供者尚未核实)。
 
 ### Q-EE07 未扩展为通用兼容或回滚承诺
 

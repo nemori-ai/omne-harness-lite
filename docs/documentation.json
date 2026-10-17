@@ -2226,6 +2226,22 @@
           "anchor": "成员包文档要求"
         },
         {
+          "id": "fixed-skeleton",
+          "anchor": "固定骨架"
+        },
+        {
+          "id": "topic-roles",
+          "anchor": "专题职责"
+        },
+        {
+          "id": "directory-entries",
+          "anchor": "目录入口"
+        },
+        {
+          "id": "placeholders-and-completion",
+          "anchor": "占位与完成"
+        },
+        {
           "id": "maintenance",
           "anchor": "阅读与维护路径"
         },
@@ -4524,6 +4540,314 @@
       ]
     },
     {
+      "id": "docs#rfcs#RFC-0002",
+      "path": "docs/rfcs/RFC-0002-engineering-toolchain.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/rfcs/README.md",
+        "anchor": "准入编号与状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "1",
+          "anchor": "问题与有效输入"
+        },
+        {
+          "id": "2",
+          "anchor": "建议与改变范围"
+        },
+        {
+          "id": "3",
+          "anchor": "实质备选"
+        },
+        {
+          "id": "4",
+          "anchor": "验证与消费者切换"
+        },
+        {
+          "id": "5",
+          "anchor": "决定范围"
+        },
+        {
+          "id": "6",
+          "anchor": "写回现行正文"
+        },
+        {
+          "id": "7",
+          "anchor": "后继关系与维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#rfcs#RFC-0003",
+      "path": "docs/rfcs/RFC-0003-source-packages.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/rfcs/README.md",
+        "anchor": "准入编号与状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "1",
+          "anchor": "问题与有效输入"
+        },
+        {
+          "id": "2",
+          "anchor": "建议与改变范围"
+        },
+        {
+          "id": "3",
+          "anchor": "实质备选"
+        },
+        {
+          "id": "4",
+          "anchor": "验证与消费者切换"
+        },
+        {
+          "id": "5",
+          "anchor": "决定范围"
+        },
+        {
+          "id": "6",
+          "anchor": "写回现行正文"
+        },
+        {
+          "id": "7",
+          "anchor": "后继关系与维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#rfcs#RFC-0004",
+      "path": "docs/rfcs/RFC-0004-trunk-pr-admission.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/rfcs/README.md",
+        "anchor": "准入编号与状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "1",
+          "anchor": "问题与有效输入"
+        },
+        {
+          "id": "2",
+          "anchor": "建议与改变范围"
+        },
+        {
+          "id": "3",
+          "anchor": "实质备选"
+        },
+        {
+          "id": "4",
+          "anchor": "验证与消费者切换"
+        },
+        {
+          "id": "5",
+          "anchor": "决定范围"
+        },
+        {
+          "id": "6",
+          "anchor": "写回现行正文"
+        },
+        {
+          "id": "7",
+          "anchor": "后继关系与维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#rfcs#RFC-0005",
+      "path": "docs/rfcs/RFC-0005-package-testing.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/rfcs/README.md",
+        "anchor": "准入编号与状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "1",
+          "anchor": "问题与有效输入"
+        },
+        {
+          "id": "2",
+          "anchor": "建议与改变范围"
+        },
+        {
+          "id": "3",
+          "anchor": "实质备选"
+        },
+        {
+          "id": "4",
+          "anchor": "验证与消费者切换"
+        },
+        {
+          "id": "5",
+          "anchor": "决定范围"
+        },
+        {
+          "id": "6",
+          "anchor": "写回现行正文"
+        },
+        {
+          "id": "7",
+          "anchor": "后继关系与维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#rfcs#RFC-0007",
+      "path": "docs/rfcs/RFC-0007-source-packages-and-templates.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/rfcs/README.md",
+        "anchor": "准入编号与状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "1",
+          "anchor": "问题与有效输入"
+        },
+        {
+          "id": "2",
+          "anchor": "建议与改变范围"
+        },
+        {
+          "id": "3",
+          "anchor": "实质备选"
+        },
+        {
+          "id": "4",
+          "anchor": "验证与消费者切换"
+        },
+        {
+          "id": "5",
+          "anchor": "决定范围"
+        },
+        {
+          "id": "6",
+          "anchor": "写回现行正文"
+        },
+        {
+          "id": "7",
+          "anchor": "后继关系与维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#rfcs#RFC-0008",
+      "path": "docs/rfcs/RFC-0008-repo-toolchain-trust.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/rfcs/README.md",
+        "anchor": "准入编号与状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "1",
+          "anchor": "问题与有效输入"
+        },
+        {
+          "id": "2",
+          "anchor": "建议与改变范围"
+        },
+        {
+          "id": "3",
+          "anchor": "实质备选"
+        },
+        {
+          "id": "4",
+          "anchor": "验证与消费者切换"
+        },
+        {
+          "id": "5",
+          "anchor": "决定范围"
+        },
+        {
+          "id": "6",
+          "anchor": "写回现行正文"
+        },
+        {
+          "id": "7",
+          "anchor": "后继关系与维护"
+        }
+      ]
+    },
+    {
+      "id": "docs#rfcs#RFC-0009",
+      "path": "docs/rfcs/RFC-0009-adoption-and-local-tool-retirement.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/rfcs/README.md",
+        "anchor": "准入编号与状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "1",
+          "anchor": "问题与有效输入"
+        },
+        {
+          "id": "2",
+          "anchor": "建议与改变范围"
+        },
+        {
+          "id": "3",
+          "anchor": "实质备选"
+        },
+        {
+          "id": "4",
+          "anchor": "验证与消费者切换"
+        },
+        {
+          "id": "5",
+          "anchor": "决定范围"
+        },
+        {
+          "id": "6",
+          "anchor": "写回现行正文"
+        },
+        {
+          "id": "7",
+          "anchor": "后继关系与维护"
+        }
+      ]
+    },
+    {
       "id": "docs#architecture#technical-foundations",
       "path": "docs/architecture/technical-foundations.md",
       "kind": "architecture",
@@ -4560,6 +4884,50 @@
         {
           "id": "sources",
           "anchor": "一手依据"
+        }
+      ]
+    },
+    {
+      "id": "docs#rfcs#RFC-0006",
+      "path": "docs/rfcs/RFC-0006-json-canonical-text.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/rfcs/README.md",
+        "anchor": "准入编号与状态"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "1",
+          "anchor": "问题与有效输入"
+        },
+        {
+          "id": "2",
+          "anchor": "建议与改变范围"
+        },
+        {
+          "id": "3",
+          "anchor": "实质备选"
+        },
+        {
+          "id": "4",
+          "anchor": "验证与消费者切换"
+        },
+        {
+          "id": "5",
+          "anchor": "决定范围"
+        },
+        {
+          "id": "6",
+          "anchor": "写回现行正文"
+        },
+        {
+          "id": "7",
+          "anchor": "后继关系与维护"
         }
       ]
     }

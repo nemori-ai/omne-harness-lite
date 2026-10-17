@@ -39,7 +39,11 @@ export type JsonFailure =
   | { readonly kind: 'budget'; readonly name: JsonBudgetName }
 
 export type JsonSyntaxReason =
-  'comment' | 'trailing-comma' | 'token' | 'truncated' | 'trailing-content'
+  | 'comment'
+  | 'trailing-comma'
+  | 'token'
+  | 'truncated'
+  | 'trailing-content'
 export type JsonBudgetName = 'bytes' | 'depth' | 'items' | 'members' | 'string' | 'number'
 /** An object key or an array index on the way from the root to a parent object. */
 export type JsonPathSegment = string | number

@@ -13,3 +13,6 @@ tmp/
 .env
 # D-116 fixed Schema build output; published with its owning package.
 generated/
+
+# turbo 的本地缓存与日志（根目录与各成员目录）。
+.turbo/

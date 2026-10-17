@@ -258,30 +258,27 @@
 
 ### 实现状态记录
 
-
-能力编号对应本块定义，定义引用第一块需求。下表描述当前工作树中可观察到的实现依据，不能由产品目标推导“已支持”。记录日期为 2026-10-11；适用程序集成、端到端验证及交付接受均未在本次核实，不能据此作发布支持声明。
-
-“已有基础实现”表示源码有相关行为。“部分实现，存在偏离”表示现读行为不能满足本页完整定义。“未核实”表示证据不足，不表示尚未实现。每项能力的实现、验证与接受分别维护，代码存在和测试文件存在都不等于验证通过。
+观察日期为 2026-10-16，依据为 legacy-refactor 同步候选 `6e1cea7567a3ec343dd3bfb44e99cf5deb022d3c` 的新成员源码与规格。封存实现不计入当前支持。legal-identity 已实现纯身份值，scrypt 已实现有界凭据计算。identity 与 authorization 的源码仍为空导出。二者已有具名采用的业务规则，但注册、登录、治理和授权操作尚未实现。
 
 | 能力 | 定义与范围 | 当前实现记录 | 验证与接受 | 实现依据或缺项 |
 | --- | --- | --- | --- | --- |
-| CAP-ID01 | 账号、组织与稳定租户身份 | 已有身份值及账号创建实现；稳定重入等完整行为未核实 | 均未核实 | [身份值](../../../../packages.0.0.1.legacy/core/identity-values/src/values.ts)、[账号实现](../../../../packages.0.0.1.legacy/tenancy/account-identity-sql/src/accounts.ts) |
-| CAP-ID02 | 可定制的成员、角色及治理规则 | 已有固定治理模型；公开组织类型与角色仍为封闭集合，其他扩展路径未核实 | 均未核实 | [当前身份值](../../../../packages.0.0.1.legacy/core/identity-values/src/values.ts) |
-| CAP-ID03 | 默认个人与团队治理方案 | 部分实现，邀请可指定管理员角色，与首次及重入普通成员规则偏离 | 均未核实 | [邀请实现](../../../../packages.0.0.1.legacy/tenancy/organization-governance-sql/src/offers.ts) |
-| CAP-ID04 | 组织隶属、双方确认及上级处置 | 部分实现，解除允许上下双方管理员，与仅上级解除规则偏离 | 均未核实 | [隶属实现](../../../../packages.0.0.1.legacy/tenancy/organization-governance-sql/src/organizations.ts) |
-| CAP-ID05 | 两类邀约、有效期及唯一终结 | 已有邀约与可配置期限实现；并发唯一终结等完整行为未核实 | 均未核实 | [邀约实现](../../../../packages.0.0.1.legacy/tenancy/organization-governance-sql/src/offers.ts)、[配置](../../../../packages.0.0.1.legacy/tenancy/organization-governance-sql/src/config.ts) |
-| CAP-ID06 | 注册、凭据及认证方式接入 | 已有账号、凭据及未激活留存实现；其他认证方式的实际接入未核实 | 均未核实 | [账号实现](../../../../packages.0.0.1.legacy/tenancy/account-identity-sql/src/accounts.ts)、[配置](../../../../packages.0.0.1.legacy/tenancy/account-identity-sql/src/config.ts) |
-| CAP-ID07 | 登录、退出、查询、可配置期限及逐份撤销 | 部分实现，已有登录与撤销路径；登录期限仍为固定常量，配置未提供相应参数；完整登录状态维护未核实 | 均未核实，现有期限测试未在本次运行 | [登录实现](../../../../packages.0.0.1.legacy/tenancy/account-identity-sql/src/logins.ts)、[登录记录](../../../../packages.0.0.1.legacy/tenancy/account-identity-sql/src/records.ts)、[登录配置](../../../../packages.0.0.1.legacy/tenancy/account-identity-sql/src/config.ts) |
-| CAP-ID08 | 当前租户选择及冲突拒绝 | 已有成员校验、当前租户切换及治理入口冲突拒绝实现 | 均未核实 | [成员实现](../../../../packages.0.0.1.legacy/tenancy/organization-governance-sql/src/memberships.ts)、[入口判断](../../../../packages.0.0.1.legacy/tenancy/governance-center-entry-node/src/routing/decision-policy.ts) |
-| CAP-ID09 | 独立的资源与动作授权建模 | 已有工具准入消费面；通用独立授权能力及其他扩展范围未核实 | 均未核实 | [准入契约](../../../../packages.0.0.1.legacy/core/tool-admission/src/tool-admission.ts)、[求值接入](../../../../packages.0.0.1.legacy/tools/tool-admission-local/src/judgment.ts) |
-| CAP-ID10 | 授权表达、动作及批次范围 | 已有可选表达求值器接入点；完整表达解析、范围与持续记录未核实 | 均未核实 | [求值接入](../../../../packages.0.0.1.legacy/tools/tool-admission-local/src/judgment.ts) |
-| CAP-ID11 | 决定绑定及当前准入 | 已有准入结果消费；原决定与实际动作绑定的完整行为未核实 | 均未核实 | [求值接入](../../../../packages.0.0.1.legacy/tools/tool-admission-local/src/judgment.ts) |
-| CAP-ID12 | 撤权、耐久记录及恢复真实性 | 已有登录撤销与凭据换代；统一授权记录、撤回传播及故障恢复未核实 | 均未核实 | [登录实现](../../../../packages.0.0.1.legacy/tenancy/account-identity-sql/src/logins.ts)；仅只读源码观察，未运行完整授权、撤回或恢复验证 |
-| CAP-ID13 | 账号创建及完整生命周期管理 | 已有账号创建的基础观察；其他生命周期控制及整体支持未核实 | 均未核实 | [账号创建入口](../../../../packages.0.0.1.legacy/tenancy/account-identity-sql/src/accounts.ts)，沿用 CAP-ID01、CAP-ID06 的证据范围 |
-| CAP-ID14 | 组织创建及完整生命周期管理 | 组织创建的完整支持与其他生命周期控制均未核实 | 均未核实 | 本次未补充组织生命周期实现观察，须由实现拥有者提供证据 |
-| CAP-ID15 | 租户创建及完整生命周期管理 | 已有租户身份值及成员行为观察；创建与其他生命周期控制的完整支持未核实 | 均未核实 | [身份表示](../../../../packages.0.0.1.legacy/core/identity-values/src/values.ts)及[成员入口](../../../../packages.0.0.1.legacy/tenancy/organization-governance-sql/src/memberships.ts)，不由身份类型推导生命周期已支持 |
+| CAP-ID01 | 账号、组织与稳定租户身份 | 纯身份值已经实现；账号、组织创建及稳定重入的业务操作尚未实现 | 本次未重验行为或作交付接受 | [纯身份值](../../../../packages/common/legal-identity/README.md#contracts)、[主体与持久身份](../../../../packages/identity/identity/SPEC.md#id-01-主体与持久身份) |
+| CAP-ID02 | 可定制的成员、角色及治理规则 | 可扩展治理模型尚未实现；旧封闭角色集合不代表当前设计 | 本次未重验行为或作交付接受 | [治理模型承接](../../../../packages/identity/identity/SPEC.md#id-12-治理模型与认证接入) |
+| CAP-ID03 | 默认个人与团队治理方案 | 默认个人与团队方案尚未实现；首次加入和重入为普通成员的规则保持 | 本次未重验行为或作交付接受 | [默认方案](../../../../packages/identity/identity/SPEC.md#id-05-组织创建与默认治理方案)、[邀请与重入](../../../../packages/identity/identity/SPEC.md#id-06-邀请退出与重新加入) |
+| CAP-ID04 | 组织隶属、双方确认及上级处置 | 隶属确认与解除尚未实现；解除资格仍只属于上级当前有处置资格的人 | 本次未重验行为或作交付接受 | [隶属承接](../../../../packages/identity/identity/SPEC.md#隶属关系) |
+| CAP-ID05 | 两类邀约、有效期及唯一终结 | 邀约、可配置期限及并发唯一终结尚未实现 | 本次未重验行为或作交付接受 | [邀约期限](../../../../packages/identity/identity/SPEC.md#邀约期限与唯一终结)、[配置与生效](../../../../packages/identity/identity/SPEC.md#id-13-配置与生效) |
+| CAP-ID06 | 注册、凭据及认证方式接入 | scrypt 可派生和核验凭据材料；注册、激活、留存和认证接入尚未实现 | 本次未重验行为或作交付接受 | [凭据计算](../../../../packages/identity/scrypt/README.md)、[注册承接](../../../../packages/identity/identity/SPEC.md#id-02-注册与激活) |
+| CAP-ID07 | 登录、退出、查询、可配置期限及逐份撤销 | 登录签发、查询、退出、可配置期限及逐份撤销尚未实现 | 本次未重验行为或作交付接受 | [登录承接](../../../../packages/identity/identity/SPEC.md#id-03-登录退出与登录状态维护)、[期限配置](../../../../packages/identity/identity/SPEC.md#id-13-配置与生效) |
+| CAP-ID08 | 当前租户选择及冲突拒绝 | 当前租户选择、切换和显式身份冲突拒绝尚未实现 | 本次未重验行为或作交付接受 | [接入核验承接](../../../../packages/identity/identity/SPEC.md#id-08-当前租户与接入核验) |
+| CAP-ID09 | 独立的资源与动作授权建模 | 通用资源、动作及主体范围的授权判断尚未实现 | 本次未重验行为或作交付接受 | [授权建模承接](../../../../packages/identity/authorization/SPEC.md#au-01-输入建模与责任边界) |
+| CAP-ID10 | 授权表达、动作及批次范围 | 表达解析、动作或批次范围及持续记录尚未实现 | 本次未重验行为或作交付接受 | [授权表达承接](../../../../packages/identity/authorization/SPEC.md#au-03-授权表达与适用范围) |
+| CAP-ID11 | 决定绑定及当前准入 | 决定绑定、人工参数改写后重验及当前准入尚未实现 | 本次未重验行为或作交付接受 | [当前准入](../../../../packages/identity/authorization/SPEC.md#au-04-当前准入与结果)、[决定绑定](../../../../packages/identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验) |
+| CAP-ID12 | 撤权、耐久记录及恢复真实性 | 登录撤销、凭据换代、授权撤回与恢复尚未实现；scrypt 不拥有这些业务 | 本次未重验行为或作交付接受 | [凭据换代](../../../../packages/identity/identity/SPEC.md#id-04-更换凭据)、[撤权与恢复](../../../../packages/identity/authorization/SPEC.md#au-06-撤权持久记录与恢复) |
+| CAP-ID13 | 账号创建及完整生命周期管理 | 账号创建尚未实现；其他生命周期操作仍不在本阶段承诺内 | 本次未重验行为或作交付接受 | [生命周期范围](../../../../packages/identity/identity/SPEC.md#id-14-主体生命周期与阶段范围) |
+| CAP-ID14 | 组织创建及完整生命周期管理 | 组织创建尚未实现；其他生命周期操作仍不在本阶段承诺内 | 本次未重验行为或作交付接受 | [组织创建](../../../../packages/identity/identity/SPEC.md#id-05-组织创建与默认治理方案)、[生命周期范围](../../../../packages/identity/identity/SPEC.md#id-14-主体生命周期与阶段范围) |
+| CAP-ID15 | 租户创建及完整生命周期管理 | 纯租户身份值已经实现；租户创建与成员操作尚未实现，其他生命周期操作仍不在本阶段承诺内 | 本次未重验行为或作交付接受 | [纯身份值](../../../../packages/common/legal-identity/README.md#contracts)、[主体与身份](../../../../packages/identity/identity/SPEC.md#id-01-主体与持久身份) |
 
-实现拥有者在功能及其验证变化时更新本表，注明适用版本、装配、证据和未覆盖范围。产品维护者维护能力定义，交付接受由负责人决定。证据不足时保留未核实，不能沿用旧支持结论。
+实现拥有者在实现和验证变化时更新覆盖、限制及证据。产品能力及阶段承诺保持不变。下表的规格链接说明承接责任，不能作为实现通过或整卡接受的证明。
 
 ## 阶段与版本支持承诺
 
