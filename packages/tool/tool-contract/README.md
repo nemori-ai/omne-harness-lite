@@ -40,7 +40,7 @@ tool-contract/
 │   ├── architecture.md       内部架构
 │   ├── flows.md              业务与数据流
 │   ├── object-model.md       对象模型
-│   ├── public-api.md         源码导航与尚未实现的函数签名
+│   ├── public-api.md         源码导航
 │   └── context.md            消费与系统定位
 ├── src/                      README.md + index.md，公开类型、身份解码、契约函数与正文端口
 ├── tests/                    README.md + index.md，成员测试与类型测试

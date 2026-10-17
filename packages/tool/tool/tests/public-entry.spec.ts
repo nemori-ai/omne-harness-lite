@@ -14,8 +14,21 @@ function forbidden(specifier: string): boolean {
   )
 }
 
-it('root entry exports the two independent execution functions', () => {
-  expect(Object.keys(tool).sort()).toEqual(['createIndependentToolScope', 'executeTool'])
+it('root entry exports the independent execution functions, the ledger and the runtime factory', () => {
+  expect(Object.keys(tool).sort()).toEqual([
+    'createIndependentToolScope',
+    'createToolLedger',
+    'createToolRuntime',
+    'executeTool',
+    'recordKey',
+    'toolLedgerAdoption',
+    'toolRuntimeAdoption',
+  ])
+})
+
+it('testing entry exports only the non-durable store', async () => {
+  const testing = await import('@omne-harness/tool/testing')
+  expect(Object.keys(testing).sort()).toEqual(['createMemoryToolLedgerStore'])
 })
 
 describe('implementation has no Cordis', () => {

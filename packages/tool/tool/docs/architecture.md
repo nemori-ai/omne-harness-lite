@@ -1,6 +1,6 @@
 # tool 内部架构
 
-本页规定 Tool 实现的内部模块与构造方法。下列各节从契约包的[领域架构](../../tool-contract/docs/architecture.md)整段迁入，含义未改。领域位置、责任边界与设计状态仍归契约包。本包已实现独立执行（工单 04）。受理、推进协程与下述提供者尚未实现。
+本页规定 Tool 实现的内部模块与构造方法。下列各节从契约包的[领域架构](../../tool-contract/docs/architecture.md)整段迁入，含义未改。领域位置、责任边界与设计状态仍归契约包。本包已实现独立执行（工单 04）、记录仓端口与账本工厂，以及 runtime 的逻辑终局路径（工单 05）。真实执行的准备、排队、启动、推进协程与下述提供者尚未实现。
 
 ## 内部模块与依赖
 
@@ -35,7 +35,7 @@ Code 宿主注入受限程序环境、ToolRuntime、ToolChildren、来源签发�
 
 ## Tool 内部实施规格
 
-本页规定内部构造方法。行为协议归 [protocols](../../tool-contract/SPEC.md#tool-操作协议)，公开类型归 [public-api](../../tool-contract/docs/public-api.md)，对象关系归 [object-model](../../tool-contract/docs/object-model.md)。契约函数已在 `tool-contract` 实现。独立执行已在本包实现，实现选择见 [SPEC](../SPEC.md)。runtime 和下述提供者尚未实现。
+本页规定内部构造方法。行为协议归 [protocols](../../tool-contract/SPEC.md#tool-操作协议)，公开类型归 [public-api](../../tool-contract/docs/public-api.md)，对象关系归 [object-model](../../tool-contract/docs/object-model.md)。契约函数已在 `tool-contract` 实现。独立执行、账本工厂与 runtime 的逻辑终局路径已在本包实现，实现选择见 [SPEC](../SPEC.md)。推进协程和下述提供者尚未实现。
 
 ### 聚合和事务提供者
 
@@ -44,6 +44,34 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 持久布局至少能索引 tenant/call、operation/inputDigest/result、queueKey/ordinal/slot、start chain、wait/response、control、timing、result/delivery、process cursor、source event、task 和 child relation。它们不要求各占一张表。队列名额和 FIFO 跨调用同提交；重复操作的回执读取与授权分开。保管正文可独立存储，但必须先有耐久内容证据，再提交引用，失败保留可对账的原件责任。
 
 命令提交时创建的任务使用完整判别联合。对端接受、本域确认、生产侧交付解除不能复用同一个 evidence。每个 evidence 核拥有者、原租户/调用、操作、精确采用、摘要及仍有效的使用范围。拒绝和异常保留身份与阶段，日志不复制正文秘密。
+
+#### 本包的记录仓与决定器（G1，工单 05 起）
+
+`createToolLedger(store, guards, clock)` 返回 `{ commands, reads }`。源码在 [ledger.ts](../src/ledger.ts)、[ledger-decider.ts](../src/ledger-decider.ts)、[ledger-store.ts](../src/ledger-store.ts) 与 [ledger-reads.ts](../src/ledger-reads.ts)。
+
+记录仓端口 `ToolLedgerStore<B>` 只有两个操作。`read(domain)` 返回一个事务域的全部记录和当前修订号，或 `unavailable`；返回 `complete` 表示快照包含该域此前每一次已确认的提交。`commit({ domain, expected, revision, writes })` 在 `expected` 等于当前修订号时原子写入全部 `writes` 并把修订号改为 `revision`，否则回答 `conflict`；提交结果不确定时回答 `unknown`，记录仓不可用时回答 `unavailable`。记录仓不解释记录内容，也不做业务判断。`durability` 声明 `none` 或 `durable`；`none` 只能出现在 `./testing`。
+
+事务域是判别联合：`call` 域是 `(tenant, call)`，拥有一次原调用的全部记录；`queue` 域是 `(tenant, FIFO key)`，留给名额与队首裁定（工单 06）。记录是判别联合，每种记录有一个唯一键：
+
+| 记录 | 键 | 内容 |
+| --- | --- | --- |
+| `call` | `call` | 原调用：受理操作、固定请求、当前 `ToolState` |
+| `operation` | `operation:<operation>` | 一次已提交操作：种类、规范输入摘要、提交修订号、具名回执（例如 admit 的 `ToolState`、releaseDelivery 的 `DeliveryState`） |
+| `result` | `result:<version>` | 一个结果版本：原终局、实际终局、效果、完整 `ToolResult`、交付关系、来源证据、产生它的操作 |
+| `account` | `account:<event>` | 一笔账目修订及其来源 |
+| `task` | `task:<kind>:<operation>` | 一项待办，形状是契约的 `ToolTask` |
+
+写入是 `put` 或 `delete`，按键生效。修订号是该域的规范十进制计数，`ToolState.revision` 等于 `call` 域提交时的修订号。
+
+决定器是纯函数：输入快照（按键整理的记录）、一条命令、已核验的 guard 事实与本次铸造的修订号；输出"只回复不写"或"写入一组记录并回复"。它不读端口、不发通知、不运行工具。命令入口按顺序做：边界输入检查（`invalid`）、租户与主体资格（`denied`，缺租户或主体不属于该租户时不区分调用是否存在）、来源核验（伪造 `denied`，不可读 `unavailable`）、读取快照（失败 `unavailable`）、`WriteContext.expected` 与快照修订号比对（`stale-revision`）、决定、按快照修订号条件提交。`conflict` 时重读重判，重试有上限；`unknown` 时回复 `commit-unknown` 并保留原操作号供查询；读到同操作号同摘要的记录时回复原回执，异摘要回复 `conflict`。
+
+admit 的决定顺序：已有 `call` 记录而操作号不同是 `stale-revision`（admit 隐含的期望修订号是"尚未受理"）；`known-unavailable` 不读参数、不查 `complete`、不查 programmable，直接形成 unavailable 终局；可用定义在 programmatic 路径未显式许可时回复 `unsupported`，不写任何记录；`mode=background` 而定义不许可后台是 `invalid`；`complete=false` 是 `invalid`，不受理；原参数与生效参数都经 `judgeToolArguments` 完整解析，任一失败形成 `failed/arguments` 终局；全部通过的真实工具在工单 06 之前回复 `unsupported`。两种逻辑终局同提交 `call`、`operation`、`result`、`account` 与 `deliver` 任务：`phase=settled`、`relation=foreground`、`foreground={ kind: 'final' }`、`execution=not-started`、`effect=not-started`、`timing={ kind: 'closed', accumulatedMs: '0' }`、`queue=none`、`delivery=pending`。请求的 `mode` 不改变这一关系，因为逻辑终局在建立任何等待关系之前形成。结果正文由 `guards.results` 文本工厂生成，再经 `guards.policy.judgeResult` 核验；核验失败时不报告受理完成（`unavailable`）。
+
+guards 是受信快照：`access.qualify` 回答主体对该租户、调用与动作的资格；`sources.verify` 回答调用来源是否来自受信入口；`results` 是文本结果工厂；`policy` 是结果政策；`budgets` 给出参数解析预算与结果分页字节数。这些值由宿主在构造时固定，决定器只消费它们的结论。
+
+每种证据各自铸造，不跨用途复用：`ToolState.source` 指向 `state:<call>`，结果来源指向 `result:<call>/<version>`，交付解除回执指向 `delivery:<call>/<version>/<delivery>`，操作回执指向 `operation:<call>/<operation>`，账目来源指向 `account:<call>/<event>`。`revision` 是提交修订号，`digest` 是 `sha256:` 加规范 JSON（键按码点排序，省略 `undefined`）的摘要。
+
+读取投影在 [ledger-reads.ts](../src/ledger-reads.ts)：`lookup` 以受理操作号认回 `call` 记录，快照完整而没有该操作时才回答 `not-accepted`；`operation` 同理回答 `not-committed`；`result` 按完整内容块分页，`next` 是绑定租户、调用、版本、投影与块位置的 JSON 文本，单块超过页预算时回答 `unsupported`（卸载尚未实现），不切块；`account` 只回答账目，不附正文。
 
 ### 协程驱动
 

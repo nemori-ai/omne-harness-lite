@@ -6,7 +6,7 @@
 
 ## 当前范围
 
-已实现：`createIndependentToolScope`（G2）与 `executeTool`（G8），即契约 SPEC [P11](../tool-contract/SPEC.md#p11-作者输出与等待原语) 的独立路径。尚未实现：`createToolRuntime`、账本工厂与记录仓端口（M3）。内部机制见 [architecture](docs/architecture.md)。
+已实现：`createIndependentToolScope`（G2）与 `executeTool`（G8），即契约 SPEC [P11](../tool-contract/SPEC.md#p11-作者输出与等待原语) 的独立路径；账本工厂 `createToolLedger` 与记录仓端口 `ToolLedgerStore`（G1）；`createToolRuntime`（G8）的逻辑终局路径，即不进入环境或执行者的 admit、lookup、queryOperation、readResult、releaseDelivery 与 account（工单 05）。尚未实现：真实工具的准备、排队、启动与收场（工单 06 起），这些操作回复具名的 `unsupported`。内部机制见 [architecture](docs/architecture.md)。
 
 ## 独立执行怎样满足 P11
 
@@ -76,6 +76,46 @@
 ### executeTool
 
 包装器先核对作用域：`context.mode` 是 `independent`，`limits` 的四项是正安全整数，`finish` 是函数。不匹配时返回 `effect: 'not-started'`，不调用作者。作者返回后调用 `finish('returned')`。该收尾失败时返回失败，`reason` 是 `<kind>: <reason>`，`effect` 是 `unknown`。收尾成功后才交出 R。作者抛出时调用 `finish('failed')`，再返回 `effect: 'unknown'`，`reason` 是异常的名字与消息。
+
+## 受理账本怎样满足 P01、P02、P08 与 P09
+
+账本由 `createToolLedger(store, guards, clock)` 构造，runtime 由 `createToolRuntime(dependencies, configuration)` 构造；数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1工单-05-起)。下列规则按编号对应测试。
+
+### 10 边界与资格
+
+每个命令和读取先检查边界输入，再问 `guards.access`，再读记录仓。缺租户、租户形状不对、主体不属于该租户，都回复 `denied`，`action` 是本次动作；回复不区分调用是否存在。调用或操作身份不合词法回复 `invalid`，`field` 是 `call`、`operation` 等。固定请求经 `judgeFixedToolRequest` 封闭检查，拒绝的字段前缀 `request.`。来源经 `guards.sources` 核验：伪造回复 `denied`，不可读回复 `unavailable`（`dependency` 为 `source-guard`）。资格守卫不可读回复 `unavailable`（`dependency` 为 `access-guard`）。这些拒绝都不写记录。
+
+### 11 操作幂等（P01）
+
+同 tenant、call、operation、同规范输入摘要的重送回复原回执，`createToolRuntime` 的 admit 另以 `recovered: true` 标记；这个标记来自 admit 前对操作记录的一次读取，两个首次受理同时竞争时，后提交的那次仍得到原回执但标记为 `false`。同操作异摘要回复 `conflict`。已受理的调用再以另一操作号 admit 回复 `stale-revision`，`current` 是当前修订号。带 `WriteContext` 的命令先比对 `expected` 与当前修订号，不匹配回复 `stale-revision`，再进入命令本身。提交结果未知回复 `commit-unknown`，不重试提交；调用者以 `queryOperation` 认回：已落盘则 `committed`，重送得到原回执且不再写第二次；未落盘则 `not-committed`，重送成为第一次受理。记录仓读取失败回复 `unavailable`（`dependency` 为 `ledger-store`），不冒充调用不存在。修订冲突时重读重判，最多八次。
+
+### 12 逻辑终局（P02）
+
+`known-unavailable` 的目标在身份、资格与来源核验后直接形成 `unavailable` 终局，原因是可用性给出的原因；不读参数，不查 `complete`，不调用任何其他端口。可用目标的参数先查 `complete`：`false` 回复 `invalid`（`request.arguments.complete: incomplete`），不受理。原参数与生效参数都经 `judgeToolArguments` 完整解析，任一失败形成 `failed` 终局，`cause` 为 `arguments`，`diagnostic` 是 `<original|effective>: <原因>`；半截文本与重复键都不产生参数值。两种终局的状态是 `settled`、`foreground`、`foreground.final`、`execution.not-started`、`effect.not-started`、`timing.closed` 累计 `0`、`queue.none`、`delivery.pending`，请求的 `mode` 不改变这一关系。结果正文由 `guards.results` 生成、`guards.policy.judgeResult` 核验，核验失败回复 `unavailable`（`dependency` 为 `result-factory`），不受理。全部通过的真实工具在本增量回复 `unsupported`，`adoption` 是定义的采用。
+
+### 13 调用方式许可
+
+`programmatic` 调用的目标定义 `programmable` 不是 `true` 时回复 `unsupported`，`adoption` 是定义的采用，不写记录；dummy 不受此检查，仍回复不可用终局。`mode` 为 `background` 而定义 `backgroundAllowed` 为 `false` 时回复 `invalid`（`request.mode: background-not-allowed`）。
+
+### 14 查询（P01）
+
+`lookup` 以受理操作号认回：`call` 记录存在且受理操作号相同回复 `found` 与当前权威状态；快照完整而没有该受理回复 `not-accepted`。`queryOperation` 对已提交操作回复 `committed`，`revision` 是提交修订号，`receipt` 是指向 `operation:<call>/<operation>` 的证据；没有回复 `not-committed`。两者只在读取成功时给出否定答案。
+
+### 15 结果分页与账目（P08、P09）
+
+`readResult` 按完整内容块分页：从游标位置起累计块的 JSON 字节数，不超过 `guards.budgets.resultPageBytes` 的块进入本页，至少一块；第一块就超过预算时回复 `unsupported`，不切块。每页携带版本的同一 `data`、`original`、`attachments`、终局、效果与来源证据。`next` 是绑定租户、调用、版本、投影与下一块位置的 JSON 文本；另一结果的游标回复 `invalid-cursor`（`another-result`），不是游标的文本回复 `invalid-cursor`（`not-a-cursor`），越过末尾回复 `invalid-cursor`（`past-the-end`）。未知版本回复 `invalid`（`result: unknown-version`），未收场回复 `not-settled`，未知调用回复 `invalid`（`call: unknown-call`）。`account` 只回复账目：逻辑终局的账目是替换件处理账，`usage` 与 `cost` 为空，`trimmed` 为已知 `0` 字节，`duration` 未知，不编原工具用量。
+
+### 16 交付解除（P08）
+
+`releaseDelivery` 核版本、交付号与消费位置都是记录的值：交付号不符回复 `invalid`（`delivery: mismatch`），版本未知回复 `invalid`（`result: unknown-version`），消费位置不同回复 `conflict`，`operation` 是形成该版本的操作。`retained` 的 `custody` 或 `processed` 的 `completion` 的 `owner` 必须等于消费者的 `owner`，否则回复 `invalid`（`evidence.<custody|completion>.owner: owner-mismatch`）。通过后同提交结果记录的 `released`、操作回执、调用状态与 `deliver` 任务的删除；`released.evidence` 由本包铸造，指向 `delivery:<call>/<version>/<delivery>`，不是请求证据的回送。已解除的交付再次解除（同操作或新操作）回复已解除状态，不再写入。解除后全文仍可经 `readResult` 读取。
+
+### 17 工厂与后续增量
+
+`createToolRuntime` 在构造时检查配置：作者限额与容量是正安全整数，延迟是非负安全整数，缺端口或超出范围抛 `TypeError`，因为这是装配缺陷。runtime 与 provider 都是冻结对象。本增量未实现的操作回复 `unsupported`，`adoption` 是 `tool-runtime` 或 `tool-ledger` 的采用，`reason` 说明操作名与所属工单；没有操作抛异常或回复空成功。`catalog`、`content` 与 `instances` 直接是依赖给出的端口。
+
+### 18 非耐久记录仓（`./testing`）
+
+`createMemoryToolLedgerStore` 声明 `durability: 'none'`。每个域从修订号 `0` 开始；`commit` 只在 `expected` 等于当前修订号时生效，否则回复 `conflict`。读取给出副本。`injectRead` 与 `injectCommit` 按顺序注入下一次读取或提交的故障：`unavailable`、`unknown-applied`（已写入但回复未知）、`unknown-dropped`（未写入且回复未知）、`throw-applied`（已写入后抛出）。
 
 ## 验证
 

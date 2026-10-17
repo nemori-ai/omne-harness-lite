@@ -2,11 +2,11 @@
 
 [中文](README_ZH.md)
 
-The Tool implementation without Cordis. Today the root entry exports independent execution: `createIndependentToolScope` builds an execution scope with a local receiver, explicit limits and an in-memory wait history, and `executeTool` runs one executor inside such a scope. The root entry also exports the factory construction shapes `ToolDependencies` and `ToolConfiguration`. The runtime factory `createToolRuntime`, the admission decider, the ledger store port `ToolLedgerStore` with `createToolLedger`, and a `./testing` entry with a real runtime kit come with M3.
+The Tool implementation without Cordis. The root entry exports independent execution: `createIndependentToolScope` builds an execution scope with a local receiver, explicit limits and an in-memory wait history, and `executeTool` runs one executor inside such a scope. It also exports the ledger factory `createToolLedger` with the store port `ToolLedgerStore` and the guard snapshot `ToolLedgerGuards`, the runtime factory `createToolRuntime` with its construction shapes `ToolDependencies` and `ToolConfiguration`, and a `./testing` entry with the non-durable store `createMemoryToolLedgerStore`.
 
 ## Responsibility and status
 
-This package implements the contract of `@omne-harness/tool-contract`. It manages concurrency, waits, cancellation and state, so two implementations may differ here and the package is not part of the contract. It does not depend on Cordis, so an independent program can execute a tool without a Cordis install. Independent execution (ticket 04) is implemented. M3 adds the runtime.
+This package implements the contract of `@omne-harness/tool-contract`. It manages concurrency, waits, cancellation and state, so two implementations may differ here and the package is not part of the contract. It does not depend on Cordis, so an independent program can execute a tool without a Cordis install. Independent execution (ticket 04) is implemented. The ledger and the runtime serve the managed path of logical results (ticket 05): a call to a known-unavailable tool or with complete but illegal arguments is admitted idempotently, settles without any environment or executor, and can be looked up, read page by page, released on either handoff path and accounted. Real execution (preparation, queue, start, settlement) comes with the later M3 tickets; those operations answer a named `unsupported` failure.
 
 ## Usage
 

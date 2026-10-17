@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { createDefaultParameterCodec, type ToolArguments } from '@omne-harness/tool-contract'
+import {
+  createDefaultParameterCodec,
+  judgeToolArguments,
+  type ToolArguments,
+} from '@omne-harness/tool-contract'
 import { json, limits } from './tool-values.ts'
 
 function codec(budgets = limits) {
@@ -80,6 +84,49 @@ describe('parameter codec', () => {
     })
     expect(createDefaultParameterCodec({ ...limits, maxBytes: 1.5 })).toEqual({
       failure: { field: 'limits.maxBytes', reason: 'range' },
+    })
+  })
+})
+
+describe('arguments judgment', () => {
+  it('arguments judgment: parses the original and the effective text in full', () => {
+    const input = { original: '{"path":"draft"}', effective: '{"path":"final"}', complete: true }
+    expect(judgeToolArguments(input, limits)).toEqual({
+      ok: { original: json('{"path":"draft"}'), effective: json('{"path":"final"}') },
+    })
+  })
+
+  it('arguments judgment: a failing original text gives no value even when the effective text parses', () => {
+    const input = { original: '{"path":"a"', effective: '{"path":"final"}', complete: true }
+    expect(judgeToolArguments(input, limits)).toEqual({
+      failure: { kind: 'invalid', field: 'original', reason: 'syntax:truncated' },
+    })
+  })
+
+  it('arguments judgment: a duplicate key in the effective text gives no value', () => {
+    const input = { original: '{}', effective: '{"path":"a","path":"b"}', complete: true }
+    expect(judgeToolArguments(input, limits)).toEqual({
+      failure: { kind: 'invalid', field: 'effective', reason: 'duplicate-key' },
+    })
+  })
+
+  it('arguments judgment: complete=false is not parsed', () => {
+    const input = { original: 'not json', effective: 'not json', complete: false }
+    expect(judgeToolArguments(input, limits)).toEqual({ failure: { kind: 'incomplete' } })
+  })
+
+  it('arguments judgment: a malformed input or budget is a shape rejection, not an argument failure', () => {
+    const input = { original: '{}', effective: '{}', complete: 'true' }
+    expect(judgeToolArguments(input, limits)).toEqual({
+      failure: { kind: 'shape', field: 'complete', reason: 'type' },
+    })
+    expect(
+      judgeToolArguments(
+        { original: '{}', effective: '{}', complete: true },
+        { ...limits, maxDepth: 0 },
+      ),
+    ).toEqual({
+      failure: { kind: 'shape', field: 'limits.maxDepth', reason: 'range' },
     })
   })
 })

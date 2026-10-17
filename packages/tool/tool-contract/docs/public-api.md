@@ -2,7 +2,7 @@
 
 根入口 `@omne-harness/tool-contract` 导出全部公开契约类型、品牌身份的解码函数、默认结果政策、资产正文端口 `toolBodyContract` 和契约函数。契约函数不做 I/O，不读时钟，不产生随机值，不调度并发，也不持有状态。根入口不导入 Cordis，也不导入提供者成员。
 
-公开类型的唯一定义在 [src/index.ts](../src/index.ts) 及其导出模块。本页是源码导航，不保留手写类型声明。本页只保留尚未实现的函数签名，见[尚未实现的函数](#尚未实现的函数m2m3-实现后移除)。函数实现后，签名移入源码，本页删除对应条目。
+公开类型的唯一定义在 [src/index.ts](../src/index.ts) 及其导出模块。本页是源码导航，不保留手写类型声明。已接受的函数都已在源码实现：`createToolRuntime`、`createToolLedger`、`executeTool` 与 `createIndependentToolScope` 在 `@omne-harness/tool`，导航见该包的 [public-api](../../tool/docs/public-api.md)；G4、G5、G7 的宿主实现进入 `@omne-harness/tool-host-local`。
 
 服务定义、18 个服务键和 `tool-cordis-contract/call-changed` 事件增补由 `@omne-harness/tool-cordis-contract/cordis` 导出，本包不导出它们。源码是 [tool-cordis-contract/src/cordis.ts](../../tool-cordis-contract/src/cordis.ts)，装配规则归 [cordis](../../tool-cordis-contract/docs/cordis.md)。行为、调用资格、参数与依赖分类归 [SPEC 的运行契约](../SPEC.md#342-主干运行契约候选)。消费路径见 [context](context.md)，对象关系见 [object-model](object-model.md)。
 
@@ -13,6 +13,7 @@
 - [identity.ts](../src/identity.ts)：品牌身份、采用与耐久证据引用、访问输入，以及每个品牌身份的解码函数。
 - [definitions.ts](../src/definitions.ts)：参数契约、返回声明、工具定义、可用性、调用参数、资源 scope 与固定请求。
 - [judge-definition.ts](../src/judge-definition.ts)：`judgeToolDefinition`，按 P02、P13 和 P15 对未知输入做封闭字段与类型检查。
+- [judge-request.ts](../src/judge-request.ts)：`judgeFixedToolRequest`，对未知输入做固定请求的封闭检查：每个字段的形状、定义经 `judgeToolDefinition`、并发上限是正整数或 null、时限是非负整数或 null、`command` 选中定义声明的操作（函数工具只接受 null，多命令工具要求具名且存在）。它不读存储，不授予资格；来源、当前资格与可用性事实由受理提供者核验。
 
 契约函数的失败值用 `field` 给出被拒绝的字段路径，例如 `commands[1].name`。根值本身被拒绝时，`field` 是所求类型名，例如 `ToolDefinition`。`reason` 是 `missing`、`type`、`empty`、`blank`、`duplicate`、`unknown-field`、`accessor` 等具名原因。判定只读取数据属性，不调用 getter 或输入中的函数。访问器属性以 `accessor` 被拒绝。值字段只读取自身属性。作者能力（例如 executor 与 codec）可以是类实例，所以它的方法与 `adoption` 可以来自原型链。读取输入时抛出的异常（例如 Proxy 的 trap）不传出，整个值以 `unreadable` 被拒绝。json-text 树可以共享子树，但不能成环（`cycle`）。共享子树每到达一次就计数一次，一次判定最多访问 1 000 000 个节点（`budget`）。成功值是冻结的副本。省略的可选字段在副本中仍然省略。
 
@@ -87,9 +88,9 @@
 ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToolOperation 在本地封装该操作的 A/R 关系；defineFunctionTool 与 defineCommandTool 使用相同的操作句柄，生成唯一 ToolDefinition 投影。句柄不公开 executor，不能作为脚本调用通路。构造成功不表示 schema 已异步装载或工具已可用。精确绑定、命令选择及恢复规则见 [多命令协议](../SPEC.md#多命令作者注册与返回选择)，作者组合示例见 [flows](flows.md#多命令函数与独立返回)。
 
 - [authoring.ts](../src/authoring.ts)：声明与设置、消费者 profile、检查输入、用法、呈现、`ToolCatalog`、参数与输出 codec、返回校验器、程序输出、`ToolAuthor`、操作句柄、作者注册、装载器、绑定登记表、文本结果工厂与可用性事实。
-- [registration.ts](../src/registration.ts)：`defineToolOperation`、`defineFunctionTool` 与 `defineCommandTool`。构造时拒绝空命令表、非法名称、返回模式与作者种类不符，以及程序契约与声明不符。
+- [registration.ts](../src/registration.ts)：`defineToolOperation`、`defineFunctionTool` 与 `defineCommandTool`。构造时拒绝空命令表、非法名称、返回模式与作者种类不符，以及程序契约与声明不符。`readToolOperation` 与 `readToolRegistration` 读取句柄内的作者与注册内的操作表（`ToolOperationSlot`、`ToolRegistrationSlot`），供绑定提供者（G7）使用；不是本模块构造的值读作 `undefined`。句柄与注册是当前执行域的能力，不交给脚本。
 - [catalog.ts](../src/catalog.ts)：`presentTool` 与 `evaluateToolAvailability`。可用性判定不自做授权，按顺序列出全部未满足的条件。
-- [parameter-codec.ts](../src/parameter-codec.ts)：`createDefaultParameterCodec(limits)`，用 `@omne-harness/json-text` 严格解析生效参数。`complete=false` 返回 `incomplete`，重复键、半截 JSON 与不是对象的输入返回 `invalid`，都不产生参数值。采用摘要覆盖解析预算。
+- [parameter-codec.ts](../src/parameter-codec.ts)：`createDefaultParameterCodec(limits)`，用 `@omne-harness/json-text` 严格解析生效参数。`complete=false` 返回 `incomplete`，重复键、半截 JSON 与不是对象的输入返回 `invalid`，都不产生参数值。采用摘要覆盖解析预算。`judgeToolArguments(input, limits)` 是受理时的判定：原参数与生效参数都完整解析（`ParsedToolArguments`），`complete=false` 返回 `incomplete`，任一文本失败返回 `invalid` 并指明 `original` 或 `effective`，输入或预算形状不对返回 `shape`（`ToolArgumentsRejection`）。它不替代作者 codec 在执行时的解析。
 
 ## 持久状态与协议记录
 
@@ -108,13 +109,3 @@ ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToo
 - [program.ts](../src/program.ts)：子调用位置与预留、子调用状态、程序结束与收束、`ToolChildren`、程序结果与 `ProgramTools`。
 
 ProgramTools.call 交回唯一 ToolResult 封装，其 data 为程序值，content 为展示内容。宿主只在 [P13](../SPEC.md#p13-双返回形态与程序输出契约) 的验证及可靠交接后交给脚本。动态名称调用没有凭空推断出的 T；具体语言 SDK 根据固定的返回声明生成或绑定访问器，仍须核验真实结果。无程序 schema 的工具可显式声明 program=none，程序只得到受验证的 ToolResult，不获得假定存在的业务字段。
-
-## 尚未实现的函数（M2/M3 实现后移除）
-
-下列签名已接受，尚未实现。按 G8，它进入不含 Cordis 的实现包 `@omne-harness/tool` 的根入口，本契约包不导出它。G1 的账本工厂也进入 `@omne-harness/tool`。G4 的宿主时钟、G5 的本地启动协调器和 G7 的绑定登记表进入 `@omne-harness/tool-host-local`。这些签名随所在包实现给出。`createIndependentToolScope` 与 `executeTool` 已在 `@omne-harness/tool` 实现，导航见该包的 [public-api](../../tool/docs/public-api.md)。其他已接受的函数已在本包源码实现，导航见上文各节。
-
-```ts
-declare function createToolRuntime<P, B extends ContentBlock, E>(
-  dependencies: ToolDependencies<P, B, E>, configuration: ToolConfiguration,
-): ToolProvider<P, B>
-```

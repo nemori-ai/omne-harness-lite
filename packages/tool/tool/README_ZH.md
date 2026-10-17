@@ -2,11 +2,11 @@
 
 [English](README.md)
 
-不含 Cordis 的 Tool 领域实现。当前根入口导出独立执行：`createIndependentToolScope` 用本地接收者、显式上限和内存等待历史构造执行作用域，`executeTool` 在这样的作用域里运行一个执行者。根入口同时导出工厂构造形状 `ToolDependencies` 与 `ToolConfiguration`。runtime 工厂 `createToolRuntime`、受理决定器、记录仓端口 `ToolLedgerStore` 与 `createToolLedger`，以及提供真实 runtime 测试装配的 `./testing` 入口随 M3 交付。
+不含 Cordis 的 Tool 领域实现。根入口导出独立执行：`createIndependentToolScope` 用本地接收者、显式上限和内存等待历史构造执行作用域，`executeTool` 在这样的作用域里运行一个执行者。根入口还导出账本工厂 `createToolLedger`、记录仓端口 `ToolLedgerStore` 与受信快照 `ToolLedgerGuards`，runtime 工厂 `createToolRuntime` 及其构造形状 `ToolDependencies` 与 `ToolConfiguration`；`./testing` 入口导出非耐久记录仓 `createMemoryToolLedgerStore`。
 
 ## 职责与状态
 
-本包实现 `@omne-harness/tool-contract` 的契约。它管理并发、等待、取消与状态，两个实现在这里可以不同，所以不属于契约。本包不依赖 Cordis，独立程序不装 Cordis 也能执行工具。独立执行（工单 04）已实现。M3 加入 runtime。
+本包实现 `@omne-harness/tool-contract` 的契约。它管理并发、等待、取消与状态，两个实现在这里可以不同，所以不属于契约。本包不依赖 Cordis，独立程序不装 Cordis 也能执行工具。独立执行（工单 04）已实现。账本与 runtime 承担逻辑终局的托管路径（工单 05）：调用已知不可用的工具，或参数完整但非法，都幂等受理、不进入环境或执行者就收场，随后可以 lookup、分页读取、按两条交接路径解除交付并查账。真实执行（准备、排队、启动、收场）归 M3 的后续工单，这些操作回复具名的 `unsupported`。
 
 ## 使用
 

@@ -177,7 +177,8 @@ const command = record({
   returns: returnDeclaration,
 })
 
-const toolDefinition: Check<ToolDefinition> = variant('kind', {
+/** The closed shape of a complete definition, shared with the fixed-request judgment. */
+export const toolDefinition: Check<ToolDefinition> = variant('kind', {
   function: record(
     {
       ...metadataFields,

@@ -8,11 +8,25 @@ export {
   defaultResultPolicyRules,
 } from './result-policy.ts'
 export { judgeToolDefinition } from './judge-definition.ts'
+export { judgeFixedToolRequest } from './judge-request.ts'
 export { judgeToolState } from './judge-state.ts'
 export { evaluateToolAvailability, presentTool } from './catalog.ts'
-export { defineCommandTool, defineFunctionTool, defineToolOperation } from './registration.ts'
+export {
+  defineCommandTool,
+  defineFunctionTool,
+  defineToolOperation,
+  readToolOperation,
+  readToolRegistration,
+  type ToolOperationSlot,
+  type ToolRegistrationSlot,
+} from './registration.ts'
 export { defineToolWaitContract } from './wait-contract.ts'
-export { createDefaultParameterCodec } from './parameter-codec.ts'
+export {
+  createDefaultParameterCodec,
+  judgeToolArguments,
+  type ParsedToolArguments,
+  type ToolArgumentsRejection,
+} from './parameter-codec.ts'
 export { renderToolResult } from './result-rendering.ts'
 export { projectToolResult } from './result-projection.ts'
 export type * from './definitions.ts'

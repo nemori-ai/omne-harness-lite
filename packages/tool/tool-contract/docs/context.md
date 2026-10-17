@@ -17,7 +17,7 @@ flowchart LR
   Consumer[原消费者] --> Results[交付与全文读取]
 ```
 
-独立消费与 Harness 接入的设计形状见 [public-api](public-api.md)，该页导航到源码中已导出的类型，并单列尚未实现的函数。需要托管状态的路径必须具备相应提供者，纯独立路径不暗建 Session。其他领域的生产代码只依赖本包；编写 Cordis 插件时另加 `@omne-harness/tool-cordis-contract`，服务定义与登记协议见其 [cordis](../../tool-cordis-contract/docs/cordis.md)。独立执行与 runtime 工厂在不含 Cordis 的 `@omne-harness/tool`，独立程序与应用装配按需选择它。
+独立消费与 Harness 接入的设计形状见 [public-api](public-api.md)，该页导航到源码中已导出的类型与函数。需要托管状态的路径必须具备相应提供者，纯独立路径不暗建 Session。其他领域的生产代码只依赖本包；编写 Cordis 插件时另加 `@omne-harness/tool-cordis-contract`，服务定义与登记协议见其 [cordis](../../tool-cordis-contract/docs/cordis.md)。独立执行与 runtime 工厂在不含 Cordis 的 `@omne-harness/tool`，独立程序与应用装配按需选择它。
 
 ## 原消费场景的前提
 

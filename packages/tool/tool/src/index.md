@@ -7,5 +7,14 @@
 - [作者限额检查](limits.ts)。
 - [等待请求的 JSON 树](json-tree.ts)。
 - [构造形状](construction.ts)。
+- [记录仓端口与记录](ledger-store.ts)。
+- [账本受信快照](ledger-guards.ts)。
+- [边界检查](boundary.ts)。
+- [证据与身份铸造](evidence.ts)。
+- [受理与交付解除决定器](ledger-decider.ts)。
+- [读取投影](ledger-reads.ts)。
+- [账本工厂](ledger.ts)。
+- [runtime 工厂](runtime.ts)。
+- [测试入口：非耐久记录仓](testing.ts)。
 - [公开接口](../docs/public-api.md)。
 - [包索引](../index.md)。

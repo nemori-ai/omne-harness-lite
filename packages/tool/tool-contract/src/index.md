@@ -17,6 +17,7 @@
 - [默认结果政策](result-policy.ts)。
 - [可复算的采用摘要](adoption.ts)。
 - [定义判定](judge-definition.ts)。
+- [固定请求判定](judge-request.ts)。
 - [状态判定](judge-state.ts)。
 - [呈现与可用性判定](catalog.ts)。
 - [操作与作者注册](registration.ts)。

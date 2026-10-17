@@ -2,6 +2,7 @@
 import type { BlockId, ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/kernel-basis'
+import type { FixedToolRequest } from '@omne-harness/tool-contract'
 import { expectTypeOf, it } from 'vitest'
 import {
   defineCommandTool,
@@ -9,9 +10,13 @@ import {
   defineToolOperation,
   defineToolWaitContract,
   evaluateToolAvailability,
+  judgeFixedToolRequest,
+  judgeToolArguments,
   judgeToolDefinition,
   judgeToolState,
   presentTool,
+  readToolOperation,
+  readToolRegistration,
   projectToolResult,
   renderToolResult,
   createDefaultParameterCodec,
@@ -202,6 +207,10 @@ import type {
   ToolOperation,
   ToolAuthorRegistration,
   AvailabilityFacts,
+  ParsedToolArguments,
+  ToolArgumentsRejection,
+  ToolOperationSlot,
+  ToolRegistrationSlot,
 } from '@omne-harness/tool-contract'
 
 it('resolves every public type name from the package root', () => {
@@ -213,6 +222,16 @@ type Rejection = Readonly<{ field: string; reason: string }>
 it('resolves every implemented contract function from the package root with its accepted signature', () => {
   expectTypeOf(judgeToolDefinition).toEqualTypeOf<
     (value: unknown) => Outcome<ToolDefinition, Rejection>
+  >()
+  expectTypeOf(judgeFixedToolRequest).toEqualTypeOf<
+    (value: unknown) => Outcome<FixedToolRequest, Rejection>
+  >()
+  expectTypeOf(judgeToolArguments).returns.toEqualTypeOf<
+    Outcome<ParsedToolArguments, ToolArgumentsRejection>
+  >()
+  expectTypeOf(readToolOperation).toEqualTypeOf<(value: unknown) => ToolOperationSlot | undefined>()
+  expectTypeOf(readToolRegistration).toEqualTypeOf<
+    (value: unknown) => ToolRegistrationSlot | undefined
   >()
   expectTypeOf(judgeToolState).toEqualTypeOf<(value: unknown) => Outcome<ToolState, Rejection>>()
   expectTypeOf(presentTool).toEqualTypeOf<(definition: ToolDefinition) => ToolPresentation>()

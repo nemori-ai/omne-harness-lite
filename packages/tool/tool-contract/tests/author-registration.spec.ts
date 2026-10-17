@@ -6,6 +6,8 @@ import {
   defineToolOperation,
   defineToolWaitContract,
   judgeToolDefinition,
+  readToolOperation,
+  readToolRegistration,
   type ToolMessageContentBlock,
   type ToolOperation,
   type ToolOperationParameters,
@@ -310,6 +312,32 @@ describe('wait contract', () => {
     expect(defineToolWaitContract(hostile)).toEqual({
       failure: { reason: 'definition: unreadable' },
     })
+  })
+
+  it('author registration: the binding provider reads the author of a handle and the operations of a registration', () => {
+    const author = ordinaryAuthor()
+    const defined = defineToolOperation({
+      parameters: { kind: 'declared', value: parameters() },
+      returns: ordinaryReturns,
+      author,
+    })
+    if (!('ok' in defined)) throw new Error(defined.failure.field)
+    const slot = readToolOperation(defined.ok)
+    expect(slot?.author.executor).toBe(author.executor)
+    expect(slot?.returns).toEqual(ordinaryReturns)
+    const registered = defineCommandTool({
+      metadata: { ...metadata(), name: 'files' },
+      commands: { read: { summary: 'Read a file.', operation: defined.ok } },
+    })
+    if (!('ok' in registered)) throw new Error(registered.failure.field)
+    const table = readToolRegistration(registered.ok)
+    expect(table?.kind).toBe('commands')
+    if (table?.kind === 'commands') expect(table.operations.map(([name]) => name)).toEqual(['read'])
+    // A value that this module did not mark has no slot, so a forged handle cannot carry an author.
+    expect(readToolOperation({ parameters: defined.ok.parameters, returns: ordinaryReturns })).toBe(
+      undefined,
+    )
+    expect(readToolRegistration({ definition: registered.ok.definition })).toBe(undefined)
   })
 
   it('author registration: an author accepts only fixed wait contracts', () => {

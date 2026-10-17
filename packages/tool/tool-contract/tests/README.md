@@ -10,10 +10,11 @@
 | [contract.spec.ts](contract.spec.ts) | 资产正文端口的判定、Skill 引用、伪造文档拒绝和固定后的引用 |
 | [body-programmable.spec.ts](body-programmable.spec.ts) | 资产正文的 `programmable` 只接受布尔值，只有 `true` 产生声明项 |
 | [definition-judgment.spec.ts](definition-judgment.spec.ts) | 定义判定：命令重名、空白说明、缺参数说明、字符串 `programmable` 与未知字段被拒绝并给出字段，省略的 `programmable` 保持省略，P15 设置路径规则 |
+| [request-judgment.spec.ts](request-judgment.spec.ts) | 固定请求判定：合法直接请求与已知不可用目标被接受并冻结；函数工具带命令、多命令工具缺命令或命令未声明、上限超范围、未知字段、非布尔 `complete`、非法定义与非对象都被拒绝并给出字段 |
 | [state-judgment.spec.ts](state-judgment.spec.ts) | 状态判定：阶段与前后台分支，后台不接受 `no-response` 或 Ask，占位与 call 一致，`unavailable` 的效果是 `not-started` |
 | [catalog.spec.ts](catalog.spec.ts) | 呈现摘要只把布尔 `true` 读作可编程许可。可用性判定列出全部未满足的条件 |
-| [author-registration.spec.ts](author-registration.spec.ts) | 作者注册：空命令表、非法名称、返回模式与作者种类不符、程序契约不符和伪造句柄在构造时被拒绝。等待契约不装载 schema，Ask 不接受到期 |
-| [parameter-codec.spec.ts](parameter-codec.spec.ts) | 参数 codec：重复键、`complete=false`、半截 JSON 和超预算都不产生参数值。采用摘要覆盖预算 |
+| [author-registration.spec.ts](author-registration.spec.ts) | 作者注册：空命令表、非法名称、返回模式与作者种类不符、程序契约不符和伪造句柄在构造时被拒绝。`readToolOperation` 与 `readToolRegistration` 读出句柄的作者与注册的操作表，未标记的值读作 `undefined`。等待契约不装载 schema，Ask 不接受到期 |
+| [parameter-codec.spec.ts](parameter-codec.spec.ts) | 参数 codec：重复键、`complete=false`、半截 JSON 和超预算都不产生参数值。采用摘要覆盖预算。参数判定：两份文本都解析，任一失败指明是哪份，`complete=false` 不解析，坏输入或坏预算是 `shape` 拒绝 |
 | [result-rendering.spec.ts](result-rendering.spec.ts) | 结构化判定：带 `content` 的普通对象对普通作者仍是普通值。普通返回按程序编码填 `data`，渲染失败不抛出 |
 | [result-projection.spec.ts](result-projection.spec.ts) | `projectToolResult`：附件身份数量不等、重复或与已有块冲突时拒绝。地址文本使用固定前缀和 JSON 定位 |
 | [tool-values.ts](tool-values.ts) | 契约函数测试用的合法值构造器，不是测试文件 |
