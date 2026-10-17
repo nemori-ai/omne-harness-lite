@@ -11,20 +11,23 @@ import {
 import { dirname } from 'node:path'
 import { lockSync } from 'proper-lockfile'
 import {
+  sameCredentialHolder,
+  type CredentialPort,
+  type CredentialReference,
+  type CredentialResolution,
+} from '@omne-harness/model-contract'
+import {
   loadState,
   present,
   resolve,
-  sameHolder,
   storeState,
-  type CredentialPort,
-  type CredentialReference,
   type CustodianState,
   type Diagnostic,
-  type Resolution,
 } from './credential.ts'
 
 export type LocalCustodian = CredentialPort & {
   readonly path: string
+  diagnostics(): readonly Diagnostic[]
   put(reference: CredentialReference, secret: string): void
   rotate(reference: CredentialReference, secret: string): void
   revoke(reference: CredentialReference): void
@@ -96,7 +99,7 @@ export function openLocalCustodian(
 function live(path: string, initial: CustodianState): LocalCustodian {
   const holder = { state: initial }
   const notes: Diagnostic[] = []
-  const note = (outcome: Resolution['kind'], tenantMatch: boolean) => {
+  const note = (outcome: CredentialResolution['kind'], tenantMatch: boolean) => {
     notes.push({ stage: 'resolve', outcome, tenantMatch })
   }
   return {
@@ -115,7 +118,7 @@ function live(path: string, initial: CustodianState): LocalCustodian {
       if ('kind' in refreshed) return { kind: 'unavailable' }
       holder.state = refreshed
       const decision = resolve(holder.state, reference, face)
-      const binding = holder.state.bindings.find(item => sameHolder(item, reference))
+      const binding = holder.state.bindings.find(item => sameCredentialHolder(item, reference))
       note(decision.kind, binding !== undefined)
       return decision
     },
@@ -131,7 +134,10 @@ function live(path: string, initial: CustodianState): LocalCustodian {
         }
         return {
           ...refreshed,
-          bindings: [...refreshed.bindings.filter(item => !sameHolder(item, reference)), binding],
+          bindings: [
+            ...refreshed.bindings.filter(item => !sameCredentialHolder(item, reference)),
+            binding,
+          ],
         }
       })
     },
@@ -139,7 +145,7 @@ function live(path: string, initial: CustodianState): LocalCustodian {
       mutate(path, holder, refreshed => ({
         ...refreshed,
         bindings: refreshed.bindings.map(item =>
-          sameHolder(item, reference) ? { ...item, secret } : item,
+          sameCredentialHolder(item, reference) ? { ...item, secret } : item,
         ),
       }))
     },
@@ -147,7 +153,7 @@ function live(path: string, initial: CustodianState): LocalCustodian {
       mutate(path, holder, refreshed => ({
         ...refreshed,
         bindings: refreshed.bindings.map(item =>
-          sameHolder(item, reference) ? { ...item, life: 'revoked' as const } : item,
+          sameCredentialHolder(item, reference) ? { ...item, life: 'revoked' as const } : item,
         ),
       }))
     },
@@ -155,7 +161,7 @@ function live(path: string, initial: CustodianState): LocalCustodian {
       mutate(path, holder, refreshed => ({
         ...refreshed,
         bindings: refreshed.bindings.map(item =>
-          sameHolder(item, reference) && item.life === 'active'
+          sameCredentialHolder(item, reference) && item.life === 'active'
             ? { ...item, life: 'unreadable' as const }
             : item,
         ),

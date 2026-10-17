@@ -35,6 +35,7 @@
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
     "proper-lockfile": "^4.1.2"
   },
   "devDependencies": {

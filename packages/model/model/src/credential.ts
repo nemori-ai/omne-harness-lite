@@ -5,60 +5,22 @@ import {
   tenantEquals,
   type TenantId,
 } from '@omne-harness/legal-identity'
-
-export const MODEL_SEND = 'model-send'
-
-export type CredentialPurpose = typeof MODEL_SEND
-
-declare const credentialIdBrand: unique symbol
-
-export type CredentialId = string & { readonly [credentialIdBrand]: true }
-
-export type CredentialReference = {
-  readonly id: CredentialId
-  readonly tenant: TenantId
-  readonly purpose: CredentialPurpose
-}
-
-export type CredentialQuery = {
-  readonly id: CredentialId
-  readonly tenant: TenantId
-  readonly purpose: string
-}
-
-export type SendFace = {
-  readonly authorized: boolean
-  readonly official: boolean
-}
-
-export type Presence =
-  | {
-      readonly kind: 'known'
-      readonly present: boolean
-      readonly id: CredentialId
-      readonly tenant: TenantId
-      readonly purpose: CredentialPurpose
-    }
-  | { readonly kind: 'denied' }
-  | { readonly kind: 'unavailable' }
-
-export type Resolution =
-  | { readonly kind: 'value'; readonly scope: 'tenant' | 'factory'; readonly value: string }
-  | { readonly kind: 'absent' }
-  | { readonly kind: 'unreadable' }
-  | { readonly kind: 'denied' }
-  | { readonly kind: 'unavailable' }
+import {
+  MODEL_SEND,
+  decodeCredentialId,
+  sameCredentialHolder,
+  type CredentialId,
+  type CredentialPresence,
+  type CredentialPurpose,
+  type CredentialQuery,
+  type CredentialResolution,
+  type SendFace,
+} from '@omne-harness/model-contract'
 
 export type Diagnostic = {
   readonly stage: 'resolve'
-  readonly outcome: Resolution['kind']
+  readonly outcome: CredentialResolution['kind']
   readonly tenantMatch: boolean
-}
-
-export type CredentialPort = {
-  present(reference: CredentialQuery): Presence
-  resolve(reference: CredentialQuery, face: SendFace): Resolution
-  diagnostics(): readonly Diagnostic[]
 }
 
 type BindingLife = 'active' | 'revoked' | 'unreadable'
@@ -77,21 +39,9 @@ export type CustodianState = {
   readonly bindings: readonly Binding[]
 }
 
-export function sameHolder(
-  item: { readonly id: CredentialId; readonly tenant: TenantId },
-  reference: CredentialQuery,
-): boolean {
-  return item.id === reference.id && tenantEquals(item.tenant, reference.tenant)
-}
-
-export function credentialId(value: string): CredentialId | undefined {
-  if (value.length === 0 || value.includes(' ')) return undefined
-  return value as CredentialId
-}
-
-export function present(state: CustodianState, reference: CredentialQuery): Presence {
+export function present(state: CustodianState, reference: CredentialQuery): CredentialPresence {
   if (state.closed || reference.purpose !== MODEL_SEND) return { kind: 'denied' }
-  const binding = state.bindings.find(item => sameHolder(item, reference))
+  const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
   return {
     kind: 'known',
     present: binding !== undefined,
@@ -105,17 +55,21 @@ export function resolve(
   state: CustodianState,
   reference: CredentialQuery,
   face: SendFace,
-): Resolution {
+): CredentialResolution {
   if (state.closed || !face.authorized || reference.purpose !== MODEL_SEND)
     return { kind: 'denied' }
-  const binding = state.bindings.find(item => sameHolder(item, reference))
+  const binding = state.bindings.find(item => sameCredentialHolder(item, reference))
   if (!binding) return missing(state, reference, face)
   if (binding.life === 'revoked') return { kind: 'denied' }
   if (binding.life === 'unreadable') return { kind: 'unreadable' }
   return { kind: 'value', scope: 'tenant', value: binding.secret }
 }
 
-function missing(state: CustodianState, reference: CredentialQuery, face: SendFace): Resolution {
+function missing(
+  state: CustodianState,
+  reference: CredentialQuery,
+  face: SendFace,
+): CredentialResolution {
   const heldByOther = state.bindings.some(item => item.id === reference.id)
   if (heldByOther) return { kind: 'denied' }
   const tenantHasBinding = state.bindings.some(item => tenantEquals(item.tenant, reference.tenant))
@@ -181,12 +135,12 @@ export function storeState(state: CustodianState): StoredCustodian {
 function loadBinding(row: unknown): Binding | undefined {
   const stored = storedRow(row)
   if (!stored) return undefined
-  const id = credentialId(stored.id)
+  const id = decodeCredentialId(stored.id)
   const organization = organizationCodec.parse(stored.organization)
   const account = accountCodec.parse(stored.account)
-  if (!id || !organization.ok || !account.ok) return undefined
+  if (!('ok' in id) || !organization.ok || !account.ok) return undefined
   return {
-    id,
+    id: id.ok,
     tenant: tenant(organization.value, account.value),
     purpose: MODEL_SEND,
     secret: stored.secret,

@@ -3,11 +3,11 @@ import { Context, Service, type Context as CordisContext } from '@deepseek-ai/co
 import { createLocalCustodian, openLocalCustodian, type LocalCustodian } from './store.ts'
 import type {
   CredentialPort,
+  CredentialPresence,
   CredentialQuery,
-  Presence,
-  Resolution,
+  CredentialResolution,
   SendFace,
-} from './credential.ts'
+} from '@omne-harness/model-contract'
 
 /** @owner packages/model/model */
 export class ModelCredentialService extends Service {
@@ -19,11 +19,11 @@ export class ModelCredentialService extends Service {
     this.port = port
   }
 
-  present(reference: CredentialQuery): Presence {
+  present(reference: CredentialQuery): CredentialPresence {
     return this.port.present(reference)
   }
 
-  resolve(reference: CredentialQuery, face: SendFace): Resolution {
+  resolve(reference: CredentialQuery, face: SendFace): CredentialResolution {
     return this.port.resolve(reference, face)
   }
 }
@@ -61,9 +61,6 @@ const unavailablePort: CredentialPort = {
   },
   resolve() {
     return { kind: 'unavailable' }
-  },
-  diagnostics() {
-    return []
   },
 }
 

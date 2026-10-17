@@ -515,6 +515,9 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../model-contract
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2

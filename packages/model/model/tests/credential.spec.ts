@@ -61,18 +61,18 @@ vi.mock('node:fs', async importOriginal => {
   }
 })
 import { Context } from '@deepseek-ai/cordis'
-import { LocalCredentialPlugin } from '../src/cordis.ts'
-import { deliver } from '../src/deliver.ts'
-import { deliverInjected } from '../src/execute.ts'
 import {
   MODEL_SEND,
-  createLocalCustodian,
-  credentialId,
-  openLocalCustodian,
+  decodeCredentialId,
+  type CredentialId,
   type CredentialQuery,
   type CredentialReference,
   type SendFace,
-} from '../src/index.ts'
+} from '@omne-harness/model-contract'
+import { LocalCredentialPlugin } from '../src/cordis.ts'
+import { deliver } from '../src/deliver.ts'
+import { deliverInjected } from '../src/execute.ts'
+import { createLocalCustodian, openLocalCustodian } from '../src/index.ts'
 
 const SECRET = 'synth-tenant-ok'
 const FACTORY = 'synth-factory-ok'
@@ -88,9 +88,14 @@ function identity(accountText: string, organizationText: string) {
 const tenantA = identity('acc_abcdefghjkmnpqrstvwxyz2345', 'org_abcdefghjkmnpqrstvwxyz2345')
 const tenantB = identity('acc_abcdefghjkmnpqrstvwxyz2346', 'org_abcdefghjkmnpqrstvwxyz2346')
 
+function credentialId(text: string): CredentialId {
+  const decoded = decodeCredentialId(text)
+  if (!('ok' in decoded)) throw new Error(`fixture credential id ${text}`)
+  return decoded.ok
+}
+
 function reference(overrides: Partial<CredentialReference> = {}): CredentialReference {
   const id = credentialId('cred-a')
-  if (!id) throw new Error('fixture id')
   return { id, tenant: tenantA, purpose: MODEL_SEND, ...overrides }
 }
 
@@ -165,12 +170,38 @@ it('a revoked tenant binding does not fall back to the factory secret', () => {
   custodian.put(ref, SECRET)
   custodian.revoke(ref)
   const otherId = credentialId('cred-b')
-  if (!otherId) throw new Error('fixture id')
   const decision = custodian.resolve(reference({ id: otherId }), face({ official: true }))
   expect(decision).toEqual({ kind: 'absent' })
   expect(ordinary(decision)).not.toContain(FACTORY)
   expect(ordinary(decision)).not.toContain(SECRET)
 })
+
+it.each(['cred a', 'cred\ta', 'cred\u200ba', ''])(
+  'a stored credential id %j that the contract does not decode makes the store unavailable',
+  storedId => {
+    const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+    const path = join(dir, 'store.json')
+    const body = JSON.stringify({
+      closed: false,
+      factorySecret: FACTORY,
+      bindings: [
+        {
+          id: storedId,
+          tenant: {
+            organization: 'org_abcdefghjkmnpqrstvwxyz2345',
+            account: 'acc_abcdefghjkmnpqrstvwxyz2345',
+          },
+          purpose: 'model-send',
+          secret: SECRET,
+          life: 'active',
+        },
+      ],
+    })
+    writeFileSync(path, body)
+    expect(openLocalCustodian(path)).toEqual({ kind: 'unavailable' })
+    expect(readFileSync(path, 'utf8')).toBe(body)
+  },
+)
 
 it('a corrupt store is unavailable and is not replaced', () => {
   const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
@@ -250,7 +281,13 @@ it('a restarted process reads the current secret from the same store', () => {
     [
       '--input-type=module',
       '-e',
-      `import { openLocalCustodian, credentialId } from './dist/index.js'
+      `import { openLocalCustodian } from './dist/index.js'
+       import { decodeCredentialId } from '@omne-harness/model-contract'
+       function credentialId(text) {
+         const decoded = decodeCredentialId(text)
+         if (!('ok' in decoded)) throw new Error('fixture credential id')
+         return decoded.ok
+       }
        import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
        const opened = openLocalCustodian(${JSON.stringify(path)})
        const account = accountCodec.parse('acc_abcdefghjkmnpqrstvwxyz2345')
@@ -373,7 +410,6 @@ it('a later writer modifying another binding does not overwrite a revocation sav
   if ('kind' in second) throw new Error('store missing')
   second.revoke(refA)
   const otherId = credentialId('cred-b')
-  if (!otherId) throw new Error('fixture id')
   const refB = reference({ id: otherId })
   first.put(refB, 'secret-b')
   const reopened = openLocalCustodian(path)
@@ -488,14 +524,19 @@ it('a long-lived synchronous transaction does not let another process steal the 
   const refA = reference()
   first.put(refA, SECRET)
   const otherId = credentialId('cred-b')
-  if (!otherId) throw new Error('fixture id')
 
   const child = spawn(
     process.execPath,
     [
       '--input-type=module',
       '-e',
-      `import { openLocalCustodian, credentialId } from './dist/index.js'
+      `import { openLocalCustodian } from './dist/index.js'
+       import { decodeCredentialId } from '@omne-harness/model-contract'
+       function credentialId(text) {
+         const decoded = decodeCredentialId(text)
+         if (!('ok' in decoded)) throw new Error('fixture credential id')
+         return decoded.ok
+       }
        import { existsSync, writeFileSync } from 'node:fs'
        import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
        function identity(accountText, organizationText) {
@@ -512,7 +553,6 @@ it('a long-lived synchronous transaction does not let another process steal the 
        const opened = openLocalCustodian(${JSON.stringify(path)})
        if ('kind' in opened) { process.stderr.write('child: store missing'); process.exit(1) }
        const childId = credentialId('cred-c')
-       if (!childId) throw new Error('fixture id')
        const refA = { id: credentialId('cred-a'), tenant: identity('acc_abcdefghjkmnpqrstvwxyz2345', 'org_abcdefghjkmnpqrstvwxyz2345'), purpose: 'model-send' }
        opened.revoke(refA)
        opened.put({ id: childId, tenant: tenantB, purpose: 'model-send' }, 'child-secret')
@@ -557,7 +597,6 @@ it('a long-lived synchronous transaction does not let another process steal the 
   const reopened = openLocalCustodian(path)
   if ('kind' in reopened) throw new Error('store missing')
   const childId = credentialId('cred-c')
-  if (!childId) throw new Error('fixture id')
   // The child's revoke survived the overlap.
   expect(reopened.resolve(refA, face()).kind).toBe('denied')
   expect(reopened.resolve({ id: otherId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual({
@@ -657,7 +696,13 @@ it('concurrent writers in separate processes do not lose updates', () => {
     [
       '--input-type=module',
       '-e',
-      `import { openLocalCustodian, credentialId } from './dist/index.js'
+      `import { openLocalCustodian } from './dist/index.js'
+       import { decodeCredentialId } from '@omne-harness/model-contract'
+       function credentialId(text) {
+         const decoded = decodeCredentialId(text)
+         if (!('ok' in decoded)) throw new Error('fixture credential id')
+         return decoded.ok
+       }
        import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
        const path = ${JSON.stringify(path)}
        function identity(accountText, organizationText) {
@@ -670,7 +715,6 @@ it('concurrent writers in separate processes do not lose updates', () => {
        if ('kind' in opened) { process.stderr.write('child: store missing'); process.exit(1) }
        for (let i = 0; i < 5; i++) {
          const id = credentialId('child-' + i)
-         if (!id) throw new Error('fixture id')
          opened.put(
            { id, tenant: identity('acc_abcdefghjkmnpqrstvwxyz2346', 'org_abcdefghjkmnpqrstvwxyz2346'), purpose: 'model-send' },
            'child-secret-' + i,
@@ -683,7 +727,6 @@ it('concurrent writers in separate processes do not lose updates', () => {
   expect(child.status, child.stderr).toBe(0)
   for (let i = 0; i < 5; i++) {
     const id = credentialId(`parent-${i}`)
-    if (!id) throw new Error('fixture id')
     seed.put({ id, tenant: tenantB, purpose: MODEL_SEND }, `parent-secret-${i}`)
   }
   const reopened = openLocalCustodian(path)
@@ -692,7 +735,6 @@ it('concurrent writers in separate processes do not lose updates', () => {
   for (let i = 0; i < 5; i++) {
     const childId = credentialId(`child-${i}`)
     const parentId = credentialId(`parent-${i}`)
-    if (!childId || !parentId) throw new Error('fixture id')
     expect(reopened.resolve({ id: childId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual(
       {
         kind: 'value',

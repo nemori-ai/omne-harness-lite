@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { ModelCredentialService } from './cordis.ts'
-import type { SendFace } from './credential.ts'
+import type { SendFace } from '@omne-harness/model-contract'
 import { deliver, type CallRecord } from './deliver.ts'
 
 export function deliverInjected(ctx: Context, record: CallRecord, face: SendFace) {
