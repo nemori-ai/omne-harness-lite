@@ -38,11 +38,15 @@ async function scenario(name, expected, target, fn) {
   peak = before
   let outcome
   let detail
-  const timer = delay(SCENARIO_TIMEOUT_MS, { outcome: 'timeout' }, { ref: false })
+  const watchdog = new AbortController()
+  const timer = delay(SCENARIO_TIMEOUT_MS, { outcome: 'timeout' }, { signal: watchdog.signal })
+  timer.catch(() => {})
   try {
     ;({ outcome, detail } = await Promise.race([fn(), timer]))
   } catch (error) {
     outcome = `threw:${error instanceof Error ? error.message : String(error)}`
+  } finally {
+    watchdog.abort()
   }
   peak = Math.max(peak, process.memoryUsage().rss)
   const held = target.heldReservation()

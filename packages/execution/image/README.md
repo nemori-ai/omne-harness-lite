@@ -72,7 +72,7 @@ An open handle owns the raster and one reservation. A closed handle owns neither
 
 The caller passes the budget numbers. This member reads no environment variable and stores no default ceiling. The input is one complete buffer. A stream is outside this member.
 
-A caller that prepares model image input can start from the candidate profile `model-input-balanced`. The [profile page](docs/budget-profile.md) gives the six values, their sources, the observed environment, and the limits. This profile is not accepted yet.
+A caller that prepares model image input can use the profile `model-input-balanced`. The [profile page](docs/budget-profile.md) gives the six values, their sources, the observed environment, and the limits. The profile was accepted on 2026-10-17. The page status gives the scope. The caller must still pass these values explicitly.
 
 Build deletes `dist` before `tsc`.
 
@@ -82,7 +82,7 @@ Build deletes `dist` before `tsc`.
 
 The command passed on Darwin 25.5.0 arm64 with Node v26.0.0, sharp 0.35.3, and libvips 8.18.3. Budget and close for this card are accepted only on Node 26. The member engine range is `>=26.0.0 <27`. Other Node versions did not run and are not claimed. The caller-timeout case used a 2048 by 2048 fixture PNG and a 1 ms timeout. Those fixture numbers are not production ceilings. `nativeStop` stayed `not-proven`.
 
-`node --expose-gc packages/execution/image/verification/budget-profile-smoke.mjs` runs real sharp cases with the candidate profile after a build. It checks each result and reservation, and it reads the process RSS. The [profile page](docs/budget-profile.md#观测) gives the rerun steps and the readings.
+`node --expose-gc packages/execution/image/verification/budget-profile-smoke.mjs` runs real sharp cases with the profile after a build. It checks each result and reservation, and it reads the process RSS. The [profile page](docs/budget-profile.md#观测) gives the rerun steps and the readings.
 
 An execution-environment isolation test does not cover this member.
 

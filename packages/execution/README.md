@@ -11,7 +11,7 @@
 | 具名目标 | 文档及状态 | 允许协作 |
 | --- | --- | --- |
 | `execution/execution-environment` | [阅读入口](execution-environment/README.md)、[完整行为](execution-environment/SPEC.md)、[架构](execution-environment/docs/architecture.md)、[模型](execution-environment/docs/model.md)；宿主文件设施已有包测试，应用尚未装上插件 | 消费可信身份、领域明确来源及本次合法条件；通过公开边界与资源、资产、工具、装配及 Context 协作，不持有邻域事实 |
-| `execution/image` | [阅读入口](image/README.md)、[行为](image/SPEC.md)、[架构](image/docs/architecture.md)、[关键流程](image/docs/key-flow.md)、[模型](image/docs/model.md)、[Cordis 集成](image/docs/cordis.md)、[候选推荐配置](image/docs/budget-profile.md)；技术设计已接受，已是 workspace 成员。公开入口是 `imageBudget`、`open`，以及打开句柄上的 encode 和 close | 只接收完整图像字节和调用方传入的预算。不选择执行落点，不提供隔离，不持有工具效果或会话身份 |
+| `execution/image` | [阅读入口](image/README.md)、[行为](image/SPEC.md)、[架构](image/docs/architecture.md)、[关键流程](image/docs/key-flow.md)、[模型](image/docs/model.md)、[Cordis 集成](image/docs/cordis.md)、[推荐配置](image/docs/budget-profile.md)；技术设计已接受，已是 workspace 成员。公开入口是 `imageBudget`、`open`，以及打开句柄上的 encode 和 close | 只接收完整图像字节和调用方传入的预算。不选择执行落点，不提供隔离，不持有工具效果或会话身份 |
 
 成员目标是已有包组织的名字，不能从文档目录推定服务键、进程或数据表。实际成员成立前须有技术接受、构建计划及真实公开入口。`execution/image` 已获技术接受并成为 workspace 成员，六个生产上限由调用方传入。
 

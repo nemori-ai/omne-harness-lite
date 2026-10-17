@@ -4,7 +4,7 @@
 
 ## 性质与覆盖
 
-[budget-profile-smoke.mjs](budget-profile-smoke.mjs) 用候选推荐配置 `model-input-balanced` 驱动真实 sharp。它核对各场景的结果、声明、编码输出和 `heldReservation()`，并读取本进程 RSS。场景、读数和限制见[推荐配置](../docs/budget-profile.md#观测)。
+[budget-profile-smoke.mjs](budget-profile-smoke.mjs) 用推荐配置 `model-input-balanced` 驱动真实 sharp。它核对各场景的结果、声明、编码输出和 `heldReservation()`，并读取本进程 RSS。场景、读数和限制见[推荐配置](../docs/budget-profile.md#观测)。
 
 ## 前提与命令
 
