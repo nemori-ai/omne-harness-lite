@@ -1,5 +1,11 @@
 import { z } from 'zod'
-import { checkJson, closeCheckDomain, copyPlain, jsonTextWithinBudget, openCheckDomain } from './check.ts'
+import {
+  checkJson,
+  closeCheckDomain,
+  copyPlain,
+  jsonTextWithinBudget,
+  openCheckDomain,
+} from './check.ts'
 import {
   POSITIONS,
   POWERS,
@@ -49,13 +55,17 @@ function issueReason(path: readonly (string | number)[], value: unknown): Refusa
   if (path[0] === 'position') return 'unknown-position'
   if (path[0] === 'power') return 'unknown-power'
   if (!path.includes('dimension') || !isRecord(value)) return 'malformed'
-  if (value.position !== 'after_model_call' && value.position !== 'after_action') return 'dimension-not-allowed'
+  if (value.position !== 'after_model_call' && value.position !== 'after_action')
+    return 'dimension-not-allowed'
   if (!isRecord(value.dimension)) return 'malformed'
   if (Reflect.ownKeys(value.dimension).length === 0) return 'dimension-missing'
   return 'malformed'
 }
 
-function allows<const Allowed extends readonly Power[]>(allowed: Allowed, power: Power): power is Allowed[number] {
+function allows<const Allowed extends readonly Power[]>(
+  allowed: Allowed,
+  power: Power,
+): power is Allowed[number] {
   for (const candidate of allowed) {
     if (candidate === power) return true
   }
@@ -75,7 +85,8 @@ function shape(value: Parsed): Judgment<LoopExtensionDeclaration> {
   switch (value.position) {
     case 'after_model_call': {
       const power = value.power
-      if (!withinCeiling(ceiling.after_model_call, power, value.source)) return refused('power-above-ceiling')
+      if (!withinCeiling(ceiling.after_model_call, power, value.source))
+        return refused('power-above-ceiling')
       const field = value.dimension
       if (field === undefined || !('ending' in field)) return refused('dimension-missing')
       return {
@@ -90,7 +101,8 @@ function shape(value: Parsed): Judgment<LoopExtensionDeclaration> {
     }
     case 'after_action': {
       const power = value.power
-      if (!withinCeiling(ceiling.after_action, power, value.source)) return refused('power-above-ceiling')
+      if (!withinCeiling(ceiling.after_action, power, value.source))
+        return refused('power-above-ceiling')
       const field = value.dimension
       if (field === undefined || !('scope' in field)) return refused('dimension-missing')
       return {
@@ -105,7 +117,8 @@ function shape(value: Parsed): Judgment<LoopExtensionDeclaration> {
     }
     case 'after_terminal': {
       const power = value.power
-      if (!withinCeiling(ceiling.after_terminal, power, value.source)) return refused('power-above-ceiling')
+      if (!withinCeiling(ceiling.after_terminal, power, value.source))
+        return refused('power-above-ceiling')
       if (value.dimension !== undefined) return refused('dimension-not-allowed')
       return { kind: 'accepted', value: { name: value.name, position: value.position, power } }
     }
@@ -113,7 +126,8 @@ function shape(value: Parsed): Judgment<LoopExtensionDeclaration> {
     case 'after_persist_message':
     case 'after_compaction': {
       const power = value.power
-      if (!withinCeiling(ceiling[value.position], power, value.source)) return refused('power-above-ceiling')
+      if (!withinCeiling(ceiling[value.position], power, value.source))
+        return refused('power-above-ceiling')
       if (value.dimension !== undefined) return refused('dimension-not-allowed')
       return { kind: 'accepted', value: { name: value.name, position: value.position, power } }
     }
@@ -123,7 +137,8 @@ function shape(value: Parsed): Judgment<LoopExtensionDeclaration> {
     case 'before_action':
     case 'before_terminal': {
       const power = value.power
-      if (!withinCeiling(ceiling[value.position], power, value.source)) return refused('power-above-ceiling')
+      if (!withinCeiling(ceiling[value.position], power, value.source))
+        return refused('power-above-ceiling')
       if (value.dimension !== undefined) return refused('dimension-not-allowed')
       return { kind: 'accepted', value: { name: value.name, position: value.position, power } }
     }

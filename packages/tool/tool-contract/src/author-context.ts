@@ -61,7 +61,8 @@ export type ToolResourceWaitRequest<A = JsonValue> = Readonly<{
   deadline: string | null
 }>
 export type ToolResourceReply<A = JsonValue> =
-  Readonly<{ kind: 'response'; value: A }> | Readonly<{ kind: 'expired' }>
+  | Readonly<{ kind: 'response'; value: A }>
+  | Readonly<{ kind: 'expired' }>
 export interface ToolProcessEmitter {
   emit(update: ToolProcessUpdate): Promise<Outcome<ToolEmitReceipt, ToolPrimitiveFailure>>
 }

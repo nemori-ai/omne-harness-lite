@@ -333,29 +333,29 @@ Agent 推进可并行调用独立模型或工具，等待期间 Run 仍未终结
 
 ### 实现状态记录
 
-观察日期为 2026-10-11，范围为本工作树的源码及成员声明。源码观察不表示行为已运行验证，也不表示实际发布装配完整支持。本次未作产品或交付接受；下表的“未核实”表示证据不足，不能解读为尚未实现。检出为 project-documentation-system 工作树，分支 panqiwei/project-documentation-system，观察 HEAD 为 `7d3a24091aa7cff63eea4aab77f6c57c009f514b`，包含当时未提交字节。下表保留窄读结论与限制，具体源沿该行链接核对；不能以 HEAD 替代当时字节或当前验证。
+观察日期为 2026-10-16，依据为 legacy-refactor 同步候选 `6e1cea7567a3ec343dd3bfb44e99cf5deb022d3c` 的新成员源码与规格。封存实现不计入当前支持。Session 的源码仍为空导出。协作、日志提交、结果认回和控制等行为已有技术接受，生产业务尚未实现。CLI 只支持 help 和 version，不提供会话入口。全部十七项阶段目标继续保留，下表按对应技术拥有者登记实现缺口。
 
 | 能力 | 定义与范围 | 实现支持及限制 | 验证与接受 | 依据或未覆盖 |
 | --- | --- | --- | --- | --- |
-| CAP-SW01 | 创建与固定身份 | 已有持久预留、初始化及同语义创建认回；完整入口与扩展范围未核实 | 均未核实 | [创建实现](../../../../packages.0.0.1.legacy/session/session-runtime-local/src/runtime.ts) |
-| CAP-SW02 | 同定义版本及交接 | 已保存定义能力身份，CLI 有官方根版本刷新；完整安全 reload 和普通恢复保版未核实 | 均未核实 | [采用根刷新](../../../../apps.0.0.1.legacy/cli/src/session-run-assets.ts)；只读源码观察，未运行完整组合行为 |
-| CAP-SW03 | 只增不改日志及阅读 | 已有授权追加、固定范围读取及消息历史视图；完整业务日志浏览、分页与多模态引用耐久未核实 | 均未核实，提供者规格仍记交付评审未完成 | [日志授权与固定范围读取](../../../../packages.0.0.1.legacy/session/session-log-sql/src/participant.ts)；只读观察，不表示完整批次认回、故障耐久或用户分页已验证 |
-| CAP-SW04 | 可靠受理及提交认回 | 已有普通 UserMessage 的共同提交、同语义认回及未知回执；其他输入和多模态引用未核实 | 均未核实 | [受理实现](../../../../packages.0.0.1.legacy/session/session-runtime-local/src/runtime.ts) |
-| CAP-SW05 | 分流及完整批次 | 部分实现，待处理输入有序；正常推进每次承接一项后继续模型，与完整批次有差距；全部分流未核实 | 均未核实 | [正常推进路径](../../../../packages.0.0.1.legacy/session/session-runtime-local/src/driver-model-run.ts) |
-| CAP-SW06 | 提醒与命令衔接 | 完整用途提醒、命令受理展开和业务分流未核实 | 均未核实 | 须由相应入口及命令拥有者提供实际证据 |
-| CAP-SW07 | Run、attempt 及单活跃 | 已有非终态 Run 排他、真实推进资格和初始采用；等待后新 attempt 及并发宿主接管未核实 | 均未核实 | [状态参加者](../../../../packages.0.0.1.legacy/session/session-runtime-local/src/state-participant.ts)、[协调实现](../../../../packages.0.0.1.legacy/session/session-runtime-local/src/coordination.ts) |
-| CAP-SW08 | 原等待及人工答复 | 已有原模型等待与 asked 等待行为；生产卡片答复到原位置的完整接续未核实 | 均未核实 | [模型等待](../../../../packages.0.0.1.legacy/session/session-runtime-local/src/model-attempt.ts)；只读源码观察，未运行完整组合行为 |
-| CAP-SW09 | 完成检查及终态 | 终态前已有条件检查；全部完成策略及合法后台后继投递未核实 | 均未核实 | [终态检查](../../../../packages.0.0.1.legacy/session/session-runtime-local/src/state-participant.ts) |
-| CAP-SW10 | 三轴模式 | 已保存创建模式；所读 CLI 使用 terminal/never/co-work，未提供运行期修改入口 | 均未核实 | [生产装配](../../../../apps.0.0.1.legacy/cli/src/session-production-root.ts)、[宿主协议](../../../../apps.0.0.1.legacy/cli/src/session-host-protocol.ts) |
-| CAP-SW11 | 插队及目标控制 | 所读本机及 CLI 入口未提供完整插队、Run 取消和目标控制；停止本地推进不等于取消逻辑工作 | 均未核实 | [本机声明](../../../../packages.0.0.1.legacy/session/session-runtime-local/SPEC.md)及宿主协议 |
-| CAP-SW12 | 归档及撤销 | 所读本机规格明示取消与归档未完成，CLI 协议未提供归档入口 | 均未核实 | [本机声明](../../../../packages.0.0.1.legacy/session/session-runtime-local/SPEC.md)及宿主协议 |
-| CAP-SW13 | 主子关系 | 生产主子治理、向下级联及 handoff 的完整集成未核实 | 均未核实 | 不由目标契约或局部归属记录推定支持 |
-| CAP-SW14 | 自动归档及常驻 | 租户配置、实际空闲判断、常驻和自动执行的完整支持未核实 | 均未核实 | 须由实际治理与设置入口提供证据 |
-| CAP-SW15 | 恢复及可靠消费 | 已有未发起模型段的窄恢复与模型结果保管、采用、ACK；已发调用、工具及并发接管恢复未核实 | 均未核实 | [恢复边界](../../../../packages.0.0.1.legacy/session/session-runtime-local/src/prepared-call-recovery.ts)、[结果消费](../../../../packages.0.0.1.legacy/session/session-runtime-local/src/model-turn.ts) |
-| CAP-SW16 | 工作追溯及成本 | 原模型结果中的成本事实随结果保存；完整汇总、未知费用呈现及租户和组织查询未核实 | 均未核实 | [模型结果保管](../../../../packages.0.0.1.legacy/session/session-runtime-local/src/model-result-custody.ts)；只读源码观察，未运行完整组合行为 |
-| CAP-SW17 | 会话模型选择与切换 | 未核实，缺少该能力实际入口及组合行为的观察证据 | 均未核实 | 须由会话选择入口、模型合法性求值及请求发起拥有者提供相同检出和装配下的证据 |
+| CAP-SW01 | 创建与固定身份 | 创建、持久预留及同语义创建认回尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#固定事实及当前状态) |
+| CAP-SW02 | 同定义版本及交接 | 定义版本采用、安全 reload 和普通恢复保版尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#固定事实及当前状态) |
+| CAP-SW03 | 只增不改日志及阅读 | 授权追加、固定范围读取、分页及多模态引用耐久尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#日志读取投影及恢复) |
+| CAP-SW04 | 可靠受理及提交认回 | 输入受理、共同提交、认回及未知回执查询尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#耐久及受理确认) |
+| CAP-SW05 | 分流及完整批次 | 普通输入分流及全部待处理输入的完整批次承接尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#分流及命令边界) |
+| CAP-SW06 | 提醒与命令衔接 | 用途提醒、命令展开及业务分流尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#分流及命令边界) |
+| CAP-SW07 | Run、attempt 及单活跃 | Run 单活跃、attempt 推进资格及并发接管尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#批次run与attempt) |
+| CAP-SW08 | 原等待及人工答复 | 原模型等待、人工答复及原位置接续尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#等待与结果交接) |
+| CAP-SW09 | 完成检查及终态 | 完成条件、终态前检查及合法后台后继投递尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#终态与控制) |
+| CAP-SW10 | 三轴模式 | 创建模式保存和运行期模式调整尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#自动归档与模式变化) |
+| CAP-SW11 | 插队及目标控制 | 插队、Run 取消及指定范围控制尚未实现；停止本地推进不能代替逻辑取消 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#终态与控制) |
+| CAP-SW12 | 归档及撤销 | 归档、撤销归档及相应停止范围尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#归档与撤销) |
+| CAP-SW13 | 主子关系 | 主子治理、向下级联及 handoff 尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#归档与撤销) |
+| CAP-SW14 | 自动归档及常驻 | 租户配置、空闲判断、常驻豁免和自动归档尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#自动归档与模式变化) |
+| CAP-SW15 | 恢复及可靠消费 | 原工作恢复、模型或工具结果保管及可靠消费交接尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#等待与结果交接) |
+| CAP-SW16 | 工作追溯及成本 | 工作关联、真实费用汇总、未知费用呈现及授权查询尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#故障读取与维护) |
+| CAP-SW17 | 会话模型选择与切换 | 当前模型选择、合法切换及后续请求采用尚未实现 | 本次未重验行为或作交付接受 | [Session 承接](../../../../packages/session/session/SPEC.md#模型选择与切换) |
 
-产品维护者维护能力含义，实现拥有者提供并更新覆盖、限制及证据，负责人决定接受。支持记录应注明具体版本或检出、适用装配及观察日期；实现变化后重新核对，不能沿用失效记录。
+实现拥有者在实现和验证变化时更新覆盖、限制及证据。产品能力及阶段承诺保持不变。下表的规格链接说明承接责任，不能作为实现通过或整卡接受的证明。
 
 ## 阶段与版本支持承诺
 

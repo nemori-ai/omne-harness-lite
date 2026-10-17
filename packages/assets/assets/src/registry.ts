@@ -21,9 +21,10 @@ export function createCategoryRegistry(): CategoryRegistry {
 export function unknownCategory(
   registry: CategoryRegistry,
   category: string,
-): { readonly ok: true; readonly contract: BodyContract } | { readonly ok: false; readonly rejected: 'unknown-category' } {
+):
+  | { readonly ok: true; readonly contract: BodyContract }
+  | { readonly ok: false; readonly rejected: 'unknown-category' } {
   const contract = registry.lookup(category)
   if (contract === undefined) return { ok: false, rejected: 'unknown-category' }
   return { ok: true, contract }
 }
-

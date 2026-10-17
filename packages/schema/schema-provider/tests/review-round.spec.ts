@@ -57,8 +57,7 @@ it('defect: the same revision with a different check replaces the leased snapsho
     let shape: z.ZodType = candidate.first
     const schema = defineSchema({
       id: candidate.name,
-      load: async () =>
-        zodDefinition({ revision: '1', numbers: 'exact-or-reject', schema: shape }),
+      load: async () => zodDefinition({ revision: '1', numbers: 'exact-or-reject', schema: shape }),
     })
     const prior = await lease(provider, schema)
     expect(prior.kind).toBe('leased')
@@ -184,7 +183,8 @@ it('defect: a held lease drops the failure cooldown of the next load', async () 
     fail = true
     refresh(provider, schema.id)
     const cooled = []
-    for (let attempt = 0; attempt < 4; attempt += 1) cooled.push(await validate(provider, schema, text))
+    for (let attempt = 0; attempt < 4; attempt += 1)
+      cooled.push(await validate(provider, schema, text))
     expect(loads).toBe(2)
     expect(cooled).toEqual([
       { kind: 'unavailable', reason: 'load-failed', retryNotBeforeMillis: 61_000 },
@@ -276,7 +276,10 @@ it('defect: leased old revisions fall out of the snapshot budget', async () => {
   })
   expect(await lease(provider, other)).toEqual({ kind: 'refused', reason: 'budget-exhausted' })
   first.lease.release()
-  expect(await lease(provider, other)).toMatchObject({ kind: 'leased', lease: { revision: 'other' } })
+  expect(await lease(provider, other)).toMatchObject({
+    kind: 'leased',
+    lease: { revision: 'other' },
+  })
 })
 
 it('defect: refresh during a load is forgotten', async () => {
@@ -355,7 +358,11 @@ it('defect: projection drops an own __proto__ key before the checker sees it', a
         schema: z.record(z.string(), z.strictObject({ ok: z.literal(true) })),
       }),
   })
-  const accepted = await validate(provider, allowed, readJsonText('{"__proto__":{"ok":true}}', limits))
+  const accepted = await validate(
+    provider,
+    allowed,
+    readJsonText('{"__proto__":{"ok":true}}', limits),
+  )
   expect(accepted.kind).toBe('valid')
   if (accepted.kind !== 'valid') return
   expect(Object.keys(accepted.value)).toEqual(['__proto__'])
@@ -374,7 +381,11 @@ it('defect: JSON Schema issue paths rewrite object keys', async () => {
           document: { type: 'object', properties: { [key]: { type: 'string' } } },
         }),
     })
-    const verdict = await validate(provider, schema, readJsonText(JSON.stringify({ [key]: 2 }), limits))
+    const verdict = await validate(
+      provider,
+      schema,
+      readJsonText(JSON.stringify({ [key]: 2 }), limits),
+    )
     expect(verdict).toMatchObject({
       kind: 'invalid',
       issues: [{ path: [key], code: 'type' }],
@@ -645,7 +656,10 @@ it('defect: refresh during load skips a same-revision conflict', async () => {
   if (prior.kind !== 'leased') return
   expect(await lease(provider, schema)).toEqual({ kind: 'refused', reason: 'revision-conflict' })
   expect(prior.lease.superseded).toBe(false)
-  expect(prior.lease.check(readJsonText('"abc"', limits))).toMatchObject({ kind: 'valid', revision: '1' })
+  expect(prior.lease.check(readJsonText('"abc"', limits))).toMatchObject({
+    kind: 'valid',
+    revision: '1',
+  })
 })
 
 it('defect: a caller when named like an engine guard still runs', async () => {
@@ -690,15 +704,17 @@ it('defect: a refreshed lease frees its budget before the lease is delivered', a
   const provider = createSchemaProvider({ ...budget, maxSnapshots: 1 })
   const one = defineSchema({
     id: 'one',
-    load: async () => zodDefinition({ revision: '1', numbers: 'exact-or-reject', schema: z.string() }),
+    load: async () =>
+      zodDefinition({ revision: '1', numbers: 'exact-or-reject', schema: z.string() }),
   })
   const two = defineSchema({
     id: 'two',
-    load: async () => zodDefinition({ revision: '2', numbers: 'exact-or-reject', schema: z.string() }),
+    load: async () =>
+      zodDefinition({ revision: '2', numbers: 'exact-or-reject', schema: z.string() }),
   })
   const pending = lease(provider, one)
   refresh(provider, one.id)
-  const concurrent = new Promise<Awaited<ReturnType<typeof lease>>>((resolve) => {
+  const concurrent = new Promise<Awaited<ReturnType<typeof lease>>>(resolve => {
     queueMicrotask(() => resolve(lease(provider, two)))
   })
   const [first, second] = await Promise.all([pending, concurrent])
@@ -715,15 +731,17 @@ it('defect: a second refresh before delivery frees the only snapshot', async () 
   const provider = createSchemaProvider({ ...budget, maxSnapshots: 1 })
   const one = defineSchema({
     id: 'repeat-refresh',
-    load: async () => zodDefinition({ revision: '1', numbers: 'exact-or-reject', schema: z.string() }),
+    load: async () =>
+      zodDefinition({ revision: '1', numbers: 'exact-or-reject', schema: z.string() }),
   })
   const other = defineSchema({
     id: 'other',
-    load: async () => zodDefinition({ revision: 'other', numbers: 'exact-or-reject', schema: z.string() }),
+    load: async () =>
+      zodDefinition({ revision: 'other', numbers: 'exact-or-reject', schema: z.string() }),
   })
   const pending = lease(provider, one)
   refresh(provider, one.id)
-  const concurrent = new Promise<Awaited<ReturnType<typeof lease>>>((resolve) => {
+  const concurrent = new Promise<Awaited<ReturnType<typeof lease>>>(resolve => {
     queueMicrotask(() => {
       refresh(provider, one.id)
       resolve(lease(provider, other))
@@ -736,7 +754,10 @@ it('defect: a second refresh before delivery frees the only snapshot', async () 
   expect(first.lease.check(text)).toMatchObject({ kind: 'valid' })
   first.lease.release()
   first.lease.release()
-  expect(await lease(provider, other)).toMatchObject({ kind: 'leased', lease: { revision: 'other' } })
+  expect(await lease(provider, other)).toMatchObject({
+    kind: 'leased',
+    lease: { revision: 'other' },
+  })
 })
 
 it('defect: cancelling the starter leaves the refreshed snapshot in the only slot', async () => {
@@ -827,7 +848,7 @@ it('defect: a same-id lease between follow and hold admits a second snapshot', a
   })
   const pending = lease(provider, schema)
   refresh(provider, schema.id)
-  const concurrent = new Promise<Awaited<ReturnType<typeof lease>>>((resolve) => {
+  const concurrent = new Promise<Awaited<ReturnType<typeof lease>>>(resolve => {
     queueMicrotask(() => queueMicrotask(() => resolve(lease(provider, schema))))
   })
   const [first, second] = await Promise.all([pending, concurrent])
@@ -866,7 +887,7 @@ it('defect: a same-id validate between follow and delivery starts a second load'
   })
   const pending = validate(provider, schema, text)
   refresh(provider, schema.id)
-  const concurrent = new Promise<Awaited<ReturnType<typeof validate>>>((resolve) => {
+  const concurrent = new Promise<Awaited<ReturnType<typeof validate>>>(resolve => {
     queueMicrotask(() => queueMicrotask(() => resolve(validate(provider, schema, text))))
   })
   const [first, second] = await Promise.all([pending, concurrent])
@@ -903,7 +924,7 @@ it('defect: a canceller who left before publish spends the joiner delivery share
         if (remaining === 0) run()
         else queueMicrotask(() => later(remaining - 1, run))
       }
-      const third = new Promise<Awaited<ReturnType<typeof lease>>>((resolve) => {
+      const third = new Promise<Awaited<ReturnType<typeof lease>>>(resolve => {
         later(depth, () => resolve(lease(provider, other)))
       })
       const [starterResult, joiner, incoming] = await Promise.all([first, joined, third])
@@ -913,7 +934,10 @@ it('defect: a canceller who left before publish spends the joiner delivery share
       expect(joiner.lease.check(text)).toMatchObject({ kind: 'valid', revision: 'A' })
       expect(incoming).toEqual({ kind: 'refused', reason: 'budget-exhausted' })
       joiner.lease.release()
-      expect(await lease(provider, other)).toMatchObject({ kind: 'leased', lease: { revision: 'B' } })
+      expect(await lease(provider, other)).toMatchObject({
+        kind: 'leased',
+        lease: { revision: 'B' },
+      })
     }
   }
 })

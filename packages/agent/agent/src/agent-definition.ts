@@ -49,7 +49,11 @@ function readData(value: unknown, path: readonly (string | number)[]): unknown {
   for (const segment of path) {
     if (typeof current !== 'object' || current === null) return undefined
     const description = Object.getOwnPropertyDescriptor(current, segment)
-    if (description === undefined || typeof description.get === 'function' || typeof description.set === 'function') {
+    if (
+      description === undefined ||
+      typeof description.get === 'function' ||
+      typeof description.set === 'function'
+    ) {
       return undefined
     }
     current = description.value
@@ -90,7 +94,7 @@ function acceptDefinition(parsed: Parsed): Judgment<AgentDefinition> {
       name: parsed.name,
       version,
       references: parsed.references.map(stripResident),
-      attributes: parsed.attributes.map((declaration) => ({ item: declaration.item })),
+      attributes: parsed.attributes.map(declaration => ({ item: declaration.item })),
     },
   }
 }

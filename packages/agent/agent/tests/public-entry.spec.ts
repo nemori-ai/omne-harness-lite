@@ -25,13 +25,19 @@ it('accepts an empty definition and records an unpinned version', async () => {
 
 it('pins a stated version', async () => {
   const judged = await judgeAgentDefinition({ ...legalDefinition, version: 'v2' })
-  expect(judged.kind === 'accepted' && judged.value.version).toEqual({ kind: 'pinned', version: 'v2' })
+  expect(judged.kind === 'accepted' && judged.value.version).toEqual({
+    kind: 'pinned',
+    version: 'v2',
+  })
 })
 
 it('refuses a missing references slot, a null slot, a duplicate capability, and an unknown attribute', async () => {
   const { references, ...missing } = legalDefinition
   void references
-  expect(await judgeAgentDefinition(missing)).toMatchObject({ kind: 'refused', reason: 'malformed' })
+  expect(await judgeAgentDefinition(missing)).toMatchObject({
+    kind: 'refused',
+    reason: 'malformed',
+  })
   expect(await judgeAgentDefinition({ ...legalDefinition, references: null })).toMatchObject({
     kind: 'refused',
     reason: 'malformed',
@@ -103,7 +109,9 @@ it('returns extension declarations in submission order and refuses an illegal on
       { name: 'room', position: 'before_model_call', power: 'rewrite', source: 'workspace' },
     ]),
   ).toMatchObject({ kind: 'refused', reason: 'power-above-ceiling', index: 0 })
-  expect(await judgeLoopExtensions([{ name: 'x', position: 'not-a-position', power: 'observe' }])).toMatchObject({
+  expect(
+    await judgeLoopExtensions([{ name: 'x', position: 'not-a-position', power: 'observe' }]),
+  ).toMatchObject({
     kind: 'refused',
     reason: 'unknown-position',
     index: 0,
@@ -182,8 +190,13 @@ it('refuses host objects, hidden functions, and colliding capability text', asyn
   const proto = Object.create({ toJSON: () => base }) as object
   expect(await judgeAgentDefinition(proto)).toMatchObject({ kind: 'refused', reason: 'malformed' })
   const hidden = Object.defineProperty({ ...base }, 'run', { value() {}, enumerable: false })
-  expect(await judgeAgentDefinition(hidden)).toMatchObject({ kind: 'refused', reason: 'executable' })
-  expect(await judgeAgentDefinition({ ...base, version: new Date('2020-01-01T00:00:00.000Z') })).toMatchObject({
+  expect(await judgeAgentDefinition(hidden)).toMatchObject({
+    kind: 'refused',
+    reason: 'executable',
+  })
+  expect(
+    await judgeAgentDefinition({ ...base, version: new Date('2020-01-01T00:00:00.000Z') }),
+  ).toMatchObject({
     kind: 'refused',
     reason: 'malformed',
   })
@@ -191,7 +204,9 @@ it('refuses host objects, hidden functions, and colliding capability text', asyn
     kind: 'refused',
     reason: 'malformed',
   })
-  expect(await judgeAgentDefinition({ ...base, attributes: [{ item: 'model', limit: Infinity }] })).toMatchObject({
+  expect(
+    await judgeAgentDefinition({ ...base, attributes: [{ item: 'model', limit: Infinity }] }),
+  ).toMatchObject({
     kind: 'refused',
     reason: 'malformed',
   })
@@ -205,7 +220,9 @@ it('refuses host objects, hidden functions, and colliding capability text', asyn
     }),
   ).toMatchObject({ kind: 'accepted' })
   expect(
-    await judgeLoopExtensions([{ name: 'e', position: 'after_model_call', power: 'observe', dimension: {} }]),
+    await judgeLoopExtensions([
+      { name: 'e', position: 'after_model_call', power: 'observe', dimension: {} },
+    ]),
   ).toMatchObject({ kind: 'refused', reason: 'dimension-missing', index: 0 })
 })
 
@@ -220,7 +237,11 @@ it('refuses executable batch members without calling them', async () => {
     enumerable: true,
     configurable: true,
   })
-  expect(await judgeLoopExtensions(batch)).toMatchObject({ kind: 'refused', reason: 'executable', index: 0 })
+  expect(await judgeLoopExtensions(batch)).toMatchObject({
+    kind: 'refused',
+    reason: 'executable',
+    index: 0,
+  })
   expect(reads).toBe(0)
   const hidden = [{ name: 'e', position: 'before_model_call', power: 'observe' }]
   Object.defineProperty(hidden, 'run', { value() {}, enumerable: false })
@@ -232,7 +253,10 @@ it('rejects an own __proto__ member and accepts a shared empty array', async () 
     '{"category":"AgentDefinition","name":"coding","references":[],"attributes":[],"__proto__":{"extra":"x"}}',
   )
   expect(Object.hasOwn(withProto, '__proto__')).toBe(true)
-  expect(await judgeAgentDefinition(withProto)).toMatchObject({ kind: 'refused', reason: 'malformed' })
+  expect(await judgeAgentDefinition(withProto)).toMatchObject({
+    kind: 'refused',
+    reason: 'malformed',
+  })
   const attribute = JSON.parse('{"item":"model","__proto__":{"extra":"x"}}')
   expect(
     await judgeAgentDefinition({
@@ -292,7 +316,11 @@ it('refuses executable batch members without calling them', async () => {
     enumerable: true,
     configurable: true,
   })
-  expect(await judgeLoopExtensions(batch)).toMatchObject({ kind: 'refused', reason: 'executable', index: 0 })
+  expect(await judgeLoopExtensions(batch)).toMatchObject({
+    kind: 'refused',
+    reason: 'executable',
+    index: 0,
+  })
   expect(reads).toBe(0)
   const hidden = [{ name: 'e', position: 'before_model_call', power: 'observe' }]
   Object.defineProperty(hidden, 'run', { value() {}, enumerable: false })
@@ -304,7 +332,10 @@ it('rejects an own __proto__ member and accepts a shared empty array', async () 
     '{"category":"AgentDefinition","name":"coding","references":[],"attributes":[],"__proto__":{"extra":"x"}}',
   )
   expect(Object.hasOwn(withProto, '__proto__')).toBe(true)
-  expect(await judgeAgentDefinition(withProto)).toMatchObject({ kind: 'refused', reason: 'malformed' })
+  expect(await judgeAgentDefinition(withProto)).toMatchObject({
+    kind: 'refused',
+    reason: 'malformed',
+  })
   const attribute = JSON.parse('{"item":"model","__proto__":{"extra":"x"}}')
   expect(
     await judgeAgentDefinition({
@@ -357,7 +388,11 @@ it('reports a shared capability as a duplicate and ignores later mutation of the
       throw new Error('diagnostic getter executed')
     },
   })
-  await expect(pending).resolves.toMatchObject({ kind: 'refused', reason: 'dimension-missing', index: 0 })
+  await expect(pending).resolves.toMatchObject({
+    kind: 'refused',
+    reason: 'dimension-missing',
+    index: 0,
+  })
   expect(reads).toBe(0)
 })
 
@@ -376,13 +411,21 @@ it('applies the JSON value count and UTF-8 byte budget to a whole extension batc
   const zhong = '中'.repeat(9000)
   expect(
     await judgeLoopExtensions(
-      Array.from({ length: 4 }, () => ({ name: zhong, position: 'attempt_started', power: 'observe' })),
+      Array.from({ length: 4 }, () => ({
+        name: zhong,
+        position: 'attempt_started',
+        power: 'observe',
+      })),
     ),
   ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
   const letters = 'a'.repeat(1996)
   expect(
     await judgeLoopExtensions(
-      Array.from({ length: 49 }, () => ({ name: letters, position: 'attempt_started', power: 'observe' })),
+      Array.from({ length: 49 }, () => ({
+        name: letters,
+        position: 'attempt_started',
+        power: 'observe',
+      })),
     ),
   ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
 })
@@ -545,7 +588,9 @@ it('classifies an attribute item string separately from a broken attribute', asy
 })
 
 it('keeps the package free of assembly, assets, and cordis dependencies', () => {
-  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+  const manifest = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  ) as {
     dependencies?: Record<string, string>
   }
   const names = Object.keys(manifest.dependencies ?? {})

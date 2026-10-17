@@ -66,7 +66,12 @@ function bodyOf(material: string): DecodedMaterial | undefined {
   const paramText = parts[3]
   const saltText = parts[4]
   const keyText = parts[5]
-  if (version !== VERSION || paramText === undefined || saltText === undefined || keyText === undefined) {
+  if (
+    version !== VERSION ||
+    paramText === undefined ||
+    saltText === undefined ||
+    keyText === undefined
+  ) {
     return undefined
   }
   const params = paramsFrom(paramText)
@@ -86,7 +91,11 @@ function paramsFrom(paramText: string): MaterialParams | undefined {
   return paramsFit(params) ? params : undefined
 }
 
-function decodedBytes(saltText: string, keyText: string, params: MaterialParams): DecodedMaterial | undefined {
+function decodedBytes(
+  saltText: string,
+  keyText: string,
+  params: MaterialParams,
+): DecodedMaterial | undefined {
   if (saltText.length > MAX_FIELD_TEXT || keyText.length > MAX_FIELD_TEXT) return undefined
   const salt = strictBase64url(saltText)
   const key = strictBase64url(keyText)
@@ -110,7 +119,10 @@ function paramsFit(params: MaterialParams): boolean {
 }
 
 function readParams(text: string): Map<string, number> | undefined {
-  const match = /^n=(0|[1-9][0-9]{0,15}),r=(0|[1-9][0-9]{0,15}),p=(0|[1-9][0-9]{0,15}),k=(0|[1-9][0-9]{0,15})$/.exec(text)
+  const match =
+    /^n=(0|[1-9][0-9]{0,15}),r=(0|[1-9][0-9]{0,15}),p=(0|[1-9][0-9]{0,15}),k=(0|[1-9][0-9]{0,15})$/.exec(
+      text,
+    )
   if (match === null) return undefined
   return new Map([
     ['n', Number(match[1])],

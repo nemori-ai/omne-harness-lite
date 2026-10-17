@@ -1,0 +1,4 @@
+// 方向违规：共同纯定义（common）依赖了领域成员 infra/b。
+import { b } from '@omne-harness/b'
+
+export const s = b

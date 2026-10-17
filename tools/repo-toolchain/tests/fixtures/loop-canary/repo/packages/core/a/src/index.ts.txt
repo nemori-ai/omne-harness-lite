@@ -1,0 +1,4 @@
+// 普通的跨成员依赖：稳定依赖不稳定那一处的链条要经过它。
+import { b } from '@omne-harness/b'
+
+export const a = b + 1

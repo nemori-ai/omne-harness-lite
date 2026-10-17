@@ -87,7 +87,8 @@ export type ContentBlockRejection =
   | 'transcript'
 
 export type ContentBlockJudgment =
-  { readonly ok: ContentBlock } | { readonly rejected: ContentBlockRejection }
+  | { readonly ok: ContentBlock }
+  | { readonly rejected: ContentBlockRejection }
 
 interface BlockRule {
   readonly keys: readonly string[]

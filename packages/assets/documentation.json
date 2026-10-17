@@ -137,21 +137,6 @@
       "requiredSections": []
     },
     {
-      "id": "placed-packages#assets#assets#README",
-      "path": "packages/assets/assets/README.md",
-      "kind": "entry",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
       "id": "placed-packages#assets#docs#architecture",
       "path": "packages/assets/docs/architecture.md",
       "kind": "architecture",
@@ -177,36 +162,6 @@
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "能力组文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages#assets#permissions#README",
-      "path": "packages/assets/permissions/README.md",
-      "kind": "entry",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages#assets#settings#README",
-      "path": "packages/assets/settings/README.md",
-      "kind": "entry",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []

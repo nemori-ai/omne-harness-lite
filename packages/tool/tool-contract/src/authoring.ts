@@ -56,7 +56,8 @@ export type ToolUsage = Readonly<{
   command: string | null
   description: string
   parameters:
-    ParameterContract | Readonly<{ kind: 'executor-owned'; usage: string; protocol: Adoption }>
+    | ParameterContract
+    | Readonly<{ kind: 'executor-owned'; usage: string; protocol: Adoption }>
   returns: ToolReturnDeclaration
 }>
 export type ToolPresentation = Readonly<{

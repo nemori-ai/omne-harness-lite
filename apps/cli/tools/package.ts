@@ -17,11 +17,10 @@ if (target === undefined || !isAbsolute(target) || !target.endsWith('.tar.gz')) 
   process.stderr.write('omne-package: parent directory does not exist\n')
   process.exitCode = 1
 } else {
-  const build = spawnSync(
-    'pnpm',
-    ['--filter', '@omne-harness/cli', 'run', 'build'],
-    { cwd: repoRoot, stdio: 'inherit' },
-  )
+  const build = spawnSync('pnpm', ['--filter', '@omne-harness/cli', 'run', 'build'], {
+    cwd: repoRoot,
+    stdio: 'inherit',
+  })
   if ((build.status ?? 1) !== 0) {
     process.exitCode = build.status ?? 1
   } else {

@@ -80,11 +80,11 @@ export type LoopExtensionDeclaration =
   | {
       readonly name: string
       readonly position:
-          | 'before_persist_message'
-          | 'before_compaction'
-          | 'before_model_call'
-          | 'before_action'
-          | 'before_terminal'
+        | 'before_persist_message'
+        | 'before_compaction'
+        | 'before_model_call'
+        | 'before_action'
+        | 'before_terminal'
       readonly power: 'observe' | 'rewrite' | 'veto'
     }
 

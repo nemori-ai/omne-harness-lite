@@ -40,7 +40,9 @@ it('keeps an unknown supplier cost without a lexeme', () => {
 
 it('rejects USD 1.234 and a fractional token as precision', () => {
   expect(
-    judgeCallAccount(account([{ state: 'known', lexeme: '1.234', unit: 'USD', source: 'supplier' }])),
+    judgeCallAccount(
+      account([{ state: 'known', lexeme: '1.234', unit: 'USD', source: 'supplier' }]),
+    ),
   ).toEqual({ rejected: 'precision' })
   expect(
     judgeCallAccount({
@@ -69,7 +71,10 @@ it('replaces the whole snapshot at a higher revision and keeps the first at the 
   const higher = account([{ state: 'known', lexeme: '1.50', unit: 'USD', source: 'billable' }], '1')
   higher.receipt = 'late'
   expect(admitRevision(first, higher)).toEqual(judgeCallAccount(higher))
-  const different = account([{ state: 'known', lexeme: '9.00', unit: 'USD', source: 'billable' }], '0')
+  const different = account(
+    [{ state: 'known', lexeme: '9.00', unit: 'USD', source: 'billable' }],
+    '0',
+  )
   expect(admitRevision(first, different)).toEqual(judgeCallAccount(first))
   expect(admitRevision(first, first)).toEqual(judgeCallAccount(first))
 })

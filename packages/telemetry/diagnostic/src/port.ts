@@ -154,18 +154,20 @@ export function createDiagnosticPort(options: DiagnosticPortOptions): Diagnostic
       inFlight -= 1
       return
     }
-    void pending.then(
-      () => {
-        if (record.exportStatus === 'exporting') record.exportStatus = 'exported'
-      },
-      () => {
-        noteExportFailure(record)
-      },
-    ).finally(() => {
-      inFlight -= 1
-      pump()
-      settleClose(false)
-    })
+    void pending
+      .then(
+        () => {
+          if (record.exportStatus === 'exporting') record.exportStatus = 'exported'
+        },
+        () => {
+          noteExportFailure(record)
+        },
+      )
+      .finally(() => {
+        inFlight -= 1
+        pump()
+        settleClose(false)
+      })
   }
 
   function noteExportFailure(record: StoredRecord): void {

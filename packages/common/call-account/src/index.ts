@@ -53,7 +53,18 @@ const REVISION = /^(0|[1-9][0-9]*)$/u
 
 export function judgeCallAccount(value: unknown): AccountResult {
   if (!isRecord(value)) return rejected('extra')
-  if (!exactKeys(value, ['subject', 'usage', 'cost', 'trimmed', 'place', 'duration', 'receipt', 'revision']))
+  if (
+    !exactKeys(value, [
+      'subject',
+      'usage',
+      'cost',
+      'trimmed',
+      'place',
+      'duration',
+      'receipt',
+      'revision',
+    ])
+  )
     return rejected('extra')
   const subject = judgeSubject(value.subject)
   if ('rejected' in subject) return subject
@@ -99,7 +110,8 @@ function knownCosts(
 ): readonly { readonly lexeme: string; readonly unit: string }[] {
   const rows: { lexeme: string; unit: string }[] = []
   for (const item of cost) {
-    if (item.source === source && item.state === 'known') rows.push({ lexeme: item.lexeme, unit: item.unit })
+    if (item.source === source && item.state === 'known')
+      rows.push({ lexeme: item.lexeme, unit: item.unit })
   }
   return rows
 }
@@ -140,9 +152,7 @@ function judgeTrimmed(value: unknown): Checked<Amount> {
   return amount
 }
 
-function judgeScalars(
-  value: Record<string, unknown>,
-):
+function judgeScalars(value: Record<string, unknown>):
   | {
       readonly ok: Pick<CallAccount, 'place' | 'duration' | 'receipt' | 'revision'>
     }
@@ -151,7 +161,8 @@ function judgeScalars(
   const duration = judgeDuration(value.duration)
   if ('rejected' in duration) return duration
   if (!isReceipt(value.receipt)) return rejected('receipt')
-  if (typeof value.revision !== 'string' || !REVISION.test(value.revision)) return rejected('revision')
+  if (typeof value.revision !== 'string' || !REVISION.test(value.revision))
+    return rejected('revision')
   return {
     ok: {
       place: value.place,
@@ -177,9 +188,11 @@ function judgeUsage(value: unknown): Checked<readonly UsageItem[]> {
   if (!Array.isArray(value)) return rejected('usage')
   const items: UsageItem[] = []
   for (const item of value) {
-    if (!isRecord(item) || typeof item.name !== 'string' || item.name.length === 0) return rejected('usage')
+    if (!isRecord(item) || typeof item.name !== 'string' || item.name.length === 0)
+      return rejected('usage')
     const amount = judgeAmount(item, ['name'])
-    if ('rejected' in amount) return rejected(amount.rejected === 'extra' ? 'usage' : amount.rejected)
+    if ('rejected' in amount)
+      return rejected(amount.rejected === 'extra' ? 'usage' : amount.rejected)
     items.push({ name: item.name, ...amount.ok })
   }
   return { ok: items }
@@ -191,7 +204,8 @@ function judgeCost(value: unknown): Checked<readonly CostItem[]> {
   for (const item of value) {
     if (!isRecord(item) || !isCostSource(item.source)) return rejected('cost')
     const amount = judgeAmount(item, ['source'])
-    if ('rejected' in amount) return rejected(amount.rejected === 'extra' ? 'cost' : amount.rejected)
+    if ('rejected' in amount)
+      return rejected(amount.rejected === 'extra' ? 'cost' : amount.rejected)
     items.push({ source: item.source, ...amount.ok })
   }
   return { ok: items }
@@ -206,7 +220,11 @@ function judgeAmount(value: unknown, extras: readonly string[] = []): Checked<Am
   return knownAmount(value.state, value.lexeme, value.unit)
 }
 
-function knownAmount(state: 'known' | 'provisional', lexeme: unknown, unit: string): Checked<Amount> {
+function knownAmount(
+  state: 'known' | 'provisional',
+  lexeme: unknown,
+  unit: string,
+): Checked<Amount> {
   if (typeof lexeme !== 'string') return rejected('lexeme')
   const parsed = parseLexeme(lexeme, unit)
   if (typeof parsed === 'string') return rejected(parsed)

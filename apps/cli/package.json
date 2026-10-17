@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Minimal omne process entry: help, version, and state directory resolution",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "bin": {
     "omne": "./dist/bin.js"
@@ -22,7 +22,7 @@
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && node scripts/write-identity.mjs",
-    "typecheck": "pnpm run build && tsc -p tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.test.json",
     "test": "pnpm run build && vitest run"
   },
   "dependencies": {},

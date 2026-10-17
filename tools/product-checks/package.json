@@ -1,0 +1,27 @@
+{
+  "name": "@omne-harness/product-checks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "本仓库的产品规则：契约与节点 verification 点名的结构检查、仓库路径规则与验收覆盖",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "omne-product-checks": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "scan": "node --conditions=source --experimental-strip-types src/cli.ts ../../packages ../../apps"
+  },
+  "devDependencies": {
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/repo-toolchain": "catalog:",
+    "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
