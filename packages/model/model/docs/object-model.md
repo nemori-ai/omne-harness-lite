@@ -83,11 +83,11 @@ ModelProfileMaintenance 由实际档案权威提供者实现，包含条件写�
 
 ## 已实现的凭据对象
 
-凭据切片的行为归 [SPEC](../SPEC.md#凭据引用与解析)，实际声明归 [credential.ts](../src/credential.ts)。
+凭据切片的保管行为归 [SPEC](../SPEC.md#凭据引用与解析)。引用、结果和端口的声明与持有者语义归 [model-contract](../../model-contract/docs/public-api.md#凭据引用与解析端口)，保管的内部判定状态在 [credential.ts](../src/credential.ts)。
 
 调用记录只保存引用。引用含凭据身份、租户和用途。本交付的用途取值是 `model-send`。更宽的用途词表不在本卡。查询可以带一个别的用途字符串，`present` 和 `resolve` 都是 `denied`。能写入保管库的引用仍然只有 `model-send`。同一凭据身份可以分属不同租户。已撤销或暂时读不出的行仍然存在，`present` 为 true。`resolve` 才分别返回 `denied` 或 `unreadable`。
 
-租户标识使用 `packages/common/legal-identity` 的 `TenantId`。凭据身份是本成员自己的标识，不是 `TenantId`，也不是登录出示物。持有引用不构成读取授权。
+租户标识使用 `packages/common/legal-identity` 的 `TenantId`。凭据身份 `CredentialId` 由 model-contract 定义，是人在保管配置路径上命名的不透明标识，不是 `TenantId`，也不是登录出示物。持有引用不构成读取授权。
 
 ```mermaid
 classDiagram
@@ -96,25 +96,25 @@ classDiagram
     tenant
     purpose
   }
-  class Presence {
+  class CredentialPresence {
     present
     id
     tenant
     purpose
   }
-  class Resolution {
+  class CredentialResolution {
     kind
   }
   class Value {
     scope
     value
   }
-  CredentialReference --> Presence : present
-  CredentialReference --> Resolution : resolve
-  Resolution <|-- Value : kind = value
+  CredentialReference --> CredentialPresence : present
+  CredentialReference --> CredentialResolution : resolve
+  CredentialResolution <|-- Value : kind = value
 ```
 
-`Presence` 没有秘密。`Resolution` 的种类如下。只有 `value` 携带秘密，并且只交给这一次发送。
+`CredentialPresence` 没有秘密。`CredentialResolution` 的种类如下。只有 `value` 携带秘密，并且只交给这一次发送。
 
 | 种类 | 含义 | 发送端 |
 | --- | --- | --- |
@@ -151,7 +151,7 @@ flowchart TD
 
 未获准的官方发送停在第一步，拿不到工厂秘密。本租户没有这一行、但还有任意其他行时，缺的那个身份是 `absent`。其他行包括另一个身份，也包括已经撤销的行。别的租户持有同一身份时是 `denied`，即使本租户一行都没有，也不用工厂秘密。
 
-`present` 不接收发送资格。用途不符或保管已关闭时，它返回 `denied`，不是 `present: false`。同一身份只在别的租户手里，或者本租户没有这一行时，它返回 `known` 且 `present` 为 false。`resolve` 对前一种才是 `denied`。`unavailable` 只在整份保管打不开、任一行读失败或同一持有者出现多行冲突时出现。凭据身份不能是空串，也不能含空格。
+`present` 不接收发送资格。用途不符或保管已关闭时，它返回 `denied`，不是 `present: false`。同一身份只在别的租户手里，或者本租户没有这一行时，它返回 `known` 且 `present` 为 false。`resolve` 对前一种才是 `denied`。`unavailable` 只在整份保管打不开、任一行读失败或同一持有者出现多行冲突时出现。凭据身份须通过 `decodeCredentialId`：非空，不超过 256 个 UTF-16 码元，不含空白、控制字符或格式字符。磁盘上的行若含不能通过它的身份，整份保管按损坏处理，`present` 和 `resolve` 返回 `unavailable`。
 
 本地保管库每次 `present` 和 `resolve` 都从磁盘刷新状态，因此保留的句柄和 Cordis 服务都能观察到其他进程或句柄造成的轮换、撤销或文件损坏。如果文件在打开后被损坏，后续解析返回 `unavailable`，而不是继续返回旧值。管理操作持有文件锁完成“读当前状态—修改—发布”，写入失败时不发布新状态。
 

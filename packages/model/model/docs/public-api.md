@@ -56,12 +56,12 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 
 ## 已实现的凭据入口
 
-此节导航真实源码，不重复声明。以下是尚未迁移的凭据入口，不从空的 model-contract 骨架转导。目标归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)：纯类型归 model-contract，服务定义归 model-cordis-contract，本地保管与框架适配归 model-host-local。迁移须同步消费者并删除本包旧框架入口，不能通过转导保留 Cordis 安装依赖。
+此节导航真实源码，不重复声明。凭据的纯契约（`CredentialId`、引用、查询、`CredentialPresence`、`CredentialResolution`、`CredentialPort`、`SendFace`、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`）已迁入 [model-contract](../../model-contract/docs/public-api.md#凭据引用与解析端口)，本包不再导出它们，也不转导。目标归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)：服务定义归 model-cordis-contract，本地保管与框架适配归 model-host-local。以下是尚未迁移的凭据入口，迁移须同步消费者并删除本包旧框架入口，不能通过转导保留 Cordis 安装依赖。
 
 | 消费入口 | 实际源码与能力 |
 | --- | --- |
-| `@omne-harness/model` | [index.ts](../src/index.ts) 导出引用、存在性、解析端口、deliver 及本地保管工厂 |
+| `@omne-harness/model` | [index.ts](../src/index.ts) 导出 deliver 及本地保管工厂，以及本地保管的 `Diagnostic` 类型 |
 | `@omne-harness/model/cordis` | [cordis.ts](../src/cordis.ts) 定义唯一 modelCredential 服务与本地插件 |
 | `@omne-harness/model/execute` | [execute.ts](../src/execute.ts) 提供静态注入后的凭据发送接缝 |
 
-引用及结果的唯一形状归 [credential.ts](../src/credential.ts)，调用记录与发送回执归 [deliver.ts](../src/deliver.ts)，本地工厂归 [store.ts](../src/store.ts)。行为承诺归 [SPEC](../SPEC.md#凭据引用与解析)。这些入口不实现上文 executeModel 或 createModelRuntime，也不证明完整模型调用已交付。
+引用、结果和端口的唯一形状归 model-contract，本包的 [credential.ts](../src/credential.ts) 只有保管的内部判定状态与诊断类型。调用记录与发送回执归 [deliver.ts](../src/deliver.ts)，本地工厂归 [store.ts](../src/store.ts)。行为承诺归 [SPEC](../SPEC.md#凭据引用与解析)。这些入口不实现上文 executeModel 或 createModelRuntime，也不证明完整模型调用已交付。

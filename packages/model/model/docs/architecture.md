@@ -397,7 +397,7 @@ classDiagram
 
 | 模块 | 已有责任 |
 | --- | --- |
-| [credential.ts](../src/credential.ts) | 引用、存在性、五种解析结果及凭据操作端口 |
+| [credential.ts](../src/credential.ts) | 保管的内部判定：存在性与解析取舍的实现、磁盘行的解码。引用、五种结果和端口的类型归 model-contract |
 | [store.ts](../src/store.ts) | 本地存储、文件锁、轮换、发布确认及关闭 |
 | [deliver.ts](../src/deliver.ts) | 只依赖 CredentialPort，在发送前解析；不导入存储实现 |
 | [cordis.ts](../src/cordis.ts) | 唯一 modelCredential Service、本地插件及生命周期 |

@@ -1,13 +1,13 @@
 <a id="model-领域公开契约候选"></a>
 # Model 领域公开契约
 
-本页的 TypeScript 代码块是本包公开声明的唯一设计，源码按本页章节分文件（`src/` 下每章一个文件）。根入口已经导出其中不引用共享 `ToolCallPart` 的类型声明。引用 `ToolCallPart` 的声明，以及全部运行值（身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`），尚未落地：前者等共享消息契约发布该类型，后者随运行实现落地。根入口的运行时键暂时仍为空。逐名落地状态见[导出清单](../tests/fixtures/exports.json)的 `pending` 标记。全部落地后，本页转为源码导航，不保留第二套签名。
+本页的 TypeScript 代码块是本包公开声明的唯一设计，源码按本页章节分文件（`src/` 下每章至少一个文件）。根入口已经导出其中不引用共享 `ToolCallPart` 的类型声明。引用 `ToolCallPart` 的声明，以及除凭据章节以外的运行值（其余身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`），尚未落地：前者等共享消息契约发布该类型，后者随运行实现落地。已落地的运行值只有[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，根入口的运行时键只有这三个。逐名落地状态见[导出清单](../tests/fixtures/exports.json)的 `pending` 标记。全部落地后，本页转为源码导航，不保留第二套签名。
 
 ## 导出归属与落地前置
 
 本包拥有领域值、品牌、公开操作与可替换提供者端口，包括 ModelProvider 管理接口。executeModel、createModelRuntime 及其 ModelDependencies、ModelConfiguration 由[领域实现](../../model/docs/public-api.md)拥有，不从本包转导出。Cordis 类与键由[框架契约](../../model-cordis-contract/docs/public-api.md)拥有。
 
-凭据纯契约也由本包拥有。现有 CredentialId、CredentialReference、CredentialQuery、CredentialPort 及其操作结果须从 model 的 [credential.ts](../../model/src/credential.ts) 迁入，并保持品牌唯一。该文件中的内部判定状态和磁盘格式不属于本包。源码迁移前，这些名字仍从现有实现入口取得，本页不复制另一套声明；迁移时同步真实消费者和导出清单。精确归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。
+凭据纯契约由本包拥有：`CredentialId` 及其解码函数、引用、查询、存在性与解析结果、`CredentialPort` 和持有者比较函数，声明见[凭据引用与解析端口](#凭据引用与解析端口)。`CredentialId` 在本包只有一个声明，model 与其他消费者不再导出同名类型。model 的内部判定状态、磁盘格式和本地保管诊断不属于本包。精确归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。
 
 `Outcome` 引用 `@omne-harness/operation-result` 的唯一类型。该共享成员没有生产依赖。本包已将它列为生产依赖，真实导出还须按[安装闭包要求](../../docs/architecture.md#安装闭包与共同依赖前置)验证实际产物。不复制 `Outcome`，不以 `import type` 代替完整安装依赖检查。
 
@@ -44,6 +44,7 @@ export type ModelIdentityKey =
   | 'ModelCallId' | 'ModelDispatchId' | 'ModelInstanceId' | 'ModelOperationId'
   | 'ModelReadId' | 'ModelDiagnosticId' | 'ModelDiagnosticCursor'
   | 'ModelRevision' | 'ModelResultVersion' | 'ModelOutputCursor'
+  | 'ModelCredentialId'
 
 export type ModelIdentityRejection<K extends ModelIdentityKey> = Readonly<{
   field: K
@@ -90,7 +91,7 @@ export type ToolDeclaration = Readonly<{
 }>
 export type Supplier = Readonly<{
   adoption: Adoption; recipient: string; model: string
-  credential: Readonly<{ kind: 'tenant'; id: string }> | Readonly<{ kind: 'factory' }>
+  credential: Readonly<{ kind: 'tenant'; id: CredentialId }> | Readonly<{ kind: 'factory' }>
 }>
 export type FixedModelRequest = Readonly<{
   profile: Adoption
@@ -119,11 +120,12 @@ export type Admit<P> = Mutation<P> & Readonly<{
 
 身份和序列的文本规则如下，行为条款归[根入口的值与请求](../SPEC.md#342-根入口的值与请求)。
 
-- 每个品牌在根入口有一个同名解码函数，接收 `unknown`，返回 `Outcome`，不抛异常，不读环境、时钟或随机值。`ModelDiagnosticId` 与 `ModelDiagnosticCursor` 的解码函数在[供应商尝试诊断](#供应商尝试诊断)一节，与两个品牌同处。
+- 每个品牌在根入口有一个解码函数，接收 `unknown`，返回 `Outcome`，不抛异常，不读环境、时钟或随机值。`ModelDiagnosticId` 与 `ModelDiagnosticCursor` 的解码函数在[供应商尝试诊断](#供应商尝试诊断)一节，与两个品牌同处。`CredentialId` 的解码函数 `decodeCredentialId` 在[凭据引用与解析端口](#凭据引用与解析端口)一节，与该品牌同处。
 - 解码只核格式。成功只得到品牌，不证明对象存在、属于某租户或可以使用。所属租户与已有关系由处理该操作的提供者核验。
 - 身份类（`ModelCallId`、`DispatchId`、`ModelInstanceId`、`ModelOperationId`、`ResultVersion`、`ReadId`、`ModelDiagnosticId`、`ModelDiagnosticCursor`）是固定前缀加主体。前缀见 `MODEL_IDENTITY_PREFIXES`，主体是 1 个以上 `[A-Za-z0-9_-]` 字符。只比较相等，用 `===`。
 - 序列类（`Revision`、`OutputCursor`）是十进制非负整数的规范写法：`0`，或不以 `0` 开头的数字串。相等用 `===`，先后用 `compareRevisions` 与 `compareOutputCursors`，按整数值比较，不转为浮点数。比较只对同一对象的修订或同一调用流内的游标有定义。
-- 全部品牌的文本不超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元。函数不裁剪空白，不折叠大小写。检查按 `ModelIdentityRejection.reason` 的顺序 `type`、`empty`、`length`、`prefix`、`character`、`leading-zero` 自上而下，返回第一个失败。`prefix` 只适用身份类，`leading-zero` 只适用序列类。
+- 无前缀类（只有 `CredentialId`）由人在凭据保管的配置路径上命名，不由 Model 铸造，所以没有前缀。它的字符规则不同，见[凭据引用与解析端口](#凭据引用与解析端口)。
+- 全部品牌的文本不超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元。函数不裁剪空白，不折叠大小写。检查按 `ModelIdentityRejection.reason` 的顺序 `type`、`empty`、`length`、`prefix`、`character`、`leading-zero` 自上而下，返回第一个失败。`prefix` 只适用身份类，`leading-zero` 只适用序列类，`CredentialId` 只会返回 `type`、`empty`、`length`、`character`。
 - 失败值的 `field` 是品牌键 `ModelIdentityKey`（例如 `'ModelDispatchId'`），不是导出类型名（`DispatchId`）。品牌键带领域前缀，跨领域日志中不会与 Tool 的同名身份混淆。
 - 品牌值就是线上文本，编码是恒等函数，所以不发布编码函数。品牌相等即文本相等，不发布相等函数。
 - `ModelOperationId` 的主体不得以 `--` 开头。该前缀保留给守卫派生的控制 operation（见[消费者 owner 的装配声明](#消费者-owner-的装配声明)）。`decodeModelOperationId` 仍只核格式，不拒绝它。接受调用方提交的 `ModelOperationId` 的公开方法在收到保留值时按[资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送)返回 `invalid`。
@@ -771,6 +773,54 @@ export interface ModelContentAuthority<P> {
 来源提供者核当前可见范围和设置快照，只返回该租户可读取的档案。precedence 来自当前合法层序，不能由普通调用者传入。读取失败不返回空目录。资源提供者核固定档案、供应商顺序与原采用，取得规则和 meter；凭据只返回合法引用，不读取秘密。一次取得失败整体释放，release 不撤销准备结果。实际发出重新取得相同采用，不能以准备成功永久持有发送资格。
 
 ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒体字节，不联网。ModelContentAuthority 同时核原来源、实际块和当前权限，origin 字段本身不授予转换或绕过资格。
+
+## 凭据引用与解析端口
+
+[行为与约束](../SPEC.md#342-凭据引用与解析端口)。
+
+```ts
+export const MODEL_SEND = 'model-send'
+
+export type CredentialId = Identity<'ModelCredentialId'>
+export type CredentialPurpose = typeof MODEL_SEND
+export type CredentialReference = Readonly<{
+  id: CredentialId; tenant: TenantId; purpose: CredentialPurpose
+}>
+export type CredentialQuery = Readonly<{
+  id: CredentialId; tenant: TenantId; purpose: string
+}>
+export type SendFace = Readonly<{ authorized: boolean; official: boolean }>
+export type CredentialPresence =
+  | Readonly<{
+      kind: 'known'; present: boolean
+      id: CredentialId; tenant: TenantId; purpose: CredentialPurpose
+    }>
+  | Readonly<{ kind: 'denied' }>
+  | Readonly<{ kind: 'unavailable' }>
+export type CredentialResolution =
+  | Readonly<{ kind: 'value'; scope: 'tenant' | 'factory'; value: string }>
+  | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'unreadable' }>
+  | Readonly<{ kind: 'denied' }>
+  | Readonly<{ kind: 'unavailable' }>
+export type CredentialPort = {
+  present(reference: CredentialQuery): CredentialPresence
+  resolve(reference: CredentialQuery, face: SendFace): CredentialResolution
+}
+
+export function decodeCredentialId(value: unknown): Outcome<CredentialId, ModelIdentityRejection<'ModelCredentialId'>>
+export function sameCredentialHolder(
+  left: Pick<CredentialReference, 'id' | 'tenant'>,
+  right: Pick<CredentialReference, 'id' | 'tenant'>,
+): boolean
+```
+
+- `CredentialId` 是由人命名的不透明身份。它在凭据保管的配置路径上命名（本地保管的管理操作，或外部密钥管理的引用名），不由 Model 运行时铸造。所以它没有前缀：误混由类型阻止，运行时的误用走 `absent`、`denied` 这类失败分支。
+- `decodeCredentialId` 按 `type`、`empty`、`length`、`character` 的顺序返回第一个失败。`length` 是超过 256 个 UTF-16 码元。`character` 是含任一 Unicode 空白、控制字符或格式字符，包括制表符、零宽字符和双向控制字符，使身份文本可以安全显示与记录。非 ASCII 的字母和文字被接受。函数不裁剪、不折叠大小写。解码只核格式，不证明凭据存在或属于某租户。
+- 从文本或存储复原 `Supplier` 的位置（档案来源、dispatch 记录、重试决定、恢复读取）必须经 `decodeCredentialId` 取得 `Supplier.credential.id`，不得用类型断言。
+- `CredentialPort` 只有 `present` 与 `resolve`。保管方自己的诊断不属于端口，Cordis 服务也不转发它。
+- `sameCredentialHolder(left, right)` 是持有者语义的比较：`id` 精确相等，且 `tenantEquals` 为真。未经 legal-identity 铸造的租户值返回 `false`。判定方、保管方与替代提供者共用这一个函数。它不是品牌相等，品牌相等仍是 `===`。
+- `MODEL_SEND` 是本交付唯一的用途取值。`CredentialQuery.purpose` 是普通字符串，用途不符的查询由端口返回 `denied`。
 
 ## 供应商尝试诊断
 

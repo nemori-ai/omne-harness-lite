@@ -16,16 +16,21 @@ model 的生产安装不得带入 Cordis 或固定单机存储，也不自动安
 - `openLocalCustodian(path)`：按 `path` 打开已有保管库。文件缺失、损坏或含冲突行时返回 `{ kind: 'unavailable' }`，不会创建文件。
 
 ```ts
-import { createLocalCustodian, openLocalCustodian, credentialId, MODEL_SEND } from '@omne-harness/model'
+import { createLocalCustodian, openLocalCustodian } from '@omne-harness/model'
+import { MODEL_SEND, decodeCredentialId } from '@omne-harness/model-contract'
 import { tenant } from '@omne-harness/legal-identity'
 
+const decoded = decodeCredentialId('my-key')
+if (!('ok' in decoded)) throw new Error(`credential id rejected: ${decoded.failure.reason}`)
+const id = decoded.ok
+
 const custodian = createLocalCustodian('/var/lib/omne/credentials.json', 'factory-secret')
-custodian.put({ id: credentialId('my-key')!, tenant: tenant(org, acc), purpose: MODEL_SEND }, 'tenant-secret')
+custodian.put({ id, tenant: tenant(org, acc), purpose: MODEL_SEND }, 'tenant-secret')
 
 // 另一个进程或同一进程稍后重开
 const reopened = openLocalCustodian('/var/lib/omne/credentials.json')
 if (!('kind' in reopened)) {
-  const decision = reopened.resolve({ id: credentialId('my-key')!, tenant: tenant(org, acc), purpose: MODEL_SEND }, { authorized: true, official: false })
+  const decision = reopened.resolve({ id, tenant: tenant(org, acc), purpose: MODEL_SEND }, { authorized: true, official: false })
 }
 ```
 
