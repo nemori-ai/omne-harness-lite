@@ -4,7 +4,7 @@
 
 本页拥有 Model 契约的公开对象、职责与不变量。类型归 [public-api](public-api.md)，行为归 [SPEC](../SPEC.md)，构造、算法与资源组合归[实现对象模型](../../model/docs/object-model.md)。本页不复述 SPEC 的规则。形状全称（可对 public-api 类型核对的，如「没有 cancelled 相位」）可直接写；行为句只带 SPEC 自己的量词，并在同一句链接该条款，或把主语缩到具名对象或字段。本页自己归纳的对应关系标「本页的对象层对应」。
 
-图中的逻辑对象不要求实现为 class，也不新增同名源码导出。设计已接受，不等于生产实现或运行验证已经完成。两个契约包的源码入口目前仍是模板，没有运行导出。
+图中的逻辑对象不要求实现为 class，也不新增同名源码导出。设计已接受，不等于生产实现或运行验证已经完成。model-contract 的根入口已导出不引用共享 `ToolCallPart` 的类型声明，运行值尚未落地。model-cordis-contract 的源码入口仍是模板，没有运行导出。
 
 Model 的对象分三组。长期配置与请求值描述档案、固定请求和预算。逻辑调用与执行对象描述原调用、各次真实发出、结果与保管。提供者端口描述传输、计量、转换目录、持久提交和实例宿主。Cordis 登记另见 [Cordis 对象关系](../../model-cordis-contract/docs/object-model.md)。
 
@@ -75,16 +75,16 @@ Model 只建模自己承担的责任。决定档案是否可选、请求是否�
 | 上游公布语言：工具调用词汇 | ToolDeclaration（Model 自己的请求值：名称、已组装说明、参数 schema）、ToolSuggestion、内容来源 `tool-output`、处理 `tool-ref`。这些值命名来源类别，不是调用者身份 | 工具定义、注册表、执行和结果的保留归工具域。Model 不解析 ToolResult 或其附件区，不执行工具建议 |
 | 本域定义的值与端口：凭据 | CredentialId、CredentialReference、CredentialQuery、CredentialPort 的纯契约迁入本包，由本包定义。迁入前仍从 model 现有入口取得。Model 只持引用：Supplier.credential 为 tenant 或 factory，档案供应商没有凭据字段 | 凭据绑定的配置与解绑资格，以及秘密值的解析。秘密只在发送点 S 前最后检查内同步取得 |
 | 本域定义的端口：ConsumerRef | 引用 owner、work、position、purpose。原样保存，不解释其业务含义。它不是执行许可 | 消费者拥有者登记并解释它，把它对应到原工作的哪一部分。Model 不导入任何消费者拥有者的实现 |
-| 本域定义的端口：消费者工作守卫 | Model 定义的端口，按原调用及其 ConsumerRef 回答当前是否合格。对某一调用一旦不合格，此后恒不合格。受理点 C 读到不合格时拒绝受理；S 或策略点首次读到时记录一次控制，见 [SPEC 资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送) | 消费者拥有者实现守卫并保证不可逆。兑现由组合验证承担。守卫参加者的形状尚未进入 public-api |
+| 本域定义的端口：消费者工作守卫 | Model 定义的端口，按原调用及其 ConsumerRef 回答当前是否合格。对某一调用一旦不合格，此后恒不合格。受理点 C 读到不合格时拒绝受理；S 或策略点首次读到时记录一次控制，见 [SPEC 资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送)。守卫路径以资格参加者协议闭合为前提，闭合前受守卫 owner 的装配被拒绝 | 消费者拥有者实现守卫并保证不可逆。兑现由组合验证承担。owner 的装配声明见 [public-api](public-api.md#消费者-owner-的装配声明)。守卫问答事实的形状待资格参加者协议，该协议是前置依赖 |
 | 本域定义的端口：资格与证据适配器 | 资格适配器核 principal 的来源、身份和当前访问，包括控制资格。受信证据适配器读取并验证 DurableEvidence 所指的原记录。资格参加者在 Storage Worker 内以已登记的版本化 JSON facts 参加受理提交 | 资格与耐久记录归各自的权威拥有者。摘要只校验内容一致，不能自证已处理或已保管。不能参加同一事务的远端资格源，须由其拥有者提供等价的串行协议，见 [SPEC](../SPEC.md#342-资格共同提交与实际发送) |
 | 本域定义的提供者端口 | 传输与读取（ModelTransport、ModelSendBoundary、ModelMediaReader、ModelToolPayloadAdapter）、计量与分词（ModelInputMeter、ModelTextTokenizer、ModelCountingBasis）、转换目录（ModelConverterCatalog、ModelConverter）、档案来源与准备资源（ModelProfileSource、ModelPreparationResources、ModelContentAuthority）、实例宿主（ModelInstanceHost、ModelDriver、ModelHostAuthority、Publication），以及 ModelRetryPolicy、ModelClock、ModelCommands。各端口交接的事实见[提供者与独立查询](#提供者与独立查询) | 供应商连接与协议、内容读取与外传资格、分词与计量依据、范围链与历史覆盖依据，归提供者与各自的拥有者。转换目录与实例目录的登记与撤除归框架契约 model-cordis-contract。旧进程排除与 continuity 证据归独立宿主 |
-| 域外概念：Session、Run、attempt、Agent、Loop | 不进入类型、字段、条件或持久事实。只有 ConsumerRef，Model 不解释其业务含义 | 外部用自己提交、由 Model 认回的 call 与 operation 身份，在自己一侧关联。ControlState 中的控制 operation，或由提交 cancel 的主体生成（[SPEC 控制](../SPEC.md#控制取消与晚到事实)），或由 Model 为守卫触发的控制按调用身份派生（[SPEC 资格](../SPEC.md#342-资格共同提交与实际发送)）；派生规则尚未进入 public-api。是否再试、怎样推进、扩展放在哪里，都由它们决定。再试须用新的 ModelCallId |
+| 域外概念：Session、Run、attempt、Agent、Loop | 不进入类型、字段、条件或持久事实。只有 ConsumerRef，Model 不解释其业务含义 | 外部用自己提交、由 Model 认回的 call 与 operation 身份，在自己一侧关联。ControlState 中的控制 operation，或由提交 cancel 的主体生成（[SPEC 控制](../SPEC.md#控制取消与晚到事实)），或由 Model 为守卫触发的控制按调用身份派生（[SPEC 资格](../SPEC.md#342-资格共同提交与实际发送)），派生函数见 [public-api](public-api.md#消费者-owner-的装配声明)。是否再试、怎样推进、扩展放在哪里，都由它们决定。再试须用新的 ModelCallId |
 | 域外概念：归档与取消原因 | 取消输入不带原因。Model 对每次控制执行同一语义，不按原因分支，也不按原工作扇出控制 | 调用方记录为什么取消、由谁发起，并用自己的 operation 关联。扇出的范围与完整性归控制协调者 |
 | 域外概念：请求组装与压缩算法 | AssembledModelInput 只是输入值。prepare 不补历史，不压缩，不执行工具，不重跑模型前扩展 | 组装方和历史拥有者。超限由调用方处理后再次提交 |
 | 域外概念：选择的保存与历史模态投影 | ProfileResolution 和 ModelChoices 只是同次求值结果。统计规则由 Model 提供为纯规则 | 选择的保存归调用方。投影的保存、推进、重建与查询归历史拥有者 |
 | 域外概念：Cordis 树 | 无。对象的生命周期不从 Cordis 树推导，本包不依赖 Cordis | Cordis 与 model-cordis-contract 拥有框架键、登记与撤除 |
 
-本域内部也分三层。纯算法层包含同名求值、请求规则、计量、分词和模态统计规则，它们不读环境，不执行 I/O。效果协调层承担受理、发出、流归约、重试、控制和保管，经 ModelCommands 等端口取得耐久事实。宿主集成层包含实例宿主、目录、驱动绑定和 Cordis 契约包。三层是责任划分，不是必须采用的类结构。Model 不解释 ConsumerRef 的业务含义。它按 `owner` 查装配声明：守卫 owner 把完整引用交守卫，免守卫 owner 核发起者对 `work` 的当前资格（[SPEC 资格](../SPEC.md#342-资格共同提交与实际发送)）；冲突判定比较其规范化值（[SPEC 参数与注入](../SPEC.md#342-参数与注入的裁定)）。
+本域内部也分三层。纯算法层包含同名求值、请求规则、计量、分词和模态统计规则，它们不读环境，不执行 I/O。效果协调层承担受理、发出、流归约、重试、控制和保管，经 ModelCommands 等端口取得耐久事实。宿主集成层包含实例宿主、目录、驱动绑定和 Cordis 契约包。三层是责任划分，不是必须采用的类结构。Model 不解释 ConsumerRef 的业务含义。它按 `owner` 查装配声明：守卫 owner 把完整引用交守卫，免守卫 owner 核发起者对 `work` 的当前资格（[SPEC 资格](../SPEC.md#342-资格共同提交与实际发送)）。守卫 owner 以资格参加者协议闭合为前提，闭合前装配被拒绝。冲突判定比较其规范化值（[SPEC 参数与注入](../SPEC.md#342-参数与注入的裁定)）。
 
 ## 对象与生命周期
 
@@ -246,8 +246,9 @@ classDiagram
 | 档案定义值 | 有序非空供应商、回退声明、非空的输入与输出模态集合、限额、参数、表示与计量采用、重试策略采用 | 档案维护时校验。修订产生新快照，不改原采用 |
 | 参数词表与容量 | temperature、top-p、max-output-tokens、stop 的取值范围。容量三字段为非负整数，bytes 与 blocks 必须为正 | 解析时检查范围，每次受理时校验 |
 | 受理时冻结的采用 | 供应商次序、凭据引用、限额、参数采用（含解析后的默认值）、转换采用、源修订、ConsumerRef | 受理时冻结。恢复时不随当前档案、配置或供应商默认值改变 |
+| 受理时冻结的消费者 owner 声明 | 该调用适用的 `work` 与 `evidence`，见 [public-api](public-api.md#消费者-owner-的装配声明) | 受理点 C 冻结进受理事实，是提供者自己的耐久事实，不进 `CallState` 或 `RecoveryRecord` 的公开形状。S 点、策略点与 ACK 读冻结值，不读当前装配（[SPEC 参数与注入](../SPEC.md#342-参数与注入的裁定)） |
 | 每次操作参数 | principal、tenant、call、operation，以及各操作自己的输入：request、consumer、capacity、result、read、after 等 | 每次调用。受理、读取和 ACK 的 operation 分别固定，各自重试复用 |
-| 装配声明 | 每个可受理 owner 的守卫参加者或免守卫声明，以及受信证据适配器 | 装配时。未声明的 owner 一律拒绝受理（[SPEC 资格](../SPEC.md#342-资格共同提交与实际发送)） |
+| 装配声明 | 每个可受理 owner 的守卫参加者或免守卫声明，以及受信证据适配器。形状见 [public-api](public-api.md#消费者-owner-的装配声明) | 装配时。未声明的 owner 一律拒绝受理。受守卫 owner 以资格参加者协议闭合为前提，闭合前构造失败（[SPEC 资格](../SPEC.md#342-资格共同提交与实际发送)） |
 | 构造注入的依赖 | commands、send、retry、instances、clock 五项能力。ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送提供者注入。 | 构造时。缺席沿原失败协议报告：commands 不可用不能认成功，send 缺席不发，retry 不可用则以 policy-unavailable 收场 |
 | 提供者端口 | ModelProfileSource、ModelPreparationResources、ModelContentAuthority、ModelInputMeter、ModelTextTokenizer、ModelDiagnostics、ModelConverterCatalog | 装配时注入或提供。ModelConverterCatalog 装配时提供给消息转换，Model runtime 不永久依赖它。取得与释放按各自协议 |
 | 配置 | 估算余量（须有显式 margin 与 marginSource）、读取期限、批量保存与背压、诊断保留 | 装配时。缺少诊断保留采用时，该查询面返回 unavailable |
@@ -267,13 +268,13 @@ classDiagram
 | 交接与 ACK | Handoff、AckReceipt | 真实收场、承接资格与证据在同一裁定中成立。确认后禁止新的完整领取，重复确认返回原确认 | [ACK](../SPEC.md#ack-的前提与效果)、[先处理后确认](context.md#先处理后确认)、[先保管后确认](context.md#先保管后确认) |
 | 保管与清理 | CustodyState、ReadId | 确认前的保管归 Model，业务采用与消费位置归调用方，两者不合并成一个已收到状态。清理不反转 ACK | [原结果及消费关系](../SPEC.md#原结果及消费关系)、[清理范围与读写保护](../SPEC.md#清理范围与读写保护) |
 | 控制 | ControlState | 取消输入不带原因。调用方的 operation 与 Model 返回的控制事实关联。一次控制只作用于目标调用，不追加真实发出。控制意图与上游真实停止分别记录 | [控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实) |
-| 原工作资格失效 | 守卫端口、ControlState | 守卫对某一调用回答不合格即视为原工作资格失效。Model 在受理点 C 拒绝受理，在发送点 S 或策略点记录控制。此后各点读这条记录，不再依赖重读守卫 | [资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送) |
+| 原工作资格失效 | 守卫端口、ControlState | 守卫对某一调用回答不合格即视为原工作资格失效。Model 在受理点 C 拒绝受理，在发送点 S 或策略点记录控制。此后各点读这条记录，不再依赖重读守卫。守卫路径以资格参加者协议闭合为前提 | [资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送) |
 | 重试与策略位置 | RetryPosition | 先保存位置再执行策略。同身份同输入认回原判断。决定持久后才准备下一次真实发出。策略协调者的寿命归 Model 宿主或其独立依赖 | [重试、失联与恢复](../SPEC.md#342-重试失联与恢复)、[重试与策略](../SPEC.md#重试与策略) |
 | 换代与恢复 | ModelInstance、ExecutionRef、RecoveryRecord | 发起者离开不影响原执行。可信失联须有独立宿主生成的 continuity 证据。首内容后或无法排除首内容时，以 runtime-lost 收场，不重发 | [换代、恢复和耐久](../SPEC.md#换代恢复和耐久)、[重试、失联与恢复](../SPEC.md#342-重试失联与恢复) |
 | 迟到事实 | LateDispatchFact | 只补账目修订和实际终结事实。不改终局、结果版本、ACK 与清理，不授推进权 | [重试、失联与恢复](../SPEC.md#342-重试失联与恢复) |
 | 未知与提交查询 | CommitQuery | 未知按原调用身份对账，不换身份再发。读失败不推断运行时失联 | [调用和各次真实发出](../SPEC.md#调用和各次真实发出)、[逐操作行为](../SPEC.md#342-逐操作行为) |
 
-原工作资格失效时，对象之间的责任划分如下。守卫由消费者拥有者实现，Model 只记录自己的反应。
+原工作资格失效时，对象之间的责任划分如下。守卫由消费者拥有者实现，Model 只记录自己的反应。图中的守卫分支以资格参加者协议闭合为前提。闭合前只有免守卫 owner 可受理，受守卫 owner 的装配在构造时失败。
 
 ```mermaid
 sequenceDiagram
@@ -303,7 +304,7 @@ sequenceDiagram
   end
 ```
 
-调用方经 inspect 或 observe 在 ControlState 中看到 Model 记录的控制。以 `ControlState.requested.operation` 读到的派生 operation 调 cancel，认回原控制（派生规则尚未进入 public-api）。以自己新生成的 operation 调 cancel，则关联到原控制，回复给出原控制的 operation，调用方保存两者的对应（见 [SPEC 控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实)、[逐操作行为](../SPEC.md#342-逐操作行为)）。用于其他方法时，按通用协议返回 conflict。此后的迟到响应由 Model 保存，调用不复活，也不自动派生新调用。
+调用方经 inspect 或 observe 在 ControlState 中看到 Model 记录的控制。以 `ControlState.requested.operation` 读到的派生 operation 调 cancel，认回原控制（派生函数见 [public-api](public-api.md#消费者-owner-的装配声明)）。以自己新生成的 operation 调 cancel，则关联到原控制，回复给出原控制的 operation，调用方保存两者的对应（见 [SPEC 控制、取消与晚到事实](../SPEC.md#控制取消与晚到事实)、[逐操作行为](../SPEC.md#342-逐操作行为)）。用于 cancel 与 control 以外的方法时，返回 invalid(field='operation')。此后的迟到响应由 Model 保存，调用不复活，也不自动派生新调用。
 
 ## 提供者与独立查询
 

@@ -1,7 +1,7 @@
 <a id="model-领域公开契约候选"></a>
 # Model 领域公开契约
 
-本包已由官方模板初始化，根源码仍为空导出。以下声明是已接受的唯一设计，尚无可导入的业务类型或运行接口。真实导出接管时，本页转为源码导航，不保留第二套签名。
+本页的 TypeScript 代码块是本包公开声明的唯一设计，源码按本页章节分文件（`src/` 下每章一个文件）。根入口已经导出其中不引用共享 `ToolCallPart` 的类型声明。引用 `ToolCallPart` 的声明，以及全部运行值（身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`），尚未落地：前者等共享消息契约发布该类型，后者随运行实现落地。根入口的运行时键暂时仍为空。逐名落地状态见[导出清单](../tests/fixtures/exports.json)的 `pending` 标记。全部落地后，本页转为源码导航，不保留第二套签名。
 
 ## 导出归属与落地前置
 
@@ -9,7 +9,7 @@
 
 凭据纯契约也由本包拥有。现有 CredentialId、CredentialReference、CredentialQuery、CredentialPort 及其操作结果须从 model 的 [credential.ts](../../model/src/credential.ts) 迁入，并保持品牌唯一。该文件中的内部判定状态和磁盘格式不属于本包。源码迁移前，这些名字仍从现有实现入口取得，本页不复制另一套声明；迁移时同步真实消费者和导出清单。精确归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。
 
-`Outcome` 引用 `@omne-harness/operation-result` 的唯一类型。该共享成员没有生产依赖。真实导出须将它列为生产依赖，并按[安装闭包要求](../../docs/architecture.md#安装闭包与共同依赖前置)验证实际产物。不复制 `Outcome`，不以 `import type` 代替完整安装依赖检查。
+`Outcome` 引用 `@omne-harness/operation-result` 的唯一类型。该共享成员没有生产依赖。本包已将它列为生产依赖，真实导出还须按[安装闭包要求](../../docs/architecture.md#安装闭包与共同依赖前置)验证实际产物。不复制 `Outcome`，不以 `import type` 代替完整安装依赖检查。
 
 行为及调用资格归 [SPEC](../SPEC.md)，消费路径归 [context](context.md)，对象关系归 [object-model](object-model.md)。
 
@@ -39,6 +39,36 @@ export type ResultVersion = Identity<'ModelResultVersion'>
 export type OutputCursor = Identity<'ModelOutputCursor'>
 export type ReadId = Identity<'ModelReadId'>
 export type Revision = Identity<'ModelRevision'>
+
+export type ModelIdentityKey =
+  | 'ModelCallId' | 'ModelDispatchId' | 'ModelInstanceId' | 'ModelOperationId'
+  | 'ModelReadId' | 'ModelDiagnosticId' | 'ModelDiagnosticCursor'
+  | 'ModelRevision' | 'ModelResultVersion' | 'ModelOutputCursor'
+
+export type ModelIdentityRejection<K extends ModelIdentityKey> = Readonly<{
+  field: K
+  reason: 'type' | 'empty' | 'length' | 'prefix' | 'character' | 'leading-zero'
+}>
+
+export const MODEL_IDENTITY_MAX_LENGTH = 256
+export const MODEL_IDENTITY_PREFIXES: Readonly<{
+  ModelCallId: 'mcall_'; ModelDispatchId: 'mdisp_'; ModelInstanceId: 'minst_'
+  ModelOperationId: 'mop_'; ModelResultVersion: 'mrver_'; ModelReadId: 'mread_'
+  ModelDiagnosticId: 'mdiag_'; ModelDiagnosticCursor: 'mdcur_'
+}>
+
+export function decodeModelCallId(text: unknown): Outcome<ModelCallId, ModelIdentityRejection<'ModelCallId'>>
+export function decodeDispatchId(text: unknown): Outcome<DispatchId, ModelIdentityRejection<'ModelDispatchId'>>
+export function decodeModelInstanceId(text: unknown): Outcome<ModelInstanceId, ModelIdentityRejection<'ModelInstanceId'>>
+export function decodeModelOperationId(text: unknown): Outcome<ModelOperationId, ModelIdentityRejection<'ModelOperationId'>>
+export function decodeReadId(text: unknown): Outcome<ReadId, ModelIdentityRejection<'ModelReadId'>>
+export function decodeRevision(text: unknown): Outcome<Revision, ModelIdentityRejection<'ModelRevision'>>
+export function decodeResultVersion(text: unknown): Outcome<ResultVersion, ModelIdentityRejection<'ModelResultVersion'>>
+export function decodeOutputCursor(text: unknown): Outcome<OutputCursor, ModelIdentityRejection<'ModelOutputCursor'>>
+
+export function compareRevisions(left: Revision, right: Revision): -1 | 0 | 1
+export function compareOutputCursors(left: OutputCursor, right: OutputCursor): -1 | 0 | 1
+
 export type Adoption = Readonly<{
   owner: string; name: string; revision: string; digest: string
 }>
@@ -86,6 +116,17 @@ export type Admit<P> = Mutation<P> & Readonly<{
   request: FixedModelRequest; consumer: ConsumerRef; capacity: ResultCapacity
 }>
 ```
+
+身份和序列的文本规则如下，行为条款归[根入口的值与请求](../SPEC.md#342-根入口的值与请求)。
+
+- 每个品牌在根入口有一个同名解码函数，接收 `unknown`，返回 `Outcome`，不抛异常，不读环境、时钟或随机值。`ModelDiagnosticId` 与 `ModelDiagnosticCursor` 的解码函数在[供应商尝试诊断](#供应商尝试诊断)一节，与两个品牌同处。
+- 解码只核格式。成功只得到品牌，不证明对象存在、属于某租户或可以使用。所属租户与已有关系由处理该操作的提供者核验。
+- 身份类（`ModelCallId`、`DispatchId`、`ModelInstanceId`、`ModelOperationId`、`ResultVersion`、`ReadId`、`ModelDiagnosticId`、`ModelDiagnosticCursor`）是固定前缀加主体。前缀见 `MODEL_IDENTITY_PREFIXES`，主体是 1 个以上 `[A-Za-z0-9_-]` 字符。只比较相等，用 `===`。
+- 序列类（`Revision`、`OutputCursor`）是十进制非负整数的规范写法：`0`，或不以 `0` 开头的数字串。相等用 `===`，先后用 `compareRevisions` 与 `compareOutputCursors`，按整数值比较，不转为浮点数。比较只对同一对象的修订或同一调用流内的游标有定义。
+- 全部品牌的文本不超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元。函数不裁剪空白，不折叠大小写。检查按 `ModelIdentityRejection.reason` 的顺序 `type`、`empty`、`length`、`prefix`、`character`、`leading-zero` 自上而下，返回第一个失败。`prefix` 只适用身份类，`leading-zero` 只适用序列类。
+- 失败值的 `field` 是品牌键 `ModelIdentityKey`（例如 `'ModelDispatchId'`），不是导出类型名（`DispatchId`）。品牌键带领域前缀，跨领域日志中不会与 Tool 的同名身份混淆。
+- 品牌值就是线上文本，编码是恒等函数，所以不发布编码函数。品牌相等即文本相等，不发布相等函数。
+- `ModelOperationId` 的主体不得以 `--` 开头。该前缀保留给守卫派生的控制 operation（见[消费者 owner 的装配声明](#消费者-owner-的装配声明)）。`decodeModelOperationId` 仍只核格式，不拒绝它。接受调用方提交的 `ModelOperationId` 的公开方法在收到保留值时按[资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送)返回 `invalid`。
 
 ## 结果、失败和状态
 
@@ -414,6 +455,35 @@ export interface ModelProvider<P> {
 
 [行为与约束](../SPEC.md#342-资格共同提交与实际发送)。
 
+## 消费者 owner 的装配声明
+
+[行为与约束](../SPEC.md#342-资格共同提交与实际发送)。
+
+```ts
+export type ModelConsumerOwnerDeclaration = Readonly<{
+  consumerOwner: string
+  work:
+    | Readonly<{ kind: 'guarded'; participant: Adoption }>
+    | Readonly<{ kind: 'exempt' }>
+  evidence: Adoption
+}>
+
+export function deriveGuardControlOperation(call: ModelCallId): ModelOperationId
+```
+
+- `consumerOwner` 与 `ConsumerRef.owner` 按文本相等比较。字段不叫 `owner`，以免与 `Adoption.owner` 混淆。
+- `evidence` 指明该 owner 的受信证据适配器。免守卫声明也必须给出它。
+- `work.kind = 'guarded'` 的 `participant` 是已登记资格参加者的版本化身份。资格参加者协议（守卫读数的提交内载体、载体拥有者、参加者先后保证）是前置依赖，尚未闭合。在它闭合前，这一支是暂定形状，受守卫 owner 的装配被拒绝，见 [SPEC](../SPEC.md#342-资格共同提交与实际发送)。可受理的只有免守卫 owner。
+- 声明由承载受理提交的 ModelCommands 实现持有并冻结。怎样取得声明由实现自定。同一 `consumerOwner` 出现两次是装配错误，构造时失败。
+- 守卫问答事实的形状不在本包发布，原因同上。
+
+`deriveGuardControlOperation(call)` 返回 `mop_--` 加 `call` 去掉 `mcall_` 前缀后的主体。它是纯函数，是契约唯一铸造身份的位置。
+
+- 派生值与原调用等长，不超过 256 个 UTF-16 码元。`mcall_` 与 `mop_--` 都是 6 个字符。
+- 派生值能通过 `decodeModelOperationId`，因为 `-` 在主体字符集内。
+- 同一调用得到同一值，不同调用得到不同值（单射）。
+- 主体以 `--` 开头的 `ModelOperationId` 只由本函数产生。其他铸造方的生成器不得产生这种主体。ULID 与 UUID 原样满足。字母表含 `-` 的生成器（nanoid、base64url）须过滤首两字符。
+
 ## 重试、失联与恢复
 
 [行为与约束](../SPEC.md#342-重试失联与恢复)。
@@ -709,6 +779,8 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 ```ts
 export type ModelDiagnosticId = Identity<'ModelDiagnosticId'>
 export type ModelDiagnosticCursor = Identity<'ModelDiagnosticCursor'>
+export function decodeModelDiagnosticId(text: unknown): Outcome<ModelDiagnosticId, ModelIdentityRejection<'ModelDiagnosticId'>>
+export function decodeModelDiagnosticCursor(text: unknown): Outcome<ModelDiagnosticCursor, ModelIdentityRejection<'ModelDiagnosticCursor'>>
 export type ModelDuration = Readonly<{ kind: 'known'; milliseconds: string }>
   | Readonly<{ kind: 'unknown' }>
 export type ModelAttemptDiagnostic = Readonly<{
@@ -736,4 +808,4 @@ export interface ModelDiagnostics<P> {
 }
 ```
 
-诊断不公开 prompt、消息、工具参数、响应正文、凭据或绑定 ID、媒体引用、URL、headers 和原始异常。adapter 采用描述也须为可披露的登记值，不能夹带路径或秘密。诊断 ID 只定位受保护记录，不是读取凭证。精确的披露、分页与保留协议见 [SPEC](../SPEC.md#诊断查询与保留)。
+诊断不公开 prompt、消息、工具参数、响应正文、凭据或绑定 ID、媒体引用、URL、headers 和原始异常。adapter 采用描述也须为可披露的登记值，不能夹带路径或秘密。诊断 ID 只定位受保护记录，不是读取凭证。两个解码函数只拒绝格式错误。游标的不可猜测与验证由诊断提供者承担：`list` 仍须验证游标、重新授权，并对无效或已淘汰的游标返回 `invalid`。精确的披露、分页与保留协议见 [SPEC](../SPEC.md#诊断查询与保留)。

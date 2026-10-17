@@ -195,7 +195,9 @@ Model 不执行工具建议，不决定原工作的终态，不重新运行扩�
 
 下列代码块按顺序组成同一设计声明。`Identity` 防止误混身份，不提供授权。边界解析器必须验证格式、所属租户和已有关系。各身份采用带领域前缀的非空字符串，序列与修订采用十进制非负整数字符串，不能用浮点序号排序。
 
-`Adoption` 指向可恢复的精确采用。`digest` 为所指规范化内容的 SHA-256 十六进制值；只有名称或当前版本指针不满足它。`ConsumerRef` 是消费者拥有者登记的稳定引用，不是执行许可。Model 原样保存 `ConsumerRef`，不解释其业务含义。消费者关系由为该 `ConsumerRef.owner` 声明的守卫参加者在受理点 C 核对（见[资格、共同提交与实际发送](#342-资格共同提交与实际发送)）。把它对应到原工作的哪一部分，由消费者拥有者在自己一侧负责。Model 不导入任何消费者拥有者的实现，也不由通用字符串猜业务关联。
+根入口为每个品牌发布一个解码函数。函数接收 `unknown`，返回 `Outcome`，不抛异常，只核验格式。身份类为固定前缀加至少一个 `[A-Za-z0-9_-]` 主体字符；`Revision` 与 `OutputCursor` 为无前导零的十进制非负整数文本；全部不超过 256 个 UTF-16 码元，不裁剪、不折叠大小写。成功只得到品牌，不证明存在、租户或资格；所属租户和已有关系由处理该操作的提供者核验。品牌相等即文本相等。`Revision` 与 `OutputCursor` 的先后由比较函数按整数值裁定，只对同一对象的修订或同一调用流内的游标有定义。`ModelDiagnosticCursor` 的不可猜测与验证由诊断提供者承担，解码只拒绝格式错误。契约只铸造一种身份，即守卫派生的控制 operation（主体以 `--` 开头，其他铸造方不得产生）。`ModelCallId` 由调用方铸造；`ModelOperationId` 由调用方与提供者铸造；其余由提供者铸造，铸造方生成的文本须能通过对应解码函数。声明与规则见 [public-api](docs/public-api.md#根入口的值与请求)。
+
+`Adoption` 指向可恢复的精确采用。`digest` 为所指规范化内容的 SHA-256 十六进制值；只有名称或当前版本指针不满足它。`ConsumerRef` 是消费者拥有者登记的稳定引用，不是执行许可。Model 原样保存 `ConsumerRef`，不解释其业务含义。消费者关系由为该 `ConsumerRef.owner` 声明的守卫参加者在受理点 C 核对（见[资格、共同提交与实际发送](#342-资格共同提交与实际发送)）。守卫路径以资格参加者协议闭合为前提；协议闭合前只受理免守卫 owner。把它对应到原工作的哪一部分，由消费者拥有者在自己一侧负责。Model 不导入任何消费者拥有者的实现，也不由通用字符串猜业务关联。
 
 [本节设计定义](docs/public-api.md#根入口的值与请求)。
 
@@ -252,7 +254,7 @@ Settlement.source 由 Model 在原结果真实收场及必要保存共同成立�
 | admit | 原 call、operation、request、consumer、capacity；当前发起资格与消费者关系 | 原调用和容量同提交；同身份同值返回原受理 | 不同固定输入 conflict；未提交拒绝不留发出；未知只查询原 operation。调用方停止等待不撤受理 |
 | inspect | call 与原 admission；当前事实读取资格 | found 含最新业务状态、控制及交接；同身份可重查 | 仅有权威未受理证明才给 not-accepted。读失败不推断 runtime 失联 |
 | dispatches | call；当前账目及发出事实读取资格 | 按原发出顺序返回脱敏事实，费用保留 revision | 不连带授予请求/回复/秘密读取；晚到费用仍入原 dispatch |
-| cancel | 原 operation、call；当前控制资格 | 持久意图及传播状态；重复认回。同 call 后续同义意图只关联原控制，不追加发出 | 不等待物理停机才确认意图。传播失败保存待续做。已经真实完成仍保留真实终局 |
+| cancel | 原 operation、call；当前控制资格 | 持久意图及传播状态；重复认回。同 call 后续同义意图只关联原控制，不追加发出。operation 是保留值（主体以 `--` 开头）时：等于目标调用的派生值且派生控制已存在，认回原控制；其他情况返回 invalid(field='operation') | 不等待物理停机才确认意图。传播失败保存待续做。已经真实完成仍保留真实终局 |
 | connect | call；当前观察资格 | 取得特定 instance 句柄，或明确 no-live-route | 失去目录依赖为 unavailable，不能变 not-accepted；销毁句柄只关观察 |
 | observe | tenant/principal 与句柄原 instance | 首快照与后续 cursor 衔接，观察实际状态 | signal 只关本观察；失权/断开/实例替换结束流，原调用继续承担责任 |
 | beginRead | 原 operation、call、result；当前内容资格 | 首页与真实读取登记共同成立；重复认回原 read | 未收场 not-settled；已 ACK 返回 acknowledged，不用旧引用新领全文 |
@@ -304,6 +306,10 @@ schedule 按原 call 去重，不能自行取得执行代次。recover 核实原
 
 写操作保留 Storage 的 committed、rolled_back、unknown、identity_conflict 和 rejected_before_accept 含义。成功映射为 Reply.ok，已知回滚或准入拒绝映射为具体失败，未知映射 commit-unknown；query 用于恢复精确原操作。`query` 的 revision 用来重新查询原业务状态，不能拿任意操作回执冒充 Admission/AckReceipt。相同 operation 不得跨方法复用，参数规范化摘要与操作名一并固定。`expected` 不符而原操作未成立时返回 conflict；不得用当前值覆盖旧写。
 
+`ModelOperationId` 的唯一性范围是租户：同一租户内调用方与提供者共用 operation 空间。调用身份在租户内唯一。主体以 `--` 开头的 `ModelOperationId` 保留给守卫派生的控制 operation，只由 `deriveGuardControlOperation` 产生。调用方与提供者的生成器都不得产生这种主体，这是铸造方的义务，不是被拒后重铸。提供者铸造的 operation（策略 operation、claim operation、`DispatchRecord.intent`、`WriteContext.operation`、清理推进）使用不少于 128 位熵的生成器，例如 ULID 或 UUIDv4/v7，并在受理新 operation 时按（租户，operation）唯一条件提交：撞号返回 conflict，不覆盖。调用方的熵由调用方承担，撞号同样得到 conflict。
+
+Model 公开面上接受调用方提交的 `ModelOperationId` 的每个方法，在收到保留值时返回 invalid。字段名取该方法输入里承载 operation 的字段：多数方法是 `operation`，`inspect` 与认回入口是 `admission`。唯一例外是 `ModelCalls.cancel` 及其落到的 `ModelCommands.control`：保留值等于目标调用的派生值，且派生控制已经存在时，认回原控制。派生控制存在后，派生值用于其他方法仍返回 invalid，不返回 conflict，因为调用方从未提交过这个 operation。外部实现的端口（例如 `ModelRetryPolicy` 收到的 `position.operation`）收到的是 Model 已核过的值，不另作拒收要求。
+
 <a id="342-参数与注入的裁定"></a>
 
 ### 参数与注入的裁定
@@ -311,6 +317,7 @@ schedule 按原 call 去重，不能自行取得执行代次。recover 核实原
 | 值或能力 | 分类与取得 | 缺席、换代和释放 |
 | --- | --- | --- |
 | principal、tenant、call、operation、consumer、request、capacity | 本次操作参数。受理时冻结实际采用 | 资格不合法拒绝；request 缺项拒绝。当前值不覆盖原快照 |
+| 消费者 owner 声明（`work` 与 `evidence`） | 装配声明，由承载受理提交的 ModelCommands 实现持有。受理点 C 先按（租户，operation）认回已有受理：认回时不因当前装配缺这个 owner 而拒绝，返回原受理。只有新受理才核声明，未出现的 owner 返回 invalid(field='consumer.owner') | 受理时冻结进受理事实，规则同「受理时冻结实际采用」。S 点、策略点与 ACK 读冻结值，不读当前装配：删除该 owner、改为免守卫或换参加者版本，都不影响已受理调用。冻结值是提供者自己的耐久事实，不进 `CallState` 或 `RecoveryRecord` 的公开形状，替代提供者同样冻结并在恢复后使用。参加者保留到该调用收场，证据适配器保留到该调用的 ACK 提交。冻结值要求的参加者或证据适配器缺席时，该点按依赖不可用处理，不发出、不跳过守卫、不改按免守卫处理 |
 | commands | 受信提交能力。提供者拥有本域存储、当前资格及提交组合 | 不可用时不能认成功；替换先排除旧写者并接续原操作，不靠清空缓存恢复 |
 | send | 实际发送能力。组合当前授权、#279 凭据、真实传输和发送围栏 | 缺席不发；在途连接的资源与未知归旧传输负责，新边界不得复制旧 dispatch |
 | retry | 重试策略能力；原 request 的采用和允许范围约束每次决定 | 不可用则不再试并以 policy-unavailable 收场；替换不能重做已持久的决定 |
@@ -328,11 +335,27 @@ schedule 按原 call 去重，不能自行取得执行代次。recover 核实原
 
 受理点 C 是资格、为 `ConsumerRef.owner` 声明的消费者工作守卫、Model 原调用及容量的同一次提交。Storage Worker 内只执行已登记参加者的版本化 JSON facts，不接收主线程闭包。资格参加者必须验证事实来源并读取本事务可见的权威资格。主线程之前得到的 allowed 结果不能替代这个检查。不能参加同一事务的远端资格源，需要其拥有者提供等价串行协议后才可采用该组合。
 
-消费者工作守卫是 Model 定义、消费者拥有者实现的端口。守卫按原调用及其 `ConsumerRef` 回答当前是否合格。守卫对某一调用一旦回答不合格，此后对该调用恒回答不合格。消费者此后的资格变化，不使已失去资格的调用恢复资格。Model 不能检测守卫违反这一条，兑现由[组合验证](verification/scenarios.md#持续验证义务)承担。守卫参加者的事实形状，以及 owner 到守卫或免守卫的装配声明，随资格参加者协议另行声明，目前尚未进入 public-api。
+消费者工作守卫是 Model 定义、消费者拥有者实现的端口。守卫按原调用及其 `ConsumerRef` 回答当前是否合格。守卫对某一调用一旦回答不合格，此后对该调用恒回答不合格。消费者此后的资格变化，不使已失去资格的调用恢复资格。Model 不能检测守卫违反这一条，兑现由[组合验证](verification/scenarios.md#持续验证义务)承担。守卫事实形状随资格参加者协议声明，该协议是前置依赖；在它闭合前，受守卫 owner 的装配被拒绝，见下文。owner 到守卫或免守卫的装配声明见 [public-api](docs/public-api.md#消费者-owner-的装配声明)。
 
-受理点 C 读到不合格时拒绝受理，返回 denied(action='admit')，不形成调用，也不披露原工作是否存在。策略点指 prepareRetry 与 decideRetry 两次提交。发送点 S 或策略点首次读到不合格时，守卫读取与该次提交在同一次裁定中完成：S 不发出，策略点不保存新的策略位置或再试决定。Model 在同一提交内为该调用持久记录一次控制。这次记录不经 ModelCommands.control，不核验主体或控制资格，因为它是 Model 依据守卫读数形成的自身事实。控制 operation 由调用身份按固定规则派生，规则随类型声明给出；重复读到不合格认回同一控制。调用方以同一 operation 调用 cancel 时认回原控制；用于其他方法时按通用协议返回 conflict。此后该调用按[控制](#控制取消与晚到事实)处理，各点读这条控制记录，不再依赖重读守卫。
+受理点 C 读到不合格时拒绝受理，返回 denied(action='admit')，不形成调用，也不披露原工作是否存在。策略点指 prepareRetry 与 decideRetry 两次提交。发送点 S 或策略点首次读到不合格时，守卫读取与该次提交在同一次裁定中完成：S 不发出，策略点不保存新的策略位置或再试决定。Model 在同一提交内为该调用持久记录一次控制。这次记录不经 ModelCommands.control，不核验主体或控制资格，因为它是 Model 依据守卫读数形成的自身事实。控制 operation 由调用身份按固定规则派生：`deriveGuardControlOperation` 返回 `mop_--` 加调用身份去掉 `mcall_` 前缀后的主体，性质见 [public-api](docs/public-api.md#消费者-owner-的装配声明)。重复读到不合格认回同一控制。调用方以派生值调用 cancel，且派生控制已存在时，认回原控制。派生控制尚不存在时，或派生值用于 cancel 与 control 以外的方法时，返回 invalid(field='operation')，字段名按方法取承载 operation 的字段，见[独立执行与提供者操作](#342-独立执行与提供者操作)末尾的 operation 规则。此后该调用按[控制](#控制取消与晚到事实)处理，各点读这条控制记录，不再依赖重读守卫。
 
-装配为每个可受理的 owner 声明工作守卫参加者，或明确声明免守卫。两种声明都必须指明该 owner 的受信证据适配器（见[结果、失败和状态](#342-结果失败和状态)）。未声明的 owner 一律拒绝受理，返回 invalid(field='consumer.owner')。免守卫 owner 的消费者关系只核发起者对 `work` 的当前资格。
+装配为每个可受理的 owner 声明工作守卫参加者，或明确声明免守卫。两种声明都必须指明该 owner 的受信证据适配器（见[结果、失败和状态](#342-结果失败和状态)）。未声明的 owner 一律拒绝受理，返回 invalid(field='consumer.owner')。免守卫 owner 的消费者关系只核发起者对 `work` 的当前资格。声明的形状与冻结规则见 [public-api](docs/public-api.md#消费者-owner-的装配声明) 与[参数与注入的裁定](#342-参数与注入的裁定)。
+
+上文守卫路径（受理点 C 读守卫，S 与策略点记录控制）以资格参加者协议闭合为前提。该协议是前置依赖，拥有者为存储契约拥有者与 Model 契约拥有者共同。协议要定的是守卫读数的提交内载体、载体拥有者和参加者先后保证。闭合前适用下列规定：
+
+- 装配声明里 `work.kind = 'guarded'` 的 owner，Model 提供者构造时失败。失败值指明该 owner 与资格参加者协议未就绪。不得降级为免守卫，不得忽略。
+- 可受理的只有免守卫 owner。
+- 对某一调用的单调失格、`verification/scenarios.md` 的资格先恢复竞态保护，以及已业务取消的调用不复活，在协议闭合前没有保护点。要求单调失格的 owner 声明为免守卫，并不提供这条性质。需要该性质的消费者组合，在协议闭合前不能上线这一路径。
+
+守卫或证据适配器不可用时，不可用不当作不合格，也不记录控制：
+
+- 受理点 C：返回 `unavailable`，`dependency` 为 `consumer-work-guard` 或 `consumer-evidence`，不形成调用。`diagnostic` 不带 `work` 的信息。
+- 发送点 S：整次提交回滚。调用相位不变，dispatch 保持 prepared，不改成 not-sent。不记 ModelFault，不咨询重试策略，不消耗再试机会。driver 稍后重做同一次提交。
+- 策略点（prepareRetry、decideRetry）：整次提交回滚，不保存新的策略位置或再试决定。原失败 dispatch 与 retry-decision 相位不变。
+- ACK 点（证据适配器不可用）：返回 `unavailable`，`dependency` 为 `consumer-evidence`，不记故障。结果保管与清理状态不变，消费者以同一 operation 重试。
+- Model 不设上界，也不以超时收场。调用方需要放弃时用控制（cancel）。是否增加上界与对应收场原因尚未裁定，归 Model 契约拥有者。
+
+守卫参加者对不存在、跨租户或与问题不符的 `work` 一律答不合格；不可用只表示守卫自身依赖失败。这样受理点 C 不会泄露 `work` 是否存在。该义务随资格参加者协议并入协议正文。
 
 撤权/取消点 R 是相应权威事实提交。发送点 S 是已准备传输在受控入口不可撤回地启动本次业务请求。所有能改变该需求资格的撤权、原工作资格失效、控制与换代，以及 S，都进入同一个提供者协调的围栏。原工作资格失效指守卫对该调用回答不合格；S 或策略点首次读到时，Model 按上文记录控制。媒体物化和必要转换先在围栏外完成。围栏内重读权威状态，核对已经物化的实际内容、接收方、用途、当前工作资格和凭据，再同步调用 MaterializedTransport.start。之间不得 await、调用不受信回调或排队等待未来发送。
 

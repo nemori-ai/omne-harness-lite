@@ -22,3 +22,9 @@
 pi 提供者候选另从[组设计](../../docs/architecture.md#pi-家族贡献的取得协议)提取目标贡献声明，验证固定供应商取得、物化表示、每次 decoder 与 finally 释放能连接。它不是领域契约的导出，也不是该目标包已经存在的证据。
 
 诊断消费覆盖原 call 的授权输入、品牌游标及最小字段。漏租户/调用、普通字符串游标和把原请求 body 写入白名单记录须被拒绝。结构类型只约束公开声明，不防止不可信对象多带字段；运行边界须构造白名单投影并执行权限及内容校验。
+
+身份与序列的正例使用根入口的品牌类型：每个品牌是 `Identity` 的一个键，`ModelIdentityKey` 列出十个品牌键，`ModelIdentityRejection<K>` 的 `field` 取品牌键，`reason` 是闭合的六个值。负例覆盖：普通字符串不能赋给任何品牌，一个品牌不能赋给另一个品牌，`Revision` 不能放到 `OutputCursor` 位置，导出类型名（例如 `'DispatchId'`）不是品牌键，不在列表内的 `reason` 与 `field` 被拒绝。这些是类型探针，能在声明阶段运行。
+
+解码与比较函数的正例与负例在函数落地后加入：`decode*` 的成功值可放入 `Access`、`CallAccess` 与 `Mutation`，失败值的 `field` 与函数的品牌键一致，`compareRevisions` 与 `compareOutputCursors` 接受同类品牌。负例覆盖：向 `decodeModelCallId` 的成功值位置传 `DispatchId`，把 `OutputCursor` 传给 `compareRevisions`，把 `Revision` 传给 `compareOutputCursors`，没有 `compareResultVersions`、编码函数与相等函数。运行行为由测试覆盖，不由类型探针证明：每个品牌至少一个成功例与每个适用 `reason` 一例，比较覆盖相等、长度不同、等长不同文本，以及 `"10"` 对 `"9"`（防止按字典序误比），`ModelOperationId` 的主体以 `--` 开头时仍能解码。
+
+消费者 owner 装配声明的正例：免守卫声明带 `evidence` 通过类型检查；`work.kind = 'guarded'` 的声明带 `participant`；`deriveGuardControlOperation` 的返回值作为 `ModelOperationId` 传给 `ModelCalls.cancel`（函数落地后加入）。负例：缺 `evidence`（免守卫也必须给出）、`work.kind` 拼写错误、`consumerOwner` 写成 `owner`、受守卫声明缺 `participant`，均被类型检查拒绝。`participant` 在资格参加者协议闭合前是暂定形状，协议改变它时，这些用例同步改。类型检查不证明同一 owner 不重复声明、受守卫 owner 构造失败或冻结行为，这些归提供者构造与组合验证。
