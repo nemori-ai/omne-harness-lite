@@ -400,7 +400,7 @@ classDiagram
 | [credential.ts](../src/credential.ts) | 保管的内部判定：存在性与解析取舍的实现、磁盘行的解码。引用、五种结果和端口的类型归 model-contract |
 | [store.ts](../src/store.ts) | 本地存储、文件锁、轮换、发布确认及关闭 |
 | [deliver.ts](../src/deliver.ts) | 只依赖 CredentialPort，在发送前解析；不导入存储实现 |
-| [cordis.ts](../src/cordis.ts) | 唯一 modelCredential Service、本地插件及生命周期 |
+| [cordis.ts](../src/cordis.ts) | 继承 model-cordis-contract 的 modelCredential 服务定义的本地插件及生命周期 |
 | [execute.ts](../src/execute.ts) | 通过静态 inject 消费凭据服务，调用 deliver |
 
 凭据的对象模型、顺序和装配分别归[对象](object-model.md#已实现的凭据对象)、[流程](flows.md#凭据解析)和[装配](cordis.md#已实现的凭据服务)。这些实际实现不表示 executeModel、createModelRuntime 或完整发送围栏已经实现。

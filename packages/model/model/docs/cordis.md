@@ -95,14 +95,14 @@ runtime 工厂的 send/retry/instances 参数始终是完整对象。局部阶�
 
 凭据引用与解析规则已由 D-04 接受，并写入 [SPEC](../SPEC.md)。本页说明面向 Cordis 集成时，本包交出的是什么。领域模型见 [model](object-model.md)。包内关系见 [architecture](architecture.md)。独立调用可以不启动 Cordis，直接使用根入口。两种入口看到的五种结果相同。
 
-本节只描述当前源码中的凭据服务。其服务定义须迁入 model-cordis-contract，插件及注入调用须迁入 model-host-local；迁移完成时本节随真实拥有者同步。以下路径记录尚未迁移的实际入口，不构成继续共置的目标。凭据服务不替代完整托管运行服务。
+本节只描述当前源码中的凭据服务。服务定义已迁入 model-cordis-contract；插件及注入调用须迁入 model-host-local，迁移完成时本节随真实拥有者同步。以下路径记录尚未迁移的实际入口，不构成继续共置的目标。本包因此暂时依赖 model-cordis-contract，插件迁出后删除。凭据服务不替代完整托管运行服务。
 
 ### 服务、插件和 fiber
 
 | 东西 | 在本包里是什么 | 不是什么 |
 | --- | --- | --- |
-| 服务 | 抽象 `Service`，键 `modelCredential`。它实现根入口的 `present` 和 `resolve` | 不是保管库的表，也不是调用记录 |
-| 插件 | `src/cordis.ts` 导出的本地保管插件。它 `extends` 上面的服务，不另写键 | 不是 Agent 的子插件，也不进会话作用域 |
+| 服务 | 抽象 `Service`，键 `modelCredential`。它声明根入口的 `present` 和 `resolve` | 不是保管库的表，也不是调用记录 |
+| 插件 | `src/cordis.ts` 导出的本地保管插件。它 `extends` 上面的服务，不另写键，自己实现 `present` 和 `resolve`；保管者只在构造时创建的闭包里，不是实例属性，所以经 `ctx.modelCredential` 取不到保管者及其 `put`、`rotate`、`revoke`、`diagnostics`、`close` | 不是 Agent 的子插件，也不进会话作用域 |
 | fiber | 装载该插件的那条 fiber。关闭挂在这条 fiber 的撤除上 | 不是 Session，不是模型执行器，也不是一次发送 |
 
 ```mermaid
@@ -129,7 +129,7 @@ classDiagram
   CallExecution --> ModelCredentialService : inject
 ```
 
-当前源码定义拥有者仍是 `packages/model/model`，迁移完成后由 model-cordis-contract 唯一拥有。根入口 `src/index.ts` 导出引用类型和操作类型，不导入 `@deepseek-ai/cordis`。`src/cordis.ts` 上的服务类标注 `@owner packages/model/model`。凭据切片尚未另立契约 ID。
+服务定义已迁入 model-cordis-contract 的 `./cordis`，由它唯一拥有；本包 `src/cordis.ts` 的插件继承它，不再导出服务类。根入口 `src/index.ts` 导出引用类型和操作类型，不导入 `@deepseek-ai/cordis`。凭据切片尚未另立契约 ID。
 
 同一个 isolate 里这道接缝只有一个提供者。`src/execute.ts` 的 `deliverInjected` 把 `modelCredential` 写入 `inject`，再调用 `deliver`。该文件不导入保管库模块。租户、用途和是否获准发送都是 `resolve` 的参数。不从 `ctx`、插件实例或谁装了这个插件来推断租户。
 

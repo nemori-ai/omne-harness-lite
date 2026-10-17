@@ -61,7 +61,7 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 | 消费入口 | 实际源码与能力 |
 | --- | --- |
 | `@omne-harness/model` | [index.ts](../src/index.ts) 导出 deliver 及本地保管工厂，以及本地保管的 `Diagnostic` 类型 |
-| `@omne-harness/model/cordis` | [cordis.ts](../src/cordis.ts) 定义唯一 modelCredential 服务与本地插件 |
+| `@omne-harness/model/cordis` | [cordis.ts](../src/cordis.ts) 只导出本地保管插件，它继承 model-cordis-contract 的 modelCredential 服务定义 |
 | `@omne-harness/model/execute` | [execute.ts](../src/execute.ts) 提供静态注入后的凭据发送接缝 |
 
 引用、结果和端口的唯一形状归 model-contract，本包的 [credential.ts](../src/credential.ts) 只有保管的内部判定状态与诊断类型。调用记录与发送回执归 [deliver.ts](../src/deliver.ts)，本地工厂归 [store.ts](../src/store.ts)。行为承诺归 [SPEC](../SPEC.md#凭据引用与解析)。这些入口不实现上文 executeModel 或 createModelRuntime，也不证明完整模型调用已交付。
