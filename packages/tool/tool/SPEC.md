@@ -127,9 +127,11 @@
 4. 围栏冲突时，说明有提交在读取之后落盘。账本重读并重新判断，所以已落盘的操作得到 `committed`；另一读取者的围栏不排除本次读取，本次重读后再次围栏。重读次数受 `ledgerCommitAttempts` 限制。
 5. 围栏结果未知时，`queryOperation` 回复 `unknown`，`lookup` 回复 `unavailable`（`ledger-store`）。围栏不可用时，两者回复 `unavailable`。两者都不给否定答案。
 
-按操作号定键的命令（`admit`、`releaseDelivery`，以及带 `WriteContext` 或操作号的后续命令）记住自己第一次读取的域修订号。提交冲突后重读时，快照里若有本操作的 `exclusion` 记录，且其修订号大于第一次读取的修订号，说明否定答案在本命令在途时给出、已经把本次提交排除在外：命令停止重试，回复可重试的 `unavailable`（`dependency` 为 `ledger-store`，`diagnostic` 固定为 `operation <operation> was excluded by a negative answer; resubmit with the same identity`），不回复 `commit-unknown`，也不落盘。第一次读取就看到 `exclusion` 记录的新一次重送正常进行：它的提交在同一写入集里删除本操作的 `exclusion` 记录，所以否定答案之后同身份恰好受理一次，同身份异输入的重送也作为首次受理，不与被排除的在途提交冲突。认回先于排除：快照里已有该操作记录时回复原回执，不论 `exclusion` 记录。
+按操作号定键的命令（`admit`、`releaseDelivery`，以及带 `WriteContext` 或操作号的后续命令）记住自己第一次读取的域修订号。提交冲突后重读时，快照里若有本操作的 `exclusion` 记录，且其修订号大于第一次读取的修订号，说明否定答案在本命令在途时给出、已经把本次提交排除在外：命令停止重试，回复可重试的 `unavailable`（`dependency` 为 `ledger-store`，`diagnostic` 固定为 `operation <operation> was excluded by a negative answer; resubmit with the same identity`），不回复 `commit-unknown`，也不落盘。第一次读取就看到 `exclusion` 记录的新一次重送正常进行：它的提交在同一写入集里删除本操作的 `exclusion` 记录，所以否定答案之后同身份恰好受理一次。在途提交已被排除时，同身份异输入的重送也作为首次受理，不与它冲突。认回先于排除：快照里已有该操作记录时回复原回执，不论 `exclusion` 记录。
 
 本包接受的风险：
+
+- 排除只对已经读过记录仓的命令生效。命令在首次读取之前（还在资格守卫或来源核验中）时给出的否定答案，不排除它：它随后首次读取时看到的是栅栏之后的修订号，照常提交。持有否定答案的调用方此时以异输入重送会得到 `conflict`。账本不能在资格守卫之前读取（拒绝的主体不得读到任何东西），关闭这个窗口需要端口或协议改动，由拥有者决定（O15）。
 
 - 获准 `lookup` 或 `query-operation` 资格的主体每得到一个否定答案就写一次提交。所以本租户内有读取资格的主体能够创建 `exclusion` 记录、无上限地推进一个调用的域修订号；他租户主体与无资格主体在任何写入之前已被 `denied`，不写记录（第 10 条）。
 - 反复轮询否定答案的读取者能让一个写者连续冲突，最多 `ledgerCommitAttempts` 次后写者回复 `unavailable`。
