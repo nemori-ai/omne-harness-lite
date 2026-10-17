@@ -27,7 +27,7 @@
 
 `put`、`rotate`、`revoke`、`markUnreadable` 写盘前先持文件锁并刷新，基于当前状态修改后发布。
 
-- `put` 把该持有者写成 `active`，可以盖过已撤销或读不出的行。
+- `put` 把该持有者写成 `active`，可以盖过已撤销或读不出的行。租户未经铸造（例如复制出的对象）时抛出异常，不取锁也不写盘：磁盘记录读回时会按文本重新铸造，复制出的租户会变成真实租户的绑定。
 - `rotate` 只换秘密，不改寿命；已撤销的行轮换后 `resolve` 仍是 `denied`。
 - `revoke` 把该持有者标成 `revoked`。
 - `markUnreadable` 只把 `active` 改成 `unreadable`。

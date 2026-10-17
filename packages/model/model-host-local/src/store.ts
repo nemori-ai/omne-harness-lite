@@ -10,6 +10,7 @@ import {
 } from 'node:fs'
 import { dirname } from 'node:path'
 import { lockSync } from 'proper-lockfile'
+import { tenantEquals } from '@omne-harness/legal-identity'
 import { judgePresence, judgeResolution, type CustodianState } from '@omne-harness/model'
 import {
   sameCredentialHolder,
@@ -124,6 +125,11 @@ function live(path: string, initial: CustodianState): LocalCustodian {
     },
     diagnostics: () => notes,
     put(reference: CredentialReference, secret: string) {
+      // Equality with itself holds only for a minted tenant. A copied tenant would be written under the
+      // real tenant's name on the next read, which re-mints it from text.
+      if (!tenantEquals(reference.tenant, reference.tenant)) {
+        throw new Error('credential binding tenant was never minted; nothing was written')
+      }
       mutate(path, holder, refreshed => {
         const binding = {
           id: reference.id,

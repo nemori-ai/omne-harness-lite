@@ -7,7 +7,6 @@ import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-ide
 import { expect, it, vi } from 'vitest'
 
 declare global {
-  // eslint-disable-next-line no-var
   var __actualFs: typeof import('node:fs')
 }
 
@@ -656,6 +655,22 @@ it('management operations report failure instead of silently returning', () => {
   writeFileSync(path, 'not-json')
   expect(() => custodian.rotate(ref, ROTATED)).toThrow()
   expect(() => custodian.revoke(ref)).toThrow()
+})
+
+it('put rejects a tenant that was never minted before it touches the store', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const path = join(dir, 'store.json')
+  const custodian = createLocalCustodian(path, FACTORY)
+  custodian.put(reference(), SECRET)
+  const before = readFileSync(path, 'utf8')
+  const files = readdirSync(dir).sort()
+  const forged = reference({ tenant: structuredClone(tenantB), id: credentialId('cred-b') })
+  expect(() => custodian.put(forged, 'synth-planted')).toThrow(/never minted/)
+  expect(readFileSync(path, 'utf8')).toEqual(before)
+  expect(readdirSync(dir).sort()).toEqual(files)
+  expect(custodian.resolve(reference({ tenant: tenantB, id: forged.id }), face())).toEqual({
+    kind: 'absent',
+  })
 })
 
 it('management operations after close still persist to disk', () => {
