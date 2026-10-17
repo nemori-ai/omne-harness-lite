@@ -46,14 +46,14 @@ const LOCK_UPDATE_MS = 2 ** 31 - 1
 const LOCK_WAIT_TIMEOUT_MS = 30_000
 
 function acquireLockSync(path: string): () => void {
-  const start = Date.now()
+  const start = /* wall-clock: operation-timing -- Measure local lock wait. */ Date.now()
   while (true) {
     try {
       return lockSync(path, { realpath: false, stale: STALE_NEVER_MS, update: LOCK_UPDATE_MS })
     } catch (error: unknown) {
       const code = (error as NodeJS.ErrnoException | undefined)?.code
       if (code !== 'ELOCKED') throw error
-      if (Date.now() - start > LOCK_WAIT_TIMEOUT_MS) {
+      if (/* wall-clock: operation-timing -- Measure local lock wait. */ Date.now() - start > LOCK_WAIT_TIMEOUT_MS) {
         throw Object.assign(new Error(`timed out waiting for credential store lock at ${path}`), {
           code: 'ELOCKED',
         })
@@ -205,7 +205,7 @@ function atomicSave(
   path: string,
   state: CustodianState,
 ): { readonly ok: true } | { readonly ok: false; readonly phase: 'temp-write' | 'published' } {
-  const tmpPath = `${path}.${process.pid}.${Date.now()}.${tmpCounter++}.tmp`
+  const tmpPath = `${path}.${process.pid}.${/* wall-clock: internal-name -- Name a temporary store file. */ Date.now()}.${tmpCounter++}.tmp`
   let fd: number | undefined
   // 'published' means the main file has already been replaced; failures after
   // that point leave the new state potentially visible and must be verified.
