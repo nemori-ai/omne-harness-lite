@@ -36,6 +36,7 @@ import {
   type AccountRecord,
   type CallAccount,
   type CallRecord,
+  type ExclusionRecord,
   type LedgerDomain,
   type LedgerRead,
   type LedgerRecord,
@@ -55,6 +56,8 @@ export type Snapshot<B extends ContentBlock> = Readonly<{
   results: ReadonlyMap<string, ResultRecord<B>>
   accounts: readonly AccountRecord[]
   tasks: readonly ToolTask[]
+  /** The exclusion fences by operation; the ledger reads them, the deciders do not. */
+  exclusions: ReadonlyMap<string, ExclusionRecord>
 }>
 
 export function snapshotOf<B extends ContentBlock>(
@@ -66,15 +69,26 @@ export function snapshotOf<B extends ContentBlock>(
   const results = new Map<string, ResultRecord<B>>()
   const accounts: AccountRecord[] = []
   const tasks: ToolTask[] = []
+  const exclusions = new Map<string, ExclusionRecord>()
   for (const record of read.records) {
     if (record.kind === 'call') call = record.call
     else if (record.kind === 'operation')
       operations.set(record.operation.operation, record.operation)
     else if (record.kind === 'result') results.set(record.result.result, record.result)
     else if (record.kind === 'account') accounts.push(record.account)
-    else tasks.push(record.task)
+    else if (record.kind === 'task') tasks.push(record.task)
+    else exclusions.set(record.exclusion.operation, record.exclusion)
   }
-  return { domain, revision: read.revision, call, operations, results, accounts, tasks }
+  return {
+    domain,
+    revision: read.revision,
+    call,
+    operations,
+    results,
+    accounts,
+    tasks,
+    exclusions,
+  }
 }
 
 export type Decision<T, B extends ContentBlock> =

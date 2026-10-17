@@ -26,6 +26,7 @@ import {
   createToolLedger,
   createToolRuntime,
   type AccessVerdict,
+  type LedgerCommitInput,
   type ToolConfiguration,
   type ToolDependencies,
   type ToolLedger,
@@ -230,6 +231,10 @@ export type GuardOptions = Readonly<{
   minted?: ReadonlySet<object>
   /** When set, the access guard throws an Error with this message. */
   accessThrows?: string
+  /** When set, the source guard throws an Error with this message. */
+  sourceThrows?: string
+  /** The text result factory; the chunking factory when omitted. */
+  results?: TextResultFactory<Block>
 }>
 
 /** The configuration fields the harness passes on: the ledger reads two of them. */
@@ -257,13 +262,16 @@ export function guards(options: GuardOptions = {}): ToolLedgerGuards<Principal, 
     },
     sources: {
       verify: input =>
-        Promise.resolve(
-          (options.forged ?? []).includes(input.invocation.source.record)
-            ? { kind: 'forged', reason: 'not-from-the-entry' }
-            : { kind: 'trusted' },
-        ),
+        new Promise(resolve => {
+          if (options.sourceThrows !== undefined) throw new Error(options.sourceThrows)
+          resolve(
+            (options.forged ?? []).includes(input.invocation.source.record)
+              ? { kind: 'forged', reason: 'not-from-the-entry' }
+              : { kind: 'trusted' },
+          )
+        }),
     },
-    results: textFactory(options.chunk),
+    results: options.results ?? textFactory(options.chunk),
     policy: defaultResultPolicy,
     budgets: { arguments: jsonLimits },
   }
@@ -397,4 +405,44 @@ export function admission(
     operation: operationId(operation),
     request: body,
   }
+}
+
+/**
+ * A store over `memory` that runs `land` once, just before the first commit that `matches`, as
+ * another writer that committed between the caller's read and its commit would. What `land`
+ * commits through this store is forwarded without a second interception.
+ */
+export function interleaving(
+  memory: ToolLedgerStore<Block>,
+  matches: (input: LedgerCommitInput<Block>) => boolean,
+  land: () => Promise<unknown>,
+): ToolLedgerStore<Block> {
+  let armed = true
+  return {
+    durability: 'none',
+    read: domain => memory.read(domain),
+    commit: async input => {
+      if (armed && matches(input)) {
+        armed = false
+        await land()
+      }
+      return memory.commit(input)
+    },
+  }
+}
+
+/** Whether a commit writes the operation record of `operation`: the commit of that operation. */
+export function putsOperation(operation: string): (input: LedgerCommitInput<Block>) => boolean {
+  return input =>
+    input.writes.some(
+      write =>
+        write.kind === 'put' &&
+        write.record.kind === 'operation' &&
+        write.record.operation.operation === operation,
+    )
+}
+
+/** Whether a commit writes an exclusion record: the fence of a negative answer. */
+export function putsExclusion(input: LedgerCommitInput<Block>): boolean {
+  return input.writes.some(write => write.kind === 'put' && write.record.kind === 'exclusion')
 }

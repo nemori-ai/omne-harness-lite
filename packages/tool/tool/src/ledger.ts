@@ -2,8 +2,10 @@
 // ToolCommands and ToolReads of this implementation, and the admission entry that the runtime
 // uses. Each entry checks its boundary input, asks the guards, reads the domain, lets a pure
 // decider answer, and commits by revision. A negative answer of a query is given only after an
-// exclusion fence commits. Operations of later tickets answer a named `unsupported` failure
-// after the same checks; nothing throws for an expected failure, and nothing pretends to succeed.
+// exclusion fence commits; a command of the excluded operation that was in flight then stops
+// instead of landing after the negative. Operations of later tickets answer a named
+// `unsupported` failure after the same checks; nothing throws for an expected failure, and
+// nothing pretends to succeed.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
 import {
@@ -41,7 +43,7 @@ import {
 } from './boundary.ts'
 import { checkLedgerConfiguration } from './configuration.ts'
 import type { ToolLedgerAdmissions, ToolLedgerConfiguration } from './construction.ts'
-import { digestOf, nextRevision } from './evidence.ts'
+import { digestOf, isLaterRevision, nextRevision } from './evidence.ts'
 import {
   decideAdmit,
   decideRelease,
@@ -53,7 +55,12 @@ import {
 } from './ledger-decider.ts'
 import type { ToolLedgerAction, ToolLedgerGuards } from './ledger-guards.ts'
 import { lookupCall, readAccount, readResultPage, resolveOperation } from './ledger-reads.ts'
-import type { LedgerDomain, LedgerWrite, ToolLedgerStore } from './ledger-store.ts'
+import {
+  exclusionKey,
+  type LedgerDomain,
+  type LedgerWrite,
+  type ToolLedgerStore,
+} from './ledger-store.ts'
 
 export type ToolLedger<P, B extends ContentBlock> = Readonly<{
   commands: ToolCommands<P, B>
@@ -108,6 +115,38 @@ const lookupFence: Fence<ToolLookup> = {
 const operationFence: Fence<OperationResolution> = {
   negative: answer => answer.kind === 'not-committed',
   unknown: succeed({ kind: 'unknown' }),
+}
+
+/**
+ * Whether a negative answer about `operation` was given after a command of that operation first
+ * read the domain: the snapshot holds an exclusion fence of the operation that is newer than the
+ * command's first read. A fence the command saw on its first read is not newer, so a fresh
+ * submission after the negative proceeds. A committed operation is never excluded: recall wins.
+ */
+function excludedSince<B extends ContentBlock>(
+  snapshot: Snapshot<B>,
+  operation: ToolOperationId,
+  firstRead: Snapshot<B>['revision'],
+): boolean {
+  if (snapshot.operations.has(operation)) return false
+  const exclusion = snapshot.exclusions.get(operation)
+  return exclusion !== undefined && isLaterRevision(exclusion.revision, firstRead)
+}
+
+/** The retryable answer of a command that a negative answer excluded (P01). */
+function excluded(operation: ToolOperationId): Outcome<never, ToolFailure> {
+  return unavailable(
+    'ledger-store',
+    `operation ${operation} was excluded by a negative answer; resubmit with the same identity`,
+  )
+}
+
+/** The writes of an operation's commit also remove the exclusion fence of that operation. */
+function withExclusionRemoved<B extends ContentBlock>(
+  writes: readonly LedgerWrite<B>[],
+  operation: ToolOperationId | null,
+): readonly LedgerWrite<B>[] {
+  return operation === null ? writes : [...writes, { kind: 'delete', key: exclusionKey(operation) }]
 }
 
 /**
@@ -167,20 +206,30 @@ export function createToolLedger<P, B extends ContentBlock>(
 
   /**
    * Reads, decides and commits by domain revision. A conflict re-reads and re-decides, at most
-   * `attempts` times; an unknown commit answers `unknown` and is not retried.
+   * `attempts` times; an unknown commit answers `unknown` and is not retried. A command keyed by
+   * `operation` stops with `excluded` when a re-read shows a negative answer about the operation
+   * given after its first read (P01: the negative excluded this very commit), and its commit
+   * removes the exclusion fence of the operation. A read passes `null`: another reader's fence
+   * does not exclude it, and it re-fences instead.
    */
   const transact = async <T>(
     domain: LedgerDomain,
+    operation: ToolOperationId | null,
     decide: Decide<T, B>,
     unknown: Outcome<T, ToolFailure>,
   ): Reply<T> => {
+    let firstRead: Snapshot<B>['revision'] | null = null
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const snapshot = await read(domain)
       if ('failure' in snapshot) return snapshot
+      firstRead ??= snapshot.ok.revision
+      if (operation !== null && excludedSince(snapshot.ok, operation, firstRead))
+        return excluded(operation)
       const revision = nextRevision(snapshot.ok.revision)
       const decision = decide(snapshot.ok, { revision })
       if (decision.kind === 'reply') return decision.outcome
-      const committed = await commit(domain, snapshot.ok.revision, revision, decision.writes)
+      const writes = withExclusionRemoved(decision.writes, operation)
+      const committed = await commit(domain, snapshot.ok.revision, revision, writes)
       if (committed.kind === 'committed') return succeed(decision.value)
       if (committed.kind === 'unknown') return unknown
       if (committed.kind === 'unavailable') return unavailable('ledger-store', committed.diagnostic)
@@ -223,26 +272,36 @@ export function createToolLedger<P, B extends ContentBlock>(
 
   /**
    * A read entry whose negative answer excludes the in-flight commits of the operation (P01). A
-   * complete read without the operation is followed by an exclusion fence: an empty commit that
-   * advances the domain revision. Every commit prepared against the read revision then fails its
-   * revision check. The negative answer is given only after the fence committed; a conflict
-   * re-reads, and an unknown or unavailable fence never answers the negative.
+   * complete read without the operation is followed by an exclusion fence: a commit that writes
+   * the exclusion record of the operation at the new domain revision, replacing an older one.
+   * Every commit prepared against the read revision then fails its revision check, and the
+   * command behind it reads the fence on its retry. The negative answer is given only after the
+   * fence committed; a conflict re-reads, and an unknown or unavailable fence never answers the
+   * negative.
    */
   const fenced = async <T>(
     input: unknown,
     action: ToolLedgerAction,
-    project: (snapshot: Snapshot<B>) => Outcome<T, ToolFailure>,
+    field: 'admission' | 'operation',
+    project: (snapshot: Snapshot<B>, operation: ToolOperationId) => T,
     fence: Fence<T>,
   ): Reply<T> => {
     const checked = await entry(input, action)
     if ('failure' in checked) return checked
+    const operation = decodeToolOperationIdField(Reflect.get(input as object, field), field)
+    if ('failure' in operation) return operation
     return transact(
       callDomain(checked.ok),
-      snapshot => {
-        const answer = project(snapshot)
-        if ('failure' in answer || !fence.negative(answer.ok))
-          return { kind: 'reply', outcome: answer }
-        return { kind: 'commit', writes: [], value: answer.ok }
+      null,
+      (snapshot, mint) => {
+        const answer = project(snapshot, operation.ok)
+        if (!fence.negative(answer)) return { kind: 'reply', outcome: succeed(answer) }
+        const exclusion = { operation: operation.ok, revision: mint.revision }
+        return {
+          kind: 'commit',
+          writes: [{ kind: 'put', record: { kind: 'exclusion', exclusion } }],
+          value: answer,
+        }
       },
       fence.unknown,
     )
@@ -260,7 +319,8 @@ export function createToolLedger<P, B extends ContentBlock>(
     if ('failure' in allowed) return allowed
     const decider = await decide(checked.ok)
     if ('failure' in decider) return decider
-    return transact(callDomain(checked.ok), decider.ok, commitUnknown(checked.ok.operation))
+    const { operation } = checked.ok
+    return transact(callDomain(checked.ok), operation, decider.ok, commitUnknown(operation))
   }
 
   /**
@@ -276,6 +336,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     if ('failure' in allowed) return allowed
     return transact(
       callDomain(callInput),
+      checked.ok.operation,
       snapshot => ({
         kind: 'reply',
         outcome:
@@ -392,28 +453,9 @@ export function createToolLedger<P, B extends ContentBlock>(
   }
 
   const reads: ToolReads<P, B> = {
-    lookup: input =>
-      fenced(
-        input,
-        'lookup',
-        snapshot => {
-          const admission = decodeToolOperationIdField(Reflect.get(input, 'admission'), 'admission')
-          return 'failure' in admission ? admission : succeed(lookupCall(snapshot, admission.ok))
-        },
-        lookupFence,
-      ),
+    lookup: input => fenced(input, 'lookup', 'admission', lookupCall, lookupFence),
     operation: input =>
-      fenced(
-        input,
-        'query-operation',
-        snapshot => {
-          const operation = decodeToolOperationIdField(Reflect.get(input, 'operation'), 'operation')
-          return 'failure' in operation
-            ? operation
-            : succeed(resolveOperation(snapshot, operation.ok))
-        },
-        operationFence,
-      ),
+      fenced(input, 'query-operation', 'operation', resolveOperation, operationFence),
     result: input =>
       query(input, 'read-result', snapshot => {
         const version = decodeToolResultVersion(Reflect.get(input, 'result'))

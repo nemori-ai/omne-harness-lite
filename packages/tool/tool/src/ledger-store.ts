@@ -81,12 +81,21 @@ export type AccountRecord = Readonly<{
   value: CallAccount
 }>
 
+/**
+ * The exclusion fence of one negative answer (P01). A reader that found no record of `operation`
+ * writes it at `revision`, the domain revision of the fence commit, so a command of that operation
+ * which was in flight before the fence can tell that its negative answer was already given. The
+ * commit of the operation deletes it.
+ */
+export type ExclusionRecord = Readonly<{ operation: ToolOperationId; revision: ToolRevision }>
+
 export type LedgerRecord<B extends ContentBlock> =
   | Readonly<{ kind: 'call'; call: CallRecord }>
   | Readonly<{ kind: 'operation'; operation: OperationRecord }>
   | Readonly<{ kind: 'result'; result: ResultRecord<B> }>
   | Readonly<{ kind: 'account'; account: AccountRecord }>
   | Readonly<{ kind: 'task'; task: ToolTask }>
+  | Readonly<{ kind: 'exclusion'; exclusion: ExclusionRecord }>
 
 /** The unique key of a record inside its domain. A `put` with the same key replaces the record. */
 export function recordKey<B extends ContentBlock>(record: LedgerRecord<B>): string {
@@ -101,6 +110,8 @@ export function recordKey<B extends ContentBlock>(record: LedgerRecord<B>): stri
       return `account:${record.account.event}`
     case 'task':
       return taskKey(record.task)
+    case 'exclusion':
+      return exclusionKey(record.exclusion.operation)
     default: {
       const exhaustive: never = record
       return exhaustive
@@ -112,6 +123,11 @@ export function taskKey(task: Pick<ToolTask, 'kind' | 'operation'>): string {
   return `task:${task.kind}:${task.operation}`
 }
 
+export function exclusionKey(operation: ToolOperationId): string {
+  return `exclusion:${operation}`
+}
+
+/** A write by key. A `delete` of a key that holds no record is a no-op, not a failure. */
 export type LedgerWrite<B extends ContentBlock> =
   | Readonly<{ kind: 'put'; record: LedgerRecord<B> }>
   | Readonly<{ kind: 'delete'; key: string }>
@@ -147,6 +163,12 @@ export interface ToolLedgerStore<B extends ContentBlock> {
   /** `none` is the store of `./testing`; a production assembly needs `durable`. */
   readonly durability: 'none' | 'durable'
   read(domain: LedgerDomain): Promise<LedgerRead<B>>
-  /** Atomic: all writes take effect together, or none does. Serialized with `read` per domain. */
+  /**
+   * Atomic: all writes take effect together, or none does. Serialized with `read` per domain. A
+   * committed commit sets the domain revision to `revision` whatever its write set holds: a set
+   * with one exclusion record, or a set that changes no record, advances the revision the same
+   * way as any other, because the ledger's exclusion fence depends on that advance. There is no
+   * no-op shortcut.
+   */
   commit(input: LedgerCommitInput<B>): Promise<LedgerCommit>
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { ToolLedgerStore } from '@omne-harness/tool'
+import type { LedgerRecord, ToolLedger, ToolLedgerStore } from '@omne-harness/tool'
+import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import type { ToolState } from '@omne-harness/tool-contract'
 import {
   admission,
@@ -9,12 +10,15 @@ import {
   failure,
   functionDefinition,
   harness,
+  interleaving,
   judged,
   ledgerOver,
   ok,
   operationId,
   principalA,
   principalB,
+  putsExclusion,
+  putsOperation,
   request,
   tenant,
   tenantA,
@@ -64,6 +68,16 @@ describe('10 boundary and qualification', () => {
     const denied = failure(await guarded.runtime.admit(admission('call-1', 'op-1', dummyRequest())))
     expect(denied).toMatchObject({ kind: 'unavailable', dependency: 'access-guard' })
     expect(JSON.stringify(denied)).not.toContain('pass')
+    const unverified = harness({ sourceThrows: secret })
+    const untrusted = failure(
+      await unverified.runtime.admit(admission('call-1', 'op-1', dummyRequest())),
+    )
+    expect(untrusted).toEqual({
+      kind: 'unavailable',
+      dependency: 'source-guard',
+      diagnostic: 'source-guard threw an exception; its message is not reported',
+    })
+    expect(unverified.store.commits).toBe(0)
     const throwing: ToolLedgerStore<Block> = {
       durability: 'none',
       read: () => Promise.reject(new Error(secret)),
@@ -270,6 +284,28 @@ describe('11 operation idempotency (P01)', () => {
     })
   })
 
+  it('11 idempotency: a call that was never admitted has state revision 0, however often it was fenced', async () => {
+    const { ledger, runtime, store } = harness()
+    const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
+    expect(await runtime.queryOperation(query)).toEqual({ ok: { kind: 'not-committed' } })
+    expect(await runtime.queryOperation(query)).toEqual({ ok: { kind: 'not-committed' } })
+    expect(store.commits).toBe(2)
+    const context = {
+      principal: principalA,
+      tenant: tenantA,
+      call: callId('call-1'),
+      instance: 'instance-1' as never,
+      generation: 'g1',
+      operation: operationId('op-3'),
+    }
+    expect(await ledger.commands.enqueue({ ...context, expected: '0' as never })).toMatchObject({
+      failure: { kind: 'unsupported', reason: expect.stringContaining('enqueue') },
+    })
+    expect(await ledger.commands.enqueue({ ...context, expected: '2' as never })).toEqual({
+      failure: { kind: 'stale-revision', current: '0' },
+    })
+  })
+
   it('11 idempotency: an unknown commit is reported, then the original is recognised and not admitted twice', async () => {
     for (const fault of ['unknown-applied', 'throw-applied'] as const) {
       const { runtime, store } = harness()
@@ -333,7 +369,7 @@ describe('11 operation idempotency (P01)', () => {
       durability: 'none',
       read: domain => memory.read(domain),
       commit: input => {
-        if (input.writes.length === 0) memory.landDelayed()
+        if (putsExclusion(input)) memory.landDelayed()
         return memory.commit(input)
       },
     }
@@ -608,5 +644,166 @@ describe('13 invocation permission', () => {
     })
     expect(await runtime.admit(admission('call-1', 'op-1', broken))).toEqual(refused)
     expect(store.commits).toBe(0)
+  })
+})
+
+const EXCLUDED = {
+  kind: 'unavailable',
+  dependency: 'ledger-store',
+  diagnostic: 'operation op-1 was excluded by a negative answer; resubmit with the same identity',
+}
+
+const releaseOf = (operation: string) => ({
+  ...admission('call-1', operation),
+  result: 'v1' as never,
+  delivery: 'd1' as never,
+  consumer: dummyRequest().consumer,
+  evidence: { kind: 'retained', custody: evidence('kept', 'session') } as const,
+})
+
+async function recordsOf(store: ToolLedgerStore<Block>): Promise<readonly LedgerRecord<Block>[]> {
+  const read = await store.read({ kind: 'call', tenant: tenantA as never, call: callId('call-1') })
+  if (read.kind !== 'complete') throw new Error('read failed')
+  return read.records
+}
+
+/**
+ * An admission of op-1 whose commit is overtaken by a negative queryOperation of op-1: the
+ * admission read the domain, the query fenced it, the admission's commit conflicted. The
+ * admission must then stop, because its negative answer was already given (P01).
+ */
+async function overtakenAdmission(body = dummyRequest()) {
+  const memory = createMemoryToolLedgerStore<Block>()
+  const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
+  let negative: unknown = null
+  const ledger: ToolLedger<Principal, Block> = ledgerOver(
+    interleaving(memory, putsOperation('op-1'), async () => {
+      negative = await ledger.reads.operation(query)
+    }),
+  )
+  const stopped = await ledger.admissions.admit(admission('call-1', 'op-1', body))
+  expect(stopped).toEqual({ failure: EXCLUDED })
+  expect(negative).toEqual({ ok: { kind: 'not-committed' } })
+  expect(await ledger.reads.operation(query)).toEqual({ ok: { kind: 'not-committed' } })
+  // The fence of the first query, the overtaken commit, and the fence of the second query.
+  expect(memory.commits).toBe(3)
+  return { memory, ledger, query }
+}
+
+describe('14 exclusion fence (P01)', () => {
+  it('14 exclusion: a negative answer during an in-flight admission stops it, and the same identity is then admitted once', async () => {
+    const { memory, ledger, query } = await overtakenAdmission()
+    const admitted = ok(await ledger.admissions.admit(admission('call-1', 'op-1', dummyRequest())))
+    expect(admitted.recovered).toBe(false)
+    expect(await ledger.reads.operation(query)).toMatchObject({ ok: { kind: 'committed' } })
+    expect(memory.commits).toBe(4)
+    const again = ok(await ledger.admissions.admit(admission('call-1', 'op-1', dummyRequest())))
+    expect(again).toEqual({ state: admitted.state, recovered: true })
+  })
+
+  it('14 exclusion: after the negative, the same identity with another input is a first admission, not a conflict', async () => {
+    const { ledger } = await overtakenAdmission()
+    const changed = dummyRequest({ consumer: { ...dummyRequest().consumer, position: 'step-2' } })
+    const admitted = ok(await ledger.admissions.admit(admission('call-1', 'op-1', changed)))
+    expect(admitted.recovered).toBe(false)
+    expect(settledTerminal(admitted.state).kind).toBe('unavailable')
+  })
+
+  it('14 exclusion: an operation that committed before the fence is recalled, not excluded', async () => {
+    // The retrying release of op-2 re-reads a domain where op-2 committed and a lookup fenced
+    // op-2 after that (the admission is op-1, so op-2 is "not accepted"): recall wins.
+    const memory = createMemoryToolLedgerStore<Block>()
+    const ledger: ToolLedger<Principal, Block> = ledgerOver(
+      interleaving(memory, putsOperation('op-2'), async () => {
+        ok(await ledger.commands.releaseDelivery(releaseOf('op-2')))
+        expect(
+          await ledger.reads.lookup({
+            ...admission('call-1', 'op-2'),
+            admission: operationId('op-2'),
+          }),
+        ).toEqual({ ok: { kind: 'not-accepted', operation: 'op-2' } })
+      }),
+    )
+    ok(await ledger.admissions.admit(admission('call-1', 'op-1', dummyRequest())))
+    const released = ok(await ledger.commands.releaseDelivery(releaseOf('op-2')))
+    expect(released.kind).toBe('released')
+    const records = await recordsOf(memory)
+    expect(records.filter(record => record.kind === 'exclusion')).toEqual([
+      { kind: 'exclusion', exclusion: { operation: 'op-2', revision: '3' } },
+    ])
+    expect(memory.commits).toBe(4)
+  })
+
+  it('14 exclusion: a later negative replaces the fence; a command that read the latest fence is not excluded by it', async () => {
+    const memory = createMemoryToolLedgerStore<Block>()
+    const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
+    const ledger: ToolLedger<Principal, Block> = ledgerOver(
+      interleaving(memory, putsOperation('op-1'), async () => {
+        expect(await ledger.reads.operation(query)).toEqual({ ok: { kind: 'not-committed' } })
+      }),
+    )
+    expect(await ledger.reads.operation(query)).toEqual({ ok: { kind: 'not-committed' } })
+    expect(await recordsOf(memory)).toEqual([
+      { kind: 'exclusion', exclusion: { operation: 'op-1', revision: '1' } },
+    ])
+    // Read after the first fence, overtaken by the second: excluded by the newer fence.
+    expect(await ledger.admissions.admit(admission('call-1', 'op-1', dummyRequest()))).toEqual({
+      failure: EXCLUDED,
+    })
+    expect(await recordsOf(memory)).toEqual([
+      { kind: 'exclusion', exclusion: { operation: 'op-1', revision: '2' } },
+    ])
+    // Read after the second fence, then a conflict without a newer fence: admitted on the retry.
+    memory.injectCommit('conflict')
+    const admitted = ok(await ledger.admissions.admit(admission('call-1', 'op-1', dummyRequest())))
+    expect(admitted.recovered).toBe(false)
+    expect(admitted.state.revision).toBe('3')
+  })
+
+  it('14 exclusion: the admitting commit removes the fence, and the next same submission is recalled', async () => {
+    const { runtime, store } = harness()
+    const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
+    expect(await runtime.queryOperation(query)).toEqual({ ok: { kind: 'not-committed' } })
+    expect(await recordsOf(store)).toEqual([
+      { kind: 'exclusion', exclusion: { operation: 'op-1', revision: '1' } },
+    ])
+    const admitted = ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    expect(admitted.recovered).toBe(false)
+    expect((await recordsOf(store)).map(record => record.kind).sort()).toEqual([
+      'account',
+      'call',
+      'operation',
+      'result',
+      'task',
+    ])
+    const again = ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    expect(again).toEqual({ state: admitted.state, recovered: true })
+    expect(store.commits).toBe(2)
+  })
+
+  it('14 exclusion: a negative probe of another tenant or without the query permission writes nothing', async () => {
+    const probes = (runtime: ReturnType<typeof harness>['runtime'], principal: Principal) => [
+      runtime.lookup({
+        ...admission('call-1', 'op-1', dummyRequest(), principal),
+        admission: operationId('op-1'),
+      }),
+      runtime.queryOperation({
+        ...admission('call-1', 'op-1', dummyRequest(), principal),
+        operation: operationId('op-1'),
+      }),
+    ]
+    const foreign = harness()
+    for (const probe of probes(foreign.runtime, principalB))
+      expect(await probe).toMatchObject({ failure: { kind: 'denied' } })
+    const ungranted = harness({ deniedActions: ['lookup', 'query-operation'] })
+    for (const probe of probes(ungranted.runtime, principalA))
+      expect(await probe).toMatchObject({ failure: { kind: 'denied' } })
+    const blind = harness({ accessUnavailable: 'directory down' })
+    for (const probe of probes(blind.runtime, principalA))
+      expect(await probe).toMatchObject({
+        failure: { kind: 'unavailable', dependency: 'access-guard' },
+      })
+    expect([foreign.store.commits, ungranted.store.commits, blind.store.commits]).toEqual([0, 0, 0])
+    expect([foreign.store.reads, ungranted.store.reads, blind.store.reads]).toEqual([0, 0, 0])
   })
 })

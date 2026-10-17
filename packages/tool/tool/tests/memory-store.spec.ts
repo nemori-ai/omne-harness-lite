@@ -39,6 +39,49 @@ describe('18 the non-durable store', () => {
     expect(await store.read(domain)).toEqual({ kind: 'complete', revision: '2', records: [] })
   })
 
+  it('18 store: a commit sets the domain revision whatever it writes: an exclusion alone, or nothing', async () => {
+    const store = createMemoryToolLedgerStore<Block>()
+    const exclusion: LedgerRecord<Block> = {
+      kind: 'exclusion',
+      exclusion: { operation: operationId('op-1'), revision: '1' as never },
+    }
+    const fence = {
+      domain,
+      expected: '0' as never,
+      revision: '1' as never,
+      writes: [{ kind: 'put' as const, record: exclusion }],
+    }
+    expect(await store.commit(fence)).toEqual({ kind: 'committed' })
+    expect(await store.read(domain)).toEqual({
+      kind: 'complete',
+      revision: '1',
+      records: [exclusion],
+    })
+    expect(recordKey(exclusion)).toBe('exclusion:op-1')
+    // A commit prepared against revision 0 fails after the fence.
+    expect(await store.commit({ ...fence, writes: [{ kind: 'put', record: task }] })).toEqual({
+      kind: 'conflict',
+      current: '1',
+    })
+    // A commit that changes no record still advances the revision.
+    const empty = { domain, expected: '1' as never, revision: '2' as never, writes: [] }
+    expect(await store.commit(empty)).toEqual({ kind: 'committed' })
+    expect(await store.read(domain)).toMatchObject({ revision: '2', records: [exclusion] })
+    // A delete of a key that holds no record is a no-op that still advances the revision.
+    const absent = {
+      ...empty,
+      expected: '2' as never,
+      revision: '3' as never,
+      writes: [{ kind: 'delete' as const, key: recordKey(task) }],
+    }
+    expect(await store.commit(absent)).toEqual({ kind: 'committed' })
+    expect(await store.read(domain)).toEqual({
+      kind: 'complete',
+      revision: '3',
+      records: [exclusion],
+    })
+  })
+
   it('18 store: domains of different tenants and calls do not share records', async () => {
     const store = createMemoryToolLedgerStore<Block>()
     await store.commit({

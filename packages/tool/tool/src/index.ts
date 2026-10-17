@@ -12,6 +12,7 @@ export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.
 export type {
   AccountRecord,
   CallRecord,
+  ExclusionRecord,
   LedgerCommit,
   LedgerCommitInput,
   LedgerDomain,

@@ -81,7 +81,7 @@
 
 账本由 `createToolLedger(store, guards, clock, configuration)` 构造。runtime 由 `createToolRuntime(dependencies, configuration)` 构造。两者可以取同一个 `ToolConfiguration`：账本只读其中的 `resultPageBytes` 与 `ledgerCommitAttempts`。数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1工单-05-起)。下列规则按编号对应测试。
 
-G1 记录的签名是 `createToolLedger(store, guards, clock)`。第四个参数 `configuration` 是本包的增补：结果页大小属于部署配置，只有一处来源，即 `ToolConfiguration.resultPageBytes`。G1 的正文由契约包更新，见交付说明。
+签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration)` 返回 `{ commands, reads, admissions }`。`configuration` 给出结果页大小与提交重试上限，两者都只有一处来源，即 `ToolConfiguration`。
 
 ### 10 边界与资格
 
@@ -122,12 +122,19 @@ G1 记录的签名是 `createToolLedger(store, guards, clock)`。第四个参数
 否定答案（`lookup` 的 `not-accepted`、`queryOperation` 的 `not-committed`）必须排除该操作所有在途提交（P01）。所以账本按下列顺序给出：
 
 1. 完整读取域快照，快照里没有该操作。读取失败回复 `unavailable`，不给否定答案。
-2. 提交排除围栏：一次没有写入的提交，`expected` 是快照的域修订号，域修订号加一。此后任何按旧修订号准备的在途提交都因修订号不符而失败。
+2. 提交排除围栏：在调用域写入一条 `exclusion` 记录（键 `exclusion:<operation>`，值是操作号与本次提交的新域修订号），`expected` 是快照的域修订号，域修订号加一。该操作已有 `exclusion` 记录时被替换为更新的修订号。此后任何按旧修订号准备的在途提交都因修订号不符而失败。
 3. 围栏提交成功后，按第 1 步的快照给出否定答案。
-4. 围栏冲突时，说明有提交在读取之后落盘。账本重读并重新判断，所以已落盘的操作得到 `committed`。重读次数受 `ledgerCommitAttempts` 限制。
+4. 围栏冲突时，说明有提交在读取之后落盘。账本重读并重新判断，所以已落盘的操作得到 `committed`；另一读取者的围栏不排除本次读取，本次重读后再次围栏。重读次数受 `ledgerCommitAttempts` 限制。
 5. 围栏结果未知时，`queryOperation` 回复 `unknown`，`lookup` 回复 `unavailable`（`ledger-store`）。围栏不可用时，两者回复 `unavailable`。两者都不给否定答案。
 
-一个仍在本进程内重试的命令会在围栏之后重读、重判，与一次新的重送相同；它的调用者得到重判的结果。
+按操作号定键的命令（`admit`、`releaseDelivery`，以及带 `WriteContext` 或操作号的后续命令）记住自己第一次读取的域修订号。提交冲突后重读时，快照里若有本操作的 `exclusion` 记录，且其修订号大于第一次读取的修订号，说明否定答案在本命令在途时给出、已经把本次提交排除在外：命令停止重试，回复可重试的 `unavailable`（`dependency` 为 `ledger-store`，`diagnostic` 固定为 `operation <operation> was excluded by a negative answer; resubmit with the same identity`），不回复 `commit-unknown`，也不落盘。第一次读取就看到 `exclusion` 记录的新一次重送正常进行：它的提交在同一写入集里删除本操作的 `exclusion` 记录，所以否定答案之后同身份恰好受理一次，同身份异输入的重送也作为首次受理，不与被排除的在途提交冲突。认回先于排除：快照里已有该操作记录时回复原回执，不论 `exclusion` 记录。
+
+本包接受的风险：
+
+- 获准 `lookup` 或 `query-operation` 资格的主体每得到一个否定答案就写一次提交。所以本租户内有读取资格的主体能够创建 `exclusion` 记录、无上限地推进一个调用的域修订号；他租户主体与无资格主体在任何写入之前已被 `denied`，不写记录（第 10 条）。
+- 反复轮询否定答案的读取者能让一个写者连续冲突，最多 `ledgerCommitAttempts` 次后写者回复 `unavailable`。
+
+两条由拥有者决定是否收紧。
 
 ### 15 结果分页与账目（P08、P09）
 
@@ -157,7 +164,7 @@ G1 记录的签名是 `createToolLedger(store, guards, clock)`。第四个参数
 
 ### 18 非耐久记录仓（`./testing`）
 
-`createMemoryToolLedgerStore` 声明 `durability: 'none'`。每个域从修订号 `0` 开始；`commit` 只在 `expected` 等于当前修订号时生效，否则回复 `conflict`。读取给出副本。域键是各段身份文本的 JSON，含分隔符的身份不会落到别的域。`injectRead` 与 `injectCommit` 按顺序注入下一次读取或提交的故障：
+`createMemoryToolLedgerStore` 声明 `durability: 'none'`。每个域从修订号 `0` 开始；`commit` 只在 `expected` 等于当前修订号时生效，否则回复 `conflict`。生效的提交不论写入集内容都把域修订号改为 `revision`：只写一条 `exclusion` 记录、不改任何记录、删除不存在的键，都同样推进修订号，没有空操作捷径。读取给出副本。域键是各段身份文本的 JSON，含分隔符的身份不会落到别的域。`injectRead` 与 `injectCommit` 按顺序注入下一次读取或提交的故障：
 
 - `unavailable`：不尝试。
 - `conflict`：不写入，回复冲突，如同别的写者先提交了。

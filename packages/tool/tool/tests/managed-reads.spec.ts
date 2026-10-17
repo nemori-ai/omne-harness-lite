@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ToolLedgerStore } from '@omne-harness/tool'
-import type { ResultPage } from '@omne-harness/tool-contract'
+import { succeed } from '@omne-harness/kernel-basis'
+import type { ResultPage, ToolResult } from '@omne-harness/tool-contract'
 import {
   admission,
   callId,
@@ -190,6 +191,30 @@ describe('15 result pages and the account (P08, P09)', () => {
     expect(
       await runtime.readResult({ ...theirs, result: 'v1' as never, after: mine.next }),
     ).toEqual({ failure: { kind: 'invalid-cursor', reason: 'another-result' } })
+  })
+
+  it('15 pages: a result without content blocks has one empty first page, and no cursor into it', async () => {
+    const empty: ToolResult<Block> = {
+      content: [],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    }
+    const { runtime } = harness({ results: { text: () => succeed(empty) } })
+    ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    const first = ok(await runtime.readResult({ ...access, result: 'v1' as never, after: null }))
+    expect(first).toMatchObject({ result: 'v1', value: { content: [] }, next: null })
+    // No cursor was ever issued for this result, so any cursor into it is past the end.
+    const cursor = JSON.stringify({
+      tenant: 'org_a/acc_a',
+      call: 'call-1',
+      result: 'v1',
+      projection: 'full',
+      block: 0,
+    })
+    expect(await runtime.readResult({ ...access, result: 'v1' as never, after: cursor })).toEqual({
+      failure: { kind: 'invalid-cursor', reason: 'past-the-end' },
+    })
   })
 
   it('15 pages: a block larger than the page is a named refusal, never a cut block', async () => {

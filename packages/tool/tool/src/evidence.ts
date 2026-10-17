@@ -105,6 +105,11 @@ export function nextRevision(current: ToolRevision): ToolRevision {
   return minted(decodeToolRevision(text), text)
 }
 
+/** Whether `revision` was committed after `than`: revisions are decimal counts, not texts. */
+export function isLaterRevision(revision: ToolRevision, than: ToolRevision): boolean {
+  return BigInt(revision) > BigInt(than)
+}
+
 export function resultVersion(ordinal: number): ToolResultVersion {
   return minted(decodeToolResultVersion(`v${ordinal}`), `v${ordinal}`)
 }
