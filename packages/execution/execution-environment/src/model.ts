@@ -79,7 +79,9 @@ export type CommandRequest = {
 }
 
 export type CommandFacility = {
-  readonly start: (request: CommandRequest) => Promise<FacilityResult<{ readonly processId: string }>>
+  readonly start: (
+    request: CommandRequest,
+  ) => Promise<FacilityResult<{ readonly processId: string }>>
 }
 
 export type EnvironmentProvider = {
@@ -103,9 +105,7 @@ export type EnvironmentLease = {
   readonly continuity: EnvironmentContinuity
   readonly instance: { readonly id: string; readonly generation: string }
   readonly facility: (name: string) => unknown | undefined
-  readonly release: () => Promise<
-    { readonly kind: 'released' } | { readonly kind: 'pending' }
-  >
+  readonly release: () => Promise<{ readonly kind: 'released' } | { readonly kind: 'pending' }>
 }
 
 export type PlacementInput = {

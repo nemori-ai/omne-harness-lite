@@ -13,11 +13,11 @@ import type { EnvironmentContinuity, FileFacility } from '@omne-harness/executio
 const roots: string[] = []
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+  await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
 
 it('does not import Cordis from the package root', async () => {
-  const source = await import('node:fs/promises').then((fs) =>
+  const source = await import('node:fs/promises').then(fs =>
     fs.readFile(new URL('../dist/index.js', import.meta.url), 'utf8'),
   )
   expect(source.includes('@deepseek-ai/cordis')).toBe(false)

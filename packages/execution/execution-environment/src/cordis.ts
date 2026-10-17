@@ -29,13 +29,18 @@ function providersOf(service: object): EnvironmentProvider[] | undefined {
   return (service as RegistryRecord)[liveProviders]
 }
 
-function providersFor(service: object, input: PlacementInput): {
+function providersFor(
+  service: object,
+  input: PlacementInput,
+): {
   layer: EnvironmentProvider[]
   matched: EnvironmentProvider | undefined
 } {
   const list = providersOf(service) ?? []
-  const layer = list.filter((provider) => provider.bindingKinds.includes(input.binding.kind))
-  const matched = layer.find((provider) => input.facilities.every((name) => provider.facilities.has(name)))
+  const layer = list.filter(provider => provider.bindingKinds.includes(input.binding.kind))
+  const matched = layer.find(provider =>
+    input.facilities.every(name => provider.facilities.has(name)),
+  )
   return { layer, matched }
 }
 
@@ -49,9 +54,13 @@ export abstract class ExecutionEnvironmentService extends Service implements Exe
     super(ctx, ExecutionEnvironmentService.provide)
   }
 
-  abstract resolvePlacement(input: PlacementInput): ReturnType<ExecutionEnvironment['resolvePlacement']>
+  abstract resolvePlacement(
+    input: PlacementInput,
+  ): ReturnType<ExecutionEnvironment['resolvePlacement']>
   abstract acquire(input: PlacementInput): ReturnType<ExecutionEnvironment['acquire']>
-  abstract registerProvider(provider: EnvironmentProvider): ReturnType<ExecutionEnvironment['registerProvider']>
+  abstract registerProvider(
+    provider: EnvironmentProvider,
+  ): ReturnType<ExecutionEnvironment['registerProvider']>
 }
 
 export const EXECUTION_ENVIRONMENT = ExecutionEnvironmentService.provide
@@ -109,7 +118,8 @@ export class ExecutionEnvironmentRegistry extends ExecutionEnvironmentService {
 
   async acquire(input: PlacementInput) {
     const { layer, matched } = providersFor(this, input)
-    if (layer.length === 0) return { kind: 'rejected' as const, reason: 'noMatchingEnvironment' as const }
+    if (layer.length === 0)
+      return { kind: 'rejected' as const, reason: 'noMatchingEnvironment' as const }
     if (!matched) return { kind: 'rejected' as const, reason: 'missingFacility' as const }
     return matched.acquire({
       binding: input.binding,

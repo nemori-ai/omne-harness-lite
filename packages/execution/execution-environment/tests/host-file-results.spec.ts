@@ -12,14 +12,18 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import { createHostFiles, hostObjectToken, type FileRequest } from '@omne-harness/execution-environment'
+import {
+  createHostFiles,
+  hostObjectToken,
+  type FileRequest,
+} from '@omne-harness/execution-environment'
 import {
   createHostFiles as createHostFilesSource,
   __unsafeHostFilesState,
 } from '../src/host-files.ts'
 
 let injectCloseFailure = false
-vi.mock('node:fs/promises', async (importOriginal) => {
+vi.mock('node:fs/promises', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
   return {
     ...actual,
@@ -40,7 +44,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 const roots: string[] = []
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+  await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
 
 async function tree() {
@@ -83,13 +87,17 @@ it('refuses an unnamed file and does not return its bytes', async () => {
 
 it('refuses a path that contains a NUL byte', async () => {
   const root = await tree()
-  const result = await createHostFiles().read(request(`${root}/notes.txt\0`, { token: 'unused' }, 'nul'))
+  const result = await createHostFiles().read(
+    request(`${root}/notes.txt\0`, { token: 'unused' }, 'nul'),
+  )
   expect(result).toEqual({ kind: 'rejected', requestId: 'nul', reason: 'invalidInput' })
 })
 
 it('leaves a missing path unresolved', async () => {
   const root = await tree()
-  const result = await createHostFiles().read(request(join(root, 'missing.txt'), { token: '1:2' }, 'missing'))
+  const result = await createHostFiles().read(
+    request(join(root, 'missing.txt'), { token: '1:2' }, 'missing'),
+  )
   expect(result).toEqual({ kind: 'unresolved', requestId: 'missing' })
 })
 
@@ -133,7 +141,9 @@ it('reads through an ancestor symlink when the final object is the named one', a
   const named = await hostObjectToken(file)
   const stat = await lstat(file, { bigint: true })
   expect(named.token).toBe(`${stat.dev}:${stat.ino}`)
-  const result = await createHostFiles().read(request(join(root, 'via', 'notes.txt'), named, 'ancestor'))
+  const result = await createHostFiles().read(
+    request(join(root, 'via', 'notes.txt'), named, 'ancestor'),
+  )
   expect(result).toEqual({
     kind: 'done',
     requestId: 'ancestor',
@@ -198,7 +208,10 @@ it('returns only the handle when close succeeds', async () => {
   const opened = await files.read(request(path, named, 'before-close'))
   expect(opened.kind).toBe('done')
   if (opened.kind !== 'done') return
-  const result = await files.close({ ...request(path, named, 'close'), handle: opened.value.handle })
+  const result = await files.close({
+    ...request(path, named, 'close'),
+    handle: opened.value.handle,
+  })
   expect(result).toEqual({
     kind: 'done',
     requestId: 'close',
@@ -321,7 +334,9 @@ it('refuses dotdot when it names a different object', async () => {
   await writeFile(inside, 'inside-bytes')
   await writeFile(outside, 'outside-bytes')
   const named = await hostObjectToken(inside)
-  const result = await createHostFiles().read(request(join(dir, '..', 'outside.txt'), named, 'dotdot'))
+  const result = await createHostFiles().read(
+    request(join(dir, '..', 'outside.txt'), named, 'dotdot'),
+  )
   expect(result).toEqual({ kind: 'rejected', requestId: 'dotdot', reason: 'conflict' })
   expect(JSON.stringify(result)).not.toContain('outside-bytes')
 })
@@ -573,7 +588,11 @@ it('keeps descriptors whose close failed on error paths for continued cleanup', 
 
   await withCloseFailure(async () => {
     const result = await files.read(request(conflictPath, wrongNamed, 'conflict-close-fail'))
-    expect(result).toEqual({ kind: 'rejected', requestId: 'conflict-close-fail', reason: 'conflict' })
+    expect(result).toEqual({
+      kind: 'rejected',
+      requestId: 'conflict-close-fail',
+      reason: 'conflict',
+    })
     expect(__unsafeHostFilesState(files).pendingCloseCount).toBeGreaterThan(0)
   })
 

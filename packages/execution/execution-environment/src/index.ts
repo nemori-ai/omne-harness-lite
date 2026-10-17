@@ -1,7 +1,4 @@
-export {
-  createHostFiles,
-  hostObjectToken,
-} from './host-files.ts'
+export { createHostFiles, hostObjectToken } from './host-files.ts'
 export type {
   AcquireResult,
   CommandFacility,

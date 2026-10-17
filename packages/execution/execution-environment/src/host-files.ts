@@ -43,9 +43,10 @@ function errorCode(error: unknown): unknown {
 
 function openFailure(requestId: string, error: unknown): FacilityResult<never> {
   const code = errorCode(error)
-  const mapped = typeof code === 'string' && Object.hasOwn(openCodes, code)
-    ? openCodes[code as keyof typeof openCodes]
-    : undefined
+  const mapped =
+    typeof code === 'string' && Object.hasOwn(openCodes, code)
+      ? openCodes[code as keyof typeof openCodes]
+      : undefined
   if (mapped === 'unresolved') return { kind: 'unresolved', requestId }
   if (mapped) return reject(requestId, mapped)
   return { kind: 'unknown', requestId }
@@ -55,16 +56,15 @@ function issuedKey(handle: HandleGeneration): string {
   return `${handle.object.token}\0${handle.generation}`
 }
 
-const internalState = new WeakMap<
-  FileFacility,
-  { readonly pendingCloseCount: () => number }
->()
+const internalState = new WeakMap<FileFacility, { readonly pendingCloseCount: () => number }>()
 
 /**
  * Exposes internal state for tests only. Not part of the public package contract.
  * @internal
  */
-export function __unsafeHostFilesState(files: FileFacility): { readonly pendingCloseCount: number } {
+export function __unsafeHostFilesState(files: FileFacility): {
+  readonly pendingCloseCount: number
+} {
   const state = internalState.get(files)
   return { pendingCloseCount: state?.pendingCloseCount() ?? 0 }
 }
@@ -253,7 +253,10 @@ export function createHostFiles(): FileFacility {
       const namedToken = named === null ? '' : named.token
       const handleObject = { token: handle.object.token }
       const handleGeneration = handle.generation
-      const returnedHandle: HandleGeneration = { object: handleObject, generation: handleGeneration }
+      const returnedHandle: HandleGeneration = {
+        object: handleObject,
+        generation: handleGeneration,
+      }
       await drainPendingClose()
 
       if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
