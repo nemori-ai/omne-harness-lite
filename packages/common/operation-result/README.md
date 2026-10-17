@@ -8,7 +8,7 @@ Module package for operation results. It gives capability contracts one shape fo
 
 This member owns `Outcome`, `Ack`, `succeed`, `ack`, `fail`, and `isSuccess`. It has no runtime dependency and does not import Cordis. The failure vocabulary `F` belongs to the caller. This package does not define a shared failure vocabulary, and it is not a unified envelope for every capability.
 
-The location `packages/common/operation-result` follows the #371 technical adoption decision. The named consumers are `tool-contract`, `tool`, `tool-cordis-contract`, and `model-contract`. The current track has no production call site. These members import this member through its public entry and do not copy the result types. The shapes and functions moved from `@omne-harness/kernel-basis` without change.
+The location `packages/common/operation-result` follows the #371 technical adoption decision. The named consumers are `tool-contract`, `tool`, `tool-cordis-contract`, and `model-contract`. The current track has no production call site. When these members land on this track, they import this member through its public entry and do not copy the result types. The shapes and functions moved from `@omne-harness/kernel-basis` without change.
 
 ## Usage
 

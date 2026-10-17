@@ -21,7 +21,7 @@
 | `message` | 解析和相等已导出。不铸造身份 | 事实记录中的消息字段 | 会话、请求投影、模型 |
 | `stream-arrival` | 步骤校验已导出 | 开块、填充、封块、削减、结束 | 模型、工具、会话 |
 | `call-account` | 快照准入、修订替换、来源小计和应付金额已导出 | 一次模型调用或工具执行的调用账目 | 模型调用、会话 |
-| `operation-result` | 公开入口已实现，零依赖。形状由 [#248](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639) 接受，拆分依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851) | 带值成功、无值确认与失败两种操作结果。失败词汇 `F` 归调用方 | `tool-contract`、`tool`、`tool-cordis-contract`、`model-contract`。当前轨道没有生产调用点。它们按公开入口导入本成员，不复制结果类型 |
+| `operation-result` | 公开入口已实现，零依赖。形状由 [#248](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639) 接受，拆分依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851) | 带值成功、无值确认与失败两种操作结果。失败词汇 `F` 归调用方 | `tool-contract`、`tool`、`tool-cordis-contract`、`model-contract`。当前轨道没有生产调用点。它们合入本轨道时按公开入口导入本成员，不复制结果类型 |
 
 采用记录是 [Issue 221 技术设计采用](https://github.com/nemori-ai/omne-harness-lite/issues/221#issuecomment-6161958178)。
 

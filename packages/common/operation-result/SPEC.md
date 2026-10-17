@@ -33,7 +33,7 @@ type Ack<F> = { ok: true } | { failure: F }
 
 | 能力 | 入口 | 已接受依据 | 具名消费者 | 为什么不直接用 Cordis |
 | --- | --- | --- | --- | --- |
-| 带值操作结果 | 根 | #248 与 #371 技术采用决定 | `tool-contract`、`tool`、`tool-cordis-contract`、`model-contract`。当前轨道没有生产调用点。这四个成员按公开入口导入本成员，不复制结果类型 | Cordis 没有这种结果类型，也不应让契约包依赖 Cordis |
+| 带值操作结果 | 根 | #248 与 #371 技术采用决定 | `tool-contract`、`tool`、`tool-cordis-contract`、`model-contract`。当前轨道没有生产调用点 | Cordis 没有这种结果类型，也不应让契约包依赖 Cordis |
 | 无值操作结果 | 根 | 同上 | 同上 | 同上 |
 
 本轨道上没有业务成员的生产调用点。公开入口由本成员测试消费。上面四个消费者在合入本轨道时按公开入口导入，不复制结果类型。
