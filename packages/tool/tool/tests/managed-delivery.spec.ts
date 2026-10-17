@@ -44,7 +44,11 @@ describe('16 delivery release (P08)', () => {
       kind: 'released',
       delivery: 'd1',
       consumer,
-      evidence: { owner: '@omne-harness/tool', record: 'delivery:call-1/v1/d1' },
+      evidence: {
+        owner: '@omne-harness/tool',
+        record:
+          'delivery:{"call":"call-1","delivery":"d1","result":"v1","tenant":{"account":"acc_a","organization":"org_a"}}',
+      },
     })
     // The receipt is minted by Tool, not the consumer's evidence echoed back.
     if (released.kind === 'released')
@@ -59,6 +63,64 @@ describe('16 delivery release (P08)', () => {
       await runtime.readResult({ ...release('op-2', proof), result: 'v1' as never, after: null }),
     )
     expect(page.value.content.map(textOf).join('')).toContain('tool unavailable')
+  })
+
+  it('16 release: one commit releases the result, records the receipt and the state, and removes the deliver task', async () => {
+    const { runtime, store } = harness()
+    ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    const released = ok(await runtime.releaseDelivery(release('op-2', retained)))
+    expect(store.commits).toBe(2)
+    const read = await store.read({
+      kind: 'call',
+      tenant: tenantA as never,
+      call: callId('call-1'),
+    })
+    if (read.kind !== 'complete') throw new Error('read failed')
+    expect(read.revision).toBe('2')
+    const of = <K extends string>(kind: K) => read.records.filter(record => record.kind === kind)
+    expect(of('task')).toEqual([])
+    expect(of('result')).toMatchObject([{ result: { delivery: released } }])
+    expect(of('call')).toMatchObject([{ call: { state: { delivery: released, revision: '2' } } }])
+    expect(of('operation')).toMatchObject([
+      { operation: { operation: 'op-1', revision: '1' } },
+      { operation: { operation: 'op-2', revision: '2', receipt: { delivery: released } } },
+    ])
+  })
+
+  it('16 release: the release of a call that was never admitted is an unknown call', async () => {
+    const { runtime, store } = harness()
+    expect(await runtime.releaseDelivery(release('op-2', retained))).toEqual({
+      failure: { kind: 'invalid', field: 'call', reason: 'unknown-call' },
+    })
+    expect(store.commits).toBe(0)
+  })
+
+  it('16 release: the consumer and the handoff are closed values, checked before any digest', async () => {
+    const { runtime, store } = harness()
+    ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    const withFunction = { ...consumer, work: () => 'run-1' }
+    expect(
+      await runtime.releaseDelivery(release('op-2', retained, { consumer: withFunction })),
+    ).toEqual({
+      failure: { kind: 'invalid', field: 'consumer.work', reason: 'type' },
+    })
+    const withExtra = { ...consumer, note: 'extra' }
+    expect(
+      await runtime.releaseDelivery(release('op-2', retained, { consumer: withExtra })),
+    ).toEqual({
+      failure: { kind: 'invalid', field: 'consumer.note', reason: 'unknown-field' },
+    })
+    const extraProof = { kind: 'retained', custody: { ...evidence('kept', consumer.owner), x: 1 } }
+    expect(
+      await runtime.releaseDelivery(release('op-2', retained, { evidence: extraProof })),
+    ).toEqual({
+      failure: { kind: 'invalid', field: 'evidence.custody.x', reason: 'unknown-field' },
+    })
+    expect(await runtime.releaseDelivery(release('op-2', retained, { consumer: null }))).toEqual({
+      failure: { kind: 'invalid', field: 'consumer', reason: 'type' },
+    })
+    expect(store.commits).toBe(1)
+    ok(await runtime.releaseDelivery(release('op-2', retained)))
   })
 
   it('16 release: a second release answers the released state and writes nothing more', async () => {

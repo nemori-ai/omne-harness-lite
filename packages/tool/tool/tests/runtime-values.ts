@@ -25,10 +25,13 @@ import {
 import {
   createToolLedger,
   createToolRuntime,
+  type AccessVerdict,
   type ToolConfiguration,
   type ToolDependencies,
   type ToolLedger,
+  type ToolLedgerAction,
   type ToolLedgerGuards,
+  type ToolLedgerStore,
 } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
 
@@ -217,24 +220,40 @@ function stub<T extends object>(spies: Spies, name: string, methods: readonly st
 
 export type GuardOptions = Readonly<{
   chunk?: number
-  resultPageBytes?: number
   /** Source records that the source guard reports as forged. */
   forged?: readonly string[]
   /** When set, every access question answers unavailable with this diagnostic. */
   accessUnavailable?: string
+  /** Actions that the access guard denies to every principal. */
+  deniedActions?: readonly ToolLedgerAction[]
+  /** When set, the access guard accepts only these tenant objects, as a minted-identity check. */
+  minted?: ReadonlySet<object>
+  /** When set, the access guard throws an Error with this message. */
+  accessThrows?: string
 }>
+
+/** The configuration fields the harness passes on: the ledger reads two of them. */
+export type HarnessOptions = GuardOptions & Partial<ToolConfiguration>
+
+function qualify(
+  options: GuardOptions,
+  input: Parameters<ToolLedgerGuards<Principal, Block>['access']['qualify']>[0],
+): AccessVerdict {
+  if (options.accessThrows !== undefined) throw new Error(options.accessThrows)
+  if (options.accessUnavailable !== undefined)
+    return { kind: 'unavailable', diagnostic: options.accessUnavailable }
+  if (options.minted !== undefined && !options.minted.has(input.tenant))
+    return { kind: 'denied', reason: 'not-a-minted-tenant' }
+  if (options.deniedActions?.includes(input.action) === true)
+    return { kind: 'denied', reason: 'action-not-granted' }
+  const member = input.principal.tenants.includes(tenantKeyOf(input.tenant))
+  return member ? { kind: 'allowed' } : { kind: 'denied', reason: 'not-a-member' }
+}
 
 export function guards(options: GuardOptions = {}): ToolLedgerGuards<Principal, Block> {
   return {
     access: {
-      qualify: input => {
-        if (options.accessUnavailable !== undefined)
-          return Promise.resolve({ kind: 'unavailable', diagnostic: options.accessUnavailable })
-        const member = input.principal.tenants.includes(tenantKeyOf(input.tenant))
-        return Promise.resolve(
-          member ? { kind: 'allowed' } : { kind: 'denied', reason: 'not-a-member' },
-        )
-      },
+      qualify: input => new Promise(resolve => resolve(qualify(options, input))),
     },
     sources: {
       verify: input =>
@@ -246,7 +265,7 @@ export function guards(options: GuardOptions = {}): ToolLedgerGuards<Principal, 
     },
     results: textFactory(options.chunk),
     policy: defaultResultPolicy,
-    budgets: { arguments: jsonLimits, resultPageBytes: options.resultPageBytes ?? 4_096 },
+    budgets: { arguments: jsonLimits },
   }
 }
 
@@ -261,8 +280,17 @@ export function configuration(overrides: Partial<ToolConfiguration> = {}): ToolC
     observerBufferBytes: 65_536,
     resultPageBytes: 4_096,
     reconciliationDelayMs: 0,
+    ledgerCommitAttempts: 8,
     ...overrides,
   }
+}
+
+function configurationOf(options: HarnessOptions): ToolConfiguration {
+  const defaults = configuration()
+  return configuration({
+    resultPageBytes: options.resultPageBytes ?? defaults.resultPageBytes,
+    ledgerCommitAttempts: options.ledgerCommitAttempts ?? defaults.ledgerCommitAttempts,
+  })
 }
 
 export type Harness = Readonly<{
@@ -274,7 +302,7 @@ export type Harness = Readonly<{
 }>
 
 /** A real runtime over the non-durable store; only the ledger ports are real. */
-export function harness(options: GuardOptions = {}): Harness {
+export function harness(options: HarnessOptions = {}): Harness {
   const store = createMemoryToolLedgerStore<Block>()
   const spies: Spies = { calls: new Map() }
   const clock = stub<ToolDependencies<Principal, Block, null>['clock']>(spies, 'clock', [
@@ -283,9 +311,11 @@ export function harness(options: GuardOptions = {}): Harness {
     'elapsed',
     'waitUntil',
   ])
-  const ledger = createToolLedger(store, guards(options), clock)
+  const config = configurationOf(options)
+  const ledger = createToolLedger(store, guards(options), clock, config)
   const dependencies: ToolDependencies<Principal, Block, null> = {
     commands: ledger.commands,
+    admissions: ledger.admissions,
     reads: ledger.reads,
     bindings: stub(spies, 'bindings', ['inspect', 'resolve', 'recover']),
     environments: stub(spies, 'environments', [
@@ -320,8 +350,18 @@ export function harness(options: GuardOptions = {}): Harness {
     catalog: stub(spies, 'catalog', ['inspect', 'usage', 'search']),
     children: stub(spies, 'children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
   }
-  const provider = createToolRuntime(dependencies, configuration())
+  const provider = createToolRuntime(dependencies, config)
   return { store, ledger, provider, runtime: provider.runtime, spies }
+}
+
+/** A ledger over another store, for a store that the memory store cannot imitate. */
+export function ledgerOver(
+  store: ToolLedgerStore<Block>,
+  options: HarnessOptions = {},
+): ToolLedger<Principal, Block> {
+  const spies: Spies = { calls: new Map() }
+  const clock = stub<ToolDependencies<Principal, Block, null>['clock']>(spies, 'clock', ['now'])
+  return createToolLedger(store, guards(options), clock, configurationOf(options))
 }
 
 /** Every state the runtime answers must pass the contract's closed judgment. */

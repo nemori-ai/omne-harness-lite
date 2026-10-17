@@ -145,7 +145,7 @@ classDiagram
 | 作者定义 | 参数说明、声明、programmable、后台许可、设置 Schema/defaults | 资产正文解析及合法装载；许可不能由配置提高 |
 | 一次调用参数 | 身份/tenant、call/operation、原始及生效参数、command、consumer、scope、采用、调用来源、限额 | admit 固定；恢复认回，不补造 Session/Run |
 | 一次控制或读取参数 | 控制原因、原决定、resultVersion、cursor、读取预算 | 每次操作核当前资格及原归属 |
-| 可序列化部署配置 | ToolAuthorLimits 的输出及等待历史上限、processBatchBytes/processBatchDelayMs/observerBufferBytes/resultPageBytes/reconciliationDelayMs | 装配 Schema 检查正容量与非负有限延迟；不偷加工具默认时限 |
+| 可序列化部署配置 | ToolAuthorLimits 的输出及等待历史上限、processBatchBytes/processBatchDelayMs/observerBufferBytes/resultPageBytes/reconciliationDelayMs/ledgerCommitAttempts | 装配 Schema 检查正容量与非负有限延迟；不偷加工具默认时限 |
 | 注入服务能力 | 上表各端口、精确提供者采用 | 工厂或阶段装配取得；不能序列化到配置 |
 | 短期资源 | E、live execution、driver、signal、订阅、目录 release token | 由获得它的宿主持有并显式交接/释放 |
 | 持久恢复值 | 协议记录、操作回执、待办、原输出/结果、计时证据 | 存储承诺耐久；从这些值重建协调器，不反序列化对象图 |

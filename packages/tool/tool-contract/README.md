@@ -1,4 +1,4 @@
-本成员的根入口导出资产类别端口 `toolBodyContract`、全部公开契约类型、品牌身份解码函数、默认结果政策和契约函数。契约函数覆盖定义与状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染与投影。本包不依赖 Cordis。服务定义、18 个服务键和事件增补在 [`@omne-harness/tool-cordis-contract`](../tool-cordis-contract/README.md)。独立执行、等待、结果保管的函数与 runtime 尚未实现。
+本成员的根入口导出资产类别端口 `toolBodyContract`、全部公开契约类型、品牌身份解码函数、默认结果政策和契约函数。契约函数覆盖定义与状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染与投影。子路径入口 `./binding` 导出读取句柄内作者的函数，只供受信的执行绑定提供者使用。本包不依赖 Cordis。服务定义、18 个服务键和事件增补在 [`@omne-harness/tool-cordis-contract`](../tool-cordis-contract/README.md)。独立执行、等待、结果保管的函数与 runtime 尚未实现。
 
 # @omne-harness/tool-contract
 

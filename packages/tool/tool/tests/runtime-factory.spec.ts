@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { createToolRuntime, toolRuntimeAdoption, type ToolDependencies } from '@omne-harness/tool'
+import {
+  createToolLedger,
+  createToolRuntime,
+  toolRuntimeAdoption,
+  type ToolDependencies,
+} from '@omne-harness/tool'
+import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
   admission,
   callId,
   configuration,
   dummyRequest,
+  guards,
   harness,
   ok,
   operationId,
@@ -32,6 +39,29 @@ describe('17 the runtime factory and later increments', () => {
     expect(() =>
       createToolRuntime({ ...dependencies, clock: undefined as never }, configuration()),
     ).toThrow('dependencies.clock: missing')
+    expect(() =>
+      createToolRuntime({ ...dependencies, admissions: undefined as never }, configuration()),
+    ).toThrow('dependencies.admissions: missing')
+    expect(() =>
+      createToolRuntime(dependencies, configuration({ ledgerCommitAttempts: 0 })),
+    ).toThrow('configuration.ledgerCommitAttempts: range')
+  })
+
+  it('17 factory: the ledger checks the configuration it reads and throws at construction', () => {
+    const store = createMemoryToolLedgerStore<Block>()
+    const clock = dependenciesOf(harness().ledger).clock
+    for (const [key, value] of [
+      ['ledgerCommitAttempts', 0],
+      ['ledgerCommitAttempts', 1.5],
+      ['resultPageBytes', -1],
+      ['resultPageBytes', Number.POSITIVE_INFINITY],
+    ] as const)
+      expect(() =>
+        createToolLedger(store, guards(), clock, configuration({ [key]: value })),
+      ).toThrow(`configuration.${key}: range`)
+    expect(() => createToolLedger(store, guards(), clock, null as never)).toThrow(
+      'configuration: type',
+    )
   })
 
   it('17 factory: the operations of later increments answer a named unsupported failure and never throw', async () => {
@@ -108,6 +138,7 @@ function dependenciesOf(
     Object.fromEntries(methods.map(method => [method, missing])) as T
   return {
     commands: ledger.commands,
+    admissions: ledger.admissions,
     reads: ledger.reads,
     bindings: port('inspect', 'resolve', 'recover'),
     environments: port('prepare', 'inspectPreparation', 'release', 'inspectRelease'),

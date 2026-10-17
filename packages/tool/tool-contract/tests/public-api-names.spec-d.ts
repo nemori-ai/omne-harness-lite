@@ -2,7 +2,7 @@
 import type { BlockId, ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/kernel-basis'
-import type { FixedToolRequest } from '@omne-harness/tool-contract'
+import type { ConsumerRef, FixedToolRequest, Handoff } from '@omne-harness/tool-contract'
 import { expectTypeOf, it } from 'vitest'
 import {
   defineCommandTool,
@@ -10,13 +10,13 @@ import {
   defineToolOperation,
   defineToolWaitContract,
   evaluateToolAvailability,
+  judgeConsumerRef,
   judgeFixedToolRequest,
+  judgeHandoff,
   judgeToolArguments,
   judgeToolDefinition,
   judgeToolState,
   presentTool,
-  readToolOperation,
-  readToolRegistration,
   projectToolResult,
   renderToolResult,
   createDefaultParameterCodec,
@@ -209,9 +209,20 @@ import type {
   AvailabilityFacts,
   ParsedToolArguments,
   ToolArgumentsRejection,
-  ToolOperationSlot,
-  ToolRegistrationSlot,
 } from '@omne-harness/tool-contract'
+import {
+  readToolOperation,
+  readToolRegistration,
+  type ToolOperationSlot,
+  type ToolRegistrationSlot,
+} from '@omne-harness/tool-contract/binding'
+
+it('resolves the readers of the author from the binding entry with their signatures', () => {
+  expectTypeOf(readToolOperation).toEqualTypeOf<(value: unknown) => ToolOperationSlot | undefined>()
+  expectTypeOf(readToolRegistration).toEqualTypeOf<
+    (value: unknown) => ToolRegistrationSlot | undefined
+  >()
+})
 
 it('resolves every public type name from the package root', () => {
   expectTypeOf<ToolCallId>().not.toEqualTypeOf<ToolOperationId>()
@@ -229,10 +240,10 @@ it('resolves every implemented contract function from the package root with its 
   expectTypeOf(judgeToolArguments).returns.toEqualTypeOf<
     Outcome<ParsedToolArguments, ToolArgumentsRejection>
   >()
-  expectTypeOf(readToolOperation).toEqualTypeOf<(value: unknown) => ToolOperationSlot | undefined>()
-  expectTypeOf(readToolRegistration).toEqualTypeOf<
-    (value: unknown) => ToolRegistrationSlot | undefined
+  expectTypeOf(judgeConsumerRef).toEqualTypeOf<
+    (value: unknown) => Outcome<ConsumerRef, Rejection>
   >()
+  expectTypeOf(judgeHandoff).toEqualTypeOf<(value: unknown) => Outcome<Handoff, Rejection>>()
   expectTypeOf(judgeToolState).toEqualTypeOf<(value: unknown) => Outcome<ToolState, Rejection>>()
   expectTypeOf(presentTool).toEqualTypeOf<(definition: ToolDefinition) => ToolPresentation>()
   expectTypeOf(evaluateToolAvailability).toEqualTypeOf<

@@ -31,18 +31,35 @@ it('exports the body port, the identity decoders, the default result policy and 
     'defineToolWaitContract',
     'describedAdoption',
     'evaluateToolAvailability',
+    'judgeConsumerRef',
     'judgeFixedToolRequest',
+    'judgeHandoff',
     'judgeToolArguments',
     'judgeToolDefinition',
     'judgeToolState',
     'presentTool',
     'projectToolResult',
-    'readToolOperation',
-    'readToolRegistration',
     'renderToolResult',
     'toolBodyContract',
   ])
 })
+
+it('keeps the readers of the author off the root and on the binding entry', async () => {
+  // A handle and a registration hide the executor (public-api); only a trusted binding provider
+  // imports the `./binding` entry that reads it.
+  expect(Object.keys(tool)).not.toContain('readToolOperation')
+  expect(Object.keys(tool)).not.toContain('readToolRegistration')
+  const binding = await import('@omne-harness/tool-contract/binding')
+  expect(Object.keys(binding).sort()).toEqual(['readToolOperation', 'readToolRegistration'])
+})
+
+it.each(['src/index.ts', 'dist/index.d.ts'])(
+  'names neither reader nor slot type in the root entry %s',
+  entry => {
+    const root = readFileSync(memberPath(entry), 'utf8')
+    expect(root).not.toMatch(/readTool(Operation|Registration)|Tool(Operation|Registration)Slot/u)
+  },
+)
 
 /** The other Tool packages. The contract package must not depend on any of them. */
 const toolMember = /^@omne-harness\/tool(-cordis-contract|-host-local)?(\/|$)/u
@@ -96,11 +113,14 @@ function routesToCordis(directory: string, route: readonly string[]): string[][]
   })
 }
 
-describe('root entry has no Cordis', () => {
+describe('root and binding entries have no Cordis', () => {
   const entries: readonly (readonly [ModuleKind, string])[] = [
     ['source', 'src/index.ts'],
     ['javascript', 'dist/index.js'],
     ['declaration', 'dist/index.d.ts'],
+    ['source', 'src/binding.ts'],
+    ['javascript', 'dist/binding.js'],
+    ['declaration', 'dist/binding.d.ts'],
   ]
   it.each(entries)('in the %s graph from %s', (kind, entry) => {
     const graph = walkModules(memberPath(entry), kind)

@@ -8,6 +8,7 @@
 - [资产正文 programmable 测试](body-programmable.spec.ts)。
 - [定义判定测试](definition-judgment.spec.ts)。
 - [固定请求判定测试](request-judgment.spec.ts)。
+- [交付解除输入判定测试](release-judgment.spec.ts)。
 - [状态判定测试](state-judgment.spec.ts)。
 - [呈现与可用性测试](catalog.spec.ts)。
 - [作者注册与等待契约测试](author-registration.spec.ts)。

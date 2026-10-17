@@ -47,7 +47,7 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 
 #### 本包的记录仓与决定器（G1，工单 05 起）
 
-`createToolLedger(store, guards, clock)` 返回 `{ commands, reads }`。源码在 [ledger.ts](../src/ledger.ts)、[ledger-decider.ts](../src/ledger-decider.ts)、[ledger-store.ts](../src/ledger-store.ts) 与 [ledger-reads.ts](../src/ledger-reads.ts)。
+`createToolLedger(store, guards, clock, configuration)` 返回 `{ commands, reads, admissions }`。`configuration` 给出结果页大小 `resultPageBytes` 与修订冲突的重试上限 `ledgerCommitAttempts`，两者都来自 `ToolConfiguration`。`admissions.admit` 回复状态与 `recovered`，`commands.admit` 是只回复状态的契约形状。源码在 [ledger.ts](../src/ledger.ts)、[ledger-decider.ts](../src/ledger-decider.ts)、[ledger-store.ts](../src/ledger-store.ts) 与 [ledger-reads.ts](../src/ledger-reads.ts)。
 
 记录仓端口 `ToolLedgerStore<B>` 只有两个操作。`read(domain)` 返回一个事务域的全部记录和当前修订号，或 `unavailable`；返回 `complete` 表示快照包含该域此前每一次已确认的提交。`commit({ domain, expected, revision, writes })` 在 `expected` 等于当前修订号时原子写入全部 `writes` 并把修订号改为 `revision`，否则回答 `conflict`；提交结果不确定时回答 `unknown`，记录仓不可用时回答 `unavailable`。记录仓不解释记录内容，也不做业务判断。`durability` 声明 `none` 或 `durable`；`none` 只能出现在 `./testing`。
 
@@ -61,17 +61,17 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 | `account` | `account:<event>` | 一笔账目修订及其来源 |
 | `task` | `task:<kind>:<operation>` | 一项待办，形状是契约的 `ToolTask` |
 
-写入是 `put` 或 `delete`，按键生效。修订号是该域的规范十进制计数，`ToolState.revision` 等于 `call` 域提交时的修订号。
+写入是 `put` 或 `delete`，按键生效。域修订号是该域的规范十进制计数，每次提交加一。`ToolState.revision` 等于写入该状态的那次提交的域修订号。排除围栏只推进域修订号，不改状态，所以 `WriteContext.expected` 与 admit 的 `stale-revision.current` 都用状态修订号（没有调用记录时为 `0`），记录仓的条件提交用域修订号。
 
-决定器是纯函数：输入快照（按键整理的记录）、一条命令、已核验的 guard 事实与本次铸造的修订号；输出"只回复不写"或"写入一组记录并回复"。它不读端口、不发通知、不运行工具。命令入口按顺序做：边界输入检查（`invalid`）、租户与主体资格（`denied`，缺租户或主体不属于该租户时不区分调用是否存在）、来源核验（伪造 `denied`，不可读 `unavailable`）、读取快照（失败 `unavailable`）、`WriteContext.expected` 与快照修订号比对（`stale-revision`）、决定、按快照修订号条件提交。`conflict` 时重读重判，重试有上限；`unknown` 时回复 `commit-unknown` 并保留原操作号供查询；读到同操作号同摘要的记录时回复原回执，异摘要回复 `conflict`。
+决定器是纯函数：输入快照（按键整理的记录）、一条命令、已核验的 guard 事实与本次铸造的修订号；输出"只回复不写"或"写入一组记录并回复"。它不读端口、不发通知、不运行工具。命令入口按顺序做：边界输入检查（`invalid`）、租户与主体资格（`denied`，缺租户或主体不属于该租户时不区分调用是否存在）、来源核验（伪造 `denied`，不可读 `unavailable`）、读取快照（失败 `unavailable`）、`WriteContext.expected` 与状态修订号比对（`stale-revision`）、决定、按快照的域修订号条件提交。`conflict` 时重读重判，最多 `ledgerCommitAttempts` 次；`unknown` 时回复 `commit-unknown` 并保留原操作号供查询；读到同操作号同摘要的记录时回复原回执，异摘要回复 `conflict`。守卫或记录仓抛出时，回复里只有依赖名，不带异常消息。
 
-admit 的决定顺序：已有 `call` 记录而操作号不同是 `stale-revision`（admit 隐含的期望修订号是"尚未受理"）；`known-unavailable` 不读参数、不查 `complete`、不查 programmable，直接形成 unavailable 终局；可用定义在 programmatic 路径未显式许可时回复 `unsupported`，不写任何记录；`mode=background` 而定义不许可后台是 `invalid`；`complete=false` 是 `invalid`，不受理；原参数与生效参数都经 `judgeToolArguments` 完整解析，任一失败形成 `failed/arguments` 终局；全部通过的真实工具在工单 06 之前回复 `unsupported`。两种逻辑终局同提交 `call`、`operation`、`result`、`account` 与 `deliver` 任务：`phase=settled`、`relation=foreground`、`foreground={ kind: 'final' }`、`execution=not-started`、`effect=not-started`、`timing={ kind: 'closed', accumulatedMs: '0' }`、`queue=none`、`delivery=pending`。请求的 `mode` 不改变这一关系，因为逻辑终局在建立任何等待关系之前形成。结果正文由 `guards.results` 文本工厂生成，再经 `guards.policy.judgeResult` 核验；核验失败时不报告受理完成（`unavailable`）。
+admit 的决定顺序：已有 `call` 记录而操作号不同是 `stale-revision`（admit 隐含的期望修订号是"尚未受理"）；`mode=background` 而定义不许可后台是 `invalid`，dummy 与参数失败也一样；`known-unavailable` 不读参数、不查 `complete`、不查 programmable，直接形成 unavailable 终局；可用定义在 programmatic 路径未显式许可时回复 `unsupported`，不写任何记录；`complete=false` 是 `invalid`，不受理；原参数与生效参数都经 `judgeToolArguments` 完整解析，任一失败形成 `failed/arguments` 终局；全部通过的真实工具在工单 06 之前回复 `unsupported`。两种逻辑终局同提交 `call`、`operation`、`result`、`account` 与 `deliver` 任务：`phase=settled`、`relation=foreground`、`foreground={ kind: 'final' }`、`execution=not-started`、`effect=not-started`、`timing={ kind: 'closed', accumulatedMs: '0' }`、`queue=none`、`delivery=pending`。请求的 `mode` 不改变这一关系，因为逻辑终局在建立任何等待关系之前形成。结果正文由 `guards.results` 文本工厂生成，再经 `guards.policy.judgeResult` 核验；核验失败时不报告受理完成（`unavailable`）。
 
-guards 是受信快照：`access.qualify` 回答主体对该租户、调用与动作的资格；`sources.verify` 回答调用来源是否来自受信入口；`results` 是文本结果工厂；`policy` 是结果政策；`budgets` 给出参数解析预算与结果分页字节数。这些值由宿主在构造时固定，决定器只消费它们的结论。
+guards 是受信快照：`access.qualify` 回答主体对该租户、调用与动作的资格，并证明租户是 legal-identity 铸造的值（账本只查形状）；`sources.verify` 回答调用来源是否来自受信入口；`results` 是文本结果工厂；`policy` 是结果政策；`budgets` 给出参数解析预算。结果页大小是部署配置，不在 guards 里。这些值由宿主在构造时固定，决定器只消费它们的结论。
 
-每种证据各自铸造，不跨用途复用：`ToolState.source` 指向 `state:<call>`，结果来源指向 `result:<call>/<version>`，交付解除回执指向 `delivery:<call>/<version>/<delivery>`，操作回执指向 `operation:<call>/<operation>`，账目来源指向 `account:<call>/<event>`。`revision` 是提交修订号，`digest` 是 `sha256:` 加规范 JSON（键按码点排序，省略 `undefined`）的摘要。
+每种证据各自铸造，不跨用途复用。`record` 是 `<种类>:` 加定位值的规范 JSON。定位值总有租户（两段身份文本）与调用，再加本种类的部分：`result` 加版本、交付号与产生它的操作，`delivery` 加版本与交付号，`operation` 加操作，`account` 加账目事件，`state` 不再加。`revision` 是提交修订号，`digest` 是 `sha256:` 加 `{ kind, place, content }` 的规范 JSON（键按码点排序，省略 `undefined`）的摘要。所以两个租户的同号调用不共享任何证据。
 
-读取投影在 [ledger-reads.ts](../src/ledger-reads.ts)：`lookup` 以受理操作号认回 `call` 记录，快照完整而没有该操作时才回答 `not-accepted`；`operation` 同理回答 `not-committed`；`result` 按完整内容块分页，`next` 是绑定租户、调用、版本、投影与块位置的 JSON 文本，单块超过页预算时回答 `unsupported`（卸载尚未实现），不切块；`account` 只回答账目，不附正文。
+读取投影在 [ledger-reads.ts](../src/ledger-reads.ts)：`lookup` 以受理操作号认回 `call` 记录；`operation` 认回操作记录。两者的否定答案（`not-accepted`、`not-committed`）由 [ledger.ts](../src/ledger.ts) 的排除围栏把关：完整快照里没有该操作时，账本先提交一次没有写入的提交，`expected` 是快照的域修订号；成功后才回答否定答案。按旧修订号准备的在途提交此后都会冲突。围栏冲突就重读重判，围栏未知时 `operation` 回答 `unknown`、`lookup` 回答 `unavailable`，围栏不可用时回答 `unavailable`。这项成本是每个否定答案多一次提交；读取到 `found` 或 `committed` 不提交。`result` 与 `account` 不提交；`result` 按完整内容块分页，`next` 是绑定租户、调用、版本、投影与块位置的 JSON 文本，单块超过页预算时回答 `unsupported`（卸载尚未实现），不切块；`account` 只回答账目，不附正文。
 
 ### 协程驱动
 

@@ -40,9 +40,10 @@ export type AccessVerdict =
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 /**
- * Answers whether the principal may perform `action` on the call of the tenant. The guard also
- * proves that `tenant` is a genuine tenant identity; the ledger checks only its shape. A missing
- * answer is `unavailable`, never `allowed`.
+ * Answers whether the principal may perform `action` on the call of the tenant. The guard must
+ * also prove that `tenant` is a tenant identity minted by legal-identity, not an object of the
+ * same shape: the ledger checks only the shape and keys its records by the identity texts. A
+ * forged tenant is `denied`. A missing answer is `unavailable`, never `allowed`.
  */
 export interface ToolAccessGuard<P> {
   qualify(
@@ -72,11 +73,13 @@ export interface ToolSourceGuard<P> {
   ): Promise<SourceVerdict>
 }
 
+/**
+ * The admission budgets of the guard snapshot. The result page size is deployment configuration
+ * (`ToolConfiguration.resultPageBytes`), so it is not here.
+ */
 export type ToolLedgerBudgets = Readonly<{
   /** The json-text budgets of the admission-time argument parse (P02). */
   arguments: JsonLimits
-  /** The most bytes of content blocks on one result page (P08). */
-  resultPageBytes: number
 }>
 
 export type ToolLedgerGuards<P, B extends ContentBlock> = Readonly<{

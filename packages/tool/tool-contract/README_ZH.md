@@ -1,6 +1,6 @@
 # @omne-harness/tool-contract
 
-与 [README.md](README.md) 是同一成员。设计已接受。根入口导出全部公开类型、品牌身份解码函数、默认结果政策和契约函数，服务定义与服务键在 [`@omne-harness/tool-cordis-contract`](../tool-cordis-contract/README_ZH.md)。独立执行函数与 runtime 尚未实现。
+与 [README.md](README.md) 是同一成员。设计已接受。根入口导出全部公开类型、品牌身份解码函数、默认结果政策和契约函数。子路径入口 `./binding` 只供受信的执行绑定提供者读取句柄内的作者。服务定义与服务键在 [`@omne-harness/tool-cordis-contract`](../tool-cordis-contract/README_ZH.md)。独立执行函数与 runtime 尚未实现。
 
 <a id="342-主干运行契约候选"></a>
 

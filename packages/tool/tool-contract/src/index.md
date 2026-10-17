@@ -2,6 +2,7 @@
 
 - [源码职责与现状](README.md)。
 - [根入口](index.ts)。
+- [绑定提供者入口](binding.ts)。
 - [资产正文端口](contract.ts)。
 - [品牌身份与解码函数](identity.ts)。
 - [定义与固定请求](definitions.ts)。
@@ -18,6 +19,7 @@
 - [可复算的采用摘要](adoption.ts)。
 - [定义判定](judge-definition.ts)。
 - [固定请求判定](judge-request.ts)。
+- [交付解除输入判定](judge-release.ts)。
 - [状态判定](judge-state.ts)。
 - [呈现与可用性判定](catalog.ts)。
 - [操作与作者注册](registration.ts)。

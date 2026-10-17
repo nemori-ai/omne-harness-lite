@@ -6,13 +6,12 @@ import {
   defineToolOperation,
   defineToolWaitContract,
   judgeToolDefinition,
-  readToolOperation,
-  readToolRegistration,
   type ToolMessageContentBlock,
   type ToolOperation,
   type ToolOperationParameters,
   type ToolWaitProtocolDefinition,
 } from '@omne-harness/tool-contract'
+import { readToolOperation, readToolRegistration } from '@omne-harness/tool-contract/binding'
 import {
   adoption,
   metadata,

@@ -3,7 +3,7 @@
 // managed path of logical results: admit, lookup, queryOperation, readResult, releaseDelivery and
 // account go to the ledger ports; every other operation answers a named `unsupported`.
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, type Outcome } from '@omne-harness/kernel-basis'
 import {
   describedAdoption,
   type Adoption,
@@ -11,8 +11,8 @@ import {
   type ToolProvider,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
+import { checkToolConfiguration } from './configuration.ts'
 import type { ToolConfiguration, ToolDependencies } from './construction.ts'
-import { isPositiveSafeInteger, judgeAuthorLimits } from './limits.ts'
 
 /** The identity of this runtime implementation, named in its `unsupported` answers. */
 export const toolRuntimeAdoption: Adoption = describedAdoption({
@@ -23,6 +23,7 @@ export const toolRuntimeAdoption: Adoption = describedAdoption({
 
 const PORTS = [
   'commands',
+  'admissions',
   'bindings',
   'environments',
   'decisions',
@@ -36,38 +37,6 @@ const PORTS = [
   'reads',
   'children',
 ] as const satisfies readonly (keyof ToolDependencies<unknown, ContentBlock, unknown>)[]
-
-const CAPACITIES = ['processBatchBytes', 'observerBufferBytes', 'resultPageBytes'] as const
-const DELAYS = ['processBatchDelayMs', 'reconciliationDelayMs'] as const
-
-function isNonNegativeSafeInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
-}
-
-/**
- * The construction-time check of the configuration (342: capacities positive, delays
- * non-negative and finite, all verified at load). A bad configuration is an assembly defect, so
- * it throws instead of building a runtime that would misbehave later.
- */
-function checkConfiguration(configuration: ToolConfiguration): void {
-  const limits = judgeAuthorLimits(
-    Object.fromEntries(Object.entries(configuration).filter(([key]) => !isRuntimeBudget(key))),
-    'configuration',
-  )
-  if ('failure' in limits) throw new TypeError(`${limits.failure.field}: ${limits.failure.reason}`)
-  for (const key of CAPACITIES)
-    if (!isPositiveSafeInteger(configuration[key]))
-      throw new TypeError(`configuration.${key}: range`)
-  for (const key of DELAYS)
-    if (!isNonNegativeSafeInteger(configuration[key]))
-      throw new TypeError(`configuration.${key}: range`)
-}
-
-function isRuntimeBudget(key: string): boolean {
-  return (
-    (CAPACITIES as readonly string[]).includes(key) || (DELAYS as readonly string[]).includes(key)
-  )
-}
 
 function checkDependencies<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
@@ -97,23 +66,14 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   configuration: ToolConfiguration,
 ): ToolProvider<P, B> {
-  checkConfiguration(configuration)
+  checkToolConfiguration(configuration)
   checkDependencies(dependencies)
-  const { commands, reads } = dependencies
+  const { commands, reads, admissions } = dependencies
   const runtime: ToolRuntime<P, B> = {
     inspect: () => unsupported('inspect', 'ticket 06'),
-    admit: async input => {
-      // The recall question is answered by the operation record, not by the admit reply, which
-      // is the original receipt in both cases (P01). A duplicate that races the first commit
-      // reports `recovered: false`; both callers still hold the same original state.
-      const known = await reads.operation(input)
-      if ('failure' in known)
-        // The read is internal to the admission, so its denial is the admission's denial.
-        return known.failure.kind === 'denied' ? fail({ kind: 'denied', action: 'admit' }) : known
-      const admitted = await commands.admit(input)
-      if ('failure' in admitted) return admitted
-      return succeed({ state: admitted.ok, recovered: known.ok.kind === 'committed' })
-    },
+    // The ledger tells whether it recalled a committed admission (P01); the runtime does not
+    // read the operation first, so an admission needs no query permission.
+    admit: input => admissions.admit(input),
     lookup: input => reads.lookup(input),
     queryOperation: input => reads.operation(input),
     control: () => unsupported('control', 'ticket 08'),

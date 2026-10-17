@@ -1,20 +1,27 @@
 import { describe, expect, it } from 'vitest'
+import type { ToolLedgerStore } from '@omne-harness/tool'
 import type { ToolState } from '@omne-harness/tool-contract'
 import {
   admission,
   callId,
   dummyRequest,
   evidence,
+  failure,
   functionDefinition,
   harness,
   judged,
+  ledgerOver,
   ok,
   operationId,
   principalA,
   principalB,
   request,
+  tenant,
   tenantA,
   tenantB,
+  type Block,
+  type Principal,
+  type TenantShape,
 } from './runtime-values.ts'
 
 function settledTerminal(state: ToolState) {
@@ -33,6 +40,43 @@ describe('10 boundary and qualification', () => {
     expect(await runtime.admit({ ...input, tenant: malformed as never })).toEqual({
       failure: { kind: 'denied', action: 'admit' },
     })
+    // The halves are typed identities: an account half under another name is not a tenant.
+    const misnamed = { ...tenantA, account: { name: 'OrganizationId', text: 'acc_a' } }
+    expect(await runtime.admit({ ...input, tenant: misnamed as never })).toEqual({
+      failure: { kind: 'denied', action: 'admit' },
+    })
+  })
+
+  it('10 boundary: the access guard proves the tenant is minted; a forged object of the same shape is denied', async () => {
+    // The ledger checks only the shape (SPEC 10); the guard, built with legal-identity in a
+    // real host, recognises the minted values. Here the minted set stands in for that check.
+    const { runtime, store } = harness({ minted: new Set([tenantA]) })
+    const forgedTenant = tenant('org_a', 'acc_a')
+    const input = admission('call-1', 'op-1', dummyRequest(), principalA, forgedTenant)
+    expect(await runtime.admit(input)).toEqual({ failure: { kind: 'denied', action: 'admit' } })
+    expect(store.commits).toBe(0)
+    ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+  })
+
+  it('10 boundary: a port that throws is unavailable with a diagnostic that carries no secret text', async () => {
+    const secret = 'connect ECONNREFUSED postgres://user:pass@host'
+    const guarded = harness({ accessThrows: secret })
+    const denied = failure(await guarded.runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    expect(denied).toMatchObject({ kind: 'unavailable', dependency: 'access-guard' })
+    expect(JSON.stringify(denied)).not.toContain('pass')
+    const throwing: ToolLedgerStore<Block> = {
+      durability: 'none',
+      read: () => Promise.reject(new Error(secret)),
+      commit: () => Promise.reject(new Error(secret)),
+    }
+    const { reads, admissions } = ledgerOver(throwing)
+    const unread = failure(
+      await reads.lookup({ ...admission('call-1', 'op-1'), admission: operationId('op-1') }),
+    )
+    expect(unread).toMatchObject({ kind: 'unavailable', dependency: 'ledger-store' })
+    expect(JSON.stringify(unread)).not.toContain('pass')
+    const unadmitted = await admissions.admit(admission('call-1', 'op-1', dummyRequest()))
+    expect(JSON.stringify(unadmitted)).not.toContain('pass')
   })
 
   it('10 boundary: a principal of another tenant is denied by every operation and learns nothing', async () => {
@@ -55,10 +99,19 @@ describe('10 boundary and qualification', () => {
       }),
       account: runtime.account(theirs),
     }
-    for (const [action, probe] of Object.entries(probes)) {
-      expect([action, await probe]).toEqual([
-        action,
-        { failure: { kind: 'denied', action: expect.any(String) } },
+    // Each operation names its own resource action, so a guard can grant them separately.
+    const actions: Record<keyof typeof probes, string> = {
+      admit: 'admit',
+      lookup: 'lookup',
+      queryOperation: 'query-operation',
+      readResult: 'read-result',
+      releaseDelivery: 'release-delivery',
+      account: 'account',
+    }
+    for (const [name, probe] of Object.entries(probes)) {
+      expect([name, await probe]).toEqual([
+        name,
+        { failure: { kind: 'denied', action: actions[name as keyof typeof probes] } },
       ])
     }
     // The same call name under the other tenant does not exist there: nothing of tenant A shows.
@@ -98,6 +151,74 @@ describe('10 boundary and qualification', () => {
     expect(await blind.runtime.admit(admission('call-1', 'op-1', dummyRequest()))).toEqual({
       failure: { kind: 'unavailable', dependency: 'access-guard', diagnostic: 'directory down' },
     })
+  })
+
+  it('10 boundary: an admission needs only the admit permission, not the query permission', async () => {
+    const { runtime } = harness({ deniedActions: ['query-operation'] })
+    const first = ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    expect(first.recovered).toBe(false)
+    const again = ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    expect(again).toEqual({ state: first.state, recovered: true })
+    expect(
+      await runtime.queryOperation({
+        ...admission('call-1', 'op-1'),
+        operation: operationId('op-1'),
+      }),
+    ).toEqual({ failure: { kind: 'denied', action: 'query-operation' } })
+  })
+
+  it('10 boundary: two tenants with the same call identity get different evidence of every kind', async () => {
+    const { runtime, store } = harness()
+    const evidenceOf = async (principal: Principal, within: TenantShape) => {
+      const access = { principal, tenant: within, call: callId('call-1') }
+      const admitted = ok(
+        await runtime.admit(admission('call-1', 'op-1', dummyRequest(), principal, within)),
+      )
+      const page = ok(await runtime.readResult({ ...access, result: 'v1' as never, after: null }))
+      const receipt = ok(
+        await runtime.queryOperation({ ...access, operation: operationId('op-1') }),
+      )
+      const released = ok(
+        await runtime.releaseDelivery({
+          ...access,
+          operation: operationId('op-2'),
+          result: 'v1' as never,
+          delivery: 'd1' as never,
+          consumer: dummyRequest().consumer,
+          evidence: { kind: 'retained', custody: evidence('kept', 'session') },
+        }),
+      )
+      const read = await store.read({
+        kind: 'call',
+        tenant: within as never,
+        call: callId('call-1'),
+      })
+      const account = read.kind === 'complete' ? read.records.find(r => r.kind === 'account') : null
+      return {
+        state: admitted.state.source,
+        result: page.source,
+        operation: receipt.kind === 'committed' ? receipt.receipt : null,
+        delivery: released.kind === 'released' ? released.evidence : null,
+        account: account?.kind === 'account' ? account.account.source : null,
+      }
+    }
+    const a = await evidenceOf(principalA, tenantA)
+    const b = await evidenceOf(principalB, tenantB)
+    for (const kind of ['state', 'result', 'operation', 'delivery', 'account'] as const) {
+      const left = a[kind]
+      const right = b[kind]
+      expect([kind, left === null || right === null]).toEqual([kind, false])
+      expect([kind, left?.record === right?.record]).toEqual([kind, false])
+      expect([kind, left?.digest === right?.digest]).toEqual([kind, false])
+      expect([kind, left?.record]).toEqual([
+        kind,
+        expect.stringContaining('"organization":"org_a"'),
+      ])
+      expect([kind, right?.record]).toEqual([
+        kind,
+        expect.stringContaining('"organization":"org_b"'),
+      ])
+    }
   })
 })
 
@@ -184,7 +305,133 @@ describe('11 operation idempotency (P01)', () => {
     ).toEqual({ ok: { kind: 'not-committed' } })
     const admitted = ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
     expect(admitted.recovered).toBe(false)
-    expect(store.commits).toBe(2)
+    // The dropped attempt, the exclusion fence of the query, and the admission.
+    expect(store.commits).toBe(3)
+  })
+
+  it('11 idempotency: not-committed excludes an in-flight commit that lands later', async () => {
+    const { runtime, store } = harness()
+    const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
+    store.injectCommit('unknown-delayed')
+    expect(await runtime.admit(admission('call-1', 'op-1', dummyRequest()))).toEqual({
+      failure: { kind: 'commit-unknown', operation: 'op-1' },
+    })
+    expect(await runtime.queryOperation(query)).toEqual({ ok: { kind: 'not-committed' } })
+    // The held commit expected the revision that the fence advanced, so it cannot land.
+    expect(store.landDelayed()).toEqual([{ kind: 'conflict' }])
+    expect(await runtime.queryOperation(query)).toEqual({ ok: { kind: 'not-committed' } })
+    const admitted = ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    expect(admitted.recovered).toBe(false)
+    expect(await runtime.queryOperation(query)).toMatchObject({ ok: { kind: 'committed' } })
+  })
+
+  it('11 idempotency: a commit that lands before the fence is recognised, not excluded', async () => {
+    const memory = harness().store
+    memory.injectCommit('unknown-delayed')
+    // The held commit lands just before the fence commit, as a slow store would apply it.
+    const racing: ToolLedgerStore<Block> = {
+      durability: 'none',
+      read: domain => memory.read(domain),
+      commit: input => {
+        if (input.writes.length === 0) memory.landDelayed()
+        return memory.commit(input)
+      },
+    }
+    const { admissions, reads } = ledgerOver(racing)
+    expect(await admissions.admit(admission('call-1', 'op-1', dummyRequest()))).toEqual({
+      failure: { kind: 'commit-unknown', operation: 'op-1' },
+    })
+    const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
+    expect(await reads.operation(query)).toMatchObject({ ok: { kind: 'committed' } })
+    const lookup = { ...admission('call-1', 'op-1'), admission: operationId('op-1') }
+    expect(await reads.lookup(lookup)).toMatchObject({ ok: { kind: 'found' } })
+  })
+
+  it('11 idempotency: a fence whose outcome is unknown or unavailable never answers the negative', async () => {
+    const { runtime, store } = harness()
+    const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
+    const lookup = { ...admission('call-1', 'op-1'), admission: operationId('op-1') }
+    store.injectCommit('unknown-dropped')
+    expect(await runtime.queryOperation(query)).toEqual({ ok: { kind: 'unknown' } })
+    store.injectCommit('unknown-dropped')
+    expect(await runtime.lookup(lookup)).toMatchObject({
+      failure: { kind: 'unavailable', dependency: 'ledger-store' },
+    })
+    store.injectCommit('unavailable')
+    expect(await runtime.queryOperation(query)).toEqual({
+      failure: { kind: 'unavailable', dependency: 'ledger-store', diagnostic: 'injected' },
+    })
+    store.injectCommit('unavailable')
+    expect(await runtime.lookup(lookup)).toMatchObject({
+      failure: { kind: 'unavailable', dependency: 'ledger-store' },
+    })
+  })
+
+  it('11 idempotency: a fence does not make the holder of the current state stale', async () => {
+    const { ledger, runtime } = harness()
+    const first = ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    // A negative lookup fences the domain; the state and its revision stay as they were.
+    expect(
+      await runtime.lookup({ ...admission('call-1', 'op-1'), admission: operationId('op-9') }),
+    ).toEqual({ ok: { kind: 'not-accepted', operation: 'op-9' } })
+    const found = ok(
+      await runtime.lookup({ ...admission('call-1', 'op-1'), admission: operationId('op-1') }),
+    )
+    expect(found).toEqual({ kind: 'found', state: first.state })
+    const context = {
+      principal: principalA,
+      tenant: tenantA,
+      call: callId('call-1'),
+      instance: 'instance-1' as never,
+      generation: 'g1',
+      operation: operationId('op-3'),
+      expected: first.state.revision,
+    }
+    expect(await ledger.commands.enqueue(context)).toMatchObject({
+      failure: { kind: 'unsupported', reason: expect.stringContaining('enqueue') },
+    })
+    expect(await runtime.admit(admission('call-1', 'op-2', dummyRequest()))).toEqual({
+      failure: { kind: 'stale-revision', current: first.state.revision },
+    })
+  })
+
+  it('11 idempotency: concurrent first admissions admit once and the duplicate is recognised', async () => {
+    const same = harness()
+    const pair = await Promise.all([
+      same.runtime.admit(admission('call-1', 'op-1', dummyRequest())),
+      same.runtime.admit(admission('call-1', 'op-1', dummyRequest())),
+    ])
+    const [left, right] = pair.map(ok)
+    expect(left?.state).toEqual(right?.state)
+    expect(pair.map(outcome => ok(outcome).recovered).sort()).toEqual([false, true])
+    const other = harness()
+    const raced = await Promise.all([
+      other.runtime.admit(admission('call-1', 'op-1', dummyRequest())),
+      other.runtime.admit(admission('call-1', 'op-2', dummyRequest())),
+    ])
+    const admitted = raced.filter(outcome => 'ok' in outcome)
+    expect(admitted).toHaveLength(1)
+    expect(raced.filter(outcome => 'failure' in outcome)).toEqual([
+      { failure: { kind: 'stale-revision', current: ok(admitted[0] ?? raced[0]).state.revision } },
+    ])
+  })
+
+  it('11 idempotency: revision conflicts are retried up to the configured attempts, then unavailable', async () => {
+    const once = harness({ ledgerCommitAttempts: 1 })
+    once.store.injectCommit('conflict')
+    expect(await once.runtime.admit(admission('call-1', 'op-1', dummyRequest()))).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'ledger-store',
+        diagnostic: '1 revision conflicts in a row',
+      },
+    })
+    const twice = harness({ ledgerCommitAttempts: 2 })
+    twice.store.injectCommit('conflict')
+    expect(
+      ok(await twice.runtime.admit(admission('call-1', 'op-1', dummyRequest()))).recovered,
+    ).toBe(false)
+    expect(twice.store.commits).toBe(2)
   })
 
   it('11 idempotency: a read failure of the store is unavailable, never a missing call', async () => {
@@ -222,6 +469,38 @@ describe('12 logical terminals (P02)', () => {
       timing: { kind: 'closed', accumulatedMs: '0' },
     })
     expect([...spies.calls.keys()]).toEqual([])
+  })
+
+  it('12 logical terminal: one commit holds the call, the operation, the result, the account and the deliver task', async () => {
+    const { runtime, store } = harness()
+    ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    expect(store.commits).toBe(1)
+    const read = await store.read({
+      kind: 'call',
+      tenant: tenantA as never,
+      call: callId('call-1'),
+    })
+    if (read.kind !== 'complete') throw new Error('read failed')
+    expect(read.revision).toBe('1')
+    expect(read.records.map(record => record.kind).sort()).toEqual([
+      'account',
+      'call',
+      'operation',
+      'result',
+      'task',
+    ])
+    expect(read.records.find(record => record.kind === 'task')).toEqual({
+      kind: 'task',
+      task: {
+        kind: 'deliver',
+        operation: 'op-1',
+        state: 'pending',
+        diagnostic: null,
+        result: 'v1',
+        delivery: 'd1',
+        consumer: dummyRequest().consumer,
+      },
+    })
   })
 
   it('12 logical terminal: complete but illegal arguments settle as an arguments failure', async () => {
@@ -310,12 +589,24 @@ describe('13 invocation permission', () => {
     expect(settledTerminal(admitted.state).kind).toBe('unavailable')
   })
 
-  it('13 permission: a background start needs the author permission', async () => {
-    const { runtime } = harness()
+  it('13 permission: a background start needs the author permission, for a logical terminal too', async () => {
+    const { runtime, store } = harness()
+    const refused = {
+      failure: { kind: 'invalid', field: 'request.mode', reason: 'background-not-allowed' },
+    }
     expect(
       await runtime.admit(admission('call-1', 'op-1', request({ mode: 'background' }))),
-    ).toEqual({
-      failure: { kind: 'invalid', field: 'request.mode', reason: 'background-not-allowed' },
+    ).toEqual(refused)
+    // A dummy and an argument failure would settle without running; the request is still one
+    // that the definition does not permit, so it gets the same refusal and nothing is admitted.
+    expect(
+      await runtime.admit(admission('call-1', 'op-1', dummyRequest({ mode: 'background' }))),
+    ).toEqual(refused)
+    const broken = request({
+      mode: 'background',
+      arguments: { original: '{', effective: '{', complete: true },
     })
+    expect(await runtime.admit(admission('call-1', 'op-1', broken))).toEqual(refused)
+    expect(store.commits).toBe(0)
   })
 })

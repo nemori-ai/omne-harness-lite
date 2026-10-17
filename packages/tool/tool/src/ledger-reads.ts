@@ -1,6 +1,7 @@
 // The read projections of one domain snapshot: lookup, operation resolution, result pages and the
-// call account (P01, P08, P09). They answer `not-accepted` or `not-committed` only from a complete
-// snapshot; the caller answers `unavailable` when the read itself failed.
+// call account (P01, P08, P09). They project `not-accepted` or `not-committed` only from a
+// complete snapshot; the ledger answers such a negative only after its exclusion fence commits,
+// and answers `unavailable` when the read itself failed.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
 import type {
@@ -34,14 +35,11 @@ export function resolveOperation<B extends ContentBlock>(
 ): OperationResolution {
   const record = snapshot.operations.get(operation)
   if (record === undefined) return { kind: 'not-committed' }
+  const place = { tenant: record.tenant, call: record.call, operation: record.operation }
   return {
     kind: 'committed',
     revision: record.revision,
-    receipt: mintEvidence(
-      `operation:${record.call}/${record.operation}`,
-      record.revision,
-      record.receipt,
-    ),
+    receipt: mintEvidence('operation', place, record.revision, record.receipt),
   }
 }
 
@@ -174,7 +172,9 @@ export function readResultPage<B extends ContentBlock>(
   }
   const start = input.after === null ? succeed(0) : readCursor(input.after, bound)
   if ('failure' in start) return start
-  if (start.ok > record.value.content.length)
+  // A cursor is issued only for a block that exists, so a cursor at or after the end is not one
+  // of ours; a page is never empty (at least one block).
+  if (input.after !== null && start.ok >= record.value.content.length)
     return fail({ kind: 'invalid-cursor', reason: 'past-the-end' })
   const page = pageBlocks(record.value.content, start.ok, input.pageBytes, input.adoption)
   if ('failure' in page) return page

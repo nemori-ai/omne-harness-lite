@@ -24,7 +24,13 @@ import type {
   ToolTerminal,
 } from '@omne-harness/tool-contract'
 import { invalid } from './boundary.ts'
-import { LEDGER_OWNER, deliveryId, mintEvidence, resultVersion } from './evidence.ts'
+import {
+  INITIAL_REVISION,
+  LEDGER_OWNER,
+  deliveryId,
+  mintEvidence,
+  resultVersion,
+} from './evidence.ts'
 import {
   taskKey,
   type AccountRecord,
@@ -117,27 +123,31 @@ export type AdmitTools<B extends ContentBlock> = Readonly<{
   text(reason: string): Outcome<ToolResult<B>, Readonly<{ reason: string }>>
 }>
 
+/** What an admission decision answers: the state, and whether it recalled a committed admission. */
+export type Admitted = Readonly<{ state: ToolState; recovered: boolean }>
+
 /**
  * Decides one admission. Order: recall by operation; a call admitted under another operation is
- * `stale-revision` (admit expects "not admitted yet"); a known-unavailable target settles as
- * unavailable without reading the arguments; a script call to a tool without `programmable`
- * is `unsupported`; a background start needs the author's permission; incomplete arguments are
- * `invalid`; a failed strict parse of either text settles as an arguments failure; a real
- * execution is not implemented in this increment.
+ * `stale-revision` (admit expects "not admitted yet"); a background start needs the author's
+ * permission, for a logical terminal too; a known-unavailable target settles as unavailable
+ * without reading the arguments; a script call to a tool without `programmable` is
+ * `unsupported`; incomplete arguments are `invalid`; a failed strict parse of either text
+ * settles as an arguments failure; a real execution is not implemented in this increment.
  */
 export function decideAdmit<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   command: AdmitCommand,
   tools: AdmitTools<B>,
   mint: Mint,
-): Decision<ToolState, B> {
+): Decision<Admitted, B> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'admit')
   if ('failure' in known) return reply(known)
-  if (known.ok !== undefined) return reply(succeed(stateOf(known.ok)))
-  if (snapshot.call !== null)
-    return reply(fail({ kind: 'stale-revision', current: snapshot.revision }))
+  if (known.ok !== undefined) return reply(succeed({ state: stateOf(known.ok), recovered: true }))
+  if (snapshot.call !== null) return reply(staleCall(snapshot.call))
   const { request } = command
   const { definition } = request.availability
+  if (request.mode === 'background' && !definition.backgroundAllowed)
+    return reply(invalid('request.mode', 'background-not-allowed'))
   if (request.availability.kind === 'known-unavailable')
     return settle(
       command,
@@ -153,8 +163,6 @@ export function decideAdmit<B extends ContentBlock>(
         reason: 'the definition does not permit programmatic invocation',
       }),
     )
-  if (request.mode === 'background' && !definition.backgroundAllowed)
-    return reply(invalid('request.mode', 'background-not-allowed'))
   const parsed = tools.arguments(request.arguments)
   if ('failure' in parsed) return argumentsFailure(command, parsed.failure, tools, mint)
   return reply(
@@ -164,6 +172,19 @@ export function decideAdmit<B extends ContentBlock>(
       reason: 'real execution is not implemented in this increment (ticket 06)',
     }),
   )
+}
+
+/**
+ * The revision a write context compares with is the revision of the call's current state. An
+ * exclusion fence advances the domain revision without a new state, so it does not make the
+ * holder of the current state stale.
+ */
+export function stateRevision<B extends ContentBlock>(snapshot: Snapshot<B>): ToolRevision {
+  return snapshot.call?.state.revision ?? INITIAL_REVISION
+}
+
+function staleCall(call: CallRecord): Outcome<never, ToolFailure> {
+  return fail({ kind: 'stale-revision', current: call.state.revision })
 }
 
 function stateOf(record: OperationRecord): ToolState {
@@ -176,7 +197,7 @@ function argumentsFailure<B extends ContentBlock>(
   rejection: ToolArgumentsRejection,
   tools: AdmitTools<B>,
   mint: Mint,
-): Decision<ToolState, B> {
+): Decision<Admitted, B> {
   switch (rejection.kind) {
     case 'incomplete':
       return reply(invalid('request.arguments.complete', 'incomplete'))
@@ -210,6 +231,9 @@ function describeTerminal(terminal: ToolTerminal): string {
   }
 }
 
+/** The account event of the replacement processing recorded at admission. */
+const ADMISSION_EVENT = 'admission'
+
 /**
  * The replacement-processing account of a logical terminal (P09): no original tool ran, so no
  * usage or cost is invented. The processing duration is not measured in this increment, so it is
@@ -234,7 +258,7 @@ function settle<B extends ContentBlock>(
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
   tools: AdmitTools<B>,
   mint: Mint,
-): Decision<ToolState, B> {
+): Decision<Admitted, B> {
   const made = tools.text(describeTerminal(terminal))
   if ('failure' in made)
     return reply(
@@ -247,8 +271,11 @@ function settle<B extends ContentBlock>(
     delivery: deliveryId(1),
     consumer: request.consumer,
   }
-  const state = logicalState(call, version, terminal, delivery, mint.revision)
+  const state = logicalState(tenant, call, version, terminal, delivery, mint.revision)
   const resultBody = { terminal, effect: state.effect, value: made.ok }
+  // ResultPage.source locates the tenant, the call, the exact version, the delivery and the
+  // operation that produced the version, its actual source.
+  const resultPlace = { tenant, call, result: version, delivery: delivery.delivery, operation }
   const result: ResultRecord<B> = {
     tenant,
     call,
@@ -259,7 +286,7 @@ function settle<B extends ContentBlock>(
     effect: state.effect,
     value: made.ok,
     delivery,
-    source: mintEvidence(`result:${call}/${version}`, mint.revision, resultBody),
+    source: mintEvidence('result', resultPlace, mint.revision, resultBody),
     settledBy: operation,
   }
   const account = replacementAccount(call)
@@ -284,14 +311,19 @@ function settle<B extends ContentBlock>(
           tenant,
           call,
           start: null,
-          source: mintEvidence(`account:${call}/admission`, mint.revision, account),
-          event: 'admission',
+          source: mintEvidence(
+            'account',
+            { tenant, call, event: ADMISSION_EVENT },
+            mint.revision,
+            account,
+          ),
+          event: ADMISSION_EVENT,
           value: account,
         },
       }),
       put({ kind: 'task', task }),
     ],
-    value: state,
+    value: { state, recovered: false },
   }
 }
 
@@ -319,6 +351,7 @@ function operationRecord<B extends ContentBlock>(
  * `judgeToolState` rules for an unavailable terminal).
  */
 function logicalState(
+  tenant: TenantId,
   call: ToolCallId,
   version: ToolResultVersion,
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
@@ -342,7 +375,8 @@ function logicalState(
     relation: 'foreground',
     terminal,
   } as const
-  const state: ToolState = { ...body, source: mintEvidence(`state:${call}`, revision, body) }
+  const source = mintEvidence('state', { tenant, call }, revision, body)
+  const state: ToolState = { ...body, source }
   return state
 }
 
@@ -408,15 +442,16 @@ export function decideRelease<B extends ContentBlock>(
   if ('failure' in target) return reply(target)
   const record = target.ok
   if (record.delivery.kind === 'released') return reply(succeed(record.delivery))
+  const { tenant, call: callId, result, delivery } = command
   const released: DeliveryState = {
     kind: 'released',
     delivery: record.delivery.delivery,
     consumer: record.delivery.consumer,
-    evidence: mintEvidence(
-      `delivery:${command.call}/${command.result}/${command.delivery}`,
-      mint.revision,
-      { operation: command.operation, consumer: command.consumer, handoff: command.evidence },
-    ),
+    evidence: mintEvidence('delivery', { tenant, call: callId, result, delivery }, mint.revision, {
+      operation: command.operation,
+      consumer: command.consumer,
+      handoff: command.evidence,
+    }),
   }
   const call = snapshot.call
   if (call === null) throw new Error('releaseTarget checked the call record')
@@ -427,7 +462,7 @@ export function decideRelease<B extends ContentBlock>(
       put(operationRecord(command, { kind: 'release-delivery', delivery: released }, mint)),
       put({
         kind: 'call',
-        call: { ...call, state: withDelivery(call.state, record, released, mint) },
+        call: { ...call, state: withDelivery(call, record, released, mint) },
       }),
       { kind: 'delete', key: taskKey({ kind: 'deliver', operation: record.settledBy }) },
     ],
@@ -442,12 +477,12 @@ function deliveryOf(record: OperationRecord): DeliveryState {
 
 /** The state after a release: the original delivery or the supplement of that version changes. */
 function withDelivery<B extends ContentBlock>(
-  state: ToolState,
+  call: CallRecord,
   record: ResultRecord<B>,
   released: DeliveryState,
   mint: Mint,
 ): ToolState {
-  const { source: _source, ...rest } = state
+  const { source: _source, ...rest } = call.state
   const body =
     record.relation === 'original'
       ? { ...rest, revision: mint.revision, delivery: released }
@@ -458,5 +493,6 @@ function withDelivery<B extends ContentBlock>(
             entry.result === record.result ? { ...entry, delivery: released } : entry,
           ),
         }
-  return { ...body, source: mintEvidence(`state:${state.call}`, mint.revision, body) }
+  const place = { tenant: call.tenant, call: call.call }
+  return { ...body, source: mintEvidence('state', place, mint.revision, body) }
 }

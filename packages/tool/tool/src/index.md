@@ -7,6 +7,7 @@
 - [作者限额检查](limits.ts)。
 - [等待请求的 JSON 树](json-tree.ts)。
 - [构造形状](construction.ts)。
+- [配置检查](configuration.ts)。
 - [记录仓端口与记录](ledger-store.ts)。
 - [账本受信快照](ledger-guards.ts)。
 - [边界检查](boundary.ts)。

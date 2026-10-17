@@ -7,7 +7,8 @@
 - [result-policy.ts](result-policy.ts) 给出默认结果政策的规则集、采用和判定。[adoption.ts](adoption.ts) 按规则集计算可复算的采用摘要，根入口导出 `describedAdoption`，各实现与 Cordis 定义包用它给出同一摘要。
 - 契约函数按领域知识分模块：[judge-definition.ts](judge-definition.ts) 判定定义，[judge-request.ts](judge-request.ts) 判定固定请求，[judge-state.ts](judge-state.ts) 判定状态，[catalog.ts](catalog.ts) 给出呈现与可用性，[registration.ts](registration.ts) 构造操作与作者注册，[wait-contract.ts](wait-contract.ts) 固定等待协议，[parameter-codec.ts](parameter-codec.ts) 给出默认参数 codec 与受理时的参数判定，[result-rendering.ts](result-rendering.ts) 渲染作者返回，[result-projection.ts](result-projection.ts) 投影模型消息块。
 - 内部模块不从根入口导出。[shape.ts](shape.ts) 是封闭形状检查的组合件，只读自身数据属性并返回冻结副本。[json-tree.ts](json-tree.ts) 检查 json-text 树并计算其 JSON 文本字节数。[value-shapes.ts](value-shapes.ts) 给出采用、证据、消费位置、schema 身份和内容引用的共用形状。内容引用的规则取自 `@omne-harness/content-block`，本成员不另存一份。
-- 操作句柄和作者注册把作者能力放在模块私有 symbol 下。`readToolOperation` 和 `readToolRegistration` 从根入口导出，供绑定提供者（G7）读取；句柄与注册是执行域的能力，不交给脚本。
+- 操作句柄和作者注册把作者能力放在模块私有 symbol 下。[binding.ts](binding.ts) 是子路径入口 `./binding`，导出 `readToolOperation` 和 `readToolRegistration`，只供受信的绑定提供者（G7）读取。根入口不导出它们。句柄与注册是执行域的能力，不交给脚本。
+- [judge-release.ts](judge-release.ts) 给出 releaseDelivery 的消费位置与交接证据的封闭检查 `judgeConsumerRef`、`judgeHandoff`，根入口导出。
 - 本包没有 Cordis 入口，也不依赖 `@deepseek-ai/cordis` 或其他 Tool 包。服务定义在 `@omne-harness/tool-cordis-contract`。
 
 独立执行函数、账本工厂与 runtime 工厂在 `@omne-harness/tool` 实现，依据 [SPEC](../SPEC.md) 的已接受范围，不能按源码便利改变承诺；导航见 [public-api](../docs/public-api.md)。文档导航见 [index](index.md)。

@@ -9,17 +9,11 @@ export {
 } from './result-policy.ts'
 export { judgeToolDefinition } from './judge-definition.ts'
 export { judgeFixedToolRequest } from './judge-request.ts'
+export { judgeConsumerRef, judgeHandoff } from './judge-release.ts'
 export { judgeToolState } from './judge-state.ts'
 export { evaluateToolAvailability, presentTool } from './catalog.ts'
-export {
-  defineCommandTool,
-  defineFunctionTool,
-  defineToolOperation,
-  readToolOperation,
-  readToolRegistration,
-  type ToolOperationSlot,
-  type ToolRegistrationSlot,
-} from './registration.ts'
+// The readers of the author inside a handle are on the `./binding` entry, not here.
+export { defineCommandTool, defineFunctionTool, defineToolOperation } from './registration.ts'
 export { defineToolWaitContract } from './wait-contract.ts'
 export {
   createDefaultParameterCodec,

@@ -340,7 +340,7 @@ Code 的父子预留、可信来源、前台计时、可靠结果承接和控制
 
 | 编号 | 决定 | 归属包 |
 | --- | --- | --- |
-| G1 | 账本工厂 `createToolLedger(store, guards, clock)` 返回 `{ commands, reads }`。记录仓端口 `ToolLedgerStore` 按事务域读取一组记录，再按修订号原子提交一组写入 | `tool` 根入口 |
+| G1 | 账本工厂 `createToolLedger(store, guards, clock, configuration)` 返回 `{ commands, reads, admissions }`。记录仓端口 `ToolLedgerStore` 按事务域读取一组记录，再按修订号原子提交一组写入 | `tool` 根入口 |
 | G2 | `createIndependentToolScope(input)` 构造独立执行作用域：本地接收者、显式上限、内存等待历史，按 [P11](#p11-作者输出与等待原语) 只承诺 `local` 回执。输入类型是 `IndependentToolScopeInput` | `tool` 根入口；输入类型在 `tool-contract` |
 | G3 | 具名默认结果政策只接受文本块与共享引用块，拒绝 thinking、inline 媒体与嵌套容器（[P14](#p14-附件引用与模型交付)）。其身份是 `defaultResultPolicyAdoption` | `tool-contract` 根入口 |
 | G4 | 宿主时钟适配器：同进程单调时钟加进程 epoch，跨进程比较返回 unknown（[P07](#p07-计时控制与检查点)） | `tool-host-local` 根入口 |

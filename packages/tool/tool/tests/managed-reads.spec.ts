@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { ToolLedgerStore } from '@omne-harness/tool'
 import type { ResultPage } from '@omne-harness/tool-contract'
 import {
   admission,
@@ -8,10 +9,13 @@ import {
   failure,
   harness,
   judged,
+  ledgerOver,
   ok,
   operationId,
   principalA,
+  principalB,
   tenantA,
+  tenantB,
   type Block,
 } from './runtime-values.ts'
 
@@ -52,13 +56,44 @@ describe('14 queries (P01)', () => {
     expect(resolved).toMatchObject({
       kind: 'committed',
       revision: admitted.state.revision,
-      receipt: { owner: '@omne-harness/tool', record: 'operation:call-1/op-1' },
+      receipt: {
+        owner: '@omne-harness/tool',
+        record:
+          'operation:{"call":"call-1","operation":"op-1","tenant":{"account":"acc_a","organization":"org_a"}}',
+      },
     })
     expect(await runtime.queryOperation({ ...access, operation: operationId('op-2') })).toEqual({
       ok: { kind: 'not-committed' },
     })
   })
+
+  it('14 queries: a receipt does not change when the store gives the record keys in another order', async () => {
+    // A durable store need not keep key order (a JSONB column sorts keys), so the digest of a
+    // record read back must not depend on it.
+    const { runtime, store } = harness()
+    ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    const query = { ...access, operation: operationId('op-1') }
+    const plain = ok(await runtime.queryOperation(query))
+    const reordering: ToolLedgerStore<Block> = {
+      durability: 'none',
+      read: async domain => {
+        const read = await store.read(domain)
+        return read.kind === 'complete' ? { ...read, records: read.records.map(reversed) } : read
+      },
+      commit: input => store.commit(input),
+    }
+    const again = ok(await ledgerOver(reordering).reads.operation(query))
+    expect(again).toEqual(plain)
+  })
 })
+
+/** The same value with the keys of every object in reverse order. */
+function reversed<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(reversed) as T
+  if (typeof value !== 'object' || value === null) return value
+  const entries = Object.entries(value).reverse()
+  return Object.fromEntries(entries.map(([key, member]) => [key, reversed(member)])) as T
+}
 
 async function allPages(
   runtime: ReturnType<typeof harness>['runtime'],
@@ -92,7 +127,11 @@ describe('15 result pages and the account (P08, P09)', () => {
         actualTerminal: null,
         relation: 'original',
         delivery: 'd1',
-        source: { owner: '@omne-harness/tool', record: 'result:call-1/v1' },
+        source: {
+          owner: '@omne-harness/tool',
+          record:
+            'result:{"call":"call-1","delivery":"d1","operation":"op-1","result":"v1","tenant":{"account":"acc_a","organization":"org_a"}}',
+        },
         value: { data: { kind: 'none' }, original: { kind: 'none' }, attachments: [] },
       })
     }
@@ -116,6 +155,41 @@ describe('15 result pages and the account (P08, P09)', () => {
     expect(await runtime.readResult({ ...access, result: 'v2' as never, after: null })).toEqual({
       failure: { kind: 'invalid', field: 'result', reason: 'unknown-version' },
     })
+  })
+
+  it('15 pages: a cursor at or after the end of the result is past-the-end, never an empty page', async () => {
+    // Four blocks; a cursor of this result at block 4 or later was never issued.
+    const { runtime } = harness({ chunk: 13, resultPageBytes: 220 })
+    ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    const first = ok(await runtime.readResult({ ...access, result: 'v1' as never, after: null }))
+    const issued = JSON.parse(first.next ?? 'null') as Record<string, unknown>
+    for (const block of [4, 5])
+      expect(
+        await runtime.readResult({
+          ...access,
+          result: 'v1' as never,
+          after: JSON.stringify({ ...issued, block }),
+        }),
+      ).toEqual({ failure: { kind: 'invalid-cursor', reason: 'past-the-end' } })
+    const last = ok(
+      await runtime.readResult({
+        ...access,
+        result: 'v1' as never,
+        after: JSON.stringify({ ...issued, block: 3 }),
+      }),
+    )
+    expect(last.value.content).toHaveLength(1)
+  })
+
+  it('15 pages: a cursor of another tenant with the same call and version is another result', async () => {
+    const { runtime } = harness({ chunk: 13, resultPageBytes: 220 })
+    const theirs = { principal: principalB, tenant: tenantB, call: callId('call-1') }
+    ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
+    ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest(), principalB, tenantB)))
+    const mine = ok(await runtime.readResult({ ...access, result: 'v1' as never, after: null }))
+    expect(
+      await runtime.readResult({ ...theirs, result: 'v1' as never, after: mine.next }),
+    ).toEqual({ failure: { kind: 'invalid-cursor', reason: 'another-result' } })
   })
 
   it('15 pages: a block larger than the page is a named refusal, never a cut block', async () => {

@@ -88,7 +88,9 @@
 ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToolOperation 在本地封装该操作的 A/R 关系；defineFunctionTool 与 defineCommandTool 使用相同的操作句柄，生成唯一 ToolDefinition 投影。句柄不公开 executor，不能作为脚本调用通路。构造成功不表示 schema 已异步装载或工具已可用。精确绑定、命令选择及恢复规则见 [多命令协议](../SPEC.md#多命令作者注册与返回选择)，作者组合示例见 [flows](flows.md#多命令函数与独立返回)。
 
 - [authoring.ts](../src/authoring.ts)：声明与设置、消费者 profile、检查输入、用法、呈现、`ToolCatalog`、参数与输出 codec、返回校验器、程序输出、`ToolAuthor`、操作句柄、作者注册、装载器、绑定登记表、文本结果工厂与可用性事实。
-- [registration.ts](../src/registration.ts)：`defineToolOperation`、`defineFunctionTool` 与 `defineCommandTool`。构造时拒绝空命令表、非法名称、返回模式与作者种类不符，以及程序契约与声明不符。`readToolOperation` 与 `readToolRegistration` 读取句柄内的作者与注册内的操作表（`ToolOperationSlot`、`ToolRegistrationSlot`），供绑定提供者（G7）使用；不是本模块构造的值读作 `undefined`。句柄与注册是当前执行域的能力，不交给脚本。
+- [registration.ts](../src/registration.ts)：`defineToolOperation`、`defineFunctionTool` 与 `defineCommandTool`。构造时拒绝空命令表、非法名称、返回模式与作者种类不符，以及程序契约与声明不符。句柄与注册是当前执行域的能力，不交给脚本。
+- [binding.ts](../src/binding.ts)：子路径入口 `@omne-harness/tool-contract/binding`，只供受信的执行绑定提供者（G7）导入。`readToolOperation` 与 `readToolRegistration` 读取句柄内的作者与注册内的操作表（`ToolOperationSlot`、`ToolRegistrationSlot`）；不是 registration.ts 构造的值读作 `undefined`。根入口不导出它们，所以只持有句柄或注册的代码取不到 executor。这个入口与根入口一样不依赖 Cordis。
+- [judge-release.ts](../src/judge-release.ts)：`judgeConsumerRef` 与 `judgeHandoff`，即 releaseDelivery（P08）的消费位置与交接证据的封闭检查。多出的字段是 `unknown-field`，非文本值是 `type`，返回冻结副本。它们不核证据归属，提供者再比对证据的 `owner` 与消费者。
 - [catalog.ts](../src/catalog.ts)：`presentTool` 与 `evaluateToolAvailability`。可用性判定不自做授权，按顺序列出全部未满足的条件。
 - [parameter-codec.ts](../src/parameter-codec.ts)：`createDefaultParameterCodec(limits)`，用 `@omne-harness/json-text` 严格解析生效参数。`complete=false` 返回 `incomplete`，重复键、半截 JSON 与不是对象的输入返回 `invalid`，都不产生参数值。采用摘要覆盖解析预算。`judgeToolArguments(input, limits)` 是受理时的判定：原参数与生效参数都完整解析（`ParsedToolArguments`），`complete=false` 返回 `incomplete`，任一文本失败返回 `invalid` 并指明 `original` 或 `effective`，输入或预算形状不对返回 `shape`（`ToolArgumentsRejection`）。它不替代作者 codec 在执行时的解析。
 
