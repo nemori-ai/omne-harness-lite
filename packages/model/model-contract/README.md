@@ -21,7 +21,7 @@ Start with [consumer guidance](docs/context.md). The [public API](docs/public-ap
 
 ## Configuration and operation
 
-The target production dependency closure excludes Cordis, Model implementations, pi, tokenizer engines, and storage engines. The shared Outcome dependency still needs a framework-free owner before these declarations become source exports. Installation and import guarantees require checks against actual published artifacts; empty source entries do not establish them.
+The target production dependency closure excludes Cordis, Model implementations, pi, tokenizer engines, and storage engines. The shared Outcome type comes from the dependency-free `@omne-harness/operation-result`. Source exports must declare it as a production dependency. Installation and import guarantees require checks against actual published artifacts; empty source entries do not establish them.
 
 ## Verification
 

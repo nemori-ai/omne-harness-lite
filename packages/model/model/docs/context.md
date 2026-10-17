@@ -4,7 +4,9 @@
 
 独立程序以固定请求、显式传输和 signal 调用 executeModel。宿主将 Commands、发送围栏、重试策略、实例宿主和时钟注入 createModelRuntime，并显式传入配置。精确构造形状归 [public-api](public-api.md)，独立执行及配置行为归 [SPEC](../SPEC.md)。
 
-目标运行实现不自动安装全部厂商、tokenizer 或 Cordis。当前凭据切片仍携带 Cordis 生产依赖，根入口不启动框架。应用选择所需适配器并拥有资源；单机框架装配设计暂见 [cordis](cordis.md)，目标 model-host-local 尚未初始化。
+model 的生产安装不得带入 Cordis 或固定单机存储，也不自动安装全部厂商或 tokenizer。当前凭据切片尚未满足此要求，其类型、服务定义、本地存储与插件按[组架构](../../docs/architecture.md#凭据切片的现有装配边界)迁到对应成员。应用选择适配器并拥有资源；单机框架装配设计暂见 [cordis](cordis.md)，model-host-local 尚未初始化。
+
+以下本地保管示例说明当前源码入口。迁移后，本地工厂由 model-host-local 根入口发布，凭据值由 model-contract 发布。选择本地宿主会安装其 Cordis 与文件锁依赖，但直接使用本地工厂不启动 Cordis；纯领域实现消费者不必选择该宿主。
 
 ## 独立消费入口
 

@@ -1,9 +1,9 @@
 # Model 类型消费检查
 
 
-类型消费检查须从本成员 [public-api](../docs/public-api.md) 、[model 实现入口](../../model/docs/public-api.md)及[Cordis 定义](../../model-cordis-contract/docs/public-api.md)的全部 TypeScript 代码块提取声明，按三个模块分别消费，不维护一份手工缩减的替代接口。检查使用仓库实际 kernel-basis、legal-identity、content-block、message、json-text 和 call-account 根类型，开启 strict、exactOptionalPropertyTypes、noUncheckedIndexedAccess 及 noEmit。
+类型消费检查须从本成员 [public-api](../docs/public-api.md) 、[model 实现入口](../../model/docs/public-api.md)及[Cordis 定义](../../model-cordis-contract/docs/public-api.md)的全部 TypeScript 代码块提取声明，按三个模块分别消费，不维护一份手工缩减的替代接口。检查使用仓库实际 operation-result、legal-identity、content-block、message、json-text 和 call-account 根类型，开启 strict、exactOptionalPropertyTypes、noUncheckedIndexedAccess 及 noEmit。
 
-上述是设计声明的形状检查，不证明纯契约可独立安装。真实分包后从实际产物分别消费 model-contract、model-cordis-contract/cordis、model 和 model-host-local/cordis，沿[目标导出归属](../docs/public-api.md#导出归属与落地前置)核对工厂及构造类型。共同 Outcome 的无 Cordis 闭包前置未完成前，不把当前 kernel-basis 导入计为安装隔离通过。
+上述是设计声明的形状检查，不证明纯契约可独立安装。真实分包后从实际产物分别消费 model-contract、model-cordis-contract/cordis、model 和 model-host-local/cordis，沿[目标导出归属](../docs/public-api.md#导出归属与落地前置)核对工厂及构造类型。共同 `Outcome` 必须从 `@omne-harness/operation-result` 导入，并由生产依赖声明承接。该共享成员零依赖不代替 Model 完整安装闭包的验证。
 
 新增负例须证明纯契约不能导入 executeModel/createModelRuntime 或 ModelConfiguration，Cordis 消费者不从具体插件取得 Service 定义；生成声明不得穿透实现源码。正例覆盖 adapter 只消费纯契约即可实现相应端口，以及消费者和实现共享同一品牌/Service 身份。其他实现不必采用 model 工厂的配置结构。
 

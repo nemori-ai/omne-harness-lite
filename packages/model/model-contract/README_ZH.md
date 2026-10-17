@@ -21,7 +21,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 配置与运行
 
-目标生产依赖不包含 Cordis、Model 运行实现、pi、tokenizer 或存储引擎。共享 Outcome 的无框架依赖前置尚未完成，真实接口导出前须由共同拥有者解决。 安装与导入保证须用真实发布产物验证，空源码入口不构成证明。
+目标生产依赖不包含 Cordis、Model 运行实现、pi、tokenizer 或存储引擎。共享 `Outcome` 由零生产依赖的 `@omne-harness/operation-result` 提供，真实接口导出时须将它声明为生产依赖。安装与导入保证须用真实发布产物验证，空源码入口不构成证明。
 
 ## 验证
 

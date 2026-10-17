@@ -9,7 +9,8 @@
 | 消费或反例 | 验收结果 |
 | --- | --- |
 | 仓库外只安装打包后的 model-contract，分别写调用者与 adapter | 类型可编译，必要纯函数可运行；完整生产依赖闭包无 Cordis、运行提供者、pi、tokenizer、词表和具体存储引擎 |
-| 共同 Outcome 仍从当前带 Cordis 的 kernel-basis 引用 | 隔离验收失败；先由共同拥有者处理，不能复制结构、内联品牌或漏列声明依赖 |
+| 共同 Outcome 从 operation-result 根入口引用，清单声明生产依赖 | 使用共享唯一定义，完整生产安装闭包不含 Cordis；不能复制结构、内联品牌或漏列声明依赖 |
+| 从 kernel-basis 根入口导入 Outcome | 编译失败，该根入口不导出操作结果；消费者须改用 operation-result |
 | 根 import 或使用确定性契约函数 | 不读取环境、时钟或随机源，不创建任务、网络、登记状态或资源 |
 | 纯契约消费者尝试调用 executeModel/createModelRuntime 或取得 ModelConfiguration | 不存在该导出；选择 model 实现后才可消费 |
 | 独立程序安装 model 和选中的传输，调用 executeModel | 不安装 Cordis 或 model-host-local，不创建 Session；真实发送及清理沿原协议 |

@@ -12,7 +12,7 @@ import type { ModelRuntime, ModelDirectory, ModelInstanceHost, DurableEvidence, 
   ModelMessageConversion, ModelConverterCatalog, ModelConverter, ConverterKey, Adoption,
   ModelHostAuthority, ModelCallId, Revision, ModelDiagnostics } from '@omne-harness/model-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 
 /** @owner packages/model/model-cordis-contract */
 export abstract class ModelRuntimeService<P> extends Service implements ModelRuntime<P> {

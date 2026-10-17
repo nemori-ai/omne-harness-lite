@@ -56,7 +56,7 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 
 ## 已实现的凭据入口
 
-此节导航真实源码，不重复声明。以下入口由凭据切片拥有，不从空的 model-contract 骨架转导。
+此节导航真实源码，不重复声明。以下是尚未迁移的凭据入口，不从空的 model-contract 骨架转导。目标归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)：纯类型归 model-contract，服务定义归 model-cordis-contract，本地保管与框架适配归 model-host-local。迁移须同步消费者并删除本包旧框架入口，不能通过转导保留 Cordis 安装依赖。
 
 | 消费入口 | 实际源码与能力 |
 | --- | --- |

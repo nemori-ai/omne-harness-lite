@@ -2,6 +2,16 @@
 
 本页维护已实现的凭据服务，并暂存 model-host-local 的具体装配设计，该宿主尚未初始化。领域执行工厂归本成员，托管运行的 Service、键、事件及登记表由[model-cordis-contract](../../model-cordis-contract/docs/cordis.md)唯一拥有；共同登记协议归[其 SPEC](../../model-cordis-contract/SPEC.md)。本页不重复服务类或登记算法。
 
+## 纯实现与 Cordis 装配的分工
+
+model 的工厂接收普通契约对象，不接收 Context、Service 或 Fiber。model-host-local 的插件通过静态 inject 取得所需能力，构造阶段适配器和纯实现，再按 model-cordis-contract 的唯一定义发布服务。普通消费者只依赖操作契约；框架消费者依赖服务定义，不依赖具体宿主。凭据切片采用同样分工，目标归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。
+
+依赖注入和动态插拔在宿主层完成，不要求业务实现导入 Cordis。整个能力必需的依赖按 IC-8 声明；仅发送或重试阶段必需的依赖由局部阶段适配器取得。适配器把缺席和换代交回领域协议，不把 Context 泄漏到工厂，也不每次从全局容器取得同名最新对象替换在途采用。
+
+计划替换先停止新取得，旧调用按固定采用排空或明确交接，随后撤除登记并释放已无使用者的资源。突发依赖丢失时按对应契约返回不可用或未知，恢复先核对原操作。目录撤除只影响取得路径，持久查询、取消、结果保管和费用责任由稳定能力继续承担。模型自主执行使用模型宿主的生命周期，不继承 Agent 调用方 fiber 的寿命。
+
+有序收尾由本页的关闭协调兑现。disposer 不撤回已发送的模型请求，也不等于业务取消、ACK 或费用结清。宿主自身故障仍须走执行连续性和恢复协议，分包不产生跨故障无损保证。需验证正常装卸、依赖缺席及恢复、提供者换代、在途采用不变、迟到结果和释放失败。
+
 ## 依赖与阶段装配
 
 Model 门面以 commands 和稳定目录适配器维持受理/查询/控制/ACK。目录实际缺席只影响 connect，不卸载 calls 和 consumption。执行段在本域宿主取得 send、clock 及恢复能力；重试阶段另取当前策略。纯根工厂的必需 retry 参数由具名局部阶段适配器兑现，不能传 undefined。适配器在阶段依赖缺席时返回根协议的明确不可用，已有调用仍可查询、取消和保管。策略退出不能删除已持久决定或重新花费内部调用。
@@ -85,7 +95,7 @@ runtime 工厂的 send/retry/instances 参数始终是完整对象。局部阶�
 
 凭据引用与解析规则已由 D-04 接受，并写入 [SPEC](../SPEC.md)。本页说明面向 Cordis 集成时，本包交出的是什么。领域模型见 [model](object-model.md)。包内关系见 [architecture](architecture.md)。独立调用可以不启动 Cordis，直接使用根入口。两种入口看到的五种结果相同。
 
-本节只描述已实现的凭据服务。托管运行的服务设计归 model-cordis-contract，不由本服务替代。
+本节只描述当前源码中的凭据服务。其服务定义须迁入 model-cordis-contract，插件及注入调用须迁入 model-host-local；迁移完成时本节随真实拥有者同步。以下路径记录尚未迁移的实际入口，不构成继续共置的目标。凭据服务不替代完整托管运行服务。
 
 ### 服务、插件和 fiber
 
@@ -119,7 +129,7 @@ classDiagram
   CallExecution --> ModelCredentialService : inject
 ```
 
-定义拥有者是 `packages/model/model`。根入口 `src/index.ts` 导出引用类型和操作类型，不导入 `@deepseek-ai/cordis`。`src/cordis.ts` 上的服务类标注 `@owner packages/model/model`。凭据切片尚未另立契约 ID。
+当前源码定义拥有者仍是 `packages/model/model`，迁移完成后由 model-cordis-contract 唯一拥有。根入口 `src/index.ts` 导出引用类型和操作类型，不导入 `@deepseek-ai/cordis`。`src/cordis.ts` 上的服务类标注 `@owner packages/model/model`。凭据切片尚未另立契约 ID。
 
 同一个 isolate 里这道接缝只有一个提供者。`src/execute.ts` 的 `deliverInjected` 把 `modelCredential` 写入 `inject`，再调用 `deliver`。该文件不导入保管库模块。租户、用途和是否获准发送都是 `resolve` 的参数。不从 `ctx`、插件实例或谁装了这个插件来推断租户。
 

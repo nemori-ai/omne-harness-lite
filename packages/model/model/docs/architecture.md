@@ -383,7 +383,7 @@ classDiagram
 
 | 前置 | 本域已定义的边界 | 仍需哪个拥有者落实 |
 | --- | --- | --- |
-| 共同 Outcome 的生产闭包 | 纯契约不得安装 Cordis，不复制 Outcome | 共同结果拥有者决定纯契约归属并迁真实消费者，见[组架构](../../docs/architecture.md#安装闭包与共同依赖前置) |
+| 共同 Outcome 的生产闭包 | 纯契约不得安装 Cordis，不复制 Outcome | Model 实施者从 operation-result 唯一入口引用并验证完整安装闭包，见[组架构](../../docs/architecture.md#安装闭包与共同依赖前置) |
 | 凭据与身份集成 | 档案只含引用；准备读状态元数据；发送时核当前合法来源与接收方 | 凭据切片已有实现；当前资格及发送围栏的组合适配仍须兑现，不复制凭据规则 |
 | 内容引用与存储读取 | 只读取模型可见 ref，原来源和当前权限必需，附件只作文本地址 | 共享内容及存储拥有者提供真实解析器、媒体读取与消息适配的联合证据 |
 | 诊断接受 | 最小字段、独立授权、期限机制、分页与过期语义已接受 | 相应拥有者采用具体权限映射、有限期限与容量，再以真实存储验证 |
@@ -405,6 +405,6 @@ classDiagram
 
 凭据的对象模型、顺序和装配分别归[对象](object-model.md#已实现的凭据对象)、[流程](flows.md#凭据解析)和[装配](cordis.md#已实现的凭据服务)。这些实际实现不表示 executeModel、createModelRuntime 或完整发送围栏已经实现。
 
-当前 model 包保留已接受凭据切片的 Cordis 与 proper-lockfile 生产依赖。根模块不启动 Cordis，但安装该包会包含 Cordis。目标运行实现的安装隔离尚未兑现；纯领域消费者继续依赖 model-contract，凭据源码与服务共置的已有采用范围不扩大到其他服务。
+当前 model 的凭据源码仍带入 Cordis 与 proper-lockfile，尚未满足实现包的安装隔离要求。凭据公开类型迁 model-contract，服务定义迁 model-cordis-contract，本地保管与框架适配迁 model-host-local；本包保留显式依赖的业务实现。精确归属及消费者迁移约束见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。上表说明当前文件，不是目标共置许可。
 
 托管发送适配器须在可信内部构造 authorized 与 official，并核对固定的 tenant/factory 选择。普通调用者传入的布尔值不构成 ModelSendBoundary 的授权证据。凭据通用解析允许的官方默认回退不能覆盖托管协议对 tenant 引用失效时禁止转 factory 的要求。该适配尚未实现，不能用凭据单元测试宣称发送围栏已经闭合。

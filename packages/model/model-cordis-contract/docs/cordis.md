@@ -8,6 +8,8 @@
 
 精确声明见 [public-api](public-api.md#服务定义与入口)。
 
+凭据的 ModelCredentialService、modelCredential 键和 Context 增补同样由本定义入口唯一拥有。当前源码仍在 model 的 [cordis.ts](../../model/src/cordis.ts)，须将服务定义与其中的 LocalCredentialPlugin 分开迁移。定义引用 model-contract 的凭据操作类型，不从 model 反向导入；具体本地插件及 deliverInjected 归 model-host-local/cordis。迁移时同步消费者和 @owner，不能同时保留两个同名服务类。
+
 model-cordis-contract 的根只导出纯类型，Cordis 值和增补仅在 ./cordis；安装该包明确带入 Cordis。业务操作使用抽象 Service；实例与转换目录保留定义自有的具体登记逻辑，限 IC-3 允许的范围。业务插件及阶段适配器归 model-host-local；可复用领域执行归不依赖 Cordis 的 model。
 
 定义入口将 Context 的 `modelRuntime` 增补为这一抽象类，主体类型由装配的可信身份适配器专化，运行时仍核验输入。接口同形不证明授权。具体插件不得再次ctx.provide这个键。消费者导入定义入口的键常量，提供者选择归应用装配。

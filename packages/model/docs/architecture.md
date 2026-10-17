@@ -1,6 +1,6 @@
 # 模型调用组的工程关系
 
-产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 传输、厂商家族及其 tokenizer 引擎/资源/装配细化仍为候选；该例外不改变已定的阶段技术栈选择。model-contract、model-cordis-contract 与 model 已初始化为 workspace 骨架，尚无业务导出或运行实现；包存在不证明能力可用。
+产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 传输、厂商家族及其 tokenizer 引擎/资源/装配细化仍为候选；该例外不改变已定的阶段技术栈选择。model-contract 与 model-cordis-contract 的源码入口仍为空；model 已有凭据切片，模型执行工厂与完整宿主尚未实现。当前凭据源码尚待按本页边界迁移，包存在不证明完整能力可用。
 
 ## 依赖方向
 
@@ -37,8 +37,8 @@ Cordis 定义与宿主插件分别从 model-cordis-contract/cordis 和 model-hos
 | --- | --- | --- |
 | model-contract | 领域值、操作、行为协议和可替换提供者端口，供 Agent、Context、Session、独立程序及提供者消费 | 只含必要纯函数与契约；不安装 Cordis、运行宿主或厂商实现 |
 | model-cordis-contract | 托管运行的唯一 Service、键、类型增补及定义自有注册表，供 Cordis 消费者及提供者消费 | 隔离框架依赖；仅含 IC-3 允许的登记机制，不含业务运行提供者 |
-| model | 可复用领域实现，供独立程序及宿主消费 | executeModel、createModelRuntime、档案/准备/执行/保管的协调；依赖通过端口注入；目标不安装 Cordis，现有凭据切片的例外见下文 |
-| model-host-local | 单机宿主提供者，供应用装配消费 | 时钟、实例调度、目录装载、Cordis 门面及阶段插件；复用 model，不复制执行逻辑 |
+| model | 可复用领域实现，供独立程序及宿主消费 | executeModel、createModelRuntime、档案/准备/执行/保管的协调；依赖通过端口注入；生产安装闭包不含 Cordis 或固定单机存储；现有凭据切片的迁移义务见下文 |
+| model-host-local | 单机宿主提供者，供应用装配消费 | 时钟、实例调度、本地凭据保管、目录装载、Cordis 门面及阶段插件；复用 model，不复制执行逻辑 |
 | pi-ai-transport | 具名构造接缝与 ModelTransport，供装配及独立程序消费 | 公共 HTTP/SSE、取消、连接资源、请求规划骨架、固定绑定与回执；集中维护 pi fork，不复制到每个厂商包 |
 | pi-ai-openai | OpenAI 家族定义及固定适配贡献 | 家族参数、工具/消息投影、模板/估算、usage/replay 解释及逐型号验证 |
 | pi-ai-anthropic | Anthropic 家族定义及固定适配贡献 | 同上，包含家族特有缓存/历史规则及所需编码资源 |
@@ -66,6 +66,7 @@ flowchart TD
   Assembly[发行装配与官方档案发布] --> Host[model-host-local]
   Host --> Core[model]
   Host --> CC
+  Host --> Local[本地文件与锁设施]
   Core --> Contract
   Assembly --> Family[选中的 pi-ai 厂商家族包]
   Assembly --> Pi[pi-ai-transport]
@@ -115,7 +116,7 @@ model-cordis-contract 的根只允许纯类型导出，Service 类、键及 Cont
 
 纯契约的完整生产安装闭包不得包含 Cordis、Model 运行提供者、pi、厂商 SDK、tokenizer 引擎/词表或具体存储引擎。公开声明需要的共享依赖必须可安装，不能放到 devDependencies 后声称隔离；import type、tree shaking 和子入口只能分别解决类型或加载问题，不能证明安装闭包。
 
-当前设计引用 kernel-basis 的 Outcome，而该包生产依赖 Cordis。这是 model-contract 导出真实接口并兑现安装隔离前必须解决的共同前置，不阻碍已获准的设计文档初始化。首选由共同结果拥有者抽出不带 Cordis 的结果契约成员，并同步真实消费者；其正式名称、采用和迁移由该拥有者确定。迁移不得复制 Outcome 或改变其含义；kernel-basis 的调整由共同拥有者落实。该前置未完成时，不能把当前声明直接发布成满足隔离承诺的 model-contract。
+共享 `Outcome` 由零生产依赖的 [operation-result](../../common/operation-result/SPEC.md) 唯一定义，采用依据是 [#371](https://github.com/nemori-ai/omne-harness-lite/issues/371)。Model 从 `@omne-harness/operation-result` 根入口引用，不复制或改变结果类型。`kernel-basis` 根入口为空导出，其 Cordis 辅助与测试装配不属于纯契约的生产依赖。Model 真实接口落地时须声明 `operation-result` 生产依赖，并检查完整传递依赖与仓库外安装。共享结果成员的拆分已完成，不代表 Model 契约的安装隔离已经验证。
 
 TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥有者引用，逐项检查直接与传递清单、声明及平台约束。必要的纯表示解析器可留在契约闭包，不因它包含实现代码而另造副本。当前共享成员声明 Node 版本限制，拆包不自动承诺浏览器或其他运行平台支持。
 
@@ -189,7 +190,7 @@ module 分解与依赖分类见[成员架构](../model/docs/architecture.md#内�
 下列是目标 pi-ai-transport 拥有的候选接口，尚未初始化或导出。它只约束选择该实现的家族作者，不扩充领域契约或强制其他 ModelTransport 使用 pi。构造配置固定路由协议、限额和资源目录；依赖注入提供内容读取、连接容量及凭据适配；每次 acquire 的参数只选择原供应商和采用。
 
 ```ts
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ContentReference } from '@omne-harness/content-block'
 import type {
@@ -275,6 +276,20 @@ materialize 先取得实际发送容量，再按原来源及当前资格逐个�
 
 ## 凭据切片的现有装配边界
 
-已接受的凭据引用与发送前解析由 model 成员实现。CredentialPort、modelCredential 服务和本地保管实现目前共置于该成员，责任见[领域边界](../../../docs/domains/model-invocation/architecture.md#凭据引用与保管)。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
+凭据引用与发送前解析已有实现。现有源码把 CredentialPort、modelCredential 服务和本地保管共置于 model，生产安装因此包含 Cordis 和 proper-lockfile。该源码状态尚未满足本节的分包要求，不能作为长期共置例外。根入口不启动 Cordis 不等于安装隔离。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
 
-这项既有采用使 model 当前生产安装包含 Cordis 和本地文件锁实现。上文 model 的无 Cordis 安装是目标运行分包要求，当前凭据切片尚不满足它。根入口可以不启动 Cordis使用，不等于安装隔离。model-cordis-contract 继续唯一拥有托管运行服务的设计；凭据服务的定义拥有者仍为 model，不复制同名服务或键。两个契约包保持现有边界。凭据共置的采用范围只限凭据服务。
+凭据切片按以下责任迁移，沿用现有四成员，不另建凭据包。
+
+| 责任 | 目标拥有者 |
+| --- | --- |
+| CredentialId、引用、查询、结果及 CredentialPort，必要的纯校验 | model-contract，保持唯一品牌和领域形状 |
+| ModelCredentialService、modelCredential 键和 Context 增补 | model-cordis-contract/cordis，服务定义引用纯操作类型，不依赖实现 |
+| 显式依赖的凭据判定和 deliver，以及模型执行工厂 | model，消费纯契约与注入能力，不持有 Cordis Context |
+| 本地保管工厂、磁盘格式、文件锁及资源关闭 | model-host-local 的根入口，限定为本地提供者 |
+| LocalCredentialPlugin、deliverInjected 及阶段适配 | model-host-local/cordis，消费唯一定义并构造业务依赖 |
+
+model 的生产安装闭包不得含 Cordis 或 model-cordis-contract、model-host-local，也不得因凭据切片固定本地文件存储。model-host-local 可以安装 Cordis 和 proper-lockfile，其根入口的本地工厂不启动 Cordis；选择这个具体宿主不承诺安装无 Cordis。独立领域消费者使用 model 和自己选择的端口实现。model-cordis-contract 不得反向导入 model 来取得凭据类型。
+
+现有 credential.ts 混合公开契约、内部判定及磁盘编码，不得整文件迁入契约包。磁盘布局随本地提供者维护，内部状态不升为公共契约。迁移保留凭据五种结果、租户资格、轮换与撤销可见性及保存未知语义，不改变发送前受信授权要求。迁移时同步真实消费者并删除旧的公开类型、服务定义和框架入口，不保留 model 的框架转导使安装依赖回流。源码迁移前，现有可导入入口仍以[实际公开入口](../model/docs/public-api.md#已实现的凭据入口)为准。
+
+装配、动态换代与收尾由宿主按[装配设计](../model/docs/cordis.md#纯实现与-cordis-装配的分工)兑现。安装隔离须检查实际包产物、公开声明和完整生产安装闭包；集成能力须以服务装载、依赖缺席、换代、在途固定采用及收尾用例验证。文档采用不表示源码迁移或组合验证完成。

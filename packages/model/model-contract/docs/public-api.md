@@ -7,7 +7,9 @@
 
 本包拥有领域值、品牌、公开操作与可替换提供者端口，包括 ModelProvider 管理接口。executeModel、createModelRuntime 及其 ModelDependencies、ModelConfiguration 由[领域实现](../../model/docs/public-api.md)拥有，不从本包转导出。Cordis 类与键由[框架契约](../../model-cordis-contract/docs/public-api.md)拥有。
 
-当前设计的 Outcome 引用 kernel-basis 的唯一类型，其生产依赖含 Cordis。实际导出前须由共同拥有者完成[依赖闭包前置](../../docs/architecture.md#安装闭包与共同依赖前置)，不复制 Outcome 或以 import type 冒充安装隔离。该前置不阻碍已获准的文档与模板骨架初始化。
+凭据纯契约也由本包拥有。现有 CredentialId、CredentialReference、CredentialQuery、CredentialPort 及其操作结果须从 model 的 [credential.ts](../../model/src/credential.ts) 迁入，并保持品牌唯一。该文件中的内部判定状态和磁盘格式不属于本包。源码迁移前，这些名字仍从现有实现入口取得，本页不复制另一套声明；迁移时同步真实消费者和导出清单。精确归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。
+
+`Outcome` 引用 `@omne-harness/operation-result` 的唯一类型。该共享成员没有生产依赖。真实导出须将它列为生产依赖，并按[安装闭包要求](../../docs/architecture.md#安装闭包与共同依赖前置)验证实际产物。不复制 `Outcome`，不以 `import type` 代替完整安装依赖检查。
 
 行为及调用资格归 [SPEC](../SPEC.md)，消费路径归 [context](context.md)，对象关系归 [object-model](object-model.md)。
 
@@ -20,7 +22,7 @@
 [行为与约束](../SPEC.md#342-根入口的值与请求)。
 
 ```ts
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ContentBlock, ContentReference } from '@omne-harness/content-block'
 import type { Message, ToolCallPart } from '@omne-harness/message'
