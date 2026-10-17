@@ -1,38 +1,8 @@
 import { existsSync } from 'node:fs'
-import { Context, Service, type Context as CordisContext } from '@deepseek-ai/cordis'
+import type { Context } from '@deepseek-ai/cordis'
+import { ModelCredentialService } from '@omne-harness/model-cordis-contract/cordis'
 import { createLocalCustodian, openLocalCustodian, type LocalCustodian } from './store.ts'
-import type {
-  CredentialPort,
-  CredentialPresence,
-  CredentialQuery,
-  CredentialResolution,
-  SendFace,
-} from '@omne-harness/model-contract'
-
-/** @owner packages/model/model */
-export class ModelCredentialService extends Service {
-  static readonly provide = 'modelCredential'
-  private readonly port: CredentialPort
-
-  constructor(ctx: CordisContext, port: CredentialPort) {
-    super(ctx, ModelCredentialService.provide)
-    this.port = port
-  }
-
-  present(reference: CredentialQuery): CredentialPresence {
-    return this.port.present(reference)
-  }
-
-  resolve(reference: CredentialQuery, face: SendFace): CredentialResolution {
-    return this.port.resolve(reference, face)
-  }
-}
-
-declare module '@deepseek-ai/cordis' {
-  interface Context {
-    modelCredential?: ModelCredentialService
-  }
-}
+import type { CredentialPort } from '@omne-harness/model-contract'
 
 const pathSchema = {
   '~standard': {
@@ -80,10 +50,16 @@ function openPort(config: { readonly path: string; readonly factorySecret: strin
 export class LocalCredentialPlugin extends ModelCredentialService {
   static readonly Config = pathSchema
 
+  readonly present: CredentialPort['present']
+  readonly resolve: CredentialPort['resolve']
+
   constructor(ctx: Context, config: { readonly path: string; readonly factorySecret: string }) {
-    const opened = openPort(config)
-    super(ctx, opened.port)
-    const custodian = opened.custodian
+    super(ctx)
+    // The port lives only in these closures. Cordis hands consumers a proxy of the instance, and
+    // `#private` fields fail through it, so a closure is the only place that stays out of reach.
+    const { port, custodian } = openPort(config)
+    this.present = reference => port.present(reference)
+    this.resolve = (reference, face) => port.resolve(reference, face)
     if (!custodian) return
     ctx.fiber.effect(() => () => {
       custodian.close()

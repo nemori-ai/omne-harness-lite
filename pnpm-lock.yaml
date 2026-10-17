@@ -518,6 +518,9 @@ importers:
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../model-contract
+      '@omne-harness/model-cordis-contract':
+        specifier: workspace:*
+        version: link:../model-cordis-contract
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2

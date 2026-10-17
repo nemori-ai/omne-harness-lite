@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { ModelCredentialService } from './cordis.ts'
+import { ModelCredentialService } from '@omne-harness/model-cordis-contract/cordis'
 import type { SendFace } from '@omne-harness/model-contract'
 import { deliver, type CallRecord } from './deliver.ts'
 
