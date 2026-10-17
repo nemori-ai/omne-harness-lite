@@ -13,7 +13,7 @@ import {
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 
 describe('brand values are not built with type assertions', () => {
-  it('finds none in product source, the testing entry or the fixtures, except the two marked mints', () => {
+  it('finds none in product source, the testing entry or the fixtures, except the one marked mint', () => {
     const source = join(packageDirectory, 'src')
     const sites = findTypeAssertions([source, join(packageDirectory, 'tests/fixtures')])
     expect(assertionViolations(sites, source)).toEqual([])
@@ -54,27 +54,23 @@ describe('the scanner itself', () => {
   const marked = (name: string) =>
     `// ${MINT_MARKER} ${name}\nexport const ${name} = 'x' as string\n`
 
-  it('allows exactly two marked mints in product source', () => {
-    expect(MAX_MINT_SITES).toBe(2)
-    expect(
-      violationsOf({ 'decode.ts': marked('decoded'), 'derive.ts': marked('derived') }),
-    ).toEqual([])
+  it('allows exactly one marked mint in product source', () => {
+    expect(MAX_MINT_SITES).toBe(1)
+    expect(violationsOf({ 'mint.ts': marked('minted') })).toEqual([])
   })
 
-  it('fails on a third marked mint in product source, naming only the third', () => {
+  it('fails on a second marked mint in product source, naming only the second', () => {
     const violations = violationsOf({
       'a.ts': marked('first'),
       'b.ts': marked('second'),
-      'c.ts': marked('third'),
     })
     expect(violations).toHaveLength(1)
-    expect(violations[0]).toMatch(/^mint marker beyond the 2 allowed .*c\.ts:2 /u)
+    expect(violations[0]).toMatch(/^mint marker beyond the 1 allowed .*b\.ts:2 /u)
   })
 
-  it('rejects a marked mint in src/testing, which also uses up one of the two places', () => {
+  it('rejects a marked mint in src/testing, which also uses up the one place', () => {
     const violations = violationsOf({
-      'decode.ts': marked('decoded'),
-      'derive.ts': marked('derived'),
+      'mint.ts': marked('minted'),
       'testing/helper.ts': marked('helper'),
     })
     expect(violations.filter(line => line.startsWith('mint marker outside'))).toHaveLength(1)
@@ -82,10 +78,9 @@ describe('the scanner itself', () => {
     expect(violations.filter(line => line.startsWith('unmarked'))).toEqual([])
   })
 
-  it('flags an unmarked assertion even when both mints are in use', () => {
+  it('flags an unmarked assertion even when the mint is in use', () => {
     const violations = violationsOf({
-      'decode.ts': marked('decoded'),
-      'derive.ts': marked('derived'),
+      'mint.ts': marked('minted'),
       'plain.ts': "export const loose = 'y' as string\n",
     })
     expect(violations).toEqual([expect.stringMatching(/^unmarked assertion .*plain\.ts:1 /u)])

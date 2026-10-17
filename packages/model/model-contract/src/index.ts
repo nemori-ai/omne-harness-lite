@@ -1,8 +1,8 @@
 // The root entry of the Model contract package. It does not import Cordis, a provider or Model.
 // Every chapter file is re-exported as types, except the credential chapter, which also carries
-// the MODEL_SEND constant. The credential decoder and comparator are exported by name.
-// The other identity decoders, comparators and deriveGuardControlOperation are runtime values that
-// are not implemented yet; the export inventory lists them as pending.
+// the MODEL_SEND constant. The runtime values are exported by name from their leaf files: the
+// identity decoders, comparators and constants, the credential decoder and comparator, and
+// deriveGuardControlOperation.
 export type * from './root.ts'
 export type * from './result.ts'
 export type * from './call-surface.ts'
@@ -16,3 +16,20 @@ export type * from './diagnostics.ts'
 export type * from './consumer-owner.ts'
 export * from './credential.ts'
 export { decodeCredentialId, sameCredentialHolder } from './credential-values.ts'
+export {
+  MODEL_IDENTITY_MAX_LENGTH,
+  MODEL_IDENTITY_PREFIXES,
+  compareOutputCursors,
+  compareRevisions,
+  decodeDispatchId,
+  decodeModelCallId,
+  decodeModelDiagnosticCursor,
+  decodeModelDiagnosticId,
+  decodeModelInstanceId,
+  decodeModelOperationId,
+  decodeOutputCursor,
+  decodeReadId,
+  decodeResultVersion,
+  decodeRevision,
+} from './identity-values.ts'
+export { deriveGuardControlOperation } from './guard-control.ts'

@@ -1,10 +1,15 @@
 import { expectTypeOf, it } from 'vitest'
+import { deriveGuardControlOperation } from '@omne-harness/model-contract'
 import type {
   Adoption,
   ConsumerRef,
+  ModelCalls,
+  ModelCallId,
   ModelConsumerOwnerDeclaration,
+  ModelOperationId,
+  Mutation,
 } from '@omne-harness/model-contract'
-import { adoption } from './values.ts'
+import { adoption, call, tenant } from './values.ts'
 
 it('an exempt owner declares its evidence adapter', () => {
   const exempt: ModelConsumerOwnerDeclaration = {
@@ -58,4 +63,19 @@ it('the owner text compares with the owner of a consumer reference', () => {
   expectTypeOf<ModelConsumerOwnerDeclaration['consumerOwner']>().toEqualTypeOf<
     ConsumerRef['owner']
   >()
+})
+
+declare const calls: ModelCalls<string>
+
+it('the derived control operation is a ModelOperationId that cancel accepts', () => {
+  expectTypeOf(deriveGuardControlOperation).toEqualTypeOf<(call: ModelCallId) => ModelOperationId>()
+  const input: Mutation<string> = {
+    principal: 'p',
+    tenant,
+    call,
+    operation: deriveGuardControlOperation(call),
+  }
+  void calls.cancel(input)
+  // @ts-expect-error the derivation takes a call, not an operation
+  deriveGuardControlOperation(input.operation)
 })

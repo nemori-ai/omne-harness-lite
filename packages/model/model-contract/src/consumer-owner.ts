@@ -1,5 +1,5 @@
 // Declarations of the public-api chapter "消费者 owner 的装配声明".
-// deriveGuardControlOperation is a runtime value and is not implemented yet.
+// deriveGuardControlOperation is a runtime value and lives in guard-control.ts.
 import type { Adoption } from './root.ts'
 
 export type ModelConsumerOwnerDeclaration = Readonly<{

@@ -3,16 +3,16 @@
 // `correctness` category, and no rule in that category flags assertions. `as const` is not an
 // assertion about a type, so it passes.
 //
-// Two sites are exempt: the minting point of the identity decoders and the one of
-// deriveGuardControlOperation. Each carries the marker comment below, on its own line or on the
-// line before.
+// One site is exempt: the shared minting point that every identity decoder and
+// deriveGuardControlOperation go through. It carries the marker comment below, on its own line or
+// on the line before.
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import ts from '@typescript/typescript6'
 
 export const MINT_MARKER = 'brand-mint:'
 
-export const MAX_MINT_SITES = 2
+export const MAX_MINT_SITES = 1
 
 export type AssertionSite = Readonly<{
   file: string
