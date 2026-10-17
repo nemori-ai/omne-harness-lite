@@ -25,13 +25,15 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "pnpm run build && vitest run"
+    "test": "pnpm run build && vitest run",
+    "install-closure": "node --experimental-strip-types tests/install/cli.ts"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

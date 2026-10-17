@@ -1,5 +1,3 @@
 # model-contract 测试夹具索引
 
-PACKAGE_TEMPLATE_DRAFT
-
-[职责与当前缺项](README.md)。当前没有其他资源。
+[职责与文件说明](README.md)。

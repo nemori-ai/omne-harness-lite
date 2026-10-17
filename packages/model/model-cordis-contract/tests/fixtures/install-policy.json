@@ -1,0 +1,68 @@
+{
+  "profile": "framework-contract",
+  "forbidden": [
+    {
+      "category": "model-runtime-provider",
+      "names": [
+        "@omne-harness/model",
+        "@omne-harness/model-host-local"
+      ]
+    },
+    {
+      "category": "pi",
+      "names": [
+        "@earendil-works/pi-*",
+        "@mariozechner/pi-*"
+      ]
+    },
+    {
+      "category": "vendor-sdk",
+      "names": [
+        "openai",
+        "@anthropic-ai/sdk",
+        "@google/genai",
+        "@google/generative-ai",
+        "@ai-sdk/*",
+        "ai",
+        "ollama",
+        "@mistralai/*",
+        "cohere-ai",
+        "groq-sdk",
+        "@azure/openai",
+        "@aws-sdk/client-bedrock*"
+      ]
+    },
+    {
+      "category": "tokenizer-engine",
+      "names": [
+        "js-tiktoken",
+        "tiktoken",
+        "@dqbd/tiktoken",
+        "@huggingface/tokenizers",
+        "gpt-tokenizer",
+        "@anthropic-ai/tokenizer",
+        "sentencepiece*"
+      ]
+    },
+    {
+      "category": "vocabulary",
+      "names": [
+        "*-vocab",
+        "*-vocabulary",
+        "tiktoken-ranks"
+      ]
+    },
+    {
+      "category": "storage-engine",
+      "names": [
+        "kysely",
+        "pg",
+        "better-sqlite3",
+        "sqlite3",
+        "redis",
+        "ioredis",
+        "proper-lockfile"
+      ]
+    }
+  ]
+}
