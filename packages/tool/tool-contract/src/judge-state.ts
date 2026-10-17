@@ -1,5 +1,5 @@
 // The closed judgment of a Tool state value (342 returns and execution facts).
-import { fail, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
   decodeToolDeliveryId,

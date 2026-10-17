@@ -2,7 +2,7 @@
 // references, domain revisions and result/delivery identities. Each evidence names its own record,
 // so one evidence is never reused for another purpose.
 import { createHash } from 'node:crypto'
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolDeliveryId,
   decodeToolResultVersion,

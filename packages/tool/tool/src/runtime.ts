@@ -3,7 +3,7 @@
 // managed path of logical results: admit, lookup, queryOperation, readResult, releaseDelivery and
 // account go to the ledger ports; every other operation answers a named `unsupported`.
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
   describedAdoption,
   type Adoption,

@@ -1,6 +1,6 @@
 // Author registration (P13 multi-command): operation handles and the definitions they project.
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   ToolAuthor,
   ToolAuthorRegistration,

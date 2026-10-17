@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { succeed } from '@omne-harness/kernel-basis'
+import { succeed } from '@omne-harness/operation-result'
 import type {
   IndependentToolScopeInput,
   ToolAuthorLimits,

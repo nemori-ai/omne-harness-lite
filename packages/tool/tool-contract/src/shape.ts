@@ -1,7 +1,7 @@
 // Closed shape checks for untrusted values. Each check reads own data properties only, never
 // calls a getter or a function of the input, and returns a frozen rebuilt copy. Only an author
 // capability check reads the prototype chain, through `inheritedSlot`.
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
 /** The field path that a check rejects, such as `commands[1].name`, and why. */
 export type ShapeRejection = Readonly<{ field: string; reason: string }>

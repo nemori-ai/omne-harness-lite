@@ -1,6 +1,6 @@
 // The closed check of `ToolAuthorLimits` for an untrusted input. The contract package keeps its
 // shape helpers private, so this package has its own small reader.
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolAuthorLimits } from '@omne-harness/tool-contract'
 
 export type Rejection = Readonly<{ field: string; reason: string }>

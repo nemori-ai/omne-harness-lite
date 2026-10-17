@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fail, succeed } from '@omne-harness/kernel-basis'
+import { fail, succeed } from '@omne-harness/operation-result'
 import { defaultResultPolicy, renderToolResult, type ToolResult } from '@omne-harness/tool-contract'
 import {
   adoption,

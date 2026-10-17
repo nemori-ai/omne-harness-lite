@@ -24,7 +24,7 @@
 | 独立程序（不建 Session 直接执行工具） | `tool-contract` 加 `tool` | 自选 |
 | 应用装配 | `tool-host-local`，间接带入其余三包 | 自选 |
 
-`tool-contract` 的安装闭包目前经 kernel-basis 的 `Outcome` 带入 Cordis。这是共同前置，由 kernel-basis 的拥有者迁出 `Outcome` 后解决；在此之前，测试只允许这一条路径。
+`tool-contract` 从零生产依赖的 `operation-result` 取得 `Outcome`。其生产安装闭包不含 Cordis，测试检查完整传递依赖。
 
 产品的[旅程与能力](../../.meta_harness/design/product/tool-execution/design.md#关键用户旅程)、[关键协作流程](tool-contract/docs/flows.md#工具执行的关键协作流程)和[验证对照](tool-contract/SPEC.md#旅程能力与验证入口)用于定位组合义务，不是另一份业务规则源。
 

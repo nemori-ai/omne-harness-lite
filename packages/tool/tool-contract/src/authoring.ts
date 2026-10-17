@@ -1,7 +1,7 @@
 // Declarations, inspection, catalog, codecs and the author registration types.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 import type { ToolWaitContract } from './author-context.ts'
 import type {
   ParameterContract,

@@ -2,7 +2,7 @@
 // cancellation through the given signal and the return barrier. It creates no ToolCall and
 // promises no durability; a success receipt is `local`.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   IndependentToolScopeInput,
   ToolAskRequest,

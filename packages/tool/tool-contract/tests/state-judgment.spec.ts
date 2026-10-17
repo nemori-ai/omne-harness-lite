@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
   decodeToolInstanceId,

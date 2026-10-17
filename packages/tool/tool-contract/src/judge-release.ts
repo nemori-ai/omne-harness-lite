@@ -1,7 +1,7 @@
 // The closed judgments of the release-specific inputs of releaseDelivery (P08): the consumer
 // position and the handoff evidence. A provider runs them before it compares or digests the
 // values, so an extra field or a function field is rejected instead of reaching the record.
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 import type { ConsumerRef } from './identity.ts'
 import type { Handoff } from './operations.ts'
 import { judgeUnknown, literal, record, variant, type Check } from './shape.ts'

@@ -20,7 +20,7 @@ Behavior belongs to the [contract SPEC](../tool-contract/SPEC.md), P11 for the i
 
 ## Design
 
-Dependency direction: `tool-host-local` → {`tool`, `tool-cordis-contract`} → `tool-contract`. This package does not depend on `tool-cordis-contract`, `tool-host-local` or Cordis. It depends on `@omne-harness/kernel-basis` for `Outcome`; that package lists Cordis as a production dependency (open item O8), and a test ratchets the accepted routes. Durability depends on the ledger store provider; the independent scope promises only `local` receipts.
+Dependency direction: `tool-host-local` → {`tool`, `tool-cordis-contract`} → `tool-contract`. This package does not depend on `tool-cordis-contract`, `tool-host-local` or Cordis. It obtains `Outcome` from the dependency-free `@omne-harness/operation-result`. A test verifies that its production install closure excludes Cordis. Durability depends on the ledger store provider; the independent scope promises only `local` receipts.
 
 ## Configuration and operation
 

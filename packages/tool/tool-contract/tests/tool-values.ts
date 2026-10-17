@@ -2,7 +2,7 @@
 // plain value, so a test can change one field and keep the rest legal.
 import type { BlockId, ContentReference, TextContentBlock } from '@omne-harness/content-block'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
-import { fail, succeed } from '@omne-harness/kernel-basis'
+import { fail, succeed } from '@omne-harness/operation-result'
 import type { SchemaRef } from '@omne-harness/schema-provider'
 import type {
   Adoption,

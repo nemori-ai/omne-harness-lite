@@ -1,5 +1,5 @@
 // Branded Tool identities, adoption and evidence references, and access inputs.
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 
 declare const toolIdentity: unique symbol

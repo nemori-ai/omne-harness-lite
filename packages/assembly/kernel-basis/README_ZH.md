@@ -2,29 +2,15 @@
 
 [English](README.md)
 
-业务包共用的操作结果、Cordis 插件辅助，以及只给测试用的 Context 装配。行为契约在 [SPEC.md](SPEC.md)。[#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)已经接受该契约。根入口导出操作结果。`./cordis` 导出 `definePlugin` 和 `resolveOptional`。`./testing` 导出 `startTestAssembly`。
+Cordis 插件辅助，以及只给测试用的 Context 装配。行为契约在 [SPEC.md](SPEC.md)。[#248 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639)已经接受该契约。根入口为空导出。`./cordis` 导出 `definePlugin` 和 `resolveOptional`。`./testing` 导出 `startTestAssembly`。操作结果在 [`@omne-harness/operation-result`](../../common/operation-result/README_ZH.md)。
 
 ## 职责与状态
 
-本成员为业务包提供三个公开入口。根入口导出操作结果，并且不导入 `@deepseek-ai/cordis`。`./cordis` 导出 `definePlugin` 和 `resolveOptional`。`./testing` 导出 `startTestAssembly`，只给测试使用。产品源码不得导入 `./testing`。
+本成员服务 Cordis 集成和测试。根入口为空，并且不导入 `@deepseek-ai/cordis`。公开面在 `./cordis` 与 `./testing`。`./cordis` 导出 `definePlugin` 和 `resolveOptional`。`./testing` 导出 `startTestAssembly`，只给测试使用。产品源码不得导入 `./testing`。
 
 本包不声明服务键，不收回其他能力的 Service 定义。Cordis 拥有 Fiber 状态。assembly 的关闭协议拥有产品关闭顺序。
 
 ## 使用
-
-根入口的操作结果：
-
-```ts
-import { ack, fail, isSuccess, succeed } from '@omne-harness/kernel-basis'
-
-const valued = succeed({ id: 'job-1' })
-const empty = ack()
-const broken = fail('rejected' as const)
-
-isSuccess(valued) // true，valued.ok 是 { id: 'job-1' }
-isSuccess(empty) // true，empty.ok 是 true
-isSuccess(broken) // false
-```
 
 `./cordis` 的插件辅助：
 
@@ -51,27 +37,25 @@ const plugin = definePlugin({
 
 `startTestAssembly` 把测试插件装进新建的 Context，并按启动的相反顺序撤除它启动的 Fiber。产品源码不得导入 `./testing`。
 
-只导入根入口的调用方不启动 Cordis。使用 `./cordis` 的调用方用 Cordis 4.0.4 做校验、注入和 fiber 生命周期。
+根入口没有导出。使用 `./cordis` 的调用方用 Cordis 4.0.4 做校验、注入和 fiber 生命周期。
 
 ## 契约
 
-[SPEC.md](SPEC.md) 拥有结果形状、`definePlugin`、`resolveOptional`、测试装配、消费者对照和 Cordis 证据表。
-
-`Outcome<T, F>` 是 `{ ok: T } | { failure: F }`。`Ack<F>` 是 `{ ok: true } | { failure: F }`。`F` 归调用方。对象带有 `ok` 时 `isSuccess` 为真。
+[SPEC.md](SPEC.md) 拥有 `definePlugin`、`resolveOptional`、测试装配、消费者对照和 Cordis 证据表。结果形状和构造函数归 `@omne-harness/operation-result`。
 
 ## 设计
 
-根入口不导入 Cordis。`./cordis` 放 `definePlugin` 和 `resolveOptional`。必需依赖放进 `inject`。可选依赖在调用时用 `resolveOptional`。`./testing` 放 `startTestAssembly`。产品源码不能导入这个入口。
+根入口为空。`./cordis` 放 `definePlugin` 和 `resolveOptional`。必需依赖放进 `inject`。可选依赖在调用时用 `resolveOptional`。`./testing` 放 `startTestAssembly`。产品源码不能导入这个入口。
 
 Cordis 仍负责组合、依赖注入和生命周期。assembly 仍负责求值、采用、交接和租约关闭协议。
 
 ## 配置与运行
 
-本包依赖 `@deepseek-ai/cordis` 4.0.4，发布提交是 `d0dca04e22f09fe04967090b2ee70587ecdad6cc`。安装本包会带上 Cordis，即使用户只用根入口。本包不增加运行时配置。探针按任务使用 Node.js `>=24.0.0`。本包 `engines` 是 `>=24.18.0 <25`。这次不改那个字段。engines 的修改归工程工具链。
+本包依赖 `@deepseek-ai/cordis` 4.0.4，发布提交是 `d0dca04e22f09fe04967090b2ee70587ecdad6cc`。安装本包就会安装 Cordis。本包只服务 Cordis 集成与测试。只需要操作结果的调用方安装 `@omne-harness/operation-result`。本包不增加运行时配置。探针按任务使用 Node.js `>=24.0.0`。本包 `engines` 是 `>=24.18.0 <25`。这次不改那个字段。engines 的修改归工程工具链。
 
 ## 验证
 
-单元测试和契约测试归本成员。`./cordis` 和 `./testing` 的测试从公开入口导入，并使用 Cordis 4.0.4，不用假容器。根入口测试断言操作结果函数，并确认生成的根文件不提及 Cordis。`verification/cordis-4.0.4-probes.mjs` 的较早观察写在 SPEC.md。集成测试和端到端测试不适用。本包没有存储、应用服务或用户旅程。
+单元测试和契约测试归本成员。`./cordis` 和 `./testing` 的测试从公开入口导入，并使用 Cordis 4.0.4，不用假容器。根入口测试断言根入口没有运行时导出，并确认生成的根文件不提及 Cordis。`verification/cordis-4.0.4-probes.mjs` 的较早观察写在 SPEC.md。集成测试和端到端测试不适用。本包没有存储、应用服务或用户旅程。
 
 ## 维护
 

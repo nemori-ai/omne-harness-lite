@@ -2,7 +2,7 @@
 // value, so a test can change one field and keep the rest legal. Every port the logical-result
 // path must not touch is a throwing stub that counts its calls.
 import type { BlockId, TextContentBlock } from '@omne-harness/content-block'
-import { succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
   decodeToolOperationId,

@@ -10,7 +10,7 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ToolRuntime, ToolDirectory, ToolInstanceHost, DurableEvidence, ToolBindings, ToolBindingRegistry } from '@omne-harness/tool-contract'
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 
 /** @owner packages/tool/tool-contract */
 export abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {

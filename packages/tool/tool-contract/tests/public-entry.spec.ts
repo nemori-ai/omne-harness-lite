@@ -92,12 +92,8 @@ describe('contract package depends on no Tool member', () => {
     expect(Object.keys(manifest.exports)).not.toContain('./cordis')
   })
 
-  it('reaches Cordis in its install closure only through kernel-basis', () => {
-    // kernel-basis owns Outcome and has a production dependency on Cordis. Until its owner moves
-    // Outcome to a package without Cordis, that is the one accepted route. A new route fails here.
-    expect(routesToCordis(memberPath('.'), [])).toEqual([
-      ['@omne-harness/kernel-basis', '@deepseek-ai/cordis'],
-    ])
+  it('has no Cordis in its production install closure', () => {
+    expect(routesToCordis(memberPath('.'), [])).toEqual([])
   })
 })
 

@@ -1,6 +1,6 @@
 // Closed shapes of the reference values that definitions, states and results share.
 import { judgeContentBlock, type ContentReference } from '@omne-harness/content-block'
-import { succeed } from '@omne-harness/kernel-basis'
+import { succeed } from '@omne-harness/operation-result'
 import type { ToolSchemaIdentity } from './definitions.ts'
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts'
 import { filled, record, reject, type Check } from './shape.ts'

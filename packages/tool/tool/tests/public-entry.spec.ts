@@ -55,14 +55,8 @@ describe('implementation has no Cordis', () => {
     expect(declared.filter(forbidden)).toEqual([])
   })
 
-  it('reaches Cordis in its install closure only through kernel-basis', () => {
-    // kernel-basis owns Outcome and has a production dependency on Cordis (open item O8). Until
-    // its owner moves Outcome to a package without Cordis, those are the accepted routes: direct,
-    // and through the contract package. A new route fails here.
-    expect(routesToCordis(memberPath('.'), [])).toEqual([
-      ['@omne-harness/kernel-basis', '@deepseek-ai/cordis'],
-      ['@omne-harness/tool-contract', '@omne-harness/kernel-basis', '@deepseek-ai/cordis'],
-    ])
+  it('has no Cordis in its production install closure', () => {
+    expect(routesToCordis(memberPath('.'), [])).toEqual([])
   })
 })
 

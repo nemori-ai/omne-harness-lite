@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ToolLedgerStore } from '@omne-harness/tool'
-import { succeed } from '@omne-harness/kernel-basis'
+import { succeed } from '@omne-harness/operation-result'
 import type { ResultPage, ToolResult } from '@omne-harness/tool-contract'
 import {
   admission,

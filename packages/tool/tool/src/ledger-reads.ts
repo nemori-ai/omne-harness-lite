@@ -3,7 +3,7 @@
 // complete snapshot; the ledger answers such a negative only after its exclusion fence commits,
 // and answers `unavailable` when the read itself failed.
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   Adoption,
   OperationResolution,

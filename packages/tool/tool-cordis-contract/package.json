@@ -30,14 +30,15 @@
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/content-block": "workspace:*",
-    "@omne-harness/kernel-basis": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/kernel-basis": "workspace:*",
     "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "@typescript/typescript6": "catalog:"
+    "vitest": "catalog:"
   }
 }

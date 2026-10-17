@@ -1,5 +1,5 @@
 // The closed judgment of a fixed request (342 values, definitions and the fixed request; P02).
-import { succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   FixedToolRequest,
   ResourceScope,

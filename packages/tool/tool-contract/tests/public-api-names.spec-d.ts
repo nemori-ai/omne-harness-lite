@@ -1,7 +1,7 @@
 // Resolve accepted public type names and function signatures through the package root.
 import type { BlockId, ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 import type { ConsumerRef, FixedToolRequest, Handoff } from '@omne-harness/tool-contract'
 import { expectTypeOf, it } from 'vitest'
 import {

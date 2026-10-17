@@ -1,6 +1,6 @@
 // The pure projection of a ToolResult into model message blocks (P14).
 import type { BlockId, ContentBlock, TextContentBlock } from '@omne-harness/content-block'
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { toolResultShape } from './result-policy.ts'
 import type { Attachment, ToolMessageContentBlock, ToolResult } from './results.ts'
 import {

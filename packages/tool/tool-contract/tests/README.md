@@ -4,7 +4,7 @@
 
 | 文件 | 检查的行为 |
 | --- | --- |
-| [public-entry.spec.ts](public-entry.spec.ts) | 根入口的值导出清单，根入口不导出也不提及作者读取函数与槽类型，`./binding` 入口只导出这两个读取函数。根入口与 `./binding` 入口的源码、产物和声明导入图都不含 Cordis、任何 `./cordis` 入口或其他 Tool 包。清单不依赖 Cordis 与其他 Tool 包；安装闭包只经 kernel-basis 到达 Cordis |
+| [public-entry.spec.ts](public-entry.spec.ts) | 根入口的值导出清单，根入口不导出也不提及作者读取函数与槽类型，`./binding` 入口只导出这两个读取函数。根入口与 `./binding` 入口的源码、产物和声明导入图都不含 Cordis、任何 `./cordis` 入口或其他 Tool 包。清单不依赖 Cordis 与其他 Tool 包；完整生产安装闭包不含 Cordis |
 | [identity.spec.ts](identity.spec.ts) | 八个品牌身份解码函数各自接受合法文本，并对非字符串、空串、超长和非法字符返回具名失败 |
 | [result-policy.spec.ts](result-policy.spec.ts) | 默认结果政策的采用摘要可由规则集复算，规则集不可原地修改。判定只接受文本与共享引用块，拒绝原因取自规则集，整结果判定也检查卸载摘要与附件 |
 | [contract.spec.ts](contract.spec.ts) | 资产正文端口的判定、Skill 引用、伪造文档拒绝和固定后的引用 |

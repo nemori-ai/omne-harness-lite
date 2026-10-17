@@ -20,7 +20,7 @@
 
 ## 设计
 
-依赖方向是 `tool-host-local` → {`tool`, `tool-cordis-contract`} → `tool-contract`。本包不依赖 `tool-cordis-contract`、`tool-host-local` 或 Cordis。本包依赖 `@omne-harness/kernel-basis` 取得 `Outcome`。该包把 Cordis 列为生产依赖（开放项 O8），一条测试锁定已接受的路径。耐久性取决于记录仓提供者。独立作用域只承诺 `local` 回执。
+依赖方向是 `tool-host-local` → {`tool`, `tool-cordis-contract`} → `tool-contract`。本包不依赖 `tool-cordis-contract`、`tool-host-local` 或 Cordis。本包依赖 `@omne-harness/operation-result` 取得 `Outcome`。该包没有生产依赖。测试检查本包的完整生产安装闭包不含 Cordis。耐久性取决于记录仓提供者。独立作用域只承诺 `local` 回执。
 
 ## 配置与运行
 

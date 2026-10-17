@@ -2,7 +2,7 @@
 // UTF-8 size of its JSON text. Both walk the tree with an explicit stack, so a deep tree cannot
 // overflow the call stack. A checked tree shares no node, so its size is the size of its text.
 import type { JsonEntry, JsonValue } from '@omne-harness/json-text'
-import { succeed } from '@omne-harness/kernel-basis'
+import { succeed } from '@omne-harness/operation-result'
 import { isPlainObject, item, member, reject, slot, type Check, type Checked } from './shape.ts'
 
 const JSON_NUMBER = /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$/u

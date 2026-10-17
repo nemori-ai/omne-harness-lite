@@ -1,7 +1,7 @@
 // The author execution context: process output, internal waits and wait schemas.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 import type { SchemaIssue } from '@omne-harness/schema-provider'
 import type { ToolSchemaIdentity, ToolValueSchema } from './definitions.ts'
 import type {

@@ -1,5 +1,5 @@
 // Wait protocol handles (P12) and the value schema shape that they share with program output.
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SchemaRef } from '@omne-harness/schema-provider'
 import type { ToolWaitContract, ToolWaitProtocolDefinition } from './author-context.ts'
 import type { ToolValueSchema } from './definitions.ts'

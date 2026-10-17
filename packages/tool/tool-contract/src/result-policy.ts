@@ -6,7 +6,7 @@ import {
   type ReferenceContentBlock,
   type TextContentBlock,
 } from '@omne-harness/content-block'
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { describedAdoption } from './adoption.ts'
 import type { ResultPolicy } from './execution.ts'
 import type { Adoption } from './identity.ts'

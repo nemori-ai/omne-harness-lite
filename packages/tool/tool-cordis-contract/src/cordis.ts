@@ -3,7 +3,7 @@
 // `@omne-harness/tool-host-local/cordis`. This entry does not import a Tool implementation.
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import {
   describedAdoption,

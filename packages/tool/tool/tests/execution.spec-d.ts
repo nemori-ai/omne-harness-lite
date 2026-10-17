@@ -1,5 +1,5 @@
 import { expectTypeOf, it } from 'vitest'
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 import type {
   IndependentToolScopeInput,
   ToolExecutionScope,

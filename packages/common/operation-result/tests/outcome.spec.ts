@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { ack, fail, isSuccess, succeed } from '@omne-harness/kernel-basis'
+import { ack, fail, isSuccess, succeed } from '@omne-harness/operation-result'
 
 it('returns a valued success without a string ok', () => {
   const valued = succeed({ id: 'job-1' })

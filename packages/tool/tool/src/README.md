@@ -16,6 +16,6 @@
 - [ledger.ts](ledger.ts) 实现 `createToolLedger`：每个入口做边界、资格、读取、决定与按修订号提交；否定的查询答案先提交排除围栏（一条 `exclusion` 记录），被围栏排除的在途命令在重试时停止；后续工单的操作回复具名 `unsupported`。
 - [runtime.ts](runtime.ts) 实现 `createToolRuntime`：构造时检查配置与端口，逻辑终局路径的操作接到账本端口，其余回复具名 `unsupported`。
 - [testing.ts](testing.ts) 是 `./testing` 入口：非耐久记录仓 `createMemoryToolLedgerStore`，带故障注入。
-- 本包经 `@omne-harness/tool-contract` 取得公共类型，不复制它们。`Outcome` 来自 `@omne-harness/kernel-basis`。
+- 本包经 `@omne-harness/tool-contract` 取得公共类型，不复制它们。`Outcome` 来自 `@omne-harness/operation-result`。
 
 实现选择见 [SPEC](../SPEC.md)。文档导航见 [index](index.md)。

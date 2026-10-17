@@ -5,7 +5,7 @@ import {
   type JsonLimits,
   type JsonValue,
 } from '@omne-harness/json-text'
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { describedAdoption } from './adoption.ts'
 import type { ParameterCodec } from './authoring.ts'
 import type { ToolArguments } from './definitions.ts'

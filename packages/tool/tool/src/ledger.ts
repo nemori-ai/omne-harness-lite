@@ -7,7 +7,7 @@
 // `unsupported` failure after the same checks; nothing throws for an expected failure, and
 // nothing pretends to succeed.
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolDeliveryId,
   decodeToolOperationId,

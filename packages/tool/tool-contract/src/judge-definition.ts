@@ -1,7 +1,7 @@
 // The closed judgment of a Tool definition (P02, P13, P15).
 import { capabilityId } from '@omne-harness/assets'
 import type { JsonValue } from '@omne-harness/json-text'
-import { succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolDeclarations, ToolSettingsDeclaration } from './authoring.ts'
 import type {
   ParameterContract,

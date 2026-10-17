@@ -1,6 +1,6 @@
 // The synchronous rendering of an author return into one ToolResult (P13).
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { TextResultFactory, ToolAuthor } from './authoring.ts'
 import type { ResultPolicy } from './execution.ts'
 import { jsonTextBytes, jsonValue } from './json-tree.ts'

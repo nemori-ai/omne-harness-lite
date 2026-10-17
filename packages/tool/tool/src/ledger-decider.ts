@@ -3,7 +3,7 @@
 // writes with the value to reply after the commit. It reads no port, runs no tool and mints no
 // time of its own.
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   ConsumerRef,
   DeliveryState,

@@ -1,7 +1,7 @@
 // The boundary checks of every ledger command and read: the tenant shape, the branded call and
 // operation identities, and the write context. A missing or malformed tenant is `denied`, so the
 // answer does not tell whether the call exists (342 identity, scope and qualification).
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
   decodeToolInstanceId,

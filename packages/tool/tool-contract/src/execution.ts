@@ -1,7 +1,7 @@
 // Executors, result policy, execution references, recovery input and the ledger command port.
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { Outcome } from '@omne-harness/kernel-basis'
+import type { Outcome } from '@omne-harness/operation-result'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ToolExecutionContext } from './author-context.ts'
 import type { RawOutput } from './custody.ts'

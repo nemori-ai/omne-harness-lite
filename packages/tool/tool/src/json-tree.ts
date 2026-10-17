@@ -9,7 +9,7 @@
 // JSON_TREE_MAX_NODES nodes are visited, counting a shared subtree each time it is reached; and
 // the walk stops as soon as the text exceeds the byte budget. So a deep, shared or cyclic input
 // cannot run without bound.
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolAskRequest } from '@omne-harness/tool-contract'
 import { slot } from './limits.ts'
 

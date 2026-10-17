@@ -1,7 +1,7 @@
 // Builders and controllable ports for the independent-scope tests. Each builder returns a fresh
 // value, so a test can change one field and keep the rest legal.
 import type { BlockId, TextContentBlock } from '@omne-harness/content-block'
-import { fail, succeed, type Outcome } from '@omne-harness/kernel-basis'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   defineToolWaitContract,
   type Adoption,
