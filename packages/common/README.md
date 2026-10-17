@@ -1,6 +1,6 @@
 # 共同纯表示能力组
 
-本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面六份成员已经在 workspace 里。`json-text` 导出读取函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。
+本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面七份成员已经在 workspace 里。`json-text` 导出读取函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。`call-account` 导出调用账目的快照准入、修订替换、来源小计和应付金额。
 
 ## 责任与范围
 
@@ -10,7 +10,7 @@
 
 ## 成员与依赖
 
-依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的六份目录现在是 workspace 成员。`json-text` 的读取函数已经实现，负责人尚未接受。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
+依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的七份目录现在是 workspace 成员。`json-text` 的读取函数已经实现，负责人尚未接受。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
 
 | 目标成员 | 状态 | 拥有的纯值 | 具名消费者 |
 | --- | --- | --- | --- |
@@ -20,6 +20,7 @@
 | `content-block` | 纯校验已导出 | 已封闭的文本、思考、语音、图、文件 | 模型、工具、会话、请求投影 |
 | `message` | 解析和相等已导出。不铸造身份 | 事实记录中的消息字段 | 会话、请求投影、模型 |
 | `stream-arrival` | 步骤校验已导出 | 开块、填充、封块、削减、结束 | 模型、工具、会话 |
+| `call-account` | 快照准入、修订替换、来源小计和应付金额已导出 | 一次模型调用或工具执行的调用账目 | 模型调用、会话 |
 
 采用记录是 [Issue 221 技术设计采用](https://github.com/nemori-ai/omne-harness-lite/issues/221#issuecomment-6161958178)。
 
@@ -49,7 +50,7 @@
 | 共享的 `deriveState` | 业务拥有者 | 到期判断不放进本组 |
 | 用 `filledAt` 充当递增序号 | 序号拥有者 | `asset-registry-local` 不再在钟停住时保存 `previous + 1` |
 | 租约读取 `Date.now` | 单调钟端口 | `clock-lease` 不把 `Date.now` 当作默认当前时间 |
-| `IDENTITY_TYPE_NAMES` | `legal-identity` 的唯一名单 | `tools/ts-checks` 的 `identity-shapes` 导入这份名单。它删除字面量 `AccountId`。#219 不另写一份拼写 |
+| `IDENTITY_TYPE_NAMES` | `legal-identity` 的唯一名单 | `tools/product-checks` 的 `identity-shapes` 导入这份名单。它删除字面量 `AccountId`。#219 不另写一份拼写 |
 
 ## 反例
 

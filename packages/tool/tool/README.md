@@ -1,6 +1,6 @@
 PACKAGE_TEMPLATE_DRAFT
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+本成员导出 `toolBodyContract`，作为已接受的资产类别端口。执行、等待和结果保管仍按本页其余章节，那些行为尚未在这个入口实现。
 
 # tool 文档目标
 
@@ -21,4 +21,4 @@ PACKAGE_TEMPLATE_DRAFT
 ## 验证与维护
 
 SPEC及专题维护持续验证义务；实际测试、模型、提供者和装配证据尚缺。修改时同步公开消费者和组导航；未决按[产品第四块](../../../.meta_harness/design/product/tool-execution/design.md#未决问题与待定事项)及技术拥有者闭合。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+默认测试责任是单元和契约。命令是 `pnpm --filter @omne-harness/tool test`。`tests/public-entry.spec.ts` 核对公开导出。集成测试和端到端测试不适用：本卡只交付正文端口，不交付存储或执行旅程。

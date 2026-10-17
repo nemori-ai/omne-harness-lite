@@ -1,12 +1,23 @@
 packages:
   - packages/*/*
   - apps/*
-  - tools/ts-checks
-  - tools/core-verification
+  - tools/repo-toolchain
+  - tools/dev-flow
+  - tools/product-checks
+  - tools/test-runner
   - tools/artifact-builder
+  - tools/repo-config
+
+# 普通版本号只从 registry 解析，不链接到同名的工作区成员；工作区成员之间要链接就写 workspace:。
+# 检查器的钉子依赖这一条：钉住的 repo-toolchain、repo-config 必须装 npm 上的包。
+linkWorkspacePackages: false
 
 # 版本只在这里钉一次；成员用 `catalog:` 引用。改版本先改这里，再重生锁文件。
 catalog:
+  # 检查器与配置预设：仓库检查运行 npm 上的这两个精确版本，不运行工作区 tools/ 下的同名成员。
+  # 升级先发新版本，再开只改这两行的 PR，见 docs/development.md「仓库工具链的版本」。
+  '@omne-harness/repo-toolchain': 0.0.5
+  '@omne-harness/repo-config': 0.0.3
   '@babel/helper-validator-identifier': 8.0.6
   validate-npm-package-name: 8.0.0
   '@types/validate-npm-package-name': 4.0.2
@@ -24,8 +35,14 @@ catalog:
   kysely: 0.29.6
   pg: 8.23.0
   '@types/pg': 8.15.6
-  typescript: 6.0.3
+  typescript: 7.0.2
+  '@typescript/typescript6': 6.0.2
   vitest: 4.1.11
+  oxfmt: 0.73.0
+  oxlint: 1.88.0
+  dependency-cruiser: 18.6.0
+  knip: 6.41.0
+  turbo: 2.11.7
   '@vitest/coverage-v8': 4.1.11
   zod: 4.6.5
   '@standard-schema/spec': 1.1.0
@@ -48,3 +65,9 @@ catalog:
 # 安装仍使用 --ignore-scripts；只允许显式构建这个已核对的原生依赖。
 onlyBuiltDependencies:
   - node-pty@1.1.0
+
+# dependency-cruiser 18 只认 TypeScript 6 以下的编译器，没有它就不解析 .ts。只给它补一份 TypeScript 6，成员仍用 catalog 的 TypeScript 7。
+packageExtensions:
+  dependency-cruiser:
+    dependencies:
+      typescript: 6.0.3

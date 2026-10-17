@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
+it('exports the accepted environment contract from the package root', async () => {
   const root = (await import('@omne-harness/execution-environment')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+  expect(typeof root.createHostFiles).toBe('function')
+  expect(typeof root.hostObjectToken).toBe('function')
 })

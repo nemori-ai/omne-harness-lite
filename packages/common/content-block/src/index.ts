@@ -42,13 +42,23 @@ export interface FileContentBlock {
 }
 
 export type ContentBlock =
-  TextContentBlock | ThinkingContentBlock | MediaContentBlock | FileContentBlock
+  | TextContentBlock
+  | ThinkingContentBlock
+  | MediaContentBlock
+  | FileContentBlock
 
 export type ContentBlockRejection =
-  'kind' | 'extra' | 'id' | 'visibility' | 'text' | 'media' | 'file'
+  | 'kind'
+  | 'extra'
+  | 'id'
+  | 'visibility'
+  | 'text'
+  | 'media'
+  | 'file'
 
 export type ContentBlockJudgment =
-  { readonly ok: ContentBlock } | { readonly rejected: ContentBlockRejection }
+  | { readonly ok: ContentBlock }
+  | { readonly rejected: ContentBlockRejection }
 
 interface BlockRule {
   readonly keys: readonly string[]

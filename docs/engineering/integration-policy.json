@@ -1,15 +1,8 @@
 {
   "schemaVersion": 1,
-  "revision": "3",
+  "revision": "4",
   "repository": "nemori-ai/omne-harness-lite",
   "deliveryConfig": "docs/engineering/github-delivery.json",
-  "owners": [
-    {
-      "login": "PanQiWei",
-      "nodeId": "MDQ6VXNlcjQ2ODEwNjM3",
-      "actions": ["adopt", "dispatch", "publish", "policy-adopt", "track-bootstrap"]
-    }
-  ],
   "tracks": [
     {
       "id": "development",
@@ -17,8 +10,7 @@
       "owner": "PanQiWei",
       "source": "https://github.com/nemori-ai/omne-harness-lite/issues/195",
       "status": "retiring",
-      "initialMain": "7d3a24091aa7cff63eea4aab77f6c57c009f514b",
-      "checks": ["check"]
+      "initialMain": "7d3a24091aa7cff63eea4aab77f6c57c009f514b"
     },
     {
       "id": "legacy-refactor",
@@ -26,8 +18,7 @@
       "owner": "PanQiWei",
       "source": "https://github.com/nemori-ai/omne-harness-lite/issues/215",
       "status": "active",
-      "initialMain": "3aee801936a9c5dd54f3e34c221566eec4df363d",
-      "checks": ["check"]
+      "initialMain": "3aee801936a9c5dd54f3e34c221566eec4df363d"
     },
     {
       "id": "engineering-toolchain",
@@ -35,211 +26,14 @@
       "owner": "PanQiWei",
       "source": "https://github.com/nemori-ai/omne-harness-lite/issues/215",
       "status": "active",
-      "initialMain": "3aee801936a9c5dd54f3e34c221566eec4df363d",
-      "checks": ["check"]
+      "initialMain": "3aee801936a9c5dd54f3e34c221566eec4df363d"
     }
-  ],
-  "commands": [
-    {
-      "id": "runner-dependencies",
-      "argv": ["pnpm", "--dir", "{runner}", "install", "--frozen-lockfile", "--ignore-scripts"],
-      "cwd": "runner"
-    },
-    {
-      "id": "runner-python",
-      "argv": ["uv", "sync", "--project", "{runner}", "--locked"],
-      "cwd": "runner"
-    },
-    {
-      "id": "runner-build",
-      "argv": [
-        "pnpm",
-        "--dir",
-        "{runner}",
-        "--filter",
-        "@omne-harness/ts-checks...",
-        "run",
-        "build"
-      ],
-      "cwd": "runner"
-    },
-    {
-      "id": "subject-dependencies",
-      "argv": ["pnpm", "--dir", "{subject}", "install", "--frozen-lockfile", "--ignore-scripts"],
-      "cwd": "subject"
-    },
-    {
-      "id": "check",
-      "argv": ["bash", "{runner}/scripts/check.sh"],
-      "cwd": "runner"
-    },
-    {
-      "id": "runner-agents",
-      "argv": [
-        "uv",
-        "run",
-        "--project",
-        "{runner}",
-        "--locked",
-        "python",
-        "{runner}/.meta_harness/tooling/src/compile_agents.py",
-        "--source",
-        "{runner}/.meta_harness/agents",
-        "--output",
-        "{runner}/.meta_harness"
-      ],
-      "cwd": "runner"
-    },
-    {
-      "id": "runner-agent-links",
-      "argv": [
-        "uv",
-        "run",
-        "--project",
-        "{runner}",
-        "--locked",
-        "python",
-        "{runner}/.meta_harness/tooling/src/link_agents.py",
-        "--project-root",
-        "{runner}"
-      ],
-      "cwd": "runner"
-    },
-    {
-      "id": "subject-agents",
-      "argv": [
-        "uv",
-        "run",
-        "--project",
-        "{runner}",
-        "--locked",
-        "python",
-        "{runner}/.meta_harness/tooling/src/compile_agents.py",
-        "--source",
-        "{subject}/.meta_harness/agents",
-        "--output",
-        "{subject}/.meta_harness"
-      ],
-      "cwd": "subject"
-    },
-    {
-      "id": "subject-agent-links",
-      "argv": [
-        "uv",
-        "run",
-        "--project",
-        "{runner}",
-        "--locked",
-        "python",
-        "{runner}/.meta_harness/tooling/src/link_agents.py",
-        "--project-root",
-        "{subject}"
-      ],
-      "cwd": "subject"
-    },
-    {
-      "id": "startup",
-      "argv": [
-        "node",
-        "--experimental-strip-types",
-        "{runner}/tools/ts-checks/src/integration/cli.ts",
-        "baselines",
-        "--root",
-        "{subject}"
-      ],
-      "cwd": "runner"
-    },
-    {
-      "id": "migration-tests",
-      "argv": [
-        "env",
-        "-u",
-        "OMNE_INTEGRATION_BOOTSTRAP_CHECK",
-        "-u",
-        "OMNE_SUBJECT_ROOT",
-        "-u",
-        "OMNE_RUNNER_ROOT",
-        "pnpm",
-        "--dir",
-        "{runner}/tools/ts-checks",
-        "exec",
-        "vitest",
-        "run",
-        "tests/integration-context.spec.ts",
-        "tests/integration-engine.spec.ts",
-        "tests/integration-transport.spec.ts",
-        "tests/integration-boundaries.spec.ts",
-        "tests/package-domain-template.spec.ts",
-        "tests/package-template-cli.spec.ts"
-      ],
-      "cwd": "runner"
-    },
-    {
-      "id": "context-main-path",
-      "argv": [
-        "uv",
-        "run",
-        "--project",
-        "{runner}",
-        "--locked",
-        "omne-documentation",
-        "context",
-        "--root",
-        "{subject}",
-        "--role",
-        "developer"
-      ],
-      "cwd": "runner"
-    }
-  ],
-  "profiles": {
-    "integration": [
-      "runner-dependencies",
-      "runner-python",
-      "runner-build",
-      "subject-dependencies",
-      "runner-agents",
-      "runner-agent-links",
-      "subject-agents",
-      "subject-agent-links",
-      "startup",
-      "check"
-    ],
-    "full": [
-      "runner-dependencies",
-      "runner-python",
-      "runner-build",
-      "subject-dependencies",
-      "runner-agents",
-      "runner-agent-links",
-      "subject-agents",
-      "subject-agent-links",
-      "startup",
-      "check",
-      "migration-tests",
-      "context-main-path"
-    ]
-  },
-  "checkpointCoverage": {
-    "startup": ["startup"],
-    "install": ["runner-dependencies", "runner-python", "subject-dependencies"],
-    "migration": ["migration-tests"],
-    "mainPath": ["context-main-path", "check"]
-  },
-  "timeouts": {
-    "commandMs": 3600000,
-    "networkMs": 30000
-  },
-  "requiredFiles": [
-    "tools/ts-checks/src/integration/cli.ts",
-    "tools/ts-checks/src/integration/engine.ts",
-    "tools/ts-checks/src/integration/SPEC.md",
-    "tools/ts-checks/src/delivery/binding.ts",
-    "docs/engineering/integration.md",
-    ".meta_harness/agents/skills/branch-integration/canonical/SKILL.md"
   ],
   "transport": {
     "kind": "remote",
     "location": "origin"
+  },
+  "timeouts": {
+    "networkMs": 30000
   }
 }

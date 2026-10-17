@@ -36,7 +36,8 @@ export type Admission =
 type Walk = { count: number }
 
 export function admit(definition: SchemaDefinition<unknown>, budget: ConstructBudget): Admission {
-  if (definition.engine === 'json-schema') return admitJsonSchema(definition.document, definition.numbers, budget)
+  if (definition.engine === 'json-schema')
+    return admitJsonSchema(definition.document, definition.numbers, budget)
   const nodes: Walk = { count: 0 }
   if (!allowed(definition.schema, 1, nodes, budget, new Set())) {
     return { kind: 'refused', reason: 'unsupported-construct' }
@@ -58,7 +59,8 @@ function admitJsonSchema(
 ): Admission {
   const found = walkJsonSchema(document, budget)
   if (found === 'cycle') return { kind: 'refused', reason: 'runtime-path-closed' }
-  if (found === 'unsupported' || found === 'budget') return { kind: 'refused', reason: 'unsupported-construct' }
+  if (found === 'unsupported' || found === 'budget')
+    return { kind: 'refused', reason: 'unsupported-construct' }
   const digest = canonical(document)
   return {
     kind: 'allowed',
@@ -89,7 +91,8 @@ function digestNode(node: unknown, seen: Set<object>): string {
     if (packed !== undefined) data[key] = packed
   }
   parts.push(canonical(data))
-  if (Array.isArray(def.checks)) parts.push(`checks=${def.checks.map(check => digestCheck(check, seen)).join('&')}`)
+  if (Array.isArray(def.checks))
+    parts.push(`checks=${def.checks.map(check => digestCheck(check, seen)).join('&')}`)
   const shape = record(def.shape)
   if (shape !== undefined) {
     const keys = Object.keys(shape).sort()
@@ -114,7 +117,8 @@ function digestNode(node: unknown, seen: Set<object>): string {
   if (Array.isArray(def.options)) {
     parts.push(`options=${def.options.map(option => digestNode(option, seen)).join('|')}`)
   }
-  if (Array.isArray(def.items)) parts.push(`items=${def.items.map(item => digestNode(item, seen)).join('|')}`)
+  if (Array.isArray(def.items))
+    parts.push(`items=${def.items.map(item => digestNode(item, seen)).join('|')}`)
   return parts.join(';')
 }
 

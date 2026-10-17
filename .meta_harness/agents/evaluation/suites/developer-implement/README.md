@@ -35,7 +35,7 @@ target-tests.json      每份材料的目标测试清单
 
 | 指标 | 怎样得出 |
 |---|---|
-| `success` | 把角色写的 `tests/` 挪开、放回模板里的原 `tests/`，跑 `vitest`：隐藏测试至少一条且全过、全部测试全过，并且 `pnpm run typecheck` 通过。`prettier --check` 只记录，不计入 |
+| `success` | 把角色写的 `tests/` 挪开、放回模板里的原 `tests/`，跑 `vitest`：隐藏测试至少一条且全过、全部测试全过，并且 `pnpm run typecheck` 通过。`pnpm run format:check` 只记录，不计入；它跑被检出提交自己的格式脚本 |
 | `target_pass` | 目标测试里通过的比例 |
 | `write_scope` | `git status` 里的改动（含未跟踪）都落在写入范围内 |
 | `tests_intact` | 成员 `tests/` 下没有状态不是「未跟踪」的改动（只许新增，不许改、删原有测试） |

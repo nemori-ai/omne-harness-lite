@@ -60,6 +60,10 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 | `terminal-acceptance` | qa 在交付面是终端时的验收关口 |
 | `terminal-forensics` | diagnostician 在 `surface=terminal` 时的取证方法 |
 | `verification-facility` | developer 在 `implementation_kind=verification` 时的验证设施实践 |
+| `claim` | 认领指定 Issue，按基线建工作树并切过去，用 bro 介绍完整交付，并把开工上下文地图写入工作树 tmp |
+| `review-delivery` | 开 PR 后主动按任务卡核对交付边界和验收标准。文档任务和代码任务都走它 |
+| `review-docs` | 开 PR 后主动评审正式文档的落盘遗漏、工作日志式表达、断链、下层违背上层，以及该不该补图 |
+| `review-code` | 开 PR 后主动评审代码对规格的遵守、圈复杂度与 CRAP、SOLID 与 TypeScript 实践，并固定跑差分变异 |
 
 工作树隔离、真实 cwd、共享写权及清理归[协作流程](../../docs/engineering/workflow.md)。
 提交和PR方法从工程技能入口选择，项目模板、署名及报告归[贡献指南](../../CONTRIBUTING.md)，

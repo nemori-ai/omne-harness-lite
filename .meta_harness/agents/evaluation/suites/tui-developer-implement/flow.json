@@ -127,9 +127,8 @@
     ],
     "format": [
       "pnpm",
-      "exec",
-      "prettier",
-      "--check"
+      "run",
+      "format:check"
     ],
     "target_tests": "target-tests.json",
     "timeout_s": {

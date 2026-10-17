@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module'
-import type { ActionIntent } from '@omne-harness/governance-client-operations'
+import type { ActionIntent } from '@omne-harness-lite/governance-client-operations'
 import type { Diagnostic } from './diagnostic.ts'
 const require = createRequire(import.meta.url)
 export interface Command {

@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft agent package; complete the accepted public contract before delivery",
+  "description": "Judge AgentDefinition and loop extension declarations without starting a runtime",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {
@@ -19,10 +19,14 @@
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
-    "typecheck": "pnpm run build && tsc -p tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.test.json",
     "test": "pnpm run build && vitest run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/schema-provider": "workspace:*",
+    "zod": "catalog:"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
