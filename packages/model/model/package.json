@@ -12,16 +12,6 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./cordis": {
-      "source": "./src/cordis.ts",
-      "types": "./dist/cordis.d.ts",
-      "import": "./dist/cordis.js"
-    },
-    "./execute": {
-      "source": "./src/execute.ts",
-      "types": "./dist/execute.d.ts",
-      "import": "./dist/execute.js"
     }
   },
   "files": [
@@ -30,18 +20,15 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "pnpm run build && vitest run"
+    "test": "pnpm run build && vitest run",
+    "install-closure": "node --experimental-strip-types ../model-contract/tests/install/cli.ts --member . --policy tests/fixtures/install-policy.json --scenario tests/install/scenario.mjs"
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/legal-identity": "workspace:*",
-    "@omne-harness/model-contract": "workspace:*",
-    "@omne-harness/model-cordis-contract": "workspace:*",
-    "proper-lockfile": "^4.1.2"
+    "@omne-harness/model-contract": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "@types/proper-lockfile": "^4.1.4",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

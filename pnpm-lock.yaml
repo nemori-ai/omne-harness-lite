@@ -509,28 +509,16 @@ importers:
 
   packages/model/model:
     dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 'catalog:'
-        version: 4.0.4
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../model-contract
-      '@omne-harness/model-cordis-contract':
-        specifier: workspace:*
-        version: link:../model-cordis-contract
-      proper-lockfile:
-        specifier: ^4.1.2
-        version: 4.1.2
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
-      '@types/proper-lockfile':
-        specifier: ^4.1.4
-        version: 4.1.4
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
