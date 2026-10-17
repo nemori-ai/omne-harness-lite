@@ -1,5 +1,5 @@
 // dependency-cruiser is the repository's one dependency graph (RFC-0002). `pnpm run lint:deps` and the clean loop read
-// the same run through tools/ts-checks/src/deps; member and group cycles are computed there from this graph.
+// the same run through tools/repo-toolchain/src/deps; member and group cycles are computed there from this graph.
 // Structural guards fail for dev tools and product sources alike.
 //
 // Direction rules project docs/package-organization.md and docs/architecture/layers-and-dependencies.md onto member
@@ -12,6 +12,10 @@ const PUBLIC_CONTRACT = '^packages/access/public-contract/'
 const ASSEMBLY = '^packages/assembly/assembly/'
 const SHARED = '^packages/(common|util)/'
 const ORGANIZATION = 'docs/package-organization.md'
+const TOOLCHAIN = '^tools/repo-toolchain/src/'
+const TOOLCHAIN_ENTRY = 'cli\\.ts$'
+const UNPUBLISHED_TOOLS = '^tools/(dev-flow|product-checks|test-runner)/'
+const WORKSPACE = 'docs/workspace.md'
 const LAYERS = 'docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向'
 
 /** @type {import('dependency-cruiser').IConfiguration} */
@@ -87,6 +91,44 @@ module.exports = {
       severity: 'error',
       from: { path: PACKAGES },
       to: { path: '^(apps|tools)/' },
+    },
+    {
+      name: 'toolchain-not-unpublished',
+      comment: `The published @omne-harness/repo-toolchain does not depend on the unpublished tool members; they depend on it. ${WORKSPACE}`,
+      severity: 'error',
+      from: { path: '^tools/repo-toolchain/' },
+      to: { path: UNPUBLISHED_TOOLS },
+    },
+    {
+      name: 'toolchain-core-stays-low',
+      comment: `The checker core (rule engine, Git, workspace, task context, test ledger, configuration) depends only on itself. ${WORKSPACE}`,
+      severity: 'error',
+      from: { path: `${TOOLCHAIN}core/` },
+      to: { path: TOOLCHAIN, pathNot: `${TOOLCHAIN}core/` },
+    },
+    {
+      name: 'toolchain-checks-not-pages',
+      comment: `Checks and measurements do not depend on the report pages or the clean loop; CLI entries assemble them. ${WORKSPACE}`,
+      severity: 'error',
+      from: {
+        path: `${TOOLCHAIN}(acceptance|arch|archive|declarations|deps|metrics|product)/|${TOOLCHAIN}commits\\.ts$`,
+        pathNot: TOOLCHAIN_ENTRY,
+      },
+      to: { path: `${TOOLCHAIN}(report|loop)/` },
+    },
+    {
+      name: 'toolchain-metrics-below-arch',
+      comment: `Measurements do not depend on architecture extraction; architecture extraction reads them. ${WORKSPACE}`,
+      severity: 'error',
+      from: { path: `${TOOLCHAIN}metrics/`, pathNot: TOOLCHAIN_ENTRY },
+      to: { path: `${TOOLCHAIN}arch/` },
+    },
+    {
+      name: 'toolchain-report-below-loop',
+      comment: `Report pages do not depend on the clean loop; the loop renders them. ${WORKSPACE}`,
+      severity: 'error',
+      from: { path: `${TOOLCHAIN}report/` },
+      to: { path: `${TOOLCHAIN}loop/` },
     },
   ],
   options: {

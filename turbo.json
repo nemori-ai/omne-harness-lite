@@ -5,8 +5,7 @@
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
-    "tsconfig.base.json",
-    "tools/repo-config/**"
+    "tsconfig.base.json"
   ],
   "tasks": {
     "build": {
@@ -16,12 +15,6 @@
       "outputs": [
         "dist/**"
       ]
-    },
-    "@omne-harness/core-verification#build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": []
     }
   }
 }

@@ -13,7 +13,11 @@ import {
 const allow: PasswordPolicy = () => ({ ok: true })
 const tiny: ScryptProfile = { N: 16, r: 1, p: 1, keylen: 32, saltBytes: 16, inFlight: 1, queue: 1 }
 
-function heldCompute(): { compute: ScryptCompute; release: (byte: number) => void; calls: () => number } {
+function heldCompute(): {
+  compute: ScryptCompute
+  release: (byte: number) => void
+  calls: () => number
+} {
   const waiting: Array<(key: Uint8Array) => void> = []
   let calls = 0
   const compute: ScryptCompute = (_secret, _salt, _keylen, _cost, done) => {
@@ -33,7 +37,15 @@ function heldCompute(): { compute: ScryptCompute; release: (byte: number) => voi
 
 it('uses the measured memory floor for the accepted profile', () => {
   expect(memoryBytes(SCRYPT_PROFILE)).toBe(128 * 8 * (2 ** 17 + 1 + 2))
-  expect(SCRYPT_PROFILE).toMatchObject({ N: 2 ** 17, r: 8, p: 1, keylen: 32, saltBytes: 16, inFlight: 1, queue: 4 })
+  expect(SCRYPT_PROFILE).toMatchObject({
+    N: 2 ** 17,
+    r: 8,
+    p: 1,
+    keylen: 32,
+    saltBytes: 16,
+    inFlight: 1,
+    queue: 4,
+  })
 })
 
 it('refuses each illegal profile field before a hash starts', () => {
@@ -133,17 +145,21 @@ it('rejects a bad secret and a refused policy before compute', async () => {
   const opened = openScrypt(tiny, held.compute)
   if (!opened.ok) throw new Error('profile')
   let policyCalls = 0
-  expect(opened.module.derive('', () => {
-    policyCalls += 1
-    return { ok: false }
-  })).toEqual({ code: 'policy_refused' })
+  expect(
+    opened.module.derive('', () => {
+      policyCalls += 1
+      return { ok: false }
+    }),
+  ).toEqual({ code: 'policy_refused' })
   expect(policyCalls).toBe(1)
   expect(opened.module.derive('secret', undefined)).toEqual({ code: 'policy_missing' })
   const refused = opened.module.derive('secret', () => ({ ok: false }))
   expect(JSON.stringify(refused).includes('secret')).toBe(false)
-  expect(opened.module.derive('secret', () => {
-    throw new Error('policy-blew-up')
-  })).toEqual({ code: 'unavailable' })
+  expect(
+    opened.module.derive('secret', () => {
+      throw new Error('policy-blew-up')
+    }),
+  ).toEqual({ code: 'unavailable' })
   expect(opened.module.derive(1 as unknown as string, allow)).toEqual({ code: 'invalid_secret' })
   const broken: ScryptCompute = (_secret, _salt, _keylen, _cost, done) => {
     done(null)
@@ -243,9 +259,15 @@ it('refuses a stored r, p, or key length above the opened profile', async () => 
   if (!('done' in started)) throw new Error('expected a job')
   const derived = await started.done
   if (derived.code !== 'material') throw new Error(derived.code)
-  expect(opened.module.verify(derived.material.replace('r=1', 'r=2'), 'secret')).toEqual({ code: 'unavailable' })
-  expect(opened.module.verify(derived.material.replace('p=1', 'p=2'), 'secret')).toEqual({ code: 'unavailable' })
-  expect(opened.module.verify(derived.material.replace('k=32', 'k=33'), 'secret')).toEqual({ code: 'unavailable' })
+  expect(opened.module.verify(derived.material.replace('r=1', 'r=2'), 'secret')).toEqual({
+    code: 'unavailable',
+  })
+  expect(opened.module.verify(derived.material.replace('p=1', 'p=2'), 'secret')).toEqual({
+    code: 'unavailable',
+  })
+  expect(opened.module.verify(derived.material.replace('k=32', 'k=33'), 'secret')).toEqual({
+    code: 'unavailable',
+  })
 })
 
 it('reports an unknown scheme as mismatch and a broken material as unavailable', () => {
@@ -298,12 +320,17 @@ it('rejects a safe integer that is not a power of two before compute', () => {
   const compute: ScryptCompute = () => {
     calls += 1
   }
-  expect(openScrypt({ ...tiny, N: 2 ** 32 + 1 }, compute)).toEqual({ ok: false, code: 'invalid_profile' })
+  expect(openScrypt({ ...tiny, N: 2 ** 32 + 1 }, compute)).toEqual({
+    ok: false,
+    code: 'invalid_profile',
+  })
   const opened = openScrypt(tiny, compute)
   if (!opened.ok) throw new Error('profile')
   const salt = Buffer.alloc(16).toString('base64url')
   const key = Buffer.alloc(32).toString('base64url')
-  expect(opened.module.verify(`$scrypt$v=1$n=4294967297,r=1,p=1,k=32$${salt}$${key}`, 'secret')).toEqual({
+  expect(
+    opened.module.verify(`$scrypt$v=1$n=4294967297,r=1,p=1,k=32$${salt}$${key}`, 'secret'),
+  ).toEqual({
     code: 'unavailable',
   })
   expect(calls).toBe(0)

@@ -107,21 +107,6 @@
       "requiredSections": []
     },
     {
-      "id": "placed-packages#identity#authorization#README",
-      "path": "packages/identity/authorization/README.md",
-      "kind": "entry",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
       "id": "placed-packages#identity#docs#architecture",
       "path": "packages/identity/docs/architecture.md",
       "kind": "architecture",
@@ -147,21 +132,6 @@
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "能力组文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages#identity#identity#README",
-      "path": "packages/identity/identity/README.md",
-      "kind": "entry",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []

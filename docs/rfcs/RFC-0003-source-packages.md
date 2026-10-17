@@ -2,13 +2,16 @@
 id: RFC-0003
 title: 新架构源码包
 revision: 1
-status: accepted
+status: superseded
+supersededBy: RFC-0007
 owner: PanQiWei
 ---
 
 # RFC-0003：新架构源码包
 
 规则与维护责任见[RFC入口](README.md)。PanQiWei 于 2026-10-14 接受本提案 revision 1，记录见[接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165074528)。它告诉接手人怎样建立、消费、检查和交付新的源码包。它不建立这些包，也不把预留目录变成成员。规范写回尚未发生。
+
+> **被取代与更正标注（2026-10-16）**：本提案已被 [RFC-0007](RFC-0007-source-packages-and-templates.md) 取代，「测试」一行此前已由 [RFC-0005](RFC-0005-package-testing.md) 取代。现行规则从 RFC-0007 与其写回的现行源读取。2026-10-14 至 2026-10-16 有提交直接改动了本提案的方案与决定范围（源码条件名、包名作用域、生成器状态与模板维护者），这些改动已撤回，方案与决定范围恢复为接受原文 [`a50bcb0b`](https://github.com/nemori-ai/omne-harness-lite/blob/a50bcb0b/docs/rfcs/RFC-0003-source-packages.md)；对应变化由 RFC-0007 的「修改」条款承接，见 [#352 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/352#issuecomment-6212688730)。写回表与后继关系属于允许的维护，保持现状。
 
 ## 问题与有效输入
 
@@ -31,7 +34,7 @@ owner: PanQiWei
 | 身份与时间 | 旧 `identity-values` 仍被检查器导入 | 首批候选包含 `legal-identity` 和 `utc-instant`。检查器改从这些公开入口取类型名 | 包不存在之前，不改导入。精确业务契约仍由成员持有 |
 | 装配 | 包组织已登记 `packages/assembly/kernel-basis`，并写明现行实现仍在 legacy | 首批候选包含该成员。根入口只导出操作结果，不导入 `@deepseek-ai/cordis` | 本提案不搬迁旧包，也不建立转发层 |
 | 存储 | #223 的事务行为已有规格，目录还不是 workspace 成员 | 存储成员可以承接该规格。完整装配的其余设计仍有缺口 | 缺口部分不授予实施资格 |
-| 声明与产物 | 旧成员通过 `dist` 的声明互相引用 | 类型检查按 RFC-0002 的源码条件读源码。构建仍产出 `dist`。运行和发布消费 `dist`，除非该成员已证明 Node 能直接执行其源码 | 条件名是 `source`。发布时去掉它。发布包不含 `src` |
+| 声明与产物 | 旧成员通过 `dist` 的声明互相引用 | 类型检查按 RFC-0002 的源码条件读源码。构建仍产出 `dist`。运行和发布消费 `dist`，除非该成员已证明 Node 能直接执行其源码 | 条件名未定，归 RFC-0002。发布包不含 `src` |
 | 测试 | 旧测试经常导入自己的 `dist` | 类型检查不先构建。单元测试和包内集成在源码可直接执行时读源码。子进程、schema 生成和打包消费测试必须对着实际产物 | 禁止用旧 `dist` 或缓存让缺少产物的测试通过 |
 | 模板与检查器 | #219 已交付模板，并保留方向规则尚未适配的缺口 | 新包准入补上这些缺口之后，模板才能生成会被默认检查接受的成员 | 临时样例不留在产品目录 |
 
@@ -57,7 +60,7 @@ owner: PanQiWei
 
 ### 源码包的正式模板结构
 
-新的产品源码包使用下面这一套结构。它以现有 `typescript-package@2.0.0` 的必选文件为底，并补上 RFC-0002 已经接受的三处。应用不使用这套模板。应用仍在 `apps/<成员>/`。
+新的产品源码包使用下面这一套结构。它以现有 `typescript-package@2.0.0` 的必选文件为底，并补上 RFC-0002 已经接受、而当前生成器还没有写出的三处。应用不使用这套模板。应用仍在 `apps/<成员>/`。
 
 每个新成员必须有这些文件。缺任何一个，模板生成不合格。
 
@@ -78,15 +81,15 @@ packages/<能力组>/<成员>/
 
 `cordis-module`、`service-contract` 和 `service-provider` 再加 `src/cordis.ts`。`module` 不加这个文件。根入口 `src/index.ts` 不导入 `@deepseek-ai/cordis`。Cordis 绑定只从 `src/cordis.ts` 导出。
 
-`package.json` 必须声明这些字段。源码条件名是 RFC-0002 已定的 `source`。发布时去掉它。
+`package.json` 必须声明这些字段。源码条件的名字仍是 RFC-0002 的未决项，这里用占位，不新定一个名字。
 
 ```json
 {
-  "name": "@omne-harness/<成员>",
+  "name": "@omne-harness-lite/<成员>",
   "type": "module",
   "exports": {
     ".": {
-      "source": "./src/index.ts",
+      "<源码条件名未定>": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
@@ -108,7 +111,7 @@ packages/<能力组>/<成员>/
 docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 ```
 
-`typescript-package@2.0.0` 生成必选文件、四种变体和 `src/cordis.ts`。生成器已经写出 `build` 先删除 `dist`、`erasableSyntaxOnly`、只发布 `dist` 的 `files`，以及 `source` 条件。发布时去掉 `source`。现有模板 README 里的大树是可选资源角色，不是每个新包都要建满的目录。
+`typescript-package@2.0.0` 今天已经生成必选文件、四种变体和 `src/cordis.ts`。它还没有生成源码条件、`build` 先删除 `dist`，以及 `erasableSyntaxOnly`。这三处是本提案要求模板补上的差额。现有模板 README 里的大树是可选资源角色，不是每个新包都要建满的目录。
 
 依赖层数的上限未定。未定之前，新包不得形成比解除当前工具依赖更深的链。具体数字等 PanQiWei 在看到首批依赖图之后裁定。
 
@@ -142,11 +145,11 @@ docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 - 有权决定者：PanQiWei。
 - 决定日期及对应 revision：2026-10-14，revision 1。记录为 https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165074528 。
 - 采用范围：本提案 revision 1 的方案，包括源码包的正式模板结构。模板文件继续由 `tools/ts-checks` 的包模板维护，不在仓库根另设模板目录。
-- 不采用范围及必要理由：不建立全部目标目录，不搬迁 legacy，不实施 RFC-0002 的工具升级，不把根上的模板目录当作第二份结构。存储包名、依赖层数上限，以及尚未点名的旧依赖拥有者，仍未决定。源码条件名已由 RFC-0002 定为 `source`。
+- 不采用范围及必要理由：不建立全部目标目录，不搬迁 legacy，不实施 RFC-0002 的工具升级，不把根上的模板目录当作第二份结构。存储包名、依赖层数上限、源码条件名，以及尚未点名的旧依赖拥有者，仍未决定。
 - 未决与依赖停止点：
   - 存储成员的包名。裁定者是 PanQiWei。恢复输入是已接受的存储规格和具名消费者。
   - 依赖层数上限。与 RFC-0002 的未决是同一项，不在两份提案里各定一个数。
-  - 源码条件名已定为 `source`。见 RFC-0002。
+  - 源码条件名。归 RFC-0002。
   - `tools/core-verification` 其余旧依赖的新拥有者。没有拥有者就不建包。
 
 ## 写回现行正文
@@ -156,10 +159,11 @@ docs/  SPEC.md  schema/  verification/  adr/  examples/  resources/
 | 成员定义、首批候选、声明与测试职责、正式模板结构 | [包组织](../package-organization.md#成员的必选结构)。[开发指南](../development.md#创建和整改产品包) 与 [成员文档](../member-documentation.md) 只保留指针 | 已写回 | 2026-10-14。同日生成器补上先删除 `dist` 的 build 和 `erasableSyntaxOnly`。源码条件名未定。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 让模板与现有 28 个成员的 `typecheck` 不再先构建 |
 | workspace 的源码归属 | [workspace](../workspace.md) | 免除写回 | 2026-10-14 核对。该页写的是尚未退出的工具依赖和参考位置，不是新工作的导入做法。确认范围来自本卡落盘计划 |
 | 仍写着新工作应导入旧包的过渡句 | 清点列出的开发指南 | 待写回 | 本次没有把指南改成已经脱离。代码未切换。指示新工作导入旧包的句子留到切换时改 |
-| 模板准入缺口 | [包模板中文说明](../../tools/ts-checks/templates/package/README_ZH.md) 与 [英文说明](../../tools/ts-checks/templates/package/README.md) | 已写回 | 2026-10-14 生成器已写出先删除 `dist` 的 build 和 `erasableSyntaxOnly`。源码条件仍未写出 |
+| 模板准入缺口 | [包模板中文说明](../../tools/dev-flow/templates/package/README_ZH.md) 与 [英文说明](../../tools/dev-flow/templates/package/README.md) | 已写回 | 2026-10-14 生成器已写出先删除 `dist` 的 build 和 `erasableSyntaxOnly`。源码条件仍未写出 |
 
 ## 后继关系与维护
 
 | 后继提案或更正依据 | 部分或全部取代的精确范围 | 当前规范入口 |
 | --- | --- | --- |
 | [RFC-0005](RFC-0005-package-testing.md) revision 1，2026-10-14 接受 | 后继本提案「测试」那一行的责任划分。revision 1 的其余采用范围保持。该行原文保留 | [验证](../verification.md#包级测试责任与边界) |
+| [RFC-0007](RFC-0007-source-packages-and-templates.md) revision 1，2026-10-16 接受 | 整篇取代本提案除「测试」一行以外的全部采用范围。本提案原文保留 | [RFC-0007](RFC-0007-source-packages-and-templates.md) 写回表所列的现行源 |

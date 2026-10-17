@@ -9,9 +9,7 @@ export type CapabilityId = {
   readonly name: string
 } & { readonly [capabilityIdBrand]: true }
 
-export type Judgment =
-  | { readonly ok: true }
-  | { readonly ok: false; readonly rejected: string }
+export type Judgment = { readonly ok: true } | { readonly ok: false; readonly rejected: string }
 
 export type JudgeContext = {
   readonly capabilityName?: string
@@ -38,7 +36,9 @@ export type CategoryRegistry = {
 export function capabilityId(
   category: string,
   name: string,
-): { readonly ok: true; readonly id: CapabilityId } | { readonly ok: false; readonly rejected: 'incomplete-reference' } {
+):
+  | { readonly ok: true; readonly id: CapabilityId }
+  | { readonly ok: false; readonly rejected: 'incomplete-reference' } {
   if (category === '' || name === '') return { ok: false, rejected: 'incomplete-reference' }
   return { ok: true, id: Object.freeze({ category, name }) as CapabilityId }
 }

@@ -205,7 +205,7 @@ it('rejects async config validation before apply', async () => {
 
 it('lets a later effect finish while an earlier effect is still disposing', async () => {
   let releaseEarlier!: () => void
-  const earlier = new Promise<void>((resolve) => {
+  const earlier = new Promise<void>(resolve => {
     releaseEarlier = resolve
   })
   let earlierSettled = false
@@ -214,7 +214,7 @@ it('lets a later effect finish while an earlier effect is still disposing', asyn
   })
   let laterFinished = false
   let markLater!: () => void
-  const laterDone = new Promise<void>((resolve) => {
+  const laterDone = new Promise<void>(resolve => {
     markLater = resolve
   })
 
@@ -251,11 +251,11 @@ it('lets a later effect finish while an earlier effect is still disposing', asyn
 it('runs disposers inside one effect in reverse registration order', async () => {
   const events: string[] = []
   let releaseSecond!: () => void
-  const secondGate = new Promise<void>((resolve) => {
+  const secondGate = new Promise<void>(resolve => {
     releaseSecond = resolve
   })
   let markSecondStarted!: () => void
-  const secondStarted = new Promise<void>((resolve) => {
+  const secondStarted = new Promise<void>(resolve => {
     markSecondStarted = resolve
   })
 

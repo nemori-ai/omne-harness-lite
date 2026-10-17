@@ -44,8 +44,8 @@ Python 当前服务于开发工具。
   写的时候就标出来，卡接受时由拥有者删掉——留着它，以后任何一次正当的改动都会在这里变红。
 - **实现重构不动它**——它不导入内部模块。入口搬到别的成员，它跟着搬，由拥有者搬。
 - **写权归负责的人、主会话与独立验收角色。**实施的 agent 只运行它，不改它；验收写得不对、跑不通，报回来由拥有者改。
-  这一条由[验收锁](../tools/ts-checks/README_ZH.md#验收锁)核对：它列出任务基线以来碰过验收文件的提交，实施角色的提交在其中就判锁被破。
-- **不在成员的 `test` 脚本范围内**（那里只收 `tests/**/*.spec.ts`）；成员有了第一份验收时另给一个 `acceptance` 脚本单独跑它。
+  这一条由[验收锁](../tools/repo-toolchain/README_ZH.md#验收锁)核对：它列出任务基线以来碰过验收文件的提交，实施角色的提交在其中就判锁被破。
+- **不在成员的 `test` 脚本范围内**（那里只收 `tests/**/*.spec.ts`）；成员有了第一份验收时另给一个 `acceptance` 脚本和 `vitest.acceptance.config.ts` 单独跑它。包模板生成的 `acceptance/README.md`、`index.md` 与 `acceptance/fixtures/` 的入口只是占位，不是验收：它们不要求配置，仍带文档占位标记时也不计入验收锁。
 
 同源、同批 fork、共同构建或实验阶段**都不是**聚合不相关职责的理由。
 共享类型和有身份的运行时原语保持唯一拥有者，其他包通过公开入口复用。
@@ -56,7 +56,7 @@ Python 当前服务于开发工具。
 
 ## 目标骨架与封存实现
 
-新packages与apps只提供文档入口和缺项登记，没有真实产品成员或可启动应用。最小 CLI 的依赖方向见[包组织](package-organization.md#最小-cli-的接入边界)。旧产品正文、应用及包分别保持在product.0.0.1.legacy、apps.0.0.1.legacy和packages.0.0.1.legacy；后缀不是发布版本。这些目录留在仓库里供核对。活动工具及其测试不能读取其中的源码或产物。规则测试使用工具自己拥有的最小夹具；隔离运行与历史链接检查分开，见[检查器运行说明](../tools/ts-checks/README.md#independence-from-archived-implementations)。它们不是 pnpm workspace 成员，工具不再声明它们的包名。旧源不授予架构采用。
+新packages与apps只提供文档入口和缺项登记，没有真实产品成员或可启动应用。最小 CLI 的依赖方向见[包组织](package-organization.md#最小-cli-的接入边界)。旧产品正文、应用及包分别保持在product.0.0.1.legacy、apps.0.0.1.legacy和packages.0.0.1.legacy；后缀不是发布版本。这些目录留在仓库里供核对。活动工具及其测试不能读取其中的源码或产物。规则测试使用工具自己拥有的最小夹具；隔离运行与历史链接检查分开，见[检查器运行说明](../tools/product-checks/README.md#independence-from-archived-implementations)。它们不是 pnpm workspace 成员，工具不再声明它们的包名。旧源不授予架构采用。
 
 新包区按目标能力组维护工程关系，已具名目标成员维护长期 SPEC 与内部设计。尚未具名的行为规格承接继续计缺项。新产品区的[正式正文](../.meta_harness/design/product/README.md)包含需求、能力及实现状态、阶段承诺和未决四块。文档落位不建立可执行成员，也不授予设计或实现接受；常规新增成员的公开承诺与模板准入要求保持。
 
@@ -79,9 +79,11 @@ packages.0.0.1.legacy/frontend/governance-client-operations-local
                                        治理协议运输、本地完整状态与共享治理用例
 apps.0.0.1.legacy/cli/                             治理CLI应用；文件输入增量
 tools/artifact-builder/                TS 开发成员；应用归档文件校验与独占发布
-tools/ts-checks/                       TS 开发成员；产品源码结构检查规则与 CLI
+tools/repo-toolchain/                  TS 开发成员；检查器包，发布到 npm
+tools/product-checks/                  TS 开发成员；本仓库的产品规则与 lint:rules，不发布
+tools/dev-flow/                        TS 开发成员；开工准入、任务绑定与包模板，不发布
+tools/test-runner/                     TS 开发成员；影响面计划、成员测试与变异，不发布
 tools/repo-config/                     配置成员；共享的 tsconfig、oxlint 与 dependency-cruiser 预设
-tools/core-verification/               TS 开发成员；core 真实组合与验证套件有效性自测
 pyproject.toml                         Python 开发环境聚合，package = false
 uv.lock                                Python workspace 统一锁文件
 tools/spec-tools/                      Python 开发成员；跨仓库 Markdown 导航与工具环境检查
@@ -110,9 +112,9 @@ CI 配置（`.github/workflows/`）只负责触发条件、执行环境和调用
 `tool.uv.workspace.members` 指向 `tools/spec-tools`，`workspace = true` 绑定本地成员。
 
 TS workspace 由 pnpm 管理，成员范围由[`pnpm-workspace.yaml`](../pnpm-workspace.yaml)声明，
-并用 `catalog` 把第三方依赖的版本钉一次
+并用 `catalog` 把第三方依赖以及仓库检查器与预设的版本钉一次
 （成员写 `catalog:`）。每个成员自带 `build`／`typecheck`／`test` 脚本；根命令的构建与类型检查用 `pnpm -r` 聚合，
-测试由 [tools/ts-checks 的测试运行入口](../tools/ts-checks/README_ZH.md#测试运行)逐成员调用各自的 `test` 脚本
+测试由 [tools/test-runner 的测试运行入口](../tools/test-runner/README_ZH.md#测试运行)逐成员调用各自的 `test` 脚本
 （成员清单仍读 `pnpm-workspace.yaml`）。测试框架是 vitest（`*.spec.ts` 运行时、`*.spec-d.ts` 类型测试）。
 Node 与 pnpm 的精确版本由根 `package.json` 的
 `engines` 和 `packageManager` 声明，**以那里为准**；uv 管理的 Python 环境与之独立并存。
@@ -120,6 +122,15 @@ Node 与 pnpm 的精确版本由根 `package.json` 的
 产品运行时与构建路线由[技术基础](architecture/technical-foundations.md#共同技术选择)维护。产品开发和部署环境须支持Node24；现有开发工具的engines及packageManager仍以根声明为准。TS7/NodeNext/strict、库ESM与声明、应用bundle各自验证真实消费者，bundle不代替类型检查。新增依赖在具名实施任务同步成员声明、catalog及锁，本次文档采用不直接修改它们。
 
 不把工具加入产品运行依赖；新增成员须符合叶子布局，**新增其他类别时显式更新 workspace 范围**。
+
+仓库工具链分为四个成员：
+
+- `tools/repo-toolchain` 是检查器包 `@omne-harness/repo-toolchain`，发布到 npm。它只依赖 npm 包，不依赖其他工具成员。
+- `tools/product-checks`、`tools/dev-flow` 和 `tools/test-runner` 不发布。它们只经 `@omne-harness/repo-toolchain` 的子路径导入它，不互相导入。
+- 根目录和这三个成员都用 catalog 钉住的 npm 版本，不链接到工作区的 `tools/repo-toolchain`。版本与升级流程见[开发指南](development.md#仓库工具链的版本)。
+- 工具链的仓库专用配置在仓库根的 `repo-toolchain.config.json`。
+
+这些方向由 dependency-cruiser 预设的 `toolchain-*` 规则检查，包内分层见 [repo-toolchain 的说明](../tools/repo-toolchain/README_ZH.md#包内分层)。改动这四个成员或这份配置的 PR 经仓库工具链变更闸门确认，见[现行准入](engineering/integration.md#现行准入)。
 
 uv 的 [workspace 文档](https://docs.astral.sh/uv/concepts/projects/workspaces/)说明成员、
 统一锁定与 `--package`；[配置文档](https://docs.astral.sh/uv/concepts/projects/config/#project-packaging)

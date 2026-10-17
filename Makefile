@@ -1,9 +1,11 @@
 .PHONY: check check-plan declarations-check agents-check docs-check docs-inventory delivery-check design-check formal-tools test product-check acceptance metrics test-affected test-tier test-triage mutation role-eval acceptance-lock scenario-status loop-status loop-health
 
-TEST_RUNS := node --experimental-strip-types tools/ts-checks/src/testing/cli.ts
+TEST_RUNS := node --experimental-strip-types tools/test-runner/src/testing/cli.ts
+# 检查器命令来自 pnpm-workspace.yaml 钉住的 @omne-harness/repo-toolchain（npm 上的包），不运行工作区 tools/repo-toolchain。
+TOOLCHAIN := node_modules/.bin
 
 # 整套检查：先算基线（BASELINE，缺省 origin/main 或 main）以来改动的影响面，常驻检查每次都跑，pytest、构建、类型检查、
-# 成员测试与验收只跑计划里的；FULL=1 全量。规则在 tools/ts-checks/test-runs.config.json，见 docs/verification.md。
+# 成员测试与验收只跑计划里的；FULL=1 全量。规则在 tools/test-runner/test-runs.config.json，见 docs/verification.md。
 check:
 	./scripts/check.sh
 
@@ -27,7 +29,7 @@ docs-inventory:
 	uv run --locked omne-documentation inventory $(if $(BASE),--base "$(BASE)") --out "$(or $(OUT),tmp/documentation-inventory)" --summary
 
 delivery-check:
-	node --experimental-strip-types tools/ts-checks/src/delivery/cli.ts --config "$(or $(CONFIG),docs/engineering/github-delivery.json)" $(if $(CAPTURE),--capture "$(CAPTURE)") $(if $(filter 1,$(LIVE)),--live) $(if $(SAVE_CAPTURE),--save-capture "$(SAVE_CAPTURE)") $(if $(BASE_REPORT),--baseline "$(BASE_REPORT)") $(if $(REPORT),--report "$(REPORT)")
+	node --experimental-strip-types tools/dev-flow/src/delivery/cli.ts --config "$(or $(CONFIG),docs/engineering/github-delivery.json)" $(if $(CAPTURE),--capture "$(CAPTURE)") $(if $(filter 1,$(LIVE)),--live) $(if $(SAVE_CAPTURE),--save-capture "$(SAVE_CAPTURE)") $(if $(BASE_REPORT),--baseline "$(BASE_REPORT)") $(if $(REPORT),--report "$(REPORT)")
 
 design-check:
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/check_sources.py --root .meta_harness/design --source-root .
@@ -50,17 +52,17 @@ product-check:
 
 # 结构度量：只报告，不判失败。BASE 给基线提交或分支，COVERAGE=1 对变更成员跑覆盖率，OUT 改产物目录。
 metrics:
-	$(if $(COVERAGE),./scripts/with-test-slot.sh) node --experimental-strip-types tools/ts-checks/src/metrics/cli.ts $(if $(BASE),--base "$(BASE)") $(if $(COVERAGE),--coverage) $(if $(OUT),--out "$(OUT)")
+	$(if $(COVERAGE),./scripts/with-test-slot.sh) $(TOOLCHAIN)/omne-metrics $(if $(BASE),--base "$(BASE)") $(if $(COVERAGE),--coverage) $(if $(OUT),--out "$(OUT)")
 
 # 回路状态：各项整洁指标的带位、这次变更里要解释的红项、超预算的成员与清理草稿。只在硬线被破时退出 1。
 # BASE 给任务基线（缺省不给：只报全仓现状）；SNAPSHOT=1 在干净的提交上追加一条趋势快照；OUT 改产物目录。
 # STRICT=1 另判「开着的传感器都有数据」，要求 BASE 与 OUT，产物与草稿只写 OUT、不写快照（make check 用它）。
 loop-status:
-	node --experimental-strip-types tools/ts-checks/src/loop/cli.ts $(if $(BASE),--base "$(BASE)") $(if $(SNAPSHOT),--snapshot) $(if $(OUT),--out "$(OUT)") $(if $(STRICT),--strict)
+	$(TOOLCHAIN)/omne-loop-status $(if $(BASE),--base "$(BASE)") $(if $(SNAPSHOT),--snapshot) $(if $(OUT),--out "$(OUT)") $(if $(STRICT),--strict)
 
 # 流程体检页：提交大小、测试耗时与债的走向。只报告。
 loop-health:
-	node --experimental-strip-types tools/ts-checks/src/loop/health-cli.ts $(if $(OUT),--out "$(OUT)")
+	$(TOOLCHAIN)/omne-loop-health $(if $(OUT),--out "$(OUT)")
 
 # 只跑受这次改动影响的成员的测试（先构建它们及其依赖），并写耗时账本；影响面与 make check 是同一份计划。
 # BASE 给基线提交或分支（缺省 main）；TIER 给层（fast、slow、all，缺省 fast）；PLAN=1 只列出受影响范围，不构建也不运行。
@@ -80,7 +82,7 @@ acceptance:
 # 差分变异（只报告）：变异 BASE（缺省 main）以来改动碰到的产品源码行，或 MEMBERS=<成员目录,…> 的全部产品源码；
 # 逐成员跑 Stryker 的快层，列出存活与无覆盖的变异体，读数写进主检出的 tmp/mutation-ledger/。PLAN=1 只列范围。
 mutation:
-	$(if $(PLAN),,./scripts/with-test-slot.sh) node --experimental-strip-types tools/ts-checks/src/mutation/cli.ts run $(if $(MEMBERS),--members "$(MEMBERS)",$(if $(BASE),--base "$(BASE)",--default-base)) $(if $(PLAN),--plan-only)
+	$(if $(PLAN),,./scripts/with-test-slot.sh) node --experimental-strip-types tools/test-runner/src/mutation/cli.ts run $(if $(MEMBERS),--members "$(MEMBERS)",$(if $(BASE),--base "$(BASE)",--default-base)) $(if $(PLAN),--plan-only)
 
 # 失败归因：把一次运行里失败的用例逐个单独重跑并分类。RUN 给那次运行打印出来的运行目录（测试或验收的都行）。
 test-triage:
@@ -88,8 +90,8 @@ test-triage:
 
 # 验收锁：列出任务基线以来碰过各成员 acceptance/ 的提交；实施角色的提交或未提交的验收改动在其中就退出 1。BASE 给任务基线（缺省 main）。
 acceptance-lock:
-	node --experimental-strip-types tools/ts-checks/src/acceptance/cli.ts $(if $(BASE),--base "$(BASE)",--default-base)
+	$(TOOLCHAIN)/omne-acceptance-lock $(if $(BASE),--base "$(BASE)",--default-base)
 
 # 场景状态分开报告覆盖声明、执行和接受；未知保留未知。只读、只报告。
 scenario-status:
-	node --experimental-strip-types tools/ts-checks/src/acceptance/scenario-status-cli.ts
+	node --conditions=source --experimental-strip-types tools/product-checks/src/acceptance/scenario-status-cli.ts

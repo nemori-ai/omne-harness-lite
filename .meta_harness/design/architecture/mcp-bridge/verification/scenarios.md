@@ -2,9 +2,9 @@
 
 # 规范场景
 
-属于 `mcp-bridge 的规范实例。它是**当前限定范围的规范工件之一**，不是说明材料：
-每个操作的正常结局、每个失败值、投影与结果映射的逐项取值，在这里各有至少一个实例，并注明**依据哪一条**。
-值的形状（正文、副本、条目名、OAuth 绑定、凭据配值）的正反实例在 [`mcp-endpoint 的实例](../../../../../packages.0.0.1.legacy/core/mcp-endpoint/tests/fixtures/endpoint-examples.md)，本文件直接引用那里的编号。
+本页保留原 MCP Bridge 的规范场景和实例编号，供新拥有者逐项承接验证目标。它不证明新架构已有桥接实现，也不单独授予旧公开形状继续采用。
+值的形状及旧编号来自[封存 MCP Endpoint 实例快照](https://github.com/nemori-ai/omne-harness-lite/blob/481f9f45f76f7a36a2c3cd05cc42b640d77a421a/packages.0.0.1.legacy/core/mcp-endpoint/tests/fixtures/endpoint-examples.md)。下文的旧契约名、`$defs` 和实例号均按这个历史输入解释。
+新 MCP 仍缺少正式成员及完整公开形状，承接责任见[MCP 工程缺口](../../../../../packages/mcp/docs/architecture.md#完整行为候选的正式承接缺口)。正式验证前，MCP 技术拥有者须将每项场景对应到已采用的新类型、拒绝结果及真实消费者，保留其正常、失败、投影和结果映射目标。不能直接运行旧实例并据此声明新成员符合。
 
 **怎么读**：
 

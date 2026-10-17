@@ -173,11 +173,14 @@ describe('review counterexamples', () => {
   })
 
   it('keeps the business result when export throws synchronously', async () => {
-    const port = portWith({ maxQueue: 4, maxInFlight: 1 }, {
-      export() {
-        throw new Error('sync export failure')
+    const port = portWith(
+      { maxQueue: 4, maxInFlight: 1 },
+      {
+        export() {
+          throw new Error('sync export failure')
+        },
       },
-    })
+    )
     const business = { kind: 'Committed' as const }
     const admitted = port.admit({
       chain: { causes: [{ role: 'origin', summary: 'committed' }] },
@@ -205,11 +208,14 @@ describe('review counterexamples', () => {
 
   it('releases the oldest finished record when a later admission needs the queue', async () => {
     for (const mode of ['success', 'failure'] as const) {
-      const port = portWith({ maxQueue: 1, maxExportBytes: 1000, maxInFlight: 1 }, {
-        export: async () => {
-          if (mode === 'failure') throw new Error('export failed')
+      const port = portWith(
+        { maxQueue: 1, maxExportBytes: 1000, maxInFlight: 1 },
+        {
+          export: async () => {
+            if (mode === 'failure') throw new Error('export failed')
+          },
         },
-      })
+      )
       const ids: string[] = []
       for (let index = 0; index < 3; index += 1) {
         const admitted = port.admit({
@@ -248,12 +254,15 @@ describe('review counterexamples', () => {
     const gate = new Promise<void>(resolve => {
       release = () => resolve()
     })
-    const port = portWith({ maxQueue: 1, maxInFlight: 1 }, {
-      export: async (_record, signal) => {
-        await gate
-        if (signal.aborted) throw new Error('closed')
+    const port = portWith(
+      { maxQueue: 1, maxInFlight: 1 },
+      {
+        export: async (_record, signal) => {
+          await gate
+          if (signal.aborted) throw new Error('closed')
+        },
       },
-    })
+    )
     const admitted = port.admit({
       chain: { causes: [{ role: 'origin', summary: 'ok' }] },
       correlation,
@@ -269,11 +278,14 @@ describe('review counterexamples', () => {
   })
 
   it('keeps an export failure when the sink rejects with a non-Error', async () => {
-    const port = portWith({}, {
-      export: async () => {
-        throw 'down'
+    const port = portWith(
+      {},
+      {
+        export: async () => {
+          throw 'down'
+        },
       },
-    })
+    )
     const admitted = port.admit({
       chain: { causes: [{ role: 'origin', summary: 'committed' }] },
       correlation,
@@ -317,18 +329,18 @@ describe('review counterexamples', () => {
       const fail = () => {
         throw new Error(huge)
       }
-      const port = portWith({ maxQueue: 2, maxExportBytes: 1000, maxInFlight: 1 }, {
-        export: mode === 'sync' ? fail : async () => fail(),
-      })
+      const port = portWith(
+        { maxQueue: 2, maxExportBytes: 1000, maxInFlight: 1 },
+        {
+          export: mode === 'sync' ? fail : async () => fail(),
+        },
+      )
       const first = port.admit(input)
       await new Promise(resolve => setImmediate(resolve))
       if (first.status !== 'accepted') throw new Error('expected accepted')
       const stored = port.read({ tenant: 'org/account', id: first.id })
       if (stored.status !== 'visible') throw new Error('expected visible')
-      const actual = Buffer.byteLength(
-        JSON.stringify({ chain: stored.chain, correlation }),
-        'utf8',
-      )
+      const actual = Buffer.byteLength(JSON.stringify({ chain: stored.chain, correlation }), 'utf8')
       expect(actual).toBeLessThanOrEqual(1000)
       expect(stored.chain.causes[0]).toMatchObject({ role: 'origin', summary: 'ok' })
       expect(stored.chain.causes[1]).toMatchObject({ role: 'export', summary: 'export failed' })
@@ -336,9 +348,12 @@ describe('review counterexamples', () => {
       await port.close()
     }
 
-    const hanging = portWith({ maxQueue: 2, maxExportBytes: reserved * 2, maxInFlight: 2 }, {
-      export: () => new Promise(() => undefined),
-    })
+    const hanging = portWith(
+      { maxQueue: 2, maxExportBytes: reserved * 2, maxInFlight: 2 },
+      {
+        export: () => new Promise(() => undefined),
+      },
+    )
     const admitted = hanging.admit(input)
     const second = hanging.admit(input)
     expect(admitted.status).toBe('accepted')

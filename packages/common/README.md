@@ -50,7 +50,7 @@
 | 共享的 `deriveState` | 业务拥有者 | 到期判断不放进本组 |
 | 用 `filledAt` 充当递增序号 | 序号拥有者 | `asset-registry-local` 不再在钟停住时保存 `previous + 1` |
 | 租约读取 `Date.now` | 单调钟端口 | `clock-lease` 不把 `Date.now` 当作默认当前时间 |
-| `IDENTITY_TYPE_NAMES` | `legal-identity` 的唯一名单 | `tools/ts-checks` 的 `identity-shapes` 导入这份名单。它删除字面量 `AccountId`。#219 不另写一份拼写 |
+| `IDENTITY_TYPE_NAMES` | `legal-identity` 的唯一名单 | `tools/product-checks` 的 `identity-shapes` 导入这份名单。它删除字面量 `AccountId`。#219 不另写一份拼写 |
 
 ## 反例
 

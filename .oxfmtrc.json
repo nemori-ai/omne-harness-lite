@@ -17,8 +17,6 @@
     "**/provenance.json",
     "**/*.jsonl",
     "spec/",
-    "**/*.legacy/",
-    "packages/",
-    "apps/"
+    "**/*.legacy/"
   ]
 }

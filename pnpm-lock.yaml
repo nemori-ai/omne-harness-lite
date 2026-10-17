@@ -15,6 +15,12 @@ catalogs:
     '@jscpd/tokenizer':
       specifier: 4.0.1
       version: 4.0.1
+    '@omne-harness/repo-config':
+      specifier: 0.0.3
+      version: 0.0.3
+    '@omne-harness/repo-toolchain':
+      specifier: 0.0.5
+      version: 0.0.5
     '@stryker-mutator/core':
       specifier: 10.0.0
       version: 10.0.0
@@ -94,6 +100,12 @@ importers:
 
   .:
     devDependencies:
+      '@omne-harness/repo-config':
+        specifier: 'catalog:'
+        version: 0.0.3
+      '@omne-harness/repo-toolchain':
+        specifier: 'catalog:'
+        version: 0.0.5(vitest@4.1.11)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.11(vitest@4.1.11)
@@ -281,7 +293,7 @@ importers:
         version: 24.13.6
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 7.0.2
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -293,7 +305,7 @@ importers:
         version: 24.13.6
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 7.0.2
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -337,7 +349,7 @@ importers:
         version: 24.13.6
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 7.0.2
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -353,7 +365,7 @@ importers:
         version: 24.13.6
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 7.0.2
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -511,7 +523,7 @@ importers:
         version: 24.13.6
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 7.0.2
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -539,7 +551,7 @@ importers:
         version: 24.13.6
       typescript:
         specifier: 'catalog:'
-        version: 6.0.3
+        version: 7.0.2
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
@@ -623,8 +635,11 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
-  tools/core-verification:
+  tools/dev-flow:
     devDependencies:
+      '@omne-harness/repo-toolchain':
+        specifier: 'catalog:'
+        version: 0.0.5(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -635,46 +650,62 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  tools/product-checks:
+    devDependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../packages/common/legal-identity
+      '@omne-harness/repo-toolchain':
+        specifier: 'catalog:'
+        version: 0.0.5(vitest@4.1.11)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      '@typescript/typescript6':
+        specifier: 'catalog:'
+        version: 6.0.2
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   tools/repo-config: {}
 
-  tools/ts-checks:
-    devDependencies:
+  tools/repo-toolchain:
+    dependencies:
       '@jscpd/core':
         specifier: 'catalog:'
         version: 4.0.1
       '@jscpd/tokenizer':
         specifier: 'catalog:'
         version: 4.0.1
-      '@omne-harness/legal-identity':
-        specifier: workspace:*
-        version: link:../../packages/common/legal-identity
-      '@stryker-mutator/core':
-        specifier: 'catalog:'
-        version: 10.0.0(@types/node@24.13.6)
-      '@stryker-mutator/vitest-runner':
-        specifier: 'catalog:'
-        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@24.13.6))(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
+      '@typescript/typescript6':
+        specifier: 'catalog:'
+        version: 6.0.2
+      dependency-cruiser:
+        specifier: 'catalog:'
+        version: 18.6.0
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
+    devDependencies:
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0
       '@types/react-dom':
         specifier: 'catalog:'
         version: 19.3.0(@types/react@19.3.0)
-      '@typescript/typescript6':
-        specifier: 'catalog:'
-        version: 6.0.2
       '@xyflow/react':
         specifier: 'catalog:'
         version: 12.12.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       antd:
         specifier: 'catalog:'
         version: 6.6.5(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      dependency-cruiser:
-        specifier: 'catalog:'
-        version: 18.6.0
       elkjs:
         specifier: 'catalog:'
         version: 0.12.0
@@ -693,9 +724,27 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
-      yaml:
+
+  tools/test-runner:
+    devDependencies:
+      '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 2.9.1
+        version: 0.0.5(vitest@4.1.11)
+      '@stryker-mutator/core':
+        specifier: 'catalog:'
+        version: 10.0.0(@types/node@24.13.6)
+      '@stryker-mutator/vitest-runner':
+        specifier: 'catalog:'
+        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@24.13.6))(vitest@4.1.11)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
 packages:
 
@@ -1292,6 +1341,20 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.4
       '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.4
+
+  '@omne-harness/repo-config@0.0.3':
+    resolution: {integrity: sha512-aEw6ZlUaN2yYnFxS7Tn0H0fnCCf2fwuDm63q373RwJ6tv22dV6GYgOw9r93lF3AYHCffhn1aLw1BkYtWUaSJpQ==}
+    engines: {node: '>=24'}
+
+  '@omne-harness/repo-toolchain@0.0.5':
+    resolution: {integrity: sha512-01rOUTb1JHsZySS+/EnY7SvapP7foq+wEL8xE4k9ZE0ju5dQm36aqPWGREZAJgwi4pKSldBiL7/mRl2GYVbwZg==}
+    engines: {node: '>=24'}
+    hasBin: true
+    peerDependencies:
+      vitest: ^4.1.11
+    peerDependenciesMeta:
+      vitest:
+        optional: true
 
   '@opentelemetry/api@1.9.1':
     resolution: {integrity: sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q==}
@@ -4029,6 +4092,19 @@ snapshots:
       '@emnapi/runtime': 1.11.2
       '@tybys/wasm-util': 0.10.4
     optional: true
+
+  '@omne-harness/repo-config@0.0.3': {}
+
+  '@omne-harness/repo-toolchain@0.0.5(vitest@4.1.11)':
+    dependencies:
+      '@jscpd/core': 4.0.1
+      '@jscpd/tokenizer': 4.0.1
+      '@types/node': 24.13.6
+      '@typescript/typescript6': 6.0.2
+      dependency-cruiser: 18.6.0
+      yaml: 2.9.1
+    optionalDependencies:
+      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   '@opentelemetry/api@1.9.1':
     optional: true

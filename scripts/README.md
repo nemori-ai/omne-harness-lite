@@ -24,20 +24,17 @@
 基线在脚本开头解析一次（没给就用 `origin/main`，本地没有这个引用就用 `main`）并导出为 `BASELINE`，
 影响面与最后的回路状态共用它。
 
-设置 `OMNE_SUBJECT_ROOT` 时，`check.sh` 转入 [integration-check.sh](integration-check.sh)。
-该入口保留 Python、格式、自测、构建、类型、快慢测试、规则与验收步骤，末尾显式执行 `loop --strict --scope engineering`。
-日常集成沿影响面计划，只有 full profile 设置 `FULL=1`。工程范围的输入证据与拒绝条件见[回路状态](../tools/ts-checks/README_ZH.md#回路状态)。
-普通本地 `make check` 仍使用默认严格范围。格式自测在自身入口清除两个 OMNE root，保证 fixture 和 Git hook 检查自己的沙盒；正式格式检查仍读取真实 subject。
+设置 `OMNE_SUBJECT_ROOT` 时，`format.sh` 的检查模式检查该目录所在的仓库，规则仍取脚本自己的检出。格式自测在自身入口清除 `OMNE_SUBJECT_ROOT` 与 `OMNE_RUNNER_ROOT`，保证 fixture 和 Git hook 检查自己的沙盒。
 
-脚本先跑 `tools/ts-checks/src/testing/cli.ts plan`：按 [test-runs.config.json](../tools/ts-checks/test-runs.config.json) 的 `affected` 规则
+脚本先跑 `tools/test-runner/src/testing/cli.ts plan`：按 [test-runs.config.json](../tools/test-runner/test-runs.config.json) 的 `affected` 规则
 给每个改动文件归类，打印判成什么、每一步跑还是跳、选中哪些成员与为什么，计划写进被忽略的 `tmp/check-plan/plan.json`
 （算不出计划就在这里失败，不改判全量；`make check-plan` 只打印不跑）。之后的顺序是：
 
 1. 常驻：`agents-check`、`docs-check`、`design-check`；
 2. 按计划：`make test`（pytest）；
 3. 常驻：`pnpm run format:check`、`pnpm run test:format`；
-4. 按计划：构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）、类型检查、成员测试——被选中成员的快层再慢层（[分层](../tools/ts-checks/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」；
-5. 常驻：`pnpm run lint:rules`（也核[验收的覆盖声明](../tools/ts-checks/README_ZH.md#验收的覆盖声明)与提交署名）；
+4. 按计划：构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）、类型检查、成员测试——被选中成员的快层再慢层（[分层](../tools/test-runner/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」；
+5. 常驻：`pnpm run lint:rules`（也核[验收的覆盖声明](../tools/product-checks/README_ZH.md#验收的覆盖声明)与提交署名）；
 6. 按计划：可执行验收——只跑被选中、带 `acceptance` 脚本的成员，驱动上面构建出来的 `dist/`，任何一份不过整套检查就失败；
    耗时记录写进主检出的 `tmp/acceptance-ledger/`，是下一步验收耗时传感器的读数来源。计划里一个带验收的成员都没有时，为当前提交记一份标着「本次影响面不含带验收的成员」的账本，传感器认它。
    现在只有 `apps/cli` 一份，约 10～16 秒。
@@ -47,7 +44,7 @@
 根 `pnpm run check`（`make product-check`）仍保留为单独的产品检查：全量构建与类型检查，测试一步同样跟计划。
 
 最后一步是 `make loop-status STRICT=1 BASE=<基线> OUT=tmp/loop-status-check`：方向与环、验收锁、
-开着的传感器都有数据（验收被计划跳过时认上一步的记录），破一个就失败（见 [tools/ts-checks](../tools/ts-checks/README_ZH.md#回路状态)）。
+开着的传感器都有数据（验收被计划跳过时认上一步的记录），破一个就失败（见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md#回路状态)）。
 基线就是脚本开头解析的那一个；HEAD 就是那个提交时照跑，新增依赖为 0。
 它只读源码、git 与上一步的验收耗时记录，放最后是让前面的失败先报；产物写进被 git 忽略的 `tmp/loop-status-check/`（每次先清掉），
 回路目录里什么都不写。这一步约 30 秒，大头是重复代码检测。单独跑这一步时，要先在同一个提交上跑过 `make acceptance`（或 `make check` 的验收一步留下过记录），否则验收耗时传感器没数据、严格模式判失败。
@@ -59,7 +56,7 @@
 
 显式仓库命令通过 `git-environment.sh` 删除继承的 `GIT_DIR`、`GIT_WORK_TREE`、`GIT_INDEX_FILE`、`GIT_COMMON_DIR`、`GIT_OBJECT_DIRECTORY`、`GIT_ALTERNATE_OBJECT_DIRECTORIES`、`GIT_NAMESPACE`、`GIT_SHALLOW_FILE`。正式检查保留 OMNE runner/subject、认证、Git 配置及测试槽参数；这不是任意 Git 配置隔离。格式自测在首个 fixture Git 调用前另清两个 OMNE root。
 
-`staged` 和已安装的 pre-commit 保留调用者选择的 `GIT_INDEX_FILE`，只清其余七项。非空相对 index 在改变工作目录前按调用目录转为绝对路径；未设置时仍由 Git 定位默认 index。格式检查只读 index，支持 linked worktree。复制格式脚本时须同时复制 `git-environment.sh`；已安装的 pre-commit 自带启动隔离，不依赖 hook 目录中的相邻文件。持续回归见 [格式环境测试](../tools/ts-checks/tests/formatting-environment.spec.ts)。
+`staged` 和已安装的 pre-commit 保留调用者选择的 `GIT_INDEX_FILE`，只清其余七项。非空相对 index 在改变工作目录前按调用目录转为绝对路径；未设置时仍由 Git 定位默认 index。格式检查只读 index，支持 linked worktree。复制格式脚本时须同时复制 `git-environment.sh`；已安装的 pre-commit 自带启动隔离，不依赖 hook 目录中的相邻文件。持续回归见 [格式环境测试](../tools/repo-toolchain/tests/formatting-environment.spec.ts)。
 
 远程发布或部署入口新增时按真实目标明确输入、产物和外部副作用。
 形式工具环境单独使用 `make formal-tools` 检查；检查覆盖与未覆盖的含义以验证规范为准。
@@ -67,8 +64,10 @@
 ## 运行名额
 
 多棵工作树、多个 agent 各自起全量检查时，CPU 被压满，本来能过的用例会越过时限。
-[with-test-slot.sh](with-test-slot.sh) 用文件锁把这些重负载的命令排成队：
+[with-test-slot.sh](with-test-slot.sh) 把这些重负载的命令排成队：
 `scripts/with-test-slot.sh <命令> [参数…]` 拿到名额才执行命令，并原样返回它的退出码。
+实现在 [with-test-slot.mjs](with-test-slot.mjs)，只用 Node 标准库，macOS、Linux 与 Windows 通用；
+`with-test-slot.sh` 只转发给它。不经 shell 时可直接运行 `node scripts/with-test-slot.mjs <命令> [参数…]`。
 
 经它执行的入口：`make check`（整套占一个名额）、根 `pnpm run test` 与 `pnpm run check` 的测试一步、
 `make test-affected`、`make test-tier`、`make test-triage`、`make mutation`、`make metrics COVERAGE=1`。已经持有名额的进程再调用它
@@ -76,22 +75,23 @@
 进程被杀也不会留下卡死的锁。
 
 **先来后到**：进队时领一张号（锁目录里的 `ticket-<号>`），名额空出时只有号码最小的那张活票去拿，
-与谁隔多久看一次无关。票和持有者登记（`slot-<序号>.holder`）都由登记它的进程锁住，进程退出或被杀，
-锁随之失效：排在中间的被杀掉，后面的照常往前挪，失效的文件由下一个看队列的进程删掉。
+与谁隔多久看一次无关。票和名额（`slot-<序号>.lock`）都是独占创建的文件，记着登记它的进程号与心跳间隔，
+登记者定时刷新它的修改时间。进程不在了，或心跳停了超过三个间隔，登记就失效：排在中间的被杀掉，后面的照常往前挪，
+失效的文件由下一个看队列的进程删掉。队列的增删在 `queue.lock` 目录内进行，目录由 `mkdir` 原子创建。
 
 | 环境变量 | 初值 | 含义 |
 |---|---|---|
 | `OMNE_TEST_SLOTS` | 1 | 同时允许几套在跑 |
-| `OMNE_TEST_SLOT_DIR` | `/tmp/omne-test-slots-<uid>` | 锁文件目录；同一用户的全部检出共用。要跨用户排队，把它指到一个共享可写的目录 |
+| `OMNE_TEST_SLOT_DIR` | `/tmp/omne-test-slots-<uid>`；Windows 为系统临时目录下的 `omne-test-slots-<用户名>` | 锁文件目录；同一用户的全部检出共用，不随 `TMPDIR` 变化。要跨用户排队，把它指到一个共享可写的目录 |
 | `OMNE_TEST_SLOT_POLL_SECONDS` | 5 | 没轮到时隔多久再看一次 |
 | `OMNE_TEST_SLOT_MAX_WAIT_SECONDS` | 7200 | 最多等多久；超过即以 **75** 退出，命令**没有执行** |
 | `OMNE_TEST_SLOT_LEDGER` | `${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl` | 运行账本，见下文 |
 
 排队时在标准错误报「前面还有 N 个」，以及每个名额正被什么命令占着、占了多久、在哪个目录、进程号；
 前面的人数或持有者变了再报一次，拿到名额时报等了多久。75 表示「没轮到」，既不是检查失败也不是通过；
-要么稍后再跑，要么先看是谁占着（`cat <锁目录>/slot-*.holder`，或 `fuser <锁目录>/slot-*.lock`）。
-还没并入这一版的检出用的是旧脚本：它与新脚本抢同一把名额锁，互斥照旧，但不领号，可能插队；
-它占着名额时排队者会报「持有者没有登记」。
+要么稍后再跑，要么先看是谁占着（`cat <锁目录>/slot-*.lock`）。
+还没并入这一版的检出用的是基于 `flock` 的旧脚本，它与新脚本使用不同的登记方式，彼此不互斥；同一台机器上的检出应一起更新。
+旧脚本在 macOS 与 Windows 上无法运行。
 
 一个名额等于整台机器，几分钟的受影响范围测试仍要排在几十分钟的全量覆盖率或变异测试后面；
 按任务大小分配名额要等数据再定（[#57](https://github.com/nemori-ai/omne-harness-lite/issues/57) 第二步）。
@@ -112,7 +112,7 @@
 | `loadAtAcquire`、`loadAtEnd` | 拿到名额时与结束时的机器负载（1、5、15 分钟平均）；与测试耗时账本里的超时对时间，看负载到多少开始超时 |
 | `exitCode` | 命令的退出码；放弃时是 75 |
 
-脚本的行为由 `tools/ts-checks/tests/test-slot.spec.ts` 核对。
+脚本的行为由 `tools/test-runner/tests/test-slot.spec.ts` 核对。
 
 ## CI
 
@@ -120,7 +120,7 @@
 
 合并前，在待合并的提交上计算影响面，再运行所需检查。`make check` 已按共同配置生成影响面计划；用 `make check-plan` 核对选中的范围、依据与跳过条件。实际结果写进 PR，规则归[整洁回路](../docs/clean-loop.md#回路怎么转)。
 
-当前 GitHub 可见字段将 `main` 报为未保护，保护详情与 Rulesets 接口读取受限，规则细节仍未核实。正式接入时须落实共享分支及采用 tag 的保护，条件归[多层集成](../docs/engineering/integration.md)。本地候选检查不能代替平台门禁。
+主干与记录标签的平台保护归[多层集成](../docs/engineering/integration.md#现行准入)。本地检查不能代替平台门禁。
 
 恢复自动触发时，先核对现有 runner 的在线状态、标签和执行权限；需要新增或重新注册时再按下文操作。在仓库设置里启用 `Check`，命令为 `gh workflow enable Check`，再把工作流文件开头注释掉的三种触发放回 `on:` 之下。核对真实触发和结果后，才能确认正式检查已接通。工作流定义的行为如下。
 
@@ -136,7 +136,7 @@
 `main` 在 `<提交>/`，夜间在 `nightly/<日期>-<提交>/`。这个目录没有自动清理。
 
 runner 与别的任务共用主机，并行度过高时本来一两秒的用例会被挤过时限。
-测试并行度的初值在 [test-runs.config.json](../tools/ts-checks/test-runs.config.json)，本地与 CI 同用一份；
+测试并行度的初值在 [test-runs.config.json](../tools/test-runner/test-runs.config.json)，本地与 CI 同用一份；
 runner 主机核数不同时，设仓库变量 `OMNE_TEST_MEMBER_CONCURRENCY`（同时跑几个成员）与
 `OMNE_VITEST_MAX_WORKERS`（每个成员几个工作进程），留空即用初值。本地临时调整用环境变量
 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS`。`make check` 自带运行名额，

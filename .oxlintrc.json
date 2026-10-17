@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "extends": [
-    "./tools/repo-config/oxlint.json"
+    "./node_modules/@omne-harness/repo-config/oxlint.json"
   ]
 }

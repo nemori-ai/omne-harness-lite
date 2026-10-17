@@ -14,7 +14,11 @@ it('assembly reads a definition and an extension list from the public entry', as
   ])
   expect(definition).toMatchObject({
     kind: 'accepted',
-    value: { category: 'AgentDefinition', name: 'coding', version: { kind: 'pinned', version: 'v2' } },
+    value: {
+      category: 'AgentDefinition',
+      name: 'coding',
+      version: { kind: 'pinned', version: 'v2' },
+    },
   })
   expect(extensions).toEqual({
     kind: 'accepted',

@@ -32,7 +32,10 @@ const budget: SchemaBudget = {
 export type Checked<T> =
   | { readonly kind: 'valid'; readonly value: T }
   | { readonly kind: 'invalid'; readonly issues: readonly [SchemaIssue, ...SchemaIssue[]] }
-  | { readonly kind: 'local-refusal'; readonly reason: 'executable' | 'malformed' | 'checker-failed' }
+  | {
+      readonly kind: 'local-refusal'
+      readonly reason: 'executable' | 'malformed' | 'checker-failed'
+    }
 
 type Plain =
   | { readonly ok: true; readonly value: unknown }
@@ -71,7 +74,8 @@ function plainJson(value: unknown, walk: Walk, depth: number, index: number): Pl
 }
 
 function copyArray(value: unknown[], walk: Walk, depth: number, index: number): Plain {
-  if (Object.getPrototypeOf(value) !== Array.prototype) return { ok: false, reason: 'malformed', index }
+  if (Object.getPrototypeOf(value) !== Array.prototype)
+    return { ok: false, reason: 'malformed', index }
   const copy: unknown[] = []
   for (const key of Reflect.ownKeys(value)) {
     if (key === 'length') continue
@@ -91,7 +95,8 @@ function copyArray(value: unknown[], walk: Walk, depth: number, index: number): 
 
 function copyObject(value: object, walk: Walk, depth: number, index: number): Plain {
   const prototype = Object.getPrototypeOf(value)
-  if (prototype !== Object.prototype && prototype !== null) return { ok: false, reason: 'malformed', index }
+  if (prototype !== Object.prototype && prototype !== null)
+    return { ok: false, reason: 'malformed', index }
   const keys = Reflect.ownKeys(value)
   if (keys.length > limits.maxMembers) return { ok: false, reason: 'malformed', index }
   const copy = Object.create(null) as Record<string, unknown>
@@ -113,7 +118,10 @@ function copyObject(value: object, walk: Walk, depth: number, index: number): Pl
 
 function ownKeyRefusal(value: object, key: string | symbol, index: number): Plain {
   const description = Object.getOwnPropertyDescriptor(value, key)
-  if (description !== undefined && (typeof description.value === 'function' || typeof description.get === 'function')) {
+  if (
+    description !== undefined &&
+    (typeof description.value === 'function' || typeof description.get === 'function')
+  ) {
     return { ok: false, reason: 'executable', index }
   }
   return { ok: false, reason: 'malformed', index }
@@ -165,7 +173,8 @@ async function validatePlain<T>(
   plain: unknown,
 ): Promise<Checked<T>> {
   const read = readPlainDocument(plain)
-  if (read === undefined || read.kind !== 'ok') return { kind: 'local-refusal', reason: 'malformed' }
+  if (read === undefined || read.kind !== 'ok')
+    return { kind: 'local-refusal', reason: 'malformed' }
   const ref = defineSchema({
     id,
     load: async () =>
