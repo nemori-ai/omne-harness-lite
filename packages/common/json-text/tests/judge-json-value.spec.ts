@@ -562,3 +562,105 @@ describe('judgeJsonValue visit budget', () => {
     expect(() => loose(nil, limits)).toThrow(TypeError)
   })
 })
+
+describe('judgeJsonValue finds a duplicate key', () => {
+  const entry = (key: unknown): [unknown, unknown] => [key, nil]
+  /** Keys of one length that differ only in their last digits. */
+  const longKey = (length: number, index: number): string =>
+    'x'.repeat(length - 8) + String(index).padStart(8, '0')
+
+  const firstDuplicate: readonly (readonly [string, unknown[], number])[] = [
+    ['at positions 0 and 1', ['a', 'a', 'b', 'c'], 1],
+    ['at positions 0 and 5', ['a', 'b', 'c', 'd', 'e', 'a'], 5],
+    ['in a key that repeats three times', ['a', 'b', 'a', 'a'], 2],
+    [
+      'in the group with the smaller second index when it comes later',
+      ['a', 'b', 'c', 'c', 'a', 'b'],
+      3,
+    ],
+    [
+      'in the group with the smaller second index when it comes first',
+      ['b', 'a', 'a', 'c', 'b', 'c'],
+      2,
+    ],
+    ['with the empty key', ['', 'a', ''], 2],
+    ['across a key that collates as equal but differs in code units', ['a', 'a\u0000', 'a'], 2],
+    ['across a composed and a decomposed accent', ['e\u0301', '\u00e9', 'e\u0301'], 2],
+  ]
+
+  it.each(firstDuplicate)('at the smallest repeating index, %s', (_, keys, index) => {
+    expect(judgeJsonValue(obj(...keys.map(entry)))).toEqual({
+      rejected: 'duplicate',
+      path: ['entries', index, 'key'],
+    })
+  })
+
+  it('reports a duplicate that comes before a malformed entry', () => {
+    const value = {
+      kind: 'object',
+      entries: [{ key: 'a', value: nil }, { key: 'a', value: nil }, 5],
+    }
+    expect(judgeJsonValue(value)).toEqual({ rejected: 'duplicate', path: ['entries', 1, 'key'] })
+  })
+
+  it('reports a malformed entry that comes before any duplicate', () => {
+    const value = {
+      kind: 'object',
+      entries: [{ key: 'a', value: nil }, 5, { key: 'a', value: nil }],
+    }
+    expect(judgeJsonValue(value)).toEqual({ rejected: 'type', path: ['entries', 1] })
+  })
+
+  it('reports a malformed entry that comes after the keys read, when those are distinct', () => {
+    const value = {
+      kind: 'object',
+      entries: [{ key: 'a', value: nil }, { key: 'b' }, { key: 'a' }],
+    }
+    expect(judgeJsonValue(value)).toEqual({ rejected: 'missing', path: ['entries', 1, 'value'] })
+  })
+
+  it('detects equal keys of 20,000 code units', () => {
+    const keys = [longKey(20_000, 1), longKey(20_000, 2), longKey(20_000, 3), longKey(20_000, 2)]
+    expect(judgeJsonValue(obj(...keys.map(entry)))).toEqual({
+      rejected: 'duplicate',
+      path: ['entries', 3, 'key'],
+    })
+  })
+
+  it('takes keys that differ only by a lone surrogate, or by code unit order, as distinct', () => {
+    const unit = (...codes: number[]): string => String.fromCharCode(...codes)
+    const keys = [
+      unit(0xd800),
+      unit(0xdc00),
+      unit(0xd800, 0xdc00),
+      unit(0xd800, 0xdc01),
+      unit(0xffff),
+      unit(0x61, 0xd800),
+      unit(0x61, 0xdc00),
+      'A',
+      'a',
+    ]
+    const judged = accepted(judgeJsonValue(obj(...keys.map(entry))))
+    expect(judged).toEqual(obj(...keys.map(entry)))
+  })
+
+  it('does not mistake equal-looking keys of different length for equal', () => {
+    const keys = ['a', 'a\u0000', '', '\u0000']
+    expect('ok' in judgeJsonValue(obj(...keys.map(entry)))).toBe(true)
+  })
+
+  // Slow: 999 keys of 50,000 units, a size at which a hash set of keys takes seconds.
+  it(
+    'judges 999 keys of 50,000 equal-length code units in under 1.5 seconds',
+    { tags: ['slow'] },
+    () => {
+      const keys = Array.from({ length: 999 }, (_, index) => longKey(50_000, index))
+      const value = obj(...keys.map(entry))
+      const started = performance.now()
+      const judged = judgeJsonValue(value)
+      const elapsed = performance.now() - started
+      expect('ok' in judged).toBe(true)
+      expect(elapsed).toBeLessThan(1_500)
+    },
+  )
+})
