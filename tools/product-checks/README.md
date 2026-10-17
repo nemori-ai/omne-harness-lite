@@ -24,7 +24,7 @@ The CLI exits 1 on violations and prints their rule, source path and line. A suc
 
 | Built module          | Public surface                                                                                                                       |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `dist/rules/index.js` | `RULES`, individually exported rules and configured rule factories                                                                   |
+| `dist/rules/index.js` | `RULES`, `rulesForRoot(root)`, individually exported rules and configured rule factories                                             |
 | `dist/repository.js`  | `collectRepositorySources(root)` and `REPOSITORY_RULES`; collects repository paths and TypeScript-resolved configured module aliases |
 | `dist/cli.js`         | CLI used by the workspace's `lint:rules` command                                                                                     |
 

@@ -19,7 +19,8 @@ import { noNetworkListenInTenancy } from './no-network-listen-in-tenancy.ts'
 import { noPeerAddress } from './no-peer-address.ts'
 import { noPresentationInDiagnostics } from './no-presentation-in-diagnostics.ts'
 import { noRandomSourceInline } from './no-random-source-inline.ts'
-import { noTestingImport } from './no-testing-import.ts'
+import { createNoTestingImport, noTestingImport } from './no-testing-import.ts'
+import { collectTestingEntries } from '../testing-entries.ts'
 import { noWallClock } from './no-wall-clock.ts'
 import { ogS42DynamicResolve } from './og-s42-dynamic-resolve.ts'
 import { opsEventWhitelist } from './ops-event-whitelist.ts'
@@ -70,6 +71,7 @@ export {
   noPeerAddress,
   noPresentationInDiagnostics,
   noRandomSourceInline,
+  createNoTestingImport,
   noTestingImport,
   noWallClock,
   ogS42DynamicResolve,
@@ -116,3 +118,9 @@ export const RULES: readonly Rule[] = [
   parameterJudgeCacheOwner,
   singleToolArgumentParser,
 ]
+
+/** 某个扫描根适用的规则：与 `RULES` 同一份，只是 no-testing-import 带上该根里各包声明的 `./testing` 入口。 */
+export function rulesForRoot(root: string): readonly Rule[] {
+  const testingImport = createNoTestingImport(collectTestingEntries(root))
+  return RULES.map(rule => (rule === noTestingImport ? testingImport : rule))
+}
