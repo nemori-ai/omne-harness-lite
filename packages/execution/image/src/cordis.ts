@@ -21,7 +21,10 @@ export const imageBudgetConfig: StandardSchema<BudgetInput> = {
         maxConcurrentDecodes: record.maxConcurrentDecodes,
         maxInFlightBytes: record.maxInFlightBytes,
       }
-      if (!Array.isArray(candidate.formats) || !candidate.formats.every(item => typeof item === 'string')) {
+      if (
+        !Array.isArray(candidate.formats) ||
+        !candidate.formats.every(item => typeof item === 'string')
+      ) {
         return { issues: [{ message: 'formats' }] }
       }
       const numbers = [

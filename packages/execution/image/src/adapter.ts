@@ -23,7 +23,11 @@ export async function decodeRaster(
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true })
-    if (decoded.info.width !== width || decoded.info.height !== height || decoded.data.length !== estimate) {
+    if (
+      decoded.info.width !== width ||
+      decoded.info.height !== height ||
+      decoded.data.length !== estimate
+    ) {
       return undefined
     }
     return decoded.data
@@ -37,7 +41,9 @@ export async function encodeRaster(
   width: number,
   height: number,
   format: ImageFormat,
-): Promise<{ readonly bytes: Buffer; readonly orientation: undefined; readonly exif: undefined } | undefined> {
+): Promise<
+  { readonly bytes: Buffer; readonly orientation: undefined; readonly exif: undefined } | undefined
+> {
   try {
     const encode = encoders[format]
     const encoded = await encode(sharp(pixels, { raw: { width, height, channels: 4 } })).toBuffer()

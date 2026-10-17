@@ -3,7 +3,12 @@ import { crc32 } from 'node:zlib'
 export type ContainerFormat = 'png' | 'jpeg' | 'webp'
 
 export type Container =
-  | { readonly format: ContainerFormat; readonly width: number; readonly height: number; readonly orientation: number }
+  | {
+      readonly format: ContainerFormat
+      readonly width: number
+      readonly height: number
+      readonly orientation: number
+    }
   | 'empty'
   | 'truncated'
   | 'not-image'
@@ -130,7 +135,8 @@ function tiffOrientation(tiff: Buffer): OrientationResult {
 }
 
 function exifOrientation(segment: Buffer): OrientationResult {
-  if (segment.length >= 8 && segment.toString('ascii', 0, 4) === 'Exif') return tiffOrientation(segment.subarray(6))
+  if (segment.length >= 8 && segment.toString('ascii', 0, 4) === 'Exif')
+    return tiffOrientation(segment.subarray(6))
   return tiffOrientation(segment)
 }
 
@@ -157,7 +163,12 @@ function noteJpeg(note: JpegNote, marker: number, segment: Buffer): 'truncated' 
 type JpegStep =
   | { readonly kind: 'stop' }
   | { readonly kind: 'scan'; readonly next: number }
-  | { readonly kind: 'segment'; readonly marker: number; readonly segment: Buffer; readonly next: number }
+  | {
+      readonly kind: 'segment'
+      readonly marker: number
+      readonly segment: Buffer
+      readonly next: number
+    }
 
 function jpegStep(view: Buffer, offset: number): JpegStep | 'truncated' {
   if (view[offset] !== 0xff) return 'truncated'
@@ -299,11 +310,7 @@ function webpChunk(
   }
 }
 
-function applyWebpChunk(
-  note: WebpNote,
-  tag: string,
-  data: Buffer,
-): Stop | undefined {
+function applyWebpChunk(note: WebpNote, tag: string, data: Buffer): Stop | undefined {
   const noteChunk = webpNotes[tag as keyof typeof webpNotes]
   if (noteChunk === undefined) return undefined
   return noteChunk(note, data)
@@ -311,10 +318,13 @@ function applyWebpChunk(
 
 function webpHead(bytes: Uint8Array): Buffer | 'truncated' | 'not-image' {
   if (bytes.length < 12) {
-    return bytes.length >= 4 && viewOf(bytes).toString('ascii', 0, 4) === 'RIFF' ? 'truncated' : 'not-image'
+    return bytes.length >= 4 && viewOf(bytes).toString('ascii', 0, 4) === 'RIFF'
+      ? 'truncated'
+      : 'not-image'
   }
   const view = viewOf(bytes)
-  if (view.toString('ascii', 0, 4) !== 'RIFF' || view.toString('ascii', 8, 12) !== 'WEBP') return 'not-image'
+  if (view.toString('ascii', 0, 4) !== 'RIFF' || view.toString('ascii', 8, 12) !== 'WEBP')
+    return 'not-image'
   return view
 }
 

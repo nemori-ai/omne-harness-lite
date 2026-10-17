@@ -1,7 +1,13 @@
 import { crc32 } from 'node:zlib'
 import sharp from 'sharp'
 import { expect, it } from 'vitest'
-import { imageBudget, open, type BudgetInput, type ImageBudget, type ImageFormat } from '@omne-harness/image'
+import {
+  imageBudget,
+  open,
+  type BudgetInput,
+  type ImageBudget,
+  type ImageFormat,
+} from '@omne-harness/image'
 
 const allFormats = ['image/png', 'image/jpeg', 'image/webp'] as const
 
@@ -19,7 +25,12 @@ function budget(overrides: Partial<BudgetInput> = {}): ImageBudget {
   return created.budget
 }
 
-async function pixels(format: ImageFormat, width: number, height: number, orientation?: number): Promise<Buffer> {
+async function pixels(
+  format: ImageFormat,
+  width: number,
+  height: number,
+  orientation?: number,
+): Promise<Buffer> {
   let pipeline = sharp({
     create: { width, height, channels: 3, background: { r: 12, g: 34, b: 56 } },
   })
@@ -93,8 +104,10 @@ function applyTiffDefect(tiff: Buffer, defect: ExifDefect): void {
   const order = tiff.toString('ascii', 0, 2)
   if (order !== 'II' && order !== 'MM') return
   const little = order === 'II'
-  const read16 = (offset: number) => (little ? tiff.readUInt16LE(offset) : tiff.readUInt16BE(offset))
-  const read32 = (offset: number) => (little ? tiff.readUInt32LE(offset) : tiff.readUInt32BE(offset))
+  const read16 = (offset: number) =>
+    little ? tiff.readUInt16LE(offset) : tiff.readUInt16BE(offset)
+  const read32 = (offset: number) =>
+    little ? tiff.readUInt32LE(offset) : tiff.readUInt32BE(offset)
   if (read16(2) !== 42) return
   const ifd = read32(4)
   if (ifd + 2 > tiff.length) return
@@ -176,7 +189,8 @@ function corruptWebpExif(webp: Buffer, defect: ExifDefect): Buffer {
     const size = copy.readUInt32LE(offset + 4)
     if (tag === 'EXIF') {
       const data = copy.subarray(offset + 8, offset + 8 + size)
-      const tiff = data.length >= 8 && data.toString('ascii', 0, 4) === 'Exif' ? data.subarray(6) : data
+      const tiff =
+        data.length >= 8 && data.toString('ascii', 0, 4) === 'Exif' ? data.subarray(6) : data
       applyTiffDefect(tiff, defect)
       return copy
     }
@@ -201,16 +215,24 @@ it('rejects a small png that declares a large frame before a raster exists', asy
 })
 
 it('rejects an illegal budget and starts a legal one at zero', async () => {
-  expect(imageBudget({ ...budgetInput(), formats: [] })).toEqual({ kind: 'rejected', reason: 'formats' })
+  expect(imageBudget({ ...budgetInput(), formats: [] })).toEqual({
+    kind: 'rejected',
+    reason: 'formats',
+  })
   expect(imageBudget({ ...budgetInput(), formats: ['image/png', 'image/png'] })).toEqual({
     kind: 'rejected',
     reason: 'formats',
   })
-  expect(imageBudget({ ...budgetInput(), formats: ['image/gif'] as unknown as BudgetInput['formats'] })).toEqual({
+  expect(
+    imageBudget({ ...budgetInput(), formats: ['image/gif'] as unknown as BudgetInput['formats'] }),
+  ).toEqual({
     kind: 'rejected',
     reason: 'formats',
   })
-  expect(imageBudget({ ...budgetInput(), maxWidth: 0 })).toEqual({ kind: 'rejected', reason: 'max-width' })
+  expect(imageBudget({ ...budgetInput(), maxWidth: 0 })).toEqual({
+    kind: 'rejected',
+    reason: 'max-width',
+  })
   expect(imageBudget({ ...budgetInput(), maxHeight: Number.NaN })).toEqual({
     kind: 'rejected',
     reason: 'max-height',
@@ -280,11 +302,17 @@ it('rejects a dimension or decoded-byte overrun before taking a reservation', as
   expect(tall.heldReservation()).toEqual({ count: 0, bytes: 0 })
 
   const heavy = budget({ maxDecodedBytes: 8 * 4 * 4 - 1 })
-  expect(await open({ bytes: png, budget: heavy })).toEqual({ kind: 'rejected', reason: 'decoded-bytes' })
+  expect(await open({ bytes: png, budget: heavy })).toEqual({
+    kind: 'rejected',
+    reason: 'decoded-bytes',
+  })
   expect(heavy.heldReservation()).toEqual({ count: 0, bytes: 0 })
 
   const jpegOnly = budget({ formats: ['image/jpeg'] })
-  expect(await open({ bytes: png, budget: jpegOnly })).toEqual({ kind: 'rejected', reason: 'format' })
+  expect(await open({ bytes: png, budget: jpegOnly })).toEqual({
+    kind: 'rejected',
+    reason: 'format',
+  })
   expect(jpegOnly.heldReservation()).toEqual({ count: 0, bytes: 0 })
 })
 
@@ -369,7 +397,10 @@ it('rejects a png whose signature differs by one byte', async () => {
   const png = Buffer.from(await pixels('png', 8, 4))
   png[1] = 0x00
   const gate = budget()
-  expect(await open({ bytes: png, budget: gate })).toEqual({ kind: 'rejected', reason: 'not-image' })
+  expect(await open({ bytes: png, budget: gate })).toEqual({
+    kind: 'rejected',
+    reason: 'not-image',
+  })
   expect(gate.heldReservation()).toEqual({ count: 0, bytes: 0 })
 })
 
@@ -464,7 +495,10 @@ it('encodes png, jpeg, and webp without moving the reservation or the verified b
   expect(failed).toEqual({ kind: 'rejected', reason: 'encode' })
   expect(opened.handle.phase).toBe('open')
   await opened.handle.close()
-  expect(await opened.handle.encode({ format: 'png' })).toEqual({ kind: 'rejected', reason: 'closed' })
+  expect(await opened.handle.encode({ format: 'png' })).toEqual({
+    kind: 'rejected',
+    reason: 'closed',
+  })
 })
 
 it('rejects a full reservation and releases a reservation when decode fails before the handle exists', async () => {
@@ -481,7 +515,10 @@ it('rejects a full reservation and releases a reservation when decode fails befo
   const roomy = budget({ maxConcurrentDecodes: 2, maxInFlightBytes: 8 * 4 * 4 })
   const held = await open({ bytes, budget: roomy })
   if (held.kind !== 'opened') throw new Error(held.reason)
-  expect(await open({ bytes, budget: roomy })).toEqual({ kind: 'rejected', reason: 'in-flight-bytes' })
+  expect(await open({ bytes, budget: roomy })).toEqual({
+    kind: 'rejected',
+    reason: 'in-flight-bytes',
+  })
   expect(roomy.heldReservation()).toEqual({ count: 1, bytes: 8 * 4 * 4 })
   await held.handle.close()
 
@@ -542,7 +579,11 @@ it('copies input bytes before the container check so caller mutation cannot bypa
   if (opened.kind !== 'opened') return
   expect(opened.verifiedBytes).not.toBe(bytes)
   expect(Buffer.from(opened.verifiedBytes).equals(original)).toBe(true)
-  expect(await sharp(opened.verifiedBytes).metadata().then(m => m.format)).toBe('png')
+  expect(
+    await sharp(opened.verifiedBytes)
+      .metadata()
+      .then(m => m.format),
+  ).toBe('png')
   expect(gate.heldReservation()).toEqual({ count: 1, bytes: 8 * 4 * 4 })
   await opened.handle.close()
 })
@@ -590,7 +631,10 @@ it('rejects EXIF orientation with count=2 before a rotated raster exceeding the 
   for (const format of ['png', 'jpeg', 'webp'] as const) {
     const base = Buffer.from(await pixels(format, 8, 4, 6))
     const valid = budget({ maxWidth: 8, maxHeight: 4 })
-    expect(await open({ bytes: base, budget: valid })).toEqual({ kind: 'rejected', reason: 'height' })
+    expect(await open({ bytes: base, budget: valid })).toEqual({
+      kind: 'rejected',
+      reason: 'height',
+    })
     expect(valid.heldReservation()).toEqual({ count: 0, bytes: 0 })
 
     const corrupted =

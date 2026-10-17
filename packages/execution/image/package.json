@@ -19,7 +19,9 @@
       "import": "./dist/cordis.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "pnpm run build && tsc -p tsconfig.test.json",

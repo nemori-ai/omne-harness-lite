@@ -23,7 +23,10 @@ it('fails plugin load when a ceiling is missing or not a positive finite number'
   await expect(zero).rejects.toBeInstanceOf(ValidationError)
   await zero.dispose()
 
-  const infinite = root.plugin(imagePlugin, { ...config, maxInFlightBytes: Number.POSITIVE_INFINITY })
+  const infinite = root.plugin(imagePlugin, {
+    ...config,
+    maxInFlightBytes: Number.POSITIVE_INFINITY,
+  })
   await expect(infinite).rejects.toBeInstanceOf(ValidationError)
   await infinite.dispose()
 })

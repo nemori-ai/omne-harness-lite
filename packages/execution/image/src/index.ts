@@ -114,12 +114,15 @@ function positive(value: number): boolean {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
 }
 
-function formatsOf(input: readonly ImageMediaType[] | undefined): BudgetRejectReason | readonly ImageMediaType[] {
+function formatsOf(
+  input: readonly ImageMediaType[] | undefined,
+): BudgetRejectReason | readonly ImageMediaType[] {
   if (!Array.isArray(input) || input.length === 0) return 'formats'
   const seen = new Set<ImageMediaType>()
   const formats: ImageMediaType[] = []
   for (const format of input) {
-    if (!IMAGE_FORMATS.some(name => mediaTypeByFormat[name] === format) || seen.has(format)) return 'formats'
+    if (!IMAGE_FORMATS.some(name => mediaTypeByFormat[name] === format) || seen.has(format))
+      return 'formats'
     seen.add(format)
     formats.push(format)
   }
@@ -153,7 +156,11 @@ export function imageBudget(input: BudgetInput): BudgetResult {
   return { kind: 'budget', budget }
 }
 
-function orientedSize(width: number, height: number, orientation: number): { width: number; height: number } {
+function orientedSize(
+  width: number,
+  height: number,
+  orientation: number,
+): { width: number; height: number } {
   if (orientation >= 5 && orientation <= 8) return { width: height, height: width }
   return { width, height }
 }
@@ -185,7 +192,10 @@ function reject(reason: ImageRejectReason): OpenResult {
   return { kind: 'rejected', reason }
 }
 
-export function open(input: { readonly bytes: Uint8Array; readonly budget: ImageBudget }): Promise<OpenResult> {
+export function open(input: {
+  readonly bytes: Uint8Array
+  readonly budget: ImageBudget
+}): Promise<OpenResult> {
   const pool = pools.get(input.budget)
   if (pool === undefined) return Promise.resolve(reject('decode'))
   const bytes = new Uint8Array(input.bytes)
@@ -196,7 +206,8 @@ export function open(input: { readonly bytes: Uint8Array; readonly budget: Image
   const oriented = orientedSize(container.width, container.height, container.orientation)
   const estimate = decodedBytes(oriented.width, oriented.height)
   const reason = overLimit(pool, oriented.width, oriented.height, estimate)
-  if (reason !== undefined || estimate === undefined) return Promise.resolve(reject(reason ?? 'decoded-bytes'))
+  if (reason !== undefined || estimate === undefined)
+    return Promise.resolve(reject(reason ?? 'decoded-bytes'))
   pool.count += 1
   pool.bytes += estimate
   return finishOpen(bytes, pool, mediaType, oriented.width, oriented.height, estimate)
@@ -215,7 +226,10 @@ async function finishOpen(
     release(pool, estimate)
     return reject('decode')
   }
-  return { kind: 'opened', ...createHandle(pool, decoded, width, height, estimate, mediaType, bytes) }
+  return {
+    kind: 'opened',
+    ...createHandle(pool, decoded, width, height, estimate, mediaType, bytes),
+  }
 }
 
 function release(pool: Pool, estimate: number): void {
