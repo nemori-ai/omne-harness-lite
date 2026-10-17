@@ -1,6 +1,6 @@
 # 图像成员行为
 
-状态：技术设计已接受，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/277#issuecomment-6198093789)。本文件拥有[模型](docs/model.md)以外的行为条件。生产上限有一份候选推荐配置 `model-input-balanced`，已在 Linux x86_64、Node 26 上观测，尚未获接受，见[推荐配置](docs/budget-profile.md)。步骤见[关键流程](docs/key-flow.md)。Cordis 装配见[集成](docs/cordis.md)。
+状态：技术设计已接受，见 [技术设计接受](https://github.com/nemori-ai/omne-harness-lite/issues/277#issuecomment-6198093789)。本文件拥有[模型](docs/model.md)以外的行为条件。生产上限尚未接受。候选推荐配置 `model-input-balanced` 已在 Linux x86_64、Node 26 上观测，见[推荐配置](docs/budget-profile.md)。步骤见[关键流程](docs/key-flow.md)。Cordis 装配见[集成](docs/cordis.md)。
 
 ## 责任与消费者
 
@@ -56,6 +56,6 @@
 
 这次命令在 Darwin 25.5.0 arm64、Node v26.0.0 上通过。解码库是 sharp 0.35.3，libvips 8.18.3。本卡对预算和关闭的平台接受只覆盖 Node 26。成员声明的 Node 范围是 `>=26.0.0 <27`。其他 Node 版本没有运行，也不写成已支持。调用方停止等待的用例用的是 2048×2048 的夹具 PNG 和 1 毫秒超时。压缩膨胀用例是一份不足 100 字节的 PNG，IHDR 声明 4096×4096，夹具的解码后字节上限是 1024。它在光栅出现前以 decoded-bytes 拒绝，预留保持 0。这些夹具数字不是生产上限。原生停止仍是未被证明。未在点名平台上运行的原生库不写成已支持。
 
-`node --expose-gc packages/execution/image/verification/budget-profile-smoke.mjs` 在构建后从包名导入公开入口，用候选推荐配置核对正常、接近上限、超限、并发持有、编码、关闭和调用方停止等待的结果，并读取进程 RSS。2026-10-17 在 Linux 5.15 x86_64、Node v26.12.0、sharp 0.35.3、libvips 8.18.3 上三次运行均退出 0。结果、RSS 读数及其限制见[推荐配置](docs/budget-profile.md#观测)。
+`node --expose-gc packages/execution/image/verification/budget-profile-smoke.mjs` 在构建后从包名导入公开入口，用候选推荐配置核对正常、接近宽高与像素上限、宽高与像素超限、并发持有、编码进行中与结束后的预留、编码输出、关闭和调用方停止等待的结果，并读取进程 RSS。格式与在途字节拒绝由两份变体配置核对。2026-10-17 在 Linux 5.15 x86_64、Node v26.12.0、sharp 0.35.3、libvips 8.18.3 上三次运行均退出 0。结果、RSS 读数及其限制见[推荐配置](docs/budget-profile.md#观测)。
 
 服务定义、配置和撤除见[集成](docs/cordis.md)。

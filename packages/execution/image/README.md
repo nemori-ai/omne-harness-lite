@@ -89,3 +89,5 @@ An execution-environment isolation test does not cover this member.
 ## Maintenance
 
 When the budget, a reject reason, or a handle state changes, change SPEC and [model](docs/model.md) in the same change. The content-block image shape stays unchanged.
+
+When you upgrade sharp or libvips, or change the adapter's native options or the reservation rule, run the observation script again. Then update the observation and the status on the [profile page](docs/budget-profile.md).

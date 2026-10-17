@@ -89,3 +89,5 @@ await opened.handle.close()
 ## 维护
 
 改变预算、拒绝原因或句柄状态时，同时改 SPEC 和[模型](docs/model.md)。content-block 的图像形状保持不变。
+
+升级 sharp 或 libvips、改变适配器的原生参数或预留口径时，重跑观测脚本，并更新[推荐配置](docs/budget-profile.md)的观测与状态。
