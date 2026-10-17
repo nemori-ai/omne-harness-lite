@@ -649,3 +649,29 @@ sequenceDiagram
 ```
 
 心跳超时、查询失败和锁租约到期均不足以走“旧执行已排除”分支。无证据时后继保留阻塞原因，控制、原结果查询和依法保管仍按当前能力处理。恢复不会把清理待办转换为执行待办。
+
+<a id="credential-resolve"></a>
+## 凭据解析
+
+承接已接受的[凭据对象](object-model.md#已实现的凭据对象)。每次获准的真实发出都重新解析。同一次发送的后续输出不再解析。存在性查询是另一次操作。发送本身只调用 `resolve`。
+
+```mermaid
+sequenceDiagram
+  participant Call as 调用记录
+  participant Keep as 本地保管库
+  participant Send as 发送端
+  Note over Call,Keep: 存在性查询单独发生
+  Call->>Keep: present
+  Keep-->>Call: 是否存在，无秘密
+  Note over Call,Send: 获准的真实发出
+  Call->>Keep: resolve
+  alt value
+    Keep-->>Send: 仅本次的值
+    Send->>Send: 发出并记下该值
+  else absent unreadable denied unavailable
+    Keep-->>Call: 该种类
+    Note over Send: 不发送
+  end
+```
+
+轮换后的下一次解析看到新值。撤销后的新解析是 `denied`。已经记入发送端的那一次保持已发送。进程重新打开同一保管库后，按打开时的绑定读取。关闭后的新解析停止，不改写已经发出的记录。

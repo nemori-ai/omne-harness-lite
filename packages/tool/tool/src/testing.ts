@@ -10,7 +10,6 @@ import {
   type LedgerCommit,
   type LedgerCommitInput,
   type LedgerDomain,
-  type LedgerRead,
   type LedgerRecord,
   type ToolLedgerStore,
 } from './ledger-store.ts'

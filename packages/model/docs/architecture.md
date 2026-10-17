@@ -36,8 +36,8 @@ Cordis 定义与宿主插件分别从 model-cordis-contract/cordis 和 model-hos
 | 目标路径，均在 packages/model 下 | Interface 与消费者 | Implementation 及独立收益 |
 | --- | --- | --- |
 | model-contract | 领域值、操作、行为协议和可替换提供者端口，供 Agent、Context、Session、独立程序及提供者消费 | 只含必要纯函数与契约；不安装 Cordis、运行宿主或厂商实现 |
-| model-cordis-contract | 唯一 Service、键、类型增补及定义自有注册表，供 Cordis 消费者及提供者消费 | 隔离框架依赖；仅含 IC-3 允许的登记机制，不含业务运行提供者 |
-| model | 可复用领域实现，供独立程序及宿主消费 | executeModel、createModelRuntime、档案/准备/执行/保管的协调；依赖通过端口注入，不安装 Cordis |
+| model-cordis-contract | 托管运行的唯一 Service、键、类型增补及定义自有注册表，供 Cordis 消费者及提供者消费 | 隔离框架依赖；仅含 IC-3 允许的登记机制，不含业务运行提供者 |
+| model | 可复用领域实现，供独立程序及宿主消费 | executeModel、createModelRuntime、档案/准备/执行/保管的协调；依赖通过端口注入；目标不安装 Cordis，现有凭据切片的例外见下文 |
 | model-host-local | 单机宿主提供者，供应用装配消费 | 时钟、实例调度、目录装载、Cordis 门面及阶段插件；复用 model，不复制执行逻辑 |
 | pi-ai-transport | 具名构造接缝与 ModelTransport，供装配及独立程序消费 | 公共 HTTP/SSE、取消、连接资源、请求规划骨架、固定绑定与回执；集中维护 pi fork，不复制到每个厂商包 |
 | pi-ai-openai | OpenAI 家族定义及固定适配贡献 | 家族参数、工具/消息投影、模板/估算、usage/replay 解释及逐型号验证 |
@@ -123,7 +123,7 @@ TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥�
 
 ## 文档归属与迁移
 
-正文已按下表归属落位。非 pi-ai 公开声明已接受，三个成员源码入口为空；文档迁移不表示实际导出已完成。
+正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员源码入口仍为空；model 已实现凭据切片，其他运行工厂尚未实现。
 
 | 内容 | 当前拥有者与后续归属 |
 | --- | --- |
@@ -272,3 +272,9 @@ materialize 先取得实际发送容量，再按原来源及当前资格逐个�
 任何失败或取消都会关闭 reader、销毁暂存并归还已预约容量；取消信号不证明原生解码器已结束，必须等实际退出再释放其缓冲区。资源不足不能交出半物化成功。start 使用密封 body、固定接收方及仍有效的容量，立即发起；不在第一次读取 iterable 时才发送。延迟消费输出也不延迟发送围栏内的动作。
 
 引擎初始化核发布资源的摘要、配置和许可证，禁止 count 时下载资源或读 cwd。相邻普通文本按完整串编码，模板的特殊 token 通过显式段传入。缓存键含完整计量组合、内容与资格范围，缓存有容量上限；不会因缓存命中跳过当前授权。单次 release 归还租约，共享编码器只在退役且所有使用者退出后关闭。
+
+## 凭据切片的现有装配边界
+
+已接受的凭据引用与发送前解析由 model 成员实现。CredentialPort、modelCredential 服务和本地保管实现目前共置于该成员，责任见[领域边界](../../../docs/domains/model-invocation/architecture.md#凭据引用与保管)。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
+
+这项既有采用使 model 当前生产安装包含 Cordis 和本地文件锁实现。上文 model 的无 Cordis 安装是目标运行分包要求，当前凭据切片尚不满足它。根入口可以不启动 Cordis使用，不等于安装隔离。model-cordis-contract 继续唯一拥有托管运行服务的设计；凭据服务的定义拥有者仍为 model，不复制同名服务或键。两个契约包保持现有边界。凭据共置的采用范围只限凭据服务。

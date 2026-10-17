@@ -4,7 +4,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## Responsibility and status
 
-本成员拥有可复用 Model 领域实现设计，当前源码入口为空。公共值、操作与提供者协议归 [model-contract](../model-contract/README_ZH.md)，框架定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。设计、实现与运行验证分别判断。
+本成员拥有可复用 Model 领域实现设计，已有凭据引用、存在性查询、解析与本地保管实现；托管运行和工厂尚未实现。公共值、操作与提供者协议归 [model-contract](../model-contract/README_ZH.md)，框架定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。设计、实现与运行验证分别判断。
 
 ## Usage
 
@@ -20,11 +20,11 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## Configuration and operation
 
-构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标实现不依赖 Cordis，也不自动安装所有厂商或词表。
+构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis；当前凭据切片同包携带 Cordis 生产依赖，尚不满足该安装目标。包不自动安装所有厂商或词表。
 
 ## Verification
 
-运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。当前测试仅断言模板空入口，不证明模型行为。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
+运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。现有测试覆盖凭据根入口、存在性、解析、持久化及 Cordis 关闭，不证明托管运行、流式或结果保管已经实现。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
 
 ## Maintenance
 
@@ -66,3 +66,7 @@ PACKAGE_TEMPLATE_DRAFT
 | [示例](examples/index.md) | 可运行消费方式 |
 | [运行资源](resources/index.md) | 资产、来源和装载责任 |
 | [独立验收](acceptance/index.md) | 独立场景、环境与判据 |
+
+## 独立消费入口
+
+凭据的已实现导出见[公开入口](docs/public-api.md#已实现的凭据入口)，新建与重开存储的区别及用法见[消费指南](docs/context.md#独立消费入口)。凭据切片已有行为测试；其他运行设计的接受不表示已经实现。

@@ -22,7 +22,7 @@ flowchart LR
 
 ## 安装与导入选择
 
-model-contract、model-cordis-contract 与 model 已是 workspace 骨架，源码入口仍为空；model-host-local 尚未初始化。以下为完成接口实现后的消费路径。
+model-contract 与 model-cordis-contract 的源码入口仍为空。model 已实现凭据切片，托管运行工厂尚未实现；model-host-local 尚未初始化。下表描述托管运行接口实现后的消费路径，现有凭据入口见 model 的公开文档。
 
 | 使用任务 | 安装与导入 |
 | --- | --- |

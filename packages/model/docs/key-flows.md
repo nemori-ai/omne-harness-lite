@@ -17,3 +17,5 @@
 | 两种独立调用 | [成员流程](../model/docs/flows.md#flow-md07) |
 | 宿主启动、接续与退出 | [成员流程](../model/docs/flows.md#flow-md08) |
 | 模态投影与性能观测 | [成员流程](../model/docs/flows.md#flow-md09) |
+
+凭据的存在性与发送前解析见[成员流程](../model/docs/flows.md#凭据解析)。调用记录只保留引用，存储与 Cordis 的实际接缝沿本成员已接受切片。

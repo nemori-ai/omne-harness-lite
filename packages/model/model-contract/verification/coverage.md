@@ -7,7 +7,7 @@
 | CAP-MD01 档案维护 | 档案维护；[流程](../../model/docs/flows.md#flow-md01) | ProfileIdentity、ModelProfile、ModelProfileMaintenance | [条件变更](../SPEC.md#档案与请求准备协议) | 同名并发、撤回行重建、跨层维护、未知提交及断电；存储提供者未实现 |
 | CAP-MD02 同名求值 | 档案求值；[流程](../../model/docs/flows.md#flow-md01) | ModelProfiles、ProfileResolution | [求值与列表](../SPEC.md#同名求值选择及列表) | 缺凭据不退层、撤回后合法外层、配置排除与未知；跨拥有者版本读取待实现 |
 | CAP-MD03 会话选择 | 档案求值；Session 保存选择；[流程](../../model/docs/flows.md#flow-md01) | ModelChoices、ModalityRequirement；Session 保存选择 | [准备消费路径](../docs/context.md#先求值再组装和准备) | 小窗口允许切换、当前非法值保留、下一请求失败不撤销选择；Session 集成待验证 |
-| CAP-MD04 租户凭据 | 凭据拥有者；发送；[流程](../../model/docs/flows.md#flow-md01) | 无秘密 ProfileSupplier、固定 Supplier 绑定引用 | [请求准备与发送](../SPEC.md#档案与请求准备协议) | 已有绑定不可读不退默认、解绑前后竞争；#279 固定外部契约，不合并其实现，新通道仍缺精确定义 |
+| CAP-MD04 租户凭据 | 凭据拥有者；发送；[流程](../../model/docs/flows.md#flow-md01) | 无秘密 ProfileSupplier、固定 Supplier 绑定引用 | [请求准备与发送](../SPEC.md#档案与请求准备协议) | 已有绑定不可读不退默认、解绑前后竞争；凭据切片已在 model 实现；托管发送的当前资格与固定绑定适配尚未完成，新通道仍缺精确定义 |
 | CAP-MD05 模态与转换 | 消息转换；历史拥有者的投影；[流程](../../model/docs/flows.md#flow-md02) | ModelMessageConversion、ModelConverterCatalog、ConvertedContent | [转换与投影](../SPEC.md#转换与历史投影协议) | 同键冲突、命中不可用、无 transcript、历史不回填、Tool ref 准入零读取；共享块迁移和历史原子接纳待验证 |
 | CAP-MD06 完整请求合法性 | 请求准备；发送；[流程](../../model/docs/flows.md#flow-md02) | ModelRequestPreparation、ModelLimit、RequestBudget、ModelInputMeter、ModelTextTokenizer、ModelCountingBasis | [准备协议](../SPEC.md#档案与请求准备协议)、[媒体加载](../SPEC.md#工具定义转换与内容引用加载) | 缺图片上限、漏工具声明、AST 编码错误、估算缺余量、物化超限、扩展后不重测；同编码器异模板、计量组合失效及特殊 token 注入；供应商 schema/计量实证待补 |
 | CAP-MD07 真实发出与重试 | 调用推进；策略 seam；[流程](../../model/docs/flows.md#flow-md03) | DispatchRecord、RetryPosition、ModelRetryPolicy、ModelSendBoundary | [重试与恢复](../SPEC.md#342-重试失联与恢复) | 策略回执未知、首内容不确定、供应商切换及有限次数；真实传输与持久策略验证待做 |

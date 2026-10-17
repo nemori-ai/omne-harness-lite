@@ -87,7 +87,7 @@ packages/<能力组>/<成员>/
 
 ## 目标目录
 
-以下是初始落点。写明叶子名的目录已初始化为 workspace 草稿，公开行为仍未实现。`<成员>`、`<具名时间能力>`、`<具名观测能力>` 和 `<具名纯表示>` 不是叶子名，这些位置不建包。叶子若还要拆分，仍须在具名消费者和精确承诺明确后确定。
+以下是初始落点。写明叶子名的目录已初始化为 workspace 草稿，公开行为仍未实现。`execution/image` 是例外。技术设计已接受，它已经是 workspace 成员。公开入口包含预算、打开、编码和关闭。六个生产上限仍未测量。`<成员>`、`<具名时间能力>`、`<具名观测能力>` 和 `<具名纯表示>` 不是叶子名，这些位置不建包。叶子若还要拆分，仍须在具名消费者和精确承诺明确后确定。
 
 ```text
 packages/
@@ -119,7 +119,9 @@ packages/
 │   ├── runtime-context/        数据注册、供给与读取
 │   └── request-context/        请求投影与上下文组装
 ├── human-intervention/human-intervention/
-├── execution/execution-environment/
+├── execution/
+│   ├── execution-environment/  执行设施、落点与资源条件
+│   └── image/                  图像字节的预算、打开、编码与关闭。技术设计已接受，已是 workspace 成员
 ├── calendar/calendar/          日历版本依据与日期计算
 ├── schedule/schedule/          日程、Job与整体结果
 ├── notification/notification/  通知及送达

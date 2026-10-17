@@ -5,7 +5,6 @@ import {
   callId,
   dummyRequest,
   evidence,
-  failure,
   functionDefinition,
   harness,
   judged,
