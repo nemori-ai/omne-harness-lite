@@ -48,9 +48,12 @@ legacy 的在途字节除了解码光栅，还计入源字节和编码候选。�
 | [OpenAI 视觉文档](https://developers.openai.com/api/docs/guides/images-vision) | PNG、JPEG、WebP 和非动画 GIF。多个模型的 `high` 细节档位把图像放进 2048×2048 以内，具体规则按模型不同 |
 | [pi `image-resize-core.ts`](https://github.com/badlogic/pi-mono/blob/b30a6dd779340f7bc2f3ffa60f4c0a5f914ba9ae/packages/coding-agent/src/utils/image-resize-core.ts) | 默认缩放外框 2000×2000，base64 后不超过 4.5 MiB |
 | [opencode 附件文档](https://opencode.ai/v2/docs/attachments/) | 默认 `max_width` 与 `max_height` 为 2000，`max_base64_bytes` 为 5,242,880 |
+| Claude Code 2.1.302（本机安装的单文件程序，按字符串取证） | PNG、JPEG、GIF、WebP。解码像素上限 8000×8000 = 64,000,000 像素。编码并发 4。这两项可能只在部分宿主模式下生效，取证没有确认其生效条件 |
+| Kimi Code（本机安装，2026-10-16 版本，按明文 JS 取证） | 长边 2000，可配置。解码字节保护 64 MiB，像素上限 100,000,000。没有找到解码并发上限 |
+| Cursor agent 2026.10.01-e373342（本机安装） | JPEG、PNG、GIF、WebP。缩放外框 2048×2048。所选图像一起处理，没有并发上限 |
 | [sharp 构造参数](https://sharp.pixelplumbing.com/api-constructor) | `limitInputPixels` 默认 268,402,689（16383×16383） |
 
-这些来源都没有给出解码并发或在途字节的默认值。本配置的 8192 宽高上限高于各家缩放外框，因为本成员的职责是准入与校验，缩放属于模型请求一侧。
+Kimi Code 的 64 MiB 解码保护与本配置的单图 64,000,000 字节接近。Claude Code 的上限按像素数计，换算成 RGBA 字节是 256,000,000，是本配置的 4 倍。只有 Claude Code 给出了并发值。这些来源都没有给出在途字节的默认值。Codex 的数值常量没有取到，DSH 在本机没有可读源码，LangChain 没有找到图像尺寸默认值。本配置的 8192 宽高上限高于各家缩放外框，因为本成员的职责是准入与校验，缩放属于模型请求一侧。
 
 ## 原生库设置
 
