@@ -24,8 +24,9 @@ describe('decodeCredentialId', () => {
     expect(decodeCredentialId('cred-a')).toEqual({ ok: 'cred-a' })
   })
 
-  it('accepts non-ASCII letters and a name of exactly 256 code units', () => {
+  it('accepts non-ASCII letters, a paired surrogate and a name of exactly 256 code units', () => {
     expect(decodeCredentialId('密钥-é')).toEqual({ ok: '密钥-é' })
+    expect(decodeCredentialId('a\u{20BB7}')).toEqual({ ok: 'a\u{20BB7}' })
     const longest = 'a'.repeat(256)
     expect(decodeCredentialId(longest)).toEqual({ ok: longest })
   })
@@ -63,6 +64,9 @@ describe('decodeCredentialId', () => {
     ['right-to-left override', 'a‮b'],
     ['left-to-right isolate', 'a⁦b'],
     ['byte order mark', '﻿a'],
+    ['lone high surrogate', 'a\uD800b'],
+    ['lone low surrogate', 'a\uDC00'],
+    ['reversed surrogate pair', 'a\uDC00\uD800'],
   ])('rejects %s as character', (_name, text) => {
     expect(decodeCredentialId(text)).toEqual({
       failure: { field: 'ModelCredentialId', reason: 'character' },

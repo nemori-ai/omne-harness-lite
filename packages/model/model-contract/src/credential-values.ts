@@ -3,11 +3,11 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type { CredentialId, CredentialReference } from './credential.ts'
+import { MODEL_IDENTITY_MAX_LENGTH } from './identity-values.ts'
 import { mintIdentity } from './mint.ts'
 import type { ModelIdentityRejection } from './root.ts'
 
-const MAX_LENGTH = 256
-const FORBIDDEN_CHARACTER = /[\s\p{Cc}\p{Cf}]/u
+const FORBIDDEN_CHARACTER = /[\s\p{Cc}\p{Cf}\p{Cs}]/u
 
 function reject(reason: ModelIdentityRejection<'ModelCredentialId'>['reason']) {
   return fail({ field: 'ModelCredentialId', reason } as const)
@@ -18,7 +18,7 @@ export function decodeCredentialId(
 ): Outcome<CredentialId, ModelIdentityRejection<'ModelCredentialId'>> {
   if (typeof value !== 'string') return reject('type')
   if (value.length === 0) return reject('empty')
-  if (value.length > MAX_LENGTH) return reject('length')
+  if (value.length > MODEL_IDENTITY_MAX_LENGTH) return reject('length')
   if (FORBIDDEN_CHARACTER.test(value)) return reject('character')
   return succeed(mintIdentity<'ModelCredentialId'>(value))
 }
