@@ -23,6 +23,21 @@ afterAll(() => {
 // must start without either.
 const { NODE_PATH: _path, OMNE_INSTALL_ALLOW_NETWORK: _network, ...environment } = process.env
 
+// The members that the facility packs, in its order: the member itself, then the workspace
+// packages of its production closure. A change to the declared dependencies changes this list
+// and nothing else in the expected report.
+const closureMembers = [
+  '@omne-harness/model-cordis-contract',
+  '@omne-harness/legal-identity',
+  '@omne-harness/model-contract',
+  '@omne-harness/operation-result',
+  '@omne-harness/call-account',
+  '@omne-harness/content-block',
+  '@omne-harness/json-text',
+  '@omne-harness/message',
+  '@omne-harness/utc-instant',
+]
+
 function run(workDirectory: string, policy?: string) {
   const result = spawnSync(
     process.execPath,
@@ -48,9 +63,11 @@ it('installs only the packed closure and every entry resolves inside the consume
     'node-path-unset',
     'forbidden-declared',
     'members-built',
-    'pack:@omne-harness/model-cordis-contract',
-    'tarball-no-source:@omne-harness/model-cordis-contract',
-    'tarball-no-workspace-protocol:@omne-harness/model-cordis-contract',
+    ...closureMembers.flatMap(member => [
+      `pack:${member}`,
+      `tarball-no-source:${member}`,
+      `tarball-no-workspace-protocol:${member}`,
+    ]),
     'install',
     'consumer-lock-no-workspace',
     'installed-listed',

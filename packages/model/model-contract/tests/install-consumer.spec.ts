@@ -14,6 +14,20 @@ afterAll(() => {
   for (const directory of workDirectories) rmSync(directory, { recursive: true, force: true })
 })
 
+// The members that the facility packs, in its order: the member itself, then the workspace
+// packages of its production closure. A change to the declared dependencies changes this list
+// and nothing else in the expected report.
+const closureMembers = [
+  '@omne-harness/model-contract',
+  '@omne-harness/call-account',
+  '@omne-harness/content-block',
+  '@omne-harness/json-text',
+  '@omne-harness/legal-identity',
+  '@omne-harness/message',
+  '@omne-harness/operation-result',
+  '@omne-harness/utc-instant',
+]
+
 // The vitest bin shim sets NODE_PATH, and a developer shell may allow the network: the facility
 // must start without either.
 const { NODE_PATH: _path, OMNE_INSTALL_ALLOW_NETWORK: _network, ...environment } = process.env
@@ -38,9 +52,11 @@ it('installs only the packed closure and every entry resolves inside the consume
     'node-path-unset',
     'forbidden-declared',
     'members-built',
-    'pack:@omne-harness/model-contract',
-    'tarball-no-source:@omne-harness/model-contract',
-    'tarball-no-workspace-protocol:@omne-harness/model-contract',
+    ...closureMembers.flatMap(member => [
+      `pack:${member}`,
+      `tarball-no-source:${member}`,
+      `tarball-no-workspace-protocol:${member}`,
+    ]),
     'install',
     'consumer-lock-no-workspace',
     'installed-listed',

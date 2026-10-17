@@ -3,12 +3,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
-import { assertionViolations, findTypeAssertions, MINT_MARKER } from './type-assertions.ts'
+import {
+  assertionViolations,
+  findTypeAssertions,
+  MAX_MINT_SITES,
+  MINT_MARKER,
+} from './type-assertions.ts'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 
-describe('brand values are not built with type assertions (AC-G1-6)', () => {
-  it('finds none in product source, the testing entry or the fixtures, except the decoder mint', () => {
+describe('brand values are not built with type assertions', () => {
+  it('finds none in product source, the testing entry or the fixtures, except the two marked mints', () => {
     const source = join(packageDirectory, 'src')
     const sites = findTypeAssertions([source, join(packageDirectory, 'tests/fixtures')])
     expect(assertionViolations(sites, source)).toEqual([])
@@ -41,16 +46,48 @@ describe('the scanner itself', () => {
     expect(sites.map(site => site.line)).toEqual([2, 3, 3, 4, 4])
   })
 
-  it('accepts one marked mint in product source and rejects a second or one in src/testing', () => {
-    write('src/decode.ts', `// ${MINT_MARKER} the single mint\nexport const mint = 'x' as string\n`)
-    write('src/other.ts', `export const second = 'y' as string // ${MINT_MARKER} again\n`)
-    write(
-      'src/testing/helper.ts',
-      `// ${MINT_MARKER} not allowed here\nexport const t = 'z' as string\n`,
-    )
-    const violations = assertionViolations(findTypeAssertions([source]), source)
+  function violationsOf(files: Record<string, string>): string[] {
+    rmSync(source, { recursive: true, force: true })
+    for (const [path, text] of Object.entries(files)) write(`src/${path}`, text)
+    return assertionViolations(findTypeAssertions([source]), source)
+  }
+  const marked = (name: string) =>
+    `// ${MINT_MARKER} ${name}\nexport const ${name} = 'x' as string\n`
+
+  it('allows exactly two marked mints in product source', () => {
+    expect(MAX_MINT_SITES).toBe(2)
+    expect(
+      violationsOf({ 'decode.ts': marked('decoded'), 'derive.ts': marked('derived') }),
+    ).toEqual([])
+  })
+
+  it('fails on a third marked mint in product source, naming only the third', () => {
+    const violations = violationsOf({
+      'a.ts': marked('first'),
+      'b.ts': marked('second'),
+      'c.ts': marked('third'),
+    })
+    expect(violations).toHaveLength(1)
+    expect(violations[0]).toMatch(/^mint marker beyond the 2 allowed .*c\.ts:2 /u)
+  })
+
+  it('rejects a marked mint in src/testing, which also uses up one of the two places', () => {
+    const violations = violationsOf({
+      'decode.ts': marked('decoded'),
+      'derive.ts': marked('derived'),
+      'testing/helper.ts': marked('helper'),
+    })
     expect(violations.filter(line => line.startsWith('mint marker outside'))).toHaveLength(1)
-    expect(violations.filter(line => line.startsWith('second mint'))).toHaveLength(2)
+    expect(violations.filter(line => line.startsWith('mint marker beyond'))).toHaveLength(1)
     expect(violations.filter(line => line.startsWith('unmarked'))).toEqual([])
+  })
+
+  it('flags an unmarked assertion even when both mints are in use', () => {
+    const violations = violationsOf({
+      'decode.ts': marked('decoded'),
+      'derive.ts': marked('derived'),
+      'plain.ts': "export const loose = 'y' as string\n",
+    })
+    expect(violations).toEqual([expect.stringMatching(/^unmarked assertion .*plain\.ts:1 /u)])
   })
 })

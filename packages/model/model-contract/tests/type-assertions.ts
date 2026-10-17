@@ -3,13 +3,16 @@
 // `correctness` category, and no rule in that category flags assertions. `as const` is not an
 // assertion about a type, so it passes.
 //
-// One site is exempt: the single minting point inside the R-3 decoders. It carries the marker
-// comment below, on its own line or on the line before.
+// Two sites are exempt: the minting point of the identity decoders and the one of
+// deriveGuardControlOperation. Each carries the marker comment below, on its own line or on the
+// line before.
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import ts from '@typescript/typescript6'
 
 export const MINT_MARKER = 'brand-mint:'
+
+export const MAX_MINT_SITES = 2
 
 export type AssertionSite = Readonly<{
   file: string
@@ -59,7 +62,9 @@ export function findTypeAssertions(roots: readonly string[]): AssertionSite[] {
 
 /**
  * Returns what breaks the rule: every unmarked assertion, every marked one outside `source`
- * (product source, not `source/testing`), and every marked one beyond the first.
+ * (product source, not `source/testing`), and every marked one beyond the first
+ * `MAX_MINT_SITES`. Marked sites outside `source` count toward that limit, so a stray marker never
+ * frees a place for another one.
  */
 export function assertionViolations(sites: readonly AssertionSite[], source: string): string[] {
   const where = (site: AssertionSite) => `${site.file}:${site.line} ${site.text}`
@@ -73,6 +78,8 @@ export function assertionViolations(sites: readonly AssertionSite[], source: str
     ...marked
       .filter(outsideSource)
       .map(site => `mint marker outside product source ${where(site)}`),
-    ...marked.slice(1).map(site => `second mint marker ${where(site)}`),
+    ...marked
+      .slice(MAX_MINT_SITES)
+      .map(site => `mint marker beyond the ${MAX_MINT_SITES} allowed ${where(site)}`),
   ]
 }
