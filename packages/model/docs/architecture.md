@@ -51,7 +51,7 @@ Cordis 定义与宿主插件分别从 model-cordis-contract/cordis 和 model-hos
 | tokenizer-tiktoken | ModelTextTokenizer 的引擎 adapter，供 OpenAI、Anthropic、Moonshot 等家族计量器构造 | 封装 js-tiktoken、资源初始化和 count 语义；共享引擎实现，不收齐所有厂商词表 |
 | tokenizer-huggingface | ModelTextTokenizer 的引擎 adapter，供 DeepSeek、Google、Qwen、Z.AI 等家族计量器构造 | 封装 Hugging Face tokenizer 运行库及资源初始化；隔离引擎依赖，不拥有家族模板和上游计量口径 |
 
-model-contract、model-cordis-contract 与 model 已是 workspace 骨架。两个契约成员按获准的初始化范围承载各自文档，源码入口仍为空。model-host-local、pi、厂商家族及 tokenizer 成员尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
+model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 由模板生成，目前只承载本地凭据保管。pi、厂商家族及 tokenizer 成员尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
 
 厂商包的 interface 应让消费者一次取得相容的精确绑定及其资源租约，不要求调用方自行拼接 tokenizer、模板、投影和 usage 算法。删除厂商包后，这些关联会散布到目录、计量与传输调用者，因而其 depth 有实际价值。将每个型号各做一个只转发家族工厂的包则没有这种收益。
 
@@ -124,14 +124,14 @@ TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥�
 
 ## 文档归属与迁移
 
-正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员源码入口仍为空；model 已实现凭据切片，其他运行工厂尚未实现。
+正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员源码入口仍为空；model 已实现凭据判定，model-host-local 已实现本地凭据保管，其他运行工厂尚未实现。
 
 | 内容 | 当前拥有者与后续归属 |
 | --- | --- |
 | 领域不变量、公开行为及提供者协议；领域值、操作与提供者端口；符合性场景 | [model-contract](../model-contract/README_ZH.md) 的 SPEC、设计声明、消费指南和验证资源 |
 | executeModel/createModelRuntime、ModelDependencies/ModelConfiguration；协调算法、内部流程及配置 | [model](../model/README_ZH.md) 的设计入口、SPEC 和内部设计 |
 | 服务定义、事件及定义自有登记表/协议 | [model-cordis-contract](../model-cordis-contract/README_ZH.md) 的设计定义、SPEC 和 Cordis 主题 |
-| 具体业务插件、目录装载、依赖装配和单机宿主接续 | 暂在 [model/docs/cordis](../model/docs/cordis.md)，随实际宿主切片迁 model-host-local |
+| 具体业务插件、目录装载、依赖装配和单机宿主接续 | 凭据插件已在 [model-host-local/docs/cordis](../model-host-local/docs/cordis.md)，其余暂在 [model/docs/cordis](../model/docs/cordis.md)，随实际宿主切片迁 model-host-local |
 | 家族及引擎的具体构造、资源、依赖和验证 | 相应 pi/家族/tokenizer 成员 |
 
 外部行为始终归契约，内部流程引用它；实现差异不能降低共同保证。拆包不改变调用身份、发送围栏、首内容后不重发、保管 ACK 或观察与取消的区别。实例登记仍依原 caller-fiber 和资格机制，disposer 不使网络输出可逆。
@@ -276,7 +276,7 @@ materialize 先取得实际发送容量，再按原来源及当前资格逐个�
 
 ## 凭据切片的现有装配边界
 
-凭据引用与发送前解析已有实现。现有源码把 CredentialPort、modelCredential 服务和本地保管共置于 model，生产安装因此包含 Cordis 和 proper-lockfile。该源码状态尚未满足本节的分包要求，不能作为长期共置例外。根入口不启动 Cordis 不等于安装隔离。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
+凭据引用与发送前解析已有实现。公开类型已在 model-contract，服务定义已在 model-cordis-contract，本地保管与插件已迁入 model-host-local，model 源码不再使用 Cordis 与 proper-lockfile。model 的包清单仍声明这两项依赖和 model-cordis-contract，`./cordis`、`./execute` 入口也还在（空模块），安装隔离要等这些随收口删除后才满足本节要求。根入口不启动 Cordis 不等于安装隔离。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
 
 凭据切片按以下责任迁移，沿用现有四成员，不另建凭据包。
 
@@ -290,6 +290,6 @@ materialize 先取得实际发送容量，再按原来源及当前资格逐个�
 
 model 的生产安装闭包不得含 Cordis 或 model-cordis-contract、model-host-local，也不得因凭据切片固定本地文件存储。model-host-local 可以安装 Cordis 和 proper-lockfile，其根入口的本地工厂不启动 Cordis；选择这个具体宿主不承诺安装无 Cordis。独立领域消费者使用 model 和自己选择的端口实现。model-cordis-contract 不得反向导入 model 来取得凭据类型。
 
-现有 credential.ts 混合公开契约、内部判定及磁盘编码，不得整文件迁入契约包。磁盘布局随本地提供者维护，内部状态不升为公共契约。迁移保留凭据五种结果、租户资格、轮换与撤销可见性及保存未知语义，不改变发送前受信授权要求。迁移时同步真实消费者并删除旧的公开类型、服务定义和框架入口，不保留 model 的框架转导使安装依赖回流。源码迁移前，现有可导入入口仍以[实际公开入口](../model/docs/public-api.md#已实现的凭据入口)为准。
+原 credential.ts 混合公开契约、内部判定及磁盘编码，没有整文件迁入契约包：判定与状态快照形状留在 model，磁盘编码随本地提供者在 model-host-local。快照类型（`Binding`、`BindingLife`、`CustodianState`）是[判定对保管状态的显式依赖形状](../model/docs/public-api.md#已实现的凭据入口)：它们从 model 根入口与 `judgePresence`、`judgeResolution` 一并导出，不进任何契约包。其中 `Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。已考虑把它们收窄成读端口，并否决：租户匹配会散到每个宿主，工厂秘密仍留在依赖形状里。model-host-local 构造快照并调用 model 的判定，model 不依赖 model-host-local。迁移保留凭据五种结果、租户资格、轮换与撤销可见性及保存未知语义，不改变发送前受信授权要求。旧的 model 框架入口只剩空模块，随收口删除，不保留转导使安装依赖回流。当前可导入入口以[判定入口](../model/docs/public-api.md#已实现的凭据入口)与[本地保管入口](../model-host-local/docs/public-api.md)为准。
 
 装配、动态换代与收尾由宿主按[装配设计](../model/docs/cordis.md#纯实现与-cordis-装配的分工)兑现。安装隔离须检查实际包产物、公开声明和完整生产安装闭包；集成能力须以服务装载、依赖缺席、换代、在途固定采用及收尾用例验证。文档采用不表示源码迁移或组合验证完成。

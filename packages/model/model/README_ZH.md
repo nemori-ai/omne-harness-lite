@@ -4,7 +4,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与状态
 
-本成员拥有可复用 Model 领域实现设计，已有凭据引用、存在性查询、解析与本地保管实现；托管运行和工厂尚未实现。公共值、操作与提供者协议归 [model-contract](../model-contract/README_ZH.md)，框架定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。设计、实现与运行验证分别判断。
+本成员拥有可复用 Model 领域实现设计，已有凭据存在性与解析的判定，本地保管归 [model-host-local](../model-host-local/README_ZH.md)；托管运行和工厂尚未实现。公共值、操作与提供者协议归 [model-contract](../model-contract/README_ZH.md)，框架定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。设计、实现与运行验证分别判断。
 
 ## 使用
 
@@ -16,15 +16,15 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 设计
 
-[设计索引](docs/index.md)按架构、流程、内部对象、公开入口、消费和 Cordis 装配展开。宿主装配暂在本成员，目标 model-host-local 尚未初始化。
+[设计索引](docs/index.md)按架构、流程、内部对象、公开入口、消费和 Cordis 装配展开。宿主装配设计暂在本成员，model-host-local 目前只承载本地凭据保管。
 
 ## 配置与运行
 
-构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis；当前凭据切片同包携带 Cordis 生产依赖，尚不满足该安装目标。包不自动安装所有厂商或词表。
+构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis；源码已不使用 Cordis 与 proper-lockfile，包清单里的旧依赖随收口删除，在此之前安装闭包仍含它们。包不自动安装所有厂商或词表。
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。现有测试覆盖凭据根入口、存在性、解析、持久化及 Cordis 关闭，不证明托管运行、流式或结果保管已经实现。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
+运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。现有测试覆盖凭据判定与根入口导出；保管、持久化与 Cordis 插件的测试在 model-host-local，不证明托管运行、流式或结果保管已经实现。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
 
 ## 维护
 
@@ -69,4 +69,4 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 独立消费入口
 
-凭据的已实现导出见[公开入口](docs/public-api.md#已实现的凭据入口)，新建与重开存储的区别及用法见[消费指南](docs/context.md#独立消费入口)。凭据切片已有行为测试；其他运行设计的接受不表示已经实现。
+凭据判定的已实现导出见[公开入口](docs/public-api.md#已实现的凭据入口)，调用方式见[消费指南](docs/context.md#独立消费入口)；本地保管库与插件的用法见 [model-host-local](../model-host-local/docs/context.md)。凭据判定已有行为测试；其他运行设计的接受不表示已经实现。

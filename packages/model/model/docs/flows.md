@@ -658,7 +658,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant Call as 调用记录
-  participant Keep as 本地保管库
+  participant Keep as 本地保管库（model-host-local）
   participant Send as 发送端
   Note over Call,Keep: 存在性查询单独发生
   Call->>Keep: present

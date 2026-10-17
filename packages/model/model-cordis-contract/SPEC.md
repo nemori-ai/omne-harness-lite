@@ -30,7 +30,7 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 
 ## 凭据服务
 
-`ModelCredentialService` 是抽象定义，键是 `modelCredential`，只有 `present` 与 `resolve` 两个抽象成员，形状取自 model-contract 的 `CredentialPort`。定义不持有端口，不保存秘密，不选择保管实现。诊断读取与保管管理不在服务上。实现不得把自己的端口或保管者放在服务实例上：Cordis 把实例的全部属性交给任何能读 `ctx.modelCredential` 的插件，TypeScript 的 `private` 不是运行时边界，`#private` 字段经 Cordis 代理读取会失败。实现把端口放进构造时创建的闭包。model 随附的本地插件这样封住保管者，由真实 Cordis 测试核对。
+`ModelCredentialService` 是抽象定义，键是 `modelCredential`，只有 `present` 与 `resolve` 两个抽象成员，形状取自 model-contract 的 `CredentialPort`。定义不持有端口，不保存秘密，不选择保管实现。诊断读取与保管管理不在服务上。实现不得把自己的端口或保管者放在服务实例上：Cordis 把实例的全部属性交给任何能读 `ctx.modelCredential` 的插件，TypeScript 的 `private` 不是运行时边界，`#private` 字段经 Cordis 代理读取会失败。实现把端口放进构造时创建的闭包。model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住保管者，由真实 Cordis 测试核对。
 
 未决：服务不核验调用方资格。`SendFace` 的 `authorized` 与 `official`，以及引用里的 `tenant`，都由调用方自报。反例：同一 isolate 的任意插件调用 `resolve({ id, tenant: 租户 B, purpose: MODEL_SEND }, { authorized: true, official: false })`，就能取得租户 B 的凭据值。依赖装配须只把该服务交给受信的发送边界，目前没有拥有者强制这一点。本规格不解决这一项，也不把转发当作授权证明。
 

@@ -8,9 +8,10 @@
 | --- | --- | --- |
 | model-contract | 已接受设计、已初始化骨架；拥有共同协议、公开值与端口，根源码为空 | [成员入口](model-contract/README_ZH.md)、[行为规格](model-contract/SPEC.md) |
 | model-cordis-contract | 已接受设计、已初始化骨架；拥有 Cordis 定义和登记协议，根及 ./cordis 源码为空 | [成员入口](model-cordis-contract/README_ZH.md)、[行为规格](model-cordis-contract/SPEC.md) |
-| model | 已接受设计、已有骨架；拥有可复用执行与协调设计；凭据引用、解析及本地保管已有实现，托管运行尚未实现 | [成员入口](model/README_ZH.md)、[实现规格](model/SPEC.md) |
+| model | 已接受设计、已有骨架；拥有可复用执行与协调设计；凭据存在性与解析的判定已有实现，托管运行尚未实现 | [成员入口](model/README_ZH.md)、[实现规格](model/SPEC.md) |
+| model-host-local | 由模板生成；目前只承载本地凭据保管（文件保管库与 Cordis 插件），其余宿主能力尚未实现 | [成员入口](model-host-local/README_ZH.md)、[行为规格](model-host-local/SPEC.md) |
 
-目标分为 `model-contract`、`model-cordis-contract`、可复用实现 `model` 和单机宿主 `model-host-local`，再组合已采用 pi 技术栈的共享传输、八个厂商家族及两类 tokenizer 引擎包。两个契约成员的文档已落位，model 保留可复用实现设计并暂存宿主装配设计；model-host-local 尚未初始化，不保留聚合安装门面。完整职责、共同依赖前置和初始化条件见[组架构](docs/architecture.md#成员与新增条件)。具体型号在家族内独立绑定和验证。
+目标分为 `model-contract`、`model-cordis-contract`、可复用实现 `model` 和单机宿主 `model-host-local`，再组合已采用 pi 技术栈的共享传输、八个厂商家族及两类 tokenizer 引擎包。两个契约成员的文档已落位，model 保留可复用实现设计并暂存宿主装配设计；model-host-local 已承接本地凭据保管，不保留聚合安装门面。完整职责、共同依赖前置和初始化条件见[组架构](docs/architecture.md#成员与新增条件)。具体型号在家族内独立绑定和验证。
 
 ## 责任与范围
 
@@ -28,4 +29,4 @@ Context 选择表示、组装、分配预算及压缩，消费 Model 的计量�
 
 行为变更回成员 SPEC，工程分解回组架构，用户后果回产品。提供者记录具体支持范围和验证，不能降低共同契约。组页不另建状态机、服务定义或第二套错误集合。
 
-凭据切片的当前入口见[实现公开页](model/docs/public-api.md#已实现的凭据入口)。该切片保留同包 Cordis 生产依赖，安装隔离的实际限制见[组架构](docs/architecture.md#凭据切片的现有装配边界)。
+凭据切片的当前入口见[判定入口](model/docs/public-api.md#已实现的凭据入口)与[本地保管入口](model-host-local/docs/public-api.md)。model 源码已不使用 Cordis 与 proper-lockfile，其包清单里的旧依赖及空入口尚待收口，安装隔离的实际限制见[组架构](docs/architecture.md#凭据切片的现有装配边界)。

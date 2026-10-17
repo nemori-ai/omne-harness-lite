@@ -230,7 +230,7 @@ Context 以 unknown 表达边界输入，可信身份适配器在进入领域操
 
 ## 凭据服务定义
 
-这一节已实现，由 `./cordis` 导出。定义是抽象类，只有 `present` 与 `resolve`，形状与 `CredentialPort` 相同；诊断读取和保管管理不在服务上。定义不持有端口，实现不得把端口或保管者放在服务实例上，须放进构造时创建的闭包，因为实例的全部属性对任何能读 `ctx.modelCredential` 的插件可见。model 随附的本地插件这样封住保管者。具体的本地保管与插件归 model-host-local。
+这一节已实现，由 `./cordis` 导出。定义是抽象类，只有 `present` 与 `resolve`，形状与 `CredentialPort` 相同；诊断读取和保管管理不在服务上。定义不持有端口，实现不得把端口或保管者放在服务实例上，须放进构造时创建的闭包，因为实例的全部属性对任何能读 `ctx.modelCredential` 的插件可见。model-host-local 的 `./cordis` 中的 `LocalCredentialPlugin` 这样封住保管者。具体的本地保管与插件归 model-host-local。
 
 服务不核验调用方资格：`SendFace` 的 `authorized`、`official` 和引用里的 `tenant` 都由调用方自报。装配须只把该服务交给受信的发送边界。目前没有拥有者强制这一点，同一 isolate 的任意插件可以请求另一租户的凭据，这一项在 [SPEC](../SPEC.md#凭据服务)登记为未决。
 

@@ -1,6 +1,6 @@
 # Model 领域实现规格
 
-本包非 pi-ai 实现设计已接受，凭据引用、解析和本地保管已有实现，托管运行设计尚未实现。pi-ai 相关细化保留候选，具体范围见[组架构](../docs/architecture.md)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
+本包非 pi-ai 实现设计已接受，凭据存在性与解析的判定已有实现，本地保管归 model-host-local，托管运行设计尚未实现。pi-ai 相关细化保留候选，具体范围见[组架构](../docs/architecture.md)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
 
 ## 独立执行
 
@@ -35,7 +35,7 @@ outputBatchBytes 与 outputBatchDelayMs 控制持久输出批次。未确认批�
 
 ## 实现与验证
 
-[内部架构](docs/architecture.md)、[流程](docs/flows.md)和[构造对象](docs/object-model.md)描述具体协调。框架目录定义归 model-cordis-contract；宿主装配设计暂在[本成员装配页](docs/cordis.md)，model-host-local 尚未初始化。凭据测试覆盖存在性、解析、持久化、轮换及 Cordis 关闭；它们不证明托管调用、结果保管、恢复或取消已经实现。
+[内部架构](docs/architecture.md)、[流程](docs/flows.md)和[构造对象](docs/object-model.md)描述具体协调。框架目录定义归 model-cordis-contract；宿主装配设计暂在[本成员装配页](docs/cordis.md)，model-host-local 目前只承载本地凭据保管。判定测试覆盖五种解析结果、租户隔离与关闭；持久化、轮换、文件故障与 Cordis 关闭由 [model-host-local](../model-host-local/SPEC.md) 的测试覆盖。它们不证明托管调用、结果保管、恢复或取消已经实现。
 
 ## 构造与关闭的可观察行为
 
@@ -90,16 +90,10 @@ outputBatchBytes 与 outputBatchDelayMs 控制持久输出批次。未确认批�
 
 已撤销或暂时读不出的行仍然存在，因此 `present` 为 true；只有 `resolve` 才按寿命分别返回 `denied` 或 `unreadable`。租户绑定仍在但值不可读时，不使用部署默认凭据，也不使用其他租户的值。未获准的官方发送拿不到工厂秘密。
 
-### 保管与接缝
+### 判定与保管的分工
 
-凭据保管由 `packages/model/model` 拥有。本地保管库存储秘密和绑定。Cordis 服务键为 `modelCredential`；独立调用也可以不启动 Cordis，直接使用根入口的函数。两种入口看到的五种结果相同。
+本包拥有存在性与解析的判定：`judgePresence` 与 `judgeResolution` 只读调用者传入的一份状态快照（`CustodianState`：关闭标志、工厂秘密、绑定列表，绑定寿命为 `active`、`revoked` 或 `unreadable`），不读文件，不持有状态，也不依赖任何保管实现。上文五种结果与存在性规则就是它们的行为。
 
-保管库文件包含工厂秘密和绑定列表。路径上还没有文件时，Cordis 插件用配置里的工厂秘密新建保管库；`openLocalCustodian` 对缺失文件返回 `unavailable`，不新建。路径上已有文件时，插件打开文件并使用文件里的工厂秘密，不用本次配置里的值。文件损坏或同一持有者出现多行冲突时，`present` 和 `resolve` 返回 `unavailable`，不修改文件。
+保管归 [model-host-local](../model-host-local/SPEC.md)：保管库文件、文件锁、刷新、发布确认、关闭，以及装载保管库的 Cordis 插件。保管实现自己构造状态快照并调用判定，本包不依赖它。Cordis 服务键 `modelCredential` 的定义归 model-cordis-contract。独立调用可以不启动 Cordis，直接用判定函数配合任何保管实现；各入口看到的五种结果相同。
 
-`present` 和 `resolve` 每次从磁盘刷新当前状态；保留的句柄和 Cordis 服务都能观察到后续轮换、撤销或文件损坏。管理操作（`put`、`rotate`、`revoke`、`markUnreadable`）写盘前先刷新，再基于当前状态修改，并持有文件锁完成“读当前状态—修改—发布”。文件锁不按时间过期，因此持锁进程活着时其他写者只能等待；若持锁进程崩溃，残留锁文件 `${path}.lock` 需在所有写者停止后手工删除。写入采用临时文件、`fsync` 及重命名；临时文件名唯一，不会覆盖其他写者。
-
-发布前失败（锁等待超时、临时文件写入失败、`fsync` 失败或重命名失败）时抛出异常，不发布新状态，已确认的旧快照保持不变。重命名成功后、后续确认（如父目录 `fsync`）失败时，新状态可能已发布；此时抛出 `confirmation incomplete; verify state before retry`，调用方必须核实当前文件状态后再决定重试。
-
-绑定寿命是 `active`、`revoked` 或 `unreadable`。`put` 把该持有者写成 `active`，可以盖过已撤销或读不出的行。`rotate` 只换秘密，不改生命状态；已撤销的行轮换后 `resolve` 仍是 `denied`。`markUnreadable` 只把 `active` 改成 `unreadable`。
-
-`close()` 只把当前进程标成关闭，随后的 `present` 和 `resolve` 返回 `denied`。关闭不删除绑定，不把停止状态写进保管库文件，也不改写已经交给发送端的值。关闭之后对绑定的修改仍可能写入文件；下一个进程按打开时的绑定读取。
+判定假设快照里的租户值由同一 legal-identity 实例铸造，保管实现须在其边界重新铸造租户值。

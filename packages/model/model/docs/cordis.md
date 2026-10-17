@@ -1,6 +1,6 @@
 # Model 宿主装配设计
 
-本页维护已实现的凭据服务，并暂存 model-host-local 的具体装配设计，该宿主尚未初始化。领域执行工厂归本成员，托管运行的 Service、键、事件及登记表由[model-cordis-contract](../../model-cordis-contract/docs/cordis.md)唯一拥有；共同登记协议归[其 SPEC](../../model-cordis-contract/SPEC.md)。本页不重复服务类或登记算法。
+本页暂存 model-host-local 的具体装配设计，该宿主目前只实现本地凭据保管，凭据插件的行为见其[Cordis 集成](../../model-host-local/docs/cordis.md)。领域执行工厂归本成员，托管运行的 Service、键、事件及登记表由[model-cordis-contract](../../model-cordis-contract/docs/cordis.md)唯一拥有；共同登记协议归[其 SPEC](../../model-cordis-contract/SPEC.md)。本页不重复服务类或登记算法。
 
 ## 纯实现与 Cordis 装配的分工
 
@@ -22,7 +22,7 @@ Model 门面以 commands 和稳定目录适配器维持受理/查询/控制/ACK�
 
 实现配置的边界归[本包 SPEC](../SPEC.md#工厂与配置)。
 
-凭据接缝沿 #279 的独立采用及其服务定义，CredentialPort 及 modelCredential 服务的实际入口见[已实现的凭据服务](#已实现的凭据服务)。发送围栏在可信内部按当前资格调用凭据解析，factory/tenant选择不由ctx推断。
+凭据接缝沿 #279 的独立采用及其服务定义，CredentialPort 及 modelCredential 服务的实际入口见[凭据服务](#凭据服务)。发送围栏在可信内部按当前资格调用凭据解析，factory/tenant选择不由ctx推断。
 
 ## 档案、准备和转换的装配
 
@@ -54,7 +54,7 @@ ModelProfiles、ModelProfileMaintenance 与 ModelMessageConversion 可以独立�
 
 ## 单机提供者的插件划分
 
-以下是 model-host-local 的已接受导出设计与装配设计，该成员尚未初始化。插件仅承担表中责任，不按内部纯函数增设 Service。键常量的唯一声明归 model-cordis-contract；框架入口引用它们，不能再写相同键的字符串。
+以下是 model-host-local 的已接受导出设计与装配设计。该成员已生成，目前只实现本地凭据保管及其 `LocalCredentialPlugin`；表中其余插件尚未实现。插件仅承担表中责任，不按内部纯函数增设 Service。键常量的唯一声明归 model-cordis-contract；框架入口引用它们，不能再写相同键的字符串。
 
 | 插件 | 静态 inject 的键常量 | 提供与寿命 |
 | --- | --- | --- |
@@ -91,61 +91,6 @@ runtime 工厂的 send/retry/instances 参数始终是完整对象。局部阶�
 
 诊断依赖退出只令查询 unavailable，不卸载执行或结果承接。服务调用按 caller 的当前主体核权；自主清理捕获 provider 的上下文，并等待真实存储操作结束。关闭不清空诊断、不释放尚未满足保管或费用条件的记录。遥测出口只消费安全投影，不能从 caller Context 持有业务寿命。
 
-## 已实现的凭据服务
+## 凭据服务
 
-凭据引用与解析规则已由 D-04 接受，并写入 [SPEC](../SPEC.md)。本页说明面向 Cordis 集成时，本包交出的是什么。领域模型见 [model](object-model.md)。包内关系见 [architecture](architecture.md)。独立调用可以不启动 Cordis，直接使用根入口。两种入口看到的五种结果相同。
-
-本节只描述当前源码中的凭据服务。服务定义已迁入 model-cordis-contract；插件及注入调用须迁入 model-host-local，迁移完成时本节随真实拥有者同步。以下路径记录尚未迁移的实际入口，不构成继续共置的目标。本包因此暂时依赖 model-cordis-contract，插件迁出后删除。凭据服务不替代完整托管运行服务。
-
-### 服务、插件和 fiber
-
-| 东西 | 在本包里是什么 | 不是什么 |
-| --- | --- | --- |
-| 服务 | 抽象 `Service`，键 `modelCredential`。它声明根入口的 `present` 和 `resolve` | 不是保管库的表，也不是调用记录 |
-| 插件 | `src/cordis.ts` 导出的本地保管插件。它 `extends` 上面的服务，不另写键，自己实现 `present` 和 `resolve`；保管者只在构造时创建的闭包里，不是实例属性，所以经 `ctx.modelCredential` 取不到保管者及其 `put`、`rotate`、`revoke`、`diagnostics`、`close` | 不是 Agent 的子插件，也不进会话作用域 |
-| fiber | 装载该插件的那条 fiber。关闭挂在这条 fiber 的撤除上 | 不是 Session，不是模型执行器，也不是一次发送 |
-
-```mermaid
-classDiagram
-  class ModelCredentialService {
-    <<Service>>
-    provide modelCredential
-    present()
-    resolve()
-  }
-  class LocalCredentialPlugin {
-    <<Plugin>>
-    extends ModelCredentialService
-  }
-  class PluginFiber {
-    <<Fiber>>
-    dispose()
-  }
-  class CallExecution {
-    inject modelCredential
-  }
-  LocalCredentialPlugin --|> ModelCredentialService
-  PluginFiber o-- LocalCredentialPlugin
-  CallExecution --> ModelCredentialService : inject
-```
-
-服务定义已迁入 model-cordis-contract 的 `./cordis`，由它唯一拥有；本包 `src/cordis.ts` 的插件继承它，不再导出服务类。根入口 `src/index.ts` 导出引用类型和操作类型，不导入 `@deepseek-ai/cordis`。凭据切片尚未另立契约 ID。
-
-同一个 isolate 里这道接缝只有一个提供者。`src/execute.ts` 的 `deliverInjected` 把 `modelCredential` 写入 `inject`，再调用 `deliver`。该文件不导入保管库模块。租户、用途和是否获准发送都是 `resolve` 的参数。不从 `ctx`、插件实例或谁装了这个插件来推断租户。
-
-根入口同时导出 `createLocalCustodian(path, factorySecret)` 和 `openLocalCustodian(path)`，不要混用：
-
-- `createLocalCustodian` 用于初始化新保管库，会覆盖 `path` 处已有的文件。
-- `openLocalCustodian` 用于重开已有保管库；文件缺失、损坏或含冲突行时返回 `{ kind: 'unavailable' }`，不会创建文件。
-
-独立消费示例见 [README](../README.md#独立消费入口)。
-
-模型执行器不是 Agent 的子 Fiber。跨边界只传业务身份和这次发送任务，不传 Context 或 Fiber。
-
-插件配置是保管库路径和工厂秘密。两者都是可序列化的数据。回调和已经打开的存储对象不写进插件树。`path` 必须是非空字符串。`factorySecret` 必须是字符串，空字符串可以通过。配置无法校验时插件加载失败。不新增 Cordis 事件。诊断不在这道服务上。服务只转发 `present` 和 `resolve`。诊断留在本地保管自己的列表里。
-
-路径上还没有文件时，插件用配置里的工厂秘密新建保管库。`openLocalCustodian` 对缺失文件返回 `unavailable`，不新建。路径上已有文件时，打开使用文件里的工厂秘密，不用这次配置里的值。文件损坏时插件仍然注册 `modelCredential`。`present` 和 `resolve` 都返回 `unavailable`，不改文件，也不在撤除时关闭。注入到的对象不是这个服务时，发送结果是 `{ sent: false }`。
-
-解析是同步的。`present` 和 `resolve` 每次从磁盘刷新当前状态，因此已注入的 `ctx.modelCredential` 能观察到其他进程或管理句柄造成的轮换、撤销或文件损坏。fiber 撤除把当前进程标成关闭，随后的 `present` 和 `resolve` 返回 `denied`。没有另做一次在途等待。关闭不删除绑定，不把这次停止写进保管库，也不改写已经交给发送端的值。
-
-管理操作写盘前先刷新，持有文件锁完成“读当前状态—修改—发布”；文件锁不按时间过期，持锁进程崩溃后需手工清理 `${path}.lock`。写入采用唯一临时文件 + `fsync` + 重命名的方式原子写入。发布前失败时抛出异常，不发布新状态，已确认的旧快照保持不变。重命名成功后、后续确认（如父目录 `fsync`）失败时，新状态可能已发布，异常提示 `confirmation incomplete; verify state before retry`，调用方需先核实文件状态。关闭后的管理操作仍会尝试持久化。下一个进程按打开时的绑定读取。
+凭据引用与解析规则已由 D-04 接受，并写入 [SPEC](../SPEC.md)。服务定义归 model-cordis-contract 的 `./cordis`，本地插件与注入发送归 [model-host-local](../../model-host-local/docs/cordis.md)。本包只拥有判定，不导入 Cordis，不提供服务。独立调用可以不启动 Cordis，直接使用判定函数；两种入口看到的五种结果相同。凭据服务不替代完整托管运行服务。
