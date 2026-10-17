@@ -8,7 +8,7 @@
 
 本成员拥有 `Outcome`、`Ack`、`succeed`、`ack`、`fail` 和 `isSuccess`。它没有运行时依赖，也不导入 Cordis。失败词汇 `F` 归调用方。本包不规定共同的失败词汇，也不是所有能力共用的统一信封。
 
-位置 `packages/common/operation-result` 是共同组说明里已经采用的目标。具名消费者是 `tool-contract`、`tool`、`tool-cordis-contract` 和 `model-contract`。它们在 #342 分支上，尚未进入本轨道。形状和函数从 `@omne-harness/kernel-basis` 原样迁来，没有改动。
+位置 `packages/common/operation-result` 依据 #371 技术采用决定。具名消费者是 `tool-contract`、`tool`、`tool-cordis-contract` 和 `model-contract`。当前轨道没有生产调用点。这四个成员按公开入口导入本成员，不复制结果类型。形状和函数从 `@omne-harness/kernel-basis` 原样迁来，没有改动。
 
 ## 使用
 

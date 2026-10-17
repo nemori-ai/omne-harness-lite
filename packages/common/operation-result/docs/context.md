@@ -22,10 +22,10 @@ isSuccess(broken) // false
 
 ## 消费者与定位
 
-具名消费者是 `tool-contract`、`tool`、`tool-cordis-contract` 和 `model-contract`。它们在 #342 分支上，尚未进入本轨道。本轨道上没有业务成员的生产调用点，公开入口目前只由本成员的测试消费。这四个成员合入时按公开入口导入，不复制结果类型。依据见 [SPEC.md](../SPEC.md#消费者)。
+具名消费者是 `tool-contract`、`tool`、`tool-cordis-contract` 和 `model-contract`。当前轨道没有业务成员的生产调用点，公开入口目前只由本成员的测试消费。这四个成员按公开入口导入本成员，不复制结果类型。依据见 [SPEC.md](../SPEC.md#消费者)。
 
 ```text
-tool-contract  tool  tool-cordis-contract  model-contract   (在 #342 分支，未入本轨道)
+tool-contract  tool  tool-cordis-contract  model-contract   (当前轨道无生产调用点)
         \           \            /            /
          +-----------+----------+------------+
                        |  import

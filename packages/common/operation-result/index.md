@@ -23,4 +23,4 @@
 
 ## 阅读路径
 
-使用本包：README、`docs/context.md`、`docs/public-api.md`。修改本包：`SPEC.md`、`docs/architecture.md`、`docs/flows.md`、`docs/object-model.md`、`tests/`。
+使用本包：README、`docs/context.md`、`docs/public-api.md`。修改本包：`SPEC.md`、`docs/public-api.md`、`docs/architecture.md`、`docs/object-model.md`、`tests/`。
