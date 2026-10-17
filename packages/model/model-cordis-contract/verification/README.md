@@ -25,7 +25,7 @@
 
 `./cordis` 里的纯类型标 `sameAs: "."`。测试检查它们解析到根入口的同一声明，并且只读清单检查：带 `sameAs: X` 的每个名字，入口 X 的清单里必须也有它且种类相同。按章节名合并比较页面时，根入口整章被删而 `./cordis` 仍列着这些名字，页面对照发现不了，这条清单检查补上这一点。
 
-`declare module '@deepseek-ai/cordis'` 的 `Context`（16 个成员）和 `Events`（1 个事件 `model-cordis-contract/call-changed`）是模块增补，不是导出。它们在清单的 `augmentations` 里单列，测试从 `dist/cordis.d.ts` 里读出成员比对。事件载荷与 JSDoc 标签（AC-G2-3）由后续的类型测试检查，这里只核对成员名。
+`declare module '@deepseek-ai/cordis'` 的 `Context`（16 个成员）和 `Events`（1 个事件 `model-cordis-contract/call-changed`）是模块增补，不是导出。它们在清单的 `augmentations` 里单列，测试从 `dist/cordis.d.ts` 里读出成员比对。事件载荷与 JSDoc 标签由后续的类型测试检查，这里只核对成员名。
 
 每项有 `pending` 标记。`pending: true` 表示声明已接受但产物还没有。比对规则如下：
 

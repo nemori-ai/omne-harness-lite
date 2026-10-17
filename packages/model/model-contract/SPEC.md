@@ -373,7 +373,7 @@ R 先于 S 则不发；S 先于 R 则是已经启动的在途请求，撤权触�
 
 本节是凭据纯契约的行为条款：引用、查询、存在性、五种解析结果、持有者语义和端口。保管格式、轮换协议与磁盘布局不在本包，归保管实现。凭据秘密不进入请求、调用记录、诊断、日志、错误消息和遥测，这些只携带引用。
 
-`CredentialId` 是由人命名的不透明身份，在凭据保管的配置路径上命名，Model 不铸造它。它无前缀，误混由类型阻止。`decodeCredentialId` 返回 `Outcome`，不抛异常，按 `type`、`empty`、`length`（超过 256 个 UTF-16 码元）、`character`（含任一 Unicode 空白、控制字符或格式字符）的顺序返回第一个失败，不裁剪、不折叠大小写。成功只证明格式，不证明存在或归属。它收紧了旧规则：旧规则只拒空串和空格。
+`CredentialId` 是由人命名的不透明身份，在凭据保管的配置路径上命名，Model 不铸造它。它无前缀，误混由类型阻止。`decodeCredentialId` 返回 `Outcome`，不抛异常，按 `type`、`empty`、`length`（超过 `MODEL_IDENTITY_MAX_LENGTH`，即 256 个 UTF-16 码元）、`character`（含任一 Unicode 空白、控制字符、格式字符或孤立代理码元）的顺序返回第一个失败，不裁剪、不折叠大小写。成功只证明格式，不证明存在或归属。它收紧了旧规则：旧规则只拒空串和空格。
 
 引用由 `CredentialId`、租户 `TenantId` 和用途组成。本交付的用途只有 `MODEL_SEND`。持有引用不授予读取或发送资格。`CredentialQuery` 的用途是普通字符串，用途不符的查询，`present` 与 `resolve` 都返回 `denied`。
 

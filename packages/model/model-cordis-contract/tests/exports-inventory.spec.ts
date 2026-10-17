@@ -13,7 +13,7 @@ import {
   type InventoryName,
 } from './exports-inventory.ts'
 
-// The comparison is the measuring instrument for AC-G1-1. These cases build tiny declaration files
+// The comparison is the measuring instrument for the export inventory. These cases build tiny declaration files
 // that break one rule each and assert that the instrument reports exactly that rule.
 const directory = mkdtempSync(join(tmpdir(), 'exports-inventory-'))
 afterAll(() => rmSync(directory, { recursive: true, force: true }))

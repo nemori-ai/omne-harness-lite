@@ -18,7 +18,7 @@
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | 导出清单比对             | `tests/fixtures/exports.json`、`tests/exports-inventory.ts`、`tests/exports.spec.ts`。运行 `pnpm --filter @omne-harness/model-contract test`                                                                        | 漏导出、多导出、值与类型种类错误、清单标 `pending` 但产物已有、`package.json` 增加入口而清单没有、清单与 `docs/public-api.md` 的章节或导出名不一致、`pending` 总数与 `expectedPending` 不符                                                                   | 声明的形状与行为                                                                                            |
 | 安装闭包                 | `tests/install/`、`tests/fixtures/install-policy.json`。运行 `pnpm --filter @omne-harness/model-contract run install-closure --out <报告.json>`                                                                     | 生产依赖闭包里的禁止包、`workspace:` 等协议残留、制品带源码、入口解析（含 CommonJS `require`）或类型解析离开消费目录、声明在独立目录不能编译、离线安装失败（除非明示允许联网）、消费目录越界或删除无标记的目录                                                | 类型面以外的语义；制品在生产环境的运行                                                                      |
-| 类型断言检查             | `tests/type-assertions.ts`、`tests/type-assertions.spec.ts`                                                                                                                                                         | `src/`、`src/testing` 与 `tests/fixtures/` 里用类型断言铸造品牌值（AC-G1-6）；带 `brand-mint:` 的豁免点多于两处，或有豁免点在 `src/` 之外                                                                                                                     | 其他位置的断言；断言之外的越权构造                                                                          |
+| 类型断言检查             | `tests/type-assertions.ts`、`tests/type-assertions.spec.ts`                                                                                                                                                         | `src/`、`src/testing` 与 `tests/fixtures/` 里用类型断言铸造品牌值；带 `brand-mint:` 的豁免点多于一处，或有豁免点在 `src/` 之外                                                                                                                     | 其他位置的断言；断言之外的越权构造                                                                          |
 | 页面与源码的类型一致检查 | `tests/declaration-equality.ts`（比对器）、`tests/declaration-equality.spec.ts`（比对器的负例，慢层）、`tests/public-api-types.spec.ts`（对真实页面与源码）。运行 `pnpm --filter @omne-harness/model-contract test` | 清单里已落地的名字，其 `docs/public-api.md` 声明与 `src/index.ts` 导出的类型不严格相同：多出可选成员、联合变宽、丢失 `readonly`、可选与必选互换、泛型参数用错位置、泛型参数表不同、值的类型不同；页面声明引用了不存在的类型；已落地名字页面没有或源码没有导出 | 未落地（`pending`）的名字；泛型只在一个固定实例上比较；品牌声明只比对文本；页面与源码一致不等于设计已被接受 |
 | 类型探针与覆盖下限       | `tests/*.spec-d.ts`、`tests/values.ts`（探针的类型化输入，只声明不构造）、`tests/type-coverage.spec.ts`                                                                                                             | 类型消费文档的正例与负例（`@ts-expect-error`）；清单里每个已落地的类型至少在一个探针里被使用（导入列表、注释和字符串里的名字不算）                                                                                                                            | 探针以赋值为主，看不到多出的可选成员、变宽的联合和丢失的 `readonly`，这些由上一行检查负责                   |
 | 夹具运行器骨架           | `tests/fixture-runner.ts`、`tests/fixture-runner.spec.ts`                                                                                                                                                           | 夹具没有声明正常路径或失败路径，失败路径没有写明改变的协调决策，必需角色缺夹具                                                                                                                                                                                | 夹具本身是否证明了行为。现在还没有夹具                                                                      |
@@ -53,9 +53,9 @@ public-api 有 19 个二级章节，其中 12 章含声明代码块。其余 7 �
 1. `pending: false` 的名字必须在产物里出现，种类相符。
 2. `pending: true` 的名字必须不在产物里。已经出现就失败，提醒改标记。
 3. 产物里清单没有的导出算多导出。
-4. 测试输出每个入口的"已列出、待落地、已落地"计数，并要求 `pending` 总数等于清单顶层字段 `expectedPending`（现为 39：24 个类型和 15 个值；已落地 124 个类型和 3 个值）。落地名字的阶段在同一次改动里降低该值，删除名字或改回 `pending` 而不改它会失败。
+4. 测试输出每个入口的"已列出、待落地、已落地"计数，并要求 `pending` 总数等于清单顶层字段 `expectedPending`（现为 24：24 个类型和 0 个值；已落地 124 个类型和 18 个值）。落地名字的阶段在同一次改动里降低该值，删除名字或改回 `pending` 而不改它会失败。
 
-`./testing` 入口随 R-5 增加。增加时同时在清单里加这个入口，否则"清单覆盖全部 `exports` 子路径"的测试失败。
+`./testing` 入口增加时，同时在清单里加这个入口，否则"清单覆盖全部 `exports` 子路径"的测试失败。
 
 ### 安装闭包
 
@@ -108,7 +108,7 @@ public-api 有 19 个二级章节，其中 12 章含声明代码块。其余 7 �
 
 ### 类型断言检查
 
-共享的 oxlint 配置只启用 `correctness` 类别，其中没有标记类型断言的规则，所以用编译器 API 自写检查。它标记 `as T`、`<T>x` 和 `as unknown as T`，不标记 `as const`。例外有两处：身份解码器共用的铸造点（`src/mint.ts` 的 `mintIdentity`，`decodeCredentialId` 已经使用它，后续解码器复用同一个，不增加标记），和 `deriveGuardControlOperation` 内部的铸造点，各须带注释 `brand-mint:`。例外必须在 `src/`（不含 `src/testing`）。带标记的位置最多两处，`src/` 之外的标记也占名额；第三处标记使检查失败。
+共享的 oxlint 配置只启用 `correctness` 类别，其中没有标记类型断言的规则，所以用编译器 API 自写检查。它标记 `as T`、`<T>x` 和 `as unknown as T`，不标记 `as const`。例外只有一处：`src/mint.ts` 的 `mintIdentity`，须带注释 `brand-mint:`。全部身份解码函数与 `deriveGuardControlOperation` 都经它铸造，不增加标记。例外必须在 `src/`（不含 `src/testing`）。带标记的位置最多一处，`src/` 之外的标记也占名额；第二处标记使检查失败。
 
 ### 未覆盖
 

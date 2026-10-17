@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { runFixtures, type Fixture } from './fixture-runner.ts'
 
-// The runner is the gate for AC-G3-2. Each case breaks one declaration rule or one path and
+// The runner is the gate for the fixture declarations. Each case breaks one declaration rule or one path and
 // asserts that the report fails and says which.
 const normal = { name: 'accepted call is observed', kind: 'normal' as const, run: () => {} }
 const failure = {
