@@ -12,7 +12,7 @@
 
 ## 使用
 
-调用方用包名导入公开入口。依赖为空。本包没有 Cordis 入口。
+调用方用包名导入公开入口。依赖为空。本包没有 Cordis 入口。[docs/context.md](docs/context.md) 列出消费者和安装闭包。
 
 ```ts
 import { ack, fail, isSuccess, succeed } from '@omne-harness/operation-result'
@@ -28,13 +28,13 @@ isSuccess(broken) // false
 
 ## 契约
 
-[SPEC.md](SPEC.md) 拥有结果形状和消费者对照。
+[SPEC.md](SPEC.md) 拥有结果形状和消费者对照。[docs/public-api.md](docs/public-api.md) 给出六个导出在源码中的位置。
 
 `Outcome<T, F>` 是 `{ ok: T } | { failure: F }`。`Ack<F>` 是 `{ ok: true } | { failure: F }`。`F` 归调用方。对象带有 `ok` 时 `isSuccess` 为真。带值成功把载荷放在 `ok` 里。无值确认的 `ok` 等于 `true`，不携带载荷。
 
 ## 设计
 
-`src/index.ts` 是唯一的模块。它有两个类型和四个小函数。它没有状态、没有 import，也没有配置。
+`src/index.ts` 是唯一的模块。它有两个类型和四个小函数。它没有状态、没有 import，也没有配置。[docs/architecture.md](docs/architecture.md) 写成员位置和依赖方向。[docs/object-model.md](docs/object-model.md) 说明 `Outcome` 与 `Ack` 为什么分开。[docs/flows.md](docs/flows.md) 与 [docs/cordis.md](docs/cordis.md) 写明流程和 Cordis 为什么不适用。
 
 ## 配置与运行
 
@@ -54,3 +54,29 @@ isSuccess(broken) // false
 ## 维护
 
 修改形状，或修改 `ok`、`failure` 的含义，都会改变公开契约。先改 SPEC.md，再改两份 README，再同步具名消费者。新增依赖或新增入口都需要新的采用决定。失败词汇留在各自拥有它的调用方。
+
+## 目录结构与文档职责
+
+```text
+README.md、README_ZH.md   入口：用途、状态与本结构图
+index.md                  全包的阅读路径
+SPEC.md                   公开类型以外的行为
+documentation.json        文档登记
+docs/                     内部设计、公开使用与集成说明
+├── architecture.md       模块、状态与资源归属、关键机制
+├── flows.md              关键业务流程与数据流
+├── object-model.md       内部对象模型
+├── public-api.md         公开边界与定义索引
+├── context.md            消费侧使用与系统定位
+└── cordis.md             Cordis 适用性与集成
+src/                      公开定义、运行时校验与内部实现
+tests/                    持续测试；fixtures/ 存放测试输入
+schema/                   对外 Schema
+verification/             models/ 与 proofs/
+adr/                      有持续消费者的实现取舍
+examples/                 面向公开入口的示例
+resources/                运行所需的非源码资源
+acceptance/               独立验收；fixtures/ 存放验收输入
+```
+
+每个目录的 README.md 说明职责，index.md 负责导航。阅读路径见 [index.md](index.md)。docs 专题可以升级为同名目录，目录内须有 README.md 与 index.md；专题移动时同步本结构图。
