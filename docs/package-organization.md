@@ -134,6 +134,7 @@ packages/
 │   ├── content-block/          已封闭的文本、思考、语音、图、文件
 │   ├── message/                事实记录中的消息字段
 │   ├── stream-arrival/         流式交付的开块、填充、封块、削减、结束
+│   ├── call-account/           一次模型调用或工具执行的调用账目
 │   └── operation-result/       带值成功、无值确认与失败两种操作结果
 ├── util/
 │   ├── unix-format/          按码位排版的终端文本
