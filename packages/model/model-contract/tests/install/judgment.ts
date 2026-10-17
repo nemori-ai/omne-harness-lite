@@ -75,7 +75,10 @@ export const MARKER = '.install-closure-consumer'
  * the report would otherwise leave the report green, so the report is complete only when none of
  * these is missing.
  */
-export function requiredCheckIds(workspaceMembers: readonly string[]): string[] {
+export function requiredCheckIds(
+  workspaceMembers: readonly string[],
+  options: Readonly<{ scenario?: boolean }> = {},
+): string[] {
   return [
     'node-path-unset',
     'forbidden-declared',
@@ -92,6 +95,7 @@ export function requiredCheckIds(workspaceMembers: readonly string[]): string[] 
     'probe-run',
     'resolution-inside-consumer',
     'resolution-no-source',
+    ...(options.scenario === true ? ['scenario-run'] : []),
     'type-check',
     'type-resolution-inside-consumer',
   ]

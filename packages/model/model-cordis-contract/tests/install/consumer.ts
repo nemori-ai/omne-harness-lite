@@ -4,7 +4,7 @@
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { copyFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from '@typescript/typescript6'
 import {
@@ -44,6 +44,8 @@ export type Report = {
   tarballs: { name: string; file: string; files: string[] }[]
   probe: { specifier: string; resolved: string; exports: string[] }[]
   typeCheck: { files: number }
+  /** Present only when a scenario script was given. */
+  scenario?: { script: string; output: string }
   checks: Check[]
   ok: boolean
 }
@@ -57,6 +59,8 @@ export type Options = Readonly<{
   allowNetwork?: boolean
   /** A pnpm store other than the default one. */
   storeDirectory?: string
+  /** A script that runs inside the consumer directory after the probe; a non-zero exit fails the run. */
+  scenarioScript?: string
 }>
 
 type Tree = Readonly<{
@@ -212,7 +216,12 @@ export function runConsumerInstall(options: Options): Report {
     // Every early return follows a failed check. A run that passes all of its checks must also
     // have reported all of them, or a judgment that is no longer wired in would go unnoticed.
     if (report.checks.every(item => item.ok)) {
-      const missing = missingCheckIds(report.checks, requiredCheckIds(report.closure.workspace))
+      const missing = missingCheckIds(
+        report.checks,
+        requiredCheckIds(report.closure.workspace, {
+          scenario: options.scenarioScript !== undefined,
+        }),
+      )
       if (missing.length > 0) check('required-checks', false, `not reported: ${missing.join(', ')}`)
     }
     report.ok = report.checks.length > 0 && report.checks.every(item => item.ok)
@@ -286,7 +295,14 @@ export function runConsumerInstall(options: Options): Report {
         version: '0.0.0',
         private: true,
         type: 'module',
-        dependencies: { [manifest.name]: `file:${tarballs.get(manifest.name)}` },
+        // A scenario imports closure members other than the target, and pnpm only links direct
+        // dependencies. Without a scenario the consumer stays as thin as the target alone.
+        dependencies:
+          options.scenarioScript === undefined
+            ? { [manifest.name]: `file:${tarballs.get(manifest.name)}` }
+            : Object.fromEntries(
+                closure.workspace.map(member => [member.name, `file:${tarballs.get(member.name)}`]),
+              ),
         pnpm: { overrides },
       },
       null,
@@ -330,6 +346,11 @@ export function runConsumerInstall(options: Options): Report {
   const probed = probeEntries(project, specifiers)
   report.probe = probed.probe
   for (const item of probed.checks) check(item.id, item.ok, item.detail)
+  if (options.scenarioScript !== undefined && probed.checks.every(item => item.ok)) {
+    const ran = runScenario(project, options.scenarioScript)
+    report.scenario = ran.scenario
+    check(ran.check.id, ran.check.ok, ran.check.detail)
+  }
   const typed = typeCheck(project, options.memberDirectory, specifiers)
   report.typeCheck = { files: typed.files }
   for (const item of typed.checks) check(item.id, item.ok, item.detail)
@@ -383,6 +404,29 @@ export function probeEntries(
   }
 }
 
+/**
+ * Copies a scenario script into the consumer directory and runs it there, with the same clean
+ * environment as the probe. The script sees only what was installed, so it exercises the member
+ * the way an outside caller would.
+ */
+export function runScenario(
+  project: string,
+  script: string,
+): { check: Check; scenario: NonNullable<Report['scenario']> } {
+  const file = `scenario-${basename(script)}`
+  copyFileSync(script, join(project, file))
+  const run = exec(process.execPath, [file], project)
+  const output = tail(`${run.stdout}\n${run.stderr}`)
+  return {
+    scenario: { script, output },
+    check: {
+      id: 'scenario-run',
+      ok: run.status === 0,
+      detail: run.status === 0 ? output || 'scenario exited 0' : `exit ${run.status}: ${output}`,
+    },
+  }
+}
+
 /** Compiles one file that imports the type of every entry, then judges which files tsc loaded. */
 export function typeCheck(
   project: string,
@@ -390,9 +434,8 @@ export function typeCheck(
   specifiers: readonly string[],
 ): { files: number; checks: Check[] } {
   const compilerRoot = dirname(
-    createRequire(join(memberDirectory, 'package.json')).resolve(
-      '@typescript/typescript6/package.json',
-    ),
+    // The compiler belongs to the facility: a member need not depend on it.
+    createRequire(import.meta.url).resolve('@typescript/typescript6/package.json'),
   )
   const imports = specifiers.map(
     (specifier, index) => `import type * as entry${index} from '${specifier}'`,

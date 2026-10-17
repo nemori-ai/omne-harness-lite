@@ -1,7 +1,7 @@
 // @module-tag slow
 // Packs the member, installs the tarball into a directory under tmp/, and runs pnpm, node and tsc in it.
 import { spawnSync } from 'node:child_process'
-import { rmSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, expect, it } from 'vitest'
@@ -71,5 +71,10 @@ it('installs only the packed closure and every entry resolves inside the consume
   expect(report.probe.map(entry => entry.specifier)).toEqual(['@omne-harness/model-contract'])
   expect(report.forbidden).toEqual([])
   expect(report.install).toEqual({ mode: 'offline', allowNetwork: false })
+  // Without a scenario the consumer depends on the target member alone.
+  const manifest = JSON.parse(
+    readFileSync(join(workDirectories[0] as string, 'project/package.json'), 'utf8'),
+  ) as { dependencies: Record<string, string> }
+  expect(Object.keys(manifest.dependencies)).toEqual(['@omne-harness/model-contract'])
   expect(run.status).toBe(0)
 })

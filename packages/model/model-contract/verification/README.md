@@ -69,7 +69,9 @@ public-api 有 19 个二级章节，其中 12 章含声明代码块。其余 7 �
 6. 在消费目录里用 Node 的同步解析钩子（`module.registerHooks`）记录每一次模块解析，ESM `import` 与 CommonJS `require` 都在内，逐个导入 `exports` 里带 `import` 条件的入口。每个解析结果的真实路径必须在消费目录内，不得落在 `src/` 或 `.ts` 文件。
 7. 用 TypeScript 6 编译一个只导入全部入口类型的文件，`types` 与 `typeRoots` 为空，`skipLibCheck` 关闭。`--listFiles` 列出的文件必须在消费目录内，或属于编译器自带库。
 
-报告是 JSON：`closure`（声明闭包）、`install`、`installed`、`forbidden`、`tarballs`、`probe`、`typeCheck`、`checks` 和 `ok`。退出码：0 全部通过，1 有检查失败，2 用法或工具错误。设施拒绝在设置了 `NODE_PATH` 的环境里运行。运行入口 `pnpm run` 不设置 `NODE_PATH`，但经 `pnpm exec` 启动的 vitest 会设置，所以测试给子进程去掉它。
+报告是 JSON：`closure`（声明闭包）、`install`、`installed`、`forbidden`、`tarballs`、`probe`、`typeCheck`、`checks` 和 `ok`；给出 `--scenario` 时另有 `scenario`（脚本路径与输出尾部）。退出码：0 全部通过，1 有检查失败，2 用法或工具错误。设施拒绝在设置了 `NODE_PATH` 的环境里运行。运行入口 `pnpm run` 不设置 `NODE_PATH`，但经 `pnpm exec` 启动的 vitest 会设置，所以测试给子进程去掉它。
+
+可选参数 `--scenario <file.mjs>`：探针通过后，把脚本复制进消费目录，以消费目录为工作目录、用与探针相同的干净环境运行。非零退出使报告失败，检查编号 `scenario-run`，报告记录脚本路径与输出尾部；给出该参数时，必需检查项清单含 `scenario-run`。场景要导入的包不限于目标成员，所以给出 `--scenario` 时，消费工程把闭包里的每个工作区成员都声明为直接的 `file:` 依赖（pnpm 只链接直接依赖）。未给出时，消费工程只依赖目标成员，与此前逐字节相同。禁止依赖检查在两种情况下都覆盖完整闭包。编译器取自设施自己的 `@typescript/typescript6`，成员不必声明它。
 
 `--work-dir` 受护栏约束：目录必须在成员的 `tmp/` 或仓库的 `tmp/install-closure/` 之下，不得是符号链接；目录已存在且非空时，必须带设施写入的标记文件 `.install-closure-consumer`。不满足时拒绝运行，退出码 2，不删除任何内容。`--store-dir` 指定另一个 pnpm 存储。
 
@@ -81,13 +83,14 @@ public-api 有 19 个二级章节，其中 12 章含声明代码块。其余 7 �
 - 消费目录里的 `pnpm ls` 要加 `--ignore-workspace`，否则 pnpm 会采用仓库工作区，列出空结果。设施另检查"闭包成员与第三方依赖都出现在已安装列表"，防止这种空列表让禁止清单检查落空。
 - 第三方包的精确版本取自工作区安装结果，其他版本会让离线安装找不到 tarball。
 
-两个成员各有一份字节相同的 `tests/install/`，原因是 D-2 要求设施随成员维护，不建仓库级共享工具。改一份时同步另一份。
+两个成员各有一份 `tests/install/`，原因是 D-2 要求设施随成员维护，不建仓库级共享工具。两份逐字节相同，改一份时同步另一份。`@omne-harness/model` 的 `install-closure` 脚本调用本成员的这份设施，不复制它。
 
 负例都在慢层（起子进程）：
 
 - `tests/install-closure.spec.ts` 在成员清单的临时副本里注入 Cordis、`@omne-harness/model-host-local`、pi、厂商 SDK、分词引擎、存储引擎各一个，断言退出码为 1，报告点名被注入的包，且没有打包。真实的 `package.json` 不被修改。同一文件另证：`--work-dir` 指向成员目录、允许范围之外的目录或无标记的非空目录时退出码为 2 且内容保留，这几条都对测试自己在临时目录里造的成员运行，不指向任何仓库路径；用空的 pnpm 存储让 `--offline` 失败时，退出码为 1、`ok` 为 false、`install.mode` 为 `offline`。
 - `tests/install-probe.spec.ts` 在手工搭的消费目录里证明：CJS 与 ESM 依赖只在祖先 `node_modules`、入口解析到 `src/`、声明依赖祖先里的类型，三种情况各自使对应检查失败；依赖放进消费目录的对照组通过。
-- `tests/install-consumer.spec.ts` 对未修改的成员做真实打包与安装，断言报告的检查项 id 与预期的完整集合相等、`typeCheck.files` 大于 0、探针入口列表与 `exports` 一致，并在 `afterAll` 里删除它创建的 `tmp/install-closure/` 目录。
+- `tests/install-scenario.spec.ts` 在手搭的消费目录里证明场景脚本在消费目录里运行、退出码非零使 `scenario-run` 失败并保留输出尾部、导入消费目录没有的包失败，并对本成员做一次真实运行：场景导入目标成员以外的闭包成员（`@omne-harness/legal-identity`），消费工程的依赖恰为闭包里的全部工作区成员。
+- `tests/install-consumer.spec.ts` 对未修改的成员做真实打包与安装，断言报告的检查项 id 与预期的完整集合相等、消费工程只依赖目标成员、`typeCheck.files` 大于 0、探针入口列表与 `exports` 一致，并在 `afterAll` 里删除它创建的 `tmp/install-closure/` 目录。
 
 纯判断在快层的 `tests/install-judgment.spec.ts`：`inside`、制品源码、锁文件残留、解析与类型文件判断（含空列表必须失败）、`--work-dir` 护栏、联网回退决策（用替身运行器，不访问网络）、必需检查项清单。`finish()` 在所有检查通过但缺少必需检查项时，加入失败的 `required-checks` 并使报告 `ok` 为 false，所以漏接一个判断会使对真实成员的正例变红。
 

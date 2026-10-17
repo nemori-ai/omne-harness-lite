@@ -7,7 +7,8 @@ import { runConsumerInstall } from './consumer.ts'
 
 const USAGE = [
   'usage: cli.ts [--member <dir>] [--workspace-root <dir>] [--policy <file>] [--work-dir <dir>]',
-  '              [--store-dir <dir>] [--out <report.json>] [--allow-network]',
+  '              [--store-dir <dir>] [--out <report.json>] [--scenario <file.mjs>] [--allow-network]',
+  '--scenario runs the script inside the consumer directory after the probe (check id scenario-run).',
   '--work-dir must lie below <member>/tmp or <workspace-root>/tmp/install-closure.',
   '--allow-network (or OMNE_INSTALL_ALLOW_NETWORK=1) lets a failed --offline install fall back to',
   'a run that may reach the registry. Without it that failure fails the run. The report field',
@@ -52,6 +53,9 @@ function main(argv: readonly string[]): number {
   )
   const name = readManifest(memberDirectory).name.replace(/^@/u, '').replace('/', '-')
   const storeDirectory = options.get('--store-dir')
+  const scenario = options.get('--scenario')
+  if (scenario !== undefined && !existsSync(resolve(scenario)))
+    throw new Error(`scenario script not found: ${resolve(scenario)}`)
   const report = runConsumerInstall({
     memberDirectory,
     workspaceRoot,
@@ -59,6 +63,7 @@ function main(argv: readonly string[]): number {
     allowNetwork:
       options.has('--allow-network') || process.env['OMNE_INSTALL_ALLOW_NETWORK'] === '1',
     ...(storeDirectory === undefined ? {} : { storeDirectory: resolve(storeDirectory) }),
+    ...(scenario === undefined ? {} : { scenarioScript: resolve(scenario) }),
     consumerDirectory: resolve(
       options.get('--work-dir') ?? join(workspaceRoot, 'tmp/install-closure', name),
     ),
