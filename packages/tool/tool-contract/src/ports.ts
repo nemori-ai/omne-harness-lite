@@ -4,10 +4,10 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ToolDecision } from './author-context.ts'
-import type { ToolCatalog, ToolInspection } from './authoring.ts'
-import type { RawOutput, ToolOutputCustody, ToolReads } from './custody.ts'
+import type { ToolInspection } from './authoring.ts'
+import type { RawOutput } from './custody.ts'
 import type { FixedToolRequest, ToolAvailability } from './definitions.ts'
-import type { ResultPolicy, ToolCommands, ToolExecutionRef } from './execution.ts'
+import type { ToolExecutionRef } from './execution.ts'
 import type {
   Access,
   Adoption,
@@ -19,7 +19,6 @@ import type {
   ToolWaitId,
 } from './identity.ts'
 import type { ProcessBlock, ToolDirectory, ToolHandle, ToolRuntime } from './operations.ts'
-import type { ToolChildren } from './program.ts'
 import type {
   ClockSegment,
   ControlDispatch,
@@ -39,8 +38,6 @@ import type {
   SuspensionProgress,
   SuspensionRecord,
   ToolRecoveryBinding,
-  ToolResourceResponses,
-  ToolStartAuthority,
   WaitIntent,
 } from './records.ts'
 import type { Effect, Reply, ToolResult, ToolTerminal } from './results.ts'

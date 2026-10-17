@@ -1,9 +1,4 @@
-// Every exported type name of the accepted public contract imports from the package root.
-// Generated from docs/public-api.md at commit e6c6e593 by the ticket 02 migration script.
-// 166 type names: the package split moved `ToolConfiguration` and `ToolDependencies` to
-// `@omne-harness/tool`. The second test imports the eleven contract functions that ticket 03 moved
-// from the public-api signature list into source, and checks each against its accepted signature.
-// `executeTool`, `createIndependentToolScope` and `createToolRuntime` belong to `@omne-harness/tool`.
+// Resolve accepted public type names and function signatures through the package root.
 import type { BlockId, ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/kernel-basis'
@@ -22,7 +17,7 @@ import {
   createDefaultParameterCodec,
   defaultResultPolicy,
 } from '@omne-harness/tool-contract'
-import type {
+export type {
   ToolIdentity,
   ToolCallId,
   ToolOperationId,
@@ -189,6 +184,24 @@ import type {
   ToolChildren,
   ProgramToolResult,
   ProgramTools,
+} from '@omne-harness/tool-contract'
+import type {
+  ToolCallId,
+  ToolOperationId,
+  ToolDefinition,
+  ToolAvailability,
+  ToolMessageContentBlock,
+  ToolResult,
+  ToolState,
+  ToolWaitProtocolDefinition,
+  ToolWaitContract,
+  ResultPolicy,
+  ToolPresentation,
+  ParameterCodec,
+  ToolOperationParameters,
+  ToolOperation,
+  ToolAuthorRegistration,
+  AvailabilityFacts,
 } from '@omne-harness/tool-contract'
 
 it('resolves every public type name from the package root', () => {

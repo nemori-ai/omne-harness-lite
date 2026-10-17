@@ -45,11 +45,12 @@ describe('长期场景事实', () => {
     expect(result.status, result.stderr).toBe(0)
     expect(result.stdout).toContain('uncovered：产品区没有当前 topic')
   })
-  it('当前检出的 16 个 PD 均报告未覆盖和未知接受', () => {
+  it('当前检出的 17 个 PD 均报告未覆盖和未知接受', () => {
     const result = run()
     expect(result.status, result.stderr).toBe(0)
-    expect(result.stdout).toContain('合计 16 个 topic、0 条带编号场景')
-    expect(result.stdout.match(/uncovered：缺编号场景/gu)).toHaveLength(16)
+    expect(result.stdout).toContain('合计 17 个 topic、0 条带编号场景')
+    expect(result.stdout).toContain('meta-capabilities（0 条）')
+    expect(result.stdout.match(/uncovered：缺编号场景/gu)).toHaveLength(17)
     expect(result.stdout).not.toContain('已交付')
   })
   it.each(['--config', '--capture'])('拒绝旧任务卡参数 %s', flag => {

@@ -206,16 +206,13 @@ const directoryAdoption = describedAdoption({
  */
 export class ToolInstancesService<P> extends Service implements ToolDirectory<P> {
   static readonly provide = 'toolInstances'
-  // Ticket 13 calls `check` on this authority inside the caller-fiber effect.
-  readonly #authority: ToolPublicationAuthority<P>
-  constructor(ctx: Context, authority: ToolPublicationAuthority<P>) {
+  constructor(ctx: Context, _authority: ToolPublicationAuthority<P>) {
     super(ctx, ToolInstancesService.provide)
-    this.#authority = authority
   }
   readonly connect: ToolDirectory<P>['connect'] = async () =>
     fail({ kind: 'unsupported', adoption: directoryAdoption, reason: directoryNotImplemented })
   async register(
-    input: ToolRegistrationInput<P>,
+    _input: ToolRegistrationInput<P>,
   ): Promise<Outcome<ToolRegistration, ToolRegistrationFailure>> {
     return fail({ kind: 'unavailable', diagnostic: directoryNotImplemented })
   }
