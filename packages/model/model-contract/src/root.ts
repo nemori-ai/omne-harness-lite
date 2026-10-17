@@ -3,6 +3,7 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Message } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
+import type { CredentialId } from './credential.ts'
 import type { ModelLimit, ParameterAdoption, RequestBudget } from './profile.ts'
 
 declare const identity: unique symbol
@@ -27,6 +28,7 @@ export type ModelIdentityKey =
   | 'ModelRevision'
   | 'ModelResultVersion'
   | 'ModelOutputCursor'
+  | 'ModelCredentialId'
 
 export type ModelIdentityRejection<K extends ModelIdentityKey> = Readonly<{
   field: K
@@ -64,7 +66,7 @@ export type Supplier = Readonly<{
   adoption: Adoption
   recipient: string
   model: string
-  credential: Readonly<{ kind: 'tenant'; id: string }> | Readonly<{ kind: 'factory' }>
+  credential: Readonly<{ kind: 'tenant'; id: CredentialId }> | Readonly<{ kind: 'factory' }>
 }>
 export type FixedModelRequest = Readonly<{
   profile: Adoption

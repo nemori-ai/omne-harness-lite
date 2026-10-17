@@ -203,6 +203,22 @@
           ]
         },
         {
+          "title": "凭据引用与解析端口",
+          "names": [
+            { "name": "MODEL_SEND", "kind": "value", "pending": false },
+            { "name": "CredentialId", "kind": "type", "pending": false },
+            { "name": "CredentialPurpose", "kind": "type", "pending": false },
+            { "name": "CredentialReference", "kind": "type", "pending": false },
+            { "name": "CredentialQuery", "kind": "type", "pending": false },
+            { "name": "SendFace", "kind": "type", "pending": false },
+            { "name": "CredentialPresence", "kind": "type", "pending": false },
+            { "name": "CredentialResolution", "kind": "type", "pending": false },
+            { "name": "CredentialPort", "kind": "type", "pending": false },
+            { "name": "decodeCredentialId", "kind": "value", "pending": false },
+            { "name": "sameCredentialHolder", "kind": "value", "pending": false }
+          ]
+        },
+        {
           "title": "供应商尝试诊断",
           "names": [
             { "name": "ModelDiagnosticId", "kind": "type", "pending": false },

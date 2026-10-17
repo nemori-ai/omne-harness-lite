@@ -11,7 +11,7 @@
 | `declaration-equality.ts`、`public-api-types.spec.ts`、`declaration-equality.spec.ts` | 已落地名字在 `docs/public-api.md` 与 `src/index.ts` 里的声明严格相同；后一个文件证明比对器能发现各类形状漂移（慢层，每例建一个 TypeScript 程序）                                    |
 | `*.spec-d.ts`、`values.ts`、`type-coverage.spec.ts`                                   | 类型消费的正例与负例；探针的类型化输入；每个已落地类型至少在一个探针里被使用（导入列表里的名字不算）                                                                                |
 | `fixture-runner.ts`、`fixture-runner.spec.ts`                                         | 角色夹具运行器：要求每个夹具声明正常路径与失败路径                                                                                                                                  |
-| `public-entry.spec.ts`                                                                | 根入口只导出类型，所以没有运行时键；运行时值落地后改为已接受的运行时值                                                                                                              |
+| `public-entry.spec.ts`、`credential.spec.ts`                                         | 根入口只有三个运行时键（`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`）；凭据解码函数的成功与每个拒绝原因，以及持有者比较函数                                           |
 
 `src/` 只有已落地的类型声明，运行时值和未落地的类型在清单里标为 `pending`。这些测试不证明协议或生产能力。
 

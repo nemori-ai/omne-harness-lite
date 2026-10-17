@@ -9,6 +9,7 @@ import type { CallAccount } from '@omne-harness/call-account'
 import type {
   Adoption,
   ConsumerRef,
+  CredentialId,
   DispatchId,
   DurableEvidence,
   FixedModelRequest,
@@ -38,6 +39,7 @@ export declare const message: Message
 export declare const json: JsonValue
 export declare const account: CallAccount
 
+export declare const credential: CredentialId
 export declare const call: ModelCallId
 export declare const dispatch: DispatchId
 export declare const instance: ModelInstanceId

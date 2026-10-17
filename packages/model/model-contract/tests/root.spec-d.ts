@@ -29,6 +29,7 @@ import {
   call,
   capacity,
   consumer,
+  credential,
   instance,
   json,
   operation,
@@ -65,7 +66,7 @@ it('a plain string and another brand are not accepted where a brand is required'
   expectTypeOf<Revision>().not.toExtend<OutputCursor>()
 })
 
-it('ModelIdentityKey lists the ten brand keys and no exported type name', () => {
+it('ModelIdentityKey lists the eleven brand keys and no exported type name', () => {
   expectTypeOf<ModelIdentityKey>().toEqualTypeOf<
     | 'ModelCallId'
     | 'ModelDispatchId'
@@ -77,6 +78,7 @@ it('ModelIdentityKey lists the ten brand keys and no exported type name', () => 
     | 'ModelRevision'
     | 'ModelResultVersion'
     | 'ModelOutputCursor'
+    | 'ModelCredentialId'
   >()
   expectTypeOf<'DispatchId'>().not.toExtend<ModelIdentityKey>()
 })
@@ -153,12 +155,14 @@ it('Parameter is a closed union of kinds', () => {
 it('a request value names its suppliers, tools and capacity', () => {
   const declaration: ToolDeclaration = { name: 'n', description: 'd', argumentsSchema: json }
   const capacities: ResultCapacity = capacity
-  const route: Supplier['credential'][] = [{ kind: 'tenant', id: 'c' }, { kind: 'factory' }]
+  const route: Supplier['credential'][] = [{ kind: 'tenant', id: credential }, { kind: 'factory' }]
   // @ts-expect-error a credential kind outside tenant and factory
-  const secret: Supplier['credential'] = { kind: 'secret', id: 'c' }
+  const secret: Supplier['credential'] = { kind: 'secret', id: credential }
+  // @ts-expect-error a plain string is not a credential id
+  const loose: Supplier['credential'] = { kind: 'tenant', id: 'c' }
   // @ts-expect-error a request needs at least one supplier
   const noSupplier: FixedModelRequest = { ...request, suppliers: [] }
-  void [declaration, capacities, route, secret, noSupplier]
+  void [declaration, capacities, route, secret, loose, noSupplier]
   expectTypeOf(request.suppliers[0]).toEqualTypeOf<Supplier>()
   expectTypeOf(supplier).toEqualTypeOf<Supplier>()
 })
