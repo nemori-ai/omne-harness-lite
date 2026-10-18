@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest'
-import { CONTENT_BLOCK_KINDS, judgeContentBlock } from '@omne-harness/content-block'
+import {
+  CONTENT_BLOCK_HEAD_KEYS,
+  CONTENT_BLOCK_KINDS,
+  judgeBlockIdentity,
+  judgeContentBlock,
+} from '@omne-harness/content-block'
 
 const visibility = { toHuman: true, toModel: false }
 
@@ -135,4 +140,66 @@ it('rejects a file block that is missing a file field', () => {
       mediaType: 'application/pdf',
     }),
   ).toEqual({ rejected: 'file' })
+})
+
+it('exports the head keys of each closed kind, derived from the block table', () => {
+  expect(CONTENT_BLOCK_HEAD_KEYS).toEqual({
+    text: ['kind', 'id', 'visibility'],
+    thinking: ['kind', 'id', 'visibility'],
+    voice: ['kind', 'id', 'visibility', 'mediaType'],
+    image: ['kind', 'id', 'visibility', 'mediaType'],
+    file: ['kind', 'id', 'visibility', 'storage', 'key', 'mediaType'],
+  })
+  expect(Object.keys(CONTENT_BLOCK_HEAD_KEYS)).toEqual([...CONTENT_BLOCK_KINDS])
+})
+
+it('head keys are what an admitted block carries besides its body field', () => {
+  const bodyFields = { text: 'text', thinking: 'text', voice: 'inline', image: 'inline' } as const
+  for (const kind of CONTENT_BLOCK_KINDS) {
+    const body = kind === 'file' ? undefined : bodyFields[kind]
+    const full: Record<string, unknown> = { kind, id: 'b1', visibility }
+    for (const key of CONTENT_BLOCK_HEAD_KEYS[kind]) full[key] ??= 'x'
+    if (body !== undefined) full[body] = 'x'
+    const judged = judgeContentBlock(full)
+    if (!('ok' in judged)) throw new Error('expected ok')
+    expect(Object.keys(judged.ok).sort()).toEqual(
+      [...CONTENT_BLOCK_HEAD_KEYS[kind], ...(body === undefined ? [] : [body])].sort(),
+    )
+  }
+})
+
+it('judgeBlockIdentity returns the id and a fresh visibility', () => {
+  const given = { toHuman: true, toModel: false }
+  const judged = judgeBlockIdentity({ id: 'b1', visibility: given, kind: 'whatever' })
+  expect(judged).toEqual({ ok: { id: 'b1', visibility: given } })
+  if (!('ok' in judged)) throw new Error('expected ok')
+  expect(judged.ok.visibility).not.toBe(given)
+  given.toHuman = false
+  expect(judged.ok.visibility).toEqual({ toHuman: true, toModel: false })
+})
+
+it('judgeBlockIdentity rejects a bad id, a bad visibility, and an unknown visibility key', () => {
+  expect(judgeBlockIdentity({ visibility })).toEqual({ rejected: 'id' })
+  expect(judgeBlockIdentity({ id: '', visibility })).toEqual({ rejected: 'id' })
+  expect(judgeBlockIdentity({ id: 1, visibility })).toEqual({ rejected: 'id' })
+  expect(judgeBlockIdentity({ id: 'b1' })).toEqual({ rejected: 'visibility' })
+  expect(judgeBlockIdentity({ id: 'b1', visibility: { toHuman: 'yes', toModel: true } })).toEqual({
+    rejected: 'visibility',
+  })
+  expect(judgeBlockIdentity({ id: 'b1', visibility: [] })).toEqual({ rejected: 'visibility' })
+  expect(
+    judgeBlockIdentity({ id: 'b1', visibility: { toHuman: true, toModel: false, tenant: 'a' } }),
+  ).toEqual({ rejected: 'extra' })
+})
+
+it('judgeBlockIdentity reports the unknown visibility key before a bad id', () => {
+  expect(
+    judgeBlockIdentity({ id: '', visibility: { toHuman: true, toModel: false, tenant: 'a' } }),
+  ).toEqual({ rejected: 'extra' })
+})
+
+it('judgeBlockIdentity rejects what is not an object', () => {
+  expect(judgeBlockIdentity(null)).toEqual({ rejected: 'id' })
+  expect(judgeBlockIdentity('b1')).toEqual({ rejected: 'id' })
+  expect(judgeBlockIdentity([])).toEqual({ rejected: 'id' })
 })

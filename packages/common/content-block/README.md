@@ -8,7 +8,7 @@ Closed content blocks for text, thinking, voice, image, and file.
 
 This member publishes one closed content block and `judgeContentBlock`. A closed block is text, thinking, voice, image, or file, with its id, visibility, and media type. Tool calls, tool results, and a block that is still growing are not values of this package. Tenant, standing, and causality stay off the block.
 
-Consumers are model, tool, session, and request projection. The package does not own those facts.
+Consumers are message, stream-arrival, and every member that emits, executes, logs, or projects blocks. The package does not own those facts. It also publishes the judge of a block id and visibility, and the head keys of each kind. Message and stream-arrival use both, so no other package keeps a copy.
 
 ## Usage
 
@@ -29,9 +29,13 @@ There is no Cordis entry. Build deletes `dist` before `tsc`.
 
 `judgeContentBlock` returns `{ ok }` or `{ rejected }`. `rejected` is `kind`, `extra`, `id`, `visibility`, `text`, `media`, or `file`. An unknown key on the block, or inside `visibility`, is `extra`. A successful value contains only the keys of that kind. `CONTENT_BLOCK_KINDS` is `text`, `thinking`, `voice`, `image`, `file`.
 
+`judgeBlockIdentity` judges the `id` and `visibility` of any value and ignores its other keys. It returns `{ ok: { id, visibility } }` or `{ rejected }`. `rejected` is `extra`, `id`, or `visibility`. An unknown key inside `visibility` is `extra`, and it is reported before a bad `id`. The returned `visibility` is a new object. `judgeContentBlock` uses it, and its results did not change.
+
+`CONTENT_BLOCK_HEAD_KEYS` maps each kind to the keys it has except its body field: `kind`, `id`, `visibility` for text and thinking, plus `mediaType` for voice and image, plus `storage`, `key`, `mediaType` for file. The body field is `text` for text and thinking, `inline` for voice and image, and file has none. The table is derived from the table that `judgeContentBlock` uses, so the two cannot differ.
+
 ## Design
 
-`src/index.ts` owns the kinds, the block types, and `judgeContentBlock`.
+`src/index.ts` owns the kinds, the block types, `judgeBlockIdentity`, `CONTENT_BLOCK_HEAD_KEYS`, and `judgeContentBlock`.
 
 A closed block is one of five kinds. A tool call, a tool result, and a block that is still growing stay outside this member.
 
