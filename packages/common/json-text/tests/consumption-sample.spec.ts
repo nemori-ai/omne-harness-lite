@@ -89,6 +89,7 @@ describe('consumption sample', () => {
       './judge.ts',
       './read.ts',
       './types.ts',
+      './write.ts',
       'jsonc-parser',
     ])
   })

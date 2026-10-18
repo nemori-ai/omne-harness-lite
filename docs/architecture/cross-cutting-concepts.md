@@ -52,7 +52,7 @@
 
 公共JSON边界先执行严格UTF-8解码，在逐对象扫描时检测解码后重名键，保留数字原词法再交字段codec。禁止注释、尾逗号及空输入，任一语法错误拒绝整份输入。项数、深度、字符串和数字均有有限预算。JSON.parse之后无法找回已丢失的重名键和精度。增量解析必须兑现同一拒绝语义。精确签名与失败种类见[公共 JSON 文本读取](#json-text-reader)。
 
-已经通过字段 codec 的 JSON 值，规范写出使用 RFC 8785。写出拒绝 `undefined`、BigInt、NaN、Infinity、Date 和函数，不自行转换。读取与写出是两个操作。读取器不提供写出。采用见 [RFC-0006](../rfcs/RFC-0006-json-canonical-text.md)。
+已经通过字段 codec 的 JSON 值，规范写出使用 RFC 8785，用于摘要。写出拒绝 `undefined`、BigInt、NaN、Infinity、Date 和函数，不自行转换。读取与写出是两个操作。规范写出不在 json-text 里。json-text 只拥有自己值树的原样写出，见[公共 JSON 文本读取](#json-text-reader)。规范写出的采用见 [RFC-0006](../rfcs/RFC-0006-json-canonical-text.md)，原样写出的采用见 [RFC-0010](../rfcs/RFC-0010-json-text-lossless-writer.md)。
 
 每份公共形状只有一个拥有源，TS类型和编码从该源派生。校验不默认coercion、填默认或删除字段，拒绝无法保留精度和未知值语义的转换。具体Schema及严格JSON技术路线归[系统技术基础](technical-foundations.md#共同技术选择)，按需加载、首次编译及运行时换代归[缓存机制](data-and-state.md#缓存懒加载与预热)。活体对象、句柄、函数和Context不能进入序列化数据契约。
 
@@ -60,12 +60,13 @@
 
 #### 公共 JSON 文本读取
 
-公共 JSON 文本只有一个纯读取器，以及一个处理值树的判定函数。它们不导入 Cordis、业务存储或插件树。读取器的调用方传入字节或已经解码的文本，以及自己的预算。
+公共 JSON 文本只有一个纯读取器，以及两个处理值树的函数：判定函数和原样写出函数。它们不导入 Cordis、业务存储或插件树。读取器的调用方传入字节或已经解码的文本，以及自己的预算。
 
 ```ts
 readJsonBytes(bytes, limits) -> JsonRead
 readJsonText(text, limits) -> JsonRead
 judgeJsonValue(value, limits?) -> JsonValueJudgment
+writeJsonText(value) -> string
 ```
 
 `readJsonBytes` 对字节做致命 UTF-8 解码，并且不跳过 BOM。`readJsonText` 只接收已经完成致命解码的文本。`readJsonText` 的文本含孤立代理项时抛 `TypeError`。JSON 源码里的 `\u` 转义不因此抛 `TypeError`。文本以 U+FEFF 开头时，结果是 `bom`。
@@ -127,6 +128,20 @@ judgeJsonValue(value: unknown, limits?: Readonly<{ maxVisits: number }>) -> Json
 两条保证：判定只读自有数据属性，不调用 getter，访问器属性以 `accessor` 拒绝；读取输入时抛出的异常不会传出，整值以 `unreadable` 拒绝；列表报告的长度不是非负安全整数时同样以 `unreadable` 拒绝。`limits` 不是对象，`maxVisits` 读取时抛出异常，或 `maxVisits` 不是 1 到 `Number.MAX_SAFE_INTEGER` 的整数时，抛 `TypeError`。这是调用方参数的错误，不是值的失败。
 
 `maxVisits` 默认是 1 000 000。每次到达一个节点计一次，共用的子树每次到达都计，所以一个层层共用子树的小输入不能让副本无限变大。列表的槽位也在读取之前计入：读一个列表之前，判定先把它的长度与剩余的访问额度比较，剩余额度已扣除排队等待的节点。长度超出时，以 `budget` 拒绝，指向该列表，一个槽位也不读。所以输入声称的长度不能让判定读取超过 `maxVisits` 个槽位。判定在访问上限内接受 `readJsonText` 的全部产出。用比默认更大的读取预算读出的树，要传相应的 `maxVisits`。
+
+**值树原样写出。** 值树写成文本，并且保留数字词法和成员顺序，只有这一条路径。
+
+```ts
+writeJsonText(value: JsonValue) -> string
+```
+
+输出没有空白。`number` 节点写 `lexeme` 原文，不重新格式化。对象键按 `entries` 的顺序，不排序。字符串和键按 JSON 字符串转义，孤立代理项写成 `\uXXXX`，所以文本是格式良好的字符串。写出用显式的栈，很深的树不抛 `RangeError`。
+
+原样写出不是规范写出。规范写出按 RFC 8785，排序键并规范化数字，用于摘要，在 json-text 之外。同一棵值树的原样文本因此可以和它的规范文本不同。要得到摘要，不能用 `writeJsonText` 的输出。
+
+参数类型是 `JsonValue`，不收 `unknown`。输入必须已经通过 `judgeJsonValue`，或者是 `readJsonText` 的产出。节点缺少或不认识 `kind`、字段类型不对、`lexeme` 不合 RFC 8259 的数字语法、对象项的键不是字符串，这些情况抛 `TypeError`，不返回文本。重复键、环和共用的子树是前置条件：输入违反它们时，函数不承诺任何行为。文本的字节数没有上限，预算由调用方承担。
+
+对 `readJsonText` 的任一产出，`writeJsonText` 写出的文本再经 `readJsonText` 读回，值树相等。孤立代理项和保留写法的数字（`1.0`、`-0`、`1E5`）也成立。这条在读出该树所用的同一份 `limits` 内成立：写出的文本不比原文长，因为原文里的每个转义都不比写出的转义短。
 
 ## 消息、记录与流
 
