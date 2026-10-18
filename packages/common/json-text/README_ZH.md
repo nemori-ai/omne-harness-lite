@@ -49,7 +49,7 @@ if ('ok' in judged) {
 
 行为拥有者是 `packages/common/README.md` 指向的架构节。本页不复制签名、失败原因、路径规则和 `writeJsonText` 的 `TypeError` 情形。公开形状在 `src/types.ts`。读取成功不表示对象存在，也不表示调用方获得授权。
 
-停止顺序在上面指向的架构节。`tests/read-json.spec.ts` 用字面用例锁住这个顺序。`tests/judge-json-value.spec.ts` 锁住每种拒绝原因及其路径、访问上限、两条保证（不调用 getter、异常不外泄）、冻结的副本，以及 10 万层深的树。`tests/write-json-text.spec.ts` 锁住文本格式、与 `readJsonText` 的往返、宽树与深树，以及 `TypeError` 情形。`tests/read-long-keys.spec.ts` 锁住长键的重复键检查。`writeJsonText` 期望收到 `judgeJsonValue` 接受的树，或 `readJsonText` 的产出。重复键、环和共用子树是前置条件，调用方违反时的行为不在测试里锁定。
+停止顺序在上面指向的架构节。`tests/read-json.spec.ts` 用字面用例锁住这个顺序。`tests/judge-json-value.spec.ts` 锁住每种拒绝原因及其路径、访问上限、两条保证（不调用 getter、异常不外泄）、冻结的副本，以及 10 万层深的树。`tests/judge-json-value-walk.spec.ts` 锁住对象环、不是对象的根、不是字符串的 `kind`，以及读不了的列表。`tests/write-json-text.spec.ts` 锁住文本格式、与 `readJsonText` 的往返、宽树与深树，以及 `TypeError` 情形。`tests/read-long-keys.spec.ts` 锁住长键的重复键检查。`writeJsonText` 期望收到 `judgeJsonValue` 接受的树，或 `readJsonText` 的产出。重复键、环和共用子树是前置条件，调用方违反时的行为不在测试里锁定。
 
 ## 设计
 

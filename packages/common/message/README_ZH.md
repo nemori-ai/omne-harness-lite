@@ -71,7 +71,7 @@ flowchart TD
 
 ## 验证
 
-`pnpm --filter @omne-harness/message test` 运行 `tests/` 里的文件，同时承担单元和契约。`public-entry.spec.ts` 与 `message.spec.ts` 核对解析、逐字相等、没有铸造导出，以及消息字段的接受和拒绝。`tool-parts.spec.ts` 与 `tool-roles.spec.ts` 核对四种工具部件的每个失败、角色规则、块身份、`arguments` 的副本，以及与 json-text 的组合。`tool-part-types.spec-d.ts` 核对公开类型。`normative.spec.ts` 逐行执行 `docs/public-api.md` 的示例表。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
+`pnpm --filter @omne-harness/message test` 运行 `tests/` 里的文件，同时承担单元和契约。`public-entry.spec.ts` 与 `message.spec.ts` 核对解析、逐字相等、没有铸造导出，以及消息字段的接受和拒绝。`tool-parts.spec.ts` 与 `tool-roles.spec.ts` 核对四种工具部件的每个失败、角色规则、块身份、`arguments` 的副本，以及与 json-text 的组合。`part-kind.spec.ts` 核对不是对象的部件、缺失或非字符串的 `kind`，以及没有原型的部件。`tool-part-types.spec-d.ts` 核对公开类型。`normative.spec.ts` 逐行执行 `docs/public-api.md` 的示例表。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
 
 ## 维护
 

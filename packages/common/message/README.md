@@ -71,7 +71,7 @@ The package reads no environment. The session owns entropy and the admission key
 
 ## Verification
 
-`pnpm --filter @omne-harness/message test` runs the files in `tests/`. They are the unit tests and the contract tests. `public-entry.spec.ts` and `message.spec.ts` check parse, exact equality, the absence of a mint export, and which message fields are accepted or rejected. `tool-parts.spec.ts` and `tool-roles.spec.ts` check each failure of the four tool parts, the role rules, block identity, the copy of `arguments`, and the use with json-text. `tool-part-types.spec-d.ts` checks the public types. `normative.spec.ts` runs every row of the example table in `docs/public-api.md`. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
+`pnpm --filter @omne-harness/message test` runs the files in `tests/`. They are the unit tests and the contract tests. `public-entry.spec.ts` and `message.spec.ts` check parse, exact equality, the absence of a mint export, and which message fields are accepted or rejected. `tool-parts.spec.ts` and `tool-roles.spec.ts` check each failure of the four tool parts, the role rules, block identity, the copy of `arguments`, and the use with json-text. `part-kind.spec.ts` checks a part that is not an object, a missing or non-string kind, and a part without a prototype. `tool-part-types.spec-d.ts` checks the public types. `normative.spec.ts` runs every row of the example table in `docs/public-api.md`. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
 
 ## Maintenance
 

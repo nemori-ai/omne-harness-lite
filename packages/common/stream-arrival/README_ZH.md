@@ -68,7 +68,7 @@ assembleStream({
 
 ## 验证
 
-`pnpm --filter @omne-harness/stream-arrival test` 运行 `tests/public-entry.spec.ts`、`tests/assembly.spec.ts` 和 `tests/tool-call.spec.ts`。这些测试同时承担单元和契约。它们核对步骤名、序号拒绝，以及装配终态，包括重复送达、截断、迟到步骤和调用方取消。`tool-call.spec.ts` 核对闭合的开块头、显式封口规则、两个调用变体、削减规则、深对象和步骤指纹，使用真实的 message、content-block、json-text。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
+`pnpm --filter @omne-harness/stream-arrival test` 运行 `tests/public-entry.spec.ts`、`tests/assembly.spec.ts`、`tests/tool-call.spec.ts` 和 `tests/head-and-trim.spec.ts`。这些测试同时承担单元和契约。它们核对步骤名、序号拒绝，以及装配终态，包括重复送达、截断、迟到步骤和调用方取消。`tool-call.spec.ts` 核对闭合的开块头、显式封口规则、两个调用变体、削减规则、深对象和步骤指纹，使用真实的 message、content-block、json-text。`head-and-trim.spec.ts` 核对非枚举的头键、报告了没有描述符的键的头、缺 `callId` 的 `tool_result` 头、不带 `mediaType` 的 voice 或 image 头、封口部件多出头没有的文本键、别的种类的头收到 `tool_call_unparsed` 封口、削减过的 `tool_call` 用 text 块封口，以及对从未打开的序号削减。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
 
 ## 维护
 
