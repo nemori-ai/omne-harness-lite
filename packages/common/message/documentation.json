@@ -97,6 +97,38 @@
           "anchor": "维护"
         }
       ]
+    },
+    {
+      "id": "topic-public-api",
+      "path": "packages/common/message/docs/public-api.md",
+      "kind": "reference",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "专题职责"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "exports",
+          "anchor": "导出入口"
+        },
+        {
+          "id": "definitions",
+          "anchor": "定义索引"
+        },
+        {
+          "id": "order",
+          "anchor": "判定顺序"
+        },
+        {
+          "id": "examples",
+          "anchor": "示例表"
+        }
+      ]
     }
   ]
 }
