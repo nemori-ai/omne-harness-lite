@@ -8,7 +8,7 @@
 
 本成员是共同的 JSON 文本读取器。它在调用方给出的预算内读取一份不可信的 JSON 文档。它也判定在内存里构造的值树，并把值树原样写回文本。契约在架构页「公共 JSON 文本读取」。叶子名 `json-text` 在本分支确定。#242 当时没有裁定名字，并禁止从旧目录猜测。
 
-今天已经实现 `readJsonBytes`、`readJsonText`、公开结果类型、六项预算和失败顺序。[#242](https://github.com/nemori-ai/omne-harness-lite/issues/242#issuecomment-6173933512) 已于 2026-10-15 接受这部分读取实现。Issue #373 新增 `judgeJsonValue`、`writeJsonText` 以及类型 `JsonTreePath`、`JsonValueJudgment`，待 D-02 具名确认。包内测试覆盖全部这些行为。`writeJsonText` 是「原样写出」：它保留数字词法和成员顺序，不加空白。它不是规范写出。规范写出（RFC 8785，排序键并规范化数字，用于摘要）仍在本包之外。本包不提供分块读取。本包不导入 Cordis、身份、时间，也不导入两棵 legacy 树。
+今天已经实现 `readJsonBytes`、`readJsonText`、公开结果类型、六项预算和失败顺序。[#242](https://github.com/nemori-ai/omne-harness-lite/issues/242#issuecomment-6173933512) 已于 2026-10-15 接受这部分读取实现。Issue #373 新增 `judgeJsonValue` 与类型 `JsonTreePath`、`JsonValueJudgment`，已于 2026-10-18 接受。`writeJsonText` 依 [RFC-0010](../../../docs/rfcs/RFC-0010-json-text-lossless-writer.md) 加入，2026-10-18 接受。包内测试覆盖全部这些行为。`writeJsonText` 是「原样写出」：它保留数字词法和成员顺序，不加空白。它不是规范写出。规范写出（RFC 8785，排序键并规范化数字，用于摘要）仍在本包之外。本包不提供分块读取。本包不导入 Cordis、身份、时间，也不导入两棵 legacy 树。
 
 ## 使用
 

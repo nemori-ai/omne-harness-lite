@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readJsonText, type JsonLimits } from '@omne-harness/json-text'
+import { KeySet } from '../src/read.ts'
 
 const limits: JsonLimits = {
   maxBytes: 100_000_000,
@@ -72,6 +73,19 @@ describe('readJsonText finds a repeated key of any length', () => {
       path: [],
       key,
     })
+  })
+})
+
+describe('KeySet when every long key lands in one bucket', () => {
+  it('tells distinct keys apart and finds a repeat only by exact equality', () => {
+    const keys = new KeySet(() => 'one-bucket')
+    const first = longKey(300, 1)
+    const second = longKey(300, 2)
+    expect(keys.add(first)).toBe(true)
+    expect(keys.add(second)).toBe(true)
+    expect(keys.add(first)).toBe(false)
+    expect(keys.add(second)).toBe(false)
+    expect(keys.size).toBe(2)
   })
 })
 

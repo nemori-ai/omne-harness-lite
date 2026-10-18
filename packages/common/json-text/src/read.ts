@@ -91,12 +91,18 @@ function digest(key: string): string {
  * The keys of one object. The engine hashes a string of 16,384 or more units by its length only,
  * and the seed of the digest stops crafted collisions, so short keys use a native Set and long
  * keys use buckets of a seeded digest. A key is a repeat only on exact equality. Equal keys have
- * equal length, so the two structures never need a cross-check.
+ * equal length, so the two structures never need a cross-check. The digest is a parameter so a
+ * test can force every long key into one bucket.
  */
-class KeySet {
+export class KeySet {
   private readonly short = new Set<string>()
   private readonly long = new Map<string, string[]>()
   size = 0
+  private readonly digestOf: (key: string) => string
+
+  constructor(digestOf: (key: string) => string = digest) {
+    this.digestOf = digestOf
+  }
 
   /** Adds the key. Returns false, and keeps the set as it was, when the key is already in it. */
   add(key: string): boolean {
@@ -104,7 +110,7 @@ class KeySet {
       if (this.short.has(key)) return false
       this.short.add(key)
     } else {
-      const id = digest(key)
+      const id = this.digestOf(key)
       const bucket = this.long.get(id)
       if (bucket === undefined) this.long.set(id, [key])
       else if (bucket.includes(key)) return false

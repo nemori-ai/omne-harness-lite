@@ -128,7 +128,7 @@ packages/
 ├── time/<具名时间能力>/        有独立消费者的时间能力
 ├── telemetry/<具名观测能力>/   有真实共同需要的观测能力
 ├── common/
-│   ├── json-text/              严格 JSON 文本读取
+│   ├── json-text/              严格 JSON 文本读取、值树判定与原样写出
 │   ├── legal-identity/         合法身份文本
 │   ├── utc-instant/            UTC 时间点与 SI 时长
 │   ├── content-block/          已封闭的文本、思考、语音、图、文件
