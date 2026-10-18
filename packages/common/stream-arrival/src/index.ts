@@ -426,6 +426,20 @@ function isToolHeadKind(kind: PartKind): boolean {
   return kind === 'tool_call' || kind === 'tool_result'
 }
 
+/** The head keys that `judgeBlockIdentity` judges. `headText` reads every other head key. */
+const IDENTITY_KEYS: readonly string[] = ['kind', 'id', 'visibility']
+
+type HeadTextRead = { readonly text: string | undefined } | HeadRefusal
+
+/** One text key of a head. A content head may leave it out; a tool head may not. */
+function headTextOf(kind: PartKind, value: Record<string, unknown>, key: string): HeadTextRead {
+  const text = value[key]
+  if (typeof text === 'string')
+    return key === 'callId' && text.length === 0 ? refuse(key) : { text }
+  if (Object.hasOwn(value, key) || isToolHeadKind(kind)) return refuse(key)
+  return { text: undefined }
+}
+
 /** The text-valued head keys. A tool head must have them, and `callId` is not empty. */
 function headText(
   kind: PartKind,
@@ -433,14 +447,10 @@ function headText(
 ): { readonly ok: Readonly<Record<string, string>> } | HeadRefusal {
   const rest: Record<string, string> = {}
   for (const key of headKeysOf(kind)) {
-    if (key === 'kind' || key === 'id' || key === 'visibility') continue
-    const text = value[key]
-    if (typeof text !== 'string') {
-      if (Object.hasOwn(value, key) || isToolHeadKind(kind)) return refuse(key)
-      continue
-    }
-    if (key === 'callId' && text.length === 0) return refuse(key)
-    rest[key] = text
+    if (IDENTITY_KEYS.includes(key)) continue
+    const read = headTextOf(kind, value, key)
+    if ('rejected' in read) return read
+    if (read.text !== undefined) rest[key] = read.text
   }
   return { ok: rest }
 }
