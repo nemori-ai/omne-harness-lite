@@ -61,10 +61,58 @@ type ArrayFrame = {
 type ObjectFrame = {
   readonly kind: 'object'
   readonly entries: JsonEntry[]
-  readonly keys: Set<string>
+  readonly keys: KeySet
   /** The key of the member whose value is read next. */
   key: string
   next: 'first-key' | 'key' | 'colon' | 'value' | 'comma'
+}
+
+/** Keys of this many units or more go into the digest buckets of `KeySet`. */
+const LONG_KEY_UNITS = 256
+const HASH_PRIME_A = 16777619
+const HASH_PRIME_B = 0x9e3779b1
+const SEEDS = new DataView(globalThis.crypto.getRandomValues(new Uint8Array(8)).buffer)
+const SEED_A = SEEDS.getUint32(0)
+const SEED_B = SEEDS.getUint32(4)
+
+/** Two 32-bit FNV-1a-style passes over the whole key, from per-process random offsets. */
+function digest(key: string): string {
+  let a = SEED_A
+  let b = SEED_B
+  for (let index = 0; index < key.length; index += 1) {
+    const unit = key.charCodeAt(index)
+    a = Math.imul(a ^ unit, HASH_PRIME_A)
+    b = Math.imul(b ^ unit, HASH_PRIME_B)
+  }
+  return `${a >>> 0}:${b >>> 0}`
+}
+
+/**
+ * The keys of one object. The engine hashes a string of 16,384 or more units by its length only,
+ * and the seed of the digest stops crafted collisions, so short keys use a native Set and long
+ * keys use buckets of a seeded digest. A key is a repeat only on exact equality. Equal keys have
+ * equal length, so the two structures never need a cross-check.
+ */
+class KeySet {
+  private readonly short = new Set<string>()
+  private readonly long = new Map<string, string[]>()
+  size = 0
+
+  /** Adds the key. Returns false, and keeps the set as it was, when the key is already in it. */
+  add(key: string): boolean {
+    if (key.length < LONG_KEY_UNITS) {
+      if (this.short.has(key)) return false
+      this.short.add(key)
+    } else {
+      const id = digest(key)
+      const bucket = this.long.get(id)
+      if (bucket === undefined) this.long.set(id, [key])
+      else if (bucket.includes(key)) return false
+      else bucket.push(key)
+    }
+    this.size += 1
+    return true
+  }
 }
 
 const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
@@ -126,27 +174,25 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
     )
   }
 
-  const startValue = (token: number): JsonFailure | undefined => {
-    if (!isValueStart(token)) return syntax('token')
+  /** The budgets that a value of this kind meets as it starts. */
+  const admit = (token: ValueStartToken): JsonFailure | undefined => {
     const opensContainer = token === TOKEN.openBrace || token === TOKEN.openBracket
     if (opensContainer && stack.length + 1 > limits.maxDepth) return budget('depth')
     items += 1
     if (items > limits.maxItems) return budget('items')
+    return undefined
+  }
+
+  const startValue = (token: number): JsonFailure | undefined => {
+    if (!isValueStart(token)) return syntax('token')
+    const overBudget = admit(token)
+    if (overBudget !== undefined) return overBudget
     switch (token) {
       case TOKEN.openBracket:
         stack.push({ kind: 'array', items: [], next: 'first-item' })
         return undefined
       case TOKEN.openBrace:
-        stack.push({ kind: 'object', entries: [], keys: new Set(), key: '', next: 'first-key' })
-        return undefined
-      case TOKEN.null:
-        complete({ kind: 'null' })
-        return undefined
-      case TOKEN.true:
-        complete({ kind: 'boolean', value: true })
-        return undefined
-      case TOKEN.false:
-        complete({ kind: 'boolean', value: false })
+        stack.push({ kind: 'object', entries: [], keys: new KeySet(), key: '', next: 'first-key' })
         return undefined
       case TOKEN.string: {
         const value = readString(scanner, text, limits.maxStringLength)
@@ -160,10 +206,9 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
         complete({ kind: 'number', lexeme })
         return undefined
       }
-      default: {
-        const unreachable: never = token
-        return unreachable
-      }
+      default:
+        complete(literal(token))
+        return undefined
     }
   }
 
@@ -191,6 +236,22 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
     }
   }
 
+  const stepKey = (frame: ObjectFrame, token: number): JsonFailure | undefined => {
+    if (token === TOKEN.closeBrace) {
+      if (frame.next === 'key') return syntax('trailing-comma')
+      close(frame)
+      return undefined
+    }
+    if (token !== TOKEN.string) return syntax('token')
+    const key = readString(scanner, text, limits.maxStringLength)
+    if (typeof key !== 'string') return key
+    if (frame.keys.size + 1 > limits.maxMembers) return budget('members')
+    if (!frame.keys.add(key)) return { kind: 'duplicate-key', path: pathTo(stack), key }
+    frame.key = key
+    frame.next = 'colon'
+    return undefined
+  }
+
   const stepObject = (frame: ObjectFrame, token: number): JsonFailure | undefined => {
     switch (frame.next) {
       case 'comma':
@@ -202,22 +263,8 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
         close(frame)
         return undefined
       case 'first-key':
-      case 'key': {
-        if (token === TOKEN.closeBrace) {
-          if (frame.next === 'key') return syntax('trailing-comma')
-          close(frame)
-          return undefined
-        }
-        if (token !== TOKEN.string) return syntax('token')
-        const key = readString(scanner, text, limits.maxStringLength)
-        if (typeof key !== 'string') return key
-        if (frame.keys.size + 1 > limits.maxMembers) return budget('members')
-        if (frame.keys.has(key)) return { kind: 'duplicate-key', path: pathTo(stack), key }
-        frame.keys.add(key)
-        frame.key = key
-        frame.next = 'colon'
-        return undefined
-      }
+      case 'key':
+        return stepKey(frame, token)
       case 'colon':
         if (token !== TOKEN.colon) return syntax('token')
         frame.next = 'value'
@@ -231,6 +278,12 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
     }
   }
 
+  /** Gives the token to the innermost open container, or starts the root value. */
+  const step = (top: Frame | undefined, token: number): JsonFailure | undefined => {
+    if (top === undefined) return startValue(token)
+    return top.kind === 'array' ? stepArray(top, token) : stepObject(top, token)
+  }
+
   for (;;) {
     const token: number = scanner.scan()
     if (token === TOKEN.whitespace || token === TOKEN.lineBreak) continue
@@ -239,13 +292,23 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
     if (top === undefined && root !== undefined)
       return token === TOKEN.eof ? { kind: 'ok', value: root } : syntax('trailing-content')
     if (token === TOKEN.eof) return syntax('truncated')
-    const failure =
-      top === undefined
-        ? startValue(token)
-        : top.kind === 'array'
-          ? stepArray(top, token)
-          : stepObject(top, token)
+    const failure = step(top, token)
     if (failure !== undefined) return failure
+  }
+}
+
+function literal(token: typeof TOKEN.null | typeof TOKEN.true | typeof TOKEN.false): JsonValue {
+  switch (token) {
+    case TOKEN.null:
+      return { kind: 'null' }
+    case TOKEN.true:
+      return { kind: 'boolean', value: true }
+    case TOKEN.false:
+      return { kind: 'boolean', value: false }
+    default: {
+      const unreachable: never = token
+      return unreachable
+    }
   }
 }
 
