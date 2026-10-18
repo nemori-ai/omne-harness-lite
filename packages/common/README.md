@@ -1,6 +1,6 @@
 # 共同纯表示能力组
 
-本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面八份成员已经在 workspace 里。`json-text` 导出读取函数和值树判定函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。`call-account` 导出调用账目的快照准入、修订替换、来源小计和应付金额。`operation-result` 导出操作结果的两种形状和构造函数。
+本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面八份成员已经在 workspace 里。`json-text` 导出读取函数、值树判定函数和值树原样写出函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。`call-account` 导出调用账目的快照准入、修订替换、来源小计和应付金额。`operation-result` 导出操作结果的两种形状和构造函数。
 
 ## 责任与范围
 
@@ -10,11 +10,11 @@
 
 ## 成员与依赖
 
-依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的八份目录现在是 workspace 成员。`json-text` 的读取函数已经实现，#242 已于 2026-10-15 接受这部分。值树判定函数是 #373 新增，待 D-02 确认。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
+依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的八份目录现在是 workspace 成员。`json-text` 的读取函数已经实现，#242 已于 2026-10-15 接受这部分。值树判定与原样写出函数是 #373 新增，待 D-02 确认。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
 
 | 目标成员 | 状态 | 拥有的纯值 | 具名消费者 |
 | --- | --- | --- | --- |
-| `json-text` | 读取函数已实现，#242 已接受。`judgeJsonValue` 是 #373 新增，待 D-02 确认。叶子名在本分支确定为 `json-text`。#242 当时没有裁定名字，并禁止从旧目录猜测 | 严格 JSON 文本读取、值树判定 | 后续的配置读取、协议解码与持久记录读取。新增的判定函数尚无生产消费者，第一个是 message（K2b） |
+| `json-text` | 读取函数已实现，#242 已接受。`judgeJsonValue` 已于 2026-10-18 在 #373 接受；`writeJsonText` 依 RFC-0010（2026-10-18 接受）加入。叶子名在本分支确定为 `json-text`。#242 当时没有裁定名字，并禁止从旧目录猜测 | 严格 JSON 文本读取、值树判定、值树原样写出 | 后续的配置读取、协议解码与持久记录读取。新增的两个函数尚无生产消费者，第一个是 message（K2b） |
 | `legal-identity` | 公开入口已实现。精确文本归成员 README。#243 已合并进 `integration/legacy-refactor` | 合法身份文本、相等、租户组合 | `packages/identity/identity` 与 `packages/session/session` |
 | `utc-instant` | 公开行为已实现。revision 1 整卡已由 PanQiWei 于 2026-10-14 接受并关闭，见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996) | 时间点、SI 时长、唯一比较 | `packages/identity/identity` 与 `packages/tool/tool` |
 | `content-block` | 纯校验已导出 | 已封闭的文本、思考、语音、图、文件 | 模型、工具、会话、请求投影 |
