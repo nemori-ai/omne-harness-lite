@@ -87,6 +87,7 @@ describe('consumption sample', () => {
       })
     expect([...new Set(specifiers)].sort()).toEqual([
       './judge.ts',
+      './key-set.ts',
       './read.ts',
       './types.ts',
       './write.ts',

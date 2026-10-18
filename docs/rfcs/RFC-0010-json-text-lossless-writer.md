@@ -8,7 +8,7 @@ owner: PanQiWei
 
 # RFC-0010：json-text 的值树原样写出
 
-规则与维护责任见[RFC入口](README.md)。本提案只改变 [RFC-0006](RFC-0006-json-canonical-text.md) 中「json-text 不增加写出函数」这一项。规范写出仍按 RFC-0006 使用 RFC 8785，不在 json-text 内。
+规则与维护责任见[RFC入口](README.md)。本提案只改变 [RFC-0006](RFC-0006-json-canonical-text.md) 的一项决定：json-text 不拥有写出函数（见其「建议与改变范围」`json-text` 行、「决定范围」的不采用范围与「实质备选」的对应行）。规范写出仍按 RFC-0006 使用 RFC 8785，不在 json-text 内。
 
 ## 问题与有效输入
 

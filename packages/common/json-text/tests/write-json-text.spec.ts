@@ -226,6 +226,11 @@ describe('writeJsonText throws TypeError on a value that is not a tree', () => {
     ['an array whose items are not a list', { kind: 'array', items: {} }],
     ['an object without entries', { kind: 'object' }],
     ['an object whose entries are not a list', { kind: 'object', entries: 'x' }],
+    ['an object whose entries are a plain object', { kind: 'object', entries: {} }],
+    [
+      'an object whose entries are array-like',
+      { kind: 'object', entries: { length: 1, 0: { key: 'a', value: nil } } },
+    ],
     ['an entry that is not an object', { kind: 'object', entries: [5] }],
     ['an entry that is null', { kind: 'object', entries: [null] }],
     ['an entry without key', { kind: 'object', entries: [{ value: nil }] }],

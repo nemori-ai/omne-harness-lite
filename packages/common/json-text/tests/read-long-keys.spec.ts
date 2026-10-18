@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readJsonText, type JsonLimits } from '@omne-harness/json-text'
+import { KeySet } from '../src/key-set.ts'
 
 const limits: JsonLimits = {
   maxBytes: 100_000_000,
@@ -75,19 +76,41 @@ describe('readJsonText finds a repeated key of any length', () => {
   })
 })
 
+describe('KeySet when every long key lands in one bucket', () => {
+  it('tells distinct keys apart and finds a repeat only by exact equality', () => {
+    const keys = new KeySet(() => 'one-bucket')
+    const first = longKey(300, 1)
+    const second = longKey(300, 2)
+    expect(keys.add(first)).toBe(true)
+    expect(keys.add(second)).toBe(true)
+    expect(keys.add(first)).toBe(false)
+    expect(keys.add(second)).toBe(false)
+    expect(keys.size).toBe(2)
+  })
+})
+
 describe('readJsonText on long keys of equal length', () => {
   // Slow: 999 keys of 50,000 units. The engine hashes a string of 16,384 units or more by its
-  // length only, so a native Set of such keys takes seconds.
+  // length only, so a native Set of such keys takes seconds while keys of distinct lengths take
+  // milliseconds. The guard compares the two, so machine load cancels out: a quadratic reader
+  // is tens of times slower on equal lengths, a linear one is within a small factor.
   it(
-    'reads 999 keys of 50,000 equal-length code units in under 1.5 seconds',
+    'reads 999 keys of 50,000 equal-length code units about as fast as keys of distinct lengths',
     { tags: ['slow'] },
     () => {
-      const text = objectText(Array.from({ length: 999 }, (_, index) => longKey(50_000, index)))
-      const started = performance.now()
-      const read = readJsonText(text, limits)
-      const elapsed = performance.now() - started
-      expect(read.kind).toBe('ok')
-      expect(elapsed).toBeLessThan(1_500)
+      const equal = objectText(Array.from({ length: 999 }, (_, index) => longKey(50_000, index)))
+      const distinct = objectText(
+        Array.from({ length: 999 }, (_, index) => longKey(50_000 - 999 + index, index)),
+      )
+      const time = (text: string): number => {
+        const started = performance.now()
+        expect(readJsonText(text, limits).kind).toBe('ok')
+        return performance.now() - started
+      }
+      time(distinct)
+      const distinctMs = time(distinct)
+      const equalMs = time(equal)
+      expect(equalMs).toBeLessThan(5 * distinctMs)
     },
   )
 })

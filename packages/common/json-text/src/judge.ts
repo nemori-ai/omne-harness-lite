@@ -1,3 +1,4 @@
+import { KeySet } from './key-set.ts'
 import { RFC_8259_NUMBER } from './read.ts'
 import type { JsonEntry, JsonValue, JsonValueJudgment } from './types.ts'
 
@@ -222,42 +223,19 @@ function readEntry(
   return { key: key.found, value: value.found }
 }
 
-/**
- * The smallest index whose key equals the key at an earlier index, or -1 when no key repeats.
- * The indices are sorted by key and the neighbours compared. A Set of the keys would take quadratic
- * time for long keys of equal length.
- */
-function firstRepeatedIndex(keys: readonly string[]): number {
-  const ordered = keys.map((key, index) => ({ key, index }))
-  // `<` orders by UTF-16 code unit. The index breaks ties, so each group of equal keys starts with its first index.
-  ordered.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : a.index - b.index))
-  let first = -1
-  let previous: (typeof ordered)[number] | undefined
-  for (const current of ordered) {
-    if (previous?.key === current.key && (first < 0 || current.index < first)) first = current.index
-    previous = current
-  }
-  return first
-}
-
 function visitObject(walk: Walk, node: object, visit: Visit): JsonValue | Rejected {
   if (walk.ancestors.has(node)) return reject('cycle', visit.trail)
   const read = ownList(walk, node, 'entries', visit.trail)
   if ('rejected' in read) return read
-  // Read the entries in order up to the first one that is rejected; a duplicate before it is reported first.
   const keyed: Readonly<{ key: string; value: unknown }>[] = []
-  let failure: Rejected | undefined
+  const keys = new KeySet()
   for (const [index, element] of read.list.entries()) {
-    const entry = readEntry(element, step(read.trail, index))
-    if ('rejected' in entry) {
-      failure = entry
-      break
-    }
+    const trail = step(read.trail, index)
+    const entry = readEntry(element, trail)
+    if ('rejected' in entry) return entry
+    if (!keys.add(entry.key)) return reject('duplicate', trail, 'key')
     keyed.push(entry)
   }
-  const repeated = firstRepeatedIndex(keyed.map(entry => entry.key))
-  if (repeated >= 0) return reject('duplicate', step(read.trail, repeated), 'key')
-  if (failure) return failure
   const entries: JsonEntry[] = []
   const children: Visit[] = []
   for (const [index, entry] of keyed.entries()) {
