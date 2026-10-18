@@ -1,4 +1,11 @@
 import {
+  CONTENT_BLOCK_HEAD_KEYS,
+  judgeBlockIdentity,
+  type BlockId,
+  type Visibility,
+} from '@omne-harness/content-block'
+import { writeJsonText } from '@omne-harness/json-text'
+import {
   judgeMessage,
   judgePart,
   type LogMessageRole,
@@ -30,71 +37,24 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null
 }
 
-/** JSON is null, a boolean, a string, a finite number, or an array or plain object of those. */
-function isJsonValue(value: unknown, seen: WeakSet<object> = new WeakSet()): boolean {
-  if (value === null) return true
-  switch (typeof value) {
-    case 'boolean':
-    case 'string':
-      return true
-    case 'number':
-      return Number.isFinite(value)
-    case 'object':
-      return jsonContainer(value, seen)
-    default:
-      return false
-  }
-}
-
-function jsonContainer(value: object, seen: WeakSet<object>): boolean {
-  if (seen.has(value)) return false
-  if (Array.isArray(value)) return jsonItems(value, seen)
-  if (!isPlainRecord(value)) return false
-  seen.add(value)
-  for (const key of Object.keys(value)) {
-    if (!isJsonValue(value[key], seen)) {
-      seen.delete(value)
-      return false
-    }
-  }
-  seen.delete(value)
-  return true
-}
-
-function jsonItems(value: readonly unknown[], seen: WeakSet<object>): boolean {
-  seen.add(value)
-  for (const item of value) {
-    if (!isJsonValue(item, seen)) {
-      seen.delete(value)
-      return false
-    }
-  }
-  seen.delete(value)
-  return true
-}
-
-/** Own enumerable keys only. `__proto__` is a data property, not a prototype assignment. */
-function copyJson(value: unknown): unknown {
-  if (value === null || typeof value !== 'object') return value
-  if (Array.isArray(value)) return value.map(item => copyJson(item))
-  const copy: Record<string, unknown> = {}
-  for (const key of Object.keys(value)) {
-    Object.defineProperty(copy, key, {
-      value: copyJson((value as Record<string, unknown>)[key]),
-      writable: true,
-      enumerable: true,
-      configurable: true,
-    })
-  }
-  return copy
+/** True when a getter, a setter, or a non-enumerable key would hide what a read does. */
+function hasUnreadableOwn(value: object): boolean {
+  return Object.getOwnPropertyNames(value).some(key => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    return descriptor === undefined || descriptor.enumerable !== true || !('value' in descriptor)
+  })
 }
 
 /** Admit one streaming-delivery step. Cordis dispatch and inbound intake are not steps. */
+function isStep(step: string): step is StreamArrivalStep {
+  return STREAM_ARRIVAL_STEPS.some(known => known === step)
+}
+
 export function judgeStreamArrival(value: unknown): StreamArrivalJudgment {
   if (!isRecord(value) || typeof value.step !== 'string') return { rejected: 'step' }
-  if (!STREAM_ARRIVAL_STEPS.includes(value.step as StreamArrivalStep)) return { rejected: 'step' }
+  if (!isStep(value.step)) return { rejected: 'step' }
   if (typeof value.index !== 'string' || value.index.length === 0) return { rejected: 'index' }
-  return { ok: { step: value.step as StreamArrivalStep, index: value.index } }
+  return { ok: { step: value.step, index: value.index } }
 }
 
 export interface AssemblyTarget {
@@ -158,7 +118,6 @@ export type AssemblyRejection =
   | 'block'
   | 'empty'
   | 'late'
-  | 'json'
 
 export type AssembleResult =
   | { readonly ok: StreamAssembly }
@@ -191,7 +150,11 @@ const STEP_KEYS: Readonly<Record<StreamArrivalStep, readonly string[]>> = {
 type PartKind = (typeof PART_KINDS)[number]
 type AppendKind = 'text' | 'thinking' | 'voice' | 'tool_call'
 
-/** Body field for a fill. Image, file, and tool_result have no append form. */
+/**
+ * Body field for a fill. Image, file, and tool_result have no append form. The `arguments` field of
+ * `tool_call` only exists to refuse a head that carries arguments: an implicit close of a
+ * `tool_call` is always refused, because the accumulated text is not a value tree.
+ */
 const BODY: Readonly<Record<PartKind, { readonly field?: 'text' | 'inline' | 'arguments' }>> = {
   text: { field: 'text' },
   thinking: { field: 'text' },
@@ -202,13 +165,24 @@ const BODY: Readonly<Record<PartKind, { readonly field?: 'text' | 'inline' | 'ar
   tool_result: {},
 }
 
+/**
+ * The admitted head of a block. `rest` holds the head keys that carry text: `callId`, `name`,
+ * `mediaType`, `storage` and `key`, whichever the kind has.
+ */
+interface Head {
+  readonly kind: PartKind
+  readonly id: BlockId
+  readonly visibility: Visibility
+  readonly rest: Readonly<Record<string, string>>
+}
+
 type OpenBlock =
   | {
       readonly slot: 'open'
       readonly mode: 'append'
       readonly index: number
       readonly kind: AppendKind
-      readonly head: Readonly<Record<string, unknown>>
+      readonly head: Head
       readonly body: string
       readonly nextSeq: number
     }
@@ -217,7 +191,7 @@ type OpenBlock =
       readonly mode: 'replace'
       readonly index: number
       readonly kind: PartKind
-      readonly head: Readonly<Record<string, unknown>>
+      readonly head: Head
       readonly body: string
       readonly nextSeq: number
     }
@@ -252,7 +226,7 @@ interface OpenStep {
   readonly step: 'open'
   readonly index: string
   readonly mode: 'append' | 'replace'
-  readonly head: Readonly<Record<string, unknown>>
+  readonly head: Head
 }
 
 interface FillStep {
@@ -265,8 +239,8 @@ interface FillStep {
 interface CloseStep {
   readonly step: 'close'
   readonly index: string
-  /** Present means this JSON value is the sealed part. Absent seals the fragments. */
-  readonly block?: unknown
+  /** Present means this judged part is the sealed part. Absent seals the fragments. */
+  readonly block?: MessagePart
 }
 
 interface TrimStep {
@@ -285,7 +259,10 @@ type AssemblyStep = OpenStep | FillStep | CloseStep | TrimStep | FinishStep
 
 type Parsed =
   | { readonly step: AssemblyStep }
-  | { readonly rejected: 'step' | 'index' | 'seq' | 'json' }
+  | {
+      readonly rejected: 'step' | 'index' | 'seq' | 'block'
+      readonly detail?: string
+    }
 
 type Applied =
   | { readonly state: InternalState }
@@ -359,6 +336,17 @@ function stable(value: unknown): string {
   return JSON.stringify(value)
 }
 
+/**
+ * The fingerprint of a step. `stable` only sees values that hold no value tree. The arguments of a
+ * `tool_call` are held as the text `writeJsonText` writes for them, whose walk keeps its own stack.
+ */
+function fingerprint(step: AssemblyStep): string {
+  if (step.step !== 'close' || step.block === undefined) return stable(step)
+  const { block } = step
+  if (block.kind !== 'tool_call') return stable(step)
+  return stable({ ...step, block: { ...block, arguments: writeJsonText(block.arguments) } })
+}
+
 function decimalIndex(index: string): number | undefined {
   if (!DECIMAL.test(index)) return undefined
   const value = Number(index)
@@ -417,19 +405,76 @@ function parseStep(value: unknown): Parsed {
   return parseTrim(value, index)
 }
 
+type HeadRefusal = { readonly rejected: 'step'; readonly detail: string }
+
+function refuse(detail: string): HeadRefusal {
+  return { rejected: 'step', detail }
+}
+
+/** The head keys of each kind. A tool kind needs all of its keys. A content kind may carry its own. */
+const TOOL_HEAD_KEYS: Readonly<Record<'tool_call' | 'tool_result', readonly string[]>> = {
+  tool_call: ['kind', 'id', 'visibility', 'callId', 'name'],
+  tool_result: ['kind', 'id', 'visibility', 'callId'],
+}
+
+function headKeysOf(kind: PartKind): readonly string[] {
+  if (kind === 'tool_call' || kind === 'tool_result') return TOOL_HEAD_KEYS[kind]
+  return CONTENT_BLOCK_HEAD_KEYS[kind]
+}
+
+function isToolHeadKind(kind: PartKind): boolean {
+  return kind === 'tool_call' || kind === 'tool_result'
+}
+
+/** The text-valued head keys. A tool head must have them, and `callId` is not empty. */
+function headText(
+  kind: PartKind,
+  value: Record<string, unknown>,
+): { readonly ok: Readonly<Record<string, string>> } | HeadRefusal {
+  const rest: Record<string, string> = {}
+  for (const key of headKeysOf(kind)) {
+    if (key === 'kind' || key === 'id' || key === 'visibility') continue
+    const text = value[key]
+    if (typeof text !== 'string') {
+      if (Object.hasOwn(value, key) || isToolHeadKind(kind)) return refuse(key)
+      continue
+    }
+    if (key === 'callId' && text.length === 0) return refuse(key)
+    rest[key] = text
+  }
+  return { ok: rest }
+}
+
+/**
+ * A head is judged before anything is copied or fingerprinted: the keys must be closed, and
+ * every value is text except `visibility`, which `judgeBlockIdentity` rebuilds. A deep value
+ * under any key is refused at the key, and no walk reaches it.
+ */
+function judgeHead(value: unknown): { readonly ok: Head } | HeadRefusal {
+  if (!isPlainRecord(value) || hasUnreadableOwn(value)) return refuse('json')
+  const kind = value.kind
+  if (typeof kind !== 'string' || !isPartKind(kind)) return refuse('kind')
+  const legal = headKeysOf(kind)
+  if (Object.keys(value).some(key => !legal.includes(key))) return refuse('extra')
+  const identity = judgeBlockIdentity(value)
+  if ('rejected' in identity) return refuse(identity.rejected)
+  const rest = headText(kind, value)
+  if ('rejected' in rest) return rest
+  return { ok: { kind, id: identity.ok.id, visibility: identity.ok.visibility, rest: rest.ok } }
+}
+
 function parseOpen(value: Record<string, unknown>, index: string): Parsed {
   if (value.mode !== 'append' && value.mode !== 'replace') return { rejected: 'step' }
-  if (!isJsonValue(value.head)) return { rejected: 'json' }
-  if (!isPlainRecord(value.head)) return { rejected: 'step' }
-  const head = copyJson(value.head)
-  if (!isPlainRecord(head)) return { rejected: 'json' }
-  return { step: { step: 'open', index, mode: value.mode, head } }
+  const head = judgeHead(value.head)
+  if ('rejected' in head) return head
+  return { step: { step: 'open', index, mode: value.mode, head: head.ok } }
 }
 
 function parseClose(value: Record<string, unknown>, index: string): Parsed {
   if (!Object.hasOwn(value, 'block')) return { step: { step: 'close', index } }
-  if (!isJsonValue(value.block)) return { rejected: 'json' }
-  return { step: { step: 'close', index, block: copyJson(value.block) } }
+  const part = judgePart(value.block)
+  if ('rejected' in part) return { rejected: 'block', detail: part.rejected }
+  return { step: { step: 'close', index, block: part.ok } }
 }
 
 function parseFill(value: Record<string, unknown>, index: string): Parsed {
@@ -476,9 +521,6 @@ function applyOpen(state: LiveState, step: OpenStep): Applied {
   const index = decimalIndex(step.index)
   if (index === undefined || index < state.nextIndex) return { rejected: 'index' }
   const kind = step.head.kind
-  if (typeof kind !== 'string' || !isPartKind(kind)) return { rejected: 'step' }
-  const field = BODY[kind].field
-  if (field !== undefined && Object.hasOwn(step.head, field)) return { rejected: 'step' }
   if (step.mode === 'append') {
     const append = appendKind(kind)
     if (append === undefined) return { rejected: 'mode' }
@@ -519,34 +561,85 @@ function applyFill(state: LiveState, step: FillStep): Applied {
   return { state: { ...state, blocks: replaceBlock(state.blocks, next) } }
 }
 
-function bodyConflicts(block: OpenBlock, sealed: MessagePart): boolean {
-  const field = BODY[block.kind].field
-  if (field !== 'text' && field !== 'inline') return false
-  const record = sealed as unknown as Record<string, unknown>
-  return record[field] !== block.body
+function fieldsOf(part: MessagePart): ReadonlyMap<string, unknown> {
+  return new Map(Object.entries(part))
 }
 
-function seal(state: LiveState, index: number, candidate: unknown, open: OpenBlock): Applied {
-  const judged = judgePart(candidate)
-  if ('rejected' in judged) return { rejected: 'block', detail: judged.rejected }
-  if (bodyConflicts(open, judged.ok)) return { rejected: 'conflict' }
-  const closed: ClosedBlock = { slot: 'closed', index, part: judged.ok }
+/** The sealed part carries the head: the same identity, the same visibility, the same text keys. */
+function sameHead(head: Head, part: MessagePart): boolean {
+  if (part.id !== head.id) return false
+  if (part.visibility.toHuman !== head.visibility.toHuman) return false
+  if (part.visibility.toModel !== head.visibility.toModel) return false
+  const fields = fieldsOf(part)
+  return Object.entries(head.rest).every(([key, text]) => fields.get(key) === text)
+}
+
+/**
+ * The accumulated text must be what the part holds. A `tool_call` part holds a value tree, not
+ * the text, so its `arguments` are not compared. The text of an unparsed call is `raw`.
+ */
+function bodyConflicts(block: OpenBlock, sealed: MessagePart): boolean {
+  if (sealed.kind === 'tool_call_unparsed') return sealed.raw !== block.body
+  const field = BODY[block.kind].field
+  if (field !== 'text' && field !== 'inline') return false
+  return fieldsOf(sealed).get(field) !== block.body
+}
+
+function hasTrim(state: LiveState, block: OpenBlock): boolean {
+  return state.trims.some(trim => decimalIndex(trim.index) === block.index)
+}
+
+/**
+ * A `tool_call` head is sealed as a `tool_call`, or as a `tool_call_unparsed`, which is the one
+ * exception to equal kinds. A `tool_call_incomplete` is never sealed: the settling side builds
+ * it after the stream. A `tool_call` block with a trim record is never sealed either: the text
+ * left may decode, and that does not show that the model had finished.
+ */
+function sealRefusal(
+  state: LiveState,
+  block: OpenBlock,
+  part: MessagePart,
+): { readonly rejected: AssemblyRejection; readonly detail?: string } | undefined {
+  const call = block.head.kind === 'tool_call'
+  if (call && part.kind === 'tool_call_incomplete')
+    return { rejected: 'block', detail: 'incomplete' }
+  if (part.kind !== block.head.kind && !(call && part.kind === 'tool_call_unparsed')) {
+    return { rejected: 'conflict' }
+  }
+  if (call && hasTrim(state, block)) return { rejected: 'block', detail: 'trimmed' }
+  if (!sameHead(block.head, part) || bodyConflicts(block, part)) return { rejected: 'conflict' }
+  return undefined
+}
+
+function seal(state: LiveState, block: OpenBlock, part: MessagePart): Applied {
+  const refusal = sealRefusal(state, block, part)
+  if (refusal !== undefined) return refusal
+  const closed: ClosedBlock = { slot: 'closed', index: block.index, part }
   return { state: { ...state, blocks: replaceBlock(state.blocks, closed) } }
+}
+
+/** The part that the head and the fragments make, for a close that has no block. */
+function fragmentsOf(block: OpenBlock): Readonly<Record<string, unknown>> {
+  const { head } = block
+  const base = { kind: head.kind, id: head.id, visibility: { ...head.visibility }, ...head.rest }
+  const field = BODY[block.kind].field
+  return field === undefined ? base : { ...base, [field]: block.body }
 }
 
 function applyClose(state: LiveState, step: CloseStep): Applied {
   const block = blockAt(state, step.index)
   if (block === undefined) return { rejected: 'unopened' }
   if (block.slot !== 'open') return { rejected: 'closed' }
-  if (step.block !== undefined) return seal(state, block.index, step.block, block)
-  const field = BODY[block.kind].field
-  const head = copyJson(block.head) as Record<string, unknown>
-  const candidate = field === undefined ? head : { ...head, [field]: block.body }
-  return seal(state, block.index, candidate, block)
+  if (step.block !== undefined) return seal(state, block, step.block)
+  const judged = judgePart(fragmentsOf(block))
+  if ('rejected' in judged) return { rejected: 'block', detail: judged.rejected }
+  return seal(state, block, judged.ok)
 }
 
 function applyTrim(state: LiveState, step: TrimStep): Applied {
-  if (blockAt(state, step.index) === undefined) return { rejected: 'unopened' }
+  const block = blockAt(state, step.index)
+  if (block === undefined) return { rejected: 'unopened' }
+  if (block.slot !== 'open') return { rejected: 'closed' }
   const record: TrimRecord = { index: step.index, removed: step.removed, reason: step.reason }
   return { state: { ...state, trims: [...state.trims, record] } }
 }
@@ -623,9 +716,9 @@ function resume(input: AssembleInput): Folded | AssembleResult {
 
 function takeStep(fold: Fold, value: unknown, at: number): Folded | AssembleResult {
   const parsed = parseStep(value)
-  if ('rejected' in parsed) return reject(parsed.rejected, at, fold.published)
+  if ('rejected' in parsed) return reject(parsed.rejected, at, fold.published, parsed.detail)
   const key = stepKey(parsed.step)
-  const fp = stable(parsed.step)
+  const fp = fingerprint(parsed.step)
   const seen = fold.state.ledger.get(key)
   if (seen !== undefined) {
     if (seen === fp) return { fold }

@@ -8,7 +8,7 @@ The message field inside a fact record, plus parse and equality for `MessageId`.
 
 A message is a field of one fact record in the session log. It is not the log entry. `SystemMessage` is a request view and is not one of the six log roles.
 
-This package publishes the message value and `judgeMessage`. A message is `{ id, role, blocks }`. `id` is a string `parseMessageId` accepts. `role` is one of the six log roles. `blocks` is a non-empty array of parts in arrival order. A part is a closed content block, or a tool part whose `kind` is `tool_call` or `tool_result`. A tool part needs a non-empty `callId`. The judge keeps the tool part's other own keys. It does not invent tool outcome codes.
+This package publishes the message value and `judgeMessage`. A message is `{ id, role, blocks }`. `id` is a string `parseMessageId` accepts. `role` is one of the six log roles. `blocks` is a non-empty array of parts in arrival order. A part is a closed content block, or one of four tool parts: `tool_call`, `tool_call_incomplete`, `tool_call_unparsed`, `tool_result`. A tool part has a block `id` and a block `visibility` like a content block. Its keys are closed: any other own key is `extra`. The package does not invent tool outcome codes, and a part cannot carry an executor, a handle, or a private result object. `docs/public-api.md` has the meaning of each part and the example table.
 
 The session mints `msg_` plus 16 unguessable bytes when it accepts a message into the log. This package exports no mint function.
 
@@ -41,11 +41,15 @@ There is no Cordis entry.
 
 `LOG_MESSAGE_ROLES` is `user`, `assistant`, `tool`, `tool_internal`, `system_reminder`, `compaction`. `parseMessageId` rejects an empty string, a missing `msg_` prefix, and a body outside `[A-Za-z0-9_-]{22,64}`. `messageIdEquals` is exact string equality.
 
-`judgeMessage` returns `{ ok }` or `{ rejected }`. A part failure also returns `blockIndex`. `rejected` is `shape`, `missing`, `null`, `empty`, `unknown`, `extra`, `prefix`, `body`, `callId`, `json`, or a content-block rejection. An unknown key such as `tenant` is `extra`. A part that is not JSON is `json`. JSON is null, a boolean, a string, a finite number, or an array or plain object of JSON values. The judge copies own keys. An own `__proto__` key stays an own key. A successful value contains only `id`, `role`, and `blocks`.
+`judgeMessage` returns `{ ok }` or `{ rejected }`. A part failure also returns `blockIndex`. `rejected` is `shape`, `missing`, `null`, `empty`, `unknown`, `extra`, `prefix`, `body`, `callId`, `name`, `arguments`, `partial`, `raw`, `json`, `tool-blocks`, `duplicate-id`, or a content-block rejection. An unknown key such as `tenant` is `extra`. A part that has an accessor, a non-enumerable own key, or a prototype that is not plain is `json`, and no getter on the part's own keys is called. Nested values (`visibility`, `arguments`) are read by their own judges. A missing field of a tool part is reported by its name. A successful value contains only `id`, `role`, and `blocks`.
+
+A `tool_call` has `kind`, `id`, `visibility`, `callId`, `name`, `arguments`. `callId` and `name` are not empty. `arguments` is a value tree that `judgeJsonValue` of `@omne-harness/json-text` accepts, and every failure of that judge is `arguments`. The kept `arguments` is the frozen copy that the judge returns, and it does not share data with the caller. A `tool_call_incomplete` has `partial` text in place of `arguments`, and both `visibility` bits are false. A `tool_call_unparsed` has `raw` text. For both variants `callId` is not empty and `name` is any string. `partial` and `raw` are strings and may be empty. Nothing is `null`. A `tool_result` has `kind`, `id`, `visibility`, `callId`. It is a marker: the content blocks after it in the same message are the result body.
+
+Role rules: the first block of a `tool` message is a `tool_result`, and the other blocks are not tool parts. A `tool_result` is only in a `tool` message. The three call parts are only in an `assistant` message. A broken role rule is `tool-blocks` with `blockIndex`. A block id that is used twice in one message is `duplicate-id`. `judgeMessage` returns the first failure in this order: the fields of the message, each part, the role rules, block identity.
 
 ## Design
 
-`src/index.ts` owns the role list, the brand, `parseMessageId`, `messageIdEquals`, `Message`, `judgeMessage`, and `judgePart`.
+`src/index.ts` owns the role list, the brand, `parseMessageId`, `messageIdEquals`, `Message`, `ToolMessage`, and `judgeMessage`. `src/parts.ts` owns the tool part types and `judgePart`. The block identity rules and the value tree rules are not here: they come from content-block and json-text.
 
 The message field sits on a fact record in the session log. `SystemMessage` is assembled for a request and stays off that log.
 
@@ -67,7 +71,7 @@ The package reads no environment. The session owns entropy and the admission key
 
 ## Verification
 
-`pnpm --filter @omne-harness/message test` runs `tests/public-entry.spec.ts` and `tests/message.spec.ts`. Those files are the unit tests and the contract tests. They check parse, exact equality, the absence of a mint export, and which message fields are accepted or rejected. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
+`pnpm --filter @omne-harness/message test` runs the files in `tests/`. They are the unit tests and the contract tests. `public-entry.spec.ts` and `message.spec.ts` check parse, exact equality, the absence of a mint export, and which message fields are accepted or rejected. `tool-parts.spec.ts` and `tool-roles.spec.ts` check each failure of the four tool parts, the role rules, block identity, the copy of `arguments`, and the use with json-text. `tool-part-types.spec-d.ts` checks the public types. `normative.spec.ts` runs every row of the example table in `docs/public-api.md`. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
 
 ## Maintenance
 

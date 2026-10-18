@@ -6,7 +6,7 @@
 
 ## 职责与状态
 
-一个步骤属于一次流式交付。它不是入站受理，也不是 Cordis 派发。模型与工具保留自己的发出和执行，并消费这套词汇。
+一个步骤属于一次流式交付。它不是入站受理，也不是 Cordis 派发。发出请求的一方与执行工具的一方保留自己的行为，并消费这套词汇。
 
 本包不分配序号，不保存日志，也不携带用量和费用的正文。`judgeStreamArrival` 只核对一个步骤名和一个序号是否在场。它不给步骤排序。`assembleStream` 把一个目标的步骤折成进行中的装配，或折成已经收场的终态。序号、重复和续接的规则在下面的契约里。它不重排。
 
@@ -48,7 +48,15 @@ assembleStream({
 
 重复先于顺序检查。身份是 `fill` 的块序号加 `seq`，以及其他步骤的步骤名加块序号。`finish` 的身份不带序号。同一身份、同一内容再次到达是空操作，文本不加倍。同一身份、不同内容是 `conflict`。开块的不同内容是 `index`。
 
-`from` 必须是同一次 `id` 与 `role` 的先前返回值。终态之后，已接受步骤的同值重放保持该终态。新的步骤是 `late`。开块 `head` 不是 JSON 时，拒绝码是 `json`。准入时复制 `id`、`role` 和 JSON `head`。之后修改调用方对象不改变已返回的装配。手写的 `{ phase: 'live' }` 被拒绝。`stopped` 即使还没有封块也是终态。之后的 `close` 或 `finish` 是 `late`。`close` 可以带 `block`。缺省时封住已累积的片段。给出时，该 JSON 值就是封住的部件。它的 `text` 或 `inline` 与累积正文不一致时，拒绝码是 `conflict`，先前的装配保持不变。
+`from` 必须是同一次 `id` 与 `role` 的先前返回值。终态之后，已接受步骤的同值重放保持该终态。新的步骤是 `late`。准入时复制 `id`、`role` 和 `head`。之后修改调用方对象不改变已返回的装配。手写的 `{ phase: 'live' }` 被拒绝。`stopped` 即使还没有封块也是终态。之后的 `close` 或 `finish` 是 `late`。带块的步骤和开块头先判定、后复制，见下面几段。
+
+开块头有 `kind`、`id`、`visibility`。`tool_call` 的头另有非空的 `callId` 和任意字符串 `name`（可为空串）。`tool_result` 的头另有 `callId`。voice、image 的头可以带 `mediaType`，file 的头可以带 `storage`、`key`、`mediaType`：这些键取自 content-block 的 `CONTENT_BLOCK_HEAD_KEYS`，值必须是文本。头里没有正文字段，`kind` 也不能是变体名。`id` 与 `visibility` 由 content-block 的 `judgeBlockIdentity` 判定，头保存它返回的 `visibility`。违反规则的头得到 `step`，`detail` 是 `json`（带访问器、非枚举键或非普通原型）、`kind`、`extra`（未知键、正文字段、别的种类的键，或 `visibility` 里的未知键）、`id`、`visibility`，或某个文本键的名字。头先判定、后复制，所以头里的深对象在它的键处被拒绝，不会抛异常。
+
+`close` 可以带 `block`。message 的 `judgePart` 在查看步骤之前先判定这个块，被拒绝时是 `block`，`detail` 是 `judgePart` 的拒绝值。缺省时封住开块头与累积文本。封住的部件在每个键上都必须与开块头相同：`kind`、`id`、`visibility`，以及每个文本键（`callId`、`name`、`mediaType`、`storage`、`key`）。任何不同是 `conflict`。它的 `text` 或 `inline` 与累积文本不一致时，拒绝码也是 `conflict`。这些情况下先前的装配都保持不变。
+
+`tool_call` 只能用带完整 `tool_call` 的显式块封口。没有 `block` 的封口是 `block`，`detail` 取自 `judgePart`，是 `callId`、`name`、`arguments` 之一。开块头的 `callId` 一定非空，所以实际出现的是 `name`（空名）和 `arguments`（累积文本不是值树）。本包不拿 `arguments` 与累积文本比较：那由流的结算方核对。`tool_call` 块也可以用 `tool_call_unparsed` 部件封口，这是种类与开块头不同的唯一例外：其余键必须与开块头相同，`raw` 必须等于累积文本，否则是 `conflict`。`tool_call_incomplete` 部件永远不被封口：在 `tool_call` 头上是 `block`，`detail` 为 `incomplete`；在别的种类的头上是 `conflict`。别的种类的头收到 `tool_call_unparsed` 也是 `conflict`。带削减记录的 `tool_call` 块不能封成 `tool_call` 或 `tool_call_unparsed`，拒绝码是 `block`，`detail` 为 `trimmed`。剩下的文本也许能解码，但这不能证明模型已经说完。`trim` 只作用于开着的块。对已封口的块 `trim` 是 `closed`，与 `fill` 相同，所以已封口的部件不会再得到削减记录。
+
+`stopped`、`cancelled`、`failed` 收场的终态只带已封口的部件和削减记录，也不当作消息来判定。仍然开着的 `tool_call` 不在其中。有块开着时 `finish` 是 `open`。流的结算方取已封口的部件，加上它构造的半截调用部件，自己对整条消息做判定。`tool_result` 没有追加形式，标记是整块到达的。
 
 ## 设计
 
@@ -60,8 +68,8 @@ assembleStream({
 
 ## 验证
 
-`pnpm --filter @omne-harness/stream-arrival test` 运行 `tests/public-entry.spec.ts` 和 `tests/assembly.spec.ts`。这些测试同时承担单元和契约。它们核对步骤名、序号拒绝，以及装配终态，包括重复送达、截断、迟到步骤和调用方取消。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
+`pnpm --filter @omne-harness/stream-arrival test` 运行 `tests/public-entry.spec.ts`、`tests/assembly.spec.ts` 和 `tests/tool-call.spec.ts`。这些测试同时承担单元和契约。它们核对步骤名、序号拒绝，以及装配终态，包括重复送达、截断、迟到步骤和调用方取消。`tool-call.spec.ts` 核对闭合的开块头、显式封口规则、两个调用变体、削减规则、深对象和步骤指纹，使用真实的 message、content-block、json-text。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
 
 ## 维护
 
-执行事实留在模型和工具。
+执行事实留在发出和执行的一方。半截调用部件由流的结算方构造，本包不构造。

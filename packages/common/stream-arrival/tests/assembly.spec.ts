@@ -201,19 +201,18 @@ it('rejects a hand-built live value as from', () => {
   })
 })
 
-it('seals a close block that matches the accumulated text', () => {
-  const provided = { ...block, id: 'b9' }
+it('seals a close block that matches the head and the accumulated text', () => {
   expect(
     assembleStream({
       target: target(),
-      steps: [open, fill0, fill1, { step: 'close', index: '0', block: provided }, finish],
+      steps: [open, fill0, fill1, { step: 'close', index: '0', block }, finish],
     }),
   ).toEqual({
     ok: {
       phase: 'ended',
       terminal: {
         kind: 'complete',
-        message: { id, role: 'assistant', blocks: [provided] },
+        message: { id, role: 'assistant', blocks: [block] },
         trims: [],
       },
     },
@@ -261,13 +260,25 @@ it('rejects a close block whose inline body disagrees', () => {
   ).toEqual({ rejected: 'conflict', at: 2, assembly: { phase: 'live' } })
 })
 
-it('seals a tool_call close block when arguments differ from the fill', () => {
-  const sealed = { kind: 'tool_call', callId: 'c1', arguments: '{"a":2}' }
+it('seals a tool_call close block whose arguments differ from the fill text', () => {
+  const sealed = {
+    kind: 'tool_call',
+    id: 'k1',
+    visibility,
+    callId: 'c1',
+    name: 'echo',
+    arguments: { kind: 'object', entries: [{ key: 'a', value: { kind: 'number', lexeme: '2' } }] },
+  }
   expect(
     assembleStream({
       target: target(),
       steps: [
-        { step: 'open', index: '0', mode: 'append', head: { kind: 'tool_call', callId: 'c1' } },
+        {
+          step: 'open',
+          index: '0',
+          mode: 'append',
+          head: { kind: 'tool_call', id: 'k1', visibility, callId: 'c1', name: 'echo' },
+        },
         { step: 'fill', index: '0', seq: '0', chunk: '{"a":1}' },
         { step: 'close', index: '0', block: sealed },
         finish,
@@ -285,7 +296,7 @@ it('seals a tool_call close block when arguments differ from the fill', () => {
   })
 })
 
-it('rejects a close block that is not JSON and keeps the prior assembly', () => {
+it('rejects a close block that the part judge refuses and keeps the prior assembly', () => {
   const opened = assembleStream({ target: target(), steps: [open, fill0] })
   const prior = live(opened)
   const done = assembleStream({
@@ -293,8 +304,8 @@ it('rejects a close block that is not JSON and keeps the prior assembly', () => 
     from: prior,
     steps: [{ step: 'close', index: '0', block: { ...oneFill, text: 1n } }],
   })
-  expect(done).toEqual({ rejected: 'json', at: 0, assembly: prior })
-  if (!('rejected' in done)) throw new Error('expected json')
+  expect(done).toEqual({ rejected: 'block', detail: 'text', at: 0, assembly: prior })
+  if (!('rejected' in done)) throw new Error('expected block')
   expect(done.assembly).toBe(prior)
 })
 
@@ -321,22 +332,22 @@ it('ends when stopped before any block closes', () => {
   expect(later.assembly).toBe(stopped.ok)
 })
 
-it('rejects an open head that contains a bigint', () => {
+it('rejects an open head with a key that is not a head key of its kind, a bigint value included', () => {
   expect(
     assembleStream({
       target: target(),
       steps: [{ step: 'open', index: '0', mode: 'append', head: { ...head, extra: 1n } }],
     }),
-  ).toEqual({ rejected: 'json', at: 0, assembly: { phase: 'live' } })
+  ).toEqual({ rejected: 'step', detail: 'extra', at: 0, assembly: { phase: 'live' } })
 })
 
-it('rejects an open head that contains a function or a cycle', () => {
+it('rejects an open head that holds a function or a cycle under an extra key', () => {
   expect(
     assembleStream({
       target: target(),
       steps: [{ step: 'open', index: '0', mode: 'append', head: { ...head, extra: () => 1 } }],
     }),
-  ).toEqual({ rejected: 'json', at: 0, assembly: { phase: 'live' } })
+  ).toEqual({ rejected: 'step', detail: 'extra', at: 0, assembly: { phase: 'live' } })
   const cyclic: Record<string, unknown> = { ...head }
   cyclic.extra = cyclic
   expect(
@@ -344,18 +355,18 @@ it('rejects an open head that contains a function or a cycle', () => {
       target: target(),
       steps: [{ step: 'open', index: '0', mode: 'append', head: cyclic }],
     }),
-  ).toEqual({ rejected: 'json', at: 0, assembly: { phase: 'live' } })
+  ).toEqual({ rejected: 'step', detail: 'extra', at: 0, assembly: { phase: 'live' } })
 })
 
-it('trim keeps the closed part and records removed and reason', () => {
+it('trim keeps the part that closes after it and records removed and reason', () => {
   expect(
     assembleStream({
       target: target(),
       steps: [
         open,
         fill0,
-        close,
         { step: 'trim', index: '0', removed: '2', reason: 'budget' },
+        close,
         finish,
       ],
     }),

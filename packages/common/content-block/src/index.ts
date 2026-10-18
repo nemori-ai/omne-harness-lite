@@ -62,6 +62,8 @@ export type ContentBlockJudgment =
 
 interface BlockRule {
   readonly keys: readonly string[]
+  /** The key that carries the streamed body. A head carries every other key of the kind. */
+  readonly body?: 'text' | 'inline'
   readonly admit: (
     value: Record<string, unknown>,
     id: BlockId,
@@ -148,12 +150,38 @@ function admitFile(
 
 /** One table for legal keys and admission. `judgeContentBlock` does not keep a second list. */
 const BLOCKS: Readonly<Record<ContentBlockKind, BlockRule>> = {
-  text: { keys: ['kind', 'id', 'visibility', 'text'], admit: admitText },
-  thinking: { keys: ['kind', 'id', 'visibility', 'text'], admit: admitThinking },
-  voice: { keys: ['kind', 'id', 'visibility', 'mediaType', 'inline'], admit: admitVoice },
-  image: { keys: ['kind', 'id', 'visibility', 'mediaType', 'inline'], admit: admitImage },
+  text: { keys: ['kind', 'id', 'visibility', 'text'], body: 'text', admit: admitText },
+  thinking: { keys: ['kind', 'id', 'visibility', 'text'], body: 'text', admit: admitThinking },
+  voice: {
+    keys: ['kind', 'id', 'visibility', 'mediaType', 'inline'],
+    body: 'inline',
+    admit: admitVoice,
+  },
+  image: {
+    keys: ['kind', 'id', 'visibility', 'mediaType', 'inline'],
+    body: 'inline',
+    admit: admitImage,
+  },
   file: { keys: ['kind', 'id', 'visibility', 'storage', 'key', 'mediaType'], admit: admitFile },
 }
+
+function headKeys(kind: ContentBlockKind): readonly string[] {
+  const { keys, body } = BLOCKS[kind]
+  return Object.freeze(keys.filter(key => key !== body))
+}
+
+/**
+ * The keys of each kind other than its body field: what an opening head can carry. Derived from
+ * the block table, so it never drifts from what `judgeContentBlock` admits.
+ */
+export const CONTENT_BLOCK_HEAD_KEYS: Readonly<Record<ContentBlockKind, readonly string[]>> =
+  Object.freeze({
+    text: headKeys('text'),
+    thinking: headKeys('thinking'),
+    voice: headKeys('voice'),
+    image: headKeys('image'),
+    file: headKeys('file'),
+  })
 
 const VISIBILITY_KEYS = ['toHuman', 'toModel'] as const
 
@@ -162,7 +190,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isContentBlockKind(kind: string): kind is ContentBlockKind {
-  return (CONTENT_BLOCK_KINDS as readonly string[]).includes(kind)
+  return CONTENT_BLOCK_KINDS.some(known => known === kind)
+}
+
+function isBlockId(id: string): id is BlockId {
+  return id.length > 0
 }
 
 function hasUnknownKey(value: Record<string, unknown>, legal: readonly string[]): boolean {
@@ -176,17 +208,35 @@ function visibilityOf(value: unknown): Visibility | undefined {
   return { toHuman: value.toHuman, toModel: value.toModel }
 }
 
+export type BlockIdentityRejection = 'extra' | 'id' | 'visibility'
+
+export type BlockIdentityJudgment =
+  | { readonly ok: { readonly id: BlockId; readonly visibility: Visibility } }
+  | { readonly rejected: BlockIdentityRejection }
+
+/**
+ * Judge the `id` and `visibility` of a block, or of any part that is a block. Other keys are not
+ * looked at. An unknown key inside `visibility` is `extra`, and it is reported before a bad `id`.
+ * The returned `visibility` is a new object.
+ */
+export function judgeBlockIdentity(value: unknown): BlockIdentityJudgment {
+  if (!isRecord(value)) return { rejected: 'id' }
+  if (isRecord(value.visibility) && hasUnknownKey(value.visibility, VISIBILITY_KEYS)) {
+    return { rejected: 'extra' }
+  }
+  if (typeof value.id !== 'string' || !isBlockId(value.id)) return { rejected: 'id' }
+  const visibility = visibilityOf(value.visibility)
+  if (visibility === undefined) return { rejected: 'visibility' }
+  return { ok: { id: value.id, visibility } }
+}
+
 /** Admit one closed content block. Tool calls, tool results, and growing blocks are rejected. */
 export function judgeContentBlock(value: unknown): ContentBlockJudgment {
   if (!isRecord(value) || typeof value.kind !== 'string') return { rejected: 'kind' }
   if (!isContentBlockKind(value.kind)) return { rejected: 'kind' }
   const rule = BLOCKS[value.kind]
   if (hasUnknownKey(value, rule.keys)) return { rejected: 'extra' }
-  if (isRecord(value.visibility) && hasUnknownKey(value.visibility, VISIBILITY_KEYS)) {
-    return { rejected: 'extra' }
-  }
-  if (typeof value.id !== 'string' || value.id.length === 0) return { rejected: 'id' }
-  const visibility = visibilityOf(value.visibility)
-  if (visibility === undefined) return { rejected: 'visibility' }
-  return rule.admit(value, value.id as BlockId, visibility)
+  const identity = judgeBlockIdentity(value)
+  if ('rejected' in identity) return { rejected: identity.rejected }
+  return rule.admit(value, identity.ok.id, identity.ok.visibility)
 }

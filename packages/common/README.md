@@ -17,9 +17,9 @@
 | `json-text` | 读取函数已实现，#242 已接受。`judgeJsonValue` 已于 2026-10-18 在 #373 接受；`writeJsonText` 依 RFC-0010（2026-10-18 接受）加入。叶子名在本分支确定为 `json-text`。#242 当时没有裁定名字，并禁止从旧目录猜测 | 严格 JSON 文本读取、值树判定、值树原样写出 | 后续的配置读取、协议解码与持久记录读取。新增的两个函数尚无生产消费者，第一个是 message（K2b） |
 | `legal-identity` | 公开入口已实现。精确文本归成员 README。#243 已合并进 `integration/legacy-refactor` | 合法身份文本、相等、租户组合 | `packages/identity/identity` 与 `packages/session/session` |
 | `utc-instant` | 公开行为已实现。revision 1 整卡已由 PanQiWei 于 2026-10-14 接受并关闭，见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996) | 时间点、SI 时长、唯一比较 | `packages/identity/identity` 与 `packages/tool/tool` |
-| `content-block` | 纯校验已导出 | 已封闭的文本、思考、语音、图、文件 | 模型、工具、会话、请求投影 |
-| `message` | 解析和相等已导出。不铸造身份 | 事实记录中的消息字段 | 会话、请求投影、模型 |
-| `stream-arrival` | 步骤校验已导出 | 开块、填充、封块、削减、结束 | 模型、工具、会话 |
+| `content-block` | 纯校验已导出，另导出块身份与标注的判定、开块头键表 | 已封闭的文本、思考、语音、图、文件，以及块身份与标注 | 消息、流式到达、模型、工具、会话、请求投影 |
+| `message` | 解析和相等已导出，另导出四种工具部件与工具消息的闭合形状及其判定。不铸造消息身份和块身份 | 事实记录中的消息字段，含工具调用、两个调用变体与工具结果标记 | 流式到达、会话、请求投影、模型、工具 |
+| `stream-arrival` | 步骤校验与折叠已导出，开块头键闭合，工具调用须显式完整封口 | 开块、填充、封块、削减、结束 | 模型、工具、会话 |
 | `call-account` | 快照准入、修订替换、来源小计和应付金额已导出 | 一次模型调用或工具执行的调用账目 | 模型调用、会话 |
 | `operation-result` | 公开入口已实现，零依赖。形状由 [#248](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639) 接受，拆分依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851) | 带值成功、无值确认与失败两种操作结果。失败词汇 `F` 归调用方 | `tool-contract`、`tool`、`tool-cordis-contract`、`model-contract`。当前轨道没有生产调用点。它们合入本轨道时按公开入口导入本成员，不复制结果类型 |
 

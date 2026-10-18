@@ -312,7 +312,7 @@ COMMON-T02 与 COMMON-T03 是现行契约，锚点留在本节。COMMON-T01 与 
 <a id="common-t02"></a>
 ### COMMON-T02 内容块的精确契约承接
 
-本项是现行契约。`packages/common/content-block` 发布已经封闭的文本、思考、语音、图和文件，以及块身份、可见性和媒体类型。工具调用、工具结果和仍在增长的块不是这个成员的值。`tool_call` 和 `tool_result` 由工具领域发布。块上或 `visibility` 里的未知键得到 `extra`。成功值只含该种类的已知键。
+本项是现行契约。`packages/common/content-block` 发布已经封闭的文本、思考、语音、图和文件，以及块身份、可见性和媒体类型。工具调用、工具结果和仍在增长的块不是这个成员的值。`tool_call` 与 `tool_result` 部件的形状由 `packages/common/message` 发布，工具领域产出工具结果的内容，不发布消息部件。块上或 `visibility` 里的未知键得到 `extra`。成功值只含该种类的已知键。成员另导出块身份与标注的判定 `judgeBlockIdentity`，以及每种内容块的开块头键表 `CONTENT_BLOCK_HEAD_KEYS`。消息字段与流式到达判定工具部件和开块头时直接使用它们，不复制。
 
 ```mermaid
 flowchart TD
@@ -323,8 +323,8 @@ flowchart TD
   block --> image["image 图"]
   block --> file["file 文件"]
   outside["不进入这个成员"]
-  outside --> call["工具调用"]
-  outside --> result["工具结果"]
+  outside --> call["工具调用部件（形状归 message）"]
+  outside --> result["工具结果部件（形状归 message）"]
   outside --> growing["仍在增长的块"]
 ```
 
@@ -335,13 +335,14 @@ flowchart TD
 <a id="common-t03"></a>
 ### COMMON-T03 消息形状与消费行为的承接
 
-本项是现行契约。`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。消息值是 `{ id, role, blocks }`。`id` 是 `parseMessageId` 接受的字符串。`role` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction` 之一。`blocks` 按到达顺序，不能为空。部件是已封闭内容块，或带非空 `callId` 的 `tool_call`、`tool_result`。`SystemMessage` 由请求组装发布，不进该成员。会话在受理进日志时铸造身份并写日志。该成员不铸造。
+本项是现行契约。`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。消息值是 `{ id, role, blocks }`。`id` 是 `parseMessageId` 接受的字符串。`role` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction` 之一。`blocks` 按到达顺序，不能为空。部件是已封闭内容块，或四种工具部件之一。工具部件与内容块同形，带块身份 `id` 和块标注 `visibility`，键闭合，不保留其他自有键；块身份与标注的判定来自 `content-block` 的 `judgeBlockIdentity`。`tool_call` 是参数收齐并解码的调用，`arguments` 是值树，由 `json-text` 的 `judgeJsonValue` 判定并保存冻结副本。`tool_call_incomplete` 是参数没收齐的调用，`partial` 是原样累计文本，`visibility` 两位都为 false，留在日志里备查，不参与配对。`tool_call_unparsed` 是参数收齐但不能解码的调用，`raw` 是原样累计文本，登记调用身份，不执行。两个变体的 `callId` 非空，`name` 是任意字符串，任何字段不用 `null`。`tool_result` 是不嵌套内容的关联标记，不带结果状态，正文是同一消息里紧随其后的已封闭内容块。`tool` 角色的消息第一块是标记，其余块是内容块，恰有一个标记。标记只出现在 `tool` 角色的消息里，三种调用部件只出现在 `assistant` 角色的消息里。块身份在整条消息内唯一。调用与结果的配对完整性、半截调用出现的条件不在该成员判定。工具部件在流上的开块头与封口规则归 `stream-arrival` 成员说明，承接见 [STREAM-T01](runtime/streaming-and-consumption.md#stream-t01)。`SystemMessage` 由请求组装发布，不进该成员。会话在受理进日志时铸造身份并写日志。该成员不铸造。
 
 ```mermaid
 flowchart TD
   log["会话日志"] --> fact["事实记录"]
   fact --> field["消息字段"]
   field --> roles["六种日志角色"]
+  field --> parts["内容块与四种工具部件"]
   assembly["请求组装"] --> system["SystemMessage"]
   session["会话"] -->|"受理进日志时铸造身份"| field
   member["packages/common/message"] -->|"发布消息值、解析与相等"| field

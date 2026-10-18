@@ -37,3 +37,14 @@ it('compares parsed ids by exact text', () => {
   expect(messageIdEquals(left.value, same.value)).toBe(true)
   expect(messageIdEquals(left.value, right.value)).toBe(false)
 })
+
+it('exports exactly the message runtime names, with no mint function and no tool-part helper', async () => {
+  const root = (await import('@omne-harness/message')) as Record<string, unknown>
+  expect(Object.keys(root).sort()).toEqual([
+    'LOG_MESSAGE_ROLES',
+    'judgeMessage',
+    'judgePart',
+    'messageIdEquals',
+    'parseMessageId',
+  ])
+})
