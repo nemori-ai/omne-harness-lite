@@ -6,7 +6,7 @@ One step of a streaming delivery. The steps are open, fill, close, trim, and fin
 
 ## Responsibility and status
 
-A step belongs to one streaming delivery. It is not an inbound intake and it is not a Cordis dispatch. Model and tool keep their own send and execution behavior and consume this vocabulary.
+A step belongs to one streaming delivery. It is not an inbound intake and it is not a Cordis dispatch. The code that sends a request and the code that runs a tool keep their own behavior and consume this vocabulary.
 
 The package does not assign indexes, store a log, or carry usage and cost bodies. `judgeStreamArrival` checks that one step name and one index are present. It does not order steps. `assembleStream` folds one target's steps into a live assembly or an ended terminal. Index, repeat, and continuation rules are in Contracts. It does not reorder.
 
@@ -48,7 +48,15 @@ There is no Cordis entry.
 
 A repeat is checked before order. The identity of a fill is the block index plus `seq`. Other steps use the step name plus the block index. `finish` has no index in its identity. The same identity and the same content is a no-op, and the text is not doubled. The same identity with different content is `conflict`. A different open is `index`.
 
-`from` must be an earlier return for the same `id` and `role`. After a terminal, replaying an accepted step with the same content keeps that terminal. A new step is `late`. An open head that is not JSON is `json`. `assembleStream` copies `id`, `role`, and the JSON head at admission. A later edit of the caller objects does not change a returned assembly. A hand-built `{ phase: 'live' }` is rejected. A `stopped` end is a terminal even when no block has closed. A later close or finish is `late`. `close` may include `block`. Absent means the accumulated fragments are sealed. Present means that JSON value is the sealed part. If its text or inline body disagrees with the accumulated body, the rejection is `conflict` and the previous assembly stays.
+`from` must be an earlier return for the same `id` and `role`. After a terminal, replaying an accepted step with the same content keeps that terminal. A new step is `late`. `assembleStream` copies `id`, `role`, and the head at admission. A later edit of the caller objects does not change a returned assembly. A hand-built `{ phase: 'live' }` is rejected. A `stopped` end is a terminal even when no block has closed. A later close or finish is `late`. A step that has a block, and a head, is judged before it is copied, as the next paragraphs say.
+
+An open head has `kind`, `id`, and `visibility`. A `tool_call` head also has `callId`, which is not empty, and `name`, which is any string and may be empty. A `tool_result` head also has `callId`. A voice or image head may have `mediaType`, and a file head may have `storage`, `key`, and `mediaType`. These keys come from `CONTENT_BLOCK_HEAD_KEYS` of content-block, and their values must be text. A head has no body field, and its `kind` is never a variant name. `judgeBlockIdentity` of content-block judges `id` and `visibility`, and the head keeps the `visibility` that it returns. A head that breaks a rule is `step`. `detail` is `json` (an accessor, a non-enumerable key, or a prototype that is not plain), `kind`, `extra` (an unknown key, a body field, a key of another kind, or an unknown key inside `visibility`), `id`, `visibility`, or the name of a text key. The head is judged before it is copied, so a deep value in a head is refused at its key and does not throw.
+
+`close` may include `block`. `judgePart` of message judges the block before the step is looked at. A refusal is `block`, and `detail` is the rejection of `judgePart`. Absent means the head and the accumulated text are sealed. The sealed part must equal the head in every key: `kind`, `id`, `visibility`, and each text key (`callId`, `name`, `mediaType`, `storage`, `key`). Any difference is `conflict`. If its text or inline body disagrees with the accumulated text, the rejection is `conflict`. In each of these cases the previous assembly stays.
+
+A `tool_call` closes only with an explicit block that holds a whole `tool_call`. A close without `block` is `block`, and `detail` is one of `callId`, `name`, `arguments`, taken from `judgePart`. A head always has a `callId` that is not empty, so the details that arrive are `name` (an empty name) and `arguments` (the accumulated text is not a value tree). This package does not compare `arguments` with the accumulated text: the settling side of the stream checks that. A `tool_call` block can also close with a `tool_call_unparsed` part. That is the one case where the kind differs from the head. The other keys must equal the head and `raw` must equal the accumulated text, or the rejection is `conflict`. A `tool_call_incomplete` part is never sealed: the rejection is `block` with `detail` `incomplete` on a `tool_call` head, and `conflict` on a head of another kind. On a head of another kind, a `tool_call_unparsed` part is `conflict` too. A `tool_call` block that has a trim record cannot close as a `tool_call` or as a `tool_call_unparsed`: the rejection is `block` with `detail` `trimmed`. The text that is left may decode, but that does not show that the model had finished. A `trim` reaches an open block only. A `trim` on a closed block is `closed`, the same as a `fill`, so a sealed part never gains a trim record.
+
+The terminal of a `stopped`, `cancelled`, or `failed` end holds the closed parts and the trim records only, and it is not judged as a message. A `tool_call` that is still open is not in it. `finish` is `open` while a block is open. The settling side of the stream takes the closed parts, adds the incomplete call parts that it makes, and judges the whole message itself. `tool_result` has no append form, so a marker arrives as one whole block.
 
 ## Design
 
@@ -60,8 +68,8 @@ The package reads no environment. The emitting runtime assigns the index.
 
 ## Verification
 
-`pnpm --filter @omne-harness/stream-arrival test` runs `tests/public-entry.spec.ts` and `tests/assembly.spec.ts`. Those files are the unit tests and the contract tests. They check the step names, index rejection, and the assembly terminals, including a repeated delivery, a truncated delivery, a late step, and a caller cancel. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
+`pnpm --filter @omne-harness/stream-arrival test` runs `tests/public-entry.spec.ts`, `tests/assembly.spec.ts`, and `tests/tool-call.spec.ts`. Those files are the unit tests and the contract tests. They check the step names, index rejection, and the assembly terminals, including a repeated delivery, a truncated delivery, a late step, and a caller cancel. `tool-call.spec.ts` checks the closed head, the rules of the explicit close, the two call variants, the trim rule, deep values, and the step fingerprint. They use the real message, content-block, and json-text packages. This package holds pure values, so it has no storage integration test and no user-journey end-to-end test.
 
 ## Maintenance
 
-Execution facts stay in model and tool.
+Execution facts stay with the code that sends and runs. The settling side of a stream makes the incomplete call parts, and this package does not.

@@ -346,6 +346,9 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../content-block
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../json-text
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -371,6 +374,12 @@ importers:
 
   packages/common/stream-arrival:
     dependencies:
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../content-block
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../json-text
       '@omne-harness/message':
         specifier: workspace:*
         version: link:../message
