@@ -283,13 +283,15 @@
 > **文本 · 思考 · 语音 · 图 · 文件 · 工具调用 · 工具结果**
 > （工具结果**自己又是一串块**，所以工具也能返回图）。
 > 五种已封闭块由 `packages/common/content-block` 发布：文本、思考、语音、图、文件。
-> `tool_call` 和 `tool_result` 由工具领域发布。
+> `tool_call` 和 `tool_result` 两种部件的形状由 `packages/common/message` 发布。
+> 工具领域产出工具结果的内容，不发布消息部件。
 >
 > **EN**: **A message holds a number of blocks, not a span of text.** The kinds are
 > text, thinking, voice, image, file, tool call and tool result — **a tool result being
 > itself a series of blocks**, which is how a tool can return an image.
 > `packages/common/content-block` publishes the five closed kinds: text, thinking, voice, image, and file.
-> The tool domain publishes `tool_call` and `tool_result`.
+> `packages/common/message` publishes the shapes of the `tool_call` and `tool_result` parts.
+> The tool domain produces the content of a tool result. It does not publish message parts.
 
 - **形态**：对象
 - **出处**：[PF-009 §4 消息的内容是一串块](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9）

@@ -24,7 +24,7 @@
 
 这里仅镜像具名目标。提供者、适配、实际 API 和实现尚未采用，成员目录存在不授权开包。MODEL-E01 和在途保留缺项沿[问题登记](../../.meta_harness/design/product/runtime-context/design.md#未决问题与待定事项)接续。
 
-[九条产品旅程](../../.meta_harness/design/product/runtime-context/design.md#关键用户旅程)及[关键流程](docs/key-flows.md)连接 CAP-RC01 至 CAP-RC10 与两成员的持续验证场景。转换件共同技术契约仍归 [Model](../model/model/docs/profile-and-modality.md#转换件的共同契约)，本组只承担接纳投影、表示采用与请求计算责任。阶段清单待用户选择，目标成员目录与候选通过检查均不授予阶段支持。
+[九条产品旅程](../../.meta_harness/design/product/runtime-context/design.md#关键用户旅程)及[关键流程](docs/key-flows.md)连接 CAP-RC01 至 CAP-RC10 与两成员的持续验证场景。转换件共同技术契约仍归 [Model](../model/model-contract/SPEC.md#转换件的共同契约)，本组只承担接纳投影、表示采用与请求计算责任。阶段清单待用户选择，目标成员目录与候选通过检查均不授予阶段支持。
 
 
 工程关系见[组设计](docs/architecture.md)。成员目标已有文档，不等于真实包；公开入口、安装闭包和提供者映射尚待设计。

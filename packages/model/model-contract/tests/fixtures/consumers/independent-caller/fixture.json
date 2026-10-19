@@ -1,0 +1,14 @@
+{
+  "role": "independent-caller",
+  "description": "A caller that uses the Model call surface without a Session, a Run or an Agent",
+  "dependencies": [
+    "@omne-harness/content-block",
+    "@omne-harness/legal-identity",
+    "@omne-harness/model-contract",
+    "@omne-harness/operation-result"
+  ],
+  "forbidden": [
+    "@omne-harness/model",
+    "@omne-harness/model-host-local"
+  ]
+}

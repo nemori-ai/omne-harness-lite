@@ -1,0 +1,14 @@
+{
+  "role": "result-consumer",
+  "description": "The consumer that owns a result: it reads an exact version in pages and hands it off with evidence",
+  "dependencies": [
+    "@omne-harness/content-block",
+    "@omne-harness/legal-identity",
+    "@omne-harness/model-contract",
+    "@omne-harness/operation-result"
+  ],
+  "forbidden": [
+    "@omne-harness/model",
+    "@omne-harness/model-host-local"
+  ]
+}

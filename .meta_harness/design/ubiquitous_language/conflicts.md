@@ -288,3 +288,11 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **反例与影响**：把尝试开始写成提醒，模型消息投影便会收进技术事实；若只在发送时删掉它，依赖提醒认定尝试开始的恢复／结算读者仍耦合于错误表示。涉及PF-012／PF-009／PF-010的相关规则与实际消息、尝试治理、组装、模型调用消费者；源码观察不表示已运行或修复。
 - **负责与闭合条件**：产品定义拥有者同步尝试开始事实与模型感知要求的边界及适用流程、验收和出处；技术接口拥有者分别落实事实表示、投影与原调用恢复／结算来源并迁移消费者。闭合前不采用“每次尝试开始必须向模型追加提醒”的旧读法，不自行删除真实业务结果或风险感知要求。
 - **状态**：产品表达已同步（PF-012 rev24及S103、PF-010 rev8），独立产品复核已完成限定范围；自动尝试提醒的产品歧义闭合。技术消费者迁移尚未实施，必须沿[候选整改设计](../architecture/session-agent-runtime-phase1/boundaries.md)及各实际承诺完成，不据此声称源码已修复。
+
+### C-54：工具调用与工具结果部件由谁发布
+
+- **类型**：定义打架。2026-10-17 在 #342 的 Model 主干评审 R-2（共享 ToolCallPart）时发现。不新增词条。
+- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。[COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02) 有同一句。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model SPEC](../../../packages/model/model-contract/SPEC.md) 第 38 行写调用建议采用 common/message 的 ToolCallPart。Tool 主干确认 Tool 不拥有面向模型的消息类型，[会话日志事件 SE10](../../../packages/session/session/docs/session-log-events.md) 写 ToolMessage 形状归消息契约。
+- **反例与影响**：按旧句，工具领域要发布消息部件，Tool 就得依赖消息模型，而 Tool 目前不导入 message。按 message 一方，消息部件与工具领域没有依赖。两种读法的写者与依赖方向相反。
+- **负责与闭合条件**：负责人 PanQiWei 于 2026-10-17 指定 Model 主干更正统一语言一方。词条已改为两种部件的形状由 `packages/common/message` 发布，工具领域产出工具结果内容。COMMON-T02 属架构区正文，由其拥有者另行同步。
+- **状态**：统一语言一方已更正。COMMON-T02 未同步，本冲突保持打开，直到架构正文同步。

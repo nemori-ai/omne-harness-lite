@@ -1,55 +1,41 @@
 # 模型调用能力组
 
-正式维护位置已具名，当前仍无真实workspace成员、源码或运行实例。以下为文档目标及待审细化，不授予实现或接受。
+本组拥有模型档案、完整请求校验、真实发出、原输出、结果保管及费用事实的工程组织。产品 CAP-MD01 至 CAP-MD13 已全部接受并承诺在 0.1.0 交付，不表示它们已交付；源码实现与运行验证分别判断。
 
-## 责任与范围
+## 当前状态
 
-工程范围由[领域责任](../../docs/domains/model-invocation/README.md)与[产品正文](../../.meta_harness/design/product/model-invocation/design.md)约束。本组拥有成员分解、公开依赖、组协作及组合验证导航。
+状态分四类，各类只说明自己的范围。
+
+1. 已有：凭据引用、解析与本地保管。凭据的纯契约（引用、查询、存在性与解析结果、`CredentialPort`、持有者比较函数）在 [model-contract](model-contract/README_ZH.md) 的根入口，声明在 `src/credential.ts` 与 `src/credential-values.ts`。存在性与解析的判定在 [model](model/README_ZH.md) 的根入口。本地保管（文件保管库）与装载它的 `LocalCredentialPlugin` 在 [model-host-local](model-host-local/README_ZH.md) 的根入口与 `./cordis` 入口。Cordis 凭据服务定义 `ModelCredentialService` 在 [model-cordis-contract](model-cordis-contract/README_ZH.md) 的 `./cordis` 入口。局限：保管库只在本机文件系统上验证，并要求调用方与保管库在同一进程共享 legal-identity 实例；凭据服务不核验调用方资格，该项在 [model-cordis-contract 的 SPEC](model-cordis-contract/SPEC.md#凭据服务)登记为未决。
+2. 本次实现的两个公开契约。model-contract 的根入口导出 151 个类型与 18 个运行值，`./testing` 入口导出受控替代提供者、替代传输与提供者符合性断言，共 27 个名字。model-cordis-contract 的根入口导出 8 个登记类型，`./cordis` 入口导出 42 个名字与 `Context`、`Events` 增补。两个包都有导出清单比对、类型探针、安装闭包检查与角色夹具，model-cordis-contract 另有对真实 Cordis 的登记与撤除测试。局限：替代提供者的结果由脚本给出，不证明生产提供者；这些检查证明契约面，不证明任何运行实现。
+3. 尚未实现或验证：`executeModel`、`createModelRuntime` 与独立能力的构造函数（model 目前只有凭据判定与 `deliver`）；model-host-local 的时钟、实例调度、目录装载与托管运行插件；pi 传输、厂商家族、tokenizer 引擎等其他提供者。
+4. 技术设计：非 pi-ai 技术设计已接受。pi-ai 相关细化仍为候选。
 
 ## 成员与依赖
 
-目标成员的职责、状态和读取顺序从[model 入口](model/README.md)进入，再按任务核对下面的规格与专题。
-
-
-状态：能力组整体设计仍待确认，但 Issue 279 的凭据引用与发送时解析已由 D-04 接受，并写入 [model/model 的 SPEC](model/SPEC.md)。这里维护目标能力组的正式文档；组不是 workspace 成员、runtime 或进程，没有组级统一 SPEC。
-
-### 成员与边界
-
-| 目标成员 | 工程责任 | 阅读入口 |
+| 成员 | 责任与实际状态 | 阅读入口 |
 | --- | --- | --- |
-| model/model | 档案与模态能力、调用、真实发出、原结果、ACK 与费用责任 | [长期规格](model/SPEC.md) |
+| model-contract | 已实现：根入口 151 个类型与 18 个运行值，`./testing` 入口 27 个名字；拥有共同协议、公开值与端口。运行实现与真实提供者不在本包 | [成员入口](model-contract/README_ZH.md)、[行为规格](model-contract/SPEC.md) |
+| model-cordis-contract | 已实现：根入口 8 个登记类型，`./cordis` 入口 42 个名字（含凭据服务定义）；拥有 Cordis 定义和登记协议 | [成员入口](model-cordis-contract/README_ZH.md)、[行为规格](model-cordis-contract/SPEC.md) |
+| model | 已接受设计、已有骨架；拥有可复用执行与协调设计；已有凭据存在性与解析的判定和 `deliver`；执行工厂与托管运行尚未实现 | [成员入口](model/README_ZH.md)、[实现规格](model/SPEC.md) |
+| model-host-local | 目前只承载本地凭据保管（文件保管库与 `LocalCredentialPlugin`），其余宿主能力尚未实现 | [成员入口](model-host-local/README_ZH.md)、[行为规格](model-host-local/SPEC.md) |
 
-成员可在内部按档案、转换、执行、保管与结算组织。具名提供者或平台适配只有在独立消费、依赖隔离、替换或验证收益明确后才成为兄弟成员；目录大小或每个内部接口不自动决定拆包。Issue 279 的凭据引用与发送时解析已按 D-04 接受，留在 `model/model` 内；切分边界见[领域架构](../../docs/domains/model-invocation/architecture.md#凭据引用与保管)。本交付不新增兄弟成员。
+目标分为 `model-contract`、`model-cordis-contract`、可复用实现 `model` 和单机宿主 `model-host-local`，再组合已采用 pi 技术栈的共享传输、八个厂商家族及两类 tokenizer 引擎包。两个契约成员已有源码与测试，文档已落位；model 保留可复用实现设计并暂存宿主装配设计；model-host-local 已承接本地凭据保管，不保留聚合安装门面。完整职责、共同依赖前置和初始化条件见[组架构](docs/architecture.md#成员与新增条件)。具体型号在家族内独立绑定和验证。
 
-模型成员消费 identity、assets、context 的公开保证及显式存储依赖，不导入 Agent、Session、SDK 或应用私有实现。发起及消费协调者通过模型公开契约工作。Cordis 装配入口与独立入口分开；本候选不定义未经接受的导出或 API。
+## 责任与范围
 
-关键旅程及跨边界顺序见[关键流程](model/docs/key-flow.md)，能力、规格与持续验证的对应入口见[成员对应表](model/SPEC.md#能力旅程与持续验证入口)。
-
-### 协作和组合验证
-
-档案供给和输入组装在同次采用边界一致，模型执行保存真实发出和原结果，消费者接好后确认，模型完成清理及未结费用责任。跨边界技术协议由实际协调者拥有，不能在组页再写第二份状态机。
-
-成员验证首内容、重试、ACK 与清理行为。Context 和发起协调者验证最终输入、模态及限额。身份和接入验证请求、读取、确认及外传资格。组合验证覆盖替换消费者、持久承接、提交未知和迟到成本；单个假适配器通过不能代替真实传输及存储证据。
-
-### 维护
-
-改共同承诺时同步实际提供者、消费协调者和验证资源。改提供者只补自身真实限制，不能降低共同规则。新增业务、秘密绑定或通道时先取得采用依据，不将旧单通道字段扩成全系统约束。
-
-长期行为归成员[规格](model/SPEC.md)及其专题，领域分责归[领域架构](../../docs/domains/model-invocation/architecture.md)，用户后果归[产品设计](../../.meta_harness/design/product/model-invocation/design.md)。本批不实施成员重组，也不生成实际包。
-
-
-工程关系见[组设计](docs/architecture.md)。成员目标已有文档，不等于真实包；公开入口、安装闭包和提供者映射尚待设计。
+[产品设计](../../.meta_harness/design/product/model-invocation/design.md)定义承诺，[领域架构](../../docs/domains/model-invocation/architecture.md)划分业务责任，[组架构](docs/architecture.md)决定工程组织。进入成员后，先看[内部架构](model/docs/architecture.md)与[流程](model/docs/flows.md)，再按需读对象模型、公开接口设计、SPEC 和 Cordis 装配。
 
 ## 关键协作
 
-档案、执行、转换、保管和费用在目标 model/model 内组织。request-context 负责实际表示、预算和压缩；Session 保存选择；发起和消费方负责原用途，Model 不反向导入其私有实现。
-
-流程从[组协作入口](docs/key-flows.md)导航到协调成员。
+Context 选择表示、组装、分配预算及压缩，在请求前用 Model 提供的计量能力判断输入大小。Model 固定参数与供应商采用，在实际发送前核实媒体并编码最终 payload，不计量输入；上游报告输入超限时，调用以 input-over-limit 收场。调用方保存选择；原发起者保存用途和消费位置。Model 不反向依赖请求组装者、原发起者或消费者拥有者的实现。
 
 ## 组合验证
 
-Model 成员验证档案、真实发出、首内容、重试、ACK、清理和费用。与 Context、原消费方、身份及存储组合验证最终输入同次采用、消费者换代、提交未知、迟到费用及普通耐久。真实提供者、传输与存储执行证据尚缺。
+[能力覆盖](model-contract/verification/README.md#model-产品能力与设计覆盖)连接产品承诺、内部 module、流程和反例。跨领域验证覆盖同次输入采用、消费者换代、提交未知、首内容、不重复发送、ACK 清理、迟到费用及普通断电耐久。单个模拟 adapter 通过不代替真实供应商和存储证据。
 
 ## 维护
 
-修改行为同步成员SPEC、原具名专题、实际消费者及相称验证；修改工程分解同步组导航和登记。具名维护人尚缺，由项目负责人指定；职责拥有者不等于已派发个人。产品、组工程和成员机制分别维护唯一正文。
+行为变更回成员 SPEC，工程分解回组架构，用户后果回产品。提供者记录具体支持范围和验证，不能降低共同契约。组页不另建状态机、服务定义或第二套错误集合。
+
+凭据切片的当前入口见[判定入口](model/docs/public-api.md#已实现的凭据入口)与[本地保管入口](model-host-local/docs/public-api.md)。model 源码与包清单都不含 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口。model 的安装闭包报告已产生（`forbidden` 为空、场景运行通过），范围见[组架构](docs/architecture.md#凭据切片的现有装配边界)。

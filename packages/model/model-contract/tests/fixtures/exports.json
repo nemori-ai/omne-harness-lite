@@ -1,0 +1,282 @@
+{
+  "package": "@omne-harness/model-contract",
+  "source": "docs/public-api.md",
+  "expectedPending": 0,
+  "entries": {
+    ".": {
+      "chapters": [
+        {
+          "title": "根入口的值与请求",
+          "names": [
+            { "name": "Identity", "kind": "type", "pending": false },
+            { "name": "ModelCallId", "kind": "type", "pending": false },
+            { "name": "DispatchId", "kind": "type", "pending": false },
+            { "name": "ModelInstanceId", "kind": "type", "pending": false },
+            { "name": "ModelOperationId", "kind": "type", "pending": false },
+            { "name": "ResultVersion", "kind": "type", "pending": false },
+            { "name": "OutputCursor", "kind": "type", "pending": false },
+            { "name": "ReadId", "kind": "type", "pending": false },
+            { "name": "Revision", "kind": "type", "pending": false },
+            { "name": "Adoption", "kind": "type", "pending": false },
+            { "name": "ConsumerRef", "kind": "type", "pending": false },
+            { "name": "ActorRef", "kind": "type", "pending": false },
+            { "name": "Access", "kind": "type", "pending": false },
+            { "name": "CallAccess", "kind": "type", "pending": false },
+            { "name": "Mutation", "kind": "type", "pending": false },
+            { "name": "Parameter", "kind": "type", "pending": false },
+            { "name": "ToolDeclaration", "kind": "type", "pending": false },
+            { "name": "Supplier", "kind": "type", "pending": false },
+            { "name": "FixedModelRequest", "kind": "type", "pending": false },
+            { "name": "ResultCapacity", "kind": "type", "pending": false },
+            { "name": "Admit", "kind": "type", "pending": false },
+            { "name": "ModelIdentityKey", "kind": "type", "pending": false },
+            { "name": "ModelIdentityRejection", "kind": "type", "pending": false },
+            { "name": "MODEL_IDENTITY_MAX_LENGTH", "kind": "value", "pending": false },
+            { "name": "MODEL_IDENTITY_PREFIXES", "kind": "value", "pending": false },
+            { "name": "decodeModelCallId", "kind": "value", "pending": false },
+            { "name": "decodeDispatchId", "kind": "value", "pending": false },
+            { "name": "decodeModelInstanceId", "kind": "value", "pending": false },
+            { "name": "decodeModelOperationId", "kind": "value", "pending": false },
+            { "name": "decodeReadId", "kind": "value", "pending": false },
+            { "name": "decodeRevision", "kind": "value", "pending": false },
+            { "name": "decodeResultVersion", "kind": "value", "pending": false },
+            { "name": "decodeOutputCursor", "kind": "value", "pending": false },
+            { "name": "compareRevisions", "kind": "value", "pending": false },
+            { "name": "compareOutputCursors", "kind": "value", "pending": false }
+          ]
+        },
+        {
+          "title": "结果、失败和状态",
+          "names": [
+            { "name": "ModelFailure", "kind": "type", "pending": false },
+            { "name": "Reply", "kind": "type", "pending": false },
+            { "name": "ToolSuggestion", "kind": "type", "pending": false },
+            { "name": "ModelBlock", "kind": "type", "pending": false },
+            { "name": "ModelFaultCause", "kind": "type", "pending": false },
+            { "name": "OverLimitMetric", "kind": "type", "pending": false },
+            { "name": "ModelFault", "kind": "type", "pending": false },
+            { "name": "Termination", "kind": "type", "pending": false },
+            { "name": "Settlement", "kind": "type", "pending": false },
+            { "name": "CustodyState", "kind": "type", "pending": false },
+            { "name": "CallState", "kind": "type", "pending": false },
+            { "name": "ControlState", "kind": "type", "pending": false },
+            { "name": "Lookup", "kind": "type", "pending": false },
+            { "name": "Admission", "kind": "type", "pending": false },
+            { "name": "DurableEvidence", "kind": "type", "pending": false },
+            { "name": "Handoff", "kind": "type", "pending": false },
+            { "name": "AckInput", "kind": "type", "pending": false },
+            { "name": "AckReceipt", "kind": "type", "pending": false }
+          ]
+        },
+        {
+          "title": "普通调用面与实例观察",
+          "names": [
+            { "name": "GrowingContentKind", "kind": "type", "pending": false },
+            { "name": "VisibleBlock", "kind": "type", "pending": false },
+            { "name": "Snapshot", "kind": "type", "pending": false },
+            { "name": "Observation", "kind": "type", "pending": false },
+            { "name": "ModelHandle", "kind": "type", "pending": false },
+            { "name": "LiveRoute", "kind": "type", "pending": false },
+            { "name": "ResultPage", "kind": "type", "pending": false },
+            { "name": "ReadState", "kind": "type", "pending": false },
+            { "name": "ReadStart", "kind": "type", "pending": false },
+            { "name": "DispatchRecord", "kind": "type", "pending": false },
+            { "name": "ModelCalls", "kind": "type", "pending": false },
+            { "name": "ModelConsumption", "kind": "type", "pending": false },
+            { "name": "ModelDirectory", "kind": "type", "pending": false },
+            { "name": "ModelRuntime", "kind": "type", "pending": false }
+          ]
+        },
+        {
+          "title": "独立执行与提供者操作",
+          "names": [
+            { "name": "TransportFailure", "kind": "type", "pending": false },
+            { "name": "ModelToolPayloadAdapter", "kind": "type", "pending": false },
+            { "name": "ModelMediaLease", "kind": "type", "pending": false },
+            { "name": "ModelMediaReader", "kind": "type", "pending": false },
+            { "name": "TransportTermination", "kind": "type", "pending": false },
+            { "name": "TransportFact", "kind": "type", "pending": false },
+            { "name": "IndependentModelFact", "kind": "type", "pending": false },
+            { "name": "MaterializationReceipt", "kind": "type", "pending": false },
+            { "name": "MaterializedTransport", "kind": "type", "pending": false },
+            { "name": "PreparedTransport", "kind": "type", "pending": false },
+            { "name": "ModelTransport", "kind": "type", "pending": false },
+            { "name": "ExecutionRef", "kind": "type", "pending": false },
+            { "name": "WriteContext", "kind": "type", "pending": false },
+            { "name": "CommitQuery", "kind": "type", "pending": false },
+            { "name": "DispatchPlan", "kind": "type", "pending": false },
+            { "name": "RetryDecision", "kind": "type", "pending": false },
+            { "name": "RetryPosition", "kind": "type", "pending": false },
+            { "name": "RetryResolution", "kind": "type", "pending": false },
+            { "name": "RecoveryRecord", "kind": "type", "pending": false },
+            { "name": "LateDispatchFact", "kind": "type", "pending": false },
+            { "name": "ModelCommands", "kind": "type", "pending": false },
+            { "name": "SendDemand", "kind": "type", "pending": false },
+            { "name": "SendResult", "kind": "type", "pending": false },
+            { "name": "ModelSendBoundary", "kind": "type", "pending": false },
+            { "name": "ModelRetryPolicy", "kind": "type", "pending": false },
+            { "name": "Publication", "kind": "type", "pending": false },
+            { "name": "ModelInstanceHost", "kind": "type", "pending": false },
+            { "name": "ModelClock", "kind": "type", "pending": false },
+            { "name": "ModelProvider", "kind": "type", "pending": false }
+          ]
+        },
+        {
+          "title": "消费者 owner 的装配声明",
+          "names": [
+            { "name": "ModelConsumerOwnerDeclaration", "kind": "type", "pending": false },
+            { "name": "deriveGuardControlOperation", "kind": "value", "pending": false }
+          ]
+        },
+        {
+          "title": "档案与请求准备",
+          "names": [
+            { "name": "ModelModality", "kind": "type", "pending": false },
+            { "name": "ProfileScope", "kind": "type", "pending": false },
+            { "name": "ProfileIdentity", "kind": "type", "pending": false },
+            { "name": "LimitMetric", "kind": "type", "pending": false },
+            { "name": "UpstreamLimit", "kind": "type", "pending": false },
+            { "name": "ModelLimit", "kind": "type", "pending": false },
+            { "name": "TokenLimit", "kind": "type", "pending": false },
+            { "name": "ContextLimits", "kind": "type", "pending": false },
+            { "name": "ProfileSupplier", "kind": "type", "pending": false },
+            { "name": "ModelProfileDefinition", "kind": "type", "pending": false },
+            { "name": "ModelProfile", "kind": "type", "pending": false },
+            { "name": "ModalityRequirement", "kind": "type", "pending": false },
+            { "name": "ProfileResolution", "kind": "type", "pending": false },
+            { "name": "ModelChoices", "kind": "type", "pending": false },
+            { "name": "ModelProfiles", "kind": "type", "pending": false },
+            { "name": "ProfileChange", "kind": "type", "pending": false },
+            { "name": "ModelProfileMaintenance", "kind": "type", "pending": false },
+            { "name": "ParameterAdoption", "kind": "type", "pending": false },
+            { "name": "Measurement", "kind": "type", "pending": false },
+            { "name": "BudgetCheck", "kind": "type", "pending": false },
+            { "name": "RequestBudget", "kind": "type", "pending": false },
+            { "name": "AssembledModelInput", "kind": "type", "pending": false },
+            { "name": "ModelRequestPreparation", "kind": "type", "pending": false },
+            { "name": "MediaMeasurementFact", "kind": "type", "pending": false },
+            { "name": "MeterRepresentation", "kind": "type", "pending": false },
+            { "name": "ModelInputMeter", "kind": "type", "pending": false }
+          ]
+        },
+        {
+          "title": "消息转换",
+          "names": [
+            { "name": "ConverterKey", "kind": "type", "pending": false },
+            { "name": "ConvertedContent", "kind": "type", "pending": false },
+            { "name": "ConversionResult", "kind": "type", "pending": false },
+            { "name": "ConversionFailure", "kind": "type", "pending": false },
+            { "name": "ConversionReply", "kind": "type", "pending": false },
+            { "name": "ModelConverter", "kind": "type", "pending": false },
+            { "name": "ConverterLookup", "kind": "type", "pending": false },
+            { "name": "ModelConverterCatalog", "kind": "type", "pending": false },
+            { "name": "ModelMessageConversion", "kind": "type", "pending": false }
+          ]
+        },
+        {
+          "title": "文本分词与完整计量依据",
+          "names": [
+            { "name": "TokenizerDefinition", "kind": "type", "pending": false },
+            { "name": "TokenizationSegment", "kind": "type", "pending": false },
+            { "name": "TokenizationFailure", "kind": "type", "pending": false },
+            { "name": "ModelTextTokenizer", "kind": "type", "pending": false },
+            { "name": "ModelCountingBasis", "kind": "type", "pending": false }
+          ]
+        },
+        {
+          "title": "受信宿主驱动",
+          "names": [
+            { "name": "ModelDriveInput", "kind": "type", "pending": false },
+            { "name": "ModelDriver", "kind": "type", "pending": false },
+            { "name": "ModelHostAuthority", "kind": "type", "pending": false },
+            { "name": "ModelDriverBinding", "kind": "type", "pending": false },
+            { "name": "ModelBindingFailure", "kind": "type", "pending": false },
+            { "name": "ModelDriverHost", "kind": "type", "pending": false }
+          ]
+        },
+        {
+          "title": "档案来源与准备资源",
+          "names": [
+            { "name": "ModelProfileSnapshot", "kind": "type", "pending": false },
+            { "name": "ModelProfileSource", "kind": "type", "pending": false },
+            { "name": "ModelRequestRules", "kind": "type", "pending": false },
+            { "name": "ModelPreparationLease", "kind": "type", "pending": false },
+            { "name": "ModelPreparationResources", "kind": "type", "pending": false },
+            { "name": "ModelContentAuthority", "kind": "type", "pending": false }
+          ]
+        },
+        {
+          "title": "凭据引用与解析端口",
+          "names": [
+            { "name": "MODEL_SEND", "kind": "value", "pending": false },
+            { "name": "CredentialId", "kind": "type", "pending": false },
+            { "name": "CredentialPurpose", "kind": "type", "pending": false },
+            { "name": "CredentialReference", "kind": "type", "pending": false },
+            { "name": "CredentialQuery", "kind": "type", "pending": false },
+            { "name": "SendFace", "kind": "type", "pending": false },
+            { "name": "CredentialPresence", "kind": "type", "pending": false },
+            { "name": "CredentialResolution", "kind": "type", "pending": false },
+            { "name": "CredentialPort", "kind": "type", "pending": false },
+            { "name": "decodeCredentialId", "kind": "value", "pending": false },
+            { "name": "sameCredentialHolder", "kind": "value", "pending": false }
+          ]
+        },
+        {
+          "title": "供应商尝试诊断",
+          "names": [
+            { "name": "ModelDiagnosticId", "kind": "type", "pending": false },
+            { "name": "ModelDiagnosticCursor", "kind": "type", "pending": false },
+            { "name": "ModelDuration", "kind": "type", "pending": false },
+            { "name": "ModelAttemptDiagnostic", "kind": "type", "pending": false },
+            { "name": "ModelDiagnosticsPage", "kind": "type", "pending": false },
+            { "name": "ModelDiagnostics", "kind": "type", "pending": false },
+            { "name": "decodeModelDiagnosticId", "kind": "value", "pending": false },
+            { "name": "decodeModelDiagnosticCursor", "kind": "value", "pending": false }
+          ]
+        }
+      ]
+    },
+    "./testing": {
+      "chapters": [
+        {
+          "title": "受控替代提供者",
+          "names": [
+            { "name": "createScriptedModelProvider", "kind": "value", "pending": false },
+            { "name": "createScriptedTransport", "kind": "value", "pending": false },
+            { "name": "ScriptedModelError", "kind": "class", "pending": false },
+            { "name": "ScriptedModelErrorReason", "kind": "type", "pending": false },
+            { "name": "ScriptedModelProvider", "kind": "type", "pending": false },
+            { "name": "ScriptedModelProviderOptions", "kind": "type", "pending": false },
+            { "name": "ScriptController", "kind": "type", "pending": false },
+            { "name": "ScriptedCall", "kind": "type", "pending": false },
+            { "name": "ScriptedAction", "kind": "type", "pending": false },
+            { "name": "ScriptedWriteAction", "kind": "type", "pending": false },
+            { "name": "ScriptedTransport", "kind": "type", "pending": false },
+            { "name": "ScriptedTransportCounts", "kind": "type", "pending": false },
+            { "name": "ScriptedTransportEnding", "kind": "type", "pending": false },
+            { "name": "ScriptedTransportScript", "kind": "type", "pending": false }
+          ]
+        },
+        {
+          "title": "符合性断言",
+          "names": [
+            { "name": "checkModelProviderConformance", "kind": "value", "pending": false },
+            { "name": "createScriptedConformanceSubject", "kind": "value", "pending": false },
+            { "name": "CONFORMANCE_OBLIGATIONS", "kind": "value", "pending": false },
+            { "name": "ConformanceObligation", "kind": "type", "pending": false },
+            { "name": "ConformanceAction", "kind": "type", "pending": false },
+            { "name": "ConformanceCall", "kind": "type", "pending": false },
+            { "name": "ConformanceHooks", "kind": "type", "pending": false },
+            { "name": "ConformanceTransport", "kind": "type", "pending": false },
+            { "name": "ConformanceSubject", "kind": "type", "pending": false },
+            { "name": "ConformanceOptions", "kind": "type", "pending": false },
+            { "name": "ConformanceReport", "kind": "type", "pending": false },
+            { "name": "ObligationResult", "kind": "type", "pending": false },
+            { "name": "ScriptedPrincipal", "kind": "type", "pending": false }
+          ]
+        }
+      ]
+    }
+  },
+  "augmentations": []
+}

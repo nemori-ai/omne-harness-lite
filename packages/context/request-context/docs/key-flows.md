@@ -28,7 +28,7 @@ flowchart TD
 <a id="rc-f05"></a>
 ## RC-F05 接纳前转换与按来源处置失败
 
-承接 [RC-J05](../../../../.meta_harness/design/product/runtime-context/design.md#rc-j05)，能力 CAP-RC06、07、10。Model 的[转换件共同契约](../../../model/model/docs/profile-and-modality.md#转换件的共同契约)唯一拥有键选择及合约输出。本域消费转换结果并在请求时选用实际表示，转换不是组装时临时改写历史的步骤。
+承接 [RC-J05](../../../../.meta_harness/design/product/runtime-context/design.md#rc-j05)，能力 CAP-RC06、07、10。Model 的[转换件共同契约](../../../model/model-contract/SPEC.md#转换件的共同契约)唯一拥有键选择及合约输出。本域消费转换结果并在请求时选用实际表示，转换不是组装时临时改写历史的步骤。
 
 ```mermaid
 flowchart TD
