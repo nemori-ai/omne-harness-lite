@@ -1,6 +1,5 @@
 # @omne-harness/tool-host-local
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 单机 Tool 宿主。根入口导出本地启动协调器（[G5](../tool-contract/SPEC.md#342-契约缺口决定)）。宿主时钟（[G4](../tool-contract/SPEC.md#342-契约缺口决定)）、绑定登记表（[G7](../tool-contract/SPEC.md#342-契约缺口决定)）与 `./cordis` 上的 Cordis 插件尚未交付。
@@ -15,7 +14,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 | 档 | 本包的状态 | 入口 | 验证范围 |
 | --- | --- | --- | --- |
-| 公开类型已导出 | 已导出：`LocalStartCoordinatorInput`、`StartCoordinatorAccess`、`GuardResource`，以及 `startCoordinatorAdoption`、`START_COORDINATOR_OWNER` 与 `START_COORDINATOR_DOMAIN_KEY`。`./cordis` 入口不导出值 | 根入口 | `tests/public-entry.spec.ts` 核对根导出，并核对根入口的导入图不含 Cordis。`tests/cordis-entry.spec.ts` 核对 `./cordis` 不导出值 |
+| 公开类型已导出 | 已导出：`LocalStartCoordinatorInput`、`StartCoordinatorAccess`、`GuardResource`，以及 `startCoordinatorAdoption`、`START_COORDINATOR_OWNER` 与 `START_COORDINATOR_DOMAIN_KEY`。当前没有 `./cordis` 入口 | 根入口 | `tests/public-entry.spec.ts` 核对根导出，并核对根入口的导入图不含 Cordis。`tests/entry-boundary.spec.ts` 核对 Node 以 `ERR_PACKAGE_PATH_NOT_EXPORTED` 拒绝 `./cordis` |
 | 纯契约函数已实现 | 无。契约函数在 `tool-contract` | 无 | 无 |
 | 独立执行已实现 | 无。它在 `tool` | 无 | 无 |
 | runtime 已实现的路径 | 本包没有 runtime。它给 runtime 提供启动排序的提供者：`createLocalStartCoordinator` 实现 `ToolStartAuthority`，含许可、consume、inspect、invalidate 与 exclude，受理台账放在记录仓的 `host` 域。它为一台机器上的一个进程服务。已实现 P01 的失效与排除操作绑定：同输入认回首次证据，异输入答 conflict。每个成功的排除操作都绑定本次理由，包括对已排除调用的操作 | 根入口。应用装配把协调器作为 `ToolDependencies.authority` 交给 runtime | `tests/start-coordinator.spec.ts` 在 `@omne-harness/tool/testing` 的非耐久记录仓上核对协调器。`tests/start-composition.spec.ts` 在真实 Tool runtime、账本与推进协程下运行它，执行绑定用替身。`tests/start-authority-conformance.spec.ts` 对它运行 `tool-contract/testing` 的启动围栏套件，19 项一致性用例全部通过，无不适用项。套件核对 P01 冲突与同输入认回，包括 SA13、SA14。协调器测试还核对历史失效、排除别名、重建、完整守卫字段与租户隔离。这是该套件目前唯一的真实实现对照。耐久性、进程崩溃与第二个进程都没有覆盖 |
@@ -58,7 +57,7 @@ const authority = createLocalStartCoordinator({
 
 ## 目录结构与文档职责
 
-固定目录按责任分开。目录存在不表示其中已有实现、Schema、模型、证明或验收能力。源码入口和包根 README 保留 `PACKAGE_TEMPLATE_DRAFT` 标记。其他骨架页保留占位标记，直到拥有者写入正文。
+固定目录按责任分开。目录存在不表示其中已有实现、Schema、模型、证明或验收能力。根入口已交付本地启动协调器。Cordis 插件仍是未来设计，当前没有可用的 `./cordis` 入口。骨架页保留占位标记，直到拥有者写入正文。
 
 ```text
 tool-host-local/
@@ -72,7 +71,7 @@ tool-host-local/
 │   ├── public-api.md
 │   ├── context.md
 │   └── cordis.md
-├── src/                      README.md + index.md + index.ts + cordis.ts + start-coordinator.ts
+├── src/                      README.md + index.md + index.ts + start-coordinator.ts
 ├── tests/                    README.md + index.md + entry, coordinator and composition specs + values
 │   └── fixtures/             README.md + index.md
 ├── schema/                   README.md + index.md
@@ -83,6 +82,7 @@ tool-host-local/
 ├── examples/                 README.md + index.md
 ├── resources/                README.md + index.md
 ├── acceptance/               README.md + index.md
+│   └── fixtures/             README.md + index.md
 └── tsconfig.build.json / tsconfig.test.json / vitest.config.ts
 ```
 

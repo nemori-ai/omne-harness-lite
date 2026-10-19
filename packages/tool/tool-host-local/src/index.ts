@@ -1,5 +1,4 @@
-// The root entry of the single-machine Tool host. It does not import Cordis; the Cordis plugin is
-// on the `./cordis` entry.
+// The single-machine Tool host exports the local start coordinator without importing Cordis.
 export {
   createLocalStartCoordinator,
   START_COORDINATOR_DOMAIN_KEY,
