@@ -311,7 +311,7 @@ describe('入口的参数', () => {
   it('点名成员只列范围：写明跑快层', () => {
     const planned = cli('run', '--members', 'packages/core/canary', '--plan-only')
     expect(planned.status, planned.stderr).toBe(0)
-    expect(planned.stdout).toContain('只跑快层（OMNE_TEST_TIER=fast）')
+    expect(planned.stdout).toContain('只跑快层（vitest 的 mode 为 fast）')
     expect(planned.stdout).toMatch(/packages\/core\/canary：1 个文件/u)
   })
 })
@@ -355,8 +355,13 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       join(memberDir, 'vitest.config.ts'),
       [
         "import { testTiers } from '../../../vitest.tiers.mts'",
-        "export default { test: { ...testTiers(), globals: true, include: ['tests/**/*.spec.ts'] } }",
+        "export default ({ mode }) => ({ test: { ...testTiers(mode), globals: true, include: ['tests/**/*.spec.ts'] } })",
       ].join('\n'),
+    )
+    // 慢层里一条必败的用例：变异只跑快层，它跑了初跑就失败、整次变异报错。
+    writeFileSync(
+      join(memberDir, 'tests/slow.spec.ts'),
+      "test('slow only', { tags: ['slow'] }, () => { throw new Error('slow tier ran') })\n",
     )
     writeFileSync(join(memberDir, 'src/sign.ts'), 'export const zero = 0\n')
     writeFileSync(
@@ -415,7 +420,7 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       readdirSync(join(root, 'packages')).filter(name => name.startsWith('.stryker-tmp')),
     ).toEqual([])
     expect(readFileSync(join(root, 'out-weak/summary.md'), 'utf8')).toContain(
-      '只跑快层（OMNE_TEST_TIER=fast）',
+      '只跑快层（vitest 的 mode 为 fast）',
     )
 
     // 补上断言的那条放进只按包名导入的文件：只有它守着改动行，被杀就说明这份文件跑了、自引用走到了插过桩的代码。

@@ -4,7 +4,6 @@ import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { TEST_TIER_ENV } from '../testing/config.ts'
 import { slugOf, spawnLogged, type SpawnResult } from '../testing/run.ts'
 import { mutateEntries, type MutationTarget } from './scope.ts'
 
@@ -93,7 +92,6 @@ export async function runStryker(target: MutationTarget, run: StrykerRun): Promi
     // 日志落文件，不要终端颜色码。
     env: {
       ...process.env,
-      [TEST_TIER_ENV]: 'fast',
       [MEMBER_DIR_ENV]: memberDir,
       [TEST_TIMEOUT_ENV]: String(Math.round(run.testTimeoutSeconds * 1000)),
       FORCE_COLOR: '0',

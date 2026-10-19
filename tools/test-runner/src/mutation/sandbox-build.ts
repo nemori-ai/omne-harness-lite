@@ -1,5 +1,5 @@
 // Stryker 的 buildCommand，在 sandbox（当前目录）里执行：先把成员的 node_modules 软链进来，
-// 再写一份只放宽默认用例时限的 vitest 配置（展开成员自己的那份），
+// 再写一份 vitest 配置：展开成员自己的那份并固定 mode 为 fast（只跑快层），只放宽默认用例时限，
 // 成员有 `build` 脚本就构建一遍（不少测试跑的是成员自己的 dist），没有就到此为止。
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
@@ -15,9 +15,14 @@ if (!existsSync('node_modules')) symlinkSync(join(member, 'node_modules'), 'node
 writeFileSync(
   SANDBOX_VITEST_CONFIG,
   [
-    "import { mergeConfig } from 'vitest/config'",
+    "import { defineConfig, mergeConfig } from 'vitest/config'",
     "import member from './vitest.config.ts'",
-    `export default mergeConfig(member, { test: { testTimeout: ${timeout} } })`,
+    'export default defineConfig(env => {',
+    // 成员配置不是按 mode 的函数时选不了层，报错，不悄悄两层都跑。
+    "  if (typeof member !== 'function') throw new Error('vitest.config.ts 须写成 defineConfig(({ mode }) => …)，否则选不了快层')",
+    "  const own = member({ ...env, mode: 'fast' })",
+    `  return mergeConfig(own, { test: { testTimeout: ${timeout} } })`,
+    '})',
     '',
   ].join('\n'),
 )

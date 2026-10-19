@@ -21,7 +21,7 @@ import {
 } from '../src/testing/config.ts'
 import { buildLedger, ledgerSummary, type MemberRun } from '../src/testing/ledger.ts'
 import { readLoopConfig } from '@omne-harness/repo-toolchain/loop/config'
-import { TIMING_FILE_ENV, type TimingReport } from '../src/testing/timing-reporter.ts'
+import type { TimingReport } from '../src/testing/timing-reporter.ts'
 import { classify, namePattern, outcomeOf, triageSummary } from '../src/testing/triage.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
@@ -526,11 +526,15 @@ describe('计时报告器（真起一次 vitest）', { timeout: 60_000 }, () => 
         ].join('\n'),
       )
       const timingPath = join(project, 'timing.json')
-      const ran = spawnSync(
-        VITEST,
-        ['run', '--root', project, '--globals', `--reporter=${TIMING_REPORTER}`],
-        { cwd: project, encoding: 'utf8', env: { ...process.env, [TIMING_FILE_ENV]: timingPath } },
+      // 报告器的选项只能写在配置里。
+      writeFileSync(
+        join(project, 'vitest.config.mjs'),
+        `export default { test: { reporters: [[${JSON.stringify(TIMING_REPORTER)}, { outputFile: ${JSON.stringify(timingPath)} }]] } }\n`,
       )
+      const ran = spawnSync(VITEST, ['run', '--root', project, '--globals'], {
+        cwd: project,
+        encoding: 'utf8',
+      })
       expect(ran.status, `${ran.stdout}${ran.stderr}`).toBe(0)
       const timing = JSON.parse(readFileSync(timingPath, 'utf8')) as TimingReport
       expect(timing.files).toHaveLength(1)

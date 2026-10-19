@@ -9,5 +9,6 @@
   },
   "include": [
     "tests/**/*.ts"
-  ]
+  ],
+  "exclude": ["**/*.legacy/**"]
 }

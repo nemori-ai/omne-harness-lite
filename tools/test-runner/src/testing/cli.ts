@@ -100,7 +100,8 @@ async function step(argv: readonly string[]): Promise<number> {
     python: () => pythonStep(ROOT, file),
     build: () => buildStep(ROOT, file),
     typecheck: () => typecheckStep(ROOT, file),
-    test: () => testStep(ROOT, file),
+    // 带计划文件时在准入检查里，构建一步已经按计划构建；单独运行时由 turbo 先构建。
+    test: () => testStep(ROOT, file, planPath === undefined),
     acceptance: () => acceptanceStep(ROOT, file),
   }
   return steps[name as Step]()

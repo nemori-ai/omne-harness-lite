@@ -80,7 +80,7 @@ describe('legacy check boundaries', () => {
     ).toThrow('不存在的成员')
   })
 
-  it('full executor uses filtered pnpm targets and propagates an active failure', () => {
+  it('full executor uses filtered turbo targets and propagates an active failure', () => {
     const root = fixture()
     put(root, 'pnpm-workspace.yaml', 'packages:\n  - tools/*\n  - packages.legacy/*\n')
     put(
@@ -101,6 +101,8 @@ describe('legacy check boundaries', () => {
       'package.json',
       JSON.stringify({
         private: true,
+        // turbo 要读被检查仓库根的 packageManager 才能解析 workspace。
+        packageManager: 'pnpm@10.28.1',
         scripts: { typecheck: "node -e \"require('fs').writeFileSync('root-shortcut', 'wrong')\"" },
       }),
     )
