@@ -108,7 +108,11 @@ packages/
 ├── assembly/
 │   ├── assembly/               求值、采用和装配交接
 │   └── kernel-basis/           Cordis 插件辅助和测试装配
-├── agent/agent/                Agent定义、Loop与extensions
+├── agent/
+│   ├── agent-contract/         Agent 声明校验与推进纯契约
+│   ├── agent-cordis-contract/  唯一 Cordis 定义及实例目录协议
+│   ├── agent/                  无 Cordis 的推进实现
+│   └── agent-host-local/       单机实例宿主与 Cordis 插件
 ├── model/model/                模型能力、请求和原结果
 ├── tool/tool/                  工具定义、执行和效果
 ├── context/
@@ -280,3 +284,11 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 分组方向已由工具适配：旧的三层路径表退役，本节与[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)中能按成员路径表达的规则写在根 `.dependency-cruiser.cjs`，由 `pnpm run lint:deps` 检查，clean loop 的硬线读同一张依赖图，见[依赖规则](../tools/repo-toolchain/README_ZH.md#依赖图与依赖规则)。已表达的有：SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务成员不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具，以及成员和组之间不成环。契约不依赖其提供者、提供者经接口接入这类按角色判断的规则，仓库还没有机读的角色标记，暂未表达，仍靠评审。不能手写骨架或伪造采用标识绕过现行检查。
 
 当前成员重组、工具适配、SDK安装闭包及真实维护成本尚需各自实施和验证任务。报告区分目标要求、现状、偏离、口径变化与未覆盖，沿[领域符合性](domains/verification.md)和[项目验证](verification.md)选择证据。
+
+## Agent 的安装边界
+
+Agent 按纯契约、Cordis 定义、通用实现和具体装配分为四个 workspace 成员。Agent 声明类型与两个校验入口已有实现，唯一源码归 agent-contract；资产与装配消费者直接依赖它。其余运行入口与 Service 均尚未实现，候选的技术接受范围沿各成员 SPEC 保持。初始化不授予模板采用或业务支持。
+
+工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口与领域操作归纯契约。框架定义从 agent-cordis-contract 的 `./cordis` 提供，定义包不依赖通用实现或具体提供者。agent-host-local 负责 Agent 实例宿主。
+
+详细成员关系见 [Agent 组](../packages/agent/README.md)。

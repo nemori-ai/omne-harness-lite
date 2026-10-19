@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Judge AgentDefinition and loop extension declarations without starting a runtime",
+  "description": "Draft Cordis-free agent implementation; runtime factories are not implemented",
   "engines": {
     "node": ">=24"
   },
@@ -23,9 +23,7 @@
     "test": "pnpm run build && vitest run"
   },
   "dependencies": {
-    "@omne-harness/json-text": "workspace:*",
-    "@omne-harness/schema-provider": "workspace:*",
-    "zod": "catalog:"
+    "@omne-harness/agent-contract": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -50,7 +50,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | [总览](runtime/README.md) | 代表性主流程、生命周期、并发取消、失败恢复和阅读地图。 |
 | [Session 与 Run](runtime/session-and-run.md) | 身份、输入受理、推进权、attempt、终态与多会话边界。 |
 | [Agent runtime](runtime/agent-runtime.md) | Loop 主线、回复准入、动作处理、完成与接续。 |
-| [Loop extensions](runtime/loop-extensions.md) | 十一个位置、干预力、有序组合、HITL、失效与系统扩展。 |
+| [Loop extensions](runtime/loop-extensions.md) | 九个位置、干预力、有序组合、HITL、失效与系统扩展。 |
 | [Model runtime](runtime/model-runtime.md) | 输入、真实发出、首内容、重试、失联、结果和独立调用。 |
 | [Tool runtime](runtime/tool-runtime.md) | 匹配输入、可用性、排队、前后台、等待、效果和独立调用。 |
 | [装配与变化](runtime/assembly-and-change.md) | 多层求值、能力选入、版本采用与 reload 交接。 |

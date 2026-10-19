@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { judgeAgentDefinition, judgeLoopExtensions } from '@omne-harness/agent'
+import { judgeAgentDefinition, judgeLoopExtensions } from '@omne-harness/agent-contract'
 
 it('assembly reads a definition and an extension list from the public entry', async () => {
   const definition = await judgeAgentDefinition({

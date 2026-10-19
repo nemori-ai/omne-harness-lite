@@ -465,7 +465,7 @@ specific.
 - **⚠️ 注意 ⑤**：**变更怎么被会话感知，有推与拉两条**——
   **推**由那一块的生产者发起，**只在这个会话还有[运行](agent-runtime-loop.md#ul-run--运行--run)没闭合时才进得来**，
   **会话空闲时推来的一律丢弃，不落日志**；**拉**由 [agent runtime](agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) 自己做，
-  [每一次执行尝试起来时取一次当前快照](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)。
+  取当前快照的时点归 Context 与 Agent 的现行正文，本词条不另定；[Runtime Context 产品页](../../product/runtime-context/design.md#5-当前值与变化感知)现在仍以 attempt 为时点，与 Agent 一侧不要求 attempt 的决定不一致，见 [C-61](../conflicts.md#c-61runtime-context-的拉取时点)。
   **因此[因果链记的是这个会话感知到的变化，不是世界上发生过的每一步](../../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#610-注入的上下文变了没有运行在跑时什么都不做)**
 - **⚠️ 注意 ⑥**：**除了实时算的那些，每一块都要能恢复**——
   [会话被重新加载、归档被撤销之后，它们必须还在](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#58-存储要守住的两件事)。

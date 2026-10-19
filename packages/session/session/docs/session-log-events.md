@@ -107,4 +107,4 @@ Session 治理归约器支持其必需原生语义与已经准入的外域依据
 
 准确公开 kind/Schema、迁移编码、插件解释注册机制、经过和消费位置的公开身份、跨能力发起/控制/级联/ACK 及连续空闲取证协议仍需实际成员设计。本文没有以源码当前的八种公共事实限制完整目标，也没有证明这些义务已实现。
 
-术语效力归[当前统一语言](../../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md)，Loop 具体规则归[Agent Loop 规格候选](../../../../packages/agent/agent/loop.md)。
+术语效力归[当前统一语言](../../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md)，Loop 具体规则归[Agent Loop 规格候选](../../../../packages/agent/agent-contract/docs/flows/loop.md)。

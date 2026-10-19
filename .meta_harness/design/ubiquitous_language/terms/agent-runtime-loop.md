@@ -6,7 +6,7 @@
         ┌────────── 会话（纯数据、治理边界，跨多次运行存活）──────────┐
         │                                                              │
    触发 ─→ 运行 ──→ 装配 ──→ 装配清单 ──→ agent runtime ──→ 收束      │
-        │          （求值）  （数据，可复用）  （协程，一次尝试一个）  │
+        │          （求值）  （数据，可复用）  （协程，活的）          │
         │                            ↑                                 │
         │            注入：上下文 / 执行环境 / 权限                    │
         │                                                              │
@@ -284,7 +284,7 @@
   后者是工具那一层的六种，**粒度差着好几层**。**裸写「收场」不作数**
 - **注意 ①**：**它不拥有记录**——它往会话的日志里写，**日志归会话**
 - **注意 ②**：**它不拥有执行体**——推进它的是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)，
-  而**一次 Run 可能先后由好几个协程推进**（每次[尝试](#ul-run-attempt--执行尝试--run-attempt)一个）
+  而**一次 Run 可能先后由好几个协程推进**（会话一侧把每一段推进记为一次[尝试](#ul-run-attempt--执行尝试--run-attempt)）
 - **注意 ②′**：新 Run 登录确认不等于每个 Attempt 的开始条件；已经执行中的 Run 不因登录到期停止。原合法动作和结果收场沿原准入与运行控制规则。
 - **注意 ③**：**怎么被驱动、怎么推进、怎么收束、怎么中断**，归
   [PF-012](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/README.md)；本条只定**它是什么、边界在哪**
@@ -360,29 +360,36 @@
 
 ### UL-run-attempt · 执行尝试 · Run Attempt
 
-> **中**：**同一次[运行](#ul-run--运行--run)内，第几次为它起一副
-> [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——也就是那副协程从起到灭的那一段。
-> 只有重新创建这副协程才产生新尝试；崩溃恢复或等待回收后接续，仍属同一运行。原协程有效时的等待恢复、普通追加和模型调用内部重试不创建新尝试。
+> **中**：**同一次[运行](#ul-run--运行--run)内，会话一侧取得的第几次推进尝试**——
+> 会话一侧为这次运行换一副 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime) 接着推进时记下的那一段关联。
+> **它由会话一侧拥有，不是 agent runtime 的启动计数**；
+> Agent 一侧不要求、也不解释它，会话一侧把它对应到 Agent 一侧的什么，由外部协调者维护。
+> 只有会话一侧为这次运行换一副 agent runtime 接着推进才产生新尝试；崩溃恢复或等待回收后接续，仍属同一运行。原 agent runtime 仍有效时的等待恢复、普通追加和模型调用内部重试不创建新尝试。
 > **它的身份是 (哪次运行, 第几次)，从日志里那条「尝试开始」记录派生，不另立权威；可持久化投影。**
 >
-> **EN**: **Which time an [agent runtime] is started for the same run** — that
-> coroutine's stretch from birth to death. A new attempt requires a new agent-runtime coroutine.
-> Recovery after a crash or after release during a wait remains within the same run.
-> Resuming a valid coroutine, appending input, or retrying within a model call does not create an attempt. **Its identity is (which run, which
-> ordinal), derived from the attempt-start record in the log; it may be persisted as a projection, not as independent truth.**
+> **EN**: **Which advancement attempt the session side has taken for the same run** — the association the
+> session side records when another agent runtime takes over advancing the run. **The session side owns it; it is not a count of
+> agent-runtime starts.** The agent side neither requires nor explains it, and an external coordinator maintains
+> what the session side maps it to on the agent side. A new attempt arises only when the session side has another
+> agent runtime take over advancing the run; recovery after a crash or after release during a wait remains within the same run.
+> Resuming while the original agent runtime is still valid, appending input, or retrying within a model call does not create an attempt.
+> **Its identity is (which run, which ordinal), derived from the attempt-start record in the log; it may be
+> persisted as a projection, not as independent truth.**
 
 - **形态**：视图
 - **出处**：[现行词义](../index.md)（PM 起草；与前身系统「logical Run / physical attempt」同构）；
-  **与 agent runtime 的对应关系于 2026-09-20 写明**，见 [现行词义](../index.md)；
-  **形态与身份于 2026-09-22 定死**，见 [PF-012 §4 执行尝试](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#执行尝试)（rev 25）
-- **别混**：**不是第二个执行体**——执行体只有一个，就是 agent runtime。
-  **这一条是「从运行的角度看它」**：同一副协程，站在治理那一侧叫「这次运行的第几次尝试」
+  **形态与身份于 2026-09-22 定死**，见 [PF-012 §4 执行尝试](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#执行尝试)（rev 25）；
+  会话一侧拥有、Agent 不要求它，见[产品页 一次工作怎样推进](../../product/agent-progression/design.md#一次工作怎样推进)与[扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 2）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+- **别混**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)，也不是 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)**——
+  后两者是 Agent 一侧的概念；执行尝试是会话一侧「这次运行的第几次推进」。
+  **一次尝试对应 Agent 一侧的哪次[执行挂接](#ul-execution-attachment--执行挂接--execution-attachment)或 Agent 执行，由外部协调者维护**，不是本条的内容
 - **注意 ①**：**它有一个指得到的身份，但没有自己的存储**——内存态重算即得，
   花的钱记在成本条目里，做过的事记在效果条目里，**它本身没有「只有它知道」的东西**
 - **注意 ②**：**序号显式写在那条尝试开始记录里**，不靠数前面有几条；
   [「只有序号最大的那次尝试能写入推进运行的记录」这道栅栏拿它做比较](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#同一个-run-同一时刻只有一副协程在推它)
 - **注意 ③**：**这一条是「治理性质」的直接后果**——一次网络抖动重试若算成两次运行，**账和失败都算错**。
   **成本明细按它记，汇总按运行算**
+- **注意 ④**：**执行开始之后位置不按它计**——那个位置按[Agent 执行](#ul-agent-execution--agent-执行--agent-execution)的新开计，见[执行开始之后](#ul-execution-started-position--执行开始之后--execution-started-position)
 
 ### UL-attempt-fence · 尝试栅栏 · Attempt Fence
 
@@ -455,29 +462,85 @@
 
 ### UL-agent-runtime · agent runtime · Agent Runtime
 
-> **中**：**反复求值 [Agent Loop](#ul-agent-loop--agent-loop--agent-loop)、把一次[运行](#ul-run--运行--run)往前推的那个协程。**
+> **中**：**反复求值 [Agent Loop](#ul-agent-loop--agent-loop--agent-loop)、通过[执行挂接](#ul-execution-attachment--执行挂接--execution-attachment)把一次 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)往前推的那个协程。**
+> 会话路径中，那次 Agent 执行对应一次[运行](#ul-run--运行--run)的一段推进。
 > 它有独立的执行上下文，能在 await 点挂起与恢复，**能被独立取消**，有自己的生命周期。
+> **一次 Agent 执行结束后，它回到空闲并保持[登记](#ul-agent-registration--agent-登记--agent-registration)，可以承接下一次 Agent 执行**；前后两次执行之间不沿用主体、授权、取消状态、输入队列与结果游标。
 > 它**持有[待处理消息队列](#ul-pending-message-queue--待处理消息队列--pending-message-queue)并循环取用**，
 > 因此是全系统**唯一的 event loop**。
-> **它不拥有独立推进状态**：推进事实在[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)里；会话配置与可恢复 context 由会话持有，当下条件从当前来源取得。
+> **它不拥有独立推进状态**：推进事实保存在协程之外的耐久记录里（会话路径中是[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)，由外部协调者维护）；会话路径中，会话配置与可恢复 context 由会话持有；当下条件从当前来源取得。
 >
-> **EN**: **The coroutine that repeatedly evaluates the agent loop to drive one run
-> forward.** It has its own execution context, suspends and resumes at await points,
-> **can be cancelled independently**, and has a lifetime of its own. It **holds the
+> **EN**: **The coroutine that repeatedly evaluates the agent loop and, through an execution attachment, drives one
+> agent execution forward.** On the session path that execution corresponds to one stretch of advancing a run.
+> It has its own execution context, suspends and resumes at await points,
+> **can be cancelled independently**, and has a lifetime of its own. **When one agent execution ends, it returns to
+> idle, stays [registered](#ul-agent-registration--agent-登记--agent-registration), and can take up the next agent execution**; it carries no principal, authorization,
+> cancellation state, input queue or result cursor from one execution to the next. It **holds the
 > pending message queue and consumes from it in a loop**, making it the **only event
-> loop in the system**. **It owns no independent progression state**: progress is recorded in the session log, session configuration and recoverable context outlive the coroutine, and current conditions are obtained from their sources.
+> loop in the system**. **It owns no independent progression state**: progress is kept in durable records outside the coroutine (on the session path, the session log, maintained by an external coordinator). On the session path, session configuration and recoverable context outlive the coroutine. Current conditions are obtained from their sources.
 
 - **形态**：对象
-- **出处**：[现行词义](../index.md)（产品负责人 2026-09-20 直接裁决）
+- **出处**：[现行词义](../index.md)（产品负责人 2026-09-20 直接裁决）；
+  它推进的是 Agent 执行而不是某个执行尝试，见[产品页 使用场景](../../product/agent-progression/design.md#使用场景)与[扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 2）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **它就是 [SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition) 说的「活体」**——
   那一段描述的计算资源、可回收可重建、因资源治理而生灭，**逐条说的都是协程**
-- **注意 ①**：**一次起一个，[一个会话同时至多一个](#ul-single-active-execution--会话内单活跃--single-active-execution)**；
-  从 Run 的角度看，它的一生就是[一次执行尝试](#ul-run-attempt--执行尝试--run-attempt)
+- **注意 ①**：**会话路径中，[一个会话同时至多一个](#ul-single-active-execution--会话内单活跃--single-active-execution)**；
+  它**与[执行尝试](#ul-run-attempt--执行尝试--run-attempt)不一一对应**——执行尝试是会话一侧拥有的关联，不是 agent runtime 的启动计数。
+  换一副 agent runtime 或换一次执行挂接接续同一次 Agent 执行时，不因此成为新的一次执行
 - **注意 ②**：**它按[装配清单](#ul-assembly-manifest--装配清单--assembly-manifest)起，但不等于清单**——
-  清单是数据、可跨多次尝试复用；协程每次重新起
-- **注意 ③**：它代表当前 Run 发起模型／工具执行，持有[运行时句柄](#ul-runtime-handle--运行时句柄--runtime-handle)来等待或控制；两类执行的生命周期均归会话，释放句柄不取消执行。主流程等待依赖不等于生命周期依附，见[取消范围](#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host)。
+  清单是数据、可复用；协程是活的、会没
+- **注意 ③**：会话路径中，它代表当前 Run 发起模型／工具执行，持有[运行时句柄](#ul-runtime-handle--运行时句柄--runtime-handle)来等待或控制；两类执行的生命周期均归会话，释放句柄不取消执行。主流程等待依赖不等于生命周期依附，见[取消范围](#ul-cancellation-follows-host--取消跟着宿主走--cancellation-follows-host)。
+- **注意 ④**：空闲与承接下一次执行的系统表述见已接受系统页 [Agent runtime](../../../../docs/architecture/runtime/agent-runtime.md#实例执行与挂载)；该页节名中的「挂载」即本词表的[执行挂接](#ul-execution-attachment--执行挂接--execution-attachment)
 
 - **输入与恢复依据**：[PF-012 §4 agent runtime](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#agent-runtime)（rev 23）。
+
+### UL-agent-execution · Agent 执行 · Agent Execution
+
+> **中**：**Agent 的一次逻辑执行：从开启一次新的推进起，到 Agent 在必要检查成立后结束自己的这段推进止。**
+> 换一次[执行挂接](#ul-execution-attachment--执行挂接--execution-attachment)或换一副 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime) 接续它，包括重挂接和实例换代，仍是同一次；只有新开一次逻辑执行才是新的一次。
+> 其间已取得的判断、效果和答复，接续后继续使用。
+> **Agent 不要求它关联会话、运行或执行尝试，也不解释这些关联**；会话路径中它与[运行](#ul-run--运行--run)的对应由外部协调者维护。
+>
+> **EN**: **One logical execution of the agent: from the start of a new advancement until the agent itself ends it once the required checks hold.** Continuing it through a new execution attachment or another agent runtime, including re-attachment and instance replacement, is still the same execution; only a newly started logical execution is a new one. Judgements, effects and answers already obtained stay in use after it continues. **The agent neither requires nor explains any session, run or attempt for it**; on the session path, an external coordinator maintains how it corresponds to a run.
+
+- **形态**：对象
+- **出处**：[产品页 使用场景](../../product/agent-progression/design.md#使用场景) · [扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限) · [人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 2）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+- **别混 ①**：**不是[运行](#ul-run--运行--run)**——运行是会话一侧的一次逻辑执行请求，成本与失败的归属单位，由会话治理；Agent 执行是 Agent 自己的一次推进，Agent 不知道运行存在
+- **别混 ②**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——runtime 是推进它的协程，会换；执行是被推进的那一件事，不随协程没而没
+- **别混 ③**：**不是[工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)**——工具执行是一次工具调用，一次 Agent 执行里可以发起多次
+- **别混 ④**：**不是[执行尝试](#ul-run-attempt--执行尝试--run-attempt)**——尝试是会话一侧对运行的推进记账
+
+### UL-execution-attachment · 执行挂接 · Execution Attachment
+
+> **中**：**一副 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime) 对某一次 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)的一次物理承接。**
+> 重挂接和实例换代，都是为同一次执行换一次执行挂接；换执行挂接不使执行成为新的一次，也不再经过[执行开始之后](#ul-execution-started-position--执行开始之后--execution-started-position)位置。
+> 它不是[执行尝试](#ul-run-attempt--执行尝试--run-attempt)，后者由会话一侧拥有。
+>
+> **EN**: **One physical taking-up of one agent execution by one agent runtime.** Re-attaching and replacing the instance both give the same execution a new execution attachment. A new execution attachment does not make the execution a new one and does not pass the execution-started position again. It is not a run attempt, which the session side owns.
+
+- **形态**：对象
+- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 2）；用户决定，2026-10-17 Agent 扩展继承与边界对齐；形态由 Agent 契约候选的[对象模型](../../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)裁定，见 [C-57](../conflicts.md#c-57执行挂接的形态)
+- **别混 ①**：**不是[附件](execution-and-outcome.md#ul-attachment--附件--attachment)**——附件是存进存储、agent 自己去取的文件，Tool 结果里的 attachments 也指它；本条只指 agent runtime 对执行的承接
+- **别混 ②**：**不是[执行尝试](#ul-run-attempt--执行尝试--run-attempt)**——尝试是会话一侧的推进记账，执行挂接是 Agent 一侧的概念
+- **注意 ①**：**不许简称 attachment**，英文与代码名都写全称（Execution Attachment、`ExecutionAttachment`、`ExecutionAttachmentId`、`executionAttachment`），因为裸写的 attachment 已指[附件](execution-and-outcome.md#ul-attachment--附件--attachment)；中文同理写「执行挂接」，正文在没有歧义处可以写「挂接」。Agent 契约候选已按此命名；已接受页的旧写法见 [C-62](../conflicts.md#c-62执行挂接的候选类型名)
+- **注意 ②**：为同一次执行取得新的执行挂接有恢复与接管两条路径，前提、独立的主体资格和结果归 [Agent 契约的恢复与接管](../../../../packages/agent/agent-contract/SPEC.md#恢复与接管)。产品正文没有区分这两条路径，本词表不为它们另立词条
+- **弃用**：~~挂载~~ ~~Agent Attachment~~
+
+### UL-agent-registration · Agent 登记 · Agent Registration
+
+> **中**：**宿主为一副 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime) 实例作的一次发布记录，使该实例可被发现、可接受调用。**
+> 它有自己的身份和三种状态：已发布、撤除中、已撤除。
+> 宿主重新发布同一个仍然存活的实例时，产生后继登记，取代旧登记；旧登记的身份不能作用于后继登记。
+> 已撤除的登记留下身份记录，使同一次撤除可被认回。
+> 登记是宿主拥有的记录，不是 agent runtime 本身，也不授予推进资格。
+>
+> **EN**: **The record a host makes when it publishes one agent runtime instance so that the instance can be discovered and can accept calls.** It has an identity of its own and three states: published, withdrawing and withdrawn. When the host publishes the same live instance again, a successor registration replaces the old one, and the identity of the old registration cannot act on the successor. A withdrawn registration leaves an identity record so that the same withdrawal can be recognized. A registration is a record the host owns. It is not the agent runtime itself and it grants no authority to advance an execution.
+
+- **形态**：对象
+- **出处**：缺产品原文。[Agent 产品页](../../product/agent-progression/design.md#使用场景)（rev 2）只写用户不需要按实例的生灭重建协作，没有一节定义登记。本条含义来自已接受系统页 [Agent runtime 实例、执行与挂载](../../../../docs/architecture/runtime/agent-runtime.md#实例执行与挂载)（保持空闲和注册）与用户决定（2026-10-17 Agent 扩展继承与边界对齐：agent runtime 保持登记），这两处都不是本词表的合法出处。身份与状态只由 Agent 契约候选的[对象模型](../../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)给出。出处缺口由产品负责人闭合：在 Agent 产品页写出登记，或裁定登记不是产品概念，见[对象条目的未裁](../../domain_objects/objects.md#ul-agent-registration--agent-登记)
+- **别混 ①**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——runtime 是推进执行的协程，登记是宿主对它的发布记录。runtime 失联后重新启动的进程是新实例，不继承原登记
+- **别混 ②**：**不是[运行时 context 注册](scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)**——那一条是会话纳入一块 context 来源的声明，与 agent runtime 的发布无关
+- **注意**：登记缺席不证明工作结束。执行的存续与恢复依据在执行记录里，不在登记里，见 [Agent 契约的创建、登记与复用](../../../../packages/agent/agent-contract/SPEC.md#创建登记与复用)
 
 ### UL-agent-step · agent 的一步 · Agent Step
 
@@ -496,6 +559,22 @@
   模型调用是它**里面**的一段，两者差着一层
 - **注意**：它是 [PF-011 那棵树上的一层](../../product.0.0.1.legacy/PF-011-off-nominal-handling/design.md#53-层的顺序不是排出来的是推出来的)，
   父节点是[运行](#ul-run--运行--run)
+
+### UL-message-admission · 消息准入 · Message Admission
+
+> **中**：**外部输入、模型完整回复和工具结果成为消息之前，Agent 按来源校验并决定接纳或拒收的规则。**
+> 它按来源区分这三种内容：同样被拒收，三种来源的后果各不相同，后果见[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)。
+> **它是 Agent 自己的规则，不是拓展位置，也不经过拓展件。**
+>
+> **EN**: **The rule by which the agent, per source, validates and then accepts or rejects an external input, a complete model reply or a tool result before it becomes a message.** It tells the three sources apart: a rejection has a different consequence for each source, and the product page section on model replies and tool results states those consequences. **It is the agent's own rule, not an extension position, and it does not pass through extensions.**
+
+- **形态**：规则
+- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 2）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+- **别混 ①**：**不是[放行判断](interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)**——放行判断管一个动作能不能发起，站在执行动作之前；消息准入管一条内容能不能成为消息
+- **别混 ②**：**不是[拓展位置](#ul-loop-extension-point--loop-拓展点--loop-extension-point)上的否决**——产品暂不在消息成立前后另设拓展位置，准入不依附任何位置
+- **注意 ①**：产品页也称「消息入口」，指同一件事
+- **注意 ②**：**被拒收的模型回复不是一次模型调用失败**——原调用照常收场，不交给重试挂件。连续拒收没有次数上限，原「连续否决上限」已弃用，见[该词条](execution-and-outcome.md#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)
+- **注意 ③**：**非 Tool ref 来源的模态转换在接纳之前完成**：实现消息准入的提供者在接纳前调用[转换件](capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)，Agent 只看到接纳后的消息及其派生表示。这一归属待负责人接受，见 [C-56](../conflicts.md#c-56模态转换件的执行时点)
 
 ### UL-side-question · 旁路提问 · Side Question
 
@@ -546,15 +625,34 @@
 > same position, each doing its own thing.**
 
 - **形态**：位置
-- **出处**：[PF-012 §4 Loop 拓展点](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#loop-拓展点) · [§5.8](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 25）
+- **出处**：[PF-012 §4 Loop 拓展点](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#loop-拓展点) · [§5.8](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 25）；
+  位置的个数与各位置的限制见[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 2）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **⚠️ 别混**：**它不是[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)**——
   **拓展点是位置，拓展件是挂上去的东西**（第八类资产）
 - **注意 ①**：**位置由状态点推出，因此数目有限且可穷举**——
-  [当前恰好十一个](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#十一个位置是推出来的不是挑出来的)；**挂什么没有上限**
+  **当前恰好九个**，位置集合与各位置的触发边界归[系统页 Loop extensions](../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)，本词条不重述；**挂什么没有上限**
 - **注意 ②**：**纯派生的动作不是状态点，所以它前后没有位置**——
   [组装](record-and-context.md#ul-context-assembly--上下文组装--context-assembly)与「量一量」都不构成挂点
 - **注意 ③**：挂在这里的东西**只能靠改[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)起作用**，
   **不改方程本身**
+- **注意 ④**：**「拓展」与「扩展」是同一个词的两种写法，不是两个概念**——
+  本卷与词表写「拓展点」「拓展件」，系统页与成员正文写「扩展位置」「扩展」，所指相同；见 [C-60](../conflicts.md#c-60拓展与扩展)
+- **注意 ⑤**：**位置只有这九个，没有「消息落盘之前」「消息落盘之后」**——消息持久化归会话，不归 Agent，消息持久化前后的处理挂在会话的[业务流程拓展点](interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point)上，见 [C-59](../conflicts.md#c-59斜杠命令受理依赖已移除的位置)；
+  消息准入仍然存在，见[消息准入](#ul-message-admission--消息准入--message-admission)
+
+### UL-execution-started-position · 执行开始之后 · Execution-Started Position
+
+> **中**：**[Loop 拓展点](#ul-loop-extension-point--loop-拓展点--loop-extension-point)之一，每个新的 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)开始后经过一次。**
+> 重挂接、实例换代或接续原执行时，不再经过这个位置。
+> 扩展不能借它给已失效的[执行挂接](#ul-execution-attachment--执行挂接--execution-attachment)重新授予推进资格。
+>
+> **EN**: **One of the loop extension points, passed once after each new agent execution starts.** Re-attachment, instance replacement and continuing an existing execution do not pass it again. An extension cannot use it to grant advancement qualification again to an execution attachment that is no longer valid.
+
+- **形态**：位置
+- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 2）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+- **别混**：**不是以执行尝试开始为触发点的位置**——尝试是会话一侧拥有的关联；换一次执行挂接或换一副 agent runtime 接续，并不新开 Agent 执行，因此不经过这个位置
+- **弃用**：~~「尝试开始之后」~~（~~attempt_started~~）
+- **注意**：九个位置里只有它单独立条：它的触发边界是新的 Agent 执行，不是执行尝试，读错就会与会话一侧的尝试混淆；它也承接弃用说法的登记。其余八个位置的名称已说明所在状态点，集合与触发边界归[系统页](../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)
 
 ### UL-intervention-power · 干预力 · Intervention Power
 
@@ -578,7 +676,8 @@
   [PF-002 §4 Loop Extension](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#loop-extension)（rev 32）
 - **注意 ①**：**在拓展件上它是一项[权限](capabilities-and-composition.md#ul-permission--权限--permission)，不是设置**——各层按收窄合成，组织锁在「只观察」，租户就放不宽
 - **注意 ②**：**三档挂了的后果相反**——只观察那一档不影响正在发生的事；可改写那一档不影响，但留一笔「它没跑成」；可否决那一档报错默认当作否决。**「不可用」不是报错**，另有定法
-- **注意 ③**：**否决只在「之前」的位置上有意义**；可否决那一档站在「之后」，多出来的只有等人
+- **注意 ③**：**否决只在「之前」的位置上有意义**；后置位置不提供否决；停止和请求人处理（等人）在后置位置只影响后续推进，不撤销已发生的动作。哪些后置位置接受停止与请求人处理，由位置输出表逐位置定
+- **注意 ④**：**位置还会再收窄档位**——压缩之前不允许改写；执行动作之后的整批范围不允许改写（[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)，rev 2）；用户决定，2026-10-17 Agent 扩展继承与边界对齐。拓展件声明的档位只是上限
 
 ### UL-extension-unavailability-policy · 拓展件不可用处置 · Extension Unavailability Policy
 
@@ -618,6 +717,49 @@
 - **注意 ①**：**与压缩那一圈同构**——压完再量一次，还超就上交，不再压一轮；不定这条，一个爱改日志的挂件就能把自己无限触发下去
 - **注意 ②**：同一个位置上几件的先后，[就是它们在装配清单里的顺序](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#loop-extension)（PF-002 rev 31），后一件看得到前一件的结论
 
+### UL-extension-invocation · 拓展件调用 · Extension Invocation
+
+> **中**：**Agent 在一次[经过](#ul-extension-point-pass--一次经过--extension-point-pass)里对一件[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)发起的一次调用，目的是取得它的[结论](#ul-extension-conclusion--拓展结论--extension-conclusion)。**
+> 调用可能花钱，也可能出卡，所以接续时不能当作纯函数重跑：
+> 已有最终结论的调用不再调用，没有最终结论的按原身份接续，已取得的判断、效果和答复复用。
+>
+> **EN**: **One call the agent makes to one extension within a pass, in order to obtain its conclusion.** A call can spend money or raise a card, so on continuation it cannot be re-run like a pure function: a call that already has a final conclusion is not called again, a call without one resumes under its original identity, and judgements, effects and answers already obtained are reused.
+
+- **形态**：过程
+- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限) · [人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 2）
+- **别混 ①**：**不是[一次经过](#ul-extension-point-pass--一次经过--extension-point-pass)**——一次经过是 loop 走到一个位置的那一次，挂在该位置的各件在其中各被调用一次
+- **别混 ②**：**不是[回放](#ul-replay--回放--replay)**——回放是接续时把挂起中的拓展件重新跑到停处的方式，调用是普通的一次
+- **注意 ①**：词表写「拓展」，系统页与成员正文写「扩展调用」，所指相同；见 [C-60](../conflicts.md#c-60拓展与扩展)
+- **注意 ②**：Agent 契约候选用 `Passage` 与 `PassageId` 记录并标识一次拓展件调用。`Passage` 指调用的记录，**不是[一次经过](#ul-extension-point-pass--一次经过--extension-point-pass)**：一次经过里，挂在该位置的每件拓展件各有一次调用，各有自己的 `PassageId`。一次调用可以包含多次对作者的 `invoke`，结果未知之后的回放与答复到达之后的回放都属于原调用，见[扩展作者协议](../../../../packages/agent/agent-contract/docs/public-api/extensions.md#调用协议)
+
+### UL-extension-conclusion · 拓展结论 · Extension Conclusion
+
+> **中**：**一次[拓展件调用](#ul-extension-invocation--拓展件调用--extension-invocation)得到并被 Agent 采用后留下的判断结果，由 Agent 保存在自己的执行记录里。**
+> 请求人处理（代码里是 `ask`）得到的是非最终结论：它不结束这次调用，答复齐备后原拓展件再取得下一个结论。
+> 其余结论都是最终结论。已有最终结论的那次调用，接续时读取结论，不再调用。
+> 代码与规格里可以简称 Conclusion。
+>
+> **EN**: **The judgement result an extension invocation leaves once the agent has obtained and adopted it. The agent keeps it in its own execution record.** A result that asks a person to decide (`ask` in code) is a non-final conclusion: it does not end the invocation, and once the answers are complete the same extension obtains the next conclusion. Every other conclusion is final. An invocation that already has a final conclusion is read, not called again, on continuation. Code and specifications may shorten it to *Conclusion*.
+
+- **形态**：属性
+- **出处**：[产品页 人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 2）；封存来源 [PF-012 §6.10 能干预的拓展件必须留下结论](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)（rev 25）；形态由 Agent 契约候选的[扩展作者协议](../../../../packages/agent/agent-contract/docs/public-api/extensions.md#conclusion)裁定，见 [C-58](../conflicts.md#c-58拓展结论的形态)
+- **别混 ①**：**不是[干预力](#ul-intervention-power--干预力--intervention-power)**——干预力是拓展件能做到什么的上限，结论是一次调用实际得出的结果
+- **别混 ②**：**不是[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)**——结论只说一次调用的判断，不结束任何运行或执行
+- **注意**：它是挂在 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)记录上的一项值，不是会话日志里的条目，也没有独立于所属调用的身份。作者不返回结论，由 Agent 把校验通过的输出包装并保存
+
+### UL-batch-judgment-barrier · 整批判断屏障 · Batch Judgment Barrier
+
+> **中**：**同一批动作的判断必须全部齐备，其中需要人决定的卡片也都处理完，才发起这一批里获准的任何动作。**
+> 某个动作已经通过，不能越过其他动作尚未完成的判断。
+> 后继拓展件仍可再出卡，那些卡片仍属原批。整批动作全被拒绝时，没有工具执行可等，沿已有事实重新判断。
+>
+> **EN**: **The judgements for one batch of actions must all be complete, and any cards needing a person must all be handled, before any approved action in that batch is started.** An action that has already passed cannot overtake judgements still open for other actions. Later extensions may raise further cards, and those stay in the same batch. When every action in the batch is rejected there is no tool execution to wait for, and the agent evaluates again from the facts it already has.
+
+- **形态**：规则
+- **出处**：[产品页 一次工作怎样推进](../../product/agent-progression/design.md#一次工作怎样推进) · [扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 2）
+- **别混 ①**：**不是执行动作之后的整批范围**——后者是执行动作之后那个位置按「整批齐备」这一维选择拓展件，发生在动作已执行之后；屏障发生在执行之前
+- **别混 ②**：**不是[等待原语](#ul-wait-primitive--等待原语--wait-primitive)**——等待原语是协程停下来等外面应答的办法，屏障规定的是什么时候才可以发起动作
+
 ### UL-wait-primitive · 等待原语 · Wait Primitive
 
 > **中**：**[agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime) 这副协程「停下来，等外面给个应答」的那一种办法**——
@@ -637,28 +779,28 @@
 
 - **形态**：规则
 - **出处**：[PF-012 §5.8 等人是 loop 的原语](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语)（rev 25） · [PF-008 §4 等待态的两个维度](../../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#等待态的两个维度)（rev 7）
-- **注意 ①**：**两个位置等不了**——消息落盘之前（那条消息还没进日志，拿不准只能否决）与落终态之后（Run 已收束）
-- **注意 ②**：**一批动作先全部判完再执行**——各动作并行过执行动作之前那一串拓展件，都到了结论或等人，Run 才进等人，卡片成批落
+- **注意 ①**：**落终态之后等不了**（Run 已收束）；可否决不表示所有位置都允许等待，各位置的限制归[系统页](../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)
+- **注意 ②**：**一批动作先全部判完再执行**（见[整批判断屏障](#ul-batch-judgment-barrier--整批判断屏障--batch-judgment-barrier)）——各动作并行过执行动作之前那一串拓展件，都到了结论或等人，Run 才进等人，卡片成批落
 - **注意 ③**：**agent runtime 被回收，Run 还在等、卡片还在、工具执行照跑**；Run 被取消，悬着的卡片才作废
 
 ### UL-replay · 回放 · Replay
 
-> **中**：**新的一次[执行尝试](#ul-run-attempt--执行尝试--run-attempt)把一件挂起中的[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)重跑到它停下的那一处的方式**：
+> **中**：**以新的[执行挂接](#ul-execution-attachment--执行挂接--execution-attachment)接续原执行的那副 agent runtime（会话路径中对应新的一次[执行尝试](#ul-run-attempt--执行尝试--run-attempt)）把一件挂起中的[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)重跑到它停下的那一处的方式**：
 > 途中它的每一次等都**按日志交回**，走到出卡那一处拿到的是记下的答复、不再出卡，然后接着往下判。
-> **回放不花第二遍钱、不出第二张卡、不再问第二遍模型**。已有结论的件**不回放、读结论**。
+> **回放不花第二遍钱、不出第二张卡、不再问第二遍模型**。已有最终[结论](#ul-extension-conclusion--拓展结论--extension-conclusion)的件**不回放、读结论**；请求人处理得到的非最终结论，在答复齐备后回放。
 > 写拓展件的人由此只多守一条：**等之前记在自己内存里的东西，等回来就没了**。
 >
-> **EN**: **How a new run attempt re-runs a suspended loop extension up to the point where it
+> **EN**: **How the agent runtime that continues an existing execution through a new execution attachment (on the session path, a new run attempt) re-runs a suspended loop extension up to the point where it
 > stopped**: every wait it meets on the way is **answered from the log**, at the card-raising
 > point it receives the recorded reply instead of raising a card, and then it carries on.
 > **Replay spends no second money, raises no second card and asks the model no second time.**
-> An extension that already has a conclusion is **not replayed; its conclusion is read**. The
+> An extension that already has a final conclusion is **not replayed; its conclusion is read**. A non-final conclusion that asks a person to decide is replayed once the answers are complete. The
 > one extra rule for extension authors follows: **whatever was kept in memory before a wait is
 > gone after it.**
 
 - **形态**：过程
 - **出处**：[PF-012 §5.8 等人是 loop 的原语](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#等人是-loop-的原语)（rev 25）
-- **别混**：**不是「重跑挂件」**——「新尝试里不重跑挂件」那条现在精确为：有结论的不重跑，挂起中的回放到挂起点
+- **别混**：**不是「重跑挂件」**——「新尝试里不重跑挂件」精确地说是：有最终结论的不重跑，挂起中的回放到挂起点
 - **注意 ①**：回放时走到的地方与上次不同，**停住并可见**——那说明拓展件没守住上面那一条
 - **注意 ②**：**回放只针对挂起中的拓展件，不涉及工具执行**——工具执行不因回收而停，接着等就是
 
@@ -709,7 +851,7 @@
 - **出处**：[PF-004 §4 装配清单](../../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#装配清单)（rev 20）
 - **别混**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——
   **清单是照着起协程的那份图纸，协程是照它起来的那个东西**。
-  复用清单**不等于**复用协程：协程每次尝试都是新的
+  复用清单**不等于**复用协程：清单是数据，协程是活的、会没；协程在执行结束后回空闲、可承接下一次执行，见 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)
 - **注意**：清单只记采用历史；会话已知身份单调保留，当前数据／实现与可用性另由会话记录和求值
 
 ## 外面递进来的

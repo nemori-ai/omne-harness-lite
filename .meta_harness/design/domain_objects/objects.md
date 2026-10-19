@@ -160,10 +160,37 @@
 
 ### UL-agent-runtime · agent runtime
 
-- **宿主**：[会话](#ul-session--会话)；所推进的工作归 Run／尝试，Model／Tool runtime 不寄宿于它
-- **身份**：正文未述它自己的标识方式；每次尝试重新起一个，是「新的一个」。**从运行那一侧指得到它**——(哪次运行, 第几次) 从日志里那条尝试开始记录派生，那是[执行尝试](../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)（视图，不另立对象）
-- **生灭**：照一份装配清单起 → 反复求值、在 await 点挂起与恢复 → 灭（系统崩了 / 停住等时被回收 / 自身捕获组成变了交接后照新清单另起）。停止分两级：优雅取消、强制停止；仅结束实例不终结 Run，业务取消时由会话侧确保运行终结；持有句柄随实例释放，不结束所引用执行 显式 reload 可在同一 Run 安全交接并开启新尝试；独立 Model／Tool runtime 不随其退役终止。
-- **依据**：[PF-012 §4 agent runtime](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#agent-runtime)（rev 25）；[PF-012 §6.13](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 25）；[PF-012 §6.14](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#614-停止有两级)（rev 25）；[PF-012 装配与交接](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#618-agent-runtime-的装配与重装配交接)（rev 25）
+- **宿主**：会话路径中是[会话](#ul-session--会话)；独立调用（不创建会话）时，正文未述。所推进的是 [Agent 执行](#ul-agent-execution--agent-执行)，会话路径中该执行对应 Run 的一段推进；Model／Tool runtime 不寄宿于它
+- **身份**：正文未述它自己的标识方式；它与[执行尝试](../ubiquitous_language/terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)不一一对应——执行尝试是会话一侧拥有的视图，(哪次运行, 第几次) 从日志里那条尝试开始记录派生，不另立对象，Agent 一侧不要求它
+- **生灭**：照一份装配清单起 → 反复求值、在 await 点挂起与恢复 → 一次 Agent 执行结束后回到空闲并保持登记，可承接下一次 Agent 执行，执行之间不沿用主体、授权、取消状态、输入队列与结果游标 → 灭（系统崩了 / 停住等时被回收 / 自身捕获组成变了交接后照新清单另起）。停止分两级：优雅取消、强制停止；仅结束实例不终结 Run，业务取消时由会话侧确保运行终结；持有句柄随实例释放，不结束所引用执行；显式 reload 可在同一 Run 安全交接并开启新尝试；独立 Model／Tool runtime 不随其退役终止
+- **依据**：[产品页 使用场景](../product/agent-progression/design.md#使用场景)（rev 2）；[PF-012 §4 agent runtime](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#agent-runtime)（rev 25）；[PF-012 §6.13](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#613-取消跟着宿主走)（rev 25）；[PF-012 §6.14](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#614-停止有两级)（rev 25）；[PF-012 装配与交接](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#618-agent-runtime-的装配与重装配交接)（rev 25）
+- **未裁**：独立调用时它的寿命跟着谁，产品正文未述，由 Agent 契约候选的[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)承接，待该候选技术接受后按接受后的拥有者核对本条。空闲复用的依据是词条现行词义与已接受系统页 Agent runtime，产品页没有写这一点
+
+### UL-agent-execution · Agent 执行
+
+- **宿主**：—（换执行挂接或换 agent runtime 接续仍是同一次，不随 [agent runtime](#ul-agent-runtime--agent-runtime) 或执行挂接的更替而没；会话路径中它与运行的对应由外部协调者维护，Agent 一侧不要求）
+- **身份**：正文未述标识方式；只要求换执行挂接或换 agent runtime 接续的是原执行，并能与新开的一次区分——每个新的 Agent 逻辑执行经过一次执行开始之后位置，接续原执行不再经过
+- **生灭**：新开一次逻辑执行 → 推进，可换执行挂接、换实例而仍是同一次 → Agent 在必要检查成立后结束自己的执行。终态取值与标识的具体写法正文未述
+- **依据**：[产品页 使用场景](../product/agent-progression/design.md#使用场景)；[扩展检查与权限](../product/agent-progression/design.md#扩展检查与权限)；[人的决定与等待](../product/agent-progression/design.md#人的决定与等待)；[J-AG05](../product/agent-progression/design.md#j-ag05-完成工作或停止指定目标)（rev 2）
+- **未裁**：标识方式与终态取值，产品正文未述，由 Agent 契约候选的[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)承接，待该候选技术接受后按接受后的拥有者核对本条；会话路径中与运行、执行尝试的对应不归 Agent，由外部协调者的设计维护
+
+### UL-execution-attachment · 执行挂接
+
+- **宿主**：[Agent 执行](#ul-agent-execution--agent-执行)——挂接是为某一次执行取得的承接。产品正文未述挂接的寿命，候选契约称终止后的围栏记录保留到所属执行的保留期结束，见补充依据
+- **身份**：产品正文未述标识方式；只要求换执行挂接接续的是原执行，而不是新开一次。标识、围栏代次与授予方式见补充依据
+- **生灭**：产品正文只写重挂接与实例换代时，为同一次执行换一次新的执行挂接，不再经过执行开始之后位置；挂接自身的状态正文未述。候选契约给出有效、被取代、已脱离三种状态，见补充依据
+- **依据**：[产品页 扩展检查与权限](../product/agent-progression/design.md#扩展检查与权限)（rev 2）；[产品页 使用场景](../product/agent-progression/design.md#使用场景)（rev 2）；[J-AG06](../product/agent-progression/design.md#j-ag06)（rev 2）
+- **补充依据**：Agent 契约候选的[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)与[恢复与接管](../../../packages/agent/agent-contract/SPEC.md#恢复与接管)，未经技术接受；形态判为对象的理由见 [C-57](../ubiquitous_language/conflicts.md#c-57执行挂接的形态)
+- **未裁**：挂接的身份、状态与保留，产品正文未述，只有 Agent 契约候选给出，待该候选技术接受后按接受后的拥有者核对本条
+
+### UL-agent-registration · Agent 登记
+
+- **宿主**：产品正文未述它的寿命跟着谁。候选契约称撤除之后仍保留身份记录，使同一次撤除可认回，见补充依据
+- **身份**：产品正文未述。候选契约给登记自己的身份，实例重新发布时产生后继登记取代旧登记，见补充依据
+- **生灭**：产品正文未述。候选契约给出已发布、撤除中、已撤除三种状态，见补充依据
+- **依据**：[产品页 使用场景](../product/agent-progression/design.md#使用场景)（rev 2）；[J-AG06](../product/agent-progression/design.md#j-ag06)（rev 2）
+- **补充依据**：已接受系统页 [Agent runtime 实例、执行与挂载](../../../docs/architecture/runtime/agent-runtime.md#实例执行与挂载)（保持空闲和注册）；Agent 契约候选的[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)与 [SPEC 创建、登记与复用](../../../packages/agent/agent-contract/SPEC.md#创建登记与复用)，未经技术接受
+- **未裁**：出处缺口：依据所列两节只写推进实例的更换和用户不需要按实例的生灭重建协作，都没有写登记。“agent runtime 保持登记”来自已接受系统页与用户决定，产品正文没有原文。由产品负责人在 Agent 产品页写出登记，或裁定登记不是产品概念。登记的身份、状态与保留，产品正文与已接受系统页都未定义，只有 Agent 契约候选给出，待该候选技术接受后按接受后的拥有者核对本条
 
 ### UL-assembly-manifest · 装配清单
 
@@ -337,8 +364,8 @@
 
 - **宿主**：[会话](#ul-session--会话)（恰好一个；没有「飘着的到达」）
 - **身份**：完整持久受理时成为可指认事实；同次提交的查询／重试返回原事实，不按正文相同合并不同提交。提交标识在租户、会话与来源范围内识别；具体标识格式正文未述
-- **生灭**：送到 → 资格与目标会话检查 → 去重 →「消息落盘之前」拓展点 → 完整持久提交入站事实与去处责任 → 按去处三分：待处理消息 · 卡片答复 · 就地处置；实际生效另判。未提交由发送方保留并重试，提交后由系统恢复；回执未知须查明，不作未受理事实。消费或明确关闭留痕，原历史保留
-- **依据**：[PF-014 §4 入站到达](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）；[PF-014 §4 三个去处](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#三个去处)（rev 14）；[PF-014 §6.1](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#61-先落账再谈别的)（rev 14）；[PF-014 §6.8](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#68-停机不会让一条入站到达永远悬着)（rev 14）
+- **生灭**：送到 → 资格与目标会话检查 → 去重 → [消息准入](../ubiquitous_language/terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)（外部输入按来源校验，被拒收时发送方得到拒收结果；产品暂不为这一步设扩展位置） → 完整持久提交入站事实与去处责任 → 按去处三分：待处理消息 · 卡片答复 · 就地处置；实际生效另判。未提交由发送方保留并重试，提交后由系统恢复；回执未知须查明，不作未受理事实。消费或明确关闭留痕，原历史保留
+- **依据**：[产品页 模型回复与工具结果](../product/agent-progression/design.md#模型回复与工具结果)（rev 2）；[PF-014 §4 入站到达](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）；[PF-014 §4 三个去处](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#三个去处)（rev 14）；[PF-014 §6.1](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#61-先落账再谈别的)（rev 14）；[PF-014 §6.8](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#68-停机不会让一条入站到达永远悬着)（rev 14）
 - **未裁**：它与[消息](#ul-message--消息)、[记录条目](#ul-record-entry--记录条目)是不是同一条日志记录的几种读法——「大多数入站到达会成为一条消息，但不是全部」，正文没有说透。归 PF-014 与 PF-009
 
 ## 记录与上下文
