@@ -112,13 +112,13 @@
 
 | 需求与架构流程 | 所属能力 | 必要专题与验证场景 |
 | --- | --- | --- |
-| [TL-J01](../../../.meta_harness/design/product/tool-execution/design.md#tl-j01)、[TL-F01](docs/flows.md#tl-f01) | CAP-TL01、CAP-TL02、CAP-TL03 | [TL-V01 定义与动态取用](verification/scenarios.md#tl-v01) |
-| [TL-J02](../../../.meta_harness/design/product/tool-execution/design.md#tl-j02)、[TL-F02](docs/flows.md#tl-f02) | CAP-TL02、CAP-TL03、CAP-TL04、CAP-TL07、CAP-TL11 | [TL-V02 发起与逻辑结果](verification/scenarios.md#tl-v02) |
-| [TL-J03](../../../.meta_harness/design/product/tool-execution/design.md#tl-j03)、[TL-F03](docs/flows.md#tl-f03) | CAP-TL04、CAP-TL05、CAP-TL10、CAP-TL11 | [TL-V03 等待关系与名额](verification/scenarios.md#tl-v03) |
-| [TL-J04](../../../.meta_harness/design/product/tool-execution/design.md#tl-j04)、[TL-F04](docs/flows.md#tl-f04) | CAP-TL06、CAP-TL10、CAP-TL11 | [TL-V04 原等待与决定](verification/scenarios.md#tl-v04) |
-| [TL-J05](../../../.meta_harness/design/product/tool-execution/design.md#tl-j05)、[TL-F05](docs/flows.md#tl-f05) | CAP-TL07、CAP-TL08、CAP-TL09、CAP-TL11 | [TL-V05 观察与原结果采用](verification/scenarios.md#tl-v05) |
-| [TL-J06](../../../.meta_harness/design/product/tool-execution/design.md#tl-j06)、[TL-F06](docs/flows.md#tl-f06) | CAP-TL07、CAP-TL09、CAP-TL11、CAP-TL12 | [TL-V06 全文与真实账目](verification/scenarios.md#tl-v06) |
-| [TL-J07](../../../.meta_harness/design/product/tool-execution/design.md#tl-j07)、[TL-F07](docs/flows.md#tl-f07) | CAP-TL03、CAP-TL06、CAP-TL09、CAP-TL10、CAP-TL11、CAP-TL12 | [TL-V07 控制取消与恢复](verification/scenarios.md#tl-v07) |
+| [TL-J01](../../../.meta_harness/design/product/tool-execution/design.md#tl-j01)、[TL-F01](docs/flows.md#tl-f01) | CAP-TL01、CAP-TL02、CAP-TL03 | [TL-V01 定义与动态取用](verification/README.md#tl-v01) |
+| [TL-J02](../../../.meta_harness/design/product/tool-execution/design.md#tl-j02)、[TL-F02](docs/flows.md#tl-f02) | CAP-TL02、CAP-TL03、CAP-TL04、CAP-TL07、CAP-TL11 | [TL-V02 发起与逻辑结果](verification/README.md#tl-v02) |
+| [TL-J03](../../../.meta_harness/design/product/tool-execution/design.md#tl-j03)、[TL-F03](docs/flows.md#tl-f03) | CAP-TL04、CAP-TL05、CAP-TL10、CAP-TL11 | [TL-V03 等待关系与名额](verification/README.md#tl-v03) |
+| [TL-J04](../../../.meta_harness/design/product/tool-execution/design.md#tl-j04)、[TL-F04](docs/flows.md#tl-f04) | CAP-TL06、CAP-TL10、CAP-TL11 | [TL-V04 原等待与决定](verification/README.md#tl-v04) |
+| [TL-J05](../../../.meta_harness/design/product/tool-execution/design.md#tl-j05)、[TL-F05](docs/flows.md#tl-f05) | CAP-TL07、CAP-TL08、CAP-TL09、CAP-TL11 | [TL-V05 观察与原结果采用](verification/README.md#tl-v05) |
+| [TL-J06](../../../.meta_harness/design/product/tool-execution/design.md#tl-j06)、[TL-F06](docs/flows.md#tl-f06) | CAP-TL07、CAP-TL09、CAP-TL11、CAP-TL12 | [TL-V06 全文与真实账目](verification/README.md#tl-v06) |
+| [TL-J07](../../../.meta_harness/design/product/tool-execution/design.md#tl-j07)、[TL-F07](docs/flows.md#tl-f07) | CAP-TL03、CAP-TL06、CAP-TL09、CAP-TL10、CAP-TL11、CAP-TL12 | [TL-V07 控制取消与恢复](verification/README.md#tl-v07) |
 
 共同耐久、资格、独立消费和外部效果验证仍由下节拥有。未核实状态在[同页能力表](../../../.meta_harness/design/product/tool-execution/design.md#能力定义与实现状态记录表)表达，[阶段承诺](../../../.meta_harness/design/product/tool-execution/design.md#阶段与版本支持承诺)已将 CAP-TL01 至 CAP-TL12 全部纳入 `0.0.0 → 0.1.0` 完整交付。该承诺不表示技术接受、运行支持或验证已经完成。
 
@@ -329,7 +329,7 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 
 ### 完整设计与协议拥有者
 
-本节与 [protocols](#tool-操作协议) 共同构成行为规范。P01 至 P09 分别规定操作身份、准入队列、环境、启动、输出、等待、控制计时、保管及恢复退出的精确提交边界；类型只在源码，导航见 public-api。接口对应对象、寿命及依赖见 [object-model](docs/object-model.md)。[coverage](verification/coverage.md)逐项对齐十二项产品能力及验收反例。
+本节与 [protocols](#tool-操作协议) 共同构成行为规范。P01 至 P09 分别规定操作身份、准入队列、环境、启动、输出、等待、控制计时、保管及恢复退出的精确提交边界；类型只在源码，导航见 public-api。接口对应对象、寿命及依赖见 [object-model](docs/object-model.md)。[coverage](verification/README.md)逐项对齐十二项产品能力及验收反例。
 
 程序执行方的父子预留、可信来源、前台计时、可靠结果承接和控制原因边界见 [composition](#code-与-tool-的组合协议)。其语言/引擎和执行域具体提供者另行固定采用，不在 Tool 治理规格中虚构选型。MODEL-E01 的共享 ref 迁移仍待实施，不以泛型或接口完整性核销。
 
@@ -718,7 +718,7 @@ quiesce 只关闭新准入并返回数量。inspectDrain 列出原执行、未�
 
 ### P10 持续验证入口
 
-[coverage](verification/coverage.md) 将每项产品能力映射到本协议、公开形状、对象和验证反例。必须运行真实提供者的断电、外发围栏、环境隔离与资格竞争验证，才能声称对应保证成立。类型检查和有限状态探索只审查类型表达及模型前提；不构成这些运行保证或技术接受。
+[coverage](verification/README.md) 将每项产品能力映射到本协议、公开形状、对象和验证反例。必须运行真实提供者的断电、外发围栏、环境隔离与资格竞争验证，才能声称对应保证成立。类型检查和有限状态探索只审查类型表达及模型前提；不构成这些运行保证或技术接受。
 
 ### P11 作者输出与等待原语
 

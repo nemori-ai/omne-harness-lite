@@ -310,27 +310,27 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 
 ## 产品能力覆盖与验收
 
-下表给出每项产品能力在对象模型中的落点，以及必须成立的性质。逐项反例、协议和证据归 [覆盖与验收规范](../verification/coverage.md#产品到成员的覆盖)，本页不复制。
+下表给出每项产品能力在对象模型中的落点，以及必须成立的性质。逐项反例、协议和证据归 [覆盖与验收规范](../verification/README.md#产品到成员的覆盖)，本页不复制。
 
 | 能力 | 建模落点 | 必须验证 |
 | --- | --- | --- |
-| [CAP-TL01](../verification/coverage.md#产品到成员的覆盖) 定义呈现取用 | ToolDefinition、ToolCatalog、ParameterCodec、ToolPresentation | 呈现与采用的定义一致，包装来源不能洗白，未声明 programmable 即不可程序调用 |
-| [CAP-TL02](../verification/coverage.md#产品到成员的覆盖) 动态可用及 dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability | 可用性列出全部未满足条件；dummy 不解析参数、不分配环境、不启动 |
-| [CAP-TL03](../verification/coverage.md#产品到成员的覆盖) 当前准入固定发起 | FixedToolRequest、ToolStartRecord、StartPermit、ToolStartAuthority | 同身份异输入被拒；资格失效后旧请求不能再发起 |
-| [CAP-TL04](../verification/coverage.md#产品到成员的覆盖) 设置限额队列 | QueueReservation、QueuePosition、ResourceScope（含 grant） | 同 key 的 FIFO 与名额原子裁定；授予缺失或属于他方即拒绝；不同租户不共队列 |
-| [CAP-TL05](../verification/coverage.md#产品到成员的覆盖) 前后台关系 | ActiveRelation、ForegroundReturn、ControlRecord | 转后台须许可；重复转换只产生一个占位；不回前台 |
-| [CAP-TL06](../verification/coverage.md#产品到成员的覆盖) 等待答复 | WaitIntent/WaitRecord、ResponseRecord、ToolDecisionBridge、ToolResourceResponses | 一次等待只有一个有效答复；登记或确认丢失后可认回；Ask 不用资源超时 |
-| [CAP-TL07](../verification/coverage.md#产品到成员的覆盖) 结果及采用 | ToolAuthor、OutputCodec、ResultPolicy、RawOutput、ToolResult | 原件先于渲染与政策检查保管；失败不重跑，不假报耐久 |
-| [CAP-TL08](../verification/coverage.md#产品到成员的覆盖) 过程观察 | ProcessBlock、ToolObservation、ProcessSnapshot、ProcessProjection | 保存先于展示；快照与增量无缝隙；人用内容不进入消费方的请求 |
-| [CAP-TL09](../verification/coverage.md#产品到成员的覆盖) 保管全文取回 | RawOutput、ContentReader、ToolOffloader、Delivery | 回执丢失后可认回；每个晚到版本各有交付；解除不删除全文 |
-| [CAP-TL10](../verification/coverage.md#产品到成员的覆盖) 控制与撤回 | ToolControl、ControlDispatch/Progress、PhysicalExecution | 受理不等于已停；拒绝或未知不假报停止；withdraw 的 reach 必填且范围分别生效；reach 不及目标当时的关系时回 rejected（out-of-reach），调用不变 |
-| [CAP-TL11](../verification/coverage.md#产品到成员的覆盖) 原调用恢复 | ToolRecovery、ToolTask、RecoveryBinding、Checkpoint、DrainState | 响应丢失或查询未知时认回原操作；被围栏的旧协调者不再推进；恢复不产生第二次执行 |
-| [CAP-TL12](../verification/coverage.md#产品到成员的覆盖) 执行账 | CallAccount、recordAccount、ToolAccounts | 同源事实不重计；修订替代原值；未知不当作零；读取账目不披露内容 |
+| [CAP-TL01](../verification/README.md#产品到成员的覆盖) 定义呈现取用 | ToolDefinition、ToolCatalog、ParameterCodec、ToolPresentation | 呈现与采用的定义一致，包装来源不能洗白，未声明 programmable 即不可程序调用 |
+| [CAP-TL02](../verification/README.md#产品到成员的覆盖) 动态可用及 dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability | 可用性列出全部未满足条件；dummy 不解析参数、不分配环境、不启动 |
+| [CAP-TL03](../verification/README.md#产品到成员的覆盖) 当前准入固定发起 | FixedToolRequest、ToolStartRecord、StartPermit、ToolStartAuthority | 同身份异输入被拒；资格失效后旧请求不能再发起 |
+| [CAP-TL04](../verification/README.md#产品到成员的覆盖) 设置限额队列 | QueueReservation、QueuePosition、ResourceScope（含 grant） | 同 key 的 FIFO 与名额原子裁定；授予缺失或属于他方即拒绝；不同租户不共队列 |
+| [CAP-TL05](../verification/README.md#产品到成员的覆盖) 前后台关系 | ActiveRelation、ForegroundReturn、ControlRecord | 转后台须许可；重复转换只产生一个占位；不回前台 |
+| [CAP-TL06](../verification/README.md#产品到成员的覆盖) 等待答复 | WaitIntent/WaitRecord、ResponseRecord、ToolDecisionBridge、ToolResourceResponses | 一次等待只有一个有效答复；登记或确认丢失后可认回；Ask 不用资源超时 |
+| [CAP-TL07](../verification/README.md#产品到成员的覆盖) 结果及采用 | ToolAuthor、OutputCodec、ResultPolicy、RawOutput、ToolResult | 原件先于渲染与政策检查保管；失败不重跑，不假报耐久 |
+| [CAP-TL08](../verification/README.md#产品到成员的覆盖) 过程观察 | ProcessBlock、ToolObservation、ProcessSnapshot、ProcessProjection | 保存先于展示；快照与增量无缝隙；人用内容不进入消费方的请求 |
+| [CAP-TL09](../verification/README.md#产品到成员的覆盖) 保管全文取回 | RawOutput、ContentReader、ToolOffloader、Delivery | 回执丢失后可认回；每个晚到版本各有交付；解除不删除全文 |
+| [CAP-TL10](../verification/README.md#产品到成员的覆盖) 控制与撤回 | ToolControl、ControlDispatch/Progress、PhysicalExecution | 受理不等于已停；拒绝或未知不假报停止；withdraw 的 reach 必填且范围分别生效；reach 不及目标当时的关系时回 rejected（out-of-reach），调用不变 |
+| [CAP-TL11](../verification/README.md#产品到成员的覆盖) 原调用恢复 | ToolRecovery、ToolTask、RecoveryBinding、Checkpoint、DrainState | 响应丢失或查询未知时认回原操作；被围栏的旧协调者不再推进；恢复不产生第二次执行 |
+| [CAP-TL12](../verification/README.md#产品到成员的覆盖) 执行账 | CallAccount、recordAccount、ToolAccounts | 同源事实不重计；修订替代原值；未知不当作零；读取账目不披露内容 |
 
 本表只说明设计落点。文档检查不证明运行行为。
 
 ## 协作与反向检查
 
-准入、启动、等待、结果和恢复时序见 [flows](flows.md)。每条端口在 [protocols](../SPEC.md#tool-操作协议) 有守卫、提交点、失败及未知处理；产品逐项映射见 [coverage](../verification/coverage.md)。
+准入、启动、等待、结果和恢复时序见 [flows](flows.md)。每条端口在 [protocols](../SPEC.md#tool-操作协议) 有守卫、提交点、失败及未知处理；产品逐项映射见 [coverage](../verification/README.md)。
 
 移除目录后仍可查询和控制原调用，只失去活体快速观察。移除当前 ToolDriver 后能从持久任务恢复。移除持久任务则无法保留外域回执未知责任，因此不能以 registry 的 Map 替代。移除程序执行方的程序内存后仍能列出子调用并保管迟到结果。上述反查是责任分离是否成立的最低判据。

@@ -75,7 +75,7 @@ runtime 实施中发现的契约缺口按同一协议处理：先记为候选，
 
 例如脚本并行调用两个工具，A 显式许可而 B 未声明。A 可在其余准入条件成立后执行，B 的调用明确拒绝且不执行；B 仍可按原规则被直接调用。A 已发生的效果不因 B 拒绝回滚。若两者属于必须共同判断的一批动作，仍先满足原批次屏障。
 
-缓存名称、包装工具、动作桥接方或通用调用入口不能去掉子调用的编排来源。省略和 false 的失败、排队时许可撤回以及原调用恢复的判据见[定义专题](../verification/scenarios.md#tl-v02)。普通独立 SDK 消费不自动算脚本编排；判断依据是受信来源，不是函数名。
+缓存名称、包装工具、动作桥接方或通用调用入口不能去掉子调用的编排来源。省略和 false 的失败、排队时许可撤回以及原调用恢复的判据见[定义专题](../verification/README.md#tl-v02)。普通独立 SDK 消费不自动算脚本编排；判断依据是受信来源，不是函数名。
 
 ## 前后台与 Ask
 
@@ -158,6 +158,6 @@ stateDiagram-v2
 
 ## 完整消费与装配阅读顺序
 
-先读 [architecture](architecture.md) 确认本包责任，再读 [object-model](object-model.md) 区分值、实体、协程和依赖；[public-api](public-api.md) 给唯一设计形状，[protocols](../SPEC.md#tool-操作协议) 给每次调用的守卫、提交与未知处理。接入程序执行方再读 [composition](../SPEC.md#code-与-tool-的组合协议)，Cordis 集成读 [cordis](../../tool-cordis-contract/docs/cordis.md)。[coverage](../verification/coverage.md) 将这些入口对回全部产品能力。
+先读 [architecture](architecture.md) 确认本包责任，再读 [object-model](object-model.md) 区分值、实体、协程和依赖；[public-api](public-api.md) 给唯一设计形状，[protocols](../SPEC.md#tool-操作协议) 给每次调用的守卫、提交与未知处理。接入程序执行方再读 [composition](../SPEC.md#code-与-tool-的组合协议)，Cordis 集成读 [cordis](../../tool-cordis-contract/docs/cordis.md)。[coverage](../verification/README.md) 将这些入口对回全部产品能力。
 
 纯作者路径可分别取本包的 ParameterCodec、evaluateToolAvailability、presentTool、renderToolResult，以及 `@omne-harness/tool`（[本增量未交付](../../README.md#未交付标注)） 的 executeTool。它们只消费显式输入；托管路径才组合身份、存储、环境、事实流和恢复。Catalog、过程读取、内容读取与账目范围查询按各自权限开放，不把一个万能Tool句柄交给程序。

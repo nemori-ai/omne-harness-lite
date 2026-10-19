@@ -549,6 +549,36 @@
       "requiredSections": []
     },
     {
+      "id": "acceptance-fixtures-readme",
+      "path": "packages/tool/tool-cordis-contract/acceptance/fixtures/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "not-applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "目录入口"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "acceptance-fixtures-index",
+      "path": "packages/tool/tool-cordis-contract/acceptance/fixtures/index.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "not-applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "目录入口"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
       "id": "verification-readme",
       "path": "packages/tool/tool-cordis-contract/verification/README.md",
       "kind": "guide",

@@ -180,6 +180,21 @@
       ]
     },
     {
+      "id": "topic-cordis",
+      "path": "packages/tool/tool-contract/docs/cordis.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "not-applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "专题职责"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
       "id": "protocols",
       "path": "packages/tool/tool-contract/SPEC.md",
       "kind": "contract",
@@ -216,23 +231,8 @@
       ]
     },
     {
-      "id": "coverage",
-      "path": "packages/tool/tool-contract/verification/coverage.md",
-      "kind": "guide",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "行为契约与完整文档"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "verification-scenarios",
-      "path": "packages/tool/tool-contract/verification/scenarios.md",
+      "id": "verification-overview",
+      "path": "packages/tool/tool-contract/verification/README.md",
       "kind": "guide",
       "required": true,
       "visibility": "internal",
@@ -244,6 +244,14 @@
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": [
+        {
+          "id": "design-coverage",
+          "anchor": "设计覆盖与验收规范"
+        },
+        {
+          "id": "journey-scenarios",
+          "anchor": "旅程验证场景"
+        },
         {
           "id": "tl-v01",
           "anchor": "tl-v01"
@@ -273,21 +281,6 @@
           "anchor": "tl-v07"
         }
       ]
-    },
-    {
-      "id": "verification-overview",
-      "path": "packages/tool/tool-contract/verification/README.md",
-      "kind": "guide",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "行为契约与完整文档"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
     },
     {
       "id": "verification-index",
@@ -600,6 +593,36 @@
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "acceptance-fixtures-readme",
+      "path": "packages/tool/tool-contract/acceptance/fixtures/README.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "not-applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "目录入口"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "acceptance-fixtures-index",
+      "path": "packages/tool/tool-contract/acceptance/fixtures/index.md",
+      "kind": "entry",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "not-applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "目录入口"
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []

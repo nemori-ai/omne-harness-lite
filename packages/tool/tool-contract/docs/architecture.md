@@ -33,7 +33,7 @@ flowchart LR
 
 内部模块、采用的机制、程序执行方的宿主构造和全部内部实施规格属于实现，归 tool 实现包的架构（`tool/docs/architecture.md`）（[本增量未交付](../../README.md#未交付标注)）。本页只保留领域级设计与对外缺项。
 
-外域接缝见 [治理领域架构](../../../../docs/domains/tool-execution/architecture.md)。参数、依赖和 OOP 见 [object-model](object-model.md)，协议见 [protocols](../SPEC.md#tool-操作协议)，Cordis 装配见 [cordis](../../tool-cordis-contract/docs/cordis.md)，产品覆盖与验证见 [coverage](../verification/coverage.md)。文本、内容 ref 与附件地址分流归 P14；共享类型迁移和真实发送验证由共享内容块拥有者跟踪，不以政策接缝扩大任意嵌套许可。
+外域接缝见 [治理领域架构](../../../../docs/domains/tool-execution/architecture.md)。参数、依赖和 OOP 见 [object-model](object-model.md)，协议见 [protocols](../SPEC.md#tool-操作协议)，Cordis 装配见 [cordis](../../tool-cordis-contract/docs/cordis.md)，产品覆盖与验证见 [coverage](../verification/README.md)。文本、内容 ref 与附件地址分流归 P14；共享类型迁移和真实发送验证由共享内容块拥有者跟踪，不以政策接缝扩大任意嵌套许可。
 
 ## Tool 设计状态与外部缺项
 
