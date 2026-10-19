@@ -9,7 +9,7 @@
 1. 已有：凭据引用、解析与本地保管。凭据的纯契约（引用、查询、存在性与解析结果、`CredentialPort`、持有者比较函数）在 [model-contract](model-contract/README_ZH.md) 的根入口，声明在 `src/credential.ts` 与 `src/credential-values.ts`。存在性与解析的判定在 [model](model/README_ZH.md) 的根入口。本地保管（文件保管库）与装载它的 `LocalCredentialPlugin` 在 [model-host-local](model-host-local/README_ZH.md) 的根入口与 `./cordis` 入口。Cordis 凭据服务定义 `ModelCredentialService` 在 [model-cordis-contract](model-cordis-contract/README_ZH.md) 的 `./cordis` 入口。局限：保管库只在本机文件系统上验证，并要求调用方与保管库在同一进程共享 legal-identity 实例；凭据服务不核验调用方资格，该项在 [model-cordis-contract 的 SPEC](model-cordis-contract/SPEC.md#凭据服务)登记为未决。
 2. 已实现的两个公开契约。model-contract 的根入口导出 151 个类型与 18 个运行值，`./testing` 入口导出受控替代提供者、替代传输与提供者符合性断言，共 27 个名字。model-cordis-contract 的根入口导出 8 个登记类型，`./cordis` 入口导出 42 个名字与 `Context`、`Events` 增补。两个包都有导出清单比对、类型探针、安装闭包检查与角色夹具，model-cordis-contract 另有对真实 Cordis 的登记与撤除测试。局限：替代提供者的结果由脚本给出，不证明生产提供者；这些检查证明契约面，不证明任何运行实现。
 3. 尚未实现或验证：`executeModel`、`createModelRuntime` 与独立能力的构造函数（model 目前只有凭据判定与 `deliver`）；model-host-local 的时钟、实例调度、目录装载与托管运行插件；pi 传输、厂商家族、tokenizer 引擎等其他提供者。
-4. 技术设计：非 pi-ai 技术设计已接受。pi-ai 相关细化仍为候选。
+4. 技术设计：非 pi-ai 技术设计已接受。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 分工及迁移接受条件已接受；其余细化沿[组架构](docs/architecture.md#成员与新增条件)的各节标注。OpenAI 实现线只交付三个新成员，延期条件见[迁移接受范围](docs/architecture.md#迁移与接受条件)。
 
 ## 成员与依赖
 
