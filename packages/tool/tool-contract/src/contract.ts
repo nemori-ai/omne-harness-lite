@@ -10,7 +10,7 @@ import {
 } from '@omne-harness/assets'
 
 const schemaRead = readBodyText(
-  '{"kind":"tool-body","properties":{"name":"string","composes":{"skills":"string[]"}}}',
+  '{"kind":"tool-body","properties":{"name":"string","programmable":"boolean","composes":{"skills":"string[]"}}}',
   {
     maxBytes: 1000,
     maxDepth: 8,
@@ -31,7 +31,8 @@ export function toolBodyContract(): BodyContract {
     deriveDeclarations(body, context) {
       const decision = judge(body, context)
       if (!decision.ok) throw new TypeError(`tool body failed judgment: ${decision.rejected}`)
-      return { entries: [] }
+      // Only boolean true permits programmatic calls. An omitted or false value declares nothing.
+      return { entries: programmable(body) === true ? [PROGRAMMABLE_DECLARATION] : [] }
     },
     references(body, context) {
       const decision = judge(body, context)
@@ -55,7 +56,19 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
   if (context?.capabilityName !== undefined && name !== context.capabilityName)
     return refusal('name-mismatch')
   if (skillNames(body) === undefined) return refusal('incomplete-reference')
+  if (programmable(body) === 'invalid') return refusal('invalid-programmable')
   return { ok: true }
+}
+
+/** The declaration entry of a tool body whose `programmable` is boolean true. */
+const PROGRAMMABLE_DECLARATION = 'programmable'
+
+/** `programmable` is optional and boolean. A string, number or null is not converted. */
+function programmable(body: unknown): boolean | 'invalid' | undefined {
+  const value = field(body, 'programmable')
+  if (value === undefined) return undefined
+  if (value.kind !== 'boolean' || typeof value.value !== 'boolean') return 'invalid'
+  return value.value
 }
 
 function skillNames(body: unknown): readonly string[] | undefined {

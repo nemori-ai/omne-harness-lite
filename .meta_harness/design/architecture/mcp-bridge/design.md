@@ -30,4 +30,4 @@ projectActions 行为必须保持：remote条目名 endpoint.name+":"+remote.nam
 
 验证义务与规范输入见[verification](verification/README.md)。尚未闭合的公共语义阻止相应提供者实施，不以迁移目录关闭业务缺口。
 
-新 Tool 已实现[正文端口](../../../../packages/tool/tool/SPEC.md#正文端口)，负责正文来源、名字匹配及 Skill 引用。它尚未提供 MCP 动作名、参数 Schema、编译上限和 execution 方式的完整校验协议。原桥设计要求先名字、再 Schema 形状、后编译上限、最后 execution 方式；这一顺序保留为待承接约束，不能由新正文端口推定已经实现。MCP 与 Tool 技术拥有者须共同明确公开校验、具名拒绝和顺序，纳入[MCP 公开形状缺口](../../../../packages/mcp/docs/architecture.md#完整行为候选的正式承接缺口)后再放行相应桥接实现。
+新 Tool 已实现[正文端口](../../../../packages/tool/tool-contract/SPEC.md#正文端口)，负责正文来源、名字匹配及 Skill 引用。它尚未提供 MCP 动作名、参数 Schema、编译上限和 execution 方式的完整校验协议。原桥设计要求先名字、再 Schema 形状、后编译上限、最后 execution 方式；这一顺序保留为待承接约束，不能由新正文端口推定已经实现。MCP 与 Tool 技术拥有者须共同明确公开校验、具名拒绝和顺序，纳入[MCP 公开形状缺口](../../../../packages/mcp/docs/architecture.md#完整行为候选的正式承接缺口)后再放行相应桥接实现。

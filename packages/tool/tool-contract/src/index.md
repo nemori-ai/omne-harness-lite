@@ -1,0 +1,35 @@
+# Tool 源码索引
+
+- [源码职责与现状](README.md)。
+- [根入口](index.ts)。
+- [绑定提供者入口](binding.ts)。
+- [一致性套件入口](testing.ts)：[用例类型](testing-case.ts)、[启动围栏](testing-start-authority.ts)、[环境](testing-environment.ts)、[执行者绑定](testing-executor-binding.ts)、[输出保管](testing-output-custody.ts)、[时钟](testing-clock.ts)、[决策桥](testing-decision-bridge.ts)、[资源应答](testing-resource-responses.ts)、两者共有的[外部关联用例](testing-external.ts)和[合法值](testing-values.ts)。
+- [资产正文端口](contract.ts)。
+- [品牌身份与解码函数](identity.ts)。
+- [定义与固定请求](definitions.ts)。
+- [返回与执行事实](results.ts)。
+- [普通操作与实例目录](operations.ts)。
+- [作者执行上下文](author-context.ts)。
+- [执行者与账本命令端口](execution.ts)。
+- [提供者端口与 runtime 工厂输入](ports.ts)。
+- [定义、作者适配与独立消费](authoring.ts)。
+- [持久状态与协议记录](records.ts)。
+- [输出保管、持久读取与账目](custody.ts)。
+- [程序编排接缝](program.ts)。
+- [默认结果政策](result-policy.ts)。
+- [可复算的采用摘要](adoption.ts)。
+- [定义判定](judge-definition.ts)。
+- [固定请求判定](judge-request.ts)。
+- [交付解除输入判定](judge-release.ts)。
+- [状态判定](judge-state.ts)。
+- [呈现与可用性判定](catalog.ts)。
+- [操作与作者注册](registration.ts)。
+- [等待协议句柄](wait-contract.ts)。
+- [默认参数 codec](parameter-codec.ts)。
+- [结果渲染](result-rendering.ts)。
+- [结果投影](result-projection.ts)。
+- [封闭形状检查](shape.ts)。
+- [json-text 树检查](json-tree.ts)。
+- [共用引用值形状](value-shapes.ts)。
+- [源码导航](../docs/public-api.md)。
+- [包索引](../index.md)。

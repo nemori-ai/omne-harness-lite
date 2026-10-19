@@ -110,7 +110,9 @@ packages/
 │   └── kernel-basis/           Cordis 插件辅助和测试装配
 ├── agent/agent/                Agent定义、Loop与extensions
 ├── model/model/                模型能力、请求和原结果
-├── tool/tool/                  工具定义、执行和效果
+├── tool/
+│   ├── tool-contract/          工具纯契约：类型、判定与投影
+│   └── tool-cordis-contract/   工具的 Cordis 服务定义
 ├── context/
 │   ├── runtime-context/        数据注册、供给与读取
 │   └── request-context/        请求投影与上下文组装

@@ -1,0 +1,34 @@
+# Tool 测试索引
+
+- [测试范围与运行入口](README.md)。
+- [根入口导出与导入方向测试](public-entry.spec.ts)。
+- [品牌身份解码测试](identity.spec.ts)。
+- [默认结果政策测试](result-policy.spec.ts)。
+- [资产正文端口测试](contract.spec.ts)。
+- [资产正文 programmable 测试](body-programmable.spec.ts)。
+- [定义判定测试](definition-judgment.spec.ts)。
+- [json-text 树检查的字段名测试](json-tree-judgment.spec.ts)。
+- [固定请求判定测试](request-judgment.spec.ts)。
+- [交付解除输入判定测试](release-judgment.spec.ts)。
+- [状态判定测试](state-judgment.spec.ts)。
+- [呈现与可用性测试](catalog.spec.ts)。
+- [作者注册与等待契约测试](author-registration.spec.ts)。
+- [默认参数 codec 测试](parameter-codec.spec.ts)。
+- [结果渲染与结构化判定测试](result-rendering.spec.ts)。
+- [结果投影测试](result-projection.spec.ts)。
+- [启动围栏套件自证](start-authority-conformance.spec.ts)。
+- [环境套件自证](environment-conformance.spec.ts)。
+- [执行者绑定套件自证](executor-binding-conformance.spec.ts)。
+- [输出保管套件自证](output-custody-conformance.spec.ts)。
+- [时钟套件自证](clock-conformance.spec.ts)。
+- [决策桥套件自证](decision-bridge-conformance.spec.ts)。
+- [资源应答套件自证](resource-responses-conformance.spec.ts)。
+- [决策桥与资源应答共有用例的违约变体](external-association-variants.ts)。
+- [自证运行器](conformance-harness.ts)。
+- [合法值构造器](tool-values.ts)。
+- [公开类型名导入测试](public-api-names.spec-d.ts)。
+- [已替换名称的源码核对测试](removed-names.spec.ts)。
+- [公开类型负编译测试](contract.spec-d.ts)。
+- [导入图遍历工具](module-graph.ts)。
+- [测试夹具](fixtures/index.md)。
+- [包索引](../index.md)。

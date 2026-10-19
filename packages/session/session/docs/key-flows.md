@@ -139,7 +139,7 @@ flowchart TD
 
 ## F-SW04 出卡、答复与原扩展位置接续
 
-对应 [J-SW04](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw04)中的扩展等待，采用 ST17a、ST17b、ST17c。下图只表达扩展发起的原批次，工具内部 Ask 的答复回 Tool 自身原等待，见[TL-F04](../../../../packages/tool/tool/docs/key-flows.md#tl-f04)。两者不能互换接续位置。出卡、答复交回及处理可以在不同时间提交，各阶段引用已经成立的原事实。
+对应 [J-SW04](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw04)中的扩展等待，采用 ST17a、ST17b、ST17c。下图只表达扩展发起的原批次，工具内部 Ask 的答复回 Tool 自身原等待，见[TL-F04](../../../tool/tool-contract/docs/flows.md#tl-f04)。两者不能互换接续位置。出卡、答复交回及处理可以在不同时间提交，各阶段引用已经成立的原事实。
 
 ```mermaid
 sequenceDiagram

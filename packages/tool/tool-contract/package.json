@@ -1,17 +1,27 @@
 {
-  "name": "@omne-harness/tool",
+  "name": "@omne-harness/tool-contract",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "description": "Draft tool package; complete the accepted public contract before delivery",
   "engines": {
-    "node": ">=24"
+    "node": ">=24.18.0 <25"
   },
   "exports": {
     ".": {
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./binding": {
+      "source": "./src/binding.ts",
+      "types": "./dist/binding.d.ts",
+      "import": "./dist/binding.js"
+    },
+    "./testing": {
+      "source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
   },
   "files": [
@@ -23,10 +33,18 @@
     "test": "pnpm run build && vitest run"
   },
   "dependencies": {
-    "@omne-harness/assets": "workspace:*"
+    "@omne-harness/assets": "workspace:*",
+    "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/modality": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/schema-provider": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
