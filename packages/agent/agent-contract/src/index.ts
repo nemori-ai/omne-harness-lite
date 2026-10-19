@@ -1,16 +1,12 @@
 export { agentBodyContract } from './body-contract.ts'
-export { judgeAgentDefinition } from './agent-definition.ts'
-export { judgeLoopExtensions } from './loop-extension.ts'
+export { judgeAgentDefinition } from './judge-definition.ts'
+export { judgeLoopExtensions } from './judge-extensions.ts'
 export type {
   AgentDefinition,
   AssetReference,
   AttributeDeclaration,
-  BatchJudgment,
   CapabilityRef,
-  Judgment,
-  LoopExtensionDeclaration,
-  Position,
-  Power,
-  RefusalReason,
   VersionChoice,
-} from './types.ts'
+} from './definition.ts'
+export type { LoopExtensionDeclaration, Position, Power } from './extensions.ts'
+export type { BatchJudgment, Judgment, RefusalReason } from './judgment.ts'

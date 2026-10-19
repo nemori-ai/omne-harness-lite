@@ -2,13 +2,12 @@ import { z } from 'zod'
 import { checkJson, copyPlain } from './check.ts'
 import {
   ATTRIBUTE_ITEMS,
-  refused,
+  attributeItem,
   type AgentDefinition,
-  type Judgment,
   type AssetReference,
   type AttributeItem,
-  type RefusalReason,
-} from './types.ts'
+} from './definition.ts'
+import { refused, type Judgment, type RefusalReason } from './judgment.ts'
 
 const reference = z.strictObject({
   capability: z.strictObject({
@@ -37,13 +36,6 @@ function stripResident(reference: Parsed['references'][number]): AssetReference 
   return { capability: reference.capability, resident: reference.resident }
 }
 
-function isAttributeItem(item: string): item is AttributeItem {
-  for (const allowed of ATTRIBUTE_ITEMS) {
-    if (allowed === item) return true
-  }
-  return false
-}
-
 function readData(value: unknown, path: readonly (string | number)[]): unknown {
   let current = value
   for (const segment of path) {
@@ -67,7 +59,7 @@ function issueReason(path: readonly (string | number)[], value: unknown): Refusa
   const itemIndex = path.indexOf('item', attributesAt + 1)
   if (itemIndex < 0) return 'malformed'
   const item = readData(value, path.slice(0, itemIndex + 1))
-  if (typeof item === 'string' && !isAttributeItem(item)) return 'unknown-attribute'
+  if (typeof item === 'string' && attributeItem(item) === undefined) return 'unknown-attribute'
   return 'malformed'
 }
 

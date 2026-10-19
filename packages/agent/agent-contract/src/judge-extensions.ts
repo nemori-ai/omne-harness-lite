@@ -9,14 +9,11 @@ import {
 import {
   POSITIONS,
   POWERS,
-  refused,
-  type BatchJudgment,
-  type Judgment,
   type LoopExtensionDeclaration,
   type Position,
   type Power,
-  type RefusalReason,
-} from './types.ts'
+} from './extensions.ts'
+import { refused, type BatchJudgment, type Judgment, type RefusalReason } from './judgment.ts'
 
 const ceiling = {
   attempt_started: ['observe', 'rewrite'],

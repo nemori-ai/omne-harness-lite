@@ -8,7 +8,7 @@ import {
   type JudgeContext,
   type Judgment,
 } from '@omne-harness/assets'
-import { ATTRIBUTE_ITEMS, type AttributeItem } from './types.ts'
+import { attributeItem, type AttributeItem } from './definition.ts'
 
 const CATEGORY = 'AgentDefinition'
 
@@ -156,10 +156,6 @@ function decodeAttributes(
     items.push(item)
   }
   return { ok: true, items }
-}
-
-function attributeItem(text: string | undefined): AttributeItem | undefined {
-  return ATTRIBUTE_ITEMS.find(allowed => allowed === text)
 }
 
 /**
