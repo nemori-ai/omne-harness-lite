@@ -16,7 +16,12 @@ import {
   testTiers,
 } from '../../../vitest.tiers.mts'
 import { RUN_TIERS } from '../src/testing/config.ts'
-import { TEST_REPORT_DIR_ENV, TIER_TASKS, turboTestCommand } from '../src/testing/turbo.ts'
+import {
+  TEST_REPORT_DIR_ENV,
+  TIER_TASKS,
+  turboTestCommand,
+  typecheckArgs,
+} from '../src/testing/turbo.ts'
 import { slugOf } from '../src/testing/run.ts'
 import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
 
@@ -116,6 +121,25 @@ describe('运行器交给 turbo 的命令', () => {
     expect(args(false)).not.toContain('--only')
     expect(args(false)).toContain('--cache=local:rw')
     expect(args(true)).toContain('--cache=local:w')
+  })
+
+  it('类型检查按输入缓存：依赖上游的 typecheck，成员目录外经相对路径读到的文件在全局依赖里；准入模式下缓存只写不读', () => {
+    const turbo = JSON.parse(readFileSync(join(REPOSITORY, 'turbo.json'), 'utf8')) as {
+      globalDependencies?: string[]
+      tasks: Record<string, { dependsOn?: string[]; cache?: boolean }>
+    }
+    const typecheck = turbo.tasks['typecheck']
+    expect(typecheck?.cache).not.toBe(false)
+    expect(typecheck?.dependsOn).toContain('^typecheck')
+    expect(turbo.globalDependencies).toEqual(
+      expect.arrayContaining([
+        'vitest.tiers.mts',
+        'tools/repo-toolchain/src/**',
+        'tools/repo-toolchain/tests/fixtures/**',
+      ]),
+    )
+    expect(typecheckArgs(['@a/x'], false)).toContain('--cache=local:rw')
+    expect(typecheckArgs(['@a/x'], true)).toContain('--cache=local:w')
   })
 
   it('三个测试任务的 env 与 passThroughEnv 各是同一份', () => {

@@ -5,7 +5,10 @@
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
-    "tsconfig.base.json"
+    "tsconfig.base.json",
+    "vitest.tiers.mts",
+    "tools/repo-toolchain/src/**",
+    "tools/repo-toolchain/tests/fixtures/**"
   ],
   "tasks": {
     "build": {
@@ -13,7 +16,8 @@
       "outputs": ["dist/**"]
     },
     "typecheck": {
-      "cache": false
+      "dependsOn": ["^typecheck"],
+      "outputs": []
     },
     "test:fast": {
       "dependsOn": ["build", "^build"],
