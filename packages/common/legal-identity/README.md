@@ -114,7 +114,7 @@ Applicable tests are unit tests and contract tests from the public entry. The te
 | `tests/identity-type-names.spec.ts` | The name list and the absence of `LoginIdentifier` |
 | `tests/codec-variance.spec-d.ts` | Assigning `accountCodec` to the account and organization union codec is a type error |
 
-Run `pnpm test` from this directory. It builds `dist` and then runs the tests. Run `pnpm typecheck` to check the tests against the source types.
+Run `pnpm turbo run test --filter=@omne-harness/legal-identity` from the repository root. turbo builds `dist` and then runs the tests. `pnpm test` in this directory does not build. Run `pnpm turbo run typecheck --filter=@omne-harness/legal-identity` to check the tests against the source types.
 
 The tests do not cover a type-level ban on hand-built objects, because the accepted design allows them to typecheck. They do not cover duplicate JSON keys or two loaded copies of the package.
 

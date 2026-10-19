@@ -15,7 +15,7 @@ make test-affected BASE=<基线提交或分支>   # 只构建并测试受这次�
 make test-affected BASE=<基线> PLAN=1     # 只列受影响范围与层，不构建也不运行
 make test-tier TIER=slow                   # 先构建，再跑全部成员的某一层
 make test-triage RUN=<运行目录>            # 把那次运行里的失败逐条单独重跑并归类（测试或验收的运行都行）
-pnpm run test                              # 全量两层：先构建，再跑全部成员
+pnpm run test                              # 全量两层：turbo 先构建，再跑全部成员（同 make test-tier TIER=all）
 pnpm run test:gate                         # make check 的测试一步：按影响面计划跑被选中成员的快层再慢层（基线 BASELINE，缺省 main；FULL=1 全部）；单独运行时由 turbo 先构建
 make acceptance                            # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；NO_BUILD=1 不构建
 ```

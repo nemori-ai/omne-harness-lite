@@ -14,7 +14,6 @@ export default function setup(): void {
       env: {
         ...process.env,
         TURBO_TELEMETRY_DISABLED: '1',
-        TURBO_DAEMON: 'false',
         TURBO_NO_UPDATE_NOTIFIER: '1',
       },
     },

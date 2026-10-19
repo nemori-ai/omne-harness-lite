@@ -138,7 +138,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 | 成员有验收文件，`package.json` 里却没有 `acceptance` 脚本                   | 没有它，这些验收不会被任何入口运行                                                                                                            |
 
 产品区的位置沿用 `loop` 配置的 `sensors.topicChurn.productRoot`。**为什么接在 `lint:rules`**：它与提交署名一样是对整个仓库的静态核对，
-不需要构建产物，放在已有的仓库规则入口里，`make check` 不必多一步，`pnpm run check` 单跑时也查得到。
+不需要构建产物，放在已有的仓库规则入口里，`make check` 不必多一步，单跑 `pnpm run lint:rules` 时也查得到。
 
 **不能声称**：声明的场景存在，不等于验收真的断言了那条场景要的东西——那归写验收的人与评审；验收过没过归下面的 `make acceptance`。
 它只认 `.acceptance.ts` 结尾的文件，放在 `acceptance/` 里却不按这个名字取的验收它看不见。自测：`tests/acceptance-coverage.spec.ts`。

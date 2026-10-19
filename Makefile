@@ -1,4 +1,4 @@
-.PHONY: check check-plan declarations-check agents-check docs-check docs-inventory delivery-check design-check formal-tools test product-check acceptance metrics test-affected test-tier test-triage mutation role-eval acceptance-lock scenario-status loop-status loop-health
+.PHONY: check check-plan declarations-check agents-check docs-check docs-inventory delivery-check design-check formal-tools test acceptance metrics test-affected test-tier test-triage mutation role-eval acceptance-lock scenario-status loop-status loop-health
 
 TEST_RUNS := node --experimental-strip-types tools/test-runner/src/testing/cli.ts
 # 检查器命令来自 pnpm-workspace.yaml 钉住的 @omne-harness/repo-toolchain（npm 上的包），不运行工作区 tools/repo-toolchain。
@@ -46,9 +46,6 @@ formal-tools:
 test:
 	mkdir -p tmp
 	PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest --ignore-glob='*.legacy' --basetemp=tmp/test-runs
-
-product-check:
-	pnpm run check
 
 # 结构度量：只报告，不判失败。BASE 给基线提交或分支，COVERAGE=1 对变更成员跑覆盖率，OUT 改产物目录。
 metrics:
