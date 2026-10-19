@@ -182,7 +182,7 @@
 - **身份**：产品正文未述标识方式；只要求换执行挂接接续的是原执行，而不是新开一次。标识、围栏代次与授予方式见补充依据
 - **生灭**：产品正文只写重挂接与实例换代时，为同一次执行换一次新的执行挂接，不再经过执行开始之后位置；挂接自身的状态产品正文未述。已接受的 Agent 对象模型给出有效、被取代、已脱离三种状态，见补充依据
 - **依据**：[产品页 扩展检查与权限](../product/agent-progression/design.md#扩展检查与权限)（rev 2）；[产品页 使用场景](../product/agent-progression/design.md#使用场景)（rev 2）；[J-AG06](../product/agent-progression/design.md#j-ag06)（rev 2）
-- **补充依据**：已接受的 Agent 契约的[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)与[恢复与接管](../../../packages/agent/agent-contract/SPEC.md#恢复与接管)，[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)；形态判为对象的理由见 [C-57](../ubiquitous_language/conflicts.md#c-57执行挂接的形态)
+- **补充依据**：已接受的 Agent 契约的[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)与[恢复与接管](../../../packages/agent/agent-contract/SPEC.md#恢复与接管)，[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)；形态判为对象的理由见 [C-59](../ubiquitous_language/conflicts.md#c-59执行挂接的形态)
 
 ### UL-agent-registration · Agent 登记
 

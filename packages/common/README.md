@@ -1,6 +1,6 @@
 # 共同纯表示能力组
 
-本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面八份成员已经在 workspace 里。`json-text` 导出读取函数、值树判定函数和值树原样写出函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。`call-account` 导出调用账目的快照准入、修订替换、来源小计和应付金额。`operation-result` 导出操作结果的两种形状和构造函数。
+本组是条件性工程位置，依据为[目标包组织](../../docs/package-organization.md#目标目录)。下面九份成员已经在 workspace 里。`json-text` 导出读取函数、值树判定函数和值树原样写出函数。`utc-instant` 导出时间点、SI 时长和 `compareInstants`。`legal-identity` 导出解析、编码、相等和 `tenant()`。`content-block`、`message` 和 `stream-arrival` 导出各自的纯校验。`call-account` 导出调用账目的快照准入、修订替换、来源小计和应付金额。`operation-result` 导出操作结果的两种形状和构造函数。`modality` 导出四种模态、媒体类型到模态的识别和模态判定函数。
 
 ## 责任与范围
 
@@ -10,7 +10,7 @@
 
 ## 成员与依赖
 
-依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的八份目录现在是 workspace 成员。`json-text` 的读取函数已经实现，#242 已于 2026-10-15 接受这部分。值树判定与原样写出函数是 #373 新增，待 D-02 确认。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
+依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。下表的九份目录现在是 workspace 成员。`json-text` 的读取函数已经实现，#242 已于 2026-10-15 接受这部分。值树判定与原样写出函数是 #373 新增，待 D-02 确认。`utc-instant` 的公开行为已经实现，整卡接受见 [#244](https://github.com/nemori-ai/omne-harness-lite/issues/244#issuecomment-6171844996)。`legal-identity` 从 `src/index.ts` 导出解析、编码、相等和 `tenant()`。#243 的成果已合并进 `integration/legacy-refactor`。
 
 | 目标成员 | 状态 | 拥有的纯值 | 具名消费者 |
 | --- | --- | --- | --- |
@@ -22,6 +22,7 @@
 | `stream-arrival` | 步骤校验与折叠已导出，开块头键闭合，工具调用须显式完整封口 | 开块、填充、封块、削减、结束 | 模型、工具、会话 |
 | `call-account` | 快照准入、修订替换、来源小计和应付金额已导出 | 一次模型调用或工具执行的调用账目 | 模型调用、会话 |
 | `operation-result` | 公开入口已实现，零依赖。形状由 [#248](https://github.com/nemori-ai/omne-harness-lite/issues/248#issuecomment-6176737639) 接受，拆分依据是 [#371 技术采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/371#issuecomment-6229850851) | 带值成功、无值确认与失败两种操作结果。失败词汇 `F` 归调用方 | `tool-contract`、`tool`、`tool-cordis-contract`、`model-contract`。当前轨道没有生产调用点。它们合入本轨道时按公开入口导入本成员，不复制结果类型 |
+| `modality` | 公开入口已实现，零依赖。含义与 Model 契约一致，由 Model 主干会话于 2026-10-19 确认。媒体类型到模态的对照表由 PanQiWei 随 [#397](https://github.com/nemori-ai/omne-harness-lite/issues/397) 接受，其中全部 `audio/*` 读作 `voice` 是 PanQiWei 2026-10-19 的裁定 | 四种模态、媒体类型规范形式与按顶层类型识别的模态、模态判定、缺失模态。不含历史模态投影、转换件选择、初始文本约束和块种类到模态的映射 | 具名消费者是 Model 与 Tool。以后有会话、代理与基础设施。当前轨道没有生产调用点。Model 与 Tool 在各自的交付里采用，采用前保留各自的副本 |
 
 采用记录是 [Issue 221 技术设计采用](https://github.com/nemori-ai/omne-harness-lite/issues/221#issuecomment-6161958178)。
 

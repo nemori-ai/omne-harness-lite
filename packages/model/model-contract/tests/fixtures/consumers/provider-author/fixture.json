@@ -1,0 +1,18 @@
+{
+  "role": "provider-author",
+  "description": "An author who implements the transport and tokenizer ports against the contract alone and checks them with the conformance suite",
+  "dependencies": [
+    "@omne-harness/model-contract",
+    "@omne-harness/operation-result"
+  ],
+  "forbidden": [
+    "@deepseek-ai/cordis",
+    "cordis",
+    "@cordisjs/*",
+    "@omne-harness/model",
+    "@omne-harness/model-host-local",
+    "@omne-harness/model-cordis-contract",
+    "@earendil-works/pi-*",
+    "@mariozechner/pi-*"
+  ]
+}

@@ -328,7 +328,7 @@
 
 > **中**：一件系统自带的转换件，**不站在任何[拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上**。
 > **非 Tool ref 来源的内容，由实现[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的提供者在接纳之前调用它转换；Tool 内容引用在 Model 实际请求时才加载并按需转换。**
-> 非 Tool ref 来源的这一执行时点已由项目负责人接受，见 [C-56](../conflicts.md#c-56模态转换件的执行时点)。
+> 非 Tool ref 来源的这一执行时点已由项目负责人接受，见 [C-58](../conflicts.md#c-58模态转换件的执行时点)。
 > **输入一个非文本[模态](record-and-context.md#ul-modality--模态--modality)的[内容块](record-and-context.md#ul-content-block--内容块--content-block)或一个文件块；
 > 输出一个或多个别的模态的内容块（不能是文件块），外加一段纯文本 [transcript](record-and-context.md#ul-transcript--transcript--transcript) 作最后兜底。**
 > 产出挂在原块上作[派生表示](record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)，**原块不动，不新增块、不另立对象**。
@@ -342,7 +342,7 @@
 > **EN**: A system-provided converter that **stands at no loop extension point**. **For content from sources other than
 > a tool reference, the provider that implements message admission calls it before acceptance; a tool content
 > reference is loaded and converted as needed only when the model request is actually made.** The project owner
-> has accepted this timing for sources other than Tool references (C-56). **It takes one
+> has accepted this timing for sources other than Tool references (C-58). **It takes one
 > content block of a non-text modality, or one file block, and yields one or more content
 > blocks in other modalities (never a file block), plus a plain-text transcript as the
 > last-resort fallback.** The outputs hang on the original block as its derived renderings;
@@ -366,7 +366,7 @@
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
 - **⚠️ 别混 ②**：**父词条是资产的一类，它本版却不是资产**——它不被持有、不按层配值，
   也不站在拓展点上；「未来是否升为资产」是 PF-013 记下的显式缺口
-- **注意 ①**：**非 Tool ref 来源的执行时点已由项目负责人接受（C-56），契约归 PF-013**——有哪些模态、哪个模型收得下哪些，是大语言模型域定的
+- **注意 ①**：**非 Tool ref 来源的执行时点已由项目负责人接受（C-58），契约归 PF-013**——有哪些模态、哪个模型收得下哪些，是大语言模型域定的
 - **注意 ②**：**非 Tool ref 来源转换失败，按[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的来源特定拒收处理**（封存原文 [PF-012 §5.8 否决按消息是谁产生的分三路](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)）——拒绝或失败，不补偿；**被拒收的模型回复不是一次调模型失败**
 - **注意 ③**：**没登记转换件、因而没有 transcript 的块进[模态投影](record-and-context.md#ul-modality-projection--模态投影--modality-projection)**，把收不下它的模型挡在合法目标之外——这是有意的兜底方向
 

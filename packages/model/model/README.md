@@ -1,45 +1,74 @@
-本成员已按 RFC-0003 初始化。凭据引用、存在性查询、解析和本地保管库从根入口导出。`source` 条件指向本包源码。发布时去掉它。其余行为仍以 SPEC 为准。凭据引用与解析切片已由 D-04 接受并写入 SPEC。
+# @omne-harness/model
 
-# model 文档目标
+[中文](README_ZH.md)
 
-本成员的协作契约已技术接受，精确范围见 [SPEC](SPEC.md)。其余候选、生产实现及运行验证的状态分别保留。
+## Responsibility and status
 
-## 责任与使用
+This member owns the design of the reusable Model domain implementation. It has the judgment of credential presence and resolution. Local custody belongs to [model-host-local](../model-host-local/README.md). Hosted runs and the factory are not implemented. Credential references and resolution have four owners: the custody implementation is in [model-host-local](../model-host-local/README.md), the contract is in [model-contract](../model-contract/README.md), the judgment is in this member, and the run factory and other hosts are not implemented. The public values, operations, and provider protocols belong to [model-contract](../model-contract/README.md). The framework definitions belong to [model-cordis-contract](../model-cordis-contract/README.md). Design, implementation, and run verification are judged separately.
 
-本成员沿[SPEC](SPEC.md)承担完整行为。凭据的独立消费走根入口，不要求启动 Cordis。系统集成走 `src/cordis.ts` 的 `modelCredential`。档案选择、结果保管和费用的公开形状仍待设计。
+## Usage
 
-### 独立消费入口
+A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). They are not yet usable as import examples.
 
-根入口导出两个管理函数，用途不同：
+## Contracts
 
-- `createLocalCustodian(path, factorySecret)`：在 `path` 处新建本地保管库。如果 `path` 已存在文件，它会覆盖该文件。只用于初始化。
-- `openLocalCustodian(path)`：按 `path` 打开已有保管库。文件缺失、损坏或含冲突行时返回 `{ kind: 'unavailable' }`，不会创建文件。
+The [implementation specification](SPEC.md) owns the behavior of a single standalone execution and of the construction configuration. The implementation must satisfy the [shared specification](../model-contract/SPEC.md). It must not reduce the identity, sending, custody, and recovery guarantees of that specification.
 
-```ts
-import { createLocalCustodian, openLocalCustodian, credentialId, MODEL_SEND } from '@omne-harness/model'
-import { tenant } from '@omne-harness/legal-identity'
+## Design
 
-const custodian = createLocalCustodian('/var/lib/omne/credentials.json', 'factory-secret')
-custodian.put({ id: credentialId('my-key')!, tenant: tenant(org, acc), purpose: MODEL_SEND }, 'tenant-secret')
+The [design index](docs/index.md) covers architecture, flows, internal objects, public entries, consumption, and Cordis assembly. The host assembly design is held in [docs/cordis.md](docs/cordis.md). It does not correspond to any export of this member. model-host-local implements only local credential custody.
 
-// 另一个进程或同一进程稍后重开
-const reopened = openLocalCustodian('/var/lib/omne/credentials.json')
-if (!('kind' in reopened)) {
-  const decision = reopened.resolve({ id: credentialId('my-key')!, tenant: tenant(org, acc), purpose: MODEL_SEND }, { authorized: true, official: false })
-}
+## Configuration and operation
+
+The constructor takes Commands, the sending fence, the retry policy, the instance host, and the clock explicitly. The application selects and owns the adapters that it needs. It does not take business parameters from a global Context. The target run implementation does not depend on Cordis. The package manifest does not declare Cordis, proper-lockfile, or model-cordis-contract. The package has only the root entry. It has no `./cordis` and no `./execute`. The command `pnpm --filter @omne-harness/model run install-closure` packs this member, installs it in isolation, resolves the entries, and runs a scenario. It writes a report to the path of `--out`. For the way to run it and its scope, see the [test description](tests/README.md#安装闭包). This page does not record run results. The package does not install all vendors or vocabularies automatically.
+
+## Verification
+
+Run `pnpm --filter @omne-harness/model typecheck`, `pnpm --filter @omne-harness/model test`, and `make docs-check`. The current tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. They do not show that hosted runs, streaming, or result custody are implemented. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
+
+## Maintenance
+
+When you change the construction or an algorithm, update the [documentation registration](documentation.json), the real consumers, and the verification. For resource navigation, see the [package index](index.md). Resources that are not implemented keep their actual status.
+
+## Boundary with model-contract
+
+The domain contract belongs to the [contract entry](../model-contract/docs/public-api.md). This member maintains only the implementation functions and the construction shapes. The [shared SPEC](../model-contract/SPEC.md) records the shared business behavior. This member does not change its scope and does not reduce its guarantees.
+
+## Directory structure and documentation roles
+
+The skeleton follows [RFC-0007](../../../docs/rfcs/RFC-0007-source-packages-and-templates.md) and the template `typescript-package@3.0.0` (see the [generated tree](../../../docs/package-organization.md#完整生成树)). A directory that does not apply to this package states in its README why it does not apply. A directory that exists does not mean that the function is implemented.
+
+```text
+README.md, README_ZH.md   Entry: purpose, status, and this map
+index.md                  Reading paths through the package
+SPEC.md                   Behavior beyond the public types
+documentation.json        Documentation registration
+package.json              Package manifest
+docs/                     Six topics: architecture, flows, object-model, public-api, context, cordis
+src/                      Public definitions, validation, and implementation
+tests/                    Continuous tests; fixtures/ holds test inputs
+schema/                   External schemas
+verification/             models/ and proofs/
+adr/                      Implementation decisions with continuing consumers
+examples/                 Examples against the public entry
+resources/                Non-source runtime resources
+acceptance/               Independent acceptance; fixtures/ holds its inputs
 ```
 
-`present` 和 `resolve` 每次从磁盘读取当前状态，因此保留的句柄和已注入的 Cordis 服务都能观察到后续轮换、撤销或损坏。管理操作写盘前也会先刷新，持有文件锁完成“读当前状态—修改—发布”；文件锁不按时间过期，持锁进程崩溃后需手工清理 `${path}.lock`。写入采用唯一临时文件 + `fsync` + 重命名的方式原子写入。发布前失败时抛出异常，不发布新状态，原快照保持不变；重命名成功后的确认失败（如父目录 `fsync`）可能已发布新状态，异常提示 `confirmation incomplete; verify state before retry`，调用方需先核实文件状态。
+Each fixed directory has a README and an index. The source, build, and test configuration follow the actual files. Build output and dependency directories are not part of the documentation skeleton.
 
-## 契约与设计
+| Entry | Documentation role |
+| --- | --- |
+| [Design](docs/index.md) | Architecture, flows, objects, interfaces, consumption, and assembly |
+| [Source](src/index.md) | Actual public exports and internal code |
+| [Tests](tests/index.md), [fixtures](tests/fixtures/index.md) | Executable assertions and fixed inputs |
+| [Schema](schema/index.md) | External data formats and published identity |
+| [Continuing verification](verification/index.md), [models](verification/models/index.md), [proofs](verification/proofs/index.md) | Properties, assumptions, conformance, and verification resources |
+| [Design decisions](adr/index.md) | Implementation choices with continuing consumers |
+| [Examples](examples/index.md) | Runnable consumption |
+| [Runtime resources](resources/index.md) | Assets, sources, and loading responsibility |
+| [Independent acceptance](acceptance/index.md) | Independent scenarios, environments, and criteria |
 
-- [行为入口](SPEC.md)与原专题共同保持完整承诺。
-- [抽象与建模](docs/model.md)、[Cordis 接缝](docs/cordis.md)、[包内架构](docs/architecture.md)、[关键流程](docs/key-flow.md) 是本包 `docs/` 的四块。
-- [档案与模态](docs/profile-and-modality.md) 和 [消费与费用](docs/consumption-and-cost.md) 保持行为正文。未闭合项见 [open-questions](docs/open-questions.md)。
-- [原具名专题 profile-and-modality.md](docs/profile-and-modality.md)保持唯一行为正文。
-- [原具名专题 consumption-and-cost.md](docs/consumption-and-cost.md)保持唯一行为正文。
+## Standalone consumption entry
 
-## 验证与维护
-
-SPEC及专题维护持续验证义务。凭据解析有成员测试。模型执行器、真实提供者和完整装配仍缺。修改时同步公开消费者和组导航。未决按[产品第四块](../../../.meta_harness/design/product/model-invocation/design.md#未决问题与待定事项)及技术拥有者闭合。
-默认测试责任是单元和契约。`tests/credential.spec.ts` 覆盖解析、拒绝、轮换、重启和 Cordis 关闭。`tests/public-entry.spec.ts` 从包名核对根入口导出。
+For the implemented exports of the credential judgment, see the [public entry](docs/public-api.md#已实现的凭据入口). For the way to call them, see the [consumption guide](docs/context.md#独立消费入口). For the use of the local vault and the plugin, see [model-host-local](../model-host-local/docs/context.md). The credential judgment has behavior tests. The acceptance of other run designs does not mean that they are implemented.

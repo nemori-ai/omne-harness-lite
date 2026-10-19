@@ -41,11 +41,34 @@ export interface FileContentBlock {
   readonly mediaType: string
 }
 
+/**
+ * Where content is and how to check it. It is not a URL, a read capability, or a release grant.
+ * `bytes` is a non-negative decimal integer string. The content provider names the digest
+ * algorithm and encoding.
+ */
+export type ContentReference = Readonly<{
+  storage: string
+  key: string
+  mediaType: string
+  bytes: string
+  digest: string
+}>
+
+/** A closed voice, image, or file block that points at content by `ref` instead of inline data. */
+export type ReferenceContentBlock = Readonly<{
+  kind: 'voice' | 'image' | 'file'
+  id: BlockId
+  visibility: Visibility
+  ref: ContentReference
+  transcript: string | null
+}>
+
 export type ContentBlock =
   | TextContentBlock
   | ThinkingContentBlock
   | MediaContentBlock
   | FileContentBlock
+  | ReferenceContentBlock
 
 export type ContentBlockRejection =
   | 'kind'
@@ -55,6 +78,13 @@ export type ContentBlockRejection =
   | 'text'
   | 'media'
   | 'file'
+  | 'ref'
+  | 'storage'
+  | 'key'
+  | 'mediaType'
+  | 'bytes'
+  | 'digest'
+  | 'transcript'
 
 export type ContentBlockJudgment =
   | { readonly ok: ContentBlock }
@@ -185,6 +215,13 @@ export const CONTENT_BLOCK_HEAD_KEYS: Readonly<Record<ContentBlockKind, readonly
 
 const VISIBILITY_KEYS = ['toHuman', 'toModel'] as const
 
+type ReferenceKind = ReferenceContentBlock['kind']
+
+const REFERENCE_KINDS: readonly ReferenceKind[] = ['voice', 'image', 'file']
+const REFERENCE_BLOCK_KEYS = ['kind', 'id', 'visibility', 'ref', 'transcript'] as const
+const REFERENCE_KEYS = ['storage', 'key', 'mediaType', 'bytes', 'digest'] as const
+const DECIMAL = /^(0|[1-9][0-9]*)$/u
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -230,10 +267,56 @@ export function judgeBlockIdentity(value: unknown): BlockIdentityJudgment {
   return { ok: { id: value.id, visibility } }
 }
 
-/** Admit one closed content block. Tool calls, tool results, and growing blocks are rejected. */
+function isReferenceKind(kind: ContentBlockKind): kind is ReferenceKind {
+  return REFERENCE_KINDS.some(known => known === kind)
+}
+
+function isFilled(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0
+}
+
+/** Shape only. It does not prove that the content exists, who owns it, or who may read it. */
+function referenceOf(
+  value: unknown,
+): { readonly ok: ContentReference } | { readonly rejected: ContentBlockRejection } {
+  if (!isRecord(value)) return { rejected: 'ref' }
+  if (hasUnknownKey(value, REFERENCE_KEYS)) return { rejected: 'extra' }
+  if (!isFilled(value.storage)) return { rejected: 'storage' }
+  if (!isFilled(value.key)) return { rejected: 'key' }
+  if (typeof value.mediaType !== 'string') return { rejected: 'mediaType' }
+  if (typeof value.bytes !== 'string' || !DECIMAL.test(value.bytes)) return { rejected: 'bytes' }
+  if (!isFilled(value.digest)) return { rejected: 'digest' }
+  const { storage, key, mediaType, bytes, digest } = value
+  return { ok: { storage, key, mediaType, bytes, digest } }
+}
+
+function admitReference(
+  kind: ReferenceKind,
+  value: Record<string, unknown>,
+  id: BlockId,
+  visibility: Visibility,
+): ContentBlockJudgment {
+  const ref = referenceOf(value.ref)
+  if ('rejected' in ref) return ref
+  const transcript = value.transcript
+  if (transcript !== null && typeof transcript !== 'string') return { rejected: 'transcript' }
+  return { ok: { kind, id, visibility, ref: ref.ok, transcript } }
+}
+
+/**
+ * Admit one closed content block. Tool calls, tool results, and growing blocks are rejected.
+ * An own `ref` key selects the reference form, which only voice, image, and file have.
+ */
 export function judgeContentBlock(value: unknown): ContentBlockJudgment {
   if (!isRecord(value) || typeof value.kind !== 'string') return { rejected: 'kind' }
   if (!isContentBlockKind(value.kind)) return { rejected: 'kind' }
+  if (Object.hasOwn(value, 'ref')) {
+    if (!isReferenceKind(value.kind)) return { rejected: 'kind' }
+    if (hasUnknownKey(value, REFERENCE_BLOCK_KEYS)) return { rejected: 'extra' }
+    const identity = judgeBlockIdentity(value)
+    if ('rejected' in identity) return { rejected: identity.rejected }
+    return admitReference(value.kind, value, identity.ok.id, identity.ok.visibility)
+  }
   const rule = BLOCKS[value.kind]
   if (hasUnknownKey(value, rule.keys)) return { rejected: 'extra' }
   const identity = judgeBlockIdentity(value)

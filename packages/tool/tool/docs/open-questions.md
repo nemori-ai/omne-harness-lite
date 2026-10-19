@@ -5,7 +5,7 @@
 <a id="tool-e01"></a>
 ## TOOL-E01 共享来源缺证引用
 
-本ID沿[MODEL-E01](../../../model/model/docs/open-questions.md#model-e01)的唯一事项继续。Tool与消息契约拥有者补齐最终块许可和嵌套依据，Model与Context承接；原块和原可见性保持，实际可读模态检查继续，不把过程帧清单当最终全集，不发明递归协议，原结果不因转换失败删除。
+本ID沿[MODEL-E01](../../../model/model/docs/architecture.md#model-e01)的唯一事项继续。Tool与消息契约拥有者补齐最终块许可和嵌套依据，Model与Context承接；原块和原可见性保持，实际可读模态检查继续，不把过程帧清单当最终全集，不发明递归协议，原结果不因转换失败删除。
 
 <a id="tool-m01"></a>
 ## TOOL-M01 公开形状与独立函数消费

@@ -97,6 +97,21 @@
           "anchor": "维护"
         }
       ]
+    },
+    {
+      "id": "public-api-candidate",
+      "path": "packages/common/content-block/docs/public-api.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
     }
   ]
 }

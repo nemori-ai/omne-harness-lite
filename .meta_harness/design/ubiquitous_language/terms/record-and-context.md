@@ -276,21 +276,23 @@
 - **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注，留痕块与展开物各给不给模型读，由受理那一方定
 - **别混 ③**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）
 - **注意**：正文的叙述说法是「原命令的标注」（PF-014 §5.6、§5.10）——那里的「标注」指的是它，不是块标注
-- **待裁决**：上面出处所引的封存章节标题含已移除的位置名。斜杠命令的受理、展开与脱敏改落在哪里，由 slash-commands 产品负责人裁定，见 [C-59](../conflicts.md#c-59斜杠命令受理依赖已移除的位置)；本词条只说出处，不替它定位置
+- **待裁决**：上面出处所引的封存章节标题含已移除的位置名。斜杠命令的受理、展开与脱敏改落在哪里，由 slash-commands 产品负责人裁定，见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)；本词条只说出处，不替它定位置
 
 ### UL-content-block · 内容块 · Content Block
 
 > **中**：**一条消息装的是若干个块，不是一段文本。**块分几类：
 > **文本 · 思考 · 语音 · 图 · 文件 · 工具调用 · 工具结果**
 > （工具结果**自己又是一串块**，所以工具也能返回图）。
-> 五种已封闭块由 `packages/common/content-block` 发布：文本、思考、语音、图、文件。
-> `tool_call` 和 `tool_result` 由工具领域发布。
+> 工具调用和工具结果也是内容块的种类，不是块之外的另一层东西。
+> 代码里的类型名 `ToolCallPart` 与 `ToolResultPart` 只与这两种块对照，没有别的含义。
+> 哪个包发布哪几种块，见 [COMMON-T02](../../../../docs/architecture/cross-cutting-concepts.md#common-t02)。
 >
 > **EN**: **A message holds a number of blocks, not a span of text.** The kinds are
 > text, thinking, voice, image, file, tool call and tool result — **a tool result being
 > itself a series of blocks**, which is how a tool can return an image.
-> `packages/common/content-block` publishes the five closed kinds: text, thinking, voice, image, and file.
-> The tool domain publishes `tool_call` and `tool_result`.
+> Tool call and tool result are kinds of content block, not a separate layer outside the blocks.
+> The code type names `ToolCallPart` and `ToolResultPart` only correspond to these two kinds and carry no other meaning.
+> For which package publishes which kinds, see [COMMON-T02](../../../../docs/architecture/cross-cutting-concepts.md#common-t02).
 
 - **形态**：对象
 - **出处**：[PF-009 §4 消息的内容是一串块](../../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9）

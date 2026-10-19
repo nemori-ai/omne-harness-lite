@@ -15,7 +15,7 @@
 
 ## 现有冲突
 
-C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3cd05cc42b640d77a421a`，仅作历史证据。引文和条款编号保留发现时原文；封存快照的章节可能已随当时修订改名，不能据此把旧能力名、字段或条款作为新成员接口。现行行为分别由[Model](../../../packages/model/model/SPEC.md)、[Tool](../../../packages/tool/tool/SPEC.md)和[Session](../../../packages/session/session/SPEC.md)拥有。
+C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3cd05cc42b640d77a421a`，仅作历史证据。引文和条款编号保留发现时原文；封存快照的章节可能已随当时修订改名，不能据此把旧能力名、字段或条款作为新成员接口。现行行为分别由[Model 契约](../../../packages/model/model-contract/SPEC.md)、[Tool](../../../packages/tool/tool/SPEC.md)和[Session](../../../packages/session/session/SPEC.md)拥有。
 
 | # | 词 | 类型 | 差在哪 | 状态 |
 |---|---|---|---|---|
@@ -290,7 +290,24 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **状态**：产品表达已同步（PF-012 rev24及S103、PF-010 rev8），独立产品复核已完成限定范围；自动尝试提醒的产品歧义闭合。技术消费者迁移尚未实施，必须沿[候选整改设计](../architecture/session-agent-runtime-phase1/boundaries.md)及各实际承诺完成，不据此声称源码已修复。
 - **2026-10-17 接续**：「尝试开始」是会话一侧的记录（[UL-run-attempt](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)）。Agent 一侧新的开始事实是一个新 Agent 执行的开始，经过[执行开始之后](terms/agent-runtime-loop.md#ul-execution-started-position--执行开始之后--execution-started-position)位置，两者不合并。本条原有结论不变。
 
-### C-54：Agent runtime 是否空闲后复用
+
+### C-54：工具调用与工具结果部件由谁发布
+
+- **类型**：定义打架。2026-10-17 在 #342 的 Model 主干评审 R-2（共享 ToolCallPart）时发现。不新增词条。
+- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。[COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02) 当时有同一句。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model 契约 SPEC 的「工具定义转换与内容引用加载」](../../../packages/model/model-contract/SPEC.md#工具定义转换与内容引用加载)写调用建议采用 common/message 的 ToolCallPart。[会话日志事件 SE10](../../../packages/session/session/docs/session-log-events.md) 写 ToolMessage 形状归消息契约。
+- **反例与影响**：按旧句，工具领域要发布消息部件，Tool 就得依赖消息模型，而 Tool 目前不导入 message。按 message 一方，消息部件与工具领域没有依赖。两种读法的写者与依赖方向相反。
+- **负责与闭合条件**：负责人 PanQiWei 于 2026-10-17 指定 Model 主干更正统一语言一方。词条已改为引用 COMMON-T02，不再自写包级归属。COMMON-T02 属架构区正文，其拥有者已同步。
+- **状态**：已闭合。依据是 [COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02)：`tool_call` 与 `tool_result` 部件的形状由 `packages/common/message` 发布，工具领域产出工具结果的内容，不发布消息部件。词条与架构正文现在一致。
+
+### C-55：模型档案词条仍写发前检查，缺窗口、压缩百分比与 updatedAt
+
+- **类型**：定义打架。2026-10-19 在 Model 契约包送轨的文档评审中发现；不新增词条。
+- **来源**：[UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)仍写「输入 token 的发前限额检查可以采用有依据的估算与明确配置的余量」，也写「字节与图片数量仍按实际值精确检查」。词条没有上下文窗口、默认压缩触发百分比与 `updatedAt`。另一方是 [Model 契约 SPEC 的「上游限制与提供上限」](../../../packages/model/model-contract/SPEC.md#上游限制与提供上限)：Model 的准备与发送路径不计量，也不以计量结论作为发出条件，上游报告输入超限时调用以 `failed` 收场，成因为 `input-over-limit`。档案另带上下文窗口、默认压缩触发百分比与不倒退的 `updatedAt`。
+- **反例与影响**：按词条，档案消费者会认为发送前有一道限额与精确字节检查，并会认为档案不带窗口与压缩百分比。按 SPEC，请求前的计量与限额判断归压缩方或请求组装方，发送前没有这道检查。读词条的人会把发前检查当作 Model 的义务，或找不到压缩方读取窗口的出处。
+- **负责与闭合条件**：负责人 PanQiWei。由词条拥有者修订 UL-model-profile，使词条与 Model 契约 SPEC 一致，并同步英文段与消费者。闭合前，不能把词条里的发前检查读作 Model 的发送条件，也不能据词条断言档案没有窗口与压缩百分比。
+- **状态**：打开。词条未改。
+
+### C-56：Agent runtime 是否空闲后复用
 
 - **类型**：定义打架。2026-10-17 改写词条时发现。
 - **两处输入**：[UL-agent-runtime](terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) 原词义（产品负责人 2026-09-20 直接裁决）写「一次起一个」「从 Run 的角度看，它的一生就是一次执行尝试」「协程每次重新起」；已接受系统页 [Agent runtime](../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接) 写 runtime 可以在一次执行结束后保持空闲并复用于后续执行。
@@ -298,7 +315,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：项目负责人在本次交接中把「Runtime 可 idle 复用，逻辑执行与物理实例寿命分开」列为必须继承的要求，按此取复用一说。词条与对象条目改为：一次 Agent 执行结束后 runtime 回到空闲并保持登记，可以承接下一次 Agent 执行；前后两次执行之间不沿用主体、授权、取消状态、输入队列与结果游标。
 - **状态**：已闭合（2026-10-17）。上列原文保留发现时的写法，现行含义以词条为准。
 
-### C-55：连续否决是否有上限
+### C-57：连续否决是否有上限
 
 - **类型**：定义打架。2026-10-17 核对「消息落盘之前」说法时发现，并非本次决定引起。
 - **两处输入**：[UL-consecutive-veto-limit](terms/execution-and-outcome.md#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit) 沿封存 [PF-012 §5.8](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 25）写同一步连续被否决到上限时 Run 落失败；[产品页 模型回复与工具结果](../product/agent-progression/design.md#模型回复与工具结果)（rev 2）写连续否决不设次数上限，不因此使 Run 失败。
@@ -307,7 +324,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：这不是产品未决项，而是词条落后于现行权威：已接受正文优先于封存旧材料。词表维护者按现行权威弃用 UL-consecutive-veto-limit，并改写指向它的说法（[UL-message-admission](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission) 注意 ②、[一次模型调用](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)注意 ③、[试尽](terms/execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)注意 ①、索引行）。
 - **状态**：已闭合（2026-10-17）。
 
-### C-56：模态转换件的执行时点
+### C-58：模态转换件的执行时点
 
 - **类型**：定义打架。2026-10-17 用户决定移除消息持久化位置后发现。
 - **来源**：用户决定暂不提供消息落盘之前与之后两种扩展位置。已接受[系统页](../../../docs/architecture/runtime/loop-extensions.md#不可用报错与系统扩展)的系统扩展表把模态转换列为系统扩展，非 Tool ref 来源的转换位置当时待负责人接受。
@@ -318,7 +335,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **负责与闭合条件**：项目负责人接受候选二，或改选候选一。接受候选二后，去掉上述词条的「待负责人接受」，并复核模态转换件的形态：它不再站在拓展点上，是否仍是拓展件的变体。
 - **状态**：已闭合（2026-10-19）。项目负责人在[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)中接受候选二中非 Tool ref 来源的位置；Tool 内容 ref 的时点归 Tool 线，随其契约进入集成轨道。系统页、UL-modality-converter、索引行与 UL-message-admission 注意 ③ 已去掉「待负责人接受」。形态复核：UL-modality-converter 保持「变体（父：拓展件）」。已接受系统页仍把模态转换列在系统扩展表中，位置栏写「不在扩展位置上」，并由系统装配选择和替换。父词条 [UL-loop-extension](terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) 的定义写「挂在某个 Loop 拓展点上」，与转换件不站在拓展点上不一致；这一点已在转换件词条的「别混 ②」写明，形态改动须先改产品正文。Model 契约页（`packages/model/model-contract`）尚未进入集成轨道，其措辞随该页进入集成轨道时核对。
 
-### C-57：执行挂接的形态
+### C-59：执行挂接的形态
 
 - **类型**：形态未定。2026-10-17 立词条 [UL-execution-attachment](terms/agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment) 时发现。
 - **两种读法**：一，对象：有独立身份，有自己的生灭和围栏，每次重挂接产生新的一个。二，属性：Agent 执行与 agent runtime 之间当前那一次关联，挂在执行或 agent runtime 上，不另立身份。
@@ -328,7 +345,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：Agent 契约的[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)给执行挂接独立的身份、三种状态（有效、被取代、已脱离）和围栏记录：状态终止后记录保留到所属执行的保留期结束，用于归属晚到回执与事件因果。它有独立身份和耐久记录，不能挂成执行或 agent runtime 的一项属性，所以取第一种读法。词条形态改为对象，[领域对象](../domain_objects/objects.md#ul-execution-attachment--执行挂接)已立条目，待裁项已删除。
 - **状态**：已闭合（2026-10-18）。依据是 Agent 契约的对象模型。该契约已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用（2026-10-19），接受时已复核：已接受的对象模型仍给执行挂接独立身份、三种状态和耐久的围栏记录，形态保持对象。
 
-### C-58：拓展结论的形态
+### C-60：拓展结论的形态
 
 - **类型**：形态未定。2026-10-17 立词条 [UL-extension-conclusion](terms/agent-runtime-loop.md#ul-extension-conclusion--拓展结论--extension-conclusion) 时发现。
 - **两种读法**：一，Agent 自己保存的耐久记录，有自己的身份，已有它的调用不再调用。二，会话日志里记录条目的一种，沿封存 [PF-012 §6.10](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论) 的写法。
@@ -337,7 +354,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：Agent 契约的[扩展作者协议](../../../packages/agent/agent-contract/docs/public-api/extensions.md#conclusion)规定 Agent 把校验通过的输出包装为结论并保存，作者不返回结论。[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)把扩展调用的记录列为 execution 内的台账，结论没有独立于所属调用的身份。保存者是 Agent，保存位置是它的执行记录，所以第二种读法与 Agent 不解释会话日志的边界不符。词条形态改为属性，挂在 Agent 执行的记录上，待裁项已删除。非最终结论（请求人处理）与最终结论同属这一属性。
 - **状态**：已闭合（2026-10-18）。依据是 Agent 契约的扩展作者协议与对象模型。该契约已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用（2026-10-19），接受时已复核：已接受的对象模型仍把结论列在扩展调用的台账内，结论没有独立身份，形态保持属性。
 
-### C-59：斜杠命令受理依赖已移除的位置
+### C-61：斜杠命令受理依赖已移除的位置
 
 - **类型**：定义打架，外域。2026-10-17 用户决定移除消息落盘之前位置后发现。
 - **来源**：[slash-commands 产品页](../product/slash-commands/design.md)、[领域流程](../../../docs/domains/slash-commands/key-flows.md)与[包架构](../../../packages/slash-command/docs/architecture.md)依赖该位置做展开、脱敏与否决。[UL-origin-tag](terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag) 的出处引用封存 PF-014 §5.6，该节标题含已移除的位置名。
@@ -345,14 +362,14 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **负责与闭合条件**：会话领域定义消息持久化前后的业务流程拓展点；slash-commands 产品页、领域流程与包架构改挂到这些拓展点；hooks 导入专题的 UserPromptSubmit 同样改挂。会话领域定义这些拓展点时一并写明：展开与脱敏改变的是尚未受理、尚未落定的输入，与业务流程拓展点“不改变已经落定的事实、不对会话日志留下持久化影响”的定义性质怎样相容。各页回改后闭合。
 - **状态**：已裁定，待会话领域定义拓展点与各页回改。
 
-### C-60：拓展与扩展
+### C-62：拓展与扩展
 
 - **类型**：同义不同名。
 - **两处输入**：词表写「拓展件」「拓展点」；已接受系统页与成员正文写「扩展」「扩展位置」。两者指同一个东西。
 - **处理**：词表保留「拓展」，在 [UL-loop-extension-point](terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) 写明映射。「扩展」不列入弃用，因为已接受页正在使用，回改归各页拥有者。
 - **状态**：映射已写明，两种写法并存。
 
-### C-61：Runtime Context 的拉取时点
+### C-63：Runtime Context 的拉取时点
 
 - **类型**：定义打架，外域。2026-10-17 核对 attempt 说法时发现。
 - **来源**：[Runtime Context 产品页](../product/runtime-context/design.md#5-当前值与变化感知)与已接受[系统页](../../../docs/architecture/runtime/runtime-context.md)以 attempt 为拉取时点。用户决定 Agent 不要求、不解释 attempt。
@@ -360,7 +377,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **负责与闭合条件**：Context 拥有者改写拉取时点的说法。
 - **状态**：已闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。Context 一侧描述拉取时点的页面都已改为「执行开始或挂接建立」：已接受的 Runtime Context 系统页与领域页、运行时 context 规格的 [RC-04](../../../packages/context/runtime-context/SPEC.md#rc-04-读取时点变化与提醒)（标题改为「读取时点、变化与提醒」，旧锚点由兼容锚点保留）、该成员的关键流程 [RC-F01](../../../packages/context/runtime-context/docs/key-flows.md#rc-f01)、内部设计与开放问题、Context 组的关键流程，以及 [Runtime Context 产品页](../product/runtime-context/design.md) §5、RC-J01 与 CAP-RC04（产品页修订到 rev 2）。
 
-### C-62：执行挂接的候选类型名
+### C-64：执行挂接的候选类型名
 
 - **类型**：同义不同名，并有英文同名不同义。2026-10-17 核对执行挂接的英文名时发现。
 - **来源**：Agent 契约的[公开接口页](../../../packages/agent/agent-contract/docs/public-api/README.md)当时用裸写的 `AttachmentId` 类型与 `attachment` 字段指执行挂接；[附件](terms/execution-and-outcome.md#ul-attachment--附件--attachment)的英文名是 Attachment，Tool 结果中的 attachments 也指文件附件，两者都流经 Agent。已接受[系统页 Agent runtime](../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)与[领域页](../../../docs/domains/agent-progression/README.md)的中文当时写「挂载」。

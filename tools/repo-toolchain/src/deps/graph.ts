@@ -18,6 +18,7 @@ import {
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ignoredDirectories, isUnderIgnored } from '../core/git.ts'
 import { isTestPath } from '../core/rule.ts'
 import { runnerRoot } from '../core/subject.ts'
 
@@ -369,9 +370,8 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
 
 /** 按提交缓存的基线图放在各工作树共用的 git 公共目录里：不进工作树，不会让工作树显得不干净。 */
 function cacheDirectory(root: string): string {
-  const dir = git(root, ['rev-parse', '--path-format=absolute', '--git-common-dir'])
-    .toString()
-    .trim()
+  // 不用 `--path-format=absolute`：Git 2.31 之前不认它，会原样回显，缓存就落到以它命名的相对目录里。
+  const dir = resolve(root, git(root, ['rev-parse', '--git-common-dir']).toString().trim())
   return join(dir, 'omne-dep-graph')
 }
 
@@ -380,7 +380,26 @@ function cacheDirectory(root: string): string {
  * 删掉的未跟踪文件，按内容判断又不比重跑快。
  */
 export function workingGraph(root: string): DependencyGraph {
-  return graphOf(root, cruise(root))
+  return graphOf(root, withoutIgnoredModules(cruise(root), ignoredDirectories(root)))
+}
+
+/**
+ * 去掉在被 git 忽略的目录里的模块与它们的违规（变异运行器的 `.stryker-tmp-*` 沙箱）：它们不在任何提交里，
+ * 留着会让每个沙箱模块的边都成了「比基线新增」的依赖。被跟踪的文件指向那里的依赖保留。
+ */
+function withoutIgnoredModules(
+  output: CruiseOutput,
+  ignoredDirs: ReadonlySet<string>,
+): CruiseOutput {
+  if (ignoredDirs.size === 0) return output
+  return {
+    modules: output.modules.filter(module => !isUnderIgnored(module.source, ignoredDirs)),
+    summary: {
+      violations: output.summary.violations.filter(
+        violation => !isUnderIgnored(violation.from, ignoredDirs),
+      ),
+    },
+  }
 }
 
 /**

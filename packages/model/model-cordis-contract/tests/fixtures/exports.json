@@ -1,0 +1,124 @@
+{
+  "package": "@omne-harness/model-cordis-contract",
+  "source": "docs/public-api.md",
+  "expectedPending": 0,
+  "entries": {
+    ".": {
+      "chapters": [
+        {
+          "title": "服务定义与入口",
+          "names": [
+            { "name": "ModelPublication", "kind": "type", "pending": false },
+            { "name": "ModelRegistrationInput", "kind": "type", "pending": false },
+            { "name": "ModelRegistrationFailure", "kind": "type", "pending": false },
+            { "name": "ModelRegistration", "kind": "type", "pending": false },
+            { "name": "ModelPublicationAuthority", "kind": "type", "pending": false }
+          ]
+        },
+        {
+          "title": "完整服务定义与类型增补",
+          "names": [
+            { "name": "ModelConverterRegistrationInput", "kind": "type", "pending": false },
+            { "name": "ModelConverterAuthority", "kind": "type", "pending": false },
+            { "name": "ModelConverterRegistration", "kind": "type", "pending": false }
+          ]
+        }
+      ]
+    },
+    "./cordis": {
+      "chapters": [
+        {
+          "title": "服务定义与入口",
+          "names": [
+            { "name": "ModelRuntimeService", "kind": "class", "pending": false },
+            { "name": "modelRuntimeKey", "kind": "value", "pending": false },
+            { "name": "ModelPublication", "kind": "type", "sameAs": ".", "pending": false },
+            { "name": "ModelRegistrationInput", "kind": "type", "sameAs": ".", "pending": false },
+            { "name": "ModelRegistrationFailure", "kind": "type", "sameAs": ".", "pending": false },
+            { "name": "ModelRegistration", "kind": "type", "sameAs": ".", "pending": false },
+            { "name": "ModelPublicationAuthority", "kind": "type", "sameAs": ".", "pending": false },
+            { "name": "ModelInstancesService", "kind": "class", "pending": false },
+            { "name": "modelInstancesKey", "kind": "value", "pending": false }
+          ]
+        },
+        {
+          "title": "完整服务定义与类型增补",
+          "names": [
+            { "name": "ModelCommandsService", "kind": "class", "pending": false },
+            { "name": "modelCommandsKey", "kind": "value", "pending": false },
+            { "name": "ModelSendBoundaryService", "kind": "class", "pending": false },
+            { "name": "modelSendBoundaryKey", "kind": "value", "pending": false },
+            { "name": "ModelRetryPolicyService", "kind": "class", "pending": false },
+            { "name": "modelRetryPolicyKey", "kind": "value", "pending": false },
+            { "name": "ModelInstanceHostService", "kind": "class", "pending": false },
+            { "name": "modelInstanceHostKey", "kind": "value", "pending": false },
+            { "name": "ModelClockService", "kind": "class", "pending": false },
+            { "name": "modelClockKey", "kind": "value", "pending": false },
+            { "name": "ModelProfilesService", "kind": "class", "pending": false },
+            { "name": "modelProfilesKey", "kind": "value", "pending": false },
+            { "name": "ModelProfileMaintenanceService", "kind": "class", "pending": false },
+            { "name": "modelProfileMaintenanceKey", "kind": "value", "pending": false },
+            { "name": "ModelRequestPreparationService", "kind": "class", "pending": false },
+            { "name": "modelRequestPreparationKey", "kind": "value", "pending": false },
+            { "name": "ModelMessageConversionService", "kind": "class", "pending": false },
+            { "name": "modelMessageConversionKey", "kind": "value", "pending": false },
+            { "name": "ModelHostAuthorityService", "kind": "class", "pending": false },
+            { "name": "modelHostAuthorityKey", "kind": "value", "pending": false },
+            { "name": "ModelPublicationAuthorityService", "kind": "class", "pending": false },
+            { "name": "modelPublicationAuthorityKey", "kind": "value", "pending": false },
+            { "name": "ModelConverterRegistrationInput", "kind": "type", "sameAs": ".", "pending": false },
+            { "name": "ModelConverterAuthority", "kind": "type", "sameAs": ".", "pending": false },
+            { "name": "ModelConverterRegistration", "kind": "type", "sameAs": ".", "pending": false },
+            { "name": "ModelConverterAuthorityService", "kind": "class", "pending": false },
+            { "name": "modelConverterAuthorityKey", "kind": "value", "pending": false },
+            { "name": "ModelConvertersService", "kind": "class", "pending": false },
+            { "name": "modelConvertersKey", "kind": "value", "pending": false },
+            { "name": "ModelDiagnosticsService", "kind": "class", "pending": false },
+            { "name": "modelDiagnosticsKey", "kind": "value", "pending": false }
+          ]
+        },
+        {
+          "title": "凭据服务定义",
+          "names": [
+            { "name": "ModelCredentialService", "kind": "class", "pending": false },
+            { "name": "modelCredentialKey", "kind": "value", "pending": false }
+          ]
+        }
+      ]
+    }
+  },
+  "augmentations": [
+    {
+      "module": "@deepseek-ai/cordis",
+      "interface": "Context",
+      "members": [
+        "modelDiagnostics",
+        "modelRuntime",
+        "modelCommands",
+        "modelSendBoundary",
+        "modelRetryPolicy",
+        "modelInstanceHost",
+        "modelClock",
+        "modelProfiles",
+        "modelProfileMaintenance",
+        "modelRequestPreparation",
+        "modelMessageConversion",
+        "modelHostAuthority",
+        "modelPublicationAuthority",
+        "modelConverters",
+        "modelInstances",
+        "modelConverterAuthority",
+        "modelCredential"
+      ],
+      "pending": false
+    },
+    {
+      "module": "@deepseek-ai/cordis",
+      "interface": "Events",
+      "members": [
+        "model-cordis-contract/call-changed"
+      ],
+      "pending": false
+    }
+  ]
+}
