@@ -29,7 +29,10 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
-    "@omne-harness/agent-contract": "workspace:*"
+    "@omne-harness/agent-contract": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

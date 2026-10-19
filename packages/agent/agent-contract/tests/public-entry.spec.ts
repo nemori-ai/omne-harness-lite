@@ -587,7 +587,7 @@ it('classifies an attribute item string separately from a broken attribute', asy
   ).toEqual({ kind: 'refused', reason: 'malformed' })
 })
 
-it('keeps the package free of assembly, assets, and cordis dependencies', () => {
+it('keeps the package free of assembly, implementation-member and cordis dependencies', () => {
   const manifest = JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
   ) as {
@@ -595,6 +595,8 @@ it('keeps the package free of assembly, assets, and cordis dependencies', () => 
   }
   const names = Object.keys(manifest.dependencies ?? {})
   expect(names).not.toContain('@omne-harness/assembly')
-  expect(names).not.toContain('@omne-harness/assets')
+  expect(names).not.toContain('@omne-harness/agent')
+  expect(names).not.toContain('@omne-harness/agent-host-local')
   expect(names.join(' ')).not.toContain('cordis')
+  expect(names).toContain('@omne-harness/assets')
 })
