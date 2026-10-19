@@ -125,7 +125,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 
 ## 验收的覆盖声明
 
-`src/acceptance/coverage.ts` 随 `pnpm run lint:rules` 执行（`make check` 的 `product-check` 一步里），有违反即退出 1。
+`src/acceptance/coverage.ts` 随 `pnpm run lint:rules` 执行（`make check` 的常驻步骤之一），有违反即退出 1。
 规矩正文在[源码布局「可执行验收」](../../docs/workspace.md#目录与内容归属)：覆盖声明只表示程序声明覆盖相应场景，须能核对来源与编号。
 实际执行、结果和有效接受分别验证。它找出 `acceptanceLock` 配置的成员根下每个 `acceptance/**/*.acceptance.ts`（`node_modules`、`dist` 不进），逐份查：
 
