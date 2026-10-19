@@ -1,18 +1,27 @@
-PACKAGE_TEMPLATE_DRAFT
-
 # agent-cordis-contract
 
 ## Responsibility and status
 
-The unique Cordis services, keys, type augmentations, and binding protocols. The package is initialized. Runtime APIs are not implemented. The design is [accepted](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204).
+This package holds the unique Cordis service definitions of the Agent capability: services, keys, type augmentations, and the binding protocol. The design is [accepted](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204).
+
+The `./cordis` entry exports these items:
+
+- 17 abstract Services and the concrete `AgentInstancesService`, with 18 key constants.
+- The `Context` augmentation for the 18 keys, and the `agent-cordis-contract/instance-retired` event in `Events`.
+- The interface `AgentPublicationAuthority`.
+- The directory plugin `agentInstancesPlugin`.
+
+The root entry exports no value. It exports three types: `AgentLocalRoute`, `AgentRegistrationInput`, and `AgentWithdrawalInput`. The root entry has no edge to Cordis.
+
+The package does not implement the Agent progression Loop, the evaluator, a provider for any service key, or the host plugin. The host plugin belongs to [agent-host-local](../agent-host-local/README.md). No run-time verification with a real provider exists.
 
 ## Usage
 
-Current entries export no runtime capability. The [API design](docs/public-api.md) describes the accepted design, not executable examples.
+A plugin that consumes an Agent service imports the key constants and the types from `@omne-harness/agent-cordis-contract/cordis`. Domain types come from `@omne-harness/agent-contract`. A plugin does not import a Service from an implementation package. The [API page](docs/public-api.md) navigates to the source.
 
 ## Contracts
 
-The [SPEC](SPEC.md) owns behavior. The [API page](docs/public-api.md) separates actual exports from designed interfaces.
+The [SPEC](SPEC.md) owns behavior. The [Cordis page](docs/cordis.md) owns the service keys, the registration protocol, and the conformance mapping to IC-1 through IC-19.
 
 ## Design
 
@@ -20,11 +29,11 @@ The [architecture](docs/architecture.md) owns mechanisms and dependency decision
 
 ## Configuration and operation
 
-Pass business identities as operation inputs. Cordis definitions and concrete providers are in separate packages. [Cordis integration](docs/cordis.md) describes binding ownership and lifecycle rules.
+Pass business identities as operation inputs. Cordis definitions and concrete providers are in separate packages. The directory plugin takes an empty `Config` object and refuses any member. [Cordis integration](docs/cordis.md) describes binding ownership and lifecycle rules.
 
 ## Verification
 
-Run `pnpm test` and `pnpm typecheck` in this directory. These checks verify only the scaffold and the empty entry. They do not establish runtime support.
+Run `pnpm test` and `pnpm typecheck` in this directory. `pnpm test` builds the package first. The tests run on Cordis 4.0.4. They cover the root entry, the key set and the class set, the directory registration rules, and the directory plugin. The [test page](tests/README.md) lists the files. The tests use test subclasses for the publication authority, the access check, and the host. They do not prove the behavior of a real provider.
 
 ## Maintenance
 
