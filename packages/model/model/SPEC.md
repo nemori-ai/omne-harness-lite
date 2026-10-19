@@ -16,7 +16,7 @@
 
 ## 工厂与配置
 
-createModelRuntime 的构造形状由 [公开入口](docs/public-api.md) 唯一维护。outputBatchBytes、observerBufferBytes、resultPageTargetBytes、readIdleMs 为正整数；outputBatchDelayMs、retryBackoffMs、cleanupRetryMs 为非负整数。一次已取得 read 沿原期限，不因配置换代缩短。
+createModelRuntime 的构造形状以 [runtime.ts](src/runtime.ts) 为唯一声明，[公开入口](docs/public-api.md) 提供使用导航。outputBatchBytes、observerBufferBytes、resultPageTargetBytes、readIdleMs 为正整数；outputBatchDelayMs、retryBackoffMs、cleanupRetryMs 为非负整数。一次已取得 read 沿原期限，不因配置换代缩短。
 
 构造所需 Commands、send、retry、instances 和 clock 必须显式取得；缺失时不得装成可用实例。工厂返回 ModelRuntimeProvider，普通消费者只取得其 runtime；恢复和 quiesce 的权限及原身份协议沿共同规格。
 
