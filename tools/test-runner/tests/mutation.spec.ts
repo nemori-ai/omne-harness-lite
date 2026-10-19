@@ -25,6 +25,7 @@ import {
   type MutationTarget,
 } from '../src/mutation/scope.ts'
 import { sandboxContainer, strykerConfig } from '../src/mutation/stryker.ts'
+import type { PlanFile } from '../src/testing/steps.ts'
 import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 
 const CLI = fileURLToPath(new URL('../src/mutation/cli.ts', import.meta.url))
@@ -266,40 +267,78 @@ describe('sandbox 与配置', () => {
   })
 })
 
-const cliRoot = temporary('mutation-cli-')
-for (const path of ['packages/core/canary/src', 'tools/repo-toolchain'])
-  mkdirSync(join(cliRoot, path), { recursive: true })
-writeFileSync(join(cliRoot, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n  - tools/*\n')
-for (const path of ['packages/core/canary', 'tools/repo-toolchain'])
-  writeFileSync(
-    join(cliRoot, path, 'package.json'),
-    JSON.stringify({ name: `@fixture/${path.split('/').at(-1)}`, scripts: { test: 'vitest run' } }),
+/** 一个有产品成员和工具成员的仓库，已提交一次。 */
+function cliFixture(): string {
+  const cliRoot = temporary('mutation-cli-')
+  for (const path of ['packages/core/canary/src', 'tools/repo-toolchain'])
+    mkdirSync(join(cliRoot, path), { recursive: true })
+  writeFileSync(join(cliRoot, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n  - tools/*\n')
+  for (const path of ['packages/core/canary', 'tools/repo-toolchain'])
+    writeFileSync(
+      join(cliRoot, path, 'package.json'),
+      JSON.stringify({
+        name: `@fixture/${path.split('/').at(-1)}`,
+        scripts: { test: 'vitest run' },
+      }),
+    )
+  writeFileSync(join(cliRoot, 'packages/core/canary/src/index.ts'), 'export const value = 1\n')
+  execFileSync('git', ['init', '-q'], { cwd: cliRoot })
+  execFileSync(
+    'git',
+    [
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '--allow-empty',
+      '-qm',
+      'fixture',
+    ],
+    { cwd: cliRoot },
   )
-writeFileSync(join(cliRoot, 'packages/core/canary/src/index.ts'), 'export const value = 1\n')
-execFileSync('git', ['init', '-q'], { cwd: cliRoot })
-execFileSync(
-  'git',
-  [
-    '-c',
-    'user.name=Fixture',
-    '-c',
-    'user.email=fixture@example.invalid',
-    'commit',
-    '--allow-empty',
-    '-qm',
-    'fixture',
-  ],
-  { cwd: cliRoot },
-)
-const cli = (...args: string[]) =>
-  spawnSync(process.execPath, ['--experimental-strip-types', CLI, ...args, '--root', cliRoot], {
+  return cliRoot
+}
+const cliRoot = cliFixture()
+
+/** 写一份手写计划：基线引用 HEAD，合并点 `mergeBase`，只选 `test` 里的成员。 */
+function writePlan(head: string, mergeBase: string, test: string[]): string {
+  const path = join(temporary('mutation-plan-'), 'plan.json')
+  const file = {
+    head,
+    dirty: true,
+    base: { ref: 'HEAD', mergeBase },
+    plan: {
+      mode: 'scoped',
+      reason: '',
+      files: [],
+      members: [],
+      build: [],
+      typecheck: [],
+      test,
+      acceptance: [],
+      python: { run: false, reason: '' },
+    },
+  } satisfies PlanFile
+  writeFileSync(path, JSON.stringify(file))
+  return path
+}
+const cli = (...args: string[]) => cliAt(cliRoot, ...args)
+function cliAt(root: string, ...args: string[]) {
+  return spawnSync(process.execPath, ['--experimental-strip-types', CLI, ...args, '--root', root], {
     encoding: 'utf8',
   })
+}
 
 describe('入口的参数', () => {
-  it('--base 与 --members 二选一；不是产品成员的拒绝', () => {
+  it('--base、--plan 与 --members 只能给一个；不是产品成员的拒绝', () => {
     expect(cli('run', '--plan-only').status).toBe(2)
     expect(cli('run', '--base', 'HEAD', '--members', 'apps/cli', '--plan-only').status).toBe(2)
+    expect(cli('run', '--plan', 'plan.json', '--base', 'HEAD', '--plan-only').status).toBe(2)
+    expect(cli('run', '--plan', 'plan.json', '--members', 'apps/cli', '--plan-only').status).toBe(2)
+    expect(cli('run', '--plan', 'plan.json', '--default-base', '--plan-only').stderr).toContain(
+      '--default-base 只能',
+    )
     const tool = cli('run', '--members', 'tools/repo-toolchain', '--plan-only')
     expect(tool.status).toBe(2)
     expect(tool.stderr).toContain('只变异产品源码')
@@ -313,6 +352,34 @@ describe('入口的参数', () => {
     expect(planned.status, planned.stderr).toBe(0)
     expect(planned.stdout).toContain('只跑快层（vitest 的 mode 为 fast）')
     expect(planned.stdout).toMatch(/packages\/core\/canary：1 个文件/u)
+  })
+
+  // 缺省基线：有任务上下文时取它固定的基线，否则 main，与 test-affected 相同。
+  it('不给计划文件时按基线在本仓库现算计划', { tags: ['slow'], timeout: 120_000 }, () => {
+    const ran = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', CLI, 'run', '--default-base', '--plan-only'],
+      { encoding: 'utf8' },
+    )
+    expect(ran.status, ran.stderr).toBe(0)
+    expect(ran.stdout).toMatch(/变异范围：基线 |没有可变异的改动：基线 /u)
+  })
+
+  it('--plan 读准入检查的计划：变异计划里的成员；有计划外的改动、或计划不是当前提交算的就拒绝', () => {
+    const root = cliFixture()
+    writeFileSync(join(root, 'packages/core/canary/src/index.ts'), 'export const value = 2\n')
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+    const planFile = (test: string[], at = head) => writePlan(at, head, test)
+    const selected = cliAt(root, 'run', '--plan', planFile(['packages/core/canary']), '--plan-only')
+    expect(selected.status, selected.stderr).toBe(0)
+    expect(selected.stdout).toMatch(/packages\/core\/canary：1 个文件/u)
+    // 计划算完后工作树又改了计划外的成员：不静默跳过，要求重算。
+    const outside = cliAt(root, 'run', '--plan', planFile([]), '--plan-only')
+    expect(outside.status).toBe(2)
+    expect(outside.stderr).toContain('计划外的成员：packages/core/canary')
+    const stale = cliAt(root, 'run', '--plan', planFile([], '0'.repeat(40)), '--plan-only')
+    expect(stale.status).toBe(2)
+    expect(stale.stderr).toContain('重新算计划')
   })
 })
 
@@ -375,10 +442,13 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     return { root, memberDir }
   }
 
+  /** 夹具没有本仓库的影响面规则，现算不出计划：手写一份只选这个成员的计划，走准入检查读计划的路径。 */
   function mutate(root: string, out: string) {
+    const head = git(root, 'rev-parse', 'HEAD').trim()
+    const planPath = writePlan(head, head, ['packages/core/sign'])
     const ran = spawnSync(
       process.execPath,
-      ['--experimental-strip-types', CLI, 'run', '--root', root, '--base', 'HEAD', '--out', out],
+      ['--experimental-strip-types', CLI, 'run', '--root', root, '--plan', planPath, '--out', out],
       { encoding: 'utf8', env: { ...process.env, VITEST_MAX_WORKERS: '2' } },
     )
     const summary = existsSync(join(out, 'summary.json'))
@@ -411,6 +481,8 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     )
     const weak = mutate(root, join(root, 'out-weak'))
     expect(weak.ran.status, `${weak.ran.stdout}${weak.ran.stderr}`).toBe(0)
+    // 读到的计划写进运行目录。
+    expect(existsSync(join(root, 'out-weak', 'plan.json'))).toBe(true)
     expect(weak.summary?.errors).toEqual([])
     const [before] = weak.summary?.members ?? []
     expect(before?.counts['Survived']).toBeGreaterThan(0)

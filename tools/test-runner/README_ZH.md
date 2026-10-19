@@ -141,8 +141,10 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
 看有没有测试因此失败。`src/mutation/` 是 [Stryker](https://stryker-mutator.io/) 10 与它的 vitest runner 上面薄薄的一层，
 变异算子、插桩、调度与判定都是 Stryker 的，这里只做三件事：
 
-- **范围**：基线合并点到工作树（含未提交、未跟踪）的改动，取新一侧的行号（与[结构度量](../repo-toolchain/README_ZH.md#结构度量)同一份 diff 解析），
-  只留 `packages/`、`apps/` 成员 `src/` 下的源码（不含 `*.d.ts`），按成员写成 Stryker 的 `mutate` 条目 `文件:起-止`；
+- **范围**：先取计划，与准入检查、覆盖采集读同一份。`--plan <计划文件>` 读 `plan --json` 写出的计划（准入检查用 `tmp/check-plan/plan.json`），
+  计划不是对当前提交算的就报错；不给时按基线现算一份，基线规则与 `test-affected` 相同。计划写进运行目录的 `plan.json`。算完计划后工作树又改了计划外的成员时报错，要求重算计划。
+  然后取计划的合并点到工作树（含未提交、未跟踪）的改动，取新一侧的行号（与[结构度量](../repo-toolchain/README_ZH.md#结构度量)同一份 diff 解析），
+  只留计划里要跑测试的 `packages/`、`apps/` 成员 `src/` 下的源码（不含 `*.d.ts`），按成员写成 Stryker 的 `mutate` 条目 `文件:起-止`；
   未跟踪的文件整份变异。`MEMBERS=<成员目录,…>` 改为变异点名成员 `src/` 下的全部源码。`PLAN=1` 只列范围。
 - **运行**：先构建这些成员及其依赖，再逐成员调用 Stryker：成员目录为工作目录、只跑**快层**（sandbox 里的 vitest 配置以 mode `fast` 展开成员配置）、
   并行度取 `test-runs.config.json` 的 `parallel.vitestMaxWorkers`（环境变量 `VITEST_MAX_WORKERS` 可改）。

@@ -1,5 +1,6 @@
 // 验收耗时传感器：没有成员有验收是「0 份」的数据；有验收却找不到这个提交跑全了的记录是没数据；
 // 只认全量的验收运行，或带 scope、写明计划跳过了谁的按计划运行；取最新的一次，实测优先于「跳过」；没出报告的成员按一份计。
+// 没数据时的原因文字指向随 repo-toolchain 发布的入口，断言在 repo-toolchain 的 loop-acceptance-reason.spec.ts。
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -106,16 +107,6 @@ describe('验收耗时传感器', () => {
       status: 'data',
       data: { members: 0, files: 0, totalSeconds: 0 },
     })
-  })
-
-  it('有验收却没有这个提交的记录：没数据，原因指到 make acceptance', () => {
-    const { root, ledgers } = checkout(true)
-    put(ledgers, 'other0000/20261002-000000/ledger.json', JSON.stringify(ledger()))
-    const reading = read(root, ledgers)
-    expect(reading.status).toBe('no-data')
-    expect(reading.status === 'no-data' ? reading.reason : '').toMatch(
-      /^有 1 个成员有验收，这个提交（abc123456）却没有跑全它们的耗时记录（.*）：先跑 make acceptance$/u,
-    )
   })
 
   it('只认全量的验收运行、且跑全了现在有验收的成员；取最新的一次', () => {
