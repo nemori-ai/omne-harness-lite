@@ -3,13 +3,13 @@
 // 这里只照着执行、照实说跳了什么。构建交给 turbo，类型检查与测试仍由本工具逐成员跑。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { changedFiles, coordinates, type Coordinates } from '@omne-harness/repo-toolchain/core/git'
 import { describeCheckPlan, planCheck, type CheckPlan } from './scope.ts'
-import { admissionRequested, affectedMembers, turboBuild } from './turbo.ts'
+import { admissionRequested, affectedMembers, turboBuild, turboTypecheck } from './turbo.ts'
+import { checkTypecheckScopes } from './typecheck-scope.ts'
 import {
   CONFIG_PATH,
   effectiveParallelism,
@@ -174,7 +174,7 @@ export function buildStep(root: string, file: PlanFile): number {
   return turboBuild(root, names, admissionRequested(process.env))
 }
 
-/** 类型检查：按计划逐个点名；不依赖构建，嵌套的归档目录由 typecheck-member.ts 排除。 */
+/** 类型检查：按计划点名，由 turbo 运行；不依赖构建。先核对嵌套归档目录已在成员的 tsconfig 里排除。 */
 export function typecheckStep(root: string, file: PlanFile): number {
   const paths = file.plan.typecheck
   if (paths.length === 0) {
@@ -183,14 +183,11 @@ export function typecheckStep(root: string, file: PlanFile): number {
   }
   const members = membersAt(root, paths)
   console.log(`类型检查：${paths.length} 个成员——${paths.join('、')}`)
-  return spawnInherited(root, 'pnpm', [
-    '-r',
-    ...members.flatMap(member => ['--filter', member.name]),
-    'exec',
-    process.execPath,
-    '--experimental-strip-types',
-    fileURLToPath(new URL('./typecheck-member.ts', import.meta.url)),
-  ])
+  checkTypecheckScopes(root, members)
+  return turboTypecheck(
+    root,
+    members.map(member => member.name),
+  )
 }
 
 /** 一次记账本的运行：跑哪些成员、哪一层，以及账本抬头里写的范围。 */

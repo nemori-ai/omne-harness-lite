@@ -1,5 +1,5 @@
-// turbo 承担成员选择（`--affected`）与构建的编排。类型检查不依赖构建，仍由 typecheck-member.ts 逐成员跑
-// （它把成员里嵌套的归档目录排除在外）。这里固定它的运行条件，
+// turbo 承担成员选择（`--affected`）、构建与类型检查的编排。类型检查不依赖构建、不缓存，嵌套归档目录的排除
+// 由 typecheck-scope.ts 在运行前核对。这里固定它的运行条件，
 // 落实 RFC-0002 的四条约束中归 turbo 的那几条：
 // 1. 选择规则不能由 PR 改写：根配置用运行检查器仓库的 turbo.json（TURBO_ROOT_TURBO_JSON）；
 //    成员目录下的 turbo.json 会盖过它，所以一律拒绝。
@@ -123,4 +123,23 @@ export function turboBuildCaptured(
   })
   if (run.error !== undefined) throw run.error
   return { status: run.status ?? 1, output: `${run.stdout}${run.stderr}` }
+}
+
+/** 类型检查同时运行的成员数，与改由 turbo 调度之前 `pnpm -r` 的缺省并发相同。 */
+const TYPECHECK_CONCURRENCY = 4
+
+/** 用 turbo 跑一批成员的 `typecheck` 脚本；不先构建，不缓存（见 turbo.json）。没有成员时不跑、返回 0。 */
+export function turboTypecheck(root: string, names: readonly string[]): number {
+  if (names.length === 0) return 0
+  const args = [
+    'run',
+    'typecheck',
+    ...names.map(name => `--filter=${name}`),
+    `--concurrency=${TYPECHECK_CONCURRENCY}`,
+    '--output-logs=errors-only',
+  ]
+  console.log(`$ turbo ${args.join(' ')}`)
+  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
+  if (run.error !== undefined) throw run.error
+  return run.status ?? 1
 }

@@ -279,7 +279,7 @@ make test-affected BASE="$TASK_BASE" TIER=slow
 
 `check-plan`只输出计划。`test-affected`先构建选中成员及其上游，默认只跑快层；慢层由`TIER=slow`选择，`TIER=all`合跑两层。选择依据包括实际改动、依赖关系及显式读者规则，不能仅凭“没修改那个包”省略消费者验证。
 
-按 [RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择)，改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出；构建由 `turbo run build` 编排，按依赖先构建上游，本机读写 `.turbo/` 缓存。类型检查和成员测试仍由 `tools/test-runner` 逐成员执行，测试耗时账本与验收账本照旧写出。
+按 [RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择)，改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出；构建由 `turbo run build` 编排，按依赖先构建上游，本机读写 `.turbo/` 缓存。类型检查由 `turbo run typecheck` 运行，不先构建、不缓存，运行前由 `tools/test-runner` 核对嵌套归档目录已在成员的 `tsconfig.test.json` 排除。成员测试仍由 `tools/test-runner` 逐成员执行，测试耗时账本与验收账本照旧写出。
 
 turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
 

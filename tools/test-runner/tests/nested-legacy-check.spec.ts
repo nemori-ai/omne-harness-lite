@@ -4,13 +4,13 @@ import { spawnSync } from 'node:child_process'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
-import { typecheckMember } from '../src/testing/typecheck-member.ts'
+import { checkTypecheckScopes, typecheckScopeProblem } from '../src/testing/typecheck-scope.ts'
 import { runMembers } from '../src/testing/run.ts'
 import {
   VITEST_ARCHIVE_ENTRY,
   scopedProject,
 } from '@omne-harness/repo-toolchain/archive/archive-project'
-import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
+import type { TestMember, WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 
 const roots: string[] = []
 afterEach(() => {
@@ -69,20 +69,57 @@ function fixture(): string {
   return root
 }
 
-it('filters direct nested compiler roots, preserves active errors and explicit imports', () => {
+/** 成员的 tsconfig 在自己的 exclude 后面加上模板给的归档排除。 */
+function excludeArchives(root: string): void {
+  const config = JSON.parse(readFileSync(join(root, 'tsconfig.test.json'), 'utf8'))
+  config.exclude = [...(config.exclude ?? []), '**/*.legacy/**']
+  put(root, 'tsconfig.test.json', JSON.stringify(config))
+}
+/** 成员的 typecheck 脚本由 turbo 原样运行；这里照样跑一次 tsc。 */
+function tsc(root: string): number {
+  return (
+    spawnSync(join(root, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.test.json'], { cwd: root })
+      .status ?? 1
+  )
+}
+function problem(root: string): string | undefined {
+  const scratch = join(root, 'evidence')
+  mkdirSync(scratch, { recursive: true })
+  return typecheckScopeProblem(root, scratch)
+}
+
+it('reports archived compiler roots that the member configuration does not exclude', () => {
   const root = fixture()
-  expect(typecheckMember(root)).toBe(0)
+  expect(problem(root)).toContain('Archived files are compiler roots')
+  excludeArchives(root)
+  expect(problem(root)).toBeUndefined()
+  expect(tsc(root)).toBe(0)
   put(root, 'src/live.ts', 'export const value: number = "bad"\n')
-  expect(typecheckMember(root)).not.toBe(0)
+  expect(tsc(root)).not.toBe(0)
   put(
     root,
     'src/live.ts',
     'import { poison } from "./archive.legacy/poison.js"\nexport { poison }\n',
   )
-  expect(typecheckMember(root)).not.toBe(0)
+  expect(tsc(root)).not.toBe(0)
   put(root, 'package.json', JSON.stringify({ scripts: { typecheck: 'node -e "process.exit(0)"' } }))
-  expect(() => typecheckMember(root)).toThrow('Cannot exclude archived inputs')
+  expect(problem(root)).toContain('Cannot exclude archived inputs')
 }, 20_000)
+
+it('checkTypecheckScopes names every member with a problem and runs nothing', () => {
+  const root = fixture()
+  const member: WorkspaceMember = {
+    path: '.',
+    name: '@fixture/nested',
+    scripts: {},
+    dependencies: [],
+  }
+  expect(() => checkTypecheckScopes(root, [member])).toThrow(
+    /^\.: Archived files are compiler roots/u,
+  )
+  excludeArchives(root)
+  expect(() => checkTypecheckScopes(root, [member])).not.toThrow()
+})
 
 it('preserves project references and existing exclusions in the generated project', () => {
   const root = fixture()
@@ -104,29 +141,27 @@ it.each(['generated', 'tmp', 'dist', 'coverage'])(
   name => {
     const root = fixture()
     rmSync(join(root, 'src/archive.legacy'), { recursive: true })
+    excludeArchives(root)
     put(root, `src/${name}/old.legacy/poison.ts`, 'export const bad: string = 1\n')
-    expect(typecheckMember(root)).toBe(0)
+    expect(problem(root)).toBeUndefined()
+    expect(tsc(root)).toBe(0)
     put(root, `src/${name}/current.legacy-not/poison.ts`, 'export const bad: string = 1\n')
-    expect(typecheckMember(root)).not.toBe(0)
+    expect(tsc(root)).not.toBe(0)
   },
   20_000,
 )
 
-it('filters compiler roots discovered outside the member, without relying on an internal archive', () => {
+it('reports archived compiler roots outside the member, which a member glob cannot exclude', () => {
   const root = fixture()
   rmSync(join(root, 'src/archive.legacy'), { recursive: true })
+  excludeArchives(root)
   const archived = `${root}-shared.legacy`
-  const active = `${root}-shared.legacy-not`
-  roots.push(archived, active)
+  roots.push(archived)
   put(archived, 'poison.ts', 'export const bad: string = 1\n')
   const config = JSON.parse(readFileSync(join(root, 'tsconfig.test.json'), 'utf8'))
   config.include.push(`../${basename(archived)}/**/*.ts`)
   put(root, 'tsconfig.test.json', JSON.stringify(config))
-  expect(typecheckMember(root)).toBe(0)
-  put(active, 'poison.ts', 'export const bad: string = 1\n')
-  config.include.push(`../${basename(active)}/**/*.ts`)
-  put(root, 'tsconfig.test.json', JSON.stringify(config))
-  expect(typecheckMember(root)).not.toBe(0)
+  expect(problem(root)).toContain('Archived files are compiler roots')
 }, 20_000)
 
 it('real Vitest filters external compiler roots without an internal archive trigger', async () => {
@@ -173,7 +208,7 @@ it('real Vitest filters external compiler roots without an internal archive trig
   expect(result[0]?.exitCode, readFileSync(join(out, '..log'), 'utf8')).toBe(0)
 }, 20_000)
 
-it('a project without archived roots keeps its native build-info location', () => {
+it('a project without archived roots keeps its native configuration', () => {
   const root = fixture()
   rmSync(join(root, 'src/archive.legacy'), { recursive: true })
   const config = JSON.parse(readFileSync(join(root, 'tsconfig.test.json'), 'utf8'))
@@ -182,8 +217,7 @@ it('a project without archived roots keeps its native build-info location', () =
   expect(scopedProject(join(root, 'tsconfig.test.json'), join(root, 'overlay.json')).path).toBe(
     join(root, 'tsconfig.test.json'),
   )
-  expect(typecheckMember(root)).toBe(0)
-  expect(readFileSync(join(root, 'tsconfig.test.tsbuildinfo'), 'utf8')).not.toBe('')
+  expect(problem(root)).toBeUndefined()
 }, 20_000)
 
 it('accepts the native directory form of tsc --project without archives', () => {
@@ -191,7 +225,7 @@ it('accepts the native directory form of tsc --project without archives', () => 
   rmSync(join(root, 'src/archive.legacy'), { recursive: true })
   put(root, 'tsconfig.json', readFileSync(join(root, 'tsconfig.test.json'), 'utf8'))
   put(root, 'package.json', JSON.stringify({ scripts: { typecheck: 'tsc -p .' } }))
-  expect(typecheckMember(root)).toBe(0)
+  expect(problem(root)).toBeUndefined()
 }, 20_000)
 
 it('keeps a native Vitest projects configuration when there are no archived inputs', async () => {

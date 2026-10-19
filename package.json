@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "TURBO_TELEMETRY_DISABLED=1 TURBO_DAEMON=false TURBO_NO_UPDATE_NOTIFIER=1 turbo run build --output-logs=errors-only",
-    "typecheck": "pnpm -r run typecheck",
+    "typecheck": "TURBO_TELEMETRY_DISABLED=1 TURBO_DAEMON=false TURBO_NO_UPDATE_NOTIFIER=1 turbo run typecheck --concurrency=4 --output-logs=errors-only",
     "test": "pnpm run build && pnpm run test:members",
     "test:members": "./scripts/with-test-slot.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts run --all",
     "test:gate": "./scripts/with-test-slot.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts step test",
