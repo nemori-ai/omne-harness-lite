@@ -45,7 +45,9 @@ An independent program calls `createIndependentToolScope({ limits, signal, proce
 
 `createTestToolDependencies<P>(input)` creates a fresh store, ledger and seven existing contract memory doubles. It returns `dependencies`, `store`, `ledger`, `doubles` and `durability: 'none'`. The dependencies can be passed directly to `createToolRuntime`. Construction does not install a driver or schedule work until the caller constructs that runtime.
 
-The caller supplies `instance`, `guards`, `configuration`, `instances`, `catalog`, `children` and `bindingsFor(executor)`. These inputs have no defaults. The guards own tenant qualification, source and grant checks, result construction and result policy. The factory uses `guards.policy` for the runtime too. The caller owns the host, catalog, child coordination and executor resolution because those ports have no contract memory double. `bindingsFor` receives the executor binding and returns the distinct `ToolBindings` resolution port. It must make its own resolution and authorization choices.
+The caller supplies `instance`, `guards`, `configuration`, `instances`, `catalog`, `children` and `bindingsFor(executor)`. These inputs have no defaults. The guards own tenant qualification, source and grant checks, result construction and result policy. The factory uses `guards.policy` for the runtime too.
+
+The caller owns the host, catalog, child coordination and executor resolution because those ports have no contract memory double. `bindingsFor` receives the executor binding and returns the distinct `ToolBindings` resolution port. It must make its own resolution and authorization choices.
 
 ```ts
 import { createToolRuntime, type ToolConfiguration } from '@omne-harness/tool'
