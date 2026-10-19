@@ -1,0 +1,43 @@
+{
+  "name": "@omne-harness/tool-host-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Single-machine Tool host: the local start coordinator (G5) over the ledger store's host domain",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "pnpm run build && vitest run"
+  },
+  "dependencies": {
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/tool": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/tool-cordis-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "@typescript/typescript6": "catalog:"
+  }
+}
