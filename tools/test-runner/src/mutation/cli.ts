@@ -22,7 +22,8 @@ import { runStryker } from './stryker.ts'
 
 const USAGE = [
   '用法：',
-  '  run (--base <ref> | --plan <计划文件> | --members <成员目录,…>) [--plan-only] [--root <检出根>] [--out <目录>]',
+  '  run [--base <ref> | --plan <计划文件> | --members <成员目录,…>] [--plan-only] [--root <检出根>] [--out <目录>]',
+  '      三者都不给时同 --base，基线取任务上下文的基线，再缺省 main',
   '      --base 先按这个基线算计划（与 test-runner 的 plan 相同），变异合并点到工作树（含未提交、未跟踪）的改动',
   '      碰到的、计划里要跑测试的产品成员 src/ 下的源码行',
   '      --plan 读 test-runner 的 plan --json 写出的计划文件（准入检查用的那份），范围同 --base',
@@ -51,8 +52,6 @@ function scopeOf(root: string, flags: Flags): MutationScope {
   const chosen = [flags.values.has('--base'), plan !== undefined, members !== undefined]
   if (chosen.filter(Boolean).length > 1)
     throw new Error(`--base、--plan 与 --members 只能给一个\n${USAGE}`)
-  if ((plan !== undefined || members !== undefined) && flags.switches.has('--default-base'))
-    throw new Error(`--default-base 只能与 --base 或不给范围时同用\n${USAGE}`)
   if (plan !== undefined) return { kind: 'plan', path: plan }
   if (members !== undefined)
     return {
@@ -62,18 +61,14 @@ function scopeOf(root: string, flags: Flags): MutationScope {
         .map(path => path.trim().replace(/\/+$/u, ''))
         .filter(path => path !== ''),
     }
-  const base =
-    baselines(root, flags.values.get('--base')).targetBase ??
-    (flags.switches.has('--default-base') ? 'main' : undefined)
-  if (base === undefined) throw new Error(`--base、--plan 与 --members 要给一个\n${USAGE}`)
-  return { kind: 'base', base }
+  return { kind: 'base', base: baselines(root, flags.values.get('--base')).targetBase ?? 'main' }
 }
 
 function parseRun(argv: readonly string[]): MutationRequest {
   const flags = parseFlags(
     argv,
     ['--base', '--members', '--plan', '--root', '--out'],
-    ['--plan-only', '--default-base'],
+    ['--plan-only'],
     USAGE,
   )
   const root = resolve(

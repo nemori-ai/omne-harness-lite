@@ -260,7 +260,7 @@ describe('清理草稿', () => {
     expect(text).toContain(`${MEMBER}/tests/a.spec.ts:4 只调用`)
     expect(text).toContain('超 alert 的函数数：当前 7（处置）；解除线 2，须回落到它及以下')
     expect(text).toContain('风险值：当前 23.4（处置）；解除线 10')
-    expect(text).toContain('`make test-affected`')
+    expect(text).toContain('`pnpm run test:affected`')
     expect(text).toContain('草稿：等负责人批准后才派发。')
     expect(text).toContain('`abc123`')
   })

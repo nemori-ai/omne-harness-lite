@@ -216,7 +216,7 @@ describe('验收耗时传感器', () => {
     })
   })
 
-  it('make check 的验收一步跳过时写下的账本，传感器认得', () => {
+  it('pnpm run check 的验收一步跳过时写下的账本，传感器认得', () => {
     const { root, ledgers } = checkout(true)
     const at: Coordinates = {
       root,

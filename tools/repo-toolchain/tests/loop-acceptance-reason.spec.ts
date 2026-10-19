@@ -31,6 +31,6 @@ it('有验收却没有这个提交的记录：没数据，原因指到跑验收�
   })
   expect(reading.status).toBe('no-data')
   expect(reading.status === 'no-data' ? reading.reason : '').toMatch(
-    /^有 1 个成员有验收，这个提交（abc123456）却没有跑全它们的耗时记录（.*）：先跑 make acceptance$/u,
+    /^有 1 个成员有验收，这个提交（abc123456）却没有跑全它们的耗时记录（.*）：先跑 pnpm run acceptance$/u,
   )
 })
