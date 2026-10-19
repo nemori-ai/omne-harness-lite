@@ -355,7 +355,7 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 | G5 | 本地启动协调器实现 [P04](#p04-实际发起围栏) 的同机排序域。其他拥有者通过 `invalidate` 进入同一排序域。耐久受理台账依赖记录仓 | `tool-host-local`（[本增量未交付](../README.md#未交付标注)） 根入口 |
 | G6 | `./testing` 入口：`tool-contract` 提供端口一致性套件，`tool`（[本增量未交付](../README.md#未交付标注)） 提供真实 runtime 的测试装配、非耐久记录仓和记录仓一致性用例。套件不依赖测试框架，返回用例列表，用 `node:assert` 判定。其他领域的测试可以把 `@omne-harness/tool/testing`（[本增量未交付](../README.md#未交付标注)） 作为开发依赖 | `tool-contract` 与 `tool`（[本增量未交付](../README.md#未交付标注)） 的 `./testing` |
 | G7 | `ToolBindingRegistry` 由单机宿主实现。`ToolLoader` 的设置读取与作者工厂仍是构造依赖 | `tool-host-local`（[本增量未交付](../README.md#未交付标注)） 根入口 |
-| G8 | `executeTool`、`createIndependentToolScope` 与 `createToolRuntime` 进入不含 Cordis 的实现包。它们管理并发、等待、取消与状态，不属于各实现必须给出同一答案的契约词汇。构造形状 `ToolDependencies` 与 `ToolConfiguration` 随工厂进入同一包 | `tool`（[本增量未交付](../README.md#未交付标注)） 根入口 |
+| G8 | `executeTool`、`createIndependentToolScope` 与 `createToolRuntime` 进入不含 Cordis 的实现包（[本增量未交付](../README.md#未交付标注)）。它们管理并发、等待、取消与状态，不属于各实现必须给出同一答案的契约词汇。构造形状 `ToolDependencies` 与 `ToolConfiguration` 随工厂进入同一包 | `tool`（[本增量未交付](../README.md#未交付标注)） 根入口 |
 | G9 | 单机宿主命名为 `packages/tool/tool-host-local`（[本增量未交付](../README.md#未交付标注)） | `tool-host-local`（[本增量未交付](../README.md#未交付标注)） |
 
 ## 定义、可用性与发起
@@ -565,7 +565,7 @@ Tool 区分三类中断原因：控制请求（带控制操作号，并说明是
 - `all`：撤回目标调用的前台执行和后台执行。目标调用已在后台时，形成 interrupted 逻辑终局，不形成前台 final，因为已有后台占位。对程序调用，关闭屏障覆盖全部子调用。
 - `foreground-and-unadmitted`：只有目标调用在控制提交时是前台关系，Tool 才撤回它；是否已经启动不改变这一点。发起即后台的调用在受理时已固定后台占位并交给调用方，关系从受理起就是后台，不属于这个 reach，要撤回它须用 `all`。名字里的 unadmitted 指程序调用尚未受理的子调用预留，不指目标本身。对程序调用，关闭屏障只覆盖前台子调用及未受理预留，其余已受理的后台执行不自动跟随。目标调用在控制提交时是后台关系（已转后台，或发起即后台，不论是否已启动），控制仍作为已提交的 ControlRecord 保存，返回回执，进度为 `rejected`，原因 `out-of-reach`。这是回执里的进度，不是 ToolFailure 的拒绝。Tool 不形成中断，也不改变该调用。
 
-Tool 报告实际收场，不以调用方存活为前提。控制方的业务事实和控制的实际结果分别保存。控制提交路径在实现包中尚未实现，本节是契约，不表示实现已具备。
+Tool 报告实际收场，不以调用方存活为前提。控制方的业务事实和控制的实际结果分别保存。控制提交路径在实现包（[本增量未交付](../README.md#未交付标注)）中尚未实现，本节是契约，不表示实现已具备。
 
 已发执行可能继续产生真实效果。Tool 继续保管原结果、真实收场和成本，不把撤回后的真实成功伪报物理中断。结果不能恢复业务推进、创建工作对象或恢复入队资格。控制方不重启旧调用，控制后的真实状态也不倒退。
 

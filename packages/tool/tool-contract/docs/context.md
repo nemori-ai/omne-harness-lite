@@ -40,7 +40,7 @@ flowchart LR
 
 ### 支持范围在哪里
 
-支持范围分五档。逐包的表在 [tool-contract 的 README](../README.md#支持范围)与 [tool-cordis-contract 的 README](../../tool-cordis-contract/README_ZH.md#支持范围)，跨包总表在[组页](../../README.md#支持范围)。某个包的目录不在当前检出里时，表中指向它的行带标注，规则见组页的[未交付标注](../../README.md#未交付标注)。本节的消费说明与入口表遵守同一规则。
+支持范围分五档。逐包的表在 [tool-contract 的 README](../README.md#支持范围)与 [tool-cordis-contract 的 README](../../tool-cordis-contract/README_ZH.md#支持范围)，跨包总表在[组页](../../README.md#支持范围)。某个包的目录不在当前检出里时，表中提到它的单元格带标注，规则见组页的[未交付标注](../../README.md#未交付标注)。本节的消费说明与入口表遵守同一规则。
 
 ### 契约变更协议
 
