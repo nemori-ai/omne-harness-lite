@@ -129,6 +129,6 @@ pnpm run typecheck
 
 新增命令时，通过 `defineCatalog` 追加一条 `CommandSpec`。`renderHelp` 会带上它，`run` 用 `CommandEnvironment` 调用它的 `run`。生产目录的命令列表是空的。需要状态目录的命令用 `homeFlag`、`environmentHome` 和 `homeDirectory` 调用 `resolveStateDirectory`，再调用 `ensureStateDirectory`。命令自己不读 `process.env`。help 和 version 不得调用这两个函数。调用 SDK 的命令要把 SDK 加为依赖，并在同一次修改中更新安装闭包测试和 SPEC.md。
 
-`scripts/package-cli.sh` 构建本成员，并把 `apps/cli/dist` 写入一个新的 `.tar.gz`。它不安装命令、不上传发布、也不配置账号。这个归档不是旧的 B01 安装包。
+`scripts/package-cli.sh` 把本成员构建到自己的临时目录，再把其中的 `dist/` 写入一个新的 `.tar.gz`。它不删除、不写入 `apps/cli/dist`，所以运行已构建 bin 的测试可以同时进行。失败时只清理自己的临时目录。它不安装命令、不上传发布、也不配置账号。这个归档不是旧的 B01 安装包。
 
 本文件与 [README.md](README.md) 保持同步。两份文件表达同一组承诺。

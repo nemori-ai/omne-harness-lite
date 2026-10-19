@@ -129,6 +129,6 @@ To change the help text, a message, or an exit code, change [SPEC.md](SPEC.md), 
 
 To add a command, append a `CommandSpec` through `defineCatalog`. `renderHelp` includes it, and `run` calls its `run` with a `CommandEnvironment`. The production catalog's command list is empty. A command that needs the state directory calls `resolveStateDirectory` with `homeFlag`, `environmentHome`, and `homeDirectory`, then `ensureStateDirectory`. It does not read `process.env` itself. Help and version must not call either function. A command that calls the SDK adds the SDK as a dependency. Update the install-closure test and SPEC.md in the same change.
 
-`scripts/package-cli.sh` builds this member and writes `apps/cli/dist` into a new `.tar.gz`. It does not install the command, upload a release, or configure an account. The archive is not the old B01 installer.
+`scripts/package-cli.sh` builds this member into a private staging directory and writes that `dist/` into a new `.tar.gz`. It does not remove or write `apps/cli/dist`, so tests that run the built bin can run at the same time. On failure it removes only its staging directory. It does not install the command, upload a release, or configure an account. The archive is not the old B01 installer.
 
 Keep [README_ZH.md](README_ZH.md) in step with this file. Both files state the same promises.
