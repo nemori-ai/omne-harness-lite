@@ -56,7 +56,7 @@
 - `tool-cordis-contract/testing`：`ToolInstancesService.register` 的登记语义套件，和守约的非耐久登记服务。
 - `tool/testing`：非耐久记录仓 `createMemoryToolLedgerStore`，只供测试。
 
-套件只对非耐久替身和违约变体运行。承载独立规则的断言都有违约变体，类型收窄的断言由编译器守护。逐断言的对应表见 [tool-contract](tool-contract/tests/README.md#断言与违约变体的对应)与 [tool-cordis-contract](tool-cordis-contract/tests/README.md#断言与违约变体的对应)的 tests/README。真实实现的对照、对照结果与未对照的端口，见 [tool-contract 的 public-api](tool-contract/docs/public-api.md#端口一致性套件testing)。替身声明 `durability: 'none'`，不能装配进生产，也不证明耐久提供者符合契约。
+各套件使用非耐久替身、合法生成提供者和违约变体验证。启动围栏套件另在单进程内对真实本地启动协调器运行；该对照使用非耐久记录仓，不覆盖耐久性、进程崩溃或跨进程装配。承载独立规则的断言都有违约变体，类型收窄的断言由编译器守护。逐断言的对应表见 [tool-contract](tool-contract/tests/README.md#断言与违约变体的对应)与 [tool-cordis-contract](tool-cordis-contract/tests/README.md#断言与违约变体的对应)的 tests/README。真实实现的对照、对照结果与未对照的端口，见 [tool-contract 的 public-api](tool-contract/docs/public-api.md#端口一致性套件testing)。替身声明 `durability: 'none'`，不能装配进生产，也不证明耐久提供者符合契约。
 
 ## 关键协作
 
