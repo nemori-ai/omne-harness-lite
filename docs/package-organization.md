@@ -118,7 +118,9 @@ packages/
 │   ├── model-cordis-contract/  模型的 Cordis 服务定义
 │   ├── model/                  不含 Cordis 的模型执行实现
 │   └── model-host-local/       单机宿主：本地凭据保管与 Cordis 插件
-├── tool/tool/                  工具定义、执行和效果
+├── tool/
+│   ├── tool-contract/          工具纯契约：类型、判定与投影
+│   └── tool-cordis-contract/   工具的 Cordis 服务定义
 ├── context/
 │   ├── runtime-context/        数据注册、供给与读取
 │   └── request-context/        请求投影与上下文组装
