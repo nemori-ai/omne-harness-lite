@@ -23,7 +23,7 @@ git branch --show-current
 git status --short
 ```
 
-完整检查需要 Git、Bash、Make、[uv](https://docs.astral.sh/uv/getting-started/installation/)，
+完整检查需要 Git、Bash、[uv](https://docs.astral.sh/uv/getting-started/installation/)，
 以及根 `package.json` 的 `engines`/`packageManager` 指定的 Node 与 pnpm。
 
 支持在 macOS、Linux 与 Windows 上开发。`pnpm run check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 WSL2 的 Linux 发行版里检出仓库并运行它们，不支持在 PowerShell 或 cmd 中直接运行。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。
@@ -36,7 +36,7 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm -r rebuild node-pty
 ```
 
-安装依据锁文件且禁用依赖脚本。随后仅显式构建workspace白名单中的node-pty；使用Node 24时需要支持C++20的编译器，已有系统编译器过旧时在实际环境选择合适的CC/CXX，不修改依赖源码或跳过原生检查。依赖准备后按[任务影响面](#修改与验证)选择检查；需要核对完整交付候选时使用[组合检查](#交付与合并前的检查)。`pnpm run check`不调用真实模型，构建、成员测试及验收范围由实际计划决定。
+安装依据锁文件且禁用依赖脚本。随后仅显式构建workspace白名单中的node-pty；这一步由 node-gyp 构建，需要 Make；使用Node 24时还需要支持C++20的编译器，已有系统编译器过旧时在实际环境选择合适的CC/CXX，不修改依赖源码或跳过原生检查。依赖准备后按[任务影响面](#修改与验证)选择检查；需要核对完整交付候选时使用[组合检查](#交付与合并前的检查)。`pnpm run check`不调用真实模型，构建、成员测试及验收范围由实际计划决定。
 
 ### Cursor Cloud Agent 镜像
 

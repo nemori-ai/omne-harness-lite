@@ -97,7 +97,7 @@ turbo 构建体系建立后进入第二阶段。轨道改为自动检查通过�
 
 影响面的成员选择与构建已由 turbo 承担（`tools/test-runner` 的 `turbo.ts`），类型检查与测试由测试运行器逐成员运行。[RFC-0002 revision 2](../rfcs/RFC-0002-engineering-toolchain.md#影响面选择) 要求的四条约束已在测试运行器中实现：未识别文件转全量，`turbo.json` 一类选择配置是全局文件，基线显式传入，准入不读取 PR 能写入的缓存。实现方式见[迭代中的受影响测试](../development.md#迭代中的受影响测试)。
 
-stable 的完整检查即全量的 `FULL=1 pnpm run check`，由目标分支钉住的检查器版本运行，不再从 policy 读取检查清单。
+stable 的完整检查即 `FULL=1 pnpm run check`，由目标分支钉住的检查器版本运行，不再从 policy 读取检查清单。
 
 ## 同步与提升的节奏
 

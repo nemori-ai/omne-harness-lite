@@ -99,7 +99,7 @@ scripts/format.sh                      TS/JS 格式化与暂存区检查
 .agents / .claude / .codex             指向工作区内生成目录的相对软链接
 ```
 
-根 `package.json` 的 `scripts` 是唯一的命令入口，`scripts/check.sh` 顺序组合现有检查，工具包拥有检查算法。
+仓库命令入口统一在根 `package.json` 的 `scripts`，`scripts/check.sh` 顺序组合现有检查，工具包拥有检查算法。
 CI 配置（`.github/workflows/`）只负责触发条件、执行环境和调用这些入口，
 见[自动化入口](../scripts/README.md#ci)；构建、发布、部署脚本
 有实际交付对象后再增加，**不能因目录存在就声称流水线或部署能力已经完成**。

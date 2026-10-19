@@ -45,7 +45,6 @@
 
 判全量时（全局文件改了、有规则不认得的路径、`FULL=1`）计划选中全部成员，全部步骤对全部成员跑。构建与类型检查仍经 turbo 执行。
 合并后没有自动补跑，也没有定时任务：全量由负责人不定时让一个会话手动跑 `FULL=1 pnpm run check`。
-原来单独的产品检查链已删除。
 
 最后一步是 `pnpm run loop:status --strict --base <基线> --out tmp/loop-status-check`：方向与环、验收锁、
 开着的传感器都有数据（验收被计划跳过时认上一步的记录），破一个就失败（见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md#回路状态)）。

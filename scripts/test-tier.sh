@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# 根脚本 test:tier 的入口：全部成员的某一层，先构建。层必须给：fast、slow 或 all（all 同 pnpm run test）。
+# 根脚本 test:tier 的入口：全部成员的某一层，先构建。层必须给：fast、slow 或 all（all 同 pnpm run test）；层名由测试运行器核对。
 set -euo pipefail
-if (( $# != 1 )) || [[ "$1" != fast && "$1" != slow && "$1" != all ]]; then
+if (( $# != 1 )); then
     echo "用法：pnpm run test:tier fast|slow|all" >&2
     exit 2
 fi

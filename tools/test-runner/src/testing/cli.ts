@@ -170,6 +170,7 @@ async function run(request: RunRequest): Promise<number> {
   }
   if (request.planOnly) {
     console.log(`层：${TIER_NAMES[tier]}（${tier}）`)
+    console.log(request.build ? '构建：先构建这些成员及其依赖' : '构建：不构建（调用方已构建）')
     return 0
   }
   if (targets.length === 0) {
