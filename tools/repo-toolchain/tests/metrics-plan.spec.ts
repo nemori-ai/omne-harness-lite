@@ -1,25 +1,25 @@
-// 覆盖采集读 test-runner 的计划文件：只认形状对、且是对当前提交算的计划；入口的参数组合。
-import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+// 覆盖采集读 test-runner 的计划文件：只认形状对、且是对当前提交算的计划；按计划选覆盖成员；入口的参数组合。
+import { spawnSync } from 'node:child_process'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { parseMetricsPlan, readMetricsPlan } from '../src/metrics/plan.ts'
+import {
+  coverageTargets,
+  parseMetricsPlan,
+  readMetricsPlan,
+  unplannedMembers,
+} from '../src/metrics/plan.ts'
+import { git, removeTemporaries, temporaryDirectory } from './fixtures/loop-canary/repository.ts'
 
 const CLI = fileURLToPath(new URL('../src/metrics/cli.ts', import.meta.url))
-const roots: string[] = []
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
-})
+afterEach(removeTemporaries)
+
 function repository(): { root: string; head: string } {
-  const root = mkdtempSync(join(tmpdir(), 'omne-metrics-plan-'))
-  roots.push(root)
-  const git = (...args: string[]) =>
-    execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
-  git('init', '-q')
-  git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--allow-empty', '-qm', 'base')
-  return { root, head: git('rev-parse', 'HEAD').trim() }
+  const root = temporaryDirectory('omne-metrics-plan-')
+  git(root, 'init', '-q')
+  git(root, 'commit', '--allow-empty', '-qm', 'base')
+  return { root, head: git(root, 'rev-parse', 'HEAD') }
 }
 const planOf = (head: string, test: unknown = ['packages/a']) => ({
   head,
@@ -49,6 +49,33 @@ describe('计划文件', () => {
     expect(() => readMetricsPlan(root, path)).toThrow('重新算计划')
     writeFileSync(path, '{')
     expect(() => readMetricsPlan(root, path)).toThrow('读不出计划文件')
+  })
+})
+
+describe('覆盖成员', () => {
+  it('只取计划里要跑测试、又在配置根目录下的成员，去重并保持出现顺序', () => {
+    const plan = {
+      head: 'a',
+      base: { ref: 'r', mergeBase: 'm' },
+      test: ['packages/a', 'apps/b', 'examples/c'],
+    }
+    expect(
+      coverageTargets(
+        ['apps/b', undefined, 'packages/a', 'packages/z', 'examples/c', 'apps/b'],
+        plan,
+        ['packages', 'apps'],
+      ),
+    ).toEqual(['apps/b', 'packages/a'])
+  })
+
+  it('有改动、在配置根目录下却不在计划里的成员被点出来', () => {
+    const plan = { head: 'a', base: { ref: 'r', mergeBase: 'm' }, test: ['packages/a'] }
+    expect(
+      unplannedMembers(['packages/a', 'packages/y', undefined, 'tools/t', 'packages/y'], plan, [
+        'packages',
+        'apps',
+      ]),
+    ).toEqual(['packages/y'])
   })
 })
 

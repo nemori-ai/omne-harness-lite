@@ -45,12 +45,14 @@ interface MutationRequest {
   readonly out: string | undefined
 }
 
-function scopeOf(
-  root: string,
-  flags: Flags,
-  plan: string | undefined,
-  members: string | undefined,
-): MutationScope {
+function scopeOf(root: string, flags: Flags): MutationScope {
+  const members = flags.values.get('--members')
+  const plan = flags.values.get('--plan')
+  const chosen = [flags.values.has('--base'), plan !== undefined, members !== undefined]
+  if (chosen.filter(Boolean).length > 1)
+    throw new Error(`--base、--plan 与 --members 只能给一个\n${USAGE}`)
+  if ((plan !== undefined || members !== undefined) && flags.switches.has('--default-base'))
+    throw new Error(`--default-base 只能与 --base 或不给范围时同用\n${USAGE}`)
   if (plan !== undefined) return { kind: 'plan', path: plan }
   if (members !== undefined)
     return {
@@ -77,24 +79,20 @@ function parseRun(argv: readonly string[]): MutationRequest {
   const root = resolve(
     flags.values.get('--root') ?? process.env['OMNE_SUBJECT_ROOT'] ?? DEFAULT_ROOT,
   )
-  const members = flags.values.get('--members')
-  const plan = flags.values.get('--plan')
-  const chosen = [flags.values.has('--base'), plan !== undefined, members !== undefined]
-  if (chosen.filter(Boolean).length > 1)
-    throw new Error(`--base、--plan 与 --members 只能给一个\n${USAGE}`)
   return {
     root,
-    scope: scopeOf(root, flags, plan, members),
+    scope: scopeOf(root, flags),
     planOnly: flags.switches.has('--plan-only'),
     out: flags.values.get('--out'),
   }
 }
 
-/** 选出要变异的成员与行；按改动变异时连同所用的计划（读计划文件或按基线现算），点名成员时没有计划。 */
-function select(request: MutationRequest): {
-  readonly plan?: PlanFile
-  readonly targets: MutationTarget[]
-} {
+/** 选出的变异目标：点名成员的全部源码，或按计划（读计划文件或按基线现算）选出的改动行。 */
+type Selection =
+  | { readonly kind: 'members'; readonly targets: MutationTarget[] }
+  | { readonly kind: 'planned'; readonly plan: PlanFile; readonly targets: MutationTarget[] }
+
+function select(request: MutationRequest): Selection {
   const config = readTestRunsConfig()
   const members = listTestMembers(request.root, config.affected.excludeRoots)
   const { scope } = request
@@ -106,19 +104,22 @@ function select(request: MutationRequest): {
         throw new Error(`${path} 不在 ${MUTATION_ROOTS.join('、')} 下：只变异产品源码\n${USAGE}`)
       return member
     })
-    return { targets: memberTargets(request.root, named) }
+    return { kind: 'members', targets: memberTargets(request.root, named) }
   }
   const plan =
     scope.kind === 'plan'
       ? readPlanFile(request.root, resolve(scope.path))
       : computePlan(request.root, scope.base, false)
   // 与准入检查读同一份计划：只变异计划里要跑测试的成员，改动行取计划的合并点。
+  // 计划只核提交；算完计划后工作树又改了计划外的成员，就不静默跳过它们，要求重算。
   const planned = new Set(plan.plan.test)
-  const targets = changedTargets(
-    changedLines(request.root, plan.base.mergeBase),
-    members.filter(member => planned.has(member.path)),
-  )
-  return { plan, targets }
+  const targets = changedTargets(changedLines(request.root, plan.base.mergeBase), members)
+  const unplanned = targets.filter(target => !planned.has(target.member.path))
+  if (unplanned.length > 0)
+    throw new Error(
+      `计划之后工作树改了计划外的成员：${unplanned.map(target => target.member.path).join('、')}：重新算计划`,
+    )
+  return { kind: 'planned', plan, targets }
 }
 
 function ledgerDir(request: MutationRequest, at: Coordinates): string {
@@ -138,21 +139,23 @@ function readMutationReport(path: string): MutationReport | undefined {
 }
 
 async function run(request: MutationRequest): Promise<number> {
-  const { plan, targets } = select(request)
+  const selection = select(request)
+  const { targets } = selection
   const located = coordinates(request.root, undefined)
-  const at: Coordinates = plan === undefined ? located : { ...located, base: plan.base }
+  const at: Coordinates =
+    selection.kind === 'planned' ? { ...located, base: selection.plan.base } : located
   if (targets.length === 0) {
     console.log(
-      plan === undefined
+      selection.kind === 'members'
         ? '没有可变异的改动：点名成员的 src/ 下没有源码'
-        : `没有可变异的改动：基线 ${plan.base.ref} 以来，计划里 ${MUTATION_ROOTS.join('、')} 下成员的 src/ 里没有改动的源码`,
+        : `没有可变异的改动：基线 ${selection.plan.base.ref} 以来，计划里 ${MUTATION_ROOTS.join('、')} 下成员的 src/ 里没有改动的源码`,
     )
     return 0
   }
   const scope =
-    plan === undefined
+    selection.kind === 'members'
       ? `点名成员的全部产品源码`
-      : `基线 ${plan.base.ref}（合并点 ${plan.base.mergeBase.slice(0, 9)}）以来改动碰到的产品源码行`
+      : `基线 ${selection.plan.base.ref}（合并点 ${selection.plan.base.mergeBase.slice(0, 9)}）以来改动碰到的产品源码行`
   console.log(`变异范围：${scope}；只跑快层（vitest 的 mode 为 fast）`)
   for (const target of targets)
     console.log(
@@ -162,7 +165,7 @@ async function run(request: MutationRequest): Promise<number> {
 
   const runDir = ledgerDir(request, at)
   mkdirSync(runDir, { recursive: true })
-  if (plan !== undefined) writePlanFile(join(runDir, 'plan.json'), plan)
+  if (selection.kind === 'planned') writePlanFile(join(runDir, 'plan.json'), selection.plan)
   if (
     !buildTargets(
       request.root,

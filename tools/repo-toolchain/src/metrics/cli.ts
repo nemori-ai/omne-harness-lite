@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 import { workingGraph } from '../deps/graph.ts'
 import { readMetricsConfig } from './config.ts'
 import { measureCoverage } from './coverage.ts'
-import { readMetricsPlan } from './plan.ts'
+import { coverageTargets, readMetricsPlan, unplannedMembers } from './plan.ts'
 import { changedLines, commitShape, coordinates } from '../core/git.ts'
 import { memberOf } from '../deps/graph.ts'
 import { renderPage } from '../report/render.ts'
@@ -18,11 +18,15 @@ import { buildArchitectureView } from '../arch/view.ts'
 import { readConformance } from '../arch/conformance.ts'
 import { subjectRoot } from '../core/subject.ts'
 
+/** 基线从哪来：不给、给基线引用，或读计划文件。覆盖采集只在读计划时可选。 */
+type Scope =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'base'; readonly ref: string }
+  | { readonly kind: 'plan'; readonly path: string; readonly coverage: boolean }
+
 interface Options {
-  readonly base?: string
-  readonly coverage: boolean
+  readonly scope: Scope
   readonly out?: string
-  readonly plan?: string
 }
 
 const USAGE = '用法：metrics [--base <ref> | --plan <计划文件>] [--coverage] [--out <dir>]'
@@ -49,34 +53,44 @@ function parseArgs(argv: readonly string[]): Options {
   // 覆盖采集与准入检查、变异读同一份计划，不自己按改动另选成员。
   if (coverage && plan === undefined)
     throw new Error(`--coverage 要给 --plan：先用 test-runner 的 plan --json 算计划；${USAGE}`)
-  return {
-    coverage,
-    ...(base === undefined ? {} : { base }),
-    ...(out === undefined ? {} : { out }),
-    ...(plan === undefined ? {} : { plan }),
-  }
+  const scope: Scope =
+    plan !== undefined
+      ? { kind: 'plan', path: plan, coverage }
+      : base !== undefined
+        ? { kind: 'base', ref: base }
+        : { kind: 'none' }
+  return { scope, ...(out === undefined ? {} : { out }) }
 }
 
 function main(): void {
   const options = parseArgs(process.argv.slice(2))
   const config = readMetricsConfig()
   const root = resolve(subjectRoot())
-  const plan = options.plan === undefined ? undefined : readMetricsPlan(root, resolve(options.plan))
+  const { scope } = options
+  const planned =
+    scope.kind === 'plan'
+      ? {
+          plan: readMetricsPlan(root, resolve(scope.path)),
+          path: resolve(scope.path),
+          coverage: scope.coverage,
+        }
+      : undefined
+  const givenBase = scope.kind === 'base' ? scope.ref : undefined
   const located = coordinates(
     root,
-    plan === undefined ? baselines(root, options.base).targetBase : undefined,
+    planned === undefined ? baselines(root, givenBase).targetBase : undefined,
   )
   // 给了计划就用它算的合并点，不按基线引用重算：引用可能已经前进。
-  const at = plan === undefined ? located : { ...located, base: plan.base }
+  const at = planned === undefined ? located : { ...located, base: planned.plan.base }
   // 架构对照按基线引用本身比较（见 arch/actual.ts），与给 --base 时一致。
-  const baseRef = plan === undefined ? options.base : plan.base.ref
+  const baseRef = planned === undefined ? givenBase : planned.plan.base.ref
   const outDir = resolve(
     options.out ??
       process.env['OMNE_METRICS_OUT'] ??
       join(at.mainRoot, 'tmp', 'metrics', `${at.shortHead}${at.dirty ? '-dirty' : ''}`),
   )
   mkdirSync(outDir, { recursive: true })
-  if (options.plan !== undefined) copyFileSync(resolve(options.plan), join(outDir, 'plan.json'))
+  if (planned !== undefined) copyFileSync(planned.path, join(outDir, 'plan.json'))
 
   const files = collectMemberSources(root)
   const changed = at.base === undefined ? undefined : changedLines(root, at.base.mergeBase)
@@ -84,15 +98,17 @@ function main(): void {
 
   let coverage: CoverageInput | undefined
   let coverageSeconds: ReadonlyMap<string, number> | undefined
-  if (options.coverage) {
-    // 只对计划里要跑测试、又在配置所列根目录下的成员跑测试；其余成员照常做静态度量，覆盖率记为「这次没跑」。
-    const planned = new Set(plan?.test)
-    const targets = [...new Set(files.map(file => memberOf(file.path)?.path))].filter(
-      (path): path is string =>
-        path !== undefined &&
-        planned.has(path) &&
-        config.coverage.roots.some(base => path.startsWith(`${base}/`)),
+  if (planned?.coverage === true) {
+    const unplanned = unplannedMembers(
+      [...(changed?.keys() ?? [])].map(path => memberOf(path)?.path),
+      planned.plan,
+      config.coverage.roots,
     )
+    if (unplanned.length > 0)
+      throw new Error(`计划之后工作树改了计划外的成员：${unplanned.join('、')}：重新算计划`)
+    // 其余成员照常做静态度量，覆盖率记为「这次没跑」。
+    const members = files.map(file => memberOf(file.path)?.path)
+    const targets = coverageTargets(members, planned.plan, config.coverage.roots)
     const measured = measureCoverage(root, targets, join(outDir, 'coverage'))
     coverage = measured
     coverageSeconds = measured.seconds

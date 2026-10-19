@@ -1,17 +1,14 @@
 // 验收耗时传感器没数据时的原因文字：它指向的入口随本包发布，所以断言放在本包，与源码里的文字一起改。
 // 读数的其余行为由 test-runner 的 loop-acceptance.spec.ts 在它写出的真实账本上核对。
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { readAcceptanceTiming } from '../src/loop/sensors/acceptance.ts'
-import { removeTemporaries, temporaryDirectory } from './fixtures/loop-canary/repository.ts'
+import {
+  removeTemporaries,
+  temporaryDirectory,
+  write as put,
+} from './fixtures/loop-canary/repository.ts'
 
 afterEach(removeTemporaries)
-
-const put = (root: string, path: string, text: string) => {
-  mkdirSync(dirname(join(root, path)), { recursive: true })
-  writeFileSync(join(root, path), text)
-}
 
 it('有验收却没有这个提交的记录：没数据，原因指到跑验收的入口', () => {
   const root = temporaryDirectory('acceptance-reason-')
