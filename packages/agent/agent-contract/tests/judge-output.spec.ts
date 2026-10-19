@@ -5,6 +5,7 @@ import {
   type ExtensionOutputJudgeInput,
   type Position,
   type PositionOutputKey,
+  type Subject,
 } from '@omne-harness/agent-contract'
 
 type Kind = 'observed' | 'inject' | 'rewrite' | 'select_model' | 'veto' | 'stop' | 'retry' | 'ask'
@@ -290,13 +291,21 @@ function sampleOutput(kind: Kind, row: PositionOutputKey): unknown {
   }
 }
 
+/*
+ * The fixtures are plain data whose shape the judgment only compares and forwards, so they are
+ * not built as real `Subject` values. The one assertion below is where they enter the typed input.
+ */
+type FixtureOverrides = Partial<Omit<ExtensionOutputJudgeInput, 'subject'>> &
+  Readonly<{ subject?: Record<string, unknown> }>
+
 function inputFor(
   row: PositionOutputKey,
   power: Power,
   output: unknown,
-  overrides: Partial<ExtensionOutputJudgeInput> = {},
+  overrides: FixtureOverrides = {},
 ): ExtensionOutputJudgeInput {
-  return { ...WHERE[row], power, subject: SUBJECTS[row], output, ...overrides }
+  const { subject = SUBJECTS[row], ...rest } = overrides
+  return { ...WHERE[row], power, subject: subject as Subject, output, ...rest }
 }
 
 function reasonOf(judged: ReturnType<typeof judgeExtensionOutput>): string {

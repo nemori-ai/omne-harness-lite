@@ -36,15 +36,27 @@ export type {
   Power,
   UnavailabilityPolicy,
 } from './extensions.ts'
-export type {
-  ActionId,
-  Adoption,
-  AgentExecutionId,
-  AgentIdentity,
-  AgentInstant,
-  CardRoundId,
-  Evidence,
-  PassageId,
+export {
+  AGENT_IDENTITY_MAX_LENGTH,
+  decodeActionBatchId,
+  decodeActionId,
+  decodeAgentExecutionId,
+  decodeAgentInstanceId,
+  decodeAgentOperationId,
+  decodeAgentRegistrationId,
+  decodeCardRoundId,
+  decodeConsumptionId,
+  decodeExecutionAttachmentId,
+  decodeExecutionRevision,
+  decodeInputBatchId,
+  decodeInputId,
+  decodePassageId,
+  decodeStepId,
+  judgeAccess,
+  judgeAdoption,
+  judgeAuthority,
+  judgeEvidence,
 } from './identity.ts'
+export type * from './identity.ts'
 export type { CardAnswer, Subject } from './passages.ts'
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts'

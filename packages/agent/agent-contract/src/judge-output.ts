@@ -13,7 +13,7 @@ import {
   type Position,
   type Power,
 } from './extensions.ts'
-import type { ActionId } from './identity.ts'
+import { decodeActionId, type ActionId } from './identity.ts'
 import type { Subject } from './passages.ts'
 import type { Judgment, OutputRefusalReason } from './judgment.ts'
 
@@ -206,8 +206,8 @@ const OUTPUT_LIMITS: JsonLimits = {
 const text = z.string().min(1)
 const data = z.record(z.string(), z.unknown())
 const jsonValue = z.custom<JsonValue>(value => 'ok' in judgeJsonValue(value))
-/** An action identity is branded text. This judgment checks the text; the decoder of the identity chapter owns the rest. */
-const actionId = z.custom<ActionId>(value => typeof value === 'string' && value.length > 0)
+/** An action identity is judged by its decoder, the one rule of the identity text. */
+const actionId = z.custom<ActionId>(value => 'ok' in decodeActionId(value))
 
 const option = z.strictObject({ id: text, label: z.string(), effect: jsonValue.optional() })
 
