@@ -71,6 +71,42 @@ def test_unmapped_cloud_host_is_rejected(tmp_path):
     assert not output.exists()
 
 
+def add_claude_code_setup(source: Path, mode: int = 0o755) -> Path:
+    directory = source / "cloud/claude-code"
+    directory.mkdir()
+    (directory / "README.md").write_text("maintainer note\n", encoding="utf-8")
+    for name in ("setup.sh", "session-start.sh"):
+        script = directory / name
+        script.write_text("#!/bin/bash\nset -euo pipefail\n", encoding="utf-8")
+        script.chmod(mode)
+    return directory
+
+
+def test_claude_code_setup_is_checked_but_not_projected(tmp_path):
+    source = source_tree(tmp_path)
+    add_claude_code_setup(source)
+    output = tmp_path / "preview"
+    args = ["--source", str(source), "--output", str(output)]
+    assert compiler.main(args) == 0
+    assert compiler.main(args + ["--check"]) == 0
+    assert not any(path.name in {"setup.sh", "session-start.sh"} for path in output.rglob("*"))
+    outputs = compile_sources(source, hosts=("claude-code",))
+    assert not any(path.name in {"setup.sh", "session-start.sh", "Dockerfile"} for path in outputs)
+
+
+@pytest.mark.parametrize("mutation", ["extra", "unexecutable", "missing"])
+def test_invalid_claude_code_setup_fails_before_writing(tmp_path, mutation):
+    source = source_tree(tmp_path)
+    directory = add_claude_code_setup(source, 0o644 if mutation == "unexecutable" else 0o755)
+    if mutation == "extra":
+        (directory / "Dockerfile").write_text("FROM scratch\n", encoding="utf-8")
+    elif mutation == "missing":
+        (directory / "session-start.sh").unlink()
+    output = tmp_path / "preview"
+    assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
+    assert not output.exists()
+
+
 @pytest.mark.parametrize("mutation", ["extra", "unexecutable", "dockerfile"])
 def test_invalid_cloud_source_fails_before_writing(tmp_path, mutation):
     source = source_tree(tmp_path)

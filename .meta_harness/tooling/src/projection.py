@@ -26,6 +26,9 @@ HOOK_TARGETS = {host: layout.hooks for host, layout in HOSTS.items()}
 # text and is not part of the runtime projection.
 CLOUD_RUNTIME = ("Dockerfile", "environment.json", "install.sh")
 CLOUD_SOURCE_ONLY = {"README.md"}
+# Hosts that read their cloud setup from the host's own settings, not the checkout.
+# The source is checked here and not projected.
+CLOUD_SETUP_ONLY = {"claude-code": ("setup.sh", "session-start.sh")}
 HOOK_EVENTS = ("Stop", "SubagentStop")
 HOOK_FIELDS = {"id", "events", "subagent_types", "command", "timeout"}
 # Matchers made only of these characters are exact names on both hosts, never a regex.
@@ -251,7 +254,8 @@ def project_cloud(source: Path, hosts: tuple[str, ...]) -> dict[Path, Artifact]:
 
     `cloud/` contains one directory per host, named as in host_layout, plus an
     optional README.md. A missing `cloud/` or a missing host directory produces
-    nothing. A host directory whose package root is unset is rejected.
+    nothing. A host in CLOUD_SETUP_ONLY keeps only a checked setup script. Any
+    other host directory whose package root is unset is rejected.
     """
     directory = source / "cloud"
     if not directory.exists():
@@ -272,6 +276,9 @@ def project_cloud(source: Path, hosts: tuple[str, ...]) -> dict[Path, Artifact]:
         layout = HOSTS.get(item.name)
         if layout is None:
             raise ValueError(f"unknown cloud host: {item.name}")
+        if item.name in CLOUD_SETUP_ONLY:
+            _check_cloud_setup(item, CLOUD_SETUP_ONLY[item.name])
+            continue
         if layout.package is None:
             raise ValueError(f"cloud host {item.name} has no projection root yet")
         if item.name not in hosts:
@@ -279,6 +286,25 @@ def project_cloud(source: Path, hosts: tuple[str, ...]) -> dict[Path, Artifact]:
         for relative, artifact in _project_cloud_host(item, layout.package).items():
             outputs[relative] = artifact
     return outputs
+
+
+def _check_cloud_setup(directory: Path, scripts: tuple[str, ...]) -> None:
+    names = set()
+    for item in sorted(directory.iterdir()):
+        if item.name in IGNORED:
+            continue
+        no_symlinks(item)
+        if not item.is_file():
+            raise ValueError(f"cloud host source must be flat files: {item}")
+        names.add(item.name)
+    if names - CLOUD_SOURCE_ONLY != set(scripts):
+        raise ValueError(
+            f"cloud source for {directory.name} must be {list(scripts)} "
+            f"plus optional {sorted(CLOUD_SOURCE_ONLY)}; found {sorted(names)}"
+        )
+    for script in scripts:
+        if not (directory / script).stat().st_mode & 0o111:
+            raise ValueError(f"cloud {script} must be executable")
 
 
 def _project_cloud_host(directory: Path, package: Path) -> dict[Path, Artifact]:
