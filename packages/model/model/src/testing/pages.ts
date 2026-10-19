@@ -52,6 +52,27 @@ export function makePage(
   }
 }
 
+function receiveReserve(call: MemoryCall): number {
+  return call.dispatches.reduce((total, dispatch) => {
+    const open = [...dispatch.windows].filter(([, state]) => state === 'open')
+    const futureWindow = dispatch.logicalTerminal === null && open.length === 0
+    const confirmations = open.length + Number(futureWindow)
+    const snapshot =
+      encodedBytes({
+        call: call.state.call,
+        cursor: MAX_PAGE_CURSOR,
+        blocks: dispatch.blocks,
+        state: { ...call.state, revision: MAX_PAGE_CURSOR, firstContent: 'none-proven' },
+      }) + Math.max(0, MAX_CONTROL_BYTES - encodedBytes(call.state.control))
+    const closedWindows = open.reduce(
+      (bytes, [id, state]) => bytes + encodedBytes([id, 'unproven']) - encodedBytes([id, state]),
+      0,
+    )
+    const newWindow = futureWindow ? encodedBytes(['x'.repeat(254), 'unproven']) + 1 : 0
+    return total + confirmations * (snapshot + 1) + closedWindows + newWindow
+  }, 0)
+}
+
 export function materialBytes(call: MemoryCall): bigint {
   const settlement = call.state.phase === 'settled' ? call.state.settlement : null
   const reads = [...call.reads.values()].map(r => ({
@@ -75,6 +96,7 @@ export function materialBytes(call: MemoryCall): bigint {
     },
     output: call.dispatches.map(d => ({
       record: d.record,
+      logicalTerminal: d.logicalTerminal,
       blocks: d.blocks,
       nextSeq: [...d.nextSeq],
       trims: [...d.trims],
@@ -90,31 +112,16 @@ export function materialBytes(call: MemoryCall): bigint {
     finalParts: resultParts(call),
   })
   const terminalReserve = call.dispatches.reduce(
-    (sum, d) => sum + Math.max(0, MAX_TERMINATION_BYTES - encodedBytes(d.record.terminal)),
+    (sum, d) =>
+      sum +
+      Math.max(0, MAX_TERMINATION_BYTES - encodedBytes(d.record.terminal)) +
+      (d.logicalTerminal === null ? MAX_TERMINATION_BYTES - encodedBytes(null) : 0),
     0,
   )
-  const latest = call.dispatches.at(-1)
-  const finalConfirmation =
-    latest && latest.record.terminal === null
-      ? encodedBytes({
-          call: call.state.call,
-          cursor: MAX_PAGE_CURSOR,
-          blocks: latest.blocks,
-          state: { ...call.state, revision: MAX_PAGE_CURSOR },
-        }) + Math.max(0, MAX_CONTROL_BYTES - encodedBytes(call.state.control))
-      : 0
-  const openWindowBytes = latest
-    ? [...latest.windows]
-        .filter(([, state]) => state === 'open')
-        .reduce((total, entry) => total + encodedBytes(entry) + 1, 0)
-    : 0
-  const finalWindow =
-    latest && latest.record.terminal === null ? Math.max(0, 350 - openWindowBytes) : 0
   return BigInt(
     stored +
       terminalReserve +
-      finalConfirmation +
-      finalWindow +
+      receiveReserve(call) +
       Math.max(0, MAX_SETTLEMENT_BYTES - encodedBytes(settlement)) +
       Math.max(0, MAX_CUSTODY_BYTES - encodedBytes(call.state.custody)) +
       Math.max(0, MAX_CONTROL_BYTES - encodedBytes(call.state.control)) +

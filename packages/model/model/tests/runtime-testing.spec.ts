@@ -7,7 +7,7 @@ import {
   decodeResultVersion,
   type ModelHandle,
 } from '@omne-harness/model-contract'
-import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'
+import { fixture, instance, op, proof, unbox, identity, callId } from './memory-fixture.ts'
 
 const configuration: ModelConfiguration = {
   outputBatchBytes: 1024,
@@ -18,14 +18,17 @@ const configuration: ModelConfiguration = {
   retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
-function assembled() {
+function assembled(
+  ending?: TestModelSendPlan['script']['ending'],
+  planAdmission?: TestModelSendPlan['admission'],
+) {
   const f = fixture()
   const dispatch = unbox(decodeDispatchId('mdisp_one'))
   const execution = { tenant: f.tenant, call: f.admit.call, instance: instance(), generation: '1' }
   const plan: TestModelSendPlan = {
     execution,
     dispatch,
-    admission: f.admit.operation,
+    admission: planAdmission ?? f.admit.operation,
     materializationOperation: op('materialization'),
     windowOperation: op('window'),
     sendOperation: op('send'),
@@ -37,7 +40,7 @@ function assembled() {
         payloadDigest: 'a'.repeat(64),
       },
       facts: [],
-      ending: {
+      ending: ending ?? {
         kind: 'terminated',
         termination: {
           kind: 'failed',
@@ -56,8 +59,11 @@ function assembled() {
   })
   return { ...f, ...assembly, plan, dispatch, execution }
 }
-async function prepared() {
-  const f = assembled()
+async function prepared(
+  ending?: TestModelSendPlan['script']['ending'],
+  planAdmission?: TestModelSendPlan['admission'],
+) {
+  const f = assembled(ending, planAdmission)
   const commands = f.dependencies.commands
   unbox(await commands.admit(f.admit))
   const execution = unbox(
@@ -251,6 +257,71 @@ it('does not start after unknown materialization, cancellation or the final curr
     closeMaterialized: 1,
   })
 })
+for (const binding of ['same-tenant', 'same-call', 'different-tenant-and-call']) {
+  it(`rejects a ${binding} execution mismatch before any send effect and preserves the valid plan`, async () => {
+    const f = await prepared()
+    const foreign = identity('6')
+    const authorize = f.options.authority.authorize
+    f.options.authority.authorize = input =>
+      input.access.tenant === foreign
+        ? { ok: { owner: 'identity', subject: 'trusted', revision: '1' } }
+        : authorize(input)
+    const other = {
+      ...f.admit,
+      tenant: binding === 'same-tenant' ? f.tenant : foreign,
+      call: binding === 'same-call' ? f.admit.call : callId('other'),
+      operation: op('other-admission'),
+    }
+    const commands = f.dependencies.commands
+    unbox(await commands.admit(other))
+    const execution = unbox(
+      await commands.claim({
+        ...other,
+        operation: op('other-claim'),
+        instance: instance(),
+        continuity: proof(other.call),
+      }),
+    )
+    unbox(
+      await commands.prepareDispatch({
+        ...execution,
+        operation: op('other-prepare'),
+        expected: unbox(await commands.loadRecovery(other)).state.revision,
+        dispatch: f.dispatch,
+        supplier: other.request.suppliers[0],
+        policyDecision: null,
+      }),
+    )
+    const before = await Promise.all([
+      commands.loadRecovery(f.admit),
+      commands.dispatches(f.admit),
+      commands.loadRecovery(other),
+      commands.dispatches(other),
+    ])
+    expect(
+      await f.dependencies.send.send({ ...f.demand, execution }, new AbortController().signal),
+    ).toMatchObject({ kind: 'not-started', failure: { kind: 'invalid' } })
+    expect(f.controls.send.counts(f.demand)).toEqual({
+      prepare: 0,
+      materialize: 0,
+      start: 0,
+      closePrepared: 0,
+      closeMaterialized: 0,
+    })
+    expect(
+      await Promise.all([
+        commands.loadRecovery(f.admit),
+        commands.dispatches(f.admit),
+        commands.loadRecovery(other),
+        commands.dispatches(other),
+      ]),
+    ).toEqual(before)
+    const valid = await f.dependencies.send.send(f.demand, new AbortController().signal)
+    expect(valid.kind).toBe('started')
+    if (valid.kind === 'started') await valid.facts[Symbol.asyncIterator]().return?.()
+    expect(f.controls.send.counts(f.demand).start).toBe(1)
+  })
+}
 it('clock waits end only at manual advance or cancellation and enforce finite capacity', async () => {
   const f = assembled()
   const signal = new AbortController()
@@ -390,4 +461,113 @@ it('retry shares the exact saved position, keeps pending separate from a decisio
   ).toThrow(TypeError)
   f.denied.add('recovery')
   expect(await f.dependencies.retry.inspect(demand)).toMatchObject({ failure: { kind: 'denied' } })
+})
+it('rejects each incomplete dependency without invoking any dependency method', () => {
+  const f = assembled()
+  let invoked = 0
+  function tracked<T extends object>(port: T): T {
+    return new Proxy(port, {
+      get(target, key, receiver) {
+        const value: unknown = Reflect.get(target, key, receiver)
+        return typeof value === 'function'
+          ? (...args: unknown[]) => {
+              invoked += 1
+              return Reflect.apply(value, target, args)
+            }
+          : value
+      },
+    })
+  }
+  const dependencies = {
+    commands: tracked(f.dependencies.commands),
+    send: tracked(f.dependencies.send),
+    retry: tracked(f.dependencies.retry),
+    clock: tracked(f.dependencies.clock),
+    instances: tracked({
+      ...f.dependencies.instances,
+      directory: tracked(f.dependencies.instances.directory),
+    }),
+  }
+  for (const [name, port] of Object.entries(dependencies)) {
+    for (const method of Object.keys(port).filter(
+      key => typeof Reflect.get(port, key) === 'function',
+    )) {
+      for (const replacement of [undefined, null, 1]) {
+        const broken = { ...dependencies, [name]: { ...port, [method]: replacement } }
+        expect(() => Reflect.apply(createModelRuntime, undefined, [broken, configuration])).toThrow(
+          TypeError,
+        )
+        expect(invoked).toBe(0)
+      }
+    }
+  }
+  for (const directory of [undefined, {}, { connect: 1 }]) {
+    expect(() =>
+      Reflect.apply(createModelRuntime, undefined, [
+        { ...dependencies, instances: { ...dependencies.instances, directory } },
+        configuration,
+      ]),
+    ).toThrow(TypeError)
+    expect(invoked).toBe(0)
+  }
+  expect(() => createModelRuntime(dependencies, configuration)).not.toThrow()
+  expect(invoked).toBe(0)
+})
+
+for (const throws of [false, true]) {
+  it(`releases both send resources once when next ${throws ? 'throws' : 'reaches exhaustion'}`, async () => {
+    const f = await prepared(
+      throws ? { kind: 'throws', error: new Error('script-stream-failure') } : undefined,
+    )
+    const sent = await f.dependencies.send.send(f.demand, new AbortController().signal)
+    if (sent.kind !== 'started') throw new Error('send fixture')
+    const iterator = sent.facts[Symbol.asyncIterator]()
+    if (throws) await expect(iterator.next()).rejects.toThrow('script-stream-failure')
+    else {
+      expect(await iterator.next()).toEqual({
+        done: false,
+        value: {
+          kind: 'ended',
+          termination: {
+            kind: 'failed',
+            fault: {
+              cause: 'upstream-unavailable',
+              diagnostic: 'offline',
+              upstreamStatus: '503',
+            },
+          },
+        },
+      })
+      expect(await iterator.next()).toEqual({ done: true, value: undefined })
+    }
+    expect(f.controls.send.counts(f.demand)).toMatchObject({
+      start: 1,
+      closePrepared: 1,
+      closeMaterialized: 1,
+    })
+    await iterator.return?.()
+    await iterator.return?.()
+    expect(f.controls.send.counts(f.demand)).toMatchObject({
+      start: 1,
+      closePrepared: 1,
+      closeMaterialized: 1,
+    })
+  })
+}
+
+it('rejects a plan for a different admission before preparing any resource', async () => {
+  const f = await prepared(undefined, op('wrong-admission'))
+  const before = await f.dependencies.commands.loadRecovery(f.admit)
+  expect(await f.dependencies.send.send(f.demand, new AbortController().signal)).toMatchObject({
+    kind: 'not-started',
+    failure: { kind: 'invalid', field: 'admission' },
+  })
+  expect(f.controls.send.counts(f.demand)).toEqual({
+    prepare: 0,
+    materialize: 0,
+    start: 0,
+    closePrepared: 0,
+    closeMaterialized: 0,
+  })
+  expect(await f.dependencies.commands.loadRecovery(f.admit)).toEqual(before)
 })

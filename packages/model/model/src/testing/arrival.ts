@@ -7,6 +7,7 @@ import type {
   ModelBlock,
   ModelFailure,
   TransportFact,
+  Termination,
   VisibleBlock,
 } from '@omne-harness/model-contract'
 import type { MemoryCall, MemoryDispatch } from './state.ts'
@@ -95,13 +96,46 @@ export function accountFact(
   dispatch.record = { ...dispatch.record, account: structuredClone(judged.ok) }
   return null
 }
+export function completionFailure(
+  dispatch: MemoryDispatch,
+  termination: Termination | Extract<TransportFact, { kind: 'ended' }>['termination'],
+): ModelFailure | null {
+  if (termination.kind === 'completed' && termination.reason !== 'limit') {
+    if (dispatch.blocks.length === 0 || dispatch.blocks.some(b => b.kind !== 'sealed'))
+      return invalid('termination', 'unsealed-or-empty')
+    const steps: unknown[] = []
+    for (const [i, visible] of dispatch.blocks.entries()) {
+      if (visible.kind !== 'sealed') continue
+      const block = visible.block
+      steps.push({ step: 'open', index: String(i), mode: 'replace', head: head(block) })
+      const body =
+        block.kind === 'text' || block.kind === 'thinking'
+          ? block.text
+          : 'inline' in block
+            ? block.inline
+            : null
+      if (
+        body !== null &&
+        (block.kind === 'text' ||
+          block.kind === 'thinking' ||
+          (block.kind === 'voice' && dispatch.nextSeq.get(visible.index) !== '0'))
+      )
+        steps.push({ step: 'fill', index: String(i), seq: '0', chunk: body })
+      steps.push({ step: 'close', index: String(i), block })
+    }
+    steps.push({ step: 'finish', index: String(dispatch.blocks.length) })
+    if ('rejected' in assembleStream({ target: target(), steps }))
+      return invalid('termination', 'invalid-completion')
+  }
+  return null
+}
 export function reduceFacts(
   call: MemoryCall,
   dispatch: MemoryDispatch,
   facts: readonly TransportFact[],
 ): ModelFailure | null {
   for (const fact of facts) {
-    if (fact.kind !== 'account' && dispatch.record.terminal !== null)
+    if (fact.kind !== 'account' && dispatch.logicalTerminal !== null)
       return invalid('facts', 'after-terminal')
     if (fact.kind === 'account') {
       const failure = accountFact(call, dispatch, fact.event, fact.value)
@@ -111,33 +145,8 @@ export function reduceFacts(
     if (fact.kind === 'ended') {
       if (encodedBytes(fact.termination) > MAX_TERMINATION_BYTES)
         return invalid('termination', 'encoded-byte-limit')
-      if (fact.termination.kind === 'completed' && fact.termination.reason !== 'limit') {
-        if (dispatch.blocks.length === 0 || dispatch.blocks.some(b => b.kind !== 'sealed'))
-          return invalid('termination', 'unsealed-or-empty')
-        const steps: unknown[] = []
-        for (const [i, visible] of dispatch.blocks.entries()) {
-          if (visible.kind !== 'sealed') continue
-          const block = visible.block
-          steps.push({ step: 'open', index: String(i), mode: 'replace', head: head(block) })
-          const body =
-            block.kind === 'text' || block.kind === 'thinking'
-              ? block.text
-              : 'inline' in block
-                ? block.inline
-                : null
-          if (
-            body !== null &&
-            (block.kind === 'text' ||
-              block.kind === 'thinking' ||
-              (block.kind === 'voice' && dispatch.nextSeq.get(visible.index) !== '0'))
-          )
-            steps.push({ step: 'fill', index: String(i), seq: '0', chunk: body })
-          steps.push({ step: 'close', index: String(i), block })
-        }
-        steps.push({ step: 'finish', index: String(dispatch.blocks.length) })
-        if ('rejected' in assembleStream({ target: target(), steps }))
-          return invalid('termination', 'invalid-completion')
-      }
+      const completion = completionFailure(dispatch, fact.termination)
+      if (completion) return completion
       const actual =
         fact.termination.kind === 'interrupted'
           ? call.state.control.kind === 'requested'
@@ -151,6 +160,7 @@ export function reduceFacts(
                 },
               }
           : fact.termination
+      dispatch.logicalTerminal = structuredClone(actual)
       dispatch.record = { ...dispatch.record, terminal: structuredClone(actual) }
       continue
     }

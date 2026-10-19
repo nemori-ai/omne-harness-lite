@@ -8,7 +8,7 @@ This member implements credential judgments, the runtime constructor, and an iso
 
 | Entry or capability | Current support |
 | --- | --- |
-| Credential judgment and `deliver` | Implemented pure functions |
+| Credential judgment and `deliver` | Pure credential judgments. `deliver` delegates to the supplied resolver |
 | `createModelRuntime` | Construction and validation only. Its twelve managed operations return explicit `unavailable` |
 | `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports |
 | Durable Commands and production managed execution | Not implemented |

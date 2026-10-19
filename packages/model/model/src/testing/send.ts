@@ -11,7 +11,7 @@ import type {
 } from '@omne-harness/model-contract'
 import { MemoryState } from './state.ts'
 import type { ModelCommands } from '@omne-harness/model-contract'
-import { digest, tenantKey, unavailable } from './value.ts'
+import { digest, invalid, tenantKey, unavailable } from './value.ts'
 
 export type TestSendPlan<Script> = Readonly<{
   execution: ExecutionRef
@@ -241,18 +241,23 @@ export function createMemorySend<P, Script>(
       const keyResult = store.identity(input)
       if (typeof keyResult !== 'string')
         return Promise.resolve({ kind: 'not-started', failure: keyResult })
+      const id = key(input)
+      const plan = plans.get(id)
       const authorized = store.exclusive(() =>
         store.read(input, 'send', call => {
-          const failure = store.execution(input.execution, call)
-          return failure ? { failure } : { ok: true }
+          const failure = store.sendBinding(input, call)
+          if (failure) return { failure }
+          return plan && call.admission !== plan.admission
+            ? { failure: invalid('admission', 'send-plan-binding') }
+            : { ok: true }
         }),
       )
       if ('failure' in authorized)
         return Promise.resolve({ kind: 'not-started', failure: authorized.failure })
-      const id = key(input)
-      const plan = plans.get(id)
       if (
         !plan ||
+        plan.execution.call !== input.execution.call ||
+        tenantKey(plan.execution.tenant) !== tenantKey(input.execution.tenant) ||
         digest({ instance: plan.execution.instance, generation: plan.execution.generation }) !==
           digest({ instance: input.execution.instance, generation: input.execution.generation })
       )

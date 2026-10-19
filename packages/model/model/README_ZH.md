@@ -8,7 +8,7 @@
 
 | 能力或入口 | 当前支持 |
 | --- | --- |
-| 凭据判定及 `deliver` | 已实现纯函数 |
+| 凭据判定及 `deliver` | 凭据判定为纯函数，`deliver` 委托传入的 resolver |
 | `createModelRuntime` | 仅构造和校验，十二个托管操作明确返回 unavailable |
 | `@omne-harness/model/testing` | 内存 Commands 与五个可控依赖端口 |
 | 耐久 Commands 及生产托管执行 | 未实现 |

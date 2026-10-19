@@ -33,6 +33,7 @@ import type {
   SendDemand,
   MaterializedTransport,
   TransportFact,
+  Termination,
 } from '@omne-harness/model-contract'
 import { resultParts, makePage, pageEnd, materialBytes, encodedBytes } from './pages.ts'
 import type { StreamAssembly } from '@omne-harness/stream-arrival'
@@ -89,6 +90,7 @@ export type MemoryRead = {
 }
 export type MemoryDispatch = {
   record: DispatchRecord
+  logicalTerminal: Termination | null
   windows: Map<string, 'open' | 'closed' | 'unproven'>
   events: Map<string, string>
   assembly: StreamAssembly | null
@@ -487,6 +489,27 @@ export class MemoryState<P> {
     }
     return { ok: applied.ok.value }
   }
+  sendBinding(input: SendDemand<P>, call: MemoryCall | undefined): ModelFailure | null {
+    if (
+      input.execution.call !== input.call ||
+      tenantKey(input.execution.tenant) !== tenantKey(input.tenant)
+    )
+      return invalid('execution', 'send-binding')
+    const failure = this.execution(input.execution, call)
+    if (failure) return failure
+    if (!call || call.state.control.kind !== 'none' || call.state.phase === 'settled')
+      return invalid('call', 'send-no-longer-valid')
+    if (
+      digest(input.request) !== call.requestDigest ||
+      digest(input.consumer) !== digest(call.state.consumer) ||
+      digest(input.initiator) !== digest(call.initiator)
+    )
+      return invalid('request', 'send-binding')
+    const dispatch = call.dispatches.find(d => d.record.dispatch === input.dispatch)
+    return !dispatch || digest(dispatch.record.supplier) !== digest(input.supplier)
+      ? invalid('dispatch', 'send-not-prepared')
+      : null
+  }
   startSend(
     input: SendDemand<P>,
     materialized: MaterializedTransport,
@@ -498,28 +521,12 @@ export class MemoryState<P> {
       const call = this.root(key).calls.get(input.call)
       const auth = this.authorize(input, 'send', call, input.call)
       if ('failure' in auth) return auth
-      const executionFailure = this.execution(input.execution, call)
-      if (executionFailure) return { failure: executionFailure }
+      const failure = this.sendBinding(input, call)
+      if (failure) return { failure }
+      const dispatch = call?.dispatches.find(d => d.record.dispatch === input.dispatch)
       if (
-        !call ||
-        input.execution.call !== input.call ||
-        tenantKey(input.execution.tenant) !== key ||
-        call.state.control.kind !== 'none' ||
-        call.state.phase === 'settled'
-      )
-        return { failure: invalid('call', 'send-no-longer-valid') }
-      if (
-        digest(input.request) !== call.requestDigest ||
-        digest(input.consumer) !== digest(call.state.consumer) ||
-        digest(input.initiator) !== digest(call.initiator)
-      )
-        return { failure: invalid('request', 'send-binding') }
-      const dispatch = call.dispatches.find(d => d.record.dispatch === input.dispatch)
-      if (
-        !dispatch ||
+        !dispatch?.record.materialization ||
         dispatch.record.send !== 'prepared' ||
-        digest(dispatch.record.supplier) !== digest(input.supplier) ||
-        !dispatch.record.materialization ||
         digest(dispatch.record.materialization.receipt) !== digest(materialized.receipt) ||
         ![...dispatch.windows.values()].includes('open')
       )

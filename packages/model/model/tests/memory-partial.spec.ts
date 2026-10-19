@@ -419,8 +419,51 @@ it('consumes reserved settlement and first-read metadata at the exact accepted c
       lower = capacity + 1
     }
   }
-  const refused = await running({}, String(lower - 1))
-  expect((await refused.preserve(facts)).result).toMatchObject({ failure: { kind: 'capacity' } })
+  const refused = fixture()
+  refused.admit.capacity.bytes = String(lower - 1)
+  const { commands } = createMemoryModelCommands(refused.options)
+  unbox(await commands.admit(refused.admit))
+  const execution = unbox(
+    await commands.claim({
+      ...refused.admit,
+      operation: op('claim'),
+      instance: instance(),
+      continuity: proof(refused.admit.call),
+    }),
+  )
+  const dispatch = unbox(decodeDispatchId('mdisp_partial'))
+  const write = async (name: string) => ({
+    ...execution,
+    operation: op(name),
+    expected: unbox(await commands.loadRecovery(refused.admit)).state.revision,
+  })
+  const steps = [
+    async () =>
+      commands.prepareDispatch({
+        ...(await write('partial-1')),
+        dispatch,
+        supplier: refused.admit.request.suppliers[0],
+        policyDecision: null,
+      }),
+    async () =>
+      commands.openReceiveWindow({ ...(await write('partial-2')), dispatch, window: 'window-1' }),
+    async () =>
+      commands.preserve({ ...(await write('partial-3')), dispatch, window: 'window-1', facts }),
+  ]
+  let rejected = false
+  for (const step of steps) {
+    const before = await commands.loadRecovery(refused.admit)
+    const beforeDispatches = await commands.dispatches(refused.admit)
+    const result = await step()
+    if ('failure' in result) {
+      expect(result.failure.kind).toBe('capacity')
+      expect(await commands.loadRecovery(refused.admit)).toEqual(before)
+      expect(await commands.dispatches(refused.admit)).toEqual(beforeDispatches)
+      rejected = true
+      break
+    }
+  }
+  expect(rejected).toBe(true)
   const f = await running({}, String(lower))
   unbox((await f.preserve(facts)).result)
   const read = await f.read(termination)
@@ -453,6 +496,19 @@ for (const trimmed of [false, true]) {
       { kind: 'ended', termination: retryFailure },
     ]
     unbox((await f.preserve(facts)).result)
+    unbox(
+      await f.commands.recordLateFact({
+        ...f.admit,
+        operation: op('old-dispatch-actual'),
+        dispatch: f.dispatch,
+        source: proof(`${f.admit.call}/${f.dispatch}`, 'supplier'),
+        fact: {
+          kind: 'terminal',
+          event: 'old-actual',
+          actual: { kind: 'completed', reason: 'tool-suggestions' },
+        },
+      }),
+    )
     const position = unbox(
       await f.commands.prepareRetry({ ...(await f.write()), dispatch: f.dispatch }),
     )
@@ -659,4 +715,256 @@ it('returns an empty result with the actual failed termination after only empty 
   const read = await f.read(termination)
   expect(read.page).toEqual({ parts: [], next: null, settlement: read.settlement })
   expect(read.page.settlement.termination).toEqual(termination)
+})
+
+for (const reason of ['stop', 'tool-suggestions'] as const) {
+  for (const timing of ['before', 'after'] as const) {
+    it(`records actual ${reason} ${timing} settlement without replacing a failed partial result`, async () => {
+      const f = await running()
+      unbox(
+        (
+          await f.preserve([
+            { kind: 'block-open', index: '0', content: 'tool-arguments', mode: 'append' },
+            { kind: 'block-delta', index: '0', delta: '{"x":1}' },
+            { kind: 'trim', index: '0', removed: '1', reason: 'actual truncation' },
+            { kind: 'ended', termination: failure },
+          ])
+        ).result,
+      )
+      const late = {
+        ...f.admit,
+        operation: op('late-completion'),
+        dispatch: f.dispatch,
+        source: proof(`${f.admit.call}/${f.dispatch}`, 'supplier'),
+        fact: { kind: 'terminal', event: 'actual', actual: { kind: 'completed', reason } },
+      } satisfies Parameters<typeof f.commands.recordLateFact>[0]
+      if (timing === 'before') unbox(await f.commands.recordLateFact(late))
+      expect(
+        await f.commands.settle({ ...(await f.write()), termination: late.fact.actual }),
+      ).toMatchObject({ failure: { kind: 'invalid', field: 'termination' } })
+      const settlement = await f.settle(failure)
+      if (timing === 'after') unbox(await f.commands.recordLateFact(late))
+      const beforeReplay = unbox(await f.commands.loadRecovery(f.admit)).state
+      expect(
+        unbox(await f.commands.recordLateFact({ ...late, operation: op('same-event') })).recovered,
+      ).toBe(true)
+      expect(unbox(await f.commands.loadRecovery(f.admit)).state).toEqual(beforeReplay)
+      expect(
+        await f.commands.recordLateFact({
+          ...late,
+          operation: op('conflicting-event'),
+          fact: { ...late.fact, actual: failure },
+        }),
+      ).toMatchObject({ failure: { kind: 'invalid', field: 'event' } })
+      expect(unbox(await f.commands.dispatches(f.admit))[0]?.terminal).toEqual(late.fact.actual)
+      const read = unbox(
+        await f.commands.acquireRead({
+          ...f.admit,
+          operation: op('late-read'),
+          result: settlement.version,
+        }),
+      )
+      if (read.kind !== 'started' || read.value.kind !== 'reading') throw new Error('read fixture')
+      expect(read.value.page.settlement).toEqual(settlement)
+      expect(read.value.page.parts).toEqual([
+        {
+          kind: 'partial',
+          content: 'tool-arguments',
+          value: '{"x":1}',
+          trims: [{ removed: '1', reason: 'actual truncation' }],
+        },
+      ])
+    })
+  }
+}
+it('keeps an incomplete actual completion observable without making it a logical success', async () => {
+  const f = await running()
+  unbox(
+    (
+      await f.preserve([
+        { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
+        { kind: 'block-delta', index: '0', delta: 'prefix' },
+      ])
+    ).result,
+  )
+  const late = {
+    ...f.admit,
+    operation: op('actual-completion'),
+    dispatch: f.dispatch,
+    source: proof(`${f.admit.call}/${f.dispatch}`, 'supplier'),
+    fact: { kind: 'terminal', event: 'actual', actual: { kind: 'completed', reason: 'stop' } },
+  } satisfies Parameters<typeof f.commands.recordLateFact>[0]
+  unbox(await f.commands.recordLateFact(late))
+  expect(unbox(await f.commands.dispatches(f.admit))[0]?.terminal).toEqual(late.fact.actual)
+  expect(
+    await f.commands.settle({ ...(await f.write()), termination: late.fact.actual }),
+  ).toMatchObject({ failure: { kind: 'invalid', field: 'termination' } })
+  unbox(
+    await f.commands.recordLateFact({
+      ...late,
+      operation: op('actual-failure'),
+      fact: { kind: 'terminal', event: 'failure', actual: failure },
+    }),
+  )
+  expect((await f.settle(failure)).termination).toEqual(failure)
+})
+
+for (const windows of [1, 2, 3, 5]) {
+  it(`reserves the remaining ${windows} receive-window obligations through terminal, ACK and release`, async () => {
+    const termination: Termination = {
+      kind: 'failed',
+      fault: { cause: 'stream-lost', diagnostic: 'x'.repeat(3900), upstreamStatus: null },
+    }
+    const facts: readonly TransportFact[] = [
+      { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
+      { kind: 'block-delta', index: '0', delta: 'x'.repeat(4096) },
+      { kind: 'ended', termination },
+    ]
+    async function prefix(capacity: number) {
+      const f = await running({}, String(capacity))
+      for (let index = 0; index < windows; index += 1)
+        unbox(
+          await f.commands.openReceiveWindow({
+            ...(await f.write()),
+            dispatch: f.dispatch,
+            window: `window-${index}`,
+          }),
+        )
+      f.completeWindows.add(`${f.admit.call}/window-0/${digest(facts)}`)
+      const before = unbox(await f.commands.loadRecovery(f.admit))
+      const preserved = await f.commands.preserve({
+        ...(await f.write()),
+        dispatch: f.dispatch,
+        window: 'window-0',
+        facts,
+      })
+      return { f, preserved, before }
+    }
+    const original = await prefix(41827 + windows * 20)
+    expect(original.preserved).toMatchObject({ failure: { kind: 'capacity' } })
+    expect(unbox(await original.f.commands.loadRecovery(original.f.admit))).toEqual(original.before)
+    let low = 20000
+    let high = 100000
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2)
+      try {
+        const attempt = await prefix(middle)
+        if ('ok' in attempt.preserved) high = middle
+        else low = middle + 1
+      } catch {
+        low = middle + 1
+      }
+    }
+    const { f, preserved } = await prefix(low)
+    unbox(preserved)
+    for (let index = 1; index < windows; index += 1) {
+      f.completeWindows.add(`${f.admit.call}/window-${index}/${digest([])}`)
+      unbox(
+        await f.commands.preserve({
+          ...(await f.write()),
+          dispatch: f.dispatch,
+          window: `window-${index}`,
+          facts: [],
+        }),
+      )
+    }
+    unbox(await f.commands.control({ ...f.admit, operation: op('window-control') }))
+    const settlement = await f.settle(termination)
+    const started = unbox(
+      await f.commands.acquireRead({
+        ...f.admit,
+        operation: op('window-read'),
+        result: settlement.version,
+      }),
+    )
+    if (started.kind !== 'started' || started.value.kind !== 'reading')
+      throw new Error('read fixture')
+    expect(bytes(started.value.page)).toBeLessThanOrEqual(low)
+    expect(started.value.page.parts).toEqual([
+      { kind: 'partial', content: 'text', value: 'x'.repeat(4096), trims: [] },
+    ])
+    unbox(await f.commands.endRead({ ...f.admit, read: started.read }))
+    unbox(
+      await f.commands.handoff({
+        ...f.admit,
+        operation: op('window-ack'),
+        result: settlement.version,
+        evidence: {
+          kind: 'processed',
+          completion: proof(`${f.admit.call}/${settlement.version}`, f.admit.consumer.owner),
+        },
+      }),
+    )
+    expect(
+      unbox(await f.commands.advanceCleanup({ ...f.execution, operation: op('window-cleanup') })),
+    ).toMatchObject({ kind: 'acknowledged', cleanup: 'released' })
+  })
+}
+
+it('uses a valid late completion for the original sealed dispatch when no logical terminal was fixed', async () => {
+  const f = await running()
+  const block = textBlock('late-sealed', 'complete')
+  unbox(
+    (
+      await f.preserve([
+        { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
+        { kind: 'block-delta', index: '0', delta: 'complete' },
+        { kind: 'block-seal', index: '0', block },
+      ])
+    ).result,
+  )
+  unbox(
+    await f.commands.recordLateFact({
+      ...f.admit,
+      operation: op('sealed-actual'),
+      dispatch: f.dispatch,
+      source: proof(`${f.admit.call}/${f.dispatch}`, 'supplier'),
+      fact: { kind: 'terminal', event: 'actual', actual: { kind: 'completed', reason: 'stop' } },
+    }),
+  )
+  expect((await f.read({ kind: 'completed', reason: 'stop' })).page.parts).toEqual([
+    { kind: 'sealed', block, trims: [] },
+  ])
+})
+
+it('recognizes an older terminal event without rolling back the newer actual receipt', async () => {
+  const f = await running()
+  unbox(
+    (
+      await f.preserve([
+        { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
+        { kind: 'block-delta', index: '0', delta: 'partial' },
+        { kind: 'ended', termination: failure },
+      ])
+    ).result,
+  )
+  const original = {
+    ...f.admit,
+    dispatch: f.dispatch,
+    operation: op('event-one'),
+    source: proof(`${f.admit.call}/${f.dispatch}`, 'supplier'),
+    fact: { kind: 'terminal', event: 'one', actual: { kind: 'completed', reason: 'stop' } },
+  } satisfies Parameters<typeof f.commands.recordLateFact>[0]
+  unbox(await f.commands.recordLateFact(original))
+  const newer = {
+    ...original,
+    operation: op('event-two'),
+    fact: {
+      ...original.fact,
+      event: 'two',
+      actual: { kind: 'completed', reason: 'tool-suggestions' },
+    },
+  } satisfies Parameters<typeof f.commands.recordLateFact>[0]
+  unbox(await f.commands.recordLateFact(newer))
+  const before = await f.commands.loadRecovery(f.admit)
+  const actual = await f.commands.dispatches(f.admit)
+  expect(
+    unbox(await f.commands.recordLateFact({ ...original, operation: op('event-one-replay') }))
+      .recovered,
+  ).toBe(true)
+  expect(await f.commands.loadRecovery(f.admit)).toEqual(before)
+  expect(await f.commands.dispatches(f.admit)).toEqual(actual)
+  expect((await f.read(failure)).page.parts).toEqual([
+    { kind: 'partial', content: 'text', value: 'partial', trims: [] },
+  ])
 })

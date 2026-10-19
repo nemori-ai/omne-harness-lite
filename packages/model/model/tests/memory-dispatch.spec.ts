@@ -554,3 +554,78 @@ for (const bad of ['window', 'batchDigest', 'paused', 'noPrefetch'])
       'uncertain',
     )
   })
+it('atomically saves supplier accounts, recognizes events and rejects wrong subjects or regressing revisions', async () => {
+  const f = await running()
+  const account = {
+    subject: { kind: 'model_call', id: f.admit.call },
+    usage: [{ name: 'output', state: 'known', lexeme: '1', unit: 'token' }],
+    cost: [],
+    trimmed: { state: 'known', lexeme: '0', unit: 'token' },
+    place: 'supplier',
+    duration: { state: 'unknown' },
+    receipt: 'received',
+    revision: '1',
+  } satisfies import('@omne-harness/call-account').CallAccount
+  const window = 'account'
+  unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }))
+  const before = await f.commands.loadRecovery(f.admit)
+  for (const subject of [
+    { kind: 'model_call', id: 'mcall_other' },
+    { kind: 'tool_execution', id: f.admit.call },
+  ] as const) {
+    expect(
+      await f.commands.preserve({
+        ...(await f.write()),
+        dispatch: f.dispatch,
+        window,
+        facts: [
+          { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
+          { kind: 'block-delta', index: '0', delta: 'must not commit' },
+          { kind: 'account', event: 'original', value: { ...account, subject } },
+        ],
+      }),
+    ).toMatchObject({ failure: { kind: 'invalid', field: 'account' } })
+    expect(await f.commands.loadRecovery(f.admit)).toEqual(before)
+    expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toBeNull()
+  }
+  const facts: readonly TransportFact[] = [{ kind: 'account', event: 'original', value: account }]
+  f.completeWindows.add(`${f.admit.call}/${window}/${digest(facts)}`)
+  const input = { ...(await f.write()), dispatch: f.dispatch, window, facts }
+  const saved = unbox(await f.commands.preserve(input))
+  expect(unbox(await f.commands.preserve(input))).toEqual(saved)
+  const late = {
+    ...f.admit,
+    operation: op('account-late'),
+    dispatch: f.dispatch,
+    source: proof(`${f.admit.call}/${f.dispatch}`, 'supplier'),
+    fact: { kind: 'account', event: 'original', value: account },
+  } satisfies Parameters<typeof f.commands.recordLateFact>[0]
+  unbox(await f.commands.recordLateFact(late))
+  const revision = unbox(await f.commands.loadRecovery(f.admit)).state.revision
+  expect(
+    unbox(await f.commands.recordLateFact({ ...late, operation: op('account-replay') })).recovered,
+  ).toBe(true)
+  expect(unbox(await f.commands.loadRecovery(f.admit)).state.revision).toEqual(revision)
+  for (const fact of [
+    { ...late.fact, value: { ...account, revision: '2' } },
+    { ...late.fact, event: 'stale', value: { ...account, revision: '0' } },
+    { ...late.fact, event: 'equal', value: account },
+    { ...late.fact, event: 'malformed', value: { ...account, revision: '2', duration: 'invalid' } },
+  ]) {
+    const state = await f.commands.loadRecovery(f.admit)
+    expect(
+      await f.commands.recordLateFact({ ...late, operation: op(`bad-${fact.event}`), fact }),
+    ).toMatchObject({ failure: { kind: 'invalid' } })
+    expect(await f.commands.loadRecovery(f.admit)).toEqual(state)
+    expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toEqual(account)
+  }
+  const updated = { ...account, revision: '2', receipt: 'late' } as const
+  unbox(
+    await f.commands.recordLateFact({
+      ...late,
+      operation: op('account-update'),
+      fact: { kind: 'account', event: 'update', value: updated },
+    }),
+  )
+  expect(unbox(await f.commands.dispatches(f.admit))[0]?.account).toEqual(updated)
+})

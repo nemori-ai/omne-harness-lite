@@ -29,17 +29,21 @@ export function callCommands<P>(
           input,
           method: 'admit',
           fields,
-          check: (previous, _root, replay) =>
-            authFailure(
+          check: (previous, _root, replay) => {
+            const failure = authFailure(
               store.authorize(input, replay ? 'facts' : 'admit', previous, call, consumer),
-            ),
+            )
+            if (failure) return failure
+            const invalidRequest = validateRequest(request)
+            return invalidRequest && replay
+              ? { kind: 'conflict', operation, revision: previous?.state.revision ?? revision() }
+              : invalidRequest
+          },
           apply: draft => {
             if (draft.call)
               return {
                 failure: { kind: 'conflict', operation, revision: draft.call.state.revision },
               }
-            const requestFailure = validateRequest(request)
-            if (requestFailure) return { failure: requestFailure }
             const owner = store.owner(consumer.owner)
             if (!owner) return { failure: invalid('consumer.owner', 'undeclared') }
             if (
@@ -205,7 +209,7 @@ export function callCommands<P>(
               return { failure: invalid('termination', 'retry-pending') }
             if (call.retry?.kind === 'retry')
               return { failure: invalid('termination', 'retry-pending') }
-            const terminal = latest?.record.terminal
+            const terminal = latest?.logicalTerminal
             const stopped =
               call.retry?.kind === 'stop' ? { kind: 'failed', fault: call.retry.fault } : null
             if (latest && [...latest.windows.values()].includes('open'))

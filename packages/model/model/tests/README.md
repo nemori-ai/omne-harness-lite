@@ -12,10 +12,11 @@
 
 ## 内存行为资源
 
+- [memory-admission.spec.ts](memory-admission.spec.ts) 检查参数边界、工具关联、typed 拒绝及未知注入不被非法请求消费。
 - [memory-core.spec.ts](memory-core.spec.ts) 检查身份、受理、操作唯一、未知与恢复。
-- [memory-dispatch.spec.ts](memory-dispatch.spec.ts) 检查物化、首内容、批次原子性、重试及终局。
+- [memory-dispatch.spec.ts](memory-dispatch.spec.ts) 检查物化、首内容、批次原子性、重试、终局和供应商账目修订。
 - [memory-consumption.spec.ts](memory-consumption.spec.ts) 检查完整块分页、当前资格、ACK 与材料释放。
-- [runtime-testing.spec.ts](runtime-testing.spec.ts) 检查真实构造、一次发送、宿主及手动时钟。
+- [runtime-testing.spec.ts](runtime-testing.spec.ts) 检查逐方法构造依赖、发送身份关联、一次发送及耗尽/异常/取消释放、宿主和手动时钟。
 
 fixture 的主体与证据只在本地测试适配中可信。它们不替代真实耐久、消费者完成、跨进程排除或资格事务的证据。
 

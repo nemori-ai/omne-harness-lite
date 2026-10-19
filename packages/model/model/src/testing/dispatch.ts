@@ -9,7 +9,7 @@ import type {
   WriteContext,
 } from '@omne-harness/model-contract'
 import { parseInstant } from '@omne-harness/utc-instant'
-import { accountFact, reduceFacts } from './arrival.ts'
+import { accountFact, completionFailure, reduceFacts } from './arrival.ts'
 import {
   MemoryState,
   bump,
@@ -37,7 +37,7 @@ function retryable(call: MemoryCall, dispatch: MemoryDispatch): ModelFailure | n
     [...dispatch.windows.values()].includes('open')
   )
     return invalid('firstContent', 'not-none-proven')
-  const termination = dispatch.record.terminal
+  const termination = dispatch.logicalTerminal
   if (
     termination?.kind !== 'failed' ||
     ['input-over-limit', 'excluded', 'credential', 'input-rejected', 'modality'].includes(
@@ -140,6 +140,7 @@ export function dispatchCommands<P>(
               account: null,
               materialization: null,
             },
+            logicalTerminal: null,
             windows: new Map(),
             events: new Map(),
             assembly: null,
@@ -266,7 +267,7 @@ export function dispatchCommands<P>(
             !input.window ||
             encodedBytes(input.window) > 256 ||
             dispatch.windows.has(input.window) ||
-            dispatch.record.terminal
+            dispatch.logicalTerminal
           )
             return invalid('window', 'duplicate-or-terminal')
           dispatch.windows.set(input.window, 'open')
@@ -365,7 +366,9 @@ export function dispatchCommands<P>(
       ),
     recordLateFact: input =>
       store.run(() =>
-        store.write({
+        store.write<
+          Extract<Awaited<ReturnType<ModelCommands<P>['recordLateFact']>>, { ok: unknown }>['ok']
+        >({
           input,
           method: 'recordLateFact',
           fields: { dispatch: input.dispatch, source: input.source, fact: input.fact },
@@ -401,18 +404,29 @@ export function dispatchCommands<P>(
             const event = `late:${input.fact.kind}:${input.fact.event}`
             const fingerprint = digest(input.fact)
             const seen = dispatch.events.get(event)
-            if (seen !== undefined && seen !== fingerprint)
-              return { failure: invalid('event', 'conflict') }
+            if (seen !== undefined) {
+              if (seen !== fingerprint) return { failure: invalid('event', 'conflict') }
+              const revision = call.state.revision
+              return {
+                ok: { value: { revision, recovered: true }, receipt: { kind: 'late', revision } },
+              }
+            }
             if (input.fact.kind === 'account') {
               const failure = accountFact(call, dispatch, input.fact.event, input.fact.value)
               if (failure) return { failure }
-            } else
+            } else {
               dispatch.record = { ...dispatch.record, terminal: structuredClone(input.fact.actual) }
+              if (
+                dispatch.logicalTerminal === null &&
+                !completionFailure(dispatch, input.fact.actual)
+              )
+                dispatch.logicalTerminal = structuredClone(input.fact.actual)
+            }
             dispatch.events.set(event, fingerprint)
-            const revision = seen === undefined ? bump(call) : call.state.revision
+            const revision = bump(call)
             return {
               ok: {
-                value: { revision, recovered: seen !== undefined },
+                value: { revision, recovered: false },
                 receipt: { kind: 'late', revision },
               },
             }
