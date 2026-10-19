@@ -6,7 +6,7 @@ Structural checks for this repository's TypeScript product sources and trusted a
 
 ## Long-lived product scenarios
 
-`make scenario-status` reads current product topics and coverage declarations independently of Issues. It reports execution and acceptance as unknown when evidence is absent. Topics without numbered scenarios remain explicitly uncovered. The [product contract](../repo-toolchain/src/product/SPEC.md) defines discovery and failure behavior.
+`pnpm run acceptance:scenarios` reads current product topics and coverage declarations independently of Issues. It reports execution and acceptance as unknown when evidence is absent. Topics without numbered scenarios remain explicitly uncovered. The [product contract](../repo-toolchain/src/product/SPEC.md) defines discovery and failure behavior.
 
 ## Run and consume
 
@@ -159,7 +159,7 @@ pnpm --dir "$isolated" --filter @omne-harness/product-checks typecheck
 pnpm --dir "$isolated" --filter @omne-harness/product-checks test
 ```
 
-Run `make docs-check` separately in the checkout that retains the reference
+Run `pnpm run check:docs` separately in the checkout that retains the reference
 material. Historical documentation links are not executable dependencies.
 Report every failed command, including failures that also occur at the task
 baseline. These checks do not publish a branch or record an integration. The

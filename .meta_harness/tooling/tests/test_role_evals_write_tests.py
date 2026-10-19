@@ -1,6 +1,6 @@
 """运行器的 write-tests 一类：角色为拿走了原有测试的模块写测试，程序用预置的变异体判它写的测试。
 
-一律用小仓库与假命令，不依赖 pnpm；真实的检出由 `make role-eval ARGS="verify …"` 证。
+一律用小仓库与假命令，不依赖 pnpm；真实的检出由 `pnpm run role-eval verify …` 证。
 """
 from __future__ import annotations
 

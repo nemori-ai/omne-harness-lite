@@ -9,12 +9,29 @@
   ],
   "tasks": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "cache": false
+    },
+    "test:fast": {
+      "dependsOn": ["build", "^build"],
+      "cache": false,
+      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR"],
+      "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
+    },
+    "test:slow": {
+      "dependsOn": ["build", "^build"],
+      "cache": false,
+      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR"],
+      "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
+    },
+    "test": {
+      "dependsOn": ["build", "^build"],
+      "cache": false,
+      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR"],
+      "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
     }
   }
 }

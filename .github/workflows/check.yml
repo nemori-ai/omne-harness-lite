@@ -1,6 +1,6 @@
 name: Check
 
-# 远程 CI 目前关闭：检查结论以本地跑的 make check 为准（2026-10-01 定）。
+# 远程 CI 目前关闭：检查结论以本地跑的 pnpm run check 为准（2026-10-01 定）。
 # 这份工作流只留手动触发，仓库设置里也已停用；没有注册 runner 时任务只会排队。
 # 要恢复自动触发：注册自托管 runner（见 scripts/README.md），在仓库设置里启用本工作流，
 # 再把下面注释掉的三种触发放回 on: 之下。
@@ -50,9 +50,9 @@ jobs:
         env:
           PYTHONDONTWRITEBYTECODE: '1'
       # 并行度的初值在 tools/test-runner/test-runs.config.json；这两个仓库变量留空即用初值，
-      # runner 主机核数不同时再设。make check 自己会占一个运行名额，与主机上别的全量检查排队。
-      - name: make check
-        run: nice -n 10 make check
+      # runner 主机核数不同时再设。pnpm run check 自己会占一个运行名额，与主机上别的全量检查排队。
+      - name: pnpm run check
+        run: nice -n 10 pnpm run check
         env:
           OMNE_TEST_MEMBER_CONCURRENCY: ${{ vars.OMNE_TEST_MEMBER_CONCURRENCY }}
           VITEST_MAX_WORKERS: ${{ vars.OMNE_VITEST_MAX_WORKERS }}
@@ -72,7 +72,7 @@ jobs:
           if [[ -n "$EVENT_BASE" ]] && git cat-file -e "$EVENT_BASE^{commit}" 2>/dev/null; then
             base="$EVENT_BASE"
           fi
-          make --no-print-directory metrics BASE="$base" OUT="$out" | tee "$RUNNER_TEMP/metrics-summary.txt"
+          pnpm --silent run metrics ${base:+--base "$base"} --out "$out" | tee "$RUNNER_TEMP/metrics-summary.txt"
           {
             echo '### 结构度量'
             echo
@@ -96,11 +96,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # 一部分成员的测试经包名导入自己，执行的是 dist；先构建，覆盖率才映射得回 src。
       - run: nice -n 10 pnpm run build
+      # 覆盖采集读测试运行器的计划；FULL=1 让计划选中全部成员。
       - name: Structure metrics with coverage
+        env:
+          FULL: '1'
         run: |
           home="${OMNE_METRICS_HOME:-$HOME/omne-metrics}"
           out="$home/nightly/$(date -u +%F)-$(git rev-parse --short=9 HEAD)"
-          nice -n 10 make --no-print-directory metrics COVERAGE=1 OUT="$out" | tee "$RUNNER_TEMP/metrics-summary.txt"
+          nice -n 10 pnpm --silent run metrics --coverage --out "$out" | tee "$RUNNER_TEMP/metrics-summary.txt"
           {
             echo '### 结构度量（全量覆盖率）'
             echo

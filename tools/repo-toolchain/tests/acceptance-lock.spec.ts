@@ -237,7 +237,7 @@ describe('验收锁：读 Git', () => {
     expect(report.violations).toHaveLength(1)
   })
 
-  it('入口：锁没破退出 0，破了退出 1，缺参数或基线不存在退出 2', () => {
+  it('入口：锁没破退出 0，破了退出 1，不给基线时取 main，认不出的参数或基线不存在退出 2', () => {
     const cli = fileURLToPath(new URL('../src/acceptance/cli.ts', import.meta.url))
     const run = (...args: string[]) =>
       spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
@@ -250,7 +250,12 @@ describe('验收锁：读 Git', () => {
     const broken = run('--base', base, '--root', root)
     expect(broken.status).toBe(1)
     expect(broken.stdout).toContain('Agent-Role: tui-developer')
-    expect(run('--root', root).status).toBe(2)
+    git(root, 'checkout', '-q', '-B', 'work')
+    git(root, 'branch', '-f', 'main', base)
+    const byDefault = run('--root', root)
+    expect(byDefault.status).toBe(1)
+    expect(byDefault.stdout).toContain('验收锁（基线 main，')
+    expect(run('--bogus', '--root', root).status).toBe(2)
     expect(run('--base', 'no-such-ref', '--root', root).status).toBe(2)
   })
 })

@@ -135,7 +135,7 @@ port 的 [Claude hooks](https://github.com/michael-denyer/pstack-claude/blob/60a
 
 文件与来源、宿主发现、原生调用、本次正文读取、hook 信任及执行、步骤遵循和行为结果分别提供证据。提醒不能证明加载；加载不能证明所有判断正确；有限行为通过不能推出未覆盖范围通过。单次任务记录精确源、跳过理由及实际检查，留任务 tmp。
 
-`make docs-inventory` 当前只检查登记的位置和结构；外部依赖闭包、宿主加载、实际遵循及行为结果未覆盖。`make agents-check` 也不能证明宿主发现或模型行为。
+`pnpm run docs:inventory` 当前只检查登记的位置和结构；外部依赖闭包、宿主加载、实际遵循及行为结果未覆盖。`pnpm run check:agents` 也不能证明宿主发现或模型行为。
 
 ## 完整 port 采用待定
 

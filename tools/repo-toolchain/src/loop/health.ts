@@ -70,8 +70,8 @@ export interface TestRun {
 
 /**
  * 一份 `ledger.json`（`src/testing/cli.ts` 写的）里这里要的部分；不是全量运行返回 `partial`。
- * 全量与受影响范围的区分：跑的是全部成员的运行（`run --all`，或计划判为全量的 `make check` 测试一步）`meta.base` 是 null，
- * 按影响面选成员的不是。全量运行可以只跑一层（`make check` 的测试一步快、慢两层各记一份），层记在 `meta.tier`。
+ * 全量与受影响范围的区分：跑的是全部成员的运行（`run --all`，或计划判为全量的 `pnpm run check` 测试一步）`meta.base` 是 null，
+ * 按影响面选成员的不是。全量运行可以只跑一层（`pnpm run check` 的测试一步快、慢两层各记一份），层记在 `meta.tier`。
  */
 export function parseLedgerRun(
   value: unknown,
@@ -199,7 +199,7 @@ export function debtBlock(
 ): Reading<DebtBlock> {
   if (snapshots.length === 0)
     return noData(
-      `趋势 ${trendPath} 里还没有快照（make loop-status SNAPSHOT=1 在干净的提交上写一条）`,
+      `趋势 ${trendPath} 里还没有快照（pnpm run loop:status --snapshot 在干净的提交上写一条）`,
     )
   const ordered = orderedSnapshots(snapshots)
   const point = (snapshot: Snapshot, value: number | null, band: Band | null): Point => ({

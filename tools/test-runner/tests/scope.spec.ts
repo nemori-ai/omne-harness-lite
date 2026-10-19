@@ -242,13 +242,19 @@ describe('影响面计划（真实规则）', () => {
     expect(describe_(result)).toContain('个计划成员，含必要依赖准备')
   })
 
-  it('Makefile：只跑 pytest 与常驻检查——make check 只经它跑常驻的几步与 make test，成员测试不经 make', () => {
-    const result = plan(['Makefile'])
-    expect(result.mode).toBe('scoped')
-    expect(result.files[0]?.category).toBe('python')
-    expect(result.python.run).toBe(true)
-    expect(result.test).toEqual([])
-    expect(result.build).toEqual(RESIDENT_BUILD)
+  it('根 package.json 与 scripts 下的入口脚本：全量——命令入口只在这两处，与 scripts/check.sh 同等对待', () => {
+    for (const path of [
+      'package.json',
+      'scripts/check.sh',
+      'scripts/check-design.sh',
+      'scripts/metrics.sh',
+      'scripts/slot-unless-plan-only.sh',
+      'scripts/test-tier.sh',
+    ]) {
+      const result = plan([path])
+      expect(result.mode, path).toBe('full')
+      expect(result.files[0]?.category, path).toBe('global')
+    }
   })
 
   it('锁文件：全量', () => {

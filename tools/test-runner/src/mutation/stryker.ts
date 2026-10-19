@@ -4,7 +4,6 @@ import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { TEST_TIER_ENV } from '../testing/config.ts'
 import { slugOf, spawnLogged, type SpawnResult } from '../testing/run.ts'
 import { mutateEntries, type MutationTarget } from './scope.ts'
 
@@ -13,7 +12,7 @@ export const MEMBER_DIR_ENV = 'OMNE_MUTATION_MEMBER_DIR'
 /** 构建脚本把它写进 sandbox 的那份 vitest 配置，作为没写自己时限的用例的时限（毫秒）。 */
 export const TEST_TIMEOUT_ENV = 'OMNE_MUTATION_TEST_TIMEOUT_MS'
 /**
- * 构建脚本在 sandbox 里写的 vitest 配置：展开成员自己的配置，只放宽默认用例时限。
+ * 构建脚本在 sandbox 里写的 vitest 配置：展开成员自己的配置，放宽默认用例时限，关掉 preParse（#405）。
  * 只在副本里，成员的配置不动。
  */
 export const SANDBOX_VITEST_CONFIG = 'vitest.stryker-sandbox.config.mts'
@@ -93,7 +92,6 @@ export async function runStryker(target: MutationTarget, run: StrykerRun): Promi
     // 日志落文件，不要终端颜色码。
     env: {
       ...process.env,
-      [TEST_TIER_ENV]: 'fast',
       [MEMBER_DIR_ENV]: memberDir,
       [TEST_TIMEOUT_ENV]: String(Math.round(run.testTimeoutSeconds * 1000)),
       FORCE_COLOR: '0',

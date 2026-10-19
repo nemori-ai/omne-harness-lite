@@ -17,7 +17,7 @@ main 保存完整集成结果。任意数量的 integration/<track> 保存已登
 | 轨道                                | 责任与适用任务                                                                                                                           |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `integration/legacy-refactor`       | 将 0.0.1.legacy 已支持的功能迁入新的文档体系、架构和包结构；以已确认能力清单防止功能遗漏，不借重构扩大到全部 0.1.0 范围                  |
-| `integration/engineering-toolchain` | 持续改进研发工具链，包括 lint、make check、CI/CD、pre-commit hooks 及相关脚手架、检查工具和工程流程                                      |
+| `integration/engineering-toolchain` | 持续改进研发工具链，包括 lint、pnpm run check、CI/CD、pre-commit hooks 及相关脚手架、检查工具和工程流程                                      |
 | `integration/development`           | 首次接入使用的历史轨道；revision 3 将其设为 retiring，停止新任务准入。核清未提升成果及交接责任后，按明确授权删除 ref，保留历史登记与标签 |
 
 新轨道按 registry 的 initialMain 从已确认 main 提交创建，创建由 `gate-track` 流程执行，见[现行准入](#现行准入)。后续 main 变化通过 FI 同步，不改写起点。任务 route 必须明确选择轨道；global 或跨轨道完整结果仍按具名责任进入 main，不设置隐含默认轨道。
@@ -97,7 +97,7 @@ turbo 构建体系建立后进入第二阶段。轨道改为自动检查通过�
 
 影响面的成员选择与构建已由 turbo 承担（`tools/test-runner` 的 `turbo.ts`），类型检查与测试由测试运行器逐成员运行。[RFC-0002 revision 2](../rfcs/RFC-0002-engineering-toolchain.md#影响面选择) 要求的四条约束已在测试运行器中实现：未识别文件转全量，`turbo.json` 一类选择配置是全局文件，基线显式传入，准入不读取 PR 能写入的缓存。实现方式见[迭代中的受影响测试](../development.md#迭代中的受影响测试)。
 
-stable 的完整检查即全量 `make check`（`FULL=1`），由目标分支钉住的检查器版本运行，不再从 policy 读取检查清单。
+stable 的完整检查即 `FULL=1 pnpm run check`，由目标分支钉住的检查器版本运行，不再从 policy 读取检查清单。
 
 ## 同步与提升的节奏
 

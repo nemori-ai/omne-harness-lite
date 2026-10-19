@@ -4,7 +4,7 @@
 
 本仓库的产品规则：契约与节点 verification 点名的结构检查、仓库路径规则、验收覆盖声明与场景状态。规则写死本仓库的产品路径或契约，随产品代码变化，所以不发布到 npm。改动这些规则的 PR 经仓库工具链变更闸门确认。规则引擎、源码收集、提交署名与验收锁来自 [@omne-harness/repo-toolchain](../repo-toolchain/README_ZH.md)。
 
-`pnpm run lint:rules` 运行本成员的 CLI。它读 repo-toolchain 与 `@omne-harness/legal-identity` 的 `dist`，`make check` 在这一步之前已经构建它们。
+`pnpm run lint:rules` 运行本成员的 CLI。它读 repo-toolchain 与 `@omne-harness/legal-identity` 的 `dist`，`pnpm run check` 在这一步之前已经构建它们。
 
 ## 规则总表
 
@@ -125,7 +125,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 
 ## 验收的覆盖声明
 
-`src/acceptance/coverage.ts` 随 `pnpm run lint:rules` 执行（`make check` 的 `product-check` 一步里），有违反即退出 1。
+`src/acceptance/coverage.ts` 随 `pnpm run lint:rules` 执行（`pnpm run check` 的常驻步骤之一），有违反即退出 1。
 规矩正文在[源码布局「可执行验收」](../../docs/workspace.md#目录与内容归属)：覆盖声明只表示程序声明覆盖相应场景，须能核对来源与编号。
 实际执行、结果和有效接受分别验证。它找出 `acceptanceLock` 配置的成员根下每个 `acceptance/**/*.acceptance.ts`（`node_modules`、`dist` 不进），逐份查：
 
@@ -138,15 +138,15 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 | 成员有验收文件，`package.json` 里却没有 `acceptance` 脚本                   | 没有它，这些验收不会被任何入口运行                                                                                                            |
 
 产品区的位置沿用 `loop` 配置的 `sensors.topicChurn.productRoot`。**为什么接在 `lint:rules`**：它与提交署名一样是对整个仓库的静态核对，
-不需要构建产物，放在已有的仓库规则入口里，`make check` 不必多一步，`pnpm run check` 单跑时也查得到。
+不需要构建产物，放在已有的仓库规则入口里，`pnpm run check` 不必多一步，单跑 `pnpm run lint:rules` 时也查得到。
 
-**不能声称**：声明的场景存在，不等于验收真的断言了那条场景要的东西——那归写验收的人与评审；验收过没过归下面的 `make acceptance`。
+**不能声称**：声明的场景存在，不等于验收真的断言了那条场景要的东西——那归写验收的人与评审；验收过没过归下面的 `pnpm run acceptance`。
 它只认 `.acceptance.ts` 结尾的文件，放在 `acceptance/` 里却不按这个名字取的验收它看不见。自测：`tests/acceptance-coverage.spec.ts`。
 
 ## 场景状态
 
 ```sh
-make scenario-status
+pnpm run acceptance:scenarios
 ```
 
 工具只从长期产品slug目录的README发现PD身份、正整数修订及状态，核对目录身份、唯一性、正文和根内真实路径，排除模板目录。产品及场景的持续行为归[产品观察规格](../repo-toolchain/src/product/SPEC.md)。

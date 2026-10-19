@@ -1,4 +1,4 @@
-// 两处「与基线比」的判法，走 `make loop-status` 同一个入口（runLoopStatus），用临时仓库：
+// 两处「与基线比」的判法，走 `pnpm run loop:status` 同一个入口（runLoopStatus），用临时仓库：
 // 成员预算——基线里有的成员只在变差时进提醒、新成员照绝对线；要解释的函数——只留比基线涨了的、
 // 新出现的与拿不准的，没变差的另计。线在这里给死，不随仓库配置里负责人调的数值变。
 import { readFileSync } from 'node:fs'

@@ -17,7 +17,12 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import { parseDiff } from '@omne-harness/repo-toolchain/core/git'
-import { memberLines, summarizeMember, type MutationReport } from '../src/mutation/report.ts'
+import {
+  memberLines,
+  notRunError,
+  summarizeMember,
+  type MutationReport,
+} from '../src/mutation/report.ts'
 import {
   changedTargets,
   memberTargets,
@@ -25,6 +30,7 @@ import {
   type MutationTarget,
 } from '../src/mutation/scope.ts'
 import { sandboxContainer, strykerConfig } from '../src/mutation/stryker.ts'
+import type { PlanFile } from '../src/testing/steps.ts'
 import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 
 const CLI = fileURLToPath(new URL('../src/mutation/cli.ts', import.meta.url))
@@ -232,6 +238,56 @@ describe('报告汇总', () => {
       '  无覆盖 packages/core/alpha/src/a.ts:2 ArrowFunction（static） `(n: number) => n > 0 && n < 10` → `() => undefined`',
     ])
   })
+
+  it('报成存活、有覆盖却一条用例都没跑完的另列为没跑测试，不计入各状态与分数（#405）', () => {
+    const mutant = (
+      id: string,
+      status: 'Survived' | 'Killed',
+      testsCompleted: number | undefined,
+      coveredBy: string[] | undefined,
+    ) => ({
+      id,
+      mutatorName: 'EqualityOperator',
+      replacement: 'n >= 0',
+      status,
+      location: at(3, 3, 3, 8),
+      ...(testsCompleted === undefined ? {} : { testsCompleted }),
+      ...(coveredBy === undefined ? {} : { coveredBy }),
+    })
+    const result = summarizeMember(TARGET, {
+      files: {
+        'src/a.ts': {
+          source,
+          mutants: [
+            mutant('1', 'Survived', 0, ['t1']),
+            // 跑过用例的、没有覆盖的、两个字段缺了任一个的，都按普通存活算。
+            mutant('2', 'Survived', 2, ['t1', 't2']),
+            mutant('3', 'Survived', 0, []),
+            mutant('4', 'Survived', undefined, ['t1']),
+            mutant('5', 'Survived', 0, undefined),
+            // 不是存活的不改判。
+            mutant('6', 'Killed', 0, ['t1']),
+          ],
+        },
+      },
+    })
+    expect(result.counts).toMatchObject({ Survived: 4, Killed: 1 })
+    expect(result.score).toBe(20)
+    expect(result.survived).toHaveLength(4)
+    expect(result.notRun).toEqual([expect.objectContaining({ line: 3, original: 'n > 0' })])
+    expect(memberLines(result, true)).toEqual([
+      'packages/core/alpha：变异体 6 个——被杀 1、超时 0、存活 4、无覆盖 0、编译错误 0、运行错误 0、没跑测试 1；分数 20%',
+      ...Array.from(
+        { length: 4 },
+        () => '  存活 packages/core/alpha/src/a.ts:3 EqualityOperator `n > 0` → `n >= 0`',
+      ),
+      '  没跑测试 packages/core/alpha/src/a.ts:3 EqualityOperator `n > 0` → `n >= 0`',
+    ])
+    expect(notRunError(result, 'run/alpha.log')).toBe(
+      'packages/core/alpha：1 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 run/alpha.log',
+    )
+    expect(notRunError(summarizeMember(TARGET, report), 'run/alpha.log')).toBeUndefined()
+  })
 })
 
 describe('sandbox 与配置', () => {
@@ -266,40 +322,74 @@ describe('sandbox 与配置', () => {
   })
 })
 
-const cliRoot = temporary('mutation-cli-')
-for (const path of ['packages/core/canary/src', 'tools/repo-toolchain'])
-  mkdirSync(join(cliRoot, path), { recursive: true })
-writeFileSync(join(cliRoot, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n  - tools/*\n')
-for (const path of ['packages/core/canary', 'tools/repo-toolchain'])
-  writeFileSync(
-    join(cliRoot, path, 'package.json'),
-    JSON.stringify({ name: `@fixture/${path.split('/').at(-1)}`, scripts: { test: 'vitest run' } }),
+/** 一个有产品成员和工具成员的仓库，已提交一次。 */
+function cliFixture(): string {
+  const cliRoot = temporary('mutation-cli-')
+  for (const path of ['packages/core/canary/src', 'tools/repo-toolchain'])
+    mkdirSync(join(cliRoot, path), { recursive: true })
+  writeFileSync(join(cliRoot, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n  - tools/*\n')
+  for (const path of ['packages/core/canary', 'tools/repo-toolchain'])
+    writeFileSync(
+      join(cliRoot, path, 'package.json'),
+      JSON.stringify({
+        name: `@fixture/${path.split('/').at(-1)}`,
+        scripts: { test: 'vitest run' },
+      }),
+    )
+  writeFileSync(join(cliRoot, 'packages/core/canary/src/index.ts'), 'export const value = 1\n')
+  execFileSync('git', ['init', '-q'], { cwd: cliRoot })
+  execFileSync(
+    'git',
+    [
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '--allow-empty',
+      '-qm',
+      'fixture',
+    ],
+    { cwd: cliRoot },
   )
-writeFileSync(join(cliRoot, 'packages/core/canary/src/index.ts'), 'export const value = 1\n')
-execFileSync('git', ['init', '-q'], { cwd: cliRoot })
-execFileSync(
-  'git',
-  [
-    '-c',
-    'user.name=Fixture',
-    '-c',
-    'user.email=fixture@example.invalid',
-    'commit',
-    '--allow-empty',
-    '-qm',
-    'fixture',
-  ],
-  { cwd: cliRoot },
-)
-const cli = (...args: string[]) =>
-  spawnSync(process.execPath, ['--experimental-strip-types', CLI, ...args, '--root', cliRoot], {
+  return cliRoot
+}
+const cliRoot = cliFixture()
+
+/** 写一份手写计划：基线引用 HEAD，合并点 `mergeBase`，只选 `test` 里的成员。 */
+function writePlan(head: string, mergeBase: string, test: string[]): string {
+  const path = join(temporary('mutation-plan-'), 'plan.json')
+  const file = {
+    head,
+    dirty: true,
+    base: { ref: 'HEAD', mergeBase },
+    plan: {
+      mode: 'scoped',
+      reason: '',
+      files: [],
+      members: [],
+      build: [],
+      typecheck: [],
+      test,
+      acceptance: [],
+      python: { run: false, reason: '' },
+    },
+  } satisfies PlanFile
+  writeFileSync(path, JSON.stringify(file))
+  return path
+}
+const cli = (...args: string[]) => cliAt(cliRoot, ...args)
+function cliAt(root: string, ...args: string[]) {
+  return spawnSync(process.execPath, ['--experimental-strip-types', CLI, ...args, '--root', root], {
     encoding: 'utf8',
   })
+}
 
 describe('入口的参数', () => {
-  it('--base 与 --members 二选一；不是产品成员的拒绝', () => {
-    expect(cli('run', '--plan-only').status).toBe(2)
+  it('--base、--plan 与 --members 只能给一个；不是产品成员的拒绝', () => {
     expect(cli('run', '--base', 'HEAD', '--members', 'apps/cli', '--plan-only').status).toBe(2)
+    expect(cli('run', '--plan', 'plan.json', '--base', 'HEAD', '--plan-only').status).toBe(2)
+    expect(cli('run', '--plan', 'plan.json', '--members', 'apps/cli', '--plan-only').status).toBe(2)
     const tool = cli('run', '--members', 'tools/repo-toolchain', '--plan-only')
     expect(tool.status).toBe(2)
     expect(tool.stderr).toContain('只变异产品源码')
@@ -311,8 +401,36 @@ describe('入口的参数', () => {
   it('点名成员只列范围：写明跑快层', () => {
     const planned = cli('run', '--members', 'packages/core/canary', '--plan-only')
     expect(planned.status, planned.stderr).toBe(0)
-    expect(planned.stdout).toContain('只跑快层（OMNE_TEST_TIER=fast）')
+    expect(planned.stdout).toContain('只跑快层（vitest 的 mode 为 fast）')
     expect(planned.stdout).toMatch(/packages\/core\/canary：1 个文件/u)
+  })
+
+  // 缺省基线：有任务上下文时取它固定的基线，否则 main，与 test:affected 相同。
+  it('不给范围时按缺省基线在本仓库现算计划', { tags: ['slow'], timeout: 120_000 }, () => {
+    const ran = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', CLI, 'run', '--plan-only'],
+      { encoding: 'utf8' },
+    )
+    expect(ran.status, ran.stderr).toBe(0)
+    expect(ran.stdout).toMatch(/变异范围：基线 |没有可变异的改动：基线 /u)
+  })
+
+  it('--plan 读准入检查的计划：变异计划里的成员；有计划外的改动、或计划不是当前提交算的就拒绝', () => {
+    const root = cliFixture()
+    writeFileSync(join(root, 'packages/core/canary/src/index.ts'), 'export const value = 2\n')
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+    const planFile = (test: string[], at = head) => writePlan(at, head, test)
+    const selected = cliAt(root, 'run', '--plan', planFile(['packages/core/canary']), '--plan-only')
+    expect(selected.status, selected.stderr).toBe(0)
+    expect(selected.stdout).toMatch(/packages\/core\/canary：1 个文件/u)
+    // 计划算完后工作树又改了计划外的成员：不静默跳过，要求重算。
+    const outside = cliAt(root, 'run', '--plan', planFile([]), '--plan-only')
+    expect(outside.status).toBe(2)
+    expect(outside.stderr).toContain('计划外的成员：packages/core/canary')
+    const stale = cliAt(root, 'run', '--plan', planFile([], '0'.repeat(40)), '--plan-only')
+    expect(stale.status).toBe(2)
+    expect(stale.stderr).toContain('重新算计划')
   })
 })
 
@@ -355,8 +473,13 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       join(memberDir, 'vitest.config.ts'),
       [
         "import { testTiers } from '../../../vitest.tiers.mts'",
-        "export default { test: { ...testTiers(), globals: true, include: ['tests/**/*.spec.ts'] } }",
+        "export default ({ mode }) => ({ test: { ...testTiers(mode), globals: true, include: ['tests/**/*.spec.ts'] } })",
       ].join('\n'),
+    )
+    // 慢层里一条必败的用例：变异只跑快层，它跑了初跑就失败、整次变异报错。
+    writeFileSync(
+      join(memberDir, 'tests/slow.spec.ts'),
+      "test('slow only', { tags: ['slow'] }, () => { throw new Error('slow tier ran') })\n",
     )
     writeFileSync(join(memberDir, 'src/sign.ts'), 'export const zero = 0\n')
     writeFileSync(
@@ -370,10 +493,13 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     return { root, memberDir }
   }
 
+  /** 夹具没有本仓库的影响面规则，现算不出计划：手写一份只选这个成员的计划，走准入检查读计划的路径。 */
   function mutate(root: string, out: string) {
+    const head = git(root, 'rev-parse', 'HEAD').trim()
+    const planPath = writePlan(head, head, ['packages/core/sign'])
     const ran = spawnSync(
       process.execPath,
-      ['--experimental-strip-types', CLI, 'run', '--root', root, '--base', 'HEAD', '--out', out],
+      ['--experimental-strip-types', CLI, 'run', '--root', root, '--plan', planPath, '--out', out],
       { encoding: 'utf8', env: { ...process.env, VITEST_MAX_WORKERS: '2' } },
     )
     const summary = existsSync(join(out, 'summary.json'))
@@ -406,6 +532,8 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     )
     const weak = mutate(root, join(root, 'out-weak'))
     expect(weak.ran.status, `${weak.ran.stdout}${weak.ran.stderr}`).toBe(0)
+    // 读到的计划写进运行目录。
+    expect(existsSync(join(root, 'out-weak', 'plan.json'))).toBe(true)
     expect(weak.summary?.errors).toEqual([])
     const [before] = weak.summary?.members ?? []
     expect(before?.counts['Survived']).toBeGreaterThan(0)
@@ -415,7 +543,7 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       readdirSync(join(root, 'packages')).filter(name => name.startsWith('.stryker-tmp')),
     ).toEqual([])
     expect(readFileSync(join(root, 'out-weak/summary.md'), 'utf8')).toContain(
-      '只跑快层（OMNE_TEST_TIER=fast）',
+      '只跑快层（vitest 的 mode 为 fast）',
     )
 
     // 补上断言的那条放进只按包名导入的文件：只有它守着改动行，被杀就说明这份文件跑了、自引用走到了插过桩的代码。
@@ -448,5 +576,28 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       '?? out-weak/',
       '?? packages/core/sign/tests/public.spec.ts',
     ])
+  })
+
+  it('只由参数化用例守着的改动行照样被杀：按用例名过滤时不因快层的 preParse 整份滤掉（#405）', () => {
+    const { root, memberDir } = fixture()
+    writeFileSync(
+      join(memberDir, 'src/sign.ts'),
+      'export const zero = 0\nexport function isPositive(n: number): boolean {\n  return n > 0\n}\n',
+    )
+    // 用例名由 it.each 生成，preParse 静态匹配不到；Stryker 逐个变异体按用例名过滤。
+    writeFileSync(
+      join(memberDir, 'tests/sign.spec.ts'),
+      [
+        "import { isPositive, zero } from '../src/sign.ts'",
+        "test('zero', () => { expect(zero).toBe(0) })",
+        "it.each([[1, true], [0, false], [-1, false]])('isPositive(%i) is %s', (n, want) => { expect(isPositive(n)).toBe(want) })",
+      ].join('\n'),
+    )
+    const ran = mutate(root, join(root, 'out'))
+    expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(0)
+    expect(ran.summary?.errors).toEqual([])
+    const [member] = ran.summary?.members ?? []
+    expect(member?.counts['Survived']).toBe(0)
+    expect(member?.counts['Killed']).toBeGreaterThan(0)
   })
 })

@@ -77,8 +77,8 @@ Use $asd-ste100 to rewrite this tool description. Preserve every condition and m
 ```sh
 python3 .meta_harness/agents/skills/asd-ste100/canonical/scripts/ste-lint.py --selftest
 python3 .meta_harness/agents/skills/asd-ste100/canonical/scripts/ste-lint.py --json path/to/text.md
-make agents-check
-make docs-check
+pnpm run check:agents
+pnpm run check:docs
 ```
 
 `--selftest` 运行上游内置回归，包括语气保留、Markdown 列表与表格单元格。

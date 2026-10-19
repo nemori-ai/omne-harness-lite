@@ -67,6 +67,6 @@
 
 参与研发从 [CONTRIBUTING.md](CONTRIBUTING.md)和[开发初始化](docs/development.md#准备可用的检出)开始。人或 agent 使用的 coding agent harness 须安装项目指定版本的 pstack 与 Matt 插件，版本及采用范围归[技能入口](docs/engineering/skills.md)。环境准备、命令与按任务选择验证的方法继续由开发指南维护。
 
-日常文档维护可运行 `make docs-check`，结构缺项通过 `make docs-inventory` 查看。`make check` 按影响面选择必要检查，未选择的检查没有执行；结论边界归[验证说明](docs/verification.md)。这些检查不证明产品已支持、业务行为符合或已获负责人接受。
+日常文档维护可运行 `pnpm run check:docs`，结构缺项通过 `pnpm run docs:inventory` 查看。`pnpm run check` 按影响面选择必要检查，未选择的检查没有执行；结论边界归[验证说明](docs/verification.md)。这些检查不证明产品已支持、业务行为符合或已获负责人接受。
 
 阅读封存命令时，从[封存CLI](apps.0.0.1.legacy/cli/README.md)或[封存宿主](apps.0.0.1.legacy/tenancy-host/README.md)核对构建、环境与权限前提，不能直接当作新树启动方法。新增或修改文档按[维护指南](docs/maintenance.md)选择层级、同步消费者和检查引用。

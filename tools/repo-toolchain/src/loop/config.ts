@@ -96,7 +96,7 @@ export interface LoopConfig {
     }
     readonly worktrees: { readonly enabled: boolean }
     /**
-     * 验收耗时：读 `make acceptance` 写下的账本。`excludeRoots` 下的成员不算有验收的成员，
+     * 验收耗时：读 `pnpm run acceptance` 写下的账本。`excludeRoots` 下的成员不算有验收的成员，
      * 须与测试运行配置 `affected.excludeRoots` 一致，由自测核对。
      */
     readonly acceptance: { readonly enabled: boolean; readonly excludeRoots: readonly string[] }

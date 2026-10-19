@@ -41,7 +41,7 @@ Node `>=24`。没有运行时依赖。
 
 ## 验证
 
-`pnpm test` 先构建，再运行从封存包迁来的表征测试。`pnpm run typecheck` 先构建，再对测试做类型检查。套件包含非法字符用例，以及用普通 Node 导入 `dist/index.js` 的用例。
+在仓库根运行 `pnpm turbo run test --filter=@omne-harness/xml-format`：turbo 先构建，再运行从封存包迁来的表征测试。本目录里的 `pnpm test` 不构建。`pnpm turbo run typecheck --filter=@omne-harness/xml-format` 对测试做类型检查，不先构建。套件包含非法字符用例，以及用普通 Node 导入 `dist/index.js` 的用例。
 
 ## 维护
 

@@ -85,8 +85,10 @@ pnpm --filter @omne-harness/repo-toolchain test
 （约定见[源码布局](../../docs/workspace.md#目录与内容归属)）。`src/acceptance/` 核对这一条有没有被破：
 
 ```sh
-make acceptance-lock BASE=<任务基线提交或分支>
+pnpm run acceptance:lock --base <任务基线提交或分支>
 ```
+
+不给 `--base` 时取任务上下文的基线，再缺省 `main`。
 
 模板生成的验收入口不算验收内容：`acceptance/` 下名为 `README.md` 或 `index.md`、变化后（删除时看变化前）仍有独立一行文档占位标记的文件，增删改都不计入；去掉标记、写入真实内容的改动照常计入（RFC-0007）。
 
@@ -102,7 +104,7 @@ make acceptance-lock BASE=<任务基线提交或分支>
 | 工作树里有未提交或未跟踪的验收改动——说不清是谁改的                  | 没有来源 trailer 的提交：按人写的算             |
 
 哪些根目录下的成员受管、验收目录叫什么、哪些角色算拥有者，只在
-仓库根 [`repo-toolchain.config.json`](../../repo-toolchain.config.json) 的 `acceptanceLock` 一节 里定一次。用法或 Git 出错（缺 `--base`、基线不存在）退出 2。
+仓库根 [`repo-toolchain.config.json`](../../repo-toolchain.config.json) 的 `acceptanceLock` 一节 里定一次。用法或 Git 出错（`--base` 没给值、基线不存在）退出 2。
 
 它**不能声称**的：角色取自提交信息里的来源 trailer，那是提交的人自己写的——一个把 `Agent-Role` 写成 `main` 的实施提交它认不出来，
 所以碰过验收的提交一律列出，由接受的人过目。先改后改回的提交照样列出、照样判破，哪怕净变化为零。
@@ -202,15 +204,19 @@ architecture 报告的函数变化和关系变化都用精确 BASE；metrics 报
 
 ## 结构度量
 
-`make metrics` 是本包的第二入口（`src/metrics/`）。它**只报告、不判失败**，不在 `make check` 里；能让检查失败的只有上面的方向规则与提交署名。
+`pnpm run metrics` 是本包的第二入口（`src/metrics/`）。它**只报告、不判失败**，不在 `pnpm run check` 里；能让检查失败的只有上面的方向规则与提交署名。
 
 ```sh
-make metrics                          # 全仓：实际架构、圈复杂度、依赖图、方向与环
-make metrics BASE=<基线提交或分支>      # 另标出基线以来变更的成员、函数、导入与提交形状
-make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，取覆盖率并合成 CRAP（先构建）
+pnpm run metrics                          # 全仓：实际架构、圈复杂度、依赖图、方向与环
+pnpm run metrics --base <基线提交或分支>    # 另标出基线以来变更的成员、函数、导入与提交形状
+omne-metrics --plan <计划文件> --coverage   # 再对计划里要跑测试的成员逐个跑测试，取覆盖率并合成 CRAP（先构建）
 ```
 
-产物默认落**主检出**的 `tmp/metrics/<提交短号>[-dirty]/`（在工作树里跑也落主检出，工作树退役不带走；`OUT=` 或环境变量 `OMNE_METRICS_OUT` 可改）：
+计划文件由 test-runner 的 `plan --json` 写出，准入检查用的也是它（见 [test-runner](../test-runner/README_ZH.md)）。给 `--plan` 时，基线与合并点也取自计划，不能再给 `--base`；计划文件复制到产物目录的 `plan.json`。计划算的不是当前提交时，工具报错退出；工作树绑定了任务上下文时，计划的基线还要与上下文固定的基线一致。`--coverage` 必须带 `--plan`。算完计划后工作树又改了计划外的成员时，带覆盖率的运行报错退出，要求重算计划。
+
+本工具只读计划文件的四栏：`head`、`base.ref`、`base.mergeBase` 与 `plan.test`（成员目录的数组）。这四栏是本包的输入约定，现在由 test-runner 的 `plan --json` 写出。
+
+产物默认落**主检出**的 `tmp/metrics/<提交短号>[-dirty]/`（在工作树里跑也落主检出，工作树退役不带走；`--out` 或环境变量 `OMNE_METRICS_OUT` 可改）：
 
 | 文件                | 内容                                                                                                                                                                   |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -220,6 +226,7 @@ make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，�
 | `review.html`       | 自包含的共同入口：默认实际架构总览，可进入结构图、风险与函数表                                                                                                         |
 | `actual.json`       | N1 完整实际架构数据及精确两版差分                                                                                                                                      |
 | `architecture.json` | 总览、关系与来源的派生浏览投影；与旧 graph.json 分开                                                                                                                   |
+| `plan.json`         | 给 `--plan` 时复制的计划文件                                                                                                                                             |
 | `coverage/`         | 开了覆盖率时各成员的原始 `<成员>/coverage-final.json` 与测试输出 `<成员>.vitest.log`；每个成员的耗时与退出码另记在 `metrics.json` 的 `meta` 里，运行时逐个打到标准错误 |
 
 审讯页的网址后带成员路径可直接定位，例如 `review.html#packages/model/model-request-runtime-local`。
@@ -228,8 +235,8 @@ make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，�
 
 - **计分单元**是有名字的函数：函数声明、类与对象字面量的方法、赋给名字的箭头函数与函数表达式；匿名回调并入它所在的单元，类与具名对象只提供限定名。
 - **圈复杂度** = 1 + `if`、各类循环、`catch`、`?:`、`case`、`default`、`&&`、`||` 的个数；`??`、`?.` 与逻辑赋值不计。
-- **覆盖率**取函数行范围内、且不落在更内层有名函数里的语句行的命中比例。测试经包名导入自己时执行的是 `dist/`，所以连同 `dist/**` 一起收集并由 sourcemap 映射回 `src/`。
-- **跑谁的测试**：只跑 `metrics` 配置的 `coverage.roots` 列出的根目录（现为 `packages`、`apps`）下的变更成员。`examples/` 是阶段性的演示，不长期维护，不为它跑测试；它照常参加圈复杂度与依赖方向的静态度量，覆盖率记为「这次没跑」。
+- **覆盖率**取函数行范围内、且不落在更内层有名函数里的语句行的命中比例。测试经包名导入自己时执行的是 `dist/`，所以连同 `dist/**/*.js` 一起收集并由 sourcemap 映射回 `src/`。`dist/` 里的 `.map` 与 `.d.ts` 不收集。测试在子进程里执行的代码（例如测试启动的命令行进程）不计入覆盖。
+- **跑谁的测试**：只跑计划里要跑测试、且在 `metrics` 配置的 `coverage.roots` 列出的根目录（现为 `packages`、`apps`）下的成员。`examples/` 是阶段性的演示，不长期维护，不为它跑测试；它照常参加圈复杂度与依赖方向的静态度量，覆盖率记为「这次没跑」。
 - **CRAP** = 圈复杂度² × (1 − 覆盖率)³ + 圈复杂度。没有覆盖率数据的函数只按圈复杂度评级。
 - **成员风险值** = 成员内函数评级分的均值加一个总体标准差，单个最差函数不至于把整个成员染红；它在色带点上分段线性地换成 1 到 10 的评分再取色。组框左边线取组内最差成员。
 - **函数是否变更**比对函数自身文本的摘要，不看 diff 行号：挪位置、上方插入代码都不算变。
@@ -263,32 +270,32 @@ make metrics BASE=<基线> COVERAGE=1    # 再对变更成员逐个跑测试，�
 
 ## 回路状态
 
-`make loop-status` 是本包的第三入口（`src/loop/`），回答一个问题：**整洁的各项指标现在各在哪条带上，这次变更里有哪些红项要解释，哪些成员超了预算。**
+`pnpm run loop:status` 是本包的第三入口（`src/loop/`），回答一个问题：**整洁的各项指标现在各在哪条带上，这次变更里有哪些红项要解释，哪些成员超了预算。**
 它说事实（位置、数值、带位），不写该怎么改；回路本身的约定见[整洁回路](../../docs/clean-loop.md)。
 
 ```sh
-make loop-status                       # 全仓现状
-make loop-status BASE=<任务基线>         # 另列这次变更里要解释的红项，并核验收锁
-make loop-status SNAPSHOT=1            # 干净的工作树上追加一条趋势快照
-make loop-status BASE=<基线> STRICT=1 OUT=<目录>   # 严格模式，make check 的最后一步
+pnpm run loop:status                                   # 全仓现状
+pnpm run loop:status --base <任务基线>                  # 另列这次变更里要解释的红项，并核验收锁
+pnpm run loop:status --snapshot                        # 干净的工作树上追加一条趋势快照
+pnpm run loop:status --base <基线> --strict --out <目录>   # 严格模式，pnpm run check 的最后一步
 ```
 
-**除硬线外一切只报告。**退出码 1 只在硬线被破时：依赖违规或环（与 `make metrics`、`lint:deps` 读[同一张依赖图](#依赖图与依赖规则)；无法解析的导入归 `lint:deps`，不算硬线），
-或给了`BASE`且[验收锁](#验收锁)被破，或严格模式下有开着的传感器没数据；
+**除硬线外一切只报告。**退出码 1 只在硬线被破时：依赖违规或环（与 `pnpm run metrics`、`lint:deps` 读[同一张依赖图](#依赖图与依赖规则)；无法解析的导入归 `lint:deps`，不算硬线），
+或给了 `--base` 且[验收锁](#验收锁)被破，或严格模式下有开着的传感器没数据；
 2 是工具自己出错（参数、配置、git）；其余报告项再多也是 0。
 
-**严格模式**（`STRICT=1`，即 `--strict`）另判一条硬线：配置里开着的传感器（`sensors` 下带 `enabled` 的九个）每一个都要有数据。
+**严格模式**（`--strict`）另判一条硬线：配置里开着的传感器（`sensors` 下带 `enabled` 的九个）每一个都要有数据。
 有哪个报「没数据」，「硬线」一段列出是哪几个、原因是什么，退出 1；配置里关掉的不算，照旧写明是关掉的。
 对照表那一项没有开关、也不进指标，不在此列。「没有基线快照，与基线比未判」是趋势的事，不算传感器没数据。
-它要求给 `BASE` 与 `OUT`（缺了按用法错退出 2），草稿写进 `OUT/proposals/`，不写趋势快照（与 `SNAPSHOT=1` 同用也是用法错）——
-回路目录里一个字节都不动。`make check` 的最后一步就是它，见[自动化入口](../../scripts/README.md)。
+它要求给 `--base` 与 `--out`（缺了按用法错退出 2），草稿写进 `--out` 目录下的 `proposals/`，不写趋势快照（与 `--snapshot` 同用也是用法错）——
+回路目录里一个字节都不动。`pnpm run check` 的最后一步就是它，见[自动化入口](../../scripts/README.md)。
 
-CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须与 strict 同用。仓库的 `make check` 不传范围，使用默认 `all`。
+CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须与 strict 同用。仓库的 `pnpm run check` 不传范围，使用默认 `all`。
 工具复用当前传感器的源码清单，并枚举固定 targetBase、实际 merge-base、每个任务 taskBase 的 Git 树，按同一规则统计源码和测试。相同提交去重。没有 task context 的仓库使用有效显式 base 及其 merge-base。
 只有当前与全部基线的两类计数均为零，duplication、assertions 启用但无数据时才列入 `hardLines.sensors.notApplicable`，原因码为 `engineering-without-product-inputs`。
 `status.json` 的 `scope.evidence` 保存当前计数和各基线的精确提交、计数。原始 `sensors` 仍是 no-data；终端与 Markdown 点名工程范围不适用。关闭项仍列 `off`，其他启用的无数据项仍列 `silent` 并失败。
 最后一个输入被删除或迁入 legacy 时，历史输入仍阻止豁免。无效 context、无效基线、缺对象、读取错误及无法分类的历史链接或子模块按工具错误失败。输入范围沿现有扫描器，包括 legacy、构建产物、测试和声明文件规则。
-普通本地 `make check`、默认 strict、方向与环、验收锁和趋势只读边界保持。工程范围不证明产品质量通过，也不证明跳过的测试通过。
+普通本地 `pnpm run check`、默认 strict、方向与环、验收锁和趋势只读边界保持。工程范围不证明产品质量通过，也不证明跳过的测试通过。
 
 适用性与编排回归位于 `tests/loop-product-inputs.spec.ts`、`tests/loop-status.spec.ts`、`tests/loop-strict.spec.ts`、`tests/formatting-boundaries.spec.ts` 和 dev-flow 的 `tests/integration-boundaries.spec.ts`。真实 Git 与 shell fixture、受控命令替身、真实工程入口分别提供证据。
 
@@ -303,7 +310,7 @@ CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须�
 
 | 产物                                  | 内容                                                                                                                                                                                   |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `status/<提交短号>[-dirty]/status.md` | 与终端打印相同的文字，分五段：抬头（含用的哪条基线快照）、硬线、各项指标的带位、要解释的红项、超预算的成员（含比基线变差的成员）与对照表条数；`OUT=` 可改目录                          |
+| `status/<提交短号>[-dirty]/status.md` | 与终端打印相同的文字，分五段：抬头（含用的哪条基线快照）、硬线、各项指标的带位、要解释的红项、超预算的成员（含比基线变差的成员）与对照表条数；`--out` 可改目录                         |
 | `status/…/status.json`                | 全量：每个传感器的原始结果（有数据／没数据及原因）、每个成员的四项预算、带位与各项与基线比的结果、要解释的红项全集（函数一类每条带与基线比的结果，没变差的另列在 `functionsNotWorse`） |
 | `proposals/<成员路径斜杠换成 ->.md`   | 超预算成员的清理草稿，同一成员覆盖旧稿；六个固定章节与[派发模板](../../.meta_harness/agents/roles/cleanup-task.md)同名同序（常量 `CLEANUP_SECTIONS`）                                  |
 | `trend.jsonl`                         | 趋势快照，一行一条：提交、各指标的值与带位、各成员的预算值与带位                                                                                                                       |
@@ -315,7 +322,7 @@ CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须�
 比基线差至少是提醒；没有基线快照标「未判」，不当作没变差。基线快照是 `BASE` 合并点那个提交的快照，没有就取合并点之前最近的一条；
 不给 `BASE` 时用与 `primaryBranch` 的合并点。当前提交自己的快照不拿来当基线。
 
-**趋势快照**只在工作树干净时写：给了 `SNAPSHOT=1`，或 HEAD 正是 `primaryBranch` 的头；同一提交已有一条就不再写。读的时候坏行跳过并在抬头里报出行号。
+**趋势快照**只在工作树干净时写：给了 `--snapshot`，或 HEAD 正是 `primaryBranch` 的头；同一提交已有一条就不再写。读的时候坏行跳过并在抬头里报出行号。
 
 **各项指标与它们从哪来**：
 
@@ -384,25 +391,25 @@ IC-5 例外仅放行 BASE 点名的精确导出符号，namespace 通配符和�
 
 ### 验收耗时
 
-`src/loop/sensors/acceptance.ts` 不跑验收，只读[测试运行](../test-runner/README_ZH.md#测试运行)以 `--script acceptance` 写下的账本（`make acceptance`，或 `make check` 按计划跑的验收一步）：
+`src/loop/sensors/acceptance.ts` 不跑验收，只读[测试运行](../test-runner/README_ZH.md#测试运行)以 `--script acceptance` 写下的账本（`pnpm run acceptance`，或 `pnpm run check` 按计划跑的验收一步）：
 账本根是主检出的 `tmp/acceptance-ledger/`（`OMNE_ACCEPTANCE_LEDGER_HOME` 可改），取**当前提交那一格**（工作树不干净时是带 `-dirty` 的那一格）里最新的一次
 交代了现在有 `acceptance` 脚本的每一个成员的验收运行：全量运行（`meta.base` 为 null）跑了它们，或按计划的运行跑了一部分、其余写在 `meta.scope.skipped` 里。
 同一格里真跑过验收的记录优先于只有「跳过」的记录。读数三样：整次运行的墙钟、最慢一份验收文件的耗时（没出 vitest 报告的成员按一份、用成员的墙钟计）、份数；有跳过的另带跳过了谁、为什么。
 
 - **没有任何成员有 `acceptance` 脚本**（或检出里没有 `pnpm-workspace.yaml`）：读数是「0 份」，这算有数据。
-- **`make check` 的计划不含带验收的成员**：验收一步不跑，为当前提交写一份 `meta.members` 为空、`meta.scope` 写明「本次影响面不含带验收的成员」与被跳过成员的账本（目录名带 `-skipped`）。
+- **`pnpm run check` 的计划不含带验收的成员**：验收一步不跑，为当前提交写一份 `meta.members` 为空、`meta.scope` 写明「本次影响面不含带验收的成员」与被跳过成员的账本（目录名带 `-skipped`）。
   传感器认它，算有数据；两项耗时指标如实写没数据、写明跳过，不拿 0 秒冒充量过了。
-- **有验收、却找不到这样一次运行**：没数据，原因指到 `make acceptance`；严格模式因此判失败。所以单独跑 `make loop-status STRICT=1` 之前要先在这个提交上跑过一次验收（或 `make check` 的验收一步留下过记录）。
+- **有验收、却找不到这样一次运行**：没数据，原因指到 `pnpm run acceptance`；严格模式因此判失败。所以单独跑 `pnpm run loop:status --strict` 之前要先在这个提交上跑过一次验收（或 `pnpm run check` 的验收一步留下过记录）。
 - 两条带在 `loop` 配置的 `indicators.acceptanceSeconds`、`acceptanceSlowestSeconds`，不与基线比。数值
   （总耗时 提醒 60／处置 120／解除 45 秒，单份 提醒 20／处置 40／解除 15 秒）是负责人 2026-10-02 按提议定的，配置的 `note` 里照实写着，还没有用真实读数校准。
-- 合并前的验收已按影响面收窄（只跑被选中、带验收的成员），读数因此不是每个提交都有；全量读数来自 `make acceptance` 或 `make check FULL=1`。
+- 合并前的验收已按影响面收窄（只跑被选中、带验收的成员），读数因此不是每个提交都有；全量读数来自 `pnpm run acceptance` 或 `FULL=1 pnpm run check`。
 
 **不能声称**：耗时受机器负载影响，几次之间的差不能直接归因于代码；读数出自哪一次运行写在行尾与 `status.json` 里，
 同一提交、工作树不干净时的「-dirty」格可能是更早一版未提交改动跑出来的。
 
 **成员预算**：每个成员四项——超 alert 的函数数、风险值（度量报告的 `risk`）、重复行占比、没有断言的测试数——任一项处于处置即超预算。
 `memberBudget.excludeGroups`（初值 `["examples"]`：`examples/` 是阶段性的演示，不长期维护）里的成员组不判预算、不生成草稿，也不写进趋势快照的成员一栏；
-全仓指标（红色成员数、超 alert 的函数数、重复行占比、没有断言的测试数等）照样计入它们，与 `make metrics` 同一口径。
+全仓指标（红色成员数、超 alert 的函数数、重复行占比、没有断言的测试数等）照样计入它们，与 `pnpm run metrics` 同一口径。
 快照只记成员的总带位，各项「上一次的带位」由趋势里这个成员的历史值按同一组线重放得到。「解除之后又进入处置」达到 `relapseLimit` 次的成员标结构问题：
 写明「反复变红 N 次，上报，不派清理」，不生成草稿。其余超预算成员各生成一份草稿：条目带 `路径:行`，行为锁、解除条件（当前值与解除线）、不许动的、状态（等负责人批准）。
 
@@ -482,7 +489,7 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 标准输入是宿主给的 JSON 对象。要反馈时向标准输出写**恰好一个** `{"decision":"block","reason":"…"}`（两端在这两个事件上都接受这个最小形状，
 多一个字段在 Codex 上会让整条输出无效）；量读数时自己出了错，写**恰好一个** `{"systemMessage":"…"}`——两端都把它当作给用户看的警告，
 不交给 agent、不拦收工；其余情形一个字节都不写。**所有路径都退出 0**：宿主把退出码 2 一律当拦截，
-所以它不经 make、不透传任何子进程的退出码。依次：
+所以它由 node 直接运行、不经包装命令，也不透传任何子进程的退出码。依次：
 
 1. `OMNE_LOOP_HOOK=off` → 什么都不做；输入解析不了、不是对象 → 不反馈。
 2. `stop_hook_active` 为 `true`（这次收工已经因钩子续跑过）→ 不反馈。**每次收工至多拦一次。**
@@ -495,8 +502,8 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
      每个候选先取远端跟踪分支（`<transport.location>/<分支>`），没有就取同名本地分支，都没有就跳过。
      从轨道分出、合入过轨道尖端的长期分支因此只看自己相对轨道的改动，轨道相对 `primaryBranch` 的内容不算这次变更。
      policy 读不到或读不懂时没有轨道候选，只用 `primaryBranch`（位置按 `origin`）。一个候选也求不出时基线是 `HEAD`，只看未提交的改动。
-   - 直接在轨道分支上工作时，HEAD 就是轨道尖端，基线也是它，只看未提交的改动；要看相对 `primaryBranch` 的全部变更，手给 `make loop-status BASE=main`。
-5. 量**静态那部分**读数：变更函数里超 alert、且比基线涨了或新出现的（与 `make loop-status` 同一个判法，见上「要解释的函数与基线比」，基线是这里的合并点；
+   - 直接在轨道分支上工作时，HEAD 就是轨道尖端，基线也是它，只看未提交的改动；要看相对 `primaryBranch` 的全部变更，手给 `pnpm run loop:status --base main`。
+5. 量**静态那部分**读数：变更函数里超 alert、且比基线涨了或新出现的（与 `pnpm run loop:status` 同一个判法，见上「要解释的函数与基线比」，基线是这里的合并点；
    反馈的那一行末尾补「原 N」「新出现」或拿不准的原因，原来就超线、这次没变差的不反馈）、新增的跨成员依赖、其中稳定依赖不稳定的、改动过的测试文件里没有断言的用例，加依赖违规与环两条硬线（全仓的）。
    不跑重复代码（全仓二十多秒）、覆盖率、工作树与 topic 那几项。量在 worker 线程里跑，超过 `hook.timeoutSeconds`（初值 40；宿主那侧另配 60）就放弃。
    同时按 BASE 的架构预期判断新增偏离，分别报告全局及原节点预期的语义改动；机械范围见 [CONFORMANCE](src/arch/CONFORMANCE.md)。仅修改预期也可产生反馈，未发布新全局预期的节点继续由原声明传感器消费。
@@ -516,7 +523,7 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 架构读取先把基线解析成固定 commit，再按该树的 blob ID 批量读取文件；不缓存跨提交的读数，也不逐文件启动 Git。
 成员源码与数据文件按最长成员路径前缀分配，文件清单只遍历一次。读取失败仍报错，不以当前工作树补齐旧提交的缺失文件。
 同步主线可能让已交付的改动退出本次差分。需要核对整个任务时，用固定的任务起点运行
-`make loop-status BASE=<任务起点commit>`；这个显式 BASE 不改变自动钩子的基线。
+`pnpm run loop:status --base <任务起点commit>`；这个显式基线不改变自动钩子的基线。
 没有输出时还需区分没有新红项、已反馈、递归 Stop 和测量错误，不能仅凭同步发生在先就认定基线损坏。
 
 实测（本仓库全量，2026-10-01，8 核机器上负载很低时）：碰了产品源码、有一处红项的一次 2.5 秒；没碰产品源码的 0.8 秒。
@@ -535,17 +542,17 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 ## 流程体检页
 
 ```sh
-make loop-health # OUT=可改产物目录
+pnpm run loop:health # --out 可改产物目录
 ```
 
-**体检页** `make loop-health` 把三类事实汇成一张页面：趋势快照 `trend.jsonl`、测试耗时账本、git 历史。
-产物在 `<回路目录>/health/`（每次覆盖，`OUT=` 可改）：`health.html`（自包含：样式取审讯页的同一套，走向图是内联 SVG，不带脚本、不引任何外部地址，离线可开）、
+**体检页** `pnpm run loop:health` 把三类事实汇成一张页面：趋势快照 `trend.jsonl`、测试耗时账本、git 历史。
+产物在 `<回路目录>/health/`（每次覆盖，`--out` 可改）：`health.html`（自包含：样式取审讯页的同一套，走向图是内联 SVG，不带脚本、不引任何外部地址，离线可开）、
 `health.json`（各块的原始数据，每块都是「有数据」或「没数据及原因」）、`summary.md`（不超过 15 行，同时打印到终端，末行是页面路径）。
 
 | 块                   | 内容                                                                                                                             | 数据来源                                                                                                                                                                                                                                                                                                          |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 提交与合并的大小     | `primaryBranch` 沿第一父链最近 `health.commits` 个提交各改了几个文件（合并提交按它对第一父的改动计）：中位数、最大值、最大的三个 | `git log --first-parent -m`                                                                                                                                                                                                                                                                                       |
-| 测试耗时             | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线                                    | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`，或计划判为全量的 `make check` 测试一步），可以只跑一层（`make check` 的测试一步快、慢两层各记一份），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入 |
+| 测试耗时             | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线                                    | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`，或计划判为全量的 `pnpm run check` 测试一步），可以只跑一层（`pnpm run check` 的测试一步快、慢两层各记一份），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入 |
 | 债的走向             | 每个指标一条小折线（虚线是提醒线与处置线，蓝点是最新值）、最新值与最新带位；当前或曾经处于处置的成员，各项预算的读数走向         | `trend.jsonl`；同一提交多条取最后一条，按提交时间排                                                                                                                                                                                                                                                               |
 | 对照表条数           | 五类各多少条、不合约定的行数、「现状」以「待建」开头的行数                                                                       | `docs/clean-loop.md`，与回路状态同一份解析                                                                                                                                                                                                                                                                        |
 | 传感器最近一次有数据 | 每个指标最近一条带着它的值的快照是哪个提交、什么时候；从没有过数据的标出                                                         | `trend.jsonl`                                                                                                                                                                                                                                                                                                     |
@@ -561,8 +568,8 @@ make loop-health # OUT=可改产物目录
 
 ## 声明兼容
 
-成员用 TypeScript 7 构建；`pnpm run check:declarations`（`make declarations-check`）用 TypeScript 6 读它们产出的声明。
+成员用 TypeScript 7 构建；`pnpm run check:declarations` 用 TypeScript 6 读它们产出的声明。
 它把全部有 `build` 脚本的成员 `dist/` 下的 `.d.ts` 作为根文件交给 `@typescript/typescript6` 建一个程序，选项取仓库根 `tsconfig.base.json` 并打开库检查。
-成员声明里有诊断即退出 1；第三方声明里的诊断只计数；没有 `dist/` 的成员列出来，只报告、不判失败。`make check` 在构建一步之后常驻跑它。
+成员声明里有诊断即退出 1；第三方声明里的诊断只计数；没有 `dist/` 的成员列出来，只报告、不判失败。`pnpm run check` 在构建一步之后常驻跑它。
 
 本工具调用 `createProgram`、`createSourceFile` 等旧编程接口的模块都从 `@typescript/typescript6` 导入，行为与 TypeScript 6 相同。

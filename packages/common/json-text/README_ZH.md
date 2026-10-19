@@ -51,14 +51,13 @@ if (read.kind === 'ok') {
 
 适用的测试是单元测试和从公开入口做的契约测试。`tests/consumption-sample.spec.ts` 是独立消费检查。它只在 `kind === 'ok'` 之后运行局部 `{ parse, encode }`，并核对 `src` 只导入自身模块和 `jsonc-parser`。测试使用真实的 `jsonc-parser`。集成测试和端到端旅程不适用，因为本包没有存储、服务或用户旅程。
 
-在本目录运行：
+在仓库根运行：
 
 ```sh
-pnpm run build
-pnpm test
+pnpm turbo run test --filter=@omne-harness/json-text
 ```
 
-`pnpm test` 先构建，再运行 Vitest。测试不测性能。
+turbo 先构建本包及其依赖，再运行 Vitest。本目录里的 `pnpm test` 只运行 Vitest，不构建。测试不测性能。
 
 ## 维护
 
