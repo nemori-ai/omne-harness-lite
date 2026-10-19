@@ -93,7 +93,7 @@
 
 ### 角色夹具
 
-Cordis 消费插件是交接 G3 表的第六个角色；其余五个归 [model-contract](../../model-contract/verification/README.md#角色夹具)。夹具在 `tests/fixtures/consumers/cordis-plugin/`，必需角色清单是同目录的 `roles.json`。设施与判定同 model-contract 的角色夹具（`tests/install/**` 与 `tests/fixture-runner.ts` 与那一份字节相同）。运行整组：`pnpm --filter @omne-harness/model-cordis-contract run fixtures [--out <报告.json>] [--work-dir <目录>]`，先要构建闭包内的全部成员（`pnpm test` 自带构建）。夹具直接依赖 `@deepseek-ai/cordis`（工作区锁定的 4.0.4）、`@omne-harness/model-cordis-contract`、`@omne-harness/model-contract`（`./testing` 的受控替代提供者与身份解码）、`@omne-harness/legal-identity` 与 `@omne-harness/operation-result`（租户与结果类型）；`forbidden` 另禁 `@omne-harness/model`、`@omne-harness/model-host-local` 与 pi。
+Cordis 消费插件是交接 G3 表的第六个角色；其余五个归 [model-contract](../../model-contract/verification/README.md#角色夹具)。夹具在 `tests/fixtures/consumers/cordis-plugin/`，必需角色清单是同目录的 `roles.json`。设施与判定同 model-contract 的角色夹具（`tests/install/**` 与 `tests/fixture-runner.ts` 与那一份字节相同）。运行整组：`pnpm --filter @omne-harness/model-cordis-contract run fixtures [--out <报告.json>] [--work-dir <目录>]`，先要构建闭包内的全部成员：`pnpm test` 只构建本成员，依赖成员在干净检出上须先用 `pnpm exec turbo run build --filter=@omne-harness/model-cordis-contract...` 构建。夹具直接依赖 `@deepseek-ai/cordis`（工作区锁定的 4.0.4）、`@omne-harness/model-cordis-contract`、`@omne-harness/model-contract`（`./testing` 的受控替代提供者与身份解码）、`@omne-harness/legal-identity` 与 `@omne-harness/operation-result`（租户与结果类型）；`forbidden` 另禁 `@omne-harness/model`、`@omne-harness/model-host-local` 与 pi。
 
 夹具里有两个插件，都在真实的 Cordis `Context` 里运行：
 

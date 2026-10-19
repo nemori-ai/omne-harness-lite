@@ -103,7 +103,7 @@ public-api 有 21 个二级章节。清单列出其中 14 章：根入口 12 章
 
 五个角色各有一个夹具，在 `tests/fixtures/consumers/<角色>/`：`independent-caller`（托管调用者或独立调用者）、`session-coordinator`（编排协调者，目录名沿用旧称）、`context`、`result-consumer`（结果消费者）、`provider-author`（通用提供者作者）。必需角色清单是同目录的 `roles.json`，清单里的角色缺夹具时整组失败。第六个角色 Cordis 消费插件的夹具归 model-cordis-contract。
 
-运行整组：`pnpm --filter @omne-harness/model-contract run fixtures [--out <报告.json>] [--work-dir <目录>]`；`--work-dir` 默认是工作区 `tmp/install-closure/fixtures`，换成同一 `tmp/install-closure` 之下的别的目录时，同时运行的另一个成员或另一次运行互不删除对方的消费目录。先要构建闭包内的全部成员（`pnpm test` 自带构建）；五个夹具逐个打包、离线安装并运行，约 40 秒。退出码：0 全部通过，1 有夹具失败或整组有问题，2 用法或工具错误。运行单个夹具：`pnpm --filter @omne-harness/model-contract run install-closure --fixture tests/fixtures/consumers/<角色> --work-dir <工作目录>`，退出码与报告同安装闭包；`--fixture` 不能与 `--scenario` 同用。
+运行整组：`pnpm --filter @omne-harness/model-contract run fixtures [--out <报告.json>] [--work-dir <目录>]`；`--work-dir` 默认是工作区 `tmp/install-closure/fixtures`，换成同一 `tmp/install-closure` 之下的别的目录时，同时运行的另一个成员或另一次运行互不删除对方的消费目录。先要构建闭包内的全部成员：`pnpm test` 只构建本成员，依赖成员在干净检出上须先用 `pnpm exec turbo run build --filter=@omne-harness/model-contract...` 构建；五个夹具逐个打包、离线安装并运行，约 40 秒。退出码：0 全部通过，1 有夹具失败或整组有问题，2 用法或工具错误。运行单个夹具：`pnpm --filter @omne-harness/model-contract run install-closure --fixture tests/fixtures/consumers/<角色> --work-dir <工作目录>`，退出码与报告同安装闭包；`--fixture` 不能与 `--scenario` 同用。
 
 一个夹具的运行与成员模式的安装闭包用同一个设施，差别如下：
 

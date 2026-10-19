@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft model package; complete the accepted public contract before delivery",
+  "description": "Model domain implementation: credential presence and resolution judgment; the managed runtime is not implemented yet",
   "engines": {
     "node": ">=24"
   },
