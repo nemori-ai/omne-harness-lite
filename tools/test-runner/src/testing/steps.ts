@@ -194,6 +194,7 @@ export function typecheckStep(root: string, file: PlanFile): number {
   return turboTypecheck(
     root,
     members.map(member => member.name),
+    admissionRequested(process.env),
   )
 }
 
