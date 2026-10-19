@@ -5,7 +5,7 @@
 # environment's Setup script field. It runs as root before Claude Code starts,
 # and the platform snapshots the result, so later sessions skip it. Work for every
 # session start belongs to session-start.sh, which this script registers as a hook.
-# NODE_VERSION must satisfy the root package.json engines range (>=26).
+# NODE_VERSION must satisfy the root package.json engines range (>=24).
 # PNPM_VERSION must match the root package.json packageManager field.
 set -euo pipefail
 
