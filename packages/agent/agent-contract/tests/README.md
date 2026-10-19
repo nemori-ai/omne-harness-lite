@@ -12,7 +12,9 @@
 
 [identity.spec.ts](identity.spec.ts) 检查十四个身份解码函数各自的成功与四种失败（类型、空串、过长、字符）及长度边界，`judgeAdoption`、`judgeEvidence`、`judgeAccess`、`judgeAuthority` 的成功、缺失、类型、空串、未知字段与 `identity` 拒绝，访问器不被执行、成功值被冻结，以及 `Access` 的主体判定由调用方注入、租户必须由 legal-identity 铸造。
 
-[public-api-names.spec-d.ts](public-api-names.spec-d.ts) 是类型测试：设计页三章的每个名字都能从包入口导入，并对 `Next`、`Failure`、`Waiting`、`PendingCall`、`Preparation`、`Subject` 等判别字面量逐项断言。
+[public-api-names.spec-d.ts](public-api-names.spec-d.ts) 是类型测试：设计页五章的每个名字都能从包入口导入，并对 `Next`、`Failure`、`Subject`、`ExecutionState`、`FinishResult`、`ExecutionControl`、`AgentEventBody`、`CallerCommit`、`AgentAccessDecision` 等判别字面量逐项断言，对 `AgentJournal` 逐一断言它可赋给五组端口接口，并断言各组端口的成员集合。
+
+[export-set.spec.ts](export-set.spec.ts) 把包入口的运行时导出排序后与写死的清单比较，并断言包内共享的辅助函数不在入口。[dependency-direction.spec.ts](dependency-direction.spec.ts) 沿构建后 `dist/index.js` 与 `dist/index.d.ts` 的导入图断言不含 Cordis、`agent`、`agent-host-local`、`agent-cordis-contract`，并断言 `package.json` 不声明它们；导入图的遍历在 [module-graph.ts](module-graph.ts)，它读文本而不用编译器接口。
 
 [body-contract.spec.ts](body-contract.spec.ts) 检查 `agentBodyContract` 经注册表登记与取回，以及同一组夹具在 `judge` 与 `judgeAgentDefinition` 上接受与拒绝一致、引用与声明项的提取顺序。
 
