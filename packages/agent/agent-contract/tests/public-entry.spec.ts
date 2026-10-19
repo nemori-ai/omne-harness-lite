@@ -33,6 +33,34 @@ it('pins a stated version', async () => {
   })
 })
 
+it('returns a definition that is frozen at every level and shares no object with the input', async () => {
+  const input = {
+    ...legalDefinition,
+    version: 'v2',
+    references: [
+      { capability: { category: 'Tool', name: 'read' }, resident: true },
+      { capability: { category: 'Skill', name: 'review' } },
+    ],
+    attributes: [{ item: 'model' }],
+  }
+  const judged = await judgeAgentDefinition(input)
+  expect(judged.kind).toBe('accepted')
+  if (judged.kind !== 'accepted') return
+  const { value } = judged
+  const [first, second] = value.references
+  expect(Object.isFrozen(value)).toBe(true)
+  expect(Object.isFrozen(value.version)).toBe(true)
+  expect(Object.isFrozen(value.references)).toBe(true)
+  expect(Object.isFrozen(first)).toBe(true)
+  expect(Object.isFrozen(first?.capability)).toBe(true)
+  expect(Object.isFrozen(second)).toBe(true)
+  expect(Object.isFrozen(second?.capability)).toBe(true)
+  expect(Object.isFrozen(value.attributes)).toBe(true)
+  expect(Object.isFrozen(value.attributes[0])).toBe(true)
+  expect(first?.capability).not.toBe(input.references[0]?.capability)
+  expect(value.attributes[0]).not.toBe(input.attributes[0])
+})
+
 it('refuses a missing references slot, a null slot, a duplicate capability, and an unknown attribute', async () => {
   const { references, ...missing } = legalDefinition
   void references
@@ -686,6 +714,7 @@ it('keeps an omitted optional field omitted and returns frozen data that shares 
   if (judged.kind !== 'accepted') return
   const [first] = judged.value
   expect(first).toEqual(input)
+  expect(Object.isFrozen(judged.value)).toBe(true)
   expect(Object.isFrozen(first)).toBe(true)
   expect(Object.isFrozen(first?.implementation)).toBe(true)
   expect(Object.isFrozen(first?.needs)).toBe(true)

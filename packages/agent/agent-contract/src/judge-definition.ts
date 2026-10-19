@@ -6,6 +6,7 @@ import {
   type AgentDefinition,
   type AssetReference,
   type AttributeItem,
+  type VersionChoice,
 } from './definition.ts'
 import { refused, type Judgment, type RefusalReason } from './judgment.ts'
 
@@ -31,9 +32,14 @@ const definition = z.strictObject({
 
 type Parsed = z.output<typeof definition>
 
-function stripResident(reference: Parsed['references'][number]): AssetReference {
-  if (reference.resident === undefined) return { capability: reference.capability }
-  return { capability: reference.capability, resident: reference.resident }
+/** A frozen copy of one reference. An absent `resident` stays absent. */
+function copyReference(reference: Parsed['references'][number]): AssetReference {
+  const capability = Object.freeze({
+    category: reference.capability.category,
+    name: reference.capability.name,
+  })
+  if (reference.resident === undefined) return Object.freeze({ capability })
+  return Object.freeze({ capability, resident: reference.resident })
 }
 
 function readData(value: unknown, path: readonly (string | number)[]): unknown {
@@ -75,19 +81,23 @@ function acceptDefinition(parsed: Parsed): Judgment<AgentDefinition> {
     if (items.has(declaration.item)) return refused('malformed')
     items.add(declaration.item)
   }
-  const version =
+  const version: VersionChoice = Object.freeze(
     parsed.version === undefined
-      ? ({ kind: 'then-legal-winner' } as const)
-      : ({ kind: 'pinned', version: parsed.version } as const)
+      ? { kind: 'then-legal-winner' }
+      : { kind: 'pinned', version: parsed.version },
+  )
+  // The accepted value is frozen at every level and shares no object with the input.
   return {
     kind: 'accepted',
-    value: {
+    value: Object.freeze({
       category: 'AgentDefinition',
       name: parsed.name,
       version,
-      references: parsed.references.map(stripResident),
-      attributes: parsed.attributes.map(declaration => ({ item: declaration.item })),
-    },
+      references: Object.freeze(parsed.references.map(copyReference)),
+      attributes: Object.freeze(
+        parsed.attributes.map(declaration => Object.freeze({ item: declaration.item })),
+      ),
+    }),
   }
 }
 

@@ -240,7 +240,7 @@ export async function judgeLoopExtensions(
       if (judged.kind === 'refused') return { kind: 'refused', reason: judged.reason, index }
       accepted.push(judged.value)
     }
-    return { kind: 'accepted', value: accepted }
+    return { kind: 'accepted', value: Object.freeze(accepted) }
   } finally {
     closeCheckDomain(domain)
   }
