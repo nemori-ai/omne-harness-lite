@@ -3,11 +3,12 @@
 // 只在量读数的线程里加载（它带进 TypeScript 解析器），主线程不碰。
 import { baselines, readTaskContext } from '../core/task-context.ts'
 import type { MetricsConfig } from '../metrics/config.ts'
-import { changedFiles, git } from '../core/git.ts'
+import { changedFiles } from '../core/git.ts'
 import { memberOf } from '../deps/graph.ts'
 import { isMeasuredSource } from '../metrics/report.ts'
 import { collectMemberSources } from '../metrics/sources.ts'
 import type { LoopConfig } from './config.ts'
+import { nearestBase } from './hook-base.ts'
 import type { HookReadings } from './hook.ts'
 import { noData } from './reading.ts'
 import { readArchitectureSensors } from './sensors/conformance.ts'
@@ -29,8 +30,8 @@ export function isProductSource(path: string): boolean {
 }
 
 /**
- * 这次变更碰了产品源码时，返回量读数用的基线：与主线的合并点；求不出（没有这个分支、历史不相交）就是 HEAD，
- * 只看未提交的。没碰 → undefined。只跑 git。
+ * 这次变更碰了产品源码时，返回量读数用的基线：有 task context 用它的 taskBase；否则是主线与活跃轨道里离 HEAD
+ * 最近的合并点（见 hook-base.ts），一个也求不出就是 HEAD，只看未提交的。没碰 → undefined。只跑 git。
  */
 export function touchedBase(root: string, primaryBranch: string): string | undefined {
   const selected = baselines(root)
@@ -39,12 +40,7 @@ export function touchedBase(root: string, primaryBranch: string): string | undef
     if (base === undefined) throw new Error('Missing hook baseline in the task context')
     return base
   }
-  let base = 'HEAD'
-  try {
-    base = git(root, ['merge-base', primaryBranch, 'HEAD'])
-  } catch {
-    // 求不出合并点：只看未提交的改动。
-  }
+  const base = nearestBase(root, primaryBranch)
   const changed = changedFiles(root, base)
   if (changed.some(path => isProductSource(path) || CONSTRAINT_PATHS.some(input => input === path)))
     return base
