@@ -57,6 +57,15 @@ export {
   judgeAuthority,
   judgeEvidence,
 } from './identity.ts'
+export type * from './evaluation.ts'
 export type * from './identity.ts'
-export type { CardAnswer, Subject } from './passages.ts'
+export type * from './passages.ts'
+export type * from './request.ts'
+export type {
+  ControlRecord,
+  ControlStage,
+  ControlStageFact,
+  ExecutionControl,
+  ResultResponsibility,
+} from './execution.ts'
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts'
