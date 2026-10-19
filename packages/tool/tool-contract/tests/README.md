@@ -4,7 +4,7 @@
 
 | 文件 | 检查的行为 |
 | --- | --- |
-| [public-entry.spec.ts](public-entry.spec.ts) | 根入口的值导出清单，根入口不导出也不提及作者读取函数与槽类型，`./binding` 入口只导出这两个读取函数。`./testing` 入口只导出套件、夹具、替身和不适用判别，名字都不在根入口，每个替身声明 `durability: 'none'`。根入口、`./binding` 入口与 `./testing` 入口的源码、产物和声明导入图都不含 Cordis、任何 `./cordis` 入口或其他 Tool 包。清单不依赖 Cordis 与其他 Tool 包；完整生产安装闭包不含 Cordis |
+| [public-entry.spec.ts](public-entry.spec.ts) | 根入口的值导出清单，根入口不导出也不提及作者读取函数与槽类型，`./binding` 入口只导出这两个读取函数、`readOwnSlot` 及其类型。`./testing` 入口只导出套件、夹具、替身和不适用判别，名字都不在根入口，每个替身声明 `durability: 'none'`。根入口、`./binding` 入口与 `./testing` 入口的源码、产物和声明导入图都不含 Cordis、任何 `./cordis` 入口或其他 Tool 包。清单不依赖 Cordis 与其他 Tool 包；完整生产安装闭包不含 Cordis |
 | [testing-primitives.spec.ts](testing-primitives.spec.ts) | `./testing` 的读取原语按提供者作者的用法检查：`isProgress` 把 `null`、`{ failure: null }` 等不是答复的值读作终局而不抛异常；`finalAnswer` 遇到进度而没有完成手柄时是断言失败，夹具缺手柄时报告的不适用名是夹具成员名，进度期间与手柄之后的终局按 `view` 比较、返回答复本身；`completionOf` 按名字取成员并带参数调用；`crossTenantAnswers` 在答复任一层的值和键里（含 symbol 键、`Map`、`Set`、`Error`）找到识别值，短于 8 的识别文本只按整段相等查，外租户提交的文本是回显、只回显一部分的识别值仍被查到，结构识别值按深相等查、外租户提交过的不查，忽略空的识别值，数组下标不算文本，读自引用的答复不死循环 |
 | [identity.spec.ts](identity.spec.ts) | 八个品牌身份解码函数各自接受合法文本，并对非字符串、空串、超长和非法字符返回具名失败 |
 | [result-policy.spec.ts](result-policy.spec.ts) | 默认结果政策的采用摘要可由规则集复算，规则集不可原地修改。判定只接受文本与共享引用块，拒绝原因取自规则集，整结果判定也检查卸载摘要与附件 |
@@ -36,11 +36,11 @@
 | [generated-provider.ts](generated-provider.ts) | 按回答表生成的端口边界提供者（`maskedPort`）：遮住新操作每个方法的首答，用表中的每种进度与丢失回复，并在夹具的完成手柄 resolve 时揭开。它只包装端口方法，不碰替身的控制手柄。不是测试文件 |
 | [testing-source.spec.ts](testing-source.spec.ts) | 套件源码的规则：`src/testing-*.ts` 没有 `askUntil`、轮询和 `QUIET_MS` 常量，唯一的定时等待是夹具给的期限（`within` 的 `milliseconds`、`quietMs`、`waitMs`、`readDeadlineMs`）；构造合法提供者的文件（`*-legal.ts`、`generated-provider.ts`）以任何写法都不点名替身的 `controls`、`hold`、`holdStop`、`excludeDeferred`、`rejectNext`、`failNext`、`dropNextAnswer`、`blindInspection`，只定义自己的同名手柄；各 spec 的合法表只引用合法文件里的提供者，各 spec 不用替身的 `controls`。规则自己的用例（“the source rule of the legal providers”一组）证明它拒绝已知的绕过写法：解构、改名解构、别名、可选调用、字符串下标、装着名字的字符串、模板下标、取替身的 `controls`、从非合法测试模块导入的辅助函数或名字，以及合法表里写在 spec 中的提供者、spec 自己的函数返回的行与表 |
 | [tool-values.ts](tool-values.ts) | 契约函数测试用的合法值构造器，不是测试文件 |
-| [public-api-names.spec-d.ts](public-api-names.spec-d.ts) | 已接受契约的 166 个类型名都能从根入口导入。名单从迁移前的 public-api 机械生成，拆包时 `ToolConfiguration` 与 `ToolDependencies` 移到 `@omne-harness/tool`（[本增量未交付](../../README.md#未交付标注)）。已实现的契约函数也能从根入口导入，并符合已接受的签名；作者读取函数与槽类型从 `./binding` 入口导入 |
+| [public-api-names.spec-d.ts](public-api-names.spec-d.ts) | 已接受契约的 167 个类型名都能从根入口导入。名单从迁移前的 public-api 机械生成，拆包时 `ToolConfiguration` 与 `ToolDependencies` 移到 `@omne-harness/tool`（[本增量未交付](../../README.md#未交付标注)）。已实现的契约函数也能从根入口导入，并符合已接受的签名；作者读取函数与槽类型从 `./binding` 入口导入 |
 | [contract.spec-d.ts](contract.spec-d.ts) | 公开类型的负编译用例，例如品牌身份不能互换、后台收场不接受 `no-response`、Ask 没有 deadline |
 | [module-graph.ts](module-graph.ts) | 导入图遍历工具，读取静态导入、再导出、裸副作用导入和动态 `import()`。各 Tool 包各有一份同样的副本，因为测试不能跨包导入相对路径 |
 
-运行命令分快层 `OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-contract run test` 与慢层 `OMNE_TEST_TIER=slow pnpm --filter @omne-harness/tool-contract run test`。每条命令先构建，再运行本层的 vitest。`*.spec-d.ts` 的类型检查属于快层。`pnpm --filter @omne-harness/tool-contract typecheck` 单独检查全部测试源码。现有测试不覆盖独立执行、等待、控制、结果保管或恢复的实现；一致性套件的自证只用内存替身，不证明耐久。Cordis 定义的测试在 `tool-cordis-contract`。这些行为实现后须补齐验证，义务见 [verification](../verification/index.md)。
+运行命令分快层 `OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-contract run test` 与慢层 `OMNE_TEST_TIER=slow pnpm --filter @omne-harness/tool-contract run test`。每条命令先构建本包，再运行本层的 vitest；依赖成员要先构建（`pnpm --filter @omne-harness/tool-contract... run build`）。`*.spec-d.ts` 的类型检查属于快层。`pnpm --filter @omne-harness/tool-contract typecheck` 单独检查全部测试源码。现有测试不覆盖独立执行、等待、控制、结果保管或恢复的实现；一致性套件的自证只用内存替身，不证明耐久。Cordis 定义的测试在 `tool-cordis-contract`。这些行为实现后须补齐验证，义务见 [verification](../verification/index.md)。
 
 ## 一致性套件的自证
 

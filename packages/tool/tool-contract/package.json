@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft tool package; complete the accepted public contract before delivery",
+  "description": "Tool contract: public types, contract functions, default policies and port conformance suites",
   "engines": {
     "node": ">=24.18.0 <25"
   },
