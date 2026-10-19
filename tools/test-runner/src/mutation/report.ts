@@ -26,6 +26,10 @@ export interface ReportMutant {
   readonly status: MutantStatus
   readonly static?: boolean
   readonly location: { readonly start: Position; readonly end: Position }
+  /** 为这个变异体实际跑完的用例数。 */
+  readonly testsCompleted?: number
+  /** 初跑时覆盖到它的用例。 */
+  readonly coveredBy?: readonly string[]
 }
 
 export interface MutationReport {
@@ -53,6 +57,11 @@ export interface MemberMutation {
   readonly score: number | null
   readonly survived: readonly Finding[]
   readonly noCoverage: readonly Finding[]
+  /**
+   * 报成存活、有用例覆盖、却一条用例都没跑完的变异体：是运行器没跑测试，不是测试没测出来（#405）。
+   * 不计入各状态与分数，入口把它判为运行出错。
+   */
+  readonly notRun: readonly Finding[]
   /** 报告里有、却不在要变异的行上的变异体（跨行的表达式等）；不计入上面各项。 */
   readonly outside: number
 }
@@ -86,6 +95,7 @@ export function summarizeMember(target: MutationTarget, report: MutationReport):
   const counts = zeroCounts()
   const survived: Finding[] = []
   const noCoverage: Finding[] = []
+  const notRun: Finding[] = []
   let outside = 0
   for (const [local, file] of Object.entries(report.files)) {
     const path = `${target.member.path}/${local}`
@@ -94,7 +104,11 @@ export function summarizeMember(target: MutationTarget, report: MutationReport):
         outside += 1
         continue
       }
-      counts[mutant.status] += 1
+      const unrun =
+        mutant.status === 'Survived' &&
+        mutant.testsCompleted === 0 &&
+        (mutant.coveredBy?.length ?? 0) > 0
+      if (!unrun) counts[mutant.status] += 1
       if (mutant.status !== 'Survived' && mutant.status !== 'NoCoverage') continue
       const finding = {
         file: path,
@@ -104,7 +118,7 @@ export function summarizeMember(target: MutationTarget, report: MutationReport):
         replacement: oneLine(mutant.replacement ?? ''),
         static: mutant.static === true,
       }
-      ;(mutant.status === 'Survived' ? survived : noCoverage).push(finding)
+      ;(unrun ? notRun : mutant.status === 'Survived' ? survived : noCoverage).push(finding)
     }
   }
   const byPlace = (a: Finding, b: Finding) => a.file.localeCompare(b.file) || a.line - b.line
@@ -116,6 +130,7 @@ export function summarizeMember(target: MutationTarget, report: MutationReport):
     score: scored === 0 ? null : Math.round((detected / scored) * 1000) / 10,
     survived: survived.sort(byPlace),
     noCoverage: noCoverage.sort(byPlace),
+    notRun: notRun.sort(byPlace),
     outside,
   }
 }
@@ -136,5 +151,6 @@ export function memberLines(result: MemberMutation, detail: boolean): string[] {
   if (!detail) return lines
   for (const finding of result.survived) lines.push(`  存活 ${describeFinding(finding)}`)
   for (const finding of result.noCoverage) lines.push(`  无覆盖 ${describeFinding(finding)}`)
+  for (const finding of result.notRun) lines.push(`  没跑测试 ${describeFinding(finding)}`)
   return lines
 }

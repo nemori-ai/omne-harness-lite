@@ -192,7 +192,14 @@ async function run(request: MutationRequest): Promise<number> {
     }
     const result = summarizeMember(target, report)
     results.push(result)
-    console.log(`${label}，存活 ${result.counts.Survived}、无覆盖 ${result.counts.NoCoverage}`)
+    if (result.notRun.length > 0)
+      errors.push(
+        `${target.member.path}：${result.notRun.length} 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 ${ran.logPath}`,
+      )
+    console.log(
+      `${label}，存活 ${result.counts.Survived}、无覆盖 ${result.counts.NoCoverage}` +
+        (result.notRun.length > 0 ? `、没跑测试 ${result.notRun.length}` : ''),
+    )
   }
 
   const summary = [

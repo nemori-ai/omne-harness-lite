@@ -233,6 +233,33 @@ describe('报告汇总', () => {
       '  无覆盖 packages/core/alpha/src/a.ts:2 ArrowFunction（static） `(n: number) => n > 0 && n < 10` → `() => undefined`',
     ])
   })
+
+  it('报成存活、有覆盖却一条用例都没跑完的另列为没跑测试，不计入存活与分数（#405）', () => {
+    const survivor = (id: string, testsCompleted: number, coveredBy: string[]) => ({
+      id,
+      mutatorName: 'EqualityOperator',
+      replacement: 'n >= 0',
+      status: 'Survived' as const,
+      location: at(3, 3, 3, 8),
+      testsCompleted,
+      coveredBy,
+    })
+    const result = summarizeMember(TARGET, {
+      files: {
+        'src/a.ts': {
+          source,
+          mutants: [survivor('1', 0, ['t1']), survivor('2', 2, ['t1', 't2']), survivor('3', 0, [])],
+        },
+      },
+    })
+    expect(result.counts['Survived']).toBe(2)
+    expect(result.score).toBe(0)
+    expect(result.survived).toHaveLength(2)
+    expect(result.notRun).toEqual([expect.objectContaining({ line: 3, original: 'n > 0' })])
+    expect(memberLines(result, true)).toContain(
+      '  没跑测试 packages/core/alpha/src/a.ts:3 EqualityOperator `n > 0` → `n >= 0`',
+    )
+  })
 })
 
 describe('sandbox 与配置', () => {
@@ -521,5 +548,28 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       '?? out-weak/',
       '?? packages/core/sign/tests/public.spec.ts',
     ])
+  })
+
+  it('只由参数化用例守着的改动行照样被杀：按用例名过滤时不因快层的 preParse 整份滤掉（#405）', () => {
+    const { root, memberDir } = fixture()
+    writeFileSync(
+      join(memberDir, 'src/sign.ts'),
+      'export const zero = 0\nexport function isPositive(n: number): boolean {\n  return n > 0\n}\n',
+    )
+    // 用例名由 it.each 生成，preParse 静态匹配不到；Stryker 逐个变异体按用例名过滤。
+    writeFileSync(
+      join(memberDir, 'tests/sign.spec.ts'),
+      [
+        "import { isPositive, zero } from '../src/sign.ts'",
+        "test('zero', () => { expect(zero).toBe(0) })",
+        "it.each([[1, true], [0, false], [-1, false]])('isPositive(%i) is %s', (n, want) => { expect(isPositive(n)).toBe(want) })",
+      ].join('\n'),
+    )
+    const ran = mutate(root, join(root, 'out'))
+    expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(0)
+    expect(ran.summary?.errors).toEqual([])
+    const [member] = ran.summary?.members ?? []
+    expect(member?.counts['Survived']).toBe(0)
+    expect(member?.counts['Killed']).toBeGreaterThan(0)
   })
 })
