@@ -18,7 +18,7 @@
 | [model-probe.mjs](model-probe.mjs) | 模型适配探针入口；公开目录检查与显式付费实验，预算、凭据和结果要求见 [model-probe](../tools/model-probe/README.md) |
 
 安装 Bash、Make、uv、Node/npm/pnpm 并按[验证规范](../docs/verification.md)准备环境后，
-在根执行 `make check` 或 `./scripts/check.sh`。脚本也可通过绝对路径从其他目录调用。
+在根执行 `pnpm run check`、`make check` 或 `./scripts/check.sh`，三者等价。脚本也可通过绝对路径从其他目录调用。
 需要比较冻结基线时使用 `make check BASELINE=<git-ref>` 或
 `BASELINE=<git-ref> ./scripts/check.sh`；要全量用 `make check FULL=1` 或 `FULL=1 ./scripts/check.sh`；脚本不接受位置参数。
 基线在脚本开头解析一次（没给就用 `origin/main`，本地没有这个引用就用 `main`）并导出为 `BASELINE`，
@@ -39,9 +39,9 @@
    耗时记录写进主检出的 `tmp/acceptance-ledger/`，是下一步验收耗时传感器的读数来源。计划里一个带验收的成员都没有时，为当前提交记一份标着「本次影响面不含带验收的成员」的账本，传感器认它。
    现在只有 `apps/cli` 一份，约 10～16 秒。
 
-判全量时（全局文件改了、有规则不认得的路径、`FULL=1`）全部步骤对全部成员跑，构建与类型检查用根 `pnpm run build`／`typecheck`。
+判全量时（全局文件改了、有规则不认得的路径、`FULL=1`）计划选中全部成员，全部步骤对全部成员跑。构建与类型检查仍经 turbo 执行。
 合并后没有自动补跑，也没有定时任务：全量由负责人不定时让一个会话手动跑 `make check FULL=1`。
-根 `pnpm run check`（`make product-check`）仍保留为单独的产品检查：全量构建与类型检查，测试一步同样跟计划。
+根 `pnpm run check` 与 `make check` 等价，都运行本脚本。原来单独的产品检查链与 `make product-check` 已删除。
 
 最后一步是 `make loop-status STRICT=1 BASE=<基线> OUT=tmp/loop-status-check`：方向与环、验收锁、
 开着的传感器都有数据（验收被计划跳过时认上一步的记录），破一个就失败（见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md#回路状态)）。
@@ -69,7 +69,7 @@
 实现在 [with-test-slot.mjs](with-test-slot.mjs)，只用 Node 标准库，macOS、Linux 与 Windows 通用；
 `with-test-slot.sh` 只转发给它。不经 shell 时可直接运行 `node scripts/with-test-slot.mjs <命令> [参数…]`。
 
-经它执行的入口：`make check`（整套占一个名额）、根 `pnpm run test` 与 `pnpm run check` 的测试一步、
+经它执行的入口：`make check` 与根 `pnpm run check`（整套占一个名额）、根 `pnpm run test` 与 `pnpm run test:gate`、
 `make test-affected`、`make test-tier`、`make test-triage`、`make mutation`、`make metrics COVERAGE=1`。已经持有名额的进程再调用它
 （例如 `make check` 里嵌着的测试一步）直接放行，不重复排队。名额随持有它的进程退出而释放，
 进程被杀也不会留下卡死的锁。

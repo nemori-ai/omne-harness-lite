@@ -98,14 +98,14 @@ else {
 
 ## 验证
 
-在本目录运行测试：
+在仓库根运行测试：
 
 ```sh
-pnpm test
-pnpm run typecheck
+pnpm turbo run test --filter=@omne-harness/cli
+pnpm turbo run typecheck --filter=@omne-harness/cli
 ```
 
-两个脚本都先构建。测试使用构建后的 `dist`，不使用 `src`。
+测试任务先构建本包及其依赖，类型检查不先构建。测试使用构建后的 `dist`，不使用 `src`。本目录里的 `pnpm test` 不构建。
 
 适用的测试种类按[包级测试责任](../../docs/verification.md#包级测试责任与边界)划分：
 

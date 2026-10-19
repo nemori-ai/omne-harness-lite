@@ -98,14 +98,14 @@ The process does not open a network connection, a database, or a state directory
 
 ## Verification
 
-Run the tests from this directory:
+Run the tests from the repository root:
 
 ```sh
-pnpm test
-pnpm run typecheck
+pnpm turbo run test --filter=@omne-harness/cli
+pnpm turbo run typecheck --filter=@omne-harness/cli
 ```
 
-Both scripts build first. The tests use the built `dist`, never `src`.
+The test task builds this package and its dependencies first. The typecheck task does not build first. The tests use the built `dist`, never `src`. `pnpm test` in this directory does not build.
 
 Applicable test kinds follow [package test responsibilities](../../docs/verification.md#包级测试责任与边界):
 

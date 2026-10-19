@@ -31,7 +31,7 @@ afterEach(() => {
 
 describe('package-cli.sh', () => {
   it('archives a fresh dist without touching the member dist, and refuses to overwrite', () => {
-    // The member's test script builds first, so dist exists here.
+    // The turbo test task depends on build, so dist exists here.
     expect(existsSync(memberDist)).toBe(true)
     writeFileSync(sentinel, '')
     const before = identities()

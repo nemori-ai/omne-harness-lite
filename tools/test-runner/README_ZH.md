@@ -15,7 +15,7 @@ make test-affected BASE=<基线提交或分支>   # 只构建并测试受这次�
 make test-affected BASE=<基线> PLAN=1     # 只列受影响范围与层，不构建也不运行
 make test-tier TIER=slow                   # 先构建，再跑全部成员的某一层
 make test-triage RUN=<运行目录>            # 把那次运行里的失败逐条单独重跑并归类（测试或验收的运行都行）
-pnpm run test                              # 全量两层：先构建，再跑全部成员
+pnpm run test                              # 全量两层：turbo 先构建，再跑全部成员（同 make test-tier TIER=all）
 pnpm run test:gate                         # make check 的测试一步：按影响面计划跑被选中成员的快层再慢层（基线 BASELINE，缺省 main；FULL=1 全部）；单独运行时由 turbo 先构建
 make acceptance                            # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；NO_BUILD=1 不构建
 ```
@@ -74,7 +74,7 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 按 #390 的 D6 七条暂行规则核对——`extends` 只能是 `["//"]`，只覆盖根已定义的任务，`dependsOn` 与 `env` 只增不减，
 测试任务不缓存，`outputs`、`inputs` 不指到成员目录外，不设 `persistent`。`passThroughEnv` 只放不影响结果的变量，这一条机器判不了，留给评审。
 计划与不经计划的测试运行（`run --all`）都做这项核对。
-turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基线显式传入、`OMNE_ADMISSION=1` 时只写不读缓存、关闭遥测与常驻进程）在 `src/testing/turbo.ts`。
+turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基线显式传入、`OMNE_ADMISSION=1` 时只写不读缓存、关闭遥测与升级提示）在 `src/testing/turbo.ts`。
 
 `cli.ts replay [--ref main] [--count 40]` 对一条分支最近的 first-parent 提交逐个以父提交为基线算计划（成员清单取那个提交上的、规则取现在的，只算不跑；turbo 的包依赖图取当前工作树的，是一个近似），
 改规则前后用它看「判全量的有几个、该不该全量」。

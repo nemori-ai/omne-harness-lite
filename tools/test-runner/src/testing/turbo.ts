@@ -32,13 +32,12 @@ export function admissionRequested(env: Readonly<Record<string, string | undefin
   throw new Error(`环境变量 OMNE_ADMISSION 只能是 1 或不设，现在是 ${value}`)
 }
 
-/** 不上报遥测、不起常驻进程、不提示升级；根配置固定为运行检查器仓库的那份。 */
+/** 不上报遥测、不提示升级；根配置固定为运行检查器仓库的那份。 */
 export function turboEnv(extra: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
   return {
     ...process.env,
     TURBO_ROOT_TURBO_JSON: TURBO_CONFIG,
     TURBO_TELEMETRY_DISABLED: '1',
-    TURBO_DAEMON: 'false',
     TURBO_NO_UPDATE_NOTIFIER: '1',
     ...extra,
   }
