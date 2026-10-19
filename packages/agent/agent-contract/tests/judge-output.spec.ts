@@ -530,6 +530,86 @@ describe('rewrite', () => {
   }
 })
 
+describe('the output limits', () => {
+  function nested(levels: number): unknown {
+    let value: unknown = 'leaf'
+    for (let level = 0; level < levels; level += 1) value = { inner: value }
+    return value
+  }
+
+  it('accepts a rewrite of a model input with 100 messages of about 200 characters', () => {
+    const messages = Array.from({ length: 100 }, (_, index) => ({
+      ...message,
+      id: `msg_${String(index).padStart(22, 'a')}`,
+      blocks: [{ kind: 'text', text: 'x'.repeat(200) }],
+    }))
+    const withMessages = (list: readonly unknown[]): Record<string, unknown> => {
+      const subject = structuredClone(SUBJECTS['before_model_call/main'])
+      ;(subject.preparation as { input: Record<string, unknown> }).input.messages = list
+      return subject
+    }
+    const rewritten = [
+      { ...messages[0], blocks: [{ kind: 'text', text: 'y'.repeat(200) }] },
+      ...messages.slice(1),
+    ]
+    const judged = judgeExtensionOutput(
+      inputFor(
+        'before_model_call/main',
+        'rewrite',
+        { kind: 'rewrite', subject: withMessages(rewritten) },
+        { subject: withMessages(messages) },
+      ),
+    )
+    expect(judged).toEqual({
+      kind: 'accepted',
+      value: { kind: 'rewrite', subject: withMessages(rewritten) },
+    })
+  })
+
+  it('accepts a rewrite of effectiveArguments of 20 000 characters', () => {
+    const subject = { ...SUBJECTS.before_action, effectiveArguments: 'z'.repeat(20_000) }
+    expect(
+      judgeExtensionOutput(inputFor('before_action', 'rewrite', { kind: 'rewrite', subject })),
+    ).toMatchObject({ kind: 'accepted', value: { kind: 'rewrite', subject } })
+  })
+
+  it('accepts nesting up to 64 levels and refuses a subject nested deeper', () => {
+    const shallow = { ...SUBJECTS.before_action, definition: nested(60) }
+    expect(
+      judgeExtensionOutput(
+        inputFor(
+          'before_action',
+          'rewrite',
+          { kind: 'rewrite', subject: shallow },
+          { subject: shallow },
+        ),
+      ).kind,
+    ).toBe('accepted')
+    const deep = { ...SUBJECTS.before_action, definition: nested(70) }
+    expect(
+      reasonOf(
+        judgeExtensionOutput(
+          inputFor(
+            'before_action',
+            'rewrite',
+            { kind: 'rewrite', subject: deep },
+            { subject: deep },
+          ),
+        ),
+      ),
+    ).toBe('malformed')
+  })
+
+  it('refuses a subject that contains a function', () => {
+    const subject = { ...SUBJECTS.before_action, run: () => undefined }
+    expect(
+      reasonOf(
+        judgeExtensionOutput(inputFor('before_action', 'rewrite', { kind: 'rewrite', subject })),
+      ),
+    ).toBe('malformed')
+  })
+})
+
 describe('the seven steps in order', () => {
   const observed = { kind: 'observed' }
 

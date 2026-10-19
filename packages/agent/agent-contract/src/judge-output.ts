@@ -1,4 +1,4 @@
-import { judgeJsonValue, type JsonValue } from '@omne-harness/json-text'
+import { judgeJsonValue, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
 import type { Message } from '@omne-harness/message'
 import type * as M from '@omne-harness/model-contract'
 import { z } from 'zod'
@@ -189,6 +189,20 @@ function isSupplier(value: Readonly<Record<string, unknown>>): value is M.Suppli
   return typeof value === 'object'
 }
 
+/**
+ * The limits of one output. A rewrite returns a whole subject, such as a model request with its
+ * message history, so they are far wider than the limits of a declaration. They still bound depth,
+ * so the copy of an output cannot exhaust the stack.
+ */
+const OUTPUT_LIMITS: JsonLimits = {
+  maxDepth: 64,
+  maxMembers: 10_000,
+  maxItems: 1_000_000,
+  maxStringLength: 10_000_000,
+  maxNumberLength: 100,
+  maxBytes: 50_000_000,
+}
+
 const text = z.string().min(1)
 const data = z.record(z.string(), z.unknown())
 const jsonValue = z.custom<JsonValue>(value => 'ok' in judgeJsonValue(value))
@@ -245,7 +259,7 @@ type Parsed = z.output<typeof outputSchema>
 
 /** Step 3: the output is plain data of one of the eight shapes. */
 function parseOutput(value: unknown): Parsed | undefined {
-  const copied = copyPlain(value)
+  const copied = copyPlain(value, OUTPUT_LIMITS)
   if (!copied.ok) return undefined
   const parsed = outputSchema.safeParse(copied.value)
   return parsed.success ? parsed.data : undefined
