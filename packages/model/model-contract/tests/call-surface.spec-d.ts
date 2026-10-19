@@ -182,6 +182,7 @@ it('ResultPage keeps read-only sealed or partial parts with the actual settlemen
     next: null,
     settlement,
   }
+  expectTypeOf(page.parts).toEqualTypeOf<readonly ResultPart[]>()
   expectTypeOf(incompleteCall).not.toExtend<
     Extract<ResultPage['parts'][number], { kind: 'sealed' }>['block']
   >()

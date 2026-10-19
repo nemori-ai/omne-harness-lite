@@ -2,11 +2,22 @@ import { judgePart } from '@omne-harness/message'
 import type { ResultPart, ResultPage, ResultTrim, Settlement } from '../index.ts'
 import { ScriptedModelError } from './error.ts'
 
+function denseArray(value: unknown): boolean {
+  if (!Array.isArray(value)) return false
+  for (let index = 0; index < value.length; index += 1)
+    if (!Object.hasOwn(value, index)) return false
+  return true
+}
+
 export function canonical(value: unknown): string {
   if (value === null || typeof value === 'string' || typeof value === 'boolean')
     return JSON.stringify(value)
   if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+  if (Array.isArray(value)) {
+    if (!denseArray(value))
+      throw new ScriptedModelError('invalid-script', 'result arrays must be dense')
+    return `[${value.map(canonical).join(',')}]`
+  }
   if (typeof value === 'object')
     return `{${Object.keys(value)
       .sort()
@@ -52,10 +63,10 @@ export function resultPage(
   }
 }
 export function validateParts(parts: readonly ResultPart[]): void {
-  if (!Array.isArray(parts))
-    throw new ScriptedModelError('invalid-script', 'parts must be an array')
+  if (!denseArray(parts))
+    throw new ScriptedModelError('invalid-script', 'parts must be a dense array')
   for (const part of parts) {
-    if (!part || typeof part !== 'object' || !Array.isArray(part.trims))
+    if (!part || typeof part !== 'object' || !denseArray(part.trims))
       throw new ScriptedModelError('invalid-script', 'invalid result part')
     const keys =
       part.kind === 'sealed' ? ['kind', 'block', 'trims'] : ['kind', 'content', 'value', 'trims']

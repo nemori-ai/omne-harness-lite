@@ -1,6 +1,8 @@
 import { expect, it } from 'vitest'
+import { ScriptedModelError } from '@omne-harness/model-contract/testing'
+import { canonical } from '../src/testing/result-pages.ts'
 import { judgePart } from '@omne-harness/message'
-import type { ResultPart, ResultPage, Termination } from '@omne-harness/model-contract'
+import type { ResultPart, ResultPage, ResultTrim, Termination } from '@omne-harness/model-contract'
 import {
   access,
   admission,
@@ -204,4 +206,77 @@ it('refuses malformed partial discriminants and undeclared result fields before 
     await f.provider.runtime.calls.inspect({ ...access('a'), admission: operation('admit-a') }),
   )
   expect(found.kind === 'found' && found.state.phase).toBe('accepted')
+})
+
+it('rejects sparse parts and trims atomically and then delivers the original real trims', async () => {
+  const f = await setup()
+  const trims: [ResultTrim, ResultTrim] = [
+    { removed: '1', reason: 'first' },
+    { removed: '2', reason: 'second' },
+  ]
+  const parts: [ResultPart, ResultPart] = [
+    { kind: 'partial', content: 'text', value: 'actual', trims },
+    { kind: 'sealed', block: textBlock('sealed', 'complete'), trims },
+  ]
+  const before = await f.provider.runtime.calls.inspect({
+    ...access('a'),
+    admission: operation('admit-a'),
+  })
+  for (const middle of [false, true]) {
+    function holes<T>(value: T): T[] {
+      const values = [value]
+      if (middle) {
+        values.length = 3
+        values[2] = value
+      } else Reflect.deleteProperty(values, '0')
+      return values
+    }
+    const invalidParts = [
+      holes(parts[0]),
+      ...parts.map(part => [{ ...part, trims: holes(trims[0]) }]),
+    ]
+    for (const invalid of invalidParts) {
+      expect(() => f.settle(invalid, 1024)).toThrow(ScriptedModelError)
+      try {
+        f.settle(invalid, 1024)
+      } catch (error) {
+        expect(error).toMatchObject({ reason: 'invalid-script' })
+      }
+      expect(
+        await f.provider.runtime.calls.inspect({ ...access('a'), admission: operation('admit-a') }),
+      ).toEqual(before)
+      expect(
+        await f.provider.runtime.consumption.beginRead({
+          ...access('a'),
+          operation: operation('read'),
+          result: version('a'),
+        }),
+      ).toMatchObject({ failure: { kind: 'not-settled' } })
+    }
+  }
+  f.settle(parts, 100000)
+  trims.reverse()
+  expect((await f.read()).page.parts).toEqual(
+    parts.map(part => ({
+      ...part,
+      trims: [
+        { removed: '1', reason: 'first' },
+        { removed: '2', reason: 'second' },
+      ],
+    })),
+  )
+})
+
+it('canonical result encoding refuses holes without changing dense array bytes', () => {
+  const single: number[] = []
+  single.length = 1
+  const middle = [1, 2, 3]
+  Reflect.deleteProperty(middle, '1')
+  for (const value of [single, middle, { nested: [single] }])
+    expect(() => canonical(value)).toThrow(
+      expect.objectContaining({ name: 'ScriptedModelError', reason: 'invalid-script' }),
+    )
+  expect(canonical([])).toBe('[]')
+  expect(canonical([null])).toBe('[null]')
+  expect(canonical([{ z: '界\ud800', a: [true, 'x'] }])).toBe('[{"a":[true,"x"],"z":"界\\ud800"}]')
 })

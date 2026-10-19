@@ -25,7 +25,14 @@ export function canonical(value: unknown): string {
   if (value === null || typeof value === 'string' || typeof value === 'boolean')
     return JSON.stringify(value)
   if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+  if (Array.isArray(value)) {
+    const entries: string[] = []
+    for (let index = 0; index < value.length; index += 1) {
+      if (!Object.hasOwn(value, index)) throw new TypeError('Model arrays must be dense')
+      entries.push(canonical(value[index]))
+    }
+    return `[${entries.join(',')}]`
+  }
   if (typeof value === 'object' && value !== null) {
     return `{${Object.keys(value)
       .sort()

@@ -10,8 +10,11 @@ import {
 } from '@omne-harness/model-contract'
 import { decimal, digest, invalid } from './value.ts'
 
-function array(value: unknown): boolean {
-  return Array.isArray(value)
+function denseArray(value: unknown): boolean {
+  if (!Array.isArray(value)) return false
+  for (let index = 0; index < value.length; index += 1)
+    if (!Object.hasOwn(value, index)) return false
+  return true
 }
 function adoption(value: Adoption): boolean {
   return (
@@ -46,7 +49,7 @@ function validateParameter(parameter: Parameter): ModelFailure | null {
       break
     case 'stop':
       if (
-        !array(parameter.value) ||
+        !denseArray(parameter.value) ||
         parameter.value.length === 0 ||
         parameter.value.some(v => typeof v !== 'string' || !v) ||
         new Set(parameter.value).size !== parameter.value.length
@@ -72,13 +75,13 @@ export function validateRequest(request: FixedModelRequest): ModelFailure | null
   if (
     !request ||
     typeof request !== 'object' ||
-    !array(request.suppliers) ||
+    !denseArray(request.suppliers) ||
     request.suppliers.length === 0 ||
-    !array(request.parameters) ||
-    !array(request.system) ||
-    !array(request.messages) ||
-    !array(request.tools) ||
-    !array(request.parameterAdoptions)
+    !denseArray(request.parameters) ||
+    !denseArray(request.system) ||
+    !denseArray(request.messages) ||
+    !denseArray(request.tools) ||
+    !denseArray(request.parameterAdoptions)
   )
     return invalid('request', 'shape')
   if (

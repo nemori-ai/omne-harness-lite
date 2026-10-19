@@ -473,6 +473,11 @@ it('retry shares the exact saved position, keeps pending separate from a decisio
         }
       }
     }
+    for (const request of sparseDemandRequests(demand.request)) {
+      const pending = f.dependencies.retry.decide({ ...demand, request })
+      expect(pending).toBeInstanceOf(Promise)
+      expect(await pending).toMatchObject({ failure: { kind: 'invalid' } })
+    }
     expect(
       await f.dependencies.retry.decide({
         ...demand,
@@ -801,6 +806,61 @@ it('returns send failures for illegal parameters in every request carrier withou
         })
       }
     }
+  }
+  expect(await f.dependencies.commands.loadRecovery(f.admit)).toEqual(before)
+  expect(f.controls.send.counts(f.demand)).toEqual({
+    prepare: 0,
+    materialize: 0,
+    start: 0,
+    closePrepared: 0,
+    closeMaterialized: 0,
+  })
+  const result = await f.dependencies.send.send(f.demand, new AbortController().signal)
+  expect(result.kind).toBe('started')
+  if (result.kind === 'started') await result.facts[Symbol.asyncIterator]().return?.()
+})
+
+function sparseDemandRequests(request: FixedModelRequest): FixedModelRequest[] {
+  function singleHole<T>(): T[] {
+    const values: T[] = []
+    values.length = 1
+    return values
+  }
+  function holes<T>(first: T): [T, ...T[]] {
+    const values: [T, ...T[]] = [first]
+    values.length = 3
+    values[2] = first
+    return values
+  }
+  const requests: FixedModelRequest[] = [
+    { ...request, suppliers: holes(request.suppliers[0]) },
+    { ...request, parameters: singleHole<Parameter>() },
+    { ...request, system: singleHole<FixedModelRequest['system'][number]>() },
+    { ...request, messages: singleHole<FixedModelRequest['messages'][number]>() },
+    { ...request, tools: singleHole<FixedModelRequest['tools'][number]>() },
+    {
+      ...request,
+      parameterAdoptions: singleHole<FixedModelRequest['parameterAdoptions'][number]>(),
+    },
+  ]
+  for (const location of ['parameters', 'applied', 'requested'] as const)
+    requests.push(invalidParameterRequest(request, location, { kind: 'stop', value: holes('END') }))
+  return requests
+}
+it('rejects sparse send demands without preparing, committing facts or starting transport', async () => {
+  const f = await prepared()
+  const before = await f.dependencies.commands.loadRecovery(f.admit)
+  for (const request of sparseDemandRequests(f.demand.request)) {
+    const demand = { ...f.demand, request }
+    f.denied.add('send')
+    expect(await f.dependencies.send.send(demand, new AbortController().signal)).toMatchObject({
+      kind: 'not-started',
+      failure: { kind: 'denied' },
+    })
+    f.denied.delete('send')
+    const pending = f.dependencies.send.send(demand, new AbortController().signal)
+    expect(pending).toBeInstanceOf(Promise)
+    expect(await pending).toMatchObject({ kind: 'not-started', failure: { kind: 'invalid' } })
   }
   expect(await f.dependencies.commands.loadRecovery(f.admit)).toEqual(before)
   expect(f.controls.send.counts(f.demand)).toEqual({
