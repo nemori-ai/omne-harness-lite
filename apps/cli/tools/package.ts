@@ -1,30 +1,60 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, renameSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { isAbsolute, dirname, join, resolve } from 'node:path'
+import { basename, isAbsolute, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
 const cliDir = resolve(repoRoot, 'apps/cli')
 const target = process.argv[2]
 
+// The same steps as the member's `build` script, with the output moved to staging; change both together.
+// Source maps are left out: the archive carries no sources, and maps built outside `apps/cli/dist`
+// would record this machine's paths.
+function buildSteps(dist: string, archive: string, staging: string): [string, string[]][] {
+  return [
+    [
+      'pnpm',
+      [
+        '--filter',
+        '@omne-harness/cli',
+        'exec',
+        'tsc',
+        '-p',
+        'tsconfig.build.json',
+        '--outDir',
+        dist,
+        '--sourceMap',
+        'false',
+        '--declarationMap',
+        'false',
+      ],
+    ],
+    [process.execPath, [join(cliDir, 'scripts/write-identity.mjs'), dist]],
+    ['tar', ['-czf', archive, '-C', staging, 'dist']],
+  ]
+}
+
 /** Builds into a private staging directory, so `apps/cli/dist` is never removed or rewritten. */
-function packageInto(archive: string): number {
+function packageInto(target: string): number {
   const staging = mkdtempSync(join(tmpdir(), 'omne-cli-package-'))
-  const dist = join(staging, 'dist')
+  // The archive is written next to the target and renamed into place, so a failed run leaves no partial target.
+  const partial = join(dirname(target), `.${basename(target)}.partial`)
   try {
-    const steps: [string, string[]][] = [
-      ['pnpm', ['--filter', '@omne-harness/cli', 'exec', 'tsc', '-p', 'tsconfig.build.json', '--outDir', dist]],
-      [process.execPath, [join(cliDir, 'scripts/write-identity.mjs'), dist]],
-      ['tar', ['-czf', archive, '-C', staging, 'dist']],
-    ]
-    for (const [command, args] of steps) {
+    for (const [command, args] of buildSteps(join(staging, 'dist'), partial, staging)) {
       const result = spawnSync(command, args, { cwd: repoRoot, stdio: 'inherit' })
-      if ((result.status ?? 1) !== 0) return result.status ?? 1
+      const status = result.status ?? 1
+      if (result.error !== undefined || status !== 0) {
+        const reason = result.error?.message ?? result.signal ?? `exit code ${status}`
+        process.stderr.write(`omne-package: ${command} failed: ${reason}\n`)
+        return status
+      }
     }
+    renameSync(partial, target)
     return 0
   } finally {
     rmSync(staging, { recursive: true, force: true })
+    rmSync(partial, { force: true })
   }
 }
 
