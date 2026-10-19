@@ -82,12 +82,13 @@ const unsupported: Failure = { kind: 'unsupported' }
 
 /** Stands in for the publication authority of the host. It records every question. */
 class TestAuthority extends AgentPublicationAuthorityService<string> {
-  answer: 'allow' | 'throw' | 'garbage' | Failure = 'allow'
+  answer: 'allow' | 'throw' | 'garbage' | 'shapeless' | Failure = 'allow'
   readonly seen: { input: unknown; caller: CordisContext }[] = []
   readonly check: AgentPublicationAuthorityService<string>['check'] = (input, caller) => {
     this.seen.push({ input, caller })
     if (this.answer === 'throw') throw new Error('the authority broke')
     if (this.answer === 'garbage') return undefined as never
+    if (this.answer === 'shapeless') return {} as never
     return this.answer === 'allow' ? { ok: undefined } : { failure: this.answer }
   }
 }
@@ -160,7 +161,13 @@ async function start() {
     retired.push({ tenant, instance, generation, reason })
   })
   const logs: string[] = []
-  root.logger.exporter({ export: message => logs.push(JSON.stringify(message.args)) })
+  const records: { name: string; type: string; message: string }[] = []
+  root.logger.exporter({
+    export: message => {
+      logs.push(JSON.stringify(message.args))
+      records.push({ name: message.name, type: message.type, message: String(message.args[0]) })
+    },
+  })
   let count = 0
   return {
     root,
@@ -169,6 +176,7 @@ async function start() {
     directory,
     retired,
     logs,
+    records,
     /** Registers from a fresh contributor fiber. The unload of the fiber ends the registration. */
     async contribute(request: Input) {
       const call: { ctx?: CordisContext; answer?: Promise<Answer> } = {}
@@ -723,5 +731,421 @@ describe('resolve and connect', () => {
     expect(await world.directory.resolve(asker())).toMatchObject({ failure: { kind: 'denied' } })
     expect(await world.directory.connect(asker())).toMatchObject({ failure: { kind: 'denied' } })
     expect(host.service.asked).toEqual([])
+  })
+})
+
+// The tests below have literal names and no `it.each` on purpose. A run that picks tests by name
+// from the text of the file cannot see the names that a generated test gets, and these tests are
+// the ones that must keep the failure words and the guards of the directory.
+
+/** The human text of a failure: the diagnostic of `unavailable`, the reason of `invalid`. */
+function textOf(answer: unknown): string {
+  const failure = (answer as { failure?: { diagnostic?: unknown; reason?: unknown } }).failure
+  const text = failure?.diagnostic ?? failure?.reason
+  if (typeof text !== 'string') throw new Error(`the answer has no text: ${JSON.stringify(answer)}`)
+  return text
+}
+
+describe('register, given a request with one part that is not valid', () => {
+  it('answers invalid with a reason for each such part, and registers nothing', async () => {
+    const world = await start()
+    await world.host(instanceOf('instance_1'))
+    const cycle: Record<string, unknown> = {}
+    cycle['self'] = cycle
+    const bad: readonly (readonly [string, Input])[] = [
+      ['a tenant that the identity parser did not make', { ...input(), tenant: {} as TenantId }],
+      ['an empty instance', { ...input(), instance: '' as AgentInstanceId }],
+      ['an instance that is not a text', { ...input(), instance: 5 as never }],
+      ['an empty operation', { ...input(), operation: '' as AgentOperationId }],
+      ['an operation that is not a text', { ...input(), operation: 5 as never }],
+      ['data that is a cycle', { ...input(), state: cycle as never }],
+      ['data that holds a BigInt', { ...input(), scope: { ...scope, record: 1n } as never }],
+    ]
+    for (const [label, request] of bad) {
+      const { answer } = await world.contribute(request)
+      expect(answer, label).toMatchObject({ failure: { kind: 'invalid', field: 'input' } })
+      expect(textOf(answer), label).not.toBe('')
+    }
+    expect(
+      await world.directory.connect({
+        principal: 'p',
+        tenant: tenantA,
+        instance: instanceOf('instance_1'),
+      }),
+    ).toMatchObject({ failure: { kind: 'denied' } })
+    expect(world.retired).toEqual([])
+  })
+
+  it('accepts data that holds a null member', async () => {
+    const world = await start()
+    const state = { kind: 'idle', instance: instanceOf('instance_1'), note: null }
+    const { answer } = await world.contribute({ ...input(), state: state as never })
+    expect(registrationOf(answer).state).toBe('published')
+  })
+})
+
+describe('a retry of register from the same fiber', () => {
+  /** Registers each request in turn from one fiber, and returns the answers. */
+  async function retry(requests: readonly Input[]) {
+    const world = await start()
+    const call: { answers?: Promise<Answer[]> } = {}
+    const fiber = world.root.plugin({
+      name: 'retrier',
+      inject: ['agentInstances'],
+      apply(ctx: CordisContext) {
+        call.answers = (async () => {
+          const answers: Answer[] = []
+          for (const request of requests) answers.push(await ctx.agentInstances.register(request))
+          return answers
+        })()
+      },
+    })
+    await fiber
+    return call.answers as Promise<Answer[]>
+  }
+
+  it('is recognised when the data has the same members in another order', async () => {
+    const original = input()
+    const reordered: Input = {
+      ...original,
+      scope: {
+        digest: scope.digest,
+        revision: scope.revision,
+        record: scope.record,
+        owner: scope.owner,
+      },
+      state: { instance: instanceOf('instance_1'), kind: 'idle' } as AgentState,
+    }
+    const [first, second] = await retry([original, reordered])
+    expect(registrationOf(second as Answer)).toEqual(registrationOf(first as Answer))
+  })
+
+  it('answers conflict when the scope, the principal or the state is not the same data', async () => {
+    const original = input()
+    const different: readonly (readonly [string, Input])[] = [
+      ['the scope', input({ scope: 'another-scope' })],
+      ['the principal', { ...original, principal: 'someone-else' }],
+      ['the state', { ...original, state: { kind: 'disposed', instance: original.instance } }],
+    ]
+    for (const [label, request] of different) {
+      const [, answer] = await retry([original, request])
+      expect(answer, label).toEqual({
+        failure: { kind: 'conflict', operation: operationOf('operation_1') },
+      })
+    }
+  })
+})
+
+describe('the answer of the publication authority', () => {
+  it('is unavailable, and nothing is written, when it is an object of no known shape', async () => {
+    const world = await start()
+    world.authority.answer = 'shapeless'
+    const refused = await world.contribute(input())
+    expect(refused.answer).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'agentPublicationAuthority' },
+    })
+    expect(textOf(refused.answer)).not.toBe('')
+    world.authority.answer = 'allow'
+    const retry = await world.contribute(input())
+    expect(registrationOf(retry.answer).state).toBe('published')
+    await retry.fiber.dispose()
+    expect(world.retired).toMatchObject([{ generation: 1, reason: 'contributor-removed' }])
+  })
+
+  it('is unavailable with a text when it throws or gives nothing, for register and for withdraw', async () => {
+    const world = await start()
+    const entered = await world.contribute(input())
+    const { registration } = registrationOf(entered.answer)
+    const texts = new Set<string>()
+    for (const answer of ['throw', 'garbage', 'shapeless'] as const) {
+      world.authority.answer = answer
+      const refused = await world.directory.withdraw({
+        principal: 'host',
+        tenant: tenantA,
+        operation: operationOf('operation_w'),
+        instance: instanceOf('instance_1'),
+        registration,
+      })
+      expect(refused, answer).toMatchObject({
+        failure: { kind: 'unavailable', owner: 'agentPublicationAuthority' },
+      })
+      texts.add(textOf(refused))
+    }
+    expect([...texts].every(text => text !== '')).toBe(true)
+    expect(world.retired).toEqual([])
+  })
+})
+
+describe('the access check and the host of resolve and connect, when they cannot answer', () => {
+  const asker = {
+    principal: 'caller',
+    tenant: tenantA,
+    instance: instanceOf('instance_1'),
+  }
+
+  it('hands on the diagnostic of an unavailable access check and tells the other causes apart', async () => {
+    const world = await start()
+    await world.host(instanceOf('instance_1'))
+    await world.contribute(input())
+    world.access.decision = { kind: 'unavailable', diagnostic: 'the grant store is down' }
+    const given = await world.directory.resolve(asker)
+    expect(given).toEqual({
+      failure: {
+        kind: 'unavailable',
+        owner: 'agentAccessCheck',
+        diagnostic: 'the grant store is down',
+      },
+    })
+    world.access.decision = 'throw'
+    const thrown = await world.directory.resolve(asker)
+    world.access.decision = { kind: 'weird' } as never
+    const shapeless = await world.directory.resolve(asker)
+    for (const answer of [thrown, shapeless]) {
+      expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentAccessCheck' } })
+      expect(textOf(answer)).not.toBe('')
+      expect(textOf(answer)).not.toBe(textOf(given))
+    }
+
+    // A directory that was built without an access check says so, in other words than the two above.
+    const root = new Context()
+    const authority = await provide(root, 'authority', ctx => new TestAuthority(ctx))
+    const loaded = await provide(
+      root,
+      'directory',
+      ctx => new AgentInstancesService(ctx, authority.service),
+    )
+    const missing = await loaded.service.resolve(asker)
+    expect(missing).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentAccessCheck' } })
+    expect(textOf(missing)).not.toBe('')
+    expect(textOf(missing)).not.toBe(textOf(thrown))
+    expect(textOf(missing)).not.toBe(textOf(given))
+  })
+
+  it('tells a missing host, a host that throws and a host without a route apart, with a text each', async () => {
+    const world = await start()
+    await world.contribute(input())
+    const absent = await world.directory.resolve(asker)
+    const host = await world.host()
+    const empty = await world.directory.resolve(asker)
+    host.service.routes.set(instanceOf('instance_1'), 'throw')
+    const thrown = await world.directory.resolve(asker)
+    expect(absent).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentInstanceHost' } })
+    expect(thrown).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentInstanceHost' } })
+    expect(empty).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentInstances' } })
+    const texts = [absent, thrown, empty].map(textOf)
+    expect(texts.every(text => text !== '')).toBe(true)
+    expect(new Set(texts).size).toBe(3)
+    expect(await world.directory.connect(asker)).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
+  it('names the part of the request that is not valid, for withdraw, resolve and connect', async () => {
+    const world = await start()
+    const bad = { tenant: {} as TenantId, instance: instanceOf('instance_1') }
+    const answers = [
+      await world.directory.withdraw({
+        ...bad,
+        principal: 'host',
+        operation: operationOf('operation_w'),
+        registration: '0123456789abcdef0123456789abcdef' as Registration['registration'],
+      }),
+      await world.directory.resolve({ ...bad, principal: 'caller' }),
+      await world.directory.connect({ ...bad, principal: 'caller' }),
+    ]
+    for (const answer of answers) {
+      expect(answer).toMatchObject({ failure: { kind: 'invalid', field: 'input' } })
+      expect(textOf(answer)).not.toBe('')
+    }
+    expect(world.access.seen).toEqual([])
+    expect(world.authority.seen).toEqual([])
+  })
+})
+
+describe('register and withdraw called without their service', () => {
+  it('answer unavailable with a text each, and do not throw', async () => {
+    const world = await start()
+    const { register, withdraw } = world.directory
+    expect(() => register(input())).not.toThrow()
+    const registered = await register(input())
+    const withdrawn = await withdraw({
+      principal: 'host',
+      tenant: tenantA,
+      operation: operationOf('operation_w'),
+      instance: instanceOf('instance_1'),
+      registration: '0123456789abcdef0123456789abcdef' as Registration['registration'],
+    })
+    for (const answer of [registered, withdrawn]) {
+      expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentInstances' } })
+      expect(textOf(answer)).not.toBe('')
+    }
+    expect(textOf(registered)).not.toBe(textOf(withdrawn))
+    expect(world.authority.seen).toEqual([])
+  })
+})
+
+describe('the effect that a registration puts on the fiber of its caller', () => {
+  let counted = 0
+
+  /** The number of effects that the fiber holds after it made the requests in turn. */
+  async function effectsAfter(
+    world: Awaited<ReturnType<typeof start>>,
+    requests: readonly Input[],
+  ) {
+    const call: { ctx?: CordisContext; done?: Promise<void> } = {}
+    const fiber = world.root.plugin({
+      name: `counter-${++counted}`,
+      inject: ['agentInstances'],
+      apply(ctx: CordisContext) {
+        call.ctx = ctx
+        call.done = (async () => {
+          for (const request of requests) await ctx.agentInstances.register(request)
+        })()
+      },
+    })
+    await fiber
+    await call.done
+    return (call.ctx as CordisContext).fiber.getEffects().length
+  }
+
+  it('is removed again when the request is refused or recognised, and stays when it entered', async () => {
+    const world = await start()
+    const none = await effectsAfter(world, [])
+    world.authority.answer = { kind: 'denied', action: 'publish' }
+    expect(await effectsAfter(world, [input()])).toBe(none)
+    world.authority.answer = 'allow'
+    const one = await effectsAfter(world, [
+      input({ operation: 'operation_a', instance: 'instance_a' }),
+    ])
+    expect(one).toBe(none + 1)
+    // The same request twice from one fiber: the second is recognised and adds nothing.
+    const twice = await effectsAfter(world, [
+      input({ operation: 'operation_b', instance: 'instance_b' }),
+      input({ operation: 'operation_b', instance: 'instance_b' }),
+    ])
+    expect(twice).toBe(one)
+  })
+})
+
+describe('withdraw, given an identity that is not the registration of the instance', () => {
+  it('answers denied for the action withdraw, whichever part is wrong, and removes nothing', async () => {
+    const world = await start()
+    await world.host(instanceOf('instance_1'))
+    const { answer } = await world.contribute(input())
+    const { registration } = registrationOf(answer)
+    const withdrawal = {
+      principal: 'host',
+      tenant: tenantA,
+      operation: operationOf('operation_w'),
+      instance: instanceOf('instance_1'),
+      registration,
+    }
+    const wrong: readonly (readonly [string, object])[] = [
+      ['another tenant', { tenant: tenantB }],
+      ['another instance', { instance: instanceOf('instance_2') }],
+      ['a registration that was never made', { registration: '0123456789abcdef0123456789abcdef' }],
+    ]
+    for (const [label, overrides] of wrong) {
+      expect(await world.directory.withdraw({ ...withdrawal, ...overrides }), label).toStrictEqual({
+        failure: { kind: 'denied', action: 'withdraw' },
+      })
+    }
+    expect(world.retired).toEqual([])
+    expect(await world.directory.withdraw(withdrawal)).toEqual({
+      ok: { registration, state: 'withdrawn' },
+    })
+  })
+})
+
+describe('a calling context whose effect does not behave as Cordis does', () => {
+  // Cordis always runs an effect at once and always ends it at once. A caller that does neither is
+  // not a context of Cordis, so a stub stands for it: the directory must not trust the effect.
+  const stub = (effect: (run: () => unknown) => () => unknown) =>
+    ({ ctx: { fiber: {}, effect } }) as never
+
+  it('refuses a registration whose effect did not run, with a text of its own, and keeps nothing', async () => {
+    const world = await start()
+    await world.host(instanceOf('instance_1'))
+    const ended = await world.contribute(
+      input({ operation: 'operation_9', instance: 'instance_9' }),
+    )
+    await ended.fiber.dispose()
+    const endedAnswer = await ended.ctx
+      .get('agentInstances')
+      ?.register(input({ instance: 'instance_3' }))
+    const answer = await world.directory.register.call(
+      stub(() => () => undefined),
+      input(),
+    )
+    expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentInstances' } })
+    expect(textOf(answer)).not.toBe('')
+    expect(textOf(endedAnswer)).not.toBe('')
+    expect(textOf(answer)).not.toBe(textOf(endedAnswer))
+    expect(
+      await world.directory.connect({
+        principal: 'p',
+        tenant: tenantA,
+        instance: instanceOf('instance_1'),
+      }),
+    ).toMatchObject({ failure: { kind: 'denied' } })
+  })
+
+  it('answers withdrawing, logs, and gives no route when the effect of a registration cannot be removed', async () => {
+    const world = await start()
+    const host = await world.host(instanceOf('instance_1'))
+    const entered = await world.directory.register.call(
+      stub(run => {
+        run()
+        return () => {
+          throw new Error('the disposer broke')
+        }
+      }),
+      input(),
+    )
+    const { registration } = registrationOf(entered)
+    const withdrawal = {
+      principal: 'host',
+      tenant: tenantA,
+      operation: operationOf('operation_w'),
+      instance: instanceOf('instance_1'),
+      registration,
+    }
+    const asker = { principal: 'caller', tenant: tenantA, instance: instanceOf('instance_1') }
+    const route = await world.directory.resolve(asker)
+    expect(route).toMatchObject({ ok: { instance: instanceOf('instance_1') } })
+    const hosted = host.service.asked.length
+
+    // The removal is not confirmed, so the answer says so and the caller may retry.
+    expect(await world.directory.withdraw(withdrawal)).toEqual({
+      ok: { registration, state: 'withdrawing' },
+    })
+    expect(await world.directory.withdraw(withdrawal)).toEqual({
+      ok: { registration, state: 'withdrawing' },
+    })
+    const failures = world.records.filter(record => record.type === 'error')
+    expect(failures).toHaveLength(2)
+    expect(failures.every(record => record.name === 'agent-cordis-contract')).toBe(true)
+    expect(failures.every(record => record.message !== '')).toBe(true)
+
+    // A registration that is going away has no live route, and the host is not asked for one.
+    const resolved = await world.directory.resolve(asker)
+    expect(resolved).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentInstances' } })
+    expect(textOf(resolved)).not.toBe('')
+    expect(await world.directory.connect(asker)).toEqual({ ok: { kind: 'no-live-route' } })
+    expect(host.service.asked).toHaveLength(hosted)
+    expect(world.retired).toEqual([])
+  })
+})
+
+describe('the record of a listener of instance-retired that failed', () => {
+  it('is made under the name of the package and counts the failures', async () => {
+    const world = await start()
+    world.root.on('agent-cordis-contract/instance-retired', () => {
+      throw new Error('first')
+    })
+    const contribution = await world.contribute(input())
+    await contribution.fiber.dispose()
+    const failures = world.records.filter(record => record.type === 'error')
+    expect(failures).toHaveLength(1)
+    expect(failures[0]?.name).toBe('agent-cordis-contract')
+    expect(failures[0]?.message).toContain('1 listener(s)')
   })
 })

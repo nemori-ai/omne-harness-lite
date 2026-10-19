@@ -81,6 +81,33 @@ describe('service keys', () => {
   })
 })
 
+describe('the key texts', () => {
+  // The texts are written out, because a key that equals the `provide` of its class would still
+  // pass the pairing above if both were changed together, and a plugin reads a service by its text.
+  it('are the names of the documented services', () => {
+    expect(Object.fromEntries(keyConstants)).toEqual({
+      agentJournalKey: 'agentJournal',
+      agentAccessCheckKey: 'agentAccessCheck',
+      agentModelSelectionKey: 'agentModelSelection',
+      agentModelContextKey: 'agentModelContext',
+      agentActionAdmissionKey: 'agentActionAdmission',
+      agentDecisionCardsKey: 'agentDecisionCards',
+      agentMessageHandoffKey: 'agentMessageHandoff',
+      agentExtensionsKey: 'agentExtensions',
+      agentAdoptionsKey: 'agentAdoptions',
+      agentConditionsKey: 'agentConditions',
+      agentRequestsKey: 'agentRequests',
+      agentMaterialsKey: 'agentMaterials',
+      agentReadsKey: 'agentReads',
+      agentClockKey: 'agentClock',
+      agentInstanceHostKey: 'agentInstanceHost',
+      agentPublicationAuthorityKey: 'agentPublicationAuthority',
+      agentExecutionRecoveryKey: 'agentExecutionRecovery',
+      agentInstancesKey: 'agentInstances',
+    })
+  })
+})
+
 describe('the documentation that the built declaration carries', () => {
   const declaration = readFileSync(memberPath('dist/cordis.d.ts'), 'utf8')
 
@@ -142,6 +169,26 @@ describe('under Cordis 4.0.4', () => {
     })
     await fiber.dispose()
     expect(root.get(agentClockKey)).toBeUndefined()
+  })
+
+  it('provides each definition, whichever it is, under its own key and under no other', async () => {
+    // `AgentInstancesService` takes the publication authority and is loaded through its plugin.
+    const definitions = serviceClasses.filter(([, type]) => type.provide !== agentInstancesKey)
+    expect(definitions).toHaveLength(17)
+    for (const [name, type] of definitions) {
+      const root = new Context()
+      const make = type as unknown as new (ctx: Context) => Service
+      const fiber = root.plugin({ name: 'provider', apply: ctx => void new make(ctx) })
+      await fiber
+      const provided = definitions.filter(([, other]) => root.get(other.provide) !== undefined)
+      expect(
+        provided.map(([provider]) => provider),
+        name,
+      ).toEqual([name])
+      expect(root.get(type.provide), name).toBeInstanceOf(type)
+      await fiber.dispose()
+      expect(root.get(type.provide), name).toBeUndefined()
+    }
   })
 
   it('lets one plugin body provide several definitions on one fiber', async () => {
@@ -308,4 +355,31 @@ describe('the directory plugin', () => {
       expect(root.get(agentInstancesKey)).toBeUndefined()
     },
   )
+})
+
+describe('the configuration check of the directory plugin', () => {
+  const validate = (value: unknown) =>
+    (
+      agentInstancesPlugin.Config['~standard'] as {
+        validate(value: unknown): { value?: unknown; issues?: readonly { message: string }[] }
+      }
+    ).validate(value)
+
+  it('names its vendor and takes an absent, a null and an empty object configuration as the empty one', () => {
+    expect(agentInstancesPlugin.Config['~standard'].vendor).toBe('agent-cordis-contract')
+    expect(agentInstancesPlugin.Config['~standard'].version).toBe(1)
+    for (const value of [undefined, null, {}, Object.create(null)]) {
+      expect(validate(value), JSON.stringify(value) ?? 'undefined').toEqual({ value: {} })
+    }
+  })
+
+  it('refuses every other value with one issue that has a message', () => {
+    for (const value of [{ extra: 1 }, [], 'text', 3, true, () => undefined]) {
+      const answer = validate(value)
+      expect(answer.value, JSON.stringify(value) ?? 'function').toBeUndefined()
+      expect(answer.issues, JSON.stringify(value) ?? 'function').toHaveLength(1)
+      expect(answer.issues?.[0]?.message, JSON.stringify(value) ?? 'function').not.toBe('')
+      expect(typeof answer.issues?.[0]?.message, JSON.stringify(value) ?? 'function').toBe('string')
+    }
+  })
 })
