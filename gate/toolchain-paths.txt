@@ -13,9 +13,14 @@ pnpm-workspace.yaml
 # The lockfile records what the pins resolve to; a lockfile-only change can swap the
 # installed checker, so it is protected with the pins.
 pnpm-lock.yaml
-Makefile
+# #390 retired the Makefile; the root package.json scripts call these entry scripts.
 scripts/check.sh
+scripts/check-design.sh
+scripts/metrics.sh
+scripts/slot-unless-plan-only.sh
+scripts/test-tier.sh
 scripts/with-test-slot.sh
+scripts/with-test-slot.mjs
 scripts/git-environment.sh
 vitest.tiers.mts
 
