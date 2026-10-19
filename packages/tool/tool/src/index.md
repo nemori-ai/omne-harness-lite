@@ -20,6 +20,8 @@
 - [排除规则](ledger-exclusion.ts)。
 - [账本工厂](ledger.ts)。
 - [runtime 工厂](runtime.ts)。
-- [测试入口：非耐久记录仓](testing.ts)。
+- [测试入口](testing.ts)。
+- [非耐久记录仓](testing-store.ts)。
+- [测试依赖装配](testing-dependencies.ts)。
 - [公开接口](../docs/public-api.md)。
 - [包索引](../index.md)。
