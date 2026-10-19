@@ -1,3 +1,4 @@
+export { agentBodyContract } from './body-contract.ts'
 export { judgeAgentDefinition } from './agent-definition.ts'
 export { judgeLoopExtensions } from './loop-extension.ts'
 export type {
