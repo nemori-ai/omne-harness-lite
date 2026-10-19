@@ -18,7 +18,7 @@ PACKAGE_TEMPLATE_DRAFT
 | 公开类型已导出 | 已导出：`LocalStartCoordinatorInput`、`StartCoordinatorAccess`、`GuardResource`，以及 `startCoordinatorAdoption`、`START_COORDINATOR_OWNER` 与 `START_COORDINATOR_DOMAIN_KEY`。`./cordis` 入口不导出值 | 根入口 | `tests/public-entry.spec.ts` 核对根导出，并核对根入口的导入图不含 Cordis。`tests/cordis-entry.spec.ts` 核对 `./cordis` 不导出值 |
 | 纯契约函数已实现 | 无。契约函数在 `tool-contract` | 无 | 无 |
 | 独立执行已实现 | 无。它在 `tool` | 无 | 无 |
-| runtime 已实现的路径 | 本包没有 runtime。它给 runtime 提供启动排序的提供者：`createLocalStartCoordinator` 实现 `ToolStartAuthority`，含许可、consume、inspect、invalidate 与 exclude，受理台账放在记录仓的 `host` 域。它为一台机器上的一个进程服务 | 根入口。应用装配把协调器作为 `ToolDependencies.authority` 交给 runtime | `tests/start-coordinator.spec.ts` 在 `@omne-harness/tool/testing` 的非耐久记录仓上核对协调器。`tests/start-composition.spec.ts` 在真实 Tool runtime、账本与推进协程下运行它，执行绑定用替身。`tests/start-authority-conformance.spec.ts` 对它运行 `tool-contract/testing` 的启动围栏套件，这是该套件目前唯一的真实实现对照。耐久性、进程崩溃与第二个进程都没有覆盖 |
+| runtime 已实现的路径 | 本包没有 runtime。它给 runtime 提供启动排序的提供者：`createLocalStartCoordinator` 实现 `ToolStartAuthority`，含许可、consume、inspect、invalidate 与 exclude，受理台账放在记录仓的 `host` 域。它为一台机器上的一个进程服务。已实现 P01 的失效与排除操作绑定：同输入认回首次证据，异输入答 conflict。每个成功的排除操作都绑定本次理由，包括对已排除调用的操作 | 根入口。应用装配把协调器作为 `ToolDependencies.authority` 交给 runtime | `tests/start-coordinator.spec.ts` 在 `@omne-harness/tool/testing` 的非耐久记录仓上核对协调器。`tests/start-composition.spec.ts` 在真实 Tool runtime、账本与推进协程下运行它，执行绑定用替身。`tests/start-authority-conformance.spec.ts` 对它运行 `tool-contract/testing` 的启动围栏套件，套件核对 P01 冲突与同输入认回，包括 SA13、SA14。协调器测试还核对历史失效、排除别名、重建、完整守卫字段与租户隔离。这是该套件目前唯一的真实实现对照。耐久性、进程崩溃与第二个进程都没有覆盖 |
 | 尚未交付的宿主与提供者 | 宿主时钟（[G4](../tool-contract/SPEC.md#342-契约缺口决定)）。绑定登记表（[G7](../tool-contract/SPEC.md#342-契约缺口决定)）。`./cordis` 上的 Cordis 插件。跨进程的启动排序域。耐久记录仓提供者（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)） | 无 | 无 |
 
 ## 使用
@@ -42,7 +42,7 @@ const authority = createLocalStartCoordinator({
 
 ## 设计
 
-只有一个模块 [start-coordinator.ts](src/start-coordinator.ts)。每个操作在一个进程内串行区里读该租户的 `host` 域、做决定、按域修订号条件提交。记录有守卫修订号、每个启动的当前许可、受理、拒绝与排除标记。[docs/architecture.md](docs/architecture.md) 说明这些记录与先后。
+只有一个模块 [start-coordinator.ts](src/start-coordinator.ts)。每个操作在一个进程内串行区里读该租户的 `host` 域、做决定、按域修订号条件提交。记录有守卫修订号、失效操作、排除操作、每个启动的当前许可、受理、拒绝与排除标记。操作记录保留输入绑定与首次证据，后续操作或重建协调器不改变该绑定。操作记录与业务变化在同一域中共同提交。[docs/architecture.md](docs/architecture.md) 说明这些记录与先后。
 
 ## 配置与运行
 
