@@ -1,0 +1,17 @@
+{
+  "role": "cordis-plugin",
+  "description": "A Cordis plugin that follows model calls through the call-changed notification and the runtime service of the definition entry",
+  "dependencies": [
+    "@deepseek-ai/cordis",
+    "@omne-harness/legal-identity",
+    "@omne-harness/model-contract",
+    "@omne-harness/model-cordis-contract",
+    "@omne-harness/operation-result"
+  ],
+  "forbidden": [
+    "@omne-harness/model",
+    "@omne-harness/model-host-local",
+    "@earendil-works/pi-*",
+    "@mariozechner/pi-*"
+  ]
+}

@@ -15,7 +15,7 @@
 
 ## 现有冲突
 
-C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3cd05cc42b640d77a421a`，仅作历史证据。引文和条款编号保留发现时原文；封存快照的章节可能已随当时修订改名，不能据此把旧能力名、字段或条款作为新成员接口。现行行为分别由[Model](../../../packages/model/model/SPEC.md)、[Tool](../../../packages/tool/tool-contract/SPEC.md)和[Session](../../../packages/session/session/SPEC.md)拥有。
+C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3cd05cc42b640d77a421a`，仅作历史证据。引文和条款编号保留发现时原文；封存快照的章节可能已随当时修订改名，不能据此把旧能力名、字段或条款作为新成员接口。现行行为分别由[Model 契约](../../../packages/model/model-contract/SPEC.md)、[Tool](../../../packages/tool/tool-contract/SPEC.md)和[Session](../../../packages/session/session/SPEC.md)拥有。
 
 | # | 词 | 类型 | 差在哪 | 状态 |
 |---|---|---|---|---|
@@ -288,3 +288,19 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **反例与影响**：把尝试开始写成提醒，模型消息投影便会收进技术事实；若只在发送时删掉它，依赖提醒认定尝试开始的恢复／结算读者仍耦合于错误表示。涉及PF-012／PF-009／PF-010的相关规则与实际消息、尝试治理、组装、模型调用消费者；源码观察不表示已运行或修复。
 - **负责与闭合条件**：产品定义拥有者同步尝试开始事实与模型感知要求的边界及适用流程、验收和出处；技术接口拥有者分别落实事实表示、投影与原调用恢复／结算来源并迁移消费者。闭合前不采用“每次尝试开始必须向模型追加提醒”的旧读法，不自行删除真实业务结果或风险感知要求。
 - **状态**：产品表达已同步（PF-012 rev24及S103、PF-010 rev8），独立产品复核已完成限定范围；自动尝试提醒的产品歧义闭合。技术消费者迁移尚未实施，必须沿[候选整改设计](../architecture/session-agent-runtime-phase1/boundaries.md)及各实际承诺完成，不据此声称源码已修复。
+
+### C-54：工具调用与工具结果部件由谁发布
+
+- **类型**：定义打架。2026-10-17 在 #342 的 Model 主干评审 R-2（共享 ToolCallPart）时发现。不新增词条。
+- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。[COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02) 当时有同一句。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model 契约 SPEC 的「工具定义转换与内容引用加载」](../../../packages/model/model-contract/SPEC.md#工具定义转换与内容引用加载)写调用建议采用 common/message 的 ToolCallPart。[会话日志事件 SE10](../../../packages/session/session/docs/session-log-events.md) 写 ToolMessage 形状归消息契约。
+- **反例与影响**：按旧句，工具领域要发布消息部件，Tool 就得依赖消息模型，而 Tool 目前不导入 message。按 message 一方，消息部件与工具领域没有依赖。两种读法的写者与依赖方向相反。
+- **负责与闭合条件**：负责人 PanQiWei 于 2026-10-17 指定 Model 主干更正统一语言一方。词条已改为引用 COMMON-T02，不再自写包级归属。COMMON-T02 属架构区正文，其拥有者已同步。
+- **状态**：已闭合。依据是 [COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02)：`tool_call` 与 `tool_result` 部件的形状由 `packages/common/message` 发布，工具领域产出工具结果的内容，不发布消息部件。词条与架构正文现在一致。
+
+### C-55：模型档案词条仍写发前检查，缺窗口、压缩百分比与 updatedAt
+
+- **类型**：定义打架。2026-10-19 在 Model 契约包送轨的文档评审中发现；不新增词条。
+- **来源**：[UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)仍写「输入 token 的发前限额检查可以采用有依据的估算与明确配置的余量」，也写「字节与图片数量仍按实际值精确检查」。词条没有上下文窗口、默认压缩触发百分比与 `updatedAt`。另一方是 [Model 契约 SPEC 的「上游限制与提供上限」](../../../packages/model/model-contract/SPEC.md#上游限制与提供上限)：Model 的准备与发送路径不计量，也不以计量结论作为发出条件，上游报告输入超限时调用以 `failed` 收场，成因为 `input-over-limit`。档案另带上下文窗口、默认压缩触发百分比与不倒退的 `updatedAt`。
+- **反例与影响**：按词条，档案消费者会认为发送前有一道限额与精确字节检查，并会认为档案不带窗口与压缩百分比。按 SPEC，请求前的计量与限额判断归压缩方或请求组装方，发送前没有这道检查。读词条的人会把发前检查当作 Model 的义务，或找不到压缩方读取窗口的出处。
+- **负责与闭合条件**：负责人 PanQiWei。由词条拥有者修订 UL-model-profile，使词条与 Model 契约 SPEC 一致，并同步英文段与消费者。闭合前，不能把词条里的发前检查读作 Model 的发送条件，也不能据词条断言档案没有窗口与压缩百分比。
+- **状态**：打开。词条未改。

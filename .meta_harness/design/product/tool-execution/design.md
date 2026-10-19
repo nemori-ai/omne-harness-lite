@@ -238,7 +238,7 @@ Run 取消撤销新推进资格并请求停止前台关联工具，后台和无�
 
 本项为来源缺证。工具结果可以包含图片及嵌套块，实际模型可读内容须相容；现有 PF-006 返回章节与 PF-009 工具条款未具名闭合最终允许块全集和嵌套规则。
 
-相关完整闭合声明受限，不阻塞其余三层规则。责任由Tool与消息契约拥有者，Model及Context承接承担；具体义务、既定边界和未采用建议见[技术原文](../../../../packages/model/model/docs/open-questions.md#model-e01)。
+相关完整闭合声明受限，不阻塞其余三层规则。责任由Tool与消息契约拥有者，Model及Context承接承担；具体义务、既定边界和未采用建议见[技术原文](../../../../packages/model/model/docs/architecture.md#model-e01)。
 
 <a id="tool-m01"></a>
 ### TOOL-M01 公开形状与独立函数消费
