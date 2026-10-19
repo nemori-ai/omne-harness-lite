@@ -14,9 +14,26 @@ export type RefusalReason =
   | 'executable'
   | 'checker-failed'
 
-export type Judgment<T> =
+/**
+ * The reasons for which a judgment of an extension output refuses it (extensions.md, "Conclusion").
+ * They are separate from `RefusalReason`: a refused output is an error of a running extension, not
+ * of a declaration.
+ */
+export type OutputRefusalReason =
+  | 'malformed'
+  | 'position_unknown'
+  | 'power_unknown'
+  | 'dimension_missing'
+  | 'dimension_not_allowed'
+  | 'output_not_allowed_for_power'
+  | 'output_not_allowed_at_position'
+  | 'ask_at_forbidden_position'
+  | 'rewrite_touches_immutable'
+  | 'inject_source_mismatch'
+
+export type Judgment<T, Reason extends string = RefusalReason> =
   | { readonly kind: 'accepted'; readonly value: T }
-  | { readonly kind: 'refused'; readonly reason: RefusalReason }
+  | { readonly kind: 'refused'; readonly reason: Reason }
 
 export type BatchJudgment<T> =
   | { readonly kind: 'accepted'; readonly value: readonly T[] }

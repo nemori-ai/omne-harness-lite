@@ -83,6 +83,12 @@ function dimensionReason(value: unknown): RefusalReason {
   return 'malformed'
 }
 
+/** A missing `implementation` has its own reason. Any other fault of it is a malformed shape. */
+function implementationReason(path: readonly (string | number)[], value: unknown): RefusalReason {
+  const missing = path.length === 1 && isRecord(value) && !Object.hasOwn(value, 'implementation')
+  return missing ? 'implementation-missing' : 'malformed'
+}
+
 /** The reason for the first schema issue. A field that the schema names maps to its own reason. */
 function issueReason(path: readonly (string | number)[], value: unknown): RefusalReason {
   switch (path[0]) {
@@ -97,9 +103,7 @@ function issueReason(path: readonly (string | number)[], value: unknown): Refusa
     case 'unavailability':
       return 'unavailability-not-allowed'
     case 'implementation':
-      return path.length === 1 && isRecord(value) && !Object.hasOwn(value, 'implementation')
-        ? 'implementation-missing'
-        : 'malformed'
+      return implementationReason(path, value)
     case 'dimension':
       return dimensionReason(value)
     default:
