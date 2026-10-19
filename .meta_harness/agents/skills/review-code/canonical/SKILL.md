@@ -14,10 +14,10 @@ description: >
 
 正确性：实现是否遵守这次任务已经采用的架构、技术设计和规格。问题要带反例，或指出缺的行为。测试通过不代替这一面。
 
-结构读数：在候选工作树运行 `pnpm run lint:deps` 和 `make metrics BASE=<任务基线> COVERAGE=1`。任务基线用这张卡的 taskBase。`lint:deps` 的依赖违规、成员和组之间的环原样列出。`make metrics` 只摘这次变更函数的圈复杂度和 CRAP。两者读同一张 dependency-cruiser 依赖图。读数是抽查线索。CRAP 低不表示行为正确。命令失败时交回命令和输出，不手算冒充工具结果。
+结构读数：在候选工作树运行 `pnpm run lint:deps` 和 `pnpm run metrics --base <任务基线> --coverage`。任务基线用这张卡的 taskBase。`lint:deps` 的依赖违规、成员和组之间的环原样列出。`pnpm run metrics` 只摘这次变更函数的圈复杂度和 CRAP。两者读同一张 dependency-cruiser 依赖图。读数是抽查线索。CRAP 低不表示行为正确。命令失败时交回命令和输出，不手算冒充工具结果。
 
 设计与实践：是否遵守 SOLID，以及本项目工程约定和 `pstack:typescript-best-practices`。问题要指到具体类型、函数或分支。
 
-差分变异：在候选工作树运行 `make mutation BASE=<任务基线>`。任务基线用这张卡的 taskBase。这一面固定要跑。该命令只报告，只覆盖改动行和快层。存活与无覆盖原样列出。命令失败时交回命令和输出，不把未跑写成零存活。
+差分变异：在候选工作树运行 `pnpm run mutation --base <任务基线>`。任务基线用这张卡的 taskBase。这一面固定要跑。该命令只报告，只覆盖改动行和快层。存活与无覆盖原样列出。命令失败时交回命令和输出，不把未跑写成零存活。
 
 交付边界和验收标准归 `review-delivery`。文档变更归 `review-docs`。这份报告不是接受，也不合并 PR。

@@ -1,7 +1,7 @@
 # 回路传感器的金丝雀夹具
 
 `repo/` 是一个最小的假仓库布局，每个传感器都有一处已知事实或违规；`tests/loop-canary.spec.ts`
-把它拷进临时目录、建成 git 仓库、造出要 git 历史的那几项，再走与 `make loop-status STRICT=1`
+把它拷进临时目录、建成 git 仓库、造出要 git 历史的那几项，再走与 `pnpm run loop:status --strict`
 相同的入口，逐项断言每个传感器都报出了种下的那一处。
 
 | 传感器           | 种下的违规                                                                       | 在哪                                                             |

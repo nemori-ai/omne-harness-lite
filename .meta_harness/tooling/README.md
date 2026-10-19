@@ -32,7 +32,7 @@ spec、realization、registry 三个旧根不得重新出现，空目录、普�
 持续正控与拒绝反例位于 `tests/test_source_links.py`。
 角色上下文入口见 [spec-tools](../../tools/spec-tools/README.md#按角色读取上下文)。
 
-该工具不判断条款等价性、采用状态、实现符合性或模型覆盖。公开 Schema 身份、规范输入及形式模型的正负控由真实拥有者维护并执行；单次原始输出归执行工作树 tmp。根 `make design-check` 组合本检查与领域对象对账，不隐式执行形式模型。
+该工具不判断条款等价性、采用状态、实现符合性或模型覆盖。公开 Schema 身份、规范输入及形式模型的正负控由真实拥有者维护并执行；单次原始输出归执行工作树 tmp。根 `pnpm run check:design` 组合本检查与领域对象对账，不隐式执行形式模型。
 
 ## 领域对象对账
 

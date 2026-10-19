@@ -6,7 +6,7 @@
 
 这份投影需要提交。Cursor 在执行安装脚本之前，从检出读取 `.cursor/environment.json`。skills 与 roles 的宿主投影可以在检出后重新生成，所以它们留在 `.meta_harness/.gitignore`。这份不能。
 
-改源之后删除旧的 `.meta_harness/.cursor`，再按 [tooling](../../../tooling/README.md#根软链接) 重新编译并链接。内容或权限与源不一致时，编译拒绝覆盖。`make agents-check` 核对投影与根链接。
+改源之后删除旧的 `.meta_harness/.cursor`，再按 [tooling](../../../tooling/README.md#根软链接) 重新编译并链接。内容或权限与源不一致时，编译拒绝覆盖。`pnpm run check:agents` 核对投影与根链接。
 
 ## Git 身份
 

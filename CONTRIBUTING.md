@@ -71,7 +71,7 @@
 按[验证规范](docs/verification.md)选择检查。新增测试应保护改变的可观察
 行为；局部文字修复无需为凑数量编写测试。修改行为时同步其所属说明、示例或契约，
 修改目录和入口时同步导航。不能靠重写预期或放宽检查隐藏尚未解决的冲突。
-skills/roles 变更一并交付 canonical/角色源、宿主适配与生成产物，运行 `make agents-check`
+skills/roles 变更一并交付 canonical/角色源、宿主适配与生成产物，运行 `pnpm run check:agents`
 和相关检查；生成、宿主加载及模型行为的证据分别陈述。
 
 本地 diff、设计稿和远程 PR 使用同样的交付信息要求；已有 Issue/PR 时关联其记录。
