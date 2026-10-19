@@ -237,7 +237,18 @@ export function createMemorySend<P, Script>(
     }
   }
   const send: ModelSendBoundary<P> = {
-    send(input, signal) {
+    send(demand, signal) {
+      const input: SendDemand<P> = {
+        principal: demand.principal,
+        tenant: demand.tenant,
+        call: demand.call,
+        dispatch: demand.dispatch,
+        execution: { ...demand.execution },
+        request: structuredClone(demand.request),
+        supplier: structuredClone(demand.supplier),
+        consumer: structuredClone(demand.consumer),
+        initiator: structuredClone(demand.initiator),
+      }
       const keyResult = store.identity(input)
       if (typeof keyResult !== 'string')
         return Promise.resolve({ kind: 'not-started', failure: keyResult })

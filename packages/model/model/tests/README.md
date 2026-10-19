@@ -4,6 +4,8 @@
 
 运行命令为 `pnpm --filter @omne-harness/model test`。内存行为测试经公开 testing 入口覆盖 22 个 Commands、未知写、流归约、读/ACK/清理和五端口。runtime-testing 检查真实构造壳的零调用及明确 unavailable。这些是本地模拟，不覆盖耐久或生产托管执行。运行实现完成后须加入实际提供者与存储交接的验证，并注明替身和故障范围。
 
+[vitest.config.ts](../vitest.config.ts) 仅把 model-contract 的根入口与 testing 子路径映射到其公开源码入口，避免行为测试读取并发 build 正在重建的 dist。它不匹配私有子路径，也不改变 Node 的包解析。public-entry 的 Node resolver 与独立安装场景继续验证真实 exports 和制品。
+
 固定输入归 [fixtures](fixtures/index.md)。持续验证义务见 [verification](../../model-contract/verification/index.md)，目录导航见 [index](index.md)。
 
 ## 安装闭包
@@ -12,11 +14,11 @@
 
 ## 内存行为资源
 
-- [memory-admission.spec.ts](memory-admission.spec.ts) 检查参数边界、工具关联、typed 拒绝及未知注入不被非法请求消费。
+- [memory-admission.spec.ts](memory-admission.spec.ts) 检查显式/采用/请求值的参数边界、工具关联、typed 拒绝及未知注入不被非法请求消费。
 - [memory-core.spec.ts](memory-core.spec.ts) 检查身份、受理、操作唯一、未知与恢复。
 - [memory-dispatch.spec.ts](memory-dispatch.spec.ts) 检查物化、首内容、批次原子性、重试、终局和供应商账目修订。
 - [memory-consumption.spec.ts](memory-consumption.spec.ts) 检查完整块分页、当前资格、ACK 与材料释放。
-- [runtime-testing.spec.ts](runtime-testing.spec.ts) 检查逐方法构造依赖、发送身份关联、一次发送及耗尽/异常/取消释放、宿主和手动时钟。
+- [runtime-testing.spec.ts](runtime-testing.spec.ts) 检查逐方法构造依赖、发送身份关联与调用后引用修改隔离、send/retry 参数失败通道、一次发送及耗尽/异常/取消释放、宿主和手动时钟。
 
 fixture 的主体与证据只在本地测试适配中可信。它们不替代真实耐久、消费者完成、跨进程排除或资格事务的证据。
 

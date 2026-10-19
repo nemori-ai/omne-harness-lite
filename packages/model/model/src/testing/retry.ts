@@ -1,3 +1,4 @@
+import { validateRequest } from './request.ts'
 import type {
   ModelRetryPolicy,
   RetryResolution,
@@ -36,14 +37,16 @@ export function createMemoryRetryPolicy<P>(store: MemoryState<P>) {
           const id = key(input)
           const plan = plans.get(id)
           if (!plan) return { failure: unavailable('model-retry-policy', 'no-plan') }
-          if (counts.has(id)) return { ok: structuredClone(plan) }
-          if (call.state.control.kind !== 'none' || call.state.phase === 'settled')
-            return { failure: invalid('call', 'controlled-or-settled') }
+          const requestFailure = validateRequest(input.request)
+          if (requestFailure) return { failure: requestFailure }
           if (
             digest(input.request) !== call.requestDigest ||
             digest(input.initiator) !== digest(call.initiator)
           )
             return { failure: invalid('request', 'not-original') }
+          if (counts.has(id)) return { ok: structuredClone(plan) }
+          if (call.state.control.kind !== 'none' || call.state.phase === 'settled')
+            return { failure: invalid('call', 'controlled-or-settled') }
           if (plan.kind === 'decided') counts.set(id, 1)
           return { ok: structuredClone(plan) }
         }),

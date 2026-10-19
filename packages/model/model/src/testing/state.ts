@@ -1,3 +1,4 @@
+import { validateRequest } from './request.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeModelCallId,
@@ -499,6 +500,8 @@ export class MemoryState<P> {
     if (failure) return failure
     if (!call || call.state.control.kind !== 'none' || call.state.phase === 'settled')
       return invalid('call', 'send-no-longer-valid')
+    const requestFailure = validateRequest(input.request)
+    if (requestFailure) return requestFailure
     if (
       digest(input.request) !== call.requestDigest ||
       digest(input.consumer) !== digest(call.state.consumer) ||

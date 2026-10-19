@@ -6,6 +6,7 @@ import {
   type Adoption,
   type FixedModelRequest,
   type ModelFailure,
+  type Parameter,
 } from '@omne-harness/model-contract'
 import { decimal, digest, invalid } from './value.ts'
 
@@ -20,6 +21,52 @@ function adoption(value: Adoption): boolean {
     typeof value.digest === 'string' &&
     /^[0-9a-f]{64}$/u.test(value.digest)
   )
+}
+function validateParameter(parameter: Parameter): ModelFailure | null {
+  if (!parameter || typeof parameter !== 'object') return invalid('parameters', 'shape')
+  switch (parameter.kind) {
+    case 'temperature':
+      if (!Number.isFinite(parameter.value) || parameter.value < 0 || parameter.value > 2)
+        return invalid('temperature', 'range')
+      break
+    case 'top-p':
+      if (!Number.isFinite(parameter.value) || parameter.value <= 0 || parameter.value > 1)
+        return invalid('top-p', 'range')
+      break
+    case 'frequency-penalty':
+    case 'presence-penalty':
+      if (!Number.isFinite(parameter.value) || parameter.value < -2 || parameter.value > 2)
+        return invalid(parameter.kind, 'range')
+      break
+    case 'max-output-tokens':
+      if (!decimal(parameter.value, true)) return invalid(parameter.kind, 'integer')
+      break
+    case 'seed':
+      if (!decimal(parameter.value)) return invalid(parameter.kind, 'integer')
+      break
+    case 'stop':
+      if (
+        !array(parameter.value) ||
+        parameter.value.length === 0 ||
+        parameter.value.some(v => typeof v !== 'string' || !v) ||
+        new Set(parameter.value).size !== parameter.value.length
+      )
+        return invalid('stop', 'sequence')
+      break
+    case 'reasoning-effort':
+      if (!['none', 'low', 'medium', 'high', 'max'].includes(parameter.value))
+        return invalid(parameter.kind, 'value')
+      break
+    case 'extension':
+      if (!adoption(parameter.definition) || 'rejected' in judgeJsonValue(parameter.value))
+        return invalid('extension', 'definition-or-value')
+      break
+    default: {
+      const _unreachable: never = parameter
+      return invalid('parameters', 'unknown')
+    }
+  }
+  return null
 }
 export function validateRequest(request: FixedModelRequest): ModelFailure | null {
   if (
@@ -84,51 +131,35 @@ export function validateRequest(request: FixedModelRequest): ModelFailure | null
     return invalid('toolChoice', 'selection')
   const parameters = new Set<string>()
   for (const parameter of request.parameters) {
-    if (!parameter || typeof parameter !== 'object') return invalid('parameters', 'shape')
+    const failure = validateParameter(parameter)
+    if (failure) return failure
     const id =
       parameter.kind === 'extension' ? `extension:${digest(parameter.definition)}` : parameter.kind
     if (parameters.has(id)) return invalid('parameters', 'duplicate')
     parameters.add(id)
-    switch (parameter.kind) {
-      case 'temperature':
-        if (!Number.isFinite(parameter.value) || parameter.value < 0 || parameter.value > 2)
-          return invalid('temperature', 'range')
+  }
+  for (const entry of request.parameterAdoptions) {
+    if (
+      !entry ||
+      typeof entry !== 'object' ||
+      !adoption(entry.supplier) ||
+      !entry.origin ||
+      !adoption(entry.origin.source)
+    )
+      return invalid('parameterAdoptions', 'shape')
+    const applied = validateParameter(entry.applied)
+    if (applied) return applied
+    switch (entry.origin.kind) {
+      case 'explicit': {
+        const requested = validateParameter(entry.origin.requested)
+        if (requested) return requested
         break
-      case 'top-p':
-        if (!Number.isFinite(parameter.value) || parameter.value <= 0 || parameter.value > 1)
-          return invalid('top-p', 'range')
-        break
-      case 'frequency-penalty':
-      case 'presence-penalty':
-        if (!Number.isFinite(parameter.value) || parameter.value < -2 || parameter.value > 2)
-          return invalid(parameter.kind, 'range')
-        break
-      case 'max-output-tokens':
-        if (!decimal(parameter.value, true)) return invalid(parameter.kind, 'integer')
-        break
-      case 'seed':
-        if (!decimal(parameter.value)) return invalid(parameter.kind, 'integer')
-        break
-      case 'stop':
-        if (
-          !array(parameter.value) ||
-          parameter.value.length === 0 ||
-          parameter.value.some(v => typeof v !== 'string' || !v) ||
-          new Set(parameter.value).size !== parameter.value.length
-        )
-          return invalid('stop', 'sequence')
-        break
-      case 'reasoning-effort':
-        if (!['none', 'low', 'medium', 'high', 'max'].includes(parameter.value))
-          return invalid(parameter.kind, 'value')
-        break
-      case 'extension':
-        if (!adoption(parameter.definition) || 'rejected' in judgeJsonValue(parameter.value))
-          return invalid('extension', 'definition-or-value')
+      }
+      case 'default':
         break
       default: {
-        const _unreachable: never = parameter
-        return invalid('parameters', 'unknown')
+        const _unreachable: never = entry.origin
+        return invalid('parameterAdoptions.origin', 'unknown')
       }
     }
   }

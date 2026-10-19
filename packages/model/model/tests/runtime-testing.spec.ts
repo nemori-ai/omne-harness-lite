@@ -6,6 +6,9 @@ import {
   decodeReadId,
   decodeResultVersion,
   type ModelHandle,
+  type FixedModelRequest,
+  type Parameter,
+  type ModelRetryPolicy,
 } from '@omne-harness/model-contract'
 import { fixture, instance, op, proof, unbox, identity, callId } from './memory-fixture.ts'
 
@@ -434,7 +437,7 @@ it('retry shares the exact saved position, keeps pending separate from a decisio
     request: record.request,
     dispatches: unbox(await commands.dispatches(f.admit)),
     failure: fault,
-  }
+  } satisfies Parameters<ModelRetryPolicy<typeof f.principal>['decide']>[0]
   expect(await f.dependencies.retry.decide(demand)).toMatchObject({
     failure: { kind: 'unavailable' },
   })
@@ -442,6 +445,44 @@ it('retry shares the exact saved position, keeps pending separate from a decisio
   expect(unbox(await f.dependencies.retry.inspect(demand))).toEqual({ kind: 'pending', position })
   expect(unbox(await f.dependencies.retry.decide(demand))).toEqual({ kind: 'pending', position })
   expect(f.controls.retry.decisions(demand)).toBe(0)
+  const rejectsInvalid = async () => {
+    const before = await commands.loadRecovery(f.admit)
+    const decisions = f.controls.retry.decisions(demand)
+    for (const location of ['parameters', 'applied', 'requested'] as const) {
+      for (const kind of [
+        'temperature',
+        'top-p',
+        'frequency-penalty',
+        'presence-penalty',
+      ] as const) {
+        for (const value of [NaN, Infinity, -Infinity, 3]) {
+          const invalid = {
+            ...demand,
+            request: invalidParameterRequest(demand.request, location, { kind, value }),
+          }
+          f.denied.add('recovery')
+          expect(await f.dependencies.retry.decide(invalid)).toMatchObject({
+            failure: { kind: 'denied' },
+          })
+          f.denied.delete('recovery')
+          const pending = f.dependencies.retry.decide(invalid)
+          expect(pending).toBeInstanceOf(Promise)
+          expect(await pending).toMatchObject({
+            failure: { kind: 'invalid', field: kind, reason: 'range' },
+          })
+        }
+      }
+    }
+    expect(
+      await f.dependencies.retry.decide({
+        ...demand,
+        request: { ...demand.request, parameters: [{ kind: 'temperature', value: 0.5 }] },
+      }),
+    ).toMatchObject({ failure: { kind: 'invalid', field: 'request', reason: 'not-original' } })
+    expect(f.controls.retry.decisions(demand)).toBe(decisions)
+    expect(await commands.loadRecovery(f.admit)).toEqual(before)
+  }
+  await rejectsInvalid()
   const resolution = {
     kind: 'decided',
     position,
@@ -453,6 +494,8 @@ it('retry shares the exact saved position, keeps pending separate from a decisio
   expect(unbox(await f.dependencies.retry.inspect(demand))).toEqual(resolution)
   expect(unbox(await f.dependencies.retry.decide(demand))).toEqual(resolution)
   expect(f.controls.retry.decisions(demand)).toBe(1)
+  await rejectsInvalid()
+  expect(unbox(await f.dependencies.retry.decide(demand))).toEqual(resolution)
   expect(() =>
     f.controls.retry.set({
       ...f.admit,
@@ -570,4 +613,204 @@ it('rejects a plan for a different admission before preparing any resource', asy
     closeMaterialized: 0,
   })
   expect(await f.dependencies.commands.loadRecovery(f.admit)).toEqual(before)
+})
+
+for (const scope of ['same-tenant', 'cross-tenant'] as const) {
+  for (const mutation of [
+    'execution-replacement',
+    'nested-execution',
+    'outer-identity',
+    'request',
+    'supplier',
+    'consumer',
+    'initiator',
+  ] as const) {
+    it(`keeps the original send fixed after ${scope} ${mutation} alias mutation`, async () => {
+      const f = await prepared({
+        kind: 'terminated',
+        termination: { kind: 'completed', reason: 'stop' },
+      })
+      const foreign = identity('6')
+      const authorize = f.options.authority.authorize
+      f.options.authority.authorize = input =>
+        input.resource.kind === 'call' && input.resource.call === callId('other')
+          ? input.action === 'send'
+            ? { failure: { kind: 'denied', action: 'send' } }
+            : { ok: { owner: 'identity', subject: 'trusted', revision: '1' } }
+          : authorize(input)
+      const commands = f.dependencies.commands
+      const other = {
+        ...f.admit,
+        tenant: scope === 'same-tenant' ? f.tenant : foreign,
+        call: callId('other'),
+        operation: op('other-admit'),
+      }
+      unbox(await commands.admit(other))
+      const execution = unbox(
+        await commands.claim({
+          ...other,
+          operation: op('other-claim'),
+          instance: instance(),
+          continuity: proof(other.call),
+        }),
+      )
+      unbox(
+        await commands.prepareDispatch({
+          ...execution,
+          operation: op('other-prepare'),
+          expected: unbox(await commands.loadRecovery(other)).state.revision,
+          dispatch: f.dispatch,
+          supplier: other.request.suppliers[0],
+          policyDecision: null,
+        }),
+      )
+      const before = await Promise.all([commands.loadRecovery(other), commands.dispatches(other)])
+      const demand = {
+        ...f.demand,
+        execution: { ...f.demand.execution },
+        request: structuredClone(f.demand.request),
+        supplier: structuredClone(f.demand.supplier),
+        consumer: { ...f.demand.consumer },
+        initiator: { ...f.demand.initiator },
+      }
+      const pending = f.dependencies.send.send(demand, new AbortController().signal)
+      switch (mutation) {
+        case 'execution-replacement':
+          demand.execution = { ...execution }
+          break
+        case 'nested-execution':
+          Object.assign(demand.execution, execution)
+          break
+        case 'outer-identity':
+          demand.tenant = other.tenant
+          demand.call = other.call
+          break
+        case 'request':
+          Object.assign(demand.request.suppliers[0].adoption, { revision: 'changed' })
+          Object.assign(demand.request, { parameters: [{ kind: 'temperature', value: 2 }] })
+          break
+        case 'supplier':
+          Object.assign(demand.supplier, { model: 'changed' })
+          break
+        case 'consumer':
+          demand.consumer.work = 'changed'
+          break
+        case 'initiator':
+          demand.initiator.revision = 'changed'
+          break
+      }
+      const result = await pending
+      expect(result.kind).toBe('started')
+      expect(await Promise.all([commands.loadRecovery(other), commands.dispatches(other)])).toEqual(
+        before,
+      )
+      const original = unbox(await commands.dispatches(f.admit))[0]
+      expect(original).toMatchObject({
+        send: 'started',
+        firstContent: 'uncertain',
+        supplier: f.demand.supplier,
+        materialization: { receipt: f.plan.script.receipt },
+      })
+      if (result.kind === 'started') {
+        const facts = []
+        for await (const fact of result.facts) facts.push(fact)
+        expect(facts).toEqual([
+          { kind: 'ended', termination: { kind: 'completed', reason: 'stop' } },
+        ])
+      }
+      expect(f.controls.send.counts(f.demand)).toEqual({
+        prepare: 1,
+        materialize: 1,
+        start: 1,
+        closePrepared: 1,
+        closeMaterialized: 1,
+      })
+      expect(Object.isFrozen(demand)).toBe(false)
+      expect(Object.isFrozen(demand.execution)).toBe(false)
+      expect((await f.dependencies.send.send(f.demand, new AbortController().signal)).kind).toBe(
+        'unknown',
+      )
+    })
+  }
+}
+it('preserves a noncloneable principal proof, current qualification and the original cancellation signal', async () => {
+  const f = await prepared()
+  const principal = { ...f.principal, prove: () => true }
+  const authorize = f.options.authority.authorize
+  f.options.authority.authorize = input =>
+    authorize({
+      ...input,
+      access: {
+        ...input.access,
+        principal: input.access.principal === principal ? f.principal : input.access.principal,
+      },
+    })
+  const abort = new AbortController()
+  const pending = f.dependencies.send.send({ ...f.demand, principal }, abort.signal)
+  abort.abort()
+  expect(await pending).toMatchObject({ kind: 'not-started' })
+  expect(f.controls.send.counts(f.demand)).toEqual({
+    prepare: 1,
+    materialize: 1,
+    start: 0,
+    closePrepared: 1,
+    closeMaterialized: 1,
+  })
+})
+function invalidParameterRequest(
+  request: FixedModelRequest,
+  location: 'parameters' | 'applied' | 'requested',
+  parameter: Parameter,
+): FixedModelRequest {
+  if (location === 'parameters') return { ...request, parameters: [parameter] }
+  return {
+    ...request,
+    parameterAdoptions: [
+      {
+        supplier: request.suppliers[0].adoption,
+        applied: location === 'applied' ? parameter : { kind: 'temperature', value: 1 },
+        origin:
+          location === 'requested'
+            ? { kind: 'explicit', requested: parameter, source: request.source }
+            : { kind: 'default', source: request.source },
+      },
+    ],
+  }
+}
+it('returns send failures for illegal parameters in every request carrier without acquiring resources', async () => {
+  const f = await prepared()
+  const before = await f.dependencies.commands.loadRecovery(f.admit)
+  for (const location of ['parameters', 'applied', 'requested'] as const) {
+    for (const kind of ['temperature', 'top-p', 'frequency-penalty', 'presence-penalty'] as const) {
+      for (const value of [NaN, Infinity, -Infinity, 3]) {
+        const demand = {
+          ...f.demand,
+          request: invalidParameterRequest(f.demand.request, location, { kind, value }),
+        }
+        f.denied.add('send')
+        expect(await f.dependencies.send.send(demand, new AbortController().signal)).toMatchObject({
+          kind: 'not-started',
+          failure: { kind: 'denied' },
+        })
+        f.denied.delete('send')
+        const pending = f.dependencies.send.send(demand, new AbortController().signal)
+        expect(pending).toBeInstanceOf(Promise)
+        expect(await pending).toMatchObject({
+          kind: 'not-started',
+          failure: { kind: 'invalid', field: kind, reason: 'range' },
+        })
+      }
+    }
+  }
+  expect(await f.dependencies.commands.loadRecovery(f.admit)).toEqual(before)
+  expect(f.controls.send.counts(f.demand)).toEqual({
+    prepare: 0,
+    materialize: 0,
+    start: 0,
+    closePrepared: 0,
+    closeMaterialized: 0,
+  })
+  const result = await f.dependencies.send.send(f.demand, new AbortController().signal)
+  expect(result.kind).toBe('started')
+  if (result.kind === 'started') await result.facts[Symbol.asyncIterator]().return?.()
 })

@@ -60,7 +60,7 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 
 `createMemoryModelCommands(options)` 返回完整的 ModelCommands 与窄控制器。options 和证据端口以 [types.ts](../src/testing/types.ts) 为准。调用者提供当前资格适配器、精确证据采用、免守卫 owner、时钟和有限容量。guarded owner、重复 owner 或缺证据适配器在构造时拒绝。
 
-`createTestModelDependencies(options)` 返回五个 dependencies 及对应 controls。它提供手动 UTC 时钟、有限唤醒队列、按原策略位置保存的重试计划和按 dispatch 的一次性脚本传输。发送依次保存物化与窗口，在最后的同步资格围栏内 start。无发送或重试计划返回明确 unavailable。
+`createTestModelDependencies(options)` 返回五个 dependencies 及对应 controls。它提供手动 UTC 时钟、有限唤醒队列、按原策略位置保存的重试计划和按 dispatch 的一次性脚本传输。发送先复制本次需求的值字段，保留原租户、主体证明和取消 signal。发送依次保存物化与窗口，在最后的同步资格围栏内 start。无发送或重试计划返回明确 unavailable。
 
 ```ts
 import { createModelRuntime } from '@omne-harness/model'
