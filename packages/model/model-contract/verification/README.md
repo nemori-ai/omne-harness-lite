@@ -419,7 +419,7 @@ Tool 额外验证附件仅地址文本且不加载媒体、无附件的内容 re
 
 ## Model 产品能力与设计覆盖
 
-CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md#阶段与版本支持承诺)为准。本表连接[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md)与已接受的非 pi-ai 技术设计，pi-ai 具体适配保持候选，不表示实际实现通过。所有行的运行验证均待实际提供者兑现。
+CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md#阶段与版本支持承诺)为准。本表连接[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md)与已接受的非 pi-ai 技术设计，pi-ai 适配的采用范围见[组架构各节](../../docs/architecture.md#成员与新增条件)，设计接受不表示实际实现通过。所有行的运行验证均待实际提供者兑现。
 
 | 能力 | 内部 module 与流程 | 对象与公开接口设计 | 行为/协议 | 必须验证的反例与剩余证据 |
 | --- | --- | --- | --- | --- |
@@ -459,7 +459,7 @@ CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../.
 | 多模态资源 | [物化](../../docs/architecture.md#物化和引擎资源控制) | 仅选定 ref 被读取，恶意媒体限额及取消后的真实退出 |
 | 诊断与前置 | [诊断协议](../SPEC.md#诊断查询与保留)、[拥有者](../../model/docs/architecture.md#诊断投影与跨领域前置) | 越权、分页快照、期限与保管独立、安装闭包 |
 
-非 pi-ai 设计已接受，可以据此分配实现责任；pi-ai 相关细化仍为候选。设计接受不代替共同依赖采用和实际提供者证据。每个实现切片沿相应反例验收，不以本节的存在关闭能力交付。
+非 pi-ai 设计已接受，可以据此分配实现责任；pi-ai 细化的采用范围沿[组架构各节](../../docs/architecture.md#成员与新增条件)。设计接受不代替共同依赖采用和实际提供者证据。每个实现切片沿相应反例验收，不以本节的存在关闭能力交付。
 
 ## Model 类型消费检查
 
@@ -481,7 +481,7 @@ CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../.
 
 宿主与独立能力的正例连接 createModelProfiles、createModelRequestPreparation、createModelMessageConversion、createModelRuntime 和 host.bind(provider.driver)。ModelBindingFailure.conflict 必须不借业务 operation/revision 即可表达。负例覆盖普通 runtime 取得 driver、驱动缺 continuity、工厂缺注入依赖、转换缺来源核验依赖以及注册缺 authority。
 
-pi 提供者候选另从[组设计](../../docs/architecture.md#pi-家族贡献的取得协议)提取目标贡献声明，验证固定供应商取得、物化表示、每次 decoder 与 finally 释放能连接。它不是领域契约的导出，也不是该目标包已经存在的证据。
+pi 提供者另从已接受的[家族贡献取得协议](../../docs/architecture.md#pi-家族贡献的取得协议)提取目标贡献声明，验证固定供应商取得、物化表示、每次 decoder 与 finally 释放能连接。它不是领域契约的导出，也不是该目标包已经存在的证据。
 
 诊断消费覆盖原 call 的授权输入、品牌游标及最小字段。漏租户/调用、普通字符串游标和把原请求 body 写入白名单记录须被拒绝。结构类型只约束公开声明，不防止不可信对象多带字段；运行边界须构造白名单投影并执行权限及内容校验。
 

@@ -51,4 +51,4 @@ token 类别名归本责任。`input` 是类别名的例子。token 用量的 `l
 
 ## 正式产品与技术承接
 
-[产品正文](../../../.meta_harness/design/product/model-invocation/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/model/README.md)展开工程依赖与成员机制。本域非 pi-ai 细化设计已接受，pi-ai 相关设计仍为候选。设计接受不表示成员已经实现或通过运行验证。
+[产品正文](../../../.meta_harness/design/product/model-invocation/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/model/README.md)展开工程依赖与成员机制。本域非 pi-ai 细化设计已接受；pi-ai 的采用范围由[组架构各节](../../../packages/model/docs/architecture.md#成员与新增条件)维护。设计接受不表示成员已经实现或通过运行验证。

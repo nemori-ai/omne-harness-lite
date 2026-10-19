@@ -111,7 +111,7 @@ stateDiagram-v2
 
 ## 依据
 
-模型档案、调用及 ACK 的已接受产品责任见[模型调用](../../../.meta_harness/design/product/model-invocation/README.md)。Model 非 pi-ai 细化设计已接受，pi-ai 相关设计仍为候选。输入与交接另见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，其采用范围由该拥有者维护。
+模型档案、调用及 ACK 的已接受产品责任见[模型调用](../../../.meta_harness/design/product/model-invocation/README.md)。Model 非 pi-ai 细化设计已接受；pi-ai 的采用范围由[组架构各节](../../../packages/model/docs/architecture.md#成员与新增条件)维护。输入与交接另见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，其采用范围由该拥有者维护。
 
 ## 未决问题与待办事项
 

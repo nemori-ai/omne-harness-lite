@@ -1,6 +1,6 @@
 # Model 领域实现规格
 
-本包非 pi-ai 实现设计已接受，凭据存在性与解析的判定已有实现，本地保管归 model-host-local，托管运行设计尚未实现。pi-ai 相关细化保留候选，具体范围见[组架构](../docs/architecture.md)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
+本包非 pi-ai 实现设计已接受，凭据存在性与解析的判定已有实现，本地保管归 model-host-local，托管运行设计尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
 
 ## 独立执行
 
