@@ -577,6 +577,36 @@
       },
       "inspectionProfile": "prose-v1",
       "requiredSections": []
+    },
+    {
+      "id": "acceptance-fixtures-readme",
+      "path": "packages/tool/tool-host-local/acceptance/fixtures/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "acceptance-fixtures-index",
+      "path": "packages/tool/tool-host-local/acceptance/fixtures/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
     }
   ]
 }
