@@ -10,6 +10,8 @@ tmp/
 /.worktrees/
 # make mutation 的 sandbox（与成员同深度，跑完删掉；被打断时可能留下）
 .stryker-tmp*
+# Git 2.31 之前的 rev-parse 原样回显 --path-format=absolute，旧版工具会把依赖图缓存写进以它命名的目录
+--path-format=*
 .env
 # D-116 fixed Schema build output; published with its owning package.
 generated/
