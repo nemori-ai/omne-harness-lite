@@ -47,6 +47,8 @@ export const agentHostPlugin = definePlugin({
 
 可选依赖是目录。`reserve` 时，宿主经 `ctx.get(agentInstances)` 现取目录，接受 undefined。目录缺席时 reserve 返回 unavailable。装配者可以不经宿主，把工厂的 `registration` 设为 null，创建不发布的实例。
 
+外域的变更通知是可选的唤醒提示。Tool 的 Cordis 定义声明了 [`tool-cordis-contract/call-changed`](../../../tool/tool-cordis-contract/docs/cordis.md#配置与变更通知)，载荷只有租户、ToolCallId 与 ToolRevision。实例进入等待节点时，宿主在自己的 fiber 上经 `ctx.on` 监听该事件，按本实例的租户与在途 PendingCall 的调用身份过滤，命中即唤醒 runtime 重读原调用；离开等待时撤除监听。这个监听不依赖 `toolRuntime` 提供者在场，没有发送者时只是不会被唤醒。通知可以丢失、重复或先于监听到达，所以它不是事实源：唤醒后仍以 inspect 或 lookup 的结果为准，遗漏由 reconciliationDelayMs 的持久重读兜底，规则见[等待、唤醒与公平](../../agent/docs/architecture/mechanisms.md#等待唤醒与公平)。监听器失败只记诊断，不改变 Tool 一侧已提交的结果。Model 的 Cordis 定义当前没有同类通知，Model 调用只靠重读。
+
 Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Request Context/HITL的完整服务定义若以后成为各原拥有者的公共接缝，应在同一采用中将本消费投影适配到该定义，不能保留两个含义相同的权威服务面。当前这些Agent端口拥有者是实际消费形状的Agent成员，未授予外域业务写权。
 
 ### 配置
