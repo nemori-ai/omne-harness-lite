@@ -13,4 +13,4 @@
 
 类型参数取自 `@omne-harness/agent-contract`。服务行为与依赖分类见 [cordis](cordis.md)。消费者只从 `@omne-harness/agent-cordis-contract/cordis` 导入绑定，不从实现包导入 Service。
 
-状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。以上定义已实现，任何服务键的提供者与宿主插件尚未实现。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。以上定义已实现。`agentInstances` 的提供者是目录插件 `agentInstancesPlugin`，其他服务键的提供者与宿主插件尚未实现。

@@ -22,6 +22,6 @@
 
 ## 本包事实
 
-[registration.spec.ts](registration.spec.ts) 的 `TestAuthority`、`TestAccess` 和 `TestHost` 是抽象定义的子类，只记录被问到的问题并按设定回答。`withdrawing` 状态的返回用一个不按 Cordis 行事的调用方上下文替身检查：它的 effect 不运行，或它的撤除函数抛错。真实 Cordis 的 effect 立即运行、立即结束，所以这两种情形只有替身能造出来；替身检查的是目录不信任调用方的 effect，不证明真实宿主会遇到。还没有覆盖的行为：同一撤除操作配不同登记的冲突（规格没有写）、登记记录的保留上限、登记身份生成失败（16 字节随机数的十六进制文本一定是合法身份，造不出这个失败）。
+[registration.spec.ts](registration.spec.ts) 的 `TestAuthority`、`TestAccess` 和 `TestHost` 是抽象定义的子类，只记录被问到的问题并按设定回答。有两种情形用一个不按 Cordis 行事的调用方上下文替身检查。替身的 effect 不运行时，登记返回 unavailable。替身的撤除函数抛错时，撤除返回 `withdrawing`。真实 Cordis 的 effect 立即运行、立即结束，所以这两种情形只有替身能造出来；替身检查的是目录不信任调用方的 effect，不证明真实宿主会遇到。本包不测同一撤除操作配不同输入的冲突：目录按登记身份认回撤除，不保存撤除的操作身份，这个冲突归宿主判断，见 [Cordis 页的登记输入与撤除协议](../docs/cordis.md#登记输入与撤除协议)。还没有覆盖的行为：登记记录的保留上限（目录保留无上界，登记在 [agent-contract 的实施差异](../../agent-contract/verification/coverage.md#实施差异)），以及登记身份生成失败（16 字节随机数的十六进制文本一定是合法身份，造不出这个失败）。
 
 按用例名挑测试的运行（`make mutation` 只跑快层，用 vitest 的 `preParse`）看不见生成用例（`it.each`、`describe.each`）的名字：只被生成用例覆盖的变异体会因没有用例被选中而显示为存活。本包新增的测试都用字面名字。

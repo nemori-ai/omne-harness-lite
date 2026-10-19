@@ -13,7 +13,7 @@ Agent 能力唯一的 Cordis 服务定义：服务、键、类型增补及框架
 
 根入口不导出值，只导出三个类型：`AgentLocalRoute`、`AgentRegistrationInput` 与 `AgentWithdrawalInput`。根入口没有到 Cordis 的边。
 
-本包没有实现 Agent 推进 Loop、评估器、任何服务键的提供者和宿主插件。宿主插件归 [agent-host-local](../agent-host-local/README.md)。没有用真实提供者做过运行验证。
+目录插件 `agentInstancesPlugin` 提供 `agentInstances` 键。本包没有实现 Agent 推进 Loop、评估器、其他服务键的提供者和宿主插件。宿主插件归 [agent-host-local](../agent-host-local/README.md)。没有用真实提供者做过运行验证。
 
 ## 使用
 

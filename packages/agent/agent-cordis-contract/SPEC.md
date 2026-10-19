@@ -1,6 +1,6 @@
 # Agent Cordis 定义的行为边界
 
-公共定义及机制的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。本包已实现这些定义：`./cordis` 导出 18 个服务键与 Service、`Context` 与 `Events` 增补、目录服务和目录插件，根入口只导出三个类型。具体内容见 [Cordis 协议](docs/cordis.md)。任何服务键的提供者与宿主插件尚未实现。领域操作沿 [agent-contract SPEC](../agent-contract/SPEC.md)，本包不另定治理语义。
+公共定义及机制的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。本包已实现这些定义：`./cordis` 导出 18 个服务键与 Service、`Context` 与 `Events` 增补、目录服务和目录插件，根入口只导出三个类型。具体内容见 [Cordis 协议](docs/cordis.md)。`agentInstances` 的提供者是目录插件 `agentInstancesPlugin`，其他服务键的提供者与宿主插件尚未实现。领域操作沿 [agent-contract SPEC](../agent-contract/SPEC.md)，本包不另定治理语义。
 
 ## 唯一性
 

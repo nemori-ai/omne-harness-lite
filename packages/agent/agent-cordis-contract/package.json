@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft agent-cordis-contract package; complete the accepted public contract before delivery",
+  "description": "Agent Cordis service definitions, keys, augmentation and the instance directory plugin",
   "engines": {
     "node": ">=24"
   },

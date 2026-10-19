@@ -13,7 +13,7 @@ The `./cordis` entry exports these items:
 
 The root entry exports no value. It exports three types: `AgentLocalRoute`, `AgentRegistrationInput`, and `AgentWithdrawalInput`. The root entry has no edge to Cordis.
 
-The package does not implement the Agent progression Loop, the evaluator, a provider for any service key, or the host plugin. The host plugin belongs to [agent-host-local](../agent-host-local/README.md). No run-time verification with a real provider exists.
+The directory plugin `agentInstancesPlugin` provides the `agentInstances` key. The package does not implement the Agent progression Loop, the evaluator, a provider for any other service key, or the host plugin. The host plugin belongs to [agent-host-local](../agent-host-local/README.md). No run-time verification with a real provider exists.
 
 ## Usage
 
