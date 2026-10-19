@@ -6,7 +6,9 @@
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
     "tsconfig.base.json",
-    "vitest.tiers.mts"
+    "vitest.tiers.mts",
+    "tools/repo-toolchain/src/**",
+    "tools/repo-toolchain/tests/fixtures/**"
   ],
   "tasks": {
     "build": {

@@ -125,7 +125,7 @@ owner: PanQiWei
 | 通用工具优先、专有检查留下 | [质量与风险](../engineering/quality.md)。根 `AGENTS.md` 已有「复用成熟机制」，不另写工具名单 | 已写回 | 2026-10-14 写入 quality.md。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 接入 oxlint、dependency-cruiser 与 knip，见下面三行 |
 | 影响面选择 | [开发指南](../development.md#迭代中的受影响测试) | 已写回 | 2026-10-14 接受 revision 2。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 替换：成员选择用 `turbo ls --affected`，构建用 `turbo run build`；读者、全局、Python、常驻与未识别文件的规则留在 `test-runs.config.json`。turbo 2.11.7 实测：`--affected` 默认不参考任务 `inputs`（只在 `futureFlags.affectedUsingTaskInputs` 下参考，未采用）；`TURBO_ROOT_TURBO_JSON` 能从检出之外读根配置，但成员目录下的 `turbo.json` 仍会生效，因此一律拒绝。四条约束的落实见开发指南。更正标注（2026-10-19）：成员目录下 `turbo.json` 的处理按 #390 的 D6 修订，见开头的更正标注 |
 | 任务调度与构建缓存 | [开发指南](../development.md#迭代中的受影响测试)与[测试运行器](../../tools/test-runner/README_ZH.md#测试运行) | 已写回 | 2026-10-19 由 [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 切换：构建、类型检查与成员测试都是 turbo 任务（`build`、`typecheck`、`test:fast`、`test:slow`、`test`），层由 vitest 的 mode 选择。构建读写本地缓存，准入时只写不读。测试任务不缓存。远程缓存仍未决定 |
-| 按输入缓存类型检查 | 同上 | 已写回 | 2026-10-19 由 [#416](https://github.com/nemori-ai/omne-harness-lite/issues/416) 切换：`typecheck` 依赖上游成员的 `typecheck`，上游源码改动后下游重新检查；tools 成员的类型检查会读到的仓库根 `vitest.tiers.mts` 列入 `globalDependencies`。单独运行读写本地缓存，准入时只写不读。此前不缓存的原因见 #390 的判据 C3 |
+| 按输入缓存类型检查 | 同上 | 已写回 | 2026-10-19 由 [#416](https://github.com/nemori-ai/omne-harness-lite/issues/416) 切换：`typecheck` 依赖上游成员的 `typecheck`，上游源码改动后下游重新检查；成员类型检查经相对路径读到、又不在 `workspace:` 依赖里的文件列入 `globalDependencies`（仓库根 `vitest.tiers.mts`、`tools/repo-toolchain` 的源码与测试夹具）。单独运行读写本地缓存，准入时只写不读。此前不缓存的原因见 #390 的判据 C3 |
 
 ## 后继关系与维护
 

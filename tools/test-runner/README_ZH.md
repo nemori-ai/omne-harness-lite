@@ -65,7 +65,7 @@ pnpm run acceptance                                 # 构建有 acceptance 脚�
 读者、成员文件与 Python 工具三种归属可以同时成立（另一个成员的 `schema/` 既是那个成员的文件又被别的成员的测试读），三者都算。
 被选中的成员定下之后：测试、类型检查、验收各取其中有对应脚本的；构建取其中有 `build` 脚本的，
 另加 `residentBuild` 列的成员（`lint:rules` 导入它的 `dist`），纯文档改动也构建它；它们的上游由 `turbo run build` 按依赖先构建。
-类型检查由 `turbo run typecheck` 对被选中的成员运行它们自己的 `typecheck` 脚本：不先构建，同时 4 个成员。任务按输入缓存：根 `turbo.json` 让它依赖上游成员的 `typecheck`，上游源码一改，下游的任务哈希随之改变；tools 成员的类型检查还会读仓库根的 `vitest.tiers.mts`，它列在 `globalDependencies` 里。单独运行读写本地缓存，准入模式只写不读，与构建相同。
+类型检查由 `turbo run typecheck` 对被选中的成员运行它们自己的 `typecheck` 脚本：不先构建，同时 4 个成员。任务按输入缓存：根 `turbo.json` 让它依赖上游成员的 `typecheck`，上游源码一改，下游的任务哈希随之改变；成员目录以外、又不经 `workspace:` 依赖读到的文件列在 `globalDependencies` 里：仓库根的 `vitest.tiers.mts`（tools 成员的 vitest 配置），以及 `tools/repo-toolchain/src/**` 与 `tools/repo-toolchain/tests/fixtures/**`（`tools/dev-flow`、`tools/test-runner` 的测试经相对路径导入）。单独运行读写本地缓存，准入模式只写不读，与构建相同。
 嵌套归档目录（名字以 `.legacy` 结尾）的排除写在成员的 `tsconfig.test.json`（模板给 `"exclude": ["**/*.legacy/**"]`）。
 运行前 `src/testing/typecheck-scope.ts` 只解析配置、不跑 tsc，核对编译根里没有归档文件：成员自己的 `exclude` 盖掉了模板那条，
 或者 `include` 指到成员目录外的归档目录，或者 `typecheck` 不是 `tsc -p <配置>` 形式而成员里有归档目录，就点名报错，不运行类型检查。
