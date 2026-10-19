@@ -1,29 +1,44 @@
 // The Cordis service definitions of Agent: abstract Services, the service keys, the
 // `agent-cordis-contract/instance-retired` event and the instance directory. Provider plugins live
 // in `@omne-harness/agent-host-local/cordis`. This entry does not import an Agent implementation.
+import { randomBytes } from 'node:crypto'
 import { type Context, Service } from '@deepseek-ai/cordis'
-import type {
-  ActionAdmission,
-  AgentAccessCheck,
-  AgentAdoptions,
-  AgentClock,
-  AgentExecutionRecovery,
-  AgentInstanceHost,
-  AgentInstanceId,
-  AgentJournal,
-  AgentMaterials,
-  CurrentConditions,
-  DecisionCards,
-  ExtensionImplementations,
-  MessageHandoff,
-  ModelContextReader,
-  ModelSelection,
-  RegisteredReads,
-  RequestPreparation,
+import {
+  decodeAgentRegistrationId,
+  type ActionAdmission,
+  type AgentAccessCheck,
+  type AgentAccessOperation,
+  type AgentAdoptions,
+  type AgentClock,
+  type AgentDirectory,
+  type AgentExecutionRecovery,
+  type AgentInstanceHost,
+  type AgentInstanceId,
+  type AgentJournal,
+  type AgentMaterials,
+  type AgentRegistrationId,
+  type CurrentConditions,
+  type DecisionCards,
+  type ExtensionImplementations,
+  type Failure,
+  type MessageHandoff,
+  type ModelContextReader,
+  type ModelSelection,
+  type RegisteredReads,
+  type Registration,
+  type RegistrationState,
+  type RequestPreparation,
+  type Reply,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { TenantId } from '@omne-harness/legal-identity'
-import type { AgentLocalRoute, AgentPublicationAuthority } from './index.ts'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type {
+  AgentLocalRoute,
+  AgentPublicationAuthority,
+  AgentRegistrationInput,
+  AgentWithdrawalInput,
+} from './index.ts'
 
 export type {
   AgentLocalRoute,
@@ -252,6 +267,420 @@ export abstract class AgentExecutionRecoveryService<P>
 }
 export const agentExecutionRecoveryKey = AgentExecutionRecoveryService.provide
 
+type RetirementReason = 'withdrawn' | 'contributor-removed' | 'superseded'
+
+// One registration, from its entry to the end of the process. The directory keeps ended records so
+// that a late call of an old identity, and a repeated call of an old operation, still find their
+// answer. `hint` is the reason that the next removal reports: only an explicit withdrawal sets it.
+type Entry = {
+  readonly id: AgentRegistrationId
+  readonly tenant: TenantId
+  readonly instance: AgentInstanceId
+  readonly instanceKey: string
+  readonly generation: number
+  readonly fiber: Context['fiber']
+  readonly inputText: string
+  readonly drop: () => unknown
+  state: RegistrationState
+  hint: RetirementReason | undefined
+  announced: Promise<void> | undefined
+}
+
+type Admission =
+  | Readonly<{ kind: 'refused'; failure: Failure }>
+  | Readonly<{ kind: 'recognised'; registration: Registration }>
+  | Readonly<{ kind: 'entered'; record: Entry; superseded: Entry | undefined }>
+
+type Reached =
+  | Readonly<{ kind: 'route'; route: AgentLocalRoute<unknown> }>
+  | Readonly<{ kind: 'no-live-route' }>
+
+const owner = 'agentInstances'
+
+const unavailable = (source: string, diagnostic: string): Failure => ({
+  kind: 'unavailable',
+  owner: source,
+  diagnostic,
+})
+
+// A caller can hand over anything, so reading it can throw. A read that throws is an invalid input.
+function guarded<T>(read: () => T): T | undefined {
+  try {
+    return read()
+  } catch {
+    return undefined
+  }
+}
+
+// The text of the data that a retry has to repeat. Members come in sorted order, so two inputs that
+// hold the same data give the same text. It is undefined when the data cannot be written as JSON.
+function dataText(value: unknown): string | undefined {
+  return guarded(() =>
+    JSON.stringify(value, (_name, member: unknown) =>
+      typeof member === 'object' && member !== null && !Array.isArray(member)
+        ? Object.fromEntries(
+            Object.entries(member).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+          )
+        : member,
+    ),
+  )
+}
+
+// One entry per tenant and instance. Equal tenants give equal text, and the text never contains
+// the raw separator of the pair, so two pairs cannot collide. A tenant that did not come from the
+// identity parser has no text and so no key.
+function keyOf(tenant: TenantId, member: string): string | undefined {
+  const text = tenantCodec.encode(tenant)
+  return text.ok && typeof member === 'string' && member !== ''
+    ? JSON.stringify([text.value, member])
+    : undefined
+}
+
+type EntryKeys = Readonly<{ instance: string; operation: string; text: string }>
+
+// What `register` repeats on a retry: the keys of the instance and of the operation, and the text
+// of the data. It throws when the caller handed over something that has no such members.
+function keysOf<P>(input: AgentRegistrationInput<P>): EntryKeys | undefined {
+  const instance = keyOf(input.tenant, input.instance)
+  const operation = keyOf(input.tenant, input.operation)
+  const text = dataText([input.principal, input.instance, input.scope, input.state])
+  return instance === undefined || operation === undefined || text === undefined
+    ? undefined
+    : { instance, operation, text }
+}
+
+function mintRegistration(): AgentRegistrationId | undefined {
+  const decoded = decodeAgentRegistrationId(randomBytes(16).toString('hex'))
+  return 'ok' in decoded ? decoded.ok : undefined
+}
+
+function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P>) {
+  const records = new Map<string, Entry>()
+  const live = new Map<string, Entry>()
+  const operations = new Map<string, Entry>()
+  const generations = new Map<string, number>()
+
+  const view = (record: Entry): Registration => ({
+    registration: record.id,
+    state: record.state,
+  })
+
+  // Step: notify. The tell comes after the removal is whole, so a listener that calls back into
+  // the directory sees the state after the removal. A listener failure is logged and changes
+  // nothing that the directory has answered.
+  function announce(record: Entry, reason: RetirementReason): Promise<void> {
+    record.announced = (async () => {
+      try {
+        await ctx.parallel(
+          'agent-cordis-contract/instance-retired',
+          record.tenant,
+          record.instance,
+          record.generation,
+          reason,
+        )
+      } catch (error) {
+        const failures = error instanceof AggregateError ? error.errors.length : 1
+        ctx
+          .logger('agent-cordis-contract')
+          .error(
+            `${failures} listener(s) of instance-retired failed (${reason}, generation ${record.generation})`,
+          )
+      }
+    })()
+    return record.announced
+  }
+
+  // The one removal. Explicit withdrawal, supersession and the unload of the calling fiber all
+  // reach it, and the first one wins. It returns the reason that it reported, or undefined when
+  // the registration had already ended. It only changes the tables and never yields. An entry that
+  // has not ended holds its instance in `live`, because a successor ends the old entry in the same
+  // step that it enters, so this delete never removes a successor.
+  function retire(record: Entry, reason: RetirementReason): RetirementReason | undefined {
+    if (record.state === 'withdrawn') return undefined
+    live.delete(record.instanceKey)
+    record.state = 'withdrawn'
+    return reason
+  }
+
+  // Takes the effect of an entry off its fiber. The removal that this runs is the one above, and
+  // it has already happened when the entry is superseded. A failure of the disposer is logged.
+  async function release(entry: Entry): Promise<void> {
+    try {
+      await entry.drop()
+    } catch {
+      ctx.logger('agent-cordis-contract').error('the effect of a registration did not end cleanly')
+    }
+  }
+
+  // The removal for the fiber that ended: it announces on its own and nobody waits for it.
+  function removeWithFiber(record: Entry): void {
+    const reason = retire(record, record.hint ?? 'contributor-removed')
+    if (reason !== undefined) void announce(record, reason)
+  }
+
+  // Step: check. The host's authority answers before anything is written. A throw from the
+  // authority, or an answer of another shape, counts as unavailable and never as allowed.
+  function check(
+    input: AgentRegistrationInput<P> | AgentWithdrawalInput<P>,
+    caller: Context,
+  ): Failure | undefined {
+    try {
+      const checked = authority.check(input, caller)
+      if ('ok' in checked) return undefined
+      if ('failure' in checked) return checked.failure
+    } catch {
+      // The authority failed. The answer below is the same as for an answer of another shape.
+    }
+    return unavailable('agentPublicationAuthority', 'the publication authority gave no answer')
+  }
+
+  // Step: write. It runs inside the effect of the calling fiber and never yields: the authority
+  // is asked, the keys are checked and the entry replaces the old one in one step, so the answer
+  // cannot go stale in between.
+  function admit(
+    caller: Context,
+    input: AgentRegistrationInput<P>,
+    keys: EntryKeys,
+    drop: () => unknown,
+  ): Admission {
+    const refused = check(input, caller)
+    if (refused !== undefined) return { kind: 'refused', failure: refused }
+    const held = operations.get(keys.operation)
+    if (held !== undefined)
+      return held.fiber === caller.fiber && held.inputText === keys.text
+        ? { kind: 'recognised', registration: view(held) }
+        : { kind: 'refused', failure: { kind: 'conflict', operation: input.operation } }
+    const id = mintRegistration()
+    if (id === undefined)
+      return {
+        kind: 'refused',
+        failure: unavailable(owner, 'no registration identity could be made'),
+      }
+    const generation = (generations.get(keys.instance) ?? 0) + 1
+    const record: Entry = {
+      id,
+      tenant: input.tenant,
+      instance: input.instance,
+      instanceKey: keys.instance,
+      generation,
+      fiber: caller.fiber,
+      inputText: keys.text,
+      drop,
+      state: 'published',
+      hint: undefined,
+      announced: undefined,
+    }
+    const superseded = live.get(keys.instance)
+    if (superseded !== undefined) retire(superseded, 'superseded')
+    generations.set(keys.instance, generation)
+    live.set(keys.instance, record)
+    records.set(id, record)
+    operations.set(keys.operation, record)
+    return { kind: 'entered', record, superseded }
+  }
+
+  // Runs `admit` in an effect of the calling fiber, so the entry ends when that fiber ends. A
+  // refused or recognised request registers nothing, so its effect is removed again at once.
+  function enter(caller: Context, input: AgentRegistrationInput<P>, keys: EntryKeys): Admission {
+    const call: { admission?: Admission; remove?: () => unknown } = {}
+    const drop = () => call.remove?.()
+    call.remove = caller.effect(() => {
+      const admission = admit(caller, input, keys, drop)
+      call.admission = admission
+      return admission.kind === 'entered'
+        ? () => removeWithFiber(admission.record)
+        : () => undefined
+    })
+    const { admission } = call
+    if (admission === undefined)
+      return { kind: 'refused', failure: unavailable(owner, 'the registration effect did not run') }
+    if (admission.kind !== 'entered') drop()
+    return admission
+  }
+
+  async function register(caller: Context, input: AgentRegistrationInput<P>): Reply<Registration> {
+    const keys = guarded(() => keysOf(input))
+    if (keys === undefined)
+      return fail({
+        kind: 'invalid',
+        field: 'input',
+        reason: 'tenant, instance, operation or data is not valid',
+      })
+    let admission: Admission
+    try {
+      admission = enter(caller, input, keys)
+    } catch {
+      return fail(unavailable(owner, 'the calling fiber has ended'))
+    }
+    if (admission.kind === 'refused') return fail(admission.failure)
+    if (admission.kind === 'recognised') return succeed(admission.registration)
+    const { record, superseded } = admission
+    if (superseded !== undefined) {
+      await release(superseded)
+      await announce(superseded, 'superseded')
+    }
+    return succeed(view(record))
+  }
+
+  async function withdraw(caller: Context, input: AgentWithdrawalInput<P>): Reply<Registration> {
+    const instance = guarded(() => keyOf(input.tenant, input.instance))
+    if (instance === undefined)
+      return fail({ kind: 'invalid', field: 'input', reason: 'tenant or instance is not valid' })
+    const refused = check(input, caller)
+    if (refused !== undefined) return fail(refused)
+    const record = records.get(input.registration)
+    if (record === undefined || record.instanceKey !== instance)
+      return fail({ kind: 'denied', action: 'withdraw' })
+    if (record.state !== 'withdrawn') {
+      record.state = 'withdrawing'
+      record.hint = 'withdrawn'
+      await release(record)
+    }
+    await record.announced
+    return succeed(view(record))
+  }
+
+  // Step: check. The access check of the authorization domain answers before the directory looks
+  // at its tables.
+  async function qualify(
+    input: Parameters<AgentDirectory<P>['resolve']>[0],
+    operation: Extract<AgentAccessOperation, 'resolve' | 'connect'>,
+  ): Promise<Failure | undefined> {
+    const accessCheck = ctx.get('agentAccessCheck')
+    if (accessCheck === undefined)
+      return unavailable('agentAccessCheck', 'no access check is provided')
+    try {
+      const decision = await accessCheck.check({
+        access: { principal: input.principal, tenant: input.tenant },
+        operation,
+        target: { kind: 'instance', instance: input.instance },
+      })
+      if (decision.kind === 'allowed') return undefined
+      if (decision.kind === 'denied') return { kind: 'denied', action: operation }
+      if (decision.kind === 'unavailable')
+        return unavailable('agentAccessCheck', decision.diagnostic)
+    } catch {
+      // The access check failed. The answer below is the same as for an answer of another shape.
+    }
+    return unavailable('agentAccessCheck', 'the access check gave no answer')
+  }
+
+  // Asks the host for the objects of a published instance. The host is taken from the context at
+  // each call, so a host that was replaced is never used from an old reference.
+  function route(tenant: TenantId, instance: AgentInstanceId): Outcome<Reached, Failure> {
+    const host = ctx.get('agentInstanceHost')
+    if (host === undefined)
+      return fail(unavailable('agentInstanceHost', 'no host provides the instance route'))
+    try {
+      const local = host.route(tenant, instance)
+      return succeed(local === null ? { kind: 'no-live-route' } : { kind: 'route', route: local })
+    } catch {
+      return fail(unavailable('agentInstanceHost', 'the host failed to give the instance route'))
+    }
+  }
+
+  // The path that resolve and connect share. An instance of another tenant has no entry under
+  // this tenant's key, so it answers denied, the same as an instance that does not exist.
+  async function reach(
+    input: Parameters<AgentDirectory<P>['resolve']>[0],
+    operation: Extract<AgentAccessOperation, 'resolve' | 'connect'>,
+  ): Promise<Outcome<Reached, Failure>> {
+    const key = guarded(() => keyOf(input.tenant, input.instance))
+    if (key === undefined)
+      return fail({ kind: 'invalid', field: 'input', reason: 'tenant or instance is not valid' })
+    const refused = await qualify(input, operation)
+    if (refused !== undefined) return fail(refused)
+    const record = live.get(key)
+    if (record === undefined) return fail({ kind: 'denied', action: operation })
+    if (record.state !== 'published') return succeed({ kind: 'no-live-route' })
+    return route(input.tenant, input.instance)
+  }
+
+  return {
+    register,
+    withdraw,
+    async resolve(input: Parameters<AgentDirectory<P>['resolve']>[0]) {
+      const reached = await reach(input, 'resolve')
+      if ('failure' in reached) return reached
+      return reached.ok.kind === 'route'
+        ? succeed(reached.ok.route.runtime)
+        : fail(unavailable(owner, 'the instance has no live route'))
+    },
+    async connect(input: Parameters<AgentDirectory<P>['connect']>[0]) {
+      const reached = await reach(input, 'connect')
+      if ('failure' in reached) return reached
+      return succeed(
+        reached.ok.kind === 'route'
+          ? ({ kind: 'live', handle: reached.ok.route.observation } as const)
+          : ({ kind: 'no-live-route' } as const),
+      )
+    },
+  }
+}
+
+/**
+ * The directory of Agent instances. The host that runs an instance registers it for one tenant and
+ * instance through `register`, and `resolve` and `connect` serve the objects that the host
+ * gives for it. The state stays in the closure built by the constructor and not on the instance,
+ * because every property of the instance is reachable by any plugin that can read
+ * `ctx.agentInstances`. `register` and `withdraw` are plain functions so that Cordis binds
+ * `this.ctx` to the calling plugin: a registration then ends with the fiber of the caller.
+ * @owner packages/agent/agent-cordis-contract
+ */
+export class AgentInstancesService<P> extends Service implements AgentDirectory<P> {
+  static readonly provide = 'agentInstances'
+
+  readonly resolve: AgentDirectory<P>['resolve']
+  readonly connect: AgentDirectory<P>['connect']
+  readonly register: (input: AgentRegistrationInput<P>) => Reply<Registration>
+  readonly withdraw: (input: AgentWithdrawalInput<P>) => Reply<Registration>
+
+  constructor(ctx: Context, authority: AgentPublicationAuthority<P>) {
+    super(ctx, AgentInstancesService.provide)
+    const directory = createDirectory(ctx, authority)
+    this.resolve = input => directory.resolve(input)
+    this.connect = input => directory.connect(input)
+    this.register = function (this: AgentInstancesService<P> | undefined, input) {
+      return this === undefined
+        ? Promise.resolve(fail(unavailable(owner, 'register was called without its service')))
+        : directory.register(this.ctx, input)
+    }
+    this.withdraw = function (this: AgentInstancesService<P> | undefined, input) {
+      return this === undefined
+        ? Promise.resolve(fail(unavailable(owner, 'withdraw was called without its service')))
+        : directory.withdraw(this.ctx, input)
+    }
+  }
+}
+export const agentInstancesKey = AgentInstancesService.provide
+
+const emptyConfig = {
+  '~standard': {
+    version: 1 as const,
+    vendor: 'agent-cordis-contract',
+    validate(value: unknown) {
+      if (value === undefined || value === null) return { value: {} }
+      if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0)
+        return { value: {} }
+      return { issues: [{ message: 'configuration accepts no fields' }] }
+    },
+  },
+}
+
+/**
+ * The plugin of the directory: it provides `agentInstances` once the publication authority and
+ * the access check are present, and it loads again when either one changes its provider. Its
+ * `Config` is an empty object and refuses any member.
+ */
+export const agentInstancesPlugin = {
+  name: 'agentInstances',
+  Config: emptyConfig,
+  inject: ['agentPublicationAuthority', 'agentAccessCheck'],
+  apply(ctx: Context) {
+    new AgentInstancesService(ctx, ctx.agentPublicationAuthority)
+  },
+}
+
 declare module '@deepseek-ai/cordis' {
   // The trusted identity adapter of an assembly narrows the principal type. Providers still
   // check every input at run time.
@@ -273,6 +702,7 @@ declare module '@deepseek-ai/cordis' {
     agentInstanceHost: AgentInstanceHostService<unknown>
     agentPublicationAuthority: AgentPublicationAuthorityService<unknown>
     agentExecutionRecovery: AgentExecutionRecoveryService<unknown>
+    agentInstances: AgentInstancesService<unknown>
   }
   interface Events {
     /**
