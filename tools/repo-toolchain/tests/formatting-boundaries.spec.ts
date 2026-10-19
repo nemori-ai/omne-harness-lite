@@ -22,7 +22,7 @@ it(
   { timeout: 60_000 },
   () => {
     const subject = repository()
-    const path = 'packages/demo/src/index.ts'
+    const path = 'tools/demo/src/index.ts'
     write(subject, path, 'export const value={dirty:true}\n')
     commit(subject, 'external subject')
     write(subject, path, 'export const value={staged:true}\n')

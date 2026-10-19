@@ -37,7 +37,7 @@ Claude Code 与 Codex 的 `Stop` 已有真实会话执行证据，包括本工�
 - 长期关：`tools/repo-toolchain/loop.config.json` 的 `hook.enabled` 置 `false`。
 - 拿掉这条钩子：从 `hooks.yaml` 删掉它并重新编译。
 
-测量入口按实际 cwd 工作树读取 task context，不从另一个树借 taskBase 或 targetBase。缺输入报告 unknown/error；没有 task context（pending）时按默认基线读取。规则归执行仓库 `docs/engineering/integration.md`；生成和静态检查不证明宿主实际执行。
+测量入口按实际 cwd 工作树读取 task context，不从另一个树借 taskBase 或 targetBase。缺输入报告 unknown/error；没有 task context（pending）时按[收工钩子的基线规则](../../../tools/repo-toolchain/README_ZH.md#收工钩子)读取：主线与活跃集成轨道里离 HEAD 最近的合并点。规则归执行仓库 `docs/engineering/integration.md`；生成和静态检查不证明宿主实际执行。
 
 ## Cursor native adapter
 

@@ -87,6 +87,52 @@ export function changedLines(root: string, mergeBase: string): ChangedLines {
 /** `-z` 输出的路径：以 NUL 分隔，非 ASCII 的文件名原样给出（不加引号、不转义）。 */
 export const nulSeparated = (output: string) => output.split('\u0000').filter(path => path !== '')
 
+/**
+ * 工作树里自身被 git 忽略的未跟踪目录（仓库相对路径，不带尾斜杠），例如变异运行器的 `.stryker-tmp-*` 沙箱。
+ * 只有目录本身匹配忽略规则才算：只忽略了目录里个别文件的目录不在其中；已跟踪的目录 git 从不当作被忽略。
+ * 两步都只跑 git：先列出整个被忽略的候选目录，再让 `check-ignore` 核对目录自身是否匹配。
+ * 不在 git 工作树里时没有忽略规则可言，返回空集合（`omne-deps --root` 可指向非 git 目录）。
+ */
+export function ignoredDirectories(root: string): Set<string> {
+  if (!insideWorkTree(root)) return new Set()
+  const candidates = nulSeparated(
+    git(root, ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z']),
+  ).filter(path => path.endsWith('/'))
+  if (candidates.length === 0) return new Set()
+  let matched: string
+  try {
+    matched = execFileSync('git', ['check-ignore', '--stdin', '-z'], {
+      env: repositoryEnv(process.env),
+      cwd: root,
+      encoding: 'utf8',
+      input: candidates.join('\u0000'),
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+  } catch (error) {
+    // 退出码 1 是「一个也不匹配」，不是出错。
+    if ((error as { status?: unknown }).status !== 1) throw error
+    return new Set()
+  }
+  return new Set(nulSeparated(matched).map(path => path.replace(/\/$/u, '')))
+}
+
+/** `root` 在一棵 git 工作树里。`rev-parse` 以 128 退出才是「不在仓库里」，别的失败照常抛出。 */
+function insideWorkTree(root: string): boolean {
+  try {
+    return git(root, ['rev-parse', '--is-inside-work-tree']) === 'true'
+  } catch (error) {
+    if ((error as { status?: unknown }).status === 128) return false
+    throw error
+  }
+}
+
+/** `path` 自己或某个上级目录在 `ignoredDirs` 里。 */
+export function isUnderIgnored(path: string, ignoredDirs: ReadonlySet<string>): boolean {
+  const segments = path.split('/')
+  return segments.some((_, index) => ignoredDirs.has(segments.slice(0, index + 1).join('/')))
+}
+
 /** 基线合并点到当前工作树改动过的全部仓库相对路径（含删除、未提交与未跟踪），不限目录；改名拆成删与增。 */
 export function changedFiles(root: string, mergeBase: string): string[] {
   const tracked = git(root, ['diff', '--no-renames', '--name-only', '-z', mergeBase])
