@@ -98,9 +98,16 @@ type GuardRecord = Readonly<{
   owner: string
   resource: string
   revision: string
-  /** The invalidation that set this revision, so a resend of it is recognised. */
+  /** The latest invalidation that set this revision. */
   operation: ToolOperationId | null
   evidence: DurableEvidence | null
+}>
+/** The permanent binding of an invalidation operation to its full guard input and first evidence. */
+type InvalidationRecord = Readonly<{
+  kind: 'invalidation'
+  operation: ToolOperationId
+  digest: string
+  evidence: DurableEvidence
 }>
 /** The one permit of a start that consume may accept. A newer permit replaces it. */
 type PermitRecord = Readonly<{
@@ -126,6 +133,14 @@ type RejectionRecord = Readonly<{
   reason: string
   evidence: DurableEvidence
 }>
+/** The input and returned evidence of each successful call exclusion operation. */
+type ExclusionOperationRecord = Readonly<{
+  kind: 'exclusion-operation'
+  call: ToolCallId
+  operation: ToolOperationId
+  reason: string
+  evidence: DurableEvidence
+}>
 /** The proof that every permit of the start issued before it can no longer be consumed. */
 type ExclusionRecord = Readonly<{
   kind: 'exclusion'
@@ -135,9 +150,11 @@ type ExclusionRecord = Readonly<{
 }>
 type CoordinatorRecord =
   | GuardRecord
+  | InvalidationRecord
   | PermitRecord
   | AcceptanceRecord
   | RejectionRecord
+  | ExclusionOperationRecord
   | ExclusionRecord
 
 /** The records of the domain by key, with the domain revision. */
@@ -150,17 +167,25 @@ type Snapshot = Readonly<{
 // key of another record. A start operation is unique per call only (P01), so its keys name both.
 const guardKey = (guard: GuardResource): string =>
   `guard:${JSON.stringify([guard.owner, guard.resource])}`
+const invalidationKey = (operation: ToolOperationId): string =>
+  `invalidation:${JSON.stringify([operation])}`
 const startKey = (
   kind: 'permit' | 'acceptance' | 'exclusion' | 'rejection',
   call: ToolCallId,
   start: ToolOperationId,
 ): string => `${kind}:${JSON.stringify([call, start])}`
+const exclusionOperationKey = (call: ToolCallId, operation: ToolOperationId): string =>
+  `exclusion-operation:${JSON.stringify([call, operation])}`
 const callRejectionKey = (call: ToolCallId): string => `rejection:${JSON.stringify([call])}`
 
 function keyOf(record: CoordinatorRecord): string {
   switch (record.kind) {
     case 'guard':
       return guardKey(record)
+    case 'invalidation':
+      return invalidationKey(record.operation)
+    case 'exclusion-operation':
+      return exclusionOperationKey(record.call, record.operation)
     case 'rejection':
       return record.start === null
         ? callRejectionKey(record.call)
@@ -178,6 +203,8 @@ function keyOf(record: CoordinatorRecord): string {
 
 const RECORD_FIELDS: Readonly<Record<CoordinatorRecord['kind'], readonly string[]>> = {
   guard: ['owner', 'resource', 'revision'],
+  invalidation: ['operation', 'digest'],
+  'exclusion-operation': ['call', 'operation', 'reason'],
   permit: ['call', 'start', 'digest'],
   acceptance: ['call', 'start', 'permit'],
   rejection: ['call', 'operation', 'reason'],
@@ -296,6 +323,38 @@ function texts<K extends string>(
 
 function judgeEvidence(value: unknown, field: string): Outcome<DurableEvidence, ToolFailure> {
   return texts(value, ['owner', 'record', 'revision', 'digest'], field)
+}
+
+/** Parses only contract fields so canonical identity excludes unrelated input properties. */
+function judgeGuard(value: unknown): Outcome<StartGuard, ToolFailure> {
+  if (!isObject(value)) return invalid('guard', 'type')
+  const guard = texts(value, ['owner', 'resource', 'revision'], 'guard')
+  if ('failure' in guard) return guard
+  const evidence = judgeEvidence(Reflect.get(value, 'evidence'), 'guard.evidence')
+  if ('failure' in evidence) return evidence
+  const scope: unknown = Reflect.get(value, 'scope')
+  if (!isObject(scope)) return invalid('guard.scope', 'type')
+  const kind: unknown = Reflect.get(scope, 'kind')
+  if (kind === 'resource') return succeed({ ...guard.ok, evidence: evidence.ok, scope: { kind } })
+  if (kind !== 'program') return invalid('guard.scope.kind', 'type')
+  const parent = decodeToolCallId(Reflect.get(scope, 'parent'))
+  if ('failure' in parent) return invalid('guard.scope.parent', parent.failure.reason)
+  const gate: unknown = Reflect.get(scope, 'gate')
+  if (gate === 'open')
+    return succeed({ ...guard.ok, evidence: evidence.ok, scope: { kind, parent: parent.ok, gate } })
+  if (gate !== 'closing' && gate !== 'closed') return invalid('guard.scope.gate', 'type')
+  const closure = decodeToolOperationId(Reflect.get(scope, 'closure'))
+  if ('failure' in closure) return invalid('guard.scope.closure', closure.failure.reason)
+  const applies: unknown = Reflect.get(scope, 'applies')
+  if (applies !== 'all-children' && applies !== 'foreground-and-unadmitted')
+    return invalid('guard.scope.applies', 'type')
+  const cutoff = judgeEvidence(Reflect.get(scope, 'cutoff'), 'guard.scope.cutoff')
+  if ('failure' in cutoff) return cutoff
+  return succeed({
+    ...guard.ok,
+    evidence: evidence.ok,
+    scope: { kind, parent: parent.ok, gate, closure: closure.ok, applies, cutoff: cutoff.ok },
+  })
 }
 
 function judgeExecution(value: unknown, field: string): Outcome<ToolExecutionRef, ToolFailure> {
@@ -711,18 +770,23 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
       return fail({ kind: 'denied', action: 'invalidate' })
     const operation = decodeToolOperationId(Reflect.get(raw, 'operation'))
     if ('failure' in operation) return invalid('operation', operation.failure.reason)
-    const target = texts(Reflect.get(raw, 'guard'), ['owner', 'resource'], 'guard')
+    const target = judgeGuard(Reflect.get(raw, 'guard'))
     if ('failure' in target) return target
     // The principal is the caller's type; the access guard judges it.
     const principal = Reflect.get(raw, 'principal') as P
     const allowed = await qualify(principal, tenant, null, 'invalidate')
     if ('failure' in allowed) return allowed
+    const digest = canonicalDigest(target.ok)
     return transact<DurableEvidence>(
       tenant,
       (snapshot, revision) => {
+        const existing = snapshot.records.get(invalidationKey(operation.ok))
+        if (existing?.kind === 'invalidation') {
+          if (existing.digest !== digest)
+            return reply(fail({ kind: 'conflict', operation: operation.ok }))
+          return reply(succeed(existing.evidence))
+        }
         const current = guardOf(snapshot, target.ok)
-        if (current.operation === operation.ok && current.evidence !== null)
-          return reply(succeed(current.evidence))
         const advanced = (BigInt(current.revision) + 1n).toString()
         const evidence = mint(tenant, guardKey(target.ok), revision, {
           guard: advanced,
@@ -734,7 +798,13 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
           operation: operation.ok,
           evidence,
         }
-        return { kind: 'commit', puts: [record], value: evidence }
+        const invalidation: InvalidationRecord = {
+          kind: 'invalidation',
+          operation: operation.ok,
+          digest,
+          evidence,
+        }
+        return { kind: 'commit', puts: [record, invalidation], value: evidence }
       },
       () => fail({ kind: 'commit-unknown', operation: operation.ok }),
     )
@@ -751,8 +821,23 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
     return transact<DurableEvidence>(
       tenant,
       (snapshot, revision) => {
+        const known = snapshot.records.get(exclusionOperationKey(call, operation.ok))
+        if (known?.kind === 'exclusion-operation') {
+          if (known.reason !== reason)
+            return reply(fail({ kind: 'conflict', operation: operation.ok }))
+          return reply(succeed(known.evidence))
+        }
         const existing = snapshot.records.get(callRejectionKey(call))
-        if (existing?.kind === 'rejection') return reply(succeed(existing.evidence))
+        if (existing?.kind === 'rejection') {
+          const record: ExclusionOperationRecord = {
+            kind: 'exclusion-operation',
+            call,
+            operation: operation.ok,
+            reason,
+            evidence: existing.evidence,
+          }
+          return { kind: 'commit', puts: [record], value: existing.evidence }
+        }
         // An accepted invocation is in flight; a control stops it, an exclusion cannot (P04).
         for (const record of snapshot.records.values())
           if (record.kind === 'acceptance' && record.call === call)
@@ -767,7 +852,14 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
           reason,
           evidence,
         }
-        return { kind: 'commit', puts: [rejection], value: evidence }
+        const record: ExclusionOperationRecord = {
+          kind: 'exclusion-operation',
+          call,
+          operation: operation.ok,
+          reason,
+          evidence,
+        }
+        return { kind: 'commit', puts: [rejection, record], value: evidence }
       },
       () => fail({ kind: 'commit-unknown', operation: operation.ok }),
     )

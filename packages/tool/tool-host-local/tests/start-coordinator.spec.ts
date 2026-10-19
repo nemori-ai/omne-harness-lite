@@ -203,6 +203,69 @@ describe('G5 the start ordering domain', () => {
     expect(store.commits).toBe(commits)
   })
 
+  it('G5 identity: program guard identity includes every scope field', async () => {
+    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const authority = coordinator(store)
+    const scope = {
+      kind: 'program',
+      parent: callId('parent'),
+      gate: 'closing',
+      closure: operationId('close-1'),
+      applies: 'all-children',
+      cutoff: evidence('cutoff'),
+    } satisfies StartGuard['scope']
+    const original = {
+      ...invalidation('revoke-1'),
+      guard: { ...invalidation('revoke-1').guard, scope },
+    }
+    const first = ok(await authority.invalidate(original))
+    const changed: readonly StartGuard['scope'][] = [
+      { ...scope, parent: callId('another-parent') },
+      { ...scope, gate: 'closed' },
+      { ...scope, closure: operationId('close-2') },
+      { ...scope, applies: 'foreground-and-unadmitted' },
+      { ...scope, cutoff: { ...scope.cutoff, digest: 'another-cutoff' } },
+    ]
+    const commits = store.commits
+    for (const other of changed)
+      expect(
+        await authority.invalidate({ ...original, guard: { ...original.guard, scope: other } }),
+      ).toEqual({
+        failure: { kind: 'conflict', operation: original.operation },
+      })
+    expect(ok(await authority.invalidate(original))).toEqual(first)
+    expect(store.commits).toBe(commits)
+  })
+
+  it('G5 identity: malformed guard fields are invalid before any ledger access', async () => {
+    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const authority = coordinator(store)
+    const original = invalidation('revoke-1')
+    const malformed = [
+      { ...original.guard, revision: 1n },
+      { ...original.guard, evidence: { ...original.guard.evidence, digest: () => 'invalid' } },
+      { ...original.guard, scope: { kind: 'unknown' } },
+      { ...original.guard, scope: { kind: 'program', parent: 'parent', gate: 'closing' } },
+      {
+        ...original.guard,
+        scope: {
+          kind: 'program',
+          parent: 'parent',
+          gate: 'closed',
+          closure: 'close',
+          applies: 'unknown',
+          cutoff: evidence('cutoff'),
+        },
+      },
+    ]
+    for (const guard of malformed)
+      expect(await authority.invalidate({ ...original, guard } as never)).toMatchObject({
+        failure: { kind: 'invalid' },
+      })
+    expect(store.reads).toBe(0)
+    expect(store.commits).toBe(0)
+  })
+
   it('G5 identity: an exclusion alias binds its reason and survives coordinator reconstruction', async () => {
     const store = createMemoryToolLedgerStore<ContentBlock>()
     const authority = coordinator(store)
@@ -224,6 +287,25 @@ describe('G5 the start ordering domain', () => {
       reason: original.reason,
       exclusion: first,
     })
+  })
+
+  it('G5 exclude: an unknown applied alias commit is recalled with its input binding', async () => {
+    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const authority = coordinator(store)
+    const original = { ...callAccess('c1'), operation: operationId('op-a'), reason: 'first' }
+    const first = ok(await authority.exclude(original))
+    const alias = { ...original, operation: operationId('op-b'), reason: 'second' }
+    store.injectCommit('unknown-applied')
+    expect(await authority.exclude(alias)).toEqual({
+      failure: { kind: 'commit-unknown', operation: alias.operation },
+    })
+    const restored = coordinator(store)
+    const commits = store.commits
+    expect(ok(await restored.exclude(alias))).toEqual(first)
+    expect(await restored.exclude({ ...alias, reason: 'third' })).toEqual({
+      failure: { kind: 'conflict', operation: alias.operation },
+    })
+    expect(store.commits).toBe(commits)
   })
 
   it('G5 inspect: an undecided start is not-started only after its outstanding permit was withdrawn', async () => {
