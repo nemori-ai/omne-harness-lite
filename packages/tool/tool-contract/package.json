@@ -1,0 +1,51 @@
+{
+  "name": "@omne-harness/tool-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tool contract: public types, contract functions, default policies and port conformance suites",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./binding": {
+      "source": "./src/binding.ts",
+      "types": "./dist/binding.d.ts",
+      "import": "./dist/binding.js"
+    },
+    "./testing": {
+      "source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "pnpm run build && vitest run"
+  },
+  "dependencies": {
+    "@omne-harness/assets": "workspace:*",
+    "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/modality": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/schema-provider": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

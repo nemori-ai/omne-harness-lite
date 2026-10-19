@@ -15,7 +15,7 @@
 
 ## 现有冲突
 
-C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3cd05cc42b640d77a421a`，仅作历史证据。引文和条款编号保留发现时原文；封存快照的章节可能已随当时修订改名，不能据此把旧能力名、字段或条款作为新成员接口。现行行为分别由[Model 契约](../../../packages/model/model-contract/SPEC.md)、[Tool](../../../packages/tool/tool/SPEC.md)和[Session](../../../packages/session/session/SPEC.md)拥有。
+C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3cd05cc42b640d77a421a`，仅作历史证据。引文和条款编号保留发现时原文；封存快照的章节可能已随当时修订改名，不能据此把旧能力名、字段或条款作为新成员接口。现行行为分别由[Model 契约](../../../packages/model/model-contract/SPEC.md)、[Tool](../../../packages/tool/tool-contract/SPEC.md)和[Session](../../../packages/session/session/SPEC.md)拥有。
 
 | # | 词 | 类型 | 差在哪 | 状态 |
 |---|---|---|---|---|
