@@ -49,9 +49,9 @@ Run 取消先保存意图，再控制其 Agent、模型及前台工具。后台�
 | 结果已可靠交接，原处理尚未完成 | 从消费侧保存的内容或可靠引用接续。模型已 ACK 时，不再向模型侧重新领取完整结果。 |
 | 查询暂时不可用 | 保持未知并按策略等待或报告，不重复发起。 |
 | 执行自身确认丢失 | 按该执行契约处理，模型与工具的规则不同。 |
-| 原 Run 已终结 | 仅处理允许的迟到事实与交付，不恢复推进。 |
+| 原 execution 已终态，或外部协调者判定业务不再继续 | 仅处理允许的迟到事实与交付，不恢复推进。 |
 
-更换 attempt 不删除扩展判断、待答卡片或已发生效果。恢复必须跨过原 Agent runtime 的内存边界；仅创建一个空实例不能称为恢复工作。
+更换执行挂接或推进实例不删除扩展判断、待答卡片或已发生效果。恢复必须跨过原 Agent runtime 的内存边界；仅创建一个空实例不能称为恢复工作。
 
 ## 模型与工具失联
 
@@ -73,7 +73,7 @@ Run 取消先保存意图，再控制其 Agent、模型及前台工具。后台�
 
 ## 观测身份与故障证据
 
-记录须关联适用的租户、Session、Run、attempt、step、调用、实际发出、扩展位置和执行环境。不是每条调用都有 Session，独立调用使用自己的调用方与工作身份，不能伪造归属。
+记录须关联适用的租户、Session、Run、执行挂接、step、调用、实际发出、扩展位置和执行环境。其中 Session 与 Run 是外部协调者一侧的关联，由该协调者的记录提供。不是每条调用都有 Session，独立调用使用自己的调用方与工作身份，不能伪造归属。
 
 控制意图、实际执行、消费、费用及清理状态分别可查。记录不足时报告缺口，不能从缺少终态推断仍在运行，也不能仅靠时间戳推断因果关系。
 
@@ -83,4 +83,4 @@ Run 取消先保存意图，再控制其 Agent、模型及前台工具。后台�
 
 ## 依据
 
-取消与接续的当前产品责任候选见 [Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)及[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。模型与工具执行边界的候选分别见[模型调用](../../../.meta_harness/design/product/model-invocation/README.md)及[工具执行](../../../.meta_harness/design/product/tool-execution/README.md)。各 topic 仍为草案；本页既有承诺及降级、遥测、数据保护要求继续沿[项目要求](../../requirements.md)和实际接受记录执行。
+取消与接续的产品责任见 [Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)，该产品页已由产品负责人采用，见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。会话的候选责任见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。模型与工具执行边界的候选分别见[模型调用](../../../.meta_harness/design/product/model-invocation/README.md)及[工具执行](../../../.meta_harness/design/product/tool-execution/README.md)。这三个 topic 仍为草案；本页既有承诺及降级、遥测、数据保护要求继续沿[项目要求](../../requirements.md)和实际接受记录执行。

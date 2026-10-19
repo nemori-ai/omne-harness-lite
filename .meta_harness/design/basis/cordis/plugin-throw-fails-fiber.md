@@ -48,6 +48,10 @@ probe 在 `packages/core/kernel-basis`，对 4.0.4 通过（2026-09-22 首跑，
 
 上游若改为「校验失败也跑插件体」「抛出后仍保留已 provide 的服务」或「状态不读作 FAILED」，第 1、2 条失败——本条目随之失效。
 
+## 核验范围
+
+本条按函数插件与 `runtime.Config` 核验。`Service` 子类写静态 `Config` 的路径没有单独核验。该路径是否同样经 `resolveConfig` 校验，需另立 basis 条目核验后，才能写成已验证。
+
 ## 已知的误用
 
 - **在插件体里 try/catch 吞掉配置错误再继续 provide**：得到一个半开的插件；「不半开」的前提正是让错误抛出去。

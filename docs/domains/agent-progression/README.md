@@ -6,14 +6,14 @@
 
 Agent runtime按Agent Loop模型推进工作。Loop求值下一步，动作执行调用真实能力，Loop extensions在规定位置参与。它不接管模型/工具的执行寿命或Run业务终态。
 
-Agent 可等待、回收或被替换，后继依据原执行与消费位置接续。执行完成后 runtime 可以保持空闲并复用；Session 在外部保存 Run/attempt 与 execution/attachment 的关联。线程、协程或 Cordis 实例不决定逻辑工作边界。
+Agent 可等待、回收或被替换，后继依据原执行与消费位置接续。执行完成后 runtime 可以保持空闲并复用；Session 在外部保存 Run/attempt 与 execution/execution attachment 的关联。线程、协程或 Cordis 实例不决定逻辑工作边界。
 
 ## 模块角色与事实归属
 
 | 模块角色 | 知识与责任 |
 | --- | --- |
 | Loop求值 | 当前工作下的下一步决定和停止/继续依据 |
-| 推进执行 | 在有效资格下执行决定，关联本域执行、挂载与步骤 |
+| 推进执行 | 在有效资格下执行决定，关联本域执行、执行挂接与步骤 |
 | Extension求值/承接 | 具名位置、判断与暂停结果，维护原操作关联 |
 | 调用与消费 | 发起模型/工具，等待并交回原消费位置 |
 | 治理接口 | 接受明确控制和换代，报告实际推进状态 |
@@ -51,4 +51,4 @@ Loop/推进契约维护决定和步骤，扩展链契约维护位置、改参/�
 
 ## 正式产品与技术承接
 
-[产品正文](../../../.meta_harness/design/product/agent-progression/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/agent/README.md)展开工程依赖与成员机制。细化技术仍为待审，正式位置不升级原已接受领域正文的范围，也不表示成员已实现。
+[产品正文](../../../.meta_harness/design/product/agent-progression/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/agent/README.md)展开工程依赖与成员机制。细化技术设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，采用不表示成员已实现。

@@ -1,6 +1,6 @@
 # Agent 定义与工作推进的内部设计
 
-本页在正式维护位置保存待审技术设计。领域分解已评审不等于成员技术接受、阶段选择或实现支持。成员已初始化。声明判断的实现位于 agent-contract，推进运行接口和验证仍待完成。
+本页在正式维护位置保存已接受的技术设计，接受依据见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。设计接受不等于阶段选择或实现支持。成员已初始化。声明判断的实现位于 agent-contract，推进运行接口和验证仍待完成。
 
 领域角色读[责任交接](../../../../../docs/domains/agent-progression/architecture.md)，工程邻接读[组设计](../../../docs/architecture.md)。本页与[SPEC](../../../agent-contract/SPEC.md)及原具名行为专题分别维护机制与行为，不据当前实现降低承诺。
 
@@ -274,7 +274,7 @@ Journal.load 的 snapshot 固定一个 execution revision，包含当前 checkpo
 对象、公开操作、step、稳定调用、原位置交接及条件提交归 [对象模型](../../../agent-contract/docs/object-model.md)和 [公开入口](../../../agent-contract/docs/public-api/README.md)。Agent 自有的接续、提交、恢复切点、控制竞争与读取设计已在本页及公开契约写明。实际剩余的是提供者与行为验证。
 
 - 提供者：Journal 的独立提供者与带提交参加者的提供者、材料拥有者、读取提供者、卡片与准入端口的适配器都尚未建立。操作身份的精确编码、规范化与摘要算法由通用实现的工厂落地。
-- 行为验证：存储事务、实际发出围栏、断电耐久、故障注入、投影分页完整性与负载尺度都需要实现取证。五个状态空间模型只是候选登记，见[形式模型登记](../../../agent-contract/verification/models/README.md)。
+- 行为验证：存储事务、实际发出围栏、断电耐久、故障注入、投影分页完整性与负载尺度都需要实现取证。五个状态空间模型只是登记，没有验证结果，见[形式模型登记](../../../agent-contract/verification/models/README.md)。
 
 调度采用单 runtime 的有限决策段和可让出的异步等待，存储与执行提供者可替换。具体数据库和线程模型不由对象模型指定。扩展报错可以有类别细则，但不能扩大干预力或弱化共同兜底。在途展示内容的逐片耐久归 Model 与 Tool 契约，Agent 不为完整候选消除这项未知。
 

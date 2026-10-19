@@ -4,7 +4,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## Responsibility and status
 
-Domain values, operations, results, behavioral obligations, and replaceable provider ports. Agent declaration types and the two declaration judges are implemented. Runtime APIs remain candidates.
+Domain values, operations, results, behavioral obligations, and replaceable provider ports. Agent declaration types and the two declaration judges are implemented. The designs of the runtime APIs are accepted. The runtime APIs are not implemented.
 
 ## Usage
 
@@ -17,7 +17,7 @@ const result = await judgeAgentDefinition(raw)
 
 ## Contracts
 
-The [SPEC](SPEC.md) owns behavior. The [API page](docs/public-api/README.md) separates actual exports from candidate interfaces.
+The [SPEC](SPEC.md) owns behavior. The [API page](docs/public-api/README.md) separates actual exports from designed interfaces.
 
 ## Design
 

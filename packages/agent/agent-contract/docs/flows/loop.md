@@ -1,6 +1,6 @@
 # Agent Loop 的公开推进保证
 
-状态为候选设计，未经技术接受。本页只写调用方、外部协调者与读取方可以观察到的推进保证。每条保证引用 [Loop 完整算法](../../../agent/docs/architecture/loop-algorithm.md)的节点 ID，节点的次序、读写与等待归该页。行为归[成员 SPEC](../../SPEC.md)，扩展作者可见的输入与输出归[扩展作者协议](../public-api/extensions.md)。本页不维护转移表或第二套状态机，也不拥有调用的物理寿命。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。本页只写调用方、外部协调者与读取方可以观察到的推进保证。每条保证引用 [Loop 完整算法](../../../agent/docs/architecture/loop-algorithm.md)的节点 ID，节点的次序、读写与等待归该页。行为归[成员 SPEC](../../SPEC.md)，扩展作者可见的输入与输出归[扩展作者协议](../public-api/extensions.md)。本页不维护转移表或第二套状态机，也不拥有调用的物理寿命。
 
 ## 求值依据
 

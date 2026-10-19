@@ -18,7 +18,7 @@
 
 ## 按读者选择阅读路径
 
-下表按读者列出起点、接着要读的页和停止点。精确规则只在各页的拥有者处读取，本页不复述。路径上的页面都是候选设计，未经技术接受。实现状态见[实施差异](../agent-contract/verification/coverage.md#实施差异)。
+下表按读者列出起点、接着要读的页和停止点。精确规则只在各页的拥有者处读取，本页不复述。路径上的页面描述的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。实现状态见[实施差异](../agent-contract/verification/coverage.md#实施差异)。
 
 | 读者 | 起点 | 接着读 | 读到这里就够 | 这些路径不提供 |
 | --- | --- | --- | --- | --- |

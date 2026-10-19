@@ -1,6 +1,6 @@
 # Agent 定义与工作推进的角色与交接
 
-本页在正式维护位置保存待审技术设计。领域分解已评审不等于成员技术接受、阶段选择或实现支持。成员已初始化。声明判断已有实现，推进运行接口和验证仍待完成。
+本页保存已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用的技术设计。采用不等于阶段选择或实现支持。成员已初始化。声明判断已有实现，推进运行接口和验证仍待完成。
 
 ## 拥有者与输入
 
@@ -17,7 +17,7 @@ Agent 能力拥有定义专有声明、Loop 求值、推进协调和扩展位置
 | 数据注册、当前 Context、请求输入投影 | Context 两成员及原生产者 | 取得允许输入，固定实际请求，不改写生产者事实 |
 | 决策卡片、答复资格和唯一有效答复 | 人工介入与授权责任 | 登记原等待并按原语义继续 |
 
-会话路径的每次逻辑执行关联合法 Session、未终结 Run 与有效 attempt。外部适配器映射到 Agent execution 与 attachment，Agent 核心不依赖 Session 的具体治理接口。独立消费由 Agent 条件性结束自身 execution；会话专用提供者把输入受理和终结纳入 Session 的同一权威提交边界。runtime 的寿命不与某个 Run 绑定，执行结束后可回空闲供后续工作复用。定义校验和清单求值可先于 Run；独立模型或工具调用不为此伪造 Run。Agent 为某个 Run 发起的扩展判断和压缩调用必须关联该原工作，不能混入碰巧活跃的其他 Run。
+会话路径的每次逻辑执行关联合法 Session、未终结 Run 与有效 attempt。外部适配器映射到 Agent execution 与 execution attachment，Agent 核心不依赖 Session 的具体治理接口。独立消费由 Agent 条件性结束自身 execution；会话专用提供者把输入受理和终结纳入 Session 的同一权威提交边界。runtime 的寿命不与某个 Run 绑定，执行结束后可回空闲供后续工作复用。定义校验和清单求值可先于 Run；独立模型或工具调用不为此伪造 Run。Agent 为某个 Run 发起的扩展判断和压缩调用必须关联该原工作，不能混入碰巧活跃的其他 Run。
 
 ```mermaid
 flowchart LR

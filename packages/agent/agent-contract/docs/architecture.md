@@ -1,6 +1,6 @@
 # Agent 纯契约的架构边界
 
-本包拥有公开值、操作、结果、行为及可替换端口。运行接口仍是候选，接受范围见 [SPEC](../SPEC.md)。定义类型、judgeAgentDefinition 和 judgeLoopExtensions 是实际导出。
+本包拥有公开值、操作、结果、行为及可替换端口。运行接口的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，尚未实现，接受范围见 [SPEC](../SPEC.md)。定义类型、judgeAgentDefinition 和 judgeLoopExtensions 是实际导出。
 
 ## 依赖方向
 

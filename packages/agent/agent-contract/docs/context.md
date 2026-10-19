@@ -1,6 +1,6 @@
 # Agent 消费与系统定位
 
-本页描述 Agent 的两种消费位置：独立调用者和外部协调者。图表投影公开契约，不改变采用范围，也不表示运行实现或真实提供者验证已完成。
+本页描述 Agent 的两种消费位置：独立调用者和外部协调者。图表投影已接受的公开契约，不表示运行实现或真实提供者验证已完成。
 
 ## 系统位置与消费入口
 
@@ -42,7 +42,7 @@ flowchart LR
   Runtime --> HITL[原扩展卡片]
 ```
 
-独立消费与 Harness 接入的候选形状见[公开接口页](public-api/README.md)，当前实际导出与候选分开标明。需要托管状态的路径必须具备相应提供者，纯独立路径不创建任何外部协调者的对象。装配依赖和资源撤除见 [Cordis](../../agent-cordis-contract/docs/cordis.md)。
+独立消费与 Harness 接入的设计形状见[公开接口页](public-api/README.md)，当前实际导出与设计分开标明。需要托管状态的路径必须具备相应提供者，纯独立路径不创建任何外部协调者的对象。装配依赖和资源撤除见 [Cordis](../../agent-cordis-contract/docs/cordis.md)。
 
 ### 装配与包依赖
 
@@ -54,7 +54,7 @@ flowchart LR
     PCR["根入口：操作类型 端口类型 声明判断，不导入 Cordis"]
   end
   subgraph IM[agent]
-    IMR["根入口：候选工厂，不导入 Cordis"]
+    IMR["根入口：工厂，不导入 Cordis"]
   end
   subgraph DF[agent-cordis-contract]
     DFR["根入口：纯类型"]
@@ -101,7 +101,7 @@ flowchart LR
 
 ## 原消费场景的前提
 
-本页消费 [Agent 候选](public-api/README.md)、[Model 候选](../../../model/model-contract/docs/public-api.md)和 [Tool 候选](../../../tool/tool-contract/docs/public-api.md)。外部协调者的公开契约由其拥有者维护，本页只写 Agent 一侧的前提。顺序是协议要求。尚未运行生产提供者，不能把图当作耐久或外部效果验证。
+本页消费 [Agent 公开接口](public-api/README.md)、[Model 公开接口](../../../model/model-contract/docs/public-api.md)和 [Tool 公开接口](../../../tool/tool-contract/docs/public-api.md)。外部协调者的公开契约由其拥有者维护，本页只写 Agent 一侧的前提。顺序是协议要求。尚未运行生产提供者，不能把图当作耐久或外部效果验证。
 
 ## 从输入到原结果
 
@@ -358,4 +358,4 @@ Agent 的执行结束只由本域的条件提交成立，不依赖协调者的�
 
 ## 当前证据的意义
 
-候选声明的类型消费只能证明所核版本的静态连接，不证明运行接口或提供者已经实现。已有 Model 交接、首内容、推进资格及 Tool 名额的有限模型覆盖其具名交错。整批扩展、真实提供者、实际消息准入、HITL 与 Cordis 需要分别验证。未跑的场景保留为后继接受输入。
+公开声明的类型消费只能证明所核版本的静态连接，不证明运行接口或提供者已经实现。已有 Model 交接、首内容、推进资格及 Tool 名额的有限模型覆盖其具名交错。整批扩展、真实提供者、实际消息准入、HITL 与 Cordis 需要分别验证。未跑的场景保留为后继实现验收的输入。

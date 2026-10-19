@@ -1,6 +1,6 @@
 # Agent 定义与工作推进组的工程关系
 
-本页在正式维护位置保存待审技术设计。领域分解已评审不等于成员技术接受、阶段选择或实现支持。成员已初始化；Agent 声明判断已有实现，运行接口与实际验证仍待完成。
+本页在正式维护位置保存已接受的技术设计，接受依据见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。设计接受不等于阶段选择或实现支持。成员已初始化；Agent 声明判断已有实现，运行接口与实际验证仍待完成。
 
 ## 成员分解与邻接协作
 
@@ -21,7 +21,7 @@ flowchart LR
   App[应用装配者] --> Provider
 ```
 
-纯契约及通用实现均不依赖 Cordis。Definitions 的绑定只从 `./cordis` 导出，根入口不加载绑定。具体提供者注入纯工厂，不反向决定契约。定义校验位于 agent-contract；资产与装配消费者直接依赖该包。推进接口仍为候选。外部协调者经提交参加者适配 AgentJournal 和 execution 操作；纯 Agent 不导入任何外部协调者的服务或身份类型。独立执行自行条件终结，不要求调用方批准。纯求值、效果协调和宿主集成的概念可见范围见[对象模型](../agent-contract/docs/object-model.md#跨域概念与内部可见范围)。
+纯契约及通用实现均不依赖 Cordis。Definitions 的绑定只从 `./cordis` 导出，根入口不加载绑定。具体提供者注入纯工厂，不反向决定契约。定义校验位于 agent-contract；资产与装配消费者直接依赖该包。推进接口的设计已接受，尚未实现。外部协调者经提交参加者适配 AgentJournal 和 execution 操作；纯 Agent 不导入任何外部协调者的服务或身份类型。独立执行自行条件终结，不要求调用方批准。纯求值、效果协调和宿主集成的概念可见范围见[对象模型](../agent-contract/docs/object-model.md#跨域概念与内部可见范围)。
 
 工厂配置与依赖聚合归 [agent](../agent/docs/public-api.md)；领域操作与提供者端口归 [agent-contract](../agent-contract/README.md)。
 
@@ -57,7 +57,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | 领域语义依赖原则 | [分层与依赖：领域语义依赖与模型边界](../../../docs/architecture/layers-and-dependencies.md#领域语义依赖与模型边界) | AGENTS 与领域入口保留简短投影和链接 | 现存 |
 | 系统级 runtime 关系 | [Agent runtime](../../../docs/architecture/runtime/agent-runtime.md) | 领域图说明本域消费视角，不独立裁定其他领域内部职责 | 现存 |
-| 扩展位置集合、触发边界、干预力含义、逐位置的否决与等待限制、有序组合 | [Loop extensions](../../../docs/architecture/runtime/loop-extensions.md) | 作者协议页引用位置名，并给出各位置的输出合法性表。作者协议页不另写位置的触发边界。输出合法性表必须与系统页现行的逐位置否决与等待限制一致。后置位置的 stop 与 ask 已在系统页中规定，不是待接受项。发现新的不一致时，在输出合法性表中标明，并以系统页修改提案提交，提案接受前以系统页为准 | 现存 |
+| 扩展位置集合、触发边界、干预力含义、逐位置的否决与等待限制、有序组合 | [Loop extensions](../../../docs/architecture/runtime/loop-extensions.md) | 作者协议页引用位置名，并给出各位置的输出合法性表。作者协议页不另写位置的触发边界。输出合法性表必须与系统页现行的逐位置否决与等待限制一致。后置位置的 stop 与 ask 已在系统页中规定。发现新的不一致时，在输出合法性表中标明，并以系统页修改提案提交，提案接受前以系统页为准 | 现存 |
 | 控制、取消与恢复的系统关系 | [控制与恢复](../../../docs/architecture/runtime/control-and-recovery.md) | 公开推进保证页引用，不复述系统顺序 | 现存 |
 | 流式到达、消费与 ACK 的系统关系 | [流式与消费](../../../docs/architecture/runtime/streaming-and-consumption.md) | 成员页引用，不另写 ACK 语义 | 现存 |
 | 定义选入、实现解析与装配换代的系统关系 | [装配与变更](../../../docs/architecture/runtime/assembly-and-change.md) | 定义专题只写 Agent 专有声明的解释 | 现存 |
@@ -86,7 +86,7 @@ flowchart LR
 | 输入内容的受理与保存、恢复与接管两条重挂接路径、执行记录提交、条件终结（tryFinish）、共同提交的落点、settling、ended 之后的保留与释放、detach、quiesce 与 handover 的行为，以及登记的发布语义与撤除结果 | [SPEC](../agent-contract/SPEC.md) 的“托管协调与运行实例”节 | 公开接口页只留这些操作的形状，加一句指向 SPEC。内部机制页只写实现机制并引用 SPEC。对象模型页只保留对象状态名与转移，不写条件、排序与 ACK 规则。三处都不另写行为散文。控制类型与六阶段归下一行的“取消、退出与结构变更”节，detach 与 quiesce 的交接与撤登记结果归本行的节，两行互相引用 | 现存 |
 | Agent 事件流语义：序号、游标、缺口、背压、订阅关闭、重连、确认，以及耐久提交、出口接收、消费者处理、业务接受四个层次的区分 | [SPEC](../agent-contract/SPEC.md) 的“事件流与读取”节 | 公开接口页只留类型形状并引用 SPEC。流程页只画消费顺序。对象模型页只保留对象状态名与转移，不写条件、排序与 ACK 规则 | 现存 |
 | 租户与作用域绑定、跨租户拒绝、经 AgentAccessCheck 的主体资格核验，诊断与日志的隐私（私有权限块、秘密和无权内容不外泄） | [SPEC](../agent-contract/SPEC.md) 的“身份、范围与归属”节（“租户与作用域绑定”“主体资格核验”小节）和“性能、诊断与维护”节 | 对象模型只写对象层身份，不另写绑定、核验与拒绝规则。工厂页只登记该依赖的必需性、缺席与换代行为 | 现存 |
-| Context、压缩与模型请求中 Agent、Context、Model 的职责划分，Runtime Context 的消费、拉取时点与受众隔离，以及最终请求的定型 | [SPEC](../agent-contract/SPEC.md) 的“请求、扩展和材料接缝”节 | Loop 算法页拥有对应节点的次序，引用 SPEC 的职责划分。与已接受的 Runtime Context 系统页读取规则不一致的项，标明待接受并提交修改提案，接受前以系统页为准 | 现存 |
+| Context、压缩与模型请求中 Agent、Context、Model 的职责划分，Runtime Context 的消费、拉取时点与受众隔离，以及最终请求的定型 | [SPEC](../agent-contract/SPEC.md) 的“请求、扩展和材料接缝”节 | Loop 算法页拥有对应节点的次序，引用 SPEC 的职责划分。与已接受的 Runtime Context 系统页读取规则不一致的项，不在本页自定，以修改提案提交系统页拥有者，提案接受前以系统页为准 | 现存 |
 | 四种控制（interrupt、cancel、suspend、quiesce）、插队对前台调用的处理，以及受理、意图成立、资格撤销、生产者确认、物理停止、责任释放六个阶段 | [SPEC](../agent-contract/SPEC.md) 的“取消、退出与结构变更”节（“四种控制”“插队”“六个阶段”小节） | 公开接口页只留控制类型的形状，包括 AgentRuntimeControl。对象模型页只引用。Loop 算法页拥有控制入口节点，引用 SPEC 的阶段。detach 与 quiesce 的交接与撤登记结果归上一行的“托管协调与运行实例”节，两行互相引用 | 现存 |
 | 提交参加者协议：参加、失败、冲突、不支持四种响应，以及 Agent 拒绝不合格装配 | [SPEC](../agent-contract/SPEC.md) 的“并发与提交”节（“提交参加者协议”小节） | 消费与系统定位页写外部协调者视角的前提，并引用 SPEC | 现存 |
 | 消息准入与来源特定拒收的行为 | [SPEC](../agent-contract/SPEC.md) | 准入的公开形状在[公开接口页](../agent-contract/docs/public-api/README.md)。Loop 算法页拥有准入节点的位置与次序，引用 SPEC 的拒收后果。流程页引用结果，不重述三种来源的拒收后果 | 现存 |

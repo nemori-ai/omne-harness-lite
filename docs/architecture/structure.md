@@ -184,11 +184,13 @@ classDiagram
   }
   class SessionWork["会话与工作"]
   class Agent
+  class CoordinatorAdapter["外部协调者适配器"]
   class ModelCall["模型调用"]
   class ToolExec["工具执行"]
   class Context
   SessionWork ..> SessionLog : 治理事实
-  Agent ..> SessionLog : 登记与扩展结论
+  Agent ..> CoordinatorAdapter : 登记与扩展结论
+  CoordinatorAdapter ..> SessionLog : 会话路径中的提交
   ModelCall ..> SessionLog : 跨边界收场
   ToolExec ..> SessionLog : 执行与交付
   Context ..> SessionLog : 注册与自有输入

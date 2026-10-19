@@ -138,7 +138,7 @@
 | SC-AG-78 | 新的 execution、普通恢复和显式 reload 读取同标识的不同版本 | 新的 execution 采用当时的合法胜出者，写明版本时固定为该版本。普通恢复不升级。合法 reload 经 handover 与 attach 采用，标识不变，执行类型和必需身份不变。revision 在 handover 与 attach 之间变化时，attach 返回 changed，调用方重读快照后重新 handover。定义身份或租户身份变更被拒绝为非法 reload | 三条路径各自的采用摘要；恢复前后的 Adoption 相同；handover 的证明绑定 revision；旧证明没有被重试；非法 reload 的拒绝结果 |
 | SC-AG-79 | 已知能力被撤权后恢复 execution，之后又再度合法可用 | 已知身份持续可解释，撤权期间没有对新正文的读取。再度可用时重新核当前选择与依赖。身份记忆不冻结正文、schema 或实现 | 调用方的已知能力记录不变；撤权期间没有内容读取；重新可用后重新解析了当前实现 |
 
-SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置、实际收件模型和历史依据；只有最后一种带压缩转换依据。期望返回由 Context 按 [Runtime Context 的 RC-04](../../../context/runtime-context/SPEC.md#rc-04-attempt变化与提醒) 决定，下表写这条规则在各情形下的结果。
+SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置、实际收件模型和历史依据；只有最后一种带压缩转换依据。期望返回由 Context 按 [Runtime Context 的 RC-04](../../../context/runtime-context/SPEC.md#rc-04-读取时点变化与提醒) 决定，下表写这条规则在各情形下的结果。
 
 | 情形 | Agent 传入的 adopted | 期望 Context 返回 | 观察点 |
 | --- | --- | --- | --- |

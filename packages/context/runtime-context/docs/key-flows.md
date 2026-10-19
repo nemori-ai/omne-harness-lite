@@ -3,13 +3,14 @@
 本页在正式位置维护待审细化，只有文档目标，没有真实包、公开形状或实际运行验证。产品既定规则保持原确认范围，阶段支持仍待用户选择。
 
 <a id="rc-f01"></a>
-## RC-F01 attempt 当前快照与后续变化
+<a id="rc-f01-attempt-当前快照与后续变化"></a>
+## RC-F01 执行开始或挂接建立时的当前快照与后续变化
 
 承接 [RC-J01](../../../../.meta_harness/design/product/runtime-context/design.md#rc-j01)，能力 CAP-RC01、03、04。Session 先供给会话注册和模式事实，Runtime Context 从原来源按各消费者当前资格取值。模式创建默认与后续修改由 Session 拥有。Context 不设置模式。谁可以改模式见[产品模式规则](../../../../.meta_harness/design/product/sessions-and-work/design.md#按协作需要调整三个独立模式)。
 
 ```mermaid
 sequenceDiagram
-    participant A as Agent attempt
+    participant A as Agent 执行挂接
     participant S as Session
     participant C as Runtime Context
     participant P as 原生产者与资格来源
@@ -17,7 +18,7 @@ sequenceDiagram
     participant R as Request Context
     A->>S: 请求当前会话身份、注册及自有值
     S-->>A: 当前会话事实
-    A->>C: 每 attempt 请求当前合法完整快照
+    A->>C: 执行开始或挂接建立时请求当前合法完整快照
     C->>P: 请求各块当前值与消费者资格
     alt 必要来源不可用或资格未知
         P-->>C: 缺项或未知事实

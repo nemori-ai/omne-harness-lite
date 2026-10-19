@@ -1,6 +1,6 @@
 # Agent Loop 完整算法
 
-状态为候选设计，未运行、未接受。本页是完整 Loop 图、节点表、伪代码与不变量的唯一拥有者。产品页的 CAP-AG08 与 CAP-AG09 仍为未核实，本页不据此宣称已接受。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，算法未运行。本页是完整 Loop 图、节点表、伪代码与不变量的唯一拥有者。产品页的 CAP-AG08 与 CAP-AG09 仍为未核实，本页不据此宣称已实现或已验证。
 
 本页拥有节点、节点次序、执行位置、复杂度与进展假设。行为归 [SPEC](../../../agent-contract/SPEC.md)，公开形状归[公开接口页](../../../agent-contract/docs/public-api/README.md)，扩展作者可见的输入与输出归[扩展作者协议](../../../agent-contract/docs/public-api/extensions.md)，对象状态与迁移归[对象模型](../../../agent-contract/docs/object-model.md)，实现机制归[内部机制](mechanisms.md)。节点只引用这些页拥有的行为与形状，不另写屏障条件、台账迁移或端口形状。外部可观察的保证归[公开推进保证](../../../agent-contract/docs/flows/loop.md)，该页引用本页节点。
 
@@ -403,7 +403,7 @@ I1、P0、P1、C0 至 C4、M0 的次序按 SPEC 的[请求准备与压缩](../..
 2. 压缩是有限多步计划。C1 每步先调用 `derive`，再以用途 compaction 调用 M0 至 M5。每步进度与下一步的效果意图在同一次提交。Agent 自持的已发起步数随 checkpoint 持久，崩溃后以它认回同一步。
 3. 压缩步骤的请求只经过压缩用途的调模型之前位置，即 M0。它不经过 P0，也不经过 prepare。压缩用途的调模型之前位置被否决时，该步骤请求不发出，M0 经 M5 回 C1，C1 转 F1，原因 cannot-fit（after-compaction）并附否决依据，不回同一步。
 4. C3 的共同提交成功后，C4 经过压缩之后位置。然后 I1 先经 `CurrentConditions.read` 读当前条件，再重新选择模型，再带压缩转换依据读取 Runtime Context，最后调用 `RequestPreparation.resume`。选择的输入含当前条件，所以读条件在选择之前。
-5. 调模型之前位置改写后的重新准备在 P1 进行。这次 prepare 返回 needs-compaction 且本 step 尚无计划时，P1 转 C0。这条路径是本 step 尚无计划时的第二入口。计划提交后回 I1，`resume` 因 original 的调模型之前位置经过非空而返回 ready，I1 转 P1 复核，不再经过 P0。P0 不重跑由 `completedPassages` 保证。已接受的系统页[输入来源与组装](../../../../../docs/architecture/runtime/request-context.md#输入来源与组装)把压缩画在调模型之前位置之前，第一入口与它一致。第二入口是候选设计，接受前以系统页为准。
+5. 调模型之前位置改写后的重新准备在 P1 进行。这次 prepare 返回 needs-compaction 且本 step 尚无计划时，P1 转 C0。这条路径是本 step 尚无计划时的第二入口。计划提交后回 I1，`resume` 因 original 的调模型之前位置经过非空而返回 ready，I1 转 P1 复核，不再经过 P0。P0 不重跑由 `completedPassages` 保证。已接受的系统页[输入来源与组装](../../../../../docs/architecture/runtime/request-context.md#输入来源与组装)把压缩画在调模型之前位置之前，第一入口与它一致。第二入口已接受，系统页的[模态表示与完整输入限制](../../../../../docs/architecture/runtime/request-context.md#模态表示与完整输入限制)写明扩展改写请求之后的重新组装可以进入一次压缩计划。
 6. 需要压缩且本准备已进入过计划时，I1 与 P1 都转 F1，原因 after-compaction，并附 Context 原结果与计划身份。同一次准备以主请求的 step 为身份，checkpoint 的 `compaction` 记录该 step 的计划，新 step 开始时清空。
 7. P1 在记录最终请求之前再选择一次模型。实际收件模型与 ready 不一致时重新读取、重新准备，留在 P1。一致时转 I2，由 M0 以一次执行记录提交记录 FinalRequest 与采用的覆盖。
 8. Model 的请求准备确定拒绝时，`prepare` 或 `resume` 返回 invalid，field 为 request。I1 与 P1 都转 F1，失败候选为 request-rejected，并附 Model 的原结果。规则见 SPEC 的[请求接缝的逐操作要素](../../../agent-contract/SPEC.md#请求接缝的逐操作要素)。
@@ -418,7 +418,7 @@ U0、Q1、Q2、Q4、Q5 只做非扩展的消息准入。行为归 SPEC 的[消�
 - 工具结果消息与被拒绝动作的拒绝消息在 T5 进入，按原动作顺序。拒收转 H0。
 - 系统提醒由 X5 在采纳 inject 时进入一次。拒收不改变该扩展的 Conclusion。
 
-全部动作被拒收时没有已执行动作。A3 为每个动作建立 denied 槽位，每个槽位在 T2 各自经过执行动作之后的单结果范围，再由 T3 直接转 T5，不经过 T4。拒收事实经回复消息与 `execution` 事实到达后续位置。后续位置的 `earlier` 只含同一次经过、同一条链上前序扩展的 Conclusion，不扩到跨位置。T5 完成后转 I8。这条边界归系统页，系统页位置表尚未写出，本页按候选书写。
+全部动作被拒收时没有已执行动作。A3 为每个动作建立 denied 槽位，每个槽位在 T2 各自经过执行动作之后的单结果范围，再由 T3 直接转 T5，不经过 T4。拒收事实经回复消息与 `execution` 事实到达后续位置。后续位置的 `earlier` 只含同一次经过、同一条链上前序扩展的 Conclusion，不扩到跨位置。T5 完成后转 I8。这条边界归系统页，见[位置表](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)。
 
 ## 工具结果节点
 
@@ -517,9 +517,9 @@ SPEC 拥有行为，本页拥有执行位置。每条不变量列出执行它的
 
 ## 接口增量
 
-下列增量是完整算法对公开接口提出的候选变化。每项标明拥有者，不宣称已导出。
+下列增量是完整算法对公开接口提出的变化，随设计一并接受。每项标明拥有者，不宣称已导出。
 
-| 增量 | 候选决定 | 拥有者 |
+| 增量 | 决定 | 拥有者 |
 | --- | --- | --- |
 | D1 帧与纯转移 | 持久帧就是 checkpoint 的既有分面字段，不新增字段。纯转移只约束评估器内部求值。映射见下文“恢复入口与回归点” | 本页 |
 | D2 可找回操作与接管屏障 | 稳定操作槽、可枚举的未定操作、attach 排除旧晚到写入 | [内部机制](mechanisms.md)与宿主 |

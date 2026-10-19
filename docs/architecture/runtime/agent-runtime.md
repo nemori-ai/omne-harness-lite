@@ -6,19 +6,19 @@ Agent Loop 根据显式工作事实和当下条件求出下一步。会话路径
 
 ## 启动与运行条件
 
-系统协调者启动会话推进前取得已校验装配、Run 与 attempt、原消费位置、日志读取范围及当前条件。它将关联映射为 Agent execution、当前 attachment 和公开输入，Agent 核心不依赖 Session 的具体治理接口。协调所需条件包括推进要求、当前资格、能力可用性、模型与窗口、Runtime Context、执行环境及必要资源。Agent 使用各拥有者给出的消费事实，不解释权限模式或维护环境选择状态机；实际发起仍由受信准入及围栏核验。
+系统协调者启动会话推进前取得已校验装配、Run 与 attempt、原消费位置、日志读取范围及当前条件。它将关联映射为 Agent execution、当前 execution attachment 和公开输入，Agent 核心不依赖 Session 的具体治理接口。协调所需条件包括推进要求、当前资格、能力可用性、模型与窗口、Runtime Context、执行环境及必要资源。Agent 使用各拥有者给出的消费事实，不解释权限模式或维护环境选择状态机；实际发起仍由受信准入及围栏核验。
 
 这些输入各有来源与生效时刻。日志负责已经发生的事实，不独自提供全部当前输入。历史授权用于解释旧执行，不能授权未来动作。不能把权威推进状态只保存在停机后无法恢复的 Agent runtime 内部。
 
 恢复实例先完成原工作对账。存在未完成的模型调用、工具调用或扩展等待时，先接续它们，再判断是否发起新工作。装配失败、无法取得必要输入和暂时等待分别报告。
 
-## 实例、执行与挂载
+## 实例、执行与执行挂接
 
-Agent runtime 可在一次工作完成后保持空闲和注册，后续执行复用装配及可重建缓存。一次逻辑执行的输入、调用、经过、等待和输出独立保存；更换物理实例沿原执行恢复，取得新挂载资格。顺序新执行不得复用旧授权、取消状态或输出游标。
+Agent runtime 可在一次工作完成后保持空闲和注册，后续执行复用装配及可重建缓存。一次逻辑执行的输入、调用、经过、等待和输出独立保存；更换物理实例沿原执行恢复，取得新执行挂接资格。顺序新执行不得复用旧授权、取消状态或输出游标。
 
-Session 拥有 Run 及 attempt，外部适配器保存 Run/execution 和 attempt/attachment/runtime 的关联。Agent 条件性结束本域执行。会话专用提供者把 Session 输入受理、当前输入/等待/控制核验及普通 Run 终结纳入同一提交边界；已受理而通知延迟的输入不能遗漏。事件流结束或 Agent 对象退出不代替 Run 终态。Run 已完成不强制注销空闲 Agent，也不自动取消独立 Model/Tool 工作。
+Session 拥有 Run 及 attempt，外部适配器保存 Run/execution 和 attempt/execution attachment/runtime 的关联。Agent 条件性结束本域执行。会话专用提供者把 Session 输入受理、当前输入/等待/控制核验及普通 Run 终结纳入同一提交边界；已受理而通知延迟的输入不能遗漏。事件流结束或 Agent 对象退出不代替 Run 终态。Run 已完成不强制注销空闲 Agent，也不自动取消独立 Model/Tool 工作。
 
-具体 OOP、候选接口及状态归 [Agent 对象模型](../../../packages/agent/agent-contract/docs/object-model.md)。独立调用者提供合格的本域持久和准入依赖，不虚构 Session/Run，也无需返回完成批准；系统路径仍兑现 Session 的唯一推进和终态规则。
+具体 OOP、接口及状态归 [Agent 对象模型](../../../packages/agent/agent-contract/docs/object-model.md)。独立调用者提供合格的本域持久和准入依赖，不虚构 Session/Run，也无需返回完成批准；系统路径仍兑现 Session 的唯一推进和终态规则。
 
 ## 一轮推进
 
@@ -65,13 +65,13 @@ step 用于标识一次 Loop 推进单元，不能替代实际调用身份。同
 
 ### 完成条件与终态
 
-Agent 执行满足候选条件时，执行终态前扩展。会话路径将该候选关联到原 Run，终结协议由[消费与会话协调](../../../packages/agent/agent-contract/docs/context.md#独立消费与会话协调)细化。扩展可要求继续、等待或否决该候选。只有实际记录的终态才生效，随后执行终态后扩展。后置扩展不能撤销已成立的终态。
+Agent 执行满足候选条件时，执行终态前扩展。会话路径将该候选关联到原 Run，终结协议由 Agent SPEC 的[条件终结](../../../packages/agent/agent-contract/SPEC.md#条件终结)与[提交参加者协议](../../../packages/agent/agent-contract/SPEC.md#提交参加者协议)细化。扩展可要求继续、等待或否决该候选。只有实际记录的终态才生效，随后执行终态后扩展。后置扩展不能撤销已成立的终态。
 
 失败和取消也经过适用的终态路径，不能由普通消息冒充。终态后禁止发起新的工作，迟到结果与费用仍可记录。真实收场、逻辑终态、结果消费及资源清理分别判断。
 
 ## 调用关联与可接续性
 
-每次模型调用、工具调用和扩展调用都须有独立身份，关联本域执行、挂载、step、动作及原消费位置。会话适配器同时保留原 Run 与 attempt 的映射。跨 attempt 接续使用稳定工作关联，不能仅凭 Session、Run、step 三项区分同一步的多个效果。
+每次模型调用、工具调用和扩展调用都须有独立身份，关联本域执行、执行挂接、step、动作及原消费位置。会话适配器同时保留原 Run 与 attempt 的映射。跨 attempt 接续使用稳定工作关联，不能仅凭 Session、Run、step 三项区分同一步的多个效果。
 
 | 原调用用途 | 结果必须返回的位置 |
 |---|---|
@@ -90,4 +90,4 @@ Loop 读取有类型的推进事实，不解码 Model/Tool 内部状态或读取
 
 ## 依据
 
-主流程、step、扩展与终态的当前产品责任候选见 [Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)。受理与队列的候选责任见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，输入与可靠交接也见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。两者仍为草案；本页架构承诺按项目要求与实际已接受范围执行。
+主流程、step、扩展与终态的产品责任见 [Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)。该产品页已由产品负责人采用，见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。受理与队列的候选责任见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，输入与可靠交接也见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。会话与工作的产品页仍为草案；本页架构承诺按项目要求与实际已接受范围执行。

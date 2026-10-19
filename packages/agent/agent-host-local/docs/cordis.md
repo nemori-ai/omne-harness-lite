@@ -1,12 +1,12 @@
 # Agent 的具体 Cordis 装配
 
-状态：候选设计，未实现。本包是具体提供者草稿，根入口与 `./cordis` 当前都是空导出，尚无插件实现。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，未实现。本包是具体提供者草稿，根入口与 `./cordis` 当前都是空导出，尚无插件实现。
 
-唯一 Service、键、增补、事件、登记协议及 IC-1 至 IC-19 的符合性映射消费 [Cordis 定义](../../agent-cordis-contract/docs/cordis.md)，不得复制或重声明。本页只写本插件特有的装配：插件与入口、静态依赖与局部依赖、配置、装载、停止准入与撤除、候选发行行、实例作用域和租户。以下内容未授予技术接受。
+唯一 Service、键、增补、事件、登记协议及 IC-1 至 IC-19 的符合性映射消费 [Cordis 定义](../../agent-cordis-contract/docs/cordis.md)，不得复制或重声明。本页只写本插件特有的装配：插件与入口、静态依赖与局部依赖、配置、装载、停止准入与撤除、候选发行行、实例作用域和租户。
 
 ## 插件与入口
 
-候选插件 `agentHostPlugin` 由 `@omne-harness/agent-host-local/cordis` 导出，名称是 `agent-host`。它用 `@omne-harness/kernel-basis/cordis` 的 `definePlugin` 构造。导出名是候选，实现时以实际源码为准。
+插件 `agentHostPlugin` 由 `@omne-harness/agent-host-local/cordis` 导出，名称是 `agent-host`。它用 `@omne-harness/kernel-basis/cordis` 的 `definePlugin` 构造。导出名是设计中的名称，实现时以实际源码为准。
 
 插件在一个插件体内逐个构造三个服务面：`agentInstanceHost`、`agentPublicationAuthority` 和 `agentExecutionRecovery`。每个子类 `extends` 定义入口的抽象类，不另写键，三个键登记在这一条 fiber 上（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。选择一条 fiber 的理由是：三个服务面共用宿主进程内的同一份状态，即预约表、宿主持有的 runtime 和 `route` 的路由。它们必须一起出现、一起撤除。如果分成三条 fiber，一个服务面撤除后另一个仍可能被调用，并读到已经失效的状态。目录 `agentInstances` 不是本插件的服务面。目录是定义入口导出的具体注册表，以独立的目录插件 `agent-instances` 装载。本包不拥有 Model 与 Tool 的运行寿命。
 
@@ -97,7 +97,7 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 
 ## 候选发行行
 
-下面两行是候选，不是已发布的插件树。发行层的行 id 是对运维者层的稳定承诺（[IC-15](../../../../docs/architecture/cordis-integration-conventions.md#ic-15)、[IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。运维者层可以按行 id 整行替换配置、停用或插入新行，指向不存在的行 id 使启动失败。授权适配器、Journal 提供者、时钟等运行对象由装配入口提供为服务，不进入行的配置。
+下面两行是设计中的行，不是已发布的插件树。发行层的行 id 是对运维者层的稳定承诺（[IC-15](../../../../docs/architecture/cordis-integration-conventions.md#ic-15)、[IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。运维者层可以按行 id 整行替换配置、停用或插入新行，指向不存在的行 id 使启动失败。授权适配器、Journal 提供者、时钟等运行对象由装配入口提供为服务，不进入行的配置。
 
 | 行 id | 插件标识 | 配置 |
 | --- | --- | --- |

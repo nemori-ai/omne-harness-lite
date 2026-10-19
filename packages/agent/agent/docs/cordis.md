@@ -6,4 +6,4 @@
 
 工厂的每项依赖在 Cordis 中对应的服务键写在[工厂依赖表](public-api.md#依赖逐项分类)，键的定义与提供者归属归 Cordis 定义页的[服务键与提供者](../../agent-cordis-contract/docs/cordis.md#服务键与提供者)。工厂不接收 Cordis Context，也不接收可按键取用的容器。本包没有 `./cordis` 入口，所以没有服务键、事件和插件。
 
-状态：候选设计，未实现。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，未实现。

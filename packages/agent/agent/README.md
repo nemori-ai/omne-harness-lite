@@ -4,15 +4,15 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## Responsibility and status
 
-This package provides reusable implementation mechanisms and factories. It does not include Cordis. The package is initialized. The runtime APIs are not implemented. Candidate designs keep their existing acceptance status.
+This package provides reusable implementation mechanisms and factories. It does not include Cordis. The package is initialized. The runtime APIs are not implemented. The design is [accepted](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204).
 
 ## Usage
 
-The current entries export no runtime capability. The [API design](docs/public-api.md) describes candidates. It does not give executable examples.
+The current entries export no runtime capability. The [API design](docs/public-api.md) describes the accepted design. It does not give executable examples.
 
 ## Contracts
 
-The [SPEC](SPEC.md) owns behavior. The [API page](docs/public-api.md) separates actual exports from candidate interfaces.
+The [SPEC](SPEC.md) owns behavior. The [API page](docs/public-api.md) separates actual exports from designed interfaces.
 
 ## Design
 

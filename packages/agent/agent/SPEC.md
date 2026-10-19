@@ -1,6 +1,6 @@
 # Agent 通用实现的行为边界
 
-当前是实现包骨架，根入口为空。候选工厂尚未实现，运行契约的接受边界继续以 [公共 SPEC](../agent-contract/SPEC.md) 为准。
+当前是实现包骨架，根入口为空。工厂的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，尚未实现。运行契约的接受范围以 [公共 SPEC](../agent-contract/SPEC.md) 为准。
 
 ## 兑现责任
 

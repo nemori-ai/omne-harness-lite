@@ -4,4 +4,4 @@
 
 本包的 `./cordis` 导出服务定义、键常量、Context 与 Events 增补和具体的目录插件。根入口不导入 Cordis。服务键、登记协议、事件和 IC-1 至 IC-19 的符合性映射只写在 [Cordis 页](cordis.md)。
 
-状态：候选设计，未实现。以上是包边界与设计归属。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，未实现。以上是包边界与设计归属。

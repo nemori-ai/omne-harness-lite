@@ -1,7 +1,7 @@
 ---
 id: PD-agent-progression
 title: Agent 定义与工作推进
-status: draft
+status: active
 revision: 2
 relations:
   supersedes: []
@@ -11,7 +11,7 @@ relations:
 
 # Agent 定义与工作推进
 
-本topic维护产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。领域分解已评审；整体产品采用仍待确认，正式维护位置不表示技术接受或实现支持。既定用户决定保留，尚未选择的版本能力继续缺项。
+本topic维护产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。领域分解已评审；整体产品已由产品负责人采用，技术设计也已接受，见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。采用与接受不表示实现支持。既定用户决定保留，尚未选择的版本能力继续缺项。
 
 ## 阅读入口
 

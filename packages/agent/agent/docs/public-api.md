@@ -1,6 +1,6 @@
 # Agent 通用实现的构造入口
 
-根入口当前为空。以下是未实现的候选构造形状，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。本包不接收 Cordis Context，不导入任何外部协调者的类型。
+根入口当前为空。以下是未实现的设计中的构造形状，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。本包不接收 Cordis Context，不导入任何外部协调者的类型。
 
 ## 参数与依赖
 

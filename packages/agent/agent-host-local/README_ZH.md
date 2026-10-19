@@ -4,11 +4,11 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与状态
 
-具体的 Cordis 装配与资源生命周期。包骨架已初始化，公开运行能力尚未实现，候选设计的接受状态保持原范围。
+具体的 Cordis 装配与资源生命周期。包骨架已初始化，公开运行能力尚未实现。设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。
 
 ## 使用
 
-当前入口不提供运行能力。后继消费形状见 [公开入口](docs/public-api.md)，不能将候选片段当作可执行示例。
+当前入口不提供运行能力。后继消费形状见 [公开入口](docs/public-api.md)，不能将设计片段当作可执行示例。
 
 ## 契约
 
@@ -24,7 +24,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 验证
 
-`pnpm test` 与 `pnpm typecheck` 当前只验证包骨架与空入口，不证明候选业务已经支持。
+`pnpm test` 与 `pnpm typecheck` 当前只验证包骨架与空入口，不证明业务能力已经支持。
 
 ## 维护
 

@@ -104,7 +104,7 @@
 | [UL-connector-event-type](terms/capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type) | 连接件事件类型 | Connector Event Type | 连接件正文里声明的一种会送进来的外部事件：类型名 + 说明 + 消息包形状；每条外部消息恰属一种 |
 | [UL-event-subscription](terms/capabilities-and-composition.md#ul-event-subscription--事件订阅--event-subscription) | 事件订阅 | Event Subscription | 连接件持有上的一项偏好类设置：目录里哪几种真的送进来，只在持有那一侧求值；agent 不在运行时改它 |
 | [UL-loop-extension](terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) | 拓展件 | Loop Extension | 挂在 loop 拓展点上的一段判断或动作，**第八类资产**；无「放宽」档，可否决含落卡片等人；不可用处置是它自己的声明，不是设置也不是权限 |
-| [UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) | 模态转换件 | Modality Converter | 系统自带的拓展件式转换件：一块或一文件进，若干别的模态的块 + transcript 出，挂原块作派生表示；按模态/媒体类型登记可替换，本版不是资产；**非 Tool ref 来源由实现消息准入的提供者在接纳前调用，Tool 内容 ref 在实际请求时转换，待负责人接受** |
+| [UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) | 模态转换件 | Modality Converter | 系统自带的拓展件式转换件：一块或一文件进，若干别的模态的块 + transcript 出，挂原块作派生表示；按模态/媒体类型登记可替换，本版不是资产；**非 Tool ref 来源由实现消息准入的提供者在接纳前调用，Tool 内容 ref 在实际请求时转换** |
 | [UL-slash-command](terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | 斜杠命令 | Slash Command | 人在交付面敲 `/` 发起某件事的入口；绑定目标恰三种：自定义提示词 / 装配的 skill / 系统业务流程；**只由交付面识别、只对人** |
 | [UL-command-parameter-declaration](terms/capabilities-and-composition.md#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration) | 命令参数声明 | Command Parameter Declaration | 斜杠命令可选带的参数说明，**是命令本身、不是设置**；没声明就整段作一个自由参数 |
 | [UL-plugin](terms/capabilities-and-composition.md#ul-plugin--插件--plugin) | 插件 | Plugin | 打包分发若干资产的单元，**不是 Cordis plugin** |

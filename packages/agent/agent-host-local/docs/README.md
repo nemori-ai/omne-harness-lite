@@ -1,6 +1,6 @@
 # agent-host-local 文档职责
 
-本包拥有具体的 Cordis 装配与资源生命周期。行为见 [SPEC](../SPEC.md)，候选与当前实现状态按包入口区分。
+本包拥有具体的 Cordis 装配与资源生命周期。行为见 [SPEC](../SPEC.md)，已接受的设计与当前实现状态按包入口区分。
 
 - [architecture](architecture.md)
 - [flows](flows.md)

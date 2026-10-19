@@ -1,6 +1,6 @@
 # AgentDefinition 与能力选择规格
 
-状态为候选，待用户确认。[成员入口](../../SPEC.md)维护共同身份、持久和验证边界。本页拥有定义专有含义，装配清单和实际采用切换仍由 assembly 维护。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，下文标为未定的部分仍未定。[成员入口](../../SPEC.md)维护共同身份、持久和验证边界。本页拥有定义专有含义，装配清单和实际采用切换仍由 assembly 维护。
 
 ## 定义自身的行为
 

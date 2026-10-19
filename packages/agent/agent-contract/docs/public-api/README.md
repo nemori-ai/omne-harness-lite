@@ -1,16 +1,16 @@
-# Agent 公开入口与候选定义
+# Agent 公开入口与定义
 
-当前根入口导出 `judgeAgentDefinition`、`judgeLoopExtensions` 及定义和扩展声明类型。推进、纯求值、执行与实例接口仍是候选。
+当前根入口导出 `judgeAgentDefinition`、`judgeLoopExtensions` 及定义和扩展声明类型。推进、纯求值、执行与实例接口的设计已接受，尚未实现。
 
-实际导出与公开校验由 [src/index.ts](../../src/index.ts) 及其导出模块拥有。下列声明是尚未技术接受、尚未实现的唯一候选定义，不是现有包的使用承诺。后继实现接管精确定义时，本页改为源码导航，不保留第二套手写签名。
+实际导出与公开校验由 [src/index.ts](../../src/index.ts) 及其导出模块拥有。下列声明是已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受、尚未实现的唯一设计定义，不是现有包的使用承诺。后继实现接管精确定义时，本页改为源码导航，不保留第二套手写签名。
 
-行为、调用资格、参数与依赖分类归 [SPEC 的候选章节](../../SPEC.md#主干运行契约候选)。消费路径见 [context](../context.md)，对象关系见 [object-model](../object-model.md)。
+行为、调用资格、参数与依赖分类归 [SPEC 的运行契约章节](../../SPEC.md#主干运行契约)。消费路径见 [context](../context.md)，对象关系见 [object-model](../object-model.md)。
 
 ## 身份、原位置与纯求值
 
 [行为与约束](../../SPEC.md#身份原位置与纯求值)。
 
-本页代码以 `M.*` 引用的名称（ModelCallId、ModelOperationId、AssembledModelInput、FixedModelRequest、ResultCapacity、ResultPage、ModelRuntime、ProfileResolution、Parameter、Supplier、Termination、ModelFault、DispatchRecord、RetryResolution）来自 [Model 契约的设计页](../../../../model/model-contract/docs/public-api.md)。`@omne-harness/model-contract` 的源码入口目前是模板，没有导出这些名称，在导出之前它们是候选依赖。`T.*` 引用的名称由 `@omne-harness/tool-contract` 的源码入口导出。消息中的工具部件使用 `@omne-harness/message` 导出的 `ToolPart`。`Action.original` 把 `ToolPart` 收窄到 `kind: 'tool_call'`：动作只来自工具调用部件，不来自工具结果部件。
+本页代码以 `M.*` 引用的名称（ModelCallId、ModelOperationId、AssembledModelInput、FixedModelRequest、ResultCapacity、ResultPage、ModelRuntime、ProfileResolution、Parameter、Supplier、Termination、ModelFault、DispatchRecord、RetryResolution）来自 [Model 契约的设计页](../../../../model/model-contract/docs/public-api.md)。`@omne-harness/model-contract` 的源码入口目前是模板，没有导出这些名称，在导出之前不能当作已落地的依赖。`T.*` 引用的名称由 `@omne-harness/tool-contract` 的源码入口导出。消息中的工具部件使用 `@omne-harness/message` 导出的 `ToolPart`。`Action.original` 把 `ToolPart` 收窄到 `kind: 'tool_call'`：动作只来自工具调用部件，不来自工具结果部件。
 
 ```ts
 import type { Outcome } from '@omne-harness/operation-result'
@@ -254,7 +254,7 @@ readReplyAdmissions 按原 through 返回有序事实页，after/next 只在同�
 
 [行为与约束](../../SPEC.md#请求中的职责划分)。
 
-本节引用 Model 契约设计页中已有的 `M.ProfileResolution` 与 `M.Parameter`、`M.AssembledModelInput`、`M.FixedModelRequest` 和 `M.ResultCapacity`。`@omne-harness/model-contract` 的源码入口目前是模板，这些名称在导出之前都是候选依赖。`ModelPurpose`、`ModelRecipient`、`SelectedModel`、`ModelContextRead`、`CompactionProgress`、`CompactionAdvance`、`CompactionState` 与 `FinalRequest` 由本页定义为 Agent 自有的端口形状。它们不是 Model 或 Context 的导出，Context 一侧对应的接缝尚未设计。
+本节引用 Model 契约设计页中已有的 `M.ProfileResolution` 与 `M.Parameter`、`M.AssembledModelInput`、`M.FixedModelRequest` 和 `M.ResultCapacity`。`@omne-harness/model-contract` 的源码入口目前是模板，这些名称在导出之前都不能当作已落地的依赖。`ModelPurpose`、`ModelRecipient`、`SelectedModel`、`ModelContextRead`、`CompactionProgress`、`CompactionAdvance`、`CompactionState` 与 `FinalRequest` 由本页定义为 Agent 自有的端口形状。它们不是 Model 或 Context 的导出。Context 一侧对应接缝的方向已接受，Context 契约的文字尚未写出，见算法页的接口增量与开放问题。
 
 ```ts
 export type ModelRecipient = Readonly<{ route: string; profile: Adoption }>
@@ -556,7 +556,7 @@ ExtensionImplementations.resolve 只返回匹配原 `implementation` 精确采�
 
 [行为与约束](../../SPEC.md#托管协调与运行实例)。
 
-[对象状态及协议](../object-model.md)。以下声明与前文属于同一候选模块。所有 ID、Evidence 和 Authority 均须在边界验证；结构相同不代表来自可信拥有者。
+[对象状态及协议](../object-model.md)。以下声明与前文属于同一模块。所有 ID、Evidence 和 Authority 均须在边界验证；结构相同不代表来自可信拥有者。
 
 ```ts
 export type ExecutionState =

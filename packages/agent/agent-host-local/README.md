@@ -4,15 +4,15 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## Responsibility and status
 
-Concrete Cordis integration and ownership of binding resources. The package is initialized. Runtime APIs are not implemented. Candidate designs retain their existing acceptance status.
+Concrete Cordis integration and ownership of binding resources. The package is initialized. Runtime APIs are not implemented. The design is [accepted](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204).
 
 ## Usage
 
-Current entries export no runtime capability. The [API design](docs/public-api.md) describes candidates, not executable examples.
+Current entries export no runtime capability. The [API design](docs/public-api.md) describes the accepted design, not executable examples.
 
 ## Contracts
 
-The [SPEC](SPEC.md) owns behavior. The [API page](docs/public-api.md) separates actual exports from candidate interfaces.
+The [SPEC](SPEC.md) owns behavior. The [API page](docs/public-api.md) separates actual exports from designed interfaces.
 
 ## Design
 

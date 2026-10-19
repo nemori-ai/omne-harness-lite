@@ -1,6 +1,6 @@
 # 扩展作者协议
 
-状态为候选设计，未经技术接受。本页面向扩展作者。它拥有三件事：作者看到的输入与输出形状，各位置的输出合法性表，以及整批判断屏障的作者可见语义。扩展的位置集合、名称与触发边界由系统页[Loop extensions](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)拥有，本页只引用位置名，不重述位置表。Agent 对扩展的行为保证归[成员 SPEC](../../SPEC.md#扩展卡片与材料)，内部实现机制归[扩展经过与精确采用接续](../../../agent/docs/architecture/mechanisms.md#扩展经过与精确采用接续)。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。本页面向扩展作者。它拥有三件事：作者看到的输入与输出形状，各位置的输出合法性表，以及整批判断屏障的作者可见语义。扩展的位置集合、名称与触发边界由系统页[Loop extensions](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)拥有，本页只引用位置名，不重述位置表。Agent 对扩展的行为保证归[成员 SPEC](../../SPEC.md#扩展卡片与材料)，内部实现机制归[扩展经过与精确采用接续](../../../agent/docs/architecture/mechanisms.md#扩展经过与精确采用接续)。
 
 扩展只看到 Agent 自己的执行事实和按声明注入的能力。它不取得外部协调者的业务关联、日志句柄、环境句柄、Tool 内部的等待对象或供应商调度器。独立调用者和外部协调者路径使用同一份作者协议，位置集合不因调用方而变化。
 
@@ -9,7 +9,7 @@
 - 一次经过：Loop 到达某个位置的一次，见词表[一次经过](../../../../../.meta_harness/design/ubiquitous_language/terms/agent-runtime-loop.md#ul-extension-point-pass--一次经过--extension-point-pass)。同一次经过里，该位置的扩展按链序各调用一轮。
 - 扩展调用：Agent 在一次经过里对一个扩展发起的调用，见词表[拓展件调用](../../../../../.meta_harness/design/ubiquitous_language/terms/agent-runtime-loop.md#ul-extension-invocation--拓展件调用--extension-invocation)。Agent 用 `Passage` 记录一次扩展调用，用 `PassageId` 标识它。一次扩展调用可以包含多次 `invoke`：结果未知之后的回放与答复到达之后的回放，都属于原扩展调用。
 
-本页是扩展作者接口类型的唯一声明位置，公开接口页只列名称并链接到这里。本页引用的其他 Agent 类型，例如 `Subject`、`PassageId`、`CardRoundId` 与 `CardAnswer`，由[公开接口页](README.md)声明。`Message` 与 `JsonValue` 按公开接口页开头的导入。`M.*` 指 [Model 契约设计页](../../../../model/model-contract/docs/public-api.md)的名称，`T.*` 指 `@omne-harness/tool-contract` 的导出，见 [Tool 契约公开接口](../../../../tool/tool-contract/docs/public-api.md)。这些名称在各拥有者实际导出之前是候选依赖。
+本页是扩展作者接口类型的唯一声明位置，公开接口页只列名称并链接到这里。本页引用的其他 Agent 类型，例如 `Subject`、`PassageId`、`CardRoundId` 与 `CardAnswer`，由[公开接口页](README.md)声明。`Message` 与 `JsonValue` 按公开接口页开头的导入。`M.*` 指 [Model 契约设计页](../../../../model/model-contract/docs/public-api.md)的名称，`T.*` 指 `@omne-harness/tool-contract` 的导出，见 [Tool 契约公开接口](../../../../tool/tool-contract/docs/public-api.md)。这些名称在各拥有者实际导出之前不能当作已落地的依赖。
 
 ## 位置与作者可见的 subject
 
@@ -36,9 +36,9 @@
 
 `Message` 的 `reply` 的角色是 `assistant`，`candidate` 的角色是 `tool`。`CallAccount` 来自 `@omne-harness/call-account`。表中没有列为可改写的字段都不可改写。改写不能改变已发生的事实，也不能撤销工具的实际效果。
 
-执行动作之后整批范围的触发边界由[系统页](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)拥有。系统页位置表尚未写出这条边界，本页所写是候选设计。作者可见的后果是：整批范围的 `outcomes` 至少有一项为 `executed`。本批全部动作都被拒绝时，不经过整批范围，拒绝事实经回复消息与执行事实到达后续位置。
+执行动作之后整批范围的触发边界由[系统页](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)拥有。系统页的位置表写明这条边界。作者可见的后果是：整批范围的 `outcomes` 至少有一项为 `executed`。本批全部动作都被拒绝时，不经过整批范围，拒绝事实经回复消息与执行事实到达后续位置。
 
-调模型之后位置的 `failure` 维度在一次调用内有两种触发：每次首内容前的发出失败触发一次，`subject.retry` 为 Model 交来的重试请求；原调用最终失败时再触发一次，这时原调用已经收场。这两种触发的边界同样由系统页拥有，系统页尚未写出，本页所写是候选设计。
+调模型之后位置的 `failure` 维度在一次调用内有两种触发：每次首内容前的发出失败触发一次，`subject.retry` 为 Model 交来的重试请求；原调用最终失败时再触发一次，这时原调用已经收场。这两种触发的边界同样由系统页拥有，系统页的位置表写明这两种触发。
 
 ## 声明
 
@@ -197,7 +197,7 @@ export type CardOption = Readonly<{ id: string; label: string; effect?: JsonValu
 | `before_terminal` | `observed`、`inject`、`veto`、`stop`、`ask` | `observed` | `observed`、`inject` | `observed`、`inject`、`veto`、`stop`、`ask` | 无 |
 | `after_terminal` | `observed` | `observed` | `observed` | `observed` | 无 |
 
-本表逐格兑现[系统页](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)对干预力与位置的限制，包括压缩之前与整批范围不改写、后置位置不否决、后置位置的停止与请求人处理，以及落终态之后只观察。压缩之后面对的是已提交的转换，所以没有任何位置能改写压缩候选。压缩步骤的请求已由 Model 固定且不再重新准备，所以压缩用途的调模型之前位置不提供 `inject`、`rewrite` 与 `select_model`。
+本表逐格兑现[系统页](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)对干预力与位置的限制，包括只有调模型之前、执行动作之前和执行动作之后的单结果范围提供改写、后置位置不否决、后置位置的停止与请求人处理，以及落终态之后只观察。压缩之后面对的是已提交的转换，所以没有任何位置能改写压缩候选。压缩步骤的请求已由 Model 固定且不再重新准备，所以压缩用途的调模型之前位置不提供 `inject`、`rewrite` 与 `select_model`。
 
 ### Conclusion
 

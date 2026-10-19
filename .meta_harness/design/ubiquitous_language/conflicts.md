@@ -293,7 +293,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-54：Agent runtime 是否空闲后复用
 
 - **类型**：定义打架。2026-10-17 改写词条时发现。
-- **两处输入**：[UL-agent-runtime](terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) 原词义（产品负责人 2026-09-20 直接裁决）写「一次起一个」「从 Run 的角度看，它的一生就是一次执行尝试」「协程每次重新起」；已接受系统页 [Agent runtime](../../../docs/architecture/runtime/agent-runtime.md#实例执行与挂载) 写 runtime 可以在一次执行结束后保持空闲并复用于后续执行。
+- **两处输入**：[UL-agent-runtime](terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) 原词义（产品负责人 2026-09-20 直接裁决）写「一次起一个」「从 Run 的角度看，它的一生就是一次执行尝试」「协程每次重新起」；已接受系统页 [Agent runtime](../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接) 写 runtime 可以在一次执行结束后保持空闲并复用于后续执行。
 - **差别**：若复用，runtime 的寿命长于一次 Agent 执行，登记与生灭随之不同；若不复用，每个新 Agent 执行另起一个。两种读法对「一个会话同一时刻至多一个活跃 agent runtime」都成立。
 - **处置**：项目负责人在本次交接中把「Runtime 可 idle 复用，逻辑执行与物理实例寿命分开」列为必须继承的要求，按此取复用一说。词条与对象条目改为：一次 Agent 执行结束后 runtime 回到空闲并保持登记，可以承接下一次 Agent 执行；前后两次执行之间不沿用主体、授权、取消状态、输入队列与结果游标。
 - **状态**：已闭合（2026-10-17）。上列原文保留发现时的写法，现行含义以词条为准。
@@ -310,13 +310,13 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-56：模态转换件的执行时点
 
 - **类型**：定义打架。2026-10-17 用户决定移除消息持久化位置后发现。
-- **来源**：用户决定暂不提供消息落盘之前与之后两种扩展位置。已接受[系统页](../../../docs/architecture/runtime/loop-extensions.md#不可用报错与系统扩展)的系统扩展表把模态转换列为系统扩展，非 Tool ref 来源的转换位置标为待负责人接受。
+- **来源**：用户决定暂不提供消息落盘之前与之后两种扩展位置。已接受[系统页](../../../docs/architecture/runtime/loop-extensions.md#不可用报错与系统扩展)的系统扩展表把模态转换列为系统扩展，非 Tool ref 来源的转换位置当时待负责人接受。
 - **各处现状**：[Model 契约](../../../packages/model/model-contract/SPEC.md#转换件的共同契约)写非 Tool ref 路径的转换在消息接纳前完成，且转换件不根据当前模型决定是否转换；请求时才加载并转换的只有 Tool 内容引用。[Model 契约的模态投影与实际表示](../../../packages/model/model-contract/SPEC.md#模态投影与实际表示)把实际表示的选择与组装交给 request-context。[UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)、[UL-derived-rendering](terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)、[UL-transcript](terms/record-and-context.md#ul-transcript--transcript--transcript) 与保留技术源 [modality-projection](../architecture/modality-projection/design.md) 仍以「在落盘之前写好」和「prepersist 跨域」描述转换。
 - **候选归属**：一，与 Tool 内容引用一样，在 Model 实际请求准备时按模态投影加载并转换，转换失败按请求准备失败返回。二，仍在消息接纳前完成，只是不再挂在拓展位置上：实现[消息准入](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的提供者在接纳前调用转换件，Tool 内容引用在 Model 实际请求时转换，Agent 只看到接纳后的消息与派生表示。
 - **推荐**：协调者推荐候选二，候选一不再推荐。候选二沿用 Model 与 Context 现行规格的时点，不另造时点，也不让 Agent 理解模态细节。
-- **受影响页**：系统页系统扩展表的模态转换行及其后一段、[UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) 及其索引行、[UL-message-admission](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission) 注意 ③。这三处已按候选二写，并标待负责人接受。UL-derived-rendering、UL-transcript 的「在落盘之前写好」与候选二一致，不需要改；modality-projection 专题中「prepersist 跨域」的位置说法随专题拥有者复核。选候选二时 Model 与 Context 的规格不需要改。
+- **受影响页**：系统页系统扩展表的模态转换行及其后一段、[UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) 及其索引行、[UL-message-admission](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission) 注意 ③。这三处已按候选二写。UL-derived-rendering、UL-transcript 的「在落盘之前写好」与候选二一致，不需要改。modality-projection 专题中「prepersist 跨域」的位置说法已改为接纳前调用。选候选二时 Model 与 Context 的规格不需要改。
 - **负责与闭合条件**：项目负责人接受候选二，或改选候选一。接受候选二后，去掉上述词条的「待负责人接受」，并复核模态转换件的形态：它不再站在拓展点上，是否仍是拓展件的变体。
-- **状态**：待项目负责人接受。
+- **状态**：已闭合（2026-10-19）。项目负责人在[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)中接受候选二中非 Tool ref 来源的位置；Tool 内容 ref 的时点归 Tool 线，随其契约进入集成轨道。系统页、UL-modality-converter、索引行与 UL-message-admission 注意 ③ 已去掉「待负责人接受」。形态复核：UL-modality-converter 保持「变体（父：拓展件）」。已接受系统页仍把模态转换列在系统扩展表中，位置栏写「不在扩展位置上」，并由系统装配选择和替换。父词条 [UL-loop-extension](terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) 的定义写「挂在某个 Loop 拓展点上」，与转换件不站在拓展点上不一致；这一点已在转换件词条的「别混 ②」写明，形态改动须先改产品正文。Model 契约页（`packages/model/model-contract`）尚未进入集成轨道，其措辞随该页进入集成轨道时核对。
 
 ### C-57：执行挂接的形态
 
@@ -325,8 +325,8 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **产品正文**：[产品页](../product/agent-progression/design.md#扩展检查与权限)（rev 2）只说重挂接与实例换代不再经过执行开始之后位置，没有给执行挂接的身份或生灭。
 - **判据**：能挂成已有对象一个属性的关系，不另立对象（见 `ubiquitous-language` 技能「判形态」）。
 - **负责与闭合条件**：Agent 技术设计（系统架构设计）按产品页的触发边界核对两种读法，定后回头改词条形态。
-- **处置**：Agent 契约候选的[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)给执行挂接独立的身份、三种状态（有效、被取代、已脱离）和围栏记录：状态终止后记录保留到所属执行的保留期结束，用于归属晚到回执与事件因果。它有独立身份和耐久记录，不能挂成执行或 agent runtime 的一项属性，所以取第一种读法。词条形态改为对象，[领域对象](../domain_objects/objects.md#ul-execution-attachment--执行挂接)已立条目，待裁项已删除。
-- **状态**：已闭合（2026-10-18）。依据是 Agent 契约候选，该候选未经技术接受，接受时复核形态。
+- **处置**：Agent 契约的[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)给执行挂接独立的身份、三种状态（有效、被取代、已脱离）和围栏记录：状态终止后记录保留到所属执行的保留期结束，用于归属晚到回执与事件因果。它有独立身份和耐久记录，不能挂成执行或 agent runtime 的一项属性，所以取第一种读法。词条形态改为对象，[领域对象](../domain_objects/objects.md#ul-execution-attachment--执行挂接)已立条目，待裁项已删除。
+- **状态**：已闭合（2026-10-18）。依据是 Agent 契约的对象模型。该契约已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用（2026-10-19），接受时已复核：已接受的对象模型仍给执行挂接独立身份、三种状态和耐久的围栏记录，形态保持对象。
 
 ### C-58：拓展结论的形态
 
@@ -334,8 +334,8 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **两种读法**：一，Agent 自己保存的耐久记录，有自己的身份，已有它的调用不再调用。二，会话日志里记录条目的一种，沿封存 [PF-012 §6.10](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论) 的写法。
 - **差别**：Agent 不要求、不解释会话日志，所以第二种读法与 Agent 一侧的边界不一致；第一种读法没有产品正文给出身份与生灭。
 - **负责与闭合条件**：Agent 技术设计（系统架构设计）定拥有者与记录种类，定后回头改词条形态。
-- **处置**：Agent 契约候选的[扩展作者协议](../../../packages/agent/agent-contract/docs/public-api/extensions.md#conclusion)规定 Agent 把校验通过的输出包装为结论并保存，作者不返回结论。[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)把扩展调用的记录列为 execution 内的台账，结论没有独立于所属调用的身份。保存者是 Agent，保存位置是它的执行记录，所以第二种读法与 Agent 不解释会话日志的边界不符。词条形态改为属性，挂在 Agent 执行的记录上，待裁项已删除。非最终结论（请求人处理）与最终结论同属这一属性。
-- **状态**：已闭合（2026-10-18）。依据是 Agent 契约候选，该候选未经技术接受，接受时复核形态。
+- **处置**：Agent 契约的[扩展作者协议](../../../packages/agent/agent-contract/docs/public-api/extensions.md#conclusion)规定 Agent 把校验通过的输出包装为结论并保存，作者不返回结论。[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)把扩展调用的记录列为 execution 内的台账，结论没有独立于所属调用的身份。保存者是 Agent，保存位置是它的执行记录，所以第二种读法与 Agent 不解释会话日志的边界不符。词条形态改为属性，挂在 Agent 执行的记录上，待裁项已删除。非最终结论（请求人处理）与最终结论同属这一属性。
+- **状态**：已闭合（2026-10-18）。依据是 Agent 契约的扩展作者协议与对象模型。该契约已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用（2026-10-19），接受时已复核：已接受的对象模型仍把结论列在扩展调用的台账内，结论没有独立身份，形态保持属性。
 
 ### C-59：斜杠命令受理依赖已移除的位置
 
@@ -358,13 +358,13 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **来源**：[Runtime Context 产品页](../product/runtime-context/design.md#5-当前值与变化感知)与已接受[系统页](../../../docs/architecture/runtime/runtime-context.md)以 attempt 为拉取时点。用户决定 Agent 不要求、不解释 attempt。
 - **处理**：[UL-runtime-context](terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) 不再另定时点，改指 Context 与 Agent 的现行正文。
 - **负责与闭合条件**：Context 拥有者改写拉取时点的说法。
-- **状态**：待 Context 拥有者处理。
+- **状态**：已闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。Context 一侧描述拉取时点的页面都已改为「执行开始或挂接建立」：已接受的 Runtime Context 系统页与领域页、运行时 context 规格的 [RC-04](../../../packages/context/runtime-context/SPEC.md#rc-04-读取时点变化与提醒)（标题改为「读取时点、变化与提醒」，旧锚点由兼容锚点保留）、该成员的关键流程 [RC-F01](../../../packages/context/runtime-context/docs/key-flows.md#rc-f01)、内部设计与开放问题、Context 组的关键流程，以及 [Runtime Context 产品页](../product/runtime-context/design.md) §5、RC-J01 与 CAP-RC04（产品页修订到 rev 2）。
 
 ### C-62：执行挂接的候选类型名
 
 - **类型**：同义不同名，并有英文同名不同义。2026-10-17 核对执行挂接的英文名时发现。
-- **来源**：Agent 候选[公开接口页](../../../packages/agent/agent-contract/docs/public-api/README.md)用裸写的 `AttachmentId` 类型与 `attachment` 字段指执行挂接；[附件](terms/execution-and-outcome.md#ul-attachment--附件--attachment)的英文名是 Attachment，Tool 结果中的 attachments 也指文件附件，两者都流经 Agent。已接受[系统页 Agent runtime](../../../docs/architecture/runtime/agent-runtime.md#实例执行与挂载)与[领域页](../../../docs/domains/agent-progression/README.md)的中文写「挂载」。
+- **来源**：Agent 契约的[公开接口页](../../../packages/agent/agent-contract/docs/public-api/README.md)当时用裸写的 `AttachmentId` 类型与 `attachment` 字段指执行挂接；[附件](terms/execution-and-outcome.md#ul-attachment--附件--attachment)的英文名是 Attachment，Tool 结果中的 attachments 也指文件附件，两者都流经 Agent。已接受[系统页 Agent runtime](../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)与[领域页](../../../docs/domains/agent-progression/README.md)的中文当时写「挂载」。
 - **差别**：同一个域里，一个英文词有两个所指，会直接传到类型与字段名上；中文「挂载」与「执行挂接」是同一个概念的两种说法。
-- **处置**：[UL-execution-attachment](terms/agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment) 的英文名定为 Execution Attachment，不许简称 attachment；「挂载」与「Agent Attachment」列入弃用。候选类型名将改为 `ExecutionAttachment`、`ExecutionAttachmentId`，字段改为 `executionAttachment`。
-- **负责与闭合条件**：Agent 候选契约的写者改类型名与字段名；已接受页的「挂载」随系统页修订交负责人接受后回改。两处都回改后闭合。
-- **状态**：词条已定名。Agent 契约候选已改用全称类型名与字段名。已接受页（系统页 Agent runtime 的节名与正文、领域页）和候选页 `runtime-contract-model.md` 的旧写法仍在，随这些页的修订回改后闭合。
+- **处置**：[UL-execution-attachment](terms/agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment) 的英文名定为 Execution Attachment，不许简称 attachment；「挂载」与「Agent Attachment」列入弃用。类型名改为 `ExecutionAttachment`、`ExecutionAttachmentId`，字段改为 `executionAttachment`。
+- **负责与闭合条件**：Agent 契约的写者改类型名与字段名；已接受页的「挂载」随系统页修订交负责人接受后回改。两处都回改后闭合。
+- **状态**：部分闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。词条已定名，Agent 契约已改用全称类型名与字段名。已接受页（系统页 Agent runtime 的节名「实例、执行与执行挂接」与正文、领域页）已回改，英文裸写的 attachment 也已改为 execution attachment。仍缺：共同系统页 `runtime-contract-model.md` 的旧写法，该页尚未进入集成轨道，随该页进入集成轨道时回改，之后闭合。

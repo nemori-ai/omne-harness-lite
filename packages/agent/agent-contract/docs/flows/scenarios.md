@@ -1,6 +1,6 @@
 # Agent 推进的关键协作流程
 
-状态为候选设计，未经技术接受。本页把[产品旅程](../../../../../.meta_harness/design/product/agent-progression/design.md#关键用户旅程)落实为逻辑角色间的次序和交接。Agent 拥有 Loop 下一步、扩展调用、参数绑定和整批判断。外部协调者拥有自己的业务关联、输入受理与业务终态；Model、Tool 拥有原执行；Context 拥有输入投影与预算；HITL 拥有卡片和唯一答复；authorization 解释授权；assembly 拥有候选采用和结构交接。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。本页把[产品旅程](../../../../../.meta_harness/design/product/agent-progression/design.md#关键用户旅程)落实为逻辑角色间的次序和交接。Agent 拥有 Loop 下一步、扩展调用、参数绑定和整批判断。外部协调者拥有自己的业务关联、输入受理与业务终态；Model、Tool 拥有原执行；Context 拥有输入投影与预算；HITL 拥有卡片和唯一答复；authorization 解释授权；assembly 拥有候选采用和结构交接。
 
 共同规则由[主架构](../../../../../docs/domains/agent-progression/architecture.md)、[成员 SPEC](../../SPEC.md)及三个主题拥有。图中出现的节点 ID 指 [Loop 完整算法](../../../agent/docs/architecture/loop-algorithm.md)的节点，节点的定义、次序与转移只在该页维护。本页只展示消费顺序，不创建状态机或公开阶段枚举。
 
@@ -324,4 +324,4 @@ flowchart LR
 | F-AG06 的在途展示内容跨生产 runtime 失联耐久 | Model 流式与消费存储拥有者，[AGENT-N01](../../../../../.meta_harness/design/product/agent-progression/design.md#agent-n01) | 不从收场后的交付责任解除推断逐片耐久，不宣布允许丢失 |
 | F-AG08 的长期读取尺度、策略配置资格和生效协议 | Agent Loop 策略、事实与查询拥有者，[AGENT-M01](../../../../../.meta_harness/design/product/agent-progression/design.md#agent-m01)、[AGENT-M03](../../../../../.meta_harness/design/product/agent-progression/design.md#agent-m03) | 缓存进度可查且可重建，守卫及账目不因优化丢失 |
 
-本页只有候选逻辑流程和持续验证入口。没有运行真实装配、故障或性能实验，没有据 Mermaid 图授予行为正确性或接受。
+本页只有逻辑流程和持续验证入口。没有运行真实装配、故障或性能实验，没有据 Mermaid 图授予行为正确性。

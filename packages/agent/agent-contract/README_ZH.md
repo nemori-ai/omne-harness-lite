@@ -4,7 +4,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与状态
 
-公共值、操作、结果、行为及可替换提供者端口。声明类型及 judgeAgentDefinition、judgeLoopExtensions 已有实现；运行接口仍是候选。
+公共值、操作、结果、行为及可替换提供者端口。声明类型及 judgeAgentDefinition、judgeLoopExtensions 已有实现；运行接口的设计已接受，尚未实现。
 
 ## 使用
 
@@ -29,7 +29,7 @@ raw 是调用方取得的未知声明数据。边界限额和拒绝分类见 [�
 
 ## 验证
 
-`pnpm test` 与 `pnpm typecheck` 验证声明判断及实际包入口。运行候选的验证义务尚未兑现。
+`pnpm test` 与 `pnpm typecheck` 验证声明判断及实际包入口。运行契约的验证义务尚未兑现。
 
 ## 维护
 

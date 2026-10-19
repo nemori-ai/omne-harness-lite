@@ -1,8 +1,8 @@
 # Agent 能力的长期行为规格
 
-状态：调用身份与资格、调用登记、原消费位置、取消与恢复、结果保管及交接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是该接受范围内的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。
+状态：调用身份与资格、调用登记、原消费位置、取消与恢复、结果保管及交接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是该接受范围内的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。本页其余内容及所引专题，即公开接口、扩展作者协议、对象模型、外部协调者前提、Loop 算法、恢复切点与机制，已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，同样是现行协作契约。仍然开放的事项由各专题与开放问题页逐项写明。设计接受不表示生产实现、提供者或运行验证已完成。
 
-目标拥有者为 `packages/agent/agent-contract/`。本规格表达持续约束实现的行为，不声明公开类型、提供者、机制或实现已获接受。正式产品和全系统架构仍是上层依据。
+目标拥有者为 `packages/agent/agent-contract/`。本规格表达持续约束实现的行为。公开类型与机制的设计已按上述状态接受，提供者与实现的接受另行判断，不由设计接受代替。正式产品和全系统架构仍是上层依据。
 
 ## 责任与适用调用方
 
@@ -32,7 +32,7 @@ Agent 自己的执行结束由本域条件提交成立。外部协调者的业�
 
 进入执行记录的事实有三类。调用登记保存稳定调用身份、固定输入的引用、原消费位置和阻塞范围。会改变后续判断的扩展结论记入执行记录。人的答复交回原卡片。纯观察是留痕。登记不等于已经发出。连续否决不设次数上限。已记下的否决历史不因换执行挂接而消失。
 
-下面一段是候选补充，未经技术接受。执行记录由 Agent 经 Journal 保存，控制记录与否决历史也保存在执行记录中。业务消息由消息的拥有者保存。流事件由 Agent 的事件序列保存，规则见“事件流与读取”。诊断日志按“性能、诊断与维护”处理。外部协调者把哪些 Agent 事实写入自己的日志，由该协调者的文档规定。Agent 通过事件序列与读取操作提供原事实。
+执行记录由 Agent 经 Journal 保存，控制记录与否决历史也保存在执行记录中。业务消息由消息的拥有者保存。流事件由 Agent 的事件序列保存，规则见“事件流与读取”。诊断日志按“性能、诊断与维护”处理。外部协调者把哪些 Agent 事实写入自己的日志，由该协调者的文档规定。Agent 通过事件序列与读取操作提供原事实。
 
 登记的最小对接是现行规则。这张表适用于所有调用方，包括外部协调者和独立调用者。
 
@@ -54,8 +54,6 @@ Agent 为推进某个 execution 发起的调用关联该 execution 和原消费�
 
 ### 租户与作用域绑定
 
-本小节是候选设计，未经技术接受。
-
 runtime 在创建时绑定租户和安全作用域。这两项与实例身份、精确采用一起构成身份绑定，不是可序列化配置：配置不能覆盖它们，改变其中任何一项都必须创建新实例。
 
 每次操作的 Access 显式携带主体和租户。runtime 核对 Access 的租户与自身绑定一致，也核对被操作的 execution、句柄、事件和登记属于该租户。任一项不一致都按跨租户拒绝处理：返回 denied，不区分对象不存在与无权访问，不返回对象的内容或状态。
@@ -63,8 +61,6 @@ runtime 在创建时绑定租户和安全作用域。这两项与实例身份、
 缺少租户的操作返回输入无效。本成员不从 runtime 绑定、运行态、Context、历史标识或全局当前状态推断、补全租户。身份参数不是授权证明：主体的当前资格由注入的 AgentAccessCheck 核验，规则见下一小节。撤权后的新动作在实际发起处被拒绝，已经合法发出的调用沿原身份查询和控制。目录键是显式租户加实例身份，跨租户的 resolve 与 connect 同样返回 denied。
 
 ### 主体资格核验
-
-本小节是候选设计，未经技术接受。
 
 AgentAccessCheck 是必需的注入依赖，由授权领域的适配器实现。Agent 不自己解释组织、角色或权限模式。
 
@@ -95,8 +91,6 @@ runtime 的协调角色在已核验的公开操作之内调用 Journal 端口时
 写入返回未知时按原操作身份查询，不能直接重复可能产生效果的调用。操作身份由稳定要素确定派生：租户、execution、原持久前驱 revision、转移种类与原帧中的稳定槽位，崩溃前后对同一帧与同一转移派生同一身份，不用新的随机身份重试。派生规则见[机制页](../agent/docs/architecture/mechanisms.md#操作身份的确定派生)。读取或查询失败保持未知，不等于不存在。恢复已确认的事实不依赖结束记录必须成对出现。
 
 ### 提交参加者协议
-
-本小节是候选设计，未经技术接受。
 
 提交参加者是 Agent 之外、需要与 Agent 的一次提交共同成立自己事实的一方。常见的有两类：外部协调者在受理输入和结束工作时登记自己的业务事实，Context 的参加者在压缩转换时保存消息范围与排除依据。独立调用者没有提交参加者，Agent 的 Journal 提供者单独保护输入受理和执行结束。
 
@@ -140,8 +134,6 @@ Agent 拒绝不合格的装配。声明的形状是 `AgentJournal.capabilities.p
 
 ### 四种控制
 
-本小节是候选设计，未经技术接受。
-
 控制分为四种。每一种有自己的作用对象和结果，任何一种都不隐含另一种。
 
 | 控制 | 作用对象 | 效果 | 不做的事 |
@@ -157,8 +149,6 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 ### 插队
 
-本小节是候选设计，未经技术接受。
-
 插队不是第五种控制。它是一项 urgent 输入沿原 execution 受理之后，Agent 对当前前台调用使用中断类控制的规则。
 
 1. 受理：urgent 输入经 submit 受理，保留原输入身份和 urgent 属性。它进入原 execution，不创建新的 execution。
@@ -170,8 +160,6 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 每一次中断或转后台都是一条独立的中断类控制，按下一小节记录阶段事实。插队不取消 execution，不撤销执行挂接。
 
 ### 六个阶段
-
-本小节是候选设计，未经技术接受。
 
 一次控制的进展分为六个互相独立的事实。每个事实各自保存证据，只在实际成立时记录。缺席表示尚未成立，未知单独标记。
 
@@ -230,7 +218,7 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 ## 声明判断
 
-本节只描述 Issue 273 已实现的可观察判断。它不把 [definition.md](docs/public-api/definition.md) 整页转为已接受契约。整卡接受仍由该 Issue 的具名决定记录。
+本节只描述 Issue 273 已实现的可观察判断。[definition.md](docs/public-api/definition.md) 的其余部分按本页开头的状态接受，其实现状态以本节与[实施差异](verification/coverage.md#实施差异)为准。
 
 公开入口是 `judgeAgentDefinition` 与 `judgeLoopExtensions`。成功结果是声明数据。单项拒绝只有 `kind` 与 `reason`。一批扩展被拒绝时还有 `index`。容器不合法时 `index` 为 0。某一项不合法时 `index` 是该项序号。原因包括 `malformed`、`duplicate-capability`、`unknown-attribute`、`unknown-position`、`unknown-power`、`dimension-missing`、`dimension-not-allowed`、`power-above-ceiling`、`executable`、`checker-failed`。
 
@@ -246,20 +234,21 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 
 <a id="342-主干运行契约候选"></a>
+<a id="主干运行契约候选"></a>
 
-## 主干运行契约候选
+## 主干运行契约
 
-本节归集运行契约的候选行为，不改变前文的既有采用范围。候选声明唯一归 [public-api](docs/public-api/README.md)，消费位置与外部协调者的前提归 [context](docs/context.md)，正常、失败与反例场景归[持续验证场景](verification/scenarios.md)。按源码包模板组织文档不授予本节技术接受或生产支持。
+本节归集运行契约的行为。声明唯一归 [public-api](docs/public-api/README.md)，消费位置与外部协调者的前提归 [context](docs/context.md)，正常、失败与反例场景归[持续验证场景](verification/scenarios.md)。按源码包模板组织文档不授予生产支持。
 
-本节是候选设计，尚未技术接受，接受状态记录在 [Issue 342](https://github.com/nemori-ai/omne-harness-lite/issues/342)。已采用范围继续由 [SPEC](SPEC.md) 标明。既有根入口只实现定义与扩展声明判断；下面的求值、协调和实例接口尚未生产实现。
+本节已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，前文已采用范围继续由本页开头的状态标明。接受不表示源码支持。既有根入口只实现定义与扩展声明判断；下面的求值、协调和实例接口尚未生产实现。
 
 Agent 将明确事实求成下一步，再通过公开端口协调工作。外部协调者在外部拥有自己的业务关联和终态，通过提交参加者适配输入受理、保存与共同终结，这些概念不进入 Agent 核心。Model/Tool 拥有真实执行。Agent 的纯求值、可恢复 execution 与可复用 runtime 分别表达。对象与层次关系见[共同模型](https://github.com/nemori-ai/omne-harness-lite/blob/a69de04ae9b70f299ff74dd2b10343172433bc6c/docs/architecture/runtime/runtime-contract-model.md)。
 
 ### 身份、原位置与纯求值
 
-下列代码块组成同一候选声明。Model、Tool 导入指向各原拥有者的 public-api；Agent 自有值和窄端口不导入任何外部协调者的类型，不表示当前包根已经导出。既有 AgentDefinition 直接复用已公开类型。`Position`、`Power` 与 `LoopExtensionDeclaration` 使用[扩展作者协议](docs/public-api/extensions.md#声明)定义的设计目标类型，不复用源码现有的同名类型，二者的差异见[实施差异](verification/coverage.md#实施差异)。落地时由各原拥有者公开，不能在 Agent 复制这些接口或用私有源码代替。
+下列代码块组成同一份声明。Model、Tool 导入指向各原拥有者的 public-api；Agent 自有值和窄端口不导入任何外部协调者的类型，不表示当前包根已经导出。既有 AgentDefinition 直接复用已公开类型。`Position`、`Power` 与 `LoopExtensionDeclaration` 使用[扩展作者协议](docs/public-api/extensions.md#声明)定义的设计目标类型，不复用源码现有的同名类型，二者的差异见[实施差异](verification/coverage.md#实施差异)。落地时由各原拥有者公开，不能在 Agent 复制这些接口或用私有源码代替。
 
-[本节候选定义](docs/public-api/README.md#身份原位置与纯求值)。
+[本节定义](docs/public-api/README.md#身份原位置与纯求值)。
 
 StepId 区分一轮主要请求及其动作承接位置，ActionId 区分同一步内不同动作。拒收模型回复之后的新调用有新 action/call，保留原否决历史。PassageId 固定一次位置、扩展采用、动作和链序号。身份生成不授予资格，稳定身份先保管再用于外部操作；恢复不因换执行挂接重建它们。admission 保存每个生产者原受理操作，用于 inspect/lookup，不能只保存 call。
 
@@ -273,7 +262,7 @@ next 是纯函数，不读时钟、当前注册或数据库，不发请求。相
 
 这些是 Agent 消费外域的窄端口。Request Context、Runtime Context、HITL 与材料拥有者负责真实来源和行为，Adapter 在本边界兑现；此处不授予它们新的领域职责或通用执行权限。
 
-[本节候选定义](docs/public-api/README.md#请求扩展和材料接缝)。
+[本节定义](docs/public-api/README.md#请求扩展和材料接缝)。
 
 本节前七小节写一次模型请求从选择模型到记录最终请求的行为。随后的小节写扩展、卡片与材料，循环守卫，整批判断屏障与动作准入，工具执行与结果承接，消息准入，以及卡片与准入端口的逐操作要素。Loop 各节点的次序由 Loop 算法页拥有，本节只写必须成立的行为和各方的分工。
 
@@ -309,10 +298,10 @@ Agent 经 ModelSelection.select 按用途选择模型。用途有三种：主请
 Agent 经 ModelContextReader.read 取得模型可读的 Runtime Context。读取遵守下列规则。
 
 1. 拉取时点有五个：新 execution 开始，每次建立执行挂接（AgentRuntime.resume 或接管之后），每次主请求准备，模型选择变化之后，压缩提交之后。后三个时点在正常路径上落在 RequestPreparation.prepare 与 RequestPreparation.resume 之前，单独列出是因为选择变化和压缩提交都使已读到的快照失效。快照与实际收件模型和历史范围绑定，必须重新读取。每个时点都先选择模型，再读取，因为读取端口需要实际收件模型。
-2. 已接受的 [Runtime Context 系统页](../../../docs/architecture/runtime/runtime-context.md)把读取时点写作 attempt 的建立。前两个时点与它对应，Agent 的拉取时点是它的超集，二者不冲突。系统页的改写提案待接受，接受前以系统页为准。
+2. 已接受的 [Runtime Context 系统页](../../../docs/architecture/runtime/runtime-context.md)把读取时点写作执行开始或执行挂接建立。前两个时点与它对应，Agent 的拉取时点是它的超集，二者不冲突。
 3. 模型可读块与工具、扩展的私有块分开读取。ModelContextReader 在装配时绑定到模型这一个消费者，调用方不能用参数改成其他消费者。它只返回标为模型可读、且当前资格允许的块。
 4. 私有块包括权限输入。它们只经工具与扩展各自的注入能力读取，例如动作准入和扩展的 needs 能力，每次读取都核验当前资格。私有块不进入模型请求、事件、失败诊断和遥测。RuntimeConditions 的 context 只是条件依据的引用，不含块内容，也不是模型可读的读取结果。
-5. full 还是 incremental 由 Context 决定，Agent 不要求某一种。Agent 向读取端口传入历史依据、本 execution 已采用的覆盖依据（checkpoint 的 adoptedContext，新 execution 为空）和压缩转换依据（压缩提交之后的读取才有）。Context 按 [Runtime Context 的 RC-04](../../context/runtime-context/SPEC.md#rc-04-attempt变化与提醒) 返回 full 或 incremental 与覆盖证据。Agent 只记录 Context 返回的种类与覆盖，不改变它们。
+5. full 还是 incremental 由 Context 决定，Agent 不要求某一种。Agent 向读取端口传入历史依据、本 execution 已采用的覆盖依据（checkpoint 的 adoptedContext，新 execution 为空）和压缩转换依据（压缩提交之后的读取才有）。Context 按 [Runtime Context 的 RC-04](../../context/runtime-context/SPEC.md#rc-04-读取时点变化与提醒) 返回 full 或 incremental 与覆盖证据。Agent 只记录 Context 返回的种类与覆盖，不改变它们。
 6. 读到不等于采用。ModelContextRead 只说明读到了什么。覆盖在最终请求记录时才成为已采用覆盖，并保存在 checkpoint。记录之前，未采用的读取被新的读取、选择变化或压缩提交取代，直接丢弃，不影响已采用覆盖。
 7. 空闲期间的变化由新 execution 开始和建立挂接时的拉取承接，不依赖逐条推送。同一 execution 长时间等待后继续推进时，下一次主请求准备前的读取传入 checkpoint 的 adoptedContext，Context 沿提醒链返回 incremental 或 full；Agent 不因等待时长改为要求某一种。
 8. 每次读取都核验当前资格，不用旧日志恢复已撤回的访问权。读取不可用时请求不准备，Agent 不用旧快照冒充当前。
