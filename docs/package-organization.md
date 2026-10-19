@@ -166,13 +166,13 @@ scripts/                       仓库自动化
 | --- | --- | --- | --- |
 | model-contract | 纯领域值、操作、必要纯函数与提供者协议；普通消费者和 adapter 作者不安装运行实现 | 已接受 | workspace 成员；已发布全部声明并有测试 |
 | model-cordis-contract | 唯一 Cordis 服务定义、键、增补及定义自有登记表；不安装 Model 运行提供者 | 已接受 | workspace 成员；已发布全部声明并有测试 |
-| model | 可复用领域执行与实际工厂，按契约注入依赖，不安装 Cordis | 已接受 | workspace 成员；只有凭据存在性与解析判定，托管运行与工厂未实现 |
-| model-host-local | 本地凭据保管、单机调度、时钟、目录装载及 Cordis 插件，复用 model | 已接受 | workspace 成员；只实现本机凭据保管与其 Cordis 插件，单机调度、时钟、目录装载未实现 |
+| model | 可复用领域执行与实际工厂，按契约注入依赖，不安装 Cordis | 已接受 | workspace 成员；托管运行与工厂未实现，已实现部分见[成员入口](../packages/model/model/README_ZH.md) |
+| model-host-local | 本地凭据保管、实例调度、时钟、目录装载及 Cordis 插件，复用 model | 已接受 | workspace 成员；实例调度、时钟、目录装载未实现，已实现部分见[成员入口](../packages/model/model-host-local/README_ZH.md) |
 | pi-ai-transport | 共享 pi 请求机制、HTTP/SSE、连接资源及取消 | 候选，pi-ai 相关 | 未初始化 |
 | pi-ai-openai、pi-ai-anthropic、pi-ai-google、pi-ai-deepseek、pi-ai-xai、pi-ai-qwen、pi-ai-moonshot、pi-ai-zai | 按厂商家族内聚型号定义、请求与响应适配、完整计量、模板、资源和验证 | 候选，pi-ai 相关 | 未初始化 |
 | tokenizer-tiktoken、tokenizer-huggingface | 封装分词引擎的初始化与文本计数；具体词表、配置和模型模板归家族成员 | 候选，pi-ai 相关 | 未初始化 |
 
-具体型号默认作为家族内的精确绑定，不按型号逐一建包。依赖方向、拆分依据、装配责任和实际建包条件由[模型组架构](../packages/model/docs/architecture.md#成员与新增条件)维护。本页登记成员位置及初始化状态，不复制接口或支持型号清单。model-host-local 的本地凭据保管已实现；单机调度、时钟与目录装载的设计已接受，尚未实现。`pi-ai-*` 传输与厂商家族及相关 tokenizer 引擎设计仍为候选；后续运行成员随实际实现及验证切片建立。
+具体型号默认作为家族内的精确绑定，不按型号逐一建包。依赖方向、拆分依据、装配责任和实际建包条件由[模型组架构](../packages/model/docs/architecture.md#成员与新增条件)维护。本页登记成员位置及初始化状态，不复制接口或支持型号清单。model-host-local 的本地凭据保管已实现；实例调度、时钟与目录装载的设计已接受，尚未实现。`pi-ai-*` 传输与厂商家族及相关 tokenizer 引擎设计仍为候选；后续运行成员随实际实现及验证切片建立。
 
 ## 责任与能力组
 

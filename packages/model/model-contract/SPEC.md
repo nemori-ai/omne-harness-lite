@@ -181,7 +181,7 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 <a id="主干运行契约候选"></a>
 ## 主干运行契约
 
-本节维护运行接口的行为。设计声明唯一归 [public-api](docs/public-api.md)，消费及失败场景归 [context](docs/context.md)。本节设计已接受，尚不表示生产支持。
+本节维护运行接口的行为。声明只在 `src/`，[public-api](docs/public-api.md) 是它的导航，消费及失败场景归 [context](docs/context.md)。本节设计已接受，尚不表示生产支持。
 
 本节将既有行为落实到操作、参数和提供者责任。声明只保存在 `src/`，[公开接口页](docs/public-api.md)给出导航，导出清单没有 pending 名字。`executeModel` 与 `createModelRuntime` 等由 model 成员拥有，尚未实现，不能从本包导入。
 

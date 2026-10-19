@@ -25,7 +25,7 @@ Start with [consumer guidance](docs/context.md). The [public API page](docs/publ
 
 ## Configuration and operation
 
-Framework definitions belong in `./cordis`; the root permits pure types only. The manifest includes Cordis. Business plugins belong to the model-host-local member. Installation and import guarantees come from the install-closure facility under `tests/install/`, run against the built artifacts; the root entry's closure must stay free of Cordis.
+Framework definitions belong in `./cordis`; the root permits pure types only. Cordis is a production dependency in the manifest. Business plugins belong to the model-host-local member. Installation and import guarantees come from the install-closure facility under `tests/install/`, run against the built artifacts; the root entry's closure must stay free of Cordis.
 
 ## Verification
 

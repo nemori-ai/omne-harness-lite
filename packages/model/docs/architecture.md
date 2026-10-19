@@ -116,7 +116,7 @@ model-cordis-contract 的根只允许纯类型导出，Service 类、键及 Cont
 
 纯契约的完整生产安装闭包不得包含 Cordis、Model 运行提供者、pi、厂商 SDK、tokenizer 引擎/词表或具体存储引擎。公开声明需要的共享依赖必须可安装，不能放到 devDependencies 后声称隔离；import type、tree shaking 和子入口只能分别解决类型或加载问题，不能证明安装闭包。
 
-共享 `Outcome` 由零生产依赖的 [operation-result](../../common/operation-result/SPEC.md) 唯一定义，采用依据是 [#371](https://github.com/nemori-ai/omne-harness-lite/issues/371)。Model 从 `@omne-harness/operation-result` 根入口引用，不复制或改变结果类型。`kernel-basis` 根入口为空导出，其 Cordis 辅助与测试装配不属于纯契约的生产依赖。model-contract 已声明 `operation-result` 生产依赖，并有安装闭包测试检查已安装产物的传递依赖与导入。model-cordis-contract 与 model 各有自己的闭包检查。共享结果成员的拆分已完成，不代表 Model 契约的安装隔离已经验证；验证范围以各包持续验证页为准，其他成员落地时仍须逐项检查完整传递依赖与仓库外安装。
+共享 `Outcome` 由零生产依赖的 [operation-result](../../common/operation-result/SPEC.md) 唯一定义，采用依据是 [#371](https://github.com/nemori-ai/omne-harness-lite/issues/371)。Model 从 `@omne-harness/operation-result` 根入口引用，不复制或改变结果类型。`kernel-basis` 根入口为空导出，其 Cordis 辅助与测试装配不属于纯契约的生产依赖。model-contract 已声明 `operation-result` 生产依赖，并有安装闭包测试检查已安装产物的传递依赖与导入。model-cordis-contract 与 model 各有自己的闭包检查。共享结果成员的拆分本身不是安装隔离的证据；验证范围以各包持续验证页为准，其他成员落地时仍须逐项检查完整传递依赖与仓库外安装。
 
 TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥有者引用，逐项检查直接与传递清单、声明及平台约束。必要的纯表示解析器可留在契约闭包，不因它包含实现代码而另造副本。当前共享成员声明 Node 版本限制，拆包不自动承诺浏览器或其他运行平台支持。
 
