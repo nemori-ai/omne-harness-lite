@@ -129,6 +129,31 @@ describe('G5 the start ordering domain', () => {
     expect(permit.guards).toMatchObject([{ owner: 'permissions', revision: '1' }])
   })
 
+  it('G5 order: historical invalidation identity survives a later invalidation and coordinator reconstruction', async () => {
+    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const authority = coordinator(store)
+    const original = invalidation('revoke-1')
+    const first = ok(await authority.invalidate(original))
+    ok(await authority.invalidate(invalidation('revoke-2')))
+
+    const restored = coordinator(store)
+    const commits = store.commits
+    expect(ok(await restored.invalidate(original))).toEqual(first)
+    expect(
+      await restored.invalidate({
+        ...original,
+        guard: { ...original.guard, resource: 'another-resource' },
+      }),
+    ).toEqual({ failure: { kind: 'conflict', operation: original.operation } })
+    expect(store.commits).toBe(commits)
+    const permit = await permitFor(restored, 'c1')
+    expect(permit.guards).toMatchObject([{ owner: 'permissions', revision: '2' }])
+    const other = coordinator(store, {
+      guards: [{ ...permission, resource: 'another-resource' }],
+    })
+    expect((await permitFor(other, 'c2')).guards).toMatchObject([{ revision: '0' }])
+  })
+
   it('G5 inspect: an undecided start is not-started only after its outstanding permit was withdrawn', async () => {
     const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>())
     const stale = await permitFor(authority, 'c1')
