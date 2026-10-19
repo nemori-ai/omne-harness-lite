@@ -36,7 +36,7 @@
 | [generated-provider.ts](generated-provider.ts) | 按回答表生成的端口边界提供者（`maskedPort`）：遮住新操作每个方法的首答，用表中的每种进度与丢失回复，并在夹具的完成手柄 resolve 时揭开。它只包装端口方法，不碰替身的控制手柄。不是测试文件 |
 | [testing-source.spec.ts](testing-source.spec.ts) | 套件源码的规则：`src/testing-*.ts` 没有 `askUntil`、轮询和 `QUIET_MS` 常量，唯一的定时等待是夹具给的期限（`within` 的 `milliseconds`、`quietMs`、`waitMs`、`readDeadlineMs`）；构造合法提供者的文件（`*-legal.ts`、`generated-provider.ts`）以任何写法都不点名替身的 `controls`、`hold`、`holdStop`、`excludeDeferred`、`rejectNext`、`failNext`、`dropNextAnswer`、`blindInspection`，只定义自己的同名手柄；各 spec 的合法表只引用合法文件里的提供者，各 spec 不用替身的 `controls`。规则自己的用例（“the source rule of the legal providers”一组）证明它拒绝已知的绕过写法：解构、改名解构、别名、可选调用、字符串下标、装着名字的字符串、模板下标、取替身的 `controls`、从非合法测试模块导入的辅助函数或名字，以及合法表里写在 spec 中的提供者、spec 自己的函数返回的行与表 |
 | [tool-values.ts](tool-values.ts) | 契约函数测试用的合法值构造器，不是测试文件 |
-| [public-api-names.spec-d.ts](public-api-names.spec-d.ts) | 已接受契约的 167 个类型名都能从根入口导入。名单从迁移前的 public-api 机械生成，拆包时 `ToolConfiguration` 与 `ToolDependencies` 移到 `@omne-harness/tool`（[本增量未交付](../../README.md#未交付标注)）。已实现的契约函数也能从根入口导入，并符合已接受的签名；作者读取函数与槽类型从 `./binding` 入口导入 |
+| [public-api-names.spec-d.ts](public-api-names.spec-d.ts) | 已接受契约的 167 个类型名都能从根入口导入。名单从迁移前的 public-api 机械生成，拆包时 `ToolConfiguration` 与 `ToolDependencies` 移到 `@omne-harness/tool`。已实现的契约函数也能从根入口导入，并符合已接受的签名；作者读取函数与槽类型从 `./binding` 入口导入 |
 | [contract.spec-d.ts](contract.spec-d.ts) | 公开类型的负编译用例，例如品牌身份不能互换、后台收场不接受 `no-response`、Ask 没有 deadline |
 | [module-graph.ts](module-graph.ts) | 导入图遍历工具，读取静态导入、再导出、裸副作用导入和动态 `import()`。各 Tool 包各有一份同样的副本，因为测试不能跨包导入相对路径 |
 

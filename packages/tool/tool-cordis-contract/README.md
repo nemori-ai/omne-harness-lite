@@ -18,7 +18,7 @@ The checkout scope and the cross-package table are in [the group support range](
 | Pure contract functions implemented | None. The package has no contract function | None | None |
 | Independent execution implemented | None | None | None |
 | Runtime paths implemented | None. The package has no runtime. The one concrete service, `ToolInstancesService`, answers the named failures above | None | Tests cover only the named failures of `ToolInstancesService` |
-| Hosts and providers not yet delivered | The instance directory behind `ToolInstancesService`. The provider plugins of Tool itself, which live in `./cordis` of `tool-host-local`（[本增量未交付](../README.md#未交付标注)）. Providers of other domains belong to their owners. The registration semantics under real Cordis | None | None |
+| Hosts and providers not yet delivered | The instance directory behind `ToolInstancesService`. The provider plugins of Tool itself, which live in `./cordis` of `tool-host-local`. Providers of other domains belong to their owners. The registration semantics under real Cordis | None | None |
 
 The `./testing` entry delivers the registration-semantics suite and a non-durable register service. Both run only against each other and against violating variants. The real-implementation cross-check is pending: it needs the implementation of the instance directory and a real Cordis assembly.
 
@@ -32,7 +32,7 @@ Behavior belongs to the [contract SPEC](../tool-contract/SPEC.md). The service t
 
 ## Design
 
-Two modules. [src/cordis.ts](src/cordis.ts) is the `./cordis` entry. [src/testing.ts](src/testing.ts) is the `./testing` entry: the suite, the double and the fixture. It imports the types of `./cordis` only as types, so it loads no Cordis at run time. Each key constant comes from the `static provide` of exactly one class. The package depends on `tool-contract` for types and on no Tool implementation. Dependency direction: `tool-host-local`（[本增量未交付](../README.md#未交付标注)） → {`tool`（[本增量未交付](../README.md#未交付标注)）, `tool-cordis-contract`} → `tool-contract`.
+Two modules. [src/cordis.ts](src/cordis.ts) is the `./cordis` entry. [src/testing.ts](src/testing.ts) is the `./testing` entry: the suite, the double and the fixture. It imports the types of `./cordis` only as types, so it loads no Cordis at run time. Each key constant comes from the `static provide` of exactly one class. The package depends on `tool-contract` for types and on no Tool implementation. Dependency direction: `tool-host-local` → {`tool`, `tool-cordis-contract`} → `tool-contract`.
 
 ## Configuration and operation
 
@@ -44,4 +44,4 @@ The fast tier is `OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-cordis-co
 
 ## Maintenance
 
-A change to a Service, key or event changes every plugin that extends or listens to it: `tool-host-local`（[本增量未交付](../README.md#未交付标注)） and the Cordis pages of the consumers and the integration page. Keep [docs/cordis.md](docs/cordis.md) and the key table test in step with the source.
+A change to a Service, key or event changes every plugin that extends or listens to it: `tool-host-local` and the Cordis pages of the consumers and the integration page. Keep [docs/cordis.md](docs/cordis.md) and the key table test in step with the source.

@@ -12,4 +12,4 @@
 - [testing.ts](testing.ts) 是子路径入口 `./testing`（G6）：七个端口的一致性套件（[启动围栏](testing-start-authority.ts)、[环境](testing-environment.ts)、[执行者绑定](testing-executor-binding.ts)、[输出保管](testing-output-custody.ts)、[时钟](testing-clock.ts)、[决策桥](testing-decision-bridge.ts)、[资源应答](testing-resource-responses.ts)）和各自守约的非耐久替身。决策桥与资源应答共有的用例和操作账本在 [testing-external.ts](testing-external.ts)，它不从入口导出。[testing-case.ts](testing-case.ts) 定义共用的用例类型、`NotApplicable` 与 `runConformanceCase`，[testing-values.ts](testing-values.ts) 构造合法值。夹具类型 `TwoTenantFixture`、`otherAccessOf` 与 `shapeOf`（跨租户用例比较“真实记录”与“不存在的记录”的答复）在 testing-case.ts，第二个租户的合法值 `memoryOtherAccess` 在 testing-values.ts。这些文件平铺在 `src/`，不从根入口导出，只依赖 `node:assert` 与 `node:crypto`。
 - 本包没有 Cordis 入口，也不依赖 `@deepseek-ai/cordis` 或其他 Tool 包。服务定义在 `@omne-harness/tool-cordis-contract`。
 
-独立执行函数、账本工厂与 runtime 工厂在 `@omne-harness/tool`（[本增量未交付](../../README.md#未交付标注)） 实现，依据 [SPEC](../SPEC.md) 的已接受范围，不能按源码便利改变承诺；导航见 [public-api](../docs/public-api.md)。文档导航见 [index](index.md)。
+独立执行函数、账本工厂与 runtime 工厂在 `@omne-harness/tool` 实现，依据 [SPEC](../SPEC.md) 的已接受范围，不能按源码便利改变承诺；导航见 [public-api](../docs/public-api.md)。文档导航见 [index](index.md)。
