@@ -13,7 +13,7 @@
 | Agent 及其扩展 | attempt 开始拉取、模型前扩展、原推进位置与消息否决处置 | [Agent 架构](../../../docs/domains/agent-progression/architecture.md) |
 | Model、Tool | 各自调用身份、真实执行、结果及费用 | [Model 架构](../../../docs/domains/model-invocation/architecture.md)、[Tool 架构](../../../docs/domains/tool-execution/architecture.md) |
 | 消息接纳与原合法消费者 | 按来源处理消息准入，可靠保管原结果及原消费位置 | [RQ-08](../request-context/SPEC.md#rq-08-失败否决与消费位置)及 Session、Agent、Tool 的原消费契约 |
-| 转换件装配与 Model 共同契约 | 转换键选择、输出形状、接纳前固定及本地转换范围 | [转换件的共同契约](../../model/model/docs/profile-and-modality.md#转换件的共同契约) |
+| 转换件装配与 Model 共同契约 | 转换键选择、输出形状、接纳前固定及本地转换范围 | [转换件的共同契约](../../model/model-contract/SPEC.md#转换件的共同契约) |
 | 最终发起协调者 | 一致合法输入、发出前复核、固定实际采用和未知对账 | 主流程由 Agent 原推进路径承接；压缩、扩展和独立调用由各自原发起者承接，见 [RQ-01](../request-context/SPEC.md#rq-01-调用方与计算边界) |
 | 交付面与诊断消费者 | 人侧读取、展示及按资格诊断 | [RQ-03](../request-context/SPEC.md#rq-03-历史与块投影)、[RQ-10](../request-context/SPEC.md#rq-10-性能缓存与观测) |
 

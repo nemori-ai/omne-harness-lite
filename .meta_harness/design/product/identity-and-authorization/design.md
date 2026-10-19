@@ -331,7 +331,7 @@ U05 已定为有效成员再次接受另一份有效邀请时，核验通过后�
 
 相邻会话自动归档的启用、关闭、逐会话常驻、期限和计时按[会话产品](../sessions-and-work/design.md#管理主子关系和自动归档)的已答决定，不再引用身份旧未知。跨会话 Connector 的成立、可靠投递和完整资格归相邻搁置范围。
 
-供应商尝试诊断已有[Model 成本与隐私边界](../model-invocation/design.md#成本隐私与性能)，成本账目资格不授予私有请求、回复或秘密读取权；具体披露与保留仍由[Model 产品承接位置](../model-invocation/design.md#identity-neighbor-diagnostics)及[成员技术义务](../../../../packages/model/model/docs/open-questions.md#identity-neighbor-diagnostics)维护。
+供应商尝试诊断已有[Model 成本与隐私边界](../model-invocation/design.md#成本隐私与性能)，成本账目资格不授予私有请求、回复或秘密读取权；具体披露与保留仍由[Model 产品承接位置](../model-invocation/design.md#identity-neighbor-diagnostics)及[成员技术义务](../../../../packages/model/model/docs/architecture.md#identity-neighbor-diagnostics)维护。
 
 工作区地址与凭据按[工作区数据身份](../../../../packages/workspace/workspace/docs/internals.md#需要保留的数据身份)区分，凭据由授权绑定取得且不嵌入地址或来源说明。地址有效条件及原关联恢复的精确协议归[Q-WS04](../../../../packages/workspace/workspace/docs/internals.md#q-ws04-身份解析公开形状与关联有效条件)，原操作效果查询与跨拥有者恢复归[Q-WS06](../../../../packages/workspace/workspace/docs/internals.md#q-ws06-确认边界效果查询与跨拥有者恢复)；未知结果不能当成未执行或恢复成功。
 

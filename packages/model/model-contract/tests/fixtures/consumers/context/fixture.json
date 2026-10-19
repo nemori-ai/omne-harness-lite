@@ -1,0 +1,17 @@
+{
+  "role": "context",
+  "description": "A context assembler that consumes profiles, request preparation, metering and message conversion",
+  "dependencies": [
+    "@omne-harness/content-block",
+    "@omne-harness/json-text",
+    "@omne-harness/legal-identity",
+    "@omne-harness/message",
+    "@omne-harness/model-contract",
+    "@omne-harness/operation-result"
+  ],
+  "forbidden": [
+    "@omne-harness/tool*",
+    "@omne-harness/model",
+    "@omne-harness/model-host-local"
+  ]
+}

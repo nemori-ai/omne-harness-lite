@@ -5,7 +5,7 @@
 <a id="context-e01"></a>
 ## CONTEXT-E01 共享来源缺证引用
 
-本ID沿[MODEL-E01](../../../model/model/docs/open-questions.md#model-e01)的唯一事项继续。Tool与消息契约拥有者补齐最终块许可和嵌套依据，Model与Context承接；原块和原可见性保持，实际可读模态检查继续，不把过程帧清单当最终全集，不发明递归协议，原结果不因转换失败删除。
+本ID沿[MODEL-E01](../../../model/model/docs/architecture.md#model-e01)的唯一事项继续。Tool与消息契约拥有者补齐最终块许可和嵌套依据，Model与Context承接；原块和原可见性保持，实际可读模态检查继续，不把过程帧清单当最终全集，不发明递归协议，原结果不因转换失败删除。
 
 <a id="context-e02"></a>
 ## CONTEXT-E02 工作区指导采用版本与首次访问协议
@@ -45,4 +45,4 @@ AGENTS.md 已明确在嵌套目录首次访问时加载，具体社区规范版�
 <a id="context-m03"></a>
 ## CONTEXT-M03 共享在途恢复义务引用
 
-本ID沿[MODEL-M03](../../../model/model/docs/open-questions.md#model-m03)的唯一事项继续。流式、Model、Tool、存储与交付面承担展示和保留责任。已展示内容不能默认丢失，收场ACK不证明逐片耐久，也不指定逐片同步落盘。流式、消息、收场、消费及清理分别判断。
+本ID沿[MODEL-M03](../../../model/model/docs/architecture.md#model-m03)的唯一事项继续。流式、Model、Tool、存储与交付面承担展示和保留责任。已展示内容不能默认丢失，收场ACK不证明逐片耐久，也不指定逐片同步落盘。流式、消息、收场、消费及清理分别判断。

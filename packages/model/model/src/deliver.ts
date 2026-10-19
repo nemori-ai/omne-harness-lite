@@ -1,4 +1,9 @@
-import type { CredentialPort, CredentialReference, Resolution, SendFace } from './credential.ts'
+import type {
+  CredentialPort,
+  CredentialReference,
+  CredentialResolution,
+  SendFace,
+} from '@omne-harness/model-contract'
 
 export type CallRecord = {
   readonly reference: CredentialReference
@@ -11,7 +16,7 @@ export function deliver(
   port: Pick<CredentialPort, 'resolve'>,
   face: SendFace,
 ): { readonly record: CallRecord; readonly send: SendLog } {
-  const decision: Resolution = port.resolve(record.reference, face)
+  const decision: CredentialResolution = port.resolve(record.reference, face)
   if (decision.kind !== 'value') return { record, send: { sent: false } }
   return { record, send: { sent: true, value: decision.value } }
 }
