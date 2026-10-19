@@ -290,7 +290,7 @@ RFC-0002 的四条约束这样落实：
 - 未识别文件按全量处理：由上面的规则判。
 - 准入不读 PR 能写入的缓存：`OMNE_ADMISSION=1` 时构建只写不读本地缓存（`--cache=local:w`）。
 
-`apps/*` 下的成员 `turbo.json` 要满足下面七条。`tools/test-runner` 的校验器核对规则 1、2 与规则 7 的一部分时读成员原文，其余读 `turbo run --dry=json` 的 `resolvedTaskDefinition`，根配置与准入时相同。规则 6 后半句不由校验器判断，由评审核对：
+`apps/*` 下的成员 `turbo.json` 要满足下面七条。`tools/test-runner` 的校验器按规则核对：规则 1、2 读成员原文；规则 3 至 6 读 `turbo run --dry=json` 给出的 `resolvedTaskDefinition`，合成时用的根配置与准入时相同；规则 7 两处都核对。规则 6 后半句不由校验器判断，由评审核对：
 1. `extends` 只能是 `["//"]`。
 2. `tasks` 只能覆盖根已定义的任务名。
 3. `build`、`typecheck`、`test:fast`、`test:slow`、`test` 的 `dependsOn` 必须包含根定义的条目，只能增加（用 `$TURBO_EXTENDS$`）。
@@ -299,7 +299,7 @@ RFC-0002 的四条约束这样落实：
 6. `env` 只能增加；`passThroughEnv` 只放不影响结果的变量。
 7. 上面这些任务都不能设 `persistent: true`。
 
-规则 3、4、7 只列当前根配置里的任务。以后加入根配置的任务按同样类别适用：进检查的任务按规则 3，测试类任务按规则 4，`dev` 一类不进检查的任务可以不受规则 7 约束。在规则范围内修改 `apps/*/turbo.json` 不需要仓库工具链变更闸门；修改校验器本身需要。这些规则是暂行规则，目前没有成员使用成员配置；第一个需要的应用出现时再按实际需要修订。
+规则 3、4、7 只列当前根配置里的任务。以后加入根配置的任务按同样类别适用：进检查的任务按规则 3，测试类任务按规则 4，`dev` 一类不进检查的任务可以不受规则 7 约束。在规则范围内修改 `apps/*/turbo.json` 不需要仓库工具链变更闸门；修改校验器本身需要。这些规则是暂行规则，目前没有成员使用成员配置。第一个需要的应用出现时，先修订这里的规则，再改校验器，不直接改校验器。
 
 检查脚本调用 turbo 时关闭遥测与升级提示。
 
@@ -308,7 +308,7 @@ RFC-0002 的四条约束这样落实：
 局部定位可直接运行一个成员或测试文件：
 
 ```sh
-pnpm exec turbo run test:fast --filter=@omne-harness/<包名>   # 先构建该成员及其依赖，再跑快层
+pnpm turbo run test:fast --filter=@omne-harness/<包名>   # 先构建该成员及其依赖，再跑快层
 pnpm --filter @omne-harness/<包名> exec vitest run <测试文件>  # 不构建，依赖的 dist 须已就绪
 ```
 

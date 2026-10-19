@@ -10,7 +10,7 @@ owner: PanQiWei
 
 规则与维护责任见[RFC入口](README.md)。PanQiWei 于 2026-10-14 接受 revision 1，记录见[接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164802781)。同日接受 revision 2 的影响面选择。补充来源是[这条评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164742162)，接受记录是[这条评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165325011)。尚未验证的两项不在接受里。工具尚未切换。
 
-> **更正标注（2026-10-19）**：本标注只更正读法，原文与 status 不变。依据是 [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 的决定 D2 与 D6。
+> **更正标注（2026-10-19）**：原文与 status 不变。第 1 项是部分取代，同时记在「后继关系与维护」；第 2 项更正写回表的读法。依据是 [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 的决定 D2 与 D6。
 >
 > 1. 「决定范围」中「类型检查用源码条件、全仓一次完成」一句，由 [RFC-0007](RFC-0007-source-packages-and-templates.md#声明与产物修改)「类型检查的入口」取代：每个成员的 `typecheck` 只运行 `tsc -p tsconfig.test.json`，不先构建，被测试导入的源码经 `source` 条件一并检查；turbo 的 `typecheck` 任务逐成员调度。见「后继关系与维护」。
 > 2. 「写回现行正文」中「影响面选择」一行写「成员目录下的 `turbo.json` 仍会生效，因此一律拒绝」。「一律拒绝」是 #310 实施时的选择，不是本提案的决定。现行规则是：`packages/*`、`tools/*` 下的 `turbo.json` 拒绝；`apps/*` 下的由受信检查器按规则校验。规则见[开发指南](../development.md#迭代中的受影响测试)。
@@ -124,7 +124,8 @@ owner: PanQiWei
 | 无用依赖用 knip | 同上 | 已写回 | 2026-10-15 由 #310 接入，只报告 |
 | 通用工具优先、专有检查留下 | [质量与风险](../engineering/quality.md)。根 `AGENTS.md` 已有「复用成熟机制」，不另写工具名单 | 已写回 | 2026-10-14 写入 quality.md。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 接入 oxlint、dependency-cruiser 与 knip，见下面三行 |
 | 影响面选择 | [开发指南](../development.md#迭代中的受影响测试) | 已写回 | 2026-10-14 接受 revision 2。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 替换：成员选择用 `turbo ls --affected`，构建用 `turbo run build`；读者、全局、Python、常驻与未识别文件的规则留在 `test-runs.config.json`。turbo 2.11.7 实测：`--affected` 默认不参考任务 `inputs`（只在 `futureFlags.affectedUsingTaskInputs` 下参考，未采用）；`TURBO_ROOT_TURBO_JSON` 能从检出之外读根配置，但成员目录下的 `turbo.json` 仍会生效，因此一律拒绝。四条约束的落实见开发指南。更正标注（2026-10-19）：成员目录下 `turbo.json` 的处理按 #390 的 D6 修订，见开头的更正标注 |
-| 任务调度与缓存 | [开发指南](../development.md#迭代中的受影响测试)与[测试运行器](../../tools/test-runner/README_ZH.md#测试运行) | 已写回 | 2026-10-19 由 [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 切换：构建、类型检查与成员测试都是 turbo 任务（`build`、`typecheck`、`test:fast`、`test:slow`、`test`）。构建读写本地缓存，准入时只写不读；类型检查与测试不缓存。层由 vitest 的 mode 选择。远程缓存仍未决定 |
+| 任务调度与构建缓存 | [开发指南](../development.md#迭代中的受影响测试)与[测试运行器](../../tools/test-runner/README_ZH.md#测试运行) | 已写回 | 2026-10-19 由 [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 切换：构建、类型检查与成员测试都是 turbo 任务（`build`、`typecheck`、`test:fast`、`test:slow`、`test`），层由 vitest 的 mode 选择。构建读写本地缓存，准入时只写不读。测试任务不缓存。远程缓存仍未决定 |
+| 按输入缓存类型检查 | 同上 | 待写回 | 建议方案写「用 turborepo 按输入缓存 `build` 和 `typecheck`」。截至 2026-10-19 `typecheck` 任务不缓存：缓存键（依赖成员源码改动后能否重新运行）还没有验证，见 #390 的判据 C3 |
 
 ## 后继关系与维护
 
