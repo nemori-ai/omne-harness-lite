@@ -58,7 +58,7 @@ Git 的 author 与 committer 是潘其威(William)。邮箱是 `46810637+PanQiWe
 
 手写源在 [`.meta_harness/agents/cloud/claude-code/`](../.meta_harness/agents/cloud/claude-code/README.md)。把其中 `setup.sh` 的全文粘贴到云端环境设置的 Setup script。平台缓存 setup 的结果，所以每次会话都要做的工作放在 `session-start.sh`。setup 把它登记成 user 作用域的 SessionStart 钩子。
 
-setup 安装 rsync、Node 26.12.0、pnpm 10.28.1、uv 0.13.0，以及 pstack 与 Matt 两个 Claude Code 插件。检出已存在时，它再执行上面的三条依赖命令并生成 agent 投影。每次会话启动时，`session-start.sh` 把 Node 26 放到 Bash 工具的 PATH 最前，按开会话的 GitHub 账号设置 git 的作者与提交者，取完整历史，把本地 `main` 快进到 `origin/main`，按需重装依赖和重新生成投影，并把两个插件更新到上游最新版本。插件更新在下一次会话生效。
+setup 安装 rsync、Node 26.12.0、pnpm 10.28.1、uv 0.13.0，以及 pstack 与 Matt 两个 Claude Code 插件。检出已存在时，它再执行上面的三条依赖命令并生成 agent 投影。每次会话启动或恢复时，`session-start.sh` 把 Node 26 放到 Bash 工具的 PATH 最前，按开会话的 GitHub 账号设置 git 的作者与提交者，取完整历史，把本地 `main` 快进到 `origin/main`，按需重装依赖和重新生成投影，并把两个插件更新到上游最新版本。插件更新在下一次会话生效。
 
 `main` 已分叉或不能快进时，脚本只输出诊断，不丢弃本地工作。此环境不安装 Java、TLC、Alloy 或 Postgres。缺少这些工具时，按[失败与未知的处理](#失败与未知的处理)报告未执行。密钥和令牌放在云端环境设置里，不要写入仓库。
 

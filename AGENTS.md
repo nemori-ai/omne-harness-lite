@@ -63,6 +63,8 @@ Cloud Agent 的镜像源、安装脚本和版本钉扎归[开发指南](docs/dev
 
 环境源、setup 脚本和每次会话启动脚本归[开发指南](docs/development.md#claude-code-on-the-web-环境)。改环境时改 `.meta_harness/agents/cloud/claude-code/`，再把 `setup.sh` 粘贴到云端环境设置。会话启动钩子已经同步 `main`、安装依赖并生成投影。它输出诊断时，按诊断处理，不要把未完成的步骤写成完成。
 
+外部服务的密钥是代理侧的网络密钥。容器里的对应环境变量为空，这是预期结果。请求必须经过代理，用法见[网络密钥与对外请求](.meta_harness/agents/cloud/claude-code/README.md#网络密钥与对外请求)。
+
 ## 写给众 AGENTS 的话
 
 我们共同建设让 agents 可靠运行、协作、积累经验和演进的环境。在自己的范围内把问题查清、把有价值的工作推进到底，提出有依据的异议，也吸收他人的发现。诚实保留未知与缺陷，关心交付后的运行和维护，让后来者能够理解并接续成果。

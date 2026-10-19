@@ -24,9 +24,9 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 
 ## session-start.sh：每次会话启动
 
-`session-start.sh` 只在 `CLAUDE_CODE_REMOTE=true` 时工作。每次会话启动（matcher `startup`）它做这些事：
+`session-start.sh` 只在 `CLAUDE_CODE_REMOTE=true` 时工作。每次会话启动或恢复（matcher `startup|resume`）它做这些事：
 
-1. 把 `/opt/node26/bin` 写入 `CLAUDE_ENV_FILE`。Bash 工具的每条命令都先使用 Node 26。
+1. 把 `/opt/node26/bin` 和 `NODE_USE_ENV_PROXY=1` 写入 `CLAUDE_ENV_FILE`。Bash 工具的每条命令都先使用 Node 26，Node 的 `fetch` 走代理。原因见[网络密钥与对外请求](#网络密钥与对外请求)。
 1. 用 `gh api user` 查出开会话的 GitHub 账号，把 `GIT_AUTHOR_*` 与 `GIT_COMMITTER_*` 写入 `CLAUDE_ENV_FILE`。姓名取 GitHub username。邮箱取 `<id>+<login>@users.noreply.github.com`，因为接口不返回私密邮箱。这样提交按[贡献指南](../../../../CONTRIBUTING.md#形成可审阅的交付)以负责人署名。平台只用 Claude 身份的密钥签名，所以 GitHub 把这些提交显示为 Unverified。
 2. 浅克隆先取完整历史。角色评估会检出固定的基线 commit，浅克隆缺少这些 commit。
 3. `git fetch --prune origin`，再把本地 `main` 快进到 `origin/main`。当前分支是 `main` 时用 `git merge --ff-only`。其他分支时只更新 `main` 引用。
@@ -37,6 +37,29 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 脚本不丢弃本地工作。`main` 已分叉、或检出的 `main` 不能快进时，脚本输出诊断并保持原状。任何一步失败都只输出诊断，会话照常启动。
 
 插件更新在下一次会话生效。Claude Code 在钩子运行之前已经加载了插件。
+
+## 网络密钥与对外请求
+
+云端会话的出站 HTTPS 经过代理。`HTTPS_PROXY` 指向本机代理端口。代理用自己的 CA 重新签发证书，平台已把 `/root/.ccr/ca-bundle.crt` 设进 `NODE_EXTRA_CA_CERTS`、`SSL_CERT_FILE`、`REQUESTS_CA_BUNDLE` 和 `CURL_CA_BUNDLE`。代理的诊断说明在 `/root/.ccr/README.md`。
+
+在云端环境设置里配的 Network secret（网络密钥）不进入容器。容器里没有这个环境变量，也没有文件。代理在转发到对应主机时加上认证头。以 OpenRouter 为例：
+
+- `OPENROUTER_API_KEY` 在容器里为空。这是预期结果，不是没配上。
+- 不要读取这个变量，也不要设法取得 key 的明文。用 SDK 时，`apiKey` 填任意占位值。代理替换认证头。
+- 请求必须经过代理。绕开代理的请求没有认证头，返回 401。
+- 核对 key 是否生效：`curl -sS https://openrouter.ai/api/v1/key`。返回里的 `label` 是代理给出的掩码标签，`limit_remaining` 是剩余额度。
+
+各工具是否经过代理：
+
+| 工具 | 默认行为 | 处理 |
+| --- | --- | --- |
+| `curl` | 读 `HTTPS_PROXY`，经过代理 | 无 |
+| Python 标准库、`requests` | 读 `HTTPS_PROXY`，经过代理 | 无 |
+| Node `fetch` 与基于它的 SDK | 直连，返回 401 | 设 `NODE_USE_ENV_PROXY=1`。`session-start.sh` 已为 Bash 工具设置。脚本自己起的子进程如果清空了环境，要显式传入 |
+
+`NODE_USE_ENV_PROXY` 在 Node 26 上可用。Node 22 也可用，但输出一条 experimental 警告。`NO_PROXY` 已包含 localhost 与内网地址段，本机服务仍然直连。
+
+代理返回 403 或 407 时，目标主机不在本环境的网络策略里。不要重试，也不要绕开代理，报告被拦的主机。
 
 ## 与技能来源表的差异
 

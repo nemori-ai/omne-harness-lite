@@ -73,7 +73,7 @@ path = pathlib.Path.home() / ".claude/settings.json"
 settings = json.loads(path.read_text()) if path.exists() else {}
 groups = settings.setdefault("hooks", {}).setdefault("SessionStart", [])
 groups[:] = [g for g in groups if "omne-harness-lite" not in json.dumps(g)]
-groups.append({"matcher": "startup", "hooks": [{"type": "command", "command": command, "timeout": 300}]})
+groups.append({"matcher": "startup|resume", "hooks": [{"type": "command", "command": command, "timeout": 300}]})
 path.parent.mkdir(parents=True, exist_ok=True)
 path.write_text(json.dumps(settings, indent=2) + "\n")
 PY

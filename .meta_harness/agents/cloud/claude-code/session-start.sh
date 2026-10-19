@@ -1,7 +1,7 @@
 #!/bin/bash
 # Per-session bootstrap for Claude Code on the web. setup.sh registers this file as
-# a user-level SessionStart hook; the platform caches setup.sh, so work that must
-# happen at every session start lives here. Outside cloud sessions it does nothing.
+# a user-level SessionStart hook for startup and resume; the platform caches setup.sh,
+# so work that must happen at every session start lives here. Outside cloud sessions it does nothing.
 # Steps that fail print a diagnostic and the session still starts.
 set -uo pipefail
 
@@ -10,8 +10,10 @@ set -uo pipefail
 NODE_ROOT=/opt/node26
 export PATH="$NODE_ROOT/bin:/root/.local/bin:$PATH"
 # Claude's Bash tool runs this file before each command.
+# Node fetch connects directly unless NODE_USE_ENV_PROXY is set. Network secrets are
+# added by the proxy, so a direct request gets 401. NO_PROXY keeps local hosts direct.
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
-    printf '%s\n' "export PATH=$NODE_ROOT/bin:\$PATH" >> "$CLAUDE_ENV_FILE"
+    printf '%s\n' "export PATH=$NODE_ROOT/bin:\$PATH" "export NODE_USE_ENV_PROXY=1" >> "$CLAUDE_ENV_FILE"
 fi
 
 warn() { printf 'session-start: %s\n' "$*" >&2; }
