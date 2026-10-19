@@ -471,7 +471,7 @@ Storage 的 SQL facts 只承载 Model 的引用和责任，不能凭引用已提
 | 历史文件与范围 | 观察到的做法 | 当前分析可消费的事实 |
 | --- | --- | --- |
 | [original-issue.ts](../../../../packages.0.0.1.legacy/model/model-request-runtime-local/src/original-issue.ts) 第 141–236、296–343 行；[migration](../../../../packages.0.0.1.legacy/model/model-request-runtime-local/src/original-issue-migrations.ts) 第 1–35 行 | AtomicStorage unit 内核 authority，按原 dispatch/JSON 认回，追加 SessionLog 并写 ownership；先保留 pending，只有观察到 rollback 才撤。两张实现表按 session/call/dispatch 设键 | 原事实与承接责任曾通过显式参加者共同提交。当前 Worker JSON facts 不复用旧回调或 SessionLogBinding |
-| [settlement-work-store.ts](../../../../packages.0.0.1.legacy/model/model-request-runtime-local/src/settlement-work-store.ts) 第 39–66、179–184、234–260 行 | 独立 staging 表按 organization/account/session/call/response 保存完整 staged JSON；回执丢失只以 exact row read-back 认回 | 有界分批暂存和原输入认回可作为实施取证。旧 row read-back 不替代当前 Storage 的五项未提交证明 |
+| [settlement-work-store.ts](../../../../packages.0.0.1.legacy/model/model-request-runtime-local/src/settlement-work-store.ts) 第 39–66、179–184、234–260 行 | 独立 staging 表按 organization/account/session/call/response 保存完整 staged JSON；回执丢失只以 exact row read-back 认回 | 完整批次暂存和原输入认回可作为实施取证。旧 row read-back 不替代当前 Storage 的五项未提交证明 |
 | [model-obligations.ts](../../../../packages.0.0.1.legacy/model/model-request-runtime-local/src/model-obligations.ts) 第 17–37、46–110 行 | 固定 tenant、有界 limit；合并 retention 和 original issue 键并 join 状态，按 session/call 游标逐页读，视图不另持久化 | 恢复扫描需明确来源范围及分页，不因此给当前 Commands 增加 Session 身份或旧义务接口 |
 
 ### 已有存储契约能承载的承诺
