@@ -9,37 +9,63 @@ import {
 import {
   POSITIONS,
   POWERS,
+  type Dimension,
+  type ErrorPolicy,
+  type ExtensionImplementationDeclaration,
   type LoopExtensionDeclaration,
   type Position,
   type Power,
 } from './extensions.ts'
 import { refused, type BatchJudgment, type Judgment, type RefusalReason } from './judgment.ts'
 
-const ceiling = {
-  attempt_started: ['observe', 'rewrite'],
-  before_persist_message: ['observe', 'rewrite', 'veto'],
-  after_persist_message: ['observe', 'rewrite'],
-  before_compaction: ['observe', 'rewrite', 'veto'],
-  after_compaction: ['observe', 'rewrite'],
-  before_model_call: ['observe', 'rewrite', 'veto'],
-  after_model_call: ['observe', 'rewrite'],
-  before_action: ['observe', 'rewrite', 'veto'],
-  after_action: ['observe', 'rewrite'],
-  before_terminal: ['observe', 'rewrite', 'veto'],
-  after_terminal: ['observe'],
-} as const satisfies Record<Position, readonly Power[]>
+/** ISO 8601 duration text. The text is checked, never converted to a number. */
+const ISO_DURATION = /^P(?!$)(\d+Y)?(\d+M)?(\d+W)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$/
+
+/** The positions that run before the protected state change. The other positions run after. */
+const BEFORE_POSITIONS: readonly Position[] = [
+  'before_compaction',
+  'before_model_call',
+  'before_action',
+  'before_terminal',
+]
+
+/** `onError` values by power at a before position. A position after the change allows only `ignore`. */
+const ERROR_POLICIES = {
+  observe: ['ignore'],
+  rewrite: ['ignore', 'record'],
+  veto: ['ignore', 'record', 'treat_as_veto'],
+} as const satisfies Record<Power, readonly ErrorPolicy[]>
+
+const text = z.string().min(1)
 
 const dimension = z.union([
   z.strictObject({ ending: z.enum(['complete_reply', 'failure']) }),
   z.strictObject({ scope: z.enum(['each', 'batch']) }),
 ])
 
+const implementation = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('builtin'), builtinName: text }),
+  z.strictObject({
+    kind: z.literal('command'),
+    host: z.enum(['claude_code', 'codex']),
+    dialect: text,
+    event: text,
+    command: text,
+    matcher: text.optional(),
+    timeout: z.string().regex(ISO_DURATION).optional(),
+  }),
+])
+
 const declaration = z.strictObject({
-  name: z.string().min(1),
+  name: text,
   position: z.enum(POSITIONS),
   power: z.enum(POWERS),
   source: z.enum(['workspace', 'author']).optional(),
   dimension: dimension.optional(),
+  needs: z.array(text).nonempty().optional(),
+  implementation,
+  onError: z.enum(['ignore', 'record', 'treat_as_veto']).optional(),
+  unavailability: z.enum(['skip', 'veto']).optional(),
 })
 
 type Parsed = z.output<typeof declaration>
@@ -48,10 +74,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function issueReason(path: readonly (string | number)[], value: unknown): RefusalReason {
-  if (path[0] === 'position') return 'unknown-position'
-  if (path[0] === 'power') return 'unknown-power'
-  if (!path.includes('dimension') || !isRecord(value)) return 'malformed'
+function dimensionReason(value: unknown): RefusalReason {
+  if (!isRecord(value)) return 'malformed'
   if (value.position !== 'after_model_call' && value.position !== 'after_action')
     return 'dimension-not-allowed'
   if (!isRecord(value.dimension)) return 'malformed'
@@ -59,91 +83,122 @@ function issueReason(path: readonly (string | number)[], value: unknown): Refusa
   return 'malformed'
 }
 
-function allows<const Allowed extends readonly Power[]>(
-  allowed: Allowed,
-  power: Power,
-): power is Allowed[number] {
-  for (const candidate of allowed) {
-    if (candidate === power) return true
+/** The reason for the first schema issue. A field that the schema names maps to its own reason. */
+function issueReason(path: readonly (string | number)[], value: unknown): RefusalReason {
+  switch (path[0]) {
+    case 'position':
+      return 'unknown-position'
+    case 'power':
+      return 'unknown-power'
+    case 'needs':
+      return 'needs-not-allowed'
+    case 'onError':
+      return 'error-policy-not-allowed'
+    case 'unavailability':
+      return 'unavailability-not-allowed'
+    case 'implementation':
+      return path.length === 1 && isRecord(value) && !Object.hasOwn(value, 'implementation')
+        ? 'implementation-missing'
+        : 'malformed'
+    case 'dimension':
+      return dimensionReason(value)
+    default:
+      return 'malformed'
   }
-  return false
 }
 
-function withinCeiling<const Allowed extends readonly Power[]>(
-  allowed: Allowed,
-  power: Power,
-  source: Parsed['source'],
-): power is Allowed[number] {
-  if (!allows(allowed, power)) return false
-  return source !== 'workspace' || power === 'observe'
+function dimensionRefusal(value: Parsed): RefusalReason | undefined {
+  const field = value.dimension
+  switch (value.position) {
+    case 'after_model_call':
+      return field === undefined || !('ending' in field) ? 'dimension-missing' : undefined
+    case 'after_action':
+      return field === undefined || !('scope' in field) ? 'dimension-missing' : undefined
+    default:
+      return field === undefined ? undefined : 'dimension-not-allowed'
+  }
+}
+
+function needsRefusal(value: Parsed): RefusalReason | undefined {
+  const needs = value.needs
+  if (needs === undefined || new Set(needs).size === needs.length) return undefined
+  return 'needs-not-allowed'
+}
+
+function errorPolicyRefusal(value: Parsed): RefusalReason | undefined {
+  const policy = value.onError
+  if (policy === undefined) return undefined
+  const allowed: readonly ErrorPolicy[] = BEFORE_POSITIONS.includes(value.position)
+    ? ERROR_POLICIES[value.power]
+    : ['ignore']
+  return allowed.includes(policy) ? undefined : 'error-policy-not-allowed'
+}
+
+function unavailabilityRefusal(value: Parsed): RefusalReason | undefined {
+  if (value.unavailability !== 'veto') return undefined
+  return value.power === 'veto' && BEFORE_POSITIONS.includes(value.position)
+    ? undefined
+    : 'unavailability-not-allowed'
+}
+
+/** The combination rules of one declaration, in the order of the declaration table. */
+function combinationRefusal(value: Parsed): RefusalReason | undefined {
+  if (value.source === 'workspace' && value.power !== 'observe') return 'power-above-ceiling'
+  return (
+    dimensionRefusal(value) ??
+    needsRefusal(value) ??
+    errorPolicyRefusal(value) ??
+    unavailabilityRefusal(value)
+  )
+}
+
+function copyDimension(field: NonNullable<Parsed['dimension']>): Dimension {
+  return Object.freeze('ending' in field ? { ending: field.ending } : { scope: field.scope })
+}
+
+function copyImplementation(field: Parsed['implementation']): ExtensionImplementationDeclaration {
+  if (field.kind === 'builtin')
+    return Object.freeze({ kind: 'builtin', builtinName: field.builtinName })
+  return Object.freeze({
+    kind: 'command',
+    host: field.host,
+    dialect: field.dialect,
+    event: field.event,
+    command: field.command,
+    ...(field.matcher === undefined ? {} : { matcher: field.matcher }),
+    ...(field.timeout === undefined ? {} : { timeout: field.timeout }),
+  })
+}
+
+/** The `needs` member of the accepted value: present only when the declaration listed names. */
+function needsMember(
+  needs: readonly string[] | undefined,
+): Pick<LoopExtensionDeclaration, 'needs'> {
+  const [first, ...rest] = needs ?? []
+  return first === undefined ? {} : { needs: Object.freeze([first, ...rest]) }
+}
+
+/**
+ * The accepted value: frozen plain data that shares nothing with the input. An omitted optional
+ * field stays omitted, because the contract fills no default.
+ */
+function acceptedValue(value: Parsed): LoopExtensionDeclaration {
+  return Object.freeze({
+    name: value.name,
+    position: value.position,
+    ...(value.dimension === undefined ? {} : { dimension: copyDimension(value.dimension) }),
+    power: value.power,
+    ...needsMember(value.needs),
+    implementation: copyImplementation(value.implementation),
+    ...(value.onError === undefined ? {} : { onError: value.onError }),
+    ...(value.unavailability === undefined ? {} : { unavailability: value.unavailability }),
+  })
 }
 
 function shape(value: Parsed): Judgment<LoopExtensionDeclaration> {
-  switch (value.position) {
-    case 'after_model_call': {
-      const power = value.power
-      if (!withinCeiling(ceiling.after_model_call, power, value.source))
-        return refused('power-above-ceiling')
-      const field = value.dimension
-      if (field === undefined || !('ending' in field)) return refused('dimension-missing')
-      return {
-        kind: 'accepted',
-        value: {
-          name: value.name,
-          position: value.position,
-          power,
-          dimension: { ending: field.ending },
-        },
-      }
-    }
-    case 'after_action': {
-      const power = value.power
-      if (!withinCeiling(ceiling.after_action, power, value.source))
-        return refused('power-above-ceiling')
-      const field = value.dimension
-      if (field === undefined || !('scope' in field)) return refused('dimension-missing')
-      return {
-        kind: 'accepted',
-        value: {
-          name: value.name,
-          position: value.position,
-          power,
-          dimension: { scope: field.scope },
-        },
-      }
-    }
-    case 'after_terminal': {
-      const power = value.power
-      if (!withinCeiling(ceiling.after_terminal, power, value.source))
-        return refused('power-above-ceiling')
-      if (value.dimension !== undefined) return refused('dimension-not-allowed')
-      return { kind: 'accepted', value: { name: value.name, position: value.position, power } }
-    }
-    case 'attempt_started':
-    case 'after_persist_message':
-    case 'after_compaction': {
-      const power = value.power
-      if (!withinCeiling(ceiling[value.position], power, value.source))
-        return refused('power-above-ceiling')
-      if (value.dimension !== undefined) return refused('dimension-not-allowed')
-      return { kind: 'accepted', value: { name: value.name, position: value.position, power } }
-    }
-    case 'before_persist_message':
-    case 'before_compaction':
-    case 'before_model_call':
-    case 'before_action':
-    case 'before_terminal': {
-      const power = value.power
-      if (!withinCeiling(ceiling[value.position], power, value.source))
-        return refused('power-above-ceiling')
-      if (value.dimension !== undefined) return refused('dimension-not-allowed')
-      return { kind: 'accepted', value: { name: value.name, position: value.position, power } }
-    }
-    default: {
-      const unreachable: never = value.position
-      return unreachable
-    }
-  }
+  const reason = combinationRefusal(value)
+  if (reason !== undefined) return refused(reason)
+  return { kind: 'accepted', value: acceptedValue(value) }
 }
 
 async function judgeLoopExtension(

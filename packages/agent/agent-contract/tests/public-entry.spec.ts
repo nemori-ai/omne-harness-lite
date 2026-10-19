@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { judgeAgentDefinition, judgeLoopExtensions } from '@omne-harness/agent-contract'
 
+const implementation = { kind: 'builtin', builtinName: 'format' } as const
+
 const legalDefinition = {
   category: 'AgentDefinition',
   name: 'coding',
@@ -88,29 +90,31 @@ it('refuses a function embedded in a definition', async () => {
 
 it('returns extension declarations in submission order and refuses an illegal one', async () => {
   const accepted = await judgeLoopExtensions([
-    { name: 'format', position: 'before_model_call', power: 'observe' },
-    { name: 'policy', position: 'before_action', power: 'veto' },
+    { name: 'format', position: 'before_model_call', power: 'observe', implementation },
+    { name: 'policy', position: 'before_action', power: 'veto', implementation },
   ])
   expect(accepted).toEqual({
     kind: 'accepted',
     value: [
-      { name: 'format', position: 'before_model_call', power: 'observe' },
-      { name: 'policy', position: 'before_action', power: 'veto' },
+      { name: 'format', position: 'before_model_call', power: 'observe', implementation },
+      { name: 'policy', position: 'before_action', power: 'veto', implementation },
     ],
   })
   expect(
-    await judgeLoopExtensions([{ name: 'late', position: 'after_terminal', power: 'veto' }]),
-  ).toMatchObject({ kind: 'refused', reason: 'power-above-ceiling', index: 0 })
-  expect(
-    await judgeLoopExtensions([{ name: 'late', position: 'after_action', power: 'veto' }]),
-  ).toMatchObject({ kind: 'refused', reason: 'power-above-ceiling', index: 0 })
-  expect(
     await judgeLoopExtensions([
-      { name: 'room', position: 'before_model_call', power: 'rewrite', source: 'workspace' },
+      {
+        name: 'room',
+        position: 'before_model_call',
+        power: 'rewrite',
+        implementation,
+        source: 'workspace',
+      },
     ]),
   ).toMatchObject({ kind: 'refused', reason: 'power-above-ceiling', index: 0 })
   expect(
-    await judgeLoopExtensions([{ name: 'x', position: 'not-a-position', power: 'observe' }]),
+    await judgeLoopExtensions([
+      { name: 'x', position: 'not-a-position', power: 'observe', implementation },
+    ]),
   ).toMatchObject({
     kind: 'refused',
     reason: 'unknown-position',
@@ -125,12 +129,15 @@ it('requires dimension only at the two positions that use it', async () => {
         name: 'ending',
         position: 'after_model_call',
         power: 'observe',
+        implementation,
         dimension: { ending: 'complete_reply' },
       },
     ]),
   ).toMatchObject({ kind: 'accepted' })
   expect(
-    await judgeLoopExtensions([{ name: 'ending', position: 'after_model_call', power: 'observe' }]),
+    await judgeLoopExtensions([
+      { name: 'ending', position: 'after_model_call', power: 'observe', implementation },
+    ]),
   ).toMatchObject({ kind: 'refused', reason: 'dimension-missing', index: 0 })
   expect(
     await judgeLoopExtensions([
@@ -138,6 +145,7 @@ it('requires dimension only at the two positions that use it', async () => {
         name: 'format',
         position: 'before_model_call',
         power: 'observe',
+        implementation,
         dimension: { ending: 'failure' },
       },
     ]),
@@ -152,12 +160,20 @@ it('refuses a non-array extension batch and reports the failing index', async ()
   })
   expect(
     await judgeLoopExtensions([
-      { name: 'format', position: 'before_model_call', power: 'observe' },
-      { name: 'bad', position: 'after_terminal', power: 'rewrite' },
+      { name: 'format', position: 'before_model_call', power: 'observe', implementation },
+      {
+        name: 'bad',
+        position: 'before_action',
+        power: 'rewrite',
+        implementation,
+        source: 'workspace',
+      },
     ]),
   ).toMatchObject({ kind: 'refused', reason: 'power-above-ceiling', index: 1 })
   expect(
-    await judgeLoopExtensions([{ name: 'x', position: 'before_model_call', power: 'grant' }]),
+    await judgeLoopExtensions([
+      { name: 'x', position: 'before_model_call', power: 'grant', implementation },
+    ]),
   ).toMatchObject({ kind: 'refused', reason: 'unknown-power', index: 0 })
 })
 
@@ -169,7 +185,9 @@ it('lets an assembly caller and an asset caller share the public entry', async (
     references: [{ capability: { category: 'Tool', name: 'read_file' } }],
     attributes: [],
   }
-  const extensions = [{ name: 'format', position: 'before_model_call', power: 'observe' }]
+  const extensions = [
+    { name: 'format', position: 'before_model_call', power: 'observe', implementation },
+  ]
   const assembly = {
     definition: await judgeAgentDefinition(declaration),
     extensions: await judgeLoopExtensions(extensions),
@@ -221,7 +239,7 @@ it('refuses host objects, hidden functions, and colliding capability text', asyn
   ).toMatchObject({ kind: 'accepted' })
   expect(
     await judgeLoopExtensions([
-      { name: 'e', position: 'after_model_call', power: 'observe', dimension: {} },
+      { name: 'e', position: 'after_model_call', power: 'observe', implementation, dimension: {} },
     ]),
   ).toMatchObject({ kind: 'refused', reason: 'dimension-missing', index: 0 })
 })
@@ -232,7 +250,7 @@ it('refuses executable batch members without calling them', async () => {
   Object.defineProperty(batch, '0', {
     get() {
       reads += 1
-      return { name: 'e', position: 'before_model_call', power: 'observe' }
+      return { name: 'e', position: 'before_model_call', power: 'observe', implementation }
     },
     enumerable: true,
     configurable: true,
@@ -243,7 +261,7 @@ it('refuses executable batch members without calling them', async () => {
     index: 0,
   })
   expect(reads).toBe(0)
-  const hidden = [{ name: 'e', position: 'before_model_call', power: 'observe' }]
+  const hidden = [{ name: 'e', position: 'before_model_call', power: 'observe', implementation }]
   Object.defineProperty(hidden, 'run', { value() {}, enumerable: false })
   expect(await judgeLoopExtensions(hidden)).toMatchObject({ kind: 'refused', reason: 'executable' })
 })
@@ -292,7 +310,13 @@ it('refuses a very deep extra field instead of throwing', async () => {
 
 it('does not reread a batch item after the copy is taken', async () => {
   let reads = 0
-  const item = { name: 'e', position: 'after_model_call', power: 'observe', dimension: {} }
+  const item = {
+    name: 'e',
+    position: 'after_model_call',
+    power: 'observe',
+    implementation,
+    dimension: {},
+  }
   const pending = judgeLoopExtensions([item])
   Object.defineProperty(item, 'position', {
     get() {
@@ -311,7 +335,7 @@ it('refuses executable batch members without calling them', async () => {
   Object.defineProperty(batch, '0', {
     get() {
       reads += 1
-      return { name: 'e', position: 'before_model_call', power: 'observe' }
+      return { name: 'e', position: 'before_model_call', power: 'observe', implementation }
     },
     enumerable: true,
     configurable: true,
@@ -322,7 +346,7 @@ it('refuses executable batch members without calling them', async () => {
     index: 0,
   })
   expect(reads).toBe(0)
-  const hidden = [{ name: 'e', position: 'before_model_call', power: 'observe' }]
+  const hidden = [{ name: 'e', position: 'before_model_call', power: 'observe', implementation }]
   Object.defineProperty(hidden, 'run', { value() {}, enumerable: false })
   expect(await judgeLoopExtensions(hidden)).toMatchObject({ kind: 'refused', reason: 'executable' })
 })
@@ -380,7 +404,13 @@ it('reports a shared capability as a duplicate and ignores later mutation of the
     }),
   ).toMatchObject({ kind: 'refused', reason: 'duplicate-capability' })
   let reads = 0
-  const item = { name: 'e', position: 'after_model_call', power: 'observe', dimension: {} }
+  const item = {
+    name: 'e',
+    position: 'after_model_call',
+    power: 'observe',
+    implementation,
+    dimension: {},
+  }
   const pending = judgeLoopExtensions([item])
   Object.defineProperty(item, 'position', {
     get() {
@@ -397,35 +427,34 @@ it('reports a shared capability as a duplicate and ignores later mutation of the
 })
 
 it('applies the JSON value count and UTF-8 byte budget to a whole extension batch', async () => {
-  const shortest = { name: 'n', position: 'attempt_started', power: 'observe' }
-  const accepted = await judgeLoopExtensions(Array.from({ length: 49 }, () => ({ ...shortest })))
+  const shortest = {
+    name: 'n',
+    position: 'execution_started',
+    power: 'observe',
+    implementation: { kind: 'builtin', builtinName: 'f' },
+  }
+  const accepted = await judgeLoopExtensions(Array.from({ length: 28 }, () => ({ ...shortest })))
   expect(accepted).toEqual({
     kind: 'accepted',
-    value: Array.from({ length: 49 }, () => ({ ...shortest })),
+    value: Array.from({ length: 28 }, () => ({ ...shortest })),
   })
-  expect(await judgeLoopExtensions(Array.from({ length: 50 }, () => ({ ...shortest })))).toEqual({
+  expect(await judgeLoopExtensions(Array.from({ length: 29 }, () => ({ ...shortest })))).toEqual({
     kind: 'refused',
     reason: 'malformed',
     index: 0,
   })
   const zhong = '中'.repeat(9000)
   expect(
-    await judgeLoopExtensions(
-      Array.from({ length: 4 }, () => ({
-        name: zhong,
-        position: 'attempt_started',
-        power: 'observe',
-      })),
-    ),
+    await judgeLoopExtensions(Array.from({ length: 4 }, () => ({ ...shortest, name: zhong }))),
   ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
-  const letters = 'a'.repeat(1996)
   expect(
     await judgeLoopExtensions(
-      Array.from({ length: 49 }, () => ({
-        name: letters,
-        position: 'attempt_started',
-        power: 'observe',
-      })),
+      Array.from({ length: 28 }, () => ({ ...shortest, name: 'a'.repeat(3400) })),
+    ),
+  ).toMatchObject({ kind: 'accepted' })
+  expect(
+    await judgeLoopExtensions(
+      Array.from({ length: 28 }, () => ({ ...shortest, name: 'a'.repeat(3500) })),
     ),
   ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
 })
@@ -470,12 +499,24 @@ it('accepts a definition of 200 JSON values and refuses 49 capabilities', async 
 it('classifies illegal dimensions separately from a missing required field', async () => {
   expect(
     await judgeLoopExtensions([
-      { name: 'e', position: 'after_model_call', power: 'observe', dimension: { ending: 'nope' } },
+      {
+        name: 'e',
+        position: 'after_model_call',
+        power: 'observe',
+        implementation,
+        dimension: { ending: 'nope' },
+      },
     ]),
   ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
   expect(
     await judgeLoopExtensions([
-      { name: 'e', position: 'after_action', power: 'observe', dimension: { scope: 'nope' } },
+      {
+        name: 'e',
+        position: 'after_action',
+        power: 'observe',
+        implementation,
+        dimension: { scope: 'nope' },
+      },
     ]),
   ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
   expect(
@@ -484,6 +525,7 @@ it('classifies illegal dimensions separately from a missing required field', asy
         name: 'e',
         position: 'after_model_call',
         power: 'observe',
+        implementation,
         dimension: { ending: 'complete_reply', extra: true },
       },
     ]),
@@ -494,31 +536,58 @@ it('classifies illegal dimensions separately from a missing required field', asy
         name: 'e',
         position: 'after_action',
         power: 'observe',
+        implementation,
         dimension: { ending: 'failure', scope: 'each' },
       },
     ]),
   ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
   expect(
     await judgeLoopExtensions([
-      { name: 'e', position: 'after_model_call', power: 'observe', dimension: 'ending' },
+      {
+        name: 'e',
+        position: 'after_model_call',
+        power: 'observe',
+        implementation,
+        dimension: 'ending',
+      },
     ]),
   ).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
   expect(
-    await judgeLoopExtensions([{ name: 'e', position: 'after_action', power: 'observe' }]),
-  ).toEqual({ kind: 'refused', reason: 'dimension-missing', index: 0 })
-  expect(
     await judgeLoopExtensions([
-      { name: 'e', position: 'after_action', power: 'observe', dimension: { ending: 'failure' } },
+      { name: 'e', position: 'after_action', power: 'observe', implementation },
     ]),
   ).toEqual({ kind: 'refused', reason: 'dimension-missing', index: 0 })
   expect(
     await judgeLoopExtensions([
-      { name: 'e', position: 'after_model_call', power: 'observe', dimension: { scope: 'each' } },
+      {
+        name: 'e',
+        position: 'after_action',
+        power: 'observe',
+        implementation,
+        dimension: { ending: 'failure' },
+      },
     ]),
   ).toEqual({ kind: 'refused', reason: 'dimension-missing', index: 0 })
   expect(
     await judgeLoopExtensions([
-      { name: 'e', position: 'before_terminal', power: 'observe', dimension: 'ending' },
+      {
+        name: 'e',
+        position: 'after_model_call',
+        power: 'observe',
+        implementation,
+        dimension: { scope: 'each' },
+      },
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'dimension-missing', index: 0 })
+  expect(
+    await judgeLoopExtensions([
+      {
+        name: 'e',
+        position: 'before_terminal',
+        power: 'observe',
+        implementation,
+        dimension: 'ending',
+      },
     ]),
   ).toEqual({ kind: 'refused', reason: 'dimension-not-allowed', index: 0 })
 })
@@ -550,6 +619,7 @@ it('does not treat extra dimension keys named position or power as unknown enums
         name: 'e',
         position: 'after_model_call',
         power: 'observe',
+        implementation,
         dimension: { ending: 'complete_reply', position: 'before_action' },
       },
     ]),
@@ -560,6 +630,7 @@ it('does not treat extra dimension keys named position or power as unknown enums
         name: 'e',
         position: 'after_action',
         power: 'observe',
+        implementation,
         dimension: { scope: 'each', power: 'veto' },
       },
     ]),
@@ -585,6 +656,261 @@ it('classifies an attribute item string separately from a broken attribute', asy
       attributes: [{ item: 1 }],
     }),
   ).toEqual({ kind: 'refused', reason: 'malformed' })
+})
+
+const NINE_POSITIONS = [
+  'execution_started',
+  'before_compaction',
+  'after_compaction',
+  'before_model_call',
+  'after_model_call',
+  'before_action',
+  'after_action',
+  'before_terminal',
+  'after_terminal',
+] as const
+const BEFORE = ['before_compaction', 'before_model_call', 'before_action', 'before_terminal']
+const POWER_NAMES = ['observe', 'rewrite', 'veto'] as const
+
+function dimensionAt(position: string): Record<string, unknown> {
+  if (position === 'after_model_call') return { dimension: { ending: 'failure' } }
+  if (position === 'after_action') return { dimension: { scope: 'each' } }
+  return {}
+}
+
+function declare(
+  position: string,
+  power: string,
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return { name: 'e', position, power, implementation, ...dimensionAt(position), ...extra }
+}
+
+function judgeOne(declaration: Record<string, unknown>) {
+  return judgeLoopExtensions([declaration])
+}
+
+it('accepts every declared power at each of the nine positions', async () => {
+  for (const position of NINE_POSITIONS) {
+    for (const power of POWER_NAMES) {
+      const judged = await judgeOne(declare(position, power))
+      expect(judged, `${position} ${power}`).toEqual({
+        kind: 'accepted',
+        value: [declare(position, power)],
+      })
+    }
+  }
+})
+
+it('refuses the position names that the nine-position set removed', async () => {
+  for (const position of ['attempt_started', 'before_persist_message', 'after_persist_message']) {
+    expect(await judgeOne(declare(position, 'observe'))).toMatchObject({
+      kind: 'refused',
+      reason: 'unknown-position',
+      index: 0,
+    })
+  }
+})
+
+it('accepts a veto or rewrite declaration at the positions that follow the change', async () => {
+  expect(await judgeOne(declare('after_terminal', 'veto'))).toMatchObject({ kind: 'accepted' })
+  expect(await judgeOne(declare('after_action', 'veto'))).toMatchObject({ kind: 'accepted' })
+  expect(await judgeOne(declare('after_terminal', 'rewrite'))).toMatchObject({ kind: 'accepted' })
+})
+
+it('caps a workspace source at observe at every position and drops the source from the value', async () => {
+  for (const position of NINE_POSITIONS) {
+    const observed = await judgeOne(declare(position, 'observe', { source: 'workspace' }))
+    expect(observed, position).toEqual({ kind: 'accepted', value: [declare(position, 'observe')] })
+    for (const power of ['rewrite', 'veto']) {
+      expect(await judgeOne(declare(position, power, { source: 'workspace' })), position).toEqual({
+        kind: 'refused',
+        reason: 'power-above-ceiling',
+        index: 0,
+      })
+    }
+    expect(await judgeOne(declare(position, 'veto', { source: 'author' }))).toMatchObject({
+      kind: 'accepted',
+    })
+  }
+  expect(await judgeOne(declare('before_action', 'observe', { source: 'tenant' }))).toMatchObject({
+    kind: 'refused',
+    reason: 'malformed',
+  })
+})
+
+it('keeps an omitted optional field omitted and returns frozen data that shares nothing with the input', async () => {
+  const input = declare('before_action', 'veto', {
+    needs: ['history'],
+    onError: 'record',
+    unavailability: 'veto',
+  })
+  const judged = await judgeLoopExtensions([input])
+  expect(judged.kind).toBe('accepted')
+  if (judged.kind !== 'accepted') return
+  const [first] = judged.value
+  expect(first).toEqual(input)
+  expect(Object.isFrozen(first)).toBe(true)
+  expect(Object.isFrozen(first?.implementation)).toBe(true)
+  expect(Object.isFrozen(first?.needs)).toBe(true)
+  expect(first?.implementation).not.toBe(input.implementation)
+  const bare = await judgeOne(declare('before_model_call', 'veto'))
+  expect(bare.kind === 'accepted' && Object.keys(bare.value[0] ?? {}).sort()).toEqual([
+    'implementation',
+    'name',
+    'position',
+    'power',
+  ])
+})
+
+it('requires an implementation of kind builtin or command with a closed field set', async () => {
+  const without = { name: 'e', position: 'before_action', power: 'observe' }
+  expect(await judgeOne(without)).toEqual({
+    kind: 'refused',
+    reason: 'implementation-missing',
+    index: 0,
+  })
+  const command = {
+    kind: 'command',
+    host: 'claude_code',
+    dialect: 'claude-hooks',
+    event: 'PreToolUse',
+    command: './check.sh',
+  }
+  expect(await judgeOne(declare('before_action', 'veto', { implementation: command }))).toEqual({
+    kind: 'accepted',
+    value: [declare('before_action', 'veto', { implementation: command })],
+  })
+  const full = { ...command, host: 'codex', matcher: 'Bash', timeout: 'PT30S' }
+  expect(await judgeOne(declare('before_action', 'veto', { implementation: full }))).toEqual({
+    kind: 'accepted',
+    value: [declare('before_action', 'veto', { implementation: full })],
+  })
+  const malformed: unknown[] = [
+    null,
+    'format',
+    [],
+    {},
+    { kind: 'plugin', name: 'x' },
+    { kind: 'builtin' },
+    { kind: 'builtin', builtinName: '' },
+    { kind: 'builtin', builtinName: 'format', host: 'codex' },
+    { ...command, host: 'cursor' },
+    { ...command, dialect: '' },
+    { ...command, event: undefined },
+    { ...command, command: '' },
+    { ...command, matcher: '' },
+    { ...command, builtinName: 'format' },
+    { ...command, extra: 1 },
+  ]
+  for (const candidate of malformed) {
+    expect(await judgeOne(declare('before_action', 'veto', { implementation: candidate }))).toEqual(
+      { kind: 'refused', reason: 'malformed', index: 0 },
+    )
+  }
+})
+
+it('accepts an ISO 8601 timeout text and refuses any other text', async () => {
+  const command = {
+    kind: 'command',
+    host: 'codex',
+    dialect: 'd',
+    event: 'e',
+    command: 'c',
+  }
+  for (const timeout of ['PT30S', 'PT1H30M', 'P1D', 'P1DT12H', 'P1W', 'PT0.5S', 'P1Y2M3DT4H5M6S']) {
+    const judged = await judgeOne(
+      declare('before_action', 'veto', { implementation: { ...command, timeout } }),
+    )
+    expect(judged, timeout).toMatchObject({ kind: 'accepted' })
+  }
+  for (const timeout of ['', 'P', 'PT', 'P1DT', '30s', '30', 'PT30', '1D', 'pt30s', 'PT-5S', 30]) {
+    const judged = await judgeOne(
+      declare('before_action', 'veto', { implementation: { ...command, timeout } }),
+    )
+    expect(judged, String(timeout)).toEqual({ kind: 'refused', reason: 'malformed', index: 0 })
+  }
+})
+
+it('accepts a list of distinct non-empty needs in order and refuses every other form', async () => {
+  expect(await judgeOne(declare('before_action', 'observe', { needs: ['b', 'a'] }))).toEqual({
+    kind: 'accepted',
+    value: [declare('before_action', 'observe', { needs: ['b', 'a'] })],
+  })
+  const refusedNeeds: unknown[] = [[], ['a', 'a'], [''], ['a', 1], 'history', null, {}, [['a']]]
+  for (const needs of refusedNeeds) {
+    expect(
+      await judgeOne(declare('before_action', 'observe', { needs })),
+      JSON.stringify(needs),
+    ).toEqual({
+      kind: 'refused',
+      reason: 'needs-not-allowed',
+      index: 0,
+    })
+  }
+})
+
+it('allows an onError policy by power at a before position and only ignore elsewhere', async () => {
+  const allowedBefore = {
+    observe: ['ignore'],
+    rewrite: ['ignore', 'record'],
+    veto: ['ignore', 'record', 'treat_as_veto'],
+  }
+  for (const position of NINE_POSITIONS) {
+    for (const power of POWER_NAMES) {
+      for (const onError of ['ignore', 'record', 'treat_as_veto']) {
+        const allowed = BEFORE.includes(position)
+          ? allowedBefore[power].includes(onError)
+          : onError === 'ignore'
+        const judged = await judgeOne(declare(position, power, { onError }))
+        expect(judged.kind, `${position} ${power} ${onError}`).toBe(
+          allowed ? 'accepted' : 'refused',
+        )
+        if (!allowed) {
+          expect(judged).toEqual({ kind: 'refused', reason: 'error-policy-not-allowed', index: 0 })
+        }
+      }
+    }
+  }
+  expect(await judgeOne(declare('before_action', 'veto', { onError: 'explode' }))).toEqual({
+    kind: 'refused',
+    reason: 'error-policy-not-allowed',
+    index: 0,
+  })
+})
+
+it('allows unavailability veto only for a veto extension at a before position', async () => {
+  for (const position of NINE_POSITIONS) {
+    for (const power of POWER_NAMES) {
+      const skip = await judgeOne(declare(position, power, { unavailability: 'skip' }))
+      expect(skip.kind, `${position} ${power} skip`).toBe('accepted')
+      const veto = await judgeOne(declare(position, power, { unavailability: 'veto' }))
+      const allowed = power === 'veto' && BEFORE.includes(position)
+      expect(veto.kind, `${position} ${power} veto`).toBe(allowed ? 'accepted' : 'refused')
+      if (!allowed) {
+        expect(veto).toEqual({ kind: 'refused', reason: 'unavailability-not-allowed', index: 0 })
+      }
+    }
+  }
+  expect(await judgeOne(declare('before_action', 'veto', { unavailability: 'fallback' }))).toEqual({
+    kind: 'refused',
+    reason: 'unavailability-not-allowed',
+    index: 0,
+  })
+})
+
+it('does not declare a fallback field and reports a new refusal at the failing batch index', async () => {
+  expect(await judgeOne(declare('before_action', 'veto', { fallback: 'x' }))).toEqual({
+    kind: 'refused',
+    reason: 'malformed',
+    index: 0,
+  })
+  expect(
+    await judgeLoopExtensions([
+      declare('before_action', 'veto'),
+      declare('after_action', 'observe', { onError: 'record' }),
+    ]),
+  ).toEqual({ kind: 'refused', reason: 'error-policy-not-allowed', index: 1 })
 })
 
 it('keeps the package free of assembly, implementation-member and cordis dependencies', () => {

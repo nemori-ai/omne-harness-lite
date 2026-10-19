@@ -7,6 +7,10 @@ export type RefusalReason =
   | 'dimension-missing'
   | 'dimension-not-allowed'
   | 'power-above-ceiling'
+  | 'needs-not-allowed'
+  | 'implementation-missing'
+  | 'error-policy-not-allowed'
+  | 'unavailability-not-allowed'
   | 'executable'
   | 'checker-failed'
 
