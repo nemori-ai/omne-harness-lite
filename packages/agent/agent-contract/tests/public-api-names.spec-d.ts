@@ -1,4 +1,5 @@
 import { describe, expectTypeOf, it } from 'vitest'
+import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Message } from '@omne-harness/message'
@@ -516,6 +517,93 @@ describe('the subject of each position', () => {
       | 'terminal'
       | 'disposition'
     >()
+  })
+
+  it('has one variant for each row of the subject table of extensions.md, and no other', () => {
+    // Each row as the table of docs/public-api/extensions.md, "位置与作者可见的 subject", writes it.
+    // A row equals exactly one variant: `Extract` keeps every variant assignable to the row, so a
+    // second match or a drifted shape makes the two sides differ.
+    type Started = Readonly<{ execution: AgentExecutionId; conditions: Evidence }>
+    type BeforeCompaction = Readonly<{
+      preparation: Extract<Preparation, { kind: 'needs-compaction' }>
+    }>
+    type AfterCompaction = Readonly<{ transition: PreparedContextTransition }>
+    type BeforeMainCall = Readonly<{
+      purpose: 'main'
+      preparation: Extract<Preparation, { kind: 'assembled' }>
+    }>
+    type BeforeCompactionCall = Readonly<{
+      purpose: 'compaction'
+      step: Extract<Preparation, { kind: 'ready' }>
+      progress: CompactionProgress
+    }>
+    type CompleteReply = Readonly<{
+      purpose: 'main' | 'compaction'
+      call: M.ModelCallId
+      result: ProducedResult
+      reply: Message
+      termination: M.Termination
+      account: CallAccount | null
+    }>
+    type CallFailure = Readonly<{
+      purpose: 'main' | 'compaction'
+      call: M.ModelCallId
+      request: M.FixedModelRequest
+      fault: M.ModelFault
+      dispatches: readonly M.DispatchRecord[]
+      retry: M.RetryResolution | null
+    }>
+    type BeforeAction = Readonly<{
+      action: ActionId
+      original: Action['original']
+      effectiveArguments: string
+      definition: T.ToolDefinition
+      batch: readonly ActionId[]
+    }>
+    type EachResult = Readonly<{
+      action: ActionId
+      outcome:
+        | Readonly<{ kind: 'denied'; evidence: Evidence }>
+        | Readonly<{ kind: 'executed'; result: ProducedResult; terminal: T.ToolTerminal }>
+      candidate: Message
+    }>
+    type BatchResult = Readonly<{
+      batch: ActionBatchId
+      outcomes: readonly Readonly<{
+        action: ActionId
+        outcome: 'denied' | 'executed'
+        terminal: T.ToolTerminal | null
+      }>[]
+    }>
+    type BeforeTerminal = Readonly<{ proposed: AgentConclusion; basis: Evidence }>
+    type AfterTerminal = Readonly<{ terminal: AgentConclusion; disposition: Evidence }>
+
+    expectTypeOf<Extract<Subject, Started>>().toEqualTypeOf<Started>()
+    expectTypeOf<Extract<Subject, BeforeCompaction>>().toEqualTypeOf<BeforeCompaction>()
+    expectTypeOf<Extract<Subject, AfterCompaction>>().toEqualTypeOf<AfterCompaction>()
+    expectTypeOf<Extract<Subject, BeforeMainCall>>().toEqualTypeOf<BeforeMainCall>()
+    expectTypeOf<Extract<Subject, BeforeCompactionCall>>().toEqualTypeOf<BeforeCompactionCall>()
+    expectTypeOf<Extract<Subject, CompleteReply>>().toEqualTypeOf<CompleteReply>()
+    expectTypeOf<Extract<Subject, CallFailure>>().toEqualTypeOf<CallFailure>()
+    expectTypeOf<Extract<Subject, BeforeAction>>().toEqualTypeOf<BeforeAction>()
+    expectTypeOf<Extract<Subject, EachResult>>().toEqualTypeOf<EachResult>()
+    expectTypeOf<Extract<Subject, BatchResult>>().toEqualTypeOf<BatchResult>()
+    expectTypeOf<Extract<Subject, BeforeTerminal>>().toEqualTypeOf<BeforeTerminal>()
+    expectTypeOf<Extract<Subject, AfterTerminal>>().toEqualTypeOf<AfterTerminal>()
+    expectTypeOf<
+      | Started
+      | BeforeCompaction
+      | AfterCompaction
+      | BeforeMainCall
+      | BeforeCompactionCall
+      | CompleteReply
+      | CallFailure
+      | BeforeAction
+      | EachResult
+      | BatchResult
+      | BeforeTerminal
+      | AfterTerminal
+    >().toEqualTypeOf<Subject>()
   })
 
   it('splits the model positions by the purpose literal', () => {

@@ -6,13 +6,22 @@
 
 行为、调用资格、参数与依赖分类归 [SPEC 的运行契约章节](../../SPEC.md#主干运行契约)。消费路径见 [context](../context.md)，对象关系见 [object-model](../object-model.md)。
 
+定义、判断结果与判断函数的源码如下。规则见 [SPEC 的声明判断](../../SPEC.md#声明判断)。
+
+- [definition.ts](../../src/definition.ts)：`AgentDefinition`、`AssetReference`、`CapabilityRef`、`AttributeDeclaration`、`AttributeItem` 与 `VersionChoice`，常量 `ATTRIBUTE_ITEMS`。
+- [judgment.ts](../../src/judgment.ts)：判断结果 `Judgment` 与 `BatchJudgment`，声明判断的拒绝原因 `RefusalReason`，扩展输出判断的拒收原因 `OutputRefusalReason`。
+- [judge-definition.ts](../../src/judge-definition.ts)：`judgeAgentDefinition`。
+- [judge-extensions.ts](../../src/judge-extensions.ts)：`judgeLoopExtensions`。
+- [body-contract.ts](../../src/body-contract.ts)：资产正文契约 `agentBodyContract`。
+- `judgeExtensionOutput` 与 `POSITION_OUTPUTS` 在下文“扩展、人工卡片与材料”的 judge-output.ts。
+
 ## 身份、原位置与纯求值
 
 [行为与约束](../../SPEC.md#身份原位置与纯求值)。
 
 源码中以 `M.*` 引用的名称（ModelCallId、ModelOperationId、AssembledModelInput、FixedModelRequest、ResultCapacity、ResultPage、ModelRuntime、ProfileResolution、Parameter、Supplier、Termination、ModelFault、DispatchRecord、RetryResolution）来自 [Model 契约](../../../../model/model-contract/docs/public-api.md)，由 `@omne-harness/model-contract` 的根入口导出。`T.*` 引用的名称由 `@omne-harness/tool-contract` 的根入口导出。消息中的工具部件使用 `@omne-harness/message` 导出的 `ToolPart`。`Action.original` 把 `ToolPart` 收窄到 `kind: 'tool_call'`：动作只来自工具调用部件，不来自工具结果部件。
 
-- [identity.ts](../../src/identity.ts)：十四个品牌身份（`AgentInstanceId`、`StepId`、`ActionId`、`PassageId`、`CardRoundId`、`ActionBatchId`、`AgentExecutionId`、`ExecutionAttachmentId`、`AgentRegistrationId`、`AgentOperationId`、`ExecutionRevision`、`InputId`、`InputBatchId`、`ConsumptionId`）、`Adoption`、`Evidence`、`Access`、`ConsumerRef`、`Authority`、`Continuation` 与 `AgentInstant`，常量 `AGENT_IDENTITY_MAX_LENGTH`，十四个 `decode*` 解码函数，结构判定 `judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`，以及它们的失败类型 `IdentityFailure` 与 `StructureFailure`。规则见 [SPEC 的身份解码与结构判定](../../SPEC.md#身份解码与结构判定)，这些规则是本交付自行设计的选择，待在 PR 中接受。
+- [identity.ts](../../src/identity.ts)：品牌身份的泛型 `AgentIdentity`，十四个品牌身份（`AgentInstanceId`、`StepId`、`ActionId`、`PassageId`、`CardRoundId`、`ActionBatchId`、`AgentExecutionId`、`ExecutionAttachmentId`、`AgentRegistrationId`、`AgentOperationId`、`ExecutionRevision`、`InputId`、`InputBatchId`、`ConsumptionId`）、`Adoption`、`Evidence`、`Access`、`ConsumerRef`、`Authority`、`Continuation` 与 `AgentInstant`，常量 `AGENT_IDENTITY_MAX_LENGTH`，十四个 `decode*` 解码函数，结构判定 `judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`，以及它们的失败类型 `IdentityFailure` 与 `StructureFailure`。规则见 [SPEC 的身份解码与结构判定](../../SPEC.md#身份解码与结构判定)，这些规则是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
 - [evaluation.ts](../../src/evaluation.ts)：纯求值的值与端口。有 `ProducedResult`、`InputBatch`、`ProgressionDirective`、`Waiting`、`AgentConclusion`、`FailureCandidate`、`PreparedContextTransition`、`Failure` 与 `Reply`，原调用的 `ModelPurpose`、`PendingCall`、`ActionJudgment`、`Action`、`ActionBarrier`、`ActionSlot`、`ActionBatch`，回复准入的 `ModelReplyAdmission`、`ReplyAdmissionProjection`、`ReplyAdmissionPage`，守卫的 `GuardLevel` 与 `GuardFact`，`AgentCheckpoint`、`RuntimeConditions`、`ProducerDecisionView`、`AdvancementFact`、`LoopFacts`、`Next` 与 `AgentEvaluator`。
 - [execution.ts](../../src/execution.ts)：`LoopFacts` 引用的执行记录类型 `ExecutionControl`、`ControlStage`、`ControlStageFact`、`ControlRecord` 与 `ResultResponsibility`，与“托管协调与运行实例”一节的类型同在这个文件。
 
@@ -128,7 +137,7 @@ ExtensionImplementations.resolve 只返回匹配原 `implementation` 精确采�
 
 [行为与约束](../../SPEC.md#托管协调与运行实例)。
 
-[对象状态及协议](../object-model.md)。以下类型与前文属于同一模块。所有 ID、Evidence 和 Authority 均须在边界验证：身份用解码函数，`Adoption`、`Evidence`、`Access` 与 `Authority` 用结构判定。结构相同不代表来自可信拥有者。
+[对象状态及协议](../object-model.md)。以下类型与前文属于同一模块。ID、Evidence 和 Authority 的边界验证要求见 SPEC 的“[身份、范围与归属](../../SPEC.md#身份范围与归属)”。
 
 - [execution.ts](../../src/execution.ts)：执行与实例的类型。有 `ExecutionState`、`ExecutionSnapshot`、`AgentState`、`AcceptedInput`、`TerminalObservation`、`FinishIntent`、`FinishResult`、`FinishAuthorization`，控制的 `ExecutionControl`、`ControlStage`、`ControlStageFact` 与 `ControlRecord`，`ResultResponsibility`、`ExecutionMutation`、`CommandReceipt`，事件的 `AgentEventBody`、`AgentEvent` 与 `EventPage`。
 - 运行时端口也在 [execution.ts](../../src/execution.ts)：`AgentExecutionInput`、`AgentExecutionControl`、`AgentExecutionEvents`、`AgentExecutionHandle`、`AgentRuntime`、`AgentObservation`、`AgentHandle`、`AgentDirectory`、`AgentExecutionRecovery`、`AgentAdoptions`，登记的 `RegistrationState`、`Registration`、`AgentRegistrationHandle` 与 `AgentInstanceHost`，停用的 `QuiesceResult` 与 `AgentRuntimeControl`，资格核验的 `AgentAccessOperation`、`AgentAccessTarget`、`AgentAccessDecision` 与 `AgentAccessCheck`，以及 `AgentClock`。

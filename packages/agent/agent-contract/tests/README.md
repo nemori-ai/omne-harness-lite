@@ -6,13 +6,13 @@
 
 ## 覆盖
 
-[public-entry.spec.ts](public-entry.spec.ts) 检查合法声明、版本选择、拒绝分类、九处扩展位置与三档干预力、`needs`、`implementation`、`onError`、`unavailability` 及其合法组合、输入副作用、Schema 校验，以及不安装资产、装配和 Cordis 的依赖约束。[import-cache.spec.ts](import-cache.spec.ts) 检查导入不分配缓存、一次批次共用校验域及退出释放。
+[public-entry.spec.ts](public-entry.spec.ts) 检查合法声明、版本选择、拒绝原因的分类、九处扩展位置与三档干预力、`needs`、`implementation`、`onError`、`unavailability` 及其合法组合、两个声明判定的成功值逐层冻结且不与输入共享对象、输入副作用、Schema 校验，以及依赖约束：清单声明资产包，不声明装配、`agent`、`agent-host-local` 和任何 Cordis 包。[import-cache.spec.ts](import-cache.spec.ts) 检查导入不分配缓存、一次批次共用校验域及退出释放。
 
-[judge-output.spec.ts](judge-output.spec.ts) 检查 `judgeExtensionOutput` 的位置输出表逐格（12 行乘三档干预力）、十种拒绝原因、七步判定顺序、`retry` 的两种触发、`ask` 在 `after_terminal` 和改写字段的限制。
+[judge-output.spec.ts](judge-output.spec.ts) 检查 `judgeExtensionOutput` 的位置输出表逐格（12 行乘三档干预力）、十种拒收原因、七步判定顺序、`retry` 的两种触发、`ask` 在 `after_terminal` 和改写字段的限制。
 
 [identity.spec.ts](identity.spec.ts) 检查十四个身份解码函数各自的成功与四种失败（类型、空串、过长、字符）及长度边界，`judgeAdoption`、`judgeEvidence`、`judgeAccess`、`judgeAuthority` 的成功、缺失、类型、空串、未知字段与 `identity` 拒绝，访问器不被执行、成功值被冻结，以及 `Access` 的主体判定由调用方注入、租户必须由 legal-identity 铸造。
 
-[public-api-names.spec-d.ts](public-api-names.spec-d.ts) 是类型测试：设计页五章的每个名字都能从包入口导入，并对 `Next`、`Failure`、`Subject`、`ExecutionState`、`FinishResult`、`ExecutionControl`、`AgentEventBody`、`CallerCommit`、`AgentAccessDecision` 等判别字面量逐项断言，对 `AgentJournal` 逐一断言它可赋给五组端口接口，并断言各组端口的成员集合。
+[public-api-names.spec-d.ts](public-api-names.spec-d.ts) 是类型测试：设计页五章的每个名字都能从包入口导入，并对 `Next`、`Failure`、`Subject`、`ExecutionState`、`FinishResult`、`ExecutionControl`、`AgentEventBody`、`CallerCommit`、`AgentAccessDecision` 等判别字面量逐项断言，对 `AgentJournal` 逐一断言它可赋给五组端口接口，并断言各组端口的成员集合。它还按[扩展作者协议](../docs/public-api/extensions.md#位置与作者可见的-subject)的 subject 表逐行写出十二种形状，断言每一行恰好等于 `Subject` 联合的一个变体，十二行合起来等于整个联合。
 
 [export-set.spec.ts](export-set.spec.ts) 把包入口的运行时导出排序后与写死的清单比较，并断言包内共享的辅助函数不在入口。[dependency-direction.spec.ts](dependency-direction.spec.ts) 沿构建后 `dist/index.js` 与 `dist/index.d.ts` 的导入图断言不含 Cordis、`agent`、`agent-host-local`、`agent-cordis-contract`，并断言 `package.json` 不声明它们；导入图的遍历在 [module-graph.ts](module-graph.ts)，它读文本而不用编译器接口。
 

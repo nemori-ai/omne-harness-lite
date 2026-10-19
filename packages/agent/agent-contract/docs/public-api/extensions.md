@@ -19,6 +19,8 @@
 
 调模型之前与调模型之后两个位置另带 `purpose`：主请求的调用为 `main`，压缩步骤的调用为 `compaction`。扩展经注入能力发起的模型调用（用途 `extension`）不经过这两个位置，规则见下文“压缩用途与扩展用途的模型调用”。
 
+下表是“位置与维度”到 `subject` 形状这一对应关系的权威。形状本身的权威是 [src/passages.ts](../../src/passages.ts) 的 `Subject` 联合：表中每一行的形状照抄联合的一个变体。[public-api-names.spec-d.ts](../../tests/public-api-names.spec-d.ts) 逐行断言表中每一行恰好等于联合的一个变体，十二行合起来等于整个联合。这一分工是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
+
 | 位置与维度 | `subject` 字段 | 可改写字段 |
 | --- | --- | --- |
 | `execution_started` | `{ execution: AgentExecutionId; conditions: Evidence }`。新的逻辑执行及其当下条件的依据 | 无 |
@@ -155,7 +157,7 @@ Agent 把校验通过的输出包装为 Conclusion 并保存。作者不返回 C
 
 `ActionIdentity` 的规则：`before_action` 与 `after_action/each` 必须带 `action`。`after_model_call/failure` 必须带 `call`。其他位置与维度都不带这两个字段。调模型前后两个位置的用途记在 Passage 的 `purpose`，Conclusion 不另带用途。
 
-输出被拒收时，原因只有下列之一：`malformed`、`position_unknown`、`power_unknown`、`dimension_missing`、`dimension_not_allowed`、`output_not_allowed_for_power`、`output_not_allowed_at_position`、`ask_at_forbidden_position`、`rewrite_touches_immutable`、`inject_source_mismatch`。被拒收的输出按报错处理，分类为 `bad_output`。`judgeExtensionOutput` 返回这十种原因，类型是 `OutputRefusalReason`。判断顺序、限额和规格没有写明处的取舍见 [SPEC 的声明判断](../../SPEC.md#扩展输出判断)。
+输出被拒收时，拒收原因只有下列之一：`malformed`、`position_unknown`、`power_unknown`、`dimension_missing`、`dimension_not_allowed`、`output_not_allowed_for_power`、`output_not_allowed_at_position`、`ask_at_forbidden_position`、`rewrite_touches_immutable`、`inject_source_mismatch`。被拒收的输出按报错处理，分类为 `bad_output`。`judgeExtensionOutput` 返回这十种拒收原因，类型是 `OutputRefusalReason`。判断顺序、限额，以及本页没有写明之处的取舍，见 [SPEC 的扩展输出判断](../../SPEC.md#扩展输出判断)。
 
 ## 调用协议
 
