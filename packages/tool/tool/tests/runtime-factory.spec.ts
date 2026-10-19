@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  createToolLedger,
-  createToolRuntime,
-  toolRuntimeAdoption,
-  type ToolDependencies,
-} from '@omne-harness/tool'
+import { createToolLedger, createToolRuntime, toolRuntimeAdoption } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import type { ToolConsumerProfile } from '@omne-harness/tool-contract'
 import {
@@ -13,22 +8,19 @@ import {
   configuration,
   dummyRequest,
   guards,
-  harness,
-  instanceId,
   ok,
   operationId,
   principalA,
   tenantA,
   type Block,
-  type Principal,
 } from './runtime-values.ts'
+import { testAssembly } from './testing-values.ts'
 
 const access = { principal: principalA, tenant: tenantA, call: callId('call-1') }
 
 describe('17 the runtime factory and later increments', () => {
   it('17 factory: a configuration outside its ranges is an assembly defect and throws at construction', () => {
-    const { ledger } = harness()
-    const dependencies = dependenciesOf(ledger)
+    const { dependencies } = testAssembly()
     expect(() => createToolRuntime(dependencies, configuration({ resultPageBytes: 0 }))).toThrow(
       'configuration.resultPageBytes: range',
     )
@@ -61,7 +53,7 @@ describe('17 the runtime factory and later increments', () => {
   })
 
   it('17 factory: the retry delay of a failed driver run is an integer from 1 to what a timer holds, and absent takes the default', () => {
-    const dependencies = dependenciesOf(harness().ledger)
+    const dependencies = testAssembly().dependencies
     // 0 would run a failing call in a tight loop; above 2147483647 a timer fires after 1 ms.
     for (const delay of [
       -1,
@@ -88,7 +80,7 @@ describe('17 the runtime factory and later increments', () => {
 
   it('17 factory: the ledger checks the configuration it reads and throws at construction', () => {
     const store = createMemoryToolLedgerStore<Block>()
-    const clock = dependenciesOf(harness().ledger).clock
+    const clock = testAssembly().dependencies.clock
     for (const [key, value] of [
       ['ledgerCommitAttempts', 0],
       ['ledgerCommitAttempts', 1.5],
@@ -106,7 +98,7 @@ describe('17 the runtime factory and later increments', () => {
   })
 
   it('17 factory: the operations of later increments answer a named unsupported failure and never throw', async () => {
-    const { runtime, provider } = harness()
+    const { runtime, provider } = factoryHarness()
     ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
     const later = {
       control: runtime.control({
@@ -147,41 +139,41 @@ describe('17 the runtime factory and later increments', () => {
   })
 
   it('17 factory: the catalog and the instance directory are the dependencies, not copies', () => {
-    const { runtime, provider } = harness()
-    expect(runtime.catalog).toBeDefined()
-    expect(runtime.instances).toBeDefined()
+    const { runtime, provider, dependencies } = factoryHarness()
+    expect(runtime.catalog).toBe(dependencies.catalog)
+    expect(runtime.instances).toBe(dependencies.instances.directory)
     expect(Object.isFrozen(provider)).toBe(true)
     expect(Object.isFrozen(runtime)).toBe(true)
   })
 
   it('17 factory: inspect answers what the Catalog answers, its unavailability included', async () => {
-    const { ledger } = harness()
+    const { dependencies } = testAssembly()
     const answer = {
       failure: { kind: 'unavailable', dependency: 'toolCatalog', diagnostic: 'withdrawn' },
     } as const
     const asked: unknown[] = []
     const catalog = {
-      ...dependenciesOf(ledger).catalog,
+      ...dependencies.catalog,
       inspect: (input: unknown) => {
         asked.push(input)
         return Promise.resolve(answer)
       },
     }
-    const { runtime } = createToolRuntime({ ...dependenciesOf(ledger), catalog }, configuration())
+    const { runtime } = createToolRuntime({ ...dependencies, catalog }, configuration())
     const input = { ...access, name: 'read_file', command: null, consumer: profile() }
     expect(await runtime.inspect(input)).toEqual(answer)
     expect(asked).toEqual([input])
   })
 
   it('17 factory: the driver is installed on the instance host at construction, and nothing runs', () => {
-    const { host, store } = harness()
+    const { host, store } = factoryHarness()
     expect(typeof host.driver().run).toBe('function')
     expect(host.scheduled).toEqual([])
     expect(store.commits + store.reads).toBe(0)
   })
 
   it('17 factory: an instance identity that is not one is an assembly defect', () => {
-    const dependencies = dependenciesOf(harness().ledger)
+    const dependencies = testAssembly().dependencies
     expect(() =>
       createToolRuntime({ ...dependencies, instance: '' as never }, configuration()),
     ).toThrow('dependencies.instance: not-an-instance-id')
@@ -196,34 +188,8 @@ function profile(): ToolConsumerProfile {
   }
 }
 
-function dependenciesOf(
-  ledger: ReturnType<typeof harness>['ledger'],
-): ToolDependencies<Principal, Block, null> {
-  const missing = () => {
-    throw new Error('not on this path')
-  }
-  const port = <T extends object>(...methods: readonly string[]): T =>
-    Object.fromEntries(methods.map(method => [method, missing])) as T
-  return {
-    instance: instanceId,
-    commands: ledger.commands,
-    admissions: ledger.admissions,
-    queues: ledger.queues,
-    reads: ledger.reads,
-    bindings: port('inspect', 'resolve', 'recover'),
-    environments: port('prepare', 'inspectPreparation', 'release', 'inspectRelease'),
-    decisions: port('inspectOperation', 'ensure', 'inspect', 'invalidate', 'resolve'),
-    instances: {
-      ...port('schedule', 'publish', 'withdraw'),
-      install: () => ({ release: () => Promise.resolve() }),
-      directory: port('connect'),
-    },
-    clock: port('now', 'begin', 'elapsed', 'waitUntil'),
-    resultPolicy: port('judge', 'judgeResult'),
-    authority: port('exclude', 'prepare', 'consume', 'inspect', 'invalidate'),
-    resources: port('inspectOperation', 'ensure', 'inspect', 'expire', 'invalidate', 'resolve'),
-    custody: port('preserve', 'inspect', 'retainResult'),
-    catalog: port('inspect', 'usage', 'search'),
-    children: port('reserve', 'admitted', 'retain', 'close', 'confirmBarrier'),
-  }
+function factoryHarness() {
+  const assembly = testAssembly()
+  const provider = createToolRuntime(assembly.dependencies, assembly.configuration)
+  return { ...assembly, provider, runtime: provider.runtime }
 }

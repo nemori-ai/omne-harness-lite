@@ -28,9 +28,12 @@ it('root entry exports the independent execution functions, the ledger, the runt
   ])
 })
 
-it('testing entry exports only the non-durable store', async () => {
+it('testing entry exports the non-durable store and dependency assembly', async () => {
   const testing = await import('@omne-harness/tool/testing')
-  expect(Object.keys(testing).sort()).toEqual(['createMemoryToolLedgerStore'])
+  expect(Object.keys(testing).sort()).toEqual([
+    'createMemoryToolLedgerStore',
+    'createTestToolDependencies',
+  ])
 })
 
 describe('implementation has no Cordis', () => {
@@ -38,10 +41,23 @@ describe('implementation has no Cordis', () => {
     ['source', 'src/index.ts'],
     ['javascript', 'dist/index.js'],
     ['declaration', 'dist/index.d.ts'],
+    ['source', 'src/testing.ts'],
+    ['javascript', 'dist/testing.js'],
+    ['declaration', 'dist/testing.d.ts'],
   ]
   it.each(entries)('in the %s graph from %s', (kind, entry) => {
     const graph = walkModules(memberPath(entry), kind)
     expect(graph.imports.filter(edge => forbidden(edge.specifier)).map(describeImport)).toEqual([])
+    expect([...graph.files].filter(file => /[/\\]tests[/\\]/u.test(file))).toEqual([])
+    if (entry.includes('index.')) {
+      expect(
+        graph.imports
+          .filter(
+            edge => edge.specifier.includes('testing') || edge.specifier.startsWith('node:assert'),
+          )
+          .map(describeImport),
+      ).toEqual([])
+    }
   })
 
   it('depends on the contract package and on neither Cordis nor a Cordis Tool package', () => {
