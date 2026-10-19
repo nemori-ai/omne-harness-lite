@@ -12,7 +12,7 @@ export const MEMBER_DIR_ENV = 'OMNE_MUTATION_MEMBER_DIR'
 /** 构建脚本把它写进 sandbox 的那份 vitest 配置，作为没写自己时限的用例的时限（毫秒）。 */
 export const TEST_TIMEOUT_ENV = 'OMNE_MUTATION_TEST_TIMEOUT_MS'
 /**
- * 构建脚本在 sandbox 里写的 vitest 配置：展开成员自己的配置，只放宽默认用例时限。
+ * 构建脚本在 sandbox 里写的 vitest 配置：展开成员自己的配置，放宽默认用例时限，关掉 preParse（#405）。
  * 只在副本里，成员的配置不动。
  */
 export const SANDBOX_VITEST_CONFIG = 'vitest.stryker-sandbox.config.mts'

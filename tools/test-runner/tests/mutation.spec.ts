@@ -17,7 +17,12 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import { parseDiff } from '@omne-harness/repo-toolchain/core/git'
-import { memberLines, summarizeMember, type MutationReport } from '../src/mutation/report.ts'
+import {
+  memberLines,
+  notRunError,
+  summarizeMember,
+  type MutationReport,
+} from '../src/mutation/report.ts'
 import {
   changedTargets,
   memberTargets,
@@ -232,6 +237,56 @@ describe('报告汇总', () => {
       '  存活 packages/core/alpha/src/a.ts:3 EqualityOperator `n > 0` → `n >= 0`',
       '  无覆盖 packages/core/alpha/src/a.ts:2 ArrowFunction（static） `(n: number) => n > 0 && n < 10` → `() => undefined`',
     ])
+  })
+
+  it('报成存活、有覆盖却一条用例都没跑完的另列为没跑测试，不计入各状态与分数（#405）', () => {
+    const mutant = (
+      id: string,
+      status: 'Survived' | 'Killed',
+      testsCompleted: number | undefined,
+      coveredBy: string[] | undefined,
+    ) => ({
+      id,
+      mutatorName: 'EqualityOperator',
+      replacement: 'n >= 0',
+      status,
+      location: at(3, 3, 3, 8),
+      ...(testsCompleted === undefined ? {} : { testsCompleted }),
+      ...(coveredBy === undefined ? {} : { coveredBy }),
+    })
+    const result = summarizeMember(TARGET, {
+      files: {
+        'src/a.ts': {
+          source,
+          mutants: [
+            mutant('1', 'Survived', 0, ['t1']),
+            // 跑过用例的、没有覆盖的、两个字段缺了任一个的，都按普通存活算。
+            mutant('2', 'Survived', 2, ['t1', 't2']),
+            mutant('3', 'Survived', 0, []),
+            mutant('4', 'Survived', undefined, ['t1']),
+            mutant('5', 'Survived', 0, undefined),
+            // 不是存活的不改判。
+            mutant('6', 'Killed', 0, ['t1']),
+          ],
+        },
+      },
+    })
+    expect(result.counts).toMatchObject({ Survived: 4, Killed: 1 })
+    expect(result.score).toBe(20)
+    expect(result.survived).toHaveLength(4)
+    expect(result.notRun).toEqual([expect.objectContaining({ line: 3, original: 'n > 0' })])
+    expect(memberLines(result, true)).toEqual([
+      'packages/core/alpha：变异体 6 个——被杀 1、超时 0、存活 4、无覆盖 0、编译错误 0、运行错误 0、没跑测试 1；分数 20%',
+      ...Array.from(
+        { length: 4 },
+        () => '  存活 packages/core/alpha/src/a.ts:3 EqualityOperator `n > 0` → `n >= 0`',
+      ),
+      '  没跑测试 packages/core/alpha/src/a.ts:3 EqualityOperator `n > 0` → `n >= 0`',
+    ])
+    expect(notRunError(result, 'run/alpha.log')).toBe(
+      'packages/core/alpha：1 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 run/alpha.log',
+    )
+    expect(notRunError(summarizeMember(TARGET, report), 'run/alpha.log')).toBeUndefined()
   })
 })
 
@@ -521,5 +576,28 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
       '?? out-weak/',
       '?? packages/core/sign/tests/public.spec.ts',
     ])
+  })
+
+  it('只由参数化用例守着的改动行照样被杀：按用例名过滤时不因快层的 preParse 整份滤掉（#405）', () => {
+    const { root, memberDir } = fixture()
+    writeFileSync(
+      join(memberDir, 'src/sign.ts'),
+      'export const zero = 0\nexport function isPositive(n: number): boolean {\n  return n > 0\n}\n',
+    )
+    // 用例名由 it.each 生成，preParse 静态匹配不到；Stryker 逐个变异体按用例名过滤。
+    writeFileSync(
+      join(memberDir, 'tests/sign.spec.ts'),
+      [
+        "import { isPositive, zero } from '../src/sign.ts'",
+        "test('zero', () => { expect(zero).toBe(0) })",
+        "it.each([[1, true], [0, false], [-1, false]])('isPositive(%i) is %s', (n, want) => { expect(isPositive(n)).toBe(want) })",
+      ].join('\n'),
+    )
+    const ran = mutate(root, join(root, 'out'))
+    expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(0)
+    expect(ran.summary?.errors).toEqual([])
+    const [member] = ran.summary?.members ?? []
+    expect(member?.counts['Survived']).toBe(0)
+    expect(member?.counts['Killed']).toBeGreaterThan(0)
   })
 })
