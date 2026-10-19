@@ -74,7 +74,7 @@ Agent 扩展产生的人工等待在 Passage 中建模。Tool 内部 wait 仅向
 | 对象 | 身份 | 构造 | 状态与合法转换 | 所有者 | 销毁或保留 |
 | --- | --- | --- | --- | --- | --- |
 | AcceptedInput | InputId，由调用方分配 | invoke 或 submit 携带内容、来源依据与优先级，Journal 提供者受理时保存 | 不可变值。受理后进入 execution 的输入集合，按水位线分批承接 | Journal 提供者保存内容 | 随 execution 保留。同一身份配不同内容被拒绝 |
-| AgentCheckpoint | 没有自己的身份，属于 execution 的某个修订 | 每次提交随 execution 修订保存。初始 checkpoint 的 `position` 是执行开始之后位置，`guard` 为 null | 不可变快照，没有状态。`guard` 是 Agent 自持的守卫事实，只由循环判断这一受信系统扩展的判断更新，压缩、换挂接与换代不清零 | Agent，由 Journal 保存 | 随 execution 保留，不含 Promise、句柄、锁或依赖容器 |
+| AgentCheckpoint | 没有自己的身份，属于 execution 的某个修订 | 每次提交随 execution 修订保存。初始 checkpoint 的 `position` 是执行开始之后位置，`guard` 为 null | 不可变快照，没有状态。`guard` 是 Agent 自持的守卫事实，只由循环判断这一受信系统扩展的判断更新，压缩、换挂接与换代不清零 | Agent，由 Journal 保存 | 只保留最新已提交的一版，被后继提交取代的可以立即删除；不含 Promise、句柄、锁或依赖容器。规则见 SPEC 的“[终态后与 ended](../SPEC.md#终态后与-ended)” |
 | ActionBatch | ActionBatchId | 已准入的模型完整回复形成动作批，每个工具调用一个 Action | 屏障 closed 转为 open 或 all-denied，不回转。open 或 all-denied 时，判断被拒的动作建立 denied 槽位；获准动作交 Tool 后建立 dispatched 或 denied 槽位，dispatched 再转为 result 或 background。全拒时每个动作也有槽位。转换见下文合法转换表 | Agent，由 Journal 随 checkpoint 保存 | 全部槽位的候选消息经消息准入后随 checkpoint 更新。后台槽位的占位在最终结果到达后仍保留 |
 | TerminalObservation | 终态加 PassageId | tryFinish 提交终态时固定全部待观察项 | 待观察转为已观察 | Journal 台账，由长期协调者处理 | 随 execution 保留，观察完成后仍可读取 |
 | ResultResponsibility | ConsumptionId | 结果被登记时建立 | 待释放，保管或处理依据已保存，已释放 | Journal，由合法的保管方推进 | 已释放后记录保留到 execution 保留期结束 |

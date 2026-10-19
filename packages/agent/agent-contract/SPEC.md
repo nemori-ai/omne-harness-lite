@@ -585,6 +585,8 @@ settling 保存本域完成意图、未决操作和交接责任。ended 与最�
 
 确认只清理满足保留政策且责任已交清的事件，不能释放其他结果项的责任。ended 执行的事件与结果保留多久，是 Journal 提供者声明的可配置政策。契约只规定下限：存在未确认的事件、未交清的结果责任、待观察的终态后观察，或未释放的材料保管时，Journal 不得删除对应记录。保留期内，旧 execution 的输出、恢复和结果保管能力继续可用。Journal 与宿主的长期保管者不挂在 runtime 的可撤除 fiber 内。
 
+checkpoint 是 execution 当前状态的权威物化，不是状态历史。Journal 为每个 execution 保留最新已提交的 checkpoint；被后继提交取代的 checkpoint 可以在后继提交成功后立即删除。revision 在 execution 的保留期内单调递增，不复用。公开操作只读取当前 checkpoint；需要在被取代之后仍可解释的事实，由最终请求记录、Passage、结果责任、操作结果、终态观察台账和事件各自承载，不依赖旧 checkpoint。提供者可以为诊断保留历史版本，契约不读取它们。
+
 #### 交接与停用
 
 detach 只适用于 active 的执行挂接。它同时保存原位置与责任并撤销该挂接，返回可核验的交接依据，成功交接后 runtime 才可回 idle。经恢复入口对仍存活的其他 runtime 的 active 挂接做 detach，另需 takeover 资格，见“[恢复与接管](#恢复与接管)”。对 superseded 的挂接发出新的 detach 返回 stale-advance，对已 detached 的挂接只认回既有交接。暂停控制的结果就是一次 detach 交接，execution 进入 suspended。宿主停用实例和换代时的挂接交接同样使用 detach。失去业务资格时，detach 只允许认回既有交接，不写新的业务位置。reconcile 在无活体或 execution 已结束时仍可由合格的保管者处理原结果，不能据此发起新工作。生产者事实的登记与耐久保管由原消费拥有者承担，不能强迫旧的失效挂接重新通过推进检查。
