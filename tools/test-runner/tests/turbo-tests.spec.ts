@@ -240,6 +240,36 @@ describe('成员目录下的 turbo.json', { timeout: 60_000 }, () => {
     const { runs } = await run(root, targets)
     expect(runs[0]?.exitCode).toBe(0)
   })
+
+  it('合成定义与比对基准都取检查器仓库的根配置：被检查检出里的根 turbo.json 不参与', async () => {
+    const { root, targets } = workspace({ app: { file: 'tests/a.spec.ts', code: 0, dir: 'apps' } })
+    // 检出自带的根配置放宽了测试任务；若 dry run 读它，成员原样继承的定义会开缓存、少了根的依赖。
+    put(
+      root,
+      'turbo.json',
+      JSON.stringify({
+        tasks: {
+          build: {},
+          typecheck: {},
+          'test:fast': { dependsOn: [], cache: true },
+          'test:slow': {},
+          test: {},
+        },
+      }),
+    )
+    put(root, 'apps/app/turbo.json', JSON.stringify({ extends: ['//'], tasks: {} }))
+    const { runs } = await run(root, targets)
+    expect(runs[0]?.exitCode).toBe(0)
+    // 比对基准若取检出自带的根配置，test:fast 的 dependsOn 本就为空，这里不会被拒。
+    put(
+      root,
+      'apps/app/turbo.json',
+      JSON.stringify({ extends: ['//'], tasks: { 'test:fast': { dependsOn: [] } } }),
+    )
+    await expect(run(root, targets)).rejects.toThrow(
+      /^apps\/app\/turbo\.json：规则 3：test:fast 的 dependsOn 少了根定义的 build、\^build$/u,
+    )
+  })
 })
 
 describe('报告里的归档文件', () => {
