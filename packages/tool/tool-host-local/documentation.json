@@ -1,0 +1,612 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "package:tool/tool-host-local",
+    "kind": "member",
+    "source": {
+      "path": "docs/member-documentation.md",
+      "anchor": "成员包文档要求"
+    }
+  },
+  "documents": [
+    {
+      "id": "overview",
+      "path": "packages/tool/tool-host-local/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "responsibility-and-status"
+        },
+        {
+          "id": "usage",
+          "anchor": "usage"
+        },
+        {
+          "id": "contracts",
+          "anchor": "contracts"
+        },
+        {
+          "id": "design",
+          "anchor": "design"
+        },
+        {
+          "id": "configuration",
+          "anchor": "configuration-and-operation"
+        },
+        {
+          "id": "verification",
+          "anchor": "verification"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "maintenance"
+        }
+      ]
+    },
+    {
+      "id": "overview-zh",
+      "path": "packages/tool/tool-host-local/README_ZH.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "职责与状态"
+        },
+        {
+          "id": "usage",
+          "anchor": "使用"
+        },
+        {
+          "id": "contracts",
+          "anchor": "契约"
+        },
+        {
+          "id": "design",
+          "anchor": "设计"
+        },
+        {
+          "id": "configuration",
+          "anchor": "配置与运行"
+        },
+        {
+          "id": "verification",
+          "anchor": "验证"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "index",
+      "path": "packages/tool/tool-host-local/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "spec",
+      "path": "packages/tool/tool-host-local/SPEC.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "docs-overview",
+      "path": "packages/tool/tool-host-local/docs/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "docs-index",
+      "path": "packages/tool/tool-host-local/docs/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "architecture",
+      "path": "packages/tool/tool-host-local/docs/architecture.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "flows",
+      "path": "packages/tool/tool-host-local/docs/flows.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "object-model",
+      "path": "packages/tool/tool-host-local/docs/object-model.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "public-api",
+      "path": "packages/tool/tool-host-local/docs/public-api.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "reference-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "context",
+      "path": "packages/tool/tool-host-local/docs/context.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "cordis",
+      "path": "packages/tool/tool-host-local/docs/cordis.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "src-readme",
+      "path": "packages/tool/tool-host-local/src/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "src-index",
+      "path": "packages/tool/tool-host-local/src/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "tests-readme",
+      "path": "packages/tool/tool-host-local/tests/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "tests-index",
+      "path": "packages/tool/tool-host-local/tests/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "tests-fixtures-readme",
+      "path": "packages/tool/tool-host-local/tests/fixtures/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "tests-fixtures-index",
+      "path": "packages/tool/tool-host-local/tests/fixtures/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "schema-readme",
+      "path": "packages/tool/tool-host-local/schema/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "schema-index",
+      "path": "packages/tool/tool-host-local/schema/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "verification-models-readme",
+      "path": "packages/tool/tool-host-local/verification/models/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "verification-models-index",
+      "path": "packages/tool/tool-host-local/verification/models/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "verification-proofs-readme",
+      "path": "packages/tool/tool-host-local/verification/proofs/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "verification-proofs-index",
+      "path": "packages/tool/tool-host-local/verification/proofs/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "adr-readme",
+      "path": "packages/tool/tool-host-local/adr/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "adr-index",
+      "path": "packages/tool/tool-host-local/adr/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "examples-readme",
+      "path": "packages/tool/tool-host-local/examples/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "examples-index",
+      "path": "packages/tool/tool-host-local/examples/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "resources-readme",
+      "path": "packages/tool/tool-host-local/resources/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "resources-index",
+      "path": "packages/tool/tool-host-local/resources/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "acceptance-readme",
+      "path": "packages/tool/tool-host-local/acceptance/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "acceptance-index",
+      "path": "packages/tool/tool-host-local/acceptance/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "verification-readme",
+      "path": "packages/tool/tool-host-local/verification/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "verification-index",
+      "path": "packages/tool/tool-host-local/verification/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "acceptance-fixtures-readme",
+      "path": "packages/tool/tool-host-local/acceptance/fixtures/README.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    },
+    {
+      "id": "acceptance-fixtures-index",
+      "path": "packages/tool/tool-host-local/acceptance/fixtures/index.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": []
+    }
+  ]
+}

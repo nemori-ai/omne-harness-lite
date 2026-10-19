@@ -1,6 +1,6 @@
 # Tool 包架构
 
-本页的 Tool 技术设计已接受。产品拥有目标，项目架构拥有系统协作，治理领域拥有责任，Tool 成员拥有精确形状与必要行为。根入口已导出公开类型与契约函数。独立执行已在 `tool`（[本增量未交付](../../README.md#未交付标注)） 实现，runtime 只实现了一部分路径，宿主与提供者大多尚未交付。五档支持范围见[工具执行组的支持范围](../../README.md#支持范围)。阶段承诺与运行支持分别读取 [Tool 产品](../../../../.meta_harness/design/product/tool-execution/design.md)。
+本页的 Tool 技术设计已接受。产品拥有目标，项目架构拥有系统协作，治理领域拥有责任，Tool 成员拥有精确形状与必要行为。根入口已导出公开类型与契约函数。独立执行已在 `tool` 实现，runtime 只实现了一部分路径，宿主与提供者大多尚未交付。五档支持范围见[工具执行组的支持范围](../../README.md#支持范围)。阶段承诺与运行支持分别读取 [Tool 产品](../../../../.meta_harness/design/product/tool-execution/design.md)。
 
 ## 系统位置与职责
 
@@ -31,7 +31,7 @@ flowchart LR
 
 ## 责任边界和继续阅读
 
-内部模块、采用的机制、程序执行方的宿主构造和全部内部实施规格属于实现，归 tool 实现包的架构（`tool/docs/architecture.md`）（[本增量未交付](../../README.md#未交付标注)）。本页只保留领域级设计与对外缺项。
+内部模块、采用的机制、程序执行方的宿主构造和全部内部实施规格属于实现，归 tool 实现包的架构（`tool/docs/architecture.md`）。本页只保留领域级设计与对外缺项。
 
 外域接缝见 [治理领域架构](../../../../docs/domains/tool-execution/architecture.md)。参数、依赖和 OOP 见 [object-model](object-model.md)，协议见 [protocols](../SPEC.md#tool-操作协议)，Cordis 装配见 [cordis](../../tool-cordis-contract/docs/cordis.md)，产品覆盖与验证见 [coverage](../verification/README.md)。文本、内容 ref 与附件地址分流归 P14；共享类型迁移和真实发送验证由共享内容块拥有者跟踪，不以政策接缝扩大任意嵌套许可。
 
@@ -49,7 +49,7 @@ flowchart LR
 
 设计归 [public-api](public-api.md#定义作者适配与独立消费)、[P02](../SPEC.md#p02-定义准入与队列)、[P05](../SPEC.md#p05-执行事实与原输出)。定义了定义与声明、名称/参数校验、Catalog、纯可用性判定、普通/结构化作者适配、固定 codec/renderer 和独立执行边界。OOP 与参数/DI 分类归 [object-model](object-model.md)。
 
-已实现：根入口导出的公开类型，`judgeToolDefinition` 与其余判定函数，纯可用性判定 `evaluateToolAvailability` 与 `presentTool`，普通与结构化作者适配，默认参数 codec 与结果渲染，以及 `tool`（[本增量未交付](../../README.md#未交付标注)） 的独立执行 `createIndependentToolScope` 与 `executeTool`。它们都有单元测试。尚未交付：Catalog 提供者，资产正文到完整 ToolDefinition 的解析适配，独立消费者的使用示例，完整托管适配的验证。当前 `toolBodyContract` 只做最低校验，不能被当作完整新定义校验。变更后的公开声明同步真实消费者，不保留第二套手写类型源。
+已实现：根入口导出的公开类型，`judgeToolDefinition` 与其余判定函数，纯可用性判定 `evaluateToolAvailability` 与 `presentTool`，普通与结构化作者适配，默认参数 codec 与结果渲染，以及 `tool` 的独立执行 `createIndependentToolScope` 与 `executeTool`。它们都有单元测试。尚未交付：Catalog 提供者，资产正文到完整 ToolDefinition 的解析适配，独立消费者的使用示例，完整托管适配的验证。当前 `toolBodyContract` 只做最低校验，不能被当作完整新定义校验。变更后的公开声明同步真实消费者，不保留第二套手写类型源。
 
 <a id="tool-m02"></a>
 ### TOOL-M02 发起、队列、等待与控制
