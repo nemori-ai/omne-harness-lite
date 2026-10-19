@@ -7,15 +7,21 @@ export default defineConfig({
     alias: [
       {
         find: /^@omne-harness\/tool-contract$/,
-        replacement: fileURLToPath(new URL('../tool-contract/src/index.ts', import.meta.url)),
+        replacement: fileURLToPath(
+          new URL('./node_modules/@omne-harness/tool-contract/src/index.ts', import.meta.url),
+        ),
       },
       {
         find: /^@omne-harness\/tool-contract\/binding$/,
-        replacement: fileURLToPath(new URL('../tool-contract/src/binding.ts', import.meta.url)),
+        replacement: fileURLToPath(
+          new URL('./node_modules/@omne-harness/tool-contract/src/binding.ts', import.meta.url),
+        ),
       },
       {
         find: /^@omne-harness\/tool-contract\/testing$/,
-        replacement: fileURLToPath(new URL('../tool-contract/src/testing.ts', import.meta.url)),
+        replacement: fileURLToPath(
+          new URL('./node_modules/@omne-harness/tool-contract/src/testing.ts', import.meta.url),
+        ),
       },
     ],
   },
