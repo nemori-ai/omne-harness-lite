@@ -84,8 +84,13 @@ describe('the hooks of the scripted conformance subject', () => {
     )({
       ...targetOf(scene, call.call),
       termination: { kind: 'interrupted', control: operationId('later') },
-      blocks: [textBlock('late', 'late')],
+      parts: [textBlock('late', 'late')].map(block => ({
+        kind: 'sealed' as const,
+        block,
+        trims: [],
+      })),
       pageSize: 1,
+      pageTargetBytes: 1024,
     })
     expect(await stateOf(scene, call)).toEqual(call.state)
   })
@@ -137,13 +142,20 @@ describe('the hooks of the scripted conformance subject', () => {
     )({
       ...targetOf(scene, call.call),
       termination: { kind: 'completed', reason: 'stop' },
-      blocks: [textBlock('p1', 'a'), textBlock('p2', 'b'), textBlock('p3', 'c')],
+      parts: [textBlock('p1', 'a'), textBlock('p2', 'b'), textBlock('p3', 'c')].map(block => ({
+        kind: 'sealed' as const,
+        block,
+        trims: [],
+      })),
       pageSize: 1,
+      pageTargetBytes: 1024,
     })
     const done = await stateOf(scene, call)
     if (done.phase !== 'settled') throw new Error('the call ended')
     const { page } = await readOf(scene, { ...call, version: done.settlement.version, state: done })
-    expect(page.blocks.map(block => block.id)).toEqual(['p1'])
+    expect(page.parts.flatMap(part => (part.kind === 'sealed' ? [part.block.id] : []))).toEqual([
+      'p1',
+    ])
   })
 })
 

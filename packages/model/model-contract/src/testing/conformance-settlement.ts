@@ -1,6 +1,6 @@
 // The checks of the result and its handover: a result is read only after the call has ended, a
 // call is acknowledged only with evidence, and an acknowledgement is neither repeated nor undone.
-import type { AckReceipt } from '../index.ts'
+import type { AckReceipt, ResultPart } from '../index.ts'
 import {
   ackInput,
   accessOf,
@@ -24,6 +24,7 @@ import {
   stateOf,
   succeeded,
   targetOf,
+  textBlock,
   versionId,
 } from './conformance-kit.ts'
 import { ConformanceSkip, type Check } from './conformance-types.ts'
@@ -40,6 +41,67 @@ function identityOf(receipt: AckReceipt) {
 
 export function settlementChecks<P>(): readonly Check<P>[] {
   return [
+    {
+      name: 'mixed-partial-result-readable',
+      requires: ['startRun', 'settleCall'],
+      async run(scene) {
+        const expected: readonly ResultPart[] = [
+          {
+            kind: 'sealed',
+            block: textBlock('mixed', 'sealed'),
+            trims: [{ removed: '1', reason: 'before-seal' }],
+          },
+          {
+            kind: 'partial',
+            content: 'tool-arguments',
+            value: '{"kept":',
+            trims: [{ removed: '2', reason: 'cut' }],
+          },
+          { kind: 'partial', content: 'voice', value: 'retained', trims: [] },
+        ]
+        const termination = {
+          kind: 'failed',
+          fault: { cause: 'upstream-protocol', diagnostic: 'partial', upstreamStatus: null },
+        } as const
+        const call = await ended(scene, 'mixed-partial', {
+          parts: expected,
+          termination,
+          pageSize: 2,
+          pageTargetBytes: 128,
+        })
+        const { consumption } = runtimeOf(scene)
+        const first = await readOf(scene, call)
+        const parts: ResultPart[] = [...first.page.parts]
+        expect(
+          same(first.page.settlement.termination, termination),
+          'the partial result lost its termination',
+        )
+        let after = first.page.next
+        for (let count = 0; after !== null; count += 1) {
+          expect(count < 100, 'the partial result does not end')
+          const input = { ...accessOf(scene, call.call), read: first.read, after }
+          const next = pageOf(
+            succeeded(await consumption.readNext(input), 'the partial page'),
+            'the partial page',
+          )
+          const replay = pageOf(
+            succeeded(await consumption.readNext(input), 'the partial page replay'),
+            'the partial page replay',
+          )
+          expect(same(next, replay), 'the partial page changed on replay')
+          expect(
+            same(next.settlement, first.page.settlement),
+            'the partial page changed its settlement',
+          )
+          parts.push(...next.parts)
+          after = next.next
+        }
+        expect(
+          same(parts, expected),
+          `the final result lost or changed parts or trims: ${show(parts)}`,
+        )
+      },
+    },
     {
       name: 'settled-call-keeps-termination',
       requires: ['startRun', 'settleCall'],
@@ -260,7 +322,7 @@ export function settlementChecks<P>(): readonly Check<P>[] {
           throw new ConformanceSkip('the provider gave the whole result as one page')
         await acknowledged(scene, call)
         await hookOf(scene, 'advanceCleanup')(targetOf(scene, call.call))
-        const ids = page.blocks.map(block => block.id)
+        const ids = page.parts.flatMap(part => (part.kind === 'sealed' ? [part.block.id] : []))
         let after: string | null = page.next
         for (let pages = 0; after !== null; pages += 1) {
           expect(pages < 100, 'the read does not end')
@@ -271,7 +333,7 @@ export function settlementChecks<P>(): readonly Check<P>[] {
             ),
             'the page after the acknowledgement',
           )
-          ids.push(...next.blocks.map(block => block.id))
+          ids.push(...next.parts.flatMap(part => (part.kind === 'sealed' ? [part.block.id] : [])))
           after = next.next
         }
         expect(

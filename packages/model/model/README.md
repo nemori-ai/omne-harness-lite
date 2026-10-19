@@ -4,11 +4,23 @@
 
 ## Responsibility and status
 
-This member owns the design of the reusable Model domain implementation. It has the judgment of credential presence and resolution. Local custody belongs to [model-host-local](../model-host-local/README.md). Hosted runs and the factory are not implemented. Credential references and resolution have four owners: the custody implementation is in [model-host-local](../model-host-local/README.md), the contract is in [model-contract](../model-contract/README.md), the judgment is in this member, and the run factory and other hosts are not implemented. The public values, operations, and provider protocols belong to [model-contract](../model-contract/README.md). The framework definitions belong to [model-cordis-contract](../model-cordis-contract/README.md). Design, implementation, and run verification are judged separately.
+This member implements credential judgments, the runtime constructor, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
+
+| Entry or capability | Current support |
+| --- | --- |
+| Credential judgment and `deliver` | Pure credential judgments. `deliver` delegates to the supplied resolver |
+| `createModelRuntime` | Construction and validation only. Its twelve managed operations return explicit `unavailable` |
+| `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports |
+| Durable Commands and production managed execution | Not implemented |
+| Cordis runtime host and vendor execution | Not implemented in this package |
 
 ## Usage
 
-A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). They are not yet usable as import examples.
+A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). `createModelRuntime` can be imported for construction. `executeModel` and the independent capability factories remain unimplemented.
+
+For memory testing, import `createTestModelDependencies` from `@omne-harness/model/testing`. Supply the explicit authority, evidence, owners, and finite limits described in the [testing API](docs/public-api.md#内存测试入口). The returned dependencies can construct the real runtime shell.
+
+The memory test provider returns sealed and partial result parts with actual trim notices. Its explicit part-count and byte targets group whole parts. An oversized part has its own page. The complete page stays within the admitted capacity. See the [test entry](docs/public-api.md#内存测试入口).
 
 ## Contracts
 
@@ -20,11 +32,11 @@ The [design index](docs/index.md) covers architecture, flows, internal objects, 
 
 ## Configuration and operation
 
-The constructor takes Commands, the sending fence, the retry policy, the instance host, and the clock explicitly. The application selects and owns the adapters that it needs. It does not take business parameters from a global Context. The target run implementation does not depend on Cordis. The package manifest does not declare Cordis, proper-lockfile, or model-cordis-contract. The package has only the root entry. It has no `./cordis` and no `./execute`. The command `pnpm --filter @omne-harness/model run install-closure` packs this member, installs it in isolation, resolves the entries, and runs a scenario. It writes a report to the path of `--out`. For the way to run it and its scope, see the [test description](tests/README.md#安装闭包). This page does not record run results. The package does not install all vendors or vocabularies automatically.
+The constructor takes Commands, the sending fence, the retry policy, the instance host, and the clock explicitly. The application selects and owns the adapters that it needs. It does not take business parameters from a global Context. The target run implementation does not depend on Cordis. The package manifest does not declare Cordis, proper-lockfile, or model-cordis-contract. The package exposes the root and the isolated `./testing` entry. It has no `./cordis` and no `./execute`. The command `pnpm --filter @omne-harness/model run install-closure` packs this member, installs it in isolation, resolves the entries, and runs a scenario. It writes a report to the path of `--out`. For the way to run it and its scope, see the [test description](tests/README.md#安装闭包). This page does not record run results. The package does not install all vendors or vocabularies automatically.
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model typecheck`, `pnpm --filter @omne-harness/model test`, and `make docs-check`. The current tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. They do not show that hosted runs, streaming, or result custody are implemented. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
+Run `pnpm --filter @omne-harness/model typecheck`, `pnpm --filter @omne-harness/model test`, and `make docs-check`. The current tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
 
 ## Maintenance
 

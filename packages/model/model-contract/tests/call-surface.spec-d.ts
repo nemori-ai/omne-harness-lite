@@ -20,6 +20,9 @@ import type {
   ReadState,
   Reply,
   ResultPage,
+  ResultPart,
+  ToolSuggestion,
+  ResultTrim,
   ResultVersion,
   Settlement,
   Snapshot,
@@ -173,20 +176,36 @@ it('Observation separates a state view from the end of observing', () => {
   void [seen, endedWithValue, reason, empty]
 })
 
-it('ResultPage is a read-only page of model blocks with the settlement that closes the call', () => {
-  const page: ResultPage = { blocks: [block, toolCall], next: null, settlement }
-  // @ts-expect-error a page does not hold a call whose arguments did not all arrive
-  const open: ResultPage = { blocks: [incompleteCall], next: null, settlement }
+it('ResultPage keeps read-only sealed or partial parts with the actual settlement', () => {
+  const page: ResultPage = {
+    parts: [block, toolCall].map(block => ({ kind: 'sealed', block, trims: [] })),
+    next: null,
+    settlement,
+  }
+  expectTypeOf(page.parts).toEqualTypeOf<readonly ResultPart[]>()
+  expectTypeOf(incompleteCall).not.toExtend<
+    Extract<ResultPage['parts'][number], { kind: 'sealed' }>['block']
+  >()
   // @ts-expect-error a page without a settlement
-  const unsettled: ResultPage = { blocks: [], next: null }
-  // @ts-expect-error a reader cannot mutate the blocks of a page
-  const writable: ModelBlock[] = page.blocks
-  void [open, unsettled, writable]
+  const unsettled: ResultPage = { parts: [], next: null }
+  expectTypeOf<ResultPage['parts']>().not.toExtend<ResultPart[]>()
+  void unsettled
+  const partial: Extract<ResultPart, { kind: 'partial' }> = {
+    kind: 'partial',
+    content: 'tool-arguments',
+    value: '{}',
+    trims: [],
+  }
+  expectTypeOf(partial).not.toExtend<ModelBlock>()
+  expectTypeOf(partial).not.toExtend<Extract<ModelBlock, { kind: 'tool_call' }>>()
+  expectTypeOf<ResultPart>().not.toExtend<ModelBlock>()
+  expectTypeOf<ResultPart>().not.toExtend<ToolSuggestion>()
+  expectTypeOf<ResultTrim>().toEqualTypeOf<Readonly<{ removed: string; reason: string }>>()
   expectTypeOf<ResultPage['next']>().toEqualTypeOf<string | null>()
 })
 
 it('ReadState and ReadStart tie a read to a page, or to the custody that already took the result', () => {
-  const page: ResultPage = { blocks: [], next: 'n', settlement }
+  const page: ResultPage = { parts: [], next: 'n', settlement }
   const reading: ReadState = { kind: 'reading', page }
   const ended: ReadState = { kind: 'ended', reason: 'owner-lost' }
   const started: ReadStart = { kind: 'started', read, value: reading }

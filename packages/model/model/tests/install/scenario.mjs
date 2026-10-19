@@ -59,3 +59,46 @@ assert.deepEqual(judgeResolution(state, { ...reference, id: credentialId('cred-n
 })
 assert.equal(judgePresence(state, reference).present, true)
 console.log('scenario ok: value, denied, absent and a minted-tenant judgment')
+
+const testing = await import('@omne-harness/model/testing')
+const { createModelRuntime } = await import('@omne-harness/model')
+assert.deepEqual(Object.keys(testing).sort(), [
+  'createMemoryModelCommands',
+  'createTestModelDependencies',
+])
+const assembled = testing.createTestModelDependencies({
+  owners: [],
+  evidence: [],
+  authority: {
+    authorize: () => ({ failure: { kind: 'denied', action: 'fixture' } }),
+    execution: () => ({ failure: { kind: 'denied', action: 'fixture' } }),
+  },
+  limits: {
+    scanPageCalls: 2,
+    resultPageParts: 1,
+    resultPageTargetBytes: 1024,
+    readIdleMs: 1000,
+    capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
+  },
+  start: '2026-10-19T00:00:00Z',
+  maxWaiters: 2,
+  maxQueued: 2,
+  sends: [],
+})
+const shell = createModelRuntime(assembled.dependencies, {
+  outputBatchBytes: 1024,
+  outputBatchDelayMs: 0,
+  observerBufferBytes: 1024,
+  readIdleMs: 1000,
+  resultPageTargetBytes: 128,
+  retryBackoffMs: 0,
+  cleanupRetryMs: 0,
+})
+assert.deepEqual(await shell.quiesce(), {
+  failure: {
+    kind: 'unavailable',
+    dependency: 'model-runtime',
+    diagnostic: 'managed-runtime-not-implemented',
+  },
+})
+assert.equal('driver' in shell.runtime, false)
