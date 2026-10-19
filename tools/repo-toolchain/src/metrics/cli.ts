@@ -2,11 +2,12 @@
 // 结构度量入口：只读源码与 git，产出摘要、数据与审讯页。度量只报告，不判失败——
 // 方向规则的失败由 `lint:rules` 承担；这里退出码非零只表示工具自己出错。
 import { baselines } from '../core/task-context.ts'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { workingGraph } from '../deps/graph.ts'
 import { readMetricsConfig } from './config.ts'
 import { measureCoverage } from './coverage.ts'
+import { readMetricsPlan } from './plan.ts'
 import { changedLines, commitShape, coordinates } from '../core/git.ts'
 import { memberOf } from '../deps/graph.ts'
 import { renderPage } from '../report/render.ts'
@@ -21,30 +22,38 @@ interface Options {
   readonly base?: string
   readonly coverage: boolean
   readonly out?: string
+  readonly plan?: string
 }
+
+const USAGE = '用法：metrics [--base <ref> | --plan <计划文件>] [--coverage] [--out <dir>]'
 
 function parseArgs(argv: readonly string[]): Options {
   let base: string | undefined
   let out: string | undefined
+  let plan: string | undefined
   let coverage = false
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
     if (arg === '--coverage') coverage = true
-    else if (arg === '--base' || arg === '--out') {
+    else if (arg === '--base' || arg === '--out' || arg === '--plan') {
       const value = argv[index + 1]
       if (value === undefined || value === '') throw new Error(`${arg} 需要一个值`)
       if (arg === '--base') base = value
+      else if (arg === '--plan') plan = value
       else out = value
       index += 1
-    } else
-      throw new Error(
-        `未知参数 ${String(arg)}；用法：metrics [--base <ref>] [--coverage] [--out <dir>]`,
-      )
+    } else throw new Error(`未知参数 ${String(arg)}；${USAGE}`)
   }
+  if (base !== undefined && plan !== undefined)
+    throw new Error(`--base 与 --plan 不能同时给：计划里已有基线；${USAGE}`)
+  // 覆盖采集与准入检查、变异读同一份计划，不自己按改动另选成员。
+  if (coverage && plan === undefined)
+    throw new Error(`--coverage 要给 --plan：先用 test-runner 的 plan --json 算计划；${USAGE}`)
   return {
     coverage,
     ...(base === undefined ? {} : { base }),
     ...(out === undefined ? {} : { out }),
+    ...(plan === undefined ? {} : { plan }),
   }
 }
 
@@ -52,13 +61,22 @@ function main(): void {
   const options = parseArgs(process.argv.slice(2))
   const config = readMetricsConfig()
   const root = resolve(subjectRoot())
-  const at = coordinates(root, baselines(root, options.base).targetBase)
+  const plan = options.plan === undefined ? undefined : readMetricsPlan(root, resolve(options.plan))
+  const located = coordinates(
+    root,
+    plan === undefined ? baselines(root, options.base).targetBase : undefined,
+  )
+  // 给了计划就用它算的合并点，不按基线引用重算：引用可能已经前进。
+  const at = plan === undefined ? located : { ...located, base: plan.base }
+  // 架构对照按基线引用本身比较（见 arch/actual.ts），与给 --base 时一致。
+  const baseRef = plan === undefined ? options.base : plan.base.ref
   const outDir = resolve(
     options.out ??
       process.env['OMNE_METRICS_OUT'] ??
       join(at.mainRoot, 'tmp', 'metrics', `${at.shortHead}${at.dirty ? '-dirty' : ''}`),
   )
   mkdirSync(outDir, { recursive: true })
+  if (options.plan !== undefined) copyFileSync(resolve(options.plan), join(outDir, 'plan.json'))
 
   const files = collectMemberSources(root)
   const changed = at.base === undefined ? undefined : changedLines(root, at.base.mergeBase)
@@ -67,15 +85,14 @@ function main(): void {
   let coverage: CoverageInput | undefined
   let coverageSeconds: ReadonlyMap<string, number> | undefined
   if (options.coverage) {
-    // 只对配置里列出的根目录下的成员跑测试；其余成员照常做静态度量，覆盖率记为「这次没跑」。
-    const all = [...new Set(files.map(file => memberOf(file.path)?.path))].filter(
+    // 只对计划里要跑测试、又在配置所列根目录下的成员跑测试；其余成员照常做静态度量，覆盖率记为「这次没跑」。
+    const planned = new Set(plan?.test)
+    const targets = [...new Set(files.map(file => memberOf(file.path)?.path))].filter(
       (path): path is string =>
-        path !== undefined && config.coverage.roots.some(base => path.startsWith(`${base}/`)),
+        path !== undefined &&
+        planned.has(path) &&
+        config.coverage.roots.some(base => path.startsWith(`${base}/`)),
     )
-    const targets =
-      changed === undefined
-        ? all
-        : all.filter(member => [...changed.keys()].some(path => path.startsWith(`${member}/`)))
     const measured = measureCoverage(root, targets, join(outDir, 'coverage'))
     coverage = measured
     coverageSeconds = measured.seconds
@@ -140,11 +157,11 @@ function main(): void {
   )
   const actual = readActualArchitecture({
     root,
-    ...(options.base === undefined ? {} : { base: options.base }),
+    ...(baseRef === undefined ? {} : { base: baseRef }),
   })
   const conformance = readConformance({
     root,
-    ...(options.base === undefined ? {} : { base: options.base }),
+    ...(baseRef === undefined ? {} : { base: baseRef }),
   })
   const architecture = { ...buildArchitectureView(actual, config.bands), conformance }
   writeFileSync(join(outDir, 'conformance.json'), JSON.stringify(conformance, null, 2) + '\n')
