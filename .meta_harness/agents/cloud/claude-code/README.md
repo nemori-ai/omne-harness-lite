@@ -30,7 +30,7 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 1. 设置 git 作者与提交者，写入 `CLAUDE_ENV_FILE`。云端环境设置里配了 `GIT_AUTHOR_NAME` 或 `GIT_AUTHOR_EMAIL` 时，用这些值。缺的值用 `gh api user` 从开会话的 GitHub 账号取：姓名取 GitHub username，邮箱取 `<id>+<login>@users.noreply.github.com`，因为接口不返回私密邮箱。提交者与作者相同。这样提交按[贡献指南](../../../../CONTRIBUTING.md#形成可审阅的交付)以负责人署名。平台只用 Claude 身份的密钥签名，所以 GitHub 把这些提交显示为 Unverified。
 2. 浅克隆先取完整历史。角色评估会检出固定的基线 commit，浅克隆缺少这些 commit。
 3. `git fetch --prune origin`，再把本地 `main` 快进到 `origin/main`。当前分支是 `main` 时用 `git merge --ff-only`。其他分支时只更新 `main` 引用。
-4. HEAD 变化或依赖目录缺失时，重新执行三条依赖命令。
+4. HEAD 变化、依赖目录缺失，或锁文件及根依赖配置与上次成功安装的摘要不同时，重新执行三条依赖命令。摘要保存在当前工作树的 Git 私有目录。三条命令全部成功后才记录摘要，失败时清除旧摘要，下次启动重试。首次启动没有摘要，也会同步依赖。
 5. agent 投影与源不一致时，删除被 Git 忽略的投影并重新生成。`.cursor` 下提交的三份文件保留。
 6. 更新两个 marketplace，再把 `pstack` 与 `mattpocock-skills` 更新到上游最新版本。
 

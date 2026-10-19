@@ -67,10 +67,21 @@ else
 fi
 
 # Dependencies and agent projections follow the checked-out tree.
-if [ "$(git rev-parse HEAD)" != "$before" ] || [ ! -d node_modules ] || [ ! -d .venv ]; then
-    uv sync --locked --quiet || warn "uv sync failed"
-    pnpm install --frozen-lockfile --ignore-scripts --reporter=silent || warn "pnpm install failed"
-    pnpm -r rebuild node-pty >/dev/null || warn "node-pty rebuild failed"
+dependency_state=$(git rev-parse --git-path omne-cloud-dependencies.sha256)
+fingerprint=$(sha256sum pnpm-lock.yaml uv.lock package.json pnpm-workspace.yaml pyproject.toml) || fingerprint=
+if [ -z "$fingerprint" ] || [ "$fingerprint" != "$(cat "$dependency_state" 2>/dev/null)" ] \
+    || [ "$(git rev-parse HEAD)" != "$before" ] || [ ! -d node_modules ] || [ ! -d .venv ]; then
+    # A failed attempt must retry even if the next session returns to the old inputs.
+    rm -f "$dependency_state"
+    if uv sync --locked --quiet \
+        && pnpm install --frozen-lockfile --ignore-scripts --reporter=silent \
+        && pnpm -r rebuild node-pty >/dev/null; then
+        if [ -n "$fingerprint" ]; then
+            printf '%s\n' "$fingerprint" > "$dependency_state" || warn "dependency state could not be saved"
+        fi
+    else
+        warn "dependency synchronization failed; will retry at next session start"
+    fi
 fi
 agents() {
     PYTHONDONTWRITEBYTECODE=1 uv run --locked python \
