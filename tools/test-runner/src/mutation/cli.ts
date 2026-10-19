@@ -1,6 +1,7 @@
 // 差分变异入口：只变异基线以来改动碰到的产品源码行（或点名成员的全部产品源码），逐成员跑 Stryker 的快层，
 // 列出存活与无覆盖的变异体，读数写进主检出的 `tmp/mutation-ledger/`。
-// 只报告（负责人 2026-10-02 定）：变异体存活不影响退出码；Stryker 起不来、初跑失败、没写出报告才退出非零。
+// 只报告（负责人 2026-10-02 定）：变异体存活不影响退出码；Stryker 起不来、初跑失败、没写出报告，
+// 或有变异体有用例覆盖却一条用例都没跑完（#405），才退出非零。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -10,7 +11,13 @@ import { listTestMembers } from '@omne-harness/repo-toolchain/core/workspace'
 import { effectiveParallelism, readTestRunsConfig } from '../testing/config.ts'
 import { buildTargets, parseFlags, timestamp, type Flags } from '../testing/support.ts'
 import { computePlan, readPlanFile, writePlanFile, type PlanFile } from '../testing/steps.ts'
-import { memberLines, summarizeMember, type MemberMutation, type MutationReport } from './report.ts'
+import {
+  memberLines,
+  notRunError,
+  summarizeMember,
+  type MemberMutation,
+  type MutationReport,
+} from './report.ts'
 import {
   changedTargets,
   memberTargets,
@@ -192,10 +199,8 @@ async function run(request: MutationRequest): Promise<number> {
     }
     const result = summarizeMember(target, report)
     results.push(result)
-    if (result.notRun.length > 0)
-      errors.push(
-        `${target.member.path}：${result.notRun.length} 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 ${ran.logPath}`,
-      )
+    const notRun = notRunError(result, ran.logPath)
+    if (notRun !== undefined) errors.push(notRun)
     console.log(
       `${label}，存活 ${result.counts.Survived}、无覆盖 ${result.counts.NoCoverage}` +
         (result.notRun.length > 0 ? `、没跑测试 ${result.notRun.length}` : ''),

@@ -17,7 +17,12 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import { parseDiff } from '@omne-harness/repo-toolchain/core/git'
-import { memberLines, summarizeMember, type MutationReport } from '../src/mutation/report.ts'
+import {
+  memberLines,
+  notRunError,
+  summarizeMember,
+  type MutationReport,
+} from '../src/mutation/report.ts'
 import {
   changedTargets,
   memberTargets,
@@ -234,31 +239,54 @@ describe('报告汇总', () => {
     ])
   })
 
-  it('报成存活、有覆盖却一条用例都没跑完的另列为没跑测试，不计入存活与分数（#405）', () => {
-    const survivor = (id: string, testsCompleted: number, coveredBy: string[]) => ({
+  it('报成存活、有覆盖却一条用例都没跑完的另列为没跑测试，不计入各状态与分数（#405）', () => {
+    const mutant = (
+      id: string,
+      status: 'Survived' | 'Killed',
+      testsCompleted: number | undefined,
+      coveredBy: string[] | undefined,
+    ) => ({
       id,
       mutatorName: 'EqualityOperator',
       replacement: 'n >= 0',
-      status: 'Survived' as const,
+      status,
       location: at(3, 3, 3, 8),
-      testsCompleted,
-      coveredBy,
+      ...(testsCompleted === undefined ? {} : { testsCompleted }),
+      ...(coveredBy === undefined ? {} : { coveredBy }),
     })
     const result = summarizeMember(TARGET, {
       files: {
         'src/a.ts': {
           source,
-          mutants: [survivor('1', 0, ['t1']), survivor('2', 2, ['t1', 't2']), survivor('3', 0, [])],
+          mutants: [
+            mutant('1', 'Survived', 0, ['t1']),
+            // 跑过用例的、没有覆盖的、两个字段缺了任一个的，都按普通存活算。
+            mutant('2', 'Survived', 2, ['t1', 't2']),
+            mutant('3', 'Survived', 0, []),
+            mutant('4', 'Survived', undefined, ['t1']),
+            mutant('5', 'Survived', 0, undefined),
+            // 不是存活的不改判。
+            mutant('6', 'Killed', 0, ['t1']),
+          ],
         },
       },
     })
-    expect(result.counts['Survived']).toBe(2)
-    expect(result.score).toBe(0)
-    expect(result.survived).toHaveLength(2)
+    expect(result.counts).toMatchObject({ Survived: 4, Killed: 1 })
+    expect(result.score).toBe(20)
+    expect(result.survived).toHaveLength(4)
     expect(result.notRun).toEqual([expect.objectContaining({ line: 3, original: 'n > 0' })])
-    expect(memberLines(result, true)).toContain(
+    expect(memberLines(result, true)).toEqual([
+      'packages/core/alpha：变异体 6 个——被杀 1、超时 0、存活 4、无覆盖 0、编译错误 0、运行错误 0、没跑测试 1；分数 20%',
+      ...Array.from(
+        { length: 4 },
+        () => '  存活 packages/core/alpha/src/a.ts:3 EqualityOperator `n > 0` → `n >= 0`',
+      ),
       '  没跑测试 packages/core/alpha/src/a.ts:3 EqualityOperator `n > 0` → `n >= 0`',
+    ])
+    expect(notRunError(result, 'run/alpha.log')).toBe(
+      'packages/core/alpha：1 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 run/alpha.log',
     )
+    expect(notRunError(summarizeMember(TARGET, report), 'run/alpha.log')).toBeUndefined()
   })
 })
 
