@@ -55,9 +55,13 @@
 
 ## Cursor Cloud specific instructions
 
-Cloud Agent 的镜像源、安装脚本和版本钉扎归[开发指南](docs/development.md#cursor-cloud-agent-镜像)。根 `.cursor` 是生成的软链接。改镜像时改 `.meta_harness/agents/cloud/<宿主>/`，不要改投影副本。现在只有 `cursor/`。Build 已经安装依赖。锁文件未变时，不要再执行安装。
+Cloud Agent 的镜像源、安装脚本和版本钉扎归[开发指南](docs/development.md#cursor-cloud-agent-镜像)。根 `.cursor` 是生成的软链接。改镜像时改 `.meta_harness/agents/cloud/cursor/`，不要改投影副本。Build 已经安装依赖。锁文件未变时，不要再执行安装。
 
 密钥和令牌只放在 Cursor Cloud Agents 的 Secrets。形式工具和 Postgres 不在此镜像中。缺少环境时报告未执行。不要把跳过的检查写成通过。
+
+## Claude Code on the web specific instructions
+
+环境源、setup 脚本和每次会话启动脚本归[开发指南](docs/development.md#claude-code-on-the-web-环境)。改环境时改 `.meta_harness/agents/cloud/claude-code/`，再把 `setup.sh` 粘贴到云端环境设置。会话启动钩子已经同步 `main`、安装依赖并生成投影。它输出诊断时，按诊断处理，不要把未完成的步骤写成完成。
 
 ## 写给众 AGENTS 的话
 
