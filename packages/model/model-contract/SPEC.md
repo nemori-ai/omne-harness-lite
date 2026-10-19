@@ -1,8 +1,8 @@
 # Model 领域契约长期规格
 
-状态：本包现有 Model 领域值、公开操作、提供者端口及行为协议已正式接受。原调用身份与受理、执行与观察边界、取消恢复、结果保管和双路径 ACK 沿用[既有技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)。通用传输、计量及 ModelTextTokenizer 契约属于已接受范围；pi-ai 具体实现、厂商家族和相关引擎/资源细化仍为候选，归[组架构](../docs/architecture.md)。设计接受不表示生产实现或运行验证完成，也不补定尚缺的外部契约或具体参数值。
+状态：本包现有 Model 领域值、公开操作、提供者端口及行为协议已正式接受。原调用身份与受理、执行与观察边界、取消恢复、结果保管和双路径 ACK 沿用[既有技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)。通用传输、计量及 ModelTextTokenizer 契约属于已接受范围；pi-ai 的成员划分与实现细化采用范围由[组架构各节](../docs/architecture.md#成员与新增条件)维护。设计接受不表示生产实现或运行验证完成，也不补定尚缺的外部契约或具体参数值。
 
-本页拥有 Model 领域共同的非类型行为。已接受范围及 pi-ai 例外以上文为准，源码导出和运行验证分别交付。具体执行函数归 [model 实现规格](../model/SPEC.md)，Cordis 定义及登记协议归 [框架契约规格](../model-cordis-contract/SPEC.md)。
+本页拥有 Model 领域共同的非类型行为。领域契约的已接受范围以上文为准，pi-ai 提供者细化沿组架构的采用范围执行；源码导出和运行验证分别交付。具体执行函数归 [model 实现规格](../model/SPEC.md)，Cordis 定义及登记协议归 [框架契约规格](../model-cordis-contract/SPEC.md)。
 
 ## 能力与契约拥有者
 
@@ -45,7 +45,7 @@ ModelTransport.prepare 固定 adapter 和引用计划，完成可纯计算的工
 
 只有本次请求需要的二进制转换在该阶段执行。结果是请求私有派生表示，不修改历史消息、原 ToolResult 或其附件，不冒充消息准入时已有 transcript。转换或加载失败不重跑原工具；依据实际发送状态形成明确 not-started、失败或 unknown。其他消息来源原有的接纳前本地转换规则保持，Tool ref 路径采用本节例外。
 
-ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构造注入，领域根工厂不取得原始文件、网络或全局容器。它们不是每个 Model 门面的永久服务依赖；阶段缺席按原失败协议处理。共享 ref 设计已接受，Model 通用发送读取设计已接受，pi-ai adapter 细化仍为候选，消息校验沿共享拥有者状态，相关实现尚未完成，不能由类型声明宣称已有二进制延迟读取保证。
+ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构造注入，领域根工厂不取得原始文件、网络或全局容器。它们不是每个 Model 门面的永久服务依赖；阶段缺席按原失败协议处理。共享 ref 设计已接受，Model 通用发送读取设计已接受，pi-ai 物化与媒体读取的具体资源控制仍为候选，消息校验沿共享拥有者状态，相关实现尚未完成，不能由类型声明宣称已有二进制延迟读取保证。
 
 ## 请求资格、身份与固定输入
 

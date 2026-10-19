@@ -1,6 +1,6 @@
 # Model 内部架构
 
-本页描述已接受的非 pi-ai 运行契约。pi-ai 相关细化仍为候选，采用范围见 [SPEC](../../model-contract/SPEC.md)，图表不表示运行实现或真实提供者验证已完成。
+本页描述已接受的非 pi-ai 运行契约。pi-ai 细化的采用范围见[组架构各节](../../docs/architecture.md#成员与新增条件)，图表不表示运行实现或真实提供者验证已完成。
 
 本包负责模型调用与各次真实发出、原输出及结果保管。公开结果和失败的唯一行为源是 [SPEC](../../model-contract/SPEC.md)，具体设计定义见 [public-api](../../model-contract/docs/public-api.md)。
 
@@ -185,7 +185,7 @@ model-cordis-contract 拥有托管运行的唯一 Service、键与定义自有�
 
 ## pi 技术栈的提供者分解
 
-本节是 pi-ai 相关实现细化，保持候选。所引用的通用 Model 契约按其已接受范围执行。
+本节说明 pi-ai 提供者的职责分工，采用范围由所引用的组架构各节维护。通用 Model 契约按其已接受范围执行。
 
 阶段采用项目维护的 pi-ai 技术栈，具体包和依赖方向由[组架构](../../docs/architecture.md#成员与新增条件)拥有。Model 根 interface 保持供应商无关，pi 共享传输与厂商家族 adapter 在提供者侧组合。
 
@@ -197,7 +197,7 @@ Tokenizer 的 interface 仍归 ModelTextTokenizer，具体引擎 implementation 
 
 ## 计量组合与适配资源
 
-本节的通用计量组合、预算依据、响应解码分工及资源生命周期设计已接受。具体 pi 家族、Tokenizer 引擎与资源适配细化仍为候选，范围见[组架构](../../docs/architecture.md#tokenizer-的资源与计量分工)。
+本节的通用计量组合、预算依据、响应解码分工及资源生命周期设计已接受。具体 pi 家族、Tokenizer 引擎与资源适配的采用范围见[组架构](../../docs/architecture.md#tokenizer-的资源与计量分工)。
 
 完整请求计量隐藏供应商格式差异。ModelTextTokenizer 仅作为具体 meter 的窄依赖，固定编码资源并回答 count；Runtime 不取得它，Cordis 不新增全局 tokenizer 键。采用这一组合是因为同一编码器可服务不同模板，而有些计量方法不使用本地分词。把 tokenizer 放进 Runtime 会让普通调用者承担与执行无关的选择和资源责任。
 
@@ -209,7 +209,7 @@ ModelCountingBasis 绑定模板、投影、媒体处理、回放、模型及算�
 
 ## 技术缺项与采用边界
 
-本页维护技术义务和来源缺证，不授予新产品政策或默认机制。原问题 ID 保持。非 pi-ai 机制已接受，pi-ai 相关细化仍为候选；具体未定输入和实现证据分别跟踪。完整行为仍读成员 SPEC。
+本页维护技术义务和来源缺证，不授予新产品政策或默认机制。原问题 ID 保持。非 pi-ai 机制已接受，pi-ai 细化的采用范围沿[组架构各节](../../docs/architecture.md#成员与新增条件)；具体未定输入和实现证据分别跟踪。完整行为仍读成员 SPEC。
 
 <a id="model-e01"></a>
 ## MODEL-E01 引用式工具结果与附件地址的迁移验证
@@ -225,7 +225,7 @@ ToolResult.content 的模型可见多模态 ref 表示直接感知，attachments
 <a id="model-m01"></a>
 ## MODEL-M01 输入和适配器的精确契约
 
-档案能力、有限提供范围、首内容及参数规则的通用公开形状已接受。具体供应商数值、实现采用与符合性证据尚待落实，pi-ai 细化仍为候选。
+档案能力、有限提供范围、首内容及参数规则的通用公开形状已接受。具体供应商数值、实现采用与符合性证据尚待落实，pi-ai 细化的采用范围沿[组架构各节](../../docs/architecture.md#成员与新增条件)。
 
 [准备接口](../../model-contract/docs/public-api.md#档案与请求准备)已接受参数、上下文限制和预算报告的通用设计。具体供应商仍须固定 schema 支持子集、状态码映射、计量方法、余量与真实事件，并提供符合性证据。通用 interface 和共享机制已接受，缺的是具体 adapter 的采用与符合性，不是将完整能力延期。
 
