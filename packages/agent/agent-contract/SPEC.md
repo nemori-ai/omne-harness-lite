@@ -218,19 +218,93 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 ## 声明判断
 
-本节只描述 Issue 273 已实现的可观察判断。[definition.md](docs/public-api/definition.md) 的其余部分按本页开头的状态接受，其实现状态以本节与[实施差异](verification/coverage.md#实施差异)为准。
+本节描述 `@omne-harness/agent-contract` 已经实现的判断函数的可观察行为。这些函数是纯函数：不读时钟，不产生随机值，不做 I/O，不执行输入中的函数或访问器。本页开头标注的其余设计已经接受。包根只导出它们的类型，不导出实现。
 
-公开入口是 `judgeAgentDefinition` 与 `judgeLoopExtensions`。成功结果是声明数据。单项拒绝只有 `kind` 与 `reason`。一批扩展被拒绝时还有 `index`。容器不合法时 `index` 为 0。某一项不合法时 `index` 是该项序号。原因包括 `malformed`、`duplicate-capability`、`unknown-attribute`、`unknown-position`、`unknown-power`、`dimension-missing`、`dimension-not-allowed`、`power-above-ceiling`、`executable`、`checker-failed`。
+设计在几处没有给出规则。实现阶段对这些缺口做了选择。本节把每一项标为“本交付自行设计的选择，待在 PR 中接受”。接受后删除该标注。
+
+### 定义与扩展声明
+
+公开入口是 `judgeAgentDefinition` 与 `judgeLoopExtensions`。成功结果是声明数据，即不与输入共享对象的冻结副本。单项拒绝只有 `kind` 与 `reason`。一批扩展被拒绝时还有 `index`。容器不合法时 `index` 为 0。某一项不合法时 `index` 是该项序号。
+
+拒绝原因共十四种：`malformed`、`duplicate-capability`、`unknown-attribute`、`unknown-position`、`unknown-power`、`dimension-missing`、`dimension-not-allowed`、`power-above-ceiling`、`needs-not-allowed`、`implementation-missing`、`error-policy-not-allowed`、`unavailability-not-allowed`、`executable`、`checker-failed`。设计只规定了 `needs`、`implementation`、`onError` 与 `unavailability` 的合法组合，没有给拒绝原因命名。后四个原因（`needs-not-allowed`、`implementation-missing`、`error-policy-not-allowed`、`unavailability-not-allowed`）是本交付自行设计的选择，待在 PR 中接受。它们沿用“一个字段一个原因”的既有写法，调用方不必读诊断文本。`judgeAgentDefinition` 只返回 `malformed`、`duplicate-capability`、`unknown-attribute`、`executable` 与 `checker-failed`。
 
 一次判断的整份输入，以及一批扩展的整份输入，都受这些限额约束。深度不超过 20。单个对象成员不超过 80。JSON 值个数不超过 200，容器计入，键不计入，第 201 个值拒绝。字符串不超过 10000。数字的 JSON 文本不超过 100。字节数是这一次判断的整份 JSON 文本的 UTF-8 长度，不超过 100000，一批扩展按整批文本计算。超过限额得到 `malformed`。整份文本超过限额时 `index` 为 0。`checker-failed` 只表示校验器故障，不表示输入写坏。内部编译预算不是调用方配置。
 
-`references` 与 `attributes` 必须是数组。空数组合法。缺席和 null 拒绝。同一 capability 的 category 与 name 至多一次。attribute 的成功结果只保留 `item`，允许的 item 是 `first_token_wait_limit`、`post_first_token_stall_limit`、`model`。未写版本的结果是 `then-legal-winner`。写明非空版本的结果是 `pinned`。本入口不读取资产库。
+`references` 与 `attributes` 必须是数组。空数组合法。缺席和 null 拒绝。同一 capability 的 category 与 name 至多一次。attribute 的成功结果只保留 `item`，允许的 item 是 `first_token_wait_limit`、`post_first_token_stall_limit`、`model`，常量 `ATTRIBUTE_ITEMS` 列出它们。未写版本的结果是 `then-legal-winner`。写明非空版本的结果是 `pinned`。本入口不读取资产库。
 
-扩展按提交顺序返回。`after_model_call` 要求 `dimension.ending`。`after_action` 要求 `dimension.scope`。`after_terminal` 的 power 上限是 `observe`。动作之后的位置不允许 `veto`。`source` 为 `workspace` 时 power 上限是 `observe`。函数、访问器、`Date`、装箱字符串和非有限数字拒绝。判断不加载模块，也不返回权限或句柄。
+扩展按提交顺序返回。每项声明含 `name`、`position`、`power` 与 `implementation`，可含 `dimension`、`needs`、`onError` 与 `unavailability`。输入还可带来源提示 `source`，值是 `workspace` 或 `author`。`source` 只用于上限判断，不进入成功值，因为设计类型 `LoopExtensionDeclaration` 没有 `source` 字段。这个取舍是本交付自行设计的选择，待在 PR 中接受。其他成员一律得到 `malformed`。
 
-上面两段描述已实现的判断。它接受的位置集合、power 上限与声明字段是源码现状。设计目标是九处位置，声明另有 `needs`、`implementation`、`onError` 与 `unavailability` 四个字段。设计目标不按位置限制声明的 power，实际输出权限由声明上限与位置输出表共同裁定，见[扩展作者协议](docs/public-api/extensions.md#声明)。两者的差异登记在[实施差异](verification/coverage.md#实施差异)，实施时按该表修改源码与测试。
+位置必须是九处之一，否则得到 `unknown-position`。`power` 必须是三档之一，否则得到 `unknown-power`。任何位置都可以声明三档中的任一档。`source` 为 `workspace` 时 `power` 上限是 `observe`，超过得到 `power-above-ceiling`。`after_model_call` 要求 `dimension.ending`，`after_action` 要求 `dimension.scope`，缺失得到 `dimension-missing`。其他位置带 `dimension` 得到 `dimension-not-allowed`。
 
-装配包与资产包通过各自测试只导入这个公开入口。本成员不依赖这两个包。持续验证命令是各成员目录的 `pnpm test`。
+`needs` 是非空且互不相同的名称列表，否则得到 `needs-not-allowed`。`implementation` 缺席得到 `implementation-missing`。它是 `builtin`（带 `builtinName`）或 `command`（带 `host`、`dialect`、`event`、`command`，可带 `matcher` 与 ISO 8601 时长文本 `timeout`），其他形状得到 `malformed`。判断只检查时长文本，不把它转成数字。
+
+`onError` 的取值受位置与 `power` 限制。后置位置只允许 `ignore`。前置位置的 `observe` 只允许 `ignore`，`rewrite` 允许 `ignore` 与 `record`，`veto` 允许 `ignore`、`record` 与 `treat_as_veto`。取值不在这些范围内，或不是枚举成员，得到 `error-policy-not-allowed`。`unavailability` 是 `skip` 或 `veto`。`veto` 只允许 `power` 为 `veto` 且位置为前置位置的声明，否则得到 `unavailability-not-allowed`，取值不是枚举成员时同样如此。前置位置是 `before_compaction`、`before_model_call`、`before_action` 与 `before_terminal`。省略的可选字段在成功值里也省略，契约不补缺省值。
+
+一份声明有多处不合法时，判断返回第一处：先是结构问题，再依次是来源上限、维度、`needs`、`onError`、`unavailability`。函数、访问器、`Date`、装箱字符串和非有限数字拒绝。判断不加载模块，也不返回权限或句柄。
+
+### 扩展输出判断
+
+`judgeExtensionOutput` 判断扩展作者返回的 `output.value`。输入是位置、维度、用途、生效的干预力、触发、作者收到的 `subject` 与返回值。它同步执行，不抛出异常，成功值是不与输入共享对象的冻结副本。拒绝只有 `kind` 与十种原因之一：`malformed`、`position_unknown`、`power_unknown`、`dimension_missing`、`dimension_not_allowed`、`output_not_allowed_for_power`、`output_not_allowed_at_position`、`ask_at_forbidden_position`、`rewrite_touches_immutable`、`inject_source_mismatch`。这十种原因的类型是 `OutputRefusalReason`，与声明判断的原因分开，因为被拒收的输出是运行中扩展的错误，不是声明的错误。位置输出表是[扩展作者协议](docs/public-api/extensions.md#位置输出表)，`POSITION_OUTPUTS` 是它的机读形式。判断与这张表放在本包，因为表是契约页的唯一规则，Agent 的实现成员和方言适配器都要用它。这个归属是本交付自行设计的选择，待在 PR 中接受。
+
+判断按七步进行，返回第一个失败。
+
+1. 位置不是九处之一得到 `position_unknown`。干预力不是三档之一得到 `power_unknown`。
+2. `after_model_call` 与 `after_action` 要求对应的 `dimension`，缺失得到 `dimension_missing`。其他位置带 `dimension` 得到 `dimension_not_allowed`。这一步选出位置输出表的一行。`before_model_call` 的用途为 `main` 时取 `main` 行。用途缺失或为其他值时取更严的 `compaction` 行。
+3. 返回值复制为普通数据，并且必须是八种输出之一的封闭形状，否则得到 `malformed`。函数、访问器、循环引用、非有限数和超出限额的值都得到 `malformed`。`ask` 的卡片选项身份必须互不相同，`proposedRewrite.option` 必须指向其中一项。
+4. `inject` 的 `message` 必须带字符串 `id`、字符串 `role` 与数组 `blocks`。`role` 不是 `system_reminder` 得到 `inject_source_mismatch`。判断不检查 `Message` 的其他规则。
+5. 位置输出表：输出种类不在该行允许的输出里，得到 `output_not_allowed_at_position`。`ask` 出现在不允许 `ask` 的位置，得到 `ask_at_forbidden_position`。`retry` 只在 `trigger` 为 `first-content` 时合法。`trigger` 为 `final` 或缺失都得到 `output_not_allowed_at_position`。
+6. 输出种类超出生效干预力的上限，得到 `output_not_allowed_for_power`。
+7. `rewrite` 返回的 `subject` 在可改写字段之外，必须与作者收到的 `subject` 相等，否则得到 `rewrite_touches_immutable`。相等是普通数据的结构相等：键序无关，值为 `undefined` 的成员视为缺席。
+
+规格没有写明三处，实现取了更严的读法。这三处是本交付自行设计的选择，待在 PR 中接受。第一，`before_model_call` 的用途缺失时按 `compaction` 行判断。第二，`retry` 的 `trigger` 缺失时按非首内容前处理，即拒绝。第三，步骤 3 只查 `inject.message` 的形状，角色判断留给步骤 4，所以 `inject_source_mismatch` 可以到达。
+
+第 3 步的复制使用输出专用的限额 `OUTPUT_LIMITS`，与声明的限额分开。深度不超过 64。单个对象成员不超过 10000。JSON 值总数不超过 1000000。字符串不超过 10000000。数字的 JSON 文本不超过 100。常量还声明了 50000000 的字节上限，但复制不量字节，所以这一项不强制，是保留项。声明来自不受信的作者，所以声明限额小，用来防止滥用。输出来自进程内扩展或方言适配器，`rewrite` 的返回值本身就是整份请求，所以输出限额只防失控。这组数值是本交付自行设计的选择，待在 PR 中接受，声明判断保持原限额。
+
+### 身份解码与结构判定
+
+SPEC 要求所有 ID、Evidence 和 Authority 在边界验证，但设计没有给出身份文本规则。本包为每个品牌身份导出一个解码函数，另导出四个结构判定。这些函数和下面的规则是本交付自行设计的选择，待在 PR 中接受。身份文本规则与 Tool 契约相同。
+
+十四个解码函数是 `decodeAgentInstanceId`、`decodeStepId`、`decodeActionId`、`decodePassageId`、`decodeCardRoundId`、`decodeActionBatchId`、`decodeAgentExecutionId`、`decodeExecutionAttachmentId`、`decodeAgentRegistrationId`、`decodeAgentOperationId`、`decodeExecutionRevision`、`decodeInputId`、`decodeInputBatchId` 与 `decodeConsumptionId`。身份文本是可打印 ASCII，不含空格，长度从 1 到 `AGENT_IDENTITY_MAX_LENGTH`（256 个 UTF-16 码元）。解码函数接受 `unknown`，返回 `Outcome`。失败值是 `{ field, reason }`：`field` 是身份类型名，`reason` 是 `type`（不是字符串）、`empty`、`length` 或 `character`。成功值只是品牌类型。解码不证明实例、执行或登记存在，也不授予资格。
+
+四个结构判定是 `judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`。它们对 `unknown` 做封闭字段检查，返回 `Outcome`，失败值是 `{ field, reason }`。`reason` 是 `type`、`empty`、`unknown-field`、`missing` 或 `identity`。`field` 是出错的成员名。嵌套结构用路径，例如 `source.owner`。值不是对象时，`field` 是结构名。
+
+- `judgeAdoption` 要求恰好 `owner`、`name`、`revision`、`digest` 四个非空字符串。
+- `judgeEvidence` 要求恰好 `owner`、`record`、`revision`、`digest` 四个非空字符串。
+- `judgeAccess` 要求恰好 `principal` 与 `tenant`。主体的判定由调用方作为第二个参数注入，因为本包不知道主体是什么。租户必须是 legal-identity 铸造的 `TenantId`。主体失败保留其原因，`field` 加前缀 `principal.`。
+- `judgeAuthority` 要求恰好 `execution`、`executionAttachment`、`instance`、`generation` 与 `source`。前三项经各自的解码函数，失败是该成员的 `identity`。`generation` 是非空字符串。`source` 是 `Evidence`，它的失败 `field` 加前缀 `source.`。成员按类型声明的次序读取，返回第一个失败。
+
+判定只读普通对象的自有数据成员。数组、其他原型的实例、访问器、符号键，以及读取时抛出异常的对象，都得到 `type`。访问器不会被执行。成功值是冻结副本。判定只给出形状，不证明记录存在，也不证明来源。这些函数不抛出异常。
+
+### 资产正文契约
+
+`agentBodyContract()` 返回资产包 `BodyContract`，类别是 `AgentDefinition`。消费者向资产包的类别注册表登记它：`createCategoryRegistry().register(agentBodyContract())`。依赖方向是 agent-contract 依赖 assets，assets 不依赖 agent-contract，注册表不导入本包，沿资产 SPEC 的[类别提供方](../../assets/assets/SPEC.md#category-provider)。这个方向已由项目负责人裁定。登记由装配一侧执行，本包不持有注册表。
+
+正文是资产包 `readBodyText` 产生的 json-text 读树，函数只读这棵树，不读资产库和时钟。`schema` 是描述正文形状的读取文档，不是校验器。契约含三个函数。
+
+- `judge(body, context?)` 返回 `{ ok: true }` 或冻结的 `{ ok: false, rejected }`，不抛出异常。不是已登记读树的值得到 `incomplete-reference`。
+- `references(body, context?)` 按正文次序返回引用的能力身份。
+- `deriveDeclarations(body, context?)` 返回 `entries`，值是正文 `attributes` 中 `item` 的有序列表，没有重复。
+
+`references` 与 `deriveDeclarations` 在正文没有通过 `judge` 时抛出 `TypeError`，消息带拒绝词。
+
+正文规则与 `judgeAgentDefinition` 同源，同一组夹具在两个入口上得到相同的接受与拒绝。差别有两处。正文不带 `category` 键，因为注册表的键给出类别，带它得到 `unknown-field`。`context.capabilityName` 给出时，正文 `name` 必须与它相等。拒绝词共八个，规则见下表。一份正文有多处不合法时，判断返回先检查到的一处。次序是 `name` 与 `version`，然后 `references`，然后 `attributes`，最后是正文顶层的未知键。
+
+| 拒绝词 | 条件 |
+| --- | --- |
+| `incomplete-reference` | 正文不是对象，`name` 缺失、为空或不是字符串，`references` 缺失或不是数组，引用缺 `capability`，或能力的 category、name 不被资产包接受 |
+| `name-mismatch` | 注册表调用方给出能力名，且与正文 `name` 不同 |
+| `invalid-version` | `version` 存在，但不是非空字符串 |
+| `duplicate-capability` | 同一 category 与 name 的引用出现多次 |
+| `invalid-resident` | 引用的 `resident` 存在，但不是布尔值 |
+| `unknown-attribute` | `attributes` 缺失或不是数组，或某项的 `item` 不在 `ATTRIBUTE_ITEMS` 里 |
+| `duplicate-attribute` | 同一 `item` 出现多次 |
+| `unknown-field` | 正文、引用、能力或属性项里有未列出的键 |
+
+以下三处是本交付自行设计的选择，待在 PR 中接受。第一，`deriveDeclarations` 的 `entries` 取正文的 attribute 项。设计没有给出 AgentDefinition 的声明词汇，所以沿用上文已经固定的 attribute 词表，不新造概念。第二，嵌套对象里的未知键一律得到 `unknown-field`，与 `judgeAgentDefinition` 的严格对象一致。第三，`references` 与 `attributes` 缺失按拒绝处理，不视为空表，与上文“缺席和 null 拒绝”一致。
+
+### 验证入口
+
+装配包通过自己的测试导入这个公开入口。本成员依赖资产包，资产包不依赖本成员。持续验证命令是在成员目录运行 `pnpm test` 与 `pnpm typecheck`，测试文件见[测试说明](tests/README.md)。这些测试只证明纯判断与导出面，不证明推进、扩展执行、恢复、提供者或装配。
 
 
 <a id="342-主干运行契约候选"></a>
@@ -238,15 +312,15 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 ## 主干运行契约
 
-本节归集运行契约的行为。声明唯一归 [public-api](docs/public-api/README.md)，消费位置与外部协调者的前提归 [context](docs/context.md)，正常、失败与反例场景归[持续验证场景](verification/scenarios.md)。按源码包模板组织文档不授予生产支持。
+本节归集运行契约的行为。类型声明的唯一来源是源码，[public-api](docs/public-api/README.md) 导航到它。消费位置与外部协调者的前提归 [context](docs/context.md)，正常、失败与反例场景归[持续验证场景](verification/scenarios.md)。按源码包模板组织文档不授予生产支持。
 
-本节已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，前文已采用范围继续由本页开头的状态标明。接受不表示源码支持。既有根入口只实现定义与扩展声明判断；下面的求值、协调和实例接口尚未生产实现。
+本节已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，前文已采用范围继续由本页开头的状态标明。接受不表示实现完成。包根导出下面各节的类型，以及声明判断、扩展输出判断、身份解码与结构判定和资产正文契约。求值、协调和实例接口的实现，包括 Loop、Journal 提供者与 runtime，尚未提供。
 
 Agent 将明确事实求成下一步，再通过公开端口协调工作。外部协调者在外部拥有自己的业务关联和终态，通过提交参加者适配输入受理、保存与共同终结，这些概念不进入 Agent 核心。Model/Tool 拥有真实执行。Agent 的纯求值、可恢复 execution 与可复用 runtime 分别表达。对象与层次关系见[共同模型](https://github.com/nemori-ai/omne-harness-lite/blob/a69de04ae9b70f299ff74dd2b10343172433bc6c/docs/architecture/runtime/runtime-contract-model.md)。
 
 ### 身份、原位置与纯求值
 
-下列代码块组成同一份声明。Model、Tool 导入指向各原拥有者的 public-api；Agent 自有值和窄端口不导入任何外部协调者的类型，不表示当前包根已经导出。既有 AgentDefinition 直接复用已公开类型。`Position`、`Power` 与 `LoopExtensionDeclaration` 使用[扩展作者协议](docs/public-api/extensions.md#声明)定义的设计目标类型，不复用源码现有的同名类型，二者的差异见[实施差异](verification/coverage.md#实施差异)。落地时由各原拥有者公开，不能在 Agent 复制这些接口或用私有源码代替。
+公开类型的源码由[公开接口页](docs/public-api/README.md)导航。Model、Tool 的名称来自各原拥有者的根入口。Agent 自有值和窄端口不导入任何外部协调者的类型。`AgentDefinition` 的类型在 `src/definition.ts`。`Position`、`Power` 与 `LoopExtensionDeclaration` 是[扩展作者协议](docs/public-api/extensions.md#声明)规定的类型，在 `src/extensions.ts`。Agent 不复制 Model 或 Tool 的接口，也不用私有源码代替它们。
 
 [本节定义](docs/public-api/README.md#身份原位置与纯求值)。
 

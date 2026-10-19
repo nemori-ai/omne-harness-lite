@@ -1,23 +1,42 @@
-PACKAGE_TEMPLATE_DRAFT
-
 # agent-contract
 
 ## Responsibility and status
 
-Domain values, operations, results, behavioral obligations, and replaceable provider ports. Agent declaration types and the two declaration judges are implemented. The designs of the runtime APIs are accepted. The runtime APIs are not implemented.
+This package holds the contract of the Agent capability: domain values, operations, results, behavior obligations, and replaceable provider ports. The design is [accepted](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204).
+
+The package exports these items:
+
+- All contract types, for definitions, extensions, identities, evaluation, requests, passages, execution, and the Journal.
+- Five constants: `ATTRIBUTE_ITEMS`, `POSITIONS`, `POWERS`, `POSITION_OUTPUTS`, and `AGENT_IDENTITY_MAX_LENGTH`.
+- Three judgment functions: `judgeAgentDefinition`, `judgeLoopExtensions`, and `judgeExtensionOutput`.
+- The asset body contract `agentBodyContract`.
+- Fourteen identity decoders, named `decode*`, and four structure judgments: `judgeAdoption`, `judgeEvidence`, `judgeAccess`, and `judgeAuthority`.
+
+The package does not implement the progression Loop, the evaluator, the runtime, the Journal provider, or the host plugin. The interfaces of these parts exist as types only. No provider implements them. Providers and the host plugin belong to [agent](../agent/README.md), [agent-host-local](../agent-host-local/README.md), and the provider packages.
 
 ## Usage
 
 ```ts
-import { judgeAgentDefinition } from '@omne-harness/agent-contract'
-const result = await judgeAgentDefinition(raw)
+import { decodeStepId, judgeAgentDefinition } from '@omne-harness/agent-contract'
+
+const definition = await judgeAgentDefinition(raw)
+const step = decodeStepId(text)
 ```
 
-`raw` is declaration input supplied by the caller. The [SPEC](SPEC.md#声明判断) owns limits and refusal categories.
+`raw` and `text` are unknown input from the caller. Each function returns a refusal with a named reason instead of throwing. The [SPEC](SPEC.md#声明判断) owns the limits, the refusal reasons, and the identity rules.
+
+A consumer registers the body contract with the asset category registry:
+
+```ts
+import { createCategoryRegistry } from '@omne-harness/assets'
+import { agentBodyContract } from '@omne-harness/agent-contract'
+
+createCategoryRegistry().register(agentBodyContract())
+```
 
 ## Contracts
 
-The [SPEC](SPEC.md) owns behavior. The [API page](docs/public-api/README.md) separates actual exports from designed interfaces.
+The [SPEC](SPEC.md) owns behavior. The [API page](docs/public-api/README.md) is a navigation page to the source files. The source files own the types.
 
 ## Design
 
@@ -25,11 +44,11 @@ The [architecture](docs/architecture.md) owns mechanisms and dependency decision
 
 ## Configuration and operation
 
-Pass business identities as operation inputs. Pure contract and implementation packages do not install Cordis. [Cordis integration](docs/cordis.md) describes binding ownership and lifecycle rules.
+Pass business identities as operation inputs. The package does not install Cordis and does not depend on a concrete host. It depends on `assets` for the body contract, and `assets` does not depend on this package. [Cordis integration](docs/cordis.md) describes binding ownership and lifecycle rules.
 
 ## Verification
 
-Run `pnpm test` and `pnpm typecheck` in this directory. Declaration tests verify existing behavior. Empty-entry tests only verify the scaffold. They do not establish runtime support.
+Run `pnpm test` and `pnpm typecheck` in this directory. `pnpm test` builds the package first. The tests cover the declaration judgments, the output judgment, the identity decoders and structure judgments, the body contract, the export set, and the dependency direction. The [test page](tests/README.md) lists the files. These tests do not prove the runtime, a provider, the assembly, or the Cordis integration.
 
 ## Maintenance
 

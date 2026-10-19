@@ -42,7 +42,7 @@ flowchart LR
   Runtime --> HITL[原扩展卡片]
 ```
 
-独立消费与 Harness 接入的设计形状见[公开接口页](public-api/README.md)，当前实际导出与设计分开标明。需要托管状态的路径必须具备相应提供者，纯独立路径不创建任何外部协调者的对象。装配依赖和资源撤除见 [Cordis](../../agent-cordis-contract/docs/cordis.md)。
+独立消费与 Harness 接入的设计形状见[公开接口页](public-api/README.md)，它导航到导出这些类型的源码。包只导出类型，没有提供者实现。需要托管状态的路径必须具备相应提供者，纯独立路径不创建任何外部协调者的对象。装配依赖和资源撤除见 [Cordis](../../agent-cordis-contract/docs/cordis.md)。
 
 ### 装配与包依赖
 
