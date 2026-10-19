@@ -1,4 +1,4 @@
-// `make check` 里按计划执行的几步：pytest、构建、类型检查、成员测试（快慢两层）、可执行验收；
+// `pnpm run check` 里按计划执行的几步：pytest、构建、类型检查、成员测试（快慢两层）、可执行验收；
 // 以及它们共用的「跑一批成员的脚本并写耗时账本」。计划由 `scope.ts` 算（受影响的成员由 turbo 给出），
 // 这里只照着执行、照实说跳了什么。构建、类型检查与成员测试交给 turbo，可执行验收仍由本工具逐成员跑。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
@@ -149,7 +149,7 @@ export function pythonStep(root: string, file: PlanFile): number {
   console.log(`pytest：跑——${file.plan.python.reason}`)
   const runner = process.env['OMNE_RUNNER_ROOT']
   return runner === undefined
-    ? spawnInherited(root, 'make', ['--no-print-directory', 'test'])
+    ? spawnInherited(root, 'pnpm', ['--silent', 'run', 'test:python'])
     : spawnInherited(root, 'uv', [
         'run',
         '--project',
@@ -292,7 +292,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
     runDir,
   })
   if (ledger.failures.length > 0)
-    summary.push(`对这些失败做隔离重跑：make test-triage RUN=${runDir}`)
+    summary.push(`对这些失败做隔离重跑：pnpm run test:triage --run ${runDir}`)
   writeFileSync(
     join(runDir, 'ledger.json'),
     `${JSON.stringify({ meta: { ...meta, wallSeconds: Math.round(wallSeconds) }, ...ledger } satisfies LedgerFile, null, 1)}\n`,

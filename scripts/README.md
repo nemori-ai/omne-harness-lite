@@ -11,16 +11,20 @@
 | [package-cli.sh](package-cli.sh) | 把 `@omne-harness/cli` 构建到临时目录，把其中的 `dist/` 写入一个尚不存在的绝对路径 `.tar.gz`。不删除、不写入 `apps/cli/dist`，不安装、不上传 |
 | [check.sh](check.sh) | 定位仓库根，先取一个运行名额，算基线以来改动的影响面并打印计划，再依次运行常驻检查与计划里的各步，最后是严格模式的回路状态；任一步失败即停止并返回非零 |
 | [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
+| [slot-unless-plan-only.sh](slot-unless-plan-only.sh) | 根脚本 `test:affected` 与 `mutation` 的入口：实际运行时取一个运行名额，带 `--plan-only` 只列范围时不取 |
+| [test-tier.sh](test-tier.sh) | 根脚本 `test:tier` 的入口：取一个运行名额，先构建，再跑全部成员的一层。层必须给 `fast`、`slow` 或 `all`，缺层或层名不对时退出 2 |
+| [check-design.sh](check-design.sh) | 根脚本 `check:design` 的入口：先核对设计源，再核对领域对象。`--stale <值>` 只交给第二条 |
+| [metrics.sh](metrics.sh) | 根脚本 `metrics` 的入口：参数原样交给钉住的 `omne-metrics`。带 `--coverage` 时取一个运行名额；没给 `--plan` 时先用测试运行器算一份计划（`--base` 交给计划，`FULL=1` 给全量），再以 `--plan` 交给 `omne-metrics` |
 | [format.sh](format.sh) | 用根配置 `.oxfmtrc.json` 和本地锁定的 oxfmt 检查或写入受维护文件；`staged` 模式只检查 Git index blob |
 | [git-environment.sh](git-environment.sh) | 为显式仓库、独立 fixture 和 staged 命令提供各自的 Git 环境边界 |
 | [test-formatting.sh](test-formatting.sh) | 在临时独立 Git 仓库验证格式范围、幂等、部分暂存和 hook 安装边界 |
 | [install-format-hook.sh](install-format-hook.sh) | 显式安装格式化 pre-commit hook；发现已有 hook 时拒绝覆盖 |
 | [model-probe.mjs](model-probe.mjs) | 模型适配探针入口；公开目录检查与显式付费实验，预算、凭据和结果要求见 [model-probe](../tools/model-probe/README.md) |
 
-安装 Bash、Make、uv、Node/npm/pnpm 并按[验证规范](../docs/verification.md)准备环境后，
-在根执行 `pnpm run check`、`make check` 或 `./scripts/check.sh`，三者等价。脚本也可通过绝对路径从其他目录调用。
-需要比较冻结基线时使用 `make check BASELINE=<git-ref>` 或
-`BASELINE=<git-ref> ./scripts/check.sh`；要全量用 `make check FULL=1` 或 `FULL=1 ./scripts/check.sh`；脚本不接受位置参数。
+安装 Bash、uv、Node/npm/pnpm 并按[验证规范](../docs/verification.md)准备环境后，
+在根执行 `pnpm run check` 或 `./scripts/check.sh`，两者等价。脚本也可通过绝对路径从其他目录调用。
+需要比较冻结基线时使用 `BASELINE=<git-ref> pnpm run check` 或
+`BASELINE=<git-ref> ./scripts/check.sh`；要全量用 `FULL=1 pnpm run check` 或 `FULL=1 ./scripts/check.sh`；脚本不接受位置参数。
 基线在脚本开头解析一次（没给就用 `origin/main`，本地没有这个引用就用 `main`）并导出为 `BASELINE`，
 影响面与最后的回路状态共用它。
 
@@ -28,10 +32,10 @@
 
 脚本先跑 `tools/test-runner/src/testing/cli.ts plan`：按 [test-runs.config.json](../tools/test-runner/test-runs.config.json) 的 `affected` 规则
 给每个改动文件归类，打印判成什么、每一步跑还是跳、选中哪些成员与为什么，计划写进被忽略的 `tmp/check-plan/plan.json`
-（算不出计划就在这里失败，不改判全量；`make check-plan` 只打印不跑）。之后的顺序是：
+（算不出计划就在这里失败，不改判全量；`pnpm run check:plan` 只打印不跑）。之后的顺序是：
 
-1. 常驻：`agents-check`、`docs-check`、`design-check`；
-2. 按计划：`make test`（pytest）；
+1. 常驻：`check:agents`、`check:docs`、`check:design`；
+2. 按计划：`pnpm run test:python`（pytest）；
 3. 常驻：`pnpm run format:check`、`pnpm run test:format`；
 4. 按计划：构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）、类型检查、成员测试——被选中成员的快层再慢层（[分层](../tools/test-runner/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」；
 5. 常驻：`pnpm run lint:rules`（也核[验收的覆盖声明](../tools/product-checks/README_ZH.md#验收的覆盖声明)与提交署名）；
@@ -40,14 +44,13 @@
    现在只有 `apps/cli` 一份，约 10～16 秒。
 
 判全量时（全局文件改了、有规则不认得的路径、`FULL=1`）计划选中全部成员，全部步骤对全部成员跑。构建与类型检查仍经 turbo 执行。
-合并后没有自动补跑，也没有定时任务：全量由负责人不定时让一个会话手动跑 `make check FULL=1`。
-根 `pnpm run check` 与 `make check` 等价，都运行本脚本。原来单独的产品检查链与 `make product-check` 已删除。
+合并后没有自动补跑，也没有定时任务：全量由负责人不定时让一个会话手动跑 `FULL=1 pnpm run check`。
 
-最后一步是 `make loop-status STRICT=1 BASE=<基线> OUT=tmp/loop-status-check`：方向与环、验收锁、
+最后一步是 `pnpm run loop:status --strict --base <基线> --out tmp/loop-status-check`：方向与环、验收锁、
 开着的传感器都有数据（验收被计划跳过时认上一步的记录），破一个就失败（见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md#回路状态)）。
 基线就是脚本开头解析的那一个；HEAD 就是那个提交时照跑，新增依赖为 0。
 它只读源码、git 与上一步的验收耗时记录，放最后是让前面的失败先报；产物写进被 git 忽略的 `tmp/loop-status-check/`（每次先清掉），
-回路目录里什么都不写。这一步约 30 秒，大头是重复代码检测。单独跑这一步时，要先在同一个提交上跑过 `make acceptance`（或 `make check` 的验收一步留下过记录），否则验收耗时传感器没数据、严格模式判失败。
+回路目录里什么都不写。这一步约 30 秒，大头是重复代码检测。单独跑这一步时，要先在同一个提交上跑过 `pnpm run acceptance`（或 `pnpm run check` 的验收一步留下过记录），否则验收耗时传感器没数据、严格模式判失败。
 
 格式化命令由根 `package.json` 提供：`pnpm format:check` 检查完整受维护范围，
 `pnpm format:write` 写入该范围；两者后接 `-- <仓库相对文件...>` 可收窄到明确文件。
@@ -59,7 +62,7 @@
 `staged` 和已安装的 pre-commit 保留调用者选择的 `GIT_INDEX_FILE`，只清其余七项。非空相对 index 在改变工作目录前按调用目录转为绝对路径；未设置时仍由 Git 定位默认 index。格式检查只读 index，支持 linked worktree。复制格式脚本时须同时复制 `git-environment.sh`；已安装的 pre-commit 自带启动隔离，不依赖 hook 目录中的相邻文件。持续回归见 [格式环境测试](../tools/repo-toolchain/tests/formatting-environment.spec.ts)。
 
 远程发布或部署入口新增时按真实目标明确输入、产物和外部副作用。
-形式工具环境单独使用 `make formal-tools` 检查；检查覆盖与未覆盖的含义以验证规范为准。
+形式工具环境单独使用 `pnpm run check:formal-tools` 检查；检查覆盖与未覆盖的含义以验证规范为准。
 
 ## 运行名额
 
@@ -69,9 +72,10 @@
 实现在 [with-test-slot.mjs](with-test-slot.mjs)，只用 Node 标准库，macOS、Linux 与 Windows 通用；
 `with-test-slot.sh` 只转发给它。不经 shell 时可直接运行 `node scripts/with-test-slot.mjs <命令> [参数…]`。
 
-经它执行的入口：`make check` 与根 `pnpm run check`（整套占一个名额）、根 `pnpm run test` 与 `pnpm run test:gate`、
-`make test-affected`、`make test-tier`、`make test-triage`、`make mutation`、`make metrics COVERAGE=1`。已经持有名额的进程再调用它
-（例如 `make check` 里嵌着的测试一步）直接放行，不重复排队。名额随持有它的进程退出而释放，
+经它执行的入口：根 `pnpm run check`（整套占一个名额）、`pnpm run test`、`pnpm run test:gate`、
+`pnpm run test:affected`、`pnpm run test:tier`、`pnpm run test:triage`、`pnpm run acceptance`、`pnpm run mutation`、`pnpm run metrics --coverage`；
+`test:affected` 与 `mutation` 带 `--plan-only` 时不占名额。已经持有名额的进程再调用它
+（例如 `pnpm run check` 里嵌着的测试一步）直接放行，不重复排队。名额随持有它的进程退出而释放，
 进程被杀也不会留下卡死的锁。
 
 **先来后到**：进队时领一张号（锁目录里的 `ticket-<号>`），名额空出时只有号码最小的那张活票去拿，
@@ -118,7 +122,7 @@
 
 正式 `Check` 工作流当前停用。[check.yml](../.github/workflows/check.yml) 只保留手动触发，仓库设置也将这份工作流停用。仓库的 Actions 服务已启用，有在线自托管 runner 和临时分支试验工作流；它们不构成 `main` 或 PR 的正式检查。
 
-合并前，在待合并的提交上计算影响面，再运行所需检查。`make check` 已按共同配置生成影响面计划；用 `make check-plan` 核对选中的范围、依据与跳过条件。实际结果写进 PR，规则归[整洁回路](../docs/clean-loop.md#回路怎么转)。
+合并前，在待合并的提交上计算影响面，再运行所需检查。`pnpm run check` 已按共同配置生成影响面计划；用 `pnpm run check:plan` 核对选中的范围、依据与跳过条件。实际结果写进 PR，规则归[整洁回路](../docs/clean-loop.md#回路怎么转)。
 
 主干与记录标签的平台保护归[多层集成](../docs/engineering/integration.md#现行准入)。本地检查不能代替平台门禁。
 
@@ -126,8 +130,8 @@
 
 | 触发 | 做什么 |
 |---|---|
-| 启用 `Check` 后可手动触发；恢复自动触发后另有 PR、推送到 `main` | 全新检出 → 安装依赖 → 编译 agent 生成物 → `make check` → `make metrics`（以 PR 基线或推送前的提交为 `BASE`）。度量步骤失败不改变检查结论 |
-| 启用 `Check` 后手动触发并勾选 coverage；恢复自动触发后另有每天 03:00（Asia/Shanghai） | 构建后对全部成员跑 `make metrics COVERAGE=1` |
+| 启用 `Check` 后可手动触发；恢复自动触发后另有 PR、推送到 `main` | 全新检出 → 安装依赖 → 编译 agent 生成物 → `pnpm run check` → `pnpm run metrics`（以 PR 基线或推送前的提交为 `--base`）。度量步骤失败不改变检查结论 |
+| 启用 `Check` 后手动触发并勾选 coverage；恢复自动触发后另有每天 03:00（Asia/Shanghai） | 构建后对全部成员跑 `pnpm run metrics --coverage` |
 
 任务跑在**自托管 runner** 上（标签 `self-hosted`、`linux`）。工作流自己安装 Node、pnpm 与 uv，
 不依赖 runner 用户的登录环境；它不读任何 `.env`，需要付费模型凭据的测试因此照常跳过。
@@ -139,7 +143,7 @@ runner 与别的任务共用主机，并行度过高时本来一两秒的用例�
 测试并行度的初值在 [test-runs.config.json](../tools/test-runner/test-runs.config.json)，本地与 CI 同用一份；
 runner 主机核数不同时，设仓库变量 `OMNE_TEST_MEMBER_CONCURRENCY`（同时跑几个成员）与
 `OMNE_VITEST_MAX_WORKERS`（每个成员几个工作进程），留空即用初值。本地临时调整用环境变量
-`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS`。`make check` 自带运行名额，
+`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS`。`pnpm run check` 自带运行名额，
 runner 上的任务与同一用户在主机上手工起的全量检查会互相排队。
 耗时账本留在 runner 主机的 `$OMNE_TEST_LEDGER_HOME`（仓库变量；留空则落在检出目录的 `tmp/test-ledger/`，
 随下一次全新检出被清掉）。

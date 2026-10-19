@@ -1,5 +1,5 @@
 // 传感器金丝雀：夹具里每个传感器各种了一处已知违规（见 fixtures/loop-canary/README.md），
-// 走与 `make loop-status STRICT=1` 相同的入口，逐项断言每个传感器都报出了种下的那一处。
+// 走与 `pnpm run loop:status --strict` 相同的入口，逐项断言每个传感器都报出了种下的那一处。
 // 哪个传感器悄悄失灵（读错目录、范围漏了、算法改坏），这里会指名变红。
 import type { DependencyFinding } from '../src/deps/graph.ts'
 import { readFileSync, rmSync } from 'node:fs'

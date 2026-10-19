@@ -332,13 +332,9 @@ function cliAt(root: string, ...args: string[]) {
 
 describe('入口的参数', () => {
   it('--base、--plan 与 --members 只能给一个；不是产品成员的拒绝', () => {
-    expect(cli('run', '--plan-only').status).toBe(2)
     expect(cli('run', '--base', 'HEAD', '--members', 'apps/cli', '--plan-only').status).toBe(2)
     expect(cli('run', '--plan', 'plan.json', '--base', 'HEAD', '--plan-only').status).toBe(2)
     expect(cli('run', '--plan', 'plan.json', '--members', 'apps/cli', '--plan-only').status).toBe(2)
-    expect(cli('run', '--plan', 'plan.json', '--default-base', '--plan-only').stderr).toContain(
-      '--default-base 只能',
-    )
     const tool = cli('run', '--members', 'tools/repo-toolchain', '--plan-only')
     expect(tool.status).toBe(2)
     expect(tool.stderr).toContain('只变异产品源码')
@@ -354,11 +350,11 @@ describe('入口的参数', () => {
     expect(planned.stdout).toMatch(/packages\/core\/canary：1 个文件/u)
   })
 
-  // 缺省基线：有任务上下文时取它固定的基线，否则 main，与 test-affected 相同。
-  it('不给计划文件时按基线在本仓库现算计划', { tags: ['slow'], timeout: 120_000 }, () => {
+  // 缺省基线：有任务上下文时取它固定的基线，否则 main，与 test:affected 相同。
+  it('不给范围时按缺省基线在本仓库现算计划', { tags: ['slow'], timeout: 120_000 }, () => {
     const ran = spawnSync(
       process.execPath,
-      ['--experimental-strip-types', CLI, 'run', '--default-base', '--plan-only'],
+      ['--experimental-strip-types', CLI, 'run', '--plan-only'],
       { encoding: 'utf8' },
     )
     expect(ran.status, ran.stderr).toBe(0)

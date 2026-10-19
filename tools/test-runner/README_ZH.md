@@ -6,18 +6,18 @@
 
 ## 测试运行
 
-`src/testing/` 是本包的第三入口：算一次改动的影响面（`make check` 的执行计划）、决定跑哪些成员的测试、以多大的并行度跑、把时间花在哪记成账本、
+`src/testing/` 是本包的第三入口：算一次改动的影响面（`pnpm run check` 的执行计划）、决定跑哪些成员的测试、以多大的并行度跑、把时间花在哪记成账本、
 失败之后单独重跑归类。它替代了根脚本里原先的 `pnpm -r run test`。同一个运行器也跑成员的可执行验收（`--script acceptance`）。
 
 ```sh
-make check-plan [BASE=<基线>]              # 只算影响面并打印计划：判成什么、每一步跑还是跳、选中谁与为什么；FULL=1 全量
-make test-affected BASE=<基线提交或分支>   # 只构建并测试受这次改动影响的成员的快层；BASE 缺省 main，TIER=slow|all 换层
-make test-affected BASE=<基线> PLAN=1     # 只列受影响范围与层，不构建也不运行
-make test-tier TIER=slow                   # 先构建，再跑全部成员的某一层
-make test-triage RUN=<运行目录>            # 把那次运行里的失败逐条单独重跑并归类（测试或验收的运行都行）
-pnpm run test                              # 全量两层：turbo 先构建，再跑全部成员（同 make test-tier TIER=all）
-pnpm run test:gate                         # make check 的测试一步：按影响面计划跑被选中成员的快层再慢层（基线 BASELINE，缺省 main；FULL=1 全部）；单独运行时由 turbo 先构建
-make acceptance                            # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；NO_BUILD=1 不构建
+pnpm run check:plan [--base <基线>]                 # 只算影响面并打印计划：判成什么、每一步跑还是跳、选中谁与为什么；FULL=1 全量
+pnpm run test:affected --base <基线提交或分支>       # 只构建并测试受这次改动影响的成员的快层；不给 --base 时取任务上下文的基线，再缺省 main；--tier slow|all 换层
+pnpm run test:affected --base <基线> --plan-only     # 只列受影响范围与层，不构建也不运行
+pnpm run test:tier slow                             # 先构建，再跑全部成员的某一层
+pnpm run test:triage --run <运行目录>                # 把那次运行里的失败逐条单独重跑并归类（测试或验收的运行都行）
+pnpm run test                                       # 全量两层：turbo 先构建，再跑全部成员（同 pnpm run test:tier all）
+pnpm run test:gate                                  # pnpm run check 的测试一步：按影响面计划跑被选中成员的快层再慢层（基线 BASELINE，缺省 main；FULL=1 全部）；单独运行时由 turbo 先构建
+pnpm run acceptance                                 # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；--no-build 不构建
 ```
 
 **分层。**测试分快慢两层，定义只在仓库根 [`vitest.tiers.mts`](../../vitest.tiers.mts) 写一处：一个 `slow` 标签（带慢层时限 120 秒），
@@ -37,8 +37,8 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 **验收**（`run --all --script acceptance`）：选的是 `package.json` 里有 `acceptance` 脚本的成员（同样排除 `affected.excludeRoots` 和 `.legacy` 目录），
 逐个跑 `pnpm run acceptance`，并行度、vitest 的 JSON 报告、账本格式都与测试相同。计时报告器的输出路径只能写在配置里，所以验收的账本没有导入耗时，贴线按 vitest 默认时限判；账本根另放在主检出的 `tmp/acceptance-ledger/`
 （`OMNE_ACCEPTANCE_LEDGER_HOME` 可改），不混进体检页读的测试账本。每份 `ledger.json` 的 `meta.script` 写着跑的是哪一种，
-`triage` 照它经同一个脚本重跑（`pnpm run <脚本> <文件> -t …`，验收的那份带着自己的 vitest 配置）。`--all` 缺省不构建（由调用方先构建），
-给 `--build` 才构建；`--base` 缺省构建，`--no-build` 跳过。`make check` 不调 `make acceptance`，而是按计划跑 `step acceptance`：
+`triage` 照它经同一个脚本重跑（`pnpm run <脚本> <文件> -t …`，验收的那份带着自己的 vitest 配置）。验收的 `--all` 缺省先构建，`--no-build` 跳过。
+测试的 `--all` 缺省不构建（由调用方先构建），给 `--build` 才构建；`--base` 缺省构建，`--no-build` 跳过。`pnpm run check` 不调 `pnpm run acceptance`，而是按计划跑 `step acceptance`：
 只跑被选中、带验收的成员（驱动前面构建好的 `dist/`，不再构建），任何一份不过整套检查就失败；一个都没有时记一份「跳过」的账本（见[验收耗时](../repo-toolchain/README_ZH.md#验收耗时)）。
 
 **影响面怎么算**（`src/testing/scope.ts` 归类改动文件，`src/testing/turbo.ts` 调 turbo 选成员；规则在 `test-runs.config.json` 的 `affected`）。改动文件取基线合并点到当前工作树的全部差异，
@@ -58,7 +58,7 @@ make acceptance                            # 构建有 acceptance 脚本的成�
    成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）在这里归「只需常驻检查」，但 turbo 仍选中那个成员，计划里标「只改了文档」；
    这比原先「成员文档不算改动」多跑，不少跑。`tests/` 等其余目录里的 `.md` 可能是夹具
    （本包 `loop-canary.spec.ts` 就改写夹具里的 README 再断言），照成员改动算；
-4. **Python 工具**（`pythonPaths`）：跑 pytest；根 `Makefile` 也在这一类——`make check` 只经它跑常驻的几步与 `make test`，成员测试不经 make；
+4. **Python 工具**（`pythonPaths`）：跑 pytest；
 5. **只需常驻检查**（`residentPaths`）：文档、设计区、research、`examples/`、`.github/`、格式配置、`tools/model-probe/` 等；
 6. 其余（没有规则认得的，如 `.gitignore`）：整份计划判全量，理由点名前几个文件与总数。
 
@@ -80,12 +80,12 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 改规则前后用它看「判全量的有几个、该不该全量」。
 
 **不能声称**：没被选中的成员通过；测试读了某个路径却没写进读者规则，改它时就漏选——规则是查出来的现状，不是机器推导的，
-新增一处这样的读取要同时补一条规则；环境变量、外部服务与时间不在影响面里。合并后没有自动补跑，全量由负责人不定时让一个会话手动跑 `make check FULL=1`。
+新增一处这样的读取要同时补一条规则；环境变量、外部服务与时间不在影响面里。合并后没有自动补跑，全量由负责人不定时让一个会话手动跑 `FULL=1 pnpm run check`。
 自测：`tests/affected.spec.ts` 用真实规则与一份造出来的成员清单核对各类改动的判法，另在临时仓库核对改名与非 ASCII 文件名。
 
-**怎么跑。**`make test-affected` 先用 turbo 把目标成员连同它们的依赖构建一遍（测试执行的是依赖的 `dist/`；
-`make check` 则由前面的构建一步按计划构建）。然后运行器调用一次 `turbo run <层的任务> --continue=dependencies-successful`。
-调用方已经构建过时（`make check` 的测试一步、`run --all` 不带 `--build`）带 `--only`，只跑测试任务；
+**怎么跑。**`pnpm run test:affected` 先用 turbo 把目标成员连同它们的依赖构建一遍（测试执行的是依赖的 `dist/`；
+`pnpm run check` 则由前面的构建一步按计划构建）。然后运行器调用一次 `turbo run <层的任务> --continue=dependencies-successful`。
+调用方已经构建过时（`pnpm run check` 的测试一步、`run --all` 不带 `--build`）带 `--only`，只跑测试任务；
 否则不带，turbo 按任务的 `dependsOn` 在同一次运行里先构建成员及其上游（准入模式下构建缓存只写不读）。
 构建失败的成员不跑测试，记为失败并点名失败的构建。`--concurrency` 取 `parallel.memberConcurrency`，每个成员的 vitest 至多起 `parallel.vitestMaxWorkers` 个工作进程。
 一个成员失败不拦其余的，结束时列全失败；退出码只反映测试是否全过。各成员的退出码与起止时间取自 turbo 的运行摘要（`--summarize`），
@@ -137,15 +137,15 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
 
 ## 差分变异
 
-`make mutation [BASE=<基线>]` 回答「这次改动碰到的代码，测试守不守得住」：把改动行上的代码逐处改坏（变异体），
+`pnpm run mutation [--base <基线>]` 回答「这次改动碰到的代码，测试守不守得住」：把改动行上的代码逐处改坏（变异体），
 看有没有测试因此失败。`src/mutation/` 是 [Stryker](https://stryker-mutator.io/) 10 与它的 vitest runner 上面薄薄的一层，
 变异算子、插桩、调度与判定都是 Stryker 的，这里只做三件事：
 
 - **范围**：先取计划，与准入检查、覆盖采集读同一份。`--plan <计划文件>` 读 `plan --json` 写出的计划（准入检查用 `tmp/check-plan/plan.json`），
-  计划不是对当前提交算的就报错；不给时按基线现算一份，基线规则与 `test-affected` 相同。计划写进运行目录的 `plan.json`。算完计划后工作树又改了计划外的成员时报错，要求重算计划。
+  计划不是对当前提交算的就报错；不给时按基线现算一份，基线规则与 `test:affected` 相同。计划写进运行目录的 `plan.json`。算完计划后工作树又改了计划外的成员时报错，要求重算计划。
   然后取计划的合并点到工作树（含未提交、未跟踪）的改动，取新一侧的行号（与[结构度量](../repo-toolchain/README_ZH.md#结构度量)同一份 diff 解析），
   只留计划里要跑测试的 `packages/`、`apps/` 成员 `src/` 下的源码（不含 `*.d.ts`），按成员写成 Stryker 的 `mutate` 条目 `文件:起-止`；
-  未跟踪的文件整份变异。`MEMBERS=<成员目录,…>` 改为变异点名成员 `src/` 下的全部源码。`PLAN=1` 只列范围。
+  未跟踪的文件整份变异。`--members <成员目录,…>` 改为变异点名成员 `src/` 下的全部源码。`--plan-only` 只列范围。
 - **运行**：先构建这些成员及其依赖，再逐成员调用 Stryker：成员目录为工作目录、只跑**快层**（sandbox 里的 vitest 配置以 mode `fast` 展开成员配置）、
   并行度取 `test-runs.config.json` 的 `parallel.vitestMaxWorkers`（环境变量 `VITEST_MAX_WORKERS` 可改）。
   sandbox 放在与成员**同深度**的 `.stryker-tmp-*` 目录（被 `.gitignore` 忽略）：不少测试用 `import.meta.dirname`
@@ -163,7 +163,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
   逐条列出存活与无覆盖的「文件:行 算子 原文 → 替换」。原件、`summary.md`、`summary.json` 与各成员日志写进
   主检出的 `tmp/mutation-ledger/<提交短号>[-dirty]/<时间>/`（环境变量 `OMNE_MUTATION_LEDGER_HOME` 可改）。
 
-**只报告**（负责人 2026-10-02 定）：变异体存活不影响退出码，不进 `make check`；Stryker 起不来、初跑失败、
+**只报告**（负责人 2026-10-02 定）：变异体存活不影响退出码，不进 `pnpm run check`；Stryker 起不来、初跑失败、
 没写出报告才退出 1，参数错退出 2。读数的边界：
 
 - 存活少不等于测试好：只量了改动行，没改的代码不在内；变异算子之外的错误写法量不到。

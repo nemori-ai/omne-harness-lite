@@ -18,7 +18,7 @@
 
 `scenarioStatuses(coverage)`只消费长期产品与持续覆盖输入。覆盖声明、执行、有效接受分别报告；没有实际执行或完整接受证据输入时保持`unknown`。零任务、无关联卡或声明覆盖不能作为已交付证据。
 
-`make scenario-status`运行长期产品观察；场景CLI拒绝`--config`与`--capture`参数。正常观察退出0；非法输入或工具错误退出2。根`make design-check`检查现行源、领域对象及生成输入，任务观察沿独立的交付模块运行。
+`pnpm run acceptance:scenarios`运行长期产品观察；场景CLI拒绝`--config`与`--capture`参数。正常观察退出0；非法输入或工具错误退出2。根`pnpm run check:design`检查现行源、领域对象及生成输入，任务观察沿独立的交付模块运行。
 
 ## 持续验证与边界
 

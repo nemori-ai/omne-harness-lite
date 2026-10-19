@@ -28,7 +28,7 @@ export BASELINE="$baseline"
 
 # 先算影响面：基线以来改了什么、每一步跑还是跳、跑哪些成员、为什么（规则在 tools/test-runner/test-runs.config.json）。
 # FULL=1 给全量计划；算不出（基线不存在、取不到改动、规则点名了不存在的成员）就在这里失败，不改判全量。
-# 合并后没有自动补跑：负责人不定时让一个会话手动跑一次 make check FULL=1。
+# 合并后没有自动补跑：负责人不定时让一个会话手动跑一次 FULL=1 pnpm run check。
 plan_dir=tmp/check-plan
 rm -rf "$plan_dir"
 test_runs=(node --experimental-strip-types tools/test-runner/src/testing/cli.ts)
@@ -38,9 +38,9 @@ step() {
 }
 
 # 常驻：每次都跑。
-make --no-print-directory agents-check
-make --no-print-directory docs-check
-make --no-print-directory design-check
+pnpm --silent run check:agents
+pnpm --silent run check:docs
+pnpm --silent run check:design
 # 按计划：Python 工具测试。
 step python
 pnpm run format:check
@@ -61,6 +61,6 @@ step acceptance
 
 # 它只读源码、git 与验收的耗时记录，放在最后是让前面的失败先报。产物写进被 git 忽略的 tmp/，回路目录里什么都不写。
 rm -rf tmp/loop-status-check
-make --no-print-directory loop-status STRICT=1 BASE="$baseline" OUT=tmp/loop-status-check
+pnpm --silent run loop:status --strict --base "$baseline" --out tmp/loop-status-check
 }
 omne_repository_command main "$@"

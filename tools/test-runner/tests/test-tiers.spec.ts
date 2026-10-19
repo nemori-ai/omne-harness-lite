@@ -316,6 +316,27 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
     expect(cli('run', '--all', '--plan-only').stdout).toContain('层：两层（all）')
   })
 
+  it('构建缺省：受影响范围与全量验收先构建，全量测试不构建；--build、--no-build 改写，同给退出 2', () => {
+    const built = '构建：先构建这些成员及其依赖'
+    const notBuilt = '构建：不构建（调用方已构建）'
+    expect(cli('run', '--base', 'HEAD', '--plan-only').stdout).toContain(built)
+    expect(cli('run', '--base', 'HEAD', '--no-build', '--plan-only').stdout).toContain(notBuilt)
+    expect(cli('run', '--all', '--plan-only').stdout).toContain(notBuilt)
+    expect(cli('run', '--all', '--build', '--plan-only').stdout).toContain(built)
+    expect(cli('run', '--all', '--script', 'acceptance', '--plan-only').stdout).toContain(built)
+    expect(
+      cli('run', '--all', '--script', 'acceptance', '--no-build', '--plan-only').stdout,
+    ).toContain(notBuilt)
+    expect(cli('run', '--all', '--build', '--no-build', '--plan-only').status).toBe(2)
+  })
+
+  it('不给 --base 与 --all：基线取 main（没有任务上下文时）', () => {
+    execFileSync('git', ['update-ref', 'refs/heads/main', 'HEAD'], { cwd: subject })
+    const ran = cli('run', '--plan-only')
+    expect(ran.status, ran.stderr).toBe(0)
+    expect(ran.stdout).toContain('影响面（基线 main')
+  })
+
   it('认不出的层、给验收指定层：退出 2 并说明', () => {
     const bad = cli('run', '--all', '--tier', 'medium', '--plan-only')
     expect(bad.status).toBe(2)

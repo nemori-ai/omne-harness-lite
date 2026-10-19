@@ -1,7 +1,7 @@
 // 验收耗时：这个提交上最近一次跑全了的可执行验收花了多久、最慢的一份花了多久、一共几份。
-// 读的是测试运行器以 `--script acceptance` 写下的账本（`make acceptance`，或 `make check` 里按计划跑的那一步），不自己跑验收。
+// 读的是测试运行器以 `--script acceptance` 写下的账本（`pnpm run acceptance`，或 `pnpm run check` 里按计划跑的那一步），不自己跑验收。
 // 没有任何成员有 `acceptance` 脚本时读数是「0 份」——这是量过了；有验收却找不到这个提交的记录才是没数据。
-// `make check` 的计划跳过了某些成员的验收时，账本的 `scope` 写明跳了谁、为什么：被跳过的成员算交代过了，
+// `pnpm run check` 的计划跳过了某些成员的验收时，账本的 `scope` 写明跳了谁、为什么：被跳过的成员算交代过了，
 // 读数带上「跳过」，一份都没跑时耗时指标如实是没数据，而不是 0 秒。
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -157,6 +157,6 @@ export function readAcceptanceTiming(at: AcceptanceLocation): Reading<Acceptance
   }
   if (skippedOnly !== undefined) return skippedOnly
   return noData(
-    `有 ${members.length} 个成员有验收，这个提交（${at.shortHead}${at.dirty ? '，工作树不干净' : ''}）却没有跑全它们的耗时记录（${cell}）：先跑 make acceptance`,
+    `有 ${members.length} 个成员有验收，这个提交（${at.shortHead}${at.dirty ? '，工作树不干净' : ''}）却没有跑全它们的耗时记录（${cell}）：先跑 pnpm run acceptance`,
   )
 }

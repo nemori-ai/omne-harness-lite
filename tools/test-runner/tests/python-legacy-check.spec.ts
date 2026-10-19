@@ -27,7 +27,7 @@ it.each(['local', 'runner'])(
   mode => {
     const root = mkdtempSync(join(tmpdir(), 'omne-python-legacy-'))
     roots.push(root)
-    put(root, 'Makefile', readFileSync(join(repository, 'Makefile'), 'utf8'))
+    put(root, 'package.json', readFileSync(join(repository, 'package.json'), 'utf8'))
     put(root, 'pytest.ini', '[pytest]\ntestpaths = tools/spec-tools/tests\n')
     for (const path of [
       'tools/spec-tools/tests',
