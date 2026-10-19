@@ -16,7 +16,19 @@
 
 [export-set.spec.ts](export-set.spec.ts) 把包入口的运行时导出排序后与写死的清单比较，并断言包内共享的辅助函数不在入口。[dependency-direction.spec.ts](dependency-direction.spec.ts) 沿构建后 `dist/index.js` 与 `dist/index.d.ts` 的导入图断言不含 Cordis、`agent`、`agent-host-local`、`agent-cordis-contract`，并断言 `package.json` 不声明它们；导入图的遍历在 [module-graph.ts](module-graph.ts)，它读文本而不用编译器接口。
 
-[body-contract.spec.ts](body-contract.spec.ts) 检查 `agentBodyContract` 经注册表登记与取回，以及同一组夹具在 `judge` 与 `judgeAgentDefinition` 上接受与拒绝一致、引用与声明项的提取顺序。
+[body-contract.spec.ts](body-contract.spec.ts) 检查 `agentBodyContract` 经注册表登记与取回，以及同一组夹具在 `judge` 与 `judgeAgentDefinition` 上接受与拒绝一致、引用与声明项的提取顺序，缺 category、缺 name 或不是对象的 capability。读树逐层冻结，手造的相似节点放不进真实读树，所以正文里更深一层的 `members === undefined` 守卫只有“元素不是对象”这一种可达输入。
+
+[limits.spec.ts](limits.spec.ts) 检查声明限额与输出限额的边界：字符串、深度、JSON 值个数、对象成员数在限额上和多一个时的拒绝，整份文本的字节数，循环引用，以及 `judgeExtensionOutput` 的深度 64、成员 10000、字符串 10000000、JSON 值 1000000。它放一个函数作探针：越过限额之前先到限额的输入得到 `malformed`，越过限额继续走的输入得到 `executable`，两者的差别晚一步的检查补不回来。数字文本的 100 个单位上限不可达（任何有限数的 JSON 文本不超过 24 个单位），所以没有边界测试。
+
+[input-copy.spec.ts](input-copy.spec.ts) 检查判断对输入取的副本拒绝什么：原型不是 `Array.prototype` 的数组、带非下标成员的数组、原型不是 `Object.prototype` 或 `null` 的对象、符号键、反射列出却描述不出的键；成员是函数或访问器时得到 `executable`，其余得到 `malformed`。
+
+[declarations.spec.ts](declarations.spec.ts) 检查成功值的成员：`attributes` 的每一项与次序、`resident` 只在给出时出现、命令实现的 `matcher` 与 `timeout` 只在给出时出现、两种 ending 与两种 scope、不是对象的 `dimension`、ISO 8601 时长文本的每个字段与前后缀。比较用 `toStrictEqual`，值为 `undefined` 的成员算缺陷。
+
+[judge-output-data.spec.ts](judge-output-data.spec.ts) 检查 `judgeExtensionOutput` 成功时八种输出的值（可选成员只在给出时出现、`cancelled` 终态、没有选项的卡片）、`after_action` 两行的差别，以及改写与原主体的比较：值为 `undefined` 的成员、数组增减与同长换项、数组与对象互换、对象与数字或 `null` 互换、可改写路径下不是对象的节点。比较前把值转成无原型的规范形，因为成功值的原型不是契约。
+
+## 维护
+
+按用例名挑测试的运行（`make mutation` 只跑快层，用 vitest 的 `preParse`）看不见生成用例（`describe.each`、`it.each`、循环里拼名字）的名字：只被生成用例覆盖的变异体会因没有用例被选中而显示为存活。要让这类行被变异测试量到，同一文件里要有一条字面名字的用例覆盖它。本目录新增的测试都用字面名字，[identity.spec.ts](identity.spec.ts) 末尾的字面名字用例就为这个目的而写。
 
 ## 边界
 

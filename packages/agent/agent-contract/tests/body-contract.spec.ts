@@ -348,6 +348,37 @@ describe('judge differences that come from the body entry', () => {
   })
 })
 
+describe('a capability that does not name both of its parts', () => {
+  const refused = { ok: false, rejected: 'incomplete-reference' }
+  const bodyWith = (capability: unknown) =>
+    bodyOf({ name: 'a', references: [{ capability }], attributes: [] })
+
+  it('is an incomplete reference when the category is missing, when the name is, and when both are', () => {
+    const { judge } = agentBodyContract()
+    expect(judge(bodyWith({ name: 's' }))).toEqual(refused)
+    expect(judge(bodyWith({ category: 'skill' }))).toEqual(refused)
+    expect(judge(bodyWith({}))).toEqual(refused)
+    expect(judge(bodyWith({ category: 'skill', name: 's' }))).toEqual({ ok: true })
+  })
+
+  it('is an incomplete reference when the capability is not an object', () => {
+    const { judge } = agentBodyContract()
+    for (const capability of [null, 'skill/s', 7, ['skill', 's']]) {
+      expect(judge(bodyWith(capability)), JSON.stringify(capability)).toEqual(refused)
+    }
+  })
+
+  it('is also an incomplete reference to the judgment of a whole definition, which calls it malformed', async () => {
+    const definition = await judgeAgentDefinition({
+      category: 'AgentDefinition',
+      name: 'a',
+      references: [{ capability: { name: 's' } }],
+      attributes: [],
+    })
+    expect(definition).toEqual({ kind: 'refused', reason: 'malformed' })
+  })
+})
+
 describe('references', () => {
   it('returns the capability identities in body order', () => {
     const ids = agentBodyContract().references(bodyOf(legal))

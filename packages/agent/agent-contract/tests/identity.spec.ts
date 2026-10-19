@@ -419,3 +419,52 @@ describe('judgeAccess', () => {
     expect(read).toBe(0)
   })
 })
+
+// The tests below have literal names on purpose. The decoders and the structures above are covered
+// by generated tests (`describe.each`), and a run that picks tests by name cannot see the names that
+// a generated test gets. These tests keep the refusal words under such a run.
+describe('the refusal words of the identity rules', () => {
+  it('names the rule that a decoder broke, with the identity type', () => {
+    expect(decodeStepId(5)).toEqual({ failure: { field: 'StepId', reason: 'type' } })
+    expect(decodeStepId('')).toEqual({ failure: { field: 'StepId', reason: 'empty' } })
+    expect(decodeStepId('a'.repeat(AGENT_IDENTITY_MAX_LENGTH + 1))).toEqual({
+      failure: { field: 'StepId', reason: 'length' },
+    })
+    expect(decodeStepId('a b')).toEqual({ failure: { field: 'StepId', reason: 'character' } })
+  })
+
+  it('names the structure and the member that a text structure broke', () => {
+    expect(judgeAdoption(ADOPTION)).toEqual({ ok: ADOPTION })
+    expect(judgeAdoption(5)).toEqual({ failure: { field: 'Adoption', reason: 'type' } })
+    expect(judgeAdoption({ ...ADOPTION, owner: 5 })).toEqual({
+      failure: { field: 'owner', reason: 'type' },
+    })
+    expect(judgeEvidence({ ...EVIDENCE, record: '' })).toEqual({
+      failure: { field: 'record', reason: 'empty' },
+    })
+    expect(judgeAdoption(Object.assign(Object.create(null), ADOPTION))).toEqual({ ok: ADOPTION })
+    expect(judgeAdoption(Object.assign(new Date(), ADOPTION))).toEqual({
+      failure: { field: 'Adoption', reason: 'type' },
+    })
+  })
+
+  it('names the member of an authority that is missing, that is not an identity, or that is a bad source', () => {
+    const { execution: _execution, ...withoutExecution } = AUTHORITY
+    expect(judgeAuthority(withoutExecution)).toEqual({
+      failure: { field: 'execution', reason: 'missing' },
+    })
+    expect(judgeAuthority({ ...AUTHORITY, execution: 'a b' })).toEqual({
+      failure: { field: 'execution', reason: 'identity' },
+    })
+    const { source: _source, ...withoutSource } = AUTHORITY
+    expect(judgeAuthority(withoutSource)).toEqual({
+      failure: { field: 'source', reason: 'missing' },
+    })
+    expect(judgeAuthority({ ...AUTHORITY, source: 'x' })).toEqual({
+      failure: { field: 'source', reason: 'type' },
+    })
+    expect(judgeAuthority({ ...AUTHORITY, source: { ...EVIDENCE, record: '' } })).toEqual({
+      failure: { field: 'source.record', reason: 'empty' },
+    })
+  })
+})
