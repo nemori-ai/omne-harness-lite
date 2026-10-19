@@ -205,16 +205,21 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
     return undefined
   }
 
+  /** After a member value: a comma asks for the next key, and a close brace ends the object. */
+  const stepAfterMember = (frame: ObjectFrame, token: number): JsonFailure | undefined => {
+    if (token === TOKEN.comma) {
+      frame.next = 'key'
+      return undefined
+    }
+    if (token !== TOKEN.closeBrace) return syntax('token')
+    close(frame)
+    return undefined
+  }
+
   const stepObject = (frame: ObjectFrame, token: number): JsonFailure | undefined => {
     switch (frame.next) {
       case 'comma':
-        if (token === TOKEN.comma) {
-          frame.next = 'key'
-          return undefined
-        }
-        if (token !== TOKEN.closeBrace) return syntax('token')
-        close(frame)
-        return undefined
+        return stepAfterMember(frame, token)
       case 'first-key':
       case 'key':
         return stepKey(frame, token)
