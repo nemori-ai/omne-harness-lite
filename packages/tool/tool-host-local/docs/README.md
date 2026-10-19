@@ -1,6 +1,6 @@
 # tool-host-local 文档职责
 
-本目录维护本提供者的内部设计、使用及集成说明。architecture 与 public-api 说明本地启动协调器，其余四个主题仍是占位。非类型行为归根 [SPEC](../SPEC.md)，公共行为归契约包的 [SPEC](../../tool-contract/SPEC.md)。
+本目录维护本提供者的内部设计、使用及集成说明。architecture 与 public-api 已说明本地启动协调器。cordis 保存后续 Cordis 插件的设计，插件尚未实现，当前没有可用的 `./cordis` 入口。context、flows 与 object-model 三个主题仍待展开。非类型行为归根 [SPEC](../SPEC.md)，公共行为归契约包的 [SPEC](../../tool-contract/SPEC.md)。
 
 | 主题 | 信息职责 |
 | --- | --- |
