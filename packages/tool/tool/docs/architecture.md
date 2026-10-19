@@ -106,6 +106,117 @@ guards 是受信快照：`access.qualify` 回答主体对该租户、调用与�
 
 读取投影在 [ledger-reads.ts](../src/ledger-reads.ts)：`lookup` 以受理操作号认回 `call` 记录；`operation` 认回操作记录。两者的否定答案（`not-accepted`、`not-committed`）由 [ledger.ts](../src/ledger.ts) 的排除围栏把关：完整快照里没有该操作时，账本先提交一条该操作的 `exclusion` 记录（值是操作号与这次提交的新域修订号，替换旧的），`expected` 是快照的域修订号；成功后才回答否定答案。按旧修订号准备的在途提交此后都会冲突，而该操作的命令重读时从 `exclusion` 记录得知否定答案已在它在途时给出：记录的修订号大于命令第一次读取的域修订号时，命令停止重试，回答固定诊断的 `unavailable`（`ledger-store`），不落盘。第一次读取就看到记录的新重送照常进行，提交时在同一写入集删除该记录；快照里已有操作记录时认回先于排除。围栏冲突就重读重判（另一读取者的围栏不排除读取者，读取者再次围栏），围栏未知时 `operation` 回答 `unknown`、`lookup` 回答 `unavailable`，围栏不可用时回答 `unavailable`。这项成本是每个否定答案多一次提交；读取到 `found` 或 `committed` 不提交。接受的风险记在 [SPEC 第 14 条](../SPEC.md#14-查询p01)。`result` 与 `account` 不提交；`result` 按完整内容块分页，`next` 是绑定租户、调用、版本、投影与块位置的 JSON 文本，单块超过页预算时回答 `unsupported`（卸载尚未实现），不切块；`account` 只回答账目，不附正文。
 
+### 持久化与一致性边界
+
+本节区分领域事实、应用推进和存储机制，供记录仓契约与耐久适配使用。分析依据是本包现有记录与决定器、Tool 的 [P01–P09](../../tool-contract/SPEC.md#tool-操作协议)、[存储事务行为](../../../storage/docs/storage-contract/SPEC.md)及系统[共同成立的业务事实](../../../../docs/architecture/data-and-state.md#共同成立的业务事实)。现有支持范围仍以本页开头及[成员 SPEC](../SPEC.md#当前范围)为准。存储规格承诺不表示本包已有耐久提供者或运行证据。
+
+#### 领域事实及一致性边界
+
+下表盘点业务一致性边界，不把四类事实都认定为现有独立持久聚合。现行契约已确定调用和队列两个持久一致边界，不要求两者共同事务。ToolCall 是持久聚合根，WaitRecord 是其聚合内实体。工具内部等待的记录实现与执行绑定登记的完整持久模型尚未交付。运行时观察句柄不成为事实身份，见[对象与生命周期](../../tool-contract/docs/object-model.md#对象与生命周期)。
+
+| 定位号与事实 | 身份、拥有者 | 必须共同成立的事实 | 当前承载及尚待确定的边界 | 依据 |
+| --- | --- | --- | --- | --- |
+| D01 调用 | 租户、原 call；Tool 调用拥有者 | 每次业务转换的权威状态、原操作回执及后继任务一起成立。交付解除还包括该结果版本的交付状态与生产侧证明 | ToolCall 是持久聚合根，拥有等待等事实；`call` 域当前保存调用、操作、结果、账目及任务。等待记录的具体布局与适配端口尚待实现；改变既定聚合边界须另取得 Tool 契约拥有者决定 | [对象与生命周期](../../tool-contract/docs/object-model.md#对象与生命周期)，[CallRecord、OperationRecord、ResultRecord](../src/ledger-store.ts)，[decideRelease](../src/ledger-decider.ts)，[P08](../../tool-contract/SPEC.md#p08-过程分页与全文交接) |
+| D02 队列 | 租户、FIFO key；Tool 队列拥有者 | 序号分配与计数更新一起成立；队首判断、已有持有数、受理时固定的 limit 与取得名额一起裁决；删除条目与释放墓碑一起提交 | `queue` 域跨调用串行化。call 域的启动意图与 queue 的持有分步提交。排队响应 `waiting` 是队列裁决结果，不是独立 wait 记录 | [QueueEntryRecord、QueueReleaseRecord](../src/ledger-store.ts)，[decideQueueHold、decideQueueRelease](../src/ledger-start.ts)，[跨域提交与修复](../SPEC.md#22-跨域提交与修复) |
+| D03 工具内部等待 | 原租户、call、等待 key 及其原请求关联；Tool 拥有等待，答复协议拥有者拥有答复资格与内容 | 原请求及采用快照、等待状态、有效回应及后继责任保持一致。取消与答复在原 ToolCall 事务排序；取消先成立则后到决定不作为答案。取消或终局与失效任务同提交，关闭等待与新计时段同提交 | WaitRecord 是 ToolCall 聚合内实体，身份为 call + wait；[LedgerRecord](../src/ledger-store.ts) 尚无完整等待记录。P06 的等待不同于 D02 排队，也不同于 Fiber 暂停。具体持久布局、适配端口及跨答复拥有者的参加或承接方式由 Tool 契约拥有者与相关答复拥有者确认 | [对象与生命周期](../../tool-contract/docs/object-model.md#对象与生命周期)，[P06](../../tool-contract/SPEC.md#p06-内部等待与答复)，[P09](../../tool-contract/SPEC.md#p09-账目恢复与退出)，[共同成立的业务事实](../../../../docs/architecture/data-and-state.md#共同成立的业务事实) |
+| D04 执行绑定登记 | 原 adoption、command 所选绑定及其采用身份；ToolBindings 提供者 | 同一次绑定选择中的作者操作、参数解析、返回检查及原采用保持配对。恢复取得原事实查询与控制能力，不能重新选择新表启动 | 绑定登记表尚未交付。其持久身份、登记与撤除的一致性边界仍由 Tool 契约拥有者及绑定提供者确定，不能借用 host 记录键代定 | [ToolBindings 与依赖方向](../../tool-contract/docs/object-model.md#应用对象端口和依赖方向)，[P09](../../tool-contract/SPEC.md#p09-账目恢复与退出)，本页[业务 schema 与输出归一化](#业务-schema-与输出归一化) |
+
+三种登记另有不同责任。local 的启动资格台账通过 [start-coordinator.ts](../../tool-host-local/src/start-coordinator.ts) 的 `prepare/consume/inspect/invalidate/exclude` 保存启动资格与围栏，使用 `host` 域。`HostRecord.value` 由该宿主解释，Tool 账本不读取它。执行绑定登记属于 D04。存储的[组合登记](../../../storage/docs/storage-contract/SPEC.md#登记)保存租户、事务域、组合版本及参加者名单，不保存工具绑定，也不是每次业务操作的回执。
+
+#### 记录仓端口中的领域语言与机制语言
+
+`ToolLedgerStore` 当前是带 Tool 记录类型的条件原子记录口，不是只讲领域语言的仓储口。它明确不解释记录。业务命令与纯决定器拥有不变量，存储适配拥有提交机制。后续接口调整须走记录仓契约工作，不能仅改术语名称。依据为 [ledger-store.ts](../src/ledger-store.ts) 的端口声明及[分层责任](../../../../docs/architecture/layers-and-dependencies.md#领域语义依赖与模型边界)。
+
+| 定位号与表达 | 性质及受影响位置 | 后续承接层 |
+| --- | --- | --- |
+| L01 `read(domain)`、`commit(input)` | 全域快照与条件写入是记录机制。领域需要的是载入原调用、裁决队列、认回原操作等能力；两个通用方法不表达这些目的 | Tool 记录仓契约明确业务读写需求，基础设施适配现有存储；见 B01、B03 |
+| L02 `LedgerDomain`、transaction domain | `call` 和 `queue` 的身份承载 D01、D02 的业务范围；两域分别提交、不要求共同事务是[现行契约决定](../../tool-contract/docs/object-model.md#无状态性与有状态性)。storage 的事务域另绑定真实数据库及写连接，二者不能按同名等同 | Tool 适配保留现行两域协议，基础设施映射提交域；新业务要求若改变该边界，须由 Tool 契约拥有者另作决定。跨消费方组合见 C01，现有两域适配见 B01 |
+| L03 `revision`、`expected` | 状态修订支持业务并发判断；域修订和 CAS 是存储串行化机制。排除记录会只推进域修订，所以二者不能混用，见[现有修订规则](#本包的记录仓与决定器g1) | Tool 命令保留状态前提，记录仓适配核对域修订；见 B01、B03 |
+| L04 `writes`、`put/delete`、记录键 | 写集合与键编码是布局机制。调用、原操作、结果版本、队列序号、任务与释放依据是业务事实。`commit` 的全部写入必须共同生效，空变更也推进域修订 | 决定器输出业务变化，基础设施编码与持久化；不得开放任意业务写入入口，见 B01 |
+| L05 `host`、`HostRecord.value: unknown` | 通用宿主保存机制不定义业务模型，也不保证值符合 storage 的 JSON 命令约束 | 实际宿主拥有值的版本与解析，基础设施编码；见 B04 |
+| L06 `OperationRecord.receipt`、`ResultRecord.delivery` | 原操作认回与结果交付是领域语义。`inputDigest`、证据键及摘要编码服务于认回，但不自动成为 storage 五字段操作身份 | Tool 拥有业务回执，适配维护存储身份与回执关联；见 B02、B05 |
+| L07 `ExclusionRecord` | “否定答案不能被旧在途提交推翻”是 P01 语义；查询写围栏与域修订是本实现机制。不能拿一次空读替代它 | Tool 查询口保留否定证据要求，适配采用满足同等排除条件的机制；见 B03 |
+
+L01–L07 的类型、键、写集合及状态定义均见 [ledger-store.ts](../src/ledger-store.ts)；L03、L07 的实际重读与围栏执行见 [ledger.ts](../src/ledger.ts) 和[查询风险](../SPEC.md#14-查询p01)。
+
+#### 应用用例及中间责任
+
+下表的“局部原子”只指列出的提交域。跨域分步推进表示当前实现的最终推进方式，不扩张为跨域原子保证。系统允许[显式共同参加或按契约分步承接](../../../../docs/architecture/data-and-state.md#共同成立的业务事实)。跨消费方的协调者仍待架构拥有者指定；现有账本工厂、driver、host 只因承担局部推进，不能因此取得该身份。
+
+| 定位号与用例 | 必须原子的局部事实 | 跨边界步骤与当前协调 | 中间失败或未知后的责任 | 依据 |
+| --- | --- | --- | --- | --- |
+| U01 受理到排队 | call 的受理状态、操作回执、`queue` 任务同提交；queue 的序号与条目同提交 | `admissions.admit` 先提交 call，再 `order`。未完成分配可由 `planPreparation` 补做，是分步推进 | call 中任务保留队列义务；同一派生操作身份认回，不能生成第二条目 | [ledger.ts](../src/ledger.ts) 的 `admissions`，[跨域提交与修复](../SPEC.md#22-跨域提交与修复) |
+| U02 队首与名额 | 一个 queue key 内比较更早未取得名额的条目、held 数和固定 limit，成功把条目改为 held | `prepareStart` 先做 queue 裁决，再写 call；非队首或无名额时不写 queue | queue 已 held 而 call 未写启动意图时，名额仍是待履行义务。同身份重做对账，不把 held 当真实执行 | [decideQueueHold](../src/ledger-start.ts)，[prepareStart](../src/ledger.ts)，[SPEC 22](../SPEC.md#22-跨域提交与修复) |
+| U03 启动 | call 的启动意图、操作回执、start 任务共同提交 | driver 推进原启动协议；真实发起还需启动资格与执行者围栏。外部发起不与 SQL 原子提交 | 回包未知查询原启动，不能换号重跑函数。当前 driver 仅到启动记录，绑定真实发起属后续交付 | [推进协程](../SPEC.md#23-推进协程)，[P04](../../tool-contract/SPEC.md#p04-实际发起围栏)，[支持范围](../README_ZH.md#支持范围) |
+| U04 释放名额 | call 先保存释放依据及队列任务；queue 删除条目与墓碑同提交 | `releaseQueue` 先提交 queue，再关闭 call 的 queue 任务。`queues.reconcile` 读取调用事实后修复 queue，是分步对账 | 任一步失败保留原任务，按原身份重做。仅逻辑终态不释放；当前 `releaseBasisOf` 只构造启动前排除依据，物理收场后释放尚待实现 | [releaseQueue](../src/ledger.ts)，[releaseBasisOf、decideQueueRelease](../src/ledger-start.ts)，[survey、reconcile](../src/ledger-queue.ts) |
+| U05 交付释放与消费方 | P08 要求 Tool 的 pending 变 released、原操作回执和生产侧证明同提交；当前决定器还更新 call 及删除 deliver 任务 | 消费方提供 retained 或 processed 证据。Tool 内部提交不等于消费方事实自动共同提交。两端组合及协调者由架构拥有者与消费方决定，见 C01 | 提交未知时双方继续保管，以原 result、delivery、consumer、operation 查询。旧版本释放不解除新 delivery，也不触发内容到期删除 | [P08](../../tool-contract/SPEC.md#p08-过程分页与全文交接)，[decideRelease](../src/ledger-decider.ts)，[#434 的 Tool 侧释放责任](https://github.com/nemori-ai/omne-harness-lite/issues/434) |
+| U06 恢复扫描 | 任务及其后继责任与对应业务变更共同保存；claim 裁定当前协调代次 | P09 要求扫描、载入原事实、认领、逐任务查原端口。当前 queue reconcile 是局部修复，`scanPending`、claim 尚未实现，不能称完整恢复 | 原任务保留查询、保管、控制与清理责任；换协调者不杀原执行。外部 unavailable 或 unknown 不授权新 start/resume；完整扫描由父卡阶段 6 承接 | [P09](../../tool-contract/SPEC.md#p09-账目恢复与退出)，[driver.ts](../src/driver.ts)，[#421 阶段 6](https://github.com/nemori-ai/omne-harness-lite/issues/421) |
+
+U05 中 P08 的同提交要求覆盖 Tool 生产侧事实。消费方业务事实的参加范围由跨消费方组合明确。跨消费方组合仍须按系统架构显式决定，不能从当前单 call 域提交反推该组合已经确定。
+
+#### 存储契约承载与适配差距
+
+下表对照已接受的存储规格，不选择提供者实现。一次 storage `commit` 只在一个真实事务域内原子提交；它能容纳登记参加者，不自动把现有多个 `LedgerDomain` 合成一个数据库事务。
+
+| 定位号与承诺 | Tool 需要的适配及限制 | 依据与去向 |
+| --- | --- | --- |
+| S01 五字段操作身份 | 将业务操作关联到 tenant、transactionDomain、operation、protocolVersion、operationKey，并持久保存可恢复的映射。同身份异内容与业务 revision 冲突是不同问题 | [操作身份](../../../storage/docs/storage-contract/SPEC.md#操作身份)、[提交](../../../storage/docs/storage-contract/SPEC.md#提交)；B02 |
+| S02 组合登记 | 协调者登记具名参加者及组合版本。登记跨重启保存、旧版本不覆盖；Tool 绑定登记与启动资格台账均不能替代它 | [登记](../../../storage/docs/storage-contract/SPEC.md#登记)；B01、C01、C02 |
+| S03 提交与原子范围 | Tool 参加者在事务内重核业务前提，事实、回执及待交接记录共同提交。现行契约确定 call 与 queue 两个持久一致边界，不要求共同事务；适配保留 P02 的域内提交及同身份对账。新业务要求若需改变该边界，须有具体依据并取得 Tool 契约拥有者决定。外部工具效果不进入数据库事务 | [提交](../../../storage/docs/storage-contract/SPEC.md#提交)、[提供者义务](../../../storage/docs/storage-contract/SPEC.md#提供者义务)、[持久一致边界](../../tool-contract/docs/object-model.md#无状态性与有状态性)、[P02](../../tool-contract/SPEC.md#p02-定义准入与队列)、[事务域](../../../../docs/architecture/data-and-state.md#事务域与异步sqlite执行)；B01、C01 |
+| S04 结果及未知查询 | `unknown` 后以同一完整身份 `query`。明确 `rolled_back` 具有持久回滚回执；`rejected_before_accept` 没有回执；`identity_conflict` 带已有回执。不能把它们全压成 Tool `conflict` 或 `unavailable` | [提交](../../../storage/docs/storage-contract/SPEC.md#提交)、[查询](../../../storage/docs/storage-contract/SPEC.md#查询)、[LedgerCommit](../src/ledger-store.ts)；B02、B03 |
+| S05 否定结论 | storage `not_committed` 需要旧写者排除、旧事务终止、恢复完成、权威读取成功及未入受理队列五项证明。它不同于 revision 不匹配；Tool 排除围栏须保留等效语义 | [查询](../../../storage/docs/storage-contract/SPEC.md#查询)、[ledger.ts](../src/ledger.ts)；B03 |
+| S06 参加者事务端口 | 以版本化 JSON facts 进入 Worker，参加者同步 `execute(facts, port)`。不传闭包、Context 或 DB handle，不控制事务，不持锁等待外部端口；命令条数与大小有限 | [参加者端口](../../../storage/docs/storage-contract/SPEC.md#参加者端口)、[提交](../../../storage/docs/storage-contract/SPEC.md#提交)；B04、C02 |
+| S07 租户与写代际 | 事务域绑定一个租户，旧写代际未排除时不准入。Tool 的 tenant 身份必须进入映射与查询。storage 写代际不代替 Tool claim 的协调代次或启动围栏 | [登记](../../../storage/docs/storage-contract/SPEC.md#登记)、[提供者义务](../../../storage/docs/storage-contract/SPEC.md#提供者义务)、[P09](../../tool-contract/SPEC.md#p09-账目恢复与退出)；B02、B06 |
+| S08 耐久证据 | 事务原子性、`durability: durable` 声明与断电证据分别核对。本包没有已交付 SQLite 仓储；#280 尚未为本包提供运行证据。进程终止也不替代 SQL-T01 断电证据 | [存储规格状态与验证义务](../../../storage/docs/storage-contract/SPEC.md#验证义务与未覆盖)、[SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01)、[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)；B06 |
+
+`ToolLedgerStore.commit` 的 `conflict` 只保证本次 expected 不匹配且未写；storage `identity_conflict` 是同身份异输入。`ToolLedgerStore.commit` 的 `unavailable` 表示未尝试，而 storage `rolled_back` 表示已持久确认回滚，二者不能仅按“未生效”互换。适配须保留原身份、是否受理及证据强度，供具名业务命令解释，见 S04、S05。
+
+#### 内容存储的契约需求
+
+SQL 事务端口支持 `Uint8Array` 参数，只说明语句参数能力，不定义对象或文件服务。全文、附件与卸载派生需要独立内容契约。以下只列需求，接口、保管期限及提供者由存储或架构拥有者决定。依据为 [P08](../../tool-contract/SPEC.md#p08-过程分页与全文交接)、[可靠交接与消费确认](../../../../docs/architecture/data-and-state.md#可靠交接与消费确认)及[保留、归档与清理](../../../../docs/architecture/data-and-state.md#保留归档与清理)。
+
+| 定位号 | 需要覆盖的承诺 |
+| --- | --- |
+| O01 身份与关联 | 具名对象及版本关联原租户、call、result、附件或派生来源。地址与摘要不能单独授权读取；派生不覆盖原件 |
+| O02 可靠保存证据 | 提交引用和发布占位之前取得内容保存证据。失败或未知保留原件责任，能够以原保存身份查询及对账，不生成假可取回地址 |
+| O03 读取与完整性 | 每次重核关联及当前资格；raw 独立核权。字节长度、摘要和版本支持完整性核验；分页绑定原对象及位置，不将字节片段假称完整 UTF-8。缺失、地址失效和暂不可用须可区分 |
+| O04 保管、释放与恢复 | 明确原件、必要过程及派生的保管者与承接证据。交付解除不等于内容删除。引用仍有效或保存结果未知时保留恢复责任，现行 P08 不设到期删除动作，保管策略变更由原承诺拥有者决定 |
+
+对象/文件契约尚为[#421 阶段 5 的前置条件 D-01](https://github.com/nemori-ai/omne-harness-lite/issues/421)，不能从 SQL 契约的参数类型补出该保证。
+
+#### 三类结论与后续责任
+
+以下定位号在本节内稳定使用。A 是现有存储契约承诺，B 是 Tool 必须调整的假设，C 是需要拥有者决定的要求。B 中“候选”表示要开后续卡，不表示该方案已经接受。
+
+| 定位号 | A：现有存储契约已承诺 | 依据及责任 |
+| --- | --- | --- |
+| A01 | 完整操作身份、同身份同输入认回及异输入冲突 | S01；存储契约拥有者维护，Tool 适配消费 |
+| A02 | 组合登记持久保存、版本并存及具名参加者校验 | S02；存储契约拥有者维护，应用协调者登记 |
+| A03 | 同事务域的事实、回执与待交接记录共同提交，Worker 参加者使用受限事务端口 | S03、S06；存储提供者兑现，领域参加者核业务 |
+| A04 | 明确提交、持久回滚、受理前拒绝及未知有不同证据；同身份查询与五项否定证明 | S04、S05；存储提供者兑现，Tool 保留语义 |
+| A05 | 租户域绑定、写代际排除及命令大小、数量与准入限制 | S06、S07；存储提供者与装配者兑现 |
+| A06 | 耐久须按故障范围验证，规格状态不授予提供者符合性 | S08；存储提供者及 SQL-T01 拥有者给证据 |
+
+B 项的端口调整由 Tool 拥有者在 [#435 记录仓一致性套件](https://github.com/nemori-ai/omne-harness-lite/issues/435)中按契约变更协议确认；[#421 阶段 6.9](https://github.com/nemori-ai/omne-harness-lite/issues/421)消费该结果实现耐久适配，运行以 #280 接受为前提。
+
+| 定位号 | B：Tool 要调整的假设 | 受影响端口方法、改动归属及后续卡 |
+| --- | --- | --- |
+| B01 | 一个 `LedgerDomain` 条件写不能自动代表所有业务共同事实，也不能把 call/queue 分步说成共同提交 | `ToolLedgerStore.read/commit`、`commands.prepareStart`、`queues.reconcile`；Tool 领域口与应用边界按 D01、D02、U01–U04 保留现行两域提交及同身份对账。#435、阶段 6.9 的存储适配不以 C01 为前置。若新业务要求改变 call/queue 边界，列候选 B01，附具体依据并先取得 Tool 契约拥有者决定 |
+| B02 | 业务 operation、摘要和回执不能直接等同 storage 完整操作身份与回执 | `ToolLedgerStore.commit/read`、`reads.lookup/operation`；Tool 存储适配建立可恢复关联，保留 S01、S04、S07 语义。#435、阶段 6.9，身份适配候选 B02 |
+| B03 | 通用空读、CAS conflict 或明确回滚不能取代 Tool 否定查询围栏 | `ToolLedgerStore.read/commit`、`reads.lookup/operation`；Tool 查询适配按 L07、S04、S05 核实等效排除和未知处理。#435、阶段 6.9，否定查询适配候选 B03 |
+| B04 | `HostRecord.value: unknown` 和通用 `ContentBlock` 不能假定均可直接作为有界 JSON facts 提交 | `ToolLedgerStore.commit/read`、`preserveResult`、`content.read/raw`；宿主拥有值的版本编码，Tool 保管层处理内容引用，基础设施只编码已确认的数据契约。依据 L05、S06、O01–O03；#435、[#433](https://github.com/nemori-ai/omne-harness-lite/issues/433)、父卡阶段 5 与 6.9，编码与内容适配候选 B04 |
+| B05 | 当前 call 内交付释放不代表已提供消费方共同提交入口 | `releaseDelivery`、`ToolLedgerStore.commit`；Tool 完成 P08 自身事实，应用组合另等 C01、C02。依据 U05；[#434](https://github.com/nemori-ai/omne-harness-lite/issues/434)、#435，父卡“交付释放与消费方同一次提交”集成点候选 B05 |
+| B06 | 单域全量快照和局部队列修复不能充当完整耐久恢复扫描，声明 durable 不能替代运行证据 | `ToolLedgerStore.read/commit`、`scanPending`、`loadRecovery`、`claim`；Tool 恢复层补齐持久扫描需求，基础设施兑现读取和代际屏障。依据 U06、S07、S08；#435、父卡阶段 6 与 6.9，扫描仓储口候选 B06 |
+
+| 定位号 | C：交给拥有者决定的要求 | 依据、具名责任与持续落点 |
+| --- | --- | --- |
+| C01 | 明确哪些 Tool 与消费方事实需要共同提交，哪些按原契约分别承接，并指定应用协调者与中间责任 | U05、S02、S03；架构拥有者 PanQiWei 会同 Tool 及具体消费方拥有者决定。候选考虑共同参加者组合或显式分步承接，均不能在此默认采用。落点为 #421 跨消费方提交集成点 |
+| C02 | 确认 Tool 参加者身份、组合版本、事实编码、可调用入口与当前资格；若需要扩展仓储口，先接受该边界 | L01、S02、S06；Tool 契约拥有者 PanQiWei 与存储契约拥有者决定，应用协调者只按已接受资格调用。落点为 #435、阶段 6.9 及 B01、B05 候选 |
+| C03 | 接受覆盖 O01–O04 的对象/文件存储契约，包括保存未知、读取资格及释放责任 | O01–O04；存储组或架构拥有者 PanQiWei 决定，Tool 提供具名消费需求。落点为 #421 D-01 与阶段 5；接口及保管策略由内容契约明确，并遵守 P08 现行保留要求 |
+| C04 | 在 ToolCall 聚合根、WaitRecord 聚合内实体及 P06 排序与同提交承诺下，确认等待的持久布局、适配端口及跨答复拥有者参加或承接方式；另确定执行绑定登记的持久身份及共同事实 | D03、D04、S06；Tool 契约拥有者 PanQiWei 会同答复协议及绑定提供者拥有者决定。落点为 #421 的绑定登记、阶段 4 等待工作及 #435；不得用 host 台账或存储组合登记替代 |
+
+本节未发现必须修改存储公共结果模型的已证实缺口。当前明确的工作是 Tool 适配、应用组合决定和独立内容契约。若这些工作产生存储契约无法表达的具体反例，由 C02、C03 的拥有者接续决定，不从现有实现缺失推导存储保证缺失。
+
 ### 协程驱动
 
 createToolRuntime 先组装门面和 driver，再向独立 host.install 注册 driver；安装本身不受理业务。host.schedule 是唤醒提示。driver.run 通过 scanPending/loadRecovery 读任务，claim 当前协调代次，以实例 fiber 发布观察句柄，然后只推进已持久安排的工作。多次唤醒合并，事务围栏裁定唯一写者；定期扫描补漏。
