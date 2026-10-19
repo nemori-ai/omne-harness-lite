@@ -1,6 +1,6 @@
 # Agent 的具体 Cordis 装配
 
-状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，未实现。本包是具体提供者草稿，根入口与 `./cordis` 当前都是空导出，尚无插件实现。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，未实现。本包是具体提供者草稿，根入口与 `./cordis` 当前都是空导出，尚无插件实现。它消费的服务定义与目录插件 `agentInstancesPlugin` 已经在 agent-cordis-contract 实现。
 
 唯一 Service、键、增补、事件、登记协议及 IC-1 至 IC-19 的符合性映射消费 [Cordis 定义](../../agent-cordis-contract/docs/cordis.md)，不得复制或重声明。本页只写本插件特有的装配：插件与入口、静态依赖与局部依赖、配置、装载、停止准入与撤除、候选发行行、实例作用域和租户。
 

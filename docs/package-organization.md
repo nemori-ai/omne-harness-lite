@@ -311,7 +311,7 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 
 ## Agent 的安装边界
 
-Agent 按纯契约、Cordis 定义、通用实现和具体装配分为四个 workspace 成员。Agent 声明类型与两个校验入口已有实现，唯一源码归 agent-contract；资产与装配消费者直接依赖它。其余运行入口与 Service 均尚未实现。各成员的技术设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，接受范围沿各成员 SPEC。初始化不授予模板采用或业务支持。
+Agent 按纯契约、Cordis 定义、通用实现和具体装配分为四个 workspace 成员。两个契约包已经实现并有测试。agent-contract 导出契约类型、声明与输出判断、身份解码与结构判定和资产正文契约，agent-cordis-contract 导出 Cordis 服务定义与目录插件。装配消费者直接依赖 agent-contract。agent-contract 依赖资产包并向它的类别注册表登记正文契约，资产包不依赖 agent-contract。通用实现与具体装配仍是模板，Loop、runtime、提供者和宿主插件均尚未实现。各成员的技术设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，接受范围沿各成员 SPEC。初始化不授予模板采用或业务支持。
 
 工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口与领域操作归纯契约。框架定义从 agent-cordis-contract 的 `./cordis` 提供，定义包不依赖通用实现或具体提供者。agent-host-local 负责 Agent 实例宿主。
 
