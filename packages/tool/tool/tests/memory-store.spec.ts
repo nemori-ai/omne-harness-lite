@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { recordKey, type LedgerDomain, type LedgerRecord } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
-import { callId, operationId, tenant, tenantA, tenantB, type Block } from './runtime-values.ts'
+import { decodeToolRevision } from '@omne-harness/tool-contract'
+import { callId, ok, operationId, tenant, tenantA, tenantB, type Block } from './runtime-values.ts'
 
 const domain: LedgerDomain = { kind: 'call', tenant: tenantA, call: callId('call-1') }
 const task: LedgerRecord<Block> = {
@@ -93,6 +94,87 @@ describe('18 the non-durable store', () => {
     const other: LedgerDomain = { kind: 'call', tenant: tenantB, call: callId('call-1') }
     expect(await store.read(other)).toEqual({ kind: 'complete', revision: '0', records: [] })
     expect(await store.read({ ...domain, call: callId('call-2') })).toMatchObject({ revision: '0' })
+  })
+
+  it.each([
+    {
+      kind: 'queue',
+      first: { kind: 'queue-counter', counter: { next: '11' } },
+      second: { kind: 'queue-counter', counter: { next: '22' } },
+    },
+    {
+      kind: 'host',
+      first: { kind: 'host', host: { key: 'entry', value: { marker: 'first' } } },
+      second: { kind: 'host', host: { key: 'entry', value: { marker: 'second' } } },
+    },
+  ] satisfies readonly {
+    kind: 'queue' | 'host'
+    first: LedgerRecord<Block>
+    second: LedgerRecord<Block>
+  }[])(
+    '18 store: $kind domains with different keys keep separate records and revisions',
+    async ({ kind, first, second }) => {
+      const store = createMemoryToolLedgerStore<Block>()
+      const left: LedgerDomain = { kind, tenant: tenantA, key: 'left' }
+      const right: LedgerDomain = { kind, tenant: tenantA, key: 'right' }
+      const zero = ok(decodeToolRevision('0'))
+      const one = ok(decodeToolRevision('1'))
+      expect(
+        await store.commit({
+          domain: left,
+          expected: zero,
+          revision: one,
+          writes: [{ kind: 'put', record: first }],
+        }),
+      ).toEqual({ kind: 'committed' })
+      expect(await store.read(right)).toEqual({ kind: 'complete', revision: '0', records: [] })
+      expect(
+        await store.commit({
+          domain: right,
+          expected: zero,
+          revision: one,
+          writes: [{ kind: 'put', record: second }],
+        }),
+      ).toEqual({ kind: 'committed' })
+      expect(await store.read(left)).toEqual({ kind: 'complete', revision: '1', records: [first] })
+      expect(await store.read(right)).toEqual({
+        kind: 'complete',
+        revision: '1',
+        records: [second],
+      })
+    },
+  )
+
+  it('18 store: equal identity text in call, queue and host domains does not share state', async () => {
+    const store = createMemoryToolLedgerStore<Block>()
+    const entries = [
+      { domain: { kind: 'call', tenant: tenantA, call: callId('shared') }, record: task },
+      {
+        domain: { kind: 'queue', tenant: tenantA, key: 'shared' },
+        record: { kind: 'queue-counter', counter: { next: '11' } },
+      },
+      {
+        domain: { kind: 'host', tenant: tenantA, key: 'shared' },
+        record: { kind: 'host', host: { key: 'entry', value: { marker: 'host' } } },
+      },
+    ] satisfies readonly { domain: LedgerDomain; record: LedgerRecord<Block> }[]
+    for (const { domain, record } of entries) {
+      expect(await store.read(domain)).toEqual({ kind: 'complete', revision: '0', records: [] })
+      expect(
+        await store.commit({
+          domain,
+          expected: ok(decodeToolRevision('0')),
+          revision: ok(decodeToolRevision('1')),
+          writes: [{ kind: 'put', record }],
+        }),
+      ).toEqual({ kind: 'committed' })
+    }
+    for (const { domain, record } of entries)
+      expect(await store.read(domain)).toEqual({
+        kind: 'complete',
+        revision: '1',
+        records: [record],
+      })
   })
 
   it('18 store: a read gives copies, so a caller cannot change what is stored', async () => {
