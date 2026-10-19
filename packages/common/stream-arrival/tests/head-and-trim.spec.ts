@@ -163,3 +163,186 @@ it('refuses a trim on an index above the open ones as unopened, and keeps the pr
   if (!('rejected' in trimmed)) throw new Error('expected unopened')
   expect(trimmed.assembly).toBe(opened.ok)
 })
+
+const mediaReference = {
+  storage: 'test',
+  key: 'media',
+  mediaType: 'image/png',
+  bytes: '3',
+  digest: 'sha256-test',
+}
+function wholeMedia(kind: 'image' | 'voice' | 'file') {
+  return {
+    kind,
+    id: `whole-${kind}`,
+    visibility,
+    ref: { ...mediaReference },
+    transcript: 'preserved transcript',
+  }
+}
+for (const kind of ['image', 'voice', 'file'] as const)
+  it(`seals and finishes an unfilled replace ${kind} reference without changing its content`, () => {
+    const block = wholeMedia(kind)
+    const close = { step: 'close', index: '0', block }
+    const result = run([
+      { step: 'open', index: '0', mode: 'replace', head: { kind, id: block.id, visibility } },
+      close,
+      { step: 'finish', index: '0' },
+    ])
+    expect(result).toEqual({
+      ok: {
+        phase: 'ended',
+        terminal: {
+          kind: 'complete',
+          message: { id, role: 'assistant', blocks: [block] },
+          trims: [],
+        },
+      },
+    })
+    if (!('ok' in result)) throw new Error('expected complete')
+    expect(assembleStream({ target: target(), from: result.ok, steps: [close] })).toEqual(result)
+    const conflict = assembleStream({
+      target: target(),
+      from: result.ok,
+      steps: [{ ...close, block: { ...block, ref: { ...block.ref, key: 'other' } } }],
+    })
+    expect(conflict).toMatchObject({ rejected: 'conflict', assembly: result.ok })
+    if ('rejected' in conflict) expect(conflict.assembly).toBe(result.ok)
+  })
+it('seals an unfilled replace inline image as a whole block', () => {
+  const block = {
+    kind: 'image',
+    id: 'whole-image',
+    visibility,
+    mediaType: 'image/png',
+    inline: 'whole-image',
+  }
+  expect(
+    run([
+      {
+        step: 'open',
+        index: '0',
+        mode: 'replace',
+        head: { kind: 'image', id: block.id, visibility, mediaType: block.mediaType },
+      },
+      { step: 'close', index: '0', block },
+      { step: 'finish', index: '0' },
+    ]),
+  ).toEqual({
+    ok: {
+      phase: 'ended',
+      terminal: {
+        kind: 'complete',
+        message: { id, role: 'assistant', blocks: [block] },
+        trims: [],
+      },
+    },
+  })
+})
+for (const fills of [
+  [{ step: 'fill', index: '0', seq: '0', chunk: '' }],
+  [{ step: 'fill', index: '0', seq: '0', chunk: 'audio' }],
+  [
+    { step: 'fill', index: '0', seq: '0', chunk: 'audio' },
+    { step: 'fill', index: '0', seq: '1', chunk: '' },
+  ],
+])
+  for (const kind of ['voice', 'image'] as const)
+    it(`refuses a ${kind} reference after any fill, including a body replaced back to empty`, () => {
+      const block = wholeMedia(kind)
+      const before = run([
+        { step: 'open', index: '0', mode: 'replace', head: { kind, id: block.id, visibility } },
+        ...fills,
+      ])
+      if (!('ok' in before)) throw new Error('expected live')
+      const result = assembleStream({
+        target: target(),
+        from: before.ok,
+        steps: [{ step: 'close', index: '0', block }],
+      })
+      expect(result).toEqual({ rejected: 'conflict', at: 0, assembly: before.ok })
+      if ('rejected' in result) expect(result.assembly).toBe(before.ok)
+    })
+for (const change of [
+  { id: 'different' },
+  { visibility: { toHuman: false, toModel: true } },
+  { kind: 'voice' },
+  { ref: { ...mediaReference, bytes: '-1' } },
+  { inline: 'mixed', mediaType: 'image/png' },
+])
+  it('keeps identity, kind, visibility and reference shape checks on whole delivery', () => {
+    const block = wholeMedia('image')
+    const opened = run([
+      {
+        step: 'open',
+        index: '0',
+        mode: 'replace',
+        head: { kind: 'image', id: block.id, visibility },
+      },
+    ])
+    if (!('ok' in opened)) throw new Error('expected live')
+    const result = assembleStream({
+      target: target(),
+      from: opened.ok,
+      steps: [{ step: 'close', index: '0', block: { ...block, ...change } }],
+    })
+    expect(result).toHaveProperty('rejected')
+    if ('rejected' in result) expect(result.assembly).toBe(opened.ok)
+  })
+it('does not reinterpret a declared mediaType head field as a reference metadata field', () => {
+  const block = wholeMedia('image')
+  expect(
+    run([
+      {
+        step: 'open',
+        index: '0',
+        mode: 'replace',
+        head: { kind: 'image', id: block.id, visibility, mediaType: 'image/png' },
+      },
+      { step: 'close', index: '0', block },
+    ]),
+  ).toMatchObject({ rejected: 'conflict', at: 1 })
+})
+it('keeps append and text body matching outside the whole-media exception', () => {
+  const voice = wholeMedia('voice')
+  expect(
+    run([
+      {
+        step: 'open',
+        index: '0',
+        mode: 'append',
+        head: { kind: 'voice', id: voice.id, visibility },
+      },
+      { step: 'close', index: '0', block: voice },
+    ]),
+  ).toMatchObject({ rejected: 'conflict' })
+  for (const kind of ['text', 'thinking'])
+    expect(
+      run([
+        { step: 'open', index: '0', mode: 'replace', head: { kind, id: 'body', visibility } },
+        {
+          step: 'close',
+          index: '0',
+          block: { kind, id: 'body', visibility, text: 'not-accumulated' },
+        },
+      ]),
+    ).toMatchObject({ rejected: 'conflict' })
+  const image = {
+    kind: 'image',
+    id: 'filled',
+    visibility,
+    mediaType: 'image/png',
+    inline: 'correct',
+  }
+  const open = {
+    step: 'open',
+    index: '0',
+    mode: 'replace',
+    head: { kind: 'image', id: image.id, visibility },
+  }
+  const fill = { step: 'fill', index: '0', seq: '0', chunk: 'correct' }
+  expect(run([open, fill, { step: 'close', index: '0', block: image }])).toEqual({ ok: live })
+  expect(
+    run([open, fill, { step: 'close', index: '0', block: { ...image, inline: 'wrong' } }]),
+  ).toMatchObject({ rejected: 'conflict' })
+})

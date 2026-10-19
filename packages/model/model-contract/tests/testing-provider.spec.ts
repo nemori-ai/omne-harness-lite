@@ -101,14 +101,20 @@ describe('the ordinary path of a scripted call', () => {
       }),
     )
     if (started.kind !== 'started' || started.value.kind !== 'reading') throw new Error('read')
-    expect(started.value.page.blocks).toEqual([textBlock('b1', 'one'), textBlock('b2', 'two')])
+    expect(started.value.page.parts).toEqual(
+      [textBlock('b1', 'one'), textBlock('b2', 'two')].map(block => ({
+        kind: 'sealed',
+        block,
+        trims: [],
+      })),
+    )
     expect(started.value.page.next).toBe('2')
     const second = must(
       await consumption.readNext({ ...access('n'), read: started.read, after: '2' }),
     )
     expect(second).toMatchObject({
       kind: 'reading',
-      page: { blocks: [textBlock('b3', 'three')], next: null },
+      page: { parts: [{ kind: 'sealed', block: textBlock('b3', 'three'), trims: [] }], next: null },
     })
     expect(must(await consumption.closeRead({ ...access('n'), read: started.read }))).toEqual({
       kind: 'ended',
@@ -306,7 +312,7 @@ describe('the ordinary path of a scripted call', () => {
     )
     expect(last).toMatchObject({ kind: 'reading', page: { next: null } })
     if (last.kind !== 'reading') throw new Error('page')
-    expect(last.page.blocks).toHaveLength(2)
+    expect(last.page.parts).toHaveLength(2)
   })
 
   it('serves the blocks across its pages in the order they were given, under rising indices', async () => {
@@ -342,9 +348,10 @@ describe('the ordinary path of a scripted call', () => {
       ...callRef('o'),
       version: version('o'),
       termination: { kind: 'completed', reason: 'stop' },
-      blocks: given,
+      parts: given.map(block => ({ kind: 'sealed' as const, block, trims: [] })),
       source: evidence('settlement-o'),
       pageSize: 2,
+      pageTargetBytes: 1024,
     })
     const started = must(
       await consumption.beginRead({
@@ -358,7 +365,7 @@ describe('the ordinary path of a scripted call', () => {
     let page = started.value
     for (let turn = 0; turn < given.length; turn += 1) {
       if (page.kind !== 'reading') throw new Error('the read ended before its last page')
-      read.push(...page.page.blocks)
+      read.push(...page.page.parts.flatMap(part => (part.kind === 'sealed' ? [part.block] : [])))
       if (page.page.next === null) break
       page = must(
         await consumption.readNext({ ...access('o'), read: started.read, after: page.page.next }),
@@ -380,7 +387,7 @@ describe('the ordinary path of a scripted call', () => {
         result: version('a'),
       }),
     )
-    expect(started).toMatchObject({ value: { page: { blocks: [], next: null } } })
+    expect(started).toMatchObject({ value: { page: { parts: [], next: null } } })
   })
 
   it('keeps the reason a read ended with when the access is revoked later', async () => {

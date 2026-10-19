@@ -56,9 +56,12 @@ function settleWithThreeBlocks(world: World, name: string): void {
     ...callRef(name),
     version: version(name),
     termination: completed,
-    blocks: [textBlock('b1', 'one'), textBlock('b2', 'two'), textBlock('b3', 'three')],
+    parts: [textBlock('b1', 'one'), textBlock('b2', 'two'), textBlock('b3', 'three')].map(
+      block => ({ kind: 'sealed' as const, block, trims: [] }),
+    ),
     source: evidence(`settlement-${name}`),
     pageSize: 2,
+    pageTargetBytes: 1024,
   })
 }
 
@@ -133,11 +136,11 @@ async function readsAndAcknowledges(): Promise<void> {
   )
   expect(started.kind === 'started' && started.value.kind === 'reading', 'the read did not start')
   const first = started.value.page
-  expect(textsOf(first.blocks).join() === 'one,two' && first.next === '2', 'the first page differs')
+  expect(textsOf(first.parts).join() === 'one,two' && first.next === '2', 'the first page differs')
   const second = must(
     await world.consumption.readNext({ ...access('a'), read: started.read, after: '2' }),
   )
-  expect(second.kind === 'reading' && textsOf(second.page.blocks).join() === 'three', 'second page')
+  expect(second.kind === 'reading' && textsOf(second.page.parts).join() === 'three', 'second page')
   const closed = must(await world.consumption.closeRead({ ...access('a'), read: started.read }))
   expect(closed.kind === 'ended' && closed.reason === 'complete', 'the read did not complete')
   const receipt = must(

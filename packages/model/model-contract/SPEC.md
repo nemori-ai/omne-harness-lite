@@ -183,7 +183,7 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 本节维护运行接口的行为。声明只在 `src/`，[public-api](docs/public-api.md) 是它的导航，消费及失败场景归 [context](docs/context.md)。本节设计已接受，尚不表示生产支持。
 
-本节将既有行为落实到操作、参数和提供者责任。声明只保存在 `src/`，[公开接口页](docs/public-api.md)给出导航，导出清单没有 pending 名字。`executeModel` 与 `createModelRuntime` 等由 model 成员拥有，尚未实现，不能从本包导入。
+本节将既有行为落实到操作、参数和提供者责任。声明只保存在 `src/`，[公开接口页](docs/public-api.md)给出导航，导出清单没有 pending 名字。`executeModel` 与 `createModelRuntime` 等由 model 成员拥有，不能从本包导入。model 已提供 createModelRuntime 的构造壳，executeModel 与托管业务行为尚未实现。
 
 <a id="342-能力边界"></a>
 
@@ -242,6 +242,14 @@ Settlement.source 由 Model 在原结果真实收场及必要保存共同成立�
 增长中的工具参数不能变成 `ToolSuggestion`。只有完整封块、JSON 验证通过且实际模型收场允许使用时，消费者才得到可交 Tool 准入的建议。图片/文件只在完整且可恢复时作为 sealed 出现。语音片段的 value 是固定 representation 所声明编码，不能由观察者猜文本。首内容判定在原始已接受内容上完成，不能因快照合并而漏掉曾经实际到达的内容。
 
 所有观察内容先提交对应可恢复表示及首内容标记，再发布 cursor。一次提交可以包含多个片段。提供者应按配置批量保存并背压传输；保存未确认的片段不能先向外展示。未发布的接收缓存不作为已展示内容承诺，但接收之后、持久之前的崩溃仍可能已经越过首内容界，必须按下文的 receive-window 保留 uncertain，不得据此重发。附件及原件使用满足同一耐久与保留承诺的引用。
+
+最终 `ResultPage.parts` 按原 dispatch 发出顺序、再按 index 保留每位置至多一项。`ResultPart` 的 sealed 保存原完整 ModelBlock，partial 保存 text、thinking、voice 或 tool-arguments 的收场累计值。partial 不生成 BlockId、visibility 或 mediaType，也不成为可执行工具调用。消费者分别处理完整块与未封值，并处理每项的真实 trims 和页上的 Settlement。thinking 不因保管获得展示资格，voice 未封值不获得播放资格。声明由 [call-surface.ts](src/call-surface.ts) 唯一维护，Snapshot.blocks 与传输事实保持原义。
+
+每位置曾接受非空填充或真实 trim 才产生 partial。曾非空后 replace 为空仍交付空字符串 partial；只 open 或始终空 fill 且无 trim 不产生结果项。trims 按接受顺序保留 removed/reason，未发生时为空数组。trim 是提醒，不再次删 value 字节，不猜 removed 单位，不由 failed/limit 合成。合法封口文字仍携带此前提醒，工具参数一经真实 trim 便不能封为可执行调用。完整 stop/tool-suggestions 的封口约束只检查该结束事实所在 dispatch，早先纯空失败不污染成功重试，早先真实 trim 仍须保留。
+
+页按完整结果项组装，不分割字符串、块或 trims。`resultPageTargetBytes` 是规范 parts 数组 JSON 的 UTF-8 组页目标，按键递归排序、数组保序，并使用 JSON.stringify 的字符串转义。先放第一项，再在项数和目标均允许时贪心加入后项；首项超目标则独占一页。目标为1或2仍能取得进展。空结果仍有空 parts 和真实 Settlement。Settlement、next 和包装不属于组页目标，但整个 ResultPage 的同口径字节数不得超过原冻结 capacity.bytes，即 C。消费者须能处理接近 C 的页，不能将目标用作更小的硬接收缓冲。
+
+提供者在保存新内容前预留原材料、最终有序 parts/trims、结算、最大游标包装和必要读/控制/承接元数据。纯派生投影仍须占保管额度；终局与证据在首次输入边界受明示有限上限约束，不能先接纳再永久卡在结算或 ACK。保存失败保留合法前缀及原责任，不发布后截断或伪造 limit。页配置在原结果/读源冻结，只接纳该读已发出的 after；同 after 保持同页，当前失权、到期或 ended 优先。ACK 不增加必须读完全部页的条件，原读继续保护全部 parts 和提醒，完全清理释放正文、trim、标记和无用读材料。
 
 `beginRead` 是第一份内容读取与登记的同一操作，不是空租约申请。它与 ACK 在同一 call 修订上串行裁定。ACK 先提交则返回 acknowledged；读取先提交则 ACK 后可继续这个 read。ACK 之后用原读取 operation 重复 `beginRead` 时，先按 operation 认回原 read，再谈 acknowledged：返回原 `beginRead` 的回答，即未结束的 read 仍给首页（不是读者当前的位置；读者按自己已取得的 next 继续），已结束的 read 给出已结束状态，不再给内容；只有新 operation 才返回 acknowledged。每一页重新核验当前读取资格。一次读取只能取得同一版本，按 next 继续；重复 after 返回同一页，不移动到新结果。
 
@@ -333,7 +341,7 @@ Model 公开面上接受调用方提交的 `ModelOperationId` 的每个方法，
 | clock | 时间与等待能力；时间值为 UTC instant | 时钟不可用不虚构超时或许可；取消等待不取消原调用 |
 | signal、PreparedTransport、MaterializedTransport、handle | 临时资源 | 创建者释放，不能序列化；观察 signal 不取消原执行 |
 
-共同协议要求输出队列有界，满时背压；观察者落后时结束该观察并允许快照重连，不能无限保存重复快照。超大单块通过原已获准的耐久附件引用读取，不任意截掉块内容。具体工厂的依赖组合、配置字段、默认值与分页机制归 [model 实现规格](../model/SPEC.md#工厂与配置)。替代提供者满足上述行为，不必采用同一构造形状。
+共同协议要求输出队列有界，满时背压；观察者落后时结束该观察并允许快照重连，不能无限保存重复快照。最终结果按完整 sealed/partial 项和目标字节组页，超目标单项独页，整个 ResultPage 仍不得超过原容量 C。已有媒体引用只适用于其合法已封媒体；本协议不承诺任意文字、工具调用或未封值的通用附件化。具体工厂的依赖组合、配置字段、默认值与分页机制归 [model 实现规格](../model/SPEC.md#工厂与配置)。替代提供者满足上述行为，不必采用同一构造形状。
 
 <a id="342-资格共同提交与实际发送"></a>
 

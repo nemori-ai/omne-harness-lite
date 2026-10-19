@@ -9,7 +9,8 @@ import type {
   CustodyState,
   DispatchRecord,
   DurableEvidence,
-  ModelBlock,
+  ResultPart,
+  ResultCapacity,
   ModelFailure,
   ModelHandle,
   Settlement,
@@ -48,11 +49,12 @@ type PublicPhase =
   | Readonly<{ phase: 'running'; dispatch: DispatchId; firstContent: FirstContent }>
   | Readonly<{ phase: 'settled'; settlement: Settlement }>
 
-/** The phase of a call; a settled call also keeps the result that its pages are cut from. */
 export type Lifecycle =
   | Exclude<PublicPhase, { phase: 'settled' }>
   | (Extract<PublicPhase, { phase: 'settled' }> &
-      Readonly<{ pages: Readonly<{ blocks: readonly ModelBlock[]; pageSize: number }> }>)
+      Readonly<{
+        pages: Readonly<{ parts: readonly ResultPart[]; pageSize: number; pageTargetBytes: number }>
+      }>)
 
 export type SettledLifecycle = Extract<Lifecycle, { phase: 'settled' }>
 
@@ -83,6 +85,7 @@ export type CallRecord<P> = {
   /** The tenant as `scopeOf` gives it; two tenants are the same exactly when their scopes are. */
   readonly scope: string
   readonly call: ModelCallId
+  readonly capacity: ResultCapacity
   readonly admission: ModelOperationId
   readonly consumer: ConsumerRef
   /** Counts every change of the call; the revision and the output cursor are both built from it. */
@@ -260,6 +263,7 @@ export function notify<P>(record: CallRecord<P>): void {
 
 /** Counts one change of the call and tells the observers. */
 export function commit<P>(record: CallRecord<P>): void {
+  mintRevision(record.revision + 1)
   record.revision += 1
   notify(record)
 }
