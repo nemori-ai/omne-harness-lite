@@ -321,7 +321,12 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "testing",
+          "anchor": "内存测试入口"
+        }
+      ]
     },
     {
       "id": "examples-readme",

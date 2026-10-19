@@ -202,7 +202,7 @@ describe('what the conformance suite asks of the hooks', () => {
               ends.push({
                 call: input.call,
                 termination: input.termination,
-                blocks: input.blocks.length,
+                blocks: input.parts.length,
               })
               await settleCall(input)
             },

@@ -18,6 +18,7 @@ import type {
   Handoff,
   Lookup,
   ModelBlock,
+  ResultPart,
   ModelCallId,
   ModelFailure,
   ModelHandle,
@@ -235,8 +236,9 @@ export type Ended<P> = Placed<P> & Readonly<{ version: ResultVersion; state: Set
 
 export type EndOptions = Readonly<{
   termination?: Termination
-  blocks?: readonly ModelBlock[]
+  parts?: readonly ResultPart[]
   pageSize?: number
+  pageTargetBytes?: number
 }>
 
 export const COMPLETED: Termination = { kind: 'completed', reason: 'stop' }
@@ -257,8 +259,9 @@ export async function ending<P>(
   )({
     ...targetOf(scene, call.call),
     termination: options.termination ?? COMPLETED,
-    blocks: options.blocks ?? resultBlocks(),
+    parts: options.parts ?? resultBlocks().map(block => ({ kind: 'sealed', block, trims: [] })),
     pageSize: options.pageSize ?? 2,
+    pageTargetBytes: options.pageTargetBytes ?? 1024,
   })
   const state = await stateOf(scene, call)
   expect(

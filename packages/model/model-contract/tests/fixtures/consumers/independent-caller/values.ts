@@ -21,7 +21,7 @@ import {
   type DispatchRecord,
   type DurableEvidence,
   type FixedModelRequest,
-  type ModelBlock,
+  type ResultPart,
   type ModelCallId,
   type ModelCalls,
   type ModelOperationId,
@@ -124,8 +124,10 @@ export function textBlock(id: string, text: string): ContentBlock {
 }
 
 /** The text of the text blocks, in order; a tool suggestion has no text. */
-export function textsOf(blocks: readonly ModelBlock[]): string[] {
-  return blocks.flatMap(block => (block.kind === 'text' ? [block.text] : []))
+export function textsOf(parts: readonly ResultPart[]): string[] {
+  return parts.flatMap(part =>
+    part.kind === 'sealed' && part.block.kind === 'text' ? [part.block.text] : [],
+  )
 }
 
 export const access = (name: string, principal: Principal = alice) => ({

@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 151 个类型和 18 个运行值：身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`，以及[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 153 个类型和 18 个运行值：身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`，以及[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -59,6 +59,12 @@
 
 - 声明：[`src/call-surface.ts`](../src/call-surface.ts)。
 - 类型探针：[`tests/call-surface.spec-d.ts`](../tests/call-surface.spec-d.ts)。
+
+### 最终结果项与页预算
+
+ResultPart 与 ResultTrim 的定义见 [call-surface.ts](../src/call-surface.ts)。ResultPage.parts 按页序交付 sealed 或 partial；二者都带真实 trims。消费者先按 kind 分支，sealed 进入完整块处理，partial 进入未封值保管。partial 的工具参数即使可解析也不是 ToolCallPart。未封 voice 不带推测的媒体类型，thinking 的保管不授予展示权。
+
+页目标计规范 parts 数组的 UTF-8 JSON 字节。它不含 Settlement、next 与页包装。首项超目标仍完整独页，整个 ResultPage 不超过原容量 C。消费者须能接收接近 C 的单页，并在有效处理或保管整个结果后提供原 ACK 证据。读取结束本身不证明承接。具体顺序、纯空状态、真实 trim 与固定页规则归 [SPEC](../SPEC.md#342-普通调用面与实例观察)。
 
 ## 逐操作行为
 
@@ -215,7 +221,9 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 - `ScriptedWriteAction` 是 `src/testing/writes.ts` 里 `WriteAction` 的导出别名，由 [`src/testing/index.ts`](../src/testing/index.ts) 声明。
 - 行为测试：[`tests/testing-provider.spec.ts`](../tests/testing-provider.spec.ts)、[`tests/testing-transport.spec.ts`](../tests/testing-transport.spec.ts)、[`tests/testing-entry.spec.ts`](../tests/testing-entry.spec.ts)。
 
-`@omne-harness/model-contract/testing` 入口给领域外的协调者和契约符合性测试用。它提供一个按脚本行事的 `ModelProvider` 和一个按脚本行事的 `ModelTransport`，用来练习失败路径上的决策。它们不运行模型，不保存任何耐久状态，不核验请求内容或媒体，只核验脚本登记过的证据，也不导入任何具体提供者、Cordis、pi 或厂商 SDK。状态都在闭包里，不读系统时钟。同一入口还有[符合性断言](#符合性断言)，任何提供者都可以用它检查自己。
+`@omne-harness/model-contract/testing` 入口给领域外的协调者和契约符合性测试用。它提供一个按脚本行事的 `ModelProvider` 和一个按脚本行事的 `ModelTransport`，用来练习失败路径上的决策。它们不运行模型，不保存任何耐久状态，不核验请求内容或媒体，只核验脚本登记过的证据，也不导入任何具体提供者、Cordis、pi 或厂商 SDK。状态都在闭包里，不读系统时钟。脚本结算的 parts 与每项 trims 必须是无空位的数组，每条 trim 都须有合法 removed/reason。非法输入抛出 ScriptedModelError，reason 为 invalid-script，并保留原生命周期。同一入口还有[符合性断言](#符合性断言)，任何提供者都可以用它检查自己。
+
+`controller.settle` 显式接收 parts、pageSize 和 pageTargetBytes，不从 play 自动结算。它校验最终项、真实 trim 的形状和原受理容量，在发布结算前按固定页源深复制。首项总能入页，超目标单项独页；后项按规范 parts 数组字节及项数贪心组页。整个 ResultPage（含 Settlement、next 和包装）不得超过原 C。超额或非法输入抛 ScriptedModelError，保留原生命周期。配置或返回对象的后续修改不改变原结果。具体领取与 partial 资格见 [普通调用面](#普通调用面与实例观察)。
 
 脚本给出什么结果，替代件就给出什么结果，由脚本作者对结果负责。它证明协调者怎样处理契约面上的可观察结果，不证明生产提供者的真实发送、持久化与恢复。脚本给出的 `not-committed` 是脚本的回答，不是存储的完整排除证明（[SPEC](../SPEC.md#342-独立执行与提供者操作)对 `query` 的要求）。
 
@@ -238,7 +246,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 被测方由 `subject` 工厂给出，每条检查调用一次，所以一条检查不会看到另一条留下的状态。工厂给出的 `ConformanceSubject` 带提供者、一个有权操作 `tenant` 的主体、另一个租户 `otherTenant`，以及可选的请求值、钩子和传输。请求、消费者与容量缺省时用套件自带的值，它们对真实提供者没有意义，真实提供者要给自己接受的值。
 
-有些准备只有装配提供者的一方能做：让调用开始运行、收场并带上耐久证据，撤除或替换实例，撤销主体资格，让目录不可达，让下一次写操作回答 `commit-unknown`。这些由被测方通过可选的 `hooks` 提供。`not-applicable` 不算通过，它有三个来源：被测方没给义务需要的钩子；被测方没给义务需要的传输；结果只有一页，使三条读取义务无法检查，即 `read-page-stable-for-same-after`、`acknowledge-keeps-open-read-readable`、`revoked-reader-gets-no-page`，原因写「提供者把整个结果作为一页给出」。每个钩子的契约写在它的声明旁：`showFacts` 把上游事实当作执行会收到的那样交给运行中的调用，提供者拒绝的事实终止处理，钩子不为此抛错；`settleCall` 对已经收场的调用不做任何事，套件给出的 `pageSize` 是装配方应遵守的分页大小。传输义务需要 `transport`，其 `sends()` 报告已经离开传输的业务请求数，传输的事实流须以终止事实结束。
+有些准备只有装配提供者的一方能做：让调用开始运行、收场并带上耐久证据，撤除或替换实例，撤销主体资格，让目录不可达，让下一次写操作回答 `commit-unknown`。这些由被测方通过可选的 `hooks` 提供。`not-applicable` 不算通过，它有三个来源：被测方没给义务需要的钩子；被测方没给义务需要的传输；结果只有一页，使三条读取义务无法检查，即 `read-page-stable-for-same-after`、`acknowledge-keeps-open-read-readable`、`revoked-reader-gets-no-page`，原因写「提供者把整个结果作为一页给出」。每个钩子的契约写在它的声明旁：`showFacts` 把上游事实当作执行会收到的那样交给运行中的调用，提供者拒绝的事实终止处理，钩子不为此抛错；`settleCall` 对已经收场的调用不做任何事，套件给出的 `pageSize` 与 `pageTargetBytes` 是项数上界与规范 parts 数组字节组页目标。它通过 startRun/settleCall 准备确定的混合 parts，再从普通消费面核值、顺序、trims 和终局；有钩子却丢值或提醒属于失败。传输义务需要 `transport`，其 `sends()` 报告已经离开传输的业务请求数，传输的事实流须以终止事实结束。
 
 报告里每条义务有名字、`pass`、`fail` 或 `not-applicable`，以及失败或缺项的原因。`ok` 在没有任何 `fail` 时为真，`not-applicable` 不使它变假。违约以报告给出，不抛出。被测方抛出的错误（包括钩子抛出的）算作失败，原因里带错误名与消息：契约失败只以回复值给出，抛出表示程序缺陷。`waitMs` 是套件对被测方每一次等待的上限，缺省 1000 毫秒：等工厂、提供者方法、钩子、传输的 `prepare`、`materialize` 与 `close`、`dispose`、观察与事实流都受它限制。超时算当条检查失败，原因说明在等什么，随后套件照常尝试释放被测方，释放同样限时；不能取消的挂起承诺留着不管，不阻塞后面的检查。工厂抛错或超时、`dispose` 抛错或超时，只让当条检查失败，原因注明是工厂还是释放，套件继续跑后面的检查；检查本身失败且释放也失败时，两个原因都保留。事实流超时或出错时，套件调用迭代器的 `return`，并关闭自己打开的第二次物化。
 
@@ -258,6 +266,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 | `commit-unknown-not-reported-as-refusal` | 已生效的受理回答提交未知后，`inspect` 不报 `not-accepted` | [逐操作行为](../SPEC.md#342-逐操作行为) | `failNextWrite` |
 | `commit-unknown-cancel-recovers-original` | 取消提交未知后，同 operation 重发得到以这个 operation 请求的控制 | [逐操作行为](../SPEC.md#342-逐操作行为) | `failNextWrite` |
 | `commit-unknown-acknowledge-recovers-original` | 确认提交未知后，同 operation 重发成功，调用显示这次确认的 operation | [逐操作行为](../SPEC.md#342-逐操作行为) | `failNextWrite`、`startRun`、`settleCall`、`provideEvidence` |
+| `mixed-partial-result-readable` | 普通领取按原顺序交付完整块、未封值及真实 trims，保留终局；同 after 重放不变 | [结果保管与承接](../SPEC.md#342-普通调用面与实例观察) | `startRun`、`settleCall` |
 | `settled-call-keeps-termination` | 调用收场后，对这个已收场的调用取消（回复什么都接受），再观察，阶段仍是已收场，终局与收场时深相等 | [调用和各次真实发出](../SPEC.md#调用和各次真实发出) | `startRun`、`settleCall` |
 | `read-before-settle-refused` | 运行中的调用上 `beginRead` 返回 `not-settled` | [逐操作行为](../SPEC.md#342-逐操作行为) | `startRun` |
 | `acknowledge-refused-before-settle` | 运行中的调用上 `acknowledge` 不成功，保管状态仍是 `producer` | [ACK 的前提与效果](../SPEC.md#ack-的前提与效果) | `startRun` |

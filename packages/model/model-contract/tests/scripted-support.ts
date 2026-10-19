@@ -203,9 +203,12 @@ export function settleCall(scripted: ScriptedModelProvider<Principal>, name: str
     ...callRef(name),
     version: version(name),
     termination: { kind: 'completed', reason: 'stop' },
-    blocks: [textBlock('b1', 'one'), textBlock('b2', 'two'), textBlock('b3', 'three')],
+    parts: [textBlock('b1', 'one'), textBlock('b2', 'two'), textBlock('b3', 'three')].map(
+      block => ({ kind: 'sealed' as const, block, trims: [] }),
+    ),
     source: evidence(`settlement-${name}`),
     pageSize: 2,
+    pageTargetBytes: 1024,
   })
 }
 
@@ -227,9 +230,12 @@ export function settleWithBlocks(
     ...callRef(name),
     version: version(name),
     termination: { kind: 'completed', reason: 'stop' },
-    blocks: Array.from({ length: count }, (_, at) => textBlock(`b${at}`, `block ${at}`)),
+    parts: Array.from({ length: count }, (_, at) => textBlock(`b${at}`, `block ${at}`)).map(
+      block => ({ kind: 'sealed' as const, block, trims: [] }),
+    ),
     source: evidence(`settlement-${name}`),
     pageSize,
+    pageTargetBytes: 1024,
   })
 }
 

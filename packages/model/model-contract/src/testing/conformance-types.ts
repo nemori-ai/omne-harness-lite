@@ -7,7 +7,7 @@ import type {
   DispatchId,
   DurableEvidence,
   FixedModelRequest,
-  ModelBlock,
+  ResultPart,
   ModelCallId,
   ModelInstanceId,
   ModelOperationId,
@@ -48,12 +48,16 @@ export interface ConformanceHooks<P> {
    */
   showFacts?(input: ConformanceCall & Readonly<{ facts: readonly TransportFact[] }>): Promise<void>
   /**
-   * The call ends with this termination and this result, cut into pages of `pageSize` blocks when
-   * the provider can. A call that has ended already is left as it is.
+   * The call ends with this termination and this result, grouped as complete parts by pageSize and pageTargetBytes. A call that has ended already is left as it is.
    */
   settleCall?(
     input: ConformanceCall &
-      Readonly<{ termination: Termination; blocks: readonly ModelBlock[]; pageSize: number }>,
+      Readonly<{
+        termination: Termination
+        parts: readonly ResultPart[]
+        pageSize: number
+        pageTargetBytes: number
+      }>,
   ): Promise<void>
   /** Durable evidence that the provider accepts for acknowledging the call. Each label gives another one. */
   provideEvidence?(input: ConformanceCall & Readonly<{ label: string }>): Promise<DurableEvidence>
@@ -134,6 +138,7 @@ export const CONFORMANCE_OBLIGATIONS = [
   'commit-unknown-not-reported-as-refusal',
   'commit-unknown-cancel-recovers-original',
   'commit-unknown-acknowledge-recovers-original',
+  'mixed-partial-result-readable',
   'settled-call-keeps-termination',
   'read-before-settle-refused',
   'acknowledge-refused-before-settle',

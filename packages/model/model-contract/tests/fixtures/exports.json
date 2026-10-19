@@ -77,6 +77,8 @@
             { "name": "Observation", "kind": "type", "pending": false },
             { "name": "ModelHandle", "kind": "type", "pending": false },
             { "name": "LiveRoute", "kind": "type", "pending": false },
+            { "name": "ResultTrim", "kind": "type", "pending": false },
+            { "name": "ResultPart", "kind": "type", "pending": false },
             { "name": "ResultPage", "kind": "type", "pending": false },
             { "name": "ReadState", "kind": "type", "pending": false },
             { "name": "ReadStart", "kind": "type", "pending": false },

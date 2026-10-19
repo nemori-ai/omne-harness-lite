@@ -361,8 +361,9 @@ describe('the conformance suite on the other ways that access, routes and quiesc
               tenant: input.tenant,
               call: input.call,
               termination: { kind: 'completed', reason: 'stop' },
-              blocks: [],
+              parts: [].map(block => ({ kind: 'sealed' as const, block, trims: [] })),
               pageSize: 1,
+              pageTargetBytes: 1024,
             })
           },
         },
