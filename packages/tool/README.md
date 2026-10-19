@@ -38,14 +38,14 @@
 
 <a id="未交付标注"></a>
 
-未交付标注的规则如下。某个包的目录不在当前检出里时，组页与两个契约包全部文档中提到该包的地方都标「本增量未交付」，包括表格、正文与链接文字。标注加在提到该包的分句或单元格处，不加在整行上：同一行里其他包的内容不受影响。同一单元格或同一句里多次提到同一缺席包时，标第一处即可。每处标注链接到本节；代码块里的标注写纯文字，不带链接。泛称「实现包」指缺席的实现成员时也标注。该包进入同一检出时，删去标注。标注只说明该包不在当前检出，不说明该包没有实现。[包与依赖](#包与依赖)的消费表与 tool-contract 的[消费入口](tool-contract/docs/context.md#消费入口与契约变更协议)遵守同一规则：结论不变，表中提到缺席包的单元格同样标注。
+当前检出包含四个成员：`tool-contract`、`tool-cordis-contract`、`tool` 与 `tool-host-local`，无需缺席标注。某个成员目录不在检出里时，组页与两个契约包提到它的分句或单元格都注明该成员未在检出中，包括表格、正文与链接文字。标注加在提到该包的分句或单元格处，不影响同一行的其他包。同一单元格或同一句里多次提到同一缺席包时，只标第一处。每处标注链接到本节；代码块使用纯文字说明。泛称「实现包」而实际指缺席成员时也应注明。成员进入同一检出后删除相应标注。缺席标注只说明检出范围，不说明能力是否实现；能力状态仍按五档表维护。[包与依赖](#包与依赖)的消费表与 tool-contract 的[消费入口](tool-contract/docs/context.md#消费入口与契约变更协议)遵守同一规则。
 
 | 档 | 已交付的内容 | 入口 | 验证范围 |
 | --- | --- | --- | --- |
 | 公开类型已导出 | `tool-contract`：全部公开契约类型、品牌身份解码函数、默认结果政策与资产正文端口 `toolBodyContract`。`tool-cordis-contract`：17 个抽象 Service 类与 1 个具体类 `ToolInstancesService`，共 18 个，加服务键、`Context` 增补与 `tool-cordis-contract/call-changed` 事件增补。`tool`：构造形状与记录仓端口。`tool-host-local`：本地启动协调器的输入类型 | `tool-contract` 与 `tool` 的根入口，`tool-cordis-contract/cordis`，`tool-host-local` 的根入口 | 各包的 `tests/public-entry.spec.ts` 核对导出名与导入方向。`*.spec-d.ts` 以正负编译用例核对类型。`tool-cordis-contract` 另在真实 Cordis 4.0.4 下核对定义 |
 | 纯契约函数已实现 | `tool-contract`：定义、请求、交付解除与状态的判定函数，可用性判定与呈现，作者注册，等待契约，默认参数 codec，结果渲染与投影。函数不做 I/O，不读时钟，不持有状态 | `tool-contract` 的根入口。`./binding` 只给受信的执行绑定提供者 | `tool-contract` 的单元测试与类型测试。没有包外消费者验证 |
 | 独立执行已实现 | `tool`：`createIndependentToolScope` 与 `executeTool`。作用域用本地接收者、显式上限和内存等待历史，回执只有 `local` | `tool` 的根入口 | 作用域与包装器的 [P11](tool-contract/SPEC.md#p11-作者输出与等待原语) 规则，用可控的接收者与提供者替身核对。没有真实执行环境，不含 Cordis |
-| runtime 已实现的路径 | `tool`：`createToolRuntime` 与 `createToolLedger`。已知不可用或参数非法的调用，经 admit、lookup、queryOperation、readResult、releaseDelivery 与 account 完成逻辑终局。真实工具的调用，经受理、环境准备、FIFO 排队、启动守卫与启动围栏到达 start，并记录启动。前台启动经 `ToolClock.begin` 开启计时段（[P07](tool-contract/SPEC.md#p07-计时控制与检查点)），目前只能用装配方自带的时钟。启动前被拒绝的调用以 `unavailable` 收场，`effect` 为 `not-started`。`tool-host-local`：本地启动协调器，实现 `ToolStartAuthority`，只为单机宿主服务。其余 runtime 门面与 provider 的操作回复具名 `unsupported`，`reason` 写明操作名和计划实现该操作的批次名。批次名与操作的对应见 [tool 的支持范围](tool/README_ZH.md#支持范围)的表（「增量名」一列） | `tool` 与 `tool-host-local` 的根入口 | `tool` 的托管路径测试用非耐久记录仓，加环境、执行绑定、启动授权与时钟替身。`tool-host-local` 的组合测试里，真实的只有 runtime、账本与推进协程，其余端口都是替身。耐久性、进程崩溃与第二个进程都没有覆盖 |
+| runtime 已实现的路径 | `tool`：`createToolRuntime` 与 `createToolLedger`。已知不可用或参数非法的调用，经 admit、lookup、queryOperation、readResult、releaseDelivery 与 account 完成逻辑终局。真实工具的调用，经受理、环境准备、FIFO 排队、启动守卫与启动围栏到达 start，并记录启动。前台启动经 `ToolClock.begin` 开启计时段（[P07](tool-contract/SPEC.md#p07-计时控制与检查点)），目前只能用装配方自带的时钟。启动前被拒绝的调用以 `unavailable` 收场，`effect` 为 `not-started`。`tool-host-local`：本地启动协调器，实现 `ToolStartAuthority`，只为单机宿主服务。其余 runtime 门面与 provider 的操作回复具名 `unsupported`，`reason` 写明操作名和计划实现该操作的批次名。批次名与操作的对应见 [tool 的支持范围](tool/README_ZH.md#支持范围)的表（「增量名」一列） | `tool` 与 `tool-host-local` 的根入口 | `tool` 的托管路径测试用非耐久记录仓，加环境、执行绑定、启动授权与时钟替身。`tool-host-local` 的组合测试在非耐久记录仓上使用真实的 runtime、账本、推进协程与本地启动协调器；执行绑定、环境与时钟等其余端口按测试夹具提供。耐久性、进程崩溃与第二个进程都没有覆盖 |
 | 尚未交付的宿主与提供者 | 已启动执行的事实接收与收场，及随后的名额释放。控制、暂停与接续、程序调度。计时段开启之后的计时（经过时间、期限、暂停）。等待、过程观察、恢复、排空与交接。跨进程的启动排序域（不受支持）。宿主时钟、绑定登记表（[G7](tool-contract/SPEC.md#342-契约缺口决定)）、Catalog。Tool 自有的提供者插件在 `tool-host-local` 的 `./cordis`，跨领域提供者由其拥有者交付。其余端口提供者见各包。实例目录 `ToolInstancesService`：`register` 回复 `unavailable`，`connect` 回复 `unsupported`。耐久记录仓（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)）与真实执行环境（[#278](https://github.com/nemori-ai/omne-harness-lite/issues/278)） | 无 | 没有证据。一个已启动的调用停在 `running` 并一直占用名额 |
 
 ### `./testing` 入口
@@ -56,7 +56,7 @@
 - `tool-cordis-contract/testing`：`ToolInstancesService.register` 的登记语义套件，和守约的非耐久登记服务。
 - `tool/testing`：非耐久记录仓 `createMemoryToolLedgerStore`，只供测试。
 
-套件只对非耐久替身和违约变体运行。承载独立规则的断言都有违约变体，类型收窄的断言由编译器守护。逐断言的对应表见 [tool-contract](tool-contract/tests/README.md#断言与违约变体的对应)与 [tool-cordis-contract](tool-cordis-contract/tests/README.md#断言与违约变体的对应)的 tests/README。真实实现的对照、对照结果与未对照的端口，见 [tool-contract 的 public-api](tool-contract/docs/public-api.md#端口一致性套件testing)。替身声明 `durability: 'none'`，不能装配进生产，也不证明耐久提供者符合契约。
+各套件使用非耐久替身、合法生成提供者和违约变体验证。启动围栏套件另在单进程内对真实本地启动协调器运行；该对照使用非耐久记录仓，不覆盖耐久性、进程崩溃或跨进程装配。承载独立规则的断言都有违约变体，类型收窄的断言由编译器守护。逐断言的对应表见 [tool-contract](tool-contract/tests/README.md#断言与违约变体的对应)与 [tool-cordis-contract](tool-cordis-contract/tests/README.md#断言与违约变体的对应)的 tests/README。真实实现的对照、对照结果与未对照的端口，见 [tool-contract 的 public-api](tool-contract/docs/public-api.md#端口一致性套件testing)。替身声明 `durability: 'none'`，不能装配进生产，也不证明耐久提供者符合契约。
 
 ## 关键协作
 
