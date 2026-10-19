@@ -19,9 +19,8 @@
 - [ledger-exclusion.ts](ledger-exclusion.ts) 是按操作号定键的命令的排除规则：第一次读取之后给出的否定答案，以及推进协程据以重做的排除回复。
 - [ledger.ts](ledger.ts) 实现 `createToolLedger`：每个入口做边界、资格、读取、决定与按修订号提交；否定的查询答案先提交排除围栏（一条 `exclusion` 记录），被围栏排除的在途命令在重试时停止；后续增量的操作回复具名 `unsupported`（原因写操作名与增量名）。
 - [runtime.ts](runtime.ts) 实现 `createToolRuntime`：构造时检查配置与端口，逻辑终局路径的操作接到账本端口，其余回复具名 `unsupported`。
-- [testing.ts](testing.ts) 是 `./testing` 公开入口。
+- [testing.ts](testing.ts) 是 `./testing` 公开入口，并实现 `createTestToolDependencies`：显式输入、七个契约内存替身、记录仓与账本，返回依赖及原控制手柄。
 - [testing-store.ts](testing-store.ts) 实现非耐久记录仓 `createMemoryToolLedgerStore`，带故障注入。
-- [testing-dependencies.ts](testing-dependencies.ts) 实现 `createTestToolDependencies`：显式输入、七个契约内存替身、记录仓与账本，返回依赖及原控制手柄。
 - 本包经 `@omne-harness/tool-contract` 取得公共类型，不复制它们。`Outcome` 来自 `@omne-harness/operation-result`。
 
 实现选择见 [SPEC](../SPEC.md)。文档导航见 [index](index.md)。

@@ -188,7 +188,7 @@
 - `unknown-delayed`：现在不写入，回复未知；提交保持在途，直到 `landDelayed` 按顺序落盘。落盘时重新比对 `expected`，修订号已变则丢弃并报告 `conflict`。
 - `throw-applied`：已写入后抛出。
 
-`createTestToolDependencies<P>` 的公开类型由 `src/testing-dependencies.ts` 拥有。它固定使用 `ContentBlock` 和 `MemoryEnvironment`，每次新建七个契约内存替身、记录仓与账本，并返回完整依赖与原始手柄。调用方显式提供实例身份、守卫、配置、宿主、Catalog、子调用端口及 `bindingsFor` 解析接线。工厂不隐式授予权限，也不把 executor binding 当作 `ToolBindings`。runtime 与账本共用调用方给定的结果政策。工厂本身不构造 runtime、不装入推进协程、不调度调用，异常沿既有账本构造或调用方回调传播。输入和使用方式见 [README](README_ZH.md#testing-入口)。
+`createTestToolDependencies<P>` 的公开类型由 `src/testing.ts` 拥有。它固定使用 `ContentBlock` 和 `MemoryEnvironment`，每次新建七个契约内存替身、记录仓与账本，并返回完整依赖与原始手柄。调用方显式提供实例身份、守卫、配置、宿主、Catalog、子调用端口及 `bindingsFor` 解析接线。工厂不隐式授予权限，也不把 executor binding 当作 `ToolBindings`。runtime 与账本共用调用方给定的结果政策。工厂本身不构造 runtime、不装入推进协程、不调度调用，异常沿既有账本构造或调用方回调传播。输入和使用方式见 [README](README_ZH.md#testing-入口)。
 
 该工厂和记录仓只从 `./testing` 导出，均为非耐久测试设施。源码不得依赖测试目录；root 与 testing 的源码、JavaScript 和声明图均不得引入 Cordis、tool-host-local 或 tool-cordis-contract。根入口图另不得引入 testing 或 `node:assert`。
 
