@@ -4,7 +4,7 @@
 
 ## 职责与状态
 
-本成员是 Model 的单机宿主提供者，目前只承载本地凭据保管：文件保管库（磁盘记录、文件锁、原子发布、关闭）和装载它的 Cordis 插件。其余宿主能力（时钟、实例调度、目录装载、托管运行插件）尚未实现，也不在本成员当前范围内承诺。凭据的公共值与端口归 [model-contract](../model-contract/README_ZH.md)，`modelCredential` 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)，存在性与解析的判定归 [model](../model/README_ZH.md)。设计、实现与运行验证分别判断。
+本成员是 Model 的单机宿主提供者，目前只承载本地凭据保管：文件保管库（磁盘记录、文件锁、原子发布、关闭）和装载它的 Cordis 插件。其余宿主能力（时钟、实例调度、目录装载、托管运行插件）的设计已接受，暂存于 [model/docs/cordis.md](../model/docs/cordis.md)，尚未实现。凭据的公共值与端口归 [model-contract](../model-contract/README_ZH.md)，`modelCredential` 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)，存在性与解析的判定归 [model](../model/README_ZH.md)。设计、实现与运行验证分别判断。
 
 ## 使用
 

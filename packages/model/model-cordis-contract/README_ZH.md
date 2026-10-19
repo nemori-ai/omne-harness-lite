@@ -7,7 +7,7 @@
 本成员拥有唯一 Service 定义、键、Context/Events 增补及定义自有登记协议。设计已按 [SPEC](SPEC.md) 接受。状态分四类，各类只说明自己的范围。
 
 1. 已有：Cordis 凭据服务定义。`ModelCredentialService` 与键 `modelCredential` 在 `./cordis` 入口，声明在 [`src/cordis.ts`](src/cordis.ts)。凭据的纯契约在 [model-contract](../model-contract/README_ZH.md)，本地保管与 `LocalCredentialPlugin` 在 [model-host-local](../model-host-local/README_ZH.md)。局限：该服务不核验调用方资格，该项在 [SPEC](SPEC.md#凭据服务)登记为未决。
-2. 本次实现：根入口导出八个登记类型。`./cordis` 导出十五个抽象 Service 定义（含凭据服务）、两个具体目录 `ModelInstancesService` 与 `ModelConvertersService`，以及对应的 `Context` 与 `Events` 增补。导出清单里的名字全部已实现。局限：测试只覆盖[验证说明](verification/README.md)列出的范围，不证明任何运行实现。
+2. 本包已实现：根入口导出八个登记类型。`./cordis` 导出十五个抽象 Service 定义（含凭据服务）、两个具体目录 `ModelInstancesService` 与 `ModelConvertersService`，以及对应的 `Context` 与 `Events` 增补。导出清单里的名字全部已实现。局限：测试只覆盖[验证说明](verification/README.md)列出的范围，不证明任何运行实现。
 3. 尚未实现或验证：抽象 Service 的实现，即模型运行工厂、完整宿主与其他提供者，不在本包。两个目录的未决项见 [SPEC](SPEC.md#实例目录的未决项)与 [SPEC](SPEC.md#转换目录的未决项)。
 4. 技术设计：非 pi-ai 技术设计已接受，pi-ai 相关细化仍为候选。契约实现不表示 CAP-MD01 至 CAP-MD13 已交付。
 
@@ -37,7 +37,7 @@
 
 ## 目录结构与文档职责
 
-结构沿本任务采用的 #343 目录方案。对本包不适用的目录，其 README 写明不适用及原因。目录存在不代表功能已实现。
+目录骨架依据 [RFC-0007](../../../docs/rfcs/RFC-0007-source-packages-and-templates.md) 与模板 `typescript-package@3.0.0`（见[完整生成树](../../../docs/package-organization.md#完整生成树)）。对本包不适用的目录，其 README 写明不适用及原因。目录存在不代表功能已实现。
 
 ```text
 包根：README.md、README_ZH.md、index.md、SPEC.md、documentation.json、package.json

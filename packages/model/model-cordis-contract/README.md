@@ -35,33 +35,37 @@ Run `pnpm --filter @omne-harness/model-cordis-contract typecheck` and `pnpm --fi
 
 Keep [documentation bindings](documentation.json), consumer links, and [group boundaries](../docs/architecture.md) aligned with the owning files. Declarations stay only in `src/`. The public API page links to them. Do not keep a second signature source.
 
-## 目录结构与文档职责
+## Directory structure and documentation roles
 
-结构沿本任务采用的 #343 目录方案。对本包不适用的目录，其 README 写明不适用及原因。目录存在不代表功能已实现。
+The skeleton follows [RFC-0007](../../../docs/rfcs/RFC-0007-source-packages-and-templates.md) and the template `typescript-package@3.0.0` (see the [generated tree](../../../docs/package-organization.md#完整生成树)). A directory that does not apply to this package states in its README why it does not apply. A directory that exists does not mean that the function is implemented.
 
 ```text
-包根：README.md、README_ZH.md、index.md、SPEC.md、documentation.json、package.json
-├── docs/：architecture、flows、object-model、public-api、context、cordis 六主题
-├── src/
-├── tests/fixtures/
-├── schema/
-├── verification/models/、verification/proofs/
-├── adr/
-├── examples/
-├── resources/
-└── acceptance/
+README.md, README_ZH.md   Entry: purpose, status, and this map
+index.md                  Reading paths through the package
+SPEC.md                   Behavior beyond the public types
+documentation.json        Documentation registration
+package.json              Package manifest
+docs/                     Six topics: architecture, flows, object-model, public-api, context, cordis
+src/                      Public definitions, validation, and implementation
+tests/                    Continuous tests; fixtures/ holds test inputs
+schema/                   External schemas
+verification/             models/ and proofs/
+adr/                      Implementation decisions with continuing consumers
+examples/                 Examples against the public entry
+resources/                Non-source runtime resources
+acceptance/               Independent acceptance; fixtures/ holds its inputs
 ```
 
-每个固定目录都有 README 和 index。源码、构建与测试配置沿实际文件；构建产物和依赖目录不属于正文骨架。
+Each fixed directory has a README and an index. The source, build, and test configuration follow the actual files. Build output and dependency directories are not part of the documentation skeleton.
 
-| 入口 | 文档职责 |
+| Entry | Documentation role |
 | --- | --- |
-| [设计](docs/index.md) | 架构、流程、对象、接口、消费与装配 |
-| [源码](src/index.md) | 实际公开导出和内部代码 |
-| [测试](tests/index.md)、[夹具](tests/fixtures/index.md) | 可执行断言与固定输入 |
-| [Schema](schema/index.md) | 外部数据格式及发布身份 |
-| [持续验证](verification/index.md)、[模型](verification/models/index.md)、[证明](verification/proofs/index.md) | 性质、前提、符合性和验证资源 |
-| [设计决策](adr/index.md) | 持续采用的实现取舍 |
-| [示例](examples/index.md) | 可运行消费方式 |
-| [运行资源](resources/index.md) | 资产、来源和装载责任 |
-| [独立验收](acceptance/index.md) | 独立场景、环境与判据 |
+| [Design](docs/index.md) | Architecture, flows, objects, interfaces, consumption, and assembly |
+| [Source](src/index.md) | Actual public exports and internal code |
+| [Tests](tests/index.md), [fixtures](tests/fixtures/index.md) | Executable assertions and fixed inputs |
+| [Schema](schema/index.md) | External data formats and published identity |
+| [Continuing verification](verification/index.md), [models](verification/models/index.md), [proofs](verification/proofs/index.md) | Properties, assumptions, conformance, and verification resources |
+| [Design decisions](adr/index.md) | Implementation choices with continuing consumers |
+| [Examples](examples/index.md) | Runnable consumption |
+| [Runtime resources](resources/index.md) | Assets, sources, and loading responsibility |
+| [Independent acceptance](acceptance/index.md) | Independent scenarios, environments, and criteria |

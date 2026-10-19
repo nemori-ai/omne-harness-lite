@@ -1,6 +1,6 @@
 # 模型调用组的工程关系
 
-产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 传输、厂商家族及其 tokenizer 引擎/资源/装配细化仍为候选；该例外不改变已定的阶段技术栈选择。model-contract 与 model-cordis-contract 的源码入口目前只落地凭据切片，其余声明标为 pending；model 已有凭据判定，模型执行工厂与完整宿主尚未实现。凭据源码已按本页边界迁移，包存在不证明完整能力可用。
+产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 传输、厂商家族及其 tokenizer 引擎/资源/装配细化仍为候选；该例外不改变已定的阶段技术栈选择。model-contract 与 model-cordis-contract 已发布全部声明并有测试，导出清单见各包 `tests/fixtures/exports.json`，清单没有 pending 名字。model 已有凭据判定，model-host-local 已有本地凭据保管，模型执行工厂与完整宿主尚未实现。凭据源码已按本页边界迁移，包存在不证明完整能力可用。
 
 ## 依赖方向
 
@@ -51,7 +51,7 @@ Cordis 定义与宿主插件分别从 model-cordis-contract/cordis 和 model-hos
 | tokenizer-tiktoken | ModelTextTokenizer 的引擎 adapter，供 OpenAI、Anthropic、Moonshot 等家族计量器构造 | 封装 js-tiktoken、资源初始化和 count 语义；共享引擎实现，不收齐所有厂商词表 |
 | tokenizer-huggingface | ModelTextTokenizer 的引擎 adapter，供 DeepSeek、Google、Qwen、Z.AI 等家族计量器构造 | 封装 Hugging Face tokenizer 运行库及资源初始化；隔离引擎依赖，不拥有家族模板和上游计量口径 |
 
-model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前只承载本地凭据保管。pi、厂商家族及 tokenizer 成员尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
+model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前只承载本地凭据保管。`pi-ai-*` 成员及 tokenizer 成员尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
 
 厂商包的 interface 应让消费者一次取得相容的精确绑定及其资源租约，不要求调用方自行拼接 tokenizer、模板、投影和 usage 算法。删除厂商包后，这些关联会散布到目录、计量与传输调用者，因而其 depth 有实际价值。将每个型号各做一个只转发家族工厂的包则没有这种收益。
 
@@ -116,7 +116,7 @@ model-cordis-contract 的根只允许纯类型导出，Service 类、键及 Cont
 
 纯契约的完整生产安装闭包不得包含 Cordis、Model 运行提供者、pi、厂商 SDK、tokenizer 引擎/词表或具体存储引擎。公开声明需要的共享依赖必须可安装，不能放到 devDependencies 后声称隔离；import type、tree shaking 和子入口只能分别解决类型或加载问题，不能证明安装闭包。
 
-共享 `Outcome` 由零生产依赖的 [operation-result](../../common/operation-result/SPEC.md) 唯一定义，采用依据是 [#371](https://github.com/nemori-ai/omne-harness-lite/issues/371)。Model 从 `@omne-harness/operation-result` 根入口引用，不复制或改变结果类型。`kernel-basis` 根入口为空导出，其 Cordis 辅助与测试装配不属于纯契约的生产依赖。Model 真实接口落地时须声明 `operation-result` 生产依赖，并检查完整传递依赖与仓库外安装。共享结果成员的拆分已完成，不代表 Model 契约的安装隔离已经验证。
+共享 `Outcome` 由零生产依赖的 [operation-result](../../common/operation-result/SPEC.md) 唯一定义，采用依据是 [#371](https://github.com/nemori-ai/omne-harness-lite/issues/371)。Model 从 `@omne-harness/operation-result` 根入口引用，不复制或改变结果类型。`kernel-basis` 根入口为空导出，其 Cordis 辅助与测试装配不属于纯契约的生产依赖。model-contract 已声明 `operation-result` 生产依赖，并有安装闭包测试检查已安装产物的传递依赖与导入。model-cordis-contract 与 model 各有自己的闭包检查。共享结果成员的拆分已完成，不代表 Model 契约的安装隔离已经验证；验证范围以各包持续验证页为准，其他成员落地时仍须逐项检查完整传递依赖与仓库外安装。
 
 TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥有者引用，逐项检查直接与传递清单、声明及平台约束。必要的纯表示解析器可留在契约闭包，不因它包含实现代码而另造副本。当前共享成员声明 Node 版本限制，拆包不自动承诺浏览器或其他运行平台支持。
 
@@ -124,7 +124,7 @@ TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥�
 
 ## 文档归属与迁移
 
-正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员的源码入口只落地凭据切片；model 已实现凭据判定，model-host-local 已实现本地凭据保管，其他运行工厂尚未实现。
+正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员已发布全部声明；model 已实现凭据判定，model-host-local 已实现本地凭据保管，其他运行工厂尚未实现。
 
 | 内容 | 当前拥有者与后续归属 |
 | --- | --- |
@@ -277,7 +277,7 @@ materialize 先取得实际发送容量，再按原来源及当前资格逐个�
 
 ## 凭据切片的现有装配边界
 
-凭据引用与发送前解析已有实现，现状分四类：既有保管实现在 model-host-local，契约在 model-contract，判定在 model，运行工厂与其他宿主尚未实现。公开类型已在 model-contract，服务定义已在 model-cordis-contract，本地保管与插件在 model-host-local。model 源码与包清单都不含 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口。根入口不启动 Cordis 不等于安装隔离，安装隔离须由实际安装闭包报告证明；model 的报告已由 `install-closure` 产生，`forbidden` 为空且场景运行通过，运行方式与范围见 [model 测试说明](../model/tests/README.md#安装闭包)。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
+凭据引用与发送前解析已有实现，现状分四类：既有保管实现在 model-host-local，契约在 model-contract，判定在 model，运行工厂与其他宿主尚未实现。公开类型已在 model-contract，服务定义已在 model-cordis-contract，本地保管与插件在 model-host-local。model 源码与包清单都不含 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口。根入口不启动 Cordis 不等于安装隔离，安装隔离须由实际安装闭包报告证明；model 的报告由 `install-closure` 产生，运行方式与验证范围见 [model 测试说明](../model/tests/README.md#安装闭包)。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
 
 凭据切片按以下责任迁移，沿用现有四成员，不另建凭据包。
 

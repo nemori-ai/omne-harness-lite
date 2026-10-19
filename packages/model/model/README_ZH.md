@@ -1,5 +1,7 @@
 # @omne-harness/model
 
+[English](README.md)
+
 ## 职责与状态
 
 本成员拥有可复用 Model 领域实现设计，已有凭据存在性与解析的判定，本地保管归 [model-host-local](../model-host-local/README_ZH.md)；托管运行和工厂尚未实现。凭据切片现状分四类：既有保管实现在 [model-host-local](../model-host-local/README_ZH.md)，契约在 [model-contract](../model-contract/README_ZH.md)，判定在本成员，运行工厂与其他宿主尚未实现。公共值、操作与提供者协议归 [model-contract](../model-contract/README_ZH.md)，框架定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。设计、实现与运行验证分别判断。
@@ -18,7 +20,7 @@
 
 ## 配置与运行
 
-构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口，没有 `./cordis` 与 `./execute`。`pnpm --filter @omne-harness/model run install-closure` 对本成员做打包、隔离安装、入口解析与场景运行，并以 `--out` 写出报告；最近一次运行 `forbidden` 为空、全部检查通过（见[测试说明](tests/README.md#安装闭包)）。包不自动安装所有厂商或词表。
+构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口，没有 `./cordis` 与 `./execute`。`pnpm --filter @omne-harness/model run install-closure` 对本成员做打包、隔离安装、入口解析与场景运行，并以 `--out` 写出报告；运行方式与验证范围见[测试说明](tests/README.md#安装闭包)，运行结果不在本页记录。包不自动安装所有厂商或词表。
 
 ## 验证
 
@@ -28,15 +30,13 @@
 
 修改构造或算法时同步[文档登记](documentation.json)、真实消费者及验证。资源导航见[包索引](index.md)，未实现资源保持实际状态。
 
-<a id="342-主干运行契约候选"></a>
-<a id="主干运行契约候选"></a>
-## 主干运行契约
+## 与 model-contract 的边界
 
-领域契约归[契约入口](../model-contract/docs/public-api.md)，本成员只维护实现函数和构造形状。共同业务行为的已接受范围由[共同 SPEC](../model-contract/SPEC.md)记录，迁移不扩大接受范围。
+领域契约归[契约入口](../model-contract/docs/public-api.md)，本成员只维护实现函数和构造形状。共同业务行为由[共同 SPEC](../model-contract/SPEC.md)记录。本成员不改变其范围，也不降低其保证。
 
 ## 目录结构与文档职责
 
-结构沿本任务采用的 #343 目录方案。对本包不适用的目录，其 README 写明不适用及原因。目录存在不代表功能已实现。
+目录骨架依据 [RFC-0007](../../../docs/rfcs/RFC-0007-source-packages-and-templates.md) 与模板 `typescript-package@3.0.0`（见[完整生成树](../../../docs/package-organization.md#完整生成树)）。对本包不适用的目录，其 README 写明不适用及原因。目录存在不代表功能已实现。
 
 ```text
 包根：README.md、README_ZH.md、index.md、SPEC.md、documentation.json、package.json

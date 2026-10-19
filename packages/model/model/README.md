@@ -1,70 +1,74 @@
 # @omne-harness/model
 
+[中文](README_ZH.md)
+
 ## Responsibility and status
 
-本成员拥有可复用 Model 领域实现设计，已有凭据存在性与解析的判定，本地保管归 [model-host-local](../model-host-local/README_ZH.md)；托管运行和工厂尚未实现。凭据切片现状分四类：既有保管实现在 [model-host-local](../model-host-local/README_ZH.md)，契约在 [model-contract](../model-contract/README_ZH.md)，判定在本成员，运行工厂与其他宿主尚未实现。公共值、操作与提供者协议归 [model-contract](../model-contract/README_ZH.md)，框架定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。设计、实现与运行验证分别判断。
+This member owns the design of the reusable Model domain implementation. It has the judgment of credential presence and resolution. Local custody belongs to [model-host-local](../model-host-local/README.md). Hosted runs and the factory are not implemented. The credential slice has four parts: the custody implementation is in [model-host-local](../model-host-local/README.md), the contract is in [model-contract](../model-contract/README.md), the judgment is in this member, and the run factory and other hosts are not implemented. The public values, operations, and provider protocols belong to [model-contract](../model-contract/README.md). The framework definitions belong to [model-cordis-contract](../model-cordis-contract/README.md). Design, implementation, and run verification are judged separately.
 
 ## Usage
 
-选择本实现的独立程序与宿主从[消费与构造](docs/context.md)进入。executeModel、createModelRuntime 及构造参数的设计已接受，精确形状见[公开接口设计](docs/public-api.md)，尚不能作为现有导入示例。
+A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). They are not yet usable as import examples.
 
 ## Contracts
 
-[实现规格](SPEC.md)拥有单次独立执行与构造配置行为。实现须满足[共同规格](../model-contract/SPEC.md)，不能降低其身份、发送、保管和恢复保证。
+The [implementation specification](SPEC.md) owns the behavior of a single standalone execution and of the construction configuration. The implementation must satisfy the [shared specification](../model-contract/SPEC.md). It must not reduce the identity, sending, custody, and recovery guarantees of that specification.
 
 ## Design
 
-[设计索引](docs/index.md)按架构、流程、内部对象、公开入口、消费和 Cordis 装配展开。宿主装配设计暂存于 [docs/cordis.md](docs/cordis.md)，它不对应本成员的任何导出；model-host-local 目前只承载本地凭据保管。
+The [design index](docs/index.md) covers architecture, flows, internal objects, public entries, consumption, and Cordis assembly. The host assembly design is held in [docs/cordis.md](docs/cordis.md). It does not correspond to any export of this member. model-host-local implements only local credential custody.
 
 ## Configuration and operation
 
-构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口，没有 `./cordis` 与 `./execute`。`pnpm --filter @omne-harness/model run install-closure` 对本成员做打包、隔离安装、入口解析与场景运行，并以 `--out` 写出报告；最近一次运行 `forbidden` 为空、全部检查通过（见[测试说明](tests/README.md#安装闭包)）。包不自动安装所有厂商或词表。
+The constructor takes Commands, the sending fence, the retry policy, the instance host, and the clock explicitly. The application selects and owns the adapters that it needs. It does not take business parameters from a global Context. The target run implementation does not depend on Cordis. The package manifest does not declare Cordis, proper-lockfile, or model-cordis-contract. The package has only the root entry. It has no `./cordis` and no `./execute`. The command `pnpm --filter @omne-harness/model run install-closure` packs this member, installs it in isolation, resolves the entries, and runs a scenario. It writes a report to the path of `--out`. For the way to run it and its scope, see the [test description](tests/README.md#安装闭包). This page does not record run results. The package does not install all vendors or vocabularies automatically.
 
 ## Verification
 
-运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。现有测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，不证明托管运行、流式或结果保管已经实现。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
+Run `pnpm --filter @omne-harness/model typecheck`, `pnpm --filter @omne-harness/model test`, and `make docs-check`. The current tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. They do not show that hosted runs, streaming, or result custody are implemented. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
 
 ## Maintenance
 
-修改构造或算法时同步[文档登记](documentation.json)、真实消费者及验证。资源导航见[包索引](index.md)，未实现资源保持实际状态。
+When you change the construction or an algorithm, update the [documentation registration](documentation.json), the real consumers, and the verification. For resource navigation, see the [package index](index.md). Resources that are not implemented keep their actual status.
 
-<a id="342-主干运行契约候选"></a>
-<a id="主干运行契约候选"></a>
-## 主干运行契约
+## Boundary with model-contract
 
-领域契约归[契约入口](../model-contract/docs/public-api.md)，本成员只维护实现函数和构造形状。共同业务行为的已接受范围由[共同 SPEC](../model-contract/SPEC.md)记录，迁移不扩大接受范围。
+The domain contract belongs to the [contract entry](../model-contract/docs/public-api.md). This member maintains only the implementation functions and the construction shapes. The [shared SPEC](../model-contract/SPEC.md) records the shared business behavior. This member does not change its scope and does not reduce its guarantees.
 
-## 目录结构与文档职责
+## Directory structure and documentation roles
 
-结构沿本任务采用的 #343 目录方案。对本包不适用的目录，其 README 写明不适用及原因。目录存在不代表功能已实现。
+The skeleton follows [RFC-0007](../../../docs/rfcs/RFC-0007-source-packages-and-templates.md) and the template `typescript-package@3.0.0` (see the [generated tree](../../../docs/package-organization.md#完整生成树)). A directory that does not apply to this package states in its README why it does not apply. A directory that exists does not mean that the function is implemented.
 
 ```text
-包根：README.md、README_ZH.md、index.md、SPEC.md、documentation.json、package.json
-├── docs/：architecture、flows、object-model、public-api、context、cordis 六主题
-├── src/
-├── tests/fixtures/
-├── schema/
-├── verification/models/、verification/proofs/
-├── adr/
-├── examples/
-├── resources/
-└── acceptance/
+README.md, README_ZH.md   Entry: purpose, status, and this map
+index.md                  Reading paths through the package
+SPEC.md                   Behavior beyond the public types
+documentation.json        Documentation registration
+package.json              Package manifest
+docs/                     Six topics: architecture, flows, object-model, public-api, context, cordis
+src/                      Public definitions, validation, and implementation
+tests/                    Continuous tests; fixtures/ holds test inputs
+schema/                   External schemas
+verification/             models/ and proofs/
+adr/                      Implementation decisions with continuing consumers
+examples/                 Examples against the public entry
+resources/                Non-source runtime resources
+acceptance/               Independent acceptance; fixtures/ holds its inputs
 ```
 
-每个固定目录都有 README 和 index。源码、构建与测试配置沿实际文件；构建产物和依赖目录不属于正文骨架。
+Each fixed directory has a README and an index. The source, build, and test configuration follow the actual files. Build output and dependency directories are not part of the documentation skeleton.
 
-| 入口 | 文档职责 |
+| Entry | Documentation role |
 | --- | --- |
-| [设计](docs/index.md) | 架构、流程、对象、接口、消费与装配 |
-| [源码](src/index.md) | 实际公开导出和内部代码 |
-| [测试](tests/index.md)、[夹具](tests/fixtures/index.md) | 可执行断言与固定输入 |
-| [Schema](schema/index.md) | 外部数据格式及发布身份 |
-| [持续验证](verification/index.md)、[模型](verification/models/index.md)、[证明](verification/proofs/index.md) | 性质、前提、符合性和验证资源 |
-| [设计决策](adr/index.md) | 持续采用的实现取舍 |
-| [示例](examples/index.md) | 可运行消费方式 |
-| [运行资源](resources/index.md) | 资产、来源和装载责任 |
-| [独立验收](acceptance/index.md) | 独立场景、环境与判据 |
+| [Design](docs/index.md) | Architecture, flows, objects, interfaces, consumption, and assembly |
+| [Source](src/index.md) | Actual public exports and internal code |
+| [Tests](tests/index.md), [fixtures](tests/fixtures/index.md) | Executable assertions and fixed inputs |
+| [Schema](schema/index.md) | External data formats and published identity |
+| [Continuing verification](verification/index.md), [models](verification/models/index.md), [proofs](verification/proofs/index.md) | Properties, assumptions, conformance, and verification resources |
+| [Design decisions](adr/index.md) | Implementation choices with continuing consumers |
+| [Examples](examples/index.md) | Runnable consumption |
+| [Runtime resources](resources/index.md) | Assets, sources, and loading responsibility |
+| [Independent acceptance](acceptance/index.md) | Independent scenarios, environments, and criteria |
 
-## 独立消费入口
+## Standalone consumption entry
 
-凭据判定的已实现导出见[公开入口](docs/public-api.md#已实现的凭据入口)，调用方式见[消费指南](docs/context.md#独立消费入口)；本地保管库与插件的用法见 [model-host-local](../model-host-local/docs/context.md)。凭据判定已有行为测试；其他运行设计的接受不表示已经实现。
+For the implemented exports of the credential judgment, see the [public entry](docs/public-api.md#已实现的凭据入口). For the way to call them, see the [consumption guide](docs/context.md#独立消费入口). For the use of the local vault and the plugin, see [model-host-local](../model-host-local/docs/context.md). The credential judgment has behavior tests. The acceptance of other run designs does not mean that they are implemented.
