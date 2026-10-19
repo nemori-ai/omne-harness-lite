@@ -11,7 +11,7 @@
 
 本包拥有领域值、品牌、公开操作与可替换提供者端口，包括 ModelProvider 管理接口。executeModel、createModelRuntime 及其 ModelDependencies、ModelConfiguration 由[领域实现](../../model/docs/public-api.md)拥有，不从本包转导出。Cordis 类与键由[框架契约](../../model-cordis-contract/docs/public-api.md)拥有。
 
-凭据纯契约由本包拥有：`CredentialId` 及其解码函数、引用、查询、存在性与解析结果、`CredentialPort` 和持有者比较函数，声明见[凭据引用与解析端口](#凭据引用与解析端口)。`CredentialId` 在本包只有一个声明，model 与其他消费者不再导出同名类型。model 的内部判定状态、磁盘格式和本地保管诊断不属于本包。精确归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。
+凭据纯契约由本包拥有：`CredentialId` 及其解码函数、引用、查询、存在性与解析结果、`CredentialPort` 和持有者比较函数，声明见[凭据引用与解析端口](#凭据引用与解析端口)。`CredentialId` 在本包只有一个声明，model 与其他消费者不再导出同名类型。model 的内部判定状态、磁盘格式和本地保管诊断不属于本包。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
 
 `Outcome` 引用 `@omne-harness/operation-result` 的唯一类型。该共享成员没有生产依赖。本包已将它列为生产依赖，真实导出还须按[安装闭包要求](../../docs/architecture.md#安装闭包与共同依赖前置)验证实际产物。不复制 `Outcome`，不以 `import type` 代替完整安装依赖检查。
 
@@ -194,7 +194,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 - 从文本或存储复原 `Supplier` 的位置（档案来源、dispatch 记录、重试决定、恢复读取）必须经 `decodeCredentialId` 取得 `Supplier.credential.id`，不得用类型断言。
 - `CredentialPort` 只有 `present` 与 `resolve`。保管方自己的诊断不属于端口，Cordis 服务也不转发它。
 - `sameCredentialHolder(left, right)` 是持有者语义的比较：`id` 精确相等，且 `tenantEquals` 为真。未经 legal-identity 铸造的租户值返回 `false`。判定方、保管方与替代提供者共用这一个函数。它不是品牌相等，品牌相等仍是 `===`。
-- `MODEL_SEND` 是本交付唯一的用途取值。`CredentialQuery.purpose` 是普通字符串，用途不符的查询由端口返回 `denied`。
+- `MODEL_SEND` 是唯一的用途取值。`CredentialQuery.purpose` 是普通字符串，用途不符的查询由端口返回 `denied`。
 
 ## 供应商尝试诊断
 

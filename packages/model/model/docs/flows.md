@@ -2,7 +2,7 @@
 
 本页描述已接受的非 pi-ai 运行契约。pi-ai 相关细化仍为候选，采用范围见 [SPEC](../../model-contract/SPEC.md)，图表不表示运行实现或真实提供者验证已完成。
 
-下图只给出主干阅读次序，不穷举控制优先级、状态或并发交错。完整行为和失败条件归 [SPEC](../../model-contract/SPEC.md)，各参与者只通过自己的公开能力交接。
+下图只给出主要阅读次序，不穷举控制优先级、状态或并发交错。完整行为和失败条件归 [SPEC](../../model-contract/SPEC.md)，各参与者只通过自己的公开能力交接。
 
 流程承接[产品旅程](../../../../.meta_harness/design/product/model-invocation/design.md#关键用户旅程)，表达逻辑角色的顺序、守卫与交接。图表不定义公开 API、字段、提供者或存储事务。
 
@@ -168,6 +168,11 @@ sequenceDiagram
           R-->>M: 不再试或不可用事实
           M->>B: 原调用真实失败，结束发出循环
         end
+      else 上游报告输入超限
+        P-->>M: 供应商自己的输入超限信号
+        M->>B: preserve终止事实并闭合窗口，原调用以failed收场，成因input-over-limit，保留费用
+        Note over M,R: 不重试，不换同档案的其他供应商
+        Note over F,M: 调用以failed交回原消费者；调用方压缩后以新的ModelCallId重新发起，不属于原调用
       else 首内容前明确无效请求或凭据等禁止再发成因
         M->>B: 保存已发出拒绝和费用，原调用失败收场
       else 实际首内容交出

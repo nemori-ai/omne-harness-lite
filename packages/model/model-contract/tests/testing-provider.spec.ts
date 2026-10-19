@@ -164,6 +164,38 @@ describe('the ordinary path of a scripted call', () => {
     ).toMatchObject({ kind: 'reading', page: { next: null } })
   })
 
+  it('answers a repeated beginRead after the acknowledgement from the read it began, and a new operation with the acknowledgement', async () => {
+    const scripted = scriptedProvider()
+    const { consumption } = scripted.provider.runtime
+    await admitCall(scripted, 'k')
+    settleCall(scripted, 'k')
+    const begin = (label: string) => ({
+      ...access('k'),
+      operation: operation(label),
+      result: version('k'),
+    })
+    const open = must(await consumption.beginRead(begin('read-open')))
+    const closing = must(await consumption.beginRead(begin('read-closed')))
+    if (open.kind !== 'started' || closing.kind !== 'started') throw new Error('read')
+    must(await consumption.closeRead({ ...access('k'), read: closing.read }))
+    const receipt = must(await consumption.acknowledge(ackInput('k')))
+
+    // The read that had not ended answers with its first page again.
+    expect(must(await consumption.beginRead(begin('read-open')))).toEqual(open)
+    expect(open.value).toMatchObject({ kind: 'reading' })
+    // The read that had ended answers that it ended, without any content.
+    expect(must(await consumption.beginRead(begin('read-closed')))).toEqual({
+      kind: 'started',
+      read: closing.read,
+      value: { kind: 'ended', reason: 'closed' },
+    })
+    // An operation that began no read gets the acknowledgement and no read.
+    expect(must(await consumption.beginRead(begin('read-new')))).toEqual({
+      kind: 'acknowledged',
+      custody: receipt.custody,
+    })
+  })
+
   it('serves the same page for a repeated after and refuses an after it never issued', async () => {
     const scripted = scriptedProvider()
     const { consumption } = scripted.provider.runtime

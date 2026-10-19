@@ -109,7 +109,11 @@ packages/
 │   ├── assembly/               求值、采用和装配交接
 │   └── kernel-basis/           Cordis 插件辅助和测试装配
 ├── agent/agent/                Agent定义、Loop与extensions
-├── model/model/                模型能力、请求和原结果
+├── model/
+│   ├── model-contract/         模型纯契约：档案、请求准备、调用与提供者协议
+│   ├── model-cordis-contract/  模型的 Cordis 服务定义
+│   ├── model/                  不含 Cordis 的模型执行实现
+│   └── model-host-local/       单机宿主：本地凭据保管与 Cordis 插件
 ├── tool/tool/                  工具定义、执行和效果
 ├── context/
 │   ├── runtime-context/        数据注册、供给与读取

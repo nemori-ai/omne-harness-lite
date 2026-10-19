@@ -2,7 +2,7 @@
 
 本目录维护契约场景、类型消费检查和模型验证的持续义务。行为唯一正文归 [SPEC](../SPEC.md)，本目录不授予设计接受，也不表示行为测试已经通过。
 
-产品定义的 CAP-MD01 至 CAP-MD13 全部纳入 `0.0.0 → 0.1.0` 完整交付，范围归[产品阶段承诺](../../../../.meta_harness/design/product/model-invocation/design.md#阶段与版本支持承诺)。技术缺项和未运行的验证不降低该范围。
+CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md#阶段与版本支持承诺)为准。技术缺项和未运行的验证不改变产品正文规定的范围。
 
 当前只有验证要求与前提说明，没有本目录可执行的协议模型或证明。具体运行、临时探针和逐轮评审证据归任务 tmp。后续资源须记录真实依赖、性质、命令、覆盖及限制，不能用静态类型或模型枚举替代提供者故障验证。
 
@@ -122,9 +122,9 @@ public-api 有 21 个二级章节。清单列出其中 14 章：根入口 12 章
 | --- | --- | --- |
 | 独立调用者 | 固定请求以原 call 与 operation 受理并认回重复；经 `connect` 观察到收场；按精确版本分页读取并以 processed 证据确认。取消单列：请求与受理的控制和上游实际停止是两件事；同一调用的重复取消不论 operation 都返回首次的控制；传播不可用仍是请求，不当作调用失败；取消后到达的结果与费用被保管，调用不自动确认、不变成故障；取消一个调用不波及另一个 | 无权取消被拒，不留控制，不扩大权限，调用方不当作已取消；受理回复未知时按原受理 operation 查询，不另发调用（世界记录调用方发出的每一次受理，断言除原调用与原 operation 外没有别的受理，且只有那次重复被受理） |
 | 编排协调者 | 以显式的主体、租户、调用与 operation 取消；无活体路由时 `connect` 回答 `no-live-route`，调用仍是原调用且没被取消；宿主在新实例上接续后连到同一调用；没有路由时取消照样到达调用 | 取消回复未知时用同一 operation 重发，不产生第二个控制（`applied` 与 `dropped` 各一）；目录不可达回答 `unavailable`，不当作无路由；别的租户的取消与不存在的调用被拒得完全相同；丢失路由之后查原调用，同一受理仍认回，不替换（世界记录协调者发出的每一次受理，断言除原调用与原 operation 外没有别的受理） |
-| Context | 工具声明只含名称、说明与参数模式，原样进入请求；Context 从胜出档案读取窗口与压缩触发百分比，请求前用计量判断，准备不计量，固定请求不带预算，没有工具时不允许工具；图片引用保持引用，准备零读取；语音块换成转换件派生的文本 | Context 按自己的规则判断需要压缩时（本场景的 Context 替身以自己算出的触发线和计量器的上界判断，算法不归 Model），按自己的策略压缩后重新计量并准备，Model 不截断；压缩后仍超限则拒绝给原消费者，不准备传输（准备替身只计数、不自行拒绝，断言它一次没被调用；拒绝的失败 kind 不钉，见限度）；发送后以 `input-over-limit` 收场时，Context 压缩并以新调用身份重发，同一输入不重发；压缩到一条消息仍被拒则放弃；其他成因的失败原样交回，不压缩、不重发 |
+| Context | 工具声明只含名称、说明与参数模式，原样进入请求；Context 从胜出档案读取窗口与压缩触发百分比，请求前用计量判断，输入恰在触发线时不压缩，准备不计量，固定请求不带预算，没有工具时不允许工具；图片引用保持引用，准备零读取；语音块换成转换件派生的文本 | Context 按自己的规则判断需要压缩时（本场景的 Context 替身以自己算出的触发线和计量器的上界判断，算法不归 Model），按自己的策略压缩后重新计量并准备，Model 不截断；压缩后仍超限则拒绝给原消费者，不准备传输（准备替身只计数、不自行拒绝，断言它一次没被调用；拒绝的失败 kind 不钉，见限度）；发送后以 `input-over-limit` 收场时，Context 压缩并以新调用身份重发，同一输入不重发；压缩到一条消息仍被拒则放弃；其他成因的失败原样交回，不压缩、不重发；计量器给出命名失败时，Context 不当作输入过大，不压缩、不丢弃历史、不准备，把失败交给消费者；预算缺 `input-tokens` 检查时，Context 当作未完成计量，不压缩、不准备 |
 | 结果消费者 | 按精确版本分页读到完成；以 processed 或 retained 证据确认，调用状态显示回执；重复确认返回原回执，已确认的结果不再被领取；已开始的读在确认后仍可读，清理 `blocked` 与原因被显示，确认不回滚 | 收场前确认被拒，保管仍在 producer，收场后同一消费者可以确认；提供者不接受的证据被拒，保管仍在 producer，用真实证据重新确认成功；同一确认 operation 配别的证据是冲突，首个证据为准；确认回复未知时以同一 operation 与证据重复，不重新领取。前两条只断言「不成功、状态不变」，不钉失败 kind |
-| 通用提供者作者 | 只依赖 model-contract 与 operation-result，实现传输、计量与 tokenizer 三个端口；传输通过 `checkModelProviderConformance` 的全部六条传输义务，装配方才采用；计量数词、保持待读媒体为 `deferred-media`、对超出 `context` 上界的输入照常给出带数值与上限的检查，由请求组装方判断；tokenizer 数词与特殊记号并点名不认识的记号；供应商的超限响应映射为 `input-over-limit`，只带供应商给出的数字，状态码相同而成因码不同的不映射；档案维护检查 `context` 等有效性规则并列出违反的字段，更新时间由自己的时钟给出且倒退时拒绝并保持原档案 | 在 `prepare` 就发送的传输、事实流不终止的传输，符合性断言报告失败并带原因，装配方不采用该提供者；只持有 tokenizer 的计量器不给完整预算（回答 `unsupported` 或 `unavailable`），装配方不据分词计数判断压缩，同一规则仍据完整计量依据给出的计数判断；时间倒退的档案变更返回 `unavailable`（`clock`）且原档案不变 |
+| 通用提供者作者 | 只依赖 model-contract 与 operation-result，实现传输、计量与 tokenizer 三个端口；传输通过 `checkModelProviderConformance` 的全部六条传输义务，装配方才采用；计量数词、保持待读媒体为 `deferred-media`、对超出 `context` 上界的输入照常给出带数值与上限的检查，由请求组装方判断；tokenizer 数词与特殊记号并点名不认识的记号；供应商的超限响应映射为 `input-over-limit`，只带供应商给出的数字；档案维护的更新时间由自己的时钟给出 | 在 `prepare` 就发送的传输、事实流不终止的传输，符合性断言报告失败并带原因，装配方不采用该提供者；只持有 tokenizer 的计量器不给完整预算（回答 `unsupported` 或 `unavailable`），装配方不据分词计数判断压缩，同一规则仍据完整计量依据给出的计数判断；状态码相同而成因码不同的拒绝不映射为 `input-over-limit`，状态码留作证据；档案维护检查 `context` 等有效性规则并列出违反的字段，不留档案；档案维护对重复 operation 返回原结果、不产生新修订，同一 operation 配别的变更是冲突且不改变档案；时间倒退的档案变更返回 `unavailable`（`clock`）且原档案不变；时钟读数不是时间时同样返回 `unavailable`（`clock`）且原档案不变 |
 
 ### 不变量覆盖（G4）
 
@@ -145,7 +145,7 @@ public-api 有 21 个二级章节。清单列出其中 14 章：根入口 12 章
 
 - 夹具里的替代提供者与替代传输由脚本给出结果，只证明协调者在契约面上看到的结果，不证明生产提供者的真实发送、持久化与恢复。
 - Context 夹具的档案、准备、计量与转换服务是夹具自己的替身（契约没有它们的受控替代件），所以这些路径证明 Context 一侧怎样使用这些接口，不证明 Model 实现。准备替身只计数、不计量、不自行拒绝：计量替身拒绝的输入它照样准备，所以「仍超限则不准备」只在 Context 自己停下时成立，断言的是替身的调用次数为零，不是替身的第二次拒绝。
-- 「Context 不在装配与准备时读取二进制」没有运行时观察：Context 一侧的代码拿不到传输，传输只交给夹具自己的准备替身，计数恒为零。这条排除靠结构证据：Context 一侧的代码（`context/context.ts`）只收到准备服务的签名（`Services` 里是档案、准备、计量、转换、发送五项），它的依赖与类型里没有传输，也不导入 `ModelMediaReader`；导入层的核对命令（见角色追踪表）无输出，`fixture-compile` 要求它只用声明的包。这是对代码结构的证据，不是对读取行为的观察。
+- 「Context 不在装配与准备时读取二进制」没有运行时观察：Context 一侧的代码拿不到传输，传输只交给夹具自己的准备替身，计数恒为零。这条排除靠结构证据：Context 一侧的代码（`context/context.ts`）只收到准备服务的签名（`Services` 里是档案、准备、计量、转换、发送五项），它的依赖与类型里没有传输，也不导入 `ModelMediaReader`；`fixture-compile` 要求它只用声明的包，读它的导入语句就能确认没有传输与 `ModelMediaReader`（没有设施单独检查这一点，由评审读导入语句核对）。各角色的路径在 `tests/fixtures/consumers/<角色>/fixture.ts` 的 `fixture.paths`，对应关系见[角色夹具](#角色夹具)的角色表。这是对代码结构的证据，不是对读取行为的观察。
 - 通用提供者作者夹具实现传输、计量与 tokenizer 三个端口。存储与宿主端口（`ModelCommands`、`ModelInstanceHost`）是提供者内部的深接缝，没有夹具。传输由符合性断言检查，计量与 tokenizer 只由夹具自己的断言检查。
 - 「不导入 ModelConfiguration、driver 或具体执行工厂」只在依赖层执行：`@omne-harness/model` 与 `@omne-harness/model-host-local` 被禁止。契约里的 `ModelDriver` 与 `ModelDriverHost` 是端口类型，不禁止；`ModelConfiguration` 不存在于契约包。
 - 无权取消只断言 `denied`（页面 `unauthorised-cancel-denied` 规定），不断言 `action` 文本，页面没有规定它；跨租户的取消只断言与不存在的调用得到相等的失败值（页面 `refusal-hides-existence`），不钉 kind；收场前确认与提供者不接受的证据只断言不成功且保管不变（页面只写「拒绝」，未给 kind）。`ToolDeclaration` 的构造失败，以及伪证据与猜错结果版本被拒时的失败 kind，在页面上没有形态，所以没有对应的失败路径或没有钉 kind。这些列入契约缺口。计量能力不因超限失败，只报告；压缩到一条仍超上限时，Context 夹具给出它自己的 `too-large` 结果，不冒充 Model 失败。
@@ -272,6 +272,7 @@ Tool 额外验证附件仅地址文本且不加载媒体、无附件的内容 re
 | 旧消费者或别租户 ACK | 拒绝，原结果不变 |
 | 单发失败正等策略时 ACK | 拒绝，整调用继续 |
 | 新领取与 ACK 同时发生 | 确认后禁止新领取，已有真实读不被截断 |
+| ACK 之后用原读取 operation 重复 `beginRead` | 返回原 `beginRead` 的回答：未结束的读给首页，已结束的读给结束状态，不给新内容。只有新 operation 才返回 acknowledged。运行断言：`tests/testing-provider.spec.ts` 的「answers a repeated beginRead after the acknowledgement from the read it began, and a new operation with the acknowledgement」；该测试覆盖未结束的读、已结束的读与新 operation 三种情形，符合性断言 `acknowledged-result-not-read-again` 只覆盖新 operation |
 | 真实写入未知后 ACK | 明确待核实及待清理，不伪释放 |
 | 已确认后清理失败，消费者退出 | 模型负责续做，确认不回滚 |
 | 共用数据另一调用仍在使用 | 不误删对方内容 |
@@ -302,6 +303,7 @@ Tool 额外验证附件仅地址文本且不加载媒体、无附件的内容 re
 | 上游返回与超限响应相同的状态码，但供应商的超限信号不在 | 不形成 input-over-limit；状态码只是证据 |
 | 同一档案身份的变更，其时刻早于上一次成功变更 | change 返回 unavailable（dependency 为 clock），原档案不变 |
 | 档案变更使窗口小于输出上限 | change 返回 invalid 并列出字段，档案不变 |
+| 准备租约的 `release` 钩子失败 | `release` 返回带 `failure`（kind 为 `unavailable`）的结果，不抛出；提供者仍欠这次释放，重复 `release` 返回同一结果。目前只有类型探针（`tests/profile-source.spec-d.ts`），没有运行时实现，也没有运行断言 |
 | estimator 无 marginSource 或只计消息正文 | 计量能力返回具名失败，不填零余量或遗漏工具声明 |
 | converter 已注册但提供者失去 | 明确 unavailable，不当作无件保留或换件重算 |
 | converter 只返回同模态或文件派生 | invalid，原消息不接纳 |
@@ -417,14 +419,14 @@ Tool 额外验证附件仅地址文本且不加载媒体、无附件的内容 re
 
 ## Model 产品能力与设计覆盖
 
-产品 CAP-MD01 至 CAP-MD13 全部承诺在 0.1.0 完整交付。本表连接[已接受产品](../../../../.meta_harness/design/product/model-invocation/design.md)与已接受的非 pi-ai 技术设计，pi-ai 具体适配保持候选，不表示实际实现通过。所有行的运行验证均待实际提供者兑现。
+CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md#阶段与版本支持承诺)为准。本表连接[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md)与已接受的非 pi-ai 技术设计，pi-ai 具体适配保持候选，不表示实际实现通过。所有行的运行验证均待实际提供者兑现。
 
 | 能力 | 内部 module 与流程 | 对象与公开接口设计 | 行为/协议 | 必须验证的反例与剩余证据 |
 | --- | --- | --- | --- | --- |
 | CAP-MD01 档案维护 | 档案维护；[流程](../../model/docs/flows.md#flow-md01) | ProfileIdentity、ModelProfile、ModelProfileMaintenance | [条件变更](../SPEC.md#档案与请求准备协议) | 同名并发、撤回行重建、跨层维护、未知提交及断电；存储提供者未实现 |
 | CAP-MD02 同名求值 | 档案求值；[流程](../../model/docs/flows.md#flow-md01) | ModelProfiles、ProfileResolution | [求值与列表](../SPEC.md#同名求值选择及列表) | 缺凭据不退层、撤回后合法外层、配置排除与未知；跨拥有者版本读取待实现 |
 | CAP-MD03 会话选择 | 档案求值；选择的保存归调用方；[流程](../../model/docs/flows.md#flow-md01) | ModelChoices、ModalityRequirement；选择的保存归调用方 | [准备消费路径](../docs/context.md#先求值再组装和准备) | 小窗口允许切换、当前非法值保留、下一请求失败不撤销选择；调用方集成待验证 |
-| CAP-MD04 租户凭据 | 凭据拥有者；发送；[流程](../../model/docs/flows.md#flow-md01) | 无秘密 ProfileSupplier、固定 Supplier 绑定引用 | [请求准备与发送](../SPEC.md#档案与请求准备协议) | 已有绑定不可读不退默认、解绑前后竞争；凭据切片已在 model 实现；托管发送的当前资格与固定绑定适配尚未完成，新通道仍缺精确定义 |
+| CAP-MD04 租户凭据 | 凭据拥有者；发送；[流程](../../model/docs/flows.md#flow-md01) | 无秘密 ProfileSupplier、固定 Supplier 绑定引用 | [请求准备与发送](../SPEC.md#档案与请求准备协议) | 已有绑定不可读不退默认、解绑前后竞争；凭据引用与解析已在 model 实现；托管发送的当前资格与固定绑定适配尚未完成，新通道仍缺精确定义 |
 | CAP-MD05 模态与转换 | 消息转换；接收的投影；[流程](../../model/docs/flows.md#flow-md02) | ModelMessageConversion、ModelConverterCatalog、ConvertedContent | [转换与投影](../SPEC.md#转换与历史投影协议) | 同键冲突、命中不可用、无 transcript、历史不回填、Tool ref 准入零读取；共享块迁移和历史原子接纳待验证 |
 | CAP-MD06 完整请求合法性 | 请求准备；发送；[流程](../../model/docs/flows.md#flow-md02) | ModelRequestPreparation、ContextLimits、ModelLimit、RequestBudget、ModelInputMeter、ModelTextTokenizer、ModelCountingBasis | [准备协议](../SPEC.md#档案与请求准备协议)、[媒体加载](../SPEC.md#工具定义转换与内容引用加载) | 缺图片上限、窗口与输出上限矛盾、漏工具声明、AST 编码错误、估算缺余量、上游超限不重试、扩展后不重测；同编码器异模板、计量组合失效及特殊 token 注入；供应商 schema/计量实证待补 |
 | CAP-MD07 真实发出与重试 | 调用推进；策略 seam；[流程](../../model/docs/flows.md#flow-md03) | DispatchRecord、RetryPosition、ModelRetryPolicy、ModelSendBoundary | [重试与恢复](../SPEC.md#342-重试失联与恢复) | 策略回执未知、首内容不确定、供应商切换及有限次数；真实传输与持久策略验证待做 |

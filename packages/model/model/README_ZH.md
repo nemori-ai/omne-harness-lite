@@ -4,7 +4,7 @@
 
 ## 职责与状态
 
-本成员拥有可复用 Model 领域实现设计，已有凭据存在性与解析的判定，本地保管归 [model-host-local](../model-host-local/README_ZH.md)；托管运行和工厂尚未实现。凭据切片现状分四类：既有保管实现在 [model-host-local](../model-host-local/README_ZH.md)，契约在 [model-contract](../model-contract/README_ZH.md)，判定在本成员，运行工厂与其他宿主尚未实现。公共值、操作与提供者协议归 [model-contract](../model-contract/README_ZH.md)，框架定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。设计、实现与运行验证分别判断。
+本成员拥有可复用 Model 领域实现设计，已有凭据存在性与解析的判定，本地保管归 [model-host-local](../model-host-local/README_ZH.md)；托管运行和工厂尚未实现。凭据引用与解析分属四处：保管实现在 [model-host-local](../model-host-local/README_ZH.md)，契约在 [model-contract](../model-contract/README_ZH.md)，判定在本成员。运行工厂与其他宿主尚未实现。公共值、操作与提供者协议归 [model-contract](../model-contract/README_ZH.md)，框架定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。设计、实现与运行验证分别判断。
 
 ## 使用
 

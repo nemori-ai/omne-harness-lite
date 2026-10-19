@@ -140,7 +140,7 @@ classDiagram
 | --- | --- | --- |
 | ProfileIdentity | 范围加不可变路由名，同范围撤回行仍占身份 | Model 档案权威，长期保存 |
 | ModelProfile | 身份、修订、最近一次成功变更的时刻 updatedAt、可用状态（active 或 withdrawn）与固定定义。定义无秘密 | 修订产生新快照，旧采用继续可辨。updatedAt 由维护的实现方给出，调用方不能传入，同一身份上不倒退；时钟、精度和时区显示不归契约 |
-| ModelProfileDefinition | 有序供应商、回退、模态（Model 本阶段支持的文字、图片、语音）、上下文限制 context、其余限额、参数与算法采用 | 档案内容，由合法维护者管理 |
+| ModelProfileDefinition | 有序供应商、回退、输入模态 `definition.input` 与输出模态 `definition.output`（分别声明，各为非空集合，成员取自 Model 本阶段支持的文字、图片、语音）、上下文限制 context、其余限额、参数与算法采用 | 档案内容，由合法维护者管理 |
 | ContextLimits | 最大上下文窗口、可选的单列输入上限、输出上限，以及触发压缩的窗口默认百分比 | 由档案发布方或维护方配置，压缩方读取，Model 自己不读百分比 |
 | ProfileResolution | 一次同名求值结果及来源，同名筛选胜出后才判断相容和凭据 | 查询值，不是调用方保存的选择或永久许可 |
 | ModalityRequirement | 模态集合（四种模态的任意非空子集，含本阶段不支持的视频）及历史覆盖依据 | 调用方随运行时上下文提供。Model 核来源和相容性 |

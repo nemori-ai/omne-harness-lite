@@ -4,7 +4,7 @@
 
 ## 纯实现与 Cordis 装配的分工
 
-model 的工厂接收普通契约对象，不接收 Context、Service 或 Fiber。model-host-local 的插件通过静态 inject 取得所需能力，构造阶段适配器和纯实现，再按 model-cordis-contract 的唯一定义发布服务。普通消费者只依赖操作契约；框架消费者依赖服务定义，不依赖具体宿主。凭据切片采用同样分工，目标归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。
+model 的工厂接收普通契约对象，不接收 Context、Service 或 Fiber。model-host-local 的插件通过静态 inject 取得所需能力，构造阶段适配器和纯实现，再按 model-cordis-contract 的唯一定义发布服务。普通消费者只依赖操作契约；框架消费者依赖服务定义，不依赖具体宿主。凭据引用与解析采用同样分工，归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
 
 依赖注入和动态插拔在宿主层完成，不要求业务实现导入 Cordis。整个能力必需的依赖按 IC-8 声明；仅发送或重试阶段必需的依赖由局部阶段适配器取得。适配器把缺席和换代交回领域协议，不把 Context 泄漏到工厂，也不每次从全局容器取得同名最新对象替换在途采用。
 
@@ -22,7 +22,7 @@ Model 门面以 commands 和稳定目录适配器维持受理/查询/控制/ACK�
 
 实现配置的边界归[本包 SPEC](../SPEC.md#工厂与配置)。
 
-凭据接缝沿 #279 的独立采用及其服务定义，CredentialPort 及 modelCredential 服务的实际入口见[凭据服务](#凭据服务)。发送围栏在可信内部按当前资格调用凭据解析，factory/tenant选择不由ctx推断。
+凭据接缝沿 [#279](https://github.com/nemori-ai/omne-harness-lite/issues/279) 的独立采用及其服务定义，CredentialPort 及 modelCredential 服务的实际入口见[凭据服务](#凭据服务)。发送围栏在可信内部按当前资格调用凭据解析，factory/tenant选择不由ctx推断。
 
 ## 档案、准备和转换的装配
 

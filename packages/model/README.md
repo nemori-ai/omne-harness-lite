@@ -1,6 +1,6 @@
 # 模型调用能力组
 
-本组拥有模型档案、完整请求校验、真实发出、原输出、结果保管及费用事实的工程组织。产品 CAP-MD01 至 CAP-MD13 已全部接受并承诺在 0.1.0 交付，不表示它们已交付；源码实现与运行验证分别判断。
+本组拥有模型档案、完整请求校验、真实发出、原输出、结果保管及费用事实的工程组织。CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../.meta_harness/design/product/model-invocation/design.md#阶段与版本支持承诺)为准，产品能力不表示已交付；源码实现与运行验证分别判断。
 
 ## 当前状态
 
@@ -38,4 +38,4 @@ Context 选择表示、组装、分配预算及压缩，在请求前用 Model �
 
 行为变更回成员 SPEC，工程分解回组架构，用户后果回产品。提供者记录具体支持范围和验证，不能降低共同契约。组页不另建状态机、服务定义或第二套错误集合。
 
-凭据切片的当前入口见[判定入口](model/docs/public-api.md#已实现的凭据入口)与[本地保管入口](model-host-local/docs/public-api.md)。model 源码与包清单都不含 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口。model 的安装闭包由 `install-closure` 检查，运行方式与范围见 [model 测试说明](model/tests/README.md#安装闭包)和[组架构](docs/architecture.md#凭据切片的现有装配边界)，结果不在本页记录。
+凭据的当前入口见[判定入口](model/docs/public-api.md#已实现的凭据入口)与[本地保管入口](model-host-local/docs/public-api.md)。model 源码与包清单都不含 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口。model 的安装闭包由 `install-closure` 检查，运行方式与范围见 [model 测试说明](model/tests/README.md#安装闭包)和[组架构](docs/architecture.md#凭据的现有装配边界)，结果不在本页记录。

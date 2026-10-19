@@ -21,7 +21,7 @@ flowchart LR
 
 ## 安装与导入选择
 
-model-contract 的根入口已导出全部 151 个类型声明（含引用共享 `ToolCallPart` 的声明）与 18 个运行值，`./testing` 入口导出受控替代提供者与替代传输（给领域外的协调者练习失败路径，不是生产提供者）和提供者符合性断言 `checkModelProviderConformance`（提供者作者用它检查自己的提供者是否守住公开面上可观察的契约义务）；model-cordis-contract 已导出十五个抽象 Service（含凭据）、实例目录与转换目录。model 的本地凭据保管消费 model-contract 的凭据契约，托管运行工厂尚未实现；model-host-local 已有本地凭据保管插件。下表描述托管运行接口实现后的消费路径，现有凭据入口见 model 的公开文档。
+model-contract 的根入口已导出全部 151 个类型声明（含引用共享 `ToolCallPart` 的声明）与 18 个运行值，`./testing` 入口导出受控替代提供者与替代传输（给领域外的协调者练习失败路径，不是生产提供者）和提供者符合性断言 `checkModelProviderConformance`（提供者作者用它检查自己的提供者是否守住公开面上可观察的契约义务）；model-cordis-contract 已导出十五个抽象 Service（含凭据）、实例目录与转换目录。model 的凭据判定消费 model-contract 的凭据契约，托管运行工厂尚未实现；本地凭据保管及其插件在 model-host-local。下表描述托管运行接口实现后的消费路径，现有凭据入口见 model 的公开文档。
 
 | 使用任务 | 安装与导入 |
 | --- | --- |
@@ -112,8 +112,9 @@ prepare 固定引用计划但不读媒体。实际发送准备时调用 material
 如果当前用途存在获准扩展：
   完整输入 = 原发起协调者.执行本位置扩展(完整输入)
   如果需要重组装：交组装方处理，不重触发同次扩展
-压缩方 = 读取求值.档案的 context 与 compactionTriggerPercent（可按自己的配置覆盖），用 ModelInputMeter 计量完整输入
-如果压缩方按自己的规则判断需要压缩：压缩方按自身压缩策略处理，再判断最终输入
+压缩方读取求值.档案的 context 与 compactionTriggerPercent（可按自己的配置覆盖）
+计量报告 = 组装方在请求前用 ModelInputMeter 计量完整输入
+如果压缩方按自己的规则，依计量报告判断需要压缩：压缩方按自身压缩策略处理，再判断最终输入
 如果压缩后仍装不下：原消费者处理失败，或独立调用方收到输入拒绝
 准备 = ModelRequestPreparation.prepare(当前主体, 租户, 求值.档案, 模态依据, 最终输入)
 
@@ -127,6 +128,43 @@ prepare 固定引用计划但不读媒体。实际发送准备时调用 material
 prepare 不计量，也不执行模型前扩展。压缩后重新判断不重跑同一次扩展位置。含未读取媒体 ref 的输入，计量结果为 deferred-media；受理成功不表示供应商已经收到请求，发送提供者在物化阶段读取内容但不计量。
 
 上游事后以输入超出限制拒绝时，调用以 failed 终局，成因为 input-over-limit。Model 不重发同一输入，也不换同档案的其他供应商。调用方压缩后，以新的 ModelCallId 重新发起。
+
+下图只表现上文已写的规则，不新增承诺。
+
+```mermaid
+sequenceDiagram
+  participant A as 请求组装方
+  participant C as 压缩方
+  participant PF as ModelProfiles
+  participant ME as ModelInputMeter
+  participant PP as ModelRequestPreparation
+  participant T as 发送边界与传输
+  participant U as 上游供应商
+  A->>PF: resolve 当前主体、租户、路由名和模态依据
+  PF-->>A: 档案与 source
+  A->>C: 完整输入与档案
+  Note over C: 读取 context.window 与 compactionTriggerPercent，可按自己的配置覆盖
+  A->>ME: 请求前计量完整输入
+  ME-->>A: RequestBudget，complete 或 deferred-media
+  A->>C: 计量报告
+  C-->>A: 按自己的规则压缩或放行最终输入
+  A->>PP: prepare 最终输入
+  Note over PP: 只形成参数采用，不计量，不读二进制
+  PP-->>A: 准备结果
+  A->>T: 受理后真实发出
+  Note over T: materialize 读取内容但不计量，也不以计量结论作为发出条件。含未读取媒体 ref 时，deferred-media 照常发送
+  T->>U: 单次真实发出
+  alt 上游报告输入超限
+    U-->>T: 输入超出限制
+    T-->>A: 调用以 failed 收场，成因 input-over-limit
+    Note over T,U: 不重发，不换同档案的其他供应商
+    A->>C: 请求压缩
+    C-->>A: 压缩后的输入
+    Note over A,T: 调用方以新的 ModelCallId 重新发起
+  else 上游接受
+    U-->>T: 响应
+  end
+```
 
 发起协调者发起主路径的调用；压缩、扩展内部调用和独立程序使用自己的原消费位置，不为调用模型启动调用方的推进循环。
 

@@ -82,9 +82,9 @@ ModelProfileMaintenance 由实际档案权威提供者实现，包含条件写�
 
 ## 已实现的凭据对象
 
-凭据切片的保管行为归 [SPEC](../SPEC.md#凭据引用与解析)。引用、结果和端口的声明与持有者语义归 [model-contract](../../model-contract/docs/public-api.md#凭据引用与解析端口)，保管的内部判定状态在 [credential.ts](../src/credential.ts)。
+凭据的保管行为归 [SPEC](../SPEC.md#凭据引用与解析)。引用、结果和端口的声明与持有者语义归 [model-contract](../../model-contract/docs/public-api.md#凭据引用与解析端口)，保管的内部判定状态在 [credential.ts](../src/credential.ts)。
 
-调用记录只保存引用。引用含凭据身份、租户和用途。本交付的用途取值是 `model-send`。更宽的用途词表不在本卡。查询可以带一个别的用途字符串，`present` 和 `resolve` 都是 `denied`。能写入保管库的引用仍然只有 `model-send`。同一凭据身份可以分属不同租户。已撤销或暂时读不出的行仍然存在，`present` 为 true。`resolve` 才分别返回 `denied` 或 `unreadable`。
+调用记录只保存引用。引用含凭据身份、租户和用途。用途取值是 `model-send`，没有更宽的用途词表。查询可以带一个别的用途字符串，`present` 和 `resolve` 都是 `denied`。能写入保管库的引用仍然只有 `model-send`。同一凭据身份可以分属不同租户。已撤销或暂时读不出的行仍然存在，`present` 为 true。`resolve` 才分别返回 `denied` 或 `unreadable`。
 
 租户标识使用 `packages/common/legal-identity` 的 `TenantId`。凭据身份 `CredentialId` 由 model-contract 定义，是人在保管配置路径上命名的不透明标识，不是 `TenantId`，也不是登录出示物。持有引用不构成读取授权。
 

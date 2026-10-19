@@ -296,3 +296,11 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **反例与影响**：按旧句，工具领域要发布消息部件，Tool 就得依赖消息模型，而 Tool 目前不导入 message。按 message 一方，消息部件与工具领域没有依赖。两种读法的写者与依赖方向相反。
 - **负责与闭合条件**：负责人 PanQiWei 于 2026-10-17 指定 Model 主干更正统一语言一方。词条已改为引用 COMMON-T02，不再自写包级归属。COMMON-T02 属架构区正文，其拥有者已同步。
 - **状态**：已闭合。依据是 [COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02)：`tool_call` 与 `tool_result` 部件的形状由 `packages/common/message` 发布，工具领域产出工具结果的内容，不发布消息部件。词条与架构正文现在一致。
+
+### C-55：模型档案词条仍写发前检查，缺窗口、压缩百分比与 updatedAt
+
+- **类型**：定义打架。2026-10-19 在 Model 契约包送轨的文档评审中发现；不新增词条。
+- **来源**：[UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)仍写「输入 token 的发前限额检查可以采用有依据的估算与明确配置的余量」，也写「字节与图片数量仍按实际值精确检查」。词条没有上下文窗口、默认压缩触发百分比与 `updatedAt`。另一方是 [Model 契约 SPEC 的「上游限制与提供上限」](../../../packages/model/model-contract/SPEC.md#上游限制与提供上限)：Model 的准备与发送路径不计量，也不以计量结论作为发出条件，上游报告输入超限时调用以 `failed` 收场，成因为 `input-over-limit`。档案另带上下文窗口、默认压缩触发百分比与不倒退的 `updatedAt`。
+- **反例与影响**：按词条，档案消费者会认为发送前有一道限额与精确字节检查，并会认为档案不带窗口与压缩百分比。按 SPEC，请求前的计量与限额判断归压缩方或请求组装方，发送前没有这道检查。读词条的人会把发前检查当作 Model 的义务，或找不到压缩方读取窗口的出处。
+- **负责与闭合条件**：负责人 PanQiWei。由词条拥有者修订 UL-model-profile，使词条与 Model 契约 SPEC 一致，并同步英文段与消费者。闭合前，不能把词条里的发前检查读作 Model 的发送条件，也不能据词条断言档案没有窗口与压缩百分比。
+- **状态**：打开。词条未改。

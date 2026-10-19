@@ -120,7 +120,7 @@ Cordis 消费插件是交接 G3 表的第六个角色；其余五个归 [model-c
 - 替代提供者的结果由脚本给出，证明插件在契约面上看到的结果，不证明真实提供者的查询、持久与恢复。
 - 页面没有规定可选依赖缺席时是等待还是失败，夹具的插件只依赖必需的 `modelRuntime`，不用可选的 `modelCredential`，所以这一条没有覆盖。
 - 「失败路径的 `decision` 是给人读的说明」：设施不做机器比对，每条路径自己的断言执行并检查它所说的决策，评审时逐条核对。
-- 「不从 model-host-local 或 model 导入 Service 定义，不靠全局容器发现内部对象」在依赖层由设施执行（`forbidden-declared`、`forbidden-installed`）；夹具只经 `ctx.modelRuntime` 与 `inject` 取得服务，没有 `ctx.get`、没有全局容器。这一条的导入层检查见角色追踪表。
+- 「不从 model-host-local 或 model 导入 Service 定义，不靠全局容器发现内部对象」在依赖层由设施执行（`forbidden-declared`、`forbidden-installed`）；夹具只经 `ctx.modelRuntime` 与 `inject` 取得服务，没有 `ctx.get`、没有全局容器。导入层没有单独的设施检查，评审读 `tests/fixtures/consumers/cordis-plugin/` 下各文件的导入语句核对。路径与决策在同目录 `fixture.ts` 的 `fixture.paths`，对应关系见上面的[角色夹具](#角色夹具)路径表。
 
 ### 未覆盖
 

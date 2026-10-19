@@ -1,7 +1,7 @@
 <a id="model-实现公开入口候选"></a>
 # Model 实现公开入口
 
-本包已实现凭据切片；执行工厂与托管运行仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。下列声明尚未实现，不是可导入示例。
+本包已实现凭据存在性与解析的判定；执行工厂与托管运行仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。下列声明尚未实现，不是可导入示例。
 
 ## 执行函数与构造
 
@@ -56,7 +56,7 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 
 ## 已实现的凭据入口
 
-此节导航真实源码，不重复声明。凭据的纯契约（`CredentialId`、引用、查询、`CredentialPresence`、`CredentialResolution`、`CredentialPort`、`SendFace`、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`）归 [model-contract](../../model-contract/docs/public-api.md#凭据引用与解析端口)，本包不导出它们，也不转导。服务定义归 model-cordis-contract，本地保管、插件与注入发送归 [model-host-local](../../model-host-local/docs/public-api.md)。目标归属见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。
+此节导航真实源码，不重复声明。凭据的纯契约（`CredentialId`、引用、查询、`CredentialPresence`、`CredentialResolution`、`CredentialPort`、`SendFace`、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`）归 [model-contract](../../model-contract/docs/public-api.md#凭据引用与解析端口)，本包不导出它们，也不转导。服务定义归 model-cordis-contract，本地保管、插件与注入发送归 [model-host-local](../../model-host-local/docs/public-api.md)。目标归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
 
 | 消费入口 | 实际源码与能力 |
 | --- | --- |

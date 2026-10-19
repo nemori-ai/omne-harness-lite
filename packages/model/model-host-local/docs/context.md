@@ -37,4 +37,4 @@ Cordis 宿主用 `LocalCredentialPlugin` 装载同一保管库，配置 `{ path,
 
 ## 消费者与定位
 
-本包是应用装配者选择的单机宿主提供者。model 的发送接缝 `deliver` 与判定不依赖它；它依赖 model 取得判定。组内位置见[组架构](../../docs/architecture.md#凭据切片的现有装配边界)。当前没有应用或包在源码中消费本包。
+本包是应用装配者选择的单机宿主提供者。model 的发送接缝 `deliver` 与判定不依赖它；它依赖 model 取得判定。组内位置见[组架构](../../docs/architecture.md#凭据的现有装配边界)。当前没有应用或包在源码中消费本包。

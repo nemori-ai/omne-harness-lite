@@ -147,9 +147,23 @@ async function refusedLookupStopsFollowingTheCall(): Promise<void> {
  */
 async function lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(
   trackedAdmission: ModelOperationId,
+  runtimeAnswer?: 'not-accepted',
 ): Promise<void> {
   const provider = newProvider()
   const admitted = await provider.admit('a')
+  if (runtimeAnswer !== undefined) {
+    // Ask the runtime itself, not through the assembly, so the count of the plugin's lookups is unchanged.
+    const answer = await provider.runtime.calls.inspect({
+      principal: follower,
+      tenant: tenantA,
+      call: call('a'),
+      admission: trackedAdmission,
+    })
+    expect(
+      'ok' in answer && answer.ok.kind === runtimeAnswer,
+      `the runtime did not answer ${runtimeAnswer} as a value`,
+    )
+  }
   const assembly = await startAssembly(provider.runtime)
   try {
     const { followed } = await assembly.follow({
@@ -182,7 +196,7 @@ async function lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(
 
 // The runtime holds the call but not under this admission: its authoritative answer is not-accepted.
 const unacceptedAdmissionIsRaisedToTheSender = () =>
-  lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(operation('admit-unknown'))
+  lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(operation('admit-unknown'), 'not-accepted')
 
 // A value that starts with `--` is reserved, so the runtime fails the lookup with `invalid`.
 const failedLookupIsLeftToTheSender = () =>

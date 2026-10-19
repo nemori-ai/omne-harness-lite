@@ -4,7 +4,7 @@
 
 ## Responsibility and status
 
-This member owns the design of the reusable Model domain implementation. It has the judgment of credential presence and resolution. Local custody belongs to [model-host-local](../model-host-local/README.md). Hosted runs and the factory are not implemented. The credential slice has four parts: the custody implementation is in [model-host-local](../model-host-local/README.md), the contract is in [model-contract](../model-contract/README.md), the judgment is in this member, and the run factory and other hosts are not implemented. The public values, operations, and provider protocols belong to [model-contract](../model-contract/README.md). The framework definitions belong to [model-cordis-contract](../model-cordis-contract/README.md). Design, implementation, and run verification are judged separately.
+This member owns the design of the reusable Model domain implementation. It has the judgment of credential presence and resolution. Local custody belongs to [model-host-local](../model-host-local/README.md). Hosted runs and the factory are not implemented. Credential references and resolution have four owners: the custody implementation is in [model-host-local](../model-host-local/README.md), the contract is in [model-contract](../model-contract/README.md), the judgment is in this member, and the run factory and other hosts are not implemented. The public values, operations, and provider protocols belong to [model-contract](../model-contract/README.md). The framework definitions belong to [model-cordis-contract](../model-cordis-contract/README.md). Design, implementation, and run verification are judged separately.
 
 ## Usage
 
