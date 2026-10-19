@@ -115,7 +115,7 @@ async function run(request: MutationRequest): Promise<number> {
     request.base === undefined
       ? `点名成员的全部产品源码`
       : `基线 ${request.base}（合并点 ${at.base?.mergeBase.slice(0, 9)}）以来改动碰到的产品源码行`
-  console.log(`变异范围：${scope}；只跑快层（OMNE_TEST_TIER=fast）`)
+  console.log(`变异范围：${scope}；只跑快层（vitest 的 mode 为 fast）`)
   for (const target of targets)
     console.log(
       `  ${target.member.path}：${target.lines.size} 个文件，${mutateEntries(target).length} 段`,
@@ -159,7 +159,7 @@ async function run(request: MutationRequest): Promise<number> {
   }
 
   const summary = [
-    `变异范围：${scope}；只跑快层（OMNE_TEST_TIER=fast）；提交 ${at.shortHead}${at.dirty ? '（工作树有未提交改动）' : ''}`,
+    `变异范围：${scope}；只跑快层（vitest 的 mode 为 fast）；提交 ${at.shortHead}${at.dirty ? '（工作树有未提交改动）' : ''}`,
     ...results.flatMap(result => memberLines(result, true)),
     ...errors.map(error => `出错 ${error}`),
     '存活、无覆盖只是线索：判定会抖，要复跑确认；static 变异体只能跑全部测试；没改的代码不在范围内。',

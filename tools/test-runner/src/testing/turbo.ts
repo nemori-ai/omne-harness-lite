@@ -1,5 +1,5 @@
-// turbo 承担成员选择（`--affected`）、构建与类型检查的编排。类型检查不依赖构建、不缓存，嵌套归档目录的排除
-// 由 typecheck-scope.ts 在运行前核对。这里固定它的运行条件，
+// turbo 承担成员选择（`--affected`）、构建、类型检查与成员测试的编排。类型检查不依赖构建、不缓存，嵌套归档目录的排除
+// 由 typecheck-scope.ts 在运行前核对；测试不缓存，命令在这里拼，运行与拆日志在 run.ts。这里固定它的运行条件，
 // 落实 RFC-0002 的四条约束中归 turbo 的那几条：
 // 1. 选择规则不能由 PR 改写：根配置用运行检查器仓库的 turbo.json（TURBO_ROOT_TURBO_JSON）；
 //    成员目录下的 turbo.json 会盖过它，所以一律拒绝。
@@ -11,10 +11,11 @@ import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
+import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunTier } from './config.ts'
 
 const RUNNER = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 export const TURBO_CONFIG = join(RUNNER, 'turbo.json')
-const TURBO_BIN = join(RUNNER, 'node_modules', '.bin', 'turbo')
+export const TURBO_BIN = join(RUNNER, 'node_modules', '.bin', 'turbo')
 
 /** 环境变量 `OMNE_ADMISSION=1`：准入模式，本地缓存只写不读。 */
 export function admissionRequested(env: Readonly<Record<string, string | undefined>>): boolean {
@@ -25,7 +26,7 @@ export function admissionRequested(env: Readonly<Record<string, string | undefin
 }
 
 /** 不上报遥测、不起常驻进程、不提示升级；根配置固定为运行检查器仓库的那份。 */
-function turboEnv(extra: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
+export function turboEnv(extra: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
   return {
     ...process.env,
     TURBO_ROOT_TURBO_JSON: TURBO_CONFIG,
@@ -37,7 +38,10 @@ function turboEnv(extra: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
 }
 
 /** 成员目录下的 turbo.json 会盖过根配置里的任务定义，被检查的检出就能改写选择与执行；有就拒绝。 */
-export function rejectMemberTurboConfigs(root: string, members: readonly WorkspaceMember[]): void {
+export function rejectMemberTurboConfigs(
+  root: string,
+  members: readonly { readonly path: string }[],
+): void {
   const found = members
     .filter(member => existsSync(join(root, member.path, 'turbo.json')))
     .map(member => `${member.path}/turbo.json`)
@@ -142,4 +146,45 @@ export function turboTypecheck(root: string, names: readonly string[]): number {
   const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
   if (run.error !== undefined) throw run.error
   return run.status ?? 1
+}
+
+/** 每一层对应的 turbo 任务，也是成员脚本的名字；层由脚本给 vitest 的 `--mode` 选（见仓库根 `vitest.tiers.mts`）。 */
+export const TIER_TASKS = {
+  fast: 'test:fast',
+  slow: 'test:slow',
+  all: 'test',
+} as const satisfies Record<RunTier, string>
+
+/** 环境变量：成员的 vitest 把 JSON 报告与计时报告写进这个目录（见仓库根 `vitest.tiers.mts`）。 */
+export const TEST_REPORT_DIR_ENV = 'OMNE_TEST_REPORT_DIR'
+
+/**
+ * 用 turbo 跑一批成员某一层测试的命令。只跑测试任务本身（`--only`），构建由调用方先做；一个成员失败不拦其余的。
+ * 输出按成员成组、每行带 `<包名>:<任务>: ` 前缀，供拆成各成员的日志；运行摘要给出各成员的退出码与起止时间。
+ */
+export function turboTestCommand(
+  names: readonly string[],
+  tier: RunTier,
+  parallel: Parallelism,
+  reportDirectory: string,
+): { readonly args: string[]; readonly env: NodeJS.ProcessEnv } {
+  return {
+    args: [
+      'run',
+      TIER_TASKS[tier],
+      ...names.map(name => `--filter=${name}`),
+      '--only',
+      '--continue=always',
+      `--concurrency=${parallel.memberConcurrency}`,
+      '--summarize',
+      '--log-order=grouped',
+      '--log-prefix=task',
+      '--output-logs=full',
+      '--no-color',
+    ],
+    env: turboEnv({
+      [TEST_REPORT_DIR_ENV]: reportDirectory,
+      [VITEST_MAX_WORKERS_ENV]: String(parallel.vitestMaxWorkers),
+    }),
+  }
 }

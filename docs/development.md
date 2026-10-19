@@ -296,8 +296,8 @@ RFC-0002 的四条约束这样落实：
 局部定位可直接运行一个成员或测试文件：
 
 ```sh
-OMNE_TEST_TIER=fast pnpm --filter @omne-harness/<包名> run test
-pnpm --filter @omne-harness/<包名> exec vitest run <测试文件>
+pnpm exec turbo run test:fast --filter=@omne-harness/<包名>   # 先构建该成员及其依赖，再跑快层
+pnpm --filter @omne-harness/<包名> exec vitest run <测试文件>  # 不构建，依赖的 dist 须已就绪
 ```
 
 测试归层、时限和耗时账本归[测试运行器](../tools/test-runner/README_ZH.md#测试运行)及[分层定义](../vitest.tiers.mts)。新增真实等待、子进程、网络或重CPU用例时，按真实成本选择层并说明原因，不把慢任务藏在快层。

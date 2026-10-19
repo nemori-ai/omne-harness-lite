@@ -12,6 +12,8 @@ import {
 } from '@omne-harness/repo-toolchain/archive/archive-project'
 import type { TestMember, WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 
+const TIER_DEFINITION = fileURLToPath(new URL('../../../vitest.tiers.mts', import.meta.url))
+
 const roots: string[] = []
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
@@ -202,7 +204,6 @@ it('real Vitest filters external compiler roots without an internal archive trig
     out,
     { memberConcurrency: 1, vitestMaxWorkers: 1 },
     'test',
-    'all',
     () => {},
   )
   expect(result[0]?.exitCode, readFileSync(join(out, '..log'), 'utf8')).toBe(0)
@@ -255,7 +256,6 @@ it('keeps a native Vitest projects configuration when there are no archived inpu
     out,
     { memberConcurrency: 1, vitestMaxWorkers: 1 },
     'test',
-    'all',
     () => {},
   )
   expect(result[0]?.exitCode, readFileSync(join(out, '..log'), 'utf8')).toBe(0)
@@ -316,7 +316,6 @@ it('filters external archived runtime tests and preserves external active failur
         out,
         { memberConcurrency: 1, vitestMaxWorkers: 1 },
         'test',
-        'all',
         () => {},
       )
     )[0]
@@ -372,7 +371,6 @@ it('real Vitest ignores archived runtime/type roots while active source errors s
         out,
         { memberConcurrency: 1, vitestMaxWorkers: 1 },
         'test',
-        'all',
         () => {},
       )
     )[0]
@@ -385,4 +383,56 @@ it('real Vitest ignores archived runtime/type roots while active source errors s
   put(root, 'src/live.ts', 'export const value: number = "active error"\n')
   const failed = await run('fail')
   expect(failed?.exitCode).not.toBe(0)
+}, 30_000)
+
+it('the shared tier configuration keeps archived runtime and type tests out of a real Vitest run', () => {
+  const root = fixture()
+  excludeArchives(root)
+  const config = (spread: boolean) =>
+    [
+      "import { defineConfig } from 'vitest/config'",
+      `import { testTiers } from ${JSON.stringify(TIER_DEFINITION)}`,
+      'export default defineConfig(({ mode }) => {',
+      `  const tiers = ${spread ? 'testTiers(mode)' : '{ typecheck: {} }'}`,
+      "  return { test: { ...tiers, include: ['tests/**/*.spec.ts'], typecheck: { ...tiers.typecheck, enabled: true, include: ['tests/**/*.spec-d.ts'], tsconfig: './tsconfig.test.json' } } }",
+      '})',
+      '',
+    ].join('\n')
+  put(
+    root,
+    'tests/live.spec.ts',
+    `import { test, expect } from 'vitest'\ntest('live', () => expect(1).toBe(1))\n`,
+  )
+  put(
+    root,
+    'tests/live.spec-d.ts',
+    `import { test, expectTypeOf } from 'vitest'\ntest('live type', () => expectTypeOf(1).toBeNumber())\n`,
+  )
+  put(root, 'tests/archive.legacy/poison.spec.ts', `throw new Error('archived runtime ran')\n`)
+  put(
+    root,
+    'tests/archive.legacy/poison.spec-d.ts',
+    `import { test, expectTypeOf } from 'vitest'\ntest('archived type', () => expectTypeOf(1).toBeString())\n`,
+  )
+  const vitest = (spread: boolean) => {
+    put(root, 'vitest.config.ts', config(spread))
+    const report = join(root, `report-${spread}.json`)
+    // 不把运行器的报告目录传给夹具。
+    const env: NodeJS.ProcessEnv = { ...process.env }
+    delete env['OMNE_TEST_REPORT_DIR']
+    const ran = spawnSync(
+      join(root, 'node_modules/.bin/vitest'),
+      ['run', '--reporter=json', `--outputFile.json=${report}`],
+      { cwd: root, encoding: 'utf8', env },
+    )
+    return { ran, report: readFileSync(report, 'utf8') }
+  }
+  const kept = vitest(true)
+  expect(kept.ran.status, `${kept.ran.stdout}${kept.ran.stderr}`).toBe(0)
+  expect(kept.report).toContain('live.spec.ts')
+  expect(kept.report).not.toContain('.legacy/')
+  // 不展开分层定义时同一批归档测试会跑：上面的通过靠的是它的排除。
+  const unfiltered = vitest(false)
+  expect(unfiltered.ran.status).not.toBe(0)
+  expect(unfiltered.report).toContain('archive.legacy/poison.spec')
 }, 30_000)

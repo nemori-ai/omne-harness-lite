@@ -1,6 +1,6 @@
 // `make check` 里按计划执行的几步：pytest、构建、类型检查、成员测试（快慢两层）、可执行验收；
 // 以及它们共用的「跑一批成员的脚本并写耗时账本」。计划由 `scope.ts` 算（受影响的成员由 turbo 给出），
-// 这里只照着执行、照实说跳了什么。构建交给 turbo，类型检查与测试仍由本工具逐成员跑。
+// 这里只照着执行、照实说跳了什么。构建、类型检查与成员测试交给 turbo，可执行验收仍由本工具逐成员跑。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -19,7 +19,14 @@ import {
   type RunScript,
   type RunTier,
 } from './config.ts'
-import { buildLedger, emptyLedger, ledgerSummary, type LedgerFile, type RunMeta } from './ledger.ts'
+import {
+  buildLedger,
+  emptyLedger,
+  ledgerSummary,
+  type LedgerFile,
+  type MemberRun,
+  type RunMeta,
+} from './ledger.ts'
 import {
   fileTree,
   listWorkspaceMembers,
@@ -28,7 +35,7 @@ import {
   type TestMember,
   type WorkspaceMember,
 } from '@omne-harness/repo-toolchain/core/workspace'
-import { runMembers, slugOf } from './run.ts'
+import { runMembers, runTurboTests, slugOf } from './run.ts'
 import { buildTargets, timestamp } from './support.ts'
 
 /** 环境变量 `FULL`：`1` 要全量，不设或空串不要；别的值报错，不猜。 */
@@ -244,7 +251,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
       `同时 ${parallel.memberConcurrency} 个成员、每个至多 ${parallel.vitestMaxWorkers} 个工作进程（本机 ${meta.cores} 核）`,
   )
   const started = Date.now()
-  const runs = await runMembers(root, targets, runDir, parallel, script, tier, (done, finished) => {
+  const report = (done: MemberRun, finished: number) => {
     const tests = done.report?.testResults.reduce(
       (sum, file) =>
         sum +
@@ -260,7 +267,11 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
           ? ''
           : `，退出码 ${done.exitCode}，日志 ${join(runDir, `${slugOf(done.member)}.log`)}`),
     )
-  })
+  }
+  const runs =
+    script === 'test'
+      ? await runTurboTests(root, targets, runDir, parallel, tier, report)
+      : await runMembers(root, targets, runDir, parallel, script, report)
   const wallSeconds = (Date.now() - started) / 1000
 
   const ledger = buildLedger(runs, root, config.ledger.nearTimeoutRatio)
