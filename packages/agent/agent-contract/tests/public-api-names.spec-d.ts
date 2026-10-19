@@ -1,11 +1,12 @@
 import { describe, expectTypeOf, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
+import type { JsonValue } from '@omne-harness/json-text'
 import type { Message } from '@omne-harness/message'
 import type { Outcome } from '@omne-harness/operation-result'
 import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
 import type {
-  LoopExtensionImplementation,
+  AcceptedInput,
   Access,
   Action,
   ActionAdmission,
@@ -18,17 +19,45 @@ import type {
   AdmissionDecision,
   Adoption,
   AdvancementFact,
+  AgentAccessCheck,
+  AgentAccessDecision,
+  AgentAccessOperation,
+  AgentAccessTarget,
+  AgentAdoptions,
   AgentCheckpoint,
+  AgentClock,
   AgentConclusion,
+  AgentDirectory,
   AgentEvaluator,
+  AgentEvent,
+  AgentEventBody,
+  AgentExecutionControl,
+  AgentExecutionEvents,
+  AgentExecutionHandle,
   AgentExecutionId,
+  AgentExecutionInput,
+  AgentExecutionRecovery,
+  AgentHandle,
   AgentIdentity,
+  AgentInstanceHost,
   AgentInstanceId,
   AgentInstant,
+  AgentJournal,
+  AgentJournalAttachment,
+  AgentJournalFinishing,
+  AgentJournalObservation,
+  AgentJournalReading,
+  AgentJournalRecording,
   AgentMaterials,
+  AgentObservation,
   AgentOperationId,
+  AgentRegistrationHandle,
   AgentRegistrationId,
+  AgentRuntime,
+  AgentRuntimeControl,
+  AgentState,
   Authority,
+  CallerCommit,
   CapturedRead,
   CardAnswer,
   CardReply,
@@ -36,6 +65,7 @@ import type {
   CardRound,
   CardRoundId,
   CardRoundProgress,
+  CommandReceipt,
   CompactionAdvance,
   CompactionProgress,
   CompactionState,
@@ -43,15 +73,27 @@ import type {
   ConsumptionId,
   ContextContent,
   Continuation,
+  ControlRecord,
+  ControlStage,
+  ControlStageFact,
   CurrentConditions,
   DecisionCards,
+  EffectIntent,
+  EventPage,
   Evidence,
   ExecutionAttachmentId,
+  ExecutionControl,
+  ExecutionMutation,
   ExecutionRevision,
+  ExecutionSnapshot,
+  ExecutionState,
   ExtensionImplementations,
   Failure,
   FailureCandidate,
   FinalRequest,
+  FinishAuthorization,
+  FinishIntent,
+  FinishResult,
   GuardFact,
   GuardLevel,
   HandoffResult,
@@ -59,6 +101,9 @@ import type {
   InputBatch,
   InputBatchId,
   InputId,
+  JournalCapabilities,
+  JournalCommit,
+  LoopExtensionImplementation,
   LoopFacts,
   Material,
   MessageHandoff,
@@ -82,16 +127,21 @@ import type {
   ProducedResult,
   ProducerDecisionView,
   ProgressionDirective,
+  QuiesceResult,
   RegisteredReads,
+  Registration,
+  RegistrationState,
   Reply,
   ReplyAdmissionPage,
   ReplyAdmissionProjection,
   RequestPreparation,
+  ResultResponsibility,
   RuntimeConditions,
   SelectedModel,
   StepId,
   StructureFailure,
   Subject,
+  TerminalObservation,
   Waiting,
 } from '@omne-harness/agent-contract'
 
@@ -183,15 +233,69 @@ type Landed = {
   StructureFailure: StructureFailure
   Subject: Subject
   Waiting: Waiting
+  AcceptedInput: AcceptedInput
+  AgentAccessCheck: AgentAccessCheck<string>
+  AgentAccessDecision: AgentAccessDecision
+  AgentAccessOperation: AgentAccessOperation
+  AgentAccessTarget: AgentAccessTarget
+  AgentAdoptions: AgentAdoptions<string>
+  AgentClock: AgentClock
+  AgentDirectory: AgentDirectory<string>
+  AgentEvent: AgentEvent
+  AgentEventBody: AgentEventBody
+  AgentExecutionControl: AgentExecutionControl<string>
+  AgentExecutionEvents: AgentExecutionEvents<string>
+  AgentExecutionHandle: AgentExecutionHandle<string>
+  AgentExecutionInput: AgentExecutionInput<string>
+  AgentExecutionRecovery: AgentExecutionRecovery<string>
+  AgentHandle: AgentHandle<string>
+  AgentInstanceHost: AgentInstanceHost<string>
+  AgentJournal: AgentJournal<string>
+  AgentJournalAttachment: AgentJournalAttachment<string>
+  AgentJournalFinishing: AgentJournalFinishing<string>
+  AgentJournalObservation: AgentJournalObservation<string>
+  AgentJournalReading: AgentJournalReading<string>
+  AgentJournalRecording: AgentJournalRecording<string>
+  AgentObservation: AgentObservation
+  AgentRegistrationHandle: AgentRegistrationHandle<string>
+  AgentRuntime: AgentRuntime<string>
+  AgentRuntimeControl: AgentRuntimeControl<string>
+  AgentState: AgentState
+  CallerCommit: CallerCommit
+  CommandReceipt: CommandReceipt
+  ControlRecord: ControlRecord
+  ControlStage: ControlStage
+  ControlStageFact: ControlStageFact
+  EffectIntent: EffectIntent
+  EventPage: EventPage
+  ExecutionControl: ExecutionControl
+  ExecutionMutation: ExecutionMutation<string>
+  ExecutionSnapshot: ExecutionSnapshot
+  ExecutionState: ExecutionState
+  FinishAuthorization: FinishAuthorization
+  FinishIntent: FinishIntent
+  FinishResult: FinishResult
+  JournalCapabilities: JournalCapabilities
+  JournalCommit: JournalCommit<string>
+  QuiesceResult: QuiesceResult
+  Registration: Registration
+  RegistrationState: RegistrationState
+  ResultResponsibility: ResultResponsibility
+  TerminalObservation: TerminalObservation
 }
 
 /*
- * Every name of the chapters "身份、原位置与纯求值", "请求准备、模型选择与压缩" and
- * "扩展、人工卡片与材料" of docs/public-api/README.md, imported from the package entry. A name that
- * the entry does not export fails the type check of this file. The three names after
- * `AgentInstant` in the import are this package's own judgment failures, not design-page names.
+ * Every name of the chapters of docs/public-api/README.md that this package implements, imported
+ * from the package entry. A name that the entry does not export fails the type check of this
+ * file. `IdentityFailure` and `StructureFailure` are this package's own judgment failures, not
+ * design-page names.
  */
-export type { Landed }
+describe('the names of the design page', () => {
+  it('resolve to concrete types from the package entry', () => {
+    expectTypeOf<Landed>().not.toBeAny()
+    expectTypeOf<keyof Landed>().not.toBeNever()
+  })
+})
 
 type KindOf<U extends { kind: string }> = U['kind']
 /** Every member name of every member of a union of object types. */
@@ -503,5 +607,194 @@ describe('the discriminants of the passage ledger', () => {
     expectTypeOf<ReturnType<ExtensionImplementations<string>['resolve']>>().toEqualTypeOf<
       Reply<LoopExtensionImplementation>
     >()
+  })
+})
+
+describe('the discriminants of the coordination chapter', () => {
+  it('ExecutionState has five kinds and each carries its own members', () => {
+    expectTypeOf<KindOf<ExecutionState>>().toEqualTypeOf<
+      'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended' | 'ended'
+    >()
+    expectTypeOf<Extract<ExecutionState, { kind: 'waiting' }>['waits']>().toEqualTypeOf<
+      readonly Waiting[]
+    >()
+    expectTypeOf<
+      Extract<ExecutionState, { kind: 'settling' }>['intent']
+    >().toEqualTypeOf<FinishIntent>()
+    expectTypeOf<
+      Extract<ExecutionState, { kind: 'suspended' }>['handoff']
+    >().toEqualTypeOf<Evidence>()
+    expectTypeOf<
+      Extract<ExecutionState, { kind: 'ended' }>['disposition']
+    >().toEqualTypeOf<Evidence>()
+    expectTypeOf<
+      Extract<ExecutionState, { kind: 'ended' }>['conclusion']
+    >().toEqualTypeOf<AgentConclusion>()
+  })
+
+  it('FinishResult separates ended, changed and blocked with five blocking reasons', () => {
+    expectTypeOf<KindOf<FinishResult>>().toEqualTypeOf<'ended' | 'changed' | 'blocked'>()
+    expectTypeOf<Extract<FinishResult, { kind: 'blocked' }>['reason']>().toEqualTypeOf<
+      'inputs' | 'controls' | 'operations' | 'passages' | 'custody'
+    >()
+    expectTypeOf<
+      Extract<FinishResult, { kind: 'ended' }>['receipt']
+    >().toEqualTypeOf<CommandReceipt>()
+    expectTypeOf<KindOf<FinishAuthorization>>().toEqualTypeOf<'advancement' | 'cancel'>()
+  })
+
+  it('ExecutionControl names the four controls and the call each interrupt targets', () => {
+    expectTypeOf<KindOf<ExecutionControl>>().toEqualTypeOf<
+      'interrupt-model' | 'interrupt-tool' | 'background-tool' | 'cancel' | 'suspend'
+    >()
+    expectTypeOf<
+      Extract<ExecutionControl, { kind: 'interrupt-model' }>['call']
+    >().toEqualTypeOf<M.ModelCallId>()
+    expectTypeOf<Extract<ExecutionControl, { call: T.ToolCallId }>['kind']>().toEqualTypeOf<
+      'interrupt-tool' | 'background-tool'
+    >()
+    expectTypeOf<ControlStage>().toEqualTypeOf<
+      | 'accepted'
+      | 'intent-established'
+      | 'qualification-revoked'
+      | 'producer-confirmed'
+      | 'physically-stopped'
+      | 'duty-released'
+    >()
+    expectTypeOf<ControlStageFact['state']>().toEqualTypeOf<'reached' | 'unresolved'>()
+    expectTypeOf<ControlRecord['stages']['accepted']>().toEqualTypeOf<ControlStageFact>()
+  })
+
+  it('AgentEventBody has seven kinds; the ended one is the only one a commit excludes', () => {
+    expectTypeOf<KindOf<AgentEventBody>>().toEqualTypeOf<
+      'input-taken' | 'message' | 'producer' | 'stream' | 'waiting' | 'control' | 'ended'
+    >()
+    expectTypeOf<Extract<AgentEventBody, { kind: 'stream' }>['value']>().toEqualTypeOf<JsonValue>()
+    expectTypeOf<
+      Extract<AgentEventBody, { kind: 'control' }>['stage']
+    >().toEqualTypeOf<ControlStage>()
+    expectTypeOf<KindOf<JournalCommit<string>['events'][number]>>().toEqualTypeOf<
+      'input-taken' | 'message' | 'producer' | 'stream' | 'waiting' | 'control'
+    >()
+    expectTypeOf<KindOf<JournalCommit<string>['state']>>().toEqualTypeOf<
+      'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
+    >()
+  })
+
+  it('the pages, observations and states keep their literals', () => {
+    expectTypeOf<KindOf<EventPage>>().toEqualTypeOf<'page' | 'gap'>()
+    expectTypeOf<KindOf<AgentState>>().toEqualTypeOf<
+      'idle' | 'occupied' | 'draining' | 'disposed'
+    >()
+    expectTypeOf<KindOf<AgentObservation>>().toEqualTypeOf<'state' | 'ended'>()
+    expectTypeOf<Extract<AgentObservation, { kind: 'ended' }>['reason']>().toEqualTypeOf<
+      'closed' | 'denied' | 'retired' | 'unavailable'
+    >()
+    expectTypeOf<RegistrationState>().toEqualTypeOf<'published' | 'withdrawing' | 'withdrawn'>()
+    expectTypeOf<CommandReceipt['state']>().toEqualTypeOf<'accepted' | 'applied' | 'unresolved'>()
+    expectTypeOf<AcceptedInput['priority']>().toEqualTypeOf<'ordinary' | 'urgent'>()
+    expectTypeOf<QuiesceResult['kind']>().toEqualTypeOf<'drained' | 'unresolved'>()
+  })
+
+  it('AgentAccessDecision has three kinds and only an allowance carries evidence', () => {
+    expectTypeOf<KindOf<AgentAccessDecision>>().toEqualTypeOf<
+      'allowed' | 'denied' | 'unavailable'
+    >()
+    expectTypeOf<
+      Extract<AgentAccessDecision, { kind: 'allowed' }>['evidence']
+    >().toEqualTypeOf<Evidence>()
+    expectTypeOf<
+      Extract<AgentAccessDecision, { kind: 'unavailable' }>['diagnostic']
+    >().toEqualTypeOf<string>()
+    expectTypeOf<KindOf<AgentAccessTarget>>().toEqualTypeOf<'scope' | 'instance' | 'execution'>()
+    expectTypeOf<'takeover'>().toExtend<AgentAccessOperation>()
+    expectTypeOf<'record-terminal-observation'>().toExtend<AgentAccessOperation>()
+    expectTypeOf<'attach'>().not.toExtend<AgentAccessOperation>()
+    expectTypeOf<ReturnType<AgentAccessCheck<string>['check']>>().toEqualTypeOf<
+      Promise<AgentAccessDecision>
+    >()
+  })
+
+  it('the stream and observation ports are async iterables, a registration is a plain report', () => {
+    expectTypeOf<ReturnType<AgentExecutionEvents<string>['events']>>().toEqualTypeOf<
+      AsyncIterable<Outcome<EventPage, Failure>>
+    >()
+    expectTypeOf<ReturnType<AgentHandle<string>['observe']>>().toEqualTypeOf<
+      AsyncIterable<AgentObservation>
+    >()
+    expectTypeOf<ReturnType<AgentRegistrationHandle<string>['report']>>().toEqualTypeOf<void>()
+    expectTypeOf<ReturnType<AgentClock['waitUntil']>>().toEqualTypeOf<
+      Reply<'elapsed' | 'cancelled'>
+    >()
+    expectTypeOf<ReturnType<AgentRuntime<string>['invoke']>>().toEqualTypeOf<
+      Reply<AgentExecutionHandle<string>>
+    >()
+    expectTypeOf<ReturnType<AgentExecutionRecovery<string>['load']>>().toEqualTypeOf<
+      Reply<ExecutionSnapshot>
+    >()
+  })
+
+  it('ExecutionMutation carries the access, the execution and the operation', () => {
+    expectTypeOf<ExecutionMutation<string>['execution']>().toEqualTypeOf<AgentExecutionId>()
+    expectTypeOf<ExecutionMutation<string>['operation']>().toEqualTypeOf<AgentOperationId>()
+    expectTypeOf<ExecutionMutation<string>>().toExtend<Access<string>>()
+  })
+})
+
+describe('the discriminants of the Journal chapter', () => {
+  it('CallerCommit has five kinds and the capabilities exclude none', () => {
+    expectTypeOf<KindOf<CallerCommit>>().toEqualTypeOf<
+      'none' | 'message' | 'context-transition' | 'custody' | 'processed'
+    >()
+    expectTypeOf<Extract<CallerCommit, { kind: 'custody' }>['retained']>().toEqualTypeOf<Evidence>()
+    expectTypeOf<
+      Extract<CallerCommit, { kind: 'processed' }>['completion']
+    >().toEqualTypeOf<Evidence>()
+    expectTypeOf<JournalCapabilities['participants']>().toEqualTypeOf<
+      ReadonlySet<'message' | 'context-transition' | 'custody' | 'processed'>
+    >()
+    expectTypeOf<EffectIntent['pending']>().toEqualTypeOf<PendingCall>()
+  })
+
+  it('AgentJournal is assignable to each of its five role groups and adds the capabilities', () => {
+    expectTypeOf<AgentJournal<string>>().toExtend<AgentJournalAttachment<string>>()
+    expectTypeOf<AgentJournal<string>>().toExtend<AgentJournalRecording<string>>()
+    expectTypeOf<AgentJournal<string>>().toExtend<AgentJournalFinishing<string>>()
+    expectTypeOf<AgentJournal<string>>().toExtend<AgentJournalObservation<string>>()
+    expectTypeOf<AgentJournal<string>>().toExtend<AgentJournalReading<string>>()
+    expectTypeOf<AgentJournal<string>['capabilities']>().toEqualTypeOf<JournalCapabilities>()
+  })
+
+  it('the groups keep the capabilities apart: reading holds no write, finishing holds one operation', () => {
+    expectTypeOf<keyof AgentJournalFinishing<string>>().toEqualTypeOf<'tryFinish'>()
+    expectTypeOf<
+      keyof AgentJournalObservation<string>
+    >().toEqualTypeOf<'recordTerminalObservation'>()
+    expectTypeOf<keyof AgentJournalReading<string>>().toEqualTypeOf<
+      'load' | 'inputs' | 'readReplyAdmissions' | 'query' | 'output'
+    >()
+    expectTypeOf<keyof AgentJournalAttachment<string>>().toEqualTypeOf<
+      'open' | 'attach' | 'detach'
+    >()
+    expectTypeOf<AgentJournalReading<string>['output']>().toEqualTypeOf<
+      Pick<AgentExecutionEvents<string>, 'read' | 'events'>
+    >()
+    expectTypeOf<AgentJournalRecording<string>>().not.toExtend<AgentJournalFinishing<string>>()
+    expectTypeOf<AgentJournalReading<string>>().not.toExtend<AgentJournalRecording<string>>()
+  })
+
+  it('reuses the handle operations as inputs and answers the query like recovery does', () => {
+    expectTypeOf<Parameters<AgentJournalRecording<string>['submit']>[0]>().toEqualTypeOf<
+      Parameters<AgentExecutionInput<string>['submit']>[0]
+    >()
+    expectTypeOf<ReturnType<AgentJournalReading<string>['query']>>().toEqualTypeOf<
+      ReturnType<AgentExecutionRecovery<string>['query']>
+    >()
+    expectTypeOf<ReturnType<AgentJournalFinishing<string>['tryFinish']>>().toEqualTypeOf<
+      Reply<FinishResult>
+    >()
+    expectTypeOf<
+      Parameters<AgentJournalRecording<string>['recordControl']>[0]['stage']
+    >().toEqualTypeOf<Exclude<ControlStage, 'accepted'>>()
   })
 })

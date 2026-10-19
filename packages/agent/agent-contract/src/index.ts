@@ -17,25 +17,6 @@ export type {
   CapabilityRef,
   VersionChoice,
 } from './definition.ts'
-export type {
-  ActionIdentity,
-  CardOption,
-  Conclusion,
-  DecisionCardDraft,
-  Dimension,
-  ErrorPolicy,
-  ExtensionImplementationDeclaration,
-  ExtensionInput,
-  ExtensionInvocationMode,
-  ExtensionInvocationResult,
-  ExtensionOutput,
-  ExtensionReplayBinding,
-  LoopExtensionDeclaration,
-  LoopExtensionImplementation,
-  Position,
-  Power,
-  UnavailabilityPolicy,
-} from './extensions.ts'
 export {
   AGENT_IDENTITY_MAX_LENGTH,
   decodeActionBatchId,
@@ -58,14 +39,10 @@ export {
   judgeEvidence,
 } from './identity.ts'
 export type * from './evaluation.ts'
+export type * from './execution.ts'
+export type * from './extensions.ts'
 export type * from './identity.ts'
+export type * from './journal.ts'
 export type * from './passages.ts'
 export type * from './request.ts'
-export type {
-  ControlRecord,
-  ControlStage,
-  ControlStageFact,
-  ExecutionControl,
-  ResultResponsibility,
-} from './execution.ts'
 export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from './judgment.ts'
