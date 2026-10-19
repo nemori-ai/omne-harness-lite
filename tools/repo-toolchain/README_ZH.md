@@ -57,6 +57,7 @@ pnpm --filter @omne-harness/repo-toolchain test
 
 - 规则：无法解析的导入、文件级运行时循环、legacy 引用，以及按[产品包组织](../../docs/package-organization.md#依赖方向与cordis集成)与[系统分层](../../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)写成成员路径的方向规则（SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具）。每条规则的 `comment` 指回出处。要按角色判断的规则（契约不依赖提供者等）还没有机读的角色，没有写。
 - 成员边：产品源码（不含测试）解析到另一个成员的依赖，类型导入也算。成员与组之间的环由这些边算出。导入处的行号按说明符在文件里第一次出现的位置找。
+- 工作树的图不含被 Git 忽略且未跟踪的目录里的模块与它们的违规（本地产物，理由同[实际架构](#全局实际架构视图)的成员规则）；不在 Git 仓库里的目录没有忽略规则，照常出图。
 - 规则与解析选项（`tsconfig.base.json` 的 `source` 条件）只从运行检查器的仓库读，被检查的检出改不了。
 - 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交与规则文件摘要缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
 - 耗时：本机全仓一次约 3 秒，基线命中缓存约 10 毫秒。
@@ -131,6 +132,10 @@ CLI 的 stdout 只有 JSON。`--out` 另写同一份 JSON。参数、Git、works
 `source` 记录仓库、commit、读取方式与 Git `dirty`。`inputDirty` 还标记已读输入中没有进入该 commit 的文件，
 包括被 Git 忽略的源码或配置；路径在 `unversionedInputs` 中。工作树输入脏时不能当作该提交的静态快照。
 仓库根的 Python 虚拟环境 `.venv/` 不进入输入库存；成员中的同名目录仍按实际归属读取。
+读取当前文件系统时，被 Git 忽略且未跟踪的目录（例如变异运行器的 `.stryker-tmp-*` 沙箱，或本地的 `scratch/`）是本地产物，不算成员：
+它们只存在于某个本地检出，干净检出与 CI 上没有，即使 pnpm 在本地会把它们当成员。
+目录自身要匹配忽略规则才算；只忽略了目录里个别文件的目录仍是成员，已跟踪的文件 Git 从不当作被忽略，提交过的成员不受影响。
+这些目录里的文件仍照常按「未进入提交的输入」标记。
 
 成员来自该版本的 workspace 和 manifest。`packages/`、`apps/` 下的成员属于产品范围；其余成员
 作为 development 单列。名称取 `manifest.name`，不由目录猜包名。空成员保留；`sources` 只列成员
@@ -418,7 +423,7 @@ IC-5 例外仅放行 BASE 点名的精确导出符号，namespace 通配符和�
 与**新成员过了提醒线的**，各按 `explainTop` 截断；没有基线快照时前一段写「未判：没有基线快照」。`baseline` 为 `false` 时带位只看绝对线，这两段和各项与基线比的结果都不出。
 
 **要解释的函数与基线比**：「这次变更里要解释的红项」里的函数一类，先取这次变更碰过、带位不是 ok 的函数（与以前相同），
-再与基线提交（`BASE` 的合并点；收工钩子是与 `primaryBranch` 的合并点，求不出是 `HEAD`）上同一个函数的圈复杂度比，只留下：
+再与基线提交（`BASE` 的合并点；收工钩子的基线见[收工钩子](#收工钩子)第 4 步）上同一个函数的圈复杂度比，只留下：
 
 - 基线上没有它：新函数，或所在文件是新文件（未跟踪的、git 认作新增的）——写「新出现」；
 - 基线上有、现在的圈复杂度比基线上大——写「原 N → 现 M」；
@@ -482,7 +487,15 @@ rev 翻动只数改了 `revision:` 行的提交，不看改了什么。自测：
 1. `OMNE_LOOP_HOOK=off` → 什么都不做；输入解析不了、不是对象 → 不反馈。
 2. `stop_hook_active` 为 `true`（这次收工已经因钩子续跑过）→ 不反馈。**每次收工至多拦一次。**
 3. 工作目录取输入的 `cwd`，没有就用进程的当前目录；不在 git 仓库里 → 不反馈。`loop` 配置的 `hook.enabled` 为 `false` → 不反馈。
-4. 这次变更（相对与 `primaryBranch` 的合并点，求不出就只看未提交的；已提交、未提交、未跟踪都算）没碰产品源码、全局 `constraints.json` 或其引用的Markdown源 → 不反馈。
+4. 这次变更（相对下面的基线；已提交、未提交、未跟踪都算）没碰产品源码、全局 `constraints.json` 或其引用的Markdown源 → 不反馈。
+   **基线**这样取：
+   - 有 task context：取它的 `taskBase`（没有 ownerTask 时取 `targetBase`），不看轨道登记。
+   - 没有 task context：在 `primaryBranch` 与 [`integration-policy.json`](../../docs/engineering/integration-policy.json) 里 `status` 为 `active` 的各轨道分支之间，
+     取离 HEAD 最近的合并点，即 HEAD 领先它的提交数最少的那个；并列时取 `primaryBranch`，再按登记顺序。
+     每个候选先取远端跟踪分支（`<transport.location>/<分支>`），没有就取同名本地分支，都没有就跳过。
+     从轨道分出、合入过轨道尖端的长期分支因此只看自己相对轨道的改动，轨道相对 `primaryBranch` 的内容不算这次变更。
+     policy 读不到或读不懂时没有轨道候选，只用 `primaryBranch`（位置按 `origin`）。一个候选也求不出时基线是 `HEAD`，只看未提交的改动。
+   - 直接在轨道分支上工作时，HEAD 就是轨道尖端，基线也是它，只看未提交的改动；要看相对 `primaryBranch` 的全部变更，手给 `make loop-status BASE=main`。
 5. 量**静态那部分**读数：变更函数里超 alert、且比基线涨了或新出现的（与 `make loop-status` 同一个判法，见上「要解释的函数与基线比」，基线是这里的合并点；
    反馈的那一行末尾补「原 N」「新出现」或拿不准的原因，原来就超线、这次没变差的不反馈）、新增的跨成员依赖、其中稳定依赖不稳定的、改动过的测试文件里没有断言的用例，加依赖违规与环两条硬线（全仓的）。
    不跑重复代码（全仓二十多秒）、覆盖率、工作树与 topic 那几项。量在 worker 线程里跑，超过 `hook.timeoutSeconds`（初值 40；宿主那侧另配 60）就放弃。

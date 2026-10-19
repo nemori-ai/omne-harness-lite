@@ -1,0 +1,1 @@
+{"members":[{"path":"packages/model/a","group":"packages/model","name":"a"},{"path":"packages/model/b","group":"packages/model","name":"b"},{"path":"packages/model/c","group":"packages/model","name":"c"}],"edges":[{"from":"packages/model/a","to":"packages/model/b","sites":[{"path":"packages/model/a/src/index.ts","line":1,"specifier":"../../b/src/index.ts"}]}],"findings":[]}

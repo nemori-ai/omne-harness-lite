@@ -2,6 +2,7 @@
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { ignoredDirectories } from '../src/core/git.ts'
 import {
   graphOf,
   requireCruiserTypeScript,
@@ -155,6 +156,49 @@ describe('真实检出上的依赖图', { timeout: 60_000 }, () => {
     expect(readdirSync(cache).filter(name => name.startsWith(base))).toHaveLength(1)
     expect(readdirSync(cache).filter(name => name.startsWith('tree-'))).toEqual([])
     expect(git(root, 'status', '--porcelain')).toBe('M packages/model/b/src/index.ts')
+  })
+
+  it('被 git 忽略的目录里的模块不进工作树的图：变异沙箱的依赖不算新增的边', () => {
+    const { root } = members()
+    write(root, '.gitignore', 'node_modules/\n.stryker-tmp*\n')
+    commit(root, 'ignore sandboxes')
+    write(
+      root,
+      'packages/.stryker-tmp-x/sandbox-y/src/index.ts',
+      "import { c } from '../../../model/c/src/index.ts'\nexport const copy = c\n",
+    )
+    expect(pairs(workingGraph(root).edges)).toEqual([
+      'packages/model/a → packages/model/b',
+      'packages/model/b → packages/model/c',
+    ])
+    expect(workingGraph(root).members.map(member => member.path)).not.toContain(
+      'packages/.stryker-tmp-x/sandbox-y',
+    )
+  })
+
+  it('被 git 忽略的目录里的违规不进工作树的图：沙箱里的文件环不算仓库的违规', () => {
+    // 缺陷：withoutIgnoredModules 只滤了模块、没滤违规，本地沙箱的环让每次收工都报硬线。
+    const { root } = members()
+    write(root, '.gitignore', 'node_modules/\n.stryker-tmp*\n')
+    commit(root, 'ignore sandboxes')
+    const sandbox = 'packages/.stryker-tmp-x/sandbox-y/src'
+    write(root, `${sandbox}/p.ts`, "import { q } from './q.ts'\nexport const p = q\n")
+    write(root, `${sandbox}/q.ts`, "import { p } from './p.ts'\nexport const q = p\n")
+    expect(workingGraph(root).findings).toEqual([])
+  })
+
+  it('不在 git 仓库里的目录照常出图：没有忽略规则可言，不抛错', () => {
+    // 缺陷：workingGraph 无条件跑 git，`omne-deps --root <非 git 目录>` 从能用变成 not a git repository。
+    const root = temporaryDirectory('omne-deps-nogit-')
+    write(root, 'tsconfig.base.json', '{}\n')
+    write(
+      root,
+      'packages/model/a/src/index.ts',
+      "import { b } from '../../b/src/index.ts'\nexport const a = b\n",
+    )
+    write(root, 'packages/model/b/src/index.ts', 'export const b = 1\n')
+    expect(ignoredDirectories(root)).toEqual(new Set())
+    expect(pairs(workingGraph(root).edges)).toEqual(['packages/model/a → packages/model/b'])
   })
 
   it('工具链的分层：每条规则种一处违规都被报出，CLI 入口与向下的依赖放行', () => {

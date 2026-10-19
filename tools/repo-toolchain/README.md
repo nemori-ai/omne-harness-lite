@@ -49,7 +49,7 @@ The actual architecture extraction reads only the files of one revision. A packa
 
 ## Stop-hook revision reads
 
-The Stop hook recalculates the merge base with `primaryBranch` on each invocation.
+The Stop hook recalculates its baseline on each invocation. With a task context it uses `taskBase`. Without one it uses the nearest merge base among `primaryBranch` and the active tracks in `integration-policy.json`. See the Chinese README section "收工钩子" for the exact rules.
 The global architecture reader resolves that base to a fixed commit and batches its selected source and intent blobs.
 They use byte lengths for UTF-8 content and preserve literal paths, empty files and read failures.
 No measurements persist across commits. Source ownership uses the longest member prefix and one inventory traversal.

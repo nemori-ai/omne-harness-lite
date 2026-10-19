@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, matchesGlob, relative, resolve } from 'node:path'
 import { isLegacyDirectory, isLegacyFile } from '../core/check-scope.ts'
-import { git } from '../core/git.ts'
+import { git, ignoredDirectories, isUnderIgnored } from '../core/git.ts'
 import { readRevisionTexts } from '../core/revision-files.ts'
 import { listWorkspaceMembers, ownerOf, workspacePatterns, type Tree } from '../core/workspace.ts'
 import type { Member } from '../deps/graph.ts'
@@ -86,7 +86,7 @@ function sourceTree(
   }
   return { texts, paths }
 }
-function virtualTree(texts: ReadonlyMap<string, string>): Tree {
+function virtualTree(texts: ReadonlyMap<string, string>, ignoredDirs: ReadonlySet<string>): Tree {
   return {
     read: path => texts.get(path),
     directories: path => {
@@ -98,7 +98,8 @@ function virtualTree(texts: ReadonlyMap<string, string>): Tree {
             .flatMap(key => {
               const rest = key.slice(prefix.length)
               return rest.includes('/') ? [rest.split('/')[0] ?? ''] : []
-            }),
+            })
+            .filter(name => !ignoredDirs.has(`${prefix}${name}`)),
         ),
       ].sort()
     },
@@ -143,16 +144,18 @@ function membersOf(
   texts: ReadonlyMap<string, string>,
   inventory: readonly string[],
   patterns: readonly string[],
+  ignoredDirs: ReadonlySet<string>,
 ): ActualMember[] {
   for (const [path, text] of texts)
     if (
       path.endsWith('/package.json') &&
+      !isUnderIgnored(path, ignoredDirs) &&
       patterns.some(pattern => matchesGlob(dirname(path), pattern))
     )
       manifest(text, path)
   const declared = [
     ...new Map(
-      listWorkspaceMembers(virtualTree(texts), []).map(item => [item.path, item]),
+      listWorkspaceMembers(virtualTree(texts, ignoredDirs), []).map(item => [item.path, item]),
     ).values(),
   ]
   const names = new Set<string>()
@@ -185,7 +188,14 @@ export function readArchitectureSource(root: string, revision?: string): Archite
   const commit = git(root, ['rev-parse', '--verify', `${revision ?? 'HEAD'}^{commit}`])
   const { texts, paths: inventory } = sourceTree(root, revision === undefined ? undefined : commit)
   const patterns = patternsOf(texts),
-    members = membersOf(texts, inventory, patterns)
+    // 被 git 忽略的目录（变异运行器的 `.stryker-tmp-*` 沙箱）里的 package.json 不是成员；
+    // 它们的内容仍留在 texts 里，未跟踪输入照常标记。提交里没有被忽略的目录。
+    members = membersOf(
+      texts,
+      inventory,
+      patterns,
+      revision === undefined ? ignoredDirectories(root) : new Set(),
+    )
   // Build directories belong to a member. A member or src directory named dist is still source.
   for (const path of texts.keys()) {
     const owner = ownerOf(path, members)?.path
