@@ -33,19 +33,21 @@ import {
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type {
-  AgentLocalRoute,
-  AgentPublicationAuthority,
-  AgentRegistrationInput,
-  AgentWithdrawalInput,
-} from './index.ts'
+import type { AgentLocalRoute, AgentRegistrationInput, AgentWithdrawalInput } from './index.ts'
 
-export type {
-  AgentLocalRoute,
-  AgentPublicationAuthority,
-  AgentRegistrationInput,
-  AgentWithdrawalInput,
-} from './index.ts'
+export type { AgentLocalRoute, AgentRegistrationInput, AgentWithdrawalInput } from './index.ts'
+
+/**
+ * The host's synchronous, final check of one registration or withdrawal. `caller` is the context
+ * of the fiber that calls the directory. The directory asks before it writes anything. It takes a
+ * Cordis context, so it is declared here and not in the root entry.
+ */
+export interface AgentPublicationAuthority<P> {
+  check(
+    input: AgentRegistrationInput<P> | AgentWithdrawalInput<P>,
+    caller: Context,
+  ): Outcome<void, Failure>
+}
 
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentJournalService<P> extends Service implements AgentJournal<P> {

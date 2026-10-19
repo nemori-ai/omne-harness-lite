@@ -10,7 +10,7 @@
 
 测试通过包名消费真实入口，不深层导入源码。Cordis 用真实的 4.0.4。发布权威、主体资格核验和宿主是三个抽象定义的测试提供者，它们的真实提供者在 `agent-host-local` 和授权领域，不在本包；测试通过不证明那些提供者的行为。
 
-- [public-entry.spec.ts](public-entry.spec.ts)：根入口没有值导出；构建后的 `index.js` 没有任何导入；`index.d.ts` 到 Cordis 只有调用方上下文类型这一条边。
+- [public-entry.spec.ts](public-entry.spec.ts)：根入口没有值导出；构建后的 `index.js` 没有任何导入；`index.d.ts` 及其传递的声明到 Cordis 没有任何边，类型边也没有。
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：18 个键逐对等于类的 `provide`；`./cordis` 的源码、`dist/cordis.js` 与 `dist/cordis.d.ts` 的导入图不含 `agent` 与 `agent-host-local`；构建后的声明里 18 个类各有 `@owner` 且没有 `@contract`，事件有 `@mode parallel` 与四个 `@param`；抽象类可被继承并经 `ctx.get` 取回，一个插件体可以提供几个定义；`AgentInstancesService` 对不合法输入返回具名失败，不抛出；目录插件的 `inject` 缺项时停在 PENDING、换提供者时重载、拒绝非空配置。
 - [cordis-entry.spec-d.ts](cordis-entry.spec-d.ts)：类型测试，检查 `Context` 增补、键字面量、事件载荷和登记输入的类型。
 - [registration.spec.ts](registration.spec.ts)：真实 Cordis 上的登记规则：认回与冲突、发布权威先于写入、后继取代与代次、旧身份不删后继、fiber 卸载、撤除、监听失败不改变结果、`resolve` 与 `connect` 的核验次序、跨租户、宿主缺席与路由缺失。

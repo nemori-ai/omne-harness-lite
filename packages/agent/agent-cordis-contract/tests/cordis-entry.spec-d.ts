@@ -12,7 +12,6 @@ import type {
 } from '@omne-harness/agent-contract'
 import type {
   AgentLocalRoute,
-  AgentPublicationAuthority,
   AgentRegistrationInput,
   AgentWithdrawalInput,
 } from '@omne-harness/agent-cordis-contract'
@@ -26,6 +25,7 @@ import {
   type AgentInstancesService,
   type AgentJournalService,
   type AgentMaterialsService,
+  type AgentPublicationAuthority,
   type AgentPublicationAuthorityService,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'

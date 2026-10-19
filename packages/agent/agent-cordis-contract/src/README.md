@@ -8,7 +8,7 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 边界
 
-源码只用可擦除的 TypeScript 语法。根入口不含值，也不加载 Cordis：它对 `@deepseek-ai/cordis` 只有一条 `import type`，取自调用方上下文的类型 `Context`，构建后的 `index.js` 没有任何导入。Cordis 值、服务类、键常量、`Context` 与 `Events` 增补和目录插件只从 `cordis.ts` 导出。源码不导入 `agent` 与 `agent-host-local`。非类型行为的规则在 [Cordis 页](../docs/cordis.md)，不写在源码注释里代替规格。
+源码只用可擦除的 TypeScript 语法。根入口不含值，也没有到 Cordis 的边：构建后的 `index.js` 没有任何导入，`index.d.ts` 也不引用 `@deepseek-ai/cordis`。要用 Cordis `Context` 的类型，包括 `AgentPublicationAuthority`，都在 `cordis.ts`。Cordis 值、服务类、键常量、`Context` 与 `Events` 增补和目录插件只从 `cordis.ts` 导出。源码不导入 `agent` 与 `agent-host-local`。非类型行为的规则在 [Cordis 页](../docs/cordis.md)，不写在源码注释里代替规格。
 
 ## 维护
 
@@ -16,10 +16,11 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 本包事实
 
-[index.ts](index.ts) 导出四个类型：`AgentLocalRoute`、`AgentRegistrationInput`、`AgentWithdrawalInput`、`AgentPublicationAuthority`。
+[index.ts](index.ts) 导出三个类型：`AgentLocalRoute`、`AgentRegistrationInput`、`AgentWithdrawalInput`。
 
 [cordis.ts](cordis.ts) 导出：
 
+- 接口 `AgentPublicationAuthority`（宿主的同步核验，`check` 收调用方的 Cordis `Context`）和上面三个类型的再导出。
 - 17 个抽象 Service 和对应的 17 个键常量。每个类在 `static readonly provide` 写键一次，键常量取自它。`AgentInstanceHostService` 另有进程内的 `route`。
 - 具体的 `AgentInstancesService` 和键常量 `agentInstancesKey`。它是实例目录：`register`、`withdraw`、`resolve`、`connect`。状态放在构造函数的闭包里，不挂在实例属性上，因为任何能读 `ctx.agentInstances` 的插件都能读到实例属性。`register` 与 `withdraw` 是普通函数，使 Cordis 把 `this.ctx` 绑到调用方，登记随调用方 fiber 撤除。
 - 目录插件 `agentInstancesPlugin`：静态 `inject` 为 `agentPublicationAuthority` 与 `agentAccessCheck`，`Config` 是拒绝未知键的空对象。

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { describeImport, memberPath, walkModules } from './module-graph.ts'
 
 describe('the root entry', () => {
-  it('exports no values: the four types are erased and the definitions are at ./cordis', async () => {
+  it('exports no values: the types are erased and the definitions are at ./cordis', async () => {
     const root = (await import('@omne-harness/agent-cordis-contract')) as Record<string, unknown>
     expect(Object.keys(root)).toEqual([])
   })
@@ -13,12 +13,12 @@ describe('the root entry', () => {
     expect(graph.imports.map(describeImport)).toEqual([])
   })
 
-  it('reaches Cordis only through the type of the caller context in its own declaration', () => {
+  it('has no edge to Cordis at all, types included, in its declaration', () => {
     const graph = walkModules(memberPath('dist/index.d.ts'), 'declaration')
+    expect(graph.files.size).toBeGreaterThan(1)
     const cordis = graph.imports.filter(edge => edge.specifier.startsWith('@deepseek-ai/cordis'))
-    expect(cordis.map(describeImport)).toEqual(['dist/index.d.ts -> @deepseek-ai/cordis'])
-    const declaration = readFileSync(memberPath('dist/index.d.ts'), 'utf8')
-    expect(declaration).toMatch(/import type \{ Context \} from '@deepseek-ai\/cordis'/u)
+    expect(cordis.map(describeImport)).toEqual([])
+    expect(readFileSync(memberPath('dist/index.d.ts'), 'utf8')).not.toContain('@deepseek-ai/cordis')
   })
 
   it('reaches no Cordis entry of another package and no Agent implementation', () => {
