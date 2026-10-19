@@ -21,7 +21,13 @@ import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunScript, type RunTier } from './config.ts'
 import type { MemberRun, VitestJsonReport } from './ledger.ts'
 import type { TimingReport } from './timing-reporter.ts'
-import { rejectMemberTurboConfigs, TIER_TASKS, TURBO_BIN, turboTestCommand } from './turbo.ts'
+import {
+  checkMemberTurboConfigs,
+  TIER_TASKS,
+  TURBO_BIN,
+  turboTestCommand,
+  type TestBuild,
+} from './turbo.ts'
 
 export const slugOf = (member: string) => member.replaceAll('/', '__')
 
@@ -192,20 +198,43 @@ interface TurboSummary {
 // turbo 在输出末尾写一行 `Summary: <路径>`。
 const SUMMARY_LINE = /^\s*Summary:\s+(\S.*\.json)\s*$/mu
 
-/** 读 turbo 的运行摘要并挪进运行目录（不让它在被测检出的 `.turbo/runs` 里越攒越多）；拿不到就是 undefined。 */
-function takeSummary(root: string, output: string, runDir: string): TurboSummary | undefined {
+const isNumber = (value: unknown): value is number => typeof value === 'number'
+
+/** 摘要里的一个任务；执行记录的起止时间不是数就当作没有执行记录。 */
+function summaryTask(value: unknown): TurboSummary['tasks'][number] | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const { package: name, task, execution } = value as Record<string, unknown>
+  if (typeof name !== 'string' || typeof task !== 'string') return undefined
+  const { startTime, endTime, exitCode } = (execution ?? {}) as Record<string, unknown>
+  return isNumber(startTime) && isNumber(endTime) && (exitCode === null || isNumber(exitCode))
+    ? { package: name, task, execution: { startTime, endTime, exitCode } }
+    : { package: name, task }
+}
+
+/**
+ * 读 turbo 的运行摘要并挪进运行目录（不让它在被测检出的 `.turbo/runs` 里越攒越多）。
+ * 拿不到时给出原因，写进各成员的问题，不只说「没有执行记录」。
+ */
+function takeSummary(
+  root: string,
+  output: string,
+  runDir: string,
+): { readonly summary: TurboSummary } | { readonly missing: string } {
   const match = SUMMARY_LINE.exec(output)
-  if (match?.[1] === undefined) return undefined
+  if (match?.[1] === undefined) return { missing: 'turbo 的输出里没有 Summary 行' }
   const source = isAbsolute(match[1]) ? match[1] : join(root, match[1])
-  if (!existsSync(source)) return undefined
+  if (!existsSync(source)) return { missing: `turbo 说的摘要文件不存在：${source}` }
   const target = join(runDir, 'turbo-summary.json')
   copyFileSync(source, target)
   rmSync(source, { force: true })
   try {
-    const parsed = JSON.parse(readFileSync(target, 'utf8')) as Partial<TurboSummary>
-    return Array.isArray(parsed.tasks) ? (parsed as TurboSummary) : undefined
+    const parsed = JSON.parse(readFileSync(target, 'utf8')) as { tasks?: unknown }
+    if (!Array.isArray(parsed.tasks)) return { missing: `摘要里没有 tasks：${target}` }
+    return {
+      summary: { tasks: parsed.tasks.map(summaryTask).filter(task => task !== undefined) },
+    }
   } catch {
-    return undefined
+    return { missing: `摘要不是 JSON：${target}` }
   }
 }
 
@@ -219,6 +248,18 @@ function memberLogs(output: string, names: readonly string[], task: string): Map
   return logs
 }
 
+/** 成员清单里有没有这个脚本；读不出清单当作没有。 */
+function hasScript(memberDirectory: string, script: string): boolean {
+  try {
+    const manifest = JSON.parse(readFileSync(join(memberDirectory, 'package.json'), 'utf8')) as {
+      scripts?: Record<string, unknown>
+    }
+    return typeof manifest.scripts?.[script] === 'string'
+  } catch {
+    return false
+  }
+}
+
 /** 报告里落在嵌套归档目录（名字以 `.legacy` 结尾）里的测试文件；成员配置该排除它们。 */
 export function archivedReportFiles(
   memberDirectory: string,
@@ -230,9 +271,11 @@ export function archivedReportFiles(
 }
 
 /**
- * 用 turbo 跑一批成员的 `tier` 那一层，同时最多 `memberConcurrency` 个成员；构建由调用方先做。
- * 整份输出落 `turbo.log`，再按成员拆成各自的日志；退出码与耗时取自 turbo 的运行摘要，摘要里没有执行记录的成员记为 -1。
- * 报告里出现嵌套归档目录里的文件就判这个成员失败：排除没生效，跑了不该跑的测试。返回顺序与传入顺序一致。
+ * 用 turbo 跑一批成员的 `tier` 那一层，同时最多 `memberConcurrency` 个成员；`build` 定由谁构建（见 turboTestCommand）。
+ * 整份输出落 `turbo.log`，再按成员拆成各自的日志；退出码与耗时取自 turbo 的运行摘要，摘要里没有执行记录的成员记为 -1
+ * （它或上游的构建失败时就是这样，失败的构建点名写进它的问题）。
+ * 报告里出现嵌套归档目录里的文件就判这个成员失败：排除没生效，跑了不该跑的测试。退出码 0 却没有报告也判失败：
+ * 报告由成员配置挂上，缺了就看不出跑了什么。返回顺序与传入顺序一致。
  */
 export async function runTurboTests(
   root: string,
@@ -240,20 +283,29 @@ export async function runTurboTests(
   runDir: string,
   parallel: Parallelism,
   tier: RunTier,
+  build: TestBuild,
   onDone: (run: MemberRun, finished: number) => void,
 ): Promise<MemberRun[]> {
-  // 成员目录下的 turbo.json 能给测试任务开缓存，第二次就回放日志、报告通过；`--all` 不经计划，这里再拒一次。
-  rejectMemberTurboConfigs(root, members)
+  // 成员目录下的 turbo.json 能给测试任务开缓存，第二次就回放日志、报告通过；`--all` 不经计划，这里再核一次。
+  checkMemberTurboConfigs(root, members)
   const names = members.map(member => member.name)
   const task = TIER_TASKS[tier]
-  const command = turboTestCommand(names, tier, parallel, runDir)
+  const command = turboTestCommand(names, tier, parallel, runDir, build)
   const turboLog = join(runDir, 'turbo.log')
   // turbo 的输出按成员成组，整层跑完才逐个报结果；跑的时候看这份日志。
   console.log(`$ turbo ${command.args.join(' ')}（输出写进 ${turboLog}）`)
-  await spawnLogged(TURBO_BIN, command.args, { cwd: root, env: command.env, logPath: turboLog })
+  const turbo = await spawnLogged(TURBO_BIN, command.args, {
+    cwd: root,
+    env: command.env,
+    logPath: turboLog,
+  })
   const output = readFileSync(turboLog, 'utf8')
-  const summary = takeSummary(root, output, runDir)
+  const taken = takeSummary(root, output, runDir)
+  const summary = 'summary' in taken ? taken.summary : undefined
   const logs = memberLogs(output, names, task)
+  const failedBuilds = (summary?.tasks ?? [])
+    .filter(entry => entry.task === 'build' && (entry.execution?.exitCode ?? 0) !== 0)
+    .map(entry => entry.package)
   return members.map((member, index) => {
     const slug = slugOf(member.path)
     const lines = logs.get(member.name) ?? []
@@ -264,10 +316,18 @@ export async function runTurboTests(
     const archived = archivedReportFiles(join(root, member.path), reports.report)
     const problem =
       execution === undefined
-        ? `turbo 的运行摘要里没有它的执行记录，见 ${turboLog}`
+        ? failedBuilds.length > 0
+          ? `没有运行：构建失败（${failedBuilds.join('、')}），见 ${turboLog}`
+          : !hasScript(join(root, member.path), task)
+            ? `没有 \`${task}\` 脚本：成员要有 test:fast、test:slow 与 test 三个脚本`
+            : 'missing' in taken
+              ? `没有执行记录：${taken.missing}（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`
+              : `turbo 的运行摘要里没有它的执行记录（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`
         : archived.length > 0
           ? `跑了嵌套归档目录里的测试（成员配置的 exclude 没有排除它们）：${archived.join('、')}`
-          : undefined
+          : reports.report === undefined && execution.exitCode === 0
+            ? `退出码 0 却没有写出报告 ${slug}.json：成员配置没有展开 testTiers，或报告目录没传到 vitest`
+            : undefined
     if (problem !== undefined) lines.push(`test-runner: ${problem}`)
     writeFileSync(join(runDir, `${slug}.log`), `${lines.join('\n')}\n`)
     const exitCode = execution === undefined ? -1 : (execution.exitCode ?? -1)

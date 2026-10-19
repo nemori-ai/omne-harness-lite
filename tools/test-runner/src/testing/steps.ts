@@ -202,7 +202,7 @@ export interface RecordedRun {
   readonly script: RunScript
   readonly tier: RunTier
   readonly targets: readonly TestMember[]
-  /** 先把目标连同依赖构建一遍。 */
+  /** 运行前构建目标连同依赖：测试由 turbo 按任务依赖在同一次运行里构建，验收在运行前构建。false 时调用方已经构建过。 */
   readonly build: boolean
   readonly out: string | undefined
   readonly at: Coordinates
@@ -230,7 +230,8 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
   const parallel = effectiveParallelism(config, process.env)
   const runDir = runDirOf(run)
   mkdirSync(runDir, { recursive: true })
-  if (run.build && !buildTargets(root, targets, runDir)) return 1
+  // 测试的构建由 turbo 按任务依赖在同一次运行里做；验收不经 turbo，先在这里构建。
+  if (script === 'acceptance' && run.build && !buildTargets(root, targets, runDir)) return 1
 
   const meta = {
     script,
@@ -270,7 +271,15 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
   }
   const runs =
     script === 'test'
-      ? await runTurboTests(root, targets, runDir, parallel, tier, report)
+      ? await runTurboTests(
+          root,
+          targets,
+          runDir,
+          parallel,
+          tier,
+          { build: run.build, admission: admissionRequested(process.env) },
+          report,
+        )
       : await runMembers(root, targets, runDir, parallel, script, report)
   const wallSeconds = (Date.now() - started) / 1000
 
@@ -295,8 +304,9 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
 
 const planSummary = (plan: CheckPlan) => ({ mode: plan.mode, reason: plan.reason })
 
-/** 合并前的成员测试：计划里的成员的快层，再慢层；各写一份账本。计划为空时说「没有要跑的成员」，不算跑过。 */
-export async function testStep(root: string, file: PlanFile): Promise<number> {
+/** 合并前的成员测试：计划里的成员的快层，再慢层；各写一份账本。计划为空时说「没有要跑的成员」，不算跑过。
+ * `build` 为 true 时由 turbo 先构建（单独运行）；准入检查里构建一步已经构建过，不再构建。 */
+export async function testStep(root: string, file: PlanFile, build = false): Promise<number> {
   const config = readTestRunsConfig()
   const selected = new Set(file.plan.test)
   const targets = withScript(
@@ -315,7 +325,7 @@ export async function testStep(root: string, file: PlanFile): Promise<number> {
   const common = {
     script: 'test',
     targets,
-    build: false,
+    build,
     out: undefined,
     at,
     base: file.plan.mode === 'full' ? null : file.base,

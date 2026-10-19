@@ -2,16 +2,23 @@
 // 由 typecheck-scope.ts 在运行前核对；测试不缓存，命令在这里拼，运行与拆日志在 run.ts。这里固定它的运行条件，
 // 落实 RFC-0002 的四条约束中归 turbo 的那几条：
 // 1. 选择规则不能由 PR 改写：根配置用运行检查器仓库的 turbo.json（TURBO_ROOT_TURBO_JSON）；
-//    成员目录下的 turbo.json 会盖过它，所以一律拒绝。
+//    成员目录下的 turbo.json 会盖过它，`apps/*` 之外的一律拒绝，`apps/*` 的按 member-turbo.ts 的规则核对。
 // 2. 基线显式传入：TURBO_SCM_BASE 由调用方给出（合并点），准入另给 TURBO_SCM_HEAD。
 // 4. 准入不读 PR 能写入的缓存：准入模式只写不读本地缓存。
 // 第 3 条「未识别文件按全量处理」turbo 不提供，由 scope.ts 判。
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunTier } from './config.ts'
+import {
+  MEMBER_TURBO_ROOT,
+  rawProblems,
+  resolvedProblems,
+  type ResolvedTask,
+  type RootTask,
+} from './member-turbo.ts'
 
 const RUNNER = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 export const TURBO_CONFIG = join(RUNNER, 'turbo.json')
@@ -37,18 +44,77 @@ export function turboEnv(extra: Readonly<Record<string, string>>): NodeJS.Proces
   }
 }
 
-/** 成员目录下的 turbo.json 会盖过根配置里的任务定义，被检查的检出就能改写选择与执行；有就拒绝。 */
-export function rejectMemberTurboConfigs(
+/** 根 turbo.json（运行检查器仓库的那份）里的任务定义。 */
+function rootTasks(): Record<string, RootTask> {
+  const parsed = JSON.parse(readFileSync(TURBO_CONFIG, 'utf8')) as {
+    tasks?: Record<string, RootTask>
+  }
+  return parsed.tasks ?? {}
+}
+
+/** `turbo run … --dry=json` 里一个任务的合成定义；读不出就报错，不当作没有问题。 */
+function resolvedTasks(root: string, names: readonly string[], tasks: readonly string[]) {
+  const run = spawnSync(
+    TURBO_BIN,
+    ['run', ...tasks, ...names.map(name => `--filter=${name}`), '--dry=json'],
+    { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env: turboEnv({}) },
+  )
+  if (run.error !== undefined) throw run.error
+  try {
+    const parsed = JSON.parse(run.stdout) as {
+      tasks: { package: string; task: string; resolvedTaskDefinition: ResolvedTask }[]
+    }
+    return parsed.tasks
+  } catch {
+    throw new Error(`turbo 没有给出合成后的任务定义（退出码 ${run.status}）：${run.stderr.trim()}`)
+  }
+}
+
+/**
+ * 成员目录下的 turbo.json 会改写根配置里的任务定义。`apps/*` 之外的一律拒绝；`apps/*` 的按 member-turbo.ts 的
+ * 七条规则核对原文与 turbo 合成后的定义（与准入相同的根配置，在被检查的检出上运行）。有问题就一次报出全部。
+ */
+export function checkMemberTurboConfigs(
   root: string,
-  members: readonly { readonly path: string }[],
+  members: readonly { readonly path: string; readonly name: string }[],
 ): void {
-  const found = members
-    .filter(member => existsSync(join(root, member.path, 'turbo.json')))
-    .map(member => `${member.path}/turbo.json`)
-  if (found.length > 0)
-    throw new Error(
-      `只允许仓库根目录有 turbo.json，成员目录下的会改写任务定义：${found.join('、')}`,
+  const found = members.filter(member => existsSync(join(root, member.path, 'turbo.json')))
+  if (found.length === 0) return
+  const problems = found
+    .filter(member => !member.path.startsWith(MEMBER_TURBO_ROOT))
+    .map(
+      member => `${member.path}/turbo.json：只有 ${MEMBER_TURBO_ROOT}* 下的成员可以有 turbo.json`,
     )
+  const apps = found.filter(member => member.path.startsWith(MEMBER_TURBO_ROOT))
+  if (apps.length > 0) {
+    const tasks = rootTasks()
+    for (const member of apps) {
+      let raw: unknown
+      try {
+        raw = JSON.parse(readFileSync(join(root, member.path, 'turbo.json'), 'utf8'))
+      } catch {
+        raw = undefined
+      }
+      problems.push(
+        ...rawProblems(raw, tasks).map(problem => `${member.path}/turbo.json：${problem}`),
+      )
+    }
+    if (problems.length === 0) {
+      const byName = new Map(apps.map(member => [member.name, member.path]))
+      const testTasks = Object.values(TIER_TASKS)
+      for (const entry of resolvedTasks(root, [...byName.keys()], Object.keys(tasks))) {
+        const path = byName.get(entry.package)
+        const definition = tasks[entry.task]
+        if (path === undefined || definition === undefined) continue
+        problems.push(
+          ...resolvedProblems(entry.task, entry.resolvedTaskDefinition, definition, testTasks).map(
+            problem => `${path}/turbo.json：${problem}`,
+          ),
+        )
+      }
+    }
+  }
+  if (problems.length > 0) throw new Error(problems.join('\n'))
 }
 
 /**
@@ -61,7 +127,7 @@ export function affectedMembers(
   base: string,
   head?: string,
 ): Set<string> {
-  rejectMemberTurboConfigs(root, members)
+  checkMemberTurboConfigs(root, members)
   const run = spawnSync(TURBO_BIN, ['ls', '--affected', '--output=json'], {
     cwd: root,
     encoding: 'utf8',
@@ -158,8 +224,16 @@ export const TIER_TASKS = {
 /** 环境变量：成员的 vitest 把 JSON 报告与计时报告写进这个目录（见仓库根 `vitest.tiers.mts`）。 */
 export const TEST_REPORT_DIR_ENV = 'OMNE_TEST_REPORT_DIR'
 
+/** 测试前要不要由 turbo 构建：`build` 为 false 时调用方已经构建过，只跑测试任务本身（`--only`）。 */
+export interface TestBuild {
+  readonly build: boolean
+  /** 准入模式：构建的本地缓存只写不读。 */
+  readonly admission: boolean
+}
+
 /**
- * 用 turbo 跑一批成员某一层测试的命令。只跑测试任务本身（`--only`），构建由调用方先做；一个成员失败不拦其余的。
+ * 用 turbo 跑一批成员某一层测试的命令；一个成员失败不拦其余的。要构建时 turbo 按任务的 `dependsOn` 先构建成员及其上游，
+ * 不构建时带 `--only`（准入检查里构建一步已经按计划构建，准入模式下缓存只写不读，不带它就会再构建一遍）。
  * 输出按成员成组、每行带 `<包名>:<任务>: ` 前缀，供拆成各成员的日志；运行摘要给出各成员的退出码与起止时间。
  */
 export function turboTestCommand(
@@ -167,14 +241,15 @@ export function turboTestCommand(
   tier: RunTier,
   parallel: Parallelism,
   reportDirectory: string,
+  build: TestBuild,
 ): { readonly args: string[]; readonly env: NodeJS.ProcessEnv } {
   return {
     args: [
       'run',
       TIER_TASKS[tier],
       ...names.map(name => `--filter=${name}`),
-      '--only',
-      '--continue=always',
+      ...(build.build ? [`--cache=${build.admission ? 'local:w' : 'local:rw'}`] : ['--only']),
+      '--continue=dependencies-successful',
       `--concurrency=${parallel.memberConcurrency}`,
       '--summarize',
       '--log-order=grouped',

@@ -1,7 +1,9 @@
 // 测试分层的唯一定义：慢层标签与它的时限，以及把 vitest 的 mode 翻成过滤条件。
 // 每个成员的 vitest 配置写成 `defineConfig(({ mode }) => …)`，在 `test` 里先展开 `testTiers(mode)`，
-// 成员自己的设置写在它后面；`typecheck` 里同样先展开 `testTiers(mode).typecheck`。
-// 成员脚本 `test:fast` 是 `vitest run --mode fast`，`test:slow` 是 `vitest run --mode slow`，`test` 不给 mode，两层都跑。
+// 成员自己的设置写在它后面；`typecheck` 里同样先展开 `testTiers(mode).typecheck`。`exclude`、`reporters`、`outputFile`
+// 与 `env` 归这里，成员不要覆盖：覆盖了就会跑归档目录里的测试、丢报告，或把报告目录漏给测试起的子进程。
+// 成员脚本 `test:fast` 是 `vitest run --mode fast`，`test:slow` 是 `vitest run --mode slow --typecheck.enabled=false`，
+// `test` 不给 mode，两层都跑。
 // 层只经 mode 传递，不读环境变量：turbo 的 Strict Mode 会滤掉未声明的变量，外面环境里的残留也不会漏进来。
 // 归慢层：整个测试文件在开头的注释里写 `@module-tag slow`，单条用例写 `{ tags: ['slow'] }`，
 // 并写一句为什么慢（起子进程、真实等待、重 CPU、网络）。怎么划、谁来跑见 docs/verification.md「测试分层」。
@@ -45,10 +47,28 @@ export function reportSlug(memberDirectory: string): string {
     .replaceAll('/', '__')
 }
 
-function reporting(
-  reportDirectory: string | undefined,
-  memberDirectory: string,
-): Record<string, unknown> {
+/** 设了报告目录时挂上的报告器、报告路径与测试进程的环境。 */
+interface Reporting {
+  readonly reporters?: (string | [string, { outputFile: string }])[]
+  readonly outputFile?: { readonly json: string }
+  readonly env?: Readonly<Record<string, string>>
+}
+
+/** 成员配置在 `test` 里展开的部分；根目录不依赖 vitest，这里只写结构（数组不标 readonly，vitest 的配置类型要可变数组）。 */
+export interface TestTiers extends Reporting {
+  readonly tags: {
+    readonly name: string
+    readonly description: string
+    readonly timeout: number
+  }[]
+  readonly exclude: string[]
+  readonly typecheck: { readonly exclude: string[] }
+  readonly tagsFilter?: string[]
+  readonly passWithNoTests?: boolean
+  readonly experimental?: { readonly preParse: boolean }
+}
+
+function reporting(reportDirectory: string | undefined, memberDirectory: string): Reporting {
   if (reportDirectory === undefined || reportDirectory === '') return {}
   const prefix = join(reportDirectory, reportSlug(memberDirectory))
   return {
@@ -63,7 +83,7 @@ export function testTiers(
   mode: string = DEFAULT_MODE,
   env: Readonly<Record<string, string | undefined>> = process.env,
   memberDirectory: string = process.cwd(),
-) {
+): TestTiers {
   if (mode !== DEFAULT_MODE && !(TEST_TIERS as readonly string[]).includes(mode))
     throw new Error(`vitest 的 mode 只能是 ${TEST_TIERS.join('、')} 或不给，现在是 ${mode}`)
   return {

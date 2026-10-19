@@ -17,6 +17,8 @@ import {
 } from '../../../vitest.tiers.mts'
 import { RUN_TIERS } from '../src/testing/config.ts'
 import { TEST_REPORT_DIR_ENV, TIER_TASKS, turboTestCommand } from '../src/testing/turbo.ts'
+import { slugOf } from '../src/testing/run.ts'
+import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
 
 const ROOT_DEFINITION = fileURLToPath(new URL('../../../vitest.tiers.mts', import.meta.url))
 const REPOSITORY = fileURLToPath(new URL('../../../', import.meta.url))
@@ -75,6 +77,12 @@ describe('根上的分层定义', () => {
     })
     expect(testTiers('fast', { [ROOT_REPORT_DIR_ENV]: '' }, member)).not.toHaveProperty('reporters')
   })
+
+  it('成员配置写报告用的文件名与运行器读报告用的一致：每个成员都对得上', () => {
+    const members = listWorkspaceMembers(fileTree(REPOSITORY), [])
+    expect(members.length).toBeGreaterThan(0)
+    for (const { path } of members) expect(reportSlug(join(REPOSITORY, path))).toBe(slugOf(path))
+  })
 })
 
 describe('运行器交给 turbo 的命令', () => {
@@ -84,14 +92,40 @@ describe('运行器交给 turbo 的命令', () => {
     expect(TIER_TASKS).toEqual({ fast: 'test:fast', slow: 'test:slow', all: 'test' })
   })
 
-  it('只跑点名成员的这一层，不先构建、一个失败不拦其余的；报告目录与工作进程数经环境变量传下去', () => {
-    const command = turboTestCommand(['@a/x', '@a/y'], 'slow', parallel, '/runs/2')
+  it('不构建时只跑点名成员的这一层（--only），一个失败不拦其余的；报告目录与工作进程数经环境变量传下去', () => {
+    const command = turboTestCommand(['@a/x', '@a/y'], 'slow', parallel, '/runs/2', {
+      build: false,
+      admission: false,
+    })
     expect(command.args.slice(0, 4)).toEqual(['run', 'test:slow', '--filter=@a/x', '--filter=@a/y'])
     expect(command.args).toEqual(
-      expect.arrayContaining(['--only', '--continue=always', '--concurrency=3', '--summarize']),
+      expect.arrayContaining([
+        '--only',
+        '--continue=dependencies-successful',
+        '--concurrency=3',
+        '--summarize',
+      ]),
     )
     expect(command.env[TEST_REPORT_DIR_ENV]).toBe('/runs/2')
     expect(command.env['VITEST_MAX_WORKERS']).toBe('2')
+  })
+
+  it('要构建时不带 --only，由 turbo 按依赖构建；准入模式下构建缓存只写不读', () => {
+    const args = (admission: boolean) =>
+      turboTestCommand(['@a/x'], 'fast', parallel, '/runs/3', { build: true, admission }).args
+    expect(args(false)).not.toContain('--only')
+    expect(args(false)).toContain('--cache=local:rw')
+    expect(args(true)).toContain('--cache=local:w')
+  })
+
+  it('三个测试任务的 env 与 passThroughEnv 各是同一份', () => {
+    const turbo = JSON.parse(readFileSync(join(REPOSITORY, 'turbo.json'), 'utf8')) as {
+      tasks: Record<string, { env?: string[]; passThroughEnv?: string[] }>
+    }
+    for (const key of ['env', 'passThroughEnv'] as const) {
+      const [first, ...rest] = Object.values(TIER_TASKS).map(task => turbo.tasks[task]?.[key])
+      for (const list of rest) expect(list).toEqual(first)
+    }
   })
 
   it('三个测试任务都把这两个变量列进 passThroughEnv：turbo 的 Strict Mode 会滤掉没声明的变量', () => {

@@ -16,7 +16,7 @@ make test-affected BASE=<基线> PLAN=1     # 只列受影响范围与层，不�
 make test-tier TIER=slow                   # 先构建，再跑全部成员的某一层
 make test-triage RUN=<运行目录>            # 把那次运行里的失败逐条单独重跑并归类（测试或验收的运行都行）
 pnpm run test                              # 全量两层：先构建，再跑全部成员
-pnpm run test:gate                         # make check 的测试一步：按影响面计划跑被选中成员的快层再慢层（基线 BASELINE，缺省 main；FULL=1 全部）
+pnpm run test:gate                         # make check 的测试一步：按影响面计划跑被选中成员的快层再慢层（基线 BASELINE，缺省 main；FULL=1 全部）；单独运行时由 turbo 先构建
 make acceptance                            # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；NO_BUILD=1 不构建
 ```
 
@@ -32,7 +32,7 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 慢层与快层运行的目录名带 `-slow`／`-fast` 后缀。被滤掉的用例在报告里是跳过，账本把它们计进「没跑」，不计进「用例」。
 整个文件都被滤掉时 vitest 不导入它；用例名或标签不是字面量时静态解析看不出，照常导入、导入后再过滤。
 自测：`tests/test-tiers.spec.ts` 真起 vitest 核对三种层各跑了什么、整文件归慢的在快层下不被导入、没有慢测试的项目在慢层下退出 0、标签写错会报错，
-并核对交给 turbo 的命令与 `turbo.json` 里三个测试任务的 `passThroughEnv`。
+并核对交给 turbo 的命令与 `turbo.json` 里三个测试任务的 `env`、`passThroughEnv`。
 
 **验收**（`run --all --script acceptance`）：选的是 `package.json` 里有 `acceptance` 脚本的成员（同样排除 `affected.excludeRoots` 和 `.legacy` 目录），
 逐个跑 `pnpm run acceptance`，并行度、vitest 的 JSON 报告、账本格式都与测试相同。计时报告器的输出路径只能写在配置里，所以验收的账本没有导入耗时，贴线按 vitest 默认时限判；账本根另放在主检出的 `tmp/acceptance-ledger/`
@@ -46,7 +46,7 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 以 `.legacy` 结尾目录中的改动先记为排除，不触发未知路径全量回退。其余改动文件按顺序归到第一类命中的：
 
 1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh`、本配置文件、
-   测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`typecheck-scope.ts`／`scope.ts`／`turbo.ts`，以及任何位置的 `turbo.json`）：整份计划判全量——
+   测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`typecheck-scope.ts`／`member-turbo.ts`／`scope.ts`／`turbo.ts`，以及任何位置的 `turbo.json`）：整份计划判全量——
    引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围；
    引擎从 repo-toolchain 导入的 `core/workspace`、`core/git` 与根配置的预设来自钉住的 npm 包，改它们的版本就是改锁文件与 `pnpm-workspace.yaml`，同样判全量；
 2. **读者**（`readers`：`{ paths, members, why }`）：这些路径被这些成员的测试读——改了只把这些成员带进来，**不沿反向依赖传播**；
@@ -69,7 +69,11 @@ make acceptance                            # 构建有 acceptance 脚本的成�
 嵌套归档目录（名字以 `.legacy` 结尾）的排除写在成员的 `tsconfig.test.json`（模板给 `"exclude": ["**/*.legacy/**"]`）。
 运行前 `src/testing/typecheck-scope.ts` 只解析配置、不跑 tsc，核对编译根里没有归档文件：成员自己的 `exclude` 盖掉了模板那条，
 或者 `include` 指到成员目录外的归档目录，或者 `typecheck` 不是 `tsc -p <配置>` 形式而成员里有归档目录，就点名报错，不运行类型检查。
-`FULL=1` 或 `--full` 直接给全量计划。算不出计划——基线不存在、取不到改动、规则点名的成员不存在、turbo 出错、成员目录下有 `turbo.json`——就报错退出，不改判全量。
+`FULL=1` 或 `--full` 直接给全量计划。算不出计划——基线不存在、取不到改动、规则点名的成员不存在、turbo 出错、成员目录下有不合规则的 `turbo.json`——就报错退出，不改判全量。
+成员目录下的 `turbo.json`（`src/testing/member-turbo.ts`）：`apps/*` 之外的一律拒绝；`apps/*` 的由 `turbo run <根任务…> --dry=json` 取合成后的定义，
+按 #390 的 D6 七条暂行规则核对——`extends` 只能是 `["//"]`，只覆盖根已定义的任务，`dependsOn` 与 `env` 只增不减，
+测试任务不缓存，`outputs`、`inputs` 不指到成员目录外，不设 `persistent`。`passThroughEnv` 只放不影响结果的变量，这一条机器判不了，留给评审。
+计划与不经计划的测试运行（`run --all`）都做这项核对。
 turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基线显式传入、`OMNE_ADMISSION=1` 时只写不读缓存、关闭遥测与常驻进程）在 `src/testing/turbo.ts`。
 
 `cli.ts replay [--ref main] [--count 40]` 对一条分支最近的 first-parent 提交逐个以父提交为基线算计划（成员清单取那个提交上的、规则取现在的，只算不跑；turbo 的包依赖图取当前工作树的，是一个近似），
@@ -80,12 +84,14 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 自测：`tests/affected.spec.ts` 用真实规则与一份造出来的成员清单核对各类改动的判法，另在临时仓库核对改名与非 ASCII 文件名。
 
 **怎么跑。**`make test-affected` 先用 turbo 把目标成员连同它们的依赖构建一遍（测试执行的是依赖的 `dist/`；
-`make check` 则由前面的构建一步按计划构建）。然后运行器调用一次 `turbo run <层的任务> --only --continue=always`：
-`--only` 不再构建，`--concurrency` 取 `parallel.memberConcurrency`，每个成员的 vitest 至多起 `parallel.vitestMaxWorkers` 个工作进程。
+`make check` 则由前面的构建一步按计划构建）。然后运行器调用一次 `turbo run <层的任务> --continue=dependencies-successful`。
+调用方已经构建过时（`make check` 的测试一步、`run --all` 不带 `--build`）带 `--only`，只跑测试任务；
+否则不带，turbo 按任务的 `dependsOn` 在同一次运行里先构建成员及其上游（准入模式下构建缓存只写不读）。
+构建失败的成员不跑测试，记为失败并点名失败的构建。`--concurrency` 取 `parallel.memberConcurrency`，每个成员的 vitest 至多起 `parallel.vitestMaxWorkers` 个工作进程。
 一个成员失败不拦其余的，结束时列全失败；退出码只反映测试是否全过。各成员的退出码与起止时间取自 turbo 的运行摘要（`--summarize`），
 摘要里没有某个成员的执行记录时，这个成员记为失败。turbo 的输出按每行的 `<包名>:<任务>: ` 前缀拆成各成员的日志。
 报告里出现嵌套归档目录中的测试文件时，这个成员也判失败：成员配置的排除没有生效。
-turbo 的 Strict Mode 只把声明过的环境变量传给任务，三个测试任务的 `passThroughEnv` 列出测试要用的变量。两个并行度可用环境变量
+turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试任务的 `env` 列出影响结果的变量（临时目录、`OMNE_RUNNER_ROOT`），`passThroughEnv` 只列不影响结果的（vitest 并行度、报告目录）；测试任务不缓存，两者在这里都只决定变量能不能传进去。两个并行度可用环境变量
 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时覆盖——后者是 vitest 自己认的变量，
 会盖过成员配置里的 `maxWorkers`。初值 2 × 4 是在 8 核主机上量出来的：pnpm 默认的 4 个成员并行、
 每个成员最多 7 个工作进程时，全量要 18 到 22 分钟且有十几条用例被挤过时限；2 × 4 约 13 分钟。
@@ -99,7 +105,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务，三个测试�
 | `ledger.json`                                     | 运行坐标（提交、是否干净、基线、并行度、核数、计划的模式与理由；按计划跑验收时另有 `scope`：跳过了谁、为什么）与成员、文件两级的用例耗时与导入耗时、贴着时限的用例（`nearTimeout`，带各自的时限）、失败清单 |
 | `<成员>.log`、`<成员>.json`、`<成员>.timing.json` | 各成员的原始输出、vitest 的 JSON 报告、计时报告                                                                                                                                                             |
 | `turbo.log`、`turbo-summary.json`                 | 成员测试时 turbo 的整份输出与运行摘要（摘要从被测检出的 `.turbo/runs/` 挪来）                                                                                                                                |
-| `build.log`                                       | 受影响范围运行时的构建输出                                                                                                                                                                                  |
+| `build.log`                                       | 验收运行前的构建输出（测试的构建输出在 `turbo.log` 里）                                                                                                                                                                                  |
 
 **计时报告**是 `testTiers` 在设了报告目录时随 JSON 报告一起挂给 vitest 的报告器（`src/testing/timing-reporter.ts`，输出路径是报告器选项 `outputFile`），补上 JSON 报告没有的两样：
 每个文件的导入耗时（vitest 的 `collectDuration`：导入测试模块及其依赖、执行 describe 回调），每条用例解析后的时限与标签。

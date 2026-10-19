@@ -22,6 +22,7 @@
       "tools/test-runner/src/testing/support.ts",
       "tools/test-runner/src/testing/timing-reporter.ts",
       "tools/test-runner/src/testing/typecheck-scope.ts",
+      "tools/test-runner/src/testing/member-turbo.ts",
       "tools/dev-flow/src/integration/**",
       "docs/engineering/integration-policy.json",
       "docs/architecture/constraints.json",
