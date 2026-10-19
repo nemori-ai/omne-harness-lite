@@ -335,7 +335,7 @@ sequenceDiagram
     Note over N,D: 无目录路由不等于调用不存在
 ```
 
-程序子调用见本页[父子调用时序](#程序子调用时序)。Cordis 换代次序见 tool-host-local 的 cordis（`tool-host-local/docs/cordis.md#阶段装配与换代`）（[本增量未交付](../../README.md#未交付标注)）。
+程序子调用见本页[父子调用时序](#程序子调用时序)。Cordis 换代次序见 tool-host-local 的 cordis（`tool-host-local/docs/cordis.md#阶段装配与换代`）。
 
 ## 程序子调用时序
 

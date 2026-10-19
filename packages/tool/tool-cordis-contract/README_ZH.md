@@ -18,7 +18,7 @@ Tool 的 Cordis 服务定义包。`./cordis` 导出 17 个抽象 Service 类和�
 | 纯契约函数已实现 | 无。本包没有契约函数 | 无 | 无 |
 | 独立执行已实现 | 无 | 无 | 无 |
 | runtime 已实现的路径 | 无。本包没有 runtime。唯一的具体服务 `ToolInstancesService` 回复上述具名失败 | 无 | 只测了 `ToolInstancesService` 的具名失败 |
-| 尚未交付的宿主与提供者 | `ToolInstancesService` 背后的实例目录。Tool 自有的提供者插件在 `tool-host-local`（[本增量未交付](../README.md#未交付标注)） 的 `./cordis`，跨领域提供者由其拥有者交付。真实 Cordis 下的登记语义 | 无 | 无 |
+| 尚未交付的宿主与提供者 | `ToolInstancesService` 背后的实例目录。Tool 自有的提供者插件在 `tool-host-local` 的 `./cordis`，跨领域提供者由其拥有者交付。真实 Cordis 下的登记语义 | 无 | 无 |
 
 `./testing` 入口交付登记语义套件和一个非耐久登记服务。二者只互相核对，并对违约变体运行。真实实现的对照尚未进行：它需要实例目录的实现和真实的 Cordis 装配。
 
@@ -32,7 +32,7 @@ Tool 的 Cordis 服务定义包。`./cordis` 导出 17 个抽象 Service 类和�
 
 ## 设计
 
-两个模块。[src/cordis.ts](src/cordis.ts) 是 `./cordis` 入口。[src/testing.ts](src/testing.ts) 是 `./testing` 入口：套件、替身和夹具。它只以类型导入 `./cordis`，运行时不加载 Cordis。每个键常量取自唯一一个类的 `static provide`。本包为类型依赖 `tool-contract`，不依赖任何 Tool 实现。依赖方向是 `tool-host-local`（[本增量未交付](../README.md#未交付标注)） → {`tool`（[本增量未交付](../README.md#未交付标注)）, `tool-cordis-contract`} → `tool-contract`。
+两个模块。[src/cordis.ts](src/cordis.ts) 是 `./cordis` 入口。[src/testing.ts](src/testing.ts) 是 `./testing` 入口：套件、替身和夹具。它只以类型导入 `./cordis`，运行时不加载 Cordis。每个键常量取自唯一一个类的 `static provide`。本包为类型依赖 `tool-contract`，不依赖任何 Tool 实现。依赖方向是 `tool-host-local` → {`tool`, `tool-cordis-contract`} → `tool-contract`。
 
 ## 配置与运行
 
@@ -44,7 +44,7 @@ Tool 的 Cordis 服务定义包。`./cordis` 导出 17 个抽象 Service 类和�
 
 ## 维护
 
-Service、键或事件变化时，继承或监听它们的插件都要同步：`tool-host-local`（[本增量未交付](../README.md#未交付标注)）、各消费方的 Cordis 页和集成页。[docs/cordis.md](docs/cordis.md) 与键表测试要和源码一致。
+Service、键或事件变化时，继承或监听它们的插件都要同步：`tool-host-local`、各消费方的 Cordis 页和集成页。[docs/cordis.md](docs/cordis.md) 与键表测试要和源码一致。
 
 ## 目录结构与文档职责
 

@@ -2,16 +2,16 @@
 
 本页解释 [公开形状](public-api.md) 中对象的身份、职责、关联和寿命，不复制另一套类型。行为守卫归 [SPEC](../SPEC.md) 与 [操作协议](../SPEC.md#tool-操作协议)。OOP 在这里指封装责任和不变量，不要求每个值都写成 class。
 
-本页只列契约对象。实现包 `tool`（[本增量未交付](../../README.md#未交付标注)） 自有的对象见 tool 对象模型（`tool/docs/object-model.md`）（[本增量未交付](../../README.md#未交付标注)）。
+本页只列契约对象。实现包 `tool` 自有的对象见 tool 对象模型（`tool/docs/object-model.md`）。
 
 ## 调用方怎样使用
 
-下例是职责伪代码。每个操作都要处理成功、拒绝和未知三类结果。它不表示某个实现已经提供全部操作，实现范围见各实现包（[本增量未交付](../../README.md#未交付标注)）的 SPEC。
+下例是职责伪代码。每个操作都要处理成功、拒绝和未知三类结果。它不表示某个实现已经提供全部操作，实现范围见各实现包的 SPEC。
 
 ```text
 装配者创建 ToolRuntime，固定实例、配置和各端口的提供者
     缺必需端口是装配缺陷，构造时拒绝，不留到调用时
-        必需与可选端口的分类见 SPEC 的输入与依赖表，配置的取值范围见实现包（本增量未交付）
+        必需与可选端口的分类见 SPEC 的输入与依赖表，配置的取值范围见实现包
 
 发起协调者对一次原调用提交 admit，带固定请求和操作号
     成功：返回 ToolState，Tool 随后推进准备、排队与启动
@@ -54,7 +54,7 @@ Tool 建模自己承担的责任：一次原调用的真实执行、等待、控
 | 本域定义的端口 | 契约声明、由外部实现的部分：启动资格（ToolStartAuthority）、决策桥（ToolDecisionBridge）与资源回应（ToolResourceResponses）、环境（ToolEnvironment）、执行者绑定（ToolBindings）、时钟（ToolClock）、实例宿主（ToolInstanceHost）、输出保管（ToolOutputCustody）、目录（ToolCatalog）、结果政策（ResultPolicy）、ToolChildren。每个端口的职责与失效见下文应用对象表。消费者能力档案 ToolConsumerProfile 是调用者交来的输入值 | 实现者对自己提供的事实负责，例如环境资源是否存在、决定是否唯一；端口按单一需要切分，没有为某个外部角色准备的字段 |
 | 不建模 | 调用方的工作对象、调用方的 agent 动作、模型、决策方的界面、停止的业务原因 | 各自的拥有者；调用方用调用号、操作号和 ConsumerRef 与 Tool 的事实关联 |
 
-记录仓与范围授予核验者是 `tool`（[本增量未交付](../../README.md#未交付标注)） 实现包自己的端口，不在契约里，见 tool 对象模型（`tool/docs/object-model.md#跨域概念与内部可见范围`）（[本增量未交付](../../README.md#未交付标注)）。契约只规定 `ResourceScope.grant` 是范围拥有者授予的耐久证据，核验者由装配按范围拥有者声明（[SPEC](../SPEC.md#342-值定义和固定请求)）。`ProgramTools` 不是外部实现的端口：Tool 把它交给程序，见下文应用对象表。
+记录仓与范围授予核验者是 `tool` 实现包自己的端口，不在契约里，见 tool 对象模型（`tool/docs/object-model.md#跨域概念与内部可见范围`）。契约只规定 `ResourceScope.grant` 是范围拥有者授予的耐久证据，核验者由装配按范围拥有者声明（[SPEC](../SPEC.md#342-值定义和固定请求)）。`ProgramTools` 不是外部实现的端口：Tool 把它交给程序，见下文应用对象表。
 
 两条辅助判据帮助判断一个外部概念属于哪一行。第一，Tool 的行为是否按这个概念分支？第二，这个概念变化时 Tool 是否应该跟着变？两问的答案都是“否”时，Tool 不为它建模。
 
@@ -169,7 +169,7 @@ classDiagram
 
 实例状态。每次执行有一个独有的 ToolExecutionScope，它是输出顺序、容量、等待 key 和收尾状态的唯一写者。它创建的 ToolExecutionContext 只把受限的 emit、wait 和 signal 借给作者。上下文可处于接收、等待、收尾或关闭阶段。等待期间可以接收合法过程输出，但只能认回当前 key 的等待。收尾关闭新原语入口，输出屏障与等待清理继续。检查点保存的是协议数据和提供者明确支持的程序位置，不保存这个对象或 Promise。完整守卫与取消优先级归 [P11](../SPEC.md#p11-作者输出与等待原语)。ToolInstanceHost 的调度与目录、驱动协程、live execution、signal 和订阅也是实例状态，由获得它们的宿主持有。独立协程负责某一段推进；Cordis fiber 负责其服务贡献与可撤资源。它们退出都不能删除 ToolCall。
 
-持久状态。本域有两个持久一致边界。调用域以 ToolCall 为持久聚合根，由 Commands 唯一写。队列域以 QueueReservation 跨调用持久，同 queue key 原子裁定。契约不要求两个边界共同事务，跨域转换的顺序见 tool 的 architecture（`tool/docs/architecture.md#队列域与跨域提交`）（[本增量未交付](../../README.md#未交付标注)）。协议记录、操作回执、待办和计时证据由存储承诺耐久，原输出和结果经 ToolOutputCustody 保管。从这些值重建协调器，不反序列化对象图。每次读取和变更都核当前资格及原归属。StartPermit 可失效，不是永久授权。
+持久状态。本域有两个持久一致边界。调用域以 ToolCall 为持久聚合根，由 Commands 唯一写。队列域以 QueueReservation 跨调用持久，同 queue key 原子裁定。契约不要求两个边界共同事务，跨域转换的顺序见 tool 的 architecture（`tool/docs/architecture.md#队列域与跨域提交`）。协议记录、操作回执、待办和计时证据由存储承诺耐久，原输出和结果经 ToolOutputCustody 保管。从这些值重建协调器，不反序列化对象图。每次读取和变更都核当前资格及原归属。StartPermit 可失效，不是永久授权。
 
 ## 状态与转移
 
@@ -238,7 +238,7 @@ ToolCall 寿命不等于图中活体状态。逻辑 settled 后可以仍有 phys
 | 作者定义 | 参数说明、声明、programmable、后台许可、设置 Schema/defaults | 资产正文解析及合法装载；许可不能由配置提高 |
 | 一次调用参数 | 身份/tenant、call/operation、原始及生效参数、command、consumer、scope（含 grant）、采用、调用来源、限额 | admit 固定；恢复认回，不补造外部工作对象 |
 | 一次控制或读取参数 | 控制种类（撤回带 reach）、原决定、resultVersion、cursor、读取预算 | 每次操作核当前资格及原归属 |
-| 可序列化部署配置 | 实现包的 ToolConfiguration，字段与取值范围见 tool 的 public-api（`tool/docs/public-api.md`）与 tool 的 SPEC（`tool/SPEC.md`）（[本增量未交付](../../README.md#未交付标注)）。契约自有的部分是作者限额 ToolAuthorLimits | 构造时检查，不偷加工具默认时限 |
+| 可序列化部署配置 | 实现包的 ToolConfiguration，字段与取值范围见 tool 的 public-api（`tool/docs/public-api.md`）与 tool 的 SPEC（`tool/SPEC.md`）。契约自有的部分是作者限额 ToolAuthorLimits | 构造时检查，不偷加工具默认时限 |
 | 注入服务能力 | 下一节各端口、精确提供者采用 | 工厂或阶段装配取得；不能序列化到配置 |
 | 短期资源 | E、live execution、driver、signal、订阅、目录 release token | 由获得它的宿主持有并显式交接/释放 |
 | 持久恢复值 | 协议记录、操作回执、待办、原输出/结果、计时证据 | 存储承诺耐久；从这些值重建协调器，不反序列化对象图 |
@@ -263,8 +263,8 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | 对象或端口 | 构造时注入 | 操作参数 | 失效与替换 |
 | --- | --- | --- | --- |
 | ToolRuntime 门面 | Commands、Reads，以及按次取当前 Catalog/Directory 的稳定代理 | 当前主体/tenant、call/operation、固定请求或具名意图 | 无本域事实私有副本；换门面不重执行 |
-| ToolProvider | 一个 ToolRuntime，加恢复、静默与交接入口（recover、quiesce、inspectDrain、handover） | 受信恢复者的 Access；handover 另带 successor 与 inventory | 由实现包的 `createToolRuntime` 产生；它的构造依赖（commands、bindings、environments、decisions、instances、clock、resultPolicy、authority、resources、custody、catalog 等端口）属于实现包，见 tool 的 public-api（`tool/docs/public-api.md`）（[本增量未交付](../../README.md#未交付标注)） |
-| ToolCommands 提供者 | 契约只规定接口和行为。提供者自己的存储、资格核验和队列守卫见 tool 对象模型（`tool/docs/object-model.md`）（[本增量未交付](../../README.md#未交付标注)） | WriteContext 或 Mutation、明确协议值 | 不可用返回 unavailable/commit-unknown；不能换内存实现冒称耐久 |
+| ToolProvider | 一个 ToolRuntime，加恢复、静默与交接入口（recover、quiesce、inspectDrain、handover） | 受信恢复者的 Access；handover 另带 successor 与 inventory | 由实现包的 `createToolRuntime` 产生；它的构造依赖（commands、bindings、environments、decisions、instances、clock、resultPolicy、authority、resources、custody、catalog 等端口）属于实现包，见 tool 的 public-api（`tool/docs/public-api.md`） |
+| ToolCommands 提供者 | 契约只规定接口和行为。提供者自己的存储、资格核验和队列守卫见 tool 对象模型（`tool/docs/object-model.md`） | WriteContext 或 Mutation、明确协议值 | 不可用返回 unavailable/commit-unknown；不能换内存实现冒称耐久 |
 | ToolCall 决定器 | 无外部服务，只读已核 guard 快照 | 当前状态、具名命令 | 纯计算结果含变更与任务；事务端再次核 revision/queue/guard |
 | ToolDriver | Commands、ToolBindings、ToolEnvironment、ToolStartAuthority、ToolDecisionBridge、ToolResourceResponses、ToolOutputCustody、ToolClock、ToolChildren 的阶段适配器 | tenant/call、宿主取消 signal（`run`） | 从事实重建协调，不重放外部调用；查询未知仍能承担责任 |
 | ToolLoader / ToolBindingRegistry | 合法定义/设置快照适配器、schema、作者工厂、资格守卫 / 已核装载贡献 | 精确 definition/executor/settings、来源 / ToolLoadedRegistration、登记依据 | C 为构造配置，A 为调用参数，E 为服务依赖；不互相替代 |
@@ -306,7 +306,7 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | 接口隔离 | Runtime、Commands、Reads、Directory、Handle、Emitter、Waiter 按消费者分别授予 | 观察者能控制；helper 取得关闭或持久恢复能力；程序取得 Context 或 executor |
 | 依赖倒置 | Tool 定义窄端口，由外部实现者适配 | 在 Tool 内复制域外的工作模型；为某个外部角色增加字段 |
 
-替换提供者须保持同一协议的不变量、失败与未知语义，不能用“实现了接口”代替可替换性验证。新增执行者用组合接入，避免把每种工具 subclass 塞入一个继承层级。每种有外部效果的协议保留自己的准备记录、查询、排除与未知，不压成统一的 execute。取舍理由见 tool 的内部架构（`tool/docs/architecture.md#采用的机制与成本`）（[本增量未交付](../../README.md#未交付标注)）。
+替换提供者须保持同一协议的不变量、失败与未知语义，不能用“实现了接口”代替可替换性验证。新增执行者用组合接入，避免把每种工具 subclass 塞入一个继承层级。每种有外部效果的协议保留自己的准备记录、查询、排除与未知，不压成统一的 execute。取舍理由见 tool 的内部架构（`tool/docs/architecture.md#采用的机制与成本`）。
 
 ## 产品能力覆盖与验收
 

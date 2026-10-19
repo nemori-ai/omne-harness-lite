@@ -1,6 +1,6 @@
 # Tool 消费与系统定位
 
-本页说明独立消费、系统协作和失败处理。运行契约已接受，公开类型与契约函数已经导出。独立执行与 runtime 的部分路径已在 `tool`（[本增量未交付](../../README.md#未交付标注)） 实现，其余运行函数、提供者及其验证尚未完成，范围见[支持范围](../../README.md#支持范围)。
+本页说明独立消费、系统协作和失败处理。运行契约已接受，公开类型与契约函数已经导出。独立执行与 runtime 的部分路径已在 `tool` 实现，其余运行函数、提供者及其验证尚未完成，范围见[支持范围](../../README.md#支持范围)。
 
 ## 系统位置与消费入口
 
@@ -21,7 +21,7 @@ flowchart LR
 
 ## 消费入口与契约变更协议
 
-本节写给面向 Tool 契约开发的其他领域开发者。其他领域的生产代码只依赖契约包。编写 Cordis 插件时，另加 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 工厂在不含 Cordis 的 `@omne-harness/tool`（[本增量未交付](../../README.md#未交付标注)），独立程序与应用装配按需选择它。
+本节写给面向 Tool 契约开发的其他领域开发者。其他领域的生产代码只依赖契约包。编写 Cordis 插件时，另加 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 工厂在不含 Cordis 的 `@omne-harness/tool`，独立程序与应用装配按需选择它。
 
 ### 从哪个入口取什么
 
@@ -160,4 +160,4 @@ stateDiagram-v2
 
 先读 [architecture](architecture.md) 确认本包责任，再读 [object-model](object-model.md) 区分值、实体、协程和依赖；[public-api](public-api.md) 给唯一设计形状，[protocols](../SPEC.md#tool-操作协议) 给每次调用的守卫、提交与未知处理。接入程序执行方再读 [composition](../SPEC.md#code-与-tool-的组合协议)，Cordis 集成读 [cordis](../../tool-cordis-contract/docs/cordis.md)。[coverage](../verification/README.md) 将这些入口对回全部产品能力。
 
-纯作者路径可分别取本包的 ParameterCodec、evaluateToolAvailability、presentTool、renderToolResult，以及 `@omne-harness/tool`（[本增量未交付](../../README.md#未交付标注)） 的 executeTool。它们只消费显式输入；托管路径才组合身份、存储、环境、事实流和恢复。Catalog、过程读取、内容读取与账目范围查询按各自权限开放，不把一个万能Tool句柄交给程序。
+纯作者路径可分别取本包的 ParameterCodec、evaluateToolAvailability、presentTool、renderToolResult，以及 `@omne-harness/tool` 的 executeTool。它们只消费显式输入；托管路径才组合身份、存储、环境、事实流和恢复。Catalog、过程读取、内容读取与账目范围查询按各自权限开放，不把一个万能Tool句柄交给程序。

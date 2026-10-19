@@ -120,7 +120,9 @@ packages/
 │   └── model-host-local/       单机宿主：本地凭据保管与 Cordis 插件
 ├── tool/
 │   ├── tool-contract/          工具纯契约：类型、判定与投影
-│   └── tool-cordis-contract/   工具的 Cordis 服务定义
+│   ├── tool-cordis-contract/   工具的 Cordis 服务定义
+│   ├── tool/                   不含 Cordis 的工具执行实现
+│   └── tool-host-local/        单机宿主与 Cordis 插件
 ├── context/
 │   ├── runtime-context/        数据注册、供给与读取
 │   └── request-context/        请求投影与上下文组装
