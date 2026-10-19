@@ -7,12 +7,14 @@ export default defineConfig({
     alias: [
       {
         find: /^@omne-harness\/model-contract$/,
-        replacement: fileURLToPath(new URL('../model-contract/src/index.ts', import.meta.url)),
+        replacement: fileURLToPath(
+          new URL('../../../packages/model/model-contract/src/index.ts', import.meta.url),
+        ),
       },
       {
         find: /^@omne-harness\/model-contract\/testing$/,
         replacement: fileURLToPath(
-          new URL('../model-contract/src/testing/index.ts', import.meta.url),
+          new URL('../../../packages/model/model-contract/src/testing/index.ts', import.meta.url),
         ),
       },
     ],

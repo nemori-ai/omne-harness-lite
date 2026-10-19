@@ -267,6 +267,39 @@ it('rejects sparse parts and trims atomically and then delivers the original rea
   )
 })
 
+it('rejects an invalid sealed block without settling and accepts the legal successor', async () => {
+  const f = await setup()
+  const block = textBlock('valid', 'kept')
+  const before = await f.provider.runtime.calls.inspect({
+    ...access('a'),
+    admission: operation('admit-a'),
+  })
+  let rejected: unknown
+  try {
+    Reflect.apply(f.settle, undefined, [
+      [{ kind: 'sealed', block: { ...block, id: '' }, trims: [] }],
+      1024,
+    ])
+  } catch (error) {
+    rejected = error
+  }
+  expect(rejected).toBeInstanceOf(ScriptedModelError)
+  expect(rejected).toMatchObject({ reason: 'invalid-script' })
+  expect(
+    await f.provider.runtime.calls.inspect({ ...access('a'), admission: operation('admit-a') }),
+  ).toEqual(before)
+  expect(
+    await f.provider.runtime.consumption.beginRead({
+      ...access('a'),
+      operation: operation('read'),
+      result: version('a'),
+    }),
+  ).toMatchObject({ failure: { kind: 'not-settled' } })
+  const parts: ResultPart[] = [{ kind: 'sealed', block, trims: [] }]
+  f.settle(parts, 1024)
+  expect((await f.read()).page.parts).toEqual(parts)
+})
+
 it('canonical result encoding refuses holes without changing dense array bytes', () => {
   const single: number[] = []
   single.length = 1
