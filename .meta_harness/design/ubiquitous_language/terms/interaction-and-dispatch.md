@@ -471,8 +471,7 @@
   [受理](#ul-inbound-arrival--入站到达--inbound-arrival)，
   **请求就地返回给发起方，到此为止**；用户若再来，那是**全新的一次请求**
 - **注意 ②**：**因此「一直不确认」没有后果**——没有待办、没有草稿、没有超时，什么都没留下
-- **注意 ③**：**目前只有一个实例**——[会话跑题的提醒](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)。
-  **这一类机制将来由谁统一拥有，尚未判定**
+- **注意 ③**：**这一类拓展点归会话一侧拥有**：消息持久化归会话，所以消息持久化前后对输入的处理，例如斜杠命令的展开、脱敏与否决，挂在这一类拓展点上，不挂在 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上。已有实例是[会话跑题的提醒](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)。归属的裁定见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)
 
 ### UL-control-command · 控制指令 · Control Command
 

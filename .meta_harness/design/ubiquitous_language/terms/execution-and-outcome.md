@@ -168,9 +168,9 @@
   它受 [`runtime` 那条写死的规矩](../conventions.md#runtime-这个词本系统写死了)约束：**生命周期归会话，工作归所属 Run（已有 Run 外调用直接归会话）；Agent runtime 只持有句柄**。主流程仍等待结果，不另引入模型“转后台”模式。
   消费方确认结果已处理后，模型侧清理无用副本，原身份、真实收场和账仍保留；清理状态不使调用重新进入执行。依据 [PF-013 §6.19](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#619-消费方确认结果后清理模型侧不再需要的副本)（rev 17）。
   **这里说的是「这一次调用的那个协程」，不是承载所有这类协程的那项系统能力**——规格里以「模型请求运行时」为名的能力是另一层的东西，读到时按所在层分清（[C-31](../conflicts.md#现有冲突)）
-- **注意 ③**：**完整的一份在落盘之前被否决，这次调用仍停在「完整一份」**——
+- **注意 ③**：**完整的一份在[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)被拒收，这次调用仍停在「完整一份」**——
   [只记下被谁否决、没有成为消息](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/flows.md#32-一次模型调用)，不是故障、不交给重试挂件；
-  loop 退避之后**另起一次新的模型调用**，不是这一次回到在途；同一步里连续被否决到[上限](#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)，这个 Run 失败
+  loop 退避之后**另起一次新的模型调用**，不是这一次回到在途；连续拒收不设次数上限，也不因此使 Run 失败（原[连续否决上限](#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)已弃用）
 
 ### UL-upstream-send · 一次发出 · Upstream Send
 
@@ -491,6 +491,22 @@
 - **弃用**：~~「工具原件」~~——[「原件」在模态那边另有所指](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#转换件)
   （一个内容块里没被转成文本的那一份）
 
+### UL-delivery-release · 交付责任解除 · Delivery Release
+
+> **中**：**生产方（一次模型调用或一次工具执行）对一份已收场结果所负交付责任的解除。当前合法消费者已处理完成该结果，或已可靠保存后续所需的内容、原身份和处理位置之后，解除才成立。**
+> 解除只有两条路径：先完成处理并可靠保存完成事实，或先可靠保管内容再处理。
+> 读取、展示、拿到引用和开始处理，都不足以解除。
+> 模型一侧的解除叫 ACK，另要求整次调用真实收场，重试与等待重试决定期间不能解除；工具一侧解除对应的待交付关系，不删除工具全文。
+> 解除之后，接续从消费侧保存的数据继续。
+>
+> **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation and does not delete the full tool result. After the release, continuation proceeds from the data the consumer saved.
+
+- **形态**：过程
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 1）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 1）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 2）
+- **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
+- **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/agent-contract/SPEC.md#确认)
+- **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)
+
 ## 怎么了结
 
 ### UL-execution-outcome · 执行收场 · Execution Outcome
@@ -531,20 +547,19 @@
 
 ### UL-consecutive-veto-limit · 连续否决上限 · Consecutive Veto Limit
 
-> **中**：**同一步里，模型的回复在「消息落盘之前」被连续否决的次数上限**，一项运行时设置。
-> 每被否决一次，那次调用照常结束，loop 退避之后另起一次新的模型调用；**连续到了上限，这个 Run 落失败**，原因指向那件拓展件。
+> **中**：**已弃用：现行规则里没有这项上限。**它原指同一步里模型的回复被[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)连续拒收的次数上限，到了上限运行落失败。
+> 现行规则是：连续拒收不设次数上限，也不因此使运行失败。每被拒收一次，那次模型调用照常结束，退避之后另起一次新的模型调用。
 >
-> **EN**: **A runtime setting: the maximum number of times in a row, within one agent step, that a
-> model reply may be vetoed at "before message persistence".** Each veto ends that call normally and
-> the loop starts a new model call after back-off; **on reaching the limit the run fails**, with the
-> cause pointing at the vetoing extension.
+> **EN**: **Deprecated: the current rules have no such limit.** It used to mean the maximum number of times in a row,
+> within one agent step, that a model reply may be rejected at message admission, with the run failing at the limit.
+> Under the current rules, consecutive rejections have no count limit and do not by themselves fail the run. Each
+> rejection ends that model call normally, and a new model call starts after back-off.
 
 - **形态**：属性
-- **出处**：[PF-012 §5.8 消息落盘之前的否决，按消息是谁产生的分三路](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 25） ·
-  [PF-013 §4 转换件](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#转换件) ·
-  [§5.4](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#已经开口说话了优先于其余各类)（rev 17）
-- **别混**：**不是[试尽](#ul-retry-exhaustion--试尽--retry-exhaustion)**——试尽只管故障；被否决的回复不是故障，不交给重试挂件，也不算试过一家
-- **注意**：**它非有不可**——一件回回都否决的拓展件，否则会让 loop 永远另起新调用。它挂在哪一层、默认多少，正文只说是一项运行时设置
+- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 2）；
+  原定义见封存 [PF-012 §5.8 否决按消息是谁产生的分三路](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 25）
+- **别混**：**不是[试尽](#ul-retry-exhaustion--试尽--retry-exhaustion)**——试尽只管故障；被拒收的回复不是故障，不交给重试挂件，也不算试过一家
+- **弃用**：~~连续否决上限~~ ~~Consecutive Veto Limit~~——现行规则没有这项上限，不另起替代词；已接受系统页 [Agent runtime](../../../../docs/architecture/runtime/agent-runtime.md#回复准入与动作处理) 写法相同
 
 ## 跑偏了谁接手
 
@@ -632,7 +647,7 @@
   [§5.12](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#512-重试站在一个已经存在的位置上)（rev 17）
 - **别混 ①**：**不是「这一次失败了」**——失败之后还有手段可试，这一层就还没了结不了
 - **别混 ②**：**「所有模型都试过了」不是试尽**——换模型是用户的命令，不是这一层的手段
-- **注意 ①**：**只管故障这一维**——落盘前被否决的回复不算，那道上限是[连续否决上限](#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)
+- **注意 ①**：**只管故障这一维**——被消息准入拒收的回复不算；连续拒收不设次数上限（原[连续否决上限](#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit)已弃用）
 - **注意 ②**：**有三类根本轮不到它**——「发不出去」「重试没用」「已经开口说话了」是事实，立即上交，任何策略都改不了
 
 ### UL-model-call-escalation-cause · 模型调用上交成因 · Model-Call Escalation Cause
@@ -651,7 +666,7 @@
 - **形态**：属性
 - **出处**：[PF-013 §5.7 上交带什么](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#57-上交带什么原样带着状态码不翻译它) ·
   [§6.14](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#614-上交带的成因是封闭枚举外加一个诚实的兜底状态码另外原样带着)（rev 17）
-- **别混**：**被中断不在这里**——用户中断不是非常态，不产出任何成因；落盘前被否决的回复同样不带成因
+- **别混**：**被中断不在这里**——用户中断不是非常态，不产出任何成因；被消息准入拒收的回复同样不带成因
 - **注意 ①**：**只按「下一步不同」分取值**——「连不上」「超时」「5xx」「被限流」答案一律是「没人，等」，并成一个；差在哪由状态码说
 - **注意 ②**：**成因给分层处置用，状态码给排查的人与重试策略用**
 - **注意 ③**：**裸写「成因」不作数**——跨 topic 引用写全「模型调用上交成因」

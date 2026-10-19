@@ -326,18 +326,23 @@
 
 ### UL-modality-converter · 模态转换件 · Modality Converter
 
-> **中**：挂在 [PF-012「消息落盘之前」](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)那个位置上的一件[拓展件](#ul-loop-extension--拓展件--loop-extension)。
+> **中**：一件系统自带的转换件，**不站在任何[拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上**。
+> **非 Tool ref 来源的内容，由实现[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的提供者在接纳之前调用它转换；Tool 内容引用在 Model 实际请求时才加载并按需转换。**
+> 非 Tool ref 来源的这一执行时点已由项目负责人接受，见 [C-58](../conflicts.md#c-58模态转换件的执行时点)。
 > **输入一个非文本[模态](record-and-context.md#ul-modality--模态--modality)的[内容块](record-and-context.md#ul-content-block--内容块--content-block)或一个文件块；
 > 输出一个或多个别的模态的内容块（不能是文件块），外加一段纯文本 [transcript](record-and-context.md#ul-transcript--transcript--transcript) 作最后兜底。**
 > 产出挂在原块上作[派生表示](record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)，**原块不动，不新增块、不另立对象**。
 > 它按**一种模态或一种文件媒体类型**登记，同键只有一件生效、**可替换**（替换只在系统装配层，**本版不是资产**）；
 > 一个文件块两种键都命中时，**媒体类型那一件来转**。**本版它不调模型**，transcript 只来自本地识别。
-> 产出**在落盘之前写好，之后不变**。**转换失败（它挂了、交不出 transcript、交出了文件块，或只交 transcript 不交派生块）时，那条消息不落盘、也不补偿**：
-> 输入消息拒绝请求并告知发送方；模型回复那次调用照常结束、记下被否决，loop 退避之后另起新调用，同一步连续被否决到上限 Run 失败；工具结果直接让 Run 失败。
+> 非 Tool ref 来源的产出**在消息接纳之前写好，接纳后不变**。**转换失败（它挂了、交不出 transcript、交出了文件块，或只交 transcript 不交派生块）时，那条内容不被接纳为消息，也不补偿**：
+> 拒收的后果按[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的来源特定规则处理，本词条不重述。
 > 没登记转换件的键不算失败；**登记了却不可用，当转换失败**。
 > 它**不判断这次要不要转**、**不承诺无损**。正文在没有歧义处简称**转换件**。
 >
-> **EN**: A loop extension at the "before a message is persisted" position. **It takes one
+> **EN**: A system-provided converter that **stands at no loop extension point**. **For content from sources other than
+> a tool reference, the provider that implements message admission calls it before acceptance; a tool content
+> reference is loaded and converted as needed only when the model request is actually made.** The project owner
+> has accepted this timing for sources other than Tool references (C-58). **It takes one
 > content block of a non-text modality, or one file block, and yields one or more content
 > blocks in other modalities (never a file block), plus a plain-text transcript as the
 > last-resort fallback.** The outputs hang on the original block as its derived renderings;
@@ -345,13 +350,11 @@
 > are registered **per modality or per file media type**; one is in effect per key and it is
 > **replaceable** — at system assembly only, **not an asset in this version**; when a file block
 > matches both kinds of key, **the media-type converter converts it**. **In this version it makes
-> no model call**: the transcript comes from local recognition only. Outputs are
-> **written before persistence and never change**. **If conversion fails (the converter is down,
+> no model call**: the transcript comes from local recognition only. For sources other than a tool
+> reference, outputs are **written before acceptance and never change after it**. **If conversion fails (the converter is down,
 > yields no transcript, yields a file block, or yields only a transcript with no derived block),
-> the message is not persisted and nothing is compensated**: an incoming message is rejected and
-> the sender told; for a model reply the call ends as usual with the reply recorded as vetoed, and
-> the loop starts a new call after a backoff, the Run failing once the same step has been vetoed
-> up to its limit; a tool result fails the Run outright. A key with no registered converter is not
+> the content is not accepted as a message and nothing is compensated**: the consequence of rejection follows
+> the source-specific rules of message admission and is not restated here. A key with no registered converter is not
 > a failure; **a registered converter that is unavailable counts as a failed conversion**. It does
 > **not** decide whether to convert this time and does **not** promise losslessness. Short form in
 > running text: *converter*.
@@ -361,10 +364,10 @@
   [PF-012 §5.8 模态转换为什么必须落在这里](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 25）
 - **⚠️ 别混 ①**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
-- **⚠️ 别混 ②**：**父词条是资产的一类，它本版却不是资产**——它走拓展件的位置与干预力，
-  但不被持有、不按层配值；「未来是否升为资产」是 PF-013 记下的显式缺口
-- **注意 ①**：**位置归 PF-012，契约归 PF-013**——有哪些模态、哪个模型收得下哪些，是大语言模型域定的
-- **注意 ②**：**转换失败就是「消息落盘之前」那个位置的否决**（[PF-012 §5.8 否决按消息是谁产生的分三路](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)）——失败语义与业务流程拓展点同性质：拒绝或失败，不补偿；**被否决的模型回复不是一次调模型失败**
+- **⚠️ 别混 ②**：**父词条是资产的一类，它本版却不是资产**——它不被持有、不按层配值，
+  也不站在拓展点上；「未来是否升为资产」是 PF-013 记下的显式缺口
+- **注意 ①**：**非 Tool ref 来源的执行时点已由项目负责人接受（C-58），契约归 PF-013**——有哪些模态、哪个模型收得下哪些，是大语言模型域定的
+- **注意 ②**：**非 Tool ref 来源转换失败，按[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的来源特定拒收处理**（封存原文 [PF-012 §5.8 否决按消息是谁产生的分三路](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)）——拒绝或失败，不补偿；**被拒收的模型回复不是一次调模型失败**
 - **注意 ③**：**没登记转换件、因而没有 transcript 的块进[模态投影](record-and-context.md#ul-modality-projection--模态投影--modality-projection)**，把收不下它的模型挡在合法目标之外——这是有意的兜底方向
 
 ### UL-slash-command · 斜杠命令 · Slash Command

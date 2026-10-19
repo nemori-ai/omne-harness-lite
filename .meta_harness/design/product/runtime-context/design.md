@@ -70,9 +70,9 @@
 
 ### 5. 当前值与变化感知
 
-每次执行尝试开始时，主动取得当时有权读取的完整当前快照。运行期间，模型可读块发生变化时追加变化提醒。工具或扩展私有块的变化只向获准消费者供给，不发给模型。
+每次执行开始或挂接建立时，主动取得当时有权读取的完整当前快照。运行期间，模型可读块发生变化时追加变化提醒。工具或扩展私有块的变化只向获准消费者供给，不发给模型。
 
-会话空闲时可以丢弃当前状态推送，下次尝试读取当前值。不必补世界上每一次中间状态，但不能丢弃已经受理的普通输入、控制或原结果。变化链记录本会话实际感知的变化。
+会话空闲时可以丢弃当前状态推送，下次执行开始或挂接建立时读取当前值。不必补世界上每一次中间状态，但不能丢弃已经受理的普通输入、控制或原结果。变化链记录本会话实际感知的变化。
 
 状态变化提醒说明从什么变成什么，事件提醒说明发生了什么。提醒都追加，后一次提醒不覆盖前一次。完整状态快照允许可选携带前值，是否携带由该块的数据性质和产品要求决定，不统一要求或禁止。
 
@@ -133,13 +133,13 @@ Tool 结果消息准入或模态转换被否决时，原结果先可靠保管，
 <a id="rc-j01"></a>
 #### RC-J01 开始或接续工作，先理解当前条件
 
-用户在已有合法会话中开始或接续工作，希望 Agent、工具与扩展按当前工作条件行动。Session 提供该会话身份、注册和会话值，Agent 在每次 attempt 开始主动取得当前有权读取的完整快照。各消费者分别取得[必需感知](#3-必需感知按内容及消费者供给)，未完成待办、子会话和后台工具只呈现实际已知状态。来源不可用会表现为缺项或未知，不能伪装成没有工作。
+用户在已有合法会话中开始或接续工作，希望 Agent、工具与扩展按当前工作条件行动。Session 提供该会话身份、注册和会话值，Agent 在每次执行开始或挂接建立时主动取得当前有权读取的完整快照。各消费者分别取得[必需感知](#3-必需感知按内容及消费者供给)，未完成待办、子会话和后台工具只呈现实际已知状态。来源不可用会表现为缺项或未知，不能伪装成没有工作。
 
 这个会话的租户可以改变三个独立模式。没有显式初值的模式仅在创建时捕获适用租户默认。重新进入、恢复或重新装配沿用本会话值。Agent 要改模式，必须走 HITL，由人显式授权。Context 供给模式事实，授权、落点和完成检查分别由其业务拥有者执行。拒绝或必要条件缺失阻止依赖动作，不把模式快照当未来许可。取消此次读取仅结束该读取，不能撤回原调用效果。
 
-每 attempt 读取当前快照，与模型首次读取及压缩后取得完整模型可读 Context，是两个触发。运行中的合法变化继续形成追加提醒；空闲状态推送可以丢弃，下一次 attempt 读当前值。已经受理的输入、控制和结果仍可靠保留。完整快照的前值可选，状态变化提醒则表达获准披露的实际前后关系。
+执行开始或挂接建立时读取当前快照，与模型首次读取及压缩后取得完整模型可读 Context，是两个触发。运行中的合法变化继续形成追加提醒；空闲状态推送可以丢弃，下一次执行开始或挂接建立时读当前值。已经受理的输入、控制和结果仍可靠保留。完整快照的前值可选，状态变化提醒则表达获准披露的实际前后关系。
 
-关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC03](#cap-rc03)、[CAP-RC04](#cap-rc04)。协作见 [RC-F01](../../../../packages/context/runtime-context/docs/key-flows.md#rc-f01)，成员与验证见 [RC-04](../../../../packages/context/runtime-context/SPEC.md#rc-04-attempt变化与提醒)、[RC-05](../../../../packages/context/runtime-context/SPEC.md#rc-05-会话值模式与工作区指导)及 [RC-VJ01](../../../../packages/context/runtime-context/SPEC.md#rc-vj01)。
+关联能力为 [CAP-RC01](#cap-rc01)、[CAP-RC03](#cap-rc03)、[CAP-RC04](#cap-rc04)。协作见 [RC-F01](../../../../packages/context/runtime-context/docs/key-flows.md#rc-f01)，成员与验证见 [RC-04](../../../../packages/context/runtime-context/SPEC.md#rc-04-读取时点变化与提醒)、[RC-05](../../../../packages/context/runtime-context/SPEC.md#rc-05-会话值模式与工作区指导)及 [RC-VJ01](../../../../packages/context/runtime-context/SPEC.md#rc-vj01)。
 
 <a id="rc-j02"></a>
 #### RC-J02 调整本会话感知，撤除后不再继续供给
@@ -230,7 +230,7 @@ Agent、扩展或独立能力消费者需要发起模型请求。会话路径先
 | <a id="cap-rc01"></a>CAP-RC01 按消费者供给合法块 | 有效来源、注册及当前资格共同决定读取范围；私有授权不进模型，缺项与未知可辨。见需求 1、3、8 及 RC-J01、02、06、09。 | [RC-01](../../../../packages/context/runtime-context/SPEC.md#rc-01-消费者身份与范围)、[RC-03](../../../../packages/context/runtime-context/SPEC.md#rc-03-当前读取与失败区分)、[RC-09](../../../../packages/context/runtime-context/SPEC.md#rc-09-持续验证与明确缺项) | 未核实；来源一致读取协议待定 | 未核实；无运行证据 | 产品候选待确认；实现与交付未核实 |
 | <a id="cap-rc02"></a>CAP-RC02 会话注册与自有值 | 保存注册声明与会话选择，移除可选块不删共享源，必需项和固定身份不可绕过。见需求 2 及 RC-J02、08。 | [RC-02](../../../../packages/context/runtime-context/SPEC.md#rc-02-原块与注册的必要条件)、[RC-06](../../../../packages/context/runtime-context/SPEC.md#rc-06-持久状态与恢复)、[RC-VJ02](../../../../packages/context/runtime-context/SPEC.md#rc-vj02) | 未核实；提交与恢复协议待定 | 未核实；无运行证据 | 产品候选待确认；实现与交付未核实 |
 | <a id="cap-rc03"></a>CAP-RC03 会话模式感知 | 从 Session 供给三个独立模式及变化，保留创建时默认捕获和用户修改边界，不由 Context 改模式。见需求 4 及 RC-J01、08。 | [RC-05](../../../../packages/context/runtime-context/SPEC.md#rc-05-会话值模式与工作区指导)、[RC-VJ01](../../../../packages/context/runtime-context/SPEC.md#rc-vj01) | 未核实；消费 Session 精确协议待定 | 未核实；无运行证据 | 产品候选待确认；实现与交付未核实 |
-| <a id="cap-rc04"></a>CAP-RC04 当前读取与变化链 | 每 attempt 拉当前快照，运行中追加合法变化，模型首次及压缩后全量；空闲推送可丢而业务输入不可丢。见需求 5 及 RC-J01、02、07。 | [RC-04](../../../../packages/context/runtime-context/SPEC.md#rc-04-attempt变化与提醒)、[RC-VJ01](../../../../packages/context/runtime-context/SPEC.md#rc-vj01) | 未核实；通知补查、前值关联待定 | 未核实；无运行证据 | 产品候选待确认；实现与交付未核实 |
+| <a id="cap-rc04"></a>CAP-RC04 当前读取与变化链 | 执行开始或挂接建立时拉当前快照，运行中追加合法变化，模型首次及压缩后全量；空闲推送可丢而业务输入不可丢。见需求 5 及 RC-J01、02、07。 | [RC-04](../../../../packages/context/runtime-context/SPEC.md#rc-04-读取时点变化与提醒)、[RC-VJ01](../../../../packages/context/runtime-context/SPEC.md#rc-vj01) | 未核实；通知补查、前值关联待定 | 未核实；无运行证据 | 产品候选待确认；实现与交付未核实 |
 | <a id="cap-rc05"></a>CAP-RC05 首次目录访问指导 | 在首次实际进入目录时加载适用 AGENTS.md，保留来源与采用依据，不走普通资产预加载或 reload。见需求 5 及 RC-J03。 | [RC-05](../../../../packages/context/runtime-context/SPEC.md#rc-05-会话值模式与工作区指导)、[RC-VJ03](../../../../packages/context/runtime-context/SPEC.md#rc-vj03) | 未核实；规范版本、访问与合并协议待定 | 未核实；无运行证据 | 产品候选待确认；实现与交付未核实 |
 | <a id="cap-rc06"></a>CAP-RC06 同源历史与块投影 | 人侧与模型侧标注独立，模型排除 ToolInternalMessage、未标注块和残缺调用，保留历史及中断解释。见需求 1、6、9 及 RC-J04、05、06。 | [RQ-03](../../../../packages/context/request-context/SPEC.md#rq-03-历史与块投影)、[RQ-VJ04](../../../../packages/context/request-context/SPEC.md#rq-vj04) | 未核实；人侧读取由 Session 与交付面承接 | 未核实；无运行证据 | 产品候选待确认；实现与交付未核实 |
 | <a id="cap-rc07"></a>CAP-RC07 模态转换与表示采用 | 接纳前适用转换、接纳后表示固定，原件保留，按模型能力选择实际表示并区分失败来源。见需求 6 及 RC-J05、06。 | [RQ-04](../../../../packages/context/request-context/SPEC.md#rq-04-模态与可追溯表示)、[RQ-08](../../../../packages/context/request-context/SPEC.md#rq-08-失败否决与消费位置)、[RQ-VJ05](../../../../packages/context/request-context/SPEC.md#rq-vj05) | 未核实；MODEL-E01 和转换接续待定 | 未核实；无运行证据 | 产品候选待确认；实现与交付未核实 |

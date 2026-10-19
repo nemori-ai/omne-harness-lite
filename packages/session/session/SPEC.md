@@ -235,7 +235,7 @@ Run终态只为完成、失败、被取消，每Run最多一次有效终结。�
 | 同身份重试 | 相同提交身份返回原结果。 |
 | 参数冲突 | 同一提交身份带上不同目标或不同种类则拒绝。 |
 
-会话日志上的查询认回见[日志提交与查询结果](#日志提交与查询结果)。调用登记的发起字段归 [Agent](../../agent/agent/SPEC.md#身份范围与归属)。模型受理归 [model](../../model/model/SPEC.md#调用和各次真实发出)。工具的停止和交付解除归 [tool](../../tool/tool-contract/SPEC.md#必要持久事实与确认)。Context 的注册和读取归 [runtime-context](../../context/runtime-context/SPEC.md#rc-02-原块与注册的必要条件)。请求组装归 [request-context](../../context/request-context/SPEC.md#rq-02-组装的前置输入)。
+会话日志上的查询认回见[日志提交与查询结果](#日志提交与查询结果)。调用登记的发起字段归 [Agent](../../agent/agent-contract/SPEC.md#身份范围与归属)。模型受理归 [model](../../model/model/SPEC.md#调用和各次真实发出)。工具的停止和交付解除归 [tool](../../tool/tool-contract/SPEC.md#必要持久事实与确认)。Context 的注册和读取归 [runtime-context](../../context/runtime-context/SPEC.md#rc-02-原块与注册的必要条件)。请求组装归 [request-context](../../context/request-context/SPEC.md#rq-02-组装的前置输入)。
 
 会话控制请求工具转后台时沿工具许可及转换契约；控制受理不表示转换完成。工具侧保存实际转换/收场，会话和 Agent 可靠承接后改变原步骤等待，不建立第二次执行或释放仍在执行的并发名额。后台最终结果沿原消费契约交回，原身份、效果、全文和费用保持；不默认支持后台转回前台。工具内 Ask 等待的后台限制沿工具契约，不由会话控制绕过。
 

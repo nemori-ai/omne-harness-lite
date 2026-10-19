@@ -4,10 +4,10 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）
-- 生成时间：2026-10-12
+- 生成时间：2026-10-19
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **48** 个，变体 **27** 个，形态未定的词条 **0** 个，待裁 **9** 项。
+对象 **51** 个，变体 **27** 个，形态未定的词条 **0** 个，待裁 **9** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -19,7 +19,10 @@
 |---|---|---|---|---|---|
 | [会话](../domain_objects/objects.md#ul-session--会话) | [UL-session](../ubiquitous_language/terms/agent-runtime-loop.md#ul-session--会话--session) | —（归属于[租户](../domain_objects/objects.md#ul-tenant--租户)：**创建那一刻捕获并持有的那个租户身份**，此后不随这个账号切换而变） | 主会话、子会话、作业会话 | PF-015（sealed provenance） | — |
 | [运行](../domain_objects/objects.md#ul-run--运行) | [UL-run](../ubiquitous_language/terms/agent-runtime-loop.md#ul-run--运行--run) | [会话](../domain_objects/objects.md#ul-session--会话)（附着在恰好一个会话上） | — | PF-012（sealed provenance） | — |
-| [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) | [UL-agent-runtime](../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | [会话](../domain_objects/objects.md#ul-session--会话)；所推进的工作归 Run／尝试，Model／Tool runtime 不寄宿于它 | — | PF-012（sealed provenance） | — |
+| [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) | [UL-agent-runtime](../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | 会话路径中是[会话](../domain_objects/objects.md#ul-session--会话)；独立调用（不创建会话）时，产品正文未述，已接受的 Agent 对象模型写装配者创建它，宿主发布并撤登记，见补充依据。所推进的是 [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行)，会话路径中该执行对应 Run 的一段推进；Model／Tool runtime 不寄宿于它 | — | PD-agent-progression | 012（sealed provenance） |
+| [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行) | [UL-agent-execution](../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-execution--agent-执行--agent-execution) | —（换执行挂接或换 agent runtime 接续仍是同一次，不随 [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) 或执行挂接的更替而没；会话路径中它与运行的对应由外部协调者维护，Agent 一侧不要求） | — | PD-agent-progression | — |
+| [执行挂接](../domain_objects/objects.md#ul-execution-attachment--执行挂接) | [UL-execution-attachment](../ubiquitous_language/terms/agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment) | [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行)——挂接是为某一次执行取得的承接。产品正文未述挂接的寿命，已接受的 Agent 对象模型称终止后的围栏记录保留到所属执行的保留期结束，见补充依据 | — | PD-agent-progression | — |
+| [Agent 登记](../domain_objects/objects.md#ul-agent-registration--agent-登记) | [UL-agent-registration](../ubiquitous_language/terms/agent-runtime-loop.md#ul-agent-registration--agent-登记--agent-registration) | 产品正文未述它的寿命跟着谁。已接受的 Agent 对象模型称撤除之后仍保留身份记录，使同一次撤除可认回，见补充依据 | — | PD-agent-progression | — |
 | [装配清单](../domain_objects/objects.md#ul-assembly-manifest--装配清单) | [UL-assembly-manifest](../ubiquitous_language/terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) | —（为恰好一个[会话](../domain_objects/objects.md#ul-session--会话)求值） | — | PF-004（sealed provenance） | — |
 
 ## 能力与构成
@@ -73,7 +76,7 @@
 | [决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片) | [UL-decision-card](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) | [会话](../domain_objects/objects.md#ul-session--会话)（归属）；被它阻塞的是一次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)或一次[运行](../domain_objects/objects.md#ul-run--运行) | — | PF-008（sealed provenance） | — |
 | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文) | [UL-session-authorization-context](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | [会话](../domain_objects/objects.md#ul-session--会话)（与会话同寿，归档不丢，撤销归档后原样还在） | — | PF-007（sealed provenance） | 015（sealed provenance） |
 | [授权表达](../domain_objects/objects.md#ul-authorization-expression--授权表达) | [UL-authorization-expression](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文)——作用域为「这一次」「本会话」的那些落在它里面；**作用域为「全局」的那一笔不落在这里**，它[落成租户层的权限设置值](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度) | — | PF-007（sealed provenance） | — |
-| [入站到达](../domain_objects/objects.md#ul-inbound-arrival--入站到达) | [UL-inbound-arrival](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | [会话](../domain_objects/objects.md#ul-session--会话)（恰好一个；没有「飘着的到达」） | 控制指令、插队 | PF-014（sealed provenance） | — |
+| [入站到达](../domain_objects/objects.md#ul-inbound-arrival--入站到达) | [UL-inbound-arrival](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | [会话](../domain_objects/objects.md#ul-session--会话)（恰好一个；没有「飘着的到达」） | 控制指令、插队 | PD-agent-progression | 014（sealed provenance） |
 
 ## 记录与上下文
 
@@ -118,10 +121,11 @@
 | [组织](../domain_objects/objects.md#ul-organization--组织) | [邀请](../domain_objects/objects.md#ul-invitation--邀请)、[隶属请求](../domain_objects/objects.md#ul-affiliation-request--隶属请求)、[租户](../domain_objects/objects.md#ul-tenant--租户) |
 | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志) | [模型响应体](../domain_objects/objects.md#ul-model-response--模型响应体)、[被卸载的原始结果](../domain_objects/objects.md#ul-offloaded-result--被卸载的原始结果)、[消息](../domain_objects/objects.md#ul-message--消息) |
 | [账号](../domain_objects/objects.md#ul-account--账号) | [登录状态](../domain_objects/objects.md#ul-login-state--登录状态)、[租户](../domain_objects/objects.md#ul-tenant--租户) |
+| [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行) | [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime)、[执行挂接](../domain_objects/objects.md#ul-execution-attachment--执行挂接) |
+| [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) | [Agent 执行](../domain_objects/objects.md#ul-agent-execution--agent-执行)、[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行) |
 | [资产](../domain_objects/objects.md#ul-asset--资产) | [资产版本](../domain_objects/objects.md#ul-asset-version--资产版本) |
 | [租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱) | [沙箱数据](../domain_objects/objects.md#ul-sandbox-data--沙箱数据) |
 | [执行环境](../domain_objects/objects.md#ul-execution-environment--执行环境) | [终端会话](../domain_objects/objects.md#ul-terminal-session--终端会话) |
-| [agent runtime](../domain_objects/objects.md#ul-agent-runtime--agent-runtime) | [工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行) |
 | [记录条目](../domain_objects/objects.md#ul-record-entry--记录条目) | [模型响应体](../domain_objects/objects.md#ul-model-response--模型响应体) |
 | [运行](../domain_objects/objects.md#ul-run--运行) | [决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片) |
 | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文) | [授权表达](../domain_objects/objects.md#ul-authorization-expression--授权表达) |
@@ -153,4 +157,4 @@
 
 产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。
 
-会话、运行、agent runtime、装配清单、资产、资产版本、meta 能力、模型档案、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、日程、定时作业、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、会话据点、治理中心、派发报告、决策卡片、会话授权上下文、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、业务日历、业务日历版本、工作区、工作区实例、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。
+会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、meta 能力、模型档案、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、日程、定时作业、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、会话据点、治理中心、派发报告、决策卡片、会话授权上下文、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、业务日历、业务日历版本、工作区、工作区实例、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。

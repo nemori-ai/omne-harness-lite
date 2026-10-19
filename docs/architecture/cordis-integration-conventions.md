@@ -70,13 +70,15 @@
 
 ## IC-13
 
-登记即效应。注册表 `Service` 的 `register()` 在方法里用 `this.ctx.effect(...)` 登记并返回撤除函数。登记落在调用方的fiber上，调用方撤除即撤掉。监听一律经 `ctx.on`。注册表不自己记「谁登记了什么」再等人注销。提供者须验证贡献者卸载后其登记已撤除。
+登记即效应。注册表 `Service` 的 `register()` 在方法里用 `this.ctx.effect(...)` 登记并返回撤除函数。登记落在调用方的fiber上，调用方撤除即撤掉。监听一律经 `ctx.on`。除下文的目录写法外，注册表不自己记「谁登记了什么」再等人注销。提供者须验证贡献者卸载后其登记已撤除。
 
 上述贡献者配对仅在插件内调用成立。根 Context 调 register 时效应属于根 fiber，不随某个贡献者撤除。只允许测试或装配入口这样使用。以 ctx.provide 发布的普通对象没有 Service 的调用方 ctx，不能据此取得相同自动归属。
 
+登记是业务事实、需要显式撤回或接替的目录，可以采用下面的写法，并在其 Cordis 集成页的符合性映射中声明采用。目录的 `register` 可以返回登记回执，不返回撤除函数。撤除函数由目录持有，显式撤回与调用方 fiber 卸载共用同一个幂等删除。同一实例的后继登记可以在同一个本地动作内原子取代旧登记。贡献者 fiber 卸载后其登记仍须撤除，提供者仍须验证。其他使用者仍按上文执行。
+
 ## IC-14
 
-插件配置用 Standard Schema 校验（函数插件经 kernel-basis 的 `definePlugin`，`Service` 子类写静态 `Config`；Cordis 4.0.4 对两种插件都按 Standard Schema 校验，`registry.ts:104`、`fiber.ts:50-53`）。重试、退避、超时、限流和阈值等可调参数写成配置字段，默认值只是初值。配置错误时，插件加载失败，fiber 进入 `FAILED`。不能静默跳过缺失的引用。
+插件配置用 Standard Schema 校验（函数插件经 kernel-basis 的 `definePlugin`，`Service` 子类写静态 `Config`；校验与失败行为的机制事实见 basis 条目 [plugin-throw-fails-fiber](../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)，该条目按函数插件核验，`Service` 子类静态 `Config` 的路径没有单独核验）。重试、退避、超时、限流和阈值等可调参数写成配置字段，默认值只是初值。配置错误时，插件加载失败，fiber 进入 `FAILED`。不能静默跳过缺失的引用。
 
 ## IC-15
 

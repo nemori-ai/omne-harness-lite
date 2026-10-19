@@ -108,7 +108,7 @@ flowchart TD
 
 ## 依据
 
-Agent 工作推进的当前产品责任候选见[Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)，受理与队列见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，会话交接也见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。两者仍为草案；本页既有承诺继续按实际接受范围执行，不因候选修订扩大采用。
+Agent 工作推进的产品责任见[Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)，该产品页已由产品负责人采用（[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)），受理与队列见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，会话交接也见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。会话与工作的产品页仍为草案；本页既有承诺继续按实际接受范围执行，不因候选修订扩大采用。
 
 ## 未决问题与待办事项
 

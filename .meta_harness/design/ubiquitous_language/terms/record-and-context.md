@@ -276,6 +276,7 @@
 - **别混 ②**：**不是[块标注](#ul-block-annotation--块标注--block-annotation)**——标注答「给人看吗、给模型看吗」；来路标记不改变标注，留痕块与展开物各给不给模型读，由受理那一方定
 - **别混 ③**：**不是[资产来源](circulation-and-entitlement.md#ul-asset-origin--资产来源--asset-origin)**（official / customized）
 - **注意**：正文的叙述说法是「原命令的标注」（PF-014 §5.6、§5.10）——那里的「标注」指的是它，不是块标注
+- **待裁决**：上面出处所引的封存章节标题含已移除的位置名。斜杠命令的受理、展开与脱敏改落在哪里，由 slash-commands 产品负责人裁定，见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)；本词条只说出处，不替它定位置
 
 ### UL-content-block · 内容块 · Content Block
 

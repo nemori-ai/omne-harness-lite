@@ -104,7 +104,7 @@
 | [UL-connector-event-type](terms/capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type) | 连接件事件类型 | Connector Event Type | 连接件正文里声明的一种会送进来的外部事件：类型名 + 说明 + 消息包形状；每条外部消息恰属一种 |
 | [UL-event-subscription](terms/capabilities-and-composition.md#ul-event-subscription--事件订阅--event-subscription) | 事件订阅 | Event Subscription | 连接件持有上的一项偏好类设置：目录里哪几种真的送进来，只在持有那一侧求值；agent 不在运行时改它 |
 | [UL-loop-extension](terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) | 拓展件 | Loop Extension | 挂在 loop 拓展点上的一段判断或动作，**第八类资产**；无「放宽」档，可否决含落卡片等人；不可用处置是它自己的声明，不是设置也不是权限 |
-| [UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) | 模态转换件 | Modality Converter | 站在「消息落盘之前」的拓展件：一块或一文件进，若干别的模态的块 + transcript 出，挂原块作派生表示；按模态/媒体类型登记可替换，本版不是资产；失败即否决 |
+| [UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) | 模态转换件 | Modality Converter | 系统自带的拓展件式转换件：一块或一文件进，若干别的模态的块 + transcript 出，挂原块作派生表示；按模态/媒体类型登记可替换，本版不是资产；**非 Tool ref 来源由实现消息准入的提供者在接纳前调用，Tool 内容 ref 在实际请求时转换** |
 | [UL-slash-command](terms/capabilities-and-composition.md#ul-slash-command--斜杠命令--slash-command) | 斜杠命令 | Slash Command | 人在交付面敲 `/` 发起某件事的入口；绑定目标恰三种：自定义提示词 / 装配的 skill / 系统业务流程；**只由交付面识别、只对人** |
 | [UL-command-parameter-declaration](terms/capabilities-and-composition.md#ul-command-parameter-declaration--命令参数声明--command-parameter-declaration) | 命令参数声明 | Command Parameter Declaration | 斜杠命令可选带的参数说明，**是命令本身、不是设置**；没声明就整段作一个自由参数 |
 | [UL-plugin](terms/capabilities-and-composition.md#ul-plugin--插件--plugin) | 插件 | Plugin | 打包分发若干资产的单元，**不是 Cordis plugin** |
@@ -180,21 +180,29 @@
 | [UL-trigger](terms/agent-runtime-loop.md#ul-trigger--触发--trigger) | 触发 | Trigger | 促使系统检查并推进会话工作的信号；由持久事实及当前条件决定新建 Run、新建 attempt 或继续原 attempt |
 | [UL-pending-message-queue](terms/agent-runtime-loop.md#ul-pending-message-queue--待处理消息队列--pending-message-queue) | 待处理消息队列 | Pending Message Queue | 日志里还没被 loop 取走的那些消息，**是投影不是另一份存储** |
 | [UL-input-claim](terms/agent-runtime-loop.md#ul-input-claim--承接--input-claim) | 承接 | Input Claim | loop 把队列里一批消息取走交给某次运行，**每一次都落一条记录**；**不是入站到达** |
-| [UL-run-attempt](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) | 执行尝试 | Run Attempt | 同一次运行内第几次起协程，**身份 (运行, 序号) 从日志派生、不另存**；**重试不是新的 Run** |
+| [UL-run-attempt](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt) | 执行尝试 | Run Attempt | 同一次运行内会话一侧取得的第几次推进尝试，**由会话一侧拥有，不是 agent runtime 的启动计数**；**身份 (运行, 序号) 从日志派生、不另存**；**重试不是新的 Run** |
 | [UL-attempt-fence](terms/agent-runtime-loop.md#ul-attempt-fence--尝试栅栏--attempt-fence) | 尝试栅栏 | Attempt Fence | 同一次运行只有最大序号的尝试能推进运行；已发动作的响应体与迟到账仍保留 |
 | [UL-run-terminal-state](terms/agent-runtime-loop.md#ul-run-terminal-state--运行终态--run-terminal-state) | 运行终态 | Run Terminal State | **恰有三种**，只从一个出口落账；**等人不是终态** |
 | [UL-agent-loop](terms/agent-runtime-loop.md#ul-agent-loop--agent-loop--agent-loop) | Agent Loop | Agent Loop | 推进一次运行的那个**纯函数**；**被求值的那个，不是求值它的那个** |
-| [UL-agent-runtime](terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | agent runtime | Agent Runtime | **求值 loop 的那个协程**；全系统**唯一的 event loop**，不持有状态 |
+| [UL-agent-runtime](terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) | agent runtime | Agent Runtime | **求值 loop、通过执行挂接推进 Agent 执行的那个协程**；全系统**唯一的 event loop**，不持有状态；**不再与执行尝试一一对应**；**一次执行结束后回空闲、保持登记，可承接下一次执行**，执行之间不沿用授权与取消状态等 |
+| [UL-agent-execution](terms/agent-runtime-loop.md#ul-agent-execution--agent-执行--agent-execution) | Agent 执行 | Agent Execution | Agent 的一次逻辑执行；**换执行挂接或换 agent runtime 接续仍是同一次**；Agent 不要求也不解释会话、运行、执行尝试 |
+| [UL-execution-attachment](terms/agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment) | 执行挂接 | Execution Attachment | 一副 agent runtime 对某一次 Agent 执行的一次物理承接；**有自己的身份与围栏，换挂接不使执行成为新的一次**；**不是「附件」，不许简称 attachment**；旧说法 ~~挂载~~ ~~Agent Attachment~~ |
+| [UL-agent-registration](terms/agent-runtime-loop.md#ul-agent-registration--agent-登记--agent-registration) | Agent 登记 | Agent Registration | 宿主为一副 agent runtime 实例作的发布记录，有自己的身份与三种状态；**不是 runtime 本身，也不授予推进资格**；重新发布产生后继登记 |
 | [UL-runtime-handle](terms/agent-runtime-loop.md#ul-runtime-handle--运行时句柄--runtime-handle) | 运行时句柄 | Runtime Handle | 访问、等待或控制执行的引用，释放不取消执行 |
 | [UL-agent-step](terms/agent-runtime-loop.md#ul-agent-step--agent-的一步--agent-step) | agent 的一步 | Agent Step | loop 转一圈；**一步之内至多一次模型调用** |
+| [UL-message-admission](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission) | 消息准入 | Message Admission | 外部输入、模型完整回复、工具结果成为消息前按来源校验、接纳或拒收，后果按来源不同；**Agent 自己的规则，不是拓展位置**；**不是放行判断** |
 | [UL-side-question](terms/agent-runtime-loop.md#ul-side-question--旁路提问--side-question) | 旁路提问 | Side Question | 趁 agent 干活顺口问的一句，**不属于任何 Run**、问答不进日志，钱归会话 |
 | [UL-current-conditions](terms/agent-runtime-loop.md#ul-current-conditions--当下条件--current-conditions) | 当下条件 | Current Conditions | 日志之外、此刻才成立的那些，**不落日志** |
-| [UL-loop-extension-point](terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) | Loop 拓展点 | Loop Extension Point | 一个状态点的紧前或紧后，**按位置命名不按功能**；可挂多个。**当前十一个** |
+| [UL-loop-extension-point](terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) | Loop 拓展点 | Loop Extension Point | 一个状态点的紧前或紧后，**按位置命名不按功能**；可挂多个。**当前九个** |
+| [UL-execution-started-position](terms/agent-runtime-loop.md#ul-execution-started-position--执行开始之后--execution-started-position) | 执行开始之后 | Execution-Started Position | 每个新的 Agent 执行开始后经过一次；**重挂接、实例换代、接续原执行不再经过**；旧说法 ~~尝试开始之后~~ |
 | [UL-intervention-power](terms/agent-runtime-loop.md#ul-intervention-power--干预力--intervention-power) | 干预力 | Intervention Power | 只观察 / 可改写 / 可否决，**恰三档、没有放宽**；在拓展件上是权限 |
 | [UL-extension-unavailability-policy](terms/agent-runtime-loop.md#ul-extension-unavailability-policy--拓展件不可用处置--extension-unavailability-policy) | 拓展件不可用处置 | Extension Unavailability Policy | 拓展件此刻不在时那个位置怎么办：跳过 / 否决 / 替换为指定挂件；租户件默认跳过、可声明前两种，替换件只有系统自带的能用；它是拓展件自己的声明，各层不配值 |
 | [UL-extension-point-pass](terms/agent-runtime-loop.md#ul-extension-point-pass--一次经过--extension-point-pass) | 一次经过 | Extension-Point Pass | loop 走到一个拓展点的一次；**同一位置同一次经过只跑一轮** |
+| [UL-extension-invocation](terms/agent-runtime-loop.md#ul-extension-invocation--拓展件调用--extension-invocation) | 拓展件调用 | Extension Invocation | Agent 在一次经过里对一件拓展件的一次调用；**可能花钱或出卡，接续时不当纯函数重跑**；系统页写「扩展调用」 |
+| [UL-extension-conclusion](terms/agent-runtime-loop.md#ul-extension-conclusion--拓展结论--extension-conclusion) | 拓展结论 | Extension Conclusion | 一次拓展件调用得到并被采用后留下的判断结果，由 Agent 存在执行记录里；**请求人处理得到的是非最终结论，已有最终结论的调用不再调用**；**是挂在 Agent 执行上的一项值**；代码里简称 Conclusion |
+| [UL-batch-judgment-barrier](terms/agent-runtime-loop.md#ul-batch-judgment-barrier--整批判断屏障--batch-judgment-barrier) | 整批判断屏障 | Batch Judgment Barrier | 一批动作的判断与卡片全部处理完，才发起其中获准的动作；**不是执行动作之后的整批范围** |
 | [UL-wait-primitive](terms/agent-runtime-loop.md#ul-wait-primitive--等待原语--wait-primitive) | 等待原语 | Wait Primitive | 协程「停下来等外面应答」的那一种办法，主流程与拓展件共用；协程没了靠卡片与答复活着 |
-| [UL-replay](terms/agent-runtime-loop.md#ul-replay--回放--replay) | 回放 | Replay | 新尝试把挂起中的拓展件按日志重跑到挂起点；不花第二遍钱、不出第二张卡 |
+| [UL-replay](terms/agent-runtime-loop.md#ul-replay--回放--replay) | 回放 | Replay | 接续原执行时把挂起中的拓展件按日志重跑到挂起点；不花第二遍钱、不出第二张卡 |
 | [UL-agent-assembly](terms/agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly) | Agent 装配 | Agent Assembly | 按会话类型要求、定义与作用域输入**求值成一份清单**的动作 |
 | [UL-assembly-manifest](terms/agent-runtime-loop.md#ul-assembly-manifest--装配清单--assembly-manifest) | 装配清单 | Assembly Manifest | 「当时那个 agent 是什么样」的唯一答案；**是数据，可跨尝试复用** |
 | [UL-runtime-injection](terms/agent-runtime-loop.md#ul-runtime-injection--运行时注入--runtime-injection) | 运行时注入 | Runtime Injection | 外面给的，换了不用重建，**不是 DI** |
@@ -268,8 +276,9 @@
 | [UL-attachment](terms/execution-and-outcome.md#ul-attachment--附件--attachment) | 附件 | Attachment | 存进存储、不进对话，agent 自己去取 |
 | [UL-result-offloading](terms/execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading) | 结果卸载 | Result Offloading | 原始结果存起来、消息里换成带摘要的占位，**不是全卸载** |
 | [UL-offloaded-result](terms/execution-and-outcome.md#ul-offloaded-result--被卸载的原始结果--offloaded-result) | 被卸载的原始结果 | Offloaded Result | 太大而被卸载存起来的那份完整工具结果，日志里只有占位 |
+| [UL-delivery-release](terms/execution-and-outcome.md#ul-delivery-release--交付责任解除--delivery-release) | 交付责任解除 | Delivery Release | 生产方（一次模型调用或一次工具执行）对已收场结果所负交付责任的解除，消费方处理完成或可靠保管后成立，只有两条路径；**模型一侧叫 ACK**；**读到、展示、开始处理都不够**；**不是事件流确认** |
 | [UL-execution-outcome](terms/execution-and-outcome.md#ul-execution-outcome--执行收场--execution-outcome) | 执行收场 | Execution Outcome | 六种，**非完成的四种里只有一种是失败** |
-| [UL-consecutive-veto-limit](terms/execution-and-outcome.md#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit) | 连续否决上限 | Consecutive Veto Limit | 同一步里模型回复落盘前被连续否决的上限，**到了 Run 落失败**；**不是试尽** |
+| [UL-consecutive-veto-limit](terms/execution-and-outcome.md#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit) | 连续否决上限 | Consecutive Veto Limit | **已弃用**：现行规则下连续拒收不设次数上限，不因此使 Run 失败；**不是试尽** |
 | [UL-nominal-path](terms/execution-and-outcome.md#ul-nominal-path--主路径--nominal-path) | 主路径 | Nominal Path | 一层没出非常态时本该的样子，**推进式或稳态式** |
 | [UL-off-nominal](terms/execution-and-outcome.md#ul-off-nominal--非常态--off-nominal) | 非常态 | Off-Nominal | 某层此刻不在主路径上，**是状态不是一类事，与报错无关** |
 | [UL-escalation](terms/execution-and-outcome.md#ul-escalation--上交--escalation) | 上交 | Escalation | 了结不了就把处置权交给外面一层，**交身份与分类不交正文** |

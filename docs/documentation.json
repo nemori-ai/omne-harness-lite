@@ -622,6 +622,10 @@
         {
           "id": "pending-sources",
           "anchor": "未决问题与待办事项"
+        },
+        {
+          "id": "domain-semantic-dependencies",
+          "anchor": "领域语义依赖与模型边界"
         }
       ],
       "gapAllowanceSource": {

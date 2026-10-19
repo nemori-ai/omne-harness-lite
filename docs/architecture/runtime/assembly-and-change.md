@@ -119,4 +119,4 @@ sequenceDiagram
 
 ## 依据
 
-多层来源、定义与装配、工作区的当前产品责任候选分别见 [资产与规则](../../../.meta_harness/design/product/assets-and-rules/README.md)、[Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)和[工作区](../../../.meta_harness/design/product/workspaces/README.md)。这些草案不扩大本页既有架构承诺或其实际接受范围。
+多层来源、定义与装配、工作区的产品责任分别见 [资产与规则](../../../.meta_harness/design/product/assets-and-rules/README.md)、[Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)和[工作区](../../../.meta_harness/design/product/workspaces/README.md)。Agent 定义与工作推进已由产品负责人采用，见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)；资产与规则、工作区两页仍为草案，不扩大本页既有架构承诺或其实际接受范围。

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { judgeAgentDefinition } from '@omne-harness/agent'
+import { judgeAgentDefinition } from '@omne-harness/agent-contract'
 
 it('assets reads a definition from the public entry and sees a refusal', async () => {
   const accepted = await judgeAgentDefinition({

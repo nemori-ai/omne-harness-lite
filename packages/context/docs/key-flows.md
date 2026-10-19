@@ -10,7 +10,7 @@
 | 原生产者与授权拥有者 | 原块、当前合法来源、读取及外传资格 | [本域事实归属](../../../docs/domains/runtime-context/architecture.md#2-事实拥有者与派生范围)、[身份架构](../../../docs/domains/identity-and-authorization/architecture.md) |
 | Runtime Context | 注册供给、当前读取及变化协作 | [RC-02 至 RC-07](../runtime-context/SPEC.md#rc-02-原块与注册的必要条件) |
 | Request Context | 明确输入的合法投影、实际表示、全预算及压缩计算 | [RQ-02 至 RQ-09](../request-context/SPEC.md#rq-02-组装的前置输入) |
-| Agent 及其扩展 | attempt 开始拉取、模型前扩展、原推进位置与消息否决处置 | [Agent 架构](../../../docs/domains/agent-progression/architecture.md) |
+| Agent 及其扩展 | 执行开始或挂接建立时拉取、模型前扩展、原推进位置与消息否决处置 | [Agent 架构](../../../docs/domains/agent-progression/architecture.md) |
 | Model、Tool | 各自调用身份、真实执行、结果及费用 | [Model 架构](../../../docs/domains/model-invocation/architecture.md)、[Tool 架构](../../../docs/domains/tool-execution/architecture.md) |
 | 消息接纳与原合法消费者 | 按来源处理消息准入，可靠保管原结果及原消费位置 | [RQ-08](../request-context/SPEC.md#rq-08-失败否决与消费位置)及 Session、Agent、Tool 的原消费契约 |
 | 转换件装配与 Model 共同契约 | 转换键选择、输出形状、接纳前固定及本地转换范围 | [转换件的共同契约](../../model/model-contract/SPEC.md#转换件的共同契约) |
