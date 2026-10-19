@@ -285,10 +285,21 @@ pnpm run test:affected --base "$TASK_BASE" --tier slow
 turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
 
 RFC-0002 的四条约束这样落实：
-- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；`packages/*`、`tools/*` 等成员目录下出现 `turbo.json` 直接报错，`apps/*` 下的由检查器按 #390 的 D6 规则核对合成后的任务定义；`**/turbo.json` 和本配置文件都是全局文件。根配置的预设和检查器来自钉住的 npm 包，改版本就是改锁文件与 `pnpm-workspace.yaml`，它们也是全局文件。
+- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；`packages/*`、`tools/*` 等成员目录下出现 `turbo.json` 直接报错，`apps/*` 下的由检查器按下面的成员配置规则核对合成后的任务定义；`**/turbo.json` 和本配置文件都是全局文件。根配置的预设和检查器来自钉住的 npm 包，改版本就是改锁文件与 `pnpm-workspace.yaml`，它们也是全局文件。
 - 基线显式传入：合并点经 `TURBO_SCM_BASE` 传给 turbo，不让它自己推断。
 - 未识别文件按全量处理：由上面的规则判。
 - 准入不读 PR 能写入的缓存：`OMNE_ADMISSION=1` 时构建只写不读本地缓存（`--cache=local:w`）。
+
+`apps/*` 下的成员 `turbo.json` 要满足下面七条。`tools/test-runner` 的校验器核对规则 1、2 与规则 7 的一部分时读成员原文，其余读 `turbo run --dry=json` 的 `resolvedTaskDefinition`，根配置与准入时相同。规则 6 后半句不由校验器判断，由评审核对：
+1. `extends` 只能是 `["//"]`。
+2. `tasks` 只能覆盖根已定义的任务名。
+3. `build`、`typecheck`、`test:fast`、`test:slow`、`test` 的 `dependsOn` 必须包含根定义的条目，只能增加（用 `$TURBO_EXTENDS$`）。
+4. `test:fast`、`test:slow`、`test` 不能设 `cache: true`。
+5. `outputs`、`inputs` 只能指向本成员目录内。
+6. `env` 只能增加；`passThroughEnv` 只放不影响结果的变量。
+7. 上面这些任务都不能设 `persistent: true`。
+
+规则 3、4、7 只列当前根配置里的任务。以后加入根配置的任务按同样类别适用：进检查的任务按规则 3，测试类任务按规则 4，`dev` 一类不进检查的任务可以不受规则 7 约束。在规则范围内修改 `apps/*/turbo.json` 不需要仓库工具链变更闸门；修改校验器本身需要。这些规则是暂行规则，目前没有成员使用成员配置；第一个需要的应用出现时再按实际需要修订。
 
 检查脚本调用 turbo 时关闭遥测与升级提示。
 
