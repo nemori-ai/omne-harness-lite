@@ -27,7 +27,7 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 `session-start.sh` 只在 `CLAUDE_CODE_REMOTE=true` 时工作。每次会话启动或恢复（matcher `startup|resume`）它做这些事：
 
 1. 把 `/opt/node26/bin` 和 `NODE_USE_ENV_PROXY=1` 写入 `CLAUDE_ENV_FILE`。Bash 工具的每条命令都先使用 Node 26，Node 的 `fetch` 走代理。原因见[网络密钥与对外请求](#网络密钥与对外请求)。
-1. 用 `gh api user` 查出开会话的 GitHub 账号，把 `GIT_AUTHOR_*` 与 `GIT_COMMITTER_*` 写入 `CLAUDE_ENV_FILE`。姓名取 GitHub username。邮箱取 `<id>+<login>@users.noreply.github.com`，因为接口不返回私密邮箱。这样提交按[贡献指南](../../../../CONTRIBUTING.md#形成可审阅的交付)以负责人署名。平台只用 Claude 身份的密钥签名，所以 GitHub 把这些提交显示为 Unverified。
+1. 设置 git 作者与提交者，写入 `CLAUDE_ENV_FILE`。云端环境设置里配了 `GIT_AUTHOR_NAME` 或 `GIT_AUTHOR_EMAIL` 时，用这些值。缺的值用 `gh api user` 从开会话的 GitHub 账号取：姓名取 GitHub username，邮箱取 `<id>+<login>@users.noreply.github.com`，因为接口不返回私密邮箱。提交者与作者相同。这样提交按[贡献指南](../../../../CONTRIBUTING.md#形成可审阅的交付)以负责人署名。平台只用 Claude 身份的密钥签名，所以 GitHub 把这些提交显示为 Unverified。
 2. 浅克隆先取完整历史。角色评估会检出固定的基线 commit，浅克隆缺少这些 commit。
 3. `git fetch --prune origin`，再把本地 `main` 快进到 `origin/main`。当前分支是 `main` 时用 `git merge --ff-only`。其他分支时只更新 `main` 引用。
 4. HEAD 变化或依赖目录缺失时，重新执行三条依赖命令。

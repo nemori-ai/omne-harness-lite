@@ -18,20 +18,28 @@ fi
 
 warn() { printf 'session-start: %s\n' "$*" >&2; }
 
-# CONTRIBUTING.md: author and committer are the responsible person. The person is
-# the GitHub account that started the session: its username, and its noreply
-# address, because the API does not return a private email.
-if identity=$(gh api user --jq '"\(.id) \(.login)"' 2>/dev/null) && [ -n "$identity" ]; then
-    read -r gh_id gh_login <<<"$identity"
-    gh_email="${gh_id}+${gh_login}@users.noreply.github.com"
+# CONTRIBUTING.md: author and committer are the responsible person. Values set in
+# the cloud environment settings (GIT_AUTHOR_NAME, GIT_AUTHOR_EMAIL) win. A missing
+# value comes from the GitHub account that started the session: its username, and
+# its noreply address, because the API does not return a private email.
+name=${GIT_AUTHOR_NAME:-}
+email=${GIT_AUTHOR_EMAIL:-}
+if [ -z "$name" ] || [ -z "$email" ]; then
+    if identity=$(gh api user --jq '"\(.id) \(.login)"' 2>/dev/null) && [ -n "$identity" ]; then
+        read -r gh_id gh_login <<<"$identity"
+        name=${name:-$gh_login}
+        email=${email:-${gh_id}+${gh_login}@users.noreply.github.com}
+    fi
+fi
+if [ -n "$name" ] && [ -n "$email" ]; then
     if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
         printf 'export %s=%q\n' \
-            GIT_AUTHOR_NAME "$gh_login" GIT_AUTHOR_EMAIL "$gh_email" \
-            GIT_COMMITTER_NAME "$gh_login" GIT_COMMITTER_EMAIL "$gh_email" >> "$CLAUDE_ENV_FILE"
+            GIT_AUTHOR_NAME "$name" GIT_AUTHOR_EMAIL "$email" \
+            GIT_COMMITTER_NAME "$name" GIT_COMMITTER_EMAIL "$email" >> "$CLAUDE_ENV_FILE"
     fi
-    printf 'session-start: git identity %s <%s>\n' "$gh_login" "$gh_email"
+    printf 'session-start: git identity %s <%s>\n' "$name" "$email"
 else
-    warn "gh api user failed; git identity left as configured"
+    warn "no git identity from the environment or gh api user; left as configured"
 fi
 
 root=$(cd "$(dirname "$0")" && git rev-parse --show-toplevel) || exit 0
