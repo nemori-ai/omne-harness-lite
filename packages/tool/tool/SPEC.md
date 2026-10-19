@@ -11,9 +11,9 @@
 - 独立路径：`createIndependentToolScope`（G2）与 `executeTool`（G8），即契约 SPEC [P11](../tool-contract/SPEC.md#p11-作者输出与等待原语) 的独立执行。
 - 账本：账本工厂 `createToolLedger` 与记录仓端口 `ToolLedgerStore`（G1）。
 - 逻辑终局：`createToolRuntime`（G8）的 admit、lookup、queryOperation、readResult、releaseDelivery 与 account。这些调用不进入环境或执行者（第 10–16 条）。
-- 到启动为止的真实调用：受理、环境准备、FIFO 排队、启动意图、启动围栏与启动记录，以及启动前的拒绝收场（第 19–23 条）。
+- 到启动为止的真实调用：受理、环境准备、FIFO 排队、启动意图、启动围栏与启动记录，以及启动前的拒绝收场（第 19–23 条）。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。
 
-尚未实现：已启动执行的事实接收、收场与名额释放，以及控制、计时、等待、恢复与退出。这些操作回复具名的 `unsupported`。所以一个已启动的调用停在 `running`，它的名额一直被占用。内部机制见 [architecture](docs/architecture.md)。
+尚未实现：已启动执行的事实接收、收场与名额释放，以及控制、计时段开启之后的计时、等待、恢复与退出。这些操作回复具名的 `unsupported`。所以一个已启动的调用停在 `running`，它的名额一直被占用。内部机制见 [architecture](docs/architecture.md)。
 
 ## 独立执行怎样满足 P11
 

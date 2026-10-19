@@ -1,6 +1,6 @@
 # tool/tool-contract 长期行为规格
 
-状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。当前源码实现资产正文端口和契约函数。根入口导出全部公开契约类型、品牌身份解码函数、默认结果政策，以及定义判定、状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染和结果投影。服务定义、服务键和事件增补在 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 在 `@omne-harness/tool`（[本增量未交付](../README.md#未交付标注)），单机宿主在 `@omne-harness/tool-host-local`（[本增量未交付](../README.md#未交付标注)），实现范围见[组的支持范围](../README.md#支持范围)。与决策方的双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
+状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。当前源码实现资产正文端口和契约函数。根入口导出全部公开契约类型、品牌身份解码函数、默认结果政策，以及定义判定、状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染和结果投影。服务定义、服务键和事件增补在 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 在 `@omne-harness/tool`，单机宿主在 `@omne-harness/tool-host-local`，实现范围见[组的支持范围](../README.md#支持范围)。与决策方的双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
 
 正文端口负责工具资产的读取与判定。执行、等待、结果保管和恢复由运行契约规定。
 
@@ -8,7 +8,7 @@
 
 `toolBodyContract` 登记类别 `tool`。调用方先用 `@omne-harness/assets` 的 `readBodyText` 读取正文。`judge` 不接受对象字面量，也不接受伪造的读取结果，并且不调用传入的函数。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用，不成为必需依赖。判断失败时，声明和引用抛出，不返回结果。`pinBody` 保存当时的正文内容。验证命令是快层 `OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-contract run test` 与慢层 `OMNE_TEST_TIER=slow pnpm --filter @omne-harness/tool-contract run test`。
 
-`toolBodyContract` 已实现 `programmable` 的布尔校验与声明投影。只有布尔 `true` 产生声明项 `programmable`。省略或 `false` 不产生声明项。非布尔值以 `invalid-programmable` 拒绝，不按真值转换。运行时准入属于下文的[运行契约](#342-主干运行契约候选)：`programmable` 的准入检查已在 `tool`（[本增量未交付](../README.md#未交付标注)） 的受理路径实现，证据范围与尚未覆盖的部分见[组的支持范围](../README.md#支持范围)；没有耐久或生产环境的证据。
+`toolBodyContract` 已实现 `programmable` 的布尔校验与声明投影。只有布尔 `true` 产生声明项 `programmable`。省略或 `false` 不产生声明项。非布尔值以 `invalid-programmable` 拒绝，不按真值转换。运行时准入属于下文的[运行契约](#342-主干运行契约候选)：`programmable` 的准入检查已在 `tool` 的受理路径实现，证据范围与尚未覆盖的部分见[组的支持范围](../README.md#支持范围)；没有耐久或生产环境的证据。
 
 ## 用途、调用方与公开边界
 
@@ -149,15 +149,15 @@
 
 最终结果的文本、内容 ref 与附件地址分流归 [P14](#p14-附件引用与消费方交付)。共享值迁移和提供者验证由共享内容块拥有者继续跟踪，不再把这两种路径记为产品来源缺证。任意嵌套容器未获准。过程在途内容的故障保留仍需技术兑现。
 
-修改定义、调用匹配、结果保管或控制协议时同步所有消费方、环境、决策方、程序消费方、动作桥接方、Context 和相应验证。提供者补自己真实承担的机制与限制，不另写一份更弱的公共保证。独立执行与 runtime 的部分路径已在 `@omne-harness/tool`（[本增量未交付](../README.md#未交付标注)） 实现，范围见[组的支持范围](../README.md#支持范围)。耐久存储与故障测试尚无。本规格不授予实施或符合性接受。
+修改定义、调用匹配、结果保管或控制协议时同步所有消费方、环境、决策方、程序消费方、动作桥接方、Context 和相应验证。提供者补自己真实承担的机制与限制，不另写一份更弱的公共保证。独立执行与 runtime 的部分路径已在 `@omne-harness/tool` 实现，范围见[组的支持范围](../README.md#支持范围)。耐久存储与故障测试尚无。本规格不授予实施或符合性接受。
 
 <a id="342-主干运行契约候选"></a>
 
 ## 主干运行契约
 
-本节规定 Tool 的运行契约。精确类型归源码 [src/index.ts](src/index.ts)，[public-api](docs/public-api.md) 是源码导航，独立执行函数和 runtime 工厂的签名导航见 `@omne-harness/tool`（[本增量未交付](../README.md#未交付标注)） 的 public-api（`tool/docs/public-api.md`）。消费及失败场景归 [context](docs/context.md)，对象模型与装配分别归 [object-model](docs/object-model.md) 和 [cordis](../tool-cordis-contract/docs/cordis.md)。
+本节规定 Tool 的运行契约。精确类型归源码 [src/index.ts](src/index.ts)，[public-api](docs/public-api.md) 是源码导航，独立执行函数和 runtime 工厂的签名导航见 `@omne-harness/tool` 的 public-api（`tool/docs/public-api.md`）。消费及失败场景归 [context](docs/context.md)，对象模型与装配分别归 [object-model](docs/object-model.md) 和 [cordis](../tool-cordis-contract/docs/cordis.md)。
 
-当前生产根入口导出资产正文端口、全部公开类型、品牌身份解码函数、默认结果政策和契约函数。契约函数只做同步的判定、构造与投影。下述独立执行函数与 runtime 在 `@omne-harness/tool`（[本增量未交付](../README.md#未交付标注)）：独立执行已实现，runtime 只实现了一部分路径，托管结果处理的其余部分尚未实现，范围见[组的支持范围](../README.md#支持范围)。Tool 运行时的系统架构见[工具运行时](../../../docs/architecture/runtime/tool-runtime.md)。
+当前生产根入口导出资产正文端口、全部公开类型、品牌身份解码函数、默认结果政策和契约函数。契约函数只做同步的判定、构造与投影。下述独立执行函数与 runtime 在 `@omne-harness/tool`：独立执行已实现，runtime 只实现了一部分路径，托管结果处理的其余部分尚未实现，范围见[组的支持范围](../README.md#支持范围)。Tool 运行时的系统架构见[工具运行时](../../../docs/architecture/runtime/tool-runtime.md)。
 
 Tool 拥有一次原调用、真实执行、等待、控制、原结果、效果与交付关系。它不替被调用领域写私有状态，不拥有消费方的工作终态。前台转后台改变等待关系，仍是同一执行。全文保留与待交付关系分开，下面没有消费方确认或按其规则清理 Tool 全文的操作。
 
@@ -337,26 +337,26 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 
 ### 契约缺口决定（G1–G9）
 
-下列决定于 2026-10-16 接受，同日按四包拆分重新归属。它们补齐公开契约的可实施点。依赖方向是 `tool-host-local`（[本增量未交付](../README.md#未交付标注)） → {`tool`（[本增量未交付](../README.md#未交付标注)）, `tool-cordis-contract`} → `tool-contract`：
+下列决定于 2026-10-16 接受，同日按四包拆分重新归属。它们补齐公开契约的可实施点。依赖方向是 `tool-host-local` → {`tool`, `tool-cordis-contract`} → `tool-contract`：
 
 - `@omne-harness/tool-contract` 是纯契约包，不依赖 Cordis 与任何 Tool 实现。
 - `@omne-harness/tool-cordis-contract` 持有唯一 Cordis 定义。
-- `@omne-harness/tool`（[本增量未交付](../README.md#未交付标注)） 是不含 Cordis 的领域实现。
-- `@omne-harness/tool-host-local`（[本增量未交付](../README.md#未交付标注)） 是单机宿主与 Cordis 插件。
+- `@omne-harness/tool` 是不含 Cordis 的领域实现。
+- `@omne-harness/tool-host-local` 是单机宿主与 Cordis 插件。
 
 其他领域的生产代码只依赖契约包，编写 Cordis 插件时另加 `tool-cordis-contract`。
 
 | 编号 | 决定 | 归属包 |
 | --- | --- | --- |
-| G1 | 账本工厂 `createToolLedger(store, guards, clock, configuration)` 返回 `{ commands, reads, admissions, queues }`。`queues` 只承载队列域的对账（`reconcile`，回复与读法见 tool 包第 22 条（`tool/SPEC.md#22-跨域提交与修复`）（[本增量未交付](../README.md#未交付标注)）），由同一个账本实现提供，不经 `ToolCommands`。记录仓端口 `ToolLedgerStore` 按事务域读取一组记录，再按修订号原子提交一组写入 | `tool`（[本增量未交付](../README.md#未交付标注)） 根入口 |
-| G2 | `createIndependentToolScope(input)` 构造独立执行作用域：本地接收者、显式上限、内存等待历史，按 [P11](#p11-作者输出与等待原语) 只承诺 `local` 回执。输入类型是 `IndependentToolScopeInput` | `tool`（[本增量未交付](../README.md#未交付标注)） 根入口；输入类型在 `tool-contract` |
+| G1 | 账本工厂 `createToolLedger(store, guards, clock, configuration)` 返回 `{ commands, reads, admissions, queues }`。`queues` 只承载队列域的对账（`reconcile`，回复与读法见 tool 包第 22 条（`tool/SPEC.md#22-跨域提交与修复`）），由同一个账本实现提供，不经 `ToolCommands`。记录仓端口 `ToolLedgerStore` 按事务域读取一组记录，再按修订号原子提交一组写入 | `tool` 根入口 |
+| G2 | `createIndependentToolScope(input)` 构造独立执行作用域：本地接收者、显式上限、内存等待历史，按 [P11](#p11-作者输出与等待原语) 只承诺 `local` 回执。输入类型是 `IndependentToolScopeInput` | `tool` 根入口；输入类型在 `tool-contract` |
 | G3 | 具名默认结果政策只接受文本块与共享引用块，拒绝 thinking、inline 媒体与嵌套容器（[P14](#p14-附件引用与消费方交付)）。其身份是 `defaultResultPolicyAdoption` | `tool-contract` 根入口 |
-| G4 | 宿主时钟适配器：同进程单调时钟加进程 epoch，跨进程比较返回 unknown（[P07](#p07-计时控制与检查点)） | `tool-host-local`（[本增量未交付](../README.md#未交付标注)） 根入口 |
-| G5 | 本地启动协调器实现 [P04](#p04-实际发起围栏) 的同机排序域。其他拥有者通过 `invalidate` 进入同一排序域。耐久受理台账依赖记录仓 | `tool-host-local`（[本增量未交付](../README.md#未交付标注)） 根入口 |
-| G6 | `./testing` 入口：`tool-contract` 提供端口一致性套件，`tool`（[本增量未交付](../README.md#未交付标注)） 提供真实 runtime 的测试装配、非耐久记录仓和记录仓一致性用例。套件不依赖测试框架，返回用例列表，用 `node:assert` 判定。其他领域的测试可以把 `@omne-harness/tool/testing`（[本增量未交付](../README.md#未交付标注)） 作为开发依赖 | `tool-contract` 与 `tool`（[本增量未交付](../README.md#未交付标注)） 的 `./testing` |
-| G7 | `ToolBindingRegistry` 由单机宿主实现。`ToolLoader` 的设置读取与作者工厂仍是构造依赖 | `tool-host-local`（[本增量未交付](../README.md#未交付标注)） 根入口 |
-| G8 | `executeTool`、`createIndependentToolScope` 与 `createToolRuntime` 进入不含 Cordis 的实现包（[本增量未交付](../README.md#未交付标注)）。它们管理并发、等待、取消与状态，不属于各实现必须给出同一答案的契约词汇。构造形状 `ToolDependencies` 与 `ToolConfiguration` 随工厂进入同一包 | `tool`（[本增量未交付](../README.md#未交付标注)） 根入口 |
-| G9 | 单机宿主命名为 `packages/tool/tool-host-local`（[本增量未交付](../README.md#未交付标注)） | `tool-host-local`（[本增量未交付](../README.md#未交付标注)） |
+| G4 | 宿主时钟适配器：同进程单调时钟加进程 epoch，跨进程比较返回 unknown（[P07](#p07-计时控制与检查点)） | `tool-host-local` 根入口 |
+| G5 | 本地启动协调器实现 [P04](#p04-实际发起围栏) 的同机排序域。其他拥有者通过 `invalidate` 进入同一排序域。耐久受理台账依赖记录仓 | `tool-host-local` 根入口 |
+| G6 | `./testing` 入口：`tool-contract` 提供端口一致性套件，`tool` 提供真实 runtime 的测试装配、非耐久记录仓和记录仓一致性用例。套件不依赖测试框架，返回用例列表，用 `node:assert` 判定。其他领域的测试可以把 `@omne-harness/tool/testing` 作为开发依赖 | `tool-contract` 与 `tool` 的 `./testing` |
+| G7 | `ToolBindingRegistry` 由单机宿主实现。`ToolLoader` 的设置读取与作者工厂仍是构造依赖 | `tool-host-local` 根入口 |
+| G8 | `executeTool`、`createIndependentToolScope` 与 `createToolRuntime` 进入不含 Cordis 的实现包。它们管理并发、等待、取消与状态，不属于各实现必须给出同一答案的契约词汇。构造形状 `ToolDependencies` 与 `ToolConfiguration` 随工厂进入同一包 | `tool` 根入口 |
+| G9 | 单机宿主命名为 `packages/tool/tool-host-local` | `tool-host-local` |
 
 ## 定义、可用性与发起
 
@@ -565,7 +565,7 @@ Tool 区分三类中断原因：控制请求（带控制操作号，并说明是
 - `all`：撤回目标调用的前台执行和后台执行。目标调用已在后台时，形成 interrupted 逻辑终局，不形成前台 final，因为已有后台占位。对程序调用，关闭屏障覆盖全部子调用。
 - `foreground-and-unadmitted`：只有目标调用在控制提交时是前台关系，Tool 才撤回它；是否已经启动不改变这一点。发起即后台的调用在受理时已固定后台占位并交给调用方，关系从受理起就是后台，不属于这个 reach，要撤回它须用 `all`。名字里的 unadmitted 指程序调用尚未受理的子调用预留，不指目标本身。对程序调用，关闭屏障只覆盖前台子调用及未受理预留，其余已受理的后台执行不自动跟随。目标调用在控制提交时是后台关系（已转后台，或发起即后台，不论是否已启动），控制仍作为已提交的 ControlRecord 保存，返回回执，进度为 `rejected`，原因 `out-of-reach`。这是回执里的进度，不是 ToolFailure 的拒绝。Tool 不形成中断，也不改变该调用。
 
-Tool 报告实际收场，不以调用方存活为前提。控制方的业务事实和控制的实际结果分别保存。控制提交路径在实现包（[本增量未交付](../README.md#未交付标注)）中尚未实现，本节是契约，不表示实现已具备。
+Tool 报告实际收场，不以调用方存活为前提。控制方的业务事实和控制的实际结果分别保存。控制提交路径在实现包中尚未实现，本节是契约，不表示实现已具备。
 
 已发执行可能继续产生真实效果。Tool 继续保管原结果、真实收场和成本，不把撤回后的真实成功伪报物理中断。结果不能恢复业务推进、创建工作对象或恢复入队资格。控制方不重启旧调用，控制后的真实状态也不倒退。
 
@@ -638,7 +638,7 @@ release 使用独立 ReleaseRecord，绑定原准备、资源和独立保管证�
 
 Tool 的事务只决定本域是否预留启动。受信执行边界再使用 ToolStartAuthority，核当前身份/授权、工作资格、推进代次、批决定、调用方式许可、固定定义和执行绑定、实际环境代次，以及 programmatic 子调用的原父程序推进屏障。prepare 生成包含各拥有者版本的 permit，permit 本身不授权执行。
 
-Tool 实现必须提供启动排序域。第一版单机做法采用同机的启动协调器和耐久受理台账，归 tool-host-local 的 SPEC（`tool-host-local/SPEC.md`）（[本增量未交付](../README.md#未交付标注)）。相关拥有者通过 invalidate 将资格失效纳入同一排序域，再确认该失效已生效。围栏失效未成立前，不能对外声称新发起已经被阻止。准入资料不可读时拒绝新的 consume，不能读过期缓存放行。
+Tool 实现必须提供启动排序域。第一版单机做法采用同机的启动协调器和耐久受理台账，归 tool-host-local 的 SPEC（`tool-host-local/SPEC.md`）。相关拥有者通过 invalidate 将资格失效纳入同一排序域，再确认该失效已生效。围栏失效未成立前，不能对外声称新发起已经被阻止。准入资料不可读时拒绝新的 consume，不能读过期缓存放行。
 
 executor 先以原 start operation 保存不可执行的待发胶囊，取得 executorReceipt。consume 只能由这个受信执行边界调用。它核票据与当前 guard，在同一排序内将原胶囊从待发变为唯一可执行受理记录，形成 acceptance。胶囊在 consume 前不能运行，consume 后只由原执行桥按同一 startId 推进。外部工具受理或请求交给受信外发桥的这一点是启动线性化点；不是远端效果已完成。绑定的 start/resume 封装这一过程，不能把 consume 与任意函数调用自由拼接。
 
@@ -858,7 +858,7 @@ ToolBindingRegistry 在当前 tenant、来源及登记资格下接受受信装�
 
 新配置须整体校验后才供后续采用，失败不发布半新半旧注册，保留此前仍合法的候选。FixedToolRequest.settings 指向原设置快照，和 definition/executor 一起用于执行、settle 与恢复；不再新增同义配置快照字段。原版本或秘密引用无法合法恢复时明确 unavailable，不能改取最新值继续。当前资格撤回仍约束受保护动作，旧快照不授永久许可。
 
-从 Tool 治理视角，作者提供定义及操作，Tool 提供类别校验、注册与合法装载。草稿发布、持有、所有权和合法候选选择继续由资产及装配拥有者提供输入，不要求 Tool 再造发布治理。文件写入不代表登记；撤登记只阻止后续采用，不表示在途调用取消或副作用回滚。Cordis 的贡献 effect、旧 token 条件撤除及在途能力交接归装配（`tool-host-local/docs/cordis.md#作者装载与贡献登记`）（[本增量未交付](../README.md#未交付标注)）。
+从 Tool 治理视角，作者提供定义及操作，Tool 提供类别校验、注册与合法装载。草稿发布、持有、所有权和合法候选选择继续由资产及装配拥有者提供输入，不要求 Tool 再造发布治理。文件写入不代表登记；撤登记只阻止后续采用，不表示在途调用取消或副作用回滚。Cordis 的贡献 effect、旧 token 条件撤除及在途能力交接归装配（`tool-host-local/docs/cordis.md#作者装载与贡献登记`）。
 
 ### P16 目录与发现的故障隔离
 
@@ -876,7 +876,7 @@ ToolRuntime 的持久操作不以前置 connect 成功为条件。目录或发�
 
 ToolHandle 绑定原实例及发布代次。目录提供者撤除使原观察流以 ended/unavailable 结束，原实例或贡献被替换以 stale-instance 结束；旧 handle 后续 observe 也不能读取或静默切到新代。connect 取得句柄到交回之间须核代次未失效。已交快照仍保留原版本意义，在途读取不得跨代拼接。这里需要提供者显式活性守卫，Cordis 不自动吊销任意 JS 引用。
 
-目录换代只使发布子 fiber 重建原实例的合法贡献，不重启 driver 或 executor，不重新 start/resume。Commands/Reads 自身的必需依赖失效仍可使相应门面不可用，这条隔离不承诺全域高可用。精确依赖和贡献撤除见 Cordis 装配（`tool-host-local/docs/cordis.md#阶段装配与换代`）（[本增量未交付](../README.md#未交付标注)）。
+目录换代只使发布子 fiber 重建原实例的合法贡献，不重启 driver 或 executor，不重新 start/resume。Commands/Reads 自身的必需依赖失效仍可使相应门面不可用，这条隔离不承诺全域高可用。精确依赖和贡献撤除见 Cordis 装配（`tool-host-local/docs/cordis.md#阶段装配与换代`）。
 
 <a id="code-与-tool-的组合协议"></a>
 

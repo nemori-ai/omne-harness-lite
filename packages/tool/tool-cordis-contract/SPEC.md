@@ -5,7 +5,7 @@
 本包必须保持下列性质：
 
 1. 每个服务键只由一个定义类的 `static provide` 给出，导出的键常量取自该类。
-2. `./cordis` 的源码、生成声明和产物都不导入 `@omne-harness/tool`（[本增量未交付](../README.md#未交付标注)） 或 `@omne-harness/tool-host-local`（[本增量未交付](../README.md#未交付标注)）。
+2. `./cordis` 的源码、生成声明和产物都不导入 `@omne-harness/tool` 或 `@omne-harness/tool-host-local`。
 3. 根入口不导出值，也不导入 Cordis。
 4. 事件名以包名为范围，为 `tool-cordis-contract/call-changed`（IC-10）。
 
