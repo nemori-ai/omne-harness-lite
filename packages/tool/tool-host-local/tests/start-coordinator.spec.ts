@@ -3,7 +3,7 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import { describe, expect, it } from 'vitest'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
-import type { StartPermit } from '@omne-harness/tool-contract'
+import type { StartGuard, StartPermit } from '@omne-harness/tool-contract'
 import { createLocalStartCoordinator } from '@omne-harness/tool-host-local'
 import {
   access,
@@ -154,6 +154,78 @@ describe('G5 the start ordering domain', () => {
     expect((await permitFor(other, 'c2')).guards).toMatchObject([{ revision: '0' }])
   })
 
+  it('G5 order: an applied invalidation with an unknown answer is recalled after reconstruction', async () => {
+    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const authority = coordinator(store)
+    store.injectCommit('unknown-applied')
+    expect(await authority.invalidate(invalidation('revoke-1'))).toEqual({
+      failure: { kind: 'commit-unknown', operation: operationId('revoke-1') },
+    })
+    const restored = coordinator(store)
+    const commits = store.commits
+    const recalled = ok(await restored.invalidate(invalidation('revoke-1')))
+    expect(recalled.revision).toBe('1')
+    expect(store.commits).toBe(commits)
+    expect((await permitFor(restored, 'c1')).guards).toMatchObject([{ revision: '1' }])
+  })
+
+  it('G5 identity: invalidation binds every guard field and ignores property order and extra fields', async () => {
+    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const authority = coordinator(store)
+    const original = invalidation('revoke-1')
+    const first = ok(await authority.invalidate(original))
+    const changed: readonly StartGuard[] = [
+      { ...original.guard, revision: '1' },
+      { ...original.guard, evidence: { ...original.guard.evidence, digest: 'another-digest' } },
+      { ...original.guard, scope: { kind: 'program', parent: callId('parent'), gate: 'open' } },
+    ]
+    const commits = store.commits
+    for (const guard of changed)
+      expect(await authority.invalidate({ ...original, guard })).toEqual({
+        failure: { kind: 'conflict', operation: original.operation },
+      })
+    const reordered = {
+      scope: original.guard.scope,
+      evidence: {
+        digest: original.guard.evidence.digest,
+        revision: original.guard.evidence.revision,
+        record: original.guard.evidence.record,
+        owner: original.guard.evidence.owner,
+      },
+      revision: original.guard.revision,
+      resource: original.guard.resource,
+      owner: original.guard.owner,
+      ignored: () => undefined,
+    }
+    expect(ok(await coordinator(store).invalidate({ ...original, guard: reordered }))).toEqual(
+      first,
+    )
+    expect(store.commits).toBe(commits)
+  })
+
+  it('G5 identity: an exclusion alias binds its reason and survives coordinator reconstruction', async () => {
+    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const authority = coordinator(store)
+    const original = { ...callAccess('c1'), operation: operationId('op-a'), reason: 'first' }
+    const first = ok(await authority.exclude(original))
+    const alias = { ...original, operation: operationId('op-b'), reason: 'second' }
+    expect(ok(await authority.exclude(alias))).toEqual(first)
+    const restored = coordinator(store)
+    const commits = store.commits
+    expect(ok(await restored.exclude(alias))).toEqual(first)
+    expect(await restored.exclude({ ...alias, reason: 'third' })).toEqual({
+      failure: { kind: 'conflict', operation: alias.operation },
+    })
+    expect(store.commits).toBe(commits)
+    expect(ok(await restored.exclude(original))).toEqual(first)
+    const permit = await permitFor(restored, 'c1')
+    expect(ok(await restored.consume(consumeWith(permit)))).toEqual({
+      kind: 'rejected',
+      reason: original.reason,
+      exclusion: first,
+    })
+  })
+
   it('G5 inspect: an undecided start is not-started only after its outstanding permit was withdrawn', async () => {
     const authority = coordinator(createMemoryToolLedgerStore<ContentBlock>())
     const stale = await permitFor(authority, 'c1')
@@ -224,6 +296,15 @@ describe('G5 the start ordering domain', () => {
           ...callAccess('c1'),
           operation: operationId('op-x'),
           reason: 'withdrawn',
+        }),
+      ),
+    ).toEqual(exclusion)
+    expect(
+      ok(
+        await authority.exclude({
+          ...callAccess('c1'),
+          operation: operationId('op-another'),
+          reason: 'another-reason',
         }),
       ),
     ).toEqual(exclusion)
@@ -299,6 +380,26 @@ describe('G5 tenants and qualification', () => {
         }),
       ).kind,
     ).toBe('started')
+  })
+
+  it('G5 tenant: the same invalidation operation can bind a different guard in another tenant', async () => {
+    const store = createMemoryToolLedgerStore<ContentBlock>()
+    const authority = coordinator(store)
+    const original = invalidation('revoke-1')
+    const first = ok(await authority.invalidate(original))
+    const other = {
+      ...original,
+      principal: principalB,
+      tenant: tenantB as never,
+      guard: { ...original.guard, resource: 'another-resource' },
+    }
+    const second = ok(await authority.invalidate(other))
+    expect(second).not.toEqual(first)
+    const restored = coordinator(store)
+    const commits = store.commits
+    expect(ok(await restored.invalidate(original))).toEqual(first)
+    expect(ok(await restored.invalidate(other))).toEqual(second)
+    expect(store.commits).toBe(commits)
   })
 
   it('G5 access: an unreadable qualification is unavailable, not an acceptance', async () => {
