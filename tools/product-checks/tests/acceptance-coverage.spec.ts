@@ -141,6 +141,23 @@ describe('覆盖声明：读仓库', () => {
     writeFileSync(join(root, path), text)
   }
 
+  it('真实读取完整 PD 身份与场景，合法验收无违反', () => {
+    const root = mkdtempSync(join(tmpdir(), 'coverage-'))
+    made.push(root)
+    write(root, 'product/model-invocation/README.md', '---\nid: PD-model-invocation\nrevision: 2\nstatus: accepted\n---\n')
+    write(root, 'product/model-invocation/design.md', '# Model\n')
+    write(root, 'product/model-invocation/acceptance.md', '| S1 | 一次调用 |\n')
+    write(root, 'packages/model/model/package.json', '{"scripts":{"acceptance":"vitest run"}}')
+    const path = 'packages/model/model/acceptance/PD-model-invocation.success.acceptance.ts'
+    write(root, path, '// covers: PD-model-invocation S1\nexport {};\n')
+    const result = inspectCoverage(root, 'product', config)
+    expect(result.topics.map(value => ({ topic: value.topic, scenarios: [...value.scenarios] }))).toEqual([
+      { topic: 'PD-model-invocation', scenarios: [['S1', [1]]] },
+    ])
+    expect(result.violations).toEqual([])
+    expect(result.declarations).toEqual([{ path, covers: [{ topic: 'PD-model-invocation', id: 'S1' }] }])
+  })
+
   it('只收成员根下 acceptance 目录里的 *.acceptance.ts，node_modules 与 dist 不进；场景从产品区读', () => {
     const root = mkdtempSync(join(tmpdir(), 'coverage-'))
     made.push(root)
