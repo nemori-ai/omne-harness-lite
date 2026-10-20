@@ -25,8 +25,9 @@
 在根执行 `pnpm run check` 或 `./scripts/check.sh`，两者等价。脚本也可通过绝对路径从其他目录调用。
 需要比较冻结基线时使用 `BASELINE=<git-ref> pnpm run check` 或
 `BASELINE=<git-ref> ./scripts/check.sh`；要全量用 `FULL=1 pnpm run check` 或 `FULL=1 ./scripts/check.sh`；脚本不接受位置参数。
-基线在脚本开头解析一次（没给就用 `origin/main`，本地没有这个引用就用 `main`）并导出为 `BASELINE`，
-影响面与最后的回路状态共用它。
+基线在脚本开头按统一规则解析一次（`BASELINE`，再取任务上下文固定的 `targetBase`，再取 `origin/main`，本地没有这个引用就取 `main`）并导出为 `BASELINE`，
+影响面与最后的回路状态共用它。规则由测试运行器的 `baseline` 命令给出，实现在 `@omne-harness/repo-toolchain` 的 `resolveBaseline`，`pnpm run check:plan`、`test:affected` 与 `mutation` 用同一个函数。
+已绑定任务的工作树只接受等于 `targetBase` 的显式基线：同步过目标分支以后，开工时的 `taskBase` 不再是合法的 `BASELINE`，传入会被拒绝，脚本这时只在标准错误写出原因并以 2 退出，什么也不运行。已绑定的树不必传基线。
 
 设置 `OMNE_SUBJECT_ROOT` 时，`format.sh` 的检查模式检查该目录所在的仓库，规则仍取脚本自己的检出。格式自测在自身入口清除 `OMNE_SUBJECT_ROOT` 与 `OMNE_RUNNER_ROOT`，保证 fixture 和 Git hook 检查自己的沙盒。
 

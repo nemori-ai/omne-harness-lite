@@ -2,7 +2,7 @@
 // 列出存活与无覆盖的变异体，读数写进主检出的 `tmp/mutation-ledger/`。
 // 只报告（负责人 2026-10-02 定）：变异体存活不影响退出码；Stryker 起不来、sandbox 预检没通过（#481）、初跑失败、
 // 没写出报告，或有变异体有用例覆盖却一条用例都没跑完（#405），才退出非零。
-import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
+import { resolveBaseline } from '@omne-harness/repo-toolchain/core/task-context'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -30,7 +30,7 @@ import { runStryker } from './stryker.ts'
 const USAGE = [
   '用法：',
   '  run [--base <ref> | --plan <计划文件> | --members <成员目录,…>] [--plan-only] [--root <检出根>] [--out <目录>]',
-  '      三者都不给时同 --base，基线取任务上下文的基线，再缺省 main',
+  '      三者都不给时同 --base，基线按统一规则取：--base，再取环境变量 BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main',
   '      --base 先按这个基线算计划（与 test-runner 的 plan 相同），变异合并点到工作树（含未提交、未跟踪）的改动',
   '      碰到的、计划里要跑测试的产品成员 src/ 下的源码行',
   '      --plan 读 test-runner 的 plan --json 写出的计划文件（准入检查用的那份），范围同 --base',
@@ -68,7 +68,7 @@ function scopeOf(root: string, flags: Flags): MutationScope {
         .map(path => path.trim().replace(/\/+$/u, ''))
         .filter(path => path !== ''),
     }
-  return { kind: 'base', base: baselines(root, flags.values.get('--base')).targetBase ?? 'main' }
+  return { kind: 'base', base: resolveBaseline(root, flags.values.get('--base')).targetBase }
 }
 
 function parseRun(argv: readonly string[]): MutationRequest {
