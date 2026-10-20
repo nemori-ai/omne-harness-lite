@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Cordis service definitions of Tool: abstract Services, keys, events and the instance directory",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {

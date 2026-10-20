@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Call-account snapshots, revision replacement, source subtotals, and payable amounts",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {

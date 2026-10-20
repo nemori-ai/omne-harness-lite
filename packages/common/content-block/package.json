@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Closed content blocks for text, thinking, voice, image, and file",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {

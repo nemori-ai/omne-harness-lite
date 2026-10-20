@@ -119,7 +119,7 @@ owner: PanQiWei
 | --- | --- | --- | --- |
 | 编译与构建改为 TypeScript 7，旧编程接口走兼容包 | [技术基础](../architecture/technical-foundations.md) 的编译行，源头是 RFC-0001 revision 4 | 已写回 | 2026-10-14 写入目标条款。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 切换：catalog 钉 TypeScript 7.0.2，`make declarations-check` 用 TypeScript 6 再检查对外 `.d.ts` |
 | 格式化改用 oxfmt | [开发指南](../development.md#格式化) | 已写回 | 2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 切换。`packages/` 与 `apps/` 暂不纳入，重排时间由源码包负责人另定。范围内的重排差异只有 dev tools 的 10 个文件，接受记录见 #310 |
-| 正确性检查用 oxlint | [开发指南](../development.md#通用静态检查)与[验证说明](../verification.md) | 已写回 | 2026-10-15 由 #310 接入。correctness 类对 `tools/`、`scripts/` 作门禁；`packages/`、`apps/` 暂只报告，与格式一起另定。测试风格规则只报告 |
+| 正确性检查用 oxlint | [开发指南](../development.md#通用静态检查)与[验证说明](../verification.md) | 已写回 | 2026-10-15 由 #310 接入，当时 correctness 类只对 `tools/`、`scripts/` 作门禁。之后提交 `fcaa185b3` 把 `packages/`、`apps/` 也纳入，现在 `lint:oxlint` 对这四个目录违反即失败（见[开发指南](../development.md#通用静态检查)）。测试风格规则只报告 |
 | 依赖方向与循环用 dependency-cruiser | 同上；方向规则的出处见[产品包组织](../package-organization.md#依赖方向与cordis集成) | 已写回 | 2026-10-15 由 #310 接入。无法解析的导入、文件级运行时循环、legacy 引用与能按成员路径表达的方向规则对全部目录作门禁，成员与组之间的环在同一张图上算；启用 `source` 条件，`dist` 保留不深入。ts-checks 的 `group-direction` 与自写成员图退役，clean loop 的硬线、新增跨成员依赖、`make metrics` 与架构报告都读这张图。dependency-cruiser 18 只支持 TypeScript 6 以下，经 `packageExtensions` 单独配 TypeScript 6.0.3。按角色判断的方向暂未表达 |
 | 无用依赖用 knip | 同上 | 已写回 | 2026-10-15 由 #310 接入，只报告 |
 | 通用工具优先、专有检查留下 | [质量与风险](../engineering/quality.md)。根 `AGENTS.md` 已有「复用成熟机制」，不另写工具名单 | 已写回 | 2026-10-14 写入 quality.md。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 接入 oxlint、dependency-cruiser 与 knip，见下面三行 |
