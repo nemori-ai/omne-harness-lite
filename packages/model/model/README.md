@@ -4,13 +4,13 @@
 
 ## Responsibility and status
 
-This member implements standalone execution, credential judgments, the runtime constructor, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
+This member implements standalone execution, credential judgments, admission and the first dispatch, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
 
 | Entry or capability | Current support |
 | --- | --- |
 | `executeModel` | One standalone execution through an injected transport, with cancellation and resource cleanup |
 | Credential judgment and `deliver` | Pure credential judgments. `deliver` delegates to the supplied resolver |
-| `createModelRuntime` | Construction and validation only. Its twelve managed operations return explicit `unavailable` |
+| `createModelRuntime` | Admission, inspection, dispatch records, cancellation intent, and the first prepared dispatch. Other managed operations remain unavailable |
 | `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports |
 | Durable Commands and production managed execution | Not implemented |
 | Cordis runtime host and vendor execution | Not implemented in this package |
@@ -19,7 +19,7 @@ This member implements standalone execution, credential judgments, the runtime c
 
 A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). `executeModel` and `createModelRuntime` are available from the root entry. The independent capability factories remain unimplemented.
 
-For memory testing, import `createTestModelDependencies` from `@omne-harness/model/testing`. Supply the explicit authority, evidence, owners, and finite limits described in the [testing API](docs/public-api.md#内存测试入口). The returned dependencies can construct the real runtime shell.
+For memory testing, import `createTestModelDependencies` from `@omne-harness/model/testing`. Supply the explicit authority, evidence, owners, and finite limits described in the [testing API](docs/public-api.md#内存测试入口). The returned dependencies can construct the real runtime.
 
 The memory test provider returns sealed and partial result parts with actual trim notices. Its explicit part-count and byte targets group whole parts. An oversized part has its own page. The complete page stays within the admitted capacity. See the [test entry](docs/public-api.md#内存测试入口).
 
@@ -34,6 +34,8 @@ The [design index](docs/index.md) covers architecture, flows, internal objects, 
 ## Configuration and operation
 
 The constructor takes Commands, the sending fence, the retry policy, the instance host, and the clock explicitly. The application selects and owns the adapters that it needs. It does not take business parameters from a global Context. The target run implementation does not depend on Cordis. The package manifest does not declare Cordis, proper-lockfile, or model-cordis-contract. The package exposes the root and the isolated `./testing` entry. It has no `./cordis` and no `./execute`. The command `pnpm --filter @omne-harness/model run install-closure` packs this member, installs it in isolation, resolves the entries, and runs a scenario. It writes a report to the path of `--out`. For the way to run it and its scope, see the [test description](tests/README.md#安装闭包). This page does not record run results. The package does not install all vendors or vocabularies automatically.
+
+The trusted host calls `provider.driver.drive` with a stable claim and continuity evidence. It prepares one dispatch without sending. Unknown prepare writes retain their original inputs within that provider instance. Cancellation records intent and its actual propagation state. Production scheduling, sending, result consumption, and cross-process recovery remain unimplemented.
 
 ## Verification
 

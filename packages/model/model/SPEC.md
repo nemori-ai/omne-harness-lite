@@ -1,6 +1,6 @@
 # Model 领域实现规格
 
-本包非 pi-ai 实现设计已接受，独立执行及凭据存在性与解析的判定已有实现，本地保管归 model-host-local，createModelRuntime 已实现仅构造壳，托管运行行为尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
+本包非 pi-ai 实现设计已接受，独立执行及凭据存在性与解析的判定已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图与首次分派，其他托管运行行为尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
 
 ## 独立执行
 
@@ -112,19 +112,27 @@ outputBatchBytes 与 outputBatchDelayMs 控制持久输出批次。未确认批�
 
 ## 当前构造支持与本地模拟
 
-根 createModelRuntime 校验五依赖的方法形状及全部七配置字段。缺项或错误类型抛 TypeError，数值非有限整数或超界抛 RangeError。构造不调用依赖，不绑定、排队或启动网络。当前十二个托管操作均正常 resolve 为 unavailable，dependency 为 model-runtime。它们不读取操作参数，不调用注入端口，不抛操作异常，也不返回成功。每次调用新建回复及内层 failure 对象，重复、并发及不同工厂实例之间不共享可变回复。本阶段不执行上文的托管业务流程。
+根 createModelRuntime 校验五依赖的方法形状及全部七配置字段。缺项或错误类型抛 TypeError，数值非有限整数或超界抛 RangeError。构造不调用依赖，不绑定、排队或启动网络。
 
-诊断为 `managed-runtime-not-implemented operation=<操作> stage=<阶段>`。操作和阶段均取固定字面量，不包含请求、身份或秘密。该文本供人阅读，不是解析协议。阶段只定位计划中的缺失能力，不表示运行状态或该阶段已交付。消费阶段 1.7 只指最小路径。
+calls.admit、inspect、dispatches、cancel 分别委托 Commands 的 admit、recall、dispatches、control。Commands 拥有当前资格、租户隔离、原 operation 认回及原子提交。受理和取消成功后调用 instances.schedule；排队失败不撤销已提交事实，后续恢复扫描仍须接续责任。未知提交原样返回，不能当作明确拒绝。取消只提交意图，返回实际 ControlState，不代表供应商已经停止。
 
-| 操作 | 阶段 |
+受控宿主显式调用 driver.drive，以稳定 claim operation、instance 和可信 continuity 取得原执行代次。driver 重新核当前 recovery 资格，查询全部未决操作，认回原 claim，再读取 recovery 与分派。已有分派、控制或终局时不创建新的首次分派。无分派时仅选固定请求的首供应商，保存一条 prepared 分派，不发送。operation 与 dispatch 使用 randomUUID 生成，再经共同 decoder 校验。
+
+未知 prepare 暂存完整原输入。重入必须保持原 claim、instance、continuity 及 generation，每次重新核权。权威 query 为 unknown 时停止，为 committed 时读回原分派，为未提交时只重放原 operation、expected、dispatch、supplier 和 policyDecision。明确拒绝结束本次尝试，下次推进重新核实后才可建立新尝试。无法核实的写保留责任。陌生未决操作没有原输入时返回明确 unavailable。并发同调用在当前核权后返回 busy unavailable，不借用其他主体的执行。
+
+各入口只投影其声明字段，外层附加值不进入快照。入参在首个 await 前固定普通业务值。已铸造 TenantId 与不透明 principal 保留原引用。调用者随后改写外层对象不改变当前操作或 schedule 的身份。停止 signal 只停止本地 drive，不能撤受理、取消业务或删除未知写。当前暂存仅存在于本 provider 实例，不提供跨进程丢失原 prepare 输入后的恢复保证。
+
+| 操作 | 当前支持及剩余阶段 |
 | --- | --- |
-| calls.admit、calls.inspect、calls.dispatches | 1.3 |
-| consumption.beginRead、consumption.readNext、consumption.closeRead、consumption.acknowledge | 1.7 |
-| instances.connect | 3.5 |
-| calls.cancel | 5.2 |
-| driver.drive | 5.3 |
-| recover | 5.4 |
-| quiesce | 5.5 |
+| calls.admit、calls.inspect、calls.dispatches、calls.cancel | 已实现受理、事实查询与取消意图 |
+| driver.drive | 已实现首次 prepared 分派；生产调度归 5.3 |
+| consumption.beginRead、consumption.acknowledge | 保留 operation 返回 invalid；其他输入 unavailable，业务归 1.7 |
+| consumption.readNext、consumption.closeRead | unavailable，1.7 |
+| instances.connect | 当前 unavailable；阶段一最小实例观察连接归 #456，完整生产宿主归 3.5 |
+| recover | unavailable，5.4 |
+| quiesce | unavailable，5.5 |
+
+未实现操作的 diagnostic 为 `managed-runtime-not-implemented operation=<操作> stage=<阶段>`，dependency 为 model-runtime。操作和阶段取固定字面量，不含请求、身份或秘密。诊断供人阅读，不是解析协议。每次未实现操作返回独立的回复与 failure 对象。
 
 独立 testing 入口的内存 Commands 实现共同协议的本地状态转换。每个公开方法同步形成候选，只有一个提交点发布调用事实与 operation 绑定。当前资格及执行通道在认回前重核。请求、owner 采用和 ActorRef 固定，P 不保存。待办和总预留从原责任派生，容量为整个装配共用的有限上界。
 

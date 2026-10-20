@@ -1,7 +1,7 @@
 <a id="model-实现公开入口候选"></a>
 # Model 实现公开入口
 
-本包已实现 executeModel、凭据判定与 createModelRuntime 构造壳。托管执行行为仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明；下方独立能力工厂仍是未实现设计。
+本包已实现 executeModel、凭据判定与 createModelRuntime 的受理、查询、取消意图与首次分派。其他托管行为仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明；下方独立能力工厂仍是未实现设计。
 
 ## 执行函数与构造
 
@@ -49,7 +49,7 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 | --- | --- |
 | `@omne-harness/model` | [index.ts](../src/index.ts) 导出 `deliver`、调用记录与发送回执类型，以及存在性与解析的判定函数 `judgeGate`、`judgePresence`、`judgeResolution` 和它们读取的状态快照类型 `CustodianState`、`Binding`、`BindingLife` |
 
-包导出根入口和独立 `./testing`，`@omne-harness/model/cordis` 与 `@omne-harness/model/execute` 不再解析。判定只读调用者传入的状态快照，不读文件，也不依赖保管实现。查询租户未经 legal-identity 铸造时，两个判定都返回 `denied`，先于其他判定；快照里有绑定的租户未经铸造时，本应给出工厂秘密的解析同样返回 `denied`。快照类型是判定对保管状态的显式依赖形状，从 model 根入口导出，不进任何契约包；`Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。[credential.ts](../src/credential.ts) 拥有判定与快照形状。调用记录与发送回执归 [deliver.ts](../src/deliver.ts)。行为承诺归 [SPEC](../SPEC.md#凭据引用与解析)。根入口还导出 createModelRuntime；它仅校验并构造对象，不证明完整模型调用已交付。
+包导出根入口和独立 `./testing`，`@omne-harness/model/cordis` 与 `@omne-harness/model/execute` 不再解析。判定只读调用者传入的状态快照，不读文件，也不依赖保管实现。查询租户未经 legal-identity 铸造时，两个判定都返回 `denied`，先于其他判定；快照里有绑定的租户未经铸造时，本应给出工厂秘密的解析同样返回 `denied`。快照类型是判定对保管状态的显式依赖形状，从 model 根入口导出，不进任何契约包；`Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。[credential.ts](../src/credential.ts) 拥有判定与快照形状。调用记录与发送回执归 [deliver.ts](../src/deliver.ts)。行为承诺归 [SPEC](../SPEC.md#凭据引用与解析)。根入口还导出 createModelRuntime；它支持受理及首次分派，不证明完整模型调用已交付。
 
 ## 内存测试入口
 
@@ -71,6 +71,17 @@ const provider = createModelRuntime(dependencies, {
 })
 ```
 
-上述数值只用于构造示例，不是生产默认。构造不调用依赖。provider 的 calls、consumption、instances.connect、recover、quiesce 和 driver.drive 均返回 unavailable，dependency 为 model-runtime。diagnostic 用固定操作名和阶段定位缺失能力，完整映射及失败保证见 [当前构造支持](../SPEC.md#当前构造支持与本地模拟)。诊断供人阅读，不是解析协议，也不表示托管操作已实现。普通 runtime 不暴露 driver。
+上述数值只用于构造示例，不是生产默认。构造不调用依赖。普通 runtime 提供 calls.admit、inspect、dispatches 与 cancel。受控宿主使用 provider.driver.drive，以原 claim 形成唯一首次 prepared 分派，不发送。beginRead 和 acknowledge 只拒绝保留 operation，其他合法输入仍 unavailable；readNext、closeRead、instances.connect、recover 与 quiesce 仍 unavailable。阶段一最小实例观察连接归 #456，完整生产宿主归 3.5。完整支持范围、原输入认回与限制见 [当前构造支持](../SPEC.md#当前构造支持与本地模拟)。普通 runtime 不暴露 driver。
 
-测试 limits.resultPageParts 限定每页结果项数，limits.resultPageTargetBytes 是规范 parts 数组 JSON 的 UTF-8 目标。完整 sealed/partial 项不拆分，超目标项独页；整个页不得超过原 capacity.bytes。消费者需容纳接近原容量的页。预算和本地有限上限见 [SPEC](../SPEC.md#当前构造支持与本地模拟)。生产工厂仍只构造，不据此声称运行分页已实现。unknown 控制按完整 tenant/call/operation/method 注入 applied 或 not-applied，揭示不能反转真实效果。适配器是受信、同步且不可重入的本地测试模型，不证明外部资格事务、耐久证据、跨进程排除或可靠消费。
+```ts
+declare const input: Parameters<typeof provider.runtime.calls.admit>[0]
+declare const driveInput: Parameters<typeof provider.driver.drive>[0]
+await provider.runtime.calls.admit(input)
+await provider.driver.drive(driveInput, new AbortController().signal)
+await provider.runtime.calls.inspect({ ...input, admission: input.operation })
+await provider.runtime.calls.dispatches(input)
+```
+
+宿主负责提供可信稳定的 driveInput，不从普通请求推导执行资格。取消 operation 必须不同于原 admission。停止 drive 不取消原调用。当前实现不提供生产池或跨进程恢复。
+
+测试 limits.resultPageParts 限定每页结果项数，limits.resultPageTargetBytes 是规范 parts 数组 JSON 的 UTF-8 目标。完整 sealed/partial 项不拆分，超目标项独页；整个页不得超过原 capacity.bytes。消费者需容纳接近原容量的页。预算和本地有限上限见 [SPEC](../SPEC.md#当前构造支持与本地模拟)。createModelRuntime 的读取、ACK 与运行分页尚未实现，内存测试算法不证明这些生产行为。unknown 控制按完整 tenant/call/operation/method 注入 applied 或 not-applied，揭示不能反转真实效果。适配器是受信、同步且不可重入的本地测试模型，不证明外部资格事务、耐久证据、跨进程排除或可靠消费。

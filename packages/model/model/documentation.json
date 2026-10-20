@@ -111,7 +111,12 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "runtime-support",
+          "anchor": "当前构造支持与本地模拟"
+        }
+      ]
     },
     {
       "id": "acceptance-readme",
@@ -476,7 +481,12 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "runtime-admission",
+          "anchor": "受理与首次分派"
+        }
+      ]
     },
     {
       "id": "tests-fixtures-readme",

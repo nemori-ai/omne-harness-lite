@@ -8,7 +8,7 @@
 - [独立发送接缝](deliver.ts)。
 - [独立执行与资源关闭](execute.ts)。
 
-- [运行工厂构造壳](runtime.ts)。
+- [受理与首次分派运行工厂](runtime.ts)、[首次驱动与未知 prepare 原参](driver.ts)。
 - [内存测试公开入口](testing/index.ts)。
 - [同步状态与提交](testing/state.ts)、[调用及恢复](testing/calls.ts)、[发出](testing/dispatch.ts)、[归约](testing/arrival.ts)、[读取及清理](testing/consumption.ts)。
 
