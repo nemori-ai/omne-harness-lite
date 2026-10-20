@@ -106,7 +106,7 @@ describe('the values that the conformance suite sends when the subject gives non
     expect(supplier.model).not.toBe('')
   })
 
-  it('names every adoption by an owner, a name, a revision and a digest that holds the name', async () => {
+  it('names every adoption by an owner, a name, a revision and a 64-character hexadecimal digest', async () => {
     const { request } = firstAdmission(await sent(subject => subject))
     for (const adoption of [
       request.profile,
@@ -117,7 +117,7 @@ describe('the values that the conformance suite sends when the subject gives non
     ]) {
       expect(adoption).toMatchObject({ owner: 'conformance', revision: '1' })
       expect(adoption?.name).not.toBe('')
-      expect(adoption?.digest).toBe(`digest-${adoption?.name}`)
+      expect(adoption?.digest).toMatch(/^[0-9a-f]{64}$/u)
     }
   })
 

@@ -26,10 +26,10 @@ pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/
 
 ## 按顺序学习
 
-1. [提交与查询](01-submit-and-query.ts)。用显式 principal、tenant、call 和 admission operation 调用 admit，先编码引用，再以该引用查询。Reply 先判 ok 或 failure，Lookup 再判 found 或 not-accepted。accepted 只是受理，发送次数为零。
+1. [提交与查询](01-submit-and-query.ts)。提交前先编码引用，再用 judgeAdmit 判断显式 principal、tenant、call、admission operation 及 payload，区分 ok 与 field/reason 失败。成功后调用 admit，随后以原引用 inspect。Reply 先判 ok 或 failure，Lookup 再判 found 或 not-accepted。accepted 只是受理，发送次数为零。
 2. [观察与收场](02-observe-and-settle.ts)。由受信宿主调用 driver，普通消费者 connect 到 live handle 并观察。首事件为 snapshot，后续 changed 只含确认后的内容和状态。inspect 的 found.state.phase 为 settled 时，读取原 Settlement。
 3. [输出限额](03-output-limit.ts)。传输提供实际 trim，终局保持 completed/limit。脚本打印的 `upstream trim` 是传输输入，**不是 runtime 结果读取返回的明细**。Snapshot 没有完整 trims；第五课通过公开消费取得实际 trims 并提交 processed ACK。内存 Commands 的实际保存另由行为测试验证。
-4. [输入超限](04-input-over-limit.ts)。drive 本地成功仍可形成 failed 业务终局。fault.cause 为 input-over-limit，reported 只保存上游给出的 metric、limit 和 actual，未报告值保持 null。不能重发同一输入或自动换供应商。消费者决定调整输入后，以新 call 和 admission 发起新调用。
+4. [输入超限](04-input-over-limit.ts)。先经 judgeFixedModelRequest 固定请求，解析预算通过不表示供应商 token/context 限额通过。drive 本地成功仍可形成 failed 业务终局。fault.cause 为 input-over-limit，reported 只保存上游给出的 metric、limit 和 actual，未报告值保持 null。不能重发同一输入或自动换供应商。消费者决定调整输入后，以新 call 和 admission 发起新调用。
 
 5. [读取与确认](05-read-and-acknowledge.ts)。按 started/acknowledged 区分结果，逐页处理 sealed/partial 和 trims，最后关闭读取。消费者保存完成事实后提交 processed ACK，重复同参数认回原回执。ACK 前保存 operation reference、原 result 和证据。恢复时解析该引用，commit-unknown 重入原 operation 和证据。输出包含 `read closed: ended`、原 ACK 身份、`pending` 清理状态及 `same ACK: true`。
 

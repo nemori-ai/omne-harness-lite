@@ -1,4 +1,5 @@
 import { invocationReference } from './values.ts'
+import { judgeAdmit, judgeFixedModelRequest } from '@omne-harness/model-contract'
 // A caller that has no Session, Run or Agent: it fixes a request, admits it under its own call and
 // operation, then looks it up, observes it, cancels it, reads its result and acknowledges it. It
 // imports only the public contract and the scripted provider that stands for whatever serves it.
@@ -74,7 +75,15 @@ async function nextObservation(iterator: AsyncIterator<Observation>): Promise<Ob
 
 async function admitsAndRecognisesTheRepeat(): Promise<void> {
   const world = newWorld()
-  const first = await world.admit('a')
+  const candidate = admission('a')
+  const fixed = must(judgeFixedModelRequest(candidate.request))
+  const checked = must(judgeAdmit({ ...candidate, request: fixed }))
+  expect(
+    checked.principal === candidate.principal && checked.tenant === candidate.tenant,
+    'access identity changed',
+  )
+  expect(Object.isFrozen(checked.request), 'request was not frozen')
+  const first = must(await world.calls.admit(checked))
   expect(first.call === call('a'), 'the admission names another call')
   expect(!first.recovered, 'a first admission was reported as recovered')
   const again = await world.admit('a')

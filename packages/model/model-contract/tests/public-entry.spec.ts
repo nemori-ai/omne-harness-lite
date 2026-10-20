@@ -4,6 +4,9 @@ it('the root entry exports exactly the landed runtime values', async () => {
   const root = (await import('@omne-harness/model-contract')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual(
     [
+      'MODEL_INPUT_LIMITS',
+      'judgeAdmit',
+      'judgeFixedModelRequest',
       'MODEL_REFERENCE_MAX_LENGTH',
       'encodeModelInvocationRef',
       'encodeModelOperationRef',

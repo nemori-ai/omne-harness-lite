@@ -272,7 +272,8 @@ describe('the scene helpers of the conformance kit', () => {
   it('makes a request that differs from the given one in its source only', () => {
     const changed = variantOf(DEFAULT_REQUEST)
     expect(changed).not.toEqual(DEFAULT_REQUEST)
-    expect(changed.source.digest).toBe(`${DEFAULT_REQUEST.source.digest}-variant`)
+    expect(changed.source.digest).not.toBe(DEFAULT_REQUEST.source.digest)
+    expect(changed.source.digest).toMatch(/^[0-9a-f]{64}$/u)
     expect({ ...changed, source: DEFAULT_REQUEST.source }).toEqual(DEFAULT_REQUEST)
     expect(changed.source.owner).toBe(DEFAULT_REQUEST.source.owner)
   })

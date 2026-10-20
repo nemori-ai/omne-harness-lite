@@ -1,3 +1,4 @@
+import { judgeAdmit } from '@omne-harness/model-contract'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { referenceFailure } from './reference.ts'
 import { createModelDriver } from './driver.ts'
@@ -139,12 +140,13 @@ export function createModelRuntime<P>(
   return {
     runtime: {
       calls: {
-        admit: async ({ principal, tenant, call, operation, request, consumer, capacity }) => {
-          const input = {
-            principal,
-            tenant,
-            ...structuredClone({ call, operation, request, consumer, capacity }),
-          }
+        admit: async raw => {
+          const checked = judgeAdmit(raw)
+          if ('failure' in checked)
+            return checked.failure.field === '/tenant' && checked.failure.reason === 'identity'
+              ? { failure: { kind: 'denied', action: 'tenant' } }
+              : { failure: { kind: 'invalid', ...checked.failure } }
+          const input = checked.ok
           const result = await commands.admit(input)
           if ('ok' in result) await wake({ tenant: input.tenant, call: input.call })
           return result

@@ -1,3 +1,4 @@
+import { judgeAdmit } from '../judge-request.ts'
 import { referenceRejected } from './reference.ts'
 import type { ModelReferenceAccess } from '../root.ts'
 import { encodeModelInvocationRef, resolveModelInvocationRef } from '../reference.ts'
@@ -58,7 +59,13 @@ function newRecord<P>(
 }
 
 export function createCalls<P>(core: Core<P>): ModelCalls<P> {
-  async function admit(input: Admit<P>): Reply<Admission> {
+  async function admit(raw: Admit<P>): Reply<Admission> {
+    const checked = judgeAdmit(raw)
+    if ('failure' in checked)
+      return checked.failure.field === '/tenant' && checked.failure.reason === 'identity'
+        ? denied('tenant')
+        : fail({ kind: 'invalid', ...checked.failure })
+    const input = checked.ok
     if (isReserved(input.operation)) return reservedOperation('operation')
     const target = resolve(core, input, 'admit')
     if (target === null) return denied('admit')

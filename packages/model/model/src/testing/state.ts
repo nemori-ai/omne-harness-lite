@@ -1,6 +1,6 @@
 import type { CredentialSelection, SendCoordinator, SendStart } from '../send.ts'
 import type { MemorySendSource } from './types.ts'
-import { validateRequest } from './request.ts'
+import { judgeFixedModelRequest } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeModelCallId,
@@ -532,8 +532,8 @@ export class MemoryState<P> {
       if (call.state.control.kind !== 'none' || call.state.phase === 'settled')
         return invalid('call', 'send-no-longer-valid')
     }
-    const requestFailure = validateRequest(input.request)
-    if (requestFailure) return requestFailure
+    const checked = judgeFixedModelRequest(input.request)
+    if ('failure' in checked) return invalid(checked.failure.field, checked.failure.reason)
     if (
       digest(input.request) !== call.requestDigest ||
       digest(input.consumer) !== digest(call.state.consumer) ||

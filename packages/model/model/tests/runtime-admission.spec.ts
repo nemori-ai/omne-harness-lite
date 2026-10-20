@@ -44,7 +44,7 @@ function preparedReceipt(
     expect(result.failure).toMatchObject({ kind: 'unavailable', dependency: 'model-send' })
 }
 
-it('ignores extra caller callbacks while preserving identity through admission and first dispatch', async () => {
+it('rejects extra admit fields and preserves opaque identity on the closed input', async () => {
   const f = assembled()
   const principal = { ...f.principal, proof: () => true }
   const authorize = f.options.authority.authorize
@@ -58,7 +58,12 @@ it('ignores extra caller callbacks while preserving identity through admission a
     })
   const caller = { ...f.admit, principal, onProgress: () => undefined }
   const admission: Parameters<typeof f.provider.runtime.calls.admit>[0] = caller
-  expect(unbox(await f.provider.runtime.calls.admit(admission)).call).toBe(f.admit.call)
+  expect(await f.provider.runtime.calls.admit(admission)).toEqual({
+    failure: { kind: 'invalid', field: '', reason: 'unknown-field' },
+  })
+  expect(unbox(await f.provider.runtime.calls.admit({ ...f.admit, principal })).call).toBe(
+    f.admit.call,
+  )
   const inspection = { ...caller, reference: f.reference }
   const inspect: Parameters<typeof f.provider.runtime.calls.inspect>[0] = inspection
   expect(await f.provider.runtime.calls.inspect(inspect)).toMatchObject({ ok: { kind: 'found' } })

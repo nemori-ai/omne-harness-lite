@@ -44,3 +44,6 @@ export {
   resolveModelInvocationRef,
   resolveModelOperationRef,
 } from './reference.ts'
+
+export type { ModelAdmitCandidate, ModelInputRejection } from './judge-request.ts'
+export { judgeFixedModelRequest, judgeAdmit, MODEL_INPUT_LIMITS } from './judge-request.ts'

@@ -18,6 +18,8 @@ This member implements standalone execution, credential judgments, admission, st
 
 ## Usage
 
+Admission uses the shared `judgeAdmit` synchronously before queuing. It rejects malformed input without allocating a call or capacity. The [input contract](../model-contract/SPEC.md#封闭输入判断) defines frozen payload, preserved access identity and parser limits. Lesson 01 teaches admission judging. Lesson 04 passes the pure request judge before a supplier reports input-over-limit.
+
 A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). `executeModel`, `createModelRuntime`, and `createModelSendBoundary` are available from the root entry. The independent capability factories remain unimplemented.
 
 For memory testing, import `createTestModelDependencies` from `@omne-harness/model/testing`. Supply the explicit authority, evidence, owners, and finite limits described in the [testing API](docs/public-api.md#内存测试入口). The returned dependencies can construct the real runtime.

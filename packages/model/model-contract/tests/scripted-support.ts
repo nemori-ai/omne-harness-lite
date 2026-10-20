@@ -73,7 +73,7 @@ const adoption = (name: string): Adoption => ({
   owner: 'test',
   name,
   revision: '1',
-  digest: `digest-${name}`,
+  digest: '0'.repeat(64),
 })
 
 const supplier: Supplier = {

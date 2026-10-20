@@ -216,7 +216,7 @@ describe('an input that names no call the principal may use', () => {
     expect(
       deniedAs(
         await scripted.provider.runtime.calls.admit(admission('a', { tenant: forged })),
-        'admit',
+        'tenant',
       ),
     ).toBe(true)
   })

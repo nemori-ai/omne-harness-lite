@@ -18,6 +18,8 @@
 
 ## 使用
 
+受理在排队前同步复用 judgeAdmit，畸形输入不会建立调用或预留容量。[输入契约](../model-contract/SPEC.md#封闭输入判断)规定冻结副本、资格对象同一性和解析限制。第一课教受理判断；第四课先通过纯请求判断，再真实驱动供应商 input-over-limit。
+
 选择本实现的独立程序与宿主从[消费与构造](docs/context.md)进入。executeModel、createModelRuntime 及构造参数的设计已接受，精确形状见[公开接口设计](docs/public-api.md)，executeModel、createModelRuntime 与 createModelSendBoundary 已从根入口导出；独立能力工厂仍未实现。
 
 内存测试从 `@omne-harness/model/testing` 导入 createTestModelDependencies。显式配置、authority、evidence 和 owner 的用法见[测试入口](docs/public-api.md#内存测试入口)。返回的五依赖可构造真实 runtime 壳。

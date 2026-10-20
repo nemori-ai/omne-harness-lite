@@ -652,13 +652,15 @@ describe('recognising an operation', () => {
       kind: 'invalid',
       field,
       reason:
-        method === 'inspect'
-          ? 'reference-reserved'
-          : 'operation values that start with -- are reserved',
+        method === 'admit'
+          ? 'reserved'
+          : method === 'inspect'
+            ? 'reference-reserved'
+            : 'operation values that start with -- are reserved',
     })
   }
 
-  it('refuses a reserved operation on admit', () => refusesReserved('admit', 'operation'))
+  it('refuses a reserved operation on admit', () => refusesReserved('admit', '/operation'))
   it('refuses a reserved operation on inspect', () => refusesReserved('inspect', 'reference'))
   it('refuses a reserved operation on cancel', () => refusesReserved('cancel', 'operation'))
   it('refuses a reserved operation on beginRead', () => refusesReserved('beginRead', 'operation'))
@@ -736,7 +738,7 @@ describe('who may see a call', () => {
     const forged = { ...tenantA }
     expect(
       failureOf(await scripted.provider.runtime.calls.admit(admission('a', { tenant: forged }))),
-    ).toEqual({ kind: 'denied', action: 'admit' })
+    ).toEqual({ kind: 'denied', action: 'tenant' })
     expect(
       failureOf(await scripted.provider.recover({ principal: alice, tenant: forged })),
     ).toEqual({

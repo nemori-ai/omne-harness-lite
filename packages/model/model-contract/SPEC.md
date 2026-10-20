@@ -51,7 +51,7 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 1. 发起者提供合法主体与租户范围、稳定调用身份、用途、当前消费者和原消费位置。Model 只要求不透明的 `ConsumerRef`，不创建原工作。
 2. 实际采用档案、参数、系统提示词、组装内容、工具声明和访问依据须可解释或准确还原。临时句柄不能替代调用身份，当前档案不能覆盖原采用值。
-3. 发出前固定合法最终输入，校验参数、模态、凭据、操作资格、接收方和数据传送目的。最终校验不能省掉模型前扩展改写后的复核，也不能再次执行同次扩展。Model 在准备与发送路径上不计量输入，也不检查输入大小。请求组装方在请求前判断并完成压缩。上游事后拒绝输入时，按[故障交接](#故障交接)上报。
+3. 发出前固定合法最终输入，校验参数、模态、凭据、操作资格、接收方和数据传送目的。最终校验不能省掉模型前扩展改写后的复核，也不能再次执行同次扩展。Model 在准备与发送路径上不重复计量供应商 token/context 或媒体输入大小；共同封闭判断的解析资源预算仍执行。请求组装方在请求前判断并完成压缩。上游事后拒绝输入时，按[故障交接](#故障交接)上报。
 4. 参数由统一含义交适配器处理。上游不支持某项时明确留下不支持及实际采用情况，不能静默丢弃、假称已应用或私自改到另一档案。精确参数集合和不支持时的接口结果须由参数拥有者设计。
 5. 首内容前重试仍须满足本次真实接收方和当前授权条件。原请求快照不是后续供应商外传的永久许可；资格失效时不能以恢复为由取得旧权力。
 6. 缺必要来源、档案声明或凭据时，说明具体失败且不发。读取暂时不可用与不存在分开。提交结果未知保留原身份核实，不能换新调用掩盖不确定。
@@ -217,6 +217,22 @@ Model 不执行工具建议，不决定原工作的终态，不重新运行扩�
 
 `argumentsSchema` 是工具声明采用的 JSON Schema 文档，draft 和词汇由其 adoption 指定。Model 检查当前 adapter 能否准确传送，Tool 负责实际参数准入。`JsonValue` 使用现有 lossless JSON 表示，数字为 lexeme，不是 `Record<string, unknown>`。`Message` 的合法形状不证明其中工具结果已获准外传；当前数据来源、内容读取、实际接收方及用途另核。
 
+### 封闭输入判断
+
+本节沿 [#549 技术采用](https://github.com/nemori-ai/omne-harness-lite/issues/549#issuecomment-6293911043)及[实施前温度诊断补充](https://github.com/nemori-ai/omne-harness-lite/issues/549#issuecomment-6294780855)。公开形状与原因集合只在 [judge-request.ts](src/judge-request.ts)声明。
+
+judgeFixedModelRequest 接收 unknown；judgeAdmit 接收 typed Access 加 call、operation、request、consumer、capacity 五个 unknown 字段。泛型不把任意输入铸造成可信身份。两者同步捕获 own enumerable data descriptors，在解构、spread、structuredClone、await 或排队前完成。admit 根恰好七字段，P 不遍历、不复制、不序列化、不冻结，tenant 用身份拥有者核铸造并保持同一对象。成功根浅冻结，五个 payload 独立复制并深冻结。调用方原输入不冻结。
+
+副本只接收普通记录（Object.prototype/null 原型）、普通稠密数组及领域允许的原始值。访问器、非枚举、symbol key、稀疏或额外数组字段、非法原型、循环、函数、undefined、symbol、bigint 与二进制对象均拒绝。不会调用 getter 或 toJSON。只捕获输入反射异常为 unreadable，不捕获内部缺陷。Proxy 的反射 trap 可能执行或伪造结果；不能保证中止恶意 trap，也不能限制引擎生成 ownKeys 数组的成本。
+
+全图共用 MODEL_INPUT_LIMITS。上限分别为 100000 值节点、64 容器深度、8388608 单字符串 UTF-16 码元、16777216 字段名与值字符串累计码元、16384 单数组项、64 单记录字段、128 单字段名码元。等于上限可进入后续形状判断，超一单位分别为 budget-nodes/depth/string/strings/array/members/key。根容器深度为1，叶值计节点，数组 length 不计节点或字段。共享 DAG 按每次出现复制、计数，祖先重入为 cycle。admit 根计一个容器；P、tenant 及其两字段名不计 payload 预算，其余五个字段名参与累计。深度和累计预算在分配子结构前检查。它们是解析资源政策，不是供应商 token/context 限额，也不提供实测内存或时延保证。
+
+安全副本和预算先于封闭业务判断。请求恰好十二字段；Adoption、Supplier、credential、Parameter、ParameterAdoption/origin、ToolDeclaration/toolChoice、ConsumerRef、ResultCapacity 均按分支封闭且字段必需。不静默删除未知字段。Adoption 的 owner/name/revision 非空、digest 为64位小写hex；供应商完整值不得重复；工具名非空且唯一，具名选择必须已声明。ConsumerRef 四字段非空，容量使用规范十进制且 bytes/blocks 为正。ContentBlock、Message/Part、lossless JsonValue 复用各自领域 judge，不读取引用内容或凭据秘密。
+
+纯失败只带 field/reason。field 为只含已知字段与索引的 JSON Pointer，根为空字符串；未知键、symbol、超长键定位父对象，不回显键、值或 trap 异常。通用副本可定位最近已知拥有者入口。温度2.1固定返回 `/parameters/0/value`+range；admit 加 `/request` 前缀。未铸造 tenant 为 `/tenant`+identity；runtime、直接 Memory Commands 与 contract testing 将其映射 denied/tenant，其余映射 invalid 并保留 field/reason。
+
+这些受理入口在查询账本、容量预留、调度或发送前复用同一 judge。畸形重放先 invalid；合法同身份异固定输入仍由原账本返回 conflict，原身份同输入仍返回原 recovered/reference。结构通过不证明当前资格、采用、登记或可用容量。sendBinding 复用独立请求 judge，并保留原 request digest 核对。原 validateRequest 规则退出。
+
 ### 可保存调用引用
 
 本节由 [#549 技术采用](https://github.com/nemori-ai/omne-harness-lite/issues/549#issuecomment-6293911043)采用。公开声明和六个纯函数归 [reference.ts](src/reference.ts)。`ModelInvocationRef` 与 `ModelOperationRef` 是独立品牌字符串，只负责定位，不证明存在或授予资格。
@@ -340,11 +356,11 @@ schedule 按原 call 去重，不能自行取得执行代次。recover 核实原
 
 `ModelOperationId` 的唯一性范围是租户：同一租户内调用方与提供者共用 operation 空间。调用身份在租户内唯一。主体以 `--` 开头的 `ModelOperationId` 保留给守卫派生的控制 operation，只由 `deriveGuardControlOperation` 产生。调用方与提供者的生成器都不得产生这种主体，这是铸造方的义务，不是被拒后重铸。提供者铸造的 operation（策略 operation、claim operation、`DispatchRecord.intent`、`WriteContext.operation`、清理推进）使用不少于 128 位熵的生成器，例如 ULID 或 UUIDv4/v7，并在受理新 operation 时按（租户，operation）唯一条件提交：撞号返回 conflict，不覆盖。调用方的熵由调用方承担，撞号同样得到 conflict。
 
-`./testing` 入口提供受控替代提供者与替代传输，声明见[公开页](docs/public-api.md#受控替代提供者)。替代提供者按本节的认回与幂等规则工作，其余结果由测试脚本给出，不核验证据与请求，不保存耐久状态。脚本给出的 `not-committed` 不是 Storage 的完整排除证明，脚本给出的任何结果都不是生产提供者的证明。
+`./testing` 入口提供受控替代提供者与替代传输，声明见[公开页](docs/public-api.md#受控替代提供者)。替代提供者按本节的认回与幂等规则工作，受理结构由共同 judge 判断，其余结果由测试脚本给出，不核验证据的真实外部事实，不保存耐久状态。脚本给出的 `not-committed` 不是 Storage 的完整排除证明，脚本给出的任何结果都不是生产提供者的证明。
 
 同一入口提供提供者符合性断言：对一个被测方，按本章与前面各章在公开面上可观察的义务逐条检查，报告每条义务通过、失败或不适用，声明与义务清单见[公开页](docs/public-api.md#符合性断言)。需要装配方才能做的准备（让调用收场、给出耐久证据、撤除或替换实例、撤销资格）由被测方的可选钩子提供，缺钩子、缺传输，或结果只有一页而无法检查读取的义务（`read-page-stable-for-same-after`、`acknowledge-keeps-open-read-readable`、`revoked-reader-gets-no-page`）报告不适用，不算通过。`waitMs` 是套件对被测方每一次等待的上限，超时只让当条义务失败；工厂或释放失败同样只让当条失败，其余义务照常检查。受控替代提供者通过全部义务。本章没有给出失败 kind 或判据的地方，套件只做较弱但确定的断言，不替契约定 kind：跨租户与不存在的失败形态，提前确认与伪证据的失败 kind，已开始读取的期限，观察者落后时的结束原因，重复 materialize 与 start 的形态，媒体读取器的注入方式，`quiesce` 之后受理的失败 kind，取消后 `upstream` 的初值，同一 operation 跨方法复用的失败 kind，首内容前断流的故障原因。套件没有让替代传输以上游拒绝收场并观察重试的入口，因此不检查「上游超限以 `input-over-limit` 收场且不重试」。这些缺口待契约拥有者补全，补全后再收紧断言。另有两处判据明确但公开面看不到，同样只做较弱断言：已收场调用的终局经深接缝被覆盖，以及取消后收场的终局值（它由套件经钩子给出）。
 
-Model 公开面上接受调用方提交的 `ModelOperationId` 的每个方法，在收到保留值时返回 invalid。字段名取该方法输入里承载 operation 的字段：多数方法是 `operation`，`inspect` 与认回入口是 `admission`。唯一例外是 `ModelCalls.cancel` 及其落到的 `ModelCommands.control`：保留值等于目标调用的派生值，且派生控制已经存在时，认回原控制。派生控制存在后，派生值用于其他方法仍返回 invalid，不返回 conflict，因为调用方从未提交过这个 operation。外部实现的端口（例如 `ModelRetryPolicy` 收到的 `position.operation`）收到的是 Model 已核过的值，不另作拒收要求。
+Model 公开面上接受调用方提交的 `ModelOperationId` 的每个方法，在收到保留值时返回 invalid。admit 的封闭输入诊断使用 `/operation`。其余方法保持原字段名：多数是 `operation`，认回入口是 `admission`；inspect 使用引用拒绝的 `reference`。唯一例外是 `ModelCalls.cancel` 及其落到的 `ModelCommands.control`：保留值等于目标调用的派生值，且派生控制已经存在时，认回原控制。派生控制存在后，派生值用于其他方法仍返回 invalid，不返回 conflict，因为调用方从未提交过这个 operation。外部实现的端口（例如 `ModelRetryPolicy` 收到的 `position.operation`）收到的是 Model 已核过的值，不另作拒收要求。
 
 <a id="342-参数与注入的裁定"></a>
 

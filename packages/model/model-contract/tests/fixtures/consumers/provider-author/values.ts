@@ -20,7 +20,7 @@ export const adoption = (name: string): Adoption => ({
   owner: 'author',
   name,
   revision: '1',
-  digest: `digest-${name}`,
+  digest: '0'.repeat(64),
 })
 
 export const supplier: Supplier = {

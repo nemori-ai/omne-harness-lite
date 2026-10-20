@@ -1,4 +1,4 @@
-import { encodeModelInvocationRef } from '@omne-harness/model-contract'
+import { encodeModelInvocationRef, judgeAdmit } from '@omne-harness/model-contract'
 import { createModelRuntime } from '@omne-harness/model'
 import { configuration, createExampleAssembly, operation } from '../tests/example-support.ts'
 
@@ -19,7 +19,9 @@ const encoded = encodeModelInvocationRef({
 if ('failure' in encoded) throw new Error(`Reference failed: ${encoded.failure.reason}`)
 const reference = encoded.ok
 try {
-  const reply = await runtime.calls.admit({
+  // This pure check returns a fixed payload or { failure: { field, reason } }.
+  // It preserves the current opaque principal and minted tenant. It grants no authority.
+  const checked = judgeAdmit({
     ...example.access,
     call: example.call,
     operation: admission,
@@ -27,6 +29,9 @@ try {
     consumer: example.consumer,
     capacity: example.capacity,
   })
+  if ('failure' in checked)
+    throw new Error(`Input rejected: ${checked.failure.field} ${checked.failure.reason}`)
+  const reply = await runtime.calls.admit(checked.ok)
   // Reply<T> is { ok: T } or { failure: ModelFailure }. Never treat a failure as admission.
   if ('failure' in reply) throw new Error(`Admission failed: ${JSON.stringify(reply.failure)}`)
   console.log('admission:', reply.ok.recovered ? 'recovered' : 'accepted')

@@ -8,6 +8,11 @@
         {
           "title": "根入口的值与请求",
           "names": [
+            { "name": "ModelAdmitCandidate", "kind": "type", "pending": false },
+            { "name": "ModelInputRejection", "kind": "type", "pending": false },
+            { "name": "MODEL_INPUT_LIMITS", "kind": "value", "pending": false },
+            { "name": "judgeFixedModelRequest", "kind": "value", "pending": false },
+            { "name": "judgeAdmit", "kind": "value", "pending": false },
             { "name": "ModelInvocationRef", "kind": "type", "pending": false },
             { "name": "ModelOperationRef", "kind": "type", "pending": false },
             { "name": "ModelInvocationParts", "kind": "type", "pending": false },

@@ -1,4 +1,4 @@
-import { encodeModelInvocationRef } from '@omne-harness/model-contract'
+import { encodeModelInvocationRef, judgeFixedModelRequest } from '@omne-harness/model-contract'
 import { createModelRuntime } from '@omne-harness/model'
 import { configuration, createExampleAssembly, operation } from '../tests/example-support.ts'
 
@@ -26,11 +26,16 @@ const encoded = encodeModelInvocationRef({
 if ('failure' in encoded) throw new Error(`Reference failed: ${encoded.failure.reason}`)
 const reference = encoded.ok
 try {
+  // The pure judge checks closed structure and finite parser budgets, not supplier tokens.
+  // Success fixes a private frozen copy. A supplier can still reject its context size.
+  const checked = judgeFixedModelRequest(example.request)
+  if ('failure' in checked)
+    throw new Error(`Input rejected: ${checked.failure.field} ${checked.failure.reason}`)
   const admitted = await provider.runtime.calls.admit({
     ...example.access,
     call: example.call,
     operation: admission,
-    request: example.request,
+    request: checked.ok,
     consumer: example.consumer,
     capacity: example.capacity,
   })

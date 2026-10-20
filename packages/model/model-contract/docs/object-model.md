@@ -28,6 +28,8 @@ Model 的对象分三组。长期配置与请求值描述档案、固定请求�
     拒绝：返回具体失败，不发（参数、模态或档案不满足）。输入大小不在此检查
     未知：来源或资源不可用时返回 unavailable。不当作空历史放行
 
+调用方 先以 judgeAdmit 判断 typed Access 和未知 payload，失败 field/reason 归 SPEC 的封闭输入判断。成功保留 P/tenant，同步固定独立 payload。
+
 调用方 受理 ModelCalls.admit（call、operation、固定请求、ConsumerRef、结果容量）
     成功：返回原受理。原调用与容量同提交成立。受理不表示供应商已收到
     拒绝：denied(action='admit')（原工作资格失效，不披露原工作是否存在）
