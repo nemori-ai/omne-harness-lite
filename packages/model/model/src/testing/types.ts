@@ -95,6 +95,7 @@ export type MemoryModelLimits = Readonly<{
   readIdleMs: number
   capacity: ResultCapacity
 }>
+export type ResultPaging = Pick<MemoryModelLimits, 'resultPageParts' | 'resultPageTargetBytes'>
 export type MemoryModelCommandsOptions<P> = Readonly<{
   owners: readonly ModelConsumerOwnerDeclaration[]
   authority: MemoryModelAuthority<P>
@@ -127,6 +128,7 @@ export type UnknownInjection = Pick<ExecutionRef, 'tenant' | 'call'> &
     effect: 'applied' | 'not-applied'
   }>
 export interface MemoryModelControl {
+  configureResultPaging(input: Pick<ExecutionRef, 'tenant' | 'call'> & ResultPaging): void
   injectUnknown(input: UnknownInjection): void
   reveal(
     input: Pick<UnknownInjection, 'tenant' | 'call' | 'operation'> &
@@ -137,3 +139,25 @@ export interface MemoryModelControl {
     input: Pick<ExecutionRef, 'tenant' | 'call'> & Readonly<{ diagnostic: string | null }>,
   ): void
 }
+
+/** Explicit trusted assembly registration. current runs inside MemoryState's synchronous fence. */
+export type MemorySendSource<P> = Readonly<{
+  profile: Adoption
+  supplier: Adoption
+  recipient: string
+  model: string
+  credential:
+    | Readonly<{ kind: 'tenant' }>
+    | Readonly<{
+        kind: 'factory'
+        official: true
+        queryId: import('@omne-harness/model-contract').CredentialId
+      }>
+  current(input: import('@omne-harness/model-contract').SendDemand<P>): Outcome<
+    Readonly<{
+      authorized: boolean
+      noTenantBinding: boolean
+    }>,
+    ModelFailure
+  >
+}>

@@ -86,6 +86,7 @@ export function materialBytes(call: MemoryCall): bigint {
     initiator: call.initiator,
     owner: call.owner,
     capacity: call.capacity,
+    resultPaging: call.resultPaging,
     state: {
       ...call.state,
       phase: 'settled',
@@ -120,6 +121,12 @@ export function materialBytes(call: MemoryCall): bigint {
   )
   return BigInt(
     stored +
+      // Reserve the entire bounded configuration from admission, including keys and wrapping.
+      encodedBytes({
+        resultPageParts: Number.MAX_SAFE_INTEGER,
+        resultPageTargetBytes: Number.MAX_SAFE_INTEGER,
+      }) -
+      encodedBytes(call.resultPaging) +
       terminalReserve +
       receiveReserve(call) +
       Math.max(0, MAX_SETTLEMENT_BYTES - encodedBytes(settlement)) +

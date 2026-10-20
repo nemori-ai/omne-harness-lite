@@ -79,6 +79,8 @@ ResultPart 与 ResultTrim 的定义见 [call-surface.ts](../src/call-surface.ts)
 - 声明：[`src/provider.ts`](../src/provider.ts)。
 - 类型探针：[`tests/provider.spec-d.ts`](../tests/provider.spec-d.ts)。
 
+ModelSendBoundary 的 started 结果同时包含已确认的原 window 和唯一 facts 流。消费者将返回的 window 用于 preserve；Commands 仍核原调用、执行、分派与租户绑定。未知记录认回沿 [接收窗口行为](../SPEC.md#342-重试失联与恢复)，不再次 start。
+
 ToolDeclaration 是 Model 的请求值，只表达名称、已组装说明和参数 JSON Schema。请求组装者负责从工具定义形成该值并保存原工具及命令路由，Model 不读取 ToolDefinition、programmable 或工具注册表。ModelToolPayloadAdapter 将该请求值转换为供应商私有 payload。工具调用输出采用 [共享 ToolCallPart](../../../common/message/docs/public-api.md)，不复制消息关联身份。
 
 ModelMediaReader 只在实际发送阶段读取模型可见的内容 ref；附件地址文本不触发读取。prepare 不预载二进制；materialize 在本次发送准备阶段完成读取与完整性检查，不计量，MaterializedTransport.start 在最终资格围栏内立即发送。原来源、取消、失败和租约规则归 [工具声明转换与内容引用加载](../SPEC.md#工具定义转换与内容引用加载)。这两个接缝由发送提供者注入，不增加工具执行通路。
