@@ -10,7 +10,12 @@ it('assembly reads a definition and an extension list from the public entry', as
     attributes: [],
   })
   const extensions = await judgeLoopExtensions([
-    { name: 'format', position: 'before_model_call', power: 'observe' },
+    {
+      name: 'format',
+      position: 'before_model_call',
+      power: 'observe',
+      implementation: { kind: 'builtin', builtinName: 'format' },
+    },
   ])
   expect(definition).toMatchObject({
     kind: 'accepted',
@@ -22,6 +27,13 @@ it('assembly reads a definition and an extension list from the public entry', as
   })
   expect(extensions).toEqual({
     kind: 'accepted',
-    value: [{ name: 'format', position: 'before_model_call', power: 'observe' }],
+    value: [
+      {
+        name: 'format',
+        position: 'before_model_call',
+        power: 'observe',
+        implementation: { kind: 'builtin', builtinName: 'format' },
+      },
+    ],
   })
 })

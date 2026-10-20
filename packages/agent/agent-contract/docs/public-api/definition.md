@@ -95,7 +95,7 @@ handover 本身不返回 changed。调用方在 attach 返回 changed 之后，�
 | 工具暂不可用但合法定义存在 | 不以可执行成功要求取代必需身份，按不可用应答承接 |
 | official 或 immutable 覆盖冲突 | 不采用非法定义，也不发布半份新构成 |
 
-定义校验的公开入口是 SPEC“声明判断”的 `judgeAgentDefinition`。采用解析与交接的形状见公开接口页的 AgentAdoptions。动态注册与来源版本机制留后续设计。共同组合、持有和权限规格仍从原拥有者消费，不由本页重写其上界。
+定义校验的公开入口是 [src/judge-definition.ts](../../src/judge-definition.ts) 的 `judgeAgentDefinition`，规则见 SPEC 的[声明判断](../../SPEC.md#声明判断)。资产类别的正文契约是 [src/body-contract.ts](../../src/body-contract.ts) 的 `agentBodyContract`，它向资产包的类别注册表登记，规则见 SPEC 的[资产正文契约](../../SPEC.md#资产正文契约)。采用解析与交接的形状见公开接口页的 AgentAdoptions，类型在 [src/execution.ts](../../src/execution.ts)。动态注册与来源版本机制留后续设计。共同组合、持有和权限规格仍从原拥有者消费，不由本页重写其上界。
 
 
 ## 旅程与持续验证

@@ -2,7 +2,7 @@
 
 Agent Loop 根据显式工作事实和当下条件求出下一步。会话路径由 Session 适配器提供这些事实。Agent runtime 执行这个决定，发起调用，等待并消费结果。Loop 规则没有实例寿命；Agent runtime 可以退出或替换，原 Run 和它调用的执行不因此结束。
 
-状态：已接受的目标架构。Session、Run 和 attempt 的身份及推进权归[会话治理](session-and-run.md)，扩展的详细规则归[Loop extensions](loop-extensions.md)。
+状态：已接受的目标架构。契约类型与 Cordis 服务定义已在 [agent-contract](../../../packages/agent/agent-contract/src/index.ts) 与 [agent-cordis-contract](../../../packages/agent/agent-cordis-contract/src/cordis.ts) 实现。Loop、runtime 与提供者尚未实现。Session、Run 和 attempt 的身份及推进权归[会话治理](session-and-run.md)，扩展的详细规则归[Loop extensions](loop-extensions.md)。
 
 ## 启动与运行条件
 

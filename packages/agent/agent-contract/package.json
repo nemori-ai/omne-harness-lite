@@ -23,8 +23,16 @@
     "test": "pnpm run build && vitest run"
   },
   "dependencies": {
+    "@omne-harness/assets": "workspace:*",
+    "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/message": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/schema-provider": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

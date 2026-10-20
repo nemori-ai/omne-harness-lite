@@ -32,8 +32,18 @@ it('uses one schema domain for a two-item extension batch', async () => {
   const created = counts.created
   const closed = counts.closed
   const result = await judgeLoopExtensions([
-    { name: 'a', position: 'before_model_call', power: 'observe' },
-    { name: 'b', position: 'before_model_call', power: 'observe' },
+    {
+      name: 'a',
+      position: 'before_model_call',
+      power: 'observe',
+      implementation: { kind: 'builtin', builtinName: 'format' },
+    },
+    {
+      name: 'b',
+      position: 'before_model_call',
+      power: 'observe',
+      implementation: { kind: 'builtin', builtinName: 'format' },
+    },
   ])
   expect(result).toMatchObject({ kind: 'accepted' })
   expect(counts.created).toBe(created + 1)
