@@ -5,7 +5,6 @@ import type {
   ToolChildren,
   ToolExecutorBinding,
   ToolInstanceHost,
-  ToolInvocationIdentities,
   ToolInvocationSourceIssuer,
   ToolOperationIdentities,
 } from '@omne-harness/tool-contract'
@@ -38,7 +37,6 @@ export type TestToolDependenciesInput<P> = Readonly<{
   instances: ToolInstanceHost<P>
   catalog: ToolCatalog<P>
   children: ToolChildren<P>
-  invocationIdentities: ToolInvocationIdentities
   operationIdentities: ToolOperationIdentities
   sourceIssuer: ToolInvocationSourceIssuer<P>
   bindingsFor(
@@ -100,7 +98,6 @@ export function createTestToolDependencies<P>(
       custody: doubles.custody,
       catalog: input.catalog,
       children: input.children,
-      invocationIdentities: input.invocationIdentities,
       operationIdentities: input.operationIdentities,
       sourceIssuer: input.sourceIssuer,
     },

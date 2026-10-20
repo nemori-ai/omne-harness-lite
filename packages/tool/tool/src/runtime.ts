@@ -1,5 +1,5 @@
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, type Outcome } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -19,11 +19,16 @@ import {
   type ToolInvocationQueries,
   type ToolInvokeOutcome,
   type ToolProvider,
+  type ToolOperationIdentities,
+  type ToolInvocationParts,
+  type ToolOperationId,
+  type ToolOperationRef,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
 import { checkToolConfiguration, driverRetryDelayMs, driverStepsPerRun } from './configuration.ts'
 import type { ToolConfiguration, ToolDependencies } from './construction.ts'
 import { createToolDriver } from './driver.ts'
+import { controlIntent } from './control-intent.ts'
 import { invocationInput, operationInput } from './invocation-access.ts'
 
 /** The identity of this runtime implementation, named in its `unsupported` answers. */
@@ -49,7 +54,6 @@ const PORTS = [
   'catalog',
   'reads',
   'children',
-  'invocationIdentities',
   'operationIdentities',
   'sourceIssuer',
 ] as const satisfies readonly (keyof ToolDependencies<unknown, ContentBlock, unknown>)[]
@@ -75,7 +79,6 @@ function unsupported(name: string, increment: string): Promise<Outcome<never, To
 }
 
 const IDENTITIES = 'toolIdentities'
-const SOURCE = 'toolInvocationSource'
 
 function redactedPortExceptionDiagnostic(dependency: string): string {
   return `${dependency} threw an exception; its message is not reported`
@@ -107,6 +110,43 @@ function identityFailure(failure: ToolFailure): ToolDefiniteFailure {
   }
 }
 
+async function commandReference(
+  identities: ToolOperationIdentities,
+  invocation: ToolInvocationParts,
+): Promise<
+  Outcome<
+    Readonly<{ operation: ToolOperationId; reference: ToolOperationRef }>,
+    ToolDefiniteFailure
+  >
+> {
+  let minted: Awaited<ReturnType<typeof identities.newOperation>>
+  try {
+    minted = await identities.newOperation()
+  } catch {
+    return fail({
+      kind: 'unavailable',
+      dependency: IDENTITIES,
+      diagnostic: redactedPortExceptionDiagnostic(IDENTITIES),
+    })
+  }
+  if ('failure' in minted) return fail(identityFailure(minted.failure))
+  const operation = decodeToolOperationId(minted.ok)
+  if ('failure' in operation)
+    return fail({
+      kind: 'unavailable',
+      dependency: IDENTITIES,
+      diagnostic: 'the identity port minted an identity that does not decode',
+    })
+  const reference = encodeToolOperationRef({ ...invocation, operation: operation.ok })
+  if ('failure' in reference)
+    return fail({
+      kind: 'unavailable',
+      dependency: IDENTITIES,
+      diagnostic: 'the operation reference of the minted operation does not encode',
+    })
+  return succeed({ operation: operation.ok, reference: reference.ok })
+}
+
 /**
  * Builds the provider and installs the driver on the instance host. The installation admits no
  * business: the host wakes the driver for a call when the runtime schedules it after an
@@ -119,7 +159,7 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
   checkToolConfiguration(configuration)
   checkDependencies(dependencies)
   const { commands, reads, admissions, instances, catalog } = dependencies
-  const { invocationIdentities, operationIdentities, sourceIssuer } = dependencies
+  const { operationIdentities, sourceIssuer } = dependencies
   const driver = createToolDriver(dependencies, {
     stepsPerRun: driverStepsPerRun(configuration),
     retryDelayMs: driverRetryDelayMs(configuration),
@@ -139,53 +179,21 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
       })
     const request = judged.ok
     const { principal, tenant } = input
-    let minted: Awaited<ReturnType<typeof invocationIdentities.newInvocation>>
+    let bound: Awaited<ReturnType<typeof sourceIssuer.resolve>>
     try {
-      minted = await invocationIdentities.newInvocation()
+      bound = await sourceIssuer.resolve({ principal, tenant, request })
     } catch {
-      return rejected({
-        kind: 'unavailable',
-        dependency: IDENTITIES,
-        diagnostic: redactedPortExceptionDiagnostic(IDENTITIES),
-      })
+      return { kind: 'association-unknown' }
     }
-    if ('failure' in minted) return rejected(identityFailure(minted.failure))
-    const call = decodeToolCallId(minted.ok.call)
-    const admission = decodeToolOperationId(minted.ok.admission)
-    if ('failure' in call || 'failure' in admission)
-      return rejected({
-        kind: 'unavailable',
-        dependency: IDENTITIES,
-        diagnostic: 'the identity port minted an identity that does not decode',
-      })
+    if (bound.kind === 'association-unknown' || bound.kind === 'rejected') return bound
+    const call = decodeToolCallId(bound.call)
+    const admission = decodeToolOperationId(bound.admission)
+    if ('failure' in call || 'failure' in admission) return { kind: 'association-unknown' }
     const reference = encodeToolInvocationRef({ tenant, call: call.ok, admission: admission.ok })
-    if ('failure' in reference) return rejected({ kind: 'denied', action: 'admit' })
-    let bound: Awaited<ReturnType<typeof sourceIssuer.bind>>
-    try {
-      bound = await sourceIssuer.bind({
-        principal,
-        tenant,
-        call: call.ok,
-        operation: admission.ok,
-        request,
-      })
-    } catch {
-      return rejected({
-        kind: 'unavailable',
-        dependency: SOURCE,
-        diagnostic: redactedPortExceptionDiagnostic(SOURCE),
-      })
-    }
-    if ('failure' in bound) {
-      if (bound.failure.kind === 'commit-unknown')
-        return rejected({
-          kind: 'unavailable',
-          dependency: SOURCE,
-          diagnostic: 'the invocation source issuance is unknown; the Tool admission was not sent',
-        })
-      return rejected(bound.failure)
-    }
-    const fixed = { ...request, invocation: bound.ok }
+    if ('failure' in reference) return { kind: 'association-unknown' }
+    if (bound.kind === 'issuance-unknown')
+      return { kind: 'commit-unknown', reference: reference.ok }
+    const fixed = { ...request, invocation: bound.invocation }
     let admitted: Awaited<ReturnType<typeof admissions.admit>>
     try {
       admitted = await admissions.admit({
@@ -202,16 +210,30 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
       return admitted.failure.kind === 'commit-unknown'
         ? { kind: 'commit-unknown', reference: reference.ok }
         : rejected(admitted.failure)
-    if (admitted.ok.recovered)
-      return rejected({
-        kind: 'unavailable',
-        dependency: IDENTITIES,
-        diagnostic:
-          'the identity port returned an admission identity the ledger already holds; nothing was scheduled',
-      })
-    if (admitted.ok.state.phase === 'accepted')
-      await scheduleAcceptedCallBestEffort(instances, tenant, call.ok)
-    return { kind: 'accepted', reference: reference.ok, state: admitted.ok.state }
+    if (admitted.ok.state.phase === 'accepted') {
+      let needsWake = true
+      if (admitted.ok.recovered) {
+        try {
+          const current = await reads.lookup({
+            principal,
+            tenant,
+            call: call.ok,
+            admission: admission.ok,
+          })
+          if ('ok' in current && current.ok.kind === 'found')
+            needsWake = ['accepted', 'preparing', 'queued', 'starting'].includes(
+              current.ok.state.phase,
+            )
+        } catch {}
+      }
+      if (needsWake) await scheduleAcceptedCallBestEffort(instances, tenant, call.ok)
+    }
+    return {
+      kind: 'accepted',
+      reference: reference.ok,
+      state: admitted.ok.state,
+      recovered: bound.recovered || admitted.ok.recovered,
+    }
   }
 
   const runtime: ToolRuntime<P, B> = {
@@ -257,74 +279,47 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
       control: async input => {
         const resolved = invocationInput<P>(input, 'control')
         if ('failure' in resolved) return { kind: 'rejected', failure: resolved.failure }
-        return {
-          kind: 'rejected',
-          failure: {
-            kind: 'unsupported',
-            adoption: toolRuntimeAdoption,
-            reason: 'control is not implemented in this increment (controls)',
-          },
+        const intent = controlIntent(input)
+        if ('failure' in intent) return { kind: 'rejected', failure: intent.failure }
+        const command = await commandReference(operationIdentities, resolved.ok)
+        if ('failure' in command) return { kind: 'rejected', failure: command.failure }
+        let controlled: Awaited<ReturnType<typeof commands.control>>
+        try {
+          controlled = await commands.control({
+            ...resolved.ok,
+            operation: command.ok.operation,
+            intent: intent.ok,
+          })
+        } catch {
+          return { kind: 'commit-unknown', operation: command.ok.reference }
         }
+        if ('failure' in controlled)
+          return controlled.failure.kind === 'commit-unknown'
+            ? { kind: 'commit-unknown', operation: command.ok.reference }
+            : { kind: 'rejected', failure: controlled.failure }
+        return { kind: 'committed', operation: command.ok.reference, receipt: controlled.ok }
       },
       releaseDelivery: async input => {
         const resolved = invocationInput<P>(input, 'release-delivery')
         if ('failure' in resolved) return { kind: 'rejected', failure: resolved.failure }
-        let minted: Awaited<ReturnType<typeof operationIdentities.newOperation>>
-        try {
-          minted = await operationIdentities.newOperation()
-        } catch {
-          return {
-            kind: 'rejected',
-            failure: {
-              kind: 'unavailable',
-              dependency: IDENTITIES,
-              diagnostic: redactedPortExceptionDiagnostic(IDENTITIES),
-            },
-          }
-        }
-        if ('failure' in minted)
-          return { kind: 'rejected', failure: identityFailure(minted.failure) }
-        const operation = decodeToolOperationId(minted.ok)
-        if ('failure' in operation)
-          return {
-            kind: 'rejected',
-            failure: {
-              kind: 'unavailable',
-              dependency: IDENTITIES,
-              diagnostic: 'the identity port minted an identity that does not decode',
-            },
-          }
-        const operationRef = encodeToolOperationRef({
-          tenant: resolved.ok.tenant,
-          call: resolved.ok.call,
-          admission: resolved.ok.admission,
-          operation: operation.ok,
-        })
-        if ('failure' in operationRef)
-          return {
-            kind: 'rejected',
-            failure: {
-              kind: 'unavailable',
-              dependency: IDENTITIES,
-              diagnostic: 'the operation reference of the minted operation does not encode',
-            },
-          }
+        const command = await commandReference(operationIdentities, resolved.ok)
+        if ('failure' in command) return { kind: 'rejected', failure: command.failure }
         let released: Awaited<ReturnType<typeof commands.releaseDelivery>>
         try {
           released = await commands.releaseDelivery({
             ...resolved.ok,
-            operation: operation.ok,
+            operation: command.ok.operation,
             result: input.result,
             delivery: input.delivery,
             consumer: input.consumer,
             evidence: input.evidence,
           })
         } catch {
-          return { kind: 'commit-unknown', operation: operationRef.ok }
+          return { kind: 'commit-unknown', operation: command.ok.reference }
         }
         if ('failure' in released)
           return released.failure.kind === 'commit-unknown'
-            ? { kind: 'commit-unknown', operation: operationRef.ok }
+            ? { kind: 'commit-unknown', operation: command.ok.reference }
             : { kind: 'rejected', failure: released.failure }
         return { kind: 'released', receipt: released.ok }
       },

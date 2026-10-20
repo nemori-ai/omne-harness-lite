@@ -124,12 +124,12 @@ describe('20 preparation and queue (P02, P03)', () => {
     const commits = harness.memory.commits
     const resume = await harness.commands.planPreparation({
       ...(await writeContext(harness, 'c1', 'c1/plan')),
-      request: fixedOf(harness.source, 'c1'),
+      request: fixedOf(harness.internalRequests, 'c1'),
       purpose: 'resume',
     })
     expect(failure(resume)).toMatchObject({ kind: 'unsupported' })
     const other = {
-      ...fixedOf(harness.source, 'c1'),
+      ...fixedOf(harness.internalRequests, 'c1'),
       arguments: { original: '{"path":"b"}', effective: '{"path":"b"}', complete: true },
     }
     expect(
@@ -150,7 +150,7 @@ describe('20 preparation and queue (P02, P03)', () => {
     const planned = ok(
       await harness.commands.planPreparation({
         ...(await writeContext(harness, 'c1', 'c1/plan')),
-        request: fixedOf(harness.source, 'c1'),
+        request: fixedOf(harness.internalRequests, 'c1'),
         purpose: 'initial',
       }),
     )

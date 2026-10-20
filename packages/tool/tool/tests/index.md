@@ -31,3 +31,7 @@
 
 - [普通调用与引用行为](invocation-runtime.spec.ts)。
 - [来源绑定与篡改拒绝](invocation-source.spec.ts)。
+
+- [公开原意图恢复组合](invoke-recovery.spec.ts)。
+
+- [主体语义快照与真实来源签发切点](source-principal.spec.ts)。

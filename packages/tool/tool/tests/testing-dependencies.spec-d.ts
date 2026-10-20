@@ -1,8 +1,9 @@
 import { expectTypeOf, it } from 'vitest'
 import type { ContentBlock, TextContentBlock } from '@omne-harness/content-block'
-import type { ToolDependencies } from '@omne-harness/tool'
+import type { ToolDependencies, ToolInvokeAuthority } from '@omne-harness/tool'
 import {
   createTestToolDependencies,
+  createTestInvocationSource,
   type TestToolDependenciesInput,
   type TestToolDependencies,
 } from '@omne-harness/tool/testing'
@@ -22,16 +23,8 @@ it('requires caller-owned authorization, trusted construction ports and unresolv
   >()
   // A type-only check: these values are never evaluated.
   const required = (input: TestToolDependenciesInput<P>): void => {
-    const {
-      guards,
-      instances,
-      catalog,
-      children,
-      invocationIdentities,
-      operationIdentities,
-      sourceIssuer,
-      ...rest
-    } = input
+    const { guards, instances, catalog, children, operationIdentities, sourceIssuer, ...rest } =
+      input
     // @ts-expect-error The trusted construction ports cannot be omitted.
     createTestToolDependencies({ ...rest, guards })
     // @ts-expect-error Authorization cannot be omitted.
@@ -40,7 +33,6 @@ it('requires caller-owned authorization, trusted construction ports and unresolv
       instances,
       catalog,
       children,
-      invocationIdentities,
       operationIdentities,
       sourceIssuer,
     })
@@ -48,7 +40,6 @@ it('requires caller-owned authorization, trusted construction ports and unresolv
     createTestToolDependencies({
       ...rest,
       guards,
-      invocationIdentities,
       operationIdentities,
       sourceIssuer,
     })
@@ -57,4 +48,17 @@ it('requires caller-owned authorization, trusted construction ports and unresolv
   // @ts-expect-error Testing types are available only through ./testing.
   type RootAssembly = import('@omne-harness/tool').TestToolDependencies<P>
   expectTypeOf<RootAssembly>().toBeAny()
+})
+
+it('test sources require the credential owner to supply semantic snapshots', () => {
+  type P = { subject: string }
+  const construct = (authority: ToolInvokeAuthority<P>) => {
+    // @ts-expect-error P has no generic authentication-preserving copy operation.
+    createTestInvocationSource({ authority })
+    return createTestInvocationSource({
+      authority,
+      snapshotPrincipal: principal => ({ ...principal }),
+    })
+  }
+  expectTypeOf(construct).toBeFunction()
 })

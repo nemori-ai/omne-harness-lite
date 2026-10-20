@@ -40,6 +40,7 @@ export type {
   SourceVerdict,
   StartVerdict,
   ToolAccessGuard,
+  ToolInvokeAuthority,
   ToolGrantVerifier,
   ToolLedgerAction,
   ToolLedgerBudgets,

@@ -4,12 +4,7 @@
 // the trusted execution boundary.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
-import {
-  createToolLedger,
-  createToolRuntime,
-  type LedgerCommitInput,
-  type ToolLedgerStore,
-} from '@omne-harness/tool'
+import { createToolLedger, createToolRuntime, type ToolLedgerStore } from '@omne-harness/tool'
 import {
   createTestInvocationSource,
   createTestToolIdentities,
@@ -17,7 +12,8 @@ import {
 } from '@omne-harness/tool/testing'
 import {
   defaultResultPolicy,
-  encodeToolInvocationRef,
+  readToolInvocationRef,
+  type ToolInvocationRef,
   type ToolDriver,
   type ToolExecutorBinding,
   type ToolLiveExecution,
@@ -26,7 +22,6 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   access,
-  callId,
   coordinator,
   evidence,
   instanceId,
@@ -78,7 +73,24 @@ function assembly(
   const store = options.store === undefined ? memory : options.store(memory)
   const authority = coordinator(store)
   const identities = createTestToolIdentities()
-  const source = createTestInvocationSource<Principal>()
+  const source = createTestInvocationSource<Principal>({
+    snapshotPrincipal: principal => ({
+      subject: principal.subject,
+      tenants: [...principal.tenants],
+    }),
+    authority: {
+      qualify: async input =>
+        input.tenant === tenantA &&
+        input.principal.subject === principalA.subject &&
+        input.consumer.owner === 'consumer'
+          ? { kind: 'allowed' }
+          : { kind: 'denied', reason: 'not-qualified' },
+      samePrincipal: async ({ current, original }) =>
+        current.subject === original.subject
+          ? { kind: 'allowed' }
+          : { kind: 'denied', reason: 'different-subject' },
+    },
+  })
   const starts: string[] = []
   const executions: string[] = []
   const binding: ToolExecutorBinding<Principal, Block, null> = {
@@ -157,7 +169,6 @@ function assembly(
   let driver: ToolDriver<Principal> | null = null
   const { runtime } = createToolRuntime<Principal, Block, null>(
     {
-      invocationIdentities: identities.invocationIdentities,
       operationIdentities: identities.operationIdentities,
       sourceIssuer: source.issuer,
       commands: ledger.commands,
@@ -224,27 +235,35 @@ function assembly(
       queueCapacity: 8,
     },
   )
-  const call = { principal: principalA, tenant: tenantA as never, call: callId('c1') }
-  const admit = () => {
-    identities.planInvocation('c1', 'op-c1')
-    const { invocation: _invocation, ...payload } = request()
-    return runtime.invoke({ principal: principalA, tenant: tenantA, request: payload })
+  let reference: ToolInvocationRef | undefined
+  const call = () => {
+    if (reference === undefined) throw new Error('not admitted')
+    return { principal: principalA, tenant: tenantA, call: readToolInvocationRef(reference).call }
   }
-  const reference = encodeToolInvocationRef({
-    tenant: tenantA,
-    call: callId('c1'),
-    admission: operationId('op-c1'),
-  })
-  if ('failure' in reference) throw new Error('reference fixture')
+  const admit = async () => {
+    const { invocation: _invocation, ...payload } = request()
+    const outcome = await runtime.invoke({
+      principal: principalA,
+      tenant: tenantA,
+      request: payload,
+    })
+    if (outcome.kind === 'accepted' || outcome.kind === 'commit-unknown')
+      reference = outcome.reference
+    return outcome
+  }
   const run = async () => {
     if (driver === null) throw new Error('no driver installed')
-    await driver.run({ ...call, instance: instanceId, signal: new AbortController().signal })
+    await driver.run({ ...call(), instance: instanceId, signal: new AbortController().signal })
   }
   const state = async (): Promise<ToolState> => {
     const found = await runtime.queries.lookup({
       principal: principalA,
       tenant: tenantA,
-      reference: reference.ok,
+      reference:
+        reference ??
+        (() => {
+          throw new Error('not admitted')
+        })(),
     })
     if (!('ok' in found) || found.ok.kind !== 'found') throw new Error('c1 was not admitted')
     return found.ok.state
@@ -256,17 +275,8 @@ function assembly(
       operation: operationId('revoke-1'),
       guard: { ...permission, revision: '0', evidence: evidence('g'), scope: { kind: 'resource' } },
     })
-  return { admit, run, state, invalidate, starts, executions, authority }
+  return { admit, run, state, invalidate, starts, executions, authority, call }
 }
-
-/** Whether a commit writes the operation record of `operation`: the commit of that operation. */
-const putsOperation = (operation: string) => (input: LedgerCommitInput<Block>) =>
-  input.writes.some(
-    write =>
-      write.kind === 'put' &&
-      write.record.kind === 'operation' &&
-      write.record.operation.operation === operation,
-  )
 
 describe('G5 under the runtime', () => {
   it('G5 composition: an invalidation before the acceptance settles the call unavailable, never started', async () => {
@@ -279,7 +289,7 @@ describe('G5 under the runtime', () => {
     invalidate = harness.invalidate
     await harness.admit()
     await harness.run()
-    expect(harness.starts).toEqual(['c1'])
+    expect(harness.starts).toEqual([harness.call().call])
     expect(harness.executions).toEqual([])
     expect(await harness.state()).toMatchObject({
       phase: 'settled',
@@ -299,7 +309,7 @@ describe('G5 under the runtime', () => {
     await harness.run()
     await harness.invalidate()
     await harness.run()
-    expect(harness.executions).toEqual(['c1'])
+    expect(harness.executions).toEqual([harness.call().call])
     expect(await harness.state()).toMatchObject({ phase: 'running', execution: { kind: 'live' } })
   })
 
@@ -310,7 +320,15 @@ describe('G5 under the runtime', () => {
         durability: 'none',
         read: domain => memory.read(domain),
         commit: input => {
-          if (lose && putsOperation('op-c1/started')(input)) {
+          if (
+            lose &&
+            input.writes.some(
+              write =>
+                write.kind === 'put' &&
+                write.record.kind === 'operation' &&
+                write.record.operation.operation.endsWith('/started'),
+            )
+          ) {
             lose = false
             return Promise.resolve({ kind: 'unavailable', diagnostic: 'the store is down' })
           }
@@ -322,8 +340,8 @@ describe('G5 under the runtime', () => {
     await harness.run()
     expect((await harness.state()).phase).toBe('starting')
     await harness.run()
-    expect(harness.starts).toEqual(['c1'])
-    expect(harness.executions).toEqual(['c1'])
+    expect(harness.starts).toEqual([harness.call().call])
+    expect(harness.executions).toEqual([harness.call().call])
     expect((await harness.state()).phase).toBe('running')
   })
 })

@@ -48,7 +48,7 @@ describe('16 delivery release (P08)', () => {
     ['processed', processed],
   ])('16 release: the %s path releases the delivery with a Tool-side receipt', async (_, proof) => {
     const assembly = harness()
-    const invoked = await assembly.invoke(dummyRequest())
+    const invoked = await assembly.admitInternal(dummyRequest())
     if (invoked.kind !== 'accepted') throw new Error('not admitted')
     const lookupInput = {
       principal: principalA,
@@ -103,7 +103,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: one commit releases the result, records the receipt and the state, and removes the deliver task', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const released = releasedReceipt(
       await assembly.runtime.commands.releaseDelivery(release(retained)),
     )
@@ -136,7 +136,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: the consumer and the handoff are closed values, checked before any digest', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const withFunction = { ...consumer, work: () => 'work-1' }
     expect(
       await assembly.runtime.commands.releaseDelivery(
@@ -172,7 +172,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: a second release answers the released state and writes nothing more', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const released = releasedReceipt(
       await assembly.runtime.commands.releaseDelivery(release(retained)),
     )
@@ -189,7 +189,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: another consumer position is a conflict and the delivery stays pending', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const other = { ...consumer, position: 'position-2' }
     expect(
       await assembly.runtime.commands.releaseDelivery(release(retained, { consumer: other })),
@@ -209,7 +209,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: evidence that the consumer does not own, a wrong delivery and an unknown version are refused', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const foreign: Handoff = { kind: 'retained', custody: evidence('kept', 'someone-else') }
     expect(await assembly.runtime.commands.releaseDelivery(release(foreign))).toEqual({
       kind: 'rejected',
@@ -243,7 +243,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: the same operation with another handoff is a conflict', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const { reference: _reference, ...payload } = release(retained)
     const mutation = {
       ...payload,
@@ -260,7 +260,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: an unknown commit keeps the responsibility until the operation is recognised', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     assembly.store.injectCommit('unknown-applied')
     const unknown = await assembly.runtime.commands.releaseDelivery(release(retained))
     if (unknown.kind !== 'commit-unknown')

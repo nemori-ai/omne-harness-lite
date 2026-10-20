@@ -28,3 +28,5 @@
 
 - [引用访问解析](invocation-access.ts)。
 - [配对来源与身份测试替身](testing-source.ts)。
+
+- [控制意图的封闭复制](control-intent.ts)。

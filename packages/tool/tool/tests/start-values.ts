@@ -3,10 +3,13 @@
 // capsule and consumes the permit, a start authority and a clock. The authority here is a small
 // in-memory stand-in with the P04 answers the driver relies on; the local start coordinator of
 // `tool-host-local` is tested against the same runtime in that package.
+// admitCall supplies trusted internal admission facts for named-call startup/queue tests.
+// Public invoke uses the real paired source and a source-verifying ledger over the same store.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   type DurableEvidence,
+  type FixedToolRequest,
   type StartPermit,
   type StartProgress,
   type ToolBindings,
@@ -39,6 +42,9 @@ import {
 } from '@omne-harness/tool/testing'
 import {
   callId,
+  invokeAuthority,
+  snapshotTestPrincipal,
+  fixedRequestForNamedSourceGuard,
   configurationOf,
   evidence,
   fixedOf,
@@ -413,6 +419,9 @@ function refusing<T extends object>(name: string, methods: readonly string[]): T
 export type StartHarness = Readonly<{
   memory: MemoryToolLedgerStore<Block>
   runtime: ReturnType<typeof createToolRuntime<Principal, Block, TestEnvironment>>['runtime']
+  rebuildRuntime(): ReturnType<
+    typeof createToolRuntime<Principal, Block, TestEnvironment>
+  >['runtime']
   commands: ToolDependencies<Principal, Block, TestEnvironment>['commands']
   ledger: ReturnType<typeof createToolLedger<Principal, Block>>
   host: TestHost
@@ -421,6 +430,7 @@ export type StartHarness = Readonly<{
   environments: TestEnvironments
   identities: TestToolIdentities
   source: TestInvocationSource<Principal>
+  internalRequests: Map<string, FixedToolRequest>
   /** The calls whose timing segment the clock was asked to begin. */
   begun: readonly string[]
   /** Runs the drivers of these calls concurrently, then every wake-up they caused. */
@@ -443,55 +453,56 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const spies: Spies = { calls: new Map() }
   const clock = testClock()
   const config = configurationOf(options)
-  const source = createTestInvocationSource<Principal>()
+  const source = createTestInvocationSource<Principal>({
+    authority: invokeAuthority(options),
+    snapshotPrincipal: snapshotTestPrincipal,
+  })
   const identities = createTestToolIdentities()
-  const ledger = createToolLedger(
-    store,
-    { ...guards(options), sources: source.guard },
-    clock,
-    config,
-  )
+  const ledger = createToolLedger(store, guards(options), clock, config)
   const host = testHost(spies, identities.instanceIdentities)
   const authority = options.authority ?? testAuthority()
   const authorityPort = options.authorityPort?.(authority) ?? authority
   const binding = options.binding ?? testBinding(authorityPort, options.bindingPort)
   const environments = testEnvironments(options.environment ?? new Map())
-  const provider = createToolRuntime<Principal, Block, TestEnvironment>(
-    {
-      commands: options.commands?.(ledger.commands) ?? ledger.commands,
-      admissions: ledger.admissions,
-      queues: ledger.queues,
-      reads: options.readsPort?.(ledger.reads) ?? ledger.reads,
-      bindings: options.bindingsPort?.(binding.bindings) ?? binding.bindings,
-      environments: options.environmentsPort?.(environments) ?? environments,
-      decisions: refusing('decisions', [
-        'inspectOperation',
-        'ensure',
-        'inspect',
-        'invalidate',
-        'resolve',
-      ]),
-      instances: host,
-      clock,
-      resultPolicy: guards().policy,
-      authority: authorityPort,
-      resources: refusing('resources', [
-        'inspectOperation',
-        'ensure',
-        'inspect',
-        'expire',
-        'invalidate',
-        'resolve',
-      ]),
-      custody: refusing('custody', ['preserve', 'inspect', 'retainResult']),
-      catalog: refusing('catalog', ['inspect', 'usage', 'search']),
-      children: refusing('children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
-      invocationIdentities: identities.invocationIdentities,
-      operationIdentities: identities.operationIdentities,
-      sourceIssuer: source.issuer,
-    },
+  const publicLedger = createToolLedger(
+    store,
+    { ...guards(options), sources: source.guard },
+    clock,
     config,
   )
+  const dependencies: ToolDependencies<Principal, Block, TestEnvironment> = {
+    commands: options.commands?.(ledger.commands) ?? ledger.commands,
+    admissions: publicLedger.admissions,
+    queues: ledger.queues,
+    reads: options.readsPort?.(ledger.reads) ?? ledger.reads,
+    bindings: options.bindingsPort?.(binding.bindings) ?? binding.bindings,
+    environments: options.environmentsPort?.(environments) ?? environments,
+    decisions: refusing('decisions', [
+      'inspectOperation',
+      'ensure',
+      'inspect',
+      'invalidate',
+      'resolve',
+    ]),
+    instances: host,
+    clock,
+    resultPolicy: guards().policy,
+    authority: authorityPort,
+    resources: refusing('resources', [
+      'inspectOperation',
+      'ensure',
+      'inspect',
+      'expire',
+      'invalidate',
+      'resolve',
+    ]),
+    custody: refusing('custody', ['preserve', 'inspect', 'retainResult']),
+    catalog: refusing('catalog', ['inspect', 'usage', 'search']),
+    children: refusing('children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
+    operationIdentities: identities.operationIdentities,
+    sourceIssuer: source.issuer,
+  }
+  const provider = createToolRuntime(dependencies, config)
   const drive = async (...calls: readonly string[]) => {
     // Wake-ups from before, such as the admissions', are hints this drive does not follow.
     host.scheduled.splice(0)
@@ -540,8 +551,10 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     )
   }
   const built: StartHarness = {
+    internalRequests: new Map(),
     memory,
     runtime: provider.runtime,
+    rebuildRuntime: () => createToolRuntime(dependencies, config).runtime,
     commands: ledger.commands,
     // Internal admission recall tests carry source facts from the previous harness.
     ledger: createToolLedger(store, guards(options), clock, config),
@@ -652,15 +665,20 @@ export async function admitCall(
   call: string,
   overrides: Parameters<typeof request>[0] = {},
 ): Promise<ToolState> {
-  harness.identities.planInvocation(call, `op-${call}`)
-  const outcome = await harness.runtime.invoke({
+  const fixed = fixedRequestForNamedSourceGuard(request(overrides))
+  harness.internalRequests.set(call, fixed)
+  const outcome = await harness.ledger.admissions.admit({
     principal: principalA,
     tenant: tenantA,
-    request: request(overrides),
+    call: callId(call),
+    operation: operationId(`op-${call}`),
+    request: fixed,
   })
-  if (outcome.kind !== 'accepted')
-    throw new Error(`the admission of ${call} was not accepted: ${JSON.stringify(outcome)}`)
-  return outcome.state
+  if ('failure' in outcome)
+    throw new Error(
+      `the internal admission of ${call} was not accepted: ${JSON.stringify(outcome)}`,
+    )
+  return outcome.ok.state
 }
 
 /** The write context of the next command on `call`, at the call's current state revision. */
@@ -682,7 +700,7 @@ export async function toStarting(harness: StartHarness, call: string) {
   const preparation = ok(
     await harness.commands.planPreparation({
       ...(await writeContext(harness, call, `${call}/plan`)),
-      request: fixedOf(harness.source, call),
+      request: fixedOf(harness.internalRequests, call),
       purpose: 'initial',
     }),
   )

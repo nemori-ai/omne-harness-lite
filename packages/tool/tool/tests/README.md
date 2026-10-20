@@ -34,7 +34,7 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 
 固定输入归 [fixtures](fixtures/index.md)。目录导航见 [index](index.md)。
 
-普通入口的回执、来源与引用验证在 [invocation-runtime.spec.ts](invocation-runtime.spec.ts)：独立调用、首个 await 前固定、未知提交认回、排除围栏、调度失败、recovered 违约、来源失败、交付操作认回、目录隔离与撤权。[invocation-source.spec.ts](invocation-source.spec.ts) 将完整来源事实与实际 ledger 配对，逐项篡改主体、租户、身份、目标、consumer、scope、payload、origin 及来源四字段并拒绝。原 P01 重送与排除测试直接进入内部 ledger，不经普通 invoke 重建旧 admission 接口。全部仅用非耐久记录仓。
+普通入口的回执、来源与引用验证在 [invocation-runtime.spec.ts](invocation-runtime.spec.ts)：同意图认回、首个 await 前固定、未知提交认回、排除围栏、调度失败、来源未知、交付操作认回、目录隔离与撤权。[invocation-source.spec.ts](invocation-source.spec.ts) 将完整来源事实与实际 ledger 配对，逐项篡改主体、租户、身份、目标、consumer、scope、payload、origin 及来源四字段并拒绝。原 P01 重送与排除测试直接进入内部 ledger，不经普通 invoke 重建旧 admission 接口。全部仅用非耐久记录仓。
 
 [invocation-runtime.spec.ts](invocation-runtime.spec.ts) 的再次释放回包丢失用例验证真实 ledger 不写入该次操作、原操作查询可靠否定，再明确释放取得原回执且不新增写入。[managed-delivery.spec.ts](managed-delivery.spec.ts) 保留首次释放、原回执重入及首次未知提交认回。
 
@@ -42,8 +42,12 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 
 [caught-rejection.ts](caught-rejection.ts) 由 `binding-start.spec.ts` 启动独立 Node 子进程。它捕获真实 driver 的标记写入拒绝，等待两个事件循环检查点，核对原错误对象及额外 `unhandledRejection` 为零。子进程使用源码条件，测试运行器拥有其启动和退出。该样本不证明真实执行桥或后端耐久性。
 
-[binding-races.spec.ts](binding-races.spec.ts) 保留 C430-1 的旧否定读调度，并在 permit 返回、环境返回、进入 start 前分别暂停。每个暂停点验证 consume/exclude 两种先后，分别断言方法尝试、authority 唯一 acceptance 与契约内存 executor 的实际 launch。已越过 authority 查询的旧读者可以进入方法，但永久排除后不能受理或执行。正常首次启动仍要求 acceptance/launch 各恰好一次。相同 payload 的两次公开 invoke 另测独立引用及失败状态，不能作为内部原 start 恢复的证据。
+[binding-races.spec.ts](binding-races.spec.ts) 保留 C430-1 的旧否定读调度，并在 permit 返回、环境返回、进入 start 前分别暂停。每个暂停点验证 consume/exclude 两种先后，分别断言方法尝试、authority 唯一 acceptance 与契约内存 executor 的实际 launch。已越过 authority 查询的旧读者可以进入方法，但永久排除后不能受理或执行。正常首次启动仍要求 acceptance/launch 各恰好一次。工具参数相同但 consumer 不同的两次公开 invoke 另测独立引用及失败状态，不能作为内部原 start 恢复的证据。
 
 上述范围采用 [revision 2 具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/430#issuecomment-6285621097)。旧全局方法次数禁令已被取代。
 
 测试仍只证明非耐久 ledger、内存 authority 和受信桥的单进程组合，不证明生产恢复、事实 ACK 或物理收场。
+
+[公开幂等与恢复组合](invoke-recovery.spec.ts)使用真实 runtime、配对来源与内存 ledger，覆盖双 runtime 共享来源、同键竞争、冲突、未知、撤权及一次实际启动。控制测试的 commands/reads 共用替身操作记录，只验证门面。managed 与 start/queue 专测的具名调用现由受信内部 admission fixture 建立，不证明公开来源恢复。
+
+[source-principal.spec.ts](source-principal.spec.ts)验证语义快照保留 class 与不可序列化 opaque 凭据的认证意义、异步及事后变异隔离、bindings 诊断隔离、快照失败无关联写入和真实 reserved→issued 故障续做。`invoke-recovery.spec.ts` 另覆盖真实 prepareStart 提交后中止、starting 重入补 wake 及一次实际 launch。
