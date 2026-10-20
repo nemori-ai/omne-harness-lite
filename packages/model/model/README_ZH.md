@@ -92,7 +92,21 @@ factory 路径需要受信装配明确登记精确档案与供应商采用、接
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `pnpm run check:docs`。独立执行测试经公开入口连接脚本传输及受控故障提供者，覆盖一次发送、回执匹配、取消、失联与关闭。六项 transport 符合性直接检查提供者。其他测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
+在仓库根运行以下命令。包的 engines 要求 Node.js >=24，pnpm 版本为 10.28.1。实际验证过的 Node.js 版本以各次运行报告为准。
+
+```sh
+pnpm turbo run typecheck --filter=@omne-harness/model
+pnpm turbo run test --filter=@omne-harness/model
+pnpm turbo run test:fast --filter=@omne-harness/model
+pnpm turbo run test:slow --filter=@omne-harness/model
+pnpm run check:docs
+```
+
+Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再执行所选测试。`typecheck` 不先构建。直接运行 `pnpm --filter @omne-harness/model test` 不自动构建，所需构建产物须已就绪。`test:fast` 与 `test:slow` 分别选择快层与慢层。
+
+完整 `test` 先运行 Vitest，成功后执行五个教学脚本。快慢层都不自动执行 examples。已构建时可单独运行 `pnpm --filter @omne-harness/model examples`。acceptance 保持独立，由[测试运行器](../../../tools/test-runner/README_ZH.md#测试运行)调度，仓库根入口是 `pnpm run acceptance`。
+
+独立执行测试经公开入口连接脚本传输及受控故障提供者，覆盖一次发送、回执匹配、取消、失联与关闭。六项 transport 符合性直接检查提供者。其他测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
 
 ## 维护
 

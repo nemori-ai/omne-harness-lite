@@ -31,7 +31,19 @@ Framework definitions belong in `./cordis`; the root permits pure types only. Co
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model-cordis-contract typecheck` and `pnpm --filter @omne-harness/model-cordis-contract test`, plus `pnpm run check:docs`. Current tests cover the root entry having no runtime export, the `./cordis` runtime exports (publication of each definition under its key, forwarding and removal with the provider for the credential service), the type shape of the registration types, the Context augmentation and the event documentation, the instance directory on a real Cordis Context (registration bound to the calling fiber, qualification checked in the registering call, recognition and conflict, conditional removal, successors, tenant separation, bounded registrations), the converter catalog on a real Cordis Context (lookup order, registration bound to the calling fiber, retirement and lease drain, successors, conversions in flight, the release hook of the provider, bounded contributions), the export inventory, and the install-closure facility. No name in the inventory is pending. Open points of the directories are listed in [SPEC](SPEC.md#实例目录的未决项) and [SPEC](SPEC.md#转换目录的未决项). Protocol, resource, and production-lifecycle obligations remain in [verification](verification/index.md).
+Run these commands from the repository root. The package requires Node.js >=24 and pnpm 10.28.1. Each run report identifies the Node.js version actually tested.
+
+```sh
+pnpm turbo run typecheck --filter=@omne-harness/model-cordis-contract
+pnpm turbo run test --filter=@omne-harness/model-cordis-contract
+pnpm turbo run test:fast --filter=@omne-harness/model-cordis-contract
+pnpm turbo run test:slow --filter=@omne-harness/model-cordis-contract
+pnpm run check:docs
+```
+
+The Turbo test tasks build this package and its dependencies before they run the selected tests. The `typecheck` task does not build. Direct `pnpm --filter @omne-harness/model-cordis-contract test` does not build, so its required build output must already exist. The `test:fast` and `test:slow` tasks select the fast and slow layers, respectively.
+
+Current tests cover the root entry having no runtime export, the `./cordis` runtime exports (publication of each definition under its key, forwarding and removal with the provider for the credential service), the type shape of the registration types, the Context augmentation and the event documentation, the instance directory on a real Cordis Context (registration bound to the calling fiber, qualification checked in the registering call, recognition and conflict, conditional removal, successors, tenant separation, bounded registrations), the converter catalog on a real Cordis Context (lookup order, registration bound to the calling fiber, retirement and lease drain, successors, conversions in flight, the release hook of the provider, bounded contributions), the export inventory, and the install-closure facility. No name in the inventory is pending. Open points of the directories are listed in [SPEC](SPEC.md#实例目录的未决项) and [SPEC](SPEC.md#转换目录的未决项). Protocol, resource, and production-lifecycle obligations remain in [verification](verification/index.md).
 
 ## Maintenance
 

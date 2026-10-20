@@ -49,8 +49,8 @@ try {
     throw new Error('Expected completed/limit')
   console.log('termination:', termination.kind, termination.reason)
   console.log('upstream trim:', trim.removed, trim.reason)
-  // Snapshot has visible blocks and state, but no full trims list. Runtime result reading and
-  // ACK are not implemented yet. This lesson does not invent a result-consumption shortcut.
+  // Snapshot has visible blocks and state, but no full trims list. Lesson 05 consumes the result
+  // through the public reading and processed ACK capabilities, including the actual trims.
 } finally {
   await example.withdrawPublication()
 }

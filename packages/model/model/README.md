@@ -96,7 +96,21 @@ A started result carries the confirmed original `window` and its single `facts` 
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model typecheck`, `pnpm --filter @omne-harness/model test`, and `pnpm run check:docs`. The execution tests call the public entry with the scripted transport and controlled failure providers. They cover one send, receipt matching, cancellation, stream loss, and cleanup. The six transport conformance checks test the provider directly. The other tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
+Run these commands from the repository root. The package requires Node.js >=24 and pnpm 10.28.1. Each run report identifies the Node.js version actually tested.
+
+```sh
+pnpm turbo run typecheck --filter=@omne-harness/model
+pnpm turbo run test --filter=@omne-harness/model
+pnpm turbo run test:fast --filter=@omne-harness/model
+pnpm turbo run test:slow --filter=@omne-harness/model
+pnpm run check:docs
+```
+
+The Turbo test tasks build this package and its dependencies before they run the selected tests. The `typecheck` task does not build. Direct `pnpm --filter @omne-harness/model test` does not build, so its required build output must already exist. The `test:fast` and `test:slow` tasks select the fast and slow layers, respectively.
+
+The full `test` runs Vitest, then executes the five learning scripts if Vitest succeeds. Neither test layer runs examples automatically. With build output ready, run `pnpm --filter @omne-harness/model examples` separately. Acceptance remains a separate script, scheduled by the [test runner](../../../tools/test-runner/README.md). Run `pnpm run acceptance` from the repository root.
+
+The execution tests call the public entry with the scripted transport and controlled failure providers. They cover one send, receipt matching, cancellation, stream loss, and cleanup. The six transport conformance checks test the provider directly. The other tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
 
 ## Maintenance
 

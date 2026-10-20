@@ -68,13 +68,13 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 | 项 | 规则 |
 | --- | --- |
-| 关联身份 | 登记时生成的调用身份。 |
-| 必要参数 | 租户、调用身份、这次固定采用、结果容量上界。 |
-| 成功 | 受理和结果容量预留在同一事务里成立。受理不等于已实际发出，实际发送另按 S 围栏记录。 |
-| 拒绝 | 资格或容量不成立。不算已经发出。 |
-| 未知 | 按原调用身份对账。不换身份再发。 |
-| 同身份重试 | 同一调用身份和同一固定采用返回原受理。 |
-| 参数冲突 | 同一调用身份配上不同的固定采用则拒绝。 |
+| 关联身份 | 调用方在首次 admit 前固定 call 与原 admission operation，可预先编码并保存 reference。 |
+| 必要参数 | 显式 tenant、当前 principal、固定的 call、operation、request、consumer 与 capacity。 |
+| 成功 | 原 call 与结果容量预留在同一提交里成立，返回原 call、revision、recovered 与 reference。受理不等于已实际发出，实际发送另按 S 围栏记录。 |
+| 拒绝 | 结构、当前资格、采用或容量不成立。同身份异固定输入返回 conflict。不算已经发出。 |
+| 未知 | 按提交前 reference 中的原 call 与 admission operation 认回。只有原 Commands 排除旧写者后的权威 not-accepted 才允许沿原身份重送相同输入。timeout 或路由缺席不证明未受理，不换身份再发。 |
+
+同一 call、原 admission operation 和固定输入重入时，核对当前资格后返回原受理，recovered 为 true。同一 call 换 operation，即使固定输入相同，也返回 conflict。结构、资格、采用与容量的具体拒绝分类沿下文各自规则。
 
 每次发出的实际供应商、原参数采用、时刻、首内容观察、原状态码、结束原因及费用依据须可追溯。失败记录不被成功覆盖，未知费用不填零。重试和多观察者不得重复登记同一笔真实用量；两次真实发出可能各有费用。
 

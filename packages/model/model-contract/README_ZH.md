@@ -35,7 +35,19 @@
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model-contract typecheck`、`pnpm --filter @omne-harness/model-contract test` 及 `pnpm run check:docs`。当前测试覆盖根入口的 163 个类型声明与 28 个运行时值（身份解码、比较函数与常量、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`、`deriveGuardControlOperation`）、导出清单、类型消费探针、安装闭包设施，`./testing` 的受控替代提供者与替代传输，以及 `./testing` 的符合性断言（替代件须通过全部义务，每条义务另有只违反它的坏提供者让它失败）。清单没有 `pending` 名字。协议、资源和生产能力的验证仍按[持续义务](verification/index.md)执行。
+在仓库根运行以下命令。包的 engines 要求 Node.js >=24，pnpm 版本为 10.28.1。实际验证过的 Node.js 版本以各次运行报告为准。
+
+```sh
+pnpm turbo run typecheck --filter=@omne-harness/model-contract
+pnpm turbo run test --filter=@omne-harness/model-contract
+pnpm turbo run test:fast --filter=@omne-harness/model-contract
+pnpm turbo run test:slow --filter=@omne-harness/model-contract
+pnpm run check:docs
+```
+
+Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再执行所选测试。`typecheck` 不先构建。直接运行 `pnpm --filter @omne-harness/model-contract test` 不自动构建，所需构建产物须已就绪。`test:fast` 与 `test:slow` 分别选择快层与慢层。
+
+当前测试覆盖根入口的 163 个类型声明与 28 个运行时值（身份解码、比较函数与常量、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`、`deriveGuardControlOperation`）、导出清单、类型消费探针、安装闭包设施，`./testing` 的受控替代提供者与替代传输，以及 `./testing` 的符合性断言（替代件须通过全部义务，每条义务另有只违反它的坏提供者让它失败）。清单没有 `pending` 名字。协议、资源和生产能力的验证仍按[持续义务](verification/index.md)执行。
 
 ## 维护
 

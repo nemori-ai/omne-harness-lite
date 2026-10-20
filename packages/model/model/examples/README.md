@@ -83,6 +83,8 @@ same ACK: true
 
 本装配只信任它自己生成的 principal、租户与证据，凭据为合成字符串。生产环境需要真实身份、工作资格、来源/排除证明、Commands 后端和宿主实现。脚本不证明厂商发送、耐久、跨进程恢复或可靠消费。首内容前策略待定、无控制 interrupted、sender.not-started 和丢失原终止依据均不由示例补成默认成功。
 
-先构建本成员与依赖，再运行 `pnpm --filter @omne-harness/model test` 执行行为测试和五个示例。`pnpm --filter @omne-harness/model typecheck` 也检查示例。独立验收继续由接受者判断，命令退出零不能替代教学内容复核。
+在仓库根运行 `pnpm turbo run test --filter=@omne-harness/model`，先构建本成员及其依赖，再执行 Vitest，成功后执行五个教学脚本。`pnpm turbo run test:fast --filter=@omne-harness/model` 与 `pnpm turbo run test:slow --filter=@omne-harness/model` 同样先构建，但各自只选快层或慢层，都不自动执行 examples。构建完成后可用上面的 `pnpm --filter @omne-harness/model examples` 单独运行五课。直接运行 `pnpm --filter @omne-harness/model test` 不自动构建。
+
+`pnpm turbo run typecheck --filter=@omne-harness/model` 也检查示例，但不先构建。acceptance 保持独立，由[测试运行器](../../../../tools/test-runner/README_ZH.md#测试运行)调度，仓库根入口是 `pnpm run acceptance`。独立验收继续由接受者判断，命令退出零不能替代教学内容复核。
 
 契约范围见 [SPEC](../../model-contract/SPEC.md)，目录导航见 [index](index.md)。

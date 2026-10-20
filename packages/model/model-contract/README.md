@@ -35,7 +35,19 @@ The target production dependency closure excludes Cordis, Model implementations,
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model-contract typecheck` and `pnpm --filter @omne-harness/model-contract test`, plus `pnpm run check:docs`. Current tests cover the 163 type declarations and the 28 runtime values of the root entry (the identity decoders, comparators and constants, `MODEL_SEND`, `decodeCredentialId`, `sameCredentialHolder`, `deriveGuardControlOperation`), the export inventory, the type-consumption probes, the install-closure facility, the scripted provider and transport of `./testing`, and the conformance suite of `./testing`, which the scripted pair must pass and which fails a provider that breaks one obligation. The inventory has no `pending` name. Protocol, resource, and production-capability obligations remain in [verification](verification/index.md).
+Run these commands from the repository root. The package requires Node.js >=24 and pnpm 10.28.1. Each run report identifies the Node.js version actually tested.
+
+```sh
+pnpm turbo run typecheck --filter=@omne-harness/model-contract
+pnpm turbo run test --filter=@omne-harness/model-contract
+pnpm turbo run test:fast --filter=@omne-harness/model-contract
+pnpm turbo run test:slow --filter=@omne-harness/model-contract
+pnpm run check:docs
+```
+
+The Turbo test tasks build this package and its dependencies before they run the selected tests. The `typecheck` task does not build. Direct `pnpm --filter @omne-harness/model-contract test` does not build, so its required build output must already exist. The `test:fast` and `test:slow` tasks select the fast and slow layers, respectively.
+
+Current tests cover the 163 type declarations and the 28 runtime values of the root entry (the identity decoders, comparators and constants, `MODEL_SEND`, `decodeCredentialId`, `sameCredentialHolder`, `deriveGuardControlOperation`), the export inventory, the type-consumption probes, the install-closure facility, the scripted provider and transport of `./testing`, and the conformance suite of `./testing`, which the scripted pair must pass and which fails a provider that breaks one obligation. The inventory has no `pending` name. Protocol, resource, and production-capability obligations remain in [verification](verification/index.md).
 
 ## Maintenance
 
