@@ -12,6 +12,8 @@
 
 [execute.spec.ts](execute.spec.ts) 经真实 model 根入口连接公开 createScriptedTransport，检查单次发送、重复迭代、并发推进、首供应商、准备拒绝和物化回执。回执拒绝断言包含 receipt 字段定位、不匹配原因或读取失败阶段。[execute-lifecycle.spec.ts](execute-lifecycle.spec.ts) 使用本成员受控传输，覆盖准备等待取消、启动后确认与失联、消费者早退、原生 return 排队，以及终局交付前的清理次序和失败报告。提供者返回的 done、value 或 kind getter 抛错时，测试要求唯一安全 stream-lost 及完整释放。[execute.spec-d.ts](execute.spec-d.ts) 检查根函数精确签名。
 
+[execute-outcome.spec.ts](execute-outcome.spec.ts) 经同一公开入口注入 prepare 和 materialize 的 Outcome getter。测试检查 ok 或 failure 读取抛错后的安全 unavailable、阶段诊断、零发送及已取得资源的关闭。可读取的 getter 还验证载荷只读取一次、声明失败保留原对象，以及成功资源在终局前各关闭一次。
+
 [execute-transport.spec.ts](execute-transport.spec.ts) 直接对 provider 的 transport 运行共同符合性，逐项要求六个 transport ID 为 pass。该套件不调用 executeModel，不能单独证明执行组合。上述执行测试才覆盖真实 executeModel 的交接。受控传输只提供事实、等待和故障，不替执行函数完成取消分类、回执校验或清理。这些证据没有真实 HTTP、厂商模型、耐久后端或托管运行。
 
 ## 安装闭包

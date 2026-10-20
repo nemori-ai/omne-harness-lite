@@ -8,7 +8,7 @@ import type {
   TransportFact,
   TransportFailure,
 } from '@omne-harness/model-contract'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 
 export const adoption = (name: string): Adoption => ({
@@ -73,6 +73,12 @@ export function controlled(
     prepare?: () => Promise<void>
     materialize?: () => Promise<void>
     rejection?: Readonly<{ at: 'prepare' | 'materialize'; failure: TransportFailure }>
+    prepareOutcome?: (
+      result: Outcome<PreparedTransport, TransportFailure>,
+    ) => Outcome<PreparedTransport, TransportFailure>
+    materializeOutcome?: (
+      result: Outcome<MaterializedTransport, TransportFailure>,
+    ) => Outcome<MaterializedTransport, TransportFailure>
     receipt?: () => MaterializationReceipt
     start?: (signal: AbortSignal) => AsyncIterable<TransportFact>
     next?: () => Promise<IteratorResult<TransportFact>>
@@ -122,9 +128,11 @@ export function controlled(
       calls.push('materialize')
       signals.push(given)
       await options.materialize?.()
-      return options.rejection?.at === 'materialize'
-        ? fail(options.rejection.failure)
-        : succeed(materialized)
+      const result =
+        options.rejection?.at === 'materialize'
+          ? fail(options.rejection.failure)
+          : succeed(materialized)
+      return options.materializeOutcome?.(result) ?? result
     },
     async close() {
       calls.push('prepared.close')
@@ -136,9 +144,9 @@ export function controlled(
     async prepare() {
       calls.push('prepare')
       await options.prepare?.()
-      return options.rejection?.at === 'prepare'
-        ? fail(options.rejection.failure)
-        : succeed(prepared)
+      const result =
+        options.rejection?.at === 'prepare' ? fail(options.rejection.failure) : succeed(prepared)
+      return options.prepareOutcome?.(result) ?? result
     },
   }
   return { transport, calls, signals }

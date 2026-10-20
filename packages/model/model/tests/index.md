@@ -3,7 +3,7 @@
 - [测试范围与运行入口](README.md)。
 - [根入口与源码边界测试](public-entry.spec.ts)。
 - [凭据判定测试](judgment.spec.ts)。
-- [独立执行组合](execute.spec.ts)、[取消与资源生命周期](execute-lifecycle.spec.ts)、[传输提供者符合性](execute-transport.spec.ts)、[公开类型消费](execute.spec-d.ts)。
+- [独立执行组合](execute.spec.ts)、[准备结果读取](execute-outcome.spec.ts)、[取消与资源生命周期](execute-lifecycle.spec.ts)、[传输提供者符合性](execute-transport.spec.ts)、[公开类型消费](execute.spec-d.ts)。
 - [安装闭包场景](install/scenario.mjs)：经消费目录里安装的包调用 `executeModel`、`deliver` 与判定。
 - [测试夹具](fixtures/index.md)。
 

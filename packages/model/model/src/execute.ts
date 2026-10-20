@@ -60,7 +60,8 @@ async function preparation<T>(
   phase: 'prepare' | 'materialize' | 'receipt',
 ): Promise<Outcome<T, TransportFailure>> {
   try {
-    return await action()
+    const outcome = await action()
+    return 'ok' in outcome ? succeed(outcome.ok) : fail(outcome.failure)
   } catch {
     return fail({
       kind: 'unavailable',
