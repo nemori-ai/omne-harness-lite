@@ -183,7 +183,7 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 本节维护运行接口的行为。声明只在 `src/`，[public-api](docs/public-api.md) 是它的导航，消费及失败场景归 [context](docs/context.md)。本节设计已接受，尚不表示生产支持。
 
-本节将既有行为落实到操作、参数和提供者责任。声明只保存在 `src/`，[公开接口页](docs/public-api.md)给出导航，导出清单没有 pending 名字。`executeModel` 与 `createModelRuntime` 等由 model 成员拥有，不能从本包导入。model 已提供 createModelRuntime 的构造壳，executeModel 与托管业务行为尚未实现。
+本节将既有行为落实到操作、参数和提供者责任。声明只保存在 `src/`，[公开接口页](docs/public-api.md)给出导航，导出清单没有 pending 名字。`executeModel` 与 `createModelRuntime` 等由 model 成员拥有，不能从本包导入。model 已实现 executeModel 及受理、原流保存、实例观察和有限的原终局收场，具体支持边界归[实现规格](../model/SPEC.md#已实现的调用收场)。结果读取及 processed ACK 已实现；retained ACK、自动清理与生产托管宿主尚未实现。
 
 <a id="342-能力边界"></a>
 
@@ -424,6 +424,8 @@ prepareRetry 为该 dispatch 保存唯一策略 operation、固定 retryPolicy �
 策略协调者的寿命归 Model 宿主或其独立依赖，发起者离开不卸载它。策略需要系统托管数据时仍以当前受信主体和显式 tenant 核权，内部效果有自己的可恢复调用身份；它不能借策略位置发与原判断无关的工作。目标调用受到控制（包括 Model 因原工作资格失效记录的控制，见[资格、共同提交与实际发送](#342-资格共同提交与实际发送)）、原调用终局或当前准入撤销后，不再进行新的策略业务效果；已开始的原内部调用可收场保管。采用缺失或确证策略不可用才按不再试收束，纯查询故障保持未知。已决定但提交未知先查认，不让替换的策略覆盖旧结论。后继实际 send 仍独立核当前围栏，不以决定为永久许可。
 
 为覆盖首片已接收而未保存的窗口，提供者在任何可能观察内容的接收动作前调用 openReceiveWindow。其提交把尚无首内容的状态从 none-proven 改为 uncertain。传输不得在窗口开始之前后台预读；无法禁用预读时，须在 start 前打开覆盖整个预读期间的窗口。仅打开网络连接但未接收模型内容，不自行算首内容。
+
+ModelSendBoundary 的 started 结果必须同时交出已确认打开的原 window 和唯一 facts 流。消费者直接使用结果中的 window 调用 preserve，不从测试计划或隐藏共享状态推导窗口。window 只标识原接收范围，不授予访问权；Commands 仍核 tenant、call、execution、dispatch 与 window 绑定。start 已取得流而 recordSend 未确认时，发送器保留原窗口、原流、资源与写参数。认回原写后只交出一次原窗口与原流，不再次 start。此行为不提供跨进程恢复保证。
 
 preserve 保存该窗口全部已接收事实并关闭窗口。包含任何实际内容时永久改为 observed；确认只有非内容事实时可以回到 none-proven，但前提是接收已暂停且没有未纳入的预读缓冲。发送/接收失败先以终止事实关闭窗口，再进行策略判断。崩溃留下的 open window 不能靠数据库里缺少内容来关闭为 none-proven；无法从可信接收记录恢复其完整事实时，以 uncertain 保持不重发并形成 runtime-lost 收场，明确未能判定首内容是否发生。这个保守结果不把真实内容谎报为未出现，也不禁止能证明首内容前的合法恢复。
 

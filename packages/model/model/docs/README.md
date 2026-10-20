@@ -8,7 +8,7 @@
 | [flows](flows.md) | 业务与数据流 |
 | [object-model](object-model.md) | 内部对象与构造依赖 |
 | [public-api](public-api.md) | 执行函数和工厂设计 |
-| [context](context.md) | 选择和构造本实现 |
+| [context](context.md) | 选择和构造本实现，进入逐步教学示例 |
 | [cordis](cordis.md) | 暂存宿主装配设计；model-host-local 已有，目前只实现本地凭据保管 |
 
 [实现 SPEC](../SPEC.md)补充实现专属行为，完整共同义务见[领域验证](../../model-contract/verification/index.md)。
