@@ -7,7 +7,7 @@ import {
   PagingModel,
   sourceBlocks,
 } from './tools-model-values.ts'
-import { principalB, tenantB } from './runtime-values.ts'
+import { ok, principalB, tenantB } from './runtime-values.ts'
 import { result, visible } from './tools-values.ts'
 
 function expectFailure(view: readonly ToolMessageContentBlock[], code: string) {
@@ -85,9 +85,15 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
       new Set(host.metaCalls.map(call => JSON.stringify([call.reference, call.result]))).size,
     ).toBe(host.metaCalls.length)
     expect(host.metaCalls.every(call => call.reference !== host.source.reference)).toBe(true)
-    const original = await host.reads.queries.readResult({ ...host.source, after: null })
-    expect(original).toMatchObject({
-      ok: { result: host.source.result, terminal: { kind: 'completed' } },
+    const original = ok(await host.reads.queries.readResult({ ...host.source, after: null }))
+    expect(original).toMatchObject({ result: host.source.result, terminal: { kind: 'completed' } })
+    expect(host.sourceDefinition.returns.kind).toBe('structured')
+    const program = host.sourceDefinition.returns.program
+    if (program.kind !== 'json') throw new Error('Missing source program declaration')
+    expect(original.value.data).toMatchObject({
+      kind: 'json',
+      contract: program.contract,
+      schema: program.schema,
     })
     expect(host.sourceExecutions()).toBe(1)
   })
@@ -225,22 +231,26 @@ describe('model-visible Tools result loop through real runtime and P14', () => {
 
   it('propagates real byte provider failure and checks raw qualification for an associated same-address description variant', async () => {
     const host = await modelHost({
-      value: raw => ({
-        ...result(
-          [visible('summary', 'summary only')],
-          [raw.content, { ...raw.content, mediaType: 'application/octet-stream' }],
-        ),
-        original: {
-          kind: 'offloaded',
-          source: raw.content,
-          summary: [visible('summary', 'summary only')],
-        },
-      }),
+      value: raw => {
+        const variant = { ...raw.content, mediaType: 'text/plain' }
+        expect(variant).not.toEqual(raw.content)
+        expect(variant.storage).toBe(raw.content.storage)
+        expect(variant.key).toBe(raw.content.key)
+        return {
+          ...result([visible('summary', 'summary only')], [raw.content, variant]),
+          original: {
+            kind: 'offloaded',
+            source: raw.content,
+            summary: [visible('summary', 'summary only')],
+          },
+        }
+      },
     })
     const model = new PagingModel((await host.call('help', {})).view)
     const initial = await host.present()
     expect(modelField(initial, 'content')).toBe('end')
     expect(modelField(initial, 'original')).toBe('offloaded; bytes unread')
+    expect(host.sourceDefinition.returns).toEqual({ kind: 'structured', program: { kind: 'none' } })
     host.denied.push('read-raw')
     for (const read of [
       model.original(initial),

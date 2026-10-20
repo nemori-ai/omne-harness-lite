@@ -16,6 +16,7 @@ import {
   type Access,
   type Attachment,
   type RawOutput,
+  type ToolDefinition,
   type ToolInvocationRef,
   type ToolMessageContentBlock,
   type ToolResult,
@@ -168,6 +169,36 @@ export async function modelHost(
         value: { kind: 'string', value: 'HIDDEN-SOURCE-DATA' },
       },
     }))
+  const baseDefinition = functionDefinition()
+  if (baseDefinition.kind !== 'function') throw new Error('Not a function definition')
+  const sourceDefinition = {
+    ...baseDefinition,
+    declarations: {
+      ...baseDefinition.declarations,
+      inputModalities: ['text'],
+      outputModalities: ['text', 'image', 'voice', 'video'],
+    },
+    returns: {
+      kind: 'structured',
+      program:
+        input.value === undefined
+          ? {
+              kind: 'json',
+              contract: adoption('source-program'),
+              schema: { id: 'source-program', revision: '1', digest: 'sha256:program' },
+              definition: {
+                schema: {
+                  kind: 'object',
+                  entries: [{ key: 'type', value: { kind: 'string', value: 'string' } }],
+                },
+                vocabulary: adoption('json-schema'),
+                descriptions: [],
+              },
+              maxBytes: options.replyMaxBytes,
+            }
+          : { kind: 'none' },
+    },
+  } satisfies ToolDefinition
   let sourceExecutions = 0
   const positions: string[] = []
   const h = startHarness({
@@ -307,7 +338,7 @@ export async function modelHost(
       request: request({
         availability: {
           kind: 'available',
-          definition: command === null ? functionDefinition() : tools.author.definition,
+          definition: command === null ? sourceDefinition : tools.author.definition,
           executor: adoption(command === null ? 'source-executor' : 'Tools-executor'),
         },
         command,
@@ -365,6 +396,7 @@ export async function modelHost(
     attachment,
     positions,
     metaCalls,
+    sourceDefinition,
     sourceExecutions: () => sourceExecutions,
     failSourceRead: () => {
       failNextSourceRead = true
