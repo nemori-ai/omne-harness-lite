@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft Cordis-free agent implementation; runtime factories are not implemented",
+  "description": "Agent implementation without Cordis: construction types, a factory shell that is not implemented yet, and the ./testing assembly",
   "engines": {
     "node": ">=24"
   },
@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "files": [
@@ -23,10 +28,17 @@
     "test": "pnpm run build && vitest run"
   },
   "dependencies": {
-    "@omne-harness/agent-contract": "workspace:*"
+    "@omne-harness/agent-contract": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/message": "workspace:*",
     "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
