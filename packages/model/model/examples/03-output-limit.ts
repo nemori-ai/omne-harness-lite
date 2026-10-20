@@ -1,3 +1,4 @@
+import { encodeModelInvocationRef } from '@omne-harness/model-contract'
 import { createModelRuntime } from '@omne-harness/model'
 import { configuration, createExampleAssembly, operation } from '../tests/example-support.ts'
 
@@ -14,6 +15,14 @@ const example = createExampleAssembly({
 })
 const provider = createModelRuntime(example.dependencies, configuration)
 const admission = operation('admit')
+// Fix this locator before admission. A lost reply cannot take away the recovery identity.
+const encoded = encodeModelInvocationRef({
+  tenant: example.access.tenant,
+  call: example.call,
+  admission,
+})
+if ('failure' in encoded) throw new Error(`Reference failed: ${encoded.failure.reason}`)
+const reference = encoded.ok
 try {
   const admitted = await provider.runtime.calls.admit({
     ...example.access,
@@ -30,8 +39,7 @@ try {
   if ('failure' in driven) throw new Error(`Drive failed: ${JSON.stringify(driven.failure)}`)
   const lookup = await provider.runtime.calls.inspect({
     ...example.access,
-    call: example.call,
-    admission,
+    reference,
   })
   if ('failure' in lookup) throw new Error(`Inspection failed: ${JSON.stringify(lookup.failure)}`)
   if (lookup.ok.kind !== 'found' || lookup.ok.state.phase !== 'settled')
@@ -41,8 +49,8 @@ try {
     throw new Error('Expected completed/limit')
   console.log('termination:', termination.kind, termination.reason)
   console.log('upstream trim:', trim.removed, trim.reason)
-  // Snapshot has visible blocks and state, but no full trims list. Runtime result reading and
-  // ACK are not implemented yet. This lesson does not invent a result-consumption shortcut.
+  // Snapshot has visible blocks and state, but no full trims list. Lesson 05 consumes the result
+  // through the public reading and processed ACK capabilities, including the actual trims.
 } finally {
   await example.withdrawPublication()
 }

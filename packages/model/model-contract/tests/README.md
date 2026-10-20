@@ -17,7 +17,7 @@
 | `public-api-types.spec.ts` | `docs/public-api.md` 是源码导航：清单的每一章链接声明其名字的源码文件，页面链接的源码与测试文件都存在，页面不重复声明（核对函数及其负例在 `exports-inventory.ts` 与 `exports-inventory.spec.ts`） |
 | `*.spec-d.ts`、`values.ts`、`type-coverage.spec.ts`                                   | 类型消费的正例与负例；探针的类型化输入；每个已落地类型至少在一个探针里被使用（导入列表里的名字不算）                                                                                |
 | `fixture-runner.ts`、`fixture-runner.spec.ts` | 角色夹具的声明规则：要求每个夹具声明正常路径与失败路径、失败路径写明改变的协调决策、路径名不重复、必需角色有夹具。设施用同一份规则判定夹具进程写出的报告 |
-| `public-entry.spec.ts`、`identity.spec.ts`、`credential.spec.ts`                     | 根入口的 18 个运行时键；身份与序列解码函数的成功与每个拒绝原因、比较函数、守卫派生函数；凭据解码函数的成功与每个拒绝原因，以及持有者比较函数                                         |
+| `public-entry.spec.ts`、`identity.spec.ts`、`credential.spec.ts`                     | 根入口的 28 个运行时键；身份与序列解码函数的成功与每个拒绝原因、比较函数、守卫派生函数；凭据解码函数的成功与每个拒绝原因，以及持有者比较函数                                         |
 | `testing-entry.spec.ts`、`testing-provider.spec.ts`、`testing-failures.spec.ts`、`testing-access.spec.ts`、`testing-observation.spec.ts`、`testing-control.spec.ts`、`testing-transport.spec.ts`、`scripted-support.ts` | `./testing` 的受控替代提供者与替代传输，经包名入口导入：运行时键、普通路径、认回与冲突、六种失败路径、逐动作撤权与跨租户拒绝、等待中的观察被唤醒与释放、取消的三态、多调用、对脚本误用的拒绝、传输的终止、耗尽、抛错与调用计数。`scripted-support.ts` 是它们共用的输入构造 |
 | `testing-reduction.spec.ts` | 替代提供者喂入上游事实时的块表（追加与替换、禁止的转换、封口与累计值、截断的工具参数）、证据登记与目录故障 |
 | `conformance-scripted.spec.ts`、`conformance-admission.spec.ts`、`conformance-settlement.spec.ts`、`conformance-control.spec.ts`、`conformance-observation.spec.ts`、`conformance-routes.spec.ts`、`conformance-transport.spec.ts`、`conformance-entry.spec.ts`、`conformance-docs.spec.ts`、`conformance-kit.spec.ts`、`conformance-defaults.spec.ts`、`conformance-support.ts` | 提供者符合性断言：替代件通过全部义务，替代件的钩子接线各有直接断言；每条义务有一个只违反它的提供者让它失败，同一义务的其他违约方式与契约允许的另一种形态（应当通过）各有变体，失败总带原因（`conformance-support.ts` 把替代件包成坏提供者并读出失败的义务与原因）；入口对缺钩子、抛出的错误、超时与释放的处理；套件自带辅助函数的直接断言（`conformance-kit.spec.ts`）；套件缺省值送到提供者与传输的内容（`conformance-defaults.spec.ts`）；公开页的义务表与套件一致 |
@@ -25,3 +25,5 @@
 `src/` 导出的类型声明和运行值与清单一致，清单没有 `pending` 名字；`pending` 标记留给以后新增而未落地的名字。这些测试不证明协议或生产能力。替代提供者的测试只证明外部协调者在契约面上看到的结果，脚本给出的结果不是生产证明。这些测试的用例名写成字面量，不用 `it.each` 或循环生成：差分变异（`pnpm run mutation`）按静态解析挑用例，运行不到名字动态生成的用例，会把本该被杀的变异体报成存活。
 
 [目录索引](index.md)。
+
+[judge-request.spec.ts](judge-request.spec.ts) 验证公开封闭判断、领域联合、单快照、不可变输出和七项预算。[judge-request.spec-d.ts](judge-request.spec-d.ts) 保持 typed Access 与未知 payload 的边界。

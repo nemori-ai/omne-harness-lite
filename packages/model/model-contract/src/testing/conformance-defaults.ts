@@ -10,7 +10,7 @@ import type {
 } from '../index.ts'
 
 function adoption(name: string): Adoption {
-  return { owner: 'conformance', name, revision: '1', digest: `digest-${name}` }
+  return { owner: 'conformance', name, revision: '1', digest: '0'.repeat(64) }
 }
 
 export const DEFAULT_SUPPLIER: Supplier = {
@@ -50,5 +50,11 @@ export const DEFAULT_CAPACITY: ResultCapacity = {
 
 /** The same request with another fixed source, so a provider that fixes inputs sees a difference. */
 export function variantOf(request: FixedModelRequest): FixedModelRequest {
-  return { ...request, source: { ...request.source, digest: `${request.source.digest}-variant` } }
+  return {
+    ...request,
+    source: {
+      ...request.source,
+      digest: (request.source.digest[0] === '0' ? '1' : '0') + request.source.digest.slice(1),
+    },
+  }
 }

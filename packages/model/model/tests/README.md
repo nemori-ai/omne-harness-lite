@@ -36,7 +36,7 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 [runtime-admission.spec.ts](runtime-admission.spec.ts) 使用真实 createModelRuntime 和 driver。测试覆盖受理重复与冲突、取消原操作、跨租户及当前撤权、唯一首次分派、claim 冲突与 stale、未知 prepare 的 applied/dropped 原参重放、并发唤醒及停止后的待办。受控依赖只提供资格、可信 continuity、故障和唤醒，不代 driver 调用 claim 或 prepare。
 
-带类型的输入回归在各入口附加 onProgress 回调，验证回调不进入业务快照。它使用带函数的不透明 principal 和原已铸造租户，通过真实受理、查询、首次分派与取消，检查身份引用保持有效。
+带类型的输入回归验证 admit 拒绝额外 onProgress 字段，其他入口保持原身份行为。它使用带函数的不透明 principal 和原已铸造租户，通过真实受理、查询、首次分派与取消，检查身份引用保持有效。
 
 共同符合性使用[runtime-conformance-fixture.ts](runtime-conformance-fixture.ts)唯一装配，完整保存53项实际结果。15项 settlement、未知 ACK 原操作认回和三项消费 route 逐名要求 pass。startRun/settleCall 使用真实 driver、receiver、preserve 和 settle；证据来自[承接方完成记录](completion-records.ts)，adapter 核全部字段及 tenant/call/result/consumer。unknown 包装真实 handoff，撤权映射 content/handoff，清理 hook 使用有效 execution 调实际 advanceCleanup。quiesce 等未支持项仍按真实结果报告。
 
@@ -78,3 +78,5 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 [memory-paging.spec.ts](memory-paging.spec.ts)在最小可受理预算中调整到最大安全整数，检查分页准备已经预留容量。原 memory-partial 持续覆盖超目标单项独页、整页容量及终局/控制/ACK/释放的临界预算。结果冻结后禁止重配，准备错误不得部分修改配置。
 
 这些是本地内存后端、消费者完成记录替身和脚本上游的真实产品组合。它们不证明消费者生产耐久、真实厂商、自动清理工作者或跨进程恢复。
+
+[admit-boundary.spec.ts](admit-boundary.spec.ts) 驱动真实 runtime 与直接 Memory Commands，检查同步副本、畸形重放优先级、资格同一性及拒绝无容量/调度/发送副作用。

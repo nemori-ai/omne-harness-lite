@@ -14,7 +14,12 @@ for (const target of [1024, 128]) {
       })
       f.denied.add('recovery')
       f.denied.add('control')
-      const input = { ...f.admit, operation: op('read'), result: settlement.version }
+      const input = {
+        reference: f.reference,
+        ...f.admit,
+        operation: op('read'),
+        result: settlement.version,
+      }
       const first = unbox(await f.provider.runtime.consumption.beginRead(input))
       if (first.kind !== 'started' || first.value.kind !== 'reading')
         throw new Error('missing page')
@@ -102,6 +107,7 @@ it('rejects paging preparation atomically before freezing, including unknown cal
     if (record.state.phase !== 'settled') throw new Error('missing settlement')
     const read = unbox(
       await f.provider.runtime.consumption.beginRead({
+        reference: f.reference,
         ...f.admit,
         operation: op('unchanged-config'),
         result: record.state.settlement.version,
@@ -118,7 +124,12 @@ it('keeps the original read and first page after ACK, then returns ended or ackn
   const f = runtimeFixture()
   try {
     const settled = await settleRuntime(f)
-    const input = { ...f.admit, operation: op('read'), result: settled.version }
+    const input = {
+      reference: f.reference,
+      ...f.admit,
+      operation: op('read'),
+      result: settled.version,
+    }
     const first = unbox(await f.provider.runtime.consumption.beginRead(input))
     if (
       first.kind !== 'started' ||
@@ -160,7 +171,12 @@ it('uses content authority for every read and hides settled results from another
   const f = runtimeFixture()
   try {
     const settled = await settleRuntime(f)
-    const begin = { ...f.admit, operation: op('read'), result: settled.version }
+    const begin = {
+      reference: f.reference,
+      ...f.admit,
+      operation: op('read'),
+      result: settled.version,
+    }
     const first = unbox(await f.provider.runtime.consumption.beginRead(begin))
     if (
       first.kind !== 'started' ||
@@ -172,7 +188,7 @@ it('uses content authority for every read and hides settled results from another
     for (const call of [f.admit.call, callId('absent')]) {
       const cross = { ...next, call, tenant: identity('6') }
       expect(await f.provider.runtime.consumption.beginRead({ ...begin, ...cross })).toMatchObject({
-        failure: { kind: 'denied', action: 'content' },
+        failure: { kind: 'denied', action: 'beginRead' },
       })
       expect(await f.provider.runtime.consumption.readNext(cross)).toMatchObject({
         failure: { kind: 'denied', action: 'content' },

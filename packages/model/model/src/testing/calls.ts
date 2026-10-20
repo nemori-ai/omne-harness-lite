@@ -1,9 +1,13 @@
 import { encodedBytes, MAX_SETTLEMENT_BYTES, MAX_TERMINATION_BYTES } from './pages.ts'
 import { checkedEvidence } from './value.ts'
-import { validateRequest } from './request.ts'
 import { randomUUID } from 'node:crypto'
 import { tenantKey } from './value.ts'
-import { decodeModelOperationId, decodeModelInstanceId } from '@omne-harness/model-contract'
+import {
+  judgeAdmit,
+  encodeModelInvocationRef,
+  decodeModelOperationId,
+  decodeModelInstanceId,
+} from '@omne-harness/model-contract'
 import type { ModelCommands, ModelCallId, Settlement, Lookup } from '@omne-harness/model-contract'
 import {
   MemoryState,
@@ -15,14 +19,23 @@ import {
   tasks,
   unresolved,
 } from './state.ts'
-import { cursor, decimal, digest, invalid, resultVersion, revision } from './value.ts'
+import { cursor, digest, invalid, resultVersion, revision } from './value.ts'
 
 export function callCommands<P>(
   store: MemoryState<P>,
 ): Pick<ModelCommands<P>, 'admit' | 'recall' | 'query' | 'dispatches' | 'control' | 'settle'> {
   return {
-    admit: input =>
-      store.run(() => {
+    admit: raw => {
+      const checked = judgeAdmit(raw)
+      if ('failure' in checked)
+        return Promise.resolve({
+          failure:
+            checked.failure.field === '/tenant' && checked.failure.reason === 'identity'
+              ? { kind: 'denied', action: 'tenant' }
+              : { kind: 'invalid', ...checked.failure },
+        })
+      const input = checked.ok
+      return store.run(() => {
         const { call, operation, request, consumer, capacity } = input
         const fields = { call, operation, request, consumer, capacity }
         return store.write({
@@ -30,14 +43,9 @@ export function callCommands<P>(
           method: 'admit',
           fields,
           check: (previous, _root, replay) => {
-            const failure = authFailure(
+            return authFailure(
               store.authorize(input, replay ? 'facts' : 'admit', previous, call, consumer),
             )
-            if (failure) return failure
-            const invalidRequest = validateRequest(request)
-            return invalidRequest && replay
-              ? { kind: 'conflict', operation, revision: previous?.state.revision ?? revision() }
-              : invalidRequest
           },
           apply: draft => {
             if (draft.call)
@@ -46,12 +54,6 @@ export function callCommands<P>(
               }
             const owner = store.owner(consumer.owner)
             if (!owner) return { failure: invalid('consumer.owner', 'undeclared') }
-            if (
-              !decimal(capacity.bytes, true) ||
-              !decimal(capacity.blocks, true) ||
-              !decimal(capacity.attachmentBytes)
-            )
-              return { failure: invalid('capacity', 'integer') }
             for (const field of ['bytes', 'blocks', 'attachmentBytes'] as const) {
               const used = store.reserved(field)
               if (used + BigInt(capacity[field]) > BigInt(store.options.limits.capacity[field]))
@@ -59,8 +61,15 @@ export function callCommands<P>(
             }
             const actor = store.authorize(input, 'admit', undefined, call, consumer)
             if ('failure' in actor) return actor
+            const reference = encodeModelInvocationRef({
+              tenant: input.tenant,
+              call,
+              admission: operation,
+            })
+            if ('failure' in reference)
+              return { failure: invalid('reference', 'reference-' + reference.failure.reason) }
             const first = revision('1')
-            const admission = { call, revision: first, recovered: false }
+            const admission = { call, revision: first, recovered: false, reference: reference.ok }
             draft.call = {
               state: {
                 call,
@@ -99,7 +108,8 @@ export function callCommands<P>(
               ? { ok: { ...binding.receipt.admission, recovered: true } }
               : missingReceipt(),
         })
-      }),
+      })
+    },
     recall: input =>
       store.run<Lookup>(() => {
         const key = store.identity(input)

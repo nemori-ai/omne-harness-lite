@@ -1,3 +1,4 @@
+import { reservedReference } from './reference-input.ts'
 import { describe, expect, it } from 'vitest'
 import { deriveGuardControlOperation } from '@omne-harness/model-contract'
 import {
@@ -192,7 +193,12 @@ describe('a reserved operation and the access to a call', () => {
         case 'admit':
           return calls.admit(admission('x', { ...who, operation: reserved }))
         case 'inspect':
-          return calls.inspect({ ...who, admission: reserved })
+          return Reflect.apply(calls.inspect, calls, [
+            {
+              ...who,
+              reference: reservedReference({ ...who, admission: reserved }),
+            },
+          ])
         case 'cancel':
           return calls.cancel({ ...who, operation: reserved })
         case 'beginRead':
@@ -204,13 +210,16 @@ describe('a reserved operation and the access to a call', () => {
     const own = failureOf(await run(access('a')))
     expect(own).toMatchObject({ kind: 'invalid' })
     expect(failureOf(await run(access('missing')))).toEqual(own)
-    expect(failureOf(await run({ ...access('a'), tenant: tenantB }))).toEqual(own)
+    expect(failureOf(await run({ ...access('a'), tenant: tenantB }))).toEqual(
+      method === 'beginRead' ? { kind: 'denied', action: 'beginRead' } : own,
+    )
   }
 
   it('is refused before the access is checked on admit', () => refusedBeforeAccess('admit'))
   it('is refused before the access is checked on inspect', () => refusedBeforeAccess('inspect'))
   it('is refused before the access is checked on cancel', () => refusedBeforeAccess('cancel'))
-  it('is refused before the access is checked on beginRead', () => refusedBeforeAccess('beginRead'))
+  it('resolves the reference tenant before refusing a reserved read operation', () =>
+    refusedBeforeAccess('beginRead'))
   it('is refused before the access is checked on acknowledge', () =>
     refusedBeforeAccess('acknowledge'))
 })

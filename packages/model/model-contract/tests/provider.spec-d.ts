@@ -1,3 +1,4 @@
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { expectTypeOf, it } from 'vitest'
 import type {
   Access,
@@ -437,12 +438,20 @@ it('a ModelProvider exposes the ordinary runtime and the operator entries, and n
     runtime: {
       calls: {
         admit: commands.admit,
-        inspect: commands.recall,
+        inspect: input => {
+          const resolved = resolveModelInvocationRef(input.reference, input.tenant)
+          if ('failure' in resolved) throw new Error('bad fixture')
+          return commands.recall({ principal: input.principal, ...resolved.ok })
+        },
         dispatches: commands.dispatches,
         cancel: commands.control,
       },
       consumption: {
-        beginRead: commands.acquireRead,
+        beginRead: input => {
+          const resolved = resolveModelInvocationRef(input.reference, input.tenant)
+          if ('failure' in resolved) throw new Error('bad fixture')
+          return commands.acquireRead({ ...input, ...resolved.ok })
+        },
         readNext: commands.nextRead,
         closeRead: commands.endRead,
         acknowledge: commands.handoff,

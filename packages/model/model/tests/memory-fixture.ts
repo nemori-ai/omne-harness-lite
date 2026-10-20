@@ -6,6 +6,7 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import {
+  encodeModelInvocationRef,
   decodeModelCallId,
   decodeModelInstanceId,
   decodeModelOperationId,
@@ -163,6 +164,9 @@ export function fixture() {
   }
   return {
     options,
+    reference: unbox(
+      encodeModelInvocationRef({ tenant: scope, call: admit.call, admission: admit.operation }),
+    ),
     admit,
     principal,
     tenant: scope,

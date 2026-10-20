@@ -1,3 +1,4 @@
+import { invocationReference, reservedReference } from './reference-input.ts'
 import { describe, expect, it } from 'vitest'
 import {
   decodeReadId,
@@ -43,6 +44,7 @@ describe('the ordinary path of a scripted call', () => {
       call: call('n'),
       revision: '1',
       recovered: false,
+      reference: access('n').reference,
     })
 
     const watcher = watch(await liveHandle(scripted, 'n'))
@@ -144,7 +146,12 @@ describe('the ordinary path of a scripted call', () => {
     ).toEqual({ kind: 'acknowledged', custody: receipt.custody })
 
     scripted.controller.setCleanup({ ...callRef('n'), cleanup: 'released', diagnostic: null })
-    const found = must(await calls.inspect({ ...access('n'), admission: operation('admit-n') }))
+    const found = must(
+      await calls.inspect({
+        ...access('n'),
+        reference: invocationReference({ ...access('n'), admission: operation('admit-n') }),
+      }),
+    )
     expect(found).toMatchObject({
       kind: 'found',
       state: { custody: { kind: 'acknowledged', cleanup: 'released' } },
@@ -525,6 +532,7 @@ describe('recognising an operation', () => {
       call: call('a'),
       revision: '1',
       recovered: true,
+      reference: access('a').reference,
     })
   })
 
@@ -603,7 +611,12 @@ describe('recognising an operation', () => {
       failureOf(await consumption.acknowledge({ ...ackInput('a'), operation: reuse })),
     ).toEqual({ kind: 'conflict', operation: reuse, revision: '2' })
     expect(
-      must(await scripted.provider.runtime.calls.inspect({ ...access('a'), admission: reuse })),
+      must(
+        await scripted.provider.runtime.calls.inspect({
+          ...access('a'),
+          reference: invocationReference({ ...access('a'), admission: reuse }),
+        }),
+      ),
     ).toMatchObject({ state: { custody: { kind: 'producer' } } })
   })
 
@@ -623,7 +636,13 @@ describe('recognising an operation', () => {
     const target = access('a')
     const outcomes = {
       admit: () => calls.admit(admission('c', { operation: reserved })),
-      inspect: () => calls.inspect({ ...target, admission: reserved }),
+      inspect: () =>
+        Reflect.apply(calls.inspect, calls, [
+          {
+            ...target,
+            reference: reservedReference({ ...target, admission: reserved }),
+          },
+        ]),
       cancel: () => calls.cancel({ ...target, operation: reserved }),
       beginRead: () =>
         consumption.beginRead({ ...target, operation: reserved, result: version('a') }),
@@ -632,12 +651,17 @@ describe('recognising an operation', () => {
     expect(failureOf(await outcomes[method]())).toEqual({
       kind: 'invalid',
       field,
-      reason: 'operation values that start with -- are reserved',
+      reason:
+        method === 'admit'
+          ? 'reserved'
+          : method === 'inspect'
+            ? 'reference-reserved'
+            : 'operation values that start with -- are reserved',
     })
   }
 
-  it('refuses a reserved operation on admit', () => refusesReserved('admit', 'operation'))
-  it('refuses a reserved operation on inspect', () => refusesReserved('inspect', 'admission'))
+  it('refuses a reserved operation on admit', () => refusesReserved('admit', '/operation'))
+  it('refuses a reserved operation on inspect', () => refusesReserved('inspect', 'reference'))
   it('refuses a reserved operation on cancel', () => refusesReserved('cancel', 'operation'))
   it('refuses a reserved operation on beginRead', () => refusesReserved('beginRead', 'operation'))
   it('refuses a reserved operation on acknowledge', () =>
@@ -649,7 +673,15 @@ describe('who may see a call', () => {
     const scripted = scriptedProvider()
     const { calls } = scripted.provider.runtime
     await calls.admit(admission('a'))
-    const foreign = { ...access('a'), tenant: tenantB, admission: operation('admit-a') }
+    const foreign = {
+      ...access('a'),
+      tenant: tenantB,
+      reference: invocationReference({
+        tenant: tenantB,
+        call: call('a'),
+        admission: operation('admit-a'),
+      }),
+    }
     expect(must(await calls.inspect(foreign))).toEqual({
       kind: 'not-accepted',
       operation: operation('admit-a'),
@@ -664,20 +696,30 @@ describe('who may see a call', () => {
     })
   })
 
-  it('answers not-accepted for an admission operation the call was not admitted with', async () => {
+  it('rejects an admission operation the existing call was not admitted with', async () => {
     const scripted = scriptedProvider()
     const { calls } = scripted.provider.runtime
     await calls.admit(admission('a'))
     expect(
-      must(await calls.inspect({ ...access('a'), admission: operation('someone-else') })),
-    ).toEqual({ kind: 'not-accepted', operation: operation('someone-else') })
+      failureOf(
+        await calls.inspect({
+          ...access('a'),
+          reference: invocationReference({ ...access('a'), admission: operation('someone-else') }),
+        }),
+      ),
+    ).toEqual({ kind: 'invalid', field: 'admission', reason: 'not-original' })
   })
 
   it('shows the state of an admitted call with the consumer it was admitted for', async () => {
     const scripted = scriptedProvider()
     const { calls } = scripted.provider.runtime
     await calls.admit(admission('a'))
-    const found = must(await calls.inspect({ ...access('a'), admission: operation('admit-a') }))
+    const found = must(
+      await calls.inspect({
+        ...access('a'),
+        reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+      }),
+    )
     expect(found).toMatchObject({
       kind: 'found',
       state: {
@@ -696,7 +738,7 @@ describe('who may see a call', () => {
     const forged = { ...tenantA }
     expect(
       failureOf(await scripted.provider.runtime.calls.admit(admission('a', { tenant: forged }))),
-    ).toEqual({ kind: 'denied', action: 'admit' })
+    ).toEqual({ kind: 'denied', action: 'tenant' })
     expect(
       failureOf(await scripted.provider.recover({ principal: alice, tenant: forged })),
     ).toEqual({
