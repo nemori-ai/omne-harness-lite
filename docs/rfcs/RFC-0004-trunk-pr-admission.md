@@ -15,7 +15,7 @@ owner: Brian Lee
 
 > **更正标注（2026-10-16）**：采用标签与 policy registry 作为受信来源的条款、本机集成工具在四条主干上的角色与改造计划，以及流程失效时“用本机工具完成发布”的恢复方式，已由 [RFC-0009](RFC-0009-adoption-and-local-tool-retirement.md) 部分取代，精确范围见其「决定范围」的 12 项。原文保留。写回表“发布身份加入 owners，以及 I07、I08、I09、I11”一行按 RFC-0009 的接受记为免除写回。
 
-> **被取代标注（2026-10-20）**：本提案已被 [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) revision 1 整篇取代，取代范围是扣除 RFC-0008 与 RFC-0009 已取代部分之后的全部采用范围，精确范围见其「决定范围」。决定见 [#420 的接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/420#issuecomment-6283221477)。现行规则从 RFC-0011 与其写回的现行源读取。原接受记录、方案与决定范围保留原文。写回表“第二阶段”与“远程检查的工作流说明”两行按 RFC-0011 的接受记为免除写回。
+> **被取代与更正标注（2026-10-20）**：本提案已被 [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) revision 1 整篇取代，取代范围是扣除 RFC-0008 与 RFC-0009 已取代部分之后的全部采用范围，精确范围见其「决定范围」。决定见 [#420 的接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/420#issuecomment-6283221477)。现行规则从 RFC-0011 与其写回的现行源读取。原接受记录、方案与决定范围保留原文。写回表“第二阶段”与“远程检查的工作流说明”两行按 RFC-0011 的接受记为免除写回。
 
 ## 问题与有效输入
 

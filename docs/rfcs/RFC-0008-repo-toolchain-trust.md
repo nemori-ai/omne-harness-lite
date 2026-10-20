@@ -14,7 +14,7 @@ owner: Brian Lee
 
 > **更正标注（2026-10-16）**：「受信版本的载体与升级」中列举的仓库检查包含 `scripts/integration-check.sh`。该脚本已按 [RFC-0009](RFC-0009-adoption-and-local-tool-retirement.md) 删除。原文保留，本更正不改变本提案的决定。
 
-> **更正标注（2026-10-20）**：「决定范围」第 6 项把“经升级流程更新检查器”的出处写成 RFC-0004「实质备选」。这句话实际在 RFC-0004「验证与消费者切换」探路表“合并队列直接把轨道移到被检查的提交”一行的后果列。替代内容不变。依据是 [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) revision 1 的接受，见 [#420 的接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/420#issuecomment-6283221477)。
+> **更正标注（2026-10-20）**：「决定范围」第 6 项把“经升级流程更新检查器”的出处写成 RFC-0004「实质备选」。这句话实际在 RFC-0004「验证与消费者切换」探路表“合并队列直接把轨道移到被检查的提交”一行的后果列。本更正不改变本提案的决定与替代内容。依据是 [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) revision 1 的接受，见 [#420 的接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/420#issuecomment-6283221477)。
 
 ## 问题与有效输入
 
