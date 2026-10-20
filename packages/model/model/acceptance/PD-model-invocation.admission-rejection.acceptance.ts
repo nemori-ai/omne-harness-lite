@@ -23,7 +23,7 @@ it('rejects temperature 2.1 before creating or scheduling a call', async () => {
       consumer: f.consumer,
       capacity: f.capacity,
     }),
-  ).toEqual({ failure: { kind: 'invalid', field: 'temperature', reason: 'range' } })
+  ).toEqual({ failure: { kind: 'invalid', field: '/request/parameters/0/value', reason: 'range' } })
   expect(await provider.runtime.calls.inspect(lookupAccess)).toEqual({
     ok: { kind: 'not-accepted', operation: admission },
   })

@@ -102,7 +102,7 @@ export function admissionChecks<P>(): readonly Check<P>[] {
         const attempts = [
           {
             what: 'admit',
-            field: 'operation',
+            field: '/operation',
             outcome: await calls.admit({
               ...admitInput(scene, 'reserved-new'),
               operation: reserved,
