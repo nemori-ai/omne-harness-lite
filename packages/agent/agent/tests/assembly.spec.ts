@@ -1,37 +1,10 @@
-// The test assembly and the factory shell: all 17 dependencies are present, they are independent per
-// call, and the shell turns them into `unavailable` without touching any of them (C1).
+// The test assembly and the factory: all 17 dependencies are present, they are independent per call,
+// and the factory turns them into an idle provider without touching any of them (C1).
 import { expect, it } from 'vitest'
-import { createAgentRuntime, type AgentRuntimeOptions } from '@omne-harness/agent'
+import { createAgentRuntime } from '@omne-harness/agent'
 import { createTestAgentDependencies } from '@omne-harness/agent/testing'
-import {
-  adoption,
-  evidence,
-  execution,
-  failure,
-  instance,
-  load,
-  ok,
-  open,
-  tenantA,
-} from './journal-support.ts'
-
-const options: AgentRuntimeOptions = {
-  binding: {
-    instance: instance(),
-    tenant: tenantA,
-    scope: evidence('scope'),
-    definition: adoption('definition'),
-  },
-  configuration: {
-    observerBufferBytes: 1024,
-    reconciliationDelayMs: 0,
-    reconciliationBatchLimit: 8,
-    denialBackoffMs: 0,
-    toolConcurrency: 1,
-    jointCommits: [],
-    loopGuardPolicy: adoption('loop-guard'),
-  },
-}
+import { options, take, watched } from './factory-support.ts'
+import { execution, failure, instance, load, ok, open, tenantA } from './journal-support.ts'
 
 it('assembles all 17 dependencies with registration null', () => {
   const { dependencies, durability } = createTestAgentDependencies<string>()
@@ -87,49 +60,27 @@ it('gives the Journal options to the memory Journal and shares no state between 
   )
 })
 
-/**
- * Wraps a dependency so that every method call anywhere inside it is logged by its path. A frozen
- * member is returned as it is, because a proxy may not change what a frozen property reads.
- */
-function recorded<T extends object>(target: T, path: string, calls: string[]): T {
-  return new Proxy(target, {
-    get(object, property, receiver) {
-      const value: unknown = Reflect.get(object, property, receiver)
-      const name = `${path}.${String(property)}`
-      const own = Object.getOwnPropertyDescriptor(object, property)
-      if (own !== undefined && !own.configurable && own.writable === false) return value
-      if (typeof value === 'function') {
-        return (...args: unknown[]) => {
-          calls.push(name)
-          return Reflect.apply(value, object, args)
-        }
-      }
-      if (typeof value === 'object' && value !== null) return recorded(value, name, calls)
-      return value
-    },
-  })
-}
-
-it('C1: the factory shell given the test assembly returns unavailable and calls no dependency', async () => {
-  const { dependencies } = createTestAgentDependencies<string>()
-  const calls: string[] = []
-  // Each value keeps its shape behind the proxy, so the record keeps the type of `dependencies`.
-  const watched = Object.fromEntries(
-    Object.entries(dependencies).map(([key, value]) => [
-      key,
-      typeof value === 'object' && value !== null ? recorded(value, key, calls) : value,
-    ]),
-  ) as typeof dependencies
-  expect(Object.keys(watched)).toHaveLength(17)
-  const created = await createAgentRuntime(watched, options)
-  expect(failure(created)).toEqual({
-    kind: 'unavailable',
-    owner: '@omne-harness/agent',
-    diagnostic: 'createAgentRuntime is not implemented yet',
-  })
+it('C1: the factory given the test assembly returns an idle provider and calls no dependency', async () => {
+  const { dependencies, calls } = watched(createTestAgentDependencies<string>().dependencies)
+  expect(Object.keys(dependencies)).toHaveLength(17)
+  const provider = ok(await createAgentRuntime(dependencies, options()))
   expect(calls).toEqual([])
+  expect(provider.runtime.instance).toBe(instance())
+
+  const controller = new AbortController()
+  const [first] = await take(
+    provider.observation.observe({
+      principal: 'alice',
+      tenant: tenantA,
+      signal: controller.signal,
+    }),
+    1,
+  )
+  controller.abort()
+  expect(first).toEqual({ kind: 'state', value: { kind: 'idle', instance: instance() } })
+  expect(calls).toEqual(['access.check'])
 
   // The recorder itself works: a call through a wrapped journal is logged.
-  await watched.journal.load({ principal: 'alice', tenant: tenantA, execution: execution() })
-  expect(calls).toEqual(['journal.load'])
+  await dependencies.journal.load({ principal: 'alice', tenant: tenantA, execution: execution() })
+  expect(calls).toEqual(['access.check', 'journal.load'])
 })
