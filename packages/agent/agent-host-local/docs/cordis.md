@@ -68,7 +68,7 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 1. `reserve`：宿主核验 reserve 资格，预约实例身份，创建该实例的登记句柄，记录预约。
 2. 创建 idle runtime：宿主插件调用工厂，不是装配者调用。宿主传入 reserve 得到的登记句柄、已核验的租户、scope 与精确采用。静态依赖是宿主 inject 得到的同一批服务实例，局部依赖是宿主的阶段适配器。工厂返回 `AgentProvider`。装配者请求宿主以某次预约创建实例的入口，本版没有定义，见开放问题“[宿主怎样创建并持有实例的 AgentProvider](../../agent/docs/architecture/open-questions.md#宿主怎样创建并持有实例的-agentprovider)”。
 3. 持有：宿主持有 runtime、观察句柄和 `AgentProvider.control`，它们不进入登记输入。
-4. `publish`：宿主核验 publish 资格，在宿主 Context 之下为该实例创建贡献 fiber，在这条 fiber 内经 `ctx.get(agentInstances).register` 登记。
+4. `publish`：宿主核验 publish 资格，在宿主 Context 之下为该实例创建贡献 fiber，在这条 fiber 内经 `ctx.get(agentInstances).register` 登记。创建贡献 fiber 之前，宿主先按操作身份认回自己已经发起的 publish，同一操作的重试复用原贡献 fiber，不新建 fiber。目录对来自另一个 fiber 的同一操作返回 conflict，作为错误使用的信号，规则见 Cordis 页的[登记输入与撤除协议](../../agent-cordis-contract/docs/cordis.md#登记输入与撤除协议)。这两项义务是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
 
 宿主的 `route` 只对已发布的实例返回运行对象，登记撤除后返回 null。
 

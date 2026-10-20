@@ -19,7 +19,7 @@
 
 调模型之前与调模型之后两个位置另带 `purpose`：主请求的调用为 `main`，压缩步骤的调用为 `compaction`。扩展经注入能力发起的模型调用（用途 `extension`）不经过这两个位置，规则见下文“压缩用途与扩展用途的模型调用”。
 
-下表是“位置与维度”到 `subject` 形状这一对应关系的权威。形状本身的权威是 [src/passages.ts](../../src/passages.ts) 的 `Subject` 联合：表中每一行的形状照抄联合的一个变体。[public-api-names.spec-d.ts](../../tests/public-api-names.spec-d.ts) 逐行断言表中每一行恰好等于联合的一个变体，十二行合起来等于整个联合。这一分工是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
+下表是“位置与维度”到 `subject` 形状这一对应关系的权威。形状本身的权威是 [src/passages.ts](../../src/passages.ts) 的 `Subject` 联合：表中每一行的形状照抄联合的一个变体。[public-api-names.spec-d.ts](../../tests/public-api-names.spec-d.ts) 逐行断言表中每一行恰好等于联合的一个变体，十二行合起来等于整个联合。这一分工是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。该测试不读取本页，它在源码里保存这十二行的抄本。所以改表中的任何一行时，必须同时改该测试中对应的那一行断言。
 
 | 位置与维度 | `subject` 字段 | 可改写字段 |
 | --- | --- | --- |

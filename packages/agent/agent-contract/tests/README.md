@@ -20,7 +20,7 @@
 
 [limits.spec.ts](limits.spec.ts) 检查声明限额与输出限额的边界：字符串、深度、JSON 值个数、对象成员数在限额上和多一个时的拒绝，整份文本的字节数，循环引用，以及 `judgeExtensionOutput` 的深度 64、成员 10000、字符串 10000000、JSON 值 1000000。它放一个函数作探针：越过限额之前先到限额的输入得到 `malformed`，越过限额继续走的输入得到 `executable`，两者的差别晚一步的检查补不回来。数字文本的 100 个单位上限不可达（任何有限数的 JSON 文本不超过 24 个单位），所以没有边界测试。
 
-[input-copy.spec.ts](input-copy.spec.ts) 检查判断对输入取的副本拒绝什么：原型不是 `Array.prototype` 的数组、带非下标成员的数组、原型不是 `Object.prototype` 或 `null` 的对象、符号键、反射列出却描述不出的键；成员是函数或访问器时得到 `executable`，其余得到 `malformed`。
+[input-copy.spec.ts](input-copy.spec.ts) 检查判断对输入取的副本拒绝什么：原型不是 `Array.prototype` 的数组、带非下标成员的数组、原型不是 `Object.prototype` 或 `null` 的对象、符号键、反射列出却描述不出的键；成员是函数或访问器时得到 `executable`，其余得到 `malformed`。它还检查 trap 抛出异常的 Proxy 与已撤销的 Proxy 在声明判断与 `judgeExtensionOutput` 中都得到 `malformed`，判断不抛出异常，批次中出问题的项给出该项的 `index`。
 
 [declarations.spec.ts](declarations.spec.ts) 检查成功值的成员：`attributes` 的每一项与次序、`resident` 只在给出时出现、命令实现的 `matcher` 与 `timeout` 只在给出时出现、两种 ending 与两种 scope、不是对象的 `dimension`、ISO 8601 时长文本的每个字段与前后缀。比较用 `toStrictEqual`，值为 `undefined` 的成员算缺陷。
 

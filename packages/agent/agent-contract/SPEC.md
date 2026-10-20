@@ -220,7 +220,7 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 ## 声明判断
 
-本节规定 `@omne-harness/agent-contract` 包根导出的判断函数的可观察行为。这些函数是 `judgeAgentDefinition`、`judgeLoopExtensions`、`judgeExtensionOutput`、身份解码函数、结构判定与 `agentBodyContract`。它们是纯函数：不读时钟，不产生随机值，不做 I/O。它们不执行调用方交来的值中的函数或访问器，例外在各小节写明。本页其余各节的接口在包根只有类型，没有实现，见“主干运行契约”。
+本节规定 `@omne-harness/agent-contract` 包根导出的判断函数的可观察行为。这些函数是 `judgeAgentDefinition`、`judgeLoopExtensions`、`judgeExtensionOutput`、身份解码函数、结构判定与 `agentBodyContract`。它们是纯函数：不读时钟，不产生随机值，不做 I/O。它们不执行调用方交来的值中的函数或访问器。值是 Proxy 时，复制会执行它的 trap，处置见各小节。其他例外也在各小节写明。本页其余各节的接口在包根只有类型，没有实现，见“主干运行契约”。
 
 设计在几处没有给出规则，本交付对这些缺口做了选择。每一项在出现处标注“本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注”。
 
@@ -232,13 +232,19 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 一次判断的整份输入，以及一批扩展的整份输入，都受这些限额约束。深度不超过 20。单个对象成员不超过 80。JSON 值个数不超过 200，容器计入，键不计入，第 201 个值拒绝。字符串不超过 10000。数字的 JSON 文本不超过 100。字节数是这一次判断的整份 JSON 文本的 UTF-8 长度，不超过 100000，一批扩展按整批文本计算。超过限额得到 `malformed`。整份文本超过限额时 `index` 为 0。`checker-failed` 只表示校验器故障，不表示输入写坏。内部编译预算不是调用方配置。
 
-两个入口都先把输入复制为普通数据。值为函数或访问器时得到 `executable`。`Date`、装箱字符串、非有限数字、`undefined`、`bigint`、循环引用、原型不是 `Object.prototype` 或 `null` 的对象，以及原型不是 `Array.prototype` 的数组，都得到 `malformed`。复制不调用函数，也不执行访问器。判断不加载模块，也不返回权限或句柄。
+两个入口都先把输入复制为普通数据。值为函数或访问器时得到 `executable`。`Date`、装箱字符串、非有限数字、`undefined`、`bigint`、循环引用、原型不是 `Object.prototype` 或 `null` 的对象，以及原型不是 `Array.prototype` 的数组，都得到 `malformed`。复制不调用函数，也不执行访问器。输入或其中的值是 Proxy 时，复制经反射读取它，会执行它的 trap，不执行 trap 之外的调用方代码。trap 抛出异常或 Proxy 已撤销时得到 `malformed`，异常不传给调用方。批次中某一项是这样的 Proxy 时，`index` 是该项序号。Proxy 的这项处置是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。判断不加载模块，也不返回权限或句柄。
 
 本节的结构问题指一项输入不符合声明表的形状：缺少必需成员，成员的类型或取值不合法，或者出现声明表没有列出的成员。结构问题由 schema 校验发现。组合问题指各成员的形状都合法，但成员之间的组合不合法。
 
 `judgeAgentDefinition` 的输入是封闭对象：`category` 为 `AgentDefinition`，`name` 是非空字符串，`version` 可省略，给出时是非空字符串。`references` 与 `attributes` 必须是数组。空数组合法。缺席和 null 拒绝。每个引用是封闭对象，`capability` 是带非空 `category` 与非空 `name` 的封闭对象，`resident` 可省略，给出时是布尔值。每个 attribute 是只含 `item` 的封闭对象。允许的 item 是 `first_token_wait_limit`、`post_first_token_stall_limit`、`model`，常量 `ATTRIBUTE_ITEMS` 列出它们。`item` 是字符串但不在这三项里时得到 `unknown-attribute`。其他结构问题都得到 `malformed`。同一 capability 的 category 与 name 至多一次，重复得到 `duplicate-capability`。同一 `item` 出现两次得到 `malformed`。成功结果的 attribute 只保留 `item`。未写版本的结果是 `then-legal-winner`。写明版本的结果是 `pinned`。本入口不读取资产库。
 
-一份定义有多处不合法时，`judgeAgentDefinition` 按下面的次序返回第一处：复制阶段的 `executable` 或 `malformed`，然后是限额，然后是结构问题，然后是重复的 capability，最后是重复的 item。这个次序是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
+一份定义有多处不合法时，`judgeAgentDefinition` 按下面的次序返回第一处。这个次序是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
+
+1. 复制。复制按自有键的次序逐层遍历输入。遍历到每个值时，复制检查深度、单个对象的成员数、JSON 值个数、字符串长度与数字文本长度，也检查这个值是不是函数或访问器。原型、循环引用等其他复制问题同样在遍历到该值时报告。所以限额问题与 `executable` 哪个先报告，取决于遍历先到达哪一个。例如定义先有函数成员、后有超长字符串成员时得到 `executable`，两个成员的次序相反时得到 `malformed`。
+2. 字节上限。复制完成之后，判断才计算整份文本的字节数。所以输入超过字节上限、后面的成员里又有函数时，得到 `executable`。
+3. 结构问题。schema 校验的第一个问题决定原因，其余问题不报告。问题按 schema 的成员次序排列：`category`、`name`、`version`、`references`、`attributes`，然后是声明表没有列出的成员。这个次序与输入的键序无关。
+4. 重复的 capability。
+5. 重复的 item。
 
 扩展按提交顺序返回。每项声明含 `name`、`position`、`power` 与 `implementation`，可含 `dimension`、`needs`、`onError` 与 `unavailability`。输入还可带来源提示 `source`，值是 `workspace` 或 `author`。`source` 只用于上限判断，不进入成功值，因为设计类型 `LoopExtensionDeclaration` 没有 `source` 字段。这个取舍是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。`name` 必须是非空字符串。声明表没有列出的成员一律得到 `malformed`。
 
@@ -254,13 +260,13 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 2. 每项声明先过结构检查。成员按 `name`、`position`、`power`、`source`、`dimension`、`needs`、`implementation`、`onError`、`unavailability` 的次序检查，声明表没有列出的成员最后检查。第一处结构问题决定原因：`position` 得到 `unknown-position`，`power` 得到 `unknown-power`，`needs` 得到 `needs-not-allowed`，`onError` 得到 `error-policy-not-allowed`，`unavailability` 得到 `unavailability-not-allowed`，`implementation` 缺席得到 `implementation-missing`，`dimension` 按上文的维度规则得到原因，其余结构问题得到 `malformed`。
 3. 结构合法的声明再过组合检查，依次是来源上限、维度、`needs` 重复、`onError` 与位置和 `power` 的组合、`unavailability` 的组合。
 
-所以结构问题先于组合问题报告。例如来源为 `workspace`、`power` 为 `veto`、`onError` 为 `bogus` 的声明得到 `error-policy-not-allowed`，不是 `power-above-ceiling`。这三个阶段与各阶段内的次序是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
+第 2、3 阶段按提交次序逐项执行：第 k 项先过结构检查，再过组合检查，然后才判断第 k+1 项。所以结构问题先于组合问题报告，只在同一项之内成立。例如来源为 `workspace`、`power` 为 `veto`、`onError` 为 `bogus` 的声明得到 `error-policy-not-allowed`，不是 `power-above-ceiling`。跨项时，第 k 项的组合问题先于第 k+1 项的结构问题报告。例如第 0 项超过来源上限、第 1 项的位置不是九处之一时，结果是 `power-above-ceiling`，`index` 为 0。这三个阶段与各阶段内的次序是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
 
 ### 扩展输出判断
 
 `judgeExtensionOutput` 判断扩展作者返回的 `output.value`。输入是位置、维度、用途、生效的干预力、触发、作者收到的 `subject` 与返回值。它同步执行。成功值是逐层冻结、不与 `output` 共享对象的副本。拒收结果只有 `kind` 与十种拒收原因之一：`malformed`、`position_unknown`、`power_unknown`、`dimension_missing`、`dimension_not_allowed`、`output_not_allowed_for_power`、`output_not_allowed_at_position`、`ask_at_forbidden_position`、`rewrite_touches_immutable`、`inject_source_mismatch`。拒收原因的类型是 `OutputRefusalReason`，与声明判断的拒绝原因分开，因为被拒收的输出是运行中扩展的错误，不是声明的错误。位置输出表是[扩展作者协议](docs/public-api/extensions.md#位置输出表)，`POSITION_OUTPUTS` 是它的机读形式。判断与这张表放在本包，因为表是契约页的唯一规则，Agent 的实现成员和方言适配器都要用它。这个归属是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
 
-返回值 `output` 来自作者，判断在第 3 步把它复制为普通数据，不执行其中的函数或访问器。任何 `output` 值都不使判断抛出异常。其余输入由 Agent 提供，判断按它们的类型直接读取，不做安全复制。`subject` 带访问器时，第 7 步比较 `rewrite` 的返回值会执行这些访问器，访问器抛出的异常不被捕获。
+返回值 `output` 来自作者，判断在第 3 步把它复制为普通数据，不执行其中的函数或访问器。`output` 或其中的值是 Proxy 时，复制会执行它的 trap。trap 抛出异常或 Proxy 已撤销时得到 `malformed`。Proxy 的这项处置是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。任何 `output` 值都不使判断抛出异常。其余输入由 Agent 提供，判断按它们的类型直接读取，不做安全复制。`subject` 带访问器时，第 7 步比较 `rewrite` 的返回值会执行这些访问器，访问器抛出的异常不被捕获。
 
 判断按七步进行，返回第一个失败。七步的次序、第 3 步的形状规则和第 5 步的优先规则是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
 
@@ -272,7 +278,7 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
    - `inject` 的 `message` 是封闭对象，带字符串 `id`、字符串 `role` 与数组 `blocks`。
    - `rewrite` 的 `subject` 是对象。
    - `retry` 的 `plan` 是封闭对象：`supplier` 是对象，`notBefore` 是字符串或 null，`basis` 是只含 `owner`、`name`、`revision`、`digest` 四个字符串的封闭对象。
-   - `ask` 的 `card` 是封闭对象。`explanation` 是字符串。`options` 至少有一项，每项是封闭对象，带非空字符串 `id` 与字符串 `label`，`effect` 可省略，给出时必须是 json-text 的 `JsonValue`。选项的 `id` 互不相同。`about.position` 是九处位置之一。`about.action` 可省略，给出时必须能由 `decodeActionId` 解码。`proposedRewrite` 可省略，给出时是带非空字符串 `option` 与字符串 `effectiveArguments` 的封闭对象，`option` 必须等于其中一个选项的 `id`。
+   - `ask` 的 `card` 是封闭对象。`explanation` 是字符串。`options` 至少有一项，每项是封闭对象，带非空字符串 `id` 与字符串 `label`，`effect` 可省略，给出时必须是 json-text 的 `JsonValue`。选项的 `id` 互不相同。`about` 是只含 `position` 与可省略的 `action` 的封闭对象。`about.position` 是九处位置之一。`about.action` 给出时必须能由 `decodeActionId` 解码。`proposedRewrite` 可省略，给出时是带非空字符串 `option` 与字符串 `effectiveArguments` 的封闭对象，`option` 必须等于其中一个选项的 `id`。
    - 上面没有写“非空”的字符串可以为空。
 4. `inject` 的 `message.role` 不是 `system_reminder` 得到 `inject_source_mismatch`。
 5. 位置输出表：`ask` 出现在该行不允许 `ask` 的位置，得到 `ask_at_forbidden_position`。这条先于下一条检查，所以这时不得到 `output_not_allowed_at_position`。其他输出种类不在该行允许的输出里，得到 `output_not_allowed_at_position`。`retry` 只在 `trigger` 为 `first-content` 时合法。`trigger` 为 `final` 或 null 都得到 `output_not_allowed_at_position`。
