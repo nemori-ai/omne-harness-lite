@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest'
-import { decodeDispatchId, type ModelBlock, type TransportFact } from '@omne-harness/model-contract'
+import {
+  decodeDispatchId,
+  decodeResultVersion,
+  type ModelBlock,
+  type TransportFact,
+} from '@omne-harness/model-contract'
 import { judgePart } from '@omne-harness/message'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
 import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'
@@ -143,6 +148,128 @@ it('keeps whole 4KiB blocks, stable pages and old reads after ACK while denying 
   expect(unbox(await f.commands.scanPending({ ...f.admit, after: null, limit: 2 })).calls).toEqual(
     [],
   )
+})
+it('rejects reuse of the original cleanup operation with a new execution generation', async () => {
+  const f = await completed()
+  const started = unbox(await f.commands.acquireRead(f.readInput))
+  if (started.kind !== 'started' || started.value.kind !== 'reading')
+    throw new Error('read fixture')
+  unbox(await f.commands.handoff(f.handoff()))
+  expect(f.execution.generation).toBe('1')
+  const cleanup = { ...f.execution, operation: op('cleanup-original') }
+  expect(unbox(await f.commands.advanceCleanup(cleanup))).toMatchObject({
+    kind: 'acknowledged',
+    cleanup: 'blocked',
+    diagnostic: 'active-read',
+  })
+  const beforeClaim = unbox(await f.commands.loadRecovery(f.admit))
+  const successor = unbox(
+    await f.commands.claim({
+      ...f.admit,
+      operation: op('claim-successor'),
+      instance: f.execution.instance,
+      continuity: proof(f.admit.call),
+    }),
+  )
+  expect(successor.generation).toBe('2')
+  expect(successor.instance).toBe(f.execution.instance)
+  const beforeConflict = unbox(await f.commands.loadRecovery(f.admit))
+  expect(beforeConflict.state).toMatchObject({
+    phase: 'settled',
+    settlement: f.settlement,
+    custody: beforeClaim.state.custody,
+  })
+  expect(beforeConflict.state.revision).not.toBe(beforeClaim.state.revision)
+  expect(await f.commands.advanceCleanup({ ...cleanup, generation: successor.generation })).toEqual(
+    {
+      failure: {
+        kind: 'conflict',
+        operation: cleanup.operation,
+        revision: beforeConflict.state.revision,
+      },
+    },
+  )
+  expect(await f.commands.loadRecovery(f.admit)).toEqual({ ok: beforeConflict })
+  expect(await f.commands.acquireRead(f.readInput)).toEqual({ ok: started })
+})
+for (const kind of ['processed', 'retained'] as const)
+  for (const defect of ['result-version', 'consumer-owner'] as const)
+    it(`rejects ${kind} ACK with wrong ${defect} without changing producer custody`, async () => {
+      const f = await completed()
+      const before = unbox(await f.commands.loadRecovery(f.admit))
+      expect(before.state.custody).toEqual({ kind: 'producer' })
+      const result =
+        defect === 'result-version'
+          ? unbox(
+              decodeResultVersion(
+                `${f.settlement.version.slice(0, -1)}${f.settlement.version.endsWith('0') ? '1' : '0'}`,
+              ),
+            )
+          : f.settlement.version
+      const source = proof(
+        `${f.admit.call}/${result}`,
+        defect === 'consumer-owner' ? 'other-owner' : f.admit.consumer.owner,
+      )
+      expect(
+        await f.commands.handoff({
+          ...f.handoff(kind),
+          operation: op(`ack-invalid-${kind}-${defect}`),
+          result,
+          evidence: kind === 'processed' ? { kind, completion: source } : { kind, custody: source },
+        }),
+      ).toEqual({ failure: { kind: 'handoff-invalid', reason: defect } })
+      expect(await f.commands.loadRecovery(f.admit)).toEqual({ ok: before })
+      const valid = { ...f.handoff(kind), operation: op(`ack-valid-${kind}-${defect}`) }
+      expect(unbox(await f.commands.handoff(valid))).toMatchObject({
+        call: f.admit.call,
+        result: f.settlement.version,
+        custody: {
+          kind: 'acknowledged',
+          operation: valid.operation,
+          receipt: proof(`${f.admit.call}/${f.settlement.version}`, f.admit.consumer.owner),
+          cleanup: 'pending',
+          diagnostic: null,
+        },
+      })
+    })
+it('does not extend the idle deadline when replaying an already returned page', async () => {
+  const f = await completed()
+  const started = unbox(await f.commands.acquireRead(f.readInput))
+  if (
+    started.kind !== 'started' ||
+    started.value.kind !== 'reading' ||
+    started.value.page.next === null
+  )
+    throw new Error('read fixture')
+  const next = { ...f.admit, read: started.read, after: started.value.page.next }
+  f.advance('2026-10-19T00:00:00.200Z')
+  const second = unbox(await f.commands.nextRead(next))
+  if (second.kind !== 'reading') throw new Error('page fixture')
+  expect(second.page.parts).toEqual([{ kind: 'sealed', block: f.body[1], trims: [] }])
+  f.advance('2026-10-19T00:00:00.900Z')
+  expect(await f.commands.nextRead(next)).toEqual({ ok: second })
+  unbox(await f.commands.handoff(f.handoff()))
+  f.advance('2026-10-19T00:00:01.199Z')
+  expect(
+    unbox(
+      await f.commands.advanceCleanup({ ...f.execution, operation: op('cleanup-before-idle') }),
+    ),
+  ).toMatchObject({ kind: 'acknowledged', cleanup: 'blocked', diagnostic: 'active-read' })
+  f.advance('2026-10-19T00:00:01.200Z')
+  expect(await f.commands.nextRead(next)).toEqual({
+    ok: { kind: 'ended', reason: 'stalled' },
+  })
+  expect(
+    unbox(await f.commands.advanceCleanup({ ...f.execution, operation: op('cleanup-after-idle') })),
+  ).toMatchObject({ kind: 'acknowledged', cleanup: 'released', diagnostic: null })
+  expect(await f.commands.nextRead(next)).toEqual({
+    ok: { kind: 'ended', reason: 'stalled' },
+  })
+  expect(unbox(await f.commands.acquireRead(f.readInput))).toEqual({
+    kind: 'started',
+    read: started.read,
+    value: { kind: 'ended', reason: 'stalled' },
+  })
 })
 for (const kind of ['processed', 'retained'] as const)
   it(`requires current valid ${kind} evidence and retains ACK across cleanup failure`, async () => {

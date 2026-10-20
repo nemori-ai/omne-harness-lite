@@ -9,16 +9,25 @@ it('reserves the maximum paging representation in the smallest accepted call bud
     const input = { ...f.admit, capacity: { ...f.admit.capacity, bytes: String(bytes) } }
     return { f, memory, input, reply: await memory.commands.admit(input) }
   }
-  let low = 1
-  let high = 100000
-  while (low < high) {
-    const middle = Math.floor((low + high) / 2)
-    if ('ok' in (await attempt(middle)).reply) high = middle
-    else low = middle + 1
-  }
-  const accepted = await attempt(low)
+  // This fixture uses 1961 material bytes, 5 capacity digits and 22579 reserved bytes.
+  const accepted = await attempt(24545)
   unbox(accepted.reply)
-  expect((await attempt(low - 1)).reply).toMatchObject({ failure: { kind: 'capacity' } })
+  const refused = await attempt(24544)
+  expect(refused.reply).toMatchObject({ failure: { kind: 'capacity' } })
+  expect(unbox(await refused.memory.commands.query(refused.input))).toEqual({
+    kind: 'not-committed',
+  })
+  expect(
+    unbox(
+      await refused.memory.commands.recall({
+        ...refused.input,
+        admission: refused.input.operation,
+      }),
+    ),
+  ).toEqual({ kind: 'not-accepted', operation: refused.input.operation })
+  expect(await refused.memory.commands.loadRecovery(refused.input)).toEqual({
+    failure: { kind: 'invalid', field: 'call', reason: 'not-found' },
+  })
   const before = await accepted.memory.commands.loadRecovery(accepted.input)
   for (const value of [Number.MAX_SAFE_INTEGER, 1, 1024]) {
     expect(() =>

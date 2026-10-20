@@ -170,7 +170,7 @@ describe('no-testing-import 与成员根 acceptance', () => {
     expect(testingViolations(other)).toEqual(['b/acceptance/fixtures/runtime.ts:1'])
   })
 
-  it.each(['null', '[]', '"member"', '{}', '{"name": 1}', '{"name": ""}'])(
+  it.each(['null', '[]', '"member"', '{}', '{"name": 1}', '{"name": ""}', '{"name": "   "}'])(
     '无有效成员对象的 manifest %s 不能授予验收豁免',
     text => {
       const root = fixture({

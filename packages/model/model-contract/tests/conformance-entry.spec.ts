@@ -160,21 +160,26 @@ describe('the conformance entry', () => {
     expect(result('close-read-idempotent')?.status).toBe('pass')
   })
 
-  it('fails an observation that does not arrive in the time that it was given', async () => {
-    const { result } = await reportOf(() =>
-      patched(createScriptedConformanceSubject(), {
-        instances: observedThrough(async (item, position) => {
-          if (position >= 1) await new Promise<never>(() => undefined)
-          return item
+  // Waits for a stalled observation to reach the real 300 ms deadline.
+  it(
+    'fails an observation that does not arrive in the time that it was given',
+    { tags: ['slow'] },
+    async () => {
+      const { result } = await reportOf(() =>
+        patched(createScriptedConformanceSubject(), {
+          instances: observedThrough(async (item, position) => {
+            if (position >= 1) await new Promise<never>(() => undefined)
+            return item
+          }),
         }),
-      }),
-    )
-    expect(result('observation-opens-with-snapshot')).toEqual({
-      obligation: 'observation-opens-with-snapshot',
-      status: 'fail',
-      detail: 'an observation did not arrive within 300 ms',
-    })
-  })
+      )
+      expect(result('observation-opens-with-snapshot')).toEqual({
+        obligation: 'observation-opens-with-snapshot',
+        status: 'fail',
+        detail: 'an observation did not arrive within 300 ms',
+      })
+    },
+  )
 
   it('builds one subject for each check and disposes each of them once', async () => {
     let built = 0
@@ -218,24 +223,29 @@ describe('the conformance entry', () => {
     expect(report.results).toHaveLength(CONFORMANCE_OBLIGATIONS.length)
   })
 
-  it('fails the check whose subject the factory does not build in time, and goes on', async () => {
-    let built = 0
-    const report = await checkModelProviderConformance({
-      subject: async () => {
-        built += 1
-        if (built === 2) await new Promise<never>(() => undefined)
-        return createScriptedConformanceSubject()
-      },
-      waitMs: 300,
-    })
-    expect(report.results.filter(result => result.status === 'fail')).toEqual([
-      {
-        obligation: CONFORMANCE_OBLIGATIONS[1],
-        status: 'fail',
-        detail: 'the subject factory did not arrive within 300 ms',
-      },
-    ])
-  })
+  // Waits for the stalled subject factory to reach the real 300 ms deadline.
+  it(
+    'fails the check whose subject the factory does not build in time, and goes on',
+    { tags: ['slow'] },
+    async () => {
+      let built = 0
+      const report = await checkModelProviderConformance({
+        subject: async () => {
+          built += 1
+          if (built === 2) await new Promise<never>(() => undefined)
+          return createScriptedConformanceSubject()
+        },
+        waitMs: 300,
+      })
+      expect(report.results.filter(result => result.status === 'fail')).toEqual([
+        {
+          obligation: CONFORMANCE_OBLIGATIONS[1],
+          status: 'fail',
+          detail: 'the subject factory did not arrive within 300 ms',
+        },
+      ])
+    },
+  )
 
   it('fails only the check whose subject cannot be released, and goes on', async () => {
     let disposed = 0
@@ -281,121 +291,141 @@ describe('the conformance entry', () => {
     })
   })
 
-  it('fails a check whose subject does not release in time, after it gave its verdict', async () => {
-    let disposed = 0
-    const report = await checkModelProviderConformance({
-      subject: () => ({
-        ...createScriptedConformanceSubject(),
-        dispose: () => {
-          disposed += 1
-          return disposed === 1 ? new Promise<never>(() => undefined) : Promise.resolve()
+  // Waits for the stalled subject disposal to reach the real 300 ms deadline.
+  it(
+    'fails a check whose subject does not release in time, after it gave its verdict',
+    { tags: ['slow'] },
+    async () => {
+      let disposed = 0
+      const report = await checkModelProviderConformance({
+        subject: () => ({
+          ...createScriptedConformanceSubject(),
+          dispose: () => {
+            disposed += 1
+            return disposed === 1 ? new Promise<never>(() => undefined) : Promise.resolve()
+          },
+        }),
+        waitMs: 300,
+      })
+      expect(report.results.filter(result => result.status === 'fail')).toEqual([
+        {
+          obligation: CONFORMANCE_OBLIGATIONS[0],
+          status: 'fail',
+          detail: 'the dispose of the subject did not arrive within 300 ms',
         },
-      }),
-      waitMs: 300,
-    })
-    expect(report.results.filter(result => result.status === 'fail')).toEqual([
-      {
+      ])
+    },
+  )
+
+  // Waits for the stalled admit call to reach the real 300 ms deadline.
+  it(
+    'fails the check whose provider method never returns, and ends the suite',
+    { tags: ['slow'] },
+    async () => {
+      let disposed = 0
+      let first = true
+      const report = await checkModelProviderConformance({
+        subject: () => {
+          return {
+            ...patched(createScriptedConformanceSubject(), {
+              calls: calls => ({
+                ...calls,
+                admit: input => {
+                  const hang = first
+                  first = false
+                  return hang ? new Promise<never>(() => undefined) : calls.admit(input)
+                },
+              }),
+            }),
+            dispose: async () => {
+              disposed += 1
+            },
+          }
+        },
+        waitMs: 300,
+      })
+      expect(report.results).toHaveLength(CONFORMANCE_OBLIGATIONS.length)
+      expect(report.results[0]).toEqual({
         obligation: CONFORMANCE_OBLIGATIONS[0],
         status: 'fail',
-        detail: 'the dispose of the subject did not arrive within 300 ms',
-      },
-    ])
-  })
+        detail: 'the answer of admit did not arrive within 300 ms',
+      })
+      expect(report.results.slice(1).filter(result => result.status === 'fail')).toEqual([])
+      expect(disposed).toBe(CONFORMANCE_OBLIGATIONS.length)
+    },
+  )
 
-  it('fails the check whose provider method never returns, and ends the suite', async () => {
-    let disposed = 0
-    let first = true
-    const report = await checkModelProviderConformance({
-      subject: () => {
-        return {
-          ...patched(createScriptedConformanceSubject(), {
-            calls: calls => ({
-              ...calls,
-              admit: input => {
+  // Waits for the stalled startRun hook to reach the real 300 ms deadline.
+  it(
+    'fails the check whose hook never returns, and releases the subject all the same',
+    { tags: ['slow'] },
+    async () => {
+      let disposed = 0
+      let first = true
+      const report = await checkModelProviderConformance({
+        subject: () => {
+          const subject = createScriptedConformanceSubject()
+          const startRun = subject.hooks?.startRun
+          if (startRun === undefined) throw new Error('the scripted subject has startRun')
+          return {
+            ...subject,
+            hooks: {
+              ...subject.hooks,
+              startRun: input => {
                 const hang = first
                 first = false
-                return hang ? new Promise<never>(() => undefined) : calls.admit(input)
+                return hang ? new Promise<never>(() => undefined) : startRun(input)
               },
-            }),
-          }),
-          dispose: async () => {
-            disposed += 1
-          },
-        }
-      },
-      waitMs: 300,
-    })
-    expect(report.results).toHaveLength(CONFORMANCE_OBLIGATIONS.length)
-    expect(report.results[0]).toEqual({
-      obligation: CONFORMANCE_OBLIGATIONS[0],
-      status: 'fail',
-      detail: 'the answer of admit did not arrive within 300 ms',
-    })
-    expect(report.results.slice(1).filter(result => result.status === 'fail')).toEqual([])
-    expect(disposed).toBe(CONFORMANCE_OBLIGATIONS.length)
-  })
-
-  it('fails the check whose hook never returns, and releases the subject all the same', async () => {
-    let disposed = 0
-    let first = true
-    const report = await checkModelProviderConformance({
-      subject: () => {
-        const subject = createScriptedConformanceSubject()
-        const startRun = subject.hooks?.startRun
-        if (startRun === undefined) throw new Error('the scripted subject has startRun')
-        return {
-          ...subject,
-          hooks: {
-            ...subject.hooks,
-            startRun: input => {
-              const hang = first
-              first = false
-              return hang ? new Promise<never>(() => undefined) : startRun(input)
             },
-          },
-          dispose: async () => {
-            disposed += 1
-          },
-        }
-      },
-      waitMs: 300,
-    })
-    expect(report.results).toHaveLength(CONFORMANCE_OBLIGATIONS.length)
-    expect(
-      report.results.filter(result => result.status === 'fail').map(result => result.detail),
-    ).toEqual(['the answer of the startRun hook did not arrive within 300 ms'])
-    expect(disposed).toBe(CONFORMANCE_OBLIGATIONS.length)
-  })
+            dispose: async () => {
+              disposed += 1
+            },
+          }
+        },
+        waitMs: 300,
+      })
+      expect(report.results).toHaveLength(CONFORMANCE_OBLIGATIONS.length)
+      expect(
+        report.results.filter(result => result.status === 'fail').map(result => result.detail),
+      ).toEqual(['the answer of the startRun hook did not arrive within 300 ms'])
+      expect(disposed).toBe(CONFORMANCE_OBLIGATIONS.length)
+    },
+  )
 
-  it('fails the check whose transport never prepares, and goes on', async () => {
-    let first = true
-    const report = await checkModelProviderConformance({
-      subject: () => {
-        const subject = createScriptedConformanceSubject()
-        const given = subject.transport
-        if (given === undefined) throw new Error('the scripted subject has a transport')
-        return {
-          ...subject,
-          transport: {
-            ...given,
+  // Waits for the stalled transport prepare call to reach the real 300 ms deadline.
+  it(
+    'fails the check whose transport never prepares, and goes on',
+    { tags: ['slow'] },
+    async () => {
+      let first = true
+      const report = await checkModelProviderConformance({
+        subject: () => {
+          const subject = createScriptedConformanceSubject()
+          const given = subject.transport
+          if (given === undefined) throw new Error('the scripted subject has a transport')
+          return {
+            ...subject,
             transport: {
-              prepare: (request, supplier) => {
-                const hang = first
-                first = false
-                return hang
-                  ? new Promise<never>(() => undefined)
-                  : given.transport.prepare(request, supplier)
+              ...given,
+              transport: {
+                prepare: (request, supplier) => {
+                  const hang = first
+                  first = false
+                  return hang
+                    ? new Promise<never>(() => undefined)
+                    : given.transport.prepare(request, supplier)
+                },
               },
             },
-          },
-        }
-      },
-      waitMs: 300,
-    })
-    expect(
-      report.results.filter(result => result.status === 'fail').map(result => result.detail),
-    ).toEqual(['the answer of prepare did not arrive within 300 ms'])
-  })
+          }
+        },
+        waitMs: 300,
+      })
+      expect(
+        report.results.filter(result => result.status === 'fail').map(result => result.detail),
+      ).toEqual(['the answer of prepare did not arrive within 300 ms'])
+    },
+  )
 
   it('accepts a subject that is built asynchronously', async () => {
     const report = await checkModelProviderConformance({

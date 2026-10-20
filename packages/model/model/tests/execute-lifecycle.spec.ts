@@ -130,7 +130,19 @@ it.each(['start', 'iterator', 'read', 'eof'] as const)(
     expect(facts).toHaveLength(1)
     expect(facts[0]).toMatchObject({
       kind: 'ended',
-      termination: { kind: 'failed', fault: { cause: 'stream-lost', upstreamStatus: null } },
+      termination: {
+        kind: 'failed',
+        fault: {
+          cause: 'stream-lost',
+          upstreamStatus: null,
+          diagnostic: {
+            start: 'independent-start-failed',
+            iterator: 'independent-start-failed',
+            read: 'independent-read-failed',
+            eof: 'independent-eof-failed',
+          }[mode],
+        },
+      },
     })
     expect(JSON.stringify(facts)).not.toContain(SECRET)
     expect(given.calls.slice(-2)).toEqual(['materialized.close', 'prepared.close'])

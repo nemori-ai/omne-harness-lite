@@ -1,6 +1,10 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
-import { compareRevisions, type TransportFact } from '@omne-harness/model-contract'
+import {
+  compareRevisions,
+  type Observation,
+  type TransportFact,
+} from '@omne-harness/model-contract'
 import { runtimeFixture, configuration, eventually } from './runtime-fixture.ts'
 import { unbox, op, instance, proof } from './memory-fixture.ts'
 
@@ -290,4 +294,56 @@ it('never replaces newer confirmed control with a delayed older authoritative st
     await running
     await f.dispose()
   }
+})
+
+it('keeps an equal-revision refresh silent and delivers the next newer revision to the same pending observer', async () => {
+  const f = runtimeFixture()
+  const waits = vi.spyOn(f.dependencies.clock, 'waitUntil')
+  const m = manual(f)
+  unbox(await m.provider.runtime.calls.admit(f.admit))
+  const running = m.drive()
+  let observer: AsyncIterator<Observation> | undefined
+  try {
+    await f.start(f.admit.call)
+    await eventually(() => f.channel(f.admit.call).reads === 1)
+    const route = unbox(
+      await m.provider.runtime.instances.connect({
+        principal: f.principal,
+        tenant: f.tenant,
+        reference: f.reference,
+      }),
+    )
+    if (route.kind !== 'live') throw new Error('missing live route')
+    observer = route.handle
+      .observe({ ...f.admit, signal: new AbortController().signal })
+      [Symbol.asyncIterator]()
+    expect(await observer.next()).toMatchObject({ value: { kind: 'snapshot' } })
+    const cancellation = { ...f.admit, operation: op('cancel-equal-revision') }
+    const first = observer.next()
+    unbox(await m.provider.runtime.calls.cancel(cancellation))
+    const cancelled = await first
+    if (cancelled.done || cancelled.value.kind !== 'changed')
+      throw new Error('missing cancellation update')
+    const revision = cancelled.value.value.state.revision
+    const pending = observer.next()
+    await eventually(() => f.controls.clock.pending() === 1)
+    unbox(await m.provider.runtime.calls.cancel(cancellation))
+    expect(unbox(await f.dependencies.commands.loadRecovery(f.admit)).state.revision).toBe(revision)
+    const before = waits.mock.calls.length
+    f.controls.clock.advanceTo('2026-10-19T00:00:00.025Z')
+    await eventually(() => waits.mock.calls.length === before + 1)
+    expect(f.controls.clock.pending()).toBe(1)
+    f.channel(f.admit.call).push([open])
+    const changed = await pending
+    if (changed.done || changed.value.kind !== 'changed') throw new Error('missing newer update')
+    expect(compareRevisions(changed.value.value.state.revision, revision)).toBeGreaterThan(0)
+    expect(changed.value.value.blocks).toMatchObject([{ index: '0' }])
+  } finally {
+    await observer?.return?.()
+    f.channel(f.admit.call).push([end])
+    await running
+    await f.dispose()
+    waits.mockRestore()
+  }
+  expect(f.controls.clock.pending()).toBe(0)
 })
