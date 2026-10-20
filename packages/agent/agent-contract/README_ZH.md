@@ -48,7 +48,7 @@ createCategoryRegistry().register(agentBodyContract())
 
 ## 验证
 
-在本目录运行 `pnpm test` 与 `pnpm typecheck`。turbo 先构建本包及其依赖。本目录里的 `pnpm test` 只运行 Vitest，不构建。测试覆盖声明判断、输出判断、身份解码与结构判定、正文契约、导出集合和依赖方向，文件清单见[测试说明](tests/README.md)。这些测试不证明 runtime、提供者、装配或 Cordis 集成。
+在仓库根运行 `pnpm turbo run test --filter=@omne-harness/agent-contract`，在本目录运行 `pnpm typecheck`。turbo 先构建本包及其依赖。本目录里的 `pnpm test` 只运行 Vitest，不构建。测试覆盖声明判断、输出判断、身份解码与结构判定、正文契约、导出集合和依赖方向，文件清单见[测试说明](tests/README.md)。这些测试不证明 runtime、提供者、装配或 Cordis 集成。
 
 ## 维护
 

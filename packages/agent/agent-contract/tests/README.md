@@ -2,7 +2,7 @@
 
 ## 运行
 
-在本成员目录执行 `pnpm test` 和 `pnpm typecheck`。测试通过包名消费真实入口，不深层导入实现。
+在仓库根执行 `pnpm turbo run test --filter=@omne-harness/agent-contract`，在本成员目录执行 `pnpm typecheck`。本目录里的 `pnpm test` 只运行 Vitest，不构建。测试通过包名消费真实入口，不深层导入实现。
 
 ## 覆盖
 

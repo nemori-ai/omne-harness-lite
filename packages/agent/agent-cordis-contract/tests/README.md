@@ -4,7 +4,7 @@
 
 ## 允许的内容
 
-`*.spec.ts` 和 `*.spec-d.ts` 测试文件、测试辅助代码，以及 `fixtures/` 下的固定输入。在本成员目录执行 `pnpm test` 和 `pnpm typecheck`。turbo 先构建本包及其依赖，再从构建产物运行。本目录里的 `pnpm test` 只运行 Vitest，不构建。
+`*.spec.ts` 和 `*.spec-d.ts` 测试文件、测试辅助代码，以及 `fixtures/` 下的固定输入。在仓库根执行 `pnpm turbo run test --filter=@omne-harness/agent-cordis-contract`，在本成员目录执行 `pnpm typecheck`。turbo 先构建本包及其依赖，再从构建产物运行。本目录里的 `pnpm test` 只运行 Vitest，不构建。
 
 ## 边界
 
