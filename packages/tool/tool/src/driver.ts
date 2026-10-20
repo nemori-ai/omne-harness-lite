@@ -28,7 +28,7 @@ import {
 } from '@omne-harness/tool-contract'
 import { tenantKey } from './boundary.ts'
 import type { ToolDependencies } from './construction.ts'
-import { createBindingInvoker, readPort } from './driver-binding.ts'
+import { createBindingInvoker } from './driver-binding.ts'
 import { isExcludedFailure } from './ledger-exclusion.ts'
 import { queueKeyOf } from './ledger-start.ts'
 import type { TenantId } from './ledger-store.ts'
@@ -480,15 +480,13 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     const write = context(step, recovery, 'exclude')
     if ('failure' in write) return { kind: 'failed', failure: write.failure }
     const reason = 'the executor binding failed to start'
-    const excluded = await readPort('start-authority', () =>
-      authority.exclude({
-        principal: step.principal,
-        tenant: step.tenant,
-        call: step.call,
-        operation: write.ok.operation,
-        reason,
-      }),
-    )
+    const excluded = await authority.exclude({
+      principal: step.principal,
+      tenant: step.tenant,
+      call: step.call,
+      operation: write.ok.operation,
+      reason,
+    })
     if ('failure' in excluded) return { kind: 'failed', failure: excluded.failure }
     return recordStart(step, recovery, start, { kind: 'rejected', reason, exclusion: excluded.ok })
   }
@@ -502,15 +500,13 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }
     const marker = context(step, recovery, 'start-failed')
     if ('failure' in marker) return { kind: 'failed', failure: marker.failure }
-    const failed = await readPort('tool-ledger', () =>
-      dependencies.reads.operation({
-        ...access,
-        operation: marker.ok.operation,
-      }),
-    )
+    const failed = await dependencies.reads.operation({
+      ...access,
+      operation: marker.ok.operation,
+    })
     if ('failure' in failed) return { kind: 'failed', failure: failed.failure }
     if (failed.ok.kind === 'unknown') return blocked('the binding failure receipt is unknown')
-    const before = await readPort('start-authority', () => authority.inspect({ ...access, start }))
+    const before = await authority.inspect({ ...access, start })
     if ('failure' in before) return { kind: 'failed', failure: before.failure }
     if (before.ok.kind === 'started' || before.ok.kind === 'rejected')
       return recordStart(step, recovery, start, before.ok)
@@ -538,9 +534,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     if (invoked.kind === 'port-failed') return { kind: 'failed', failure: invoked.failure }
     if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
       failedStarts.add(callKey(step.tenant, step.call))
-    const afterStart = await readPort('start-authority', () =>
-      authority.inspect({ ...access, start }),
-    )
+    const afterStart = await authority.inspect({ ...access, start })
     if (
       'ok' in afterStart &&
       (afterStart.ok.kind === 'started' || afterStart.ok.kind === 'rejected')
@@ -631,9 +625,10 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       () => runOnce(step),
     )
     runs.set(key, next)
-    void next.finally(() => {
+    const clearRun = () => {
       if (runs.get(key) === next) runs.delete(key)
-    })
+    }
+    void next.then(clearRun, clearRun)
     return next
   }
 

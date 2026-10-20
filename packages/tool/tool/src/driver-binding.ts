@@ -1,5 +1,5 @@
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, type Outcome } from '@omne-harness/operation-result'
+import type { Outcome } from '@omne-harness/operation-result'
 import type {
   CallAccess,
   PreparationRecord,
@@ -18,26 +18,6 @@ type Invocation =
   | Readonly<{ kind: 'binding-threw' }>
   | Readonly<{ kind: 'live' }>
 
-const unreadable = (
-  dependency: string,
-  error: unknown,
-): Extract<ToolFailure, { kind: 'unavailable' }> => ({
-  kind: 'unavailable',
-  dependency,
-  diagnostic: `the port threw${error instanceof Error ? `: ${error.message}` : ''}`,
-})
-
-export const readPort = async <T>(
-  dependency: string,
-  read: () => Promise<Outcome<T, ToolFailure>>,
-): Promise<Outcome<T, ToolFailure>> => {
-  try {
-    return await read()
-  } catch (error) {
-    return fail(unreadable(dependency, error))
-  }
-}
-
 export function createBindingInvoker<P, B extends ContentBlock, E>(
   { authority, bindings }: Pick<ToolDependencies<P, B, E>, 'authority' | 'bindings'>,
   environmentOf: (
@@ -55,13 +35,9 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
     start: Extract<ToolStartRecord, { kind: 'start' }>,
   ): Promise<Invocation> => {
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }
-    const permit = await readPort('start-authority', () =>
-      authority.prepare({ ...access, start, request: recovery.request }),
-    )
+    const permit = await authority.prepare({ ...access, start, request: recovery.request })
     if ('failure' in permit) return { kind: 'port-failed', failure: permit.failure }
-    const binding = await readPort('tool-bindings', () =>
-      bindings.resolve({ ...access, request: recovery.request }),
-    )
+    const binding = await bindings.resolve({ ...access, request: recovery.request })
     if ('failure' in binding) return { kind: 'port-failed', failure: binding.failure }
     if (binding.ok.kind !== 'live-only')
       return {
@@ -78,7 +54,7 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
         kind: 'port-failed',
         failure: { kind: 'invalid', field: 'call', reason: 'no-preparation' },
       }
-    const environment = await readPort('tool-environment', () => environmentOf(step, preparation))
+    const environment = await environmentOf(step, preparation)
     if ('failure' in environment) return { kind: 'port-failed', failure: environment.failure }
     try {
       const live = await binding.ok.start(
@@ -100,13 +76,9 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
     start: ToolStartRecord,
   ): Promise<Outcome<ToolStartLookup<B>, ToolFailure>> => {
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }
-    const binding = await readPort('tool-bindings', () =>
-      bindings.resolve({ ...access, request: recovery.request }),
-    )
+    const binding = await bindings.resolve({ ...access, request: recovery.request })
     if ('failure' in binding) return binding
-    const found = await readPort('tool-executor', () =>
-      binding.ok.inspectStart({ ...access, start }),
-    )
+    const found = await binding.ok.inspectStart({ ...access, start })
     if ('ok' in found && found.ok.kind === 'live')
       lives.set(callKey(step.tenant, step.call), found.ok.execution)
     return found

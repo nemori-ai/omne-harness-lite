@@ -61,6 +61,7 @@ export type StartOptions = HarnessOptions &
     authority?: TestAuthority
     binding?: TestBinding
     authorityPort?: (base: TestAuthority) => ToolStartAuthority<Principal>
+    environmentsPort?: (base: TestEnvironments) => ToolEnvironment<Principal, TestEnvironment>
     bindingPort?: (base: LiveBinding) => LiveBinding
     bindingsPort?: (
       base: ToolBindings<Principal, Block, TestEnvironment>,
@@ -444,7 +445,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
       queues: ledger.queues,
       reads: options.readsPort?.(ledger.reads) ?? ledger.reads,
       bindings: options.bindingsPort?.(binding.bindings) ?? binding.bindings,
-      environments,
+      environments: options.environmentsPort?.(environments) ?? environments,
       decisions: refusing('decisions', [
         'inspectOperation',
         'ensure',

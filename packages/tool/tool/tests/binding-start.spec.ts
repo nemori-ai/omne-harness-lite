@@ -1,3 +1,6 @@
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ToolFailure } from '@omne-harness/tool-contract'
@@ -132,6 +135,7 @@ for (const fault of ['failure', 'throw'] as const) {
 
 for (const lookup of ['live', 'unknown', 'failure', 'throw', 'lost', 'settled'] as const) {
   it(`21 lookup: authority unknown queries original ${lookup} without releasing or starting again`, async () => {
+    const lookupError = new TypeError('lookup implementation defect')
     let obscure = () => {}
     const seen: string[] = []
     const first = startHarness({
@@ -145,14 +149,15 @@ for (const lookup of ['live', 'unknown', 'failure', 'throw', 'lost', 'settled'] 
         inspectStart: async input => {
           seen.push(input.start.operation)
           if (lookup === 'failure') return refused()
-          if (lookup === 'throw') throw new Error('lookup unavailable')
+          if (lookup === 'throw') throw lookupError
           return base.inspectStart(input)
         },
       }),
     })
     obscure = () => first.authority.uncertain('c1')
     await admitCall(first, 'c1')
-    await first.drive('c1')
+    if (lookup === 'throw') await expect(first.drive('c1')).rejects.toBe(lookupError)
+    else await first.drive('c1')
     const recovery = ok(await first.commands.loadRecovery(admission('c1', 'op-c1')))
     if (recovery.start?.kind !== 'start') throw new Error('no original start')
     if (lookup === 'unknown') first.binding.controls.blindInspection(recovery.start)
@@ -163,7 +168,8 @@ for (const lookup of ['live', 'unknown', 'failure', 'throw', 'lost', 'settled'] 
       authority: first.authority,
       binding: first.binding,
     })
-    await next.drive('c1')
+    if (lookup === 'throw') await expect(next.drive('c1')).rejects.toBe(lookupError)
+    else await next.drive('c1')
     expect(seen.length).toBeGreaterThanOrEqual(2)
     expect(new Set(seen)).toEqual(new Set(['op-c1/start']))
     expect(next.binding.controls.launches()).toBe(1)
@@ -180,6 +186,7 @@ for (const lookup of ['live', 'unknown', 'failure', 'throw', 'lost', 'settled'] 
 
 for (const fault of ['unavailable', 'conflict', 'throw', 'lost-receipt'] as const) {
   it(`21 exclusion: ${fault} retains responsibility across drivers and retries only exclusion`, async () => {
+    const exclusionError = new TypeError('exclude implementation defect')
     let attempts = 0
     let failing = true
     const exclusions: string[] = []
@@ -189,7 +196,7 @@ for (const fault of ['unavailable', 'conflict', 'throw', 'lost-receipt'] as cons
         exclusions.push(input.operation)
         if (!failing) return base.exclude(input)
         if (fault === 'lost-receipt') ok(await base.exclude(input))
-        if (fault === 'throw') throw new Error('exclude response lost')
+        if (fault === 'throw') throw exclusionError
         return fault === 'conflict'
           ? fail({ kind: 'conflict', operation: input.operation })
           : refused()
@@ -206,7 +213,8 @@ for (const fault of ['unavailable', 'conflict', 'throw', 'lost-receipt'] as cons
       }),
     })
     await admitCall(first, 'c1')
-    await first.drive('c1')
+    if (fault === 'throw') await expect(first.drive('c1')).rejects.toBe(exclusionError)
+    else await first.drive('c1')
     expect((await first.state('c1')).phase).toBe('starting')
     expect(first.binding.controls.launches()).toBe(0)
     const marker = ok(
@@ -222,7 +230,8 @@ for (const fault of ['unavailable', 'conflict', 'throw', 'lost-receipt'] as cons
       binding: first.binding,
       authorityPort,
     })
-    await next.drive('c1')
+    if (fault === 'throw') await expect(next.drive('c1')).rejects.toBe(exclusionError)
+    else await next.drive('c1')
     expect(attempts).toBe(1)
     if (fault !== 'lost-receipt') {
       expect(await next.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
@@ -241,19 +250,24 @@ for (const fault of ['unavailable', 'conflict', 'throw', 'lost-receipt'] as cons
 
 for (const answer of ['unknown', 'failure', 'throw'] as const) {
   it(`21 marker: an ${answer} failure receipt never authorizes a launch`, async () => {
+    const receiptError = new TypeError('receipt implementation defect')
     const harness = startHarness({
       readsPort: base => ({
         ...base,
         operation: () => {
-          if (answer === 'throw') throw new Error('receipt store down')
+          if (answer === 'throw') throw receiptError
           return Promise.resolve(answer === 'unknown' ? succeed({ kind: 'unknown' }) : refused())
         },
       }),
     })
     await admitCall(harness, 'c1')
-    await harness.drive('c1')
+    if (answer === 'throw') await expect(harness.drive('c1')).rejects.toBe(receiptError)
+    else await harness.drive('c1')
     expect(harness.binding.controls.launches()).toBe(0)
     expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+    const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
+    expect(recovery.result).toBeNull()
+    expect(recovery.tasks.map(task => task.kind)).toEqual(['start'])
   })
 }
 
@@ -477,4 +491,224 @@ it('21 ports: an unavailable prepared environment reconnect keeps the start retr
   harness.environments.answer('c1', 'prepared')
   await harness.drive('c1')
   expect(harness.binding.controls.launches()).toBe(1)
+})
+
+for (const port of ['resolve', 'prepare', 'environment', 'authority'] as const) {
+  it(`21 ports: an unknown ${port} exception reaches the caller and keeps the original start held`, async () => {
+    const original =
+      port === 'environment'
+        ? Object.freeze({ defect: 'environment reconnect' })
+        : new TypeError(`${port} implementation defect`)
+    let throwing = true
+    const harness = startHarness({
+      bindingsPort: base => ({
+        ...base,
+        resolve: input => {
+          if (port === 'resolve' && throwing) throw original
+          return base.resolve(input)
+        },
+      }),
+      authorityPort: base => ({
+        ...base,
+        prepare: input => {
+          if (port === 'prepare' && throwing) throw original
+          return base.prepare(input)
+        },
+        inspect: input => {
+          if (port === 'authority' && throwing) throw original
+          return base.inspect(input)
+        },
+      }),
+      environmentsPort: base => ({
+        ...base,
+        inspectPreparation: input => {
+          if (port === 'environment' && throwing) return Promise.reject(original)
+          return base.inspectPreparation(input)
+        },
+      }),
+    })
+    await admitCall(harness, 'c1')
+    const start = await toStarting(harness, 'c1')
+    harness.host.scheduled.splice(0)
+    await expect(harness.runOnce('c1')).rejects.toBe(original)
+    expect(harness.host.scheduled).toEqual([])
+    expect(harness.binding.controls.launches()).toBe(0)
+    expect(harness.authority.excluded).toEqual([])
+    expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+    const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
+    expect(recovery.start).toEqual(start)
+    expect(recovery.result).toBeNull()
+    expect(recovery.tasks.map(task => task.kind)).toEqual(['start'])
+    throwing = false
+    await harness.runOnce('c1')
+    expect(await harness.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
+    expect(harness.binding.controls.launches()).toBe(1)
+  })
+}
+
+it('21 failure: an unknown query exception after a binding throw preserves its unconfirmed failure', async () => {
+  const original = new TypeError('post-start query defect')
+  let failed = false
+  let throwing = true
+  let attempts = 0
+  const harness = startHarness({
+    authorityPort: base => ({
+      ...base,
+      inspect: input => {
+        if (failed && throwing) throw original
+        return base.inspect(input)
+      },
+    }),
+    bindingPort: base => ({
+      ...base,
+      start: () => {
+        attempts += 1
+        failed = true
+        throw new Error('binding reply lost')
+      },
+    }),
+  })
+  await admitCall(harness, 'c1')
+  await expect(harness.runOnce('c1')).rejects.toBe(original)
+  expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+  expect(ok(await harness.commands.loadRecovery(admission('c1', 'op-c1'))).result).toBeNull()
+  expect(harness.authority.excluded).toEqual([])
+  throwing = false
+  await harness.runOnce('c1')
+  expect(attempts).toBe(1)
+  expect(harness.binding.controls.launches()).toBe(0)
+  expect(await harness.state('c1')).toMatchObject({
+    phase: 'settled',
+    terminal: { kind: 'unavailable' },
+    queue: { kind: 'released' },
+  })
+})
+
+it('21 marker: a new driver recalls a committed failure marker whose commit receipt was unknown', async () => {
+  let attempts = 0
+  const markerWrites: string[] = []
+  const first = startHarness({
+    bindingPort: base => ({
+      ...base,
+      start: () => {
+        attempts += 1
+        return Promise.resolve(refused())
+      },
+    }),
+    commands: base => ({
+      ...base,
+      recordStart: async input => {
+        if (input.operation !== 'op-c1/start-failed') return base.recordStart(input)
+        markerWrites.push(input.operation)
+        ok(await base.recordStart(input))
+        return fail({ kind: 'commit-unknown', operation: input.operation })
+      },
+    }),
+    driverStepsPerRun: 1,
+  })
+  await admitCall(first, 'c1')
+  const originalStart = await toStarting(first, 'c1')
+  await first.runOnce('c1')
+  expect(markerWrites).toEqual(['op-c1/start-failed'])
+  expect(await first.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+  expect(
+    ok(
+      await first.runtime.queryOperation({
+        ...admission('c1', 'op-c1'),
+        operation: operationId('op-c1/start-failed'),
+      }),
+    ).kind,
+  ).toBe('committed')
+  const markerReads: string[] = []
+  const next = startHarness({
+    memory: first.memory,
+    authority: first.authority,
+    binding: first.binding,
+    readsPort: base => ({
+      ...base,
+      operation: async input => {
+        const reply = await base.operation(input)
+        if ('ok' in reply) markerReads.push(reply.ok.kind)
+        return reply
+      },
+    }),
+    authorityPort: base => ({ ...base, exclude: () => Promise.resolve(refused()) }),
+  })
+  await next.runOnce('c1')
+  expect(attempts).toBe(1)
+  expect(markerReads).toEqual(['committed'])
+  expect(next.binding.inspected.map(start => start.operation)).toEqual([originalStart.operation])
+  expect(await next.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+  expect(ok(await next.commands.loadRecovery(admission('c1', 'op-c1'))).result).toBeNull()
+  const final = startHarness({
+    memory: first.memory,
+    authority: first.authority,
+    binding: first.binding,
+  })
+  await final.runOnce('c1')
+  expect(attempts).toBe(1)
+  expect(first.binding.controls.launches()).toBe(0)
+  expect(first.authority.excluded).toEqual(['c1'])
+  expect(await final.state('c1')).toMatchObject({
+    phase: 'settled',
+    terminal: { kind: 'unavailable' },
+    effect: { kind: 'not-started' },
+    queue: { kind: 'released' },
+    delivery: { kind: 'pending' },
+  })
+  expect(ok(await final.commands.loadRecovery(admission('c1', 'op-c1'))).result).not.toBeNull()
+})
+
+it('21 rejection: catching run rejection leaves no derived unhandled rejection', async () => {
+  const { stdout, stderr } = await promisify(execFile)(process.execPath, [
+    '--conditions=source',
+    '--experimental-strip-types',
+    fileURLToPath(new URL('./caught-rejection.ts', import.meta.url)),
+  ])
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({ caughtSameError: true, unhandledRejections: 0 })
+})
+
+it('21 serialization: a rejected predecessor cannot remove its blocked successor', async () => {
+  const original = new TypeError('first authority query defect')
+  let inspections = 0
+  let release = () => {}
+  const gate = new Promise<void>(resolve => {
+    release = resolve
+  })
+  let entered = () => {}
+  const successorEntered = new Promise<void>(resolve => {
+    entered = resolve
+  })
+  const harness = startHarness({
+    authorityPort: base => ({
+      ...base,
+      inspect: async input => {
+        inspections += 1
+        if (inspections === 1) throw original
+        if (inspections === 2) {
+          entered()
+          await gate
+        }
+        return base.inspect(input)
+      },
+    }),
+  })
+  await admitCall(harness, 'c1')
+  await toStarting(harness, 'c1')
+  const predecessor = harness.runOnce('c1')
+  const successor = harness.runOnce('c1')
+  const queued = [successor]
+  try {
+    await expect(predecessor).rejects.toBe(original)
+    await successorEntered
+    queued.push(harness.runOnce('c1'))
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(inspections).toBe(2)
+  } finally {
+    release()
+    await Promise.all(queued)
+  }
+  expect(harness.binding.controls.launches()).toBe(1)
+  expect(await harness.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
 })
