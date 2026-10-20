@@ -117,8 +117,12 @@ node() {
   local script=
   for argument in "$@"; do case "$argument" in --*) ;; *) script=$argument; break ;; esac; done
   case "$script" in
-    */testing/cli.ts) if [[ "$3" == plan ]]; then record plan "$@"; else record "$4" "$@"; fi ;;
-    */integration/cli.ts) printf '{"targetBase":"%s"}' "$BASELINE" ;;
+    */testing/cli.ts)
+      case "$3" in
+        baseline) printf '{"targetBase":"%s"}' "$BASELINE" ;;
+        plan) record plan "$@" ;;
+        *) record "$4" "$@" ;;
+      esac ;;
     */src/cli.ts) record rules "$@" ;;
     *) command node "$@" ;;
   esac
