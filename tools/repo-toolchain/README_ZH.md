@@ -99,7 +99,7 @@ pnpm --filter @omne-harness/repo-toolchain test
 pnpm run acceptance:lock --base <任务基线提交或分支>
 ```
 
-不给 `--base` 时取任务上下文的基线，再缺省 `main`。
+不给 `--base` 时按[统一规则](#缺省基线)取基线：环境变量 `BASELINE`，再取任务上下文的基线，再取 `origin/main`，最后取 `main`。
 
 模板生成的验收入口不算验收内容：`acceptance/` 下名为 `README.md` 或 `index.md`、变化后（删除时看变化前）仍有独立一行文档占位标记的文件，增删改都不计入；去掉标记、写入真实内容的改动照常计入（RFC-0007）。
 

@@ -278,7 +278,9 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 
 ### 迭代中的受影响测试
 
-在仓库根将占位符替换为完整任务基线提交。以下命令使用同一个比较依据：
+`check`、`check:plan`、`test:affected` 与 `mutation` 按同一规则取基线：显式给的（`--base` 参数，再取环境变量 `BASELINE`），再取工作树 task context 固定的 `targetBase`，再取 `origin/main`，最后取 `main`。已绑定任务的工作树不必传基线，并且只接受等于 `targetBase` 的显式基线。同步过目标分支以后，开工时的任务基线不再等于 `targetBase`，显式传入会被拒绝，命令在标准错误写出原因后以 2 退出，不运行任何检查。
+
+没有绑定任务的工作树才需要显式基线。在仓库根将占位符替换为完整任务基线提交。以下命令使用同一个比较依据：
 
 ```sh
 TASK_BASE='<完整任务基线提交>'
@@ -342,7 +344,7 @@ pnpm run test:triage --run <实际运行目录>
 
 ### 从候选到可审阅交付
 
-先按[迭代检查的设置](#迭代中的受影响测试)固定`TASK_BASE`，将命令中的`<task>`替换为本次任务目录。同一变量不意味着各工具的比较算法相同，报告保留实际BASE或merge-base。
+先按[迭代检查的设置](#迭代中的受影响测试)固定`TASK_BASE`，将命令中的`<task>`替换为本次任务目录。同一变量不意味着各工具的比较算法相同，报告保留实际BASE或merge-base。已绑定任务的工作树省略下面命令里的`--base "$TASK_BASE"`，基线取固定的`targetBase`。
 
 1. 在首个可运行候选及正常复查点保存适用快照，最终候选再核对。报告实际BASE或merge-base、dirty状态、输入、规则与范围；没有中间快照就不宣称统计了全过程整改。
 2. 对最终候选运行受影响行为、构建、类型及组合验证。复用旧结果须说明契约、代码、配置、依赖和假设仍适用；变化使其失效时补跑对应检查。
@@ -365,7 +367,14 @@ metrics只报告结构与配置范围内的覆盖；mutation只观察其选择�
 
 ### 交付与合并前的检查
 
-同一基线下先检查计划，再执行最终候选所需的组合检查：
+同一基线下先检查计划，再执行最终候选所需的组合检查。已绑定任务的工作树不传基线，两条命令都取固定的 `targetBase`：
+
+```sh
+pnpm run check:plan
+OMNE_ADMISSION=1 pnpm run check
+```
+
+没有绑定任务的工作树（例如进入 stable 的 PR）显式给同一个基线：
 
 ```sh
 pnpm run check:plan --base "$TASK_BASE"
@@ -374,7 +383,7 @@ OMNE_ADMISSION=1 BASELINE="$TASK_BASE" pnpm run check
 
 进入任何一条主干之前的检查都带 `OMNE_ADMISSION=1`，规则见[集成规则](engineering/integration.md#检查责任)。不带这个变量的运行会读缓存，不作为准入检查结论。
 
-两条命令传基线的方式不同：`check:plan`用`--base`参数，`check`用环境变量`BASELINE`。显式传入同一提交可避免它们各自的默认值造成比较范围不同。
+两条命令按同一规则取基线，因此不给基线时它们比较的范围相同。传显式基线的方式不同：`check:plan`用`--base`参数（也读环境变量`BASELINE`），`check`只读环境变量`BASELINE`。
 
 `pnpm run check`先打印影响面，运行常驻检查，再按计划执行Python、构建、类型检查、成员快慢层及可执行验收，最后执行严格回路状态。它通过时只支持已执行范围；计划中的跳过不算通过。无选中验收时记录显式跳过，不为凑数据运行无关验收。全局变更、未知路径或负责人明确要求可触发全量；`FULL=1`用于显式全量，不是每次交付的默认值。
 

@@ -406,7 +406,7 @@ describe('入口的参数', () => {
     expect(planned.stdout).toMatch(/packages\/core\/canary：1 个文件/u)
   })
 
-  // 缺省基线：有任务上下文时取它固定的基线，否则 main，与 test:affected 相同。
+  // 缺省基线：按统一规则取（任务上下文固定的基线，再取 origin/main，最后取 main），与 test:affected 相同。
   it('不给范围时按缺省基线在本仓库现算计划', { tags: ['slow'], timeout: 120_000 }, () => {
     const ran = spawnSync(
       process.execPath,
