@@ -36,20 +36,20 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 | 编号 | 出入 | 拥有者 | 阻塞 |
 | --- | --- | --- | --- |
-| M04-1 | stream 事件（T0、M1）与 producer 事件（T1、M3）没有写方法。`recordResult` 与 `recordControl` 的输入不带事件，`commit` 是唯一带 `events` 字段的写方法 | agent-contract | 阶段 1 中 M1、T0、T1、M3 的事件投影 |
+| M04-1 | 没有拥有者写明 T0、M1 的 stream 事件与 T1、M3 的 producer 事件由哪次写入承载。`JournalCommit.events` 只排除 ended，类型上允许这两种事件。T1 的第二步有一次 `commit` 可以承载，M3 没有自己的 `commit`。SPEC [请求接缝的逐操作要素](../../../agent-contract/SPEC.md#请求接缝的逐操作要素)的 derive 行写步骤结果以 producer 事件投影，由 Agent 提交时产生。另有一处张力：SPEC [事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号)写事件由 Journal 在条件提交中分配，[六个阶段](../../../agent-contract/SPEC.md#六个阶段)与逐操作表的 `Journal.recordResult、recordControl` 行写 `recordControl` 的阶段事实投影为 control 事件，而 `recordControl` 没有事件输入。候选读法有三种，本项不作选择：由已有的一次 `commit` 承载，由 `recordResult` 或 `recordControl` 投影，或新增方法 | agent-contract | 阶段 1 中 M1、T0、T1、M3 的事件投影 |
 | M04-2 | 最终请求记录（M0）、拒收后的退避时刻（I3）与下一检查时刻（W0）在 `JournalCommit`、`AgentCheckpoint` 与 `ExecutionSnapshot` 中都没有字段。接口增量 D1 只覆盖帧之内的分面，不覆盖帧之外的记录 | agent-contract | M0、I3 与 W0 的提交形状 |
 | M04-3 | 外部协调者在 `open`、`attach`、`submit` 与 `tryFinish` 中的参加不是 `CallerCommit` 种类，`capabilities.participants` 没有声明它的形状。与[外部协调者怎样与 Agent 共同受理输入和终结](#外部协调者怎样与-agent-共同受理输入和终结)的 SW-M01 同一主题 | agent-contract | 协调者装配在工厂创建时的拒绝条件 |
-| M04-4 | 没有拥有者写明哪些方法推进 revision | agent-contract | 两种 Journal 实现对 revision 的同形测试 |
-| M04-5 | 公开接口页规定 `CallerCommit` 的非 none 种类只能在声明了对应参加者时使用。SPEC 的提交与保管和交接清单第 3 项允许提供者自己为 `recordResult.transfer` 建立 custody 与 processed 依据。两处对 transfer 的适用范围不一致 | agent-contract | 独立装配走 custody 与 processed 两条路径，以及 unsupported 核对的范围 |
+| M04-4 | 对象模型[对象与生命周期](../../../agent-contract/docs/object-model.md#对象与生命周期)的 AgentCheckpoint 行写 checkpoint 每次提交随 execution 修订保存，SPEC [事件交付的四个层次](../../../agent-contract/SPEC.md#事件交付的四个层次)写事件与 execution 修订一起保存。没有拥有者写明 `submit`、`control`、`acknowledge`、`recordResult`、`recordControl` 与 `recordTerminalObservation` 是否推进 revision | agent-contract | 两种 Journal 实现对 revision 的同形测试 |
+| M04-5 | 公开接口页规定 `CallerCommit` 的非 none 种类只能在声明了对应参加者时使用。SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)与上下文页[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项允许提供者自己为 `recordResult.transfer` 建立 custody 与 processed 依据。两处对 transfer 的适用范围不一致 | agent-contract | 独立装配走 custody 与 processed 两条路径，以及 unsupported 核对的范围 |
 | M04-6 | `Waiting` 没有时间字段 | agent-contract | W0 保存下一检查时刻，I3 的退避等待 |
-| M04-7 | 没有拥有者写明 `open` 首先追加哪些事件 | agent-contract | E0 的提交形状，以及第一个事件序号属于哪个事件 |
+| M04-7 | SPEC [逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类)的第二张表中，invoke 行的事件写受理成功后追加首批事件，`Journal.open、attach` 行的事件写无，`open` 也没有事件输入。首批事件来自 invoke 的受理，还是来自之后的一次提交（例如 I0 的 input-taken），两行的说法不一致 | agent-contract | E0 的提交形状，以及第一个事件序号属于哪个事件 |
 | M04-8 | SPEC 逐操作表把 input-taken 列为 `input.submit` 的事件，但只有 I0 能形成 `InputBatch` | agent-contract | I0 与 submit 的事件测试 |
 | M04-9 | SPEC 提交参加者协议规定参加者失败时返回 unavailable，逐操作表的 `AgentJournal.commit` 行与 `AgentJournal.tryFinish` 行没有列出它。`tryFinish` 行也没有列出 unsupported | agent-contract | 两种 Journal 实现对参加者失败的返回测试 |
-| M04-10 | 节点表 Q2 写“其他来源加 message”，不区分提供者是否声明了 message。独立装配的 `jointCommits` 为空表 | Loop 完整算法页 | 独立装配中 T5 与 X5 的提交形状 |
+| M04-10 | 节点表 Q2 写“压缩加 context-transition，其他来源加 message”，不区分提供者是否声明了对应种类。独立装配的 `jointCommits` 为空表。SPEC [请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条把转换写成经 Journal 的 context-transition 交接保存，独立装配也是如此，只写由其合法历史拥有者兑现 | Loop 完整算法页与 agent-contract | 独立装配中 C3、T5 与 X5 的提交形状 |
 | M04-11 | 节点表 E9 的“写什么”没有写暂停的责任释放阶段，SPEC 的六个阶段对暂停适用责任释放 | Loop 完整算法页 | E9 的实施卡补“何时提交” |
 | M04-12 | H0 的“写什么”写“失败候选或只保管的决定”，失败候选由 F1 写入，只保管由 O0 承接。H0 是否为写入节点没有写明 | Loop 完整算法页 | H0 的实施卡与提交点总表的覆盖口径 |
 
-关闭条件是每一项由其拥有者裁定，并写回拥有该事实的正文：契约项写回 agent-contract 的 SPEC、公开接口页或源码类型，节点表项写回 Loop 完整算法页。写回之后，提交点与聚合边界一节删去对应的指向，两种 Journal 实现按裁定结果补同形测试。
+关闭条件是每一项由其拥有者裁定，并写回拥有该事实的正文：契约项写回 agent-contract 的 SPEC、公开接口页或源码类型，节点表项写回 Loop 完整算法页。写回之后，机制页同步更新下列位置：提交点与聚合边界一节删去对应的指向，[等待、唤醒与公平](mechanisms.md#等待唤醒与公平)与[恢复切点表](mechanisms.md#恢复切点表)中下一检查时刻的承载按 M04-2 与 M04-6 的裁定写明。两种 Journal 实现按裁定结果补同形测试。
 
 ## 保留的专题边界
 
