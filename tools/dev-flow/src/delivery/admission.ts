@@ -1,4 +1,4 @@
-import { runGhRead, type GhRead } from './github-read.ts'
+import { judgeParent, runGhRead, type GhRead } from './github-read.ts'
 import { declaredIssueParents, observeDelivery } from './observe.ts'
 import {
   array,
@@ -57,7 +57,6 @@ function issueNumber(repository: string, url: string): number {
     throw new InputError('Admission requires an exact same-repository Issue URL')
   return number
 }
-const PARENT = 'query($id:ID!){node(id:$id){... on Issue{id parent{url}}}}'
 const MEMBERSHIPS =
   'query($id:ID!,$cursor:String){node(id:$id){... on Issue{id url projectItems(first:100,after:$cursor,includeArchived:true){pageInfo{hasNextPage endCursor} nodes{id project{id}}}}}}'
 const FIELDS =
@@ -83,18 +82,23 @@ export function collectAdmission(
     issues = new Map<string, CapturedIssue>(),
     closure = new Set([scope.task])
   let requests = 0
-  function request(argv: string[]): unknown {
+  /** Counts one request against the budgets and returns its timeout. */
+  function slot(): number {
     if (requests >= 200 || Date.now() >= deadline)
       throw new InputError('Admission request or time limit reached')
     requests += 1
+    return Math.min(15_000, Math.max(1, deadline - Date.now()))
+  }
+  function request(argv: string[]): unknown {
+    const timeoutMs = slot()
     try {
-      return read(argv, Math.min(15_000, Math.max(1, deadline - Date.now())))
+      return read(argv, timeoutMs)
     } catch {
       throw new InputError('Admission GitHub read failed. API output omitted.')
     }
   }
-  function rest(path: string): unknown {
-    return request([
+  function restArgv(path: string): string[] {
+    return [
       'api',
       '--method',
       'GET',
@@ -103,7 +107,18 @@ export function collectAdmission(
       '-H',
       'X-GitHub-Api-Version: 2026-03-10',
       `repos/${config.repository}/${path}`,
-    ])
+    ]
+  }
+  function rest(path: string): unknown {
+    return request(restArgv(path))
+  }
+  /** The native parent URL, null when GitHub states there is none; anything else refuses. */
+  function parentOf(number: number): string | null {
+    const timeoutMs = slot(),
+      parent = judgeParent(() => read(restArgv(`issues/${number}/parent`), timeoutMs))
+    if (parent.kind === 'unknown')
+      throw new InputError('Admission parent relation unknown. API output omitted.')
+    return parent.kind === 'parent' ? parent.url : null
   }
   function paged(path: string): unknown[] {
     const items: unknown[] = []
@@ -184,7 +199,7 @@ export function collectAdmission(
           text(record(item, 'dependency').html_url, 'dependency.url'),
         )
       : []
-    const parent = includeRelations ? node(PARENT, id).parent : null
+    const parentIssue = includeRelations ? parentOf(number) : null
     const issue: CapturedIssue = {
       number,
       url,
@@ -199,7 +214,7 @@ export function collectAdmission(
       commentsComplete: true,
       relationsComplete: includeRelations,
       blockedBy,
-      parentIssue: parent === null ? null : text(record(parent, 'parent').url, 'parent.url'),
+      parentIssue,
       stage: null,
     }
     issues.set(url, issue)

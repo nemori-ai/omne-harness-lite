@@ -250,17 +250,9 @@ if (args[1] === '--method' && args[2] === 'POST') {
 if (args[1] === 'graphql') {
   if (!args.some(x => x.startsWith('query=query'))) process.exit(92)
   if (p.admissionOnly && args.some(x => x.includes(' items('))) process.exit(95)
-  if (p.cloud && !args.some(x => x.includes('parent{url}'))) process.exit(95)
-  if (args.some(x => x.includes('parent{url}')))
-    result = {
-      data: {
-        node: {
-          id: args.find(a => a.startsWith('id=')).slice(3),
-          parent: p.parent ? { url: p.parent } : null,
-        },
-      },
-    }
-  else if (args.some(x => x.includes('projectItems(')))
+  // 云端路径不得发出任何 GraphQL 请求（parent 已改用 REST，见 #548）。
+  if (p.cloud) process.exit(95)
+  if (args.some(x => x.includes('projectItems(')))
     result = {
       data: {
         node: {
@@ -313,6 +305,15 @@ if (args[1] === 'graphql') {
     if (p.admissionOnly) process.exit(95)
     result = [issue]
   } else if (endpoint === 'repos/owner/repo/issues/1') result = issue
+  else if (/^repos\/owner\/repo\/issues\/[12]\/parent$/.test(endpoint)) {
+    if (!p.parent) {
+      // gh api writes the error response to stdout and exits 1.
+      process.stdout.write(JSON.stringify({ message: 'No parent issue found', status: '404' }))
+      process.stderr.write('gh: No parent issue found (HTTP 404)')
+      process.exit(1)
+    }
+    result = { ...issue, html_url: p.parent }
+  }
   else if (endpoint === 'repos/owner/repo/issues/2')
     result = {
       ...issue,
