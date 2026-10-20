@@ -1,3 +1,4 @@
+import { compareRevisions } from '@omne-harness/model-contract'
 import type {
   CallAccess,
   CallState,
@@ -177,7 +178,12 @@ export function createObservation<P>(input: {
     },
     epoch: () => contentEpoch,
     refresh(state: CallState, epoch: number) {
-      if (!confirming && contentEpoch === epoch && view && view.state.revision !== state.revision)
+      if (
+        !confirming &&
+        contentEpoch === epoch &&
+        view &&
+        compareRevisions(state.revision, view.state.revision) > 0
+      )
         publish({ ...view, state })
     },
   }

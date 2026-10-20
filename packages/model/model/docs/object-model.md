@@ -80,6 +80,8 @@ ModelRuntimeProvider 组合普通 runtime 与受信 driver。构造阶段只建�
 
 ModelProfileMaintenance 由实际档案权威提供者实现，包含条件写及未知核实。普通查询没有维护接口。抽象类只用于框架服务身份；厂商编码器、计量器和本地调度器通过组合实现窄端口，不继承一个包含所有能力的模型基类。
 
+当前最小运行实现以 tenant/call 活动对象持有原 claim、publication、发送需求与接收阶段。其确认 view 是 Commands 回执的实例投影，不能作为耐久权威或跨实例恢复依据。观察者只保留版本、等待者和有限未读通知额度；原流不归观察者所有。具体状态转换及资源退出归 [实现规格](../SPEC.md#当前构造支持与本地模拟)。
+
 ## 已实现的凭据对象
 
 凭据的保管行为归 [SPEC](../SPEC.md#凭据引用与解析)。引用、结果和端口的声明与持有者语义归 [model-contract](../../model-contract/docs/public-api.md#凭据引用与解析端口)，保管的内部判定状态在 [credential.ts](../src/credential.ts)。
@@ -168,5 +170,3 @@ flowchart TD
 | 本地保管库（归 [model-host-local](../../model-host-local/SPEC.md)） | 秘密和绑定怎样持久保存、重开和关闭 | 无。它构造状态快照并调用前两项，不对外暴露行格式 |
 
 调用执行把引用写进调用记录。它调用 `resolve`，不打开保管库，不保存返回的秘密。替换本地保管库时，调用记录和五种结果保持不变。
-
-当前最小运行实现以 tenant/call 活动对象持有原 claim、publication、发送需求与接收阶段。其确认 view 是 Commands 回执的实例投影，不能作为耐久权威或跨实例恢复依据。观察者只保留版本、等待者和有限未读通知额度；原流不归观察者所有。具体状态转换及资源退出归 [实现规格](../SPEC.md#当前构造支持与本地模拟)。

@@ -55,4 +55,6 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 [runtime-fixture.ts](runtime-fixture.ts) 只安排合法宿主、当前资格、外部脚本流与故障。它使用实际 runtime、sender 和 Memory Commands，不生成快照或代做 preserve。[runtime-observation.spec.ts](runtime-observation.spec.ts) 核初始发布、独立控制更新、observe-only 资格、pending 撤权/abort 与后继实例限制。[runtime-receive.spec.ts](runtime-receive.spec.ts) 核原窗口、未知 open/preserve/sender 写认回、取消与确认屏障、正数批量、沉默 pending next、首内容、首项/保存交错、EOF/异常前缀及资源释放。
 
+[runtime-transitions.spec.ts](runtime-transitions.spec.ts) 注入附带刷新异常、挂起和乱序回包，检查原流保留、确认后不重放、明确拒绝后一次释放与状态不回退。按调用驱动锁分别在 next、preserve 和正常资源释放等待时接受重入探针，要求明确 busy 且原调用正常完成。
+
 观察边界测试另核登记不足、落后超额、共享大快照、并发 next 无队列和健康观察者继续。完整53项报告保留未实现收场、读取/ACK及 quiesce 的真实 fail/不适用状态，不据本卡通过宣称完整 Model 符合。全部组合仍限受控内存与脚本，不证明真实后端或生产宿主。

@@ -542,8 +542,10 @@ Storage 的 SQL facts 只承载 Model 的引用和责任，不能凭引用已提
 
 ## 当前实例的确认投影
 
-[driver.ts](../src/driver.ts) 持有每 tenant/call 的原 claim、发送需求和接收阶段，保护同调用单写。[receive.ts](../src/receive.ts) 唯一推进原 iterator，保留未确认 open/preserve 的完整原参数。[observation.ts](../src/observation.ts) 只保存确认 Snapshot 和版本，不归约业务事实。Commands 继续拥有 blocks、首内容、游标及权威状态。
+[driver.ts](../src/driver.ts) 持有每 tenant/call 的原 claim、发送需求和接收阶段，保护同调用单写，直到原接收与释放 Promise 完成。[receive.ts](../src/receive.ts) 唯一推进原 iterator，保留未确认 open/preserve 的完整原参数。[observation.ts](../src/observation.ts) 只保存确认 Snapshot 和版本，不归约业务事实。Commands 继续拥有 blocks、首内容、游标及权威状态。
 
 内容 epoch 在 preserve 发出前推进。未确认内容写阻止 state-only 拼接；控制成功本身仍可立即返回。认回原 Snapshot 后再刷新权威状态。新观察者先取得当前完整快照，变化通知只携带版本，可合并但不留下快照与订阅之间的缺口。观察核权后同步选择快照，中间不再 await。
 
 正数批延迟采用软触发，挂起 next 不迁移窗口。观察登记和未读通知使用有限逻辑额度，并发 next 不排队。精确取值、失效与沉默读取限制归 [SPEC](../SPEC.md#工厂与配置)。本阶段不读取测试后端根对象，也不增加恢复快照读口。
+
+附带投影刷新不承担接收或释放的准入责任。原流交接、保存确认与明确拒绝均先固定活动阶段，再安排刷新。接收与控制各合并本调用的刷新请求，避免沉默读取积累等待或挡住取消投影；过时 revision 回包不能覆盖较新的确认状态。

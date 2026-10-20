@@ -27,6 +27,7 @@ type Stage =
   | { kind: 'next' }
   | { kind: 'open'; input: Open; pending: boolean }
   | { kind: 'preserve'; input: Preserve; pending: boolean; completion: Completion }
+  | { kind: 'closing'; completion: Exclude<Completion, 'continue'> }
   | { kind: 'done' }
   | { kind: 'failed'; failure: ModelFailure }
 export function newOperation(): ModelOperationId {
@@ -52,7 +53,7 @@ export function createReceiver<P>(input: {
   beginContent(): void
   rejectContent(): void
   confirm(snapshot: Snapshot): void
-  refresh(): Promise<void>
+  refresh(): void
 }) {
   const { commands, demand } = input
   const iterator = input.facts[Symbol.asyncIterator]()
@@ -101,9 +102,23 @@ export function createReceiver<P>(input: {
     pendingOperation: () =>
       stage.kind === 'open' || stage.kind === 'preserve' ? stage.input.operation : null,
     async run(signal: AbortSignal): Reply<void> {
-      while (!signal.aborted) {
+      while (!signal.aborted || stage.kind === 'closing') {
         if (stage.kind === 'done') return { ok: undefined }
         if (stage.kind === 'failed') return { failure: stage.failure }
+        if (stage.kind === 'closing') {
+          const completion = stage.completion
+          try {
+            await iterator.return?.()
+          } catch {
+            stage = { kind: 'failed', failure: unavailable('resource-release-failed') }
+            return { failure: stage.failure }
+          }
+          stage =
+            completion === 'stream-lost'
+              ? { kind: 'failed', failure: unavailable('fact-stream-failed') }
+              : { kind: 'done' }
+          return stage.kind === 'failed' ? { failure: stage.failure } : { ok: undefined }
+        }
         if (stage.kind === 'ready') {
           const entry = stage
           const current = await commands.loadRecovery(demand)
@@ -153,7 +168,7 @@ export function createReceiver<P>(input: {
             return reject(result.failure)
           }
           stage = reading(entry.input.window)
-          await input.refresh()
+          input.refresh()
           continue
         }
         if (stage.kind === 'preserve') {
@@ -167,21 +182,16 @@ export function createReceiver<P>(input: {
             )
               return { failure: result.failure }
             input.rejectContent()
-            await input.refresh()
-            return reject(result.failure)
+            const rejected = await reject(result.failure)
+            input.refresh()
+            return rejected
           }
+          stage =
+            entry.completion === 'continue'
+              ? { kind: 'next' }
+              : { kind: 'closing', completion: entry.completion }
           input.confirm(result.ok)
-          await input.refresh()
-          if (entry.completion !== 'continue') {
-            try {
-              await iterator.return?.()
-            } catch {
-              stage = { kind: 'failed', failure: unavailable('resource-release-failed') }
-              return { failure: stage.failure }
-            }
-            if (entry.completion === 'stream-lost') return reject(unavailable('fact-stream-failed'))
-            stage = { kind: 'done' }
-          } else stage = { kind: 'next' }
+          input.refresh()
           continue
         }
         const batch = stage

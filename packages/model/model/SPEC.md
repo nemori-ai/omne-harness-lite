@@ -118,17 +118,18 @@ outputBatchBytes 按事实 JSON 的 UTF-8 逻辑字节数触发持久输出批�
 
 calls.admit、inspect、dispatches、cancel 分别委托 Commands 的 admit、recall、dispatches、control。Commands 拥有当前资格、租户隔离、原 operation 认回及原子提交。受理和取消成功后调用 instances.schedule；排队失败不撤销已提交事实，后续恢复扫描仍须接续责任。未知提交原样返回，不能当作明确拒绝。取消只提交意图，返回实际 ControlState，不代表供应商已经停止。
 
-受控宿主显式调用 driver.drive，以稳定 claim operation、instance 和可信 continuity 取得原执行代次。driver 按调用单写。无 dispatch、无相关未决写且尚未 prepare 时，创建 cursor0 空 blocks 的确认初始投影，先 publish，再 prepare/send。已有 dispatch 且本实例没有确认内容时仍发布新 handle，但 observe 首项为 ended/unavailable，不伪造空恢复，也不重新发送。
+受控宿主显式调用 driver.drive，以稳定 claim operation、instance 和可信 continuity 取得原执行代次。driver 按调用单写，取得当前资格后，保护覆盖接收、异步等待与原资源释放。无 dispatch、无相关未决写且尚未 prepare 时，创建 cursor0 空 blocks 的确认初始投影，先 publish，再 prepare/send。已有 dispatch 且本实例没有确认内容时仍发布新 handle，但 observe 首项为 ended/unavailable，不伪造空恢复，也不重新发送。
 
-发送边界交出原 window 与唯一 facts。driver 只取得一次 iterator，每批使用原窗口和全部已接收事实调用 preserve。Commands 唯一归约 blocks、首内容、账目与 cursor，确认回执才更新实例投影。EOF 或流异常先保存完整已收前缀及 stream-lost 事实，再沿 sender 释放原资源并返回明确失败。完整调用收场仍不在此阶段。sender 的明确 not-started 失败沿 drive 返回，保留已发布实例和 prepared 事实，不改成推进成功。
+发送边界交出原 window 与唯一 facts。driver 在附带投影刷新前固定原流接收拥有者，只取得一次 iterator，每批使用原窗口和全部已接收事实调用 preserve。Commands 唯一归约 blocks、首内容、账目与 cursor，确认回执才更新实例投影。EOF 或流异常先保存完整已收前缀及 stream-lost 事实，再沿 sender 释放原资源并返回明确失败。完整调用收场仍不在此阶段。sender 的明确 not-started 失败沿 drive 返回，保留已发布实例和 prepared 事实，不改成推进成功。
 
 未知 claim、prepare、sender 写、开窗及 preserve 各由原拥有者认回。prepare/open/preserve 保留完整 operation、expected、dispatch、window 与 facts。query 为 unknown 或失败时保留责任，不继续读取或发布。committed 仍重放原方法取得原回执，未提交也只重放原参数。取消导致原 expected 冲突时明确失败，不改 expected 冒充原写。sender 私有未决操作交原 sender 认回。陌生未决操作没有原输入时明确阻塞。
 
-每个实例只保存一份确认 Snapshot。observe 首项为完整 snapshot，后续 changed 为最新完整快照，可以合并通知。内部版本同时记录控制变化，内容 cursor 不因取消单独推进。preserve 发出前设置确认屏障并推进内容 epoch；未知期间不把旧 blocks/cursor 与新 state 拼接。确认后读取权威状态，内容 epoch 稳定时才发布 state-only 更新。
+每个实例只保存一份确认 Snapshot。observe 首项为完整 snapshot，后续 changed 为最新完整快照，可以合并通知。内部版本同时记录控制变化，内容 cursor 不因取消单独推进。preserve 发出前设置确认屏障并推进内容 epoch；未知期间不把旧 blocks/cursor 与新 state 拼接。确认或明确拒绝后先固定接收后续阶段，再安排附带权威状态刷新。刷新失败或挂起不阻止接收和资源释放，也不重放已确认回执。内容 epoch 稳定且无确认屏障时，只有较新 revision 才发布 state-only 更新。接收刷新与控制刷新分别合并请求，沉默的接收刷新不阻塞已提交取消的投影。
 
 每次交付内容前，observer 用自己的 principal/tenant 调用真实 directory.connect，核当前 observe 资格和原 handle/instance。它不需要 facts 或 recovery 权限。等待期间按必填 observerCheckIntervalMs 复查。撤权、断线、撤路由及换代分别结束观察，不取消原调用。已有 dispatch 的新实例缺少恢复快照时明确 unavailable。return/abort 唤醒本 observer 并撤除监听和时钟，不等待沉默上游。
 
 observerBufferBytes 是每实例观察登记与每观察者未读通知的逻辑额度，不是 JavaScript 堆精确字节数。登记占64字节，最多 floor(observerBufferBytes/64) 个 observer；不足64时新观察明确 ended/unavailable。每个未读版本计32字节，超过额度结束该慢 observer。共享初始 Snapshot 的正文不重复计入每 observer 额度。每 observer 最多一个在途 next，并发 next 结束该观察为 unavailable，不形成 Promise 队列。
+
 各入口只投影其声明字段，外层附加值不进入快照。入参在首个 await 前固定普通业务值。已铸造 TenantId 与不透明 principal 保留原引用。调用者随后改写外层对象不改变当前操作或 schedule 的身份。停止 signal 只停止本地 drive，不能撤受理、取消业务或删除未知写。当前暂存仅存在于本 provider 实例，不提供跨进程丢失原 prepare 输入后的恢复保证。
 
 | 操作 | 当前支持及剩余阶段 |

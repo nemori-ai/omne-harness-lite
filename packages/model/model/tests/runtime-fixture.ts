@@ -78,8 +78,10 @@ export function runtimeFixture(
     ready: ReturnType<typeof deferred<void>>
     reads: number
     starts: number
+    returns: number
     closes: number
     releaseFails: boolean
+    beforeRelease(): Promise<void>
     finish(): void
     fail(): void
     push(facts: readonly TransportFact[]): void
@@ -99,8 +101,10 @@ export function runtimeFixture(
         ready,
         reads: 0,
         starts: 0,
+        returns: 0,
         closes: 0,
         releaseFails: false,
+        beforeRelease: async () => {},
         finish() {
           done = true
           waiter.resolve()
@@ -128,6 +132,7 @@ export function runtimeFixture(
                   : { done: true as const, value: undefined }
               },
               async return() {
+                made.returns++
                 done = true
                 waiter.resolve()
                 return { done: true as const, value: undefined }
@@ -182,6 +187,7 @@ export function runtimeFixture(
             return stream.iterable
           },
           async release() {
+            await stream.beforeRelease()
             stream.closes++
             if (stream.releaseFails) throw new Error('synthetic-release-failure')
           },
