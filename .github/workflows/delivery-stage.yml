@@ -1,0 +1,30 @@
+name: delivery-stage
+
+# Empty shell. workflow_dispatch needs a file with this name on the default
+# branch. Dispatch it with --ref github-gate; that branch holds the real flow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        required: true
+        type: string
+      stage:
+        required: true
+        type: choice
+        options:
+          - Backlog
+          - Ready
+          - In progress
+          - In review
+          - Awaiting acceptance
+          - Accepted
+          - Cancelled
+
+permissions: {}
+
+jobs:
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Dispatch this workflow with --ref github-gate." && exit 1

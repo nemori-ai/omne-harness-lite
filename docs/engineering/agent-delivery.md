@@ -59,6 +59,8 @@ Git任务开工前核对执行区唯一正式binding、直接目标分支及工�
 
 执行者在自己的树工作，提供候选及事实；正文单写者集成Issue共享摘要，指定调度者维护Project阶段。二者可以兼任；分离时正文写者向调度者交接已读回的事实及阶段更新建议，不因此获得Stage写权。关键进展、依据变化、阻塞、可审阅候选、暂停／接续及决定发生时更新所需事实，不按每次工具调用上传日志。阶段变化依据[Stage含义](delivery.md#2-卡片与阶段)，保留尚未满足的集成或接受条件。
 
+Claude Code 云端会话不能直接修改 Project Stage：平台代理拦截 GraphQL 与 `orgs/` 路径。云端的调度者派发 `github-gate` 上的 `delivery-stage`：`gh workflow run delivery-stage.yml --ref github-gate -f issue=<卡号> -f stage=<Stage>`，再读回运行结论。该流程只接受 `publish` environment 的 reviewer 触发，改为 In progress、Accepted 或 Cancelled 前核对卡上的派发或决定评论，不满足时失败、不写入。云端的 `start` 自动经 `delivery-facts` 取得派发资格与 Project 事实，条件见[集成工具说明](../../tools/dev-flow/src/integration/README.md)。本地会话照旧直接修改 Stage 与运行 `start`。
+
 执行者在开工和成果交回时也更新事实。每次注明当前revision/attempt、发生的变化、成果或证据、尚缺条件及下一责任。正文只保留当前摘要，旧attempt和逐轮过程通过评论或技术回执定位。Project对账注明所核Stage及时点；评论、正文或Project写入失败时分别报告未持久的部分，不声称全部已更新。
 
 范围或规范变动时先复核影响。仍可独立推进的部分继续，依赖新决定的部分保留问题；不能靠降低要求或删条件报告完成。成果按既有授权及时保存到Git远端，Issue只保留恢复定位及简短交接。调查、临时测量和单次验证的原始输出按保存边界处理，不整目录提交tmp。
