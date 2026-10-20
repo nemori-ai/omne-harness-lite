@@ -584,8 +584,16 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   ): Promise<StepResult> => {
     const result = await preserveSavedFinal(dependencies, step, recovery, task, cancelled)
     if (result === null) return blocked('the run was aborted')
-    if ('ok' in result && !cancelled()) await wake(step.tenant, recovery.request)
-    return after(result)
+    if ('failure' in result) return after(result)
+    if (cancelled()) return blocked('the run was aborted')
+    const current = await commands.loadRecovery(step)
+    if (cancelled()) return blocked('the run was aborted')
+    if ('failure' in current) return { kind: 'failed', failure: current.failure }
+    // The immutable preserve receipt proves the call commit, not completion of its queue tail.
+    if (current.ok.tasks.some(item => item.kind === 'queue' && item.operation === task.operation))
+      return blocked('the original queue release is still unconfirmed')
+    await wake(step.tenant, recovery.request)
+    return CONTINUE
   }
 
   type Action = (step: Step<P>, recovery: ToolRecovery<B>) => Promise<StepResult>

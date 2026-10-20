@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   readToolInvocationRef,
+  decodeToolRevision,
   type FactBatch,
   type ToolExecutionFact,
   type ToolLiveExecution,
@@ -228,6 +229,66 @@ function fixture(
 }
 
 describe('original final settlement in one shared driver', () => {
+  it('F06 stops a queue repair with a recalled success but no original physical-end proof', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    let offline = true
+    const f = fixture({
+      store: memory => ({
+        ...memory,
+        commit: input =>
+          offline &&
+          input.domain.kind === 'queue' &&
+          input.writes.some(write => write.kind === 'put' && write.record.kind === 'queue-release')
+            ? Promise.resolve({ kind: 'unavailable', diagnostic: 'queue offline' })
+            : memory.commit(input),
+      }),
+    })
+    const first = await f.invoke('first')
+    const second = await f.invoke('second')
+    await f.h.binding.controls.finish(await f.start(first.call), await f.final(first.call))
+    await flush()
+    await f.h.runOnce(first.call, first.controller.signal)
+    const domain = { kind: 'call', tenant: tenantA, call: first.call } as const
+    const before = await f.h.memory.read(domain)
+    if (before.kind !== 'complete') throw new Error('unreadable fixture')
+    const call = before.records.find(record => record.kind === 'call')
+    if (call?.kind !== 'call') throw new Error('missing call')
+    expect(
+      await f.h.memory.commit({
+        domain,
+        expected: before.revision,
+        revision: ok(decodeToolRevision(String(BigInt(before.revision) + 1n))),
+        writes: [
+          {
+            kind: 'put',
+            record: {
+              kind: 'call',
+              call: {
+                ...call.call,
+                state: {
+                  ...call.call.state,
+                  execution: { kind: 'ended', evidence: evidence('arbitrary-terminal') },
+                },
+              },
+            },
+          },
+        ],
+      }),
+    ).toEqual({ kind: 'committed' })
+    offline = false
+    f.h.host.scheduled.splice(0)
+    const loads = f.stats.loads
+    await f.h.runOnce(first.call, first.controller.signal)
+    expect(f.stats.loads - loads).toBeLessThanOrEqual(3)
+    expect(f.h.host.scheduled).toEqual([])
+    expect((await f.load(first.call)).tasks.some(task => task.kind === 'queue')).toBe(true)
+    expect(await f.h.released()).not.toContain(first.call)
+    expect(f.h.binding.executions).toEqual([first.call])
+    expect((await f.load(second.call)).state.phase).toBe('queued')
+    // Discard the prior unavailable retry. The blocked run itself adds no immediate work.
+    await f.close()
+  })
+
   it('F01 keeps the second call queued after retention until the original call commit lands', async () => {
     const committing = deferred<void>()
     const release = deferred<void>()
