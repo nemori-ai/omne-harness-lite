@@ -1,6 +1,6 @@
 # 使用分支集成工具
 
-本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证、发布或写平台。
+本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。云端开工时，本工具派发 `delivery-facts` workflow，此外不写平台。
 
 从仓库根运行。行为承诺归 [SPEC](SPEC.md)，工程节奏归[多层分支规则](../../../../docs/engineering/integration.md)。policy 固定读当前 HEAD 提交中的 `docs/engineering/integration-policy.json`，交付配置按 policy 的 `deliveryConfig` 读取。命令存在不授予项目 ref 或平台写权限。
 
@@ -95,11 +95,37 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 ## 真实授权评论
 
-URL 为 policy `repository` 中的 Issue comment。工具固定只读 `gh api GET`，核对评论所在 Issue、评论 URL 与采集时内容一致。评论作者须是 `publish` environment 的 required reviewer：个人 reviewer 按 login 与 node ID 匹配，team reviewer 按 active 成员身份匹配。author_association 不授予权。
+URL 为 policy `repository` 中的 Issue comment。工具固定只读 `gh api GET`，核对评论所在 Issue、评论 URL 与采集时内容一致。评论作者须是 `publish` environment 的 required reviewer：个人 reviewer 按 login 与 node ID 匹配，team reviewer 按 active 成员身份匹配。author_association 不授予权。云端会话读不到 environment，派发资格改由下节的 workflow 事实给出。
 
 评论中放一个 `json omne-integration-authority:v1` 区块，只支持 `dispatch` 一种 action。字段为 schemaVersion=1、action、responsible（须等于评论作者）、basis（非空依据数组）、task（完整 binding）和 confirmations（每项 issue/condition/digest/evidence）。精确运行时 schema 归 [authority.ts](authority.ts)，其他字段拒绝。
 
 撤销评论用 `json omne-integration-revocation:v1`，字段为 schemaVersion、`decisions`（被撤销决定 URL 的数组）与 basis。出现适用撤销则拒绝，需新的派发决定。完整撤销治理仍由交付协议拥有。
+
+## 云端会话
+
+Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `environments` 读取，所以云端不能直接读取派发资格和 Project。在云端，`start` 与 `register` 先派发 `github-gate` 上的 `delivery-facts` workflow。workflow 以交付身份读取派发资格、任务的 Project membership 与 Stage，并在任务卡上发一条含 `json omne-delivery-facts:v1` 区块的评论。工具核对这条评论和产生它的运行，然后用这份事实完成两次准入采集。
+
+事实来源按环境变量选择：
+
+| 变量 | 取值 | 结果 |
+| --- | --- | --- |
+| `OMNE_DELIVERY_FACTS` | `workflow` 或 `direct` | 按取值选择，覆盖自动识别。供测试与排障使用 |
+| `OMNE_DELIVERY_FACTS` | 其他值，包括空串 | `input-error`，不读平台 |
+| `CCR_AGENT_PROXY_ENABLED` | `1`，且没有设置 `OMNE_DELIVERY_FACTS` | 使用 workflow 事实 |
+| 都没有设置 | — | 直接读取，与本地行为相同 |
+
+使用 workflow 事实时：
+
+- 运行 `start` 的身份须能派发 `delivery-facts.yml`，并能读取任务卡评论与 Actions 运行。
+- 命令最多等待 180 秒，约每 5 秒读取一次。
+- 工具不发 GraphQL 请求，也不读 `environments` 或 `orgs/…` 路径。
+- 任一核对不满足、超时或读取失败时，命令以 `unknown` 失败，不写 context。派发评论作者不是 reviewer 时同样是 `unknown`。
+- workflow 失败时不发评论，命令在 180 秒后以超时失败。要看失败原因，读 `github-gate` 上的 `delivery-facts` 运行记录。
+
+全部核对条件和已知限制见 [SPEC](SPEC.md#云端事实来源)。其中两项限制直接影响使用：
+
+- Stage 只取一次快照，云端无法检测两次采集之间的 Stage 变化。
+- workflow 读取之前对派发评论的编辑不检查，与本地相同。workflow 读取之后的编辑会让开工以 `unknown` 失败。
 
 ## 持续验证
 
@@ -110,6 +136,6 @@ pnpm exec vitest run tests/integration-*.spec.ts
 pnpm run typecheck
 ```
 
-测试文件为 `integration-boundaries`、`integration-context`、`integration-engine`、`integration-sync` 与 `integration-transport` 五个 `.spec.ts`。它们用临时真实 Git（含 bare 远端）和受限只读 GitHub 响应。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
+测试文件为 `integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-sync`、`integration-transport` 与 `integration-upstream` 八个 `.spec.ts`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
 
 网络读取使用 policy 的 `timeouts.networkMs`，`timeouts` 不接受其他字段。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。
