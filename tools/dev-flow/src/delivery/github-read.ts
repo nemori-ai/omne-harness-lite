@@ -2,18 +2,83 @@ import { execFileSync } from 'node:child_process'
 import { array, InputError, parseCapture, record, text } from './protocol.ts'
 import type { CapturedIssue, DeliveryCapture, DeliveryConfig } from './protocol.ts'
 
+/**
+ * A `gh api` read that exited non-zero after GitHub answered. `gh api` writes the error
+ * response JSON to stdout, carried here as `body`. It stays a failed read for every caller;
+ * only the parent judgement inspects `body`. The message never contains API output.
+ */
+export class GhReadError extends Error {
+  readonly body: unknown
+  constructor(body: unknown) {
+    super('gh read exited with an API error response. API output omitted.')
+    this.name = 'GhReadError'
+    this.body = body
+  }
+}
 export type GhRead = (argv: readonly string[], timeoutMs: number) => unknown
 export const runGhRead: GhRead = (argv, timeoutMs) => {
-  const stdout = execFileSync('gh', [...argv], {
-    encoding: 'utf8',
-    timeout: timeoutMs,
-    maxBuffer: 8 * 1024 * 1024,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    shell: false,
-  })
+  let stdout: string
+  try {
+    stdout = execFileSync('gh', [...argv], {
+      encoding: 'utf8',
+      timeout: timeoutMs,
+      maxBuffer: 8 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+    })
+  } catch (error) {
+    throw responseError(error) ?? error
+  }
   return JSON.parse(stdout)
 }
-const PARENT_QUERY = 'query($id:ID!){node(id:$id){... on Issue{id parent{url}}}}'
+/** Only an ordinary non-zero exit with JSON on stdout carries a response body. */
+function responseError(error: unknown): GhReadError | undefined {
+  if (!(error instanceof Error)) return undefined
+  const { status, signal, stdout } = error as Error & {
+    status?: unknown
+    signal?: unknown
+    stdout?: unknown
+  }
+  if (
+    typeof status !== 'number' ||
+    status === 0 ||
+    (signal !== null && signal !== undefined) ||
+    typeof stdout !== 'string'
+  )
+    return undefined
+  try {
+    return new GhReadError(JSON.parse(stdout))
+  } catch {
+    return undefined
+  }
+}
+export type ParentRead = { kind: 'parent'; url: string } | { kind: 'none' } | { kind: 'unknown' }
+/**
+ * Judges one `repos/{o}/{r}/issues/{n}/parent` read and fails closed. A returned Issue gives
+ * its `html_url`. Only HTTP 404 with the exact message `No parent issue found` means no
+ * parent. Any other outcome, including another 404 message, is unknown.
+ */
+export function judgeParent(read: () => unknown): ParentRead {
+  let value: unknown
+  try {
+    value = read()
+  } catch (error) {
+    if (!(error instanceof GhReadError)) return { kind: 'unknown' }
+    try {
+      const body = record(error.body, 'parent error response')
+      return body.status === '404' && body.message === 'No parent issue found'
+        ? { kind: 'none' }
+        : { kind: 'unknown' }
+    } catch {
+      return { kind: 'unknown' }
+    }
+  }
+  try {
+    return { kind: 'parent', url: text(record(value, 'parent Issue').html_url, 'parent.url') }
+  } catch {
+    return { kind: 'unknown' }
+  }
+}
 const PROJECT_QUERY =
   'query($id:ID!,$cursor:String){node(id:$id){... on ProjectV2{id fields(first:100){pageInfo{hasNextPage} nodes{... on ProjectV2SingleSelectField{id}}} items(first:100,after:$cursor){pageInfo{hasNextPage endCursor} nodes{content{... on Issue{id url}} fieldValues(first:100){pageInfo{hasNextPage} nodes{... on ProjectV2ItemFieldSingleSelectValue{name field{... on ProjectV2SingleSelectField{id}}}}}}}}}}'
 
@@ -99,18 +164,10 @@ export function collectDelivery(config: DeliveryConfig, read: GhRead = runGhRead
           errors.push(`Malformed dependency on Issue ${number}.`)
         }
       }
-      const id = text(i.node_id, 'Issue.id')
-      try {
-        const result = record(
-          request(['api', 'graphql', '-f', `query=${PARENT_QUERY}`, '-f', `id=${id}`]),
-          'parent query',
-        )
-        if ('errors' in result) throw new InputError('GraphQL errors')
-        const node = record(record(result.data, 'parent data').node, 'parent node')
-        if (node.id !== id) throw new InputError('parent query identity mismatch')
-        parentIssue =
-          node.parent === null ? null : text(record(node.parent, 'parent').url, 'parent.url')
-      } catch {
+      const id = text(i.node_id, 'Issue.id'),
+        parent = judgeParent(() => rest(`${prefix}/issues/${number}/parent`))
+      if (parent.kind === 'parent') parentIssue = parent.url
+      else if (parent.kind === 'unknown') {
         relationsComplete = false
         errors.push(`Parent relation unknown for Issue ${number}. API output omitted.`)
       }
