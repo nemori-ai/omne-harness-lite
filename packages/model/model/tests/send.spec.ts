@@ -163,7 +163,8 @@ it('keeps original expected on a conflicting unresolved write rather than rebasi
   await f.provider.runtime.calls.cancel({ ...f.admit, operation: op('cancel') })
   const denied = await sender.send(f.demand, signal())
   expect(denied.kind).toBe('not-started')
-  expect(fault.inputs).toHaveLength(1)
+  expect(fault.inputs).toHaveLength(2)
+  expect(fault.inputs[1]).toEqual(fault.inputs[0])
   expect(f.counts().starts).toBe(0)
 })
 it('two independent senders sharing a backend cannot start a dispatch twice while recordSend is unknown', async () => {
@@ -554,4 +555,68 @@ it('recognizes an unknown not-sent record without resolving credentials a second
   expect(f.counts().starts).toBe(0)
   expect(unbox(await f.dependencies.commands.dispatches(f.admit))[0]?.send).toBe('not-sent')
   expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+})
+
+for (const change of ['cancel', 'generation'] as const)
+  it(`preserves an unresolved started send after ${change} instead of reporting not-started`, async () => {
+    const f = await sendFixture()
+    const fault = faultCommands(f, 'recordSend', 'applied')
+    const sender = f.makeSender({ commands: fault.commands })
+    expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+    if (change === 'cancel')
+      unbox(await f.provider.runtime.calls.cancel({ ...f.admit, operation: op('cancel-pending') }))
+    else
+      unbox(
+        await f.dependencies.commands.claim({
+          ...f.admit,
+          operation: op('successor-pending'),
+          instance: instance('successor'),
+          continuity: proof(f.admit.call),
+        }),
+      )
+    expect(await sender.send(f.demand, signal())).toMatchObject({
+      kind: 'unknown',
+      diagnostic: 'send-record-unconfirmed',
+    })
+    expect(f.counts()).toMatchObject({ starts: 1, pulls: 0, returns: 0, acquired: 1 })
+    expect(f.events).toEqual([])
+    expect(fault.inputs).toHaveLength(1)
+  })
+it('authoritative started records remain unknown on a repeated send after cancellation and local release', async () => {
+  const f = await sendFixture()
+  const sender = f.makeSender()
+  const sent = await sender.send(f.demand, signal())
+  if (sent.kind !== 'started') throw new Error('send fixture')
+  await collect(sent.facts)
+  unbox(
+    await f.provider.runtime.calls.cancel({ ...f.admit, operation: op('cancel-after-release') }),
+  )
+  expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+  expect(f.counts()).toMatchObject({ starts: 1, acquired: 1 })
+})
+it('access denial cannot disclose an unresolved local send, while a first stale send never acquires resources', async () => {
+  const f = await sendFixture()
+  const fault = faultCommands(f, 'recordSend', 'applied')
+  const sender = f.makeSender({ commands: fault.commands })
+  await sender.send(f.demand, signal())
+  f.denied.add('send')
+  expect(await sender.send(f.demand, signal())).toMatchObject({
+    kind: 'not-started',
+    failure: { kind: 'denied' },
+  })
+  expect(f.counts()).toMatchObject({ starts: 1, acquired: 1 })
+  const stale = await sendFixture()
+  unbox(
+    await stale.dependencies.commands.claim({
+      ...stale.admit,
+      operation: op('stale-successor'),
+      instance: instance('successor'),
+      continuity: proof(stale.admit.call),
+    }),
+  )
+  expect(await stale.makeSender().send(stale.demand, signal())).toMatchObject({
+    kind: 'not-started',
+    failure: { kind: 'stale-instance' },
+  })
+  expect(stale.counts()).toMatchObject({ starts: 0, acquired: 0 })
 })

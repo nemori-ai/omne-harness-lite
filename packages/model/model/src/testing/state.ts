@@ -493,16 +493,23 @@ export class MemoryState<P> {
     }
     return { ok: applied.ok.value }
   }
-  sendBinding(input: SendDemand<P>, call: MemoryCall | undefined): ModelFailure | null {
+  sendBinding(
+    input: SendDemand<P>,
+    call: MemoryCall | undefined,
+    stage: 'access' | 'prepare' = 'prepare',
+  ): ModelFailure | null {
     if (
       input.execution.call !== input.call ||
       tenantKey(input.execution.tenant) !== tenantKey(input.tenant)
     )
       return invalid('execution', 'send-binding')
-    const failure = this.execution(input.execution, call)
-    if (failure) return failure
-    if (!call || call.state.control.kind !== 'none' || call.state.phase === 'settled')
-      return invalid('call', 'send-no-longer-valid')
+    if (!call) return invalid('call', 'not-found')
+    if (stage === 'prepare') {
+      const failure = this.execution(input.execution, call)
+      if (failure) return failure
+      if (call.state.control.kind !== 'none' || call.state.phase === 'settled')
+        return invalid('call', 'send-no-longer-valid')
+    }
     const requestFailure = validateRequest(input.request)
     if (requestFailure) return requestFailure
     if (
@@ -525,10 +532,10 @@ export class MemoryState<P> {
     }))
     const refused = (failure: ModelFailure): SendStart => ({ kind: 'refused', failure })
     return {
-      check: input =>
+      check: (input, stage) =>
         this.exclusive(() =>
           this.read(input, 'send', call => {
-            const failure = this.sendBinding(input, call)
+            const failure = this.sendBinding(input, call, stage)
             return failure ? { failure } : { ok: undefined }
           }),
         ),

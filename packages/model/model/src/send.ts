@@ -72,7 +72,7 @@ export function createModelSendBoundary<P>(
       }
       let access: Outcome<void, ModelFailure>
       try {
-        access = coordinator.check(input)
+        access = coordinator.check(input, 'access')
       } catch {
         return refused(unavailable('model-send', 'qualification-unavailable'))
       }

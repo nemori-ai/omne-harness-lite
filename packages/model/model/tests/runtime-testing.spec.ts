@@ -812,6 +812,9 @@ it('preserves a noncloneable principal proof, current qualification and the orig
     })
   const abort = new AbortController()
   const pending = f.dependencies.send.send({ ...f.demand, principal }, abort.signal)
+  for (let i = 0; i < 100 && f.controls.send.counts(f.demand).materialize === 0; i += 1)
+    await Promise.resolve()
+  expect(f.controls.send.counts(f.demand)).toMatchObject({ materialize: 1, start: 0 })
   abort.abort()
   expect(await pending).toMatchObject({ kind: 'not-started' })
   expect(f.controls.send.counts(f.demand)).toEqual({

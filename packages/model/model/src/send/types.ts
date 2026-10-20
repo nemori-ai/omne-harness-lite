@@ -22,7 +22,7 @@ export type SendStart =
 
 /** All current-qualification changes and dispatch claims use this same synchronous owner. */
 export interface SendCoordinator<P> {
-  check(input: SendDemand<P>): Outcome<void, ModelFailure>
+  check(input: SendDemand<P>, stage: 'access' | 'prepare'): Outcome<void, ModelFailure>
   withinCurrent(
     input: SendDemand<P>,
     receipt: MaterializationReceipt,

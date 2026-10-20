@@ -138,8 +138,6 @@ export function createAttemptRunner<P>(
     const input = attempt.input
     try {
       if (attempt.stage.kind === 'acquire') {
-        if (attempt.signal.aborted)
-          return stop(id, attempt, unavailable('model-send', 'cancelled-before-prepare'))
         const records = await commands.dispatches(input)
         if ('failure' in records) return stop(id, attempt, records.failure)
         const dispatch = records.ok.find(record => record.dispatch === input.dispatch)
@@ -147,6 +145,10 @@ export function createAttemptRunner<P>(
           attempts.delete(id)
           return unknown(attempt, 'original-send-already-attempted')
         }
+        const eligible = coordinator.check(input, 'prepare')
+        if ('failure' in eligible) return stop(id, attempt, eligible.failure)
+        if (attempt.signal.aborted)
+          return stop(id, attempt, unavailable('model-send', 'cancelled-before-prepare'))
         const acquired = await resources.acquire(input)
         if ('failure' in acquired) return stop(id, attempt, acquired.failure)
         attempt.lifetime.resource = acquired.ok
