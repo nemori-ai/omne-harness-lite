@@ -15,6 +15,9 @@
 - [启动路径的排除与已收场调用的队列条目测试](start-exclusion.spec.ts)。
 - [队列域的释放记忆、释放依据、认回与对账测试](queue-release.spec.ts)。
 - [推进协程的重新推进测试](driver-retrigger.spec.ts)。
+- [绑定启动、失败与未知认回测试](binding-start.spec.ts)。
+- [绑定启动的并发交错测试](binding-races.spec.ts)。
+- [未知异常与未处理拒绝的观察工具](caught-rejection.ts)。
 - [测试依赖装配行为](testing-dependencies.spec.ts)。
 - [测试依赖装配类型](testing-dependencies.spec-d.ts)。
 - [调用方测试端口](testing-values.ts)。

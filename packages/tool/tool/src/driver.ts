@@ -1,11 +1,3 @@
-// The driver of the way from an admitted call to a recorded start: it reads the
-// call's recovery view, takes the one step its phase and pending tasks ask for, and reads again,
-// until the call waits, runs, settles or a port cannot answer. Every write goes through the
-// ledger commands with an operation derived from the admission, so a repeated step after a crash
-// recalls its own receipt (P01). The start fence is the host's start authority: the driver asks
-// it before it touches the binding, so a start whose receipt was lost is never invoked twice
-// (P04). The driver decides nothing about order or slots; the queue domain does. It does decide
-// when to run a call again, because nothing else will: see `retrigger` and `awaitPlace`.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -21,7 +13,6 @@ import {
   type ToolExecutionRef,
   type ToolFailure,
   type ToolInstanceId,
-  type ToolLiveExecution,
   type ToolOperationId,
   type ToolRecovery,
   type ToolStartRecord,
@@ -30,6 +21,7 @@ import {
 } from '@omne-harness/tool-contract'
 import { tenantKey } from './boundary.ts'
 import type { ToolDependencies } from './construction.ts'
+import { createBindingInvoker } from './driver-binding.ts'
 import { isExcludedFailure } from './ledger-exclusion.ts'
 import { queueKeyOf } from './ledger-start.ts'
 import type { TenantId } from './ledger-store.ts'
@@ -69,7 +61,15 @@ const STALLED: Continue = { kind: 'continue', progressed: false }
 const IDLE: DriverStop = { kind: 'idle' }
 
 /** The suffixes of the operations the driver derives from the admission operation. */
-type Suffix = 'plan' | 'prepared' | 'enqueue' | 'start' | 'started' | 'exclude' | 'reject'
+type Suffix =
+  | 'plan'
+  | 'prepared'
+  | 'enqueue'
+  | 'start'
+  | 'started'
+  | 'start-failed'
+  | 'exclude'
+  | 'reject'
 
 function derivedOperation(
   admission: ToolOperationId,
@@ -118,26 +118,18 @@ export type ToolDriverHandle<P> = ToolDriver<P> &
     advance(input: Step<P>): Promise<DriverStop>
   }>
 
-/**
- * Builds the driver over the dependencies. The driver keeps four in-memory hints that decide
- * nothing: the environment values prepared in this process (P03 `inspectPreparation` re-reads
- * them after a crash), the calls whose environment the provider has not decided yet (the next
- * run re-reads instead of asking again), the live executions it started (the execution-facts
- * increment reads their facts), and the calls that wait for a slot of a queue key, which it wakes
- * through the host when a call of the same key releases its slot. Runs of the same call are
- * serialized in this process. A run takes at most `policy.stepsPerRun` steps
- * (`ToolConfiguration.driverStepsPerRun`) before it yields.
- */
 export function createToolDriver<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   policy: DriverPolicy,
 ): ToolDriverHandle<P> {
-  const { commands, queues, environments, bindings, authority, instances } = dependencies
+  const { commands, queues, environments, authority, instances } = dependencies
   const environmentsPrepared = new Map<string, E>()
   // The calls whose environment the provider answered `pending` or `unknown` in this process: the
   // next run re-reads the provider's record (P03 `inspectPreparation`) instead of asking again.
   const environmentsAsked = new Set<string>()
-  const lives = new Map<string, ToolLiveExecution<B>>()
+  // This driver's observations survive an unknown marker write, but not process loss.
+  // Neither this set nor a committed marker grants or revokes another driver's permit.
+  const unconfirmedBindingFailures = new Set<string>()
   const waiting = new Map<string, Map<string, Readonly<{ tenant: TenantId; call: ToolCallId }>>>()
   const runs = new Map<string, Promise<unknown>>()
   // The timers of the runs that wait out a failure, one per call. They are unreferenced, so they
@@ -416,13 +408,15 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     const write = context(step, recovery, 'started')
     if ('failure' in write) return { kind: 'failed', failure: write.failure }
     const recorded = await commands.recordStart({ ...write.ok, invocation, outcome })
+    if ('ok' in recorded && (outcome.kind === 'started' || outcome.kind === 'rejected'))
+      unconfirmedBindingFailures.delete(callKey(step.tenant, step.call))
     if ('ok' in recorded && outcome.kind === 'rejected') await wake(step.tenant, recovery.request)
     return after(recorded)
   }
 
   /** The environment of the call: the value prepared in this process, or the provider's record. */
   const environmentOf = async (
-    step: Step<P>,
+    step: CallAccess<P>,
     preparation: PreparationRecord,
   ): Promise<Outcome<E, ToolFailure>> => {
     const cached = environmentsPrepared.get(callKey(step.tenant, step.call))
@@ -443,62 +437,99 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return succeed(progress.ok.environment.value)
   }
 
-  /** Starts through the binding, which stages the capsule and consumes the permit (P04). */
-  const invoke = async (
+  const binding = createBindingInvoker(dependencies, environmentOf)
+
+  const unknownStart = async (
     step: Step<P>,
     recovery: ToolRecovery<B>,
-    start: Extract<ToolStartRecord, { kind: 'start' }>,
-  ): Promise<Outcome<void, ToolFailure>> => {
-    const access = { principal: step.principal, tenant: step.tenant, call: step.call }
-    const permit = await authority.prepare({ ...access, start, request: recovery.request })
-    if ('failure' in permit) return permit
-    const binding = await bindings.resolve({ ...access, request: recovery.request })
-    if ('failure' in binding) return binding
-    if (binding.ok.kind !== 'live-only')
-      return fail({
-        kind: 'unsupported',
-        adoption: start.executor,
-        reason: 'a checkpointed binding needs a later increment',
-      })
-    const preparation = recovery.preparations.at(-1)
-    if (preparation === undefined)
-      return fail({ kind: 'invalid', field: 'call', reason: 'no-preparation' })
-    const environment = await environmentOf(step, preparation)
-    if ('failure' in environment) return environment
-    const live = await binding.ok.start(
-      { ...access, start, permit: permit.ok, request: recovery.request },
-      environment.ok,
-    )
-    if ('failure' in live) return live
-    lives.set(callKey(step.tenant, step.call), live.ok)
-    return succeed(undefined)
+    start: ToolStartRecord,
+    diagnostic: string,
+  ): Promise<StepResult> => {
+    const found = await binding.inspect(step, recovery, start)
+    return 'failure' in found
+      ? { kind: 'failed', failure: found.failure }
+      : blocked(`the start is unknown: ${diagnostic}; binding: ${found.ok.kind}`)
   }
 
-  /**
-   * The start fence (P04): the authority answers first. An acceptance that exists is recorded
-   * without touching the binding, so a lost receipt never invokes the executor twice; a rejection
-   * settles the call; `not-started` is the one answer that lets the binding start, after which
-   * the authority is asked again for the acceptance to record. `unknown` leaves the task.
-   */
+  const rejectFailedStart = async (
+    step: Step<P>,
+    recovery: ToolRecovery<B>,
+    start: ToolStartRecord,
+  ): Promise<StepResult> => {
+    const found = await binding.inspect(step, recovery, start)
+    if ('failure' in found) return { kind: 'failed', failure: found.failure }
+    if (found.ok.kind !== 'not-started' || binding.hasLive(step))
+      return blocked(`the start exclusion conflicts with the binding: ${found.ok.kind}`)
+    const write = context(step, recovery, 'exclude')
+    if ('failure' in write) return { kind: 'failed', failure: write.failure }
+    const reason = 'the executor binding failed to start'
+    const excluded = await authority.exclude({
+      principal: step.principal,
+      tenant: step.tenant,
+      call: step.call,
+      operation: write.ok.operation,
+      reason,
+    })
+    if ('failure' in excluded) return { kind: 'failed', failure: excluded.failure }
+    return recordStart(step, recovery, start, { kind: 'rejected', reason, exclusion: excluded.ok })
+  }
+
   const fence = async (
     step: Step<P>,
     recovery: ToolRecovery<B>,
     start: Extract<ToolStartRecord, { kind: 'start' }>,
   ): Promise<StepResult> => {
     const access = { principal: step.principal, tenant: step.tenant, call: step.call }
+    const marker = context(step, recovery, 'start-failed')
+    if ('failure' in marker) return { kind: 'failed', failure: marker.failure }
+    const failed = await dependencies.reads.operation({
+      ...access,
+      operation: marker.ok.operation,
+    })
+    if ('failure' in failed) return { kind: 'failed', failure: failed.failure }
+    if (failed.ok.kind === 'unknown') return blocked('the binding failure receipt is unknown')
     const before = await authority.inspect({ ...access, start })
     if ('failure' in before) return { kind: 'failed', failure: before.failure }
     if (before.ok.kind === 'started' || before.ok.kind === 'rejected')
       return recordStart(step, recovery, start, before.ok)
     if (before.ok.kind === 'unknown')
-      return blocked(`the start is unknown: ${before.ok.diagnostic}`)
-    const invoked = await invoke(step, recovery, start)
+      return unknownStart(step, recovery, start, before.ok.diagnostic)
+    if (failed.ok.kind === 'committed') {
+      unconfirmedBindingFailures.delete(callKey(step.tenant, step.call))
+      return rejectFailedStart(step, recovery, start)
+    }
+    const recordBindingFailureMarker = async () =>
+      after(
+        await commands.recordStart({
+          ...marker.ok,
+          invocation: start,
+          outcome: {
+            kind: 'unknown',
+            diagnostic: 'the executor binding failed to start. Reconciliation required',
+          },
+        }),
+      )
+    if (unconfirmedBindingFailures.has(callKey(step.tenant, step.call)))
+      return recordBindingFailureMarker()
+    if (binding.hasLive(step))
+      return blocked('the authority excludes a start with a known live execution')
+    const invoked = await binding.invoke(step, recovery, start)
+    if (invoked.kind === 'port-failed') return { kind: 'failed', failure: invoked.failure }
+    if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
+      unconfirmedBindingFailures.add(callKey(step.tenant, step.call))
     const afterStart = await authority.inspect({ ...access, start })
-    if ('failure' in afterStart) return { kind: 'failed', failure: afterStart.failure }
-    if (afterStart.ok.kind === 'started' || afterStart.ok.kind === 'rejected')
+    if (
+      'ok' in afterStart &&
+      (afterStart.ok.kind === 'started' || afterStart.ok.kind === 'rejected')
+    )
       return recordStart(step, recovery, start, afterStart.ok)
-    if ('failure' in invoked) return { kind: 'failed', failure: invoked.failure }
-    return blocked(`the binding returned without an acceptance: ${afterStart.ok.kind}`)
+    if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw') {
+      return recordBindingFailureMarker()
+    }
+    if ('failure' in afterStart) return { kind: 'failed', failure: afterStart.failure }
+    return afterStart.ok.kind === 'unknown'
+      ? unknownStart(step, recovery, start, afterStart.ok.diagnostic)
+      : blocked('the authority excludes a start with a known live execution')
   }
 
   /** A settled call with a `queue` task still owes the queue domain its release (crash repair). */
@@ -575,9 +606,10 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       () => runOnce(step),
     )
     runs.set(key, next)
-    void next.finally(() => {
+    const clearRun = () => {
       if (runs.get(key) === next) runs.delete(key)
-    })
+    }
+    void next.then(clearRun, clearRun)
     return next
   }
 

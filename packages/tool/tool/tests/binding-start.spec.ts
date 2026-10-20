@@ -1,0 +1,848 @@
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { fileURLToPath } from 'node:url'
+import { afterEach, describe, expect, it } from 'vitest'
+import { fail, succeed } from '@omne-harness/operation-result'
+import type { ToolFailure } from '@omne-harness/tool-contract'
+import { completedFinal } from '@omne-harness/tool-contract/testing'
+import {
+  admission,
+  callId,
+  evidence,
+  fixedOf,
+  ok,
+  operationRefFor,
+  principalA,
+  tenantA,
+} from './runtime-values.ts'
+import {
+  admitCall,
+  auditQueues,
+  startHarness,
+  toStarting,
+  writeContext,
+  type StartOptions,
+} from './start-values.ts'
+
+const refused = () =>
+  fail<ToolFailure>({ kind: 'unavailable', dependency: 'executor', diagnostic: 'launch refused' })
+
+afterEach(auditQueues)
+
+describe('21 binding start outcomes', () => {
+  it('21 failure: a proved unstarted failure is excluded and settled before the next call starts', async () => {
+    let calls = 0
+    const harness = startHarness({
+      bindingPort: base => ({
+        ...base,
+        start: (input, environment) => {
+          calls += 1
+          return input.call === 'c1' ? Promise.resolve(refused()) : base.start(input, environment)
+        },
+      }),
+    })
+    await admitCall(harness, 'c1')
+    await admitCall(harness, 'c2')
+    await harness.drive('c1', 'c2')
+    await harness.drive('c1', 'c2')
+    expect(calls).toBe(2)
+    expect(harness.authority.excluded).toEqual(['c1'])
+    expect(await harness.state('c1')).toMatchObject({
+      phase: 'settled',
+      terminal: { kind: 'unavailable' },
+      effect: { kind: 'not-started' },
+      queue: { kind: 'released' },
+      delivery: { kind: 'pending' },
+    })
+    const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
+    expect(recovery.result).not.toBeNull()
+    expect(recovery.tasks.map(task => task.kind)).toEqual(['deliver'])
+    expect(harness.binding.controls.launches()).toBe(1)
+    expect((await harness.state('c2')).phase).toBe('running')
+  })
+
+  it('21 unknown: the original binding is queried without a second start', async () => {
+    const harness = startHarness()
+    await admitCall(harness, 'c1')
+    harness.authority.uncertain('c1')
+    await harness.drive('c1')
+    expect(harness.binding.inspected.map(start => start.operation)).toEqual(['op-c1/start'])
+    expect(harness.binding.controls.launches()).toBe(0)
+    expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+  })
+})
+
+it('21 launch: repeated runs and a new driver keep one actual memory execution', async () => {
+  const resolutions: unknown[] = []
+  const first = startHarness({
+    bindingsPort: base => ({
+      ...base,
+      resolve: input => {
+        resolutions.push(input)
+        return base.resolve(input)
+      },
+    }),
+    bindingPort: base => ({
+      ...base,
+      start: async (input, environment) => {
+        const original = ok(await first.commands.loadRecovery(admission('c1', 'op-c1')))
+        expect(input.request).toEqual(fixedOf(first.source, 'c1'))
+        expect(input.start).toEqual(original.start)
+        expect(input.permit.start).toEqual(input.start)
+        expect(environment).toEqual({ preparedFor: 'c1' })
+        return base.start(input, environment)
+      },
+    }),
+  })
+  await admitCall(first, 'c1')
+  await first.drive('c1', 'c1')
+  expect(resolutions).toEqual([
+    {
+      principal: principalA,
+      tenant: tenantA,
+      call: callId('c1'),
+      request: fixedOf(first.source, 'c1'),
+    },
+  ])
+  const next = startHarness({
+    memory: first.memory,
+    authority: first.authority,
+    binding: first.binding,
+  })
+  await next.drive('c1')
+  expect(first.binding.controls.launches()).toBe(1)
+  expect(first.binding.capsules).toEqual([evidence('capsule-c1')])
+  expect(first.authority.consumed).toEqual(['c1'])
+  expect(first.authority.accepted).toEqual(['c1'])
+  expect(await next.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
+})
+
+for (const landed of [false, true]) {
+  it(`21 receipt: a new driver recalls recordStart when the lost commit landed=${landed}`, async () => {
+    let lose = true
+    const first = startHarness({
+      commands: base => ({
+        ...base,
+        recordStart: async input => {
+          if (lose && input.operation === 'op-c1/started') {
+            lose = false
+            if (landed) ok(await base.recordStart(input))
+            return fail({ kind: 'unavailable', dependency: 'ledger', diagnostic: 'receipt lost' })
+          }
+          return base.recordStart(input)
+        },
+      }),
+    })
+    await admitCall(first, 'c1')
+    await first.drive('c1')
+    expect((await first.state('c1')).phase).toBe(landed ? 'running' : 'starting')
+    const next = startHarness({
+      memory: first.memory,
+      authority: first.authority,
+      binding: first.binding,
+    })
+    await next.drive('c1')
+    expect(next.binding.controls.launches()).toBe(1)
+    expect(next.binding.attempts).toEqual(['c1'])
+    expect(await next.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
+  })
+}
+
+for (const fault of ['failure', 'throw'] as const) {
+  it(`21 accepted: ${fault} after actual launch recalls acceptance and keeps the slot`, async () => {
+    const harness = startHarness({
+      bindingPort: base => ({
+        ...base,
+        start: async (input, environment) => {
+          ok(await base.start(input, environment))
+          if (fault === 'throw') throw new Error('binding reply lost after launch')
+          return refused()
+        },
+      }),
+    })
+    await admitCall(harness, 'c1')
+    await admitCall(harness, 'c2')
+    await harness.drive('c1', 'c2')
+    await harness.drive('c1')
+    expect(harness.binding.controls.launches()).toBe(1)
+    expect(harness.authority.excluded).toEqual([])
+    expect(await harness.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
+    expect((await harness.state('c2')).phase).toBe('queued')
+  })
+}
+
+for (const lookup of ['live', 'unknown', 'failure', 'throw', 'lost', 'settled'] as const) {
+  it(`21 lookup: authority unknown queries original ${lookup} without releasing or starting again`, async () => {
+    const lookupError = new TypeError('lookup implementation defect')
+    let obscure = () => {}
+    const seen: string[] = []
+    const first = startHarness({
+      bindingPort: base => ({
+        ...base,
+        start: async (input, environment) => {
+          const live = await base.start(input, environment)
+          obscure()
+          return live
+        },
+        inspectStart: async input => {
+          seen.push(input.start.operation)
+          if (lookup === 'failure') return refused()
+          if (lookup === 'throw') throw lookupError
+          return base.inspectStart(input)
+        },
+      }),
+    })
+    obscure = () => first.authority.uncertain('c1')
+    await admitCall(first, 'c1')
+    if (lookup === 'throw') await expect(first.drive('c1')).rejects.toBe(lookupError)
+    else await first.drive('c1')
+    const recovery = ok(await first.commands.loadRecovery(admission('c1', 'op-c1')))
+    if (recovery.start?.kind !== 'start') throw new Error('no original start')
+    if (lookup === 'unknown') first.binding.controls.blindInspection(recovery.start)
+    if (lookup === 'lost') await first.binding.controls.loseContinuity(recovery.start)
+    if (lookup === 'settled') await first.binding.controls.finish(recovery.start, completedFinal())
+    const next = startHarness({
+      memory: first.memory,
+      authority: first.authority,
+      binding: first.binding,
+    })
+    if (lookup === 'throw') await expect(next.drive('c1')).rejects.toBe(lookupError)
+    else await next.drive('c1')
+    expect(seen.length).toBeGreaterThanOrEqual(2)
+    expect(new Set(seen)).toEqual(new Set(['op-c1/start']))
+    expect(next.binding.controls.launches()).toBe(1)
+    expect(await next.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+    expect(
+      ok(await next.commands.loadRecovery(admission('c1', 'op-c1'))).tasks.map(task => task.kind),
+    ).toEqual(['start'])
+    first.authority.reveal('c1')
+    await next.drive('c1')
+    expect(await next.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
+    expect(next.binding.controls.launches()).toBe(1)
+  })
+}
+
+for (const fault of ['unavailable', 'conflict', 'throw', 'lost-receipt'] as const) {
+  it(`21 exclusion: ${fault} retains responsibility across drivers and retries only exclusion`, async () => {
+    const exclusionError = new TypeError('exclude implementation defect')
+    let attempts = 0
+    let failing = true
+    const exclusions: string[] = []
+    const authorityPort: NonNullable<StartOptions['authorityPort']> = base => ({
+      ...base,
+      exclude: async input => {
+        exclusions.push(input.operation)
+        if (!failing) return base.exclude(input)
+        if (fault === 'lost-receipt') ok(await base.exclude(input))
+        if (fault === 'throw') throw exclusionError
+        return fault === 'conflict'
+          ? fail({ kind: 'conflict', operation: input.operation })
+          : refused()
+      },
+    })
+    const first = startHarness({
+      authorityPort,
+      bindingPort: base => ({
+        ...base,
+        start: () => {
+          attempts += 1
+          return Promise.resolve(refused())
+        },
+      }),
+    })
+    await admitCall(first, 'c1')
+    if (fault === 'throw') await expect(first.drive('c1')).rejects.toBe(exclusionError)
+    else await first.drive('c1')
+    expect((await first.state('c1')).phase).toBe('starting')
+    expect(first.binding.controls.launches()).toBe(0)
+    const marker = ok(
+      await first.runtime.queries.queryOperation({
+        principal: principalA,
+        tenant: tenantA,
+        operation: operationRefFor('c1', 'op-c1', 'op-c1/start-failed'),
+      }),
+    )
+    expect(marker.kind).toBe('committed')
+    const next = startHarness({
+      memory: first.memory,
+      authority: first.authority,
+      binding: first.binding,
+      authorityPort,
+    })
+    if (fault === 'throw') await expect(next.drive('c1')).rejects.toBe(exclusionError)
+    else await next.drive('c1')
+    expect(attempts).toBe(1)
+    if (fault !== 'lost-receipt') {
+      expect(await next.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+      failing = false
+      await next.drive('c1')
+    }
+    expect(new Set(exclusions)).toEqual(new Set(['op-c1/exclude']))
+    expect(await next.state('c1')).toMatchObject({
+      phase: 'settled',
+      effect: { kind: 'not-started' },
+      queue: { kind: 'released' },
+    })
+    expect(attempts).toBe(1)
+  })
+}
+
+for (const answer of ['unknown', 'failure', 'throw'] as const) {
+  it(`21 marker: an ${answer} failure receipt never authorizes a launch`, async () => {
+    const receiptError = new TypeError('receipt implementation defect')
+    const harness = startHarness({
+      readsPort: base => ({
+        ...base,
+        operation: () => {
+          if (answer === 'throw') throw receiptError
+          return Promise.resolve(answer === 'unknown' ? succeed({ kind: 'unknown' }) : refused())
+        },
+      }),
+    })
+    await admitCall(harness, 'c1')
+    if (answer === 'throw') await expect(harness.drive('c1')).rejects.toBe(receiptError)
+    else await harness.drive('c1')
+    expect(harness.binding.controls.launches()).toBe(0)
+    expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+    const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
+    expect(recovery.result).toBeNull()
+    expect(recovery.tasks.map(task => task.kind)).toEqual(['start'])
+  })
+}
+
+for (const fault of ['unavailable', 'stale-revision', 'commit-unknown'] as const) {
+  it(`21 marker: ${fault} before the marker lands retries its original write without another binding call`, async () => {
+    let failures = 2
+    let attempts = 0
+    const markerWrites: string[] = []
+    const harness = startHarness({
+      bindingPort: base => ({
+        ...base,
+        start: () => {
+          attempts += 1
+          return Promise.resolve(refused())
+        },
+      }),
+      commands: base => ({
+        ...base,
+        recordStart: input => {
+          if (input.operation === 'op-c1/start-failed') {
+            markerWrites.push(input.operation)
+            if (failures-- > 0)
+              return Promise.resolve(
+                fault === 'stale-revision'
+                  ? fail({ kind: 'stale-revision', current: input.expected })
+                  : fault === 'commit-unknown'
+                    ? fail({ kind: 'commit-unknown', operation: input.operation })
+                    : refused(),
+              )
+          }
+          return base.recordStart(input)
+        },
+      }),
+    })
+    await admitCall(harness, 'c1')
+    await harness.drive('c1')
+    await harness.drive('c1')
+    await harness.drive('c1')
+    expect(attempts).toBe(1)
+    expect(markerWrites).toEqual(Array(3).fill('op-c1/start-failed'))
+    expect((await harness.state('c1')).phase).toBe('settled')
+    expect(harness.binding.controls.launches()).toBe(0)
+  })
+}
+
+it('21 marker: a negative receipt read excludes an in-flight marker, whose original write is retried', async () => {
+  let intercepted = false
+  let attempts = 0
+  let queryMarker = async () => {}
+  const harness = startHarness({
+    bindingPort: base => ({
+      ...base,
+      start: () => {
+        attempts += 1
+        return Promise.resolve(refused())
+      },
+    }),
+    store: memory => ({
+      ...memory,
+      read: domain => memory.read(domain),
+      commit: async input => {
+        const isMarker = input.writes.some(
+          write =>
+            write.kind === 'put' &&
+            write.record.kind === 'operation' &&
+            write.record.operation.operation === 'op-c1/start-failed',
+        )
+        if (isMarker && !intercepted) {
+          intercepted = true
+          await queryMarker()
+        }
+        return memory.commit(input)
+      },
+    }),
+  })
+  queryMarker = async () => {
+    const reply = ok(
+      await harness.runtime.queries.queryOperation({
+        principal: principalA,
+        tenant: tenantA,
+        operation: operationRefFor('c1', 'op-c1', 'op-c1/start-failed'),
+      }),
+    )
+    expect(reply.kind).toBe('not-committed')
+  }
+  await admitCall(harness, 'c1')
+  await harness.drive('c1')
+  expect(intercepted).toBe(true)
+  expect(attempts).toBe(1)
+  expect((await harness.state('c1')).phase).toBe('settled')
+})
+
+for (const port of ['resolve', 'prepare', 'environment'] as const) {
+  it(`21 ports: ${port} failure before binding.start stays retryable without a permanent refusal`, async () => {
+    let failing = true
+    const failure = refused()
+    if (!('failure' in failure)) throw new Error('the test refusal unexpectedly succeeded')
+    const harness = startHarness({
+      bindingsPort: base => ({
+        ...base,
+        resolve: input =>
+          port === 'resolve' && failing ? Promise.resolve(failure) : base.resolve(input),
+      }),
+      authorityPort: base => ({
+        ...base,
+        prepare: input =>
+          port === 'prepare' && failing ? Promise.resolve(failure) : base.prepare(input),
+      }),
+      environment: port === 'environment' ? new Map([['c1', 'unavailable']]) : new Map(),
+    })
+    await admitCall(harness, 'c1')
+    const start = await toStarting(harness, 'c1')
+    const driver = harness.host.driver()
+    if (!('advance' in driver) || typeof driver.advance !== 'function')
+      throw new Error('the installed driver has no advance result')
+    const stopped: unknown = await driver.advance({
+      principal: principalA,
+      tenant: tenantA,
+      call: callId('c1'),
+      instance: await harness.host.instanceOf(callId('c1')),
+      signal: new AbortController().signal,
+    })
+    if (port !== 'environment') {
+      expect(stopped).toEqual({ kind: 'failed', failure: failure.failure })
+      if (typeof stopped !== 'object' || stopped === null || !('failure' in stopped))
+        throw new Error('the failed port did not return its failure')
+      expect(stopped.failure).toBe(failure.failure)
+    }
+    expect(harness.binding.controls.launches()).toBe(0)
+    expect(harness.authority.excluded).toEqual([])
+    expect((await harness.state('c1')).phase).not.toBe('settled')
+    expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+    const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
+    expect(recovery.start).toEqual(start)
+    expect(recovery.result).toBeNull()
+    expect(recovery.tasks.map(task => task.kind)).toEqual(['start'])
+    expect(await harness.queue()).toEqual([{ call: 'c1', ordinal: '1', stage: 'held' }])
+    expect(await harness.released()).toEqual([])
+    failing = false
+    harness.environments.answer('c1', 'prepared')
+    await harness.drive('c1')
+    expect(harness.binding.controls.launches()).toBe(1)
+    expect((await harness.state('c1')).phase).toBe('running')
+  })
+}
+
+it('21 contradiction: a live handle with a not-started authority is retained without exclusion or resend', async () => {
+  let lie = false
+  const first = startHarness({
+    authorityPort: base => ({
+      ...base,
+      inspect: input =>
+        lie
+          ? Promise.resolve(succeed({ kind: 'not-started', exclusion: evidence('contradiction') }))
+          : base.inspect(input),
+    }),
+    bindingPort: base => ({
+      ...base,
+      start: async (input, environment) => {
+        const live = await base.start(input, environment)
+        lie = true
+        return live
+      },
+    }),
+  })
+  await admitCall(first, 'c1')
+  await first.drive('c1')
+  await first.drive('c1')
+  expect(first.binding.controls.launches()).toBe(1)
+  expect(first.binding.attempts).toEqual(['c1'])
+  expect(first.authority.excluded).toEqual([])
+  expect(await first.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+})
+
+it('21 marker: a committed failure with an unknown binding retains the original start and real slot', async () => {
+  const inspected: unknown[] = []
+  const authorityAnswers: unknown[] = []
+  const markerAnswers: unknown[] = []
+  const harness = startHarness({
+    authorityPort: base => ({
+      ...base,
+      inspect: async input => {
+        const answer = await base.inspect(input)
+        authorityAnswers.push(answer)
+        return answer
+      },
+    }),
+    bindingPort: base => ({
+      ...base,
+      inspectStart: input => {
+        inspected.push(input)
+        return Promise.resolve(
+          succeed({ kind: 'unknown', diagnostic: 'binding cannot prove exclusion' }),
+        )
+      },
+    }),
+    readsPort: base => ({
+      ...base,
+      operation: async input => {
+        const answer = await base.operation(input)
+        if (input.operation === 'op-c1/start-failed') markerAnswers.push(answer)
+        return answer
+      },
+    }),
+  })
+  await admitCall(harness, 'c1')
+  await admitCall(harness, 'c2')
+  const start = await toStarting(harness, 'c1')
+  ok(
+    await harness.commands.recordStart({
+      ...(await writeContext(harness, 'c1', 'op-c1/start-failed')),
+      invocation: start,
+      outcome: { kind: 'unknown', diagnostic: 'binding start reply lost' },
+    }),
+  )
+  await harness.runOnce('c1')
+  await harness.runOnce('c2')
+  expect(markerAnswers).toEqual([
+    expect.objectContaining({ ok: expect.objectContaining({ kind: 'committed' }) }),
+  ])
+  expect(authorityAnswers).toContainEqual(
+    expect.objectContaining({ ok: expect.objectContaining({ kind: 'not-started' }) }),
+  )
+  expect(inspected).toEqual([{ principal: principalA, tenant: tenantA, call: callId('c1'), start }])
+  expect(harness.authority.excluded).toEqual([])
+  expect(harness.authority.accepted).toEqual([])
+  expect(harness.binding.attempts).toEqual([])
+  expect(harness.binding.controls.launches()).toBe(0)
+  expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+  expect((await harness.state('c2')).phase).toBe('queued')
+  const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
+  expect(recovery.start).toEqual(start)
+  expect(recovery.result).toBeNull()
+  expect(recovery.tasks.map(task => task.kind)).toEqual(['start'])
+  expect(await harness.queue()).toEqual([
+    { call: 'c1', ordinal: '1', stage: 'held' },
+    { call: 'c2', ordinal: '2', stage: 'ready' },
+  ])
+  expect(await harness.released()).toEqual([])
+})
+
+it('21 crash window: without a committed failure marker, a new driver can obtain only the original start first acceptance', async () => {
+  const permits: string[] = []
+  const starts: string[] = []
+  const first = startHarness({
+    bindingPort: base => ({
+      ...base,
+      start: (input, environment) => {
+        permits.push(input.permit.request.revision)
+        starts.push(input.start.operation)
+        return permits.length === 1 ? Promise.resolve(refused()) : base.start(input, environment)
+      },
+    }),
+    commands: base => ({
+      ...base,
+      recordStart: input =>
+        input.operation === 'op-c1/start-failed'
+          ? Promise.resolve(refused())
+          : base.recordStart(input),
+    }),
+  })
+  await admitCall(first, 'c1')
+  await first.drive('c1')
+  expect(first.binding.controls.launches()).toBe(0)
+  expect(
+    ok(
+      await first.runtime.queries.queryOperation({
+        principal: principalA,
+        tenant: tenantA,
+        operation: operationRefFor('c1', 'op-c1', 'op-c1/start-failed'),
+      }),
+    ).kind,
+  ).toBe('not-committed')
+  const next = startHarness({
+    memory: first.memory,
+    authority: first.authority,
+    binding: first.binding,
+  })
+  await next.drive('c1')
+  await next.drive('c1')
+  expect(starts).toEqual(['op-c1/start', 'op-c1/start'])
+  expect(permits).toEqual(['1', '2'])
+  expect(first.authority.consumed).toEqual(['c1'])
+  expect(first.authority.excluded).toEqual([])
+  expect(next.binding.controls.launches()).toBe(1)
+  expect(await next.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
+})
+
+it('21 source: an unrelated unknown record is not the driver failure marker', async () => {
+  const harness = startHarness()
+  await admitCall(harness, 'c1')
+  const start = await toStarting(harness, 'c1')
+  ok(
+    await harness.commands.recordStart({
+      ...(await writeContext(harness, 'c1', 'other/unknown')),
+      invocation: start,
+      outcome: { kind: 'unknown', diagnostic: 'unrelated observer' },
+    }),
+  )
+  await harness.drive('c1')
+  expect(harness.authority.excluded).toEqual([])
+  expect(harness.binding.controls.launches()).toBe(1)
+  expect((await harness.state('c1')).phase).toBe('running')
+})
+
+it('21 ports: an unavailable prepared environment reconnect keeps the start retryable', async () => {
+  const harness = startHarness()
+  await admitCall(harness, 'c1')
+  await toStarting(harness, 'c1')
+  harness.environments.answer('c1', 'unavailable')
+  await harness.drive('c1')
+  expect(harness.binding.controls.launches()).toBe(0)
+  expect(harness.authority.excluded).toEqual([])
+  expect((await harness.state('c1')).phase).toBe('starting')
+  harness.environments.answer('c1', 'prepared')
+  await harness.drive('c1')
+  expect(harness.binding.controls.launches()).toBe(1)
+})
+
+for (const port of ['resolve', 'prepare', 'environment', 'authority'] as const) {
+  it(`21 ports: an unknown ${port} exception reaches the caller and keeps the original start held`, async () => {
+    const original =
+      port === 'environment'
+        ? Object.freeze({ defect: 'environment reconnect' })
+        : new TypeError(`${port} implementation defect`)
+    let throwing = true
+    const harness = startHarness({
+      bindingsPort: base => ({
+        ...base,
+        resolve: input => {
+          if (port === 'resolve' && throwing) throw original
+          return base.resolve(input)
+        },
+      }),
+      authorityPort: base => ({
+        ...base,
+        prepare: input => {
+          if (port === 'prepare' && throwing) throw original
+          return base.prepare(input)
+        },
+        inspect: input => {
+          if (port === 'authority' && throwing) throw original
+          return base.inspect(input)
+        },
+      }),
+      environmentsPort: base => ({
+        ...base,
+        inspectPreparation: input => {
+          if (port === 'environment' && throwing) return Promise.reject(original)
+          return base.inspectPreparation(input)
+        },
+      }),
+    })
+    await admitCall(harness, 'c1')
+    const start = await toStarting(harness, 'c1')
+    harness.host.scheduled.splice(0)
+    await expect(harness.runOnce('c1')).rejects.toBe(original)
+    expect(harness.host.scheduled).toEqual([])
+    expect(harness.binding.controls.launches()).toBe(0)
+    expect(harness.authority.excluded).toEqual([])
+    expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+    const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
+    expect(recovery.start).toEqual(start)
+    expect(recovery.result).toBeNull()
+    expect(recovery.tasks.map(task => task.kind)).toEqual(['start'])
+    throwing = false
+    await harness.runOnce('c1')
+    expect(await harness.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
+    expect(harness.binding.controls.launches()).toBe(1)
+  })
+}
+
+it('21 failure: an unknown query exception after a binding throw preserves its unconfirmed failure', async () => {
+  const original = new TypeError('post-start query defect')
+  let failed = false
+  let throwing = true
+  let attempts = 0
+  const harness = startHarness({
+    authorityPort: base => ({
+      ...base,
+      inspect: input => {
+        if (failed && throwing) throw original
+        return base.inspect(input)
+      },
+    }),
+    bindingPort: base => ({
+      ...base,
+      start: () => {
+        attempts += 1
+        failed = true
+        throw new Error('binding reply lost')
+      },
+    }),
+  })
+  await admitCall(harness, 'c1')
+  await expect(harness.runOnce('c1')).rejects.toBe(original)
+  expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+  expect(ok(await harness.commands.loadRecovery(admission('c1', 'op-c1'))).result).toBeNull()
+  expect(harness.authority.excluded).toEqual([])
+  throwing = false
+  await harness.runOnce('c1')
+  expect(attempts).toBe(1)
+  expect(harness.binding.controls.launches()).toBe(0)
+  expect(await harness.state('c1')).toMatchObject({
+    phase: 'settled',
+    terminal: { kind: 'unavailable' },
+    queue: { kind: 'released' },
+  })
+})
+
+it('21 marker: a new driver recalls a committed failure marker whose commit receipt was unknown', async () => {
+  let attempts = 0
+  const markerWrites: string[] = []
+  const first = startHarness({
+    bindingPort: base => ({
+      ...base,
+      start: () => {
+        attempts += 1
+        return Promise.resolve(refused())
+      },
+    }),
+    commands: base => ({
+      ...base,
+      recordStart: async input => {
+        if (input.operation !== 'op-c1/start-failed') return base.recordStart(input)
+        markerWrites.push(input.operation)
+        ok(await base.recordStart(input))
+        return fail({ kind: 'commit-unknown', operation: input.operation })
+      },
+    }),
+    driverStepsPerRun: 1,
+  })
+  await admitCall(first, 'c1')
+  const originalStart = await toStarting(first, 'c1')
+  await first.runOnce('c1')
+  expect(markerWrites).toEqual(['op-c1/start-failed'])
+  expect(await first.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+  expect(
+    ok(
+      await first.runtime.queries.queryOperation({
+        principal: principalA,
+        tenant: tenantA,
+        operation: operationRefFor('c1', 'op-c1', 'op-c1/start-failed'),
+      }),
+    ).kind,
+  ).toBe('committed')
+  const markerReads: string[] = []
+  const next = startHarness({
+    memory: first.memory,
+    authority: first.authority,
+    binding: first.binding,
+    readsPort: base => ({
+      ...base,
+      operation: async input => {
+        const reply = await base.operation(input)
+        if ('ok' in reply) markerReads.push(reply.ok.kind)
+        return reply
+      },
+    }),
+    authorityPort: base => ({ ...base, exclude: () => Promise.resolve(refused()) }),
+  })
+  await next.runOnce('c1')
+  expect(attempts).toBe(1)
+  expect(markerReads).toEqual(['committed'])
+  expect(next.binding.inspected.map(start => start.operation)).toEqual([originalStart.operation])
+  expect(await next.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+  expect(ok(await next.commands.loadRecovery(admission('c1', 'op-c1'))).result).toBeNull()
+  const final = startHarness({
+    memory: first.memory,
+    authority: first.authority,
+    binding: first.binding,
+  })
+  await final.runOnce('c1')
+  expect(attempts).toBe(1)
+  expect(first.binding.controls.launches()).toBe(0)
+  expect(first.authority.excluded).toEqual(['c1'])
+  expect(await final.state('c1')).toMatchObject({
+    phase: 'settled',
+    terminal: { kind: 'unavailable' },
+    effect: { kind: 'not-started' },
+    queue: { kind: 'released' },
+    delivery: { kind: 'pending' },
+  })
+  expect(ok(await final.commands.loadRecovery(admission('c1', 'op-c1'))).result).not.toBeNull()
+})
+
+it('21 rejection: catching run rejection leaves no derived unhandled rejection', async () => {
+  const { stdout, stderr } = await promisify(execFile)(process.execPath, [
+    '--conditions=source',
+    '--experimental-strip-types',
+    fileURLToPath(new URL('./caught-rejection.ts', import.meta.url)),
+  ])
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({ caughtSameError: true, unhandledRejections: 0 })
+})
+
+it('21 serialization: a rejected predecessor cannot remove its blocked successor', async () => {
+  const original = new TypeError('first authority query defect')
+  let inspections = 0
+  let release = () => {}
+  const gate = new Promise<void>(resolve => {
+    release = resolve
+  })
+  let entered = () => {}
+  const successorEntered = new Promise<void>(resolve => {
+    entered = resolve
+  })
+  const harness = startHarness({
+    authorityPort: base => ({
+      ...base,
+      inspect: async input => {
+        inspections += 1
+        if (inspections === 1) throw original
+        if (inspections === 2) {
+          entered()
+          await gate
+        }
+        return base.inspect(input)
+      },
+    }),
+  })
+  await admitCall(harness, 'c1')
+  await toStarting(harness, 'c1')
+  const predecessor = harness.runOnce('c1')
+  const successor = harness.runOnce('c1')
+  const queued = [successor]
+  try {
+    await expect(predecessor).rejects.toBe(original)
+    await successorEntered
+    queued.push(harness.runOnce('c1'))
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(inspections).toBe(2)
+  } finally {
+    release()
+    await Promise.all(queued)
+  }
+  expect(harness.binding.controls.launches()).toBe(1)
+  expect(await harness.state('c1')).toMatchObject({ phase: 'running', queue: { kind: 'held' } })
+})
