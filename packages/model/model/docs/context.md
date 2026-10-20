@@ -1,6 +1,6 @@
 # Model 实现的消费与构造
 
-本包面向选择默认领域算法的独立程序及运行宿主，已有凭据判定，createModelRuntime 已可构造，托管业务行为尚未实现。普通调用者消费 [model-contract](../../model-contract/docs/context.md) 并取得注入的操作能力，不必安装本实现。
+本包面向选择默认领域算法的独立程序及运行宿主，已有 executeModel 独立执行及凭据判定，createModelRuntime 已可构造，托管业务行为尚未实现。普通调用者消费 [model-contract](../../model-contract/docs/context.md) 并取得注入的操作能力，不必安装本实现。
 
 独立程序以固定请求、显式传输和 signal 调用 executeModel。宿主将 Commands、发送围栏、重试策略、实例宿主和时钟注入 createModelRuntime，并显式传入配置。精确构造形状归 [public-api](public-api.md)，独立执行及配置行为归 [SPEC](../SPEC.md)。
 

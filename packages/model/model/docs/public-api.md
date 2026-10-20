@@ -1,7 +1,7 @@
 <a id="model-实现公开入口候选"></a>
 # Model 实现公开入口
 
-本包已实现凭据判定与 createModelRuntime 构造壳。托管执行行为和 executeModel 仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。已实现的构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明；下方独立执行及独立能力工厂仍是未实现设计。
+本包已实现 executeModel、凭据判定与 createModelRuntime 构造壳。托管执行行为仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明；下方独立能力工厂仍是未实现设计。
 
 ## 执行函数与构造
 
@@ -14,17 +14,14 @@ import type {
   ModelContentAuthority, ModelMessageConversion,
 } from '@omne-harness/model-contract'
 
-export declare function executeModel(
-  request: FixedModelRequest,
-  transport: ModelTransport,
-  signal: AbortSignal,
-): AsyncIterable<IndependentModelFact>
-import { createModelRuntime } from '@omne-harness/model'
+import { executeModel, createModelRuntime } from '@omne-harness/model'
 import type { ModelConfiguration, ModelDependencies, ModelRuntimeProvider } from '@omne-harness/model'
 
 ```
 
 ModelDependencies 和 ModelConfiguration 只约束本实现的构造器。其他提供者须实现共同操作与行为，不必复刻该配置。操作参数包含主体、租户、原调用和业务请求；实例宿主、时钟、发送及持久化是显式依赖，不从全局 Cordis Context 取得。
+
+executeModel 接收 FixedModelRequest、ModelTransport 和 AbortSignal，返回 AsyncIterable<IndependentModelFact>。一次返回值只执行一次。原生 generator 的 return 不抢占等待中的 next，停止请求使用 signal。终局交付前已完成全部清理尝试，清理失败在消费者下一次推进时抛出 independent-cleanup-failed，详见 [独立执行](../SPEC.md#独立执行)。
 
 行为归 [SPEC](../SPEC.md)，纯契约不转导本页函数。单机插件及目录装载设计见 [Cordis 装配](cordis.md)。
 

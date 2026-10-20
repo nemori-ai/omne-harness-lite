@@ -4,10 +4,11 @@
 
 ## 职责与状态
 
-本成员已有凭据判定、真实运行工厂构造壳和独立内存测试入口。本地凭据保管归 [model-host-local](../model-host-local/README_ZH.md)，领域协议归 [model-contract](../model-contract/README_ZH.md)。
+本成员已有独立执行、凭据判定、真实运行工厂构造壳和独立内存测试入口。本地凭据保管归 [model-host-local](../model-host-local/README_ZH.md)，领域协议归 [model-contract](../model-contract/README_ZH.md)。
 
 | 能力或入口 | 当前支持 |
 | --- | --- |
+| `executeModel` | 经显式传输执行一次，覆盖取消及资源关闭 |
 | 凭据判定及 `deliver` | 凭据判定为纯函数，`deliver` 委托传入的 resolver |
 | `createModelRuntime` | 仅构造和校验，十二个托管操作明确返回 unavailable |
 | `@omne-harness/model/testing` | 内存 Commands 与五个可控依赖端口 |
@@ -16,7 +17,7 @@
 
 ## 使用
 
-选择本实现的独立程序与宿主从[消费与构造](docs/context.md)进入。executeModel、createModelRuntime 及构造参数的设计已接受，精确形状见[公开接口设计](docs/public-api.md)，createModelRuntime 已可导入构造；executeModel 与独立能力工厂仍未实现。
+选择本实现的独立程序与宿主从[消费与构造](docs/context.md)进入。executeModel、createModelRuntime 及构造参数的设计已接受，精确形状见[公开接口设计](docs/public-api.md)，executeModel 与 createModelRuntime 已从根入口导出；独立能力工厂仍未实现。
 
 内存测试从 `@omne-harness/model/testing` 导入 createTestModelDependencies。显式配置、authority、evidence 和 owner 的用法见[测试入口](docs/public-api.md#内存测试入口)。返回的五依赖可构造真实 runtime 壳。
 
@@ -36,7 +37,7 @@
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。现有测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
+运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。独立执行测试经公开入口连接脚本传输及受控故障提供者，覆盖一次发送、回执匹配、取消、失联与关闭。六项 transport 符合性直接检查提供者。其他测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
 
 ## 维护
 
