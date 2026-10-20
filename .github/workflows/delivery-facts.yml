@@ -84,7 +84,13 @@ jobs:
           reviewer=$(jq --arg l "$author" --arg n "$author_node" \
             '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[] | .reviewer | select(.login == $l and .node_id == $n)] | length == 1' environment.json)
 
-          # 3. 卡在 Project 中的 item 与 Stage。读不到 item 时失败，不当作不在 Project 中。
+          # 3. 卡在 Project 中的 item 与 Stage。先确认 Stage 字段属于这个 Project，字段配错时失败，
+          #    不让 Stage 悄悄变成 null；读不到 item 时失败，不当作不在 Project 中。
+          gh api graphql -f field="$STAGE_FIELD_ID" -f query='
+            query($field: ID!) { node(id: $field) { ... on ProjectV2SingleSelectField { id project { id } } } }' > field.json
+          jq -e --arg f "$STAGE_FIELD_ID" --arg p "$PROJECT_ID" \
+            '.errors == null and .data.node.id == $f and .data.node.project.id == $p' field.json >/dev/null \
+            || { echo "failed: Stage field is not confirmed on the project"; exit 1; }
           gh api graphql -f owner="${R%/*}" -f name="${R#*/}" -F number="$ISSUE" -f query='
             query($owner: String!, $name: String!, $number: Int!) {
               repository(owner: $owner, name: $name) {
