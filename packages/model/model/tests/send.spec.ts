@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { createModelSendBoundary } from '@omne-harness/model'
+import { createModelSendBoundary, type SendStart } from '@omne-harness/model'
 import { type CredentialResolution, type ModelCommands } from '@omne-harness/model-contract'
 import {
   credentialPort,
@@ -12,6 +12,175 @@ import {
   faultCommands,
 } from './send-fixture.ts'
 import { instance, op, proof, unbox } from './memory-fixture.ts'
+
+for (const method of ['recordMaterialization', 'openReceiveWindow', 'recordSend'] as const)
+  for (const effect of ['applied', 'not-applied'] as const)
+    for (const queryFailure of ['denied', 'throw', 'unknown'] as const)
+      it(`retains ${method} ${effect} through query ${queryFailure} and resumes the original write`, async () => {
+        const f = await sendFixture({ max: 1 })
+        const other = await f.additionalDemand()
+        const fault = faultCommands(f, method, effect)
+        let querying = false
+        const sender = f.makeSender({
+          commands: {
+            ...fault.commands,
+            query(input) {
+              if (querying && queryFailure === 'throw') throw new Error(synthetic)
+              if (querying && queryFailure === 'unknown')
+                return Promise.resolve({ ok: { kind: 'unknown' } })
+              return fault.commands.query(input)
+            },
+          },
+        })
+        expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+        querying = true
+        if (queryFailure === 'denied') f.denied.add('facts')
+        expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+        expect(fault.inputs).toHaveLength(1)
+        expect(f.counts()).toMatchObject({
+          acquired: 1,
+          starts: method === 'recordSend' ? 1 : 0,
+          pulls: 0,
+          returns: 0,
+        })
+        expect(f.events).toEqual([])
+        expect(await sender.send(other, signal())).toMatchObject({
+          kind: 'not-started',
+          failure: { diagnostic: 'retained-attempt-capacity' },
+        })
+        querying = false
+        f.denied.delete('facts')
+        fault.reveal()
+        const recovered = await sender.send(f.demand, signal())
+        expect(recovered.kind).toBe('started')
+        expect(fault.inputs).toHaveLength(2)
+        expect(fault.inputs[1]).toEqual(fault.inputs[0])
+        expect(f.counts()).toMatchObject({ acquired: 1, starts: 1, pulls: 0, returns: 0 })
+        if (recovered.kind !== 'started') throw new Error('send fixture')
+        await collect(recovered.facts)
+        expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+        const next = await sender.send(other, signal())
+        expect(next.kind).toBe('started')
+        if (next.kind === 'started') await collect(next.facts)
+      })
+
+for (const method of ['recordMaterialization', 'openReceiveWindow', 'recordSend'] as const)
+  it(`retains committed ${method} when replay cannot yet return its original receipt`, async () => {
+    const f = await sendFixture({ max: 1 })
+    const fault = faultCommands(f, method, 'applied')
+    let denyReplay = false
+    if (method === 'recordMaterialization') {
+      const run = fault.commands.recordMaterialization
+      fault.commands.recordMaterialization = input =>
+        denyReplay
+          ? Promise.resolve({ failure: { kind: 'denied', action: 'receipt' } })
+          : run(input)
+    } else if (method === 'openReceiveWindow') {
+      const run = fault.commands.openReceiveWindow
+      fault.commands.openReceiveWindow = input =>
+        denyReplay
+          ? Promise.resolve({ failure: { kind: 'denied', action: 'receipt' } })
+          : run(input)
+    } else {
+      const run = fault.commands.recordSend
+      fault.commands.recordSend = input =>
+        denyReplay
+          ? Promise.resolve({ failure: { kind: 'denied', action: 'receipt' } })
+          : run(input)
+    }
+    const sender = f.makeSender({ commands: fault.commands })
+    expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+    fault.reveal()
+    denyReplay = true
+    expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+    expect(f.counts()).toMatchObject({
+      acquired: 1,
+      starts: method === 'recordSend' ? 1 : 0,
+      pulls: 0,
+      returns: 0,
+    })
+    expect(f.events).toEqual([])
+    denyReplay = false
+    const recovered = await sender.send(f.demand, signal())
+    expect(recovered.kind).toBe('started')
+    expect(fault.inputs).toHaveLength(2)
+    expect(fault.inputs[1]).toEqual(fault.inputs[0])
+    if (recovered.kind !== 'started') throw new Error('send fixture')
+    await collect(recovered.facts)
+    expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+  })
+
+for (const boundary of ['resolve', 'start'] as const)
+  it(`a synchronously reentered product closure at ${boundary} resolves and starts once and preserves its original stream`, async () => {
+    const f = await sendFixture()
+    const coordinator = f.controls.send.coordinator
+    let reenter: (() => SendStart) | undefined
+    let nested: SendStart | undefined
+    let resolutions = 0
+    const sender = f.makeSender({
+      coordinator: {
+        ...coordinator,
+        withinCurrent(input, receipt, window, start) {
+          return coordinator.withinCurrent(input, receipt, window, selection => {
+            reenter = () => start(selection)
+            return start(selection)
+          })
+        },
+      },
+      credentials: {
+        present: () => ({ kind: 'unavailable' }),
+        resolve() {
+          resolutions += 1
+          if (boundary === 'resolve' && resolutions === 1) nested = reenter?.()
+          return { kind: 'value', scope: 'factory', value: synthetic }
+        },
+      },
+      resources: {
+        async acquire(input) {
+          const resource = unbox(await f.resources.acquire(input))
+          return {
+            ok: {
+              ...resource,
+              startWithCredential(...args) {
+                if (boundary === 'start') nested = reenter?.()
+                return resource.startWithCredential(...args)
+              },
+            },
+          }
+        },
+      },
+    })
+    const result = await sender.send(f.demand, signal())
+    expect(resolutions).toBe(1)
+    expect(nested?.kind).toBe('unknown')
+    expect(result.kind).toBe('started')
+    expect(f.counts()).toMatchObject({ starts: 1, pulls: 0, returns: 0 })
+    expect(f.events).toEqual([])
+    if (result.kind !== 'started') throw new Error('send fixture')
+    expect(await collect(result.facts)).toHaveLength(2)
+    expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+    expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+    expect(f.counts().starts).toBe(1)
+  })
+
+for (const method of ['recordMaterialization', 'openReceiveWindow'] as const)
+  it(`releases ${method} after authoritative not-committed and a definite write rejection`, async () => {
+    const f = await sendFixture({ max: 1 })
+    const other = await f.additionalDemand()
+    const fault = faultCommands(f, method, 'not-applied')
+    const sender = f.makeSender({ commands: fault.commands })
+    expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+    fault.reveal()
+    unbox(await f.provider.runtime.calls.cancel({ ...f.admit, operation: op('cancel-unwritten') }))
+    expect((await sender.send(f.demand, signal())).kind).toBe('not-started')
+    expect(fault.inputs).toHaveLength(2)
+    expect(fault.inputs[1]).toEqual(fault.inputs[0])
+    expect(f.counts().starts).toBe(0)
+    expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+    const next = await sender.send(other, signal())
+    expect(next.kind).toBe('started')
+    if (next.kind === 'started') await collect(next.facts)
+  })
 
 for (const kind of ['value', 'absent', 'unreadable', 'denied', 'unavailable'] as const) {
   it(`resolves tenant ${kind} only at the actual send boundary`, async () => {

@@ -14,7 +14,15 @@ import type { Outcome } from '@omne-harness/operation-result'
 import { SendLifetime, ownedFacts } from './lifetime.ts'
 import type { CredentialSelection, ModelSendBoundaryOptions, SendStart } from './types.ts'
 type Commands = ModelCommands<unknown>
-type Write<A, T> = { input: A; pending: boolean; run(input: A): Promise<Outcome<T, ModelFailure>> }
+type Write<A, T> = {
+  input: A
+  confirmation: 'new' | 'pending' | 'committed'
+  run(input: A): Promise<Outcome<T, ModelFailure>>
+}
+type WriteResult<T> =
+  | { kind: 'confirmed'; value: T }
+  | { kind: 'rejected'; failure: ModelFailure }
+  | { kind: 'unconfirmed' }
 type Materialization = Parameters<Commands['recordMaterialization']>[0]
 type MaterializationResult = Extract<
   Awaited<ReturnType<Commands['recordMaterialization']>>,
@@ -67,21 +75,31 @@ export function createAttemptRunner<P>(
   async function write<A extends { operation: ModelOperationId }, T>(
     attempt: SendAttempt<P>,
     entry: Write<A, T>,
-  ): Promise<Outcome<T, ModelFailure>> {
+  ): Promise<WriteResult<T>> {
     try {
-      if (entry.pending) {
+      if (entry.confirmation === 'pending') {
         const query = await commands.query({ ...attempt.input, operation: entry.input.operation })
-        if ('failure' in query) return query
-        if (query.ok.kind === 'unknown')
-          return { failure: { kind: 'commit-unknown', operation: entry.input.operation } }
+        if ('failure' in query || query.ok.kind === 'unknown') return { kind: 'unconfirmed' }
+        entry.confirmation = query.ok.kind === 'committed' ? 'committed' : 'new'
       }
       // Mark before entering a provider: a thrown or disconnected write can have committed.
-      entry.pending = true
+      const committed = entry.confirmation === 'committed'
+      if (!committed) entry.confirmation = 'pending'
       const result = await entry.run(entry.input)
-      if ('ok' in result) entry.pending = false
-      return result
+      if ('ok' in result) {
+        entry.confirmation = 'committed'
+        return { kind: 'confirmed', value: result.ok }
+      }
+      if (
+        committed ||
+        result.failure.kind === 'commit-unknown' ||
+        result.failure.kind === 'unavailable'
+      )
+        return { kind: 'unconfirmed' }
+      entry.confirmation = 'new'
+      return { kind: 'rejected', failure: result.failure }
     } catch {
-      return { failure: unavailable('model-send', 'write-unconfirmed') }
+      return { kind: 'unconfirmed' }
     }
   }
   async function stop(
@@ -179,40 +197,41 @@ export function createAttemptRunner<P>(
               dispatch: input.dispatch,
               receipt,
             },
-            pending: false,
+            confirmation: 'new',
             run: entry => commands.recordMaterialization(entry),
           },
         }
       }
       if (attempt.stage.kind === 'materialization') {
         const result = await write(attempt, attempt.stage.write)
-        if ('failure' in result)
-          return unresolved(id, attempt, result.failure, 'materialization-commit-unknown')
+        if (result.kind === 'unconfirmed') return unknown(attempt, 'materialization-commit-unknown')
+        if (result.kind === 'rejected') return stop(id, attempt, result.failure)
         attempt.stage = {
           kind: 'window',
           write: {
             input: {
               ...input.execution,
               operation: operation(),
-              expected: result.ok.revision,
+              expected: result.value.revision,
               dispatch: input.dispatch,
               window: attempt.window,
             },
-            pending: false,
+            confirmation: 'new',
             run: entry => commands.openReceiveWindow(entry),
           },
         }
       }
       if (attempt.stage.kind === 'window') {
         const result = await write(attempt, attempt.stage.write)
-        if ('failure' in result)
-          return unresolved(id, attempt, result.failure, 'receive-window-commit-unknown')
-        attempt.stage = { kind: 'start', revision: result.ok }
+        if (result.kind === 'unconfirmed') return unknown(attempt, 'receive-window-commit-unknown')
+        if (result.kind === 'rejected') return stop(id, attempt, result.failure)
+        attempt.stage = { kind: 'start', revision: result.value }
       }
       if (attempt.stage.kind === 'start') {
         if (!attempt.receipt) throw new Error('missing receipt')
         const sendOperation = operation()
         let original: SendStart | undefined
+        let entered = false
         let decision: SendStart
         try {
           const coordinated = coordinator.withinCurrent(
@@ -220,7 +239,10 @@ export function createAttemptRunner<P>(
             attempt.receipt,
             attempt.window,
             selection => {
-              original ??= start(attempt, selection)
+              if (entered)
+                return original ?? { kind: 'unknown', diagnostic: 'send-start-in-progress' }
+              entered = true
+              original = start(attempt, selection)
               return original
             },
           )
@@ -247,7 +269,7 @@ export function createAttemptRunner<P>(
                     ? 'started'
                     : 'unknown',
             },
-            pending: false,
+            confirmation: 'new',
             run: entry => commands.recordSend(entry),
           },
         }
@@ -255,12 +277,8 @@ export function createAttemptRunner<P>(
       if (attempt.stage.kind === 'record') {
         const { result: decision, write: original } = attempt.stage
         const recorded = await write(attempt, original)
-        if ('failure' in recorded) {
-          if (
-            decision.kind === 'refused' &&
-            recorded.failure.kind !== 'commit-unknown' &&
-            recorded.failure.kind !== 'unavailable'
-          ) {
+        if (recorded.kind !== 'confirmed') {
+          if (decision.kind === 'refused' && recorded.kind === 'rejected') {
             try {
               await attempt.lifetime.close()
             } catch {
@@ -310,16 +328,6 @@ export function createAttemptRunner<P>(
     } finally {
       attempt.busy = false
     }
-  }
-  function unresolved(
-    id: string,
-    attempt: SendAttempt<P>,
-    failure: ModelFailure,
-    diagnostic: string,
-  ): Promise<SendResult> | SendResult {
-    return failure.kind === 'commit-unknown' || failure.kind === 'unavailable'
-      ? unknown(attempt, diagnostic)
-      : stop(id, attempt, failure)
   }
   return perform
 }

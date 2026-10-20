@@ -1,7 +1,7 @@
 <a id="model-实现公开入口候选"></a>
 # Model 实现公开入口
 
-本包已实现 executeModel、凭据判定、createModelSendBoundary 与 createModelRuntime 的受理、查询、取消意图与首次分派。其他托管行为仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明；下方独立能力工厂仍是未实现设计。
+本包已实现 executeModel、凭据判定、createModelSendBoundary 与 createModelRuntime 的受理、查询、取消意图与首次分派。其他托管行为仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，runtime 构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明，sender 构造类型以 [send/types.ts](../src/send/types.ts) 为唯一声明；下方独立能力工厂仍是未实现设计。
 
 ## 执行函数与构造
 
