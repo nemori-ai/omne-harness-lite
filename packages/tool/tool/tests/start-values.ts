@@ -472,7 +472,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const environments = testEnvironments(options.environment ?? new Map())
   const originalCustody = testSettlementPorts().custody
   const custody = options.custodyPort?.(originalCustody) ?? originalCustody
-  const settlement = { custody, releaseInspection: environments }
+  const settlement = { custody, releaseInspection: environments, content: null }
   const ledger = createToolLedger(
     store,
     { ...guards(options), factAcknowledgements },

@@ -124,6 +124,12 @@ describe('17 the runtime factory and later increments', () => {
         releaseInspection: {} as never,
       }),
     ).toThrow('settlement.releaseInspection.inspectRelease: missing')
+    expect(() =>
+      createToolLedger(store, guards(), clock, configuration(), {
+        ...ports,
+        content: undefined as never,
+      }),
+    ).toThrow('settlement.content.read: missing')
   })
 
   it('17 factory: the trusted construction ports are required at construction', () => {
@@ -159,14 +165,6 @@ describe('17 the runtime factory and later increments', () => {
       recover: provider.recover({ principal: principalA, tenant: tenantA }),
       quiesce: provider.quiesce(),
       inspectDrain: provider.inspectDrain({ principal: principalA, tenant: tenantA }),
-      contentRead: runtime.content.read({
-        ...access,
-        reference,
-        result: 'v1' as never,
-        attachment: { storage: 's', key: 'k', mediaType: 'text/plain', bytes: '1', digest: 'x' },
-        after: null,
-        maxBytes: 16,
-      }),
     }
     for (const [name, probe] of Object.entries(later)) {
       const answer = await probe
@@ -181,7 +179,7 @@ describe('17 the runtime factory and later increments', () => {
               failure: { kind: 'unsupported', reason: expect.stringContaining('not implemented') },
             },
       ])
-      // The runtime names itself; content.read is answered by the ledger, which names itself.
+      // These remaining operations are runtime-owned unsupported paths.
       const failure =
         name === 'control'
           ? ((answer as { failure?: { kind: string; adoption?: { name: string } } }).failure ??

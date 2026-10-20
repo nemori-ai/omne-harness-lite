@@ -13,7 +13,6 @@ import {
   createMemoryToolDecisionBridge,
   createMemoryToolEnvironment,
   createMemoryToolExecutorBinding,
-  createMemoryToolOutputCustody,
   createMemoryToolResourceResponses,
   createMemoryToolStartAuthority,
   type MemoryEnvironment,
@@ -26,6 +25,7 @@ import {
   type MemoryToolStartAuthority,
 } from '@omne-harness/tool-contract/testing'
 import type { ToolDependencies, ToolLedgerConfiguration } from './construction.ts'
+import { createMemoryToolContent, type MemoryToolContent } from './testing-content.ts'
 import { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'
 import type { ToolLedgerGuards } from './ledger-guards.ts'
 import { createToolLedger, type ToolLedger } from './ledger.ts'
@@ -53,6 +53,7 @@ export type TestToolDoubles<P> = Readonly<{
   decisions: MemoryToolDecisionBridge<P>
   resources: MemoryToolResourceResponses<P>
   custody: MemoryToolOutputCustody<P>
+  content: MemoryToolContent<P>
 }>
 
 export type TestToolDependencies<P> = Readonly<{
@@ -67,6 +68,7 @@ export type TestToolDependencies<P> = Readonly<{
 export function createTestToolDependencies<P>(
   input: TestToolDependenciesInput<P>,
 ): TestToolDependencies<P> {
+  const content = createMemoryToolContent<P>()
   const doubles: TestToolDoubles<P> = {
     executor: createMemoryToolExecutorBinding<P, MemoryEnvironment>(),
     environment: createMemoryToolEnvironment<P>(),
@@ -74,7 +76,8 @@ export function createTestToolDependencies<P>(
     clock: createMemoryToolClock(),
     decisions: createMemoryToolDecisionBridge<P>(),
     resources: createMemoryToolResourceResponses<P>(),
-    custody: createMemoryToolOutputCustody<P>(),
+    custody: content.custody,
+    content,
   }
   const store = createMemoryToolLedgerStore<ContentBlock>()
   const bindings = input.bindingsFor(doubles.executor.binding)
@@ -86,7 +89,7 @@ export function createTestToolDependencies<P>(
     },
     doubles.clock,
     input.configuration,
-    { custody: doubles.custody, releaseInspection: doubles.environment },
+    { custody: doubles.custody, releaseInspection: doubles.environment, content: content.reader },
   )
   return {
     durability: 'none',
@@ -131,3 +134,9 @@ export {
   type MemoryCommitFault,
   type MemoryLanding,
 } from './testing-store.ts'
+
+export {
+  createMemoryToolContent,
+  type MemoryToolContent,
+  type MemoryContentFault,
+} from './testing-content.ts'

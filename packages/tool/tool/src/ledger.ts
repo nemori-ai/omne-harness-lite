@@ -63,7 +63,7 @@ import type {
   ToolLedgerConfiguration,
   ToolLedgerQueues,
   ToolLedgerFacts,
-  ToolLedgerSettlementPorts,
+  ToolLedgerPorts,
 } from './construction.ts'
 import {
   fixFactAcknowledgement,
@@ -94,6 +94,7 @@ import {
 import { checkSettlement, decidePreserveResult } from './ledger-settlement.ts'
 import { excluded, excludedSince, withExclusionsRemoved } from './ledger-exclusion.ts'
 import type { ToolLedgerAction, ToolLedgerGuards } from './ledger-guards.ts'
+import { createLedgerContent, fixResultInput } from './ledger-content.ts'
 import { createQueueReconciler } from './ledger-queue.ts'
 import {
   lookupCall,
@@ -205,13 +206,15 @@ export function createToolLedger<P, B extends ContentBlock>(
   guards: ToolLedgerGuards<P, B>,
   clock: ToolClock,
   configuration: ToolLedgerConfiguration,
-  settlement: ToolLedgerSettlementPorts<P>,
+  settlement: ToolLedgerPorts<P>,
 ): ToolLedger<P, B> {
   checkLedgerConfiguration(configuration)
   if (typeof settlement?.custody?.retainResult !== 'function')
     throw new TypeError('settlement.custody.retainResult: missing')
   if (typeof settlement?.releaseInspection?.inspectRelease !== 'function')
     throw new TypeError('settlement.releaseInspection.inspectRelease: missing')
+  if (settlement.content !== null && typeof settlement.content?.read !== 'function')
+    throw new TypeError('settlement.content.read: missing (use null to disable byte reads)')
   const { resultPageBytes, ledgerCommitAttempts: attempts, queueCapacity } = configuration
 
   const access = async (
@@ -1207,19 +1210,25 @@ export function createToolLedger<P, B extends ContentBlock>(
     lookup: input => fenced(input, 'lookup', 'admission', lookupCall, lookupFence),
     operation: input =>
       fenced(input, 'query-operation', 'operation', resolveOperation, operationFence),
-    result: input =>
-      query(input, 'read-result', snapshot => {
-        const version = decodeToolResultVersion(Reflect.get(input, 'result'))
-        if ('failure' in version) return invalid('result', version.failure.reason)
-        const after: unknown = Reflect.get(input, 'after')
-        if (after !== null && typeof after !== 'string') return invalid('after', 'type')
-        return readResultPage(snapshot, {
-          result: version.ok,
-          after,
-          pageBytes: resultPageBytes,
-          adoption: toolLedgerAdoption,
-        })
-      }),
+    result: async input => {
+      const fixed = fixResultInput<P>(input, 'read-result')
+      if ('failure' in fixed) return fixed
+      const { after } = input
+      if (after !== null && typeof after !== 'string') return invalid('after', 'type')
+      const allowed = await access(fixed.ok, 'read-result')
+      if ('failure' in allowed) return allowed
+      const snapshot = await read(callDomain(fixed.ok))
+      if ('failure' in snapshot) return snapshot
+      const page = readResultPage(snapshot.ok, {
+        result: fixed.ok.result,
+        after,
+        pageBytes: resultPageBytes,
+        adoption: toolLedgerAdoption,
+      })
+      if ('failure' in page) return page
+      const current = await access(fixed.ok, 'read-result')
+      return 'failure' in current ? current : page
+    },
     process: input =>
       query(input, 'read-process', () =>
         unsupported('process', 'process observation and diagnostics'),
@@ -1231,16 +1240,12 @@ export function createToolLedger<P, B extends ContentBlock>(
         unsupported('diagnostics', 'process observation and diagnostics'),
       ),
     account: input => query(input, 'account', snapshot => readAccount(snapshot)),
-    content: {
-      read: input =>
-        query(input, 'read-content', () =>
-          unsupported('content.read', 'execution facts and release'),
-        ),
-      raw: input =>
-        query(input, 'read-content', () =>
-          unsupported('content.raw', 'execution facts and release'),
-        ),
-    },
+    content: createLedgerContent({
+      adoption: toolLedgerAdoption,
+      provider: settlement.content,
+      authorize: access,
+      load: input => read(callDomain(input)),
+    }),
   }
 
   const queues = createQueueReconciler<P, B>({

@@ -8,6 +8,7 @@ import type {
   ToolCommands,
   ToolProvider,
   ToolReads,
+  ToolContentReader,
   ToolState,
 } from '@omne-harness/tool-contract'
 import {
@@ -20,7 +21,7 @@ import {
   type ToolLedgerQueues,
   type ToolLedgerFacts,
   type ToolLedgerStore,
-  type ToolLedgerSettlementPorts,
+  type ToolLedgerPorts,
 } from '@omne-harness/tool'
 
 it('createToolRuntime takes the dependencies and the configuration and answers a ToolProvider', () => {
@@ -51,7 +52,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
       ToolLedgerGuards<P, ContentBlock>,
       ToolClock,
       ToolLedgerConfiguration,
-      ToolLedgerSettlementPorts<P>,
+      ToolLedgerPorts<P>,
     ]
   >()
   expectTypeOf(createToolLedger<P, ContentBlock>).returns.toEqualTypeOf<
@@ -69,4 +70,11 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
   >()
   // The runtime configuration fits where the ledger configuration is asked for.
   expectTypeOf<ToolConfiguration>().toExtend<ToolLedgerConfiguration>()
+})
+
+it('ledger content provider is explicit and may be disabled with null', () => {
+  expectTypeOf<ToolLedgerPorts<string>['content']>().toEqualTypeOf<Pick<
+    ToolContentReader<string>,
+    'read'
+  > | null>()
 })

@@ -14,6 +14,7 @@ import type {
   ToolCallId,
   ToolCatalog,
   ToolChildren,
+  ToolContentReader,
   ToolClock,
   ToolCommands,
   ToolDecisionBridge,
@@ -132,8 +133,9 @@ export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
   ): Reply<import('./ledger-store.ts').SavedFact<B>>
 }>
 
-/** Existing effectful ports used to confirm settlement and resource release. */
-export type ToolLedgerSettlementPorts<P> = Readonly<{
+/** Explicit ledger providers. A null content reader disables byte reads only. */
+export type ToolLedgerPorts<P> = Readonly<{
+  content: Pick<ToolContentReader<P>, 'read'> | null
   custody: Pick<ToolOutputCustody<P>, 'retainResult'>
   releaseInspection: Pick<ToolEnvironment<P, unknown>, 'inspectRelease'>
 }>

@@ -357,6 +357,7 @@ describe('G5 under the runtime', () => {
 
 function testSettlementPorts() {
   return {
+    content: null,
     custody: createMemoryToolOutputCustody<Principal>(),
     releaseInspection: createMemoryToolEnvironment<Principal>(),
   }

@@ -33,6 +33,7 @@ it('testing entry exports the non-durable store and dependency assembly', async 
   const testing = await import('@omne-harness/tool/testing')
   expect(Object.keys(testing).sort()).toEqual([
     'TEST_SOURCE_OWNER',
+    'createMemoryToolContent',
     'createMemoryToolLedgerStore',
     'createTestInvocationSource',
     'createTestToolDependencies',

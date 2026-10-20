@@ -145,7 +145,7 @@ export type PageInput = Readonly<{
 }>
 
 /** The result record a read names, or why it cannot be read: not settled, or unknown version. */
-function resultRecord<B extends ContentBlock>(
+export function resultRecord<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   version: ToolResultVersion,
 ): Outcome<ResultRecord<B>, ToolFailure> {

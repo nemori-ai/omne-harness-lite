@@ -8,7 +8,7 @@ export type {
   ToolLedgerConfiguration,
   ToolLedgerQueues,
   ToolLedgerFacts,
-  ToolLedgerSettlementPorts,
+  ToolLedgerPorts,
 } from './construction.ts'
 export { createIndependentToolScope } from './independent-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
