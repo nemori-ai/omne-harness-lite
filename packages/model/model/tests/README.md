@@ -38,4 +38,13 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 带类型的输入回归在各入口附加 onProgress 回调，验证回调不进入业务快照。它使用带函数的不透明 principal 和原已铸造租户，通过真实受理、查询、首次分派与取消，检查身份引用保持有效。
 
-共同符合性运行保存全部实际义务，不删去未支持项。当前 checker 含 53 项。本卡逐项要求九项 admission 通过；未知 ACK 认回归 #458，阶段复验仍要求十项 admission 全通过。完整报告写到任务 tmp/issue-454/checks/conformance.json。真实耐久、完整发送与收场、结果消费、生产宿主和跨进程恢复不在本套件的证明范围内。
+共同符合性运行保存全部实际义务，不删去未支持项。当前 checker 含 53 项，套件逐项断言九项 admission 通过；未知 ACK 认回尚未覆盖，完整 admission 符合性需要十项全部通过。完整报告保留未支持项及实际失败，不据局部通过宣称全部符合。真实耐久、完整发送与收场、结果消费、生产宿主和跨进程恢复不在本套件的证明范围内。
+
+
+## 产品发送验证
+
+[send.spec.ts](send.spec.ts) 通过真实 runtime 和 driver 建立 prepared dispatch，经公开产品 sender 验证凭据五结果、scope 与禁止回退、显式 factory 来源、回执提交、物化/开窗/send 写的 applied 与 not-applied 原参数认回、当前撤权/取消/代次排序，以及两个 sender 共用后端的一次 start。查询拒绝、异常或仍未知时保留原尝试和容量；已确认提交但回执暂不可取时仍保留资源。产品闭包在同步重入和重复调用时最多解析并 start 一次，保留原事实流。后端认领另在 recordSend 尚未提交时核实，不能用本地 map 替代。单 iterator、原流未预取、abort 中断事实、done/return/throw/读取异常、逆序幂等释放及释放失败均有行为断言。
+
+[send-fixture.ts](send-fixture.ts) 只提供真实内存 Commands、资格安排、脚本外部传输、资源及故障。它不编排发送。未知流始终由产品 sender 保留和交接。公开类型由 [send.spec-d.ts](send.spec-d.ts) 核对，安装场景运行已安装根入口的产品工厂，确认提交真实回执、一次 start 与资源关闭。
+
+完整符合性报告继续保留53项，增加脚本 transport 的六项真实检查，其中 materialization-receipt-matches-request 必须通过。该项只证明传输形状，本页产品 sender 测试另证明实际发送链的提交和使用。driver 未消费 facts，route 和完整观察/收场/结果读取不据此标为通过。所有证据均为受控内存与脚本，不覆盖真实厂商、耐久后端、生产宿主或跨进程恢复。

@@ -4,20 +4,21 @@
 
 ## Responsibility and status
 
-This member implements standalone execution, credential judgments, admission and the first dispatch, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
+This member implements standalone execution, credential judgments, admission, the first dispatch, a product sending boundary, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
 
 | Entry or capability | Current support |
 | --- | --- |
 | `executeModel` | One standalone execution through an injected transport, with cancellation and resource cleanup |
 | Credential judgment and `deliver` | Pure credential judgments. `deliver` delegates to the supplied resolver |
 | `createModelRuntime` | Admission, inspection, dispatch records, cancellation intent, and the first prepared dispatch. Other managed operations remain unavailable |
+| `createModelSendBoundary` | Receipt and window commits, current credential fence, one start per dispatch, and a single fact consumer through explicit resources |
 | `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports |
 | Durable Commands and production managed execution | Not implemented |
 | Cordis runtime host and vendor execution | Not implemented in this package |
 
 ## Usage
 
-A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). `executeModel` and `createModelRuntime` are available from the root entry. The independent capability factories remain unimplemented.
+A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). `executeModel`, `createModelRuntime`, and `createModelSendBoundary` are available from the root entry. The independent capability factories remain unimplemented.
 
 For memory testing, import `createTestModelDependencies` from `@omne-harness/model/testing`. Supply the explicit authority, evidence, owners, and finite limits described in the [testing API](docs/public-api.md#内存测试入口). The returned dependencies can construct the real runtime.
 
@@ -35,7 +36,17 @@ The [design index](docs/index.md) covers architecture, flows, internal objects, 
 
 The constructor takes Commands, the sending fence, the retry policy, the instance host, and the clock explicitly. The application selects and owns the adapters that it needs. It does not take business parameters from a global Context. The target run implementation does not depend on Cordis. The package manifest does not declare Cordis, proper-lockfile, or model-cordis-contract. The package exposes the root and the isolated `./testing` entry. It has no `./cordis` and no `./execute`. The command `pnpm --filter @omne-harness/model run install-closure` packs this member, installs it in isolation, resolves the entries, and runs a scenario. It writes a report to the path of `--out`. For the way to run it and its scope, see the [test description](tests/README.md#安装闭包). This page does not record run results. The package does not install all vendors or vocabularies automatically.
 
-The trusted host calls `provider.driver.drive` with a stable claim and continuity evidence. It prepares one dispatch without sending. Unknown prepare writes retain their original inputs within that provider instance. Cancellation records intent and its actual propagation state. Production scheduling, sending, result consumption, and cross-process recovery remain unimplemented.
+The trusted host calls `provider.driver.drive` with a stable claim and continuity evidence. It prepares one dispatch without sending. Unknown prepare writes retain their original inputs within that provider instance. Cancellation records intent and its actual propagation state. A trusted caller can invoke the product sender directly. Driver integration with its fact consumer, production scheduling, result consumption, and cross-process recovery remain unimplemented.
+
+## Sending through explicit resources
+
+Construct `createModelSendBoundary` with Commands, a synchronous `SendCoordinator`, a `CredentialPort`, `SendResources`, and a positive `maxRetainedAttempts`. The [construction types](src/send/types.ts) define these dependencies. The sender commits the materialization receipt and receive window before the final fence. The coordinator rechecks current qualification and claims the dispatch before credential resolution and synchronous start. All qualification changes and sender instances must share that coordinator's state owner.
+
+Factory credentials require an explicit trusted registration of the exact profile, supplier, recipient, model, official origin, current lack of a tenant binding, and a human-named query ID. A request's factory tag grants no permission. Tenant resolution never falls back to factory credentials. The resource holds its credential value only for the synchronous start.
+
+Unknown writes retain their original operation, expected revision, resource, and input. Repeated sends query and replay the original write. If start returned facts but its record is unconfirmed, the sender retains those facts without reading or closing them. Once the record is confirmed, it hands out the original stream once. Signal cancellation reaches the transport. Exhaustion or consumer return releases materialized, prepared, and acquired resources in reverse order. Safe exceptions expose release failures. Unresolved attempts and failed releases retain capacity; there is no automatic expiry.
+
+The scripted testing assembly uses this same sender. Explicit `sending` options supply credential and source checks. Missing configuration is unavailable. This controlled memory assembly proves no real vendor, durable storage, production host, or cross-process recovery guarantee. The shared started result currently carries facts only; generic window handoff is a separate contract migration.
 
 ## Verification
 

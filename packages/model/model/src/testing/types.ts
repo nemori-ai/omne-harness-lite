@@ -137,3 +137,25 @@ export interface MemoryModelControl {
     input: Pick<ExecutionRef, 'tenant' | 'call'> & Readonly<{ diagnostic: string | null }>,
   ): void
 }
+
+/** Explicit trusted assembly registration. current runs inside MemoryState's synchronous fence. */
+export type MemorySendSource<P> = Readonly<{
+  profile: Adoption
+  supplier: Adoption
+  recipient: string
+  model: string
+  credential:
+    | Readonly<{ kind: 'tenant' }>
+    | Readonly<{
+        kind: 'factory'
+        official: true
+        queryId: import('@omne-harness/model-contract').CredentialId
+      }>
+  current(input: import('@omne-harness/model-contract').SendDemand<P>): Outcome<
+    Readonly<{
+      authorized: boolean
+      noTenantBinding: boolean
+    }>,
+    ModelFailure
+  >
+}>

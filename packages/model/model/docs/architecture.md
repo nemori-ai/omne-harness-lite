@@ -1,6 +1,6 @@
 # Model 内部架构
 
-本页描述已接受的非 pi-ai 运行契约。独立 executeModel 已由 [execute.ts](../src/execute.ts) 实现，托管运行仍是目标设计。pi-ai 细化的采用范围见[组架构各节](../../docs/architecture.md#成员与新增条件)，图表不表示运行实现或真实提供者验证已完成。
+本页描述已接受的非 pi-ai 运行契约。独立 executeModel 已由 [execute.ts](../src/execute.ts) 实现，受理与首次分派及可独立调用的产品 sender 已实现，driver 的事实消费接续及其余托管运行仍是目标设计。pi-ai 细化的采用范围见[组架构各节](../../docs/architecture.md#成员与新增条件)，图表不表示运行实现或真实提供者验证已完成。
 
 本包负责模型调用与各次真实发出、原输出及结果保管。公开结果和失败的唯一行为源是 [SPEC](../../model-contract/SPEC.md)，具体设计定义见 [public-api](../../model-contract/docs/public-api.md)。
 
@@ -511,7 +511,7 @@ Storage 的 SQL facts 只承载 Model 的引用和责任，不能凭引用已提
 | 前置 | 本域已定义的边界 | 仍需哪个拥有者落实 |
 | --- | --- | --- |
 | 共同 Outcome 的生产闭包 | 纯契约不得安装 Cordis，不复制 Outcome | Model 实施者从 operation-result 唯一入口引用并验证完整安装闭包，见[组架构](../../docs/architecture.md#安装闭包与共同依赖前置) |
-| 凭据与身份集成 | 档案只含引用；准备读状态元数据；发送时核当前合法来源与接收方 | 凭据引用与解析已有实现；当前资格及发送围栏的组合适配仍须兑现，不复制凭据规则 |
+| 凭据与身份集成 | 档案只含引用；准备读状态元数据；发送时核当前合法来源与接收方 | 凭据引用、解析和内存同步发送适配已有实现；生产装配的当前资格共同事务及发送围栏仍须兑现，不复制凭据规则 |
 | 内容引用与存储读取 | 只读取模型可见 ref，原来源和当前权限必需，附件只作文本地址 | 共享内容及存储拥有者提供真实解析器、媒体读取与消息适配的联合证据 |
 | 诊断接受 | 最小字段、独立授权、期限机制、分页与过期语义已接受 | 相应拥有者采用具体权限映射、有限期限与容量，再以真实存储验证 |
 | 官方厂商绑定 | 固定版本、精确 leaf/route、完整计量及失败协议 | pi/家族提供者补具体资源和合法路由符合性；目录存在不表示验证 |
@@ -527,8 +527,15 @@ Storage 的 SQL facts 只承载 Model 的引用和责任，不能凭引用已提
 | [credential.ts](../src/credential.ts) | 存在性与解析取舍的判定，以及判定读取的状态快照形状。判定只读快照，不读文件。引用、五种结果和端口的类型归 model-contract |
 | [deliver.ts](../src/deliver.ts) | 只依赖 CredentialPort，在发送前解析；不导入存储实现 |
 
-凭据的对象模型、顺序和装配分别归[对象](object-model.md#已实现的凭据对象)、[流程](flows.md#凭据解析)和[装配](cordis.md#凭据服务)。executeModel 已实现独立单次执行，createModelRuntime 仅实现构造；这些证据不表示托管发送围栏已闭合。
+凭据的对象模型、顺序和装配分别归[对象](object-model.md#已实现的凭据对象)、[流程](flows.md#凭据解析)和[装配](cordis.md#凭据服务)。executeModel 已实现独立单次执行，createModelRuntime 已实现受理、查询、取消意图和首次 prepared 分派。独立产品 sender 已通过内存同步适配实现发送围栏；driver 尚未消费该 sender 的事实流，生产宿主及授权共同事务尚未验证。
 
 凭据引用与解析分属四处：保管实现在 model-host-local，契约在 model-contract，判定在本包。createModelRuntime 支持受理、查询、取消意图与首次 prepared 分派，完整托管执行与其他宿主尚未实现。服务定义在 model-cordis-contract。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，也没有 `./cordis`、`./execute` 入口。判定与保管的接口是状态快照：host-local 构造快照并调用本包的判定，本包不依赖 host-local。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
 
-托管发送适配器须在可信内部构造 authorized 与 official，并核对固定的 tenant/factory 选择。普通调用者传入的布尔值不构成 ModelSendBoundary 的授权证据。凭据通用解析允许的官方默认回退不能覆盖托管协议对 tenant 引用失效时禁止转 factory 的要求。该适配尚未实现，不能用凭据单元测试宣称发送围栏已经闭合。
+发送适配器在可信内部构造 authorized 与 official，并核对固定的 tenant/factory 选择。普通调用者传入的布尔值不构成 ModelSendBoundary 的授权证据。凭据通用解析允许的官方默认回退不能覆盖托管协议对 tenant 引用失效时禁止转 factory 的要求。当前独立 sender 和内存协调适配兑现这些检查；其行为测试不证明生产装配已满足资格共同事务。
+
+
+## 当前发送机制
+
+产品 [send.ts](../src/send.ts) 管理输入固定、当前访问及有界尝试；[attempt.ts](../src/send/attempt.ts) 保存原写和推进顺序；[lifetime.ts](../src/send/lifetime.ts) 拥有唯一事实消费者及逆序释放。产品不导入 testing。具体内存后端持有跨 sender 共享的认领，与资格、控制、代次检查共用同步排他区。testing/send 只取得脚本传输资源和计数，不调用业务 Commands。
+
+物化与窗口确认之后才解析实际凭据并同步 start。回执和原窗口不是发送许可；最终资格仍须当前有效。开始后记录未知保留原流而不预取或关闭，后续仅认回原写，不重新物化或再次 start。当前直接消费者验证本边界，尚不表示 driver 已接入事实保管。共同 window 交接及真实组合由后续迁移兑现。
