@@ -137,7 +137,9 @@ stable 选择 main first-parent 历史上的已有提交，只要求旧 stable �
 
 平台配置如下。main、轨道和 stable 的创建与更新只允许发布身份。`github-gate` 只有 admin 能创建和更新，禁止删除和非快进。`omne/gate/*` 标签只有发布身份能创建，任何人不能修改或删除。仓库只允许 merge commit。`publish` environment 的确认者为 admin，关闭管理员跳过，只接受 `github-gate` 上的运行。`repo-toolchain-review` 与 `npm-release` 两个 environment 的确认者与 `publish` 相同，同样关闭管理员跳过、只接受 `github-gate` 上的运行，不存放密钥。调整 `publish` 的确认者时同步调整它们。切换点记在 `github-gate` 的 `gate/cutover.json`。历史记录的认可范围见上文 `gate-reconcile` 一条的末项。
 
-发布身份的 App 归组织所有，密钥只放在 `publish` environment，不放仓库级 secrets。审计日志、`github-gate` 的改动和密钥轮换由组织和项目的管理者按需要处理，不设固定周期。流程使用 GitHub 托管 runner。
+发布身份的 App 归组织所有，密钥只放在 `publish` environment，不放仓库级 secrets。
+
+交付身份是另一个组织所有的 App `omne-harness-lite-delivery`，决定见 [#546](https://github.com/nemori-ai/omne-harness-lite/issues/546)。它只写交付元数据、读权限事实：仓库 Issues 读写、Environments 只读、组织级 Projects 读写，不能写代码或主干。密钥只放在 `delivery` environment；该 environment 只接受 `github-gate` 上的运行，不设确认者，所以只有 admin 写入 `github-gate` 的流程能用它。`github-gate` 上的 `delivery-facts` 与 `delivery-stage` 用它为 Claude Code 云端会话读取开工事实、修改 Project Stage，本地会话不经过它们，用法见 `github-gate` 的 `gate/README.md`。已知风险：交付身份的密钥外泄时，持有者能修改任何卡的 Stage，也能发出伪造的开工事实评论，使云端会话的 `start` 接受没有派发资格的作者。这把密钥按与 admin 权限同等的级别保管和轮换。审计日志、`github-gate` 的改动和密钥轮换由组织和项目的管理者按需要处理，不设固定周期。流程使用 GitHub 托管 runner。
 
 ### 第二阶段目标
 
