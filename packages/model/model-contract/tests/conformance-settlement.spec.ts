@@ -15,8 +15,13 @@ import type {
   ModelConsumption,
   ModelFailure,
   ReadState,
+  ResultPart,
 } from '@omne-harness/model-contract'
-import type { ScriptedPrincipal } from '@omne-harness/model-contract/testing'
+import {
+  checkModelProviderConformance,
+  createScriptedConformanceSubject,
+  type ScriptedPrincipal,
+} from '@omne-harness/model-contract/testing'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import {
@@ -827,3 +832,230 @@ it('fails a provider that drops partial values or their actual trims from final 
   )
   expect(failing).toEqual(['mixed-partial-result-readable'])
 })
+
+const lostMixedFields: readonly {
+  field: string
+  change: (part: ResultPart) => ResultPart
+}[] = [
+  {
+    field: 'sealed.text',
+    change: part =>
+      part.kind === 'sealed' && part.block.kind === 'text'
+        ? { ...part, block: { ...part.block, text: '' } }
+        : part,
+  },
+  {
+    field: 'tool-arguments.value',
+    change: part =>
+      part.kind === 'partial' && part.content === 'tool-arguments' ? { ...part, value: '' } : part,
+  },
+  {
+    field: 'voice.value',
+    change: part =>
+      part.kind === 'partial' && part.content === 'voice' ? { ...part, value: '' } : part,
+  },
+  {
+    field: 'sealed.trims',
+    change: part => (part.kind === 'sealed' ? { ...part, trims: [] } : part),
+  },
+  {
+    field: 'partial.trims',
+    change: part =>
+      part.kind === 'partial' && part.content === 'tool-arguments' ? { ...part, trims: [] } : part,
+  },
+]
+
+it.each(lostMixedFields)(
+  'fails only the mixed result obligation after losing $field',
+  async ({ change }) => {
+    expect(await failingObligations(subject => subject)).toEqual([])
+    let changed = 0
+    const { failing, reasons } = await failures(subject => {
+      const mixedCalls = new Set<string>()
+      const wrapped = hooked(subject, hooks => ({
+        ...hooks,
+        async settleCall(input) {
+          if (input.parts.some(part => part.kind === 'partial')) mixedCalls.add(input.call)
+          await hooks.settleCall?.(input)
+        },
+      }))
+      const mapParts = (parts: readonly ResultPart[]) =>
+        parts.map(part => {
+          const result = change(part)
+          if (JSON.stringify(result) !== JSON.stringify(part)) changed += 1
+          return result
+        })
+      return patched(wrapped, {
+        consumption: consumption => ({
+          ...consumption,
+          async beginRead(input) {
+            const outcome = await consumption.beginRead(input)
+            if (
+              !mixedCalls.has(input.call) ||
+              'failure' in outcome ||
+              outcome.ok.kind !== 'started' ||
+              outcome.ok.value.kind !== 'reading'
+            )
+              return outcome
+            const { value } = outcome.ok
+            return succeed({
+              ...outcome.ok,
+              value: { ...value, page: { ...value.page, parts: mapParts(value.page.parts) } },
+            })
+          },
+          async readNext(input) {
+            const outcome = await consumption.readNext(input)
+            if (
+              !mixedCalls.has(input.call) ||
+              'failure' in outcome ||
+              outcome.ok.kind !== 'reading'
+            )
+              return outcome
+            return succeed({
+              ...outcome.ok,
+              page: { ...outcome.ok.page, parts: mapParts(outcome.ok.page.parts) },
+            })
+          },
+        }),
+      })
+    })
+    expect(changed).toBeGreaterThan(0)
+    expect(failing).toEqual(['mixed-partial-result-readable'])
+    expect(reasons).toEqual([
+      expect.stringContaining('the final result lost or changed parts or trims'),
+    ])
+  },
+)
+
+it('bounds promptly repeated next pages, disposes the subject and continues later obligations', async () => {
+  const subjects: { reads: number; disposed: boolean }[] = []
+  const events: string[] = []
+  const report = await checkModelProviderConformance({
+    subject: () => {
+      const state = { reads: 0, disposed: false }
+      const index = subjects.push(state) - 1
+      events.push(`build-${index}`)
+      const subject = createScriptedConformanceSubject()
+      const mixedCalls = new Set<string>()
+      const wrapped = hooked(subject, hooks => ({
+        ...hooks,
+        async settleCall(input) {
+          if (input.parts.some(part => part.kind === 'partial')) mixedCalls.add(input.call)
+          await hooks.settleCall?.(input)
+        },
+      }))
+      return {
+        ...patched(wrapped, {
+          consumption: consumption => ({
+            ...consumption,
+            async readNext(input) {
+              if (!mixedCalls.has(input.call)) return consumption.readNext(input)
+              state.reads += 1
+              if (state.reads > 202) throw new Error('the test readNext ceiling was exceeded')
+              const outcome = await consumption.readNext(input)
+              if ('failure' in outcome || outcome.ok.kind !== 'reading') return outcome
+              return succeed({
+                ...outcome.ok,
+                page: { ...outcome.ok.page, next: input.after },
+              })
+            },
+          }),
+        }),
+        async dispose() {
+          await subject.dispose?.()
+          state.disposed = true
+          events.push(`dispose-${index}`)
+        },
+      }
+    },
+    waitMs: 300,
+  })
+  expect(report.ok).toBe(false)
+  expect(report.results.filter(result => result.status !== 'pass')).toEqual([
+    {
+      obligation: 'mixed-partial-result-readable',
+      status: 'fail',
+      detail: 'the partial result does not end',
+    },
+  ])
+  const index = report.results.findIndex(
+    result => result.obligation === 'mixed-partial-result-readable',
+  )
+  const repeated = subjects[index]
+  if (repeated === undefined) throw new Error('the mixed result subject was built')
+  expect(repeated.reads).toBeGreaterThan(0)
+  expect(repeated.reads).toBeLessThanOrEqual(200)
+  expect(repeated.disposed).toBe(true)
+  expect(report.results[index + 1]).toEqual({
+    obligation: 'settled-call-keeps-termination',
+    status: 'pass',
+    detail: '',
+  })
+  expect(events.indexOf(`dispose-${index}`)).toBeLessThan(events.indexOf(`build-${index + 1}`))
+  expect(subjects).toHaveLength(report.results.length)
+  expect(subjects.every(subject => subject.disposed)).toBe(true)
+  expect(report.results.at(-1)).toEqual({
+    obligation: 'transport-close-is-idempotent',
+    status: 'pass',
+    detail: '',
+  })
+})
+
+it.each([
+  { page: 'first', reason: 'the partial result lost its termination' },
+  { page: 'next', reason: 'the partial page changed its settlement' },
+] as const)(
+  'explains the mixed result failure when the $page page changes its settlement',
+  async ({ page, reason }) => {
+    const { failing, reasons } = await failures(subject => {
+      const mixedCalls = new Set<string>()
+      const wrapped = hooked(subject, hooks => ({
+        ...hooks,
+        async settleCall(input) {
+          if (input.parts.some(part => part.kind === 'partial')) mixedCalls.add(input.call)
+          await hooks.settleCall?.(input)
+        },
+      }))
+      const change = (value: Extract<ReadState, { kind: 'reading' }>['page']) => ({
+        ...value,
+        settlement: {
+          ...value.settlement,
+          termination: { kind: 'completed', reason: 'stop' } as const,
+        },
+      })
+      return patched(wrapped, {
+        consumption: consumption => ({
+          ...consumption,
+          async beginRead(input) {
+            const outcome = await consumption.beginRead(input)
+            if (
+              page !== 'first' ||
+              !mixedCalls.has(input.call) ||
+              'failure' in outcome ||
+              outcome.ok.kind !== 'started' ||
+              outcome.ok.value.kind !== 'reading'
+            )
+              return outcome
+            return succeed({
+              ...outcome.ok,
+              value: { ...outcome.ok.value, page: change(outcome.ok.value.page) },
+            })
+          },
+          async readNext(input) {
+            const outcome = await consumption.readNext(input)
+            if (
+              page !== 'next' ||
+              !mixedCalls.has(input.call) ||
+              'failure' in outcome ||
+              outcome.ok.kind !== 'reading'
+            )
+              return outcome
+            return succeed({ ...outcome.ok, page: change(outcome.ok.page) })
+          },
+        }),
+      })
+    })
+    expect(failing).toEqual(['mixed-partial-result-readable'])
+    expect(reasons).toEqual([reason])
+  },
+)
