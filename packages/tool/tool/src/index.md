@@ -30,3 +30,11 @@
 - [配对来源与身份测试替身](testing-source.ts)。
 
 - [控制意图的封闭复制](control-intent.ts)。
+
+- [执行事实边界](facts-boundary.ts)。
+- [事实保管决定与读取](ledger-facts.ts)。
+
+- [fact-acknowledgements.ts](fact-acknowledgements.ts) 从同一 bindings.recover 构造来源确认守卫。
+- [ledger-fact-ack.ts](ledger-fact-ack.ts) 核原回执与 operation，并同提交记录确认和清除责任。
+
+- [受管原事实读取](driver-facts.ts)。

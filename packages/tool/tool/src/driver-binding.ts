@@ -26,8 +26,8 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
   ) => Promise<Outcome<E, ToolFailure>>,
 ) {
   const lives = new Map<string, ToolLiveExecution<B>>()
-  const callKey = (tenant: CallAccess<P>['tenant'], call: CallAccess<P>['call']) =>
-    `${tenantKey(tenant)}\u0000${call}`
+  const startKey = (access: CallAccess<P>, start: ToolStartRecord) =>
+    JSON.stringify([tenantKey(access.tenant), access.call, start.operation])
   const invoke = async (
     step: CallAccess<P>,
     recovery: ToolRecovery<B>,
@@ -61,7 +61,7 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
         environment.ok,
       )
       if ('failure' in live) return { kind: 'binding-failed' }
-      lives.set(callKey(step.tenant, step.call), live.ok)
+      lives.set(startKey(step, start), live.ok)
       return { kind: 'live' }
     } catch {
       return { kind: 'binding-threw' }
@@ -78,13 +78,16 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
     if ('failure' in binding) return binding
     const found = await binding.ok.inspectStart({ ...access, start })
     if ('ok' in found && found.ok.kind === 'live')
-      lives.set(callKey(step.tenant, step.call), found.ok.execution)
+      lives.set(startKey(step, start), found.ok.execution)
     return found
   }
 
   return {
     invoke,
     inspect: inspectBinding,
-    hasLive: (access: CallAccess<P>) => lives.has(callKey(access.tenant, access.call)),
+    live: (access: CallAccess<P>, start: ToolStartRecord) => lives.get(startKey(access, start)),
+    recover: (access: CallAccess<P>, start: ToolStartRecord) =>
+      bindings.recover({ ...access, start }),
+    hasLive: (access: CallAccess<P>, start: ToolStartRecord) => lives.has(startKey(access, start)),
   }
 }

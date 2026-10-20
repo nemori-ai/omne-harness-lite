@@ -34,6 +34,11 @@ import {
 } from './evidence.ts'
 import {
   taskKey,
+  factKey,
+  type FactEventRecord,
+  type FactBatchRecord,
+  type FactStreamRecord,
+  type ProcessRecord,
   type AccountRecord,
   type CallAccount,
   type CallRecord,
@@ -55,6 +60,10 @@ export type Snapshot<B extends ContentBlock> = Readonly<{
   call: CallRecord | null
   operations: ReadonlyMap<string, OperationRecord>
   results: ReadonlyMap<string, ResultRecord<B>>
+  facts: ReadonlyMap<string, FactEventRecord<B>>
+  batches: ReadonlyMap<string, FactBatchRecord>
+  streams: ReadonlyMap<string, FactStreamRecord>
+  process: readonly ProcessRecord[]
   accounts: readonly AccountRecord[]
   tasks: readonly ToolTask[]
   /** The exclusion fences by operation; the ledger reads them, the deciders do not. */
@@ -66,6 +75,10 @@ export function snapshotOf<B extends ContentBlock>(
   domain: LedgerDomain,
   read: Extract<LedgerRead<B>, { kind: 'complete' }>,
 ): Snapshot<B> {
+  const facts = new Map<string, FactEventRecord<B>>()
+  const batches = new Map<string, FactBatchRecord>()
+  const streams = new Map<string, FactStreamRecord>()
+  const process: ProcessRecord[] = []
   let call: CallRecord | null = null
   const operations = new Map<string, OperationRecord>()
   const results = new Map<string, ResultRecord<B>>()
@@ -74,6 +87,21 @@ export function snapshotOf<B extends ContentBlock>(
   const exclusions = new Map<string, ExclusionRecord>()
   for (const record of read.records) {
     switch (record.kind) {
+      case 'fact-event':
+        facts.set(record.fact.key, record.fact)
+        break
+      case 'fact-batch':
+        batches.set(
+          factKey(record.batch.start, record.batch.source.owner, record.batch.batch),
+          record.batch,
+        )
+        break
+      case 'fact-stream':
+        streams.set(factKey(record.stream.start, record.stream.source.owner), record.stream)
+        break
+      case 'process':
+        process.push(record.process)
+        break
       case 'call':
         call = record.call
         break
@@ -98,6 +126,10 @@ export function snapshotOf<B extends ContentBlock>(
   }
   return {
     domain,
+    facts,
+    batches,
+    streams,
+    process,
     revision: read.revision,
     call,
     operations,

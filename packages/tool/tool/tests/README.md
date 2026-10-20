@@ -46,8 +46,14 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 
 上述范围采用 [revision 2 具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/430#issuecomment-6285621097)。旧全局方法次数禁令已被取代。
 
-测试仍只证明非耐久 ledger、内存 authority 和受信桥的单进程组合，不证明生产恢复、事实 ACK 或物理收场。
+测试仍只证明非耐久 ledger、内存 authority 和受信桥的单进程组合，不证明生产恢复或物理收场；事实 ACK 的组合覆盖见下文。
 
 [公开幂等与恢复组合](invoke-recovery.spec.ts)使用真实 runtime、配对来源与内存 ledger，覆盖双 runtime 共享来源、同键竞争、冲突、未知、撤权及一次实际启动。控制测试的 commands/reads 共用替身操作记录，只验证门面。managed 与 start/queue 专测的具名调用现由受信内部 admission fixture 建立，不证明公开来源恢复。
 
 [source-principal.spec.ts](source-principal.spec.ts)验证语义快照保留 class 与不可序列化 opaque 凭据的认证意义、异步及事后变异隔离、bindings 诊断隔离、快照失败无关联写入和真实 reserved→issued 故障续做。`invoke-recovery.spec.ts` 另覆盖真实 prepareStart 提交后中止、starting 重入补 wake 及一次实际 launch。
+
+[facts-receive.spec.ts](facts-receive.spec.ts) 复用真实启动 fixture 和非耐久 store，验证 P05/P08 的 process/final 原子保管、批/事件认回、来源换版拒绝、不透明连续游标、整体拒绝、unknown 重投和历史过程状态。failed terminal 的数组与嵌套数组 cause 必须整批拒绝，合法字符串 cause 保存原值。final 测试直接向契约内存源发送回执，令源停止提供批次，再重建 ledger 按 settle basis 读原事实。旧批不复活 ACK 使用受控已确认存储状态。测试不声明来源确认命令、runtime 自动续读、resume 或生产耐久已交付。
+
+[fact-acknowledgement.spec.ts](fact-acknowledgement.spec.ts) 使用真实启动的契约内存执行源、真实 ledger 和配对 recover 绑定，覆盖来源 ACK 丢答、确认与任务同提交、原 operation 认回、同身份异输入、历史 progress、新 operation 可查询回执、伪 proof、跨租户、异步输入突变及 P01 围栏。测试提供者均为非耐久，尚不证明 runtime 自动续读或物理收场。
+
+[driver-facts.spec.ts](driver-facts.spec.ts) 从真实 runtime.invoke 进入真实 ledger 与绑定源，验证 run 返回后 emit 的 process/final 自动保管和 ACK、源释放后重建 final、每 start 单 reader/next、一个 ready、不同 call 独立推进、发起前及在途取消、return 拒绝、清理中的新 signal、注册竞争、cursor 重连和拒绝唤醒。200 字符 admission 的用例经受信内部 admission fixture 启动，验证自动保管与 ACK 清除、确认操作可查询，以及提交未知后重试保持原操作与回执。该用例不验证公开来源签发。受控 settled 恢复快照只验证 ACK 优先级。inspectStart settled 缺原批时保留任务。资源画像复用两批自动组合，通过 next/return 与宿主监听计数观察回收，使用 verbose reporter 输出 FACT_RESOURCE。它不增加普通门面的调试 API，不证明生产资源退出时限。

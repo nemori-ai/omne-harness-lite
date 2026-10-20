@@ -118,6 +118,9 @@ function assembly(
     {
       access: { qualify: input => access().qualify({ ...input, action: 'start' }) },
       sources: source.guard,
+      factAcknowledgements: {
+        verify: () => Promise.resolve({ kind: 'unavailable', diagnostic: 'start-only fixture' }),
+      },
       grants: new Map([
         ['scope-owner', { verifyGrant: () => Promise.resolve({ kind: 'granted' }) }],
       ]),

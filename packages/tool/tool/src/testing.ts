@@ -26,6 +26,7 @@ import {
   type MemoryToolStartAuthority,
 } from '@omne-harness/tool-contract/testing'
 import type { ToolDependencies, ToolLedgerConfiguration } from './construction.ts'
+import { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'
 import type { ToolLedgerGuards } from './ledger-guards.ts'
 import { createToolLedger, type ToolLedger } from './ledger.ts'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from './testing-store.ts'
@@ -33,7 +34,7 @@ import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from './testi
 /** The caller supplies authorization, the trusted construction ports and the remaining ports. */
 export type TestToolDependenciesInput<P> = Readonly<{
   configuration: ToolLedgerConfiguration
-  guards: ToolLedgerGuards<P, ContentBlock>
+  guards: Omit<ToolLedgerGuards<P, ContentBlock>, 'factAcknowledgements'>
   instances: ToolInstanceHost<P>
   catalog: ToolCatalog<P>
   children: ToolChildren<P>
@@ -76,7 +77,16 @@ export function createTestToolDependencies<P>(
     custody: createMemoryToolOutputCustody<P>(),
   }
   const store = createMemoryToolLedgerStore<ContentBlock>()
-  const ledger = createToolLedger(store, input.guards, doubles.clock, input.configuration)
+  const bindings = input.bindingsFor(doubles.executor.binding)
+  const ledger = createToolLedger(
+    store,
+    {
+      ...input.guards,
+      factAcknowledgements: createToolFactAcknowledgementGuard(bindings),
+    },
+    doubles.clock,
+    input.configuration,
+  )
   return {
     durability: 'none',
     store,
@@ -87,7 +97,7 @@ export function createTestToolDependencies<P>(
       admissions: ledger.admissions,
       queues: ledger.queues,
       reads: ledger.reads,
-      bindings: input.bindingsFor(doubles.executor.binding),
+      bindings,
       environments: doubles.environment,
       decisions: doubles.decisions,
       instances: input.instances,

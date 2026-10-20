@@ -62,7 +62,11 @@ import type {
   ToolLedgerAdmissions,
   ToolLedgerConfiguration,
   ToolLedgerQueues,
+  ToolLedgerFacts,
 } from './construction.ts'
+import { fixFactAcknowledgement, fixFactBasis, fixFactInput } from './facts-boundary.ts'
+import { checkFactAcknowledgement, decideFactAcknowledgement } from './ledger-fact-ack.ts'
+import { decideReceiveFacts, readSavedFact } from './ledger-facts.ts'
 import { digestOf, nextRevision } from './evidence.ts'
 import {
   decideAdmit,
@@ -121,6 +125,7 @@ export type ToolLedger<P, B extends ContentBlock> = Readonly<{
   admissions: ToolLedgerAdmissions<P>
   /** The queue maintenance a waiting call asks for (SPEC 22). */
   queues: ToolLedgerQueues<P>
+  facts: ToolLedgerFacts<P, B>
 }>
 
 /** The identity of this ledger implementation, named in its `unsupported` answers. */
@@ -972,10 +977,59 @@ export function createToolLedger<P, B extends ContentBlock>(
     recordResponse: input => write(input, 'recordResponse', 'waits, decisions and resources'),
     closeWait: input => write(input, 'closeWait', 'waits, decisions and resources'),
     recordControl: input => later(input, 'control', 'recordControl', 'controls'),
-    receiveFacts: input =>
-      query(input, 'write', () => unsupported('receiveFacts', 'execution facts and release')),
-    recordFactAcknowledgement: input =>
-      later(input, 'write', 'recordFactAcknowledgement', 'execution facts and release'),
+    receiveFacts: async input => {
+      const fixed = fixFactInput(input, guards.policy, toolLedgerAdoption)
+      if ('failure' in fixed) return fixed
+      const checked = await entry(input, 'write')
+      if ('failure' in checked) return checked
+      return transact(
+        callDomain(checked.ok),
+        null,
+        (snapshot, mint) =>
+          decideReceiveFacts(snapshot, fixed.ok.start, fixed.ok.batch, mint, toolLedgerAdoption),
+        unavailable('ledger-store', 'fact custody outcome is unknown; resubmit the original batch'),
+      )
+    },
+    recordFactAcknowledgement: async input => {
+      const fixed = fixFactAcknowledgement(input)
+      if ('failure' in fixed) return fixed
+      const checked = judgeMutationInput<P>(input, 'write')
+      if ('failure' in checked) return checked
+      const context = checked.ok
+      const allowed = await access(context, 'write')
+      if ('failure' in allowed) return allowed
+      const command = { ...context, ...fixed.ok, inputDigest: digestOf(fixed.ok) }
+      const before = await read(callDomain(context))
+      if ('failure' in before) return before
+      const original = checkFactAcknowledgement(before.ok, command)
+      if ('failure' in original) return original
+      if (original.ok.kind === 'recalled') return succeed(original.ok.progress)
+      const batch = original.ok.batch
+      if (batch.acknowledgement.kind === 'pending') {
+        try {
+          const verdict = await guards.factAcknowledgements.verify({
+            ...context,
+            ...structuredClone({ start: batch.start, source: batch.source, ...fixed.ok }),
+          })
+          if (verdict.kind === 'forged')
+            return invalid('sourceReceipt', 'source-confirmation-mismatch')
+          if (verdict.kind !== 'trusted')
+            return unavailable(
+              'fact-acknowledgement-guard',
+              'the original source confirmation is unavailable',
+            )
+        } catch {
+          return unavailable('fact-acknowledgement-guard', thrown('fact-acknowledgement-guard'))
+        }
+      }
+      return transact(
+        callDomain(context),
+        command.operation,
+        (snapshot, mint) => decideFactAcknowledgement(snapshot, command, mint),
+        commitUnknown(command.operation),
+        before.ok.revision,
+      )
+    },
     recordScheduling: input => write(input, 'recordScheduling', 'program executors'),
     recordAccount: input => later(input, 'write', 'recordAccount', 'execution facts and release'),
     planRelease: input => later(input, 'write', 'planRelease', 'execution facts and release'),
@@ -1040,6 +1094,13 @@ export function createToolLedger<P, B extends ContentBlock>(
     reads: Object.freeze(reads),
     admissions: Object.freeze(admissions),
     queues: Object.freeze(queues),
+    facts: Object.freeze({
+      read: async input => {
+        const basis = fixFactBasis(input)
+        if ('failure' in basis) return basis
+        return query(input, 'recover', snapshot => readSavedFact(snapshot, basis.ok))
+      },
+    } satisfies ToolLedgerFacts<P, B>),
   })
 }
 

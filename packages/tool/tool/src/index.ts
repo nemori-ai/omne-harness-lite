@@ -7,12 +7,18 @@ export type {
   ToolLedgerAdmissions,
   ToolLedgerConfiguration,
   ToolLedgerQueues,
+  ToolLedgerFacts,
 } from './construction.ts'
 export { createIndependentToolScope } from './independent-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
 export type {
   AccountRecord,
+  SavedFact,
+  FactEventRecord,
+  FactBatchRecord,
+  FactStreamRecord,
+  ProcessRecord,
   CallRecord,
   ConfirmedEnvironment,
   ExclusionRecord,
@@ -40,6 +46,7 @@ export type {
   SourceVerdict,
   StartVerdict,
   ToolAccessGuard,
+  ToolFactAcknowledgementGuard,
   ToolInvokeAuthority,
   ToolGrantVerifier,
   ToolLedgerAction,
@@ -53,3 +60,4 @@ export type {
 export { isTenantShape } from './boundary.ts'
 export { digestOf as canonicalDigest } from './evidence.ts'
 export { createToolRuntime, toolRuntimeAdoption } from './runtime.ts'
+export { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'

@@ -11,9 +11,10 @@
 - 独立路径：`createIndependentToolScope`（G2）与 `executeTool`（G8），即契约 SPEC [P11](../tool-contract/SPEC.md#p11-作者输出与等待原语) 的独立执行。
 - 账本：账本工厂 `createToolLedger` 与记录仓端口 `ToolLedgerStore`（G1）。
 - 逻辑终局：`createToolRuntime`（G8）的 invoke、queries.lookup、queries.queryOperation、queries.readResult、commands.releaseDelivery 与 queries.account。这些调用不进入环境或执行者（第 10–16 条）。
+- 事实保管：受信 `commands.receiveFacts` 接收 process/final，`recordFactAcknowledgement` 核来源确认并清除 ACK 责任，`loadRecovery.streams` 与实现读口 `ledger.facts.read` 提供恢复依据（第 24 条）。
 - 到启动为止的真实调用：受理、环境准备、FIFO 排队、启动意图、live-only 绑定启动、原围栏对账与启动记录，以及永久排除后的启动前拒绝收场（第 19–23 条）。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。
 
-尚未实现：已启动执行的事实接收、收场与名额释放，以及控制、计时段开启之后的计时、等待、恢复与退出。这些操作回复具名的 `unsupported`。所以一个已启动的调用停在 `running`，它的名额一直被占用。内部机制见 [architecture](docs/architecture.md)。
+尚未实现：已启动执行的收场与名额释放，以及控制、计时段开启之后的计时、等待、恢复与退出。这些操作回复具名的 `unsupported`。所以一个已启动的调用停在 `running`，它的名额一直被占用。内部机制见 [architecture](docs/architecture.md)。
 
 ## 独立执行怎样满足 P11
 
@@ -88,7 +89,7 @@
 
 账本由 `createToolLedger(store, guards, clock, configuration)` 构造。runtime 由 `createToolRuntime(dependencies, configuration)` 构造。两者可以取同一个 `ToolConfiguration`：账本只读其中的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1)。下列规则按编号对应测试。
 
-签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration)` 返回 `{ commands, reads, admissions, queues }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。
+签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration)` 返回 `{ commands, reads, admissions, queues, facts }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。
 
 ### 10 边界与资格
 
@@ -227,7 +228,7 @@
 
 `recordStart` 只接受本调用保存的那条启动记录，阶段必须是 `starting`。
 
-- `started`：状态改为 `running`，`execution` 为 `live`，`instance` 是写入上下文的实例。前台调用先由 `clock.begin` 开始计时段，`timing` 为 `running`。后台调用的 `timing` 为 `paused`。删除 `start` 待办。名额保持。
+- `started`：状态改为 `running`，`execution` 为 `live`，`instance` 是写入上下文的实例。前台调用先由 `clock.begin` 开始计时段，`timing` 为 `running`。后台调用的 `timing` 为 `paused`。删除 `start` 待办，并同提交原 start 的 `facts` 续读待办，其独立 fact-reader evidence 绑定原 start。名额保持。
 - `rejected`：同提交永久的启动拒绝、`unavailable` 终局、`effect` 与 `execution` 为 `not-started`、计时关闭、`queue` 为 `released`（释放依据是排除证据）、第一个结果版本、替换件处理账与 `deliver` 待办。然后释放队列条目（第 22 条）。
 - `not-started` 与 `unknown`：保存回执，启动记录与 `start` 待办保留。`unknown` 把 `execution` 改为 `unknown`。
 
@@ -317,3 +318,49 @@
 公开 control 已实现输入封闭复制、分配新 operation、引用编码和现有 commands.control 的结果映射。非法 intent 不分配；委托抛错为带原 operation 的 commit-unknown。真实 ledger 控制状态机仍 unsupported，合法调用消耗身份但零控制事实，不声称停止完成。配对 commands/reads 替身只验证门面操作对账。
 
 当前提供者、原子步骤和有界模型的映射见 [恢复验证](verification/models/README.md)。未交付生产来源、自动恢复 scanner、完整控制或生产宿主。
+
+## 24. 原执行事实保管（P05、P08）
+
+本实现采用 [#431 的具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/431#issuecomment-6289828424)。公开事实协议与类型仍归契约包 [P05](../tool-contract/SPEC.md#p05-执行事实与原输出) 和 [P08](../tool-contract/SPEC.md#p08-过程分页与全文交接)。以下只规定本实现的选择。
+
+`receiveFacts` 在首次 await 前固定原 start、source、batch 和嵌套事实。凭据 principal 保持原对象交给当前 access guard，不参与 JSON 复制。边界拒绝访问器、循环、额外字段和无法保管的值。结果由装配的 ResultPolicy 验证，过程由 ContentBlock 判断验证。`write` 是受信推进方权限，不能仅凭 source owner 文本当作外部来源认证。
+
+调用域内分存事件、批次、流和过程当前块。键采用规范元组，分别包含原 start operation、source owner 和局部 event/batch。完整原 start 与 source 固定比较，source record/revision/digest 换版被拒绝。协调实例的当前代次不代替原执行身份。当前实现只交付首次 start，不交付 resume。
+
+先认回已知批次。同批同完整输入返回原回执，零写入，不回退后续 cursor，不重建已清除 ACK。新批 after 必须等于保存 cursor，首批为 null。cursor 不解析、不排序，旧边界与环被拒绝。一批可含多个事件及已知同值事件。事件同值只应用一次，异值拒绝整批。
+
+process/final 全批预判成功后，以域 revision 为条件一次提交完整新事件、过程当前块或 settle 待办、原 receipt、cursor、fact-ack 与调用 revision。event 与 custody evidence 分用途，摘要覆盖原输入，任务身份覆盖用途及完整稳定定位。同 start 的同值 final 不形成第二 settle 待办，冲突 final 不覆盖原候选。final 不写 settled、结果版本、delivery 或释放依据。
+
+process 按原 start/index 保存当前块，并保留历史事件。sequence 用 BigInt 比较，严格增大但不要求加一。相同历史 sequence 必须同值，mode 开块后固定，closed 后禁止新更新。append 只支持 text/thinking 的累计前缀，同时固定 id、kind 和 visibility。媒体、file 和 ref append 返回 unsupported，replace 支持合法完整块。过程必须对人可见。trim 的数量、原因和历史原文持续保存，不能借 trim 绕过前缀约束。readProcess/observe 仍不支持。
+
+含 wait、continued、account 或 program-scheduling 的批次整体 unsupported，零写入、零成功回执、零 ACK。源继续持有责任。原批重投只认回原保管回执。来源确认由下述 ACK 命令推进。
+
+`ledger.facts.read` 是实现包的恢复读口，输入精确 event evidence，返回具名 SavedFact。它逐次核 tenant/call 的 recover 资格，并核完整原 evidence，不按任意 record 文本读取。返回数据与存储脱离。后继收场凭 settle basis 取得完整原 final，无须源继续提供原批次。
+
+失败使用现有 ToolFailure：after 缺口或复用边界为 invalid-cursor；批次、事件、start/source 冲突为 invalid，带固定字段与原因；未知 fact basis 为 invalid。接收提交未知为 unavailable，dependency 为 ledger-store，诊断明确结果未知并要求重投原批，不伪造 operation。revision conflict 重读重判，未知提交不立即重做。端口异常脱敏。本表是本实现选择，不补写契约验证文档仍未决定的全局失败政策。
+
+`ToolLedgerGuards.factAcknowledgements` 是必填构造依赖，返回既有 SourceVerdict，只判断来源确认。`createToolFactAcknowledgementGuard(bindings)` 与 runtime 使用同一 bindings。它恢复原 start 的绑定，经 acknowledge 重送原 receipt，再比较完整 sourceReceipt。来源与确认的 owner 无须相同。来源端口失败、抛错或返回非法 evidence 为 unavailable；只有真实合法确认与待核值不同才为 forged。诊断不暴露来源文本。
+
+`recordFactAcknowledgement` 在首次 await 前固定 receipt、sourceReceipt、operation 与访问字段，tenant 和 principal 保持原身份与凭据。当前 write 资格逐次核验。已提交的同 operation 同输入认回原 progress，异输入 conflict，不再访问来源。未提交 operation 先核本域原 start、batch 和完整 receipt；未知 batch 为 invalid（receipt.batch），伪 custody、cursor 或原件为 invalid（receipt），均不调用来源。
+
+pending 时在事务外核来源；失败保留任务。已确认的同值 sourceReceipt 不重送 ACK。随后携最初预读 revision 进入事务，保留 P01 排除围栏。确认状态、完整 operation 回执、待确认项移除、fact-ack 删除及调用 revision 同提交。新 operation 的重复确认也保存自身可查询回执。原 operation 的 FactProgress 保持历史值，不随后续 cursor 改写。本域提交未知使用真实 operation 的 commit-unknown，原 receipt 和任务仍能恢复；它不表示源 ACK 未发生。
+
+验证入口为 [facts-receive.spec.ts](tests/facts-receive.spec.ts) 与 [fact-acknowledgement.spec.ts](tests/fact-acknowledgement.spec.ts)。真实账本、内存 store 与受信恢复绑定覆盖同提交、重复、冲突、未知切点、过程、重建读取、伪确认、ACK 丢答和排除围栏。自动读取组合另见下节。未覆盖生产耐久、跨进程与完整收场。
+
+## 25. 原事实受管推进
+
+`recordStart(started)` 与 running 状态同提交原 start 的 facts 续读任务。它与 process、settle、fact-ack 的业务依据分开。driver-binding 的 live 键为 tenant/call/原 start，恢复使用 bindings.recover，不重新 start 已执行调用。
+
+`driver-facts` 持有每原 start 的 session。session 包含 controller、宿主 signal 监听、iterator、一个在途 next、一个 ready 及清理 Promise。next 回调只保存 ready 并 schedule 原 call。driver 在既有 stepsPerRun 内调用 receiveFacts，再处理 fact-ack。一个批次确认前不读下一批。ready 保管失败时保持原输入，未知重投同批。ACK operation 由原 start 和完整原 receipt 的规范摘要稳定派生，重投不换身份。
+
+fact-ack 优先于 idle/settled 的阶段分支。driver 先向原 live 或 recover 发送原 receipt，再调用 recordFactAcknowledgement；后者仍通过同 bindings 的 guard 独立核完整确认。ACK 提交未知沿原 operation 重试，来源已释放不能当作本域责任已消除。
+
+每次 run 开始只捕获当时仍活动的 session signal，与本轮 run.signal 共同约束命令发起。每个命令边界读取这些原信号的 aborted 值，不新增合并监听或 Promise，也不延长 session 生命周期。已经清理中的旧 signal 不进入新 run 的边界。
+
+run 返回不等于 abort。session 仅在宿主给本连接的 signal 有效时存活。监听注册前后都检查 aborted。abort 移除监听、取消 controller 并登记 iterator.return 与在途 next 的完成或拒绝。之后不发起新的读、调度和 ledger/source 命令；已经发出的命令不承诺撤销。清理完成前不开第二 reader，清理完成删除 session 引用。源永不完成 next/return 时，清理仍未完成，不声称已回收。
+
+旧清理期间的新 run 保存最新待接回意图及 signal。清理完成后，仅当该 signal 仍有效才通过已有 schedule/retryDelay 唤醒。多个意图合并到同一原 start。已中止的 signal 不重调度。session Map 只提供本 driver 的资源边界，跨实例同批唯一仍归 ledger 的 revision CAS。
+
+流 end/throw 保留来源任务，不生成 final 或释放名额。连接从保存 cursor 沿 driverRetryDelayMs 重试。schedule 拒绝使用同一重试政策。unavailable 重试；unsupported、invalid 等确定失败返回 DriverStop，不自动忙循环。inspectStart settled 缺 batch/cursor 时返回 unsupported，reason 为 settled-start-facts-recovery-needs-original-batch-and-cursor，保留恢复责任。完整原事实恢复仍未交付。
+
+[driver-facts.spec.ts](tests/driver-facts.spec.ts) 验证真实 invoke、ledger、绑定执行源与受控宿主的自动链，以及取消、在途命令、清理竞争、拒绝唤醒、流终止和原 ACK 恢复。settled phase 优先级使用受控恢复快照，只检验调度顺序，不代表完整收场已实现。[有限模型](verification/models/README.md#事实保管交接模型)仅检查 call 域原子 CAS 假设下的责任交接。生产耐久、生产宿主、恢复扫描、resume 与完整收场未覆盖。

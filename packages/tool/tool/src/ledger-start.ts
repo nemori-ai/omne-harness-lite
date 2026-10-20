@@ -887,6 +887,21 @@ function started<B extends ContentBlock>(
       put({ kind: 'call', call: { ...record, state, execution: command.execution } }),
       put(operationRecord(command, { kind: 'record-start', state }, mint)),
       ...deleteTasks(snapshot, ['start']),
+      put({
+        kind: 'task',
+        task: {
+          kind: 'facts',
+          operation: command.invocation.operation,
+          state: 'pending',
+          diagnostic: null,
+          basis: mintEvidence(
+            'fact-reader',
+            { tenant: record.tenant, call: record.call, start: command.invocation.operation },
+            mint.revision,
+            command.invocation,
+          ),
+        },
+      }),
     ],
     value: state,
   }

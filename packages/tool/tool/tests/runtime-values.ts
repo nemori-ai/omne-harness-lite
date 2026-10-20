@@ -345,6 +345,10 @@ function grantVerdict(
 
 export function guards(options: GuardOptions = {}): ToolLedgerGuards<Principal, Block> {
   return {
+    factAcknowledgements: {
+      verify: () =>
+        Promise.resolve({ kind: 'unavailable', diagnostic: 'no fact source in this fixture' }),
+    },
     access: {
       qualify: input => new Promise(resolve => resolve(qualify(options, input))),
     },

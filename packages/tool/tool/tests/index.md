@@ -35,3 +35,9 @@
 - [公开原意图恢复组合](invoke-recovery.spec.ts)。
 
 - [主体语义快照与真实来源签发切点](source-principal.spec.ts)。
+
+- [事实保管、连续游标与原件恢复](facts-receive.spec.ts)。
+
+- [来源确认、未知重入与 operation 围栏](fact-acknowledgement.spec.ts)。
+
+- [自动原事实与取消恢复组合](driver-facts.spec.ts)。

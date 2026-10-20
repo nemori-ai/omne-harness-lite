@@ -83,7 +83,13 @@ describe('20 preparation and queue (P02, P03)', () => {
     const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
     expect(recovery.preparations.map(preparation => preparation.operation)).toEqual(['op-c1/plan'])
     expect(recovery.start).toMatchObject({ kind: 'start', operation: 'op-c1/start' })
-    expect(recovery.tasks).toEqual([])
+    expect(recovery.tasks).toEqual([
+      expect.objectContaining({
+        kind: 'facts',
+        operation: recovery.start?.operation,
+        state: 'pending',
+      }),
+    ])
   })
 
   it('20 preparation: a rejected environment settles the call unavailable without a start, and never falls back to the host', async () => {

@@ -26,6 +26,7 @@ import {
 } from '@omne-harness/tool-contract'
 import {
   createToolLedger,
+  createToolFactAcknowledgementGuard,
   createToolRuntime,
   type LedgerCommitInput,
   type ToolDependencies,
@@ -458,15 +459,22 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     snapshotPrincipal: snapshotTestPrincipal,
   })
   const identities = createTestToolIdentities()
-  const ledger = createToolLedger(store, guards(options), clock, config)
   const host = testHost(spies, identities.instanceIdentities)
   const authority = options.authority ?? testAuthority()
   const authorityPort = options.authorityPort?.(authority) ?? authority
   const binding = options.binding ?? testBinding(authorityPort, options.bindingPort)
+  const bindings = options.bindingsPort?.(binding.bindings) ?? binding.bindings
+  const factAcknowledgements = createToolFactAcknowledgementGuard(bindings)
+  const ledger = createToolLedger(
+    store,
+    { ...guards(options), factAcknowledgements },
+    clock,
+    config,
+  )
   const environments = testEnvironments(options.environment ?? new Map())
   const publicLedger = createToolLedger(
     store,
-    { ...guards(options), sources: source.guard },
+    { ...guards(options), sources: source.guard, factAcknowledgements },
     clock,
     config,
   )
@@ -475,7 +483,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     admissions: publicLedger.admissions,
     queues: ledger.queues,
     reads: options.readsPort?.(ledger.reads) ?? ledger.reads,
-    bindings: options.bindingsPort?.(binding.bindings) ?? binding.bindings,
+    bindings,
     environments: options.environmentsPort?.(environments) ?? environments,
     decisions: refusing('decisions', [
       'inspectOperation',
@@ -557,7 +565,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     rebuildRuntime: () => createToolRuntime(dependencies, config).runtime,
     commands: ledger.commands,
     // Internal admission recall tests carry source facts from the previous harness.
-    ledger: createToolLedger(store, guards(options), clock, config),
+    ledger: createToolLedger(store, { ...guards(options), factAcknowledgements }, clock, config),
     queues: ledger.queues,
     host,
     authority,
