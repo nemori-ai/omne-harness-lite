@@ -1,5 +1,5 @@
 // 差分变异：范围（改动行 → 各成员的 mutate 条目）、报告汇总、sandbox 的位置、入口的参数，
-// 以及一个小夹具项目上真起 Stryker：没断言的测试留下存活变异体，补上断言后被杀。
+// 以及一个小夹具项目上真起 Stryker：没断言的测试留下存活变异体，补上断言后被杀；测试文件在 sandbox 里加载失败时预检报错（#481）。
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   copyFileSync,
@@ -599,5 +599,63 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     const [member] = ran.summary?.members ?? []
     expect(member?.counts['Survived']).toBe(0)
     expect(member?.counts['Killed']).toBeGreaterThan(0)
+  })
+
+  it('有测试文件在 sandbox 里加载失败就报错、不出读数，别的文件里的用例全过也一样（#481）', () => {
+    const { root, memberDir } = fixture()
+    writeFileSync(
+      join(memberDir, 'src/sign.ts'),
+      'export const zero = 0\nexport function isPositive(n: number): boolean {\n  return n > 0\n}\n',
+    )
+    writeFileSync(
+      join(memberDir, 'tests/sign.spec.ts'),
+      [
+        "import { isPositive, zero } from '../src/sign.ts'",
+        "test('zero', () => { expect(zero).toBe(0) })",
+        "test('sign', () => { expect(isPositive(1)).toBe(true); expect(isPositive(0)).toBe(false) })",
+      ].join('\n'),
+    )
+    // 相对路径的 alias 在原目录解析回成员自己，在 sandbox 里指向容器下不存在的 sign 目录：
+    // 这份文件只在 sandbox 里加载失败，Stryker 的 vitest runner 不看文件级结果，初跑仍算成功。
+    writeFileSync(
+      join(memberDir, 'vitest.config.ts'),
+      [
+        "import { fileURLToPath } from 'node:url'",
+        "import { testTiers } from '../../../vitest.tiers.mts'",
+        'export default ({ mode }) => ({',
+        "  resolve: { alias: [{ find: /^#sign$/, replacement: fileURLToPath(new URL('../sign/src/sign.ts', import.meta.url)) }] },",
+        "  test: { ...testTiers(mode), globals: true, include: ['tests/**/*.spec.ts'] },",
+        '})',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(memberDir, 'tests/alias.spec.ts'),
+      "import { isPositive } from '#sign'\ntest('via alias', () => { expect(isPositive(2)).toBe(true) })\n",
+    )
+    const ran = mutate(root, join(root, 'out'))
+    expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(1)
+    expect(ran.summary?.members).toEqual([])
+    expect(ran.summary?.errors).toEqual([expect.stringContaining('sandbox 预检没通过')])
+    expect(readFileSync(join(root, 'out/packages__core__sign.log'), 'utf8')).toContain(
+      'tests/alias.spec.ts',
+    )
+  })
+
+  it('快层一条用例都没有时预检通过，由 Stryker 自己报没有用例，不算成加载失败', () => {
+    const { root, memberDir } = fixture()
+    writeFileSync(
+      join(memberDir, 'src/sign.ts'),
+      'export const zero = 0\nexport function isPositive(n: number): boolean {\n  return n > 0\n}\n',
+    )
+    // 只剩慢层那条：快层的 passWithNoTests 让预检退出 0。
+    rmSync(join(memberDir, 'tests/sign.spec.ts'))
+    const ran = mutate(root, join(root, 'out'))
+    expect(ran.ran.status, `${ran.ran.stdout}${ran.ran.stderr}`).toBe(1)
+    expect(ran.summary?.members).toEqual([])
+    expect(ran.summary?.errors).toEqual([expect.stringContaining('Stryker 退出码 1')])
+    expect(existsSync(join(root, 'out/packages__core__sign.preflight-failed'))).toBe(false)
+    expect(readFileSync(join(root, 'out/packages__core__sign.log'), 'utf8')).toContain(
+      'No tests were executed',
+    )
   })
 })
