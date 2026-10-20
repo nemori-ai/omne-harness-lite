@@ -3,7 +3,7 @@
 // custodian snapshot. Any failed assertion exits non-zero and fails the closure report.
 import assert from 'node:assert/strict'
 import { deliver, executeModel, judgePresence, judgeResolution } from '@omne-harness/model'
-import { MODEL_SEND, decodeCredentialId } from '@omne-harness/model-contract'
+import { MODEL_SEND, decodeCredentialId, decodeModelCallId } from '@omne-harness/model-contract'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 
@@ -99,9 +99,25 @@ assert.deepEqual(await shell.quiesce(), {
   failure: {
     kind: 'unavailable',
     dependency: 'model-runtime',
-    diagnostic: 'managed-runtime-not-implemented',
+    diagnostic: 'managed-runtime-not-implemented operation=quiesce stage=5.5',
   },
 })
+const decodedCall = decodeModelCallId('mcall_installed')
+assert.ok('ok' in decodedCall, 'fixture model call id')
+assert.deepEqual(
+  await shell.runtime.instances.connect({
+    tenant: owner,
+    principal: 'synthetic',
+    call: decodedCall.ok,
+  }),
+  {
+    failure: {
+      kind: 'unavailable',
+      dependency: 'model-runtime',
+      diagnostic: 'managed-runtime-not-implemented operation=instances.connect stage=3.5',
+    },
+  },
+)
 assert.equal('driver' in shell.runtime, false)
 
 const adoption = name => ({

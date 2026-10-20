@@ -71,6 +71,6 @@ const provider = createModelRuntime(dependencies, {
 })
 ```
 
-上述数值只用于构造示例，不是生产默认。构造不调用依赖。provider 的 calls、consumption、instances.connect、recover、quiesce 和 driver.drive 均返回 unavailable，dependency 为 model-runtime，diagnostic 为 managed-runtime-not-implemented。普通 runtime 不暴露 driver。
+上述数值只用于构造示例，不是生产默认。构造不调用依赖。provider 的 calls、consumption、instances.connect、recover、quiesce 和 driver.drive 均返回 unavailable，dependency 为 model-runtime。diagnostic 用固定操作名和阶段定位缺失能力，完整映射及失败保证见 [当前构造支持](../SPEC.md#当前构造支持与本地模拟)。诊断供人阅读，不是解析协议，也不表示托管操作已实现。普通 runtime 不暴露 driver。
 
 测试 limits.resultPageParts 限定每页结果项数，limits.resultPageTargetBytes 是规范 parts 数组 JSON 的 UTF-8 目标。完整 sealed/partial 项不拆分，超目标项独页；整个页不得超过原 capacity.bytes。消费者需容纳接近原容量的页。预算和本地有限上限见 [SPEC](../SPEC.md#当前构造支持与本地模拟)。生产工厂仍只构造，不据此声称运行分页已实现。unknown 控制按完整 tenant/call/operation/method 注入 applied 或 not-applied，揭示不能反转真实效果。适配器是受信、同步且不可重入的本地测试模型，不证明外部资格事务、耐久证据、跨进程排除或可靠消费。

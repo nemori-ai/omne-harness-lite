@@ -89,12 +89,12 @@ function validate(dependencies: unknown, configuration: unknown): void {
       throw new RangeError(`Model configuration ${field} is out of range`)
   }
 }
-function unavailable<T>(): Reply<T> {
+function unavailable(operation: string, stage: string): Reply<never> {
   return Promise.resolve({
     failure: {
       kind: 'unavailable',
       dependency: 'model-runtime',
-      diagnostic: 'managed-runtime-not-implemented',
+      diagnostic: `managed-runtime-not-implemented operation=${operation} stage=${stage}`,
     },
   })
 }
@@ -107,21 +107,21 @@ export function createModelRuntime<P>(
   return {
     runtime: {
       calls: {
-        admit: unavailable,
-        inspect: unavailable,
-        dispatches: unavailable,
-        cancel: unavailable,
+        admit: () => unavailable('calls.admit', '1.3'),
+        inspect: () => unavailable('calls.inspect', '1.3'),
+        dispatches: () => unavailable('calls.dispatches', '1.3'),
+        cancel: () => unavailable('calls.cancel', '5.2'),
       },
       consumption: {
-        beginRead: unavailable,
-        readNext: unavailable,
-        closeRead: unavailable,
-        acknowledge: unavailable,
+        beginRead: () => unavailable('consumption.beginRead', '1.7'),
+        readNext: () => unavailable('consumption.readNext', '1.7'),
+        closeRead: () => unavailable('consumption.closeRead', '1.7'),
+        acknowledge: () => unavailable('consumption.acknowledge', '1.7'),
       },
-      instances: { connect: unavailable },
+      instances: { connect: () => unavailable('instances.connect', '3.5') },
     },
-    recover: unavailable,
-    quiesce: unavailable,
-    driver: { drive: unavailable },
+    recover: () => unavailable('recover', '5.4'),
+    quiesce: () => unavailable('quiesce', '5.5'),
+    driver: { drive: () => unavailable('driver.drive', '5.3') },
   }
 }
