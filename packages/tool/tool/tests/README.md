@@ -44,4 +44,6 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 
 [binding-races.spec.ts](binding-races.spec.ts) 保留 C430-1 的旧否定读调度，并在 permit 返回、环境返回、进入 start 前分别暂停。每个暂停点验证 consume/exclude 两种先后，分别断言方法尝试、authority 唯一 acceptance 与契约内存 executor 的实际 launch。已越过 authority 查询的旧读者可以进入方法，但永久排除后不能受理或执行。正常首次启动仍要求 acceptance/launch 各恰好一次。相同 payload 的两次公开 invoke 另测独立引用及失败状态，不能作为内部原 start 恢复的证据。
 
-上述范围采用 [revision 2 具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/430#issuecomment-6285621097)。旧全局方法次数禁令已被取代。原红探针和失败日志保留在旧工作树 `issue-430-binding-start/tmp/review-correctness-430/marker-race.mts` 与 `marker-race.log`，未改写其断言或结论。测试仍只证明非耐久 ledger、内存 authority 和受信桥的单进程组合，不证明生产恢复、事实 ACK 或物理收场。
+上述范围采用 [revision 2 具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/430#issuecomment-6285621097)。旧全局方法次数禁令已被取代。
+
+测试仍只证明非耐久 ledger、内存 authority 和受信桥的单进程组合，不证明生产恢复、事实 ACK 或物理收场。

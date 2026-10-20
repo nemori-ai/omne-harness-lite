@@ -16,6 +16,7 @@
 - [到启动为止的决定器：队列域与调用域](ledger-start.ts)。
 - [队列维护入口：等待者对账](ledger-queue.ts)。
 - [推进协程](driver.ts)。
+- [绑定发起、原启动查询与 live 句柄保管](driver-binding.ts)。
 - [读取投影](ledger-reads.ts)。
 - [排除规则](ledger-exclusion.ts)。
 - [账本工厂](ledger.ts)。

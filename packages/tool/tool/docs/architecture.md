@@ -80,7 +80,7 @@ FIFO key 是 `[scope.owner, scope.key, 定义名]` 的 JSON 文本（P02：受�
 2. 队列域提交转换：按调用键幂等。条目已经处于目标阶段、且是同一操作转换的，直接认回，另一个操作转换的回复 `conflict`。创建条目的步骤（admit 的序号分配与 `planPreparation`）分两段：条目仍是 `preparing` 时按调用认回，因为两个入口创建的是同一个条目，这一步不移动它；条目已越过 `preparing` 时只有移动它的操作认回，其余回复 `conflict`。条目不存在而应当存在（例如 `enqueue` 时没有条目）回复 `unavailable`，不补造。`prepareStart` 的队列步可以回答"还没轮到"，此时什么都不写。
 3. 调用域提交结果：写入新状态、操作回执与下一步的待办，删除本步的 `queue` 待办。
 
-两步之间崩溃时，`queue` 待办仍在调用域里，`loadRecovery` 返回它；下一次推进从第 2 步重做，第 2 步幂等，所以队列域不会出现第二个条目或第二次持有。驱动的操作号由受理操作号派生（`<admission>/plan`、`/prepared`、`/enqueue`、`/start`、`/started`、`/exclude`、`/reject`），所以崩溃后重做用的是同一个操作号，P01 的认回规则直接适用。各命令的分步：
+两步之间崩溃时，`queue` 待办仍在调用域里，`loadRecovery` 返回它；下一次推进从第 2 步重做，第 2 步幂等，所以队列域不会出现第二个条目或第二次持有。驱动的操作号由受理操作号派生，完整清单见 [SPEC 第 23 条](../SPEC.md#23-推进协程)。崩溃后重做用的是同一个操作号，P01 的认回规则直接适用。各命令的分步：
 
 | 命令 | 第 1 步（上一命令已写的待办） | 第 2 步（队列域） | 第 3 步（调用域） |
 | --- | --- | --- | --- |
@@ -221,7 +221,17 @@ B 项的端口调整由 Tool 拥有者在 [#435 记录仓一致性套件](https:
 
 createToolRuntime 先组装门面和 driver，再向独立 host.install 注册 driver；安装本身不受理业务。host.schedule 是唤醒提示。driver.run 通过 scanPending/loadRecovery 读任务，claim 当前协调代次，以实例 fiber 发布观察句柄，然后只推进已持久安排的工作。多次唤醒合并，事务围栏裁定唯一写者；定期扫描补漏。
 
-本包的 driver 在 [driver.ts](../src/driver.ts)。绑定发起与原启动查询在 [driver-binding.ts](../src/driver-binding.ts)，它持有进程内 live 句柄，区分发起前端口失败、绑定失败、抛错与返回句柄。driver 继续拥有 ledger 步骤、失败标记的操作身份及永久排除后的终局写入。普通前置或查询端口返回的失败保持原结果，未知异常向 `run` 调用方传播同一对象，不按临时不可用自动重试，原任务与名额保留。`binding.start` 已尝试后的异常仍按 P04 对账；后续查询异常不解除已有失败责任。原绑定异常正文的耐久保存与诊断读取尚未交付。绑定模块集中准备 permit、解析原绑定与重连环境，driver fence 选择启动、认回或排除。失败 marker 是观察，不是跨 driver 派发围栏，唯一实际受理及永久排除由 authority 排序。失败标记与崩溃窗口见 [SPEC 第 23 条](../SPEC.md#23-推进协程)。它现在只推进到启动记录：读 `loadRecovery`，按阶段与待办做一步，再重读；一次运行的步数上限是 `ToolConfiguration.driverStepsPerRun`。一次运行结束后协程自己决定是否再运行：步数用尽且至少有一步提交了或认回了提交时立即重调度；整轮没有进展（全是被排除、修订号陈旧或提交未知的回答），以及记录仓或端口失败、环境答 pending 或 unknown，按 `ToolConfiguration.driverRetryDelayMs` 重调度，排队的等待者经 `queues.reconcile` 对本 key 对账一次。scanPending、claim 与观察句柄的发布尚未实现，所以其余唤醒只来自 admit 与同 key 的释放，执行引用的代次是固定值；没有等待者、进程退出后的欠账归恢复扫描 `scanPending` 的队列域一遍。步骤与操作号见 [SPEC 第 23 条](../SPEC.md#23-推进协程)。
+本包的 driver 在 [driver.ts](../src/driver.ts)。绑定发起与原启动查询在 [driver-binding.ts](../src/driver-binding.ts)，它持有进程内 live 句柄，区分发起前端口失败、绑定失败、抛错与返回句柄。driver 继续拥有 ledger 步骤、失败标记的操作身份及永久排除后的终局写入。
+
+普通前置或查询端口返回的失败保持原结果，未知异常向 `run` 调用方传播同一对象，不按临时不可用自动重试，原任务与名额保留。`binding.start` 已尝试后的异常仍按 P04 对账；后续查询异常不解除已有失败责任。原绑定异常正文的耐久保存与诊断读取尚未交付。
+
+绑定模块集中准备 permit、解析原绑定与重连环境，driver fence 选择启动、认回或排除。失败 marker 是观察，不是跨 driver 派发围栏，唯一实际受理及永久排除由 authority 排序。失败标记与崩溃窗口见 [SPEC 第 23 条](../SPEC.md#23-推进协程)。
+
+driver 现在只推进到启动记录：读 `loadRecovery`，按阶段与待办做一步，再重读；一次运行的步数上限是 `ToolConfiguration.driverStepsPerRun`。
+
+一次运行结束后协程自己决定是否再运行：步数用尽且至少有一步提交了或认回了提交时立即重调度；整轮没有进展（全是被排除、修订号陈旧或提交未知的回答），以及记录仓或端口失败、环境答 pending 或 unknown，按 `ToolConfiguration.driverRetryDelayMs` 重调度，排队的等待者经 `queues.reconcile` 对本 key 对账一次。
+
+scanPending、claim 与观察句柄的发布尚未实现，所以其余唤醒只来自 admit 与同 key 的释放，执行引用的代次是固定值；没有等待者、进程退出后的欠账归恢复扫描 `scanPending` 的队列域一遍。步骤与操作号见 [SPEC 第 23 条](../SPEC.md#23-推进协程)。
 
 一个实例可处理多个待办，不能为每个观察者创建真实执行。事实流读取、控制与等待响应可以并发接收，但进入 Commands 时按原 operation 和当前 revision 排序。事实存储 ACK 后才确认源可交接；无 ACK 不释放源保管。可选观察者慢或断开不影响真实执行。
 

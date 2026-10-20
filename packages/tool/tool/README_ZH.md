@@ -22,7 +22,15 @@
 
 到达启动记录的调用停在 `running`，一直占用名额。执行事实与物理释放尚未实现。对相同 payload 再次 `invoke` 会生成独立引用。内部恢复沿原调用与 start 推进，不以再次 `invoke` 接续原执行。
 
-绑定失败通过独立的 `/start-failed` 操作回执认回。已读到 committed 标记的协程不再调用 start，当前协程也记住尚未确认的失败并重试原标记。若标记真正提交前发生崩溃，失败观察可能丢失。只有合规 authority 排除了旧 ticket 与延迟请求，且没有永久拒绝时，原 start 才能重新核权，取得新 permit 并形成首次受理。此窗口可以再次调用 RPC 方法，但不重放已受理的执行效果。另一协程持旧否定读时，即使标记随后提交，仍可能再次进入 start 方法。authority 排序 consume 与永久 exclude：consume 先成立则认回原 running 并保留名额，exclude 先成立则禁止新的 acceptance 与 launch。标记不授予派发资格。此范围按 [revision 2 具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/430#issuecomment-6285621097)取代旧全局方法次数保证；旧反例仍对被取代的保证成立。一般的未知执行状态不能当作失败标记。内存提示不提供耐久性。本增量不持久保存原绑定异常正文，`run` 也不向外输出该正文。`readDiagnostics` 仍未交付。
+绑定失败通过独立的 `/start-failed` 操作回执认回。已读到 committed 标记的协程不再调用 start，当前协程也记住尚未确认的失败并重试原标记。
+
+若标记真正提交前发生崩溃，失败观察可能丢失。只有合规 authority 排除了旧 ticket 与延迟请求，且没有永久拒绝时，原 start 才能重新核权，取得新 permit 并形成首次受理。此窗口可以再次调用 RPC 方法，但不重放已受理的执行效果。
+
+另一协程持旧否定读时，即使标记随后提交，仍可能再次进入 start 方法。authority 排序 consume 与永久 exclude：consume 先成立则认回原 running 并保留名额，exclude 先成立则禁止新的 acceptance 与 launch。标记不授予派发资格。
+
+此范围按 [revision 2 具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/430#issuecomment-6285621097)取代旧全局方法次数保证；旧反例仍对被取代的保证成立。
+
+一般的未知执行状态不能当作失败标记。内存提示不提供耐久性。本增量不持久保存原绑定异常正文，`run` 也不向外输出该正文。`readDiagnostics` 仍未交付。
 
 前置端口与查询端口返回的具名失败保持原结果。未知异常以同一错误对象拒绝 `run`，保留启动待办与名额，不自动重试或写终局。`binding.start` 抛错后仍须对账，因为执行可能已经受理。后续查询抛错时，该错误向调用方传播，尚未确认的绑定失败责任保留。串行清理不产生额外的未处理拒绝。
 
