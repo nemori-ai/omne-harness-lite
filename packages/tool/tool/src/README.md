@@ -24,3 +24,5 @@
 - 本包经 `@omne-harness/tool-contract` 取得公共类型，不复制它们。`Outcome` 来自 `@omne-harness/operation-result`。
 
 实现选择见 [SPEC](../SPEC.md)。文档导航见 [index](index.md)。
+
+[invocation-access.ts](invocation-access.ts) 集中解析普通入口的调用与操作引用，并在转发前核租户。[testing-source.ts](testing-source.ts) 提供 `./testing` 导出的配对来源签发/核验与身份计数器，只供非耐久测试。

@@ -10,10 +10,11 @@
 
 [行为与约束](../SPEC.md#342-值定义和固定请求)。
 
+- [reference.ts](../src/reference.ts)：调用与操作引用、encode/decode 及租户解析。引用是定位文本，每次访问仍核当前资格。
 - [identity.ts](../src/identity.ts)：品牌身份、采用与耐久证据引用、访问输入，以及每个品牌身份的解码函数。
 - [definitions.ts](../src/definitions.ts)：参数契约、返回声明、工具定义、可用性、调用参数、资源 scope（owner、key 与授予证据 grant）与固定请求。
 - [judge-definition.ts](../src/judge-definition.ts)：`judgeToolDefinition`，按 P02、P13 和 P15 对未知输入做封闭字段与类型检查。
-- [judge-request.ts](../src/judge-request.ts)：`judgeFixedToolRequest`，对未知输入做固定请求的封闭检查：每个字段的形状、定义经 `judgeToolDefinition`、并发上限是正整数或 null、时限是非负整数或 null、`command` 选中定义声明的操作（函数工具只接受 null，多命令工具要求具名且存在）。它不读存储，不授予资格；来源、当前资格与可用性事实由受理提供者核验。
+- [judge-request.ts](../src/judge-request.ts)：`judgeFixedToolRequest` 与普通 payload 的 `judgeToolInvokeRequest`，对未知输入做固定请求的封闭检查：每个字段的形状、定义经 `judgeToolDefinition`、并发上限是正整数或 null、时限是非负整数或 null、`command` 选中定义声明的操作（函数工具只接受 null，多命令工具要求具名且存在）。它不读存储，不授予资格；来源、当前资格与可用性事实由受理提供者核验。
 
 契约函数的失败值用 `field` 给出被拒绝的字段路径，例如 `commands[1].name`。根值本身被拒绝时，`field` 是所求类型名，例如 `ToolDefinition`。`reason` 是 `missing`、`type`、`empty`、`blank`、`duplicate`、`unknown-field`、`accessor` 等具名原因。判定只读取数据属性，不调用 getter 或输入中的函数。访问器属性以 `accessor` 被拒绝。值字段只读取自身属性。作者能力（例如 executor 与 codec）可以是类实例，所以它的方法与 `adoption` 可以来自原型链。读取输入时抛出的异常（例如 Proxy 的 trap）不传出，整个值以 `unreadable` 被拒绝。json-text 树可以共享子树，但不能成环（`cycle`）。共享子树每到达一次就计数一次，一次判定最多访问 1 000 000 个节点（`budget`，落在会超出上限的 `items` 或 `entries` 列表字段上）。json-text 树内的读取异常以该树的字段名报 `unreadable`。成功值是冻结的副本。省略的可选字段在副本中仍然省略。
 
@@ -27,7 +28,7 @@
 
 [行为与约束](../SPEC.md#342-返回与执行事实)。
 
-- [results.ts](../src/results.ts)：结果、附件、效果、终局、中断原因 `InterruptionCause`、准入失败、`Reply`、等待与交付状态、`ToolState`、结果页和查询结果。
+- [results.ts](../src/results.ts)：结果、附件、交付状态及其 released 分支 `ReleasedDelivery`、效果、终局、中断原因 `InterruptionCause`、准入失败、`Reply`、等待与交付状态、`ToolState`、结果页和查询结果。
 - [judge-state.ts](../src/judge-state.ts)：`judgeToolState`，按阶段与前后台关系封闭检查 `ToolState`，再检查类型表达不了的字段关系。
 - [result-policy.ts](../src/result-policy.ts)：默认结果政策 `defaultResultPolicy`、规则集 `defaultResultPolicyRules` 与采用 `defaultResultPolicyAdoption`（G3）。
 - [adoption.ts](../src/adoption.ts)：`describedAdoption(rules)` 按发布的规则集给出采用，`digest` 是 `sha256:` 加规则集 JSON 文本的 SHA-256。各实现与 Cordis 定义包用它给出同一摘要。
@@ -40,7 +41,7 @@
 
 [行为与约束](../SPEC.md#342-普通操作与实例目录)。
 
-- [operations.ts](../src/operations.ts)：控制意图（`stop`、带必填 `reach` 的 `withdraw`、`background`）与回执、前台返回及后台占位的来源 `BackgroundSource`、过程块、观察、实例句柄、实例目录、交付证据与 `ToolRuntime`。
+- [operations.ts](../src/operations.ts)：控制意图（`stop`、带必填 `reach` 的 `withdraw`、`background`）与回执、前台返回及后台占位的来源 `BackgroundSource`、过程块、观察、实例句柄、实例目录、交付证据与 `ToolRuntime`。普通入口为 invoke，查询、命令、实例连接和内容读取分别经 queries、commands、instances 与 content。内部 admission 与受信回应不暴露在普通接口。
 
 ## 作者执行上下文
 
@@ -171,3 +172,5 @@ for (const conformance of toolStartAuthorityConformance<MyPrincipal>()) {
 - [program.ts](../src/program.ts)：子调用位置与预留、子调用状态、程序结束与收束、`ToolChildren`、程序结果与 `ProgramTools`。
 
 ProgramTools.call 交回唯一 ToolResult 封装，其 data 为程序值，content 为展示内容。宿主只在 [P13](../SPEC.md#p13-双返回形态与程序输出契约) 的验证及可靠交接后交给脚本。动态名称调用没有凭空推断出的 T；具体语言 SDK 根据固定的返回声明生成或绑定访问器，仍须核验真实结果。无程序 schema 的工具可显式声明 program=none，程序只得到受验证的 ToolResult，不获得假定存在的业务字段。
+
+普通命令的 `ToolReleaseDeliveryOutcome` 由 [operations.ts](../src/operations.ts) 拥有。释放成功只返回 `released` 与生产者原回执，不声称本次操作提交。未知结果携带本次操作引用，恢复规则见 [SPEC 的普通调用与引用](../SPEC.md)。

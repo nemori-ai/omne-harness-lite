@@ -7,6 +7,7 @@ import type {
   ToolDefinition,
   ToolInvocation,
 } from './definitions.ts'
+import type { ToolInvokeRequest } from './operations.ts'
 import { toolDefinition } from './judge-definition.ts'
 import { toolArguments } from './parameter-codec.ts'
 import {
@@ -59,6 +60,22 @@ const limits = record({
   backgroundAfterMs: nullable(nonNegativeSafeInteger),
 })
 
+const callerFields = {
+  availability,
+  command: nullable(filled),
+  arguments: toolArguments,
+  settings: adoption,
+  context: adoption,
+  workspace: nullable(adoption),
+  environment: adoption,
+  resources: list(adoption),
+  scope,
+  consumer: consumerRef,
+  batchDecision: nullable(durableEvidence),
+  mode: literal('foreground', 'background'),
+  limits,
+} as const
+
 /**
  * The command of a request selects one operation of the definition (P13). A function tool takes
  * no command. A multi-command tool needs a named command that it declares.
@@ -77,23 +94,12 @@ function commandRule(
 }
 
 const fixedToolRequest: Check<FixedToolRequest> = refine(
-  record({
-    availability,
-    invocation,
-    command: nullable(filled),
-    arguments: toolArguments,
-    settings: adoption,
-    context: adoption,
-    workspace: nullable(adoption),
-    environment: adoption,
-    resources: list(adoption),
-    scope,
-    consumer: consumerRef,
-    batchDecision: nullable(durableEvidence),
-    mode: literal('foreground', 'background'),
-    limits,
-  }),
+  record({ ...callerFields, invocation }),
   (request, at) => commandRule(request.availability.definition, request.command, at),
+)
+
+const invokeToolRequest: Check<ToolInvokeRequest> = refine(record(callerFields), (request, at) =>
+  commandRule(request.availability.definition, request.command, at),
 )
 
 /**
@@ -108,4 +114,16 @@ export function judgeFixedToolRequest(
   value: unknown,
 ): Outcome<FixedToolRequest, Readonly<{ field: string; reason: string }>> {
   return judgeUnknown(fixedToolRequest, value, 'FixedToolRequest')
+}
+
+/**
+ * Judges an untrusted value as the payload of an ordinary invoke: the fixed request without the
+ * invocation. The check is closed, so a value that carries `invocation`, `source`, `call` or
+ * `operation` is rejected as an unknown field. The result is a frozen copy that shares no
+ * mutable structure with the input.
+ */
+export function judgeToolInvokeRequest(
+  value: unknown,
+): Outcome<ToolInvokeRequest, Readonly<{ field: string; reason: string }>> {
+  return judgeUnknown(invokeToolRequest, value, 'ToolInvokeRequest')
 }

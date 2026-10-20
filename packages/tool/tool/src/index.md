@@ -24,3 +24,6 @@
 - [非耐久记录仓](testing-store.ts)。
 - [公开接口](../docs/public-api.md)。
 - [包索引](../index.md)。
+
+- [引用访问解析](invocation-access.ts)。
+- [配对来源与身份测试替身](testing-source.ts)。

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft agent-cordis-contract package; complete the accepted public contract before delivery",
+  "description": "Agent Cordis service definitions, keys, augmentation and the instance directory plugin",
   "engines": {
     "node": ">=24"
   },
@@ -29,7 +29,10 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
-    "@omne-harness/agent-contract": "workspace:*"
+    "@omne-harness/agent-contract": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

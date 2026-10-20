@@ -1,6 +1,6 @@
 # Agent 定义与工作推进的角色与交接
 
-本页保存已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用的技术设计。采用不等于阶段选择或实现支持。成员已初始化。声明判断已有实现，推进运行接口和验证仍待完成。
+本页保存已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用的技术设计。采用不等于阶段选择或实现支持。四类成员已初始化。两个契约包已经实现并有测试：agent-contract 导出契约类型、声明与输出判断、身份解码与结构判定和资产正文契约，agent-cordis-contract 导出 Cordis 服务定义和目录插件。通用实现 agent 与具体装配 agent-host-local 仍是模板，Loop、runtime、提供者和宿主插件尚未实现。
 
 ## 拥有者与输入
 

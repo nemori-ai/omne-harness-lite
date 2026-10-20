@@ -1,214 +1,29 @@
 # Agent 公开入口与定义
 
-当前根入口导出 `judgeAgentDefinition`、`judgeLoopExtensions` 及定义和扩展声明类型。推进、纯求值、执行与实例接口的设计已接受，尚未实现。
+根入口 `@omne-harness/agent-contract` 导出全部契约类型、五个常量（`ATTRIBUTE_ITEMS`、`POSITIONS`、`POWERS`、`POSITION_OUTPUTS`、`AGENT_IDENTITY_MAX_LENGTH`）、三个判定函数（`judgeAgentDefinition`、`judgeLoopExtensions`、`judgeExtensionOutput`）、资产正文端口 `agentBodyContract`、十四个品牌身份的解码函数和四个结构判定。包根不导出推进、纯求值、托管协调、Journal 或实例的实现。这些接口在包里只有类型，由[后继的通用实现与提供者](../../../agent/README.md)实现。
 
-实际导出与公开校验由 [src/index.ts](../../src/index.ts) 及其导出模块拥有。下列声明是已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受、尚未实现的唯一设计定义，不是现有包的使用承诺。后继实现接管精确定义时，本页改为源码导航，不保留第二套手写签名。
+公开类型的唯一定义在 [src/index.ts](../../src/index.ts) 及其导出模块。本页是源码导航，不保留手写类型声明。这些类型的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。类型存在不表示任何提供者或运行实现已经兑现它们。
 
 行为、调用资格、参数与依赖分类归 [SPEC 的运行契约章节](../../SPEC.md#主干运行契约)。消费路径见 [context](../context.md)，对象关系见 [object-model](../object-model.md)。
+
+定义、判断结果与判断函数的源码如下。规则见 [SPEC 的声明判断](../../SPEC.md#声明判断)。
+
+- [definition.ts](../../src/definition.ts)：`AgentDefinition`、`AssetReference`、`CapabilityRef`、`AttributeDeclaration`、`AttributeItem` 与 `VersionChoice`，常量 `ATTRIBUTE_ITEMS`。
+- [judgment.ts](../../src/judgment.ts)：判断结果 `Judgment` 与 `BatchJudgment`，声明判断的拒绝原因 `RefusalReason`，扩展输出判断的拒收原因 `OutputRefusalReason`。
+- [judge-definition.ts](../../src/judge-definition.ts)：`judgeAgentDefinition`。
+- [judge-extensions.ts](../../src/judge-extensions.ts)：`judgeLoopExtensions`。
+- [body-contract.ts](../../src/body-contract.ts)：资产正文契约 `agentBodyContract`。
+- `judgeExtensionOutput` 与 `POSITION_OUTPUTS` 在下文“扩展、人工卡片与材料”的 judge-output.ts。
 
 ## 身份、原位置与纯求值
 
 [行为与约束](../../SPEC.md#身份原位置与纯求值)。
 
-本页代码以 `M.*` 引用的名称（ModelCallId、ModelOperationId、AssembledModelInput、FixedModelRequest、ResultCapacity、ResultPage、ModelRuntime、ProfileResolution、Parameter、Supplier、Termination、ModelFault、DispatchRecord、RetryResolution）来自 [Model 契约的设计页](../../../../model/model-contract/docs/public-api.md)。`@omne-harness/model-contract` 的源码入口目前是模板，没有导出这些名称，在导出之前不能当作已落地的依赖。`T.*` 引用的名称由 `@omne-harness/tool-contract` 的源码入口导出。消息中的工具部件使用 `@omne-harness/message` 导出的 `ToolPart`。`Action.original` 把 `ToolPart` 收窄到 `kind: 'tool_call'`：动作只来自工具调用部件，不来自工具结果部件。
+源码中以 `M.*` 引用的名称（ModelCallId、ModelOperationId、AssembledModelInput、FixedModelRequest、ResultCapacity、ResultPage、ModelRuntime、ProfileResolution、Parameter、Supplier、Termination、ModelFault、DispatchRecord、RetryResolution）来自 [Model 契约](../../../../model/model-contract/docs/public-api.md)，由 `@omne-harness/model-contract` 的根入口导出。`T.*` 引用的名称由 `@omne-harness/tool-contract` 的根入口导出。消息中的工具部件使用 `@omne-harness/message` 导出的 `ToolPart`。`Action.original` 把 `ToolPart` 收窄到 `kind: 'tool_call'`：动作只来自工具调用部件，不来自工具结果部件。
 
-```ts
-import type { Outcome } from '@omne-harness/operation-result'
-import type { TenantId } from '@omne-harness/legal-identity'
-import type { Message, ToolPart } from '@omne-harness/message'
-import type { ContentBlock } from '@omne-harness/content-block'
-import type { JsonValue } from '@omne-harness/json-text'
-import type { CallAccount } from '@omne-harness/call-account'
-import type { AgentDefinition } from '@omne-harness/agent-contract'
-import type * as M from '@omne-harness/model-contract'
-import type * as T from '@omne-harness/tool-contract'
-
-declare const agentIdentity: unique symbol
-export type AgentIdentity<K extends string> = string & { readonly [agentIdentity]: K }
-export type AgentInstanceId = AgentIdentity<'AgentInstanceId'>
-export type StepId = AgentIdentity<'AgentStepId'>
-export type ActionId = AgentIdentity<'AgentActionId'>
-export type PassageId = AgentIdentity<'AgentPassageId'>
-export type CardRoundId = AgentIdentity<'AgentCardRoundId'>
-export type ActionBatchId = AgentIdentity<'AgentActionBatchId'>
-export type AgentExecutionId = AgentIdentity<'AgentExecutionId'>
-export type ExecutionAttachmentId = AgentIdentity<'ExecutionAttachmentId'>
-export type AgentRegistrationId = AgentIdentity<'AgentRegistrationId'>
-export type AgentOperationId = AgentIdentity<'AgentOperationId'>
-export type ExecutionRevision = AgentIdentity<'ExecutionRevision'>
-export type InputId = AgentIdentity<'AgentInputId'>
-export type InputBatchId = AgentIdentity<'AgentInputBatchId'>
-export type ConsumptionId = AgentIdentity<'AgentConsumptionId'>
-export type Adoption = Readonly<{ owner: string; name: string; revision: string; digest: string }>
-export type Evidence = Readonly<{ owner: string; record: string; revision: string; digest: string }>
-export type Access<P> = Readonly<{ principal: P; tenant: TenantId }>
-export type ConsumerRef = Readonly<{ owner: string; work: string; position: string; purpose: string }>
-export type Authority = Readonly<{
-  execution: AgentExecutionId; executionAttachment: ExecutionAttachmentId; instance: AgentInstanceId
-  generation: string; source: Evidence
-}>
-export type Continuation = Readonly<{
-  position: string; definition: Adoption; schema: Adoption; value: JsonValue
-}>
-export type ProducedResult = Readonly<{
-  producer: Readonly<{ kind: 'model'; call: M.ModelCallId }> | Readonly<{ kind: 'tool'; call: T.ToolCallId }>
-  version: string; delivery: string | null; source: Evidence
-}>
-export type InputBatch = Readonly<{
-  id: InputBatchId; watermark: Evidence; ordered: readonly InputId[]
-}>
-export type ProgressionDirective =
-  | Readonly<{ kind: 'evaluate-completion'; basis: Evidence }>
-  | Readonly<{ kind: 'continue'; basis: Evidence }>
-export type Waiting =
-  | Readonly<{ kind: 'producer'; pending: PendingCall }>
-  | Readonly<{ kind: 'human'; passage: PassageId; cards: readonly Evidence[] }>
-  | Readonly<{ kind: 'dependency'; owner: string; position: string }>
-export type AgentConclusion =
-  | Readonly<{ kind: 'complete' }>
-  | Readonly<{ kind: 'fail' | 'cancelled'; cause: Evidence }>
-export type FailureCandidate = Readonly<{ step: StepId | null; at: AgentInstant; source: Evidence }> & (
-  | Readonly<{
-      kind: 'cannot-fit'; reason: 'fixed' | 'after-compaction'; context: Evidence
-      veto?: Evidence; rejection?: Evidence; plan?: CompactionProgress
-    }>
-  | Readonly<{
-      kind: 'compaction-invalid'; plan: Evidence
-      progress?: Readonly<{ expected: CompactionProgress; returned: CompactionProgress }>
-      transition?: Evidence
-    }>
-  | Readonly<{ kind: 'request-rejected'; failure: Extract<Failure, { kind: 'invalid' }>; model: Evidence; selection: Evidence }>
-  | Readonly<{ kind: 'no-reply'; call: M.ModelCallId; result: ProducedResult }>
-  | Readonly<{ kind: 'message-rejected'; from: MessageSource; evidence: Evidence }>
-  | Readonly<{ kind: 'extension-stop'; passage: PassageId; reason: string }>
-  | Readonly<{ kind: 'guard'; level: 3; basis: Evidence }>
-)
-export type PreparedContextTransition = Readonly<{
-  preparation: ActionId; message: Message; source: Evidence
-  derivation: Evidence; commitment: Evidence
-}>
-export type Failure =
-  | Readonly<{ kind: 'denied'; action: string }>
-  | Readonly<{ kind: 'invalid'; field: string; reason: string }>
-  | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
-  | Readonly<{ kind: 'stale-advance' | 'not-ready' | 'terminal' | 'busy' | 'changed' | 'unsupported' }>
-  | Readonly<{ kind: 'commit-unknown'; operation: AgentOperationId }>
-  | Readonly<{ kind: 'conflict'; operation: AgentOperationId }>
-export type Reply<A> = Promise<Outcome<A, Failure>>
-export type ModelPurpose = 'main' | 'compaction' | 'extension'
-export type PendingCall = Readonly<{
-  action: ActionId; consumption: ConsumptionId; position: ConsumerRef
-  fixed: Evidence
-}> & (
-  | Readonly<{ kind: 'model'; call: M.ModelCallId; admission: M.ModelOperationId; purpose: ModelPurpose }>
-  | Readonly<{ kind: 'tool'; call: T.ToolCallId; admission: T.ToolOperationId; purpose: 'action' }>
-)
-export type ActionJudgment =
-  | Readonly<{ kind: 'pending'; passage: PassageId }>
-  | Readonly<{ kind: 'waiting'; passage: PassageId; cards: readonly Evidence[] }>
-  | Readonly<{ kind: 'denied'; evidence: Evidence }>
-  | Readonly<{ kind: 'allowed'; evidence: Evidence; request: T.FixedToolRequest }>
-export type Action = Readonly<{
-  id: ActionId; original: ToolPart & Readonly<{ kind: 'tool_call' }>; effectiveArguments: string
-  judgment: ActionJudgment; call: PendingCall | null
-}>
-export type ActionBarrier =
-  | Readonly<{
-      kind: 'closed'; judging: readonly ActionId[]
-      asked: readonly Readonly<{ action: ActionId; passage: PassageId; round: CardRoundId }>[]
-    }>
-  | Readonly<{ kind: 'open'; evidence: Evidence; approved: readonly [ActionId, ...ActionId[]] }>
-  | Readonly<{ kind: 'all-denied'; evidence: Evidence }>
-export type ActionSlot = Readonly<{
-  action: ActionId
-  each: readonly PassageId[] | null; candidate: Message | null; handoff: Evidence | null
-}> & (
-  | Readonly<{ kind: 'denied'; evidence: Evidence }>
-  | Readonly<{ kind: 'dispatched' }>
-  | Readonly<{ kind: 'result'; result: ProducedResult; terminal: T.ToolTerminal; custody: Evidence }>
-  | Readonly<{ kind: 'background'; placeholder: ProducedResult; confirmation: Evidence }>
-)
-export type ActionBatch = Readonly<{
-  id: ActionBatchId; source: ProducedResult; actions: readonly Action[]
-  barrier: ActionBarrier; slots: readonly ActionSlot[]; batchPass: readonly PassageId[] | null
-}>
-export type ModelReplyAdmission = Readonly<{
-  step: StepId; action: ActionId; call: M.ModelCallId; resultVersion: string
-  decision: 'admitted' | 'rejected'; source: Evidence
-}>
-export type ReplyAdmissionProjection = Readonly<{
-  through: Evidence; rule: Adoption; lastAdmission: Evidence | null
-  consecutiveDenials: string; totalDenials: string
-}>
-export type ReplyAdmissionPage =
-  | Readonly<{
-      kind: 'page'; through: Evidence
-      items: readonly Readonly<{ sequence: string; fact: ModelReplyAdmission }>[]
-      next: string | null; complete: boolean
-    }>
-  | Readonly<{ kind: 'gap'; recovery: Evidence }>
-export type GuardLevel = 0 | 1 | 2 | 3
-export type GuardFact = Readonly<{
-  level: GuardLevel; policy: Adoption; through: Evidence; basis: Evidence
-  passage: PassageId; at: AgentInstant
-}>
-export type AgentCheckpoint = Readonly<{
-  schema: Adoption; definition: Adoption; step: StepId; position: string
-  calls: readonly PendingCall[]; passages: readonly Passage[]
-  batch: ActionBatch | null; inputBatch: InputBatchId | null
-  requestPreparation: Preparation | null; compaction: CompactionState | null
-  adoptedContext: Evidence | null; guard: GuardFact | null
-  completedPassages: readonly PassageId[]; priorConditions: Evidence | null
-}>
-export type RuntimeConditions = Readonly<{
-  source: Evidence; configuration: Adoption; progression: ProgressionDirective
-  model: Adoption; context: Evidence; bindings: readonly Adoption[]
-}>
-export type ProducerDecisionView =
-  | Readonly<{ kind: 'unresolved'; pending: PendingCall; source: Evidence }>
-  | Readonly<{ kind: 'model-active'; pending: Extract<PendingCall, { kind: 'model' }>; source: Evidence }>
-  | Readonly<{ kind: 'model-settled'; pending: Extract<PendingCall, { kind: 'model' }>; result: ProducedResult; source: Evidence }>
-  | Readonly<{
-      kind: 'tool-active'; pending: Extract<PendingCall, { kind: 'tool' }>; source: Evidence
-      waiting: 'none' | 'external' | 'human'; supportedControls: readonly ('interrupt' | 'background')[]
-    }>
-  | Readonly<{ kind: 'tool-result'; pending: Extract<PendingCall, { kind: 'tool' }>; result: ProducedResult; source: Evidence }>
-  | Readonly<{
-      kind: 'tool-background'; pending: Extract<PendingCall, { kind: 'tool' }>
-      placeholder: ProducedResult; confirmation: Evidence; source: Evidence
-    }>
-export type AdvancementFact = Readonly<{
-  kind: 'current' | 'stopping' | 'ended' | 'superseded'; source: Evidence
-}>
-export type LoopFacts = Readonly<{
-  advancement: AdvancementFact; checkpoint: AgentCheckpoint
-  conditions: RuntimeConditions; batch: InputBatch; inputs: readonly Message[]
-  producers: readonly ProducerDecisionView[]; consumption: readonly ResultResponsibility[]
-  replyAdmissions: ReplyAdmissionProjection
-  controls: readonly ControlRecord[]
-}>
-export type Next =
-  | Readonly<{ kind: 'reconcile'; calls: readonly PendingCall[] }>
-  | Readonly<{ kind: 'take-inputs'; position: string }>
-  | Readonly<{ kind: 'prepare-request'; step: StepId; previous: Preparation | null }>
-  | Readonly<{ kind: 'compact-derive'; original: Extract<Preparation, { kind: 'needs-compaction' }>; progress: CompactionProgress; result: Readonly<{ produced: ProducedResult; consumed: Evidence }> | null }>
-  | Readonly<{ kind: 'commit-transition'; value: PreparedContextTransition }>
-  | Readonly<{ kind: 'resume-request'; original: Extract<Preparation, { kind: 'needs-compaction' }>; transition: Evidence }>
-  | Readonly<{ kind: 'extension'; passage: PassageId }>
-  | Readonly<{ kind: 'admit-model'; preparation: Extract<Preparation, { kind: 'ready' }> }>
-  | Readonly<{ kind: 'admit-message'; source: MessageSource; candidate: Message }>
-  | Readonly<{ kind: 'admit-tools'; batch: ActionBatch }>
-  | Readonly<{ kind: 'consume'; consumption: ConsumptionId; result: ProducedResult }>
-  | Readonly<{ kind: 'wait'; waiting: readonly Waiting[] }>
-  | Readonly<{ kind: 'try-finish'; conclusion: AgentConclusion; failure: FailureCandidate | null }>
-  | Readonly<{ kind: 'stop'; reason: 'cancelled' | 'terminal' | 'superseded' | 'suspended' }>
-export interface AgentEvaluator {
-  initial(input: Readonly<{ definition: Adoption; step: StepId }>): Outcome<AgentCheckpoint, Failure>
-  next(input: LoopFacts): Outcome<Next, Failure>
-  encode(value: AgentCheckpoint): Continuation
-  decode(value: Continuation): Outcome<AgentCheckpoint, Failure>
-}
-```
+- [identity.ts](../../src/identity.ts)：品牌身份的泛型 `AgentIdentity`，十四个品牌身份（`AgentInstanceId`、`StepId`、`ActionId`、`PassageId`、`CardRoundId`、`ActionBatchId`、`AgentExecutionId`、`ExecutionAttachmentId`、`AgentRegistrationId`、`AgentOperationId`、`ExecutionRevision`、`InputId`、`InputBatchId`、`ConsumptionId`）、`Adoption`、`Evidence`、`Access`、`ConsumerRef`、`Authority`、`Continuation` 与 `AgentInstant`，常量 `AGENT_IDENTITY_MAX_LENGTH`，十四个 `decode*` 解码函数，结构判定 `judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`，以及它们的失败类型 `IdentityFailure` 与 `StructureFailure`。规则见 [SPEC 的身份解码与结构判定](../../SPEC.md#身份解码与结构判定)。
+- [evaluation.ts](../../src/evaluation.ts)：纯求值的值与端口。有 `ProducedResult`、`InputBatch`、`ProgressionDirective`、`Waiting`、`AgentConclusion`、`FailureCandidate`、`PreparedContextTransition`、`Failure` 与 `Reply`，原调用的 `ModelPurpose`、`PendingCall`、`ActionJudgment`、`Action`、`ActionBarrier`、`ActionSlot`、`ActionBatch`，回复准入的 `ModelReplyAdmission`、`ReplyAdmissionProjection`、`ReplyAdmissionPage`，守卫的 `GuardLevel` 与 `GuardFact`，`AgentCheckpoint`、`RuntimeConditions`、`ProducerDecisionView`、`AdvancementFact`、`LoopFacts`、`Next` 与 `AgentEvaluator`。
+- [execution.ts](../../src/execution.ts)：`LoopFacts` 引用的执行记录类型 `ExecutionControl`、`ControlStage`、`ControlStageFact`、`ControlRecord` 与 `ResultResponsibility`，与“托管协调与运行实例”一节的类型同在这个文件。
 
 ProgressionDirective 是 Loop 下一步所需的具体推进要求，不是权限或协作模式的复制。CurrentConditions 的受信适配器把合法协作设置投影为该值并保存依据，Agent 不解释 never/auto_permission/bypass-permissions。RuntimeConditions 只是这项投影及其采用依据，不含守卫阶梯：守卫由 Agent 自持的守卫事实承载，见下文 `AgentCheckpoint.guard`。evaluate-completion 仅允许核完成条件，不等于批准完成；continue 不产生任意新效果许可。环境采用由相应请求/动作固定协议携带，Agent 不维护环境选择或权限策略状态机。
 
@@ -254,90 +69,9 @@ readReplyAdmissions 按原 through 返回有序事实页，after/next 只在同�
 
 [行为与约束](../../SPEC.md#请求中的职责划分)。
 
-本节引用 Model 契约设计页中已有的 `M.ProfileResolution` 与 `M.Parameter`、`M.AssembledModelInput`、`M.FixedModelRequest` 和 `M.ResultCapacity`。`@omne-harness/model-contract` 的源码入口目前是模板，这些名称在导出之前都不能当作已落地的依赖。`ModelPurpose`、`ModelRecipient`、`SelectedModel`、`ModelContextRead`、`CompactionProgress`、`CompactionAdvance`、`CompactionState` 与 `FinalRequest` 由本页定义为 Agent 自有的端口形状。它们不是 Model 或 Context 的导出。Context 一侧对应接缝的方向已接受，Context 契约的文字尚未写出，见算法页的接口增量与开放问题。
+本节引用 `@omne-harness/model-contract` 导出的 `M.ProfileResolution` 与 `M.Parameter`、`M.AssembledModelInput`、`M.FixedModelRequest` 和 `M.ResultCapacity`。`ModelPurpose`、`ModelRecipient`、`SelectedModel`、`ModelContextRead`、`CompactionProgress`、`CompactionAdvance`、`CompactionState` 与 `FinalRequest` 由本包定义为 Agent 自有的端口形状。它们不是 Model 或 Context 的导出。Context 一侧对应接缝的方向已接受，Context 契约的文字尚未写出，见算法页的接口增量与开放问题。
 
-```ts
-export type ModelRecipient = Readonly<{ route: string; profile: Adoption }>
-export type SelectedModel = Readonly<{
-  recipient: ModelRecipient
-  resolution: Extract<M.ProfileResolution, { kind: 'resolved' }> & Readonly<{ selectable: true }>
-  parameters: readonly M.Parameter[]
-  tools: Evidence
-  evidence: Evidence
-}>
-export interface ModelSelection<P> {
-  select(input: Access<P> & Readonly<{
-    advance: Authority; scope: Evidence; purpose: ModelPurpose
-    position: ConsumerRef; history: Evidence
-    conditions: RuntimeConditions; alterations: readonly Evidence[]
-  }>): Reply<SelectedModel>
-}
-export type ContextContent = 'full' | 'incremental'
-export type ModelContextRead = Readonly<{
-  recipient: ModelRecipient; content: ContextContent
-  source: Evidence; coverage: Evidence
-}>
-export interface ModelContextReader<P> {
-  read(input: Access<P> & Readonly<{
-    advance: Authority; position: ConsumerRef; recipient: ModelRecipient
-    history: Evidence; adopted: Evidence | null; transition: Evidence | null
-  }>): Reply<ModelContextRead>
-}
-export type CompactionProgress = Readonly<{ plan: Evidence; bound: string; completed: string }>
-export type Preparation = Readonly<{
-  id: ActionId; purpose: ModelPurpose
-  position: ConsumerRef; source: Evidence; state: JsonValue; schema: Adoption
-}> & (
-  | Readonly<{
-      kind: 'assembled'; input: M.AssembledModelInput; budget: Evidence
-      recipient: ModelRecipient; coverage: Evidence
-    }>
-  | Readonly<{
-      kind: 'ready'; request: M.FixedModelRequest; capacity: M.ResultCapacity; budget: Evidence
-      recipient: ModelRecipient; coverage: Evidence
-    }>
-  | Readonly<{
-      kind: 'needs-compaction'
-      original: Readonly<{ input: Evidence; alterations: readonly Evidence[]; beforeModelCall: readonly PassageId[] | null }>
-      progress: CompactionProgress
-    }>
-  | Readonly<{ kind: 'cannot-fit'; reason: 'fixed' | 'after-compaction'; diagnostic: string }>
-)
-export type CompactionAdvance =
-  | Readonly<{ kind: 'continue'; progress: CompactionProgress; stepRequest: Extract<Preparation, { kind: 'ready' }> }>
-  | Readonly<{ kind: 'transition'; progress: CompactionProgress; value: PreparedContextTransition }>
-  | Readonly<{ kind: 'cannot-fit'; progress: CompactionProgress; reason: 'after-compaction'; diagnostic: string }>
-export type CompactionState = Readonly<{
-  action: ActionId; progress: CompactionProgress; initiated: string
-  stepRequest: Extract<Preparation, { kind: 'ready' }> | null
-  ended: 'committed' | 'failed' | null
-}>
-export type FinalRequest = Readonly<{
-  preparation: ActionId; request: M.FixedModelRequest; capacity: M.ResultCapacity
-  recipient: ModelRecipient; coverage: Evidence; alterations: readonly Evidence[]
-}>
-export interface RequestPreparation<P> {
-  prepare(input: Access<P> & Readonly<{
-    advance: Authority; action: ActionId; purpose: Exclude<ModelPurpose, 'compaction'>
-    position: ConsumerRef; history: Evidence; inputs: InputBatch
-    conditions: RuntimeConditions; selection: SelectedModel; context: ModelContextRead
-    previous: Preparation | null; alterations: readonly Evidence[]
-    beforeModelCall: readonly PassageId[] | null
-  }>): Reply<Preparation>
-  derive(input: Access<P> & Readonly<{
-    advance: Authority; original: Extract<Preparation, { kind: 'needs-compaction' }>
-    progress: CompactionProgress; action: ActionId; selection: SelectedModel
-    result: Readonly<{ produced: ProducedResult; consumed: Evidence }> | null
-  }>): Reply<CompactionAdvance>
-  resume(input: Access<P> & Readonly<{
-    advance: Authority; original: Extract<Preparation, { kind: 'needs-compaction' }>
-    transition: Evidence; selection: SelectedModel; context: ModelContextRead
-  }>): Reply<Preparation>
-}
-export interface CurrentConditions<P> {
-  read(input: Access<P> & Readonly<{ advance: Authority; previous: Evidence | null }>): Reply<RuntimeConditions>
-}
-```
+- [request.ts](../../src/request.ts)：`ModelRecipient`、`SelectedModel` 与端口 `ModelSelection`，`ContextContent`、`ModelContextRead` 与端口 `ModelContextReader`，`CompactionProgress`、`Preparation`、`CompactionAdvance`、`CompactionState`、`FinalRequest` 与端口 `RequestPreparation`，以及端口 `CurrentConditions`。`ModelPurpose` 在 [evaluation.ts](../../src/evaluation.ts)。
 
 `SelectedModel.recipient` 是请求实际面向的模型，由路由名和档案的精确采用组成。`resolution` 只能是可选的胜出档案。`history` 与同一次准备交给 prepare 的历史依据相同。行为见 SPEC 的“[模型选择](../../SPEC.md#模型选择)”。
 
@@ -359,7 +93,7 @@ PreparedContextTransition 是 Agent 消费 Request Context 的窄视图。commit
 
 [行为与约束](../../SPEC.md#扩展卡片与材料)。
 
-扩展作者接口的类型由[扩展作者协议](extensions.md)声明，本页不重复声明。本节代码引用其中一部分类型。各类型的声明位置如下：
+扩展作者接口的类型由[扩展作者协议](extensions.md)规定，源码在 [extensions.ts](../../src/extensions.ts)，本页不重复。各类型的规则位置如下：
 
 | 类型 | 声明位置 |
 | --- | --- |
@@ -369,164 +103,11 @@ PreparedContextTransition 是 Agent 消费 Request Context 的窄视图。commit
 | `ActionIdentity`、`Conclusion` | [Conclusion](extensions.md#conclusion) |
 | `ExtensionInvocationMode`、`ExtensionReplayBinding`、`ExtensionInvocationResult`、`LoopExtensionImplementation` | [调用协议](extensions.md#调用协议) |
 
-源码根入口已导出同名的 `Position`、`Power` 与 `LoopExtensionDeclaration`，它们是现有声明判断的形状：源码的 `Position` 含已移除的位置，源码的声明缺 `needs`、`implementation`、`onError` 与 `unavailability` 四个字段并按位置分支限制干预力，`Power` 的三档与设计相同。差异见[实施差异](../../verification/coverage.md#实施差异)。实施时以扩展作者协议的类型替换源码的同名类型。
+位置集合是九处，`Power` 是 `observe`、`rewrite`、`veto` 三档。源码的声明含 `needs`、`implementation`、`onError` 与 `unavailability`，声明判断不按位置限制 `power`，实际输出权限由声明上限与位置输出表共同裁定，见[扩展作者协议](extensions.md#声明)。`Passage.declaration`、`ExtensionInput.position`、`DecisionCardDraft.about` 与 `ActionIdentity` 使用同一份九处位置。
 
-```ts
-export type CapturedRead = Readonly<{ schema: Adoption; value: JsonValue; source: Evidence }>
-export type CardRequest = Readonly<{ identity: string; schema: Adoption; value: JsonValue }>
-export type CardAnswer =
-  | Readonly<{ kind: 'chosen'; option: string; value: JsonValue | null; evidence: Evidence }>
-  | Readonly<{ kind: 'declined'; evidence: Evidence }>
-export type CardReply =
-  | CardAnswer
-  | Readonly<{ kind: 'pending' }>
-  | Readonly<{ kind: 'invalidated'; evidence: Evidence }>
-export type PassageCard = Readonly<{
-  identity: string; card: Evidence
-  response: Exclude<CardReply, { kind: 'pending' }> | null; processed: Evidence | null
-}>
-export type PassageOperationProgress<R> =
-  | Readonly<{ kind: 'requested' }>
-  | Readonly<{ kind: 'resolved'; result: R }>
-  | Readonly<{ kind: 'applied'; result: R; transition: Evidence }>
-export type CardRoundProgress =
-  | Readonly<{ kind: 'requested' }>
-  | Readonly<{ kind: 'presented'; cards: readonly PassageCard[] }>
-  | Readonly<{ kind: 'answered'; cards: readonly PassageCard[] }>
-  | Readonly<{ kind: 'processed'; cards: readonly PassageCard[]; conclusion: Evidence }>
-  | Readonly<{ kind: 'present-failed'; failure: Evidence }>
-export type CardRound = Readonly<{
-  round: CardRoundId
-  ask: Conclusion & Readonly<{ output: Extract<ExtensionOutput, { kind: 'ask' }> }>
-  requests: readonly CardRequest[]; progress: CardRoundProgress
-}>
-export type PassageOperation = Readonly<{
-  action: ActionId; ordinal: number; input: Evidence
-}> & (
-  | Readonly<{
-      kind: 'producer'; pending: Extract<PendingCall, { kind: 'model' }>
-      progress: PassageOperationProgress<Readonly<{ result: ProducedResult; consumed: Evidence }>>
-    }>
-  | Readonly<{
-      kind: 'read'; owner: string; protocol: Adoption; query: JsonValue
-      progress: PassageOperationProgress<CapturedRead>
-    }>
-  | Readonly<{ kind: 'guard'; progress: PassageOperationProgress<GuardFact> }>
-)
-export type PassageProgress =
-  | Readonly<{ kind: 'requested'; mode: ExtensionInvocationMode }>
-  | Readonly<{ kind: 'asked'; rounds: readonly [CardRound, ...CardRound[]] }>
-  | Readonly<{ kind: 'resolved'; rounds: readonly CardRound[]; conclusion: Conclusion }>
-  | Readonly<{ kind: 'applied'; rounds: readonly CardRound[]; conclusion: Conclusion; transition: Evidence }>
-export type Passage = Readonly<{
-  id: PassageId; position: Position; dimension: Dimension | null
-  purpose: 'main' | 'compaction' | null; action: ActionId | null; ordinal: number
-  declaration: LoopExtensionDeclaration; implementation: Adoption
-  input: Evidence; effective: Evidence
-  operations: readonly PassageOperation[]; progress: PassageProgress
-}>
-export type Subject =
-  | Readonly<{ execution: AgentExecutionId; conditions: Evidence }>
-  | Readonly<{ preparation: Extract<Preparation, { kind: 'needs-compaction' }> }>
-  | Readonly<{ transition: PreparedContextTransition }>
-  | Readonly<{ purpose: 'main'; preparation: Extract<Preparation, { kind: 'assembled' }> }>
-  | Readonly<{ purpose: 'compaction'; step: Extract<Preparation, { kind: 'ready' }>; progress: CompactionProgress }>
-  | Readonly<{
-      purpose: 'main' | 'compaction'; call: M.ModelCallId; result: ProducedResult
-      reply: Message; termination: M.Termination; account: CallAccount | null
-    }>
-  | Readonly<{
-      purpose: 'main' | 'compaction'; call: M.ModelCallId; request: M.FixedModelRequest
-      fault: M.ModelFault; dispatches: readonly M.DispatchRecord[]; retry: M.RetryResolution | null
-    }>
-  | Readonly<{
-      action: ActionId; original: Action['original']; effectiveArguments: string
-      definition: T.ToolDefinition; batch: readonly ActionId[]
-    }>
-  | Readonly<{
-      action: ActionId; candidate: Message
-      outcome: Readonly<{ kind: 'denied'; evidence: Evidence }> | Readonly<{ kind: 'executed'; result: ProducedResult; terminal: T.ToolTerminal }>
-    }>
-  | Readonly<{
-      batch: ActionBatchId
-      outcomes: readonly Readonly<{ action: ActionId; outcome: 'denied' | 'executed'; terminal: T.ToolTerminal | null }>[]
-    }>
-  | Readonly<{ proposed: AgentConclusion; basis: Evidence }>
-  | Readonly<{ terminal: AgentConclusion; disposition: Evidence }>
-export interface ExtensionImplementations<P> {
-  resolve(input: Access<P> & Readonly<{ passage: Passage }>): Reply<LoopExtensionImplementation>
-}
-export interface DecisionCards<P> {
-  present(input: Access<P> & Readonly<{
-    advance: Authority; passage: PassageId; round: CardRoundId; original: Evidence
-    requests: readonly CardRequest[]
-  }>): Reply<readonly Evidence[]>
-  lookup(input: Access<P> & Readonly<{
-    passage: PassageId; round: CardRoundId; original: Evidence; requests: readonly string[]
-  }>): Reply<
-    Readonly<{ kind: 'presented'; cards: readonly Evidence[] }>
-    | Readonly<{ kind: 'not-presented'; exclusion: Evidence }>
-    | Readonly<{ kind: 'unknown' }>
-  >
-  read(input: Access<P> & Readonly<{ card: Evidence }>): Reply<CardReply>
-  invalidate(input: Access<P> & Readonly<{
-    operation: AgentOperationId; passage: PassageId; round: CardRoundId
-    cards: readonly Evidence[]; reason: Evidence
-  }>): Reply<readonly Readonly<{ card: Evidence; reply: Exclude<CardReply, { kind: 'pending' }> }>[]>
-}
-export type AdmissionDecision =
-  | Readonly<{ kind: 'allow'; evidence: Evidence }>
-  | Readonly<{ kind: 'deny'; reason: string; evidence: Evidence }>
-  | Readonly<{ kind: 'need-decision'; card: DecisionCardDraft; evidence: Evidence }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-export interface ActionAdmission<P> {
-  admit(input: Access<P> & Readonly<{
-    advance: Authority; execution: AgentExecutionId; passage: PassageId
-    action: ActionId; original: Action['original']; effectiveArguments: string
-    definition: Adoption; permissions: CapturedRead | null
-    decision: Readonly<{ card: Evidence; answer: CardAnswer }> | null
-  }>): Reply<AdmissionDecision>
-}
-export type MessageSource =
-  | Readonly<{ kind: 'external-input'; input: InputId }>
-  | Readonly<{ kind: 'model-reply'; step: StepId; action: ActionId; call: M.ModelCallId; result: ProducedResult }>
-  | Readonly<{ kind: 'tool-result'; action: ActionId; call: T.ToolCallId; result: ProducedResult }>
-  | Readonly<{ kind: 'action-denied'; action: ActionId; evidence: Evidence }>
-  | Readonly<{ kind: 'reminder'; passage: PassageId }>
-  | Readonly<{ kind: 'context-transition'; transition: PreparedContextTransition }>
-export type HandoffResult =
-  | Readonly<{ kind: 'accepted'; admission: Evidence }>
-  | Readonly<{ kind: 'rejected'; reason: string; evidence: Evidence }>
-export interface MessageHandoff<P> {
-  accept(input: Access<P> & Readonly<{
-    execution: AgentExecutionId; operation: AgentOperationId; advance: Authority | null
-    source: MessageSource; candidate: Message
-  }>): Reply<HandoffResult>
-}
-export type Material<B extends ContentBlock> =
-  | Readonly<{ kind: 'model'; result: ProducedResult; pages: readonly M.ResultPage[] }>
-  | Readonly<{ kind: 'tool'; result: ProducedResult; pages: readonly T.ResultPage<B>[] }>
-  | Readonly<{ kind: 'facts'; schema: Adoption; value: JsonValue }>
-export interface AgentMaterials<P, B extends ContentBlock> {
-  preserve(input: Access<P> & Readonly<{
-    identity: string; consumer: ConsumerRef; value: Material<B>
-  }>): Reply<Evidence>
-  read(input: Access<P> & Readonly<{ source: Evidence }>): Reply<Material<B>>
-}
-export interface RegisteredReads<P> {
-  read(input: Access<P> & Readonly<{
-    action: ActionId; passage: PassageId; original: Evidence
-    owner: string; protocol: Adoption; query: JsonValue
-  }>): Reply<Readonly<{ kind: 'captured'; value: CapturedRead }> | Readonly<{ kind: 'unknown' }>>
-  lookup(input: Access<P> & Readonly<{
-    action: ActionId; passage: PassageId; original: Evidence
-  }>): Reply<
-    Readonly<{ kind: 'captured'; value: CapturedRead }>
-    | Readonly<{ kind: 'excluded'; evidence: Evidence }>
-    | Readonly<{ kind: 'unknown' }>
-  >
-}
-```
+- [extensions.ts](../../src/extensions.ts)：上表的作者接口类型，常量 `POSITIONS` 与 `POWERS`。
+- [passages.ts](../../src/passages.ts)：扩展调用台账与人工卡片，有 `CapturedRead`、`CardRequest`、`CardAnswer`、`CardReply`、`PassageCard`、`PassageOperationProgress`、`CardRoundProgress`、`CardRound`、`PassageOperation`、`PassageProgress` 与 `Passage`。还有按位置的 `Subject`，端口 `ExtensionImplementations`、`DecisionCards`、`ActionAdmission`、`MessageHandoff`、`AgentMaterials` 与 `RegisteredReads`，以及 `AdmissionDecision`、`MessageSource`、`HandoffResult` 与 `Material`。
+- [judge-output.ts](../../src/judge-output.ts)：按位置输出表判断作者返回值的 `judgeExtensionOutput`，位置输出表的机读形式 `POSITION_OUTPUTS`，以及类型 `ExtensionOutputJudgeInput`、`PositionOutputKey` 与 `PositionOutputs`。规则见[位置输出表](extensions.md#位置输出表)与 [SPEC 的声明判断](../../SPEC.md#声明判断)。
 
 Passage 是一次扩展调用的台账，不是一次经过的台账。一次经过是 Loop 到达一个位置的一次，同一次经过里每个扩展各有一个 Passage。两个词的定义见[扩展作者协议](extensions.md)页首。
 
@@ -556,188 +137,10 @@ ExtensionImplementations.resolve 只返回匹配原 `implementation` 精确采�
 
 [行为与约束](../../SPEC.md#托管协调与运行实例)。
 
-[对象状态及协议](../object-model.md)。以下声明与前文属于同一模块。所有 ID、Evidence 和 Authority 均须在边界验证；结构相同不代表来自可信拥有者。
+[对象状态及协议](../object-model.md)。以下类型与前文属于同一模块。ID、Evidence 和 Authority 的边界验证要求见 SPEC 的“[身份、范围与归属](../../SPEC.md#身份范围与归属)”。
 
-```ts
-export type ExecutionState =
-  | Readonly<{ kind: 'reconciling' | 'advancing' }>
-  | Readonly<{ kind: 'waiting'; waits: readonly Waiting[] }>
-  | Readonly<{ kind: 'settling'; intent: FinishIntent }>
-  | Readonly<{ kind: 'suspended'; handoff: Evidence }>
-  | Readonly<{ kind: 'ended'; conclusion: AgentConclusion; disposition: Evidence }>
-export type ExecutionSnapshot = Readonly<{
-  execution: AgentExecutionId; revision: ExecutionRevision; state: ExecutionState
-  checkpoint: AgentCheckpoint; inputWatermark: Evidence; history: Evidence
-  replyAdmissions: ReplyAdmissionProjection
-  executionAttachment: Authority | null; unresolved: readonly AgentOperationId[]
-  controls: readonly ControlRecord[]; results: readonly ResultResponsibility[]
-  effects: readonly EffectIntent[]; terminalObservations: readonly TerminalObservation[]
-  output: Readonly<{ emittedThrough: string | null; acknowledgedThrough: string | null }>
-}>
-export type AgentState =
-  | Readonly<{ kind: 'idle'; instance: AgentInstanceId }>
-  | Readonly<{ kind: 'occupied'; instance: AgentInstanceId; execution: AgentExecutionId; executionAttachment: ExecutionAttachmentId }>
-  | Readonly<{ kind: 'draining'; instance: AgentInstanceId; unresolved: readonly AgentExecutionId[] }>
-  | Readonly<{ kind: 'disposed'; instance: AgentInstanceId }>
-export type AcceptedInput = Readonly<{
-  id: InputId; content: Message; source: Evidence | null; priority: 'ordinary' | 'urgent'
-}>
-export type TerminalObservation = Readonly<{
-  terminal: Evidence; passage: PassageId; implementation: Adoption
-  observed: Evidence | null
-}>
-export type FinishIntent = Readonly<{
-  conclusion: AgentConclusion; inputWatermark: Evidence
-  obligations: Evidence; beforeTerminal: Evidence | null
-  failure: FailureCandidate | null
-}>
-export type FinishResult =
-  | Readonly<{ kind: 'ended'; receipt: CommandReceipt }>
-  | Readonly<{ kind: 'changed'; revision: ExecutionRevision }>
-  | Readonly<{
-      kind: 'blocked'; reason: 'inputs' | 'controls' | 'operations' | 'passages' | 'custody'
-      source: Evidence
-    }>
-export type FinishAuthorization =
-  | Readonly<{ kind: 'advancement'; authority: Authority }>
-  | Readonly<{ kind: 'cancel'; control: AgentOperationId; source: Evidence }>
-export type ExecutionControl =
-  | Readonly<{ kind: 'interrupt-model'; call: M.ModelCallId; reason: Evidence }>
-  | Readonly<{ kind: 'interrupt-tool' | 'background-tool'; call: T.ToolCallId; reason: Evidence }>
-  | Readonly<{ kind: 'cancel'; reason: Evidence }>
-  | Readonly<{ kind: 'suspend'; reason: Evidence }>
-export type ControlStage =
-  | 'accepted' | 'intent-established' | 'qualification-revoked'
-  | 'producer-confirmed' | 'physically-stopped' | 'duty-released'
-export type ControlStageFact = Readonly<{ state: 'reached' | 'unresolved'; source: Evidence }>
-export type ControlRecord = Readonly<{
-  operation: AgentOperationId; command: ExecutionControl
-  stages: Readonly<{ accepted: ControlStageFact }
-    & Partial<Record<Exclude<ControlStage, 'accepted'>, ControlStageFact>>>
-}>
-export type ResultResponsibility = Readonly<{
-  result: ProducedResult; consumption: ConsumptionId
-  custody: Evidence | null; completion: Evidence | null
-  release: Readonly<{ kind: 'pending' }> | Readonly<{ kind: 'confirmed'; receipt: Evidence }>
-}>
-export type ExecutionMutation<P> = Access<P> & Readonly<{
-  execution: AgentExecutionId; operation: AgentOperationId
-}>
-export type CommandReceipt = Readonly<{
-  operation: AgentOperationId; execution: AgentExecutionId
-  revision: ExecutionRevision; evidence: Evidence; state: 'accepted' | 'applied' | 'unresolved'
-}>
-export type AgentEventBody =
-  | Readonly<{ kind: 'input-taken'; batch: InputBatch }>
-  | Readonly<{ kind: 'message'; message: Message; source: Evidence }>
-  | Readonly<{ kind: 'producer'; result: ProducedResult; consumption: ConsumptionId }>
-  | Readonly<{ kind: 'stream'; producer: ProducedResult['producer']; cursor: string; source: Evidence; schema: Adoption; value: JsonValue }>
-  | Readonly<{ kind: 'waiting'; waits: readonly Waiting[] }>
-  | Readonly<{ kind: 'control'; operation: AgentOperationId; stage: ControlStage; state: 'reached' | 'unresolved'; source: Evidence }>
-  | Readonly<{ kind: 'ended'; conclusion: AgentConclusion; disposition: Evidence }>
-export type AgentEvent = Readonly<{
-  execution: AgentExecutionId; sequence: string; executionAttachment: ExecutionAttachmentId
-  schema: Adoption; cause: Evidence; body: AgentEventBody
-}>
-export type EventPage =
-  | Readonly<{ kind: 'page'; events: readonly AgentEvent[]; next: string; caughtUp: boolean }>
-  | Readonly<{ kind: 'gap'; retainedFrom: string; recovery: Evidence }>
-export interface AgentExecutionInput<P> {
-  submit(input: ExecutionMutation<P> & Readonly<{ value: AcceptedInput }>): Reply<CommandReceipt>
-}
-export interface AgentExecutionControl<P> {
-  control(input: ExecutionMutation<P> & Readonly<{ command: ExecutionControl }>): Reply<CommandReceipt>
-}
-export interface AgentExecutionEvents<P> {
-  read(input: Access<P> & Readonly<{ execution: AgentExecutionId; after: string | null; limit: number }>): Reply<EventPage>
-  events(input: Access<P> & Readonly<{ execution: AgentExecutionId; after: string | null; signal: AbortSignal }>): AsyncIterable<Outcome<EventPage, Failure>>
-  acknowledge(input: ExecutionMutation<P> & Readonly<{ through: string; receipt: Evidence | null }>): Reply<CommandReceipt>
-}
-export interface AgentExecutionHandle<P> {
-  readonly execution: AgentExecutionId
-  readonly input: AgentExecutionInput<P>
-  readonly control: AgentExecutionControl<P>
-  readonly output: AgentExecutionEvents<P>
-}
-export interface AgentRuntime<P> {
-  readonly instance: AgentInstanceId
-  invoke(input: ExecutionMutation<P> & Readonly<{ initial: AcceptedInput; grant: Evidence | null }>): Reply<AgentExecutionHandle<P>>
-  resume(input: ExecutionMutation<P> & Readonly<{ recovery: Evidence; grant: Evidence | null }>): Reply<AgentExecutionHandle<P>>
-}
-export type AgentObservation =
-  | Readonly<{ kind: 'state'; value: AgentState }>
-  | Readonly<{ kind: 'ended'; reason: 'closed' | 'denied' | 'retired' | 'unavailable' }>
-export interface AgentHandle<P> {
-  readonly instance: AgentInstanceId
-  observe(input: Access<P> & Readonly<{ signal: AbortSignal }>): AsyncIterable<AgentObservation>
-}
-export interface AgentDirectory<P> {
-  resolve(input: Access<P> & Readonly<{ instance: AgentInstanceId }>): Reply<AgentRuntime<P>>
-  connect(input: Access<P> & Readonly<{ instance: AgentInstanceId }>): Reply<
-    Readonly<{ kind: 'live'; handle: AgentHandle<P> }> | Readonly<{ kind: 'no-live-route' }>
-  >
-}
-export interface AgentExecutionRecovery<P> {
-  query(input: ExecutionMutation<P>): Reply<
-    Readonly<{ kind: 'committed'; receipt: CommandReceipt }>
-    | Readonly<{ kind: 'excluded'; evidence: Evidence }>
-    | Readonly<{ kind: 'unknown' }>
-  >
-  load(input: Access<P> & Readonly<{ execution: AgentExecutionId }>): Reply<ExecutionSnapshot>
-  reconcile(input: ExecutionMutation<P>): Reply<Readonly<{ remaining: readonly ConsumptionId[]; evidence: Evidence }>>
-  detach(input: ExecutionMutation<P> & Readonly<{ authority: Authority; reason: Evidence }>): Reply<Evidence>
-}
-export interface AgentAdoptions<P> {
-  resolve(input: Access<P> & Readonly<{ adoption: Adoption }>): Reply<Readonly<{
-    definition: AgentDefinition; evaluator: AgentEvaluator; extensions: readonly LoopExtensionDeclaration[]
-  }>>
-  handover(input: Access<P> & Readonly<{
-    from: Adoption; to: Adoption; snapshot: ExecutionSnapshot; original: Continuation
-  }>): Reply<Readonly<{ continuation: Continuation; evidence: Evidence }>>
-}
-export type RegistrationState = 'published' | 'withdrawing' | 'withdrawn'
-export type Registration = Readonly<{ registration: AgentRegistrationId; state: RegistrationState }>
-export interface AgentRegistrationHandle<P> {
-  readonly instance: AgentInstanceId
-  report(input: Readonly<{ state: AgentState }>): void
-  withdraw(input: Access<P> & Readonly<{ operation: AgentOperationId; reason: Evidence }>): Reply<Registration | null>
-}
-export interface AgentInstanceHost<P> {
-  reserve(input: Access<P> & Readonly<{ operation: AgentOperationId; scope: Evidence; definition: Adoption }>): Reply<Readonly<{
-    instance: AgentInstanceId; registration: AgentRegistrationHandle<P>
-  }>>
-  publish(input: Access<P> & Readonly<{ operation: AgentOperationId; instance: AgentInstanceId; scope: Evidence; state: AgentState }>): Reply<Registration>
-  withdraw(input: Access<P> & Readonly<{ operation: AgentOperationId; instance: AgentInstanceId; registration: AgentRegistrationId }>): Reply<Registration>
-  readonly directory: AgentDirectory<P>
-}
-export type QuiesceResult = Readonly<{
-  kind: 'drained' | 'unresolved'; remaining: readonly AgentExecutionId[]; evidence: Evidence
-}>
-export interface AgentRuntimeControl<P> {
-  quiesce(input: Access<P> & Readonly<{ operation: AgentOperationId; reason: Evidence }>): Reply<QuiesceResult>
-}
-export type AgentAccessOperation =
-  | 'invoke' | 'resume' | 'submit' | 'control' | 'read' | 'events' | 'acknowledge'
-  | 'takeover' | 'observe' | 'resolve' | 'connect' | 'reserve' | 'publish' | 'withdraw' | 'quiesce'
-  | 'query' | 'load' | 'reconcile' | 'detach' | 'record-terminal-observation'
-export type AgentAccessTarget =
-  | Readonly<{ kind: 'scope'; scope: Evidence; definition: Adoption }>
-  | Readonly<{ kind: 'instance'; instance: AgentInstanceId }>
-  | Readonly<{ kind: 'execution'; instance: AgentInstanceId; execution: AgentExecutionId }>
-export type AgentAccessDecision =
-  | Readonly<{ kind: 'allowed'; evidence: Evidence }>
-  | Readonly<{ kind: 'denied' }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-export interface AgentAccessCheck<P> {
-  check(input: Readonly<{
-    access: Access<P>; operation: AgentAccessOperation; target: AgentAccessTarget
-  }>): Promise<AgentAccessDecision>
-}
-export type AgentInstant = string
-export interface AgentClock {
-  waitUntil(instant: AgentInstant, signal: AbortSignal): Reply<'elapsed' | 'cancelled'>
-}
-```
+- [execution.ts](../../src/execution.ts)：执行与实例的类型。有 `ExecutionState`、`ExecutionSnapshot`、`AgentState`、`AcceptedInput`、`TerminalObservation`、`FinishIntent`、`FinishResult`、`FinishAuthorization`，控制的 `ExecutionControl`、`ControlStage`、`ControlStageFact` 与 `ControlRecord`，`ResultResponsibility`、`ExecutionMutation`、`CommandReceipt`，事件的 `AgentEventBody`、`AgentEvent` 与 `EventPage`。
+- 运行时端口也在 [execution.ts](../../src/execution.ts)：`AgentExecutionInput`、`AgentExecutionControl`、`AgentExecutionEvents`、`AgentExecutionHandle`、`AgentRuntime`、`AgentObservation`、`AgentHandle`、`AgentDirectory`、`AgentExecutionRecovery`、`AgentAdoptions`，登记的 `RegistrationState`、`Registration`、`AgentRegistrationHandle` 与 `AgentInstanceHost`，停用的 `QuiesceResult` 与 `AgentRuntimeControl`，资格核验的 `AgentAccessOperation`、`AgentAccessTarget`、`AgentAccessDecision` 与 `AgentAccessCheck`，以及 `AgentClock`。
 
 - invoke 返回的 AgentExecutionHandle 是原 execution 的输入、控制和输出视图，不指向 runtime 后来承接的其他 execution。
 - 推进资格依据 `grant` 为空表示独立调用，执行挂接由 Journal 提供者授予。外部协调者传入自己的推进资格依据。
@@ -756,81 +159,13 @@ export interface AgentClock {
 - `QuiesceResult` 的 `remaining` 是交接未知的 execution。行为见 SPEC 的“[交接与停用](../../SPEC.md#交接与停用)”，被接管的执行不计入，见“[恢复与接管](../../SPEC.md#恢复与接管)”。
 - 终态的 `disposition` 是终态成立的处置依据：它指向被提交的 FinishIntent，含其中落终态之前位置的依据与终结授权。终态后观察者经它取得这些依据，规则见 SPEC 的“[条件终结](../../SPEC.md#条件终结)”。
 
-invoke、resume、登记、撤除与停用的行为见 SPEC 的“[托管协调与运行实例](../../SPEC.md#托管协调与运行实例)”。主体资格的核验见“[主体资格核验](../../SPEC.md#主体资格核验)”。事件序号、游标、缺口、背压、重连与确认的行为见“[事件流与读取](../../SPEC.md#事件流与读取)”。控制的种类、范围与六个阶段见“[取消、退出与结构变更](../../SPEC.md#取消退出与结构变更)”。本页只给类型形状，不重复这些行为。
+invoke、resume、登记、撤除与停用的行为见 SPEC 的“[托管协调与运行实例](../../SPEC.md#托管协调与运行实例)”。主体资格的核验见“[主体资格核验](../../SPEC.md#主体资格核验)”。事件序号、游标、缺口、背压、重连与确认的行为见“[事件流与读取](../../SPEC.md#事件流与读取)”。控制的种类、范围与六个阶段见“[取消、退出与结构变更](../../SPEC.md#取消退出与结构变更)”。本页只导航到类型所在的源码，不重复这些行为。
 
 ## 执行记录与调用方交接端口
 
 Journal 是 Agent 的持久端口，只提供执行记录、输入、checkpoint、事件和原操作结果的操作，不提供外部协调者的业务管理操作。端口按使用角色分为五组：开启与挂接、提交与记录、终结、终态后观察登记、读取。读取组只含读操作，不含任何写入。只承担一种角色的使用者只依赖对应的组，例如长期的终态后观察者只依赖读取与终态后观察登记两组，不取得终结或确认的能力。以下联合限制允许的交接，不能传任意脚本、数据库动作或业务方法名。这些操作的行为见 SPEC 的“[托管协调与运行实例](../../SPEC.md#托管协调与运行实例)”与“[提交参加者协议](../../SPEC.md#提交参加者协议)”。
 
-```ts
-export type CallerCommit =
-  | Readonly<{ kind: 'none' }>
-  | Readonly<{ kind: 'message'; message: Message; source: Evidence; admission: Evidence }>
-  | Readonly<{ kind: 'context-transition'; value: PreparedContextTransition; admission: Evidence }>
-  | Readonly<{ kind: 'custody'; result: ProducedResult; consumption: ConsumptionId; retained: Evidence }>
-  | Readonly<{ kind: 'processed'; result: ProducedResult; consumption: ConsumptionId; completion: Evidence }>
-export type EffectIntent = Readonly<{
-  action: ActionId; pending: PendingCall; authority: Authority
-}>
-export type JournalCommit<P> = ExecutionMutation<P> & Readonly<{
-  authority: Authority; expected: ExecutionRevision; checkpoint: AgentCheckpoint
-  state: Exclude<ExecutionState, { kind: 'ended' }>; events: readonly Exclude<AgentEventBody, { kind: 'ended' }>[]
-  effects: readonly EffectIntent[]; caller: CallerCommit
-  replyAdmission: ModelReplyAdmission | null
-}>
-export interface AgentJournalAttachment<P> {
-  open(input: ExecutionMutation<P> & Readonly<{
-    instance: AgentInstanceId; grant: Evidence | null; initial: AcceptedInput; checkpoint: AgentCheckpoint
-  }>): Reply<Readonly<{ receipt: CommandReceipt; authority: Authority }>>
-  attach(input: ExecutionMutation<P> & Readonly<{
-    instance: AgentInstanceId; grant: Evidence | null; recovery: Evidence
-    takeover: Evidence | null
-  }>): Reply<Readonly<{ receipt: CommandReceipt; authority: Authority }>>
-  detach(input: Parameters<AgentExecutionRecovery<P>['detach']>[0]): Reply<Evidence>
-}
-export interface AgentJournalRecording<P> {
-  commit(input: JournalCommit<P>): Reply<CommandReceipt>
-  submit(input: Parameters<AgentExecutionInput<P>['submit']>[0]): Reply<CommandReceipt>
-  control(input: Parameters<AgentExecutionControl<P>['control']>[0]): Reply<CommandReceipt>
-  acknowledge(input: Parameters<AgentExecutionEvents<P>['acknowledge']>[0]): Reply<CommandReceipt>
-  recordResult(input: ExecutionMutation<P> & Readonly<{
-    result: ProducedResult; consumption: ConsumptionId
-    transfer: Extract<CallerCommit, { kind: 'custody' | 'processed' }> | Readonly<{ kind: 'none' }>
-    release: Readonly<{ kind: 'pending' }> | Readonly<{ kind: 'confirmed'; receipt: Evidence }>
-  }>): Reply<CommandReceipt>
-  recordControl(input: ExecutionMutation<P> & Readonly<{
-    target: AgentOperationId; stage: Exclude<ControlStage, 'accepted'>
-    state: 'reached' | 'unresolved'; source: Evidence
-  }>): Reply<CommandReceipt>
-}
-export interface AgentJournalFinishing<P> {
-  tryFinish(input: ExecutionMutation<P> & Readonly<{
-    authorization: FinishAuthorization; expected: ExecutionRevision; intent: FinishIntent
-  }>): Reply<FinishResult>
-}
-export interface AgentJournalObservation<P> {
-  recordTerminalObservation(input: ExecutionMutation<P> & Readonly<{
-    terminal: Evidence; passage: PassageId; implementation: Adoption; observed: Evidence
-  }>): Reply<CommandReceipt>
-}
-export interface AgentJournalReading<P> {
-  load(input: Access<P> & Readonly<{ execution: AgentExecutionId }>): Reply<ExecutionSnapshot>
-  inputs(input: Access<P> & Readonly<{ execution: AgentExecutionId; watermark: Evidence }>): Reply<Readonly<{ batch: InputBatch; messages: readonly Message[] }>>
-  readReplyAdmissions(input: Access<P> & Readonly<{
-    execution: AgentExecutionId; through: Evidence; after: string | null; limit: number
-  }>): Reply<ReplyAdmissionPage>
-  query(input: ExecutionMutation<P>): ReturnType<AgentExecutionRecovery<P>['query']>
-  readonly output: Pick<AgentExecutionEvents<P>, 'read' | 'events'>
-}
-export type JournalCapabilities = Readonly<{
-  participants: ReadonlySet<Exclude<CallerCommit['kind'], 'none'>>
-}>
-export interface AgentJournal<P>
-  extends AgentJournalAttachment<P>, AgentJournalRecording<P>, AgentJournalFinishing<P>,
-    AgentJournalObservation<P>, AgentJournalReading<P> {
-  readonly capabilities: JournalCapabilities
-}
-```
+- [journal.ts](../../src/journal.ts)：`CallerCommit`、`EffectIntent`、`JournalCommit`，按使用角色分的五组端口 `AgentJournalAttachment`、`AgentJournalRecording`、`AgentJournalFinishing`、`AgentJournalObservation` 与 `AgentJournalReading`，`JournalCapabilities`，以及它们的并集 `AgentJournal`。
 
 open 与 attach 返回新授予的 Authority，runtime 用它向 Model、Tool、请求准备和 Journal 的后续操作证明自己的挂接资格。attach 的 `takeover` 是接管路径所需的主体资格依据，取自 AgentAccessCheck 对 takeover 的 allowed 结论，恢复路径传 null。宿主恢复入口与长期保管者直接使用的 Journal 操作，由宿主的适配器以同一端口核验主体，规则见 SPEC 的“[主体资格核验](../../SPEC.md#主体资格核验)”。open 与 submit 收到的 AcceptedInput 内容由提供者在受理时耐久保存，inputs 返回的 messages 来自这些保存的内容。CallerCommit 的非 none 种类，只能在 Journal 提供者声明了对应提交参加者时使用。tryFinish 的 `FinishAuthorization` 有两种：`advancement` 对应仍然有效的普通完成或失败，`cancel` 对应已保存且当前适用的取消控制。`TerminalObservation` 的 `observed` 为 null 表示待观察。`ResultResponsibility` 的 `release` 为 `pending` 表示责任尚未解除。
 

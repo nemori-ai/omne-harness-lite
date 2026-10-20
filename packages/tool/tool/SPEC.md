@@ -10,7 +10,7 @@
 
 - 独立路径：`createIndependentToolScope`（G2）与 `executeTool`（G8），即契约 SPEC [P11](../tool-contract/SPEC.md#p11-作者输出与等待原语) 的独立执行。
 - 账本：账本工厂 `createToolLedger` 与记录仓端口 `ToolLedgerStore`（G1）。
-- 逻辑终局：`createToolRuntime`（G8）的 admit、lookup、queryOperation、readResult、releaseDelivery 与 account。这些调用不进入环境或执行者（第 10–16 条）。
+- 逻辑终局：`createToolRuntime`（G8）的 invoke、queries.lookup、queries.queryOperation、queries.readResult、commands.releaseDelivery 与 queries.account。这些调用不进入环境或执行者（第 10–16 条）。
 - 到启动为止的真实调用：受理、环境准备、FIFO 排队、启动意图、启动围栏与启动记录，以及启动前的拒绝收场（第 19–23 条）。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。
 
 尚未实现：已启动执行的事实接收、收场与名额释放，以及控制、计时段开启之后的计时、等待、恢复与退出。这些操作回复具名的 `unsupported`。所以一个已启动的调用停在 `running`，它的名额一直被占用。内部机制见 [architecture](docs/architecture.md)。
@@ -96,11 +96,11 @@
 
 账本只检查租户的形状：`TenantId`、`OrganizationId` 与 `AccountId` 三个名字和两段非空文本。`guards.access` 必须证明租户是 legal-identity 铸造的值，不是同形状的对象，伪造的租户回复 `denied`。账本按两段身份文本为记录定键，所以这项证明是隔离的前提，不能省略。
 
-固定请求经 `judgeFixedToolRequest` 封闭检查，拒绝的字段前缀 `request.`。来源经 `guards.sources` 核验：伪造回复 `denied`，不可读回复 `unavailable`（`dependency` 为 `source-guard`）。并发范围的授予经 `guards.grants` 核验：装配为每个接受的范围拥有者声明一个核验器，核验器确认范围拥有者已把 `scope.key` 授予当前租户和调用方。缺失、伪造或属于他方的授予回复 `denied`，范围拥有者没有声明核验器同样回复 `denied`，核验器不可读回复 `unavailable`（`dependency` 为 `grant-guard`）。资格守卫不可读回复 `unavailable`（`dependency` 为 `access-guard`）。守卫或记录仓抛出时，回复 `unavailable`，`diagnostic` 是只说明依赖名的固定文本，不带异常消息，因为异常消息可能含连接串等秘密（P05）。守卫与记录仓自己给出的 `diagnostic` 原样转交。这些拒绝都不写记录。
+固定请求经 `judgeFixedToolRequest` 封闭检查，拒绝的字段前缀 `request.`。来源经 `guards.sources.verify` 接收完整 Mutation 与 FixedToolRequest 核验：伪造回复 `denied`，不可读回复 `unavailable`（`dependency` 为 `source-guard`）。并发范围的授予经 `guards.grants` 核验：装配为每个接受的范围拥有者声明一个核验器，核验器确认范围拥有者已把 `scope.key` 授予当前租户和调用方。缺失、伪造或属于他方的授予回复 `denied`，范围拥有者没有声明核验器同样回复 `denied`，核验器不可读回复 `unavailable`（`dependency` 为 `grant-guard`）。资格守卫不可读回复 `unavailable`（`dependency` 为 `access-guard`）。守卫或记录仓抛出时，回复 `unavailable`，`diagnostic` 是只说明依赖名的固定文本，不带异常消息，因为异常消息可能含连接串等秘密（P05）。守卫与记录仓自己给出的 `diagnostic` 原样转交。这些拒绝都不写记录。
 
 ### 11 操作幂等（P01）
 
-同 tenant、call、operation、同规范输入摘要的重送回复原回执。账本的 admit 同时说明它是否认回了已提交的受理，`createToolRuntime` 的 admit 把它作为 `recovered` 返回。runtime 不先读操作记录，所以受理只需要 `admit` 资格。两个首次受理同时竞争时，先提交的那次得到 `recovered: false`；后一次的提交因修订冲突失败，重读后认回原受理，得到原回执与 `recovered: true`。同操作异摘要回复 `conflict`。
+同 tenant、call、operation、同规范输入摘要的重送回复原回执。内部账本的 admit 同时说明它是否认回了已提交的受理。普通 runtime.invoke 每次分配新身份，若收到 recovered=true，报告身份提供者违约并且不调度。内部 admission 不先读操作记录，所以受理只需要 `admit` 资格。两个首次受理同时竞争时，先提交的那次得到 `recovered: false`；后一次的提交因修订冲突失败，重读后认回原受理，得到原回执与 `recovered: true`。同操作异摘要回复 `conflict`。
 
 已受理的调用再以另一操作号 admit 回复 `stale-revision`，`current` 是当前状态的修订号。带 `WriteContext` 的命令先比对 `expected` 与当前状态的修订号，不匹配回复 `stale-revision`，再进入命令本身。提交结果未知回复 `commit-unknown`，Tool 不在内部重试该提交。调用者以 `queryOperation` 认回：已落盘则 `committed`，重送得到原回执且不再写第二次；否定答案见第 14 条。记录仓读取失败回复 `unavailable`（`dependency` 为 `ledger-store`），不冒充调用不存在。修订冲突时重读重判，次数上限是 `ledgerCommitAttempts`；用尽后回复 `unavailable`（`ledger-store`，`<次数> revision conflicts in a row`）。
 
@@ -165,17 +165,19 @@
 
 ### 16 交付解除（P08）
 
+普通 `runtime.commands.releaseDelivery` 成功返回 `released` 和生产者原耐久回执，不附本次操作引用。已释放后的重入不写新操作。未知结果携带本次操作引用，queryOperation 只查询该操作；可靠否定只否定该次操作，不证明交付仍 pending。调用方在可靠否定后可以明确再次释放以取得原回执，未知或不可读时不能自动重发。lookup 用原 admission 定位并返回当前权威 ToolState，可按当前 result 及 delivery 中的交付号与 consumer 认回已有释放。invoke 的 state 是受理时回执。readProcess 未支持，ResultPage 不含 DeliveryState。
+
 `releaseDelivery` 先用契约的 `judgeConsumerRef` 与 `judgeHandoff` 封闭检查消费位置与交接证据，再比较或计算摘要。多出的字段回复 `invalid`（`unknown-field`），函数等非文本值回复 `invalid`（`type`），字段前缀是 `consumer.` 或 `evidence.`。之后核版本、交付号与消费位置都是记录的值：未知调用回复 `invalid`（`call: unknown-call`），交付号不符回复 `invalid`（`delivery: mismatch`），版本未知回复 `invalid`（`result: unknown-version`），消费位置不同回复 `conflict`，`operation` 是形成该版本的操作。`retained` 的 `custody` 或 `processed` 的 `completion` 的 `owner` 必须等于消费者的 `owner`，否则回复 `invalid`（`evidence.<custody|completion>.owner: owner-mismatch`）。
 
 通过后一次提交同时写入结果记录的 `released`、操作回执、调用状态，并删除 `deliver` 任务。`released.evidence` 由本包铸造（第 15 条的 `delivery` 种类），不是请求证据的回送。已解除的交付再次解除（同操作或新操作）回复已解除状态，不再写入。解除后全文仍可经 `readResult` 读取。
 
 ### 17 工厂与后续增量
 
-`createToolRuntime` 在构造时检查配置：作者限额、容量、`queueCapacity` 与 `ledgerCommitAttempts` 是正安全整数，处理延迟（`processBatchDelayMs` 等）是非负安全整数，可选的 `driverStepsPerRun` 缺省为 16，给出时是正安全整数；可选的 `driverRetryDelayMs` 缺省为 1000，给出时是 1 到 2147483647 的整数，这是定时器能持有的最长延迟，0 与超过定时器上限的值抛 `TypeError`（第 23 条）。`createToolLedger` 检查它读取的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。`ToolDependencies.instance` 必须是 `ToolInstanceId`。缺端口或超出范围抛 `TypeError`，因为这是装配缺陷。`ToolDependencies.admissions` 是账本的 admit 入口（`ToolLedger.admissions`），runtime 的 admit 直接用它；`ToolDependencies.queues` 是账本的队列维护入口（`ToolLedger.queues`），推进协程的等待者用它对账（第 22 条）。runtime 与 provider 都是冻结对象。
+`createToolRuntime` 在构造时检查配置：作者限额、容量、`queueCapacity` 与 `ledgerCommitAttempts` 是正安全整数，处理延迟（`processBatchDelayMs` 等）是非负安全整数，可选的 `driverStepsPerRun` 缺省为 16，给出时是正安全整数；可选的 `driverRetryDelayMs` 缺省为 1000，给出时是 1 到 2147483647 的整数，这是定时器能持有的最长延迟，0 与超过定时器上限的值抛 `TypeError`（第 23 条）。`createToolLedger` 检查它读取的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。宿主每次调用 driver.run 显式提供 instance，不存在工厂级 instance。缺端口或超出范围抛 `TypeError`，因为这是装配缺陷。`ToolDependencies.admissions` 是账本的 admit 入口（`ToolLedger.admissions`），runtime 的 invoke 在身份分配与来源绑定后用它；`ToolDependencies.queues` 是账本的队列维护入口（`ToolLedger.queues`），推进协程的等待者用它对账（第 22 条）。runtime、窄接口与 provider 都是冻结对象。受信的 invocationIdentities、operationIdentities 和 sourceIssuer 必须显式装配，不提供生产默认来源签发器。普通调用及引用失败协议归[契约的普通操作](../tool-contract/SPEC.md#342-普通操作与实例目录)。
 
-构造时 runtime 把推进协程装到 `instances.install`。装入不受理业务，也不读写记录仓。真实工具的 admit 回复 `accepted` 时，runtime 调用 `instances.schedule` 唤醒该调用。认回的受理也唤醒，因为第一次的回复可能在唤醒之前丢失。唤醒只是提示：它抛出或失败都不改变 admit 的回复。`inspect` 转给 `catalog.inspect`，不另加判断（P16）。
+构造时 runtime 把推进协程装到 `instances.install`。装入不受理业务，也不读写记录仓。真实工具的 invoke 受理成功且阶段为 `accepted` 时，runtime 调用 `instances.schedule` 唤醒该调用。首次新身份收到 recovered=true 不调度。唤醒只是提示：它抛出或失败都不改变 accepted 的回复。`inspect` 转给 `catalog.inspect`，不另加判断（P16）。
 
-未实现的操作回复 `unsupported`，`adoption` 是 `tool-runtime` 或 `tool-ledger` 的采用，`reason` 说明操作名与它所属的后续增量。没有操作抛异常或回复空成功。`catalog`、`content` 与 `instances` 直接是依赖给出的端口。
+未实现的操作回复 `unsupported`，`adoption` 是 `tool-runtime` 或 `tool-ledger` 的采用，`reason` 说明操作名与它所属的后续增量。没有操作抛异常或回复空成功。`catalog` 是依赖给出的端口，content 与 instances 先解析调用引用再进入原读取端口或目录。
 
 ### 18 非耐久记录仓（`./testing`）
 
@@ -280,7 +282,7 @@
 - 容量按 FIFO key 下尚未释放的队列条目计数，上限是 `queueCapacity`。读取与受理提交不在同一事务，所以并发受理可以短暂超出容量。序号分配失败的已受理调用在 `planPreparation` 之前不计数。
 - 未轮到队首或没有名额，以及容量拒绝，都回复 `unavailable`，`dependency` 为 `tool-queue`。
 - 首次启动拒绝的 `unavailable` 终局在拒绝提交里直接形成，不经后续的 `preserveResult`，因为从未执行的调用没有 `RawOutput`。契约 SPEC 写的是"首次启动被拒绝时，当前宿主随后以 preserveResult 保存 unavailable 终局"。所以本包不写 `settle` 待办，写 `deliver` 待办。
-- `ToolDependencies.instance` 给出本实例的身份，执行引用的代次固定为 `1`。真实代次由后续的 `claim` 铸造。
+- 宿主通过 `ToolDriver.run` 传入本实例的身份，执行引用的代次固定为 `1`。真实代次由后续的 `claim` 铸造。
 - 写命令的主体放在 `WriteContext` 旁边，资格动作是 `write`（第 19 条）。实例代次与受信通道的核对随 `claim` 实现。
 - 环境拒绝形成 `unavailable` 终局。契约 SPEC 没有规定环境拒绝的终局种类，而 `ToolTerminal` 有 `failed` 与 `cause: 'environment'`。环境拒绝的证据与清理责任尚未保存。
 - 启动守卫在队列事务之前核对，不与名额裁定同事务。之间的资格变化由启动围栏的失效排序覆盖（P04）。
