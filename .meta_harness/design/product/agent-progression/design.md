@@ -213,7 +213,7 @@ L1、L2 提醒后可以继续，L3 以打转失败进入统一终态出口，L4 
 
 ## 能力定义与实现状态记录表
 
-下表从前述规则提炼能力，不新增产品要求。两个契约包的类型、声明判定和 Cordis 服务定义已经实现，入口见各行的“成员与验证入口”，也见 [agent-contract 测试说明](../../../../packages/agent/agent-contract/tests/README.md)与 [agent-cordis-contract 测试说明](../../../../packages/agent/agent-cordis-contract/tests/README.md)。推进与运行、提供者和装配未实现，已知的实施差异见 [agent-contract 的实施差异](../../../../packages/agent/agent-contract/verification/coverage.md#实施差异)。能力的行为验证与接受未核实。实现观察时间、代码版本或检出、适用装配和行为证据尚缺；文档整理日期不是实现观察。目标成员为 `packages/agent/agent/`，该路径表示责任去向，不证明实际成员存在或已兑现。下表“成员与验证入口”与“实现支持及限制”两列的写法是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
+下表从前述规则提炼能力，不新增产品要求。两个契约包的类型、声明判定和 Cordis 服务定义已经实现，入口见各行的“成员与验证入口”，也见 [agent-contract 测试说明](../../../../packages/agent/agent-contract/tests/README.md)与 [agent-cordis-contract 测试说明](../../../../packages/agent/agent-cordis-contract/tests/README.md)。推进与运行、提供者和装配未实现，已知的实施差异见 [agent-contract 的实施差异](../../../../packages/agent/agent-contract/verification/coverage.md#实施差异)。能力的行为验证与接受未核实。实现观察时间、代码版本或检出、适用装配和行为证据尚缺；文档整理日期不是实现观察。目标成员为 `packages/agent/agent/`，该路径表示责任去向，不证明实际成员存在或已兑现。
 
 | 编号 | 可判定的能力及边界 | 需求旅程 | 成员与验证入口 | 实现支持及限制 | 验证与接受 |
 | --- | --- | --- | --- | --- | --- |

@@ -51,7 +51,7 @@
 
 下表列出已知的源码、测试与设计目标之间的差异。差异不表示源码有缺陷，表示设计目标尚未实施，或实施时遇到设计页没有规定的情形。设计目标拥有者见[主题与唯一拥有者](../../docs/architecture.md#主题与唯一拥有者)。每行的“须同步的消费者”列出实施该目标时必须同时修改或复核的位置。
 
-契约包 agent-contract 与 agent-cordis-contract 已经实现并有测试，实现状态见下文“阶段与接受状态”。它们的实现本身不逐项登记为差异。表中与这两个包有关的行只有三类：源码已变而外部文档尚未同步的位置，自行设计的选择，以及尚未裁定的保留政策。第二类行是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
+契约包 agent-contract 与 agent-cordis-contract 已经实现并有测试，实现状态见下文“阶段与接受状态”。它们的实现本身不逐项登记为差异。表中与这两个包有关的行只有三类：源码已变而外部文档尚未同步的位置，自行设计的选择，以及尚未裁定的保留政策。第二类行的选择由 PanQiWei 于 2026-10-20 在 [PR #490](https://github.com/nemori-ai/omne-harness-lite/pull/490) 接受，决定见 [#395 的放行记录](https://github.com/nemori-ai/omne-harness-lite/issues/395#issuecomment-6282719664)。
 
 | 差异 | 源码位置 | 设计目标拥有者 | 须同步的消费者 |
 | --- | --- | --- | --- |
@@ -65,7 +65,7 @@
 | Context 一侧的请求准备接缝没有有限多步的压缩计划。Context 现有的契约文字只有单一结果的压缩派生：needs-compaction 带一个请求，derive 接收一个结果。设计目标是 Context 交出带计划身份、有限步数上界和已完成步数的计划，Agent 逐步执行并持久记录进度。设计目标还要求 prepare 接收实际收件模型的选择结果与 Runtime Context 的读取结果，并且不提供改写压缩候选的入口。调模型之前位置之前，装得下的结果是组装完成的请求。该位置之后，由 Context 一侧的适配器调用 Model 的请求准备，装得下的结果带 Model 的固定请求。Runtime Context 的读取由 Context 决定 full 或 incremental。这是 Context 侧的接缝缺口 | `packages/context/request-context/src/index.ts:1-2` 是模板，没有可比的源码。文字契约在 `packages/context/request-context/SPEC.md` 的 RQ-06 | [请求准备与压缩](../SPEC.md#请求准备与压缩)与[公开接口页的请求准备](../docs/public-api/README.md#请求扩展和材料接缝) | Context 的 `request-context/SPEC.md` 与其公开契约。Loop 算法页的 Next 联合需要表达压缩步的发起、派生与重新准备。`packages/agent/agent-cordis-contract/docs/cordis.md` 需要增加选择端口与模型可读上下文读取端口的服务依赖 |
 | 源码没有恢复、接管与控制的实现。没有 attach 的恢复与接管两条路径、stale-advance 围栏、四种控制与六个阶段的记录、操作身份的确定派生、恢复切点的对账、两条交付责任解除路径，也没有 W0 的等待、唤醒与每段处理限额。 | `packages/agent/agent/src/index.ts:1-2` 为 `export {}` 草稿；Journal 的两类提供者包尚未建立 | [内部机制](../../agent/docs/architecture/mechanisms.md#恢复切点表)的恢复切点表、控制与故障交接、操作身份的确定派生，以及 SPEC 的[恢复与接管](../SPEC.md#恢复与接管)与[取消、退出与结构变更](../SPEC.md#取消退出与结构变更) | 通用工厂与 Journal 提供者；机制页引用的 `reconciliationBatchLimit` 登记在工厂配置节；SC-AG-160 至 SC-AG-197 |
 | 形式模型未迁入。五个状态空间模型（original-effect、result-custody、input-finish、send-fence、card-barrier）的脚本与结果文件仍在任务临时目录，没有重跑。`verification/models` 只有登记，没有验证结果。 | 无源码。`verification/models/README.md` 为登记 | [形式模型登记](models/README.md) | 迁入时同时迁入脚本与结果文件，并重跑后记录结果；迁入前不把登记当作验证证据 |
-| 身份边界验证规则。设计要求所有 ID、Evidence 和 Authority 在边界验证，但没有给出身份文本规则和结构判定。源码实现了十四个身份解码函数（1 至 256 个可打印 ASCII，不含空格，与 Tool 契约相同）和四个结构判定。SPEC 的“身份、范围与归属”写明这项要求，“身份解码与结构判定”写明规则。验证用的函数与规则是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。 | `packages/agent/agent-contract/src/identity.ts` | SPEC 的[身份、范围与归属](../SPEC.md#身份范围与归属)与[身份解码与结构判定](../SPEC.md#身份解码与结构判定) | agent、agent-host-local 与外域适配器在边界使用这些函数，不各自重写规则 |
+| 身份边界验证规则。设计要求所有 ID、Evidence 和 Authority 在边界验证，但没有给出身份文本规则和结构判定。源码实现了十四个身份解码函数（1 至 256 个可打印 ASCII，不含空格，与 Tool 契约相同）和四个结构判定。SPEC 的“身份、范围与归属”写明这项要求，“身份解码与结构判定”写明规则。 | `packages/agent/agent-contract/src/identity.ts` | SPEC 的[身份、范围与归属](../SPEC.md#身份范围与归属)与[身份解码与结构判定](../SPEC.md#身份解码与结构判定) | agent、agent-host-local 与外域适配器在边界使用这些函数，不各自重写规则 |
 | 目录保留无上界。目录的登记表、操作表与发布代次表只增不减：已结束的登记和用过的操作身份留到进程结束，旧登记身份的晚到撤除与旧操作的重试因此仍能找到答复。保留政策没有裁定，认回已结束的登记返回 withdrawn 的规则依赖这项保留，政策落地时一并裁定。 | `packages/agent/agent-cordis-contract/src/cordis.ts` 的 `createDirectory`（`records`、`operations` 与 `generations` 三张表） | agent-cordis-contract 的 [Cordis 页的登记输入与撤除协议](../../agent-cordis-contract/docs/cordis.md#登记输入与撤除协议) | agent-host-local：宿主的长期运行与重启策略按这项保留评估内存占用；政策落地时同步 Cordis 页与 agent-cordis-contract 的测试 |
 
 ## 阶段与接受状态
@@ -105,7 +105,7 @@
 
 ### 接受事项
 
-下表除最后一行外，各项由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。接受只改变设计的状态，不改变实现清单中的未完成事项。最后一行是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
+下表除最后一行外，各项由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。接受只改变设计的状态，不改变实现清单中的未完成事项。最后一行由 PanQiWei 于 2026-10-20 在 PR #490 接受。
 
 | 事项 | 接受者 | 当前状态 |
 | --- | --- | --- |
@@ -115,4 +115,4 @@
 | 非 Tool ref 来源的模态转换位置 | 项目负责人 | 已接受，见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)：由实现消息准入的提供者在接纳前调用转换件 |
 | 目录登记的撤除方式与 Cordis 集成约定 IC-13 的差异 | 集成约定拥有者 | 已接受，见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)：三处差异修订进 IC-13，Agent 的目录登记设计符合修订后的 IC-13，目录实现的撤除行为尚未验证，见[目录登记的撤除方式怎样对应 IC-13](../../agent/docs/architecture/open-questions.md#目录登记的撤除方式怎样对应-ic-13) |
 | 兼容锚点 | 本包维护者 | [消费与系统定位](../docs/context.md)保留一个、[SPEC](../SPEC.md) 保留两个旧标题的兼容锚点，仍指向旧标题的入向链接因此可以解析。共同系统页等仍链到旧锚点的页面改写之后，才能删除这些兼容锚点 |
-| 实现阶段的自行设计选择 | 项目负责人 | 本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注 |
+| 实现阶段的自行设计选择 | 项目负责人 | 已接受，见 [#395 的放行记录](https://github.com/nemori-ai/omne-harness-lite/issues/395#issuecomment-6282719664)：PanQiWei 2026-10-20 接受本交付的 28 项自行设计选择，接受不改变上表的未完成事项 |
