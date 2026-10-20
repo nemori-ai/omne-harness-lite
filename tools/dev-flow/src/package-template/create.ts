@@ -69,7 +69,10 @@ function manifestText(input: CreateInput): string {
         build: 'rm -rf dist && tsc -p tsconfig.build.json',
         // RFC-0003: type checking reads sources through the `source` condition and never builds first.
         typecheck: 'tsc -p tsconfig.test.json',
-        test: 'pnpm run build && vitest run',
+        // RFC-0002: turbo builds the member and its dependencies before these run; the tier is the vitest mode.
+        test: 'vitest run',
+        'test:fast': 'vitest run --mode fast',
+        'test:slow': 'vitest run --mode slow --typecheck.enabled=false',
       },
       dependencies: binding ? { '@deepseek-ai/cordis': 'catalog:' } : {},
       devDependencies: { '@types/node': 'catalog:', typescript: 'catalog:', vitest: 'catalog:' },

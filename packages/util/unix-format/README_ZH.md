@@ -36,7 +36,7 @@ Node `>=24`。没有运行时依赖。
 
 ## 验证
 
-`pnpm test` 先构建，再运行从封存包迁来的表征测试。`pnpm run typecheck` 先构建，再对测试做类型检查。其中一个用例用普通 Node 导入构建出的 `dist/index.js`。
+在仓库根运行 `pnpm turbo run test --filter=@omne-harness/unix-format`：turbo 先构建，再运行从封存包迁来的表征测试。本目录里的 `pnpm test` 不构建。`pnpm turbo run typecheck --filter=@omne-harness/unix-format` 对测试做类型检查，不先构建。其中一个用例用普通 Node 导入构建出的 `dist/index.js`。
 
 ## 维护
 

@@ -26,6 +26,10 @@ export interface ReportMutant {
   readonly status: MutantStatus
   readonly static?: boolean
   readonly location: { readonly start: Position; readonly end: Position }
+  /** 为这个变异体实际跑完的用例数。 */
+  readonly testsCompleted?: number
+  /** 初跑时覆盖到它的用例。 */
+  readonly coveredBy?: readonly string[]
 }
 
 export interface MutationReport {
@@ -53,6 +57,11 @@ export interface MemberMutation {
   readonly score: number | null
   readonly survived: readonly Finding[]
   readonly noCoverage: readonly Finding[]
+  /**
+   * 报成存活、有用例覆盖、却一条用例都没跑完的变异体：是运行器没跑测试，不是测试没测出来（#405）。
+   * 不计入各状态与分数，入口把它判为运行出错。
+   */
+  readonly notRun: readonly Finding[]
   /** 报告里有、却不在要变异的行上的变异体（跨行的表达式等）；不计入上面各项。 */
   readonly outside: number
 }
@@ -82,10 +91,20 @@ function oneLine(text: string): string {
 const zeroCounts = (): Record<MutantStatus, number> =>
   Object.fromEntries(MUTANT_STATUSES.map(status => [status, 0])) as Record<MutantStatus, number>
 
+/** 报成存活、有用例覆盖、却一条用例都没跑完（#405）。两个字段缺了任一个，按普通存活算。 */
+function ranNoTests(mutant: ReportMutant): boolean {
+  return (
+    mutant.status === 'Survived' &&
+    mutant.testsCompleted === 0 &&
+    (mutant.coveredBy?.length ?? 0) > 0
+  )
+}
+
 export function summarizeMember(target: MutationTarget, report: MutationReport): MemberMutation {
   const counts = zeroCounts()
   const survived: Finding[] = []
   const noCoverage: Finding[] = []
+  const notRun: Finding[] = []
   let outside = 0
   for (const [local, file] of Object.entries(report.files)) {
     const path = `${target.member.path}/${local}`
@@ -94,17 +113,21 @@ export function summarizeMember(target: MutationTarget, report: MutationReport):
         outside += 1
         continue
       }
-      counts[mutant.status] += 1
-      if (mutant.status !== 'Survived' && mutant.status !== 'NoCoverage') continue
-      const finding = {
+      const finding = (): Finding => ({
         file: path,
         line: mutant.location.start.line,
         mutator: mutant.mutatorName,
         original: originalText(file.source, mutant),
         replacement: oneLine(mutant.replacement ?? ''),
         static: mutant.static === true,
+      })
+      if (ranNoTests(mutant)) {
+        notRun.push(finding())
+        continue
       }
-      ;(mutant.status === 'Survived' ? survived : noCoverage).push(finding)
+      counts[mutant.status] += 1
+      if (mutant.status === 'Survived') survived.push(finding())
+      else if (mutant.status === 'NoCoverage') noCoverage.push(finding())
     }
   }
   const byPlace = (a: Finding, b: Finding) => a.file.localeCompare(b.file) || a.line - b.line
@@ -116,6 +139,7 @@ export function summarizeMember(target: MutationTarget, report: MutationReport):
     score: scored === 0 ? null : Math.round((detected / scored) * 1000) / 10,
     survived: survived.sort(byPlace),
     noCoverage: noCoverage.sort(byPlace),
+    notRun: notRun.sort(byPlace),
     outside,
   }
 }
@@ -127,14 +151,24 @@ const describeFinding = (finding: Finding) =>
 /** 一个成员的读数；`detail` 为真时逐条列出存活与无覆盖的变异体。 */
 export function memberLines(result: MemberMutation, detail: boolean): string[] {
   const { counts } = result
+  const notRun = result.notRun.length
+  const total = MUTANT_STATUSES.reduce((sum, status) => sum + counts[status], 0) + notRun
   const lines = [
-    `${result.member}：变异体 ${MUTANT_STATUSES.reduce((sum, status) => sum + counts[status], 0)} 个——` +
+    `${result.member}：变异体 ${total} 个——` +
       `被杀 ${counts.Killed}、超时 ${counts.Timeout}、存活 ${counts.Survived}、无覆盖 ${counts.NoCoverage}、` +
-      `编译错误 ${counts.CompileError}、运行错误 ${counts.RuntimeError}；` +
-      `分数 ${result.score === null ? '—' : `${result.score}%`}`,
+      `编译错误 ${counts.CompileError}、运行错误 ${counts.RuntimeError}` +
+      (notRun > 0 ? `、没跑测试 ${notRun}` : '') +
+      `；分数 ${result.score === null ? '—' : `${result.score}%`}`,
   ]
   if (!detail) return lines
   for (const finding of result.survived) lines.push(`  存活 ${describeFinding(finding)}`)
   for (const finding of result.noCoverage) lines.push(`  无覆盖 ${describeFinding(finding)}`)
+  for (const finding of result.notRun) lines.push(`  没跑测试 ${describeFinding(finding)}`)
   return lines
+}
+
+/** 有「没跑测试」的变异体时，入口记作运行出错的那一句；没有时为 undefined。 */
+export function notRunError(result: MemberMutation, logPath: string): string | undefined {
+  if (result.notRun.length === 0) return undefined
+  return `${result.member}：${result.notRun.length} 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 ${logPath}`
 }

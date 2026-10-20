@@ -10,6 +10,11 @@ owner: PanQiWei
 
 规则与维护责任见[RFC入口](README.md)。PanQiWei 于 2026-10-14 接受 revision 1，记录见[接受评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164802781)。同日接受 revision 2 的影响面选择。补充来源是[这条评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164742162)，接受记录是[这条评论](https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165325011)。尚未验证的两项不在接受里。工具尚未切换。
 
+> **更正标注（2026-10-19）**：原文与 status 不变。第 1 项是部分取代，同时记在「后继关系与维护」；第 2 项更正写回表的读法。依据是 [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 的决定 D2 与 D6。
+>
+> 1. 「决定范围」中「类型检查用源码条件、全仓一次完成」一句，由 [RFC-0007](RFC-0007-source-packages-and-templates.md#声明与产物修改)「类型检查的入口」取代：每个成员的 `typecheck` 只运行 `tsc -p tsconfig.test.json`，不先构建，被测试导入的源码经 `source` 条件一并检查；turbo 的 `typecheck` 任务逐成员调度。见「后继关系与维护」。
+> 2. 「写回现行正文」中「影响面选择」一行写「成员目录下的 `turbo.json` 仍会生效，因此一律拒绝」。「一律拒绝」是 #310 实施时的选择，不是本提案的决定。现行规则是：`packages/*`、`tools/*` 下的 `turbo.json` 拒绝；`apps/*` 下的由受信检查器按规则校验。规则见[开发指南](../development.md#迭代中的受影响测试)。
+
 ## 问题与有效输入
 
 活跃仓库即将在新的 `packages/` 和 `apps/` 里放代码。现行工具链每次构建和类型检查都从头执行，通用检查很少，依赖方向只靠自写规则，而且不查文件之间的循环导入。这些缺口在新包还没有代码时改，成本最低。
@@ -118,10 +123,14 @@ owner: PanQiWei
 | 依赖方向与循环用 dependency-cruiser | 同上；方向规则的出处见[产品包组织](../package-organization.md#依赖方向与cordis集成) | 已写回 | 2026-10-15 由 #310 接入。无法解析的导入、文件级运行时循环、legacy 引用与能按成员路径表达的方向规则对全部目录作门禁，成员与组之间的环在同一张图上算；启用 `source` 条件，`dist` 保留不深入。ts-checks 的 `group-direction` 与自写成员图退役，clean loop 的硬线、新增跨成员依赖、`make metrics` 与架构报告都读这张图。dependency-cruiser 18 只支持 TypeScript 6 以下，经 `packageExtensions` 单独配 TypeScript 6.0.3。按角色判断的方向暂未表达 |
 | 无用依赖用 knip | 同上 | 已写回 | 2026-10-15 由 #310 接入，只报告 |
 | 通用工具优先、专有检查留下 | [质量与风险](../engineering/quality.md)。根 `AGENTS.md` 已有「复用成熟机制」，不另写工具名单 | 已写回 | 2026-10-14 写入 quality.md。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 接入 oxlint、dependency-cruiser 与 knip，见下面三行 |
-| 影响面选择 | [开发指南](../development.md#迭代中的受影响测试) | 已写回 | 2026-10-14 接受 revision 2。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 替换：成员选择用 `turbo ls --affected`，构建用 `turbo run build`；读者、全局、Python、常驻与未识别文件的规则留在 `test-runs.config.json`。turbo 2.11.7 实测：`--affected` 默认不参考任务 `inputs`（只在 `futureFlags.affectedUsingTaskInputs` 下参考，未采用）；`TURBO_ROOT_TURBO_JSON` 能从检出之外读根配置，但成员目录下的 `turbo.json` 仍会生效，因此一律拒绝。四条约束的落实见开发指南 |
+| 影响面选择 | [开发指南](../development.md#迭代中的受影响测试) | 已写回 | 2026-10-14 接受 revision 2。2026-10-15 由 [#310](https://github.com/nemori-ai/omne-harness-lite/issues/310) 替换：成员选择用 `turbo ls --affected`，构建用 `turbo run build`；读者、全局、Python、常驻与未识别文件的规则留在 `test-runs.config.json`。turbo 2.11.7 实测：`--affected` 默认不参考任务 `inputs`（只在 `futureFlags.affectedUsingTaskInputs` 下参考，未采用）；`TURBO_ROOT_TURBO_JSON` 能从检出之外读根配置，但成员目录下的 `turbo.json` 仍会生效，因此一律拒绝。四条约束的落实见开发指南。更正标注（2026-10-19）：成员目录下 `turbo.json` 的处理按 #390 的 D6 修订，见开头的更正标注 |
+| 任务调度与构建缓存 | [开发指南](../development.md#迭代中的受影响测试)与[测试运行器](../../tools/test-runner/README_ZH.md#测试运行) | 已写回 | 2026-10-19 由 [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 切换：构建、类型检查与成员测试都是 turbo 任务（`build`、`typecheck`、`test:fast`、`test:slow`、`test`），层由 vitest 的 mode 选择。构建读写本地缓存，准入时只写不读。测试任务不缓存。远程缓存仍未决定 |
+| 按输入缓存类型检查 | 同上 | 已写回 | 2026-10-19 由 [#416](https://github.com/nemori-ai/omne-harness-lite/issues/416) 切换：`typecheck` 依赖上游成员的 `typecheck`，上游源码改动后下游重新检查；成员类型检查经相对路径读到、又不在 `workspace:` 依赖里的文件列入 `globalDependencies`（仓库根 `vitest.tiers.mts`、`tools/repo-toolchain` 的源码与测试夹具）。单独运行读写本地缓存，准入时只写不读。此前不缓存的原因见 #390 的判据 C3 |
 
 ## 后继关系与维护
 
 | 后继提案或更正依据 | 部分或全部取代的精确范围 | 当前规范入口 |
 | --- | --- | --- |
 | 本提案 revision 1，2026-10-14 接受 | 只取代 RFC-0001 revision 4「编译与构建」中「保留 catalog 的 TypeScript 6」这一条款。其余条款不动。RFC-0001 的 status 不改。目标已写入技术基础页。2026-10-15 由 #310 切换实现 | [技术基础](../architecture/technical-foundations.md) |
+| [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 的决定 D2（2026-10-19），依据 [RFC-0007](RFC-0007-source-packages-and-templates.md) revision 1（2026-10-16 采用） | 只取代「决定范围」中「类型检查用源码条件、全仓一次完成」这一句。类型检查改为逐成员运行，见 RFC-0007「类型检查的入口」。其余条款不动，本提案的 status 不改 | [开发指南](../development.md#迭代中的受影响测试) |
+| [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) revision 1，2026-10-20 接受 | 只取代「决定范围」中“准入缓存只读受信运行，还是完全关闭读取，仍要和 RFC-0004 一起定具体策略”，以及「影响面选择」约束 3 的“具体策略还要和 RFC-0004 一起决定”：进入任何一条主干之前的检查不读 turbo 任务缓存，只写本地缓存。准入检查是否写远程缓存，随远程缓存是否启用，仍是本提案的未决项。其余条款不动，本提案的 status 不改 | [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) 写回表“准入缓存策略”一行所列的现行源 |

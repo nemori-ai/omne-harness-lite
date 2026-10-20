@@ -62,7 +62,7 @@ Python 当前服务于开发工具。
 
 ## 现存实现与工具位置
 
-下面列的是封存实现及现存开发工具的位置。封存目录不在 pnpm workspace 里，不能算作新树的支持能力。静态遍历及默认检查、测试和验收目标排除任意层级中以`.legacy`结尾的目录。`make check`的按影响面和全量计划均遵守此规则。完整旧产品构建不属于新骨架验收。
+下面列的是封存实现及现存开发工具的位置。封存目录不在 pnpm workspace 里，不能算作新树的支持能力。静态遍历及默认检查、测试和验收目标排除任意层级中以`.legacy`结尾的目录。`pnpm run check`的按影响面和全量计划均遵守此规则。完整旧产品构建不属于新骨架验收。
 
 ```text
 package.json / pnpm-workspace.yaml     TypeScript workspace、版本 catalog 与根聚合命令
@@ -99,7 +99,7 @@ scripts/format.sh                      TS/JS 格式化与暂存区检查
 .agents / .claude / .codex             指向工作区内生成目录的相对软链接
 ```
 
-根 Makefile 提供短命令，`scripts/check.sh` 顺序组合现有检查，工具包拥有检查算法。
+仓库命令入口统一在根 `package.json` 的 `scripts`，`scripts/check.sh` 顺序组合现有检查，工具包拥有检查算法。
 CI 配置（`.github/workflows/`）只负责触发条件、执行环境和调用这些入口，
 见[自动化入口](../scripts/README.md#ci)；构建、发布、部署脚本
 有实际交付对象后再增加，**不能因目录存在就声称流水线或部署能力已经完成**。
@@ -142,7 +142,7 @@ uv 的 [workspace 文档](https://docs.astral.sh/uv/concepts/projects/workspaces
 [贡献指南](../CONTRIBUTING.md)。本节拥有成员依赖、跨包访问和产物位置的规则。
 
 在根执行 `uv sync --locked` 与 `pnpm install --frozen-lockfile --ignore-scripts`
-安装两套开发环境；`make check` 运行当前完整检查组合。
+安装两套开发环境；`pnpm run check` 运行当前完整检查组合。
 单项检查与覆盖解释见[验证与证据](verification.md)，工具包使用和构建见
 [spec-tools](../tools/spec-tools/README.md)，自动化入口见 [scripts](../scripts/README.md)。
 CLI 从当前工作目录定位受检仓库；从外部目录执行时用 `--root` 明确目标。

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -56,7 +56,7 @@ describe('基线文件', () => {
     dir = undefined
   })
   const write = (body: unknown) => {
-    dir = mkdtempSync(join(tmpdir(), 'omne-attribution-baseline-'))
+    dir = realpathSync(mkdtempSync(join(tmpdir(), 'omne-attribution-baseline-')))
     const path = join(dir, 'baseline.json')
     writeFileSync(path, JSON.stringify(body))
     return path

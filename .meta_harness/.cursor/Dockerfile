@@ -8,7 +8,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHON=/usr/bin/python3
 
-ARG NODE_VERSION=24.21.0
+ARG NODE_VERSION=26.12.0
 ARG PNPM_VERSION=10.28.1
 ARG UV_VERSION=0.13.0
 # Matt skills revision is owned by docs/engineering/skills.md. Do not float latest.

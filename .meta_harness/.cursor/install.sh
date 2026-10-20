@@ -13,7 +13,7 @@ uv sync --locked
 pnpm install --frozen-lockfile --ignore-scripts
 pnpm -r rebuild node-pty
 
-# Agent compiler output is gitignored. make agents-check compares it with the source.
+# Agent compiler output is gitignored. pnpm run check:agents compares it with the source.
 PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/compile_agents.py \
     --source .meta_harness/agents \
     --output .meta_harness

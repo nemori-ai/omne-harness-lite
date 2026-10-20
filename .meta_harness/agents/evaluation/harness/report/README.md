@@ -1,7 +1,7 @@
 # 报告页生成器
 
 `build-report-lite.mjs` 把一个流的结果目录渲染成一张自包含的 `report.html`，并写出 `trajectory/scores.tsv`。
-运行器的 `report` 子命令默认用它：`make role-eval ARGS="report <用例集目录>"`。只依赖 Node 自带模块，需要 `node` 在 PATH 上。
+运行器的 `report` 子命令默认用它：`pnpm run role-eval report <用例集目录>`。只依赖 Node 自带模块，需要 `node` 在 PATH 上。
 
 ## 来历
 

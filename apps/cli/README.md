@@ -98,20 +98,21 @@ The process does not open a network connection, a database, or a state directory
 
 ## Verification
 
-Run the tests from this directory:
+Run the tests from the repository root:
 
 ```sh
-pnpm test
-pnpm run typecheck
+pnpm turbo run test --filter=@omne-harness/cli
+pnpm turbo run typecheck --filter=@omne-harness/cli
 ```
 
-Both scripts build first. The tests use the built `dist`, never `src`.
+The test task builds this package and its dependencies first. The typecheck task does not build first. The tests use the built `dist`, never `src`. `pnpm test` in this directory does not build.
 
 Applicable test kinds follow [package test responsibilities](../../docs/verification.md#包级测试责任与边界):
 
 - Contract tests on the built process. `tests/help-version.spec.ts` and `tests/usage-errors.spec.ts` spawn `node dist/bin.js` from a temporary directory outside the repository. Each child gets a new environment with only `PATH`, a temporary `HOME`, and an optional `OMNE_HOME`. Each test checks the exit code, the exact stdout, the exact stderr, and the files under the temporary directories. Both files are in the slow tier because every case spawns a process.
 - Unit and contract tests through the package name. `tests/parse-argv.spec.ts`, `tests/catalog.spec.ts`, and `tests/state-directory.spec.ts` import `@omne-harness/cli`. The state tests use children of `os.tmpdir()`, never the developer home. `tests/catalog.spec.ts` checks command alignment, `homeFlag`, and the injected identity reader.
 - Install-closure checks. `tests/package-boundary.spec.ts` reads `package.json` and every built module. It checks that there is no runtime dependency, and that the built modules import only `node:` modules and sibling build modules.
+- Packaging check. `tests/packaging.spec.ts` runs `scripts/package-cli.sh`. It checks the archive entries, that the archive has no source maps, that an existing target is refused, and that no entry under `apps/cli/dist` is removed or rewritten. It is in the slow tier because it runs a full tsc build and a tar process.
 
 Integration and end-to-end tests do not apply. This member has no storage, service, or user journey yet. The help and version process tests are not a full user journey.
 
@@ -129,6 +130,6 @@ To change the help text, a message, or an exit code, change [SPEC.md](SPEC.md), 
 
 To add a command, append a `CommandSpec` through `defineCatalog`. `renderHelp` includes it, and `run` calls its `run` with a `CommandEnvironment`. The production catalog's command list is empty. A command that needs the state directory calls `resolveStateDirectory` with `homeFlag`, `environmentHome`, and `homeDirectory`, then `ensureStateDirectory`. It does not read `process.env` itself. Help and version must not call either function. A command that calls the SDK adds the SDK as a dependency. Update the install-closure test and SPEC.md in the same change.
 
-`scripts/package-cli.sh` builds this member and writes `apps/cli/dist` into a new `.tar.gz`. It does not install the command, upload a release, or configure an account. The archive is not the old B01 installer.
+`scripts/package-cli.sh` builds this member into a private staging directory and writes that `dist/` into a new `.tar.gz`. It does not remove or write `apps/cli/dist`, so tests that run the built bin can run at the same time. The archive has no source maps, because it carries no sources. It writes the archive next to the target and renames it into place. On failure it removes its staging directory and the partial archive, and the target does not exist. The build steps repeat the member's `build` script. Change `tools/package.ts` and the `build` script together. It does not install the command, upload a release, or configure an account. The archive is not the old B01 installer.
 
 Keep [README_ZH.md](README_ZH.md) in step with this file. Both files state the same promises.

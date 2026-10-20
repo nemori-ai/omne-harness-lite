@@ -19,8 +19,8 @@ catalogs:
       specifier: 0.0.3
       version: 0.0.3
     '@omne-harness/repo-toolchain':
-      specifier: 0.0.5
-      version: 0.0.5
+      specifier: 0.0.6
+      version: 0.0.6
     '@stryker-mutator/core':
       specifier: 10.0.0
       version: 10.0.0
@@ -108,7 +108,7 @@ importers:
         version: 0.0.3
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.5(vitest@4.1.11)
+        version: 0.0.6(vitest@4.1.11)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.11(vitest@4.1.11)
@@ -1034,7 +1034,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.5(vitest@4.1.11)
+        version: 0.0.6(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1052,7 +1052,7 @@ importers:
         version: link:../../packages/common/legal-identity
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.5(vitest@4.1.11)
+        version: 0.0.6(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1124,7 +1124,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.5(vitest@4.1.11)
+        version: 0.0.6(vitest@4.1.11)
       '@stryker-mutator/core':
         specifier: 'catalog:'
         version: 10.0.0(@types/node@24.13.6)
@@ -1887,8 +1887,8 @@ packages:
     resolution: {integrity: sha512-aEw6ZlUaN2yYnFxS7Tn0H0fnCCf2fwuDm63q373RwJ6tv22dV6GYgOw9r93lF3AYHCffhn1aLw1BkYtWUaSJpQ==}
     engines: {node: '>=24'}
 
-  '@omne-harness/repo-toolchain@0.0.5':
-    resolution: {integrity: sha512-01rOUTb1JHsZySS+/EnY7SvapP7foq+wEL8xE4k9ZE0ju5dQm36aqPWGREZAJgwi4pKSldBiL7/mRl2GYVbwZg==}
+  '@omne-harness/repo-toolchain@0.0.6':
+    resolution: {integrity: sha512-N9U8UCXBJ2qBhIg0x+qogmxebkViiY0nFp+4kYJSvEAEDKF+2W9YCNoZIQpFmP5HteB/9lQ036Suq0Fp1sISDQ==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -4767,7 +4767,7 @@ snapshots:
 
   '@omne-harness/repo-config@0.0.3': {}
 
-  '@omne-harness/repo-toolchain@0.0.5(vitest@4.1.11)':
+  '@omne-harness/repo-toolchain@0.0.6(vitest@4.1.11)':
     dependencies:
       '@jscpd/core': 4.0.1
       '@jscpd/tokenizer': 4.0.1
