@@ -11,8 +11,8 @@
 - [configuration.ts](configuration.ts)：配置七项与绑定字段的校验
 - [access.ts](access.ts)：公开操作前的租户核对与 `access.check`
 - [provider.ts](provider.ts)：四个面、单执行槽与状态投影；`invoke` 与 `observe` 之外的操作本体是阶段性临时做法
-- [loop/nodes.ts](loop/nodes.ts)：节点词汇与转移表（正常路径），每行注明节点表行号
-- [loop/evaluator.ts](loop/evaluator.ts)：纯评估器 `agentEvaluator`，在 E4 与 I8 决定去向
+- [loop/nodes.ts](loop/nodes.ts)：节点词汇与转移表（正常路径），每行来自该节点在节点表中的行
+- [loop/evaluator.ts](loop/evaluator.ts)：纯评估器 `agentEvaluator` 与 `agentCheckpointSchema`，在 E4 与 I8 决定去向
 - [loop/coordinator.ts](loop/coordinator.ts)：执行协调者，按伪代码分组的节点处理与驱动
 - [loop/identities.ts](loop/identities.ts)：确定派生的操作身份、调用身份与依据
 - [testing/index.ts](testing/index.ts)：`./testing` 入口与 `createTestAgentDependencies`

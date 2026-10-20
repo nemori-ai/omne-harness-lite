@@ -18,7 +18,14 @@
 // - M04-5: `recordResult.transfer` is processed without a declared participant.
 //
 // Every outcome that is not on the normal path stops the coordinator with a named failure. Nothing
-// is retried, waited for, or turned into a success.
+// is retried, waited for, or turned into a success. A stop says who it belongs to, so that the wait
+// and recovery of #502 1.9 can tell them apart by `owner`:
+//
+// - a port's failure (Journal, Model, handoff, conditions, ...) is passed on as the port gave it;
+// - `AGENT_OWNER` (`unavailable`): an outcome the contract defines but a later #502 card handles;
+// - `DEFECT_OWNER` (`unavailable`): a defect of this coordinator: a thrown error, a value an earlier
+//   node should have set, a node without a handler or an outcome without a table row. A defect is
+//   never a dependency being unavailable and is never waited on.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   AcceptedInput,
@@ -156,6 +163,13 @@ type Acknowledged = Readonly<{
 const step = (on: Label, commit: Write | null = {}): Outcome<Step, Failure> =>
   succeed({ on, commit })
 
+/** The owner of a failure that is a defect of this coordinator, not of a port; see the header. */
+export const DEFECT_OWNER = `${AGENT_OWNER}#defect`
+
+function defect(diagnostic: string): Failure {
+  return { kind: 'unavailable', owner: DEFECT_OWNER, diagnostic }
+}
+
 /** The failure of an outcome that a later #502 card handles, named so that nobody reads it as done. */
 function notYet(node: LoopNode, what: string, card: string): Failure {
   return {
@@ -253,14 +267,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     while (node !== null && node !== until) {
       const at: LoopNode = node
       const handler: Handler | undefined = handlers[at]
-      if (handler === undefined)
-        return fail({ node: at, failure: notYet(at, 'the node', 'its card') })
+      if (handler === undefined) return fail({ node: at, failure: defect(`${at} has no handler`) })
       try {
         const ran = await handler()
         if ('failure' in ran) return fail({ node: at, failure: ran.failure })
         const to = successor(at, ran.ok.on)
         if (to === undefined)
-          return fail({ node: at, failure: notYet(at, `the outcome ${ran.ok.on}`, 'its card') })
+          return fail({ node: at, failure: defect(`${at} has no transition on ${ran.ok.on}`) })
         if (ran.ok.commit !== null && to !== null) {
           const committed = await commit(at, to, ran.ok.commit)
           if ('failure' in committed) return fail({ node: at, failure: committed.failure })
@@ -268,7 +281,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         node = to
       } catch (error) {
         const diagnostic = error instanceof Error ? error.message : String(error)
-        return fail({ node: at, failure: { kind: 'unavailable', owner: AGENT_OWNER, diagnostic } })
+        return fail({ node: at, failure: defect(diagnostic) })
       }
     }
     return succeed(node)
@@ -324,10 +337,16 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     })
   }
 
-  /** The evaluator at a decision segment; its `Next` is the outcome of the node. */
-  function evaluate(at: LoopFacts): Outcome<Step, Failure> {
+  /**
+   * The evaluator at a decision segment; its `Next` is the outcome of the node. A stop (ended or
+   * superseded) is a contract outcome whose nodes come with #502 1.4 and stage 5, so it stops here
+   * by name instead of reaching the table as a defect.
+   */
+  function evaluate(node: 'E4' | 'I8', at: LoopFacts): Outcome<Step, Failure> {
     const evaluated = evaluator.next(at)
     if ('failure' in evaluated) return evaluated
+    if (evaluated.ok.kind === 'stop')
+      return fail(notYet(node, `a stop (${evaluated.ok.reason})`, '#502 1.4 and stage 5'))
     decided = evaluated.ok
     return step(evaluated.ok.kind, null)
   }
@@ -436,7 +455,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async E4() {
       const current = required(checkpoint, 'checkpoint')
       if (current.position === 'E3') return step('passage-pending', null)
-      return evaluate({ ...required(facts, 'facts'), checkpoint: current })
+      return evaluate('E4', { ...required(facts, 'facts'), checkpoint: current })
     },
     /** E3: no extension is adopted (invoke refuses one), so the passage ends with a commit alone. */
     async E3() {
@@ -539,7 +558,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const current = await readFacts(read.ok)
       if ('failure' in current) return current
       facts = current.ok
-      const evaluated = evaluate(current.ok)
+      const evaluated = evaluate('I8', current.ok)
       if ('failure' in evaluated) return evaluated
       return step(evaluated.ok.on)
     },

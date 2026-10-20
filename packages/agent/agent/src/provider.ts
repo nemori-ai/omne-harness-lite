@@ -5,6 +5,13 @@
 // the instance as it changes. The other bodies are not implemented yet: after `allowed` each answers
 // a named `unavailable` that names the #502 stage that brings it. That is a stage-temporary answer,
 // never a success or a made-up result.
+//
+// The slot and the observed state never disagree: `observe` shows the state that `stateOf` derives
+// from the slot, and every slot change goes through `occupy`. A run that stopped (a halt) keeps the
+// slot occupied; the contract has no state or channel that tells why, so the answer to the next
+// invoke names the node and the failure of the halt (待拥有者). The registration handle only
+// receives a projection: a report that throws is dropped, because `report` returns void and the
+// contract gives its failure no channel (待拥有者); the slot and `observe` stay authoritative.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   Access,
@@ -16,27 +23,32 @@ import type {
   AgentObservation,
   AgentState,
   EventPage,
+  ExecutionAttachmentId,
   Failure,
 } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AccessGuard } from './access.ts'
 import type { AgentDependencies, AgentProvider, AgentRuntimeBinding } from './construction.ts'
-import { createExecutionCoordinator, type Halted } from './loop/coordinator.ts'
+import { createExecutionCoordinator, DEFECT_OWNER } from './loop/coordinator.ts'
 
 const OWNER = '@omne-harness/agent'
 
 /** The #502 stage that implements each operation body; see the parent card "阶段与子任务". */
-type Stage = '1.3' | 'stage 3' | 'stage 5'
+type Stage = '1.3' | 'stage 3' | 'stage 5' | 'unassigned'
 
 /**
  * Stage-temporary (#502): the answer of an operation whose body does not exist yet. It says what is
- * missing; it is not a contract failure of the operation.
+ * missing; it is not a contract failure of the operation. `unassigned`: the stage table of #502
+ * names no stage for it yet.
  */
 function notImplemented(operation: string, stage: Stage): Failure {
   return {
     kind: 'unavailable',
     owner: OWNER,
-    diagnostic: `${operation} is not implemented until #502 ${stage}`,
+    diagnostic:
+      stage === 'unassigned'
+        ? `${operation} is not implemented yet; #502 assigns it no stage`
+        : `${operation} is not implemented until #502 ${stage}`,
   }
 }
 
@@ -70,14 +82,56 @@ function woken(signal: AbortSignal, listeners: Set<() => void>): Promise<void> {
 }
 
 /**
- * The one execution slot. `reserved` holds it from invoke until `open` has answered; `occupied`
- * holds it until E9. A run that stopped keeps the slot: its execution is neither ended nor handed
- * over, so the runtime does not claim to be idle (see `halted`).
+ * The one execution slot (SPEC "受理与单执行槽"). `reserved`: an invoke holds it until `open` has
+ * answered. `open-unknown`: `open` answered commit-unknown, so the reservation is kept until R0 finds
+ * the original operation (#502 1.9). `running`: the Loop runs until E9 frees the slot. `halted`: the
+ * run stopped at `at` with `failure`; the execution is neither ended nor handed over, so the slot
+ * stays held until waits and recovery exist (#502 1.9 and stage 5).
  */
 type Slot =
   | Readonly<{ kind: 'free' }>
   | Readonly<{ kind: 'reserved'; execution: AgentExecutionId }>
-  | Readonly<{ kind: 'occupied'; execution: AgentExecutionId; halted: Halted | null }>
+  | Readonly<{ kind: 'open-unknown'; execution: AgentExecutionId; failure: Failure }>
+  | Readonly<{
+      kind: 'running'
+      execution: AgentExecutionId
+      attachment: ExecutionAttachmentId
+    }>
+  | Readonly<{
+      kind: 'halted'
+      execution: AgentExecutionId
+      attachment: ExecutionAttachmentId
+      at: string
+      failure: Failure
+    }>
+
+/**
+ * Why a second invoke cannot take the slot. A concurrent invoke answers busy in #502 1.3; until
+ * then it is refused, never queued. A held slot names what holds it.
+ */
+function slotRefusal(slot: Exclude<Slot, { kind: 'free' }>): Failure {
+  switch (slot.kind) {
+    case 'reserved':
+    case 'running':
+      return notImplemented('a second concurrent invoke', '1.3')
+    case 'open-unknown':
+      return {
+        kind: 'unavailable',
+        owner: OWNER,
+        diagnostic: `the slot is held by ${slot.execution}: open answered ${slot.failure.kind}, and finding the original operation is #502 1.9`,
+      }
+    case 'halted':
+      return {
+        kind: 'unavailable',
+        owner: OWNER,
+        diagnostic: `the slot is held by ${slot.execution}, halted at ${slot.at}: ${JSON.stringify(slot.failure)}; waits and recovery are #502 1.9 and stage 5`,
+      }
+    default: {
+      const _exhaustive: never = slot
+      return _exhaustive
+    }
+  }
+}
 
 export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   binding: AgentRuntimeBinding
@@ -101,12 +155,48 @@ export function createProvider<P, B extends ContentBlock>(
   let current: AgentState = { kind: 'idle', instance }
   const listeners = new Set<() => void>()
 
-  /** A new state of the instance: the observations wake and the registration handle is told. */
-  function report(state: AgentState): void {
+  /**
+   * The state that `observe` shows for a slot. A pending invoke (`reserved`) still shows idle: the
+   * contract has no state for it, and it lasts only until `open` answers. 待 #558: an `open` whose
+   * outcome is unknown has no state either and no attachment to show as occupied; it shows
+   * `draining` with that execution unresolved, the fail-closed reading, because new invokes are
+   * refused while it lasts.
+   */
+  function stateOf(held: Slot): AgentState {
+    switch (held.kind) {
+      case 'free':
+      case 'reserved':
+        return { kind: 'idle', instance }
+      case 'open-unknown':
+        return { kind: 'draining', instance, unresolved: [held.execution] }
+      case 'running':
+      case 'halted':
+        return {
+          kind: 'occupied',
+          instance,
+          execution: held.execution,
+          executionAttachment: held.attachment,
+        }
+      default: {
+        const _exhaustive: never = held
+        return _exhaustive
+      }
+    }
+  }
+
+  /** The one way the slot changes: observations wake, then the registration handle is told. */
+  function occupy(next: Slot): void {
+    slot = next
+    const state = stateOf(next)
+    if (JSON.stringify(state) === JSON.stringify(current)) return
     current = state
     // A woken observation removes itself; a Set iteration skips nothing when that happens.
     for (const wake of listeners) wake()
-    dependencies.registration?.report({ state })
+    try {
+      dependencies.registration?.report({ state })
+    } catch {
+      // Dropped: see the header. The slot and `observe` already hold the new state.
+    }
   }
 
   /** The guard, then the stage-temporary body. */
@@ -157,7 +247,7 @@ export function createProvider<P, B extends ContentBlock>(
     return {
       execution,
       input: {
-        submit: input => guarded(input, 'submit', target, 'stage 5'),
+        submit: input => guarded(input, 'submit', target, 'unassigned'),
       },
       control: {
         control: input => guarded(input, 'control', target, 'stage 5'),
@@ -189,13 +279,10 @@ export function createProvider<P, B extends ContentBlock>(
   const invoke: AgentProvider<P>['runtime']['invoke'] = async input => {
     const passed = await guard(input, 'invoke', onInstance)
     if ('failure' in passed) return passed
-    // A concurrent invoke answers busy in #502 1.3; until then it is refused, never queued.
-    if (slot.kind !== 'free') return fail(notImplemented('a second concurrent invoke', '1.3'))
+    if (slot.kind !== 'free') return fail(slotRefusal(slot))
     const { execution } = input
-    slot = { kind: 'reserved', execution }
-    const release = () => {
-      slot = { kind: 'free' }
-    }
+    occupy({ kind: 'reserved', execution })
+    const release = () => occupy({ kind: 'free' })
     const access: Access<P> = { principal: input.principal, tenant: input.tenant }
     const resolved = await dependencies.adoptions.resolve({
       ...access,
@@ -219,30 +306,40 @@ export function createProvider<P, B extends ContentBlock>(
       operation: input.operation,
       initial: input.initial,
       grant: input.grant,
-      idle: () => {
-        release()
-        report({ kind: 'idle', instance })
-      },
+      idle: release,
     })
     const accepted = await coordinator.accept()
     if ('failure' in accepted) {
-      // SPEC "受理与单执行槽": an unknown receipt keeps the reservation; only an `open` that surely
-      // did not commit gives the slot back. Finding the original operation is R0 (#502 1.9).
-      if (accepted.failure.failure.kind !== 'commit-unknown') release()
-      return fail(accepted.failure.failure)
+      const { node, failure } = accepted.failure
+      // SPEC "受理与单执行槽": only an `open` whose outcome is unknown keeps the reservation. Any
+      // other stop before E1, a commit-unknown of the handoff at Q2 included, comes before `open`
+      // or from an `open` that surely did not commit, so the slot is given back.
+      if (node === 'E0' && failure.kind === 'commit-unknown')
+        occupy({ kind: 'open-unknown', execution, failure })
+      else release()
+      return fail(failure)
     }
-    slot = { kind: 'occupied', execution, halted: null }
-    report({
-      kind: 'occupied',
-      instance,
-      execution,
-      executionAttachment: accepted.ok.executionAttachment,
-    })
+    const attachment = accepted.ok.executionAttachment
+    occupy({ kind: 'running', execution, attachment })
+    const halt = (at: string, failure: Failure) => {
+      if (slot.kind === 'running' && slot.execution === execution)
+        occupy({ kind: 'halted', execution, attachment, at, failure })
+    }
     // SPEC "创建、登记与复用": invoke waits for the reliable acceptance only, not for the Loop. A run
-    // that stops keeps the slot occupied with the place and reason of the stop.
-    void coordinator.runExecution().then(ran => {
-      if ('failure' in ran) slot = { kind: 'occupied', execution, halted: ran.failure }
-    })
+    // that stops keeps the slot with the place and reason of the stop. runExecution does not reject;
+    // if it ever does, that is recorded as a halt too.
+    void coordinator
+      .runExecution()
+      .then(ran => {
+        if ('failure' in ran) halt(ran.failure.node, ran.failure.failure)
+      })
+      .catch((error: unknown) =>
+        halt('runExecution', {
+          kind: 'unavailable',
+          owner: DEFECT_OWNER,
+          diagnostic: error instanceof Error ? error.message : String(error),
+        }),
+      )
     return succeed(handleOf(execution))
   }
 

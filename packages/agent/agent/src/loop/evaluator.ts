@@ -24,13 +24,16 @@ import {
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { LoopNode } from './nodes.ts'
 
-/** The schema of the checkpoint that this evaluator writes and reads. */
-export const CHECKPOINT_SCHEMA: Adoption = {
+/**
+ * The schema of the checkpoint that this evaluator writes and reads. Its `position` holds a node of
+ * nodes.ts, which is what the coordinator of this package can continue from.
+ */
+export const agentCheckpointSchema: Adoption = Object.freeze({
   owner: '@omne-harness/agent',
   name: 'agent-checkpoint',
   revision: '1',
   digest: 'agent:agent-checkpoint/1',
-}
+})
 
 /** The position of a new checkpoint: every new logical execution passes E3 once (node table E3). */
 const INITIAL_POSITION: LoopNode = 'E3'
@@ -47,7 +50,7 @@ function initial(
   if ('failure' in step)
     return fail({ kind: 'invalid', field: 'step', reason: step.failure.reason })
   return succeed({
-    schema: CHECKPOINT_SCHEMA,
+    schema: agentCheckpointSchema,
     definition: definition.ok,
     step: step.ok,
     position: INITIAL_POSITION,
@@ -84,7 +87,9 @@ function next(facts: LoopFacts): Outcome<Next, Failure> {
   if (facts.controls.length > 0) return unsupported
   switch (facts.checkpoint.position) {
     case 'E4':
-      // The execution-start passage has ended, so this is the first iteration (node table E4).
+      // The 1.2 stand-in for E4's "新 iter 或原输入边界转 I0": position E4 means that the
+      // execution-start passage has just ended, so this is the first iteration. #502 1.4 replaces
+      // the position check with the batch and progression basis of a new iteration.
       return succeed({ kind: 'take-inputs', position: 'I0' })
     case 'I8':
       return afterIteration(facts)

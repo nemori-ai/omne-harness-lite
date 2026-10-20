@@ -4,6 +4,7 @@
 // input-taken, producer and ended, numbered from 1; the runtime is idle again. The skeleton's
 // temporary choices are pinned by the tests that name them (tests/README.md).
 import { describe, expect, it } from 'vitest'
+import { fail } from '@omne-harness/operation-result'
 import type { AgentDependencies } from '@omne-harness/agent'
 import type {
   AgentEvent,
@@ -251,6 +252,10 @@ describe('the handle', () => {
     ]
     for (const answer of answers)
       expect(failure(answer)).toMatchObject({ kind: 'unavailable', owner: '@omne-harness/agent' })
+    // The stage table of #502 assigns submit no stage yet.
+    expect(failure(answers[0] ?? fail({ kind: 'unsupported' }))).toMatchObject({
+      diagnostic: 'submit is not implemented yet; #502 assigns it no stage',
+    })
     assembly.release.open()
     await eventsOf(handle)
   })

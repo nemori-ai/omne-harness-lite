@@ -12,6 +12,7 @@
 - [loop-transitions.spec.ts](loop-transitions.spec.ts)：转移表逐行对节点表（C1）
 - [loop-evaluator.spec.ts](loop-evaluator.spec.ts)：评估器的决定、种子属性测试与导入图纯性（C1）
 - [loop-invoke.spec.ts](loop-invoke.spec.ts)：一条输入到 ended 的正常路径与骨架的临时简化（C2）
+- [loop-slot.spec.ts](loop-slot.spec.ts)：单执行槽的拒绝、释放、halt 的可读原因与登记投影
 - [loop-support.ts](loop-support.ts)：Loop 测试共用的 `LoopFacts` 构造与装配
 - [factory-support.ts](factory-support.ts)：工厂测试共用的选项、调用记录与登记句柄替身
 - [fixtures.spec.ts](fixtures.spec.ts)：每个替身的编排接口
