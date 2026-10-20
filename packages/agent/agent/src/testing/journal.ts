@@ -38,7 +38,7 @@ import type {
   Adoption,
   Access,
 } from '@omne-harness/agent-contract'
-import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   attachmentIdOf,
@@ -85,7 +85,12 @@ export type WriteFault =
   | Readonly<{ kind: 'unavailable' }>
   | Readonly<{ kind: 'commit-unknown'; outcome: 'applied' | 'dropped' | 'pending' }>
 
-/** How a declared participant answers one joint commit; see SPEC "提交参加者协议". */
+/**
+ * How a declared participant answers one joint commit; see SPEC "提交参加者协议". `fail` saves
+ * nothing and returns `unavailable`. `fail-unknown` returns `commit-unknown` and holds the commit as
+ * pending, like the `pending` write fault. `conflict` returns `changed`, `unsupported` returns
+ * `unsupported`, and both save nothing.
+ */
 export type ParticipantResponse =
   | 'participate'
   | 'fail'
@@ -177,6 +182,8 @@ type Execution = {
   results: ResultResponsibility[]
   effects: EffectIntent[]
   observations: TerminalObservation[]
+  /** The receipt that first recorded each control stage fact, by target and stage. */
+  stageReceipts: Map<string, CommandReceipt>
   /** The receipt of the first registration of each post-terminal observation. */
   observed: Map<TerminalObservation['passage'], CommandReceipt>
   admissions: Readonly<{ sequence: number; fact: ModelReplyAdmission }>[]
@@ -203,6 +210,8 @@ type OperationRecord = Committed | Excluded | Pending
 /** The outcome of preparing one write: either an answer without a write, or a write to apply. */
 type Attempt<R> =
   | Readonly<{ kind: 'answer'; value: Outcome<R, Failure> }>
+  /** A declared participant could not tell whether its part held; nothing is saved yet. */
+  | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'write'; value: R; receipt: CommandReceipt; apply: () => void }>
 
 /** Which stages apply to which control; SPEC "六个阶段". */
@@ -287,8 +296,18 @@ export function createMemoryAgentJournal<P>(
   const responses = new Map<JointCommitKind, ParticipantResponse[]>()
   const jointFacts: JointFact[] = []
 
-  const operationKey = (execution: AgentExecutionId, operation: AgentOperationId) =>
-    JSON.stringify([execution, operation])
+  /**
+   * Operation records are kept per tenant, so a query never tells one tenant whether another
+   * tenant's execution or operation exists. A tenant that legal-identity did not mint has no key.
+   */
+  const operationKey = (
+    tenant: TenantId,
+    execution: AgentExecutionId,
+    operation: AgentOperationId,
+  ): string | undefined => {
+    const text = tenantCodec.encode(tenant)
+    return text.ok ? JSON.stringify([text.value, execution, operation]) : undefined
+  }
 
   // ------------------------------------------------------------------------------------------
   // Shared steps of every write
@@ -310,7 +329,8 @@ export function createMemoryAgentJournal<P>(
     input: ExecutionMutation<P>,
     key: string,
   ): Outcome<R, Failure> | undefined {
-    const record = operations.get(operationKey(input.execution, input.operation))
+    const at = operationKey(input.tenant, input.execution, input.operation)
+    const record = at === undefined ? undefined : operations.get(at)
     if (record?.kind !== 'committed') return undefined
     // The record of this operation was written by the same method, whose key starts with its name,
     // so its value has the type R of that method.
@@ -364,6 +384,8 @@ export function createMemoryAgentJournal<P>(
   ): void {
     const attachment = latestAttachment(execution)
     if (attachment === undefined) return
+    // The ended event is the last event of an execution; nothing is appended after it.
+    if (execution.events.at(-1)?.body.kind === 'ended') return
     for (const body of bodies) {
       execution.events.push({
         execution: execution.id,
@@ -383,7 +405,9 @@ export function createMemoryAgentJournal<P>(
 
   /**
    * Runs one prepared write under the scripted fault of its method, records its operation and
-   * returns the answer of the call.
+   * returns the answer of the call. Every call that answers `commit-unknown` leaves a record that
+   * `query` can decide: committed when the write took effect, excluded when it did not, and pending
+   * (listed in `unresolved`, fenced by `attach`, decided by `settle`) while nobody knows yet.
    */
   async function write<R>(
     method: JournalWrite,
@@ -391,8 +415,9 @@ export function createMemoryAgentJournal<P>(
     key: string,
     prepare: () => Attempt<R>,
   ): Promise<Outcome<R, Failure>> {
+    const at = operationKey(input.tenant, input.execution, input.operation)
+    if (at === undefined) return fail(denied(method))
     const fault = writeFaults.get(method)?.shift()
-    const at = operationKey(input.execution, input.operation)
     const commitUnknown = fail<Failure>({ kind: 'commit-unknown', operation: input.operation })
     const exclude = (reason: string) => {
       if (operations.get(at)?.kind === 'committed') return
@@ -401,19 +426,47 @@ export function createMemoryAgentJournal<P>(
         evidence: journalEvidence(`${input.execution}/excluded/${input.operation}/${reason}`, 0),
       })
     }
-    const run = (): Outcome<R, Failure> => {
-      const attempt = prepare()
-      if (attempt.kind === 'answer') return attempt.value
-      attempt.apply()
+    type Run =
+      | Readonly<{ kind: 'wrote'; value: R }>
+      | Readonly<{ kind: 'answered'; value: Outcome<R, Failure> }>
+      | Readonly<{ kind: 'unknown' }>
+    const attempt = (): Run => {
+      const prepared = prepare()
+      if (prepared.kind === 'answer') return { kind: 'answered', value: prepared.value }
+      if (prepared.kind === 'unknown') return prepared
+      prepared.apply()
       operations.set(at, {
         kind: 'committed',
         key,
-        value: copy(attempt.value),
-        receipt: attempt.receipt,
+        value: copy(prepared.value),
+        receipt: prepared.receipt,
       })
-      return succeed(attempt.value)
+      return { kind: 'wrote', value: prepared.value }
     }
-    if (fault === undefined) return run()
+    /** After a run whose answer the caller does not see: no write excludes, unknown stays held. */
+    const decide = (run: Run) => {
+      if (run.kind === 'answered') exclude('no-write')
+      if (run.kind === 'unknown') hold()
+    }
+    const hold = () => {
+      if (operations.get(at)?.kind === 'committed') return
+      operations.set(at, {
+        kind: 'pending',
+        execution: input.execution,
+        operation: input.operation,
+        run: () => {
+          operations.delete(at)
+          decide(attempt())
+        },
+      })
+    }
+    if (fault === undefined) {
+      const run = attempt()
+      if (run.kind === 'wrote') return succeed(run.value)
+      if (run.kind === 'answered') return run.value
+      hold()
+      return commitUnknown
+    }
     if (fault.kind === 'unavailable') {
       return fail({
         kind: 'unavailable',
@@ -422,26 +475,14 @@ export function createMemoryAgentJournal<P>(
       })
     }
     switch (fault.outcome) {
-      case 'applied': {
-        const outcome = run()
-        if ('failure' in outcome) exclude('failed')
+      case 'applied':
+        decide(attempt())
         return commitUnknown
-      }
       case 'dropped':
         exclude('dropped')
         return commitUnknown
       case 'pending':
-        if (operations.get(at)?.kind !== 'committed') {
-          operations.set(at, {
-            kind: 'pending',
-            execution: input.execution,
-            operation: input.operation,
-            run: () => {
-              operations.delete(at)
-              if ('failure' in run()) exclude('failed')
-            },
-          })
-        }
+        hold()
         return commitUnknown
       default: {
         const _exhaustive: never = fault.outcome
@@ -584,6 +625,58 @@ export function createMemoryAgentJournal<P>(
     })
   }
 
+  /**
+   * The first responsibility of its own that the Journal sees still open, in the order operations,
+   * controls, inputs, custody; `undefined` when none is. SPEC "条件终结" names the reasons but not
+   * every condition; where it is not precise, the stricter (blocking) reading is taken.
+   *
+   * - operations: a write of this execution is still pending (listed in `unresolved`).
+   * - controls: an applicable stage of a control is recorded `unresolved`. 临时做法，待 #558 裁定。
+   * - inputs: an ordinary end leaves accepted inputs that no taken batch covers. A cancel keeps its
+   *   unprocessed inputs with their original owner (SPEC "条件终结"), so it is not blocked by them.
+   *   临时做法，待 #558 裁定。
+   * - custody: a result has neither custody nor completion evidence.
+   *
+   * passages is not checked: whether the before-terminal passages are complete and bound to this
+   * candidate is a fact of the coordinator, not of the Journal's own records. 临时做法，待 #558 裁定。
+   */
+  function blockedReason(
+    execution: Execution,
+    operation: AgentOperationId,
+    authorization: 'advancement' | 'cancel',
+  ): Extract<FinishResult, { kind: 'blocked' }> | undefined {
+    const source = (what: string) =>
+      journalEvidence(`${execution.id}/blocked/${what}`, execution.revision)
+    for (const record of operations.values()) {
+      if (
+        record.kind === 'pending' &&
+        record.execution === execution.id &&
+        record.operation !== operation
+      ) {
+        return { kind: 'blocked', reason: 'operations', source: source(record.operation) }
+      }
+    }
+    for (const control of execution.controls) {
+      const stages = Object.values(control.stages)
+      if (stages.some(fact => fact?.state === 'unresolved')) {
+        return { kind: 'blocked', reason: 'controls', source: source(control.operation) }
+      }
+    }
+    if (
+      authorization === 'advancement' &&
+      inputBoundary(execution).from < execution.inputs.length
+    ) {
+      return { kind: 'blocked', reason: 'inputs', source: source('inputs') }
+    }
+    const custody = execution.results.find(
+      item => item.custody === null && item.completion === null,
+    )
+    if (custody !== undefined) {
+      return { kind: 'blocked', reason: 'custody', source: copy(custody.result.source) }
+    }
+    return undefined
+  }
+
   // ------------------------------------------------------------------------------------------
   // The port
 
@@ -619,6 +712,7 @@ export function createMemoryAgentJournal<P>(
           results: [],
           effects: [],
           observations: [],
+          stageReceipts: new Map(),
           observed: new Map(),
           admissions: [],
           admissionThroughs: new Map(),
@@ -777,7 +871,7 @@ export function createMemoryAgentJournal<P>(
                 }),
               )
             case 'fail-unknown':
-              return answer(fail({ kind: 'commit-unknown', operation: input.operation }))
+              return { kind: 'unknown' }
             case 'conflict':
               return answer(fail({ kind: 'changed' }))
             case 'unsupported':
@@ -883,7 +977,8 @@ export function createMemoryAgentJournal<P>(
               stages: { accepted: { state: 'reached', source: evidence } },
             })
             execution.revision = revision
-            // SPEC "六个阶段": each stage fact of a control is projected as a control event.
+            // 临时做法，待 #558 裁定（M04-1 的读法）：按 SPEC「六个阶段」把受理这一阶段事实投影为
+            // control 事件。
             appendEvents(
               execution,
               [
@@ -1031,15 +1126,24 @@ export function createMemoryAgentJournal<P>(
           return answer(fail(invalid('stage', `not a stage of ${record.command.kind}`)))
         }
         const fact = record.stages[input.stage]
+        const stageKey = JSON.stringify([input.target, input.stage])
+        if (
+          fact !== undefined &&
+          fact.state === input.state &&
+          sameEvidence(fact.source, input.source)
+        ) {
+          // SPEC "六个阶段": a new attachment recognizes a stage that already holds; it is not recorded twice.
+          const first = execution.stageReceipts.get(stageKey)
+          if (first !== undefined) return answer(succeed(copy(first)))
+        }
         if (fact !== undefined && fact.state === 'reached') {
-          if (input.state !== 'reached' || !sameEvidence(fact.source, input.source)) {
-            return answer(fail(conflict(input.operation)))
-          }
+          return answer(fail(conflict(input.operation)))
         }
         // 临时做法，待 #558 裁定（M04-4）：按原操作幂等的记录成功写入时也推进 revision。
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'record-control', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+        const ended = execution.state.kind === 'ended'
         return {
           kind: 'write',
           value: receipt,
@@ -1052,8 +1156,12 @@ export function createMemoryAgentJournal<P>(
                 [input.stage]: { state: input.state, source: copy(input.source) },
               },
             }
+            execution.stageReceipts.set(stageKey, receipt)
             execution.revision = revision
-            // SPEC "六个阶段": the stage fact is projected as a control event.
+            // 临时做法，待 #558 裁定：ended 之后 recordControl 照常记录阶段事实，但不投影事件，因为
+            // ended 事件是 execution 的最后一个事件（SPEC「条件终结」「终态后与 ended」）。
+            if (ended) return
+            // 临时做法，待 #558 裁定（M04-1 的读法）：按 SPEC「六个阶段」把阶段事实投影为 control 事件。
             appendEvents(
               execution,
               [
@@ -1104,14 +1212,8 @@ export function createMemoryAgentJournal<P>(
         if (input.expected !== revisionOf(execution.revision)) return changed
         const boundary = execution.watermarks.get(input.intent.inputWatermark.record)
         if (boundary === undefined || boundary.to < execution.inputs.length) return changed
-        const custody = execution.results.find(
-          item => item.custody === null && item.completion === null,
-        )
-        if (custody !== undefined) {
-          return answer(
-            succeed({ kind: 'blocked', reason: 'custody', source: copy(custody.result.source) }),
-          )
-        }
+        const blocked = blockedReason(execution, input.operation, authorization.kind)
+        if (blocked !== undefined) return answer(succeed(blocked))
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'finish', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
@@ -1261,10 +1363,15 @@ export function createMemoryAgentJournal<P>(
       if (execution !== undefined && !tenantEquals(execution.tenant, input.tenant)) {
         return fail(denied('query'))
       }
-      const record = operations.get(operationKey(input.execution, input.operation))
+      const at = operationKey(input.tenant, input.execution, input.operation)
+      const record = at === undefined ? undefined : operations.get(at)
+      // Without an execution and without an operation of this tenant, the answer is the one that
+      // another tenant gets: it does not tell a missing execution from a forbidden one.
+      if (execution === undefined && record === undefined) return fail(denied('query'))
       if (record === undefined || record.kind === 'pending') return succeed({ kind: 'unknown' })
-      if (record.kind === 'excluded')
+      if (record.kind === 'excluded') {
         return succeed({ kind: 'excluded', evidence: copy(record.evidence) })
+      }
       return succeed({ kind: 'committed', receipt: copy(record.receipt) })
     },
 
@@ -1334,17 +1441,24 @@ export function createMemoryAgentJournal<P>(
       responses.set(kind, queue)
     },
     settle(execution, operation, outcome) {
-      const key = operationKey(execution, operation)
-      const record = operations.get(key)
-      if (record?.kind !== 'pending') return false
-      if (outcome === 'applied') record.run()
-      else {
-        operations.set(key, {
-          kind: 'excluded',
-          evidence: journalEvidence(`${execution}/excluded/${operation}/dropped`, 0),
-        })
+      for (const [key, record] of operations) {
+        if (
+          record.kind !== 'pending' ||
+          record.execution !== execution ||
+          record.operation !== operation
+        ) {
+          continue
+        }
+        if (outcome === 'applied') record.run()
+        else {
+          operations.set(key, {
+            kind: 'excluded',
+            evidence: journalEvidence(`${execution}/excluded/${operation}/dropped`, 0),
+          })
+        }
+        return true
       }
-      return true
+      return false
     },
     joint: () => copy(jointFacts),
     applyRetention(id) {

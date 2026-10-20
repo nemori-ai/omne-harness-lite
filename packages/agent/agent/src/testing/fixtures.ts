@@ -1,8 +1,13 @@
 // Scripted doubles of the Agent ports that the generic implementation consumes, apart from the
 // Journal, the clock and the Tool runtime. Each double gives the port and one `Script` per method.
 // A double does not implement the semantics of its port: it answers what the test scripted, or its
-// default. The defaults are the ones the testing entry documents; a port without a natural default
-// answers `unavailable`, so an unscripted path can never look like a success.
+// default. Four doubles default to a success, because almost every path of a test passes through
+// them and the test would otherwise script the same answer each time: access answers `allowed`,
+// admission `allow`, handoff `accepted`, and `prepare` a `ready` preparation; model context reads
+// `full` for the same reason. Each such default is visible in the `calls` log of its script. The
+// other doubles answer `unavailable` until scripted (selection, adoptions and conditions outside
+// their tables, extensions, cards, materials and reads; `derive` and `resume` answer
+// `unsupported`), so an unscripted path there cannot look like a success.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   ActionAdmission,
