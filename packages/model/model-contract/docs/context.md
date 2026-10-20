@@ -1,6 +1,6 @@
 # Model 消费与系统定位
 
-本页描述已接受的非 pi-ai 运行契约。pi-ai 相关细化仍为候选，采用范围见 [SPEC](../SPEC.md)，图表不表示运行实现或真实提供者验证已完成。
+本页描述已接受的非 pi-ai 运行契约。pi-ai 细化的采用范围见[组架构各节](../../docs/architecture.md#成员与新增条件)，图表不表示运行实现或真实提供者验证已完成。
 
 ## 系统位置与消费入口
 
@@ -21,7 +21,7 @@ flowchart LR
 
 ## 安装与导入选择
 
-model-contract 的根入口已导出全部 151 个类型声明（含引用共享 `ToolCallPart` 的声明）与 18 个运行值，`./testing` 入口导出受控替代提供者与替代传输（给领域外的协调者练习失败路径，不是生产提供者）和提供者符合性断言 `checkModelProviderConformance`（提供者作者用它检查自己的提供者是否守住公开面上可观察的契约义务）；model-cordis-contract 已导出十五个抽象 Service（含凭据）、实例目录与转换目录。model 的凭据判定消费 model-contract 的凭据契约，托管运行工厂尚未实现；本地凭据保管及其插件在 model-host-local。下表描述托管运行接口实现后的消费路径，现有凭据入口见 model 的公开文档。
+model-contract 的根入口已导出全部 153 个类型声明（含引用共享 `ToolCallPart` 的声明）与 18 个运行值，`./testing` 入口导出受控替代提供者与替代传输（给领域外的协调者练习失败路径，不是生产提供者）和提供者符合性断言 `checkModelProviderConformance`（提供者作者用它检查自己的提供者是否守住公开面上可观察的契约义务）；model-cordis-contract 已导出十五个抽象 Service（含凭据）、实例目录与转换目录。model 的凭据判定消费 model-contract 的凭据契约，createModelRuntime 仅支持构造，托管执行尚未实现；本地凭据保管及其插件在 model-host-local。下表描述托管运行接口实现后的消费路径，现有凭据入口见 model 的公开文档。
 
 | 使用任务 | 安装与导入 |
 | --- | --- |
@@ -181,3 +181,8 @@ Tool 内容 ref 沿 deferred 结果保留，准备和历史投影不读二进制
 诊断使用独立注入的 ModelDiagnostics。调用者显式给主体、租户、原 call、页长和首屏 after=null。继续读取只传原 next 游标，不自行拼接；每页都可能因当前撤权而 denied。invalid 游标由调用者明确重新开启查询，不悄悄合并两个快照。coverage=expired-prefix 表示保留前缀已经清理，不表示此前没有物理尝试。
 
 普通 ModelRuntime 句柄不附带诊断权，也不包含受信 driver。运行提供者和应用装配者沿[宿主协议](../SPEC.md#宿主绑定与驱动协议)管理 binding；观察者取消订阅不关闭 binding。
+
+
+### 最终结果消费
+
+从 beginRead/readNext 按页序遍历 parts。sealed 使用原 ModelBlock，partial 保管原累计 value；两者都处理 trims 与真实 Settlement。partial 不是可执行工具调用，也不自动具有展示或播放资格。可靠保管须独立于可以清理的 Model 唯一副本。页字节目标不是硬报文上限，完整页可接近原容量 C。类型、预算和消费边界见 [公开指导](public-api.md#最终结果项与页预算)。

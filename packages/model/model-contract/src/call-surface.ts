@@ -60,8 +60,14 @@ export interface ModelHandle<P> {
 export type LiveRoute<P> =
   | Readonly<{ kind: 'live'; handle: ModelHandle<P> }>
   | Readonly<{ kind: 'no-live-route' }>
+export type ResultTrim = Readonly<{ removed: string; reason: string }>
+export type ResultPart = Readonly<{ trims: readonly ResultTrim[] }> &
+  (
+    | Readonly<{ kind: 'sealed'; block: ModelBlock }>
+    | Readonly<{ kind: 'partial'; content: GrowingContentKind; value: string }>
+  )
 export type ResultPage = Readonly<{
-  blocks: readonly ModelBlock[]
+  parts: readonly ResultPart[]
   next: string | null
   settlement: Settlement
 }>

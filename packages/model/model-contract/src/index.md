@@ -31,6 +31,7 @@
 | [testing/calls.ts](testing/calls.ts)、[testing/consumption.ts](testing/consumption.ts) | `admit`、`inspect`、`dispatches`、`cancel` 与读取、确认 |
 | [testing/directory.ts](testing/directory.ts)、[testing/observation.ts](testing/observation.ts) | 实例目录与句柄；观察流 |
 | [testing/core.ts](testing/core.ts)、[testing/writes.ts](testing/writes.ts)、[testing/mint.ts](testing/mint.ts) | 共享状态与资格规则；写操作与提交未知；由数字铸造修订、游标与读取 id |
+| [testing/result-pages.ts](testing/result-pages.ts) | 最终项校验、规范 JSON 字节、完整项目标组页 |
 | [testing/transport.ts](testing/transport.ts) | `createScriptedTransport`：脚本化的传输 |
 | [testing/error.ts](testing/error.ts) | `ScriptedModelError`：脚本误用 |
 | [testing/conformance.ts](testing/conformance.ts)、[testing/conformance-types.ts](testing/conformance-types.ts)、[testing/conformance-bounded.ts](testing/conformance-bounded.ts) | `checkModelProviderConformance`：入口；被测方、钩子、报告与检查的类型；把对被测方的每一次等待限时的视图 |

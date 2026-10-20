@@ -4,11 +4,23 @@
 
 ## 职责与状态
 
-本成员拥有可复用 Model 领域实现设计，已有凭据存在性与解析的判定，本地保管归 [model-host-local](../model-host-local/README_ZH.md)；托管运行和工厂尚未实现。凭据引用与解析分属四处：保管实现在 [model-host-local](../model-host-local/README_ZH.md)，契约在 [model-contract](../model-contract/README_ZH.md)，判定在本成员。运行工厂与其他宿主尚未实现。公共值、操作与提供者协议归 [model-contract](../model-contract/README_ZH.md)，框架定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)。设计、实现与运行验证分别判断。
+本成员已有凭据判定、真实运行工厂构造壳和独立内存测试入口。本地凭据保管归 [model-host-local](../model-host-local/README_ZH.md)，领域协议归 [model-contract](../model-contract/README_ZH.md)。
+
+| 能力或入口 | 当前支持 |
+| --- | --- |
+| 凭据判定及 `deliver` | 凭据判定为纯函数，`deliver` 委托传入的 resolver |
+| `createModelRuntime` | 仅构造和校验，十二个托管操作明确返回 unavailable |
+| `@omne-harness/model/testing` | 内存 Commands 与五个可控依赖端口 |
+| 耐久 Commands 及生产托管执行 | 未实现 |
+| Cordis 运行宿主及厂商执行 | 本成员未实现 |
 
 ## 使用
 
-选择本实现的独立程序与宿主从[消费与构造](docs/context.md)进入。executeModel、createModelRuntime 及构造参数的设计已接受，精确形状见[公开接口设计](docs/public-api.md)，尚不能作为现有导入示例。
+选择本实现的独立程序与宿主从[消费与构造](docs/context.md)进入。executeModel、createModelRuntime 及构造参数的设计已接受，精确形状见[公开接口设计](docs/public-api.md)，createModelRuntime 已可导入构造；executeModel 与独立能力工厂仍未实现。
+
+内存测试从 `@omne-harness/model/testing` 导入 createTestModelDependencies。显式配置、authority、evidence 和 owner 的用法见[测试入口](docs/public-api.md#内存测试入口)。返回的五依赖可构造真实 runtime 壳。
+
+内存测试提供者交付 sealed/partial 及真实 trims。显式项数与字节目标按完整项组页，超目标大项独页，整个页受原受理容量约束。消费者须处理未封值与提醒。具体配置及局部上限见[测试入口](docs/public-api.md#内存测试入口)。
 
 ## 契约
 
@@ -20,11 +32,11 @@
 
 ## 配置与运行
 
-构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，包只有根入口，没有 `./cordis` 与 `./execute`。`pnpm --filter @omne-harness/model run install-closure` 对本成员做打包、隔离安装、入口解析与场景运行，并以 `--out` 写出报告；运行方式与验证范围见[测试说明](tests/README.md#安装闭包)，运行结果不在本页记录。包不自动安装所有厂商或词表。
+构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，包导出根入口和独立 `./testing`，没有 `./cordis` 与 `./execute`。`pnpm --filter @omne-harness/model run install-closure` 对本成员做打包、隔离安装、入口解析与场景运行，并以 `--out` 写出报告；运行方式与验证范围见[测试说明](tests/README.md#安装闭包)，运行结果不在本页记录。包不自动安装所有厂商或词表。
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。现有测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，不证明托管运行、流式或结果保管已经实现。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
+运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。现有测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
 
 ## 维护
 

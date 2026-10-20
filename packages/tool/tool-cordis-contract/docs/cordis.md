@@ -1,10 +1,10 @@
 # Tool 的 Cordis 集成
 
-本页消费[根操作契约](../../tool-contract/docs/public-api.md)，规定 Tool 独有的服务定义、依赖、登记协议与通知。具体插件的装配、作者装载与阶段换代归 tool-host-local 的 Cordis 集成（`tool-host-local/docs/cordis.md`）（[本增量未交付](../../README.md#未交付标注)）。设计已接受，提供者尚未实现。共同约束归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，加载成功不表示业务就绪。
+本页消费[根操作契约](../../tool-contract/docs/public-api.md)，规定 Tool 独有的服务定义、依赖、登记协议与通知。具体插件的装配、作者装载与阶段换代归 tool-host-local 的 Cordis 集成（`tool-host-local/docs/cordis.md`）。设计已接受，提供者尚未实现。共同约束归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，加载成功不表示业务就绪。
 
 ## 服务定义与入口
 
-`@omne-harness/tool-cordis-contract` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。它依赖纯契约包 `@omne-harness/tool-contract` 的类型，不依赖任何 Tool 实现。单机宿主 `@omne-harness/tool-host-local`（[本增量未交付](../../README.md#未交付标注)） 的 `./cordis` 发布限定名具体提供者，并继承这些定义。编写 Cordis 插件的消费者依赖本包与契约包，不依赖实现包（[本增量未交付](../../README.md#未交付标注)）。下列代码给出 [src/cordis.ts](../src/cordis.ts) 中这些定义的公开形状，源码是唯一定义；该文件还给出其余服务定义类、18 个键常量和事件增补。ToolInstancesService 的登记与查询尚未实现，实现前两者返回具名失败。实现不得复制方法形状，索引类型随根契约同步。
+`@omne-harness/tool-cordis-contract` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。它依赖纯契约包 `@omne-harness/tool-contract` 的类型，不依赖任何 Tool 实现。单机宿主 `@omne-harness/tool-host-local` 的 `./cordis` 发布限定名具体提供者，并继承这些定义。编写 Cordis 插件的消费者依赖本包与契约包，不依赖实现包。下列代码给出 [src/cordis.ts](../src/cordis.ts) 中这些定义的公开形状，源码是唯一定义；该文件还给出其余服务定义类、18 个键常量和事件增补。ToolInstancesService 的登记与查询尚未实现，实现前两者返回具名失败。实现不得复制方法形状，索引类型随根契约同步。
 
 ```ts
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -138,4 +138,4 @@ authorBufferBytes、authorBufferItems、authorWaitHistoryBytes、authorWaitHisto
 
 ## 验证义务
 
-本包至少验证根入口无 Cordis、本包 `./cordis` 不引任何 Tool 实现、每个键只取自一个定义类的静态 provide。依赖的实际撤除范围、旧引用拒绝及当前身份核验归继承这些定义的插件，见 tool-host-local 的验证义务（`tool-host-local/docs/cordis.md#验证义务`）（[本增量未交付](../../README.md#未交付标注)）。
+本包至少验证根入口无 Cordis、本包 `./cordis` 不引任何 Tool 实现、每个键只取自一个定义类的静态 provide。依赖的实际撤除范围、旧引用拒绝及当前身份核验归继承这些定义的插件，见 tool-host-local 的验证义务（`tool-host-local/docs/cordis.md#验证义务`）。

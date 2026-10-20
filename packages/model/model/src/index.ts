@@ -7,3 +7,6 @@ export {
   type BindingLife,
   type CustodianState,
 } from './credential.ts'
+
+export { createModelRuntime } from './runtime.ts'
+export type { ModelConfiguration, ModelDependencies, ModelRuntimeProvider } from './runtime.ts'

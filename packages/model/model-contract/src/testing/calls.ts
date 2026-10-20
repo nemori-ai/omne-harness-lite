@@ -30,6 +30,7 @@ function newRecord<P>(core: Core<P>, scope: string, input: Admit<P>): CallRecord
     scope,
     call: input.call,
     admission: input.operation,
+    capacity: structuredClone(input.capacity),
     consumer: structuredClone(input.consumer),
     revision: 1,
     lifecycle: { phase: 'accepted' },

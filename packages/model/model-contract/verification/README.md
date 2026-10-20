@@ -32,13 +32,13 @@ CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../.
 
 `make declarations-check` 不能复用。它只把全部成员的 `dist` 声明交给 TypeScript 6 建程序，报告诊断，不枚举导出。
 
-清单按 [public-api](../docs/public-api.md) 的章节分组，章里的名字由该章链接的 `src/` 文件声明。根入口共 169 项：151 个类型和 18 个值；`./testing` 入口 27 项：21 个类型、5 个值和 1 个类。每章数量如下。
+清单按 [public-api](../docs/public-api.md) 的章节分组，章里的名字由该章链接的 `src/` 文件声明。根入口共 171 项：153 个类型和 18 个值；`./testing` 入口 27 项：21 个类型、5 个值和 1 个类。每章数量如下。
 
 | 章节                    | 项数 | 类型 | 值  |
 | ----------------------- | ---- | ---- | --- |
 | 根入口的值与请求        | 35   | 23   | 12  |
 | 结果、失败和状态        | 18   | 18   | 0   |
-| 普通调用面与实例观察    | 14   | 14   | 0   |
+| 普通调用面与实例观察    | 16   | 16   | 0   |
 | 独立执行与提供者操作    | 29   | 29   | 0   |
 | 消费者 owner 的装配声明 | 2    | 1    | 1   |
 | 档案与请求准备          | 26   | 26   | 0   |
@@ -58,7 +58,7 @@ public-api 有 21 个二级章节。清单列出其中 14 章：根入口 12 章
 1. `pending: false` 的名字必须在产物里出现，种类相符。
 2. `pending: true` 的名字必须不在产物里。已经出现就失败，提醒改标记。
 3. 产物里清单没有的导出算多导出。
-4. 测试输出每个入口的"已列出、待落地、已落地"计数，并要求 `pending` 总数等于清单顶层字段 `expectedPending`（现为 0：已落地 151 个类型和 18 个值）。落地名字的阶段在同一次改动里降低该值，删除名字或改回 `pending` 而不改它会失败。
+4. 测试输出每个入口的"已列出、待落地、已落地"计数，并要求 `pending` 总数等于清单顶层字段 `expectedPending`（现为 0：已落地 153 个类型和 18 个值）。落地名字的阶段在同一次改动里降低该值，删除名字或改回 `pending` 而不改它会失败。
 
 `./testing` 入口已在清单里，章节名是「受控替代提供者」与「符合性断言」。再增加入口时，同时在清单里加这个入口，否则"清单覆盖全部 `exports` 子路径"的测试失败。
 
@@ -187,7 +187,7 @@ public-api 有 21 个二级章节。清单列出其中 14 章：根入口 12 章
 
 ### 符合性断言
 
-`checkModelProviderConformance`（`src/testing/conformance.ts`）对任意提供者逐条运行 52 条义务检查。义务名、依据条款与所需钩子见[公开页](../docs/public-api.md#符合性断言)。替代提供者自身必须通过它（AC-G3-6）。
+`checkModelProviderConformance`（`src/testing/conformance.ts`）对任意提供者逐条运行 53 条义务检查。义务名、依据条款与所需钩子见[公开页](../docs/public-api.md#符合性断言)。替代提供者自身必须通过它（AC-G3-6）。
 
 | 要证明的 | 测试 | 能发现 |
 | --- | --- | --- |
@@ -212,7 +212,7 @@ public-api 有 21 个二级章节。清单列出其中 14 章：根入口 12 章
 
 ### 未覆盖
 
-- 夹具只有五类，第六类（Cordis 消费插件）归 model-cordis-contract，见[角色夹具的限度](#角色夹具的限度)。类型探针覆盖根入口全部 151 个已落地的类型名，不覆盖 `./testing` 的类型（后者只由导出清单比对核对名字与种类，由 `tests/testing-*.spec.ts` 的运行测试间接使用）；18 个运行值由 `tests/credential.spec.ts`、`tests/identity.spec.ts` 等运行测试。
+- 夹具只有五类，第六类（Cordis 消费插件）归 model-cordis-contract，见[角色夹具的限度](#角色夹具的限度)。类型探针覆盖根入口全部 153 个已落地的类型名，不覆盖 `./testing` 的类型（后者只由导出清单比对核对名字与种类，由 `tests/testing-*.spec.ts` 的运行测试间接使用）；18 个运行值由 `tests/credential.spec.ts`、`tests/identity.spec.ts` 等运行测试。
 - 清单比对不检查声明的形状。形状只由类型探针负责。页面不再保存第二份声明，所以没有页面与源码的形状比较。
 - 类型探针以赋值为主：探针不拦多出的可选成员、变宽的联合和丢失的 `readonly`，这些现在没有机器检查。覆盖下限只要求每个已落地类型在某个探针里被使用，不要求使用得充分。
 - 类型断言检查只扫描 `src/` 与 `tests/fixtures/`，探针 `tests/*.spec-d.ts` 不在其中，探针靠 `tests/values.ts` 只声明不构造品牌值。
@@ -419,7 +419,7 @@ Tool 额外验证附件仅地址文本且不加载媒体、无附件的内容 re
 
 ## Model 产品能力与设计覆盖
 
-CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md#阶段与版本支持承诺)为准。本表连接[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md)与已接受的非 pi-ai 技术设计，pi-ai 具体适配保持候选，不表示实际实现通过。所有行的运行验证均待实际提供者兑现。
+CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md#阶段与版本支持承诺)为准。本表连接[产品正文](../../../../.meta_harness/design/product/model-invocation/design.md)与已接受的非 pi-ai 技术设计，pi-ai 适配的采用范围见[组架构各节](../../docs/architecture.md#成员与新增条件)，设计接受不表示实际实现通过。所有行的运行验证均待实际提供者兑现。
 
 | 能力 | 内部 module 与流程 | 对象与公开接口设计 | 行为/协议 | 必须验证的反例与剩余证据 |
 | --- | --- | --- | --- | --- |
@@ -459,7 +459,7 @@ CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../.
 | 多模态资源 | [物化](../../docs/architecture.md#物化和引擎资源控制) | 仅选定 ref 被读取，恶意媒体限额及取消后的真实退出 |
 | 诊断与前置 | [诊断协议](../SPEC.md#诊断查询与保留)、[拥有者](../../model/docs/architecture.md#诊断投影与跨领域前置) | 越权、分页快照、期限与保管独立、安装闭包 |
 
-非 pi-ai 设计已接受，可以据此分配实现责任；pi-ai 相关细化仍为候选。设计接受不代替共同依赖采用和实际提供者证据。每个实现切片沿相应反例验收，不以本节的存在关闭能力交付。
+非 pi-ai 设计已接受，可以据此分配实现责任；pi-ai 细化的采用范围沿[组架构各节](../../docs/architecture.md#成员与新增条件)。设计接受不代替共同依赖采用和实际提供者证据。每个实现切片沿相应反例验收，不以本节的存在关闭能力交付。
 
 ## Model 类型消费检查
 
@@ -481,7 +481,7 @@ CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../.
 
 宿主与独立能力的正例连接 createModelProfiles、createModelRequestPreparation、createModelMessageConversion、createModelRuntime 和 host.bind(provider.driver)。ModelBindingFailure.conflict 必须不借业务 operation/revision 即可表达。负例覆盖普通 runtime 取得 driver、驱动缺 continuity、工厂缺注入依赖、转换缺来源核验依赖以及注册缺 authority。
 
-pi 提供者候选另从[组设计](../../docs/architecture.md#pi-家族贡献的取得协议)提取目标贡献声明，验证固定供应商取得、物化表示、每次 decoder 与 finally 释放能连接。它不是领域契约的导出，也不是该目标包已经存在的证据。
+pi 提供者另从已接受的[家族贡献取得协议](../../docs/architecture.md#pi-家族贡献的取得协议)提取目标贡献声明，验证固定供应商取得、物化表示、每次 decoder 与 finally 释放能连接。它不是领域契约的导出，也不是该目标包已经存在的证据。
 
 诊断消费覆盖原 call 的授权输入、品牌游标及最小字段。漏租户/调用、普通字符串游标和把原请求 body 写入白名单记录须被拒绝。结构类型只约束公开声明，不防止不可信对象多带字段；运行边界须构造白名单投影并执行权限及内容校验。
 
@@ -493,6 +493,13 @@ pi 提供者候选另从[组设计](../../docs/architecture.md#pi-家族贡献�
 
 凭据契约的正例使用根入口的凭据名字：`Supplier.credential.id` 是 `CredentialId`；`CredentialReference` 与 `CredentialQuery` 可传给 `sameCredentialHolder`，两者都只取 `id` 与 `tenant`；一个只含 `present` 与 `resolve` 的对象是 `CredentialPort`，保管方可在其上自行扩展诊断；`decodeCredentialId` 的成功值可作为引用的 `id`，失败值的 `field` 是 `'ModelCredentialId'`。负例覆盖：普通字符串和 `ModelCallId` 不能当 `CredentialId`，引用的用途只能是 `model-send`，引用缺租户，`resolve` 结果缺 `scope` 或在 `absent` 上带 `value`，把 `diagnostics` 放进 `CredentialPort` 的对象字面量被多余属性检查拒绝，`Supplier.credential.id` 不接受普通字符串。运行行为由 `tests/credential.spec.ts` 覆盖：成功例、`type`、`empty`、`length`（含按 UTF-16 码元计数）、`character`（含制表符、零宽空格、双向控制字符、孤立代理码元，成对的代理码元被接受），非 ASCII 字母被接受，`sameCredentialHolder` 对未经 legal-identity 铸造的租户返回 `false`。类型探针不证明端口实现的五种结果取舍，那由保管实现的测试负责。
 
-引用共享 `ToolCallPart` 的声明有如下探针。`tests/result.spec-d.ts`：`ToolSuggestion` 与 `ToolCallPart` 类型相同；`ModelBlock` 接受内容块和完整调用，拒绝参数未收齐的调用（`IncompleteToolCallPart`）、参数无法解码的调用（`UnparsedToolCallPart`）与结果标记（`ToolResultPart`）。`tests/call-surface.spec-d.ts`：`VisibleBlock` 的已封块不接受未收齐的调用，增长值只取四种增长内容；`Snapshot.blocks` 与 `ResultPage.blocks` 不能赋给可变数组；`Observation` 与 `ReadState` 的结束原因是闭合集合；`ReadStart.acknowledged` 只接受已交接的保管状态；`ModelHandle.observe` 要求租户与取消信号，`LiveRoute` 的无路由形态不带 handle，普通 `ModelRuntime` 没有 driver，其目录没有发布入口。`tests/provider.spec-d.ts`：`TransportFact` 的封口块与结束事实、`IndependentModelFact` 的两种未开始、传输链从 prepare 到事实流、`ModelCommands` 的写入带代次与期望修订、`recordSend` 不接受 prepared、`claim` 需要连续性证据、`ModelInstanceHost` 与 `ModelProvider` 的入口形状。`tests/driver.spec-d.ts`：`ModelDriverHost` 是带 `bind` 的实例宿主，普通实例宿主没有 `bind`。这些探针是类型检查，不证明供应商流事实能被还原为完整的 `ToolCallPart`，该归约归供应商解释与流状态的运行验证。
+引用共享 `ToolCallPart` 的声明有如下探针。`tests/result.spec-d.ts`：`ToolSuggestion` 与 `ToolCallPart` 类型相同；`ModelBlock` 接受内容块和完整调用，拒绝参数未收齐的调用（`IncompleteToolCallPart`）、参数无法解码的调用（`UnparsedToolCallPart`）与结果标记（`ToolResultPart`）。`tests/call-surface.spec-d.ts`：`VisibleBlock` 的已封块不接受未收齐的调用，增长值只取四种增长内容；`Snapshot.blocks` 与 `ResultPage.parts` 不能赋给可变数组；`Observation` 与 `ReadState` 的结束原因是闭合集合；`ReadStart.acknowledged` 只接受已交接的保管状态；`ModelHandle.observe` 要求租户与取消信号，`LiveRoute` 的无路由形态不带 handle，普通 `ModelRuntime` 没有 driver，其目录没有发布入口。`tests/provider.spec-d.ts`：`TransportFact` 的封口块与结束事实、`IndependentModelFact` 的两种未开始、传输链从 prepare 到事实流、`ModelCommands` 的写入带代次与期望修订、`recordSend` 不接受 prepared、`claim` 需要连续性证据、`ModelInstanceHost` 与 `ModelProvider` 的入口形状。`tests/driver.spec-d.ts`：`ModelDriverHost` 是带 `bind` 的实例宿主，普通实例宿主没有 `bind`。这些探针是类型检查，不证明供应商流事实能被还原为完整的 `ToolCallPart`，该归约归供应商解释与流状态的运行验证。
 
 模态词表来自共享成员 `@omne-harness/modality`。`tests/profile.spec-d.ts`：`ModelModality` 是 `Modality` 的子集且恰为 `text`、`image`、`voice`，档案定义的输入或输出带 `video` 报错；`ModalityRequirement.modalities` 的成员恰为 `Modality`，可带 `video`，不认识的名字报错。`tests/conversion.spec-d.ts`：`ConverterKey` 的模态键与 `acquire` 输入的 `modality` 接受 `video`，后者还接受 `null`。
+
+
+## 最终结果项与页预算
+
+ResultPage.parts 包含完整 sealed 块或 partial 累计值及真实 trims。类型探针直接消费公开包，分别验证 parts 只读、具体 partial 不能赋给 ModelBlock 或完整 tool_call。Snapshot.blocks 保持原义。scripted 显式结算测试在 [result-parts.spec.ts](../tests/result-parts.spec.ts) 核目标=1/2/1024、超目标大项、规范编码恰好边界、多字节及孤立代理码元、参数固定、未发出游标拒绝和完整页的原容量硬界。
+
+`mixed-partial-result-readable` 经现有 startRun/settleCall 准备预先确定的混合结果，再从普通 consumption 遍历，比较完整值、顺序、终局与真实提醒。有必要钩子却丢项、丢 trim 或改变类型属于 fail；缺钩子才是不适用。scripted 的显式结果不证明传输到最终页的映射，该映射由 [Model 内存行为测试](../../model/tests/memory-partial.spec.ts) 实际驱动 preserve、settle 和 acquireRead 验证。独立安装的 independent-caller、result-consumer 只通过发布入口消费此协议，不引入生产运行证明。

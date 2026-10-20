@@ -308,8 +308,9 @@ describe('the conformance suite on the other ways that observation can go wrong'
             await settle({
               ...input,
               termination: { kind: 'completed', reason: 'stop' },
-              blocks: [],
+              parts: [].map(block => ({ kind: 'sealed' as const, block, trims: [] })),
               pageSize: 1,
+              pageTargetBytes: 1024,
             })
           },
         },
@@ -344,8 +345,9 @@ describe('the conformance suite on the other ways that observation can go wrong'
               tenant: access.tenant,
               call: access.call,
               termination: { kind: 'completed', reason: 'stop' },
-              blocks: [],
+              parts: [].map(block => ({ kind: 'sealed' as const, block, trims: [] })),
               pageSize: 1,
+              pageTargetBytes: 1024,
             })
           return item
         }),
