@@ -25,3 +25,6 @@
 - [导入图遍历工具](module-graph.ts)。
 - [测试夹具](fixtures/index.md)。
 - [包索引](../index.md)。
+
+- [普通调用与引用行为](invocation-runtime.spec.ts)。
+- [来源绑定与篡改拒绝](invocation-source.spec.ts)。

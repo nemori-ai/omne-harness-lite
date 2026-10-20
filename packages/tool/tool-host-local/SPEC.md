@@ -53,3 +53,7 @@
 台账不可读回复 `unavailable`（`dependency` 为 `start-ledger`），不回复受理或拒绝，也不读缓存（P04：准入资料不可读时拒绝新的 consume）。台账里出现本协调器没有写过的记录时同样回复 `unavailable`。
 
 文档导航见 [index](index.md)。
+
+## 实例宿主与普通调用的边界
+
+本包尚未提供生产 ToolInstanceHost、来源签发器或 ToolInstanceIdentities。宿主实现须在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不再接受全局 instance。当前测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger 和本地启动协调器组合，driver 的 instance 由测试 host 提供。这只证明单进程非耐久组合，不证明 claim、换实例接管或恢复。

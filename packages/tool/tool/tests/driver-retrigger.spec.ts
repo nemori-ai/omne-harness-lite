@@ -8,13 +8,13 @@ import type { LedgerCommitInput, ToolLedgerStore } from '@omne-harness/tool'
 import type { MemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
   admission,
+  fixedOf,
   callId,
   interleaving,
   ok,
   operationId,
   principalA,
   principalB,
-  request,
   tenantA,
   type Block,
 } from './runtime-values.ts'
@@ -64,7 +64,7 @@ function putsOperation(operation: string) {
 /** A negative answer about the start of `c1`: it excludes the start intent that is in flight. */
 async function negativeAnswerAboutStart(harness: StartHarness): Promise<void> {
   ok(
-    await harness.runtime.queryOperation({
+    await harness.ledger.reads.operation({
       principal: principalA,
       tenant: tenantA,
       call: callId('c1'),
@@ -217,11 +217,16 @@ describe('23 retrigger: a held slot whose start intent was excluded is redone by
     expect((await harness.state('c2')).phase).toBe('queued')
   })
 
-  it('23 retrigger: a new driver over the same records, with no waiting table, completes the orphaned start when an admission wakes it', async () => {
+  it('23 retrigger: a new driver over the same records, with no waiting table, completes the orphaned start when the trusted host wakes it after an internal admission recall', async () => {
     const first = await orphanedByAbort()
     const second = startHarness({ memory: first.memory })
     second.host.scheduled.splice(0)
-    expect(ok(await second.runtime.admit(admission('c1', 'op-c1', request()))).recovered).toBe(true)
+    expect(
+      ok(
+        await second.ledger.admissions.admit(admission('c1', 'op-c1', fixedOf(first.source, 'c1'))),
+      ).recovered,
+    ).toBe(true)
+    await second.host.schedule(wake('c1'))
     expect(second.host.scheduled).toEqual([wake('c1')])
     await second.host.runScheduled()
     await expectStarted(second)
@@ -263,6 +268,7 @@ describe('23 retrigger: when a failed run is run again', () => {
       principal: principalB,
       tenant: tenantA,
       call: callId('c1'),
+      instance: await harness.host.instanceOf(callId('c1')),
       signal: new AbortController().signal,
     })
     await vi.advanceTimersByTimeAsync(3_600_000)

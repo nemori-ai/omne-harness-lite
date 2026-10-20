@@ -1,21 +1,24 @@
 import {
   createTestToolDependencies,
+  createTestInvocationSource,
+  createTestToolIdentities,
   type TestToolDependenciesInput,
 } from '@omne-harness/tool/testing'
 import { defaultResultPolicy } from '@omne-harness/tool-contract'
-import { configuration, guards, instanceId, testHost, type Principal } from './runtime-values.ts'
+import { configuration, guards, testHost, type Principal } from './runtime-values.ts'
 
 /** Caller-owned ports for tests that do not resolve or execute real tool calls. */
 export function testAssembly(overrides: Partial<TestToolDependenciesInput<Principal>> = {}) {
   const missing = (): never => {
     throw new Error('not on this path')
   }
-  const host = testHost({ calls: new Map() })
+  const identities = createTestToolIdentities()
+  const source = createTestInvocationSource<Principal>()
+  const host = testHost({ calls: new Map() }, identities.instanceIdentities)
   const config = configuration()
   const input: TestToolDependenciesInput<Principal> = {
-    instance: instanceId,
     configuration: config,
-    guards: { ...guards(), policy: defaultResultPolicy },
+    guards: { ...guards(), sources: source.guard, policy: defaultResultPolicy },
     instances: host,
     catalog: { inspect: missing, usage: missing, search: missing },
     children: {
@@ -28,8 +31,18 @@ export function testAssembly(overrides: Partial<TestToolDependenciesInput<Princi
       confirmBarrier: missing,
       finish: missing,
     },
+    invocationIdentities: identities.invocationIdentities,
+    operationIdentities: identities.operationIdentities,
+    sourceIssuer: source.issuer,
     bindingsFor: () => ({ inspect: missing, resolve: missing, recover: missing }),
     ...overrides,
   }
-  return { ...createTestToolDependencies(input), host, configuration: config, input }
+  return {
+    ...createTestToolDependencies(input),
+    host,
+    configuration: config,
+    input,
+    identities,
+    source,
+  }
 }

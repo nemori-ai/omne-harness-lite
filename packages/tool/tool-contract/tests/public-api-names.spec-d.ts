@@ -31,12 +31,21 @@ import {
   judgeHandoff,
   judgeToolArguments,
   judgeToolDefinition,
+  judgeToolInvokeRequest,
   judgeToolState,
   presentTool,
   projectToolResult,
   renderToolResult,
   createDefaultParameterCodec,
   defaultResultPolicy,
+  decodeToolInvocationRef,
+  decodeToolOperationRef,
+  encodeToolInvocationRef,
+  encodeToolOperationRef,
+  readToolInvocationRef,
+  readToolOperationRef,
+  resolveToolInvocationRef,
+  resolveToolOperationRef,
 } from '@omne-harness/tool-contract'
 export type {
   ToolIdentity,
@@ -198,6 +207,27 @@ export type {
   AccountScope,
   ToolAccounts,
   ToolOffloader,
+  ToolInvokeRequest,
+  InvocationAccess,
+  ToolDefiniteFailure,
+  ToolInvokeOutcome,
+  ToolCommandOutcome,
+  ToolReleaseDeliveryOutcome,
+  ReleasedDelivery,
+  ToolInvocationQueries,
+  ToolInvocationCommands,
+  ToolInvocationDirectory,
+  ToolInvocationContentReader,
+  ToolInvocationRef,
+  ToolOperationRef,
+  ToolReferenceRejection,
+  ToolReferenceFailure,
+  ToolInvocationParts,
+  ToolOperationParts,
+  ToolInvocationIdentities,
+  ToolOperationIdentities,
+  ToolInstanceIdentities,
+  ToolInvocationSourceIssuer,
   ChildPosition,
   ChildReservation,
   ChildState,
@@ -226,7 +256,15 @@ import type {
   AvailabilityFacts,
   ParsedToolArguments,
   ToolArgumentsRejection,
+  ToolInvokeRequest,
+  ToolInvocationRef,
+  ToolOperationRef,
+  ToolReferenceRejection,
+  ToolReferenceFailure,
+  ToolInvocationParts,
+  ToolOperationParts,
 } from '@omne-harness/tool-contract'
+import type { TenantId } from '@omne-harness/legal-identity'
 import {
   readToolOperation,
   readToolRegistration,
@@ -253,6 +291,33 @@ it('resolves every implemented contract function from the package root with its 
   >()
   expectTypeOf(judgeFixedToolRequest).toEqualTypeOf<
     (value: unknown) => Outcome<FixedToolRequest, Rejection>
+  >()
+  expectTypeOf(judgeToolInvokeRequest).toEqualTypeOf<
+    (value: unknown) => Outcome<ToolInvokeRequest, Rejection>
+  >()
+  expectTypeOf(encodeToolInvocationRef).toEqualTypeOf<
+    (parts: ToolInvocationParts) => Outcome<ToolInvocationRef, ToolReferenceRejection>
+  >()
+  expectTypeOf(encodeToolOperationRef).toEqualTypeOf<
+    (parts: ToolOperationParts) => Outcome<ToolOperationRef, ToolReferenceRejection>
+  >()
+  expectTypeOf(decodeToolInvocationRef).toEqualTypeOf<
+    (text: unknown) => Outcome<ToolInvocationRef, ToolReferenceRejection>
+  >()
+  expectTypeOf(decodeToolOperationRef).toEqualTypeOf<
+    (text: unknown) => Outcome<ToolOperationRef, ToolReferenceRejection>
+  >()
+  expectTypeOf(readToolInvocationRef).toEqualTypeOf<
+    (reference: ToolInvocationRef) => ToolInvocationParts
+  >()
+  expectTypeOf(readToolOperationRef).toEqualTypeOf<
+    (reference: ToolOperationRef) => ToolOperationParts
+  >()
+  expectTypeOf(resolveToolInvocationRef).toEqualTypeOf<
+    (reference: unknown, tenant: TenantId) => Outcome<ToolInvocationParts, ToolReferenceFailure>
+  >()
+  expectTypeOf(resolveToolOperationRef).toEqualTypeOf<
+    (reference: unknown, tenant: TenantId) => Outcome<ToolOperationParts, ToolReferenceFailure>
   >()
   expectTypeOf(judgeToolArguments).returns.toEqualTypeOf<
     Outcome<ParsedToolArguments, ToolArgumentsRejection>
