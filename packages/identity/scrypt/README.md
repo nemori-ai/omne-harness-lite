@@ -6,7 +6,7 @@ Bounded scrypt for a later login or credential change. The identity package stor
 
 ## Responsibility and status
 
-This package derives and checks password material. It does not log in, store accounts, or hold keys. The member lives at `packages/identity/scrypt`. The deployment load is `SCRYPT_PROFILE`. The measurement platform is Node v26.0.0. The declared engines stay `>=24.18.0 <25`.
+This package derives and checks password material. It does not log in, store accounts, or hold keys. The member lives at `packages/identity/scrypt`. The deployment load is `SCRYPT_PROFILE`. The measurement platform is Node v26.0.0. The declared engines are `>=24`. The package was measured only on Node v26.0.0.
 
 ## Usage
 

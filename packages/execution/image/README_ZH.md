@@ -80,7 +80,7 @@ await opened.handle.close()
 
 `pnpm --filter @omne-harness/image test` 从公开入口和 `./cordis` 运行单元测试与契约测试。
 
-这次命令在 Darwin 25.5.0 arm64、Node v26.0.0、sharp 0.35.3、libvips 8.18.3 上通过。本卡对预算和关闭的平台接受只覆盖 Node 26。成员声明的 Node 范围是 `>=26.0.0 <27`。其他 Node 版本没有运行，也不写成已支持。调用方停止等待的用例用的是 2048×2048 的夹具 PNG 和 1 毫秒超时。这些夹具数字不是生产上限。`nativeStop` 仍是 `not-proven`。
+这次命令在 Darwin 25.5.0 arm64、Node v26.0.0、sharp 0.35.3、libvips 8.18.3 上通过。本卡对预算和关闭的平台接受只覆盖 Node 26。成员声明的 Node 范围是 `>=24`，它只声明下限，不表示其他 Node 版本已验证。其他 Node 版本没有运行，也不写成已支持。调用方停止等待的用例用的是 2048×2048 的夹具 PNG 和 1 毫秒超时。这些夹具数字不是生产上限。`nativeStop` 仍是 `not-proven`。
 
 `node --expose-gc packages/execution/image/verification/budget-profile-smoke.mjs` 在构建后用推荐配置运行真实 sharp 场景，核对结果和预留，并读取进程 RSS。复跑方法与读数见[推荐配置](docs/budget-profile.md#观测)。
 

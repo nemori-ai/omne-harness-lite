@@ -63,7 +63,7 @@ const verdict = await validate(provider, chatMessage, read)
 
 `SchemaBudget` 由执行域传入。`maxSnapshots` 按份计数，不是字节。没有完整编译内存上界时，动态 Schema 不开放。
 
-本包要求 Node.js `>=24.18.0 <25`，与模板和 `@omne-harness/json-text` 的 engines 一致。调用方提供时钟看不到的时间。退避由下一次调用读取，包内没有定时器。
+本包要求 Node.js `>=24`，与模板和 `@omne-harness/json-text` 的 engines 一致。调用方提供时钟看不到的时间。退避由下一次调用读取，包内没有定时器。
 
 ## 验证
 

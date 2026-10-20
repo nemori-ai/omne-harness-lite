@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Single-machine Tool host: the local start coordinator (G5) over the ledger store's host domain",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {

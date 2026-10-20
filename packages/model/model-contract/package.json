@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Public type contract of the Model capability: calls, provider operations, profiles, conversion, host drivers and diagnostics",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {

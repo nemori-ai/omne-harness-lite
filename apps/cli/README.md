@@ -121,7 +121,7 @@ Not covered:
 - The process tests use piped stdio. No test allocates a TTY.
 - The unreadable-directory and read-only-parent cases skip when the tests run as root, because root bypasses these permissions.
 - Windows is not tested.
-- The local development machine runs Node v26. PanQiWei accepted that version for this card's verification on 2026-10-14. Node 24 was not run. `engines.node` remains `>=24.18.0 <25`.
+- The local development machine runs Node v26. PanQiWei accepted that version for this card's verification on 2026-10-14. Node 24 was not run. `engines.node` is `>=24`.
 - No test installs the package outside the workspace through `pnpm pack`.
 
 ## Maintenance
