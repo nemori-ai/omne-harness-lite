@@ -1,9 +1,15 @@
 // The copy that a judgment takes of its input refuses what is not plain JSON data: an array or an
 // object of another prototype, a member that is not a string key, a member that reflection lists
-// but cannot describe, and a member that holds a function. Each is refused without reading the
-// input again and without running any code of the caller.
+// but cannot describe, a member that holds a function, and a Proxy whose trap throws or that is
+// revoked. Each is refused without reading the input again and without running an accessor of the
+// caller. Only the traps of a Proxy run, and an exception from a trap does not leave the judgment.
 import { describe, expect, it } from 'vitest'
-import { judgeAgentDefinition, judgeLoopExtensions } from '@omne-harness/agent-contract'
+import {
+  judgeAgentDefinition,
+  judgeExtensionOutput,
+  judgeLoopExtensions,
+  type Subject,
+} from '@omne-harness/agent-contract'
 
 const definition = (extra: Record<string, unknown> = {}) => ({
   category: 'AgentDefinition',
@@ -76,5 +82,71 @@ describe('an object that is not a plain object', () => {
         },
       ]),
     ).toEqual({ ...malformed, index: 0 })
+  })
+})
+
+const extension = (extra: Record<string, unknown> = {}) => ({
+  name: 'e',
+  position: 'before_action',
+  power: 'observe',
+  implementation: { kind: 'builtin', builtinName: 'f' },
+  ...extra,
+})
+
+const fault = (trap: string) => () => {
+  throw new Error(`the ${trap} trap failed`)
+}
+
+/** Fresh Proxies that make reflection throw: two revoked ones and one throwing trap of each read. */
+function failingProxies(): readonly object[] {
+  const revokedObject = Proxy.revocable({}, {})
+  revokedObject.revoke()
+  const revokedArray = Proxy.revocable([], {})
+  revokedArray.revoke()
+  return [
+    revokedObject.proxy,
+    revokedArray.proxy,
+    new Proxy({ a: 1 }, { ownKeys: fault('ownKeys') }),
+    new Proxy({ a: 1 }, { getPrototypeOf: fault('getPrototypeOf') }),
+    new Proxy({ a: 1 }, { getOwnPropertyDescriptor: fault('getOwnPropertyDescriptor') }),
+    new Proxy([1], { get: fault('get') }),
+  ]
+}
+
+/*
+ * Step 3 refuses each output below before step 7 reads the subject, so the subject only has to
+ * satisfy the type of the input.
+ */
+const unreadSubject = {} as Subject
+
+const outputAt = (output: unknown) => ({
+  position: 'before_action' as const,
+  dimension: null,
+  purpose: null,
+  power: 'veto' as const,
+  trigger: null,
+  subject: unreadSubject,
+  output,
+})
+
+describe('a Proxy whose trap throws, or a revoked Proxy', () => {
+  it('is malformed in a declaration judgment, which does not throw', async () => {
+    for (const proxy of failingProxies()) {
+      expect(await judgeAgentDefinition(proxy)).toEqual(malformed)
+      expect(await judgeAgentDefinition(definition({ extra: proxy }))).toEqual(malformed)
+      expect(await judgeLoopExtensions(proxy)).toEqual({ ...malformed, index: 0 })
+      expect(await judgeLoopExtensions([extension(), proxy])).toEqual({ ...malformed, index: 1 })
+      expect(await judgeLoopExtensions([extension({ extra: proxy })])).toEqual({
+        ...malformed,
+        index: 0,
+      })
+    }
+  })
+
+  it('is malformed in an output judgment, which does not throw', () => {
+    for (const proxy of failingProxies()) {
+      expect(judgeExtensionOutput(outputAt(proxy))).toEqual(malformed)
+      expect(judgeExtensionOutput(outputAt({ kind: 'rewrite', subject: proxy }))).toEqual(malformed)
+    }
   })
 })

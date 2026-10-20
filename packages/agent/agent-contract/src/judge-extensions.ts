@@ -3,6 +3,7 @@ import {
   checkJson,
   closeCheckDomain,
   copyPlain,
+  isRecord,
   jsonTextWithinBudget,
   openCheckDomain,
 } from './check.ts'
@@ -69,10 +70,6 @@ const declaration = z.strictObject({
 })
 
 type Parsed = z.output<typeof declaration>
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 function dimensionReason(value: unknown): RefusalReason {
   if (!isRecord(value)) return 'malformed'

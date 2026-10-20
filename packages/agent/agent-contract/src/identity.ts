@@ -1,6 +1,7 @@
 // Identity and value types of the Agent contract (README, "身份、原位置与纯求值"), the decoders of
 // the branded identities, and the structure judgments of the values that cross a boundary as data.
-// Every function here is pure and returns an `Outcome`; none throws.
+// Every function here is pure and returns an `Outcome`. None throws, except that `judgeAccess`
+// runs the principal judgment that the caller injects and does not catch what it throws.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'

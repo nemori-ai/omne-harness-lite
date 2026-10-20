@@ -726,6 +726,14 @@ it('keeps an omitted optional field omitted and returns frozen data that shares 
     'position',
     'power',
   ])
+  const dimensioned = declare('after_action', 'observe')
+  const withDimension = await judgeOne(dimensioned)
+  expect(withDimension.kind).toBe('accepted')
+  if (withDimension.kind !== 'accepted') return
+  const dimension = withDimension.value[0]?.dimension
+  expect(dimension).toEqual(dimensioned['dimension'])
+  expect(Object.isFrozen(dimension)).toBe(true)
+  expect(dimension).not.toBe(dimensioned['dimension'])
 })
 
 it('requires an implementation of kind builtin or command with a closed field set', async () => {

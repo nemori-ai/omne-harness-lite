@@ -72,11 +72,23 @@ function plainJson(value: unknown, walk: Walk, depth: number, index: number): Pl
   if (text !== undefined) return text
   if (typeof value === 'function') return refuse('executable', index)
   if (typeof value !== 'object') return refuse('malformed', index)
+  return copyContainer(value, walk, depth, index)
+}
+
+/**
+ * The copy of an array or an object. The copy reads each member through its property descriptor,
+ * so it runs no accessor. On a Proxy, these reads and the read of an array `length` run the traps
+ * of the caller. A trap that throws, or a revoked Proxy, makes the value `malformed`, and the
+ * exception does not leave the copy.
+ */
+function copyContainer(value: object, walk: Walk, depth: number, index: number): Plain {
   if (walk.ancestors.has(value)) return refuse('malformed', index)
   walk.ancestors.add(value)
   try {
     if (Array.isArray(value)) return copyArray(value, walk, depth, index)
     return copyObject(value, walk, depth, index)
+  } catch {
+    return refuse('malformed', index)
   } finally {
     walk.ancestors.delete(value)
   }
@@ -197,6 +209,11 @@ async function validatePlain<T>(
       }),
   })
   return settle(await validate<T>(provider, ref, read))
+}
+
+/** Whether a value is an object that is not an array. The judgments share this one guard. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export function openCheckDomain(): SchemaProvider {

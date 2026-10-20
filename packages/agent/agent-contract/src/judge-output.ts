@@ -2,7 +2,7 @@ import { judgeJsonValue, type JsonLimits, type JsonValue } from '@omne-harness/j
 import type { Message } from '@omne-harness/message'
 import type * as M from '@omne-harness/model-contract'
 import { z } from 'zod'
-import { copyPlain } from './check.ts'
+import { copyPlain, isRecord } from './check.ts'
 import {
   POSITIONS,
   POWERS,
@@ -341,10 +341,6 @@ function build(parsed: Parsed): ExtensionOutput | undefined {
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 function ownValue(record: Readonly<Record<string, unknown>>, key: string): unknown {
   return Object.hasOwn(record, key) ? record[key] : undefined
 }
@@ -429,7 +425,9 @@ function outputRefusal(
 /**
  * Judge what an extension author returned against the position output table. The function is
  * synchronous and pure: it reads no clock, performs no I/O and does not throw for any `output`.
- * The accepted value is a frozen copy that shares nothing with `output`.
+ * An `output` that is a Proxy, or that holds one, runs its traps during the copy. A trap that
+ * throws, or a revoked Proxy, gives `malformed`. The accepted value is a frozen copy that shares
+ * nothing with `output`.
  */
 export function judgeExtensionOutput(
   input: ExtensionOutputJudgeInput,
