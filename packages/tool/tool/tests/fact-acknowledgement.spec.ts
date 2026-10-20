@@ -490,3 +490,35 @@ describe('trusted source fact acknowledgement', () => {
     ).toHaveProperty('kind', 'unavailable')
   })
 })
+
+describe('confirmed batch evidence is immutable', () => {
+  it.each(['owner', 'record', 'revision', 'digest'] as const)(
+    'rejects a new operation replacing confirmed sourceReceipt %s',
+    async field => {
+      const f = await fixture()
+      ok(await f.harness.commands.recordFactAcknowledgement(f.input))
+      const before = await f.records()
+      const commits = f.harness.memory.commits
+      const recoveries = f.recoveries()
+      const replacement = {
+        ...f.input,
+        operation: operationId('new-confirmation'),
+        sourceReceipt: { ...f.confirmation, [field]: 'changed' },
+      }
+      expect(await f.harness.commands.recordFactAcknowledgement(replacement)).toMatchObject({
+        failure: { kind: 'invalid', field: 'sourceReceipt' },
+      })
+      expect(await f.records()).toEqual(before)
+      expect(f.harness.memory.commits).toBe(commits)
+      expect(f.recoveries()).toBe(recoveries)
+      expect(await pending(f)).toEqual({ pending: [], tasks: [] })
+      const original = { ...replacement, sourceReceipt: f.confirmation }
+      expect(
+        ok(await f.harness.commands.recordFactAcknowledgement(original)).pendingAcknowledgements,
+      ).toEqual([])
+      expect(ok(await f.harness.ledger.reads.operation(original))).toMatchObject({
+        kind: 'committed',
+      })
+    },
+  )
+})

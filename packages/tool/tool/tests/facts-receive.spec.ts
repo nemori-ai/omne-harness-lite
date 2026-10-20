@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { decodeToolInstanceId, decodeToolWaitId } from '@omne-harness/tool-contract'
 import type {
   FactBatch,
   ProcessBlock,
   ToolExecutionFact,
   ToolLiveExecution,
+  ToolTerminal,
 } from '@omne-harness/tool-contract'
 import { createToolLedger, type FactBatchRecord } from '@omne-harness/tool'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
@@ -17,6 +19,7 @@ import {
   ok,
   principalA,
   principalB,
+  operationId,
   tenantA,
   tenantB,
   text,
@@ -776,4 +779,267 @@ describe('concurrent custody', () => {
       ok(await harness.commands.loadRecovery(access)).streams[0]?.pendingAcknowledgements,
     ).toHaveLength(2)
   })
+})
+
+describe('closed fact shapes and complete original identities', () => {
+  const terminals = [
+    { kind: 'unavailable', reason: 'environment unavailable' },
+    { kind: 'no-response', wait: ok(decodeToolWaitId('original-wait')), reason: 'no answer' },
+    { kind: 'interrupted', cause: { kind: 'foreground-limit' } },
+    {
+      kind: 'interrupted',
+      cause: { kind: 'control', operation: operationId('original-control'), withdrawn: false },
+    },
+    { kind: 'interrupted', cause: { kind: 'resume-rejected', exclusion: evidence('excluded') } },
+  ] satisfies readonly ToolTerminal[]
+
+  it.each(terminals)('preserves legal terminal $kind with its complete cause', async terminal => {
+    const { harness, access, batch, receive } = await running()
+    const fact = { ...finalFact(), terminal }
+    ok(await receive({ ...batch, events: [{ event: 'final', fact }] }))
+    const saved = ok(await harness.commands.loadRecovery(access))
+    const settle = saved.tasks.find(task => task.kind === 'settle')
+    if (settle?.kind !== 'settle') throw new Error('missing saved terminal')
+    expect(ok(await harness.ledger.facts.read({ ...access, basis: settle.basis })).fact).toEqual(
+      fact,
+    )
+    expect(saved.streams[0]?.pendingAcknowledgements).toHaveLength(1)
+  })
+
+  it.each([
+    { kind: 'failed', cause: 'arguments' },
+    { kind: 'failed', cause: 'arguments', diagnostic: 'failed', extra: true },
+    { kind: 'failed', cause: 'invented', diagnostic: 'failed' },
+    { kind: 'failed', cause: 'arguments', diagnostic: 7 },
+    { kind: 'failed', cause: { kind: 'arguments' }, diagnostic: 'failed' },
+    { kind: 'unavailable' },
+    { kind: 'unavailable', reason: '' },
+    { kind: 'unavailable', reason: 'failed', extra: true },
+    { kind: 'no-response', wait: '', reason: 'failed' },
+    { kind: 'no-response', wait: 'wait' },
+    { kind: 'no-response', wait: 'wait', reason: '' },
+    { kind: 'no-response', wait: 'wait', reason: 'failed', extra: true },
+    { kind: 'interrupted', cause: { kind: 'foreground-limit' }, extra: true },
+    { kind: 'interrupted', cause: { kind: 'foreground-limit', extra: true } },
+    { kind: 'interrupted', cause: { kind: 'invented' } },
+    { kind: 'interrupted', cause: { kind: 'control', operation: '', withdrawn: false } },
+    { kind: 'interrupted', cause: { kind: 'control', operation: 'control', withdrawn: 'false' } },
+    { kind: 'interrupted', cause: { kind: 'control', operation: 'control' } },
+    {
+      kind: 'interrupted',
+      cause: { kind: 'resume-rejected', exclusion: { ...evidence('excluded'), record: '' } },
+    },
+    { kind: 'interrupted', cause: { kind: 'resume-rejected' } },
+  ])('rejects malformed terminal %# atomically', async terminal => {
+    const f = await running()
+    await rejectsWholeBatch(f, {
+      ...f.batch,
+      events: [...f.batch.events, { event: 'bad-final', fact: { ...finalFact(), terminal } }],
+    })
+    ok(await f.receive())
+  })
+
+  it.each([
+    'start-extra',
+    'execution-extra',
+    'operation',
+    'executor',
+    'instance',
+    'generation',
+  ] as const)('rejects malformed original start %s before custody', async field => {
+    const f = await running()
+    const start = structuredClone(f.batch.start)
+    if (field === 'start-extra') Object.assign(start, { extra: true })
+    if (field === 'execution-extra') Object.assign(start.execution, { extra: true })
+    if (field === 'operation') Object.assign(start, { operation: '' })
+    if (field === 'executor') Object.assign(start.executor, { revision: '' })
+    if (field === 'instance') Object.assign(start.execution, { instance: '' })
+    if (field === 'generation') Object.assign(start.execution, { generation: '' })
+    await rejectsWholeBatch(f, { ...f.batch, start }, start)
+    ok(await f.receive())
+  })
+
+  it.each(['executor', 'instance', 'generation'] as const)(
+    'rejects a first batch whose internally consistent %s differs from the call start',
+    async field => {
+      const f = await running()
+      const original = f.batch.start
+      const start = {
+        ...original,
+        ...(field === 'executor' ? { executor: { ...original.executor, revision: 'other' } } : {}),
+        execution: {
+          ...original.execution,
+          ...(field === 'generation' ? { generation: 'other' } : {}),
+          ...(field === 'instance'
+            ? { instance: ok(decodeToolInstanceId('another-instance')) }
+            : {}),
+        },
+      }
+      await rejectsWholeBatch(f, { ...f.batch, start }, start)
+      ok(await f.receive())
+    },
+  )
+
+  it.each(['record', 'revision', 'digest'] as const)(
+    'rejects changed source %s on a fresh continuous batch',
+    async field => {
+      const f = await running()
+      ok(await f.receive())
+      const batch = next(f.batch, [
+        { event: 'new', fact: { kind: 'process', blocks: [processBlock('hello world', '2')] } },
+      ])
+      await rejectsWholeBatch(f, { ...batch, source: { ...batch.source, [field]: 'changed' } })
+      ok(await f.receive(batch))
+    },
+  )
+})
+
+async function rejectsWholeBatch(
+  f: Awaited<ReturnType<typeof running>>,
+  batch: unknown,
+  start: unknown = f.batch.start,
+) {
+  const before = await records(f.harness)
+  const recovery = ok(await f.harness.commands.loadRecovery(f.access))
+  const commits = f.harness.memory.commits
+  expect(
+    await Reflect.apply(f.harness.commands.receiveFacts, null, [{ ...f.access, start, batch }]),
+  ).toMatchObject({ failure: { kind: 'invalid' } })
+  expect(f.harness.memory.commits).toBe(commits)
+  expect(await records(f.harness)).toEqual(before)
+  expect(ok(await f.harness.commands.loadRecovery(f.access))).toEqual(recovery)
+}
+
+describe('process validation and within-batch progression', () => {
+  it.each([
+    { mode: 'invented' },
+    { state: 'invented' },
+    { trim: { removed: '-1', reason: 'display' } },
+    { trim: { removed: '1', reason: '' } },
+    { trim: { removed: '1', reason: 'display', extra: true } },
+    { trim: { removed: '1' } },
+  ])('rejects malformed process fields %# without saving its valid sibling', async fields => {
+    const f = await running()
+    await rejectsWholeBatch(f, {
+      ...f.batch,
+      events: [
+        ...f.batch.events,
+        {
+          event: 'bad',
+          fact: { kind: 'process', blocks: [{ ...processBlock(), index: 'malformed', ...fields }] },
+        },
+      ],
+    })
+    ok(await f.receive())
+  })
+
+  it('appends thinking content and keeps the original and current complete values', async () => {
+    const f = await running()
+    const initial: ProcessBlock = {
+      ...processBlock('thought'),
+      content: { ...text('out', 'thought'), kind: 'thinking' },
+    }
+    const extended: ProcessBlock = {
+      ...initial,
+      sequence: '7',
+      content: { ...text('out', 'thought continues'), kind: 'thinking' },
+    }
+    ok(
+      await f.receive({
+        ...f.batch,
+        events: [{ event: 'thinking', fact: { kind: 'process', blocks: [initial] } }],
+      }),
+    )
+    ok(
+      await f.receive(
+        next(f.batch, [{ event: 'thinking-next', fact: { kind: 'process', blocks: [extended] } }]),
+      ),
+    )
+    const saved = await records(f.harness)
+    expect(saved.filter(record => record.kind === 'process')).toMatchObject([
+      { process: { block: extended } },
+    ])
+    for (const [event, block] of [
+      ['thinking', initial],
+      ['thinking-next', extended],
+    ] as const) {
+      const original = saved.find(
+        record => record.kind === 'fact-event' && record.fact.event === event,
+      )
+      if (original?.kind !== 'fact-event') throw new Error('missing historical thinking')
+      expect(
+        ok(await f.harness.ledger.facts.read({ ...f.access, basis: original.fact.evidence })).fact,
+      ).toEqual({ kind: 'process', blocks: [block] })
+    }
+  })
+
+  it.each(['kind', 'id'] as const)(
+    'rejects append content %s changes with valid visibility and prefix',
+    async field => {
+      const f = await running()
+      ok(await f.receive())
+      const block = processBlock('hello world', '1')
+      const changed: ProcessBlock = {
+        ...block,
+        content:
+          field === 'kind'
+            ? {
+                ...text('out', 'hello world'),
+                kind: 'thinking',
+                visibility: block.content.visibility,
+              }
+            : { ...text('another-id', 'hello world'), visibility: block.content.visibility },
+      }
+      await rejectsWholeBatch(
+        f,
+        next(f.batch, [{ event: 'changed', fact: { kind: 'process', blocks: [changed] } }]),
+      )
+      ok(
+        await f.receive(
+          next(f.batch, [{ event: 'valid', fact: { kind: 'process', blocks: [block] } }]),
+        ),
+      )
+    },
+  )
+
+  it('advances multiple blocks inside one event and recalls its earlier sequence without rolling current back', async () => {
+    const f = await running()
+    const initial = processBlock()
+    const extended = processBlock('hello world', '5')
+    const events = [
+      { event: 'multi', fact: { kind: 'process', blocks: [initial, extended, initial] } },
+    ] satisfies FactBatch<Block>['events']
+    ok(await f.receive({ ...f.batch, events }))
+    const saved = await records(f.harness)
+    expect(saved.filter(record => record.kind === 'process')).toMatchObject([
+      { process: { block: extended } },
+    ])
+    const original = saved.find(record => record.kind === 'fact-event')
+    if (original?.kind !== 'fact-event') throw new Error('missing multi-block fact')
+    expect(
+      ok(await f.harness.ledger.facts.read({ ...f.access, basis: original.fact.evidence })).fact,
+    ).toEqual(events[0]?.fact)
+  })
+
+  it.each(['sequence-conflict', 'prefix', 'event-conflict'] as const)(
+    'rejects %s within a fresh multi-block batch atomically',
+    async fault => {
+      const f = await running()
+      const initial = processBlock()
+      const invalid =
+        fault === 'prefix' ? processBlock('unrelated', '1') : processBlock('changed', '0')
+      const events =
+        fault === 'event-conflict'
+          ? [
+              { event: 'same', fact: { kind: 'process', blocks: [initial] } },
+              {
+                event: 'same',
+                fact: { kind: 'process', blocks: [{ ...initial, index: 'another' }] },
+              },
+            ]
+          : [{ event: 'blocks', fact: { kind: 'process', blocks: [initial, invalid] } }]
+      await rejectsWholeBatch(f, { ...f.batch, events })
+      ok(await f.receive())
+    },
+  )
 })

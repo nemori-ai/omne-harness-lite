@@ -5,9 +5,14 @@ import {
   decodeToolWaitId,
   readToolInvocationRef,
   type ToolLiveExecution,
+  type ToolStartRecord,
   type ToolRecoveryBinding,
 } from '@omne-harness/tool-contract'
-import { completedFinal, createMemoryToolClock } from '@omne-harness/tool-contract/testing'
+import {
+  completedFinal,
+  createMemoryToolClock,
+  createMemoryToolStartAuthority,
+} from '@omne-harness/tool-contract/testing'
 import { createToolLedger } from '@omne-harness/tool'
 import {
   admitCall,
@@ -18,16 +23,20 @@ import {
 } from './start-values.ts'
 import {
   configurationOf,
+  fixedRequestForNamedSourceGuard,
   callId,
   evidence,
   guards,
   ok,
   operationId,
   principalA,
+  principalB,
   request,
   tenantA,
+  tenantB,
   text,
   type Block,
+  type Principal,
 } from './runtime-values.ts'
 
 function deferred<T>() {
@@ -51,6 +60,8 @@ function fixture(
     channel?: 'end' | 'throw' | 'after-batch' | 'unsupported' | 'invalid'
     commands?: StartOptions['commands']
     store?: StartOptions['store']
+    authorityPort?: StartOptions['authorityPort']
+    onReader?: () => void
   } = {},
 ) {
   const signals = new Map<string, AbortSignal>()
@@ -60,6 +71,7 @@ function fixture(
     maxReaders: 0,
     next: 0,
     maxNext: 0,
+    nextCalls: 0,
     batches: 0,
     returns: 0,
     acknowledgements: 0,
@@ -70,7 +82,10 @@ function fixture(
   let ackFailure: 'unavailable' | 'throw' | null = null
   let loseAck = false
   let sourceHold: ReturnType<typeof deferred<void>> | null = null
+  const liveKey = (start: ToolStartRecord) =>
+    JSON.stringify([start.execution.tenant, start.execution.call, start.operation])
   const h = startHarness({
+    ...(options.authorityPort === undefined ? {} : { authorityPort: options.authorityPort }),
     ...(options.commands === undefined ? {} : { commands: options.commands }),
     ...(options.store === undefined ? {} : { store: options.store }),
     bindingPort: base => ({
@@ -87,9 +102,11 @@ function fixture(
               stats.readers += 1
               stats.maxReaders = Math.max(stats.maxReaders, stats.readers)
               stats.cursors.push(input.after)
+              options.onReader?.()
               let first = true
               return {
                 next: async () => {
+                  stats.nextCalls += 1
                   stats.next += 1
                   stats.maxNext = Math.max(stats.maxNext, stats.next)
                   try {
@@ -168,7 +185,7 @@ function fixture(
             return confirmed
           },
         }
-        lives.set(args[0].start.operation, wrapped)
+        lives.set(liveKey(args[0].start), wrapped)
         return succeed(wrapped)
       },
     }),
@@ -176,7 +193,7 @@ function fixture(
       ...bindings,
       recover: async input => {
         stats.recoveries += 1
-        const live = lives.get(input.start.operation)
+        const live = lives.get(liveKey(input.start))
         if (live === undefined)
           return fail({ kind: 'unavailable', dependency: 'source', diagnostic: 'unavailable' })
         const recovery: ToolRecoveryBinding<Block> = {
@@ -768,4 +785,175 @@ describe('managed original facts', () => {
     controller.abort()
     await flush()
   })
+})
+
+describe('reader isolation and command outcomes', () => {
+  it('keeps one in-flight next across additional runs and later preserves the final', async () => {
+    const f = fixture()
+    const controller = new AbortController()
+    const c = await f.invoke(controller.signal)
+    await Promise.all(Array.from({ length: 3 }, () => f.h.runOnce(c.call, controller.signal)))
+    expect(f.stats.nextCalls).toBe(1)
+    expect(f.stats.next).toBe(1)
+    expect(f.stats.maxNext).toBe(1)
+    await f.h.binding.controls.finish(c.start, completedFinal())
+    await f.pump()
+    expect(
+      ok(await f.h.commands.loadRecovery(c.access)).streams[0]?.pendingAcknowledgements,
+    ).toEqual([])
+    expect(f.h.binding.controls.pendingAcknowledgements(c.start)).toBe(0)
+    controller.abort()
+    await flush()
+    expect(f.stats.readers).toBe(0)
+  })
+
+  it('does not call next when abort is queued between reader creation and its next microtask', async () => {
+    const controller = new AbortController()
+    let firstReader = true
+    const f = fixture({
+      onReader: () => {
+        if (firstReader) queueMicrotask(() => controller.abort())
+        firstReader = false
+      },
+    })
+    const c = await f.invoke(controller.signal)
+    await flush()
+    expect(f.stats.nextCalls).toBe(0)
+    expect(f.stats.returns).toBe(1)
+    expect(f.stats.readers).toBe(0)
+    expect(f.h.host.scheduled).toEqual([])
+    expect(
+      ok(await f.h.commands.loadRecovery(c.access)).tasks.some(task => task.kind === 'facts'),
+    ).toBe(true)
+    const resumed = new AbortController()
+    // Disable the one aborted connection's injected timing for a legal reconnect.
+    await f.h.runOnce(c.call, resumed.signal)
+    resumed.abort()
+    await flush()
+  })
+
+  it('does not report progress or reschedule a definite ACK-recording failure and can recover', async () => {
+    let refuse = true
+    let attempts = 0
+    const f = fixture({
+      commands: base => ({
+        ...base,
+        recordFactAcknowledgement: input => {
+          attempts += 1
+          return refuse
+            ? Promise.resolve(
+                fail({ kind: 'invalid', field: 'sourceReceipt', reason: 'rejected-confirmation' }),
+              )
+            : base.recordFactAcknowledgement(input)
+        },
+      }),
+    })
+    const controller = new AbortController()
+    const c = await f.invoke(controller.signal)
+    await f.h.binding.controls.finish(c.start, completedFinal())
+    await flush()
+    f.h.host.scheduled.splice(0)
+    await f.h.runOnce(c.call, controller.signal)
+    expect(attempts).toBe(1)
+    expect(f.h.host.scheduled).toEqual([])
+    const pending = ok(await f.h.commands.loadRecovery(c.access))
+    expect(pending.streams[0]?.pendingAcknowledgements).toHaveLength(1)
+    expect(pending.tasks.filter(task => task.kind === 'fact-ack')).toHaveLength(1)
+    refuse = false
+    await f.h.runOnce(c.call, controller.signal)
+    expect(
+      ok(await f.h.commands.loadRecovery(c.access)).streams[0]?.pendingAcknowledgements,
+    ).toEqual([])
+    expect(f.h.binding.controls.pendingAcknowledgements(c.start)).toBe(0)
+    controller.abort()
+    await flush()
+  })
+
+  it.each(['different-tenants', 'different-calls'] as const)(
+    'keeps readers with the same start text separate for %s in one runtime',
+    async variant => {
+      const authority = createMemoryToolStartAuthority<Principal>()
+      const f = fixture({ authorityPort: () => authority })
+      const first = { principal: principalA, tenant: tenantA, call: callId('shared') }
+      const second =
+        variant === 'different-tenants'
+          ? { principal: principalB, tenant: tenantB, call: first.call }
+          : { principal: principalA, tenant: tenantA, call: callId('other-call') }
+      for (const [index, access] of [first, second].entries()) {
+        const admitted = ok(
+          await f.h.ledger.admissions.admit({
+            ...access,
+            operation: operationId('same-admission'),
+            request: fixedRequestForNamedSourceGuard(
+              request({ scope: { ...request().scope, key: `isolated-${index}` } }),
+            ),
+          }),
+        )
+        expect(admitted.state.phase).toBe('accepted')
+      }
+      const controllers = [new AbortController(), new AbortController()]
+      const steps = await Promise.all(
+        [first, second].map(async (access, index) => ({
+          ...access,
+          instance: await f.h.host.instanceOf(access.call, access.tenant),
+          signal: controllers[index]?.signal ?? AbortSignal.abort(),
+        })),
+      )
+      const [firstStep, secondStep] = steps
+      if (firstStep === undefined || secondStep === undefined)
+        throw new Error('missing driver steps')
+      const driver = f.h.host.driver()
+      await Promise.all(steps.map(step => driver.run(step)))
+      const starts = await Promise.all(
+        [first, second].map(async access => {
+          const saved = ok(await f.h.commands.loadRecovery(access))
+          if (saved.start?.kind !== 'start') throw new Error('not legally started')
+          expect(saved.state.phase).toBe('running')
+          expect(saved.start.execution.tenant).toEqual(access.tenant)
+          expect(saved.start.execution.call).toBe(access.call)
+          return saved.start
+        }),
+      )
+      const [firstStart, secondStart] = starts
+      if (firstStart === undefined || secondStart === undefined) throw new Error('missing starts')
+      expect(firstStart.operation).toBe(secondStart.operation)
+      expect(f.stats.readers).toBe(2)
+      expect(f.stats.next).toBe(2)
+      await f.h.binding.controls.emit(firstStart, process)
+      await flush()
+      await driver.run(firstStep)
+      const firstSaved = ok(await f.h.commands.loadRecovery(first))
+      expect(firstSaved.streams[0]?.pendingAcknowledgements).toEqual([])
+      expect(ok(await f.h.commands.loadRecovery(second)).streams).toEqual([])
+      expect(f.h.binding.controls.pendingAcknowledgements(firstStart)).toBe(0)
+      controllers[0]?.abort()
+      await flush()
+      expect(f.stats.readers).toBe(1)
+      await f.h.binding.controls.finish(secondStart, completedFinal())
+      await flush()
+      await driver.run(secondStep)
+      const saved = ok(await f.h.commands.loadRecovery(second))
+      expect(saved.streams[0]?.pendingAcknowledgements).toEqual([])
+      expect(f.h.binding.controls.pendingAcknowledgements(secondStart)).toBe(0)
+      const settle = saved.tasks.find(task => task.kind === 'settle')
+      if (settle?.kind !== 'settle') throw new Error('missing second final')
+      expect(ok(await f.h.ledger.facts.read({ ...second, basis: settle.basis })).fact).toEqual(
+        completedFinal(),
+      )
+      const firstRecords = await f.h.memory.read({
+        kind: 'call',
+        tenant: first.tenant,
+        call: first.call,
+      })
+      if (firstRecords.kind !== 'complete') throw new Error('missing first records')
+      const original = firstRecords.records.find(record => record.kind === 'fact-event')
+      if (original?.kind !== 'fact-event') throw new Error('missing first process')
+      expect(
+        ok(await f.h.ledger.facts.read({ ...first, basis: original.fact.evidence })).fact,
+      ).toEqual(process)
+      controllers[1]?.abort()
+      await flush()
+      expect(f.stats.readers).toBe(0)
+    },
+  )
 })
