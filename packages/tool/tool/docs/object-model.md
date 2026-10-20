@@ -14,10 +14,12 @@
 
 普通调用方调用 runtime.invoke；来源 resolve 原子分配或认回原身份与来源
     成功：回复 accepted，runtime 调用 instances.schedule 唤醒推进协程，唤醒只是提示
-    再次 invoke：同键同请求返回原回执与 recovered；待启动时补 wake，running/settled 不再唤醒
+    再次 invoke：同键同请求返回原回执与 recovered；accepted/preparing/queued/starting 待启动时补 wake，running/settled 不再唤醒
     拒绝：denied、invalid、conflict、stale-revision、unsupported、unavailable（`tool-queue` 容量满，提交之前拒绝）
-    未知：提交结果未知时回复 commit-unknown。Tool 不在内部重试该提交
-        调用方以返回的调用引用调用 queries.lookup；交付未知时用操作引用调用 queries.queryOperation，释放成功直接返回原回执
+    未知：association-unknown 没有确定引用，保留原完整意图再次 invoke
+        commit-unknown 带原引用，可能是来源签发或 admission 尚未知；沿原 invoke 继续对账
+        queries.lookup 查询当前准入状态，not-accepted 不排除来源尚待签发，不能因此换身份
+        交付未知时用原操作引用调用 queries.queryOperation，释放成功直接返回原回执
         记录仓读取失败回复 unavailable，不冒充调用不存在
 
 推进协程被唤醒后读 loadRecovery，按阶段与待办做一步，再重读，每次最多 `driverStepsPerRun` 步（缺省 16）

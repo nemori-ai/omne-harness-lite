@@ -74,6 +74,10 @@ function assembly(
   const authority = coordinator(store)
   const identities = createTestToolIdentities()
   const source = createTestInvocationSource<Principal>({
+    snapshotPrincipal: principal => ({
+      subject: principal.subject,
+      tenants: [...principal.tenants],
+    }),
     authority: {
       qualify: async input =>
         input.tenant === tenantA &&

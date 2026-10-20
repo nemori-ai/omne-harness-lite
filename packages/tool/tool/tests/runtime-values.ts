@@ -301,6 +301,11 @@ function qualify(
   return member ? { kind: 'allowed' } : { kind: 'denied', reason: 'not-a-member' }
 }
 
+/** Test credentials contain mutable tenant membership data and a stable subject string. */
+export function snapshotTestPrincipal(principal: Principal): Principal {
+  return { subject: principal.subject, tenants: [...principal.tenants] }
+}
+
 /** Explicit test authority: only the two minted tenants and the declared consumer owner. */
 export function invokeAuthority(options: GuardOptions = {}): ToolInvokeAuthority<Principal> {
   return {
@@ -542,6 +547,7 @@ export function harness(options: HarnessOptions = {}): Harness {
   const config = configurationOf(options)
   const source = createTestInvocationSource<Principal>({
     authority: invokeAuthority(options),
+    snapshotPrincipal: snapshotTestPrincipal,
     ...(options.sourceThrows === undefined ? {} : { throws: options.sourceThrows }),
   })
   const identities = createTestToolIdentities()

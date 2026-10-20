@@ -22,10 +22,10 @@ stage 的 0、1、2、3、4 分别为尚未关联、reserved、issued、admitted
 | 模型动作 | 实现位置与抽象 |
 | --- | --- |
 | Resolve | [testing-source.ts](../../src/testing-source.ts) 的 resolve，在当前资格核验后读取唯一键，在无 await 的写段分配保存 reservation。完整请求被抽象为两个不同值，完整键被抽象为两个键；回执内容和权限判定未形式化，由组合测试检查 |
-| Issue、ReturnSource、LoseSource、UnknownIssuance | 同文件 reserved/issued 及 runtime 的来源结果映射。内存签发在同一同步段完成，模型另拆签发与返回以覆盖未来提供者切点；测试对已知来源身份注入未知回包，不证明生产签发事务 |
+| Issue、ReturnSource、LoseSource、UnknownIssuance | 同文件 reserved/issued 及 runtime 的来源结果映射。来源分配与签发没有异步事务等待；同步 beforeIssue 钩子直接保留 reserved 并返回原身份的 issuance-unknown，下一次同键续签。模型拆分签发与返回，测试还覆盖已签发来源的未知回包；两者均不证明生产签发事务 |
 | Admit、ReturnReceipt、LoseAdmission | [runtime.ts](../../src/runtime.ts) 调用原 admissions.admit；[ledger.ts](../../src/ledger.ts) 按原 operation 和固定输入认回。模型将各域的既有内部提交对账抽象为一步 |
 | Launch、Settle | driver 的原启动围栏与已接受启动唯一性。真实 ledger 当前只推进到 running，settled 代表已有最终收场事实的安全分支，完整执行终局仍未实现 |
-| Repeat | 同键原意图再次 invoke，不以当前 lookup 的空读换身份。唤醒丢失及补 wake 由组合测试验证，模型抽象为公平 Admit/Launch |
+| Repeat | 同键原意图再次 invoke，不以当前 lookup 的空读换身份。唤醒丢失及补 wake 由组合测试验证，模型通过公平 Resolve、ReturnSource、Admit 和 ReturnReceipt 表达同意图准入续做，不对 Launch/Settle 加公平前提 |
 
 该模型不涵盖跨进程、断电、UUID 碰撞、生产来源存储排除、实际停止、调度扫描或外部效果 exactly-once。两个 runtime 共享内存来源的测试只证明该实例的并发唯一性。
 

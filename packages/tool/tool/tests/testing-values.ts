@@ -9,6 +9,7 @@ import {
   configuration,
   guards,
   invokeAuthority,
+  snapshotTestPrincipal,
   testHost,
   type Principal,
 } from './runtime-values.ts'
@@ -19,7 +20,10 @@ export function testAssembly(overrides: Partial<TestToolDependenciesInput<Princi
     throw new Error('not on this path')
   }
   const identities = createTestToolIdentities()
-  const source = createTestInvocationSource<Principal>({ authority: invokeAuthority() })
+  const source = createTestInvocationSource<Principal>({
+    authority: invokeAuthority(),
+    snapshotPrincipal: snapshotTestPrincipal,
+  })
   const host = testHost({ calls: new Map() }, identities.instanceIdentities)
   const config = configuration()
   const input: TestToolDependenciesInput<Principal> = {

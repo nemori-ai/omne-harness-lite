@@ -43,6 +43,7 @@ import {
 import {
   callId,
   invokeAuthority,
+  snapshotTestPrincipal,
   fixedRequestForNamedSourceGuard,
   configurationOf,
   evidence,
@@ -452,7 +453,10 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const spies: Spies = { calls: new Map() }
   const clock = testClock()
   const config = configurationOf(options)
-  const source = createTestInvocationSource<Principal>({ authority: invokeAuthority(options) })
+  const source = createTestInvocationSource<Principal>({
+    authority: invokeAuthority(options),
+    snapshotPrincipal: snapshotTestPrincipal,
+  })
   const identities = createTestToolIdentities()
   const ledger = createToolLedger(store, guards(options), clock, config)
   const host = testHost(spies, identities.instanceIdentities)

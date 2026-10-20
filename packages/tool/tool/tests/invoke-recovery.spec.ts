@@ -21,6 +21,7 @@ import {
   tenantA,
   tenantB,
   invokeAuthority,
+  snapshotTestPrincipal,
   evidence,
   ok,
   type Principal,
@@ -37,7 +38,7 @@ const input = (
 ) => ({ principal, tenant, request: payload })
 
 function paired(authority: ToolInvokeAuthority<Principal> = invokeAuthority()) {
-  const source = createTestInvocationSource({ authority })
+  const source = createTestInvocationSource({ authority, snapshotPrincipal: snapshotTestPrincipal })
   const base = testAssembly()
   const assembly = testAssembly({
     ...base.input,
@@ -72,7 +73,6 @@ describe('public persistent intent recovery over shared non-durable source and l
       throw new Error('missing concurrent replies')
     expect(concurrent.reference).toBe(first.reference)
     const original = readToolInvocationRef(first.reference)
-    // The second runtime shares the source and ledger via a second public assembly tested below.
     await Promise.all(Array.from({ length: 8 }, () => h.runtime.invoke(input())))
     await h.drive(original.call)
     expect(h.binding.controls.launches()).toBe(1)
@@ -134,6 +134,54 @@ describe('public persistent intent recovery over shared non-durable source and l
     ).toHaveLength(1)
     expect(assembly.host.scheduled).toHaveLength(1)
     expect(assembly.host.scheduleAttempts.length).toBeGreaterThan(1)
+  })
+
+  it('wakes the original starting task after a driver abort immediately following real prepareStart', async () => {
+    const stopped = new AbortController()
+    const h = startHarness({
+      commands: commands => ({
+        ...commands,
+        prepareStart: async access => {
+          const result = await commands.prepareStart(access)
+          if ('ok' in result) stopped.abort()
+          return result
+        },
+      }),
+    })
+    const first = accepted(await h.runtime.invoke(input()))
+    const { call } = readToolInvocationRef(first.reference)
+    expect(h.host.scheduled.shift()?.call).toBe(call)
+    await h.runOnce(call, stopped.signal)
+    expect(
+      await h.runtime.queries.lookup({
+        principal: principalA,
+        tenant: tenantA,
+        reference: first.reference,
+      }),
+    ).toMatchObject({ ok: { kind: 'found', state: { phase: 'starting' } } })
+    const recovery = ok(
+      await h.commands.loadRecovery({ principal: principalA, tenant: tenantA, call }),
+    )
+    expect(recovery.tasks.some(task => task.kind === 'start')).toBe(true)
+    expect(h.binding.controls.launches()).toBe(0)
+    expect(h.host.scheduled).toHaveLength(0)
+    const recovered = accepted(await h.runtime.invoke(input()))
+    expect(recovered).toEqual({ ...first, recovered: true })
+    expect(h.host.scheduleAttempts).toHaveLength(2)
+    expect(h.host.scheduled).toHaveLength(1)
+    await h.host.runScheduled()
+    expect(h.binding.controls.launches()).toBe(1)
+    expect(
+      await h.runtime.queries.lookup({
+        principal: principalA,
+        tenant: tenantA,
+        reference: first.reference,
+      }),
+    ).toMatchObject({ ok: { state: { phase: 'running' } } })
+    expect(accepted(await h.runtime.invoke(input()))).toEqual({ ...first, recovered: true })
+    expect(h.host.scheduleAttempts).toHaveLength(2)
+    await h.runOnce(call)
+    expect(h.binding.controls.launches()).toBe(1)
   })
 
   it('does not overwrite the winning request when two runtimes race different inputs for one key', async () => {

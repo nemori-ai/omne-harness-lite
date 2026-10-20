@@ -221,7 +221,9 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
             admission: admission.ok,
           })
           if ('ok' in current && current.ok.kind === 'found')
-            needsWake = ['accepted', 'preparing', 'queued'].includes(current.ok.state.phase)
+            needsWake = ['accepted', 'preparing', 'queued', 'starting'].includes(
+              current.ok.state.phase,
+            )
         } catch {}
       }
       if (needsWake) await scheduleAcceptedCallBestEffort(instances, tenant, call.ok)

@@ -117,4 +117,6 @@ tool/
 
 普通调用方使用 `runtime.invoke({ principal, tenant, request })` 并保存返回的调用引用。同租户、完整 consumer 与固定请求认回原调用；新执行须新 consumer。queries.lookup 按原 admission 定位并返回当前权威状态，包含交付状态。invoke 的 state 保留受理时状态；commands.releaseDelivery 成功返回 released 与生产者原耐久回执，不附操作引用，也不承诺新增写入。未知回执用其操作引用经 queries.queryOperation 查询。可靠否定只否定该次操作，调用方此后可明确再次释放以取得已有回执；未知或不可读时不能自动重发。持久读取和交付不要求连接实例目录。每次访问都核当前主体与租户，引用不授予权限。完整响应丢失后，以原完整意图再次 invoke 认回；association-unknown 没有引用。
 
-装配者提供受信身份端口与真实来源签发器，本包不提供生产默认签发器。测试须显式装配 createTestInvocationSource({ authority }) 的配对 issuer/guard；来源自身原子分配调用身份，createTestToolIdentities 只提供操作和实例身份。宿主向 driver.run 显式提供实例身份，同一存活实例重复唤醒沿用。测试替身不证明生产 host、claim、接管或耐久性。
+装配者提供受信身份端口与真实来源签发器，本包不提供生产默认签发器。测试须显式装配 createTestInvocationSource({ authority, snapshotPrincipal }) 的配对 issuer/guard；来源自身原子分配调用身份，createTestToolIdentities 只提供操作和实例身份。宿主向 driver.run 显式提供实例身份，同一存活实例重复唤醒沿用。测试替身不证明生产 host、claim、接管或耐久性。
+
+测试装配提供同步 snapshotPrincipal，保留凭据认证语义并隔离可变主体，在首次 await 前捕获。真正不可变的 opaque 主体可以安全复用。来源 resolve 的资格与主体比较使用固定视图，ledger 与配对 guard 仍核原始当前主体；摘要不序列化 P，bindings 返回隔离的诊断副本。可选同步 beforeIssue 在 reservation 保存后、签发前注入故障；抛错返回原身份的 issuance-unknown，重入继续签发，已 issued 不再调用。

@@ -225,7 +225,7 @@ resolve 先核当前主体对合法 tenant/consumer 的资格，再访问关联�
 
 `rejected` 只描述当前尝试的确定失败，不证明历史上没有关联或受理。来源已建立后的准入拒绝不删除关联、不永久缓存拒绝；依赖恢复后重入沿原身份继续。原 scope 或其他固定输入不能更新，要新执行或修改意图须登记新 consumer。未知时不回收原键。不承诺外部效果 exactly-once。
 
-原受理回执为 accepted 时首次唤醒宿主。认回后只用当前 lookup 判断是否补 wake：仍待启动则补，已 running/settled 不补，查询未知允许保守补 wake。查询失败不撤销原 accepted。宿主按 tenant/call 归并待处理或并发 wake，driver 保持启动唯一。内部 admit 尝试次数可以多次，唯一受理事实、队列责任和真实启动分别观察。唤醒失败不回滚受理；本次交付依赖调用方重入，不承诺无人重入的自动扫描。共享内存来源只有非耐久单进程证据。
+原受理回执为 accepted 时首次唤醒宿主。认回后只用当前 lookup 判断是否补 wake：仍待启动则补，已 running/settled 不补，查询未知允许保守补 wake。查询失败不撤销原 accepted。宿主按 tenant/call 归并待处理或并发 wake，driver 保持启动唯一。内部 admit 尝试次数可以多次，唯一受理事实、队列责任和真实启动分别观察。唤醒失败不回滚受理；当前 tool 实现依赖调用方重入，不承诺无人重入的自动扫描。共享内存来源只有非耐久单进程证据。
 
 普通接口由 `queries`、`commands`、`instances`、`content` 和 `catalog` 组成。queries 的 lookup 用调用引用内的原 admission；queryOperation 用操作引用内的原 operation。commands 只有 control 和 releaseDelivery。control 的成功结果为带操作引用的 `committed`。releaseDelivery 为每次意图分配 operation，成功返回 `released` 及原生产者耐久回执，不附本次操作引用，也不承诺本次新增操作记录。首次释放与已释放后的重入使用同一成功形状。两者的未知结果为带原操作引用的 `commit-unknown`，拒绝为 `rejected`。回执未知后用原操作引用查询提交结果，不自动重发。`not-committed` 或 `rolled-back` 只否定这次操作，不证明交付仍 pending。可靠否定后，调用方可以明确再次 releaseDelivery，取得已有释放回执。unknown 或不可读时继续保留未知。lookup 用原 admission 定位并返回当前权威 ToolState，其中的 delivery 可用于认回已有释放。invoke 的 state 才是受理时回执。readProcess 当前未支持，ResultPage 不含 DeliveryState。acceptDecision/acceptResource 留在受信内部端口。每次合法公开 control 都先分配新的 operation，再委托内部 commands.control；同参数重发不是原操作认回。调用方持有原操作引用时应先 queryOperation 对账，引用丢失时本协议没有按控制意图找回的能力。新的 committed 不证明旧 unknown 已完成。新 stop 不撤销旧 stop，新 withdraw 以其提交时的 reach 和关系判断。当前真实 ledger 仍返回 unsupported，此时身份已消耗但没有控制事实，门面返回 rejected/unsupported，不暴露已登记操作。
 

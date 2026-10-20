@@ -304,9 +304,15 @@
 
 ## 普通调用重入的实现范围
 
-本实现采用契约 [普通操作](../tool-contract/SPEC.md#342-普通操作与实例目录) 的来源拥有方案。runtime 无调用身份 mint 依赖，也无关联缓存；source.resolve 拥有唯一键。来源或准入任一认回时 accepted.recovered 为 true，原回执与当前 lookup 分开。当前状态仍待启动或查询未知时可补 wake，running/settled 不补。
+本实现采用契约 [普通操作](../tool-contract/SPEC.md#342-普通操作与实例目录) 的来源拥有方案。runtime 无调用身份 mint 依赖，也无关联缓存；source.resolve 拥有唯一键。来源或准入任一认回时 accepted.recovered 为 true，原回执与当前 lookup 分开。当前状态为 accepted、preparing、queued 或 starting，以及查询未知时可补 wake，running/settled 不补。
 
 `ToolInvokeAuthority` 由来源提供者拥有，显式检查当前 tenant/consumer 资格及稳定主体。配对 guard 复用同一 authority 核对原主体与完整绑定；ledger 对当前凭据继续核调用及 scope 授予。测试来源提供者明确为非耐久，在同步写段分配保存 reservation，原子性只覆盖当前进程的同一共享实例。UUID 分配不是存储唯一约束或跨重启耐久证明。
+
+`createTestInvocationSource` 必填 `snapshotPrincipal:(principal:P)=>P`，由凭据语义拥有者同步取得稳定、保留认证意义的视图。可变 P 必须独立捕获，真正不可变的 opaque P 可安全复用。resolve 在请求和 tenant 形状有效后、第一次 await 前取得该视图；来源 qualify 与 samePrincipal.current 使用它，原主体保存该视图。ledger 和来源 guard 的 current 仍使用本次原始 P。通用 structuredClone 或 JSON 不作为泛型 P 的认证、复制或身份协议。
+
+快照失败答 rejected/unavailable，dependency 为 principal-snapshot，诊断不泄露异常文本；此时不读关联、不分配或写来源。来源证据摘要只覆盖 tenant、call/admission、固定请求及来源记录数据，不序列化 P。原主体由受信比较器核验，摘要不代替绑定真实性。bindings 以装配方快照隔离诊断 principal，并独立复制 tenant、request 和 invocation 等数据；返回值变异不能改写内部历史。
+
+可选 `beforeIssue?:()=>void` 是 testing 专用的同步故障钩子，在 reservation 保存后、签发前执行。抛错答 issuance-unknown，保留原 call/admission 与 reservation；下一次同意图重入按原身份重试签发。issued 重入不再执行该钩子。它不是异步事务回调，也不增加生产端口或耐久保证。该局部修订依据 [#547 来源快照与恢复补充采用](https://github.com/nemori-ai/omne-harness-lite/issues/547#issuecomment-6288512604)。
 
 公开 control 已实现输入封闭复制、分配新 operation、引用编码和现有 commands.control 的结果映射。非法 intent 不分配；委托抛错为带原 operation 的 commit-unknown。真实 ledger 控制状态机仍 unsupported，合法调用消耗身份但零控制事实，不声称停止完成。配对 commands/reads 替身只验证门面操作对账。
 

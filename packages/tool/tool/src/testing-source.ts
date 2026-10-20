@@ -69,7 +69,14 @@ async function authorityVerdict(check: () => Promise<AccessVerdict>): Promise<Ac
  * neither a durable store nor a proof of collision-free allocation across process restarts.
  */
 export function createTestInvocationSource<P>(
-  options: Readonly<{ authority: ToolInvokeAuthority<P>; throws?: string }>,
+  options: Readonly<{
+    authority: ToolInvokeAuthority<P>
+    /** Capture an independent semantic view of mutable P; reuse only genuinely immutable P. */
+    snapshotPrincipal: (principal: P) => P
+    /** Synchronous fault injection after reservation, before first successful issuance. */
+    beforeIssue?: () => void
+    throws?: string
+  }>,
 ): TestInvocationSource<P> {
   const saved = new Map<string, SourceRecord<P>>()
   const bySource = new Map<string, TestSourceBinding<P>>()
@@ -81,7 +88,19 @@ export function createTestInvocationSource<P>(
       if (!isTenantShape(input.tenant))
         return { kind: 'rejected', failure: { kind: 'denied', action: 'admit' } }
       const request = judged.ok
-      const principal = structuredClone(input.principal)
+      let principal: P
+      try {
+        principal = options.snapshotPrincipal(input.principal)
+      } catch {
+        return {
+          kind: 'rejected',
+          failure: {
+            kind: 'unavailable',
+            dependency: 'principal-snapshot',
+            diagnostic: 'principal snapshot failed; its exception message is not reported',
+          },
+        }
+      }
       const qualified = await authorityVerdict(() =>
         options.authority.qualify({ principal, tenant: input.tenant, consumer: request.consumer }),
       )
@@ -152,14 +171,28 @@ export function createTestInvocationSource<P>(
       }
       if (known.kind === 'reserved') {
         const reservation = known.reservation
+        try {
+          options.beforeIssue?.()
+        } catch {
+          return {
+            kind: 'issuance-unknown',
+            call: reservation.call,
+            admission: reservation.admission,
+          }
+        }
+        const record = `source-${reservation.call}`
         const invocation: ToolInvocation = Object.freeze({
           kind: 'direct',
           source: Object.freeze({
             owner: TEST_SOURCE_OWNER,
-            record: `source-${reservation.call}`,
+            record,
             revision: '1',
             digest: digestOf({
-              ...reservation,
+              call: reservation.call,
+              admission: reservation.admission,
+              request: reservation.request,
+              requestDigest: reservation.digest,
+              record,
               tenant: [input.tenant.organization.text, input.tenant.account.text],
             }),
           }),
@@ -204,7 +237,15 @@ export function createTestInvocationSource<P>(
     durability: 'none',
     issuer,
     guard,
-    bindings: () => [...bySource.values()],
+    bindings: () =>
+      [...bySource.values()].map(binding => ({
+        principal: options.snapshotPrincipal(binding.principal),
+        tenant: structuredClone(binding.tenant),
+        call: binding.call,
+        admission: binding.admission,
+        request: structuredClone(binding.request),
+        invocation: structuredClone(binding.invocation),
+      })),
   })
 }
 
