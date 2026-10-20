@@ -76,11 +76,12 @@ jobs:
           jq -e --arg a "$ACTOR" 'index($a) != null' reviewers.json >/dev/null \
             || { echo "rejected: $ACTOR is not a publish reviewer"; exit 1; }
 
-          # 2. 状态转移的前提：只认作者为 reviewer 的评论。
+          # 2. 状态转移的前提：只认作者为 reviewer、且没被编辑过的评论。有写权限的协作者能编辑别人的评论，
+          #    编辑过的评论不能证明 reviewer 写过这段内容。
           rest --paginate "repos/$R/issues/$ISSUE/comments?per_page=100" | jq -s 'add // []' > comments.json
-          jq --slurpfile r reviewers.json '[.[] | select(.user.type == "User" and (.user.login as $l | $r[0] | index($l) != null))]' comments.json > trusted.json
+          jq --slurpfile r reviewers.json '[.[] | select(.user.type == "User" and .created_at == .updated_at and (.user.login as $l | $r[0] | index($l) != null))]' comments.json > trusted.json
           decision() {
-            jq -e --arg d "$1" '[.[] | .body | select(startswith("## 交付决定")) | select(split("\n") | any(. == "- 决定：" + $d))] | length > 0' trusted.json >/dev/null
+            jq -e --arg d "$1" '[.[] | .body | select(startswith("## 交付决定")) | select(split("\n") | map(rtrimstr("\r")) | any(. == "- 决定：" + $d))] | length > 0' trusted.json >/dev/null
           }
           case "$STAGE" in
             "In progress")

@@ -83,7 +83,7 @@
 
 **`delivery-facts`**：`gh workflow run delivery-facts.yml --ref github-gate -f issue=<卡号> -f authority=<派发评论 URL> -f nonce=<32 位小写十六进制>`。云端的 `start` 自动派发它，不需要手动运行。流程读取派发评论的作者、正文摘要与更新时间、`publish` 的 required reviewers，以及卡在 Project 中的 item 和 Stage，在卡上发一条含 `json omne-delivery-facts:v1` 区块的评论。下列情况运行失败，不发评论：派发评论不在 URL 所指的 Issue 上；reviewer 为空或含 Team；Stage 字段不属于该 Project；卡在 Project 中没有唯一的 item；任何读取失败。`start` 采用这条评论的全部条件归 `tools/dev-flow/src/integration/SPEC.md` 的 I15。
 
-**`delivery-stage`**：`gh workflow run delivery-stage.yml --ref github-gate -f issue=<卡号> -f stage=<Stage>`。同一张卡的运行依次执行。触发者必须是 `publish` 的 required reviewer，流程不核对他是不是这张卡的调度者。改为 In progress 前，卡上须有 reviewer 发的派发区块；改为 Accepted 或 Cancelled 前，卡上须有 reviewer 发的、以 `## 交付决定` 开头并含 `- 决定：accept` 或 `- 决定：cancel` 的评论；改为其他 Stage 不加条件。核对通过后写入并读回，读回结果写在 job summary 中。
+**`delivery-stage`**：`gh workflow run delivery-stage.yml --ref github-gate -f issue=<卡号> -f stage=<Stage>`。同一张卡的运行依次执行。触发者必须是 `publish` 的 required reviewer，流程不核对他是不是这张卡的调度者。改为 In progress 前，卡上须有 reviewer 发的派发区块；改为 Accepted 或 Cancelled 前，卡上须有 reviewer 发的、以 `## 交付决定` 开头并含 `- 决定：accept` 或 `- 决定：cancel` 的评论；改为其他 Stage 不加条件。只认没被编辑过的评论：有写权限的协作者能编辑别人的评论。核对通过后写入并读回，读回结果写在 job summary 中。
 
 已知风险：交付身份的私钥外泄时，持有者能修改组织内全部 Project，能编辑或关闭本仓库的 Issue（包括卡正文与 binding），也能以交付身份发出伪造的开工事实评论，使云端 `start` 接受没有派发资格的作者。私钥按与 admin 权限同等的级别保管和轮换。
 
