@@ -1,0 +1,139 @@
+name: delivery-facts
+
+# 交付身份（#546、#554）：为 Claude Code 云端会话的 start 读取开工事实，并以机读评论发回卡上。
+# 只读：派发评论作者、publish environment 的 required reviewers、卡在 Project 中的 item 与 Stage。
+# 任何读取失败都让 job 失败，不发评论。只给云端会话使用；本地 start 照旧直接读取。
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        required: true
+        type: string
+      authority:
+        required: true
+        type: string
+      nonce:
+        required: true
+        type: string
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # 与 docs/engineering/github-delivery.json 的 project.id 与 fields.stage 一致。
+  PROJECT_ID: PVT_kwDODPptlM4BmeFE
+  STAGE_FIELD_ID: PVTSSF_lADODPptlM4BmeFEzhlG_3U
+
+jobs:
+  facts:
+    runs-on: ubuntu-latest
+    environment: delivery
+    steps:
+      - name: Validate inputs
+        env:
+          ISSUE: ${{ inputs.issue }}
+          AUTHORITY: ${{ inputs.authority }}
+          NONCE: ${{ inputs.nonce }}
+        run: |
+          [[ "$GITHUB_REF" == refs/heads/github-gate ]] || { echo "rejected: run is not on github-gate"; exit 1; }
+          [[ "$ISSUE" =~ ^[1-9][0-9]{0,6}$ ]] || { echo "rejected: issue"; exit 1; }
+          [[ "$NONCE" =~ ^[0-9a-f]{32}$ ]] || { echo "rejected: nonce"; exit 1; }
+          prefix="https://github.com/$GITHUB_REPOSITORY/issues/"
+          [[ "$AUTHORITY" == "$prefix"* ]] || { echo "rejected: authority repository"; exit 1; }
+          [[ "${AUTHORITY#"$prefix"}" =~ ^[1-9][0-9]{0,6}#issuecomment-[1-9][0-9]{0,12}$ ]] || { echo "rejected: authority"; exit 1; }
+
+      - id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Read facts and report
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          ISSUE: ${{ inputs.issue }}
+          AUTHORITY: ${{ inputs.authority }}
+          NONCE: ${{ inputs.nonce }}
+        run: |
+          set -euo pipefail
+          R="$GITHUB_REPOSITORY"
+          rest() { gh api --method GET -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2026-03-10' "$@"; }
+
+          # 1. 派发评论的作者与所在 Issue。
+          authority_issue=${AUTHORITY#https://github.com/$R/issues/}; authority_issue=${authority_issue%%#*}
+          comment_id=${AUTHORITY##*#issuecomment-}
+          rest "repos/$R/issues/comments/$comment_id" > comment.json
+          [ "$(jq -r .issue_url comment.json)" = "https://api.github.com/repos/$R/issues/$authority_issue" ] \
+            || { echo "failed: authority comment is not on Issue $authority_issue"; exit 1; }
+          author=$(jq -er '.user.login' comment.json)
+          author_node=$(jq -er '.user.node_id' comment.json)
+
+          # 2. publish environment 的 required reviewers。有 Team 时不判断，按失败处理。
+          rest "repos/$R/environments/publish" > environment.json
+          jq -e '[.protection_rules[] | select(.type == "required_reviewers")] | length == 1' environment.json >/dev/null \
+            || { echo "failed: publish has no single required_reviewers rule"; exit 1; }
+          jq -e '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[]] | length > 0 and all(.type == "User")' environment.json >/dev/null \
+            || { echo "failed: publish reviewers are empty or include a Team"; exit 1; }
+          reviewer=$(jq --arg l "$author" --arg n "$author_node" \
+            '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[] | .reviewer | select(.login == $l and .node_id == $n)] | length == 1' environment.json)
+
+          # 3. 卡在 Project 中的 item 与 Stage。读不到 item 时失败，不当作不在 Project 中。
+          gh api graphql -f owner="${R%/*}" -f name="${R#*/}" -F number="$ISSUE" -f query='
+            query($owner: String!, $name: String!, $number: Int!) {
+              repository(owner: $owner, name: $name) {
+                issue(number: $number) {
+                  projectItems(first: 100, includeArchived: true) {
+                    pageInfo { hasNextPage }
+                    nodes {
+                      id
+                      project { id }
+                      fieldValues(first: 100) {
+                        pageInfo { hasNextPage }
+                        nodes {
+                          __typename
+                          ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { id } } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }' > project.json
+          jq -e '.errors == null and .data.repository.issue != null' project.json >/dev/null || { echo "failed: Issue $ISSUE not readable"; exit 1; }
+          jq -e '.data.repository.issue.projectItems.pageInfo.hasNextPage == false' project.json >/dev/null || { echo "failed: project items paginated"; exit 1; }
+          jq --arg p "$PROJECT_ID" '[.data.repository.issue.projectItems.nodes[] | select(.project.id == $p)]' project.json > items.json
+          [ "$(jq length items.json)" = 1 ] || { echo "failed: Issue $ISSUE has $(jq length items.json) items in the project"; exit 1; }
+          jq -e '.[0].fieldValues.pageInfo.hasNextPage == false' items.json >/dev/null || { echo "failed: field values paginated"; exit 1; }
+          item=$(jq -er '.[0].id' items.json)
+          stage=$(jq --arg f "$STAGE_FIELD_ID" '[.[0].fieldValues.nodes[] | select(.__typename == "ProjectV2ItemFieldSingleSelectValue" and .field.id == $f) | .name]' items.json)
+          [ "$(jq length <<< "$stage")" -le 1 ] || { echo "failed: duplicated Stage value"; exit 1; }
+          stage=$(jq '.[0] // null' <<< "$stage")
+
+          # 4. 发回机读评论。
+          jq -n --arg nonce "$NONCE" --argjson run "$GITHUB_RUN_ID" --argjson issue "$ISSUE" \
+            --arg url "$AUTHORITY" --arg author "$author" --arg node "$author_node" --argjson reviewer "$reviewer" \
+            --arg project "$PROJECT_ID" --arg item "$item" --argjson stage "$stage" \
+            '{schemaVersion: 1, nonce: $nonce, run: $run, issue: $issue,
+              authority: {url: $url, author: $author, authorNodeId: $node, reviewer: $reviewer},
+              project: {id: $project, item: $item, stage: $stage}}' > facts.json
+          {
+            echo "## 开工事实"
+            echo
+            echo "由 [delivery-facts 运行 $GITHUB_RUN_ID]($GITHUB_SERVER_URL/$R/actions/runs/$GITHUB_RUN_ID) 以交付身份读取，供云端会话的 start 核对。"
+            echo
+            echo '```json omne-delivery-facts:v1'
+            cat facts.json
+            echo '```'
+          } > body.md
+          gh api --method POST "repos/$R/issues/$ISSUE/comments" -F body=@body.md --jq .html_url
+          {
+            echo "### delivery-facts"
+            echo
+            echo '```json'
+            cat facts.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

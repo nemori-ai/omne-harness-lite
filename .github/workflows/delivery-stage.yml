@@ -1,0 +1,118 @@
+name: delivery-stage
+
+# 交付身份（#546、#554）：为 Claude Code 云端会话修改卡的 Project Stage。
+# 触发者须是 publish environment 的 required reviewer；改为 In progress、Accepted、Cancelled 前核对卡上的
+# 派发或决定评论。核对失败时 job 失败，不写入。只给云端会话使用；本地照旧直接修改 Stage。
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        required: true
+        type: string
+      stage:
+        required: true
+        type: choice
+        options:
+          - Backlog
+          - Ready
+          - In progress
+          - In review
+          - Awaiting acceptance
+          - Accepted
+          - Cancelled
+
+permissions: {}
+
+concurrency:
+  group: delivery-stage-${{ inputs.issue }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # 与 docs/engineering/github-delivery.json 的 project.id 与 fields.stage 一致。
+  PROJECT_ID: PVT_kwDODPptlM4BmeFE
+  STAGE_FIELD_ID: PVTSSF_lADODPptlM4BmeFEzhlG_3U
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    environment: delivery
+    steps:
+      - name: Validate inputs
+        env:
+          ISSUE: ${{ inputs.issue }}
+          STAGE: ${{ inputs.stage }}
+        run: |
+          [[ "$GITHUB_REF" == refs/heads/github-gate ]] || { echo "rejected: run is not on github-gate"; exit 1; }
+          [[ "$ISSUE" =~ ^[1-9][0-9]{0,6}$ ]] || { echo "rejected: issue"; exit 1; }
+          case "$STAGE" in Backlog|Ready|"In progress"|"In review"|"Awaiting acceptance"|Accepted|Cancelled) ;; *) echo "rejected: stage"; exit 1 ;; esac
+
+      - id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Check and write
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          ISSUE: ${{ inputs.issue }}
+          STAGE: ${{ inputs.stage }}
+          ACTOR: ${{ github.triggering_actor }}
+        run: |
+          set -euo pipefail
+          R="$GITHUB_REPOSITORY"
+          rest() { gh api --method GET -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2026-03-10' "$@"; }
+
+          # 1. publish 的 required reviewers（只接受个人账号）；触发者须在其中。
+          rest "repos/$R/environments/publish" > environment.json
+          jq -e '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[]] | length > 0 and all(.type == "User")' environment.json >/dev/null \
+            || { echo "failed: publish reviewers are empty or include a Team"; exit 1; }
+          jq '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[].reviewer.login]' environment.json > reviewers.json
+          jq -e --arg a "$ACTOR" 'index($a) != null' reviewers.json >/dev/null \
+            || { echo "rejected: $ACTOR is not a publish reviewer"; exit 1; }
+
+          # 2. 状态转移的前提：只认作者为 reviewer 的评论。
+          rest --paginate "repos/$R/issues/$ISSUE/comments?per_page=100" | jq -s 'add // []' > comments.json
+          jq --slurpfile r reviewers.json '[.[] | select(.user.type == "User" and (.user.login as $l | $r[0] | index($l) != null))]' comments.json > trusted.json
+          decision() {
+            jq -e --arg d "$1" '[.[] | .body | select(startswith("## 交付决定")) | select(split("\n") | any(. == "- 决定：" + $d))] | length > 0' trusted.json >/dev/null
+          }
+          case "$STAGE" in
+            "In progress")
+              found=false
+              while IFS= read -r body; do
+                block=$(jq -r . <<< "$body" | awk '/^```json omne-integration-authority:v1$/{f=1; next} /^```$/{if (f) exit} f')
+                if [ -n "$block" ] && jq -e --argjson n "$ISSUE" '.action == "dispatch" and .task.issue.number == $n' <<< "$block" >/dev/null 2>&1; then found=true; fi
+              done < <(jq -c '.[] | .body' trusted.json)
+              $found || { echo "rejected: no dispatch decision by a reviewer on Issue $ISSUE"; exit 1; } ;;
+            Accepted) decision accept || { echo "rejected: no accept decision by a reviewer"; exit 1; } ;;
+            Cancelled) decision cancel || { echo "rejected: no cancel decision by a reviewer"; exit 1; } ;;
+          esac
+
+          # 3. 找到卡在 Project 中唯一的 item 与目标选项，写入后读回。
+          gh api graphql -f owner="${R%/*}" -f name="${R#*/}" -F number="$ISSUE" -f field="$STAGE_FIELD_ID" -f query='
+            query($owner: String!, $name: String!, $number: Int!, $field: ID!) {
+              repository(owner: $owner, name: $name) {
+                issue(number: $number) { projectItems(first: 100, includeArchived: true) { pageInfo { hasNextPage } nodes { id project { id } } } }
+              }
+              node(id: $field) { ... on ProjectV2SingleSelectField { options { id name } } }
+            }' > project.json
+          jq -e '.errors == null and .data.repository.issue != null' project.json >/dev/null || { echo "failed: Issue $ISSUE not readable"; exit 1; }
+          jq -e '.data.repository.issue.projectItems.pageInfo.hasNextPage == false' project.json >/dev/null || { echo "failed: project items paginated"; exit 1; }
+          items=$(jq -c --arg p "$PROJECT_ID" '[.data.repository.issue.projectItems.nodes[] | select(.project.id == $p) | .id]' project.json)
+          [ "$(jq length <<< "$items")" = 1 ] || { echo "failed: Issue $ISSUE has $(jq length <<< "$items") items in the project"; exit 1; }
+          item=$(jq -r '.[0]' <<< "$items")
+          option=$(jq -er --arg s "$STAGE" '[.data.node.options[] | select(.name == $s) | .id] | if length == 1 then .[0] else error("option") end' project.json)
+          after=$(gh api graphql -f p="$PROJECT_ID" -f i="$item" -f f="$STAGE_FIELD_ID" -f v="$option" -f query='
+            mutation($p: ID!, $i: ID!, $f: ID!, $v: String!) {
+              updateProjectV2ItemFieldValue(input: {projectId: $p, itemId: $i, fieldId: $f, value: {singleSelectOptionId: $v}}) {
+                projectV2Item { fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name } } }
+              }
+            }' --jq '.data.updateProjectV2ItemFieldValue.projectV2Item.fieldValueByName.name')
+          [ "$after" = "$STAGE" ] || { echo "failed: read back '$after' instead of '$STAGE'"; exit 1; }
+          echo "Issue #$ISSUE Stage: $STAGE（触发者 $ACTOR）" | tee -a "$GITHUB_STEP_SUMMARY"
