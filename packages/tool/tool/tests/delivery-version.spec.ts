@@ -5,36 +5,40 @@ import {
   decodeToolResultVersion,
   decodeToolRevision,
   judgeConsumerRef,
-  readToolInvocationRef,
   type Handoff,
   type ToolTask,
 } from '@omne-harness/tool-contract'
 import {
-  dummyRequest,
+  adoption,
   evidence,
-  harness,
   judged,
   ok,
   operationId,
   principalA,
+  referenceFor,
+  request,
   tenantA,
   text,
   textOf,
   type Block,
 } from './runtime-values.ts'
+import { settlementFixture } from './settlement-values.ts'
 
 // Existing-record fixtures isolate release behavior. Late-result production belongs to a later increment.
 async function existingVersions() {
-  const assembly = harness()
-  const invoked = await assembly.runtime.invoke({
-    principal: principalA,
-    tenant: tenantA,
-    request: dummyRequest(),
+  const f = await settlementFixture({
+    terminal: { kind: 'failed', cause: 'runtime-lost', diagnostic: 'fixture continuity lost' },
+    value: {
+      content: [text('original', 'original runtime lost')],
+      data: { kind: 'none' },
+      original: { kind: 'none' },
+      attachments: [],
+    },
   })
-  if (invoked.kind !== 'accepted' || invoked.state.phase !== 'settled')
-    throw new Error('fixture did not settle')
-  const access = { principal: principalA, tenant: tenantA, reference: invoked.reference }
-  const { call } = readToolInvocationRef(invoked.reference)
+  const settled = judged(ok(await f.preserve()))
+  if (settled.phase !== 'settled') throw new Error('fixture did not settle')
+  const assembly = { runtime: f.harness.runtime, store: f.harness.memory, ledger: f.ledger }
+  const call = f.access.call
   const domain = { kind: 'call', tenant: tenantA, call } as const
   const saved = await assembly.store.read(domain)
   if (saved.kind !== 'complete') throw new Error('fixture store unreadable')
@@ -42,23 +46,67 @@ async function existingVersions() {
   const callRecord = saved.records.find(record => record.kind === 'call')
   if (original?.kind !== 'result' || callRecord?.kind !== 'call')
     throw new Error('fixture records missing')
-  const late = (ordinal: number): ResultRecord<Block> => ({
-    ...original.result,
-    result: ok(decodeToolResultVersion(`fixture-late-${ordinal}`)),
-    relation: 'late',
-    actual: { kind: 'completed' },
-    effect: { kind: 'occurred', evidence: evidence(`fixture-effect-${ordinal}`) },
-    value: { ...original.result.value, content: [text(`late-${ordinal}`, `late ${ordinal}`)] },
-    delivery: {
-      kind: 'pending',
-      delivery: ok(decodeToolDeliveryId(`fixture-delivery-${ordinal}`)),
-      consumer: original.result.delivery.consumer,
-    },
-    source: evidence(`fixture-late-source-${ordinal}`),
-    settledBy: operationId(`fixture-late-operation-${ordinal}`),
-  })
-  const versions = [original.result, late(1), late(2)] as const
-  const revision = ok(decodeToolRevision('2'))
+  const access = {
+    principal: principalA,
+    tenant: tenantA,
+    reference: referenceFor(call, callRecord.call.admission),
+  }
+  if (original.result.custody.kind !== 'execution') throw new Error('fixture execution missing')
+  const originalCustody = original.result.custody
+  expect(f.harness.authority.accepted).toEqual([call])
+  expect(f.harness.binding.executions).toEqual([call])
+  expect(callRecord.call.start).toEqual(f.batch.start)
+  expect(callRecord.call.execution).toEqual(f.before.execution)
+  expect(originalCustody.raw).toEqual(f.final.raw)
+  expect(original.result.terminal).toEqual(f.final.terminal)
+  const late = async (ordinal: number): Promise<ResultRecord<Block>> => {
+    const source = evidence(`fixture-late-source-${ordinal}`)
+    const value = {
+      ...original.result.value,
+      content: [text(`late-${ordinal}`, `late ${ordinal}`)],
+    }
+    const raw = ok(
+      await f.custody.preserve({
+        ...f.access,
+        operation: operationId(`fixture-late-raw-${ordinal}`),
+        codec: adoption('codec'),
+        bytes: new TextEncoder().encode(`late ${ordinal}`),
+        source,
+      }),
+    )
+    const retainOperation = operationId(`fixture-late-retain-${ordinal}`)
+    const retained = ok(
+      await f.custody.retainResult({ ...f.access, operation: retainOperation, raw, value }),
+    )
+    expect(new TextDecoder().decode(await f.custody.controls.readBytes(raw))).toBe(
+      `late ${ordinal}`,
+    )
+    return {
+      ...original.result,
+      result: ok(decodeToolResultVersion(`fixture-late-${ordinal}`)),
+      relation: 'late',
+      actual: { kind: 'completed' },
+      effect: { kind: 'occurred', evidence: evidence(`fixture-effect-${ordinal}`) },
+      value,
+      delivery: {
+        kind: 'pending',
+        delivery: ok(decodeToolDeliveryId(`fixture-delivery-${ordinal}`)),
+        consumer: original.result.delivery.consumer,
+      },
+      source,
+      settledBy: operationId(`fixture-late-operation-${ordinal}`),
+      custody: {
+        kind: 'execution',
+        final: evidence(`fixture-late-final-${f.batch.start.operation}-${ordinal}`),
+        raw,
+        retainOperation,
+        retained,
+        cleanup: originalCustody.cleanup,
+      },
+    }
+  }
+  const versions = [original.result, await late(1), await late(2)] as const
+  const revision = ok(decodeToolRevision(String(BigInt(saved.revision) + 1n)))
   const state = judged({
     ...callRecord.call.state,
     revision,
@@ -95,12 +143,12 @@ async function existingVersions() {
   for (const record of versions) {
     expect(record.call).toBe(call)
     expect(record.tenant).toEqual(tenantA)
-    expect(ok(judgeConsumerRef(record.delivery.consumer))).toEqual(dummyRequest().consumer)
+    expect(ok(judgeConsumerRef(record.delivery.consumer))).toEqual(request().consumer)
   }
   expect(state).toMatchObject({
     terminal: original.result.terminal,
-    execution: { kind: 'not-started' },
-    effect: { kind: 'not-started' },
+    execution: { kind: 'ended' },
+    effect: original.result.effect,
     result: original.result.result,
     delivery: original.result.delivery,
   })
@@ -144,8 +192,8 @@ async function existingVersions() {
 }
 
 const handoffs: readonly Handoff[] = [
-  { kind: 'retained', custody: evidence('fixture-kept', dummyRequest().consumer.owner) },
-  { kind: 'processed', completion: evidence('fixture-done', dummyRequest().consumer.owner) },
+  { kind: 'retained', custody: evidence('fixture-kept', request().consumer.owner) },
+  { kind: 'processed', completion: evidence('fixture-done', request().consumer.owner) },
 ]
 
 describe('16 release isolation on existing version fixtures (P08)', () => {
@@ -157,7 +205,7 @@ describe('16 release isolation on existing version fixtures (P08)', () => {
       const f = await existingVersions()
       const contents = await Promise.all(f.versions.map(f.read))
       expect(contents.map(page => page.value.content.map(textOf).join(''))).toEqual([
-        expect.stringContaining('tool unavailable'),
+        'original runtime lost',
         'late 1',
         'late 2',
       ])
@@ -177,7 +225,13 @@ describe('16 release isolation on existing version fixtures (P08)', () => {
         if (outcome.kind !== 'released') throw new Error(JSON.stringify(outcome))
         expect(f.assembly.store.commits).toBe(commits + 1)
         const after = await f.current()
-        expect(after).toMatchObject({ phase: 'settled', result: f.versions[0].result })
+        expect(after).toMatchObject({
+          phase: 'settled',
+          terminal: f.versions[0].terminal,
+          execution: before.execution,
+          effect: before.effect,
+          result: f.versions[0].result,
+        })
         expect(after.delivery).toEqual(index === 0 ? outcome.receipt : before.delivery)
         expect(after.supplements).toEqual(
           before.supplements.map(entry =>
