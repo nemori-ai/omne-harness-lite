@@ -349,7 +349,7 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
             })
       },
       raw: async input => {
-        const resolved = invocationInput<P>(input, 'read-content')
+        const resolved = invocationInput<P>(input, 'read-raw')
         return 'failure' in resolved
           ? resolved
           : reads.content.raw({ ...resolved.ok, result: input.result })

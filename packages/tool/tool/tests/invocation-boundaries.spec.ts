@@ -111,7 +111,7 @@ const entries: readonly Entry[] = [
   },
   {
     name: 'content.raw',
-    action: 'read-content',
+    action: 'read-raw',
     field: 'reference',
     command: false,
     run: (r, input) => untrusted(r.content.raw, input),
@@ -205,7 +205,7 @@ describe.each(entries)('$name reference boundary', entry => {
 })
 
 it.each(entries.filter(entry => entry.name === 'control' || entry.name === 'content.raw'))(
-  '$name retains its unsupported outcome for a valid reference',
+  '$name forwards a valid reference without allocating a read operation',
   async entry => {
     const base = testAssembly()
     const mint = vi.spyOn(base.dependencies.operationIdentities, 'newOperation')
@@ -213,7 +213,7 @@ it.each(entries.filter(entry => entry.name === 'control' || entry.name === 'cont
     expect(result).toMatchObject(
       entry.command
         ? { kind: 'rejected', failure: { kind: 'unsupported' } }
-        : { failure: { kind: 'unsupported' } },
+        : { failure: { kind: 'invalid', field: 'call', reason: 'unknown-call' } },
     )
     expect(mint).toHaveBeenCalledTimes(entry.name === 'control' ? 1 : 0)
     expect(base.store.commits).toBe(0)

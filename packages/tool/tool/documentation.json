@@ -130,6 +130,14 @@
         {
           "id": "settlement",
           "anchor": "26-原结果收场与释放责任"
+        },
+        {
+          "id": "content-reads",
+          "anchor": "27-固定结果与内容读取"
+        },
+        {
+          "id": "tools-result-adapter",
+          "anchor": "28-tools-固定结果适配器"
         }
       ]
     },

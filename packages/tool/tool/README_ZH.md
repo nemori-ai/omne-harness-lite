@@ -17,7 +17,7 @@
 | 公开类型已导出 | 已导出：构造形状 `ToolDependencies` 与 `ToolConfiguration` 及其周边的账本形状，记录仓端口 `ToolLedgerStore` 与它的记录类型，受信快照 `ToolLedgerGuards`，`ExecuteToolFailure`，以及宿主提供者用的 `recordKey`、`isTenantShape` 与 `canonicalDigest` | 根入口 | `tests/public-entry.spec.ts` 核对根导出、导入图、清单依赖与 Cordis 路径。`*.spec-d.ts` 核对签名 |
 | 纯契约函数已实现 | 本包没有。契约函数在 `tool-contract` | 无 | 无 |
 | 独立执行已实现 | `createIndependentToolScope` 与 `executeTool`。作用域用本地接收者、显式上限和内存等待历史。回执只有 `local` | 根入口 | 作用域与包装器的 P11 规则，用可控的接收者与提供者替身核对。没有真实执行环境，不含 Cordis |
-| runtime 已实现的路径 | `createToolLedger` 与 `createToolRuntime`。内部账本按操作身份幂等受理。调用已知不可用的工具，或参数完整但非法，不进入环境或执行者就收场。`queries.lookup` 与 `queries.queryOperation` 查到它，`readResult` 分页读取，`releaseDelivery` 按两条交接路径解除交付，`account` 查账。真实工具的调用，经 `invoke` 分配身份、绑定来源并受理后由推进协程带到启动记录：环境准备、在调用方固定的范围与上限内按 FIFO 排队、启动守卫、启动围栏与 live-only 绑定的 `start`。绑定失败或抛错先核实原围栏，只有永久排除确认后才形成不可用终局。未知回执查询原绑定，保留启动待办与名额。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。启动前被拒绝的调用以 `unavailable` 收场，`effect` 为 `not-started`。`inspect` 转给装配传入的 Catalog 端口。本包没有 Catalog 提供者。driver 自动保管原 live 的 process/final 并确认来源，支持信号取消和 cursor 续接，并从已存原 final 收场、修复名额释放及保留异常输出责任。环境清理支持计划和报告核验 | 根入口。`./testing` 给非耐久记录仓与显式依赖装配 | 托管路径测试消费契约源码入口，在非耐久记录仓上运行，环境、启动授权与时钟用替身。受信测试桥先保存胶囊证据、consume，再调用契约内存 executor。方法尝试、唯一 acceptance 与实际 launch 分别计数。`tool-host-local` 用真实的本地启动协调器运行本 runtime。只有一个进程。耐久性没有覆盖 |
+| runtime 已实现的路径 | `createToolLedger` 与 `createToolRuntime`。内部账本按操作身份幂等受理。调用已知不可用的工具，或参数完整但非法，不进入环境或执行者就收场。`queries.lookup` 与 `queries.queryOperation` 查到它，`readResult` 分页读取，`releaseDelivery` 按两条交接路径解除交付，`account` 查账。真实工具的调用，经 `invoke` 分配身份、绑定来源并受理后由推进协程带到启动记录：环境准备、在调用方固定的范围与上限内按 FIFO 排队、启动守卫、启动围栏与 live-only 绑定的 `start`。绑定失败或抛错先核实原围栏，只有永久排除确认后才形成不可用终局。未知回执查询原绑定，保留启动待办与名额。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。启动前被拒绝的调用以 `unavailable` 收场，`effect` 为 `not-started`。`inspect` 转给装配传入的 Catalog 端口。本包没有 Catalog 提供者。driver 自动保管原 live 的 process/final 并确认来源，支持信号取消和 cursor 续接，并从已存原 final 收场、修复名额释放及保留异常输出责任。环境清理支持计划和报告核验。内容字节页与原件元数据按当前资格读取，字节读取须显式提供者 | 根入口。`./testing` 给非耐久记录仓与显式依赖装配 | 托管路径测试消费契约源码入口，在非耐久记录仓上运行，环境、启动授权与时钟用替身。受信测试桥先保存胶囊证据、consume，再调用契约内存 executor。方法尝试、唯一 acceptance 与实际 launch 分别计数。`tool-host-local` 用真实的本地启动协调器运行本 runtime。只有一个进程。耐久性没有覆盖 |
 | 尚未交付的宿主与提供者 | 真实环境 release 自动驱动、完整异常源恢复。控制、完整计时（经过时间、期限、暂停）、等待、过程观察、恢复、排空与交接。耐久记录仓（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)）。真实执行环境（[#278](https://github.com/nemori-ai/omne-harness-lite/issues/278)）。宿主时钟、绑定登记表与 Catalog。Cordis 插件 | 无 | 无 |
 
 已启动调用在原 final 独立保管及收场提交前保持名额。driver 随后按原操作修复 queue 释放；原调用成功回执本身不证明 queue 待办已经关闭。账本受信入口 `commands.receiveFacts` 已支持 process/final 保管。账本通过 `commands.recordFactAcknowledgement` 保存来源确认。runtime 推进协程自动续读原事实并确认来源；已支持名额释放，环境资源释放仍是独立责任。同租户、完整 consumer 与固定请求再次 `invoke` 认回原引用。原回执与当前状态分开，重入沿原调用与 start 推进。
@@ -41,7 +41,7 @@
 | `controls` | `control` 门面已按新 operation 委托；真实 ledger 仍 unsupported | `control`、`recordControl` |
 | `waits, decisions and resources` | `queries.readWait`；回应保留在受信内部端口 | `openWait`、`attachRegistration`、`attachResource`、`recordResponse`、`closeWait` |
 | `process observation and diagnostics` | `readProcess`、`readDiagnostics` | `preserveProcess`、`recordLateFact`、`recordLateResult` |
-| `execution facts and release` | `content.read`、`content.raw` | `recordAccount`，以及异常 settled facts 的 blocked 分支以外的 `recordTask` |
+| `execution facts and release` | 无 | `recordAccount`，以及异常 settled facts 的 blocked 分支以外的 `recordTask` |
 | `recovery scan` | `recover` | `scanPending`、`claim`、`settleLost` |
 | `drain and handover` | `quiesce`、`inspectDrain`、`handover` | 无 |
 | `checkpointed executors` | 无 | `prepareResume`、`planSuspension`、`suspend` |
@@ -83,7 +83,7 @@ final 没有实际结束时钟 marker。running 计时保留 unknown、原 segme
 
 ## 使用
 
-账本第五参数必须显式提供 `{ custody, releaseInspection: environments }`。runtime dependencies 同时传入同账本 `commands`、`reads`、`admissions`、`queues` 与 `facts`。构造片段见[英文使用说明](README.md#usage)，公开构造形状见 [public-api](docs/public-api.md)。
+账本第五参数 `ToolLedgerPorts` 必须显式提供 `{ custody, releaseInspection: environments, content }`。`content` 为字节读口或 `null`。`content:null` 使字节读取回复 `unsupported`，不关闭结果页或 raw 元数据读取。runtime dependencies 同时传入同账本 `commands`、`reads`、`admissions`、`queues` 与 `facts`。构造片段见[英文使用说明](README.md#usage)，公开构造形状见 [public-api](docs/public-api.md)。
 
 独立程序和应用装配依赖本包与 `@omne-harness/tool-contract`。其他领域的生产代码只依赖 `@omne-harness/tool-contract`。其他领域的测试可以把 `@omne-harness/tool/testing` 作为开发依赖。它导出非耐久记录仓 `createMemoryToolLedgerStore` 与下述装配工厂。
 
@@ -156,3 +156,39 @@ tool/
 装配者提供受信身份端口与真实来源签发器，本包不提供生产默认签发器。测试须显式装配 createTestInvocationSource({ authority, snapshotPrincipal }) 的配对 issuer/guard；来源自身原子分配调用身份，createTestToolIdentities 只提供操作和实例身份。宿主向 driver.run 显式提供实例身份，同一存活实例重复唤醒沿用。测试替身不证明生产 host、claim、接管或耐久性。
 
 测试装配提供同步 snapshotPrincipal，保留凭据认证语义并隔离可变主体，在首次 await 前捕获。真正不可变的 opaque 主体可以安全复用。来源 resolve 的资格与主体比较使用固定视图，ledger 与配对 guard 仍核原始当前主体；摘要不序列化 P，bindings 返回隔离的诊断副本。可选同步 beforeIssue 在 reservation 保存后、签发前注入故障；抛错返回原身份的 issuance-unknown，重入继续签发，已 issued 不再调用。
+
+
+## 内容与原输出读取
+
+账本第五参数为 `ToolLedgerPorts`，必须显式给出 `content` 字节读口或 `null`，另保留 `custody.retainResult` 与 `releaseInspection.inspectRelease`。`content:null` 使有关联的字节读取回复 `unsupported`，不关闭结果页或 raw 元数据读取。
+
+`queries.readResult` 固定结果版本并在返回完整块页前复核 `read-result`。`content.read` 先核五字段附件关联，再按已知原件的 storage/key 选完整操作；未登记变体不能仅凭同地址关联，已登记同址变体不能因描述字段不同降权。不同地址不因相同摘要被一律标成原件。随后核当前资格、提供者返回的身份、范围及 EOF。IO 后再次核关联与资格，返回独立字节副本。字节页可能切在 UTF-8 字符中间，消费者按媒体类型收齐后解码。
+
+提供者必须核完整源的长度和摘要，并把 byte cursor 绑定租户、调用、结果版本、完整附件、字节投影与位置。账本不解析提供者私有游标。`content.raw` 从精确结果的 execution custody 返回元数据，另核 `read-raw`。synthetic 结果回复 `invalid/result/no-raw-output`。raw 字节即使同时列入普通附件，也使用 `read-raw-content` 完整操作，在同一个可信权限事实判定点核主体、租户、call 范围及基础 `read-content` 和 `read-raw`。它不是独立许可位，不可用两次异步资格拼成允许，无法建立一致视图时须答 unavailable。账本在 IO 前与最终返回边界各做一次完整判定，最后允许后不再等待外部读取。诊断、账目或普通读取权限不能代替原件资格。
+
+`createTestToolDependencies` 的 `doubles.content` 组合非耐久内存 byte provider 与既有 custody double，preserve 成功后登记原件字节。`controls.seed` 显式登记其余附件并核长度和 SHA-256，暂停、失败、丢失和错误响应控制用于测试。登记不赋予某结果读取附件的权限。直接 provider 和 controls 是受信测试资源，授权验证走真实 runtime 入口。此组合不证明耐久存储或生产后端。
+
+## 模型结果取回
+
+根入口的 createTools 提供真实 Tools 作者，只有 help 和 read_result。两个命令都是 structured、program:none，作者显式 programmable:false。输入是文本参数。直接内容输出可保留四种模态，普通附件地址仍为文本。工厂只取得 queries.readResult 和 content.read。
+
+构造时固定 arguments、resultPageBytes、replyMaxBytes、contentPageBytes，resultPageBytes 使用所装配 runtime 的真实配置。原调用收场后，可信消费侧用 present 读取固定版本首屏，再以 P14 projectToolResult 和本消息固定的附件块身份投影。模型从可见帮助和状态复制 reference、next，用新 consumer 位置调用 read_result。after:null 开始，上一回应的 next 接续，next:null 明确结束所选遍历。
+
+元调用也会生成自己的 ToolResult。收场后先用受信方法 readReply 收齐它的全部有界页，再投影给模型。readReply 不是第三个模型命令。它返回完整结果或具名失败，绝不交付半份回应。
+
+读取成功、原工具终态、内容遍历和原文卸载分别表达。failed 原工具也可成功读取。元调用 completed 只表示命令答复。内容结束不表示附件或卸载原文字节已读。附件页提供 base64，收齐字节后按 mediaType 解码。引用不授权，每页仍核当前资格。原件字节经过[完整读取操作的资格判定](SPEC.md#27-固定结果与内容读取)中的 `read-raw-content` 一致判定，没有 raw selector 或 raw 口旁路。
+
+完整响应、块及完整可调用参数都受预算约束，不能装下时明确 unsupported。固定错误无法单页交付时构造抛 TypeError。固定版本引用无 TTL，适配器重建和交付解除不使它失效。精确协议及提供者前提见 [SPEC 第 28 条](SPEC.md#28-tools-固定结果适配器)。当前证据是非耐久内存组合，不含真实模型、生产存储或 Cordis。
+
+
+宿主的入站参数限制须与 `ToolsOptions.arguments` 对齐。runtime 先检查输入，作者 codec 再解释参数。较小的宿主上限可能拒绝作者本可解析的续读请求。两个层级均保留明确预算，并验证实际装配。
+
+模型经宿主的普通 Tools 命令路由提交 JSON 参数：
+
+```json
+{"kind":"result","reference":"<复制可见 reference>","after":"<复制可见 next>"}
+```
+
+这次请求使用 `command: "read_result"`。开始读附件时改用 `kind: "attachment"`、可见附件引用及 `after: null`。用 `command: "help"` 和 `{}` 取得命令列表，用 `{"command":"read_result"}` 取得精确参数说明。宿主提供当前 principal、tenant，并为每次新命令分配新的 consumer 位置。结果身份是调用引用与结果版本这一对值，不同调用可使用同一版本标签。
+
+[模型闭环测试](tests/tools-model-loop.spec.ts) 将受信宿主与模拟模型分开。模型只收 P14 内容块及实际 help。测试覆盖三个以上源页、原 executor 一次、新元调用身份、完整收齐再次分页的元回应、附件字节、权限失败及交付解除后重建适配器。它使用非耐久 runtime 与执行环境、binding 替身，不调用真实模型提供者。

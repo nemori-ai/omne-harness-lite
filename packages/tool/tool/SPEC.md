@@ -11,6 +11,7 @@
 - 独立路径：`createIndependentToolScope`（G2）与 `executeTool`（G8），即契约 SPEC [P11](../tool-contract/SPEC.md#p11-作者输出与等待原语) 的独立执行。
 - 账本：账本工厂 `createToolLedger` 与记录仓端口 `ToolLedgerStore`（G1）。
 - 逻辑终局：`createToolRuntime`（G8）的 invoke、queries.lookup、queries.queryOperation、queries.readResult、commands.releaseDelivery 与 queries.account。这些调用不进入环境或执行者（第 10–16 条）。
+- 读取：固定结果完整块页、关联附件字节页和精确原件元数据，IO 后复核当前资格；字节读取须显式 provider，附非耐久内存组合（第 27 条）。
 - 事实保管：受信 `commands.receiveFacts` 接收 process/final，`recordFactAcknowledgement` 核来源确认并清除 ACK 责任，`loadRecovery.streams` 与实现读口 `ledger.facts.read` 提供恢复依据（第 24 条）。
 - 已启动调用收场：从原保存 final 主动确认独立结果保管，原子建立原结果、交付、真实 effect、物理结束及后继任务，跨域修复释放队列名额。环境释放只交付计划与报告核验（第 26 条）。
 - 到启动为止的真实调用：受理、环境准备、FIFO 排队、启动意图、live-only 绑定启动、原围栏对账与启动记录，以及永久排除后的启动前拒绝收场（第 19–23 条）。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。
@@ -88,9 +89,9 @@
 
 ## 受理账本怎样满足 P01、P02、P08 与 P09
 
-账本由 `createToolLedger(store, guards, clock, configuration, settlementPorts)` 构造。runtime 由 `createToolRuntime(dependencies, configuration)` 构造。两者可以取同一个 `ToolConfiguration`：账本只读其中的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1)。下列规则按编号对应测试。
+账本由 `createToolLedger(store, guards, clock, configuration, ports)` 构造。runtime 由 `createToolRuntime(dependencies, configuration)` 构造。两者可以取同一个 `ToolConfiguration`：账本只读其中的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1)。下列规则按编号对应测试。
 
-签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, settlementPorts)` 返回 `{ commands, reads, admissions, queues, facts }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。第五参数 `ToolLedgerSettlementPorts<P>` 必填，提供 `custody.retainResult` 与 `releaseInspection.inspectRelease`，不提供默认授权或旧构造。runtime 的 `dependencies.facts` 必须使用同账本 `facts`，配置检查核必要方法。
+签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。第五参数 `ToolLedgerPorts<P>` 必填，提供 `custody.retainResult`、`releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`，不提供默认授权或旧构造。runtime 的 `dependencies.facts` 必须使用同账本 `facts`，配置检查核必要方法。
 
 ### 10 边界与资格
 
@@ -405,3 +406,53 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 当前 final 没有实际结束 clock marker。running 计时转 unknown，保存原 segment、accumulatedMs，诊断为 `execution-end-clock-marker-unavailable`，同提交 blocked clock 任务。原 unknown 保持证据与诊断；paused/closed 保留已知累计并 closed。收场不调用晚到 elapsed、不写零、不重复累计，也不把保管等待计成执行时间。clock 未知不阻止可信结束后的 slot 释放。
 
 [收场账本测试](tests/ledger-settlement.spec.ts)、[环境计划与确认测试](tests/ledger-environment-release.spec.ts)、[排除交错](tests/exclusion-interleavings.spec.ts)和 [driver 组合](tests/driver-settlement.spec.ts)分别覆盖对应边界。它们使用真实内存 ledger/custody/executor 与受控宿主，不能证明生产耐久、跨进程或断电恢复。[有限收场模型](verification/models/README.md#原结果与队列释放模型)只检查其明确有界范围；完整计时、控制、scanner、真实环境自动 release、完整异常源恢复及 late-result 仍未覆盖。
+
+
+## 27 固定结果与内容读取
+
+本实现消费 P05、P08 与 P14。三个入口在首次 await 前固定结果、引用及必要标量，附件复制五字段，主体保留合法身份。`readResult` 保留完整块分页，在返回候选页前再次核 `read-result`，撤权则舍弃候选。
+
+`content.read` 核正安全整数 maxBytes、固定版本、完整附件关联与 `read-content`。关联来自该版本的 attachments、content ref、offloaded original.source 或 summary ref；原件也可凭 execution custody 关联，但使用 `read-raw-content` 完整操作。该操作在同一个可信权限事实判定点核主体、合法租户、call 范围及基础 `read-content` 与 `read-raw`，不是独立许可位。无法建立一致视图时回复 `unavailable/access-guard`。关联后、provider IO 前及最终返回边界各核一次完整操作，不用分开异步结论合取。关联仍需五字段精确匹配 custody.raw 或已保管集合，不能仅凭同 storage/key 放行未登记描述。关联成立后，凡与该结果已知 raw.content 的 storage/key 相同，均选 `read-raw-content`，不因 mediaType/bytes/digest 差异降权。只比较已知逻辑地址，不猜物理别名；不同地址不因相同 digest 被一律标成原件。提供者 IO 后重读固定版本，核关联及当前资格，返回独立 byte copy。错误响应、错结果/附件、非法 offset、越界、超预算、零进度或未到已知长度的假 EOF 回复 `unavailable/content-reader`。提供者明确失败原样交回，抛错只给依赖名，不披露异常正文。
+
+配置的 content provider 必须证明完整源长度/摘要，并把 byte cursor 绑定 tenant/call/result/完整 Attachment/bytes 投影及位置。账本不解析其私有游标，因此自身范围核验不能代替这项证明。内存 provider 只支持 SHA-256，输入输出复制，首读空文件为 offset 0、空 bytes、next null。非首读指向或越过 EOF、负数、另一附件或结果及 block cursor 均拒绝为 `invalid-cursor`。
+
+`content.raw` 前后独立核 `read-raw`，返回精确结果 execution custody 的 RawOutput 副本。synthetic 结果回复 `invalid`（`result: no-raw-output`）。原 raw.content 即使同时或重复列入普通附件，也不能绕过完整操作。完整操作拒绝为 `denied/read-raw-content`，入口内容门槛仍可拒绝为 `read-content`，raw 元数据拒绝为 `read-raw`。最终允许后不再等待 store、provider 或另一 guard。判定点之后发生的撤权约束后续读取，不追溯撤回已允许候选。content provider 为 null 时有关联的字节读取明确 unsupported；原结果、raw 元数据、交付解除、收场和调用幂等不受此配置改变。
+
+`./testing` 的 createMemoryToolContent 与 createTestToolDependencies 组合 `durability:none` 的 bytes/custody。原件登记复用既有 custody double，普通附件由显式 seed 登记；seed 不授予关联或权限。故障控制允许暂停一次读取、失败、抛错、删除字节或替换响应。它们只能支持非耐久内存组合证据，不支持真实文件存储或跨进程恢复声明。验证资源见 [content-reads.spec.ts](tests/content-reads.spec.ts)。
+
+## 28. Tools 固定结果适配器
+
+根入口的 `createTools` 消费普通 runtime 的 `queries.readResult` 和 `content.read`。它不取得 invoke、control、release 或 raw。工厂提供真实 `Tools` 作者、`present` 和受信消费侧的 `readReply`。作者只有 `help`、`read_result`，显式 `programmable:false`，两操作都是 structured、program:none。输入模态为 text。直接输出可能保留源 text、image、voice 或 video 内容，因此声明四种输出模态。file ref 依其媒体类型承载内容，普通 attachments 的地址仍是文本。
+
+`help` 的闭合对象只有可选 string command。未知名称形成具名错误。`read_result` 的闭合 oneOf 分支为 result 和 attachment，kind、非空 reference、null 或非空 after 都必填。参数、注册声明和帮助从同一命令描述生成。作者先使用 ParameterCodec 的完整 JSON、重复键及预算检查，再核字段。模型不能提供 tenant、principal、路径、maxBytes 或 raw selector。
+
+### 引用与调用
+
+引用是公开、无状态、可解码的规范 UTF-8 JSON base64url，没有填充字符。前缀与 payload 之间使用句点。payload 数组为以下形状，首项为协议版本 1。
+
+- `tr1` 包含 `[1, invocationReference, resultVersion]`。内部身份必须通过契约 codec，并使用其规范形式。
+- `ta1` 包含 `[1, tr1, selector]`。selector 为非负安全整数索引或字符串 original。索引对应该固定版本的 attachments，original 对应卸载原文。
+- `tc1` 包含 `[1, kind, completeReference, projection, internalAfter]`。result 的 projection 为 full，attachment 为 bytes。读取前逐项比较分支、完整引用及投影。
+
+解码核协议、字段数、类型、规范编码及参数预算。所有发出的开始和续读提示还使用真实参数 codec 检查整份调用 JSON，并用同一预算实际解码内部引用及 cursor。单个凭据、组合参数或内部 tuple 超限都不能发出可续读提示。引用不授予权限，没有 TTL，也不依赖适配器内存表。releaseDelivery 不使引用失效。未知版本、不可定位版本或错误游标不能换成最新结果或首屏。
+
+### 模型内容与失败
+
+`present` 读原固定版本的首屏。`read_result` 每次读一页并生成新的 ToolResult。成功结果先给状态块，再保留源页块的顺序与 visibility，状态块身份避开源块。源 attachments 保持完整。新 data 和 original 都为 none，不转发源程序数据。原文卸载状态及 original 的 ta1 在文本中说明。上层调用方继续用 P14 projectToolResult 投影，固定附件块身份后追加合法逻辑附件地址。
+
+状态分别说明 reading、sourceTerminal、content 遍历及 original。读取 failed 原工具可以成功。content=end 只结束内容块遍历，不表示附件或卸载原文字节已读。附件回应提供 mediaType、十进制 offset、bytes、base64 和 next。消费方收齐字节后按 mediaType 解码，不在任意页边界解释 UTF-8。
+
+已知 ToolFailure 映射为固定错误码，仅保留受支持的 denied 动作说明。失败结果没有源内容、源附件或 next，不转发提供者诊断。元调用 completed 表示命令答复，不代表源读取成功。未知异常、非法作者输出或保管失败仍归既有故障管线。
+
+### 预算与收取
+
+构造时固定 JsonLimits 和三个正安全整数预算。resultPageBytes 必须来自所装配 runtime 的相同配置。replyMaxBytes 限制完整新 ToolResult 的 JSON UTF-8 字节。contentPageBytes 限制附件字节。每个完整块必须装入一个 resultPageBytes，完整回应必须装入 replyMaxBytes。预算不足返回固定 unsupported，不截块、凭据或 schema。固定错误无法在预算内单页交付时，构造同步抛 TypeError。
+
+源页加状态后可使新元回应再次分页。受信消费侧在调用收场后使用 readReply，沿同一 resultVersion 收齐新元回应，再投影给模型。它不生成第三个模型命令，不递归包装回应。每页 value 和累计完整 ToolResult 都受 replyMaxBytes 限制。累计大小只计一次共同元数据，再逐块增加 JSON 字节及数组分隔符。读取次数最多 `2 * ceil(replyMaxBytes / resultPageBytes) + 1`，推导值必须为安全整数。每页仍经真实读口检查当前资格。
+
+readReply 核固定版本及各页必要元数据。重复 cursor、非结束空页、元数据变化、读取失败、字节超限或次数超限都只返回明确失败，不交付部分内容。次数保证依赖现行贪心整块分页。替换提供者不能在该上限内结束时返回 unsupported。
+
+[Tools 行为测试](tests/tools.spec.ts)及[类型测试](tests/tools.spec-d.ts)覆盖真实作者注册、内存 runtime 组合、再次分页、闭合参数、引用、可见 ref、失败与精确预算。它们使用非耐久内存依赖。真实模型、生产存储、Cordis 和跨进程未验证。
+
+
+[模型消费组合](tests/tools-model-loop.spec.ts) 以实际 runtime、作者 codec、readReply 及 P14 连接受信宿主与模拟模型。模型只接收投影块和实际帮助，依据可见 reference、next、kind 形成新请求。测试宿主将入站参数预算与 ToolsOptions.arguments 对齐，分别保留 runtime 入站检查和作者参数检查。各新调用以新消费位置与调用引用区分，其结果归属按 reference/resultVersion 成对判断，版本字符串无需全局唯一。

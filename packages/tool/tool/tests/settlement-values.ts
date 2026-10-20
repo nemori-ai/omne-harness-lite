@@ -5,10 +5,14 @@ import type {
   ToolExecutionFact,
   ToolOutputCustody,
   ToolTerminal,
+  ToolResult,
   ToolEnvironment,
 } from '@omne-harness/tool-contract'
 import { readToolInvocationRef } from '@omne-harness/tool-contract'
-import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
+import {
+  createMemoryToolClock,
+  type MemoryToolOutputCustody,
+} from '@omne-harness/tool-contract/testing'
 import {
   createToolLedger,
   type LedgerCommitInput,
@@ -43,7 +47,9 @@ export async function settlementFixture(
     mode?: 'foreground' | 'background'
     terminal?: ToolTerminal
     process?: readonly ProcessBlock[] | ((raw: RawOutput) => readonly ProcessBlock[])
+    custody?: MemoryToolOutputCustody<Principal>
     attachments?: RawOutput['content'][]
+    value?: ToolResult<Block> | ((raw: RawOutput) => ToolResult<Block>)
     wrapReleaseInspection?: (
       environment: ToolEnvironment<Principal, unknown>,
     ) => Pick<ToolEnvironment<Principal, unknown>, 'inspectRelease'>
@@ -88,7 +94,10 @@ export async function settlementFixture(
   const recovery = ok(await harness.commands.loadRecovery(access))
   if (recovery.start === null || recovery.execution === null)
     throw new Error('fixture did not start')
-  const ports = testSettlementPorts()
+  const ports = {
+    ...testSettlementPorts(),
+    ...(options.custody === undefined ? {} : { custody: options.custody }),
+  }
   const custody = options.wrapCustody?.(ports.custody) ?? ports.custody
   const raw = ok(
     await ports.custody.preserve({
@@ -102,7 +111,7 @@ export async function settlementFixture(
   const final: Extract<ToolExecutionFact<Block>, { kind: 'final' }> = {
     kind: 'final',
     raw,
-    result: {
+    result: (typeof options.value === 'function' ? options.value(raw) : options.value) ?? {
       content: [text('answer', 'done')],
       data: { kind: 'none' },
       original: { kind: 'none' },
@@ -155,6 +164,7 @@ export async function settlementFixture(
     clock,
     configurationOf({}),
     {
+      content: null,
       custody,
       releaseInspection:
         options.wrapReleaseInspection?.(ports.releaseInspection) ?? ports.releaseInspection,

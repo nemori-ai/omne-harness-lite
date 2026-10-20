@@ -694,6 +694,7 @@ it('does not replace a previous operation receipt with the canonical release ope
     createMemoryToolClock(),
     configurationOf({}),
     {
+      content: null,
       custody: f.custody,
       releaseInspection: testSettlementPorts().releaseInspection,
     },

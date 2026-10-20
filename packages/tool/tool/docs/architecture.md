@@ -47,7 +47,7 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 
 #### 本包的记录仓与决定器（G1）
 
-`createToolLedger(store, guards, clock, configuration, settlementPorts)` 返回 `{ commands, reads, admissions, queues, facts }`。第五参数 `ToolLedgerSettlementPorts` 注入 `custody.retainResult` 和原环境 `releaseInspection.inspectRelease`。同账本 facts 通过 dependencies 交给 runtime。`configuration` 给出结果页大小 `resultPageBytes`、修订冲突的重试上限 `ledgerCommitAttempts` 与队列容量 `queueCapacity`，三者都来自 `ToolConfiguration`。`admissions.admit` 回复状态与 `recovered`，`commands.admit` 是只回复状态的契约形状。源码在 [ledger.ts](../src/ledger.ts)、[ledger-decider.ts](../src/ledger-decider.ts)、[ledger-store.ts](../src/ledger-store.ts) 与 [ledger-reads.ts](../src/ledger-reads.ts)。
+`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts }`。第五参数 `ToolLedgerPorts` 注入 `custody.retainResult`、原环境 `releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`。同账本 facts 通过 dependencies 交给 runtime。`configuration` 给出结果页大小 `resultPageBytes`、修订冲突的重试上限 `ledgerCommitAttempts` 与队列容量 `queueCapacity`，三者都来自 `ToolConfiguration`。`admissions.admit` 回复状态与 `recovered`，`commands.admit` 是只回复状态的契约形状。源码在 [ledger.ts](../src/ledger.ts)、[ledger-decider.ts](../src/ledger-decider.ts)、[ledger-store.ts](../src/ledger-store.ts) 与 [ledger-reads.ts](../src/ledger-reads.ts)。
 
 记录仓端口 `ToolLedgerStore<B>` 只有两个操作。`read(domain)` 返回一个事务域的全部记录和当前修订号，或 `unavailable`；返回 `complete` 表示快照包含该域此前每一次已确认的提交。`commit({ domain, expected, revision, writes })` 在 `expected` 等于当前修订号时原子写入全部 `writes` 并把修订号改为 `revision`，否则回答 `conflict`；提交结果不确定时回答 `unknown`，记录仓不可用时回答 `unavailable`。记录仓不解释记录内容，也不做业务判断。`durability` 声明 `none` 或 `durable`；`none` 只能出现在 `./testing`。
 
@@ -307,3 +307,19 @@ runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通�
 [ledger.ts](../src/ledger.ts) 拥有边界、当前资格、外部端口调用和多 operation 排除围栏。[ledger-settlement.ts](../src/ledger-settlement.ts) 核原 final、单赢家并生成终局及全部后继任务的同提交写集。[ledger-environment-release.ts](../src/ledger-environment-release.ts) 拥有全过程保管闭包、按 preparation 唯一的 canonical 计划和观察确认。外部 retain 在 CAS 之外只按原身份调用，CAS 重判不能沿用过期闭包。
 
 [driver-settlement.ts](../src/driver-settlement.ts) 从原 task.basis 读取 SavedFact，再重送原 preserveResult。[driver.ts](../src/driver.ts) 在成功后重读 queue 待办，确认已关闭才报告进展和 wake。未确认 ACK 不阻止此路径。正常 completed 关闭 reader，异常终局保留后续原 process 和 blocked facts 责任。完整必要行为归 [SPEC 第 26 条](../SPEC.md#26-原结果收场与释放责任)，跨域顺序见 [flows](flows.md#原结果与释放)。
+
+
+### 内容读取的责任
+
+[ledger-content.ts](../src/ledger-content.ts) 消费已保管的完整 ResultRecord。attachments、content ref、卸载原文与摘要 ref 建立完整五字段关联。原 raw.content 的完整 custody 描述也可建立关联。关联成立后，storage/key 与已知原件相同的描述均选择 `read-raw-content` 完整操作，未登记描述不能借同地址关联。不同地址不因相同摘要被标成原件。guard 在一个可信权限事实判定点核主体、租户、call 范围和两项基础资格；普通附件仍选 `read-content`。读取前固定输入，读取后重读结果关联并复核完整操作资格，最后交回独立 bytes 副本。末次允许后不再等待外部读取，资格事实的一致性归 guard；无法证明时返回 unavailable。
+
+字节提供者拥有完整源长度/摘要、byte cursor 的身份及位置绑定。账本核响应身份、offset、范围、页预算和 EOF，不能凭一页自行证明完整源摘要。内存提供者在 [testing.ts](../src/testing.ts) 复用既有 custody double，preserve/inspect 后登记精确 tenant/call/Attachment 与字节，不保存结果关联或资格。正式 provider 仍须兑现其证明责任；内存组合声明 `durability:none`。
+
+## Tools 结果取回
+
+[tools.ts](../src/tools.ts) 拥有工厂构造与窄读依赖。[tools-commands.ts](../src/tools-commands.ts) 使用真实 defineToolOperation、defineCommandTool、作者 codec 及输出校验。[tools-protocol.ts](../src/tools-protocol.ts) 的命令描述同源生成参数声明、字段解释、校验和帮助，并实现无状态引用与 cursor 包装。[tools-present.ts](../src/tools-present.ts) 仅经普通结果/内容读口生成模型表示，保留源可见 ref 与附件，拒绝不可调用的完整参数。[tools-results.ts](../src/tools-results.ts) 拥有格式、固定错误、作者输出 codec 和 JSON 大小边界。[tools-reply.ts](../src/tools-reply.ts) 收齐固定版本的新元结果，逐块累计预算并检测无进展与元数据变化。
+
+原结果版本、当前资格、附件关联和原件动作分类仍归账本及其提供者。Tools 不持有第二份结果账本，不取得原工具执行、控制、释放或 raw 口。模型只接收 ToolResult 的 P14 投影和真实 help。调用方拥有 invoke 路由、新消费位置与受信 readReply，不能把内部 ResultPage.next 交给模型代替元工具协议。精确行为归 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。
+
+
+[模型闭环装配](../tests/tools-model-values.ts) 在测试中分开两个调用方。受信宿主运行实际源 executor、登记 Tools 作者、经真实 runtime invoke，并用 readReply 收齐元回应后投影。PagingModel 的构造和方法只接收 P14 内容块，没有 runtime、存储、ResultPage 或私有协议 codec。故障客户端对公开凭据的损坏测试独立于 PagingModel。入站 guard 与作者 codec 使用相同的有限参数预算，两层检查均保留。

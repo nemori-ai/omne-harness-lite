@@ -370,7 +370,7 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 
 | 编号 | 决定 | 归属包 |
 | --- | --- | --- |
-| G1 | 账本工厂 `createToolLedger(store, guards, clock, configuration, settlementPorts)` 返回 `{ commands, reads, admissions, queues, facts }`。第五参数 `ToolLedgerSettlementPorts` 显式提供结果保管 `custody.retainResult` 与原环境释放核验 `releaseInspection.inspectRelease`；`facts` 供恢复消费者按精确 evidence 读取本域已存原事实。构造类型与使用范围由 `tool` 拥有。`queues` 只承载队列域的对账（`reconcile`，回复与读法见 tool 包第 22 条（`tool/SPEC.md#22-跨域提交与修复`）），由同一个账本实现提供，不经 `ToolCommands`。记录仓端口 `ToolLedgerStore` 按事务域读取一组记录，再按修订号原子提交一组写入 | `tool` 根入口 |
+| G1 | 账本工厂 `createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts }`。第五参数 `ToolLedgerPorts` 显式提供结果保管 `custody.retainResult`、原环境释放核验 `releaseInspection.inspectRelease` 与显式字节读口 `content` 或 `null`；`facts` 供恢复消费者按精确 evidence 读取本域已存原事实。构造类型与使用范围由 `tool` 拥有。`queues` 只承载队列域的对账（`reconcile`，回复与读法见 tool 包第 22 条（`tool/SPEC.md#22-跨域提交与修复`）），由同一个账本实现提供，不经 `ToolCommands`。记录仓端口 `ToolLedgerStore` 按事务域读取一组记录，再按修订号原子提交一组写入 | `tool` 根入口 |
 | G2 | `createIndependentToolScope(input)` 构造独立执行作用域：本地接收者、显式上限、内存等待历史，按 [P11](#p11-作者输出与等待原语) 只承诺 `local` 回执。输入类型是 `IndependentToolScopeInput` | `tool` 根入口；输入类型在 `tool-contract` |
 | G3 | 具名默认结果政策只接受文本块与共享引用块，拒绝 thinking、inline 媒体与嵌套容器（[P14](#p14-附件引用与消费方交付)）。其身份是 `defaultResultPolicyAdoption` | `tool-contract` 根入口 |
 | G4 | 宿主时钟适配器：同进程单调时钟加进程 epoch，跨进程比较返回 unknown（[P07](#p07-计时控制与检查点)） | `tool-host-local` 根入口 |

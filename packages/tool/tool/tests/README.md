@@ -63,3 +63,19 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 [ledger-settlement.spec.ts](ledger-settlement.spec.ts) 验证第 26 条的原 final 资格、主动 retain、唯一原结果、call/queue 未知与恢复、可信结束及计时未知。其中 canonical plan 在途提交被否定答案排除的用例，核对同提交各 operation 的否定围栏，不以主操作检查代替 canonical plan 身份检查。[ledger-environment-release.spec.ts](ledger-environment-release.spec.ts) 验证 canonical 计划、全部历史闭包、原环境 inspectRelease、Mutation 输入固定及受限 blocked facts。[exclusion-interleavings.spec.ts](exclusion-interleavings.spec.ts) 验证交付释放与受理的否定答案交错、修订号比较和围栏清除。
 
 [driver-settlement.spec.ts](driver-settlement.spec.ts) 使用真实 runtime 与非耐久 ledger/custody/executor，观察原作者计数、原结果和下一同 slot 调用。它覆盖 ACK 离线仍收场、正常 reader 关闭及 ACK 恢复、异常 late process/end/throw/失联、取消不误标源失败，以及成功后仍有 queue 待办时具名 blocked 并停止热循环。内存组合不证明生产耐久、完整环境 release 驱动或跨进程。
+
+
+## 固定结果与内容读取
+
+[content-reads.spec.ts](content-reads.spec.ts) 从真实 runtime 与 ledger 读取已保管原结果，验证完整附件关联、任意 bytes 分页、UTF-8 中间边界、空源、输入变更、IO 撤权、byte/block 游标隔离、错身份、假 EOF、原输出资格与 null provider。字节及 custody 为非耐久内存资源，不证明真实存储或生产耐久。原多页块拼接与元数据继续由 managed-reads 验证，收场与幂等仍由既有组合测试验证。
+
+
+原件字节回归保留旧版两次异步资格的失败反例。现行用例暂停末次 `read-raw-content` 判定后，分别撤销基础 raw、content 或租户关系，验证没有字节返回。测试 guard 从同一基础权限视图计算合取，不通过撤销新增标签代替真实权限变化。另核判定异常/不可用、后续页重新核权、最终允许后无外部读取、raw metadata 输入固定、summary 独立 ref 及窄读口冻结。
+
+
+地址别名回归核对两个独立判断：完整五字段建立原结果关联，已关联描述的 storage/key 决定原件资格。已登记 mediaType/bytes/digest 变体不能降权，未登记同地址变体仍拒绝关联，不同地址同 digest 的合法普通内容保持普通内容资格。提供者继续独立验证完整描述和真实字节。
+
+`tools.spec.ts` 经真实作者注册与非耐久内存 runtime 检查 help/read_result、多模态 ref、固定引用、参数预算、附件 base64、原件资格拒绝、元回应再次分页及精确 JSON 预算。收取端用 readReply，完整回应收齐后才投影。坏 provider 用例单独检查无进展、元数据变化和读取上限。`tools.spec-d.ts` 固定公开工厂签名与窄读依赖。它们不证明真实模型、生产存储或 Cordis 组合。
+
+
+`tools-model-loop.spec.ts` 经 `tools-model-values.ts` 建立受信宿主和只接收投影及实际 help 的 PagingModel。真实源 executor 执行一次，模型读取至少三页原内容，每次新 meta 调用使用新消费位置与引用。宿主断言固定源结果及各 meta 结果的归属，并先用 readReply 收齐再次分页的回应。失败原终态、内容结束、附件跨 UTF-8 字节页、源仓读取失败、错误公开凭据、换租户、后续撤权及原件同地址描述变体各有组合断言。交付解除后重建适配器仍能使用先前可见引用。测试不依赖时间型 TTL，也不声称真实模型、生产存储、Cordis 或跨进程支持。

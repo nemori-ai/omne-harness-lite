@@ -21,6 +21,7 @@ it('root entry exports the independent execution functions, the ledger, the runt
     'createToolFactAcknowledgementGuard',
     'createToolLedger',
     'createToolRuntime',
+    'createTools',
     'executeTool',
     'isTenantShape',
     'recordKey',
@@ -33,6 +34,7 @@ it('testing entry exports the non-durable store and dependency assembly', async 
   const testing = await import('@omne-harness/tool/testing')
   expect(Object.keys(testing).sort()).toEqual([
     'TEST_SOURCE_OWNER',
+    'createMemoryToolContent',
     'createMemoryToolLedgerStore',
     'createTestInvocationSource',
     'createTestToolDependencies',
