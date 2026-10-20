@@ -1,3 +1,4 @@
+import { createFirstDispatchDriver, snapshot } from './driver.ts'
 import type {
   ModelCommands,
   ModelSendBoundary,
@@ -98,30 +99,56 @@ function unavailable(operation: string, stage: string): Reply<never> {
     },
   })
 }
-/** Validates and constructs a runtime whose managed operations return explicit unavailable failures. */
+/** Constructs the admission facade and the first-dispatch driver. */
 export function createModelRuntime<P>(
   dependencies: ModelDependencies<P>,
   configuration: ModelConfiguration,
 ): ModelRuntimeProvider<P> {
   validate(dependencies, configuration)
+  const { commands, instances } = dependencies
+  async function wake(input: Parameters<typeof instances.schedule>[0]): Promise<void> {
+    try {
+      await instances.schedule(input)
+    } catch {
+      /* Committed work remains pending for recovery. */
+    }
+  }
+  const reserved = (operation: string) =>
+    operation.startsWith('mop_--')
+      ? Promise.resolve({
+          failure: { kind: 'invalid', field: 'operation', reason: 'reserved' },
+        } as const)
+      : null
   return {
     runtime: {
       calls: {
-        admit: () => unavailable('calls.admit', '1.3'),
-        inspect: () => unavailable('calls.inspect', '1.3'),
-        dispatches: () => unavailable('calls.dispatches', '1.3'),
-        cancel: () => unavailable('calls.cancel', '5.2'),
+        admit: async original => {
+          const input = snapshot(original)
+          const result = await commands.admit(input)
+          if ('ok' in result) await wake({ tenant: input.tenant, call: input.call })
+          return result
+        },
+        inspect: input => commands.recall(snapshot(input)),
+        dispatches: input => commands.dispatches(snapshot(input)),
+        cancel: async original => {
+          const input = snapshot(original)
+          const result = await commands.control(input)
+          if ('ok' in result) await wake({ tenant: input.tenant, call: input.call })
+          return result
+        },
       },
       consumption: {
-        beginRead: () => unavailable('consumption.beginRead', '1.7'),
+        beginRead: input =>
+          reserved(input.operation) ?? unavailable('consumption.beginRead', '1.7'),
         readNext: () => unavailable('consumption.readNext', '1.7'),
         closeRead: () => unavailable('consumption.closeRead', '1.7'),
-        acknowledge: () => unavailable('consumption.acknowledge', '1.7'),
+        acknowledge: input =>
+          reserved(input.operation) ?? unavailable('consumption.acknowledge', '1.7'),
       },
       instances: { connect: () => unavailable('instances.connect', '3.5') },
     },
     recover: () => unavailable('recover', '5.4'),
     quiesce: () => unavailable('quiesce', '5.5'),
-    driver: { drive: () => unavailable('driver.drive', '5.3') },
+    driver: createFirstDispatchDriver(commands),
   }
 }

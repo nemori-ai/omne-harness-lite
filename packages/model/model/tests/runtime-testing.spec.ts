@@ -99,7 +99,7 @@ async function prepared(
     },
   }
 }
-it('constructs the real factory without touching dependencies and exposes twelve explicit unavailable operations', async () => {
+it('constructs the real factory without touching dependencies and keeps unsupported operations explicitly unavailable', async () => {
   const f = assembled()
   let invoked = 0
   function counted<T extends object>(port: T): T {
@@ -139,34 +139,20 @@ it('constructs the real factory without touching dependencies and exposes twelve
   }
   function invoke(subject: typeof provider) {
     return Promise.all([
-      subject.runtime.calls.admit(unread(f.admit)),
-      subject.runtime.calls.inspect(unread({ ...f.admit, admission: f.admit.operation })),
-      subject.runtime.calls.dispatches(unread(f.admit)),
-      subject.runtime.calls.cancel(unread(f.admit)),
-      subject.runtime.consumption.beginRead(unread({ ...f.admit, result })),
+      subject.runtime.consumption.beginRead({ ...f.admit, result }),
       subject.runtime.consumption.readNext(unread({ ...f.admit, read, after: '1' })),
       subject.runtime.consumption.closeRead(unread({ ...f.admit, read })),
-      subject.runtime.consumption.acknowledge(
-        unread({
-          ...f.admit,
-          result,
-          evidence: { kind: 'processed', completion: proof('test') },
-        }),
-      ),
+      subject.runtime.consumption.acknowledge({
+        ...f.admit,
+        result,
+        evidence: { kind: 'processed', completion: proof('test') },
+      }),
       subject.runtime.instances.connect(unread(f.admit)),
       subject.recover(unread(f.admit)),
       subject.quiesce(),
-      subject.driver.drive(
-        unread({ ...f.admit, instance: instance(), continuity: proof('test') }),
-        new AbortController().signal,
-      ),
     ])
   }
   const expected = [
-    ['calls.admit', '1.3'],
-    ['calls.inspect', '1.3'],
-    ['calls.dispatches', '1.3'],
-    ['calls.cancel', '5.2'],
     ['consumption.beginRead', '1.7'],
     ['consumption.readNext', '1.7'],
     ['consumption.closeRead', '1.7'],
@@ -174,7 +160,6 @@ it('constructs the real factory without touching dependencies and exposes twelve
     ['instances.connect', '3.5'],
     ['recover', '5.4'],
     ['quiesce', '5.5'],
-    ['driver.drive', '5.3'],
   ]
   const other = createModelRuntime(dependencies, configuration)
   const batches = await Promise.all([invoke(provider), invoke(provider), invoke(other)])

@@ -3,7 +3,13 @@
 // custodian snapshot. Any failed assertion exits non-zero and fails the closure report.
 import assert from 'node:assert/strict'
 import { deliver, executeModel, judgePresence, judgeResolution } from '@omne-harness/model'
-import { MODEL_SEND, decodeCredentialId, decodeModelCallId } from '@omne-harness/model-contract'
+import {
+  MODEL_SEND,
+  decodeCredentialId,
+  decodeModelCallId,
+  decodeModelOperationId,
+  decodeModelInstanceId,
+} from '@omne-harness/model-contract'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 
@@ -124,7 +130,7 @@ const adoption = name => ({
   owner: 'installed-consumer',
   name,
   revision: '1',
-  digest: `digest-${name}`,
+  digest: 'a'.repeat(64),
 })
 const request = {
   profile: adoption('profile'),
@@ -170,3 +176,106 @@ assert.deepEqual(scripted.counts(), {
   closeMaterialized: 1,
 })
 console.log('scenario ok: standalone executeModel sent once and closed both resources')
+
+function decoded(outcome) {
+  assert.ok('ok' in outcome, JSON.stringify(outcome))
+  return outcome.ok
+}
+const evidence = {
+  owner: 'installed',
+  record: decodedCall.ok,
+  revision: '1',
+  digest: 'a'.repeat(64),
+}
+const principal = { prove: () => true }
+const runtimeDependencies = testing.createTestModelDependencies({
+  owners: [{ consumerOwner: 'installed', work: { kind: 'exempt' }, evidence: request.profile }],
+  evidence: [
+    {
+      adoption: request.profile,
+      continuity: input => ({ ok: input.source }),
+      materialization: () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
+      }),
+      lateFact: () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
+      }),
+      retry: () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
+      }),
+      handoff: () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
+      }),
+      receive: () => ({
+        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
+      }),
+    },
+  ],
+  authority: {
+    authorize: input =>
+      input.access.principal === principal && input.access.tenant === owner
+        ? { ok: { owner: 'identity', subject: 'installed', revision: '1' } }
+        : { failure: { kind: 'denied', action: input.action } },
+    execution: () => ({ ok: { owner: 'host', subject: 'installed', revision: '1' } }),
+  },
+  limits: {
+    scanPageCalls: 2,
+    resultPageParts: 1,
+    resultPageTargetBytes: 1024,
+    readIdleMs: 1000,
+    capacity: { bytes: '1000000', blocks: '1000', attachmentBytes: '1000000' },
+  },
+  start: '2026-10-19T00:00:00Z',
+  maxWaiters: 2,
+  maxQueued: 10,
+  sends: [],
+})
+const provider = createModelRuntime(runtimeDependencies.dependencies, {
+  outputBatchBytes: 1024,
+  outputBatchDelayMs: 0,
+  observerBufferBytes: 1024,
+  readIdleMs: 1000,
+  resultPageTargetBytes: 128,
+  retryBackoffMs: 0,
+  cleanupRetryMs: 0,
+})
+const admission = {
+  tenant: owner,
+  principal,
+  call: decodedCall.ok,
+  operation: decoded(decodeModelOperationId('mop_installed-admit')),
+  request,
+  consumer: { owner: 'installed', work: 'work', position: 'position', purpose: 'test' },
+  capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
+}
+decoded(await provider.runtime.calls.admit(admission))
+const drive = {
+  ...admission,
+  operation: decoded(decodeModelOperationId('mop_installed-claim')),
+  instance: decoded(decodeModelInstanceId('minst_installed')),
+  continuity: evidence,
+}
+decoded(await provider.driver.drive(drive, new AbortController().signal))
+decoded(await provider.driver.drive(drive, new AbortController().signal))
+const dispatches = decoded(await provider.runtime.calls.dispatches(admission))
+assert.equal(dispatches.length, 1)
+assert.equal(dispatches[0].send, 'prepared')
+assert.equal(dispatches[0].materialization, null)
+assert.equal(
+  decoded(await provider.runtime.calls.inspect({ ...admission, admission: admission.operation }))
+    .kind,
+  'found',
+)
+assert.equal(
+  (
+    await provider.runtime.calls.inspect({
+      ...admission,
+      tenant: stranger,
+      admission: admission.operation,
+    })
+  ).failure.kind,
+  'denied',
+)
+console.log(
+  'scenario ok: installed runtime admitted, recalled and prepared exactly one unsent dispatch',
+)

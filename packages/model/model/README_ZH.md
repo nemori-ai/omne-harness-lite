@@ -4,13 +4,13 @@
 
 ## 职责与状态
 
-本成员已有独立执行、凭据判定、真实运行工厂构造壳和独立内存测试入口。本地凭据保管归 [model-host-local](../model-host-local/README_ZH.md)，领域协议归 [model-contract](../model-contract/README_ZH.md)。
+本成员已有独立执行、凭据判定、受理及首次分派运行实现和独立内存测试入口。本地凭据保管归 [model-host-local](../model-host-local/README_ZH.md)，领域协议归 [model-contract](../model-contract/README_ZH.md)。
 
 | 能力或入口 | 当前支持 |
 | --- | --- |
 | `executeModel` | 经显式传输执行一次，覆盖取消及资源关闭 |
 | 凭据判定及 `deliver` | 凭据判定为纯函数，`deliver` 委托传入的 resolver |
-| `createModelRuntime` | 仅构造和校验，十二个托管操作明确返回 unavailable |
+| `createModelRuntime` | 受理、查询、分派记录、取消意图及首次 prepared 分派；其他托管操作仍 unavailable |
 | `@omne-harness/model/testing` | 内存 Commands 与五个可控依赖端口 |
 | 耐久 Commands 及生产托管执行 | 未实现 |
 | Cordis 运行宿主及厂商执行 | 本成员未实现 |
@@ -34,6 +34,8 @@
 ## 配置与运行
 
 构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，包导出根入口和独立 `./testing`，没有 `./cordis` 与 `./execute`。`pnpm --filter @omne-harness/model run install-closure` 对本成员做打包、隔离安装、入口解析与场景运行，并以 `--out` 写出报告；运行方式与验证范围见[测试说明](tests/README.md#安装闭包)，运行结果不在本页记录。包不自动安装所有厂商或词表。
+
+受控宿主以稳定 claim 与可信 continuity 调用 `provider.driver.drive`，只形成首次 prepared 分派，不发送。未知 prepare 在本 provider 实例内保留原输入。取消只提交意图及实际传播状态。生产调度、发送、结果消费与跨进程恢复尚未实现。
 
 ## 验证
 
