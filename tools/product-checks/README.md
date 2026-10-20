@@ -34,6 +34,7 @@ The CLI exits 1 on violations and prints their rule, source path and line. A suc
 Test paths, exact declared testing entry files, and named members' direct `acceptance/` directories may import public testing entries.
 A member requires a parsed object manifest with a nonempty string `name`.
 Missing or invalid manifests grant no acceptance exemption.
+
 Product paths such as `src/acceptance/` and names such as `acceptance-other/` remain checked.
 The default `RULES` has no manifest facts and exempts only test paths.
 Other rules retain their own path classification.

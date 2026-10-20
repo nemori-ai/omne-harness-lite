@@ -102,7 +102,7 @@ const started = /* wall-clock: operation-timing -- measure local lock wait */ Da
 `no-testing-import` 现在解析说明符，静态/侧效应 import、重导出、import-type、字面 import()/require() 与解码拼写都检查，
 注释/字符串示例不算导入；测试路径豁免保持。包自己声明的 `./testing` 入口文件（`exports["./testing"]` 为字符串，或为对象时取 `source`，缺 `source` 时仅取指向 `.ts` 源的 `import`）也豁免，因为它本身只给测试；只豁免这一个文件，同包其他文件（含入口 import 的辅助文件）仍查。入口集合按扫描根从该根下的 package.json 读出，无法解析的 package.json 报出而不是当作没有入口。`rulesForRoot(root)` 也按同一扫描根的合法具名成员清单豁免成员直接 `acceptance/` 目录，含场景与 fixtures。
 成员清单必须解析为对象，且 `name` 是非空字符串。缺少清单、解析失败或无有效成员对象的路径不取得此豁免。
-`src/acceptance/`、`acceptance-other/` 及相邻成员路径仍检查。默认 `RULES` 没有扫描根事实，仍只豁免测试路径。
+`src/acceptance/`、`acceptance-other/` 及没有自身合法成员清单的相邻路径仍检查。默认 `RULES` 没有扫描根事实，仍只豁免测试路径。
 此分类只用于 `no-testing-import`，不改变其他规则。计算说明符不能由此规则确定是否指向 testing；十五纯模块另由 core-pure-imports 拒绝非字面说明符。
 
 当前批准的精确 Schema runtime 子入口是 `@omne-harness/content-blocks/schema-runtime`；消费者必须已有 content-blocks 依赖。
