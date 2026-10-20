@@ -59,6 +59,10 @@ Git任务开工前核对执行区唯一正式binding、直接目标分支及工�
 
 执行者在自己的树工作，提供候选及事实；正文单写者集成Issue共享摘要，指定调度者维护Project阶段。二者可以兼任；分离时正文写者向调度者交接已读回的事实及阶段更新建议，不因此获得Stage写权。关键进展、依据变化、阻塞、可审阅候选、暂停／接续及决定发生时更新所需事实，不按每次工具调用上传日志。阶段变化依据[Stage含义](delivery.md#2-卡片与阶段)，保留尚未满足的集成或接受条件。
 
+Claude Code 云端会话不能直接修改 Project Stage：平台代理拦截 GraphQL 与 `orgs/` 路径。云端的调度者派发 `github-gate` 上的 `delivery-stage`：`gh workflow run delivery-stage.yml --ref github-gate -f issue=<卡号> -f stage=<Stage>`。该流程只接受 `publish` environment 的 reviewer 触发，改为 In progress、Accepted 或 Cancelled 前核对卡上的派发或决定评论，不满足时失败、不写入。派发后用 `gh run list --workflow delivery-stage.yml --limit 1` 找到这次运行，用 `gh run view <运行号>` 读结论；运行在 job summary 中写出读回的 Stage。云端会话不能直接读 Project，所以 Project 对账以这份读回为准，并注明运行号。云端的 `start` 自动经 `delivery-facts` 取得派发资格与 Project 事实，条件见[集成工具说明](../../tools/dev-flow/src/integration/README.md)。
+
+本地会话直接修改 Stage 并运行 `start`，不经过这两个流程。「Stage 只能由有资格的人修改」只在云端路径上由流程强制，本地按本节约定执行；`delivery-stage` 也不核对触发者是不是这张卡的调度者。
+
 执行者在开工和成果交回时也更新事实。每次注明当前revision/attempt、发生的变化、成果或证据、尚缺条件及下一责任。正文只保留当前摘要，旧attempt和逐轮过程通过评论或技术回执定位。Project对账注明所核Stage及时点；评论、正文或Project写入失败时分别报告未持久的部分，不声称全部已更新。
 
 范围或规范变动时先复核影响。仍可独立推进的部分继续，依赖新决定的部分保留问题；不能靠降低要求或删条件报告完成。成果按既有授权及时保存到Git远端，Issue只保留恢复定位及简短交接。调查、临时测量和单次验证的原始输出按保存边界处理，不整目录提交tmp。
@@ -95,4 +99,4 @@ binding放在“当前执行与交接”，派发后替换未派发的计划文�
 
 完成 track 后已接受的结果仍可能随所在轨道逐层提升，被后续完整 RI 携带到上游与 main。轨道 owner 在提升 PR 的说明中列出这些卡及其在上一层的条件。有权 owner 对每个历史 identity/revision/attempt 与当前输入分别重核，历史 tuple 和 taskBase 不被新修订覆盖。当前 attempt 仍唯一，不因历史集合变成多执行队列。
 
-Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。本工具只读平台。
+Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。本工具只读平台，唯一的例外是云端会话开工时派发 `delivery-facts`。

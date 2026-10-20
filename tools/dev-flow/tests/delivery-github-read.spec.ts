@@ -1,8 +1,11 @@
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { collectDelivery } from '../src/delivery/github-read.ts'
+import { collectDelivery, GhReadError, runGhRead } from '../src/delivery/github-read.ts'
 import type { GhRead } from '../src/delivery/github-read.ts'
 import { collectAdmission } from '../src/delivery/admission.ts'
-import { parseCapture, parseConfig } from '../src/delivery/protocol.ts'
+import { InputError, parseCapture, parseConfig } from '../src/delivery/protocol.ts'
 const config = parseConfig({
   schemaVersion: 2,
   kind: 'github-delivery-config',
@@ -51,16 +54,21 @@ function project(stageField = 'status-physical-id'): unknown {
     },
   }
 }
+/** What `gh api` leaves on stdout when GitHub answers that an Issue has no parent. */
+const NO_PARENT = {
+  message: 'No parent issue found',
+  documentation_url: 'https://docs.github.com/rest/issues/sub-issues#get-parent-issue',
+  status: '404',
+}
+const isParentRead = (argv: readonly string[]) => argv.at(-1)?.endsWith('/parent') === true
 function backend(calls: string[][]): GhRead {
   return (argv, timeoutMs) => {
     calls.push([...argv])
     expect(timeoutMs).toBeGreaterThan(0)
     expect(timeoutMs).toBeLessThanOrEqual(15_000)
-    if (argv[1] === 'graphql')
-      return argv.some(v => v.includes('ProjectV2'))
-        ? project()
-        : { data: { node: { id: 'issue-1', parent: null } } }
+    if (argv[1] === 'graphql') return project()
     const path = argv.at(-1) ?? ''
+    if (path === 'repos/owner/repo/issues/1/parent') throw new GhReadError(NO_PARENT)
     if (path.includes('/comments?') || path.includes('/dependencies/blocked_by?')) return []
     if (path.includes('/issues?'))
       return [rawIssue, { ...rawIssue, number: 2, pull_request: { url: 'ignore PR' } }]
@@ -76,6 +84,9 @@ describe('bounded read-only GitHub capture', () => {
     expect(result.issues[0]?.relationsComplete).toBe(true)
     expect(result.collection.issues).toBe('complete')
     expect(result.collection.project).toBe('complete')
+    expect(calls.filter(isParentRead).map(call => call.at(-1))).toEqual([
+      'repos/owner/repo/issues/1/parent',
+    ])
     for (const call of calls) {
       expect(call[0]).toBe('api')
       if (call[1] === 'graphql')
@@ -114,7 +125,7 @@ describe('bounded read-only GitHub capture', () => {
       if (
         argv.at(-1)?.includes('/comments?') ||
         argv.at(-1)?.includes('/dependencies/blocked_by?') ||
-        argv.some(v => v.includes('parent{'))
+        isParentRead(argv)
       )
         throw new Error('unavailable')
       return read(argv, timeout)
@@ -156,13 +167,6 @@ function admissionBackend() {
     if (/\/issues\?/.test(path) || query.includes(' items('))
       throw new Error('Forbidden repository enumeration')
     if (argv[1] === 'graphql') {
-      if (query.includes('parent{')) {
-        const number = Number(id?.replace('issue-', '')),
-          parent = parents.get(number)
-        return {
-          data: { node: { id, parent: parent === undefined ? null : { url: issueUrl(parent) } } },
-        }
-      }
       if (query.includes('projectItems('))
         return {
           data: {
@@ -212,6 +216,11 @@ function admissionBackend() {
     }
     if (suffix?.startsWith('/dependencies/blocked_by?'))
       return (blockedBy.get(number) ?? []).map(n => ({ html_url: issueUrl(n) }))
+    if (suffix === '/parent') {
+      const parent = parents.get(number)
+      if (parent === undefined) throw new GhReadError(NO_PARENT)
+      return { ...rawIssue, number: parent, html_url: issueUrl(parent) }
+    }
     throw new Error('Unexpected endpoint')
   }
   function add(number: number, body = 'ordinary related Issue') {
@@ -258,7 +267,7 @@ describe('scoped admission capture', () => {
       (argv, timeout) => {
         if (
           argv.at(-1)?.includes('/issues/9/dependencies/') ||
-          (argv.includes('id=issue-9') && argv.some(arg => arg.includes('parent{')))
+          argv.at(-1) === 'repos/owner/repo/issues/9/parent'
         )
           throw new Error('Unrelated authority relations must not be read')
         return f.read(argv, timeout)
@@ -522,7 +531,7 @@ it.each(['comments', 'dependencies', 'parent'])(
         if (
           (failure === 'comments' && path.includes('/comments?')) ||
           (failure === 'dependencies' && path.includes('/dependencies/')) ||
-          (failure === 'parent' && argv.some(arg => arg.includes('parent{')))
+          (failure === 'parent' && isParentRead(argv))
         )
           throw new Error('private API detail')
         return f.read(argv, timeout)
@@ -530,3 +539,177 @@ it.each(['comments', 'dependencies', 'parent'])(
     ).toThrow('API output omitted')
   },
 )
+
+/** Parent reads whose outcome is not a stated parent or a stated absence. */
+const SECRET = 'secret-parent-response'
+const unknownParent: [string, () => unknown][] = [
+  ['a 200 Issue without html_url', () => ({ number: 7, url: SECRET })],
+  ['a 200 Issue whose html_url is not a string', () => ({ html_url: null, body: SECRET })],
+  ['a 200 response that is not an object', () => [SECRET]],
+  [
+    'a 404 Not Found',
+    () => {
+      throw new GhReadError({ ...NO_PARENT, message: 'Not Found', detail: SECRET })
+    },
+  ],
+  [
+    'a 404 whose message differs by case',
+    () => {
+      throw new GhReadError({ ...NO_PARENT, message: 'no parent issue found', detail: SECRET })
+    },
+  ],
+  [
+    'a 404 whose message has trailing space',
+    () => {
+      throw new GhReadError({ ...NO_PARENT, message: 'No parent issue found ', detail: SECRET })
+    },
+  ],
+  [
+    'the no-parent message with status 403',
+    () => {
+      throw new GhReadError({ ...NO_PARENT, status: '403', detail: SECRET })
+    },
+  ],
+  [
+    'the no-parent message without a status',
+    () => {
+      throw new GhReadError({ message: NO_PARENT.message, detail: SECRET })
+    },
+  ],
+  [
+    'an error response that is not an object',
+    () => {
+      throw new GhReadError(`No parent issue found ${SECRET}`)
+    },
+  ],
+  [
+    'a read failure without a response, such as a timeout',
+    () => {
+      throw new Error(`ETIMEDOUT ${SECRET}`)
+    },
+  ],
+]
+describe('native parent read over REST', () => {
+  function delivery(parent: () => unknown) {
+    const read = backend([])
+    return collectDelivery(config, (argv, timeout) =>
+      isParentRead(argv) ? parent() : read(argv, timeout),
+    )
+  }
+  function admission(parent: () => unknown) {
+    const f = admissionBackend()
+    f.add(7)
+    return collectAdmission(config, f.scope, (argv, timeout) =>
+      argv.at(-1) === 'repos/owner/repo/issues/1/parent' ? parent() : f.read(argv, timeout),
+    )
+  }
+  it('takes the html_url of a returned parent Issue', () => {
+    const parent = () => ({ ...rawIssue, number: 7, html_url: issueUrl(7) })
+    const observed = delivery(parent).issues[0]
+    expect(observed?.parentIssue).toBe(issueUrl(7))
+    expect(observed?.relationsComplete).toBe(true)
+    const admitted = admission(parent)
+    expect(admitted.issues.find(issue => issue.number === 1)?.parentIssue).toBe(issueUrl(7))
+    expect(admitted.closure).toEqual([issueUrl(1), issueUrl(7)])
+  })
+  it('records no parent only for 404 with the exact No parent issue found message', () => {
+    const parent = () => {
+      throw new GhReadError(NO_PARENT)
+    }
+    const result = delivery(parent)
+    expect(result.issues[0]?.parentIssue).toBeNull()
+    expect(result.issues[0]?.relationsComplete).toBe(true)
+    expect(result.collection.errors.filter(error => error.includes('Parent'))).toEqual([])
+    const admitted = admission(parent)
+    expect(admitted.issues.find(issue => issue.number === 1)?.parentIssue).toBeNull()
+    expect(admitted.closure).toEqual([issueUrl(1)])
+  })
+  it.each(unknownParent)('marks relations incomplete for %s', (_, parent) => {
+    const result = delivery(parent)
+    expect(result.issues[0]?.parentIssue).toBeNull()
+    expect(result.issues[0]?.relationsComplete).toBe(false)
+    expect(result.collection.errors).toContain(
+      'Parent relation unknown for Issue 1. API output omitted.',
+    )
+    expect(JSON.stringify(result)).not.toContain(SECRET)
+  })
+  it.each(unknownParent)('refuses admission for %s', (_, parent) => {
+    let thrown: unknown
+    try {
+      admission(parent)
+    } catch (error) {
+      thrown = error
+    }
+    expect(thrown).toBeInstanceOf(InputError)
+    expect((thrown as Error).message).toBe('Admission parent relation unknown. API output omitted.')
+  })
+  it('keeps every other failed read failed when it carries a response body', () => {
+    const f = admissionBackend()
+    expect(() =>
+      collectAdmission(config, f.scope, (argv, timeout) => {
+        if (argv.at(-1)?.includes('/comments?')) throw new GhReadError(NO_PARENT)
+        return f.read(argv, timeout)
+      }),
+    ).toThrow('Admission GitHub read failed. API output omitted.')
+    const read = backend([])
+    const result = collectDelivery(config, (argv, timeout) => {
+      if (argv.at(-1)?.includes('/dependencies/blocked_by?')) throw new GhReadError([])
+      return read(argv, timeout)
+    })
+    expect(result.issues[0]?.relationsComplete).toBe(false)
+  })
+})
+
+describe('gh read process outcomes', () => {
+  // Slow: each case starts a fake gh child process.
+  function withFakeGh<T>(script: string, run: () => T): T {
+    const dir = mkdtempSync(join(tmpdir(), 'dev-flow-gh-read-'))
+    try {
+      writeFileSync(join(dir, 'gh'), `#!/usr/bin/env node\n${script}\n`)
+      chmodSync(join(dir, 'gh'), 0o755)
+      vi.stubEnv('PATH', `${dir}:${process.env.PATH}`)
+      return run()
+    } finally {
+      vi.unstubAllEnvs()
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+  function failure(script: string, timeoutMs = 10_000): unknown {
+    return withFakeGh(script, () => {
+      try {
+        runGhRead(['api', 'repos/owner/repo/issues/1/parent'], timeoutMs)
+      } catch (error) {
+        return error
+      }
+      throw new Error('gh read unexpectedly succeeded')
+    })
+  }
+  it('parses stdout of a successful read', { tags: ['slow'] }, () => {
+    expect(
+      withFakeGh(`process.stdout.write(JSON.stringify({ html_url: 'parent' }))`, () =>
+        runGhRead(['api', 'x'], 10_000),
+      ),
+    ).toEqual({ html_url: 'parent' })
+  })
+  it('carries the JSON response of a non-zero exit without exposing it', { tags: ['slow'] }, () => {
+    const error = failure(
+      `process.stdout.write(JSON.stringify(${JSON.stringify(NO_PARENT)})); process.stderr.write('gh: No parent issue found (HTTP 404)'); process.exit(1)`,
+    )
+    expect(error).toBeInstanceOf(GhReadError)
+    expect((error as GhReadError).body).toEqual(NO_PARENT)
+    expect((error as GhReadError).message).not.toContain('No parent issue found')
+  })
+  it.each([
+    ['non-JSON stdout', `process.stdout.write('gh: not json'); process.exit(1)`, 10_000],
+    ['empty stdout', `process.stderr.write('network down'); process.exit(1)`, 10_000],
+    [
+      'a timeout after JSON output',
+      `process.stdout.write(JSON.stringify(${JSON.stringify(NO_PARENT)})); setTimeout(() => {}, 30_000)`,
+      300,
+    ],
+  ])('keeps %s a plain failure', { tags: ['slow'] }, (_, script, timeoutMs) => {
+    const error = failure(script, timeoutMs)
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(GhReadError)
+  })
+})
