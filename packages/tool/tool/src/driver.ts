@@ -1,11 +1,3 @@
-// The driver of the way from an admitted call to a recorded start: it reads the
-// call's recovery view, takes the one step its phase and pending tasks ask for, and reads again,
-// until the call waits, runs, settles or a port cannot answer. Every write goes through the
-// ledger commands with an operation derived from the admission, so a repeated step after a crash
-// recalls its own receipt (P01). The start fence is the host's start authority: the driver asks
-// it before it touches the binding, so a start whose receipt was lost is never invoked twice
-// (P04). The driver decides nothing about order or slots; the queue domain does. It does decide
-// when to run a call again, because nothing else will: see `retrigger` and `awaitPlace`.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -125,17 +117,6 @@ export type ToolDriverHandle<P> = ToolDriver<P> &
     advance(input: Step<P>): Promise<DriverStop>
   }>
 
-/**
- * Builds the driver over the dependencies. Its in-memory hints include the environment values
- * prepared in this process (P03 `inspectPreparation` re-reads
- * them after a crash), the calls whose environment the provider has not decided yet (the next
- * run re-reads instead of asking again), the live executions it started (the execution-facts
- * increment reads their facts), and the calls that wait for a slot of a queue key, which it wakes
- * through the host when a call of the same key releases its slot. A binding failure whose receipt
- * is not confirmed yet stays in memory until its separate ledger marker is confirmed. This
- * memory does not survive a crash. Runs of the same call are serialized in this process. A run takes at most `policy.stepsPerRun` steps
- * (`ToolConfiguration.driverStepsPerRun`) before it yields.
- */
 export function createToolDriver<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   policy: DriverPolicy,
@@ -145,7 +126,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   // The calls whose environment the provider answered `pending` or `unknown` in this process: the
   // next run re-reads the provider's record (P03 `inspectPreparation`) instead of asking again.
   const environmentsAsked = new Set<string>()
-  const failedStarts = new Set<string>()
+  const unconfirmedBindingFailures = new Set<string>()
   const waiting = new Map<string, Map<string, Readonly<{ tenant: TenantId; call: ToolCallId }>>>()
   const runs = new Map<string, Promise<unknown>>()
   // The timers of the runs that wait out a failure, one per call. They are unreferenced, so they
@@ -425,7 +406,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     if ('failure' in write) return { kind: 'failed', failure: write.failure }
     const recorded = await commands.recordStart({ ...write.ok, invocation, outcome })
     if ('ok' in recorded && (outcome.kind === 'started' || outcome.kind === 'rejected'))
-      failedStarts.delete(callKey(step.tenant, step.call))
+      unconfirmedBindingFailures.delete(callKey(step.tenant, step.call))
     if ('ok' in recorded && outcome.kind === 'rejected') await wake(step.tenant, recovery.request)
     return after(recorded)
   }
@@ -467,7 +448,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       : blocked(`the start is unknown: ${diagnostic}; binding: ${found.ok.kind}`)
   }
 
-  /** A confirmed failure marker survives a new driver and never permits a second start. */
   const rejectFailedStart = async (
     step: Step<P>,
     recovery: ToolRecovery<B>,
@@ -491,7 +471,6 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return recordStart(step, recovery, start, { kind: 'rejected', reason, exclusion: excluded.ok })
   }
 
-  /** P04: only proved exclusion permits a first start; unknown always queries the original. */
   const fence = async (
     step: Step<P>,
     recovery: ToolRecovery<B>,
@@ -513,10 +492,10 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     if (before.ok.kind === 'unknown')
       return unknownStart(step, recovery, start, before.ok.diagnostic)
     if (failed.ok.kind === 'committed') {
-      failedStarts.delete(callKey(step.tenant, step.call))
+      unconfirmedBindingFailures.delete(callKey(step.tenant, step.call))
       return rejectFailedStart(step, recovery, start)
     }
-    const markFailed = async () =>
+    const recordBindingFailureMarker = async () =>
       after(
         await commands.recordStart({
           ...marker.ok,
@@ -527,13 +506,14 @@ export function createToolDriver<P, B extends ContentBlock, E>(
           },
         }),
       )
-    if (failedStarts.has(callKey(step.tenant, step.call))) return markFailed()
+    if (unconfirmedBindingFailures.has(callKey(step.tenant, step.call)))
+      return recordBindingFailureMarker()
     if (binding.hasLive(step))
       return blocked('the authority excludes a start with a known live execution')
     const invoked = await binding.invoke(step, recovery, start)
     if (invoked.kind === 'port-failed') return { kind: 'failed', failure: invoked.failure }
     if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw')
-      failedStarts.add(callKey(step.tenant, step.call))
+      unconfirmedBindingFailures.add(callKey(step.tenant, step.call))
     const afterStart = await authority.inspect({ ...access, start })
     if (
       'ok' in afterStart &&
@@ -541,9 +521,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     )
       return recordStart(step, recovery, start, afterStart.ok)
     if (invoked.kind === 'binding-failed' || invoked.kind === 'binding-threw') {
-      // A separate operation keeps /started available for the eventual authority outcome.
-      // Re-reading recovery on the next step supplies the revision after this marker commits.
-      return markFailed()
+      return recordBindingFailureMarker()
     }
     if ('failure' in afterStart) return { kind: 'failed', failure: afterStart.failure }
     return afterStart.ok.kind === 'unknown'

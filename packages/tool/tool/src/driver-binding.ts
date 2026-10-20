@@ -28,7 +28,6 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
   const lives = new Map<string, ToolLiveExecution<B>>()
   const callKey = (tenant: CallAccess<P>['tenant'], call: CallAccess<P>['call']) =>
     `${tenantKey(tenant)}\u0000${call}`
-  /** Starts through the binding, which stages the capsule and consumes the permit (P04). */
   const invoke = async (
     step: CallAccess<P>,
     recovery: ToolRecovery<B>,
@@ -69,7 +68,6 @@ export function createBindingInvoker<P, B extends ContentBlock, E>(
     }
   }
 
-  /** Queries the original start without treating a handle or final fact as authority acceptance. */
   const inspectBinding = async (
     step: CallAccess<P>,
     recovery: ToolRecovery<B>,

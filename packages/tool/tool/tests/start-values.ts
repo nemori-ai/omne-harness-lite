@@ -70,7 +70,6 @@ export type StartOptions = HarnessOptions &
     memory?: MemoryToolLedgerStore<Block>
     /** Wraps the memory store, to make one commit or read of the start path misbehave. */
     store?: (memory: MemoryToolLedgerStore<Block>) => ToolLedgerStore<Block>
-    /** Wraps the receipt reader to inject an unreadable or uncertain marker. */
     readsPort?: (
       base: ToolDependencies<Principal, Block, TestEnvironment>['reads'],
     ) => ToolDependencies<Principal, Block, TestEnvironment>['reads']
@@ -264,9 +263,7 @@ type LiveBinding = Extract<
   { kind: 'live-only' }
 >
 
-// The fixture admits only message-result blocks. The memory executor supports more block kinds,
-// so validate its wider result instead of asserting that its execution has the narrower type.
-function messageBlock(block: ContentBlock): Block {
+function requireMessageResultBlock(block: ContentBlock): Block {
   if (block.kind === 'text' || 'ref' in block) return block
   throw new Error('the start fixture accepts only message-result blocks')
 }
@@ -292,13 +289,13 @@ function messageFact(fact: ToolExecutionFact<ContentBlock>): ToolExecutionFact<B
     ...fact,
     result: {
       ...result,
-      content: result.content.map(messageBlock),
+      content: result.content.map(requireMessageResultBlock),
       original:
         result.original.kind === 'none'
           ? result.original
           : {
               ...result.original,
-              summary: result.original.summary.map(messageBlock),
+              summary: result.original.summary.map(requireMessageResultBlock),
             },
     },
   }
