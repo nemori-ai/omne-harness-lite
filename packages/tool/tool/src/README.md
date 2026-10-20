@@ -29,3 +29,6 @@
 
 - [facts-boundary.ts](facts-boundary.ts) 固定来源输入，验证 process/final 的可保管形状与结果政策。
 - [ledger-facts.ts](ledger-facts.ts) 拥有完整事实接收的纯决定、过程当前块与历史认回、流进度投影及精确 evidence 的原事实读取。
+
+- [fact-acknowledgements.ts](fact-acknowledgements.ts) 从同一 bindings.recover 构造来源确认守卫。
+- [ledger-fact-ack.ts](ledger-fact-ack.ts) 核原回执与 operation，并同提交记录确认和清除责任。

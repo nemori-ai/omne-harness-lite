@@ -4,6 +4,10 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   Access,
+  CallAccess,
+  DurableEvidence,
+  FactReceipt,
+  ToolStartRecord,
   ConsumerRef,
   FixedToolRequest,
   Mutation,
@@ -69,6 +73,19 @@ export interface ToolSourceGuard<P> {
   verify(input: Mutation<P> & Readonly<{ request: FixedToolRequest }>): Promise<SourceVerdict>
 }
 
+/** Verifies a source confirmation through the assembly's original recovery binding. */
+export interface ToolFactAcknowledgementGuard<P> {
+  verify(
+    input: CallAccess<P> &
+      Readonly<{
+        start: ToolStartRecord
+        source: DurableEvidence
+        receipt: FactReceipt
+        sourceReceipt: DurableEvidence
+      }>,
+  ): Promise<SourceVerdict>
+}
+
 export type GrantVerdict =
   | Readonly<{ kind: 'granted' }>
   | Readonly<{ kind: 'refused'; reason: string }>
@@ -121,6 +138,7 @@ export type ToolLedgerBudgets = Readonly<{
 export type ToolLedgerGuards<P, B extends ContentBlock> = Readonly<{
   access: ToolAccessGuard<P>
   sources: ToolSourceGuard<P>
+  factAcknowledgements: ToolFactAcknowledgementGuard<P>
   /**
    * The verifier of each accepted scope owner, by owner name. A scope whose owner has no
    * verifier here is denied at admission, as a missing grant is.

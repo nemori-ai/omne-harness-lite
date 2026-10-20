@@ -68,6 +68,23 @@ describe('18 testing dependency assembly', () => {
     expect(fresh.store.reads + fresh.store.commits).toBe(0)
   })
 
+  it('18 constructs bindings once and passes the same recovery owner to the runtime assembly', () => {
+    let constructions = 0
+    const bindings = {
+      inspect: () => Promise.resolve(succeed(request().availability)),
+      resolve: () => Promise.reject(new Error('unused')),
+      recover: () => Promise.reject(new Error('unused')),
+    }
+    const assembly = testAssembly({
+      bindingsFor: () => {
+        constructions += 1
+        return bindings
+      },
+    })
+    expect(constructions).toBe(1)
+    expect(assembly.dependencies.bindings).toBe(bindings)
+  })
+
   it('18 hands the executor to the caller resolver and keeps the original controls on that executor', async () => {
     const assembly = resolvingAssembly()
     const binding = ok(

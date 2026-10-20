@@ -11,10 +11,10 @@
 - 独立路径：`createIndependentToolScope`（G2）与 `executeTool`（G8），即契约 SPEC [P11](../tool-contract/SPEC.md#p11-作者输出与等待原语) 的独立执行。
 - 账本：账本工厂 `createToolLedger` 与记录仓端口 `ToolLedgerStore`（G1）。
 - 逻辑终局：`createToolRuntime`（G8）的 invoke、queries.lookup、queries.queryOperation、queries.readResult、commands.releaseDelivery 与 queries.account。这些调用不进入环境或执行者（第 10–16 条）。
-- 事实保管：受信 `commands.receiveFacts` 接收 process/final，`loadRecovery.streams` 与实现读口 `ledger.facts.read` 提供恢复依据（第 24 条）。
+- 事实保管：受信 `commands.receiveFacts` 接收 process/final，`recordFactAcknowledgement` 核来源确认并清除 ACK 责任，`loadRecovery.streams` 与实现读口 `ledger.facts.read` 提供恢复依据（第 24 条）。
 - 到启动为止的真实调用：受理、环境准备、FIFO 排队、启动意图、live-only 绑定启动、原围栏对账与启动记录，以及永久排除后的启动前拒绝收场（第 19–23 条）。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。
 
-尚未实现：runtime 自动事实续读、来源确认、已启动执行的收场与名额释放，以及控制、计时段开启之后的计时、等待、恢复与退出。这些操作回复具名的 `unsupported`。所以一个已启动的调用停在 `running`，它的名额一直被占用。内部机制见 [architecture](docs/architecture.md)。
+尚未实现：runtime 自动事实续读、已启动执行的收场与名额释放，以及控制、计时段开启之后的计时、等待、恢复与退出。这些操作回复具名的 `unsupported`。所以一个已启动的调用停在 `running`，它的名额一直被占用。内部机制见 [architecture](docs/architecture.md)。
 
 ## 独立执行怎样满足 P11
 
@@ -333,10 +333,16 @@ process/final 全批预判成功后，以域 revision 为条件一次提交完�
 
 process 按原 start/index 保存当前块，并保留历史事件。sequence 用 BigInt 比较，严格增大但不要求加一。相同历史 sequence 必须同值，mode 开块后固定，closed 后禁止新更新。append 只支持 text/thinking 的累计前缀，同时固定 id、kind 和 visibility。媒体、file 和 ref append 返回 unsupported，replace 支持合法完整块。过程必须对人可见。trim 的数量、原因和历史原文持续保存，不能借 trim 绕过前缀约束。readProcess/observe 仍不支持。
 
-含 wait、continued、account 或 program-scheduling 的批次整体 unsupported，零写入、零成功回执、零 ACK。源继续持有责任。当前 `recordFactAcknowledgement` 尚未实现，所以批次确认状态保持 pending。原批重投仍只认回原保管回执。
+含 wait、continued、account 或 program-scheduling 的批次整体 unsupported，零写入、零成功回执、零 ACK。源继续持有责任。原批重投只认回原保管回执。来源确认由下述 ACK 命令推进。
 
 `ledger.facts.read` 是实现包的恢复读口，输入精确 event evidence，返回具名 SavedFact。它逐次核 tenant/call 的 recover 资格，并核完整原 evidence，不按任意 record 文本读取。返回数据与存储脱离。后继收场凭 settle basis 取得完整原 final，无须源继续提供原批次。
 
 失败使用现有 ToolFailure：after 缺口或复用边界为 invalid-cursor；批次、事件、start/source 冲突为 invalid，带固定字段与原因；未知 fact basis 为 invalid。接收提交未知为 unavailable，dependency 为 ledger-store，诊断明确结果未知并要求重投原批，不伪造 operation。revision conflict 重读重判，未知提交不立即重做。端口异常脱敏。本表是本实现选择，不补写契约验证文档仍未决定的全局失败政策。
 
-验证入口为 [facts-receive.spec.ts](tests/facts-receive.spec.ts)。真实账本和内存 store 覆盖同提交、重复、冲突、未知切点、过程与重建读取。直接向契约内存源发送保管回执后，受控源停止提供批次，重建账本仍可读原 final。已确认批次的旧重投用受控存储状态验证，不宣称 ACK 命令已实现。未覆盖生产耐久、跨进程、自动续读、ACK 验真与完整收场。
+`ToolLedgerGuards.factAcknowledgements` 是必填构造依赖，返回既有 SourceVerdict，只判断来源确认。`createToolFactAcknowledgementGuard(bindings)` 与 runtime 使用同一 bindings。它恢复原 start 的绑定，经 acknowledge 重送原 receipt，再比较完整 sourceReceipt。来源与确认的 owner 无须相同。来源端口失败、抛错或返回非法 evidence 为 unavailable；只有真实合法确认与待核值不同才为 forged。诊断不暴露来源文本。
+
+`recordFactAcknowledgement` 在首次 await 前固定 receipt、sourceReceipt、operation 与访问字段，tenant 和 principal 保持原身份与凭据。当前 write 资格逐次核验。已提交的同 operation 同输入认回原 progress，异输入 conflict，不再访问来源。未提交 operation 先核本域原 start、batch 和完整 receipt；未知 batch 为 invalid（receipt.batch），伪 custody、cursor 或原件为 invalid（receipt），均不调用来源。
+
+pending 时在事务外核来源；失败保留任务。已确认的同值 sourceReceipt 不重送 ACK。随后携最初预读 revision 进入事务，保留 P01 排除围栏。确认状态、完整 operation 回执、待确认项移除、fact-ack 删除及调用 revision 同提交。新 operation 的重复确认也保存自身可查询回执。原 operation 的 FactProgress 保持历史值，不随后续 cursor 改写。本域提交未知使用真实 operation 的 commit-unknown，原 receipt 和任务仍能恢复；它不表示源 ACK 未发生。
+
+验证入口为 [facts-receive.spec.ts](tests/facts-receive.spec.ts) 与 [fact-acknowledgement.spec.ts](tests/fact-acknowledgement.spec.ts)。真实账本、内存 store 与受信恢复绑定覆盖同提交、重复、冲突、未知切点、过程、重建读取、伪确认、ACK 丢答和排除围栏。未覆盖生产耐久、跨进程、自动续读与完整收场。

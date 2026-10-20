@@ -46,6 +46,7 @@ export type {
   SourceVerdict,
   StartVerdict,
   ToolAccessGuard,
+  ToolFactAcknowledgementGuard,
   ToolInvokeAuthority,
   ToolGrantVerifier,
   ToolLedgerAction,
@@ -59,3 +60,4 @@ export type {
 export { isTenantShape } from './boundary.ts'
 export { digestOf as canonicalDigest } from './evidence.ts'
 export { createToolRuntime, toolRuntimeAdoption } from './runtime.ts'
+export { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'

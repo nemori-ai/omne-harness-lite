@@ -10,6 +10,7 @@ import type {
   Effect,
   FixedToolRequest,
   FactReceipt,
+  FactProgress,
   ProcessBlock,
   ToolExecutionFact,
   PreparationRecord,
@@ -88,6 +89,7 @@ export type OperationReceipt =
     }>
   | Readonly<{ kind: 'reject-pending'; state: ToolState }>
   | Readonly<{ kind: 'record-start'; state: ToolState }>
+  | Readonly<{ kind: 'fact-acknowledgement'; progress: FactProgress }>
 
 export type OperationRecord = Readonly<{
   tenant: TenantId

@@ -64,7 +64,8 @@ import type {
   ToolLedgerQueues,
   ToolLedgerFacts,
 } from './construction.ts'
-import { fixFactBasis, fixFactInput } from './facts-boundary.ts'
+import { fixFactAcknowledgement, fixFactBasis, fixFactInput } from './facts-boundary.ts'
+import { checkFactAcknowledgement, decideFactAcknowledgement } from './ledger-fact-ack.ts'
 import { decideReceiveFacts, readSavedFact } from './ledger-facts.ts'
 import { digestOf, nextRevision } from './evidence.ts'
 import {
@@ -989,8 +990,46 @@ export function createToolLedger<P, B extends ContentBlock>(
         unavailable('ledger-store', 'fact custody outcome is unknown; resubmit the original batch'),
       )
     },
-    recordFactAcknowledgement: input =>
-      later(input, 'write', 'recordFactAcknowledgement', 'execution facts and release'),
+    recordFactAcknowledgement: async input => {
+      const fixed = fixFactAcknowledgement(input)
+      if ('failure' in fixed) return fixed
+      const checked = judgeMutationInput<P>(input, 'write')
+      if ('failure' in checked) return checked
+      const context = checked.ok
+      const allowed = await access(context, 'write')
+      if ('failure' in allowed) return allowed
+      const command = { ...context, ...fixed.ok, inputDigest: digestOf(fixed.ok) }
+      const before = await read(callDomain(context))
+      if ('failure' in before) return before
+      const original = checkFactAcknowledgement(before.ok, command)
+      if ('failure' in original) return original
+      if (original.ok.kind === 'recalled') return succeed(original.ok.progress)
+      const batch = original.ok.batch
+      if (batch.acknowledgement.kind === 'pending') {
+        try {
+          const verdict = await guards.factAcknowledgements.verify({
+            ...context,
+            ...structuredClone({ start: batch.start, source: batch.source, ...fixed.ok }),
+          })
+          if (verdict.kind === 'forged')
+            return invalid('sourceReceipt', 'source-confirmation-mismatch')
+          if (verdict.kind !== 'trusted')
+            return unavailable(
+              'fact-acknowledgement-guard',
+              'the original source confirmation is unavailable',
+            )
+        } catch {
+          return unavailable('fact-acknowledgement-guard', thrown('fact-acknowledgement-guard'))
+        }
+      }
+      return transact(
+        callDomain(context),
+        command.operation,
+        (snapshot, mint) => decideFactAcknowledgement(snapshot, command, mint),
+        commitUnknown(command.operation),
+        before.ok.revision,
+      )
+    },
     recordScheduling: input => write(input, 'recordScheduling', 'program executors'),
     recordAccount: input => later(input, 'write', 'recordAccount', 'execution facts and release'),
     planRelease: input => later(input, 'write', 'planRelease', 'execution facts and release'),

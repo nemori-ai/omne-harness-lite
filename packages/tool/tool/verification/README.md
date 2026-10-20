@@ -6,4 +6,6 @@
 
 契约范围见 [SPEC](../SPEC.md)，导航见 [index](index.md)。
 
-[事实保管测试](../tests/facts-receive.spec.ts) 在真实 createToolLedger、原调用事务与非耐久内存 store 上验证 process/final 的同提交、原回执认回、cursor 连续性、来源换版、process 历史和未知提交重投。原 final 的重建读取不依赖源继续提供原批次。ACK 记录和 runtime 自动读取尚未交付。已确认批次重投只使用受控 store 状态，不作为 ACK 全链证据。
+[事实保管测试](../tests/facts-receive.spec.ts) 在真实 createToolLedger、原调用事务与非耐久内存 store 上验证 process/final 的同提交、原回执认回、cursor 连续性、来源换版、process 历史和未知提交重投。原 final 的重建读取不依赖源继续提供原批次。runtime 自动读取尚未交付。
+
+[来源确认测试](../tests/fact-acknowledgement.spec.ts) 使用真实启动的契约内存执行源、ledger 与配对恢复绑定，验证完整 evidence 核验、ACK 丢答、applied/dropped/delayed unknown、同提交清责任、输入突变、跨租户、历史 operation progress 和 P01 排除。源的受限 acknowledge 可在原 live 路由不再可用时继续核验。该组合仍是单进程、非耐久，不能证明自动续读或生产恢复。

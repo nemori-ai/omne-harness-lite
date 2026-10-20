@@ -8,6 +8,8 @@ import {
   type Adoption,
   type Effect,
   type FactBatch,
+  type FactReceipt,
+  type DurableEvidence,
   type ProcessBlock,
   type RawOutput,
   type ResultPolicy,
@@ -330,5 +332,37 @@ export function fixFactBasis(input: unknown) {
       : invalid('basis', 'own-data-required')
   } catch {
     return invalid('basis', 'invalid-data')
+  }
+}
+
+/** Fixes acknowledgement data before qualification or any external confirmation call. */
+export function fixFactAcknowledgement(
+  input: unknown,
+): Outcome<Readonly<{ receipt: FactReceipt; sourceReceipt: DurableEvidence }>, ToolFailure> {
+  try {
+    if (!object(input)) return invalid('input', 'type')
+    const receiptSlot = readOwnSlot(input, 'receipt')
+    const sourceSlot = readOwnSlot(input, 'sourceReceipt')
+    if (receiptSlot.kind !== 'value' || sourceSlot.kind !== 'value')
+      return invalid('receipt', 'own-data-required')
+    const data = copyData(receiptSlot.value)
+    if (
+      !closed(data, ['start', 'batch', 'cursor', 'custody']) ||
+      !text(data.batch) ||
+      !text(data.cursor)
+    )
+      return invalid('receipt', 'shape')
+    const operation = decodeToolOperationId(data.start)
+    if ('failure' in operation) return invalid('receipt.start', operation.failure.reason)
+    const custody = judgeEvidenceField(data.custody, 'receipt.custody')
+    if ('failure' in custody) return custody
+    const sourceReceipt = judgeEvidenceField(copyData(sourceSlot.value), 'sourceReceipt')
+    if ('failure' in sourceReceipt) return sourceReceipt
+    return succeed({
+      receipt: { start: operation.ok, batch: data.batch, cursor: data.cursor, custody: custody.ok },
+      sourceReceipt: sourceReceipt.ok,
+    })
+  } catch {
+    return invalid('receipt', 'unserializable-or-invalid-data')
   }
 }

@@ -7,7 +7,7 @@
 - [construction.ts](../src/construction.ts)：`ToolDependencies` 与 `ToolConfiguration`，即 `createToolRuntime` 的构造形状。`ToolDependencies` 显式注入 operationIdentities 与 sourceIssuer.resolve；宿主把 instance 传给 driver.run。`ToolConfiguration.queueCapacity` 是一个 FIFO key 下尚未释放的调用数上限；可选的 `ToolConfiguration.driverStepsPerRun` 是推进协程一次运行的步数上限，缺省 16；可选的 `ToolConfiguration.driverRetryDelayMs` 是因记录仓或端口失败结束、环境答 `pending` 或 `unknown`、或用尽步数而没有提交或认回任何一步的运行再被运行前的等待毫秒数（SPEC 第 23 条），缺省 1000，给出时是 1 到 2147483647 的整数；`ToolLedgerConfiguration` 是账本读取的配置部分（`resultPageBytes`、`ledgerCommitAttempts`、`queueCapacity`）；`ToolLedgerAdmissions` 是账本的 admit 入口，回复状态与 `recovered`，runtime 经 `ToolDependencies.admissions` 使用它；`ToolLedgerQueues` 是账本的队列维护入口，`reconcile` 为一个排队的调用对它的 FIFO key 对账（`QueueReconciliation` 是答案），推进协程经 `ToolDependencies.queues` 使用它。配置检查在 [configuration.ts](../src/configuration.ts)。
 - [ledger.ts](../src/ledger.ts)：`createToolLedger(store, guards, clock, configuration)`（签名取自 G1，返回值含 G1 记载的 `queues`）返回 `{ commands, reads, admissions, queues }`。`commands` 与 `reads` 是契约的 `ToolCommands` 与 `ToolReads`。`toolLedgerAdoption` 是它在 `unsupported` 答复中的采用。配置超出范围时抛 `TypeError`。已实现的操作与各种拒绝见 [SPEC 的受理账本](../SPEC.md#受理账本怎样满足-p01p02p08-与-p09)。
 - [ledger-store.ts](../src/ledger-store.ts)：记录仓端口 `ToolLedgerStore` 与它的事务域（`call`、`queue`、`host`）、记录、写入、读取和提交结果类型；`recordKey` 给出记录在域内的唯一键。存储提供者实现这个端口。宿主提供者把自己的耐久记录放在 `host` 域，记录类型是 `HostRecord`。
-- [ledger-guards.ts](../src/ledger-guards.ts)：`ToolLedgerGuards`，即账本的受信快照：`ToolAccessGuard`、`ToolSourceGuard`、按范围拥有者声明的授予核验器 `ToolGrantVerifier`、启动守卫 `ToolStartGuard`、文本结果工厂、结果政策与 `ToolLedgerBudgets`。
+- [ledger-guards.ts](../src/ledger-guards.ts)：`ToolLedgerGuards`，即账本的受信快照：`ToolAccessGuard`、`ToolSourceGuard`、必填来源确认守卫 `ToolFactAcknowledgementGuard`、按范围拥有者声明的授予核验器 `ToolGrantVerifier`、启动守卫 `ToolStartGuard`、文本结果工厂、结果政策与 `ToolLedgerBudgets`。
 - [boundary.ts](../src/boundary.ts) 的 `isTenantShape` 与 [evidence.ts](../src/evidence.ts) 的 `canonicalDigest`：宿主提供者在 `host` 域里用与账本相同的租户形状检查与规范摘要。
 - [runtime.ts](../src/runtime.ts)：`createToolRuntime(dependencies, configuration)`（G8）返回契约的 `ToolProvider`，并在构造时把推进协程装到 `instances.install`；`toolRuntimeAdoption` 是它在 `unsupported` 答复中的采用。配置超出范围、缺端口时抛 `TypeError`。
 
@@ -22,3 +22,5 @@
 - [ledger-guards.ts](../src/ledger-guards.ts)：`ToolInvokeAuthority` 的当前 consumer 资格与稳定主体比较，装配者将同一实例交来源及配对 guard。`createTestInvocationSource({ authority, snapshotPrincipal })` 必须显式提供资格与语义快照，无默认授权或通用主体复制。来源的 durability 为 none。控制最小门面已转发，真实 ledger 仍 unsupported。
 
 [testing-source.ts](../src/testing-source.ts)的同步 snapshotPrincipal 在来源首次 await 前固定可认证主体；bindings 返回隔离诊断副本。可选同步 beforeIssue 在 reservation 保存后注入签发故障，抛错保留原身份返回 issuance-unknown，issued 不再运行钩子。精确行为见 [实现 SPEC](../SPEC.md#普通调用重入的实现范围)。
+
+- [fact-acknowledgements.ts](../src/fact-acknowledgements.ts)：`createToolFactAcknowledgementGuard(bindings)` 配对同一 runtime 的恢复入口。来源确认的核验顺序与未知重入见 [SPEC](../SPEC.md#24-原执行事实保管p05p08)。

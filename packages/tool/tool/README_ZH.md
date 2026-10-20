@@ -18,9 +18,9 @@
 | 纯契约函数已实现 | 本包没有。契约函数在 `tool-contract` | 无 | 无 |
 | 独立执行已实现 | `createIndependentToolScope` 与 `executeTool`。作用域用本地接收者、显式上限和内存等待历史。回执只有 `local` | 根入口 | 作用域与包装器的 P11 规则，用可控的接收者与提供者替身核对。没有真实执行环境，不含 Cordis |
 | runtime 已实现的路径 | `createToolLedger` 与 `createToolRuntime`。内部账本按操作身份幂等受理。调用已知不可用的工具，或参数完整但非法，不进入环境或执行者就收场。`queries.lookup` 与 `queries.queryOperation` 查到它，`readResult` 分页读取，`releaseDelivery` 按两条交接路径解除交付，`account` 查账。真实工具的调用，经 `invoke` 分配身份、绑定来源并受理后由推进协程带到启动记录：环境准备、在调用方固定的范围与上限内按 FIFO 排队、启动守卫、启动围栏与 live-only 绑定的 `start`。绑定失败或抛错先核实原围栏，只有永久排除确认后才形成不可用终局。未知回执查询原绑定，保留启动待办与名额。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。启动前被拒绝的调用以 `unavailable` 收场，`effect` 为 `not-started`。`inspect` 转给装配传入的 Catalog 端口。本包没有 Catalog 提供者 | 根入口。`./testing` 给非耐久记录仓与显式依赖装配 | 托管路径测试消费契约源码入口，在非耐久记录仓上运行，环境、启动授权与时钟用替身。受信测试桥先保存胶囊证据、consume，再调用契约内存 executor。方法尝试、唯一 acceptance 与实际 launch 分别计数。`tool-host-local` 用真实的本地启动协调器运行本 runtime。只有一个进程。耐久性没有覆盖 |
-| 尚未交付的宿主与提供者 | runtime 自动续读与来源确认、已启动执行的收场及随后的名额释放。控制、计时段开启之后的计时（经过时间、期限、暂停）、等待、过程观察、恢复、排空与交接。耐久记录仓（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)）。真实执行环境（[#278](https://github.com/nemori-ai/omne-harness-lite/issues/278)）。宿主时钟、绑定登记表与 Catalog。Cordis 插件 | 无 | 无 |
+| 尚未交付的宿主与提供者 | runtime 自动续读、已启动执行的收场及随后的名额释放。控制、计时段开启之后的计时（经过时间、期限、暂停）、等待、过程观察、恢复、排空与交接。耐久记录仓（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)）。真实执行环境（[#278](https://github.com/nemori-ai/omne-harness-lite/issues/278)）。宿主时钟、绑定登记表与 Catalog。Cordis 插件 | 无 | 无 |
 
-到达启动记录的调用停在 `running`，一直占用名额。账本受信入口 `commands.receiveFacts` 已支持 process/final 保管。runtime 自动续读、来源确认与物理释放尚未实现。同租户、完整 consumer 与固定请求再次 `invoke` 认回原引用。原回执与当前状态分开，重入沿原调用与 start 推进。
+到达启动记录的调用停在 `running`，一直占用名额。账本受信入口 `commands.receiveFacts` 已支持 process/final 保管。账本通过 `commands.recordFactAcknowledgement` 保存来源确认。runtime 自动续读与物理释放尚未实现。同租户、完整 consumer 与固定请求再次 `invoke` 认回原引用。原回执与当前状态分开，重入沿原调用与 start 推进。
 
 绑定失败通过独立的 `/start-failed` 操作回执认回。已读到 committed 标记的协程不再调用 start，当前协程也记住尚未确认的失败并重试原标记。
 
@@ -41,7 +41,7 @@
 | `controls` | `control` 门面已按新 operation 委托；真实 ledger 仍 unsupported | `control`、`recordControl` |
 | `waits, decisions and resources` | `queries.readWait`；回应保留在受信内部端口 | `openWait`、`attachRegistration`、`attachResource`、`recordResponse`、`closeWait` |
 | `process observation and diagnostics` | `readProcess`、`readDiagnostics` | `preserveProcess`、`recordLateFact`、`recordLateResult` |
-| `execution facts and release` | `content.read`、`content.raw` | `recordFactAcknowledgement`、`preserveResult`、`recordAccount`、`planRelease`、`recordRelease`、`recordTask` |
+| `execution facts and release` | `content.read`、`content.raw` | `preserveResult`、`recordAccount`、`planRelease`、`recordRelease`、`recordTask` |
 | `recovery scan` | `recover` | `scanPending`、`claim`、`settleLost` |
 | `drain and handover` | `quiesce`、`inspectDrain`、`handover` | 无 |
 | `checkpointed executors` | 无 | `prepareResume`、`planSuspension`、`suspend` |
@@ -57,7 +57,11 @@ process 的 sequence 是非负十进制数。append 支持文本及思考文本�
 
 含 wait、continued、account 或 program-scheduling 的批次整体返回 `unsupported`，零保存，由源继续保管。final 只形成唯一 settle 待办，不写逻辑终局或释放名额。受信恢复消费者凭该待办的精确 evidence 调用 `ledger.facts.read({ principal, tenant, call, basis })`，得到包含完整 raw、result、terminal 与 effect 的 `SavedFact`。读取逐次核 recover 资格，返回值不引用可变存储。
 
-装配必须把 `write` 资格限制给受信 Tool 推进方。source 文本与 evidence 形状不能认证外部生产者。`recordFactAcknowledgement` 仍为 unsupported，pending 与 fact-ack 待办继续保留。非耐久测试覆盖直接向源确认和账本重建，不证明自动续读、确认记录、生产耐久或 resume。
+装配必须把 `write` 资格限制给受信 Tool 推进方。source 文本与 evidence 形状不能认证外部生产者。`ToolLedgerGuards.factAcknowledgements` 是必填依赖。装配用与 runtime 相同的 bindings 构造 `createToolFactAcknowledgementGuard(bindings)`。守卫经原 `bindings.recover.acknowledge` 重送完整保管回执，并比较完整确认。来源与确认的 owner 可以不同。
+
+`recordFactAcknowledgement` 先核当前 write 资格、原 operation 与完整已存回执，再核来源。确认、operation 回执、pending 移除和 fact-ack 删除在调用域同提交。来源或本域结果未知时保留原恢复责任。同 operation 重试返回原 progress，不再次调用来源。已确认回执的新 operation 同值重发也保存自身可查询回执。
+
+非耐久测试运行真实内存执行源、账本和恢复绑定，覆盖 ACK 丢答、未知提交、伪确认、输入突变和 operation 排除。不证明自动续读、生产耐久或 resume。
 
 ## 使用
 
@@ -69,7 +73,7 @@ process 的 sequence 是非负十进制数。append 支持文本及思考文本�
 
 `createTestToolDependencies<P>(input)` 每次新建记录仓、账本与契约包已有的七个内存替身，返回 `dependencies`、`store`、`ledger`、`doubles` 和 `durability: 'none'`。调用方再把 `dependencies` 传给 `createToolRuntime`。只有构造 runtime 才会装入推进协程，工厂自身不装入、不调度。
 
-调用方必须提供 `operationIdentities`、`sourceIssuer`、`guards`、`configuration`、`instances`、`catalog`、`children` 与 `bindingsFor(executor)`，没有默认身份或授权。守卫负责租户资格、来源与授予核验、结果构造及结果政策。runtime 的结果政策同样使用 `guards.policy`。宿主、目录、子调用协调与绑定解析没有同型契约内存替身，因此由调用方提供。`bindingsFor` 接收内层执行者绑定，返回不同类型的 `ToolBindings` 解析端口；调用方明确其解析和授权规则。公开入口示例见[英文说明](README.md#testing)。
+调用方必须提供 `operationIdentities`、`sourceIssuer`、`guards`、`configuration`、`instances`、`catalog`、`children` 与 `bindingsFor(executor)`，没有默认身份或授权。守卫负责租户资格、来源与授予核验、结果构造及结果政策。runtime 的结果政策同样使用 `guards.policy`。输入 guards 不含 `factAcknowledgements`，工厂从唯一一次 `bindingsFor` 返回构造该守卫，并把同一 bindings 对象交给 runtime。宿主、目录、子调用协调与绑定解析没有同型契约内存替身，因此由调用方提供。`bindingsFor` 接收内层执行者绑定，返回不同类型的 `ToolBindings` 解析端口；调用方明确其解析和授权规则。公开入口示例见[英文说明](README.md#testing)。
 
 工厂只对主体 `P` 泛型，块类型固定为 `ContentBlock`，环境类型固定为契约替身的 `MemoryEnvironment`。`doubles` 保留 executor、environment、authority、clock、decisions、resources、custody 原对象及其控制手柄。每次构造的记录与手柄状态相互隔离。工厂不创建隐含租户、主体或实例身份。账本构造异常与 `bindingsFor` 异常原样传播。
 
