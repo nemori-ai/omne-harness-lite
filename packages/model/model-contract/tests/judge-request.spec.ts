@@ -40,7 +40,12 @@ it('retains typed access, copies DAG occurrences and freezes only owned output',
       throw new Error('must stay opaque')
     },
   })
-  const input = { ...admission('judge'), principal }
+  const input = {
+    ...admission('judge'),
+    principal,
+    request: { ...request, profile: adopted, source: adopted },
+  }
+  expect(input.request.profile).toBe(input.request.source)
   const checked = must(judgeAdmit(input))
   expect(checked.principal).toBe(principal)
   expect(checked.tenant).toBe(input.tenant)
