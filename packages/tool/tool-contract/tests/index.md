@@ -34,3 +34,4 @@
 - [包索引](../index.md)。
 
 - [调用与操作引用 codec 测试](reference.spec.ts)。
+- [测试租户构造器的合法编码与非法输入](testing-tenant.spec.ts)。

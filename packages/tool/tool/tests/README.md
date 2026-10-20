@@ -36,3 +36,5 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 普通入口的回执、来源与引用验证在 [invocation-runtime.spec.ts](invocation-runtime.spec.ts)：独立调用、首个 await 前固定、未知提交认回、排除围栏、调度失败、recovered 违约、来源失败、交付操作认回、目录隔离与撤权。[invocation-source.spec.ts](invocation-source.spec.ts) 将完整来源事实与实际 ledger 配对，逐项篡改主体、租户、身份、目标、consumer、scope、payload、origin 及来源四字段并拒绝。原 P01 重送与排除测试直接进入内部 ledger，不经普通 invoke 重建旧 admission 接口。全部仅用非耐久记录仓。
 
 [invocation-runtime.spec.ts](invocation-runtime.spec.ts) 的再次释放回包丢失用例验证真实 ledger 不写入该次操作、原操作查询可靠否定，再明确释放取得原回执且不新增写入。[managed-delivery.spec.ts](managed-delivery.spec.ts) 保留首次释放、原回执重入及首次未知提交认回。
+
+普通 `instances.connect` 的边界回归使用可控目录，核对原 handle 对象透传、目录更新不替换旧观察、显式重连返回新 handle，以及退出观察不提交控制或新操作。该测试不提供生产观察提供者的 stale-instance 流结束证明。lookup 的真实账本回归核对释放前 pending、释放后当前 released，以及精确 result、delivery 和 consumer。

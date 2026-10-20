@@ -17,4 +17,4 @@
 
 `./testing` 的 createTestInvocationSource 提供配对 issuer 与 guard，保存完整绑定并拒绝主体、租户、身份、目标、consumer、scope、payload 或来源变更。createTestToolIdentities 提供测试计数器及显式计划身份。二者只供非耐久测试，不能装配成生产签发器或宿主。
 
-普通 releaseDelivery 成功返回 `released` 与生产者原耐久回执，不附本次操作引用。首次释放和已释放后的重入同形，后者不再写入。`commit-unknown` 保留本次操作引用供 queryOperation 查询。可靠否定只排除这次操作，不能推出交付仍 pending。可靠否定后可明确再次释放以取得原回执，未知或不可读时不能自动重发。lookup 认回原 admission，readProcess 未支持，ResultPage 不含 DeliveryState，它们均不提供最新交付状态。
+普通 releaseDelivery 成功返回 `released` 与生产者原耐久回执，不附本次操作引用。首次释放和已释放后的重入同形，后者不再写入。`commit-unknown` 保留本次操作引用供 queryOperation 查询。可靠否定只排除这次操作，不能推出交付仍 pending。可靠否定后可明确再次释放以取得原回执，未知或不可读时不能自动重发。lookup 按原 admission 定位，返回当前权威 ToolState，可按当前 result 及 delivery 中的交付号与 consumer 认回已有释放。invoke 的 state 是受理时回执。readProcess 未支持，ResultPage 不含 DeliveryState。

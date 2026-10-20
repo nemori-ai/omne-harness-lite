@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createToolRuntime, type ToolLedgerAction } from '@omne-harness/tool'
 import {
+  decodeToolCursor,
+  decodeToolInstanceId,
   readToolInvocationRef,
   readToolOperationRef,
+  type ToolHandle,
   type ToolInvocationRef,
   type ToolInvokeOutcome,
 } from '@omne-harness/tool-contract'
@@ -21,6 +24,7 @@ import {
   request,
   tenantA,
   tenantB,
+  type Principal,
 } from './runtime-values.ts'
 
 function accepted(outcome: ToolInvokeOutcome) {
@@ -412,7 +416,7 @@ describe('ordinary invocation and saved references', () => {
     }
   })
 
-  it('recovers a lost no-write release answer only after resolving the original operation', async () => {
+  it('retrieves an existing release after a reliable negative answer for a lost no-write attempt', async () => {
     const base = runtimeAssembly()
     const invoked = accepted(
       await base.runtime.invoke({
@@ -458,6 +462,16 @@ describe('ordinary invocation and saved references', () => {
     ).toEqual({ ok: { kind: 'not-committed' } })
     expect(releaseReplies).toEqual([{ ok: first.receipt }])
     const afterFence = base.store.commits
+    const found = ok(await runtime.queries.lookup(access(invoked.reference)))
+    if (found.kind !== 'found') throw new Error('lost the call')
+    expect(found.state).toMatchObject({ phase: 'settled', result: input.result })
+    expect(found.state.delivery).toEqual(first.receipt)
+    expect(found.state.delivery).toMatchObject({
+      delivery: input.delivery,
+      consumer: input.consumer,
+    })
+    expect(invoked.state.delivery?.kind).toBe('pending')
+    expect(base.store.commits).toBe(afterFence)
     const rebuilt = createToolRuntime(base.dependencies, base.configuration).runtime
     expect(await rebuilt.commands.releaseDelivery(input)).toEqual(first)
     expect(base.store.commits).toBe(afterFence)
@@ -516,6 +530,99 @@ describe('ordinary invocation and saved references', () => {
       }),
     ).toMatchObject({ kind: 'released' })
     expect(connects).toBe(3)
+  })
+
+  it('passes through handles, keeps the old observation and reconnects only on request', async () => {
+    const base = runtimeAssembly()
+    const invoked = accepted(
+      await base.runtime.invoke({
+        principal: principalA,
+        tenant: tenantA,
+        request: dummyRequest(),
+      }),
+    )
+    const observations: unknown[] = []
+    const exits: string[] = []
+    const handle = (name: string): ToolHandle<Principal> => ({
+      instance: ok(decodeToolInstanceId(name)),
+      observe: async function* (input) {
+        observations.push({ name, input })
+        try {
+          const snapshot = {
+            kind: 'snapshot' as const,
+            cursor: ok(decodeToolCursor(name)),
+            state: invoked.state,
+            process: [],
+            foreground: null,
+          }
+          yield snapshot
+          yield snapshot
+        } finally {
+          exits.push(name)
+        }
+      },
+    })
+    const original = handle('instance-original')
+    const replacement = handle('instance-replacement')
+    let current = original
+    let connects = 0
+    let controls = 0
+    let operations = 0
+    const runtime = createToolRuntime(
+      {
+        ...base.dependencies,
+        commands: {
+          ...base.dependencies.commands,
+          control: input => {
+            controls += 1
+            return base.dependencies.commands.control(input)
+          },
+        },
+        operationIdentities: {
+          newOperation: () => {
+            operations += 1
+            return base.dependencies.operationIdentities.newOperation()
+          },
+        },
+        instances: {
+          ...base.dependencies.instances,
+          directory: {
+            connect: () => {
+              connects += 1
+              return Promise.resolve(succeed({ kind: 'live' as const, handle: current }))
+            },
+          },
+        },
+      },
+      base.configuration,
+    ).runtime
+    const connected = ok(await runtime.instances.connect(access(invoked.reference)))
+    if (connected.kind !== 'live') throw new Error('missing original route')
+    expect(connected.handle).toBe(original)
+    const observationInput = {
+      principal: principalA,
+      tenant: tenantA,
+      after: null,
+      signal: new AbortController().signal,
+    }
+    const iterator = connected.handle.observe(observationInput)[Symbol.asyncIterator]()
+    const first = await iterator.next()
+    current = replacement
+    expect(connects).toBe(1)
+    expect(connected.handle).toBe(original)
+    expect(await iterator.next()).toEqual(first)
+    expect(observations).toEqual([{ name: 'instance-original', input: observationInput }])
+    const reconnected = ok(await runtime.instances.connect(access(invoked.reference)))
+    if (reconnected.kind !== 'live') throw new Error('missing replacement route')
+    expect(reconnected.handle).toBe(replacement)
+    expect(connects).toBe(2)
+    const commits = base.store.commits
+    await iterator.return?.()
+    expect(exits).toEqual(['instance-original'])
+    expect(observations).toHaveLength(1)
+    expect(controls).toBe(0)
+    expect(operations).toBe(0)
+    expect(base.store.commits).toBe(commits)
   })
 
   it('rechecks current principal and rejects foreign or forged tenants before reading a port', async () => {

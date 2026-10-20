@@ -350,20 +350,21 @@ sequenceDiagram
     participant P as 程序
     participant H as 程序执行方的受信宿主
     participant L as ToolChildren
-    participant T as 子ToolRuntime
+    participant T as 子Tool受信内部端口
     P->>H: 请求工具和参数
     H->>L: reserve原位置和子身份
     L-->>H: 耐久预留
-    H->>T: admit原子身份和来源
+    H->>T: ToolCommands.admit原子身份和来源
     alt 受理回执未知
-        H->>T: lookup原admission
+        H->>T: ToolReads.lookup原admission
         Note over H,L: 不换child身份 预留责任继续
     else 已受理
         H->>L: admitted原结果
     end
+    H->>T: ToolReads.result读取精确版本
     T-->>H: 正式结果版本
     H->>H: 保管结果引用和父位置
-    H->>T: releaseDelivery retained
+    H->>T: ToolCommands.releaseDelivery retained
     T-->>H: 生产侧回执
     H->>L: retain原子结果和回执
     H-->>P: 允许读取的正式结果

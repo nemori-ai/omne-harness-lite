@@ -149,8 +149,8 @@ export type ToolReleaseDeliveryOutcome =
 
 /**
  * The persistent queries of an invocation. None of them needs the live directory: a saved
- * reference keeps working while the directory is unavailable. `lookup` recalls the original
- * admission of the reference, so a lost invoke answer is found without a new call.
+ * reference keeps working while the directory is unavailable. `lookup` locates the original
+ * admission and returns the current authoritative ToolState without creating a new call.
  */
 export interface ToolInvocationQueries<P, B extends ContentBlock> {
   lookup(input: InvocationAccess<P>): Reply<ToolLookup>

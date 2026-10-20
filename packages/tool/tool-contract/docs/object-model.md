@@ -32,10 +32,13 @@
         回执未知时用返回的操作引用经 queries.queryOperation 认回，不重新发送意图
 
 控制方对原调用提交 commands.control：stop、withdraw（必须带 reach）或 background
-    成功：返回 ControlReceipt，受理不等于执行已停止
+    成功：committed 返回操作引用和 ControlReceipt，受理不等于执行已停止
         reach 不及目标调用当时的关系时（发起即后台的调用从受理起是后台关系），回执的进度为 rejected，原因 out-of-reach，调用不变
-    拒绝：控制方不在其控制责任范围内、未许可的转后台、正在 Ask 时转后台、缺失或未知的 reach，回复 ToolFailure，各情形对应的失败种类与条件由 [SPEC P07](../SPEC.md#p07-计时控制与检查点) 拥有；reach 不及目标的关系不是拒绝，而是上面的 rejected 回执
-    未知：停止结果未知时不报告已停止，控制保持 pending
+    拒绝：控制方不在其控制责任范围内、未许可的转后台、正在 Ask 时转后台、缺失或未知的 reach，rejected 返回 ToolFailure，各情形对应的失败种类与条件由 [SPEC P07](../SPEC.md#p07-计时控制与检查点) 拥有；reach 不及目标的关系不是拒绝，而是上面的 rejected 回执
+    提交未知：commit-unknown 返回原操作引用，以 queries.queryOperation 查询是否提交
+        此时不能声称已有 ControlReceipt 或其进度为 pending
+    物理进度：取得 ControlReceipt 后按 progress 判断停止进度
+        停止结果未确定时保留 progress 的 pending 或 unknown，不报告已停止
 
 读取方用 lookup、queryOperation、readWait、readDiagnostics 和 account 读原调用的事实
     成功：返回当前权威状态、操作回执或执行账

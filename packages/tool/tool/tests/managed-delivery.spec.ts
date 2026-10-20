@@ -13,6 +13,7 @@ import {
   harness,
   judged,
   ok,
+  operationId,
   principalA,
   referenceFor,
   tenantA,
@@ -47,7 +48,20 @@ describe('16 delivery release (P08)', () => {
     ['processed', processed],
   ])('16 release: the %s path releases the delivery with a Tool-side receipt', async (_, proof) => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    const invoked = await assembly.invoke(dummyRequest())
+    if (invoked.kind !== 'accepted') throw new Error('not admitted')
+    const lookupInput = {
+      principal: principalA,
+      tenant: tenantA,
+      reference: invoked.reference,
+    }
+    const before = ok(await assembly.runtime.queries.lookup(lookupInput))
+    if (before.kind !== 'found') throw new Error('lost the call')
+    expect(judged(before.state)).toMatchObject({
+      phase: 'settled',
+      result: 'v1',
+      delivery: { kind: 'pending', delivery: 'd1', consumer },
+    })
     const released = releasedReceipt(
       await assembly.runtime.commands.releaseDelivery(release(proof)),
     )
@@ -71,7 +85,9 @@ describe('16 delivery release (P08)', () => {
       }),
     )
     if (found.kind !== 'found') throw new Error('lost the call')
+    expect(judged(found.state)).toMatchObject({ phase: 'settled', result: 'v1' })
     expect(judged(found.state).delivery).toEqual(released)
+    expect(invoked.state.delivery).toEqual(before.state.delivery)
     // The full text stays readable after the release.
     const page = ok(
       await assembly.runtime.queries.readResult({
@@ -223,6 +239,23 @@ describe('16 delivery release (P08)', () => {
       kind: 'rejected',
       failure: { kind: 'invalid', field: 'evidence.kind', reason: 'value' },
     })
+  })
+
+  it('16 release: the same operation with another handoff is a conflict', async () => {
+    const assembly = harness()
+    await assembly.invoke(dummyRequest())
+    const { reference: _reference, ...payload } = release(retained)
+    const mutation = {
+      ...payload,
+      call: callId('call-1'),
+      operation: operationId('op-2'),
+    }
+    const released = ok(await assembly.ledger.commands.releaseDelivery(mutation))
+    expect(await assembly.ledger.commands.releaseDelivery(mutation)).toEqual({ ok: released })
+    expect(
+      await assembly.ledger.commands.releaseDelivery({ ...mutation, evidence: processed }),
+    ).toEqual({ failure: { kind: 'conflict', operation: 'op-2' } })
+    expect(assembly.store.commits).toBe(2)
   })
 
   it('16 release: an unknown commit keeps the responsibility until the operation is recognised', async () => {
