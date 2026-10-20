@@ -33,7 +33,6 @@ export function fixResultInput<P>(
     : succeed({ ...base.ok, result: result.ok })
 }
 
-/** Validates and copies the complete content address without consulting a provider. */
 export function fixAttachment(value: unknown): Outcome<Attachment, ToolFailure> {
   if (typeof value !== 'object' || value === null) return invalid('attachment', 'type')
   const keys = ['storage', 'key', 'mediaType', 'bytes', 'digest']
@@ -75,7 +74,6 @@ function contentInput<P>(input: ContentInput<P>): Outcome<ContentInput<P>, ToolF
   return succeed({ ...base.ok, attachment: attachment.ok, after, maxBytes })
 }
 
-/** The whole retained projection, including offloaded summaries, establishes association. */
 function association<B extends ContentBlock>(
   record: ResultRecord<B>,
   attachment: Attachment,
@@ -104,7 +102,6 @@ function providerFailure(reason: string): Outcome<never, ToolFailure> {
   return fail({ kind: 'unavailable', dependency: 'content-reader', diagnostic: reason })
 }
 
-/** The provider owns cursor decoding and full-source integrity. The ledger verifies its page. */
 function copyPage<P>(page: ContentPage, input: ContentInput<P>): Outcome<ContentPage, ToolFailure> {
   const attachment = fixAttachment(page.attachment)
   if (
@@ -174,7 +171,6 @@ export function createLedgerContent<P, B extends ContentBlock>(
         })
       let candidate: Outcome<ContentPage, ToolFailure>
       try {
-        // The provider receives its own attachment object and cannot mutate the fixed request.
         const answer = await ports.provider.read({ ...value, attachment: { ...value.attachment } })
         candidate = 'failure' in answer ? answer : copyPage(answer.ok, value)
       } catch {

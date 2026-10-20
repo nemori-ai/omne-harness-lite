@@ -20,7 +20,6 @@ function expectFailure(view: readonly ToolMessageContentBlock[], code: string) {
   expect(view).toHaveLength(1)
 }
 
-// Negative clients may inspect and corrupt this public, documented format. PagingModel cannot.
 function corrupt(token: string, change: (fields: unknown[]) => unknown[]) {
   const payload: unknown = JSON.parse(
     Buffer.from(token.slice(token.indexOf('.') + 1), 'base64url').toString(),

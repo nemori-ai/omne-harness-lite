@@ -83,7 +83,7 @@ final 没有实际结束时钟 marker。running 计时保留 unknown、原 segme
 
 ## 使用
 
-账本第五参数必须显式提供 `{ custody, releaseInspection: environments }`。runtime dependencies 同时传入同账本 `commands`、`reads`、`admissions`、`queues` 与 `facts`。构造片段见[英文使用说明](README.md#usage)，公开构造形状见 [public-api](docs/public-api.md)。
+账本第五参数 `ToolLedgerPorts` 必须显式提供 `{ custody, releaseInspection: environments, content }`。`content` 为字节读口或 `null`。`content:null` 使字节读取回复 `unsupported`，不关闭结果页或 raw 元数据读取。runtime dependencies 同时传入同账本 `commands`、`reads`、`admissions`、`queues` 与 `facts`。构造片段见[英文使用说明](README.md#usage)，公开构造形状见 [public-api](docs/public-api.md)。
 
 独立程序和应用装配依赖本包与 `@omne-harness/tool-contract`。其他领域的生产代码只依赖 `@omne-harness/tool-contract`。其他领域的测试可以把 `@omne-harness/tool/testing` 作为开发依赖。它导出非耐久记录仓 `createMemoryToolLedgerStore` 与下述装配工厂。
 
@@ -176,7 +176,7 @@ tool/
 
 元调用也会生成自己的 ToolResult。收场后先用受信方法 readReply 收齐它的全部有界页，再投影给模型。readReply 不是第三个模型命令。它返回完整结果或具名失败，绝不交付半份回应。
 
-读取成功、原工具终态、内容遍历和原文卸载分别表达。failed 原工具也可成功读取。元调用 completed 只表示命令答复。内容结束不表示附件或卸载原文字节已读。附件页提供 base64，收齐字节后按 mediaType 解码。引用不授权，每页仍核当前资格。原件字节继续经过 U1 的完整权限判定，没有 raw selector 或 raw 口旁路。
+读取成功、原工具终态、内容遍历和原文卸载分别表达。failed 原工具也可成功读取。元调用 completed 只表示命令答复。内容结束不表示附件或卸载原文字节已读。附件页提供 base64，收齐字节后按 mediaType 解码。引用不授权，每页仍核当前资格。原件字节经过[完整读取操作的资格判定](SPEC.md#27-固定结果与内容读取)中的 `read-raw-content` 一致判定，没有 raw selector 或 raw 口旁路。
 
 完整响应、块及完整可调用参数都受预算约束，不能装下时明确 unsupported。固定错误无法单页交付时构造抛 TypeError。固定版本引用无 TTL，适配器重建和交付解除不使它失效。精确协议及提供者前提见 [SPEC 第 28 条](SPEC.md#28-tools-固定结果适配器)。当前证据是非耐久内存组合，不含真实模型、生产存储或 Cordis。
 

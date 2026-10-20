@@ -1,4 +1,3 @@
-// The root entry of the Tool implementation. It does not import Cordis.
 export type {
   QueueReconciliation,
   ToolConfiguration,

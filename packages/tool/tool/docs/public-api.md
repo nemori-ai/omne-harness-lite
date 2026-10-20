@@ -29,7 +29,7 @@
 
 
 - [ledger-content.ts](../src/ledger-content.ts) 实现结果与附件关联、IO 前后资格及页面核验。行为与 provider 证明责任见 [内容读取](../SPEC.md#27-固定结果与内容读取)。
-- [testing-content.ts](../src/testing-content.ts) 经 testing 入口导出 `createMemoryToolContent`、`MemoryToolContent` 与 `MemoryContentFault`。`createTestToolDependencies` 将它装配为 `doubles.content` 并复用其 custody。内存提供者只拥有字节及游标，不维护第二份结果账本。
+- [testing.ts](../src/testing.ts) 经 testing 入口导出 `createMemoryToolContent`、`MemoryToolContent` 与 `MemoryContentFault`。`createTestToolDependencies` 将它装配为 `doubles.content` 并复用其 custody。内存提供者只拥有字节及游标，不维护第二份结果账本。
 
 
 `ToolAccessGuard.qualify` 的 `read-raw-content` 表示原件字节操作，须在一个可信权限事实判定点检查两项基础权限与主体/租户/call 范围。它不是可单独授予的新许可位。guard 无一致视图时答 unavailable。raw 元数据继续使用 read-raw；普通附件继续使用 read-content。精确失败与返回时序由 [SPEC 第 27 条](../SPEC.md#27-固定结果与内容读取)拥有。

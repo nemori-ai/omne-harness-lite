@@ -179,7 +179,6 @@ describe('17 the runtime factory and later increments', () => {
               failure: { kind: 'unsupported', reason: expect.stringContaining('not implemented') },
             },
       ])
-      // These remaining operations are runtime-owned unsupported paths.
       const failure =
         name === 'control'
           ? ((answer as { failure?: { kind: string; adoption?: { name: string } } }).failure ??

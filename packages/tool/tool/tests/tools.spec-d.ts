@@ -39,8 +39,6 @@ it('createTools consumes only the public result and content read ports', () => {
   expectTypeOf<Tools<P>['readReply']>().toEqualTypeOf<
     (input: ToolsAccess<P>) => Reply<ToolResult<ToolMessageContentBlock>>
   >()
-  // @ts-expect-error Tools cannot invoke original calls.
-  expectTypeOf<ToolsReadRuntime<P>['invoke']>().toBeAny()
-  // @ts-expect-error Tools cannot read raw output.
-  expectTypeOf<ToolsReadRuntime<P>['content']['raw']>().toBeAny()
+  expectTypeOf<Extract<'invoke', keyof ToolsReadRuntime<P>>>().toEqualTypeOf<never>()
+  expectTypeOf<Extract<'raw', keyof ToolsReadRuntime<P>['content']>>().toEqualTypeOf<never>()
 })

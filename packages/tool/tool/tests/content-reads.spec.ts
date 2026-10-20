@@ -97,7 +97,6 @@ async function fixture(
           if (qualificationFault === 'unavailable')
             return { kind: 'unavailable', diagnostic: 'no consistent authority view' }
           if (!tenantAllowed) return { kind: 'denied', reason: 'tenant membership revoked' }
-          // One synchronous fact decision checks both base permissions for raw-byte reads.
           return guards({ deniedActions: [...revoked] }).access.qualify(input)
         },
       },

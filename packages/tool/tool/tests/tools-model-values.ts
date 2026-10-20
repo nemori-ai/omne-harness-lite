@@ -61,7 +61,6 @@ export function modelField(view: View, name: string): string {
   return row.slice(row.indexOf(':') + 1).trim()
 }
 
-// This object receives only P14 blocks. It has no host, ledger, ResultPage or protocol codec.
 export class PagingModel {
   constructor(help: View) {
     const text = modelText(help)
