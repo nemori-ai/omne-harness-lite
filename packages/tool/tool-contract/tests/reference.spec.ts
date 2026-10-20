@@ -188,3 +188,94 @@ describe('reference resolution against the presented tenant', () => {
 it('reads the parts of a branded invocation reference', () => {
   expect(readToolInvocationRef(invocationRef)).toEqual({ tenant: tenantA, call, admission })
 })
+
+describe('reference codec boundary cases with otherwise legal parts', () => {
+  const invocation = ['tool-invocation', 1, tenantTextA, call, admission]
+  const operationElements = ['tool-operation', 1, tenantTextA, call, admission, operation]
+  it.each([
+    {
+      name: 'invocation numeric-key object',
+      decode: decodeToolInvocationRef,
+      field: 'ToolInvocationRef',
+      input: { ...invocation, length: 5 },
+      reason: 'type',
+    },
+    {
+      name: 'operation numeric-key object',
+      decode: decodeToolOperationRef,
+      field: 'ToolOperationRef',
+      input: { ...operationElements, length: 6 },
+      reason: 'type',
+    },
+    {
+      name: 'extra invocation element',
+      decode: decodeToolInvocationRef,
+      field: 'ToolInvocationRef',
+      input: [...invocation, 'extra'],
+      reason: 'shape',
+    },
+    {
+      name: 'extra operation element',
+      decode: decodeToolOperationRef,
+      field: 'ToolOperationRef',
+      input: [...operationElements, 'extra'],
+      reason: 'shape',
+    },
+    {
+      name: 'invalid invocation admission',
+      decode: decodeToolInvocationRef,
+      field: 'ToolInvocationRef',
+      input: ['tool-invocation', 1, tenantTextA, call, 'has space'],
+      reason: 'shape',
+    },
+    {
+      name: 'invalid operation admission',
+      decode: decodeToolOperationRef,
+      field: 'ToolOperationRef',
+      input: ['tool-operation', 1, tenantTextA, call, 'has space', operation],
+      reason: 'shape',
+    },
+    {
+      name: 'invalid operation identity',
+      decode: decodeToolOperationRef,
+      field: 'ToolOperationRef',
+      input: ['tool-operation', 1, tenantTextA, call, admission, 'has space'],
+      reason: 'shape',
+    },
+  ])('rejects $name', ({ decode, input, field, reason }) => {
+    expect(decode(JSON.stringify(input))).toEqual({ failure: { field, reason } })
+  })
+
+  // Forged brands model an untyped caller violating the encoder's public input types.
+  const invalidCall = 'has space' as ToolCallId
+  const invalidOperation = 'has space' as ToolOperationId
+  it.each([
+    {
+      name: 'invocation call',
+      encode: () => encodeToolInvocationRef({ ...partsA, call: invalidCall }),
+      field: 'ToolInvocationRef',
+    },
+    {
+      name: 'invocation admission',
+      encode: () => encodeToolInvocationRef({ ...partsA, admission: invalidOperation }),
+      field: 'ToolInvocationRef',
+    },
+    {
+      name: 'operation call',
+      encode: () => encodeToolOperationRef({ ...operationPartsA, call: invalidCall }),
+      field: 'ToolOperationRef',
+    },
+    {
+      name: 'operation admission',
+      encode: () => encodeToolOperationRef({ ...operationPartsA, admission: invalidOperation }),
+      field: 'ToolOperationRef',
+    },
+    {
+      name: 'operation identity',
+      encode: () => encodeToolOperationRef({ ...operationPartsA, operation: invalidOperation }),
+      field: 'ToolOperationRef',
+    },
+  ])('rejects an invalid $name at encoding', ({ encode, field }) => {
+    expect(encode()).toEqual({ failure: { field, reason: 'type' } })
+  })
+})
