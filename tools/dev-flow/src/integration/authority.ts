@@ -2,9 +2,11 @@ import {
   collectAdmission,
   observeAdmission,
   type AdmissionCapture,
+  type AdmissionProject,
   type AdmissionScope,
 } from '../delivery/admission.ts'
 import { runGhRead, type GhRead } from '../delivery/github-read.ts'
+import type { AuthorityFacts } from './delivery-facts.ts'
 import {
   InputError,
   parseConfig,
@@ -85,13 +87,15 @@ export function deliveryConfig(root: string, policy: Policy, source: PolicySourc
     throw new IntegrationError('unknown', 'Project or single writers are not configured')
   return config
 }
+/** Admission over the platform; `project` carries adopted delivery facts instead of Project reads. */
 export function currentAdmission(
   config: DeliveryConfig,
   scope: AdmissionScope,
+  project?: AdmissionProject,
   read: GhRead = runGhRead,
 ): AdmissionCapture {
   try {
-    return collectAdmission(config, scope, read)
+    return collectAdmission(config, scope, read, project)
   } catch (error) {
     throw new IntegrationError(
       'unknown',
@@ -181,10 +185,45 @@ function isDispatchReviewer(policy: Policy, actor: Record<string, unknown>, read
   }
   return false
 }
+/**
+ * Adopted delivery facts stand in for the publish environment read, and only for the comment
+ * they describe: the same URL, author login and node ID, body digest and update time as the
+ * comment read here, and `reviewer` true. Any difference, including a non-reviewer author, is
+ * unknown: the workflow read another comment, the comment changed since, or the facts do not
+ * establish eligibility.
+ */
+function requireFactsGrant(
+  facts: AuthorityFacts,
+  url: string,
+  actor: Record<string, unknown>,
+  body: string,
+  updatedAt: unknown,
+): void {
+  if (facts.url !== url)
+    throw new IntegrationError('unknown', 'Delivery facts name another authority comment')
+  if (facts.author !== actor.login || facts.authorNodeId !== actor.node_id)
+    throw new IntegrationError('unknown', 'Delivery facts authority author mismatch')
+  if (facts.bodySha256 !== digest(body))
+    throw new IntegrationError('unknown', 'Delivery facts authority body digest mismatch')
+  if (facts.updatedAt !== updatedAt)
+    throw new IntegrationError('unknown', 'Delivery facts authority update time mismatch')
+  // Trusted facts saying the author is not a reviewer are a definite answer, refused like a direct read.
+  if (!facts.reviewer)
+    throw new IntegrationError(
+      'refused',
+      `Delivery facts do not show the author as a ${DISPATCH_ENVIRONMENT} reviewer`,
+    )
+}
+/**
+ * Reads the dispatch comment and the decision inside it. Dispatch eligibility comes from the
+ * publish environment, or, when `facts` is given, from adopted delivery facts about this same
+ * comment; a cloud session cannot read the environment itself.
+ */
 export function readAuthority(
   policy: Policy,
   url: string,
   capture: Pick<DeliveryCapture, 'issues'>,
+  facts?: AuthorityFacts,
   read: GhRead = runGhRead,
 ): Decision {
   const match =
@@ -225,9 +264,11 @@ export function readAuthority(
     [raw.body, user.login, raw.updated_at],
     'Authority comment changed during capture',
   )
-  const decision = parseDecision(section(text(raw.body, 'body'), 'omne-integration-authority:v1'))
+  const body = text(raw.body, 'body')
+  const decision = parseDecision(section(body, 'omne-integration-authority:v1'))
   // Dispatch follows the reviewers who confirm trunk publication.
-  if (!isDispatchReviewer(policy, user, read))
+  if (facts !== undefined) requireFactsGrant(facts, url, user, body, raw.updated_at)
+  else if (!isDispatchReviewer(policy, user, read))
     throw new IntegrationError(
       'refused',
       `Comment actor is not a reviewer of the ${DISPATCH_ENVIRONMENT} environment`,
