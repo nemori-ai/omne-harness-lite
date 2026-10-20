@@ -12,7 +12,7 @@ import type {
   ModelCalls,
   Reply,
 } from '../index.ts'
-import type { Admit, CallAccess, ModelOperationId, Mutation } from '../root.ts'
+import type { Admit, CallAccess, Mutation } from '../root.ts'
 import {
   commit,
   denied,
