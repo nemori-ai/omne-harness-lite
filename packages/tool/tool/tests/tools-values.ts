@@ -17,6 +17,7 @@ import {
   decodeToolDeliveryId,
   decodeToolResultVersion,
   readToolInvocationRef,
+  type Access,
   type Attachment,
   type ResultPage,
   type ToolArguments,
@@ -92,6 +93,7 @@ export async function authorRun(
   tools: Tools<Principal>,
   command: string,
   args: string | ToolArguments,
+  access: Access<Principal> = { principal: principalA, tenant: tenantA },
 ) {
   const registered = readToolRegistration(tools.author)
   if (registered?.kind !== 'commands') throw new Error('not a real command registration')
@@ -103,14 +105,7 @@ export async function authorRun(
   )
   if ('failure' in parsed) return parsed
   const execution = scope()
-  const returned = ok(
-    await executeTool(
-      parsed.ok,
-      author.executor,
-      { principal: principalA, tenant: tenantA },
-      execution.scope,
-    ),
-  )
+  const returned = ok(await executeTool(parsed.ok, author.executor, access, execution.scope))
   const validated = ok(author.output.check({ arguments: parsed.ok, value: returned }))
   const encoded = ok(author.codec.encode(validated))
   return checkMessage(ok(author.codec.decode(encoded)))

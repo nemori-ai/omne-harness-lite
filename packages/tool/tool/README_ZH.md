@@ -179,3 +179,16 @@ tool/
 读取成功、原工具终态、内容遍历和原文卸载分别表达。failed 原工具也可成功读取。元调用 completed 只表示命令答复。内容结束不表示附件或卸载原文字节已读。附件页提供 base64，收齐字节后按 mediaType 解码。引用不授权，每页仍核当前资格。原件字节继续经过 U1 的完整权限判定，没有 raw selector 或 raw 口旁路。
 
 完整响应、块及完整可调用参数都受预算约束，不能装下时明确 unsupported。固定错误无法单页交付时构造抛 TypeError。固定版本引用无 TTL，适配器重建和交付解除不使它失效。精确协议及提供者前提见 [SPEC 第 28 条](SPEC.md#28-tools-固定结果适配器)。当前证据是非耐久内存组合，不含真实模型、生产存储或 Cordis。
+
+
+宿主的入站参数限制须与 `ToolsOptions.arguments` 对齐。runtime 先检查输入，作者 codec 再解释参数。较小的宿主上限可能拒绝作者本可解析的续读请求。两个层级均保留明确预算，并验证实际装配。
+
+模型经宿主的普通 Tools 命令路由提交 JSON 参数：
+
+```json
+{"kind":"result","reference":"<复制可见 reference>","after":"<复制可见 next>"}
+```
+
+这次请求使用 `command: "read_result"`。开始读附件时改用 `kind: "attachment"`、可见附件引用及 `after: null`。用 `command: "help"` 和 `{}` 取得命令列表，用 `{"command":"read_result"}` 取得精确参数说明。宿主提供当前 principal、tenant，并为每次新命令分配新的 consumer 位置。结果身份是调用引用与结果版本这一对值，不同调用可使用同一版本标签。
+
+[模型闭环测试](tests/tools-model-loop.spec.ts) 将受信宿主与模拟模型分开。模型只收 P14 内容块及实际 help。测试覆盖三个以上源页、原 executor 一次、新元调用身份、完整收齐再次分页的元回应、附件字节、权限失败及交付解除后重建适配器。它使用非耐久 runtime 与执行环境、binding 替身，不调用真实模型提供者。

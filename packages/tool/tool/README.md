@@ -190,3 +190,16 @@ The caller invokes the command through its own runtime with a new consumer posit
 A successful read can contain a failed source terminal. A completed meta call means the command answered, even when the source read failed. Content traversal end does not mean attachment or offloaded original bytes were read. Attachment pages use base64. Decode complete bytes according to mediaType. References grant no access, and every read checks current permissions. Tools exposes no raw selector and never calls content.raw.
 
 The factory checks full JSON response size and complete callable argument size. It returns unsupported when a complete block, help, credential or response cannot fit. It does not truncate source content. Fixed-version references have no TTL and survive adapter reconstruction and delivery release. Protocol, budget and provider requirements are in [SPEC section 28](SPEC.md#28-tools-固定结果适配器). The tests cover non-durable memory composition. Production storage, a real model and Cordis are not covered.
+
+
+The host must align its admission argument limits with `ToolsOptions.arguments`. The runtime checks input before the author codec runs. A smaller host limit can reject a continuation that the author can otherwise parse. Keep both limits bounded and test the actual assembly.
+
+The model sends a structured JSON argument object through the host's normal `Tools` command route:
+
+```json
+{"kind":"result","reference":"<copy the visible reference>","after":"<copy the visible next>"}
+```
+
+Use `command: "read_result"` for this request. To begin an attachment read, use `kind: "attachment"`, its visible attachment reference and `after: null`. Ask `command: "help"` with `{}` for the command list, or with `{"command":"read_result"}` for the parameter schema. The host supplies the current principal and tenant and a new consumer position for each new command. Result identity is the pair of invocation reference and result version. Different calls can use the same version label.
+
+[The model loop test](tests/tools-model-loop.spec.ts) separates the trusted host from a simulated model that receives only P14 blocks and actual help. It checks at least three source pages, one source executor run, new meta call identities, full collection of paged meta replies, attachment bytes, permission failures and adapter reconstruction after delivery release. These are non-durable runtime integration tests with stand-in execution environment and binding ports. They do not call a model provider.

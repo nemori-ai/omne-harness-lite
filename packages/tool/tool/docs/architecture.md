@@ -320,3 +320,6 @@ runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通�
 [tools.ts](../src/tools.ts) 拥有工厂构造与窄读依赖。[tools-commands.ts](../src/tools-commands.ts) 使用真实 defineToolOperation、defineCommandTool、作者 codec 及输出校验。[tools-protocol.ts](../src/tools-protocol.ts) 的命令描述同源生成参数声明、字段解释、校验和帮助，并实现无状态引用与 cursor 包装。[tools-present.ts](../src/tools-present.ts) 仅经普通结果/内容读口生成模型表示，保留源可见 ref 与附件，拒绝不可调用的完整参数。[tools-results.ts](../src/tools-results.ts) 拥有格式、固定错误、作者输出 codec 和 JSON 大小边界。[tools-reply.ts](../src/tools-reply.ts) 收齐固定版本的新元结果，逐块累计预算并检测无进展与元数据变化。
 
 原结果版本、当前资格、附件关联和原件动作分类仍归账本及其提供者。Tools 不持有第二份结果账本，不取得原工具执行、控制、释放或 raw 口。模型只接收 ToolResult 的 P14 投影和真实 help。调用方拥有 invoke 路由、新消费位置与受信 readReply，不能把内部 ResultPage.next 交给模型代替元工具协议。精确行为归 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。
+
+
+[模型闭环装配](../tests/tools-model-values.ts) 在测试中分开两个调用方。受信宿主运行实际源 executor、登记 Tools 作者、经真实 runtime invoke，并用 readReply 收齐元回应后投影。PagingModel 的构造和方法只接收 P14 内容块，没有 runtime、存储、ResultPage 或私有协议 codec。故障客户端对公开凭据的损坏测试独立于 PagingModel。入站 guard 与作者 codec 使用相同的有限参数预算，两层检查均保留。

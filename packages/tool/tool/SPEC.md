@@ -453,3 +453,6 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 readReply 核固定版本及各页必要元数据。重复 cursor、非结束空页、元数据变化、读取失败、字节超限或次数超限都只返回明确失败，不交付部分内容。次数保证依赖现行贪心整块分页。替换提供者不能在该上限内结束时返回 unsupported。
 
 [Tools 行为测试](tests/tools.spec.ts)及[类型测试](tests/tools.spec-d.ts)覆盖真实作者注册、内存 runtime 组合、再次分页、闭合参数、引用、可见 ref、失败与精确预算。它们使用非耐久内存依赖。真实模型、生产存储、Cordis 和跨进程未验证。
+
+
+[模型消费组合](tests/tools-model-loop.spec.ts) 以实际 runtime、作者 codec、readReply 及 P14 连接受信宿主与模拟模型。模型只接收投影块和实际帮助，依据可见 reference、next、kind 形成新请求。测试宿主将入站参数预算与 ToolsOptions.arguments 对齐，分别保留 runtime 入站检查和作者参数检查。各新调用以新消费位置与调用引用区分，其结果归属按 reference/resultVersion 成对判断，版本字符串无需全局唯一。

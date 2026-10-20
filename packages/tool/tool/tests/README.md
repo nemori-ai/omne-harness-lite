@@ -76,3 +76,6 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 地址别名回归核对两个独立判断：完整五字段建立原结果关联，已关联描述的 storage/key 决定原件资格。已登记 mediaType/bytes/digest 变体不能降权，未登记同地址变体仍拒绝关联，不同地址同 digest 的合法普通内容保持普通内容资格。提供者继续独立验证完整描述和真实字节。
 
 `tools.spec.ts` 经真实作者注册与非耐久内存 runtime 检查 help/read_result、多模态 ref、固定引用、参数预算、附件 base64、原件资格拒绝、元回应再次分页及精确 JSON 预算。收取端用 readReply，完整回应收齐后才投影。坏 provider 用例单独检查无进展、元数据变化和读取上限。`tools.spec-d.ts` 固定公开工厂签名与窄读依赖。它们不证明真实模型、生产存储或 Cordis 组合。
+
+
+`tools-model-loop.spec.ts` 经 `tools-model-values.ts` 建立受信宿主和只接收投影及实际 help 的 PagingModel。真实源 executor 执行一次，模型读取至少三页原内容，每次新 meta 调用使用新消费位置与引用。宿主断言固定源结果及各 meta 结果的归属，并先用 readReply 收齐再次分页的回应。失败原终态、内容结束、附件跨 UTF-8 字节页、源仓读取失败、错误公开凭据、换租户、后续撤权及原件同地址描述变体各有组合断言。交付解除后重建适配器仍能使用先前可见引用。测试不依赖时间型 TTL，也不声称真实模型、生产存储、Cordis 或跨进程支持。
