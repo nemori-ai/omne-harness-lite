@@ -39,3 +39,5 @@
 - [事实保管、连续游标与原件恢复](facts-receive.spec.ts)。
 
 - [来源确认、未知重入与 operation 围栏](fact-acknowledgement.spec.ts)。
+
+- [自动原事实与取消恢复组合](driver-facts.spec.ts)。

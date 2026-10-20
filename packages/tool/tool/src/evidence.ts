@@ -63,6 +63,7 @@ export type EvidenceKind =
   | 'account'
   | 'fact-event'
   | 'fact-custody'
+  | 'fact-reader'
 
 /**
  * Where an evidence points: always the tenant and the call, because the identity of every Tool

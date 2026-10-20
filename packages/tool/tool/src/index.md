@@ -36,3 +36,5 @@
 
 - [fact-acknowledgements.ts](fact-acknowledgements.ts) 从同一 bindings.recover 构造来源确认守卫。
 - [ledger-fact-ack.ts](ledger-fact-ack.ts) 核原回执与 operation，并同提交记录确认和清除责任。
+
+- [受管原事实读取](driver-facts.ts)。

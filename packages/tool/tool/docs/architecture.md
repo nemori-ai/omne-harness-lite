@@ -1,6 +1,6 @@
 # tool 内部架构
 
-本页规定 Tool 实现的内部模块与构造方法。领域位置、责任边界与设计状态归契约包的[领域架构](../../tool-contract/docs/architecture.md)。本包已实现独立执行、记录仓端口与账本工厂、runtime 的逻辑终局路径，以及真实调用从受理到启动记录的路径与它的推进协程。尚未交付的操作回复具名的 `unsupported`，增量名是：已启动执行的事实接收与收场（`execution facts and release`）、控制（`controls`）、等待（`waits, decisions and resources`）、过程观察（`process observation and diagnostics`）、恢复（`recovery scan`）、排空与交接（`drain and handover`）。计时依赖宿主时钟，该时钟尚未交付。绑定登记表、Catalog 与 Cordis 插件也尚未交付。操作与增量名的对应见[包入口的支持范围](../README_ZH.md#支持范围)，准确范围见 [SPEC](../SPEC.md#当前范围)。
+本页规定 Tool 实现的内部模块与构造方法。领域位置、责任边界与设计状态归契约包的[领域架构](../../tool-contract/docs/architecture.md)。本包已实现独立执行、记录仓端口与账本工厂、runtime 的逻辑终局路径，以及真实调用从受理到启动记录的路径与它的推进协程。尚未交付的操作回复具名的 `unsupported`，增量名是：已启动执行的收场（`execution facts and release`）、控制（`controls`）、等待（`waits, decisions and resources`）、过程观察（`process observation and diagnostics`）、恢复（`recovery scan`）、排空与交接（`drain and handover`）。计时依赖宿主时钟，该时钟尚未交付。绑定登记表、Catalog 与 Cordis 插件也尚未交付。操作与增量名的对应见[包入口的支持范围](../README_ZH.md#支持范围)，准确范围见 [SPEC](../SPEC.md#当前范围)。
 
 ## 内部模块与依赖
 
@@ -147,7 +147,7 @@ L01–L07 的类型、键、写集合及状态定义均见 [ledger-store.ts](../
 | --- | --- | --- | --- | --- |
 | U01 受理到排队 | call 的受理状态、操作回执、`queue` 任务同提交；queue 的序号与条目同提交 | `admissions.admit` 先提交 call，再 `order`。未完成分配可由 `planPreparation` 补做，是分步推进 | call 中任务保留队列义务；同一派生操作身份认回，不能生成第二条目 | [ledger.ts](../src/ledger.ts) 的 `admissions`，[跨域提交与修复](../SPEC.md#22-跨域提交与修复) |
 | U02 队首与名额 | 一个 queue key 内比较更早未取得名额的条目、held 数和固定 limit，成功把条目改为 held | `prepareStart` 先做 queue 裁决，再写 call；非队首或无名额时不写 queue | queue 已 held 而 call 未写启动意图时，名额仍是待履行义务。同身份重做对账，不把 held 当真实执行 | [decideQueueHold](../src/ledger-start.ts)，[prepareStart](../src/ledger.ts)，[SPEC 22](../SPEC.md#22-跨域提交与修复) |
-| U03 启动 | call 的启动意图、操作回执、start 任务共同提交 | driver 推进原启动协议；真实发起还需启动资格与执行者围栏。外部发起不与 SQL 原子提交 | 回包未知查询原启动，不能换号重跑函数。当前 driver 已调用 live-only 绑定并对账原 authority，仅到启动记录；事实接收与执行后物理收场尚未交付 | [推进协程](../SPEC.md#23-推进协程)，[P04](../../tool-contract/SPEC.md#p04-实际发起围栏)，[支持范围](../README_ZH.md#支持范围) |
+| U03 启动 | call 的启动意图、操作回执、start 任务共同提交 | driver 推进原启动协议；真实发起还需启动资格与执行者围栏。外部发起不与 SQL 原子提交 | 回包未知查询原启动，不能换号重跑函数。当前 driver 已调用 live-only 绑定并对账原 authority，仅到启动记录；原事实由受管 reader 自动保管并确认，执行后物理收场尚未交付 | [推进协程](../SPEC.md#23-推进协程)，[P04](../../tool-contract/SPEC.md#p04-实际发起围栏)，[支持范围](../README_ZH.md#支持范围) |
 | U04 释放名额 | call 先保存释放依据及队列任务；queue 删除条目与墓碑同提交 | `releaseQueue` 先提交 queue，再关闭 call 的 queue 任务。`queues.reconcile` 读取调用事实后修复 queue，是分步对账 | 任一步失败保留原任务，按原身份重做。仅逻辑终态不释放；当前 `releaseBasisOf` 只构造启动前排除依据，物理收场后释放尚待实现 | [releaseQueue](../src/ledger.ts)，[releaseBasisOf、decideQueueRelease](../src/ledger-start.ts)，[survey、reconcile](../src/ledger-queue.ts) |
 | U05 交付释放与消费方 | P08 要求 Tool 的 pending 变 released、原操作回执和生产侧证明同提交；当前决定器还更新 call 及删除 deliver 任务 | 消费方提供 retained 或 processed 证据。Tool 内部提交不等于消费方事实自动共同提交。两端组合及协调者由架构拥有者与消费方决定，见 C01 | 提交未知时双方继续保管，以原 result、delivery、consumer、operation 查询。旧版本释放不解除新 delivery，也不触发内容到期删除 | [P08](../../tool-contract/SPEC.md#p08-过程分页与全文交接)，[decideRelease](../src/ledger-decider.ts)，[#434 的 Tool 侧释放责任](https://github.com/nemori-ai/omne-harness-lite/issues/434) |
 | U06 恢复扫描 | 任务及其后继责任与对应业务变更共同保存；claim 裁定当前协调代次 | P09 要求扫描、载入原事实、认领、逐任务查原端口。当前 queue reconcile 是局部修复，`scanPending`、claim 尚未实现，不能称完整恢复 | 原任务保留查询、保管、控制与清理责任；换协调者不杀原执行。外部 unavailable 或 unknown 不授权新 start/resume；完整扫描由父卡阶段 6 承接 | [P09](../../tool-contract/SPEC.md#p09-账目恢复与退出)，[driver.ts](../src/driver.ts)，[#421 阶段 6](https://github.com/nemori-ai/omne-harness-lite/issues/421) |
@@ -223,15 +223,15 @@ createToolRuntime 先组装门面和 driver，再向独立 host.install 注册 d
 
 本包的 driver 在 [driver.ts](../src/driver.ts)。绑定发起与原启动查询在 [driver-binding.ts](../src/driver-binding.ts)，它持有进程内 live 句柄，区分发起前端口失败、绑定失败、抛错与返回句柄。driver 继续拥有 ledger 步骤、失败标记的操作身份及永久排除后的终局写入。
 
-普通前置或查询端口返回的失败保持原结果，未知异常向 `run` 调用方传播同一对象，不按临时不可用自动重试，原任务与名额保留。`binding.start` 已尝试后的异常仍按 P04 对账；后续查询异常不解除已有失败责任。原绑定异常正文的耐久保存与诊断读取尚未交付。
+启动阶段的前置或查询端口返回的失败保持原结果，未知异常向 `run` 调用方传播同一对象，不按临时不可用自动重试，原任务与名额保留。`binding.start` 已尝试后的异常仍按 P04 对账；后续查询异常不解除已有失败责任。原绑定异常正文的耐久保存与诊断读取尚未交付。
 
 绑定模块集中准备 permit、解析原绑定与重连环境，driver fence 选择启动、认回或排除。失败 marker 是观察，不是跨 driver 派发围栏，唯一实际受理及永久排除由 authority 排序。失败标记与崩溃窗口见 [SPEC 第 23 条](../SPEC.md#23-推进协程)。
 
-driver 现在只推进到启动记录：读 `loadRecovery`，按阶段与待办做一步，再重读；一次运行的步数上限是 `ToolConfiguration.driverStepsPerRun`。
+driver 推进启动以及原事实保管与确认：读 `loadRecovery`，按阶段与待办做一步，再重读；一次运行的步数上限是 `ToolConfiguration.driverStepsPerRun`。
 
 一次运行结束后协程自己决定是否再运行：步数用尽且至少有一步提交了或认回了提交时立即重调度；整轮没有进展（全是被排除、修订号陈旧或提交未知的回答），以及记录仓或端口失败、环境答 pending 或 unknown，按 `ToolConfiguration.driverRetryDelayMs` 重调度，排队的等待者经 `queues.reconcile` 对本 key 对账一次。
 
-scanPending、claim 与观察句柄的发布尚未实现，所以其余唤醒只来自 admit 与同 key 的释放，执行引用的代次是固定值；没有等待者、进程退出后的欠账归恢复扫描 `scanPending` 的队列域一遍。步骤与操作号见 [SPEC 第 23 条](../SPEC.md#23-推进协程)。
+scanPending、claim 与观察句柄的发布尚未实现，其余唤醒来自 invoke、同 key 释放、原事实 ready 和通道重连重试，执行引用的代次是固定值；没有等待者、进程退出后的欠账归恢复扫描 `scanPending` 的队列域一遍。步骤与操作号见 [SPEC 第 23 条](../SPEC.md#23-推进协程)。
 
 一个实例可处理多个待办，不能为每个观察者创建真实执行。事实流读取、控制与等待响应可以并发接收，但进入 Commands 时按原 operation 和当前 revision 排序。事实存储 ACK 后才确认源可交接；无 ACK 不释放源保管。可选观察者慢或断开不影响真实执行。
 
@@ -294,3 +294,7 @@ ToolBindings 提供者持有 ToolAuthorRegistration，按原 adoption 与 comman
 runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通过来源 resolve 原子建立或认回 call/admission 与来源，最后沿原身份调用 ledger。来源签发器与核验器由真实入口装配。runtime 不建立 payload 去重表或引用映射表。引用直接编码原租户、call 与 admission，操作引用另带 operation。
 
 [invocation-access.ts](../src/invocation-access.ts) 集中解码与租户核对，queries、content 和 commands 直接进入各原端口。目录连接单独进入 host.directory。持久读取与交付不取决于活实例。driver.run 的实例身份来自 host，同一存活实例重复唤醒沿用。真实生产 host、claim、同一 call 的换实例接管及完整恢复尚未实现。
+
+## 原事实读取资源
+
+[driver-facts.ts](../src/driver-facts.ts) 拥有每原 start 的受管 reader 和 ACK 编排。[driver-binding.ts](../src/driver-binding.ts) 按 tenant/call/start 保留原 live 与恢复路由。[driver.ts](../src/driver.ts) 保持每 call 串行、step budget 和统一 retryDelay。读取回调不写 ledger，业务事实及待办仍由 call 域 CAS 决定。信号竞争与退出前提见 [SPEC 第 25 条](../SPEC.md#25-原事实受管推进)。

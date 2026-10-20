@@ -21,6 +21,7 @@ import {
 } from '@omne-harness/tool-contract'
 import { tenantKey } from './boundary.ts'
 import type { ToolDependencies } from './construction.ts'
+import { createFactDriver } from './driver-facts.ts'
 import { createBindingInvoker } from './driver-binding.ts'
 import { isExcludedFailure } from './ledger-exclusion.ts'
 import { queueKeyOf } from './ledger-start.ts'
@@ -132,10 +133,11 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   const unconfirmedBindingFailures = new Set<string>()
   const waiting = new Map<string, Map<string, Readonly<{ tenant: TenantId; call: ToolCallId }>>>()
   const runs = new Map<string, Promise<unknown>>()
-  // The timers of the runs that wait out a failure, one per call. They are unreferenced, so they
-  // never keep the process alive; the drain (`quiesce` and `handover`) owns their release, like
-  // the install.
-  const retrying = new Map<string, ReturnType<typeof setTimeout>>()
+  // One unreferenced retry per call. An aborted signal cannot initiate another wake.
+  const retrying = new Map<
+    string,
+    { timer: ReturnType<typeof setTimeout>; signals: readonly AbortSignal[] }
+  >()
 
   const executionOf = (step: Step<P>): ToolExecutionRef => ({
     tenant: step.tenant,
@@ -174,17 +176,28 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   }
 
   /** Asks the host to run the call after `policy.retryDelayMs`; a refused request is asked again. */
-  const scheduleLater = (tenant: TenantId, call: ToolCallId): void => {
+  const scheduleLater = (
+    tenant: TenantId,
+    call: ToolCallId,
+    signals: readonly AbortSignal[] = [],
+  ): void => {
+    if (signals.some(signal => signal.aborted)) return
     const key = callKey(tenant, call)
-    if (retrying.has(key)) return
+    const old = retrying.get(key)
+    if (old !== undefined) {
+      if (!old.signals.some(signal => signal.aborted)) return
+      clearTimeout(old.timer)
+      retrying.delete(key)
+    }
     const timer = setTimeout(() => {
       retrying.delete(key)
+      if (signals.some(signal => signal.aborted)) return
       void scheduleNow(tenant, call).then(accepted => {
-        if (!accepted) scheduleLater(tenant, call)
+        if (!accepted) scheduleLater(tenant, call, signals)
       })
     }, policy.retryDelayMs)
     timer.unref()
-    retrying.set(key, timer)
+    retrying.set(key, { timer, signals })
   }
 
   /**
@@ -198,12 +211,17 @@ export function createToolDriver<P, B extends ContentBlock, E>(
    * aborted, or on a verdict, is left: the wake-up of a released slot, the waiter's reconcile
    * and the queue pass of the recovery scan (`scanPending`) own those.
    */
-  const retrigger = async (step: Step<P>, stop: DriverStop): Promise<void> => {
-    if (step.signal.aborted) return
+  const retrigger = async (
+    step: Step<P>,
+    stop: DriverStop,
+    signals: readonly AbortSignal[],
+  ): Promise<void> => {
+    if (signals.some(signal => signal.aborted)) return
     if (stop.kind === 'yielded' && stop.progressed) {
-      if (!(await scheduleNow(step.tenant, step.call))) scheduleLater(step.tenant, step.call)
+      if (!(await scheduleNow(step.tenant, step.call)))
+        scheduleLater(step.tenant, step.call, signals)
     } else if (stop.kind === 'yielded' || (stop.kind === 'failed' && transient(stop.failure))) {
-      scheduleLater(step.tenant, step.call)
+      scheduleLater(step.tenant, step.call, signals)
     }
   }
 
@@ -438,6 +456,14 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   }
 
   const binding = createBindingInvoker(dependencies, environmentOf)
+  const facts = createFactDriver(dependencies, binding, (step, delayed) => {
+    if (step.signal.aborted) return
+    if (delayed) scheduleLater(step.tenant, step.call, [step.signal])
+    else
+      void scheduleNow(step.tenant, step.call).then(accepted => {
+        if (!accepted) scheduleLater(step.tenant, step.call, [step.signal])
+      })
+  })
 
   const unknownStart = async (
     step: Step<P>,
@@ -458,7 +484,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   ): Promise<StepResult> => {
     const found = await binding.inspect(step, recovery, start)
     if ('failure' in found) return { kind: 'failed', failure: found.failure }
-    if (found.ok.kind !== 'not-started' || binding.hasLive(step))
+    if (found.ok.kind !== 'not-started' || binding.hasLive(step, start))
       return blocked(`the start exclusion conflicts with the binding: ${found.ok.kind}`)
     const write = context(step, recovery, 'exclude')
     if ('failure' in write) return { kind: 'failed', failure: write.failure }
@@ -511,7 +537,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       )
     if (unconfirmedBindingFailures.has(callKey(step.tenant, step.call)))
       return recordBindingFailureMarker()
-    if (binding.hasLive(step))
+    if (binding.hasLive(step, start))
       return blocked('the authority excludes a start with a known live execution')
     const invoked = await binding.invoke(step, recovery, start)
     if (invoked.kind === 'port-failed') return { kind: 'failed', failure: invoked.failure }
@@ -545,7 +571,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   /**
    * The step of each phase while the call domain owes the queue domain a step (a `queue` task).
-   * A running or suspended call has none here: its facts and its settlement are not driven yet.
+   * Running facts use their own task step; settlement remains a later increment.
    */
   const queueSteps: Readonly<Partial<Record<ToolRecovery<B>['state']['phase'], Action>>> = {
     accepted: plan,
@@ -562,7 +588,17 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       : IDLE
   }
 
-  const stepOf: Action = async (step, recovery) => {
+  const stepOf = async (
+    step: Step<P>,
+    recovery: ToolRecovery<B>,
+    cancelled: () => boolean,
+  ): Promise<StepResult> => {
+    if (cancelled()) return blocked('the run was aborted')
+    const acknowledgement = recovery.tasks.find(task => task.kind === 'fact-ack')
+    if (acknowledgement?.kind === 'fact-ack')
+      return facts.acknowledge(step, acknowledgement, cancelled)
+    if (recovery.tasks.some(task => task.kind === 'facts'))
+      return facts.receive(step, recovery, cancelled)
     const { phase } = recovery.state
     const preparation = recovery.tasks.find(task => task.kind === 'prepare')
     if (phase === 'preparing' && preparation?.kind === 'prepare')
@@ -573,17 +609,17 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return queueStep !== undefined && owesQueue ? queueStep(step, recovery) : IDLE
   }
 
-  const advance = async (step: Step<P>): Promise<DriverStop> => {
+  const advance = async (step: Step<P>, cancelled: () => boolean): Promise<DriverStop> => {
     let progressed = false
     for (let steps = 0; steps < policy.stepsPerRun; steps += 1) {
-      if (step.signal.aborted) return blocked('the run was aborted')
+      if (cancelled()) return blocked('the run was aborted')
       const recovery = await commands.loadRecovery({
         principal: step.principal,
         tenant: step.tenant,
         call: step.call,
       })
       if ('failure' in recovery) return { kind: 'failed', failure: recovery.failure }
-      const result = await stepOf(step, recovery.ok)
+      const result = await stepOf(step, recovery.ok, cancelled)
       if (result.kind !== 'continue') return result
       progressed ||= result.progressed
     }
@@ -592,8 +628,10 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 
   /** One run, then what its stop asks for. */
   const runOnce = async (step: Step<P>): Promise<DriverStop> => {
-    const stop = await advance(step)
-    await retrigger(step, stop)
+    const signals = facts.signalsForRun(step)
+    const cancelled = () => signals.some(signal => signal.aborted)
+    const stop = await advance(step, cancelled)
+    await retrigger(step, stop, signals)
     return stop
   }
 
