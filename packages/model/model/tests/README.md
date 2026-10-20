@@ -2,7 +2,7 @@
 
 本目录维护单元和契约测试。[public-entry.spec.ts](public-entry.spec.ts) 使用真实 workspace 包入口，检查根入口导出清单，并核对源码不到达保管实现、Cordis 或 model-host-local。[judgment.spec.ts](judgment.spec.ts) 用内存状态快照直接覆盖存在性与解析的判定：五种结果、租户隔离、官方默认凭据的取舍与关闭。public-entry.spec.ts 还断言 `./cordis` 与 `./execute` 子路径不可解析、清单精确导出根与独立 testing 入口且不声明 Cordis、proper-lockfile 与 model-cordis-contract。判定对未经铸造的查询租户一律返回拒绝，快照里有未经铸造的绑定租户时不给工厂秘密，由 judgment.spec.ts 覆盖。保管、持久化、文件故障与 Cordis 插件的测试在 [model-host-local](../../model-host-local/tests/index.md)。
 
-运行命令为 `pnpm --filter @omne-harness/model test`。内存行为测试经公开 testing 入口覆盖 22 个 Commands、未知写、流归约、读/ACK/清理和五端口。runtime-testing 检查真实构造壳的零调用及明确 unavailable。这些是本地模拟，不覆盖耐久或生产托管执行。运行实现完成后须加入实际提供者与存储交接的验证，并注明替身和故障范围。
+运行命令为 `pnpm --filter @omne-harness/model test`。内存行为测试经公开 testing 入口覆盖 22 个 Commands、未知写、流归约、读/ACK/清理和五端口。runtime-testing 检查真实构造壳的零调用、十二项操作与阶段诊断，以及重复、并发和多工厂回复的对象独立性。这些是本地模拟，不覆盖耐久或生产托管执行。运行实现完成后须加入实际提供者与存储交接的验证，并注明替身和故障范围。
 
 [vitest.config.ts](../vitest.config.ts) 仅把 model-contract 的根入口与 testing 子路径映射到其公开源码入口，避免行为测试读取并发 build 正在重建的 dist。它不匹配私有子路径，也不改变 Node 的包解析。public-entry 的 Node resolver 与独立安装场景继续验证真实 exports 和制品。
 
@@ -18,7 +18,7 @@
 
 ## 安装闭包
 
-`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景导入 `@omne-harness/model`、`@omne-harness/model-contract`、契约 testing 入口与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。另用已安装根入口的 executeModel 连接公开脚本传输，验证一次发送与两级关闭。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口及真实构造壳，不证明托管业务执行或生产宿主。
+`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景导入 `@omne-harness/model`、`@omne-harness/model-contract`、契约 testing 入口与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。另用已安装根入口的 executeModel 连接公开脚本传输，验证一次发送与两级关闭。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口及真实构造壳的 quiesce、instances.connect 诊断，不证明托管业务执行或生产宿主。
 
 ## 内存行为资源
 

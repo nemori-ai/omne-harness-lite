@@ -130,45 +130,87 @@ it('constructs the real factory without touching dependencies and exposes twelve
   expect('driver' in provider.runtime).toBe(false)
   const result = unbox(decodeResultVersion('mrver_test'))
   const read = unbox(decodeReadId('mread_test'))
-  const answers = await Promise.all([
-    provider.runtime.calls.admit(f.admit),
-    provider.runtime.calls.inspect({ ...f.admit, admission: f.admit.operation }),
-    provider.runtime.calls.dispatches(f.admit),
-    provider.runtime.calls.cancel(f.admit),
-    provider.runtime.consumption.beginRead({ ...f.admit, result }),
-    provider.runtime.consumption.readNext({ ...f.admit, read, after: '1' }),
-    provider.runtime.consumption.closeRead({ ...f.admit, read }),
-    provider.runtime.consumption.acknowledge({
-      ...f.admit,
-      result,
-      evidence: { kind: 'processed', completion: proof('test') },
-    }),
-    provider.runtime.instances.connect(f.admit),
-    provider.recover(f.admit),
-    provider.quiesce(),
-    provider.driver.drive(
-      { ...f.admit, instance: instance(), continuity: proof('test') },
-      new AbortController().signal,
-    ),
-  ])
-  expect(answers).toHaveLength(12)
-  for (const answer of answers)
-    expect(answer).toEqual({
-      failure: {
-        kind: 'unavailable',
-        dependency: 'model-runtime',
-        diagnostic: 'managed-runtime-not-implemented',
+  function unread<T extends object>(input: T): T {
+    return new Proxy(input, {
+      get() {
+        throw new Error('unimplemented operation read request data')
       },
     })
+  }
+  function invoke(subject: typeof provider) {
+    return Promise.all([
+      subject.runtime.calls.admit(unread(f.admit)),
+      subject.runtime.calls.inspect(unread({ ...f.admit, admission: f.admit.operation })),
+      subject.runtime.calls.dispatches(unread(f.admit)),
+      subject.runtime.calls.cancel(unread(f.admit)),
+      subject.runtime.consumption.beginRead(unread({ ...f.admit, result })),
+      subject.runtime.consumption.readNext(unread({ ...f.admit, read, after: '1' })),
+      subject.runtime.consumption.closeRead(unread({ ...f.admit, read })),
+      subject.runtime.consumption.acknowledge(
+        unread({
+          ...f.admit,
+          result,
+          evidence: { kind: 'processed', completion: proof('test') },
+        }),
+      ),
+      subject.runtime.instances.connect(unread(f.admit)),
+      subject.recover(unread(f.admit)),
+      subject.quiesce(),
+      subject.driver.drive(
+        unread({ ...f.admit, instance: instance(), continuity: proof('test') }),
+        new AbortController().signal,
+      ),
+    ])
+  }
+  const expected = [
+    ['calls.admit', '1.3'],
+    ['calls.inspect', '1.3'],
+    ['calls.dispatches', '1.3'],
+    ['calls.cancel', '5.2'],
+    ['consumption.beginRead', '1.7'],
+    ['consumption.readNext', '1.7'],
+    ['consumption.closeRead', '1.7'],
+    ['consumption.acknowledge', '1.7'],
+    ['instances.connect', '3.5'],
+    ['recover', '5.4'],
+    ['quiesce', '5.5'],
+    ['driver.drive', '5.3'],
+  ]
+  const other = createModelRuntime(dependencies, configuration)
+  const batches = await Promise.all([invoke(provider), invoke(provider), invoke(other)])
+  batches.push(await invoke(provider))
+  const replies = []
+  const failures = []
+  for (const answers of batches) {
+    expect(answers).toHaveLength(expected.length)
+    for (const [index, [operation, stage]] of expected.entries()) {
+      const answer = answers[index]
+      expect(answer).toEqual({
+        failure: {
+          kind: 'unavailable',
+          dependency: 'model-runtime',
+          diagnostic: `managed-runtime-not-implemented operation=${operation} stage=${stage}`,
+        },
+      })
+      replies.push(answer)
+      if (answer === undefined || !('failure' in answer))
+        throw new Error('expected unavailable failure')
+      failures.push(answer.failure)
+    }
+  }
+  expect(new Set(replies).size).toBe(replies.length)
+  expect(new Set(failures).size).toBe(failures.length)
   expect(invoked).toBe(0)
 })
 it('rejects dependency and numeric configuration defects at construction', () => {
   const f = assembled()
   for (const key of Object.keys(f.dependencies)) {
-    const invalid = { ...f.dependencies, [key]: {} }
-    expect(() => Reflect.apply(createModelRuntime, undefined, [invalid, configuration])).toThrow(
-      TypeError,
-    )
+    for (const replacement of [undefined, {}]) {
+      const invalid = { ...f.dependencies, [key]: replacement }
+      expect(() => Reflect.apply(createModelRuntime, undefined, [invalid, configuration])).toThrow(
+        new TypeError(`invalid Model dependency ${key}`),
+      )
+    }
   }
   for (const field of Object.keys(configuration)) {
     const absent = Object.fromEntries(

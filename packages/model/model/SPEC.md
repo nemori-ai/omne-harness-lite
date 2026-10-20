@@ -112,7 +112,19 @@ outputBatchBytes 与 outputBatchDelayMs 控制持久输出批次。未确认批�
 
 ## 当前构造支持与本地模拟
 
-根 createModelRuntime 校验五依赖的方法形状及全部七配置字段。缺项或错误类型抛 TypeError，数值非有限整数或超界抛 RangeError。构造不调用依赖，不绑定、排队或启动网络。当前十二个托管操作明确返回 unavailable(model-runtime, managed-runtime-not-implemented)，后续运行实现沿同一工厂补齐。本阶段不执行上文的托管业务流程。
+根 createModelRuntime 校验五依赖的方法形状及全部七配置字段。缺项或错误类型抛 TypeError，数值非有限整数或超界抛 RangeError。构造不调用依赖，不绑定、排队或启动网络。当前十二个托管操作均正常 resolve 为 unavailable，dependency 为 model-runtime。它们不读取操作参数，不调用注入端口，不抛操作异常，也不返回成功。每次调用新建回复及内层 failure 对象，重复、并发及不同工厂实例之间不共享可变回复。本阶段不执行上文的托管业务流程。
+
+诊断为 `managed-runtime-not-implemented operation=<操作> stage=<阶段>`。操作和阶段均取固定字面量，不包含请求、身份或秘密。该文本供人阅读，不是解析协议。阶段只定位计划中的缺失能力，不表示运行状态或该阶段已交付。消费阶段 1.7 只指最小路径。
+
+| 操作 | 阶段 |
+| --- | --- |
+| calls.admit、calls.inspect、calls.dispatches | 1.3 |
+| consumption.beginRead、consumption.readNext、consumption.closeRead、consumption.acknowledge | 1.7 |
+| instances.connect | 3.5 |
+| calls.cancel | 5.2 |
+| driver.drive | 5.3 |
+| recover | 5.4 |
+| quiesce | 5.5 |
 
 独立 testing 入口的内存 Commands 实现共同协议的本地状态转换。每个公开方法同步形成候选，只有一个提交点发布调用事实与 operation 绑定。当前资格及执行通道在认回前重核。请求、owner 采用和 ActorRef 固定，P 不保存。待办和总预留从原责任派生，容量为整个装配共用的有限上界。
 
