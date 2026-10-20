@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -93,7 +93,7 @@ function passed(path: string) { return readFileSync(path) }
   })
 
   it('includes the root manifest in the repository dependency check', () => {
-    const root = mkdtempSync(join(tmpdir(), 'legacy-manifest-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'legacy-manifest-')))
     try {
       writeFileSync(
         join(root, 'package.json'),

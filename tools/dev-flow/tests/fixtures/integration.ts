@@ -1,4 +1,11 @@
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync } from 'node:fs'
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  chmodSync,
+  realpathSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { git } from '../../src/integration/git.ts'
@@ -99,7 +106,7 @@ export function setStartTag(remote: string, id: string, start: string, message?:
  * `integration/runtime`. No adoption descriptor, anchor or tag exists.
  */
 export function integrationFixture(options: { admissionOnly?: boolean } = {}) {
-  const home = mkdtempSync(join(tmpdir(), 'omne-integration-engine-')),
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-integration-engine-'))),
     root = join(home, 'work'),
     remote = join(home, 'remote.git'),
     bin = join(home, 'bin')

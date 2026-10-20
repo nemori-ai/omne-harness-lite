@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -663,7 +663,7 @@ describe('native parent read over REST', () => {
 describe('gh read process outcomes', () => {
   // Slow: each case starts a fake gh child process.
   function withFakeGh<T>(script: string, run: () => T): T {
-    const dir = mkdtempSync(join(tmpdir(), 'dev-flow-gh-read-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'dev-flow-gh-read-')))
     try {
       writeFileSync(join(dir, 'gh'), `#!/usr/bin/env node\n${script}\n`)
       chmodSync(join(dir, 'gh'), 0o755)

@@ -1,7 +1,15 @@
 // 根脚本背后的四个入口脚本（scripts/ 下）：只核它们拥有的部分——参数怎样分派、谁占运行名额、先后与退出码。
 // 真正的命令换成记录参数的假程序：node、uv 放在 PATH 前面，运行名额与钉住的 omne-metrics 放在脚本找它们的位置。
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -19,7 +27,7 @@ function executable(path: string, text: string): void {
 }
 
 function fixture() {
-  const home = mkdtempSync(join(tmpdir(), 'omne-entry-scripts-'))
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-entry-scripts-')))
   homes.push(home)
   const root = join(home, 'root'),
     bin = join(home, 'bin'),

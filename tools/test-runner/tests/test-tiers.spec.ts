@@ -1,6 +1,14 @@
 // 测试分层：仓库根的分层定义、运行器交给 turbo 的任务，以及真起 vitest 时三种层各跑了什么、导入了什么。
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -172,7 +180,7 @@ afterAll(() => {
 
 /** 一个小 vitest 项目：配置展开根上的分层定义；不导入 vitest（用全局 API），所以放在系统临时目录也跑得起来。 */
 function project(files: Readonly<Record<string, string>>): string {
-  const root = mkdtempSync(join(tmpdir(), 'test-tiers-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'test-tiers-')))
   temporaries.push(root)
   writeFileSync(
     join(root, 'vitest.config.mjs'),
@@ -282,7 +290,7 @@ describe('真起 vitest：各层跑了什么、导入了什么', { timeout: 60_0
 })
 
 describe('入口的层参数', { timeout: 60_000 }, () => {
-  const subject = mkdtempSync(join(tmpdir(), 'test-tier-cli-'))
+  const subject = realpathSync(mkdtempSync(join(tmpdir(), 'test-tier-cli-')))
   afterAll(() => rmSync(subject, { recursive: true, force: true }))
   writeFileSync(
     join(subject, 'pnpm-workspace.yaml'),

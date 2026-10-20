@@ -1,6 +1,6 @@
 // 提交信息规则的正反夹具：作者式署名报出，来源 trailer 与人与人的共同署名放行；
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -131,7 +131,7 @@ describe('来源 trailer', () => {
     ])
   })
   it('Git 只读取真实 trailer 块，正文不是来源', () => {
-    const root = mkdtempSync(join(tmpdir(), 'trailer-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'trailer-')))
     try {
       const git = (...args: string[]) =>
         execFileSync(

@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -37,7 +38,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'omne-template-cli-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-template-cli-')))
   roots.push(root)
   mkdirSync(join(root, 'packages'))
   mkdirSync(join(root, 'docs/architecture'), { recursive: true })
