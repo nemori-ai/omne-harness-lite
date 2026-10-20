@@ -5,7 +5,15 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ToolFailure } from '@omne-harness/tool-contract'
 import { completedFinal } from '@omne-harness/tool-contract/testing'
-import { admission, evidence, ok, operationRefFor, principalA, tenantA } from './runtime-values.ts'
+import {
+  admission,
+  evidence,
+  fixedOf,
+  ok,
+  operationRefFor,
+  principalA,
+  tenantA,
+} from './runtime-values.ts'
 import {
   admitCall,
   auditQueues,
@@ -64,7 +72,19 @@ describe('21 binding start outcomes', () => {
 })
 
 it('21 launch: repeated runs and a new driver keep one actual memory execution', async () => {
-  const first = startHarness()
+  const first = startHarness({
+    bindingPort: base => ({
+      ...base,
+      start: async (input, environment) => {
+        const original = ok(await first.commands.loadRecovery(admission('c1', 'op-c1')))
+        expect(input.request).toEqual(fixedOf(first.source, 'c1'))
+        expect(input.start).toEqual(original.start)
+        expect(input.permit.start).toEqual(input.start)
+        expect(environment).toEqual({ preparedFor: 'c1' })
+        return base.start(input, environment)
+      },
+    }),
+  })
   await admitCall(first, 'c1')
   await first.drive('c1', 'c1')
   const next = startHarness({
