@@ -20,7 +20,7 @@ import type { ControlProgress, WaitRecord } from './records.ts'
 import type { ToolInvocationRef, ToolOperationRef } from './reference.ts'
 import type {
   Attachment,
-  DeliveryState,
+  ReleasedDelivery,
   OperationResolution,
   Reply,
   ResultPage,
@@ -129,12 +129,21 @@ export type ToolInvokeOutcome =
   | Readonly<{ kind: 'rejected'; failure: ToolDefiniteFailure }>
 
 /**
- * The outcome of an ordinary command. `committed` carries the operation reference and the
+ * The outcome of an ordinary control command. `committed` carries the operation reference and the
  * receipt. `commit-unknown` means the command may have committed; the operation reference
  * queries it. `rejected` is definite.
  */
 export type ToolCommandOutcome<T> =
   | Readonly<{ kind: 'committed'; operation: ToolOperationRef; receipt: T }>
+  | Readonly<{ kind: 'commit-unknown'; operation: ToolOperationRef }>
+  | Readonly<{ kind: 'rejected'; failure: ToolDefiniteFailure }>
+
+/**
+ * A released delivery returns the producer's original durable receipt, without claiming that
+ * this attempt wrote an operation. An unknown answer carries this attempt's operation reference.
+ */
+export type ToolReleaseDeliveryOutcome =
+  | Readonly<{ kind: 'released'; receipt: ReleasedDelivery }>
   | Readonly<{ kind: 'commit-unknown'; operation: ToolOperationRef }>
   | Readonly<{ kind: 'rejected'; failure: ToolDefiniteFailure }>
 
@@ -162,9 +171,9 @@ export interface ToolInvocationQueries<P, B extends ContentBlock> {
 }
 
 /**
- * The ordinary commands of an invocation. Each command mints a fresh operation identity, so a
- * re-issued intent is a new operation; an unknown receipt is queried by its operation reference,
- * never re-committed under the same identity.
+ * Supported commands mint an operation identity for each intent. Query an unknown answer with
+ * its operation reference. A reliable negative answer rules out only that operation, not an
+ * earlier release. After that answer, an explicit new release can retrieve the existing receipt.
  */
 export interface ToolInvocationCommands<P> {
   control(
@@ -178,7 +187,7 @@ export interface ToolInvocationCommands<P> {
         consumer: ConsumerRef
         evidence: Handoff
       }>,
-  ): Promise<ToolCommandOutcome<DeliveryState>>
+  ): Promise<ToolReleaseDeliveryOutcome>
 }
 
 /** The ordinary access to the current instance directory: connect by the invocation reference. */

@@ -106,6 +106,7 @@ export type DeliveryState =
       consumer: ConsumerRef
       evidence: DurableEvidence
     }>
+export type ReleasedDelivery = Extract<DeliveryState, { kind: 'released' }>
 export type ToolState = Readonly<{
   call: ToolCallId
   revision: ToolRevision

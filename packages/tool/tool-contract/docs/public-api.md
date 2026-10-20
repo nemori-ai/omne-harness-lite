@@ -28,7 +28,7 @@
 
 [行为与约束](../SPEC.md#342-返回与执行事实)。
 
-- [results.ts](../src/results.ts)：结果、附件、效果、终局、中断原因 `InterruptionCause`、准入失败、`Reply`、等待与交付状态、`ToolState`、结果页和查询结果。
+- [results.ts](../src/results.ts)：结果、附件、交付状态及其 released 分支 `ReleasedDelivery`、效果、终局、中断原因 `InterruptionCause`、准入失败、`Reply`、等待与交付状态、`ToolState`、结果页和查询结果。
 - [judge-state.ts](../src/judge-state.ts)：`judgeToolState`，按阶段与前后台关系封闭检查 `ToolState`，再检查类型表达不了的字段关系。
 - [result-policy.ts](../src/result-policy.ts)：默认结果政策 `defaultResultPolicy`、规则集 `defaultResultPolicyRules` 与采用 `defaultResultPolicyAdoption`（G3）。
 - [adoption.ts](../src/adoption.ts)：`describedAdoption(rules)` 按发布的规则集给出采用，`digest` 是 `sha256:` 加规则集 JSON 文本的 SHA-256。各实现与 Cordis 定义包用它给出同一摘要。
@@ -172,3 +172,5 @@ for (const conformance of toolStartAuthorityConformance<MyPrincipal>()) {
 - [program.ts](../src/program.ts)：子调用位置与预留、子调用状态、程序结束与收束、`ToolChildren`、程序结果与 `ProgramTools`。
 
 ProgramTools.call 交回唯一 ToolResult 封装，其 data 为程序值，content 为展示内容。宿主只在 [P13](../SPEC.md#p13-双返回形态与程序输出契约) 的验证及可靠交接后交给脚本。动态名称调用没有凭空推断出的 T；具体语言 SDK 根据固定的返回声明生成或绑定访问器，仍须核验真实结果。无程序 schema 的工具可显式声明 program=none，程序只得到受验证的 ToolResult，不获得假定存在的业务字段。
+
+普通命令的 `ToolReleaseDeliveryOutcome` 由 [operations.ts](../src/operations.ts) 拥有。释放成功只返回 `released` 与生产者原回执，不声称本次操作提交。未知结果携带本次操作引用，恢复规则见 [SPEC 的普通调用与引用](../SPEC.md)。

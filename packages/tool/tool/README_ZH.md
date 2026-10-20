@@ -103,6 +103,6 @@ tool/
 
 完整文件导航见 [index](index.md)。主题职责见 [docs/README](docs/README.md)。
 
-普通调用方使用 `runtime.invoke({ principal, tenant, request })` 并保存返回的调用引用。相同 payload 每次产生独立调用。回执未知后用 queries.lookup 查原 admission；commands.releaseDelivery 的未知回执用其操作引用经 queries.queryOperation 查询。持久读取和交付不要求连接实例目录。每次访问都核当前主体与租户，引用不授予权限。完整响应丢失且未保存引用时，不能重新提交 payload 来找回原调用。
+普通调用方使用 `runtime.invoke({ principal, tenant, request })` 并保存返回的调用引用。相同 payload 每次产生独立调用。回执未知后用 queries.lookup 查原 admission；commands.releaseDelivery 成功返回 released 与生产者原耐久回执，不附操作引用，也不承诺新增写入。未知回执用其操作引用经 queries.queryOperation 查询。可靠否定只否定该次操作，调用方此后可明确再次释放以取得已有回执；未知或不可读时不能自动重发。持久读取和交付不要求连接实例目录。每次访问都核当前主体与租户，引用不授予权限。完整响应丢失且未保存引用时，不能重新提交 payload 来找回原调用。
 
 装配者提供受信身份端口与真实来源签发器，本包不提供生产默认签发器。测试可使用 createTestInvocationSource 的配对 issuer/guard 和 createTestToolIdentities 计数身份。宿主向 driver.run 显式提供实例身份，同一存活实例重复唤醒沿用。测试替身不证明生产 host、claim、接管或耐久性。

@@ -212,6 +212,8 @@ export type {
   ToolDefiniteFailure,
   ToolInvokeOutcome,
   ToolCommandOutcome,
+  ToolReleaseDeliveryOutcome,
+  ReleasedDelivery,
   ToolInvocationQueries,
   ToolInvocationCommands,
   ToolInvocationDirectory,

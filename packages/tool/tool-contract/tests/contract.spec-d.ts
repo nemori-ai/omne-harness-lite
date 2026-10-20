@@ -18,6 +18,8 @@ import {
   type ToolOperationRef,
   type ToolProcessUpdate,
   type ToolResultData,
+  type ToolReleaseDeliveryOutcome,
+  type ReleasedDelivery,
   type ToolReturnDeclaration,
   type ToolRuntime,
   type ToolState,
@@ -210,4 +212,17 @@ it('ordinary payloads and commands cannot select trusted invocation sources or r
   void sourced
   void identified
   void operated
+})
+
+it('a successful delivery release has no operation claim and cannot return a pending receipt', () => {
+  type Released = Extract<ToolReleaseDeliveryOutcome, { kind: 'released' }>
+  function declareReleaseShape(released: Released) {
+    expectTypeOf(released.receipt).toEqualTypeOf<ReleasedDelivery>()
+    // @ts-expect-error TS2339: a successful release does not expose this attempt's operation.
+    void released.operation
+    // @ts-expect-error TS2322: a released receipt cannot have the pending discriminant.
+    const pending: ReleasedDelivery = { ...released.receipt, kind: 'pending' }
+    void pending
+  }
+  void declareReleaseShape
 })

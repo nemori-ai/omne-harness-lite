@@ -17,7 +17,7 @@
     再次 invoke：独立新调用；内部 recovered=true 在普通入口被报告为身份提供者违约，不唤醒
     拒绝：denied、invalid、conflict、stale-revision、unsupported、unavailable（`tool-queue` 容量满，提交之前拒绝）
     未知：提交结果未知时回复 commit-unknown。Tool 不在内部重试该提交
-        调用方以返回的调用引用调用 queries.lookup；交付操作用操作引用调用 queries.queryOperation
+        调用方以返回的调用引用调用 queries.lookup；交付未知时用操作引用调用 queries.queryOperation，释放成功直接返回原回执
         记录仓读取失败回复 unavailable，不冒充调用不存在
 
 推进协程被唤醒后读 loadRecovery，按阶段与待办做一步，再重读，每次最多 `driverStepsPerRun` 步（缺省 16）

@@ -326,7 +326,7 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
           return released.failure.kind === 'commit-unknown'
             ? { kind: 'commit-unknown', operation: operationRef.ok }
             : { kind: 'rejected', failure: released.failure }
-        return { kind: 'committed', operation: operationRef.ok, receipt: released.ok }
+        return { kind: 'released', receipt: released.ok }
       },
     }),
     instances: Object.freeze<ToolInvocationDirectory<P>>({

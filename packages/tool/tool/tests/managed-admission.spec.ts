@@ -372,7 +372,7 @@ describe('10 boundary and qualification', () => {
         consumer: dummyRequest().consumer,
         evidence: { kind: 'retained', custody: evidence('kept', 'consumer') },
       })
-      if (release.kind !== 'committed') throw new Error(JSON.stringify(release))
+      if (release.kind !== 'released') throw new Error(JSON.stringify(release))
       const released = release.receipt
       const read = await assembly.store.read({
         kind: 'call',

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type {
   Handoff,
-  ToolCommandOutcome,
+  ToolReleaseDeliveryOutcome,
+  ReleasedDelivery,
   ToolDeliveryId,
   ToolResultVersion,
 } from '@omne-harness/tool-contract'
@@ -35,9 +36,8 @@ function release(evidenceOf: Handoff, overrides: Record<string, unknown> = {}) {
   }
 }
 
-function committed<T>(outcome: ToolCommandOutcome<T>): T {
-  if (outcome.kind !== 'committed')
-    throw new Error(`expected committed: ${JSON.stringify(outcome)}`)
+function releasedReceipt(outcome: ToolReleaseDeliveryOutcome): ReleasedDelivery {
+  if (outcome.kind !== 'released') throw new Error(`expected released: ${JSON.stringify(outcome)}`)
   return outcome.receipt
 }
 
@@ -48,7 +48,9 @@ describe('16 delivery release (P08)', () => {
   ])('16 release: the %s path releases the delivery with a Tool-side receipt', async (_, proof) => {
     const assembly = harness()
     await assembly.invoke(dummyRequest())
-    const released = committed(await assembly.runtime.commands.releaseDelivery(release(proof)))
+    const released = releasedReceipt(
+      await assembly.runtime.commands.releaseDelivery(release(proof)),
+    )
     expect(released).toMatchObject({
       kind: 'released',
       delivery: 'd1',
@@ -86,7 +88,9 @@ describe('16 delivery release (P08)', () => {
   it('16 release: one commit releases the result, records the receipt and the state, and removes the deliver task', async () => {
     const assembly = harness()
     await assembly.invoke(dummyRequest())
-    const released = committed(await assembly.runtime.commands.releaseDelivery(release(retained)))
+    const released = releasedReceipt(
+      await assembly.runtime.commands.releaseDelivery(release(retained)),
+    )
     expect(assembly.store.commits).toBe(2)
     const read = await assembly.store.read({
       kind: 'call',
@@ -147,21 +151,21 @@ describe('16 delivery release (P08)', () => {
       failure: { kind: 'invalid', field: 'consumer', reason: 'type' },
     })
     expect(assembly.store.commits).toBe(1)
-    committed(await assembly.runtime.commands.releaseDelivery(release(retained)))
+    releasedReceipt(await assembly.runtime.commands.releaseDelivery(release(retained)))
   })
 
   it('16 release: a second release answers the released state and writes nothing more', async () => {
     const assembly = harness()
     await assembly.invoke(dummyRequest())
-    const released = committed(await assembly.runtime.commands.releaseDelivery(release(retained)))
+    const released = releasedReceipt(
+      await assembly.runtime.commands.releaseDelivery(release(retained)),
+    )
     expect(await assembly.runtime.commands.releaseDelivery(release(retained))).toEqual({
-      kind: 'committed',
-      operation: expect.any(String),
+      kind: 'released',
       receipt: released,
     })
     expect(await assembly.runtime.commands.releaseDelivery(release(processed))).toEqual({
-      kind: 'committed',
-      operation: expect.any(String),
+      kind: 'released',
       receipt: released,
     })
     expect(assembly.store.commits).toBe(2)
@@ -237,7 +241,7 @@ describe('16 delivery release (P08)', () => {
     )
     expect(resolved.kind).toBe('committed')
     expect(await assembly.runtime.commands.releaseDelivery(release(retained))).toMatchObject({
-      kind: 'committed',
+      kind: 'released',
       receipt: { kind: 'released' },
     })
     expect(assembly.store.commits).toBe(2)

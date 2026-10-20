@@ -412,6 +412,57 @@ describe('ordinary invocation and saved references', () => {
     }
   })
 
+  it('recovers a lost no-write release answer only after resolving the original operation', async () => {
+    const base = runtimeAssembly()
+    const invoked = accepted(
+      await base.runtime.invoke({
+        principal: principalA,
+        tenant: tenantA,
+        request: dummyRequest(),
+      }),
+    )
+    const input = {
+      ...access(invoked.reference),
+      result: 'v1' as never,
+      delivery: 'd1' as never,
+      consumer: dummyRequest().consumer,
+      evidence: { kind: 'retained' as const, custody: evidence('kept', 'consumer') },
+    }
+    const first = await base.runtime.commands.releaseDelivery(input)
+    if (first.kind !== 'released') throw new Error(JSON.stringify(first))
+    expect(base.store.commits).toBe(2)
+    const releaseReplies: unknown[] = []
+    const runtime = createToolRuntime(
+      {
+        ...base.dependencies,
+        commands: {
+          ...base.dependencies.commands,
+          releaseDelivery: async command => {
+            releaseReplies.push(await base.dependencies.commands.releaseDelivery(command))
+            throw new Error('lost no-write answer')
+          },
+        },
+      },
+      base.configuration,
+    ).runtime
+    const unknown = await runtime.commands.releaseDelivery(input)
+    if (unknown.kind !== 'commit-unknown') throw new Error(JSON.stringify(unknown))
+    expect(readToolOperationRef(unknown.operation).operation).toBe('op-cmd-2')
+    expect(base.store.commits).toBe(2)
+    expect(
+      await runtime.queries.queryOperation({
+        principal: principalA,
+        tenant: tenantA,
+        operation: unknown.operation,
+      }),
+    ).toEqual({ ok: { kind: 'not-committed' } })
+    expect(releaseReplies).toEqual([{ ok: first.receipt }])
+    const afterFence = base.store.commits
+    const rebuilt = createToolRuntime(base.dependencies, base.configuration).runtime
+    expect(await rebuilt.commands.releaseDelivery(input)).toEqual(first)
+    expect(base.store.commits).toBe(afterFence)
+  })
+
   it('keeps directory failures separate and never consults it for persistent reads or delivery', async () => {
     const base = testAssembly()
     let connects = 0
@@ -463,7 +514,7 @@ describe('ordinary invocation and saved references', () => {
         consumer: dummyRequest().consumer,
         evidence: { kind: 'retained', custody: evidence('kept', 'consumer') },
       }),
-    ).toMatchObject({ kind: 'committed' })
+    ).toMatchObject({ kind: 'released' })
     expect(connects).toBe(3)
   })
 

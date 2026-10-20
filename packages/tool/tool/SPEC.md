@@ -165,6 +165,8 @@
 
 ### 16 交付解除（P08）
 
+普通 `runtime.commands.releaseDelivery` 成功返回 `released` 和生产者原耐久回执，不附本次操作引用。已释放后的重入不写新操作。未知结果携带本次操作引用，只能查原操作；可靠否定只否定该次操作，不证明交付仍 pending。调用方在可靠否定后可以明确再次释放以取得原回执，未知或不可读时不能自动重发。lookup 是原 admission 回执，readProcess 未支持，ResultPage 不含 DeliveryState，均不是最新交付状态读口。
+
 `releaseDelivery` 先用契约的 `judgeConsumerRef` 与 `judgeHandoff` 封闭检查消费位置与交接证据，再比较或计算摘要。多出的字段回复 `invalid`（`unknown-field`），函数等非文本值回复 `invalid`（`type`），字段前缀是 `consumer.` 或 `evidence.`。之后核版本、交付号与消费位置都是记录的值：未知调用回复 `invalid`（`call: unknown-call`），交付号不符回复 `invalid`（`delivery: mismatch`），版本未知回复 `invalid`（`result: unknown-version`），消费位置不同回复 `conflict`，`operation` 是形成该版本的操作。`retained` 的 `custody` 或 `processed` 的 `completion` 的 `owner` 必须等于消费者的 `owner`，否则回复 `invalid`（`evidence.<custody|completion>.owner: owner-mismatch`）。
 
 通过后一次提交同时写入结果记录的 `released`、操作回执、调用状态，并删除 `deliver` 任务。`released.evidence` 由本包铸造（第 15 条的 `delivery` 种类），不是请求证据的回送。已解除的交付再次解除（同操作或新操作）回复已解除状态，不再写入。解除后全文仍可经 `readResult` 读取。
