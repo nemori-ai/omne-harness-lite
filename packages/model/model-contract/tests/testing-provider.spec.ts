@@ -733,6 +733,56 @@ describe('who may see a call', () => {
     })
   })
 
+  it('rejects structural admission errors before creating a call or reading tenant getters', async () => {
+    let getters = 0
+    const accessor = Object.defineProperty(admission('a'), 'tenant', {
+      enumerable: true,
+      get() {
+        getters += 1
+        return tenantA
+      },
+    })
+    const hidden = Object.defineProperty(admission('a'), 'tenant', {
+      enumerable: false,
+      value: tenantA,
+    })
+    const unreadable = new Proxy(admission('a'), {
+      getOwnPropertyDescriptor(target, key) {
+        if (key === 'tenant') throw new Error('private tenant descriptor')
+        return Reflect.getOwnPropertyDescriptor(target, key)
+      },
+    })
+    for (const [input, field, reason] of [
+      [accessor, '/tenant', 'accessor'],
+      [hidden, '/tenant', 'non-enumerable'],
+      [unreadable, '/tenant', 'unreadable'],
+      [{ ...admission('a'), call: 'bad' }, '/call', 'identity'],
+      [admission('a', { tenant: { ...tenantA } }), null, null],
+    ] as const) {
+      const scripted = scriptedProvider()
+      const { calls } = scripted.provider.runtime
+      expect(failureOf(await Reflect.apply(calls.admit, calls, [input]))).toEqual(
+        field === null ? { kind: 'denied', action: 'tenant' } : { kind: 'invalid', field, reason },
+      )
+      expect(getters).toBe(0)
+      expect(
+        must(
+          await calls.inspect({
+            ...access('a'),
+            reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+          }),
+        ),
+      ).toEqual({ kind: 'not-accepted', operation: operation('admit-a') })
+      expect(must(await scripted.provider.recover({ principal: alice, tenant: tenantA }))).toEqual({
+        scheduled: '0',
+      })
+      expect(must(await calls.admit(admission('a')))).toMatchObject({
+        recovered: false,
+        revision: '1',
+      })
+    }
+  })
+
   it('denies a tenant value that did not come from the legal-identity package', async () => {
     const scripted = scriptedProvider()
     const forged = { ...tenantA }

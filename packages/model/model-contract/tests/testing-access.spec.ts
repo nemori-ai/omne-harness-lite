@@ -14,6 +14,7 @@ import {
   callRef,
   deniedAs,
   endedAs,
+  failureOf,
   liveHandle,
   must,
   operation,
@@ -167,6 +168,22 @@ describe('an input that names no call the principal may use', () => {
     deniedOnEveryOperation({ ...tenantA }))
 
   it('is denied on every operation for another tenant', () => deniedOnEveryOperation(tenantB))
+
+  it('denies inspection of another tenant reference with the inspect action and preserves the original call', async () => {
+    const scripted = scriptedProvider()
+    const { calls } = scripted.provider.runtime
+    await admitCall(scripted, 'a')
+    const input = {
+      ...access('a'),
+      reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+    }
+    const before = await calls.inspect(input)
+    expect(failureOf(await calls.inspect({ ...input, tenant: tenantB }))).toEqual({
+      kind: 'denied',
+      action: 'inspect',
+    })
+    expect(await calls.inspect(input)).toEqual(before)
+  })
 
   it('is denied on every operation for a call the provider never accepted', async () => {
     const { scripted, first } = await settledCallWithTwoReads()

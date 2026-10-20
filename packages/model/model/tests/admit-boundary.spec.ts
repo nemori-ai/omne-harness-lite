@@ -80,6 +80,40 @@ for (const boundary of ['runtime', 'commands'] as const) {
     expect(await calls.admit(invalid)).toEqual({
       failure: { kind: 'invalid', field: '/request/parameters/0/value', reason: 'range' },
     })
+    const tenantAccessor = Object.defineProperty({ ...f.admit }, 'tenant', {
+      enumerable: true,
+      get() {
+        getters++
+        return f.tenant
+      },
+    })
+    expect(await calls.admit(tenantAccessor)).toEqual({
+      failure: { kind: 'invalid', field: '/tenant', reason: 'accessor' },
+    })
+    const hiddenTenant = Object.defineProperty({ ...f.admit }, 'tenant', {
+      enumerable: false,
+      value: f.tenant,
+    })
+    expect(await calls.admit(hiddenTenant)).toEqual({
+      failure: { kind: 'invalid', field: '/tenant', reason: 'non-enumerable' },
+    })
+    let tenantReflections = 0
+    const unreadableTenant = new Proxy(
+      { ...f.admit },
+      {
+        getOwnPropertyDescriptor(target, key) {
+          if (key === 'tenant') {
+            tenantReflections++
+            throw new Error('synth-tenant-reflection')
+          }
+          return Reflect.getOwnPropertyDescriptor(target, key)
+        },
+      },
+    )
+    expect(await calls.admit(unreadableTenant)).toEqual({
+      failure: { kind: 'invalid', field: '/tenant', reason: 'unreadable' },
+    })
+    expect(tenantReflections).toBe(1)
     expect(await calls.admit({ ...f.admit, tenant: structuredClone(f.tenant) })).toEqual({
       failure: { kind: 'denied', action: 'tenant' },
     })
