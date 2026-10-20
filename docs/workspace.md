@@ -35,9 +35,10 @@ Python 当前服务于开发工具。
 **可执行验收**放在成员的 `acceptance/` 目录，与 `tests/` 分开，因为两者的主人不同：
 
 - **它持续验证产品场景。**任务结束后仍须维护相应场景，文件名与内容不绑定任务身份。文件名是 `<完整 PD 身份>.<一句话>.acceptance.ts`
-  （如 `PD-cli.no-screen-points-to-machine-entry.acceptance.ts`），内容从用户入口驱动真实组合。
-- **每份验收在开头的注释里声明它覆盖哪些场景**，恰好一行：`// covers: PD-cli S5`，多条用逗号隔开（`// covers: PD-cli S5, PD-cli S6`）。
+  （如 `PD-model-invocation.success.acceptance.ts`），内容从用户入口驱动真实组合。
+- **每份验收在开头的注释里声明它覆盖哪些场景**，恰好一行：`// covers: PD-model-invocation S1`，多条用逗号隔开（`// covers: PD-model-invocation S1, PD-model-invocation S2`）。
   身份采用产品 README 的 `PD-<slug>`，slug 以小写字母开头，后续为小写字母或数字，可用单个连字符分段。旧 PF 编号不作为别名。
+  示例中的 `S1`、`S2` 仅演示编号写法，不表示已登记场景。实际使用前，须先在对应当前产品的 `acceptance.md` 中登记真实场景。
   声明的场景必须在那个 topic 的 `acceptance.md` 里存在——场景含义变了会换新编号，覆盖旧编号的验收于是被点名，要跟着改或删。
   **覆盖声明只表示有验收程序声称覆盖该场景**，实际运行、结果及负责人接受分别核对，不由声明推定交付。
 - **数量跟着场景走，不跟着卡走。**新卡加强一条已有验收覆盖的流程时，改那份验收、把新场景加进它的声明；不为每张卡新建一份。

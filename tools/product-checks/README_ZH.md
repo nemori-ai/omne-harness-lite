@@ -159,7 +159,8 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 | 文件名不以 `PD-<slug>.` 开头，或这个 topic 不在它声明覆盖的 topic 里        |                                                                                                                                               |
 | 成员有验收文件，`package.json` 里却没有 `acceptance` 脚本                   | 没有它，这些验收不会被任何入口运行                                                                                                            |
 
-例如声明 `// covers: PD-cli S5, PD-model-invocation S1`，文件名可为 `PD-model-invocation.success.acceptance.ts`。
+以下示例仅演示声明和文件名写法。`S1` 仅为编号示例，不表示已登记场景。实际使用前，须先在对应当前产品的 `acceptance.md` 中登记真实场景。
+例如声明 `// covers: PD-tool-execution S1, PD-model-invocation S1`，文件名可为 `PD-model-invocation.success.acceptance.ts`。
 `slug` 以小写字母开头，后续为小写字母或数字，可用单个连字符分段；旧 PF 编号不作为别名。
 
 产品区的位置沿用 `loop` 配置的 `sensors.topicChurn.productRoot`。**为什么接在 `lint:rules`**：它与提交署名一样是对整个仓库的静态核对，
