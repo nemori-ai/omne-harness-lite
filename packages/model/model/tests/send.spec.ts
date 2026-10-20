@@ -1,7 +1,11 @@
 import { expect, it } from 'vitest'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { createModelSendBoundary, type SendStart } from '@omne-harness/model'
-import { type CredentialResolution, type ModelCommands } from '@omne-harness/model-contract'
+import {
+  type CredentialResolution,
+  type ModelCommands,
+  type TransportFact,
+} from '@omne-harness/model-contract'
 import {
   credentialPort,
   sendFixture,
@@ -517,6 +521,90 @@ it('final revocation, control, stale generation and source denial each prevent s
     expect(f.counts().starts).toBe(0)
   }
 })
+for (const mismatch of ['receipt', 'window', 'supplier', 'model'] as const)
+  it(`the final send fence rejects a mismatched ${mismatch} and preserves committed bindings`, async () => {
+    const f = await sendFixture({
+      configureSource(source) {
+        if (mismatch === 'supplier')
+          Reflect.set(source, 'supplier', { ...source.supplier, revision: 'other' })
+        if (mismatch === 'model') Reflect.set(source, 'model', 'other-model')
+      },
+    })
+    const commands = f.dependencies.commands
+    const coordinator = f.controls.send.coordinator
+    let committed:
+      | {
+          input: Parameters<typeof commands.openReceiveWindow>[0]
+          revision: Parameters<typeof commands.openReceiveWindow>[0]['expected']
+          dispatches: Awaited<ReturnType<typeof commands.dispatches>>
+        }
+      | undefined
+    let fences = 0
+    let resolutions = 0
+    const sender = f.makeSender({
+      commands: {
+        ...commands,
+        async openReceiveWindow(input) {
+          const result = await commands.openReceiveWindow(input)
+          committed = {
+            input,
+            revision: unbox(result),
+            dispatches: await commands.dispatches(f.admit),
+          }
+          return result
+        },
+      },
+      coordinator: {
+        ...coordinator,
+        withinCurrent(input, receipt, window, start) {
+          fences += 1
+          return coordinator.withinCurrent(
+            input,
+            mismatch === 'receipt' ? { ...receipt, payloadDigest: 'b'.repeat(64) } : receipt,
+            mismatch === 'window' ? `${window}-other` : window,
+            start,
+          )
+        },
+      },
+      credentials: {
+        present: () => ({ kind: 'unavailable' }),
+        resolve() {
+          resolutions += 1
+          return { kind: 'value', scope: 'factory', value: synthetic }
+        },
+      },
+    })
+    expect(await sender.send(f.demand, signal())).toMatchObject({
+      kind: 'not-started',
+      failure:
+        mismatch === 'receipt' || mismatch === 'window'
+          ? { kind: 'invalid', field: 'dispatch', reason: 'send-not-prepared' }
+          : {
+              kind: 'unavailable',
+              dependency: 'model-send-source',
+              diagnostic: 'source-not-registered',
+            },
+    })
+    expect(fences).toBe(1)
+    expect(resolutions).toBe(0)
+    expect(f.counts()).toMatchObject({ starts: 0, acquired: 1, pulls: 0, returns: 0 })
+    if (!committed) throw new Error('committed window fixture')
+    const before = unbox(committed.dispatches)
+    expect(before).toHaveLength(1)
+    expect(before[0]).toMatchObject({ dispatch: f.demand.dispatch, send: 'prepared' })
+    expect(before[0]?.materialization).not.toBeNull()
+    expect(unbox(await commands.dispatches(f.admit))).toEqual(
+      before.map(dispatch => ({ ...dispatch, send: 'not-sent' })),
+    )
+    expect(await commands.openReceiveWindow(committed.input)).toEqual({ ok: committed.revision })
+    expect(
+      await commands.query({ ...f.admit, operation: committed.input.operation }),
+    ).toMatchObject({
+      ok: { kind: 'committed' },
+    })
+    expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+  })
+
 it('start wins before a later control and preserves its interruption for the sole consumer', async () => {
   const f = await sendFixture()
   const abort = new AbortController()
@@ -565,6 +653,69 @@ for (const action of ['done', 'return', 'throw', 'error'] as const)
     await iterator.return?.()
     expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
   })
+for (const action of ['done', 'return', 'throw'] as const)
+  for (const optional of ['no-return', 'no-throw', 'neither'] as const)
+    it(`closes a legal iterator with ${optional} after ${action} without reading again`, async () => {
+      const f = await sendFixture()
+      const sender = f.makeSender({
+        resources: {
+          async acquire(input) {
+            const resource = unbox(await f.resources.acquire(input))
+            return {
+              ok: {
+                ...resource,
+                startWithCredential(...args) {
+                  const facts = resource.startWithCredential(...args)
+                  return {
+                    [Symbol.asyncIterator](): AsyncIterator<TransportFact> {
+                      const source = facts[Symbol.asyncIterator]()
+                      return {
+                        next: () => source.next(),
+                        ...(optional === 'no-throw'
+                          ? {
+                              return: () =>
+                                source.return
+                                  ? source.return()
+                                  : Promise.resolve({ done: true as const, value: undefined }),
+                            }
+                          : {}),
+                        ...(optional === 'no-return'
+                          ? { throw: (error: unknown) => Promise.reject(error) }
+                          : {}),
+                      }
+                    },
+                  }
+                },
+              },
+            }
+          },
+        },
+      })
+      const sent = await sender.send(f.demand, signal())
+      if (sent.kind !== 'started') throw new Error('send fixture')
+      const iterator = sent.facts[Symbol.asyncIterator]()
+      expect(() => sent.facts[Symbol.asyncIterator]()).toThrow('facts-already-consumed')
+      expect((await iterator.next()).done).toBe(false)
+      if (action === 'done')
+        while (!(await iterator.next()).done) {
+          /* consume */
+        }
+      if (action === 'return') await iterator.return?.()
+      if (action === 'throw')
+        await expect(iterator.throw?.(new Error(synthetic))).rejects.toThrow('consumer-closed')
+      const pulls = f.counts().pulls
+      expect(await iterator.next()).toEqual({ done: true, value: undefined })
+      expect(await iterator.next()).toEqual({ done: true, value: undefined })
+      await iterator.return?.()
+      expect(f.counts()).toMatchObject({
+        starts: 1,
+        acquired: 1,
+        pulls,
+        returns: optional === 'no-throw' && action !== 'done' ? 1 : 0,
+      })
+      expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+    })
+
 it('keeps release failure observable and attempts later releases despite earlier failure', async () => {
   const f = await sendFixture()
   f.releaseFailures.add('materialized')
@@ -596,6 +747,46 @@ it('a repeated coordinator closure still starts only once and hands out the firs
   if (sent.kind !== 'started') throw new Error('send fixture')
   await collect(sent.facts)
 })
+it('returns the original started stream when the coordinator throws after successful start', async () => {
+  const f = await sendFixture()
+  const coordinator = f.controls.send.coordinator
+  let fences = 0
+  let started: SendStart | undefined
+  const sender = f.makeSender({
+    coordinator: {
+      ...coordinator,
+      withinCurrent(input, receipt, window, start) {
+        fences += 1
+        coordinator.withinCurrent(input, receipt, window, selection => {
+          started = start(selection)
+          return started
+        })
+        if (started?.kind !== 'started') throw new Error('successful start fixture')
+        throw new Error(synthetic)
+      },
+    },
+  })
+  const sent = await sender.send(f.demand, signal())
+  expect(sent.kind).toBe('started')
+  expect(started?.kind).toBe('started')
+  expect(unbox(await f.dependencies.commands.dispatches(f.admit))[0]?.send).toBe('started')
+  expect(f.counts()).toMatchObject({ starts: 1, acquired: 1, pulls: 0, returns: 0 })
+  expect(f.events).toEqual([])
+  if (sent.kind !== 'started') throw new Error('send fixture')
+  const facts = await collect(sent.facts)
+  expect(facts).toEqual([
+    { kind: 'block-open', index: 'one', mode: 'append', content: 'text' },
+    { kind: 'ended', termination: { kind: 'completed', reason: 'stop' } },
+  ])
+  expect(facts).toHaveLength(f.delivered.length)
+  facts.forEach((fact, index) => expect(fact).toBe(f.delivered[index]))
+  expect(() => sent.facts[Symbol.asyncIterator]()).toThrow('facts-already-consumed')
+  expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+  expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+  expect(fences).toBe(1)
+  expect(f.counts()).toMatchObject({ starts: 1, acquired: 1 })
+})
+
 it('rejects invalid retention bounds before acquiring anything', async () => {
   const f = await sendFixture()
   for (const maxRetainedAttempts of [0, -1, 1.5, Infinity])
