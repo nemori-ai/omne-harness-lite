@@ -1,6 +1,6 @@
 # Agent 内部架构
 
-本包提供组合式实现。公开操作、失败和行为归 [agent-contract](../../../agent-contract/SPEC.md)，[工厂](../public-api.md) 聚合构造依赖。运行实现尚未落地。
+本包提供组合式实现。公开操作、失败和行为归 [agent-contract](../../../agent-contract/SPEC.md)，[工厂](../public-api.md) 聚合构造依赖。Loop 的骨架已落地：纯 Evaluator 在 `src/loop/evaluator.ts`，转移表在 `src/loop/nodes.ts`，Execution coordinator 在 `src/loop/coordinator.ts`，Runtime coordinator 的单执行槽与状态投影在 `src/provider.ts`。其余角色尚未落地。
 
 ## 模块与状态责任
 

@@ -1,7 +1,7 @@
 // C2 of #509: every public operation of the four faces checks the tenant of its Access against the
 // binding, then calls access.check exactly once, and only `allowed` reaches the operation body.
-// The bodies are not implemented yet: after `allowed` each returns a named `unavailable`. That is a
-// stage-temporary answer of #502 stage 1, not a contract result; the tests that pin it say so.
+// Apart from invoke (#510), the bodies are not implemented yet: after `allowed` each returns a named
+// `unavailable`. That is a stage-temporary answer, not a contract result; the tests that pin it say so.
 import { describe, expect, it } from 'vitest'
 import type { AgentProvider } from '@omne-harness/agent'
 import { createTestAgentDependencies } from '@omne-harness/agent/testing'
@@ -224,7 +224,12 @@ describe.each(operations)('C2 $name', ({ name, target, call }) => {
     expect(failure(await call(provider, alice)).kind).toBe('denied')
     expect(check.calls).toHaveLength(2)
   })
+})
 
+// invoke has its body since #510; its allowed path is in loop-invoke.spec.ts and just below.
+const bodiless = operations.filter(entry => entry.name !== 'invoke')
+
+describe.each(bodiless)('C2 $name', ({ name, call }) => {
   it('stage-temporary (#502): allowed reaches a body that answers a named unavailable and writes nothing', async () => {
     const { provider, calls } = await setup()
     const result: Failure = failure(await call(provider, alice))
@@ -233,6 +238,20 @@ describe.each(operations)('C2 $name', ({ name, target, call }) => {
       new RegExp(`^${name} is not implemented until #502 stage \\d`, 'u'),
     )
     expect(calls).toEqual(['access.check'])
+  })
+})
+
+describe('C2 invoke after allowed', () => {
+  it('resolves the bound definition first; without an adoption it answers that unavailable and opens nothing', async () => {
+    const { provider, calls } = await setup()
+    const invoked = await provider.runtime.invoke({
+      ...alice,
+      ...mutation,
+      initial: acceptedInput('input-1'),
+      grant: null,
+    })
+    expect(failure(invoked)).toMatchObject({ kind: 'unavailable', owner: 'agentAdoptions' })
+    expect(calls).toEqual(['access.check', 'adoptions.resolve'])
   })
 })
 
