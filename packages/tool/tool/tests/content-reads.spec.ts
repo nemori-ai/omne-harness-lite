@@ -345,6 +345,42 @@ describe('fixed result and content reads through the runtime', () => {
     }
   })
 
+  it('rejects a provider page exceeding the requested byte budget within the attachment range', async () => {
+    const f = await fixture()
+    f.content.controls.failNext({
+      kind: 'reply',
+      replace: page => ({ ...page, bytes: BYTES.slice(0, 3) }),
+    })
+    const actual = await f.runtime.content.read({ ...f.input, maxBytes: 2 })
+    expect(actual).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(actual).not.toHaveProperty('ok')
+  })
+
+  it('rejects a provider page restarting at zero after a real continuation', async () => {
+    const f = await fixture()
+    const first = ok(await f.runtime.content.read(f.input))
+    if (first.next === null) throw new Error('expected continuation')
+    f.content.controls.failNext({
+      kind: 'reply',
+      replace: page => ({ ...page, offset: '0' }),
+    })
+    const actual = await f.runtime.content.read({ ...f.input, after: first.next })
+    expect(actual).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(actual).not.toHaveProperty('ok')
+  })
+
+  it('rejects a provider page extending beyond the declared attachment length with budget remaining', async () => {
+    const f = await fixture()
+    const maxBytes = BYTES.length + 1
+    f.content.controls.failNext({
+      kind: 'reply',
+      replace: page => ({ ...page, bytes: new Uint8Array(maxBytes), next: 'beyond-attachment' }),
+    })
+    const actual = await f.runtime.content.read({ ...f.input, maxBytes })
+    expect(actual).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(actual).not.toHaveProperty('ok')
+  })
+
   it('never turns missing bytes, provider failure, malformed identity or short EOF into success', async () => {
     const f = await fixture()
     for (const fault of [

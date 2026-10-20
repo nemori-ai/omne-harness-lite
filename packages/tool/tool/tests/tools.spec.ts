@@ -393,45 +393,81 @@ describe('Tools bounded response collection', () => {
     }
   })
   it.each([
-    'cycle',
-    'empty',
-    'metadata',
-    'version',
-    'count',
-    'page-budget',
-    'read-failure',
-  ] as const)('rejects %s without handing partial content to its consumer', async fault => {
-    let count = 0
+    {
+      fault: 'wrong fixed version on the final first page',
+      pages: [{ ...page(result([visible('one', 'x')])), result: version('changed') }],
+      expectedReads: 1,
+    },
+    {
+      fault: 'terminal metadata change on the final second page',
+      pages: [
+        page(result([visible('one', 'x')]), 'two'),
+        {
+          ...page(result([visible('two', 'y')])),
+          terminal: { kind: 'unavailable', reason: 'changed' } as const,
+        },
+      ],
+      expectedReads: 2,
+    },
+    {
+      fault: 'repeated cursor before a finite final page',
+      pages: [
+        page(result([visible('one', 'x')]), 'same'),
+        page(result([visible('two', 'y')]), 'same'),
+        page(result([visible('three', 'z')])),
+      ],
+      expectedReads: 2,
+    },
+    {
+      fault: 'empty non-final page before a populated final page',
+      pages: [page(result(), 'two'), page(result([visible('two', 'y')]))],
+      expectedReads: 1,
+    },
+  ])('rejects $fault without handing partial content to its consumer', async scenario => {
+    let reads = 0
     const tools = createTools(
       provider(async () => {
-        count += 1
-        if (fault === 'read-failure' && count === 2)
-          return fail({ kind: 'unavailable', dependency: 'ledger-store', diagnostic: 'unreadable' })
-        const current = page(
-          result(
-            fault === 'empty'
-              ? []
-              : [visible(String(count), fault === 'page-budget' ? 'x'.repeat(5000) : 'x')],
-          ),
-          fault === 'cycle' ? 'same' : String(count),
-        )
-        return succeed({
-          ...current,
-          result: fault === 'version' && count === 2 ? version('changed') : current.result,
-          terminal:
-            fault === 'metadata' && count === 2
-              ? { kind: 'unavailable', reason: 'changed' }
-              : current.terminal,
-        })
+        const next = scenario.pages[reads++]
+        if (next === undefined) throw new Error('read beyond the finite page sequence')
+        return succeed(next)
       }),
       { ...options, resultPageBytes: 1000, replyMaxBytes: 4000 },
     )
     const actual = await tools.readReply(access)
-    expect(actual).toHaveProperty('failure')
+    expect(actual).toMatchObject({ failure: { kind: 'unsupported' } })
     expect(actual).not.toHaveProperty('ok')
-    expect(count).toBeLessThanOrEqual(9)
-    if (fault === 'read-failure') expect(actual).toMatchObject({ failure: { kind: 'unavailable' } })
+    expect(reads).toBe(scenario.expectedReads)
   })
+  it.each(['count', 'page-budget', 'read-failure'] as const)(
+    'rejects %s without handing partial content to its consumer',
+    async fault => {
+      let count = 0
+      const tools = createTools(
+        provider(async () => {
+          count += 1
+          if (fault === 'read-failure' && count === 2)
+            return fail({
+              kind: 'unavailable',
+              dependency: 'ledger-store',
+              diagnostic: 'unreadable',
+            })
+          return succeed(
+            page(
+              result([visible(String(count), fault === 'page-budget' ? 'x'.repeat(5000) : 'x')]),
+              String(count),
+            ),
+          )
+        }),
+        { ...options, resultPageBytes: 1000, replyMaxBytes: 4000 },
+      )
+      const actual = await tools.readReply(access)
+      expect(actual).toHaveProperty('failure')
+      expect(actual).not.toHaveProperty('ok')
+      expect(count).toBeLessThanOrEqual(9)
+      if (fault === 'read-failure')
+        expect(actual).toMatchObject({ failure: { kind: 'unavailable' } })
+    },
+  )
   it('returns unsupported instead of truncating a source block, credential or schema and rejects unusable configurations', async () => {
     const f = await sourceFixture(result([visible('large', 'x'.repeat(5000))]))
     expect(body(await f.tools.present(f.access))).toContain('unsupported')
