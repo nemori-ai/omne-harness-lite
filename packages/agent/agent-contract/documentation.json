@@ -1239,6 +1239,38 @@
       ]
     },
     {
+      "id": "verification-node-acceptance",
+      "path": "packages/agent/agent-contract/verification/node-acceptance.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "candidate",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "读表方法"
+        },
+        {
+          "id": "section-2",
+          "anchor": "验收表"
+        },
+        {
+          "id": "section-3",
+          "anchor": "新增场景提议"
+        },
+        {
+          "id": "section-4",
+          "anchor": "与父卡的出入"
+        }
+      ]
+    },
+    {
       "id": "verification-index",
       "path": "packages/agent/agent-contract/verification/index.md",
       "kind": "guide",
