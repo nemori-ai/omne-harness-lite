@@ -45,6 +45,29 @@ describe('长期场景事实', () => {
     expect(result.status, result.stderr).toBe(0)
     expect(result.stdout).toContain('uncovered：产品区没有当前 topic')
   })
+  it('真实 CLI 把完整 PD 身份映射到声明路径，执行与接受仍未知', () => {
+    const root = temporary()
+    const product = join(root, '.meta_harness/design/product/model-invocation')
+    const member = join(root, 'packages/model/model')
+    mkdirSync(product, { recursive: true })
+    mkdirSync(join(member, 'acceptance'), { recursive: true })
+    writeFileSync(
+      join(product, 'README.md'),
+      '---\nid: PD-model-invocation\nrevision: 1\nstatus: draft\n---\n',
+    )
+    writeFileSync(join(product, 'design.md'), '# Product\n')
+    writeFileSync(join(product, 'acceptance.md'), '| S1 | 工具测试输入 |\n')
+    writeFileSync(join(member, 'package.json'), '{"scripts":{"acceptance":"vitest run"}}')
+    const path = 'packages/model/model/acceptance/PD-model-invocation.success.acceptance.ts'
+    writeFileSync(join(root, path), '// covers: PD-model-invocation S1\nexport {};\n')
+    const result = run('--root', root)
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stderr).toBe('')
+    expect(result.stdout).toContain('model-invocation（1 条）')
+    expect(result.stdout).toContain(`S1：覆盖声明 ${path}；执行 unknown；有效接受 unknown`)
+    expect(result.stdout).toContain('合计 1 个 topic、1 条带编号场景')
+    expect(result.stdout).not.toContain('覆盖声明有')
+  })
   it('当前检出的 16 个 PD 均报告未覆盖和未知接受', () => {
     const result = run()
     expect(result.status, result.stderr).toBe(0)
