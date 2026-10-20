@@ -1,7 +1,15 @@
 // 读 git 的那几层与入口本身，用临时仓库：一起改的提交、rev 翻动、并行工作树、祖先关系，
 // 以及入口的退出码（硬线破了是 1，其余报告项再多也是 0，用法错是 2）与快照的写入。
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -37,7 +45,7 @@ function commit(root: string, message: string): string {
 }
 
 function repository(): string {
-  const root = mkdtempSync(join(tmpdir(), 'loop-repo-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'loop-repo-')))
   made.push(root)
   // 本机 git 可能早于 `init -b`，用 symbolic-ref 定主线分支名。
   git(root, 'init', '-q')
@@ -206,7 +214,7 @@ describe('入口', { timeout: 60_000 }, () => {
   /** 一个带两个成员的仓库：core 的 a、infra 的 b，彼此不依赖。 */
   function members(): { root: string; home: string } {
     const root = repository()
-    const home = mkdtempSync(join(tmpdir(), 'loop-home-'))
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'loop-home-')))
     made.push(home)
     write(root, 'packages/core/a/src/index.ts', 'export const a = 1\n')
     write(root, 'packages/infra/b/src/index.ts', 'export const b = 2\n')

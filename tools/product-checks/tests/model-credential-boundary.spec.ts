@@ -1,5 +1,13 @@
 import { expect, test } from 'vitest'
-import { cpSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
+import {
+  cpSync,
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  symlinkSync,
+  realpathSync,
+} from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -211,7 +219,7 @@ test('lexical shadowing preserves unrelated resources', () => {
   ).toEqual([])
 })
 test('actual repository collector resolves an alias and installs the repository guard', () => {
-  const root = mkdtempSync(join(tmpdir(), 'omne-model-credential-rule-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-model-credential-rule-')))
   try {
     const directory = join(root, 'packages/model/model-profile-directory-local/src')
     const source = join(root, 'examples/model-invocation-minimal-demo/src')
@@ -481,7 +489,7 @@ test('expression-body operation results and unrelated returned close remain vali
 })
 
 test('root configured aliases have collector and actual built CLI parity', () => {
-  const root = mkdtempSync(join(tmpdir(), 'omne-model-credential-cli-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-model-credential-cli-')))
   try {
     const directory = join(root, 'packages/model/model-profile-directory-local/src')
     const source = join(root, 'examples/model-invocation-minimal-demo/src')

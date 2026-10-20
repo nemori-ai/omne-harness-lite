@@ -91,7 +91,7 @@ it('engineering loop carries all task baselines and rejects stale context', asyn
 })
 
 function wrapperFixture() {
-  const home = mkdtempSync(join(tmpdir(), 'omne-wrapper-stages-'))
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-wrapper-stages-')))
   homes.push(home)
   const runner = join(home, 'runner'),
     subject = join(home, 'subject')

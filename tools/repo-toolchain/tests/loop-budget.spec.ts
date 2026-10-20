@@ -1,5 +1,5 @@
 // 成员预算与清理草稿：超预算生成草稿、六个标题齐全且顺序对；反复变红达到上限时标结构问题、不生成草稿。
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -266,7 +266,7 @@ describe('清理草稿', () => {
   })
 
   it('写到 <目录>/<成员路径斜杠换成 -->.md，同一成员覆盖旧稿', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'loop-proposals-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'loop-proposals-')))
     made.push(dir)
     const input = (commit: string) => ({
       budget: judge(values({ overAlert: 7 })),
