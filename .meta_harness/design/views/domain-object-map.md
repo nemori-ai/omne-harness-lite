@@ -4,7 +4,7 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）
-- 生成时间：2026-10-19
+- 生成时间：2026-10-20
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
 对象 **51** 个，变体 **27** 个，形态未定的词条 **0** 个，待裁 **9** 项。
@@ -74,8 +74,8 @@
 |---|---|---|---|---|---|
 | [派发报告](../domain_objects/objects.md#ul-dispatch-report--派发报告) | [UL-dispatch-report](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-dispatch-report--派发报告--dispatch-report) | 它所属的那次派发 | — | PD-meta-capabilities | — |
 | [决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片) | [UL-decision-card](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) | [会话](../domain_objects/objects.md#ul-session--会话)（归属）；被它阻塞的是一次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)或一次[运行](../domain_objects/objects.md#ul-run--运行) | — | PF-008（sealed provenance） | — |
-| [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文) | [UL-session-authorization-context](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | [会话](../domain_objects/objects.md#ul-session--会话)（与会话同寿，归档不丢，撤销归档后原样还在） | — | PF-007（sealed provenance） | 015（sealed provenance） |
-| [授权表达](../domain_objects/objects.md#ul-authorization-expression--授权表达) | [UL-authorization-expression](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文)——作用域为「这一次」「本会话」的那些落在它里面；**作用域为「全局」的那一笔不落在这里**，它[落成租户层的权限设置值](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度) | — | PF-007（sealed provenance） | — |
+| [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文) | [UL-session-authorization-context](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | [会话](../domain_objects/objects.md#ul-session--会话)（与会话同寿，归档不丢，撤销归档后原样还在） | — | PD-meta-capabilities | 015（sealed provenance） |
+| [授权表达](../domain_objects/objects.md#ul-authorization-expression--授权表达) | [UL-authorization-expression](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文)——作用域为「这一次」「本会话」的那些落在它里面；**作用域为「全局」的那一笔不落在这里**，由具备资格的主体[按规则写入租户层权限设置](../product/meta-capabilities/design.md#会话授权上下文)，表达不等于设置已生效 | — | PD-meta-capabilities | — |
 | [入站到达](../domain_objects/objects.md#ul-inbound-arrival--入站到达) | [UL-inbound-arrival](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | [会话](../domain_objects/objects.md#ul-session--会话)（恰好一个；没有「飘着的到达」） | 控制指令、插队 | PD-agent-progression | 014（sealed provenance） |
 
 ## 记录与上下文
@@ -84,7 +84,7 @@
 |---|---|---|---|---|---|
 | [记录条目](../domain_objects/objects.md#ul-record-entry--记录条目) | [UL-record-entry](../ubiquitous_language/terms/record-and-context.md#ul-record-entry--记录条目--record-entry) | 它声明的寿命宿主——首批取值是会话 · 运行 · 执行尝试 · agent runtime · 租户，默认会话，取值表未封板 | — | PF-000（sealed provenance） | — |
 | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志) | [UL-session-log](../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log) | [会话](../domain_objects/objects.md#ul-session--会话)（归会话，不归运行） | — | PF-012（sealed provenance） | — |
-| [消息](../domain_objects/objects.md#ul-message--消息) | [UL-message](../ubiquitous_language/terms/record-and-context.md#ul-message--消息--message) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭 | 中断提醒、占位消息、压缩记录 | PF-009（sealed provenance） | — |
+| [消息](../domain_objects/objects.md#ul-message--消息) | [UL-message](../ubiquitous_language/terms/record-and-context.md#ul-message--消息--message) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭 | 中断提醒、占位消息、压缩记录 | PF-009（sealed provenance） | runtime-context（草稿） |
 | [内容块](../domain_objects/objects.md#ul-content-block--内容块) | [UL-content-block](../ubiquitous_language/terms/record-and-context.md#ul-content-block--内容块--content-block) | [消息](../domain_objects/objects.md#ul-message--消息) | — | PF-009（sealed provenance） | — |
 | [待办条目](../domain_objects/objects.md#ul-todo-item--待办条目) | [UL-todo-item](../ubiquitous_language/terms/record-and-context.md#ul-todo-item--待办条目--todo-item) | [会话](../domain_objects/objects.md#ul-session--会话)——它活在一次会话里，不跨会话继承 | — | PD-meta-capabilities | 015（sealed provenance） |
 | [业务日历](../domain_objects/objects.md#ul-business-calendar--业务日历) | [UL-business-calendar](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 正文未述 | — | PF-021（sealed provenance） | — |
@@ -157,4 +157,4 @@
 
 产品正文提到它却没有链到词条，「还有谁在讲」那一列就是空的——这一列的空，多半是链接稀疏，不是没人讲。
 
-会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、meta 能力、模型档案、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、日程、定时作业、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、会话据点、治理中心、派发报告、决策卡片、会话授权上下文、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、业务日历、业务日历版本、工作区、工作区实例、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。
+会话、运行、agent runtime、Agent 执行、执行挂接、Agent 登记、装配清单、资产、资产版本、模型档案、复制通知、分享邀请、分享关系、工具执行、一次模型调用、模型响应体、附件、被卸载的原始结果、日程、定时作业、执行环境、沙箱实现、无状态沙箱、会话级沙箱、租户级沙箱、沙箱数据、终端会话、会话据点、治理中心、派发报告、决策卡片、授权表达、入站到达、记录条目、会话日志、消息、内容块、待办条目、业务日历、业务日历版本、工作区、工作区实例、账号、登录状态、组织、邀请、隶属请求、租户、租户—工作区关系。

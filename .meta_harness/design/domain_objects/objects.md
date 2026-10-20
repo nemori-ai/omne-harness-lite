@@ -389,15 +389,15 @@
 
 - **宿主**：[会话日志](#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭
 - **身份**：会话在受理时铸造，不能从会变的文本、时间戳或日志位置算出。类型是确定的，不靠解析内容。精确编码见[会话与工作](../../../docs/domains/sessions-and-work/README.md#模块角色与事实归属)
-- **生灭**：流式到达期间只是「正在长的块」→ 长成一条完整消息落盘，或按「流断在半路」收场 → 落盘后不改不删；**消息之间没有取代**，状态类提醒也一律追加。它对模型可不可读，可被后来的压缩摘要点名而改变，但那是算出来的，消息本身一字不动。一次工具执行的那条 `ToolInternalMessage` 不论执行怎么收场都照常收尾，一块都没交付过的就没有这条
-- **依据**：[PF-009 §4 消息](../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息)（rev 9）；[PF-009 §4 半条消息不是消息](../product.0.0.1.legacy/PF-009-context-message-types/design.md#半条消息不是消息)（rev 9）；[PF-009 §5.4](../product.0.0.1.legacy/PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么)（rev 9）；[PF-009 §5.6](../product.0.0.1.legacy/PF-009-context-message-types/design.md#56-流断在半路)（rev 9）；[PF-009 §5.8 执行帧就是这条消息的到达增量](../product.0.0.1.legacy/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 9）；[PF-009 §6.4](../product.0.0.1.legacy/PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)（rev 9）
+- **生灭**：流式到达期间只是「正在长的块」→ 长成一条完整消息落盘，或按「流断在半路」收场 → 落盘后不改不删；**消息之间没有取代**，状态类提醒也一律追加。后来的压缩若把它放进覆盖范围而不保留，模型之后只看到摘要；那是算出来的，消息本身一字不动。一次工具执行的那条 `ToolInternalMessage` 不论执行怎么收场都照常收尾，一块都没交付过的就没有这条
+- **依据**：[PF-009 §4 消息](../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息)（rev 9）；[PF-009 §4 半条消息不是消息](../product.0.0.1.legacy/PF-009-context-message-types/design.md#半条消息不是消息)（rev 9）；[PF-009 §5.4](../product.0.0.1.legacy/PF-009-context-message-types/design.md#54-提醒说的是现在什么样还是刚才发生了什么)（rev 9）；[PF-009 §5.6](../product.0.0.1.legacy/PF-009-context-message-types/design.md#56-流断在半路)（rev 9）；[PF-009 §5.8 执行帧就是这条消息的到达增量](../product.0.0.1.legacy/PF-009-context-message-types/design.md#执行帧就是这条消息的到达增量)（rev 9）；[PF-009 §6.4](../product.0.0.1.legacy/PF-009-context-message-types/design.md#64-说状态的写清变化说事的写清发生消息一律追加)（rev 9）；[运行感知与一次模型请求 §7](../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 3）
 - **并入**：「排队的消息」——待处理与已承接是从日志派生的读法，不另立事实权威，持久投影仍可维护
 
 ### UL-content-block · 内容块
 
 - **宿主**：[消息](#ul-message--消息)
-- **身份**：正文未述；但压缩摘要的点名名单以块为单位，即块在消息内可被单独指到
-- **生灭**：开一个块（说明这块怎么填：追加片段 / 整体替换）→ 往里填 → 封口交出完整一块 → 落盘后块与它的两个标注都不再变；之后可被点名而不再对模型可读，那是算出来的，不回写
+- **身份**：正文未述
+- **生灭**：开一个块（说明这块怎么填：追加片段 / 整体替换）→ 往里填 → 封口交出完整一块 → 落盘后块与它的两个标注都不再变；所在消息被压缩摘要后模型不再看到它，那是算出来的，不回写
 - **依据**：[PF-009 §4 消息的内容是一串块](../product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9）；[PF-009 §4 每个块带两个标注](../product.0.0.1.legacy/PF-009-context-message-types/design.md#每个块带两个标注给人看吗给模型看吗)（rev 9）；[PF-009 §5.5](../product.0.0.1.legacy/PF-009-context-message-types/design.md#填有两种模式开块的时候说明是哪一种)（rev 9）
 
 ### UL-todo-item · 待办条目

@@ -385,3 +385,12 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：[UL-execution-attachment](terms/agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment) 的英文名定为 Execution Attachment，不许简称 attachment；「挂载」与「Agent Attachment」列入弃用。类型名改为 `ExecutionAttachment`、`ExecutionAttachmentId`，字段改为 `executionAttachment`。
 - **负责与闭合条件**：Agent 契约的写者改类型名与字段名；已接受页的「挂载」随系统页修订交负责人接受后回改。两处都回改后闭合。
 - **状态**：部分闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。词条已定名，Agent 契约已改用全称类型名与字段名。已接受页（系统页 Agent runtime 的节名「实例、执行与执行挂接」与正文、领域页）已回改，英文裸写的 attachment 也已改为 execution attachment。仍缺：共同系统页 `runtime-contract-model.md` 的旧写法，该页尚未进入集成轨道，随该页进入集成轨道时回改，之后闭合。
+
+### C-65：压缩用排除名单还是保留名单
+
+- **类型**：定义打架。2026-10-20 承接产品负责人的压缩语义时发现。
+- **来源**：[压缩记录](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record)与[上下文压缩](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction)当时按封存的 PF-009、PF-010 写成以块为单位的排除名单：压缩记录点名一批块，从此不再模型可读。PanQiWei 2026-10-20 定下的语义相反：压缩后模型只看到压缩记录指定保留的消息、压缩记录本身和它之后的消息。
+- **差别**：排除名单以块为单位、列出被拿掉的部分，模型视图要逐块扣减；保留名单以消息为单位、列出留下的少数，在压缩时固定。两种读法给出的模型视图形状不同，下游的形状、校验和缓存都会照着其中一种建。
+- **处置**：词表改用[保留名单](terms/record-and-context.md#ul-retained-set--保留名单--retained-set)与[压缩覆盖范围](terms/record-and-context.md#ul-compacted-range--压缩覆盖范围--compacted-range)，「排除名单」列入弃用。[运行感知与一次模型请求](../product/runtime-context/design.md#7-压缩保留历史与未完工作)已修订到 rev 3。消息形状与判定规则归 `packages/common/message`。
+- **负责与闭合条件**：负责人 PanQiWei。仍写「排除名单」或「精确原块集合」的正式正文由各自拥有者回改：Request Context 成员（`packages/context/request-context/**`）、Session 契约 SPEC、Agent 机制页。全部回改后闭合。
+- **状态**：已裁定，待外域回改。

@@ -17,4 +17,12 @@
 | 执行环境与 Runtime Context | 实际落点、资源恢复事实；将真实变化供给 agent | 工作区关联不代表沙箱隔离、物理重建或原痕迹存在 |
 | 人的交付面 | 收集明确选择，呈现目标、状态、失败与恢复入口 | 无权把排队显示为完成、把普通目录显示为有效附着 |
 
+## 来源修订计数
+
+装配入口用[比对代替求值](../../architecture/runtime/assembly-and-change.md#比对代替求值)，需要工作区来源读取按作用域提供来源修订计数。可读材料变化（包括本地文件修改与来源同步），或参与关系变化使当前主体可读的范围改变时，计数加一。会话选了哪个工作区是 Session 的事实，由装配入口直接比对，不计入本计数。参与关系变化由工作区治理在提交该变化的同一次提交里推进计数；本地文件修改与同步由来源读取推进。计数只增不减，与它所计的变化在同一次提交中成立，进程重启后不倒退。
+
+不经系统发生的本地文件修改也要计入：来源读取负责发现这类修改，并在进程重启后补查停机期间的修改。发现修改的方式由工作区成员选择，代价是持续观察来源目录与重启补查；发现之前，修改不计入，新 Run 也看不到它。
+
+变化提交后，来源读取通知订阅方，通知只带作用域、来源类别、新计数和变化原因，不带私有配值或凭据。计数变化只说明来源变了，不构成采用；文件修改与 Git 同步仍不触发重装。通知丢失不改变正确性，装配入口读当前计数比对。计数的存储与通知机制由工作区成员实现。
+
 邻域采用范围只取存在的正式入口：[身份与授权](../identity-and-authorization/README.md)、[资产与规则](../assets-and-rules/README.md)、[Session 与工作](../sessions-and-work/README.md)、[装配与交接](../assembly-and-handoff/README.md)、[执行环境](../execution-environments/README.md)、[Runtime Context](../runtime-context/README.md)、[工具执行](../tool-execution/README.md)、[Skill](../skills/README.md)、[MCP](../mcp/README.md)和[Slash Command](../slash-commands/README.md)。

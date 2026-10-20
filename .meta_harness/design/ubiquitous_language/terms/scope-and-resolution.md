@@ -281,6 +281,41 @@ specific.
   被前两步滤掉的持有在替换次序上视为不存在，标识退回下一层
 - **注意 ②**：**唯一会改组合的那项设置——[Plugin](capabilities-and-composition.md#ul-plugin--插件--plugin) 的「启用哪些成员」——在组装展开到它时就地求值**，其余属性项照常在第二轮
 
+### UL-adoption-change-counter · 采用变更计数 · Adoption Change Counter
+
+> **中**：参与装配求值的一类来源在一个作用域上的单调递增计数，由该来源的拥有者维护。
+> 这个作用域的合法候选、生效选择、设置值或来源材料每变一次，计数加一，拥有者随之通知使用方。
+> 一次采用记下当时各来源的计数；之后计数全部相同，就说明这次求值的输入没有变。
+>
+> **EN**: A monotonically increasing count that the owner of one kind of assembly source
+> keeps for one scope. Each change to the lawful candidates, the effective selection, setting values, or source
+> material in that scope increments it, and the owner notifies consumers. An adoption records
+> the counts of every source at that time. If all counts are still equal later, the inputs of
+> that evaluation have not changed.
+
+- **形态**：属性
+- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 2） ·
+  [资产与规则：变更后的生效范围](../../product/assets-and-rules/design.md#changes-and-failures)（rev 2） ·
+  [工作区：J-WS06](../../product/workspaces/design.md#j-ws06-更换选择或显式采用新的来源)（rev 2）
+- **别混**：不是全局版本号。每类来源、每个作用域各有自己的计数，彼此不比较大小
+- **注意**：计数变化只说明来源变了，不构成采用。采用仍只在新 Run 开始或显式 reload 时发生
+
+### UL-validated-assembly-candidate · 已校验装配候选 · Validated Assembly Candidate
+
+> **中**：采用变更计数变化后，在下一个采用入口之前预先求值并通过校验的一份装配结果，以求值时的输入快照（会话选择与各来源的计数）为键缓存。
+> 只有入口当时的快照与这个键全等，它才在入口处成为采用依据；任一项再变，它就失效。
+>
+> **EN**: An assembly result that is evaluated and validated ahead of the next adoption entry
+> after an adoption change counter moves. It is cached under the input snapshot it was
+> evaluated from: the session's own selections and the source counts. It becomes the adoption
+> basis at the entry only if the snapshot at the entry equals that key. Any further change
+> invalidates it.
+
+- **形态**：视图
+- **出处**：[会话与工作：定义版本可以更新](../../product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)（rev 2）
+- **别混**：与「保存的选择」不是一回事。保存的选择是用户的意图；已校验装配候选是系统按当时来源算好的结果。两者都不是采用依据
+- **注意**：丢了可以按同样的计数重新求值，所以它不是一份另存的事实
+
 ### UL-immutable-marker · 不可覆盖标记 · Immutable Marker
 
 > **中**：一层给出某个值时可以附加的标记，表示这个值**不可再被上层覆盖**。

@@ -1,6 +1,6 @@
 # 公开接口导航
 
-本文件导航本包的公开边界：导出入口、调用者资格、接口定义索引，以及输入输出与失败行为的定位。精确类型与运行时校验归公开源码，不手写第二套签名。本包没有 `SPEC.md`，非类型行为的唯一正文是本文件的「语义」「判定顺序」两节和 [README](../README.md) 的契约节。
+本文件导航本包的公开边界：导出入口、调用者资格、接口定义索引，以及输入输出与失败行为的定位。精确类型与运行时校验归公开源码，不手写第二套签名；唯一例外是下面的[候选：压缩变体](#候选压缩变体)，它在实现前暂存候选签名。工具部件、角色规则与块身份的非类型行为，正文是本文件的「语义」「判定顺序」两节和 [README](../README.md) 的契约节。压缩变体的行为归 [SPEC.md](../SPEC.md)。
 
 ## 导出入口
 
@@ -16,6 +16,68 @@
 | `judgePart` | 函数 | [src/parts.ts](../src/parts.ts) |
 
 失败不抛异常，是返回值：`{ rejected }`，部件上的失败另带 `blockIndex`。`judgePart` 的拒绝值是 `MessageRejection` 的子集，没有 `tool-blocks` 与 `duplicate-id`，这两个只有整条消息的判定才会给出。块身份与标注（`id`、`visibility`，含 `visibility` 内的未知键）由 `@omne-harness/content-block` 的 `judgeBlockIdentity` 判定，`arguments` 由 `@omne-harness/json-text` 的 `judgeJsonValue` 判定，本包不复制这两套规则。
+
+## 候选：压缩变体
+
+状态：候选，未实现。下面的签名是 message 实现卡的输入，`src/` 还没有这些导出，`judgeMessage` 也还没有按 [SPEC.md](../SPEC.md#judgemessage-对压缩变体的判定) 判 `compaction` 角色的三个键。实现交付后，签名移入 `src/index.ts`，本节改为定义索引里的普通行，导出清单与 `tests/public-entry.spec.ts` 同步增加 `judgeCompaction`、`isCompactionMessage`、`parseRecordEntryRef`。
+
+```ts
+declare const recordEntryRefBrand: unique symbol
+/** Opaque reference to one record entry. The history holder mints it; consumers compare it exactly. */
+export type RecordEntryRef = string & { readonly [recordEntryRefBrand]: true }
+
+/** Durable evidence of how the summary and the retained set were derived. This package does not interpret it. */
+export type CompactionDerivation = Readonly<{
+  owner: string
+  record: string
+  revision: string
+  digest: string
+}>
+
+export type CompactedRange = Readonly<{ from: RecordEntryRef; to: RecordEntryRef }>
+
+/** The compaction variant. `blocks` is the summary. */
+export type CompactionMessage = Message &
+  Readonly<{
+    role: 'compaction'
+    blocks: readonly [ContentBlock, ...ContentBlock[]]
+    covers: CompactedRange
+    retained: readonly RecordEntryRef[]
+    derivation: CompactionDerivation
+  }>
+
+/** One entry of the compacted range, in log order. `message` is null for an entry that carries no message. */
+export type CoveredEntry = Readonly<{ ref: RecordEntryRef; message: Message | null }>
+
+export type CompactionContext = Readonly<{
+  covered: readonly CoveredEntry[]
+  after: readonly Message[]
+  open: readonly RecordEntryRef[]
+}>
+
+export type CompactionRejection =
+  | 'message'
+  | 'range'
+  | 'retained-outside'
+  | 'retained-order'
+  | 'retained-not-model'
+  | 'pairing'
+  | 'open-work'
+
+export type CompactionJudgment =
+  | Readonly<{ ok: CompactionMessage }>
+  | Readonly<{ rejected: CompactionRejection; ref: RecordEntryRef | null }>
+
+export declare function parseRecordEntryRef(raw: string): RecordEntryRef | null
+
+/** Narrows an admitted message to the compaction variant. It does not judge the shape again. */
+export declare function isCompactionMessage(message: Message): message is CompactionMessage
+
+/** Judges a compaction record against the history the holder supplies. `message` is judged with judgeMessage first. */
+export declare function judgeCompaction(message: unknown, context: CompactionContext): CompactionJudgment
+```
+
+`MessageRejection` 同时增加 `covers`、`retained`、`derivation` 三个值，由 `judgeMessage` 在判 `compaction` 角色的三个键时给出。`judgeMessage` 的成功值类型仍是 `Message`；消费者用 `isCompactionMessage` 收窄，或直接把输入交给 `judgeCompaction`，从其成功值取得 `CompactionMessage`。`judgeCompaction` 的拒绝值与 `MessageRejection` 分开，调用者能区分形状失败与历史规则失败。行为、判定顺序和候选反例见 [SPEC.md](../SPEC.md)。
 
 ## 语义
 
