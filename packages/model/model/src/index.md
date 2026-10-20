@@ -15,3 +15,5 @@
 - [同步状态与提交](testing/state.ts)、[调用及恢复](testing/calls.ts)、[发出](testing/dispatch.ts)、[归约](testing/arrival.ts)、[读取及清理](testing/consumption.ts)。
 
 [testing/pages.ts](testing/pages.ts) 拥有最终 sealed/partial 投影、目标组页和可完成生命周期的有限保留预算。
+
+[driver.ts](driver.ts)在原 Activity 内保留固定收场意图；[receive.ts](receive.ts)持有唯一原流、确认终止依据与一次释放结果。具体支持范围归[实现规格](../SPEC.md#已实现的调用收场)。

@@ -4,13 +4,13 @@
 
 ## 职责与状态
 
-本成员已有独立执行、凭据判定、受理、流保存与实例观察运行实现和独立内存测试入口。本地凭据保管归 [model-host-local](../model-host-local/README_ZH.md)，领域协议归 [model-contract](../model-contract/README_ZH.md)。
+本成员已有独立执行、凭据判定、受理、流保存、实例观察与已确认调用收场实现和独立内存测试入口。本地凭据保管归 [model-host-local](../model-host-local/README_ZH.md)，领域协议归 [model-contract](../model-contract/README_ZH.md)。
 
 | 能力或入口 | 当前支持 |
 | --- | --- |
 | `executeModel` | 经显式传输执行一次，覆盖取消及资源关闭 |
 | 凭据判定及 `deliver` | 凭据判定为纯函数，`deliver` 委托传入的 resolver |
-| `createModelRuntime` | 受理、查询、取消意图、原流保存与实例观察；收场与结果消费仍 unavailable |
+| `createModelRuntime` | 受理、查询、取消意图、原流保存、实例观察与下述支持范围内的调用收场；结果消费仍 unavailable |
 | `createModelSendBoundary` | 显式依赖下提交回执与窗口、同步凭据围栏、一次 start 和唯一事实消费 |
 | `@omne-harness/model/testing` | 内存 Commands 与五个可控依赖端口 |
 | 耐久 Commands 及生产托管执行 | 未实现 |
@@ -23,6 +23,39 @@
 内存测试从 `@omne-harness/model/testing` 导入 createTestModelDependencies。显式配置、authority、evidence 和 owner 的用法见[测试入口](docs/public-api.md#内存测试入口)。返回的五依赖可构造真实 runtime 壳。
 
 内存测试提供者交付 sealed/partial 及真实 trims。显式项数与字节目标按完整项组页，超目标大项独页，整个页受原受理容量约束。消费者须处理未封值与提醒。具体配置及局部上限见[测试入口](docs/public-api.md#内存测试入口)。
+
+## 运行教学示例
+
+在仓库检出中使用 Node.js 24 或更高版本和 pnpm 10.28.1。这些 workspace 包尚未公开发布。示例不需要厂商账户、网络或真实凭据。
+
+在仓库根为新检出准备依赖并运行：
+
+```sh
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm --filter @omne-harness/model... -r run build
+pnpm --filter @omne-harness/model examples
+```
+
+依赖已备好且锁文件未变时直接复用。修改源码后重新构建。示例从公开包入口加载实际构建产物。
+
+按以下顺序阅读和运行。每个脚本也可独立执行：
+
+| 脚本 | 操作和可观察结果 |
+| --- | --- |
+| [01-submit-and-query.ts](examples/01-submit-and-query.ts) | 调用 admit、inspect，处理 Reply、Admission、Lookup 和 accepted CallState。实际发送次数为零。 |
+| [02-observe-and-settle.ts](examples/02-observe-and-settle.ts) | 构造 runtime、启动受信 driver、连接 live handle，取得 snapshot 和 changed。查询 Settlement 的原 termination、version 与 source。 |
+| [03-output-limit.ts](examples/03-output-limit.ts) | 提供真实的脚本 trim 事实，区分 completed/limit 和调用失败。 |
+| [04-input-over-limit.ts](examples/04-input-over-limit.ts) | 检查 failed/input-over-limit 和上游 reported 字段，未知值保持 null。 |
+
+单独运行第二课可用 `pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/02-observe-and-settle.ts`。预期输出和装配边界见[示例指南](examples/README.md)。关键入参及返回判别保留在脚本里；[support.ts](examples/support.ts)解释重复装配的各端口职责。
+
+受理记录责任，不证明已发送。drive 返回本地推进和资源释放结果，inspect 返回权威业务状态。drive 成功仍可能得到失败终局；资源释放失败也可以与已确认的 Settlement 同时成立。观察器关闭与宿主 publication 撤除分别处理，两者都不等于取消或 ACK。
+
+## 收场支持边界
+
+driver 对原始、已确认的 completed、completed/limit、input-over-limit 和无需新重试决定的 failed 终局收场。真实上游 interrupted 须关联同次 preserve 回执的原控制。没有 dispatch 时，已保存控制也可以不发送而收场。完整支持范围见[实现规格](SPEC.md#已实现的调用收场)。
+
+待定 operation 和完整输入由当前进程保留。driver 不从可变 dispatch 历史猜原终局。无控制中断、sender.not-started、待重试策略决定及缺少原终止证据的恢复仍未支持，不提供默认 stop。运行时读取和 ACK、耐久存储、生产宿主及真实厂商不在这些示例范围。内存 Commands 测试只支持它自己的后端行为结论。
 
 ## 契约
 
@@ -40,7 +73,7 @@
 
 必填正安全整数 observerCheckIntervalMs 控制等待观察者的资格及实例复查。outputBatchDelayMs=0 时逐事实先保存再读取；正数延迟允许聚合。计时触发保存时，已挂起的 next 仍属原窗口，完成后才保存整批。沉默读取可无限推迟已有前缀展示，因此批延迟不承诺最大可见延迟。
 
-observerBufferBytes 约束逻辑登记与未读通知。每登记64字节，每未读版本32字节。登记额度不足或观察者落后超额时，结束该观察为 unavailable。初始共享快照正文不重复计入观察额度。每观察者只允许一个在途 next，并发 next 结束该观察，不形成无界队列。生产调度、整调用收场、结果消费与跨进程恢复尚未实现。
+observerBufferBytes 约束逻辑登记与未读通知。每登记64字节，每未读版本32字节。登记额度不足或观察者落后超额时，结束该观察为 unavailable。初始共享快照正文不重复计入观察额度。每观察者只允许一个在途 next，并发 next 结束该观察，不形成无界队列。生产调度、结果消费与跨进程恢复尚未实现。
 
 ## 产品发送边界
 

@@ -1,6 +1,6 @@
 # Model 领域实现规格
 
-本包非 pi-ai 实现设计已接受，独立执行及凭据存在性与解析的判定已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图、原流保存与最小实例观察，整调用收场等托管运行行为尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
+本包非 pi-ai 实现设计已接受，独立执行及凭据存在性与解析的判定已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图、原流保存、最小实例观察与下述支持范围内的调用收场，结果消费与生产托管宿主尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
 
 ## 独立执行
 
@@ -120,9 +120,9 @@ calls.admit、inspect、dispatches、cancel 分别委托 Commands 的 admit、re
 
 受控宿主显式调用 driver.drive，以稳定 claim operation、instance 和可信 continuity 取得原执行代次。driver 按调用单写，取得当前资格后，保护覆盖接收、异步等待与原资源释放。无 dispatch、无相关未决写且尚未 prepare 时，创建 cursor0 空 blocks 的确认初始投影，先 publish，再 prepare/send。已有 dispatch 且本实例没有确认内容时仍发布新 handle，但 observe 首项为 ended/unavailable，不伪造空恢复，也不重新发送。
 
-发送边界交出原 window 与唯一 facts。driver 在附带投影刷新前固定原流接收拥有者，只取得一次 iterator，每批使用原窗口和全部已接收事实调用 preserve。Commands 唯一归约 blocks、首内容、账目与 cursor，确认回执才更新实例投影。EOF 或流异常先保存完整已收前缀及 stream-lost 事实，再沿 sender 释放原资源并返回明确失败。完整调用收场仍不在此阶段。sender 的明确 not-started 失败沿 drive 返回，保留已发布实例和 prepared 事实，不改成推进成功。
+发送边界交出原 window 与唯一 facts。driver 在附带投影刷新前固定原流接收拥有者，只取得一次 iterator，每批使用原窗口和全部已接收事实调用 preserve。Commands 唯一归约 blocks、首内容、账目与 cursor，确认回执才更新实例投影。EOF 或流异常先保存完整已收前缀及 stream-lost 事实，再交出确认终止证据，沿 sender 释放原资源。满足下述收场前提时同时形成真实 Settlement，失联仍沿 drive 返回明确失败。sender 的明确 not-started 失败沿 drive 返回，保留已发布实例和 prepared 事实，不改成推进成功。
 
-未知 claim、prepare、sender 写、开窗及 preserve 各由原拥有者认回。prepare/open/preserve 保留完整 operation、expected、dispatch、window 与 facts。query 为 unknown 或失败时保留责任，不继续读取或发布。committed 仍重放原方法取得原回执，未提交也只重放原参数。取消导致原 expected 冲突时明确失败，不改 expected 冒充原写。sender 私有未决操作交原 sender 认回。陌生未决操作没有原输入时明确阻塞。
+未知 claim、prepare、sender 写、开窗及 preserve 各由原拥有者认回。prepare/open/preserve 保留完整 operation、expected、dispatch、window 与 facts。query 为 unknown 或失败时保留责任，不继续读取或发布。committed 仍重放原方法取得原回执，未提交也只重放原参数。取消导致原 expected 冲突时不改旧输入；仅终止 preserve 和 settle 依下述有限接续建立新意图。非终止批次仍明确失败。sender 私有未决操作交原 sender 认回。陌生未决操作没有原输入时明确阻塞。
 
 每个实例只保存一份确认 Snapshot。observe 首项为完整 snapshot，后续 changed 为最新完整快照，可以合并通知。内部版本同时记录控制变化，内容 cursor 不因取消单独推进。preserve 发出前设置确认屏障并推进内容 epoch；未知期间不把旧 blocks/cursor 与新 state 拼接。确认或明确拒绝后先固定接收后续阶段，再安排附带权威状态刷新。刷新失败或挂起不阻止接收和资源释放，也不重放已确认回执。内容 epoch 稳定且无确认屏障时，只有较新 revision 才发布 state-only 更新。接收刷新与控制刷新分别合并请求，沉默的接收刷新不阻塞已提交取消的投影。
 
@@ -135,7 +135,7 @@ observerBufferBytes 是每实例观察登记与每观察者未读通知的逻辑
 | 操作 | 当前支持及剩余阶段 |
 | --- | --- |
 | calls.admit、calls.inspect、calls.dispatches、calls.cancel | 已实现受理、事实查询与取消意图 |
-| driver.drive | 已接原 sender、唯一事实流与确认保存；生产调度归 5.3 |
+| driver.drive | 已接原 sender、唯一事实流、确认保存与本节支持范围的收场；生产调度归 5.3 |
 | consumption.beginRead、consumption.acknowledge | 保留 operation 返回 invalid；其他输入 unavailable，业务归 1.7 |
 | consumption.readNext、consumption.closeRead | unavailable，1.7 |
 | instances.connect | 委托实际 directory，提供最小实例观察；完整生产宿主归 3.5 |
@@ -160,6 +160,29 @@ operation 长期只保存 SHA-256 输入指纹、方法、调用、原提交修�
 
 该入口只证明内存装配。它不提供生产耐久、跨重启恢复、真实旧发送者排除、资格共同事务、厂商网络或可靠消费保证。
 
+
+## 已实现的调用收场
+
+共同终局、限额和不可反转规则仍由 [model-contract](../model-contract/SPEC.md#故障交接)拥有。本节说明当前 driver 的具体支持与接续条件，不增加共同公开类型。
+
+receiver 在终止 preserve 的确认回执下固定原 ended、Snapshot 和独立的接收失败，先推进内部阶段再通知观察投影。终止确认后不再读取原流。completed 和 failed 保留原 ended。真实 interrupted 仅关联同次确认 Snapshot 的 ControlState.operation，不读取可变 dispatch.terminal 推断原终局。
+
+| 路径 | 当前实现状态 |
+| --- | --- |
+| 原 completed、completed/limit、input-over-limit | 已实现收场。limit 保留正常完成及真实 trim，reported 未报告字段保持 null |
+| 无需新策略的 failed、首内容后失联 | 已实现原失败收场，保留已确认部分输出；接收失联仍沿 drive 返回失败 |
+| 原有效控制及真实 interrupted；无 dispatch 的已保存控制 | 已实现关联原控制收场；无 dispatch 时不发送 |
+| 首内容前可重试失败等待策略 | 策略循环尚未实现，保留 retry-not-decided 等真实拒绝，不制造默认 stop |
+| 无控制 interrupted、sender.not-started、已有 dispatch 但本实例没有确认终止证据 | 尚未支持精确收场。保留原事实和责任，不复制测试后端私有终局映射或恢复猜测 |
+| runtime 读取、ACK、生产调度、跨进程恢复、排空 | 尚未实现，继续各自后续阶段 |
+
+Activity 持有唯一的固定 settle 输入。首次写前读取当前资格、代次和 revision。query unknown、失败、调用异常或已知 committed 但原回执暂不可得时，保留原 operation、expected 和完整终局。后续 drive 先核当前资格，查询原操作，并以原参数取得回执，不重新发送或读取原流。
+
+只有明确 expected 冲突、query 完整排除旧提交、当前资格及原代次仍成立时，终止 preserve 或 settle 才能建立新 operation。旧输入永不修改，终止 preserve 保留原 window 与完整 facts。两处共享每次 drive 最多一次替代意图的额度，再次竞争交回真实失败，下一次合法 drive 才继续。权威已 settled 时消费既有结果，不另写终局。
+
+release 与业务收场分别记录。receiver 只启动一次 iterator.return 并缓存结果。driver 固定终止阶段后先发起 release，同时独立推进 settle，不先等待 release。原 drive 锁一直覆盖真实释放等待，防止第二消费者。释放挂起时 inspect 仍可读取已确认 Settlement。释放失败在收场确认后由 drive 返回，后续 drive 不重做 return 或 close。若同轮收场和释放都失败，先返回收场操作的失败，释放失败仍缓存，收场确认后再次可见。
+
+settle 确认后先固定内部阶段，再安排附带状态刷新。刷新失败不重做业务写。后续取消、可信 recordLateFact 和事件重放不能改变原 Settlement 的 termination、version 或 source。未知事实不先展示。此实现仅在当前进程持有原确认依据时接续，不证明生产耐久、跨进程恢复或真实厂商停止。
 
 ## 产品发送边界
 

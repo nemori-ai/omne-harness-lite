@@ -14,3 +14,5 @@
 - [构造与五端口](runtime-testing.spec.ts)、[合法身份与受信测试适配](memory-fixture.ts)。
 
 [memory-partial.spec.ts](memory-partial.spec.ts) 从实际 preserve 驱动部分结果、真实 trim、目标页、临界容量的控制/终局/读/ACK/清理。
+
+[runtime-settlement.spec.ts](runtime-settlement.spec.ts)验证真实 driver 的原终局收场、未知认回、确定竞争、晚到事实及唯一释放。[教学脚本](../examples/README.md)由包 test 入口持续运行。

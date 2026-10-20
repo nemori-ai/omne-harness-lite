@@ -38,7 +38,7 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 带类型的输入回归在各入口附加 onProgress 回调，验证回调不进入业务快照。它使用带函数的不透明 principal 和原已铸造租户，通过真实受理、查询、首次分派与取消，检查身份引用保持有效。
 
-共同符合性运行保存全部实际义务，不删去未支持项。当前 checker 含 53 项，套件逐项断言九项 admission、七项 observation 及四项观察目录 route 通过；未知 ACK 认回尚未覆盖，完整 admission 符合性需要十项全部通过。完整报告保留未支持项及实际失败，不据局部通过宣称全部符合。真实耐久、整调用收场、结果消费、生产宿主和跨进程恢复不在本套件的证明范围内。
+共同符合性运行保存全部实际义务，不删去未支持项。当前 checker 含 53 项，套件逐项断言九项 admission、七项 observation 及四项观察目录 route 通过；未知 ACK 认回尚未覆盖，完整 admission 符合性需要十项全部通过。完整报告保留未支持项及实际失败，不据局部通过宣称全部符合。直接终局条目通过真实 driver 收场；其他读取和 ACK 义务继续保留实际 fail 或 not-applicable。真实耐久、结果消费、生产宿主和跨进程恢复不在本套件的证明范围内。
 
 
 ## 产品发送验证
@@ -47,7 +47,7 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 [send-fixture.ts](send-fixture.ts) 只提供真实内存 Commands、资格安排、脚本外部传输、资源及故障。它不编排发送。未知流始终由产品 sender 保留和交接。公开类型由 [send.spec-d.ts](send.spec-d.ts) 核对，安装场景运行已安装根入口的产品工厂，确认提交真实回执、一次 start 与资源关闭。
 
-完整符合性报告继续保留53项，增加脚本 transport 的六项真实检查，其中 materialization-receipt-matches-request 必须通过。该项只证明传输形状，本页产品 sender 测试另证明实际发送链的提交和使用。driver 已通过真实产品 sender 消费原 facts；最小观察与四项目录行为有独立断言，完整收场和结果读取仍未实现。所有证据均为受控内存与脚本，不覆盖真实厂商、耐久后端、生产宿主或跨进程恢复。
+完整符合性报告继续保留53项，增加脚本 transport 的六项真实检查，其中 materialization-receipt-matches-request 必须通过。该项只证明传输形状，本页产品 sender 测试另证明实际发送链的提交和使用。driver 已通过真实产品 sender 消费原 facts；最小观察与四项目录行为有独立断言，已支持[有限的原终局收场](../SPEC.md#已实现的调用收场)，结果读取仍未实现。所有证据均为受控内存与脚本，不覆盖真实厂商、耐久后端、生产宿主或跨进程恢复。
 
 [send.spec.ts](send.spec.ts) 通过真实产品 sender 和 Memory Commands 验证两个独立公共 window 的事实保存，及 tenant、call、execution、dispatch、window 错绑拒绝。recordSend 的 applied/not-applied 未知测试核原窗口、未预读的原流、单次交接、一次 start 与资源释放。脚本只提供传输事实，不证明真实 HTTP、生产耐久或跨进程恢复。
 
@@ -58,3 +58,11 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 [runtime-transitions.spec.ts](runtime-transitions.spec.ts) 注入附带刷新异常、挂起和乱序回包，检查原流保留、确认后不重放、明确拒绝后一次释放与状态不回退。按调用驱动锁分别在 next、preserve 和正常资源释放等待时接受重入探针，要求明确 busy 且原调用正常完成。
 
 观察边界测试另核登记不足、落后超额、共享大快照、并发 next 无队列和健康观察者继续。完整53项报告保留未实现收场、读取/ACK及 quiesce 的真实 fail/不适用状态，不据本卡通过宣称完整 Model 符合。全部组合仍限受控内存与脚本，不证明真实后端或生产宿主。
+
+## 原调用收场与教学脚本
+
+[runtime-settlement.spec.ts](runtime-settlement.spec.ts) 经公开 createModelRuntime、实际产品 sender 和内存 Commands，覆盖正常完成、真实 trim、input-over-limit 的已知与未知字段、控制前后竞争、固定 unknown 输入、已知提交回执暂不可得、当前资格及代次、唯一释放与释放挂起/失败。它还通过可信 recordLateFact 及事件重放比较原 termination、version 和 source，验证可变 dispatch 终止历史不被当作原逻辑终局。非终止原流、观察确认顺序、互斥和投影单调的回归继续保留。
+
+[runtime-settlement-facts.ts](runtime-settlement-facts.ts) 只将符合性输入变成上游事实。runtime-admission 的 settleCall 钩子只推送事实并等待真实 driver，不直接代调 settle。完整 53 项报告保留全部实际结果，直接终局项 settled-call-keeps-termination 要求通过；结果读取和 ACK 的完整符合性留给后续交付，不隐藏本轮失败项。
+
+`pnpm --filter @omne-harness/model examples` 顺序执行[四个教学脚本](../examples/README.md)。包 test 也运行这四个脚本，typecheck 覆盖 examples。脚本从真实公开入口消费构建产物，保留必要失败分支。该验证只覆盖内存后端、受控宿主与脚本传输，不覆盖真实厂商、耐久存储、读取或 ACK。

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Model domain implementation: standalone execution and credential judgments; admission, original-stream preservation and instance observation",
+  "description": "Model domain implementation: standalone execution, credential judgments, stream preservation, observation and confirmed call settlement",
   "engines": {
     "node": ">=24"
   },
@@ -25,8 +25,9 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "pnpm run build && vitest run",
-    "install-closure": "node --experimental-strip-types ../model-contract/tests/install/cli.ts --member . --policy tests/fixtures/install-policy.json --scenario tests/install/scenario.mjs"
+    "test": "pnpm run build && vitest run && pnpm run examples",
+    "install-closure": "node --experimental-strip-types ../model-contract/tests/install/cli.ts --member . --policy tests/fixtures/install-policy.json --scenario tests/install/scenario.mjs",
+    "examples": "node --experimental-strip-types examples/01-submit-and-query.ts && node --experimental-strip-types examples/02-observe-and-settle.ts && node --experimental-strip-types examples/03-output-limit.ts && node --experimental-strip-types examples/04-input-over-limit.ts"
   },
   "dependencies": {
     "@omne-harness/call-account": "workspace:*",

@@ -1,6 +1,6 @@
 # Model 内部架构
 
-本页描述已接受的非 pi-ai 运行契约。独立 executeModel 已由 [execute.ts](../src/execute.ts) 实现，受理、原流保存、最小实例观察及可独立调用的产品 sender 已实现，整调用收场及其余托管运行仍是目标设计。pi-ai 细化的采用范围见[组架构各节](../../docs/architecture.md#成员与新增条件)，图表不表示运行实现或真实提供者验证已完成。
+本页描述已接受的非 pi-ai 运行契约。独立 executeModel 已由 [execute.ts](../src/execute.ts) 实现，受理、原流保存、最小实例观察及可独立调用的产品 sender 已实现，已确认调用的收场支持范围见[实现规格](../SPEC.md#已实现的调用收场)，其余完整托管运行仍是目标设计。pi-ai 细化的采用范围见[组架构各节](../../docs/architecture.md#成员与新增条件)，图表不表示运行实现或真实提供者验证已完成。
 
 本包负责模型调用与各次真实发出、原输出及结果保管。公开结果和失败的唯一行为源是 [SPEC](../../model-contract/SPEC.md)，具体设计定义见 [public-api](../../model-contract/docs/public-api.md)。
 

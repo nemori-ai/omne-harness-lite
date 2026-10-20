@@ -107,7 +107,7 @@ function unavailable(operation: string, stage: string): Reply<never> {
     },
   })
 }
-/** Constructs the call facade, stream driver and instance observations. */
+/** Constructs the call facade, stream driver, confirmed settlement and instance observations. */
 export function createModelRuntime<P>(
   dependencies: ModelDependencies<P>,
   configuration: ModelConfiguration,
