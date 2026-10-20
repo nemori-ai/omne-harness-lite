@@ -6,6 +6,7 @@ import { createTestAgentDependencies } from '@omne-harness/agent/testing'
 import {
   adoption,
   evidence,
+  execution,
   failure,
   instance,
   load,
@@ -86,15 +87,49 @@ it('gives the Journal options to the memory Journal and shares no state between 
   )
 })
 
-it('C1: the factory shell given the test assembly returns unavailable and touches no dependency', async () => {
-  const { dependencies, controls } = createTestAgentDependencies<string>()
-  const created = await createAgentRuntime(dependencies, options)
+/**
+ * Wraps a dependency so that every method call anywhere inside it is logged by its path. A frozen
+ * member is returned as it is, because a proxy may not change what a frozen property reads.
+ */
+function recorded<T extends object>(target: T, path: string, calls: string[]): T {
+  return new Proxy(target, {
+    get(object, property, receiver) {
+      const value: unknown = Reflect.get(object, property, receiver)
+      const name = `${path}.${String(property)}`
+      const own = Object.getOwnPropertyDescriptor(object, property)
+      if (own !== undefined && !own.configurable && own.writable === false) return value
+      if (typeof value === 'function') {
+        return (...args: unknown[]) => {
+          calls.push(name)
+          return Reflect.apply(value, object, args)
+        }
+      }
+      if (typeof value === 'object' && value !== null) return recorded(value, name, calls)
+      return value
+    },
+  })
+}
+
+it('C1: the factory shell given the test assembly returns unavailable and calls no dependency', async () => {
+  const { dependencies } = createTestAgentDependencies<string>()
+  const calls: string[] = []
+  // Each value keeps its shape behind the proxy, so the record keeps the type of `dependencies`.
+  const watched = Object.fromEntries(
+    Object.entries(dependencies).map(([key, value]) => [
+      key,
+      typeof value === 'object' && value !== null ? recorded(value, key, calls) : value,
+    ]),
+  ) as typeof dependencies
+  expect(Object.keys(watched)).toHaveLength(17)
+  const created = await createAgentRuntime(watched, options)
   expect(failure(created)).toEqual({
     kind: 'unavailable',
     owner: '@omne-harness/agent',
     diagnostic: 'createAgentRuntime is not implemented yet',
   })
-  expect(controls.access.check.calls).toEqual([])
-  expect(controls.adoptions.resolve.calls).toEqual([])
-  expect(controls.clock.pending()).toEqual([])
+  expect(calls).toEqual([])
+
+  // The recorder itself works: a call through a wrapped journal is logged.
+  await watched.journal.load({ principal: 'alice', tenant: tenantA, execution: execution() })
+  expect(calls).toEqual(['journal.load'])
 })

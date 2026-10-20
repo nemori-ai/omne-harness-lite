@@ -16,6 +16,7 @@ import {
   failure,
   finish,
   finishInput,
+  takeInputs,
   instance,
   load,
   modelCall,
@@ -227,6 +228,119 @@ describe('fact 2: idempotence by original operation', () => {
       operation: stage.operation,
     })
   })
+
+  it('fact 2: tryFinish, attach, detach and recordTerminalObservation refuse the same operation with another input', async () => {
+    const { port: journal } = memory()
+    const opened = await open(journal)
+    const attach = {
+      ...access,
+      execution: opened.execution,
+      operation: operation('takeover'),
+      instance: instance('instance-2'),
+      grant: null,
+      recovery: evidence('recovery'),
+      takeover: evidence('takeover'),
+    }
+    const taken = ok(await journal.attach(attach))
+    expect(failure(await journal.attach({ ...attach, recovery: evidence('other') }))).toEqual({
+      kind: 'conflict',
+      operation: attach.operation,
+    })
+    const current: Opened = {
+      execution: opened.execution,
+      receipt: taken.receipt,
+      authority: taken.authority,
+    }
+
+    const detach = {
+      ...access,
+      execution: opened.execution,
+      operation: operation('detach'),
+      authority: taken.authority,
+      reason: evidence('pause'),
+    }
+    ok(await journal.detach(detach))
+    expect(failure(await journal.detach({ ...detach, reason: evidence('other') }))).toEqual({
+      kind: 'conflict',
+      operation: detach.operation,
+    })
+    const resumed = ok(
+      await journal.attach({ ...attach, operation: operation('resume'), takeover: null }),
+    )
+    const live: Opened = { ...current, authority: resumed.authority }
+    const passage = afterTerminalPassage('observer')
+    ok(
+      await journal.commit(
+        commitAt(await load(journal, opened.execution), live.authority, 'with-passage', {
+          checkpoint: checkpoint('F2', [passage]),
+        }),
+      ),
+    )
+    ok(await takeInputs(journal, live))
+    const finishing = await finishInput(journal, live)
+    ok(await journal.tryFinish(finishing))
+    expect(
+      failure(
+        await journal.tryFinish({
+          ...finishing,
+          intent: { ...finishing.intent, obligations: evidence('other') },
+        }),
+      ),
+    ).toEqual({ kind: 'conflict', operation: finishing.operation })
+
+    const [item] = (await load(journal, opened.execution)).terminalObservations
+    if (item === undefined) throw new Error('expected one observation item')
+    const observe = {
+      ...access,
+      execution: opened.execution,
+      operation: operation('observe'),
+      terminal: item.terminal,
+      passage: item.passage,
+      implementation: item.implementation,
+      observed: evidence('seen'),
+    }
+    ok(await journal.recordTerminalObservation(observe))
+    expect(
+      failure(await journal.recordTerminalObservation({ ...observe, observed: evidence('other') })),
+    ).toEqual({ kind: 'conflict', operation: observe.operation })
+  })
+
+  it('fact 2: a stage fact recorded again under a new operation is recognized, not recorded twice', async () => {
+    const { port: journal } = memory()
+    const opened = await open(journal)
+    ok(
+      await journal.control({
+        ...access,
+        execution: opened.execution,
+        operation: operation('cancel'),
+        command: { kind: 'cancel', reason: evidence('reason') },
+      }),
+    )
+    const stage = {
+      ...access,
+      execution: opened.execution,
+      operation: operation('stage-old-attachment'),
+      target: operation('cancel'),
+      stage: 'intent-established',
+      state: 'reached',
+      source: evidence('intent'),
+    } as const
+    const first = ok(await journal.recordControl(stage))
+    const before = await load(journal, opened.execution)
+    expect(
+      ok(await journal.recordControl({ ...stage, operation: operation('stage-new-attachment') })),
+    ).toEqual(first)
+    expect(await load(journal, opened.execution)).toEqual(before)
+    expect(
+      failure(
+        await journal.recordControl({
+          ...stage,
+          operation: operation('stage-other-source'),
+          source: evidence('other'),
+        }),
+      ),
+    ).toEqual({ kind: 'conflict', operation: operation('stage-other-source') })
+  })
 })
 
 describe('fact 3: unknown result', () => {
@@ -269,6 +383,78 @@ describe('fact 3: unknown result', () => {
       ).kind,
     ).toBe('excluded')
     expect(await load(journal.port, opened.execution)).toEqual(before)
+  })
+
+  it('fact 3: a participant that cannot tell leaves the commit pending until it is settled', async () => {
+    const journal = memory({ participants: ['message'] })
+    const opened = await open(journal.port)
+    const caller = {
+      kind: 'message',
+      message: acceptedInput('m').content,
+      source: evidence('source'),
+      admission: evidence('admission'),
+    } as const
+    const commit = commitAt(await load(journal.port, opened.execution), opened.authority, 'joint', {
+      caller,
+    })
+    journal.respond('message', 'fail-unknown')
+    expect(failure(await journal.port.commit(commit))).toEqual({
+      kind: 'commit-unknown',
+      operation: commit.operation,
+    })
+    const query = { ...access, execution: opened.execution, operation: commit.operation }
+    expect(ok(await journal.port.query(query))).toEqual({ kind: 'unknown' })
+    expect((await load(journal.port, opened.execution)).unresolved).toEqual([commit.operation])
+
+    expect(journal.settle(opened.execution, commit.operation, 'applied')).toBe(true)
+    expect(ok(await journal.port.query(query)).kind).toBe('committed')
+    expect(journal.joint()).toEqual([
+      { execution: opened.execution, operation: commit.operation, caller },
+    ])
+  })
+
+  it('fact 3: an unknown write whose answer saved nothing queries to excluded', async () => {
+    const journal = memory()
+    const opened = await open(journal.port)
+    ok(
+      await journal.port.recordResult({
+        ...access,
+        execution: opened.execution,
+        operation: operation('result'),
+        result: producedResult('c1'),
+        consumption: consumption('k1'),
+        transfer: { kind: 'none' },
+        release: { kind: 'pending' },
+      }),
+    )
+    ok(await takeInputs(journal.port, opened))
+    const pending = await finishInput(journal.port, opened, 'finish-pending')
+    journal.failNext('tryFinish', { kind: 'commit-unknown', outcome: 'pending' })
+    failure(await journal.port.tryFinish(pending))
+    expect(journal.settle(opened.execution, pending.operation, 'applied')).toBe(true)
+    expect(
+      ok(
+        await journal.port.query({
+          ...access,
+          execution: opened.execution,
+          operation: pending.operation,
+        }),
+      ).kind,
+    ).toBe('excluded')
+
+    const applied = await finishInput(journal.port, opened, 'finish-applied')
+    journal.failNext('tryFinish', { kind: 'commit-unknown', outcome: 'applied' })
+    failure(await journal.port.tryFinish(applied))
+    expect(
+      ok(
+        await journal.port.query({
+          ...access,
+          execution: opened.execution,
+          operation: applied.operation,
+        }),
+      ).kind,
+    ).toBe('excluded')
+    expect((await load(journal.port, opened.execution)).unresolved).toEqual([])
   })
 })
 
@@ -375,7 +561,11 @@ describe('fact 5: fence', () => {
     ).toEqual({
       kind: 'stale-advance',
     })
-    expect(failure(await finish(journal, opened, 'old-finish'))).toEqual({ kind: 'stale-advance' })
+    expect(
+      failure(await journal.tryFinish(await finishInput(journal, opened, 'old-finish'))),
+    ).toEqual({
+      kind: 'stale-advance',
+    })
     expect(
       failure(
         await journal.detach({
@@ -440,6 +630,33 @@ describe('fact 5: fence', () => {
     const snapshot = await load(journal, opened.execution)
     expect(snapshot.state).toEqual({ kind: 'reconciling' })
     expect(snapshot.executionAttachment).toEqual(resumed.authority)
+  })
+
+  it('fact 5: attach fences out a commit whose participant could not tell', async () => {
+    const journal = memory({ participants: ['message'] })
+    const opened = await open(journal.port)
+    const commit = commitAt(await load(journal.port, opened.execution), opened.authority, 'joint', {
+      caller: {
+        kind: 'message',
+        message: acceptedInput('m').content,
+        source: evidence('source'),
+        admission: evidence('admission'),
+      },
+    })
+    journal.respond('message', 'fail-unknown')
+    failure(await journal.port.commit(commit))
+    ok(await takeover(journal.port, opened))
+    expect(
+      ok(
+        await journal.port.query({
+          ...access,
+          execution: opened.execution,
+          operation: commit.operation,
+        }),
+      ).kind,
+    ).toBe('excluded')
+    expect(journal.settle(opened.execution, commit.operation, 'applied')).toBe(false)
+    expect(journal.joint()).toEqual([])
   })
 })
 
@@ -750,6 +967,7 @@ describe('fact 10: the one terminal commit', () => {
   it('fact 10: tryFinish ends the execution, and the retry of the same operation recognizes the original end', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
+    ok(await takeInputs(journal, opened))
     const input = await finishInput(journal, opened)
     const ended = ok(await journal.tryFinish(input))
     expect(ended.kind).toBe('ended')
@@ -903,6 +1121,184 @@ describe('fact 10: the one terminal commit', () => {
       kind: 'ended',
       conclusion: { kind: 'cancelled' },
     })
+  })
+
+  it('fact 10: no event follows the ended event; a later stage fact is recorded without one', async () => {
+    const { port: journal } = memory()
+    const opened = await open(journal)
+    ok(
+      await journal.control({
+        ...access,
+        execution: opened.execution,
+        operation: operation('cancel'),
+        command: { kind: 'cancel', reason: evidence('reason') },
+      }),
+    )
+    ok(
+      await journal.recordControl({
+        ...access,
+        execution: opened.execution,
+        operation: operation('intent'),
+        target: operation('cancel'),
+        stage: 'intent-established',
+        state: 'reached',
+        source: evidence('intent'),
+      }),
+    )
+    const snapshot = await load(journal, opened.execution)
+    ok(
+      await journal.tryFinish({
+        ...access,
+        execution: opened.execution,
+        operation: operation('cancelled'),
+        authorization: { kind: 'cancel', control: operation('cancel'), source: evidence('cancel') },
+        expected: snapshot.revision,
+        intent: {
+          conclusion: { kind: 'cancelled', cause: evidence('cause') },
+          inputWatermark: snapshot.inputWatermark,
+          obligations: evidence('obligations'),
+          beforeTerminal: null,
+          failure: null,
+        },
+      }),
+    )
+    // 临时做法，待 #558 裁定：ended 之后的阶段事实照常记录，不投影事件。
+    ok(
+      await journal.recordControl({
+        ...access,
+        execution: opened.execution,
+        operation: operation('stopped'),
+        target: operation('cancel'),
+        stage: 'physically-stopped',
+        state: 'reached',
+        source: evidence('stopped'),
+      }),
+    )
+    const after = await load(journal, opened.execution)
+    expect(after.controls[0]?.stages['physically-stopped']).toEqual({
+      state: 'reached',
+      source: evidence('stopped'),
+    })
+    const page = ok(
+      await journal.output.read({
+        ...access,
+        execution: opened.execution,
+        after: null,
+        limit: 100,
+      }),
+    )
+    if (page.kind !== 'page') throw new Error('expected a page')
+    expect(page.events.at(-1)?.body.kind).toBe('ended')
+    expect(page.events.filter(event => event.body.kind === 'ended')).toHaveLength(1)
+  })
+
+  it('fact 10: a pending write of the execution blocks the end with reason operations', async () => {
+    const journal = memory()
+    const opened = await open(journal.port)
+    ok(await takeInputs(journal.port, opened))
+    journal.failNext('acknowledge', { kind: 'commit-unknown', outcome: 'pending' })
+    failure(
+      await journal.port.acknowledge({
+        ...access,
+        execution: opened.execution,
+        operation: operation('ack'),
+        through: '1',
+        receipt: null,
+      }),
+    )
+    expect(ok(await journal.port.tryFinish(await finishInput(journal.port, opened)))).toMatchObject(
+      {
+        kind: 'blocked',
+        reason: 'operations',
+      },
+    )
+  })
+
+  it('fact 10 临时做法，待 #558 裁定：an applicable stage recorded unresolved blocks the end with reason controls', async () => {
+    const { port: journal } = memory()
+    const opened = await open(journal)
+    ok(
+      await journal.control({
+        ...access,
+        execution: opened.execution,
+        operation: operation('suspend'),
+        command: { kind: 'suspend', reason: evidence('reason') },
+      }),
+    )
+    ok(
+      await journal.recordControl({
+        ...access,
+        execution: opened.execution,
+        operation: operation('revoked'),
+        target: operation('suspend'),
+        stage: 'qualification-revoked',
+        state: 'unresolved',
+        source: evidence('unknown'),
+      }),
+    )
+    expect(ok(await finish(journal, opened))).toMatchObject({ kind: 'blocked', reason: 'controls' })
+  })
+
+  it('fact 10 临时做法，待 #558 裁定：untaken inputs block an ordinary end with reason inputs, not a cancel', async () => {
+    const { port: journal } = memory()
+    const opened = await open(journal)
+    expect(
+      ok(await journal.tryFinish(await finishInput(journal, opened, 'complete'))),
+    ).toMatchObject({
+      kind: 'blocked',
+      reason: 'inputs',
+    })
+    ok(
+      await journal.control({
+        ...access,
+        execution: opened.execution,
+        operation: operation('cancel'),
+        command: { kind: 'cancel', reason: evidence('reason') },
+      }),
+    )
+    ok(
+      await journal.recordControl({
+        ...access,
+        execution: opened.execution,
+        operation: operation('intent'),
+        target: operation('cancel'),
+        stage: 'intent-established',
+        state: 'reached',
+        source: evidence('intent'),
+      }),
+    )
+    const snapshot = await load(journal, opened.execution)
+    const cancelled = ok(
+      await journal.tryFinish({
+        ...access,
+        execution: opened.execution,
+        operation: operation('cancelled'),
+        authorization: { kind: 'cancel', control: operation('cancel'), source: evidence('cancel') },
+        expected: snapshot.revision,
+        intent: {
+          conclusion: { kind: 'cancelled', cause: evidence('cause') },
+          inputWatermark: snapshot.inputWatermark,
+          obligations: evidence('obligations'),
+          beforeTerminal: null,
+          failure: null,
+        },
+      }),
+    )
+    expect(cancelled.kind).toBe('ended')
+  })
+
+  it('fact 10 临时做法，待 #558 裁定：passages is not checked, so an open before-terminal passage does not block the end', async () => {
+    const { port: journal } = memory()
+    const opened = await open(journal)
+    const passage = { ...afterTerminalPassage('before'), position: 'before_terminal' } as const
+    ok(
+      await journal.commit(
+        commitAt(await load(journal, opened.execution), opened.authority, 'with-passage', {
+          checkpoint: checkpoint('F2', [passage]),
+        }),
+      ),
+    )
+    expect(ok(await finish(journal, opened)).kind).toBe('ended')
   })
 })
 
@@ -1188,6 +1584,41 @@ describe('fact 14: denied', () => {
       ).kind,
     ).toBe('denied')
   })
+
+  it('fact 14: query answers another tenant the same for an existing and a missing execution, and its own tenant a pending open', async () => {
+    const journal = memory()
+    const opened = await open(journal.port)
+    const existing = await journal.port.query({
+      ...otherTenant,
+      execution: opened.execution,
+      operation: operation('x'),
+    })
+    const missing = await journal.port.query({
+      ...otherTenant,
+      execution: execution('missing'),
+      operation: operation('x'),
+    })
+    expect(failure(existing)).toEqual({ kind: 'denied', action: 'query' })
+    expect(missing).toEqual(existing)
+
+    journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
+    const pendingOpen = {
+      ...access,
+      execution: execution('exec-pending'),
+      operation: operation('open-pending'),
+      instance: instance(),
+      grant: null,
+      initial: acceptedInput('input-1'),
+      checkpoint: checkpoint(),
+    }
+    failure(await journal.port.open(pendingOpen))
+    const query = { execution: pendingOpen.execution, operation: pendingOpen.operation }
+    expect(ok(await journal.port.query({ ...access, ...query }))).toEqual({ kind: 'unknown' })
+    expect(failure(await journal.port.query({ ...otherTenant, ...query }))).toEqual({
+      kind: 'denied',
+      action: 'query',
+    })
+  })
 })
 
 describe('fact 15: terminal', () => {
@@ -1382,6 +1813,42 @@ describe('临时做法，待 #558 裁定', () => {
     )
     if (page.kind !== 'page') throw new Error('expected a page')
     expect(page.events.map(event => [event.sequence, event.body.kind])).toEqual([['1', 'waiting']])
+  })
+
+  it('M04-1 的读法 临时做法，待 #558 裁定：control 与 recordControl 把阶段事实投影为 control 事件', async () => {
+    const { port: journal } = memory()
+    const opened = await open(journal)
+    ok(
+      await journal.control({
+        ...access,
+        execution: opened.execution,
+        operation: operation('cancel'),
+        command: { kind: 'cancel', reason: evidence('reason') },
+      }),
+    )
+    ok(
+      await journal.recordControl({
+        ...access,
+        execution: opened.execution,
+        operation: operation('intent'),
+        target: operation('cancel'),
+        stage: 'intent-established',
+        state: 'reached',
+        source: evidence('intent'),
+      }),
+    )
+    const page = ok(
+      await journal.output.read({ ...access, execution: opened.execution, after: null, limit: 10 }),
+    )
+    if (page.kind !== 'page') throw new Error('expected a page')
+    expect(
+      page.events.map(event =>
+        event.body.kind === 'control' ? [event.body.operation, event.body.stage] : [],
+      ),
+    ).toEqual([
+      [operation('cancel'), 'accepted'],
+      [operation('cancel'), 'intent-established'],
+    ])
   })
 })
 
