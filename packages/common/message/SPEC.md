@@ -1,6 +1,6 @@
 # @omne-harness/message 行为规格
 
-本文件拥有 `@omne-harness/message` 中压缩变体在公开类型以外的必要行为。公开形状与运行时校验归 [src/index.ts](src/index.ts)，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。工具部件、角色规则与块身份的行为仍在 [docs/public-api.md](docs/public-api.md) 的「语义」「判定顺序」两节和 [README](README.md#contracts) 的契约节，本文件不重复。
+本文件拥有 `@omne-harness/message` 中压缩变体在公开类型以外的必要行为。公开形状与运行时校验归 [src/](src)，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。工具部件、角色规则与块身份的行为仍在 [docs/public-api.md](docs/public-api.md) 的「语义」「判定顺序」两节和 [README](README.md#contracts) 的契约节，本文件不重复。
 
 本成员没有状态、资源或异步行为，下面的义务都是纯函数的输入输出关系。
 
@@ -8,7 +8,7 @@
 
 本文件定义压缩记录 `CompactionMessage` 的形状、模型视图规则，以及两层判定：`judgeMessage` 判形状，`judgeCompaction` 判相对历史的规则。它不定义何时压缩、怎样写摘要、保留哪些消息，也不定义历史怎样存放、怎样提交。这些归压缩策略的拥有者和历史持有者。
 
-状态：**候选，未实现**。本文件与 [docs/public-api.md](docs/public-api.md#候选压缩变体) 的候选签名是本包实现压缩变体的依据。实现之前，`src/` 里的 `judgeMessage` 对 `compaction` 角色仍只认 `id`、`role`、`blocks`，见到 `covers`、`retained`、`derivation` 判 `extra`；`judgeCompaction`、`isCompactionMessage`、`parseRecordEntryRef` 尚未导出。
+状态：已实现，设计待接受（接受归任务卡 #581 的 D-02）。本文件与 [docs/public-api.md](docs/public-api.md#压缩变体) 的签名是压缩变体的依据，`src/` 按它们实现。
 
 依据如下。
 
@@ -161,63 +161,6 @@ e1、e3（C1）、e4、e6 只以 C2 的摘要出现。e7、e8 在覆盖范围之
 - 压缩策略的拥有者按 CM-01 至 CM-05 生成压缩记录，消费规则见[单次模型请求的上下文](../../../docs/architecture/runtime/request-context.md#压缩与历史保留)。
 - 历史持有者在提交压缩记录之前调用 `judgeCompaction`，失败就拒绝提交，规则见[压缩记录的提交](../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)。`judgeCompaction` 自己先跑 `judgeMessage`，形状失败只报 `message`；需要具体形状拒绝值的持有者，可以先单独调用 `judgeMessage`，再用 `isCompactionMessage` 收窄。
 
-### 本文件生效后改变的现行条款与用例
+### 验证
 
-压缩变体实现后，下列现行正文与用例不再成立，要随实现一起改。
-
-- [docs/public-api.md](docs/public-api.md) 的「语义」一节写「调用与结果的配对完整性也不在本包判定」：改为只在 `judgeCompaction` 核对压缩记录时判定，其他场合仍不判定。
-- 同页「定义索引」说 `judgePart` 的拒绝值是 `MessageRejection` 的子集：`covers`、`retained`、`derivation` 与 `tool-blocks`、`duplicate-id` 一样只由整条消息的判定给出。
-- 同页示例表 `role.calls-only-in-assistant` 的 `compaction` 反例只有 `blocks`：实现后先判 `missing`，要补齐三个键才能继续示范 `tool-blocks@1`。
-- `tests/message.spec.ts` 与 `tests/tool-roles.spec.ts` 中构造 `compaction` 角色消息的用例：同样要补齐三个键。
-- `tests/normative.spec.ts` 只读五列示例表，传不了三个新键和 `context`：压缩用例另起一张表，列为规则、极性、消息、`context`、结论，由同一个文件逐行执行。结论列写 `ok`、`rejected:<拒绝值>` 或 `rejected:<拒绝值>@<ref>`；「getter 未被调用」「成功值不变且已冻结」这类附加断言写在同一格，用分号分隔，由该文件逐项断言。
-- 运行时导出增加 `judgeCompaction`、`isCompactionMessage`、`parseRecordEntryRef`，`tests/public-entry.spec.ts` 同步。
-- [README](README.md) 与 [README_ZH](README_ZH.md) 契约节「成功值只含 `id`、`role`、`blocks`」：改为对 `compaction` 角色另含三个键，并删去候选说明。
-
-### 验收对照
-
-实现时把下表逐行写成上面那张压缩用例表。在那之前，下表只是候选反例，测试不执行它。历史里的条目记作 e1、e2……，按写入顺序；「输入要点」里的 after 指 `context.after`，即范围之后的消息。
-
-| 规则 | 极性 | 输入要点 | 结论 |
-| --- | --- | --- | --- |
-| `compaction.keys` | 正 | `compaction` 角色，带齐三个键，`retained` 为空 | `ok` |
-| `compaction.keys` | 反 | `compaction` 角色，缺 `derivation` | `rejected:missing` |
-| `compaction.keys` | 反 | `assistant` 角色，带 `covers` | `rejected:extra` |
-| `compaction.keys` | 反 | `role` 为 `bogus`，带 `covers` | `rejected:extra` |
-| `compaction.keys` | 反 | `compaction` 角色，`covers` 为 `null` | `rejected:null` |
-| `compaction.order` | 反 | `compaction` 角色，`id` 为 `bad`，`retained` 为 `"x"` | `rejected:prefix` |
-| `compaction.order` | 反 | `compaction` 角色，`blocks` 为空，`retained` 为 `"x"` | `rejected:empty` |
-| `compaction.covers` | 反 | `covers` 是字符串 | `rejected:covers` |
-| `compaction.covers` | 反 | `covers` 多一个键 `size` | `rejected:covers` |
-| `compaction.covers` | 反 | `covers.to` 为空串 | `rejected:covers` |
-| `compaction.covers` | 反 | `covers.from` 是 getter | `rejected:covers`，getter 未被调用 |
-| `compaction.retained` | 反 | `retained` 是字符串 | `rejected:retained` |
-| `compaction.retained` | 反 | `retained` 含重复引用 `["e2","e2"]` | `rejected:retained` |
-| `compaction.retained` | 反 | `retained` 含空串 | `rejected:retained` |
-| `compaction.derivation` | 反 | `derivation` 缺 `digest` | `rejected:derivation` |
-| `compaction.derivation` | 反 | `derivation.digest` 为空串 | `rejected:derivation` |
-| `compaction.copy` | 正 | 判定后修改输入的 `retained` 数组 | 成功值的 `retained` 不变，且已冻结 |
-| `history.message` | 反 | `message` 的 `role` 是 `assistant` | `rejected:message`，ref `null` |
-| `history.range` | 正 | `covers` 为 e1～e1，`covered` 只有 e1 | `ok` |
-| `history.range` | 反 | `covered` 为空 | `rejected:range`，ref `null` |
-| `history.range` | 反 | `covered` 首项是 e2，`covers.from` 是 e1 | `rejected:range`，ref `null` |
-| `history.range` | 反 | `covered` 末项与 `covers.to` 不同 | `rejected:range`，ref `null` |
-| `history.range` | 反 | `covered` 里 e2 出现两次 | `rejected:range`，ref `null` |
-| `history.range` | 反 | after 里有一条 `compaction` 角色的消息 | `rejected:range`，ref `null` |
-| `history.outside` | 反 | `retained` 含 `covered` 之外的引用 e9 | `rejected:retained-outside`，ref e9 |
-| `history.order` | 反 | `retained` 为 `["e3","e2"]` | `rejected:retained-order`，ref e2 |
-| `history.not-model` | 反 | `retained` 引用不带消息的条目 e4 | `rejected:retained-not-model`，ref e4 |
-| `history.not-model` | 反 | `retained` 引用全部块 `toModel` 为假的消息 e5 | `rejected:retained-not-model`，ref e5 |
-| `history.not-model` | 反 | `retained` 引用 `tool_internal` 消息 e6 | `rejected:retained-not-model`，ref e6 |
-| `history.pairing` | 正 | e2 带 `tool_call` k，e3 回答 k，两条都保留 | `ok` |
-| `history.pairing` | 反 | 保留 e2（带调用 k），e3 回答 k 在范围内未保留 | `rejected:pairing`，ref e2 |
-| `history.pairing` | 反 | 保留 e3（回答 k），e2（带调用 k）未保留 | `rejected:pairing`，ref e3 |
-| `history.pairing` | 反 | e2 带调用 k 在范围内未保留，回答 k 的消息在 after 里 | `rejected:pairing`，ref e2 |
-| `history.pairing` | 正 | e2 带调用 k 已保留，回答 k 的消息在 after 里 | `ok` |
-| `history.pairing` | 正 | e2/e3 与 e7/e8 两次复用 `callId` k，只保留 e7、e8 | `ok` |
-| `history.pairing` | 反 | e2 带 `tool_call_unparsed` k，e3 回答 k，只保留 e2 | `rejected:pairing`，ref e2 |
-| `history.pairing` | 正 | e3 回答 k，历史里 k 只出现在 `tool_call_incomplete` 上，保留 e3 | `ok` |
-| `history.open-work` | 反 | `open` 含范围内的 e4，未保留 | `rejected:open-work`，ref e4 |
-| `history.open-work` | 正 | `open` 里的条目都在 after 里 | `ok` |
-| `history.open-work` | 反 | `open` 为 `["e6","e4"]`，两条都在范围内、都未保留 | `rejected:open-work`，ref e4 |
-| `history.repeat` | 正 | 上一条压缩记录在范围内并被保留 | `ok` |
-| `history.first-failure` | 反 | `retained` 为 `["e9"]`，且 `open` 含范围内未保留的 e4 | `rejected:retained-outside`，ref e9 |
+[docs/public-api.md](docs/public-api.md#压缩用例表) 的压缩用例表把上面每条规则的正反例写成行，由 [tests/normative.spec.ts](tests/normative.spec.ts) 逐行执行，并固定每条规则必须展示的极性与行数。`judgeMessage` 的三个键判定对应 `compaction.` 开头的规则，`judgeCompaction` 对应 `history.` 开头的规则。JSON 写不出的输入（符号键、非普通原型、非枚举键、稀疏数组）和返回值的身份，由 [tests/compaction.spec.ts](tests/compaction.spec.ts) 锁定。公开类型由 [tests/compaction-types.spec-d.ts](tests/compaction-types.spec-d.ts) 锁定。

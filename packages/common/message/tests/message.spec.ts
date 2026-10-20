@@ -20,10 +20,19 @@ it('M1 admits an assistant message with one text block', () => {
   })
 })
 
+const compactionKeys = {
+  covers: { from: 'e1', to: 'e1' },
+  retained: [],
+  derivation: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
+}
+
 it('M2 admits each of the other five log roles', () => {
-  for (const role of ['user', 'tool_internal', 'system_reminder', 'compaction']) {
+  for (const role of ['user', 'tool_internal', 'system_reminder']) {
     expect(judgeMessage(message(role))).toEqual({ ok: { id, role, blocks: [text] } })
   }
+  expect(judgeMessage({ ...message('compaction'), ...compactionKeys })).toEqual({
+    ok: { id, role: 'compaction', blocks: [text], ...compactionKeys },
+  })
   const marker = { kind: 'tool_result', id: 'r1', visibility: text.visibility, callId: 'c1' }
   expect(judgeMessage(message('tool', [marker, text]))).toEqual({
     ok: { id, role: 'tool', blocks: [marker, text] },

@@ -1,25 +1,29 @@
 # 公开接口导航
 
-本文件导航本包的公开边界：导出入口、调用者资格、接口定义索引，以及输入输出与失败行为的定位。精确类型与运行时校验归公开源码，不手写第二套签名；唯一例外是下面的[候选：压缩变体](#候选压缩变体)，它在实现前暂存候选签名。工具部件、角色规则与块身份的非类型行为，正文是本文件的「语义」「判定顺序」两节和 [README](../README.md) 的契约节。压缩变体的行为归 [SPEC.md](../SPEC.md)。
+本文件导航本包的公开边界：导出入口、调用者资格、接口定义索引，以及输入输出与失败行为的定位。精确类型与运行时校验归公开源码，不手写第二套签名；唯一例外是下面的[压缩变体](#压缩变体)，它把类型签名列在一处供消费者查阅，以 [src/](../src) 为准。工具部件、角色规则与块身份的非类型行为，正文是本文件的「语义」「判定顺序」两节和 [README](../README.md) 的契约节。压缩变体的行为归 [SPEC.md](../SPEC.md)。
 
 ## 导出入口
 
-`package.json` 的 `exports` 只有入口 `.`，`source` 指向 [src/index.ts](../src/index.ts)。调用者不需要资格：任何需要日志消息值的能力都按包名 `@omne-harness/message` 导入。运行时导出恰为 `LOG_MESSAGE_ROLES`、`parseMessageId`、`messageIdEquals`、`judgeMessage`、`judgePart` 五个，由 [tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查。其余导出都是类型。本包不铸造消息身份，也不铸造块身份。
+`package.json` 的 `exports` 只有入口 `.`，`source` 指向 [src/index.ts](../src/index.ts)。调用者不需要资格：任何需要日志消息值的能力都按包名 `@omne-harness/message` 导入。运行时导出恰为 `LOG_MESSAGE_ROLES`、`parseMessageId`、`messageIdEquals`、`judgeMessage`、`judgePart`、`isCompactionMessage`、`judgeCompaction`、`parseRecordEntryRef` 八个，由 [tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查。其余导出都是类型。本包不铸造消息身份，也不铸造块身份。
 
 ## 定义索引
 
 | 导出 | 种类 | 定义位置 |
 | --- | --- | --- |
-| `Message`、`MessageId`、`LogMessageRole`、`MessageRejection`、`MessageJudgment`、`ToolMessage` | 类型 | [src/index.ts](../src/index.ts) |
-| `judgeMessage`、`parseMessageId`、`messageIdEquals` | 函数 | [src/index.ts](../src/index.ts) |
+| `Message`、`MessageId`、`LogMessageRole`、`MessageRejection`、`MessageJudgment`、`ToolMessage`、`CompactionMessage` | 类型 | [src/message.ts](../src/message.ts) |
+| `judgeMessage`、`parseMessageId`、`messageIdEquals`、`isCompactionMessage` | 函数 | [src/message.ts](../src/message.ts) |
+| `RecordEntryRef`、`CompactedRange`、`CompactionDerivation` | 类型 | [src/compaction-shape.ts](../src/compaction-shape.ts) |
+| `parseRecordEntryRef` | 函数 | [src/compaction-shape.ts](../src/compaction-shape.ts) |
+| `CoveredEntry`、`CompactionContext`、`CompactionRejection`、`CompactionJudgment` | 类型 | [src/compaction.ts](../src/compaction.ts) |
+| `judgeCompaction` | 函数 | [src/compaction.ts](../src/compaction.ts) |
 | `ToolCallPart`、`IncompleteToolCallPart`、`UnparsedToolCallPart`、`ToolResultPart`、`ToolPart`、`MessagePart` | 类型 | [src/parts.ts](../src/parts.ts) |
 | `judgePart` | 函数 | [src/parts.ts](../src/parts.ts) |
 
-失败不抛异常，是返回值：`{ rejected }`，部件上的失败另带 `blockIndex`。`judgePart` 的拒绝值是 `MessageRejection` 的子集，没有 `tool-blocks` 与 `duplicate-id`，这两个只有整条消息的判定才会给出。块身份与标注（`id`、`visibility`，含 `visibility` 内的未知键）由 `@omne-harness/content-block` 的 `judgeBlockIdentity` 判定，`arguments` 由 `@omne-harness/json-text` 的 `judgeJsonValue` 判定，本包不复制这两套规则。
+失败不抛异常，是返回值：`{ rejected }`，部件上的失败另带 `blockIndex`。`judgePart` 的拒绝值是 `MessageRejection` 的子集，没有 `tool-blocks`、`duplicate-id`、`covers`、`retained`、`derivation`，这几个只有整条消息的判定才会给出。块身份与标注（`id`、`visibility`，含 `visibility` 内的未知键）由 `@omne-harness/content-block` 的 `judgeBlockIdentity` 判定，`arguments` 由 `@omne-harness/json-text` 的 `judgeJsonValue` 判定，本包不复制这两套规则。
 
-## 候选：压缩变体
+## 压缩变体
 
-状态：候选，未实现。下面的签名是本包实现压缩变体的依据，`src/` 还没有这些导出，`judgeMessage` 也还没有按 [SPEC.md](../SPEC.md#judgemessage-对压缩变体的判定) 判 `compaction` 角色的三个键。实现交付后，签名移入 `src/index.ts`，本节改为定义索引里的普通行，导出清单与 `tests/public-entry.spec.ts` 同步增加 `judgeCompaction`、`isCompactionMessage`、`parseRecordEntryRef`。
+`compaction` 角色的消息另带 `covers`、`retained`、`derivation` 三个键，`judgeMessage` 按 [SPEC.md](../SPEC.md#judgemessage-对压缩变体的判定) 判它们，`judgeCompaction` 判相对历史的规则。下面是这些导出的类型签名，定义位置见上面的定义索引。
 
 ```ts
 declare const recordEntryRefBrand: unique symbol
@@ -77,7 +81,7 @@ export declare function isCompactionMessage(message: Message): message is Compac
 export declare function judgeCompaction(message: unknown, context: CompactionContext): CompactionJudgment
 ```
 
-`MessageRejection` 同时增加 `covers`、`retained`、`derivation` 三个值，由 `judgeMessage` 在判 `compaction` 角色的三个键时给出。`judgeMessage` 的成功值类型仍是 `Message`；消费者用 `isCompactionMessage` 收窄，或直接把输入交给 `judgeCompaction`，从其成功值取得 `CompactionMessage`。`judgeCompaction` 的拒绝值与 `MessageRejection` 分开，调用者能区分形状失败与历史规则失败。行为、判定顺序和候选反例见 [SPEC.md](../SPEC.md)。
+`MessageRejection` 含 `covers`、`retained`、`derivation` 三个值，由 `judgeMessage` 在判 `compaction` 角色的三个键时给出。`judgeMessage` 的成功值类型仍是 `Message`；消费者用 `isCompactionMessage` 收窄，或直接把输入交给 `judgeCompaction`，从其成功值取得 `CompactionMessage`。`judgeCompaction` 的拒绝值与 `MessageRejection` 分开，调用者能区分形状失败与历史规则失败。行为与判定顺序见 [SPEC.md](../SPEC.md)，用例见下面的[压缩用例表](#压缩用例表)。
 
 ## 语义
 
@@ -90,7 +94,7 @@ export declare function judgeCompaction(message: unknown, context: CompactionCon
 
 整条消息的规则：`tool` 角色的消息第一块必须是标记，其余块是通过内容块判定的非工具部件，全消息恰有一个标记。标记只能出现在 `tool` 角色的消息里。三种调用部件只能出现在 `assistant` 角色的消息里。块身份在整条消息内唯一，不同消息之间不比较。允许哪些内容种类放进工具消息的正文，归结果投影方的政策，本包只判结构。
 
-本包没有结局字段，所以不判定半截调用出现的条件：完整结局的消息不含半截调用由流的结算方保证，派生请求剔除半截调用归请求组装方。调用与结果的配对完整性也不在本包判定。
+本包没有结局字段，所以不判定半截调用出现的条件：完整结局的消息不含半截调用由流的结算方保证，派生请求剔除半截调用归请求组装方。调用与结果的配对完整性只在 `judgeCompaction` 核对压缩记录时判定，其他场合仍不判定。
 
 块身份的铸造方各自负责：在消息内唯一、重放或重试时不变。流的结算方铸造开块头的 `id`，半截与未解析的变体沿用该头的 `id`。结果投影方铸造标记的 `id`。占位追加方若追加 `tool` 角色消息，铸造标记与正文块的 `id`。本包只检查，不铸造。
 
@@ -98,15 +102,15 @@ export declare function judgeCompaction(message: unknown, context: CompactionCon
 
 `judgePart` 先看部件本身：有访问器、非枚举自有键或非普通原型的对象判 `json`，部件自身键上的 getter 不被调用；嵌套位置（`visibility`、`arguments`）由各自的判定读取。再按 `kind` 分派：不认识的字符串 `kind` 判 `unknown`，没有 `kind` 或 `kind` 不是字符串则交给内容块判定。对工具部件，先检查键是否闭合（多键判 `extra`，缺键报缺的字段名），然后依次判 `id`、`visibility`、`callId`，最后判该种类自己的字段（`name`、`arguments`、`partial`、`raw`；`tool_call_incomplete` 先判 `visibility` 两位为 false）。键不闭合的部件在第一步被拒，其中的深对象不会被遍历。只有 `arguments` 被递归遍历，且只经 `judgeJsonValue`，`judgeJsonValue` 的任一失败都报 `arguments`，不外泄结构路径。
 
-`judgeMessage` 依次检查消息自己的字段、逐个部件、角色规则、块身份唯一，返回第一个失败。
+`judgeMessage` 依次检查消息自己的字段、`compaction` 角色的三个键、逐个部件、角色规则、块身份唯一，返回第一个失败。
 
 ## 验证义务
 
-[tests/tool-parts.spec.ts](../tests/tool-parts.spec.ts) 逐个失败值锁定四种部件的规则、`arguments` 的副本与同 json-text 的组合。[tests/tool-roles.spec.ts](../tests/tool-roles.spec.ts) 锁定角色规则与块身份唯一。[tests/tool-part-types.spec-d.ts](../tests/tool-part-types.spec-d.ts) 锁定公开类型的形状。[tests/normative.spec.ts](../tests/normative.spec.ts) 逐行执行下面的示例表，并规定表必须展示哪些规则的正反两面。本包不验证结果投影方的输出，也不验证流的结算方交出的部件。
+[tests/tool-parts.spec.ts](../tests/tool-parts.spec.ts) 逐个失败值锁定四种部件的规则、`arguments` 的副本与同 json-text 的组合。[tests/tool-roles.spec.ts](../tests/tool-roles.spec.ts) 锁定角色规则与块身份唯一。[tests/tool-part-types.spec-d.ts](../tests/tool-part-types.spec-d.ts) 锁定公开类型的形状。[tests/compaction.spec.ts](../tests/compaction.spec.ts) 锁定压缩变体的形状边界、公开类型和不在用例表里的输入。[tests/normative.spec.ts](../tests/normative.spec.ts) 逐行执行下面的示例表与压缩用例表，并规定两张表必须展示哪些规则的正反两面。本包不验证结果投影方的输出，也不验证流的结算方交出的部件。
 
 ## 示例表
 
-每行是一条规则的一个示例：`规则` 是规则名，`极性` 中「正」是允许的例子，「反」是被拒的例子，`角色` 与 `块` 是 `judgeMessage` 的输入（消息身份固定），`结论` 是 `ok`，或 `rejected:<拒绝值>@<blockIndex>`。表同时是文档和测试：删掉一行或改变一个结论，`tests/normative.spec.ts` 变红。
+每行是一条规则的一个示例：`规则` 是规则名，`极性` 中「正」是允许的例子，「反」是被拒的例子，`角色` 与 `块` 是 `judgeMessage` 的输入（消息身份固定；角色为 `compaction` 时，测试再补上一组固定的合法 `covers`、`retained`、`derivation`，使这一行只示范块上的规则），`结论` 是 `ok`，或 `rejected:<拒绝值>@<blockIndex>`。表同时是文档和测试：删掉一行或改变一个结论，`tests/normative.spec.ts` 变红。
 
 | 规则 | 极性 | 角色 | 块 | 结论 |
 | --- | --- | --- | --- | --- |
@@ -171,3 +175,56 @@ export declare function judgeCompaction(message: unknown, context: CompactionCon
 | `id.unique` | 反 | `assistant` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"tool_call","id":"t1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","arguments":{"kind":"null"}}]` | `rejected:duplicate-id@1` |
 | `id.unique` | 反 | `tool` | `[{"kind":"tool_result","id":"r1","visibility":{"toHuman":true,"toModel":true},"callId":"k"},{"kind":"text","id":"r1","visibility":{"toHuman":true,"toModel":true},"text":"x"}]` | `rejected:duplicate-id@1` |
 | `id.unique` | 反 | `assistant` | `[{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"x"},{"kind":"tool_call","id":"c1","visibility":{"toHuman":true,"toModel":true},"callId":"k","name":"echo","arguments":{"kind":"null"}},{"kind":"text","id":"t1","visibility":{"toHuman":true,"toModel":true},"text":"y"}]` | `rejected:duplicate-id@2` |
+
+## 压缩用例表
+
+每行是压缩变体一条规则的一个示例，历史里的条目记作 e1、e2……，按写入顺序。表同时是文档和测试：[tests/normative.spec.ts](../tests/normative.spec.ts) 逐行执行，删掉一行或改变一个结论都会变红。
+
+- `消息`：对基准压缩消息的覆盖。基准是 `{"id":"msg_abcdefghijklmnopqrstuv","role":"compaction","blocks":[一个对模型可见的文本块],"covers":{"from":"e1","to":"e1"},"retained":[],"derivation":{"owner":"o","record":"r","revision":"1","digest":"d"}}`，格里写的键替换基准里的同名键。值为 `"<absent>"` 时删去这个键，值为 `"<getter>"` 时在这个位置放一个访问器，访问器记录自己是否被调用。
+- `context`：`-` 表示这一行只用 `judgeMessage` 判；否则是 `judgeCompaction` 的 `context`。`covered` 的每项是 `[引用, 消息]`，`after` 的每项是消息，`open` 是引用列表。消息写成下列简写，`null` 表示不带消息的条目：`text` 是对模型可见的 `user` 消息，`hidden` 是全部块 `toModel` 为假的 `user` 消息，`internal` 是对模型可见的 `tool_internal` 消息，`call:K`、`unparsed:K`、`incomplete:K` 是带 `callId` 为 K 的 `tool_call`、`tool_call_unparsed`、`tool_call_incomplete` 的 `assistant` 消息，`answer:K` 是回答 K 的 `tool` 消息，`compaction` 是一条合法的 `compaction` 消息。
+- `结论`：`ok`、`rejected:<拒绝值>` 或 `rejected:<拒绝值>@<ref>`，没有 `@<ref>` 表示 `ref` 为 `null`。用 `;` 分隔的附加断言：`getter 未被调用`，`成功值不变且已冻结`（判定后修改输入的 `retained` 数组，成功值的三个键不变且已冻结）。
+
+| 规则 | 极性 | 消息 | context | 结论 |
+| --- | --- | --- | --- | --- |
+| `compaction.keys` | 正 | `{}` | `-` | `ok` |
+| `compaction.keys` | 反 | `{"derivation":"<absent>"}` | `-` | `rejected:missing` |
+| `compaction.keys` | 反 | `{"role":"assistant","retained":"<absent>","derivation":"<absent>"}` | `-` | `rejected:extra` |
+| `compaction.keys` | 反 | `{"role":"bogus"}` | `-` | `rejected:extra` |
+| `compaction.keys` | 反 | `{"covers":null}` | `-` | `rejected:null` |
+| `compaction.order` | 反 | `{"id":"bad","retained":"x"}` | `-` | `rejected:prefix` |
+| `compaction.order` | 反 | `{"blocks":[],"retained":"x"}` | `-` | `rejected:empty` |
+| `compaction.covers` | 反 | `{"covers":"e1"}` | `-` | `rejected:covers` |
+| `compaction.covers` | 反 | `{"covers":{"from":"e1","to":"e1","size":1}}` | `-` | `rejected:covers` |
+| `compaction.covers` | 反 | `{"covers":{"from":"e1","to":""}}` | `-` | `rejected:covers` |
+| `compaction.covers` | 反 | `{"covers":{"from":"<getter>","to":"e1"}}` | `-` | `rejected:covers; getter 未被调用` |
+| `compaction.retained` | 反 | `{"retained":"x"}` | `-` | `rejected:retained` |
+| `compaction.retained` | 反 | `{"retained":["e2","e2"]}` | `-` | `rejected:retained` |
+| `compaction.retained` | 反 | `{"retained":["e2",""]}` | `-` | `rejected:retained` |
+| `compaction.derivation` | 反 | `{"derivation":{"owner":"o","record":"r","revision":"1"}}` | `-` | `rejected:derivation` |
+| `compaction.derivation` | 反 | `{"derivation":{"owner":"o","record":"r","revision":"1","digest":""}}` | `-` | `rejected:derivation` |
+| `compaction.copy` | 正 | `{"retained":["e2"]}` | `-` | `ok; 成功值不变且已冻结` |
+| `history.message` | 反 | `{"role":"assistant"}` | `{"covered":[["e1","text"]],"after":[],"open":[]}` | `rejected:message` |
+| `history.range` | 正 | `{}` | `{"covered":[["e1","text"]],"after":[],"open":[]}` | `ok` |
+| `history.range` | 反 | `{}` | `{"covered":[],"after":[],"open":[]}` | `rejected:range` |
+| `history.range` | 反 | `{"covers":{"from":"e1","to":"e2"}}` | `{"covered":[["e2","text"]],"after":[],"open":[]}` | `rejected:range` |
+| `history.range` | 反 | `{}` | `{"covered":[["e1","text"],["e2","text"]],"after":[],"open":[]}` | `rejected:range` |
+| `history.range` | 反 | `{"covers":{"from":"e1","to":"e2"}}` | `{"covered":[["e1","text"],["e2","text"],["e2","text"]],"after":[],"open":[]}` | `rejected:range` |
+| `history.range` | 反 | `{}` | `{"covered":[["e1","text"]],"after":["compaction"],"open":[]}` | `rejected:range` |
+| `history.outside` | 反 | `{"retained":["e9"]}` | `{"covered":[["e1","text"]],"after":[],"open":[]}` | `rejected:retained-outside@e9` |
+| `history.order` | 反 | `{"covers":{"from":"e1","to":"e3"},"retained":["e3","e2"]}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"]],"after":[],"open":[]}` | `rejected:retained-order@e2` |
+| `history.not-model` | 反 | `{"covers":{"from":"e1","to":"e4"},"retained":["e4"]}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4",null]],"after":[],"open":[]}` | `rejected:retained-not-model@e4` |
+| `history.not-model` | 反 | `{"covers":{"from":"e1","to":"e5"},"retained":["e5"]}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4","text"],["e5","hidden"]],"after":[],"open":[]}` | `rejected:retained-not-model@e5` |
+| `history.not-model` | 反 | `{"covers":{"from":"e1","to":"e6"},"retained":["e6"]}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4","text"],["e5","text"],["e6","internal"]],"after":[],"open":[]}` | `rejected:retained-not-model@e6` |
+| `history.pairing` | 正 | `{"covers":{"from":"e1","to":"e3"},"retained":["e2","e3"]}` | `{"covered":[["e1","text"],["e2","call:k"],["e3","answer:k"]],"after":[],"open":[]}` | `ok` |
+| `history.pairing` | 反 | `{"covers":{"from":"e1","to":"e3"},"retained":["e2"]}` | `{"covered":[["e1","text"],["e2","call:k"],["e3","answer:k"]],"after":[],"open":[]}` | `rejected:pairing@e2` |
+| `history.pairing` | 反 | `{"covers":{"from":"e1","to":"e3"},"retained":["e3"]}` | `{"covered":[["e1","text"],["e2","call:k"],["e3","answer:k"]],"after":[],"open":[]}` | `rejected:pairing@e3` |
+| `history.pairing` | 反 | `{"covers":{"from":"e1","to":"e2"}}` | `{"covered":[["e1","text"],["e2","call:k"]],"after":["answer:k"],"open":[]}` | `rejected:pairing@e2` |
+| `history.pairing` | 正 | `{"covers":{"from":"e1","to":"e2"},"retained":["e2"]}` | `{"covered":[["e1","text"],["e2","call:k"]],"after":["answer:k"],"open":[]}` | `ok` |
+| `history.pairing` | 正 | `{"covers":{"from":"e1","to":"e8"},"retained":["e7","e8"]}` | `{"covered":[["e1","text"],["e2","call:k"],["e3","answer:k"],["e4","text"],["e5","text"],["e6","text"],["e7","call:k"],["e8","answer:k"]],"after":[],"open":[]}` | `ok` |
+| `history.pairing` | 反 | `{"covers":{"from":"e1","to":"e3"},"retained":["e2"]}` | `{"covered":[["e1","text"],["e2","unparsed:k"],["e3","answer:k"]],"after":[],"open":[]}` | `rejected:pairing@e2` |
+| `history.pairing` | 正 | `{"covers":{"from":"e1","to":"e3"},"retained":["e3"]}` | `{"covered":[["e1","text"],["e2","incomplete:k"],["e3","answer:k"]],"after":[],"open":[]}` | `ok` |
+| `history.open-work` | 反 | `{"covers":{"from":"e1","to":"e4"}}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4","text"]],"after":[],"open":["e4"]}` | `rejected:open-work@e4` |
+| `history.open-work` | 正 | `{}` | `{"covered":[["e1","text"]],"after":["text"],"open":["e7"]}` | `ok` |
+| `history.open-work` | 反 | `{"covers":{"from":"e1","to":"e6"}}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4","text"],["e5","text"],["e6","text"]],"after":[],"open":["e6","e4"]}` | `rejected:open-work@e4` |
+| `history.repeat` | 正 | `{"covers":{"from":"e1","to":"e3"},"retained":["e2"]}` | `{"covered":[["e1","text"],["e2","compaction"],["e3","text"]],"after":[],"open":[]}` | `ok` |
+| `history.first-failure` | 反 | `{"covers":{"from":"e1","to":"e4"},"retained":["e9"]}` | `{"covered":[["e1","text"],["e2","text"],["e3","text"],["e4","text"]],"after":[],"open":["e4"]}` | `rejected:retained-outside@e9` |

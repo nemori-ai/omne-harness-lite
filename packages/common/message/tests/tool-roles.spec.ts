@@ -27,8 +27,14 @@ const unparsed = {
 }
 const marker = { kind: 'tool_result', id: 'r1', visibility, callId: 'k' }
 
+const compactionKeys = {
+  covers: { from: 'e1', to: 'e1' },
+  retained: [],
+  derivation: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
+}
+
 function judged(role: string, blocks: readonly unknown[]) {
-  return judgeMessage({ id, role, blocks })
+  return judgeMessage({ id, role, blocks, ...(role === 'compaction' ? compactionKeys : {}) })
 }
 
 describe('tool role', () => {
