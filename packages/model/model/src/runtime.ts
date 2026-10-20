@@ -1,4 +1,4 @@
-import { createFirstDispatchDriver } from './driver.ts'
+import { createModelDriver } from './driver.ts'
 import type {
   ModelCommands,
   ModelSendBoundary,
@@ -88,7 +88,13 @@ function validate(dependencies: unknown, configuration: unknown): void {
     const value = configuration[field]
     if (typeof value !== 'number')
       throw new TypeError(`missing or invalid Model configuration ${field}`)
-    if (!Number.isFinite(value) || !Number.isSafeInteger(value) || value < lower)
+    if (
+      !Number.isFinite(value) ||
+      !(field === 'observerCheckIntervalMs'
+        ? Number.isSafeInteger(value)
+        : Number.isInteger(value)) ||
+      value < lower
+    )
       throw new RangeError(`Model configuration ${field} is out of range`)
   }
 }
@@ -101,14 +107,20 @@ function unavailable(operation: string, stage: string): Reply<never> {
     },
   })
 }
-/** Constructs the admission facade and the first-dispatch driver. */
+/** Constructs the call facade, stream driver and instance observations. */
 export function createModelRuntime<P>(
   dependencies: ModelDependencies<P>,
   configuration: ModelConfiguration,
 ): ModelRuntimeProvider<P> {
   validate(dependencies, configuration)
   const { commands, instances } = dependencies
-  const activity = createFirstDispatchDriver(commands, instances, dependencies.clock, configuration)
+  const activity = createModelDriver(
+    commands,
+    instances,
+    dependencies.clock,
+    configuration,
+    dependencies.send,
+  )
   async function wake(input: Parameters<typeof instances.schedule>[0]): Promise<void> {
     try {
       await instances.schedule(input)
@@ -157,7 +169,10 @@ export function createModelRuntime<P>(
         acknowledge: input =>
           reserved(input.operation) ?? unavailable('consumption.acknowledge', '1.7'),
       },
-      instances: { connect: input => instances.directory.connect(input) },
+      instances: {
+        connect: ({ principal, tenant, call }) =>
+          instances.directory.connect({ principal, tenant, call }),
+      },
     },
     recover: () => unavailable('recover', '5.4'),
     quiesce: () => unavailable('quiesce', '5.5'),

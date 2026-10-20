@@ -166,7 +166,6 @@ it('constructs the real factory without touching dependencies and keeps unsuppor
         result,
         evidence: { kind: 'processed', completion: proof('test') },
       }),
-      subject.runtime.instances.connect(unread(f.admit)),
       subject.recover(unread(f.admit)),
       subject.quiesce(),
     ])
@@ -176,7 +175,6 @@ it('constructs the real factory without touching dependencies and keeps unsuppor
     ['consumption.readNext', '1.7'],
     ['consumption.closeRead', '1.7'],
     ['consumption.acknowledge', '1.7'],
-    ['instances.connect', '3.5'],
     ['recover', '5.4'],
     ['quiesce', '5.5'],
   ]
@@ -234,6 +232,7 @@ it('rejects dependency and numeric configuration defects at construction', () =>
   for (const field of [
     'outputBatchBytes',
     'observerBufferBytes',
+    'observerCheckIntervalMs',
     'resultPageTargetBytes',
     'readIdleMs',
   ])
@@ -243,6 +242,12 @@ it('rejects dependency and numeric configuration defects at construction', () =>
         { ...configuration, [field]: 0 },
       ]),
     ).toThrow(RangeError)
+  expect(() =>
+    createModelRuntime(f.dependencies, {
+      ...configuration,
+      observerCheckIntervalMs: Number.MAX_SAFE_INTEGER + 1,
+    }),
+  ).toThrow(RangeError)
   const { resultPageTargetBytes: _target, ...oldConfiguration } = configuration
   expect(() =>
     Reflect.apply(createModelRuntime, undefined, [

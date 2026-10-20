@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Model domain implementation: standalone execution and credential judgments; admission, cancellation intent and first-dispatch runtime",
+  "description": "Model domain implementation: standalone execution and credential judgments; admission, original-stream preservation and instance observation",
   "engines": {
     "node": ">=24"
   },

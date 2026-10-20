@@ -4,13 +4,13 @@
 
 ## 职责与状态
 
-本成员已有独立执行、凭据判定、受理及首次分派运行实现和独立内存测试入口。本地凭据保管归 [model-host-local](../model-host-local/README_ZH.md)，领域协议归 [model-contract](../model-contract/README_ZH.md)。
+本成员已有独立执行、凭据判定、受理、流保存与实例观察运行实现和独立内存测试入口。本地凭据保管归 [model-host-local](../model-host-local/README_ZH.md)，领域协议归 [model-contract](../model-contract/README_ZH.md)。
 
 | 能力或入口 | 当前支持 |
 | --- | --- |
 | `executeModel` | 经显式传输执行一次，覆盖取消及资源关闭 |
 | 凭据判定及 `deliver` | 凭据判定为纯函数，`deliver` 委托传入的 resolver |
-| `createModelRuntime` | 受理、查询、分派记录、取消意图及首次 prepared 分派；其他托管操作仍 unavailable |
+| `createModelRuntime` | 受理、查询、取消意图、原流保存与实例观察；收场与结果消费仍 unavailable |
 | `createModelSendBoundary` | 显式依赖下提交回执与窗口、同步凭据围栏、一次 start 和唯一事实消费 |
 | `@omne-harness/model/testing` | 内存 Commands 与五个可控依赖端口 |
 | 耐久 Commands 及生产托管执行 | 未实现 |
@@ -36,7 +36,11 @@
 
 构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，包导出根入口和独立 `./testing`，没有 `./cordis` 与 `./execute`。`pnpm --filter @omne-harness/model run install-closure` 对本成员做打包、隔离安装、入口解析与场景运行，并以 `--out` 写出报告；运行方式与验证范围见[测试说明](tests/README.md#安装闭包)，运行结果不在本页记录。包不自动安装所有厂商或词表。
 
-受控宿主以稳定 claim 与可信 continuity 调用 `provider.driver.drive`，只形成首次 prepared 分派，不发送。未知 prepare 在本 provider 实例内保留原输入。取消只提交意图及实际传播状态。产品 sender 可由受信消费者直接调用；driver 的事实消费接续、生产调度、结果消费与跨进程恢复尚未实现。
+受控宿主以稳定 claim 与可信 continuity 调用 `provider.driver.drive`。driver 先发布初始实例，再接原 sender 的 window/facts，唯一消费并按批保存。Commands 确认后才发布完整快照。明确发送失败仍沿 drive 返回，未知写保留原输入。调用方经 connect/observe 观察，关闭观察不取消调用。没有恢复快照的后继实例明确 ended/unavailable。
+
+必填正安全整数 observerCheckIntervalMs 控制等待观察者的资格及实例复查。outputBatchDelayMs=0 时逐事实先保存再读取；正数延迟允许聚合。计时触发保存时，已挂起的 next 仍属原窗口，完成后才保存整批。沉默读取可无限推迟已有前缀展示，因此批延迟不承诺最大可见延迟。
+
+observerBufferBytes 约束逻辑登记与未读通知。每登记64字节，每未读版本32字节。登记额度不足或观察者落后超额时，结束该观察为 unavailable。初始共享快照正文不重复计入观察额度。每观察者只允许一个在途 next，并发 next 结束该观察，不形成无界队列。生产调度、整调用收场、结果消费与跨进程恢复尚未实现。
 
 ## 产品发送边界
 
@@ -46,7 +50,7 @@ factory 路径需要受信装配明确登记精确档案与供应商采用、接
 
 未知写保存原 operation、expected、输入和资源，重入先核实原操作。start 已返回而记录未确认时不迭代、不关闭原流；认回后唯一交出。signal 交给原传输；事实耗尽或消费者归还时，按 materialized、prepared、resource 逆序幂等释放。释放失败以安全异常可见，未知责任与失败释放继续占容量，没有 TTL 遗忘。
 
-测试装配显式提供 sending 配置并消费同一产品 sender；缺配置明确不可用。driver 仍停在 prepared，未集成唯一 facts 消费者。started 结果同时交出已确认的原 window 和唯一 facts 流。消费者将 result.window 连同原执行与分派交给 Commands.preserve；窗口标识不授予访问权。本地脚本不证明真实厂商、耐久存储、生产宿主或跨进程恢复。
+测试装配显式提供 sending 配置并消费同一产品 sender；缺配置明确不可用。driver 已集成原唯一 facts 消费者及最小实例观察。started 结果同时交出已确认的原 window 和唯一 facts 流。消费者将 result.window 连同原执行与分派交给 Commands.preserve；窗口标识不授予访问权。本地脚本不证明真实厂商、耐久存储、生产宿主或跨进程恢复。
 
 ## 验证
 

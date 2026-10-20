@@ -39,7 +39,9 @@ export function createObservation<P>(input: {
   }
   const handle: ModelHandle<P> = {
     instance: input.instance,
-    observe(access) {
+    observe(original) {
+      const { principal, tenant, signal } = original
+      const access = { principal, tenant, signal }
       return {
         [Symbol.asyncIterator]() {
           let seen = -1
@@ -47,7 +49,9 @@ export function createObservation<P>(input: {
           let done = false
           let wake = () => {}
           let closed!: () => void
-          const closure = new Promise<null>(resolve => { closed = () => resolve(null) })
+          const closure = new Promise<null>(resolve => {
+            closed = () => resolve(null)
+          })
           const watcher: Watcher = {
             lag: 0,
             wake: () => wake(),
@@ -63,10 +67,10 @@ export function createObservation<P>(input: {
           const abort = () => watcher.end('observer-closed')
           access.signal.addEventListener('abort', abort, { once: true })
           if (access.signal.aborted) abort()
-          else if (watchers.size >= Math.max(1, Math.floor(input.bufferBytes / 64)))
-            watcher.end('unavailable')
+          else if (watchers.size >= Math.floor(input.bufferBytes / 64)) watcher.end('unavailable')
           else watchers.add(watcher)
           function finish(): IteratorResult<Observation> {
+            if (done) return { done: true, value: undefined }
             done = true
             watchers.delete(watcher)
             access.signal.removeEventListener('abort', abort)
@@ -76,44 +80,76 @@ export function createObservation<P>(input: {
             if (done) return { done: true, value: undefined }
             while (!ending) {
               const route = await Promise.race([
-                input.directory.connect({ principal: access.principal, tenant: access.tenant, call: input.access.call }),
+                input.directory.connect({
+                  principal: access.principal,
+                  tenant: access.tenant,
+                  call: input.access.call,
+                }),
                 closure,
               ]).catch(() => null)
               if (ending) break
               if (!route || 'failure' in route) {
-                watcher.end(route && 'failure' in route && route.failure.kind === 'denied' ? 'denied' : 'unavailable')
+                watcher.end(
+                  route && 'failure' in route && route.failure.kind === 'denied'
+                    ? 'denied'
+                    : 'unavailable',
+                )
                 break
               }
-              if (route.ok.kind !== 'live') { watcher.end('unavailable'); break }
+              if (route.ok.kind !== 'live') {
+                watcher.end('unavailable')
+                break
+              }
               if (route.ok.handle !== handle || route.ok.handle.instance !== handle.instance) {
-                watcher.end('stale-instance'); break
+                watcher.end('stale-instance')
+                break
               }
               // No await between the observer's current authorization and selecting the view.
-              if (!view) { watcher.end('unavailable'); break }
+              if (!view) {
+                watcher.end('unavailable')
+                break
+              }
               if (seen !== version) {
                 const first = seen < 0
                 seen = version
                 watcher.lag = 0
-                return { done: false, value: { kind: first ? 'snapshot' : 'changed', value: structuredClone(view) } }
+                return {
+                  done: false,
+                  value: { kind: first ? 'snapshot' : 'changed', value: structuredClone(view) },
+                }
               }
               const timer = new AbortController()
-              const notified = new Promise<void>(resolve => { wake = resolve })
+              const notified = new Promise<void>(resolve => {
+                wake = resolve
+              })
               try {
                 await Promise.race([
                   notified,
-                  input.clock.waitUntil(new Date(Date.parse(input.clock.now()) + input.checkIntervalMs).toISOString(), timer.signal),
+                  input.clock.waitUntil(
+                    new Date(Date.parse(input.clock.now()) + input.checkIntervalMs).toISOString(),
+                    timer.signal,
+                  ),
                 ])
-              } catch { watcher.end('unavailable') }
-              finally { timer.abort(); wake = () => {} }
+              } catch {
+                watcher.end('unavailable')
+              } finally {
+                timer.abort()
+                wake = () => {}
+              }
             }
             return finish()
           }
-          let tail = Promise.resolve()
+          let busy = false
           return {
             next() {
-              const result = tail.then(next)
-              tail = result.then(() => {}, () => {})
-              return result
+              if (busy) {
+                watcher.end('unavailable')
+                return Promise.resolve(finish())
+              }
+              busy = true
+              return next().finally(() => {
+                busy = false
+              })
             },
             async return() {
               watcher.end('observer-closed')
@@ -128,8 +164,17 @@ export function createObservation<P>(input: {
   return {
     handle,
     publish,
-    beginContent() { contentEpoch += 1; confirming = true },
-    confirm(snapshot: Snapshot) { confirming = false; publish(snapshot) },
+    beginContent() {
+      contentEpoch += 1
+      confirming = true
+    },
+    confirm(snapshot: Snapshot) {
+      confirming = false
+      publish(snapshot)
+    },
+    rejectContent() {
+      confirming = false
+    },
     epoch: () => contentEpoch,
     refresh(state: CallState, epoch: number) {
       if (!confirming && contentEpoch === epoch && view && view.state.revision !== state.revision)

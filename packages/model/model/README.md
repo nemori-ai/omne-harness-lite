@@ -4,13 +4,13 @@
 
 ## Responsibility and status
 
-This member implements standalone execution, credential judgments, admission, the first dispatch, a product sending boundary, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
+This member implements standalone execution, credential judgments, admission, stream preservation, instance observation, a product sending boundary, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
 
 | Entry or capability | Current support |
 | --- | --- |
 | `executeModel` | One standalone execution through an injected transport, with cancellation and resource cleanup |
 | Credential judgment and `deliver` | Pure credential judgments. `deliver` delegates to the supplied resolver |
-| `createModelRuntime` | Admission, inspection, dispatch records, cancellation intent, and the first prepared dispatch. Other managed operations remain unavailable |
+| `createModelRuntime` | Admission, inspection, cancellation intent, original-stream preservation, and instance observation. Settlement and result consumption remain unavailable |
 | `createModelSendBoundary` | Receipt and window commits, current credential fence, one start per dispatch, and a single fact consumer through explicit resources |
 | `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports |
 | Durable Commands and production managed execution | Not implemented |
@@ -36,7 +36,13 @@ The [design index](docs/index.md) covers architecture, flows, internal objects, 
 
 The constructor takes Commands, the sending fence, the retry policy, the instance host, and the clock explicitly. The application selects and owns the adapters that it needs. It does not take business parameters from a global Context. The target run implementation does not depend on Cordis. The package manifest does not declare Cordis, proper-lockfile, or model-cordis-contract. The package exposes the root and the isolated `./testing` entry. It has no `./cordis` and no `./execute`. The command `pnpm --filter @omne-harness/model run install-closure` packs this member, installs it in isolation, resolves the entries, and runs a scenario. It writes a report to the path of `--out`. For the way to run it and its scope, see the [test description](tests/README.md#安装闭包). This page does not record run results. The package does not install all vendors or vocabularies automatically.
 
-The trusted host calls `provider.driver.drive` with a stable claim and continuity evidence. It prepares one dispatch without sending. Unknown prepare writes retain their original inputs within that provider instance. Cancellation records intent and its actual propagation state. A trusted caller can invoke the product sender directly. Driver integration with its fact consumer, production scheduling, result consumption, and cross-process recovery remain unimplemented.
+The trusted host calls `provider.driver.drive` with a stable claim and continuity evidence. The driver publishes the initial instance before preparing and sending. It consumes the sender's original window and stream once. Commands confirm each batch before the driver publishes its complete snapshot. Explicit sending failures remain failures from drive. Unknown writes retain their original inputs.
+
+Consumers call `runtime.instances.connect` and then `handle.observe`. Each observer uses its own current observe permission. Closing an observer keeps the call running. The required positive `observerCheckIntervalMs` controls checks while an observer waits. An instance without a recovered content snapshot ends observation as unavailable.
+
+`outputBatchBytes` and `outputBatchDelayMs` control batch boundaries. Zero delay saves each received fact before another read. Positive delay permits aggregation. A timer requests a flush, but a pending read stays in its original window. If that read remains silent, the received prefix can remain unpublished indefinitely. The delay does not guarantee maximum visibility latency.
+
+`observerBufferBytes` bounds logical registrations and unread notifications. A registration costs 64 bytes. Each unseen version costs 32 bytes per observer. Insufficient registration capacity or excessive lag ends that observer as unavailable. Shared snapshot contents are not copied into per-observer queues. One observer allows one pending next. Concurrent next ends that observer. Production scheduling, settlement, result consumption, and cross-process recovery remain unimplemented.
 
 ## Sending through explicit resources
 
@@ -48,7 +54,7 @@ Unknown writes retain their original operation, expected revision, resource, and
 
 The scripted testing assembly uses this same sender. Explicit `sending` options supply credential and source checks. Missing configuration is unavailable. This controlled memory assembly proves no real vendor, durable storage, production host, or cross-process recovery guarantee.
 
-A started result carries the confirmed original `window` and its single `facts` stream. Consumers pass `result.window` to Commands.preserve with the original execution and dispatch. The window grants no access rights. The runtime driver does not yet consume this stream.
+A started result carries the confirmed original `window` and its single `facts` stream. Consumers pass `result.window` to Commands.preserve with the original execution and dispatch. The window grants no access rights. The runtime driver consumes this original stream and publishes only confirmed snapshots.
 
 ## Verification
 
