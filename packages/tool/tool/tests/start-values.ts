@@ -3,6 +3,7 @@
 // capsule and consumes the permit, a start authority and a clock. The authority here is a small
 // in-memory stand-in with the P04 answers the driver relies on; the local start coordinator of
 // `tool-host-local` is tested against the same runtime in that package.
+import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   type DurableEvidence,
@@ -15,6 +16,8 @@ import {
   type ToolExecutorBinding,
   type ToolFailure,
   type ToolLiveExecution,
+  type ToolStartRecord,
+  type ToolExecutionFact,
   type ToolStartAuthority,
   type ToolState,
 } from '@omne-harness/tool-contract'
@@ -25,6 +28,7 @@ import {
   type ToolDependencies,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
+import { createMemoryToolExecutorBinding } from '@omne-harness/tool-contract/testing'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
   admission,
@@ -54,10 +58,21 @@ export type StartOptions = HarnessOptions &
   Readonly<{
     /** The answer of the environment provider by call; `prepared` when absent. */
     environment?: ReadonlyMap<string, EnvironmentAnswer>
+    authority?: TestAuthority
+    binding?: TestBinding
+    authorityPort?: (base: TestAuthority) => ToolStartAuthority<Principal>
+    bindingPort?: (base: LiveBinding) => LiveBinding
+    bindingsPort?: (
+      base: ToolBindings<Principal, Block, TestEnvironment>,
+    ) => ToolBindings<Principal, Block, TestEnvironment>
     /** Builds over this memory instead of a new one: a second runtime over the same records. */
     memory?: MemoryToolLedgerStore<Block>
     /** Wraps the memory store, to make one commit or read of the start path misbehave. */
     store?: (memory: MemoryToolLedgerStore<Block>) => ToolLedgerStore<Block>
+    /** Wraps the receipt reader to inject an unreadable or uncertain marker. */
+    readsPort?: (
+      base: ToolDependencies<Principal, Block, TestEnvironment>['reads'],
+    ) => ToolDependencies<Principal, Block, TestEnvironment>['reads']
     /** Wraps the commands the driver writes through, to observe what each command answered. */
     commands?: (
       base: ToolDependencies<Principal, Block, TestEnvironment>['commands'],
@@ -75,6 +90,7 @@ export type TestAuthority = ToolStartAuthority<Principal> &
   Readonly<{
     refuse(call: string): void
     uncertain(call: string): void
+    reveal(call: string): void
     readonly consumed: string[]
     readonly excluded: string[]
   }>
@@ -97,6 +113,7 @@ function testAuthority(): TestAuthority {
   return {
     refuse: call => refused.add(call),
     uncertain: call => uncertain.add(call),
+    reveal: call => void uncertain.delete(call),
     consumed,
     excluded,
     prepare: input => {
@@ -136,10 +153,10 @@ function testAuthority(): TestAuthority {
       return Promise.resolve(succeed({ kind: 'started', acceptance }))
     },
     inspect: input => {
-      const known = progress(input.call)
-      if (known !== null) return Promise.resolve(succeed(known))
       if (uncertain.has(input.call))
         return Promise.resolve(succeed({ kind: 'unknown', diagnostic: 'the ledger is behind' }))
+      const known = progress(input.call)
+      if (known !== null) return Promise.resolve(succeed(known))
       permits.delete(input.call)
       return Promise.resolve(
         succeed({ kind: 'not-started', exclusion: evidence(`excluded-${input.call}`) }),
@@ -234,38 +251,80 @@ export type TestBinding = Readonly<{
   readonly attempts: string[]
   readonly executions: string[]
   readonly environments: TestEnvironment[]
+  readonly inspected: ToolStartRecord[]
+  readonly capsules: DurableEvidence[]
+  readonly controls: ReturnType<
+    typeof createMemoryToolExecutorBinding<Principal, TestEnvironment>
+  >['controls']
 }>
 
-function liveExecution(): ToolLiveExecution<Block> {
-  const later = () => Promise.reject(new Error('the facts of a live execution are not read here'))
+type LiveBinding = Extract<
+  ToolExecutorBinding<Principal, Block, TestEnvironment>,
+  { kind: 'live-only' }
+>
+
+// The fixture admits only message-result blocks. The memory executor supports more block kinds,
+// so validate its wider result instead of asserting that its execution has the narrower type.
+function messageBlock(block: ContentBlock): Block {
+  if (block.kind === 'text' || 'ref' in block) return block
+  throw new Error('the start fixture accepts only message-result blocks')
+}
+
+function messageExecution(execution: ToolLiveExecution<ContentBlock>): ToolLiveExecution<Block> {
   return {
-    facts: () => ({
-      [Symbol.asyncIterator]: () => ({
-        next: () => Promise.resolve({ done: true, value: undefined }),
-      }),
-    }),
-    acknowledge: later,
-    stop: later,
-    inspectControl: later,
-    answer: later,
-    inspectAnswer: later,
+    ...execution,
+    facts: async function* (input) {
+      for await (const batch of execution.facts(input)) {
+        yield {
+          ...batch,
+          events: batch.events.map(event => ({ ...event, fact: messageFact(event.fact) })),
+        }
+      }
+    },
   }
 }
 
-function testBinding(authority: ToolStartAuthority<Principal>): TestBinding {
+function messageFact(fact: ToolExecutionFact<ContentBlock>): ToolExecutionFact<Block> {
+  if (fact.kind !== 'final') return fact
+  const result = fact.result
+  return {
+    ...fact,
+    result: {
+      ...result,
+      content: result.content.map(messageBlock),
+      original:
+        result.original.kind === 'none'
+          ? result.original
+          : {
+              ...result.original,
+              summary: result.original.summary.map(messageBlock),
+            },
+    },
+  }
+}
+
+function testBinding(
+  authority: ToolStartAuthority<Principal>,
+  wrap: (base: LiveBinding) => LiveBinding = base => base,
+): TestBinding {
   const attempts: string[] = []
   const executions: string[] = []
   const environments: TestEnvironment[] = []
-  const binding: ToolExecutorBinding<Principal, Block, TestEnvironment> = {
+  const inspected: ToolStartRecord[] = []
+  const capsules: DurableEvidence[] = []
+  const executor = createMemoryToolExecutorBinding<Principal, TestEnvironment>()
+  const binding = wrap({
     kind: 'live-only',
     start: async (input, environment) => {
       attempts.push(input.call)
+      const capsule = evidence(`capsule-${input.call}`)
+      capsules.push(capsule)
       const consumed = await authority.consume({
         principal: input.principal,
         tenant: input.tenant,
         call: input.call,
         permit: input.permit,
-        executorReceipt: evidence(`capsule-${input.call}`),
+        executorReceipt: capsule,
       })
       if ('failure' in consumed) return consumed
       if (consumed.ok.kind !== 'started')
@@ -274,16 +333,33 @@ function testBinding(authority: ToolStartAuthority<Principal>): TestBinding {
           dependency: 'test-executor',
           diagnostic: `the start was not accepted: ${consumed.ok.kind}`,
         })
+      const live = await executor.binding.start(input, environment)
+      if ('failure' in live) return live
       executions.push(input.call)
       environments.push(environment)
-      return succeed(liveExecution())
+      return succeed(messageExecution(live.ok))
     },
-    inspectStart: () => Promise.reject(new Error('inspectStart belongs to recovery')),
-  }
+    inspectStart: async input => {
+      inspected.push(input.start)
+      const found = await executor.binding.inspectStart(input)
+      if ('failure' in found) return found
+      if (found.ok.kind === 'settled') {
+        const fact = messageFact(found.ok.fact)
+        if (fact.kind !== 'final') throw new Error('the executor final is not final')
+        return succeed({ ...found.ok, fact })
+      }
+      return found.ok.kind === 'live'
+        ? succeed({ kind: 'live', execution: messageExecution(found.ok.execution) })
+        : succeed(found.ok)
+    },
+  })
   return {
     attempts,
     executions,
     environments,
+    inspected,
+    capsules,
+    controls: executor.controls,
     bindings: {
       inspect: () => Promise.reject(new Error("inspect is the Catalog's")),
       resolve: () => Promise.resolve(succeed(binding)),
@@ -356,8 +432,9 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const config = configurationOf(options)
   const ledger = createToolLedger(store, guards(options), clock, config)
   const host = testHost(spies)
-  const authority = testAuthority()
-  const binding = testBinding(authority)
+  const authority = options.authority ?? testAuthority()
+  const authorityPort = options.authorityPort?.(authority) ?? authority
+  const binding = options.binding ?? testBinding(authorityPort, options.bindingPort)
   const environments = testEnvironments(options.environment ?? new Map())
   const provider = createToolRuntime<Principal, Block, TestEnvironment>(
     {
@@ -365,8 +442,8 @@ export function startHarness(options: StartOptions = {}): StartHarness {
       commands: options.commands?.(ledger.commands) ?? ledger.commands,
       admissions: ledger.admissions,
       queues: ledger.queues,
-      reads: ledger.reads,
-      bindings: binding.bindings,
+      reads: options.readsPort?.(ledger.reads) ?? ledger.reads,
+      bindings: options.bindingsPort?.(binding.bindings) ?? binding.bindings,
       environments,
       decisions: refusing('decisions', [
         'inspectOperation',
@@ -378,7 +455,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
       instances: host,
       clock,
       resultPolicy: guards().policy,
-      authority,
+      authority: authorityPort,
       resources: refusing('resources', [
         'inspectOperation',
         'ensure',
