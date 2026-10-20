@@ -18,7 +18,6 @@ import type {
   ToolDecisionBridge,
   ToolEnvironment,
   ToolInstanceHost,
-  ToolInvocationIdentities,
   ToolInvocationSourceIssuer,
   ToolOperationIdentities,
   ToolOutputCustody,
@@ -118,10 +117,8 @@ export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   catalog: ToolCatalog<P>
   reads: ToolReads<P, B>
   children: ToolChildren<P>
-  /** Mints the call and admission identities of every ordinary invoke. */
-  invocationIdentities: ToolInvocationIdentities
   /** Mints the operation identity of every ordinary command. */
   operationIdentities: ToolOperationIdentities
-  /** The trusted entry that binds the invocation source of an ordinary invoke. */
+  /** The trusted source that atomically establishes or recalls the original invocation association. */
   sourceIssuer: ToolInvocationSourceIssuer<P>
 }>

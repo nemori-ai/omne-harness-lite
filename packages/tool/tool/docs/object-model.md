@@ -12,9 +12,9 @@
     缺端口或配置越界抛 TypeError，这是装配缺陷
     构造时把推进协程装入 instances.install，装入不受理业务，也不读写记录仓
 
-普通调用方调用 runtime.invoke；runtime 分配身份并由入口绑定来源
+普通调用方调用 runtime.invoke；来源 resolve 原子分配或认回原身份与来源
     成功：回复 accepted，runtime 调用 instances.schedule 唤醒推进协程，唤醒只是提示
-    再次 invoke：独立新调用；内部 recovered=true 在普通入口被报告为身份提供者违约，不唤醒
+    再次 invoke：同键同请求返回原回执与 recovered；待启动时补 wake，running/settled 不再唤醒
     拒绝：denied、invalid、conflict、stale-revision、unsupported、unavailable（`tool-queue` 容量满，提交之前拒绝）
     未知：提交结果未知时回复 commit-unknown。Tool 不在内部重试该提交
         调用方以返回的调用引用调用 queries.lookup；交付未知时用操作引用调用 queries.queryOperation，释放成功直接返回原回执
@@ -152,7 +152,7 @@ stateDiagram-v2
 | 类别 | 内容 | 固定点与校验 |
 | --- | --- | --- |
 | 构造配置 | ToolConfiguration：作者限额、processBatchBytes、processBatchDelayMs、observerBufferBytes、resultPageBytes、reconciliationDelayMs、ledgerCommitAttempts、queueCapacity、可选的 driverStepsPerRun 与 driverRetryDelayMs | runtime 检查全部字段，账本只检查它读取的 resultPageBytes、ledgerCommitAttempts、queueCapacity；容量与 driverStepsPerRun 为正安全整数（driverStepsPerRun 缺省 16），处理延迟为非负安全整数，driverRetryDelayMs 缺省 1000、给出时是 1 到 2147483647 的整数；超出抛 `TypeError` |
-| 构造依赖 | ToolDependencies：实例身份加 15 个端口（含账本的 `admissions` 与 `queues`） | 缺端口或实例身份不合法抛 `TypeError` |
+| 构造依赖 | ToolDependencies：显式依赖端口（含账本的 `admissions` 与 `queues`，以及来源 resolve） | 缺端口或配置不合法抛 `TypeError` |
 | 受信快照 | ToolLedgerGuards | 构造时固定；缺答复是 unavailable |
 | 一次操作参数 | 契约的 WriteContext 或 Mutation；写命令的主体放在同一输入的 `principal` | 每个命令先查形状，再问资格，然后读记录仓 |
 | 短期资源 | 本进程的环境值、作用域的中止监听器 | 作用域在 finish 结束或取消后移除监听器 |

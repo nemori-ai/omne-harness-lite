@@ -35,7 +35,8 @@ it('createToolRuntime dependencies carry no factory-level instance identity', ()
   type Dependencies = ToolDependencies<{ subject: string }, ContentBlock, null>
   // @ts-expect-error TS2339: the runtime factory takes no instance identity; the host passes it to the driver.
   expectTypeOf<Dependencies['instance']>().toEqualTypeOf<never>()
-  expectTypeOf<Dependencies['invocationIdentities']>().not.toBeNever()
+  // @ts-expect-error Ordinary identity allocation belongs to source.resolve.
+  expectTypeOf<Dependencies['invocationIdentities']>().toBeAny()
   expectTypeOf<Dependencies['operationIdentities']>().not.toBeNever()
   expectTypeOf<Dependencies['sourceIssuer']>().not.toBeNever()
 })

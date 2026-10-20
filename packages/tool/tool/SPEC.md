@@ -100,7 +100,7 @@
 
 ### 11 操作幂等（P01）
 
-同 tenant、call、operation、同规范输入摘要的重送回复原回执。内部账本的 admit 同时说明它是否认回了已提交的受理。普通 runtime.invoke 每次分配新身份，若收到 recovered=true，报告身份提供者违约并且不调度。内部 admission 不先读操作记录，所以受理只需要 `admit` 资格。两个首次受理同时竞争时，先提交的那次得到 `recovered: false`；后一次的提交因修订冲突失败，重读后认回原受理，得到原回执与 `recovered: true`。同操作异摘要回复 `conflict`。
+同 tenant、call、operation、同规范输入摘要的重送回复原回执。内部账本的 admit 同时说明它是否认回了已提交的受理。普通 runtime.invoke 通过来源 resolve 认回原身份，accepted.recovered 为来源或账本认回的逻辑或。内部 admission 不先读操作记录，所以受理只需要 `admit` 资格。两个首次受理同时竞争时，先提交的那次得到 `recovered: false`；后一次的提交因修订冲突失败，重读后认回原受理，得到原回执与 `recovered: true`。同操作异摘要回复 `conflict`。
 
 已受理的调用再以另一操作号 admit 回复 `stale-revision`，`current` 是当前状态的修订号。带 `WriteContext` 的命令先比对 `expected` 与当前状态的修订号，不匹配回复 `stale-revision`，再进入命令本身。提交结果未知回复 `commit-unknown`，Tool 不在内部重试该提交。调用者以 `queryOperation` 认回：已落盘则 `committed`，重送得到原回执且不再写第二次；否定答案见第 14 条。记录仓读取失败回复 `unavailable`（`dependency` 为 `ledger-store`），不冒充调用不存在。修订冲突时重读重判，次数上限是 `ledgerCommitAttempts`；用尽后回复 `unavailable`（`ledger-store`，`<次数> revision conflicts in a row`）。
 
@@ -173,9 +173,9 @@
 
 ### 17 工厂与后续增量
 
-`createToolRuntime` 在构造时检查配置：作者限额、容量、`queueCapacity` 与 `ledgerCommitAttempts` 是正安全整数，处理延迟（`processBatchDelayMs` 等）是非负安全整数，可选的 `driverStepsPerRun` 缺省为 16，给出时是正安全整数；可选的 `driverRetryDelayMs` 缺省为 1000，给出时是 1 到 2147483647 的整数，这是定时器能持有的最长延迟，0 与超过定时器上限的值抛 `TypeError`（第 23 条）。`createToolLedger` 检查它读取的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。宿主每次调用 driver.run 显式提供 instance，不存在工厂级 instance。缺端口或超出范围抛 `TypeError`，因为这是装配缺陷。`ToolDependencies.admissions` 是账本的 admit 入口（`ToolLedger.admissions`），runtime 的 invoke 在身份分配与来源绑定后用它；`ToolDependencies.queues` 是账本的队列维护入口（`ToolLedger.queues`），推进协程的等待者用它对账（第 22 条）。runtime、窄接口与 provider 都是冻结对象。受信的 invocationIdentities、operationIdentities 和 sourceIssuer 必须显式装配，不提供生产默认来源签发器。普通调用及引用失败协议归[契约的普通操作](../tool-contract/SPEC.md#342-普通操作与实例目录)。
+`createToolRuntime` 在构造时检查配置：作者限额、容量、`queueCapacity` 与 `ledgerCommitAttempts` 是正安全整数，处理延迟（`processBatchDelayMs` 等）是非负安全整数，可选的 `driverStepsPerRun` 缺省为 16，给出时是正安全整数；可选的 `driverRetryDelayMs` 缺省为 1000，给出时是 1 到 2147483647 的整数，这是定时器能持有的最长延迟，0 与超过定时器上限的值抛 `TypeError`（第 23 条）。`createToolLedger` 检查它读取的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。宿主每次调用 driver.run 显式提供 instance，不存在工厂级 instance。缺端口或超出范围抛 `TypeError`，因为这是装配缺陷。`ToolDependencies.admissions` 是账本的 admit 入口（`ToolLedger.admissions`），runtime 的 invoke 在来源 resolve 原子建立或认回原身份后用它；`ToolDependencies.queues` 是账本的队列维护入口（`ToolLedger.queues`），推进协程的等待者用它对账（第 22 条）。runtime、窄接口与 provider 都是冻结对象。受信的 operationIdentities 和 sourceIssuer.resolve 必须显式装配，不提供生产默认来源签发器。普通调用及引用失败协议归[契约的普通操作](../tool-contract/SPEC.md#342-普通操作与实例目录)。
 
-构造时 runtime 把推进协程装到 `instances.install`。装入不受理业务，也不读写记录仓。真实工具的 invoke 受理成功且阶段为 `accepted` 时，runtime 调用 `instances.schedule` 唤醒该调用。首次新身份收到 recovered=true 不调度。唤醒只是提示：它抛出或失败都不改变 accepted 的回复。`inspect` 转给 `catalog.inspect`，不另加判断（P16）。
+构造时 runtime 把推进协程装到 `instances.install`。装入不受理业务，也不读写记录仓。真实工具的 invoke 受理成功且阶段为 `accepted` 时，runtime 调用 `instances.schedule` 唤醒该调用。原受理回执被认回时，lookup 当前状态仍待启动则补 wake，running/settled 不补；查询未知允许保守补 wake。唤醒只是提示：它抛出或失败都不改变 accepted 的回复。`inspect` 转给 `catalog.inspect`，不另加判断（P16）。
 
 未实现的操作回复 `unsupported`，`adoption` 是 `tool-runtime` 或 `tool-ledger` 的采用，`reason` 说明操作名与它所属的后续增量。没有操作抛异常或回复空成功。`catalog` 是依赖给出的端口，content 与 instances 先解析调用引用再进入原读取端口或目录。
 
@@ -301,3 +301,13 @@
 [tests/README](tests/README.md) 列出每条规则对应的测试。每条测试名以本页所属规则的编号开头，`vitest -t` 可按编号单独运行。
 
 文档导航见 [index](index.md)。
+
+## 普通调用重入的实现范围
+
+本实现采用契约 [普通操作](../tool-contract/SPEC.md#342-普通操作与实例目录) 的来源拥有方案。runtime 无调用身份 mint 依赖，也无关联缓存；source.resolve 拥有唯一键。来源或准入任一认回时 accepted.recovered 为 true，原回执与当前 lookup 分开。当前状态仍待启动或查询未知时可补 wake，running/settled 不补。
+
+`ToolInvokeAuthority` 由来源提供者拥有，显式检查当前 tenant/consumer 资格及稳定主体。配对 guard 复用同一 authority 核对原主体与完整绑定；ledger 对当前凭据继续核调用及 scope 授予。测试来源提供者明确为非耐久，在同步写段分配保存 reservation，原子性只覆盖当前进程的同一共享实例。UUID 分配不是存储唯一约束或跨重启耐久证明。
+
+公开 control 已实现输入封闭复制、分配新 operation、引用编码和现有 commands.control 的结果映射。非法 intent 不分配；委托抛错为带原 operation 的 commit-unknown。真实 ledger 控制状态机仍 unsupported，合法调用消耗身份但零控制事实，不声称停止完成。配对 commands/reads 替身只验证门面操作对账。
+
+当前提供者、原子步骤和有界模型的映射见 [恢复验证](verification/models/README.md)。未交付生产来源、自动恢复 scanner、完整控制或生产宿主。

@@ -86,7 +86,7 @@ it('21 launch: repeated runs and a new driver keep one actual memory execution',
       ...base,
       start: async (input, environment) => {
         const original = ok(await first.commands.loadRecovery(admission('c1', 'op-c1')))
-        expect(input.request).toEqual(fixedOf(first.source, 'c1'))
+        expect(input.request).toEqual(fixedOf(first.internalRequests, 'c1'))
         expect(input.start).toEqual(original.start)
         expect(input.permit.start).toEqual(input.start)
         expect(environment).toEqual({ preparedFor: 'c1' })
@@ -101,7 +101,7 @@ it('21 launch: repeated runs and a new driver keep one actual memory execution',
       principal: principalA,
       tenant: tenantA,
       call: callId('c1'),
-      request: fixedOf(first.source, 'c1'),
+      request: fixedOf(first.internalRequests, 'c1'),
     },
   ])
   const next = startHarness({

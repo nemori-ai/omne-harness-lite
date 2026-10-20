@@ -34,7 +34,7 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 
 固定输入归 [fixtures](fixtures/index.md)。目录导航见 [index](index.md)。
 
-普通入口的回执、来源与引用验证在 [invocation-runtime.spec.ts](invocation-runtime.spec.ts)：独立调用、首个 await 前固定、未知提交认回、排除围栏、调度失败、recovered 违约、来源失败、交付操作认回、目录隔离与撤权。[invocation-source.spec.ts](invocation-source.spec.ts) 将完整来源事实与实际 ledger 配对，逐项篡改主体、租户、身份、目标、consumer、scope、payload、origin 及来源四字段并拒绝。原 P01 重送与排除测试直接进入内部 ledger，不经普通 invoke 重建旧 admission 接口。全部仅用非耐久记录仓。
+普通入口的回执、来源与引用验证在 [invocation-runtime.spec.ts](invocation-runtime.spec.ts)：同意图认回、首个 await 前固定、未知提交认回、排除围栏、调度失败、来源未知、交付操作认回、目录隔离与撤权。[invocation-source.spec.ts](invocation-source.spec.ts) 将完整来源事实与实际 ledger 配对，逐项篡改主体、租户、身份、目标、consumer、scope、payload、origin 及来源四字段并拒绝。原 P01 重送与排除测试直接进入内部 ledger，不经普通 invoke 重建旧 admission 接口。全部仅用非耐久记录仓。
 
 [invocation-runtime.spec.ts](invocation-runtime.spec.ts) 的再次释放回包丢失用例验证真实 ledger 不写入该次操作、原操作查询可靠否定，再明确释放取得原回执且不新增写入。[managed-delivery.spec.ts](managed-delivery.spec.ts) 保留首次释放、原回执重入及首次未知提交认回。
 
@@ -47,3 +47,5 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 上述范围采用 [revision 2 具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/430#issuecomment-6285621097)。旧全局方法次数禁令已被取代。
 
 测试仍只证明非耐久 ledger、内存 authority 和受信桥的单进程组合，不证明生产恢复、事实 ACK 或物理收场。
+
+[公开幂等与恢复组合](invoke-recovery.spec.ts)使用真实 runtime、配对来源与内存 ledger，覆盖双 runtime 共享来源、同键竞争、冲突、未知、撤权及一次实际启动。控制测试的 commands/reads 共用替身操作记录，只验证门面。managed 与 start/queue 专测的具名调用现由受信内部 admission fixture 建立，不证明公开来源恢复。

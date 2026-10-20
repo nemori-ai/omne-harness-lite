@@ -108,12 +108,6 @@ describe('17 the runtime factory and later increments', () => {
     const { dependencies } = testAssembly()
     expect(() =>
       createToolRuntime(
-        { ...dependencies, invocationIdentities: undefined as never },
-        configuration(),
-      ),
-    ).toThrow('dependencies.invocationIdentities: missing')
-    expect(() =>
-      createToolRuntime(
         { ...dependencies, operationIdentities: undefined as never },
         configuration(),
       ),

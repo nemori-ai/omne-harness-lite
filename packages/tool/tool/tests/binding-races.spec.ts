@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
-import type { ToolFailure } from '@omne-harness/tool-contract'
+import { readToolInvocationRef, type ToolFailure } from '@omne-harness/tool-contract'
 import {
   admission,
   ok,
@@ -181,35 +181,34 @@ for (const pause of [
   }
 }
 
-it('21 invoke: identical payloads keep independent references and failure results', async () => {
+it('21 invoke: distinct consumer positions keep independent references and failure results', async () => {
+  let firstCall = ''
   const harness = startHarness({
     bindingPort: base => ({
       ...base,
       start: (input, environment) =>
-        input.call === 'c1' ? Promise.resolve(refused()) : base.start(input, environment),
+        input.call === firstCall ? Promise.resolve(refused()) : base.start(input, environment),
     }),
   })
   const payload = request()
-  harness.identities.planInvocation('c1', 'op-c1')
   const first = await harness.runtime.invoke({
     principal: principalA,
     tenant: tenantA,
     request: payload,
   })
   if (first.kind !== 'accepted') throw new Error('first invoke was refused')
-  await harness.drive('c1')
-  expect((await harness.state('c1')).phase).toBe('settled')
-  harness.identities.planInvocation('c2', 'op-c2')
+  firstCall = readToolInvocationRef(first.reference).call
+  await harness.drive(firstCall)
   const second = await harness.runtime.invoke({
     principal: principalA,
     tenant: tenantA,
-    request: payload,
+    request: { ...payload, consumer: { ...payload.consumer, position: 'second' } },
   })
   if (second.kind !== 'accepted') throw new Error('second invoke was refused')
   expect(first.reference).not.toBe(second.reference)
-  await harness.drive('c1', 'c2')
-  await harness.drive('c1', 'c2')
-  expect(harness.authority.accepted).toEqual(['c2'])
+  await harness.drive(firstCall, readToolInvocationRef(second.reference).call)
+  await harness.drive(firstCall, readToolInvocationRef(second.reference).call)
+  expect(harness.authority.accepted).toEqual([readToolInvocationRef(second.reference).call])
   expect(harness.binding.controls.launches()).toBe(1)
   const lookup = (reference: typeof first.reference) =>
     harness.runtime.queries.lookup({ principal: principalA, tenant: tenantA, reference })

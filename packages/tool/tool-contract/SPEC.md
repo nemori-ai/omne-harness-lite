@@ -211,13 +211,23 @@ ResultPage.source 由 Tool 原结果保存操作产生，定位租户、call、�
 
 ### 普通操作与实例目录
 
+本节的来源重入与公开控制修订依据为 [#547 D-02 技术采用](https://github.com/nemori-ai/omne-harness-lite/issues/547#issuecomment-6287849458)。
+
 [本节设计定义](docs/public-api.md#普通操作与实例目录)。
 
-普通调用方以 `ToolRuntime.invoke` 提交当前主体、合法租户和 `ToolInvokeRequest`，不提供 call、operation 或 invocation/source。runtime 在首次异步等待前复制并封闭校验 payload，再经受信身份端口分配 call/admission，经实际入口的 `ToolInvocationSourceIssuer` 保存完整来源绑定，最后调用内部 admission 一次。来源事实绑定原主体、租户、目标采用、call/admission、consumer、scope、固定 payload 和实际入口。来源核验器读取这些事实，不能只信任 kind、record 名称或客户端摘要。programmatic 子调用保留原 reservation/child/admission 身份，沿内部 admission 协议进入，不经普通 invoke 换身份。
+普通调用方先保存完整 consumer 和固定 `ToolInvokeRequest`，再以 `ToolRuntime.invoke` 提交当前主体、合法租户和请求，不提供 call、operation 或 invocation/source。runtime 在首次异步等待前复制并封闭校验请求，再调用 `ToolInvocationSourceIssuer.resolve`。关联键是合法租户的 organization/account 与完整 consumer 的 owner/work/position/purpose。来源原子地检查该键、分配并保存 call/admission、原请求和原主体，不先异步分配再插入。索引属于同一来源事实，不是另一张定位权威。programmatic 子调用继续沿原 reservation/child/admission 的内部协议进入。
 
-每次 invoke 都是独立请求，相同 payload 不去重。`accepted` 给出调用引用和原受理状态回执，状态不冒充最新状态；`commit-unknown` 给出原调用引用，调用方据它查询原 admission；`rejected` 给出具名失败。身份签发失败不发送 admission。来源签发未知转为 `unavailable/toolInvocationSource`，只说明 Tool admission 未发送，不声称来源未写入。新身份认回 `recovered=true` 是身份提供者违约，回复 `unavailable/toolIdentities`，不调度。受理成功后调度失败不回滚受理，settled 不调度。完整响应在调用方保存引用前丢失时，不承诺按 payload 找回或 exactly-once。
+resolve 先核当前主体对合法 tenant/consumer 的资格，再访问关联。已有记录须先核稳定主体相同，再比较完整规范请求；摘要只辅助比较，不代替授权或完整绑定。同键同请求认回原身份与原来源，同键异请求向有权者返回 conflict，关联原 admission，不分配新身份。异主体、撤权或伪造 tenant/consumer 统一拒绝，不通过 conflict 泄露原记录。刷新凭据但主体相同可以认回。来源保留原主体，配对 guard 用同一 authority 比较当前与原主体，并核对租户、call、admission、完整固定请求、真实入口与原证据。ledger 仍核当前主体的调用与 scope 授权。资格或主体比较不可用、抛错均不能放行。
 
-普通接口由 `queries`、`commands`、`instances`、`content` 和 `catalog` 组成。queries 的 lookup 用调用引用内的原 admission；queryOperation 用操作引用内的原 operation。commands 只有 control 和 releaseDelivery。control 的成功结果为带操作引用的 `committed`。releaseDelivery 为每次意图分配 operation，成功返回 `released` 及原生产者耐久回执，不附本次操作引用，也不承诺本次新增操作记录。首次释放与已释放后的重入使用同一成功形状。两者的未知结果为带原操作引用的 `commit-unknown`，拒绝为 `rejected`。回执未知后用原操作引用查询提交结果，不自动重发。`not-committed` 或 `rolled-back` 只否定这次操作，不证明交付仍 pending。可靠否定后，调用方可以明确再次 releaseDelivery，取得已有释放回执。unknown 或不可读时继续保留未知。lookup 用原 admission 定位并返回当前权威 ToolState，其中的 delivery 可用于认回已有释放。invoke 的 state 才是受理时回执。readProcess 当前未支持，ResultPage 不含 DeliveryState。acceptDecision/acceptResource 留在受信内部端口。未实现控制仍回复具名 unsupported，不先分配操作。
+来源记录为 reserved 或 issued。reserved 已固定身份，按原 reservation 幂等签发；issued 重入不重新签发。原键的在途提交必须先消解，或取得可靠排除，不能以空读再次分配。身份不得复用，包括提供者重启。任何 await 后写入前须重读并认回赢家，不得覆盖并发提交。来源返回值和签发阶段见 [ports.ts](src/ports.ts)。生产提供者须证明原子唯一、旧写排除及重启边界。
+
+`accepted` 返回原调用引用、原受理状态回执与 recovered，后者为来源或 admission 认回的逻辑或。lookup 返回当前权威状态，不能覆盖原回执。`association-unknown` 无引用，表示关联可能落地但暂不能证明原身份；调用方保留原完整意图并重复 invoke。`commit-unknown` 带原引用，表示来源签发或 admission 尚未知；lookup 的 not-accepted 不足以证明原来源不再续做，仍沿原 invoke 接续。resolver 抛错或返回不合法身份时保留 association-unknown，后者是提供者违约。已证明原引用后 admission 抛错保留 commit-unknown。
+
+`rejected` 只描述当前尝试的确定失败，不证明历史上没有关联或受理。来源已建立后的准入拒绝不删除关联、不永久缓存拒绝；依赖恢复后重入沿原身份继续。原 scope 或其他固定输入不能更新，要新执行或修改意图须登记新 consumer。未知时不回收原键。不承诺外部效果 exactly-once。
+
+原受理回执为 accepted 时首次唤醒宿主。认回后只用当前 lookup 判断是否补 wake：仍待启动则补，已 running/settled 不补，查询未知允许保守补 wake。查询失败不撤销原 accepted。宿主按 tenant/call 归并待处理或并发 wake，driver 保持启动唯一。内部 admit 尝试次数可以多次，唯一受理事实、队列责任和真实启动分别观察。唤醒失败不回滚受理；本次交付依赖调用方重入，不承诺无人重入的自动扫描。共享内存来源只有非耐久单进程证据。
+
+普通接口由 `queries`、`commands`、`instances`、`content` 和 `catalog` 组成。queries 的 lookup 用调用引用内的原 admission；queryOperation 用操作引用内的原 operation。commands 只有 control 和 releaseDelivery。control 的成功结果为带操作引用的 `committed`。releaseDelivery 为每次意图分配 operation，成功返回 `released` 及原生产者耐久回执，不附本次操作引用，也不承诺本次新增操作记录。首次释放与已释放后的重入使用同一成功形状。两者的未知结果为带原操作引用的 `commit-unknown`，拒绝为 `rejected`。回执未知后用原操作引用查询提交结果，不自动重发。`not-committed` 或 `rolled-back` 只否定这次操作，不证明交付仍 pending。可靠否定后，调用方可以明确再次 releaseDelivery，取得已有释放回执。unknown 或不可读时继续保留未知。lookup 用原 admission 定位并返回当前权威 ToolState，其中的 delivery 可用于认回已有释放。invoke 的 state 才是受理时回执。readProcess 当前未支持，ResultPage 不含 DeliveryState。acceptDecision/acceptResource 留在受信内部端口。每次合法公开 control 都先分配新的 operation，再委托内部 commands.control；同参数重发不是原操作认回。调用方持有原操作引用时应先 queryOperation 对账，引用丢失时本协议没有按控制意图找回的能力。新的 committed 不证明旧 unknown 已完成。新 stop 不撤销旧 stop，新 withdraw 以其提交时的 reach 和关系判断。当前真实 ledger 仍返回 unsupported，此时身份已消耗但没有控制事实，门面返回 rejected/unsupported，不暴露已登记操作。
 
 `ToolInvocationRef` 和 `ToolOperationRef` 是独立字符串品牌，版本 1 分别编码为 `["tool-invocation",1,tenantText,call,admission]` 和 `["tool-operation",1,tenantText,call,admission,operation]`。tenantText 采用 legal-identity 的 tenantCodec，其他身份沿现有身份词法。codec 只接受固定数组长度、标记与版本，总长度最多 1668 个 UTF-16 code units。编解码不读存储、不生成业务身份；编码生成规范 JSON，解码允许同结构的非规范空白并返回规范值。失败为 type、version、shape 或 length。引用不含 principal、instance 或 generation，不授予权限、不证明调用存在，也不创建第二张持久定位表。
 
@@ -232,7 +242,7 @@ ResultPage.source 由 Tool 原结果保存操作产生，定位租户、call、�
 | inspect | 返回当前合法选择或已知不可用旧形状；command 合法时包含已声明用法 | 从未合法取得的定义不泄露；不能为维持同形读取撤权后的新正文 |
 | admit（受信内部端口） | 同提交固定输入、当前资格、原 consumer、原调用和待调度责任。同 call/operation/输入认回 | 异输入 conflict；未知按原 operation 查询。受理不等于环境就绪或真实启动 |
 | lookup/queryOperation | 原事实与精确操作分别查询；不以目录无活体判未执行 | not-committed/not-accepted 需要 Storage 完整排除证明；不可读返回 unavailable |
-| control | 同提交保存原控制意图及续做责任，重复认回；stop、withdraw 和 background 不换 call；withdraw 的 reach 必填且无默认值，并在提交时与目标调用当时的关系比较 | 控制方不在其控制责任范围内、不许可后台或正在 Ask 时拒绝转换；撤回的 reach 不及目标当时的关系时，控制已提交，回执进度为 rejected，原因 `out-of-reach`；停止与撤回受理不声称实际停止 |
+| control（受信内部端口） | 同一 operation 与固定输入同提交保存原控制意图及续做责任，重复认回；stop、withdraw 和 background 不换 call；withdraw 的 reach 必填且无默认值，并在提交时与目标调用当时的关系比较 | 控制方不在其控制责任范围内、不许可后台或正在 Ask 时拒绝转换；撤回的 reach 不及目标当时的关系时，控制已提交，回执进度为 rejected，原因 `out-of-reach`；停止与撤回受理不声称实际停止 |
 | acceptDecision（受信内部端口） | 核决策方对原请求的唯一有效决定与原 wait，答复、等待变化和后续责任同提交 | 无答案是合法决定的一种，不能视为授权；重复不重复执行，冲突及失效登记拒绝 |
 | readResult | settled 后按原版本分页，当前资格每页复核；releaseDelivery 后仍可读全文 | 暂不可读不伪造不存在；地址失效报告保管故障，不能重执行原工具 |
 | releaseDelivery | 原结果/位置/关系及两条证据之一共同验证后释放指定交付关系 | 未保存或完成未知保持 pending；不同位置 conflict；未知提交认回，不删除全文 |
@@ -321,7 +331,8 @@ facts 按批次、来源事件及游标保存并确认；同一原 final 只成�
 
 | 输入或依赖 | 分类、缺席与换代 |
 | --- | --- |
-| principal/tenant/call/operation/request/control/decision | 每次操作参数；不同主体及当前资格重新核验，固定请求不随恢复改变 |
+| 普通 invoke 的 principal/tenant/request | 调用方保存完整 consumer 与请求；call/admission 由来源分配或认回，不由普通调用方声明 |
+| 受信内部操作的 principal/tenant/call/operation/request/control/decision | 每次内部操作参数；不同主体及当前资格重新核验，固定请求不随恢复改变 |
 | commands | 必需领域提交能力，内部结合 Storage、授权/消费者守卫与结果保管；不可用不报已保存 |
 | bindings | 必需定义/执行者解析能力，普通根函数不用它；换代保留原执行者绑定，未发调用重新核匹配 |
 | environments | 必需资源准备能力，E 生命周期由宿主控制；缺条件拒绝，不降级到更宽松环境 |

@@ -3,6 +3,8 @@
 // construction; the decider consumes only their conclusions.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
+  Access,
+  ConsumerRef,
   FixedToolRequest,
   Mutation,
   ResourceScope,
@@ -132,3 +134,9 @@ export type ToolLedgerGuards<P, B extends ContentBlock> = Readonly<{
   policy: ResultPolicy<B>
   budgets: ToolLedgerBudgets
 }>
+
+/** Current consumer qualification and stable subject comparison for a paired source provider. */
+export interface ToolInvokeAuthority<P> {
+  qualify(input: Access<P> & Readonly<{ consumer: ConsumerRef }>): Promise<AccessVerdict>
+  samePrincipal(input: Readonly<{ current: P; original: P }>): Promise<AccessVerdict>
+}

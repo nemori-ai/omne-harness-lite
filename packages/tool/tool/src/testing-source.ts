@@ -1,26 +1,27 @@
-import { fail, succeed } from '@omne-harness/operation-result'
-import type {
-  ToolCallId,
-  ToolInstanceId,
-  ToolInvocation,
-  ToolInvocationIdentities,
-  ToolInvocationSourceIssuer,
-  ToolInvokeRequest,
-  ToolOperationId,
-  ToolOperationIdentities,
-  ToolInstanceIdentities,
-  FixedToolRequest,
-  Mutation,
+import { randomUUID } from 'node:crypto'
+import { succeed } from '@omne-harness/operation-result'
+import {
+  decodeToolCallId,
+  decodeToolOperationId,
+  decodeToolInstanceId,
+  judgeToolInvokeRequest,
+  type ToolCallId,
+  type ToolInvocation,
+  type ToolInvocationSourceIssuer,
+  type ToolInvokeRequest,
+  type ToolOperationId,
+  type ToolOperationIdentities,
+  type ToolInstanceIdentities,
+  type FixedToolRequest,
+  type Mutation,
 } from '@omne-harness/tool-contract'
-import { judgeToolInvokeRequest } from '@omne-harness/tool-contract'
-import { digestOf } from './evidence.ts'
-import type { ToolSourceGuard } from './ledger-guards.ts'
+import { canonicalJson, digestOf } from './evidence.ts'
+import { isTenantShape } from './boundary.ts'
+import type { AccessVerdict, ToolInvokeAuthority, ToolSourceGuard } from './ledger-guards.ts'
 import type { TenantId } from './ledger-store.ts'
 
-/** The owner named in every source evidence the test issuer mints. */
 export const TEST_SOURCE_OWNER = '@omne-harness/tool/testing'
 
-/** The binding an issuer persisted: everything the source guard later compares. */
 export type TestSourceBinding<P> = Readonly<{
   principal: P
   tenant: TenantId
@@ -31,17 +32,19 @@ export type TestSourceBinding<P> = Readonly<{
 }>
 
 export type TestInvocationSource<P> = Readonly<{
-  /** The trusted entry port the runtime takes: it persists the binding and answers the source. */
+  durability: 'none'
   issuer: ToolInvocationSourceIssuer<P>
-  /** The guard port the ledger takes: it verifies an admission against the persisted binding. */
   guard: ToolSourceGuard<P>
-  /** The persisted bindings, for a test that inspects what an entry signed. */
   bindings(): readonly TestSourceBinding<P>[]
 }>
 
+type Reservation<P> = Omit<TestSourceBinding<P>, 'invocation'> & Readonly<{ digest: string }>
+type SourceRecord<P> =
+  | Readonly<{ kind: 'reserved'; reservation: Reservation<P> }>
+  | Readonly<{ kind: 'issued'; reservation: Reservation<P>; binding: TestSourceBinding<P> }>
+
 function fingerprint<P>(input: Mutation<P> & Readonly<{ request: FixedToolRequest }>): string {
-  return digestOf({
-    principal: input.principal,
+  return canonicalJson({
     tenant: [input.tenant.organization.text, input.tenant.account.text],
     call: input.call,
     operation: input.operation,
@@ -49,122 +52,184 @@ function fingerprint<P>(input: Mutation<P> & Readonly<{ request: FixedToolReques
   })
 }
 
+async function authorityVerdict(check: () => Promise<AccessVerdict>): Promise<AccessVerdict> {
+  try {
+    return await check()
+  } catch {
+    return {
+      kind: 'unavailable',
+      diagnostic: 'invoke authority threw; its message is not reported',
+    }
+  }
+}
+
 /**
- * Builds the paired source issuer and guard. The issuer persists the whole binding of the invoke:
- * the principal, the tenant, the call and the admission, the fixed payload and the entry it
- * answers for. The guard finds the persisted binding by the source record and compares every
- * field of the admission input with it; a missing binding or any disagreement is forged. When
- * `throws` is set the guard throws an Error with that message, as an unreadable source store
- * would surface inside a guard.
+ * Non-durable paired source. A synchronous map insertion owns identity allocation and the
+ * complete association. UUIDs reduce accidental reuse across fresh test assemblies; this is
+ * neither a durable store nor a proof of collision-free allocation across process restarts.
  */
 export function createTestInvocationSource<P>(
-  options: Readonly<{ throws?: string }> = {},
+  options: Readonly<{ authority: ToolInvokeAuthority<P>; throws?: string }>,
 ): TestInvocationSource<P> {
-  const saved = new Map<string, Readonly<{ binding: TestSourceBinding<P>; fingerprint: string }>>()
-  let minted = 0
+  const saved = new Map<string, SourceRecord<P>>()
+  const bySource = new Map<string, TestSourceBinding<P>>()
   const issuer: ToolInvocationSourceIssuer<P> = {
-    bind: input => {
+    resolve: async input => {
       const judged = judgeToolInvokeRequest(input.request)
-      if ('failure' in judged) return Promise.resolve(fail({ kind: 'invalid', ...judged.failure }))
+      if ('failure' in judged)
+        return { kind: 'rejected', failure: { kind: 'invalid', ...judged.failure } }
+      if (!isTenantShape(input.tenant))
+        return { kind: 'rejected', failure: { kind: 'denied', action: 'admit' } }
       const request = judged.ok
-      minted += 1
-      const record = `source-${minted}`
-      const invocation: ToolInvocation = Object.freeze({
-        kind: 'direct',
-        source: Object.freeze({
-          owner: TEST_SOURCE_OWNER,
-          record,
-          revision: '1',
-          digest: digestOf({
-            principal: input.principal,
-            tenant: [input.tenant.organization.text, input.tenant.account.text],
-            call: input.call,
-            admission: input.operation,
-            request,
-          }),
-        }),
-      })
-      const binding: TestSourceBinding<P> = {
-        principal: structuredClone(input.principal),
-        tenant: input.tenant,
-        call: input.call,
-        admission: input.operation,
-        request,
-        invocation,
+      const principal = structuredClone(input.principal)
+      const qualified = await authorityVerdict(() =>
+        options.authority.qualify({ principal, tenant: input.tenant, consumer: request.consumer }),
+      )
+      if (qualified.kind !== 'allowed')
+        return {
+          kind: 'rejected',
+          failure:
+            qualified.kind === 'denied'
+              ? { kind: 'denied', action: 'admit' }
+              : {
+                  kind: 'unavailable',
+                  dependency: 'invoke-authority',
+                  diagnostic: qualified.diagnostic,
+                },
+        }
+      const { owner, work, position, purpose } = request.consumer
+      const key = canonicalJson([
+        input.tenant.organization.text,
+        input.tenant.account.text,
+        owner,
+        work,
+        position,
+        purpose,
+      ])
+      let known = saved.get(key)
+      const recovered = known !== undefined
+      if (known !== undefined) {
+        const original = known.reservation.principal
+        const same = await authorityVerdict(() =>
+          options.authority.samePrincipal({ current: principal, original }),
+        )
+        if (same.kind !== 'allowed')
+          return {
+            kind: 'rejected',
+            failure:
+              same.kind === 'denied'
+                ? { kind: 'denied', action: 'admit' }
+                : {
+                    kind: 'unavailable',
+                    dependency: 'invoke-authority',
+                    diagnostic: same.diagnostic,
+                  },
+          }
+        if (canonicalJson(known.reservation.request) !== canonicalJson(request))
+          return {
+            kind: 'rejected',
+            failure: { kind: 'conflict', operation: known.reservation.admission },
+          }
       }
-      saved.set(record, {
-        binding: Object.freeze(binding),
-        fingerprint: fingerprint({ ...input, request: { ...request, invocation } }),
-      })
-      return Promise.resolve(succeed(invocation))
+      // No await is allowed between checking the winner and saving the reservation.
+      known = saved.get(key)
+      if (known === undefined) {
+        const call = decodeToolCallId(`call-${randomUUID()}`)
+        const admission = decodeToolOperationId(`admit-${randomUUID()}`)
+        if ('failure' in call || 'failure' in admission) throw new Error('invalid source identity')
+        known = {
+          kind: 'reserved',
+          reservation: Object.freeze({
+            principal,
+            tenant: input.tenant,
+            call: call.ok,
+            admission: admission.ok,
+            request,
+            digest: digestOf(request),
+          }),
+        }
+        saved.set(key, known)
+      }
+      if (known.kind === 'reserved') {
+        const reservation = known.reservation
+        const invocation: ToolInvocation = Object.freeze({
+          kind: 'direct',
+          source: Object.freeze({
+            owner: TEST_SOURCE_OWNER,
+            record: `source-${reservation.call}`,
+            revision: '1',
+            digest: digestOf({
+              ...reservation,
+              tenant: [input.tenant.organization.text, input.tenant.account.text],
+            }),
+          }),
+        })
+        const binding = Object.freeze({ ...reservation, invocation })
+        known = { kind: 'issued', reservation, binding }
+        saved.set(key, known)
+        bySource.set(invocation.source.record, binding)
+      }
+      return {
+        kind: 'bound',
+        call: known.binding.call,
+        admission: known.binding.admission,
+        invocation: known.binding.invocation,
+        recovered,
+      }
     },
   }
   const guard: ToolSourceGuard<P> = {
-    verify: input =>
-      new Promise(resolve => {
-        if (options.throws !== undefined) throw new Error(options.throws)
-        const known = saved.get(input.request.invocation.source.record)
-        resolve(
-          known === undefined
-            ? { kind: 'forged', reason: 'unknown-source' }
-            : fingerprint(input) === known.fingerprint
-              ? { kind: 'trusted' }
-              : { kind: 'forged', reason: 'binding-mismatch' },
-        )
-      }),
+    verify: async input => {
+      if (options.throws !== undefined) throw new Error(options.throws)
+      const binding = bySource.get(input.request.invocation.source.record)
+      if (binding === undefined) return { kind: 'forged', reason: 'unknown-source' }
+      const same = await authorityVerdict(() =>
+        options.authority.samePrincipal({ current: input.principal, original: binding.principal }),
+      )
+      if (same.kind === 'unavailable') return same
+      if (same.kind === 'denied') return { kind: 'forged', reason: 'different-subject' }
+      return fingerprint(input) ===
+        fingerprint({
+          ...input,
+          tenant: binding.tenant,
+          call: binding.call,
+          operation: binding.admission,
+          request: { ...binding.request, invocation: binding.invocation },
+        })
+        ? { kind: 'trusted' }
+        : { kind: 'forged', reason: 'binding-mismatch' }
+    },
   }
   return Object.freeze({
+    durability: 'none',
     issuer,
     guard,
-    bindings: () => [...saved.values()].map(known => known.binding),
+    bindings: () => [...bySource.values()],
   })
 }
 
 export type TestToolIdentities = Readonly<{
-  invocationIdentities: ToolInvocationIdentities
   operationIdentities: ToolOperationIdentities
   instanceIdentities: ToolInstanceIdentities
-  /**
-   * Queues the pair the next ordinary invoke mints. Without a queue the counter mints
-   * `call-N`/`op-N`. The texts are returned as branded without a check, so a test can plan an
-   * illegal text and observe the runtime naming the identity-port violation.
-   */
-  planInvocation(call: string, admission: string): void
 }>
 
-/** Test identity counters with optional preplanned invocation pairs, including repeated pairs. */
+/** Non-durable operation/instance counters; invocation identities belong to the paired source. */
 export function createTestToolIdentities(): TestToolIdentities {
-  let invocations = 0
   let operations = 0
   let instances = 0
-  const planned: Readonly<{ call: string; admission: string }>[] = []
   return Object.freeze({
-    planInvocation: (call, admission) => {
-      planned.push({ call, admission })
-    },
-    invocationIdentities: {
-      newInvocation: () => {
-        const next = planned.shift()
-        invocations += 1
-        const pair = next ?? { call: `call-${invocations}`, admission: `op-${invocations}` }
-        return Promise.resolve(
-          succeed({
-            call: pair.call as ToolCallId,
-            admission: pair.admission as ToolOperationId,
-          }),
-        )
-      },
-    },
     operationIdentities: {
       newOperation: () => {
-        operations += 1
-        return Promise.resolve(succeed(`op-cmd-${operations}` as ToolOperationId))
+        const decoded = decodeToolOperationId(`op-cmd-${++operations}`)
+        if ('failure' in decoded) throw new Error('invalid test identity')
+        return Promise.resolve(succeed(decoded.ok))
       },
     },
     instanceIdentities: {
       newInstance: () => {
-        instances += 1
-        return Promise.resolve(succeed(`instance-${instances}` as ToolInstanceId))
+        const decoded = decodeToolInstanceId(`instance-${++instances}`)
+        if ('failure' in decoded) throw new Error('invalid test identity')
+        return Promise.resolve(succeed(decoded.ok))
       },
     },
   })

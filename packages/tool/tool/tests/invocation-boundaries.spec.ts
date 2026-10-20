@@ -176,8 +176,7 @@ describe.each(entries)('$name reference boundary', entry => {
         commands: { ...assembly.dependencies.commands },
       },
     }
-    const { reads, commands, instances, invocationIdentities, operationIdentities, sourceIssuer } =
-      base.dependencies
+    const { reads, commands, instances, operationIdentities, sourceIssuer } = base.dependencies
     const downstream = [
       vi.spyOn(reads, 'lookup'),
       vi.spyOn(reads, 'operation'),
@@ -190,9 +189,8 @@ describe.each(entries)('$name reference boundary', entry => {
       vi.spyOn(reads.content, 'raw'),
       vi.spyOn(commands, 'releaseDelivery'),
       vi.spyOn(instances.directory, 'connect'),
-      vi.spyOn(invocationIdentities, 'newInvocation'),
       vi.spyOn(operationIdentities, 'newOperation'),
-      vi.spyOn(sourceIssuer, 'bind'),
+      vi.spyOn(sourceIssuer, 'resolve'),
     ]
     const runtime = createRuntime(base)
     const failure: ToolDefiniteFailure = testCase.invalid
@@ -217,7 +215,7 @@ it.each(entries.filter(entry => entry.name === 'control' || entry.name === 'cont
         ? { kind: 'rejected', failure: { kind: 'unsupported' } }
         : { failure: { kind: 'unsupported' } },
     )
-    expect(mint).not.toHaveBeenCalled()
+    expect(mint).toHaveBeenCalledTimes(entry.name === 'control' ? 1 : 0)
     expect(base.store.commits).toBe(0)
   },
 )

@@ -130,3 +130,5 @@ authorBufferBytes、authorBufferItems、authorWaitHistoryBytes、authorWaitHisto
 ## 验证义务
 
 本包至少验证根入口无 Cordis、本包 `./cordis` 不引任何 Tool 实现、每个键只取自一个定义类的静态 provide。依赖的实际撤除范围、旧引用拒绝及当前身份核验归继承这些定义的插件，见 tool-host-local 的验证义务（`tool-host-local/docs/cordis.md#验证义务`）。
+
+普通 toolRuntime.invoke 消费来源 resolve 的原子关联，不暴露无键调用身份分配服务。装配者显式配对来源的 authority/guard，当前主体每次重核。公开 control 每次是新 operation，旧 unknown 的操作引用独立查询；此契约定义不提供生产来源或控制状态机。

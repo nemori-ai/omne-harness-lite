@@ -291,6 +291,6 @@ ToolBindings 提供者持有 ToolAuthorRegistration，按原 adoption 与 comman
 
 ## 普通调用与持久引用
 
-runtime.invoke 在第一次 await 前用契约判定器固定 payload，再取得新 call/admission、绑定受信来源并调用原 ledger。来源签发器与核验器由真实入口装配。runtime 不建立 payload 去重表或引用映射表。引用直接编码原租户、call 与 admission，操作引用另带 operation。
+runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通过来源 resolve 原子建立或认回 call/admission 与来源，最后沿原身份调用 ledger。来源签发器与核验器由真实入口装配。runtime 不建立 payload 去重表或引用映射表。引用直接编码原租户、call 与 admission，操作引用另带 operation。
 
 [invocation-access.ts](../src/invocation-access.ts) 集中解码与租户核对，queries、content 和 commands 直接进入各原端口。目录连接单独进入 host.directory。持久读取与交付不取决于活实例。driver.run 的实例身份来自 host，同一存活实例重复唤醒沿用。真实生产 host、claim、同一 call 的换实例接管及完整恢复尚未实现。

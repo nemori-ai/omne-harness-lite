@@ -22,16 +22,8 @@ it('requires caller-owned authorization, trusted construction ports and unresolv
   >()
   // A type-only check: these values are never evaluated.
   const required = (input: TestToolDependenciesInput<P>): void => {
-    const {
-      guards,
-      instances,
-      catalog,
-      children,
-      invocationIdentities,
-      operationIdentities,
-      sourceIssuer,
-      ...rest
-    } = input
+    const { guards, instances, catalog, children, operationIdentities, sourceIssuer, ...rest } =
+      input
     // @ts-expect-error The trusted construction ports cannot be omitted.
     createTestToolDependencies({ ...rest, guards })
     // @ts-expect-error Authorization cannot be omitted.
@@ -40,7 +32,6 @@ it('requires caller-owned authorization, trusted construction ports and unresolv
       instances,
       catalog,
       children,
-      invocationIdentities,
       operationIdentities,
       sourceIssuer,
     })
@@ -48,7 +39,6 @@ it('requires caller-owned authorization, trusted construction ports and unresolv
     createTestToolDependencies({
       ...rest,
       guards,
-      invocationIdentities,
       operationIdentities,
       sourceIssuer,
     })

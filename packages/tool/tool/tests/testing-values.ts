@@ -5,7 +5,13 @@ import {
   type TestToolDependenciesInput,
 } from '@omne-harness/tool/testing'
 import { defaultResultPolicy } from '@omne-harness/tool-contract'
-import { configuration, guards, testHost, type Principal } from './runtime-values.ts'
+import {
+  configuration,
+  guards,
+  invokeAuthority,
+  testHost,
+  type Principal,
+} from './runtime-values.ts'
 
 /** Caller-owned ports for tests that do not resolve or execute real tool calls. */
 export function testAssembly(overrides: Partial<TestToolDependenciesInput<Principal>> = {}) {
@@ -13,7 +19,7 @@ export function testAssembly(overrides: Partial<TestToolDependenciesInput<Princi
     throw new Error('not on this path')
   }
   const identities = createTestToolIdentities()
-  const source = createTestInvocationSource<Principal>()
+  const source = createTestInvocationSource<Principal>({ authority: invokeAuthority() })
   const host = testHost({ calls: new Map() }, identities.instanceIdentities)
   const config = configuration()
   const input: TestToolDependenciesInput<Principal> = {
@@ -31,7 +37,6 @@ export function testAssembly(overrides: Partial<TestToolDependenciesInput<Princi
       confirmBarrier: missing,
       finish: missing,
     },
-    invocationIdentities: identities.invocationIdentities,
     operationIdentities: identities.operationIdentities,
     sourceIssuer: source.issuer,
     bindingsFor: () => ({ inspect: missing, resolve: missing, recover: missing }),
