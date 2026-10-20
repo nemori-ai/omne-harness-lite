@@ -9,9 +9,9 @@ import {
   admissionDigest,
 } from './authority.ts'
 import { repository, requireAncestor } from './git.ts'
-import { activeTrack } from './policy.ts'
 import { same, IntegrationError } from './parse.ts'
-import { remoteTarget, routeTarget, taskStatus, taskSync } from './sync.ts'
+import { taskStatus, taskSync } from './sync.ts'
+import { checkUpstream } from './upstream.ts'
 
 export type Command =
   | {
@@ -75,9 +75,7 @@ function start(root: string, command: Extract<Command, { kind: 'register' | 'sta
   const info = repository(root)
   same(info.branch, task.binding.branch, 'Task branch does not match this worktree')
   requireAncestor(root, task.binding.taskBase, info.head)
-  if (task.binding.route.kind === 'track') activeTrack(state.policy, task.binding.route.track)
-  const target = routeTarget(state.policy, task.binding.route)
-  const targetBase = remoteTarget(root, state.policy, target)
+  const { ref: target, head: targetBase } = checkUpstream(root, state.policy, task.binding.route)
   confirmConditions(config, capture, task.binding, target, decision.confirmations, state.policy)
   if (state.context !== null) {
     same(

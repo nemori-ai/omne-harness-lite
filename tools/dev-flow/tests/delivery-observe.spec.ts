@@ -433,7 +433,7 @@ describe('delivery card layouts', () => {
       attempt: 'template-2',
       responsible: 'human',
       branch: 'human/template-2',
-      route: { kind: 'global', owners: ['human'] },
+      route: { kind: 'global', track: 'runtime', owners: ['human'] },
       completionTarget: 'main',
       taskBase: 'a'.repeat(40),
       writeScope: ['.github/ISSUE_TEMPLATE'],

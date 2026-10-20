@@ -1056,13 +1056,13 @@ RFC-0004 的 superseded 状态与更正标注，RFC-0002、RFC-0009 的后继关
 
 | 采用条款范围 | 规范拥有者与目标源 | 写回定位状态 | 切换或解除依据及确认者 |
 | --- | --- | --- | --- |
-| 第一阶段准入、轨道树、上游关系、退役条件、任务与条件 | [integration.md](../engineering/integration.md) | 待写回 | 未切换 |
+| 第一阶段准入、轨道树、上游关系、退役条件、任务与条件 | [integration.md](../engineering/integration.md) | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
 | 第二阶段设计（承接 RFC-0004 写回表“第二阶段”一行） | integration.md「第二阶段目标」 | 待写回 | 未切换 |
-| `gate-publish`、`gate-track`、`gate-reconcile` 与 `gate/README.md` | `github-gate` | 待写回 | 未切换 |
-| registry 字段、`start` 的核对、route | [policy registry](../engineering/integration-policy.json)、集成工具 [SPEC](../../tools/dev-flow/src/integration/SPEC.md) 与 [README](../../tools/dev-flow/src/integration/README.md) | 待写回 | 未切换 |
-| 操作说明 | [开发指南](../development.md#多层分支操作)、[agent交付操作](../engineering/agent-delivery.md)、`branch-integration` 技能 | 待写回 | 未切换 |
-| release 的依据链接 | [对外交付边界](../engineering/publication.md) | 待写回 | 未切换 |
-| 准入缓存策略（RFC-0002 留待一起决定的部分） | 规则写入 integration.md「检查责任」，并改 integration.md「第二阶段目标」的现行句；操作改[开发指南](../development.md)「迭代中的受影响测试」的现行句与「交付与合并前的检查」的命令 | 待写回。现行句在 integration.md「第二阶段目标」与开发指南「迭代中的受影响测试」，写的是“不读 PR 能写入的缓存”，弱于本决定；「交付与合并前的检查」的命令没有带 `OMNE_ADMISSION=1` | 未切换 |
+| `gate-publish`、`gate-track`、`gate-reconcile` 与 `gate/README.md` | `github-gate` | 已写回，`github-gate` 提交 `9816de07` | 2026-10-20 切换（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
+| registry 字段、`start` 的核对、route | [policy registry](../engineering/integration-policy.json)、集成工具 [SPEC](../../tools/dev-flow/src/integration/SPEC.md) 与 [README](../../tools/dev-flow/src/integration/README.md) | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
+| 操作说明 | [开发指南](../development.md#多层分支操作)、[agent交付操作](../engineering/agent-delivery.md)、`branch-integration` 技能 | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
+| release 的依据链接 | [对外交付边界](../engineering/publication.md) | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
+| 准入缓存策略（RFC-0002 留待一起决定的部分） | 规则写入 integration.md「检查责任」，并改 integration.md「第二阶段目标」的现行句；操作改[开发指南](../development.md)「迭代中的受影响测试」的现行句与「交付与合并前的检查」的命令 | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
 | 远程检查的工作流说明（承接 RFC-0004 写回表“`check.yml`”一行） | `.github/workflows/check.yml` | 待写回 | 未切换 |
 | 本提案入库，RFC 入口与项目文档登记 | 本提案、[RFC入口](README.md)、[项目文档登记](../documentation.json) | 已写回 | 2026-10-20 随本提案入库（[#494](https://github.com/nemori-ai/omne-harness-lite/issues/494)），AIEPhoenix |
 | RFC-0004 的 superseded 状态、更正标注、后继关系，以及其写回表“第二阶段”“`check.yml`”两行改为免除写回 | [RFC-0004](RFC-0004-trunk-pr-admission.md) | 已写回 | 2026-10-20 随本提案入库（[#494](https://github.com/nemori-ai/omne-harness-lite/issues/494)），AIEPhoenix |

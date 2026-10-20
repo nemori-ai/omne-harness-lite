@@ -1,24 +1,17 @@
 {
   "schemaVersion": 1,
-  "revision": "4",
+  "revision": "5",
   "repository": "nemori-ai/omne-harness-lite",
   "deliveryConfig": "docs/engineering/github-delivery.json",
   "tracks": [
-    {
-      "id": "development",
-      "branch": "integration/development",
-      "owner": "PanQiWei",
-      "source": "https://github.com/nemori-ai/omne-harness-lite/issues/195",
-      "status": "retiring",
-      "initialMain": "7d3a24091aa7cff63eea4aab77f6c57c009f514b"
-    },
     {
       "id": "legacy-refactor",
       "branch": "integration/legacy-refactor",
       "owner": "PanQiWei",
       "source": "https://github.com/nemori-ai/omne-harness-lite/issues/215",
       "status": "active",
-      "initialMain": "3aee801936a9c5dd54f3e34c221566eec4df363d"
+      "parent": "main",
+      "initialBase": "3aee801936a9c5dd54f3e34c221566eec4df363d"
     },
     {
       "id": "engineering-toolchain",
@@ -26,7 +19,8 @@
       "owner": "PanQiWei",
       "source": "https://github.com/nemori-ai/omne-harness-lite/issues/215",
       "status": "active",
-      "initialMain": "3aee801936a9c5dd54f3e34c221566eec4df363d"
+      "parent": "main",
+      "initialBase": "3aee801936a9c5dd54f3e34c221566eec4df363d"
     }
   ],
   "transport": {
