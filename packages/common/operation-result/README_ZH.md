@@ -49,7 +49,7 @@ isSuccess(broken) // false
 | `tests/outcome.spec.ts` | `succeed`、`ack`、`fail` 和 `isSuccess` 的结果 |
 | `tests/public-entry.spec.ts` | 根入口的运行时导出恰为四个函数、`dependencies` 为空、`exports` 只有 `.`，以及 `dist/index.js` 与 `dist/index.d.ts` 不含 Cordis 文本 |
 
-在本目录运行 `pnpm test`。它先构建 `dist`，再运行测试。运行 `pnpm typecheck` 按源码类型检查测试。
+turbo 先构建 `dist` 及其依赖，再运行测试：`pnpm turbo run test --filter=@omne-harness/operation-result`。本目录里的 `pnpm test` 只运行 Vitest，不构建。运行 `pnpm typecheck` 按源码类型检查测试。
 
 ## 维护
 

@@ -1,5 +1,5 @@
-// 验收的覆盖声明：每份可执行验收在开头的注释块里恰好一行 `// covers: PF-016 S5`（多条用逗号隔开），
-// 文件名以它覆盖的某个 topic 的编号开头，声明的每条场景都在那个 topic 的 acceptance.md 里有一行。
+// 验收的覆盖声明：每份可执行验收在开头的注释块里恰好一行 `// covers: PD-cli S5`（多条用逗号隔开），
+// 文件名以它覆盖的某个 topic 的完整身份开头，声明的每条场景都在那个 topic 的 acceptance.md 里有一行。
 // 场景含义变了会换新编号，覆盖旧编号的验收在这里被点名——这是这份检查存在的理由。
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -22,8 +22,8 @@ export const ACCEPTANCE_SCRIPT: RunScript = 'acceptance'
 
 const SUFFIX = '.acceptance.ts'
 const COVERS = /^\s*\/\/\s*covers\s*:(.*)$/u
-const ITEM = /^(PF-\d{3})\s+(\S+)$/u
-const FILE_TOPIC = /^(PF-\d{3})\./u
+const ITEM = /^(PD-[a-z][a-z0-9]*(?:-[a-z0-9]+)*)\s+(\S+)$/u
+const FILE_TOPIC = /^(PD-[a-z][a-z0-9]*(?:-[a-z0-9]+)*)\./u
 const SKIP = new Set(['node_modules', 'dist', '.git'])
 
 export interface AcceptanceFile {
@@ -33,7 +33,7 @@ export interface AcceptanceFile {
 }
 
 export interface CoveredScenario {
-  /** `PF-016`。 */
+  /** `PD-cli`。 */
   readonly topic: string
   readonly id: string
 }
@@ -98,7 +98,7 @@ function declarationOf(text: string): {
     problems.push({
       line: 1,
       message:
-        '开头的注释块里缺覆盖声明：恰好一行 `// covers: PF-<三位> <场景编号>`，多条用逗号隔开',
+        '开头的注释块里缺覆盖声明：恰好一行 `// covers: PD-<slug> <场景编号>`，多条用逗号隔开',
     })
   else if (second !== undefined)
     problems.push({
@@ -142,7 +142,7 @@ function itemsOf(
       problems.push(
         item === ''
           ? '覆盖声明里有一项是空的'
-          : `覆盖声明的「${item}」要写成 PF-<三位> <场景编号>（如 PF-016 S5）`,
+          : `覆盖声明的「${item}」要写成 PD-<slug> <场景编号>（如 PD-cli S5）`,
       )
       continue
     }
@@ -157,11 +157,11 @@ function itemsOf(
   return { covers, problems }
 }
 
-/** 文件名以 `PF-<三位>.` 开头，且这个 topic 在它声明覆盖的 topic 里。 */
+/** 文件名以 `PD-<slug>.` 开头，且这个 topic 在它声明覆盖的 topic 里。 */
 function fileNameProblem(path: string, covers: readonly CoveredScenario[]): string | undefined {
   const named = FILE_TOPIC.exec(path.split('/').at(-1) ?? '')?.[1]
   if (named === undefined)
-    return `文件名要以它覆盖的 topic 编号开头：<topic 编号>.<一句话>${SUFFIX}`
+    return `文件名要以它覆盖的 topic 完整身份开头：PD-<slug>.<一句话>${SUFFIX}`
   if (covers.length === 0 || covers.some(scenario => scenario.topic === named)) return undefined
   const declared = [...new Set(covers.map(scenario => scenario.topic))].join('、')
   return `文件名的 ${named} 不在它声明覆盖的 topic 里（${declared}）`

@@ -85,6 +85,10 @@ export function callCommands<P>(
               snapshots: new Map(),
               reads: new Map(),
               cleanupFailure: null,
+              resultPaging: {
+                resultPageParts: store.options.limits.resultPageParts,
+                resultPageTargetBytes: store.options.limits.resultPageTargetBytes,
+              },
             }
             return {
               ok: { value: admission, receipt: { kind: 'admit', admission: { ...admission } } },

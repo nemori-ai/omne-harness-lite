@@ -16,7 +16,7 @@
 
 ### 导出清单
 
-清单读取构建产物 `dist/*.d.ts`，不读源码文本。比对使用 `@typescript/typescript6` 的编译器 API，它解析 `export *` 与再导出，并按符号标志区分类型、值和类。`make declarations-check` 不能复用。它只对全部成员的 `dist` 声明报告诊断，不枚举导出。
+清单读取构建产物 `dist/*.d.ts`，不读源码文本。比对使用 `@typescript/typescript6` 的编译器 API，它解析 `export *` 与再导出，并按符号标志区分类型、值和类。`pnpm run check:declarations` 不能复用。它只对全部成员的 `dist` 声明报告诊断，不枚举导出。
 
 清单按入口分列，名字由 `src/` 声明，章标题与 [public-api](../docs/public-api.md) 一致。测试另解析该页，要求清单列出的每一章链接至少一个存在的 `src/` 文件，这些文件声明该章的每个名字，页面链接的源码与测试文件都存在，页面的 TypeScript 围栏代码块（`ts`、`typescript`、`tsx`、`mts`、`cts`）不声明清单里的名字，带不带 `export` 都算。在页面漏指文件、指错文件或文件改名时，该测试变红。根入口再导出的名字在两个入口里各列一次，按章节合并比较。
 

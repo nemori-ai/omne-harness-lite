@@ -1,3 +1,5 @@
+import type { CredentialSelection, SendCoordinator, SendStart } from '../send.ts'
+import type { MemorySendSource } from './types.ts'
 import { validateRequest } from './request.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
@@ -5,6 +7,7 @@ import {
   decodeModelOperationId,
   decodeModelInstanceId,
   decodeRevision,
+  decodeCredentialId,
 } from '@omne-harness/model-contract'
 import type {
   Access,
@@ -32,8 +35,7 @@ import type {
   Snapshot,
   VisibleBlock,
   SendDemand,
-  MaterializedTransport,
-  TransportFact,
+  MaterializationReceipt,
   Termination,
 } from '@omne-harness/model-contract'
 import { resultParts, makePage, pageEnd, materialBytes, encodedBytes } from './pages.ts'
@@ -46,6 +48,7 @@ import type {
   MemoryModelControl,
   MemoryModelEvidence,
   MemoryWriteMethod,
+  ResultPaging,
   UnknownInjection,
 } from './types.ts'
 import {
@@ -117,6 +120,7 @@ export type MemoryCall = {
   snapshots: Map<OutputCursor, Snapshot>
   reads: Map<ReadId, MemoryRead>
   cleanupFailure: string | null
+  resultPaging: ResultPaging
 }
 export type TenantState = {
   calls: Map<ModelCallId, MemoryCall>
@@ -193,6 +197,7 @@ export class MemoryState<P> {
   private plans = new Map<string, UnknownInjection>()
   private owners: readonly ModelConsumerOwnerDeclaration[]
   private busy = false
+  private sendClaims = new Map<string, 'claimed' | SendStart['kind']>()
   readonly control: MemoryModelControl
 
   readonly options: MemoryModelCommandsOptions<P>
@@ -213,6 +218,26 @@ export class MemoryState<P> {
     if (!capacityValid(this.options.limits.capacity)) throw new RangeError('invalid total capacity')
     this.owners = this.checkOwners(this.options.owners)
     this.control = {
+      configureResultPaging: input =>
+        this.exclusive(() => {
+          const key = this.identity(input)
+          if (typeof key !== 'string') throw new TypeError('invalid paging identity')
+          positiveLimit(input.resultPageParts, 'resultPageParts')
+          positiveLimit(input.resultPageTargetBytes, 'resultPageTargetBytes')
+          const root = this.roots.get(key)
+          const original = root?.calls.get(input.call)
+          if (!root || !original) throw new TypeError('unknown paging call')
+          if (original.state.phase === 'settled' || original.reads.size > 0)
+            throw new TypeError('result paging is frozen')
+          const call = copyCall(original)
+          call.resultPaging = {
+            resultPageParts: input.resultPageParts,
+            resultPageTargetBytes: input.resultPageTargetBytes,
+          }
+          if (materialBytes(call) > BigInt(call.capacity.bytes))
+            throw new RangeError('result paging exceeds call capacity')
+          this.publish(key, root, call)
+        }),
       injectUnknown: input =>
         this.exclusive(() => {
           const key = this.identity(input)
@@ -490,16 +515,23 @@ export class MemoryState<P> {
     }
     return { ok: applied.ok.value }
   }
-  sendBinding(input: SendDemand<P>, call: MemoryCall | undefined): ModelFailure | null {
+  sendBinding(
+    input: SendDemand<P>,
+    call: MemoryCall | undefined,
+    stage: 'access' | 'prepare' = 'prepare',
+  ): ModelFailure | null {
     if (
       input.execution.call !== input.call ||
       tenantKey(input.execution.tenant) !== tenantKey(input.tenant)
     )
       return invalid('execution', 'send-binding')
-    const failure = this.execution(input.execution, call)
-    if (failure) return failure
-    if (!call || call.state.control.kind !== 'none' || call.state.phase === 'settled')
-      return invalid('call', 'send-no-longer-valid')
+    if (!call) return invalid('call', 'not-found')
+    if (stage === 'prepare') {
+      const failure = this.execution(input.execution, call)
+      if (failure) return failure
+      if (call.state.control.kind !== 'none' || call.state.phase === 'settled')
+        return invalid('call', 'send-no-longer-valid')
+    }
     const requestFailure = validateRequest(input.request)
     if (requestFailure) return requestFailure
     if (
@@ -513,34 +545,77 @@ export class MemoryState<P> {
       ? invalid('dispatch', 'send-not-prepared')
       : null
   }
-  startSend(
-    input: SendDemand<P>,
-    materialized: MaterializedTransport,
-    signal: AbortSignal,
-  ): Outcome<AsyncIterable<TransportFact>, ModelFailure> {
-    return this.exclusive(() => {
-      const key = this.identity(input)
-      if (typeof key !== 'string') return { failure: key }
-      const call = this.root(key).calls.get(input.call)
-      const auth = this.authorize(input, 'send', call, input.call)
-      if ('failure' in auth) return auth
-      const failure = this.sendBinding(input, call)
-      if (failure) return { failure }
-      const dispatch = call?.dispatches.find(d => d.record.dispatch === input.dispatch)
-      if (
-        !dispatch?.record.materialization ||
-        dispatch.record.send !== 'prepared' ||
-        digest(dispatch.record.materialization.receipt) !== digest(materialized.receipt) ||
-        ![...dispatch.windows.values()].includes('open')
-      )
-        return { failure: invalid('dispatch', 'send-not-prepared') }
-      if (signal.aborted) return { failure: unavailable('model-send', 'cancelled-before-start') }
-      try {
-        return { ok: materialized.start(signal) }
-      } catch {
-        return { failure: unavailable('model-send', 'transport-start-unknown') }
-      }
-    })
+  sendCoordinator(sources: readonly MemorySendSource<P>[]): SendCoordinator<P> {
+    const registered = sources.map(source => ({
+      ...source,
+      profile: structuredClone(source.profile),
+      supplier: structuredClone(source.supplier),
+      credential: structuredClone(source.credential),
+    }))
+    const refused = (failure: ModelFailure): SendStart => ({ kind: 'refused', failure })
+    return {
+      check: (input, stage) =>
+        this.exclusive(() =>
+          this.read(input, 'send', call => {
+            const failure = this.sendBinding(input, call, stage)
+            return failure ? { failure } : { ok: undefined }
+          }),
+        ),
+      withinCurrent: (input, receipt: MaterializationReceipt, window, start) =>
+        this.exclusive(() => {
+          const checked = this.read<CredentialSelection>(input, 'send', call => {
+            const failure = this.sendBinding(input, call)
+            if (failure) return { failure }
+            const dispatch = call.dispatches.find(d => d.record.dispatch === input.dispatch)
+            if (
+              !dispatch?.record.materialization ||
+              dispatch.record.send !== 'prepared' ||
+              digest(dispatch.record.materialization.receipt) !== digest(receipt) ||
+              dispatch.windows.get(window) !== 'open'
+            )
+              return { failure: invalid('dispatch', 'send-not-prepared') }
+            const source = registered.find(
+              source =>
+                digest(source.profile) === digest(input.request.profile) &&
+                digest(source.supplier) === digest(input.supplier.adoption) &&
+                source.recipient === input.supplier.recipient &&
+                source.model === input.supplier.model,
+            )
+            if (!source)
+              return { failure: unavailable('model-send-source', 'source-not-registered') }
+            const current = source.current(input)
+            if ('failure' in current) return current
+            if (!current.ok.authorized)
+              return { failure: { kind: 'denied', action: 'send-source' } }
+            const credential = input.supplier.credential
+            if (credential.kind === 'tenant')
+              return { ok: { id: credential.id, scope: 'tenant' as const } }
+            if (
+              source.credential.kind !== 'factory' ||
+              source.credential.official !== true ||
+              !current.ok.noTenantBinding ||
+              'failure' in decodeCredentialId(source.credential.queryId)
+            )
+              return { failure: unavailable('model-send-source', 'factory-source-unavailable') }
+            return { ok: { id: source.credential.queryId, scope: 'factory' as const } }
+          })
+          if ('failure' in checked) return refused(checked.failure)
+          const key = this.identity(input)
+          if (typeof key !== 'string') return refused(key)
+          const claim = JSON.stringify([key, input.call, input.dispatch])
+          if (this.sendClaims.has(claim))
+            return { kind: 'unknown', diagnostic: 'dispatch-already-claimed' }
+          this.sendClaims.set(claim, 'claimed')
+          try {
+            const result = start(checked.ok)
+            this.sendClaims.set(claim, result.kind)
+            return result
+          } catch {
+            this.sendClaims.set(claim, 'unknown')
+            return { kind: 'unknown', diagnostic: 'transport-start-unknown' }
+          }
+        }),
+    }
   }
   updateRead(
     input: Access<P> & { readonly call: ModelCallId },
@@ -582,8 +657,8 @@ export class MemoryState<P> {
           pageEnd(
             resultParts(call),
             relation.furthest,
-            this.options.limits.resultPageParts,
-            this.options.limits.resultPageTargetBytes,
+            call.resultPaging.resultPageParts,
+            call.resultPaging.resultPageTargetBytes,
           )
       )
         return { failure: invalid('after', 'page') }
@@ -593,8 +668,8 @@ export class MemoryState<P> {
         boundary = pageEnd(
           parts,
           boundary,
-          this.options.limits.resultPageParts,
-          this.options.limits.resultPageTargetBytes,
+          call.resultPaging.resultPageParts,
+          call.resultPaging.resultPageTargetBytes,
         )
       if (boundary !== offset) return { failure: invalid('after', 'page') }
       relation.state =
@@ -624,8 +699,8 @@ export class MemoryState<P> {
         makePage(
           resultParts(call),
           offset,
-          this.options.limits.resultPageParts,
-          this.options.limits.resultPageTargetBytes,
+          call.resultPaging.resultPageParts,
+          call.resultPaging.resultPageTargetBytes,
           call.state.settlement,
         ),
       ),

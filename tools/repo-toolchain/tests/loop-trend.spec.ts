@@ -1,5 +1,5 @@
 // 趋势快照：干净才写、同一提交不重复写、坏行跳过并报出、上一次与基线快照按祖先关系找。
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -77,7 +77,7 @@ describe('趋势：读写文件', () => {
   })
 
   it('写一行、读回来一样；坏行跳过并报出行号，不崩', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'loop-trend-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'loop-trend-')))
     made.push(dir)
     const path = join(dir, 'nested', 'trend.jsonl')
     appendSnapshot(path, snapshot('c1'))

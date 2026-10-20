@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -328,7 +328,7 @@ describe('入口', { timeout: 60_000 }, () => {
     for (const path of made.splice(0)) rmSync(path, { recursive: true, force: true })
   })
   const temp = (prefix: string) => {
-    const dir = mkdtempSync(join(tmpdir(), prefix))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), prefix)))
     made.push(dir)
     return dir
   }

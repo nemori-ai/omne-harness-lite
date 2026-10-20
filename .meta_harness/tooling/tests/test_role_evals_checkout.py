@@ -1,6 +1,6 @@
 """运行器的整仓检出一类：模板与副本、两类由程序判定的流（implement、acceptance）、实现评审、隔离、判官身份。
 
-一律用小仓库与假命令，不依赖 pnpm；真实的检出由 `make role-eval ARGS="verify …"` 证。
+一律用小仓库与假命令，不依赖 pnpm；真实的检出由 `pnpm run role-eval verify …` 证。
 """
 from __future__ import annotations
 

@@ -156,6 +156,6 @@ docs的[读者入口](../README.md)按十类角色组织起点与停止条件，
 
 ## 检查与结论边界
 
-`make docs-check` 检查已有 Markdown 链接与镜像；`make docs-inventory` 检查已登记的应有文档和章节，包括尚未建的位置。入口首轮可导航不等于十类真实体验通过，真实任务和人类反馈仍需分别验证。
+`pnpm run check:docs` 检查已有 Markdown 链接与镜像；`pnpm run docs:inventory` 检查已登记的应有文档和章节，包括尚未建的位置。入口首轮可导航不等于十类真实体验通过，真实任务和人类反馈仍需分别验证。
 
 inventory 的 inspectable 只表示受支持正文结构可检查。缺项、批准留空、候选、采用未知、工具错误分别报告；缺项或未知不增加合并硬线。工具格式、profile、比较方法和命令细节由[spec-tools](../../tools/spec-tools/README.md#文档目标与缺项计量)维护。

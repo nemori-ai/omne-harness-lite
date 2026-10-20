@@ -1,7 +1,15 @@
 // 运行名额脚本的行为核对：透传退出码、嵌套放行、占满时按先来后到排队并报出位置、
 // 被杀的排队者不挡后来者、等太久放弃且不执行命令，以及每次用完或放弃都在运行账本记一行。
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  realpathSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,7 +23,7 @@ let dir: string
 /** 后台起的进程组；用例失败、等着放行的命令没被放行时，收尾整组杀掉，不留空转的进程。 */
 let groups: number[] = []
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'omne-slot-'))
+  dir = realpathSync(mkdtempSync(join(tmpdir(), 'omne-slot-')))
 })
 afterEach(() => {
   for (const group of groups) {

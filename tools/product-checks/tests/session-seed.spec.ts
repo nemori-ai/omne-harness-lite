@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
@@ -84,7 +84,7 @@ test('mapping insertion and lookup remain available; SQL example strings are not
   ).toEqual([])
 })
 test('repository collector preserves full path, scans forwarding scripts, and resolves TS paths', () => {
-  const root = mkdtempSync(join(tmpdir(), 'omne-seed-guard-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-seed-guard-')))
   try {
     const files = {
       'tsconfig.json': JSON.stringify({

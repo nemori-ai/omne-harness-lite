@@ -140,7 +140,7 @@ describe('收工钩子的判断', () => {
         '- 新增的稳定依赖不稳定的边：packages/a（I 0.25）→ packages/b（I 0.50）（packages/a/src/y.ts:3）',
         '- 没有断言的测试用例：packages/a/tests/z.spec.ts:10 「不断言」',
         '这些要在交付说明里逐条交代：已处理，或保留及理由。同一组读数不会再提醒第二次。',
-        '完整输出：make loop-status BASE=<任务基线>',
+        '完整输出：pnpm run loop:status --base <任务基线>',
       ].join('\n'),
     )
   })

@@ -62,7 +62,7 @@ export function renderProposal(input: ProposalInput): string {
     '没有断言的测试',
     input.casesWithoutAssertions.map(found => `${found.path}:${found.line} ${found.name}`),
   )
-  out.push(lock, '', '该成员现有测试只读，清理前后 `make test-affected` 都要全过。', '')
+  out.push(lock, '', '该成员现有测试只读，清理前后 `pnpm run test:affected` 都要全过。', '')
   out.push(release, '')
   for (const item of BUDGET_ITEMS) {
     const value = budget.values[item]

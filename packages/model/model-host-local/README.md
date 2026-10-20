@@ -24,7 +24,7 @@ The vault path and the factory secret are the only configuration. The applicatio
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model-host-local typecheck`, `pnpm --filter @omne-harness/model-host-local test`, and `make docs-check`. The tests cover the five resolution results, tenant isolation, rotation and revocation, file corruption, close, cross-process update, and unknown save confirmation. They use the real Cordis 4.0.4 to check plugin publication and removal. They do not show other host capabilities. They do not show lock semantics across machines or on a network file system.
+Run `pnpm --filter @omne-harness/model-host-local typecheck`, `pnpm --filter @omne-harness/model-host-local test`, and `pnpm run check:docs`. The tests cover the five resolution results, tenant isolation, rotation and revocation, file corruption, close, cross-process update, and unknown save confirmation. They use the real Cordis 4.0.4 to check plugin publication and removal. They do not show other host capabilities. They do not show lock semantics across machines or on a network file system.
 
 ## Maintenance
 

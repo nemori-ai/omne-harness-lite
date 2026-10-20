@@ -6,7 +6,7 @@
 
 ## 命令与证据拥有者
 
-持续可执行验证由 [成员测试](../tests/README.md) 拥有，运行 `pnpm test` 与 `pnpm typecheck`。资产和装配消费者分别验证自己的公开入口使用。单次执行记录留任务临时目录，不在本页保存运行快照。
+持续可执行验证由 [成员测试](../tests/README.md) 拥有，在仓库根运行 `pnpm turbo run test --filter=@omne-harness/agent-contract`，在成员目录运行 `pnpm typecheck`。资产和装配消费者分别验证自己的公开入口使用。单次执行记录留任务临时目录，不在本页保存运行快照。
 
 ## 未覆盖
 

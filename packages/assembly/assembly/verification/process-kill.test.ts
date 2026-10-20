@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 const here = fileURLToPath(new URL('.', import.meta.url))
 
 test('killing the process during close writes no report', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'close-kill-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'close-kill-')))
   const reportPath = join(dir, 'report.json')
   const child = spawn(
     process.execPath,

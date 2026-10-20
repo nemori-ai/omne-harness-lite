@@ -3,7 +3,7 @@ import { createModelRuntime, type ModelConfiguration } from '@omne-harness/model
 import { createTestModelDependencies, type TestModelSendPlan } from '@omne-harness/model/testing'
 import {
   decodeDispatchId,
-  decodeReadId,
+  decodeCredentialId,
   decodeResultVersion,
   type ModelHandle,
   type FixedModelRequest,
@@ -16,6 +16,7 @@ const configuration: ModelConfiguration = {
   outputBatchBytes: 1024,
   outputBatchDelayMs: 0,
   observerBufferBytes: 1024,
+  observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
   retryBackoffMs: 0,
@@ -32,10 +33,6 @@ function assembled(
     execution,
     dispatch,
     admission: planAdmission ?? f.admit.operation,
-    materializationOperation: op('materialization'),
-    windowOperation: op('window'),
-    sendOperation: op('send'),
-    window: 'receive',
     script: {
       receipt: {
         supplier: f.admit.request.suppliers[0].adoption,
@@ -59,6 +56,27 @@ function assembled(
     maxWaiters: 2,
     maxQueued: 2,
     sends: [plan],
+    sending: {
+      maxRetainedAttempts: 8,
+      credentials: {
+        present: () => ({ kind: 'unavailable' }),
+        resolve: () => ({ kind: 'value', scope: 'factory', value: 'synthetic' }),
+      },
+      sources: [
+        {
+          profile: f.admit.request.profile,
+          supplier: f.admit.request.suppliers[0].adoption,
+          recipient: f.admit.request.suppliers[0].recipient,
+          model: f.admit.request.suppliers[0].model,
+          credential: {
+            kind: 'factory',
+            official: true,
+            queryId: unbox(decodeCredentialId('factory-query')),
+          },
+          current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+        },
+      ],
+    },
   })
   return { ...f, ...assembly, plan, dispatch, execution }
 }
@@ -99,7 +117,7 @@ async function prepared(
     },
   }
 }
-it('constructs the real factory without touching dependencies and exposes twelve explicit unavailable operations', async () => {
+it('constructs the real factory without touching dependencies and keeps unsupported operations explicitly unavailable', async () => {
   const f = assembled()
   let invoked = 0
   function counted<T extends object>(port: T): T {
@@ -129,46 +147,64 @@ it('constructs the real factory without touching dependencies and exposes twelve
   expect(invoked).toBe(0)
   expect('driver' in provider.runtime).toBe(false)
   const result = unbox(decodeResultVersion('mrver_test'))
-  const read = unbox(decodeReadId('mread_test'))
-  const answers = await Promise.all([
-    provider.runtime.calls.admit(f.admit),
-    provider.runtime.calls.inspect({ ...f.admit, admission: f.admit.operation }),
-    provider.runtime.calls.dispatches(f.admit),
-    provider.runtime.calls.cancel(f.admit),
-    provider.runtime.consumption.beginRead({ ...f.admit, result }),
-    provider.runtime.consumption.readNext({ ...f.admit, read, after: '1' }),
-    provider.runtime.consumption.closeRead({ ...f.admit, read }),
-    provider.runtime.consumption.acknowledge({
-      ...f.admit,
-      result,
-      evidence: { kind: 'processed', completion: proof('test') },
-    }),
-    provider.runtime.instances.connect(f.admit),
-    provider.recover(f.admit),
-    provider.quiesce(),
-    provider.driver.drive(
-      { ...f.admit, instance: instance(), continuity: proof('test') },
-      new AbortController().signal,
-    ),
-  ])
-  expect(answers).toHaveLength(12)
-  for (const answer of answers)
-    expect(answer).toEqual({
-      failure: {
-        kind: 'unavailable',
-        dependency: 'model-runtime',
-        diagnostic: 'managed-runtime-not-implemented',
+  function unread<T extends object>(input: T): T {
+    return new Proxy(input, {
+      get() {
+        throw new Error('unimplemented operation read request data')
       },
     })
+  }
+  function invoke(subject: typeof provider) {
+    return Promise.all([
+      subject.runtime.consumption.acknowledge({
+        ...f.admit,
+        result,
+        evidence: { kind: 'retained', custody: proof('test') },
+      }),
+      subject.recover(unread(f.admit)),
+      subject.quiesce(),
+    ])
+  }
+  const expected = [
+    ['consumption.acknowledge', '6.1'],
+    ['recover', '5.4'],
+    ['quiesce', '5.5'],
+  ]
+  const other = createModelRuntime(dependencies, configuration)
+  const batches = await Promise.all([invoke(provider), invoke(provider), invoke(other)])
+  batches.push(await invoke(provider))
+  const replies = []
+  const failures = []
+  for (const answers of batches) {
+    expect(answers).toHaveLength(expected.length)
+    for (const [index, [operation, stage]] of expected.entries()) {
+      const answer = answers[index]
+      expect(answer).toEqual({
+        failure: {
+          kind: 'unavailable',
+          dependency: 'model-runtime',
+          diagnostic: `managed-runtime-not-implemented operation=${operation} stage=${stage}`,
+        },
+      })
+      replies.push(answer)
+      if (answer === undefined || !('failure' in answer))
+        throw new Error('expected unavailable failure')
+      failures.push(answer.failure)
+    }
+  }
+  expect(new Set(replies).size).toBe(replies.length)
+  expect(new Set(failures).size).toBe(failures.length)
   expect(invoked).toBe(0)
 })
 it('rejects dependency and numeric configuration defects at construction', () => {
   const f = assembled()
   for (const key of Object.keys(f.dependencies)) {
-    const invalid = { ...f.dependencies, [key]: {} }
-    expect(() => Reflect.apply(createModelRuntime, undefined, [invalid, configuration])).toThrow(
-      TypeError,
-    )
+    for (const replacement of [undefined, {}]) {
+      const invalid = { ...f.dependencies, [key]: replacement }
+      expect(() => Reflect.apply(createModelRuntime, undefined, [invalid, configuration])).toThrow(
+        new TypeError(`invalid Model dependency ${key}`),
+      )
+    }
   }
   for (const field of Object.keys(configuration)) {
     const absent = Object.fromEntries(
@@ -188,6 +224,7 @@ it('rejects dependency and numeric configuration defects at construction', () =>
   for (const field of [
     'outputBatchBytes',
     'observerBufferBytes',
+    'observerCheckIntervalMs',
     'resultPageTargetBytes',
     'readIdleMs',
   ])
@@ -197,6 +234,12 @@ it('rejects dependency and numeric configuration defects at construction', () =>
         { ...configuration, [field]: 0 },
       ]),
     ).toThrow(RangeError)
+  expect(() =>
+    createModelRuntime(f.dependencies, {
+      ...configuration,
+      observerCheckIntervalMs: Number.MAX_SAFE_INTEGER + 1,
+    }),
+  ).toThrow(RangeError)
   const { resultPageTargetBytes: _target, ...oldConfiguration } = configuration
   expect(() =>
     Reflect.apply(createModelRuntime, undefined, [
@@ -220,19 +263,25 @@ it('starts before returning the stream, closes both resources on return and neve
 })
 it('does not start after unknown materialization, cancellation or the final current-qualification denial', async () => {
   const unknown = await prepared()
-  unknown.controls.commands.injectUnknown({
-    ...unknown.execution,
-    operation: unknown.plan.materializationOperation,
-    method: 'recordMaterialization',
-    effect: 'applied',
+  const normalWrite = unknown.dependencies.commands.recordMaterialization
+  const sender = unknown.controls.send.createSender({
+    commands: {
+      ...unknown.dependencies.commands,
+      recordMaterialization: input => {
+        unknown.controls.commands.injectUnknown({
+          ...input,
+          method: 'recordMaterialization',
+          effect: 'applied',
+        })
+        return normalWrite(input)
+      },
+    },
   })
-  expect(
-    (await unknown.dependencies.send.send(unknown.demand, new AbortController().signal)).kind,
-  ).toBe('unknown')
+  expect((await sender.send(unknown.demand, new AbortController().signal)).kind).toBe('unknown')
   expect(unknown.controls.send.counts(unknown.demand)).toMatchObject({
     start: 0,
-    closePrepared: 1,
-    closeMaterialized: 1,
+    closePrepared: 0,
+    closeMaterialized: 0,
   })
   const cancelled = await prepared()
   const abort = new AbortController()
@@ -376,7 +425,7 @@ it('deduplicates host scheduling, isolates assemblies and protects a new route a
   expect(unbox(await host.directory.connect(f.admit)).kind).toBe('no-live-route')
   expect(assembled().controls.instances.queued()).toEqual([])
 })
-it('closes a started send when cancellation wins during the recordSend await without any consumer iteration', async () => {
+it('retains an interruption fact when cancellation wins during recordSend before consumer iteration', async () => {
   const f = await prepared()
   const abort = new AbortController()
   const sending = f.dependencies.send.send(f.demand, abort.signal)
@@ -386,8 +435,17 @@ it('closes a started send when cancellation wins during the recordSend await wit
   abort.abort()
   const result = await sending
   expect(result.kind).toBe('started')
-  for (let i = 0; i < 20 && f.controls.send.counts(f.demand).closePrepared === 0; i += 1)
-    await Promise.resolve()
+  expect(f.controls.send.counts(f.demand)).toMatchObject({
+    start: 1,
+    closeMaterialized: 0,
+    closePrepared: 0,
+  })
+  if (result.kind !== 'started') throw new Error('send fixture')
+  const facts = []
+  for await (const fact of result.facts) facts.push(fact)
+  expect(facts).toEqual([
+    { kind: 'ended', termination: { kind: 'interrupted', stop: 'confirmed' } },
+  ])
   expect(f.controls.send.counts(f.demand)).toMatchObject({
     start: 1,
     closeMaterialized: 1,
@@ -570,7 +628,7 @@ for (const throws of [false, true]) {
     const sent = await f.dependencies.send.send(f.demand, new AbortController().signal)
     if (sent.kind !== 'started') throw new Error('send fixture')
     const iterator = sent.facts[Symbol.asyncIterator]()
-    if (throws) await expect(iterator.next()).rejects.toThrow('script-stream-failure')
+    if (throws) await expect(iterator.next()).rejects.toThrow('model-send fact-stream-failed')
     else {
       expect(await iterator.next()).toEqual({
         done: false,
@@ -752,6 +810,9 @@ it('preserves a noncloneable principal proof, current qualification and the orig
     })
   const abort = new AbortController()
   const pending = f.dependencies.send.send({ ...f.demand, principal }, abort.signal)
+  for (let i = 0; i < 100 && f.controls.send.counts(f.demand).materialize === 0; i += 1)
+    await Promise.resolve()
+  expect(f.controls.send.counts(f.demand)).toMatchObject({ materialize: 1, start: 0 })
   abort.abort()
   expect(await pending).toMatchObject({ kind: 'not-started' })
   expect(f.controls.send.counts(f.demand)).toEqual({

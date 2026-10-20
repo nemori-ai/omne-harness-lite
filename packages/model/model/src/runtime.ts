@@ -1,3 +1,4 @@
+import { createModelDriver } from './driver.ts'
 import type {
   ModelCommands,
   ModelSendBoundary,
@@ -13,6 +14,7 @@ export type ModelConfiguration = Readonly<{
   outputBatchBytes: number
   outputBatchDelayMs: number
   observerBufferBytes: number
+  observerCheckIntervalMs: number
   readIdleMs: number
   resultPageTargetBytes: number
   retryBackoffMs: number
@@ -75,6 +77,7 @@ function validate(dependencies: unknown, configuration: unknown): void {
   const fields = {
     outputBatchBytes: 1,
     observerBufferBytes: 1,
+    observerCheckIntervalMs: 1,
     resultPageTargetBytes: 1,
     readIdleMs: 1,
     outputBatchDelayMs: 0,
@@ -85,43 +88,121 @@ function validate(dependencies: unknown, configuration: unknown): void {
     const value = configuration[field]
     if (typeof value !== 'number')
       throw new TypeError(`missing or invalid Model configuration ${field}`)
-    if (!Number.isFinite(value) || !Number.isInteger(value) || value < lower)
+    if (
+      !Number.isFinite(value) ||
+      !(field === 'observerCheckIntervalMs'
+        ? Number.isSafeInteger(value)
+        : Number.isInteger(value)) ||
+      value < lower
+    )
       throw new RangeError(`Model configuration ${field} is out of range`)
   }
 }
-function unavailable<T>(): Reply<T> {
+function unavailable(operation: string, stage: string): Reply<never> {
   return Promise.resolve({
     failure: {
       kind: 'unavailable',
       dependency: 'model-runtime',
-      diagnostic: 'managed-runtime-not-implemented',
+      diagnostic: `managed-runtime-not-implemented operation=${operation} stage=${stage}`,
     },
   })
 }
-/** Validates and constructs a runtime whose managed operations return explicit unavailable failures. */
+/** Constructs the call facade, result consumption, stream driver and instance observations. */
 export function createModelRuntime<P>(
   dependencies: ModelDependencies<P>,
   configuration: ModelConfiguration,
 ): ModelRuntimeProvider<P> {
   validate(dependencies, configuration)
+  const { commands, instances } = dependencies
+  const activity = createModelDriver(
+    commands,
+    instances,
+    dependencies.clock,
+    configuration,
+    dependencies.send,
+  )
+  async function wake(input: Parameters<typeof instances.schedule>[0]): Promise<void> {
+    try {
+      await instances.schedule(input)
+    } catch {
+      /* Committed work remains pending for recovery. */
+    }
+  }
+  const reserved = (operation: string) =>
+    operation.startsWith('mop_--')
+      ? Promise.resolve({
+          failure: { kind: 'invalid', field: 'operation', reason: 'reserved' },
+        } as const)
+      : null
   return {
     runtime: {
       calls: {
-        admit: unavailable,
-        inspect: unavailable,
-        dispatches: unavailable,
-        cancel: unavailable,
+        admit: async ({ principal, tenant, call, operation, request, consumer, capacity }) => {
+          const input = {
+            principal,
+            tenant,
+            ...structuredClone({ call, operation, request, consumer, capacity }),
+          }
+          const result = await commands.admit(input)
+          if ('ok' in result) await wake({ tenant: input.tenant, call: input.call })
+          return result
+        },
+        inspect: ({ principal, tenant, call, admission }) =>
+          commands.recall({ principal, tenant, call, admission }),
+        dispatches: ({ principal, tenant, call }) =>
+          commands.dispatches({ principal, tenant, call }),
+        cancel: async ({ principal, tenant, call, operation }) => {
+          const input = { principal, tenant, call, operation }
+          const result = await commands.control(input)
+          if ('ok' in result) {
+            activity.requestRefresh(input)
+            await wake({ tenant: input.tenant, call: input.call })
+          }
+          return result
+        },
       },
       consumption: {
-        beginRead: unavailable,
-        readNext: unavailable,
-        closeRead: unavailable,
-        acknowledge: unavailable,
+        beginRead: async ({ principal, tenant, call, operation, result }) =>
+          reserved(operation) ??
+          commands.acquireRead({ principal, tenant, call, operation, result }),
+        readNext: async ({ principal, tenant, call, read, after }) =>
+          commands.nextRead({ principal, tenant, call, read, after }),
+        closeRead: async ({ principal, tenant, call, read }) =>
+          commands.endRead({ principal, tenant, call, read }),
+        acknowledge: async ({ principal, tenant, call, operation, result, evidence }) => {
+          const refused = reserved(operation)
+          if (refused) return refused
+          if (evidence.kind === 'retained') return unavailable('consumption.acknowledge', '6.1')
+          const { owner, record, revision, digest } = evidence.completion
+          const input = {
+            principal,
+            tenant,
+            call,
+            operation,
+            result,
+            evidence: {
+              kind: 'processed',
+              completion: { owner, record, revision, digest },
+            } as const,
+          }
+          const outcome = await commands.handoff(input)
+          if ('ok' in outcome) {
+            try {
+              activity.requestRefresh(input)
+            } catch {
+              // Observation refresh has no authority to reverse a confirmed acknowledgement.
+            }
+          }
+          return outcome
+        },
       },
-      instances: { connect: unavailable },
+      instances: {
+        connect: ({ principal, tenant, call }) =>
+          instances.directory.connect({ principal, tenant, call }),
+      },
     },
-    recover: unavailable,
-    quiesce: unavailable,
-    driver: { drive: unavailable },
+    recover: () => unavailable('recover', '5.4'),
+    quiesce: () => unavailable('quiesce', '5.5'),
+    driver: activity.driver,
   }
 }

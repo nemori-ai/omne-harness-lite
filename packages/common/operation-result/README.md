@@ -49,7 +49,7 @@ Applicable tests are unit tests and contract tests from the public entry. The te
 | `tests/outcome.spec.ts` | `succeed`, `ack`, `fail`, and `isSuccess` results |
 | `tests/public-entry.spec.ts` | The exact runtime exports of the root, empty `dependencies`, the single `.` export, and no Cordis text in `dist/index.js` or `dist/index.d.ts` |
 
-Run `pnpm test` from this directory. It builds `dist` and then runs the tests. Run `pnpm typecheck` to check the tests against the source types.
+turbo builds this package and its dependencies first, then runs the tests: `pnpm turbo run test --filter=@omne-harness/operation-result`. `pnpm test` in this directory runs Vitest only and does not build. Run `pnpm typecheck` to check the tests against the source types.
 
 ## Maintenance
 

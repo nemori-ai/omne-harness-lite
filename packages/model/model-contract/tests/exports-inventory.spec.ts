@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -17,7 +17,7 @@ import {
 
 // The comparison is the measuring instrument for the export inventory. These cases build tiny declaration files
 // that break one rule each and assert that the instrument reports exactly that rule.
-const directory = mkdtempSync(join(tmpdir(), 'exports-inventory-'))
+const directory = realpathSync(mkdtempSync(join(tmpdir(), 'exports-inventory-')))
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
 function build(files: Record<string, string>): void {
@@ -282,7 +282,7 @@ describe('publicApiChapters', () => {
 })
 
 describe('navigationProblems', () => {
-  const root = mkdtempSync(join(tmpdir(), 'navigation-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'navigation-')))
   afterAll(() => rmSync(root, { recursive: true, force: true }))
   const write = (name: string, text: string) => {
     mkdirSync(join(root, name, '..'), { recursive: true })

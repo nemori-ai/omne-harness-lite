@@ -36,7 +36,7 @@
 ## 验证与维护
 
 SPEC规定必要保证，verification维护持续验证义务。已有的证据是本包的单元测试、类型测试和一致性套件的自证，范围见下。形式模型、真实提供者和装配的证据尚缺。修改时同步公开消费者和组导航；未决按[产品第四块](../../../.meta_harness/design/product/tool-execution/design.md#未决问题与待定事项)及技术拥有者闭合。
-默认测试责任是单元和契约。快层命令是 `OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-contract run test`，慢层命令是 `OMNE_TEST_TIER=slow pnpm --filter @omne-harness/tool-contract run test`。两条命令都先构建本包再运行本层测试；本包依赖的成员要先构建（例如 `pnpm --filter @omne-harness/tool-contract... run build`），干净检出里没有依赖的 `dist` 时测试无法解析导入。`tests/public-entry.spec.ts` 核对公开导出。现有测试覆盖资产正文端口及其 `programmable` 校验、品牌身份解码、契约函数、默认结果政策、三个入口的导入方向、服务键唯一性、公开类型的正负编译用例，以及七个端口一致性套件对内存替身和违约变体的自证（逐断言的违约变体对应表在 [tests/README](tests/README.md#断言与违约变体的对应)，守约但不同的提供者必须全过）；运行契约实施后须补齐存储和执行旅程的集成验证。
+默认测试责任是单元和契约。快层命令是 `pnpm turbo run test:fast --filter=@omne-harness/tool-contract`，慢层命令是 `pnpm turbo run test:slow --filter=@omne-harness/tool-contract`。turbo 先构建本包及其依赖，再运行本层测试。本目录里的 `pnpm test` 只运行 Vitest，不构建，干净检出里没有依赖的 `dist` 时测试无法解析导入。`tests/public-entry.spec.ts` 核对公开导出。现有测试覆盖资产正文端口及其 `programmable` 校验、品牌身份解码、契约函数、默认结果政策、三个入口的导入方向、服务键唯一性、公开类型的正负编译用例，以及七个端口一致性套件对内存替身和违约变体的自证（逐断言的违约变体对应表在 [tests/README](tests/README.md#断言与违约变体的对应)，守约但不同的提供者必须全过）；运行契约实施后须补齐存储和执行旅程的集成验证。
 
 <a id="342-主干运行契约候选"></a>
 

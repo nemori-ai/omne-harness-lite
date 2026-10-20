@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -232,7 +232,7 @@ describe('createDiagnosticPort', () => {
   })
 
   it('writes an admitted record into a directory the caller chooses', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'diagnostic-export-'))
+    const dir = await realpath(await mkdtemp(join(tmpdir(), 'diagnostic-export-')))
     try {
       const port = createDiagnosticPort({
         bounds: bounds({ maxExportBytes: 1000 }),
@@ -262,7 +262,7 @@ describe('createDiagnosticPort', () => {
   })
 
   it('keeps the business result when the directory write fails', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'diagnostic-missing-'))
+    const dir = await realpath(await mkdtemp(join(tmpdir(), 'diagnostic-missing-')))
     try {
       const port = createDiagnosticPort({
         bounds: bounds({ maxExportBytes: 1000 }),
@@ -300,7 +300,7 @@ describe('createDiagnosticPort', () => {
   })
 
   it('does not leave a file when close aborts a delayed write', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'diagnostic-close-'))
+    const dir = await realpath(await mkdtemp(join(tmpdir(), 'diagnostic-close-')))
     try {
       const port = createDiagnosticPort({
         bounds: bounds({ maxExportBytes: 1000 }),

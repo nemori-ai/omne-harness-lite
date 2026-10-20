@@ -238,7 +238,7 @@ export type SendDemand<P> = CallAccess<P> &
     initiator: ActorRef
   }>
 export type SendResult =
-  | Readonly<{ kind: 'started'; facts: AsyncIterable<TransportFact> }>
+  | Readonly<{ kind: 'started'; window: string; facts: AsyncIterable<TransportFact> }>
   | Readonly<{ kind: 'not-started'; failure: ModelFailure }>
   | Readonly<{ kind: 'unknown'; dispatch: DispatchId; diagnostic: string }>
 export interface ModelSendBoundary<P> {

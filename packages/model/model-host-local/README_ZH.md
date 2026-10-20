@@ -24,7 +24,7 @@
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model-host-local typecheck`、`pnpm --filter @omne-harness/model-host-local test` 与 `make docs-check`。测试覆盖五种解析结果、租户隔离、轮换与撤销、文件损坏、关闭、跨进程更新与保存确认未知，并用真实 Cordis 4.0.4 核对插件发布与撤除。它们不证明其他宿主能力，也不证明跨机器或网络文件系统上的锁语义。
+运行 `pnpm --filter @omne-harness/model-host-local typecheck`、`pnpm --filter @omne-harness/model-host-local test` 与 `pnpm run check:docs`。测试覆盖五种解析结果、租户隔离、轮换与撤销、文件损坏、关闭、跨进程更新与保存确认未知，并用真实 Cordis 4.0.4 核对插件发布与撤除。它们不证明其他宿主能力，也不证明跨机器或网络文件系统上的锁语义。
 
 ## 维护
 

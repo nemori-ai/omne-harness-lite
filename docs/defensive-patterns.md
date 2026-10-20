@@ -34,7 +34,7 @@ DP 编号供开发模型评估精确说明在比较哪一条提醒。
 | 条目 | 确定性检查 | 评审时问的 |
 |---|---|---|
 | DP-01 | 没有通用的；个别契约的闭合结果集有规则（`terminal-outcome-closed`） | [实现评审检查表](../.meta_harness/agents/roles/implementation-review-checklist.md)第 14 问：吞掉的错误、假成功 |
-| DP-02 | 部分：契约纯模块对规格 `examples.md` 的机检（在 `make check` 的测试一步里） | 检查表第 9、10 问：实现替契约补了东西、改写了契约语义 |
+| DP-02 | 部分：契约纯模块对规格 `examples.md` 的机检（在 `pnpm run check` 的测试一步里） | 检查表第 9、10 问：实现替契约补了东西、改写了契约语义 |
 | DP-03 | 没有通用检查；实际拥有者维护的模型在明确配置与前提下覆盖其建模范围 | 检查表第 15 问：给出具体交错 |
 | DP-04 | 没有 | 检查表第 15 问；设计评审「选择」的反向核对：撤除时在途工作归谁 |
 | DP-05 | 部分：异步控制不许用 `bail`（`no-bail-control`） | 设计评审「选择」的投影对齐 |
@@ -42,7 +42,7 @@ DP 编号供开发模型评估精确说明在比较哪一条提醒。
 | DP-07 | 没有 | 检查表第 15 问：已经发生的那一半怎么办 |
 | DP-08 | 部分：凭据的流向有几条规则（`credentials-parse-only`、`sc-cv-1`、`ai-r8-no-credential-in-write`、`no-presentation-in-diagnostics` 与模型凭据的结构守卫）；环境变量与目录的授予没有 | 检查表第 16、18 问 |
 | DP-09 | 没有 | 检查表第 19 问（只在 L3 问） |
-| DP-10 | 部分：`make design-check`核现行源导航、领域对象对账，不执行模型；模型命令、配置及前提由实际成员的models/verification维护，沿[模型执行说明](verification.md#环境与实际执行)核对；绑定依据的语义复核是否过期没有通用检查 | 检查表第 20 问：模型与故障注入有没有实际运行的输出 |
+| DP-10 | 部分：`pnpm run check:design`核现行源导航、领域对象对账，不执行模型；模型命令、配置及前提由实际成员的models/verification维护，沿[模型执行说明](verification.md#环境与实际执行)核对；绑定依据的语义复核是否过期没有通用检查 | 检查表第 20 问：模型与故障注入有没有实际运行的输出 |
 
 规则各自查什么、查不出什么，见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md)；「部分」的意思是只盖住了那一条的一个角，不是那一条有了保证。
 

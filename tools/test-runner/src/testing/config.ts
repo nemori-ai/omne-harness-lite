@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url'
 export {
   RUN_SCRIPTS,
   RUN_TIERS,
-  TEST_TIER_ENV,
   TIER_NAMES,
   isRunScript,
   isRunTier,

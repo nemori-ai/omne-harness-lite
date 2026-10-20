@@ -36,7 +36,7 @@ Node `>=24`. There is no runtime dependency.
 
 ## Verification
 
-`pnpm test` builds, then runs the characterization suite copied from the sealed package. `pnpm run typecheck` builds, then typechecks the tests. One case imports the built `dist/index.js` from plain Node.
+From the repository root, `pnpm turbo run test --filter=@omne-harness/unix-format` builds, then runs the characterization suite copied from the sealed package. `pnpm test` in this directory does not build. `pnpm turbo run typecheck --filter=@omne-harness/unix-format` typechecks the tests and does not build first. One case imports the built `dist/index.js` from plain Node.
 
 ## Maintenance
 

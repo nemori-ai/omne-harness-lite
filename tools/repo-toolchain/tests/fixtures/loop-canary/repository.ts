@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  realpathSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -22,7 +23,7 @@ export function removeTemporaries(): void {
 }
 
 export function temporaryDirectory(prefix: string): string {
-  const path = mkdtempSync(join(tmpdir(), prefix))
+  const path = realpathSync(mkdtempSync(join(tmpdir(), prefix)))
   made.push(path)
   return path
 }
