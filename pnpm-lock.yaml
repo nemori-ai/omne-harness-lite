@@ -863,6 +863,9 @@ importers:
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../tool-contract
+      '@omne-harness/unix-format':
+        specifier: workspace:*
+        version: link:../../util/unix-format
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

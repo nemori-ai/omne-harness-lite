@@ -33,7 +33,8 @@
     "@omne-harness/content-block": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
-    "@omne-harness/tool-contract": "workspace:*"
+    "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/unix-format": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
