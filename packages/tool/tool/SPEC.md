@@ -215,7 +215,7 @@
 5. `enqueue` 先把队列条目改为 `ready`，再把状态改为 `queued`。
 6. `prepareStart` 在一个队列域事务里裁定队首与名额。条目是 `ready`，没有序号更小且尚未持有名额的条目，且已持有名额的条目数小于本调用固定的 `limits.concurrency`，才把条目改为 `held`。`null` 表示没有数量上限，但 FIFO 仍然适用。未轮到时回复 `unavailable`（`dependency` 为 `tool-queue`），诊断说明前面的条目数、持有数与上限。这一回复不写任何记录，也不是执行失败。
 
-仍在准备的较早调用（条目 `preparing`）不持有名额，但后来的同 key 调用不能越过它。转后台的调用与前台调用一样持有名额，因为名额按条目阶段计数，不看关系。名额只在条目删除时释放，删除只凭调用域里的释放依据（第 22 条）。本包现在的释放依据只有启动前的拒绝（第 21 条）。已启动执行的物理结束作为依据，随后续增量加入；仅逻辑收场不是依据。
+仍在准备的较早调用（条目 `preparing`）不持有名额，但后来的同 key 调用不能越过它。转后台的调用与前台调用一样持有名额，因为名额按条目阶段计数，不看关系。名额只在条目删除时释放，删除只凭调用域里的释放依据（第 22 条）。本包支持启动前拒绝保存的排除证据（第 21 条），以及已启动执行的可信原 final 结束依据（第 26 条）。仅逻辑收场不是释放依据。
 
 容量：真实工具的 admit 在提交前读一次队列域。该 key 下尚未释放的条目数达到 `ToolConfiguration.queueCapacity` 时回复 `unavailable`（`dependency` 为 `tool-queue`），不写记录。容量只拒绝参数通过的真实工具：dummy 不读队列域，参数失败照常形成失败终局，两者都不占条目。重送已受理的操作先认回，不受容量影响。
 
@@ -237,7 +237,7 @@
 
 ### 22 跨域提交与修复
 
-调用域与队列域没有共同事务。每个跨域转换按同一顺序提交：调用域先写 `queue` 待办，队列域再做转换，调用域最后写结果并删除该待办。启动拒绝是例外：调用域先写结果，队列域后释放，调用域最后删除待办（见下面的「启动拒绝」）。
+调用域与队列域没有共同事务。普通跨域推进先由调用域写 `queue` 待办，队列域再做转换，调用域最后记录推进结果并删除该待办。终局释放用于启动拒绝和原 final 的 `preserveResult`：调用域先同提交终局结果、释放依据与 `queue` 待办，队列域再删除条目并写墓碑，调用域最后删除该待办。启动拒绝见下面的「启动拒绝」，原 final 收场见第 26 条。
 
 队列条目复制了调用域拥有的阶段，而队列域不能读调用域，也就不能核对条目。所以条目的生命周期靠三件事守住：队列域记住释放过的调用，只凭调用域里的依据释放，条目记录移动它的操作号。
 
@@ -400,7 +400,7 @@ driver 从原 settle 或 queue.basis 经 facts.read 取 SavedFact，核 final �
 
 failed/interrupted 等非 completed final 即使历史为空，也不证明正常输出屏障闭合。结果和物理结束可以成立，环境清理保持 `awaiting-independent-custody` 的 blocked settle 责任，不自动或公开规划释放。facts 及仍可交付的 reader 保留，原 source 后续 process 继续保管及 ACK，不改原结果，也不自动解除清理 blocked。
 
-非正常 settled 的原 facts 源 end、throw 或失联时，受限 recordTask 只接受当前原 facts 完整 task/basis、resolution=blocked，以及 `settled-facts-source-ended` 或 `settled-facts-source-unavailable` 诊断。它用独立稳定 operation 同提交 blocked 任务、回执与当前 revision。同操作认回，异输入 conflict。done、其他 task 种类或其他诊断仍具名 unsupported，不能借此清除责任。协调 signal 取消不持久标记源失联。完整异常源恢复、额外过程保管和环境释放驱动仍未交付。
+非正常 settled 的原 facts 源 end、throw 或失联时，受限 recordTask 只接受当前原 facts 完整 task/basis、resolution=blocked，以及 `settled-facts-source-ended` 或 `settled-facts-source-unavailable` 诊断。它用独立稳定 operation 同提交 blocked 任务、回执与当前 revision。同操作认回，异输入 conflict。done 或其他 task 种类仍具名 unsupported，不能借此清除责任。当前原 facts 任务的 blocked resolution 使用其他诊断时，返回 invalid，field 为 `resolution`，reason 为 `settled-facts-diagnostic-required`。协调 signal 取消不持久标记源失联。完整异常源恢复、额外过程保管和环境释放驱动仍未交付。
 
 当前 final 没有实际结束 clock marker。running 计时转 unknown，保存原 segment、accumulatedMs，诊断为 `execution-end-clock-marker-unavailable`，同提交 blocked clock 任务。原 unknown 保持证据与诊断；paused/closed 保留已知累计并 closed。收场不调用晚到 elapsed、不写零、不重复累计，也不把保管等待计成执行时间。clock 未知不阻止可信结束后的 slot 释放。
 

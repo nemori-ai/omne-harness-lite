@@ -120,7 +120,7 @@ classDiagram
 
 ## 状态与转移
 
-本包已实现的调用阶段，只到启动记录为止。
+本包已实现的调用阶段包括原 final 收场与 slot 释放。完整环境资源释放驱动仍未交付。
 
 ```mermaid
 stateDiagram-v2

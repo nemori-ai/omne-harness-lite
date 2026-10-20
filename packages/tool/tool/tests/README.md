@@ -60,6 +60,6 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 
 ## 原结果收场验证
 
-[ledger-settlement.spec.ts](ledger-settlement.spec.ts) 验证第 26 条的原 final 资格、主动 retain、唯一原结果、call/queue 未知与恢复、可信结束及计时未知。[ledger-environment-release.spec.ts](ledger-environment-release.spec.ts) 验证 canonical 计划、全部历史闭包、原环境 inspectRelease、Mutation 输入固定及受限 blocked facts。[exclusion-interleavings.spec.ts](exclusion-interleavings.spec.ts) 核同提交各 operation 的否定围栏，不以主操作检查代替 canonical plan 身份检查。
+[ledger-settlement.spec.ts](ledger-settlement.spec.ts) 验证第 26 条的原 final 资格、主动 retain、唯一原结果、call/queue 未知与恢复、可信结束及计时未知。其中 canonical plan 在途提交被否定答案排除的用例，核对同提交各 operation 的否定围栏，不以主操作检查代替 canonical plan 身份检查。[ledger-environment-release.spec.ts](ledger-environment-release.spec.ts) 验证 canonical 计划、全部历史闭包、原环境 inspectRelease、Mutation 输入固定及受限 blocked facts。[exclusion-interleavings.spec.ts](exclusion-interleavings.spec.ts) 验证交付释放与受理的否定答案交错、修订号比较和围栏清除。
 
 [driver-settlement.spec.ts](driver-settlement.spec.ts) 使用真实 runtime 与非耐久 ledger/custody/executor，观察原作者计数、原结果和下一同 slot 调用。它覆盖 ACK 离线仍收场、正常 reader 关闭及 ACK 恢复、异常 late process/end/throw/失联、取消不误标源失败，以及成功后仍有 queue 待办时具名 blocked 并停止热循环。内存组合不证明生产耐久、完整环境 release 驱动或跨进程。
