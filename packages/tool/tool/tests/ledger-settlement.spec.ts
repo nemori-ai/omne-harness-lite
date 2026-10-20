@@ -688,6 +688,91 @@ it('does not write preserve and canonical plan receipts under the same operation
   ok(await f.preserve())
 })
 
+it('excludes an in-flight canonical plan commit and allows a fresh preserve with the same identities', async () => {
+  const retain = vi.fn<ToolOutputCustody<Principal>['retainResult']>()
+  const f = await settlementFixture({
+    wrapCustody: base => ({
+      ...base,
+      retainResult: retain.mockImplementation(input => base.retainResult(input)),
+    }),
+  })
+  const operation = canonicalReleaseOperation(f)
+  const originalFences = (await f.records()).filter(record => record.kind === 'exclusion')
+  let intercepted = false
+  f.interceptCommit(async input => {
+    const operations = input.writes.flatMap(write =>
+      write.kind === 'put' && write.record.kind === 'operation'
+        ? [write.record.operation.operation]
+        : [],
+    )
+    if (!intercepted && operations.includes(operation)) {
+      intercepted = true
+      expect(operations).toEqual(expect.arrayContaining([f.input.operation, operation]))
+      expect(ok(await f.ledger.reads.operation({ ...f.access, operation }))).toEqual({
+        kind: 'not-committed',
+      })
+      const committed = await f.harness.memory.commit(input)
+      expect(committed.kind).toBe('conflict')
+      return committed
+    }
+    return f.harness.memory.commit(input)
+  })
+  expect(await f.preserve()).toEqual({
+    failure: {
+      kind: 'unavailable',
+      dependency: 'ledger-store',
+      diagnostic: `operation ${operation} was excluded by a negative answer; resubmit with the same identity`,
+    },
+  })
+  expect(intercepted).toBe(true)
+  expect(retain).toHaveBeenCalledTimes(1)
+  const excluded = await f.records()
+  expect(excluded.some(record => record.kind === 'result')).toBe(false)
+  expect(excluded.some(record => record.kind === 'environment-release')).toBe(false)
+  expect(
+    excluded.some(
+      record =>
+        record.kind === 'operation' &&
+        [f.input.operation, operation].includes(record.operation.operation),
+    ),
+  ).toBe(false)
+  expect((await f.load()).state).toEqual(f.before.state)
+  expect((await f.load()).tasks).toEqual(f.before.tasks)
+  expect(await f.harness.released()).not.toContain(f.access.call)
+  expect(ok(await f.ledger.reads.operation({ ...f.access, operation: f.input.operation }))).toEqual(
+    { kind: 'not-committed' },
+  )
+
+  const settled = ok(await f.preserve())
+  expect(retain).toHaveBeenCalledTimes(2)
+  expect(retain.mock.calls[0]).toEqual(retain.mock.calls[1])
+  const records = await f.records()
+  expect(records.filter(record => record.kind === 'result')).toHaveLength(1)
+  expect(records.filter(record => record.kind === 'environment-release')).toHaveLength(1)
+  expect(records.filter(record => record.kind === 'exclusion')).toEqual(originalFences)
+  expect((await f.load()).tasks.filter(task => task.kind === 'release')).toHaveLength(1)
+  expect(await f.harness.released()).toContain(f.access.call)
+  const receipts = records.filter(
+    record =>
+      record.kind === 'operation' &&
+      [f.input.operation, operation].includes(record.operation.operation),
+  )
+  expect(receipts).toHaveLength(2)
+  for (const identity of [f.input.operation, operation])
+    expect(ok(await f.ledger.reads.operation({ ...f.access, operation: identity })).kind).toBe(
+      'committed',
+    )
+  expect(ok(await f.preserve())).toEqual(settled)
+  expect(retain).toHaveBeenCalledTimes(2)
+  expect(
+    (await f.records()).filter(
+      record =>
+        record.kind === 'operation' &&
+        [f.input.operation, operation].includes(record.operation.operation),
+    ),
+  ).toEqual(receipts)
+})
+
 function canonicalReleaseOperation(f: Awaited<ReturnType<typeof settlementFixture>>) {
   const task = f.before.tasks.find(task => task.kind === 'settle')
   const preparation = f.before.preparations[0]

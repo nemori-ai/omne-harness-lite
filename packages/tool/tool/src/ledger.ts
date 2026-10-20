@@ -85,7 +85,7 @@ import {
   type Snapshot,
 } from './ledger-decider.ts'
 import { checkSettlement, decidePreserveResult } from './ledger-settlement.ts'
-import { excluded, excludedSince, withExclusionRemoved } from './ledger-exclusion.ts'
+import { excluded, excludedSince, withExclusionsRemoved } from './ledger-exclusion.ts'
 import type { ToolLedgerAction, ToolLedgerGuards } from './ledger-guards.ts'
 import { createQueueReconciler } from './ledger-queue.ts'
 import {
@@ -267,10 +267,10 @@ export function createToolLedger<P, B extends ContentBlock>(
    * Reads, decides and commits by domain revision. A conflict re-reads and re-decides, at most
    * `attempts` times; an unknown commit answers `unknown` and is not retried. A command keyed by
    * `operation` stops with `excluded` when a re-read shows a negative answer about the operation
-   * given after its first read (P01: the negative excluded this very commit), and its commit
-   * removes the exclusion fence of the operation. A read passes `null`: another reader's fence
-   * does not exclude it, and it re-fences instead. A command that read the domain before its
-   * first transaction (a pre-read that gates a queue step or a port call) passes that revision
+   * given after its first read (P01: the negative excluded this very commit). Its write set
+   * checks and removes the fences of every operation receipt. A read passes `null`: another
+   * reader's fence does not exclude it, and it re-fences instead. A command that pre-reads the
+   * domain before its first transaction (to gate a queue step or a port call) passes that revision
    * as `since`: the pre-read is its first read, so a negative answer given after it stops the
    * command whatever the steps between the pre-read and the transaction did.
    */
@@ -291,7 +291,15 @@ export function createToolLedger<P, B extends ContentBlock>(
       const revision = nextRevision(snapshot.ok.revision)
       const decision = decide(snapshot.ok, { revision })
       if (decision.kind === 'reply') return decision.outcome
-      const writes = withExclusionRemoved(decision.writes, operation)
+      const operations = new Set(operation === null ? [] : [operation])
+      for (const write of decision.writes) {
+        if (write.kind === 'put' && write.record.kind === 'operation')
+          operations.add(write.record.operation.operation)
+      }
+      for (const identity of operations) {
+        if (excludedSince(snapshot.ok, identity, firstRead)) return excluded(identity)
+      }
+      const writes = withExclusionsRemoved(decision.writes, operations)
       const committed = await commit(domain, snapshot.ok.revision, revision, writes)
       if (committed.kind === 'committed') return succeed(decision.value)
       if (committed.kind === 'unknown') return unknown
