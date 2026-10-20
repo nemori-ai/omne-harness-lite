@@ -18,11 +18,15 @@
 
 ## 使用
 
+受理在排队前同步复用 judgeAdmit，畸形输入不会建立调用或预留容量。[输入契约](../model-contract/SPEC.md#封闭输入判断)规定冻结副本、资格对象同一性和解析限制。第一课教受理判断；第四课先通过纯请求判断，再真实驱动供应商 input-over-limit。
+
 选择本实现的独立程序与宿主从[消费与构造](docs/context.md)进入。executeModel、createModelRuntime 及构造参数的设计已接受，精确形状见[公开接口设计](docs/public-api.md)，executeModel、createModelRuntime 与 createModelSendBoundary 已从根入口导出；独立能力工厂仍未实现。
 
 内存测试从 `@omne-harness/model/testing` 导入 createTestModelDependencies。显式配置、authority、evidence 和 owner 的用法见[测试入口](docs/public-api.md#内存测试入口)。返回的五依赖可构造真实 runtime 壳。
 
 内存测试提供者交付 sealed/partial 及真实 trims。显式项数与字节目标按完整项组页，超目标大项独页，整个页受原受理容量约束。消费者须处理未封值与提醒。具体配置及局部上限见[测试入口](docs/public-api.md#内存测试入口)。
+
+调用方在受理前编码并保存调用引用。inspect、connect 和 beginRead 接收该引用与当前 Access。第五课保存操作引用及原 ACK result/evidence，恢复后重入原操作。见[共同引用契约](../model-contract/SPEC.md#可保存调用引用)。
 
 ## 运行教学示例
 
@@ -88,7 +92,21 @@ factory 路径需要受信装配明确登记精确档案与供应商采用、接
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `pnpm run check:docs`。独立执行测试经公开入口连接脚本传输及受控故障提供者，覆盖一次发送、回执匹配、取消、失联与关闭。六项 transport 符合性直接检查提供者。其他测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
+在仓库根运行以下命令。包的 engines 要求 Node.js >=24，pnpm 版本为 10.28.1。实际验证过的 Node.js 版本以各次运行报告为准。
+
+```sh
+pnpm turbo run typecheck --filter=@omne-harness/model
+pnpm turbo run test --filter=@omne-harness/model
+pnpm turbo run test:fast --filter=@omne-harness/model
+pnpm turbo run test:slow --filter=@omne-harness/model
+pnpm run check:docs
+```
+
+Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再执行所选测试。`typecheck` 不先构建。直接运行 `pnpm --filter @omne-harness/model test` 不自动构建，所需构建产物须已就绪。`test:fast` 与 `test:slow` 分别选择快层与慢层。
+
+完整 `test` 先运行 Vitest，成功后执行五个教学脚本。快慢层都不自动执行 examples。已构建时可单独运行 `pnpm --filter @omne-harness/model examples`。acceptance 保持独立，由[测试运行器](../../../tools/test-runner/README_ZH.md#测试运行)调度，仓库根入口是 `pnpm run acceptance`。
+
+独立执行测试经公开入口连接脚本传输及受控故障提供者，覆盖一次发送、回执匹配、取消、失联与关闭。六项 transport 符合性直接检查提供者。其他测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
 
 ## 维护
 

@@ -28,6 +28,8 @@ Model 的对象分三组。长期配置与请求值描述档案、固定请求�
     拒绝：返回具体失败，不发（参数、模态或档案不满足）。输入大小不在此检查
     未知：来源或资源不可用时返回 unavailable。不当作空历史放行
 
+调用方 先以 judgeAdmit 判断 typed Access 和未知 payload，失败 field/reason 归 SPEC 的封闭输入判断。成功保留 P/tenant，同步固定独立 payload。
+
 调用方 受理 ModelCalls.admit（call、operation、固定请求、ConsumerRef、结果容量）
     成功：返回原受理。原调用与容量同提交成立。受理不表示供应商已收到
     拒绝：denied(action='admit')（原工作资格失效，不披露原工作是否存在）
@@ -348,3 +350,5 @@ sequenceDiagram
 各能力的建模落点、必须验证的反例与剩余证据归[覆盖说明](../verification/README.md#model-产品能力与设计覆盖)，本页不重复。能力到行为条款的映射归 [SPEC](../SPEC.md#能力旅程与持续验证入口)，持续场景归[持续验证场景](../verification/README.md#model-持续验证场景)。消费者工作守卫与 owner 声明的反例同样登记在覆盖说明，不在本页另列。
 
 另须验证：观察者全部退出后原调用仍收场与记账；ACK 与新读、未知写、清理的竞争；资格检查之后、发送之前撤权；替代提供者与实际提供者经同一符合性套件。这些是后继实现的验收义务，文档检查和类型检查不证明运行行为。
+
+可保存引用是调用与操作身份的规范文本。它不拥有调用状态或资格。ModelInvocationRef 在受理前可构造，Admission.reference 认回同一身份。ModelOperationRef 仍须与原 result/evidence 共同保存。格式及失败归 [SPEC](../SPEC.md#可保存调用引用)。

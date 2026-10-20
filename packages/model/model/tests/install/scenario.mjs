@@ -6,6 +6,7 @@ import { deliver, executeModel, judgePresence, judgeResolution } from '@omne-har
 import {
   MODEL_SEND,
   decodeCredentialId,
+  encodeModelInvocationRef,
   decodeModelCallId,
   decodeModelOperationId,
   decodeModelInstanceId,
@@ -116,7 +117,13 @@ assert.deepEqual(
   await shell.runtime.instances.connect({
     tenant: owner,
     principal: 'synthetic',
-    call: decodedCall.ok,
+    reference: decoded(
+      encodeModelInvocationRef({
+        tenant: owner,
+        call: decodedCall.ok,
+        admission: decoded(decodeModelOperationId('mop_installed-admit')),
+      }),
+    ),
   }),
   {
     failure: { kind: 'denied', action: 'fixture' },
@@ -298,7 +305,18 @@ const dispatches = decoded(await provider.runtime.calls.dispatches(admission))
 assert.equal(dispatches.length, 1)
 assert.equal(dispatches[0].send, 'prepared')
 assert.equal(dispatches[0].materialization, null)
-const installedRoute = decoded(await provider.runtime.instances.connect(admission))
+const installedRoute = decoded(
+  await provider.runtime.instances.connect({
+    ...admission,
+    reference: decoded(
+      encodeModelInvocationRef({
+        tenant: owner,
+        call: admission.call,
+        admission: admission.operation,
+      }),
+    ),
+  }),
+)
 assert.equal(installedRoute.kind, 'live')
 const installedObserver = installedRoute.handle
   .observe({ principal, tenant: owner, signal: new AbortController().signal })
@@ -311,8 +329,18 @@ assert.deepEqual(installedSnapshot.value.value.blocks, [])
 await installedObserver.return()
 
 assert.equal(
-  decoded(await provider.runtime.calls.inspect({ ...admission, admission: admission.operation }))
-    .kind,
+  decoded(
+    await provider.runtime.calls.inspect({
+      ...admission,
+      reference: decoded(
+        encodeModelInvocationRef({
+          tenant: owner,
+          call: admission.call,
+          admission: admission.operation,
+        }),
+      ),
+    }),
+  ).kind,
   'found',
 )
 assert.equal(
@@ -320,7 +348,13 @@ assert.equal(
     await provider.runtime.calls.inspect({
       ...admission,
       tenant: stranger,
-      admission: admission.operation,
+      reference: decoded(
+        encodeModelInvocationRef({
+          tenant: owner,
+          call: admission.call,
+          admission: admission.operation,
+        }),
+      ),
     })
   ).failure.kind,
   'denied',

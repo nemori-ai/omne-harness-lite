@@ -7,7 +7,13 @@ const open: TransportFact = { kind: 'block-open', index: '0', mode: 'append', co
 const delta = (text: string): TransportFact => ({ kind: 'block-delta', index: '0', delta: text })
 const end: TransportFact = { kind: 'ended', termination: { kind: 'completed', reason: 'limit' } }
 async function observer(f: ReturnType<typeof runtimeFixture>) {
-  const route = unbox(await f.provider.runtime.instances.connect(f.admit))
+  const route = unbox(
+    await f.provider.runtime.instances.connect({
+      principal: f.principal,
+      tenant: f.tenant,
+      reference: f.reference,
+    }),
+  )
   if (route.kind !== 'live') throw new Error('missing live route')
   return route.handle
     .observe({ ...f.admit, signal: new AbortController().signal })

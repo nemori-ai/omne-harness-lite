@@ -51,7 +51,7 @@ export const adoption = (name: string): Adoption => ({
   owner: 'fixture',
   name,
   revision: '1',
-  digest: `digest-${name}`,
+  digest: '0'.repeat(64),
 })
 
 export const evidence = (label: string): DurableEvidence => ({

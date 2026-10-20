@@ -3,7 +3,7 @@ import type {
   CallAccess,
   CallState,
   ModelClock,
-  ModelDirectory,
+  ModelInstanceDirectory,
   ModelHandle,
   ModelInstanceId,
   Observation,
@@ -17,7 +17,7 @@ type Watcher = { lag: number; wake: () => void; end: (reason: End) => void }
 export function createObservation<P>(input: {
   access: CallAccess<P>
   instance: ModelInstanceId
-  directory: ModelDirectory<P>
+  directory: ModelInstanceDirectory<P>
   clock: ModelClock
   bufferBytes: number
   checkIntervalMs: number

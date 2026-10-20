@@ -38,7 +38,13 @@ function preparedReceipt(
     expect(result.failure).toMatchObject({ kind: 'unavailable', dependency: 'model-send' })
 }
 async function watch(f: ReturnType<typeof assembled>) {
-  const route = unbox(await f.provider.runtime.instances.connect(f.admit))
+  const route = unbox(
+    await f.provider.runtime.instances.connect({
+      principal: f.principal,
+      tenant: f.tenant,
+      reference: f.reference,
+    }),
+  )
   if (route.kind !== 'live') throw new Error('missing route')
   return {
     handle: route.handle,

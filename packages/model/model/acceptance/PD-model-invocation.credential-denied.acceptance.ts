@@ -1,7 +1,7 @@
 // covers: PD-model-invocation S3
 import { expect, it } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
-import type { CredentialPort } from '@omne-harness/model-contract'
+import { encodeModelInvocationRef, type CredentialPort } from '@omne-harness/model-contract'
 import { configuration, createAcceptanceAssembly, operation } from './fixtures/runtime.ts'
 
 it('keeps a real driver credential refusal local and not sent', async () => {
@@ -25,6 +25,9 @@ it('keeps a real driver credential refusal local and not sent', async () => {
   const provider = createModelRuntime(f.dependencies, configuration)
   const access = { ...f.access, call: f.call }
   const admission = operation('admit')
+  const encoded = encodeModelInvocationRef({ tenant: f.access.tenant, call: f.call, admission })
+  if ('failure' in encoded) throw new Error('Invalid acceptance invocation reference')
+  const lookupAccess = { ...f.access, reference: encoded.ok }
   expect(
     await provider.runtime.calls.admit({
       ...access,
@@ -47,7 +50,7 @@ it('keeps a real driver credential refusal local and not sent', async () => {
     if ('failure' in dispatches) throw new Error('Cannot inspect dispatches')
     expect(dispatches.ok).toHaveLength(1)
     expect(dispatches.ok[0]).toMatchObject({ send: 'not-sent', terminal: null })
-    const lookup = await provider.runtime.calls.inspect({ ...access, admission })
+    const lookup = await provider.runtime.calls.inspect(lookupAccess)
     if ('failure' in lookup || lookup.ok.kind !== 'found')
       throw new Error('Admitted call disappeared')
     expect(lookup.ok.state.phase).toBe('running')
