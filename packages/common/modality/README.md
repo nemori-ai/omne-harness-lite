@@ -52,7 +52,7 @@ Applicable tests are unit tests, contract tests from the public entry, and a typ
 | `tests/modality-types.spec-d.ts` | The exact type of `Modality` and the rejection reasons of each judgment |
 | `tests/public-entry.spec.ts` | The exact runtime exports, empty `dependencies`, the single `.` export, and artifacts without imports |
 
-Run `pnpm test` from this directory. It builds `dist` and then runs the tests. Run `pnpm typecheck` to check the tests against the source types.
+turbo builds `dist` and the dependencies first, then runs the tests: `pnpm turbo run test --filter=@omne-harness/modality`. `pnpm test` in this directory runs Vitest only and does not build. Run `pnpm typecheck` to check the tests against the source types.
 
 ## Maintenance
 

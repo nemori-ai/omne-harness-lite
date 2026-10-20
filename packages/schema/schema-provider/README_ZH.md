@@ -67,7 +67,7 @@ const verdict = await validate(provider, chatMessage, read)
 
 ## 验证
 
-`pnpm test` 先构建再跑 vitest。测试调用公开导出。它们观察 `load` 的调用次数，以及返回的 `kind`、`reason`、`path`、`issues`、`value` 和 `superseded`。
+turbo 先构建再跑 vitest：`pnpm turbo run test --filter=@omne-harness/schema-provider`。本目录里的 `pnpm test` 只跑 vitest，不构建。测试调用公开导出。它们观察 `load` 的调用次数，以及返回的 `kind`、`reason`、`path`、`issues`、`value` 和 `superseded`。
 
 测试覆盖这些行为：
 

@@ -33,7 +33,7 @@ Pass business identities as operation inputs. Cordis definitions and concrete pr
 
 ## Verification
 
-Run `pnpm test` and `pnpm typecheck` in this directory. `pnpm test` builds the package first. The tests run on Cordis 4.0.4. They cover the root entry, the key set and the class set, the directory registration rules, and the directory plugin. The [test page](tests/README.md) lists the files. The tests use test subclasses for the publication authority, the access check, and the host. They do not prove the behavior of a real provider.
+Run `pnpm test` and `pnpm typecheck` in this directory. turbo builds this package and its dependencies first. `pnpm test` in this directory runs Vitest only and does not build. The tests run on Cordis 4.0.4. They cover the root entry, the key set and the class set, the directory registration rules, and the directory plugin. The [test page](tests/README.md) lists the files. The tests use test subclasses for the publication authority, the access check, and the host. They do not prove the behavior of a real provider.
 
 ## Maintenance
 

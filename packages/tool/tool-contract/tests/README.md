@@ -40,7 +40,7 @@
 | [contract.spec-d.ts](contract.spec-d.ts) | 公开类型的负编译用例，例如品牌身份不能互换、后台收场不接受 `no-response`、Ask 没有 deadline |
 | [module-graph.ts](module-graph.ts) | 导入图遍历工具，读取静态导入、再导出、裸副作用导入和动态 `import()`。各 Tool 包各有一份同样的副本，因为测试不能跨包导入相对路径 |
 
-运行命令分快层 `OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-contract run test` 与慢层 `OMNE_TEST_TIER=slow pnpm --filter @omne-harness/tool-contract run test`。每条命令先构建本包，再运行本层的 vitest；依赖成员要先构建（`pnpm --filter @omne-harness/tool-contract... run build`）。`*.spec-d.ts` 的类型检查属于快层。`pnpm --filter @omne-harness/tool-contract typecheck` 单独检查全部测试源码。现有测试不覆盖独立执行、等待、控制、结果保管或恢复的实现；一致性套件的自证只用内存替身，不证明耐久。Cordis 定义的测试在 `tool-cordis-contract`。这些行为实现后须补齐验证，义务见 [verification](../verification/index.md)。
+运行命令分快层 `pnpm turbo run test:fast --filter=@omne-harness/tool-contract` 与慢层 `pnpm turbo run test:slow --filter=@omne-harness/tool-contract`。turbo 先构建本包及其依赖，再运行本层的 vitest。`*.spec-d.ts` 的类型检查属于快层。`pnpm --filter @omne-harness/tool-contract typecheck` 单独检查全部测试源码。现有测试不覆盖独立执行、等待、控制、结果保管或恢复的实现；一致性套件的自证只用内存替身，不证明耐久。Cordis 定义的测试在 `tool-cordis-contract`。这些行为实现后须补齐验证，义务见 [verification](../verification/index.md)。
 
 ## 一致性套件的自证
 

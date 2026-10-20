@@ -12,6 +12,6 @@
 | [coordinator-values.ts](coordinator-values.ts) | 测试构造器：租户与主体、固定请求、启动记录、按成员资格放行的资格守卫、协调器、下一次提交失败的记录仓 |
 | [module-graph.ts](module-graph.ts) | 导入图遍历工具，读取静态导入、再导出、裸副作用导入和动态 `import()`。各 Tool 包各有一份同样的副本，因为测试不能跨包导入相对路径 |
 
-运行命令为 `OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-host-local test`。该命令先构建，再运行 vitest。测试使用 `@omne-harness/tool/testing` 的非耐久记录仓，不覆盖耐久性、进程崩溃与跨进程装配。
+运行命令为 `pnpm turbo run test --filter=@omne-harness/tool-host-local`。turbo 先构建本包及其依赖，再运行 vitest。测试使用 `@omne-harness/tool/testing` 的非耐久记录仓，不覆盖耐久性、进程崩溃与跨进程装配。
 
 固定输入归 [fixtures](fixtures/index.md)。目录导航见 [index](index.md)。

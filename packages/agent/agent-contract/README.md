@@ -48,7 +48,7 @@ Pass business identities as operation inputs. The package does not install Cordi
 
 ## Verification
 
-Run `pnpm test` and `pnpm typecheck` in this directory. `pnpm test` builds the package first. The tests cover the declaration judgments, the output judgment, the identity decoders and structure judgments, the body contract, the export set, and the dependency direction. The [test page](tests/README.md) lists the files. These tests do not prove the runtime, a provider, the assembly, or the Cordis integration.
+Run `pnpm test` and `pnpm typecheck` in this directory. turbo builds this package and its dependencies first. `pnpm test` in this directory runs Vitest only and does not build. The tests cover the declaration judgments, the output judgment, the identity decoders and structure judgments, the body contract, the export set, and the dependency direction. The [test page](tests/README.md) lists the files. These tests do not prove the runtime, a provider, the assembly, or the Cordis integration.
 
 ## Maintenance
 

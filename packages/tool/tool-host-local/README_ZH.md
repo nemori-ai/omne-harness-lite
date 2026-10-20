@@ -49,7 +49,7 @@ const authority = createLocalStartCoordinator({
 
 ## 验证
 
-`OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-host-local test` 先构建再运行测试。测试核对非耐久记录仓上的协调器，以及真实 Tool runtime、账本与推进协程下的协调器。[tests/README](tests/README.md) 列出每项行为对应的测试。耐久性、进程崩溃与第二个进程都没有覆盖。
+`pnpm turbo run test --filter=@omne-harness/tool-host-local` 先构建本包及其依赖，再运行测试。测试核对非耐久记录仓上的协调器，以及真实 Tool runtime、账本与推进协程下的协调器。[tests/README](tests/README.md) 列出每项行为对应的测试。耐久性、进程崩溃与第二个进程都没有覆盖。
 
 ## 维护
 

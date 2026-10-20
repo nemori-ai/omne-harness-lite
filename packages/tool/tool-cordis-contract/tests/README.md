@@ -15,7 +15,7 @@
 | [cordis-entry.spec-d.ts](cordis-entry.spec-d.ts) | `Context` 增补的服务类型、键的字面量类型和 `tool-cordis-contract/call-changed` 的参数 |
 | [module-graph.ts](module-graph.ts) | 导入图遍历工具。各 Tool 包各有一份同样的副本，因为测试不能跨包导入相对路径 |
 
-运行命令分快层 `OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-cordis-contract run test` 与慢层 `OMNE_TEST_TIER=slow pnpm --filter @omne-harness/tool-cordis-contract run test`。每条命令先构建，再运行本层的 vitest。`*.spec-d.ts` 的类型检查属于快层。
+运行命令分快层 `pnpm turbo run test:fast --filter=@omne-harness/tool-cordis-contract` 与慢层 `pnpm turbo run test:slow --filter=@omne-harness/tool-cordis-contract`。turbo 先构建本包及其依赖，再运行本层的 vitest。`*.spec-d.ts` 的类型检查属于快层。
 
 ## 登记套件的自证
 
