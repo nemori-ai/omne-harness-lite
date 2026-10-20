@@ -434,7 +434,7 @@ failed/interrupted 等非 completed final 即使历史为空，也不证明正�
 - `ta1` 包含 `[1, tr1, selector]`。selector 为非负安全整数索引或字符串 original。索引对应该固定版本的 attachments，original 对应卸载原文。
 - `tc1` 包含 `[1, kind, completeReference, projection, internalAfter]`。result 的 projection 为 full，attachment 为 bytes。读取前逐项比较分支、完整引用及投影。
 
-解码核协议、字段数、类型、规范编码及参数预算。所有发出的开始和续读提示还使用真实参数 codec 检查整份调用 JSON，防止单个凭据可用但组合参数超限。引用不授予权限，没有 TTL，也不依赖适配器内存表。releaseDelivery 不使引用失效。未知版本、不可定位版本或错误游标不能换成最新结果或首屏。
+解码核协议、字段数、类型、规范编码及参数预算。所有发出的开始和续读提示还使用真实参数 codec 检查整份调用 JSON，并用同一预算实际解码内部引用及 cursor。单个凭据、组合参数或内部 tuple 超限都不能发出可续读提示。引用不授予权限，没有 TTL，也不依赖适配器内存表。releaseDelivery 不使引用失效。未知版本、不可定位版本或错误游标不能换成最新结果或首屏。
 
 ### 模型内容与失败
 

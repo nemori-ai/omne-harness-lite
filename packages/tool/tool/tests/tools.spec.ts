@@ -704,3 +704,57 @@ it('marks an empty result as ended and rejects a byte cursor copied to another a
   expect(body(bad)).not.toContain('base64')
   expect(body(bad)).not.toContain('next')
 })
+
+it.each([4, 5])(
+  'does not issue a continuation its protocol cannot decode with maxItems=%s',
+  async maxItems => {
+    const source = provider(async input =>
+      succeed(
+        page(result([visible('body', 'source')]), input.after === null ? 'position-one' : null),
+      ),
+    )
+    const limited = { ...options, arguments: { ...options.arguments, maxItems } }
+    const tools = createTools(source, limited)
+    const initial = await tools.present(access)
+    if (!body(initial).includes('ERROR:')) {
+      const response = await registeredFixture(tools).invoke('read_result', {
+        kind: 'result',
+        reference: token(initial, 'reference'),
+        after: token(initial, 'next'),
+      })
+      expect(body(ok(response.full))).not.toContain('invalid-cursor')
+    }
+    expect(body(initial)).toContain('unsupported')
+  },
+)
+
+it('accepts a continuation at the six-item protocol boundary and rejects an unparseable attachment selector before issuing it', async () => {
+  const runtime = provider(async input =>
+    succeed(
+      page(result([visible('body', 'source')]), input.after === null ? 'position-one' : null),
+    ),
+  )
+  const tools = createTools(runtime, {
+    ...options,
+    arguments: { ...options.arguments, maxItems: 6 },
+  })
+  const initial = await tools.present(access)
+  const response = await registeredFixture(tools).invoke('read_result', {
+    kind: 'result',
+    reference: token(initial, 'reference'),
+    after: token(initial, 'next'),
+  })
+  expect(token(ok(response.full), 'next')).toBe('null')
+  const attachments = Array.from({ length: 11 }, (_, index) => ({
+    storage: 'logical',
+    key: String(index),
+    mediaType: 'application/octet-stream',
+    bytes: '0',
+    digest: 'sha256:empty',
+  }))
+  const files = createTools(
+    provider(async () => succeed(page(result([], attachments)))),
+    { ...options, arguments: { ...options.arguments, maxNumberLength: 1 } },
+  )
+  expect(body(await files.present(access))).toContain('unsupported')
+})

@@ -16,7 +16,14 @@ export function createToolsPresenter<P>(runtime: ToolsReadRuntime<P>, options: T
   const argumentsCodec = parameterCodecs(options.arguments).read
   const callable = (value: ReadArguments) => {
     const text = JSON.stringify(value)
-    return 'ok' in argumentsCodec.parse({ original: text, effective: text, complete: true })
+    const parsed = argumentsCodec.parse({ original: text, effective: text, complete: true })
+    if ('failure' in parsed || 'failure' in refs.after(value)) return false
+    return (
+      'ok' in
+      (value.kind === 'result'
+        ? refs.readResult(value.reference)
+        : refs.readAttachment(value.reference))
+    )
   }
   const finish = (value: MessageResult) => bounded(value, options)
   const error = (failure: Parameters<typeof failureResult>[0]) => finish(failureResult(failure))
