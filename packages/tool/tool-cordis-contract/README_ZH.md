@@ -75,3 +75,5 @@ tool-cordis-contract/
 ```
 
 完整文件导航见 [index](index.md)。主题职责见 [docs/README](docs/README.md)。
+
+ToolRuntimeService 投影普通 invoke 及 queries、commands、instances、content 与 catalog，形状以 tool-contract 的 ToolRuntime 为准。受信 admission 和回应保留在 ToolCommandsService。本定义不增加提供者或生命周期保证。

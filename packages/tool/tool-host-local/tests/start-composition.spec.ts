@@ -10,9 +10,14 @@ import {
   type LedgerCommitInput,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
-import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
+import {
+  createTestInvocationSource,
+  createTestToolIdentities,
+  createMemoryToolLedgerStore,
+} from '@omne-harness/tool/testing'
 import {
   defaultResultPolicy,
+  encodeToolInvocationRef,
   type ToolDriver,
   type ToolExecutorBinding,
   type ToolLiveExecution,
@@ -72,6 +77,8 @@ function assembly(
   const memory = createMemoryToolLedgerStore<Block>()
   const store = options.store === undefined ? memory : options.store(memory)
   const authority = coordinator(store)
+  const identities = createTestToolIdentities()
+  const source = createTestInvocationSource<Principal>()
   const starts: string[] = []
   const executions: string[] = []
   const binding: ToolExecutorBinding<Principal, Block, null> = {
@@ -98,7 +105,7 @@ function assembly(
     store,
     {
       access: { qualify: input => access().qualify({ ...input, action: 'start' }) },
-      sources: { verify: () => Promise.resolve({ kind: 'trusted' }) },
+      sources: source.guard,
       grants: new Map([
         ['scope-owner', { verifyGrant: () => Promise.resolve({ kind: 'granted' }) }],
       ]),
@@ -150,7 +157,9 @@ function assembly(
   let driver: ToolDriver<Principal> | null = null
   const { runtime } = createToolRuntime<Principal, Block, null>(
     {
-      instance: instanceId,
+      invocationIdentities: identities.invocationIdentities,
+      operationIdentities: identities.operationIdentities,
+      sourceIssuer: source.issuer,
       commands: ledger.commands,
       admissions: ledger.admissions,
       queues: ledger.queues,
@@ -216,14 +225,27 @@ function assembly(
     },
   )
   const call = { principal: principalA, tenant: tenantA as never, call: callId('c1') }
-  const admit = () =>
-    runtime.admit({ ...call, operation: operationId('op-c1'), request: request() })
+  const admit = () => {
+    identities.planInvocation('c1', 'op-c1')
+    const { invocation: _invocation, ...payload } = request()
+    return runtime.invoke({ principal: principalA, tenant: tenantA, request: payload })
+  }
+  const reference = encodeToolInvocationRef({
+    tenant: tenantA,
+    call: callId('c1'),
+    admission: operationId('op-c1'),
+  })
+  if ('failure' in reference) throw new Error('reference fixture')
   const run = async () => {
     if (driver === null) throw new Error('no driver installed')
-    await driver.run({ ...call, signal: new AbortController().signal })
+    await driver.run({ ...call, instance: instanceId, signal: new AbortController().signal })
   }
   const state = async (): Promise<ToolState> => {
-    const found = await runtime.lookup({ ...call, admission: operationId('op-c1') })
+    const found = await runtime.queries.lookup({
+      principal: principalA,
+      tenant: tenantA,
+      reference: reference.ok,
+    })
     if (!('ok' in found) || found.ok.kind !== 'found') throw new Error('c1 was not admitted')
     return found.ok.state
   }

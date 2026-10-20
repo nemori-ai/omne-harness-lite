@@ -221,14 +221,18 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     participant C as 消费者
-    participant T as ToolCommands
+    participant R as ToolRuntime
+    participant T as 内部ToolCommands
     participant H as 独立宿主协程
     participant E as 环境拥有者
     participant A as 共同启动围栏
     participant X as 固定执行绑定
-    C->>T: admit原身份和固定请求
+    C->>R: invoke主体 租户 payload
+    R->>R: 分配身份 绑定受信来源
+    R->>T: admit原身份和固定请求
     T->>T: 状态 回执 待办同提交
-    T-->>C: 已受理
+    T-->>R: 原受理回执
+    R-->>C: accepted调用引用和状态
     H->>T: loadRecovery及认领协调权
     H->>T: planPreparation
     H->>E: prepare原操作

@@ -12,7 +12,10 @@ import {
   type ToolExecutionContext,
   type ToolExecutorBinding,
   type ToolInstanceId,
+  type ToolInvocationRef,
+  type ToolInvokeRequest,
   type ToolOperationId,
+  type ToolOperationRef,
   type ToolProcessUpdate,
   type ToolResultData,
   type ToolReturnDeclaration,
@@ -32,6 +35,9 @@ declare const call: ToolCallId
 declare const instance: ToolInstanceId
 declare const operation: ToolOperationId
 declare const runtime: ToolRuntime<Principal, ContentBlock>
+declare const invocationRef: ToolInvocationRef
+declare const payload: ToolInvokeRequest
+declare const operationRef: ToolOperationRef
 declare const liveOnly: Extract<
   ToolExecutorBinding<Principal, ContentBlock, object>,
   { kind: 'live-only' }
@@ -113,6 +119,42 @@ it('keeps provider operations out of consumer surfaces', () => {
   void validator.acceptDecision
 })
 
+it('keeps the internal admission and the flat call or operation methods out of the ordinary runtime', () => {
+  // @ts-expect-error TS2339: Property 'admit' does not exist on type 'ToolRuntime'.
+  void runtime.admit
+  // @ts-expect-error TS2339: Property 'lookup' does not exist on type 'ToolRuntime'.
+  void runtime.lookup
+  // @ts-expect-error TS2339: Property 'queryOperation' does not exist on type 'ToolRuntime'.
+  void runtime.queryOperation
+  // @ts-expect-error TS2339: Property 'control' does not exist on type 'ToolRuntime'.
+  void runtime.control
+  // @ts-expect-error TS2339: Property 'acceptDecision' does not exist on type 'ToolRuntime'.
+  void runtime.acceptDecision
+  // @ts-expect-error TS2339: Property 'acceptResource' does not exist on type 'ToolRuntime'.
+  void runtime.acceptResource
+  // @ts-expect-error TS2339: Property 'readResult' does not exist on type 'ToolRuntime'.
+  void runtime.readResult
+  // @ts-expect-error TS2339: Property 'releaseDelivery' does not exist on type 'ToolRuntime'.
+  void runtime.releaseDelivery
+  // @ts-expect-error TS2339: Property 'account' does not exist on type 'ToolRuntime'.
+  void runtime.account
+})
+
+it('keeps the invocation and operation reference brands apart, and both from plain text', () => {
+  // @ts-expect-error TS2322: 'ToolOperationRef' is not assignable to type 'ToolInvocationRef'.
+  const wrongInvocation: ToolInvocationRef = operationRef
+  // @ts-expect-error TS2322: 'ToolInvocationRef' is not assignable to type 'ToolOperationRef'.
+  const wrongOperation: ToolOperationRef = invocationRef
+  // @ts-expect-error TS2322: Type 'string' is not assignable to type 'ToolInvocationRef'.
+  const rawInvocation: ToolInvocationRef = '["tool-invocation",1]'
+  // @ts-expect-error TS2322: Type 'string' is not assignable to type 'ToolOperationRef'.
+  const rawOperation: ToolOperationRef = '["tool-operation",1]'
+  void wrongInvocation
+  void wrongOperation
+  void rawInvocation
+  void rawOperation
+})
+
 it('requires the record that each task or dispatch continues', () => {
   // @ts-expect-error TS2322: Property 'response' is missing in the answer task.
   const answer: ToolTask = { kind: 'answer', operation, state: 'pending', diagnostic: null }
@@ -152,4 +194,20 @@ it('requires explicit limits for an independent scope', () => {
   }
   void input
   void call
+})
+
+it('ordinary payloads and commands cannot select trusted invocation sources or responses', () => {
+  // @ts-expect-error TS2353: ordinary payloads do not carry an invocation.
+  const sourced: ToolInvokeRequest = { ...payload, invocation: { kind: 'direct' } }
+  // @ts-expect-error TS2353: ordinary payloads do not carry a call identity.
+  const identified: ToolInvokeRequest = { ...payload, call }
+  // @ts-expect-error TS2353: ordinary payloads do not carry an operation identity.
+  const operated: ToolInvokeRequest = { ...payload, operation }
+  // @ts-expect-error TS2339: trusted response submission is not an ordinary command.
+  void runtime.commands.acceptDecision
+  // @ts-expect-error TS2339: trusted response submission is not an ordinary command.
+  void runtime.commands.acceptResource
+  void sourced
+  void identified
+  void operated
 })

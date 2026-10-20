@@ -7,6 +7,8 @@ import {
   adoption,
   callId,
   failure,
+  fixedOf,
+  fixedRequest,
   functionDefinition,
   instanceId,
   ok,
@@ -122,13 +124,14 @@ describe('20 preparation and queue (P02, P03)', () => {
     const commits = harness.memory.commits
     const resume = await harness.commands.planPreparation({
       ...(await writeContext(harness, 'c1', 'c1/plan')),
-      request: request(),
+      request: fixedOf(harness.source, 'c1'),
       purpose: 'resume',
     })
     expect(failure(resume)).toMatchObject({ kind: 'unsupported' })
-    const other = request({
+    const other = {
+      ...fixedOf(harness.source, 'c1'),
       arguments: { original: '{"path":"b"}', effective: '{"path":"b"}', complete: true },
-    })
+    }
     expect(
       failure(
         await harness.commands.planPreparation({
@@ -147,7 +150,7 @@ describe('20 preparation and queue (P02, P03)', () => {
     const planned = ok(
       await harness.commands.planPreparation({
         ...(await writeContext(harness, 'c1', 'c1/plan')),
-        request: request(),
+        request: fixedOf(harness.source, 'c1'),
         purpose: 'initial',
       }),
     )
@@ -264,7 +267,10 @@ describe('20 preparation and queue (P02, P03)', () => {
     const harness = startHarness({ queueCapacity: 2, environment: new Map([['c1', 'rejected']]) })
     await admitAll(harness, 'c1', 'c2')
     const commits = harness.memory.commits
-    expect(await harness.runtime.admit(admission('c3', 'op-c3', request()))).toEqual({
+    expect(
+      await harness.runtime.invoke({ principal: principalA, tenant: tenantA, request: request() }),
+    ).toEqual({
+      kind: 'rejected',
       failure: {
         kind: 'unavailable',
         dependency: 'tool-queue',
@@ -273,9 +279,14 @@ describe('20 preparation and queue (P02, P03)', () => {
     })
     expect(harness.memory.commits).toBe(commits)
     await harness.drive('c1')
-    expect(ok(await harness.runtime.admit(admission('c3', 'op-c3', request()))).state.phase).toBe(
-      'accepted',
-    )
+    const admitted = await harness.runtime.invoke({
+      principal: principalA,
+      tenant: tenantA,
+      request: request(),
+    })
+    if (admitted.kind !== 'accepted')
+      throw new Error(`expected accepted: ${JSON.stringify(admitted)}`)
+    expect(admitted.state.phase).toBe('accepted')
   })
 
   it('20 capacity: a dummy is not counted and not refused', async () => {
@@ -284,9 +295,7 @@ describe('20 preparation and queue (P02, P03)', () => {
     const dummy = request({
       availability: { kind: 'known-unavailable', definition: functionDefinition(), reason: 'gone' },
     })
-    expect(ok(await harness.runtime.admit(admission('c2', 'op-c2', dummy))).state.phase).toBe(
-      'settled',
-    )
+    expect((await admitCall(harness, 'c2', dummy)).phase).toBe('settled')
   })
 })
 
@@ -367,6 +376,7 @@ describe('21 start intent and start fence (P04)', () => {
       principal: principalA,
       tenant: tenantA,
       call: callId('c1'),
+      instance: await harness.host.instanceOf(callId('c1')),
       signal: new AbortController().signal,
     })
     expect(harness.binding.attempts).toEqual(['c1'])
@@ -536,18 +546,18 @@ describe('19 write commands: boundary and qualification', () => {
   const writes = (harness: StartHarness) =>
     ({
       planPreparation: (input: Context) =>
-        harness.commands.planPreparation({ ...input, request: request(), purpose: 'initial' }),
+        harness.commands.planPreparation({ ...input, request: fixedRequest(), purpose: 'initial' }),
       prepared: (input: Context) =>
         harness.commands.prepared({
           ...input,
           preparation: {
-            tenant: tenantA as never,
+            tenant: tenantA,
             call: callId('c1'),
             operation: operationId('op-c1/plan'),
             adoption: request().environment,
             inputDigest: 'sha256:x',
             purpose: 'initial',
-            request: request(),
+            request: fixedRequest(),
           },
           resources: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
         }),
@@ -619,6 +629,7 @@ describe('19 write commands: boundary and qualification', () => {
       principal: principalB,
       tenant: tenantA,
       call: callId('c1'),
+      instance: await harness.host.instanceOf(callId('c1')),
       signal: new AbortController().signal,
     })
     expect((await harness.state('c1')).phase).toBe('accepted')

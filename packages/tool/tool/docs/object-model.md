@@ -12,12 +12,12 @@
     缺端口或配置越界抛 TypeError，这是装配缺陷
     构造时把推进协程装入 instances.install，装入不受理业务，也不读写记录仓
 
-发起协调者调用 runtime.admit
+普通调用方调用 runtime.invoke；runtime 分配身份并由入口绑定来源
     成功：回复 accepted，runtime 调用 instances.schedule 唤醒推进协程，唤醒只是提示
-    重送：同操作号同摘要回复原回执，recovered 为 true，认回的受理也唤醒
+    再次 invoke：独立新调用；内部 recovered=true 在普通入口被报告为身份提供者违约，不唤醒
     拒绝：denied、invalid、conflict、stale-revision、unsupported、unavailable（`tool-queue` 容量满，提交之前拒绝）
     未知：提交结果未知时回复 commit-unknown。Tool 不在内部重试该提交
-        协调者以原操作号调用 queryOperation 认回，或同身份重送
+        调用方以返回的调用引用调用 queries.lookup；交付操作用操作引用调用 queries.queryOperation
         记录仓读取失败回复 unavailable，不冒充调用不存在
 
 推进协程被唤醒后读 loadRecovery，按阶段与待办做一步，再重读，每次最多 `driverStepsPerRun` 步（缺省 16）

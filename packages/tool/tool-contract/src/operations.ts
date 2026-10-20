@@ -1,15 +1,16 @@
-// Ordinary runtime operations, controls, observation and the instance directory.
+// Ordinary runtime invocation, queries, commands, observation and the instance directory. The
+// ordinary caller submits a payload and holds opaque references; the internal admission, the
+// read and write protocols and the registry owners stay behind the trusted ports.
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ToolCatalog, ToolInspection } from './authoring.ts'
-import type { DiagnosticPage, ProcessSnapshot, ToolContentReader } from './custody.ts'
+import type { ContentPage, DiagnosticPage, ProcessSnapshot, RawOutput } from './custody.ts'
 import type { FixedToolRequest, ToolAvailability } from './definitions.ts'
 import type {
   Access,
   CallAccess,
   ConsumerRef,
   DurableEvidence,
-  Mutation,
   ToolCallId,
   ToolCursor,
   ToolDeliveryId,
@@ -19,14 +20,16 @@ import type {
   ToolWaitId,
 } from './identity.ts'
 import type { ControlProgress, WaitRecord } from './records.ts'
+import type { ToolInvocationRef, ToolOperationRef } from './reference.ts'
 import type {
+  Attachment,
   DeliveryState,
   OperationResolution,
   Reply,
   ResultPage,
+  ToolFailure,
   ToolLookup,
   ToolState,
-  WaitState,
 } from './results.ts'
 
 /**
@@ -57,8 +60,8 @@ export type ControlReceipt = Readonly<{
 export type BackgroundSource =
   | Readonly<{ kind: 'launched' }>
   | Readonly<{ kind: 'control'; operation: ToolOperationId }>
-  | Readonly<{ kind: 'threshold' }>
   | Readonly<{ kind: 'foreground-limit' }>
+  | Readonly<{ kind: 'threshold' }>
 export type ForegroundReturn =
   | Readonly<{ kind: 'final'; result: ToolResultVersion }>
   | Readonly<{ kind: 'background'; call: ToolCallId; source: BackgroundSource }>
@@ -101,39 +104,116 @@ export interface ToolDirectory<P> {
 export type Handoff =
   | Readonly<{ kind: 'retained'; custody: DurableEvidence }>
   | Readonly<{ kind: 'processed'; completion: DurableEvidence }>
-export interface ToolRuntime<P, B extends ContentBlock> {
-  inspect(input: ToolInspection<P>): Reply<ToolAvailability>
-  admit(
-    input: Mutation<P> & Readonly<{ request: FixedToolRequest }>,
-  ): Reply<Readonly<{ state: ToolState; recovered: boolean }>>
-  lookup(input: CallAccess<P> & Readonly<{ admission: ToolOperationId }>): Reply<ToolLookup>
+
+/**
+ * The payload of an ordinary invoke: the fixed request without the invocation. The invocation
+ * source is bound by the trusted entry the runtime is assembled with; a request that carries
+ * `invocation`, `source`, `call` or `operation` fields is invalid at the boundary.
+ */
+export type ToolInvokeRequest = Omit<FixedToolRequest, 'invocation'>
+
+/** The access of a reference-bearing ordinary operation: the caller, and the saved reference. */
+export type InvocationAccess<P> = Access<P> & Readonly<{ reference: ToolInvocationRef }>
+
+/**
+ * A definite failure of an invoke or an ordinary command. A lost commit answer is never here:
+ * it is the `commit-unknown` branch of the outcome, with the reference to query the original.
+ */
+export type ToolDefiniteFailure = Exclude<ToolFailure, { kind: 'commit-unknown' }>
+
+/**
+ * The outcome of an ordinary invoke. `accepted` carries the original admission state, which is a
+ * receipt, not the latest state. `commit-unknown` means the admission may have committed; the
+ * reference queries it under the original admission. `rejected` carries a definite failure rather than an unknown admission outcome.
+ */
+export type ToolInvokeOutcome =
+  | Readonly<{ kind: 'accepted'; reference: ToolInvocationRef; state: ToolState }>
+  | Readonly<{ kind: 'commit-unknown'; reference: ToolInvocationRef }>
+  | Readonly<{ kind: 'rejected'; failure: ToolDefiniteFailure }>
+
+/**
+ * The outcome of an ordinary command. `committed` carries the operation reference and the
+ * receipt. `commit-unknown` means the command may have committed; the operation reference
+ * queries it. `rejected` is definite.
+ */
+export type ToolCommandOutcome<T> =
+  | Readonly<{ kind: 'committed'; operation: ToolOperationRef; receipt: T }>
+  | Readonly<{ kind: 'commit-unknown'; operation: ToolOperationRef }>
+  | Readonly<{ kind: 'rejected'; failure: ToolDefiniteFailure }>
+
+/**
+ * The persistent queries of an invocation. None of them needs the live directory: a saved
+ * reference keeps working while the directory is unavailable. `lookup` recalls the original
+ * admission of the reference, so a lost invoke answer is found without a new call.
+ */
+export interface ToolInvocationQueries<P, B extends ContentBlock> {
+  lookup(input: InvocationAccess<P>): Reply<ToolLookup>
   queryOperation(
-    input: CallAccess<P> & Readonly<{ operation: ToolOperationId }>,
+    input: Access<P> & Readonly<{ operation: ToolOperationRef }>,
   ): Reply<OperationResolution>
-  control(input: Mutation<P> & Readonly<{ intent: ToolControl }>): Reply<ControlReceipt>
-  acceptDecision(
-    input: Mutation<P> & Readonly<{ wait: ToolWaitId; decision: DurableEvidence }>,
-  ): Reply<WaitState>
-  acceptResource(
-    input: Mutation<P> & Readonly<{ wait: ToolWaitId; response: DurableEvidence }>,
-  ): Reply<WaitRecord>
-  readProcess(input: CallAccess<P> & Readonly<{ at: ToolCursor | null }>): Reply<ProcessSnapshot>
-  readWait(input: CallAccess<P> & Readonly<{ wait: ToolWaitId }>): Reply<WaitRecord>
-  readDiagnostics(input: CallAccess<P> & Readonly<{ after: string | null }>): Reply<DiagnosticPage>
+  readProcess(
+    input: InvocationAccess<P> & Readonly<{ at: ToolCursor | null }>,
+  ): Reply<ProcessSnapshot>
+  readWait(input: InvocationAccess<P> & Readonly<{ wait: ToolWaitId }>): Reply<WaitRecord>
+  readDiagnostics(
+    input: InvocationAccess<P> & Readonly<{ after: string | null }>,
+  ): Reply<DiagnosticPage>
   readResult(
-    input: CallAccess<P> & Readonly<{ result: ToolResultVersion; after: string | null }>,
+    input: InvocationAccess<P> & Readonly<{ result: ToolResultVersion; after: string | null }>,
   ): Reply<ResultPage<B>>
+  account(input: InvocationAccess<P>): Reply<CallAccount>
+}
+
+/**
+ * The ordinary commands of an invocation. Each command mints a fresh operation identity, so a
+ * re-issued intent is a new operation; an unknown receipt is queried by its operation reference,
+ * never re-committed under the same identity.
+ */
+export interface ToolInvocationCommands<P> {
+  control(
+    input: InvocationAccess<P> & Readonly<{ intent: ToolControl }>,
+  ): Promise<ToolCommandOutcome<ControlReceipt>>
   releaseDelivery(
-    input: Mutation<P> &
+    input: InvocationAccess<P> &
       Readonly<{
         result: ToolResultVersion
         delivery: ToolDeliveryId
         consumer: ConsumerRef
         evidence: Handoff
       }>,
-  ): Reply<DeliveryState>
-  account(input: CallAccess<P>): Reply<CallAccount>
+  ): Promise<ToolCommandOutcome<DeliveryState>>
+}
+
+/** The ordinary access to the current instance directory: connect by the invocation reference. */
+export interface ToolInvocationDirectory<P> {
+  connect(input: InvocationAccess<P>): ReturnType<ToolDirectory<P>['connect']>
+}
+
+/** The ordinary content reads of an invocation, by its reference. */
+export interface ToolInvocationContentReader<P> {
+  read(
+    input: InvocationAccess<P> &
+      Readonly<{
+        result: ToolResultVersion
+        attachment: Attachment
+        after: string | null
+        maxBytes: number
+      }>,
+  ): Reply<ContentPage>
+  raw(input: InvocationAccess<P> & Readonly<{ result: ToolResultVersion }>): Reply<RawOutput>
+}
+
+/**
+ * The ordinary runtime. `invoke` admits the payload as a new call and answers a reference the
+ * caller saves; invoking the same payload again is another independent call. The other members
+ * locate by the reference. Dropping a reference or stopping an observation undoes nothing.
+ */
+export interface ToolRuntime<P, B extends ContentBlock> {
+  invoke(input: Access<P> & Readonly<{ request: ToolInvokeRequest }>): Promise<ToolInvokeOutcome>
+  inspect(input: ToolInspection<P>): Reply<ToolAvailability>
+  readonly queries: ToolInvocationQueries<P, B>
+  readonly commands: ToolInvocationCommands<P>
+  readonly instances: ToolInvocationDirectory<P>
+  readonly content: ToolInvocationContentReader<P>
   readonly catalog: ToolCatalog<P>
-  readonly content: ToolContentReader<P>
-  readonly instances: ToolDirectory<P>
 }

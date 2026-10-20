@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { recordKey, type LedgerDomain, type LedgerRecord } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import { decodeToolRevision } from '@omne-harness/tool-contract'
-import { callId, ok, operationId, tenant, tenantA, tenantB, type Block } from './runtime-values.ts'
+import {
+  callId,
+  ok,
+  operationId,
+  tenantShape as tenant,
+  tenantA,
+  tenantB,
+  type Block,
+} from './runtime-values.ts'
 
 const domain: LedgerDomain = { kind: 'call', tenant: tenantA, call: callId('call-1') }
 const task: LedgerRecord<Block> = {

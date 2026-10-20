@@ -45,3 +45,5 @@ The fast tier is `OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-cordis-co
 ## Maintenance
 
 A change to a Service, key or event changes every plugin that extends or listens to it: `tool-host-local` and the Cordis pages of the consumers and the integration page. Keep [docs/cordis.md](docs/cordis.md) and the key table test in step with the source.
+
+ToolRuntimeService projects the ordinary invoke and the queries, commands, instances, content and catalog interfaces. Its source of truth is ToolRuntime in tool-contract. Trusted admission and responses remain on ToolCommandsService. This change adds no provider or lifecycle guarantee.

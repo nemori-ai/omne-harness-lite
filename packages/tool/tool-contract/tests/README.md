@@ -486,3 +486,5 @@
 | `if ('ok' in answer && answer.ok.kind === 'started') assert.notDeepEqual(answer.ok, a` | consume ignores the tenant |
 | `resendRecalls( answers.inspect, { earlier: accepted, later: await own.inspect() },` | inspect forgets an acceptance；inspect answers unknown for ever although settle resolved |
 
+
+[reference.spec.ts](reference.spec.ts) 验证调用与操作引用的规范往返、闭合拒绝、最坏长度、合法租户与跨租户解析。contract.spec-d.ts 保留旧普通入口不存在和两种引用品牌不可互换的负编译断言。

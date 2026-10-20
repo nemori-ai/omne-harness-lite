@@ -7,7 +7,8 @@
 1. 每个服务键只由一个定义类的 `static provide` 给出，导出的键常量取自该类。
 2. `./cordis` 的源码、生成声明和产物都不导入 `@omne-harness/tool` 或 `@omne-harness/tool-host-local`。
 3. 根入口不导出值，也不导入 Cordis。
-4. 事件名以包名为范围，为 `tool-cordis-contract/call-changed`（IC-10）。
+4. ToolRuntimeService 按 ToolRuntime 投影 invoke、inspect、queries、commands、instances、content 与 catalog，不增加普通 admission 或受信回应入口。ToolCommandsService 保留内部协议。
+5. 事件名以包名为范围，为 `tool-cordis-contract/call-changed`（IC-10）。
 
 契约 SPEC 的 [G1–G9 总表](../tool-contract/SPEC.md#342-契约缺口决定)没有归属本包的决定。服务定义的归属由四包拆分确定。
 
