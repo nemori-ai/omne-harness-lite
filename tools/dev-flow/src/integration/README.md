@@ -19,7 +19,7 @@ node --experimental-strip-types tools/dev-flow/src/integration/cli.ts baselines 
 - 已绑定时另输出 `issue`、`revision`、`attempt`、`taskBase`、`targetBase`、`target`（远端目标分支的 `ref` 与当前提交 `head`）和 `relation`。`relation` 为 `current`（`targetBase` 等于远端目标）、`behind`（`targetBase` 是远端目标的祖先）或 `diverged`（`targetBase` 不在远端目标的历史上）。
 - 已绑定而远端目标读不到时失败，错误码为 `unknown`。
 
-目标分支由 binding 的 route 决定：track 路线是 registry 登记的 `integration/<轨道>`，global 与 cross-track 路线是 `main`。远端位置取 policy 的 `transport.location`。
+目标分支是 binding 的 route 所具名轨道在 registry 中登记的 `integration/<轨道>`，三种 route 相同。远端位置取 policy 的 `transport.location`。
 
 `baselines` 输出检查用的基线。有 context 时输出固定的 `targetBase` 与本任务的审计范围；`--base` 给出的提交与 `targetBase` 不同时拒绝，错误码为 `stale`。没有 context 时 `targetBase` 是 `--base` 的值，`scripts/check.sh` 在它为空时退回 `origin/main`。输出中的 `state` 来自 `@omne-harness/repo-toolchain` 的读格式：没有 context 时为 `pending`；有 context 时 0.0.4 输出 `adopted`，0.0.5 起输出 `bound`。消费钉住版本的成员只判断它是否为 `pending`，所以两个版本下的结果相同。
 
@@ -36,7 +36,7 @@ node --experimental-strip-types tools/dev-flow/src/integration/cli.ts execute \
 
 ## 任务与执行权
 
-Issue 正文的 `当前执行与交接` 中放唯一 `json omne-integration-binding:v1` 围栏区块。形状归 [TaskBinding](../delivery/binding.ts)：schemaVersion=1；issue 包含 repository/id/number/url；revision 等于正文交付修订；attempt、responsible、branch、route、completionTarget、taskBase、writeScope、dispatch、conditions、authorization 都必填。route 为 `{kind:"track",track:ID}`、`{kind:"global",owners:[受影响拥有者]}` 或 `{kind:"cross-track",owners:[受影响拥有者]}`。completionTarget 为 track/main/stable。conditions 只引用同卡条件 ID。
+Issue 正文的 `当前执行与交接` 中放唯一 `json omne-integration-binding:v1` 围栏区块。形状归 [TaskBinding](../delivery/binding.ts)：schemaVersion=1；issue 包含 repository/id/number/url；revision 等于正文交付修订；attempt、responsible、branch、route、completionTarget、taskBase、writeScope、dispatch、conditions、authorization 都必填。route 为 `{kind:"track",track:ID}`、`{kind:"global",track:ID,owners:[受影响拥有者]}` 或 `{kind:"cross-track",track:ID,owners:[受影响拥有者]}`。global 与 cross-track 必须具名一条顶层轨道，即 registry 中 `parent` 为 `main` 的轨道。completionTarget 为 track/main/stable。三种 route 的 completionTarget 都可以取 `track`，这时它指 route 中具名的那条轨道。conditions 只引用同卡条件 ID。
 
 taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必须以 responsible 加 `/` 开头。dispatch 是下述 dispatch 决定的真实评论 URL。用现有单调度者发放权限、原正文单写者维护绑定；worker 不争写摘要。
 
@@ -54,7 +54,15 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 `register` 与 `start` 同一准入。两者只读取目标任务闭包、授权卡完整评论和目标任务 Project 状态，不枚举仓库历史或全 Project items。闭包最多 32 个 Issue、8 个边层级，独立授权卡计入总数。必需页、条件解析或配置字段不完整时拒绝。Stage 已确认且完整读取后未设值时，`null` 合法。
 
-准入核对卡的 revision、attempt、分支、taskBase 是 HEAD 的祖先、写范围与开工条件，拒绝已关闭的卡。track 路线的轨道必须在 registry 中为 active。创建 context 前双读相关输入，变化则拒绝写入。新 context 的 `targetBase` 是开工时读到的远端目标分支提交，`operation` 为 `null`，不写 `anchor`。
+准入核对卡的 revision、attempt、分支、taskBase 是 HEAD 的祖先、写范围与开工条件，拒绝已关闭的卡。route 的轨道必须在 registry 中为 active，并且通过上游链核对。上游链从这条轨道开始，沿 registry 的 `parent` 到 `main` 为止。链上的轨道必须满足下列条件：
+
+- 已在 registry 中登记，状态为 active 或 paused。
+- 分支存在于远端。
+- registry 的 `parent` 与可信来源一致。可信来源先取远端起点标签 `omne/gate/track/<ID>`，没有标签时取 `github-gate` 上的 `gate/cutover.json`。
+
+工具只从远端读取链上的分支、起点标签和该文件。链外条目不影响开工。精确条款见 [SPEC](SPEC.md#上游链核对)。
+
+创建 context 前双读相关输入，变化则拒绝写入。新 context 的 `targetBase` 是开工时读到的远端目标分支提交，`operation` 为 `null`，不写 `anchor`。
 
 执行失败不创建部分 context。已有同绑定 context 时照原样返回；另一绑定须明确新树。离线 delivery capture 可作观察，不作派发资格。
 
