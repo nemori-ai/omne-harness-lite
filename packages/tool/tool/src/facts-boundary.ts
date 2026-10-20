@@ -46,7 +46,7 @@ function decimal(value: unknown): value is string {
 }
 
 /** Own data properties only. The copy never evaluates accessors or serializes credentials. */
-function copyData(value: unknown, path = new Set<object>()): unknown {
+export function copyData(value: unknown, path = new Set<object>()): unknown {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value !== 'object' || value === null || path.has(value))

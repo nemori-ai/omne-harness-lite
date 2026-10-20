@@ -72,7 +72,7 @@ import {
   fixFinalInput,
 } from './facts-boundary.ts'
 import { checkFactAcknowledgement, decideFactAcknowledgement } from './ledger-fact-ack.ts'
-import { decideReceiveFacts, readSavedFact } from './ledger-facts.ts'
+import { decideReceiveFacts, readSavedFact, sameFactValue } from './ledger-facts.ts'
 import { digestOf, nextRevision } from './evidence.ts'
 import {
   decideAdmit,
@@ -84,6 +84,13 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
+import { fixCleanupFields, fixReleaseOutcome } from './cleanup-boundary.ts'
+import {
+  decidePlanRelease,
+  checkRelease,
+  decideRecordRelease,
+  decideRecordFactsTask,
+} from './ledger-environment-release.ts'
 import { checkSettlement, decidePreserveResult } from './ledger-settlement.ts'
 import { excluded, excludedSince, withExclusionsRemoved } from './ledger-exclusion.ts'
 import type { ToolLedgerAction, ToolLedgerGuards } from './ledger-guards.ts'
@@ -1100,14 +1107,98 @@ export function createToolLedger<P, B extends ContentBlock>(
     },
     recordScheduling: input => write(input, 'recordScheduling', 'program executors'),
     recordAccount: input => later(input, 'write', 'recordAccount', 'execution facts and release'),
-    planRelease: input => later(input, 'write', 'planRelease', 'execution facts and release'),
-    recordRelease: input => later(input, 'write', 'recordRelease', 'execution facts and release'),
+    planRelease: input =>
+      mutate(input, 'write', context => {
+        const fixed = fixCleanupFields(input, ['preparation', 'custody'])
+        if ('failure' in fixed) return Promise.resolve(fixed)
+        const custody = judgeEvidenceField(fixed.ok.custody, 'custody')
+        if ('failure' in custody) return Promise.resolve(custody)
+        const command = {
+          ...context,
+          preparation: fixed.ok.preparation,
+          custody: custody.ok,
+          inputDigest: digestOf(fixed.ok),
+        }
+        return Promise.resolve(
+          succeed((snapshot, mint) =>
+            decidePlanRelease(
+              snapshot,
+              command,
+              mint,
+              unsupported('planRelease', 'independent output custody'),
+            ),
+          ),
+        )
+      }),
+    recordRelease: async input => {
+      const fixed = fixCleanupFields(input, ['release', 'outcome'])
+      if ('failure' in fixed) return fixed
+      const outcome = fixReleaseOutcome(fixed.ok.outcome)
+      if ('failure' in outcome) return outcome
+      const checked = judgeMutationInput<P>(input, 'write')
+      if ('failure' in checked) return checked
+      const context = checked.ok
+      const allowed = await access(context, 'write')
+      if ('failure' in allowed) return allowed
+      const command = {
+        ...context,
+        release: fixed.ok.release,
+        outcome: outcome.ok,
+        inputDigest: digestOf(fixed.ok),
+      }
+      const before = await read(callDomain(context))
+      if ('failure' in before) return before
+      const original = checkRelease(before.ok, command)
+      if ('failure' in original) return original
+      if (original.ok.kind === 'recalled') return succeed(original.ok.evidence)
+      if (outcome.ok.kind === 'released') {
+        try {
+          const inspected = await settlement.releaseInspection.inspectRelease({
+            ...context,
+            release: structuredClone(original.ok.release),
+          })
+          if ('failure' in inspected || inspected.ok.kind !== 'released')
+            return unavailable('environment', 'environment release confirmation is unavailable')
+          if (!sameFactValue(inspected.ok.evidence, outcome.ok.evidence))
+            return invalid('outcome.evidence', 'environment-release-confirmation-mismatch')
+        } catch {
+          return unavailable('environment', 'environment release confirmation is unavailable')
+        }
+      }
+      return transact(
+        callDomain(context),
+        command.operation,
+        (snapshot, mint) => decideRecordRelease(snapshot, command, mint),
+        commitUnknown(command.operation),
+        before.ok.revision,
+      )
+    },
     recordLateFact: input =>
       later(input, 'write', 'recordLateFact', 'process observation and diagnostics'),
     recordLateResult: input =>
       later(input, 'write', 'recordLateResult', 'process observation and diagnostics'),
     settleLost: input => later(input, 'write', 'settleLost', 'recovery scan'),
-    recordTask: input => later(input, 'write', 'recordTask', 'execution facts and release'),
+    recordTask: input =>
+      mutate(input, 'write', context => {
+        const fixed = fixCleanupFields(input, ['task', 'resolution'])
+        if ('failure' in fixed) return Promise.resolve(fixed)
+        const command = {
+          ...context,
+          task: fixed.ok.task,
+          resolution: fixed.ok.resolution,
+          inputDigest: digestOf(fixed.ok),
+        }
+        return Promise.resolve(
+          succeed((snapshot, mint) =>
+            decideRecordFactsTask(
+              snapshot,
+              command,
+              mint,
+              unsupported('recordTask', 'settled facts blocked only'),
+            ),
+          ),
+        )
+      }),
   }
 
   const reads: ToolReads<P, B> = {

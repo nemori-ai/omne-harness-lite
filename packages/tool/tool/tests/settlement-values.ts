@@ -5,6 +5,7 @@ import type {
   ToolExecutionFact,
   ToolOutputCustody,
   ToolTerminal,
+  ToolEnvironment,
 } from '@omne-harness/tool-contract'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import { createToolLedger, type LedgerCommitInput, type ToolLedgerStore } from '@omne-harness/tool'
@@ -32,6 +33,9 @@ export async function settlementFixture(
     terminal?: ToolTerminal
     process?: readonly ProcessBlock[] | ((raw: RawOutput) => readonly ProcessBlock[])
     attachments?: RawOutput['content'][]
+    wrapReleaseInspection?: (
+      environment: ToolEnvironment<Principal, unknown>,
+    ) => Pick<ToolEnvironment<Principal, unknown>, 'inspectRelease'>
     wrapCustody?: (custody: ToolOutputCustody<Principal>) => ToolOutputCustody<Principal>
   }> = {},
 ) {
@@ -114,7 +118,8 @@ export async function settlementFixture(
   }
   const ledger = createToolLedger(store, guards(), clock, configurationOf({}), {
     custody,
-    releaseInspection: ports.releaseInspection,
+    releaseInspection:
+      options.wrapReleaseInspection?.(ports.releaseInspection) ?? ports.releaseInspection,
   })
   const before = ok(await ledger.commands.loadRecovery(access))
   const input = {
@@ -139,6 +144,7 @@ export async function settlementFixture(
     before,
     commits,
     custody: ports.custody,
+    environment: ports.releaseInspection,
     interceptCommit: (handler: ToolLedgerStore<Block>['commit'] | null) => {
       intercept = handler
     },
