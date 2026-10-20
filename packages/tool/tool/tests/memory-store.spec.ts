@@ -6,7 +6,7 @@ import {
   callId,
   ok,
   operationId,
-  tenantShape as tenant,
+  storeKeyTenantShape as tenant,
   tenantA,
   tenantB,
   type Block,

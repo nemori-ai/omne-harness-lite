@@ -70,10 +70,6 @@ type TenantIdLike = Readonly<{
   account: Readonly<{ text: string }>
 }>
 
-/**
- * The tenants of these tests are real legal-identity tenants: a reference can be encoded only
- * for a minted tenant, so no test presents a shaped object. The texts are fixed and valid.
- */
 export const tenantA = testingTenant(`org_${'0'.repeat(26)}`, `acc_${'1'.repeat(26)}`)
 export const tenantB = testingTenant(`org_${'2'.repeat(26)}`, `acc_${'3'.repeat(26)}`)
 export const principalA: Principal = { subject: 'alice', tenants: [tenantKeyOf(tenantA)] }
@@ -150,10 +146,6 @@ export function functionDefinition(
   }
 }
 
-/**
- * The payload of an ordinary invoke: the fixed request without the invocation, which the trusted
- * entry binds. A test that needs the ledger directly builds a `fixedRequest` instead.
- */
 export function request(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
   return {
     availability: {
@@ -177,7 +169,6 @@ export function request(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeR
   }
 }
 
-/** A payload for a tool that is known to be unavailable. */
 export function dummyRequest(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
   return request({
     availability: {
@@ -189,12 +180,9 @@ export function dummyRequest(overrides: Partial<ToolInvokeRequest> = {}): ToolIn
   })
 }
 
-/**
- * A fixed request for a ledger-direct admission: the payload plus the invocation a trusted entry
- * would have bound. The name-list source guard of these fixtures trusts the `entry` record; the
- * full-binding source fixture is exercised by the invocation-source spec instead.
- */
-export function fixedRequest(overrides: Partial<FixedToolRequest> = {}): FixedToolRequest {
+export function fixedRequestForNamedSourceGuard(
+  overrides: Partial<FixedToolRequest> = {},
+): FixedToolRequest {
   return {
     ...request(),
     invocation: { kind: 'direct', source: evidence('entry') },
@@ -374,11 +362,7 @@ export function guards(options: GuardOptions = {}): ToolLedgerGuards<Principal, 
   }
 }
 
-/**
- * A tenant-shaped object for store-level key tests only. It is not minted by legal-identity: it
- * must never be admitted through the runtime or carry a reference. The store keys by the texts.
- */
-export function tenantShape(organization: string, account: string) {
+export function storeKeyTenantShape(organization: string, account: string) {
   return {
     name: 'TenantId',
     organization: { name: 'OrganizationId', text: organization },
@@ -420,20 +404,11 @@ export function configurationOf(options: HarnessOptions): ToolConfiguration {
 
 export const instanceId: ToolInstanceId = decoded(decodeToolInstanceId('instance-1'), 'instance-1')
 
-/**
- * An instance host that keeps the installed driver and the wake-ups the runtime asked for. A
- * wake-up runs nothing by itself, as a real host may defer it; `runScheduled` runs the driver for
- * each queued call in order, with the principal of the call's tenant, until no wake-up is left.
- * The host mints the instance identity of a tenant/call slot on the first run of the slot and
- * reuses it while the slot lives, as the host of record would.
- */
 export type TestHost = ToolInstanceHost<Principal> &
   Readonly<{
     driver(): ToolDriver<Principal>
     readonly scheduled: Readonly<{ tenant: typeof tenantA; call: ToolCallId }>[]
-    /** The instance identity of the slot of a call, minted on first use. */
     instanceOf(call: ToolCallId, within?: typeof tenantA): Promise<ToolInstanceId>
-    /** Runs the driver of one call once, with the slot instance and the tenant's principal. */
     runCall(call: ToolCallId, principal?: Principal, within?: typeof tenantA): Promise<void>
     runScheduled(): Promise<number>
   }>
@@ -507,18 +482,12 @@ export type Harness = Readonly<{
   host: TestHost
   source: TestInvocationSource<Principal>
   identities: TestToolIdentities
-  /**
-   * Invokes through the runtime and records the reference by its call. The record drives the
-   * `referenceOf`/`operationRefOf` lookups of the tests.
-   */
   invoke(
     body: ToolInvokeRequest,
     principal?: Principal,
     within?: typeof tenantA,
   ): Promise<ToolInvokeOutcome>
-  /** The reference of a call admitted through `invoke`, by call text. */
   referenceOf(call: string): ToolInvocationRef
-  /** Builds the operation reference of an operation of a call admitted through `invoke`. */
   operationRefOf(call: string, operation: string): ToolOperationRef
 }>
 
@@ -650,11 +619,10 @@ export function failure<F>(outcome: Outcome<unknown, F>): F {
   return outcome.failure
 }
 
-/** The mutation input of one ledger-direct admission of a fixed request. */
 export function admission(
   call: string,
   operation: string,
-  body: FixedToolRequest = fixedRequest(),
+  body: FixedToolRequest = fixedRequestForNamedSourceGuard(),
   principal: Principal = principalA,
   within: typeof tenantA = tenantA,
 ) {
@@ -667,18 +635,12 @@ export function admission(
   }
 }
 
-/**
- * The fixed request an invoke of `call` committed: the payload and the invocation the entry
- * bound, read back from the source fixture. A ledger-direct re-admission of the same call must
- * carry exactly this request (P01: another input of the same identity is a conflict).
- */
 export function fixedOf(source: TestInvocationSource<Principal>, call: string): FixedToolRequest {
   const binding = source.bindings().find(bound => bound.call === callId(call))
   if (binding === undefined) throw new Error(`${call} was never bound by the entry`)
   return { ...binding.request, invocation: binding.invocation }
 }
 
-/** The invocation reference of a call/admission pair, built from its parts. */
 export function referenceFor(
   call: string,
   admissionOperation: string,
@@ -693,7 +655,6 @@ export function referenceFor(
   return encoded.ok
 }
 
-/** The operation reference of an operation of a call, built from its parts. */
 export function operationRefFor(
   call: string,
   admissionOperation: string,

@@ -20,7 +20,6 @@ import { testAssembly } from './testing-values.ts'
 
 const access = { principal: principalA, tenant: tenantA, call: callId('call-1') }
 
-/** The accepted outcome of an invoke, or a test failure with the actual one. */
 function accepted(outcome: ToolInvokeOutcome) {
   if (outcome.kind !== 'accepted') throw new Error(`expected accepted: ${JSON.stringify(outcome)}`)
   return outcome
@@ -176,8 +175,6 @@ describe('17 the runtime factory and later increments', () => {
     expect(runtime.catalog).toBe(dependencies.catalog)
     expect(Object.isFrozen(provider)).toBe(true)
     expect(Object.isFrozen(runtime)).toBe(true)
-    // The ordinary directory access resolves the reference and calls the host directory with the
-    // call it carries; the runtime adds no route of its own.
     accepted(
       await runtime.invoke({ principal: principalA, tenant: tenantA, request: dummyRequest() }),
     )

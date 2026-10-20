@@ -22,11 +22,6 @@ const consumer = dummyRequest().consumer
 const retained: Handoff = { kind: 'retained', custody: evidence('kept', consumer.owner) }
 const processed: Handoff = { kind: 'processed', completion: evidence('done', consumer.owner) }
 
-/**
- * The releaseDelivery of the default dummy's result `v1`/delivery `d1` of the call admitted
- * first (`call-1`/`op-1` by the identity counter). The operation identity is the runtime's:
- * minted fresh for each command.
- */
 function release(evidenceOf: Handoff, overrides: Record<string, unknown> = {}) {
   return {
     principal: principalA,
@@ -40,7 +35,6 @@ function release(evidenceOf: Handoff, overrides: Record<string, unknown> = {}) {
   }
 }
 
-/** The receipt of a committed command outcome, or a test failure with the actual one. */
 function committed<T>(outcome: ToolCommandOutcome<T>): T {
   if (outcome.kind !== 'committed')
     throw new Error(`expected committed: ${JSON.stringify(outcome)}`)

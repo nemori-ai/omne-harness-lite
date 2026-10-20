@@ -1,8 +1,3 @@
-// The opaque references of an admitted Tool invocation and of one of its operations. A caller
-// saves the text and decodes it back; the runtime resolves it against the presented tenant and
-// enters the original persistent ports. A reference is locating data: it carries no principal,
-// no physical instance and no generation, it grants nothing, and it does not prove that the call
-// exists.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -28,7 +23,7 @@ export type ToolReferenceRejection = Readonly<{
   reason: 'type' | 'version' | 'shape' | 'length'
 }>
 
-/** A reference that is well formed but names another tenant than the one presented. */
+/** A malformed reference, or a valid reference whose tenant differs from the access tenant. */
 export type ToolReferenceFailure =
   | Readonly<{ kind: 'malformed'; rejection: ToolReferenceRejection }>
   | Readonly<{ kind: 'foreign-tenant' }>
@@ -94,7 +89,6 @@ export function encodeToolInvocationRef(
   const admission = identityText(field, decodeToolOperationId, parts.admission)
   if ('failure' in admission) return admission
   const text = JSON.stringify(['tool-invocation', VERSION, tenant.ok, call.ok, admission.ok])
-  // The encoded parts are bounded, so the text is within the limit.
   return succeed(text as ToolInvocationRef)
 }
 

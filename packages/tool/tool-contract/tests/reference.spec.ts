@@ -35,7 +35,6 @@ const tenantB = tenant(
   parsed(accountCodec.parse(`acc_${'3'.repeat(26)}`)),
 )
 
-/** The canonical tenant text of `tenantA`, as legal-identity's tenantCodec writes it. */
 const tenantTextA = `{"organization":"org_${'0'.repeat(26)}","account":"acc_${'1'.repeat(26)}"}`
 
 const call = 'call_01J9' as ToolCallId
@@ -60,7 +59,6 @@ describe('invocation reference codec', () => {
   it('encodes the versioned array form and decodes it back to the canonical text', () => {
     expect(invocationRef).toBe(JSON.stringify(['tool-invocation', 1, tenantTextA, call, admission]))
     expect(decodeToolInvocationRef(invocationRef)).toEqual({ ok: invocationRef })
-    // A non-canonical spacing and member order of the same structure decodes to the same value.
     const reordered = `{"account":"acc_${'1'.repeat(26)}", "organization":"org_${'0'.repeat(26)}"}`
     const spaced = `[ "tool-invocation", 1, ${JSON.stringify(reordered)}, "${call}", "${admission}" ]`
     expect(decodeToolInvocationRef(spaced)).toEqual({ ok: invocationRef })
@@ -74,7 +72,6 @@ describe('invocation reference codec', () => {
     expect(decodeToolInvocationRef(null)).toEqual(failure('type'))
     expect(decodeToolInvocationRef('not json')).toEqual(failure('type'))
     expect(decodeToolInvocationRef('{"a":1}')).toEqual(failure('type'))
-    // The operation marker in the invocation decode is another kind, not another version.
     expect(decodeToolInvocationRef(operationRef)).toEqual(failure('type'))
     expect(decodeToolInvocationRef('["tool-invocation",2,"t","c","a"]')).toEqual(failure('version'))
     expect(decodeToolInvocationRef('["tool-invocation","1","t","c","a"]')).toEqual(
@@ -84,7 +81,6 @@ describe('invocation reference codec', () => {
     expect(decodeToolInvocationRef('["tool-invocation",1,"t","c","a","x"]')).toEqual(
       failure('shape'),
     )
-    // A tenant text that is not a legal-identity tenant is a shape failure.
     const badTenant = JSON.stringify([
       'tool-invocation',
       1,
@@ -93,7 +89,6 @@ describe('invocation reference codec', () => {
       admission,
     ])
     expect(decodeToolInvocationRef(badTenant)).toEqual(failure('shape'))
-    // An identity element that is not identity text is a shape failure.
     const badIdentity = JSON.stringify(['tool-invocation', 1, tenantTextA, 'has space', admission])
     expect(decodeToolInvocationRef(badIdentity)).toEqual(failure('shape'))
     expect(decodeToolInvocationRef('a'.repeat(TOOL_REFERENCE_MAX_LENGTH + 1))).toEqual(
@@ -102,7 +97,6 @@ describe('invocation reference codec', () => {
   })
 
   it('holds the worst escaped parts exactly at the documented limit', () => {
-    // The longest identity is 256 characters; the worst JSON escaping doubles each.
     const worst = {
       tenant: tenantA,
       call: '"'.repeat(256) as ToolCallId,
@@ -142,7 +136,6 @@ describe('operation reference codec', () => {
       admission,
       operation,
     })
-    // The invocation form is another kind under the operation decode.
     expect(decodeToolOperationRef(invocationRef)).toEqual({
       failure: { field: 'ToolOperationRef', reason: 'type' },
     })
@@ -166,7 +159,6 @@ describe('reference resolution against the presented tenant', () => {
     expect(resolveToolOperationRef(operationRef, tenantB)).toEqual({
       failure: { kind: 'foreign-tenant' },
     })
-    // A presented object with the tenant shape that legal-identity never minted is foreign too.
     const presented = {
       name: 'TenantId',
       organization: { name: 'OrganizationId', text: `org_${'0'.repeat(26)}` },

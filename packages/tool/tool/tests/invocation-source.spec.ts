@@ -103,8 +103,6 @@ describe('persisted invocation source binding', () => {
     const base = await issued()
     const forged = mutate(base.input)
     expect(await base.source.guard.verify(forged)).toMatchObject({ kind: 'forged' })
-    // For tenant, the access guard is an earlier refusal. Every other forged admission reaches
-    // the paired source guard inside the real ledger and is rejected before a store write.
     expect(await base.ledger.admissions.admit(forged)).toMatchObject({
       failure: { kind: 'denied', action: 'admit' },
     })

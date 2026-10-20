@@ -1,5 +1,3 @@
-// Ordinary calls mint identities and bind their trusted source before entering the ledger.
-// Saved references route each access to the original port; the host owns live instances.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -10,6 +8,9 @@ import {
   encodeToolOperationRef,
   judgeToolInvokeRequest,
   type Adoption,
+  type ToolCallId,
+  type ToolInstanceHost,
+  type CallAccess,
   type ToolDefiniteFailure,
   type ToolFailure,
   type ToolInvocationCommands,
@@ -73,16 +74,21 @@ function unsupported(name: string, increment: string): Promise<Outcome<never, To
   )
 }
 
-/** The dependency names of the trusted construction ports, named in their `unavailable` answers. */
 const IDENTITIES = 'toolIdentities'
 const SOURCE = 'toolInvocationSource'
 
-/**
- * The diagnostic of a port that threw. A thrown message can carry a connection string or other
- * secret text (P05: diagnostics carry no secret), so the answer names the dependency only.
- */
-function thrown(dependency: string): string {
+function redactedPortExceptionDiagnostic(dependency: string): string {
   return `${dependency} threw an exception; its message is not reported`
+}
+
+async function scheduleAcceptedCallBestEffort<P>(
+  host: ToolInstanceHost<P>,
+  tenant: CallAccess<P>['tenant'],
+  call: ToolCallId,
+): Promise<void> {
+  try {
+    await host.schedule({ tenant, call })
+  } catch {}
 }
 
 function rejected(failure: ToolDefiniteFailure): ToolInvokeOutcome {
@@ -140,7 +146,7 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
       return rejected({
         kind: 'unavailable',
         dependency: IDENTITIES,
-        diagnostic: thrown(IDENTITIES),
+        diagnostic: redactedPortExceptionDiagnostic(IDENTITIES),
       })
     }
     if ('failure' in minted) return rejected(identityFailure(minted.failure))
@@ -153,10 +159,7 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
         diagnostic: 'the identity port minted an identity that does not decode',
       })
     const reference = encodeToolInvocationRef({ tenant, call: call.ok, admission: admission.ok })
-    if ('failure' in reference)
-      // The tenant the caller presented is not a legal-identity tenant: denied, as a malformed
-      // tenant is at the ledger boundary.
-      return rejected({ kind: 'denied', action: 'admit' })
+    if ('failure' in reference) return rejected({ kind: 'denied', action: 'admit' })
     let bound: Awaited<ReturnType<typeof sourceIssuer.bind>>
     try {
       bound = await sourceIssuer.bind({
@@ -167,7 +170,11 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
         request,
       })
     } catch {
-      return rejected({ kind: 'unavailable', dependency: SOURCE, diagnostic: thrown(SOURCE) })
+      return rejected({
+        kind: 'unavailable',
+        dependency: SOURCE,
+        diagnostic: redactedPortExceptionDiagnostic(SOURCE),
+      })
     }
     if ('failure' in bound) {
       if (bound.failure.kind === 'commit-unknown')
@@ -202,15 +209,8 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
         diagnostic:
           'the identity port returned an admission identity the ledger already holds; nothing was scheduled',
       })
-    // Scheduling is a hint; its failure cannot undo an accepted admission. Recovery scanning
-    // remains unsupported, so a lost wake-up currently needs an explicit host wake-up.
-    if (admitted.ok.state.phase === 'accepted') {
-      try {
-        await instances.schedule({ tenant, call: call.ok })
-      } catch {
-        // The admission is already committed; a failed wake-up does not change its receipt.
-      }
-    }
+    if (admitted.ok.state.phase === 'accepted')
+      await scheduleAcceptedCallBestEffort(instances, tenant, call.ok)
     return { kind: 'accepted', reference: reference.ok, state: admitted.ok.state }
   }
 
@@ -254,8 +254,6 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
       },
     }),
     commands: Object.freeze<ToolInvocationCommands<P>>({
-      // A control does not mint an operation until the controls increment lands: the named
-      // unsupported is definite, so nothing is allocated for it.
       control: async input => {
         const resolved = invocationInput<P>(input, 'control')
         if ('failure' in resolved) return { kind: 'rejected', failure: resolved.failure }
@@ -280,7 +278,7 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
             failure: {
               kind: 'unavailable',
               dependency: IDENTITIES,
-              diagnostic: thrown(IDENTITIES),
+              diagnostic: redactedPortExceptionDiagnostic(IDENTITIES),
             },
           }
         }

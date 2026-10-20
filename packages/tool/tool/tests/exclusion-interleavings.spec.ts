@@ -6,7 +6,7 @@ import {
   callId,
   dummyRequest,
   evidence,
-  fixedRequest,
+  fixedRequestForNamedSourceGuard,
   ledgerOver,
   ok,
   operationId,
@@ -101,7 +101,11 @@ describe('14 exclusion interleavings', () => {
   it('14 exclusion: a release in flight when not-committed is given is excluded, and a fresh release lands and removes the fence', async () => {
     const h = hooked()
     const ledger: ToolLedger<Principal, Block> = ledgerOver(h.store)
-    ok(await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))))
+    ok(
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
+    )
     let negative: unknown
     h.hooks.push({
       matches: putsOperation('op-2'),
@@ -121,8 +125,11 @@ describe('14 exclusion interleavings', () => {
     const ledger: ToolLedger<Principal, Block> = ledgerOver(h.store)
     h.hooks.push({ matches: putsOperation('op-1'), land: () => ledger.reads.lookup(lk('op-9')) })
     expect(
-      ok(await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))))
-        .recovered,
+      ok(
+        await ledger.admissions.admit(
+          admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+        ),
+      ).recovered,
     ).toBe(false)
   })
 
@@ -133,7 +140,9 @@ describe('14 exclusion interleavings', () => {
     expect((await h.records()).revision).toBe('9')
     h.hooks.push({ matches: putsOperation('op-1'), land: () => ledger.reads.operation(q('op-1')) })
     expect(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     ).toEqual(excludedOf('op-1'))
     expect(landedOps(h.log, 'op-1')).toEqual([])
   })
@@ -144,8 +153,11 @@ describe('14 exclusion interleavings', () => {
     await ledger.reads.operation(q('op-1'))
     await ledger.reads.operation(q('op-2'))
     expect(
-      ok(await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))))
-        .recovered,
+      ok(
+        await ledger.admissions.admit(
+          admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+        ),
+      ).recovered,
     ).toBe(false)
   })
 })

@@ -1,6 +1,3 @@
-// Ordinary runtime invocation, queries, commands, observation and the instance directory. The
-// ordinary caller submits a payload and holds opaque references; the internal admission, the
-// read and write protocols and the registry owners stay behind the trusted ports.
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { ToolCatalog, ToolInspection } from './authoring.ts'

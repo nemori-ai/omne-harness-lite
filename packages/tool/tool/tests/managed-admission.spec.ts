@@ -8,7 +8,7 @@ import {
   dummyRequest,
   evidence,
   failure,
-  fixedRequest,
+  fixedRequestForNamedSourceGuard,
   functionDefinition,
   harness,
   interleaving,
@@ -37,19 +37,16 @@ function settledTerminal(state: ToolState) {
   return state.terminal
 }
 
-/** The accepted branch of an invoke outcome, or a test failure with the actual one. */
 function accepted(outcome: ToolInvokeOutcome) {
   if (outcome.kind !== 'accepted') throw new Error(`expected accepted: ${JSON.stringify(outcome)}`)
   return outcome
 }
 
-/** The rejected branch of an invoke outcome, or a test failure with the actual one. */
 function rejected(outcome: ToolInvokeOutcome) {
   if (outcome.kind !== 'rejected') throw new Error(`expected rejected: ${JSON.stringify(outcome)}`)
   return outcome
 }
 
-/** Repeats the admission an invoke of `call` committed, through the ledger directly (P01). */
 function readmit(assembly: Harness, call: string, operation: string) {
   const binding = assembly.source.bindings().find(bound => bound.call === callId(call))
   if (binding === undefined) throw new Error(`${call} was never bound by the entry`)
@@ -80,11 +77,6 @@ describe('10 boundary and qualification', () => {
   })
 
   it('10 boundary: the access guard proves the tenant is minted; a forged object of the same shape is denied', async () => {
-    // The ledger checks only the shape (SPEC 10); the guard, built with legal-identity in a
-    // real host, recognises the minted values. Here the minted set stands in for that check.
-    // A shaped object that legal-identity never minted is denied at the runtime boundary already,
-    // because no reference can be encoded for it; the guard's own check is exercised by the
-    // ledger-direct admission.
     const { runtime, ledger, store } = harness({ minted: new Set([tenantA]) })
     const forgedTenant = { ...tenantA }
     expect(
@@ -102,7 +94,7 @@ describe('10 boundary and qualification', () => {
         admission(
           'call-1',
           'op-1',
-          fixedRequest(dummyRequest()),
+          fixedRequestForNamedSourceGuard(dummyRequest()),
           principalA,
           forgedTenant as never,
         ),
@@ -140,7 +132,7 @@ describe('10 boundary and qualification', () => {
     expect(unread).toMatchObject({ kind: 'unavailable', dependency: 'ledger-store' })
     expect(JSON.stringify(unread)).not.toContain('pass')
     const unadmitted = await admissions.admit(
-      admission('call-1', 'op-1', fixedRequest(dummyRequest())),
+      admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
     )
     expect(JSON.stringify(unadmitted)).not.toContain('pass')
   })
@@ -191,13 +183,11 @@ describe('10 boundary and qualification', () => {
           : { failure: { kind: 'denied', action: actions[name as keyof typeof probes] } },
       ])
     }
-    // The other tenant never sees the reference of this one: resolving it there is denied.
     expect(
       await assembly.runtime.queries.lookup({ principal: principalB, tenant: tenantB, reference }),
     ).toEqual({
       failure: { kind: 'denied', action: 'lookup' },
     })
-    // And under its own invocation there, nothing of this call shows.
     assembly.identities.planInvocation('call-1', 'op-1')
     accepted(await assembly.invoke(dummyRequest(), principalB, tenantB))
     const ownReference = assembly.referenceOf('call-1')
@@ -238,11 +228,10 @@ describe('10 boundary and qualification', () => {
   })
 
   it('10 boundary: a forged source is denied and an unavailable guard blocks the admission', async () => {
-    // A source record the guard names as forged, bound by no entry here, is denied at admission.
     const forged = harness({ forged: ['entry'] })
     expect(
       await forged.ledger.admissions.admit(
-        admission('call-1', 'op-1', fixedRequest(dummyRequest())),
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
       ),
     ).toEqual({ failure: { kind: 'denied', action: 'admit' } })
     expect(forged.store.commits).toBe(0)
@@ -345,7 +334,6 @@ describe('10 boundary and qualification', () => {
   it('10 boundary: an admission needs only the admit permission, not the query permission', async () => {
     const assembly = harness({ deniedActions: ['query-operation'] })
     accepted(await assembly.invoke(dummyRequest()))
-    // The recall of the committed admission is the ledger's, with the original fixed request.
     const recalled = ok(await readmit(assembly, 'call-1', 'op-1'))
     expect(recalled.recovered).toBe(true)
     expect(
@@ -424,11 +412,15 @@ describe('11 operation idempotency (P01)', () => {
   it('11 idempotency: the same call, operation and input answers the original result once more', async () => {
     const { ledger, store } = harness()
     const first = ok(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     )
     expect(first.recovered).toBe(false)
     const again = ok(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     )
     expect(again).toEqual({ state: first.state, recovered: true })
     expect(store.commits).toBe(1)
@@ -436,8 +428,12 @@ describe('11 operation idempotency (P01)', () => {
 
   it('11 idempotency: the same operation with another input is a conflict', async () => {
     const { ledger } = harness()
-    ok(await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))))
-    const changed = fixedRequest({
+    ok(
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
+    )
+    const changed = fixedRequestForNamedSourceGuard({
       ...dummyRequest(),
       consumer: { ...dummyRequest().consumer, position: 'position-2' },
     })
@@ -449,10 +445,14 @@ describe('11 operation idempotency (P01)', () => {
   it('11 idempotency: a second admission of an admitted call is stale-revision, not a second call', async () => {
     const { ledger, store } = harness()
     const first = ok(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     )
     expect(
-      await ledger.admissions.admit(admission('call-1', 'op-2', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-2', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     ).toEqual({
       failure: { kind: 'stale-revision', current: first.state.revision },
     })
@@ -462,7 +462,9 @@ describe('11 operation idempotency (P01)', () => {
   it('11 idempotency: a write context whose expected revision is not current is stale-revision before anything else', async () => {
     const { ledger } = harness()
     const first = ok(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     )
     const { commands } = ledger
     const context = {
@@ -516,7 +518,9 @@ describe('11 operation idempotency (P01)', () => {
       const { ledger, store } = harness()
       store.injectCommit(fault)
       expect(
-        await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+        await ledger.admissions.admit(
+          admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+        ),
       ).toEqual({
         failure: { kind: 'commit-unknown', operation: 'op-1' },
       })
@@ -528,7 +532,9 @@ describe('11 operation idempotency (P01)', () => {
       )
       expect(resolved.kind).toBe('committed')
       const recalled = ok(
-        await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+        await ledger.admissions.admit(
+          admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+        ),
       )
       expect(recalled.recovered).toBe(true)
       expect(settledTerminal(recalled.state).kind).toBe('unavailable')
@@ -540,7 +546,9 @@ describe('11 operation idempotency (P01)', () => {
     const { ledger, store } = harness()
     store.injectCommit('unknown-dropped')
     expect(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     ).toEqual({
       failure: { kind: 'commit-unknown', operation: 'op-1' },
     })
@@ -551,7 +559,9 @@ describe('11 operation idempotency (P01)', () => {
       }),
     ).toEqual({ ok: { kind: 'not-committed' } })
     const admitted = ok(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     )
     expect(admitted.recovered).toBe(false)
     // The dropped attempt, the exclusion fence of the query, and the admission.
@@ -563,7 +573,9 @@ describe('11 operation idempotency (P01)', () => {
     const query = { ...admission('call-1', 'op-1'), operation: operationId('op-1') }
     store.injectCommit('unknown-delayed')
     expect(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     ).toEqual({
       failure: { kind: 'commit-unknown', operation: 'op-1' },
     })
@@ -572,7 +584,9 @@ describe('11 operation idempotency (P01)', () => {
     expect(store.landDelayed()).toEqual([{ kind: 'conflict' }])
     expect(await ledger.reads.operation(query)).toEqual({ ok: { kind: 'not-committed' } })
     const admitted = ok(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     )
     expect(admitted.recovered).toBe(false)
     expect(await ledger.reads.operation(query)).toMatchObject({ ok: { kind: 'committed' } })
@@ -592,7 +606,9 @@ describe('11 operation idempotency (P01)', () => {
     }
     const { admissions, reads } = ledgerOver(racing)
     expect(
-      await admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     ).toEqual({
       failure: { kind: 'commit-unknown', operation: 'op-1' },
     })
@@ -660,7 +676,9 @@ describe('11 operation idempotency (P01)', () => {
       failure: { kind: 'unsupported', reason: expect.stringContaining('preserveProcess') },
     })
     expect(
-      await ledger.admissions.admit(admission('call-1', 'op-2', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-2', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     ).toEqual({
       failure: { kind: 'stale-revision', current: first.state.revision },
     })
@@ -669,16 +687,24 @@ describe('11 operation idempotency (P01)', () => {
   it('11 idempotency: concurrent first admissions admit once and the duplicate is recognised', async () => {
     const same = harness()
     const pair = await Promise.all([
-      same.ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
-      same.ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      same.ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
+      same.ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     ])
     const [left, right] = pair.map(ok)
     expect(left?.state).toEqual(right?.state)
     expect(pair.map(outcome => ok(outcome).recovered).sort()).toEqual([false, true])
     const other = harness()
     const raced = await Promise.all([
-      other.ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
-      other.ledger.admissions.admit(admission('call-1', 'op-2', fixedRequest(dummyRequest()))),
+      other.ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
+      other.ledger.admissions.admit(
+        admission('call-1', 'op-2', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     ])
     const admitted = raced.filter(outcome => 'ok' in outcome)
     expect(admitted).toHaveLength(1)
@@ -691,7 +717,9 @@ describe('11 operation idempotency (P01)', () => {
     const once = harness({ ledgerCommitAttempts: 1 })
     once.store.injectCommit('conflict')
     expect(
-      await once.ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await once.ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     ).toEqual({
       failure: {
         kind: 'unavailable',
@@ -704,7 +732,7 @@ describe('11 operation idempotency (P01)', () => {
     expect(
       ok(
         await twice.ledger.admissions.admit(
-          admission('call-1', 'op-1', fixedRequest(dummyRequest())),
+          admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
         ),
       ).recovered,
     ).toBe(false)
@@ -846,7 +874,7 @@ describe('12 logical terminals (P02)', () => {
 describe('13 invocation permission', () => {
   it('13 permission: a script call to a tool without programmable permission is unsupported and not admitted', async () => {
     const { ledger, store } = harness()
-    const script = fixedRequest({
+    const script = fixedRequestForNamedSourceGuard({
       invocation: { kind: 'programmatic', source: evidence('script') },
     })
     expect(await ledger.admissions.admit(admission('call-1', 'op-1', script))).toEqual({
@@ -865,7 +893,7 @@ describe('13 invocation permission', () => {
   it('13 permission: a script call to a programmable tool passes the permission check', async () => {
     const { ledger } = harness()
     const definition = functionDefinition({ programmable: true })
-    const script = fixedRequest({
+    const script = fixedRequestForNamedSourceGuard({
       availability: { kind: 'available', definition, executor: { ...definition.adoption } },
       invocation: { kind: 'programmatic', source: evidence('script') },
       arguments: { original: '{', effective: '{', complete: true },
@@ -876,7 +904,7 @@ describe('13 invocation permission', () => {
 
   it('13 permission: a dummy answers a script call with unavailable, whatever its permission', async () => {
     const { ledger } = harness()
-    const script = fixedRequest({
+    const script = fixedRequestForNamedSourceGuard({
       availability: {
         kind: 'known-unavailable',
         definition: functionDefinition(),
@@ -942,7 +970,7 @@ async function overtakenAdmission() {
     }),
   )
   const stopped = await ledger.admissions.admit(
-    admission('call-1', 'op-1', fixedRequest(dummyRequest())),
+    admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
   )
   expect(stopped).toEqual({ failure: EXCLUDED })
   expect(negative).toEqual({ ok: { kind: 'not-committed' } })
@@ -956,20 +984,24 @@ describe('14 exclusion fence (P01)', () => {
   it('14 exclusion: a negative answer during an in-flight admission stops it, and the same identity is then admitted once', async () => {
     const { memory, ledger, query } = await overtakenAdmission()
     const admitted = ok(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     )
     expect(admitted.recovered).toBe(false)
     expect(await ledger.reads.operation(query)).toMatchObject({ ok: { kind: 'committed' } })
     expect(memory.commits).toBe(4)
     const again = ok(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     )
     expect(again).toEqual({ state: admitted.state, recovered: true })
   })
 
   it('14 exclusion: after the negative, the same identity with another input is a first admission, not a conflict', async () => {
     const { ledger } = await overtakenAdmission()
-    const changed = fixedRequest({
+    const changed = fixedRequestForNamedSourceGuard({
       ...dummyRequest(),
       consumer: { ...dummyRequest().consumer, position: 'position-2' },
     })
@@ -993,7 +1025,11 @@ describe('14 exclusion fence (P01)', () => {
         ).toEqual({ ok: { kind: 'not-accepted', operation: 'op-2' } })
       }),
     )
-    ok(await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))))
+    ok(
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
+    )
     const released = ok(await ledger.commands.releaseDelivery(releaseOf('op-2')))
     expect(released.kind).toBe('released')
     const records = await recordsOf(memory)
@@ -1017,7 +1053,9 @@ describe('14 exclusion fence (P01)', () => {
     ])
     // Read after the first fence, overtaken by the second: excluded by the newer fence.
     expect(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     ).toEqual({
       failure: EXCLUDED,
     })
@@ -1027,7 +1065,9 @@ describe('14 exclusion fence (P01)', () => {
     // Read after the second fence, then a conflict without a newer fence: admitted on the retry.
     memory.injectCommit('conflict')
     const admitted = ok(
-      await ledger.admissions.admit(admission('call-1', 'op-1', fixedRequest(dummyRequest()))),
+      await ledger.admissions.admit(
+        admission('call-1', 'op-1', fixedRequestForNamedSourceGuard(dummyRequest())),
+      ),
     )
     expect(admitted.recovered).toBe(false)
     expect(admitted.state.revision).toBe('3')
@@ -1096,7 +1136,6 @@ const releaseOf = (operation: string) => ({
   evidence: { kind: 'retained', custody: evidence('kept', 'consumer') } as const,
 })
 
-/** The operation reference of the admission operation of a call admitted with `admissionOp`. */
 function referenceForOperation(call: string, admissionOp: string) {
   return operationRefFor(call, admissionOp, admissionOp)
 }

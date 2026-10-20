@@ -1,4 +1,3 @@
-// Non-durable paired source issuance and verification, plus test-only identity counters.
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   ToolCallId,
@@ -133,7 +132,7 @@ export type TestToolIdentities = Readonly<{
   planInvocation(call: string, admission: string): void
 }>
 
-/** Builds the counter identity ports of the tests. Each mint returns a fresh identity, queued first. */
+/** Test identity counters with optional preplanned invocation pairs, including repeated pairs. */
 export function createTestToolIdentities(): TestToolIdentities {
   let invocations = 0
   let operations = 0
@@ -148,7 +147,6 @@ export function createTestToolIdentities(): TestToolIdentities {
         const next = planned.shift()
         invocations += 1
         const pair = next ?? { call: `call-${invocations}`, admission: `op-${invocations}` }
-        // The texts are branded as a real port's answer would be; the runtime decodes them again.
         return Promise.resolve(
           succeed({
             call: pair.call as ToolCallId,

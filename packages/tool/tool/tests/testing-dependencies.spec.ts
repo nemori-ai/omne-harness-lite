@@ -14,7 +14,7 @@ import {
   callId,
   dummyRequest,
   evidence,
-  fixedRequest,
+  fixedRequestForNamedSourceGuard,
   instanceId,
   ok,
   operationId,
@@ -40,7 +40,6 @@ function resolvingAssembly() {
   })
 }
 
-/** The accepted outcome of an invoke, or a test failure with the actual one. */
 function accepted(outcome: ToolInvokeOutcome) {
   if (outcome.kind !== 'accepted') throw new Error(`expected accepted: ${JSON.stringify(outcome)}`)
   return outcome
@@ -72,7 +71,10 @@ describe('18 testing dependency assembly', () => {
   it('18 hands the executor to the caller resolver and keeps the original controls on that executor', async () => {
     const assembly = resolvingAssembly()
     const binding = ok(
-      await assembly.dependencies.bindings.resolve({ ...access, request: fixedRequest() }),
+      await assembly.dependencies.bindings.resolve({
+        ...access,
+        request: fixedRequestForNamedSourceGuard(),
+      }),
     )
     expect(binding).toBe(assembly.doubles.executor.binding)
     const start: Extract<ToolStartRecord, { kind: 'start' }> = {
@@ -93,7 +95,7 @@ describe('18 testing dependency assembly', () => {
     }
     ok(
       await binding.start(
-        { ...access, start, permit, request: fixedRequest() },
+        { ...access, start, permit, request: fixedRequestForNamedSourceGuard() },
         {
           resource: 'test',
         },
@@ -106,7 +108,10 @@ describe('18 testing dependency assembly', () => {
     const other = resolvingAssembly()
     expect(other.doubles.executor.controls.launches()).toBe(0)
     const otherBinding = ok(
-      await other.dependencies.bindings.resolve({ ...access, request: fixedRequest() }),
+      await other.dependencies.bindings.resolve({
+        ...access,
+        request: fixedRequestForNamedSourceGuard(),
+      }),
     )
     expect(ok(await otherBinding.inspectStart({ ...access, start })).kind).toBe('not-started')
   })
@@ -179,7 +184,6 @@ describe('18 testing dependency assembly', () => {
       ).value.content.length,
     ).toBeGreaterThan(0)
     const other = { principal: principalB, tenant: tenantB }
-    // The reference of the first tenant does not resolve under the second tenant at all.
     expect(await runtime.queries.lookup({ ...other, reference: admitted.reference })).toMatchObject(
       { failure: { kind: 'denied', action: 'lookup' } },
     )

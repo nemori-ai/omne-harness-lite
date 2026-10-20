@@ -60,7 +60,6 @@ const limits = record({
   backgroundAfterMs: nullable(nonNegativeSafeInteger),
 })
 
-/** The request fields the caller fixes, without the invocation the trusted entry binds. */
 const callerFields = {
   availability,
   command: nullable(filled),

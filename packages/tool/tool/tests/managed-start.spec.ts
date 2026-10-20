@@ -8,7 +8,7 @@ import {
   callId,
   failure,
   fixedOf,
-  fixedRequest,
+  fixedRequestForNamedSourceGuard,
   functionDefinition,
   instanceId,
   ok,
@@ -546,7 +546,11 @@ describe('19 write commands: boundary and qualification', () => {
   const writes = (harness: StartHarness) =>
     ({
       planPreparation: (input: Context) =>
-        harness.commands.planPreparation({ ...input, request: fixedRequest(), purpose: 'initial' }),
+        harness.commands.planPreparation({
+          ...input,
+          request: fixedRequestForNamedSourceGuard(),
+          purpose: 'initial',
+        }),
       prepared: (input: Context) =>
         harness.commands.prepared({
           ...input,
@@ -557,7 +561,7 @@ describe('19 write commands: boundary and qualification', () => {
             adoption: request().environment,
             inputDigest: 'sha256:x',
             purpose: 'initial',
-            request: fixedRequest(),
+            request: fixedRequestForNamedSourceGuard(),
           },
           resources: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
         }),

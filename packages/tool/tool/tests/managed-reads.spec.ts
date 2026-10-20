@@ -263,7 +263,6 @@ describe('15 result pages and the account (P08, P09)', () => {
 
   it('15 pages: a cursor of another tenant with the same call and version is another result', async () => {
     const assembly = harness({ chunk: 13, resultPageBytes: 220 })
-    // Both tenants admit the same call identity; the reference of each encodes its own tenant.
     assembly.identities.planInvocation('call-1', 'op-1')
     await assembly.invoke(dummyRequest())
     assembly.identities.planInvocation('call-1', 'op-1')

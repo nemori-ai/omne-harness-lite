@@ -567,7 +567,6 @@ export function queueKey(): string {
   return JSON.stringify([scope.owner, scope.key, 'read_file'])
 }
 
-/** Admits `call` with admission `op-<call>` and the default payload, changed by `overrides`. */
 export async function admitCall(
   harness: StartHarness,
   call: string,
