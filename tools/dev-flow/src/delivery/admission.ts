@@ -12,6 +12,12 @@ import {
 } from './protocol.ts'
 
 export type AdmissionScope = { task: string; authority: string }
+/**
+ * The task's Project state when a trusted source already read it: the item that proves
+ * membership in the configured Project and the Stage snapshot. With it, admission skips its own
+ * Project reads; the source is responsible for confirming the Stage field.
+ */
+export type AdmissionProject = { id: string; item: string; stage: string | null }
 export type AdmissionCapture = {
   schemaVersion: 1
   kind: 'github-admission-capture'
@@ -63,6 +69,7 @@ export function collectAdmission(
   config: DeliveryConfig,
   scope: AdmissionScope,
   read: GhRead = runGhRead,
+  project?: AdmissionProject,
 ): AdmissionCapture {
   const taskNumber = issueNumber(config.repository, scope.task)
   const authority = /^(.*)#issuecomment-([1-9]\d*)$/.exec(scope.authority)
@@ -251,41 +258,50 @@ export function collectAdmission(
     }
   }
   fetchIssue(authorityUrl, false)
-  const fields = connection(FIELDS, projectId, 'fields', () => {})
-  const singleSelectFields = fields.flatMap(item => {
-    const field = record(item, 'Project field')
-    return text(field.__typename, 'Project field type') === 'ProjectV2SingleSelectField'
-      ? [text(field.id, 'Project field ID')]
-      : []
-  })
-  if (!singleSelectFields.includes(stageId))
-    throw new InputError('Configured Stage field is not confirmed on Project')
+  /** Confirms the Stage field, the task's unique membership and its Stage value over GraphQL. */
+  function readProjectState(task: CapturedIssue): void {
+    const fields = connection(FIELDS, projectId, 'fields', () => {})
+    const singleSelectFields = fields.flatMap(item => {
+      const field = record(item, 'Project field')
+      return text(field.__typename, 'Project field type') === 'ProjectV2SingleSelectField'
+        ? [text(field.id, 'Project field ID')]
+        : []
+    })
+    if (!singleSelectFields.includes(stageId))
+      throw new InputError('Configured Stage field is not confirmed on Project')
+    const memberships = connection(MEMBERSHIPS, task.id, 'projectItems', value => {
+      if (value.url !== task.url) throw new InputError('Project membership Issue identity mismatch')
+    }).map(item => record(item, 'Project membership'))
+    const matching = memberships.filter(
+      item =>
+        text(record(item.project, 'membership.project').id, 'membership.project.id') === projectId,
+    )
+    const membership = matching[0]
+    if (matching.length !== 1 || membership === undefined)
+      throw new InputError('Task Project membership is missing or ambiguous')
+    const values = connection(VALUES, text(membership.id, 'membership.id'), 'fieldValues', value => {
+      if (record(value.project, 'item.project').id !== projectId)
+        throw new InputError('Project item identity mismatch')
+    })
+    let stageSeen = false
+    for (const item of values) {
+      const value = record(item, 'Project value')
+      if (text(value.__typename, 'Project value type') !== 'ProjectV2ItemFieldSingleSelectValue')
+        continue
+      if (text(record(value.field, 'value.field').id, 'value.field.id') !== stageId) continue
+      if (stageSeen) throw new InputError('Task Stage value is duplicated')
+      stageSeen = true
+      task.stage = text(value.name, 'Task Stage')
+    }
+  }
   const task = issues.get(scope.task)
   if (task === undefined || task.number !== taskNumber)
     throw new InputError('Admission task was not read')
-  const memberships = connection(MEMBERSHIPS, task.id, 'projectItems', value => {
-    if (value.url !== task.url) throw new InputError('Project membership Issue identity mismatch')
-  }).map(item => record(item, 'Project membership'))
-  const matching = memberships.filter(
-    item =>
-      text(record(item.project, 'membership.project').id, 'membership.project.id') === projectId,
-  )
-  const membership = matching[0]
-  if (matching.length !== 1 || membership === undefined)
-    throw new InputError('Task Project membership is missing or ambiguous')
-  const values = connection(VALUES, text(membership.id, 'membership.id'), 'fieldValues', value => {
-    if (record(value.project, 'item.project').id !== projectId)
-      throw new InputError('Project item identity mismatch')
-  })
-  let stageSeen = false
-  for (const item of values) {
-    const value = record(item, 'Project value')
-    if (text(value.__typename, 'Project value type') !== 'ProjectV2ItemFieldSingleSelectValue')
-      continue
-    if (text(record(value.field, 'value.field').id, 'value.field.id') !== stageId) continue
-    if (stageSeen) throw new InputError('Task Stage value is duplicated')
-    stageSeen = true
-    task.stage = text(value.name, 'Task Stage')
+  if (project === undefined) readProjectState(task)
+  else {
+    if (project.id !== projectId) throw new InputError('Project facts belong to another Project')
+    if (project.item.trim() === '') throw new InputError('Project facts membership is empty')
+    task.stage = project.stage
   }
   const result = snapshot()
   observeAdmission(config, result)

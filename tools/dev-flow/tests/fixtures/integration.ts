@@ -173,17 +173,15 @@ export function integrationFixture(options: { admissionOnly?: boolean } = {}) {
     join(bin, 'gh'),
     String.raw`#!/usr/bin/env node
 import { readFileSync, appendFileSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 const args = process.argv.slice(2)
 const home = process.env.OMNE_GH_FIXTURE
 appendFileSync(home + '/calls.jsonl', JSON.stringify(args) + '\n')
 const p = JSON.parse(readFileSync(home + '/platform.json', 'utf8'))
+const calls = readFileSync(home + '/calls.jsonl', 'utf8').trim().split('\n').map(JSON.parse)
 if (
   args.at(-1) === 'repos/owner/repo/issues/1' &&
-  readFileSync(home + '/calls.jsonl', 'utf8')
-    .trim()
-    .split('\n')
-    .map(JSON.parse)
-    .filter(a => a.at(-1) === 'repos/owner/repo/issues/1').length === 2 &&
+  calls.filter(a => a.at(-1) === 'repos/owner/repo/issues/1').length === 2 &&
   p.readbackChange
 ) {
   Object.assign(p, p.readbackChange)
@@ -202,10 +200,57 @@ const issue = {
 const endpoint = args.at(-1)
 const page = Number(new URLSearchParams(endpoint.split('?')[1]).get('page') || 1)
 const commentsPage = comments => comments.slice((page - 1) * 100, page * 100)
+// Cloud mode (p.cloud): the proxy denies GraphQL except the parent query, environments and orgs.
+// The delivery-facts workflow is simulated: the dispatch answers 204, and once it was dispatched
+// the card carries one bot comment (p.facts, with overrides for login, type and block fields).
+const sha256 = value => createHash('sha256').update(value).digest('hex')
+const factsComments = () => {
+  const dispatch = calls.find(a => a.at(-1) === 'repos/owner/repo/actions/workflows/delivery-facts.yml/dispatches')
+  if (!p.facts || !dispatch) return []
+  const input = name => dispatch.find(a => a.startsWith('inputs[' + name + ']=')).slice(name.length + 9)
+  const url = input('authority')
+  const authority = [...p.comments, ...(p.authorityComments || [])].find(c => c.html_url === url)
+  const overrides = p.facts.block || {}
+  const block = {
+    schemaVersion: 1,
+    nonce: input('nonce'),
+    run: 42,
+    issue: Number(input('issue')),
+    ...overrides,
+    authority: {
+      url,
+      author: authority.user.login,
+      authorNodeId: authority.user.node_id,
+      reviewer: true,
+      bodySha256: sha256(authority.body),
+      updatedAt: authority.updated_at,
+      ...(overrides.authority || {}),
+    },
+    project: { id: 'P_1', item: 'ITEM_1', stage: p.stage || null, ...(overrides.project || {}) },
+  }
+  return [
+    {
+      id: 7000,
+      html_url: 'https://github.com/owner/repo/issues/1#issuecomment-7000',
+      issue_url: 'https://api.github.com/repos/owner/repo/issues/1',
+      user: { login: p.facts.login || 'omne-harness-lite-delivery[bot]', type: p.facts.type || 'Bot', node_id: 'BOT_1' },
+      body: '\x60\x60\x60json omne-delivery-facts:v1\n' + JSON.stringify(block) + '\n\x60\x60\x60',
+      updated_at: '2026-10-11T00:00:00Z',
+    },
+  ]
+}
 if (args[0] !== 'api') process.exit(91)
+if (p.cloud && (endpoint.startsWith('repos/owner/repo/environments/') || endpoint.startsWith('orgs/')))
+  process.exit(95)
+if (args[1] === '--method' && args[2] === 'POST') {
+  if (endpoint !== 'repos/owner/repo/actions/workflows/delivery-facts.yml/dispatches') process.exit(93)
+  if (args.indexOf('ref=github-gate') < 0) process.exit(98)
+  process.exit(0)
+}
 if (args[1] === 'graphql') {
   if (!args.some(x => x.startsWith('query=query'))) process.exit(92)
   if (p.admissionOnly && args.some(x => x.includes(' items('))) process.exit(95)
+  if (p.cloud && !args.some(x => x.includes('parent{url}'))) process.exit(95)
   if (args.some(x => x.includes('parent{url}')))
     result = {
       data: {
@@ -280,9 +325,21 @@ if (args[1] === 'graphql') {
     result = endpoint.includes('/issues/1/')
       ? (p.blockedBy || []).map(url => ({ html_url: url }))
       : []
-  else if (endpoint.includes('/issues/1/comments?')) result = commentsPage(p.comments)
+  else if (endpoint.includes('/issues/1/comments?'))
+    result = commentsPage([...p.comments, ...factsComments()])
   else if (endpoint.includes('/issues/2/comments?'))
     result = commentsPage(p.authorityComments || [])
+  else if (endpoint.startsWith('repos/owner/repo/actions/runs/'))
+    result = {
+      id: Number(endpoint.split('/').at(-1)),
+      path: '.github/workflows/delivery-facts.yml',
+      head_branch: 'github-gate',
+      event: 'workflow_dispatch',
+      status: 'completed',
+      conclusion: 'success',
+      created_at: new Date().toISOString(),
+      ...(p.run || {}),
+    }
   else if (endpoint.includes('/issues/comments/')) {
     result = [...p.comments, ...(p.authorityComments || [])].find(
       c => c.id === Number(endpoint.split('/').at(-1)),
