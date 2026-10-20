@@ -154,10 +154,14 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 | 报出（规则 `acceptance-covers`）                                            | 说明                                                                                                                                          |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | 开头的注释块里没有、或不止一行 `// covers: …`                               | 开头注释块是文件开头连续的 `//` 行（中间可有空行）；写在代码之后的 `// covers:` 另报「要写在开头」                                            |
-| 某一项不是 `PF-<三位> <场景编号>`、是空的、写了两次                         | 多项用逗号隔开，半角全角都认；场景编号的解析归repo-toolchain 的 `src/product/scenarios.ts`                                                                      |
-| 声明所指的当前产品来源不存在，或其`acceptance.md`缺少对应编号、出现重复编号 | 场景行的解析归repo-toolchain 的 `src/product/scenarios.ts`，解析反例由repo-toolchain 的 `tests/product-scenarios.spec.ts`验证。声明仍采用现行PF格式；找不到当前产品来源时报告偏离 |
-| 文件名不以 `PF-<三位>.` 开头，或这个 topic 不在它声明覆盖的 topic 里        |                                                                                                                                               |
+| 某一项不是 `PD-<slug> <场景编号>`、是空的、写了两次                         | 多项用逗号隔开，半角全角都认；场景编号的解析归repo-toolchain 的 `src/product/scenarios.ts`                                                                      |
+| 声明所指的当前产品来源不存在，或其`acceptance.md`缺少对应编号、出现重复编号 | 场景行的解析归repo-toolchain 的 `src/product/scenarios.ts`，解析反例由repo-toolchain 的 `tests/product-scenarios.spec.ts`验证。身份须与当前产品 README 一致；找不到当前产品来源时报告偏离 |
+| 文件名不以 `PD-<slug>.` 开头，或这个 topic 不在它声明覆盖的 topic 里        |                                                                                                                                               |
 | 成员有验收文件，`package.json` 里却没有 `acceptance` 脚本                   | 没有它，这些验收不会被任何入口运行                                                                                                            |
+
+以下示例仅演示声明和文件名写法。`S1` 仅为编号示例，不表示已登记场景。实际使用前，须先在对应当前产品的 `acceptance.md` 中登记真实场景。
+例如声明 `// covers: PD-tool-execution S1, PD-model-invocation S1`，文件名可为 `PD-model-invocation.success.acceptance.ts`。
+`slug` 以小写字母开头，后续为小写字母或数字，可用单个连字符分段；旧 PF 编号不作为别名。
 
 产品区的位置沿用 `loop` 配置的 `sensors.topicChurn.productRoot`。**为什么接在 `lint:rules`**：它与提交署名一样是对整个仓库的静态核对，
 不需要构建产物，放在已有的仓库规则入口里，`make check` 不必多一步，`pnpm run check` 单跑时也查得到。
@@ -180,7 +184,7 @@ make scenario-status
 | 接受     | 没有有权者完整接受证据时为unknown                                  |
 | 未覆盖   | 每个当前PD均进入报告；缺场景正文或编号单列未覆盖，不从能力表猜场景 |
 
-正常观察退出0；非法根、元数据、重复身份、目录不符或越界及工具错误退出2。合法空根单列未覆盖，不能宣称全部覆盖。场景CLI只接长期产品输入，`--config`和`--capture`参数拒绝。跨topic的覆盖声明仍按实际场景归属核对，找不到来源保持偏离；不补造新的PD covers格式。
+正常观察退出0；非法根、元数据、重复身份、目录不符或越界及工具错误退出2。合法空根单列未覆盖，不能宣称全部覆盖。场景CLI只接长期产品输入，`--config`和`--capture`参数拒绝。场景状态复用上节定义的 PD 覆盖声明格式。跨 topic 声明仍按实际场景归属核对，找不到来源保持偏离。
 
 ## 后续 core 静态义务的兑现方式
 
