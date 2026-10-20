@@ -108,7 +108,7 @@ I15。Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `en
 
 ### 拒绝
 
-任一核对不满足、超时、读取失败或区块格式错误时，结果为 unknown，工具不写 context。`reviewer` 为 `false` 也是 unknown，与直接读取时的 refused 不同。错误信息不含 API 原始输出。
+任一核对不满足、超时、读取失败或区块格式错误时，结果为 unknown，工具不写 context。`reviewer` 为 `false` 是可信事实给出的确定答案，结果为 refused，与直接读取时相同。错误信息不含 API 原始输出。
 
 ### 已知限制
 

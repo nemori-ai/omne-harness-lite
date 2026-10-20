@@ -123,7 +123,7 @@ describe('cloud start through the delivery-facts workflow', () => {
     [
       'a non-reviewer author',
       { facts: { block: { authority: { reviewer: false } } } },
-      'unknown',
+      'refused',
       'not show the author as a publish reviewer',
     ],
     [

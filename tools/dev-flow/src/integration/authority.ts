@@ -207,9 +207,10 @@ function requireFactsGrant(
     throw new IntegrationError('unknown', 'Delivery facts authority body digest mismatch')
   if (facts.updatedAt !== updatedAt)
     throw new IntegrationError('unknown', 'Delivery facts authority update time mismatch')
+  // Trusted facts saying the author is not a reviewer are a definite answer, refused like a direct read.
   if (!facts.reviewer)
     throw new IntegrationError(
-      'unknown',
+      'refused',
       `Delivery facts do not show the author as a ${DISPATCH_ENVIRONMENT} reviewer`,
     )
 }

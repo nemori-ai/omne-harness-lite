@@ -540,7 +540,7 @@ describe('dispatch eligibility from delivery facts', () => {
     expect(decision.task).toEqual(binding)
     expect(calls.map(call => call.at(-1))).toEqual(['repos/owner/repo/issues/comments/1'])
   })
-  it('keeps a non-reviewer author unknown without reading the environment', () => {
+  it('refuses a non-reviewer author without reading the environment', () => {
     const calls: string[][] = []
     expect(() =>
       readAuthority(
@@ -552,7 +552,7 @@ describe('dispatch eligibility from delivery facts', () => {
       ),
     ).toThrow(
       expect.objectContaining({
-        code: 'unknown',
+        code: 'refused',
         message: 'Delivery facts do not show the author as a publish reviewer',
       }),
     )

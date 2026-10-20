@@ -119,7 +119,7 @@ Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `environm
 - 运行 `start` 的身份须能派发 `delivery-facts.yml`，并能读取任务卡评论与 Actions 运行。
 - 命令最多等待 180 秒，约每 5 秒读取一次。
 - 工具不发 GraphQL 请求，也不读 `environments` 或 `orgs/…` 路径。
-- 任一核对不满足、超时或读取失败时，命令以 `unknown` 失败，不写 context。派发评论作者不是 reviewer 时同样是 `unknown`。
+- 任一核对不满足、超时或读取失败时，命令以 `unknown` 失败，不写 context。事实显示派发评论作者不是 reviewer 时以 `refused` 拒绝，与本地路径相同。
 - workflow 失败时不发评论，命令在 180 秒后以超时失败。要看失败原因，读 `github-gate` 上的 `delivery-facts` 运行记录。
 
 全部核对条件和已知限制见 [SPEC](SPEC.md#云端事实来源)。其中两项限制直接影响使用：
