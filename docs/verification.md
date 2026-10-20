@@ -149,7 +149,7 @@ PanQiWei 于 2026-10-14 接受 [RFC-0005 revision 1](rfcs/RFC-0005-package-testi
 
 测试结果不依赖快慢层怎样拆分，也不依赖文件并行。同一组测试分层跑、两层一起跑（`turbo run test`），或开着文件并行跑，结果必须相同。测试需要写构建产物或其他共享文件时，在自己创建的临时目录里写，并自己清理。测试不删除、不改写成员的 `dist/` 或其他测试会读的共享位置。反例：打包测试如果先删除再重建 `apps/cli/dist`，同时并行运行、经包名读取 `dist` 的测试就会随机失败。所以 `apps/cli` 的打包测试构建到临时目录，不碰 `apps/cli/dist`。这一条是上面隔离要求在运行编排上的具体要求，不是新的测试责任。
 
-测试在系统临时目录下建目录时，一开始就取物理路径。同步写法是 `realpathSync(mkdtempSync(join(tmpdir(), …)))`，异步写法是 `await realpath(await mkdtemp(…))`。原因如下：macOS 默认的 `tmpdir()` 在 `/var` 下，`/var` 是指向 `/private/var` 的符号链接。git、vitest 和 pytest 报告解析后的 `/private/var/…` 路径。测试拿未解析的路径与这些报告比较，在 macOS 上会失败。Linux CI 上没有这种差异，所以发现不了这类问题。`pnpm run lint:rules` 的 `test-temp-physical-path` 规则扫描 `packages/`、`apps/`、`tools/` 下的测试与夹具。它发现没有取物理路径的写法时，报出文件和行号。规则的检查范围与不覆盖的写法见 [product-checks](../tools/product-checks/README_ZH.md#测试临时目录的物理路径)。
+测试在系统临时目录下建目录时，一开始就取物理路径。同步写法是 `realpathSync(mkdtempSync(join(tmpdir(), …)))`，异步写法是 `await realpath(await mkdtemp(…))`。原因如下：macOS 默认的 `tmpdir()` 在 `/var` 下，`/var` 是指向 `/private/var` 的符号链接。git、vitest 和 pytest 报告解析后的 `/private/var/…` 路径。测试拿未解析的路径与这些报告比较，在 macOS 上会失败。Linux CI 上没有这种差异，所以发现不了这类问题。`pnpm run lint:rules` 的 `test-temp-physical-path` 规则扫描 `packages/`、`apps/`、`tools/` 下的测试与夹具。规则扫描 `.ts`、`.mts`、`.cts`、`.js`、`.mjs`、`.cjs` 文件。它发现没有取物理路径的写法时，报出文件和行号。规则的检查范围与不覆盖的写法见 [product-checks](../tools/product-checks/README_ZH.md#测试临时目录的物理路径)。
 
 必须由真实组合才能证明的性质，在该集成或旅程的拥有者处验证。模拟数据库不证明事务或持久性。模拟容器不证明 Cordis 行为。普通进程退出不证明物理断电耐久。替身的通过范围写清楚。源码导入测试，与实际安装、exports、声明、bin 和构建产物的消费验证，分别承担责任。独立消费测试证明包能被单独消费。它不是业务端到端测试。CLI 的 help 或 version 子进程测试不是整套用户旅程。
 

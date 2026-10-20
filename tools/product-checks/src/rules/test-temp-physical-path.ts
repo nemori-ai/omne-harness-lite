@@ -5,17 +5,15 @@ import { syntaxOf, visitSyntax } from '@omne-harness/repo-toolchain/core/syntax'
 import { callName, localValue } from './local-binding.ts'
 
 const SCANNED_ROOTS = /^(?:packages|apps|tools)\//u
-const TYPESCRIPT = /\.m?ts$/u
+// 测试也有 JS 写的（如 tools/model-probe/tests 的 .mjs）；syntaxOf 按扩展名用 JS 语法解析这些文件。
+const SCRIPT = /\.[cm]?[jt]s$/u
+const TEST_NAME = /\.(?:spec|test)\.[cm]?[jt]s$/u
 const CREATE = new Set(['mkdtempSync', 'mkdtemp'])
 // `realpathSync.native` 的被调用者名字是 `native`。
 const PHYSICAL = new Set(['realpathSync', 'realpath', 'native'])
 
 function scanned(path: string): boolean {
-  return (
-    SCANNED_ROOTS.test(path) &&
-    TYPESCRIPT.test(path) &&
-    (isTestPath(path) || /\.(?:spec|test)\.mts$/u.test(path))
-  )
+  return SCANNED_ROOTS.test(path) && SCRIPT.test(path) && (isTestPath(path) || TEST_NAME.test(path))
 }
 
 function isTmpdirEnvironment(expression: ts.Expression): boolean {
@@ -48,7 +46,8 @@ function rawTemporaryBase(
   if (value === undefined) return false
   const inner = (item: ts.Expression) => rawTemporaryBase(item, names, seen)
   if (isTmpdirEnvironment(value)) return true
-  if (ts.isAwaitExpression(value) || ts.isNonNullExpression(value)) return inner(value.expression)
+  if (ts.isAwaitExpression(value)) return inner(value.expression)
+  if (ts.isNonNullExpression(value)) return inner(value.expression)
   if (ts.isTemplateExpression(value))
     return value.templateSpans.some(span => inner(span.expression))
   if (ts.isBinaryExpression(value))
@@ -76,7 +75,7 @@ function calleeName(
   return name !== undefined && ts.isIdentifier(expression) ? (names.get(name) ?? name) : name
 }
 
-/** 建目录的调用（可隔着括号、await、非空断言）是否正好是 realpath 的第一个实参。 */
+/** 建目录的调用（可隔着括号、await、非空断言、as、satisfies）是否正好是 realpath 的第一个实参。 */
 function wrappedInPhysicalPath(
   call: ts.CallExpression,
   names: ReadonlyMap<string, string>,
@@ -86,7 +85,8 @@ function wrappedInPhysicalPath(
     ts.isParenthesizedExpression(node.parent) ||
     ts.isAwaitExpression(node.parent) ||
     ts.isNonNullExpression(node.parent) ||
-    ts.isAsExpression(node.parent)
+    ts.isAsExpression(node.parent) ||
+    ts.isSatisfiesExpression(node.parent)
   )
     node = node.parent
   const parent = node.parent
