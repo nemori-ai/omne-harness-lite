@@ -5,16 +5,37 @@
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
-    "tsconfig.base.json"
+    "tsconfig.base.json",
+    "vitest.tiers.mts",
+    "tools/repo-toolchain/src/**",
+    "tools/repo-toolchain/tests/fixtures/**"
   ],
   "tasks": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "test:fast": {
+      "dependsOn": ["build", "^build"],
+      "cache": false,
+      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR"],
+      "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
+    },
+    "test:slow": {
+      "dependsOn": ["build", "^build"],
+      "cache": false,
+      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR"],
+      "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
+    },
+    "test": {
+      "dependsOn": ["build", "^build"],
+      "cache": false,
+      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR"],
+      "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
     }
   }
 }

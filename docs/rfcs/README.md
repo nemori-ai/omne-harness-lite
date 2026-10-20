@@ -42,3 +42,4 @@
 - [RFC-0008：仓库工具链的受信机制](RFC-0008-repo-toolchain-trust.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
 - [RFC-0009：采用机制与本机发布工具的退役](RFC-0009-adoption-and-local-tool-retirement.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
 - [RFC-0010：json-text 的值树原样写出](RFC-0010-json-text-lossless-writer.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。
+- [RFC-0011：主干准入与多层轨道](RFC-0011-trunk-admission-and-track-tree.md)。状态和精确修订由提案front-matter拥有；本入口不保存第二份状态。

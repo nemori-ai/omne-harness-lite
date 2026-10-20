@@ -40,7 +40,7 @@ Tool 的 Cordis 服务定义包。`./cordis` 导出 17 个抽象 Service 类和�
 
 ## 验证
 
-快层命令是 `OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-cordis-contract run test`，慢层命令是 `OMNE_TEST_TIER=slow pnpm --filter @omne-harness/tool-cordis-contract run test`。两条命令都先构建再运行本层测试。测试逐对核对键与类、`./cordis` 的导入图、清单依赖，并在真实 Cordis 4.0.4 下核对定义。`tests/registration-conformance.spec.ts` 自证登记套件：对守约替身全过，20 条用例各在一个只破坏一条规则的登记服务上失败。承载独立规则的断言都有违约变体，类型收窄的断言由编译器守护。逐断言的对应表见 [tests/README](tests/README.md#断言与违约变体的对应)。`ToolInstancesService` 目前只返回具名失败，测试只测这些失败。
+快层命令是 `pnpm turbo run test:fast --filter=@omne-harness/tool-cordis-contract`，慢层命令是 `pnpm turbo run test:slow --filter=@omne-harness/tool-cordis-contract`。turbo 先构建本包及其依赖，再运行本层测试。测试逐对核对键与类、`./cordis` 的导入图、清单依赖，并在真实 Cordis 4.0.4 下核对定义。`tests/registration-conformance.spec.ts` 自证登记套件：对守约替身全过，20 条用例各在一个只破坏一条规则的登记服务上失败。承载独立规则的断言都有违约变体，类型收窄的断言由编译器守护。逐断言的对应表见 [tests/README](tests/README.md#断言与违约变体的对应)。`ToolInstancesService` 目前只返回具名失败，测试只测这些失败。
 
 ## 维护
 

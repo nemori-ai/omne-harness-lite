@@ -91,7 +91,7 @@ it('engineering loop carries all task baselines and rejects stale context', asyn
 })
 
 function wrapperFixture() {
-  const home = mkdtempSync(join(tmpdir(), 'omne-wrapper-stages-'))
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-wrapper-stages-')))
   homes.push(home)
   const runner = join(home, 'runner'),
     subject = join(home, 'subject')
@@ -140,7 +140,6 @@ bash() {
     *) command bash "$@" ;;
   esac
 }
-make() { record make "$@"; }
 pnpm() { record pnpm "$@"; }
 `,
   )
@@ -174,7 +173,7 @@ it('runs the ordinary local check even when a subject root is set', () => {
   expect(result.status, result.stdout + result.stderr).toBe(0)
   const trace = readFileSync(f.trace, 'utf8')
   expect(trace).toContain(`plan --base ${f.base}`)
-  expect(trace).toContain('loop-status STRICT=1')
+  expect(trace).toContain(`loop:status --strict --base ${f.base}`)
   expect(trace).not.toContain('--scope engineering')
 })
 it('reads the hook root and each worktree own immutable task baseline', async () => {

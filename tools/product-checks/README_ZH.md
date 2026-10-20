@@ -4,7 +4,7 @@
 
 本仓库的产品规则：契约与节点 verification 点名的结构检查、仓库路径规则、验收覆盖声明与场景状态。规则写死本仓库的产品路径或契约，随产品代码变化，所以不发布到 npm。改动这些规则的 PR 经仓库工具链变更闸门确认。规则引擎、源码收集、提交署名与验收锁来自 [@omne-harness/repo-toolchain](../repo-toolchain/README_ZH.md)。
 
-`pnpm run lint:rules` 运行本成员的 CLI。它读 repo-toolchain 与 `@omne-harness/legal-identity` 的 `dist`，`make check` 在这一步之前已经构建它们。
+`pnpm run lint:rules` 运行本成员的 CLI。它读 repo-toolchain 与 `@omne-harness/legal-identity` 的 `dist`，`pnpm run check` 在这一步之前已经构建它们。
 
 ## 规则总表
 
@@ -150,7 +150,7 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 
 ## 验收的覆盖声明
 
-`src/acceptance/coverage.ts` 随 `pnpm run lint:rules` 执行（`make check` 的 `product-check` 一步里），有违反即退出 1。
+`src/acceptance/coverage.ts` 随 `pnpm run lint:rules` 执行（`pnpm run check` 的常驻步骤之一），有违反即退出 1。
 规矩正文在[源码布局「可执行验收」](../../docs/workspace.md#目录与内容归属)：覆盖声明只表示程序声明覆盖相应场景，须能核对来源与编号。
 实际执行、结果和有效接受分别验证。它找出 `acceptanceLock` 配置的成员根下每个 `acceptance/**/*.acceptance.ts`（`node_modules`、`dist` 不进），逐份查：
 
@@ -167,15 +167,15 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 `slug` 以小写字母开头，后续为小写字母或数字，可用单个连字符分段；旧 PF 编号不作为别名。
 
 产品区的位置沿用 `loop` 配置的 `sensors.topicChurn.productRoot`。**为什么接在 `lint:rules`**：它与提交署名一样是对整个仓库的静态核对，
-不需要构建产物，放在已有的仓库规则入口里，`make check` 不必多一步，`pnpm run check` 单跑时也查得到。
+不需要构建产物，放在已有的仓库规则入口里，`pnpm run check` 不必多一步，单跑 `pnpm run lint:rules` 时也查得到。
 
-**不能声称**：声明的场景存在，不等于验收真的断言了那条场景要的东西——那归写验收的人与评审；验收过没过归下面的 `make acceptance`。
+**不能声称**：声明的场景存在，不等于验收真的断言了那条场景要的东西——那归写验收的人与评审；验收过没过归下面的 `pnpm run acceptance`。
 它只认 `.acceptance.ts` 结尾的文件，放在 `acceptance/` 里却不按这个名字取的验收它看不见。自测：`tests/acceptance-coverage.spec.ts`。
 
 ## 场景状态
 
 ```sh
-make scenario-status
+pnpm run acceptance:scenarios
 ```
 
 工具只从长期产品slug目录的README发现PD身份、正整数修订及状态，核对目录身份、唯一性、正文和根内真实路径，排除模板目录。产品及场景的持续行为归[产品观察规格](../repo-toolchain/src/product/SPEC.md)。
@@ -211,6 +211,18 @@ make scenario-status
 | slash-command    | SC-3 failed 分支与可发送值不相容、SC-4 parseInvocation 无权限参数的类型测试；SC-6 共用推出模块规则                                                                         | 交付/受理/发布 SC-1/SC-2/SC-5 及实际发送行为                                                                                        |
 | stream-assembly  | SC-2 导入由 core-pure-imports、时钟由 no-wall-clock 承载；SC-1 与 content-blocks 采用同一指定解析模块规则                                                                  | SC-3 拒绝不改状态与 SC-4 快照不共享可变部分须实际测试，不能靠 import 白名单替代                                                     |
 | asset-evaluation | SC-1 的导入与时钟复用已有两条规则；SC-3 判别结果类型及无结果分支的实际反例                                                                                                 | SC-2 消费者缓存键；纯度的全局访问和实际副作用仍需代码审阅/测试                                                                      |
+
+## 测试临时目录的物理路径
+
+`test-temp-physical-path` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，来源是 Issue #560 C5 与[验证说明「包级测试责任与边界」](../../docs/verification.md#包级测试责任与边界)。约定与原因归验证说明，本节只说明规则查什么。
+
+- 扫描范围：`packages/`、`apps/`、`tools/` 下的测试与夹具。文件类型是 `.ts`、`.mts`、`.cts`、`.js`、`.mjs`、`.cjs`。路径含 `/tests/` 的文件都扫。路径不含 `/tests/` 时，只扫文件名是 `*.spec.*` 或 `*.test.*` 的文件，例如 `*.test.mjs`。JS 文件按 JS 语法解析。
+- 报出：`mkdtempSync` 或 `mkdtemp` 的第一个实参来自系统临时目录，而建出的目录没有取物理路径。来自系统临时目录指实参里有 `tmpdir()` 或 `process.env.TMPDIR`，可经 `join`、`resolve` 等调用、模板字符串、`+`、`??`、`||`、本文件的局部常量。具名导入改名、`fs.`／`os.` 成员调用都认。
+- 放过：建目录的调用直接是 `realpathSync`、`realpath` 或 `realpathSync.native` 的第一个实参，中间可隔括号、`await`、非空断言、`as`、`satisfies`。实参里的 `tmpdir()` 已先取物理路径时也放过，例如 `mkdtempSync(join(realpathSync(tmpdir()), …))`。基准目录不来自系统临时目录时不查，例如仓库 `tmp/` 或函数参数。
+- 故意报出：先建目录、下一句再 `realpathSync(dir)` 的两段式。原路径仍在作用域里，可能被直接比较。
+- 也会报出：`mkdtemp(prefix, callback)` 回调写法与 `mkdtemp(…).then(realpath)` 链式写法。规则不认这两种写法里的物理路径。改用 `await realpath(await mkdtemp(…))` 或同步写法。
+
+不覆盖：`scripts/` 与 `examples/` 下的测试、`.tsx`／`.jsx` 文件、跨文件传入的临时目录、重新赋值、`require` 解构时改名的 `mkdtemp`／`mkdtempSync`，例如 `const { mkdtempSync: make } = require('node:fs')`。正反验证命令：`pnpm --filter @omne-harness/product-checks exec vitest run tests/test-temp-physical-path.spec.ts`。
 
 ## 模型凭据的逐符号结构守卫
 

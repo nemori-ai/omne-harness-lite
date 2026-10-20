@@ -8,10 +8,11 @@ import {
   confirmConditions,
   admissionDigest,
 } from './authority.ts'
+import { factsSource, fetchDeliveryFacts } from './delivery-facts.ts'
 import { repository, requireAncestor } from './git.ts'
-import { activeTrack } from './policy.ts'
 import { same, IntegrationError } from './parse.ts'
-import { remoteTarget, routeTarget, taskStatus, taskSync } from './sync.ts'
+import { taskStatus, taskSync } from './sync.ts'
+import { checkUpstream } from './upstream.ts'
 
 export type Command =
   | {
@@ -52,12 +53,20 @@ export async function openIntegration({ root }: { root: string }): Promise<Integ
     },
   }
 }
-function start(root: string, command: Extract<Command, { kind: 'register' | 'start' }>): Context {
-  const state = taskWorkspace(root),
+async function start(
+  root: string,
+  command: Extract<Command, { kind: 'register' | 'start' }>,
+): Promise<Context> {
+  const source = factsSource(process.env),
+    state = taskWorkspace(root),
     config = deliveryConfig(root, state.policy, state.source),
-    scope = { task: command.issue, authority: command.authority },
-    capture = currentAdmission(config, scope)
-  const decision = readAuthority(state.policy, command.authority, capture)
+    scope = { task: command.issue, authority: command.authority }
+  // A cloud session cannot read the publish environment or the Project; the delivery-facts
+  // workflow reads them once, before both admission captures, and both captures use that snapshot.
+  const facts =
+    source === 'workflow' ? await fetchDeliveryFacts(state.policy, config, scope) : undefined
+  const capture = currentAdmission(config, scope, facts?.project)
+  const decision = readAuthority(state.policy, command.authority, capture, facts?.authority)
   same(
     [
       decision.task.issue.url,
@@ -75,9 +84,7 @@ function start(root: string, command: Extract<Command, { kind: 'register' | 'sta
   const info = repository(root)
   same(info.branch, task.binding.branch, 'Task branch does not match this worktree')
   requireAncestor(root, task.binding.taskBase, info.head)
-  if (task.binding.route.kind === 'track') activeTrack(state.policy, task.binding.route.track)
-  const target = routeTarget(state.policy, task.binding.route)
-  const targetBase = remoteTarget(root, state.policy, target)
+  const { ref: target, head: targetBase } = checkUpstream(root, state.policy, task.binding.route)
   confirmConditions(config, capture, task.binding, target, decision.confirmations, state.policy)
   if (state.context !== null) {
     same(
@@ -88,7 +95,7 @@ function start(root: string, command: Extract<Command, { kind: 'register' | 'sta
     return state.context
   }
   same(
-    admissionDigest(currentAdmission(config, scope)),
+    admissionDigest(currentAdmission(config, scope, facts?.project)),
     admissionDigest(capture),
     'Task inputs changed during dispatch readback',
   )

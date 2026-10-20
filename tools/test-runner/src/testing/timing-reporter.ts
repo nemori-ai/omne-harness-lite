@@ -1,10 +1,8 @@
-// 计时报告器：运行器随 JSON 报告一起挂给每个成员的 vitest（`--reporter=<本文件>`），补上 JSON 报告里没有的两样——
-// 每个文件的导入耗时（vitest 的 collectDuration：导入模块并执行 describe 回调），与每条用例的实际时限和标签。
-// 写到环境变量 OMNE_TEST_TIMING_FILE 指的路径；没设就什么都不写。只读 vitest 的公开报告器接口。
+// 计时报告器：仓库根 `vitest.tiers.mts` 在运行器设了报告目录时随 JSON 报告一起挂给每个成员的 vitest，
+// 补上 JSON 报告里没有的两样——每个文件的导入耗时（vitest 的 collectDuration：导入模块并执行 describe 回调），
+// 与每条用例的实际时限和标签。写到选项 `outputFile` 指的路径；没给就什么都不写。只读 vitest 的公开报告器接口。
 import { writeFileSync } from 'node:fs'
 import type { Reporter, TestCase, TestModule } from 'vitest/node'
-
-export const TIMING_FILE_ENV = 'OMNE_TEST_TIMING_FILE'
 
 /** `<成员>.timing.json` 的形状。 */
 export interface TimingReport {
@@ -45,8 +43,14 @@ function timingOf(module: TestModule): TimingReport['files'][number] {
 }
 
 export default class TimingReporter implements Reporter {
+  readonly #outputFile: string | undefined
+
+  constructor(options: { readonly outputFile?: string } = {}) {
+    this.#outputFile = options.outputFile
+  }
+
   onTestRunEnd(modules: ReadonlyArray<TestModule>): void {
-    const path = process.env[TIMING_FILE_ENV]
+    const path = this.#outputFile
     if (path === undefined || path === '') return
     const report: TimingReport = { files: modules.map(timingOf) }
     writeFileSync(path, `${JSON.stringify(report)}\n`)

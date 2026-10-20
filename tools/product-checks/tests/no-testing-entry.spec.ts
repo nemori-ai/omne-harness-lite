@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { collectSources, runRules } from '@omne-harness/repo-toolchain/core/scan'
@@ -12,7 +12,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 function fixture(files: Record<string, string>): string {
-  const root = mkdtempSync(join(tmpdir(), 'omne-testing-entry-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-testing-entry-')))
   roots.push(root)
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(dirname(join(root, path)), { recursive: true })

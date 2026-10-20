@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -42,7 +42,7 @@ function topic(
   return dir
 }
 function temporary(): string {
-  const root = mkdtempSync(join(tmpdir(), 'product-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'product-')))
   made.push(root)
   return root
 }

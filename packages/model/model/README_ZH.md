@@ -88,7 +88,7 @@ factory 路径需要受信装配明确登记精确档案与供应商采用、接
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。独立执行测试经公开入口连接脚本传输及受控故障提供者，覆盖一次发送、回执匹配、取消、失联与关闭。六项 transport 符合性直接检查提供者。其他测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
+运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `pnpm run check:docs`。独立执行测试经公开入口连接脚本传输及受控故障提供者，覆盖一次发送、回执匹配、取消、失联与关闭。六项 transport 符合性直接检查提供者。其他测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
 
 ## 维护
 

@@ -1,6 +1,6 @@
 // 验收覆盖声明的正反夹具：合乎写法的声明通过；缺声明、两行声明、声明不在开头、写法不对、场景不存在、
 // 编号重复、文件名的 topic 不在声明里、有验收却没有 acceptance 脚本，各自指名报出。
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -167,7 +167,7 @@ describe('覆盖声明：读仓库', () => {
   }
 
   it('真实读取完整 PD 身份与场景，合法验收无违反', () => {
-    const root = mkdtempSync(join(tmpdir(), 'coverage-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'coverage-')))
     made.push(root)
     write(
       root,
@@ -190,7 +190,7 @@ describe('覆盖声明：读仓库', () => {
   })
 
   it('真实读取多个 topic，文件名可属于声明中的任一个完整身份', () => {
-    const root = mkdtempSync(join(tmpdir(), 'coverage-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'coverage-')))
     made.push(root)
     for (const slug of ['cli', 'model-invocation']) {
       write(
@@ -216,7 +216,7 @@ describe('覆盖声明：读仓库', () => {
   })
 
   it('历史目录不成为来源，非法当前来源仍明确失败', () => {
-    const root = mkdtempSync(join(tmpdir(), 'coverage-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'coverage-')))
     made.push(root)
     write(root, 'product/old.legacy/README.md', '旧格式，不是当前来源\n')
     write(root, 'apps/cli/package.json', '{"scripts":{"acceptance":"vitest run"}}')
@@ -230,7 +230,7 @@ describe('覆盖声明：读仓库', () => {
   })
 
   it('只收成员根下 acceptance 目录里的 *.acceptance.ts，node_modules 与 dist 不进；场景从产品区读', () => {
-    const root = mkdtempSync(join(tmpdir(), 'coverage-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'coverage-')))
     made.push(root)
     write(root, 'product/cli/README.md', '---\nid: PD-cli\nrevision: 1\nstatus: draft\n---\n')
     write(root, 'product/cli/design.md', '# Product')

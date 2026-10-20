@@ -67,7 +67,7 @@ This package requires Node.js `>=24.18.0 <25`, the same range as the template an
 
 ## Verification
 
-`pnpm test` builds, then runs vitest. The tests call the public exports. They observe how many times `load` runs, and the returned `kind`, `reason`, `path`, `issues`, `value`, and `superseded`.
+turbo builds first, then runs vitest: `pnpm turbo run test --filter=@omne-harness/schema-provider`. `pnpm test` in this directory runs vitest only and does not build. The tests call the public exports. They observe how many times `load` runs, and the returned `kind`, `reason`, `path`, `issues`, `value`, and `superseded`.
 
 The tests cover these behaviors:
 

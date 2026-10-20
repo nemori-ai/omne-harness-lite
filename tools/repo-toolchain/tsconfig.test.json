@@ -8,5 +8,6 @@
     "rewriteRelativeImportExtensions": true,
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "vitest.config.ts"],
+  "exclude": ["**/*.legacy/**"]
 }

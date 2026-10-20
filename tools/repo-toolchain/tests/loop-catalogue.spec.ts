@@ -1,6 +1,6 @@
 // 对照表的条数：合约定的计数、不合约定的报出位置与原文、文件不存在报没数据；对回全表的三种对不上；
 // 以及仓库里真实的 docs/clean-loop.md（存在时）合约定。
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,7 +24,7 @@ const CATALOGUE = [
   '',
   '| 条目 | 归类 | 落点 |',
   '| --- | :---: | --- |',
-  '| 小函数 | 传感器 | `make metrics` |',
+  '| 小函数 | 传感器 | `pnpm run metrics` |',
   '| 结对 | 评审问法 | 检查表 3 |',
   '| 估算 | 归 人 | 负责人 |',
   '| 含竖线\\|的条目 | 不采 | x |',
@@ -90,7 +90,7 @@ describe('对照表', () => {
     })
 
     it('对照表不存在：没数据，原因是还没写；全表不存在：对回全表没数据', () => {
-      const root = mkdtempSync(join(tmpdir(), 'loop-catalogue-'))
+      const root = realpathSync(mkdtempSync(join(tmpdir(), 'loop-catalogue-')))
       made.push(root)
       expect(readCatalogue(root, 'docs/c.md', 'research/d.md')).toEqual({
         categories: { status: 'no-data', reason: '对照表还没写' },

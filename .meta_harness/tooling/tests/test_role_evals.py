@@ -1141,7 +1141,7 @@ def test_the_command_line_runs_the_pair_around_a_dispatch(wired: dict[str, Any],
                                                           monkeypatch: pytest.MonkeyPatch,
                                                           capsys: pytest.CaptureFixture[str]) -> None:
     wired["work"].mkdir()
-    monkeypatch.setattr(cli, "work_root", lambda _: wired["work"])   # make test 的临时目录在检出里，真的工作根不许在那
+    monkeypatch.setattr(cli, "work_root", lambda _: wired["work"])   # pnpm run test:python 的临时目录在检出里，真的工作根不许在那
     root, out = str(wired["repo"] / "suites" / "tiny-review"), str(wired["out"])
     episode = ["--out", out, "--variant", "baseline", "--material", "doc"]
     assert cli.main(["prepare", root, *episode]) == 0

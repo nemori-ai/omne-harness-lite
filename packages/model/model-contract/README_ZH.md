@@ -31,7 +31,7 @@
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model-contract typecheck`、`pnpm --filter @omne-harness/model-contract test` 及 `make docs-check`。当前测试覆盖根入口的 153 个类型声明与 18 个运行时值（身份解码、比较函数与常量、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`、`deriveGuardControlOperation`）、导出清单、类型消费探针、安装闭包设施，`./testing` 的受控替代提供者与替代传输，以及 `./testing` 的符合性断言（替代件须通过全部义务，每条义务另有只违反它的坏提供者让它失败）。清单没有 `pending` 名字。协议、资源和生产能力的验证仍按[持续义务](verification/index.md)执行。
+运行 `pnpm --filter @omne-harness/model-contract typecheck`、`pnpm --filter @omne-harness/model-contract test` 及 `pnpm run check:docs`。当前测试覆盖根入口的 153 个类型声明与 18 个运行时值（身份解码、比较函数与常量、`MODEL_SEND`、`decodeCredentialId`、`sameCredentialHolder`、`deriveGuardControlOperation`）、导出清单、类型消费探针、安装闭包设施，`./testing` 的受控替代提供者与替代传输，以及 `./testing` 的符合性断言（替代件须通过全部义务，每条义务另有只违反它的坏提供者让它失败）。清单没有 `pending` 名字。协议、资源和生产能力的验证仍按[持续义务](verification/index.md)执行。
 
 ## 维护
 

@@ -12,6 +12,10 @@
       "tsconfig*.json",
       "vitest.tiers.mts",
       "scripts/check.sh",
+      "scripts/check-design.sh",
+      "scripts/metrics.sh",
+      "scripts/slot-unless-plan-only.sh",
+      "scripts/test-tier.sh",
       "tools/test-runner/test-runs.config.json",
       "tools/test-runner/src/testing/scope.ts",
       "tools/test-runner/src/testing/turbo.ts",
@@ -21,6 +25,8 @@
       "tools/test-runner/src/testing/steps.ts",
       "tools/test-runner/src/testing/support.ts",
       "tools/test-runner/src/testing/timing-reporter.ts",
+      "tools/test-runner/src/testing/typecheck-scope.ts",
+      "tools/test-runner/src/testing/member-turbo.ts",
       "tools/dev-flow/src/integration/**",
       "docs/engineering/integration-policy.json",
       "docs/architecture/constraints.json",
@@ -90,7 +96,6 @@
       "apps/*/deploy/**/*.md"
     ],
     "pythonPaths": [
-      "Makefile",
       "pyproject.toml",
       "uv.lock",
       "tools/spec-tools/**",

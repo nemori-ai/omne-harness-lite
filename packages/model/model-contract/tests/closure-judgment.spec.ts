@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +14,7 @@ import {
 // Pure judgments on declared dependencies; nothing here packs, installs or spawns a process.
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const policyPath = join(packageDirectory, 'tests/fixtures/install-policy.json')
-const temporary = mkdtempSync(join(tmpdir(), 'closure-judgment-'))
+const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'closure-judgment-')))
 afterAll(() => rmSync(temporary, { recursive: true, force: true }))
 
 function writeManifest(directory: string, manifest: object): void {

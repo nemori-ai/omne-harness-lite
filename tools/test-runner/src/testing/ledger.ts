@@ -39,6 +39,8 @@ export interface MemberRun {
   readonly report?: VitestJsonReport
   /** 计时报告；与 JSON 报告同理可能没有。 */
   readonly timing?: TimingReport
+  /** 运行器自己判的失败（如报告里有嵌套归档目录的文件）；有它时退出码一定非零。 */
+  readonly problem?: string
 }
 
 /** 什么都没跑的账本正文（计划跳过了全部验收时用）。 */
@@ -169,8 +171,9 @@ export function buildLedger(
       if (result.status === 'failed' && failedHere === 0)
         failures.push({ member: run.member, file, message: firstLine(result.message ?? '') })
     }
+    if (run.problem !== undefined) failures.push({ member: run.member, message: run.problem })
     // 成员退出码非零却没有任何可归到文件的失败：报告缺失，或失败发生在测试之外（如类型检查）。
-    if (run.exitCode !== 0 && !failures.some(failure => failure.member === run.member))
+    else if (run.exitCode !== 0 && !failures.some(failure => failure.member === run.member))
       failures.push({
         member: run.member,
         message:

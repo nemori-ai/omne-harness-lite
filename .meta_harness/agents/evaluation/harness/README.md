@@ -2,13 +2,13 @@
 
 一个**流**是一个角色做一种事。流的用例与判定方法放在[常设用例集](../suites/README.md)里，这里只有跑它们的那一套：
 建一次性的工作副本、写派发用的简报、收录宿主留下的记录、把判定结果落成统一形状、算带区间的汇总。
-代码在 [roleeval/](roleeval/)，测试在 `tooling/tests/test_role_evals*.py`，随 `make test` 跑。
+代码在 [roleeval/](roleeval/)，测试在 `tooling/tests/test_role_evals*.py`，随 `pnpm run test:python` 跑。
 
 **运行器自己不起任何模型。**角色的一次运行、判官的一次答复，都是主会话用 Agent 工具派出去的一个 subagent。
 运行器的子命令成对围着那一次派发：前一个写出该交给 subagent 的东西，后一个把宿主留下的那份记录收进来核对、记账。
 不用无界面的宿主进程（`claude -p` 之类）跑评估——负责人 2026-10-01 定的，那样做有封号的风险。
 
-入口是 `make role-eval ARGS="<子命令> <用例集目录> …"`：
+入口是 `pnpm run role-eval <子命令> <用例集目录> …`：
 
 | 子命令 | 做什么 |
 |---|---|

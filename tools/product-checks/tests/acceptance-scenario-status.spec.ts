@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,7 +17,7 @@ const run = (...args: string[]) =>
     encoding: 'utf8',
   })
 const temporary = () => {
-  const root = mkdtempSync(join(tmpdir(), 'scenario-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'scenario-')))
   made.push(root)
   return root
 }
