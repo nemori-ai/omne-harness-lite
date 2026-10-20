@@ -7,6 +7,7 @@ import type {
   ToolTerminal,
   ToolEnvironment,
 } from '@omne-harness/tool-contract'
+import { readToolInvocationRef } from '@omne-harness/tool-contract'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import {
   createToolLedger,
@@ -25,6 +26,9 @@ import {
   ok,
   operationId,
   principalA,
+  principalB,
+  tenantB,
+  request,
   tenantA,
   testSettlementPorts,
   text,
@@ -34,6 +38,8 @@ import {
 
 export async function settlementFixture(
   options: Readonly<{
+    tenant?: 'a' | 'b'
+    call?: string
     mode?: 'foreground' | 'background'
     terminal?: ToolTerminal
     process?: readonly ProcessBlock[] | ((raw: RawOutput) => readonly ProcessBlock[])
@@ -46,22 +52,39 @@ export async function settlementFixture(
   }> = {},
 ) {
   const harness = startHarness()
-  await admitCall(
-    harness,
-    'settlement',
-    options.mode === 'background'
-      ? {
-          mode: 'background',
-          availability: {
-            kind: 'available',
-            definition: functionDefinition({ backgroundAllowed: true }),
-            executor: adoption('exec'),
-          },
-        }
-      : {},
-  )
-  await harness.drive('settlement')
-  const access = { principal: principalA, tenant: tenantA, call: callId('settlement') }
+  const name = options.call ?? 'settlement'
+  let access = { principal: principalA, tenant: tenantA, call: callId(name) }
+  if (options.tenant === 'b') {
+    const invoked = await harness.runtime.invoke({
+      principal: principalB,
+      tenant: tenantB,
+      request: request(),
+    })
+    if (invoked.kind !== 'accepted') throw new Error('fixture admission')
+    const { call } = readToolInvocationRef(invoked.reference)
+    access = { principal: principalB, tenant: tenantB, call }
+    await harness.host.driver().run({
+      ...access,
+      instance: await harness.host.instanceOf(call),
+      signal: new AbortController().signal,
+    })
+  } else {
+    await admitCall(
+      harness,
+      name,
+      options.mode === 'background'
+        ? {
+            mode: 'background',
+            availability: {
+              kind: 'available',
+              definition: functionDefinition({ backgroundAllowed: true }),
+              executor: adoption('exec'),
+            },
+          }
+        : {},
+    )
+    await harness.drive(name)
+  }
   const recovery = ok(await harness.commands.loadRecovery(access))
   if (recovery.start === null || recovery.execution === null)
     throw new Error('fixture did not start')
@@ -141,7 +164,7 @@ export async function settlementFixture(
   const input = {
     ...access,
     ...recovery.execution,
-    principal: principalA,
+    principal: access.principal,
     operation: operationId('preserve-result'),
     expected: before.state.revision,
     raw: final.raw,

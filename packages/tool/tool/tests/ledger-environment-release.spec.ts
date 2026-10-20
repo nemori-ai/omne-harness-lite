@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ReleaseProgress, ToolEnvironment } from '@omne-harness/tool-contract'
 import type { ToolAccessGuard } from '@omne-harness/tool'
+import { text } from './runtime-values.ts'
+import type { ProcessBlock } from '@omne-harness/tool-contract'
 import { settlementFixture, refProcess } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'
 import {
@@ -656,4 +658,140 @@ describe('restricted settled facts task', () => {
       failure(await f.ledger.commands.recordTask({ ...input, principal: principalB })).kind,
     ).toBe('denied')
   })
+})
+
+it('plans canonical cleanup for saved inline, text and thinking history', async () => {
+  const process: ProcessBlock[] = [
+    {
+      index: 'output',
+      mode: 'replace',
+      state: 'open',
+      sequence: '0',
+      trim: null,
+      content: {
+        kind: 'image',
+        id: text('inline', '').id,
+        visibility: { toHuman: true, toModel: false },
+        mediaType: 'image/png',
+        inline: 'original image bytes',
+      },
+    },
+    {
+      index: 'output',
+      mode: 'replace',
+      state: 'open',
+      sequence: '1',
+      trim: null,
+      content: { ...text('thinking', 'original reasoning'), kind: 'thinking' },
+    },
+    {
+      index: 'output',
+      mode: 'replace',
+      state: 'closed',
+      sequence: '2',
+      trim: null,
+      content: text('text', 'original process text'),
+    },
+  ]
+  const f = await settlementFixture({ process })
+  ok(await f.preserve())
+  const saved = await f.load()
+  expect(saved.tasks.some(task => task.kind === 'settle')).toBe(false)
+  const task = saved.tasks.find(task => task.kind === 'release')
+  if (task?.kind !== 'release') throw new Error('missing release')
+  expect(task.release.preparation).toBe(firstPreparation(f).operation)
+  const records = await f.records()
+  expect(
+    records
+      .filter(record => record.kind === 'fact-event')
+      .flatMap(record => (record.fact.fact.kind === 'process' ? record.fact.fact.blocks : [])),
+  ).toEqual(process)
+  expect(records.find(record => record.kind === 'result')).toMatchObject({
+    kind: 'result',
+    result: {
+      custody: {
+        kind: 'execution',
+        cleanup: {
+          kind: 'planned',
+          operation: task.operation,
+        },
+      },
+    },
+  })
+  expect(records.find(record => record.kind === 'environment-release')).toMatchObject({
+    kind: 'environment-release',
+    environmentRelease: {
+      release: task.release,
+      progress: {
+        kind: 'pending',
+        diagnostic: expect.any(String),
+      },
+    },
+  })
+})
+
+it.each([
+  { kind: 'unknown-outcome', diagnostic: 'unknown kind' },
+  { kind: 'pending', diagnostic: 42 },
+])('rejects malformed release outcome $kind without writing', async outcome => {
+  const f = await releasedFixture()
+  const records = await f.records()
+  const commits = f.commits.length
+  expect(
+    await f.ledger.commands.recordRelease({
+      ...f.access,
+      operation: operationId('malformed-outcome'),
+      release: f.release,
+      // The external provider can violate its static type at this runtime boundary.
+      // @ts-expect-error malformed external outcome is deliberately untrusted
+      outcome,
+    }),
+  ).toMatchObject({ failure: { kind: 'invalid' } })
+  expect(f.commits).toHaveLength(commits)
+  expect(await f.records()).toEqual(records)
+})
+
+it('requires current write qualification before release inspection and receipt replay', async () => {
+  let withdrawn = false
+  const actions: string[] = []
+  const inspect = vi.fn<ToolEnvironment<Principal, unknown>['inspectRelease']>()
+  const f = await settlementFixture({
+    wrapAccess: access => ({
+      qualify: input => {
+        actions.push(input.action)
+        return withdrawn && input.action === 'write'
+          ? Promise.resolve({ kind: 'denied', reason: 'write grant withdrawn' })
+          : access.qualify(input)
+      },
+    }),
+    wrapReleaseInspection: base => ({
+      inspectRelease: inspect.mockImplementation(input => base.inspectRelease(input)),
+    }),
+  })
+  ok(await f.preserve())
+  const task = (await f.load()).tasks.find(task => task.kind === 'release')
+  if (task?.kind !== 'release') throw new Error('fixture release')
+  const actual = ok(await f.environment.release({ ...f.access, release: task.release }))
+  if (actual.kind !== 'released') throw new Error('fixture released evidence')
+  const input = {
+    ...f.access,
+    operation: operationId('qualified-observation'),
+    release: task.release,
+    outcome: actual,
+  }
+  ok(await f.ledger.commands.recordRelease(input))
+  expect(inspect).toHaveBeenCalledTimes(1)
+  const records = await f.records()
+  const commits = f.commits.length
+  withdrawn = true
+  actions.length = 0
+  for (const operation of [operationId('new-observation-after-withdrawal'), input.operation]) {
+    expect(await f.ledger.commands.recordRelease({ ...input, operation })).toEqual(
+      fail({ kind: 'denied', action: 'write' }),
+    )
+  }
+  expect(actions).toEqual(['write', 'write'])
+  expect(inspect).toHaveBeenCalledTimes(1)
+  expect(f.commits).toHaveLength(commits)
+  expect(await f.records()).toEqual(records)
 })

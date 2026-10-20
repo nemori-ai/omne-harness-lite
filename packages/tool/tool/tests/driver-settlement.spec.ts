@@ -735,3 +735,133 @@ describe('original final settlement in one shared driver', () => {
     await f.close()
   })
 })
+
+it.each(['end', 'throw'] as const)(
+  'closes the abnormal %s reader as soon as blocked responsibility is saved',
+  async channel => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    let blocked = false
+    const f = fixture({
+      channel,
+      commands: base => ({
+        ...base,
+        recordTask: async input => {
+          const recorded = await base.recordTask(input)
+          if ('ok' in recorded) blocked = true
+          return recorded
+        },
+        loadRecovery: input =>
+          blocked
+            ? Promise.resolve(
+                fail({
+                  kind: 'unavailable',
+                  dependency: 'recovery',
+                  diagnostic: 'recovery offline after blocked commit',
+                }),
+              )
+            : base.loadRecovery(input),
+      }),
+    })
+    const first = await f.invoke('first')
+    const final = await f.final(first.call, {
+      kind: 'failed',
+      cause: 'executor',
+      diagnostic: 'failed',
+    })
+    await f.h.binding.controls.finish(await f.start(first.call), final)
+    await f.pump()
+    expect(blocked).toBe(true)
+    expect(f.stats.returns).toBe(1)
+    expect(f.stats.readers).toBe(0)
+    const saved = ok(await f.h.ledger.commands.loadRecovery(first.access))
+    expect(saved.result).toEqual(final.result)
+    expect(saved.state).toMatchObject({
+      phase: 'settled',
+      terminal: final.terminal,
+      execution: { kind: 'ended' },
+    })
+    expect(saved.tasks).toContainEqual(expect.objectContaining({ kind: 'facts', state: 'blocked' }))
+    expect(f.h.binding.executions).toEqual([first.call])
+    await f.close()
+  },
+)
+
+it.each(['cancelled', 'unavailable'] as const)(
+  'keeps the original final read %s from initiating preservation or wake',
+  async mode => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const entered = deferred<void>()
+    const resumed = deferred<void>()
+    let readingFinal = false
+    let armed = true
+    let preserves = 0
+    const f = fixture({
+      store: memory => ({
+        ...memory,
+        read: async domain => {
+          if (readingFinal && domain.kind === 'call') {
+            readingFinal = false
+            entered.resolve()
+            await resumed.promise
+            if (mode === 'unavailable')
+              return { kind: 'unavailable', diagnostic: 'original-final-read-unavailable' }
+          }
+          return memory.read(domain)
+        },
+      }),
+      commands: base => ({
+        ...base,
+        loadRecovery: async input => {
+          const loaded = await base.loadRecovery(input)
+          if (armed && 'ok' in loaded && loaded.ok.tasks.some(task => task.kind === 'settle')) {
+            armed = false
+            readingFinal = true
+          }
+          return loaded
+        },
+        preserveResult: input => {
+          preserves += 1
+          return base.preserveResult(input)
+        },
+      }),
+    })
+    const first = await f.invoke('first')
+    const second = await f.invoke('second')
+    await f.h.binding.controls.finish(await f.start(first.call), await f.final(first.call))
+    await flush()
+    const driver = f.h.host.driver()
+    if (!('advance' in driver) || typeof driver.advance !== 'function')
+      throw new Error('fixture driver handle')
+    const running: Promise<unknown> = driver.advance({
+      ...first.access,
+      instance: await f.h.host.instanceOf(first.call),
+      signal: first.controller.signal,
+    })
+    await entered.promise
+    const schedules = f.h.host.scheduleAttempts.length
+    if (mode === 'cancelled') first.controller.abort()
+    resumed.resolve()
+    if (mode === 'unavailable')
+      await expect(running).resolves.toEqual({
+        kind: 'failed',
+        failure: {
+          kind: 'unavailable',
+          dependency: 'ledger-store',
+          diagnostic: 'original-final-read-unavailable',
+        },
+      })
+    else await expect(running).resolves.toMatchObject({ kind: 'blocked' })
+    expect(preserves).toBe(0)
+    expect(f.h.host.scheduleAttempts).toHaveLength(schedules)
+    const saved = await f.load(first.call)
+    expect(saved.state.phase).toBe('running')
+    expect(saved.result).toBeNull()
+    expect(saved.tasks).toContainEqual(
+      expect.objectContaining({ kind: 'settle', state: 'pending' }),
+    )
+    expect((await f.load(second.call)).state.phase).toBe('queued')
+    expect(await f.h.released()).not.toContain(first.call)
+    expect(f.h.binding.executions).toEqual([first.call])
+    await f.close()
+  },
+)

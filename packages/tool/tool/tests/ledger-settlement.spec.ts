@@ -1,5 +1,6 @@
 import { createToolLedger } from '@omne-harness/tool'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
+import { mintEvidence } from '../src/evidence.ts'
 import { settlementOperation } from '../src/ledger-environment-release.ts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
@@ -8,6 +9,7 @@ import type { ToolOutputCustody } from '@omne-harness/tool-contract'
 import { auditQueues, admitCall } from './start-values.ts'
 import { settlementFixture, refProcess } from './settlement-values.ts'
 import {
+  adoption,
   evidence,
   guards,
   configurationOf,
@@ -66,6 +68,32 @@ describe('original execution settlement', () => {
     expect(puts.map(record => record.kind)).toEqual(
       expect.arrayContaining(['call', 'result', 'environment-release']),
     )
+    const release = puts.find(record => record.kind === 'environment-release')
+    if (release?.kind !== 'environment-release') throw new Error('missing canonical release')
+    expect(release.environmentRelease.progress).toMatchObject({ kind: 'pending' })
+    expect(release.environmentRelease.progress).toHaveProperty('diagnostic', expect.any(String))
+    expect(puts).toContainEqual({
+      kind: 'task',
+      task: {
+        kind: 'release',
+        operation: release.environmentRelease.release.operation,
+        state: 'pending',
+        diagnostic: null,
+        release: release.environmentRelease.release,
+      },
+    })
+    expect(puts.find(record => record.kind === 'result')).toMatchObject({
+      kind: 'result',
+      result: {
+        custody: {
+          kind: 'execution',
+          cleanup: {
+            kind: 'planned',
+            operation: release.environmentRelease.release.operation,
+          },
+        },
+      },
+    })
     expect(puts.filter(record => record.kind === 'task').map(record => record.task.kind)).toEqual(
       expect.arrayContaining(['deliver', 'queue', 'release', 'clock']),
     )
@@ -215,6 +243,7 @@ describe('independent output custody and call CAS', () => {
       expect(JSON.stringify(refused)).not.toContain('secret-password')
       expect((await f.load()).state.phase).toBe('running')
       expect((await f.load()).tasks.map(task => task.kind)).toContain('settle')
+      expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
       expect(await f.harness.released()).not.toContain(f.access.call)
       ok(await f.preserve())
       expect(requests).toHaveLength(2)
@@ -309,6 +338,24 @@ describe('downstream custody closure', () => {
         state: 'blocked',
         diagnostic: 'non-completed-output-barrier-unconfirmed',
       })
+      expect(f.commits[0]?.writes).toContainEqual(
+        expect.objectContaining({
+          kind: 'put',
+          record: expect.objectContaining({
+            kind: 'result',
+            result: expect.objectContaining({
+              custody: expect.objectContaining({
+                kind: 'execution',
+                cleanup: {
+                  kind: 'awaiting-independent-custody',
+                  preparation: f.before.preparations[0]?.operation,
+                  diagnostic: 'non-completed-output-barrier-unconfirmed',
+                },
+              }),
+            }),
+          }),
+        }),
+      )
       expect((await f.records()).some(record => record.kind === 'environment-release')).toBe(false)
       const later = {
         ...f.batch,
@@ -337,6 +384,24 @@ describe('downstream custody closure', () => {
     })
     expect((await f.records()).some(record => record.kind === 'environment-release')).toBe(false)
     expect(await f.harness.released()).toContain(f.access.call)
+    const originalResult = f.commits[0]?.writes.find(
+      write => write.kind === 'put' && write.record.kind === 'result',
+    )
+    expect(originalResult).toMatchObject({
+      kind: 'put',
+      record: {
+        kind: 'result',
+        result: {
+          custody: {
+            cleanup: {
+              kind: 'awaiting-independent-custody',
+              preparation: f.before.preparations[0]?.operation,
+              diagnostic: 'process-output-independent-custody-required',
+            },
+          },
+        },
+      },
+    })
   })
 })
 
@@ -785,3 +850,151 @@ function canonicalReleaseOperation(f: Awaited<ReturnType<typeof settlementFixtur
     final: task.basis,
   })
 }
+
+it('keeps the original unknown timing evidence through settlement', async () => {
+  const f = await settlementFixture()
+  const domain = { kind: 'call', tenant: f.access.tenant, call: f.access.call } as const
+  const saved = await f.harness.memory.read(domain)
+  if (saved.kind !== 'complete') throw new Error('fixture read')
+  const record = saved.records.find(record => record.kind === 'call')
+  if (record?.kind !== 'call' || record.call.state.timing.kind !== 'running')
+    throw new Error('fixture running timing')
+  const timing = {
+    ...record.call.state.timing,
+    kind: 'unknown',
+    accumulatedMs: '37',
+    diagnostic: 'original-clock-observation-unavailable',
+  } as const
+  const revision = ok(decodeToolRevision(String(BigInt(saved.revision) + 1n)))
+  const { source: _source, ...previous } = record.call.state
+  const body = { ...previous, revision, timing }
+  const stateWithUnknownTiming = judged({
+    ...body,
+    source: mintEvidence('state', { tenant: f.access.tenant, call: f.access.call }, revision, body),
+  })
+  expect(
+    await f.harness.memory.commit({
+      domain,
+      expected: saved.revision,
+      revision,
+      writes: [
+        {
+          kind: 'put',
+          record: {
+            kind: 'call',
+            call: { ...record.call, state: stateWithUnknownTiming },
+          },
+        },
+      ],
+    }),
+  ).toEqual({ kind: 'committed' })
+  expect((await f.load()).state.timing).toEqual(timing)
+  const state = ok(
+    await f.ledger.commands.preserveResult({
+      ...f.input,
+      expected: (await f.load()).state.revision,
+    }),
+  )
+  expect(state.timing).toEqual(timing)
+  expect((await f.load()).tasks).toContainEqual(
+    expect.objectContaining({ kind: 'clock', state: 'blocked' }),
+  )
+  expect(await f.harness.released()).toContain(f.access.call)
+  expect(f.lateClockSamples).toEqual([])
+})
+
+it('separates retained result identities for different tenants, calls and original finals', async () => {
+  const requests: Parameters<ToolOutputCustody<Principal>['retainResult']>[0][] = []
+  const capture = (base: ToolOutputCustody<Principal>): ToolOutputCustody<Principal> => ({
+    ...base,
+    retainResult: input => {
+      requests.push(structuredClone(input))
+      return base.retainResult(input)
+    },
+  })
+  const fixtures = [
+    await settlementFixture({ call: 'first-retained-call', wrapCustody: capture }),
+    await settlementFixture({ call: 'second-retained-call', wrapCustody: capture }),
+    await settlementFixture({ tenant: 'b', wrapCustody: capture }),
+    await settlementFixture({
+      call: 'first-retained-call',
+      wrapCustody: capture,
+      terminal: { kind: 'failed', cause: 'executor', diagnostic: 'different original final' },
+    }),
+  ]
+  for (const f of fixtures) {
+    ok(await f.preserve())
+    expect((await f.load()).result).toEqual(f.final.result)
+  }
+  expect(requests).toHaveLength(4)
+  expect(new Set(requests.map(input => input.operation)).size).toBe(4)
+  for (const [index, f] of fixtures.entries()) {
+    expect(requests[index]).toMatchObject({
+      tenant: f.access.tenant,
+      call: f.access.call,
+      raw: f.final.raw,
+      value: f.final.result,
+    })
+    const result = (await f.records()).find(record => record.kind === 'result')
+    expect(result).toMatchObject({
+      kind: 'result',
+      result: {
+        custody: { kind: 'execution', retainOperation: requests[index]?.operation },
+        terminal: f.final.terminal,
+      },
+    })
+  }
+})
+
+it.each(['denied', 'unsupported', 'invalid'] as const)(
+  'returns the original definite custody %s without committing a result',
+  async kind => {
+    const definite =
+      kind === 'denied'
+        ? ({ kind, action: 'retainResult' } as const)
+        : kind === 'unsupported'
+          ? ({
+              kind,
+              adoption: adoption('custody'),
+              reason: 'not supported',
+            } as const)
+          : ({ kind, field: 'raw', reason: 'custody rejected original' } as const)
+    let refused = true
+    const requests: Parameters<ToolOutputCustody<Principal>['retainResult']>[0][] = []
+    const f = await settlementFixture({
+      wrapCustody: base => ({
+        ...base,
+        retainResult: input => {
+          requests.push(structuredClone(input))
+          return refused ? Promise.resolve(fail(definite)) : base.retainResult(input)
+        },
+      }),
+    })
+    expect(await f.preserve()).toEqual(fail(definite))
+    expect((await f.load()).state).toEqual(f.before.state)
+    expect((await f.load()).tasks).toEqual(f.before.tasks)
+    expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
+    expect(await f.harness.released()).not.toContain(f.access.call)
+    refused = false
+    ok(await f.preserve())
+    expect(requests).toHaveLength(2)
+    expect(requests[0]).toEqual(requests[1])
+    expect((await f.load()).result).toEqual(f.final.result)
+  },
+)
+
+it('rejects malformed successful custody evidence without losing settlement responsibility', async () => {
+  const f = await settlementFixture({
+    wrapCustody: base => ({
+      ...base,
+      retainResult: async () => ({ ok: { ...evidence('malformed'), revision: '' } }),
+    }),
+  })
+  await expect(f.preserve()).resolves.toMatchObject({
+    failure: { kind: 'unavailable', dependency: 'output-custody' },
+  })
+  expect((await f.load()).state).toEqual(f.before.state)
+  expect((await f.load()).tasks).toEqual(f.before.tasks)
+  expect((await f.records()).some(record => record.kind === 'result')).toBe(false)
+  expect(await f.harness.released()).not.toContain(f.access.call)
+})
