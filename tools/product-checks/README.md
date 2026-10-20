@@ -30,6 +30,15 @@ The CLI exits 1 on violations and prints their rule, source path and line. A suc
 
 `Rule`, `SourceFile`, `Violation`, `collectSources` and `runRules(files, rules)` come from `@omne-harness/repo-toolchain`.
 
+`rulesForRoot(root)` configures `no-testing-import` from manifests within that scan root.
+Test paths, exact declared testing entry files, and named members' direct `acceptance/` directories may import public testing entries.
+A member requires a parsed object manifest with a nonempty string `name`.
+Missing or invalid manifests grant no acceptance exemption.
+
+Product paths such as `src/acceptance/` and names such as `acceptance-other/` remain checked.
+The default `RULES` has no manifest facts and exempts only test paths.
+Other rules retain their own path classification.
+
 `SourceFile` contains a path and source text, plus optional `resolvedModules` supplied by the repository collector. Rules can inspect a supplied source batch without loading or executing product modules. Package rules usually expect paths relative to `packages/`; repository rules expect repository paths. The model credential rule also normalizes the corresponding package-root and app-root paths.
 
 For a fixture stored beside this README after building:
