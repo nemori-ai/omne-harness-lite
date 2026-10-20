@@ -5,6 +5,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   Access,
   DeliveryState,
+  ReleasedDelivery,
   DurableEvidence,
   Effect,
   FixedToolRequest,
@@ -73,7 +74,7 @@ export type CallRecord = Readonly<{
 /** The complete named result of one committed operation (P01 `committed.receipt`). */
 export type OperationReceipt =
   | Readonly<{ kind: 'admit'; state: ToolState }>
-  | Readonly<{ kind: 'release-delivery'; delivery: DeliveryState }>
+  | Readonly<{ kind: 'release-delivery'; delivery: ReleasedDelivery }>
   | Readonly<{ kind: 'plan-preparation'; preparation: PreparationRecord }>
   | Readonly<{ kind: 'prepared'; state: ToolState }>
   | Readonly<{ kind: 'enqueue'; state: ToolState }>

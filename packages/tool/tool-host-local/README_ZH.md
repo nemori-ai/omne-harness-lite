@@ -87,3 +87,5 @@ tool-host-local/
 ```
 
 本提供者的公共契约归契约包 [`@omne-harness/tool-contract`](../tool-contract/README_ZH.md)。完整文件导航见 [index](index.md)。主题职责见 [docs/README](docs/README.md)。
+
+runtime 组合测试以 invoke 提交普通 payload，并配对来源签发器与核验器。测试宿主向 driver.run 显式提供 instance。本包不提供生产实例宿主、来源或身份签发器、claim 及接管协议。见 [SPEC 的宿主边界](SPEC.md#实例宿主与普通调用的边界)。

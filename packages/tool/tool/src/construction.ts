@@ -4,6 +4,8 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   CallAccess,
+  FixedToolRequest,
+  Mutation,
   Reply,
   ResultPolicy,
   ToolAuthorLimits,
@@ -16,12 +18,14 @@ import type {
   ToolDecisionBridge,
   ToolEnvironment,
   ToolInstanceHost,
-  ToolInstanceId,
+  ToolInvocationIdentities,
+  ToolInvocationSourceIssuer,
+  ToolOperationIdentities,
   ToolOutputCustody,
   ToolReads,
   ToolResourceResponses,
-  ToolRuntime,
   ToolStartAuthority,
+  ToolState,
 } from '@omne-harness/tool-contract'
 
 export type ToolConfiguration = ToolAuthorLimits &
@@ -63,12 +67,15 @@ export type ToolLedgerConfiguration = Pick<
 >
 
 /**
- * The admission entry of this ledger. It answers what the runtime admit answers: the state, and
- * whether the ledger recalled an admission that was already committed (P01). The contract's
- * `ToolCommands.admit` answers the state only.
+ * The admission entry of this ledger. It answers the state, and whether the ledger recalled an
+ * admission that was already committed (P01). It is a trusted internal port: the caller fixes
+ * the call, the admission operation and the whole fixed request, as the runtime does from the
+ * ordinary invoke.
  */
 export type ToolLedgerAdmissions<P> = Readonly<{
-  admit: ToolRuntime<P, ContentBlock>['admit']
+  admit(
+    input: Mutation<P> & Readonly<{ request: FixedToolRequest }>,
+  ): Reply<Readonly<{ state: ToolState; recovered: boolean }>>
 }>
 
 /**
@@ -96,11 +103,6 @@ export type ToolLedgerQueues<P> = Readonly<{
 }>
 
 export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
-  /**
-   * The identity of this runtime instance. The driver writes it into every write context and
-   * execution reference it records; the coordination generation of `claim` (recovery increment) is not minted yet.
-   */
-  instance: ToolInstanceId
   commands: ToolCommands<P, B>
   admissions: ToolLedgerAdmissions<P>
   queues: ToolLedgerQueues<P>
@@ -116,4 +118,10 @@ export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   catalog: ToolCatalog<P>
   reads: ToolReads<P, B>
   children: ToolChildren<P>
+  /** Mints the call and admission identities of every ordinary invoke. */
+  invocationIdentities: ToolInvocationIdentities
+  /** Mints the operation identity of every ordinary command. */
+  operationIdentities: ToolOperationIdentities
+  /** The trusted entry that binds the invocation source of an ordinary invoke. */
+  sourceIssuer: ToolInvocationSourceIssuer<P>
 }>

@@ -8,7 +8,7 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { ToolDecision } from './author-context.ts'
 import type { ToolInspection } from './authoring.ts'
 import type { RawOutput } from './custody.ts'
-import type { FixedToolRequest, ToolAvailability } from './definitions.ts'
+import type { FixedToolRequest, ToolAvailability, ToolInvocation } from './definitions.ts'
 import type { ToolExecutionRef } from './execution.ts'
 import type {
   Access,
@@ -17,10 +17,17 @@ import type {
   DurableEvidence,
   Mutation,
   ToolCallId,
+  ToolInstanceId,
   ToolOperationId,
   ToolWaitId,
 } from './identity.ts'
-import type { ProcessBlock, ToolDirectory, ToolHandle, ToolRuntime } from './operations.ts'
+import type {
+  ProcessBlock,
+  ToolDirectory,
+  ToolHandle,
+  ToolInvokeRequest,
+  ToolRuntime,
+} from './operations.ts'
 import type {
   ClockSegment,
   ControlDispatch,
@@ -190,8 +197,35 @@ export interface ToolInstanceHost<P> {
   ): Reply<Readonly<{ removed: boolean }>>
   readonly directory: ToolDirectory<P>
 }
+/**
+ * The identity mints of the trusted providers. A new invocation is a fresh pair of a call and its
+ * admission; a new operation is a fresh operation of an admitted call; a new instance is the
+ * identity of one hosted instance the host creates. A mint never reuses a value it returned
+ * before, also not after a restart of the provider.
+ */
+export interface ToolInvocationIdentities {
+  newInvocation(): Reply<Readonly<{ call: ToolCallId; admission: ToolOperationId }>>
+}
+export interface ToolOperationIdentities {
+  newOperation(): Reply<ToolOperationId>
+}
+export interface ToolInstanceIdentities {
+  newInstance(): Reply<ToolInstanceId>
+}
+/**
+ * The trusted entry binds the invocation source of an ordinary invoke. The bind persists the
+ * whole binding: the principal, the tenant, the call and the admission, the fixed payload, the
+ * consumer and the scope, and the real entrance. The answered invocation is what the admission
+ * carries; the source guard later verifies a request against this binding. A caller cannot
+ * supply the invocation, so an arbitrary JSON is never signed as `direct`.
+ */
+export interface ToolInvocationSourceIssuer<P> {
+  bind(input: Mutation<P> & Readonly<{ request: ToolInvokeRequest }>): Reply<ToolInvocation>
+}
 export interface ToolDriver<P> {
-  run(input: CallAccess<P> & Readonly<{ signal: AbortSignal }>): Promise<void>
+  run(
+    input: CallAccess<P> & Readonly<{ instance: ToolInstanceId; signal: AbortSignal }>,
+  ): Promise<void>
 }
 export interface ToolClock {
   now(): string
