@@ -4,7 +4,6 @@ import {
   decodeToolResultVersion,
   decodeToolWaitId,
   readToolInvocationRef,
-  type FactBatch,
   type ToolLiveExecution,
   type ToolRecoveryBinding,
 } from '@omne-harness/tool-contract'
