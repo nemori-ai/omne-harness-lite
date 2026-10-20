@@ -36,7 +36,7 @@
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `make docs-check`。现有测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
+运行 `pnpm --filter @omne-harness/model typecheck`、`pnpm --filter @omne-harness/model test` 及 `pnpm run check:docs`。现有测试覆盖凭据判定（含未经铸造的租户一律拒绝）、根入口导出集合、旧子路径不可解析与清单不含 Cordis 类依赖；保管、持久化与 Cordis 插件的测试在 model-host-local，内存测试覆盖本地 Commands、未知注入、结果读取及释放，不证明真实耐久、厂商发送或生产托管执行。共同协议及类型消费义务见[契约验证](../model-contract/verification/index.md)。
 
 ## 维护
 

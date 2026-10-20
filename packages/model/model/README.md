@@ -36,7 +36,7 @@ The constructor takes Commands, the sending fence, the retry policy, the instanc
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model typecheck`, `pnpm --filter @omne-harness/model test`, and `make docs-check`. The current tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
+Run `pnpm --filter @omne-harness/model typecheck`, `pnpm --filter @omne-harness/model test`, and `pnpm run check:docs`. The current tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
 
 ## Maintenance
 

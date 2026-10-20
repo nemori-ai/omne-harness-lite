@@ -25,7 +25,9 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "pnpm run build && vitest run",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
     "install-closure": "node --experimental-strip-types tests/install/cli.ts",
     "fixtures": "node --experimental-strip-types tests/install/fixtures.ts"
   },

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
@@ -11,7 +11,7 @@ afterEach(async () => {
 })
 
 async function tree() {
-  const root = await mkdtemp(join(tmpdir(), 'omne-exec-env-'))
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'omne-exec-env-')))
   roots.push(root)
   return root
 }

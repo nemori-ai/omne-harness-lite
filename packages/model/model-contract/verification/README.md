@@ -30,7 +30,7 @@ CAP-MD01 至 CAP-MD13 的接受状态与阶段承诺以[产品正文](../../../.
 
 清单读取构建产物 `dist/*.d.ts`，不读源码文本。比对使用 `@typescript/typescript6` 的编译器 API。它解析 `export *`，所以 `index.d.ts` 只写 `export * from` 也能列出名字，并按符号标志区分类型与值。
 
-`make declarations-check` 不能复用。它只把全部成员的 `dist` 声明交给 TypeScript 6 建程序，报告诊断，不枚举导出。
+`pnpm run check:declarations` 不能复用。它只把全部成员的 `dist` 声明交给 TypeScript 6 建程序，报告诊断，不枚举导出。
 
 清单按 [public-api](../docs/public-api.md) 的章节分组，章里的名字由该章链接的 `src/` 文件声明。根入口共 171 项：153 个类型和 18 个值；`./testing` 入口 27 项：21 个类型、5 个值和 1 个类。每章数量如下。
 

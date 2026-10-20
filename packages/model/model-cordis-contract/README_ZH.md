@@ -29,7 +29,7 @@
 
 ## 验证
 
-运行 `pnpm --filter @omne-harness/model-cordis-contract typecheck`、`pnpm --filter @omne-harness/model-cordis-contract test` 及 `make docs-check`。当前测试覆盖根入口没有运行时导出、`./cordis` 的运行时导出（每个定义按键发布，凭据服务另含转发与随提供者撤除）、登记类型的类型形状、Context 增补与事件文档、实例目录在真实 Cordis Context 上的行为（登记随调用方 fiber、登记时同步核资格、认回与冲突、条件撤除、后继、租户分隔、有界登记量）、转换目录在真实 Cordis Context 上的行为（查找顺序、登记随调用方 fiber、退役与租约排空、后继、在途转换、提供者的释放钩子、有界贡献量）、导出清单和安装闭包设施。清单里没有 `pending` 的名字。目录的未决项见 [SPEC](SPEC.md#实例目录的未决项)与 [SPEC](SPEC.md#转换目录的未决项)。协议、资源和生产生命周期的验证仍按[持续义务](verification/index.md)执行。
+运行 `pnpm --filter @omne-harness/model-cordis-contract typecheck`、`pnpm --filter @omne-harness/model-cordis-contract test` 及 `pnpm run check:docs`。当前测试覆盖根入口没有运行时导出、`./cordis` 的运行时导出（每个定义按键发布，凭据服务另含转发与随提供者撤除）、登记类型的类型形状、Context 增补与事件文档、实例目录在真实 Cordis Context 上的行为（登记随调用方 fiber、登记时同步核资格、认回与冲突、条件撤除、后继、租户分隔、有界登记量）、转换目录在真实 Cordis Context 上的行为（查找顺序、登记随调用方 fiber、退役与租约排空、后继、在途转换、提供者的释放钩子、有界贡献量）、导出清单和安装闭包设施。清单里没有 `pending` 的名字。目录的未决项见 [SPEC](SPEC.md#实例目录的未决项)与 [SPEC](SPEC.md#转换目录的未决项)。协议、资源和生产生命周期的验证仍按[持续义务](verification/index.md)执行。
 
 ## 维护
 

@@ -1,5 +1,13 @@
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -35,7 +43,7 @@ function reference(): CredentialReference {
   return { id: decoded.ok, tenant: tenantA, purpose: MODEL_SEND }
 }
 const face: SendFace = { authorized: true, official: false }
-const storePath = () => join(mkdtempSync(join(tmpdir(), 'model-cred-')), 'store.json')
+const storePath = () => join(realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-'))), 'store.json')
 
 it('a second creation on the same path adopts the store instead of erasing its bindings', () => {
   const path = storePath()
@@ -376,7 +384,7 @@ function untypedOpen(path: string, overrides: Record<string, unknown>): Custodia
 }
 // A path whose directory does not exist yet: creation would have to make it before it could write.
 const unreachablePath = () =>
-  join(mkdtempSync(join(tmpdir(), 'model-cred-')), 'no-such-dir', 'store.json')
+  join(realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-'))), 'no-such-dir', 'store.json')
 
 it('creation rejects null as a lock wait, a lock backoff or a diagnostics capacity without touching the disk', () => {
   const path = unreachablePath()

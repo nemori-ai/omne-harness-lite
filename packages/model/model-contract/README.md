@@ -31,7 +31,7 @@ The target production dependency closure excludes Cordis, Model implementations,
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model-contract typecheck` and `pnpm --filter @omne-harness/model-contract test`, plus `make docs-check`. Current tests cover the 153 type declarations and the 18 runtime values of the root entry (the identity decoders, comparators and constants, `MODEL_SEND`, `decodeCredentialId`, `sameCredentialHolder`, `deriveGuardControlOperation`), the export inventory, the type-consumption probes, the install-closure facility, the scripted provider and transport of `./testing`, and the conformance suite of `./testing`, which the scripted pair must pass and which fails a provider that breaks one obligation. The inventory has no `pending` name. Protocol, resource, and production-capability obligations remain in [verification](verification/index.md).
+Run `pnpm --filter @omne-harness/model-contract typecheck` and `pnpm --filter @omne-harness/model-contract test`, plus `pnpm run check:docs`. Current tests cover the 153 type declarations and the 18 runtime values of the root entry (the identity decoders, comparators and constants, `MODEL_SEND`, `decodeCredentialId`, `sameCredentialHolder`, `deriveGuardControlOperation`), the export inventory, the type-consumption probes, the install-closure facility, the scripted provider and transport of `./testing`, and the conformance suite of `./testing`, which the scripted pair must pass and which fails a provider that breaks one obligation. The inventory has no `pending` name. Protocol, resource, and production-capability obligations remain in [verification](verification/index.md).
 
 ## Maintenance
 

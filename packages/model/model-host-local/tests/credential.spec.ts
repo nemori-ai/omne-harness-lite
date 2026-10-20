@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmdirSync,
   writeFileSync,
 } from 'node:fs'
@@ -113,7 +114,7 @@ function ordinary(value: unknown) {
 }
 
 it('an authorized send uses the current tenant secret and leaves the call record without it', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const ref = reference()
   custodian.put(ref, SECRET)
@@ -126,7 +127,7 @@ it('an authorized send uses the current tenant secret and leaves the call record
 })
 
 it('cross-tenant, wrong purpose, and missing qualification do not send', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const ref = reference()
   custodian.put(ref, SECRET)
@@ -144,7 +145,7 @@ it('cross-tenant, wrong purpose, and missing qualification do not send', () => {
 })
 
 it('an unreadable binding does not fall back to the factory secret', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const ref = reference()
   custodian.put(ref, SECRET)
@@ -161,7 +162,7 @@ it('an unreadable binding does not fall back to the factory secret', () => {
 })
 
 it('an official profile with no tenant binding uses the deployment secret', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const decision = custodian.resolve(reference(), face({ official: true }))
   expect(decision).toEqual({ kind: 'value', scope: 'factory', value: FACTORY })
@@ -169,7 +170,7 @@ it('an official profile with no tenant binding uses the deployment secret', () =
 })
 
 it('a revoked tenant binding does not fall back to the factory secret', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const ref = reference()
   custodian.put(ref, SECRET)
@@ -184,7 +185,7 @@ it('a revoked tenant binding does not fall back to the factory secret', () => {
 it.each(['cred a', 'cred\ta', 'cred\u200ba', ''])(
   'a stored credential id %j that the contract does not decode makes the store unavailable',
   storedId => {
-    const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
     const path = join(dir, 'store.json')
     const body = JSON.stringify({
       closed: false,
@@ -209,7 +210,7 @@ it.each(['cred a', 'cred\ta', 'cred\u200ba', ''])(
 )
 
 it('a corrupt store is unavailable and is not replaced', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   writeFileSync(path, 'not-json')
   expect(openLocalCustodian({ path })).toEqual({ kind: 'unavailable', cause: 'corrupt' })
@@ -222,7 +223,7 @@ it('a missing store is unavailable, not absent', () => {
 })
 
 it('rotation changes the next send and leaves the earlier send record', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const ref = reference()
   custodian.put(ref, SECRET)
@@ -234,7 +235,7 @@ it('rotation changes the next send and leaves the earlier send record', () => {
 })
 
 it('revocation rejects the next resolve and keeps the earlier send', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const ref = reference()
   custodian.put(ref, SECRET)
@@ -249,7 +250,7 @@ it('revocation rejects the next resolve and keeps the earlier send', () => {
 })
 
 it('put over a revoked binding replaces it with an active one and leaves the store readable', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const custodian = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -271,7 +272,7 @@ it('put over a revoked binding replaces it with an active one and leaves the sto
 })
 
 it('another tenant cannot replace or rotate this tenant secret', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const ref = reference()
   custodian.put(ref, SECRET)
@@ -290,7 +291,7 @@ it('another tenant cannot replace or rotate this tenant secret', () => {
 })
 
 it('a purpose other than model-send is denied by present', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const bad: CredentialQuery = { ...reference(), purpose: 'other' }
   expect(custodian.present(bad)).toEqual({ kind: 'denied' })
@@ -298,7 +299,7 @@ it('a purpose other than model-send is denied by present', () => {
 })
 
 it('a restarted process reads the current secret from the same store', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const custodian = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -333,7 +334,7 @@ it('a restarted process reads the current secret from the same store', () => {
 })
 
 it('close rejects a new resolve and does not rewrite an earlier send', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const ref = reference()
   custodian.put(ref, SECRET)
@@ -344,7 +345,7 @@ it('close rejects a new resolve and does not rewrite an earlier send', () => {
 })
 
 it('inject resolves the current secret and fiber disposal stops the next open', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const seeded = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -372,7 +373,7 @@ it('inject resolves the current secret and fiber disposal stops the next open', 
 })
 
 it('a corrupt store through the plugin resolves unavailable', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   writeFileSync(path, 'not-json')
   const ctx = new Context()
@@ -396,7 +397,7 @@ it('the root entry and everything it reaches stay free of Cordis and the cordis 
 })
 
 it('an existing handle observes later rotations and revocations made by another handle', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const first = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -412,7 +413,7 @@ it('an existing handle observes later rotations and revocations made by another 
 })
 
 it('a Cordis service observes later rotations made by another handle', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const seeded = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -433,7 +434,7 @@ it('a Cordis service observes later rotations made by another handle', async () 
 })
 
 it('a later writer modifying another binding does not overwrite a revocation saved by another handle', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const first = createLocalCustodian({ path, factorySecret: FACTORY })
   const refA = reference()
@@ -457,7 +458,7 @@ it('a later writer modifying another binding does not overwrite a revocation sav
 })
 
 it('a failed rename keeps the last saved snapshot intact and does not publish the new secret', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const first = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -493,7 +494,7 @@ it('a failed rename keeps the last saved snapshot intact and does not publish th
 })
 
 it('a short write is retried until the whole snapshot is persisted', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const first = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -518,7 +519,7 @@ it('a short write is retried until the whole snapshot is persisted', () => {
 })
 
 it('a write that makes no progress aborts and keeps the old snapshot', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const first = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -539,7 +540,7 @@ it('a write that makes no progress aborts and keeps the old snapshot', () => {
 })
 
 it('a failed fsync of the temporary file keeps the old snapshot and names the fsync error as the cause', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const first = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -565,7 +566,7 @@ it('a failed fsync of the temporary file keeps the old snapshot and names the fs
 })
 
 it('a successful update closes the temporary file and the parent directory it opened', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const custodian = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const ref = reference()
   const openBefore = new Map(fdFlags)
@@ -577,7 +578,7 @@ it('a successful update closes the temporary file and the parent directory it op
 })
 
 it('a creation closes the temporary file and the parent directory it opened', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const openBefore = new Map(fdFlags)
 
   createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
@@ -586,7 +587,7 @@ it('a creation closes the temporary file and the parent directory it opened', ()
 })
 
 it('a failed parent directory fsync still closes the directory it opened', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const first = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
   const ref = reference()
   first.put(ref, SECRET)
@@ -601,7 +602,7 @@ it('a failed parent directory fsync still closes the directory it opened', () =>
 })
 
 it('a rename that fails still closes the temporary file it opened', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const first = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -617,7 +618,7 @@ it('a rename that fails still closes the temporary file it opened', () => {
 })
 
 it('a post-rename confirmation failure reports the update may be visible', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const first = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -643,7 +644,7 @@ it('a post-rename confirmation failure reports the update may be visible', () =>
 })
 
 it('a creation whose first snapshot cannot be published throws with the write error as the cause and leaves no store', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const injected = new Error('injected rename failure')
   injectedRename = (from: string, to: string) => {
@@ -665,7 +666,7 @@ it('a creation whose first snapshot cannot be published throws with the write er
 })
 
 it('a creation whose confirmation fails after the rename reports the store may be visible, and it is', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const injected = new Error('injected dir fsync failure')
   injectedFsyncSync = (fd: number, flags: string | undefined) => {
@@ -692,23 +693,26 @@ it('a creation whose confirmation fails after the rename reports the store may b
   })
 })
 
-it('a long-lived synchronous transaction does not let another process steal the lock', async () => {
-  // This test intentionally holds the lock through a multi-second synchronous pause.
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
-  const path = join(dir, 'store.json')
-  const goPath = join(dir, 'go')
-  const resultPath = join(dir, 'child-result.json')
-  const first = createLocalCustodian({ path, factorySecret: FACTORY })
-  const refA = reference()
-  first.put(refA, SECRET)
-  const otherId = credentialId('cred-b')
+it(
+  'a long-lived synchronous transaction does not let another process steal the lock',
+  { tags: ['slow'], timeout: 20_000 },
+  async () => {
+    // This test intentionally holds the lock through a multi-second synchronous pause.
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
+    const path = join(dir, 'store.json')
+    const goPath = join(dir, 'go')
+    const resultPath = join(dir, 'child-result.json')
+    const first = createLocalCustodian({ path, factorySecret: FACTORY })
+    const refA = reference()
+    first.put(refA, SECRET)
+    const otherId = credentialId('cred-b')
 
-  const child = spawn(
-    process.execPath,
-    [
-      '--input-type=module',
-      '-e',
-      `import { openLocalCustodian } from './dist/index.js'
+    const child = spawn(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import { openLocalCustodian } from './dist/index.js'
        import { decodeCredentialId } from '@omne-harness/model-contract'
        function credentialId(text) {
          const decoded = decodeCredentialId(text)
@@ -736,63 +740,68 @@ it('a long-lived synchronous transaction does not let another process steal the 
        opened.revoke(refA)
        opened.put({ id: childId, tenant: tenantB, purpose: 'model-send' }, 'child-secret')
        writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify({ start, end: Date.now() }))`,
-    ],
-    { cwd: fileURLToPath(new URL('..', import.meta.url)) },
-  )
+      ],
+      { cwd: fileURLToPath(new URL('..', import.meta.url)) },
+    )
 
-  let delayed = false
-  injectedWriteSync = (fd: number, buffer: Buffer, offset: number, length: number) => {
-    if (offset === 0 && !delayed) {
-      delayed = true
-      writeFileSync(goPath, '')
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 6500)
+    let delayed = false
+    injectedWriteSync = (fd: number, buffer: Buffer, offset: number, length: number) => {
+      if (offset === 0 && !delayed) {
+        delayed = true
+        writeFileSync(goPath, '')
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 6500)
+      }
+      return globalThis.__actualFs.writeSync(fd, buffer, offset, length)
     }
-    return globalThis.__actualFs.writeSync(fd, buffer, offset, length)
-  }
-  const parentStart = Date.now()
-  first.put({ id: otherId, tenant: tenantB, purpose: MODEL_SEND }, 'parent-secret')
-  injectedWriteSync = undefined
-  const parentDuration = Date.now() - parentStart
+    const parentStart = Date.now()
+    first.put({ id: otherId, tenant: tenantB, purpose: MODEL_SEND }, 'parent-secret')
+    injectedWriteSync = undefined
+    const parentDuration = Date.now() - parentStart
 
-  const childStderr: string[] = []
-  child.stderr?.setEncoding('utf8')
-  child.stderr?.on('data', (chunk: string | Buffer) => {
-    childStderr.push(String(chunk))
-  })
-
-  await new Promise<void>((resolve, reject) => {
-    child.on('error', reject)
-    child.on('exit', code => {
-      if (code !== 0) reject(new Error(`child exited ${code}: ${childStderr.join('')}`))
-      else resolve()
+    const childStderr: string[] = []
+    child.stderr?.setEncoding('utf8')
+    child.stderr?.on('data', (chunk: string | Buffer) => {
+      childStderr.push(String(chunk))
     })
-  })
 
-  const result = JSON.parse(readFileSync(resultPath, 'utf8'))
-  // The child must have waited for the parent's lock, not stolen it.
-  expect(result.end - result.start).toBeGreaterThanOrEqual(6000)
-  expect(parentDuration).toBeGreaterThanOrEqual(6500)
+    await new Promise<void>((resolve, reject) => {
+      child.on('error', reject)
+      child.on('exit', code => {
+        if (code !== 0) reject(new Error(`child exited ${code}: ${childStderr.join('')}`))
+        else resolve()
+      })
+    })
 
-  const reopenedResult = openLocalCustodian({ path })
-  if (reopenedResult.kind !== 'open') throw new Error('store missing')
-  const reopened = reopenedResult.custodian
-  const childId = credentialId('cred-c')
-  // The child's revoke survived the overlap.
-  expect(reopened.resolve(refA, face()).kind).toBe('denied')
-  expect(reopened.resolve({ id: otherId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual({
-    kind: 'value',
-    scope: 'tenant',
-    value: 'parent-secret',
-  })
-  expect(reopened.resolve({ id: childId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual({
-    kind: 'value',
-    scope: 'tenant',
-    value: 'child-secret',
-  })
-}, 20_000)
+    const result = JSON.parse(readFileSync(resultPath, 'utf8'))
+    // The child must have waited for the parent's lock, not stolen it.
+    expect(result.end - result.start).toBeGreaterThanOrEqual(6000)
+    expect(parentDuration).toBeGreaterThanOrEqual(6500)
+
+    const reopenedResult = openLocalCustodian({ path })
+    if (reopenedResult.kind !== 'open') throw new Error('store missing')
+    const reopened = reopenedResult.custodian
+    const childId = credentialId('cred-c')
+    // The child's revoke survived the overlap.
+    expect(reopened.resolve(refA, face()).kind).toBe('denied')
+    expect(reopened.resolve({ id: otherId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual(
+      {
+        kind: 'value',
+        scope: 'tenant',
+        value: 'parent-secret',
+      },
+    )
+    expect(reopened.resolve({ id: childId, tenant: tenantB, purpose: MODEL_SEND }, face())).toEqual(
+      {
+        kind: 'value',
+        scope: 'tenant',
+        value: 'child-secret',
+      },
+    )
+  },
+)
 
 it('a store with conflicting rows for the same holder is unavailable', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   writeFileSync(
     path,
@@ -827,7 +836,7 @@ it('a store with conflicting rows for the same holder is unavailable', () => {
 })
 
 it('management operations report failure instead of silently returning', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const custodian = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -840,7 +849,7 @@ it('management operations report failure instead of silently returning', () => {
 })
 
 it('put rejects a tenant that was never minted before it touches the store', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const custodian = createLocalCustodian({ path, factorySecret: FACTORY })
   custodian.put(reference(), SECRET)
@@ -858,7 +867,7 @@ it('put rejects a tenant that was never minted before it touches the store', () 
 it.each(['rotate', 'revoke', 'markUnreadable'] as const)(
   '%s rejects a tenant that was never minted before it takes the lock or touches the store',
   operation => {
-    const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
     const path = join(dir, 'store.json')
     const custodian = createLocalCustodian({
       path,
@@ -888,7 +897,7 @@ it.each(['rotate', 'revoke', 'markUnreadable'] as const)(
 )
 
 it('management operations after close still persist to disk', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const custodian = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -903,7 +912,7 @@ it('management operations after close still persist to disk', () => {
 })
 
 it('unauthorized or wrong-purpose requests are denied even when storage is unreadable', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const custodian = createLocalCustodian({ path, factorySecret: FACTORY })
   const ref = reference()
@@ -915,7 +924,7 @@ it('unauthorized or wrong-purpose requests are denied even when storage is unrea
 })
 
 it('concurrent writers in separate processes do not lose updates', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
   const path = join(dir, 'store.json')
   const seed = createLocalCustodian({ path, factorySecret: FACTORY })
   const refA = reference()
@@ -994,7 +1003,7 @@ it('logs, errors, telemetry, and model context do not carry the synthetic secret
   }
   let thrown = ''
   try {
-    const dir = mkdtempSync(join(tmpdir(), 'model-cred-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
     const custodian = createLocalCustodian({
       path: join(dir, 'store.json'),
       factorySecret: FACTORY,
