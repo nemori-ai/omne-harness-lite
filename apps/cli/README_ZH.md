@@ -121,7 +121,7 @@ pnpm turbo run typecheck --filter=@omne-harness/cli
 - 子进程测试使用管道 stdio。没有测试分配 TTY。
 - 以 root 运行时，不可读目录和只读上级目录的用例会跳过，因为 root 不受这些权限限制。
 - 没有在 Windows 上测试。
-- 本地开发机的 Node 是 v26。PanQiWei 于 2026-10-14 接受用这个版本完成本卡验证。没有在 Node 24 上另跑。`engines.node` 仍是 `>=24.18.0 <25`。
+- 本地开发机的 Node 是 v26。PanQiWei 于 2026-10-14 接受用这个版本完成本卡验证。没有在 Node 24 上另跑。`engines.node` 是 `>=24`。
 - 没有测试通过 `pnpm pack` 在 workspace 之外安装本包。
 
 ## 维护

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Cordis Service classes and keys that expose the Model contract (@omne-harness/model-contract)",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {

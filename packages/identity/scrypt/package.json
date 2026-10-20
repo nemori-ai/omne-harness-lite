@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Bounded scrypt derivation and verification for later login and credential change",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {

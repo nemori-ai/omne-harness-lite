@@ -6,7 +6,7 @@
 
 ## 职责与状态
 
-本包做派生和校验。它不登录、不保存账号、不保管密钥。成员位置是 `packages/identity/scrypt`。部署负载是 `SCRYPT_PROFILE`。测量平台是 Node v26.0.0。声明的 engines 是 `>=24.18.0 <25`。
+本包做派生和校验。它不登录、不保存账号、不保管密钥。成员位置是 `packages/identity/scrypt`。部署负载是 `SCRYPT_PROFILE`。测量平台是 Node v26.0.0。声明的 engines 是 `>=24`，只在 Node v26.0.0 上测量过。
 
 ## 使用
 

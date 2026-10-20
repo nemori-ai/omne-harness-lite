@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Validate JsonRead values and cache compiled schemas for one execution domain",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {

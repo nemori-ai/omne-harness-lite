@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Bounded failure-chain diagnostic port for storage and model callers",
   "engines": {
-    "node": ">=24.18.0 <25"
+    "node": ">=24"
   },
   "exports": {
     ".": {
