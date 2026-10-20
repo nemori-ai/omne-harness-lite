@@ -63,8 +63,17 @@ function plainText(value: unknown, walk: Walk, index: number): Plain | undefined
   return { ok: true, value }
 }
 
+/**
+ * Whether a value opens a container beyond the depth limit. `depth` counts the containers around
+ * the value, and a container counts its own level as it opens, as json-text does when it reads
+ * the whole text. A scalar adds no level.
+ */
+function opensTooDeep(value: unknown, walk: Walk, depth: number): boolean {
+  return typeof value === 'object' && value !== null && depth + 1 > walk.limits.maxDepth
+}
+
 function plainJson(value: unknown, walk: Walk, depth: number, index: number): Plain {
-  if (depth > walk.limits.maxDepth) return refuse('malformed', index)
+  if (opensTooDeep(value, walk, depth)) return refuse('malformed', index)
   walk.nodes += 1
   if (walk.nodes > walk.limits.maxItems) return refuse('malformed', 0)
   if (value === null || typeof value === 'boolean') return { ok: true, value }

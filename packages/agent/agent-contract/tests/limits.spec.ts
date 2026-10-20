@@ -136,6 +136,30 @@ describe('the declaration limits of an extension batch', () => {
     ).toEqual({ ...malformed, index: 0 })
   })
 
+  it('reports the batch member whose 21st container is empty, as for a deeper one', async () => {
+    // The batch, the member and 18 objects are 20 containers, so the empty array opens level 21.
+    // The copy counts a container as it opens, as the reread of the whole text does, so the member
+    // is named and the index is not 0.
+    const ok = item()
+    expect(await judgeLoopExtensions([ok, item({ extra: nested(18, []) })])).toEqual({
+      ...malformed,
+      index: 1,
+    })
+    expect(await judgeLoopExtensions([ok, item({ needs: nested(18, {}) })])).toEqual({
+      ...malformed,
+      index: 1,
+    })
+    // The copy stops at that container before it reaches the function, and goes past level 20.
+    expect(await judgeLoopExtensions([ok, item({ extra: nested(18, []), run: probe })])).toEqual({
+      ...malformed,
+      index: 1,
+    })
+    expect(await judgeLoopExtensions([ok, item({ extra: nested(17, []), run: probe })])).toEqual({
+      ...executable,
+      index: 1,
+    })
+  })
+
   it('stops at a reference to the batch member itself and names the member', async () => {
     // 79 members and the reference are 80 members, so only the cycle is wrong. A copy that went on
     // around the cycle would run out of values first and report index 0.

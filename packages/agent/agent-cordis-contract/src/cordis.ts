@@ -2,9 +2,12 @@
 // `agent-cordis-contract/instance-retired` event and the instance directory. Provider plugins live
 // in `@omne-harness/agent-host-local/cordis`. This entry does not import an Agent implementation.
 import { randomBytes } from 'node:crypto'
-import { type Context, Service } from '@deepseek-ai/cordis'
+import { type Context, CordisError, Service } from '@deepseek-ai/cordis'
 import {
+  decodeAgentInstanceId,
+  decodeAgentOperationId,
   decodeAgentRegistrationId,
+  judgeEvidence,
   type ActionAdmission,
   type AgentAccessCheck,
   type AgentAccessOperation,
@@ -314,6 +317,53 @@ function guarded<T>(read: () => T): T | undefined {
   }
 }
 
+/** The text of a thrown value for a record. A value whose text cannot be made still gives one. */
+function causeOf(error: unknown): string {
+  return guarded(() => String(error)) ?? 'a thrown value that has no text'
+}
+
+const invalidInput = (reason: string): Failure => ({ kind: 'invalid', field: 'input', reason })
+
+type MemberJudgment = (
+  value: unknown,
+) => Outcome<unknown, Readonly<{ field: string; reason: string }>>
+
+// The members that each operation names, with the judgment of agent-contract that validates each.
+const registrationMembers: Readonly<Record<string, MemberJudgment>> = {
+  instance: decodeAgentInstanceId,
+  operation: decodeAgentOperationId,
+  scope: judgeEvidence,
+}
+const withdrawalMembers: Readonly<Record<string, MemberJudgment>> = {
+  instance: decodeAgentInstanceId,
+  operation: decodeAgentOperationId,
+  registration: decodeAgentRegistrationId,
+}
+const reachMembers: Readonly<Record<string, MemberJudgment>> = { instance: decodeAgentInstanceId }
+
+// Step: validate, at the boundary of the directory and before anyone is asked. The tenant must
+// come from the identity parser, and then each member goes through its judgment. A failure names
+// the member, and its reason is the failure of the judgment. The answer is the text of the tenant.
+function validated(
+  input: Readonly<{ tenant: TenantId }>,
+  members: Readonly<Record<string, MemberJudgment>>,
+): Outcome<string, Failure> {
+  try {
+    const tenant = tenantCodec.encode(input.tenant)
+    if (!tenant.ok) return fail(invalidInput('the tenant was not made by the identity parser'))
+    for (const [field, judge] of Object.entries(members)) {
+      const judged = judge(Reflect.get(input, field))
+      if ('failure' in judged) {
+        const { field: rule, reason } = judged.failure
+        return fail({ kind: 'invalid', field, reason: `${rule}: ${reason}` })
+      }
+    }
+    return succeed(tenant.value)
+  } catch {
+    return fail(invalidInput('the input cannot be read'))
+  }
+}
+
 // The text of the data that a retry has to repeat. Members come in sorted order, so two inputs that
 // hold the same data give the same text. It is undefined when the data cannot be written as JSON.
 function dataText(value: unknown): string | undefined {
@@ -329,26 +379,32 @@ function dataText(value: unknown): string | undefined {
 }
 
 // One entry per tenant and instance. Equal tenants give equal text, and the text never contains
-// the raw separator of the pair, so two pairs cannot collide. A tenant that did not come from the
-// identity parser has no text and so no key.
-function keyOf(tenant: TenantId, member: string): string | undefined {
-  const text = tenantCodec.encode(tenant)
-  return text.ok && typeof member === 'string' && member !== ''
-    ? JSON.stringify([text.value, member])
-    : undefined
+// the raw separator of the pair, so two pairs cannot collide. `tenant` is the text that
+// `validated` gives.
+function keyOf(tenant: string, member: string): string {
+  return JSON.stringify([tenant, member])
 }
 
 type EntryKeys = Readonly<{ instance: string; operation: string; text: string }>
 
 // What `register` repeats on a retry: the keys of the instance and of the operation, and the text
-// of the data. It throws when the caller handed over something that has no such members.
-function keysOf<P>(input: AgentRegistrationInput<P>): EntryKeys | undefined {
-  const instance = keyOf(input.tenant, input.instance)
-  const operation = keyOf(input.tenant, input.operation)
+// of the data. It is undefined when the data cannot be written as JSON.
+function keysOf<P>(input: AgentRegistrationInput<P>, tenant: string): EntryKeys | undefined {
   const text = dataText([input.principal, input.instance, input.scope, input.state])
-  return instance === undefined || operation === undefined || text === undefined
-    ? undefined
-    : { instance, operation, text }
+  if (text === undefined) return undefined
+  return {
+    instance: keyOf(tenant, input.instance),
+    operation: keyOf(tenant, input.operation),
+    text,
+  }
+}
+
+// The answer when the effect of the calling fiber cannot be made. Cordis refuses a fiber that has
+// ended. Any other throw keeps its cause, so that it is not taken for the end of the fiber.
+function enterFailure(error: unknown): Failure {
+  return error instanceof CordisError && error.code === 'INACTIVE_EFFECT'
+    ? unavailable(owner, 'the calling fiber has ended')
+    : unavailable(owner, `the registration could not be entered: ${causeOf(error)}`)
 }
 
 function mintRegistration(): AgentRegistrationId | undefined {
@@ -366,6 +422,10 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
     registration: record.id,
     state: record.state,
   })
+
+  // A provider that throws gives unavailable. The cause goes to the record, not to the caller.
+  const recordCause = (provider: string, error: unknown) =>
+    ctx.logger('agent-cordis-contract').error(`${provider} threw: ${causeOf(error)}`)
 
   // Step: notify. The tell comes after the removal is whole, so a listener that calls back into
   // the directory sees the state after the removal. A listener failure is logged and changes
@@ -430,8 +490,9 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
       const checked = authority.check(input, caller)
       if ('ok' in checked) return undefined
       if ('failure' in checked) return checked.failure
-    } catch {
+    } catch (error) {
       // The authority failed. The answer below is the same as for an answer of another shape.
+      recordCause('agentPublicationAuthority', error)
     }
     return unavailable('agentPublicationAuthority', 'the publication authority gave no answer')
   }
@@ -501,18 +562,15 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
   }
 
   async function register(caller: Context, input: AgentRegistrationInput<P>): Reply<Registration> {
-    const keys = guarded(() => keysOf(input))
-    if (keys === undefined)
-      return fail({
-        kind: 'invalid',
-        field: 'input',
-        reason: 'tenant, instance, operation or data is not valid',
-      })
+    const tenant = validated(input, registrationMembers)
+    if ('failure' in tenant) return tenant
+    const keys = guarded(() => keysOf(input, tenant.ok))
+    if (keys === undefined) return fail(invalidInput('the data cannot be written as JSON'))
     let admission: Admission
     try {
       admission = enter(caller, input, keys)
-    } catch {
-      return fail(unavailable(owner, 'the calling fiber has ended'))
+    } catch (error) {
+      return fail(enterFailure(error))
     }
     if (admission.kind === 'refused') return fail(admission.failure)
     if (admission.kind === 'recognised') return succeed(admission.registration)
@@ -525,13 +583,12 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
   }
 
   async function withdraw(caller: Context, input: AgentWithdrawalInput<P>): Reply<Registration> {
-    const instance = guarded(() => keyOf(input.tenant, input.instance))
-    if (instance === undefined)
-      return fail({ kind: 'invalid', field: 'input', reason: 'tenant or instance is not valid' })
+    const tenant = validated(input, withdrawalMembers)
+    if ('failure' in tenant) return tenant
     const refused = check(input, caller)
     if (refused !== undefined) return fail(refused)
     const record = records.get(input.registration)
-    if (record === undefined || record.instanceKey !== instance)
+    if (record === undefined || record.instanceKey !== keyOf(tenant.ok, input.instance))
       return fail({ kind: 'denied', action: 'withdraw' })
     if (record.state !== 'withdrawn') {
       record.state = 'withdrawing'
@@ -542,15 +599,20 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
     return succeed(view(record))
   }
 
-  // Step: check. The access check of the authorization domain answers before the directory looks
-  // at its tables.
+  // Step: check. The access check of the authorization domain answers for an instance that has an
+  // entry. It is a required dependency of the plugin, so it is read as `ctx.agentAccessCheck`. The
+  // read throws when the directory was not built by its plugin or its plugin has ended.
   async function qualify(
     input: Parameters<AgentDirectory<P>['resolve']>[0],
     operation: Extract<AgentAccessOperation, 'resolve' | 'connect'>,
   ): Promise<Failure | undefined> {
-    const accessCheck = ctx.get('agentAccessCheck')
-    if (accessCheck === undefined)
-      return unavailable('agentAccessCheck', 'no access check is provided')
+    let accessCheck: Context['agentAccessCheck']
+    try {
+      accessCheck = ctx.agentAccessCheck
+    } catch (error) {
+      recordCause('agentAccessCheck', error)
+      return unavailable('agentAccessCheck', 'the directory cannot reach an access check')
+    }
     try {
       const decision = await accessCheck.check({
         access: { principal: input.principal, tenant: input.tenant },
@@ -561,8 +623,9 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
       if (decision.kind === 'denied') return { kind: 'denied', action: operation }
       if (decision.kind === 'unavailable')
         return unavailable('agentAccessCheck', decision.diagnostic)
-    } catch {
+    } catch (error) {
       // The access check failed. The answer below is the same as for an answer of another shape.
+      recordCause('agentAccessCheck', error)
     }
     return unavailable('agentAccessCheck', 'the access check gave no answer')
   }
@@ -576,20 +639,24 @@ function createDirectory<P>(ctx: Context, authority: AgentPublicationAuthority<P
     try {
       const local = host.route(tenant, instance)
       return succeed(local === null ? { kind: 'no-live-route' } : { kind: 'route', route: local })
-    } catch {
+    } catch (error) {
+      recordCause('agentInstanceHost', error)
       return fail(unavailable('agentInstanceHost', 'the host failed to give the instance route'))
     }
   }
 
-  // The path that resolve and connect share. An instance of another tenant has no entry under
-  // this tenant's key, so it answers denied, the same as an instance that does not exist.
+  // The path that resolve and connect share. The key of the directory answers first: an instance
+  // of another tenant has no entry under this tenant's key, so it answers denied, the same as an
+  // instance that does not exist, whatever the access check would answer. The table is read again
+  // after the check, because the entry can end while the check answers.
   async function reach(
     input: Parameters<AgentDirectory<P>['resolve']>[0],
     operation: Extract<AgentAccessOperation, 'resolve' | 'connect'>,
   ): Promise<Outcome<Reached, Failure>> {
-    const key = guarded(() => keyOf(input.tenant, input.instance))
-    if (key === undefined)
-      return fail({ kind: 'invalid', field: 'input', reason: 'tenant or instance is not valid' })
+    const tenant = validated(input, reachMembers)
+    if ('failure' in tenant) return tenant
+    const key = keyOf(tenant.ok, input.instance)
+    if (!live.has(key)) return fail({ kind: 'denied', action: operation })
     const refused = await qualify(input, operation)
     if (refused !== undefined) return fail(refused)
     const record = live.get(key)

@@ -159,7 +159,9 @@ function dataMember(value: object, key: string | symbol): [string, unknown] | un
 
 function readMembers(value: unknown): OwnMembers | undefined {
   if (!isPlainObject(value)) return undefined
-  const members: Record<string, unknown> = {}
+  // No prototype, so an own member named `__proto__` stays a member and reaches the closed field
+  // check, as in the copy of check.ts.
+  const members: Record<string, unknown> = Object.create(null)
   for (const key of Reflect.ownKeys(value)) {
     const member = dataMember(value, key)
     if (member === undefined) return undefined

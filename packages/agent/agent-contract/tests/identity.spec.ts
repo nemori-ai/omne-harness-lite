@@ -468,3 +468,51 @@ describe('the refusal words of the identity rules', () => {
     })
   })
 })
+
+/** The value with one more own data member named `__proto__`, as `JSON.parse` makes it. */
+function withOwnProto(value: object): object {
+  return Object.defineProperty({ ...value }, '__proto__', {
+    value: { extra: 1 },
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  })
+}
+
+// A structure judgment that collects the members into an object literal assigns `__proto__`
+// through the prototype setter: the member then never shows up as unknown, and the closed field
+// rule lets it pass. Each judgment must name it as an unknown member.
+describe('an own member named __proto__', () => {
+  it('is an unknown member of an Adoption, also when JSON.parse made it', () => {
+    const parsed: unknown = JSON.parse(`${JSON.stringify(ADOPTION).slice(0, -1)},"__proto__":{}}`)
+    expect(Object.keys(parsed as object)).toContain('__proto__')
+    expect(judgeAdoption(parsed)).toEqual({
+      failure: { field: '__proto__', reason: 'unknown-field' },
+    })
+    expect(judgeAdoption(withOwnProto(ADOPTION))).toEqual({
+      failure: { field: '__proto__', reason: 'unknown-field' },
+    })
+  })
+
+  it('is an unknown member of an Evidence', () => {
+    expect(judgeEvidence(withOwnProto(EVIDENCE))).toEqual({
+      failure: { field: '__proto__', reason: 'unknown-field' },
+    })
+  })
+
+  it('is an unknown member of an Access', () => {
+    const access = { principal: { name: 'ada' }, tenant: mintTenant() }
+    expect(judgeAccess(withOwnProto(access), judgeNamed)).toEqual({
+      failure: { field: '__proto__', reason: 'unknown-field' },
+    })
+  })
+
+  it('is an unknown member of an Authority and of its source', () => {
+    expect(judgeAuthority(withOwnProto(AUTHORITY))).toEqual({
+      failure: { field: '__proto__', reason: 'unknown-field' },
+    })
+    expect(judgeAuthority({ ...AUTHORITY, source: withOwnProto(EVIDENCE) })).toEqual({
+      failure: { field: 'source.__proto__', reason: 'unknown-field' },
+    })
+  })
+})

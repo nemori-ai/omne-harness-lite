@@ -26,6 +26,8 @@
 
 [judge-output-data.spec.ts](judge-output-data.spec.ts) 检查 `judgeExtensionOutput` 成功时八种输出的值（可选成员只在给出时出现、`cancelled` 终态、没有选项的卡片）、`after_action` 两行的差别，以及改写与原主体的比较：值为 `undefined` 的成员、数组增减与同长换项、数组与对象互换、对象与数字或 `null` 互换、可改写路径下不是对象的节点。比较前把值转成无原型的规范形，因为成功值的原型不是契约。
 
+两处分支没有用例，因为公开入口走不到它们。第一处是 `judge-extensions.ts` 中 `judgeLoopExtension` 的 `local-refusal`。每一项都是整批副本的一部分，整批已经通过复制与整批文本的限额，所以一项的复制与重读不会再失败。第二处是 `check.ts` 中 `settle` 的四个失败分支。`validatePlain` 在调用校验器之前已经重读文本并拒绝超限的输入，所以校验器不会返回 `unreadable`。`refused`、`unavailable` 与 `cancelled` 只在校验器自身出故障时出现：校验域已关闭、快照预算用尽、schema 加载或编译失败，或者调用方取消。判断不传取消信号，校验域在判断结束后才关闭，schema 是常量，所以公开入口造不出这些情形。
+
 ## 维护
 
 按用例名挑测试的运行（`make mutation` 只跑快层，用 vitest 的 `preParse`）看不见生成用例（`describe.each`、`it.each`、循环里拼名字）的名字：只被生成用例覆盖的变异体会因没有用例被选中而显示为存活。要让这类行被变异测试量到，同一文件里要有一条字面名字的用例覆盖它。本目录新增的测试都用字面名字，[identity.spec.ts](identity.spec.ts) 末尾的字面名字用例就为这个目的而写。

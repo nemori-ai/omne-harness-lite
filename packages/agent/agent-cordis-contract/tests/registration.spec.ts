@@ -100,8 +100,11 @@ class TestAccess extends AgentAccessCheckService<string> {
     evidence: { owner: 'test', record: 'grant', revision: '1', digest: 'sha256:grant' },
   }
   readonly seen: Parameters<AgentAccessCheckService<string>['check']>[0][] = []
+  /** Runs after the question is recorded and before the answer, to let something happen between. */
+  meanwhile: (() => Promise<unknown>) | undefined = undefined
   readonly check: AgentAccessCheckService<string>['check'] = async request => {
     this.seen.push(request)
+    await this.meanwhile?.()
     if (this.decision === 'throw') throw new Error('the access check broke')
     return this.decision
   }
@@ -572,6 +575,32 @@ describe('a listener of instance-retired that fails', () => {
   })
 })
 
+/**
+ * A directory that a plugin without `inject` built, with one published instance and a host that
+ * routes it. No access check is declared for the directory, so it cannot reach one.
+ */
+async function directoryOutsideItsPlugin() {
+  const root = new Context()
+  const authority = await provide(root, 'authority', ctx => new TestAuthority(ctx))
+  const loaded = await provide(
+    root,
+    'directory',
+    ctx => new AgentInstancesService(ctx, authority.service),
+  )
+  const host = await provide(root, 'host', ctx => new TestHost(ctx))
+  host.service.routes.set(instanceOf('instance_1'), routeOf(instanceOf('instance_1')))
+  const call: { answer?: Promise<Answer> } = {}
+  await root.plugin({
+    name: 'contributor',
+    inject: ['agentInstances'],
+    apply(ctx: CordisContext) {
+      call.answer = ctx.agentInstances.register(input())
+    },
+  })
+  registrationOf(await (call.answer as Promise<Answer>))
+  return { directory: loaded.service, host: host.service }
+}
+
 describe('resolve and connect', () => {
   const asker = (overrides: object = {}) => ({
     principal: 'caller',
@@ -595,7 +624,7 @@ describe('resolve and connect', () => {
     })
   })
 
-  it('check the access first, with the operation and the instance, and the host is not asked on a refusal', async () => {
+  it('check the access of an instance that has an entry, with the operation and the instance, and the host is not asked on a refusal', async () => {
     const world = await start()
     const host = await world.host(instanceOf('instance_1'))
     await world.contribute(input())
@@ -641,19 +670,11 @@ describe('resolve and connect', () => {
     expect(host.service.asked).toEqual([])
   })
 
-  it('do not admit a caller when no access check is provided', async () => {
-    const root = new Context()
-    const authority = await provide(root, 'authority', ctx => new TestAuthority(ctx))
-    const loaded = await provide(
-      root,
-      'directory',
-      ctx => new AgentInstancesService(ctx, authority.service),
-    )
-    const host = await provide(root, 'host', ctx => new TestHost(ctx))
-    host.service.routes.set(instanceOf('instance_1'), routeOf(instanceOf('instance_1')))
-    const answer = await loaded.service.resolve(asker())
+  it('do not admit a caller when the directory cannot reach an access check', async () => {
+    const { directory, host } = await directoryOutsideItsPlugin()
+    const answer = await directory.resolve(asker())
     expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentAccessCheck' } })
-    expect(host.service.asked).toEqual([])
+    expect(host.asked).toEqual([])
   })
 
   it('answer denied for an instance of another tenant, as for one that does not exist', async () => {
@@ -672,8 +693,8 @@ describe('resolve and connect', () => {
     ).toMatchObject({
       failure: { kind: 'denied' },
     })
-    // The access check allowed every call above, so the refusal is the key of the directory.
-    expect(world.access.seen).toHaveLength(3)
+    // The key of the directory refused every call above before the access check was asked.
+    expect(world.access.seen).toEqual([])
     expect(host.service.asked).toEqual([])
   })
 
@@ -752,18 +773,27 @@ describe('register, given a request with one part that is not valid', () => {
     await world.host(instanceOf('instance_1'))
     const cycle: Record<string, unknown> = {}
     cycle['self'] = cycle
-    const bad: readonly (readonly [string, Input])[] = [
-      ['a tenant that the identity parser did not make', { ...input(), tenant: {} as TenantId }],
-      ['an empty instance', { ...input(), instance: '' as AgentInstanceId }],
-      ['an instance that is not a text', { ...input(), instance: 5 as never }],
-      ['an empty operation', { ...input(), operation: '' as AgentOperationId }],
-      ['an operation that is not a text', { ...input(), operation: 5 as never }],
-      ['data that is a cycle', { ...input(), state: cycle as never }],
-      ['data that holds a BigInt', { ...input(), scope: { ...scope, record: 1n } as never }],
+    const bad: readonly (readonly [string, Input, string])[] = [
+      [
+        'a tenant that the identity parser did not make',
+        { ...input(), tenant: {} as TenantId },
+        'input',
+      ],
+      ['an empty instance', { ...input(), instance: '' as AgentInstanceId }, 'instance'],
+      ['an instance that is not a text', { ...input(), instance: 5 as never }, 'instance'],
+      ['an empty operation', { ...input(), operation: '' as AgentOperationId }, 'operation'],
+      ['an operation that is not a text', { ...input(), operation: 5 as never }, 'operation'],
+      [
+        'a scope that holds a BigInt',
+        { ...input(), scope: { ...scope, record: 1n } as never },
+        'scope',
+      ],
+      ['data that is a cycle', { ...input(), state: cycle as never }, 'input'],
+      ['data that holds a BigInt', { ...input(), state: { kind: 1n } as never }, 'input'],
     ]
-    for (const [label, request] of bad) {
+    for (const [label, request, field] of bad) {
       const { answer } = await world.contribute(request)
-      expect(answer, label).toMatchObject({ failure: { kind: 'invalid', field: 'input' } })
+      expect(answer, label).toMatchObject({ failure: { kind: 'invalid', field } })
       expect(textOf(answer), label).not.toBe('')
     }
     expect(
@@ -906,15 +936,9 @@ describe('the access check and the host of resolve and connect, when they cannot
       expect(textOf(answer)).not.toBe(textOf(given))
     }
 
-    // A directory that was built without an access check says so, in other words than the two above.
-    const root = new Context()
-    const authority = await provide(root, 'authority', ctx => new TestAuthority(ctx))
-    const loaded = await provide(
-      root,
-      'directory',
-      ctx => new AgentInstancesService(ctx, authority.service),
-    )
-    const missing = await loaded.service.resolve(asker)
+    // A directory that cannot reach an access check says so, in other words than the two above.
+    const { directory } = await directoryOutsideItsPlugin()
+    const missing = await directory.resolve(asker)
     expect(missing).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentAccessCheck' } })
     expect(textOf(missing)).not.toBe('')
     expect(textOf(missing)).not.toBe(textOf(thrown))
@@ -1147,5 +1171,183 @@ describe('the record of a listener of instance-retired that failed', () => {
     expect(failures).toHaveLength(1)
     expect(failures[0]?.name).toBe('agent-cordis-contract')
     expect(failures[0]?.message).toContain('1 listener(s)')
+  })
+})
+
+describe('the boundary of the directory', () => {
+  const evidence = { owner: 'test', record: 'scope', revision: '1', digest: 'sha256:scope' }
+
+  it('answers invalid for register, names the member whose text its decoder refuses, and asks nobody', async () => {
+    const world = await start()
+    const bad: readonly (readonly [string, Input, string])[] = [
+      [
+        'an instance with a space',
+        { ...input(), instance: 'has space' as AgentInstanceId },
+        'instance',
+      ],
+      ['an instance outside ASCII', { ...input(), instance: 'é' as AgentInstanceId }, 'instance'],
+      [
+        'an operation with a space',
+        { ...input(), operation: 'op with space' as AgentOperationId },
+        'operation',
+      ],
+    ]
+    for (const [label, request, field] of bad) {
+      const { answer } = await world.contribute(request)
+      expect(answer, label).toMatchObject({ failure: { kind: 'invalid', field } })
+      expect(textOf(answer), label).not.toBe('')
+    }
+    expect(world.authority.seen).toEqual([])
+    expect(world.retired).toEqual([])
+  })
+
+  it('answers invalid for register when the scope is not an Evidence, and asks nobody', async () => {
+    const world = await start()
+    const { record: _record, ...withoutRecord } = evidence
+    const scopes: readonly (readonly [string, unknown])[] = [
+      ['a scope without a record', withoutRecord],
+      ['a scope with an empty owner', { ...evidence, owner: '' }],
+      ['a scope with a member that Evidence does not have', { ...evidence, extra: 'x' }],
+      ['a scope that is a text', 'scope'],
+    ]
+    for (const [label, bad] of scopes) {
+      const { answer } = await world.contribute({ ...input(), scope: bad as never })
+      expect(answer, label).toMatchObject({ failure: { kind: 'invalid', field: 'scope' } })
+      expect(textOf(answer), label).not.toBe('')
+    }
+    expect(world.authority.seen).toEqual([])
+  })
+
+  it('answers invalid for withdraw, names the member whose text its decoder refuses, and removes nothing', async () => {
+    const world = await start()
+    const { answer } = await world.contribute(input())
+    const { registration } = registrationOf(answer)
+    const withdrawal = {
+      principal: 'host',
+      tenant: tenantA,
+      operation: operationOf('operation_w'),
+      instance: instanceOf('instance_1'),
+      registration,
+    }
+    const seen = world.authority.seen.length
+    const bad: readonly (readonly [string, object, string])[] = [
+      ['a registration with a space', { registration: 'has space' }, 'registration'],
+      ['an instance outside ASCII', { instance: 'é' }, 'instance'],
+      ['an operation with a space', { operation: 'op with space' }, 'operation'],
+    ]
+    for (const [label, overrides, field] of bad) {
+      const refused = await world.directory.withdraw({ ...withdrawal, ...overrides } as never)
+      expect(refused, label).toMatchObject({ failure: { kind: 'invalid', field } })
+      expect(textOf(refused), label).not.toBe('')
+    }
+    expect(world.authority.seen).toHaveLength(seen)
+    expect(world.retired).toEqual([])
+  })
+
+  it('answers invalid for resolve and connect when the instance text does not decode, and asks nobody', async () => {
+    const world = await start()
+    const host = await world.host(instanceOf('instance_1'))
+    await world.contribute(input())
+    for (const text of ['has space', 'é']) {
+      const asker = { principal: 'caller', tenant: tenantA, instance: text as AgentInstanceId }
+      for (const answer of [
+        await world.directory.resolve(asker),
+        await world.directory.connect(asker),
+      ]) {
+        expect(answer, text).toMatchObject({ failure: { kind: 'invalid', field: 'instance' } })
+        expect(textOf(answer), text).not.toBe('')
+      }
+    }
+    expect(world.access.seen).toEqual([])
+    expect(host.service.asked).toEqual([])
+  })
+})
+
+describe('resolve and connect for an instance of another tenant', () => {
+  it('answer denied whether the access check would allow, deny, be unavailable or throw', async () => {
+    const world = await start()
+    const host = await world.host(instanceOf('instance_1'))
+    await world.contribute(input())
+    const other = { principal: 'caller', tenant: tenantB, instance: instanceOf('instance_1') }
+    const decisions: readonly (readonly [string, TestAccess['decision']])[] = [
+      ['allowed', world.access.decision],
+      ['denied', { kind: 'denied' }],
+      ['unavailable', { kind: 'unavailable', diagnostic: 'the grant store is down' }],
+      ['a throw', 'throw'],
+    ]
+    for (const [label, decision] of decisions) {
+      world.access.decision = decision
+      expect(await world.directory.resolve(other), label).toEqual({
+        failure: { kind: 'denied', action: 'resolve' },
+      })
+      expect(await world.directory.connect(other), label).toEqual({
+        failure: { kind: 'denied', action: 'connect' },
+      })
+    }
+    expect(world.access.seen).toEqual([])
+    expect(host.service.asked).toEqual([])
+  })
+
+  it('answer denied when the registration ends while the access check answers', async () => {
+    const world = await start()
+    const host = await world.host(instanceOf('instance_1'))
+    const contribution = await world.contribute(input())
+    const asker = { principal: 'caller', tenant: tenantA, instance: instanceOf('instance_1') }
+    // The check ends the registration before it answers allowed: the key no longer has an entry.
+    world.access.meanwhile = () => contribution.fiber.dispose()
+    expect(await world.directory.connect(asker)).toEqual({
+      failure: { kind: 'denied', action: 'connect' },
+    })
+    expect(world.access.seen).toHaveLength(1)
+    expect(host.service.asked).toEqual([])
+  })
+})
+
+describe('a calling context whose effect throws', () => {
+  const stub = (effect: () => never) => ({ ctx: { fiber: {}, effect } }) as never
+
+  it('answers unavailable with the cause, apart from the end of the calling fiber', async () => {
+    const world = await start()
+    const ended = await world.contribute(
+      input({ operation: 'operation_9', instance: 'instance_9' }),
+    )
+    await ended.fiber.dispose()
+    const endedAnswer = await ended.ctx
+      .get('agentInstances')
+      ?.register(input({ instance: 'instance_3' }))
+    const answer = await world.directory.register.call(
+      stub(() => {
+        throw new Error('the effect broke')
+      }),
+      input(),
+    )
+    expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'agentInstances' } })
+    expect(textOf(answer)).toContain('the effect broke')
+    expect(textOf(endedAnswer)).not.toContain('the effect broke')
+    expect(textOf(answer)).not.toBe(textOf(endedAnswer))
+  })
+})
+
+describe('the record of a provider that failed', () => {
+  it('keeps the cause of a throw from the authority, the access check and the host', async () => {
+    const world = await start()
+    const host = await world.host()
+    await world.contribute(input())
+    const asker = { principal: 'caller', tenant: tenantA, instance: instanceOf('instance_1') }
+    world.authority.answer = 'throw'
+    await world.contribute(input({ operation: 'operation_2' }))
+    world.access.decision = 'throw'
+    await world.directory.resolve(asker)
+    world.access.decision = { kind: 'allowed', evidence: scope }
+    host.service.routes.set(instanceOf('instance_1'), 'throw')
+    await world.directory.resolve(asker)
+    const failures = world.records.filter(record => record.type === 'error')
+    expect(failures.every(record => record.name === 'agent-cordis-contract')).toBe(true)
+    for (const cause of ['the authority broke', 'the access check broke', 'the host broke']) {
+      expect(
+        failures.some(record => record.message.includes(cause)),
+        cause,
+      ).toBe(true)
+    }
   })
 })

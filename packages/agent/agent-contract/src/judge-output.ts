@@ -1,5 +1,4 @@
 import { judgeJsonValue, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
-import type { Message } from '@omne-harness/message'
 import type * as M from '@omne-harness/model-contract'
 import { z } from 'zod'
 import { copyPlain, isRecord } from './check.ts'
@@ -19,20 +18,16 @@ import type { Judgment, OutputRefusalReason } from './judgment.ts'
 
 type OutputKind = ExtensionOutput['kind']
 
+type SplitPosition = 'before_model_call' | 'after_model_call' | 'after_action'
+type Ending = Extract<Dimension, { ending: unknown }>['ending']
+type Scope = Extract<Dimension, { scope: unknown }>['scope']
+
 /** A row of the position output table: a position, with its dimension or purpose where one splits it. */
 export type PositionOutputKey =
-  | 'execution_started'
-  | 'before_compaction'
-  | 'after_compaction'
-  | 'before_model_call/main'
-  | 'before_model_call/compaction'
-  | 'after_model_call/complete_reply'
-  | 'after_model_call/failure'
-  | 'before_action'
-  | 'after_action/each'
-  | 'after_action/batch'
-  | 'before_terminal'
-  | 'after_terminal'
+  | Exclude<Position, SplitPosition>
+  | `before_model_call/${NonNullable<ExtensionOutputJudgeInput['purpose']>}`
+  | `after_model_call/${Ending}`
+  | `after_action/${Scope}`
 
 export type PositionOutputs = Readonly<{
   /** The outputs the position allows, before the power narrows them. */
@@ -167,26 +162,24 @@ function locate(input: ExtensionOutputJudgeInput): Located {
   }
 }
 
-/*
- * The message, the subject and the supplier are values of other owners. Message admission judges
- * a reminder message, the position judges its own subject, and Model judges a retry plan. This
- * judgment checks what the author protocol itself says about them, and these guards mark where
- * the checked shape is taken as the owner's type.
- */
 type MessageShape = Readonly<{ id: string; role: string; blocks: readonly unknown[] }>
-type ReminderMessage = Message & Readonly<{ role: 'system_reminder' }>
+type InjectedMessage = Extract<ExtensionOutput, { kind: 'inject' }>['message']
 
-function isReminder(message: MessageShape): message is ReminderMessage {
+/** Step 4: the role of an injected message. This is the only rule of `Message` that it checks. */
+function isReminder(message: MessageShape): boolean {
   return message.role === 'system_reminder'
 }
 
-/** A rewritten subject equals the subject the author received outside the rewritable fields (step 7). */
-function isSubject(value: Readonly<Record<string, unknown>>): value is Subject {
-  return typeof value === 'object'
-}
-
-function isSupplier(value: Readonly<Record<string, unknown>>): value is M.Supplier {
-  return typeof value === 'object'
+/**
+ * Hands a value that passed the checks of this judgment on as the type of its owner. The message,
+ * the subject and the supplier are values of other owners: message admission judges a reminder
+ * message, the position judges its own subject, and Model judges a retry plan. This judgment checks
+ * only what the author protocol says about them, so the type is not proven here. The consumer runs
+ * the judgment of each owner before it adopts the value. Every such step goes through this one
+ * function, so each place where an unproven type is given can be found.
+ */
+function asOwnerTyped<T>(value: unknown): T {
+  return value as T
 }
 
 /**
@@ -286,12 +279,12 @@ function copyCard(draft: Extract<Parsed, { kind: 'ask' }>['card']): DecisionCard
   }
 }
 
-function buildInject(parsed: Extract<Parsed, { kind: 'inject' }>): ExtensionOutput | undefined {
-  return isReminder(parsed.message) ? { kind: 'inject', message: parsed.message } : undefined
+function buildInject(parsed: Extract<Parsed, { kind: 'inject' }>): ExtensionOutput {
+  return { kind: 'inject', message: asOwnerTyped<InjectedMessage>(parsed.message) }
 }
 
-function buildRewrite(parsed: Extract<Parsed, { kind: 'rewrite' }>): ExtensionOutput | undefined {
-  return isSubject(parsed.subject) ? { kind: 'rewrite', subject: parsed.subject } : undefined
+function buildRewrite(parsed: Extract<Parsed, { kind: 'rewrite' }>): ExtensionOutput {
+  return { kind: 'rewrite', subject: asOwnerTyped<Subject>(parsed.subject) }
 }
 
 function buildSelectModel(parsed: Extract<Parsed, { kind: 'select_model' }>): ExtensionOutput {
@@ -310,13 +303,16 @@ function buildStop(parsed: Extract<Parsed, { kind: 'stop' }>): ExtensionOutput {
   }
 }
 
-function buildRetry(parsed: Extract<Parsed, { kind: 'retry' }>): ExtensionOutput | undefined {
+function buildRetry(parsed: Extract<Parsed, { kind: 'retry' }>): ExtensionOutput {
   const { supplier, notBefore, basis } = parsed.plan
-  return isSupplier(supplier) ? { kind: 'retry', plan: { supplier, notBefore, basis } } : undefined
+  return {
+    kind: 'retry',
+    plan: { supplier: asOwnerTyped<M.Supplier>(supplier), notBefore, basis },
+  }
 }
 
-/** The typed output of a parsed one. `undefined` means a value that its owner's type does not accept. */
-function build(parsed: Parsed): ExtensionOutput | undefined {
+/** The typed output of a parsed one that passed steps 4 to 7. */
+function build(parsed: Parsed): ExtensionOutput {
   switch (parsed.kind) {
     case 'observed':
       return { kind: 'observed' }
@@ -438,7 +434,5 @@ export function judgeExtensionOutput(
   if (parsed === undefined) return refuse('malformed')
   const reason = outputRefusal(parsed, located.row, input)
   if (reason !== undefined) return refuse(reason)
-  const output = build(parsed)
-  if (output === undefined) return refuse('malformed')
-  return { kind: 'accepted', value: freezeDeep(output) }
+  return { kind: 'accepted', value: freezeDeep(build(parsed)) }
 }
