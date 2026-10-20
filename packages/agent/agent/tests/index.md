@@ -1,13 +1,14 @@
 # tests 索引
 
-<!-- documentation:placeholder -->
-
 本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
 
 ## 内容
 
-<!-- documentation:placeholder -->
-
-- [README.md](README.md)：测试范围、真实依赖与替身
-- [public-entry.spec.ts](public-entry.spec.ts)：公开入口的测试
+- [README.md](README.md)：测试范围、真实依赖与替身、测试的组织
+- [public-entry.spec.ts](public-entry.spec.ts)：入口导出名、导入图、清单依赖与 Cordis 路径
+- [assembly.spec.ts](assembly.spec.ts)：测试装配的 17 项依赖与工厂壳（C1）
+- [fixtures.spec.ts](fixtures.spec.ts)：每个替身的编排接口
+- [memory-journal.spec.ts](memory-journal.spec.ts)：内存 Journal 的同形清单第 1 至 15 条与三项临时做法
+- [journal-support.ts](journal-support.ts)：测试共用的契约值与步骤
+- [module-graph.ts](module-graph.ts)：导入图遍历
 - [fixtures/](fixtures/index.md)：测试固定输入
