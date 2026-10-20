@@ -154,7 +154,7 @@ flowchart LR
 
 “去向”列的写法如下：取证行写“供〈子卡〉（〈节点〉）取证”，改行写新包与节点，其他行写“无”。子卡编号见 #502 的“阶段与子任务”。节点 ID 见 Loop 算法页的[节点表](../agent/docs/architecture/loop-algorithm.md#节点表)。
 
-封存件中的算法事实与下列现行拥有者不一致时，以拥有者为准：agent-contract 的 [SPEC](../agent-contract/SPEC.md)、[扩展作者协议](../agent-contract/docs/public-api/extensions.md)、Loop 算法页的[节点表](../agent/docs/architecture/loop-algorithm.md#节点表)、系统页 [Loop extensions](../../../docs/architecture/runtime/loop-extensions.md)，以及契约源码 [judge-output.ts](../agent-contract/src/judge-output.ts) 中的 `judgeExtensionOutput` 与 `POSITION_OUTPUTS`。拥有者已经写明的事实，引用拥有者的条款，不从封存件取。拥有者尚未规定的行为，不从封存件反推。本清单不评价代码质量，也不决定新接口。
+封存件中的算法事实与下列现行拥有者不一致时，以拥有者为准：agent-contract 的 [SPEC](../agent-contract/SPEC.md)、[扩展作者协议](../agent-contract/docs/public-api/extensions.md)、Loop 算法页的[节点表](../agent/docs/architecture/loop-algorithm.md#节点表)、Loop 实现的[机制页](../agent/docs/architecture/mechanisms.md)、系统页 [Loop extensions](../../../docs/architecture/runtime/loop-extensions.md)，以及契约源码 [judge-output.ts](../agent-contract/src/judge-output.ts) 中的 `judgeExtensionOutput` 与 `POSITION_OUTPUTS`。拥有者已经写明的事实，引用拥有者的条款，不从封存件取。拥有者尚未规定的行为，不从封存件反推。本清单不评价代码质量，也不决定新接口。
 
 ### 汇总
 
@@ -219,9 +219,9 @@ sed -n '/^## 迁移清单/,$p' packages/agent/docs/architecture.md | grep '^| `[
 | `admission-digest.ts` | 弃 | 无 | 它只为旧 runner 的准入令牌计算参数摘要，新边界下准入证据由 `ActionAdmission` 以 `Evidence` 提供。 |
 | `conclusion-codec.ts` | 弃 | 无 | 它把扩展结论编码为 Session 日志条目，编码了日志即 Journal。 |
 | `cordis.ts` | 弃 | 无 | 它注册旧 runner 的 Cordis 服务，属于旧装配。 |
-| `effect.ts` | 弃 | 无 | 纯归约、否决结束链与 ask 暂停链已由机制页“扩展协议的边界”、系统页“有序组合与参数改写”和扩展作者协议“调用协议”规定，select_model 替换主体与 SPEC“模型选择”第 5 条不一致，不可用即否决漏掉扩展作者协议“不可用与报错”中干预力被收窄时跳过的分支，这两条不取。 |
+| `effect.ts` | 弃 | 无 | 纯归约、否决结束链与 ask 暂停链已由[机制页“扩展协议的边界”](../agent/docs/architecture/mechanisms.md#扩展协议的边界)、系统页“有序组合与参数改写”和扩展作者协议“调用协议”规定，`stop`、`retry` 是否结束链、是否必须是最后一条，拥有者尚未规定，不取，select_model 替换主体与 SPEC“模型选择”第 5 条不一致，不可用即否决漏掉扩展作者协议“不可用与报错”中干预力被收窄时跳过的分支，这两条也不取。 |
 | `implementation-registry-types.ts` | 弃 | 无 | 它声明旧 runner 的实现与官方准入登记接口，接口参数是 Session 的访问与范围。 |
-| `index.ts` | 弃 | 无 | 它只重新导出本包的类型与函数，这些文件都已弃或只作取证。 |
+| `index.ts` | 弃 | 无 | 它只重新导出本包的类型与函数，这些文件都已弃。 |
 | `keys.ts` | 弃 | 无 | 它生成 Session 日志条目的去重键，编码了日志即 Journal。 |
 | `pass-history-types.ts` | 弃 | 无 | 它的经过历史从 Session 日志条目读取，编码了日志即 Journal。 |
 | `reminder-log-types.ts` | 弃 | 无 | 它声明把系统提醒写入旧日志的适配器，编码了日志即 Journal。 |
@@ -239,12 +239,12 @@ sed -n '/^## 迁移清单/,$p' packages/agent/docs/architecture.md | grep '^| `[
 | 文件 | 类 | 去向 | 理由 |
 | --- | --- | --- | --- |
 | `action-batch.ts` | 弃 | 无 | 官方准入在每条链末尾、链间并行而链内串行、准入不可用时整批不放行、等全部链结论后才放行，已由 SPEC“整批判断屏障与动作准入”第 1、2、4 条规定。 |
-| `action-request.ts` | 弃 | 无 | 完整到达才解析已由节点表 I4 行规定，把不可解析的调用排除在动作之外与 SPEC“整批判断屏障与动作准入”导语（完整回复中的全部工具调用组成一个 ActionBatch）不一致，不取。 |
+| `action-request.ts` | 弃 | 无 | 参数块未完整到达不解析已由节点表 I4 行规定，把不可解析或不完整的调用排除在动作批之外，拥有者尚未规定，不取。 |
 | `action-round.ts` | 弃 | 无 | 对整批调用一次准入、结果条数与批次不等时按不可用，与逐动作的 `ActionAdmission.admit` 及 SPEC“整批判断屏障与动作准入”第 1 条不一致，不取，任一候选不可用时整批不放行与等全部链结论已由同节第 2、4 条规定。 |
 | `admission-pass-source.ts` | 弃 | 无 | 准入所用参数在本轮固定已由 SPEC“整批判断屏障与动作准入”第 7 条（准入、卡片与发起使用同一份生效参数）规定，准入轮次记录的回读与鉴权在逐动作的 `ActionAdmission.admit` 下没有对应。 |
 | `cordis.ts` | 弃 | 无 | 它以 Session 日志与 Session 访问服务注册旧 runner 插件，属于旧装配。 |
-| `implementation-registry.ts` | 弃 | 无 | 调用开始前撤回得到 `notStartedUnavailable` 与实现抛出异常得到 `errored` 已由扩展作者协议“调用协议”规定，调用中撤回得到 `errored` 会预先决定开放问题 AGENT-M02，关闭或取消得到 `controlUnavailable` 与同节对 `controlUnavailable` 和 `signal` 的规定不一致，按名称登记与“结构换代与未完成判断”的精确采用不一致，这三条不取。 |
-| `index.ts` | 弃 | 无 | 它只重新导出本包的旧 runner 装配，这些文件都已弃或只作取证。 |
+| `implementation-registry.ts` | 弃 | 无 | 调用开始前撤回映射为 `notStartedUnavailable`、`invoke` 抛出异常时怎样分类，拥有者尚未规定，不取（系统页“不可用、报错与系统扩展”对不可用与报错的定义只是推断时的参考，不是规则），调用中撤回得到 `errored` 与扩展作者协议“结构换代与未完成判断”的“已开始的扩展调用保留精确采用”和“新采用只影响尚未开始的扩展调用”不一致，关闭或取消得到 `controlUnavailable` 与“调用协议”对 `controlUnavailable` 和 `signal` 的规定不一致，按名称登记与精确采用不一致，这些都不取。 |
+| `index.ts` | 弃 | 无 | 它只重新导出本包的旧 runner 装配，这些文件都已弃。 |
 | `pass-history.ts` | 弃 | 无 | 它从 Session 日志条目重建经过历史，编码了日志即 Journal。 |
 | `reminder-log.ts` | 弃 | 无 | 它把系统提醒写入 Session 日志，编码了日志即 Journal。 |
 | `run-log.ts` | 弃 | 无 | 它把扩展结论绑定到一代 Session 日志，编码了日志即 Journal。 |
