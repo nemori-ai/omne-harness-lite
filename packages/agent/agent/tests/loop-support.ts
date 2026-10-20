@@ -144,19 +144,22 @@ export const selected: SelectedModel = {
 
 export const REPLY_TEXT = 'hello from the model'
 
-function replyParts(): readonly ResultPart[] {
-  return [
-    {
-      kind: 'sealed',
-      trims: [],
-      block: {
-        kind: 'text',
-        id: stub('blk_reply'),
-        visibility: { toHuman: true, toModel: true },
-        text: REPLY_TEXT,
-      },
+/** The reply the Model settles each call with: one sealed text part per text, `pageSize` per page. */
+export type ScriptedReply = Readonly<{ texts: readonly string[]; pageSize: number }>
+
+const ONE_TEXT: ScriptedReply = { texts: [REPLY_TEXT], pageSize: 10 }
+
+function replyParts(reply: ScriptedReply): readonly ResultPart[] {
+  return reply.texts.map((text, index) => ({
+    kind: 'sealed',
+    trims: [],
+    block: {
+      kind: 'text',
+      id: stub(`blk_reply_${index}`),
+      visibility: { toHuman: true, toModel: true },
+      text,
     },
-  ]
+  }))
 }
 
 /** A gate that the test opens; the Model settles no admitted call before it is open. */
@@ -171,13 +174,14 @@ export function gate(): Gate {
 }
 
 /**
- * The Model runtime whose admit, once it succeeds, lets the scripted call start and settle with one
- * text reply after `release` opens. The admit answer itself is not changed.
+ * The Model runtime whose admit, once it succeeds, lets the scripted call start and settle with
+ * `reply` after `release` opens. The admit answer itself is not changed.
  */
 function respondingModels(
   models: ModelRuntime<Principal>,
   controller: TestAgentControls<Principal>['models'],
   release: Promise<void>,
+  reply: ScriptedReply,
 ): ModelRuntime<Principal> {
   return {
     ...models,
@@ -197,9 +201,9 @@ function respondingModels(
               ...call,
               version: ok(decodeResultVersion('mrver_1')),
               termination: { kind: 'completed', reason: 'stop' },
-              parts: replyParts(),
+              parts: replyParts(reply),
               source: evidence(`settled/${input.call}`),
-              pageSize: 10,
+              pageSize: reply.pageSize,
               pageTargetBytes: 65536,
             })
           })
@@ -228,6 +232,7 @@ export async function loopAssembly(
   wrap: (
     dependencies: AgentDependencies<Principal, ContentBlock>,
   ) => AgentDependencies<Principal, ContentBlock> = dependencies => dependencies,
+  reply: ScriptedReply = ONE_TEXT,
 ): Promise<LoopAssembly> {
   const { dependencies, controls } = createTestAgentDependencies<Principal>()
   const release = gate()
@@ -240,7 +245,7 @@ export async function loopAssembly(
   controls.selection.select.always(() => ({ ok: selected }))
   const assembled = wrap({
     ...dependencies,
-    models: respondingModels(dependencies.models, controls.models, release.opened),
+    models: respondingModels(dependencies.models, controls.models, release.opened, reply),
   })
   const provider = ok(await createAgentRuntime(assembled, options()))
   return { provider, dependencies: assembled, controls, release }

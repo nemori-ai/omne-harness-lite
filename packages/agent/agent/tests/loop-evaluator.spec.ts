@@ -124,6 +124,35 @@ describe('codec', () => {
     expect(encoded.value.kind).toBe('object')
   })
 
+  it('encode writes strings, booleans, finite numbers and null, and leaves out absent members', () => {
+    const { checkpoint } = loopFacts('I8')
+    // The checkpoint is data only; a member of another type is the test's input to the encoder.
+    const value = { ...checkpoint, guard: { flag: true, count: 1.5, absent: undefined } }
+    const encoded = agentEvaluator.encode(value as unknown as typeof checkpoint)
+    const entries = encoded.value.kind === 'object' ? encoded.value.entries : []
+    expect(entries.find(entry => entry.key === 'guard')?.value).toEqual({
+      kind: 'object',
+      entries: [
+        { key: 'flag', value: { kind: 'boolean', value: true } },
+        { key: 'count', value: { kind: 'number', lexeme: '1.5' } },
+      ],
+    })
+    expect(entries.find(entry => entry.key === 'batch')?.value).toEqual({ kind: 'null' })
+    expect(entries.find(entry => entry.key === 'calls')?.value).toEqual({
+      kind: 'array',
+      items: [],
+    })
+  })
+
+  it.each([
+    ['a non-finite number', Number.POSITIVE_INFINITY],
+    ['a function', () => undefined],
+  ])('encode throws on %s instead of writing a lossy value', (_, member) => {
+    const { checkpoint } = loopFacts('I8')
+    const value = { ...checkpoint, guard: { member } }
+    expect(() => agentEvaluator.encode(value as unknown as typeof checkpoint)).toThrow(TypeError)
+  })
+
   it('stage-temporary (#502 stage 5): decode takes no continuation as a checkpoint yet', () => {
     const encoded = agentEvaluator.encode(loopFacts('I8').checkpoint)
     expect(failure(agentEvaluator.decode(encoded))).toEqual(unsupported)

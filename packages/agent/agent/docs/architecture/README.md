@@ -2,6 +2,12 @@
 
 本包提供组合式实现。公开操作、失败和行为归 [agent-contract](../../../agent-contract/SPEC.md)，[工厂](../public-api.md) 聚合构造依赖。Loop 的骨架已落地：纯 Evaluator 在 `src/loop/evaluator.ts`，转移表在 `src/loop/nodes.ts`，Execution coordinator 在 `src/loop/coordinator.ts`，Runtime coordinator 的单执行槽与状态投影在 `src/provider.ts`。其余角色尚未落地。
 
+转移表按下列规则演进，#502 1.3 至 1.9 的各卡遵守：
+
+- 后续卡只增加转移行，不修改已有的行。失败分支、等待与其他子图都以新增行进入。
+- E4 与 I8 的行以评估器 `Next` 的种类为结果。这两处的行也可以按 `Next` 携带的内容匹配：#502 1.4 为 prepare-request、admit-model、consume 与 reconcile 增加这种行，每种按所携带的内容去两个节点之一。这是增加的匹配方式，不改已有的行。
+- 评估器的 `case 'E4'` 是 #502 1.2 的替代做法：`position` 为 E4 表示执行开始之后位置的经过刚结束，于是开第一个 iter。节点表 E4 行写的是「新 iter 或原输入边界转 I0」，#502 1.4 以输入批与推进要求的依据替换这一位置判断。
+
 ## 模块与状态责任
 
 | 角色 | 拥有内容 | 变化边界 |
@@ -38,4 +44,4 @@ Model/Tool 的查询、流读取和 ACK 由效果协调层消费。纯求值只�
 
 ## 包与安装边界
 
-本包只依赖纯契约及必要通用能力。外部协调者的适配不进入本包，Cordis 集成由 [agent-host-local](../../../agent-host-local/README.md) 承担。根入口当前为空；设计接口可连接不表示生产提供者已实现。
+本包只依赖纯契约及必要通用能力。外部协调者的适配不进入本包，Cordis 集成由 [agent-host-local](../../../agent-host-local/README.md) 承担。根入口导出工厂、通用评估器与 checkpoint 的 schema 采用。设计接口可连接，不表示生产提供者已实现。

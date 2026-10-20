@@ -22,7 +22,7 @@ import {
   ok,
   operation,
 } from './journal-support.ts'
-import { alice, loopAssembly, type LoopAssembly } from './loop-support.ts'
+import { alice, loopAssembly, selected, type LoopAssembly } from './loop-support.ts'
 
 function invoke(assembly: LoopAssembly, id = 'exec-1') {
   return assembly.provider.runtime.invoke({
@@ -152,6 +152,64 @@ describe('a halted run keeps the slot occupied and is named by the next invoke',
     expect(diagnostic).toContain('halted at E4')
     expect(diagnostic).toContain('"owner":"@omne-harness/agent#defect"')
     expect(diagnostic).toContain('E4 has no transition on wait')
+  })
+})
+
+describe('P1 stops when the re-selection differs (#502 1.2 stand-in for the P1 self-loop of 1.5)', () => {
+  const changes: readonly (readonly [string, typeof selected.recipient])[] = [
+    ['route', { ...selected.recipient, route: 'route-2' }],
+    [
+      'profile owner',
+      { ...selected.recipient, profile: { ...selected.recipient.profile, owner: 'other' } },
+    ],
+    [
+      'profile name',
+      { ...selected.recipient, profile: { ...selected.recipient.profile, name: 'other' } },
+    ],
+    [
+      'profile revision',
+      { ...selected.recipient, profile: { ...selected.recipient.profile, revision: '2' } },
+    ],
+    [
+      'profile digest',
+      { ...selected.recipient, profile: { ...selected.recipient.profile, digest: 'other' } },
+    ],
+  ]
+  it.each(changes)('a changed %s halts at P1 by name', async (_, recipient) => {
+    const assembly = await loopAssembly([execution(), execution('exec-2')])
+    assembly.controls.selection.select.once(() => succeed(selected))
+    assembly.controls.selection.select.once(() => succeed({ ...selected, recipient }))
+    ok(await invoke(assembly))
+    let diagnostic = ''
+    await eventually(async () => {
+      diagnostic = diagnosticOf(await invoke(assembly, 'exec-2'))
+      return diagnostic.includes('halted')
+    })
+    expect(diagnostic).toContain('halted at P1')
+    expect(diagnostic).toContain('a changed selection is not handled until #502 1.5')
+  })
+})
+
+describe('observe wakes on a change of the slot', () => {
+  it('an observation open before invoke shows idle, then occupied', async () => {
+    const assembly = await loopAssembly([execution()])
+    const controller = new AbortController()
+    const sequence = assembly.provider.observation
+      .observe({ ...alice, signal: controller.signal })
+      [Symbol.asyncIterator]()
+    expect((await sequence.next()).value).toEqual({
+      kind: 'state',
+      value: { kind: 'idle', instance: instance() },
+    })
+    const next = sequence.next()
+    ok(await invoke(assembly))
+    expect((await next).value).toMatchObject({
+      kind: 'state',
+      value: { kind: 'occupied', execution: execution() },
+    })
+    controller.abort()
+    expect((await sequence.next()).value).toEqual({ kind: 'ended', reason: 'closed' })
+    assembly.release.open()
   })
 })
 

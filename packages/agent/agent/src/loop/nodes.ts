@@ -160,11 +160,6 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'E9', on: 'idle', to: null },
 ]
 
-/** Whether a text names a node of the node table. */
-export function isLoopNode(text: string): text is LoopNode {
-  return LOOP_NODES.some(node => node === text)
-}
-
 /**
  * Where `from` goes on `on`: a node, `null` when the Loop ends there, or `undefined` when the table
  * has no such row. A missing row is an outcome that this card does not handle; the caller stops on

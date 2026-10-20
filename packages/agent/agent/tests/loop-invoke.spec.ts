@@ -260,3 +260,140 @@ describe('the handle', () => {
     await eventsOf(handle)
   })
 })
+
+describe('the handle reads events under the guard and only for its own execution', () => {
+  /** The test assembly whose access check answers `answer` for `operation` and allows the rest. */
+  async function checked(operation: 'read' | 'events', answer: 'denied' | 'unavailable') {
+    const assembly = await loopAssembly([execution()])
+    const handle = ok(await invoke(assembly))
+    assembly.controls.access.check.always(input =>
+      input.operation === operation
+        ? answer === 'denied'
+          ? { kind: 'denied' }
+          : { kind: 'unavailable', diagnostic: 'authorization offline' }
+        : { kind: 'allowed', evidence: { owner: 't', record: 'r', revision: '1', digest: 'd' } },
+    )
+    return { assembly, handle }
+  }
+
+  /** The first item that `events` yields. */
+  async function firstOf(handle: AgentExecutionHandle<Principal>, id = execution()) {
+    const controller = new AbortController()
+    for await (const page of handle.output.events({
+      ...alice,
+      execution: id,
+      after: null,
+      signal: controller.signal,
+    })) {
+      controller.abort()
+      return page
+    }
+    throw new Error('events yielded nothing')
+  }
+
+  it.each(['denied', 'unavailable'] as const)(
+    'read: a check that answers %s refuses',
+    async answer => {
+      const { assembly, handle } = await checked('read', answer)
+      const read = await handle.output.read({
+        ...alice,
+        execution: execution(),
+        after: null,
+        limit: 10,
+      })
+      expect(failure(read).kind).toBe(answer)
+      assembly.release.open()
+    },
+  )
+
+  it.each(['denied', 'unavailable'] as const)(
+    'events: a check that answers %s refuses',
+    async answer => {
+      const { assembly, handle } = await checked('events', answer)
+      expect(failure(await firstOf(handle)).kind).toBe(answer)
+      assembly.release.open()
+    },
+  )
+
+  it('events: another tenant is denied', async () => {
+    const assembly = await loopAssembly([execution()])
+    const handle = ok(await invoke(assembly))
+    const controller = new AbortController()
+    for await (const page of handle.output.events({
+      ...otherTenant,
+      execution: execution(),
+      after: null,
+      signal: controller.signal,
+    })) {
+      controller.abort()
+      expect(failure(page).kind).toBe('denied')
+      break
+    }
+    assembly.release.open()
+  })
+
+  it('read and events refuse the identity of another execution as invalid', async () => {
+    const assembly = await loopAssembly([execution()])
+    const handle = ok(await invoke(assembly))
+    const foreign = {
+      kind: 'invalid',
+      field: 'execution',
+      reason: 'not the execution of this handle',
+    }
+    const read = await handle.output.read({
+      ...alice,
+      execution: execution('exec-other'),
+      after: null,
+      limit: 10,
+    })
+    expect(failure(read)).toEqual(foreign)
+    expect(failure(await firstOf(handle, execution('exec-other')))).toEqual(foreign)
+    assembly.release.open()
+  })
+})
+
+describe('the reply and the identities the coordinator mints', () => {
+  it('reads a result of several pages in order into one reply', async () => {
+    const texts = ['one', 'two', 'three']
+    const assembly = await loopAssembly([execution()], undefined, { texts, pageSize: 1 })
+    const handle = ok(await invoke(assembly))
+    assembly.release.open()
+    await eventsOf(handle)
+    const reply = assembly.controls.handoff.accept.calls[1]?.candidate
+    expect(reply?.blocks.map(block => (block.kind === 'text' ? block.text : block.kind))).toEqual(
+      texts,
+    )
+  })
+
+  it('derives the call, the operations and the reply message from the execution and the step', async () => {
+    const admitted: string[] = []
+    const assembly = await loopAssembly([execution()], dependencies => ({
+      ...dependencies,
+      models: {
+        ...dependencies.models,
+        calls: {
+          ...dependencies.models.calls,
+          admit(input) {
+            admitted.push(input.call, input.operation)
+            return dependencies.models.calls.admit(input)
+          },
+        },
+      },
+    }))
+    const handle = ok(await invoke(assembly))
+    assembly.release.open()
+    await eventsOf(handle)
+    // A 40-digit digest of the execution, then the ordinal of the step (step-1).
+    expect(admitted).toEqual([
+      expect.stringMatching(/^mcall_[0-9a-f]{40}_1$/u),
+      expect.stringMatching(/^mop_[0-9a-f]{40}_1_admit$/u),
+    ])
+    expect(assembly.controls.handoff.accept.calls[1]?.candidate.id).toMatch(
+      /^msg_[0-9a-f]{40}_1_reply$/u,
+    )
+    const loaded = ok(
+      await assembly.dependencies.journal.load({ ...alice, execution: execution() }),
+    )
+    expect(loaded.checkpoint.step).toBe('step-1')
+  })
+})
