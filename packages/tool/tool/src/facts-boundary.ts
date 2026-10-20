@@ -165,9 +165,8 @@ function terminal(value: unknown): value is ToolTerminal {
     case 'failed':
       return (
         closed(value, ['kind', 'cause', 'diagnostic']) &&
-        ['arguments', 'environment', 'executor', 'runtime-lost', 'result'].includes(
-          String(value.cause),
-        ) &&
+        typeof value.cause === 'string' &&
+        ['arguments', 'environment', 'executor', 'runtime-lost', 'result'].includes(value.cause) &&
         typeof value.diagnostic === 'string'
       )
     case 'unavailable':

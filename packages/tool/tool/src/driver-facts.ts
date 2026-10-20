@@ -1,7 +1,6 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
-  decodeToolOperationId,
   type CallAccess,
   type FactBatch,
   type ToolFailure,
@@ -16,7 +15,7 @@ import { tenantKey } from './boundary.ts'
 import type { ToolDependencies } from './construction.ts'
 import type { createBindingInvoker } from './driver-binding.ts'
 import type { DriverStop } from './driver.ts'
-import { digestOf } from './evidence.ts'
+import { factTaskOperation } from './evidence.ts'
 import { isExcludedFailure } from './ledger-exclusion.ts'
 
 type Step<P> = CallAccess<P> & Readonly<{ instance: ToolInstanceId; signal: AbortSignal }>
@@ -257,19 +256,16 @@ export function createFactDriver<P, B extends ContentBlock, E>(
       if (cancelled()) return aborted()
       if ('failure' in confirmed)
         return { kind: 'failed', failure: sourceVerdict(confirmed.failure) }
-      const operation = decodeToolOperationId(
-        `${task.start.operation}/fact-ack/${digestOf(task.receipt).slice(7)}`,
-      )
-      if ('failure' in operation)
-        return {
-          kind: 'failed',
-          failure: { kind: 'invalid', field: 'operation', reason: operation.failure.reason },
-        }
+      const operation = factTaskOperation('fact-ack', {
+        kind: 'record-fact-acknowledgement',
+        start: task.start,
+        receipt: task.receipt,
+      })
       const recorded = await commands.recordFactAcknowledgement({
         principal: step.principal,
         tenant: step.tenant,
         call: step.call,
-        operation: operation.ok,
+        operation,
         receipt: task.receipt,
         sourceReceipt: confirmed.ok,
       })

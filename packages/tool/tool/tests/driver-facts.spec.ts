@@ -10,9 +10,16 @@ import {
 } from '@omne-harness/tool-contract'
 import { completedFinal, createMemoryToolClock } from '@omne-harness/tool-contract/testing'
 import { createToolLedger } from '@omne-harness/tool'
-import { startHarness, losingCommits, type StartOptions } from './start-values.ts'
+import {
+  admitCall,
+  startHarness,
+  losingCommits,
+  type StartOptions,
+  type StartHarness,
+} from './start-values.ts'
 import {
   configurationOf,
+  callId,
   evidence,
   guards,
   ok,
@@ -262,6 +269,72 @@ const process = {
 }
 
 describe('managed original facts', () => {
+  it('ACKs facts for a 200-character admission with one queryable operation across retries', async () => {
+    const confirmations: Parameters<StartHarness['commands']['recordFactAcknowledgement']>[0][] = []
+    const f = fixture({
+      commands: base => ({
+        ...base,
+        recordFactAcknowledgement: input => {
+          confirmations.push(input)
+          return base.recordFactAcknowledgement(input)
+        },
+      }),
+      store: memory =>
+        losingCommits(
+          memory,
+          input =>
+            input.writes.some(
+              write =>
+                write.kind === 'put' &&
+                write.record.kind === 'operation' &&
+                write.record.operation.receipt.kind === 'fact-acknowledgement',
+            ),
+          'dropped',
+        ),
+    })
+    const call = callId('a'.repeat(197))
+    const access = { principal: principalA, tenant: tenantA, call }
+    const controller = new AbortController()
+    f.signals.set(call, controller.signal)
+    await admitCall(f.h, call)
+    f.h.host.scheduled.splice(0)
+    await f.h.runOnce(call, controller.signal)
+    const running = ok(await f.h.commands.loadRecovery(access))
+    const start = running.start
+    if (start?.kind !== 'start') throw new Error('not started')
+    expect(running.admission).toHaveLength(200)
+    expect(start.operation).toHaveLength(206)
+    expect(running.state.phase).toBe('running')
+    await f.h.binding.controls.finish(start, completedFinal())
+    await f.pump()
+    const saved = ok(await f.h.commands.loadRecovery(access))
+    expect(saved.streams[0]?.pendingAcknowledgements).toEqual([])
+    expect(saved.tasks.some(task => task.kind === 'fact-ack')).toBe(false)
+    expect(f.h.binding.controls.pendingAcknowledgements(start)).toBe(0)
+    const settle = saved.tasks.find(task => task.kind === 'settle')
+    if (settle?.kind !== 'settle') throw new Error('missing saved final')
+    expect(ok(await f.h.ledger.facts.read({ ...access, basis: settle.basis })).fact).toEqual(
+      completedFinal(),
+    )
+    expect(confirmations).toHaveLength(2)
+    const original = confirmations[0]
+    if (original === undefined) throw new Error('missing confirmation command')
+    expect(confirmations[1]).toEqual(original)
+    expect(original.operation).toMatch(/^fact-ack:sha256:[a-f0-9]{64}$/u)
+    const operation = ok(
+      await f.h.ledger.reads.operation({ ...access, operation: original.operation }),
+    )
+    expect(operation).toMatchObject({ kind: 'committed' })
+    const commits = f.h.memory.commits
+    const progress = ok(await f.h.commands.recordFactAcknowledgement(original))
+    expect(progress.pendingAcknowledgements).toEqual([])
+    expect(f.h.memory.commits).toBe(commits)
+    expect(
+      ok(await f.h.ledger.reads.operation({ ...access, operation: original.operation })),
+    ).toEqual(operation)
+    controller.abort()
+    await flush()
+  })
   it('automatically preserves and ACKs process and full final after invoke and run return', async () => {
     const began = performance.now()
     const f = fixture()

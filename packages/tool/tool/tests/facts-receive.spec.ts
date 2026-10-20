@@ -548,6 +548,60 @@ describe('process current state with immutable history', () => {
 })
 
 describe('fixed producer boundary and current access', () => {
+  it.each([
+    { label: 'array', cause: ['arguments'] },
+    { label: 'nested array', cause: [['arguments']] },
+  ])(
+    'rejects a failed terminal with an $label cause before saving any event',
+    async ({ cause }) => {
+      const { harness, access, batch } = await running()
+      const before = await records(harness)
+      const commits = harness.memory.commits
+      const malformed = {
+        ...batch,
+        events: [
+          ...batch.events,
+          {
+            event: 'final',
+            fact: {
+              ...finalFact(),
+              terminal: { kind: 'failed', cause, diagnostic: 'bad arguments' },
+            },
+          },
+        ],
+      }
+      expect(
+        await Reflect.apply(harness.commands.receiveFacts, null, [
+          { ...access, start: batch.start, batch: malformed },
+        ]),
+      ).toMatchObject({ failure: { kind: 'invalid' } })
+      expect(harness.memory.commits).toBe(commits)
+      expect(await records(harness)).toEqual(before)
+      const recovery = ok(await harness.commands.loadRecovery(access))
+      expect(recovery.streams).toEqual([])
+      expect(recovery.tasks.some(task => task.kind === 'fact-ack')).toBe(false)
+    },
+  )
+  it.each(['arguments', 'environment', 'executor', 'runtime-lost', 'result'] as const)(
+    'preserves the valid failed terminal cause %s as a string',
+    async cause => {
+      const { harness, access, batch, receive } = await running()
+      const terminal = { kind: 'failed', cause, diagnostic: 'failed' } as const
+      ok(
+        await receive({
+          ...batch,
+          events: [{ event: 'final', fact: { ...finalFact(), terminal } }],
+        }),
+      )
+      const recovery = ok(await harness.commands.loadRecovery(access))
+      const settle = recovery.tasks.find(task => task.kind === 'settle')
+      if (settle?.kind !== 'settle') throw new Error('missing saved final')
+      expect(ok(await harness.ledger.facts.read({ ...access, basis: settle.basis })).fact).toEqual({
+        ...finalFact(),
+        terminal,
+      })
+    },
+  )
   it('saves the input fixed before an access guard can mutate it', async () => {
     const { harness, access, batch } = await running()
     const mutable = structuredClone(batch)
