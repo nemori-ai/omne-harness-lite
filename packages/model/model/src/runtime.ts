@@ -107,7 +107,7 @@ function unavailable(operation: string, stage: string): Reply<never> {
     },
   })
 }
-/** Constructs the call facade, stream driver, confirmed settlement and instance observations. */
+/** Constructs the call facade, result consumption, stream driver and instance observations. */
 export function createModelRuntime<P>(
   dependencies: ModelDependencies<P>,
   configuration: ModelConfiguration,
@@ -162,12 +162,39 @@ export function createModelRuntime<P>(
         },
       },
       consumption: {
-        beginRead: input =>
-          reserved(input.operation) ?? unavailable('consumption.beginRead', '1.7'),
-        readNext: () => unavailable('consumption.readNext', '1.7'),
-        closeRead: () => unavailable('consumption.closeRead', '1.7'),
-        acknowledge: input =>
-          reserved(input.operation) ?? unavailable('consumption.acknowledge', '1.7'),
+        beginRead: async ({ principal, tenant, call, operation, result }) =>
+          reserved(operation) ??
+          commands.acquireRead({ principal, tenant, call, operation, result }),
+        readNext: async ({ principal, tenant, call, read, after }) =>
+          commands.nextRead({ principal, tenant, call, read, after }),
+        closeRead: async ({ principal, tenant, call, read }) =>
+          commands.endRead({ principal, tenant, call, read }),
+        acknowledge: async ({ principal, tenant, call, operation, result, evidence }) => {
+          const refused = reserved(operation)
+          if (refused) return refused
+          if (evidence.kind === 'retained') return unavailable('consumption.acknowledge', '6.1')
+          const { owner, record, revision, digest } = evidence.completion
+          const input = {
+            principal,
+            tenant,
+            call,
+            operation,
+            result,
+            evidence: {
+              kind: 'processed',
+              completion: { owner, record, revision, digest },
+            } as const,
+          }
+          const outcome = await commands.handoff(input)
+          if ('ok' in outcome) {
+            try {
+              activity.requestRefresh(input)
+            } catch {
+              // Observation refresh has no authority to reverse a confirmed acknowledgement.
+            }
+          }
+          return outcome
+        },
       },
       instances: {
         connect: ({ principal, tenant, call }) =>

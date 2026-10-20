@@ -529,7 +529,7 @@ Storage 的 SQL facts 只承载 Model 的引用和责任，不能凭引用已提
 
 凭据的对象模型、顺序和装配分别归[对象](object-model.md#已实现的凭据对象)、[流程](flows.md#凭据解析)和[装配](cordis.md#凭据服务)。executeModel 已实现独立单次执行，createModelRuntime 已实现受理、查询、取消意图、原流保存、最小实例观察和[有限原终局收场](../SPEC.md#已实现的调用收场)。产品 sender 经内存同步适配实现发送围栏，driver 唯一消费原事实流并确认保存。生产宿主及外部授权共同事务尚未验证。
 
-凭据引用与解析分属四处：保管实现在 model-host-local，契约在 model-contract，判定在本包。createModelRuntime 支持受理、查询、取消意图、原流保存、最小实例观察和有限原终局收场，结果读取与 ACK、策略循环、生产宿主和跨进程恢复尚未实现。服务定义在 model-cordis-contract。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，也没有 `./cordis`、`./execute` 入口。判定与保管的接口是状态快照：host-local 构造快照并调用本包的判定，本包不依赖 host-local。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
+凭据引用与解析分属四处：保管实现在 model-host-local，契约在 model-contract，判定在本包。createModelRuntime 支持受理、查询、取消意图、原流保存、最小实例观察和有限原终局收场，结果读取及 processed ACK 已实现，retained ACK、策略循环、生产宿主和跨进程恢复尚未实现。服务定义在 model-cordis-contract。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，也没有 `./cordis`、`./execute` 入口。判定与保管的接口是状态快照：host-local 构造快照并调用本包的判定，本包不依赖 host-local。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
 
 receiver 保留终止批次的原确认 Snapshot。观察回调失败时，内容确认屏障和投影待办继续保留；后续 drive 只重试投影，不重读原流或重复 preserve。投影成功后才交回终止证据供 driver 收场。已成功投影的快照不再次发布，后续状态刷新仍按 epoch 与 revision 护栏保持单调。
 
@@ -551,3 +551,7 @@ receiver 保留终止批次的原确认 Snapshot。观察回调失败时，内�
 正数批延迟采用软触发，挂起 next 不迁移窗口。观察登记和未读通知使用有限逻辑额度，并发 next 不排队。精确取值、失效与沉默读取限制归 [SPEC](../SPEC.md#工厂与配置)。本阶段不读取测试后端根对象，也不增加恢复快照读口。
 
 附带投影刷新不承担接收或释放的准入责任。原流交接、保存确认与明确拒绝均先固定活动阶段，再安排刷新。接收与控制各合并本调用的刷新请求，避免沉默读取积累等待或挡住取消投影；过时 revision 回包不能覆盖较新的确认状态。
+
+## 当前消费实现
+
+runtime 的现有 consumption 对象直接调用四个 Commands，不保存第二份 read、ACK 或 operation 账本。Commands 独占当前资格、原操作认回、读 ACK 排序、证据验证及清理状态。ACK 确认后仅请求原 driver 刷新观察，不等待投影或发出清理 schedule。支持范围见[实现规格](../SPEC.md#结果消费支持)。

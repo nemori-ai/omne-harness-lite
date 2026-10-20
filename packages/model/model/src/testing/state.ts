@@ -48,6 +48,7 @@ import type {
   MemoryModelControl,
   MemoryModelEvidence,
   MemoryWriteMethod,
+  ResultPaging,
   UnknownInjection,
 } from './types.ts'
 import {
@@ -119,6 +120,7 @@ export type MemoryCall = {
   snapshots: Map<OutputCursor, Snapshot>
   reads: Map<ReadId, MemoryRead>
   cleanupFailure: string | null
+  resultPaging: ResultPaging
 }
 export type TenantState = {
   calls: Map<ModelCallId, MemoryCall>
@@ -216,6 +218,26 @@ export class MemoryState<P> {
     if (!capacityValid(this.options.limits.capacity)) throw new RangeError('invalid total capacity')
     this.owners = this.checkOwners(this.options.owners)
     this.control = {
+      configureResultPaging: input =>
+        this.exclusive(() => {
+          const key = this.identity(input)
+          if (typeof key !== 'string') throw new TypeError('invalid paging identity')
+          positiveLimit(input.resultPageParts, 'resultPageParts')
+          positiveLimit(input.resultPageTargetBytes, 'resultPageTargetBytes')
+          const root = this.roots.get(key)
+          const original = root?.calls.get(input.call)
+          if (!root || !original) throw new TypeError('unknown paging call')
+          if (original.state.phase === 'settled' || original.reads.size > 0)
+            throw new TypeError('result paging is frozen')
+          const call = copyCall(original)
+          call.resultPaging = {
+            resultPageParts: input.resultPageParts,
+            resultPageTargetBytes: input.resultPageTargetBytes,
+          }
+          if (materialBytes(call) > BigInt(call.capacity.bytes))
+            throw new RangeError('result paging exceeds call capacity')
+          this.publish(key, root, call)
+        }),
       injectUnknown: input =>
         this.exclusive(() => {
           const key = this.identity(input)
@@ -635,8 +657,8 @@ export class MemoryState<P> {
           pageEnd(
             resultParts(call),
             relation.furthest,
-            this.options.limits.resultPageParts,
-            this.options.limits.resultPageTargetBytes,
+            call.resultPaging.resultPageParts,
+            call.resultPaging.resultPageTargetBytes,
           )
       )
         return { failure: invalid('after', 'page') }
@@ -646,8 +668,8 @@ export class MemoryState<P> {
         boundary = pageEnd(
           parts,
           boundary,
-          this.options.limits.resultPageParts,
-          this.options.limits.resultPageTargetBytes,
+          call.resultPaging.resultPageParts,
+          call.resultPaging.resultPageTargetBytes,
         )
       if (boundary !== offset) return { failure: invalid('after', 'page') }
       relation.state =
@@ -677,8 +699,8 @@ export class MemoryState<P> {
         makePage(
           resultParts(call),
           offset,
-          this.options.limits.resultPageParts,
-          this.options.limits.resultPageTargetBytes,
+          call.resultPaging.resultPageParts,
+          call.resultPaging.resultPageTargetBytes,
           call.state.settlement,
         ),
       ),

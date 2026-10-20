@@ -1,6 +1,6 @@
 # Model 实现的消费与构造
 
-本包面向选择默认领域算法的独立程序及运行宿主，已有 executeModel 独立执行及凭据判定，createModelRuntime 已支持受理、查询、取消意图、原流保存与最小实例观察，createModelSendBoundary 可由受信消费者直接使用；已确认调用的收场支持范围见[实现规格](../SPEC.md#已实现的调用收场)，结果消费与生产宿主尚未实现。普通调用者消费 [model-contract](../../model-contract/docs/context.md) 并取得注入的操作能力，不必安装本实现。
+本包面向选择默认领域算法的独立程序及运行宿主，已有 executeModel 独立执行及凭据判定，createModelRuntime 已支持受理、查询、取消意图、原流保存与最小实例观察，createModelSendBoundary 可由受信消费者直接使用；已确认调用的收场支持范围见[实现规格](../SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现，retained ACK 与生产宿主尚未实现。普通调用者消费 [model-contract](../../model-contract/docs/context.md) 并取得注入的操作能力，不必安装本实现。
 
 独立程序以固定请求、显式传输和 signal 调用 executeModel。宿主将 Commands、发送围栏、重试策略、实例宿主和时钟注入 createModelRuntime，并显式传入配置。精确构造形状归 [public-api](public-api.md)，独立执行及配置行为归 [SPEC](../SPEC.md)。
 
@@ -27,4 +27,12 @@ const decision = judgeResolution(state, reference, { authorized: true, official:
 
 ## 逐步调用教学
 
-从[四个独立示例](../examples/README.md)依次练习受理与查询、观察与收场、输出限额和输入超限。每个脚本保留关键入参和返回判别。共享支持文件仅负责测试装配，不能作为生产授权或证据适配器。准备和命令见[包入口](../README_ZH.md#运行教学示例)。
+从[五个独立示例](../examples/README.md)依次练习受理与查询、观察与收场、输出限额、输入超限及结果读取与 processed ACK。每个脚本保留关键入参和返回判别。共享支持文件仅负责测试装配，不能作为生产授权或证据适配器。准备和命令见[包入口](../README_ZH.md#运行教学示例)。
+
+## 读取和确认结果
+
+等待 inspect 返回后，先排除 Reply 的 failure 分支。确认 Lookup 的 `lookup.ok.kind === 'found'`，再确认 CallState 的 `lookup.ok.state.phase === 'settled'`。此时从 `lookup.ok.state.settlement.version` 取得原 version。
+
+beginRead 的 ok 分为 started 和 acknowledged；started 同时给 read 身份及首个 ReadState。reading.page.parts 保留完整或部分结果与 trims，next=null 表示无后页；其他 next 原样传入 readNext。closeRead 结束读保护，并保留实际结束原因。
+
+业务消费者先保存自身完成事实，再以原 result、独立 operation 和 processed completion 调 acknowledge。commit-unknown 保留原参数认回。成功回执显示 call、result、原 custody.operation、receipt 及当前 cleanup；pending 或 blocked 不撤销确认。具体代码见[第五课](../examples/05-read-and-acknowledge.ts)，支持边界归[实现规格](../SPEC.md#结果消费支持)。

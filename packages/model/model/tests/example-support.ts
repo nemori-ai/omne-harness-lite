@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { accountCodec, organizationCodec, tenant, tenantEquals } from '@omne-harness/legal-identity'
 import {
   decodeCredentialId,
@@ -5,6 +6,9 @@ import {
   decodeModelInstanceId,
   decodeModelOperationId,
   type Adoption,
+  type ConsumerRef,
+  type DurableEvidence,
+  type ResultVersion,
   type FixedModelRequest,
   type Publication,
   type TransportFact,
@@ -28,6 +32,7 @@ export const operation = (name: string) => decoded(decodeModelOperationId(`mop_e
 export function createExampleAssembly(script: {
   facts: readonly Exclude<TransportFact, { kind: 'ended' }>[]
   termination: TransportTermination
+  paging?: { parts: number; targetBytes: number }
 }) {
   const account = accountCodec.parse('acc_abcdefghjkmnpqrstvwxyz2345')
   const organization = organizationCodec.parse('org_abcdefghjkmnpqrstvwxyz2345')
@@ -70,6 +75,30 @@ export function createExampleAssembly(script: {
     ({
       failure: { kind: 'unavailable', dependency: 'example', diagnostic: 'not-supplied' },
     }) as const
+  const consumer = {
+    owner: 'example-consumer',
+    work: 'lesson',
+    position: 'answer',
+    purpose: 'learn-model',
+  }
+  const completed = new Map<
+    string,
+    { result: ResultVersion; consumer: ConsumerRef; proof: DurableEvidence; outcome: string }
+  >()
+  const completedRecords = {
+    finish(input: {
+      result: ResultVersion
+      consumer: ConsumerRef
+      outcome: string
+    }): DurableEvidence {
+      const digest = createHash('sha256')
+        .update(JSON.stringify({ call, ...input }))
+        .digest('hex')
+      const proof = { owner: consumer.owner, record: digest, revision: '1', digest }
+      completed.set(proof.record, { ...structuredClone(input), proof })
+      return { ...proof }
+    },
+  }
   const assembly = createTestModelDependencies({
     start: '2026-10-20T00:00:00.000Z',
     maxWaiters: 32,
@@ -78,8 +107,8 @@ export function createExampleAssembly(script: {
     owners: [{ consumerOwner: 'example-consumer', work: { kind: 'exempt' }, evidence: adoption }],
     limits: {
       scanPageCalls: 8,
-      resultPageParts: 8,
-      resultPageTargetBytes: 1024,
+      resultPageParts: script.paging?.parts ?? 8,
+      resultPageTargetBytes: script.paging?.targetBytes ?? 1024,
       readIdleMs: 1000,
       capacity: { bytes: '1000000', blocks: '100', attachmentBytes: '0' },
     },
@@ -115,7 +144,20 @@ export function createExampleAssembly(script: {
         }),
         lateFact: unavailable,
         retry: unavailable,
-        handoff: unavailable,
+        handoff: input => {
+          if (input.evidence.kind !== 'processed') return unavailable()
+          const proof = input.evidence.completion
+          const record = completed.get(proof.record)
+          return record &&
+            input.call === call &&
+            tenantEquals(input.tenant, scope) &&
+            record.result === input.result &&
+            JSON.stringify(record.consumer) === JSON.stringify(input.consumer) &&
+            JSON.stringify(record.proof) === JSON.stringify(proof) &&
+            record.outcome.length > 0
+            ? { ok: { ...record.proof } }
+            : { failure: { kind: 'handoff-invalid', reason: 'example-completion-record' } }
+        },
       },
     ],
     sending: {
@@ -212,14 +254,9 @@ export function createExampleAssembly(script: {
     access: { principal, tenant: scope },
     call,
     request,
-    // The consumer names the work that will eventually accept the result. These lessons stop
-    // at Settlement. They never acknowledge work that no real consumer has processed.
-    consumer: {
-      owner: 'example-consumer',
-      work: 'lesson',
-      position: 'answer',
-      purpose: 'learn-model',
-    },
+    consumer,
+    // This is the lesson application's completion store, not a Model API or durable backend.
+    completedRecords,
     capacity: { bytes: '100000', blocks: '10', attachmentBytes: '0' },
     driveInput: {
       principal,

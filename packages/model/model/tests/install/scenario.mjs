@@ -274,6 +274,12 @@ const admission = {
   capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
 }
 decoded(await provider.runtime.calls.admit(admission))
+runtimeDependencies.controls.commands.configureResultPaging({
+  tenant: owner,
+  call: admission.call,
+  resultPageParts: 2,
+  resultPageTargetBytes: 128,
+})
 const drive = {
   ...admission,
   operation: decoded(decodeModelOperationId('mop_installed-claim')),

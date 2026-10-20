@@ -20,6 +20,7 @@ export type {
   MemoryModelAuthority,
   MemoryModelEvidence,
   MemoryModelLimits,
+  ResultPaging,
   MemoryModelCommandsOptions,
   MemoryModelControl,
   MemoryWriteMethod,

@@ -4,13 +4,13 @@
 
 ## Responsibility and status
 
-This member implements standalone execution, credential judgments, admission, stream preservation, instance observation, confirmed call settlement, a product sending boundary, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
+This member implements standalone execution, credential judgments, admission, stream preservation, instance observation, confirmed call settlement, result reading, processed ACK, a product sending boundary, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
 
 | Entry or capability | Current support |
 | --- | --- |
 | `executeModel` | One standalone execution through an injected transport, with cancellation and resource cleanup |
 | Credential judgment and `deliver` | Pure credential judgments. `deliver` delegates to the supplied resolver |
-| `createModelRuntime` | Admission, inspection, cancellation intent, original-stream preservation, instance observation, and confirmed call settlement within the boundaries below. Result consumption remains unavailable |
+| `createModelRuntime` | Admission, inspection, cancellation intent, original-stream preservation, instance observation, and confirmed call settlement within the boundaries below. Result reading and processed ACK are implemented. Retained ACK remains unavailable |
 | `createModelSendBoundary` | Receipt and window commits, current credential fence, one start per dispatch, and a single fact consumer through explicit resources |
 | `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports |
 | Durable Commands and production managed execution | Not implemented |
@@ -46,6 +46,7 @@ Read and run these lessons in order. Each lesson also runs independently:
 | [02-observe-and-settle.ts](examples/02-observe-and-settle.ts) | Construct the runtime, start its trusted driver, connect a live handle, and receive `snapshot` then `changed`. Inspect `Settlement` and its original termination, version, and source. |
 | [03-output-limit.ts](examples/03-output-limit.ts) | Supply a real scripted `trim` fact. Distinguish `completed/limit` from a failure. |
 | [04-input-over-limit.ts](examples/04-input-over-limit.ts) | Inspect `failed/input-over-limit` and the supplier's `reported` fields. Preserve unknown values as `null`. |
+| [05-read-and-acknowledge.ts](examples/05-read-and-acknowledge.ts) | Read sealed and partial parts across pages, close the read, and submit consumer-owned completion evidence. Recognize the original ACK. |
 
 For one lesson, run `pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/02-observe-and-settle.ts`. Expected output and the shared assembly are explained in the [example guide](examples/README.md). The scripts keep their API inputs and result branches visible. [example-support.ts](tests/example-support.ts) explains each controlled adapter.
 
@@ -55,7 +56,7 @@ Admission records responsibility, not a send. `drive` reports local progress and
 
 The driver settles original, confirmed `completed`, `completed/limit`, `input-over-limit`, and failures that need no new retry decision. A confirmed upstream interruption needs the control from the same preserve receipt. A persisted control before any dispatch can settle without sending. Full details belong to the [implementation specification](SPEC.md#已实现的调用收场).
 
-The driver retains pending operations and inputs in the current process. It does not infer an original termination from mutable dispatch history. Uncontrolled interruption, sender `not-started`, retry-policy decisions, and recovery without original terminal evidence remain unsupported. No default stop decision is supplied. Runtime reading and ACK, durable storage, production hosts, and real vendors remain outside these lessons. The memory Commands tests support only their own backend behavior.
+The driver retains pending operations and inputs in the current process. It does not infer an original termination from mutable dispatch history. Uncontrolled interruption, sender `not-started`, retry-policy decisions, and recovery without original terminal evidence remain unsupported. No default stop decision is supplied. The fifth lesson reads the result and submits processed ACK. Retained ACK, durable storage, production hosts, and real vendors remain unsupported.
 
 ## Contracts
 
@@ -75,7 +76,7 @@ Consumers call `runtime.instances.connect` and then `handle.observe`. Each obser
 
 `outputBatchBytes` and `outputBatchDelayMs` control batch boundaries. Zero delay saves each received fact before another read. Positive delay permits aggregation. A timer requests a flush, but a pending read stays in its original window. If that read remains silent, the received prefix can remain unpublished indefinitely. The delay does not guarantee maximum visibility latency.
 
-`observerBufferBytes` bounds logical registrations and unread notifications. A registration costs 64 bytes. Each unseen version costs 32 bytes per observer. Insufficient registration capacity or excessive lag ends that observer as unavailable. Shared snapshot contents are not copied into per-observer queues. One observer allows one pending next. Concurrent next ends that observer. Production scheduling, result consumption, and cross-process recovery remain unimplemented.
+`observerBufferBytes` bounds logical registrations and unread notifications. A registration costs 64 bytes. Each unseen version costs 32 bytes per observer. Insufficient registration capacity or excessive lag ends that observer as unavailable. Shared snapshot contents are not copied into per-observer queues. One observer allows one pending next. Concurrent next ends that observer. Production scheduling, retained ACK, and cross-process recovery remain unimplemented.
 
 ## Sending through explicit resources
 

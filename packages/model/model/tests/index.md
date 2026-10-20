@@ -16,3 +16,6 @@
 [memory-partial.spec.ts](memory-partial.spec.ts) 从实际 preserve 驱动部分结果、真实 trim、目标页、临界容量的控制/终局/读/ACK/清理。
 
 [runtime-settlement.spec.ts](runtime-settlement.spec.ts)验证真实 driver 的原终局收场、未知认回、确定竞争、晚到事实及唯一释放。[教学脚本](../examples/README.md)由包 test 入口持续运行。
+
+- [公开结果读取](runtime-reading.spec.ts)、[processed ACK 与交错风险](runtime-acknowledgement.spec.ts)、[分页准备预算](memory-paging.spec.ts)。
+- [符合性装配](runtime-conformance-fixture.ts)、[消费者完成记录](completion-records.ts)、[真实收场准备](runtime-consumption-fixture.ts)。

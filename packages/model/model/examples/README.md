@@ -1,6 +1,6 @@
 # Model 使用示例
 
-这四课教开发者通过公开入口受理、查询、观察并收场一次调用。每个脚本都可独立运行，关键 API、真实入参和返回判别直接留在脚本内。英文与中文准备步骤分别见[English](../README.md#run-the-learning-examples)和[中文](../README_ZH.md#运行教学示例)。凭据判定另见[消费指南](../docs/context.md#独立消费入口)。
+这五课教开发者通过公开入口受理、查询、观察并收场一次调用。每个脚本都可独立运行，关键 API、真实入参和返回判别直接留在脚本内。英文与中文准备步骤分别见[English](../README.md#run-the-learning-examples)和[中文](../README_ZH.md#运行教学示例)。凭据判定另见[消费指南](../docs/context.md#独立消费入口)。
 
 ## 准备并运行
 
@@ -21,20 +21,23 @@ pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/
 pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/02-observe-and-settle.ts
 pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/03-output-limit.ts
 pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/04-input-over-limit.ts
+pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/05-read-and-acknowledge.ts
 ```
 
 ## 按顺序学习
 
 1. [提交与查询](01-submit-and-query.ts)。用显式 principal、tenant、call 和 admission operation 调用 admit，再以原 admission 查询。Reply 先判 ok 或 failure，Lookup 再判 found 或 not-accepted。accepted 只是受理，发送次数为零。
 2. [观察与收场](02-observe-and-settle.ts)。由受信宿主调用 driver，普通消费者 connect 到 live handle 并观察。首事件为 snapshot，后续 changed 只含确认后的内容和状态。inspect 的 found.state.phase 为 settled 时，读取原 Settlement。
-3. [输出限额](03-output-limit.ts)。传输提供实际 trim，终局保持 completed/limit。脚本打印的 `upstream trim` 是传输输入，**不是 runtime 结果读取返回的明细**。Snapshot 没有完整 trims；结果读取和 ACK 尚未实现。内存 Commands 的实际保存另由行为测试验证。
+3. [输出限额](03-output-limit.ts)。传输提供实际 trim，终局保持 completed/limit。脚本打印的 `upstream trim` 是传输输入，**不是 runtime 结果读取返回的明细**。Snapshot 没有完整 trims；第五课通过公开消费取得实际 trims 并提交 processed ACK。内存 Commands 的实际保存另由行为测试验证。
 4. [输入超限](04-input-over-limit.ts)。drive 本地成功仍可形成 failed 业务终局。fault.cause 为 input-over-limit，reported 只保存上游给出的 metric、limit 和 actual，未报告值保持 null。不能重发同一输入或自动换供应商。消费者决定调整输入后，以新 call 和 admission 发起新调用。
 
-[共享装配](../tests/example-support.ts)解释固定请求、消费者声明、当前资格、可信证据、有限容量、同步凭据围栏、脚本资源、手动时钟与 publication。此文件只整理重复适配，不封装 admit、inspect、connect 或 observe 的教学调用。
+5. [读取与确认](05-read-and-acknowledge.ts)。按 started/acknowledged 区分结果，逐页处理 sealed/partial 和 trims，最后关闭读取。消费者保存完成事实后提交 processed ACK，重复同参数认回原回执。commit-unknown 保留原 operation 和证据。输出包含 `read closed: ended`、原 ACK 身份、`pending` 清理状态及 `same ACK: true`。
+
+[共享装配](../tests/example-support.ts)解释固定请求、消费者声明、当前资格、可信证据、有限容量、同步凭据围栏、脚本资源、手动时钟与 publication。此文件只整理重复适配，不封装 admit、inspect、connect、observe 或消费方法 的教学调用。
 
 ## 核对输出与返回形状
 
-四课依次输出以下语义值。第二课还打印实际 Settlement JSON，其中随机 version 和 source.record 每次不同，不比较它们的具体字节。
+前四课依次输出以下语义值。第二课还打印实际 Settlement JSON，其中随机 version 和 source.record 每次不同，不比较它们的具体字节。
 
 ```text
 admission: accepted
@@ -53,6 +56,23 @@ reported: {"metric":"context-tokens","limit":"2048","actual":null}
 transport starts: 1
 ```
 
+第五课依次打印两页的结果、关闭状态和 ACK 回执。以下输出用占位符表示随机 result version、receipt record 和 digest，不比较它们的具体字节。
+
+```text
+part: sealed text []
+termination: failed
+part: partial tool-arguments [ { removed: '2', reason: 'upstream-cut' } ]
+termination: failed
+read closed: ended
+ACK: mcall_example mrver_... mop_example-ack {
+  owner: 'example-consumer',
+  record: '...',
+  revision: '1',
+  digest: '...'
+} pending
+same ACK: true
+```
+
 代码中的 `Reply<T>` 为 `{ok: T}` 或 `{failure: ModelFailure}`。Admission 返回 call、revision 和 recovered。inspect 的 Lookup 返回 found.state 或 not-accepted.operation。CallState 以 phase 区分 accepted、running、retry-decision 与 settled。Settlement 的 version 是结果身份，termination 是原业务终局；source 的 owner、record、revision、digest 标识提供者保存的原终局依据。这些说明帮助阅读实际结果，精确定义仍归[公开类型](../../model-contract/src/result.ts)和[共同协议](../../model-contract/SPEC.md)。
 
 ## 失败和资源责任
@@ -63,6 +83,6 @@ transport starts: 1
 
 本装配只信任它自己生成的 principal、租户与证据，凭据为合成字符串。生产环境需要真实身份、工作资格、来源/排除证明、Commands 后端和宿主实现。脚本不证明厂商发送、耐久、跨进程恢复或可靠消费。首内容前策略待定、无控制 interrupted、sender.not-started 和丢失原终止依据均不由示例补成默认成功。
 
-`pnpm --filter @omne-harness/model test` 构建并运行行为测试和四个示例。`pnpm --filter @omne-harness/model typecheck` 也检查示例。独立验收继续由接受者判断，命令退出零不能替代教学内容复核。
+`pnpm --filter @omne-harness/model test` 构建并运行行为测试和五个示例。`pnpm --filter @omne-harness/model typecheck` 也检查示例。独立验收继续由接受者判断，命令退出零不能替代教学内容复核。
 
 契约范围见 [SPEC](../../model-contract/SPEC.md)，目录导航见 [index](index.md)。
