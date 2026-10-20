@@ -9,11 +9,18 @@ import {
   type Snapshot,
   type TransportFact,
   type ModelFailure,
+  type Termination,
 } from '@omne-harness/model-contract'
 
 type Open = Parameters<ModelCommands<unknown>['openReceiveWindow']>[0]
 type Preserve = Parameters<ModelCommands<unknown>['preserve']>[0]
 type Completion = 'continue' | 'terminal' | 'stream-lost'
+export type ReceivedTerminal = {
+  snapshot: Snapshot
+  termination: Termination | null
+  failure: ModelFailure | null
+}
+export type TerminalCompetition = { replaced: boolean }
 type Stage =
   | {
       kind: 'reading'
@@ -27,8 +34,7 @@ type Stage =
   | { kind: 'next' }
   | { kind: 'open'; input: Open; pending: boolean }
   | { kind: 'preserve'; input: Preserve; pending: boolean; completion: Completion }
-  | { kind: 'closing'; completion: Exclude<Completion, 'continue'> }
-  | { kind: 'done' }
+  | { kind: 'terminal'; evidence: ReceivedTerminal; published: boolean }
   | { kind: 'failed'; failure: ModelFailure }
 export function newOperation(): ModelOperationId {
   const value = decodeModelOperationId(`mop_${randomUUID()}`)
@@ -65,16 +71,27 @@ export function createReceiver<P>(input: {
     flush: false,
     timer: null,
   }
+  let released: Reply<void> | undefined
+  function release(): Reply<void> {
+    released ??= (async () => {
+      try {
+        await iterator.return?.()
+        return { ok: undefined }
+      } catch {
+        return { failure: unavailable('resource-release-failed') }
+      }
+    })()
+    return released
+  }
   function reading(window: string): Stage {
     return { kind: 'reading', window, facts: [], bytes: 0, flush: false, timer: null }
   }
-  async function reject(failure: ModelFailure): Reply<void> {
+  async function reject(failure: ModelFailure): Promise<{ failure: ModelFailure }> {
     stage = { kind: 'failed', failure }
-    try {
-      await iterator.return?.()
-    } catch {
-      stage = { kind: 'failed', failure: unavailable('resource-release-failed') }
-      return { failure: stage.failure }
+    const closed = await release()
+    if ('failure' in closed) {
+      stage = { kind: 'failed', failure: closed.failure }
+      return closed
     }
     return { failure }
   }
@@ -99,26 +116,23 @@ export function createReceiver<P>(input: {
     }
   }
   return {
+    release,
     pendingOperation: () =>
       stage.kind === 'open' || stage.kind === 'preserve' ? stage.input.operation : null,
-    async run(signal: AbortSignal): Reply<void> {
-      while (!signal.aborted || stage.kind === 'closing') {
-        if (stage.kind === 'done') return { ok: undefined }
-        if (stage.kind === 'failed') return { failure: stage.failure }
-        if (stage.kind === 'closing') {
-          const completion = stage.completion
-          try {
-            await iterator.return?.()
-          } catch {
-            stage = { kind: 'failed', failure: unavailable('resource-release-failed') }
-            return { failure: stage.failure }
+    async run(
+      signal: AbortSignal,
+      competition: TerminalCompetition,
+    ): Reply<ReceivedTerminal | null> {
+      while (!signal.aborted || stage.kind === 'terminal') {
+        if (stage.kind === 'terminal') {
+          if (!stage.published) {
+            input.confirm(stage.evidence.snapshot)
+            stage.published = true
+            input.refresh()
           }
-          stage =
-            completion === 'stream-lost'
-              ? { kind: 'failed', failure: unavailable('fact-stream-failed') }
-              : { kind: 'done' }
-          return stage.kind === 'failed' ? { failure: stage.failure } : { ok: undefined }
+          return { ok: stage.evidence }
         }
+        if (stage.kind === 'failed') return { failure: stage.failure }
         if (stage.kind === 'ready') {
           const entry = stage
           const current = await commands.loadRecovery(demand)
@@ -181,16 +195,67 @@ export function createReceiver<P>(input: {
               result.failure.kind === 'unavailable'
             )
               return { failure: result.failure }
+            // Only a definite expected conflict can create a new terminal intent.
+            if (
+              entry.completion !== 'continue' &&
+              result.failure.kind === 'conflict' &&
+              result.failure.operation === entry.input.operation &&
+              result.failure.revision !== entry.input.expected
+            ) {
+              const known = await commands.query({ ...demand, operation: entry.input.operation })
+              if ('failure' in known) return known
+              if (known.ok.kind === 'unknown')
+                return { failure: { kind: 'commit-unknown', operation: entry.input.operation } }
+              if (known.ok.kind === 'committed') return { failure: result.failure }
+              const current = await commands.loadRecovery(demand)
+              if ('failure' in current) return current
+              if (
+                competition.replaced ||
+                current.ok.state.phase === 'settled' ||
+                current.ok.execution?.instance !== entry.input.instance ||
+                current.ok.execution.generation !== entry.input.generation
+              )
+                return { failure: result.failure }
+              competition.replaced = true
+              stage = {
+                ...entry,
+                pending: false,
+                input: {
+                  ...entry.input,
+                  operation: newOperation(),
+                  expected: current.ok.state.revision,
+                },
+              }
+              continue
+            }
             input.rejectContent()
             const rejected = await reject(result.failure)
             input.refresh()
             return rejected
           }
-          stage =
-            entry.completion === 'continue'
-              ? { kind: 'next' }
-              : { kind: 'closing', completion: entry.completion }
+          if (entry.completion === 'continue') stage = { kind: 'next' }
+          else {
+            const ended = entry.input.facts.findLast(fact => fact.kind === 'ended')
+            const terminal = ended?.termination
+            const control = result.ok.state.control
+            stage = {
+              kind: 'terminal',
+              published: false,
+              evidence: {
+                snapshot: structuredClone(result.ok),
+                termination:
+                  terminal && terminal.kind !== 'interrupted'
+                    ? structuredClone(terminal)
+                    : terminal && control.kind === 'requested'
+                      ? { kind: 'interrupted', control: control.operation }
+                      : null,
+                failure:
+                  entry.completion === 'stream-lost' ? unavailable('fact-stream-failed') : null,
+              },
+            }
+          }
           input.confirm(result.ok)
+          if (stage.kind === 'terminal') stage.published = true
           input.refresh()
           continue
         }
@@ -264,7 +329,7 @@ export function createReceiver<P>(input: {
           completion: next.done ? 'stream-lost' : terminal ? 'terminal' : 'continue',
         }
       }
-      return { ok: undefined }
+      return { ok: null }
     },
   }
 }

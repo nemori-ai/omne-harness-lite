@@ -1,7 +1,7 @@
 <a id="model-实现公开入口候选"></a>
 # Model 实现公开入口
 
-本包已实现 executeModel、凭据判定、createModelSendBoundary 与 createModelRuntime 的受理、查询、取消意图、原流保存与最小实例观察。整调用收场、结果消费、恢复与生产宿主仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，runtime 构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明，sender 构造类型以 [send/types.ts](../src/send/types.ts) 为唯一声明；下方独立能力工厂仍是未实现设计。
+本包已实现 executeModel、凭据判定、createModelSendBoundary 与 createModelRuntime 的受理、查询、取消意图、原流保存与最小实例观察。已确认调用的收场支持范围见[实现规格](../SPEC.md#已实现的调用收场)，结果消费、恢复与生产宿主仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，runtime 构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明，sender 构造类型以 [send/types.ts](../src/send/types.ts) 为唯一声明；下方独立能力工厂仍是未实现设计。
 
 ## 执行函数与构造
 
@@ -49,7 +49,7 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 | --- | --- |
 | `@omne-harness/model` | [index.ts](../src/index.ts) 导出 `deliver`、调用记录与发送回执类型，以及存在性与解析的判定函数 `judgeGate`、`judgePresence`、`judgeResolution` 和它们读取的状态快照类型 `CustodianState`、`Binding`、`BindingLife` |
 
-包导出根入口和独立 `./testing`，`@omne-harness/model/cordis` 与 `@omne-harness/model/execute` 不再解析。判定只读调用者传入的状态快照，不读文件，也不依赖保管实现。查询租户未经 legal-identity 铸造时，两个判定都返回 `denied`，先于其他判定；快照里有绑定的租户未经铸造时，本应给出工厂秘密的解析同样返回 `denied`。快照类型是判定对保管状态的显式依赖形状，从 model 根入口导出，不进任何契约包；`Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。[credential.ts](../src/credential.ts) 拥有判定与快照形状。调用记录与发送回执归 [deliver.ts](../src/deliver.ts)。行为承诺归 [SPEC](../SPEC.md#凭据引用与解析)。根入口还导出 createModelRuntime；它支持受理、原流保存及实例观察，不证明完整模型调用已交付。
+包导出根入口和独立 `./testing`，`@omne-harness/model/cordis` 与 `@omne-harness/model/execute` 不再解析。判定只读调用者传入的状态快照，不读文件，也不依赖保管实现。查询租户未经 legal-identity 铸造时，两个判定都返回 `denied`，先于其他判定；快照里有绑定的租户未经铸造时，本应给出工厂秘密的解析同样返回 `denied`。快照类型是判定对保管状态的显式依赖形状，从 model 根入口导出，不进任何契约包；`Binding.secret` 与 `CustodianState.factorySecret` 带秘密字段，只作为类型公开，不携带值。[credential.ts](../src/credential.ts) 拥有判定与快照形状。调用记录与发送回执归 [deliver.ts](../src/deliver.ts)。行为承诺归 [SPEC](../SPEC.md#凭据引用与解析)。根入口还导出 createModelRuntime；它支持受理、原流保存、实例观察及[有限的原终局收场](../SPEC.md#已实现的调用收场)，不证明完整托管调用与消费已交付。
 
 ## 内存测试入口
 
@@ -95,4 +95,10 @@ Commands、同步 coordinator、credentials 和 resources 由受信装配提供�
 
 测试 `MemorySendSource` 显式登记 profile、supplier、recipient、model 和官方查询条件，current 在 MemoryState 排他区核当前来源及绑定。controls.send.createSender(overrides) 构造共用原后端的另一产品 sender，coordinator 为该后端的受控同步适配入口；覆盖项只用于注入测试依赖与故障。脚本计划不再提供 operation 或 window；测试通过实际命令观察生成值。消费者从公共 started 结果取得原 window 与 facts，并将 result.window 连同原执行与分派传给 Commands.preserve；命令仍核全部绑定。
 
-原写认回、流保留、失败分类和资源寿命归 [SPEC](../SPEC.md#产品发送边界)。当前 factory 已实现直接发送边界，driver 已接入原唯一 facts 消费者及最小实例观察。整调用收场、结果消费和生产宿主仍未完成。
+原写认回、流保留、失败分类和资源寿命归 [SPEC](../SPEC.md#产品发送边界)。当前 factory 已实现直接发送边界，driver 已接入原唯一 facts 消费者及最小实例观察。原终局收场的具体支持见[实现规格](../SPEC.md#已实现的调用收场)，结果消费和生产宿主仍未完成。
+
+## 已实现的收场与返回判别
+
+`createModelRuntime` 的 driver 以真实确认终止证据调用 Commands.settle。普通调用者从 calls.inspect 的 Reply、Lookup、CallState.phase 依次判别到 Settlement。Settlement 的 version 是结果身份，termination 是原终局，source 的 owner、record、revision、digest 是提供者保存的终局依据。完整类型归[共同公开接口](../../model-contract/src/result.ts)，具体接续和未支持路径归[实现规格](../SPEC.md#已实现的调用收场)。
+
+正常输出限额为 completed/limit，输入超限为 failed/input-over-limit。Snapshot 只包含可见 blocks 与状态，不含完整 trims。drive 返回失败不自动推导业务失败，尤其释放失败可能与已收场并存。实际调用方法见[逐步示例](../examples/README.md)，示例不调用尚未实现的 runtime 读取和 ACK。

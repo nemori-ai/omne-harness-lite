@@ -6,7 +6,8 @@ import {
   checkModelProviderConformance,
   createScriptedTransport,
 } from '@omne-harness/model-contract/testing'
-import { runtimeFixture } from './runtime-fixture.ts'
+import { runtimeFixture, eventually } from './runtime-fixture.ts'
+import { resultFacts } from './runtime-settlement-facts.ts'
 import type { ModelOperationId } from '@omne-harness/model-contract'
 import { fixture, identity, instance, op, proof, unbox, callId } from './memory-fixture.ts'
 
@@ -183,6 +184,20 @@ it('preserves all 53 obligations with actual runtime observation and controlled 
           startRun: async input => {
             await f.start(input.call)
           },
+          settleCall: async input => {
+            const termination =
+              input.termination.kind === 'interrupted'
+                ? { kind: 'interrupted' as const, stop: 'confirmed' as const }
+                : input.termination
+            f.channel(input.call).push([
+              ...resultFacts(input.parts),
+              { kind: 'ended', termination },
+            ])
+            await eventually(() => f.results.has(input.call))
+            const outcome = f.results.get(input.call)
+            if (outcome && typeof outcome === 'object' && 'failure' in outcome)
+              throw new Error(`real driver refused settlement: ${JSON.stringify(outcome.failure)}`)
+          },
           showFacts: async input => {
             await f.show(input.call, input.facts)
           },
@@ -229,6 +244,9 @@ it('preserves all 53 obligations with actual runtime observation and controlled 
   mkdirSync('../../../tmp/issue-455/checks', { recursive: true })
   writeFileSync('../../../tmp/issue-455/checks/conformance.json', JSON.stringify(report, null, 2))
   expect(report.results).toHaveLength(53)
+  expect(
+    report.results.find(row => row.obligation === 'settled-call-keeps-termination')?.status,
+  ).toBe('pass')
   const required = report.results.filter(row =>
     [
       'observation-opens-with-snapshot',
