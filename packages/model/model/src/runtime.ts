@@ -14,6 +14,7 @@ export type ModelConfiguration = Readonly<{
   outputBatchBytes: number
   outputBatchDelayMs: number
   observerBufferBytes: number
+  observerCheckIntervalMs: number
   readIdleMs: number
   resultPageTargetBytes: number
   retryBackoffMs: number
@@ -76,6 +77,7 @@ function validate(dependencies: unknown, configuration: unknown): void {
   const fields = {
     outputBatchBytes: 1,
     observerBufferBytes: 1,
+    observerCheckIntervalMs: 1,
     resultPageTargetBytes: 1,
     readIdleMs: 1,
     outputBatchDelayMs: 0,
@@ -86,7 +88,7 @@ function validate(dependencies: unknown, configuration: unknown): void {
     const value = configuration[field]
     if (typeof value !== 'number')
       throw new TypeError(`missing or invalid Model configuration ${field}`)
-    if (!Number.isFinite(value) || !Number.isInteger(value) || value < lower)
+    if (!Number.isFinite(value) || !Number.isSafeInteger(value) || value < lower)
       throw new RangeError(`Model configuration ${field} is out of range`)
   }
 }
@@ -106,6 +108,7 @@ export function createModelRuntime<P>(
 ): ModelRuntimeProvider<P> {
   validate(dependencies, configuration)
   const { commands, instances } = dependencies
+  const activity = createFirstDispatchDriver(commands, instances, dependencies.clock, configuration)
   async function wake(input: Parameters<typeof instances.schedule>[0]): Promise<void> {
     try {
       await instances.schedule(input)
@@ -139,7 +142,10 @@ export function createModelRuntime<P>(
         cancel: async ({ principal, tenant, call, operation }) => {
           const input = { principal, tenant, call, operation }
           const result = await commands.control(input)
-          if ('ok' in result) await wake({ tenant: input.tenant, call: input.call })
+          if ('ok' in result) {
+            await activity.refresh(input)
+            await wake({ tenant: input.tenant, call: input.call })
+          }
           return result
         },
       },
@@ -151,10 +157,10 @@ export function createModelRuntime<P>(
         acknowledge: input =>
           reserved(input.operation) ?? unavailable('consumption.acknowledge', '1.7'),
       },
-      instances: { connect: () => unavailable('instances.connect', '3.5') },
+      instances: { connect: input => instances.directory.connect(input) },
     },
     recover: () => unavailable('recover', '5.4'),
     quiesce: () => unavailable('quiesce', '5.5'),
-    driver: createFirstDispatchDriver(commands),
+    driver: activity.driver,
   }
 }

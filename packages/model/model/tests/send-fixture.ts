@@ -78,6 +78,7 @@ export async function sendFixture(
     outputBatchBytes: 1024,
     outputBatchDelayMs: 0,
     observerBufferBytes: 1024,
+  observerCheckIntervalMs: 25,
     resultPageTargetBytes: 128,
     readIdleMs: 1000,
     retryBackoffMs: 0,

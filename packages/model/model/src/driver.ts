@@ -2,12 +2,16 @@ import { randomUUID } from 'node:crypto'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   decodeDispatchId,
+  decodeOutputCursor,
+  type ModelInstanceHost,
+  type ModelClock,
   decodeModelOperationId,
   type ModelCommands,
   type ModelDriver,
   type ModelDriveInput,
   type ModelFailure,
 } from '@omne-harness/model-contract'
+import { createObservation } from './observation.ts'
 
 type Prepare = Parameters<ModelCommands<unknown>['prepareDispatch']>[0]
 type PendingPrepare<P> = Readonly<{ claim: ModelDriveInput<P>; prepare: Prepare }>
@@ -18,10 +22,25 @@ function generated<T>(value: { ok: T } | { failure: unknown }): T {
   if ('ok' in value) return value.ok
   throw new Error('invalid generated Model identity')
 }
-export function createFirstDispatchDriver<P>(commands: ModelCommands<P>): ModelDriver<P> {
+export function createFirstDispatchDriver<P>(commands: ModelCommands<P>, instances: ModelInstanceHost<P>, clock: ModelClock, configuration: { observerBufferBytes: number; observerCheckIntervalMs: number }) {
+  const views = new Map<string, ReturnType<typeof createObservation<P>>>()
+  function keyOf(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
+    const tenant = tenantCodec.encode(input.tenant)
+    return tenant.ok ? JSON.stringify([tenant.value, input.call]) : null
+  }
+  async function refresh(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
+    const key = keyOf(input)
+    const active = key && views.get(key)
+    const claim = key && claims.get(key)
+    if (!active || !claim) return
+    const epoch = active.epoch()
+    const current = await commands.loadRecovery(claim)
+    if ('ok' in current) active.refresh(current.ok.state, epoch)
+  }
+  const claims = new Map<string, ModelDriveInput<P>>()
   const pending = new Map<string, PendingPrepare<P>>()
   const running = new Set<string>()
-  return {
+  const driver: ModelDriver<P> = {
     async drive(original, signal) {
       const { principal, tenant: scope, call, instance, operation, continuity } = original
       const input = {
@@ -67,6 +86,21 @@ export function createFirstDispatchDriver<P>(commands: ModelCommands<P>): ModelD
           return blocked('pending-prepare-generation-changed')
         const records = await commands.dispatches(input)
         if ('failure' in records) return records
+        let view = views.get(key)
+        if (!view || view.handle.instance !== input.instance) {
+          view = createObservation({
+            access: input, instance: input.instance, directory: instances.directory, clock,
+            bufferBytes: configuration.observerBufferBytes,
+            checkIntervalMs: configuration.observerCheckIntervalMs,
+            initial: records.ok.length === 0 && recovery.ok.unresolved.length === 0
+              ? { call: input.call, cursor: generated(decodeOutputCursor('0')), blocks: [], state: recovery.ok.state }
+              : null,
+          })
+          const published = await instances.publish(execution.ok, view.handle)
+          if ('failure' in published) return published
+          views.set(key, view)
+          claims.set(key, input)
+        }
         if (attempt) {
           const known = await commands.query({ ...input, operation: attempt.prepare.operation })
           if ('failure' in known) return known
@@ -103,6 +137,7 @@ export function createFirstDispatchDriver<P>(commands: ModelCommands<P>): ModelD
       }
     },
   }
+  return { driver, refresh }
 }
 function definitelyRefused(failure: ModelFailure): boolean {
   return failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable'
