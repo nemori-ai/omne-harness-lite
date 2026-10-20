@@ -41,7 +41,7 @@ Node `>=24`. There is no runtime dependency.
 
 ## Verification
 
-`pnpm test` builds, then runs the characterization suite copied from the sealed package. `pnpm run typecheck` builds, then typechecks the tests. The suite includes the illegal-character cases and the plain-Node import of `dist/index.js`.
+From the repository root, `pnpm turbo run test --filter=@omne-harness/xml-format` builds, then runs the characterization suite copied from the sealed package. `pnpm test` in this directory does not build. `pnpm turbo run typecheck --filter=@omne-harness/xml-format` typechecks the tests and does not build first. The suite includes the illegal-character cases and the plain-Node import of `dist/index.js`.
 
 ## Maintenance
 

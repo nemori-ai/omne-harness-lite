@@ -171,6 +171,34 @@ export function baselines(root: string, explicitBase?: string): Baselines {
   }
 }
 
+export type BaselineSource = 'explicit' | 'task' | 'origin/main' | 'main'
+export type ResolvedBaseline = {
+  state: Baselines['state']
+  targetBase: string
+  source: BaselineSource
+  audits: TaskContextAudit[]
+}
+
+/**
+ * The one default-baseline rule for every entry point: the explicit base (`--base`, else the
+ * `BASELINE` variable), then the task context's fixed targetBase, then `origin/main`, then `main`.
+ * An empty explicit base counts as not given. A bound tree still refuses an explicit base that is
+ * not its targetBase; the refusal comes from `baselines`.
+ */
+export function resolveBaseline(
+  root: string,
+  explicitBase?: string,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): ResolvedBaseline {
+  const fromEnv = env['BASELINE']
+  const given = [explicitBase, fromEnv].find(base => base !== undefined && base !== '')
+  const { state, targetBase, audits } = baselines(root, given)
+  if (targetBase !== undefined)
+    return { state, audits, targetBase, source: state === 'bound' ? 'task' : 'explicit' }
+  const fallback = commitOf(root, 'origin/main') === null ? 'main' : 'origin/main'
+  return { state, audits, targetBase: fallback, source: fallback }
+}
+
 /** One audit range per task, plus the target's own edits since the fixed base. */
 export function auditRanges(
   root: string,

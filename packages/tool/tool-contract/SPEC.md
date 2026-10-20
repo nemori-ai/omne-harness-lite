@@ -6,7 +6,7 @@
 
 ## 正文端口
 
-`toolBodyContract` 登记类别 `tool`。调用方先用 `@omne-harness/assets` 的 `readBodyText` 读取正文。`judge` 不接受对象字面量，也不接受伪造的读取结果，并且不调用传入的函数。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用，不成为必需依赖。判断失败时，声明和引用抛出，不返回结果。`pinBody` 保存当时的正文内容。验证命令是快层 `OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool-contract run test` 与慢层 `OMNE_TEST_TIER=slow pnpm --filter @omne-harness/tool-contract run test`。
+`toolBodyContract` 登记类别 `tool`。调用方先用 `@omne-harness/assets` 的 `readBodyText` 读取正文。`judge` 不接受对象字面量，也不接受伪造的读取结果，并且不调用传入的函数。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用，不成为必需依赖。判断失败时，声明和引用抛出，不返回结果。`pinBody` 保存当时的正文内容。验证命令是快层 `pnpm turbo run test:fast --filter=@omne-harness/tool-contract` 与慢层 `pnpm turbo run test:slow --filter=@omne-harness/tool-contract`。
 
 `toolBodyContract` 已实现 `programmable` 的布尔校验与声明投影。只有布尔 `true` 产生声明项 `programmable`。省略或 `false` 不产生声明项。非布尔值以 `invalid-programmable` 拒绝，不按真值转换。运行时准入属于下文的[运行契约](#342-主干运行契约候选)：`programmable` 的准入检查已在 `tool` 的受理路径实现，证据范围与尚未覆盖的部分见[组的支持范围](../README.md#支持范围)；没有耐久或生产环境的证据。
 

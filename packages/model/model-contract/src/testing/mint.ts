@@ -12,13 +12,19 @@ function valueOf<T>(outcome: Outcome<T, unknown>): T {
 }
 
 export function mintRevision(sequence: number): Revision {
+  if (!Number.isSafeInteger(sequence) || sequence < 0)
+    throw new ScriptedModelError('invalid-script', 'revision limit')
   return valueOf(decodeRevision(String(sequence)))
 }
 
 export function mintCursor(sequence: number): OutputCursor {
+  if (!Number.isSafeInteger(sequence) || sequence < 0)
+    throw new ScriptedModelError('invalid-script', 'cursor limit')
   return valueOf(decodeOutputCursor(String(sequence)))
 }
 
 export function mintRead(sequence: number): ReadId {
+  if (!Number.isSafeInteger(sequence) || sequence < 0)
+    throw new ScriptedModelError('invalid-script', 'read limit')
   return valueOf(decodeReadId(`mread_scripted${sequence}`))
 }

@@ -31,9 +31,10 @@ export function parseConditionScope(value: unknown, phase: string): string {
   return branch(scope, 'condition.scope')
 }
 
+/** Every route names the track whose branch the task integrates into. */
 export type Route =
   | { kind: 'track'; track: string }
-  | { kind: 'global' | 'cross-track'; owners: string[] }
+  | { kind: 'global' | 'cross-track'; track: string; owners: string[] }
 export type TaskBinding = {
   schemaVersion: 1
   issue: IssueIdentity
@@ -52,18 +53,17 @@ export type TaskBinding = {
 export function parseRoute(value: unknown): Route {
   const v = fields(value, ['kind', 'track', 'owners'], 'route')
   const kind = choice(v.kind, ['track', 'global', 'cross-track'], 'route.kind')
+  const track = branch(v.track, 'route.track')
+  if (track.includes('/'))
+    throw new IntegrationError('input-error', 'track must be one branch segment')
   if (kind === 'track') {
     fields(v, ['kind', 'track'], 'route')
-    const track = branch(v.track, 'route.track')
-    if (track.includes('/'))
-      throw new IntegrationError('input-error', 'track must be one branch segment')
     return { kind, track }
   }
-  fields(v, ['kind', 'owners'], 'route')
   const owners = strings(v.owners, 'route.owners')
   if (owners.length === 0)
     throw new IntegrationError('input-error', 'route requires affected owners')
-  return { kind, owners }
+  return { kind, track, owners }
 }
 export function parseIssueIdentity(value: unknown): IssueIdentity {
   const v = fields(value, ['repository', 'id', 'url', 'number'], 'issue')
@@ -106,8 +106,6 @@ export function parseTaskBinding(value: unknown): TaskBinding {
     ['track', 'main', 'stable'],
     'completionTarget',
   )
-  if (route.kind !== 'track' && completionTarget === 'track')
-    throw new IntegrationError('input-error', 'global route cannot finish at a track')
   return {
     schemaVersion: literal(v.schemaVersion, 1, 'schemaVersion'),
     issue: parseIssueIdentity(v.issue),

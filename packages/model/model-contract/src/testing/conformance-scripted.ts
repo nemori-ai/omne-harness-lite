@@ -53,13 +53,12 @@ export function createScriptedConformanceSubject(): ConformanceSubject<ScriptedP
     },
     async settleCall(input) {
       if (settled.has(input.call)) return
-      settled.add(input.call)
       controller.settle({
         tenant: input.tenant,
         call: input.call,
         version: versionId(input.call),
         termination: input.termination,
-        blocks: input.blocks,
+        parts: input.parts,
         source: {
           owner: 'conformance',
           record: `settlement-${input.call}`,
@@ -67,7 +66,9 @@ export function createScriptedConformanceSubject(): ConformanceSubject<ScriptedP
           digest: `digest-settlement-${input.call}`,
         },
         pageSize: input.pageSize,
+        pageTargetBytes: input.pageTargetBytes,
       })
+      settled.add(input.call)
     },
     async provideEvidence(input) {
       const evidence = {

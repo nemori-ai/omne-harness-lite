@@ -19,8 +19,8 @@ catalogs:
       specifier: 0.0.3
       version: 0.0.3
     '@omne-harness/repo-toolchain':
-      specifier: 0.0.5
-      version: 0.0.5
+      specifier: 0.0.8
+      version: 0.0.8
     '@stryker-mutator/core':
       specifier: 10.0.0
       version: 10.0.0
@@ -108,7 +108,7 @@ importers:
         version: 0.0.3
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.5(vitest@4.1.11)
+        version: 0.0.8(vitest@4.1.11)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.11(vitest@4.1.11)
@@ -194,12 +194,36 @@ importers:
 
   packages/agent/agent-contract:
     dependencies:
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/call-account':
+        specifier: workspace:*
+        version: link:../../common/call-account
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../schema/schema-provider
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -222,6 +246,15 @@ importers:
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../agent-contract
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -292,9 +325,6 @@ importers:
 
   packages/assets/assets:
     dependencies:
-      '@omne-harness/agent-contract':
-        specifier: workspace:*
-        version: link:../../agent/agent-contract
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -590,12 +620,33 @@ importers:
 
   packages/model/model:
     dependencies:
+      '@omne-harness/call-account':
+        specifier: workspace:*
+        version: link:../../common/call-account
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/stream-arrival':
+        specifier: workspace:*
+        version: link:../../common/stream-arrival
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -983,7 +1034,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.5(vitest@4.1.11)
+        version: 0.0.8(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1001,7 +1052,7 @@ importers:
         version: link:../../packages/common/legal-identity
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.5(vitest@4.1.11)
+        version: 0.0.8(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1073,7 +1124,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.5(vitest@4.1.11)
+        version: 0.0.8(vitest@4.1.11)
       '@stryker-mutator/core':
         specifier: 'catalog:'
         version: 10.0.0(@types/node@24.13.6)
@@ -1836,8 +1887,8 @@ packages:
     resolution: {integrity: sha512-aEw6ZlUaN2yYnFxS7Tn0H0fnCCf2fwuDm63q373RwJ6tv22dV6GYgOw9r93lF3AYHCffhn1aLw1BkYtWUaSJpQ==}
     engines: {node: '>=24'}
 
-  '@omne-harness/repo-toolchain@0.0.5':
-    resolution: {integrity: sha512-01rOUTb1JHsZySS+/EnY7SvapP7foq+wEL8xE4k9ZE0ju5dQm36aqPWGREZAJgwi4pKSldBiL7/mRl2GYVbwZg==}
+  '@omne-harness/repo-toolchain@0.0.8':
+    resolution: {integrity: sha512-xa60u61UpkiNorbVYoUEvOi++TfbguyWx4DXbJ9ECi7epUaoEI6yiirbVYefbcBMk5sV+LsryRxj3np7V7GQOw==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -4716,7 +4767,7 @@ snapshots:
 
   '@omne-harness/repo-config@0.0.3': {}
 
-  '@omne-harness/repo-toolchain@0.0.5(vitest@4.1.11)':
+  '@omne-harness/repo-toolchain@0.0.8(vitest@4.1.11)':
     dependencies:
       '@jscpd/core': 4.0.1
       '@jscpd/tokenizer': 4.0.1

@@ -4,11 +4,59 @@
 
 ## Responsibility and status
 
-This member owns the design of the reusable Model domain implementation. It has the judgment of credential presence and resolution. Local custody belongs to [model-host-local](../model-host-local/README.md). Hosted runs and the factory are not implemented. Credential references and resolution have four owners: the custody implementation is in [model-host-local](../model-host-local/README.md), the contract is in [model-contract](../model-contract/README.md), the judgment is in this member, and the run factory and other hosts are not implemented. The public values, operations, and provider protocols belong to [model-contract](../model-contract/README.md). The framework definitions belong to [model-cordis-contract](../model-cordis-contract/README.md). Design, implementation, and run verification are judged separately.
+This member implements standalone execution, credential judgments, admission, stream preservation, instance observation, confirmed call settlement, result reading, processed ACK, a product sending boundary, and an isolated in-memory testing entry. Local credential custody belongs to [model-host-local](../model-host-local/README.md). The shared operations and behavior belong to [model-contract](../model-contract/README.md).
+
+| Entry or capability | Current support |
+| --- | --- |
+| `executeModel` | One standalone execution through an injected transport, with cancellation and resource cleanup |
+| Credential judgment and `deliver` | Pure credential judgments. `deliver` delegates to the supplied resolver |
+| `createModelRuntime` | Admission, inspection, cancellation intent, original-stream preservation, instance observation, and confirmed call settlement within the boundaries below. Result reading and processed ACK are implemented. Retained ACK remains unavailable |
+| `createModelSendBoundary` | Receipt and window commits, current credential fence, one start per dispatch, and a single fact consumer through explicit resources |
+| `@omne-harness/model/testing` | In-memory Commands and five controlled dependency ports |
+| Durable Commands and production managed execution | Not implemented |
+| Cordis runtime host and vendor execution | Not implemented in this package |
 
 ## Usage
 
-A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). They are not yet usable as import examples.
+A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). `executeModel`, `createModelRuntime`, and `createModelSendBoundary` are available from the root entry. The independent capability factories remain unimplemented.
+
+For memory testing, import `createTestModelDependencies` from `@omne-harness/model/testing`. Supply the explicit authority, evidence, owners, and finite limits described in the [testing API](docs/public-api.md#内存测试入口). The returned dependencies can construct the real runtime.
+
+The memory test provider returns sealed and partial result parts with actual trim notices. Its explicit part-count and byte targets group whole parts. An oversized part has its own page. The complete page stays within the admitted capacity. See the [test entry](docs/public-api.md#内存测试入口).
+
+## Run the learning examples
+
+Use Node.js 24 or later and pnpm 10.28.1 in a repository checkout. These workspace packages are private. The examples do not require a vendor account, network access, or credentials.
+
+From the repository root, prepare a fresh checkout:
+
+```sh
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm --filter @omne-harness/model... -r run build
+pnpm --filter @omne-harness/model examples
+```
+
+If dependencies are already prepared and the lockfile did not change, reuse them. Rebuild the packages after source changes. The examples import the public package entries and execute their built code.
+
+Read and run these lessons in order. Each lesson also runs independently:
+
+| Script | What you do and observe |
+| --- | --- |
+| [01-submit-and-query.ts](examples/01-submit-and-query.ts) | Call `admit` and `inspect`. Handle `Reply`, `Admission`, `Lookup`, and accepted `CallState`. Transport starts remain zero. |
+| [02-observe-and-settle.ts](examples/02-observe-and-settle.ts) | Construct the runtime, start its trusted driver, connect a live handle, and receive `snapshot` then `changed`. Inspect `Settlement` and its original termination, version, and source. |
+| [03-output-limit.ts](examples/03-output-limit.ts) | Supply a real scripted `trim` fact. Distinguish `completed/limit` from a failure. |
+| [04-input-over-limit.ts](examples/04-input-over-limit.ts) | Inspect `failed/input-over-limit` and the supplier's `reported` fields. Preserve unknown values as `null`. |
+| [05-read-and-acknowledge.ts](examples/05-read-and-acknowledge.ts) | Read sealed and partial parts across pages, close the read, and submit consumer-owned completion evidence. Recognize the original ACK. |
+
+For one lesson, run `pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/02-observe-and-settle.ts`. Expected output and the shared assembly are explained in the [example guide](examples/README.md). The scripts keep their API inputs and result branches visible. [example-support.ts](tests/example-support.ts) explains each controlled adapter.
+
+Admission records responsibility, not a send. `drive` reports local progress and resource release. `inspect` returns the authoritative business state. A successful drive can produce a failed business termination. A failed release can coexist with a confirmed Settlement. Close the observer and withdraw the host publication separately. Neither action acknowledges or cancels the call.
+
+## Settlement support boundaries
+
+The driver settles original, confirmed `completed`, `completed/limit`, `input-over-limit`, and failures that need no new retry decision. A confirmed upstream interruption needs the control from the same preserve receipt. A persisted control before any dispatch can settle without sending. Full details belong to the [implementation specification](SPEC.md#已实现的调用收场).
+
+The driver retains pending operations and inputs in the current process. It does not infer an original termination from mutable dispatch history. Uncontrolled interruption, sender `not-started`, retry-policy decisions, and recovery without original terminal evidence remain unsupported. No default stop decision is supplied. The fifth lesson reads the result and submits processed ACK. Retained ACK, durable storage, production hosts, and real vendors remain unsupported.
 
 ## Contracts
 
@@ -20,11 +68,31 @@ The [design index](docs/index.md) covers architecture, flows, internal objects, 
 
 ## Configuration and operation
 
-The constructor takes Commands, the sending fence, the retry policy, the instance host, and the clock explicitly. The application selects and owns the adapters that it needs. It does not take business parameters from a global Context. The target run implementation does not depend on Cordis. The package manifest does not declare Cordis, proper-lockfile, or model-cordis-contract. The package has only the root entry. It has no `./cordis` and no `./execute`. The command `pnpm --filter @omne-harness/model run install-closure` packs this member, installs it in isolation, resolves the entries, and runs a scenario. It writes a report to the path of `--out`. For the way to run it and its scope, see the [test description](tests/README.md#安装闭包). This page does not record run results. The package does not install all vendors or vocabularies automatically.
+The constructor takes Commands, the sending fence, the retry policy, the instance host, and the clock explicitly. The application selects and owns the adapters that it needs. It does not take business parameters from a global Context. The target run implementation does not depend on Cordis. The package manifest does not declare Cordis, proper-lockfile, or model-cordis-contract. The package exposes the root and the isolated `./testing` entry. It has no `./cordis` and no `./execute`. The command `pnpm --filter @omne-harness/model run install-closure` packs this member, installs it in isolation, resolves the entries, and runs a scenario. It writes a report to the path of `--out`. For the way to run it and its scope, see the [test description](tests/README.md#安装闭包). This page does not record run results. The package does not install all vendors or vocabularies automatically.
+
+The trusted host calls `provider.driver.drive` with a stable claim and continuity evidence. The driver publishes the initial instance before preparing and sending. It consumes the sender's original window and stream once. Commands confirm each batch before the driver publishes its complete snapshot. Explicit sending failures remain failures from drive. Unknown writes retain their original inputs.
+
+Consumers call `runtime.instances.connect` and then `handle.observe`. Each observer uses its own current observe permission. Closing an observer keeps the call running. The required positive `observerCheckIntervalMs` controls checks while an observer waits. An instance without a recovered content snapshot ends observation as unavailable.
+
+`outputBatchBytes` and `outputBatchDelayMs` control batch boundaries. Zero delay saves each received fact before another read. Positive delay permits aggregation. A timer requests a flush, but a pending read stays in its original window. If that read remains silent, the received prefix can remain unpublished indefinitely. The delay does not guarantee maximum visibility latency.
+
+`observerBufferBytes` bounds logical registrations and unread notifications. A registration costs 64 bytes. Each unseen version costs 32 bytes per observer. Insufficient registration capacity or excessive lag ends that observer as unavailable. Shared snapshot contents are not copied into per-observer queues. One observer allows one pending next. Concurrent next ends that observer. Production scheduling, retained ACK, and cross-process recovery remain unimplemented.
+
+## Sending through explicit resources
+
+Construct `createModelSendBoundary` with Commands, a synchronous `SendCoordinator`, a `CredentialPort`, `SendResources`, and a positive `maxRetainedAttempts`. The [construction types](src/send/types.ts) define these dependencies. The sender commits the materialization receipt and receive window before the final fence. The coordinator rechecks current qualification and claims the dispatch before credential resolution and synchronous start. All qualification changes and sender instances must share that coordinator's state owner.
+
+Factory credentials require an explicit trusted registration of the exact profile, supplier, recipient, model, official origin, current lack of a tenant binding, and a human-named query ID. A request's factory tag grants no permission. Tenant resolution never falls back to factory credentials. The resource holds its credential value only for the synchronous start.
+
+Unknown writes retain their original operation, expected revision, resource, and input. Repeated sends query and replay the original write. If start returned facts but its record is unconfirmed, the sender retains those facts without reading or closing them. Once the record is confirmed, it hands out the original stream once. Signal cancellation reaches the transport. Exhaustion or consumer return releases materialized, prepared, and acquired resources in reverse order. Safe exceptions expose release failures. Unresolved attempts and failed releases retain capacity; there is no automatic expiry.
+
+The scripted testing assembly uses this same sender. Explicit `sending` options supply credential and source checks. Missing configuration is unavailable. This controlled memory assembly proves no real vendor, durable storage, production host, or cross-process recovery guarantee.
+
+A started result carries the confirmed original `window` and its single `facts` stream. Consumers pass `result.window` to Commands.preserve with the original execution and dispatch. The window grants no access rights. The runtime driver consumes this original stream and publishes only confirmed snapshots.
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model typecheck`, `pnpm --filter @omne-harness/model test`, and `make docs-check`. The current tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. They do not show that hosted runs, streaming, or result custody are implemented. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
+Run `pnpm --filter @omne-harness/model typecheck`, `pnpm --filter @omne-harness/model test`, and `pnpm run check:docs`. The execution tests call the public entry with the scripted transport and controlled failure providers. They cover one send, receipt matching, cancellation, stream loss, and cleanup. The six transport conformance checks test the provider directly. The other tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
 
 ## Maintenance
 
@@ -67,7 +135,7 @@ Each fixed directory has a README and an index. The source, build, and test conf
 | [Design decisions](adr/index.md) | Implementation choices with continuing consumers |
 | [Examples](examples/index.md) | Runnable consumption |
 | [Runtime resources](resources/index.md) | Assets, sources, and loading responsibility |
-| [Independent acceptance](acceptance/index.md) | Independent scenarios, environments, and criteria |
+| [Continuous acceptance](acceptance/index.md) | Three product scenarios through the built runtime, with controlled dependencies and explicit limits |
 
 ## Standalone consumption entry
 

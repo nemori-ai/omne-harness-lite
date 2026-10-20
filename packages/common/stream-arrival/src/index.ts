@@ -589,6 +589,12 @@ function sameHead(head: Head, part: MessagePart): boolean {
  * the text, so its `arguments` are not compared. The text of an unparsed call is `raw`.
  */
 function bodyConflicts(block: OpenBlock, sealed: MessagePart): boolean {
+  if (
+    block.mode === 'replace' &&
+    block.nextSeq === 0 &&
+    (sealed.kind === 'image' || sealed.kind === 'voice' || sealed.kind === 'file')
+  )
+    return false
   if (sealed.kind === 'tool_call_unparsed') return sealed.raw !== block.body
   const field = BODY[block.kind].field
   if (field !== 'text' && field !== 'inline') return false

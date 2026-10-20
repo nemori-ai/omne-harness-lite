@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -13,7 +13,7 @@ afterAll(() => {
 
 /** A checkout with the real base options and one member per entry of `dists`. */
 function checkout(dists: Record<string, Record<string, string> | undefined>): string {
-  const root = mkdtempSync(join(tmpdir(), 'declaration-compat-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'declaration-compat-')))
   temporaries.push(root)
   // 根 tsconfig.base.json 只是指向共享预设的 extends；临时仓库里直接放预设本身。
   copyFileSync(

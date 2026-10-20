@@ -112,7 +112,7 @@ parseDuration('P1D') // { ok: false, failure: { kind: 'calendar-unit' } }
 | `tests/leap-seconds-resource.spec.ts` | 内嵌文本等于 `resources/leap-seconds.list`，并且文件符合它自带的 `#h` SHA-1 哈希。 |
 | `tests/consumption.spec.ts` | 消费者只通过包名往返一个时间点和一个时长。 |
 
-在本目录运行 `pnpm test` 和 `pnpm build`。`pnpm test` 先构建，测试导入的是 `dist`。
+在仓库根运行 `pnpm turbo run test --filter=@omne-harness/utc-instant`。turbo 先构建，测试导入的是 `dist`。本目录里的 `pnpm test` 不构建。
 
 未覆盖：`readLeapSecondData` 不核对调用方文件的 `#h` 哈希。只有测试核对内嵌文件的哈希。本包不证明持久时钟或物理时钟正确。
 
@@ -125,4 +125,4 @@ parseDuration('P1D') // { ok: false, failure: { kind: 'calendar-unit' } }
 1. 从 IERS 来源下载当前文件到 `resources/leap-seconds.list`。不要编辑文件内容。
 2. 在本目录运行 `pnpm run leap-seconds:embed`。
 3. 更新 `tests/leap-seconds.spec.ts` 和两份 README 里内嵌表的版本与失效日字面量。包从文件推导这两个时间点，`src/instant.ts` 里没有要改的数字副本。
-4. 运行 `pnpm test` 和 `pnpm build`。
+4. 在仓库根运行 `pnpm turbo run test --filter=@omne-harness/utc-instant`。

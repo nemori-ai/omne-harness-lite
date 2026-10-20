@@ -3,5 +3,19 @@
 - [测试范围与运行入口](README.md)。
 - [根入口与源码边界测试](public-entry.spec.ts)。
 - [凭据判定测试](judgment.spec.ts)。
-- [安装闭包场景](install/scenario.mjs)：经消费目录里安装的包调用 `deliver` 与判定。
+- [独立执行组合](execute.spec.ts)、[准备结果读取](execute-outcome.spec.ts)、[取消与资源生命周期](execute-lifecycle.spec.ts)、[传输提供者符合性](execute-transport.spec.ts)、[公开类型消费](execute.spec-d.ts)。
+- [安装闭包场景](install/scenario.mjs)：经消费目录里安装的包调用 `executeModel`、`deliver`、判定及真实受理、首次分派与实例观察。
 - [测试夹具](fixtures/index.md)。
+
+- [请求准入与参数](memory-admission.spec.ts)、[内存身份与恢复](memory-core.spec.ts)、[发出与流](memory-dispatch.spec.ts)、[读/ACK/清理](memory-consumption.spec.ts)。
+- [真实受理、首次分派与完整符合性](runtime-admission.spec.ts)。
+- [实例观察](runtime-observation.spec.ts)、[原流保存及交错](runtime-receive.spec.ts)、[受控外部流与宿主](runtime-fixture.ts)。
+- [原流交接、确认推进、刷新乱序与驱动锁](runtime-transitions.spec.ts)。
+- [构造与五端口](runtime-testing.spec.ts)、[合法身份与受信测试适配](memory-fixture.ts)。
+
+[memory-partial.spec.ts](memory-partial.spec.ts) 从实际 preserve 驱动部分结果、真实 trim、目标页、临界容量的控制/终局/读/ACK/清理。
+
+[runtime-settlement.spec.ts](runtime-settlement.spec.ts)验证真实 driver 的原终局收场、未知认回、确定竞争、晚到事实及唯一释放。[教学脚本](../examples/README.md)由包 test 入口持续运行。
+
+- [公开结果读取](runtime-reading.spec.ts)、[processed ACK 与交错风险](runtime-acknowledgement.spec.ts)、[分页准备预算](memory-paging.spec.ts)。
+- [符合性装配](runtime-conformance-fixture.ts)、[消费者完成记录](completion-records.ts)、[真实收场准备](runtime-consumption-fixture.ts)。

@@ -140,7 +140,10 @@ describe('the conformance entry', () => {
       if (settleCall === undefined) throw new Error('the scripted subject has settleCall')
       return {
         ...subject,
-        hooks: { ...subject.hooks, settleCall: input => settleCall({ ...input, pageSize: 10 }) },
+        hooks: {
+          ...subject.hooks,
+          settleCall: input => settleCall({ ...input, pageSize: 10, pageTargetBytes: 1024 }),
+        },
       }
     })
     expect(report.ok).toBe(true)

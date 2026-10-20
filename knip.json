@@ -74,7 +74,6 @@
       "entry": [
         "src/**/cli.ts",
         "src/testing/timing-reporter.ts",
-        "src/testing/typecheck-member.ts",
         "src/mutation/sandbox-build.ts"
       ],
       "project": [

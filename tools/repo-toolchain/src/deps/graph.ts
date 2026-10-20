@@ -1,5 +1,5 @@
 // 仓库唯一的依赖图：dependency-cruiser 跑一遍，按根 `.dependency-cruiser.cjs` 的规则判违规，
-// 再把文件级的依赖收成成员间的边，并在成员与组上找环。`lint:deps`、clean loop、`make metrics`
+// 再把文件级的依赖收成成员间的边，并在成员与组上找环。`lint:deps`、clean loop、`pnpm run metrics`
 // 与架构报告都从这里取，不另写导入解析。
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'

@@ -16,7 +16,7 @@
 
 ## 使用与开发
 
-`make docs-check`、`make formal-tools`、`make test` 提供单项入口。
+`pnpm run check:docs`、`pnpm run check:formal-tools`、`pnpm run test:python` 提供单项入口。
 也可从仓库根显式选择成员：
 
 ```sh
@@ -38,10 +38,10 @@ uv build --package omne-harness-lite-spec-tools --out-dir .dist/spec-tools
 ## 文档目标与缺项计量
 
 ```sh
-make docs-inventory
-make docs-inventory OUT=tmp/my-documentation-report
-# BASE 必须是独立目录，含自己的登记与源；不是 commit 参数，也不是当前源副本回填。
-make docs-inventory BASE=/path/to/baseline OUT=tmp/comparison
+pnpm run docs:inventory
+pnpm run docs:inventory --out tmp/my-documentation-report
+# --base 必须是独立目录，含自己的登记与源；不是 commit 参数，也不是当前源副本回填。
+pnpm run docs:inventory --base /path/to/baseline --out tmp/comparison
 uv run --locked omne-documentation inventory --root . --out tmp/documentation-report
 ```
 
@@ -73,7 +73,7 @@ stdout 默认是完整 JSON，`--summary` 只打印同报告的执行与计数�
 
 无 BASE 只报告全量现状与不可比原因。有 BASE 时分别读取两边的登记／源，既不补旧缺文件，也不沿用当前配置。相同身份、依据和方法下输出 persistent/introduced/resolved/unchanged；unknown/error/not-applicable 参与为 uncompared，要求、profile、路径、依据源字节或范围变化为 measurement-change。删除登记不是修复；resolved 只表示机械缺项消除。依据散列比较是保守的，不把相应源的无关编辑冒充可比收益。
 
-正常执行退出 0，缺项／留空／unknown 仍报告；输入、执行或输出失败退出 2。`make docs-check` 的现有链接／镜像范围不变，inventory 独立运行，不新增合并硬线。单次报告留 tmp；工具不证明内容正确、接受、设计实现对齐或真实阅读体验。
+正常执行退出 0，缺项／留空／unknown 仍报告；输入、执行或输出失败退出 2。`pnpm run check:docs` 的现有链接／镜像范围不变，inventory 独立运行，不新增合并硬线。单次报告留 tmp；工具不证明内容正确、接受、设计实现对齐或真实阅读体验。
 
 ## 按角色读取上下文
 

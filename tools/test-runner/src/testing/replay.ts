@@ -2,7 +2,7 @@
 // 成员清单取那个提交上的（当时的 workspace），路径规则取现在的配置——回放量的是现行规则放在过去会怎么判。
 // 受影响的成员由 turbo 比较父提交与该提交给出；turbo 的包依赖图取当前工作树的，这是一个近似：
 // 那之后改过的依赖关系会按现在的算。
-// 用来在改规则前后看「判全量的有几个、是不是该全量」，不进 `make check`。
+// 用来在改规则前后看「判全量的有几个、是不是该全量」，不进 `pnpm run check`。
 import { git, nulSeparated } from '@omne-harness/repo-toolchain/core/git'
 import { planCheck, sample, type CheckPlan } from './scope.ts'
 import { affectedMembers } from './turbo.ts'

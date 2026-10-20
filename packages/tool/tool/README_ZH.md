@@ -113,7 +113,7 @@ final 没有实际结束时钟 marker。running 计时保留 unknown、原 segme
 
 ## 验证
 
-`OMNE_TEST_TIER=fast pnpm --filter @omne-harness/tool test` 先构建再运行测试。测试核对根导出、导入图、清单依赖、Cordis 路径、独立作用域与包装器的 P11 规则、账本规则，以及真实调用在非耐久记录仓上经替身环境、替身绑定与替身启动授权到达启动的路径。`tool-host-local` 的本地启动协调器在那个包里与本 runtime 组合测试。[tests/README](tests/README.md) 列出每条规则对应的测试。
+`pnpm turbo run test --filter=@omne-harness/tool` 先构建本包及其依赖，再运行测试。测试核对根导出、导入图、清单依赖、Cordis 路径、独立作用域与包装器的 P11 规则、账本规则，以及真实调用在非耐久记录仓上经替身环境、替身绑定与替身启动授权到达启动的路径。`tool-host-local` 的本地启动协调器在那个包里与本 runtime 组合测试。[tests/README](tests/README.md) 列出每条规则对应的测试。
 
 Vitest 只把 `@omne-harness/tool-contract`、`@omne-harness/tool-contract/binding` 和 `@omne-harness/tool-contract/testing` 映射到各自源码入口。因此，契约并行构建删除和重建 `dist` 时，业务测试仍可运行。[受控复现](https://github.com/nemori-ai/omne-harness-lite/issues/424#issuecomment-6271941775)在删除后暂停该构建，运行 managed-start 和 queue-release 测试。源码别名不验证安装后契约包的 JavaScript exports。Tool 构建和 `public-entry.spec.ts` 继续核对 Tool 产物、声明导入图、清单依赖与生产安装闭包。
 

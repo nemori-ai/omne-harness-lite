@@ -1,5 +1,5 @@
-// 度量的阈值、色带与页面参数只在仓库根 `repo-toolchain.config.json` 的 `metrics` 一节里定一次；这里读它并校验，`make metrics` 与
-// `make loop-status` 共用同一份。
+// 度量的阈值、色带与页面参数只在仓库根 `repo-toolchain.config.json` 的 `metrics` 一节里定一次；这里读它并校验，`pnpm run metrics` 与
+// `pnpm run loop:status` 共用同一份。
 import { readToolchainSection, toolchainConfigPath } from '../core/toolchain-config.ts'
 import type { Bands, Thresholds } from './report.ts'
 

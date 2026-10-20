@@ -1,7 +1,7 @@
 import { gunzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -23,7 +23,7 @@ import { buildReport } from '../src/metrics/report.ts'
 
 const bands = { green: 8, yellow: 12, red: 20 }
 it('rejects JSON output paths that would overwrite report artifacts before writing', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'n2-output-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'n2-output-')))
   try {
     for (const name of ['report.html', 'graph.json', 'summary.md']) {
       const result = spawnSync(

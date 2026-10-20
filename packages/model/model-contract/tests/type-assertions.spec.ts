@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,7 +21,7 @@ describe('brand values are not built with type assertions', () => {
 })
 
 describe('the scanner itself', () => {
-  const root = mkdtempSync(join(tmpdir(), 'type-assertions-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'type-assertions-')))
   afterAll(() => rmSync(root, { recursive: true, force: true }))
   const source = join(root, 'src')
 

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Bounded image admission, encode, and close",
   "engines": {
-    "node": ">=26.0.0 <27"
+    "node": ">=24"
   },
   "exports": {
     ".": {
@@ -25,7 +25,9 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "pnpm run build && tsc -p tsconfig.test.json",
-    "test": "pnpm run build && vitest run"
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",

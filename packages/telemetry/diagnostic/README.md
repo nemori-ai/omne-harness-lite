@@ -67,7 +67,7 @@ Every stored record counts toward `maxQueue` and `maxExportBytes`, including fin
 
 ## Verification
 
-From this directory, `pnpm test` builds and runs the public-entry test, `tests/diagnostic-port.spec.ts`, `tests/review-repro.spec.ts`, and `tests/pino-sink.spec.ts`. Pino 10.4.0 is a dev dependency used only by that last test. The implementation does not import it, and `dependencies` stays empty. One test writes a record into a temporary directory with `node:fs`. Another expects that write to throw when the parent directory is absent. A third aborts a delayed write at the close deadline and expects no file. These tests do not import Pino or the OpenTelemetry SDK, and they do not choose production limits.
+`pnpm turbo run test --filter=@omne-harness/diagnostic` builds the package and its dependencies, then runs the public-entry test, `tests/diagnostic-port.spec.ts`, `tests/review-repro.spec.ts`, and `tests/pino-sink.spec.ts`. Pino 10.4.0 is a dev dependency used only by that last test. The implementation does not import it, and `dependencies` stays empty. One test writes a record into a temporary directory with `node:fs`. Another expects that write to throw when the parent directory is absent. A third aborts a delayed write at the close deadline and expects no file. These tests do not import Pino or the OpenTelemetry SDK, and they do not choose production limits.
 
 ## Maintenance
 

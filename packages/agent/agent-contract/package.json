@@ -20,11 +20,21 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "pnpm run build && vitest run"
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
+    "@omne-harness/assets": "workspace:*",
+    "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/message": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/schema-provider": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

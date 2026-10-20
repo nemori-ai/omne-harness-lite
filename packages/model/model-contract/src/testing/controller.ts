@@ -6,7 +6,7 @@ import type {
   CustodyState,
   DispatchRecord,
   DurableEvidence,
-  ModelBlock,
+  ResultPart,
   Reply,
   Termination,
   TransportFact,
@@ -21,6 +21,7 @@ import type {
   ResultVersion,
   Revision,
 } from '../root.ts'
+import { validateParts, resultPage, encodedBytes } from './result-pages.ts'
 import { ScriptedModelError } from './error.ts'
 import { applyFact, visibleBlocks } from './reduce.ts'
 import { endObservations } from './observation.ts'
@@ -55,15 +56,16 @@ export interface ScriptController<P> {
   ): void
   /** The call shows these blocks to its observers; the earlier blocks are replaced. */
   emit(input: ScriptedCall & Readonly<{ blocks: readonly VisibleBlock[] }>): void
-  /** The call ends. `blocks` are the result that the read pages are cut from, `pageSize` blocks each. */
+  /** The call ends. `parts` are the final result, grouped by pageSize and pageTargetBytes. */
   settle(
     input: ScriptedCall &
       Readonly<{
         version: ResultVersion
         termination: Termination
-        blocks: readonly ModelBlock[]
+        parts: readonly ResultPart[]
         source: DurableEvidence
         pageSize: number
+        pageTargetBytes: number
       }>,
   ): void
   /**
@@ -172,18 +174,41 @@ export function createController<P>(core: Core<P>): ScriptController<P> {
 
     settle(input) {
       const record = runningCallOf(input)
-      if (!Number.isSafeInteger(input.pageSize) || input.pageSize < 1)
+      const { pageSize, pageTargetBytes, parts: given, version, termination, source } = input
+      if (!Number.isSafeInteger(pageSize) || pageSize < 1)
         throw new ScriptedModelError('invalid-script', 'pageSize must be a positive integer')
+      if (!Number.isSafeInteger(pageTargetBytes) || pageTargetBytes < 1)
+        throw new ScriptedModelError('invalid-script', 'pageTargetBytes must be a positive integer')
+      const parts = structuredClone(given)
+      validateParts(parts)
+      const settlement = structuredClone({
+        version,
+        termination,
+        cursor: mintCursor(record.revision + 1),
+        source,
+      })
+      const size = encodedBytes({ parts, settlement, next: String(Number.MAX_SAFE_INTEGER) })
+      if (
+        !/^[1-9][0-9]*$/u.test(record.capacity.bytes) ||
+        BigInt(size) > BigInt(record.capacity.bytes) ||
+        BigInt(parts.length) > BigInt(record.capacity.blocks)
+      )
+        throw new ScriptedModelError('invalid-script', 'result exceeds the admitted capacity')
+      for (let offset = 0; offset < parts.length;) {
+        const page = resultPage(parts, offset, pageSize, pageTargetBytes, settlement)
+        if (BigInt(encodedBytes(page)) > BigInt(record.capacity.bytes))
+          throw new ScriptedModelError(
+            'invalid-script',
+            'result page exceeds the admitted capacity',
+          )
+        if (page.next === null) break
+        offset = Number(page.next)
+      }
       record.revision += 1
       record.lifecycle = {
         phase: 'settled',
-        settlement: structuredClone({
-          version: input.version,
-          termination: input.termination,
-          cursor: mintCursor(record.revision),
-          source: input.source,
-        }),
-        pages: { blocks: structuredClone(input.blocks), pageSize: input.pageSize },
+        settlement,
+        pages: { parts, pageSize, pageTargetBytes },
       }
       notify(record)
     },

@@ -1,3 +1,4 @@
+import type { ResultPart } from '@omne-harness/model-contract'
 // The consumer that owns a result: it reads the exact settled version in pages, hands it off with
 // evidence that it holds, and repeats an acknowledgement instead of claiming the result again. It
 // imports only the public contract and the scripted provider that stands for whatever serves it.
@@ -29,9 +30,12 @@ function settle(world: World, name: string): void {
     ...callRef(name),
     version: version(name),
     termination: { kind: 'completed', reason: 'stop' },
-    blocks: ['one', 'two', 'three', 'four', 'five'].map(text => textBlock(`b-${text}`, text)),
+    parts: ['one', 'two', 'three', 'four', 'five']
+      .map(text => textBlock(`b-${text}`, text))
+      .map(block => ({ kind: 'sealed' as const, block, trims: [] })),
     source: evidence(`settlement-${name}`),
     pageSize: 2,
+    pageTargetBytes: 1024,
   })
 }
 
@@ -60,7 +64,7 @@ async function readsTheExactVersionInPages(): Promise<void> {
   )
   expect(started.kind === 'started' && started.value.kind === 'reading', 'the read did not start')
   const first = started.value.page
-  expect(textsOf(first.blocks).join() === 'one,two', 'the first page differs')
+  expect(textsOf(first.parts).join() === 'one,two', 'the first page differs')
   expect(first.next === '2', `the first page continues at ${String(first.next)}`)
   expect(first.settlement.version === version('a'), 'the page belongs to another version')
   const second = must(
@@ -71,7 +75,7 @@ async function readsTheExactVersionInPages(): Promise<void> {
     await world.consumption.readNext({ ...access('a'), read: started.read, after: '4' }),
   )
   expect(third.kind === 'reading', 'the third page did not come')
-  expect(textsOf(third.page.blocks).join() === 'five' && third.page.next === null, 'last page')
+  expect(textsOf(third.page.parts).join() === 'five' && third.page.next === null, 'last page')
   const closed = must(await world.consumption.closeRead({ ...access('a'), read: started.read }))
   expect(closed.kind === 'ended' && closed.reason === 'complete', 'the read did not complete')
 }
@@ -214,9 +218,64 @@ async function unknownReplyIsRepeatedWithTheSameOperation(): Promise<void> {
   expect(reread.kind === 'acknowledged', 'the result was claimed again after the repeat')
 }
 
+async function readsPartialWithoutALiveRoute(): Promise<void> {
+  const world = newWorld()
+  await world.admit('a')
+  const parts: readonly ResultPart[] = [
+    { kind: 'sealed', block: textBlock('first', 'one'), trims: [] },
+    {
+      kind: 'partial',
+      content: 'tool-arguments',
+      value: '{}',
+      trims: [{ removed: '2', reason: 'actual' }],
+    },
+    { kind: 'partial', content: 'voice', value: 'unsealed', trims: [] },
+  ]
+  world.controller.settle({
+    ...callRef('a'),
+    version: version('a'),
+    termination: { kind: 'completed', reason: 'limit' },
+    parts,
+    source: evidence('partial'),
+    pageSize: 2,
+    pageTargetBytes: 1,
+  })
+  world.controller.withdrawInstance(callRef('a'))
+  expect(
+    must(await world.instances.connect(access('a'))).kind === 'no-live-route',
+    'the instance still has a route',
+  )
+  const input = { ...access('a'), operation: operation('read-partial'), result: version('a') }
+  const read = must(await world.consumption.beginRead(input))
+  expect(read.kind === 'started' && read.value.kind === 'reading', 'the partial read did not start')
+  const received: ResultPart[] = [...read.value.page.parts]
+  must(await world.consumption.acknowledge(ackOf('a')))
+  let after = read.value.page.next
+  while (after !== null) {
+    const page = must(await world.consumption.readNext({ ...access('a'), read: read.read, after }))
+    expect(page.kind === 'reading', 'an acknowledged original reader lost the partial value')
+    received.push(...page.page.parts)
+    after = page.page.next
+  }
+  expect(
+    JSON.stringify(received) === JSON.stringify(parts),
+    'the consumer lost partial values, ordering or trims',
+  )
+  expect(
+    must(await world.consumption.beginRead({ ...input, operation: operation('new-partial-read') }))
+      .kind === 'acknowledged',
+    'a new result claim followed ACK',
+  )
+}
+
 export const fixture = {
   role: 'result-consumer',
   paths: [
+    {
+      name: 'reads sealed and partial values with actual trims without a live route and across ACK',
+      kind: 'normal',
+      run: readsPartialWithoutALiveRoute,
+    },
     {
       name: 'reads the exact settled version in pages until the read completes',
       kind: 'normal',

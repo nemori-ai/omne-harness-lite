@@ -319,7 +319,10 @@ describe('the calls that the conformance kit sets up', () => {
     expect(call.state.settlement.termination).toEqual({ kind: 'completed', reason: 'stop' })
     expect(call.version).toBe(call.state.settlement.version)
     const { page } = await readOf(scene, call)
-    expect(page.blocks.map(block => block.id)).toEqual(['b1', 'b2'])
+    expect(page.parts.flatMap(part => (part.kind === 'sealed' ? [part.block.id] : []))).toEqual([
+      'b1',
+      'b2',
+    ])
     expect(page.next).not.toBeNull()
   })
 
@@ -337,12 +340,19 @@ describe('the calls that the conformance kit sets up', () => {
     const termination = { kind: 'interrupted', control: operationId('c') } as const
     const done = await ending(scene, call, {
       termination,
-      blocks: [textBlock('x1', 'only')],
+      parts: [textBlock('x1', 'only')].map(block => ({
+        kind: 'sealed' as const,
+        block,
+        trims: [],
+      })),
       pageSize: 5,
+      pageTargetBytes: 1024,
     })
     expect(done.state.settlement.termination).toEqual(termination)
     const { page } = await readOf(scene, done)
-    expect(page.blocks.map(block => block.id)).toEqual(['x1'])
+    expect(page.parts.flatMap(part => (part.kind === 'sealed' ? [part.block.id] : []))).toEqual([
+      'x1',
+    ])
     expect(page.next).toBeNull()
   })
 

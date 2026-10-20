@@ -1,12 +1,12 @@
 import { execFileSync } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { packageArtifact, runPackaging, runtime } from '../src/index.ts'
 
 it('static application description controls member selection and the published manifest', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'omne-artifact-tool-'))
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'omne-artifact-tool-')))
   const seen: string[][] = []
   try {
     await writeFile(join(root, 'pnpm-lock.yaml'), 'lock')

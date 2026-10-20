@@ -17,6 +17,10 @@ Three unpublished tool members import this package through its subpaths. This pa
 - Configuration is in [`repo-toolchain.config.json`](../../repo-toolchain.config.json) at the repository root, in the sections `loop`, `metrics` and `acceptanceLock`. A missing file, a missing section or an unknown section is an error. No defaults apply.
 - dependency-cruiser needs TypeScript to parse `.ts` files. With pnpm, add `typescript` to dependency-cruiser under `packageExtensions` in `pnpm-workspace.yaml`. If TypeScript is not found, the dependency check exits with an error. It does not pass with the `.ts` files left out.
 
+## Default baseline
+
+`resolveBaseline(root, explicitBase?, env?)` in `core/task-context` is the one default-baseline rule. It takes the first of: the explicit base (`--base`, else the `BASELINE` variable; an empty string is not given), the fixed `targetBase` of the task context, `origin/main`, `main`. A bound tree accepts an explicit base only when it equals `targetBase`, and otherwise throws `stale`. The result carries `source`: `explicit`, `task`, `origin/main` or `main`. `baselines` is unchanged and does not apply a default.
+
 ## Build and test
 
 ```sh
@@ -45,7 +49,7 @@ The commands (`bin`) point at `dist`. Run them from the installed package:
 
 The actual architecture extraction reads only the files of one revision. A package-name `extends` (for example `@omne-harness/repo-config/tsconfig.base.json`) points at an installed module. The extraction does not apply its options and lists it under `configuration.installedExtends` as `<config file> -> <specifier>`.
 
-`make design-check` checks current design sources, domain objects, and generated inputs. `make loop-health` reports trends, test timings, and Git history.
+`pnpm run check:design` checks current design sources, domain objects, and generated inputs. `pnpm run loop:health` reports trends, test timings, and Git history.
 
 ## Stop-hook revision reads
 
@@ -55,7 +59,7 @@ They use byte lengths for UTF-8 content and preserve literal paths, empty files 
 No measurements persist across commits. Source ownership uses the longest member prefix and one inventory traversal.
 
 Synchronizing the primary branch can remove delivered changes from the current difference.
-For a task-wide report, run `make loop-status BASE=<task-start-commit>` with a fixed task anchor.
+For a task-wide report, run `pnpm run loop:status --base <task-start-commit>` with a fixed task anchor.
 That explicit base does not change the automatic hook's base. The internal 40-second limit and host error protocol remain unchanged.
 
 ## Actual assembly observations

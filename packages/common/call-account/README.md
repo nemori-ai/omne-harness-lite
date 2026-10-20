@@ -56,7 +56,7 @@ An amount is either unknown, or known, or provisional. Those three states do not
 
 ## Configuration and operation
 
-The package reads no environment. `engines.node` stays `>=24.18.0 <25`.
+The package reads no environment. `engines.node` is `>=24`.
 
 ## Verification
 

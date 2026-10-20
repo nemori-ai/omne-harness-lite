@@ -1,9 +1,9 @@
 // 测试运行入口：
-// `plan` 算本次改动的影响面（`make check` 开头那一步），`step` 按计划执行 pytest、构建、类型检查、成员测试与验收；
+// `plan` 算本次改动的影响面（`pnpm run check` 开头那一步），`step` 按计划执行 pytest、构建、类型检查、成员测试与验收；
 // `run` 跑受影响或全部成员的某一层（`--script acceptance` 改跑可执行验收）并写耗时账本；
 // `replay` 对主线上最近的提交逐个算计划（只算不跑）；`triage` 对一次运行里的失败做隔离重跑。
 // `step`、`run` 的退出码反映那一步是否通过；`plan`、`replay` 只在引擎出错时非零；`triage` 只报告，非零表示工具自己出错。
-import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
+import { resolveBaseline } from '@omne-harness/repo-toolchain/core/task-context'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -23,7 +23,6 @@ import { listTestMembers } from '@omne-harness/repo-toolchain/core/workspace'
 import { replay, replayTable } from './replay.ts'
 import {
   acceptanceStep,
-  baselineOf,
   computePlan,
   describePlanFile,
   fullRequested,
@@ -44,13 +43,17 @@ type Step = (typeof STEPS)[number]
 
 const USAGE = [
   '用法：',
+  '  baseline [--base <ref>]',
+  '      打印统一规则取到的基线：--base，再取环境变量 BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main；',
+  '      已绑定任务的树只接受等于 targetBase 的显式基线，否则报错退出',
   '  plan [--base <ref>] [--full] [--json <路径>]',
-  '      算基线以来改动的影响面并打印；--json 另写计划文件。基线缺省取环境变量 BASELINE，再缺省 main；',
+  '      算基线以来改动的影响面并打印；--json 另写计划文件。基线按 baseline 命令的规则取；',
   '      --full 或环境变量 FULL=1 给全量计划',
   `  step ${STEPS.join('|')} (--plan <计划文件> | [--base <ref>] [--full])`,
   '      按计划执行一步；没给计划文件就当场算一份（同 plan）。test 跑计划里成员的快层再慢层，不构建',
-  '  run (--base <ref> | --all) [--tier fast|slow|all] [--script test|acceptance] [--plan-only] [--no-build | --build] [--out <dir>]',
-  '      --base 按影响面选成员并先构建它们及其依赖（--no-build 跳过），缺省只跑快层；--all 不构建（调用方先构建），除非给 --build，缺省两层全跑',
+  '  run [--base <ref> | --all] [--tier fast|slow|all] [--script test|acceptance] [--plan-only] [--no-build | --build] [--out <dir>]',
+  '      不给 --all 时按影响面选成员（基线按 baseline 命令的规则取），先构建它们及其依赖（--no-build 跳过），缺省只跑快层',
+  '      --all 跑全部成员，缺省两层全跑；测试不构建（调用方先构建），除非给 --build；验收缺省先构建，--no-build 跳过',
   '      --script acceptance 不分层，不接受 --tier',
   '  replay [--ref <ref>] [--count <n>] [--json <路径>]',
   '      对 ref（缺省 main）最近 n 个（缺省 40）first-parent 提交，以父提交为基线逐个算计划，只算不跑',
@@ -69,12 +72,15 @@ const parseFlags = (
 
 function planFromFlags(flags: Flags): PlanFile {
   const full = flags.switches.has('--full') || fullRequested(process.env)
-  const explicit = flags.values.get('--base') ?? process.env['BASELINE']
-  return computePlan(
-    ROOT,
-    baselines(ROOT, explicit).targetBase ?? baselineOf(explicit, process.env),
-    full,
-  )
+  return computePlan(ROOT, resolveBaseline(ROOT, flags.values.get('--base')).targetBase, full)
+}
+
+/** 打印统一规则取到的基线与来源，供 `pnpm run check` 的开头一步使用。 */
+function baseline(argv: readonly string[]): number {
+  const flags = parseFlags(argv, ['--base'], [])
+  const { state, targetBase, source } = resolveBaseline(ROOT, flags.values.get('--base'))
+  console.log(JSON.stringify({ state, targetBase, source }))
+  return 0
 }
 
 function plan(argv: readonly string[]): number {
@@ -100,7 +106,8 @@ async function step(argv: readonly string[]): Promise<number> {
     python: () => pythonStep(ROOT, file),
     build: () => buildStep(ROOT, file),
     typecheck: () => typecheckStep(ROOT, file),
-    test: () => testStep(ROOT, file),
+    // 带计划文件时在准入检查里，构建一步已经按计划构建；单独运行时由 turbo 先构建。
+    test: () => testStep(ROOT, file, planPath === undefined),
     acceptance: () => acceptanceStep(ROOT, file),
   }
   return steps[name as Step]()
@@ -134,28 +141,21 @@ function parseRun(argv: readonly string[]): RunRequest {
   const flags = parseFlags(
     argv,
     ['--base', '--out', '--script', '--tier'],
-    ['--all', '--plan-only', '--no-build', '--build', '--default-base'],
+    ['--all', '--plan-only', '--no-build', '--build'],
   )
   const all = flags.switches.has('--all')
   if (all && flags.values.has('--base')) throw new Error(`--base 与 --all 二选一\n${USAGE}`)
-  const resolved = baselines(ROOT, flags.values.get('--base'))
-  if (
-    !all &&
-    resolved.state === 'pending' &&
-    !flags.values.has('--base') &&
-    !flags.switches.has('--default-base')
-  )
-    throw new Error(`--base 与 --all 二选一\n${USAGE}`)
-  const base = all ? undefined : (resolved.targetBase ?? 'main')
+  const base = all ? undefined : resolveBaseline(ROOT, flags.values.get('--base')).targetBase
   if (flags.switches.has('--build') && flags.switches.has('--no-build'))
     throw new Error(`--build 与 --no-build 不能同时给\n${USAGE}`)
   const script = scriptOf(flags)
+  // 受影响范围的运行与全量验收自己构建（验收驱动 dist/）；全量测试由调用方先构建，除非要求它构建。
+  const buildByDefault = !all || script === 'acceptance'
   return {
     base,
     script,
     tier: tierOf(flags, script, all),
-    // 受影响范围的运行自己构建；全量运行由调用方先构建，除非要求它构建。
-    build: all ? flags.switches.has('--build') : !flags.switches.has('--no-build'),
+    build: buildByDefault ? !flags.switches.has('--no-build') : flags.switches.has('--build'),
     planOnly: flags.switches.has('--plan-only'),
     out: flags.values.get('--out'),
   }
@@ -175,6 +175,7 @@ async function run(request: RunRequest): Promise<number> {
   }
   if (request.planOnly) {
     console.log(`层：${TIER_NAMES[tier]}（${tier}）`)
+    console.log(request.build ? '构建：先构建这些成员及其依赖' : '构建：不构建（调用方已构建）')
     return 0
   }
   if (targets.length === 0) {
@@ -262,7 +263,8 @@ async function runTriage(argv: readonly string[]): Promise<number> {
 
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2)
-  if (command === 'plan') process.exitCode = plan(rest)
+  if (command === 'baseline') process.exitCode = baseline(rest)
+  else if (command === 'plan') process.exitCode = plan(rest)
   else if (command === 'step') process.exitCode = await step(rest)
   else if (command === 'run') process.exitCode = await run(parseRun(rest))
   else if (command === 'replay') process.exitCode = runReplay(rest)

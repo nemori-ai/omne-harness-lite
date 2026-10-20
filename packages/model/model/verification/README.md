@@ -1,5 +1,9 @@
 # model 持续验证
 
-本目录维护本实现的验证责任。共同协议场景由 model-contract/verification 唯一维护，已有凭据判定的[可执行测试](../tests/judgment.spec.ts)，保管与插件的可执行测试在 [model-host-local](../../model-host-local/tests/credential.spec.ts)，尚无完整托管运行的可执行协议验证。安装与导入保证由 `install-closure` 脚本调用 [model-contract 的安装闭包设施](../../model-contract/tests/install/cli.ts)核对：策略在 [install-policy.json](../tests/fixtures/install-policy.json)，场景脚本在 [scenario.mjs](../tests/install/scenario.mjs)，场景只经消费目录里安装的包调用 `deliver` 与判定。本成员的这条命令已运行通过：`forbidden` 为空，全部检查含 `scenario-run` 通过，离线安装。该结论只覆盖 model 的生产安装闭包与场景里的三条发送路径及一次判定；model-host-local 的闭包、Cordis 装配与真实运行工厂不在其内。报告写在任务的 `tmp/`，不入库，重新核对时重跑命令。
+本目录维护本实现的验证责任，共同协议场景由 model-contract/verification 唯一维护。[成员测试说明](../tests/README.md)区分独立执行、发送、受理、观察、有限收场和公开消费的实际覆盖。结果读取与 processed ACK 的组合使用真实 runtime、driver、sender 和内存 Commands；消费者完成记录和上游传输仍为受控替身。完整53项符合性报告保留未支持项，不能据局部通过声明完整托管运行符合。
+
+安装与导入由 `install-closure` 调用[共同安装设施](../../model-contract/tests/install/cli.ts)核对。[策略](../tests/fixtures/install-policy.json)约束安装闭包，[场景](../tests/install/scenario.mjs)只经独立消费目录内的已安装包运行。它覆盖独立执行、凭据判定、最小 runtime、实例观察、产品发送及受信分页控制导出。命令和通过条件归[安装闭包说明](../tests/README.md#安装闭包)，单次报告留任务 tmp。
+
+这些资源不证明真实厂商、生产耐久存储、自动清理工作者、完整 Cordis 宿主或跨进程恢复。本地凭据保管与插件验证归[model-host-local](../../model-host-local/tests/README.md)。
 
 [目录索引](index.md)。

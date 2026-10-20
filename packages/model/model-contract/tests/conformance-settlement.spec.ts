@@ -365,13 +365,16 @@ describe('the conformance suite on the result and its handover', () => {
             asked.set(key, count)
             if (count < 2 || !('ok' in outcome) || outcome.ok.kind !== 'reading') return outcome
             const { page } = outcome.ok
-            return succeed({ kind: 'reading', page: { ...page, blocks: page.blocks.slice(1) } })
+            return succeed({ kind: 'reading', page: { ...page, parts: page.parts.slice(1) } })
           },
         }),
       })
     })
-    expect(failing).toEqual(['read-page-stable-for-same-after'])
-    expect(reasons).toEqual([expect.stringContaining('the same page differs')])
+    expect(failing).toEqual(['mixed-partial-result-readable', 'read-page-stable-for-same-after'])
+    expect(reasons).toEqual([
+      'the partial page changed on replay',
+      expect.stringContaining('the same page differs'),
+    ])
   })
 
   it('fails a provider whose second close ends the read for another reason', async () => {
@@ -719,7 +722,7 @@ describe('the conformance suite on the other ways that a handover can go wrong',
           async readNext(input) {
             const outcome = await consumption.readNext(input)
             return acknowledged.has(input.call) && 'ok' in outcome && outcome.ok.kind === 'reading'
-              ? succeed({ kind: 'reading', page: { ...outcome.ok.page, blocks: [] } })
+              ? succeed({ kind: 'reading', page: { ...outcome.ok.page, parts: [] } })
               : outcome
           },
         }),
@@ -791,4 +794,26 @@ describe('the conformance suite on the other ways that a handover can go wrong',
     expect(failing).toEqual(['close-read-idempotent'])
     expect(reasons[0]).toContain('the first close gives')
   })
+})
+
+it('fails a provider that drops partial values or their actual trims from final pages', async () => {
+  const { failing } = await failures(subject =>
+    patched(subject, {
+      consumption: consumption => ({
+        ...consumption,
+        async readNext(input) {
+          const outcome = await consumption.readNext(input)
+          if ('failure' in outcome || outcome.ok.kind !== 'reading') return outcome
+          return succeed({
+            kind: 'reading',
+            page: {
+              ...outcome.ok.page,
+              parts: outcome.ok.page.parts.filter(part => part.kind === 'sealed'),
+            },
+          })
+        },
+      }),
+    }),
+  )
+  expect(failing).toEqual(['mixed-partial-result-readable'])
 })
