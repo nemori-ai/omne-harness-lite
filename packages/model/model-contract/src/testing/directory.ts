@@ -3,7 +3,6 @@ import type { ModelReferenceAccess } from '../root.ts'
 import { resolveModelInvocationRef } from '../reference.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { LiveRoute, ModelDirectory, Reply } from '../index.ts'
-import type { CallAccess } from '../root.ts'
 import { denied, openCall, type Core } from './core.ts'
 import { handleFor } from './observation.ts'
 

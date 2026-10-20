@@ -1,10 +1,8 @@
 import {
   encodeModelInvocationRef,
-  resolveModelInvocationRef,
   type ModelInvocationParts,
   type ModelInvocationRef,
 } from '@omne-harness/model-contract'
-import type { TenantId } from '@omne-harness/legal-identity'
 
 /** Construct a fixture locator from explicit original identities before admission. */
 export function invocationReference<T extends ModelInvocationParts>(parts: T): ModelInvocationRef {

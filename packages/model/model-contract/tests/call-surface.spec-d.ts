@@ -84,7 +84,7 @@ it('DispatchRecord keeps the send state and the cost apart', () => {
 it('an adapter can implement ModelCalls from the contract alone', () => {
   const calls: ModelCalls<string> = {
     admit: async () => ({ ok: { call, revision, recovered: false, reference } }),
-    inspect: async input => ({ ok: { kind: 'not-accepted', operation: operation } }),
+    inspect: async _unused => ({ ok: { kind: 'not-accepted', operation: operation } }),
     dispatches: async () => ({ ok: [] }),
     cancel: async () => ({ ok: { kind: 'none' } }),
   }

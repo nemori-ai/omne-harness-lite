@@ -1,4 +1,4 @@
-import { invocationReference, reservedReference } from './reference-input.ts'
+import { reservedReference } from './reference-input.ts'
 import { describe, expect, it } from 'vitest'
 import { deriveGuardControlOperation } from '@omne-harness/model-contract'
 import {
