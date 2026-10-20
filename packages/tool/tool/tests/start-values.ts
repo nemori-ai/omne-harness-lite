@@ -21,6 +21,7 @@ import {
   type ToolLiveExecution,
   type ToolStartRecord,
   type ToolExecutionFact,
+  type ToolOutputCustody,
   type ToolStartAuthority,
   type ToolState,
 } from '@omne-harness/tool-contract'
@@ -82,6 +83,7 @@ export type StartOptions = HarnessOptions &
     bindingsPort?: (
       base: ToolBindings<Principal, Block, TestEnvironment>,
     ) => ToolBindings<Principal, Block, TestEnvironment>
+    custodyPort?: (base: ToolOutputCustody<Principal>) => ToolOutputCustody<Principal>
     /** Builds over this memory instead of a new one: a second runtime over the same records. */
     memory?: MemoryToolLedgerStore<Block>
     /** Wraps the memory store, to make one commit or read of the start path misbehave. */
@@ -432,6 +434,7 @@ export type StartHarness = Readonly<{
   environments: TestEnvironments
   identities: TestToolIdentities
   source: TestInvocationSource<Principal>
+  custody: ToolOutputCustody<Principal>
   internalRequests: Map<string, FixedToolRequest>
   /** The calls whose timing segment the clock was asked to begin. */
   begun: readonly string[]
@@ -467,7 +470,8 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const bindings = options.bindingsPort?.(binding.bindings) ?? binding.bindings
   const factAcknowledgements = createToolFactAcknowledgementGuard(bindings)
   const environments = testEnvironments(options.environment ?? new Map())
-  const custody = testSettlementPorts().custody
+  const originalCustody = testSettlementPorts().custody
+  const custody = options.custodyPort?.(originalCustody) ?? originalCustody
   const settlement = { custody, releaseInspection: environments }
   const ledger = createToolLedger(
     store,
@@ -585,6 +589,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     environments,
     identities,
     source,
+    custody,
     begun: clock.begun,
     drive,
     runOnce,

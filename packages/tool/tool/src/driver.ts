@@ -23,6 +23,7 @@ import { tenantKey } from './boundary.ts'
 import type { ToolDependencies } from './construction.ts'
 import { createFactDriver } from './driver-facts.ts'
 import { createBindingInvoker } from './driver-binding.ts'
+import { preserveSavedFinal } from './driver-settlement.ts'
 import { isExcludedFailure } from './ledger-exclusion.ts'
 import { queueKeyOf } from './ledger-start.ts'
 import type { TenantId } from './ledger-store.ts'
@@ -57,6 +58,7 @@ type Step<P> = CallAccess<P> & Readonly<{ instance: ToolInstanceId; signal: Abor
  */
 type Continue = Readonly<{ kind: 'continue'; progressed: boolean }>
 type StepResult = Continue | DriverStop
+type RunFailures = { skipped: Set<string>; first: DriverStop | null; retry: boolean }
 const CONTINUE: Continue = { kind: 'continue', progressed: true }
 const STALLED: Continue = { kind: 'continue', progressed: false }
 const IDLE: DriverStop = { kind: 'idle' }
@@ -559,25 +561,43 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   }
 
   /** A settled call with a `queue` task still owes the queue domain its release (crash repair). */
-  const repairRelease = async (step: Step<P>, recovery: ToolRecovery<B>): Promise<StepResult> => {
+  const repairRelease = async (
+    step: Step<P>,
+    recovery: ToolRecovery<B>,
+    cancelled: () => boolean,
+  ): Promise<StepResult> => {
     const rejection = recovery.startRejection
-    if (rejection === null) return blocked('a settled call owes a queue step without a rejection')
+    if (rejection === null) {
+      const task = recovery.tasks.find(task => task.kind === 'queue')
+      return task?.kind === 'queue' ? settle(step, recovery, task, cancelled) : IDLE
+    }
     if (recovery.start !== null)
       return recordStart(step, recovery, recovery.start, { kind: 'rejected', ...rejection })
     return rejectPending(step, recovery, rejection.reason, rejection.exclusion)
+  }
+
+  const settle = async (
+    step: Step<P>,
+    recovery: ToolRecovery<B>,
+    task: Extract<ToolTask, { basis: DurableEvidence }>,
+    cancelled: () => boolean,
+  ): Promise<StepResult> => {
+    const result = await preserveSavedFinal(dependencies, step, recovery, task, cancelled)
+    if (result === null) return blocked('the run was aborted')
+    if ('ok' in result && !cancelled()) await wake(step.tenant, recovery.request)
+    return after(result)
   }
 
   type Action = (step: Step<P>, recovery: ToolRecovery<B>) => Promise<StepResult>
 
   /**
    * The step of each phase while the call domain owes the queue domain a step (a `queue` task).
-   * Running facts use their own task step; settlement remains a later increment.
+   * Running facts and saved finals use their own task steps.
    */
   const queueSteps: Readonly<Partial<Record<ToolRecovery<B>['state']['phase'], Action>>> = {
     accepted: plan,
     preparing: enqueue,
     queued: prepareStart,
-    settled: repairRelease,
   }
 
   /** A `starting` call with its `start` task goes through the start fence. */
@@ -592,14 +612,56 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     step: Step<P>,
     recovery: ToolRecovery<B>,
     cancelled: () => boolean,
+    failures: RunFailures,
   ): Promise<StepResult> => {
     if (cancelled()) return blocked('the run was aborted')
-    const acknowledgement = recovery.tasks.find(task => task.kind === 'fact-ack')
-    if (acknowledgement?.kind === 'fact-ack')
-      return facts.acknowledge(step, acknowledgement, cancelled)
-    if (recovery.tasks.some(task => task.kind === 'facts'))
-      return facts.receive(step, recovery, cancelled)
+    facts.closeFinished(step, recovery)
     const { phase } = recovery.state
+    let stalled = false
+    const attempt = async (
+      key: string,
+      action: () => Promise<StepResult>,
+    ): Promise<Continue | null> => {
+      if (failures.skipped.has(key)) return null
+      const result = await action()
+      if (result.kind === 'continue') {
+        if (result.progressed) return result
+        stalled = true
+        return null
+      }
+      failures.skipped.add(key)
+      failures.first ??= result
+      failures.retry ||= result.kind === 'failed' && transient(result.failure)
+      return null
+    }
+    if (phase === 'settled' && recovery.tasks.some(task => task.kind === 'queue')) {
+      const result = await attempt('queue', () => repairRelease(step, recovery, cancelled))
+      if (result !== null) return result
+    }
+    const settlement = recovery.tasks.find(task => task.kind === 'settle')
+    if (phase !== 'settled' && settlement?.kind === 'settle') {
+      const result = await attempt('settle', () => settle(step, recovery, settlement, cancelled))
+      if (result !== null) return result
+    }
+    if (cancelled()) return blocked('the run was aborted')
+    const acknowledgements = recovery.tasks.filter(task => task.kind === 'fact-ack')
+    for (const task of acknowledgements) {
+      const result = await attempt(`ack:${task.operation}`, () =>
+        facts.acknowledge(step, task, cancelled),
+      )
+      if (result !== null) return result
+      if (cancelled()) return blocked('the run was aborted')
+    }
+    // An unconfirmed batch still owns the cursor barrier, even when settlement can proceed.
+    if (
+      acknowledgements.length === 0 &&
+      recovery.tasks.some(task => task.kind === 'facts' && task.state !== 'blocked')
+    ) {
+      const result = await attempt('facts', () => facts.receive(step, recovery, cancelled))
+      if (result !== null) return result
+    }
+    if (stalled) return STALLED
+    if (failures.first !== null) return failures.first
     const preparation = recovery.tasks.find(task => task.kind === 'prepare')
     if (phase === 'preparing' && preparation?.kind === 'prepare')
       return prepare(step, recovery, preparation)
@@ -609,7 +671,11 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     return queueStep !== undefined && owesQueue ? queueStep(step, recovery) : IDLE
   }
 
-  const advance = async (step: Step<P>, cancelled: () => boolean): Promise<DriverStop> => {
+  const advance = async (
+    step: Step<P>,
+    cancelled: () => boolean,
+    failures: RunFailures,
+  ): Promise<DriverStop> => {
     let progressed = false
     for (let steps = 0; steps < policy.stepsPerRun; steps += 1) {
       if (cancelled()) return blocked('the run was aborted')
@@ -619,7 +685,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
         call: step.call,
       })
       if ('failure' in recovery) return { kind: 'failed', failure: recovery.failure }
-      const result = await stepOf(step, recovery.ok, cancelled)
+      const result = await stepOf(step, recovery.ok, cancelled, failures)
       if (result.kind !== 'continue') return result
       progressed ||= result.progressed
     }
@@ -630,8 +696,10 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   const runOnce = async (step: Step<P>): Promise<DriverStop> => {
     const signals = facts.signalsForRun(step)
     const cancelled = () => signals.some(signal => signal.aborted)
-    const stop = await advance(step, cancelled)
+    const failures: RunFailures = { skipped: new Set(), first: null, retry: false }
+    const stop = await advance(step, cancelled, failures)
     await retrigger(step, stop, signals)
+    if (failures.retry) scheduleLater(step.tenant, step.call, signals)
     return stop
   }
 
