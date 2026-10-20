@@ -33,7 +33,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
 function repository(): string {
-  const root = fs.mkdtempSync(join(tmpdir(), 'omne-package-template-'))
+  const root = fs.realpathSync(fs.mkdtempSync(join(tmpdir(), 'omne-package-template-')))
   roots.push(root)
   fs.mkdirSync(join(root, 'packages'))
   fs.writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n')
@@ -212,7 +212,7 @@ describe('package creation', () => {
   })
   it('rejects a symlinked group', () => {
     const root = repository()
-    const outside = fs.mkdtempSync(join(tmpdir(), 'omne-outside-'))
+    const outside = fs.realpathSync(fs.mkdtempSync(join(tmpdir(), 'omne-outside-')))
     roots.push(outside)
     fs.symlinkSync(outside, join(root, 'packages/util'))
     expect(() =>

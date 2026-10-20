@@ -13,6 +13,7 @@ import { registryHistoryBoundary } from './rules/registry-history-boundary.ts'
 import { syntaxImports, syntaxOf } from '@omne-harness/repo-toolchain/core/syntax'
 import { modelCredentialBoundary } from './rules/model-credential-boundary.ts'
 import { noLegacyDependency } from './rules/no-legacy-dependency.ts'
+import { testTempPhysicalPath } from './rules/test-temp-physical-path.ts'
 
 export const REPOSITORY_RULES = [
   sessionSeedBoundary,
@@ -24,6 +25,7 @@ export const REPOSITORY_RULES = [
   registryHistoryBoundary,
   modelCredentialBoundary,
   noLegacyDependency,
+  testTempPhysicalPath,
 ] as const
 export function collectRepositorySources(root: string): SourceFile[] {
   root = resolve(root)

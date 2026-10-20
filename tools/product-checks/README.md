@@ -126,6 +126,12 @@ Run `pnpm --filter @omne-harness/product-checks exec vitest run tests/core-rules
 
 The exact `packages/agent-loop/loop-extension-runner-local/tests/runner-chain-support.ts` fixture may also use public EIS publication to establish real immutable history for D106 R7 acceptance. Neighboring runner tests and all runner product sources remain forbidden. The history rule allows runner product sources to import reader types only; runner tests may construct the real reader. No factory re-export or production publication authority is granted.
 
+## Test temporary directories
+
+`test-temp-physical-path` is in `REPOSITORY_RULES`. Its source is Issue #560 C5 and the test boundary section of [the verification guide](../../docs/verification.md#包级测试责任与边界), which owns the convention and the reason. On macOS the default `tmpdir()` is below the `/var` symbolic link, and git, vitest and pytest report the resolved `/private/var` path.
+
+The rule scans test code and fixtures in `packages/`, `apps/` and `tools/`. It scans `.ts`, `.mts`, `.cts`, `.js`, `.mjs` and `.cjs` files. It parses JavaScript files with JavaScript syntax. It reports a `mkdtempSync` or `mkdtemp` call when the first argument comes from `tmpdir()` or `process.env.TMPDIR` and the created directory is not resolved. The call passes when it is the first argument of `realpathSync`, `realpath` or `realpathSync.native`, or when the argument resolves `tmpdir()` first. The rule rejects a later separate `realpathSync(dir)` statement, because the unresolved path stays in scope. The rule also rejects callback `mkdtemp` and `.then(realpath)` chains. It does not cover tests in `scripts/` or `examples/`, `.tsx` or `.jsx` files, values from other modules, reassignment, or a renamed `require` destructuring of `mkdtemp`. The [Chinese catalogue](README_ZH.md#测试临时目录的物理路径) lists the details.
+
 ## Independence from archived implementations
 
 The engineering tools do not load the archived `packages.0.0.1.legacy/` or

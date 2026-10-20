@@ -1,6 +1,6 @@
 // 验收锁的正反夹具：拥有者与人改验收放行，实施角色改验收、未提交的验收改动报出。
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -147,7 +147,7 @@ describe('验收锁：读 Git', () => {
 
   /** 一个带一份验收与一份源码的仓库；返回它的根与基线提交。 */
   function repository(): { root: string; base: string } {
-    const root = mkdtempSync(join(tmpdir(), 'acceptance-lock-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'acceptance-lock-')))
     made.push(root)
     git(root, 'init', '-q')
     write(root, SPEC, 'expect(version()).toBe("0.0.0")\n')

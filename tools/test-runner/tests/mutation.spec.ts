@@ -11,6 +11,7 @@ import {
   rmSync,
   symlinkSync,
   writeFileSync,
+  realpathSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
@@ -56,7 +57,7 @@ afterAll(() => {
   for (const path of temporaries) rmSync(path, { recursive: true, force: true })
 })
 function temporary(prefix: string): string {
-  const path = mkdtempSync(join(tmpdir(), prefix))
+  const path = realpathSync(mkdtempSync(join(tmpdir(), prefix)))
   temporaries.push(path)
   return path
 }

@@ -37,7 +37,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true })
 })
 function repository() {
-  const root = fs.mkdtempSync(join(tmpdir(), 'omne-domain-template-'))
+  const root = fs.realpathSync(fs.mkdtempSync(join(tmpdir(), 'omne-domain-template-')))
   roots.push(root)
   fs.mkdirSync(join(root, 'packages'))
   fs.writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*/*\n')

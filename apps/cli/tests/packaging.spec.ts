@@ -1,7 +1,15 @@
 // @module-tag slow
 // Packaging runs a full tsc build and a tar child process.
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -35,7 +43,7 @@ describe('package-cli.sh', () => {
     expect(existsSync(memberDist)).toBe(true)
     writeFileSync(sentinel, '')
     const before = identities()
-    const dir = mkdtempSync(join(tmpdir(), 'omne-cli-package-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'omne-cli-package-')))
     scratch.push(dir)
     const target = join(dir, 'omne-cli.tar.gz')
     execFileSync(script, [target], { cwd: repoRoot, stdio: 'inherit' })

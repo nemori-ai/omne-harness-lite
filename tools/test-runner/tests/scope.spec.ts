@@ -3,7 +3,7 @@
 // 另核对取改动的那一步：改名拆成两侧、基线不存在时报错而不是改判全量。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -388,7 +388,7 @@ describe('计划文件', () => {
   const baseRef = fixed.targetBase ?? head
   const base = coordinates(ROOT, baseRef).base
   const planFile = (overrides: Record<string, unknown>) => {
-    const dir = mkdtempSync(join(tmpdir(), 'check-plan-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'check-plan-')))
     dirs.push(dir)
     const path = join(dir, 'plan.json')
     const file = { head, dirty: false, base, plan: plan([]) }
@@ -428,7 +428,7 @@ describe('取改动', () => {
   }
 
   it('改名拆成删与增、非 ASCII 文件名原样：工作树改动与单个提交的改动都是如此', () => {
-    const root = mkdtempSync(join(tmpdir(), 'affected-rename-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'affected-rename-')))
     roots.push(root)
     run(root, 'init', '-q')
     run(root, 'config', 'user.email', 'x@example.com')
