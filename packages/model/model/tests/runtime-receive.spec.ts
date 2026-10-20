@@ -144,6 +144,28 @@ it('makes the byte threshold change positive-delay batch boundaries and saves te
     await f.dispose()
   }
 })
+for (const outputBatchBytes of [66, 67]) {
+  it(`flushes the 66-byte opening fact at the exact ${outputBatchBytes}-byte batch boundary`, async () => {
+    expect(Buffer.byteLength(JSON.stringify(open), 'utf8')).toBe(66)
+    const f = runtimeFixture({ outputBatchDelayMs: 100, outputBatchBytes })
+    try {
+      unbox(await f.provider.runtime.calls.admit(f.admit))
+      await f.start(f.admit.call)
+      await f.show(f.admit.call, [open, delta('a'), end])
+      expect(f.preserveInputs.map(input => input.facts)).toEqual(
+        outputBatchBytes === 66 ? [[open], [delta('a'), end]] : [[open, delta('a')], [end]],
+      )
+      expect(new Set(f.preserveInputs.map(input => input.window)).size).toBe(2)
+      expect((await snapshot(f)).blocks).toMatchObject([{ value: 'a' }])
+      expect(f.channel(f.admit.call).starts).toBe(1)
+      expect(f.channel(f.admit.call).closes).toBe(1)
+      expect(f.channel(f.admit.call).returns).toBe(1)
+    } finally {
+      await f.dispose()
+    }
+    expect(f.controls.clock.pending()).toBe(0)
+  })
+}
 it('keeps first content when replacement empties the final view in the same positive-delay batch', async () => {
   const f = runtimeFixture({ outputBatchDelayMs: 100, outputBatchBytes: 10000 })
   try {
