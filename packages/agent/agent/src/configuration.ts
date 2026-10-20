@@ -2,6 +2,9 @@
 // docs/public-api.md "工厂配置" and the four binding fields. A value the type forbids can still come
 // from an untyped caller, so each check judges the value itself. The first failure is returned as
 // `invalid`, with `field` the path of the item, for example `configuration.toolConcurrency`.
+// Limit: only the values of the options are judged for an untyped caller. The dependencies are
+// assumed to satisfy their contract types: a Journal without `capabilities`, a `registration.instance`
+// getter that throws, or options or dependencies that are not objects make the creation reject.
 import {
   decodeAgentInstanceId,
   judgeAdoption,
@@ -78,7 +81,7 @@ function judgeConfiguration(configuration: AgentConfiguration): Failure | undefi
 }
 
 /** Whether legal-identity minted the value; `encode` checks registry membership of any value. */
-function isTenantId(value: unknown): value is TenantId {
+export function isTenantId(value: unknown): value is TenantId {
   // `encode` types its parameter as `TenantId`, but its check takes any value; see judgeAccess.
   return tenantCodec.encode(value as TenantId).ok
 }

@@ -207,6 +207,15 @@ describe('C1 unsupported: a joint commit kind that the Journal does not declare'
     expect(calls).toEqual([])
   })
 
+  it('creates when all four kinds are declared', async () => {
+    const all = ['message', 'context-transition', 'custody', 'processed'] as const
+    const { created, calls } = await create(undefined, options({ jointCommits: all }), {
+      participants: all,
+    })
+    ok(created)
+    expect(calls).toEqual([])
+  })
+
   it('reports an absent Journal as unavailable, not unsupported', async () => {
     const result = await refused(
       dependencies => ({ ...dependencies, journal: loose(undefined) }),

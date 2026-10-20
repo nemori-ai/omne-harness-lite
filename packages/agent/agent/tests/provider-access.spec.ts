@@ -7,6 +7,7 @@ import type { AgentProvider } from '@omne-harness/agent'
 import { createTestAgentDependencies } from '@omne-harness/agent/testing'
 import type {
   Access,
+  AgentAccessDecision,
   AgentAccessOperation,
   AgentAccessTarget,
   AgentObservation,
@@ -122,6 +123,24 @@ async function setup() {
 /** An Access without a tenant, as an untyped caller could send it. */
 const withoutTenant = { principal: 'alice' } as unknown as Access<Principal>
 
+/** Tenants that legal-identity did not mint: a copy of a minted one and a plain string. */
+const malformedTenants: readonly [string, Access<Principal>][] = [
+  ['a copy of a minted tenant', { principal: 'alice', tenant: { ...tenantA } }],
+  ['a string', { principal: 'alice', tenant: 'tenant-a' as unknown as typeof tenantA }],
+]
+
+/** Answers of the check that are not one of the three decisions, as a provider could send them. */
+const strayDecisions: readonly [string, unknown][] = [
+  ['undefined', undefined],
+  ['null', null],
+  ['a string', 'allowed'],
+  ['an unknown kind', { kind: 'granted' }],
+  ['unavailable without diagnostic', { kind: 'unavailable' }],
+]
+
+/** Scripts the check to answer a value outside its type. */
+const strayAnswer = (value: unknown) => () => value as AgentAccessDecision
+
 describe.each(operations)('C2 $name', ({ name, target, call }) => {
   it('another tenant is denied before access.check', async () => {
     const { provider, calls } = await setup()
@@ -137,6 +156,32 @@ describe.each(operations)('C2 $name', ({ name, target, call }) => {
     })
     expect(calls).toEqual([])
   })
+
+  it.each(malformedTenants)(
+    'an Access whose tenant is %s is invalid before access.check',
+    async (_, access) => {
+      const { provider, calls } = await setup()
+      expect(failure(await call(provider, access))).toEqual({
+        kind: 'invalid',
+        field: 'tenant',
+        reason: 'type',
+      })
+      expect(calls).toEqual([])
+    },
+  )
+
+  it.each(strayDecisions)(
+    'a check that answers %s returns unavailable and does not pass',
+    async (_, answer) => {
+      const { provider, calls, check } = await setup()
+      check.always(strayAnswer(answer))
+      expect(failure(await call(provider, alice))).toMatchObject({
+        kind: 'unavailable',
+        owner: 'agentAccessCheck',
+      })
+      expect(calls).toEqual(['access.check'])
+    },
+  )
 
   it('check denied returns denied', async () => {
     const { provider, calls, check } = await setup()
@@ -228,6 +273,24 @@ describe('C2 observe', () => {
     check.always(() => Promise.reject(new Error('boom')))
     expect(await take(observe(provider, alice), 5)).toEqual([ended('unavailable')])
   })
+
+  it.each(strayDecisions)('a check that answers %s ends with unavailable', async (_, answer) => {
+    const { provider, calls, check } = await setup()
+    check.always(strayAnswer(answer))
+    expect(await take(observe(provider, alice), 5)).toEqual([ended('unavailable')])
+    expect(calls).toEqual(['access.check'])
+  })
+
+  // 待拥有者: as for a missing tenant, the contract gives no `invalid` end reason. The guard answers
+  // invalid, and the observation ends as `denied`, fail closed, without access.check.
+  it.each(malformedTenants)(
+    '待拥有者: an Access whose tenant is %s ends with denied before access.check',
+    async (_, access) => {
+      const { provider, calls } = await setup()
+      expect(await take(observe(provider, access), 5)).toEqual([ended('denied')])
+      expect(calls).toEqual([])
+    },
+  )
 
   it('allowed shows idle, and the signal closes the observation', async () => {
     const { provider, calls, check } = await setup()
