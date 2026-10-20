@@ -167,7 +167,7 @@ describe('覆盖声明：读仓库', () => {
   }
 
   it('真实读取完整 PD 身份与场景，合法验收无违反', () => {
-    const root = mkdtempSync(join(tmpdir(), 'coverage-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'coverage-')))
     made.push(root)
     write(
       root,
@@ -190,7 +190,7 @@ describe('覆盖声明：读仓库', () => {
   })
 
   it('真实读取多个 topic，文件名可属于声明中的任一个完整身份', () => {
-    const root = mkdtempSync(join(tmpdir(), 'coverage-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'coverage-')))
     made.push(root)
     for (const slug of ['cli', 'model-invocation']) {
       write(
@@ -216,7 +216,7 @@ describe('覆盖声明：读仓库', () => {
   })
 
   it('历史目录不成为来源，非法当前来源仍明确失败', () => {
-    const root = mkdtempSync(join(tmpdir(), 'coverage-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'coverage-')))
     made.push(root)
     write(root, 'product/old.legacy/README.md', '旧格式，不是当前来源\n')
     write(root, 'apps/cli/package.json', '{"scripts":{"acceptance":"vitest run"}}')
