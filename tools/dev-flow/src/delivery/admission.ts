@@ -294,10 +294,15 @@ export function collectAdmission(
     const membership = matching[0]
     if (matching.length !== 1 || membership === undefined)
       throw new InputError('Task Project membership is missing or ambiguous')
-    const values = connection(VALUES, text(membership.id, 'membership.id'), 'fieldValues', value => {
-      if (record(value.project, 'item.project').id !== projectId)
-        throw new InputError('Project item identity mismatch')
-    })
+    const values = connection(
+      VALUES,
+      text(membership.id, 'membership.id'),
+      'fieldValues',
+      value => {
+        if (record(value.project, 'item.project').id !== projectId)
+          throw new InputError('Project item identity mismatch')
+      },
+    )
     let stageSeen = false
     for (const item of values) {
       const value = record(item, 'Project value')

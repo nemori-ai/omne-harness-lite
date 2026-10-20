@@ -186,31 +186,38 @@ function isDispatchReviewer(policy: Policy, actor: Record<string, unknown>, read
   return false
 }
 /**
- * Reads the dispatch comment and the decision inside it. Dispatch eligibility comes from the
- * publish environment, or from adopted delivery facts (`facts`) that must name this same
- * comment, author and body; a cloud session cannot read the environment itself.
+ * Adopted delivery facts stand in for the publish environment read, and only for the comment
+ * they describe: the same URL, author login and node ID, body digest and update time as the
+ * comment read here, and `reviewer` true. Any difference, including a non-reviewer author, is
+ * unknown: the workflow read another comment, the comment changed since, or the facts do not
+ * establish eligibility.
  */
-/**
- * Delivery facts grant dispatch only for the comment they describe: the same URL, author login
- * and node ID, body digest and update time as the comment read here. A difference means the
- * workflow read another comment or the comment changed since; that is unknown, not refusal.
- */
-function factsGrant(
+function requireFactsGrant(
   facts: AuthorityFacts,
   url: string,
   actor: Record<string, unknown>,
   body: string,
-  raw: Record<string, unknown>,
-): boolean {
-  if (facts.url !== url) throw new IntegrationError('unknown', 'Delivery facts name another authority comment')
+  updatedAt: unknown,
+): void {
+  if (facts.url !== url)
+    throw new IntegrationError('unknown', 'Delivery facts name another authority comment')
   if (facts.author !== actor.login || facts.authorNodeId !== actor.node_id)
     throw new IntegrationError('unknown', 'Delivery facts authority author mismatch')
   if (facts.bodySha256 !== digest(body))
     throw new IntegrationError('unknown', 'Delivery facts authority body digest mismatch')
-  if (facts.updatedAt !== raw.updated_at)
+  if (facts.updatedAt !== updatedAt)
     throw new IntegrationError('unknown', 'Delivery facts authority update time mismatch')
-  return facts.reviewer
+  if (!facts.reviewer)
+    throw new IntegrationError(
+      'unknown',
+      `Delivery facts do not show the author as a ${DISPATCH_ENVIRONMENT} reviewer`,
+    )
 }
+/**
+ * Reads the dispatch comment and the decision inside it. Dispatch eligibility comes from the
+ * publish environment, or, when `facts` is given, from adopted delivery facts about this same
+ * comment; a cloud session cannot read the environment itself.
+ */
 export function readAuthority(
   policy: Policy,
   url: string,
@@ -259,7 +266,8 @@ export function readAuthority(
   const body = text(raw.body, 'body')
   const decision = parseDecision(section(body, 'omne-integration-authority:v1'))
   // Dispatch follows the reviewers who confirm trunk publication.
-  if (!(facts === undefined ? isDispatchReviewer(policy, user, read) : factsGrant(facts, url, user, body, raw)))
+  if (facts !== undefined) requireFactsGrant(facts, url, user, body, raw.updated_at)
+  else if (!isDispatchReviewer(policy, user, read))
     throw new IntegrationError(
       'refused',
       `Comment actor is not a reviewer of the ${DISPATCH_ENVIRONMENT} environment`,

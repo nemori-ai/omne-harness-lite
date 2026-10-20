@@ -11,7 +11,8 @@ import { fields, integer, literal, object, section, string, IntegrationError } f
  * Delivery facts for a cloud session: the `delivery-facts` workflow on `github-gate` reads the
  * dispatch eligibility, the Project membership and the Stage with the delivery identity and posts
  * them on the task card. `start` dispatches that workflow, waits for the comment and adopts it
- * only after every check in `fetchDeliveryFacts` holds. The direct path never calls this module.
+ * only after every check in `fetchDeliveryFacts` holds; `readAuthority` then binds the authority
+ * part to the dispatch comment it reads itself. The direct path never calls this module.
  */
 export const DELIVERY_IDENTITY = 'omne-harness-lite-delivery[bot]'
 export const FACTS_WORKFLOW = 'delivery-facts.yml'
@@ -145,6 +146,13 @@ export async function fetchDeliveryFacts(
     throw unknown('Delivery facts require a same-repository task Issue URL')
   const issue = Number(match[2]),
     projectId = config.project.id
+  if (!Number.isSafeInteger(issue)) throw unknown('Delivery facts task Issue number is invalid')
+  const comment =
+    /^https:\/\/github\.com\/([^/]+\/[^/]+)\/issues\/[1-9]\d*#issuecomment-[1-9]\d*$/.exec(
+      scope.authority,
+    )
+  if (comment?.[1] !== config.repository)
+    throw unknown('Delivery facts require a same-repository dispatch comment URL')
   if (projectId === null) throw unknown('Delivery facts require a configured Project')
   const nonce = ports.nonce()
   if (!/^[0-9a-f]{32}$/.test(nonce)) throw unknown('Delivery facts nonce is malformed')
@@ -205,8 +213,10 @@ export async function fetchDeliveryFacts(
   function adopt(): DeliveryFacts | undefined {
     const candidates = comments().flatMap(item => {
       const body = item.body
+      // The nonce is 32 lowercase hex digits, which JSON never escapes, so every comment whose
+      // block carries it also contains it verbatim. Any author counts toward duplication.
       return typeof body === 'string' && body.includes(FACTS_MARKER) && body.includes(nonce)
-        ? [{ user: item.user, body }]
+        ? [{ user: item.user, body, created: item.created_at, updated: item.updated_at }]
         : []
     })
     if (candidates.length > 1) throw unknown('Delivery facts comment is duplicated')
@@ -219,6 +229,9 @@ export async function fetchDeliveryFacts(
     if (login !== DELIVERY_IDENTITY)
       throw unknown('Delivery facts comment author is not the delivery identity')
     if (type !== 'Bot') throw unknown('Delivery facts comment author is not a Bot')
+    // Collaborators with write access can edit any comment; facts must be as the workflow wrote them.
+    if (typeof candidate.created !== 'string' || candidate.updated !== candidate.created)
+      throw unknown('Delivery facts comment was edited or has no timestamps')
     let block: unknown
     try {
       block = section(candidate.body, FACTS_MARKER)

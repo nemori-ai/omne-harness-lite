@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { integrationFixture } from './fixtures/integration.ts'
 import { openIntegration } from '../src/integration/engine.ts'
 import { contextPath } from '../src/integration/context.ts'
+import { FACTS_CLOCK_SKEW_MS } from '../src/integration/delivery-facts.ts'
 
 const homes: string[] = []
 afterEach(() => {
@@ -14,7 +15,7 @@ afterEach(() => {
 })
 const DISPATCHES = 'repos/owner/repo/actions/workflows/delivery-facts.yml/dispatches'
 /**
- * A card in the cloud: the platform double denies GraphQL (except parent), environments and orgs,
+ * A card in the cloud: the platform double denies every GraphQL request, environments and orgs,
  * and answers the delivery-facts workflow with one bot comment. `platform` edits the double.
  */
 function cloud(
@@ -77,14 +78,18 @@ describe('cloud start through the delivery-facts workflow', () => {
       expect(dispatches[0]?.find(arg => arg.startsWith('inputs[nonce]='))).toMatch(
         /^inputs\[nonce\]=[0-9a-f]{32}$/,
       )
-      // Before the first admission capture: dispatch, comments, run; the captures follow.
-      expect(calls.findIndex(call => call.at(-1) === DISPATCHES)).toBeLessThan(
-        calls.findIndex(call => call.at(-1) === 'repos/owner/repo/issues/1'),
+      // Dispatch, comments and the run come before the first admission capture; both captures
+      // follow and use the adopted Project facts.
+      const firstCapture = calls.findIndex(call => call.at(-1) === 'repos/owner/repo/issues/1')
+      expect(calls.findIndex(call => call.at(-1) === DISPATCHES)).toBeLessThan(firstCapture)
+      expect(
+        calls.findIndex(call => call.at(-1) === 'repos/owner/repo/actions/runs/42'),
+      ).toBeLessThan(firstCapture)
+      expect(calls.filter(call => call.at(-1) === 'repos/owner/repo/actions/runs/42')).toHaveLength(
+        1,
       )
-      expect(calls.filter(call => call.at(-1) === 'repos/owner/repo/actions/runs/42')).toHaveLength(1)
       expect(calls.filter(call => call.at(-1) === 'repos/owner/repo/issues/1')).toHaveLength(2)
-      const graphql = calls.filter(call => call[1] === 'graphql')
-      expect(graphql.every(call => call.some(arg => arg.includes('parent{url}')))).toBe(true)
+      expect(calls.filter(call => call[1] === 'graphql')).toEqual([])
       expect(calls.some(call => /environments\/|^orgs\//.test(call.at(-1) ?? ''))).toBe(false)
       expect(calls.filter(call => call[2] === 'POST')).toEqual(dispatches)
     },
@@ -95,7 +100,10 @@ describe('cloud start through the delivery-facts workflow', () => {
     expect(f.calls().filter(call => call.at(-1) === DISPATCHES)).toHaveLength(1)
   })
   it('keeps the direct path when OMNE_DELIVERY_FACTS=direct overrides the cloud detection', async () => {
-    const f = cloud({ cloud: false, facts: null }, { CCR_AGENT_PROXY_ENABLED: '1', OMNE_DELIVERY_FACTS: 'direct' })
+    const f = cloud(
+      { cloud: false, facts: null },
+      { CCR_AGENT_PROXY_ENABLED: '1', OMNE_DELIVERY_FACTS: 'direct' },
+    )
     await expect(f.execute()).resolves.toMatchObject({ ownerTask: f.binding })
     const calls = f.calls()
     expect(calls.some(call => call.at(-1) === DISPATCHES)).toBe(false)
@@ -112,24 +120,80 @@ describe('cloud start through the delivery-facts workflow', () => {
     expect(existsSync(contextPath(f.root))).toBe(false)
   })
   it.each<[string, Record<string, unknown>, string, string]>([
-    ['a non-reviewer author', { facts: { block: { authority: { reviewer: false } } } }, 'refused', 'not a reviewer of the publish environment'],
-    ['facts about another author', { facts: { block: { authority: { author: 'impostor' } } } }, 'unknown', 'author mismatch'],
-    ['facts about another node ID', { facts: { block: { authority: { authorNodeId: 'U_impostor' } } } }, 'unknown', 'author mismatch'],
-    ['facts about an edited body', { facts: { block: { authority: { bodySha256: 'c'.repeat(64) } } } }, 'unknown', 'body digest mismatch'],
-    ['facts with another update time', { facts: { block: { authority: { updatedAt: '2026-10-12T00:00:00Z' } } } }, 'unknown', 'update time mismatch'],
-    ['facts for another Project', { facts: { block: { project: { id: 'P_2' } } } }, 'unknown', 'Project mismatch'],
+    [
+      'a non-reviewer author',
+      { facts: { block: { authority: { reviewer: false } } } },
+      'unknown',
+      'not show the author as a publish reviewer',
+    ],
+    [
+      'facts about another author',
+      { facts: { block: { authority: { author: 'impostor' } } } },
+      'unknown',
+      'author mismatch',
+    ],
+    [
+      'facts about another node ID',
+      { facts: { block: { authority: { authorNodeId: 'U_impostor' } } } },
+      'unknown',
+      'author mismatch',
+    ],
+    [
+      'facts about an edited body',
+      { facts: { block: { authority: { bodySha256: 'c'.repeat(64) } } } },
+      'unknown',
+      'body digest mismatch',
+    ],
+    [
+      'facts with another update time',
+      { facts: { block: { authority: { updatedAt: '2026-10-12T00:00:00Z' } } } },
+      'unknown',
+      'update time mismatch',
+    ],
+    [
+      'facts for another Project',
+      { facts: { block: { project: { id: 'P_2' } } } },
+      'unknown',
+      'Project mismatch',
+    ],
     ['facts for another Issue', { facts: { block: { issue: 2 } } }, 'unknown', 'Issue mismatch'],
-    ['a comment from another login', { facts: { login: 'human' } }, 'unknown', 'not the delivery identity'],
+    [
+      'a comment from another login',
+      { facts: { login: 'human' } },
+      'unknown',
+      'not the delivery identity',
+    ],
     ['a comment whose type is not Bot', { facts: { type: 'User' } }, 'unknown', 'not a Bot'],
+    [
+      'an edited facts comment',
+      { facts: { updatedAt: '2026-10-12T00:00:00Z' } },
+      'unknown',
+      'was edited',
+    ],
     ['a failed run', { run: { conclusion: 'failure' } }, 'unknown', 'did not succeed'],
-    ['a run from another workflow', { run: { path: '.github/workflows/gate-publish.yml' } }, 'unknown', 'run path mismatch'],
+    [
+      'a run from another workflow',
+      { run: { path: '.github/workflows/gate-publish.yml' } },
+      'unknown',
+      'run path mismatch',
+    ],
     ['a run on main', { run: { head_branch: 'main' } }, 'unknown', 'run branch mismatch'],
     ['a push run', { run: { event: 'push' } }, 'unknown', 'run event mismatch'],
-    ['a run created long before the dispatch', { run: { created_at: '2026-10-19T00:00:00Z' } }, 'unknown', 'predates this dispatch'],
+    [
+      'a run created before the dispatch beyond the tolerance',
+      { runCreatedBeforeMs: FACTS_CLOCK_SKEW_MS + 60_000 },
+      'unknown',
+      'predates this dispatch',
+    ],
   ])('refuses %s and writes no context', async (_, platform, code, message) => {
     const f = cloud(platform)
-    await expect(f.execute()).rejects.toMatchObject({ code, message: expect.stringContaining(message) })
+    await expect(f.execute()).rejects.toMatchObject({
+      code,
+      message: expect.stringContaining(message),
+    })
     expect(existsSync(contextPath(f.root))).toBe(false)
-    expect(f.calls().some(call => /environments\/|^orgs\//.test(call.at(-1) ?? ''))).toBe(false)
+    const calls = f.calls()
+    expect(calls.some(call => call[1] === 'graphql')).toBe(false)
+    expect(calls.some(call => /environments\/|^orgs\//.test(call.at(-1) ?? ''))).toBe(false)
   })
 })

@@ -10,6 +10,7 @@ import {
 } from '../src/integration/delivery-facts.ts'
 import { readAuthority } from '../src/integration/authority.ts'
 import { collectAdmission } from '../src/delivery/admission.ts'
+import { GhReadError } from '../src/delivery/github-read.ts'
 import { parseConfig, type CapturedIssue } from '../src/delivery/protocol.ts'
 import { parsePolicy } from '../src/integration/policy.ts'
 import { digest, IntegrationError } from '../src/integration/parse.ts'
@@ -58,11 +59,25 @@ function block(overrides: Record<string, unknown> = {}, nonce = NONCE) {
     ...overrides,
   }
 }
+function without(value: Record<string, unknown>, key: string): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).filter(([name]) => name !== key))
+}
 function fence(value: unknown): string {
   return `Facts for this dispatch.\n\n\`\`\`json omne-delivery-facts:v1\n${JSON.stringify(value)}\n\`\`\`\n`
 }
-function bot(body: string, user: Record<string, unknown> = { login: DELIVERY_IDENTITY, type: 'Bot' }) {
-  return { id: 7, html_url: `${issueUrl}#issuecomment-7`, user, body }
+function bot(
+  body: string,
+  user: Record<string, unknown> = { login: DELIVERY_IDENTITY, type: 'Bot' },
+) {
+  const at = '2026-10-20T10:00:30Z'
+  return {
+    id: 7,
+    html_url: `${issueUrl}#issuecomment-7`,
+    user,
+    body,
+    created_at: at,
+    updated_at: at,
+  }
 }
 function run(overrides: Record<string, unknown> = {}) {
   return {
@@ -127,7 +142,10 @@ describe('facts source detection', () => {
   })
   it.each(['', 'proxy', 'WORKFLOW'])('refuses the override %j as input', value => {
     expect(() => factsSource({ OMNE_DELIVERY_FACTS: value })).toThrow(
-      expect.objectContaining({ code: 'input-error', message: expect.stringContaining('OMNE_DELIVERY_FACTS') }),
+      expect.objectContaining({
+        code: 'input-error',
+        message: expect.stringContaining('OMNE_DELIVERY_FACTS'),
+      }),
     )
   })
 })
@@ -164,7 +182,8 @@ describe('delivery facts over the workflow', () => {
       'repos/owner/repo/issues/1/comments?per_page=100&page=1',
       'repos/owner/repo/actions/runs/42',
     ])
-    for (const call of w.calls.slice(1)) expect(call.slice(0, 3)).toEqual(['api', '--method', 'GET'])
+    for (const call of w.calls.slice(1))
+      expect(call.slice(0, 3)).toEqual(['api', '--method', 'GET'])
     expect(w.calls.filter(call => call[2] === 'POST')).toHaveLength(1)
     expect(JSON.stringify(w.calls)).not.toMatch(/graphql|environments\/|orgs\//)
     expect(w.sleeps).toEqual([])
@@ -188,7 +207,9 @@ describe('delivery facts over the workflow', () => {
     await expect(w.fetch()).resolves.toMatchObject({ run: 42 })
     expect(w.sleeps).toEqual([FACTS_POLL_MS, FACTS_POLL_MS, FACTS_POLL_MS])
     expect(w.calls.filter(call => call.at(-1)?.includes('/comments?'))).toHaveLength(4)
-    expect(w.calls.filter(call => call.at(-1) === 'repos/owner/repo/actions/runs/42')).toHaveLength(3)
+    expect(w.calls.filter(call => call.at(-1) === 'repos/owner/repo/actions/runs/42')).toHaveLength(
+      3,
+    )
   })
   it('reads every comment page and refuses page exhaustion', async () => {
     const filler = Array.from({ length: 100 }, (_, i) => ({ id: i, user: {}, body: 'noise' }))
@@ -200,7 +221,10 @@ describe('delivery facts over the workflow', () => {
   })
   it.each([
     ['no comment ever arrives', world({ comments: [] })],
-    ['the run never completes', world({ runs: [run({ status: 'in_progress', conclusion: null })] })],
+    [
+      'the run never completes',
+      world({ runs: [run({ status: 'in_progress', conclusion: null })] }),
+    ],
   ])('times out after the budget when %s', async (_, w) => {
     await expect(w.fetch()).rejects.toThrow(
       expect.objectContaining({ code: 'unknown', message: 'Delivery facts timed out' }),
@@ -220,7 +244,11 @@ describe('delivery facts over the workflow', () => {
       { comments: [bot(fence(block()), { login: DELIVERY_IDENTITY, type: 'User' })] },
       'not a Bot',
     ],
-    ['an unreadable author', { comments: [bot(fence(block()), null as never)] }, 'author is unreadable'],
+    [
+      'an unreadable author',
+      { comments: [bot(fence(block()), null as never)] },
+      'author is unreadable',
+    ],
     [
       'two blocks in one comment',
       { comments: [bot(fence(block()) + fence(block()))] },
@@ -230,6 +258,26 @@ describe('delivery facts over the workflow', () => {
       'two comments with this nonce',
       { comments: [bot(fence(block())), { ...bot(fence(block())), id: 8 }] },
       'comment is duplicated',
+    ],
+    [
+      'another author quoting this nonce next to the bot comment',
+      {
+        comments: [
+          bot(fence(block())),
+          { ...bot(fence(block()), { login: 'human', type: 'User' }), id: 8 },
+        ],
+      },
+      'comment is duplicated',
+    ],
+    [
+      'a facts comment edited after the workflow posted it',
+      { comments: [{ ...bot(fence(block())), updated_at: '2026-10-20T10:01:00Z' }] },
+      'was edited',
+    ],
+    [
+      'a facts comment without a creation time',
+      { comments: [{ ...bot(fence(block())), created_at: undefined, updated_at: undefined }] },
+      'was edited',
     ],
     [
       'an unclosed block',
@@ -248,28 +296,81 @@ describe('delivery facts over the workflow', () => {
     ],
     [
       'a missing field',
-      { comments: broken(({ authority: { reviewer: _, ...authority }, ...b }) => ({ ...b, authority })) },
+      {
+        comments: broken(b => ({ ...b, authority: without(b.authority, 'reviewer') })),
+      },
       'block is malformed',
     ],
     ['an extra field', { comments: broken(b => ({ ...b, extra: 1 })) }, 'block is malformed'],
-    ['an extra authority field', { comments: broken(b => ({ ...b, authority: { ...b.authority, team: null } })) }, 'block is malformed'],
-    ['schemaVersion 2', { comments: broken(b => ({ ...b, schemaVersion: 2 })) }, 'block is malformed'],
+    [
+      'an extra authority field',
+      { comments: broken(b => ({ ...b, authority: { ...b.authority, team: null } })) },
+      'block is malformed',
+    ],
+    [
+      'schemaVersion 2',
+      { comments: broken(b => ({ ...b, schemaVersion: 2 })) },
+      'block is malformed',
+    ],
     ['a string run id', { comments: broken(b => ({ ...b, run: '42' })) }, 'block is malformed'],
     ['a string issue', { comments: broken(b => ({ ...b, issue: '1' })) }, 'block is malformed'],
-    ['a string reviewer', { comments: broken(b => ({ ...b, authority: { ...b.authority, reviewer: 'true' } })) }, 'block is malformed'],
-    ['a short body digest', { comments: broken(b => ({ ...b, authority: { ...b.authority, bodySha256: 'b'.repeat(63) } })) }, 'block is malformed'],
-    ['an uppercase nonce', { comments: [bot(fence(block({}, NONCE.toUpperCase())) + `\n${NONCE}`)] }, 'block is malformed'],
-    ['a numeric Stage', { comments: broken(b => ({ ...b, project: { ...b.project, stage: 3 } })) }, 'block is malformed'],
-    ['an empty item', { comments: broken(b => ({ ...b, project: { ...b.project, item: '' } })) }, 'block is malformed'],
+    [
+      'a string reviewer',
+      { comments: broken(b => ({ ...b, authority: { ...b.authority, reviewer: 'true' } })) },
+      'block is malformed',
+    ],
+    [
+      'a short body digest',
+      {
+        comments: broken(b => ({
+          ...b,
+          authority: { ...b.authority, bodySha256: 'b'.repeat(63) },
+        })),
+      },
+      'block is malformed',
+    ],
+    [
+      'an uppercase nonce',
+      { comments: [bot(fence(block({}, NONCE.toUpperCase())) + `\n${NONCE}`)] },
+      'block is malformed',
+    ],
+    [
+      'a numeric Stage',
+      { comments: broken(b => ({ ...b, project: { ...b.project, stage: 3 } })) },
+      'block is malformed',
+    ],
+    [
+      'an absent Stage key',
+      { comments: broken(b => ({ ...b, project: without(b.project, 'stage') })) },
+      'block is malformed',
+    ],
+    [
+      'an empty item',
+      { comments: broken(b => ({ ...b, project: { ...b.project, item: '' } })) },
+      'block is malformed',
+    ],
     ['another Issue number', { comments: broken(b => ({ ...b, issue: 2 })) }, 'Issue mismatch'],
     [
       'another authority URL',
-      { comments: broken(b => ({ ...b, authority: { ...b.authority, url: `${issueUrl}#issuecomment-2` } })) },
+      {
+        comments: broken(b => ({
+          ...b,
+          authority: { ...b.authority, url: `${issueUrl}#issuecomment-2` },
+        })),
+      },
       'authority URL mismatch',
     ],
-    ['another Project', { comments: broken(b => ({ ...b, project: { ...b.project, id: 'P_2' } })) }, 'Project mismatch'],
+    [
+      'another Project',
+      { comments: broken(b => ({ ...b, project: { ...b.project, id: 'P_2' } })) },
+      'Project mismatch',
+    ],
     ['another run id', { runs: [run({ id: 43 })] }, 'run identity mismatch'],
-    ['another workflow path', { runs: [run({ path: '.github/workflows/gate-publish.yml' })] }, 'run path mismatch'],
+    [
+      'another workflow path',
+      { runs: [run({ path: '.github/workflows/gate-publish.yml' })] },
+      'run path mismatch',
+    ],
     ['a run on main', { runs: [run({ head_branch: 'main' })] }, 'run branch mismatch'],
     ['a push run', { runs: [run({ event: 'push' })] }, 'run event mismatch'],
     ['a failed run', { runs: [run({ conclusion: 'failure' })] }, 'did not succeed'],
@@ -279,9 +380,17 @@ describe('delivery facts over the workflow', () => {
       { runs: [run({ created_at: new Date(T0 - FACTS_CLOCK_SKEW_MS - 1_000).toISOString() })] },
       'predates this dispatch',
     ],
-    ['a run without a creation time', { runs: [run({ created_at: 'yesterday' })] }, 'predates this dispatch'],
+    [
+      'a run without a creation time',
+      { runs: [run({ created_at: 'yesterday' })] },
+      'predates this dispatch',
+    ],
     ['a run that is not an object', { runs: ['run'] }, 'run is malformed'],
-    ['a comment page that is not a list', { comments: () => ({ secret: 'ghp_token' }) as never }, 'comment page is malformed'],
+    [
+      'a comment page that is not a list',
+      { comments: () => ({ secret: 'ghp_token' }) as never },
+      'comment page is malformed',
+    ],
     ['a comment that is not an object', { comments: ['secret ghp_token'] }, 'comment is malformed'],
     [
       'a failed dispatch',
@@ -318,15 +427,38 @@ describe('delivery facts over the workflow', () => {
     })
     expect(error).toBeInstanceOf(IntegrationError)
     expect(error).toMatchObject({ code: 'unknown', message: expect.stringContaining(message) })
-    expect(String((error as Error).message)).not.toMatch(/ghp_token|P_2|issuecomment-2|gate-publish/)
+    expect(String((error as Error).message)).not.toMatch(
+      /ghp_token|P_2|issuecomment-2|gate-publish/,
+    )
   })
   it('refuses a task URL outside the repository or an unconfigured Project before dispatching', async () => {
     const w = world()
     await expect(
-      fetchDeliveryFacts(policy, config, { ...scope, task: 'https://github.com/other/repo/issues/1' }, w.ports),
-    ).rejects.toThrow('same-repository')
+      fetchDeliveryFacts(
+        policy,
+        config,
+        { ...scope, task: 'https://github.com/other/repo/issues/1' },
+        w.ports,
+      ),
+    ).rejects.toThrow('same-repository task')
     await expect(
-      fetchDeliveryFacts(policy, { ...config, project: { ...config.project, id: null } }, scope, w.ports),
+      fetchDeliveryFacts(
+        policy,
+        config,
+        { ...scope, authority: 'https://github.com/other/repo/issues/1#issuecomment-1' },
+        w.ports,
+      ),
+    ).rejects.toThrow('same-repository dispatch comment')
+    await expect(
+      fetchDeliveryFacts(policy, config, { ...scope, authority: issueUrl }, w.ports),
+    ).rejects.toThrow('same-repository dispatch comment')
+    await expect(
+      fetchDeliveryFacts(
+        policy,
+        { ...config, project: { ...config.project, id: null } },
+        scope,
+        w.ports,
+      ),
     ).rejects.toThrow('configured Project')
     await expect(
       fetchDeliveryFacts(policy, config, scope, { ...w.ports, nonce: () => 'short' }),
@@ -398,19 +530,33 @@ describe('dispatch eligibility from delivery facts', () => {
   }
   it('grants dispatch from facts that match the comment, without reading the environment', () => {
     const calls: string[][] = []
-    const decision = readAuthority(policy, scope.authority, { issues: [captured] }, authorityFacts, read(calls))
+    const decision = readAuthority(
+      policy,
+      scope.authority,
+      { issues: [captured] },
+      authorityFacts,
+      read(calls),
+    )
     expect(decision.task).toEqual(binding)
     expect(calls.map(call => call.at(-1))).toEqual(['repos/owner/repo/issues/comments/1'])
   })
-  it('refuses a non-reviewer author like the direct path does', () => {
+  it('keeps a non-reviewer author unknown without reading the environment', () => {
+    const calls: string[][] = []
     expect(() =>
-      readAuthority(policy, scope.authority, { issues: [captured] }, { ...authorityFacts, reviewer: false }, read([])),
+      readAuthority(
+        policy,
+        scope.authority,
+        { issues: [captured] },
+        { ...authorityFacts, reviewer: false },
+        read(calls),
+      ),
     ).toThrow(
       expect.objectContaining({
-        code: 'refused',
-        message: 'Comment actor is not a reviewer of the publish environment',
+        code: 'unknown',
+        message: 'Delivery facts do not show the author as a publish reviewer',
       }),
     )
+    expect(calls.map(call => call.at(-1))).toEqual(['repos/owner/repo/issues/comments/1'])
   })
   it.each([
     ['URL', { url: `${issueUrl}#issuecomment-2` }, 'another authority comment'],
@@ -420,8 +566,16 @@ describe('dispatch eligibility from delivery facts', () => {
     ['update time', { updatedAt: '2026-10-12T00:00:00Z' }, 'update time mismatch'],
   ])('keeps facts with another %s unknown', (_, change, message) => {
     expect(() =>
-      readAuthority(policy, scope.authority, { issues: [captured] }, { ...authorityFacts, ...change }, read([])),
-    ).toThrow(expect.objectContaining({ code: 'unknown', message: expect.stringContaining(message) }))
+      readAuthority(
+        policy,
+        scope.authority,
+        { issues: [captured] },
+        { ...authorityFacts, ...change },
+        read([]),
+      ),
+    ).toThrow(
+      expect.objectContaining({ code: 'unknown', message: expect.stringContaining(message) }),
+    )
   })
 })
 
@@ -439,10 +593,9 @@ describe('admission with adopted Project facts', () => {
     return (argv: readonly string[]) => {
       calls.push([...argv])
       const path = argv.at(-1) ?? ''
-      if (argv[1] === 'graphql') {
-        if (argv.some(arg => arg.includes('parent{url}'))) return { data: { node: { id: 'I_1', parent: null } } }
-        throw new Error('Project GraphQL must not be read with adopted facts')
-      }
+      if (argv[1] === 'graphql') throw new Error('GraphQL must not be read with adopted facts')
+      if (path === 'repos/owner/repo/issues/1/parent')
+        throw new GhReadError({ message: 'No parent issue found', status: '404' })
       if (path === 'repos/owner/repo/issues/1') return rawIssue
       if (path.includes('/comments?') || path.includes('/dependencies/blocked_by?')) return []
       throw new Error(`unexpected ${path}`)
@@ -450,11 +603,18 @@ describe('admission with adopted Project facts', () => {
   }
   it('records the Stage snapshot and skips the Project reads', () => {
     const calls: string[][] = []
-    const result = collectAdmission(config, scope, backend(calls), { id: 'P_1', item: 'ITEM_1', stage: 'Ready' })
+    const result = collectAdmission(config, scope, backend(calls), {
+      id: 'P_1',
+      item: 'ITEM_1',
+      stage: 'Ready',
+    })
     expect(result.issues[0]?.stage).toBe('Ready')
     expect(result.projectId).toBe('P_1')
-    expect(calls.filter(call => call[1] === 'graphql')).toHaveLength(1)
-    expect(collectAdmission(config, scope, backend([]), { id: 'P_1', item: 'ITEM_1', stage: null }).issues[0]?.stage).toBeNull()
+    expect(calls.filter(call => call[1] === 'graphql')).toEqual([])
+    expect(
+      collectAdmission(config, scope, backend([]), { id: 'P_1', item: 'ITEM_1', stage: null })
+        .issues[0]?.stage,
+    ).toBeNull()
   })
   it.each([
     [{ id: 'P_2', item: 'ITEM_1', stage: 'Ready' }, 'another Project'],

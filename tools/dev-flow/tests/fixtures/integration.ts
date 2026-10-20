@@ -200,9 +200,10 @@ const issue = {
 const endpoint = args.at(-1)
 const page = Number(new URLSearchParams(endpoint.split('?')[1]).get('page') || 1)
 const commentsPage = comments => comments.slice((page - 1) * 100, page * 100)
-// Cloud mode (p.cloud): the proxy denies GraphQL except the parent query, environments and orgs.
+// Cloud mode (p.cloud): the proxy denies every GraphQL request, environments and orgs.
 // The delivery-facts workflow is simulated: the dispatch answers 204, and once it was dispatched
-// the card carries one bot comment (p.facts, with overrides for login, type and block fields).
+// the card carries one bot comment (p.facts, with overrides for login, type, updated_at and block
+// fields). p.run overrides the run fields; p.runCreatedBeforeMs dates the run before the read.
 const sha256 = value => createHash('sha256').update(value).digest('hex')
 const factsComments = () => {
   const dispatch = calls.find(a => a.at(-1) === 'repos/owner/repo/actions/workflows/delivery-facts.yml/dispatches')
@@ -235,7 +236,8 @@ const factsComments = () => {
       issue_url: 'https://api.github.com/repos/owner/repo/issues/1',
       user: { login: p.facts.login || 'omne-harness-lite-delivery[bot]', type: p.facts.type || 'Bot', node_id: 'BOT_1' },
       body: '\x60\x60\x60json omne-delivery-facts:v1\n' + JSON.stringify(block) + '\n\x60\x60\x60',
-      updated_at: '2026-10-11T00:00:00Z',
+      created_at: '2026-10-11T00:00:00Z',
+      updated_at: p.facts.updatedAt || '2026-10-11T00:00:00Z',
     },
   ]
 }
@@ -338,7 +340,7 @@ if (args[1] === 'graphql') {
       event: 'workflow_dispatch',
       status: 'completed',
       conclusion: 'success',
-      created_at: new Date().toISOString(),
+      created_at: new Date(Date.now() - (p.runCreatedBeforeMs || 0)).toISOString(),
       ...(p.run || {}),
     }
   else if (endpoint.includes('/issues/comments/')) {
