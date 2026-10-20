@@ -1,6 +1,6 @@
 # tool 内部架构
 
-本页规定 Tool 实现的内部模块与构造方法。领域位置、责任边界与设计状态归契约包的[领域架构](../../tool-contract/docs/architecture.md)。本包已实现独立执行、记录仓端口与账本工厂、runtime 的逻辑终局路径，以及真实调用从受理到启动记录的路径与它的推进协程。尚未交付的操作回复具名的 `unsupported`，增量名是：已启动执行的收场（`execution facts and release`）、控制（`controls`）、等待（`waits, decisions and resources`）、过程观察（`process observation and diagnostics`）、恢复（`recovery scan`）、排空与交接（`drain and handover`）。计时依赖宿主时钟，该时钟尚未交付。绑定登记表、Catalog 与 Cordis 插件也尚未交付。操作与增量名的对应见[包入口的支持范围](../README_ZH.md#支持范围)，准确范围见 [SPEC](../SPEC.md#当前范围)。
+本页规定 Tool 实现的内部模块与构造方法。领域位置、责任边界与设计状态归契约包的[领域架构](../../tool-contract/docs/architecture.md)。本包已实现独立执行、记录仓端口与账本工厂、runtime 的逻辑终局路径，以及真实调用从受理、启动、事实保管到原结果收场与 queue 名额释放的推进协程。尚未交付的操作回复具名的 `unsupported`，增量名是：真实环境自动释放与未交付事实分支（`execution facts and release`）、控制（`controls`）、等待（`waits, decisions and resources`）、过程观察（`process observation and diagnostics`）、恢复（`recovery scan`）、排空与交接（`drain and handover`）。计时依赖宿主时钟，该时钟尚未交付。绑定登记表、Catalog 与 Cordis 插件也尚未交付。操作与增量名的对应见[包入口的支持范围](../README_ZH.md#支持范围)，准确范围见 [SPEC](../SPEC.md#当前范围)。
 
 ## 内部模块与依赖
 
@@ -47,7 +47,7 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 
 #### 本包的记录仓与决定器（G1）
 
-`createToolLedger(store, guards, clock, configuration)` 返回 `{ commands, reads, admissions, queues }`。`configuration` 给出结果页大小 `resultPageBytes`、修订冲突的重试上限 `ledgerCommitAttempts` 与队列容量 `queueCapacity`，三者都来自 `ToolConfiguration`。`admissions.admit` 回复状态与 `recovered`，`commands.admit` 是只回复状态的契约形状。源码在 [ledger.ts](../src/ledger.ts)、[ledger-decider.ts](../src/ledger-decider.ts)、[ledger-store.ts](../src/ledger-store.ts) 与 [ledger-reads.ts](../src/ledger-reads.ts)。
+`createToolLedger(store, guards, clock, configuration, settlementPorts)` 返回 `{ commands, reads, admissions, queues, facts }`。第五参数 `ToolLedgerSettlementPorts` 注入 `custody.retainResult` 和原环境 `releaseInspection.inspectRelease`。同账本 facts 通过 dependencies 交给 runtime。`configuration` 给出结果页大小 `resultPageBytes`、修订冲突的重试上限 `ledgerCommitAttempts` 与队列容量 `queueCapacity`，三者都来自 `ToolConfiguration`。`admissions.admit` 回复状态与 `recovered`，`commands.admit` 是只回复状态的契约形状。源码在 [ledger.ts](../src/ledger.ts)、[ledger-decider.ts](../src/ledger-decider.ts)、[ledger-store.ts](../src/ledger-store.ts) 与 [ledger-reads.ts](../src/ledger-reads.ts)。
 
 记录仓端口 `ToolLedgerStore<B>` 只有两个操作。`read(domain)` 返回一个事务域的全部记录和当前修订号，或 `unavailable`；返回 `complete` 表示快照包含该域此前每一次已确认的提交。`commit({ domain, expected, revision, writes })` 在 `expected` 等于当前修订号时原子写入全部 `writes` 并把修订号改为 `revision`，否则回答 `conflict`；提交结果不确定时回答 `unknown`，记录仓不可用时回答 `unavailable`。记录仓不解释记录内容，也不做业务判断。`durability` 声明 `none` 或 `durable`；`none` 只能出现在 `./testing`。
 
@@ -57,13 +57,14 @@ ToolCall 决定器输入当前持久状态、具名命令和已核验 guard 快�
 | --- | --- | --- |
 | `call` | `call` | 原调用：受理操作、固定请求、发起来源、当前 `ToolState`、已确认的环境、准备记录、启动记录、启动拒绝与执行引用 |
 | `operation` | `operation:<operation>` | 一次已提交操作：种类、规范输入摘要、提交修订号、具名回执（例如 admit 的 `ToolState`、releaseDelivery 的 `DeliveryState`、planPreparation 的 `PreparationRecord`、prepareStart 的启动记录） |
-| `result` | `result:<version>` | 一个结果版本：原终局、实际终局、效果、完整 `ToolResult`、交付关系、来源证据、产生它的操作 |
+| `result` | `result:<version>` | custody 区分 synthetic 与 execution，后者保留原 final/raw/retain 回执及清理责任。一个结果版本：原终局、实际终局、效果、完整 `ToolResult`、交付关系、来源证据、产生它的操作 |
+| `environment-release` | 按原 preparation.operation 唯一定键 | canonical ReleaseRecord 与最后 ReleaseProgress；任务删除后保留，供同资源认回 |
 | `account` | `account:<event>` | 一笔账目修订及其来源 |
 | `task` | `task:<kind>:<operation>` | 一项待办，形状是契约的 `ToolTask` |
 | `exclusion` | `exclusion:<operation>` | 一次否定答案的排除围栏：操作号与围栏提交的域修订号。该操作的提交删除它 |
 | `queue-entry` | `entry:<call>` | 队列域：一个调用在该 key 下的序号、阶段（`preparing`、`ready`、`held`）、最后一次转换它的操作与该调用固定的并发上限。释放即删除；越过 `preparing` 的条目只由移动它的操作认回 |
 | `queue-counter` | `counter` | 队列域：下一个序号 |
-| `queue-release` | `released:<call>` | 队列域：已释放调用的墓碑，带释放依据（启动前拒绝的排除证据；物理结束证明随后续增量）。与删除条目同提交，没有条目的调用也写；创建条目的决定见到它就不创建；0.0.x 不剪枝 |
+| `queue-release` | `released:<call>` | 队列域：已释放调用的墓碑，带释放依据（启动前拒绝的排除证据；可信原 final 的物理结束证明）。与删除条目同提交，没有条目的调用也写；创建条目的决定见到它就不创建；0.0.x 不剪枝 |
 | `host` | `host:<key>` | 宿主域：宿主提供者的一条记录，值由提供者自己校验 |
 
 #### 队列域与跨域提交
@@ -89,7 +90,8 @@ FIFO key 是 `[scope.owner, scope.key, 定义名]` 的 JSON 文本（P02：受�
 | `prepared` | — | — | 记录已确认环境，删除 `prepare` 待办，写 `queue` 待办 |
 | `enqueue` | prepared 写的 `queue` 待办 | 条目 `ready` | 状态 `queued`，写 `queue` 待办 |
 | `prepareStart` | enqueue 写的 `queue` 待办 | 队首与名额成立则条目 `held`，否则回答等待且不写 | 状态 `starting`、`queue.held`、启动记录、`start` 待办 |
-| `recordStart(started)` | — | — | 状态 `running`，删除 `start` 待办 |
+| `recordStart(started)` | — | — | 状态 `running`，删除 `start` 待办，同提交原 facts 待办 |
+| `preserveResult` | 原 final 的 settle 待办 | （先做第 3 步）删除 entry 并写墓碑 | 独立 retain 已确认后同提交原结果、delivery、ended 与全部后继责任，最后关闭 queue 待办 |
 | `rejectPending`、`recordStart(rejected)` | — | （先做第 3 步）删除条目 | 状态 `settled`、`unavailable` 终局、`queue.released`、`deliver` 待办、`queue` 待办；队列域删除条目后再删除 `queue` 待办 |
 
 启动拒绝的释放是调用域先收尾、队列域后释放的转换：终局先于释放成立，释放只凭调用域里的释放依据（P02：仅逻辑收场不释放名额），崩溃时 `queue` 待办让释放重做；重做时条目已不存在也要写墓碑，已有墓碑则什么也不写。`prepareStart` 的队列步与调用域提交不在同一事务，所以名额可以先于启动记录被持有：这样的 `held` 条目是待履行义务，不是启动，由同一操作身份的重做对账，履行它的前提与触发的拥有者见 [SPEC 第 22 条](../SPEC.md#22-跨域提交与修复)。
@@ -147,8 +149,8 @@ L01–L07 的类型、键、写集合及状态定义均见 [ledger-store.ts](../
 | --- | --- | --- | --- | --- |
 | U01 受理到排队 | call 的受理状态、操作回执、`queue` 任务同提交；queue 的序号与条目同提交 | `admissions.admit` 先提交 call，再 `order`。未完成分配可由 `planPreparation` 补做，是分步推进 | call 中任务保留队列义务；同一派生操作身份认回，不能生成第二条目 | [ledger.ts](../src/ledger.ts) 的 `admissions`，[跨域提交与修复](../SPEC.md#22-跨域提交与修复) |
 | U02 队首与名额 | 一个 queue key 内比较更早未取得名额的条目、held 数和固定 limit，成功把条目改为 held | `prepareStart` 先做 queue 裁决，再写 call；非队首或无名额时不写 queue | queue 已 held 而 call 未写启动意图时，名额仍是待履行义务。同身份重做对账，不把 held 当真实执行 | [decideQueueHold](../src/ledger-start.ts)，[prepareStart](../src/ledger.ts)，[SPEC 22](../SPEC.md#22-跨域提交与修复) |
-| U03 启动 | call 的启动意图、操作回执、start 任务共同提交 | driver 推进原启动协议；真实发起还需启动资格与执行者围栏。外部发起不与 SQL 原子提交 | 回包未知查询原启动，不能换号重跑函数。当前 driver 已调用 live-only 绑定并对账原 authority，仅到启动记录；原事实由受管 reader 自动保管并确认，执行后物理收场尚未交付 | [推进协程](../SPEC.md#23-推进协程)，[P04](../../tool-contract/SPEC.md#p04-实际发起围栏)，[支持范围](../README_ZH.md#支持范围) |
-| U04 释放名额 | call 先保存释放依据及队列任务；queue 删除条目与墓碑同提交 | `releaseQueue` 先提交 queue，再关闭 call 的 queue 任务。`queues.reconcile` 读取调用事实后修复 queue，是分步对账 | 任一步失败保留原任务，按原身份重做。仅逻辑终态不释放；当前 `releaseBasisOf` 只构造启动前排除依据，物理收场后释放尚待实现 | [releaseQueue](../src/ledger.ts)，[releaseBasisOf、decideQueueRelease](../src/ledger-start.ts)，[survey、reconcile](../src/ledger-queue.ts) |
+| U03 启动 | call 的启动意图、操作回执、start 任务共同提交 | driver 推进原启动协议；真实发起还需启动资格与执行者围栏。外部发起不与 SQL 原子提交 | 回包未知查询原启动，不能换号重跑函数。当前 driver 已调用 live-only 绑定并对账原 authority，原事实由受管 reader 自动保管并确认，可信原 final 的收场由第 26 条推进，不重新 start | [推进协程](../SPEC.md#23-推进协程)，[P04](../../tool-contract/SPEC.md#p04-实际发起围栏)，[支持范围](../README_ZH.md#支持范围) |
+| U04 释放名额 | call 先保存释放依据及队列任务；queue 删除条目与墓碑同提交 | `releaseQueue` 先提交 queue，再关闭 call 的 queue 任务。`queues.reconcile` 读取调用事实后修复 queue，是分步对账 | 任一步失败保留原任务，按原身份重做。仅逻辑终态不释放；`releaseBasisOf` 支持启动前排除及已 settled/可信 ended 的原 final 依据 | [releaseQueue](../src/ledger.ts)，[releaseBasisOf、decideQueueRelease](../src/ledger-start.ts)，[survey、reconcile](../src/ledger-queue.ts) |
 | U05 交付释放与消费方 | P08 要求 Tool 的 pending 变 released、原操作回执和生产侧证明同提交；当前决定器还更新 call 及删除 deliver 任务 | 消费方提供 retained 或 processed 证据。Tool 内部提交不等于消费方事实自动共同提交。两端组合及协调者由架构拥有者与消费方决定，见 C01 | 提交未知时双方继续保管，以原 result、delivery、consumer、operation 查询。旧版本释放不解除新 delivery，也不触发内容到期删除 | [P08](../../tool-contract/SPEC.md#p08-过程分页与全文交接)，[decideRelease](../src/ledger-decider.ts)，[#434 的 Tool 侧释放责任](https://github.com/nemori-ai/omne-harness-lite/issues/434) |
 | U06 恢复扫描 | 任务及其后继责任与对应业务变更共同保存；claim 裁定当前协调代次 | P09 要求扫描、载入原事实、认领、逐任务查原端口。当前 queue reconcile 是局部修复，`scanPending`、claim 尚未实现，不能称完整恢复 | 原任务保留查询、保管、控制与清理责任；换协调者不杀原执行。外部 unavailable 或 unknown 不授权新 start/resume；完整扫描由父卡阶段 6 承接 | [P09](../../tool-contract/SPEC.md#p09-账目恢复与退出)，[driver.ts](../src/driver.ts)，[#421 阶段 6](https://github.com/nemori-ai/omne-harness-lite/issues/421) |
 
@@ -298,3 +300,10 @@ runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通�
 ## 原事实读取资源
 
 [driver-facts.ts](../src/driver-facts.ts) 拥有每原 start 的受管 reader 和 ACK 编排。[driver-binding.ts](../src/driver-binding.ts) 按 tenant/call/start 保留原 live 与恢复路由。[driver.ts](../src/driver.ts) 保持每 call 串行、step budget 和统一 retryDelay。读取回调不写 ledger，业务事实及待办仍由 call 域 CAS 决定。信号竞争与退出前提见 [SPEC 第 25 条](../SPEC.md#25-原事实受管推进)。
+
+
+### 原结果与环境清理模块
+
+[ledger.ts](../src/ledger.ts) 拥有边界、当前资格、外部端口调用和多 operation 排除围栏。[ledger-settlement.ts](../src/ledger-settlement.ts) 核原 final、单赢家并生成终局及全部后继任务的同提交写集。[ledger-environment-release.ts](../src/ledger-environment-release.ts) 拥有全过程保管闭包、按 preparation 唯一的 canonical 计划和观察确认。外部 retain 在 CAS 之外只按原身份调用，CAS 重判不能沿用过期闭包。
+
+[driver-settlement.ts](../src/driver-settlement.ts) 从原 task.basis 读取 SavedFact，再重送原 preserveResult。[driver.ts](../src/driver.ts) 在成功后重读 queue 待办，确认已关闭才报告进展和 wake。未确认 ACK 不阻止此路径。正常 completed 关闭 reader，异常终局保留后续原 process 和 blocked facts 责任。完整必要行为归 [SPEC 第 26 条](../SPEC.md#26-原结果收场与释放责任)，跨域顺序见 [flows](flows.md#原结果与释放)。

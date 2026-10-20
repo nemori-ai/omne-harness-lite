@@ -46,7 +46,7 @@ function decimal(value: unknown): value is string {
 }
 
 /** Own data properties only. The copy never evaluates accessors or serializes credentials. */
-function copyData(value: unknown, path = new Set<object>()): unknown {
+export function copyData(value: unknown, path = new Set<object>()): unknown {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value !== 'object' || value === null || path.has(value))
@@ -363,5 +363,34 @@ export function fixFactAcknowledgement(
     })
   } catch {
     return invalid('receipt', 'unserializable-or-invalid-data')
+  }
+}
+
+/** Uses the trusted fact boundary for public settlement fields without accepting a caller proof. */
+export function fixFinalInput<B extends ContentBlock>(
+  input: unknown,
+  policy: ResultPolicy<B>,
+  adoption: Adoption,
+): Outcome<Extract<ToolExecutionFact<B>, { kind: 'final' }>, ToolFailure> {
+  try {
+    if (!object(input)) return invalid('input', 'type')
+    const fields: Data = { kind: 'final' }
+    for (const [target, source] of [
+      ['raw', 'raw'],
+      ['result', 'value'],
+      ['terminal', 'terminal'],
+      ['effect', 'effect'],
+    ] as const) {
+      const slot = readOwnSlot(input, source)
+      if (slot.kind !== 'value') return invalid(source, 'own-data-required')
+      fields[target] = copyData(slot.value)
+    }
+    const checked = fact(fields, policy, adoption)
+    if ('failure' in checked) return checked
+    if (checked.ok.kind !== 'final') return invalid('input', 'final-required')
+    copyData(checked.ok)
+    return succeed(structuredClone(checked.ok))
+  } catch {
+    return invalid('result', 'unserializable-or-invalid-data')
   }
 }

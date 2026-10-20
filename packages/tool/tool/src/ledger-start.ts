@@ -24,7 +24,7 @@ import type {
   ToolTerminal,
 } from '@omne-harness/tool-contract'
 import { invalid } from './boundary.ts'
-import { mintEvidence } from './evidence.ts'
+import { mintEvidence, digestOf } from './evidence.ts'
 import {
   operationRecord,
   put,
@@ -237,13 +237,38 @@ export type Release = Readonly<{ call: ToolCallId; basis: ReleaseBasis }>
  * The basis a call domain holds for releasing its call's queue place, or null: this is the one
  * place that says what releases a place. A start rejection is one (the fence excluded the whole
  * invocation); a call that merely settled is not, because the logical end does not prove that the
- * place is free (P02). The execution-facts increment adds the physical end here.
+ * place is free (P02). An ended execution also needs its exact original saved final and result.
  */
-export function releaseBasisOf(record: CallRecord): ReleaseBasis | null {
-  const { startRejection } = record
-  return startRejection === null
-    ? null
-    : { kind: 'pre-start-rejection', exclusion: startRejection.exclusion }
+export function releaseBasisOf<B extends ContentBlock>(snapshot: Snapshot<B>): ReleaseBasis | null {
+  const record = snapshot.call
+  if (record === null) return null
+  if (record.startRejection !== null)
+    return { kind: 'pre-start-rejection', exclusion: record.startRejection.exclusion }
+  if (
+    record.state.phase !== 'settled' ||
+    record.state.execution.kind !== 'ended' ||
+    record.start === null
+  )
+    return null
+  const result = snapshot.results.get(record.state.result)
+  if (result === undefined || result.custody.kind !== 'execution') return null
+  const proof = record.state.execution.evidence
+  const saved = [...snapshot.facts.values()].find(
+    saved => digestOf(saved.evidence) === digestOf(proof),
+  )
+  if (
+    saved === undefined ||
+    saved.fact.kind !== 'final' ||
+    digestOf(saved.start) !== digestOf(record.start) ||
+    digestOf(record.execution) !== digestOf(record.start.execution) ||
+    digestOf(result.custody.final) !== digestOf(proof) ||
+    digestOf(result.custody.raw) !== digestOf(saved.fact.raw) ||
+    digestOf(result.value) !== digestOf(saved.fact.result) ||
+    digestOf(result.terminal) !== digestOf(saved.fact.terminal) ||
+    digestOf(result.effect) !== digestOf(saved.fact.effect)
+  )
+    return null
+  return { kind: 'physical-end', proof }
 }
 
 /**

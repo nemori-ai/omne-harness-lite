@@ -160,6 +160,49 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     }
   }
 
+  const closeFinished = (step: CallAccess<P>, recovery: ToolRecovery<B>): void => {
+    if (recovery.state.phase !== 'settled' || recovery.start === null) return
+    const blockedSource = recovery.tasks.some(
+      task =>
+        task.kind === 'facts' &&
+        task.state === 'blocked' &&
+        (task.diagnostic === 'settled-facts-source-ended' ||
+          task.diagnostic === 'settled-facts-source-unavailable'),
+    )
+    if (recovery.state.terminal.kind !== 'completed' && !blockedSource) return
+    const key = keyOf(step, recovery.start)
+    const session = sessions.get(key.call)?.get(key.start)
+    if (session !== undefined) close(key, session)
+  }
+
+  const sourceGap = async (
+    step: Step<P>,
+    recovery: ToolRecovery<B>,
+    reason: 'settled-facts-source-ended' | 'settled-facts-source-unavailable',
+    cancelled: () => boolean,
+  ): Promise<Result> => {
+    if (cancelled()) return aborted()
+    const task = recovery.tasks.find(task => task.kind === 'facts')
+    if (task?.kind !== 'facts') return idle
+    const resolution = { kind: 'blocked', reason } as const
+    const recorded = await commands.recordTask({
+      principal: step.principal,
+      tenant: step.tenant,
+      call: step.call,
+      operation: factTaskOperation('facts-blocked', { task, resolution }),
+      task,
+      resolution,
+    })
+    if ('ok' in recorded) return { kind: 'continue', progressed: true }
+    if (
+      recorded.failure.kind === 'commit-unknown' ||
+      recorded.failure.kind === 'stale-revision' ||
+      isExcludedFailure(recorded.failure)
+    )
+      return { kind: 'continue', progressed: false }
+    return { kind: 'failed', failure: recorded.failure }
+  }
+
   const receive = async (
     step: Step<P>,
     recovery: ToolRecovery<B>,
@@ -168,6 +211,8 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     const start = recovery.start
     if (start === null) return { kind: 'blocked', diagnostic: 'a facts task has no original start' }
     if (cancelled()) return aborted()
+    const abnormal =
+      recovery.state.phase === 'settled' && recovery.state.terminal.kind !== 'completed'
     const key = keyOf(step, start)
     let session = sessions.get(key.call)?.get(key.start)
     if (session !== undefined && session.closing !== null) {
@@ -177,7 +222,10 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     if (session === undefined) {
       const live = await liveOf(step, start)
       if (cancelled()) return aborted()
-      if ('failure' in live) return { kind: 'failed', failure: live.failure }
+      if ('failure' in live)
+        return abnormal
+          ? sourceGap(step, recovery, 'settled-facts-source-unavailable', cancelled)
+          : { kind: 'failed', failure: live.failure }
       const controller = new AbortController()
       try {
         const cursor =
@@ -202,7 +250,9 @@ export function createFactDriver<P, B extends ContentBlock, E>(
         listen(key, session, step)
       } catch {
         controller.abort()
-        return { kind: 'failed', failure: sourceFailure() }
+        return abnormal
+          ? sourceGap(step, recovery, 'settled-facts-source-unavailable', cancelled)
+          : { kind: 'failed', failure: sourceFailure() }
       }
     }
     if (cancelled()) return aborted()
@@ -213,6 +263,18 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     }
     if (ready.kind !== 'batch') {
       session.resume = null
+      if (abnormal) {
+        const result = await sourceGap(
+          step,
+          recovery,
+          ready.kind === 'ended'
+            ? 'settled-facts-source-ended'
+            : 'settled-facts-source-unavailable',
+          cancelled,
+        )
+        if (result.kind === 'continue' && result.progressed) close(key, session)
+        return result
+      }
       close(key, session)
       void session.closing?.then(() => {
         if (!session.signal.aborted && !step.signal.aborted)
@@ -282,5 +344,5 @@ export function createFactDriver<P, B extends ContentBlock, E>(
     }
   }
 
-  return { receive, acknowledge, signalsForRun }
+  return { receive, acknowledge, signalsForRun, closeFinished }
 }

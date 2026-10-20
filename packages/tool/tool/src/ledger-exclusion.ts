@@ -50,10 +50,16 @@ export function isExcludedFailure(failure: ToolFailure): boolean {
   )
 }
 
-/** The writes of an operation's commit also remove the exclusion fence of that operation. */
-export function withExclusionRemoved<B extends ContentBlock>(
+/** A commit removes the exclusion fences of all its operation receipts. */
+export function withExclusionsRemoved<B extends ContentBlock>(
   writes: readonly LedgerWrite<B>[],
-  operation: ToolOperationId | null,
+  operations: ReadonlySet<ToolOperationId>,
 ): readonly LedgerWrite<B>[] {
-  return operation === null ? writes : [...writes, { kind: 'delete', key: exclusionKey(operation) }]
+  return [
+    ...writes,
+    ...[...operations].map(operation => ({
+      kind: 'delete' as const,
+      key: exclusionKey(operation),
+    })),
+  ]
 }

@@ -128,7 +128,10 @@ export function deliveryId(ordinal: number): ToolDeliveryId {
 }
 
 /** Purpose and full locator determine a distinct task identity within the call domain. */
-export function factTaskOperation(purpose: 'settle' | 'fact-ack', locator: unknown) {
+export function factTaskOperation(
+  purpose: 'settle' | 'fact-ack' | 'facts-blocked',
+  locator: unknown,
+) {
   const text = `${purpose}:${digestOf(locator)}`
   return minted(decodeToolOperationId(text), text)
 }

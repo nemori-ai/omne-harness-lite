@@ -6,6 +6,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   ConsumerRef,
+  Effect,
   DeliveryState,
   ReleasedDelivery,
   DurableEvidence,
@@ -36,6 +37,7 @@ import {
   taskKey,
   factKey,
   type FactEventRecord,
+  type EnvironmentReleaseRecord,
   type FactBatchRecord,
   type FactStreamRecord,
   type ProcessRecord,
@@ -50,6 +52,7 @@ import {
   type OperationReceipt,
   type OperationRecord,
   type ResultRecord,
+  type ResultCustody,
   type TenantId,
 } from './ledger-store.ts'
 
@@ -60,6 +63,7 @@ export type Snapshot<B extends ContentBlock> = Readonly<{
   call: CallRecord | null
   operations: ReadonlyMap<string, OperationRecord>
   results: ReadonlyMap<string, ResultRecord<B>>
+  releases: ReadonlyMap<string, EnvironmentReleaseRecord>
   facts: ReadonlyMap<string, FactEventRecord<B>>
   batches: ReadonlyMap<string, FactBatchRecord>
   streams: ReadonlyMap<string, FactStreamRecord>
@@ -75,6 +79,7 @@ export function snapshotOf<B extends ContentBlock>(
   domain: LedgerDomain,
   read: Extract<LedgerRead<B>, { kind: 'complete' }>,
 ): Snapshot<B> {
+  const releases = new Map<string, EnvironmentReleaseRecord>()
   const facts = new Map<string, FactEventRecord<B>>()
   const batches = new Map<string, FactBatchRecord>()
   const streams = new Map<string, FactStreamRecord>()
@@ -87,6 +92,9 @@ export function snapshotOf<B extends ContentBlock>(
   const exclusions = new Map<string, ExclusionRecord>()
   for (const record of read.records) {
     switch (record.kind) {
+      case 'environment-release':
+        releases.set(record.environmentRelease.release.preparation, record.environmentRelease)
+        break
       case 'fact-event':
         facts.set(record.fact.key, record.fact)
         break
@@ -126,6 +134,7 @@ export function snapshotOf<B extends ContentBlock>(
   }
   return {
     domain,
+    releases,
     facts,
     batches,
     streams,
@@ -422,24 +431,21 @@ export type FirstVersion<B extends ContentBlock> = Readonly<{
 }>
 
 /**
- * The writes that settle a call without any execution: the first result version with its
- * pending delivery, the replacement-processing account and the deliver task. The caller adds
- * the call record and the receipt, because it knows the state the settlement produces.
+ * The first original result and its delivery relation. Execution and synthetic settlement add
+ * their own state, custody duties and accounting without duplicating the result identity.
  */
-export function settlementWrites<B extends ContentBlock>(
+export function firstResultWrites<B extends ContentBlock>(
   place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
   consumer: ConsumerRef,
-  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
+  terminal: ToolTerminal,
+  effect: Effect,
   value: ToolResult<B>,
+  custody: ResultCustody,
   mint: Mint,
 ): Readonly<{ version: FirstVersion<B>; writes: readonly LedgerWrite<B>[] }> {
   const { tenant, call, operation } = place
   const version = resultVersion(1)
   const delivery = { kind: 'pending', delivery: deliveryId(1), consumer } as const
-  const effect = { kind: 'not-started' } as const
-  const resultBody = { terminal, effect, value }
-  // ResultPage.source locates the tenant, the call, the exact version, the delivery and the
-  // operation that produced the version, its actual source.
   const resultPlace = { tenant, call, result: version, delivery: delivery.delivery, operation }
   const record: ResultRecord<B> = {
     tenant,
@@ -451,10 +457,10 @@ export function settlementWrites<B extends ContentBlock>(
     effect,
     value,
     delivery,
-    source: mintEvidence('result', resultPlace, mint.revision, resultBody),
+    source: mintEvidence('result', resultPlace, mint.revision, { terminal, effect, value }),
     settledBy: operation,
+    custody,
   }
-  const account = replacementAccount(call)
   const task: ToolTask = {
     kind: 'deliver',
     operation,
@@ -464,23 +470,50 @@ export function settlementWrites<B extends ContentBlock>(
     delivery: delivery.delivery,
     consumer,
   }
-  const accountPlace = { tenant, call, event: ADMISSION_EVENT }
   return {
     version: { version, delivery, record },
+    writes: [put({ kind: 'result', result: record }), put({ kind: 'task', task })],
+  }
+}
+
+/** Synthetic settlement additionally records the work of producing a replacement result. */
+export function settlementWrites<B extends ContentBlock>(
+  place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
+  consumer: ConsumerRef,
+  terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
+  value: ToolResult<B>,
+  mint: Mint,
+): Readonly<{ version: FirstVersion<B>; writes: readonly LedgerWrite<B>[] }> {
+  const first = firstResultWrites(
+    place,
+    consumer,
+    terminal,
+    { kind: 'not-started' },
+    value,
+    { kind: 'synthetic' },
+    mint,
+  )
+  const account = replacementAccount(place.call)
+  return {
+    version: first.version,
     writes: [
-      put({ kind: 'result', result: record }),
+      ...first.writes,
       put({
         kind: 'account',
         account: {
-          tenant,
-          call,
+          tenant: place.tenant,
+          call: place.call,
           start: null,
-          source: mintEvidence('account', accountPlace, mint.revision, account),
+          source: mintEvidence(
+            'account',
+            { tenant: place.tenant, call: place.call, event: ADMISSION_EVENT },
+            mint.revision,
+            account,
+          ),
           event: ADMISSION_EVENT,
           value: account,
         },
       }),
-      put({ kind: 'task', task }),
     ],
   }
 }

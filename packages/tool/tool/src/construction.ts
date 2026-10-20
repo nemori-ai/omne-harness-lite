@@ -103,6 +103,7 @@ export type ToolLedgerQueues<P> = Readonly<{
 }>
 
 export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
+  facts: ToolLedgerFacts<P, B>
   commands: ToolCommands<P, B>
   admissions: ToolLedgerAdmissions<P>
   queues: ToolLedgerQueues<P>
@@ -129,4 +130,10 @@ export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
   read(
     input: CallAccess<P> & Readonly<{ basis: DurableEvidence }>,
   ): Reply<import('./ledger-store.ts').SavedFact<B>>
+}>
+
+/** Existing effectful ports used to confirm settlement and resource release. */
+export type ToolLedgerSettlementPorts<P> = Readonly<{
+  custody: Pick<ToolOutputCustody<P>, 'retainResult'>
+  releaseInspection: Pick<ToolEnvironment<P, unknown>, 'inspectRelease'>
 }>

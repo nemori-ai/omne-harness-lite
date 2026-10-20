@@ -37,6 +37,7 @@ import {
   text,
   type Block,
   type Principal,
+  testSettlementPorts,
 } from './runtime-values.ts'
 
 function deferred<T>() {
@@ -380,6 +381,7 @@ describe('managed original facts', () => {
       guards(),
       createMemoryToolClock(),
       configurationOf({}),
+      testSettlementPorts(),
     )
     expect(ok(await rebuilt.facts.read({ ...c.access, basis: settle.basis })).fact).toEqual(
       completedFinal(),

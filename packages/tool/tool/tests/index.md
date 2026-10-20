@@ -41,3 +41,8 @@
 - [来源确认、未知重入与 operation 围栏](fact-acknowledgement.spec.ts)。
 
 - [自动原事实与取消恢复组合](driver-facts.spec.ts)。
+
+- [原结果与三域未知](ledger-settlement.spec.ts)。
+- [canonical 环境清理与报告核验](ledger-environment-release.spec.ts)。
+- [多 operation 排除交错](exclusion-interleavings.spec.ts)。
+- [收场、同 slot 后继、ACK 与异常来源组合](driver-settlement.spec.ts)。

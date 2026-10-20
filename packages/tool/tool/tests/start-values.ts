@@ -21,6 +21,7 @@ import {
   type ToolLiveExecution,
   type ToolStartRecord,
   type ToolExecutionFact,
+  type ToolOutputCustody,
   type ToolStartAuthority,
   type ToolState,
 } from '@omne-harness/tool-contract'
@@ -64,6 +65,7 @@ import {
   type Principal,
   type Spies,
   type TestHost,
+  testSettlementPorts,
 } from './runtime-values.ts'
 
 /** What the environment provider answers for a call's preparation. */
@@ -81,6 +83,7 @@ export type StartOptions = HarnessOptions &
     bindingsPort?: (
       base: ToolBindings<Principal, Block, TestEnvironment>,
     ) => ToolBindings<Principal, Block, TestEnvironment>
+    custodyPort?: (base: ToolOutputCustody<Principal>) => ToolOutputCustody<Principal>
     /** Builds over this memory instead of a new one: a second runtime over the same records. */
     memory?: MemoryToolLedgerStore<Block>
     /** Wraps the memory store, to make one commit or read of the start path misbehave. */
@@ -431,6 +434,7 @@ export type StartHarness = Readonly<{
   environments: TestEnvironments
   identities: TestToolIdentities
   source: TestInvocationSource<Principal>
+  custody: ToolOutputCustody<Principal>
   internalRequests: Map<string, FixedToolRequest>
   /** The calls whose timing segment the clock was asked to begin. */
   begun: readonly string[]
@@ -465,23 +469,29 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const binding = options.binding ?? testBinding(authorityPort, options.bindingPort)
   const bindings = options.bindingsPort?.(binding.bindings) ?? binding.bindings
   const factAcknowledgements = createToolFactAcknowledgementGuard(bindings)
+  const environments = testEnvironments(options.environment ?? new Map())
+  const originalCustody = testSettlementPorts().custody
+  const custody = options.custodyPort?.(originalCustody) ?? originalCustody
+  const settlement = { custody, releaseInspection: environments }
   const ledger = createToolLedger(
     store,
     { ...guards(options), factAcknowledgements },
     clock,
     config,
+    settlement,
   )
-  const environments = testEnvironments(options.environment ?? new Map())
   const publicLedger = createToolLedger(
     store,
     { ...guards(options), sources: source.guard, factAcknowledgements },
     clock,
     config,
+    settlement,
   )
   const dependencies: ToolDependencies<Principal, Block, TestEnvironment> = {
     commands: options.commands?.(ledger.commands) ?? ledger.commands,
     admissions: publicLedger.admissions,
     queues: ledger.queues,
+    facts: ledger.facts,
     reads: options.readsPort?.(ledger.reads) ?? ledger.reads,
     bindings,
     environments: options.environmentsPort?.(environments) ?? environments,
@@ -504,7 +514,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
       'invalidate',
       'resolve',
     ]),
-    custody: refusing('custody', ['preserve', 'inspect', 'retainResult']),
+    custody,
     catalog: refusing('catalog', ['inspect', 'usage', 'search']),
     children: refusing('children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
     operationIdentities: identities.operationIdentities,
@@ -565,7 +575,13 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     rebuildRuntime: () => createToolRuntime(dependencies, config).runtime,
     commands: ledger.commands,
     // Internal admission recall tests carry source facts from the previous harness.
-    ledger: createToolLedger(store, { ...guards(options), factAcknowledgements }, clock, config),
+    ledger: createToolLedger(
+      store,
+      { ...guards(options), factAcknowledgements },
+      clock,
+      config,
+      settlement,
+    ),
     queues: ledger.queues,
     host,
     authority,
@@ -573,6 +589,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     environments,
     identities,
     source,
+    custody,
     begun: clock.begun,
     drive,
     runOnce,

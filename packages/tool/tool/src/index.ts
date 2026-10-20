@@ -8,6 +8,7 @@ export type {
   ToolLedgerConfiguration,
   ToolLedgerQueues,
   ToolLedgerFacts,
+  ToolLedgerSettlementPorts,
 } from './construction.ts'
 export { createIndependentToolScope } from './independent-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
@@ -36,6 +37,9 @@ export type {
   QueueReleaseRecord,
   ReleaseBasis,
   ResultRecord,
+  ResultCustody,
+  CleanupDuty,
+  EnvironmentReleaseRecord,
   StartRejection,
   ToolLedgerStore,
 } from './ledger-store.ts'

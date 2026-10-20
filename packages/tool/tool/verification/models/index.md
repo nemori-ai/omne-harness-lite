@@ -9,3 +9,8 @@
 - [事实保管责任交接模型](FactCustody.tla)。
 - [事实保管安全配置](FactCustody.cfg)。
 - [未保管先释放的负控配置](FactCustody-unsafe.cfg)。
+
+- [原结果与队列释放模型](SettlementRelease.tla)。
+- [三域交接安全配置](SettlementRelease.cfg)。
+- [保管已应用但未确认的负控](SettlementRelease-unsafe-custody.cfg)。
+- [提前关闭 queue 责任的负控](SettlementRelease-unsafe-queue.cfg)。

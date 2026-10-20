@@ -225,7 +225,9 @@ export function readRecovery<B extends ContentBlock>(
     preparations: call.preparations,
     waits: [],
     suspensions: [],
-    rawOutputs: [],
+    rawOutputs: [...snapshot.results.values()].flatMap(result =>
+      result.custody.kind === 'execution' ? [result.custody.raw] : [],
+    ),
     tasks: snapshot.tasks,
     program: null,
     scheduling: null,
