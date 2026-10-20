@@ -1058,7 +1058,7 @@ RFC-0004 的 superseded 状态与更正标注，RFC-0002、RFC-0009 的后继关
 | --- | --- | --- | --- |
 | 第一阶段准入、轨道树、上游关系、退役条件、任务与条件 | [integration.md](../engineering/integration.md) | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
 | 第二阶段设计（承接 RFC-0004 写回表“第二阶段”一行） | integration.md「第二阶段目标」 | 待写回 | 未切换 |
-| `gate-publish`、`gate-track`、`gate-reconcile` 与 `gate/README.md` | `github-gate` | 已写回，`github-gate` 提交 `9816de07`；切换前在测试仓库 `aiephoenix-gate-lab/gate-probe` 实测，记录见 [gate-probe#39](https://github.com/aiephoenix-gate-lab/gate-probe/issues/39) | 2026-10-20 切换（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
+| `gate-publish`、`gate-track`、`gate-reconcile` 与 `gate/README.md` | `github-gate` | 已写回，`github-gate` 提交 `9816de07` | 2026-10-20 切换（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
 | registry 字段、`start` 的核对、route | [policy registry](../engineering/integration-policy.json)、集成工具 [SPEC](../../tools/dev-flow/src/integration/SPEC.md) 与 [README](../../tools/dev-flow/src/integration/README.md) | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
 | 操作说明 | [开发指南](../development.md#多层分支操作)、[agent交付操作](../engineering/agent-delivery.md)、`branch-integration` 技能 | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
 | release 的依据链接 | [对外交付边界](../engineering/publication.md) | 已写回 | 2026-10-20 随实施卡写回（[#497](https://github.com/nemori-ai/omne-harness-lite/issues/497)），AIEPhoenix |
