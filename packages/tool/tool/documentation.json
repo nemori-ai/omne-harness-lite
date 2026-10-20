@@ -126,7 +126,12 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "settlement",
+          "anchor": "26-原结果收场与释放责任"
+        }
+      ]
     },
     {
       "id": "docs-overview",
@@ -381,7 +386,12 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "settlement-release",
+          "anchor": "原结果与队列释放模型"
+        }
+      ]
     },
     {
       "id": "verification-models-index",

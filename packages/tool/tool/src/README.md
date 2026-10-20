@@ -5,7 +5,7 @@
 - [execute-tool.ts](execute-tool.ts) 实现执行包装器 `executeTool`：核对作用域，运行作者，再调用 `finish`。
 - [limits.ts](limits.ts) 是 `ToolAuthorLimits` 的闭合检查，两个入口共用。
 - [json-tree.ts](json-tree.ts) 用 json-text 的 `judgeJsonValue` 检查等待请求的标签 JSON 树并取得冻结副本，再给出规范文本与字节数。树的判定规则归 json-text；写文本的遍历用显式栈，超过字节上限即停止。字节上限也限定检查的工作量：每个被访问的节点至少写出一个字节，所以检查最多访问 `maxBytes` 次（不超过节点上限 1 000 000），访问更多的树文本必然超过上限，判为 `too-large`，不再读完整棵树；只有 `maxBytes` 不小于节点上限时才可能得到 `budget`。
-- [construction.ts](construction.ts) 给出 runtime 工厂的构造形状 `ToolDependencies` 与 `ToolConfiguration`，以及账本读取的 `ToolLedgerConfiguration` 与账本的 admit 入口 `ToolLedgerAdmissions`、队列维护入口 `ToolLedgerQueues`。
+- [construction.ts](construction.ts) 给出 runtime 工厂的构造形状 `ToolDependencies` 与 `ToolConfiguration`，以及账本读取的 `ToolLedgerConfiguration` 与账本的 admit 入口 `ToolLedgerAdmissions`、队列维护入口 `ToolLedgerQueues`、原事实恢复读口 `ToolLedgerFacts` 及第五构造参数 `ToolLedgerSettlementPorts`。
 - [configuration.ts](configuration.ts) 在构造时检查配置：runtime 检查全部字段，账本检查它读取的三个字段（`resultPageBytes`、`ledgerCommitAttempts`、`queueCapacity`）。可选的 `driverStepsPerRun`（推进协程一次运行的步数，缺省 16）与 `driverRetryDelayMs`（因记录仓或端口失败结束、环境答 `pending` 或 `unknown`、或用尽步数而没有提交或认回任何一步的运行再被运行前的等待，缺省 1000，1 到 2147483647 的整数）由同名函数给出。超出范围抛 `TypeError`。
 - [ledger-store.ts](ledger-store.ts) 定义记录仓端口 `ToolLedgerStore`（G1）：事务域、记录（含否定答案的 `exclusion` 围栏与队列域的墓碑 `queue-release`）、写入、读取与提交结果，以及记录键。
 - [ledger-guards.ts](ledger-guards.ts) 定义账本的受信快照 `ToolLedgerGuards`：资格守卫（同时证明租户是铸造的值）、来源守卫、文本结果工厂、结果政策与参数解析预算。
@@ -34,3 +34,8 @@
 - [ledger-fact-ack.ts](ledger-fact-ack.ts) 核原回执与 operation，并同提交记录确认和清除责任。
 
 - [driver-facts.ts](driver-facts.ts) 拥有原 start 的受管读取、清理竞争及原回执 ACK 编排。
+
+- [ledger-settlement.ts](ledger-settlement.ts) 核原 final，生成唯一原结果、delivery、ended 与全部后继责任的同提交写集。
+- [ledger-environment-release.ts](ledger-environment-release.ts) 核全部历史保管闭包，按 preparation 认回 canonical 环境计划并记录释放观察。
+- [cleanup-boundary.ts](cleanup-boundary.ts) 在首次 await 前封闭复制三个清理 Mutation 的业务字段。
+- [driver-settlement.ts](driver-settlement.ts) 从原 task.basis 读取 SavedFact，再以原 operation 重送 preserveResult。driver 在成功后复核原 queue 待办已关闭才报告进展。完整行为见 [SPEC 第 26 条](../SPEC.md#26-原结果收场与释放责任)。

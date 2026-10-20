@@ -17,10 +17,10 @@
 | 公开类型已导出 | 已导出：构造形状 `ToolDependencies` 与 `ToolConfiguration` 及其周边的账本形状，记录仓端口 `ToolLedgerStore` 与它的记录类型，受信快照 `ToolLedgerGuards`，`ExecuteToolFailure`，以及宿主提供者用的 `recordKey`、`isTenantShape` 与 `canonicalDigest` | 根入口 | `tests/public-entry.spec.ts` 核对根导出、导入图、清单依赖与 Cordis 路径。`*.spec-d.ts` 核对签名 |
 | 纯契约函数已实现 | 本包没有。契约函数在 `tool-contract` | 无 | 无 |
 | 独立执行已实现 | `createIndependentToolScope` 与 `executeTool`。作用域用本地接收者、显式上限和内存等待历史。回执只有 `local` | 根入口 | 作用域与包装器的 P11 规则，用可控的接收者与提供者替身核对。没有真实执行环境，不含 Cordis |
-| runtime 已实现的路径 | `createToolLedger` 与 `createToolRuntime`。内部账本按操作身份幂等受理。调用已知不可用的工具，或参数完整但非法，不进入环境或执行者就收场。`queries.lookup` 与 `queries.queryOperation` 查到它，`readResult` 分页读取，`releaseDelivery` 按两条交接路径解除交付，`account` 查账。真实工具的调用，经 `invoke` 分配身份、绑定来源并受理后由推进协程带到启动记录：环境准备、在调用方固定的范围与上限内按 FIFO 排队、启动守卫、启动围栏与 live-only 绑定的 `start`。绑定失败或抛错先核实原围栏，只有永久排除确认后才形成不可用终局。未知回执查询原绑定，保留启动待办与名额。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。启动前被拒绝的调用以 `unavailable` 收场，`effect` 为 `not-started`。`inspect` 转给装配传入的 Catalog 端口。本包没有 Catalog 提供者。driver 自动保管原 live 的 process/final 并确认来源，支持信号取消和 cursor 续接 | 根入口。`./testing` 给非耐久记录仓与显式依赖装配 | 托管路径测试消费契约源码入口，在非耐久记录仓上运行，环境、启动授权与时钟用替身。受信测试桥先保存胶囊证据、consume，再调用契约内存 executor。方法尝试、唯一 acceptance 与实际 launch 分别计数。`tool-host-local` 用真实的本地启动协调器运行本 runtime。只有一个进程。耐久性没有覆盖 |
-| 尚未交付的宿主与提供者 | 已启动执行的收场及随后的名额释放。控制、计时段开启之后的计时（经过时间、期限、暂停）、等待、过程观察、恢复、排空与交接。耐久记录仓（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)）。真实执行环境（[#278](https://github.com/nemori-ai/omne-harness-lite/issues/278)）。宿主时钟、绑定登记表与 Catalog。Cordis 插件 | 无 | 无 |
+| runtime 已实现的路径 | `createToolLedger` 与 `createToolRuntime`。内部账本按操作身份幂等受理。调用已知不可用的工具，或参数完整但非法，不进入环境或执行者就收场。`queries.lookup` 与 `queries.queryOperation` 查到它，`readResult` 分页读取，`releaseDelivery` 按两条交接路径解除交付，`account` 查账。真实工具的调用，经 `invoke` 分配身份、绑定来源并受理后由推进协程带到启动记录：环境准备、在调用方固定的范围与上限内按 FIFO 排队、启动守卫、启动围栏与 live-only 绑定的 `start`。绑定失败或抛错先核实原围栏，只有永久排除确认后才形成不可用终局。未知回执查询原绑定，保留启动待办与名额。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。启动前被拒绝的调用以 `unavailable` 收场，`effect` 为 `not-started`。`inspect` 转给装配传入的 Catalog 端口。本包没有 Catalog 提供者。driver 自动保管原 live 的 process/final 并确认来源，支持信号取消和 cursor 续接，并从已存原 final 收场、修复名额释放及保留异常输出责任。环境清理支持计划和报告核验 | 根入口。`./testing` 给非耐久记录仓与显式依赖装配 | 托管路径测试消费契约源码入口，在非耐久记录仓上运行，环境、启动授权与时钟用替身。受信测试桥先保存胶囊证据、consume，再调用契约内存 executor。方法尝试、唯一 acceptance 与实际 launch 分别计数。`tool-host-local` 用真实的本地启动协调器运行本 runtime。只有一个进程。耐久性没有覆盖 |
+| 尚未交付的宿主与提供者 | 真实环境 release 自动驱动、完整异常源恢复。控制、完整计时（经过时间、期限、暂停）、等待、过程观察、恢复、排空与交接。耐久记录仓（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)）。真实执行环境（[#278](https://github.com/nemori-ai/omne-harness-lite/issues/278)）。宿主时钟、绑定登记表与 Catalog。Cordis 插件 | 无 | 无 |
 
-到达启动记录的调用停在 `running`，一直占用名额。账本受信入口 `commands.receiveFacts` 已支持 process/final 保管。账本通过 `commands.recordFactAcknowledgement` 保存来源确认。runtime 推进协程自动续读原事实并确认来源；物理释放尚未实现。同租户、完整 consumer 与固定请求再次 `invoke` 认回原引用。原回执与当前状态分开，重入沿原调用与 start 推进。
+已启动调用在原 final 独立保管及收场提交前保持名额。driver 随后按原操作修复 queue 释放；原调用成功回执本身不证明 queue 待办已经关闭。账本受信入口 `commands.receiveFacts` 已支持 process/final 保管。账本通过 `commands.recordFactAcknowledgement` 保存来源确认。runtime 推进协程自动续读原事实并确认来源；已支持名额释放，环境资源释放仍是独立责任。同租户、完整 consumer 与固定请求再次 `invoke` 认回原引用。原回执与当前状态分开，重入沿原调用与 start 推进。
 
 绑定失败通过独立的 `/start-failed` 操作回执认回。已读到 committed 标记的协程不再调用 start，当前协程也记住尚未确认的失败并重试原标记。
 
@@ -41,7 +41,7 @@
 | `controls` | `control` 门面已按新 operation 委托；真实 ledger 仍 unsupported | `control`、`recordControl` |
 | `waits, decisions and resources` | `queries.readWait`；回应保留在受信内部端口 | `openWait`、`attachRegistration`、`attachResource`、`recordResponse`、`closeWait` |
 | `process observation and diagnostics` | `readProcess`、`readDiagnostics` | `preserveProcess`、`recordLateFact`、`recordLateResult` |
-| `execution facts and release` | `content.read`、`content.raw` | `preserveResult`、`recordAccount`、`planRelease`、`recordRelease`、`recordTask` |
+| `execution facts and release` | `content.read`、`content.raw` | `recordAccount`，以及异常 settled facts 的 blocked 分支以外的 `recordTask` |
 | `recovery scan` | `recover` | `scanPending`、`claim`、`settleLost` |
 | `drain and handover` | `quiesce`、`inspectDrain`、`handover` | 无 |
 | `checkpointed executors` | 无 | `prepareResume`、`planSuspension`、`suspend` |
@@ -67,13 +67,23 @@ process 的 sequence 是非负十进制数。append 支持文本及思考文本�
 
 普通调用方使用 `runtime.invoke`。宿主运行原调用后，driver 自动读取原 live，invoke 不等待事实流结束。宿主须在需要该连接时保持 run.signal 有效。run 返回本身不等于 abort。
 
-每个 tenant/call/原 start 只有一个 reader，至多一个在途 next 和一个 ready。读取回调只保存 ready 并请求唤醒。driver 在原 step budget 内保存保管、发送原回执并记录来源确认。fact-ack 优先于阶段分支，无 live 时沿原 recover 路由处理。
+每个 driver 对同 tenant/call/原 start 只有一个 reader，至多一个在途 next 和一个 ready。读取回调只保存 ready 并请求唤醒。driver 在原 step budget 内保存保管、发送原回执并记录来源确认。settled queue 修复及尚未终局的原 final 收场先于 fact-ack，ACK 失败不能阻塞收场。一批未确认前仍不读下一批。ACK 保留原 live 或 recover 路由。
 
 abort 阻止该连接的新读取、调度和命令。已发出的 ledger/source 命令可能完成或结果未知，仍按原 receipt/task 恢复。下一次宿主 run 从保存 cursor 接回。旧 reader 清理期间的新 run 保留最新 signal 意图，待 next 与 return 都结束后按仍有效信号唤醒。不合作的源可使清理长期未完成，本包不提供退出时限或生产扫描。
 
-流 end/throw 不生成 final、不释放名额。重连及宿主拒绝唤醒沿 driverRetryDelayMs。unsupported 输入停止自动重试。inspectStart 的 settled 结果缺原 batch/cursor，driver 返回具名缺口 `settled-start-facts-recovery-needs-original-batch-and-cursor` 并保留任务，不造批次或重新启动。
+正常 completed 收场关闭 reader，未确认 ACK 保留原 live 或 recover 路由。异常收场保留 reader，晚到原 process 仍保管并 ACK，不改原结果；随后 end/throw/失联持久保存具名 blocked facts。协调取消不等同源失联。尚未收场时，重连及宿主拒绝唤醒沿 driverRetryDelayMs。流 end/throw 本身不证明执行结束。unsupported 输入停止自动重试。inspectStart 的 settled 结果缺原 batch/cursor，driver 返回具名缺口 `settled-start-facts-recovery-needs-original-batch-and-cursor` 并保留任务，不造批次或重新启动。
+
+## 原结果与环境清理
+
+`receiveFacts` 保存 final 与 settle 待办，不直接终局。`preserveResult` 核对本域原 final，主动确认 `custody.retainResult` 后，原子建立唯一原结果、delivery、真实 effect、ended 与全部后继任务。重试保持原身份。保管已生效但丢答仍不等于已确认。
+
+`planRelease` 按原 preparation 认回唯一 canonical 计划，任务关闭后不重建。正常 completed 的全部历史外部引用必须已有独立保管；旧 file 地址不足以证明覆盖。非正常 final 保留 blocked 清理与来源责任。`recordRelease` 经原环境 inspectRelease 核验已报告的 released，不调用环境 release。名额释放不等于环境资源释放。
+
+final 没有实际结束时钟 marker。running 计时保留 unknown、原 segment、已知累计与 blocked clock 任务，不以晚到 elapsed 或零伪造时长。完整条件见 [收场规则](SPEC.md#26-原结果收场与释放责任)。
 
 ## 使用
+
+账本第五参数必须显式提供 `{ custody, releaseInspection: environments }`。runtime dependencies 同时传入同账本 `commands`、`reads`、`admissions`、`queues` 与 `facts`。构造片段见[英文使用说明](README.md#usage)，公开构造形状见 [public-api](docs/public-api.md)。
 
 独立程序和应用装配依赖本包与 `@omne-harness/tool-contract`。其他领域的生产代码只依赖 `@omne-harness/tool-contract`。其他领域的测试可以把 `@omne-harness/tool/testing` 作为开发依赖。它导出非耐久记录仓 `createMemoryToolLedgerStore` 与下述装配工厂。
 

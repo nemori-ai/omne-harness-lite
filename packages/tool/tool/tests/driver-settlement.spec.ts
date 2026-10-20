@@ -445,7 +445,6 @@ describe('original final settlement in one shared driver', () => {
       await f.pump()
       const pending = await f.load(first.call)
       expect(pending.state.phase).toBe('settled')
-      // The original command can report success while its queue tail is still pending.
       await f.h.runOnce(first.call, first.controller.signal)
       await f.h.runOnce(second.call, second.controller.signal)
       await f.pump()

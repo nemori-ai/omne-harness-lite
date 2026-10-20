@@ -26,7 +26,7 @@ stage 的 0、1、2、3、4 分别为尚未关联、reserved、issued、admitted
 | Resolve | [testing-source.ts](../../src/testing-source.ts) 的 resolve，在当前资格核验后读取唯一键，在无 await 的写段分配保存 reservation。完整请求被抽象为两个不同值，完整键被抽象为两个键；回执内容和权限判定未形式化，由组合测试检查 |
 | Issue、ReturnSource、LoseSource、UnknownIssuance | 同文件 reserved/issued 及 runtime 的来源结果映射。来源分配与签发没有异步事务等待；同步 beforeIssue 钩子直接保留 reserved 并返回原身份的 issuance-unknown，下一次同键续签。模型拆分签发与返回，测试还覆盖已签发来源的未知回包；两者均不证明生产签发事务 |
 | Admit、ReturnReceipt、LoseAdmission | [runtime.ts](../../src/runtime.ts) 调用原 admissions.admit；[ledger.ts](../../src/ledger.ts) 按原 operation 和固定输入认回。模型将各域的既有内部提交对账抽象为一步 |
-| Launch、Settle | driver 的原启动围栏与已接受启动唯一性。真实 ledger 当前只推进到 running，settled 代表已有最终收场事实的安全分支，完整执行终局仍未实现 |
+| Launch、Settle | driver 的原启动围栏与已接受启动唯一性。Settle 仍只抽象已有最终收场事实的安全分支，不验证实际 retain、call 与 queue 交接；这些交接由下述 SettlementRelease 模型单独检查 |
 | Repeat | 同键原意图再次 invoke，不以当前 lookup 的空读换身份。唤醒丢失及补 wake 由组合测试验证，模型通过公平 Resolve、ReturnSource、Admit 和 ReturnReceipt 表达同意图准入续做，不对 Launch/Settle 加公平前提 |
 
 该模型不涵盖跨进程、断电、UUID 碰撞、生产来源存储排除、实际停止、调度扫描或外部效果 exactly-once。两个 runtime 共享内存来源的测试只证明该实例的并发唯一性。
@@ -69,3 +69,43 @@ node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/is
 ```
 
 正控须搜索完成并无错误。负控允许未保管就源释放，须命中 Invariant SourceReleaseRequiresCustody is violated。解析失败或其他非零退出不构成预期反例。工具版本、JAR 和模型/config SHA-256、命令、状态数及原输出保留任务 tmp。
+
+## 原结果与队列释放模型
+
+[SettlementRelease.tla](SettlementRelease.tla) 检查本实现 [原结果收场](../../SPEC.md#26-原结果收场与释放责任) 的有限安全性质。它有一个已经启动的原调用、一个可信且完整的已存 final、两个竞争 preserve 操作 a/b，以及原身份重读和重试。final 的真实性是本模型的输入前提，不从任意 terminal 推导。模型不把结果唯一性、保管确认或 queue 释放当作初始假设。
+
+模型分开独立 custody、call 与 queue 三个域。retain 表示两个协调者各自的待发、未知或确认观察，custodyApplied 是外部保管实际状态，两者不能互相代替。两操作的 retain 都指同一原 final 的稳定保管身份，不另分配身份。callReceipts、callReply、originals、deliveries、winner、settled、ended、queueDuty 表示调用域及其本地回执。entry/tombstone 和 queueReply 表示队列实际状态与观察。closeReply 表示最后 call duty 关闭的回执。callRevision 有界为 0、1、2，分别对应初始、原结果提交和 duty 关闭；它不是原结果版本计数 originals。
+
+| 性质 | 判据 |
+| --- | --- |
+| 原结果已有确认的独立保管，已应用但丢答不足 | ResultRequiresConfirmedCustody |
+| 原版本及 delivery 单赢家，竞争或重试不新增 | OneOriginal |
+| call 成立后 duty 留存，直到确认 queue 释放 | CallDutyRetained |
+| entry 删除与墓碑共同成立 | DeleteWithTombstone |
+| 迟到入队不复活墓碑 | NoResurrection |
+| 关闭 call duty 前已有确认的 queue 释放 | CloseRequiresQueueConfirmation |
+
+### 动作与源码映射
+
+| 动作 | 实现位置与原子边界 |
+| --- | --- |
+| Begin、RetainApplied、RetainDropped、RetryRetain | [ledger.ts](../../src/ledger.ts) 的 preserveResult 主动保管，以及 [ledger-settlement.ts](../../src/ledger-settlement.ts) 的原 final 与稳定 retain 身份。RetainApplied(answer=unknown) 已写保管但丢答；RetainDropped 未写而答 unknown；重试不换身份。确认只能来自同身份 retain 的成功回执 |
+| PrepareCall、CallApplied、CallDropped、ReadCall | ledger 的保管后 CAS、原 operation 回执认回及 queue tail。CallApplied 是一个 call 域原子动作，写 original/delivery/settled/ended/receipt/duty；answer=unknown 区分已应用丢答，CallDropped 区分未应用丢答。ReadCall 读取真实原回执，未提交时重试原操作，不假设未知就是未提交 |
+| RejectCompetitor、RefreshCompetitor | checkSettlement 的 expected 检查和刷新后 conflict，原赢家不可替换。两个操作可在外部保管及 call 提交前交错 |
+| BeginQueue、QueueApplied、QueueDropped、ReadQueue | [ledger.ts](../../src/ledger.ts) 的 releaseQueue 和 [ledger-start.ts](../../src/ledger-start.ts) 的释放决定。queue 删除 entry 与写墓碑同提交，call 不参与这个事务。unknown 之后可读回实际墓碑并确认，未应用则同身份重试 |
+| CloseDuty、CloseDropped、ReadClose | [ledger.ts](../../src/ledger.ts) 的 releaseQueue 调用 [ledger-start.ts](../../src/ledger-start.ts) 的 decideCloseQueueTask，独立 call CAS 最后清 duty。关闭提交也区分 applied-unknown 与 dropped-unknown，原身份重读不重复原结果 |
+| LateEnqueue | 队列域 order/enqueue 对永久墓碑的检查。没有墓碑剪枝或过期时间假设 |
+
+本模型假设各域 CAS 原子、外部 retain 对原 final 幂等、可信来源及 guard 正确。它没有共同事务，没有公平假设，只检查有限安全性。它不证明精化、进展、生产耐久、跨进程、断电、环境资源释放或实际执行 exactly-once。P01 多 operation 排除、输入复制、资格、任意输入、reader/ACK、完整环境闭包与时钟未建模；这些由相应真实内存组合和 [排除交错测试](../../tests/exclusion-interleavings.spec.ts) 验证。旧 InvokeRecovery 和 FactCustody 模型的范围保持原样，不因新模型加入就覆盖完整收场。
+
+### 执行与负控
+
+在仓库根运行已安装 TLC，使用真实共享测试槽与单 worker。单次元数据和日志写获准任务 tmp，不下载依赖。
+
+```sh
+node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/issue-432/developer-u4/tlc-safe -config packages/tool/tool/verification/models/SettlementRelease.cfg packages/tool/tool/verification/models/SettlementRelease.tla
+node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/issue-432/developer-u4/tlc-unsafe-custody -config packages/tool/tool/verification/models/SettlementRelease-unsafe-custody.cfg packages/tool/tool/verification/models/SettlementRelease.tla
+node scripts/with-test-slot.mjs tlc -workers 1 -noGenerateSpecTE -metadir tmp/issue-432/developer-u4/tlc-unsafe-queue -config packages/tool/tool/verification/models/SettlementRelease-unsafe-queue.cfg packages/tool/tool/verification/models/SettlementRelease.tla
+```
+
+安全配置必须完整搜索、状态队列归零且无错误。custody 负控允许以已应用但未确认的保管进入提交，必须命中 `Invariant ResultRequiresConfirmedCustody is violated`。queue 负控允许在 queue 未确认时关闭 call duty，必须命中 `Invariant CloseRequiresQueueConfirmation is violated`。超时、语法错误和无关异常都不算负控成功。模型/config/JAR SHA-256、工具版本、命令、退出码、状态数及完整原日志留任务 tmp。状态导出可用于核验三域未知切点及完成状态确实可达，不以最终成功退出代替这些观察。

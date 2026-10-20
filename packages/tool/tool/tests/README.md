@@ -56,4 +56,10 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 
 [fact-acknowledgement.spec.ts](fact-acknowledgement.spec.ts) 使用真实启动的契约内存执行源、真实 ledger 和配对 recover 绑定，覆盖来源 ACK 丢答、确认与任务同提交、原 operation 认回、同身份异输入、历史 progress、新 operation 可查询回执、伪 proof、跨租户、异步输入突变及 P01 围栏。测试提供者均为非耐久，尚不证明 runtime 自动续读或物理收场。
 
-[driver-facts.spec.ts](driver-facts.spec.ts) 从真实 runtime.invoke 进入真实 ledger 与绑定源，验证 run 返回后 emit 的 process/final 自动保管和 ACK、源释放后重建 final、每 start 单 reader/next、一个 ready、不同 call 独立推进、发起前及在途取消、return 拒绝、清理中的新 signal、注册竞争、cursor 重连和拒绝唤醒。200 字符 admission 的用例经受信内部 admission fixture 启动，验证自动保管与 ACK 清除、确认操作可查询，以及提交未知后重试保持原操作与回执。该用例不验证公开来源签发。受控 settled 恢复快照只验证 ACK 优先级。inspectStart settled 缺原批时保留任务。资源画像复用两批自动组合，通过 next/return 与宿主监听计数观察回收，使用 verbose reporter 输出 FACT_RESOURCE。它不增加普通门面的调试 API，不证明生产资源退出时限。
+[driver-facts.spec.ts](driver-facts.spec.ts) 从真实 runtime.invoke 进入真实 ledger 与绑定源，验证 run 返回后 emit 的 process/final 自动保管和 ACK、源释放后重建 final、每 start 单 reader/next、一个 ready、不同 call 独立推进、发起前及在途取消、return 拒绝、清理中的新 signal、注册竞争、cursor 重连和拒绝唤醒。200 字符 admission 的用例经受信内部 admission fixture 启动，验证自动保管与 ACK 清除、确认操作可查询，以及提交未知后重试保持原操作与回执。该用例不验证公开来源签发。受控 settled 恢复快照只验证相应 ACK 路径，不代替真实收场组合。inspectStart settled 缺原批时保留任务。资源画像复用两批自动组合，通过 next/return 与宿主监听计数观察回收，使用 verbose reporter 输出 FACT_RESOURCE。它不增加普通门面的调试 API，不证明生产资源退出时限。
+
+## 原结果收场验证
+
+[ledger-settlement.spec.ts](ledger-settlement.spec.ts) 验证第 26 条的原 final 资格、主动 retain、唯一原结果、call/queue 未知与恢复、可信结束及计时未知。[ledger-environment-release.spec.ts](ledger-environment-release.spec.ts) 验证 canonical 计划、全部历史闭包、原环境 inspectRelease、Mutation 输入固定及受限 blocked facts。[exclusion-interleavings.spec.ts](exclusion-interleavings.spec.ts) 核同提交各 operation 的否定围栏，不以主操作检查代替 canonical plan 身份检查。
+
+[driver-settlement.spec.ts](driver-settlement.spec.ts) 使用真实 runtime 与非耐久 ledger/custody/executor，观察原作者计数、原结果和下一同 slot 调用。它覆盖 ACK 离线仍收场、正常 reader 关闭及 ACK 恢复、异常 late process/end/throw/失联、取消不误标源失败，以及成功后仍有 queue 待办时具名 blocked 并停止热循环。内存组合不证明生产耐久、完整环境 release 驱动或跨进程。
