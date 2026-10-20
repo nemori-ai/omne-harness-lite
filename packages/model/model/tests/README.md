@@ -8,9 +8,15 @@
 
 固定输入归 [fixtures](fixtures/index.md)。持续验证义务见 [verification](../../model-contract/verification/index.md)，目录导航见 [index](index.md)。
 
+## 独立执行
+
+[execute.spec.ts](execute.spec.ts) 经真实 model 根入口连接公开 createScriptedTransport，检查单次发送、重复迭代、并发推进、首供应商、准备拒绝和物化回执。[execute-lifecycle.spec.ts](execute-lifecycle.spec.ts) 使用本成员受控传输，覆盖准备等待取消、启动后确认与失联、消费者早退、原生 return 排队，以及终局交付前的清理次序和失败报告。[execute.spec-d.ts](execute.spec-d.ts) 检查根函数精确签名。
+
+[execute-transport.spec.ts](execute-transport.spec.ts) 直接对 provider 的 transport 运行共同符合性，逐项要求六个 transport ID 为 pass。该套件不调用 executeModel，不能单独证明执行组合。上述执行测试才覆盖真实 executeModel 的交接。受控传输只提供事实、等待和故障，不替执行函数完成取消分类、回执校验或清理。这些证据没有真实 HTTP、厂商模型、耐久后端或托管运行。
+
 ## 安装闭包
 
-`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景只导入 `@omne-harness/model`、`@omne-harness/model-contract` 与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口及真实构造壳，不证明托管业务执行或生产宿主。
+`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景导入 `@omne-harness/model`、`@omne-harness/model-contract`、契约 testing 入口与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。另用已安装根入口的 executeModel 连接公开脚本传输，验证一次发送与两级关闭。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口及真实构造壳，不证明托管业务执行或生产宿主。
 
 ## 内存行为资源
 

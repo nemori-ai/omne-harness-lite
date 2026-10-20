@@ -6,6 +6,7 @@
 
 - [凭据判定与状态快照](credential.ts)。
 - [独立发送接缝](deliver.ts)。
+- [独立执行与资源关闭](execute.ts)。
 
 - [运行工厂构造壳](runtime.ts)。
 - [内存测试公开入口](testing/index.ts)。

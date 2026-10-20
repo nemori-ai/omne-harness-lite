@@ -3,15 +3,22 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { expect, it } from 'vitest'
 
-it('the public entry exports credential delivery and judgment, not the store or the contract values', async () => {
+it('the public entry exports standalone execution, runtime construction and credential functions', async () => {
   const root = await import('@omne-harness/model')
   expect(Object.keys(root).sort()).toEqual(
-    ['createModelRuntime', 'deliver', 'judgeGate', 'judgePresence', 'judgeResolution'].sort(),
+    [
+      'createModelRuntime',
+      'executeModel',
+      'deliver',
+      'judgeGate',
+      'judgePresence',
+      'judgeResolution',
+    ].sort(),
   )
 })
 
 it('the source reaches neither a custodian, Cordis nor the host package', () => {
-  for (const name of ['index.ts', 'deliver.ts', 'credential.ts', 'runtime.ts']) {
+  for (const name of ['index.ts', 'deliver.ts', 'credential.ts', 'runtime.ts', 'execute.ts']) {
     const source = readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
     expect(source.includes('@deepseek-ai/cordis'), name).toBe(false)
     expect(source.includes('model-host-local'), name).toBe(false)
@@ -73,7 +80,7 @@ it('the root import graph never reaches testing, host, Cordis or private contrac
     for (const match of source.matchAll(/(?:from\s+|import\s*)['"]([^'"]+)['"]/gu)) {
       const specifier = match[1]
       if (specifier === undefined) throw new Error('import match')
-      expect(specifier).not.toMatch(/cordis|host-local|\/testing|model-contract\//u)
+      expect(specifier).not.toMatch(/cordis|host-local|session|legacy|\/testing|model-contract\//u)
       if (specifier.startsWith('.')) walk(new URL(specifier, url))
     }
   }

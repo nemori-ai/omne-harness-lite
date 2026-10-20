@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Model domain implementation: credential presence and resolution judgment; the managed runtime is not implemented yet",
+  "description": "Model domain implementation: standalone execution and credential judgments; managed runtime construction only",
   "engines": {
     "node": ">=24"
   },

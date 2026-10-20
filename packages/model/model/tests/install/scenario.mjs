@@ -2,8 +2,9 @@
 // caller outside the repository delivers a call through injected credential ports and judges a
 // custodian snapshot. Any failed assertion exits non-zero and fails the closure report.
 import assert from 'node:assert/strict'
-import { deliver, judgePresence, judgeResolution } from '@omne-harness/model'
+import { deliver, executeModel, judgePresence, judgeResolution } from '@omne-harness/model'
 import { MODEL_SEND, decodeCredentialId } from '@omne-harness/model-contract'
+import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 
 function identity(account, organization) {
@@ -102,3 +103,54 @@ assert.deepEqual(await shell.quiesce(), {
   },
 })
 assert.equal('driver' in shell.runtime, false)
+
+const adoption = name => ({
+  owner: 'installed-consumer',
+  name,
+  revision: '1',
+  digest: `digest-${name}`,
+})
+const request = {
+  profile: adoption('profile'),
+  suppliers: [
+    {
+      adoption: adoption('supplier'),
+      recipient: 'fixture',
+      model: 'fixture',
+      credential: { kind: 'factory' },
+    },
+  ],
+  fallback: false,
+  retryPolicy: adoption('retry'),
+  parameters: [],
+  system: [],
+  messages: [],
+  tools: [],
+  toolChoice: 'none',
+  representation: adoption('representation'),
+  parameterAdoptions: [],
+  source: adoption('source'),
+}
+const ending = { kind: 'completed', reason: 'stop' }
+const scripted = createScriptedTransport({
+  receipt: {
+    supplier: request.suppliers[0].adoption,
+    representation: request.representation,
+    payloadDigest: 'installed-payload',
+  },
+  facts: [],
+  ending: { kind: 'terminated', termination: ending },
+  rejection: null,
+})
+const independent = []
+for await (const fact of executeModel(request, scripted.transport, new AbortController().signal))
+  independent.push(fact)
+assert.deepEqual(independent, [{ kind: 'ended', termination: ending }])
+assert.deepEqual(scripted.counts(), {
+  prepare: 1,
+  materialize: 1,
+  start: 1,
+  closePrepared: 1,
+  closeMaterialized: 1,
+})
+console.log('scenario ok: standalone executeModel sent once and closed both resources')
