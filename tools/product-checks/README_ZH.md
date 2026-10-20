@@ -183,6 +183,17 @@ pnpm run acceptance:scenarios
 | stream-assembly  | SC-2 导入由 core-pure-imports、时钟由 no-wall-clock 承载；SC-1 与 content-blocks 采用同一指定解析模块规则                                                                  | SC-3 拒绝不改状态与 SC-4 快照不共享可变部分须实际测试，不能靠 import 白名单替代                                                     |
 | asset-evaluation | SC-1 的导入与时钟复用已有两条规则；SC-3 判别结果类型及无结果分支的实际反例                                                                                                 | SC-2 消费者缓存键；纯度的全局访问和实际副作用仍需代码审阅/测试                                                                      |
 
+## 测试临时目录的物理路径
+
+`test-temp-physical-path` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，来源是 Issue #560 C5 与[验证说明「包级测试责任与边界」](../../docs/verification.md#包级测试责任与边界)。约定与原因归验证说明，本节只说明规则查什么。
+
+- 扫描范围：`packages/`、`apps/`、`tools/` 下的测试与夹具。路径含 `/tests/`，或文件名是 `*.spec.ts`、`*.test.ts`、`*.spec.mts`、`*.test.mts`。只扫 `.ts` 与 `.mts`。
+- 报出：`mkdtempSync` 或 `mkdtemp` 的第一个实参来自系统临时目录，而建出的目录没有取物理路径。来自系统临时目录指实参里有 `tmpdir()` 或 `process.env.TMPDIR`，可经 `join`、`resolve` 等调用、模板字符串、`+`、`??`、`||`、本文件的局部常量。具名导入改名、`fs.`／`os.` 成员调用都认。
+- 放过：建目录的调用直接是 `realpathSync`、`realpath` 或 `realpathSync.native` 的第一个实参，中间可隔括号、`await`、非空断言。实参里的 `tmpdir()` 已先取物理路径时也放过，例如 `mkdtempSync(join(realpathSync(tmpdir()), …))`。基准目录不来自系统临时目录时不查，例如仓库 `tmp/` 或函数参数。
+- 故意报出：先建目录、下一句再 `realpathSync(dir)` 的两段式。原路径仍在作用域里，可能被直接比较。
+
+不覆盖：`.js`／`.mjs` 测试、`scripts/` 与 `examples/` 下的测试、跨文件传入的临时目录、重新赋值、`mkdtemp(prefix, callback)` 回调写法、`.then(realpath)` 链式写法。正反验证命令：`pnpm --filter @omne-harness/product-checks exec vitest run tests/test-temp-physical-path.spec.ts`。
+
 ## 模型凭据的逐符号结构守卫
 
 `model-credential-boundary` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，正常 CLI 同时扫描实际 `packages/`、`apps/`、`examples/`、`tools/`、`scripts/` 执行模块及配置别名解析结果。collector 先规范化仓库根路径，末尾斜杠不会改变根 `tsconfig` 的别名解析。配置的 `extends` 写相对路径时按文件读；写包名时按 Node 的规则从该配置所在目录解析，读到锁文件钉住的那份安装；解析不到就报错停止。它采用 D-075、目录 v3 V3-10、CCL rev2 MCR-V7 与 D-092 的装配权限。
