@@ -161,8 +161,8 @@ factory 的精确采用、官方身份、当前无 tenant 绑定及查询 ID 来
 
 每个原写在首次提交前固定完整参数，operation 使用具有128位熵的随机值生成。未确认写先 query 原 operation，确定后重放原方法和参数，不改 expected、dispatch 或 payload。查询拒绝、异常或仍未知不证明原写未提交，原尝试、资源和容量继续保留。已确认 committed 但原方法暂不能返回回执时，同样保留原责任；只有权威未提交且原写明确拒绝才可按未提交结束。物化或窗口未知保留资源但零 start。已明确未发的资格拒绝不会因原 not-sent 写的已知冲突改称未知发送；未确认记录仍保留原责任。已经可能 start 的异常或记录冲突始终 unknown，不改报未发。
 
-start 返回事实而记录未确认时，原流和资源由 sender 有界保留，不预取、不 return、不 close。认回原写后只交出一次原流。并发重入返回 busy unknown，异输入拒绝；同一后端的独立 sender 由共享认领阻止第二次 start。未确认、活资源及释放失败均保留容量，满时在新资源取得前拒绝；没有过期遗忘。后续重试须由既有协议产生新的 dispatch。
+start 返回事实而记录未确认时，原流和资源由 sender 有界保留，不预取、不 return、不 close。认回原写后只交出一次原 window 和原流，不再次 start。并发重入返回 busy unknown，异输入拒绝；同一后端的独立 sender 由共享认领阻止第二次 start。未确认、活资源及释放失败均保留容量，满时在新资源取得前拒绝；没有过期遗忘。后续重试须由既有协议产生新的 dispatch。
 
 交出 facts 后只允许一个 iterator，推进串行。耗尽、return、throw 或读取异常均按 materialized、prepared、resource 逆序尝试全部释放，各钩子最多一次。失败抛安全 resource-release-failed，保持可观察且继续占位。signal 只向原传输请求停止，sender 不在 abort 回调关闭原事实流。正常释放才删除本地尝试；后续 send 仍读权威 dispatch，不会再次 start。关闭、跨进程恢复、生产有界调度及完整控制排空不在此构造的实现范围。
 
-内存测试的来源登记与同步围栏以 [testing/types.ts](src/testing/types.ts) 和 [state.ts](src/testing/state.ts) 为准。缺 sending 配置没有默认成功凭据。脚本仅模拟外部传输；产品不得依赖 testing。共同 started 结果尚无 window，当前直接消费者只消费 facts，不据此提供通用 driver 接续。
+内存测试的来源登记与同步围栏以 [testing/types.ts](src/testing/types.ts) 和 [state.ts](src/testing/state.ts) 为准。缺 sending 配置没有默认成功凭据。脚本仅模拟外部传输；产品不得依赖 testing。共同 started 结果交出已确认的原 window 和唯一 facts 流。消费者使用 result.window 保存该流，Commands 仍核原 tenant、call、execution、dispatch 与 window 绑定。window 不授予访问权。driver 尚未接入该事实消费者。

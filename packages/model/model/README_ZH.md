@@ -46,7 +46,7 @@ factory 路径需要受信装配明确登记精确档案与供应商采用、接
 
 未知写保存原 operation、expected、输入和资源，重入先核实原操作。start 已返回而记录未确认时不迭代、不关闭原流；认回后唯一交出。signal 交给原传输；事实耗尽或消费者归还时，按 materialized、prepared、resource 逆序幂等释放。释放失败以安全异常可见，未知责任与失败释放继续占容量，没有 TTL 遗忘。
 
-测试装配显式提供 sending 配置并消费同一产品 sender；缺配置明确不可用。driver 仍停在 prepared，未集成唯一 facts 消费者。共同 started 结果当前只带 facts，通用窗口交接另行迁移。本地脚本不证明真实厂商、耐久存储、生产宿主或跨进程恢复。
+测试装配显式提供 sending 配置并消费同一产品 sender；缺配置明确不可用。driver 仍停在 prepared，未集成唯一 facts 消费者。started 结果同时交出已确认的原 window 和唯一 facts 流。消费者将 result.window 连同原执行与分派交给 Commands.preserve；窗口标识不授予访问权。本地脚本不证明真实厂商、耐久存储、生产宿主或跨进程恢复。
 
 ## 验证
 

@@ -301,6 +301,7 @@ export function createAttemptRunner<P>(
         attempt.stage = { kind: 'handed' }
         return {
           kind: 'started',
+          window: attempt.window,
           facts: ownedFacts(decision.facts, attempt.lifetime, () => {
             attempts.delete(id)
           }),

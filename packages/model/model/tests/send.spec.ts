@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest'
+import { judgeContentBlock } from '@omne-harness/content-block'
 import { createModelSendBoundary, type SendStart } from '@omne-harness/model'
 import { type CredentialResolution, type ModelCommands } from '@omne-harness/model-contract'
 import {
@@ -12,6 +13,113 @@ import {
   faultCommands,
 } from './send-fixture.ts'
 import { instance, op, proof, unbox } from './memory-fixture.ts'
+
+it('preserves two original receive windows using only public send results and rejects crossed bindings', async () => {
+  const judged = judgeContentBlock({
+    kind: 'text',
+    id: 'send-text',
+    visibility: { toHuman: true, toModel: true },
+    text: 'received from the original stream',
+  })
+  if ('rejected' in judged) throw new Error('text fixture')
+  const f = await sendFixture({
+    facts: [
+      { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
+      { kind: 'block-delta', index: '0', delta: 'received from the original stream' },
+      { kind: 'block-seal', index: '0', block: judged.ok },
+    ],
+  })
+  const other = await f.additionalDemand()
+  const sender = f.makeSender()
+  const first = await sender.send(f.demand, signal())
+  const second = await sender.send(other, signal())
+  if (first.kind !== 'started' || second.kind !== 'started') throw new Error('send fixture')
+  expect(first.window).not.toBe(second.window)
+  const firstFacts = await collect(first.facts)
+  const secondFacts = await collect(second.facts)
+  const commands = f.dependencies.commands
+  const firstInput = {
+    ...f.demand.execution,
+    operation: op('preserve-first'),
+    expected: unbox(await commands.loadRecovery(f.demand)).state.revision,
+    dispatch: f.demand.dispatch,
+    window: first.window,
+    facts: firstFacts,
+  }
+  const secondInput = {
+    ...other.execution,
+    operation: op('preserve-second'),
+    expected: unbox(await commands.loadRecovery(other)).state.revision,
+    dispatch: other.dispatch,
+    window: second.window,
+    facts: secondFacts,
+  }
+  expect(firstInput.instance).not.toBe(secondInput.instance)
+  for (const [change, binding] of [
+    ['tenant', { tenant: f.otherTenant }],
+    ['call', { call: other.call }],
+    ['execution', { generation: other.execution.generation, instance: other.execution.instance }],
+    ['dispatch', { dispatch: other.dispatch }],
+    ['window', { window: second.window }],
+  ] as const) {
+    expect(
+      await commands.preserve({ ...firstInput, ...binding, operation: op(`wrong-${change}`) }),
+    ).toHaveProperty('failure')
+  }
+  const savedFirst = unbox(await commands.preserve(firstInput))
+  const savedSecond = unbox(await commands.preserve(secondInput))
+  expect(savedFirst.call).toBe(f.demand.call)
+  expect(savedSecond.call).toBe(other.call)
+  for (const saved of [savedFirst, savedSecond]) {
+    expect(saved.blocks).toEqual([{ kind: 'sealed', index: '0', block: judged.ok }])
+  }
+  expect(f.counts()).toMatchObject({ starts: 2, acquired: 2 })
+  expect(f.events).toEqual([
+    'materialized',
+    'prepared',
+    'resource',
+    'materialized',
+    'prepared',
+    'resource',
+  ])
+})
+
+for (const effect of ['applied', 'not-applied'] as const)
+  it(`hands back the confirmed original window and untouched stream after recordSend ${effect}`, async () => {
+    const f = await sendFixture()
+    const fault = faultCommands(f, 'recordSend', effect)
+    const open = fault.commands.openReceiveWindow
+    const opened: string[] = []
+    fault.commands.openReceiveWindow = input => {
+      opened.push(input.window)
+      return open(input)
+    }
+    const sender = f.makeSender({ commands: fault.commands })
+    expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+    expect(opened).toHaveLength(1)
+    expect(f.counts()).toMatchObject({ starts: 1, acquired: 1, pulls: 0, returns: 0 })
+    expect(f.events).toEqual([])
+    expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+    fault.reveal()
+    const recovered = await sender.send(f.demand, signal())
+    if (recovered.kind !== 'started') throw new Error('send fixture')
+    expect(recovered.window).toBe(opened[0])
+    expect(f.counts().pulls).toBe(0)
+    expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+    const facts = await collect(recovered.facts)
+    expect(facts).toEqual([
+      { kind: 'block-open', index: 'one', mode: 'append', content: 'text' },
+      { kind: 'ended', termination: { kind: 'completed', reason: 'stop' } },
+    ])
+    expect(facts).toHaveLength(f.delivered.length)
+    facts.forEach((fact, index) => expect(fact).toBe(f.delivered[index]))
+    expect(() => recovered.facts[Symbol.asyncIterator]()).toThrow('facts-already-consumed')
+    expect(f.events).toEqual(['materialized', 'prepared', 'resource'])
+    expect((await sender.send(f.demand, signal())).kind).toBe('unknown')
+    expect(f.counts()).toMatchObject({ starts: 1, acquired: 1 })
+    expect(fault.inputs).toHaveLength(2)
+    expect(fault.inputs[1]).toEqual(fault.inputs[0])
+  })
 
 for (const method of ['recordMaterialization', 'openReceiveWindow', 'recordSend'] as const)
   for (const effect of ['applied', 'not-applied'] as const)

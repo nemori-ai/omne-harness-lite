@@ -18,7 +18,7 @@
 
 ## 安装闭包
 
-`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景导入 `@omne-harness/model`、`@omne-harness/model-contract`、契约 testing 入口与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。另用已安装根入口的 executeModel 连接公开脚本传输，验证一次发送与两级关闭。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口、未支持 quiesce 和 instances.connect 的诊断，以及真实 runtime 受理、认回、跨租户拒绝与唯一首次 prepared 分派。instances.connect 当前 unavailable；阶段一最小实例观察连接归 #456，完整生产宿主归 3.5。不证明完整托管业务执行或生产宿主。
+`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景还用已安装 sender 的公共 started.window 与 facts 调用真实 Commands.preserve，并核原调用快照、一次 start 与资源关闭。场景导入 `@omne-harness/model`、`@omne-harness/model-contract`、契约 testing 入口、`@omne-harness/content-block` 与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。另用已安装根入口的 executeModel 连接公开脚本传输，验证一次发送与两级关闭。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口、未支持 quiesce 和 instances.connect 的诊断，以及真实 runtime 受理、认回、跨租户拒绝与唯一首次 prepared 分派。instances.connect 当前 unavailable。该场景未覆盖实例观察连接，不证明完整托管业务执行或生产宿主。
 
 ## 内存行为资源
 
@@ -48,3 +48,5 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 [send-fixture.ts](send-fixture.ts) 只提供真实内存 Commands、资格安排、脚本外部传输、资源及故障。它不编排发送。未知流始终由产品 sender 保留和交接。公开类型由 [send.spec-d.ts](send.spec-d.ts) 核对，安装场景运行已安装根入口的产品工厂，确认提交真实回执、一次 start 与资源关闭。
 
 完整符合性报告继续保留53项，增加脚本 transport 的六项真实检查，其中 materialization-receipt-matches-request 必须通过。该项只证明传输形状，本页产品 sender 测试另证明实际发送链的提交和使用。driver 未消费 facts，route 和完整观察/收场/结果读取不据此标为通过。所有证据均为受控内存与脚本，不覆盖真实厂商、耐久后端、生产宿主或跨进程恢复。
+
+[send.spec.ts](send.spec.ts) 通过真实产品 sender 和 Memory Commands 验证两个独立公共 window 的事实保存，及 tenant、call、execution、dispatch、window 错绑拒绝。recordSend 的 applied/not-applied 未知测试核原窗口、未预读的原流、单次交接、一次 start 与资源释放。脚本只提供传输事实，不证明真实 HTTP、生产耐久或跨进程恢复。

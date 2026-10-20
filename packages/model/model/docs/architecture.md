@@ -538,4 +538,4 @@ Storage 的 SQL facts 只承载 Model 的引用和责任，不能凭引用已提
 
 产品 [send.ts](../src/send.ts) 管理输入固定、当前访问及有界尝试；[attempt.ts](../src/send/attempt.ts) 保存原写和推进顺序；[lifetime.ts](../src/send/lifetime.ts) 拥有唯一事实消费者及逆序释放。产品不导入 testing。具体内存后端持有跨 sender 共享的认领，与资格、控制、代次检查共用同步排他区。testing/send 只取得脚本传输资源和计数，不调用业务 Commands。
 
-物化与窗口确认之后才解析实际凭据并同步 start。回执和原窗口不是发送许可；最终资格仍须当前有效。开始后记录未知保留原流而不预取或关闭，后续仅认回原写，不重新物化或再次 start。当前直接消费者验证本边界，尚不表示 driver 已接入事实保管。共同 window 交接及真实组合由后续迁移兑现。
+物化与窗口确认之后才解析实际凭据并同步 start。回执和原窗口不是发送许可；最终资格仍须当前有效。开始后记录未知保留原流而不预取或关闭，后续仅认回原写，不重新物化或再次 start。当前直接消费者验证本边界，尚不表示 driver 已接入事实保管。公共 started 结果直接交出同一尝试已确认的原 window 与唯一 facts 流。消费者使用 result.window 保存原流，Commands 仍核绑定。完整 driver 组合尚未接入。
