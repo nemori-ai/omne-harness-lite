@@ -1,6 +1,6 @@
 # Agent 通用实现的行为边界
 
-当前是实现包骨架，根入口为空。工厂的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，尚未实现。运行契约的接受范围以 [公共 SPEC](../agent-contract/SPEC.md) 为准。
+根入口导出 `createAgentRuntime` 与构造类型。工厂的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。工厂的创建校验与四个面的访问守卫已实现，操作本体与 Loop 节点尚未实现，实际支持范围见[成员 README](README_ZH.md#支持范围)。运行契约的接受范围以 [公共 SPEC](../agent-contract/SPEC.md) 为准。
 
 ## 兑现责任
 

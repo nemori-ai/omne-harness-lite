@@ -1,6 +1,6 @@
 # Agent 通用实现的构造入口
 
-根入口导出下列类型与 `createAgentRuntime`。工厂尚未实现：每次调用返回 `unavailable`，不读依赖，也不写 Journal。下列行为是设计中的工厂行为，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。测试装配在 `./testing` 入口，见[成员 README](../README_ZH.md#支持范围)。本包不接收 Cordis Context，不导入任何外部协调者的类型。
+根入口导出下列类型与 `createAgentRuntime`。工厂已实现创建校验与四个面的访问守卫，操作本体尚未实现，实际支持范围与未实现的校验见[成员 README](../README_ZH.md#支持范围)。下列行为是设计中的工厂行为，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。测试装配在 `./testing` 入口，见[成员 README](../README_ZH.md#支持范围)。本包不接收 Cordis Context，不导入任何外部协调者的类型。
 
 ## 参数与依赖
 
