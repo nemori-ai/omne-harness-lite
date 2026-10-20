@@ -7,6 +7,7 @@ import type { ToolFailure } from '@omne-harness/tool-contract'
 import { completedFinal } from '@omne-harness/tool-contract/testing'
 import {
   admission,
+  callId,
   evidence,
   fixedOf,
   ok,
@@ -72,7 +73,15 @@ describe('21 binding start outcomes', () => {
 })
 
 it('21 launch: repeated runs and a new driver keep one actual memory execution', async () => {
+  const resolutions: unknown[] = []
   const first = startHarness({
+    bindingsPort: base => ({
+      ...base,
+      resolve: input => {
+        resolutions.push(input)
+        return base.resolve(input)
+      },
+    }),
     bindingPort: base => ({
       ...base,
       start: async (input, environment) => {
@@ -87,6 +96,14 @@ it('21 launch: repeated runs and a new driver keep one actual memory execution',
   })
   await admitCall(first, 'c1')
   await first.drive('c1', 'c1')
+  expect(resolutions).toEqual([
+    {
+      principal: principalA,
+      tenant: tenantA,
+      call: callId('c1'),
+      request: fixedOf(first.source, 'c1'),
+    },
+  ])
   const next = startHarness({
     memory: first.memory,
     authority: first.authority,
@@ -385,24 +402,49 @@ it('21 marker: a negative receipt read excludes an in-flight marker, whose origi
 for (const port of ['resolve', 'prepare', 'environment'] as const) {
   it(`21 ports: ${port} failure before binding.start stays retryable without a permanent refusal`, async () => {
     let failing = true
+    const failure = refused()
+    if (!('failure' in failure)) throw new Error('the test refusal unexpectedly succeeded')
     const harness = startHarness({
       bindingsPort: base => ({
         ...base,
         resolve: input =>
-          port === 'resolve' && failing ? Promise.resolve(refused()) : base.resolve(input),
+          port === 'resolve' && failing ? Promise.resolve(failure) : base.resolve(input),
       }),
       authorityPort: base => ({
         ...base,
         prepare: input =>
-          port === 'prepare' && failing ? Promise.resolve(refused()) : base.prepare(input),
+          port === 'prepare' && failing ? Promise.resolve(failure) : base.prepare(input),
       }),
       environment: port === 'environment' ? new Map([['c1', 'unavailable']]) : new Map(),
     })
     await admitCall(harness, 'c1')
-    await harness.drive('c1')
+    const start = await toStarting(harness, 'c1')
+    const driver = harness.host.driver()
+    if (!('advance' in driver) || typeof driver.advance !== 'function')
+      throw new Error('the installed driver has no advance result')
+    const stopped: unknown = await driver.advance({
+      principal: principalA,
+      tenant: tenantA,
+      call: callId('c1'),
+      instance: await harness.host.instanceOf(callId('c1')),
+      signal: new AbortController().signal,
+    })
+    if (port !== 'environment') {
+      expect(stopped).toEqual({ kind: 'failed', failure: failure.failure })
+      if (typeof stopped !== 'object' || stopped === null || !('failure' in stopped))
+        throw new Error('the failed port did not return its failure')
+      expect(stopped.failure).toBe(failure.failure)
+    }
     expect(harness.binding.controls.launches()).toBe(0)
     expect(harness.authority.excluded).toEqual([])
     expect((await harness.state('c1')).phase).not.toBe('settled')
+    expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+    const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
+    expect(recovery.start).toEqual(start)
+    expect(recovery.result).toBeNull()
+    expect(recovery.tasks.map(task => task.kind)).toEqual(['start'])
+    expect(await harness.queue()).toEqual([{ call: 'c1', ordinal: '1', stage: 'held' }])
+    expect(await harness.released()).toEqual([])
     failing = false
     harness.environments.answer('c1', 'prepared')
     await harness.drive('c1')
@@ -437,6 +479,73 @@ it('21 contradiction: a live handle with a not-started authority is retained wit
   expect(first.binding.attempts).toEqual(['c1'])
   expect(first.authority.excluded).toEqual([])
   expect(await first.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+})
+
+it('21 marker: a committed failure with an unknown binding retains the original start and real slot', async () => {
+  const inspected: unknown[] = []
+  const authorityAnswers: unknown[] = []
+  const markerAnswers: unknown[] = []
+  const harness = startHarness({
+    authorityPort: base => ({
+      ...base,
+      inspect: async input => {
+        const answer = await base.inspect(input)
+        authorityAnswers.push(answer)
+        return answer
+      },
+    }),
+    bindingPort: base => ({
+      ...base,
+      inspectStart: input => {
+        inspected.push(input)
+        return Promise.resolve(
+          succeed({ kind: 'unknown', diagnostic: 'binding cannot prove exclusion' }),
+        )
+      },
+    }),
+    readsPort: base => ({
+      ...base,
+      operation: async input => {
+        const answer = await base.operation(input)
+        if (input.operation === 'op-c1/start-failed') markerAnswers.push(answer)
+        return answer
+      },
+    }),
+  })
+  await admitCall(harness, 'c1')
+  await admitCall(harness, 'c2')
+  const start = await toStarting(harness, 'c1')
+  ok(
+    await harness.commands.recordStart({
+      ...(await writeContext(harness, 'c1', 'op-c1/start-failed')),
+      invocation: start,
+      outcome: { kind: 'unknown', diagnostic: 'binding start reply lost' },
+    }),
+  )
+  await harness.runOnce('c1')
+  await harness.runOnce('c2')
+  expect(markerAnswers).toEqual([
+    expect.objectContaining({ ok: expect.objectContaining({ kind: 'committed' }) }),
+  ])
+  expect(authorityAnswers).toContainEqual(
+    expect.objectContaining({ ok: expect.objectContaining({ kind: 'not-started' }) }),
+  )
+  expect(inspected).toEqual([{ principal: principalA, tenant: tenantA, call: callId('c1'), start }])
+  expect(harness.authority.excluded).toEqual([])
+  expect(harness.authority.accepted).toEqual([])
+  expect(harness.binding.attempts).toEqual([])
+  expect(harness.binding.controls.launches()).toBe(0)
+  expect(await harness.state('c1')).toMatchObject({ phase: 'starting', queue: { kind: 'held' } })
+  expect((await harness.state('c2')).phase).toBe('queued')
+  const recovery = ok(await harness.commands.loadRecovery(admission('c1', 'op-c1')))
+  expect(recovery.start).toEqual(start)
+  expect(recovery.result).toBeNull()
+  expect(recovery.tasks.map(task => task.kind)).toEqual(['start'])
+  expect(await harness.queue()).toEqual([
+    { call: 'c1', ordinal: '1', stage: 'held' },
+    { call: 'c2', ordinal: '2', stage: 'ready' },
+  ])
+  expect(await harness.released()).toEqual([])
 })
 
 it('21 crash window: without a committed failure marker, a new driver can obtain only the original start first acceptance', async () => {
