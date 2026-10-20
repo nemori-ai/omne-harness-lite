@@ -71,6 +71,9 @@ jobs:
             || { echo "failed: authority comment is not on Issue $authority_issue"; exit 1; }
           author=$(jq -er '.user.login' comment.json)
           author_node=$(jq -er '.user.node_id' comment.json)
+          # 绑定评论内容：start 用自己读到的正文核对这两项，读取之间被编辑就拒绝。
+          body_sha=$(jq -jr '.body // ""' comment.json | sha256sum | cut -d' ' -f1)
+          updated_at=$(jq -er '.updated_at' comment.json)
 
           # 2. publish environment 的 required reviewers。有 Team 时不判断，按失败处理。
           rest "repos/$R/environments/publish" > environment.json
@@ -116,9 +119,10 @@ jobs:
           # 4. 发回机读评论。
           jq -n --arg nonce "$NONCE" --argjson run "$GITHUB_RUN_ID" --argjson issue "$ISSUE" \
             --arg url "$AUTHORITY" --arg author "$author" --arg node "$author_node" --argjson reviewer "$reviewer" \
+            --arg sha "$body_sha" --arg updated "$updated_at" \
             --arg project "$PROJECT_ID" --arg item "$item" --argjson stage "$stage" \
             '{schemaVersion: 1, nonce: $nonce, run: $run, issue: $issue,
-              authority: {url: $url, author: $author, authorNodeId: $node, reviewer: $reviewer},
+              authority: {url: $url, author: $author, authorNodeId: $node, reviewer: $reviewer, bodySha256: $sha, updatedAt: $updated},
               project: {id: $project, item: $item, stage: $stage}}' > facts.json
           {
             echo "## 开工事实"
