@@ -45,7 +45,7 @@ function runtimeAssembly() {
 }
 
 describe('ordinary invocation and saved references', () => {
-  it('admits identical payloads as independent calls, including concurrent invokes', async () => {
+  it('recovers the same persistent intent after a lost reply, including concurrent invokes', async () => {
     const { runtime, store, source } = runtimeAssembly()
     const payload = dummyRequest()
     const outcomes = await Promise.all([
@@ -54,11 +54,11 @@ describe('ordinary invocation and saved references', () => {
     ])
     const [first, second] = outcomes.map(accepted)
     if (first === undefined || second === undefined) throw new Error('missing outcome')
-    expect(first.reference).not.toBe(second.reference)
-    expect(readToolInvocationRef(first.reference).call).not.toBe(
+    expect(first.reference).toBe(second.reference)
+    expect(readToolInvocationRef(first.reference).call).toBe(
       readToolInvocationRef(second.reference).call,
     )
-    expect(source.bindings()).toHaveLength(2)
+    expect(source.bindings()).toHaveLength(1)
     for (const outcome of [first, second]) {
       expect(await runtime.queries.lookup(access(outcome.reference))).toMatchObject({
         ok: { kind: 'found' },
