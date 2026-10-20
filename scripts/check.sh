@@ -16,16 +16,12 @@ if [[ -z "${OMNE_TEST_SLOT_HELD:-}" ]]; then
     exec ./scripts/with-test-slot.sh ./scripts/check.sh
 fi
 
-# 基线取 BASELINE；没给就用 origin/main，本地没有这个引用就用 main。影响面与回路状态共用它。
-# 命令拒绝这个基线时（例如已绑定任务的树里给了不等于 targetBase 的 BASELINE），它已在标准错误写出原因，这里直接退出，不再解析空输出。
-baseline_report="$(node --experimental-strip-types tools/dev-flow/src/integration/cli.ts baselines ${BASELINE:+--base "$BASELINE"})" || exit "$?"
-baseline="$(printf '%s' "$baseline_report" | node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>process.stdout.write(JSON.parse(s).targetBase??""))')"
-if [[ -z "$baseline" ]]; then
-    baseline=main
-    if git rev-parse --verify --quiet origin/main >/dev/null; then
-        baseline=origin/main
-    fi
-fi
+test_runs=(node --experimental-strip-types tools/test-runner/src/testing/cli.ts)
+
+# 基线按统一规则取：BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main。影响面与回路状态共用它。
+# 规则拒绝这个基线时（例如已绑定任务的树里给了不等于 targetBase 的 BASELINE），命令已在标准错误写出原因，这里直接退出，不再解析空输出。
+baseline_report="$("${test_runs[@]}" baseline)" || exit "$?"
+baseline="$(printf '%s' "$baseline_report" | node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>process.stdout.write(JSON.parse(s).targetBase))')"
 export BASELINE="$baseline"
 
 # 先算影响面：基线以来改了什么、每一步跑还是跳、跑哪些成员、为什么（规则在 tools/test-runner/test-runs.config.json）。
@@ -33,7 +29,6 @@ export BASELINE="$baseline"
 # 合并后没有自动补跑：负责人不定时让一个会话手动跑一次 FULL=1 pnpm run check。
 plan_dir=tmp/check-plan
 rm -rf "$plan_dir"
-test_runs=(node --experimental-strip-types tools/test-runner/src/testing/cli.ts)
 "${test_runs[@]}" plan --base "$baseline" --json "$plan_dir/plan.json"
 step() {
     "${test_runs[@]}" step "$1" --plan "$plan_dir/plan.json"

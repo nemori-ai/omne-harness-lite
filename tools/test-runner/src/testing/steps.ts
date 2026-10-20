@@ -46,15 +46,6 @@ export function fullRequested(env: Readonly<Record<string, string | undefined>>)
   throw new Error(`环境变量 FULL 只能是 1 或不设，现在是 ${value}`)
 }
 
-/** 基线：给了用它，否则环境变量 BASELINE，再否则 main。 */
-export function baselineOf(
-  given: string | undefined,
-  env: Readonly<Record<string, string | undefined>>,
-): string {
-  const fromEnv = env['BASELINE']
-  return given ?? (fromEnv === undefined || fromEnv === '' ? 'main' : fromEnv)
-}
-
 /** 计划文件：计划连同它是对哪个提交、哪个基线算的。 */
 export interface PlanFile {
   readonly head: string

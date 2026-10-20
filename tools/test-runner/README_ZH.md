@@ -10,13 +10,14 @@
 失败之后单独重跑归类。它替代了根脚本里原先的 `pnpm -r run test`。同一个运行器也跑成员的可执行验收（`--script acceptance`）。
 
 ```sh
+node --experimental-strip-types tools/test-runner/src/testing/cli.ts baseline [--base <基线>]  # 打印统一规则取到的基线与来源（explicit、task、origin/main、main）；pnpm run check 开头用它。已绑定任务的树只接受等于 targetBase 的显式基线
 pnpm run check:plan [--base <基线>]                 # 只算影响面并打印计划：判成什么、每一步跑还是跳、选中谁与为什么；FULL=1 全量
-pnpm run test:affected --base <基线提交或分支>       # 只构建并测试受这次改动影响的成员的快层；不给 --base 时取任务上下文的基线，再缺省 main；--tier slow|all 换层
+pnpm run test:affected --base <基线提交或分支>       # 只构建并测试受这次改动影响的成员的快层；不给 --base 时按统一规则取基线（环境变量 BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main）；--tier slow|all 换层
 pnpm run test:affected --base <基线> --plan-only     # 只列受影响范围与层，不构建也不运行
 pnpm run test:tier slow                             # 先构建，再跑全部成员的某一层
 pnpm run test:triage --run <运行目录>                # 把那次运行里的失败逐条单独重跑并归类（测试或验收的运行都行）
 pnpm run test                                       # 全量两层：turbo 先构建，再跑全部成员（同 pnpm run test:tier all）
-pnpm run test:gate                                  # pnpm run check 的测试一步：按影响面计划跑被选中成员的快层再慢层（基线 BASELINE，缺省 main；FULL=1 全部）；单独运行时由 turbo 先构建
+pnpm run test:gate                                  # pnpm run check 的测试一步：按影响面计划跑被选中成员的快层再慢层（基线按统一规则取；FULL=1 全部）；单独运行时由 turbo 先构建
 pnpm run acceptance                                 # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；--no-build 不构建
 ```
 
