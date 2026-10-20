@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -25,7 +25,7 @@ it('does not import Cordis from the package root', async () => {
 })
 
 it('registers host files, drops them on unload, and refuses a sandbox with no provider', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'omne-exec-env-'))
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'omne-exec-env-')))
   roots.push(root)
   const path = join(root, 'notes.txt')
   await writeFile(path, 'leased-bytes')

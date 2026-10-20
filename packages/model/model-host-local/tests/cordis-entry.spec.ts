@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -29,7 +29,7 @@ it('the cordis entry exports the plugin and the injected delivery, not the servi
 
 it('publishes modelCredential while the plugin lives and withdraws it when the plugin is disposed', async () => {
   const { LocalCredentialPlugin } = await import('@omne-harness/model-host-local/cordis')
-  const path = join(mkdtempSync(join(tmpdir(), 'model-host-local-')), 'store.json')
+  const path = join(realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-'))), 'store.json')
   const ctx = new Context()
   const fiber = await ctx.plugin(LocalCredentialPlugin, { path, factorySecret: 'synth-factory' })
   expect(ctx.modelCredential).toBeInstanceOf(ModelCredentialService)
@@ -40,7 +40,7 @@ it('publishes modelCredential while the plugin lives and withdraws it when the p
 
 it('closes the custodian when the plugin is disposed and keeps the stored bindings', async () => {
   const { LocalCredentialPlugin } = await import('@omne-harness/model-host-local/cordis')
-  const path = join(mkdtempSync(join(tmpdir(), 'model-host-local-')), 'store.json')
+  const path = join(realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-'))), 'store.json')
   const reference = seededReference()
   const seeded = createLocalCustodian({ path, factorySecret: 'synth-factory' })
   seeded.put(reference, 'synth-tenant')
@@ -63,7 +63,7 @@ it('closes the custodian when the plugin is disposed and keeps the stored bindin
 
 it('a plugin on an empty path creates the store, serves from it, and denies after it is disposed', async () => {
   const { LocalCredentialPlugin } = await import('@omne-harness/model-host-local/cordis')
-  const path = join(mkdtempSync(join(tmpdir(), 'model-host-local-')), 'store.json')
+  const path = join(realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-'))), 'store.json')
   const reference = seededReference()
 
   const ctx = new Context()
@@ -85,7 +85,7 @@ it('a plugin on an empty path creates the store, serves from it, and denies afte
 
 it('disposing a plugin on a corrupt store reports no error, since there is no custodian to close', async () => {
   const { LocalCredentialPlugin } = await import('@omne-harness/model-host-local/cordis')
-  const path = join(mkdtempSync(join(tmpdir(), 'model-host-local-')), 'store.json')
+  const path = join(realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-'))), 'store.json')
   writeFileSync(path, 'not-json')
 
   const ctx = new Context()
@@ -104,7 +104,7 @@ it('disposing a plugin on a corrupt store reports no error, since there is no cu
 
 it('a plugin on a corrupt store still loads, answers present with unavailable, and leaves the file alone', async () => {
   const { LocalCredentialPlugin } = await import('@omne-harness/model-host-local/cordis')
-  const path = join(mkdtempSync(join(tmpdir(), 'model-host-local-')), 'store.json')
+  const path = join(realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-'))), 'store.json')
   writeFileSync(path, 'not-json')
 
   const ctx = new Context()
@@ -210,7 +210,7 @@ it('rejects a diagnostics capacity of zero and accepts zero as a lock wait or ba
 it('a plugin that must create the store gives up on a held lock after the configured wait instead of loading', async () => {
   const { LocalCredentialPlugin } = await import('@omne-harness/model-host-local/cordis')
   // Creation takes the lock; a store that is already there is opened without it.
-  const path = join(mkdtempSync(join(tmpdir(), 'model-host-local-')), 'store.json')
+  const path = join(realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-'))), 'store.json')
   const release = lockSync(path, { realpath: false })
   try {
     const ctx = new Context()

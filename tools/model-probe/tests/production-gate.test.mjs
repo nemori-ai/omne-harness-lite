@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { fork, spawnSync } from 'node:child_process'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
-import { mkdtemp, readFile, rm, stat, writeFile, chmod } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, rm, stat, writeFile, chmod } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { openLedger } from '../src/budget.mjs'
@@ -26,7 +26,7 @@ async function existing(path) {
   await ledger.close()
 }
 async function directory() {
-  return mkdtemp(join(tmpdir(), 'omne-production-gate-'))
+  return realpath(await mkdtemp(join(tmpdir(), 'omne-production-gate-')))
 }
 function worker(path) {
   return fork(new URL('./budget-worker.mjs', import.meta.url), [path], {

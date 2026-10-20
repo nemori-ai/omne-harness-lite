@@ -470,7 +470,7 @@ function baselineOf(
 }
 
 /**
- * 依赖违规与环：dependency-cruiser 的规则加成员、组间的环，与 `make metrics`、`lint:deps` 同一张图。
+ * 依赖违规与环：dependency-cruiser 的规则加成员、组间的环，与 `pnpm run metrics`、`lint:deps` 同一张图。
  * 无法解析的导入不算硬线：它由 `lint:deps` 门禁与类型检查拦，没装依赖的树里外部包也会落进这一类。
  */
 export function directionLines(report: Report): Pick<HardLines, 'direction' | 'cycles'> {

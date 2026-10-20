@@ -231,7 +231,12 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "result-parts",
+          "anchor": "最终结果项与页预算"
+        }
+      ]
     },
     {
       "id": "index",

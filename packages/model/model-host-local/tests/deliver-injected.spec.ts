@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -32,7 +32,7 @@ function seededReference(): CredentialReference {
 const face: SendFace = { authorized: true, official: false }
 
 function seededStore(reference: CredentialReference): string {
-  const path = join(mkdtempSync(join(tmpdir(), 'model-host-local-')), 'store.json')
+  const path = join(realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-'))), 'store.json')
   const seeded = createLocalCustodian({ path, factorySecret: FACTORY })
   seeded.put(reference, SECRET)
   seeded.close()

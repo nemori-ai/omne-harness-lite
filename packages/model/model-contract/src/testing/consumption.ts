@@ -28,21 +28,17 @@ import {
   type ReadRecord,
   type SettledLifecycle,
 } from './core.ts'
+import { resultPage } from './result-pages.ts'
 import { mintRead } from './mint.ts'
 import { conflictOf, performWrite, remember, sameParameters, writeOf } from './writes.ts'
 
 /** Cuts the page that starts at `offset`; serving the last page makes the read completable. */
 function servePage(read: ReadRecord, offset: number): ResultPage {
-  const { blocks, pageSize } = read.source.pages
-  const end = offset + pageSize
-  const next = end < blocks.length ? String(end) : null
-  if (next === null) read.exhausted = true
-  else read.issued.add(next)
-  return structuredClone({
-    blocks: blocks.slice(offset, end),
-    next,
-    settlement: read.source.settlement,
-  })
+  const { parts, pageSize, pageTargetBytes } = read.source.pages
+  const page = resultPage(parts, offset, pageSize, pageTargetBytes, read.source.settlement)
+  if (page.next === null) read.exhausted = true
+  else read.issued.add(page.next)
+  return structuredClone(page)
 }
 
 function endedState(reason: ReadRecord['ended']): ReadState | null {
@@ -134,9 +130,10 @@ export function createConsumption<P>(core: Core<P>): ModelConsumption<P> {
       reason: 'the result version is not the settled one',
     })
     if (!('ok' in settled)) return settled
+    const id = mintRead(core.state.reads + 1)
     core.state.reads += 1
     const read: ReadRecord = {
-      read: mintRead(core.state.reads),
+      read: id,
       source: settled.ok,
       parameters,
       ended: null,

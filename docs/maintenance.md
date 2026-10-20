@@ -84,11 +84,11 @@
 普通文档维护先检查真实引用和登记，命令在仓库根运行。只需确定首轮角色路径时用[角色查询](../tools/spec-tools/README.md#按角色读取上下文)；它不递归展开依赖。随后沿实际任务读取必要拥有者，分别记录访问资格、输入版本、结果及停止点。
 
 ```sh
-make docs-check
-make docs-inventory OUT=tmp/documentation-maintenance-report
+pnpm run check:docs
+pnpm run docs:inventory --out tmp/documentation-maintenance-report
 ```
 
-docs-check检查已有链接与镜像，inventory观察已登记文件、章节、占位和unknown。inspectable只说明工具支持观察的结构存在；语义充分、应然与实现一致、读者实际体验和产品运行保证分别需要相应评审或真实验证。没有运行证据时写明未验证。
+`check:docs`检查已有链接与镜像，inventory观察已登记文件、章节、占位和unknown。inspectable只说明工具支持观察的结构存在；语义充分、应然与实现一致、读者实际体验和产品运行保证分别需要相应评审或真实验证。没有运行证据时写明未验证。
 
 比较增减时使用维护前保存的独立登记及依据源，具体操作沿spec-tools。新目标、范围、要求或依据变化可能报告measurement-change，不能将其算成历史偏离消除。删除登记或放宽要求也不能作为修复收益。
 

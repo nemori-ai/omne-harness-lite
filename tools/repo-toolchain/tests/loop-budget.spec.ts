@@ -1,5 +1,5 @@
 // 成员预算与清理草稿：超预算生成草稿、六个标题齐全且顺序对；反复变红达到上限时标结构问题、不生成草稿。
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -260,13 +260,13 @@ describe('清理草稿', () => {
     expect(text).toContain(`${MEMBER}/tests/a.spec.ts:4 只调用`)
     expect(text).toContain('超 alert 的函数数：当前 7（处置）；解除线 2，须回落到它及以下')
     expect(text).toContain('风险值：当前 23.4（处置）；解除线 10')
-    expect(text).toContain('`make test-affected`')
+    expect(text).toContain('`pnpm run test:affected`')
     expect(text).toContain('草稿：等负责人批准后才派发。')
     expect(text).toContain('`abc123`')
   })
 
   it('写到 <目录>/<成员路径斜杠换成 -->.md，同一成员覆盖旧稿', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'loop-proposals-'))
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'loop-proposals-')))
     made.push(dir)
     const input = (commit: string) => ({
       budget: judge(values({ overAlert: 7 })),

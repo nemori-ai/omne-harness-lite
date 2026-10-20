@@ -1,7 +1,7 @@
 // @module-tag slow
 // Packs the member, installs the tarball into a directory under tmp/, and runs pnpm, node and tsc in it.
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -10,7 +10,7 @@ import type { Report } from './install/consumer.ts'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
 const workspaceRoot = join(packageDirectory, '..', '..', '..')
-const temporary = mkdtempSync(join(tmpdir(), 'install-consumer-'))
+const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'install-consumer-')))
 const consumers = join(workspaceRoot, 'tmp/install-closure')
 const workDirectories = ['model-cordis-contract-spec', 'model-cordis-contract-transitive']
 afterAll(() => {

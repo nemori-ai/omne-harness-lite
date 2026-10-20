@@ -18,7 +18,7 @@
 
 ## 文档是否符合要求
 
-[文档治理](../engineering/documentation.md)维护质量与留空，[责任地图](boundaries.md#文档内容与登记)维护本区内容。根及局部登记唯一拥有预期，inventory观察缺文件/章节、占位和unknown，docs-check核对引用与镜像。
+[文档治理](../engineering/documentation.md)维护质量与留空，[责任地图](boundaries.md#文档内容与登记)维护本区内容。根及局部登记唯一拥有预期，inventory观察缺文件/章节、占位和unknown，`check:docs`核对引用与镜像。
 
 inspectable只表示支持的结构存在。分责是否充分、是否复制精确契约、是否承接上游承诺，须通过表达评审判断；责任选择及计划分别判断。实际人类体验由读者观察，不由作者或agent自查替代。
 
@@ -28,7 +28,7 @@ inspectable只表示支持的结构存在。分责是否充分、是否复制精
 
 | 观察 | 入口及限制 |
 | --- | --- |
-| 文件、章节与导航 | make docs-check、make docs-inventory，不证明语义或采用 |
+| 文件、章节与导航 | `pnpm run check:docs`、`pnpm run docs:inventory`，不证明语义或采用 |
 | 源码/类型、声明与方向 | [检查工具](../../tools/repo-toolchain/README_ZH.md)及实际成员，保留解析unknown |
 | 入口及安装闭包 | 独立消费实际 exports 和产物，并在 SDK 声明支持的平台上验证；只检查 manifest 不够 |
 | 并发、失败、取消和恢复 | 实际协调契约的模型/测试/探针及装配，有限前提不称无条件证明 |

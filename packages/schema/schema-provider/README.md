@@ -63,11 +63,11 @@ One execution domain has one `SchemaProvider`. Each shape id has one slot. The s
 
 The execution domain passes `SchemaBudget`. `maxSnapshots` counts entries. It is not a byte size. Dynamic schemas stay closed until a full compile-memory bound exists.
 
-This package requires Node.js `>=24.18.0 <25`, the same range as the template and `@omne-harness/json-text`. Backoff is read on the next call. The package has no timer.
+This package requires Node.js `>=24`, the same range as the template and `@omne-harness/json-text`. Backoff is read on the next call. The package has no timer.
 
 ## Verification
 
-`pnpm test` builds, then runs vitest. The tests call the public exports. They observe how many times `load` runs, and the returned `kind`, `reason`, `path`, `issues`, `value`, and `superseded`.
+turbo builds first, then runs vitest: `pnpm turbo run test --filter=@omne-harness/schema-provider`. `pnpm test` in this directory runs vitest only and does not build. The tests call the public exports. They observe how many times `load` runs, and the returned `kind`, `reason`, `path`, `issues`, `value`, and `superseded`.
 
 The tests cover these behaviors:
 

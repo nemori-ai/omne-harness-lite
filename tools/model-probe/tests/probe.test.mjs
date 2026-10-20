@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { usdUnits, usdString, estimateReservation, openLedger } from '../src/budget.mjs'
@@ -67,7 +67,7 @@ test('estimate includes most expensive cache write and long-context override', (
 })
 
 test('research budget preserves final acceptance allocation across restart', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'model-probe-'))
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'model-probe-')))
   const path = join(directory, 'ledger.json')
   try {
     let ledger = await openLedger(path, budget)
@@ -103,7 +103,7 @@ test('research budget preserves final acceptance allocation across restart', asy
 })
 
 test('unknown cost blocks both current and subsequent runs', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'model-probe-'))
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'model-probe-')))
   const path = join(directory, 'ledger.json')
   try {
     const ledger = await openLedger(path, budget)
@@ -126,7 +126,7 @@ test('unknown cost blocks both current and subsequent runs', async () => {
 })
 
 test('exclusive lock refuses concurrent paid runs', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'model-probe-'))
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'model-probe-')))
   try {
     const path = join(directory, 'ledger.json')
     const ledger = await openLedger(path, budget)
@@ -137,7 +137,7 @@ test('exclusive lock refuses concurrent paid runs', async () => {
   }
 })
 test('reconciliation requires an explicit upstream evidence hash and keeps provenance', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'model-probe-'))
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'model-probe-')))
   try {
     const path = join(directory, 'ledger.json')
     let ledger = await openLedger(path, budget)
@@ -160,7 +160,7 @@ test('reconciliation requires an explicit upstream evidence hash and keeps prove
   }
 })
 test('abandoned reservation stops restart even after lock release', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'model-probe-'))
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'model-probe-')))
   try {
     const path = join(directory, 'ledger.json')
     const ledger = await openLedger(path, budget)
@@ -243,7 +243,7 @@ test('run refuses unregistered models, routes and absent explicit TTL', () => {
   }
 })
 test('credential must be explicit and cannot fall back to environment', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'model-probe-'))
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'model-probe-')))
   try {
     const path = join(directory, '.env')
     await writeFile(path, 'UNRELATED=not-a-key\n')

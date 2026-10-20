@@ -214,9 +214,10 @@ describe('driving a scripted provider wrongly', () => {
           ...missing,
           version: version('x'),
           termination: { kind: 'completed', reason: 'stop' },
-          blocks: [],
+          parts: [].map(block => ({ kind: 'sealed' as const, block, trims: [] })),
           source: evidence('s'),
           pageSize: 1,
+          pageTargetBytes: 1024,
         }),
       recordDispatch: () => controller.recordDispatch({ ...missing, record: startedDispatch }),
       advanceControl: () =>
@@ -266,9 +267,10 @@ describe('driving a scripted provider wrongly', () => {
         ...callRef('a'),
         version: version('a'),
         termination: { kind: 'completed', reason: 'stop' },
-        blocks: [],
+        parts: [].map(block => ({ kind: 'sealed' as const, block, trims: [] })),
         source: evidence('s'),
         pageSize,
+        pageTargetBytes: 1024,
       }),
     ).toThrow(misuse('invalid-script', 'pageSize must be a positive integer'))
   }
@@ -285,9 +287,14 @@ describe('driving a scripted provider wrongly', () => {
       ...callRef('a'),
       version: version('a'),
       termination: { kind: 'completed', reason: 'stop' },
-      blocks: [textBlock('b1', 'one'), textBlock('b2', 'two')],
+      parts: [textBlock('b1', 'one'), textBlock('b2', 'two')].map(block => ({
+        kind: 'sealed' as const,
+        block,
+        trims: [],
+      })),
       source: evidence('s'),
       pageSize: 1,
+      pageTargetBytes: 1024,
     })
     const started = must(
       await scripted.provider.runtime.consumption.beginRead({
@@ -297,7 +304,9 @@ describe('driving a scripted provider wrongly', () => {
       }),
     )
     expect(started).toMatchObject({
-      value: { page: { blocks: [textBlock('b1', 'one')], next: '1' } },
+      value: {
+        page: { parts: [{ kind: 'sealed', block: textBlock('b1', 'one'), trims: [] }], next: '1' },
+      },
     })
   })
 

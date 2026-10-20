@@ -111,7 +111,20 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "runtime-support",
+          "anchor": "当前构造支持与本地模拟"
+        },
+        {
+          "id": "product-send",
+          "anchor": "产品发送边界"
+        },
+        {
+          "id": "consumption",
+          "anchor": "结果消费支持"
+        }
+      ]
     },
     {
       "id": "acceptance-readme",
@@ -120,7 +133,7 @@
       "required": true,
       "visibility": "internal",
       "basis": "adopted",
-      "applicability": "not-applicable",
+      "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "目录入口"
@@ -135,7 +148,7 @@
       "required": true,
       "visibility": "internal",
       "basis": "adopted",
-      "applicability": "not-applicable",
+      "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "目录入口"
@@ -150,7 +163,7 @@
       "required": true,
       "visibility": "internal",
       "basis": "adopted",
-      "applicability": "not-applicable",
+      "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "目录入口"
@@ -165,7 +178,7 @@
       "required": true,
       "visibility": "internal",
       "basis": "adopted",
-      "applicability": "not-applicable",
+      "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "目录入口"
@@ -321,7 +334,20 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "testing",
+          "anchor": "内存测试入口"
+        },
+        {
+          "id": "product-send",
+          "anchor": "产品发送构造"
+        },
+        {
+          "id": "consumption",
+          "anchor": "已实现的结果消费"
+        }
+      ]
     },
     {
       "id": "examples-readme",
@@ -471,7 +497,20 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "runtime-admission",
+          "anchor": "受理与首次分派"
+        },
+        {
+          "id": "product-send",
+          "anchor": "产品发送验证"
+        },
+        {
+          "id": "consumption",
+          "anchor": "公开结果消费"
+        }
+      ]
     },
     {
       "id": "tests-fixtures-readme",

@@ -34,9 +34,11 @@ Python 当前服务于开发工具。
 
 **可执行验收**放在成员的 `acceptance/` 目录，与 `tests/` 分开，因为两者的主人不同：
 
-- **它持续验证产品场景。**任务结束后仍须维护相应场景，文件名与内容不绑定任务身份。文件名是 `<topic 编号>.<一句话>.acceptance.ts`
-  （如 `PF-016.no-screen-points-to-machine-entry.acceptance.ts`），内容从用户入口驱动真实组合。
-- **每份验收在开头的注释里声明它覆盖哪些场景**，恰好一行：`// covers: PF-016 S5`，多条用逗号隔开（`// covers: PF-016 S5, PF-016 S6`）。
+- **它持续验证产品场景。**任务结束后仍须维护相应场景，文件名与内容不绑定任务身份。文件名是 `<完整 PD 身份>.<一句话>.acceptance.ts`
+  （如 `PD-model-invocation.success.acceptance.ts`），内容从用户入口驱动真实组合。
+- **每份验收在开头的注释里声明它覆盖哪些场景**，恰好一行：`// covers: PD-model-invocation S1`，多条用逗号隔开（`// covers: PD-model-invocation S1, PD-model-invocation S2`）。
+  身份采用产品 README 的 `PD-<slug>`，slug 以小写字母开头，后续为小写字母或数字，可用单个连字符分段。旧 PF 编号不作为别名。
+  示例中的 `S1`、`S2` 仅演示编号写法，不表示已登记场景。实际使用前，须先在对应当前产品的 `acceptance.md` 中登记真实场景。
   声明的场景必须在那个 topic 的 `acceptance.md` 里存在——场景含义变了会换新编号，覆盖旧编号的验收于是被点名，要跟着改或删。
   **覆盖声明只表示有验收程序声称覆盖该场景**，实际运行、结果及负责人接受分别核对，不由声明推定交付。
 - **数量跟着场景走，不跟着卡走。**新卡加强一条已有验收覆盖的流程时，改那份验收、把新场景加进它的声明；不为每张卡新建一份。
@@ -62,7 +64,7 @@ Python 当前服务于开发工具。
 
 ## 现存实现与工具位置
 
-下面列的是封存实现及现存开发工具的位置。封存目录不在 pnpm workspace 里，不能算作新树的支持能力。静态遍历及默认检查、测试和验收目标排除任意层级中以`.legacy`结尾的目录。`make check`的按影响面和全量计划均遵守此规则。完整旧产品构建不属于新骨架验收。
+下面列的是封存实现及现存开发工具的位置。封存目录不在 pnpm workspace 里，不能算作新树的支持能力。静态遍历及默认检查、测试和验收目标排除任意层级中以`.legacy`结尾的目录。`pnpm run check`的按影响面和全量计划均遵守此规则。完整旧产品构建不属于新骨架验收。
 
 ```text
 package.json / pnpm-workspace.yaml     TypeScript workspace、版本 catalog 与根聚合命令
@@ -99,7 +101,7 @@ scripts/format.sh                      TS/JS 格式化与暂存区检查
 .agents / .claude / .codex             指向工作区内生成目录的相对软链接
 ```
 
-根 Makefile 提供短命令，`scripts/check.sh` 顺序组合现有检查，工具包拥有检查算法。
+仓库命令入口统一在根 `package.json` 的 `scripts`，`scripts/check.sh` 顺序组合现有检查，工具包拥有检查算法。
 CI 配置（`.github/workflows/`）只负责触发条件、执行环境和调用这些入口，
 见[自动化入口](../scripts/README.md#ci)；构建、发布、部署脚本
 有实际交付对象后再增加，**不能因目录存在就声称流水线或部署能力已经完成**。
@@ -142,7 +144,7 @@ uv 的 [workspace 文档](https://docs.astral.sh/uv/concepts/projects/workspaces
 [贡献指南](../CONTRIBUTING.md)。本节拥有成员依赖、跨包访问和产物位置的规则。
 
 在根执行 `uv sync --locked` 与 `pnpm install --frozen-lockfile --ignore-scripts`
-安装两套开发环境；`make check` 运行当前完整检查组合。
+安装两套开发环境；`pnpm run check` 运行当前完整检查组合。
 单项检查与覆盖解释见[验证与证据](verification.md)，工具包使用和构建见
 [spec-tools](../tools/spec-tools/README.md)，自动化入口见 [scripts](../scripts/README.md)。
 CLI 从当前工作目录定位受检仓库；从外部目录执行时用 `--root` 明确目标。

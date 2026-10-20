@@ -112,7 +112,7 @@ Applicable tests are unit tests and contract tests through the public entry `@om
 | `tests/leap-seconds-resource.spec.ts` | The embedded text equals `resources/leap-seconds.list`, and the file matches its own `#h` SHA-1 hash. |
 | `tests/consumption.spec.ts` | A consumer round-trips one instant and one duration through the package name only. |
 
-Run `pnpm test` and `pnpm build` in this directory. `pnpm test` builds first, and the tests import `dist`.
+Run `pnpm turbo run test --filter=@omne-harness/utc-instant` from the repository root. turbo builds first, and the tests import `dist`. `pnpm test` in this directory does not build.
 
 Not covered: `readLeapSecondData` does not check the `#h` hash of a caller-supplied file. Only the test checks the hash of the bundled file. This package does not prove that a persistent clock or a physical clock keeps true time.
 
@@ -125,4 +125,4 @@ To update the leap-second table:
 1. Download the current file from the IERS source into `resources/leap-seconds.list`. Do not edit the file.
 2. Run `pnpm run leap-seconds:embed` in this directory.
 3. Update the bundled version and expiry literals in `tests/leap-seconds.spec.ts` and in both READMEs. The package derives those instants from the file, so `src/instant.ts` has no copy of the numbers to edit.
-4. Run `pnpm test` and `pnpm build`.
+4. Run `pnpm turbo run test --filter=@omne-harness/utc-instant` from the repository root.

@@ -1,15 +1,15 @@
-// `make check` 里按计划执行的几步：pytest、构建、类型检查、成员测试（快慢两层）、可执行验收；
+// `pnpm run check` 里按计划执行的几步：pytest、构建、类型检查、成员测试（快慢两层）、可执行验收；
 // 以及它们共用的「跑一批成员的脚本并写耗时账本」。计划由 `scope.ts` 算（受影响的成员由 turbo 给出），
-// 这里只照着执行、照实说跳了什么。构建交给 turbo，类型检查与测试仍由本工具逐成员跑。
+// 这里只照着执行、照实说跳了什么。构建、类型检查与成员测试交给 turbo，可执行验收仍由本工具逐成员跑。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { changedFiles, coordinates, type Coordinates } from '@omne-harness/repo-toolchain/core/git'
 import { describeCheckPlan, planCheck, type CheckPlan } from './scope.ts'
-import { admissionRequested, affectedMembers, turboBuild } from './turbo.ts'
+import { admissionRequested, affectedMembers, turboBuild, turboTypecheck } from './turbo.ts'
+import { checkTypecheckScopes } from './typecheck-scope.ts'
 import {
   CONFIG_PATH,
   effectiveParallelism,
@@ -19,7 +19,14 @@ import {
   type RunScript,
   type RunTier,
 } from './config.ts'
-import { buildLedger, emptyLedger, ledgerSummary, type LedgerFile, type RunMeta } from './ledger.ts'
+import {
+  buildLedger,
+  emptyLedger,
+  ledgerSummary,
+  type LedgerFile,
+  type MemberRun,
+  type RunMeta,
+} from './ledger.ts'
 import {
   fileTree,
   listWorkspaceMembers,
@@ -28,7 +35,7 @@ import {
   type TestMember,
   type WorkspaceMember,
 } from '@omne-harness/repo-toolchain/core/workspace'
-import { runMembers, slugOf } from './run.ts'
+import { runMembers, runTurboTests, slugOf } from './run.ts'
 import { buildTargets, timestamp } from './support.ts'
 
 /** 环境变量 `FULL`：`1` 要全量，不设或空串不要；别的值报错，不猜。 */
@@ -37,15 +44,6 @@ export function fullRequested(env: Readonly<Record<string, string | undefined>>)
   if (value === undefined || value === '') return false
   if (value === '1') return true
   throw new Error(`环境变量 FULL 只能是 1 或不设，现在是 ${value}`)
-}
-
-/** 基线：给了用它，否则环境变量 BASELINE，再否则 main。 */
-export function baselineOf(
-  given: string | undefined,
-  env: Readonly<Record<string, string | undefined>>,
-): string {
-  const fromEnv = env['BASELINE']
-  return given ?? (fromEnv === undefined || fromEnv === '' ? 'main' : fromEnv)
 }
 
 /** 计划文件：计划连同它是对哪个提交、哪个基线算的。 */
@@ -142,7 +140,7 @@ export function pythonStep(root: string, file: PlanFile): number {
   console.log(`pytest：跑——${file.plan.python.reason}`)
   const runner = process.env['OMNE_RUNNER_ROOT']
   return runner === undefined
-    ? spawnInherited(root, 'make', ['--no-print-directory', 'test'])
+    ? spawnInherited(root, 'pnpm', ['--silent', 'run', 'test:python'])
     : spawnInherited(root, 'uv', [
         'run',
         '--project',
@@ -174,7 +172,7 @@ export function buildStep(root: string, file: PlanFile): number {
   return turboBuild(root, names, admissionRequested(process.env))
 }
 
-/** 类型检查：按计划逐个点名；不依赖构建，嵌套的归档目录由 typecheck-member.ts 排除。 */
+/** 类型检查：按计划点名，由 turbo 运行；不依赖构建。先核对嵌套归档目录已在成员的 tsconfig 里排除。 */
 export function typecheckStep(root: string, file: PlanFile): number {
   const paths = file.plan.typecheck
   if (paths.length === 0) {
@@ -183,14 +181,12 @@ export function typecheckStep(root: string, file: PlanFile): number {
   }
   const members = membersAt(root, paths)
   console.log(`类型检查：${paths.length} 个成员——${paths.join('、')}`)
-  return spawnInherited(root, 'pnpm', [
-    '-r',
-    ...members.flatMap(member => ['--filter', member.name]),
-    'exec',
-    process.execPath,
-    '--experimental-strip-types',
-    fileURLToPath(new URL('./typecheck-member.ts', import.meta.url)),
-  ])
+  checkTypecheckScopes(root, members)
+  return turboTypecheck(
+    root,
+    members.map(member => member.name),
+    admissionRequested(process.env),
+  )
 }
 
 /** 一次记账本的运行：跑哪些成员、哪一层，以及账本抬头里写的范围。 */
@@ -198,7 +194,7 @@ export interface RecordedRun {
   readonly script: RunScript
   readonly tier: RunTier
   readonly targets: readonly TestMember[]
-  /** 先把目标连同依赖构建一遍。 */
+  /** 运行前构建目标连同依赖：测试由 turbo 按任务依赖在同一次运行里构建，验收在运行前构建。false 时调用方已经构建过。 */
   readonly build: boolean
   readonly out: string | undefined
   readonly at: Coordinates
@@ -226,7 +222,8 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
   const parallel = effectiveParallelism(config, process.env)
   const runDir = runDirOf(run)
   mkdirSync(runDir, { recursive: true })
-  if (run.build && !buildTargets(root, targets, runDir)) return 1
+  // 测试的构建由 turbo 按任务依赖在同一次运行里做；验收不经 turbo，先在这里构建。
+  if (script === 'acceptance' && run.build && !buildTargets(root, targets, runDir)) return 1
 
   const meta = {
     script,
@@ -247,7 +244,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
       `同时 ${parallel.memberConcurrency} 个成员、每个至多 ${parallel.vitestMaxWorkers} 个工作进程（本机 ${meta.cores} 核）`,
   )
   const started = Date.now()
-  const runs = await runMembers(root, targets, runDir, parallel, script, tier, (done, finished) => {
+  const report = (done: MemberRun, finished: number) => {
     const tests = done.report?.testResults.reduce(
       (sum, file) =>
         sum +
@@ -263,7 +260,19 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
           ? ''
           : `，退出码 ${done.exitCode}，日志 ${join(runDir, `${slugOf(done.member)}.log`)}`),
     )
-  })
+  }
+  const runs =
+    script === 'test'
+      ? await runTurboTests(
+          root,
+          targets,
+          runDir,
+          parallel,
+          tier,
+          { build: run.build, admission: admissionRequested(process.env) },
+          report,
+        )
+      : await runMembers(root, targets, runDir, parallel, script, report)
   const wallSeconds = (Date.now() - started) / 1000
 
   const ledger = buildLedger(runs, root, config.ledger.nearTimeoutRatio)
@@ -275,7 +284,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
     runDir,
   })
   if (ledger.failures.length > 0)
-    summary.push(`对这些失败做隔离重跑：make test-triage RUN=${runDir}`)
+    summary.push(`对这些失败做隔离重跑：pnpm run test:triage --run ${runDir}`)
   writeFileSync(
     join(runDir, 'ledger.json'),
     `${JSON.stringify({ meta: { ...meta, wallSeconds: Math.round(wallSeconds) }, ...ledger } satisfies LedgerFile, null, 1)}\n`,
@@ -287,8 +296,9 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
 
 const planSummary = (plan: CheckPlan) => ({ mode: plan.mode, reason: plan.reason })
 
-/** 合并前的成员测试：计划里的成员的快层，再慢层；各写一份账本。计划为空时说「没有要跑的成员」，不算跑过。 */
-export async function testStep(root: string, file: PlanFile): Promise<number> {
+/** 合并前的成员测试：计划里的成员的快层，再慢层；各写一份账本。计划为空时说「没有要跑的成员」，不算跑过。
+ * `build` 为 true 时由 turbo 先构建（单独运行）；准入检查里构建一步已经构建过，不再构建。 */
+export async function testStep(root: string, file: PlanFile, build = false): Promise<number> {
   const config = readTestRunsConfig()
   const selected = new Set(file.plan.test)
   const targets = withScript(
@@ -307,7 +317,7 @@ export async function testStep(root: string, file: PlanFile): Promise<number> {
   const common = {
     script: 'test',
     targets,
-    build: false,
+    build,
     out: undefined,
     at,
     base: file.plan.mode === 'full' ? null : file.base,

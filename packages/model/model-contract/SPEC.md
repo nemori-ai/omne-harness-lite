@@ -1,8 +1,8 @@
 # Model 领域契约长期规格
 
-状态：本包现有 Model 领域值、公开操作、提供者端口及行为协议已正式接受。原调用身份与受理、执行与观察边界、取消恢复、结果保管和双路径 ACK 沿用[既有技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)。通用传输、计量及 ModelTextTokenizer 契约属于已接受范围；pi-ai 具体实现、厂商家族和相关引擎/资源细化仍为候选，归[组架构](../docs/architecture.md)。设计接受不表示生产实现或运行验证完成，也不补定尚缺的外部契约或具体参数值。
+状态：本包现有 Model 领域值、公开操作、提供者端口及行为协议已正式接受。原调用身份与受理、执行与观察边界、取消恢复、结果保管和双路径 ACK 沿用[既有技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)。通用传输、计量及 ModelTextTokenizer 契约属于已接受范围；pi-ai 的成员划分与实现细化采用范围由[组架构各节](../docs/architecture.md#成员与新增条件)维护。设计接受不表示生产实现或运行验证完成，也不补定尚缺的外部契约或具体参数值。
 
-本页拥有 Model 领域共同的非类型行为。已接受范围及 pi-ai 例外以上文为准，源码导出和运行验证分别交付。具体执行函数归 [model 实现规格](../model/SPEC.md)，Cordis 定义及登记协议归 [框架契约规格](../model-cordis-contract/SPEC.md)。
+本页拥有 Model 领域共同的非类型行为。领域契约的已接受范围以上文为准，pi-ai 提供者细化沿组架构的采用范围执行；源码导出和运行验证分别交付。具体执行函数归 [model 实现规格](../model/SPEC.md)，Cordis 定义及登记协议归 [框架契约规格](../model-cordis-contract/SPEC.md)。
 
 ## 能力与契约拥有者
 
@@ -45,7 +45,7 @@ ModelTransport.prepare 固定 adapter 和引用计划，完成可纯计算的工
 
 只有本次请求需要的二进制转换在该阶段执行。结果是请求私有派生表示，不修改历史消息、原 ToolResult 或其附件，不冒充消息准入时已有 transcript。转换或加载失败不重跑原工具；依据实际发送状态形成明确 not-started、失败或 unknown。其他消息来源原有的接纳前本地转换规则保持，Tool ref 路径采用本节例外。
 
-ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构造注入，领域根工厂不取得原始文件、网络或全局容器。它们不是每个 Model 门面的永久服务依赖；阶段缺席按原失败协议处理。共享 ref 设计已接受，Model 通用发送读取设计已接受，pi-ai adapter 细化仍为候选，消息校验沿共享拥有者状态，相关实现尚未完成，不能由类型声明宣称已有二进制延迟读取保证。
+ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构造注入，领域根工厂不取得原始文件、网络或全局容器。它们不是每个 Model 门面的永久服务依赖；阶段缺席按原失败协议处理。共享 ref 设计已接受，Model 通用发送读取设计已接受，pi-ai 物化与媒体读取的具体资源控制仍为候选，消息校验沿共享拥有者状态，相关实现尚未完成，不能由类型声明宣称已有二进制延迟读取保证。
 
 ## 请求资格、身份与固定输入
 
@@ -183,7 +183,7 @@ ModelMediaReader 与 ModelToolPayloadAdapter 由具体发送/传输提供者构�
 
 本节维护运行接口的行为。声明只在 `src/`，[public-api](docs/public-api.md) 是它的导航，消费及失败场景归 [context](docs/context.md)。本节设计已接受，尚不表示生产支持。
 
-本节将既有行为落实到操作、参数和提供者责任。声明只保存在 `src/`，[公开接口页](docs/public-api.md)给出导航，导出清单没有 pending 名字。`executeModel` 与 `createModelRuntime` 等由 model 成员拥有，尚未实现，不能从本包导入。
+本节将既有行为落实到操作、参数和提供者责任。声明只保存在 `src/`，[公开接口页](docs/public-api.md)给出导航，导出清单没有 pending 名字。`executeModel` 与 `createModelRuntime` 等由 model 成员拥有，不能从本包导入。model 已实现 executeModel 及受理、原流保存、实例观察和有限的原终局收场，具体支持边界归[实现规格](../model/SPEC.md#已实现的调用收场)。结果读取及 processed ACK 已实现；retained ACK、自动清理与生产托管宿主尚未实现。
 
 <a id="342-能力边界"></a>
 
@@ -242,6 +242,14 @@ Settlement.source 由 Model 在原结果真实收场及必要保存共同成立�
 增长中的工具参数不能变成 `ToolSuggestion`。只有完整封块、JSON 验证通过且实际模型收场允许使用时，消费者才得到可交 Tool 准入的建议。图片/文件只在完整且可恢复时作为 sealed 出现。语音片段的 value 是固定 representation 所声明编码，不能由观察者猜文本。首内容判定在原始已接受内容上完成，不能因快照合并而漏掉曾经实际到达的内容。
 
 所有观察内容先提交对应可恢复表示及首内容标记，再发布 cursor。一次提交可以包含多个片段。提供者应按配置批量保存并背压传输；保存未确认的片段不能先向外展示。未发布的接收缓存不作为已展示内容承诺，但接收之后、持久之前的崩溃仍可能已经越过首内容界，必须按下文的 receive-window 保留 uncertain，不得据此重发。附件及原件使用满足同一耐久与保留承诺的引用。
+
+最终 `ResultPage.parts` 按原 dispatch 发出顺序、再按 index 保留每位置至多一项。`ResultPart` 的 sealed 保存原完整 ModelBlock，partial 保存 text、thinking、voice 或 tool-arguments 的收场累计值。partial 不生成 BlockId、visibility 或 mediaType，也不成为可执行工具调用。消费者分别处理完整块与未封值，并处理每项的真实 trims 和页上的 Settlement。thinking 不因保管获得展示资格，voice 未封值不获得播放资格。声明由 [call-surface.ts](src/call-surface.ts) 唯一维护，Snapshot.blocks 与传输事实保持原义。
+
+每位置曾接受非空填充或真实 trim 才产生 partial。曾非空后 replace 为空仍交付空字符串 partial；只 open 或始终空 fill 且无 trim 不产生结果项。trims 按接受顺序保留 removed/reason，未发生时为空数组。trim 是提醒，不再次删 value 字节，不猜 removed 单位，不由 failed/limit 合成。合法封口文字仍携带此前提醒，工具参数一经真实 trim 便不能封为可执行调用。完整 stop/tool-suggestions 的封口约束只检查该结束事实所在 dispatch，早先纯空失败不污染成功重试，早先真实 trim 仍须保留。
+
+页按完整结果项组装，不分割字符串、块或 trims。`resultPageTargetBytes` 是规范 parts 数组 JSON 的 UTF-8 组页目标，按键递归排序、数组保序，并使用 JSON.stringify 的字符串转义。先放第一项，再在项数和目标均允许时贪心加入后项；首项超目标则独占一页。目标为1或2仍能取得进展。空结果仍有空 parts 和真实 Settlement。Settlement、next 和包装不属于组页目标，但整个 ResultPage 的同口径字节数不得超过原冻结 capacity.bytes，即 C。消费者须能处理接近 C 的页，不能将目标用作更小的硬接收缓冲。
+
+提供者在保存新内容前预留原材料、最终有序 parts/trims、结算、最大游标包装和必要读/控制/承接元数据。纯派生投影仍须占保管额度；终局与证据在首次输入边界受明示有限上限约束，不能先接纳再永久卡在结算或 ACK。保存失败保留合法前缀及原责任，不发布后截断或伪造 limit。页配置在原结果/读源冻结，只接纳该读已发出的 after；同 after 保持同页，当前失权、到期或 ended 优先。ACK 不增加必须读完全部页的条件，原读继续保护全部 parts 和提醒，完全清理释放正文、trim、标记和无用读材料。
 
 `beginRead` 是第一份内容读取与登记的同一操作，不是空租约申请。它与 ACK 在同一 call 修订上串行裁定。ACK 先提交则返回 acknowledged；读取先提交则 ACK 后可继续这个 read。ACK 之后用原读取 operation 重复 `beginRead` 时，先按 operation 认回原 read，再谈 acknowledged：返回原 `beginRead` 的回答，即未结束的 read 仍给首页（不是读者当前的位置；读者按自己已取得的 next 继续），已结束的 read 给出已结束状态，不再给内容；只有新 operation 才返回 acknowledged。每一页重新核验当前读取资格。一次读取只能取得同一版本，按 next 继续；重复 after 返回同一页，不移动到新结果。
 
@@ -333,7 +341,7 @@ Model 公开面上接受调用方提交的 `ModelOperationId` 的每个方法，
 | clock | 时间与等待能力；时间值为 UTC instant | 时钟不可用不虚构超时或许可；取消等待不取消原调用 |
 | signal、PreparedTransport、MaterializedTransport、handle | 临时资源 | 创建者释放，不能序列化；观察 signal 不取消原执行 |
 
-共同协议要求输出队列有界，满时背压；观察者落后时结束该观察并允许快照重连，不能无限保存重复快照。超大单块通过原已获准的耐久附件引用读取，不任意截掉块内容。具体工厂的依赖组合、配置字段、默认值与分页机制归 [model 实现规格](../model/SPEC.md#工厂与配置)。替代提供者满足上述行为，不必采用同一构造形状。
+共同协议要求输出队列有界，满时背压；观察者落后时结束该观察并允许快照重连，不能无限保存重复快照。最终结果按完整 sealed/partial 项和目标字节组页，超目标单项独页，整个 ResultPage 仍不得超过原容量 C。已有媒体引用只适用于其合法已封媒体；本协议不承诺任意文字、工具调用或未封值的通用附件化。具体工厂的依赖组合、配置字段、默认值与分页机制归 [model 实现规格](../model/SPEC.md#工厂与配置)。替代提供者满足上述行为，不必采用同一构造形状。
 
 <a id="342-资格共同提交与实际发送"></a>
 
@@ -416,6 +424,8 @@ prepareRetry 为该 dispatch 保存唯一策略 operation、固定 retryPolicy �
 策略协调者的寿命归 Model 宿主或其独立依赖，发起者离开不卸载它。策略需要系统托管数据时仍以当前受信主体和显式 tenant 核权，内部效果有自己的可恢复调用身份；它不能借策略位置发与原判断无关的工作。目标调用受到控制（包括 Model 因原工作资格失效记录的控制，见[资格、共同提交与实际发送](#342-资格共同提交与实际发送)）、原调用终局或当前准入撤销后，不再进行新的策略业务效果；已开始的原内部调用可收场保管。采用缺失或确证策略不可用才按不再试收束，纯查询故障保持未知。已决定但提交未知先查认，不让替换的策略覆盖旧结论。后继实际 send 仍独立核当前围栏，不以决定为永久许可。
 
 为覆盖首片已接收而未保存的窗口，提供者在任何可能观察内容的接收动作前调用 openReceiveWindow。其提交把尚无首内容的状态从 none-proven 改为 uncertain。传输不得在窗口开始之前后台预读；无法禁用预读时，须在 start 前打开覆盖整个预读期间的窗口。仅打开网络连接但未接收模型内容，不自行算首内容。
+
+ModelSendBoundary 的 started 结果必须同时交出已确认打开的原 window 和唯一 facts 流。消费者直接使用结果中的 window 调用 preserve，不从测试计划或隐藏共享状态推导窗口。window 只标识原接收范围，不授予访问权；Commands 仍核 tenant、call、execution、dispatch 与 window 绑定。start 已取得流而 recordSend 未确认时，发送器保留原窗口、原流、资源与写参数。认回原写后只交出一次原窗口与原流，不再次 start。此行为不提供跨进程恢复保证。
 
 preserve 保存该窗口全部已接收事实并关闭窗口。包含任何实际内容时永久改为 observed；确认只有非内容事实时可以回到 none-proven，但前提是接收已暂停且没有未纳入的预读缓冲。发送/接收失败先以终止事实关闭窗口，再进行策略判断。崩溃留下的 open window 不能靠数据库里缺少内容来关闭为 none-proven；无法从可信接收记录恢复其完整事实时，以 uncertain 保持不重发并形成 runtime-lost 收场，明确未能判定首内容是否发生。这个保守结果不把真实内容谎报为未出现，也不禁止能证明首内容前的合法恢复。
 

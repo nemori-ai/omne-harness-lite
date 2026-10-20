@@ -4,7 +4,7 @@ import { readTaskBinding, parseTaskBinding } from '../src/delivery/binding.ts'
 import { parsePolicy } from '../src/integration/policy.ts'
 import { parseContext } from '../src/integration/context.ts'
 import { parseCommand } from '../src/integration/cli.ts'
-import { policyDocument } from './fixtures/integration.ts'
+import { policyDocument, trackEntry } from './fixtures/integration.ts'
 
 const commit = 'a'.repeat(40)
 describe('policy registry', () => {
@@ -27,7 +27,8 @@ describe('policy registry', () => {
       owner: 'human',
       source: 'https://github.com/owner/repo/issues/1',
       status: 'active',
-      initialMain: commit,
+      parent: 'main',
+      initialBase: commit,
     })
     const retired = policyDocument(commit, '/remote.git')
     retired.tracks[0] = { ...retired.tracks[0]!, status: 'retired' }
@@ -43,12 +44,61 @@ describe('policy registry', () => {
       ),
     )
     expect(policy.repository).toBe('nemori-ai/omne-harness-lite')
-    expect(policy.tracks.map(track => track.id)).toEqual([
-      'development',
-      'legacy-refactor',
-      'engineering-toolchain',
+    expect(policy.tracks.map(track => [track.id, track.parent])).toEqual([
+      ['legacy-refactor', 'main'],
+      ['engineering-toolchain', 'main'],
     ])
     expect(policy.tracks.every(track => track.owner !== '')).toBe(true)
+  })
+  it.each(['parent', 'initialBase'] as const)('refuses a track without %s', field => {
+    const { [field]: _, ...track } = trackEntry('runtime', commit)
+    expect(() => parsePolicy(policyDocument(commit, '/remote.git', [track]))).toThrow(
+      `track.${field} must be`,
+    )
+  })
+  it('refuses the renamed initialMain field', () => {
+    const track = { ...trackEntry('runtime', commit), initialMain: commit }
+    expect(() => parsePolicy(policyDocument(commit, '/remote.git', [track]))).toThrow(
+      'track: unknown fields initialMain',
+    )
+  })
+  it.each(['main', 'stable', 'release', 'github-gate'])(
+    'refuses the reserved track ID %s and the same name as a parent',
+    name => {
+      const id = { ...trackEntry('runtime', commit), id: name, branch: `integration/${name}` }
+      expect(() => parsePolicy(policyDocument(commit, '/remote.git', [id]))).toThrow(
+        'track.id is a reserved name',
+      )
+      if (name === 'main') return
+      const parent = trackEntry('runtime', commit, name)
+      expect(() => parsePolicy(policyDocument(commit, '/remote.git', [parent]))).toThrow(
+        'track.parent is a reserved name',
+      )
+    },
+  )
+  it('refuses a track that is its own parent or a parent that is not one segment', () => {
+    expect(() =>
+      parsePolicy(
+        policyDocument(commit, '/remote.git', [trackEntry('runtime', commit, 'runtime')]),
+      ),
+    ).toThrow('cannot be its own parent')
+    expect(() =>
+      parsePolicy(
+        policyDocument(commit, '/remote.git', [trackEntry('runtime', commit, 'integration/a')]),
+      ),
+    ).toThrow('track.parent must be one segment')
+  })
+  it('accepts a parent that names an unregistered track; the upstream chain is checked at start', () => {
+    const policy = parsePolicy(
+      policyDocument(commit, '/remote.git', [
+        trackEntry('child', commit, 'runtime', 'paused'),
+        trackEntry('orphan', commit, 'missing', 'retired'),
+      ]),
+    )
+    expect(policy.tracks.map(track => [track.id, track.parent])).toEqual([
+      ['child', 'runtime'],
+      ['orphan', 'missing'],
+    ])
   })
   it.each([
     ['owners', []],
@@ -174,6 +224,75 @@ describe('task binding', () => {
     expect(() => parseTaskBinding({ ...binding, extra: true })).toThrow('unknown fields')
     expect(() => parseTaskBinding({ ...binding, branch: 'integration/runtime' })).toThrow(
       'human prefix',
+    )
+  })
+  it.each(['global', 'cross-track'] as const)(
+    'requires a named track and affected owners on a %s route',
+    kind => {
+      const binding = {
+        schemaVersion: 1,
+        issue: {
+          repository: 'owner/repo',
+          id: 'I_1',
+          url: 'https://github.com/owner/repo/issues/1',
+          number: 1,
+        },
+        revision: 1,
+        attempt: 'one',
+        responsible: 'human',
+        branch: 'human/task',
+        route: { kind, track: 'runtime', owners: ['human'] },
+        completionTarget: 'track',
+        taskBase: commit,
+        writeScope: ['src'],
+        dispatch: 'https://github.com/owner/repo/issues/1#issuecomment-1',
+        conditions: [],
+        authorization: [],
+      }
+      expect(parseTaskBinding(binding).route).toEqual({ kind, track: 'runtime', owners: ['human'] })
+      for (const completionTarget of ['main', 'stable'])
+        expect(parseTaskBinding({ ...binding, completionTarget }).completionTarget).toBe(
+          completionTarget,
+        )
+      expect(() => parseTaskBinding({ ...binding, route: { kind, owners: ['human'] } })).toThrow(
+        'route.track must be',
+      )
+      expect(() =>
+        parseTaskBinding({ ...binding, route: { kind, track: 'runtime', owners: [] } }),
+      ).toThrow('affected owners')
+      expect(() => parseTaskBinding({ ...binding, route: { kind, track: 'runtime' } })).toThrow(
+        'route.owners must be an array',
+      )
+      expect(() =>
+        parseTaskBinding({ ...binding, route: { kind, track: 'a/b', owners: ['human'] } }),
+      ).toThrow('one branch segment')
+    },
+  )
+  it('accepts track as the completion target of a track route and refuses owners on it', () => {
+    const route = { kind: 'track', track: 'runtime' }
+    const binding = {
+      schemaVersion: 1,
+      issue: {
+        repository: 'owner/repo',
+        id: 'I_1',
+        url: 'https://github.com/owner/repo/issues/1',
+        number: 1,
+      },
+      revision: 1,
+      attempt: 'one',
+      responsible: 'human',
+      branch: 'human/task',
+      route,
+      completionTarget: 'track',
+      taskBase: commit,
+      writeScope: ['src'],
+      dispatch: 'https://github.com/owner/repo/issues/1#issuecomment-1',
+      conditions: [],
+      authorization: [],
+    }
+    expect(parseTaskBinding(binding).route).toEqual(route)
+    expect(() => parseTaskBinding({ ...binding, route: { ...route, owners: ['human'] } })).toThrow(
+      'route: unknown fields owners',
     )
   })
 })

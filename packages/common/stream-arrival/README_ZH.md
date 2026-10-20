@@ -54,6 +54,8 @@ assembleStream({
 
 `close` 可以带 `block`。message 的 `judgePart` 在查看步骤之前先判定这个块，被拒绝时是 `block`，`detail` 是 `judgePart` 的拒绝值。缺省时封住开块头与累积文本。封住的部件在每个键上都必须与开块头相同：`kind`、`id`、`visibility`，以及每个文本键（`callId`、`name`、`mediaType`、`storage`、`key`）。任何不同是 `conflict`。它的 `text` 或 `inline` 与累积文本不一致时，拒绝码也是 `conflict`。这些情况下先前的装配都保持不变。
 
+显式完整 image、voice 或 file 块有一项正文匹配例外。replace 模式从未接受 fill 时，close 可交完整块，不要求匹配初始空正文。这允许整交 inline 图片及封闭媒体 ref。种类、身份、可见性和已声明头字段仍须相同，ref 仍须通过 judgePart。头的 mediaType 不解释为 ref.mediaType。接受过空 fill，或填充后又替换成空串，都禁用该例外。append、text、thinking 和工具调用沿原正文规则。引用不证明内容存在或读取权限，装配器不加载媒体。
+
 `tool_call` 只能用带完整 `tool_call` 的显式块封口。没有 `block` 的封口是 `block`，`detail` 取自 `judgePart`，是 `callId`、`name`、`arguments` 之一。开块头的 `callId` 一定非空，所以实际出现的是 `name`（空名）和 `arguments`（累积文本不是值树）。本包不拿 `arguments` 与累积文本比较：那由流的结算方核对。`tool_call` 块也可以用 `tool_call_unparsed` 部件封口，这是种类与开块头不同的唯一例外：其余键必须与开块头相同，`raw` 必须等于累积文本，否则是 `conflict`。`tool_call_incomplete` 部件永远不被封口：在 `tool_call` 头上是 `block`，`detail` 为 `incomplete`；在别的种类的头上是 `conflict`。别的种类的头收到 `tool_call_unparsed` 也是 `conflict`。带削减记录的 `tool_call` 块不能封成 `tool_call` 或 `tool_call_unparsed`，拒绝码是 `block`，`detail` 为 `trimmed`。剩下的文本也许能解码，但这不能证明模型已经说完。`trim` 只作用于开着的块。对已封口的块 `trim` 是 `closed`，与 `fill` 相同，所以已封口的部件不会再得到削减记录。
 
 `stopped`、`cancelled`、`failed` 收场的终态只带已封口的部件和削减记录，也不当作消息来判定。仍然开着的 `tool_call` 不在其中。有块开着时 `finish` 是 `open`。流的结算方取已封口的部件，加上它构造的半截调用部件，自己对整条消息做判定。`tool_result` 没有追加形式，标记是整块到达的。

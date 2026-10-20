@@ -1,6 +1,6 @@
 # 扩展作者协议
 
-状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。本页面向扩展作者。它拥有三件事：作者看到的输入与输出形状，各位置的输出合法性表，以及整批判断屏障的作者可见语义。扩展的位置集合、名称与触发边界由系统页[Loop extensions](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)拥有，本页只引用位置名，不重述位置表。Agent 对扩展的行为保证归[成员 SPEC](../../SPEC.md#扩展卡片与材料)，内部实现机制归[扩展经过与精确采用接续](../../../agent/docs/architecture/mechanisms.md#扩展经过与精确采用接续)。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。作者接口的类型在 [src/extensions.ts](../../src/extensions.ts) 实现，输出判断 `judgeExtensionOutput` 与位置输出表的机读形式 `POSITION_OUTPUTS` 在 [src/judge-output.ts](../../src/judge-output.ts) 实现。扩展的调用、聚合与台账尚未实现。本页面向扩展作者。它拥有三件事：作者看到的输入与输出形状，各位置的输出合法性表，以及整批判断屏障的作者可见语义。扩展的位置集合、名称与触发边界由系统页[Loop extensions](../../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)拥有，本页只引用位置名，不重述位置表。Agent 对扩展的行为保证归[成员 SPEC](../../SPEC.md#扩展卡片与材料)，内部实现机制归[扩展经过与精确采用接续](../../../agent/docs/architecture/mechanisms.md#扩展经过与精确采用接续)。
 
 扩展只看到 Agent 自己的执行事实和按声明注入的能力。它不取得外部协调者的业务关联、日志句柄、环境句柄、Tool 内部的等待对象或供应商调度器。独立调用者和外部协调者路径使用同一份作者协议，位置集合不因调用方而变化。
 
@@ -9,7 +9,7 @@
 - 一次经过：Loop 到达某个位置的一次，见词表[一次经过](../../../../../.meta_harness/design/ubiquitous_language/terms/agent-runtime-loop.md#ul-extension-point-pass--一次经过--extension-point-pass)。同一次经过里，该位置的扩展按链序各调用一轮。
 - 扩展调用：Agent 在一次经过里对一个扩展发起的调用，见词表[拓展件调用](../../../../../.meta_harness/design/ubiquitous_language/terms/agent-runtime-loop.md#ul-extension-invocation--拓展件调用--extension-invocation)。Agent 用 `Passage` 记录一次扩展调用，用 `PassageId` 标识它。一次扩展调用可以包含多次 `invoke`：结果未知之后的回放与答复到达之后的回放，都属于原扩展调用。
 
-本页是扩展作者接口类型的唯一声明位置，公开接口页只列名称并链接到这里。本页引用的其他 Agent 类型，例如 `Subject`、`PassageId`、`CardRoundId` 与 `CardAnswer`，由[公开接口页](README.md)声明。`Message` 与 `JsonValue` 按公开接口页开头的导入。`M.*` 指 [Model 契约设计页](../../../../model/model-contract/docs/public-api.md)的名称，`T.*` 指 `@omne-harness/tool-contract` 的导出，见 [Tool 契约公开接口](../../../../tool/tool-contract/docs/public-api.md)。这些名称在各拥有者实际导出之前不能当作已落地的依赖。
+本页规定扩展作者接口类型的含义与规则，类型的唯一声明在 [src/extensions.ts](../../src/extensions.ts)。公开接口页只列名称并链接到这里。本页引用的其他 Agent 类型，例如 `Subject`、`PassageId`、`CardRoundId` 与 `CardAnswer`，由[公开接口页](README.md)导航到的源码声明。`Message` 来自 `@omne-harness/message`，`JsonValue` 来自 `@omne-harness/json-text`。`M.*` 指 `@omne-harness/model-contract` 的导出，见 [Model 契约公开接口](../../../../model/model-contract/docs/public-api.md)。`T.*` 指 `@omne-harness/tool-contract` 的导出，见 [Tool 契约公开接口](../../../../tool/tool-contract/docs/public-api.md)。
 
 ## 位置与作者可见的 subject
 
@@ -18,6 +18,8 @@
 本页的前置位置是 `before_compaction`、`before_model_call`、`before_action` 与 `before_terminal`。后置位置是 `execution_started`、`after_compaction`、`after_model_call`、`after_action` 与 `after_terminal`。`execution_started` 在新执行开始之后经过，所以属于后置位置。
 
 调模型之前与调模型之后两个位置另带 `purpose`：主请求的调用为 `main`，压缩步骤的调用为 `compaction`。扩展经注入能力发起的模型调用（用途 `extension`）不经过这两个位置，规则见下文“压缩用途与扩展用途的模型调用”。
+
+下表是“位置与维度”到 `subject` 形状这一对应关系的权威。形状本身的权威是 [src/passages.ts](../../src/passages.ts) 的 `Subject` 联合：表中每一行的形状照抄联合的一个变体。[public-api-names.spec-d.ts](../../tests/public-api-names.spec-d.ts) 逐行断言表中每一行恰好等于联合的一个变体，十二行合起来等于整个联合。该测试不读取本页，它在源码里保存这十二行的抄本。所以改表中的任何一行时，必须同时改该测试中对应的那一行断言。
 
 | 位置与维度 | `subject` 字段 | 可改写字段 |
 | --- | --- | --- |
@@ -42,37 +44,9 @@
 
 ## 声明
 
-扩展作者提交一份声明。装配按声明选择实现、注入能力并确定链序。声明的形状如下。
+扩展作者提交一份声明。装配按声明选择实现、注入能力并确定链序。
 
-```ts
-export type Position =
-  | 'execution_started' | 'before_compaction' | 'after_compaction'
-  | 'before_model_call' | 'after_model_call' | 'before_action' | 'after_action'
-  | 'before_terminal' | 'after_terminal'
-export type Dimension =
-  | Readonly<{ ending: 'complete_reply' | 'failure' }>
-  | Readonly<{ scope: 'each' | 'batch' }>
-export type Power = 'observe' | 'rewrite' | 'veto'
-export type ErrorPolicy = 'ignore' | 'record' | 'treat_as_veto'
-export type UnavailabilityPolicy = 'skip' | 'veto'
-export type ExtensionImplementationDeclaration =
-  | Readonly<{ kind: 'builtin'; builtinName: string }>
-  | Readonly<{
-      kind: 'command'; host: 'claude_code' | 'codex'
-      dialect: string; event: string; command: string
-      matcher?: string; timeout?: string
-    }>
-export type LoopExtensionDeclaration = Readonly<{
-  name: string
-  position: Position
-  dimension?: Dimension
-  power: Power
-  needs?: readonly [string, ...string[]]
-  implementation: ExtensionImplementationDeclaration
-  onError?: ErrorPolicy
-  unavailability?: UnavailabilityPolicy
-}>
-```
+声明的类型是 `Position`、`Dimension`、`Power`、`ErrorPolicy`、`UnavailabilityPolicy`、`ExtensionImplementationDeclaration` 与 `LoopExtensionDeclaration`，都在 [src/extensions.ts](../../src/extensions.ts)。同一文件的常量 `POSITIONS` 是九处位置，`POWERS` 是三档干预力。
 
 字段约束如下。
 
@@ -88,22 +62,11 @@ export type LoopExtensionDeclaration = Readonly<{
 
 声明里没有 `fallback` 字段。指定兜底只属于受信系统扩展，由装配方预先指定，作者不能声明，见下文“不可用与报错”。不可用处置是声明的一部分，不是各层可以逐项配置的设置或权限。更具体的层若要改变它，走合法的定义替换，不给同一资产私配值。
 
-现有源码只接受部分字段，并按位置限制声明的干预力，差异登记在[实施差异](../../verification/coverage.md#实施差异)。已实现的声明判断行为见[声明判断](../../SPEC.md#声明判断)。
+声明判断 `judgeLoopExtensions` 按上表接受九处位置、三档干预力和全部字段，返回具名拒绝原因。判断规则与限额见 [SPEC 的声明判断](../../SPEC.md#声明判断)。
 
 ## 输入
 
-作者在每次调用中收到一个 `ExtensionInput`。
-
-```ts
-export type ExtensionInput = Readonly<{
-  position: Position
-  dimension?: Dimension
-  subject: Subject
-  earlier: readonly Conclusion[]
-  execution: AgentExecutionId
-  passage: PassageId
-}>
-```
+作者在每次调用中收到一个 `ExtensionInput`，类型在 [src/extensions.ts](../../src/extensions.ts)。
 
 `subject` 按上文的位置表取形状。`earlier` 是同一次经过里、同一条链上前序扩展已校验的 Conclusion，按链序排列。后一个扩展读到的 `subject` 已经包含前序扩展的有效改写。`execution` 是 Agent 的逻辑执行身份。`passage` 是本次扩展调用的身份，是本次调用全部效果的幂等依据。输入里没有外部协调者的业务关联，没有日志句柄，没有环境句柄。
 
@@ -136,26 +99,7 @@ export type ExtensionInput = Readonly<{
 
 ## 输出
 
-作者返回八种输出之一。
-
-```ts
-export type ExtensionOutput =
-  | Readonly<{ kind: 'observed' }>
-  | Readonly<{ kind: 'inject'; message: Message & Readonly<{ role: 'system_reminder' }> }>
-  | Readonly<{ kind: 'rewrite'; subject: Subject }>
-  | Readonly<{ kind: 'select_model'; route: string; reason?: string }>
-  | Readonly<{ kind: 'veto'; reason: string }>
-  | Readonly<{ kind: 'stop'; terminal?: 'cancelled' | 'failed'; reason: string }>
-  | Readonly<{ kind: 'retry'; plan: Readonly<{ supplier: M.Supplier; notBefore: AgentInstant | null; basis: Adoption }> }>
-  | Readonly<{ kind: 'ask'; card: DecisionCardDraft }>
-export type DecisionCardDraft = Readonly<{
-  explanation: string
-  options: readonly [CardOption, ...CardOption[]]
-  about: Readonly<{ position: Position; action?: ActionId }>
-  proposedRewrite?: Readonly<{ option: CardOption['id']; effectiveArguments: string }>
-}>
-export type CardOption = Readonly<{ id: string; label: string; effect?: JsonValue }>
-```
+作者返回八种输出之一。`ExtensionOutput`、`DecisionCardDraft` 与 `CardOption` 的类型在 [src/extensions.ts](../../src/extensions.ts)。
 
 各种输出的含义如下。
 
@@ -180,7 +124,7 @@ export type CardOption = Readonly<{ id: string; label: string; effect?: JsonValu
 
 ### 位置输出表
 
-下表是输出合法性的唯一表。每一格先按位置，再按干预力收窄。“可改写字段”列重复上文位置表的结论，其余字段不可改写。
+下表是输出合法性的唯一表。每一格先按位置，再按干预力收窄。“可改写字段”列重复上文位置表的结论，其余字段不可改写。`POSITION_OUTPUTS` 是这张表的机读形式：每个位置行给出位置允许的输出和可改写字段，三档干预力的上限由上文的表给出。`judgeExtensionOutput` 用它判断作者的返回值。
 
 | 位置与维度 | 位置允许的输出 | `observe` 实际 | `rewrite` 实际 | `veto` 实际 | 可改写字段 |
 | --- | --- | --- | --- | --- | --- |
@@ -201,24 +145,7 @@ export type CardOption = Readonly<{ id: string; label: string; effect?: JsonValu
 
 ### Conclusion
 
-Agent 把校验通过的输出包装为 Conclusion 并保存。作者不返回 Conclusion。
-
-```ts
-export type ActionIdentity =
-  | Readonly<{ position: 'before_action'; action: ActionId; call?: never }>
-  | Readonly<{ position: 'after_action'; dimension: Readonly<{ scope: 'each' }>; action: ActionId; call?: never }>
-  | Readonly<{ position: 'after_action'; dimension: Readonly<{ scope: 'batch' }>; action?: never; call?: never }>
-  | Readonly<{ position: 'after_model_call'; dimension: Readonly<{ ending: 'complete_reply' }>; action?: never; call?: never }>
-  | Readonly<{ position: 'after_model_call'; dimension: Readonly<{ ending: 'failure' }>; action?: never; call: M.ModelCallId }>
-  | Readonly<{ position: Exclude<Position, 'before_action' | 'after_action' | 'after_model_call'>; action?: never; call?: never }>
-export type Conclusion = ActionIdentity & Readonly<{
-  passage: PassageId; extension: string; implementation: Adoption; power: Power; at: AgentInstant
-}> & (
-  | Readonly<{ output: ExtensionOutput; skipped?: never; error?: never; unavailability?: never }>
-  | Readonly<{ skipped: 'unavailable'; unavailability: UnavailabilityPolicy | 'fallback'; output?: never; error?: never }>
-  | Readonly<{ skipped: 'errored'; error: string; output: Extract<ExtensionOutput, { kind: 'observed' | 'veto' }>; unavailability?: never }>
-)
-```
+Agent 把校验通过的输出包装为 Conclusion 并保存。作者不返回 Conclusion。`ActionIdentity` 与 `Conclusion` 的类型在 [src/extensions.ts](../../src/extensions.ts)。
 
 | 分支 | 含义 |
 | --- | --- |
@@ -230,38 +157,11 @@ export type Conclusion = ActionIdentity & Readonly<{
 
 `ActionIdentity` 的规则：`before_action` 与 `after_action/each` 必须带 `action`。`after_model_call/failure` 必须带 `call`。其他位置与维度都不带这两个字段。调模型前后两个位置的用途记在 Passage 的 `purpose`，Conclusion 不另带用途。
 
-输出被拒收时，原因只有下列之一：`malformed`、`position_unknown`、`power_unknown`、`dimension_missing`、`dimension_not_allowed`、`output_not_allowed_for_power`、`output_not_allowed_at_position`、`ask_at_forbidden_position`、`rewrite_touches_immutable`、`inject_source_mismatch`。被拒收的输出按报错处理，分类为 `bad_output`。
+输出被拒收时，拒收原因只有下列之一：`malformed`、`position_unknown`、`power_unknown`、`dimension_missing`、`dimension_not_allowed`、`output_not_allowed_for_power`、`output_not_allowed_at_position`、`ask_at_forbidden_position`、`rewrite_touches_immutable`、`inject_source_mismatch`。被拒收的输出按报错处理，分类为 `bad_output`。`judgeExtensionOutput` 返回这十种拒收原因，类型是 `OutputRefusalReason`。判断顺序、限额，以及本页没有写明之处的取舍，见 [SPEC 的扩展输出判断](../../SPEC.md#扩展输出判断)。
 
 ## 调用协议
 
-每个实现提供一个 `invoke`。它有副作用：它可以经注入能力调模型、调工具、读取，也可以返回 `ask` 请求出卡。Agent 不把它当纯函数重跑。
-
-```ts
-export type ExtensionInvocationMode =
-  | Readonly<{ kind: 'fresh' }>
-  | Readonly<{ kind: 'replay'; binding: ExtensionReplayBinding }>
-export type ExtensionReplayBinding = Readonly<{
-  passage: PassageId
-  rounds: readonly Readonly<{
-    round: CardRoundId
-    cards: readonly Readonly<{
-      identity: string; card: Evidence
-      response: Readonly<{ evidence: Evidence; answer: CardAnswer }> | null
-    }>[]
-  }>[]
-  control: 'valid' | 'replayInconsistent' | 'unavailable'
-}>
-export type ExtensionInvocationResult =
-  | Readonly<{ kind: 'output'; value: unknown }>
-  | Readonly<{ kind: 'errored'; error: string; classification?: 'ordinary' | 'nonzero_exit' | 'timeout' | 'bad_output' }>
-  | Readonly<{ kind: 'notStartedUnavailable' }>
-  | Readonly<{ kind: 'replayInconsistent' }>
-  | Readonly<{ kind: 'controlUnavailable' }>
-export interface LoopExtensionImplementation {
-  readonly implementation: Adoption
-  invoke(input: ExtensionInput, signal: AbortSignal, mode: ExtensionInvocationMode): Promise<ExtensionInvocationResult>
-}
-```
+每个实现提供一个 `invoke`。它有副作用：它可以经注入能力调模型、调工具、读取，也可以返回 `ask` 请求出卡。Agent 不把它当纯函数重跑。`ExtensionInvocationMode`、`ExtensionReplayBinding`、`ExtensionInvocationResult` 与 `LoopExtensionImplementation` 的类型在 [src/extensions.ts](../../src/extensions.ts)。
 
 `fresh` 是本扩展调用的第一次 `invoke`。`replay` 用于两种情形：上一次 `invoke` 的结果未知，或 `ask` 的本轮答复已经齐备。`output.value` 必须校验为 `ExtensionOutput`。
 

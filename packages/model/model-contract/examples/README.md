@@ -25,3 +25,5 @@ pnpm --filter @omne-harness/model-contract run fixtures
 ```
 
 夹具的写法和限度见[夹具目录说明](../tests/fixtures/README.md)与[角色夹具](../verification/README.md#角色夹具)。夹具里的替代提供者与替代传输由脚本给出结果，不证明任何生产提供者。夹具兼作持续消费示例：它们每次运行都对已安装制品重新编译，所以公开入口变化而示例没有同步时，运行会失败。
+
+需要学习真实 runtime 的受理、观察和原终局收场时，运行 model 的[四个独立教学脚本](../../model/examples/README.md)。这些脚本使用本包公开类型和脚本传输，内存装配仍不是生产提供者证明。

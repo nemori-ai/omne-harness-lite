@@ -56,7 +56,7 @@ payableAmount(account)
 
 ## 配置与运行
 
-本包不读环境。`engines.node` 保持 `>=24.18.0 <25`。
+本包不读环境。`engines.node` 是 `>=24`。
 
 ## 验证
 

@@ -48,4 +48,4 @@ Pause safely 与 Session pickup 的具体步骤沿[流程及恢复参考](skills
 
 共享分支发布遵守[现行准入](integration.md#现行准入)：经 PR、admin 确认，由发布身份在一次原子推送中更新分支并创建记录标签。已有授权在精确适用范围内沿用；缺失的实际权限不能由工具或绿测补出。超时先读 refs，Git 成功后的 Issue 投影由原单写者接续。
 
-[RFC-0004 revision 1](../rfcs/RFC-0004-trunk-pr-admission.md#决定范围) 接受 `release` 作为对外发布的主干位置。npm 的版本、支持范围和消费者安排仍由[首次发布政策](#首次发布政策待定)另定。`release` 分支还没有创建，创建时直接采用与 main 相同的确认。
+[RFC-0011 revision 1](../rfcs/RFC-0011-trunk-admission-and-track-tree.md#15-release-与对外发布) 第 15 节接受 `release` 作为对外发布的主干位置。npm 的版本、支持范围和消费者安排仍由[首次发布政策](#首次发布政策待定)另定。`release` 分支还没有创建，创建时直接采用与 main 相同的确认。

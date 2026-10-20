@@ -7,6 +7,7 @@ import {
 } from '@omne-harness/repo-toolchain/core/rule'
 import { lineAt } from '@omne-harness/repo-toolchain/core/source-text'
 import { syntaxOf, visitSyntax } from '@omne-harness/repo-toolchain/core/syntax'
+import { callName, localValue } from './local-binding.ts'
 
 const LEGACY_PACKAGE = /@omne-harness-lite\//u
 const LEGACY_TREE = /(?:apps|packages)\.0\.0\.1\.legacy(?:[/\\]|$)/u
@@ -70,86 +71,12 @@ const PATH_CALLS = new Set([
   'URL',
 ])
 
-function bindsName(name: ts.BindingName, identifier: string): boolean {
-  return ts.isIdentifier(name)
-    ? name.text === identifier
-    : name.elements.some(
-        element => ts.isBindingElement(element) && bindsName(element.name, identifier),
-      )
-}
-
-function localInitializer(identifier: ts.Identifier): ts.Expression | undefined {
-  for (
-    let scope: ts.Node | undefined = identifier.parent;
-    scope !== undefined;
-    scope = scope.parent
-  ) {
-    if (
-      ts.isFunctionLike(scope) &&
-      scope.parameters.some(parameter => bindsName(parameter.name, identifier.text))
-    )
-      return undefined
-    if (
-      ts.isCatchClause(scope) &&
-      scope.variableDeclaration !== undefined &&
-      bindsName(scope.variableDeclaration.name, identifier.text)
-    )
-      return undefined
-    if (ts.isForStatement(scope) || ts.isForOfStatement(scope) || ts.isForInStatement(scope)) {
-      const initializer = scope.initializer
-      if (initializer !== undefined && ts.isVariableDeclarationList(initializer)) {
-        const declaration = initializer.declarations.find(item =>
-          bindsName(item.name, identifier.text),
-        )
-        if (declaration !== undefined)
-          return ts.isIdentifier(declaration.name) ? declaration.initializer : undefined
-      }
-    }
-    if (!ts.isBlock(scope) && !ts.isSourceFile(scope)) continue
-    for (const statement of scope.statements) {
-      if (!ts.isVariableStatement(statement)) continue
-      for (const declaration of statement.declarationList.declarations) {
-        if (bindsName(declaration.name, identifier.text))
-          return ts.isIdentifier(declaration.name) ? declaration.initializer : undefined
-      }
-    }
-  }
-  return undefined
-}
-
-function localValue(
-  expression: ts.Expression,
-  seen = new Set<ts.Node>(),
-): ts.Expression | undefined {
-  if (seen.has(expression)) return undefined
-  seen.add(expression)
-  if (ts.isIdentifier(expression)) {
-    const initializer = localInitializer(expression)
-    return initializer === undefined ? undefined : localValue(initializer, seen)
-  }
-  if (
-    ts.isParenthesizedExpression(expression) ||
-    ts.isAsExpression(expression) ||
-    ts.isSatisfiesExpression(expression)
-  )
-    return localValue(expression.expression, seen)
-  return expression
-}
-
 function pathArguments(
   node: ts.CallExpression | ts.NewExpression,
   name: string,
 ): readonly ts.Expression[] {
   const args = node.arguments ?? []
   return ['join', 'resolve', 'URL'].includes(name) ? args : args.slice(0, 1)
-}
-
-function callName(expression: ts.Expression): string | undefined {
-  return ts.isIdentifier(expression)
-    ? expression.text
-    : ts.isPropertyAccessExpression(expression)
-      ? expression.name.text
-      : undefined
 }
 
 function pathContainsLegacy(expression: ts.Expression, seen = new Set<ts.Node>()): boolean {

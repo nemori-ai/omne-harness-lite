@@ -22,6 +22,6 @@
 | `testing-reduction.spec.ts` | 替代提供者喂入上游事实时的块表（追加与替换、禁止的转换、封口与累计值、截断的工具参数）、证据登记与目录故障 |
 | `conformance-scripted.spec.ts`、`conformance-admission.spec.ts`、`conformance-settlement.spec.ts`、`conformance-control.spec.ts`、`conformance-observation.spec.ts`、`conformance-routes.spec.ts`、`conformance-transport.spec.ts`、`conformance-entry.spec.ts`、`conformance-docs.spec.ts`、`conformance-kit.spec.ts`、`conformance-defaults.spec.ts`、`conformance-support.ts` | 提供者符合性断言：替代件通过全部义务，替代件的钩子接线各有直接断言；每条义务有一个只违反它的提供者让它失败，同一义务的其他违约方式与契约允许的另一种形态（应当通过）各有变体，失败总带原因（`conformance-support.ts` 把替代件包成坏提供者并读出失败的义务与原因）；入口对缺钩子、抛出的错误、超时与释放的处理；套件自带辅助函数的直接断言（`conformance-kit.spec.ts`）；套件缺省值送到提供者与传输的内容（`conformance-defaults.spec.ts`）；公开页的义务表与套件一致 |
 
-`src/` 导出的类型声明和运行值与清单一致，清单没有 `pending` 名字；`pending` 标记留给以后新增而未落地的名字。这些测试不证明协议或生产能力。替代提供者的测试只证明外部协调者在契约面上看到的结果，脚本给出的结果不是生产证明。这些测试的用例名写成字面量，不用 `it.each` 或循环生成：差分变异（`make mutation`）按静态解析挑用例，运行不到名字动态生成的用例，会把本该被杀的变异体报成存活。
+`src/` 导出的类型声明和运行值与清单一致，清单没有 `pending` 名字；`pending` 标记留给以后新增而未落地的名字。这些测试不证明协议或生产能力。替代提供者的测试只证明外部协调者在契约面上看到的结果，脚本给出的结果不是生产证明。这些测试的用例名写成字面量，不用 `it.each` 或循环生成：差分变异（`pnpm run mutation`）按静态解析挑用例，运行不到名字动态生成的用例，会把本该被杀的变异体报成存活。
 
 [目录索引](index.md)。

@@ -4,7 +4,7 @@
 
 本仓库的产品规则：契约与节点 verification 点名的结构检查、仓库路径规则、验收覆盖声明与场景状态。规则写死本仓库的产品路径或契约，随产品代码变化，所以不发布到 npm。改动这些规则的 PR 经仓库工具链变更闸门确认。规则引擎、源码收集、提交署名与验收锁来自 [@omne-harness/repo-toolchain](../repo-toolchain/README_ZH.md)。
 
-`pnpm run lint:rules` 运行本成员的 CLI。它读 repo-toolchain 与 `@omne-harness/legal-identity` 的 `dist`，`make check` 在这一步之前已经构建它们。
+`pnpm run lint:rules` 运行本成员的 CLI。它读 repo-toolchain 与 `@omne-harness/legal-identity` 的 `dist`，`pnpm run check` 在这一步之前已经构建它们。
 
 ## 规则总表
 
@@ -26,7 +26,7 @@
 | -------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `no-wall-clock`                  | offer-expiry 节点 SC-OE-3                                                             | 生产源码逐调用检查，测试豁免；非领域取时以类别与理由标注，见下文；Date.now、performance.now、无参 new Date，含解码成员与同文件 const/解构别名                                                                                                                                                           | 跨文件/可变赋值/函数传参/动态成员的数据流                                                                                                             |
 | `no-bail-control`                | basis `async-control-not-bail`                                                        | 不得调用 `ctx.bail(`，异步控制走 `serial`                                                                                                                                                                                                                                                                                                                                      | —                                                                                                                                                     |
-| `no-testing-import`              | apps/tenancy-host verification                                                        | 产品源码不得 import testing 子入口；静态、侧效应、字面动态/require、重导出、类型与解码说明符均查，测试路径和各包 package.json 声明为 `./testing` 的入口文件豁免                                                                                                                                                                                                                                                                     | 非字面说明符、通过函数传参的动态装载                                                                                                                  |
+| `no-testing-import`              | apps/tenancy-host verification                                                        | 产品源码不得 import testing 子入口；静态、侧效应、字面动态/require、重导出、类型与解码说明符均查，测试路径、各包 package.json 声明为 `./testing` 的精确入口文件及合法成员直接 `acceptance/` 目录豁免                                                                                                                                                                                                                                                                     | 非字面说明符、通过函数传参的动态装载                                                                                                                  |
 | `restricted-call-sites`          | AI S-30、OG S-42、入口契约 SC-1                                                       | `accounts.produce(` 与 `'organization-purge'` 只出现在 `tenancy/account-registration`（及定义它们的包）；`createPersonal(`、`activate(`、`purge(`、`sweepStaleSelections(`（`.m(` 与解构后的 `m(` 都算）同样只许在 AR 与定义它们的包（OG；AI）。入口层路由表不点名这四个，入口层包里出现即违反                                                                                 | `apps/` 不在扫描根内（装配调 `sweepStaleSelections` 不受查）；经别名或 `obj[name](../repo-toolchain/` 调用                                                              |
 | `ops-import-whitelist`           | 入口契约 SC-2；入口节点约束第 5 条；主线 2026-09-23 裁决（cordis、zod 纳入）          | 入口层包 `src/ops/**` 只许导入 `@omne-harness/kernel-basis`、`storage`、`offer-expiry`（恰这三个名，不含子入口）、`@deepseek-ai/cordis`、`zod`、`node:*`、`src/events.ts` 与 ops 目录内文件；动态导入的说明符须是字面量。`src/events.ts` 只许导入 `node:*`、`@deepseek-ai/cordis`、`zod`：不导入任何 `@omne-harness/*`，也不做相对导入（它在白名单里，这两种都会让传递图越界） | 类型导入与运行时导入不分（都算）                                                                                                                      |
 | `ops-event-whitelist`            | 入口契约 SC-2；入口节点约束第 5 条（事件订阅白名单）                                  | `src/ops/**` 里 Cordis 上下文（成员链含 `ctx`／`context`、标注为 `Context` 或由它们直接赋值的名字）的 `on`／`once` 第一个实参只能是从 `src/events.ts` 导入的 `serving`、`stopped`、`defect`，`emit`／`parallel`／`serial` 只能是 `listening`（具名导入可改名，命名空间导入的成员也认）；字符串字面量与计算出的名字报出                                                         | Node 发射器（`server.on('error')`）不查；经解构（`const { on } = ctx`）、函数返回值或多次转手的上下文；`emit(thisArg, name)` 重载按首个实参判，会报出 |
@@ -100,7 +100,10 @@ const started = /* wall-clock: operation-timing -- measure local lock wait */ Da
 规则验证标注的形状和位置，不能证明理由真实。评审者须核对每处用途及其拥有者契约。不得用操作计时类别绕过可信业务时间要求。生产扫描包含 `packages/`、`apps/` 和 `examples/` 中传入的源码；目录名不授予豁免。
 
 `no-testing-import` 现在解析说明符，静态/侧效应 import、重导出、import-type、字面 import()/require() 与解码拼写都检查，
-注释/字符串示例不算导入；测试路径豁免保持。包自己声明的 `./testing` 入口文件（`exports["./testing"]` 为字符串，或为对象时取 `source`，缺 `source` 时仅取指向 `.ts` 源的 `import`）也豁免，因为它本身只给测试；只豁免这一个文件，同包其他文件（含入口 import 的辅助文件）仍查。入口集合按扫描根从该根下的 package.json 读出，无法解析的 package.json 报出而不是当作没有入口。计算说明符不能由此规则确定是否指向 testing；十五纯模块另由 core-pure-imports 拒绝非字面说明符。
+注释/字符串示例不算导入；测试路径豁免保持。包自己声明的 `./testing` 入口文件（`exports["./testing"]` 为字符串，或为对象时取 `source`，缺 `source` 时仅取指向 `.ts` 源的 `import`）也豁免，因为它本身只给测试；只豁免这一个文件，同包其他文件（含入口 import 的辅助文件）仍查。入口集合按扫描根从该根下的 package.json 读出，无法解析的 package.json 报出而不是当作没有入口。`rulesForRoot(root)` 也按同一扫描根的合法具名成员清单豁免成员直接 `acceptance/` 目录，含场景与 fixtures。
+成员清单必须解析为对象，且 `name` 是非空字符串。缺少清单、解析失败或无有效成员对象的路径不取得此豁免。
+`src/acceptance/`、`acceptance-other/` 及没有自身合法成员清单的相邻路径仍检查。默认 `RULES` 没有扫描根事实，仍只豁免测试路径。
+此分类只用于 `no-testing-import`，不改变其他规则。计算说明符不能由此规则确定是否指向 testing；十五纯模块另由 core-pure-imports 拒绝非字面说明符。
 
 当前批准的精确 Schema runtime 子入口是 `@omne-harness/content-blocks/schema-runtime`；消费者必须已有 content-blocks 依赖。
 旧 asset-model/schema-runtime 已随实际提供者迁移移出登记，即使消费者仍依赖 asset-model 也会拒绝；相邻私有路径不获准。
@@ -147,28 +150,32 @@ MCP 推出模块仍只导入类型；远端 inputSchema 仅按对象原样保留
 
 ## 验收的覆盖声明
 
-`src/acceptance/coverage.ts` 随 `pnpm run lint:rules` 执行（`make check` 的 `product-check` 一步里），有违反即退出 1。
+`src/acceptance/coverage.ts` 随 `pnpm run lint:rules` 执行（`pnpm run check` 的常驻步骤之一），有违反即退出 1。
 规矩正文在[源码布局「可执行验收」](../../docs/workspace.md#目录与内容归属)：覆盖声明只表示程序声明覆盖相应场景，须能核对来源与编号。
 实际执行、结果和有效接受分别验证。它找出 `acceptanceLock` 配置的成员根下每个 `acceptance/**/*.acceptance.ts`（`node_modules`、`dist` 不进），逐份查：
 
 | 报出（规则 `acceptance-covers`）                                            | 说明                                                                                                                                          |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | 开头的注释块里没有、或不止一行 `// covers: …`                               | 开头注释块是文件开头连续的 `//` 行（中间可有空行）；写在代码之后的 `// covers:` 另报「要写在开头」                                            |
-| 某一项不是 `PF-<三位> <场景编号>`、是空的、写了两次                         | 多项用逗号隔开，半角全角都认；场景编号的解析归repo-toolchain 的 `src/product/scenarios.ts`                                                                      |
-| 声明所指的当前产品来源不存在，或其`acceptance.md`缺少对应编号、出现重复编号 | 场景行的解析归repo-toolchain 的 `src/product/scenarios.ts`，解析反例由repo-toolchain 的 `tests/product-scenarios.spec.ts`验证。声明仍采用现行PF格式；找不到当前产品来源时报告偏离 |
-| 文件名不以 `PF-<三位>.` 开头，或这个 topic 不在它声明覆盖的 topic 里        |                                                                                                                                               |
+| 某一项不是 `PD-<slug> <场景编号>`、是空的、写了两次                         | 多项用逗号隔开，半角全角都认；场景编号的解析归repo-toolchain 的 `src/product/scenarios.ts`                                                                      |
+| 声明所指的当前产品来源不存在，或其`acceptance.md`缺少对应编号、出现重复编号 | 场景行的解析归repo-toolchain 的 `src/product/scenarios.ts`，解析反例由repo-toolchain 的 `tests/product-scenarios.spec.ts`验证。身份须与当前产品 README 一致；找不到当前产品来源时报告偏离 |
+| 文件名不以 `PD-<slug>.` 开头，或这个 topic 不在它声明覆盖的 topic 里        |                                                                                                                                               |
 | 成员有验收文件，`package.json` 里却没有 `acceptance` 脚本                   | 没有它，这些验收不会被任何入口运行                                                                                                            |
 
-产品区的位置沿用 `loop` 配置的 `sensors.topicChurn.productRoot`。**为什么接在 `lint:rules`**：它与提交署名一样是对整个仓库的静态核对，
-不需要构建产物，放在已有的仓库规则入口里，`make check` 不必多一步，`pnpm run check` 单跑时也查得到。
+以下示例仅演示声明和文件名写法。`S1` 仅为编号示例，不表示已登记场景。实际使用前，须先在对应当前产品的 `acceptance.md` 中登记真实场景。
+例如声明 `// covers: PD-tool-execution S1, PD-model-invocation S1`，文件名可为 `PD-model-invocation.success.acceptance.ts`。
+`slug` 以小写字母开头，后续为小写字母或数字，可用单个连字符分段；旧 PF 编号不作为别名。
 
-**不能声称**：声明的场景存在，不等于验收真的断言了那条场景要的东西——那归写验收的人与评审；验收过没过归下面的 `make acceptance`。
+产品区的位置沿用 `loop` 配置的 `sensors.topicChurn.productRoot`。**为什么接在 `lint:rules`**：它与提交署名一样是对整个仓库的静态核对，
+不需要构建产物，放在已有的仓库规则入口里，`pnpm run check` 不必多一步，单跑 `pnpm run lint:rules` 时也查得到。
+
+**不能声称**：声明的场景存在，不等于验收真的断言了那条场景要的东西——那归写验收的人与评审；验收过没过归下面的 `pnpm run acceptance`。
 它只认 `.acceptance.ts` 结尾的文件，放在 `acceptance/` 里却不按这个名字取的验收它看不见。自测：`tests/acceptance-coverage.spec.ts`。
 
 ## 场景状态
 
 ```sh
-make scenario-status
+pnpm run acceptance:scenarios
 ```
 
 工具只从长期产品slug目录的README发现PD身份、正整数修订及状态，核对目录身份、唯一性、正文和根内真实路径，排除模板目录。产品及场景的持续行为归[产品观察规格](../repo-toolchain/src/product/SPEC.md)。
@@ -180,7 +187,7 @@ make scenario-status
 | 接受     | 没有有权者完整接受证据时为unknown                                  |
 | 未覆盖   | 每个当前PD均进入报告；缺场景正文或编号单列未覆盖，不从能力表猜场景 |
 
-正常观察退出0；非法根、元数据、重复身份、目录不符或越界及工具错误退出2。合法空根单列未覆盖，不能宣称全部覆盖。场景CLI只接长期产品输入，`--config`和`--capture`参数拒绝。跨topic的覆盖声明仍按实际场景归属核对，找不到来源保持偏离；不补造新的PD covers格式。
+正常观察退出0；非法根、元数据、重复身份、目录不符或越界及工具错误退出2。合法空根单列未覆盖，不能宣称全部覆盖。场景CLI只接长期产品输入，`--config`和`--capture`参数拒绝。场景状态复用上节定义的 PD 覆盖声明格式。跨 topic 声明仍按实际场景归属核对，找不到来源保持偏离。
 
 ## 后续 core 静态义务的兑现方式
 
@@ -204,6 +211,18 @@ make scenario-status
 | slash-command    | SC-3 failed 分支与可发送值不相容、SC-4 parseInvocation 无权限参数的类型测试；SC-6 共用推出模块规则                                                                         | 交付/受理/发布 SC-1/SC-2/SC-5 及实际发送行为                                                                                        |
 | stream-assembly  | SC-2 导入由 core-pure-imports、时钟由 no-wall-clock 承载；SC-1 与 content-blocks 采用同一指定解析模块规则                                                                  | SC-3 拒绝不改状态与 SC-4 快照不共享可变部分须实际测试，不能靠 import 白名单替代                                                     |
 | asset-evaluation | SC-1 的导入与时钟复用已有两条规则；SC-3 判别结果类型及无结果分支的实际反例                                                                                                 | SC-2 消费者缓存键；纯度的全局访问和实际副作用仍需代码审阅/测试                                                                      |
+
+## 测试临时目录的物理路径
+
+`test-temp-physical-path` 登记在 `src/repository.ts` 的 `REPOSITORY_RULES`，来源是 Issue #560 C5 与[验证说明「包级测试责任与边界」](../../docs/verification.md#包级测试责任与边界)。约定与原因归验证说明，本节只说明规则查什么。
+
+- 扫描范围：`packages/`、`apps/`、`tools/` 下的测试与夹具。文件类型是 `.ts`、`.mts`、`.cts`、`.js`、`.mjs`、`.cjs`。路径含 `/tests/` 的文件都扫。路径不含 `/tests/` 时，只扫文件名是 `*.spec.*` 或 `*.test.*` 的文件，例如 `*.test.mjs`。JS 文件按 JS 语法解析。
+- 报出：`mkdtempSync` 或 `mkdtemp` 的第一个实参来自系统临时目录，而建出的目录没有取物理路径。来自系统临时目录指实参里有 `tmpdir()` 或 `process.env.TMPDIR`，可经 `join`、`resolve` 等调用、模板字符串、`+`、`??`、`||`、本文件的局部常量。具名导入改名、`fs.`／`os.` 成员调用都认。
+- 放过：建目录的调用直接是 `realpathSync`、`realpath` 或 `realpathSync.native` 的第一个实参，中间可隔括号、`await`、非空断言、`as`、`satisfies`。实参里的 `tmpdir()` 已先取物理路径时也放过，例如 `mkdtempSync(join(realpathSync(tmpdir()), …))`。基准目录不来自系统临时目录时不查，例如仓库 `tmp/` 或函数参数。
+- 故意报出：先建目录、下一句再 `realpathSync(dir)` 的两段式。原路径仍在作用域里，可能被直接比较。
+- 也会报出：`mkdtemp(prefix, callback)` 回调写法与 `mkdtemp(…).then(realpath)` 链式写法。规则不认这两种写法里的物理路径。改用 `await realpath(await mkdtemp(…))` 或同步写法。
+
+不覆盖：`scripts/` 与 `examples/` 下的测试、`.tsx`／`.jsx` 文件、跨文件传入的临时目录、重新赋值、`require` 解构时改名的 `mkdtemp`／`mkdtempSync`，例如 `const { mkdtempSync: make } = require('node:fs')`。正反验证命令：`pnpm --filter @omne-harness/product-checks exec vitest run tests/test-temp-physical-path.spec.ts`。
 
 ## 模型凭据的逐符号结构守卫
 

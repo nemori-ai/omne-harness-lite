@@ -1,6 +1,6 @@
 # Agent 定义与工作推进组的工程关系
 
-本页在正式维护位置保存已接受的技术设计，接受依据见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。设计接受不等于阶段选择或实现支持。成员已初始化；Agent 声明判断已有实现，运行接口与实际验证仍待完成。
+本页在正式维护位置保存已接受的技术设计，接受依据见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。设计接受不等于阶段选择或实现支持。成员已初始化。两个契约包已经实现并有测试，通用实现、具体装配、提供者与实际运行验证仍待完成。
 
 ## 成员分解与邻接协作
 
@@ -15,13 +15,14 @@ flowchart LR
   Consumer[领域调用方] --> Contract[agent-contract]
   Plugin[Cordis 消费插件] --> Definitions[agent-cordis-contract]
   Definitions --> Contract
+  Contract --> Assets[assets]
   Implementation[agent] --> Contract
   Provider[agent-host-local] --> Definitions
   Provider --> Implementation
   App[应用装配者] --> Provider
 ```
 
-纯契约及通用实现均不依赖 Cordis。Definitions 的绑定只从 `./cordis` 导出，根入口不加载绑定。具体提供者注入纯工厂，不反向决定契约。定义校验位于 agent-contract；资产与装配消费者直接依赖该包。推进接口的设计已接受，尚未实现。外部协调者经提交参加者适配 AgentJournal 和 execution 操作；纯 Agent 不导入任何外部协调者的服务或身份类型。独立执行自行条件终结，不要求调用方批准。纯求值、效果协调和宿主集成的概念可见范围见[对象模型](../agent-contract/docs/object-model.md#跨域概念与内部可见范围)。
+纯契约及通用实现均不依赖 Cordis。Definitions 的绑定只从 `./cordis` 导出，根入口不加载绑定。具体提供者注入纯工厂，不反向决定契约。定义校验位于 agent-contract。装配消费者直接依赖该包。agent-contract 依赖 assets，并向 assets 的类别注册表登记正文契约，assets 不依赖 agent-contract。推进接口的设计已接受，类型已在 agent-contract，实现尚未提供。外部协调者经提交参加者适配 AgentJournal 和 execution 操作；纯 Agent 不导入任何外部协调者的服务或身份类型。独立执行自行条件终结，不要求调用方批准。纯求值、效果协调和宿主集成的概念可见范围见[对象模型](../agent-contract/docs/object-model.md#跨域概念与内部可见范围)。
 
 工厂配置与依赖聚合归 [agent](../agent/docs/public-api.md)；领域操作与提供者端口归 [agent-contract](../agent-contract/README.md)。
 
@@ -90,7 +91,7 @@ flowchart LR
 | 四种控制（interrupt、cancel、suspend、quiesce）、插队对前台调用的处理，以及受理、意图成立、资格撤销、生产者确认、物理停止、责任释放六个阶段 | [SPEC](../agent-contract/SPEC.md) 的“取消、退出与结构变更”节（“四种控制”“插队”“六个阶段”小节） | 公开接口页只留控制类型的形状，包括 AgentRuntimeControl。对象模型页只引用。Loop 算法页拥有控制入口节点，引用 SPEC 的阶段。detach 与 quiesce 的交接与撤登记结果归上一行的“托管协调与运行实例”节，两行互相引用 | 现存 |
 | 提交参加者协议：参加、失败、冲突、不支持四种响应，以及 Agent 拒绝不合格装配 | [SPEC](../agent-contract/SPEC.md) 的“并发与提交”节（“提交参加者协议”小节） | 消费与系统定位页写外部协调者视角的前提，并引用 SPEC | 现存 |
 | 消息准入与来源特定拒收的行为 | [SPEC](../agent-contract/SPEC.md) | 准入的公开形状在[公开接口页](../agent-contract/docs/public-api/README.md)。Loop 算法页拥有准入节点的位置与次序，引用 SPEC 的拒收后果。流程页引用结果，不重述三种来源的拒收后果 | 现存 |
-| Agent 公开操作的设计形状，扩展作者接口的类型除外 | [公开接口页](../agent-contract/docs/public-api/README.md) | 其他页引用操作名和类型名，不另写签名或字段。扩展作者接口的类型归下文扩展规格一行，公开接口页只列其名称并链接到扩展规格。真实导出存在后，其他页以导出名为准 | 现存 |
+| Agent 公开操作的设计形状，扩展作者接口的类型除外 | [公开接口页](../agent-contract/docs/public-api/README.md) | 其他页引用操作名和类型名，不另写签名或字段。扩展作者接口的类型归下文扩展规格一行，公开接口页只列其名称并链接到扩展规格。类型的唯一声明在源码，其他页以导出名为准 | 现存 |
 | Definition 专题 | [定义规格](../agent-contract/docs/public-api/definition.md) | 主入口只指路 | 现存 |
 | 扩展作者协议及其接口类型（公开接口页声明位置表所列的类型）、位置输出合法性表与判断屏障的作者可见语义 | [扩展规格](../agent-contract/docs/public-api/extensions.md) | 主入口、内部恢复器和架构页只引用，不各自定义作者接口。公开接口页只列这些类型的名称并链接到扩展规格；`Subject`、`CardAnswer` 等共用类型仍归公开接口页。屏障打开与全拒的条件只由 SPEC 写，扩展规格与对象模型引用。Loop 算法页拥有 A0 与 A1 节点的次序。位置输出合法性表与系统页逐位置限制的关系见上文扩展位置一行 | 现存 |
 | 公开推进保证 | [Loop 的公开推进保证](../agent-contract/docs/flows/loop.md) | 其他页引用保证条目，不另写外部保证。每条保证引用算法页节点 ID。转移表和状态机只在完整 Loop 算法页维护 | 现存 |
