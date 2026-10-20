@@ -51,3 +51,5 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 [公开幂等与恢复组合](invoke-recovery.spec.ts)使用真实 runtime、配对来源与内存 ledger，覆盖双 runtime 共享来源、同键竞争、冲突、未知、撤权及一次实际启动。控制测试的 commands/reads 共用替身操作记录，只验证门面。managed 与 start/queue 专测的具名调用现由受信内部 admission fixture 建立，不证明公开来源恢复。
 
 [source-principal.spec.ts](source-principal.spec.ts)验证语义快照保留 class 与不可序列化 opaque 凭据的认证意义、异步及事后变异隔离、bindings 诊断隔离、快照失败无关联写入和真实 reserved→issued 故障续做。`invoke-recovery.spec.ts` 另覆盖真实 prepareStart 提交后中止、starting 重入补 wake 及一次实际 launch。
+
+[facts-receive.spec.ts](facts-receive.spec.ts) 复用真实启动 fixture 和非耐久 store，验证 P05/P08 的 process/final 原子保管、批/事件认回、来源换版拒绝、不透明连续游标、整体拒绝、unknown 重投和历史过程状态。final 测试直接向契约内存源发送回执，令源停止提供批次，再重建 ledger 按 settle basis 读原事实。旧批不复活 ACK 使用受控已确认存储状态。测试不声明来源确认命令、runtime 自动续读、resume 或生产耐久已交付。

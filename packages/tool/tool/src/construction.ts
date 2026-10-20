@@ -5,6 +5,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   CallAccess,
   FixedToolRequest,
+  DurableEvidence,
   Mutation,
   Reply,
   ResultPolicy,
@@ -121,4 +122,11 @@ export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   operationIdentities: ToolOperationIdentities
   /** The trusted source that atomically establishes or recalls the original invocation association. */
   sourceIssuer: ToolInvocationSourceIssuer<P>
+}>
+
+/** Trusted recovery consumers can recover complete original facts by their exact evidence. */
+export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
+  read(
+    input: CallAccess<P> & Readonly<{ basis: DurableEvidence }>,
+  ): Reply<import('./ledger-store.ts').SavedFact<B>>
 }>

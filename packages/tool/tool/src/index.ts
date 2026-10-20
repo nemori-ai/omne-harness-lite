@@ -7,12 +7,18 @@ export type {
   ToolLedgerAdmissions,
   ToolLedgerConfiguration,
   ToolLedgerQueues,
+  ToolLedgerFacts,
 } from './construction.ts'
 export { createIndependentToolScope } from './independent-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
 export type {
   AccountRecord,
+  SavedFact,
+  FactEventRecord,
+  FactBatchRecord,
+  FactStreamRecord,
+  ProcessRecord,
   CallRecord,
   ConfirmedEnvironment,
   ExclusionRecord,

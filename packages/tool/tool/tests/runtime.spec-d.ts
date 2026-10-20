@@ -18,6 +18,7 @@ import {
   type ToolLedgerConfiguration,
   type ToolLedgerGuards,
   type ToolLedgerQueues,
+  type ToolLedgerFacts,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
 
@@ -61,6 +62,7 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
         ): Reply<Readonly<{ state: ToolState; recovered: boolean }>>
       }>
       queues: ToolLedgerQueues<P>
+      facts: ToolLedgerFacts<P, ContentBlock>
     }>
   >()
   // The runtime configuration fits where the ledger configuration is asked for.

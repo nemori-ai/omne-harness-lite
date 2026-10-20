@@ -26,3 +26,6 @@
 实现选择见 [SPEC](../SPEC.md)。文档导航见 [index](index.md)。
 
 [invocation-access.ts](invocation-access.ts) 集中解析普通入口的调用与操作引用，并在转发前核租户。[testing-source.ts](testing-source.ts) 提供 `./testing` 导出的配对来源签发/核验与身份计数器，只供非耐久测试。
+
+- [facts-boundary.ts](facts-boundary.ts) 固定来源输入，验证 process/final 的可保管形状与结果政策。
+- [ledger-facts.ts](ledger-facts.ts) 拥有完整事实接收的纯决定、过程当前块与历史认回、流进度投影及精确 evidence 的原事实读取。

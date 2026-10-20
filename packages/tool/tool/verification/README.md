@@ -5,3 +5,5 @@
 公共验证义务归契约包的 [verification](../../tool-contract/verification/index.md)。当前没有生产存储、跨进程或断电验证，完整控制与执行终局仍未实现。单次运行和评审证据归任务 tmp，不据模型通过授予最终接受。
 
 契约范围见 [SPEC](../SPEC.md)，导航见 [index](index.md)。
+
+[事实保管测试](../tests/facts-receive.spec.ts) 在真实 createToolLedger、原调用事务与非耐久内存 store 上验证 process/final 的同提交、原回执认回、cursor 连续性、来源换版、process 历史和未知提交重投。原 final 的重建读取不依赖源继续提供原批次。ACK 记录和 runtime 自动读取尚未交付。已确认批次重投只使用受控 store 状态，不作为 ACK 全链证据。

@@ -30,3 +30,6 @@
 - [配对来源与身份测试替身](testing-source.ts)。
 
 - [控制意图的封闭复制](control-intent.ts)。
+
+- [执行事实边界](facts-boundary.ts)。
+- [事实保管决定与读取](ledger-facts.ts)。

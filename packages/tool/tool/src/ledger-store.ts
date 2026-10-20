@@ -9,6 +9,9 @@ import type {
   DurableEvidence,
   Effect,
   FixedToolRequest,
+  FactReceipt,
+  ProcessBlock,
+  ToolExecutionFact,
   PreparationRecord,
   ToolCallId,
   ToolCommands,
@@ -119,6 +122,55 @@ export type AccountRecord = Readonly<{
   value: CallAccount
 }>
 
+/** Original facts are immutable custody records, separate from their downstream tasks. */
+export type SavedFact<B extends ContentBlock> = Readonly<{
+  start: ToolStartRecord
+  source: DurableEvidence
+  event: string
+  fact: ToolExecutionFact<B>
+  evidence: DurableEvidence
+}>
+export type FactEventRecord<B extends ContentBlock> = SavedFact<B> &
+  Readonly<{
+    tenant: TenantId
+    call: ToolCallId
+    key: string
+  }>
+export type FactBatchRecord = Readonly<{
+  tenant: TenantId
+  call: ToolCallId
+  start: ToolStartRecord
+  source: DurableEvidence
+  batch: string
+  after: string | null
+  cursor: string
+  events: readonly string[]
+  receipt: FactReceipt
+  acknowledgement:
+    | Readonly<{ kind: 'pending' }>
+    | Readonly<{ kind: 'confirmed'; sourceReceipt: DurableEvidence }>
+}>
+export type FactStreamRecord = Readonly<{
+  tenant: TenantId
+  call: ToolCallId
+  start: ToolStartRecord
+  source: DurableEvidence
+  cursor: string
+}>
+export type ProcessRecord = Readonly<{
+  tenant: TenantId
+  call: ToolCallId
+  start: ToolStartRecord
+  block: ProcessBlock
+}>
+
+/** Canonical tuple identities never interpret separators inside provider text. */
+export function factKey(start: ToolStartRecord, owner: string, identity?: string): string {
+  return JSON.stringify(
+    identity === undefined ? [start.operation, owner] : [start.operation, owner, identity],
+  )
+}
+
 /**
  * The exclusion fence of one negative answer (P01). A reader that found no record of `operation`
  * writes it at `revision`, the domain revision of the fence commit, so a command of that operation
@@ -178,6 +230,10 @@ export type LedgerRecord<B extends ContentBlock> =
   | Readonly<{ kind: 'result'; result: ResultRecord<B> }>
   | Readonly<{ kind: 'account'; account: AccountRecord }>
   | Readonly<{ kind: 'task'; task: ToolTask }>
+  | Readonly<{ kind: 'fact-event'; fact: FactEventRecord<B> }>
+  | Readonly<{ kind: 'fact-batch'; batch: FactBatchRecord }>
+  | Readonly<{ kind: 'fact-stream'; stream: FactStreamRecord }>
+  | Readonly<{ kind: 'process'; process: ProcessRecord }>
   | Readonly<{ kind: 'exclusion'; exclusion: ExclusionRecord }>
   | Readonly<{ kind: 'queue-entry'; entry: QueueEntryRecord }>
   | Readonly<{ kind: 'queue-counter'; counter: QueueCounterRecord }>
@@ -198,6 +254,14 @@ export function recordKey<B extends ContentBlock>(record: LedgerRecord<B>): stri
       return `account:${record.account.event}`
     case 'task':
       return taskKey(record.task)
+    case 'fact-event':
+      return `fact-event:${record.fact.key}`
+    case 'fact-batch':
+      return `fact-batch:${factKey(record.batch.start, record.batch.source.owner, record.batch.batch)}`
+    case 'fact-stream':
+      return `fact-stream:${factKey(record.stream.start, record.stream.source.owner)}`
+    case 'process':
+      return `process:${JSON.stringify([record.process.start.operation, record.process.block.index])}`
     case 'exclusion':
       return exclusionKey(record.exclusion.operation)
     case 'host':

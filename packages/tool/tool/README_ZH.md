@@ -18,9 +18,9 @@
 | 纯契约函数已实现 | 本包没有。契约函数在 `tool-contract` | 无 | 无 |
 | 独立执行已实现 | `createIndependentToolScope` 与 `executeTool`。作用域用本地接收者、显式上限和内存等待历史。回执只有 `local` | 根入口 | 作用域与包装器的 P11 规则，用可控的接收者与提供者替身核对。没有真实执行环境，不含 Cordis |
 | runtime 已实现的路径 | `createToolLedger` 与 `createToolRuntime`。内部账本按操作身份幂等受理。调用已知不可用的工具，或参数完整但非法，不进入环境或执行者就收场。`queries.lookup` 与 `queries.queryOperation` 查到它，`readResult` 分页读取，`releaseDelivery` 按两条交接路径解除交付，`account` 查账。真实工具的调用，经 `invoke` 分配身份、绑定来源并受理后由推进协程带到启动记录：环境准备、在调用方固定的范围与上限内按 FIFO 排队、启动守卫、启动围栏与 live-only 绑定的 `start`。绑定失败或抛错先核实原围栏，只有永久排除确认后才形成不可用终局。未知回执查询原绑定，保留启动待办与名额。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。启动前被拒绝的调用以 `unavailable` 收场，`effect` 为 `not-started`。`inspect` 转给装配传入的 Catalog 端口。本包没有 Catalog 提供者 | 根入口。`./testing` 给非耐久记录仓与显式依赖装配 | 托管路径测试消费契约源码入口，在非耐久记录仓上运行，环境、启动授权与时钟用替身。受信测试桥先保存胶囊证据、consume，再调用契约内存 executor。方法尝试、唯一 acceptance 与实际 launch 分别计数。`tool-host-local` 用真实的本地启动协调器运行本 runtime。只有一个进程。耐久性没有覆盖 |
-| 尚未交付的宿主与提供者 | 已启动执行的事实接收与收场，及随后的名额释放。控制、计时段开启之后的计时（经过时间、期限、暂停）、等待、过程观察、恢复、排空与交接。耐久记录仓（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)）。真实执行环境（[#278](https://github.com/nemori-ai/omne-harness-lite/issues/278)）。宿主时钟、绑定登记表与 Catalog。Cordis 插件 | 无 | 无 |
+| 尚未交付的宿主与提供者 | runtime 自动续读与来源确认、已启动执行的收场及随后的名额释放。控制、计时段开启之后的计时（经过时间、期限、暂停）、等待、过程观察、恢复、排空与交接。耐久记录仓（[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)）。真实执行环境（[#278](https://github.com/nemori-ai/omne-harness-lite/issues/278)）。宿主时钟、绑定登记表与 Catalog。Cordis 插件 | 无 | 无 |
 
-到达启动记录的调用停在 `running`，一直占用名额。执行事实与物理释放尚未实现。同租户、完整 consumer 与固定请求再次 `invoke` 认回原引用。原回执与当前状态分开，重入沿原调用与 start 推进。
+到达启动记录的调用停在 `running`，一直占用名额。账本受信入口 `commands.receiveFacts` 已支持 process/final 保管。runtime 自动续读、来源确认与物理释放尚未实现。同租户、完整 consumer 与固定请求再次 `invoke` 认回原引用。原回执与当前状态分开，重入沿原调用与 start 推进。
 
 绑定失败通过独立的 `/start-failed` 操作回执认回。已读到 committed 标记的协程不再调用 start，当前协程也记住尚未确认的失败并重试原标记。
 
@@ -41,11 +41,23 @@
 | `controls` | `control` 门面已按新 operation 委托；真实 ledger 仍 unsupported | `control`、`recordControl` |
 | `waits, decisions and resources` | `queries.readWait`；回应保留在受信内部端口 | `openWait`、`attachRegistration`、`attachResource`、`recordResponse`、`closeWait` |
 | `process observation and diagnostics` | `readProcess`、`readDiagnostics` | `preserveProcess`、`recordLateFact`、`recordLateResult` |
-| `execution facts and release` | `content.read`、`content.raw` | `receiveFacts`、`recordFactAcknowledgement`、`preserveResult`、`recordAccount`、`planRelease`、`recordRelease`、`recordTask` |
+| `execution facts and release` | `content.read`、`content.raw` | `recordFactAcknowledgement`、`preserveResult`、`recordAccount`、`planRelease`、`recordRelease`、`recordTask` |
 | `recovery scan` | `recover` | `scanPending`、`claim`、`settleLost` |
 | `drain and handover` | `quiesce`、`inspectDrain`、`handover` | 无 |
 | `checkpointed executors` | 无 | `prepareResume`、`planSuspension`、`suspend` |
 | `program executors` | 无 | `recordScheduling` |
+
+### 账本事实保管
+
+受信 Tool 推进方在原调用启动后调用 `ledger.commands.receiveFacts({ principal, tenant, call, start, batch })`。本入口支持 process/final，在一次调用域提交中保存完整事件、过程当前块或 settle 待办、原批保管回执、流游标及 fact-ack 待办。`loadRecovery.streams` 投影保存的游标与待确认回执。runtime 推进协程尚未自动消费执行源。
+
+批次和事件身份包含原 start operation 与 source owner。来源 evidence 换版不能绕过去重。同批同值重投返回原回执，零写入。游标是不透明文本，支持一批多事件，拒绝缺口、复用边界和异值冲突。提交未知返回 `unavailable`，要求重投原批，不伪造 caller operation。
+
+process 的 sequence 是非负十进制数。append 支持文本及思考文本的累计完整值，块身份、kind 与可见性固定。其他合法块使用 replace。开块后 mode 固定，封块后拒绝新更新，历史同值更新仍可认回。trim 保存数量与原因，不删除原事件。过程观察尚未实现。
+
+含 wait、continued、account 或 program-scheduling 的批次整体返回 `unsupported`，零保存，由源继续保管。final 只形成唯一 settle 待办，不写逻辑终局或释放名额。受信恢复消费者凭该待办的精确 evidence 调用 `ledger.facts.read({ principal, tenant, call, basis })`，得到包含完整 raw、result、terminal 与 effect 的 `SavedFact`。读取逐次核 recover 资格，返回值不引用可变存储。
+
+装配必须把 `write` 资格限制给受信 Tool 推进方。source 文本与 evidence 形状不能认证外部生产者。`recordFactAcknowledgement` 仍为 unsupported，pending 与 fact-ack 待办继续保留。非耐久测试覆盖直接向源确认和账本重建，不证明自动续读、确认记录、生产耐久或 resume。
 
 ## 使用
 

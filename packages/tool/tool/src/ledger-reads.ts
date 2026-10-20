@@ -15,6 +15,7 @@ import type {
   ToolResultVersion,
 } from '@omne-harness/tool-contract'
 import { invalid, tenantKey } from './boundary.ts'
+import { factProgress } from './ledger-facts.ts'
 import { mintEvidence } from './evidence.ts'
 import type { Snapshot } from './ledger-decider.ts'
 import type { CallAccount, ResultRecord } from './ledger-store.ts'
@@ -199,7 +200,8 @@ export function readResultPage<B extends ContentBlock>(
 /**
  * The complete recovery read of a call (P01 loadRecovery): what the call domain holds of its
  * way to a start, its tasks and its first result. Waits, controls, suspensions, raw outputs,
- * fact streams, program closure and scheduling are empty until their increments record them.
+ * program closure and scheduling are empty until their increments record them. Fact streams
+ * project the saved cursor and the original receipts whose source confirmation is pending.
  */
 export function readRecovery<B extends ContentBlock>(
   snapshot: Snapshot<B>,
@@ -227,7 +229,7 @@ export function readRecovery<B extends ContentBlock>(
     tasks: snapshot.tasks,
     program: null,
     scheduling: null,
-    streams: [],
+    streams: factProgress(snapshot),
   })
 }
 
