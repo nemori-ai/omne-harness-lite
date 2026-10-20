@@ -8,7 +8,7 @@
 
 本文件定义压缩记录 `CompactionMessage` 的形状、模型视图规则，以及两层判定：`judgeMessage` 判形状，`judgeCompaction` 判相对历史的规则。它不定义何时压缩、怎样写摘要、保留哪些消息，也不定义历史怎样存放、怎样提交。这些归压缩策略的拥有者和历史持有者。
 
-状态：**候选，未实现**。本文件与 [docs/public-api.md](docs/public-api.md#候选压缩变体) 的候选签名是 message 实现卡的输入。在实现卡交付前，`src/` 里的 `judgeMessage` 对 `compaction` 角色仍只认 `id`、`role`、`blocks`，见到 `covers`、`retained`、`derivation` 判 `extra`；`judgeCompaction`、`isCompactionMessage`、`parseRecordEntryRef` 尚未导出。
+状态：**候选，未实现**。本文件与 [docs/public-api.md](docs/public-api.md#候选压缩变体) 的候选签名是本包实现压缩变体的依据。实现之前，`src/` 里的 `judgeMessage` 对 `compaction` 角色仍只认 `id`、`role`、`blocks`，见到 `covers`、`retained`、`derivation` 判 `extra`；`judgeCompaction`、`isCompactionMessage`、`parseRecordEntryRef` 尚未导出。
 
 依据如下。
 
@@ -51,6 +51,23 @@
 2. C 本身；
 3. 位置晚于 `C.covers.to`、早于 C 的模型可读消息，以及晚于 C 的模型可读消息，都按原历史顺序。
 
+下图中，覆盖范围是 e1～e6，保留名单是 e2、e5，C1 是更早的一条压缩记录，C2 是本次压缩记录，在 e8 之后追加。
+
+```mermaid
+flowchart LR
+  subgraph history[历史，按写入顺序]
+    direction LR
+    e1[e1] --> e2[e2 保留] --> e3[e3 C1] --> e4[e4] --> e5[e5 保留] --> e6[e6 = covers.to] --> e7[e7] --> e8[e8] --> c2[C2] --> e9[e9]
+  end
+  subgraph view[模型视图]
+    direction LR
+    v2[e2] --> v5[e5] --> vc[C2 摘要] --> v7[e7] --> v8[e8] --> v9[e9]
+  end
+  history -.-> view
+```
+
+e1、e3（C1）、e4、e6 只以 C2 的摘要出现。e7、e8 在覆盖范围之后、压缩点之前，照常出现。
+
 视图里的每条消息仍按块的 `toModel` 位过滤：`toModel` 为假的块不给模型，保留一条消息不会让它的这类块进入视图。块级过滤与其他投影规则归请求组装。
 
 只有最近一条压缩记录决定视图。更早的压缩记录落在新记录的覆盖范围内，按普通消息对待：被保留就作为一条消息出现，否则进入新摘要。
@@ -65,7 +82,7 @@
 
 <a id="cm-04"></a>
 
-**CM-04 未结工作不得被摘要。**历史持有者给出未结工作的记录条目引用集合，至少包括：最近一次模型请求之后写入、模型尚未读取的输入；待处理的输入；等待中的执行；后台占位；结果未知的操作。集合里落在覆盖范围内的条目，必须出现在 `retained` 里。集合里落在范围之后的条目不受影响。
+**CM-04 未结工作不得被摘要。**历史持有者把本历史的未结工作映射到对应的消息条目，给出这些条目的引用集合。未结工作至少包括：最近一次模型请求之后写入、模型尚未读取的输入；待处理的输入；等待中的执行；后台占位；结果未知的操作。等待、后台执行与未知操作对应的是表达它们的占位消息或调用消息。集合里落在覆盖范围内的条目，必须出现在 `retained` 里；集合里落在范围之后的条目不受影响。某项未结工作没有任何对应消息、只有不带消息的条目时，持有者把那条条目放进集合，覆盖范围就必须在它之前结束，因为不带消息的条目不能保留（CM-05），落在范围内必然判 `open-work`。
 
 <a id="cm-05"></a>
 
@@ -143,11 +160,10 @@
 
 - 压缩策略的拥有者按 CM-01 至 CM-05 生成压缩记录，消费规则见[单次模型请求的上下文](../../../docs/architecture/runtime/request-context.md#压缩与历史保留)。
 - 历史持有者在提交压缩记录之前调用 `judgeCompaction`，失败就拒绝提交，规则见[压缩记录的提交](../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)。`judgeCompaction` 自己先跑 `judgeMessage`，形状失败只报 `message`；需要具体形状拒绝值的持有者，可以先单独调用 `judgeMessage`，再用 `isCompactionMessage` 收窄。
-- 待同步的消费者：Session 契约的派生提交输入另带 `derivation` 与 `original` 两份耐久证据，并用旧的排除名单说法描述它们（[Session SPEC](../../session/session-contract/SPEC.md)）。哪一份证据是权威、`original` 是否由 `covers` 取代，归 Session 契约拥有者在 Session 正式设计中裁定。
 
-### 实现时要同步的现行条款与用例
+### 本文件生效后改变的现行条款与用例
 
-message 实现卡交付本文件时，下列现行正文与用例随之改变。
+压缩变体实现后，下列现行正文与用例不再成立，要随实现一起改。
 
 - [docs/public-api.md](docs/public-api.md) 的「语义」一节写「调用与结果的配对完整性也不在本包判定」：改为只在 `judgeCompaction` 核对压缩记录时判定，其他场合仍不判定。
 - 同页「定义索引」说 `judgePart` 的拒绝值是 `MessageRejection` 的子集：`covers`、`retained`、`derivation` 与 `tool-blocks`、`duplicate-id` 一样只由整条消息的判定给出。
@@ -159,7 +175,7 @@ message 实现卡交付本文件时，下列现行正文与用例随之改变。
 
 ### 验收对照
 
-message 实现卡把下表逐行写成上面那张压缩用例表。在那之前，下表只是候选反例，测试不执行它。历史里的条目记作 e1、e2……，按写入顺序；「输入要点」里的 after 指 `context.after`，即范围之后的消息。
+实现时把下表逐行写成上面那张压缩用例表。在那之前，下表只是候选反例，测试不执行它。历史里的条目记作 e1、e2……，按写入顺序；「输入要点」里的 after 指 `context.after`，即范围之后的消息。
 
 | 规则 | 极性 | 输入要点 | 结论 |
 | --- | --- | --- | --- |

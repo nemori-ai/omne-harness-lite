@@ -19,7 +19,7 @@
 
 ## 候选：压缩变体
 
-状态：候选，未实现。下面的签名是 message 实现卡的输入，`src/` 还没有这些导出，`judgeMessage` 也还没有按 [SPEC.md](../SPEC.md#judgemessage-对压缩变体的判定) 判 `compaction` 角色的三个键。实现交付后，签名移入 `src/index.ts`，本节改为定义索引里的普通行，导出清单与 `tests/public-entry.spec.ts` 同步增加 `judgeCompaction`、`isCompactionMessage`、`parseRecordEntryRef`。
+状态：候选，未实现。下面的签名是本包实现压缩变体的依据，`src/` 还没有这些导出，`judgeMessage` 也还没有按 [SPEC.md](../SPEC.md#judgemessage-对压缩变体的判定) 判 `compaction` 角色的三个键。实现交付后，签名移入 `src/index.ts`，本节改为定义索引里的普通行，导出清单与 `tests/public-entry.spec.ts` 同步增加 `judgeCompaction`、`isCompactionMessage`、`parseRecordEntryRef`。
 
 ```ts
 declare const recordEntryRefBrand: unique symbol
