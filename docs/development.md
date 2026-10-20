@@ -278,7 +278,7 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 
 ### 迭代中的受影响测试
 
-`check`、`check:plan`、`test:affected` 与 `mutation` 按同一规则取基线：显式给的（`--base` 参数，再取环境变量 `BASELINE`），再取工作树 task context 固定的 `targetBase`，再取 `origin/main`，最后取 `main`。已绑定任务的工作树不必传基线，并且只接受等于 `targetBase` 的显式基线。同步过目标分支以后，开工时的任务基线不再等于 `targetBase`，显式传入会被拒绝，命令在标准错误写出原因后退出，什么也不运行。
+`check`、`check:plan`、`test:affected` 与 `mutation` 按同一规则取基线：显式给的（`--base` 参数，再取环境变量 `BASELINE`），再取工作树 task context 固定的 `targetBase`，再取 `origin/main`，最后取 `main`。已绑定任务的工作树不必传基线，并且只接受等于 `targetBase` 的显式基线。同步过目标分支以后，开工时的任务基线不再等于 `targetBase`，显式传入会被拒绝，命令在标准错误写出原因后以 2 退出，不运行任何检查。
 
 没有绑定任务的工作树才需要显式基线。在仓库根将占位符替换为完整任务基线提交。以下命令使用同一个比较依据：
 
