@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { basename, dirname, join } from 'node:path'
@@ -23,7 +31,7 @@ function put(root: string, path: string, text: string): void {
   writeFileSync(join(root, path), text)
 }
 function fixture(): string {
-  const root = mkdtempSync(join(tmpdir(), 'omne-nested-legacy-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-nested-legacy-')))
   roots.push(root)
   mkdirSync(join(root, 'node_modules/.bin'), { recursive: true })
   for (const name of ['typescript', 'vitest'])
