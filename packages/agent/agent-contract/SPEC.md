@@ -458,7 +458,7 @@ CurrentConditions.read 的 previous 是上一次已用于请求准备的条件�
 8. 压缩之后位置：提交成功之后才经过压缩之后位置。它只面对已提交的事实，不能改写已提交的摘要、压缩覆盖范围和保留名单。因此没有任何扩展位置能改写压缩候选。
 9. 重新准备：提交成功后，Agent 先经 CurrentConditions.read 取当前条件，再重新选择模型，再带压缩转换依据读取 Runtime Context，然后调用 RequestPreparation.resume。选择的输入含当前条件，所以读取条件在选择之前。Context 从 original 与压缩转换依据重算 Context 与预算。结果种类由 original 中记录的调模型之前位置经过决定：该经过为 null 时，装得下返回 assembled；非空时，装得下返回 ready。仍装不下时返回 cannot-fit 或 needs-compaction，后者按第 4 条处理。
 
-压缩计划，即覆盖范围与保留名单的选择，仍归 Request Context；压缩记录的形状与模型视图规则归[消息成员](../../common/message/SPEC.md)。保护边界见 [RQ-06](../../context/request-context/SPEC.md#rq-06-压缩共同结果与保护边界)。commitment 只在具名的 Context 协议中解析，不能当任意 JSON patch 或业务回调执行。derive 从保管的原内容核验结果的来源，所以不用当前新历史替代原范围。commitment 与实际消息、原准备和每一步的消费依据绑定。同一个 commitment 不能配另一条消息。
+压缩计划归 Request Context，它选定覆盖范围的终点与保留名单；压缩记录的形状与模型视图规则归[消息成员](../../common/message/SPEC.md)。保护边界见 [RQ-06](../../context/request-context/SPEC.md#rq-06-压缩共同结果与保护边界)。commitment 只在具名的 Context 协议中解析，不能当任意 JSON patch 或业务回调执行。derive 从保管的原内容核验结果的来源，所以不用当前新历史替代原范围。commitment 与实际消息、原准备和每一步的消费依据绑定。同一个 commitment 不能配另一条消息。
 
 压缩内部模型调用的结果确认和崩溃接续，沿 Model 契约和“持久性与交付责任”。
 
@@ -682,7 +682,7 @@ resume 经 Journal.attach 为原 execution 取得新的执行挂接。attach 有
 
 #### 提交与保管
 
-AgentJournal 保存带 expected revision 的 checkpoint、effect intent、事件和原操作结果。commit 原子覆盖 checkpoint、执行状态、稳定 effect intent、已分配序号的事件和操作结果。需要共同成立的消息、压缩记录（摘要、覆盖范围与保留名单）及接续、结果保管，通过具名的调用方交接（CallerCommit）与提交参加者共同保存，协议见“并发与提交”。事件订阅与普通保存回执不能代替共同提交。
+AgentJournal 保存带 expected revision 的 checkpoint、effect intent、事件和原操作结果。commit 原子覆盖 checkpoint、执行状态、稳定 effect intent、已分配序号的事件和操作结果。需要共同成立的消息、压缩记录及接续、结果保管，通过具名的调用方交接（CallerCommit）与提交参加者共同保存，协议见“并发与提交”。事件订阅与普通保存回执不能代替共同提交。
 
 同一操作同一语义输入返回原结果，同一操作不同输入返回 conflict。changed 表示 expected 已过期且本操作没有提交，调用方重读并重新求值。commit-unknown 保留原操作，先 query 再决定，不换身份重试。excluded 必须排除原写入及延迟提交，不是简单的查无记录。通知只唤醒，不作为恢复事实源。effect intent 先可靠保存，才用原 admission 向 Model 或 Tool 受理。生产者受理及发出点另行核对当前围栏，Journal.commit 不预先授予未来的授权。
 

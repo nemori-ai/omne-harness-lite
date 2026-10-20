@@ -392,5 +392,5 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **来源**：[压缩记录](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record)与[上下文压缩](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction)当时按封存的 PF-009、PF-010 写成以块为单位的排除名单：压缩记录点名一批块，从此不再模型可读。PanQiWei 2026-10-20 定下的语义相反：压缩后模型只看到压缩记录指定保留的消息、压缩记录本身和它之后的消息。
 - **差别**：排除名单以块为单位、列出被拿掉的部分，模型视图要逐块扣减；保留名单以消息为单位、列出留下的少数，在压缩时固定。两种读法给出的模型视图形状不同，下游的形状、校验和缓存都会照着其中一种建。
 - **处置**：词表改用[保留名单](terms/record-and-context.md#ul-retained-set--保留名单--retained-set)与[压缩覆盖范围](terms/record-and-context.md#ul-compacted-range--压缩覆盖范围--compacted-range)，「排除名单」列入弃用。[运行感知与一次模型请求](../product/runtime-context/design.md#7-压缩保留历史与未完工作)已修订到 rev 3。消息形状与判定规则归 `packages/common/message`。
-- **负责与闭合条件**：负责人 PanQiWei。Agent 契约成员、Agent 机制页与产品页模型调用的措辞已改为保留名单。仍写「排除名单」或「精确原块集合」的正式正文由各自拥有者回改：Request Context 成员（`packages/context/request-context/**`）、Session 契约 SPEC 的派生提交条款。全部回改后闭合。
+- **负责与闭合条件**：负责人 PanQiWei。Agent 契约成员、Agent 机制页、Model 契约 SPEC、数据与状态系统页、Agent 推进领域页与产品页模型调用的措辞已改为保留名单。仍写「排除名单」或「精确原块集合」的正式正文由各自拥有者回改：Request Context 成员（`packages/context/request-context/**`）、Session 契约 SPEC 的派生提交条款。全部回改后闭合。
 - **状态**：已裁定，待外域回改。
