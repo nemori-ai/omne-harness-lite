@@ -213,15 +213,27 @@ ResultPage.source 由 Tool 原结果保存操作产生，定位租户、call、�
 
 [本节设计定义](docs/public-api.md#普通操作与实例目录)。
 
+普通调用方以 `ToolRuntime.invoke` 提交当前主体、合法租户和 `ToolInvokeRequest`，不提供 call、operation 或 invocation/source。runtime 在首次异步等待前复制并封闭校验 payload，再经受信身份端口分配 call/admission，经实际入口的 `ToolInvocationSourceIssuer` 保存完整来源绑定，最后调用内部 admission 一次。来源事实绑定原主体、租户、目标采用、call/admission、consumer、scope、固定 payload 和实际入口。来源核验器读取这些事实，不能只信任 kind、record 名称或客户端摘要。programmatic 子调用保留原 reservation/child/admission 身份，沿内部 admission 协议进入，不经普通 invoke 换身份。
+
+每次 invoke 都是独立请求，相同 payload 不去重。`accepted` 给出调用引用和原受理状态回执，状态不冒充最新状态；`commit-unknown` 给出原调用引用，调用方据它查询原 admission；`rejected` 给出具名失败。身份签发失败不发送 admission。来源签发未知转为 `unavailable/toolInvocationSource`，只说明 Tool admission 未发送，不声称来源未写入。新身份认回 `recovered=true` 是身份提供者违约，回复 `unavailable/toolIdentities`，不调度。受理成功后调度失败不回滚受理，settled 不调度。完整响应在调用方保存引用前丢失时，不承诺按 payload 找回或 exactly-once。
+
+普通接口由 `queries`、`commands`、`instances`、`content` 和 `catalog` 组成。queries 的 lookup 用调用引用内的原 admission；queryOperation 用操作引用内的原 operation。commands 只有 control 和 releaseDelivery。control 的成功结果为带操作引用的 `committed`。releaseDelivery 为每次意图分配 operation，成功返回 `released` 及原生产者耐久回执，不附本次操作引用，也不承诺本次新增操作记录。首次释放与已释放后的重入使用同一成功形状。两者的未知结果为带原操作引用的 `commit-unknown`，拒绝为 `rejected`。回执未知后用原操作引用查询提交结果，不自动重发。`not-committed` 或 `rolled-back` 只否定这次操作，不证明交付仍 pending。可靠否定后，调用方可以明确再次 releaseDelivery，取得已有释放回执。unknown 或不可读时继续保留未知。lookup 用原 admission 定位并返回当前权威 ToolState，其中的 delivery 可用于认回已有释放。invoke 的 state 才是受理时回执。readProcess 当前未支持，ResultPage 不含 DeliveryState。acceptDecision/acceptResource 留在受信内部端口。未实现控制仍回复具名 unsupported，不先分配操作。
+
+`ToolInvocationRef` 和 `ToolOperationRef` 是独立字符串品牌，版本 1 分别编码为 `["tool-invocation",1,tenantText,call,admission]` 和 `["tool-operation",1,tenantText,call,admission,operation]`。tenantText 采用 legal-identity 的 tenantCodec，其他身份沿现有身份词法。codec 只接受固定数组长度、标记与版本，总长度最多 1668 个 UTF-16 code units。编解码不读存储、不生成业务身份；编码生成规范 JSON，解码允许同结构的非规范空白并返回规范值。失败为 type、version、shape 或 length。引用不含 principal、instance 或 generation，不授予权限、不证明调用存在，也不创建第二张持久定位表。
+
+每次引用访问先解码并用 tenantEquals 与当前合法租户比较，跨租户或伪造租户回复 denied，不进入底层端口。底层端口每次核当前 principal 与撤权。持久查询、内容和交付不依赖 catalog 或实例目录。instances.connect 仅提供实时观察路由，unavailable、no-live-route 与 unsupported 保持可辨。放弃引用或观察不取消执行，旧观察沿原 stale-instance 规则结束。
+
+宿主通过 `ToolInstanceIdentities` 取得实例身份，并显式传给 `ToolDriver.run`。同一存活实例重复唤醒沿用身份，不由 runtime 工厂固定全局 instance。当前固定 generation 的实现限制不构成 claim 或换实例接管能力。
+
 每项操作核验当前身份、显式 tenant 及该资源动作。内容、观察、成本、控制和交付解除分别授权。已知名称、历史句柄或已受理事实均不是永久权限。异常仅用于程序缺陷，预期错误用 Reply。signal 只终止相应观察，不取消真实执行。
 
 | 操作 | 成功、顺序及重复 | 拒绝、未知和责任 |
 | --- | --- | --- |
 | inspect | 返回当前合法选择或已知不可用旧形状；command 合法时包含已声明用法 | 从未合法取得的定义不泄露；不能为维持同形读取撤权后的新正文 |
-| admit | 同提交固定输入、当前资格、原 consumer、原调用和待调度责任。同 call/operation/输入认回 | 异输入 conflict；未知按原 operation 查询。受理不等于环境就绪或真实启动 |
+| admit（受信内部端口） | 同提交固定输入、当前资格、原 consumer、原调用和待调度责任。同 call/operation/输入认回 | 异输入 conflict；未知按原 operation 查询。受理不等于环境就绪或真实启动 |
 | lookup/queryOperation | 原事实与精确操作分别查询；不以目录无活体判未执行 | not-committed/not-accepted 需要 Storage 完整排除证明；不可读返回 unavailable |
 | control | 同提交保存原控制意图及续做责任，重复认回；stop、withdraw 和 background 不换 call；withdraw 的 reach 必填且无默认值，并在提交时与目标调用当时的关系比较 | 控制方不在其控制责任范围内、不许可后台或正在 Ask 时拒绝转换；撤回的 reach 不及目标当时的关系时，控制已提交，回执进度为 rejected，原因 `out-of-reach`；停止与撤回受理不声称实际停止 |
-| acceptDecision | 核决策方对原请求的唯一有效决定与原 wait，答复、等待变化和后续责任同提交 | 无答案是合法决定的一种，不能视为授权；重复不重复执行，冲突及失效登记拒绝 |
+| acceptDecision（受信内部端口） | 核决策方对原请求的唯一有效决定与原 wait，答复、等待变化和后续责任同提交 | 无答案是合法决定的一种，不能视为授权；重复不重复执行，冲突及失效登记拒绝 |
 | readResult | settled 后按原版本分页，当前资格每页复核；releaseDelivery 后仍可读全文 | 暂不可读不伪造不存在；地址失效报告保管故障，不能重执行原工具 |
 | releaseDelivery | 原结果/位置/关系及两条证据之一共同验证后释放指定交付关系 | 未保存或完成未知保持 pending；不同位置 conflict；未知提交认回，不删除全文 |
 | account | 原租户费用、用量与未知按修订返回 | 不连带披露正文/附件；多次读取不重计费 |
@@ -323,7 +335,6 @@ facts 按批次、来源事件及游标保存并确认；同一原 final 只成�
 recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续准备、队列、拒绝后的收场、等待、控制、交付及账目。只有原事实证明未启动，才可沿原身份首次 start；已经启动且失联的执行绝不通过 start 重放。quiesce 仅停止新的宿主准入，返回真实未完数量；不是自动取消所有业务的 disposer。环境释放通过 planRelease、ToolEnvironment.release/inspectRelease 和 recordRelease 认回；本次执行不再需要资源且内容已有独立保管者后才执行。完整退出清单及 handover 见 [P09](#p09-账目恢复与退出)。
 
 共享 ref 迁移、媒体读取时机及真实提供者行为须验证。类型样例不能证明运行时支持；运行契约尚未达到生产可用状态。
-
 
 <a id="342-完整设计与协议拥有者"></a>
 
@@ -927,7 +938,6 @@ close 保存关闭意图、真实原因、program-fence 和逐项 child 待办�
 确认程序连续性丢失后不从头重跑，也不依据 ordinal 猜测程序断点。宿主可以恢复 child ledger、原子调用状态、有效答复、控制和结果保管。程序源查询 unavailable 保持 unknown；环境销毁只证明程序域结束，不证明已发子调用停止。晚到结果继续入原位置和账目，不投给已销毁程序、不复活原工作推进。
 
 外层最终输出只包含程序显式输出和受信 child summary 引用，不自动把全部子全文放进消费方的请求。空输出合法。输出超限经 ToolOffloader 保管原文后产生派生表示。外层账目只计代码运行资源，子费用通过关系查询，不重计。具体的程序执行提供者必须给 help/execute、语言数据桥、隔离及资源指标的完整采用文档后才能实施；这些外域交付不由 Tool 类型图替代。
-
 
 ### C04 组合责任的长期驱动
 

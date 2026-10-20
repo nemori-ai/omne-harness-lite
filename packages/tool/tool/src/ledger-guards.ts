@@ -3,13 +3,12 @@
 // construction; the decider consumes only their conclusions.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
-  ConsumerRef,
   FixedToolRequest,
+  Mutation,
   ResourceScope,
   ResultPolicy,
   TextResultFactory,
   ToolCallId,
-  ToolInvocation,
   judgeToolArguments,
 } from '@omne-harness/tool-contract'
 import type { TenantId } from './ledger-store.ts'
@@ -59,19 +58,13 @@ export type SourceVerdict =
 
 /**
  * Verifies that the invocation source of a request came from a trusted entry and agrees with the
- * consumer and the scope (342 values: a script cannot claim a direct call).
+ * whole admission input: the principal, the tenant, the call, the admission operation, and the
+ * fixed request with its target, consumer and scope (342 values: a script cannot claim a direct
+ * call). The guard reads the binding the trusted issuer persisted; a source it cannot find, or
+ * one whose binding disagrees with the admission input, is forged.
  */
 export interface ToolSourceGuard<P> {
-  verify(
-    input: Readonly<{
-      principal: P
-      tenant: TenantId
-      call: ToolCallId
-      invocation: ToolInvocation
-      consumer: ConsumerRef
-      scope: ResourceScope
-    }>,
-  ): Promise<SourceVerdict>
+  verify(input: Mutation<P> & Readonly<{ request: FixedToolRequest }>): Promise<SourceVerdict>
 }
 
 export type GrantVerdict =

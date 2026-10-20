@@ -31,7 +31,7 @@
 
 程序执行方是 ToolExecutorBinding 的一个具体提供者，采用 foreground、live-only，自身不允许 programmable。不增加第四 runtime。程序语言、版本、标准能力、help/execute 参数及跨执行域编码由该提供者精确声明；执行环境提供者固定引擎和隔离能力。本页不以通用接口宣称这些选型已完成。
 
-程序执行宿主注入受限程序环境、ToolRuntime、ToolChildren、来源签发和结果保管能力。一次 execute 的程序和显式输入是参数；租户、主体、调用方已有的工作关联、父调用、权限、环境、限额和绑定是受信宿主依赖。脚本只取得 ProgramTools 的窄代理及自己显式输入，不取得 Context、服务容器、E、executor、来源签发能力或宿主凭据。跨界必须复制/校验允许的数据，不传 JS 宿主对象引用。
+程序执行宿主注入受限程序环境、内部 admission、ToolChildren、来源签发和结果保管能力。子调用保留预留身份，不经普通 invoke 换身份。一次 execute 的程序和显式输入是参数；租户、主体、调用方已有的工作关联、父调用、权限、环境、限额和绑定是受信宿主依赖。脚本只取得 ProgramTools 的窄代理及自己显式输入，不取得 Context、服务容器、E、executor、来源签发能力或宿主凭据。跨界必须复制/校验允许的数据，不传 JS 宿主对象引用。
 
 ## Tool 内部实施规格
 
@@ -278,3 +278,9 @@ ToolBindings 提供者持有 ToolAuthorRegistration，按原 adoption 与 comman
 设计验证至少包括公开声明提取编译、非法状态类型反例、两个调用竞争名额、启动与失效排序、每类外部回包丢失、答案与取消、逻辑终局和迟到版本、父关闭与子受理未知。必须包含能击中错误变体的断言，不能只验证 happy path。
 
 真实提供者还须证明断电耐久、跨 owner 失效顺序、环境资源排除、持续时间来源、原事实源保管、受限程序隔离与不合作程序终止。模型假设和实际探针范围分别记录，未运行项见 [coverage](../../tool-contract/verification/README.md) 的验证义务及 [open-questions](../../tool-contract/docs/architecture.md#tool-设计状态与外部缺项) 的外部缺项。设计文档不选择尚未采用的存储后端或程序执行方的引擎。
+
+## 普通调用与持久引用
+
+runtime.invoke 在第一次 await 前用契约判定器固定 payload，再取得新 call/admission、绑定受信来源并调用原 ledger。来源签发器与核验器由真实入口装配。runtime 不建立 payload 去重表或引用映射表。引用直接编码原租户、call 与 admission，操作引用另带 operation。
+
+[invocation-access.ts](../src/invocation-access.ts) 集中解码与租户核对，queries、content 和 commands 直接进入各原端口。目录连接单独进入 host.directory。持久读取与交付不取决于活实例。driver.run 的实例身份来自 host，同一存活实例重复唤醒沿用。真实生产 host、claim、同一 call 的换实例接管及完整恢复尚未实现。

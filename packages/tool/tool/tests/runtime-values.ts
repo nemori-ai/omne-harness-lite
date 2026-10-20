@@ -8,7 +8,10 @@ import {
   decodeToolInstanceId,
   decodeToolOperationId,
   defaultResultPolicy,
+  encodeToolInvocationRef,
+  encodeToolOperationRef,
   judgeToolState,
+  readToolInvocationRef,
   type Adoption,
   type DurableEvidence,
   type FixedToolRequest,
@@ -20,12 +23,24 @@ import {
   type ToolDriver,
   type ToolInstanceHost,
   type ToolInstanceId,
+  type ToolInvocationRef,
+  type ToolInvokeOutcome,
+  type ToolInvokeRequest,
   type ToolMessageContentBlock,
   type ToolOperationId,
+  type ToolOperationRef,
   type ToolProvider,
   type ToolResult,
   type ToolState,
 } from '@omne-harness/tool-contract'
+import { testingTenant } from '@omne-harness/tool-contract/testing'
+import {
+  createTestInvocationSource,
+  createTestToolIdentities,
+  type TestInvocationSource,
+  type TestToolIdentities,
+} from '@omne-harness/tool/testing'
+import type { ToolInstanceIdentities } from '@omne-harness/tool-contract'
 import {
   createToolLedger,
   createToolRuntime,
@@ -45,31 +60,18 @@ import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-h
 export type Block = ToolMessageContentBlock
 /** The principal of these tests: a subject and the tenants it belongs to. */
 export type Principal = Readonly<{ subject: string; tenants: readonly string[] }>
-export type TenantShape = Readonly<{
-  name: 'TenantId'
-  organization: Readonly<{ name: 'OrganizationId'; text: string }>
-  account: Readonly<{ name: 'AccountId'; text: string }>
-}>
 
-function tenantKeyOf(tenant: TenantShape): string {
+function tenantKeyOf(tenant: TenantIdLike): string {
   return `${tenant.organization.text}/${tenant.account.text}`
 }
 
-/**
- * A tenant with the shape of legal-identity's TenantId. The ledger checks the shape and leaves
- * the minted proof to the access guard, which these tests replace, so no cast crosses a boundary
- * that the production guard would not re-check.
- */
-export function tenant(organization: string, account: string): TenantShape {
-  return {
-    name: 'TenantId',
-    organization: { name: 'OrganizationId', text: organization },
-    account: { name: 'AccountId', text: account },
-  }
-}
+type TenantIdLike = Readonly<{
+  organization: Readonly<{ text: string }>
+  account: Readonly<{ text: string }>
+}>
 
-export const tenantA = tenant('org_a', 'acc_a')
-export const tenantB = tenant('org_b', 'acc_b')
+export const tenantA = testingTenant(`org_${'0'.repeat(26)}`, `acc_${'1'.repeat(26)}`)
+export const tenantB = testingTenant(`org_${'2'.repeat(26)}`, `acc_${'3'.repeat(26)}`)
 export const principalA: Principal = { subject: 'alice', tenants: [tenantKeyOf(tenantA)] }
 export const principalB: Principal = { subject: 'bob', tenants: [tenantKeyOf(tenantB)] }
 
@@ -144,14 +146,13 @@ export function functionDefinition(
   }
 }
 
-export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolRequest {
+export function request(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
   return {
     availability: {
       kind: 'available',
       definition: functionDefinition(),
       executor: adoption('exec'),
     },
-    invocation: { kind: 'direct', source: evidence('entry') },
     command: null,
     arguments: { original: '{"path":"a.txt"}', effective: '{"path":"a.txt"}', complete: true },
     settings: adoption('settings'),
@@ -168,8 +169,7 @@ export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolReq
   }
 }
 
-/** A request for a tool that is known to be unavailable. */
-export function dummyRequest(overrides: Partial<FixedToolRequest> = {}): FixedToolRequest {
+export function dummyRequest(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
   return request({
     availability: {
       kind: 'known-unavailable',
@@ -178,6 +178,16 @@ export function dummyRequest(overrides: Partial<FixedToolRequest> = {}): FixedTo
     },
     ...overrides,
   })
+}
+
+export function fixedRequestForNamedSourceGuard(
+  overrides: Partial<FixedToolRequest> = {},
+): FixedToolRequest {
+  return {
+    ...request(),
+    invocation: { kind: 'direct', source: evidence('entry') },
+    ...overrides,
+  }
 }
 
 export function text(id: string, value: string): TextContentBlock {
@@ -229,7 +239,7 @@ function stub<T extends object>(spies: Spies, name: string, methods: readonly st
 export type ScopeGrant = Readonly<{
   owner: string
   key: string
-  tenant: TenantShape
+  tenant: TenantIdLike
   subject: string
 }>
 
@@ -316,7 +326,7 @@ export function guards(options: GuardOptions = {}): ToolLedgerGuards<Principal, 
         new Promise(resolve => {
           if (options.sourceThrows !== undefined) throw new Error(options.sourceThrows)
           resolve(
-            (options.forged ?? []).includes(input.invocation.source.record)
+            (options.forged ?? []).includes(input.request.invocation.source.record)
               ? { kind: 'forged', reason: 'not-from-the-entry' }
               : { kind: 'trusted' },
           )
@@ -350,6 +360,14 @@ export function guards(options: GuardOptions = {}): ToolLedgerGuards<Principal, 
     policy: defaultResultPolicy,
     budgets: { arguments: jsonLimits },
   }
+}
+
+export function storeKeyTenantShape(organization: string, account: string) {
+  return {
+    name: 'TenantId',
+    organization: { name: 'OrganizationId', text: organization },
+    account: { name: 'AccountId', text: account },
+  } as const
 }
 
 export function configuration(overrides: Partial<ToolConfiguration> = {}): ToolConfiguration {
@@ -386,24 +404,31 @@ export function configurationOf(options: HarnessOptions): ToolConfiguration {
 
 export const instanceId: ToolInstanceId = decoded(decodeToolInstanceId('instance-1'), 'instance-1')
 
-/**
- * An instance host that keeps the installed driver and the wake-ups the runtime asked for. A
- * wake-up runs nothing by itself, as a real host may defer it; `runScheduled` runs the driver for
- * each queued call in order, with the principal of the call's tenant, until no wake-up is left.
- */
 export type TestHost = ToolInstanceHost<Principal> &
   Readonly<{
     driver(): ToolDriver<Principal>
-    readonly scheduled: Readonly<{ tenant: TenantShape; call: ToolCallId }>[]
+    readonly scheduled: Readonly<{ tenant: typeof tenantA; call: ToolCallId }>[]
+    instanceOf(call: ToolCallId, within?: typeof tenantA): Promise<ToolInstanceId>
+    runCall(call: ToolCallId, principal?: Principal, within?: typeof tenantA): Promise<void>
     runScheduled(): Promise<number>
   }>
 
-export function testHost(spies: Spies): TestHost {
+export function testHost(spies: Spies, identities: ToolInstanceIdentities): TestHost {
   let installed: ToolDriver<Principal> | null = null
-  const scheduled: { tenant: TenantShape; call: ToolCallId }[] = []
+  const scheduled: { tenant: typeof tenantA; call: ToolCallId }[] = []
+  const slots = new Map<string, ToolInstanceId>()
   const driver = (): ToolDriver<Principal> => {
     if (installed === null) throw new Error('no driver was installed')
     return installed
+  }
+  const instanceOf = async (call: ToolCallId, within: typeof tenantA = tenantA) => {
+    const key = `${tenantKeyOf(within)}\u0000${call}`
+    const held = slots.get(key)
+    if (held !== undefined) return held
+    const minted = await identities.newInstance()
+    if ('failure' in minted) throw new Error('the test host could not mint an instance identity')
+    slots.set(key, minted.ok)
+    return minted.ok
   }
   return {
     ...stub<Pick<ToolInstanceHost<Principal>, 'publish' | 'withdraw'>>(spies, 'instances', [
@@ -416,17 +441,31 @@ export function testHost(spies: Spies): TestHost {
       return { release: () => Promise.resolve() }
     },
     schedule: input => {
-      // The runtime passes the tenant it was given; these tests use TenantShape values.
-      scheduled.push({ tenant: input.tenant as TenantShape, call: input.call })
+      scheduled.push({ tenant: input.tenant as typeof tenantA, call: input.call })
       return Promise.resolve(succeed({ queued: true } as const))
     },
     driver,
     scheduled,
+    instanceOf,
+    runCall: async (call, principal = principalA, within = tenantA) => {
+      await driver().run({
+        principal,
+        tenant: within,
+        call,
+        instance: await instanceOf(call, within),
+        signal: new AbortController().signal,
+      })
+    },
     runScheduled: async () => {
       let runs = 0
       for (let next = scheduled.shift(); next !== undefined; next = scheduled.shift()) {
         const principal = next.tenant === tenantB ? principalB : principalA
-        await driver().run({ ...next, principal, signal: new AbortController().signal })
+        await driver().run({
+          ...next,
+          principal,
+          instance: await instanceOf(next.call, next.tenant),
+          signal: new AbortController().signal,
+        })
         runs += 1
       }
       return runs
@@ -441,6 +480,15 @@ export type Harness = Readonly<{
   runtime: ToolProvider<Principal, Block>['runtime']
   spies: Spies
   host: TestHost
+  source: TestInvocationSource<Principal>
+  identities: TestToolIdentities
+  invoke(
+    body: ToolInvokeRequest,
+    principal?: Principal,
+    within?: typeof tenantA,
+  ): Promise<ToolInvokeOutcome>
+  referenceOf(call: string): ToolInvocationRef
+  operationRefOf(call: string, operation: string): ToolOperationRef
 }>
 
 /** A real runtime over the non-durable store; only the ledger ports are real. */
@@ -454,14 +502,23 @@ export function harness(options: HarnessOptions = {}): Harness {
     'waitUntil',
   ])
   const config = configurationOf(options)
+  const source = createTestInvocationSource<Principal>(
+    options.sourceThrows === undefined ? {} : { throws: options.sourceThrows },
+  )
+  const identities = createTestToolIdentities()
   const ledger = createToolLedger(store, guards(options), clock, config)
-  const host = testHost(spies)
+  const publicLedger = createToolLedger(
+    store,
+    { ...guards(options), sources: source.guard },
+    clock,
+    config,
+  )
+  const host = testHost(spies, identities.instanceIdentities)
   const dependencies: ToolDependencies<Principal, Block, null> = {
-    instance: instanceId,
-    commands: ledger.commands,
-    admissions: ledger.admissions,
-    queues: ledger.queues,
-    reads: ledger.reads,
+    commands: publicLedger.commands,
+    admissions: publicLedger.admissions,
+    queues: publicLedger.queues,
+    reads: publicLedger.reads,
     bindings: stub(spies, 'bindings', ['inspect', 'resolve', 'recover']),
     environments: stub(spies, 'environments', [
       'prepare',
@@ -491,9 +548,47 @@ export function harness(options: HarnessOptions = {}): Harness {
     custody: stub(spies, 'custody', ['preserve', 'inspect', 'retainResult']),
     catalog: stub(spies, 'catalog', ['inspect', 'usage', 'search']),
     children: stub(spies, 'children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
+    invocationIdentities: identities.invocationIdentities,
+    operationIdentities: identities.operationIdentities,
+    sourceIssuer: source.issuer,
   }
   const provider = createToolRuntime(dependencies, config)
-  return { store, ledger, provider, runtime: provider.runtime, spies, host }
+  const invoked = new Map<string, ToolInvocationRef>()
+  const invoke: Harness['invoke'] = async (body, principal = principalA, within = tenantA) => {
+    const outcome = await provider.runtime.invoke({ principal, tenant: within, request: body })
+    if (outcome.kind !== 'rejected') {
+      const parts = readToolInvocationRef(outcome.reference)
+      invoked.set(parts.call, outcome.reference)
+    }
+    return outcome
+  }
+  const referenceOf = (call: string): ToolInvocationRef => {
+    const reference = invoked.get(call)
+    if (reference === undefined) throw new Error(`${call} was never invoked`)
+    return reference
+  }
+  return {
+    store,
+    ledger,
+    provider,
+    runtime: provider.runtime,
+    spies,
+    host,
+    source,
+    identities,
+    invoke,
+    referenceOf,
+    operationRefOf: (call, operation) => {
+      const encoded = encodeToolOperationRef({
+        tenant: readToolInvocationRef(referenceOf(call)).tenant,
+        call: callId(call),
+        admission: readToolInvocationRef(referenceOf(call)).admission,
+        operation: operationId(operation),
+      })
+      if ('failure' in encoded) throw new Error(`operation reference does not encode: ${operation}`)
+      return encoded.ok
+    },
+  }
 }
 
 /** A ledger over another store, for a store that the memory store cannot imitate. */
@@ -524,13 +619,12 @@ export function failure<F>(outcome: Outcome<unknown, F>): F {
   return outcome.failure
 }
 
-/** The mutation input of one admission. */
 export function admission(
   call: string,
   operation: string,
-  body: FixedToolRequest = request(),
+  body: FixedToolRequest = fixedRequestForNamedSourceGuard(),
   principal: Principal = principalA,
-  within: TenantShape = tenantA,
+  within: typeof tenantA = tenantA,
 ) {
   return {
     principal,
@@ -539,6 +633,42 @@ export function admission(
     operation: operationId(operation),
     request: body,
   }
+}
+
+export function fixedOf(source: TestInvocationSource<Principal>, call: string): FixedToolRequest {
+  const binding = source.bindings().find(bound => bound.call === callId(call))
+  if (binding === undefined) throw new Error(`${call} was never bound by the entry`)
+  return { ...binding.request, invocation: binding.invocation }
+}
+
+export function referenceFor(
+  call: string,
+  admissionOperation: string,
+  within: typeof tenantA = tenantA,
+): ToolInvocationRef {
+  const encoded = encodeToolInvocationRef({
+    tenant: within,
+    call: callId(call),
+    admission: operationId(admissionOperation),
+  })
+  if ('failure' in encoded) throw new Error(`reference does not encode: ${call}`)
+  return encoded.ok
+}
+
+export function operationRefFor(
+  call: string,
+  admissionOperation: string,
+  operation: string,
+  within: typeof tenantA = tenantA,
+): ToolOperationRef {
+  const encoded = encodeToolOperationRef({
+    tenant: within,
+    call: callId(call),
+    admission: operationId(admissionOperation),
+    operation: operationId(operation),
+  })
+  if ('failure' in encoded) throw new Error(`operation reference does not encode: ${operation}`)
+  return encoded.ok
 }
 
 /**

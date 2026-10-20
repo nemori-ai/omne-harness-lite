@@ -8,7 +8,7 @@ import {
 } from '@omne-harness/tool/testing'
 import type { MemoryEnvironment } from '@omne-harness/tool-contract/testing'
 
-it('requires caller-owned identity, authorization and unresolved ports, with fixed block and environment types', () => {
+it('requires caller-owned authorization, trusted construction ports and unresolved ports, with fixed block and environment types', () => {
   type P = { subject: string }
   expectTypeOf(createTestToolDependencies<P>).parameters.toEqualTypeOf<
     [TestToolDependenciesInput<P>]
@@ -22,13 +22,36 @@ it('requires caller-owned identity, authorization and unresolved ports, with fix
   >()
   // A type-only check: these values are never evaluated.
   const required = (input: TestToolDependenciesInput<P>): void => {
-    const { instance, guards, instances, catalog, children, ...rest } = input
-    // @ts-expect-error Identity cannot be omitted.
-    createTestToolDependencies({ ...rest, guards, instances, catalog, children })
+    const {
+      guards,
+      instances,
+      catalog,
+      children,
+      invocationIdentities,
+      operationIdentities,
+      sourceIssuer,
+      ...rest
+    } = input
+    // @ts-expect-error The trusted construction ports cannot be omitted.
+    createTestToolDependencies({ ...rest, guards })
     // @ts-expect-error Authorization cannot be omitted.
-    createTestToolDependencies({ ...rest, instance, instances, catalog, children })
+    createTestToolDependencies({
+      ...rest,
+      instances,
+      catalog,
+      children,
+      invocationIdentities,
+      operationIdentities,
+      sourceIssuer,
+    })
     // @ts-expect-error Host, catalog and child ports cannot be omitted.
-    createTestToolDependencies({ ...rest, instance, guards })
+    createTestToolDependencies({
+      ...rest,
+      guards,
+      invocationIdentities,
+      operationIdentities,
+      sourceIssuer,
+    })
   }
   expectTypeOf(required).toBeFunction()
   // @ts-expect-error Testing types are available only through ./testing.
