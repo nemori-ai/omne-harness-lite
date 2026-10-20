@@ -891,7 +891,7 @@ it.each(lostMixedFields)(
           async beginRead(input) {
             const outcome = await consumption.beginRead(input)
             if (
-              !mixedCalls.has(input.call) ||
+              !mixedCalls.has(referenceParts(input).call) ||
               'failure' in outcome ||
               outcome.ok.kind !== 'started' ||
               outcome.ok.value.kind !== 'reading'
@@ -1030,7 +1030,7 @@ it.each([
             const outcome = await consumption.beginRead(input)
             if (
               page !== 'first' ||
-              !mixedCalls.has(input.call) ||
+              !mixedCalls.has(referenceParts(input).call) ||
               'failure' in outcome ||
               outcome.ok.kind !== 'started' ||
               outcome.ok.value.kind !== 'reading'

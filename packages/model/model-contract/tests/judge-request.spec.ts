@@ -562,11 +562,14 @@ it('rejects malformed admit roots and reports only known descriptor fields', () 
     expect(Reflect.apply(judgeAdmit, undefined, [value])).toEqual({
       failure: { field: '', reason: 'type' },
     })
-  for (const { value, reason } of [
+  const invalidRoots: readonly { value: unknown; reason: string }[] = [
     { value: { ...input, privateUnknownRoot: 'private value' }, reason: 'unknown-field' },
     { value: { ...input, [Symbol('private symbol')]: 'private value' }, reason: 'symbol-key' },
-  ])
-    expect(judgeAdmit(value)).toEqual({ failure: { field: '', reason } })
+  ]
+  for (const { value, reason } of invalidRoots)
+    expect(Reflect.apply(judgeAdmit, undefined, [value])).toEqual({
+      failure: { field: '', reason },
+    })
   for (const trap of ['ownKeys', 'getPrototypeOf'] as const) {
     let attempts = 0
     const proxy = new Proxy(input, {

@@ -446,7 +446,14 @@ it('preserves legal sealed thinking, voice, image and file values without readin
     },
   ].map(input => {
     const part = judgePart(input)
-    if ('rejected' in part || part.ok.kind === 'tool_result') throw new Error('media fixture')
+    if (
+      'rejected' in part ||
+      (part.ok.kind !== 'thinking' &&
+        part.ok.kind !== 'voice' &&
+        part.ok.kind !== 'image' &&
+        part.ok.kind !== 'file')
+    )
+      throw new Error('media fixture')
     return { kind: 'sealed', block: part.ok, trims: [] }
   })
   f.settle(parts, 100000)
