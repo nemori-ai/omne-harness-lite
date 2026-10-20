@@ -26,6 +26,7 @@ import {
   tenantB,
   type Block,
   type Principal,
+  testSettlementPorts,
 } from './runtime-values.ts'
 
 function deferred() {
@@ -184,6 +185,7 @@ describe('trusted source fact acknowledgement', () => {
       guards(),
       createMemoryToolClock(),
       configurationOf({}),
+      testSettlementPorts(),
     )
     expect(ok(await rebuilt.commands.recordFactAcknowledgement(f.input))).toEqual(progress)
     expect(f.recoveries()).toBe(1)
@@ -276,6 +278,7 @@ describe('trusted source fact acknowledgement', () => {
       },
       createMemoryToolClock(),
       configurationOf({}),
+      testSettlementPorts(),
     )
     const failed = await ledger.commands.recordFactAcknowledgement(f.input)
     expect(failed).toHaveProperty('failure.kind', 'unavailable')
@@ -378,6 +381,7 @@ describe('trusted source fact acknowledgement', () => {
       },
       createMemoryToolClock(),
       configurationOf({}),
+      testSettlementPorts(),
     )
     const input = {
       ...f.input,

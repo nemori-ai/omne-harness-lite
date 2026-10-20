@@ -15,6 +15,7 @@ import {
   referenceFor,
   tenantA,
   type Block,
+  testSettlementPorts,
 } from './runtime-values.ts'
 import { testAssembly } from './testing-values.ts'
 
@@ -97,11 +98,32 @@ describe('17 the runtime factory and later increments', () => {
       ['queueCapacity', 2.5],
     ] as const)
       expect(() =>
-        createToolLedger(store, guards(), clock, configuration({ [key]: value })),
+        createToolLedger(
+          store,
+          guards(),
+          clock,
+          configuration({ [key]: value }),
+          testSettlementPorts(),
+        ),
       ).toThrow(`configuration.${key}: range`)
-    expect(() => createToolLedger(store, guards(), clock, null as never)).toThrow(
-      'configuration: type',
-    )
+    expect(() =>
+      createToolLedger(store, guards(), clock, null as never, testSettlementPorts()),
+    ).toThrow('configuration: type')
+  })
+
+  it('requires explicit settlement ports without the old construction fallback', () => {
+    const store = createMemoryToolLedgerStore<Block>()
+    const clock = testAssembly().dependencies.clock
+    const ports = testSettlementPorts()
+    expect(() =>
+      createToolLedger(store, guards(), clock, configuration(), undefined as never),
+    ).toThrow('settlement.custody.retainResult: missing')
+    expect(() =>
+      createToolLedger(store, guards(), clock, configuration(), {
+        ...ports,
+        releaseInspection: {} as never,
+      }),
+    ).toThrow('settlement.releaseInspection.inspectRelease: missing')
   })
 
   it('17 factory: the trusted construction ports are required at construction', () => {
@@ -112,6 +134,12 @@ describe('17 the runtime factory and later increments', () => {
         configuration(),
       ),
     ).toThrow('dependencies.operationIdentities: missing')
+    expect(() =>
+      createToolRuntime({ ...dependencies, facts: undefined as never }, configuration()),
+    ).toThrow('dependencies.facts: missing')
+    expect(() =>
+      createToolRuntime({ ...dependencies, facts: {} as never }, configuration()),
+    ).toThrow('dependencies.facts.read: missing')
     expect(() =>
       createToolRuntime({ ...dependencies, sourceIssuer: undefined as never }, configuration()),
     ).toThrow('dependencies.sourceIssuer: missing')

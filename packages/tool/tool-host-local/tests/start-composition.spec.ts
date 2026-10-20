@@ -1,3 +1,7 @@
+import {
+  createMemoryToolEnvironment,
+  createMemoryToolOutputCustody,
+} from '@omne-harness/tool-contract/testing'
 // The local start coordinator under the real Tool runtime, ledger and driver, over one
 // non-durable store: the call domain, the queue domain and the coordinator's host domain. The
 // binding stages a capsule and consumes its permit through the coordinator, as P04 requires of
@@ -168,6 +172,7 @@ function assembly(
       waitUntil: () => Promise.reject(new Error('timing')),
     },
     { resultPageBytes: 4_096, ledgerCommitAttempts: 8, queueCapacity: 8 },
+    testSettlementPorts(),
   )
   let driver: ToolDriver<Principal> | null = null
   const { runtime } = createToolRuntime<Principal, Block, null>(
@@ -177,6 +182,7 @@ function assembly(
       commands: ledger.commands,
       admissions: ledger.admissions,
       queues: ledger.queues,
+      facts: ledger.facts,
       reads: ledger.reads,
       bindings: {
         inspect: () => Promise.reject(new Error('catalog')),
@@ -348,3 +354,10 @@ describe('G5 under the runtime', () => {
     expect((await harness.state()).phase).toBe('running')
   })
 })
+
+function testSettlementPorts() {
+  return {
+    custody: createMemoryToolOutputCustody<Principal>(),
+    releaseInspection: createMemoryToolEnvironment<Principal>(),
+  }
+}

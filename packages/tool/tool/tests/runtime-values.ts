@@ -1,3 +1,7 @@
+import {
+  createMemoryToolEnvironment,
+  createMemoryToolOutputCustody,
+} from '@omne-harness/tool-contract/testing'
 // Builders and controllable ports for the managed-runtime tests. Each builder returns a fresh
 // value, so a test can change one field and keep the rest legal. Every port the logical-result
 // path must not touch is a throwing stub that counts its calls.
@@ -555,26 +559,34 @@ export function harness(options: HarnessOptions = {}): Harness {
     ...(options.sourceThrows === undefined ? {} : { throws: options.sourceThrows }),
   })
   const identities = createTestToolIdentities()
-  const ledger = createToolLedger(store, guards(options), clock, config)
+  const custody = stub<ToolDependencies<Principal, Block, null>['custody']>(spies, 'custody', [
+    'preserve',
+    'inspect',
+    'retainResult',
+  ])
+  const environments = stub<ToolDependencies<Principal, Block, null>['environments']>(
+    spies,
+    'environments',
+    ['prepare', 'inspectPreparation', 'release', 'inspectRelease'],
+  )
+  const settlement = { custody, releaseInspection: environments }
+  const ledger = createToolLedger(store, guards(options), clock, config, settlement)
   const publicLedger = createToolLedger(
     store,
     { ...guards(options), sources: source.guard },
     clock,
     config,
+    settlement,
   )
   const host = testHost(spies, identities.instanceIdentities)
   const dependencies: ToolDependencies<Principal, Block, null> = {
     commands: publicLedger.commands,
     admissions: publicLedger.admissions,
     queues: publicLedger.queues,
+    facts: publicLedger.facts,
     reads: publicLedger.reads,
     bindings: stub(spies, 'bindings', ['inspect', 'resolve', 'recover']),
-    environments: stub(spies, 'environments', [
-      'prepare',
-      'inspectPreparation',
-      'release',
-      'inspectRelease',
-    ]),
+    environments,
     decisions: stub(spies, 'decisions', [
       'inspectOperation',
       'ensure',
@@ -594,7 +606,7 @@ export function harness(options: HarnessOptions = {}): Harness {
       'invalidate',
       'resolve',
     ]),
-    custody: stub(spies, 'custody', ['preserve', 'inspect', 'retainResult']),
+    custody,
     catalog: stub(spies, 'catalog', ['inspect', 'usage', 'search']),
     children: stub(spies, 'children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
     operationIdentities: identities.operationIdentities,
@@ -676,7 +688,13 @@ export function ledgerOver(
 ): ToolLedger<Principal, Block> {
   const spies: Spies = { calls: new Map() }
   const clock = stub<ToolDependencies<Principal, Block, null>['clock']>(spies, 'clock', ['now'])
-  return createToolLedger(store, guards(options), clock, configurationOf(options))
+  return createToolLedger(
+    store,
+    guards(options),
+    clock,
+    configurationOf(options),
+    testSettlementPorts(),
+  )
 }
 
 /** Every state the runtime answers must pass the contract's closed judgment. */
@@ -790,4 +808,11 @@ export function putsOperation(operation: string): (input: LedgerCommitInput<Bloc
 /** Whether a commit writes an exclusion record: the fence of a negative answer. */
 export function putsExclusion(input: LedgerCommitInput<Block>): boolean {
   return input.writes.some(write => write.kind === 'put' && write.record.kind === 'exclusion')
+}
+
+export function testSettlementPorts() {
+  return {
+    custody: createMemoryToolOutputCustody<Principal>(),
+    releaseInspection: createMemoryToolEnvironment<Principal>(),
+  }
 }

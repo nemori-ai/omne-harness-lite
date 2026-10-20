@@ -64,6 +64,7 @@ import {
   type Principal,
   type Spies,
   type TestHost,
+  testSettlementPorts,
 } from './runtime-values.ts'
 
 /** What the environment provider answers for a call's preparation. */
@@ -465,23 +466,28 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const binding = options.binding ?? testBinding(authorityPort, options.bindingPort)
   const bindings = options.bindingsPort?.(binding.bindings) ?? binding.bindings
   const factAcknowledgements = createToolFactAcknowledgementGuard(bindings)
+  const environments = testEnvironments(options.environment ?? new Map())
+  const custody = testSettlementPorts().custody
+  const settlement = { custody, releaseInspection: environments }
   const ledger = createToolLedger(
     store,
     { ...guards(options), factAcknowledgements },
     clock,
     config,
+    settlement,
   )
-  const environments = testEnvironments(options.environment ?? new Map())
   const publicLedger = createToolLedger(
     store,
     { ...guards(options), sources: source.guard, factAcknowledgements },
     clock,
     config,
+    settlement,
   )
   const dependencies: ToolDependencies<Principal, Block, TestEnvironment> = {
     commands: options.commands?.(ledger.commands) ?? ledger.commands,
     admissions: publicLedger.admissions,
     queues: ledger.queues,
+    facts: ledger.facts,
     reads: options.readsPort?.(ledger.reads) ?? ledger.reads,
     bindings,
     environments: options.environmentsPort?.(environments) ?? environments,
@@ -504,7 +510,7 @@ export function startHarness(options: StartOptions = {}): StartHarness {
       'invalidate',
       'resolve',
     ]),
-    custody: refusing('custody', ['preserve', 'inspect', 'retainResult']),
+    custody,
     catalog: refusing('catalog', ['inspect', 'usage', 'search']),
     children: refusing('children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
     operationIdentities: identities.operationIdentities,
@@ -565,7 +571,13 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     rebuildRuntime: () => createToolRuntime(dependencies, config).runtime,
     commands: ledger.commands,
     // Internal admission recall tests carry source facts from the previous harness.
-    ledger: createToolLedger(store, { ...guards(options), factAcknowledgements }, clock, config),
+    ledger: createToolLedger(
+      store,
+      { ...guards(options), factAcknowledgements },
+      clock,
+      config,
+      settlement,
+    ),
     queues: ledger.queues,
     host,
     authority,

@@ -8,6 +8,9 @@ import type {
   ReleasedDelivery,
   DurableEvidence,
   Effect,
+  RawOutput,
+  ReleaseRecord,
+  ReleaseProgress,
   FixedToolRequest,
   FactReceipt,
   FactProgress,
@@ -89,6 +92,9 @@ export type OperationReceipt =
     }>
   | Readonly<{ kind: 'reject-pending'; state: ToolState }>
   | Readonly<{ kind: 'record-start'; state: ToolState }>
+  | Readonly<{ kind: 'preserve-result'; state: ToolState }>
+  | Readonly<{ kind: 'plan-release'; release: ReleaseRecord }>
+  | Readonly<{ kind: 'record-release' | 'record-task'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'fact-acknowledgement'; progress: FactProgress }>
 
 export type OperationRecord = Readonly<{
@@ -98,6 +104,30 @@ export type OperationRecord = Readonly<{
   inputDigest: string
   revision: ToolRevision
   receipt: OperationReceipt
+}>
+
+export type CleanupDuty =
+  | Readonly<{ kind: 'planned'; operation: ToolOperationId }>
+  | Readonly<{
+      kind: 'awaiting-independent-custody'
+      preparation: ToolOperationId
+      diagnostic: string
+    }>
+
+export type ResultCustody =
+  | Readonly<{ kind: 'synthetic' }>
+  | Readonly<{
+      kind: 'execution'
+      final: DurableEvidence
+      raw: RawOutput
+      retainOperation: ToolOperationId
+      retained: DurableEvidence
+      cleanup: CleanupDuty
+    }>
+
+export type EnvironmentReleaseRecord = Readonly<{
+  release: ReleaseRecord
+  progress: ReleaseProgress
 }>
 
 /** One result version with its delivery relation. `settledBy` is the operation that made it. */
@@ -113,6 +143,7 @@ export type ResultRecord<B extends ContentBlock> = Readonly<{
   delivery: DeliveryState
   source: DurableEvidence
   settledBy: ToolOperationId
+  custody: ResultCustody
 }>
 
 export type AccountRecord = Readonly<{
@@ -210,8 +241,8 @@ export type ReleaseBasis =
   /** The start fence excluded the whole invocation: it never started and never will. */
   | Readonly<{ kind: 'pre-start-rejection'; exclusion: DurableEvidence }>
   /**
-   * The execution physically ended, or was proven excluded (execution-facts increment). Declared so that the
-   * release path has its one place for it; nothing in this increment builds it.
+   * The original saved final proves that the execution physically ended. The call domain also
+   * holds the confirmed result custody before this basis reaches the queue.
    */
   | Readonly<{ kind: 'physical-end'; proof: DurableEvidence }>
 
@@ -231,6 +262,7 @@ export type LedgerRecord<B extends ContentBlock> =
   | Readonly<{ kind: 'operation'; operation: OperationRecord }>
   | Readonly<{ kind: 'result'; result: ResultRecord<B> }>
   | Readonly<{ kind: 'account'; account: AccountRecord }>
+  | Readonly<{ kind: 'environment-release'; environmentRelease: EnvironmentReleaseRecord }>
   | Readonly<{ kind: 'task'; task: ToolTask }>
   | Readonly<{ kind: 'fact-event'; fact: FactEventRecord<B> }>
   | Readonly<{ kind: 'fact-batch'; batch: FactBatchRecord }>
@@ -252,6 +284,8 @@ export function recordKey<B extends ContentBlock>(record: LedgerRecord<B>): stri
       return `operation:${record.operation.operation}`
     case 'result':
       return `result:${record.result.result}`
+    case 'environment-release':
+      return `environment-release:${record.environmentRelease.release.preparation}`
     case 'account':
       return `account:${record.account.event}`
     case 'task':

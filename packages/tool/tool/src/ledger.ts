@@ -1,4 +1,4 @@
-// The ledger factory (G1): `createToolLedger(store, guards, clock, configuration)` gives the
+// The ledger factory (G1): `createToolLedger(store, guards, clock, configuration, settlement)` gives the
 // ToolCommands and ToolReads of this implementation, and the admission entry that the runtime
 // uses. Each entry checks its boundary input, asks the guards, reads the domain, lets a pure
 // decider answer, and commits by revision. A negative answer of a query is given only after an
@@ -63,8 +63,14 @@ import type {
   ToolLedgerConfiguration,
   ToolLedgerQueues,
   ToolLedgerFacts,
+  ToolLedgerSettlementPorts,
 } from './construction.ts'
-import { fixFactAcknowledgement, fixFactBasis, fixFactInput } from './facts-boundary.ts'
+import {
+  fixFactAcknowledgement,
+  fixFactBasis,
+  fixFactInput,
+  fixFinalInput,
+} from './facts-boundary.ts'
 import { checkFactAcknowledgement, decideFactAcknowledgement } from './ledger-fact-ack.ts'
 import { decideReceiveFacts, readSavedFact } from './ledger-facts.ts'
 import { digestOf, nextRevision } from './evidence.ts'
@@ -78,6 +84,7 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
+import { checkSettlement, decidePreserveResult } from './ledger-settlement.ts'
 import { excluded, excludedSince, withExclusionRemoved } from './ledger-exclusion.ts'
 import type { ToolLedgerAction, ToolLedgerGuards } from './ledger-guards.ts'
 import { createQueueReconciler } from './ledger-queue.ts'
@@ -191,8 +198,13 @@ export function createToolLedger<P, B extends ContentBlock>(
   guards: ToolLedgerGuards<P, B>,
   clock: ToolClock,
   configuration: ToolLedgerConfiguration,
+  settlement: ToolLedgerSettlementPorts<P>,
 ): ToolLedger<P, B> {
   checkLedgerConfiguration(configuration)
+  if (typeof settlement?.custody?.retainResult !== 'function')
+    throw new TypeError('settlement.custody.retainResult: missing')
+  if (typeof settlement?.releaseInspection?.inspectRelease !== 'function')
+    throw new TypeError('settlement.releaseInspection.inspectRelease: missing')
   const { resultPageBytes, ledgerCommitAttempts: attempts, queueCapacity } = configuration
 
   const access = async (
@@ -623,7 +635,7 @@ export function createToolLedger<P, B extends ContentBlock>(
       return succeed(state)
     const current = await peek(context)
     if ('failure' in current) return current
-    const basis = current.ok.call === null ? null : releaseBasisOf(current.ok.call)
+    const basis = releaseBasisOf(current.ok)
     if (basis === null) return succeed(state)
     const released = await transactQueue(
       queueDomain(context.tenant, record.request),
@@ -938,6 +950,54 @@ export function createToolLedger<P, B extends ContentBlock>(
     return releaseQueue(context.ok, record.ok, recorded.ok)
   }
 
+  const preserveResult: ToolCommands<P, B>['preserveResult'] = async input => {
+    const fixed = fixFinalInput(input, guards.policy, toolLedgerAdoption)
+    if ('failure' in fixed) return fixed
+    const context = await writeEntry(input)
+    if ('failure' in context) return context
+    const execution = executionOf(context.ok)
+    const fields = { final: fixed.ok, execution }
+    const command = { ...writeCommand(context.ok, fields), ...fields }
+    const before = await peek(context.ok)
+    if ('failure' in before) return before
+    const checked = checkSettlement(before.ok, command)
+    if ('failure' in checked) return checked
+    const record = recordOf(before.ok)
+    if ('failure' in record) return record
+    if (checked.ok.kind === 'recalled') return releaseQueue(context.ok, record.ok, checked.ok.state)
+    let retained: Awaited<ReturnType<typeof settlement.custody.retainResult>>
+    try {
+      retained = await settlement.custody.retainResult({
+        principal: context.ok.principal,
+        tenant: context.ok.tenant,
+        call: context.ok.call,
+        operation: checked.ok.retainOperation,
+        raw: structuredClone(fixed.ok.raw),
+        value: structuredClone(fixed.ok.result),
+      })
+    } catch {
+      return unavailable('output-custody', 'result custody confirmation is unavailable')
+    }
+    if ('failure' in retained) {
+      if (retained.failure.kind === 'commit-unknown')
+        return unavailable('output-custody', 'result custody confirmation is unavailable')
+      return retained
+    }
+    const evidence = judgeEvidenceField(retained.ok, 'retained')
+    if ('failure' in evidence)
+      return unavailable('output-custody', 'result custody confirmation is unavailable')
+    const confirmed = structuredClone(evidence.ok)
+    const settled = await transact(
+      callDomain(context.ok),
+      command.operation,
+      (snapshot, mint) => decidePreserveResult(snapshot, command, confirmed, mint),
+      commitUnknown(command.operation),
+      before.ok.revision,
+    )
+    if ('failure' in settled) return settled
+    return releaseQueue(context.ok, record.ok, settled.ok)
+  }
+
   const commands: ToolCommands<P, B> = {
     admit: async input => {
       const admitted = await admissions.admit(input)
@@ -973,7 +1033,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     attachResource: input => write(input, 'attachResource', 'waits, decisions and resources'),
     planSuspension: input => write(input, 'planSuspension', 'checkpointed executors'),
     suspend: input => write(input, 'suspend', 'checkpointed executors'),
-    preserveResult: input => write(input, 'preserveResult', 'execution facts and release'),
+    preserveResult,
     recordResponse: input => write(input, 'recordResponse', 'waits, decisions and resources'),
     closeWait: input => write(input, 'closeWait', 'waits, decisions and resources'),
     recordControl: input => later(input, 'control', 'recordControl', 'controls'),

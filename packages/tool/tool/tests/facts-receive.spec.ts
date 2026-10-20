@@ -24,6 +24,7 @@ import {
   tenantB,
   text,
   type Block,
+  testSettlementPorts,
 } from './runtime-values.ts'
 
 async function running(options: Parameters<typeof startHarness>[0] = {}) {
@@ -353,6 +354,7 @@ describe('atomic custody and recovery', () => {
       guards(),
       createMemoryToolClock(),
       configurationOf({}),
+      testSettlementPorts(),
     )
     const recovery = ok(await rebuilt.commands.loadRecovery(access))
     const tasks = recovery.tasks.filter(task => task.kind === 'settle')
@@ -626,6 +628,7 @@ describe('fixed producer boundary and current access', () => {
       },
       createMemoryToolClock(),
       configurationOf({}),
+      testSettlementPorts(),
     )
     ok(await ledger.commands.receiveFacts({ ...access, start: mutable.start, batch: mutable }))
     const recovery = ok(await ledger.commands.loadRecovery(access))
@@ -703,6 +706,7 @@ describe('fixed producer boundary and current access', () => {
       },
       createMemoryToolClock(),
       configurationOf({}),
+      testSettlementPorts(),
     )
     expect(await ledger.commands.receiveFacts({ ...access, start: batch.start, batch })).toEqual({
       failure: {
