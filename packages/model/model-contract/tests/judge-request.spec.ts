@@ -47,6 +47,7 @@ it('retains typed access, copies DAG occurrences and freezes only owned output',
   }
   expect(input.request.profile).toBe(input.request.source)
   const checked = must(judgeAdmit(input))
+  expect(checked).toEqual(input)
   expect(checked.principal).toBe(principal)
   expect(checked.tenant).toBe(input.tenant)
   expect(Object.isFrozen(principal)).toBe(false)
@@ -73,32 +74,48 @@ it('retains typed access, copies DAG occurrences and freezes only owned output',
 })
 
 it('accepts every Model union branch and delegates lossless domain values', () => {
+  const tenantCredential = { kind: 'tenant', id: must(decodeCredentialId('credential')) } as const
+  const json: JsonValue = {
+    kind: 'object',
+    entries: [
+      { key: 'large', value: { kind: 'number', lexeme: '9007199254740993' } },
+      { key: 'precise', value: { kind: 'number', lexeme: '1.2300e-100' } },
+      { key: 'stops', value: { kind: 'array', items: [{ kind: 'string', value: 'END' }] } },
+    ],
+  }
   const parameters: FixedModelRequest['parameters'] = [
     { kind: 'temperature', value: 2 },
     { kind: 'top-p', value: 1 },
     { kind: 'max-output-tokens', value: '1' },
     { kind: 'seed', value: '0' },
-    { kind: 'stop', value: ['END'] },
+    { kind: 'stop', value: ['END', 'STOP'] },
     { kind: 'reasoning-effort', value: 'max' },
     { kind: 'frequency-penalty', value: -2 },
     { kind: 'presence-penalty', value: 2 },
     {
       kind: 'extension',
       definition: adopted,
-      value: { kind: 'number', lexeme: '9007199254740993' },
+      value: json,
     },
   ]
-  for (const credential of [
-    { kind: 'factory' },
-    { kind: 'tenant', id: must(decodeCredentialId('credential')) },
-  ] as const)
+  for (const credential of [{ kind: 'factory' }, tenantCredential] as const)
     for (const toolChoice of ['none', 'auto', 'required', { name: 'lookup' }] as const) {
       const input = {
         ...request,
         parameters,
-        suppliers: [{ ...request.suppliers[0], credential }],
+        suppliers: [
+          { ...request.suppliers[0], credential },
+          {
+            adoption: { ...adopted, name: 'backup', revision: '2', digest: 'f'.repeat(64) },
+            recipient: 'backup-recipient',
+            model: 'backup-model',
+            credential: credential.kind === 'factory' ? tenantCredential : { kind: 'factory' },
+          },
+        ],
+        fallback: true,
         tools: [
-          { name: 'lookup', description: '', argumentsSchema: { kind: 'object', entries: [] } },
+          { name: 'lookup', description: '', argumentsSchema: json },
+          { name: 'summarize', description: 'summary', argumentsSchema: { kind: 'null' } },
         ],
         toolChoice,
         parameterAdoptions: [
@@ -110,17 +127,160 @@ it('accepts every Model union branch and delegates lossless domain values', () =
           {
             supplier: adopted,
             applied: parameters[0],
-            origin: { kind: 'explicit', requested: parameters[0], source: adopted },
+            origin: {
+              kind: 'explicit',
+              requested: { kind: 'temperature', value: 1 },
+              source: { ...adopted, name: 'explicit-source' },
+            },
           },
         ],
       }
-      expect(judgeFixedModelRequest(input)).toHaveProperty('ok')
+      const result = judgeFixedModelRequest(input)
+      expect(result).toEqual({ ok: input })
+      const fixed = must(result)
+      const assertOwnedCopy = (copy: unknown, original: unknown): void => {
+        if (typeof copy !== 'object' || copy === null) return
+        if (typeof original !== 'object' || original === null)
+          throw new Error('expected matching fixture containers')
+        expect(copy).not.toBe(original)
+        expect(Object.isFrozen(copy)).toBe(true)
+        expect(Object.isFrozen(original)).toBe(false)
+        for (const [key, child] of Object.entries(copy))
+          assertOwnedCopy(child, Reflect.get(original, key))
+      }
+      assertOwnedCopy(fixed, input)
+      const extension = fixed.parameters[8]
+      if (extension?.kind !== 'extension') throw new Error('expected retained extension')
+      expect(extension.value).not.toBe(fixed.tools[0]?.argumentsSchema)
     }
   rejection(withValue({ ordinary: 'json' }), 'json')
   rejection({ ...request, parameters: [{ kind: 'temperature', value: 2.1 }] }, 'range')
   expect(
     judgeFixedModelRequest({ ...request, parameters: [{ kind: 'temperature', value: 2.1 }] }),
   ).toEqual({ failure: { field: '/parameters/0/value', reason: 'range' } })
+})
+
+describe('parameter values and request-local identities', () => {
+  it.each([
+    { kind: 'temperature', accepted: [0, 1, 2], outside: [-Number.MIN_VALUE, 2.000001] },
+    { kind: 'top-p', accepted: [Number.MIN_VALUE, 0.5, 1], outside: [0, -0.1, 1.000001] },
+    { kind: 'frequency-penalty', accepted: [-2, 0, 2], outside: [-2.000001, 2.000001] },
+    { kind: 'presence-penalty', accepted: [-2, 0, 2], outside: [-2.000001, 2.000001] },
+  ])(
+    'keeps $kind endpoints and rejects values outside its finite interval',
+    ({ kind, accepted, outside }) => {
+      for (const value of accepted) {
+        const input = { ...request, parameters: [{ kind, value }] }
+        expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
+      }
+      for (const value of [...outside, NaN, Infinity, -Infinity, '1', true, null, [], {}])
+        expect(judgeFixedModelRequest({ ...request, parameters: [{ kind, value }] })).toEqual({
+          failure: { field: '/parameters/0/value', reason: 'range' },
+        })
+    },
+  )
+
+  it.each([
+    { kind: 'max-output-tokens', accepted: ['1', '9007199254740993'], additionalInvalid: ['0'] },
+    { kind: 'seed', accepted: ['0', '1', '9007199254740993'], additionalInvalid: [] },
+  ])(
+    'preserves canonical $kind text without numeric coercion',
+    ({ kind, accepted, additionalInvalid }) => {
+      for (const value of accepted) {
+        const input = { ...request, parameters: [{ kind, value }] }
+        expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
+      }
+      for (const value of [
+        ...additionalInvalid,
+        '',
+        '01',
+        '00',
+        '-1',
+        '+1',
+        '1.0',
+        '1e3',
+        'x1',
+        '1x',
+        ' 1',
+        '1 ',
+        '1\n',
+        1,
+        0,
+        null,
+        false,
+      ])
+        expect(judgeFixedModelRequest({ ...request, parameters: [{ kind, value }] })).toEqual({
+          failure: { field: '/parameters/0/value', reason: 'integer' },
+        })
+    },
+  )
+
+  it('retains all five reasoning efforts and rejects other values', () => {
+    for (const value of ['none', 'low', 'medium', 'high', 'max']) {
+      const input = { ...request, parameters: [{ kind: 'reasoning-effort', value }] }
+      expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
+    }
+    for (const value of ['other', '', 'HIGH', 0, null])
+      expect(
+        judgeFixedModelRequest({ ...request, parameters: [{ kind: 'reasoning-effort', value }] }),
+      ).toEqual({ failure: { field: '/parameters/0/value', reason: 'value' } })
+  })
+
+  it.each([
+    { value: [], field: '/parameters/0/value', reason: 'value' },
+    { value: ['END', 'END'], field: '/parameters/0/value', reason: 'duplicate' },
+    { value: ['END', ''], field: '/parameters/0/value/1', reason: 'value' },
+  ])('rejects invalid stop sequences with $reason at $field', ({ value, field, reason }) => {
+    expect(judgeFixedModelRequest({ ...request, parameters: [{ kind: 'stop', value }] })).toEqual({
+      failure: { field, reason },
+    })
+  })
+
+  it('keys extension uniqueness by the complete adoption and ordinary parameters by kind', () => {
+    const first = { kind: 'extension', definition: adopted, value: { kind: 'null' } } as const
+    for (const difference of [
+      { owner: 'other-owner' },
+      { name: 'other-name' },
+      { revision: '2' },
+      { digest: 'f'.repeat(64) },
+    ]) {
+      const second = { ...first, definition: { ...adopted, ...difference } }
+      const input = { ...request, parameters: [first, second] }
+      expect(judgeFixedModelRequest(input)).toEqual({ ok: input })
+    }
+    expect(
+      judgeFixedModelRequest({
+        ...request,
+        parameters: [
+          first,
+          { ...first, definition: { ...adopted }, value: { kind: 'boolean', value: true } },
+        ],
+      }),
+    ).toEqual({ failure: { field: '/parameters', reason: 'duplicate' } })
+    expect(
+      judgeFixedModelRequest({
+        ...request,
+        parameters: [
+          { kind: 'temperature', value: 1 },
+          { kind: 'temperature', value: 2 },
+        ],
+      }),
+    ).toEqual({ failure: { field: '/parameters', reason: 'duplicate' } })
+  })
+
+  it('rejects equal supplier values, repeated tool names and undeclared tool selections', () => {
+    const supplier = request.suppliers[0]
+    expect(
+      judgeFixedModelRequest({ ...request, suppliers: [supplier, structuredClone(supplier)] }),
+    ).toEqual({ failure: { field: '/suppliers', reason: 'duplicate' } })
+    const tool = { name: 'lookup', description: '', argumentsSchema: { kind: 'null' } }
+    expect(
+      judgeFixedModelRequest({ ...request, tools: [tool, { ...tool, description: 'different' }] }),
+    ).toEqual({ failure: { field: '/tools', reason: 'duplicate' } })
+    expect(
+      judgeFixedModelRequest({ ...request, tools: [tool], toolChoice: { name: 'missing' } }),
+    ).toEqual({ failure: { field: '/toolChoice/name', reason: 'selection' } })
+  })
 })
 
 it('closes every Model-owned record and each branch before projecting output', () => {
