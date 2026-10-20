@@ -5,7 +5,9 @@ import type {
   ToolChildren,
   ToolExecutorBinding,
   ToolInstanceHost,
-  ToolInstanceId,
+  ToolInvocationIdentities,
+  ToolInvocationSourceIssuer,
+  ToolOperationIdentities,
 } from '@omne-harness/tool-contract'
 import {
   createMemoryToolClock,
@@ -29,14 +31,16 @@ import type { ToolLedgerGuards } from './ledger-guards.ts'
 import { createToolLedger, type ToolLedger } from './ledger.ts'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from './testing-store.ts'
 
-/** The caller supplies identity, authorization and the ports without contract memory doubles. */
+/** The caller supplies authorization, the trusted construction ports and the remaining ports. */
 export type TestToolDependenciesInput<P> = Readonly<{
-  instance: ToolInstanceId
   configuration: ToolLedgerConfiguration
   guards: ToolLedgerGuards<P, ContentBlock>
   instances: ToolInstanceHost<P>
   catalog: ToolCatalog<P>
   children: ToolChildren<P>
+  invocationIdentities: ToolInvocationIdentities
+  operationIdentities: ToolOperationIdentities
+  sourceIssuer: ToolInvocationSourceIssuer<P>
   bindingsFor(
     executor: ToolExecutorBinding<P, ContentBlock, MemoryEnvironment>,
   ): ToolBindings<P, ContentBlock, MemoryEnvironment>
@@ -81,7 +85,6 @@ export function createTestToolDependencies<P>(
     ledger,
     doubles,
     dependencies: {
-      instance: input.instance,
       commands: ledger.commands,
       admissions: ledger.admissions,
       queues: ledger.queues,
@@ -97,10 +100,21 @@ export function createTestToolDependencies<P>(
       custody: doubles.custody,
       catalog: input.catalog,
       children: input.children,
+      invocationIdentities: input.invocationIdentities,
+      operationIdentities: input.operationIdentities,
+      sourceIssuer: input.sourceIssuer,
     },
   }
 }
 
+export {
+  createTestInvocationSource,
+  createTestToolIdentities,
+  TEST_SOURCE_OWNER,
+  type TestInvocationSource,
+  type TestSourceBinding,
+  type TestToolIdentities,
+} from './testing-source.ts'
 export {
   createMemoryToolLedgerStore,
   type MemoryToolLedgerStore,

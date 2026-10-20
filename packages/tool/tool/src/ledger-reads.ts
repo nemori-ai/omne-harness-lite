@@ -19,7 +19,10 @@ import { mintEvidence } from './evidence.ts'
 import type { Snapshot } from './ledger-decider.ts'
 import type { CallAccount, ResultRecord } from './ledger-store.ts'
 
-/** The call as admitted by `admission`. An absent admission in a complete snapshot is not accepted. */
+/**
+ * The current call state located by `admission`.
+ * An absent admission in a complete snapshot is not accepted.
+ */
 export function lookupCall<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   admission: ToolOperationId,

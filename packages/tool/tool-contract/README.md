@@ -75,3 +75,5 @@ tool-contract/
 ```
 
 树中列出 docs 的全部主题；验证资源见 [verification](verification/index.md)。设计阅读路径见[文档索引](docs/index.md)。六主题的职责见[文档说明](docs/README.md)。标为占位的目录只有职责说明，不表示已有 Schema、模型、证明、决策、示例、运行资源或验收能力。文件导航见 [index](index.md)，完整目录要求见[成员文档规范](../../../docs/member-documentation.md)。
+
+普通 ToolRuntime 入口为 invoke，调用方提交 payload 并保存返回的调用引用。查询、命令、目录连接与内容分别经 queries、commands、instances 与 content。引用编解码由根入口 reference 模块导出，引用只定位原调用，每次使用仍核当前主体与合法租户。受信内部 admission 和回应端口不对普通调用方开放。精确失败与来源协议见 [SPEC 的普通操作](SPEC.md#342-普通操作与实例目录)。

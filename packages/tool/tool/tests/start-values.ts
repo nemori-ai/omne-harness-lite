@@ -25,18 +25,26 @@ import {
   type ToolDependencies,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
-import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
-  admission,
+  createTestInvocationSource,
+  createTestToolIdentities,
+  type TestInvocationSource,
+  type TestToolIdentities,
+  createMemoryToolLedgerStore,
+  type MemoryToolLedgerStore,
+} from '@omne-harness/tool/testing'
+import {
   callId,
   configurationOf,
   evidence,
+  fixedOf,
   guards,
   instanceId,
   judged,
   ok,
   operationId,
   principalA,
+  referenceFor,
   request,
   tenantA,
   testHost,
@@ -328,10 +336,13 @@ export type StartHarness = Readonly<{
   memory: MemoryToolLedgerStore<Block>
   runtime: ReturnType<typeof createToolRuntime<Principal, Block, TestEnvironment>>['runtime']
   commands: ToolDependencies<Principal, Block, TestEnvironment>['commands']
+  ledger: ReturnType<typeof createToolLedger<Principal, Block>>
   host: TestHost
   authority: TestAuthority
   binding: TestBinding
   environments: TestEnvironments
+  identities: TestToolIdentities
+  source: TestInvocationSource<Principal>
   /** The calls whose timing segment the clock was asked to begin. */
   begun: readonly string[]
   /** Runs the drivers of these calls concurrently, then every wake-up they caused. */
@@ -354,14 +365,20 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   const spies: Spies = { calls: new Map() }
   const clock = testClock()
   const config = configurationOf(options)
-  const ledger = createToolLedger(store, guards(options), clock, config)
-  const host = testHost(spies)
+  const source = createTestInvocationSource<Principal>()
+  const identities = createTestToolIdentities()
+  const ledger = createToolLedger(
+    store,
+    { ...guards(options), sources: source.guard },
+    clock,
+    config,
+  )
+  const host = testHost(spies, identities.instanceIdentities)
   const authority = testAuthority()
   const binding = testBinding(authority)
   const environments = testEnvironments(options.environment ?? new Map())
   const provider = createToolRuntime<Principal, Block, TestEnvironment>(
     {
-      instance: instanceId,
       commands: options.commands?.(ledger.commands) ?? ledger.commands,
       admissions: ledger.admissions,
       queues: ledger.queues,
@@ -390,24 +407,28 @@ export function startHarness(options: StartOptions = {}): StartHarness {
       custody: refusing('custody', ['preserve', 'inspect', 'retainResult']),
       catalog: refusing('catalog', ['inspect', 'usage', 'search']),
       children: refusing('children', ['reserve', 'admitted', 'retain', 'close', 'confirmBarrier']),
+      invocationIdentities: identities.invocationIdentities,
+      operationIdentities: identities.operationIdentities,
+      sourceIssuer: source.issuer,
     },
     config,
   )
   const drive = async (...calls: readonly string[]) => {
     // Wake-ups from before, such as the admissions', are hints this drive does not follow.
     host.scheduled.splice(0)
-    const signal = new AbortController().signal
-    await Promise.all(
-      calls.map(call =>
-        host.driver().run({ principal: principalA, tenant: tenantA, call: callId(call), signal }),
-      ),
-    )
+    await Promise.all(calls.map(call => host.runCall(callId(call))))
     await host.runScheduled()
   }
-  const runOnce = (call: string, signal = new AbortController().signal) =>
-    host.driver().run({ principal: principalA, tenant: tenantA, call: callId(call), signal })
+  const runOnce = async (call: string, signal = new AbortController().signal) =>
+    host.driver().run({
+      principal: principalA,
+      tenant: tenantA,
+      call: callId(call),
+      instance: await host.instanceOf(callId(call)),
+      signal,
+    })
   const released = async () => {
-    const read = await memory.read({ kind: 'queue', tenant: tenantA as never, key: queueKey() })
+    const read = await memory.read({ kind: 'queue', tenant: tenantA, key: queueKey() })
     if (read.kind !== 'complete') throw new Error('the queue domain is unreadable')
     return read.records.flatMap(record =>
       record.kind === 'queue-release' ? [record.release.call as string] : [],
@@ -415,18 +436,17 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   }
   const state = async (call: string) => {
     const found = ok(
-      await provider.runtime.lookup({
+      await provider.runtime.queries.lookup({
         principal: principalA,
         tenant: tenantA,
-        call: callId(call),
-        admission: operationId(`op-${call}`),
+        reference: referenceFor(call, `op-${call}`),
       }),
     )
     if (found.kind !== 'found') throw new Error(`${call} was not admitted`)
     return judged(found.state)
   }
   const queue = async () => {
-    const read = await memory.read({ kind: 'queue', tenant: tenantA as never, key: queueKey() })
+    const read = await memory.read({ kind: 'queue', tenant: tenantA, key: queueKey() })
     if (read.kind !== 'complete') throw new Error('the queue domain is unreadable')
     return read.records.flatMap(record =>
       record.kind === 'queue-entry'
@@ -444,11 +464,14 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     memory,
     runtime: provider.runtime,
     commands: ledger.commands,
+    ledger: createToolLedger(store, guards(options), clock, config),
     queues: ledger.queues,
     host,
     authority,
     binding,
     environments,
+    identities,
+    source,
     begun: clock.begun,
     drive,
     runOnce,
@@ -544,16 +567,20 @@ export function queueKey(): string {
   return JSON.stringify([scope.owner, scope.key, 'read_file'])
 }
 
-/** Admits `call` with operation `op-<call>` and the default request, changed by `overrides`. */
 export async function admitCall(
   harness: StartHarness,
   call: string,
   overrides: Parameters<typeof request>[0] = {},
 ): Promise<ToolState> {
-  const admitted = ok(
-    await harness.runtime.admit(admission(call, `op-${call}`, request(overrides))),
-  )
-  return admitted.state
+  harness.identities.planInvocation(call, `op-${call}`)
+  const outcome = await harness.runtime.invoke({
+    principal: principalA,
+    tenant: tenantA,
+    request: request(overrides),
+  })
+  if (outcome.kind !== 'accepted')
+    throw new Error(`the admission of ${call} was not accepted: ${JSON.stringify(outcome)}`)
+  return outcome.state
 }
 
 /** The write context of the next command on `call`, at the call's current state revision. */
@@ -575,7 +602,7 @@ export async function toStarting(harness: StartHarness, call: string) {
   const preparation = ok(
     await harness.commands.planPreparation({
       ...(await writeContext(harness, call, `${call}/plan`)),
-      request: request(),
+      request: fixedOf(harness.source, call),
       purpose: 'initial',
     }),
   )

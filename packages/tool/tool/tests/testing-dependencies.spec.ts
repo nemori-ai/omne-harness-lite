@@ -2,20 +2,25 @@ import { describe, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import { createToolRuntime } from '@omne-harness/tool'
 import { createTestToolDependencies } from '@omne-harness/tool/testing'
-import { decodeToolResultVersion, type ToolStartRecord } from '@omne-harness/tool-contract'
+import {
+  decodeToolResultVersion,
+  type ToolInvokeOutcome,
+  type ToolStartRecord,
+} from '@omne-harness/tool-contract'
 import { completedFinal } from '@omne-harness/tool-contract/testing'
 import { testAssembly } from './testing-values.ts'
 import {
-  admission,
   adoption,
   callId,
   dummyRequest,
   evidence,
+  fixedRequestForNamedSourceGuard,
   instanceId,
   ok,
   operationId,
   principalA,
   principalB,
+  referenceFor,
   request,
   tenantA,
   tenantB,
@@ -33,6 +38,11 @@ function resolvingAssembly() {
       },
     }),
   })
+}
+
+function accepted(outcome: ToolInvokeOutcome) {
+  if (outcome.kind !== 'accepted') throw new Error(`expected accepted: ${JSON.stringify(outcome)}`)
+  return outcome
 }
 
 describe('18 testing dependency assembly', () => {
@@ -61,7 +71,10 @@ describe('18 testing dependency assembly', () => {
   it('18 hands the executor to the caller resolver and keeps the original controls on that executor', async () => {
     const assembly = resolvingAssembly()
     const binding = ok(
-      await assembly.dependencies.bindings.resolve({ ...access, request: request() }),
+      await assembly.dependencies.bindings.resolve({
+        ...access,
+        request: fixedRequestForNamedSourceGuard(),
+      }),
     )
     expect(binding).toBe(assembly.doubles.executor.binding)
     const start: Extract<ToolStartRecord, { kind: 'start' }> = {
@@ -80,7 +93,14 @@ describe('18 testing dependency assembly', () => {
       guards: [],
       request: evidence('permit'),
     }
-    ok(await binding.start({ ...access, start, permit, request: request() }, { resource: 'test' }))
+    ok(
+      await binding.start(
+        { ...access, start, permit, request: fixedRequestForNamedSourceGuard() },
+        {
+          resource: 'test',
+        },
+      ),
+    )
     expect(assembly.doubles.executor.controls.launches()).toBe(1)
     expect(ok(await binding.inspectStart({ ...access, start })).kind).toBe('live')
     await assembly.doubles.executor.controls.finish(start, completedFinal())
@@ -88,7 +108,10 @@ describe('18 testing dependency assembly', () => {
     const other = resolvingAssembly()
     expect(other.doubles.executor.controls.launches()).toBe(0)
     const otherBinding = ok(
-      await other.dependencies.bindings.resolve({ ...access, request: request() }),
+      await other.dependencies.bindings.resolve({
+        ...access,
+        request: fixedRequestForNamedSourceGuard(),
+      }),
     )
     expect(ok(await otherBinding.inspectStart({ ...access, start })).kind).toBe('not-started')
   })
@@ -114,48 +137,67 @@ describe('18 testing dependency assembly', () => {
     expect(b.dependencies.clock.now()).toBe(before)
     const ra = createToolRuntime(a.dependencies, a.configuration).runtime
     const rb = createToolRuntime(b.dependencies, a.configuration).runtime
+    const reference = referenceFor('call-1', 'op-1')
     a.store.injectRead('unavailable')
-    expect(await ra.lookup({ ...access, admission: operationId('op-1') })).toMatchObject({
+    expect(
+      await ra.queries.lookup({ principal: principalA, tenant: tenantA, reference }),
+    ).toMatchObject({
       failure: { kind: 'unavailable' },
     })
-    expect(ok(await rb.lookup({ ...access, admission: operationId('op-1') })).kind).toBe(
-      'not-accepted',
-    )
-    ok(await ra.admit(admission('call-1', 'op-1', dummyRequest())))
-    expect(ok(await rb.lookup({ ...access, admission: operationId('op-1') })).kind).toBe(
-      'not-accepted',
-    )
+    expect(
+      ok(await rb.queries.lookup({ principal: principalA, tenant: tenantA, reference })).kind,
+    ).toBe('not-accepted')
+    accepted(await ra.invoke({ principal: principalA, tenant: tenantA, request: dummyRequest() }))
+    expect(
+      ok(await rb.queries.lookup({ principal: principalA, tenant: tenantA, reference })).kind,
+    ).toBe('not-accepted')
   })
 
   it('18 runs logical admission, lookup and result reads with caller-owned tenant qualification', async () => {
     const assembly = testAssembly()
     const { runtime } = createToolRuntime(assembly.dependencies, assembly.configuration)
-    const admitted = ok(await runtime.admit(admission('call-1', 'op-1', dummyRequest())))
-    expect(ok(await runtime.lookup({ ...access, admission: operationId('op-1') }))).toEqual({
+    const admitted = accepted(
+      await runtime.invoke({ principal: principalA, tenant: tenantA, request: dummyRequest() }),
+    )
+    expect(
+      ok(
+        await runtime.queries.lookup({
+          principal: principalA,
+          tenant: tenantA,
+          reference: admitted.reference,
+        }),
+      ),
+    ).toEqual({
       kind: 'found',
       state: admitted.state,
     })
     const result = ok(decodeToolResultVersion('v1'))
     expect(
-      ok(await runtime.readResult({ ...access, result, after: null })).value.content.length,
+      ok(
+        await runtime.queries.readResult({
+          principal: principalA,
+          tenant: tenantA,
+          reference: admitted.reference,
+          result,
+          after: null,
+        }),
+      ).value.content.length,
     ).toBeGreaterThan(0)
-    const other = { ...access, principal: principalB, tenant: tenantB }
-    expect(ok(await runtime.lookup({ ...other, admission: operationId('op-1') })).kind).toBe(
-      'not-accepted',
+    const other = { principal: principalB, tenant: tenantB }
+    expect(await runtime.queries.lookup({ ...other, reference: admitted.reference })).toMatchObject(
+      { failure: { kind: 'denied', action: 'lookup' } },
     )
-    ok(
-      await runtime.admit({
-        ...admission('call-1', 'op-1', dummyRequest()),
-        principal: principalB,
-        tenant: tenantB,
-      }),
-    )
-    expect(ok(await runtime.lookup({ ...other, admission: operationId('op-1') })).kind).toBe(
-      'found',
-    )
+    const otherAdmitted = accepted(await runtime.invoke({ ...other, request: dummyRequest() }))
+    expect(
+      ok(await runtime.queries.lookup({ ...other, reference: otherAdmitted.reference })),
+    ).toMatchObject({ kind: 'found' })
     const reads = assembly.store.reads
     expect(
-      await runtime.lookup({ ...other, principal: principalA, admission: operationId('op-1') }),
+      await runtime.queries.lookup({
+        principal: principalA,
+        tenant: tenantB,
+        reference: otherAdmitted.reference,
+      }),
     ).toMatchObject({ failure: { kind: 'denied', action: 'lookup' } })
     expect(assembly.store.reads).toBe(reads)
   })
