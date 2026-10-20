@@ -277,24 +277,31 @@ it('TransportFact is the closed set of seven facts that a transport hands over',
 it('SendResult separates a started stream, a refused send and an unknown send', () => {
   const started: SendResult = {
     kind: 'started',
+    window: 'receive-window',
     facts: (async function* (): AsyncGenerator<TransportFact> {})(),
   }
   const refused: SendResult = { kind: 'not-started', failure: { kind: 'stale-instance', instance } }
   const unknown: SendResult = { kind: 'unknown', dispatch, diagnostic: 'd' }
   // @ts-expect-error a started send carries its facts
-  const noFacts: SendResult = { kind: 'started' }
+  const noFacts: SendResult = { kind: 'started', window: 'receive-window' }
+  // @ts-expect-error a started send carries its confirmed receive window
+  const noWindow: SendResult = { kind: 'started', facts: started.facts }
   // @ts-expect-error an unknown send names its dispatch
   const noDispatch: SendResult = { kind: 'unknown', diagnostic: 'd' }
   // @ts-expect-error a bare sent flag is not a result
   const flag: SendResult = { kind: 'sent' }
-  void [started, refused, unknown, noFacts, noDispatch, flag]
+  void [started, refused, unknown, noFacts, noWindow, noDispatch, flag]
 })
 
 declare const sendDemand: SendDemand<string>
 
 it('an adapter can implement ModelSendBoundary from the contract alone', () => {
   const boundary: ModelSendBoundary<string> = {
-    send: async () => ({ kind: 'unknown', dispatch, diagnostic: 'lost' }),
+    send: async () => ({
+      kind: 'started',
+      window: 'adapter-window',
+      facts: (async function* (): AsyncGenerator<TransportFact> {})(),
+    }),
   }
   expectTypeOf<ModelSendBoundary<string>['send']>().parameter(0).toEqualTypeOf<SendDemand<string>>()
   expectTypeOf<ModelSendBoundary<string>['send']>().returns.toEqualTypeOf<Promise<SendResult>>()

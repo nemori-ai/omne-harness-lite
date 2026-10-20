@@ -46,7 +46,9 @@ Factory credentials require an explicit trusted registration of the exact profil
 
 Unknown writes retain their original operation, expected revision, resource, and input. Repeated sends query and replay the original write. If start returned facts but its record is unconfirmed, the sender retains those facts without reading or closing them. Once the record is confirmed, it hands out the original stream once. Signal cancellation reaches the transport. Exhaustion or consumer return releases materialized, prepared, and acquired resources in reverse order. Safe exceptions expose release failures. Unresolved attempts and failed releases retain capacity; there is no automatic expiry.
 
-The scripted testing assembly uses this same sender. Explicit `sending` options supply credential and source checks. Missing configuration is unavailable. This controlled memory assembly proves no real vendor, durable storage, production host, or cross-process recovery guarantee. The shared started result currently carries facts only; generic window handoff is a separate contract migration.
+The scripted testing assembly uses this same sender. Explicit `sending` options supply credential and source checks. Missing configuration is unavailable. This controlled memory assembly proves no real vendor, durable storage, production host, or cross-process recovery guarantee.
+
+A started result carries the confirmed original `window` and its single `facts` stream. Consumers pass `result.window` to Commands.preserve with the original execution and dispatch. The window grants no access rights. The runtime driver does not yet consume this stream.
 
 ## Verification
 

@@ -93,6 +93,6 @@ await provider.runtime.calls.dispatches(input)
 
 Commands、同步 coordinator、credentials 和 resources 由受信装配提供。coordinator.check 的 access 阶段先核当前访问及固定业务绑定，再进入本地原尝试；首次取得前的 prepare 阶段另核当前执行与取消资格，已发送或未知的权威记录先于该资格拒绝被识别。withinCurrent 在共享排他区核精确回执与窗口、当前资格及一次性认领，再最多一次同步调用产品闭包。resources.acquire 取得本次资源，startWithCredential 核本次物化归属、临时持有秘密并同步调用 start，finally 清除秘密。maxRetainedAttempts 必须是正安全整数，在取得资源前限制未知或活跃责任。
 
-测试 `MemorySendSource` 显式登记 profile、supplier、recipient、model 和官方查询条件，current 在 MemoryState 排他区核当前来源及绑定。controls.send.createSender(overrides) 构造共用原后端的另一产品 sender，coordinator 为该后端的受控同步适配入口；覆盖项只用于注入测试依赖与故障。脚本计划不再提供 operation 或 window；测试通过实际命令观察生成值。此观察不构成共同窗口交接。
+测试 `MemorySendSource` 显式登记 profile、supplier、recipient、model 和官方查询条件，current 在 MemoryState 排他区核当前来源及绑定。controls.send.createSender(overrides) 构造共用原后端的另一产品 sender，coordinator 为该后端的受控同步适配入口；覆盖项只用于注入测试依赖与故障。脚本计划不再提供 operation 或 window；测试通过实际命令观察生成值。消费者从公共 started 结果取得原 window 与 facts，并将 result.window 连同原执行与分派传给 Commands.preserve；命令仍核全部绑定。
 
 原写认回、流保留、失败分类和资源寿命归 [SPEC](../SPEC.md#产品发送边界)。当前 factory 已实现直接发送边界，driver 仍只准备首次 dispatch；未接入唯一 facts 消费者，不证明完整托管调用已完成。

@@ -12,6 +12,7 @@ import {
 } from '@omne-harness/model-contract'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
+import { judgeContentBlock } from '@omne-harness/content-block'
 
 function identity(account, organization) {
   const a = accountCodec.parse(account)
@@ -306,13 +307,25 @@ console.log(
   'scenario ok: installed runtime admitted, recalled and prepared exactly one unsent dispatch',
 )
 
+const managedBlock = judgeContentBlock({
+  kind: 'text',
+  id: 'installed-send-text',
+  visibility: { toHuman: true, toModel: true },
+  text: 'installed sender output',
+})
+assert.ok('ok' in managedBlock)
+const managedSourceFacts = [
+  { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
+  { kind: 'block-delta', index: '0', delta: 'installed sender output' },
+  { kind: 'block-seal', index: '0', block: managedBlock.ok },
+]
 const managedTransport = createScriptedTransport({
   receipt: {
     supplier: request.suppliers[0].adoption,
     representation: request.representation,
     payloadDigest: 'b'.repeat(64),
   },
-  facts: [],
+  facts: managedSourceFacts,
   ending: { kind: 'terminated', termination: ending },
   rejection: null,
 })
@@ -354,9 +367,24 @@ const demand = {
 }
 const result = await sender.send(demand, new AbortController().signal)
 assert.equal(result.kind, 'started')
+assert.equal(typeof result.window, 'string')
+assert.notEqual(result.window, '')
 const managedFacts = []
 for await (const fact of result.facts) managedFacts.push(fact)
-assert.deepEqual(managedFacts, [{ kind: 'ended', termination: ending }])
+assert.deepEqual(managedFacts, [...managedSourceFacts, { kind: 'ended', termination: ending }])
+const preserved = decoded(
+  await runtimeDependencies.dependencies.commands.preserve({
+    ...demand.execution,
+    operation: decoded(decodeModelOperationId('mop_installed-preserve')),
+    expected: decoded(await runtimeDependencies.dependencies.commands.loadRecovery(admission)).state
+      .revision,
+    dispatch: demand.dispatch,
+    window: result.window,
+    facts: managedFacts,
+  }),
+)
+assert.equal(preserved.call, demand.call)
+assert.deepEqual(preserved.blocks, [{ kind: 'sealed', index: '0', block: managedBlock.ok }])
 assert.equal(managedTransport.counts().start, 1)
 assert.equal(managedTransport.counts().closePrepared, 1)
 assert.equal(managedTransport.counts().closeMaterialized, 1)
@@ -366,4 +394,6 @@ assert.equal(
   decoded(await runtimeDependencies.dependencies.commands.dispatches(admission))[0].send,
   'started',
 )
-console.log('scenario ok: installed product sender committed its receipt and started exactly once')
+console.log(
+  'scenario ok: installed sender returned its window, preserved its facts and started once',
+)

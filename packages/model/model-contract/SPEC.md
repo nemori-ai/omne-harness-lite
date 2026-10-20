@@ -425,6 +425,8 @@ prepareRetry 为该 dispatch 保存唯一策略 operation、固定 retryPolicy �
 
 为覆盖首片已接收而未保存的窗口，提供者在任何可能观察内容的接收动作前调用 openReceiveWindow。其提交把尚无首内容的状态从 none-proven 改为 uncertain。传输不得在窗口开始之前后台预读；无法禁用预读时，须在 start 前打开覆盖整个预读期间的窗口。仅打开网络连接但未接收模型内容，不自行算首内容。
 
+ModelSendBoundary 的 started 结果必须同时交出已确认打开的原 window 和唯一 facts 流。消费者直接使用结果中的 window 调用 preserve，不从测试计划或隐藏共享状态推导窗口。window 只标识原接收范围，不授予访问权；Commands 仍核 tenant、call、execution、dispatch 与 window 绑定。start 已取得流而 recordSend 未确认时，发送器保留原窗口、原流、资源与写参数。认回原写后只交出一次原窗口与原流，不再次 start。此行为不提供跨进程恢复保证。
+
 preserve 保存该窗口全部已接收事实并关闭窗口。包含任何实际内容时永久改为 observed；确认只有非内容事实时可以回到 none-proven，但前提是接收已暂停且没有未纳入的预读缓冲。发送/接收失败先以终止事实关闭窗口，再进行策略判断。崩溃留下的 open window 不能靠数据库里缺少内容来关闭为 none-proven；无法从可信接收记录恢复其完整事实时，以 uncertain 保持不重发并形成 runtime-lost 收场，明确未能判定首内容是否发生。这个保守结果不把真实内容谎报为未出现，也不禁止能证明首内容前的合法恢复。
 
 可信失联由独立宿主生成 continuity 证据。证据必须说明原实例/发送进程已终止或已失去全部执行能力、旧写已结束、数据库已恢复且原操作查询完成。查询超时、目录为空、心跳迟到、租约到期均不单独足够。claim 在验证证据及当前资格后提交新代次；旧实例不能继续写，也不能靠迟到撤除删除后继路由。

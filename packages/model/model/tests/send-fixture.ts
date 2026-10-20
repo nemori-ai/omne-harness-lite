@@ -23,6 +23,7 @@ export async function sendFixture(
     credentials?: CredentialPort
     registered?: boolean
     max?: number
+    facts?: Parameters<typeof createScriptedTransport>[0]['facts']
     configureSource?(source: MemorySendSource<Principal>): void
   } = {},
 ) {
@@ -100,6 +101,7 @@ export async function sendFixture(
     initiator: recovery.initiator,
   }
   const events: string[] = []
+  const delivered: TransportFact[] = []
   let starts = 0,
     pulls = 0,
     returns = 0,
@@ -118,7 +120,9 @@ export async function sendFixture(
           representation: request.representation,
           payloadDigest: 'a'.repeat(64),
         },
-        facts: [{ kind: 'block-open', index: 'one', mode: 'append', content: 'text' }],
+        facts: options.facts ?? [
+          { kind: 'block-open', index: 'one', mode: 'append', content: 'text' },
+        ],
         ending: { kind: 'terminated', termination: { kind: 'completed', reason: 'stop' } },
         rejection: null,
       })
@@ -159,7 +163,9 @@ export async function sendFixture(
                   async next() {
                     pulls += 1
                     if (streamThrows) throw new Error(synthetic)
-                    return source.next()
+                    const result = await source.next()
+                    if (!result.done) delivered.push(result.value)
+                    return result
                   },
                   async return() {
                     returns += 1
@@ -189,6 +195,7 @@ export async function sendFixture(
     resources,
     makeSender,
     events,
+    delivered,
     releaseFailures,
     counts: () => ({ starts, pulls, returns, acquired, valueMatches, receivedSignal }),
     async additionalDemand() {
