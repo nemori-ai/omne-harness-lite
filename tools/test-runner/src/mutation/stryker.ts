@@ -18,6 +18,8 @@ export const TEST_TIMEOUT_ENV = 'OMNE_MUTATION_TEST_TIMEOUT_MS'
 export const SANDBOX_VITEST_CONFIG = 'vitest.stryker-sandbox.config.mts'
 /** 构建脚本在 sandbox 里跑快层没跑通时，在这个环境变量给的路径写一个标记文件（#481）。 */
 export const PREFLIGHT_FAILED_ENV = 'OMNE_MUTATION_PREFLIGHT_FAILED'
+/** 预检的时限，取 Stryker 初跑的缺省时限（dryRunTimeoutMinutes 为 5）。 */
+export const PREFLIGHT_TIMEOUT_MS = 5 * 60_000
 
 const require = createRequire(import.meta.url)
 const SANDBOX_BUILD = fileURLToPath(new URL('./sandbox-build.ts', import.meta.url))
@@ -92,6 +94,8 @@ export async function runStryker(target: MutationTarget, run: StrykerRun): Promi
   const memberDir = join(run.root, target.member.path)
   const logPath = join(run.runDir, `${slug}.log`)
   const preflightMark = join(run.runDir, `${slug}.preflight-failed`)
+  // `--out` 给的目录可能留着上一次的标记。
+  rmSync(preflightMark, { force: true })
   const result = await spawnLogged(process.execPath, [strykerPaths().bin, 'run', configPath], {
     cwd: memberDir,
     // 日志落文件，不要终端颜色码。
