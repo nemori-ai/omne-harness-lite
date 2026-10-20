@@ -42,3 +42,5 @@
 
 - [ledger-content.ts](ledger-content.ts) 核结果/附件关联、raw 独立资格、IO 后复核及提供者 byte page，保留 provider 的完整源与 cursor 证明责任。
 - [testing-content.ts](testing-content.ts) 经 testing 公开非耐久 bytes/custody 组合与故障控制。它不拥有结果账本或生产授权。
+
+`tools.ts` 提供 createTools 与公开类型。`tools-commands.ts` 注册真实 help/read_result，`tools-protocol.ts` 拥有同源描述及引用，`tools-present.ts` 生成模型结果，`tools-results.ts` 负责格式、codec 与预算，`tools-reply.ts` 负责受信有界收取。完整边界见 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。

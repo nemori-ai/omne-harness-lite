@@ -314,3 +314,9 @@ runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通�
 [ledger-content.ts](../src/ledger-content.ts) 消费已保管的完整 ResultRecord。attachments、content ref、卸载原文与摘要 ref 建立完整五字段关联。原 raw.content 的完整 custody 描述也可建立关联。关联成立后，storage/key 与已知原件相同的描述均选择 `read-raw-content` 完整操作，未登记描述不能借同地址关联。不同地址不因相同摘要被标成原件。guard 在一个可信权限事实判定点核主体、租户、call 范围和两项基础资格；普通附件仍选 `read-content`。读取前固定输入，读取后重读结果关联并复核完整操作资格，最后交回独立 bytes 副本。末次允许后不再等待外部读取，资格事实的一致性归 guard；无法证明时返回 unavailable。
 
 字节提供者拥有完整源长度/摘要、byte cursor 的身份及位置绑定。账本核响应身份、offset、范围、页预算和 EOF，不能凭一页自行证明完整源摘要。内存提供者在 [testing-content.ts](../src/testing-content.ts) 复用既有 custody double，preserve/inspect 后登记精确 tenant/call/Attachment 与字节，不保存结果关联或资格。正式 provider 仍须兑现其证明责任；内存组合声明 `durability:none`。
+
+## Tools 结果取回
+
+[tools.ts](../src/tools.ts) 拥有工厂构造与窄读依赖。[tools-commands.ts](../src/tools-commands.ts) 使用真实 defineToolOperation、defineCommandTool、作者 codec 及输出校验。[tools-protocol.ts](../src/tools-protocol.ts) 的命令描述同源生成参数声明、字段解释、校验和帮助，并实现无状态引用与 cursor 包装。[tools-present.ts](../src/tools-present.ts) 仅经普通结果/内容读口生成模型表示，保留源可见 ref 与附件，拒绝不可调用的完整参数。[tools-results.ts](../src/tools-results.ts) 拥有格式、固定错误、作者输出 codec 和 JSON 大小边界。[tools-reply.ts](../src/tools-reply.ts) 收齐固定版本的新元结果，逐块累计预算并检测无进展与元数据变化。
+
+原结果版本、当前资格、附件关联和原件动作分类仍归账本及其提供者。Tools 不持有第二份结果账本，不取得原工具执行、控制、释放或 raw 口。模型只接收 ToolResult 的 P14 投影和真实 help。调用方拥有 invoke 路由、新消费位置与受信 readReply，不能把内部 ResultPage.next 交给模型代替元工具协议。精确行为归 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。

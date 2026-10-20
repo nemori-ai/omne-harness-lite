@@ -1,5 +1,4 @@
-// The root entry of the Tool implementation. It does not import Cordis or another Tool package
-// except the contract package.
+// The root entry of the Tool implementation. It does not import Cordis.
 export type {
   QueueReconciliation,
   ToolConfiguration,
@@ -65,3 +64,10 @@ export { isTenantShape } from './boundary.ts'
 export { digestOf as canonicalDigest } from './evidence.ts'
 export { createToolRuntime, toolRuntimeAdoption } from './runtime.ts'
 export { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'
+export {
+  createTools,
+  type Tools,
+  type ToolsAccess,
+  type ToolsOptions,
+  type ToolsReadRuntime,
+} from './tools.ts'

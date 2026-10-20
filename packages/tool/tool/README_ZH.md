@@ -167,3 +167,15 @@ tool/
 提供者必须核完整源的长度和摘要，并把 byte cursor 绑定租户、调用、结果版本、完整附件、字节投影与位置。账本不解析提供者私有游标。`content.raw` 从精确结果的 execution custody 返回元数据，另核 `read-raw`。synthetic 结果回复 `invalid/result/no-raw-output`。raw 字节即使同时列入普通附件，也使用 `read-raw-content` 完整操作，在同一个可信权限事实判定点核主体、租户、call 范围及基础 `read-content` 和 `read-raw`。它不是独立许可位，不可用两次异步资格拼成允许，无法建立一致视图时须答 unavailable。账本在 IO 前与最终返回边界各做一次完整判定，最后允许后不再等待外部读取。诊断、账目或普通读取权限不能代替原件资格。
 
 `createTestToolDependencies` 的 `doubles.content` 组合非耐久内存 byte provider 与既有 custody double，preserve 成功后登记原件字节。`controls.seed` 显式登记其余附件并核长度和 SHA-256，暂停、失败、丢失和错误响应控制用于测试。登记不赋予某结果读取附件的权限。直接 provider 和 controls 是受信测试资源，授权验证走真实 runtime 入口。此组合不证明耐久存储或生产后端。
+
+## 模型结果取回
+
+根入口的 createTools 提供真实 Tools 作者，只有 help 和 read_result。两个命令都是 structured、program:none，作者显式 programmable:false。输入是文本参数。直接内容输出可保留四种模态，普通附件地址仍为文本。工厂只取得 queries.readResult 和 content.read。
+
+构造时固定 arguments、resultPageBytes、replyMaxBytes、contentPageBytes，resultPageBytes 使用所装配 runtime 的真实配置。原调用收场后，可信消费侧用 present 读取固定版本首屏，再以 P14 projectToolResult 和本消息固定的附件块身份投影。模型从可见帮助和状态复制 reference、next，用新 consumer 位置调用 read_result。after:null 开始，上一回应的 next 接续，next:null 明确结束所选遍历。
+
+元调用也会生成自己的 ToolResult。收场后先用受信方法 readReply 收齐它的全部有界页，再投影给模型。readReply 不是第三个模型命令。它返回完整结果或具名失败，绝不交付半份回应。
+
+读取成功、原工具终态、内容遍历和原文卸载分别表达。failed 原工具也可成功读取。元调用 completed 只表示命令答复。内容结束不表示附件或卸载原文字节已读。附件页提供 base64，收齐字节后按 mediaType 解码。引用不授权，每页仍核当前资格。原件字节继续经过 U1 的完整权限判定，没有 raw selector 或 raw 口旁路。
+
+完整响应、块及完整可调用参数都受预算约束，不能装下时明确 unsupported。固定错误无法单页交付时构造抛 TypeError。固定版本引用无 TTL，适配器重建和交付解除不使它失效。精确协议及提供者前提见 [SPEC 第 28 条](SPEC.md#28-tools-固定结果适配器)。当前证据是非耐久内存组合，不含真实模型、生产存储或 Cordis。

@@ -33,3 +33,5 @@
 
 
 `ToolAccessGuard.qualify` 的 `read-raw-content` 表示原件字节操作，须在一个可信权限事实判定点检查两项基础权限与主体/租户/call 范围。它不是可单独授予的新许可位。guard 无一致视图时答 unavailable。raw 元数据继续使用 read-raw；普通附件继续使用 read-content。精确失败与返回时序由 [SPEC 第 27 条](../SPEC.md#27-固定结果与内容读取)拥有。
+
+- [tools.ts](../src/tools.ts) 从根入口导出 createTools、Tools、ToolsAccess、ToolsOptions 和窄读依赖 ToolsReadRuntime。author 是真实 ToolAuthorRegistration，present 交首屏模型结果，readReply 是收齐新元调用回应的受信方法。签名由源码拥有，完整行为与预算见 [SPEC 第 28 条](../SPEC.md#28-tools-固定结果适配器)。

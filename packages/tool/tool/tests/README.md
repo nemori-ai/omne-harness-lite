@@ -74,3 +74,5 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 
 
 地址别名回归核对两个独立判断：完整五字段建立原结果关联，已关联描述的 storage/key 决定原件资格。已登记 mediaType/bytes/digest 变体不能降权，未登记同地址变体仍拒绝关联，不同地址同 digest 的合法普通内容保持普通内容资格。提供者继续独立验证完整描述和真实字节。
+
+`tools.spec.ts` 经真实作者注册与非耐久内存 runtime 检查 help/read_result、多模态 ref、固定引用、参数预算、附件 base64、原件资格拒绝、元回应再次分页及精确 JSON 预算。收取端用 readReply，完整回应收齐后才投影。坏 provider 用例单独检查无进展、元数据变化和读取上限。`tools.spec-d.ts` 固定公开工厂签名与窄读依赖。它们不证明真实模型、生产存储或 Cordis 组合。
