@@ -95,7 +95,7 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 ## 真实授权评论
 
-URL 为 policy `repository` 中的 Issue comment。工具固定只读 `gh api GET`，核对评论所在 Issue、评论 URL 与采集时内容一致。评论作者须是 `publish` environment 的 required reviewer：个人 reviewer 按 login 与 node ID 匹配，team reviewer 按 active 成员身份匹配。author_association 不授予权。云端会话读不到 environment，派发资格改由下节的 workflow 事实给出。
+URL 为 policy `repository` 中的 Issue comment。工具固定只读 `gh api GET`，核对评论所在 Issue、评论 URL 与采集时内容一致。评论作者须是 `publish` environment 的 required reviewer：个人 reviewer 按 login 与 node ID 匹配，team reviewer 按 active 成员身份匹配。author_association 不授予权。云端会话读不到 environment，云端会话的派发资格由下节的 workflow 事实给出。
 
 评论中放一个 `json omne-integration-authority:v1` 区块，只支持 `dispatch` 一种 action。字段为 schemaVersion=1、action、responsible（须等于评论作者）、basis（非空依据数组）、task（完整 binding）和 confirmations（每项 issue/condition/digest/evidence）。精确运行时 schema 归 [authority.ts](authority.ts)，其他字段拒绝。
 
@@ -112,7 +112,7 @@ Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `environm
 | `OMNE_DELIVERY_FACTS` | `workflow` 或 `direct` | 按取值选择，覆盖自动识别。供测试与排障使用 |
 | `OMNE_DELIVERY_FACTS` | 其他值，包括空串 | `input-error`，不读平台 |
 | `CCR_AGENT_PROXY_ENABLED` | `1`，且没有设置 `OMNE_DELIVERY_FACTS` | 使用 workflow 事实 |
-| 都没有设置 | — | 直接读取，与本地行为相同 |
+| `CCR_AGENT_PROXY_ENABLED` | 其他值或未设置，且没有设置 `OMNE_DELIVERY_FACTS` | 直接读取 |
 
 使用 workflow 事实时：
 

@@ -58,7 +58,7 @@ I08。生产授权读取真实 Issue comment。固定只读 `gh api GET` 核对 
 
 ## 云端事实来源
 
-I15。Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `environments` 读取。在云端，`start` 与 `register` 的派发资格、任务 Project membership 与 Stage 改由 `github-gate` 上的 `delivery-facts` workflow 读取。workflow 以交付身份 `omne-harness-lite-delivery` 读取这些事实，并在任务卡上发一条评论。workflow 的读取和发回归 `github-gate` 与[多层分支规则](../../../../docs/engineering/integration.md)。本条只规定工具一侧的识别、等待、核对与采用。
+I15。Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `environments` 读取。在云端，`start` 与 `register` 的派发资格、任务 Project membership 与 Stage 由 `github-gate` 上的 `delivery-facts` workflow 读取。workflow 以交付身份 `omne-harness-lite-delivery` 读取这些事实，并在任务卡上发一条评论。workflow 的读取和发回归 `github-gate` 与[多层分支规则](../../../../docs/engineering/integration.md)。本条只规定工具一侧的识别、等待、核对与采用。
 
 ### 识别事实来源
 
@@ -108,7 +108,7 @@ I15。Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `en
 
 ### 拒绝
 
-任一核对不满足、超时、读取失败或区块格式错误时，结果为 unknown，工具不写 context。`reviewer` 为 `false` 是可信事实给出的确定答案，结果为 refused，与直接读取时相同。错误信息不含 API 原始输出。
+`authority.reviewer` 为 `false` 时结果为 refused：这是可信事实给出的确定答案，与直接读取时相同。除此之外，任一核对不满足、超时、读取失败或区块格式错误时，结果为 unknown。两种结果下工具都不写 context。错误信息不含 API 原始输出。
 
 ### 已知限制
 
