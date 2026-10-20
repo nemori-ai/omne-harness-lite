@@ -135,7 +135,7 @@ Each fixed directory has a README and an index. The source, build, and test conf
 | [Design decisions](adr/index.md) | Implementation choices with continuing consumers |
 | [Examples](examples/index.md) | Runnable consumption |
 | [Runtime resources](resources/index.md) | Assets, sources, and loading responsibility |
-| [Independent acceptance](acceptance/index.md) | Independent scenarios, environments, and criteria |
+| [Continuous acceptance](acceptance/index.md) | Three product scenarios through the built runtime, with controlled dependencies and explicit limits |
 
 ## Standalone consumption entry
 
