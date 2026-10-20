@@ -37,6 +37,17 @@
 | `omne-acceptance-lock` | `src/acceptance/cli.ts` | 验收锁 |
 | `omne-architecture` | `src/arch/cli.ts` | 实际架构 JSON |
 
+## 缺省基线
+
+`core/task-context` 的 `resolveBaseline(root, explicitBase?, env?)` 是所有入口共用的缺省基线规则，按顺序取第一个存在的：
+
+1. 显式基线：`explicitBase`（`--base`），没有就取环境变量 `BASELINE`。空串视为没给。
+2. 任务上下文固定的 `targetBase`。工作树绑定了任务上下文时，显式基线只有等于 `targetBase` 才被接受，否则抛 `stale`。
+3. `origin/main`，本地没有这个引用时：
+4. `main`。
+
+返回 `{ state, targetBase, source, audits }`；`source` 是 `explicit`、`task`、`origin/main` 或 `main`，说明基线从哪一条来。`baselines` 保持原样：它不补缺省，没有任务上下文也没有显式基线时 `targetBase` 为 `undefined`。
+
 ## 构建与测试
 
 ```sh
