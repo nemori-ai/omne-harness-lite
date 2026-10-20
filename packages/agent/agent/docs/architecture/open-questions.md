@@ -29,6 +29,28 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 待验证事务、实际发出围栏、崩溃/断电耐久、分页完整性、历史保留及负载尺度。选择具体数据库、线程或部署参数属于相应提供者，不能从设计推出统一吞吐、恢复时限或已满足性能目标。
 
+<a id="agent-m04"></a>
+## AGENT-M04 Journal 契约与节点表的出入
+
+本项尚未闭合，不是已接受的设计结论。[#505](https://github.com/nemori-ai/omne-harness-lite/issues/505) 把每个写入节点的提交点对到 Journal 契约，结果写在[提交点与聚合边界](mechanisms.md#提交点与聚合边界)。下表登记契约与[节点表](loop-algorithm.md#节点表)不一致、或两者都没有写明的地方。提交点总表照写两边，不作选择。内存 Journal 替身、耐久后端与节点实施卡都不自行补定这些项。
+
+| 编号 | 出入 | 拥有者 | 阻塞 |
+| --- | --- | --- | --- |
+| M04-1 | stream 事件（T0、M1）与 producer 事件（T1、M3）没有写方法。`recordResult` 与 `recordControl` 的输入不带事件，`commit` 是唯一带 `events` 字段的写方法 | agent-contract | 阶段 1 中 M1、T0、T1、M3 的事件投影 |
+| M04-2 | 最终请求记录（M0）、拒收后的退避时刻（I3）与下一检查时刻（W0）在 `JournalCommit`、`AgentCheckpoint` 与 `ExecutionSnapshot` 中都没有字段。接口增量 D1 只覆盖帧之内的分面，不覆盖帧之外的记录 | agent-contract | M0、I3 与 W0 的提交形状 |
+| M04-3 | 外部协调者在 `open`、`attach`、`submit` 与 `tryFinish` 中的参加不是 `CallerCommit` 种类，`capabilities.participants` 没有声明它的形状。与[外部协调者怎样与 Agent 共同受理输入和终结](#外部协调者怎样与-agent-共同受理输入和终结)的 SW-M01 同一主题 | agent-contract | 协调者装配在工厂创建时的拒绝条件 |
+| M04-4 | 没有拥有者写明哪些方法推进 revision | agent-contract | 两种 Journal 实现对 revision 的同形测试 |
+| M04-5 | 公开接口页规定 `CallerCommit` 的非 none 种类只能在声明了对应参加者时使用。SPEC 的提交与保管和交接清单第 3 项允许提供者自己为 `recordResult.transfer` 建立 custody 与 processed 依据。两处对 transfer 的适用范围不一致 | agent-contract | 独立装配走 custody 与 processed 两条路径，以及 unsupported 核对的范围 |
+| M04-6 | `Waiting` 没有时间字段 | agent-contract | W0 保存下一检查时刻，I3 的退避等待 |
+| M04-7 | 没有拥有者写明 `open` 首先追加哪些事件 | agent-contract | E0 的提交形状，以及第一个事件序号属于哪个事件 |
+| M04-8 | SPEC 逐操作表把 input-taken 列为 `input.submit` 的事件，但只有 I0 能形成 `InputBatch` | agent-contract | I0 与 submit 的事件测试 |
+| M04-9 | SPEC 提交参加者协议规定参加者失败时返回 unavailable，逐操作表的 `AgentJournal.commit` 行与 `AgentJournal.tryFinish` 行没有列出它。`tryFinish` 行也没有列出 unsupported | agent-contract | 两种 Journal 实现对参加者失败的返回测试 |
+| M04-10 | 节点表 Q2 写“其他来源加 message”，不区分提供者是否声明了 message。独立装配的 `jointCommits` 为空表 | Loop 完整算法页 | 独立装配中 T5 与 X5 的提交形状 |
+| M04-11 | 节点表 E9 的“写什么”没有写暂停的责任释放阶段，SPEC 的六个阶段对暂停适用责任释放 | Loop 完整算法页 | E9 的实施卡补“何时提交” |
+| M04-12 | H0 的“写什么”写“失败候选或只保管的决定”，失败候选由 F1 写入，只保管由 O0 承接。H0 是否为写入节点没有写明 | Loop 完整算法页 | H0 的实施卡与提交点总表的覆盖口径 |
+
+关闭条件是每一项由其拥有者裁定，并写回拥有该事实的正文：契约项写回 agent-contract 的 SPEC、公开接口页或源码类型，节点表项写回 Loop 完整算法页。写回之后，提交点与聚合边界一节删去对应的指向，两种 Journal 实现按裁定结果补同形测试。
+
 ## 保留的专题边界
 
 上下文压缩是 Agent Loop 的执行节点。Agent 协调节点进入、扩展前后位置、压缩模型调用、结果交接及继续推进；现有请求准备契约提供预算与转换依据。本页不重新划分压缩算法、范围选择及历史存储的更细责任，沿 Loop 专题继续讨论，不把整个压缩过程归到外域。
