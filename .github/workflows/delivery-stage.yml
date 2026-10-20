@@ -76,9 +76,9 @@ jobs:
           jq -e --arg a "$ACTOR" 'index($a) != null' reviewers.json >/dev/null \
             || { echo "rejected: $ACTOR is not a publish reviewer"; exit 1; }
 
-          # 2. 状态转移的前提：只认作者为 reviewer 的评论，且评论没被编辑过，或最后一次由作者本人编辑。
+          # 2. 状态转移的前提：只认作者为 reviewer、且每一次编辑都由作者本人完成的评论。
           #    有写权限的协作者能编辑别人的评论；派发评论按惯例由作者本人编辑一次以写入自身 URL。
-          #    GitHub 只记录最后一次编辑者：作者在别人编辑之后再次保存，视为作者确认了当前内容。
+          #    编辑历史分页、编辑者缺失时不信任该评论。
           : > comments.jsonl
           cursor=""
           while :; do
@@ -90,7 +90,11 @@ jobs:
                   issue(number: $number) {
                     comments(first: 100, after: $cursor) {
                       pageInfo { hasNextPage endCursor }
-                      nodes { body lastEditedAt author { __typename login } editor { login } }
+                      nodes {
+                        body
+                        author { __typename login }
+                        userContentEdits(first: 100) { pageInfo { hasNextPage } nodes { editor { login } } }
+                      }
                     }
                   }
                 }
@@ -102,7 +106,8 @@ jobs:
           done
           jq -s --slurpfile r reviewers.json '[.[] | select(.author.__typename == "User"
               and (.author.login as $l | $r[0] | index($l) != null)
-              and (.lastEditedAt == null or .editor.login == .author.login))]' comments.jsonl > trusted.json
+              and .userContentEdits.pageInfo.hasNextPage == false
+              and (.author.login as $a | all(.userContentEdits.nodes[]; .editor.login? == $a)))]' comments.jsonl > trusted.json
           decision() {
             jq -e --arg d "$1" '[.[] | .body | select(startswith("## 交付决定")) | select(split("\n") | map(rtrimstr("\r")) | any(. == "- 决定：" + $d))] | length > 0' trusted.json >/dev/null
           }
