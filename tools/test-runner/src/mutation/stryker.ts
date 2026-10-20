@@ -16,6 +16,10 @@ export const TEST_TIMEOUT_ENV = 'OMNE_MUTATION_TEST_TIMEOUT_MS'
  * 只在副本里，成员的配置不动。
  */
 export const SANDBOX_VITEST_CONFIG = 'vitest.stryker-sandbox.config.mts'
+/** 构建脚本在 sandbox 里跑快层没跑通时，在这个环境变量给的路径写一个标记文件（#481）。 */
+export const PREFLIGHT_FAILED_ENV = 'OMNE_MUTATION_PREFLIGHT_FAILED'
+/** 预检的时限，取 Stryker 初跑的缺省时限（dryRunTimeoutMinutes 为 5）。 */
+export const PREFLIGHT_TIMEOUT_MS = 5 * 60_000
 
 const require = createRequire(import.meta.url)
 const SANDBOX_BUILD = fileURLToPath(new URL('./sandbox-build.ts', import.meta.url))
@@ -78,6 +82,8 @@ export function strykerConfig(target: MutationTarget, run: StrykerRun): Record<s
 export interface StrykerResult extends SpawnResult {
   readonly reportPath: string
   readonly logPath: string
+  /** 构建脚本在 sandbox 里跑快层没跑通，Stryker 没有开始变异。 */
+  readonly preflightFailed: boolean
 }
 
 export async function runStryker(target: MutationTarget, run: StrykerRun): Promise<StrykerResult> {
@@ -87,6 +93,9 @@ export async function runStryker(target: MutationTarget, run: StrykerRun): Promi
   writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`)
   const memberDir = join(run.root, target.member.path)
   const logPath = join(run.runDir, `${slug}.log`)
+  const preflightMark = join(run.runDir, `${slug}.preflight-failed`)
+  // `--out` 给的目录可能留着上一次的标记。
+  rmSync(preflightMark, { force: true })
   const result = await spawnLogged(process.execPath, [strykerPaths().bin, 'run', configPath], {
     cwd: memberDir,
     // 日志落文件，不要终端颜色码。
@@ -94,6 +103,7 @@ export async function runStryker(target: MutationTarget, run: StrykerRun): Promi
       ...process.env,
       [MEMBER_DIR_ENV]: memberDir,
       [TEST_TIMEOUT_ENV]: String(Math.round(run.testTimeoutSeconds * 1000)),
+      [PREFLIGHT_FAILED_ENV]: preflightMark,
       FORCE_COLOR: '0',
     },
     logPath,
@@ -101,5 +111,10 @@ export async function runStryker(target: MutationTarget, run: StrykerRun): Promi
   // Stryker 清掉 sandbox 后留下空的容器目录；被杀时连 sandbox 一起留下。两种都不留。
   const container = config['tempDirName'] as string
   if (existsSync(container)) rmSync(container, { recursive: true, force: true })
-  return { ...result, reportPath: join(run.runDir, `${slug}.mutation.json`), logPath }
+  return {
+    ...result,
+    reportPath: join(run.runDir, `${slug}.mutation.json`),
+    logPath,
+    preflightFailed: existsSync(preflightMark),
+  }
 }

@@ -1,7 +1,7 @@
 // 差分变异入口：只变异基线以来改动碰到的产品源码行（或点名成员的全部产品源码），逐成员跑 Stryker 的快层，
 // 列出存活与无覆盖的变异体，读数写进主检出的 `tmp/mutation-ledger/`。
-// 只报告（负责人 2026-10-02 定）：变异体存活不影响退出码；Stryker 起不来、初跑失败、没写出报告，
-// 或有变异体有用例覆盖却一条用例都没跑完（#405），才退出非零。
+// 只报告（负责人 2026-10-02 定）：变异体存活不影响退出码；Stryker 起不来、sandbox 预检没通过（#481）、初跑失败、
+// 没写出报告，或有变异体有用例覆盖却一条用例都没跑完（#405），才退出非零。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -190,6 +190,13 @@ async function run(request: MutationRequest): Promise<number> {
     const ran = await runStryker(target, strykerRun)
     const report = readMutationReport(ran.reportPath)
     const label = `[${index + 1}/${targets.length}] ${target.member.path} ${Math.round(ran.wallSeconds)} 秒`
+    if (ran.preflightFailed) {
+      errors.push(
+        `${target.member.path}：sandbox 预检没通过，快层测试在 sandbox 里没跑通，没有做变异，日志 ${ran.logPath}`,
+      )
+      console.log(`${label}，出错`)
+      continue
+    }
     if (ran.exitCode !== 0 || report === undefined) {
       errors.push(
         `${target.member.path}：Stryker 退出码 ${ran.exitCode}${report === undefined ? '，没有写出报告' : ''}，日志 ${ran.logPath}`,
