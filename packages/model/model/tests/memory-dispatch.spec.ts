@@ -179,7 +179,7 @@ it('stores a retry position and bounds its decision to the original policy and a
         fault: { cause: 'upstream-unavailable', diagnostic: 'offline', upstreamStatus: '503' },
       },
     },
-  ] satisfies TransportFact[]
+  ] satisfies [TransportFact]
   f.completeWindows.add(`${f.admit.call}/failure/${digest(facts)}`)
   const failed = unbox(
     await f.commands.preserve({
