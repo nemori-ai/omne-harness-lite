@@ -202,7 +202,7 @@ describe('the conformance suite on acceptance', () => {
           async admit(input) {
             if (!isReserved(input.operation)) return calls.admit(input)
             await calls.admit({ ...input, operation: otherOperation })
-            return fail({ kind: 'invalid', field: 'operation', reason: 'reserved' })
+            return fail({ kind: 'invalid', field: '/operation', reason: 'reserved' })
           },
         }),
       }),
@@ -222,7 +222,7 @@ describe('the conformance suite on acceptance', () => {
           async admit(input) {
             if (isReserved(input.operation)) {
               left.add(input.call)
-              return fail({ kind: 'invalid', field: 'operation', reason: 'reserved' })
+              return fail({ kind: 'invalid', field: '/operation', reason: 'reserved' })
             }
             return left.has(input.call)
               ? succeed({
