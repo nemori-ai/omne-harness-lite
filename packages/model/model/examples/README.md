@@ -38,6 +38,7 @@ pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/
 
 ```text
 admission: accepted
+admission call/revision: mcall_example 1
 phase: accepted
 transport starts: 0
 observation: snapshot

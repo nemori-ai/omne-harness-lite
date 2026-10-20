@@ -21,6 +21,8 @@ try {
   // Reply<T> is { ok: T } or { failure: ModelFailure }. Never treat a failure as admission.
   if ('failure' in reply) throw new Error(`Admission failed: ${JSON.stringify(reply.failure)}`)
   console.log('admission:', reply.ok.recovered ? 'recovered' : 'accepted')
+  // Admission returns the accepted logical call and its revision, alongside recovered.
+  console.log('admission call/revision:', reply.ok.call, reply.ok.revision)
   const lookup = await runtime.calls.inspect({ ...example.access, call: example.call, admission })
   if ('failure' in lookup) throw new Error(`Inspection failed: ${JSON.stringify(lookup.failure)}`)
   // Lookup is found with CallState, or an authoritative not-accepted with the admission ID.

@@ -29,6 +29,9 @@ const admitted = await provider.runtime.calls.admit({
 })
 if ('failure' in admitted) throw new Error(`Admission failed: ${JSON.stringify(admitted.failure)}`)
 // driver belongs to the trusted host. A normal caller receives only provider.runtime.
+// driveInput carries principal/tenant for current authority, call for the logical invocation,
+// instance for its live executor, operation for the original claim, and continuity as the
+// trusted evidence that this host continues that call. The assembly supplies all six fields.
 const driving = provider.driver.drive(example.driveInput, new AbortController().signal)
 let observer: AsyncIterator<import('@omne-harness/model-contract').Observation> | undefined
 try {

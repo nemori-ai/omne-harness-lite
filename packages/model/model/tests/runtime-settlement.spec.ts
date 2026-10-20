@@ -48,12 +48,15 @@ async function settlement(f: ReturnType<typeof runtimeFixture>) {
   if (state.phase !== 'settled') throw new Error('call has not settled')
   return state.settlement
 }
-async function snapshot(f: ReturnType<typeof runtimeFixture>) {
+async function observe(f: ReturnType<typeof runtimeFixture>) {
   const route = unbox(await f.provider.runtime.instances.connect(f.admit))
   if (route.kind !== 'live') throw new Error('missing live route')
-  const observer = route.handle
+  return route.handle
     .observe({ ...f.admit, signal: new AbortController().signal })
     [Symbol.asyncIterator]()
+}
+async function snapshot(f: ReturnType<typeof runtimeFixture>) {
+  const observer = await observe(f)
   try {
     const item = await observer.next()
     if (item.done || item.value.kind !== 'snapshot') throw new Error('missing snapshot')
@@ -787,7 +790,22 @@ it('hands back the same terminal evidence after the confirmation callback fails 
     unbox(await f.provider.runtime.calls.cancel({ ...f.admit, operation: op('after-confirm') }))
     const controlled = await snapshot(f)
     expect(controlled.state.control.kind).toBe('requested')
-    unbox(await f.drive())
+    const observer = await observe(f)
+    let next: ReturnType<typeof observer.next> | undefined
+    try {
+      expect(await observer.next()).toMatchObject({ value: { value: controlled } })
+      let notified = false
+      next = observer.next().then(value => {
+        notified = true
+        return value
+      })
+      unbox(await f.drive())
+      for (let i = 0; i < 100; i++) await Promise.resolve()
+      expect(notified).toBe(false)
+    } finally {
+      await observer.return?.()
+      await next
+    }
     expect(await snapshot(f)).toEqual(controlled)
     expect(writes).toHaveLength(1)
     expect(f.preserveInputs).toHaveLength(1)
@@ -851,6 +869,7 @@ it('keeps the content barrier through repeated confirmation failures and recover
     expect(confirmationFailures).toBe(2)
     expect(settles).toBe(0)
     expect((await inspect(f)).phase).toBe('running')
+    expect(f.channel(f.admit.call)).toMatchObject({ returns: 0, closes: 0 })
     unbox(await f.provider.runtime.calls.cancel({ ...f.admit, operation: op('while-confirming') }))
     for (let i = 0; i < 100; i++) await Promise.resolve()
     expect(await snapshot(f)).toEqual(waiting)

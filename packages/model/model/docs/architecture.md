@@ -527,9 +527,11 @@ Storage 的 SQL facts 只承载 Model 的引用和责任，不能凭引用已提
 | [credential.ts](../src/credential.ts) | 存在性与解析取舍的判定，以及判定读取的状态快照形状。判定只读快照，不读文件。引用、五种结果和端口的类型归 model-contract |
 | [deliver.ts](../src/deliver.ts) | 只依赖 CredentialPort，在发送前解析；不导入存储实现 |
 
-凭据的对象模型、顺序和装配分别归[对象](object-model.md#已实现的凭据对象)、[流程](flows.md#凭据解析)和[装配](cordis.md#凭据服务)。executeModel 已实现独立单次执行，createModelRuntime 已实现受理、查询、取消意图、原流保存和最小实例观察。产品 sender 经内存同步适配实现发送围栏，driver 唯一消费原事实流并确认保存。生产宿主及外部授权共同事务尚未验证。
+凭据的对象模型、顺序和装配分别归[对象](object-model.md#已实现的凭据对象)、[流程](flows.md#凭据解析)和[装配](cordis.md#凭据服务)。executeModel 已实现独立单次执行，createModelRuntime 已实现受理、查询、取消意图、原流保存、最小实例观察和[有限原终局收场](../SPEC.md#已实现的调用收场)。产品 sender 经内存同步适配实现发送围栏，driver 唯一消费原事实流并确认保存。生产宿主及外部授权共同事务尚未验证。
 
-凭据引用与解析分属四处：保管实现在 model-host-local，契约在 model-contract，判定在本包。createModelRuntime 支持受理、查询、取消意图、原流保存与最小实例观察，完整托管执行与其他宿主尚未实现。服务定义在 model-cordis-contract。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，也没有 `./cordis`、`./execute` 入口。判定与保管的接口是状态快照：host-local 构造快照并调用本包的判定，本包不依赖 host-local。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
+凭据引用与解析分属四处：保管实现在 model-host-local，契约在 model-contract，判定在本包。createModelRuntime 支持受理、查询、取消意图、原流保存、最小实例观察和有限原终局收场，结果读取与 ACK、策略循环、生产宿主和跨进程恢复尚未实现。服务定义在 model-cordis-contract。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，也没有 `./cordis`、`./execute` 入口。判定与保管的接口是状态快照：host-local 构造快照并调用本包的判定，本包不依赖 host-local。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
+
+receiver 保留终止批次的原确认 Snapshot。观察回调失败时，内容确认屏障和投影待办继续保留；后续 drive 只重试投影，不重读原流或重复 preserve。投影成功后才交回终止证据供 driver 收场。已成功投影的快照不再次发布，后续状态刷新仍按 epoch 与 revision 护栏保持单调。
 
 发送适配器在可信内部构造 authorized 与 official，并核对固定的 tenant/factory 选择。普通调用者传入的布尔值不构成 ModelSendBoundary 的授权证据。凭据通用解析允许的官方默认回退不能覆盖托管协议对 tenant 引用失效时禁止转 factory 的要求。当前独立 sender 和内存协调适配兑现这些检查；其行为测试不证明生产装配已满足资格共同事务。
 

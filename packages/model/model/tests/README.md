@@ -57,13 +57,15 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 [runtime-transitions.spec.ts](runtime-transitions.spec.ts) 注入附带刷新异常、挂起和乱序回包，检查原流保留、确认后不重放、明确拒绝后一次释放与状态不回退。按调用驱动锁分别在 next、preserve 和正常资源释放等待时接受重入探针，要求明确 busy 且原调用正常完成。
 
-观察边界测试另核登记不足、落后超额、共享大快照、并发 next 无队列和健康观察者继续。完整53项报告保留未实现收场、读取/ACK及 quiesce 的真实 fail/不适用状态，不据本卡通过宣称完整 Model 符合。全部组合仍限受控内存与脚本，不证明真实后端或生产宿主。
+观察边界测试另核登记不足、落后超额、共享大快照、并发 next 无队列和健康观察者继续。完整53项报告保留结果读取、ACK及 quiesce 的真实 fail/不适用状态，不据局部通过宣称完整 Model 符合。全部组合仍限受控内存与脚本，不证明真实后端或生产宿主。
 
 ## 原调用收场与教学脚本
 
 [runtime-settlement.spec.ts](runtime-settlement.spec.ts) 经公开 createModelRuntime、实际产品 sender 和内存 Commands，覆盖正常完成、真实 trim、input-over-limit 的已知与未知字段、控制前后竞争、固定 unknown 输入、已知提交回执暂不可得、当前资格及代次、唯一释放与释放挂起/失败。它还通过可信 recordLateFact 及事件重放比较原 termination、version 和 source，验证可变 dispatch 终止历史不被当作原逻辑终局。非终止原流、观察确认顺序、互斥和投影单调的回归继续保留。
 
-[runtime-settlement-facts.ts](runtime-settlement-facts.ts) 只将符合性输入变成上游事实。runtime-admission 的 settleCall 钩子只推送事实并等待真实 driver，不直接代调 settle。完整 53 项报告保留全部实际结果，直接终局项 settled-call-keeps-termination 要求通过；结果读取和 ACK 的完整符合性留给后续交付，不隐藏本轮失败项。
+确认回调故障回归核对原 Snapshot 的正文、cursor 和真实 Settlement 一致。重复故障继续保留原确认依据和内容屏障，控制刷新不能把新状态拼到旧正文。恢复及重复 drive 不重读、不重保存、不重收场或重复释放；已确认后的控制状态保持单调，重复 drive 不产生额外观察通知。
+
+[runtime-settlement-facts.ts](runtime-settlement-facts.ts) 只将符合性输入变成上游事实。runtime-admission 的 settleCall 钩子只推送事实并等待真实 driver，不直接代调 settle。完整 53 项报告保留全部实际结果，直接终局项 settled-call-keeps-termination 要求通过；结果读取和 ACK 的完整符合性留给后续交付，报告持续保留实际失败项。
 
 `pnpm --filter @omne-harness/model examples` 顺序执行[四个教学脚本](../examples/README.md)。包 test 也运行这四个脚本，typecheck 覆盖 examples。脚本从真实公开入口消费构建产物，保留必要失败分支。该验证只覆盖内存后端、受控宿主与脚本传输，不覆盖真实厂商、耐久存储、读取或 ACK。
 

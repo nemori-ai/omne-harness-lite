@@ -1,6 +1,6 @@
 # 模型调用组的工程关系
 
-产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 资源与计量分工及迁移接受条件已接受；厂商适配的内聚细化、官方支持证据矩阵及物化资源控制仍按各节标注保持候选。model-contract 与 model-cordis-contract 已发布全部声明并有测试，导出清单见各包 `tests/fixtures/exports.json`，清单没有 pending 名字。model 已有凭据判定，model-host-local 已有本地凭据保管，运行工厂仅支持构造，完整执行与宿主尚未实现。凭据源码已按本页边界迁移，包存在不证明完整能力可用。
+产品承诺与非 pi-ai 成员设计已接受，包括领域契约、Cordis 定义、可复用实现及本地宿主设计。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 资源与计量分工及迁移接受条件已接受；厂商适配的内聚细化、官方支持证据矩阵及物化资源控制仍按各节标注保持候选。model-contract 与 model-cordis-contract 已发布全部声明并有测试，导出清单见各包 `tests/fixtures/exports.json`，清单没有 pending 名字。model 已实现凭据判定、独立单次执行，以及 createModelRuntime 的受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)。model-host-local 已实现本地凭据保管。结果读取与 ACK、策略循环、生产宿主和跨进程恢复尚未实现。凭据源码已按本页边界迁移，包存在不证明完整能力可用。
 
 ## 依赖方向
 
@@ -126,7 +126,7 @@ TenantId、ContentBlock、Message、JsonValue、CallAccount 等继续沿原拥�
 
 ## 文档归属与迁移
 
-正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员已发布全部声明；model 已实现凭据判定，model-host-local 已实现本地凭据保管，createModelRuntime 仅支持构造，其他运行工厂尚未实现。
+正文已按下表归属落位。非 pi-ai 公开声明已接受，两个契约成员已发布全部声明。model 已实现凭据判定、独立单次执行，以及 createModelRuntime 的受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)。model-host-local 已实现本地凭据保管。结果读取与 ACK、策略循环、生产宿主和跨进程恢复尚未实现。
 
 | 内容 | 当前拥有者与后续归属 |
 | --- | --- |
@@ -296,7 +296,7 @@ materialize 先取得实际发送容量，再按原来源及当前资格逐个�
 
 ## 凭据的现有装配边界
 
-凭据引用与发送前解析已有实现，分属四处：保管实现在 model-host-local，契约在 model-contract，判定在 model，服务定义在 model-cordis-contract。createModelRuntime 仅支持构造，托管执行与其他宿主尚未实现。公开类型在 model-contract，本地保管与插件在 model-host-local。model 源码与包清单都不含 Cordis、proper-lockfile 与 model-cordis-contract，包导出根与独立 testing 入口。根入口不启动 Cordis 不等于安装隔离，安装隔离须由实际安装闭包报告证明；model 的报告由 `install-closure` 产生，运行方式与验证范围见 [model 测试说明](../model/tests/README.md#安装闭包)。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
+凭据引用与发送前解析已有实现，分属四处：保管实现在 model-host-local，契约在 model-contract，判定在 model，服务定义在 model-cordis-contract。createModelRuntime 已支持受理、查询、取消意图、原流确认保存、最小实例观察和[有限原终局收场](../model/SPEC.md#已实现的调用收场)，结果读取与 ACK、策略循环、生产宿主和跨进程恢复尚未实现。公开类型在 model-contract，本地保管与插件在 model-host-local。model 源码与包清单都不含 Cordis、proper-lockfile 与 model-cordis-contract，包导出根与独立 testing 入口。根入口不启动 Cordis 不等于安装隔离，安装隔离须由实际安装闭包报告证明；model 的报告由 `install-closure` 产生，运行方式与验证范围见 [model 测试说明](../model/tests/README.md#安装闭包)。凭据秘密不进入身份契约、Runtime Context 或调用记录正文；调用记录可以保存凭据引用。
 
 凭据引用与解析按以下责任归属，由现有四成员承担，不另建凭据包。
 

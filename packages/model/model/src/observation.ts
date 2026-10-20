@@ -170,8 +170,8 @@ export function createObservation<P>(input: {
       confirming = true
     },
     confirm(snapshot: Snapshot) {
-      confirming = false
       publish(snapshot)
+      confirming = false
     },
     rejectContent() {
       confirming = false

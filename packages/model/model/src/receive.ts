@@ -34,7 +34,7 @@ type Stage =
   | { kind: 'next' }
   | { kind: 'open'; input: Open; pending: boolean }
   | { kind: 'preserve'; input: Preserve; pending: boolean; completion: Completion }
-  | { kind: 'terminal'; evidence: ReceivedTerminal }
+  | { kind: 'terminal'; evidence: ReceivedTerminal; published: boolean }
   | { kind: 'failed'; failure: ModelFailure }
 export function newOperation(): ModelOperationId {
   const value = decodeModelOperationId(`mop_${randomUUID()}`)
@@ -124,7 +124,14 @@ export function createReceiver<P>(input: {
       competition: TerminalCompetition,
     ): Reply<ReceivedTerminal | null> {
       while (!signal.aborted || stage.kind === 'terminal') {
-        if (stage.kind === 'terminal') return { ok: stage.evidence }
+        if (stage.kind === 'terminal') {
+          if (!stage.published) {
+            input.confirm(stage.evidence.snapshot)
+            stage.published = true
+            input.refresh()
+          }
+          return { ok: stage.evidence }
+        }
         if (stage.kind === 'failed') return { failure: stage.failure }
         if (stage.kind === 'ready') {
           const entry = stage
@@ -233,6 +240,7 @@ export function createReceiver<P>(input: {
             const control = result.ok.state.control
             stage = {
               kind: 'terminal',
+              published: false,
               evidence: {
                 snapshot: structuredClone(result.ok),
                 termination:
@@ -247,6 +255,7 @@ export function createReceiver<P>(input: {
             }
           }
           input.confirm(result.ok)
+          if (stage.kind === 'terminal') stage.published = true
           input.refresh()
           continue
         }
