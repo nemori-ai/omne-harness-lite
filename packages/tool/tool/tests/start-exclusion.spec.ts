@@ -6,13 +6,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   callId,
+  fixedOf,
   evidence,
   failure,
   interleaving,
   ok,
   operationId,
   principalA,
-  request,
   tenantA,
 } from './runtime-values.ts'
 import {
@@ -94,7 +94,7 @@ function windowed() {
     store: memory => {
       landing = landingAfterRead(memory, async () => {
         answers.push(
-          await harness.runtime.queryOperation({
+          await harness.ledger.reads.operation({
             principal: principalA,
             tenant: tenantA,
             call: callId('c1'),
@@ -122,7 +122,7 @@ async function stage(harness: StartHarness, until: 'accepted' | 'prepared' | 'qu
   const preparation = ok(
     await harness.commands.planPreparation({
       ...(await writeContext(harness, 'c1', 'c1/plan')),
-      request: request(),
+      request: fixedOf(harness.source, 'c1'),
       purpose: 'initial',
     }),
   )
@@ -150,7 +150,7 @@ describe('14 exclusion of the commands on the way to a start', () => {
     const before = await harness.state('c1')
     const input = {
       ...(await writeContext(harness, 'c1', 'op-c1/plan')),
-      request: request(),
+      request: fixedOf(harness.source, 'c1'),
       purpose: 'initial' as const,
     }
     arm(1, 'op-c1/plan')
@@ -263,7 +263,7 @@ describe('14 exclusion of the commands on the way to a start', () => {
       store: memory =>
         interleaving(memory, holdsSlot, async () => {
           answers.push(
-            await harness.runtime.queryOperation({
+            await harness.ledger.reads.operation({
               principal: principalA,
               tenant: tenantA,
               call: callId('c1'),
@@ -287,7 +287,7 @@ describe('14 exclusion of the commands on the way to a start', () => {
     ])
     // The start committed after the negative answer, as a new submission of the same identity.
     const resolved = ok(
-      await harness.runtime.queryOperation({
+      await harness.ledger.reads.operation({
         principal: principalA,
         tenant: tenantA,
         call: callId('c1'),
@@ -306,12 +306,12 @@ describe('22 queue entries of calls that settled', () => {
     await harness.drive('c1')
     expect((await harness.state('c1')).phase).toBe('settled')
     expect(await harness.queue()).toEqual([])
-    const again = await harness.runtime.admit({
+    const again = await harness.ledger.admissions.admit({
       principal: principalA,
       tenant: tenantA,
       call: callId('c1'),
       operation: operationId('op-c1'),
-      request: request(),
+      request: fixedOf(harness.source, 'c1'),
     })
     expect(ok(again).recovered).toBe(true)
     expect(await harness.queue()).toEqual([])
@@ -365,7 +365,7 @@ describe('22 queue entries of calls that settled', () => {
     armed = true
     const refused = await harness.commands.planPreparation({
       ...(await writeContext(harness, 'c1', 'op-c1/plan')),
-      request: request(),
+      request: fixedOf(harness.source, 'c1'),
       purpose: 'initial',
     })
     // The settlement moved the state revision on, so the transaction refuses the stale plan.

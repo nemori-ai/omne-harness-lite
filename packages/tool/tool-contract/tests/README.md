@@ -486,3 +486,9 @@
 | `if ('ok' in answer && answer.ok.kind === 'started') assert.notDeepEqual(answer.ok, a` | consume ignores the tenant |
 | `resendRecalls( answers.inspect, { earlier: accepted, later: await own.inspect() },` | inspect forgets an acceptance；inspect answers unknown for ever although settle resolved |
 
+
+[reference.spec.ts](reference.spec.ts) 验证调用与操作引用的规范往返、闭合拒绝、最坏长度、合法租户与跨租户解析。contract.spec-d.ts 保留旧普通入口不存在和两种引用品牌不可互换的负编译断言。
+
+[contract.spec-d.ts](contract.spec-d.ts) 验证释放成功不含本次 operation，receipt 不能为 pending。
+
+[testing-tenant.spec.ts](testing-tenant.spec.ts) 核对 testingTenant 产生可由 tenantCodec.encode 编码的真实租户，并拒绝非法组织或账户文本。

@@ -1,6 +1,6 @@
 # Agent 的具体 Cordis 装配
 
-状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，未实现。本包是具体提供者草稿，根入口与 `./cordis` 当前都是空导出，尚无插件实现。
+状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，未实现。本包是具体提供者草稿，根入口与 `./cordis` 当前都是空导出，尚无插件实现。它消费的服务定义与目录插件 `agentInstancesPlugin` 已经在 agent-cordis-contract 实现。
 
 唯一 Service、键、增补、事件、登记协议及 IC-1 至 IC-19 的符合性映射消费 [Cordis 定义](../../agent-cordis-contract/docs/cordis.md)，不得复制或重声明。本页只写本插件特有的装配：插件与入口、静态依赖与局部依赖、配置、装载、停止准入与撤除、候选发行行、实例作用域和租户。
 
@@ -68,7 +68,7 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 1. `reserve`：宿主核验 reserve 资格，预约实例身份，创建该实例的登记句柄，记录预约。
 2. 创建 idle runtime：宿主插件调用工厂，不是装配者调用。宿主传入 reserve 得到的登记句柄、已核验的租户、scope 与精确采用。静态依赖是宿主 inject 得到的同一批服务实例，局部依赖是宿主的阶段适配器。工厂返回 `AgentProvider`。装配者请求宿主以某次预约创建实例的入口，本版没有定义，见开放问题“[宿主怎样创建并持有实例的 AgentProvider](../../agent/docs/architecture/open-questions.md#宿主怎样创建并持有实例的-agentprovider)”。
 3. 持有：宿主持有 runtime、观察句柄和 `AgentProvider.control`，它们不进入登记输入。
-4. `publish`：宿主核验 publish 资格，在宿主 Context 之下为该实例创建贡献 fiber，在这条 fiber 内经 `ctx.get(agentInstances).register` 登记。
+4. `publish`：宿主核验 publish 资格，在宿主 Context 之下为该实例创建贡献 fiber，在这条 fiber 内经 `ctx.get(agentInstances).register` 登记。宿主对登记的义务（认回、复用贡献 fiber、重试结论一致）见 Cordis 页的[登记输入与撤除协议](../../agent-cordis-contract/docs/cordis.md#登记输入与撤除协议)。
 
 宿主的 `route` 只对已发布的实例返回运行对象，登记撤除后返回 null。
 

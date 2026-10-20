@@ -194,12 +194,36 @@ importers:
 
   packages/agent/agent-contract:
     dependencies:
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
+      '@omne-harness/call-account':
+        specifier: workspace:*
+        version: link:../../common/call-account
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../schema/schema-provider
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -222,6 +246,15 @@ importers:
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../agent-contract
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -292,9 +325,6 @@ importers:
 
   packages/assets/assets:
     dependencies:
-      '@omne-harness/agent-contract':
-        specifier: workspace:*
-        version: link:../../agent/agent-contract
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text

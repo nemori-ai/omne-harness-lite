@@ -490,14 +490,7 @@ export function createToolLedger<P, B extends ContentBlock>(
   ): Promise<Outcome<void, ToolFailure>> => {
     let verdict: Awaited<ReturnType<typeof guards.sources.verify>>
     try {
-      verdict = await guards.sources.verify({
-        principal: checked.principal,
-        tenant: checked.tenant,
-        call: checked.call,
-        invocation: request.invocation,
-        consumer: request.consumer,
-        scope: request.scope,
-      })
+      verdict = await guards.sources.verify({ ...checked, request })
     } catch {
       return unavailable('source-guard', thrown('source-guard'))
     }

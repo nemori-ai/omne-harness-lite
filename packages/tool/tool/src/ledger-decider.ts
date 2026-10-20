@@ -7,6 +7,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   ConsumerRef,
   DeliveryState,
+  ReleasedDelivery,
   DurableEvidence,
   FixedToolRequest,
   Handoff,
@@ -589,7 +590,7 @@ export function decideRelease<B extends ContentBlock>(
   snapshot: Snapshot<B>,
   command: ReleaseCommand,
   mint: Mint,
-): Decision<DeliveryState, B> {
+): Decision<ReleasedDelivery, B> {
   const known = recall(snapshot, command.operation, command.inputDigest, 'release-delivery')
   if ('failure' in known) return reply(known)
   if (known.ok !== undefined) return reply(succeed(deliveryOf(known.ok)))
@@ -598,7 +599,7 @@ export function decideRelease<B extends ContentBlock>(
   const record = target.ok
   if (record.delivery.kind === 'released') return reply(succeed(record.delivery))
   const { tenant, call: callId, result, delivery } = command
-  const released: DeliveryState = {
+  const released: ReleasedDelivery = {
     kind: 'released',
     delivery: record.delivery.delivery,
     consumer: record.delivery.consumer,
@@ -625,7 +626,7 @@ export function decideRelease<B extends ContentBlock>(
   }
 }
 
-function deliveryOf(record: OperationRecord): DeliveryState {
+function deliveryOf(record: OperationRecord): ReleasedDelivery {
   if (record.receipt.kind !== 'release-delivery') throw new Error('recall checked the receipt kind')
   return record.receipt.delivery
 }
@@ -634,7 +635,7 @@ function deliveryOf(record: OperationRecord): DeliveryState {
 function withDelivery<B extends ContentBlock>(
   call: CallRecord,
   record: ResultRecord<B>,
-  released: DeliveryState,
+  released: ReleasedDelivery,
   mint: Mint,
 ): ToolState {
   const { source: _source, ...rest } = call.state

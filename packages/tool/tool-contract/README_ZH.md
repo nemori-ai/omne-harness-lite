@@ -53,3 +53,5 @@ tool-contract/
 ```
 
 树中列出 docs 的全部主题；验证资源见 [verification](verification/index.md)。设计阅读路径见[文档索引](docs/index.md)。六主题的职责见[文档说明](docs/README.md)。标为占位的目录只有职责说明，不表示已有 Schema、模型、证明、决策、示例、运行资源或验收能力。文件导航见 [index](index.md)，完整目录要求见[成员文档规范](../../../docs/member-documentation.md)。
+
+普通 ToolRuntime 以 invoke 提交 payload，返回可保存的调用引用。queries、commands、instances 与 content 分别提供查询、命令、实例连接和内容读取。引用 codec 从根入口导出，每次使用仍核当前主体和合法租户。受信内部 admission 与回应不进入普通接口，精确协议见 [SPEC](SPEC.md#342-普通操作与实例目录)。

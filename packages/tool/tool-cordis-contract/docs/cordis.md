@@ -16,22 +16,13 @@ import type { Outcome } from '@omne-harness/operation-result'
 export abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
   static readonly provide = 'toolRuntime'
   constructor(ctx: Context) { super(ctx, ToolRuntimeService.provide) }
+  abstract readonly invoke: ToolRuntime<P, B>['invoke']
   abstract readonly inspect: ToolRuntime<P, B>['inspect']
-  abstract readonly admit: ToolRuntime<P, B>['admit']
-  abstract readonly lookup: ToolRuntime<P, B>['lookup']
-  abstract readonly queryOperation: ToolRuntime<P, B>['queryOperation']
-  abstract readonly control: ToolRuntime<P, B>['control']
-  abstract readonly acceptDecision: ToolRuntime<P, B>['acceptDecision']
-  abstract readonly acceptResource: ToolRuntime<P, B>['acceptResource']
-  abstract readonly readProcess: ToolRuntime<P, B>['readProcess']
-  abstract readonly readWait: ToolRuntime<P, B>['readWait']
-  abstract readonly readDiagnostics: ToolRuntime<P, B>['readDiagnostics']
-  abstract readonly catalog: ToolRuntime<P, B>['catalog']
-  abstract readonly content: ToolRuntime<P, B>['content']
-  abstract readonly readResult: ToolRuntime<P, B>['readResult']
-  abstract readonly releaseDelivery: ToolRuntime<P, B>['releaseDelivery']
-  abstract readonly account: ToolRuntime<P, B>['account']
+  abstract readonly queries: ToolRuntime<P, B>['queries']
+  abstract readonly commands: ToolRuntime<P, B>['commands']
   abstract readonly instances: ToolRuntime<P, B>['instances']
+  abstract readonly content: ToolRuntime<P, B>['content']
+  abstract readonly catalog: ToolRuntime<P, B>['catalog']
 }
 export const toolRuntimeKey = ToolRuntimeService.provide
 

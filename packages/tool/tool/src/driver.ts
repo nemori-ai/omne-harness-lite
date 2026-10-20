@@ -20,6 +20,7 @@ import {
   type ToolDriver,
   type ToolExecutionRef,
   type ToolFailure,
+  type ToolInstanceId,
   type ToolLiveExecution,
   type ToolOperationId,
   type ToolRecovery,
@@ -54,7 +55,7 @@ export type DriverStop =
 /** The policy of a driver: how many steps one run takes, and how long a failed run waits. */
 export type DriverPolicy = Readonly<{ stepsPerRun: number; retryDelayMs: number }>
 
-type Step<P> = CallAccess<P> & Readonly<{ signal: AbortSignal }>
+type Step<P> = CallAccess<P> & Readonly<{ instance: ToolInstanceId; signal: AbortSignal }>
 /**
  * The run goes on. `progressed` is true when the step committed, or recalled a commit of its own
  * operation. A step that was excluded, found its revision stale or could not learn whether it
@@ -144,10 +145,10 @@ export function createToolDriver<P, B extends ContentBlock, E>(
   // the install.
   const retrying = new Map<string, ReturnType<typeof setTimeout>>()
 
-  const executionOf = (tenant: TenantId, call: ToolCallId): ToolExecutionRef => ({
-    tenant,
-    call,
-    instance: dependencies.instance,
+  const executionOf = (step: Step<P>): ToolExecutionRef => ({
+    tenant: step.tenant,
+    call: step.call,
+    instance: step.instance,
     generation: PLACEHOLDER_GENERATION,
   })
 
@@ -159,7 +160,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     const operation = derivedOperation(recovery.admission, suffix)
     if ('failure' in operation) return operation
     return succeed({
-      ...executionOf(step.tenant, step.call),
+      ...executionOf(step),
       principal: step.principal,
       operation: operation.ok,
       expected: recovery.state.revision,

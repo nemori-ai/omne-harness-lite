@@ -2,7 +2,7 @@
 
 Loop extension 在明确状态点观察、改写候选内容或阻止状态变化。它通过受控结果影响 Loop，不能暗中跳转执行位置或改写已记录事实。
 
-状态：已接受的目标架构。本页维护扩展位置、干预力、组合与接续规则。正常执行顺序见[Agent runtime](agent-runtime.md#一轮推进)。
+状态：已接受的目标架构。本页维护扩展位置、干预力、组合与接续规则。位置集合、干预力档位和位置输出表的机读形式已在 agent-contract 的 [extensions.ts](../../../packages/agent/agent-contract/src/extensions.ts) 与 [judge-output.ts](../../../packages/agent/agent-contract/src/judge-output.ts) 实现。扩展的调用与调度尚未实现。正常执行顺序见[Agent runtime](agent-runtime.md#一轮推进)。
 
 ## 扩展位置与干预力
 

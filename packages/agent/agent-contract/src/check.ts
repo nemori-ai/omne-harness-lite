@@ -12,7 +12,7 @@ import {
 } from '@omne-harness/schema-provider'
 import type { z } from 'zod'
 
-const limits: JsonLimits = {
+const DECLARATION_LIMITS: JsonLimits = {
   maxBytes: 100_000,
   maxDepth: 20,
   maxItems: 200,
@@ -44,30 +44,60 @@ type Plain =
 type Walk = {
   ancestors: Set<object>
   nodes: number
+  readonly limits: JsonLimits
+}
+
+function refuse(reason: 'executable' | 'malformed', index: number): Plain {
+  return { ok: false, reason, index }
+}
+
+/** The result for a string or a number, or `undefined` for any other value. */
+function plainText(value: unknown, walk: Walk, index: number): Plain | undefined {
+  if (typeof value === 'string') {
+    if (value.length > walk.limits.maxStringLength) return refuse('malformed', index)
+    return { ok: true, value }
+  }
+  if (typeof value !== 'number') return undefined
+  if (!Number.isFinite(value)) return refuse('malformed', index)
+  if (JSON.stringify(value).length > walk.limits.maxNumberLength) return refuse('malformed', index)
+  return { ok: true, value }
+}
+
+/**
+ * Whether a value opens a container beyond the depth limit. `depth` counts the containers around
+ * the value, and a container counts its own level as it opens, as json-text does when it reads
+ * the whole text. A scalar adds no level.
+ */
+function opensTooDeep(value: unknown, walk: Walk, depth: number): boolean {
+  return typeof value === 'object' && value !== null && depth + 1 > walk.limits.maxDepth
 }
 
 function plainJson(value: unknown, walk: Walk, depth: number, index: number): Plain {
-  if (depth > limits.maxDepth) return { ok: false, reason: 'malformed', index }
+  if (opensTooDeep(value, walk, depth)) return refuse('malformed', index)
   walk.nodes += 1
-  if (walk.nodes > limits.maxItems) return { ok: false, reason: 'malformed', index: 0 }
+  if (walk.nodes > walk.limits.maxItems) return refuse('malformed', 0)
   if (value === null || typeof value === 'boolean') return { ok: true, value }
-  if (typeof value === 'string') {
-    if (value.length > limits.maxStringLength) return { ok: false, reason: 'malformed', index }
-    return { ok: true, value }
-  }
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) return { ok: false, reason: 'malformed', index }
-    const digits = JSON.stringify(value)
-    if (digits.length > limits.maxNumberLength) return { ok: false, reason: 'malformed', index }
-    return { ok: true, value }
-  }
-  if (typeof value === 'function') return { ok: false, reason: 'executable', index }
-  if (typeof value !== 'object') return { ok: false, reason: 'malformed', index }
-  if (walk.ancestors.has(value)) return { ok: false, reason: 'malformed', index }
+  const text = plainText(value, walk, index)
+  if (text !== undefined) return text
+  if (typeof value === 'function') return refuse('executable', index)
+  if (typeof value !== 'object') return refuse('malformed', index)
+  return copyContainer(value, walk, depth, index)
+}
+
+/**
+ * The copy of an array or an object. The copy reads each member through its property descriptor,
+ * so it runs no accessor. On a Proxy, these reads and the read of an array `length` run the traps
+ * of the caller. A trap that throws, or a revoked Proxy, makes the value `malformed`, and the
+ * exception does not leave the copy.
+ */
+function copyContainer(value: object, walk: Walk, depth: number, index: number): Plain {
+  if (walk.ancestors.has(value)) return refuse('malformed', index)
   walk.ancestors.add(value)
   try {
     if (Array.isArray(value)) return copyArray(value, walk, depth, index)
     return copyObject(value, walk, depth, index)
+  } catch {
+    return refuse('malformed', index)
   } finally {
     walk.ancestors.delete(value)
   }
@@ -98,7 +128,7 @@ function copyObject(value: object, walk: Walk, depth: number, index: number): Pl
   if (prototype !== Object.prototype && prototype !== null)
     return { ok: false, reason: 'malformed', index }
   const keys = Reflect.ownKeys(value)
-  if (keys.length > limits.maxMembers) return { ok: false, reason: 'malformed', index }
+  if (keys.length > walk.limits.maxMembers) return { ok: false, reason: 'malformed', index }
   const copy = Object.create(null) as Record<string, unknown>
   for (const key of keys) {
     if (typeof key !== 'string') return ownKeyRefusal(value, key, index)
@@ -155,14 +185,17 @@ function settle<T>(verdict: SchemaVerdict<T>): Checked<T> {
   }
 }
 
-function readPlainDocument(value: unknown): JsonRead | undefined {
+function readPlainDocument(value: unknown, limits: JsonLimits): JsonRead | undefined {
   const encoded = JSON.stringify(value)
   if (typeof encoded !== 'string') return undefined
   return readJsonText(encoded, limits)
 }
 
-export function jsonTextWithinBudget(value: unknown): boolean {
-  const read = readPlainDocument(value)
+export function jsonTextWithinBudget(
+  value: unknown,
+  limits: JsonLimits = DECLARATION_LIMITS,
+): boolean {
+  const read = readPlainDocument(value, limits)
   return read !== undefined && read.kind === 'ok'
 }
 
@@ -172,7 +205,7 @@ async function validatePlain<T>(
   schema: z.ZodType<T>,
   plain: unknown,
 ): Promise<Checked<T>> {
-  const read = readPlainDocument(plain)
+  const read = readPlainDocument(plain, DECLARATION_LIMITS)
   if (read === undefined || read.kind !== 'ok')
     return { kind: 'local-refusal', reason: 'malformed' }
   const ref = defineSchema({
@@ -187,6 +220,11 @@ async function validatePlain<T>(
   return settle(await validate<T>(provider, ref, read))
 }
 
+/** Whether a value is an object that is not an array. The judgments share this one guard. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 export function openCheckDomain(): SchemaProvider {
   return createSchemaProvider(budget)
 }
@@ -195,8 +233,8 @@ export function closeCheckDomain(provider: SchemaProvider): void {
   close(provider)
 }
 
-export function copyPlain(value: unknown): Plain {
-  return plainJson(value, { ancestors: new Set(), nodes: 0 }, 0, 0)
+export function copyPlain(value: unknown, limits: JsonLimits = DECLARATION_LIMITS): Plain {
+  return plainJson(value, { ancestors: new Set(), nodes: 0, limits }, 0, 0)
 }
 
 export async function checkJson<T>(
