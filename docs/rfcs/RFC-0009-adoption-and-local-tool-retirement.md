@@ -178,4 +178,4 @@ RFC-0004 设想第二阶段把现行本机工具拆成“检查一半”与“�
 
 | 后继提案或更正依据 | 部分或全部取代的精确范围 | 当前规范入口 |
 | --- | --- | --- |
-| 无 | 无 | 写回表所列的现行源 |
+| [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) revision 1，2026-10-20 接受 | 部分取代三处：「退役的命令与文件」中轨道退役的规则与「决定范围」未决事项中“在此之前轨道退役由 admin 直接操作 policy registry 与分支”，改为删除分支即退役；「policy registry 瘦身」中轨道条目的字段，增加 `parent`，`initialMain` 改名为 `initialBase`；受影响拥有者表中“`gate-track` 继续使用”与「验证与消费者切换」中“`gate-track` 对轨道登记的读取不受影响”两处陈述。精确范围见 RFC-0011「决定范围」取代范围第 2 至 4 项。其余条款不动，本提案的 status 不改 | [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) 写回表所列的现行源 |

@@ -133,3 +133,4 @@ owner: PanQiWei
 | --- | --- | --- |
 | 本提案 revision 1，2026-10-14 接受 | 只取代 RFC-0001 revision 4「编译与构建」中「保留 catalog 的 TypeScript 6」这一条款。其余条款不动。RFC-0001 的 status 不改。目标已写入技术基础页。2026-10-15 由 #310 切换实现 | [技术基础](../architecture/technical-foundations.md) |
 | [#390](https://github.com/nemori-ai/omne-harness-lite/issues/390) 的决定 D2（2026-10-19），依据 [RFC-0007](RFC-0007-source-packages-and-templates.md) revision 1（2026-10-16 采用） | 只取代「决定范围」中「类型检查用源码条件、全仓一次完成」这一句。类型检查改为逐成员运行，见 RFC-0007「类型检查的入口」。其余条款不动，本提案的 status 不改 | [开发指南](../development.md#迭代中的受影响测试) |
+| [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) revision 1，2026-10-20 接受 | 只取代「决定范围」中“准入缓存只读受信运行，还是完全关闭读取，仍要和 RFC-0004 一起定具体策略”，以及「影响面选择」约束 3 的“具体策略还要和 RFC-0004 一起决定”：进入任何一条主干之前的检查不读 turbo 任务缓存，只写本地缓存。准入检查是否写远程缓存，随远程缓存是否启用，仍是本提案的未决项。其余条款不动，本提案的 status 不改 | [RFC-0011](RFC-0011-trunk-admission-and-track-tree.md) 写回表“准入缓存策略”一行所列的现行源 |
