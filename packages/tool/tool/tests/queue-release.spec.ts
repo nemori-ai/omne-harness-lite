@@ -8,13 +8,13 @@ import type { LedgerCommitInput, ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
   admission,
+  fixedOf,
   callId,
   evidence,
   failure,
   interleaving,
   ok,
   principalA,
-  request,
   tenantA,
   type Block,
 } from './runtime-values.ts'
@@ -151,7 +151,7 @@ describe('22 release memory: a released call never regains an entry', () => {
         // The plan read the call before the settlement, so the transaction refuses it as stale.
         const refused = await harness.commands.planPreparation({
           ...(await writeContext(harness, 'c1', 'op-c1/plan')),
-          request: request(),
+          request: fixedOf(harness.source, 'c1'),
           purpose: 'initial',
         })
         // A creation commit that answers unknown makes the plan unknown; otherwise it is stale.
@@ -167,7 +167,9 @@ describe('22 release memory: a released call never regains an entry', () => {
       expect(await harness.queue()).toEqual([])
       expect(await harness.released()).toEqual(['c1'])
       // A recalled admission does not make one either.
-      const again = await harness.runtime.admit(admission('c1', 'op-c1', request()))
+      const again = await harness.ledger.admissions.admit(
+        admission('c1', 'op-c1', fixedOf(harness.source, 'c1')),
+      )
       expect(ok(again).recovered).toBe(true)
       expect(await harness.queue()).toEqual([])
       await admitCall(harness, 'c2')
@@ -311,7 +313,7 @@ describe('22 queue step: the operation that moved an entry recalls it', () => {
     const preparation = ok(
       await harness.commands.planPreparation({
         ...(await writeContext(harness, 'c1', 'c1/plan')),
-        request: request(),
+        request: fixedOf(harness.source, 'c1'),
         purpose: 'initial',
       }),
     )
@@ -369,7 +371,7 @@ describe('22 queue step: the operation that moved an entry recalls it', () => {
       const preparation = ok(
         await harness.commands.planPreparation({
           ...(await writeContext(harness, 'c1', 'A/plan')),
-          request: request(),
+          request: fixedOf(harness.source, 'c1'),
           purpose: 'initial',
         }),
       )
@@ -389,7 +391,7 @@ describe('22 queue step: the operation that moved an entry recalls it', () => {
     landing.arm(1)
     const reply = await harness.commands.planPreparation({
       ...second,
-      request: request(),
+      request: fixedOf(harness.source, 'c1'),
       purpose: 'initial',
     })
     expect(failure(reply)).toEqual({ kind: 'conflict', operation: 'B/plan' })
@@ -436,7 +438,7 @@ describe('22 reconcile: the waiter repairs only what the call domain proves', ()
     const preparation = ok(
       await harness.commands.planPreparation({
         ...(await writeContext(harness, 'c1', 'c1/plan')),
-        request: request(),
+        request: fixedOf(harness.source, 'c1'),
         purpose: 'initial',
       }),
     )

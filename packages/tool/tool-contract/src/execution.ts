@@ -47,6 +47,7 @@ import type {
 } from './records.ts'
 import type {
   DeliveryState,
+  ReleasedDelivery,
   Effect,
   Reply,
   ToolResult,
@@ -113,7 +114,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
         consumer: ConsumerRef
         evidence: Handoff
       }>,
-  ): Reply<DeliveryState>
+  ): Reply<ReleasedDelivery>
   scanPending(
     input: Access<P> & Readonly<{ after: string | null; limit: number }>,
   ): Reply<Readonly<{ calls: readonly ToolCallId[]; next: string | null }>>

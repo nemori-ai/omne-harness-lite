@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { judgeFixedToolRequest, type FixedToolRequest } from '@omne-harness/tool-contract'
+import {
+  judgeFixedToolRequest,
+  judgeToolInvokeRequest,
+  type FixedToolRequest,
+  type ToolInvokeRequest,
+} from '@omne-harness/tool-contract'
 import { adoption, commandsDefinition, evidence, functionDefinition } from './tool-values.ts'
 
 function request(): FixedToolRequest {
@@ -30,6 +35,83 @@ function rejection(value: unknown) {
   if ('ok' in judged) throw new Error('the request was accepted')
   return judged.failure
 }
+
+function invokeRequest(): ToolInvokeRequest {
+  const { invocation: _invocation, ...payload } = request()
+  return payload
+}
+
+describe('ordinary invoke request judgment', () => {
+  it('copies and freezes nested payload data without freezing or sharing the caller data', () => {
+    const value = { ...invokeRequest(), resources: [adoption('resource')] }
+    const expected = structuredClone(value)
+    const judged = judgeToolInvokeRequest(value)
+    expect(judged).toEqual({ ok: expected })
+    if ('failure' in judged) throw new Error('legal invoke payload was rejected')
+    for (const [copy, original] of [
+      [judged.ok, value],
+      [judged.ok.availability.definition, value.availability.definition],
+      [judged.ok.availability.definition.declarations, value.availability.definition.declarations],
+      [judged.ok.arguments, value.arguments],
+      [judged.ok.resources, value.resources],
+      [judged.ok.resources[0], value.resources[0]],
+      [judged.ok.scope.grant, value.scope.grant],
+    ]) {
+      expect(copy).not.toBe(original)
+      expect(Object.isFrozen(copy)).toBe(true)
+      expect(Object.isFrozen(original)).toBe(false)
+    }
+    Object.assign(value.arguments, { effective: '{}' })
+    Object.assign(value.availability.definition, { name: 'changed' })
+    value.resources.push(adoption('later'))
+    expect(judged.ok).toEqual(expected)
+  })
+
+  const commands = {
+    ...invokeRequest(),
+    availability: {
+      kind: 'available',
+      definition: commandsDefinition(),
+      executor: adoption('exec'),
+    },
+  }
+  it.each([
+    { name: 'null', input: null, field: 'ToolInvokeRequest', reason: 'type' },
+    { name: 'primitive', input: 1, field: 'ToolInvokeRequest', reason: 'type' },
+    { name: 'missing fields', input: {}, field: 'availability', reason: 'missing' },
+    {
+      name: 'caller source',
+      input: { ...invokeRequest(), source: evidence('source') },
+      field: 'source',
+      reason: 'unknown-field',
+    },
+    {
+      name: 'function command',
+      input: { ...invokeRequest(), command: 'read' },
+      field: 'command',
+      reason: 'not-a-command-tool',
+    },
+    {
+      name: 'missing command',
+      input: { ...commands, command: null },
+      field: 'command',
+      reason: 'missing',
+    },
+    {
+      name: 'unknown command',
+      input: { ...commands, command: 'write' },
+      field: 'command',
+      reason: 'unknown-command',
+    },
+  ])('rejects $name with a structured field and reason', ({ input, field, reason }) => {
+    expect(judgeToolInvokeRequest(input)).toEqual({ failure: { field, reason } })
+  })
+
+  it('accepts a declared command through the ordinary invoke entry', () => {
+    const value = { ...commands, command: 'read' }
+    expect(judgeToolInvokeRequest(value)).toEqual({ ok: value })
+  })
+})
 
 describe('request judgment', () => {
   it('request judgment: accepts a legal direct request and gives a frozen copy', () => {

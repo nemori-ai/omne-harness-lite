@@ -1,11 +1,14 @@
 import { expectTypeOf, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
+  FixedToolRequest,
+  Mutation,
+  Reply,
   ToolClock,
   ToolCommands,
   ToolProvider,
   ToolReads,
-  ToolRuntime,
+  ToolState,
 } from '@omne-harness/tool-contract'
 import {
   createToolLedger,
@@ -28,6 +31,15 @@ it('createToolRuntime takes the dependencies and the configuration and answers a
   >()
 })
 
+it('createToolRuntime dependencies carry no factory-level instance identity', () => {
+  type Dependencies = ToolDependencies<{ subject: string }, ContentBlock, null>
+  // @ts-expect-error TS2339: the runtime factory takes no instance identity; the host passes it to the driver.
+  expectTypeOf<Dependencies['instance']>().toEqualTypeOf<never>()
+  expectTypeOf<Dependencies['invocationIdentities']>().not.toBeNever()
+  expectTypeOf<Dependencies['operationIdentities']>().not.toBeNever()
+  expectTypeOf<Dependencies['sourceIssuer']>().not.toBeNever()
+})
+
 it('createToolLedger takes the store, the guards, the clock and the ledger configuration', () => {
   type P = { subject: string }
   expectTypeOf(createToolLedger<P, ContentBlock>).parameters.toEqualTypeOf<
@@ -42,7 +54,11 @@ it('createToolLedger takes the store, the guards, the clock and the ledger confi
     Readonly<{
       commands: ToolCommands<P, ContentBlock>
       reads: ToolReads<P, ContentBlock>
-      admissions: Readonly<{ admit: ToolRuntime<P, ContentBlock>['admit'] }>
+      admissions: Readonly<{
+        admit(
+          input: Mutation<P> & Readonly<{ request: FixedToolRequest }>,
+        ): Reply<Readonly<{ state: ToolState; recovered: boolean }>>
+      }>
       queues: ToolLedgerQueues<P>
     }>
   >()

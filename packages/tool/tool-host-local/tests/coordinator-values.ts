@@ -1,6 +1,7 @@
 // Builders for the start coordinator tests: tenants with the shape of legal-identity's TenantId,
 // a principal that belongs to some tenants, a fixed request, a start record and an access guard
 // that answers by tenant membership. Each builder returns a fresh value.
+import { testingTenant } from '@omne-harness/tool-contract/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
@@ -39,8 +40,8 @@ export function tenant(organization: string, account: string): TenantShape {
 
 const keyOf = (value: TenantShape): string => `${value.organization.text}/${value.account.text}`
 
-export const tenantA = tenant('org_a', 'acc_a')
-export const tenantB = tenant('org_b', 'acc_b')
+export const tenantA = testingTenant(`org_${'0'.repeat(26)}`, `acc_${'1'.repeat(26)}`)
+export const tenantB = testingTenant(`org_${'2'.repeat(26)}`, `acc_${'3'.repeat(26)}`)
 export const principalA: Principal = { subject: 'alice', tenants: [keyOf(tenantA)] }
 export const principalB: Principal = { subject: 'bob', tenants: [keyOf(tenantB)] }
 

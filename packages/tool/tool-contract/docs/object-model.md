@@ -9,32 +9,36 @@
 下例是职责伪代码。每个操作都要处理成功、拒绝和未知三类结果。它不表示某个实现已经提供全部操作，实现范围见各实现包的 SPEC。
 
 ```text
-装配者创建 ToolRuntime，固定实例、配置和各端口的提供者
+装配者创建 ToolRuntime，固定配置和各受信端口的提供者；实例身份由 host 传给 driver
     缺必需端口是装配缺陷，构造时拒绝，不留到调用时
         必需与可选端口的分类见 SPEC 的输入与依赖表，配置的取值范围见实现包
 
-发起协调者对一次原调用提交 admit，带固定请求和操作号
-    成功：返回 ToolState，Tool 随后推进准备、排队与启动
-    重送：同操作号同输入返回原回执，recovered 为 true
-    拒绝：ToolFailure 中的具名结果，调用不被受理
-    未知：提交结果未知时返回 commit-unknown。Tool 不在内部重试该提交
-        协调者以原操作号调用 queryOperation 认回，或同身份重送
+普通调用方提交 invoke，带当前主体、租户和 payload
+    runtime 分配 call/admission 并由受信入口绑定来源
+    成功：accepted 返回调用引用和原状态回执，随后推进准备、排队与启动
+    相同 payload 再 invoke 是独立新调用
+    拒绝：rejected 给出具名 failure
+    未知：commit-unknown 带原调用引用，以 queries.lookup 认回原 admission
         否定答案必须先排除该操作所有在途提交
+        完整响应丢失前未保存引用时，不能按 payload 找回
 
 消费方读取已保存的内容
-    readProcess 取过程，readResult 按版本分页取结果
+    queries.readProcess 取过程，queries.readResult 按版本分页取结果，content 读取原内容
     成功：无活体时仍可读已保存内容
     拒绝：读取资格不足时整次拒绝，不伪装为 data=none
     未知：读到内容不等于已承接，承接结果未知时不解除交付
-    承接后调用 releaseDelivery，带消费位置和交接证据
+    承接后调用 commands.releaseDelivery，带消费位置和交接证据
         只解除这一版的交付关系，不删除全文
-        回执丢失时重送原操作，认回原回执
+        回执未知时用返回的操作引用经 queries.queryOperation 认回，不重新发送意图
 
-控制方对原调用提交 control：stop、withdraw（必须带 reach）或 background
-    成功：返回 ControlReceipt，受理不等于执行已停止
+控制方对原调用提交 commands.control：stop、withdraw（必须带 reach）或 background
+    成功：committed 返回操作引用和 ControlReceipt，受理不等于执行已停止
         reach 不及目标调用当时的关系时（发起即后台的调用从受理起是后台关系），回执的进度为 rejected，原因 out-of-reach，调用不变
-    拒绝：控制方不在其控制责任范围内、未许可的转后台、正在 Ask 时转后台、缺失或未知的 reach，回复 ToolFailure，各情形对应的失败种类与条件由 [SPEC P07](../SPEC.md#p07-计时控制与检查点) 拥有；reach 不及目标的关系不是拒绝，而是上面的 rejected 回执
-    未知：停止结果未知时不报告已停止，控制保持 pending
+    拒绝：控制方不在其控制责任范围内、未许可的转后台、正在 Ask 时转后台、缺失或未知的 reach，rejected 返回 ToolFailure，各情形对应的失败种类与条件由 [SPEC P07](../SPEC.md#p07-计时控制与检查点) 拥有；reach 不及目标的关系不是拒绝，而是上面的 rejected 回执
+    提交未知：commit-unknown 返回原操作引用，以 queries.queryOperation 查询是否提交
+        此时不能声称已有 ControlReceipt 或其进度为 pending
+    物理进度：取得 ControlReceipt 后按 progress 判断停止进度
+        停止结果未确定时保留 progress 的 pending 或 unknown，不报告已停止
 
 读取方用 lookup、queryOperation、readWait、readDiagnostics 和 account 读原调用的事实
     成功：返回当前权威状态、操作回执或执行账
@@ -42,7 +46,7 @@
     未知：围栏或存储结果未知时返回 unknown 或 unavailable，不给否定答案
 ```
 
-等待的答复由决策方或资源接收者经 acceptDecision 和 acceptResource 提交，流程见 [flows](flows.md)。过程展示晚于保存。观察流断开或观察者变慢，不影响真实执行和控制。控制入口不依赖观察者在线。
+等待的答复由决策方或资源接收者经受信内部 acceptDecision 和 acceptResource 提交，流程见 [flows](flows.md)。过程展示晚于保存。观察流断开或观察者变慢，不影响真实执行和控制。控制入口不依赖观察者在线。
 
 ## 跨域概念与内部可见范围
 
@@ -63,6 +67,7 @@ Tool 建模自己承担的责任：一次原调用的真实执行、等待、控
 | 对象 | 分类与身份 | 负责什么 | 寿命与可见面 |
 | --- | --- | --- | --- |
 | ToolDefinition | 不可变值，工具资产身份和精确 adoption | 单函数/多命令、参数、真实依赖、模态、设置与许可 | 随采用保存；合法消费者可读，不含运行能力 |
+| ToolInvocationRef / ToolOperationRef | 不可变定位值，编码原租户、call、admission；操作引用另带 operation | 保存与重建后查询原事实，不含 principal 或实例代次 | 每次使用核当前资格；放弃引用不取消执行 |
 | FixedToolRequest | 不可变值，原调用与输入摘要 | 固定原始/生效参数、来源、消费位置、环境、限额 | 准入后不变；秘密按字段权限读取 |
 | ToolCall | 持久聚合根，tenant + call | 原调用阶段、关系、真实执行确定性、效果、等待、控制、结果和责任 | Commands 唯一写；宿主退出后存在；不序列化活体对象 |
 | OperationRecord | 聚合内实体，call + operation | 输入去重、原操作结果及提交未知认回 | 与状态和待办同提交；不能只存 revision |
@@ -88,10 +93,12 @@ ToolCall 是内部领域对象，不是新增公开 class。ToolState 是它经�
 classDiagram
     class ToolRuntime {
       <<interface>>
-      admit()
-      lookup()
-      control()
-      readResult()
+      invoke()
+      queries
+      commands
+      instances
+      content
+      catalog
     }
     class ToolCommands {
       <<interface>>
@@ -262,11 +269,11 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 
 | 对象或端口 | 构造时注入 | 操作参数 | 失效与替换 |
 | --- | --- | --- | --- |
-| ToolRuntime 门面 | Commands、Reads，以及按次取当前 Catalog/Directory 的稳定代理 | 当前主体/tenant、call/operation、固定请求或具名意图 | 无本域事实私有副本；换门面不重执行 |
+| ToolRuntime 门面 | 内部 Commands、Reads、身份与来源端口，以及 Catalog/Directory 的稳定代理 | 当前主体/tenant、普通 payload 或调用/操作引用及具名意图 | 无本域事实私有副本；换门面不重执行 |
 | ToolProvider | 一个 ToolRuntime，加恢复、静默与交接入口（recover、quiesce、inspectDrain、handover） | 受信恢复者的 Access；handover 另带 successor 与 inventory | 由实现包的 `createToolRuntime` 产生；它的构造依赖（commands、bindings、environments、decisions、instances、clock、resultPolicy、authority、resources、custody、catalog 等端口）属于实现包，见 tool 的 public-api（`tool/docs/public-api.md`） |
 | ToolCommands 提供者 | 契约只规定接口和行为。提供者自己的存储、资格核验和队列守卫见 tool 对象模型（`tool/docs/object-model.md`） | WriteContext 或 Mutation、明确协议值 | 不可用返回 unavailable/commit-unknown；不能换内存实现冒称耐久 |
 | ToolCall 决定器 | 无外部服务，只读已核 guard 快照 | 当前状态、具名命令 | 纯计算结果含变更与任务；事务端再次核 revision/queue/guard |
-| ToolDriver | Commands、ToolBindings、ToolEnvironment、ToolStartAuthority、ToolDecisionBridge、ToolResourceResponses、ToolOutputCustody、ToolClock、ToolChildren 的阶段适配器 | tenant/call、宿主取消 signal（`run`） | 从事实重建协调，不重放外部调用；查询未知仍能承担责任 |
+| ToolDriver | Commands、ToolBindings、ToolEnvironment、ToolStartAuthority、ToolDecisionBridge、ToolResourceResponses、ToolOutputCustody、ToolClock、ToolChildren 的阶段适配器 | tenant/call、host 提供的 instance、宿主取消 signal（`run`） | 从事实重建协调，不重放外部调用；查询未知仍能承担责任 |
 | ToolLoader / ToolBindingRegistry | 合法定义/设置快照适配器、schema、作者工厂、资格守卫 / 已核装载贡献 | 精确 definition/executor/settings、来源 / ToolLoadedRegistration、登记依据 | C 为构造配置，A 为调用参数，E 为服务依赖；不互相替代 |
 | ToolBindings | 资产/装配的合法采用解析、执行提供者映射 | 固定 adoption、原 start 或消费方档案 | resolve 新发起与 recover 原查询分面；不自动取最新实现 |
 | ToolRecoveryBinding | `ToolBindings.recover` 按原启动记录交出的恢复面 | 原 start、事实回执、暂停记录、控制派发 | 只有原事实查询与控制（acknowledge、inspectStart、inspectSuspension、stop、inspectControl），没有 start；撤权后仍须有受权托管者处理原责任 |
