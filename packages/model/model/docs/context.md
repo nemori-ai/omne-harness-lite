@@ -31,6 +31,8 @@ const decision = judgeResolution(state, reference, { authorized: true, official:
 
 ## 读取和确认结果
 
-从 inspect 的 settled.state.settlement 取得原 version。beginRead 的 ok 分为 started 和 acknowledged；started 同时给 read 身份及首个 ReadState。reading.page.parts 保留完整或部分结果与 trims，next=null 表示无后页；其他 next 原样传入 readNext。closeRead 结束读保护，并保留实际结束原因。
+等待 inspect 返回后，先排除 Reply 的 failure 分支。确认 Lookup 的 `lookup.ok.kind === 'found'`，再确认 CallState 的 `lookup.ok.state.phase === 'settled'`。此时从 `lookup.ok.state.settlement.version` 取得原 version。
+
+beginRead 的 ok 分为 started 和 acknowledged；started 同时给 read 身份及首个 ReadState。reading.page.parts 保留完整或部分结果与 trims，next=null 表示无后页；其他 next 原样传入 readNext。closeRead 结束读保护，并保留实际结束原因。
 
 业务消费者先保存自身完成事实，再以原 result、独立 operation 和 processed completion 调 acknowledge。commit-unknown 保留原参数认回。成功回执显示 call、result、原 custody.operation、receipt 及当前 cleanup；pending 或 blocked 不撤销确认。具体代码见[第五课](../examples/05-read-and-acknowledge.ts)，支持边界归[实现规格](../SPEC.md#结果消费支持)。

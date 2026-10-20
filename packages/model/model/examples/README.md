@@ -21,6 +21,7 @@ pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/
 pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/02-observe-and-settle.ts
 pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/03-output-limit.ts
 pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/04-input-over-limit.ts
+pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/05-read-and-acknowledge.ts
 ```
 
 ## 按顺序学习
@@ -36,7 +37,7 @@ pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/
 
 ## 核对输出与返回形状
 
-四课依次输出以下语义值。第二课还打印实际 Settlement JSON，其中随机 version 和 source.record 每次不同，不比较它们的具体字节。
+前四课依次输出以下语义值。第二课还打印实际 Settlement JSON，其中随机 version 和 source.record 每次不同，不比较它们的具体字节。
 
 ```text
 admission: accepted
@@ -55,6 +56,23 @@ reported: {"metric":"context-tokens","limit":"2048","actual":null}
 transport starts: 1
 ```
 
+第五课依次打印两页的结果、关闭状态和 ACK 回执。以下输出用占位符表示随机 result version、receipt record 和 digest，不比较它们的具体字节。
+
+```text
+part: sealed text []
+termination: failed
+part: partial tool-arguments [ { removed: '2', reason: 'upstream-cut' } ]
+termination: failed
+read closed: ended
+ACK: mcall_example mrver_... mop_example-ack {
+  owner: 'example-consumer',
+  record: '...',
+  revision: '1',
+  digest: '...'
+} pending
+same ACK: true
+```
+
 代码中的 `Reply<T>` 为 `{ok: T}` 或 `{failure: ModelFailure}`。Admission 返回 call、revision 和 recovered。inspect 的 Lookup 返回 found.state 或 not-accepted.operation。CallState 以 phase 区分 accepted、running、retry-decision 与 settled。Settlement 的 version 是结果身份，termination 是原业务终局；source 的 owner、record、revision、digest 标识提供者保存的原终局依据。这些说明帮助阅读实际结果，精确定义仍归[公开类型](../../model-contract/src/result.ts)和[共同协议](../../model-contract/SPEC.md)。
 
 ## 失败和资源责任
@@ -65,6 +83,6 @@ transport starts: 1
 
 本装配只信任它自己生成的 principal、租户与证据，凭据为合成字符串。生产环境需要真实身份、工作资格、来源/排除证明、Commands 后端和宿主实现。脚本不证明厂商发送、耐久、跨进程恢复或可靠消费。首内容前策略待定、无控制 interrupted、sender.not-started 和丢失原终止依据均不由示例补成默认成功。
 
-`pnpm --filter @omne-harness/model test` 构建并运行行为测试和四个示例。`pnpm --filter @omne-harness/model typecheck` 也检查示例。独立验收继续由接受者判断，命令退出零不能替代教学内容复核。
+`pnpm --filter @omne-harness/model test` 构建并运行行为测试和五个示例。`pnpm --filter @omne-harness/model typecheck` 也检查示例。独立验收继续由接受者判断，命令退出零不能替代教学内容复核。
 
 契约范围见 [SPEC](../../model-contract/SPEC.md)，目录导航见 [index](index.md)。
