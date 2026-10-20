@@ -76,10 +76,33 @@ jobs:
           jq -e --arg a "$ACTOR" 'index($a) != null' reviewers.json >/dev/null \
             || { echo "rejected: $ACTOR is not a publish reviewer"; exit 1; }
 
-          # 2. 状态转移的前提：只认作者为 reviewer、且没被编辑过的评论。有写权限的协作者能编辑别人的评论，
-          #    编辑过的评论不能证明 reviewer 写过这段内容。
-          rest --paginate "repos/$R/issues/$ISSUE/comments?per_page=100" | jq -s 'add // []' > comments.json
-          jq --slurpfile r reviewers.json '[.[] | select(.user.type == "User" and .created_at == .updated_at and (.user.login as $l | $r[0] | index($l) != null))]' comments.json > trusted.json
+          # 2. 状态转移的前提：只认作者为 reviewer 的评论，且评论没被编辑过，或最后一次由作者本人编辑。
+          #    有写权限的协作者能编辑别人的评论；派发评论按惯例由作者本人编辑一次以写入自身 URL。
+          #    GitHub 只记录最后一次编辑者：作者在别人编辑之后再次保存，视为作者确认了当前内容。
+          : > comments.jsonl
+          cursor=""
+          while :; do
+            args=(-f owner="${R%/*}" -f name="${R#*/}" -F number="$ISSUE")
+            [ -n "$cursor" ] && args+=(-f cursor="$cursor")
+            gh api graphql "${args[@]}" -f query='
+              query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+                repository(owner: $owner, name: $name) {
+                  issue(number: $number) {
+                    comments(first: 100, after: $cursor) {
+                      pageInfo { hasNextPage endCursor }
+                      nodes { body lastEditedAt author { __typename login } editor { login } }
+                    }
+                  }
+                }
+              }' > page.json
+            jq -e '.errors == null and .data.repository.issue != null' page.json >/dev/null || { echo "failed: comments of Issue $ISSUE not readable"; exit 1; }
+            jq -c '.data.repository.issue.comments.nodes[]' page.json >> comments.jsonl
+            [ "$(jq -r '.data.repository.issue.comments.pageInfo.hasNextPage' page.json)" = true ] || break
+            cursor=$(jq -r '.data.repository.issue.comments.pageInfo.endCursor' page.json)
+          done
+          jq -s --slurpfile r reviewers.json '[.[] | select(.author.__typename == "User"
+              and (.author.login as $l | $r[0] | index($l) != null)
+              and (.lastEditedAt == null or .editor.login == .author.login))]' comments.jsonl > trusted.json
           decision() {
             jq -e --arg d "$1" '[.[] | .body | select(startswith("## 交付决定")) | select(split("\n") | map(rtrimstr("\r")) | any(. == "- 决定：" + $d))] | length > 0' trusted.json >/dev/null
           }
