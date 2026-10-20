@@ -68,11 +68,35 @@ describe('长期场景事实', () => {
     expect(result.stdout).toContain('合计 1 个 topic、1 条带编号场景')
     expect(result.stdout).not.toContain('覆盖声明有')
   })
-  it('当前检出的 16 个 PD 均报告未覆盖和未知接受', () => {
+  it('多个合法 PD 没有场景时，真实 CLI 全部报告未覆盖和未知接受', () => {
+    const root = temporary()
+    for (const slug of ['skills', 'tool-execution']) {
+      const product = join(root, '.meta_harness/design/product', slug)
+      mkdirSync(product, { recursive: true })
+      writeFileSync(
+        join(product, 'README.md'),
+        `---\nid: PD-${slug}\nrevision: 1\nstatus: draft\n---\n`,
+      )
+      writeFileSync(join(product, 'design.md'), '# Product\n')
+    }
+    const result = run('--root', root)
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stderr).toBe('')
+    for (const slug of ['skills', 'tool-execution']) {
+      expect(result.stdout).toContain(
+        `${slug}（0 条）\n  uncovered：缺编号场景；执行 unknown；有效接受 unknown`,
+      )
+    }
+    expect(result.stdout).toContain('合计 2 个 topic、0 条带编号场景')
+    expect(result.stdout.match(/uncovered：缺编号场景/gu)).toHaveLength(2)
+    expect(result.stdout).not.toContain('已交付')
+  })
+  it('当前检出的真实 CLI 成功且不宣称已交付', () => {
     const result = run()
     expect(result.status, result.stderr).toBe(0)
-    expect(result.stdout).toContain('合计 16 个 topic、0 条带编号场景')
-    expect(result.stdout.match(/uncovered：缺编号场景/gu)).toHaveLength(16)
+    expect(result.stderr).toBe('')
+    expect(result.stdout).toContain('场景事实（覆盖声明、执行、有效接受分别报告）')
+    expect(result.stdout).not.toContain('覆盖声明有')
     expect(result.stdout).not.toContain('已交付')
   })
   it.each(['--config', '--capture'])('拒绝旧任务卡参数 %s', flag => {
