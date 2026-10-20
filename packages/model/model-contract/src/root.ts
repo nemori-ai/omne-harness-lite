@@ -4,6 +4,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { Message } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CredentialId } from './credential.ts'
+import type { ModelInvocationRef } from './reference.ts'
 import type { ParameterAdoption } from './profile.ts'
 
 declare const identity: unique symbol
@@ -49,6 +50,7 @@ export type ConsumerRef = Readonly<{
 }>
 export type ActorRef = Readonly<{ owner: string; subject: string; revision: string }>
 export type Access<P> = Readonly<{ principal: P; tenant: TenantId }>
+export type ModelReferenceAccess<P> = Access<P> & Readonly<{ reference: ModelInvocationRef }>
 export type CallAccess<P> = Access<P> & Readonly<{ call: ModelCallId }>
 export type Mutation<P> = CallAccess<P> & Readonly<{ operation: ModelOperationId }>
 export type Parameter =

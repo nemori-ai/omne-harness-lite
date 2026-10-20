@@ -217,6 +217,26 @@ Model 不执行工具建议，不决定原工作的终态，不重新运行扩�
 
 `argumentsSchema` 是工具声明采用的 JSON Schema 文档，draft 和词汇由其 adoption 指定。Model 检查当前 adapter 能否准确传送，Tool 负责实际参数准入。`JsonValue` 使用现有 lossless JSON 表示，数字为 lexeme，不是 `Record<string, unknown>`。`Message` 的合法形状不证明其中工具结果已获准外传；当前数据来源、内容读取、实际接收方及用途另核。
 
+### 可保存调用引用
+
+本节由 [#549 技术采用](https://github.com/nemori-ai/omne-harness-lite/issues/549#issuecomment-6293911043)采用。公开声明和六个纯函数归 [reference.ts](src/reference.ts)。`ModelInvocationRef` 与 `ModelOperationRef` 是独立品牌字符串，只负责定位，不证明存在或授予资格。
+
+规范文本分别是 `JSON.stringify(['model-invocation',1,tenantCodecText,call,admission])` 和 `JSON.stringify(['model-operation',1,tenantCodecText,call,admission,operation])`。调用方在首次受理前固定身份并编码。operation 可以等于 admission，也可以标识读取、控制或 ACK。引用不保存动作种类、结果或证据。
+
+文本先核类型与 1024 个 UTF-16 码元上限，再解析 JSON。非数组返回 shape，数组依次核 domain、version、精确元组长度、tenant、call、admission 和 operation。身份复用现行解码规则，admission 与 operation 另拒绝 `mop_--` 保留身份。1024 内的非规范空白可以解析，成功返回规范文本。身份不裁剪、不折叠，不忽略多余元素。
+
+encode 只接受 Object.prototype 或 null 原型的封闭 own enumerable string data fields。访问器、symbol、非枚举、未知和缺字段返回 shape。反射抛错返回 unreadable，不执行 getter 或 toJSON。Proxy 的反射 trap 仍可执行，此协议不承诺限制其副作用。
+
+resolve 先用 tenantCodec.encode 核当前 tenant 的铸造关系，再解析引用并比较租户。未铸造返回 invalid-tenant，异租户返回 foreign-tenant，其余拒绝为 malformed。成功返回冻结 parts，其中 tenant 是本次传入的同一对象。引用不替换当前资格。
+
+Admission 保留 call、revision、recovered 并增加 reference。首次 reference 来自实际提交的原身份，认回返回原账本回执中的 reference。同 call 换 operation 仍 conflict。`inspect`、普通 `connect` 和 `beginRead` 只接受 Access 加 invocation reference，beginRead 另带原读取 operation 和 result。没有旧形态重载。
+
+三个入口先解析，再分别委托原 recall、低层 directory.connect 和 acquireRead。malformed 映射 invalid(field='reference', reason='reference-'+rejection.reason)，invalid-tenant 映射 denied/tenant，foreign-tenant 映射 denied/本次入口名。失败不查询对象。正常路径仍分别核当前 facts、observe 与 read 资格。
+
+合法引用中的错误 admission 不能由 codec 判定。已有调用的 inspect 继续返回 invalid(admission,not-original)。connect 与 beginRead 只按 call 定位，当前对应资格成立时继续原协议，不增加受理事实查询。低层 `ModelInstanceDirectory` 仍接 CallAccess，由实际宿主兑现当前观察资格。raw Cordis 目录仅负责路由，不单独证明这个资格承诺。
+
+回包丢失或 commit-unknown 保留受理前保存的引用与固定输入。只有权威 not-accepted 才允许沿原身份再受理。ACK 前保存 operation reference、原 result 和原 evidence，恢复后 resolve 并调用现有 acknowledge。读操作与 admission 不混用，重复读与 ACK 的原顺序不变。
+
 <a id="342-结果失败和状态"></a>
 
 ### 结果、失败和状态
@@ -264,12 +284,12 @@ Settlement.source 由 Model 在原结果真实收场及必要保存共同成立�
 | 操作 | 固定身份与资格 | 成功及重复 | 失败、取消及恢复 |
 | --- | --- | --- | --- |
 | admit | 原 call、operation、request、consumer、capacity；当前发起资格与消费者关系 | 原调用和容量同提交；同身份同值返回原受理 | 不同固定输入 conflict；未提交拒绝不留发出；未知只查询原 operation。调用方停止等待不撤受理 |
-| inspect | call 与原 admission；当前事实读取资格 | found 含最新业务状态、控制及交接；同身份可重查 | 仅有权威未受理证明才给 not-accepted。读失败不推断 runtime 失联 |
+| inspect | invocation reference 中的 call 与原 admission；当前事实读取资格 | found 含最新业务状态、控制及交接；同身份可重查 | 仅有权威未受理证明才给 not-accepted。读失败不推断 runtime 失联 |
 | dispatches | call；当前账目及发出事实读取资格 | 按原发出顺序返回脱敏事实，费用保留 revision | 不连带授予请求/回复/秘密读取；晚到费用仍入原 dispatch |
 | cancel | 原 operation、call；当前控制资格 | 持久意图及传播状态；重复认回。同 call 后续同义意图只关联原控制，不追加发出。operation 是保留值（主体以 `--` 开头）时：等于目标调用的派生值且派生控制已存在，认回原控制；其他情况返回 invalid(field='operation') | 不等待物理停机才确认意图。传播失败保存待续做。已经真实完成仍保留真实终局 |
-| connect | call；当前观察资格 | 取得特定 instance 句柄，或明确 no-live-route | 失去目录依赖为 unavailable，不能变 not-accepted；销毁句柄只关观察 |
+| connect | invocation reference 中的 call；当前观察资格 | 取得特定 instance 句柄，或明确 no-live-route | 失去目录依赖为 unavailable，不能变 not-accepted；销毁句柄只关观察 |
 | observe | tenant/principal 与句柄原 instance | 首快照与后续 cursor 衔接，观察实际状态 | signal 只关本观察；失权/断开/实例替换结束流，原调用继续承担责任 |
-| beginRead | 原 operation、call、result；当前内容资格 | 首页与真实读取登记共同成立；重复认回原 read，先于 acknowledged 判断 | 未收场 not-settled；已 ACK 返回 acknowledged，不用旧引用新领全文 |
+| beginRead | invocation reference 中的 call、原读取 operation、result；当前内容资格 | 首页与真实读取登记共同成立；重复认回原 read，先于 acknowledged 判断 | 未收场 not-settled；已 ACK 返回 acknowledged，不用旧引用新领全文 |
 | readNext/closeRead | call、read 与页位置；当前资格 | 同 after 返回同页；close 幂等并保留结束原因 | 读断开不重做 Model。ACK 不能截断已准入读，实际失权按原规则结束 |
 | acknowledge | 原 operation、call、result、耐久证据；当前结果承接资格 | 真实收场、证据及 ACK 同一裁定中成立，清理任务一起保存；重复返回原 ACK 与当前清理 | 提前确认或伪证据拒绝；提交未知认回原 ACK；清理失败不撤确认，不要求消费者重确认 |
 

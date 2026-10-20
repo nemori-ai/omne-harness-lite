@@ -116,7 +116,7 @@ outputBatchBytes 按事实 JSON 的 UTF-8 逻辑字节数触发持久输出批�
 
 根 createModelRuntime 校验五依赖的方法形状及全部八配置字段。缺项或错误类型抛 TypeError，数值非有限整数或超界抛 RangeError。构造不调用依赖，不绑定、排队或启动网络。
 
-calls.admit、inspect、dispatches、cancel 分别委托 Commands 的 admit、recall、dispatches、control。Commands 拥有当前资格、租户隔离、原 operation 认回及原子提交。受理和取消成功后调用 instances.schedule；排队失败不撤销已提交事实，后续恢复扫描仍须接续责任。未知提交原样返回，不能当作明确拒绝。取消只提交意图，返回实际 ControlState，不代表供应商已经停止。
+calls.admit、dispatches、cancel 分别委托 Commands 的 admit、dispatches、control。inspect 先解析 invocation reference，再将 call/admission 交原 recall。普通 connect 和 beginRead 同样先解析引用，再将 call 交低层目录与 acquireRead；beginRead.operation 仍为读取操作。引用拒绝及三个入口的资格差别归[共同引用契约](../model-contract/SPEC.md#可保存调用引用)。Commands 拥有当前资格、租户隔离、原 operation 认回及原子提交。受理和取消成功后调用 instances.schedule；排队失败不撤销已提交事实，后续恢复扫描仍须接续责任。未知提交原样返回，不能当作明确拒绝。取消只提交意图，返回实际 ControlState，不代表供应商已经停止。
 
 受控宿主显式调用 driver.drive，以稳定 claim operation、instance 和可信 continuity 取得原执行代次。driver 按调用单写，取得当前资格后，保护覆盖接收、异步等待与原资源释放。无 dispatch、无相关未决写且尚未 prepare 时，创建 cursor0 空 blocks 的确认初始投影，先 publish，再 prepare/send。已有 dispatch 且本实例没有确认内容时仍发布新 handle，但 observe 首项为 ended/unavailable，不伪造空恢复，也不重新发送。
 

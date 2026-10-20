@@ -1,3 +1,5 @@
+import { invocationReference } from './reference-input.ts'
+import { encodeModelInvocationRef } from '../reference.ts'
 // The helpers that the checks share: the verdict primitives, the identities the suite makes, and the
 // small scenes (a call that was accepted, runs, has ended) that most checks start from.
 import { isDeepStrictEqual } from 'node:util'
@@ -148,7 +150,18 @@ export function targetOf<P>(scene: Scene<P>, call: ModelCallId): ConformanceCall
 }
 
 export function accessOf<P>(scene: Scene<P>, call: ModelCallId, tenant?: TenantId) {
-  return { principal: scene.subject.principal, tenant: tenant ?? scene.subject.tenant, call }
+  return {
+    principal: scene.subject.principal,
+    tenant: tenant ?? scene.subject.tenant,
+    call,
+    reference: decoded(
+      encodeModelInvocationRef({
+        tenant: scene.subject.tenant,
+        call,
+        admission: operationId(`admit-${call.slice('mcall_cf-'.length)}`),
+      }),
+    ),
+  }
 }
 
 export function mutationOf<P>(
@@ -167,7 +180,10 @@ export function admitInput<P>(
   over: Partial<Admit<P>> = {},
 ): Admit<P> {
   return {
-    ...mutationOf(scene, callId(label), operationId(`admit-${label}`)),
+    principal: scene.subject.principal,
+    tenant: scene.subject.tenant,
+    call: callId(label),
+    operation: operationId(`admit-${label}`),
     request: scene.request,
     consumer: scene.consumer,
     capacity: scene.capacity,
@@ -218,7 +234,10 @@ export async function lookup<P>(scene: Scene<P>, call: Placed<P>): Promise<Looku
   return succeeded(
     await runtimeOf(scene).calls.inspect({
       ...accessOf(scene, call.call),
-      admission: call.operation,
+      reference: invocationReference({
+        ...accessOf(scene, call.call),
+        admission: call.operation,
+      }),
     }),
     `the inspection of ${call.call}`,
   )

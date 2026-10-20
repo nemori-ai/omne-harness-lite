@@ -1,3 +1,4 @@
+import { reservedReference } from './reference-input.ts'
 // The checks of acceptance: recognising a repeat, refusing a conflict or a reserved operation, and
 // keeping the identity of an operation whose commit is not known.
 import { variantOf } from './conformance-defaults.ts'
@@ -110,8 +111,13 @@ export function admissionChecks<P>(): readonly Check<P>[] {
           { what: 'cancel', field: 'operation', outcome: await calls.cancel(access) },
           {
             what: 'inspect',
-            field: 'admission',
-            outcome: await calls.inspect({ ...access, admission: reserved }),
+            field: 'reference',
+            outcome: await Reflect.apply(calls.inspect, calls, [
+              {
+                ...access,
+                reference: reservedReference({ ...access, admission: reserved }),
+              },
+            ]),
           },
           {
             what: 'beginRead',

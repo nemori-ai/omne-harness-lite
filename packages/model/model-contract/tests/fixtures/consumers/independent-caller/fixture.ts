@@ -1,3 +1,4 @@
+import { invocationReference } from './values.ts'
 // A caller that has no Session, Run or Agent: it fixes a request, admits it under its own call and
 // operation, then looks it up, observes it, cancels it, reads its result and acknowledges it. It
 // imports only the public contract and the scripted provider that stands for whatever serves it.
@@ -266,7 +267,12 @@ async function unknownAdmissionIsLookedUpNotResent(): Promise<void> {
   const unknown = failureOf(await world.calls.admit(admission('a')))
   expect(unknown.kind === 'commit-unknown', 'the admission did not end unknown')
   expect(unknown.operation === operation('admit-a'), 'the unknown answer names another operation')
-  const found = must(await world.calls.inspect({ ...access('a'), admission: operation('admit-a') }))
+  const found = must(
+    await world.calls.inspect({
+      ...access('a'),
+      reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+    }),
+  )
   expect(found.kind === 'found', 'the original admission cannot be found')
   expect(found.state.call === call('a'), 'the lookup found another call')
   const again = await world.admit('a')

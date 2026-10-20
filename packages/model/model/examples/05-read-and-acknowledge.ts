@@ -1,3 +1,8 @@
+import {
+  encodeModelInvocationRef,
+  encodeModelOperationRef,
+  resolveModelOperationRef,
+} from '@omne-harness/model-contract'
 import { createModelRuntime } from '@omne-harness/model'
 import { judgePart } from '@omne-harness/message'
 import type { AckInput, AckReceipt, ModelFailure } from '@omne-harness/model-contract'
@@ -30,6 +35,14 @@ const example = createExampleAssembly({
 const provider = createModelRuntime(example.dependencies, configuration)
 const access = { ...example.access, call: example.call }
 const admission = operation('admit')
+// Fix this locator before admission. A lost reply cannot take away the recovery identity.
+const encoded = encodeModelInvocationRef({
+  tenant: example.access.tenant,
+  call: example.call,
+  admission,
+})
+if ('failure' in encoded) throw new Error(`Reference failed: ${encoded.failure.reason}`)
+const reference = encoded.ok
 const admitted = await provider.runtime.calls.admit({
   ...access,
   operation: admission,
@@ -45,14 +58,16 @@ let pendingAck: AckInput<typeof example.access.principal> | undefined
 try {
   const driven = await driving
   if ('failure' in driven) throw new Error(`Drive failed: ${JSON.stringify(driven.failure)}`)
-  const lookup = await provider.runtime.calls.inspect({ ...access, admission })
+  const lookup = await provider.runtime.calls.inspect({ ...example.access, reference })
   if ('failure' in lookup) throw new Error(`Inspect failed: ${JSON.stringify(lookup.failure)}`)
   if (lookup.ok.kind !== 'found' || lookup.ok.state.phase !== 'settled')
     throw new Error('No settled result')
   const result = lookup.ok.state.settlement.version
+  const readOperation = operation('read')
   const first = await provider.runtime.consumption.beginRead({
-    ...access,
-    operation: operation('read'),
+    ...example.access,
+    reference,
+    operation: readOperation,
     result,
   })
   if ('failure' in first) throw new Error(`Read failed: ${JSON.stringify(first.failure)}`)
@@ -106,6 +121,26 @@ try {
       operation: operation('ack'),
       result,
       evidence: { kind: 'processed', completion },
+    }
+    // Persist this operation locator together with the original result and evidence before ACK.
+    // The reference packages identity only. It proves neither completion nor acknowledgement.
+    const ackReference = encodeModelOperationRef({
+      tenant: access.tenant,
+      call: access.call,
+      admission,
+      operation: pendingAck.operation,
+    })
+    if ('failure' in ackReference)
+      throw new Error(`ACK reference failed: ${ackReference.failure.reason}`)
+    const savedAck = { reference: ackReference.ok, result, evidence: pendingAck.evidence }
+    const restored = resolveModelOperationRef(savedAck.reference, example.access.tenant)
+    if ('failure' in restored) throw new Error(`ACK restore failed: ${restored.failure.kind}`)
+    pendingAck = {
+      ...example.access,
+      call: restored.ok.call,
+      operation: restored.ok.operation,
+      result: savedAck.result,
+      evidence: savedAck.evidence,
     }
     let acknowledgement = await provider.runtime.consumption.acknowledge(pendingAck)
     if ('failure' in acknowledgement && acknowledgement.failure.kind === 'commit-unknown') {

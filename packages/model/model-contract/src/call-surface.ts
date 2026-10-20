@@ -1,6 +1,7 @@
 // Declarations of the public-api chapter "普通调用面与实例观察".
 import type {
   Access,
+  ModelReferenceAccess,
   CallAccess,
   Mutation,
   Admit,
@@ -92,18 +93,21 @@ export type DispatchRecord = Readonly<{
 }>
 export interface ModelCalls<P> {
   admit(input: Admit<P>): Reply<Admission>
-  inspect(input: CallAccess<P> & Readonly<{ admission: ModelOperationId }>): Reply<Lookup>
+  inspect(input: ModelReferenceAccess<P>): Reply<Lookup>
   dispatches(input: CallAccess<P>): Reply<readonly DispatchRecord[]>
   cancel(input: Mutation<P>): Reply<ControlState>
 }
 export interface ModelConsumption<P> {
-  beginRead(input: Mutation<P> & Readonly<{ result: ResultVersion }>): Reply<ReadStart>
+  beginRead(
+    input: ModelReferenceAccess<P> &
+      Readonly<{ operation: ModelOperationId; result: ResultVersion }>,
+  ): Reply<ReadStart>
   readNext(input: CallAccess<P> & Readonly<{ read: ReadId; after: string }>): Reply<ReadState>
   closeRead(input: CallAccess<P> & Readonly<{ read: ReadId }>): Reply<ReadState>
   acknowledge(input: AckInput<P>): Reply<AckReceipt>
 }
 export interface ModelDirectory<P> {
-  connect(input: CallAccess<P>): Reply<LiveRoute<P>>
+  connect(input: ModelReferenceAccess<P>): Reply<LiveRoute<P>>
 }
 export interface ModelRuntime<P> {
   readonly calls: ModelCalls<P>

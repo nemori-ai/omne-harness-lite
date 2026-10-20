@@ -1,3 +1,4 @@
+import { encodeModelInvocationRef } from '@omne-harness/model-contract'
 import { createModelRuntime } from '@omne-harness/model'
 import { configuration, createExampleAssembly, operation } from '../tests/example-support.ts'
 
@@ -16,6 +17,14 @@ const example = createExampleAssembly({
 })
 const provider = createModelRuntime(example.dependencies, configuration)
 const admission = operation('admit')
+// Fix this locator before admission. A lost reply cannot take away the recovery identity.
+const encoded = encodeModelInvocationRef({
+  tenant: example.access.tenant,
+  call: example.call,
+  admission,
+})
+if ('failure' in encoded) throw new Error(`Reference failed: ${encoded.failure.reason}`)
+const reference = encoded.ok
 try {
   const admitted = await provider.runtime.calls.admit({
     ...example.access,
@@ -33,8 +42,7 @@ try {
   if ('failure' in driven) throw new Error(`Drive failed: ${JSON.stringify(driven.failure)}`)
   const lookup = await provider.runtime.calls.inspect({
     ...example.access,
-    call: example.call,
-    admission,
+    reference,
   })
   if ('failure' in lookup) throw new Error(`Inspection failed: ${JSON.stringify(lookup.failure)}`)
   if (lookup.ok.kind !== 'found' || lookup.ok.state.phase !== 'settled')

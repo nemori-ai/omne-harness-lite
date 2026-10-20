@@ -15,6 +15,8 @@ This member owns the unique Service definitions, keys, Context/Events augmentati
 
 Start with [consumer guidance](docs/context.md). The [public API page](docs/public-api.md) links to the source declarations of the two entries. The directories are the only concrete Services; select an implementation of the abstract Services when the application needs execution.
 
+The ordinary runtime uses invocation references. The raw instance service implements ModelInstanceDirectory and keeps tenant/call routing. A host must enforce current observation access. See [SPEC](SPEC.md).
+
 ## Contracts
 
 [SPEC](SPEC.md) owns behavior beyond types. The [public API page](docs/public-api.md) is the source navigation: each declaration exists only in `src/`. [Verification obligations](verification/index.md) define the evidence required before delivery.

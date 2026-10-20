@@ -1,3 +1,5 @@
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
+import { referenceFailure } from './reference.ts'
 import { createModelDriver } from './driver.ts'
 import type {
   ModelCommands,
@@ -147,8 +149,11 @@ export function createModelRuntime<P>(
           if ('ok' in result) await wake({ tenant: input.tenant, call: input.call })
           return result
         },
-        inspect: ({ principal, tenant, call, admission }) =>
-          commands.recall({ principal, tenant, call, admission }),
+        inspect: async ({ principal, tenant, reference }) => {
+          const resolved = resolveModelInvocationRef(reference, tenant)
+          if ('failure' in resolved) return referenceFailure(resolved.failure, 'inspect')
+          return commands.recall({ principal, ...resolved.ok })
+        },
         dispatches: ({ principal, tenant, call }) =>
           commands.dispatches({ principal, tenant, call }),
         cancel: async ({ principal, tenant, call, operation }) => {
@@ -162,9 +167,20 @@ export function createModelRuntime<P>(
         },
       },
       consumption: {
-        beginRead: async ({ principal, tenant, call, operation, result }) =>
-          reserved(operation) ??
-          commands.acquireRead({ principal, tenant, call, operation, result }),
+        beginRead: async ({ principal, tenant, reference, operation, result }) => {
+          const resolved = resolveModelInvocationRef(reference, tenant)
+          if ('failure' in resolved) return referenceFailure(resolved.failure, 'beginRead')
+          return (
+            reserved(operation) ??
+            commands.acquireRead({
+              principal,
+              tenant: resolved.ok.tenant,
+              call: resolved.ok.call,
+              operation,
+              result,
+            })
+          )
+        },
         readNext: async ({ principal, tenant, call, read, after }) =>
           commands.nextRead({ principal, tenant, call, read, after }),
         closeRead: async ({ principal, tenant, call, read }) =>
@@ -197,8 +213,15 @@ export function createModelRuntime<P>(
         },
       },
       instances: {
-        connect: ({ principal, tenant, call }) =>
-          instances.directory.connect({ principal, tenant, call }),
+        connect: async ({ principal, tenant, reference }) => {
+          const resolved = resolveModelInvocationRef(reference, tenant)
+          if ('failure' in resolved) return referenceFailure(resolved.failure, 'connect')
+          return instances.directory.connect({
+            principal,
+            tenant: resolved.ok.tenant,
+            call: resolved.ok.call,
+          })
+        },
       },
     },
     recover: () => unavailable('recover', '5.4'),

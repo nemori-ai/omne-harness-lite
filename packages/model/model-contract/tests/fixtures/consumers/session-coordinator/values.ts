@@ -1,3 +1,4 @@
+import { encodeModelInvocationRef } from '@omne-harness/model-contract'
 // The values that the paths of this fixture send and read. Every identity comes from a decoder of
 // a public package, so no value is made by an assertion.
 import {
@@ -103,13 +104,22 @@ const capacity: ResultCapacity = { bytes: '1000', blocks: '10', attachmentBytes:
 export const access = (name: string, tenantId: TenantId = tenantA) => ({
   principal: coordinator,
   tenant: tenantId,
+  reference: must(
+    encodeModelInvocationRef({
+      tenant: tenantA,
+      call: call(name),
+      admission: operation(`admit-${name}`),
+    }),
+  ),
   call: call(name),
 })
 
 export const callRef = (name: string) => ({ tenant: tenantA, call: call(name) })
 
 export const admission = (name: string): Admit<Principal> => ({
-  ...access(name),
+  principal: coordinator,
+  tenant: tenantA,
+  call: call(name),
   operation: operation(`admit-${name}`),
   request,
   consumer,
@@ -153,10 +163,29 @@ export function newWorld() {
     /** The state of the call, looked up through its own admission operation. */
     async state(name: string): Promise<CallState> {
       const found = must(
-        await calls.inspect({ ...access(name), admission: operation(`admit-${name}`) }),
+        await calls.inspect({
+          ...access(name),
+          reference: invocationReference({
+            ...access(name),
+            admission: operation(`admit-${name}`),
+          }),
+        }),
       )
       expect(found.kind === 'found', `the provider does not know the call ${name}`)
       return found.state
     },
   }
+}
+
+/** This fixture constructs its own locator through the installed public codec. */
+export function invocationReference<T extends Parameters<typeof encodeModelInvocationRef>[0]>(
+  parts: T,
+) {
+  return must(
+    encodeModelInvocationRef({
+      tenant: parts.tenant,
+      call: parts.call,
+      admission: parts.admission,
+    }),
+  )
 }

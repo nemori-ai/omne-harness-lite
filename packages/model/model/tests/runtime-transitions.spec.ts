@@ -24,7 +24,13 @@ function manual(f: ReturnType<typeof runtimeFixture>) {
   }
 }
 async function snapshot(m: ReturnType<typeof manual>, f: ReturnType<typeof runtimeFixture>) {
-  const route = unbox(await m.provider.runtime.instances.connect(f.admit))
+  const route = unbox(
+    await m.provider.runtime.instances.connect({
+      principal: f.principal,
+      tenant: f.tenant,
+      reference: f.reference,
+    }),
+  )
   if (route.kind !== 'live') throw new Error('missing live route')
   const observer = route.handle
     .observe({ ...f.admit, signal: new AbortController().signal })

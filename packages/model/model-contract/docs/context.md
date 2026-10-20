@@ -21,7 +21,7 @@ flowchart LR
 
 ## 安装与导入选择
 
-model-contract 的根入口已导出全部 153 个类型声明（含引用共享 `ToolCallPart` 的声明）与 18 个运行值，`./testing` 入口导出受控替代提供者与替代传输（给领域外的协调者练习失败路径，不是生产提供者）和提供者符合性断言 `checkModelProviderConformance`（提供者作者用它检查自己的提供者是否守住公开面上可观察的契约义务）；model-cordis-contract 已导出十五个抽象 Service（含凭据）、实例目录与转换目录。model 的凭据判定消费 model-contract 的凭据契约，createModelRuntime 已支持受理、原流保存、最小实例观察与[有限的原终局收场](../../model/SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现，retained ACK 与生产宿主尚未实现；本地凭据保管及其插件在 model-host-local。下表描述托管运行接口实现后的消费路径，现有凭据入口见 model 的公开文档。
+model-contract 的根入口已导出全部 161 个类型声明（含引用共享 `ToolCallPart` 的声明）与 25 个运行值，`./testing` 入口导出受控替代提供者与替代传输（给领域外的协调者练习失败路径，不是生产提供者）和提供者符合性断言 `checkModelProviderConformance`（提供者作者用它检查自己的提供者是否守住公开面上可观察的契约义务）；model-cordis-contract 已导出十五个抽象 Service（含凭据）、实例目录与转换目录。model 的凭据判定消费 model-contract 的凭据契约，createModelRuntime 已支持受理、原流保存、最小实例观察与[有限的原终局收场](../../model/SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现，retained ACK 与生产宿主尚未实现；本地凭据保管及其插件在 model-host-local。下表描述托管运行接口实现后的消费路径，现有凭据入口见 model 的公开文档。
 
 | 使用任务 | 安装与导入 |
 | --- | --- |

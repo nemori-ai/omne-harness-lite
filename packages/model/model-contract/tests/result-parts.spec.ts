@@ -1,3 +1,4 @@
+import { invocationReference } from './reference-input.ts'
 import { expect, it } from 'vitest'
 import { ScriptedModelError } from '@omne-harness/model-contract/testing'
 import { canonical } from '../src/testing/result-pages.ts'
@@ -150,7 +151,10 @@ it('rejects invalid page targets, malformed partials and capacity overflow befor
     f.settle([{ kind: 'partial', content: 'text', value: 'x'.repeat(2000), trims: [] }], 1),
   ).toThrow('capacity')
   const lookup = must(
-    await f.provider.runtime.calls.inspect({ ...access('a'), admission: operation('admit-a') }),
+    await f.provider.runtime.calls.inspect({
+      ...access('a'),
+      reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+    }),
   )
   expect(lookup.kind === 'found' && lookup.state.phase).toBe('accepted')
   f.settle([{ kind: 'partial', content: 'text', value: 'kept', trims: [] }], 1)
@@ -203,7 +207,10 @@ it('refuses malformed partial discriminants and undeclared result fields before 
       Reflect.apply(f.controller.settle, undefined, [{ ...input, parts: [part] }]),
     ).toThrow()
   const found = must(
-    await f.provider.runtime.calls.inspect({ ...access('a'), admission: operation('admit-a') }),
+    await f.provider.runtime.calls.inspect({
+      ...access('a'),
+      reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+    }),
   )
   expect(found.kind === 'found' && found.state.phase).toBe('accepted')
 })
@@ -220,7 +227,10 @@ it('rejects sparse parts and trims atomically and then delivers the original rea
   ]
   const before = await f.provider.runtime.calls.inspect({
     ...access('a'),
-    admission: operation('admit-a'),
+    reference: invocationReference({
+      ...access('a'),
+      admission: operation('admit-a'),
+    }),
   })
   for (const middle of [false, true]) {
     function holes<T>(value: T): T[] {
@@ -243,7 +253,10 @@ it('rejects sparse parts and trims atomically and then delivers the original rea
         expect(error).toMatchObject({ reason: 'invalid-script' })
       }
       expect(
-        await f.provider.runtime.calls.inspect({ ...access('a'), admission: operation('admit-a') }),
+        await f.provider.runtime.calls.inspect({
+          ...access('a'),
+          reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+        }),
       ).toEqual(before)
       expect(
         await f.provider.runtime.consumption.beginRead({
@@ -272,7 +285,10 @@ it('rejects an invalid sealed block without settling and accepts the legal succe
   const block = textBlock('valid', 'kept')
   const before = await f.provider.runtime.calls.inspect({
     ...access('a'),
-    admission: operation('admit-a'),
+    reference: invocationReference({
+      ...access('a'),
+      admission: operation('admit-a'),
+    }),
   })
   let rejected: unknown
   try {
@@ -286,7 +302,10 @@ it('rejects an invalid sealed block without settling and accepts the legal succe
   expect(rejected).toBeInstanceOf(ScriptedModelError)
   expect(rejected).toMatchObject({ reason: 'invalid-script' })
   expect(
-    await f.provider.runtime.calls.inspect({ ...access('a'), admission: operation('admit-a') }),
+    await f.provider.runtime.calls.inspect({
+      ...access('a'),
+      reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+    }),
   ).toEqual(before)
   expect(
     await f.provider.runtime.consumption.beginRead({

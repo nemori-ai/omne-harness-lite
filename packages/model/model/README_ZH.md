@@ -24,6 +24,8 @@
 
 内存测试提供者交付 sealed/partial 及真实 trims。显式项数与字节目标按完整项组页，超目标大项独页，整个页受原受理容量约束。消费者须处理未封值与提醒。具体配置及局部上限见[测试入口](docs/public-api.md#内存测试入口)。
 
+调用方在受理前编码并保存调用引用。inspect、connect 和 beginRead 接收该引用与当前 Access。第五课保存操作引用及原 ACK result/evidence，恢复后重入原操作。见[共同引用契约](../model-contract/SPEC.md#可保存调用引用)。
+
 ## 运行教学示例
 
 在仓库检出中使用 Node.js 24 或更高版本和 pnpm 10.28.1。这些 workspace 包尚未公开发布。示例不需要厂商账户、网络或真实凭据。

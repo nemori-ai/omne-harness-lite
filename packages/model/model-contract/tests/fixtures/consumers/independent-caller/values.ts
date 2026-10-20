@@ -1,3 +1,4 @@
+import { encodeModelInvocationRef } from '@omne-harness/model-contract'
 // The values that the paths of this fixture send and read. Every identity comes from a decoder of
 // a public package, and every block from the content-block judge, so no value is made by an assertion.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
@@ -133,13 +134,22 @@ export function textsOf(parts: readonly ResultPart[]): string[] {
 export const access = (name: string, principal: Principal = alice) => ({
   principal,
   tenant: tenantA,
+  reference: must(
+    encodeModelInvocationRef({
+      tenant: tenantA,
+      call: call(name),
+      admission: operation(`admit-${name}`),
+    }),
+  ),
   call: call(name),
 })
 
 export const callRef = (name: string) => ({ tenant: tenantA, call: call(name) })
 
 export const admission = (name: string): Admit<Principal> => ({
-  ...access(name),
+  principal: alice,
+  tenant: tenantA,
+  call: call(name),
   operation: operation(`admit-${name}`),
   request,
   consumer,
@@ -198,7 +208,13 @@ export function newWorld() {
     /** The state of the call, looked up through its own admission operation. */
     async state(name: string, principal: Principal = alice): Promise<CallState> {
       const found = must(
-        await calls.inspect({ ...access(name, principal), admission: operation(`admit-${name}`) }),
+        await calls.inspect({
+          ...access(name, principal),
+          reference: invocationReference({
+            ...access(name, principal),
+            admission: operation(`admit-${name}`),
+          }),
+        }),
       )
       expect(found.kind === 'found', `the provider does not know the call ${name}`)
       return found.state
@@ -207,3 +223,16 @@ export function newWorld() {
 }
 
 export type World = ReturnType<typeof newWorld>
+
+/** This fixture constructs its own locator through the installed public codec. */
+export function invocationReference<T extends Parameters<typeof encodeModelInvocationRef>[0]>(
+  parts: T,
+) {
+  return must(
+    encodeModelInvocationRef({
+      tenant: parts.tenant,
+      call: parts.call,
+      admission: parts.admission,
+    }),
+  )
+}

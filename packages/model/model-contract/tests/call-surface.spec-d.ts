@@ -1,3 +1,8 @@
+import type {
+  ModelInvocationRef,
+  ModelReferenceAccess,
+  ModelOperationId,
+} from '@omne-harness/model-contract'
 import { expectTypeOf, it } from 'vitest'
 import type {
   Access,
@@ -78,8 +83,8 @@ it('DispatchRecord keeps the send state and the cost apart', () => {
 
 it('an adapter can implement ModelCalls from the contract alone', () => {
   const calls: ModelCalls<string> = {
-    admit: async () => ({ ok: { call, revision, recovered: false } }),
-    inspect: async input => ({ ok: { kind: 'not-accepted', operation: input.admission } }),
+    admit: async () => ({ ok: { call, revision, recovered: false, reference } }),
+    inspect: async input => ({ ok: { kind: 'not-accepted', operation: operation } }),
     dispatches: async () => ({ ok: [] }),
     cancel: async () => ({ ok: { kind: 'none' } }),
   }
@@ -89,9 +94,12 @@ it('an adapter can implement ModelCalls from the contract alone', () => {
     Reply<readonly DispatchRecord[]>
   >()
   expectTypeOf<ModelCalls<string>['admit']>().parameter(0).toExtend<Mutation<string>>()
-  expectTypeOf<ModelCalls<string>['inspect']>().parameter(0).toExtend<CallAccess<string>>()
+  expectTypeOf<ModelCalls<string>['inspect']>()
+    .parameter(0)
+    .toEqualTypeOf<ModelReferenceAccess<string>>()
 })
 
+declare const reference: ModelInvocationRef
 declare const calls: ModelCalls<string>
 
 it('cancel carries no reason and admit needs the tenant', () => {
@@ -272,7 +280,10 @@ it('an adapter can implement ModelConsumption and ModelDirectory from the contra
   void [consumption, directory]
   expectTypeOf<ModelConsumption<string>['beginRead']>()
     .parameter(0)
-    .toEqualTypeOf<Mutation<string> & Readonly<{ result: ResultVersion }>>()
+    .toEqualTypeOf<
+      ModelReferenceAccess<string> &
+        Readonly<{ operation: ModelOperationId; result: ResultVersion }>
+    >()
   expectTypeOf<ModelConsumption<string>['beginRead']>().returns.toEqualTypeOf<Reply<ReadStart>>()
   expectTypeOf<ModelConsumption<string>['readNext']>()
     .parameter(0)
@@ -320,4 +331,16 @@ it('the ordinary runtime has no driver, no publication and no replaceable parts'
       instances: ModelDirectory<string>
     }>
   >()
+})
+
+it('requires invocation references at ordinary boundaries and keeps read operations separate', () => {
+  void calls.inspect({ principal: 'p', tenant, reference })
+  void directory.connect({ principal: 'p', tenant, reference })
+  void consumption.beginRead({ principal: 'p', tenant, reference, operation, result })
+  // @ts-expect-error The old call/admission input no longer exists.
+  void calls.inspect({ principal: 'p', tenant, call, admission: operation })
+  // @ts-expect-error The provider directory's call identity is not a public connection input.
+  void directory.connect({ principal: 'p', tenant, call })
+  // @ts-expect-error A read requires its independent operation.
+  void consumption.beginRead({ principal: 'p', tenant, reference, result })
 })

@@ -1,6 +1,10 @@
+import { referenceRejected } from './reference.ts'
+import type { ModelReferenceAccess } from '../root.ts'
+import { encodeModelInvocationRef, resolveModelInvocationRef } from '../reference.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   Admission,
+  ModelInvocationRef,
   ControlState,
   DispatchRecord,
   Lookup,
@@ -24,12 +28,18 @@ import {
 import { mintRevision } from './mint.ts'
 import { conflictOf, performWrite, remember, sameParameters, writeOf } from './writes.ts'
 
-function newRecord<P>(core: Core<P>, scope: string, input: Admit<P>): CallRecord<P> {
+function newRecord<P>(
+  core: Core<P>,
+  scope: string,
+  input: Admit<P>,
+  reference: ModelInvocationRef,
+): CallRecord<P> {
   return {
     tenant: input.tenant,
     scope,
     call: input.call,
     admission: input.operation,
+    reference,
     capacity: structuredClone(input.capacity),
     consumer: structuredClone(input.consumer),
     revision: 1,
@@ -53,6 +63,17 @@ export function createCalls<P>(core: Core<P>): ModelCalls<P> {
     const target = resolve(core, input, 'admit')
     if (target === null) return denied('admit')
     const { scope, record } = target
+    const encoded = encodeModelInvocationRef({
+      tenant: input.tenant,
+      call: input.call,
+      admission: input.operation,
+    })
+    if ('failure' in encoded)
+      return fail({
+        kind: 'invalid',
+        field: 'reference',
+        reason: 'reference-' + encoded.failure.reason,
+      })
     retried(core, scope, input.operation, input.call)
     const parameters = {
       call: input.call,
@@ -63,7 +84,12 @@ export function createCalls<P>(core: Core<P>): ModelCalls<P> {
     const known = core.operations.get(scoped(scope, input.operation))
     if (known !== undefined)
       return sameParameters(known, parameters)
-        ? succeed({ call: input.call, revision: mintRevision(known.revision), recovered: true })
+        ? succeed({
+            call: input.call,
+            revision: mintRevision(known.revision),
+            recovered: true,
+            reference: known.record.reference,
+          })
         : conflictOf(input.operation, known.record)
     if (record !== null) return conflictOf(input.operation, record)
     if (core.state.quiescing)
@@ -73,22 +99,30 @@ export function createCalls<P>(core: Core<P>): ModelCalls<P> {
         diagnostic: 'the provider is quiescing and accepts no new calls',
       })
     return performWrite(core, writeOf(scope, 'admit', input), (): Admission => {
-      const created = newRecord(core, scope, input)
+      const created = newRecord(core, scope, input, encoded.ok)
       core.records.set(scoped(scope, input.call), created)
       remember(core, scope, input.operation, created, parameters)
-      return { call: input.call, revision: mintRevision(created.revision), recovered: false }
+      return {
+        call: input.call,
+        revision: mintRevision(created.revision),
+        recovered: false,
+        reference: encoded.ok,
+      }
     })
   }
 
-  async function inspect(
-    input: CallAccess<P> & Readonly<{ admission: ModelOperationId }>,
-  ): Reply<Lookup> {
+  async function inspect(original: ModelReferenceAccess<P>): Reply<Lookup> {
+    const resolved = resolveModelInvocationRef(original.reference, original.tenant)
+    if ('failure' in resolved) return referenceRejected(resolved.failure, 'inspect')
+    const input = { principal: original.principal, ...resolved.ok }
     if (isReserved(input.admission)) return reservedOperation('admission')
     const target = resolve(core, input, 'inspect')
     if (target === null) return denied('inspect')
     const record = target.record
-    if (record === null || record.admission !== input.admission)
+    if (record === null)
       return succeed<Lookup>({ kind: 'not-accepted', operation: input.admission })
+    if (record.admission !== input.admission)
+      return fail({ kind: 'invalid', field: 'admission', reason: 'not-original' })
     return succeed<Lookup>({ kind: 'found', state: stateOf(record) })
   }
 

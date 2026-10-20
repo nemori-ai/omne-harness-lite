@@ -33,3 +33,14 @@ export {
   decodeRevision,
 } from './identity-values.ts'
 export { deriveGuardControlOperation } from './guard-control.ts'
+
+export type * from './reference.ts'
+export {
+  MODEL_REFERENCE_MAX_LENGTH,
+  encodeModelInvocationRef,
+  encodeModelOperationRef,
+  decodeModelInvocationRef,
+  decodeModelOperationRef,
+  resolveModelInvocationRef,
+  resolveModelOperationRef,
+} from './reference.ts'

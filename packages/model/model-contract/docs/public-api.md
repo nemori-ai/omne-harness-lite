@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 153 个类型和 18 个运行值：身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`，以及[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 161 个类型和 25 个运行值：身份解码函数、比较函数、两个常量、`deriveGuardControlOperation`，以及[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -27,8 +27,10 @@
 
 本章给所有调用方：身份品牌与解码函数、受理请求的值形状。
 
-- 声明：[`src/root.ts`](../src/root.ts)、[`src/identity-values.ts`](../src/identity-values.ts)。
-- 类型探针：[`tests/root.spec-d.ts`](../tests/root.spec-d.ts)。运行时行为测试：[`tests/identity.spec.ts`](../tests/identity.spec.ts)。
+- 声明：[`src/root.ts`](../src/root.ts)、[`src/identity-values.ts`](../src/identity-values.ts)、[`src/reference.ts`](../src/reference.ts)。
+- 类型探针：[`tests/root.spec-d.ts`](../tests/root.spec-d.ts)、[`tests/reference.spec-d.ts`](../tests/reference.spec-d.ts)。运行时行为测试：[`tests/identity.spec.ts`](../tests/identity.spec.ts)、[`tests/reference.spec.ts`](../tests/reference.spec.ts)。
+
+可保存引用的格式、失败顺序与恢复责任见 [SPEC](../SPEC.md#可保存调用引用)。三个普通入口使用 ModelReferenceAccess，底层 ModelInstanceDirectory 仍使用 CallAccess。
 
 身份和序列的文本规则如下，行为条款归[根入口的值与请求](../SPEC.md#342-根入口的值与请求)。
 
@@ -37,9 +39,9 @@
 - 身份类（`ModelCallId`、`DispatchId`、`ModelInstanceId`、`ModelOperationId`、`ResultVersion`、`ReadId`、`ModelDiagnosticId`、`ModelDiagnosticCursor`）是固定前缀加主体。前缀见 `MODEL_IDENTITY_PREFIXES`，主体是 1 个以上 `[A-Za-z0-9_-]` 字符。只比较相等，用 `===`。
 - 序列类（`Revision`、`OutputCursor`）是十进制非负整数的规范写法：`0`，或不以 `0` 开头的数字串。相等用 `===`，先后用 `compareRevisions` 与 `compareOutputCursors`，按整数值比较，不转为浮点数。比较只对同一对象的修订或同一调用流内的游标有定义。
 - 无前缀类（只有 `CredentialId`）由人在凭据保管的配置路径上命名，不由 Model 铸造，所以没有前缀。它的字符规则不同，见[凭据引用与解析端口](#凭据引用与解析端口)。
-- 全部品牌的文本不超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元。函数不裁剪空白，不折叠大小写。检查按 `ModelIdentityRejection.reason` 的顺序 `type`、`empty`、`length`、`prefix`、`character`、`leading-zero` 自上而下，返回第一个失败。`prefix` 只适用身份类，`leading-zero` 只适用序列类，`CredentialId` 只会返回 `type`、`empty`、`length`、`character`。
+- 上述单一身份品牌的文本不超过 `MODEL_IDENTITY_MAX_LENGTH`（256）个 UTF-16 码元。函数不裁剪空白，不折叠大小写。检查按 `ModelIdentityRejection.reason` 的顺序 `type`、`empty`、`length`、`prefix`、`character`、`leading-zero` 自上而下，返回第一个失败。`prefix` 只适用身份类，`leading-zero` 只适用序列类，`CredentialId` 只会返回 `type`、`empty`、`length`、`character`。
 - 失败值的 `field` 是品牌键 `ModelIdentityKey`（例如 `'ModelDispatchId'`），不是导出类型名（`DispatchId`）。品牌键带领域前缀，跨领域日志中不会与 Tool 的同名身份混淆。
-- 品牌值就是线上文本，编码是恒等函数，所以不发布编码函数。品牌相等即文本相等，不发布相等函数。
+- 上述单一身份品牌值就是线上文本，编码是恒等函数，所以不发布编码函数。ModelInvocationRef 和 ModelOperationRef 另有编码函数与 1024 上限。品牌相等即文本相等，不发布相等函数。
 - `ModelOperationId` 的主体不得以 `--` 开头。该前缀保留给守卫派生的控制 operation（见[消费者 owner 的装配声明](#消费者-owner-的装配声明)）。`decodeModelOperationId` 仍只核格式，不拒绝它。接受调用方提交的 `ModelOperationId` 的公开方法在收到保留值时按[资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送)返回 `invalid`。
 
 ## 结果、失败和状态
@@ -208,7 +210,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 本章给诊断提供者和有诊断授权的只读调用方：诊断记录、分页与两个身份解码函数。
 
-- 声明：[`src/diagnostics.ts`](../src/diagnostics.ts)、[`src/identity-values.ts`](../src/identity-values.ts)。
+- 声明：[`src/diagnostics.ts`](../src/diagnostics.ts)、[`src/identity-values.ts`](../src/identity-values.ts)、[`src/reference.ts`](../src/reference.ts)。
 - 类型探针：[`tests/diagnostics.spec-d.ts`](../tests/diagnostics.spec-d.ts)。
 
 诊断是独立授权的只读面，不挂到普通调用句柄上，也不要求所有 ModelRuntime 消费者依赖它。提供者从原调用和 dispatch 的耐久事实投影，不接受普通调用者提交诊断内容。
@@ -262,7 +264,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 | `admission-conflict-on-different-input` | 同 operation 配不同固定输入返回 `conflict`，并指名这个 operation | [逐操作行为](../SPEC.md#342-逐操作行为) | |
 | `operation-not-reused-across-methods` | 受理用过的 operation 再用于取消不成功，调用状态不变 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | |
 | `admission-is-not-a-send` | 刚受理的调用不显示已开始的发送 | [逐操作行为](../SPEC.md#342-逐操作行为) | |
-| `reserved-operation-refused` | `admit`、`cancel`、`inspect`、`beginRead`、`acknowledge` 收到保留 operation 返回 `invalid`，字段名取承载 operation 的字段 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | |
+| `reserved-operation-refused` | `admit`、`cancel`、`inspect`、`beginRead`、`acknowledge` 收到保留 operation 返回 `invalid`，字段名取承载 operation 的字段；引用内的保留 admission 由 reference 拒绝 | [独立执行与提供者操作](../SPEC.md#342-独立执行与提供者操作) | |
 | `refused-admission-forms-no-call` | 被拒的受理不形成调用：同一调用用别的 operation 再受理，是首次受理 | [逐操作行为](../SPEC.md#342-逐操作行为) | |
 | `commit-unknown-keeps-operation` | 受理提交未知后，失败值指名原 operation；同 operation 重试认回原调用；另一个调用用这个 operation 不成功。`applied` 与 `dropped` 各检查一次 | [资格、共同提交与实际发送](../SPEC.md#342-资格共同提交与实际发送) | `failNextWrite` |
 | `commit-unknown-not-reported-as-refusal` | 已生效的受理回答提交未知后，`inspect` 不报 `not-accepted` | [逐操作行为](../SPEC.md#342-逐操作行为) | `failNextWrite` |

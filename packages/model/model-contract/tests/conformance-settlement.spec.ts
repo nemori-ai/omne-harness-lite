@@ -1,3 +1,4 @@
+import { referenceParts } from './reference-input.ts'
 import {
   decodeModelCallId,
   decodeModelOperationId,
@@ -78,8 +79,8 @@ describe('the conformance suite on the result and its handover', () => {
             if (!('ok' in outcome) || outcome.ok.kind !== 'found') return outcome
             const { state } = outcome.ok
             if (state.phase !== 'settled') return outcome
-            ended.add(keyOf(input))
-            return unsettled.has(keyOf(input))
+            ended.add(keyOf(referenceParts(input)))
+            return unsettled.has(keyOf(referenceParts(input)))
               ? succeed({ kind: 'found', state: change(state) })
               : outcome
           },
@@ -485,8 +486,8 @@ describe('the conformance suite on the other ways that a handover can go wrong',
           ...calls,
           async inspect(input) {
             const outcome = await calls.inspect(input)
-            const count = (reads.get(input.call) ?? 0) + 1
-            reads.set(input.call, count)
+            const count = (reads.get(referenceParts(input).call) ?? 0) + 1
+            reads.set(referenceParts(input).call, count)
             if (count < 2 || !('ok' in outcome) || outcome.ok.kind !== 'found') return outcome
             const { state } = outcome.ok
             if (state.phase !== 'settled') return outcome
@@ -516,7 +517,11 @@ describe('the conformance suite on the other ways that a handover can go wrong',
           ...calls,
           async inspect(input) {
             const outcome = await calls.inspect(input)
-            if (!asked.has(input.call) || !('ok' in outcome) || outcome.ok.kind !== 'found')
+            if (
+              !asked.has(referenceParts(input).call) ||
+              !('ok' in outcome) ||
+              outcome.ok.kind !== 'found'
+            )
               return outcome
             return succeed({
               kind: 'found',
@@ -600,9 +605,10 @@ describe('the conformance suite on the other ways that a handover can go wrong',
         consumption: consumption => ({
           ...consumption,
           async beginRead(input) {
-            reading.add(input.call)
+            reading.add(referenceParts(input).call)
             const outcome = await consumption.beginRead(input)
-            if (!('ok' in outcome) || outcome.ok.kind !== 'started') reading.delete(input.call)
+            if (!('ok' in outcome) || outcome.ok.kind !== 'started')
+              reading.delete(referenceParts(input).call)
             return outcome
           },
           async acknowledge(input) {
@@ -651,7 +657,11 @@ describe('the conformance suite on the other ways that a handover can go wrong',
           ...calls,
           async inspect(input) {
             const outcome = await calls.inspect(input)
-            if (!gave.has(input.call) || !('ok' in outcome) || outcome.ok.kind !== 'found')
+            if (
+              !gave.has(referenceParts(input).call) ||
+              !('ok' in outcome) ||
+              outcome.ok.kind !== 'found'
+            )
               return outcome
             return succeed({
               kind: 'found',

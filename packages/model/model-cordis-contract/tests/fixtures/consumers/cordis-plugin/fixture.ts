@@ -1,3 +1,4 @@
+import { invocationReference, reservedReference } from './values.ts'
 // A Cordis plugin that follows model calls. The assembly (the host plugin in host.ts) provides a
 // scripted runtime on the `modelRuntime` key and sends `model-cordis-contract/call-changed`; the
 // plugin in plugin.ts depends on the service through the definition entry, asks the runtime for the
@@ -38,7 +39,17 @@ async function followedCall() {
   const { fiber, followed } = await assembly.follow({
     principal: follower,
     tenant: tenantA,
-    tracked: [{ call: call('a'), admission: admissionOf('a'), known: admitted }],
+    tracked: [
+      {
+        call: call('a'),
+        reference: invocationReference({
+          tenant: tenantA,
+          call: call('a'),
+          admission: admissionOf('a'),
+        }),
+        known: admitted,
+      },
+    ],
   })
   return { provider, assembly, fiber, followed, admitted }
 }
@@ -147,30 +158,42 @@ async function refusedLookupStopsFollowingTheCall(): Promise<void> {
  */
 async function lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(
   trackedAdmission: ModelOperationId,
-  runtimeAnswer?: 'not-accepted',
+  runtimeAnswer?: 'invalid',
 ): Promise<void> {
   const provider = newProvider()
   const admitted = await provider.admit('a')
+  const reference = trackedAdmission.startsWith('mop_--')
+    ? reservedReference({ tenant: tenantA, call: call('a'), admission: trackedAdmission })
+    : invocationReference({ tenant: tenantA, call: call('a'), admission: trackedAdmission })
   if (runtimeAnswer !== undefined) {
     // Ask the runtime itself, not through the assembly, so the count of the plugin's lookups is unchanged.
-    const answer = await provider.runtime.calls.inspect({
-      principal: follower,
-      tenant: tenantA,
-      call: call('a'),
-      admission: trackedAdmission,
-    })
+    const answer: Awaited<ReturnType<typeof provider.runtime.calls.inspect>> = await Reflect.apply(
+      provider.runtime.calls.inspect,
+      provider.runtime.calls,
+      [{ principal: follower, tenant: tenantA, reference }],
+    )
     expect(
-      'ok' in answer && answer.ok.kind === runtimeAnswer,
+      'failure' in answer &&
+        answer.failure.kind === runtimeAnswer &&
+        answer.failure.kind === 'invalid' &&
+        answer.failure.field === 'admission' &&
+        answer.failure.reason === 'not-original',
       `the runtime did not answer ${runtimeAnswer} as a value`,
     )
   }
   const assembly = await startAssembly(provider.runtime)
   try {
-    const { followed } = await assembly.follow({
-      principal: follower,
-      tenant: tenantA,
-      tracked: [{ call: call('a'), admission: trackedAdmission, known: admitted }],
-    })
+    const { followed }: Awaited<ReturnType<typeof assembly.follow>> = await Reflect.apply(
+      assembly.follow,
+      assembly,
+      [
+        {
+          principal: follower,
+          tenant: tenantA,
+          tracked: [{ call: call('a'), reference, known: admitted }],
+        },
+      ],
+    )
     const changed = await provider.change('a')
     await assembly.announce(tenantA, call('a'), changed)
     expect(assembly.inspections() === 1, 'the plugin did not ask the runtime exactly once')
@@ -194,9 +217,9 @@ async function lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(
   }
 }
 
-// The runtime holds the call but not under this admission: its authoritative answer is not-accepted.
+// An existing call with another valid admission is invalid, never authoritatively unaccepted.
 const unacceptedAdmissionIsRaisedToTheSender = () =>
-  lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(operation('admit-unknown'), 'not-accepted')
+  lookupEndsWithoutAStateAndTheSenderKeepsTheCommit(operation('admit-unknown'), 'invalid')
 
 // A value that starts with `--` is reserved, so the runtime fails the lookup with `invalid`.
 const failedLookupIsLeftToTheSender = () =>
@@ -261,7 +284,17 @@ async function lookAlikeOnTheKeyIsRefusedByThePlugin(): Promise<void> {
   const fiber = root.plugin(followerPlugin, {
     principal: follower,
     tenant: tenantA,
-    tracked: [{ call: call('a'), admission: admissionOf('a'), known: admitted }],
+    tracked: [
+      {
+        call: call('a'),
+        reference: invocationReference({
+          tenant: tenantA,
+          call: call('a'),
+          admission: admissionOf('a'),
+        }),
+        known: admitted,
+      },
+    ],
     followed: other,
   })
   try {
@@ -358,7 +391,7 @@ export const fixture = {
       name: 'an admission that the runtime does not accept is raised to the sender of the notification and changes nothing',
       kind: 'failure',
       decision:
-        'the runtime answers not-accepted, the plugin raises it as a failure of its listener, the sender records it and keeps the committed change, and the plugin keeps following with the revision it had',
+        'the runtime rejects the non-original admission, the plugin raises it as a failure of its listener, the sender records it and keeps the committed change, and the plugin keeps following with the revision it had',
       run: unacceptedAdmissionIsRaisedToTheSender,
     },
     {

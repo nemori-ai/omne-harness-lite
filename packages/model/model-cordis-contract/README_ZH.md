@@ -15,6 +15,8 @@
 
 从[消费指南](docs/context.md)进入。[公开接口页](docs/public-api.md)导航到两个入口的源码声明。两个目录是仅有的具体 Service；需要执行能力时，由应用选择抽象 Service 的实现。
 
+普通 runtime 使用 invocation reference。raw 实例服务实现 ModelInstanceDirectory，保持 tenant/call 路由。实际宿主另核当前观察资格。见 [SPEC](SPEC.md)。
+
 ## 契约
 
 [SPEC](SPEC.md)拥有类型之外的行为，[公开接口页](docs/public-api.md)是源码导航，声明只在 `src/` 里。[验证义务](verification/index.md)规定交付所需证据。

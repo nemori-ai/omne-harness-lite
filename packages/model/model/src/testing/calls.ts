@@ -3,7 +3,11 @@ import { checkedEvidence } from './value.ts'
 import { validateRequest } from './request.ts'
 import { randomUUID } from 'node:crypto'
 import { tenantKey } from './value.ts'
-import { decodeModelOperationId, decodeModelInstanceId } from '@omne-harness/model-contract'
+import {
+  encodeModelInvocationRef,
+  decodeModelOperationId,
+  decodeModelInstanceId,
+} from '@omne-harness/model-contract'
 import type { ModelCommands, ModelCallId, Settlement, Lookup } from '@omne-harness/model-contract'
 import {
   MemoryState,
@@ -59,8 +63,15 @@ export function callCommands<P>(
             }
             const actor = store.authorize(input, 'admit', undefined, call, consumer)
             if ('failure' in actor) return actor
+            const reference = encodeModelInvocationRef({
+              tenant: input.tenant,
+              call,
+              admission: operation,
+            })
+            if ('failure' in reference)
+              return { failure: invalid('reference', 'reference-' + reference.failure.reason) }
             const first = revision('1')
-            const admission = { call, revision: first, recovered: false }
+            const admission = { call, revision: first, recovered: false, reference: reference.ok }
             draft.call = {
               state: {
                 call,

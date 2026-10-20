@@ -24,6 +24,8 @@ For memory testing, import `createTestModelDependencies` from `@omne-harness/mod
 
 The memory test provider returns sealed and partial result parts with actual trim notices. Its explicit part-count and byte targets group whole parts. An oversized part has its own page. The complete page stays within the admitted capacity. See the [test entry](docs/public-api.md#内存测试入口).
 
+The caller encodes and saves the invocation reference before admit. Inspect, connect and beginRead use that reference with current Access. Lesson 05 saves an operation reference with the original ACK result and evidence. See the [shared reference contract](../model-contract/SPEC.md#可保存调用引用).
+
 ## Run the learning examples
 
 Use Node.js 24 or later and pnpm 10.28.1 in a repository checkout. These workspace packages are private. The examples do not require a vendor account, network access, or credentials.

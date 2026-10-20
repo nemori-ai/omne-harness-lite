@@ -1,3 +1,4 @@
+import { invocationReference } from './reference-input.ts'
 import type { ModelHandle, Observation, Snapshot, VisibleBlock } from '@omne-harness/model-contract'
 import type { ScriptedPrincipal } from '@omne-harness/model-contract/testing'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -225,13 +226,20 @@ describe('the scene helpers of the conformance kit', () => {
     const call = callId('x')
     const { tenant, otherTenant, principal } = scene.subject
     expect(targetOf(scene, call)).toEqual({ tenant, call })
-    expect(accessOf(scene, call)).toEqual({ principal, tenant, call })
-    expect(accessOf(scene, call, otherTenant)).toEqual({ principal, tenant: otherTenant, call })
+    const reference = invocationReference({ tenant, call, admission: operationId('admit-x') })
+    expect(accessOf(scene, call)).toEqual({ principal, tenant, call, reference })
+    expect(accessOf(scene, call, otherTenant)).toEqual({
+      principal,
+      tenant: otherTenant,
+      call,
+      reference,
+    })
     expect(mutationOf(scene, call, operationId('o'))).toEqual({
       principal,
       tenant,
       call,
       operation: operationId('o'),
+      reference,
     })
     expect(mutationOf(scene, call, operationId('o'), otherTenant).tenant).toBe(otherTenant)
   })

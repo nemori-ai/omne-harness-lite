@@ -1,3 +1,5 @@
+import { tenantCodec } from '@omne-harness/legal-identity'
+import { invocationReference } from './reference-input.ts'
 import { describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ReadId } from '@omne-harness/model-contract'
@@ -56,7 +58,10 @@ async function deniesOnly(revoked: ScriptedAction) {
       'inspect',
       async () =>
         deniedAs(
-          await calls.inspect({ ...access('a'), admission: operation('admit-a') }),
+          await calls.inspect({
+            ...access('a'),
+            reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+          }),
           'inspect',
         ),
     ],
@@ -144,10 +149,10 @@ async function deniedOnEveryOperation(tenant: TenantId) {
   const denied = [
     deniedAs(await calls.dispatches(who), 'dispatches'),
     deniedAs(await calls.cancel({ ...who, operation: operation('c') }), 'cancel'),
-    deniedAs(await instances.connect(who), 'connect'),
+    deniedAs(await instances.connect(who), tenantCodec.encode(tenant).ok ? 'connect' : 'tenant'),
     deniedAs(
       await consumption.beginRead({ ...who, operation: operation('r'), result: version('a') }),
-      'read',
+      tenantCodec.encode(tenant).ok ? 'beginRead' : 'tenant',
     ),
     deniedAs(await consumption.readNext({ ...who, read: first, after: '2' }), 'read'),
     deniedAs(await consumption.closeRead({ ...who, read: first }), 'read'),
@@ -182,7 +187,14 @@ describe('an input that names no call the principal may use', () => {
         'acknowledge',
       ),
     ]).toEqual(Array.from({ length: 7 }, () => true))
-    expect(must(await calls.inspect({ ...who, admission: operation('admit-a') }))).toEqual({
+    expect(
+      must(
+        await calls.inspect({
+          ...who,
+          reference: invocationReference({ ...who, admission: operation('admit-a') }),
+        }),
+      ),
+    ).toEqual({
       kind: 'not-accepted',
       operation: operation('admit-a'),
     })
