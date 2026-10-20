@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// 验收锁入口：`--base <ref>` 给任务基线；不给时取任务上下文的基线，再缺省 main。退出码 0 表示没有不该改验收的角色动过它，1 表示锁被破，2 表示用法或 Git 出错。
-import { auditRanges, baselines } from '../core/task-context.ts'
+// 验收锁入口：`--base <ref>` 给任务基线；不给时按统一规则取（环境变量 BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main）。退出码 0 表示没有不该改验收的角色动过它，1 表示锁被破，2 表示用法或 Git 出错。
+import { auditRanges, resolveBaseline } from '../core/task-context.ts'
 import { resolve } from 'node:path'
 import { inspect, readAcceptanceLockConfig, render } from './lock.ts'
 import { subjectRoot } from '../core/subject.ts'
@@ -20,8 +20,8 @@ function main(argv: readonly string[]): number {
     index += 1
   }
   const config = readAcceptanceLockConfig()
-  const selected = baselines(root, base)
-  base = selected.targetBase ?? 'main'
+  const selected = resolveBaseline(root, base)
+  base = selected.targetBase
   const ranges = auditRanges(root, base)
   if (ranges.length === 0) ranges.push({ label: 'legacy task', base, head: 'HEAD' })
   const reports = ranges.map(range =>

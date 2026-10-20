@@ -239,9 +239,12 @@ describe('验收锁：读 Git', () => {
 
   it('入口：锁没破退出 0，破了退出 1，不给基线时取 main，认不出的参数或基线不存在退出 2', () => {
     const cli = fileURLToPath(new URL('../src/acceptance/cli.ts', import.meta.url))
+    // `pnpm run check` 把解析出的基线导成 BASELINE；这里要的是不给基线时的缺省，所以去掉它。
+    const { BASELINE: _inherited, ...env } = process.env
     const run = (...args: string[]) =>
       spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
         encoding: 'utf8',
+        env,
       })
     const { root, base } = repository()
     expect(run('--base', base, '--root', root).status).toBe(0)
@@ -257,5 +260,28 @@ describe('验收锁：读 Git', () => {
     expect(byDefault.stdout).toContain('验收锁（基线 main，')
     expect(run('--bogus', '--root', root).status).toBe(2)
     expect(run('--base', 'no-such-ref', '--root', root).status).toBe(2)
+  })
+
+  it('入口：不给基线时按统一规则取，BASELINE 与 origin/main 都先于 main', () => {
+    const cli = fileURLToPath(new URL('../src/acceptance/cli.ts', import.meta.url))
+    const { BASELINE: _inherited, ...inherited } = process.env
+    const run = (env: Record<string, string>) =>
+      spawnSync(process.execPath, ['--experimental-strip-types', cli, '--root', root], {
+        encoding: 'utf8',
+        env: { ...inherited, ...env },
+      })
+    const { root, base } = repository()
+    write(root, SPEC, 'expect(true).toBe(true)\n')
+    commit(root, 'fix\n\nAgent-Role: tui-developer')
+    git(root, 'checkout', '-q', '-B', 'work')
+    git(root, 'branch', '-f', 'main', 'HEAD')
+    expect(run({}).status).toBe(0)
+    git(root, 'update-ref', 'refs/remotes/origin/main', base)
+    const remote = run({})
+    expect(remote.status).toBe(1)
+    expect(remote.stdout).toContain('验收锁（基线 origin/main，')
+    const explicit = run({ BASELINE: 'main' })
+    expect(explicit.status).toBe(0)
+    expect(explicit.stdout).toContain('验收锁（基线 main，')
   })
 })
