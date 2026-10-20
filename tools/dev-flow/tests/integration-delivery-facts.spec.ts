@@ -576,6 +576,18 @@ describe('dispatch eligibility from delivery facts', () => {
     ).toThrow(
       expect.objectContaining({ code: 'unknown', message: expect.stringContaining(message) }),
     )
+    // Facts that are not bound to this comment are not trusted for reviewer either.
+    expect(() =>
+      readAuthority(
+        policy,
+        scope.authority,
+        { issues: [captured] },
+        { ...authorityFacts, ...change, reviewer: false },
+        read([]),
+      ),
+    ).toThrow(
+      expect.objectContaining({ code: 'unknown', message: expect.stringContaining(message) }),
+    )
   })
 })
 

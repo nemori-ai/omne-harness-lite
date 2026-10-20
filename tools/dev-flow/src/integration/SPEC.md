@@ -108,7 +108,7 @@ I15。Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `en
 
 ### 拒绝
 
-`authority.reviewer` 为 `false` 时结果为 refused：这是可信事实给出的确定答案，与直接读取时相同。除此之外，任一核对不满足、超时、读取失败或区块格式错误时，结果为 unknown。两种结果下工具都不写 context。错误信息不含 API 原始输出。
+工具先核对事实绑定的是这条派发评论（URL、作者、正文摘要与更新时间），绑定不成立时结果为 unknown，不看 `reviewer`。绑定成立而 `authority.reviewer` 为 `false` 时结果为 refused：这是可信事实给出的确定答案，与直接读取时相同。其他核对不满足、超时、读取失败或区块格式错误时，结果为 unknown。两种结果下工具都不写 context。错误信息不含 API 原始输出。
 
 ### 已知限制
 
