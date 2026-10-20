@@ -8,11 +8,13 @@
 
 `executeModel` 选用 request.suppliers 的首项，仅执行一次。需要另一供应商时调用者必须形成新的明确执行，不能把此函数冒充托管 fallback。
 
-独立调用在 start 前观察到 signal 已取消时，只返回 not-started/cancelled，不调用 start。prepare 或 materialize 的四种声明失败原样放入 not-started/rejected，不改成托管提交失败，也不抛异常代替该结果；准备或物化过程意外抛错映射为 unavailable 及安全诊断。materialize 返回后、start 前再次检查取消及当前资格，已取消则 not-started/cancelled，失权则 not-started/rejected。已取得资源始终 close。开始发送后不再允许 not-started，signal 仅请求停止；只有传输确认停止才返回 ended/interrupted，未确认且失联返回 ended/failed 的 stream-lost，不虚构停止。竞争中实际 completed 仍报告 completed。流上恰好一个终结结果，消费者主动放弃读取不代表已取得终结事实，释放时仍关闭本次资源。
+独立调用在 start 前观察到 signal 已取消时，只返回 not-started/cancelled，不调用 start。prepare 或 materialize 的四种声明失败原样放入 not-started/rejected，不改成托管提交失败，也不抛异常代替该结果；准备或物化过程意外抛错映射为 unavailable 及安全诊断。materialize 返回后、start 前再次检查取消及当前资格，已取消则 not-started/cancelled，失权则 not-started/rejected。已取得资源始终 close。
+
+调用 start 即可能已经发送，包括 start 同步抛错的情形。start 调用、取得源 iterator 或读取时的异常，以及没有 ended 的 EOF，均产生唯一 ended/failed，fault.cause 为 stream-lost，upstreamStatus 为 null，诊断使用安全阶段码。此时不再返回 not-started。signal 仅请求停止；只有传输确认停止才返回 ended/interrupted，未确认且失联时不虚构停止。竞争中实际 completed 仍报告 completed。流上恰好一个终结结果，消费者主动放弃读取不代表已取得终结事实，释放时仍关闭本次资源。
 
 本实现每次调用各返回一个原生 async generator 实例，首次 next 才准备资源。重复取得迭代器或并发 next 不重发。return 按语言队列等待正在执行的 next，不抢占提供者等待；调用者通过 signal 请求停止，不设隐式关闭时限。
 
-本次采用的供应商和表示字段在准备等待前固定。物化回执须精确匹配这两份 Adoption 的全部字段，payloadDigest 非空且重复读取稳定；不匹配返回 invalid，读取异常返回安全 unavailable。回执不授予当前资格，提供者仍负责发送授权。
+本次采用的供应商和表示字段在准备等待前固定。物化回执须精确匹配这两份 Adoption 的全部字段，payloadDigest 非空且重复读取稳定；不匹配返回 invalid，field 为 receipt，reason 说明回执不匹配。读取异常返回安全 unavailable，诊断标明 receipt 阶段。回执不授予当前资格，提供者仍负责发送授权。
 
 交付 ended 或已取得资源后的 not-started 之前，按源 iterator、materialized、prepared 的次序完成全部释放尝试。任一步失败仍尝试后续步骤；不关闭借入的 transport。清理失败不覆盖业务终局，原终局仍交付一次。消费者随后 next、return 或 throw 时收到固定异常 independent-cleanup-failed；若不再推进，只能保证清理已尝试，不能保证消费者已观察该异常。非终局处早退在当次推进报告清理失败。清理只执行一次，后续 done 不证明失败资源已释放。
 

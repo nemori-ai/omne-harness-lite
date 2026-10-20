@@ -137,6 +137,64 @@ it.each(['start', 'iterator', 'read', 'eof'] as const)(
   },
 )
 
+it.each(['done', 'value', 'kind'] as const)(
+  'sanitizes a throwing provider %s getter as read failure',
+  async field => {
+    const given = controlled({
+      async next(): Promise<IteratorResult<TransportFact>> {
+        if (field === 'done')
+          return {
+            get done(): false {
+              throw new Error(SECRET)
+            },
+            value: delta,
+          }
+        if (field === 'value')
+          return {
+            done: false,
+            get value(): TransportFact {
+              throw new Error(SECRET)
+            },
+          }
+        return {
+          done: false,
+          value: {
+            ...delta,
+            get kind(): 'block-delta' {
+              throw new Error(SECRET)
+            },
+          },
+        }
+      },
+    })
+    const facts = await collect(executeModel(request, given.transport, signal()))
+    expect(facts).toEqual([
+      {
+        kind: 'ended',
+        termination: {
+          kind: 'failed',
+          fault: {
+            cause: 'stream-lost',
+            upstreamStatus: null,
+            diagnostic: 'independent-read-failed',
+          },
+        },
+      },
+    ])
+    expect(JSON.stringify(facts)).not.toContain(SECRET)
+    expect(given.calls).toEqual([
+      'prepare',
+      'materialize',
+      'start',
+      'iterator',
+      'next',
+      'return',
+      'materialized.close',
+      'prepared.close',
+    ])
+  },
+)
+
 it.each(['return', 'throw'] as const)(
   'consumer %s releases resources without fabricating a terminal',
   async action => {

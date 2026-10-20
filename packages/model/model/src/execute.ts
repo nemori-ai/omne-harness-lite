@@ -84,7 +84,7 @@ function streamLost(phase: 'start' | 'read' | 'eof'): Extract<Terminal, { kind: 
   }
 }
 
-async function closeResources(actions: readonly (() => unknown)[]): Promise<Error | null> {
+async function closeResources(actions: readonly (() => unknown)[]): Promise<void> {
   let failure: Error | null = null
   for (const action of actions) {
     try {
@@ -93,7 +93,7 @@ async function closeResources(actions: readonly (() => unknown)[]): Promise<Erro
       failure ??= new Error('independent-cleanup-failed')
     }
   }
-  return failure
+  if (failure !== null) throw failure
 }
 
 async function* execute(
@@ -109,7 +109,7 @@ async function* execute(
   let prepared: PreparedTransport | undefined
   let materialized: MaterializedTransport | undefined
   let source: AsyncIterator<TransportFact> | undefined
-  let cleanup: Promise<Error | null> | undefined
+  let cleanup: Promise<void> | undefined
   const close = () =>
     (cleanup ??= closeResources([
       () => source?.return?.(),
@@ -117,7 +117,7 @@ async function* execute(
       () => prepared?.close(),
     ]))
   async function terminal(fact: Terminal): Promise<Terminal> {
-    await close()
+    await Promise.allSettled([close()])
     return fact
   }
 
@@ -184,21 +184,24 @@ async function* execute(
       ending = streamLost('start')
     }
     while (source !== undefined && ending === undefined) {
-      let step: IteratorResult<TransportFact>
+      let fact: TransportFact | undefined
       try {
-        step = await source.next()
+        const step = await source.next()
+        if (step.done) ending = streamLost('eof')
+        else {
+          const value = step.value
+          if (value.kind === 'ended') ending = value
+          else fact = value
+        }
       } catch {
         ending = streamLost('read')
         break
       }
-      if (step.done) ending = streamLost('eof')
-      else if (step.value.kind === 'ended') ending = step.value
-      else yield step.value
+      if (fact !== undefined) yield fact
     }
     yield await terminal(ending ?? streamLost('start'))
   } finally {
-    const failure = await close()
-    if (failure !== null) throw failure
+    await close()
   }
 }
 

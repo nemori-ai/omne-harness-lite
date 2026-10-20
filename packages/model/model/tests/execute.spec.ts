@@ -145,7 +145,15 @@ describe('independent execution through the public entry', () => {
         receipt: () => ({ ...receipt, supplier: { ...receipt.supplier, [field]: 'changed' } }),
       })
       expect(await collect(executeModel(request, given.transport, signal()))).toMatchObject([
-        { kind: 'not-started', reason: 'rejected', failure: { kind: 'invalid' } },
+        {
+          kind: 'not-started',
+          reason: 'rejected',
+          failure: {
+            kind: 'invalid',
+            field: 'receipt',
+            reason: expect.stringMatching(/\S/),
+          },
+        },
       ])
       expect(given.calls).toEqual([
         'prepare',
@@ -166,7 +174,15 @@ describe('independent execution through the public entry', () => {
         }),
       })
       expect(await collect(executeModel(request, given.transport, signal()))).toMatchObject([
-        { kind: 'not-started', reason: 'rejected', failure: { kind: 'invalid' } },
+        {
+          kind: 'not-started',
+          reason: 'rejected',
+          failure: {
+            kind: 'invalid',
+            field: 'receipt',
+            reason: expect.stringMatching(/\S/),
+          },
+        },
       ])
       expect(given.calls).not.toContain('start')
     },
@@ -191,6 +207,19 @@ describe('independent execution through the public entry', () => {
           failure: { kind: mode === 'throws' ? 'unavailable' : 'invalid' },
         },
       ])
+      const fact = facts[0]
+      if (fact?.kind !== 'not-started' || fact.reason !== 'rejected')
+        throw new Error('expected receipt rejection')
+      if (mode === 'throws')
+        expect(fact.failure).toMatchObject({
+          dependency: 'model-transport',
+          diagnostic: expect.stringContaining('receipt'),
+        })
+      else
+        expect(fact.failure).toMatchObject({
+          field: 'receipt',
+          reason: expect.stringMatching(/\S/),
+        })
       expect(JSON.stringify(facts)).not.toContain(SECRET)
       expect(given.calls).toEqual([
         'prepare',
@@ -218,7 +247,15 @@ describe('independent execution through the public entry', () => {
     Object.assign(fixed.representation, changed.representation)
     delayed.open()
     expect(await result).toMatchObject([
-      { kind: 'not-started', reason: 'rejected', failure: { kind: 'invalid' } },
+      {
+        kind: 'not-started',
+        reason: 'rejected',
+        failure: {
+          kind: 'invalid',
+          field: 'receipt',
+          reason: expect.stringMatching(/\S/),
+        },
+      },
     ])
     expect(given.calls).not.toContain('start')
   })
