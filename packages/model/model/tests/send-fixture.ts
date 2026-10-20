@@ -1,3 +1,4 @@
+import { expect } from 'vitest'
 import { createModelRuntime, type SendResources } from '@omne-harness/model'
 import { createTestModelDependencies, type MemorySendSource } from '@omne-harness/model/testing'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
@@ -78,18 +79,19 @@ export async function sendFixture(
     outputBatchBytes: 1024,
     outputBatchDelayMs: 0,
     observerBufferBytes: 1024,
+    observerCheckIntervalMs: 25,
     resultPageTargetBytes: 128,
     readIdleMs: 1000,
     retryBackoffMs: 0,
     cleanupRetryMs: 0,
   })
   unbox(await provider.runtime.calls.admit(admit))
-  unbox(
+  expect(
     await provider.driver.drive(
       { ...admit, operation: op('claim'), instance: instance(), continuity: proof(admit.call) },
       signal(),
     ),
-  )
+  ).toMatchObject({ failure: { kind: 'unavailable', dependency: 'model-send' } })
   const recovery = unbox(await assembly.dependencies.commands.loadRecovery(admit))
   const dispatch = unbox(await provider.runtime.calls.dispatches(admit))[0]
   if (!dispatch || !recovery.execution) throw new Error('fixture prepared dispatch')
@@ -207,7 +209,7 @@ export async function sendFixture(
         operation: op('admit-second'),
       }
       unbox(await provider.runtime.calls.admit(next))
-      unbox(
+      expect(
         await provider.driver.drive(
           {
             ...next,
@@ -217,7 +219,7 @@ export async function sendFixture(
           },
           signal(),
         ),
-      )
+      ).toMatchObject({ failure: { kind: 'unavailable', dependency: 'model-send' } })
       const recovery = unbox(await assembly.dependencies.commands.loadRecovery(next))
       const dispatch = unbox(await assembly.dependencies.commands.dispatches(next))[0]
       if (!recovery.execution || !dispatch) throw new Error('additional prepared')

@@ -97,6 +97,7 @@ const shell = createModelRuntime(assembled.dependencies, {
   outputBatchBytes: 1024,
   outputBatchDelayMs: 0,
   observerBufferBytes: 1024,
+  observerCheckIntervalMs: 25,
   readIdleMs: 1000,
   resultPageTargetBytes: 128,
   retryBackoffMs: 0,
@@ -118,11 +119,7 @@ assert.deepEqual(
     call: decodedCall.ok,
   }),
   {
-    failure: {
-      kind: 'unavailable',
-      dependency: 'model-runtime',
-      diagnostic: 'managed-runtime-not-implemented operation=instances.connect stage=3.5',
-    },
+    failure: { kind: 'denied', action: 'fixture' },
   },
 )
 assert.equal('driver' in shell.runtime, false)
@@ -261,6 +258,7 @@ const provider = createModelRuntime(runtimeDependencies.dependencies, {
   outputBatchBytes: 1024,
   outputBatchDelayMs: 0,
   observerBufferBytes: 1024,
+  observerCheckIntervalMs: 25,
   readIdleMs: 1000,
   resultPageTargetBytes: 128,
   retryBackoffMs: 0,
@@ -282,12 +280,30 @@ const drive = {
   instance: decoded(decodeModelInstanceId('minst_installed')),
   continuity: evidence,
 }
-decoded(await provider.driver.drive(drive, new AbortController().signal))
-decoded(await provider.driver.drive(drive, new AbortController().signal))
+assert.equal(
+  (await provider.driver.drive(drive, new AbortController().signal)).failure.kind,
+  'unavailable',
+)
+assert.equal(
+  (await provider.driver.drive(drive, new AbortController().signal)).failure.kind,
+  'unavailable',
+)
 const dispatches = decoded(await provider.runtime.calls.dispatches(admission))
 assert.equal(dispatches.length, 1)
 assert.equal(dispatches[0].send, 'prepared')
 assert.equal(dispatches[0].materialization, null)
+const installedRoute = decoded(await provider.runtime.instances.connect(admission))
+assert.equal(installedRoute.kind, 'live')
+const installedObserver = installedRoute.handle
+  .observe({ principal, tenant: owner, signal: new AbortController().signal })
+  [Symbol.asyncIterator]()
+const installedSnapshot = await installedObserver.next()
+assert.equal(installedSnapshot.value.kind, 'snapshot')
+assert.equal(installedSnapshot.value.value.call, admission.call)
+assert.equal(installedSnapshot.value.value.cursor, '0')
+assert.deepEqual(installedSnapshot.value.value.blocks, [])
+await installedObserver.return()
+
 assert.equal(
   decoded(await provider.runtime.calls.inspect({ ...admission, admission: admission.operation }))
     .kind,

@@ -6,12 +6,15 @@ import {
   checkModelProviderConformance,
   createScriptedTransport,
 } from '@omne-harness/model-contract/testing'
+import { runtimeFixture } from './runtime-fixture.ts'
+import type { ModelOperationId } from '@omne-harness/model-contract'
 import { fixture, identity, instance, op, proof, unbox, callId } from './memory-fixture.ts'
 
 const configuration = {
   outputBatchBytes: 1024,
   outputBatchDelayMs: 0,
   observerBufferBytes: 1024,
+  observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
   retryBackoffMs: 0,
@@ -36,6 +39,12 @@ function assembled() {
   return { ...f, ...assembly, provider, drive }
 }
 const signal = () => new AbortController().signal
+function preparedReceipt(
+  result: Awaited<ReturnType<ReturnType<typeof createModelRuntime>['driver']['drive']>>,
+) {
+  if ('failure' in result)
+    expect(result.failure).toMatchObject({ kind: 'unavailable', dependency: 'model-send' })
+}
 
 it('ignores extra caller callbacks while preserving identity through admission and first dispatch', async () => {
   const f = assembled()
@@ -57,7 +66,7 @@ it('ignores extra caller callbacks while preserving identity through admission a
   expect(await f.provider.runtime.calls.inspect(inspect)).toMatchObject({ ok: { kind: 'found' } })
   const driving = { ...f.drive, principal, onProgress: caller.onProgress }
   const drive: Parameters<typeof f.provider.driver.drive>[0] = driving
-  unbox(await f.provider.driver.drive(drive, signal()))
+  preparedReceipt(await f.provider.driver.drive(drive, signal()))
   const dispatches: Parameters<typeof f.provider.runtime.calls.dispatches>[0] = caller
   expect(unbox(await f.provider.runtime.calls.dispatches(dispatches))).toMatchObject([
     { send: 'prepared', materialization: null },
@@ -72,68 +81,51 @@ it('ignores extra caller callbacks while preserving identity through admission a
   })
 })
 
-it('passes nine admission obligations through the real runtime and preserves the full report', async () => {
+it('preserves all 53 obligations with actual runtime observation and controlled upstream', async () => {
   const report = await checkModelProviderConformance({
     subject: () => {
-      const f = assembled()
-      type Fault = {
-        operation: typeof f.admit.operation
-        action: 'admit' | 'cancel' | 'acknowledge'
-        effect: 'applied' | 'dropped'
-      }
-      let fault: Fault | undefined
-      async function inject(
-        input: {
-          tenant: typeof f.tenant
-          call: typeof f.admit.call
-          operation: typeof f.admit.operation
-        },
-        method: 'admit' | 'control',
-        action: 'admit' | 'cancel',
-      ) {
-        const injected =
-          fault && fault.operation === input.operation && fault.action === action
-            ? fault
-            : undefined
-        if (injected) {
-          fault = undefined
-          f.controls.commands.injectUnknown({
-            ...input,
-            method,
-            effect: injected.effect === 'applied' ? 'applied' : 'not-applied',
-          })
+      let fault:
+        | {
+            operation: ModelOperationId
+            action: 'admit' | 'cancel' | 'acknowledge'
+            effect: 'applied' | 'dropped'
+          }
+        | undefined
+      const f = runtimeFixture({}, commands => {
+        const wrap =
+          <
+            A extends Parameters<typeof commands.admit>[0] | Parameters<typeof commands.control>[0],
+            T,
+          >(
+            method: 'admit' | 'control',
+            action: 'admit' | 'cancel',
+            run: (input: A) => Promise<T>,
+          ) =>
+          async (input: A) => {
+            const selected =
+              fault?.operation === input.operation && fault.action === action ? fault : undefined
+            if (selected) {
+              fault = undefined
+              f.controls.commands.injectUnknown({
+                ...input,
+                method,
+                effect: selected.effect === 'applied' ? 'applied' : 'not-applied',
+              })
+            }
+            const result = await run(input)
+            if (selected)
+              f.controls.commands.reveal({
+                ...input,
+                result: selected.effect === 'applied' ? 'committed' : 'not-committed',
+              })
+            return result
+          }
+        return {
+          ...commands,
+          admit: wrap('admit', 'admit', commands.admit),
+          control: wrap('control', 'cancel', commands.control),
         }
-        return injected
-      }
-      const provider = createModelRuntime(
-        {
-          ...f.dependencies,
-          commands: {
-            ...f.dependencies.commands,
-            admit: async input => {
-              const injected = await inject(input, 'admit', 'admit')
-              const result = await f.dependencies.commands.admit(input)
-              if (injected)
-                f.controls.commands.reveal({
-                  ...input,
-                  result: injected.effect === 'applied' ? 'committed' : 'not-committed',
-                })
-              return result
-            },
-            control: async input => {
-              const injected = await inject(input, 'control', 'cancel')
-              const result = await f.dependencies.commands.control(input)
-              if (injected)
-                f.controls.commands.reveal({
-                  ...input,
-                  result: injected.effect === 'applied' ? 'committed' : 'not-committed',
-                })
-              return result
-            },
-          },
-        },
-        configuration,
-      )
+      })
       const transport = createScriptedTransport({
         receipt: {
           supplier: f.admit.request.suppliers[0].adoption,
@@ -157,12 +149,11 @@ it('passes nine admission obligations through the real runtime and preserves the
                 if ('failure' in materialized) return materialized
                 return {
                   ok: {
-                    receipt: materialized.ok.receipt,
-                    close: () => materialized.ok.close(),
+                    ...materialized.ok,
                     start(signal) {
-                      const facts = materialized.ok.start(signal)
-                      sends += 1
-                      return facts
+                      const stream = materialized.ok.start(signal)
+                      sends++
+                      return stream
                     },
                   },
                 }
@@ -172,66 +163,102 @@ it('passes nine admission obligations through the real runtime and preserves the
         },
       }
       return {
-        transport: {
-          transport: countedTransport,
-          sends: () => sends,
-          request: f.admit.request,
-          supplier: f.admit.request.suppliers[0],
-        },
-        provider,
+        provider: f.provider,
         principal: f.principal,
         tenant: f.tenant,
         otherTenant: identity('6'),
         request: f.admit.request,
         consumer: f.admit.consumer,
         capacity: f.admit.capacity,
+        transport: {
+          transport: countedTransport,
+          sends: () => sends,
+          request: f.admit.request,
+          supplier: f.admit.request.suppliers[0],
+        },
         hooks: {
           failNextWrite: async input => {
             fault = input
           },
+          startRun: async input => {
+            await f.start(input.call)
+          },
+          showFacts: async input => {
+            await f.show(input.call, input.facts)
+          },
+          disconnectObservers: async () => {
+            f.controls.instances.setAvailable(false)
+          },
+          revokeAccess: async input => {
+            if (input.action === 'all')
+              for (const action of [
+                'facts',
+                'account',
+                'control',
+                'observe',
+                'read',
+                'acknowledge',
+                'recovery',
+              ])
+                f.denied.add(action)
+            else
+              f.denied.add(
+                input.action === 'connect'
+                  ? 'observe'
+                  : input.action === 'cancel'
+                    ? 'control'
+                    : input.action,
+              )
+          },
+          withdrawInstance: async input => {
+            const publication = f.publications.get(input.call)
+            if (!publication) throw new Error('missing publication')
+            unbox(await f.dependencies.instances.withdraw(publication))
+          },
+          replaceInstance: async input => {
+            unbox(await f.replace(input.call, input.instance))
+          },
+          failDirectory: async () => {
+            f.controls.instances.setAvailable(false)
+          },
         },
+        dispose: () => f.dispose(),
       }
     },
   })
   mkdirSync('../../../tmp/issue-455/checks', { recursive: true })
   writeFileSync('../../../tmp/issue-455/checks/conformance.json', JSON.stringify(report, null, 2))
-  const rows = report.results
-  expect(rows).toHaveLength(53)
-  expect(rows.slice(-6).map(row => [row.obligation, row.status])).toEqual([
-    ['transport-sends-only-at-start', 'pass'],
-    ['repeated-transport-step-sends-nothing', 'pass'],
-    ['materialization-receipt-matches-request', 'pass'],
-    ['fact-stream-ends-once', 'pass'],
-    ['interruption-is-confirmed', 'pass'],
-    ['transport-close-is-idempotent', 'pass'],
-  ])
-  const admission = rows.slice(0, 10)
-  expect(admission.slice(0, 9).map(row => [row.obligation, row.status])).toEqual([
-    ['admission-repeat-recognised', 'pass'],
-    ['admission-conflict-on-different-input', 'pass'],
-    ['operation-not-reused-across-methods', 'pass'],
-    ['admission-is-not-a-send', 'pass'],
-    ['reserved-operation-refused', 'pass'],
-    ['refused-admission-forms-no-call', 'pass'],
-    ['commit-unknown-keeps-operation', 'pass'],
-    ['commit-unknown-not-reported-as-refusal', 'pass'],
-    ['commit-unknown-cancel-recovers-original', 'pass'],
-  ])
-  expect(admission[9]).toMatchObject({
-    obligation: 'commit-unknown-acknowledge-recovers-original',
-    status: 'not-applicable',
-  })
+  expect(report.results).toHaveLength(53)
+  const required = report.results.filter(row =>
+    [
+      'observation-opens-with-snapshot',
+      'stopping-observation-keeps-call-running',
+      'disconnect-ends-observation-as-unavailable',
+      'new-observer-starts-from-snapshot',
+      'growing-block-holds-accumulated-value',
+      'sealed-block-takes-no-more-fill',
+      'unsealed-tool-arguments-not-executable',
+      'revoked-principal-observation-ends-denied',
+      'withdrawn-instance-has-no-live-route',
+      'directory-failure-is-unavailable',
+      'replaced-instance-ends-observation-as-stale',
+    ].includes(row.obligation),
+  )
+  expect(required).toHaveLength(11)
+  expect(required.filter(row => row.status !== 'pass')).toEqual([])
+  expect(report.results.slice(0, 9).every(row => row.status === 'pass')).toBe(true)
+  expect(report.results.slice(-6).every(row => row.status === 'pass')).toBe(true)
 })
 it('prepares one dispatch with a stable claim, without sending; repeats keep the same generation', async () => {
   const f = assembled()
   unbox(await f.provider.runtime.calls.admit(f.admit))
-  unbox(await f.provider.driver.drive(f.drive, signal()))
+  preparedReceipt(await f.provider.driver.drive(f.drive, signal()))
   const first = unbox(await f.dependencies.commands.loadRecovery(f.admit))
   expect(first.execution?.generation).toBe('1')
   const records = unbox(await f.provider.runtime.calls.dispatches(f.admit))
   expect(records).toHaveLength(1)
   expect(records[0]).toMatchObject({ send: 'prepared', materialization: null })
-  unbox(await f.provider.driver.drive(f.drive, signal()))
+  preparedReceipt(await f.provider.driver.drive(f.drive, signal()))
   expect(await f.dependencies.commands.loadRecovery(f.admit)).toEqual({ ok: first })
   expect(await f.provider.runtime.calls.dispatches(f.admit)).toEqual({ ok: records })
   expect(
@@ -287,9 +314,9 @@ for (const effect of ['applied', 'not-applied'] as const) {
       operation: original.operation,
       result: effect === 'applied' ? 'committed' : 'not-committed',
     })
-    unbox(await provider.driver.drive(f.drive, signal()))
-    expect(writes).toHaveLength(effect === 'applied' ? 1 : 2)
-    if (effect === 'not-applied') expect(writes[1]).toEqual(original)
+    preparedReceipt(await provider.driver.drive(f.drive, signal()))
+    expect(writes).toHaveLength(2)
+    expect(writes[1]).toEqual(original)
     expect(unbox(await commands.dispatches(f.admit))).toHaveLength(1)
   })
 }
@@ -323,7 +350,7 @@ it('ends a known conflict attempt so a later drive can prepare again', async () 
   expect(await provider.driver.drive(f.drive, signal())).toMatchObject({
     failure: { kind: 'conflict' },
   })
-  unbox(await provider.driver.drive(f.drive, signal()))
+  preparedReceipt(await provider.driver.drive(f.drive, signal()))
   expect(writes).toHaveLength(2)
   expect(writes[1]?.operation).not.toBe(writes[0]?.operation)
   expect(unbox(await commands.dispatches(f.admit))).toHaveLength(1)
@@ -331,7 +358,7 @@ it('ends a known conflict attempt so a later drive can prepare again', async () 
 it('rejects conflicting continuity and stale claims without creating a second dispatch', async () => {
   const f = assembled()
   unbox(await f.provider.runtime.calls.admit(f.admit))
-  unbox(await f.provider.driver.drive(f.drive, signal()))
+  preparedReceipt(await f.provider.driver.drive(f.drive, signal()))
   expect(
     await f.provider.driver.drive({ ...f.drive, continuity: proof('changed') }, signal()),
   ).toMatchObject({ failure: { kind: 'conflict' } })
@@ -357,7 +384,7 @@ it('commits cancellation intent and leaves it pending rather than claiming upstr
     propagation: 'pending',
     upstream: 'unknown',
   })
-  unbox(await f.provider.driver.drive(f.drive, signal()))
+  preparedReceipt(await f.provider.driver.drive(f.drive, signal()))
   expect(unbox(await f.provider.runtime.calls.dispatches(f.admit))).toEqual([])
 })
 it('keeps committed admission despite schedule failure, snapshots inputs, and preserves opaque principal identity', async () => {
@@ -439,7 +466,7 @@ it('returns busy only after authorization, and stopping local work leaves durabl
   unbox(await first)
   expect(unbox(await commands.loadRecovery(f.admit)).tasks).toContain('execute')
   expect(unbox(await commands.dispatches(f.admit))).toEqual([])
-  unbox(await provider.driver.drive(f.drive, signal()))
+  preparedReceipt(await provider.driver.drive(f.drive, signal()))
   expect(unbox(await commands.dispatches(f.admit))).toHaveLength(1)
 })
 it('does not reuse an unresolved prepare across provider instances or claim identities', async () => {
@@ -507,6 +534,6 @@ it('retains unknown prepare when aborted during the write and fixes drive input 
   expect(original.call).toBe(f.admit.call)
   expect(original.instance).toBe(f.drive.instance)
   f.controls.commands.reveal({ ...f.admit, operation: original.operation, result: 'committed' })
-  unbox(await provider.driver.drive(f.drive, signal()))
+  preparedReceipt(await provider.driver.drive(f.drive, signal()))
   expect(unbox(await f.dependencies.commands.dispatches(f.admit))).toHaveLength(1)
 })

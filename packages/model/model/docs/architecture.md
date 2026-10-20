@@ -1,6 +1,6 @@
 # Model 内部架构
 
-本页描述已接受的非 pi-ai 运行契约。独立 executeModel 已由 [execute.ts](../src/execute.ts) 实现，受理与首次分派及可独立调用的产品 sender 已实现，driver 的事实消费接续及其余托管运行仍是目标设计。pi-ai 细化的采用范围见[组架构各节](../../docs/architecture.md#成员与新增条件)，图表不表示运行实现或真实提供者验证已完成。
+本页描述已接受的非 pi-ai 运行契约。独立 executeModel 已由 [execute.ts](../src/execute.ts) 实现，受理、原流保存、最小实例观察及可独立调用的产品 sender 已实现，整调用收场及其余托管运行仍是目标设计。pi-ai 细化的采用范围见[组架构各节](../../docs/architecture.md#成员与新增条件)，图表不表示运行实现或真实提供者验证已完成。
 
 本包负责模型调用与各次真实发出、原输出及结果保管。公开结果和失败的唯一行为源是 [SPEC](../../model-contract/SPEC.md)，具体设计定义见 [public-api](../../model-contract/docs/public-api.md)。
 
@@ -527,9 +527,9 @@ Storage 的 SQL facts 只承载 Model 的引用和责任，不能凭引用已提
 | [credential.ts](../src/credential.ts) | 存在性与解析取舍的判定，以及判定读取的状态快照形状。判定只读快照，不读文件。引用、五种结果和端口的类型归 model-contract |
 | [deliver.ts](../src/deliver.ts) | 只依赖 CredentialPort，在发送前解析；不导入存储实现 |
 
-凭据的对象模型、顺序和装配分别归[对象](object-model.md#已实现的凭据对象)、[流程](flows.md#凭据解析)和[装配](cordis.md#凭据服务)。executeModel 已实现独立单次执行，createModelRuntime 已实现受理、查询、取消意图和首次 prepared 分派。独立产品 sender 已通过内存同步适配实现发送围栏；driver 尚未消费该 sender 的事实流，生产宿主及授权共同事务尚未验证。
+凭据的对象模型、顺序和装配分别归[对象](object-model.md#已实现的凭据对象)、[流程](flows.md#凭据解析)和[装配](cordis.md#凭据服务)。executeModel 已实现独立单次执行，createModelRuntime 已实现受理、查询、取消意图、原流保存和最小实例观察。产品 sender 经内存同步适配实现发送围栏，driver 唯一消费原事实流并确认保存。生产宿主及外部授权共同事务尚未验证。
 
-凭据引用与解析分属四处：保管实现在 model-host-local，契约在 model-contract，判定在本包。createModelRuntime 支持受理、查询、取消意图与首次 prepared 分派，完整托管执行与其他宿主尚未实现。服务定义在 model-cordis-contract。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，也没有 `./cordis`、`./execute` 入口。判定与保管的接口是状态快照：host-local 构造快照并调用本包的判定，本包不依赖 host-local。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
+凭据引用与解析分属四处：保管实现在 model-host-local，契约在 model-contract，判定在本包。createModelRuntime 支持受理、查询、取消意图、原流保存与最小实例观察，完整托管执行与其他宿主尚未实现。服务定义在 model-cordis-contract。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，也没有 `./cordis`、`./execute` 入口。判定与保管的接口是状态快照：host-local 构造快照并调用本包的判定，本包不依赖 host-local。精确归属见[组架构](../../docs/architecture.md#凭据的现有装配边界)。
 
 发送适配器在可信内部构造 authorized 与 official，并核对固定的 tenant/factory 选择。普通调用者传入的布尔值不构成 ModelSendBoundary 的授权证据。凭据通用解析允许的官方默认回退不能覆盖托管协议对 tenant 引用失效时禁止转 factory 的要求。当前独立 sender 和内存协调适配兑现这些检查；其行为测试不证明生产装配已满足资格共同事务。
 
@@ -538,4 +538,14 @@ Storage 的 SQL facts 只承载 Model 的引用和责任，不能凭引用已提
 
 产品 [send.ts](../src/send.ts) 管理输入固定、当前访问及有界尝试；[attempt.ts](../src/send/attempt.ts) 保存原写和推进顺序；[lifetime.ts](../src/send/lifetime.ts) 拥有唯一事实消费者及逆序释放。产品不导入 testing。具体内存后端持有跨 sender 共享的认领，与资格、控制、代次检查共用同步排他区。testing/send 只取得脚本传输资源和计数，不调用业务 Commands。
 
-物化与窗口确认之后才解析实际凭据并同步 start。回执和原窗口不是发送许可；最终资格仍须当前有效。开始后记录未知保留原流而不预取或关闭，后续仅认回原写，不重新物化或再次 start。当前直接消费者验证本边界，尚不表示 driver 已接入事实保管。公共 started 结果直接交出同一尝试已确认的原 window 与唯一 facts 流。消费者使用 result.window 保存原流，Commands 仍核绑定。完整 driver 组合尚未接入。
+物化与窗口确认之后才解析实际凭据并同步 start。回执和原窗口不是发送许可；最终资格仍须当前有效。开始后记录未知保留原流而不预取或关闭，后续仅认回原写，不重新物化或再次 start。driver 已作为真实消费者接入本边界，确认 preserve 后才发布快照。公共 started 结果直接交出同一尝试已确认的原 window 与唯一 facts 流。消费者使用 result.window 保存原流，Commands 仍核绑定。当前实例确认屏障、批量边界与观察额度见 [实现规格](../SPEC.md#当前构造支持与本地模拟)。
+
+## 当前实例的确认投影
+
+[driver.ts](../src/driver.ts) 持有每 tenant/call 的原 claim、发送需求和接收阶段，保护同调用单写，直到原接收与释放 Promise 完成。[receive.ts](../src/receive.ts) 唯一推进原 iterator，保留未确认 open/preserve 的完整原参数。[observation.ts](../src/observation.ts) 只保存确认 Snapshot 和版本，不归约业务事实。Commands 继续拥有 blocks、首内容、游标及权威状态。
+
+内容 epoch 在 preserve 发出前推进。未确认内容写阻止 state-only 拼接；控制成功本身仍可立即返回。认回原 Snapshot 后再刷新权威状态。新观察者先取得当前完整快照，变化通知只携带版本，可合并但不留下快照与订阅之间的缺口。观察核权后同步选择快照，中间不再 await。
+
+正数批延迟采用软触发，挂起 next 不迁移窗口。观察登记和未读通知使用有限逻辑额度，并发 next 不排队。精确取值、失效与沉默读取限制归 [SPEC](../SPEC.md#工厂与配置)。本阶段不读取测试后端根对象，也不增加恢复快照读口。
+
+附带投影刷新不承担接收或释放的准入责任。原流交接、保存确认与明确拒绝均先固定活动阶段，再安排刷新。接收与控制各合并本调用的刷新请求，避免沉默读取积累等待或挡住取消投影；过时 revision 回包不能覆盖较新的确认状态。

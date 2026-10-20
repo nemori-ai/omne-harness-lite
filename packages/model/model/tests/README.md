@@ -18,7 +18,7 @@
 
 ## 安装闭包
 
-`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景还用已安装 sender 的公共 started.window 与 facts 调用真实 Commands.preserve，并核原调用快照、一次 start 与资源关闭。场景导入 `@omne-harness/model`、`@omne-harness/model-contract`、契约 testing 入口、`@omne-harness/content-block` 与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。另用已安装根入口的 executeModel 连接公开脚本传输，验证一次发送与两级关闭。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口、未支持 quiesce 和 instances.connect 的诊断，以及真实 runtime 受理、认回、跨租户拒绝与唯一首次 prepared 分派。instances.connect 当前 unavailable。该场景未覆盖实例观察连接，不证明完整托管业务执行或生产宿主。
+`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景还用已安装 sender 的公共 started.window 与 facts 调用真实 Commands.preserve，并核原调用快照、一次 start 与资源关闭。场景导入 `@omne-harness/model`、`@omne-harness/model-contract`、契约 testing 入口、`@omne-harness/content-block` 与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。另用已安装根入口的 executeModel 连接公开脚本传输，验证一次发送与两级关闭。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口、未支持 quiesce 的诊断，以及真实 runtime 受理、认回、跨租户拒绝、唯一首次 prepared 分派及真实 connect/observe 初始快照。无外部发送计划时 drive 明确返回 unavailable，实例仍可观察。该场景覆盖最小实例观察连接，不证明完整托管业务执行或生产宿主。
 
 ## 内存行为资源
 
@@ -38,7 +38,7 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 带类型的输入回归在各入口附加 onProgress 回调，验证回调不进入业务快照。它使用带函数的不透明 principal 和原已铸造租户，通过真实受理、查询、首次分派与取消，检查身份引用保持有效。
 
-共同符合性运行保存全部实际义务，不删去未支持项。当前 checker 含 53 项，套件逐项断言九项 admission 通过；未知 ACK 认回尚未覆盖，完整 admission 符合性需要十项全部通过。完整报告保留未支持项及实际失败，不据局部通过宣称全部符合。真实耐久、完整发送与收场、结果消费、生产宿主和跨进程恢复不在本套件的证明范围内。
+共同符合性运行保存全部实际义务，不删去未支持项。当前 checker 含 53 项，套件逐项断言九项 admission、七项 observation 及四项观察目录 route 通过；未知 ACK 认回尚未覆盖，完整 admission 符合性需要十项全部通过。完整报告保留未支持项及实际失败，不据局部通过宣称全部符合。真实耐久、整调用收场、结果消费、生产宿主和跨进程恢复不在本套件的证明范围内。
 
 
 ## 产品发送验证
@@ -47,6 +47,14 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 
 [send-fixture.ts](send-fixture.ts) 只提供真实内存 Commands、资格安排、脚本外部传输、资源及故障。它不编排发送。未知流始终由产品 sender 保留和交接。公开类型由 [send.spec-d.ts](send.spec-d.ts) 核对，安装场景运行已安装根入口的产品工厂，确认提交真实回执、一次 start 与资源关闭。
 
-完整符合性报告继续保留53项，增加脚本 transport 的六项真实检查，其中 materialization-receipt-matches-request 必须通过。该项只证明传输形状，本页产品 sender 测试另证明实际发送链的提交和使用。driver 未消费 facts，route 和完整观察/收场/结果读取不据此标为通过。所有证据均为受控内存与脚本，不覆盖真实厂商、耐久后端、生产宿主或跨进程恢复。
+完整符合性报告继续保留53项，增加脚本 transport 的六项真实检查，其中 materialization-receipt-matches-request 必须通过。该项只证明传输形状，本页产品 sender 测试另证明实际发送链的提交和使用。driver 已通过真实产品 sender 消费原 facts；最小观察与四项目录行为有独立断言，完整收场和结果读取仍未实现。所有证据均为受控内存与脚本，不覆盖真实厂商、耐久后端、生产宿主或跨进程恢复。
 
 [send.spec.ts](send.spec.ts) 通过真实产品 sender 和 Memory Commands 验证两个独立公共 window 的事实保存，及 tenant、call、execution、dispatch、window 错绑拒绝。recordSend 的 applied/not-applied 未知测试核原窗口、未预读的原流、单次交接、一次 start 与资源释放。脚本只提供传输事实，不证明真实 HTTP、生产耐久或跨进程恢复。
+
+## 原流接收与实例观察
+
+[runtime-fixture.ts](runtime-fixture.ts) 只安排合法宿主、当前资格、外部脚本流与故障。它使用实际 runtime、sender 和 Memory Commands，不生成快照或代做 preserve。[runtime-observation.spec.ts](runtime-observation.spec.ts) 核初始发布、独立控制更新、observe-only 资格、pending 撤权/abort 与后继实例限制。[runtime-receive.spec.ts](runtime-receive.spec.ts) 核原窗口、未知 open/preserve/sender 写认回、取消与确认屏障、正数批量、沉默 pending next、首内容、首项/保存交错、EOF/异常前缀及资源释放。
+
+[runtime-transitions.spec.ts](runtime-transitions.spec.ts) 注入附带刷新异常、挂起和乱序回包，检查原流保留、确认后不重放、明确拒绝后一次释放与状态不回退。按调用驱动锁分别在 next、preserve 和正常资源释放等待时接受重入探针，要求明确 busy 且原调用正常完成。
+
+观察边界测试另核登记不足、落后超额、共享大快照、并发 next 无队列和健康观察者继续。完整53项报告保留未实现收场、读取/ACK及 quiesce 的真实 fail/不适用状态，不据本卡通过宣称完整 Model 符合。全部组合仍限受控内存与脚本，不证明真实后端或生产宿主。
