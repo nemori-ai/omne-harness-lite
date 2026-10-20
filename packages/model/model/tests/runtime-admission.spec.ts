@@ -2,7 +2,10 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
-import { checkModelProviderConformance } from '@omne-harness/model-contract/testing'
+import {
+  checkModelProviderConformance,
+  createScriptedTransport,
+} from '@omne-harness/model-contract/testing'
 import { fixture, identity, instance, op, proof, unbox, callId } from './memory-fixture.ts'
 
 const configuration = {
@@ -131,7 +134,50 @@ it('passes nine admission obligations through the real runtime and preserves the
         },
         configuration,
       )
+      const transport = createScriptedTransport({
+        receipt: {
+          supplier: f.admit.request.suppliers[0].adoption,
+          representation: f.admit.request.representation,
+          payloadDigest: 'a'.repeat(64),
+        },
+        facts: [],
+        ending: { kind: 'terminated', termination: { kind: 'completed', reason: 'stop' } },
+        rejection: null,
+      })
+      let sends = 0
+      const countedTransport: import('@omne-harness/model-contract').ModelTransport = {
+        async prepare(request, supplier) {
+          const prepared = await transport.transport.prepare(request, supplier)
+          if ('failure' in prepared) return prepared
+          return {
+            ok: {
+              close: () => prepared.ok.close(),
+              async materialize(signal) {
+                const materialized = await prepared.ok.materialize(signal)
+                if ('failure' in materialized) return materialized
+                return {
+                  ok: {
+                    receipt: materialized.ok.receipt,
+                    close: () => materialized.ok.close(),
+                    start(signal) {
+                      const facts = materialized.ok.start(signal)
+                      sends += 1
+                      return facts
+                    },
+                  },
+                }
+              },
+            },
+          }
+        },
+      }
       return {
+        transport: {
+          transport: countedTransport,
+          sends: () => sends,
+          request: f.admit.request,
+          supplier: f.admit.request.suppliers[0],
+        },
         provider,
         principal: f.principal,
         tenant: f.tenant,
@@ -147,10 +193,18 @@ it('passes nine admission obligations through the real runtime and preserves the
       }
     },
   })
-  mkdirSync('../../../tmp/issue-454/checks', { recursive: true })
-  writeFileSync('../../../tmp/issue-454/checks/conformance.json', JSON.stringify(report, null, 2))
+  mkdirSync('../../../tmp/issue-455/checks', { recursive: true })
+  writeFileSync('../../../tmp/issue-455/checks/conformance.json', JSON.stringify(report, null, 2))
   const rows = report.results
   expect(rows).toHaveLength(53)
+  expect(rows.slice(-6).map(row => [row.obligation, row.status])).toEqual([
+    ['transport-sends-only-at-start', 'pass'],
+    ['repeated-transport-step-sends-nothing', 'pass'],
+    ['materialization-receipt-matches-request', 'pass'],
+    ['fact-stream-ends-once', 'pass'],
+    ['interruption-is-confirmed', 'pass'],
+    ['transport-close-is-idempotent', 'pass'],
+  ])
   const admission = rows.slice(0, 10)
   expect(admission.slice(0, 9).map(row => [row.obligation, row.status])).toEqual([
     ['admission-repeat-recognised', 'pass'],

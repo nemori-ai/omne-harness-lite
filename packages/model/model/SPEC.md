@@ -149,3 +149,20 @@ operation 长期只保存 SHA-256 输入指纹、方法、调用、原提交修�
 控制器可按原身份注入两种 commit-unknown。applied 已完整提交，not-applied 只绑定原身份而无业务效果。揭示只将前者变 committed、后者变 rolled-back 或 not-committed。前置拒绝不消费计划，未知期间异输入冲突。query 的本地 not-committed 不构成 Storage 排除证明。
 
 该入口只证明内存装配。它不提供生产耐久、跨重启恢复、真实旧发送者排除、资格共同事务、厂商网络或可靠消费保证。
+
+
+## 产品发送边界
+
+`createModelSendBoundary` 实现共同 `ModelSendBoundary`。实际构造声明归 [send/types.ts](src/send/types.ts)，共同物化与发送行为归 [model-contract](../model-contract/SPEC.md#物化回执的提交与发送)。本构造不改变 runtime 五依赖或七配置，也不将 sender 接入尚未消费事实的 driver。
+
+边界只固定 SendDemand 的声明字段，已铸造 tenant 与不透明 principal 保留身份引用。当前访问先于本地尝试查询。产品持有物化资源、原写输入和一次事实交接；Commands 持有调用事实；具体同步协调者持有全部 sender 共用的当前资格与 dispatch 认领。物化回执、开窗确认后才进入最终同步围栏。协调者在同一排他次序核原主体、发起者、工作资格、代次、控制、固定请求、接收方及来源，先占用一次尝试，再调用产品闭包解析凭据和立即 start。重入拒绝，重复闭包调用复用首次结果。来源不可用、资格撤销、scope 错配和无 value 均不发送。
+
+factory 的精确采用、官方身份、当前无 tenant 绑定及查询 ID 来自受信登记；Model 不生成凭据 ID。tenant 只解析原 ID，official=false，不回退 factory。absent、unreadable、unavailable 保留不同的 model-credential 安全诊断；denied 保持拒绝。解析、start、事实读取及释放的异常正文不进入业务诊断。秘密只交给原资源的同步私有槽。资源提供者须核物化对象归属，清除临时秘密，并发送回执对应内容。
+
+每个原写在首次提交前固定完整参数，operation 使用具有128位熵的随机值生成。未确认写先 query 原 operation，确定后重放原方法和参数，不改 expected、dispatch 或 payload。物化或窗口未知保留资源但零 start。已明确未发的资格拒绝不会因原 not-sent 写的已知冲突改称未知发送；未确认记录仍保留原责任。已经可能 start 的异常或记录冲突始终 unknown，不改报未发。
+
+start 返回事实而记录未确认时，原流和资源由 sender 有界保留，不预取、不 return、不 close。认回原写后只交出一次原流。并发重入返回 busy unknown，异输入拒绝；同一后端的独立 sender 由共享认领阻止第二次 start。未确认、活资源及释放失败均保留容量，满时在新资源取得前拒绝；没有过期遗忘。后续重试须由既有协议产生新的 dispatch。
+
+交出 facts 后只允许一个 iterator，推进串行。耗尽、return、throw 或读取异常均按 materialized、prepared、resource 逆序尝试全部释放，各钩子最多一次。失败抛安全 resource-release-failed，保持可观察且继续占位。signal 只向原传输请求停止，sender 不在 abort 回调关闭原事实流。正常释放才删除本地尝试；后续 send 仍读权威 dispatch，不会再次 start。关闭、跨进程恢复、生产有界调度及完整控制排空不在此构造的实现范围。
+
+内存测试的来源登记与同步围栏以 [testing/types.ts](src/testing/types.ts) 和 [state.ts](src/testing/state.ts) 为准。缺 sending 配置没有默认成功凭据。脚本仅模拟外部传输；产品不得依赖 testing。共同 started 结果尚无 window，当前直接消费者只消费 facts，不据此提供通用 driver 接续。

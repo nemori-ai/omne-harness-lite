@@ -68,7 +68,7 @@ assert.equal(judgePresence(state, reference).present, true)
 console.log('scenario ok: value, denied, absent and a minted-tenant judgment')
 
 const testing = await import('@omne-harness/model/testing')
-const { createModelRuntime } = await import('@omne-harness/model')
+const { createModelRuntime, createModelSendBoundary } = await import('@omne-harness/model')
 assert.deepEqual(Object.keys(testing).sort(), [
   'createMemoryModelCommands',
   'createTestModelDependencies',
@@ -194,8 +194,8 @@ const runtimeDependencies = testing.createTestModelDependencies({
     {
       adoption: request.profile,
       continuity: input => ({ ok: input.source }),
-      materialization: () => ({
-        failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
+      materialization: input => ({
+        ok: { ...evidence, record: `${input.call}/${input.dispatch}` },
       }),
       lateFact: () => ({
         failure: { kind: 'unavailable', dependency: 'fixture', diagnostic: 'unused' },
@@ -229,6 +229,32 @@ const runtimeDependencies = testing.createTestModelDependencies({
   maxWaiters: 2,
   maxQueued: 10,
   sends: [],
+  sending: {
+    maxRetainedAttempts: 4,
+    credentials: {
+      present: () => ({ kind: 'unavailable' }),
+      resolve: (ref, face) => {
+        assert.equal(ref.id, 'official-installed-query')
+        assert.equal(ref.tenant, owner)
+        assert.deepEqual(face, { authorized: true, official: true })
+        return { kind: 'value', scope: 'factory', value: 'synthetic-send' }
+      },
+    },
+    sources: [
+      {
+        profile: request.profile,
+        supplier: request.suppliers[0].adoption,
+        recipient: request.suppliers[0].recipient,
+        model: request.suppliers[0].model,
+        credential: {
+          kind: 'factory',
+          official: true,
+          queryId: credentialId('official-installed-query'),
+        },
+        current: () => ({ ok: { authorized: true, noTenantBinding: true } }),
+      },
+    ],
+  },
 })
 const provider = createModelRuntime(runtimeDependencies.dependencies, {
   outputBatchBytes: 1024,
@@ -279,3 +305,65 @@ assert.equal(
 console.log(
   'scenario ok: installed runtime admitted, recalled and prepared exactly one unsent dispatch',
 )
+
+const managedTransport = createScriptedTransport({
+  receipt: {
+    supplier: request.suppliers[0].adoption,
+    representation: request.representation,
+    payloadDigest: 'b'.repeat(64),
+  },
+  facts: [],
+  ending: { kind: 'terminated', termination: ending },
+  rejection: null,
+})
+const sender = createModelSendBoundary({
+  commands: runtimeDependencies.dependencies.commands,
+  coordinator: runtimeDependencies.controls.send.coordinator,
+  credentials: {
+    present: () => ({ kind: 'unavailable' }),
+    resolve: (ref, face) => {
+      assert.equal(ref.id, 'official-installed-query')
+      assert.equal(ref.tenant, owner)
+      assert.deepEqual(face, { authorized: true, official: true })
+      return { kind: 'value', scope: 'factory', value: 'synthetic-send' }
+    },
+  },
+  maxRetainedAttempts: 4,
+  resources: {
+    async acquire() {
+      return {
+        ok: {
+          transport: managedTransport.transport,
+          startWithCredential(materialized, secret, signal) {
+            assert.equal(secret, 'synthetic-send')
+            return materialized.start(signal)
+          },
+          async release() {},
+        },
+      }
+    },
+  },
+})
+const recovery = decoded(await runtimeDependencies.dependencies.commands.loadRecovery(admission))
+const demand = {
+  ...admission,
+  execution: recovery.execution,
+  dispatch: dispatches[0].dispatch,
+  supplier: dispatches[0].supplier,
+  initiator: recovery.initiator,
+}
+const result = await sender.send(demand, new AbortController().signal)
+assert.equal(result.kind, 'started')
+const managedFacts = []
+for await (const fact of result.facts) managedFacts.push(fact)
+assert.deepEqual(managedFacts, [{ kind: 'ended', termination: ending }])
+assert.equal(managedTransport.counts().start, 1)
+assert.equal(managedTransport.counts().closePrepared, 1)
+assert.equal(managedTransport.counts().closeMaterialized, 1)
+assert.equal((await sender.send(demand, new AbortController().signal)).kind, 'unknown')
+assert.equal(managedTransport.counts().start, 1)
+assert.equal(
+  decoded(await runtimeDependencies.dependencies.commands.dispatches(admission))[0].send,
+  'started',
+)
+console.log('scenario ok: installed product sender committed its receipt and started exactly once')

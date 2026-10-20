@@ -8,6 +8,7 @@ it('the public entry exports standalone execution, runtime construction and cred
   expect(Object.keys(root).sort()).toEqual(
     [
       'createModelRuntime',
+      'createModelSendBoundary',
       'executeModel',
       'deliver',
       'judgeGate',

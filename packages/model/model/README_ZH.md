@@ -11,13 +11,14 @@
 | `executeModel` | 经显式传输执行一次，覆盖取消及资源关闭 |
 | 凭据判定及 `deliver` | 凭据判定为纯函数，`deliver` 委托传入的 resolver |
 | `createModelRuntime` | 受理、查询、分派记录、取消意图及首次 prepared 分派；其他托管操作仍 unavailable |
+| `createModelSendBoundary` | 显式依赖下提交回执与窗口、同步凭据围栏、一次 start 和唯一事实消费 |
 | `@omne-harness/model/testing` | 内存 Commands 与五个可控依赖端口 |
 | 耐久 Commands 及生产托管执行 | 未实现 |
 | Cordis 运行宿主及厂商执行 | 本成员未实现 |
 
 ## 使用
 
-选择本实现的独立程序与宿主从[消费与构造](docs/context.md)进入。executeModel、createModelRuntime 及构造参数的设计已接受，精确形状见[公开接口设计](docs/public-api.md)，executeModel 与 createModelRuntime 已从根入口导出；独立能力工厂仍未实现。
+选择本实现的独立程序与宿主从[消费与构造](docs/context.md)进入。executeModel、createModelRuntime 及构造参数的设计已接受，精确形状见[公开接口设计](docs/public-api.md)，executeModel、createModelRuntime 与 createModelSendBoundary 已从根入口导出；独立能力工厂仍未实现。
 
 内存测试从 `@omne-harness/model/testing` 导入 createTestModelDependencies。显式配置、authority、evidence 和 owner 的用法见[测试入口](docs/public-api.md#内存测试入口)。返回的五依赖可构造真实 runtime 壳。
 
@@ -35,7 +36,17 @@
 
 构造器显式接收 Commands、发送围栏、重试策略、实例宿主与时钟。应用选择并拥有所需 adapter，不从全局 Context 取得业务参数。目标运行实现不依赖 Cordis。包清单不声明 Cordis、proper-lockfile 与 model-cordis-contract，包导出根入口和独立 `./testing`，没有 `./cordis` 与 `./execute`。`pnpm --filter @omne-harness/model run install-closure` 对本成员做打包、隔离安装、入口解析与场景运行，并以 `--out` 写出报告；运行方式与验证范围见[测试说明](tests/README.md#安装闭包)，运行结果不在本页记录。包不自动安装所有厂商或词表。
 
-受控宿主以稳定 claim 与可信 continuity 调用 `provider.driver.drive`，只形成首次 prepared 分派，不发送。未知 prepare 在本 provider 实例内保留原输入。取消只提交意图及实际传播状态。生产调度、发送、结果消费与跨进程恢复尚未实现。
+受控宿主以稳定 claim 与可信 continuity 调用 `provider.driver.drive`，只形成首次 prepared 分派，不发送。未知 prepare 在本 provider 实例内保留原输入。取消只提交意图及实际传播状态。产品 sender 可由受信消费者直接调用；driver 的事实消费接续、生产调度、结果消费与跨进程恢复尚未实现。
+
+## 产品发送边界
+
+根入口 `createModelSendBoundary` 接收 Commands、同步 `SendCoordinator`、`CredentialPort`、`SendResources` 和正的 `maxRetainedAttempts`。构造形状以 [types.ts](src/send/types.ts) 为准，行为归 [SPEC](SPEC.md#产品发送边界)。sender 先提交物化回执与接收窗口，再在共享同步围栏内核当前资格、认领 dispatch、解析凭据并立即 start。所有 sender、当前资格更新、取消及代次变化必须由同一状态拥有者协调。
+
+factory 路径需要受信装配明确登记精确档案与供应商采用、接收方、model、官方身份、当前无租户绑定和人命名查询 ID。请求中的 factory 标签不授予官方身份。tenant 凭据失败不回退 factory。秘密只进入本次资源的同步 start 槽，不进入尝试、写入或诊断。
+
+未知写保存原 operation、expected、输入和资源，重入先核实原操作。start 已返回而记录未确认时不迭代、不关闭原流；认回后唯一交出。signal 交给原传输；事实耗尽或消费者归还时，按 materialized、prepared、resource 逆序幂等释放。释放失败以安全异常可见，未知责任与失败释放继续占容量，没有 TTL 遗忘。
+
+测试装配显式提供 sending 配置并消费同一产品 sender；缺配置明确不可用。driver 仍停在 prepared，未集成唯一 facts 消费者。共同 started 结果当前只带 facts，通用窗口交接另行迁移。本地脚本不证明真实厂商、耐久存储、生产宿主或跨进程恢复。
 
 ## 验证
 

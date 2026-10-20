@@ -1,3 +1,5 @@
+import type { CredentialSelection, SendCoordinator, SendStart } from '../send.ts'
+import type { MemorySendSource } from './types.ts'
 import { validateRequest } from './request.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
@@ -5,6 +7,7 @@ import {
   decodeModelOperationId,
   decodeModelInstanceId,
   decodeRevision,
+  decodeCredentialId,
 } from '@omne-harness/model-contract'
 import type {
   Access,
@@ -32,8 +35,7 @@ import type {
   Snapshot,
   VisibleBlock,
   SendDemand,
-  MaterializedTransport,
-  TransportFact,
+  MaterializationReceipt,
   Termination,
 } from '@omne-harness/model-contract'
 import { resultParts, makePage, pageEnd, materialBytes, encodedBytes } from './pages.ts'
@@ -193,6 +195,7 @@ export class MemoryState<P> {
   private plans = new Map<string, UnknownInjection>()
   private owners: readonly ModelConsumerOwnerDeclaration[]
   private busy = false
+  private sendClaims = new Map<string, 'claimed' | SendStart['kind']>()
   readonly control: MemoryModelControl
 
   readonly options: MemoryModelCommandsOptions<P>
@@ -513,34 +516,77 @@ export class MemoryState<P> {
       ? invalid('dispatch', 'send-not-prepared')
       : null
   }
-  startSend(
-    input: SendDemand<P>,
-    materialized: MaterializedTransport,
-    signal: AbortSignal,
-  ): Outcome<AsyncIterable<TransportFact>, ModelFailure> {
-    return this.exclusive(() => {
-      const key = this.identity(input)
-      if (typeof key !== 'string') return { failure: key }
-      const call = this.root(key).calls.get(input.call)
-      const auth = this.authorize(input, 'send', call, input.call)
-      if ('failure' in auth) return auth
-      const failure = this.sendBinding(input, call)
-      if (failure) return { failure }
-      const dispatch = call?.dispatches.find(d => d.record.dispatch === input.dispatch)
-      if (
-        !dispatch?.record.materialization ||
-        dispatch.record.send !== 'prepared' ||
-        digest(dispatch.record.materialization.receipt) !== digest(materialized.receipt) ||
-        ![...dispatch.windows.values()].includes('open')
-      )
-        return { failure: invalid('dispatch', 'send-not-prepared') }
-      if (signal.aborted) return { failure: unavailable('model-send', 'cancelled-before-start') }
-      try {
-        return { ok: materialized.start(signal) }
-      } catch {
-        return { failure: unavailable('model-send', 'transport-start-unknown') }
-      }
-    })
+  sendCoordinator(sources: readonly MemorySendSource<P>[]): SendCoordinator<P> {
+    const registered = sources.map(source => ({
+      ...source,
+      profile: structuredClone(source.profile),
+      supplier: structuredClone(source.supplier),
+      credential: structuredClone(source.credential),
+    }))
+    const refused = (failure: ModelFailure): SendStart => ({ kind: 'refused', failure })
+    return {
+      check: input =>
+        this.exclusive(() =>
+          this.read(input, 'send', call => {
+            const failure = this.sendBinding(input, call)
+            return failure ? { failure } : { ok: undefined }
+          }),
+        ),
+      withinCurrent: (input, receipt: MaterializationReceipt, window, start) =>
+        this.exclusive(() => {
+          const checked = this.read<CredentialSelection>(input, 'send', call => {
+            const failure = this.sendBinding(input, call)
+            if (failure) return { failure }
+            const dispatch = call.dispatches.find(d => d.record.dispatch === input.dispatch)
+            if (
+              !dispatch?.record.materialization ||
+              dispatch.record.send !== 'prepared' ||
+              digest(dispatch.record.materialization.receipt) !== digest(receipt) ||
+              dispatch.windows.get(window) !== 'open'
+            )
+              return { failure: invalid('dispatch', 'send-not-prepared') }
+            const source = registered.find(
+              source =>
+                digest(source.profile) === digest(input.request.profile) &&
+                digest(source.supplier) === digest(input.supplier.adoption) &&
+                source.recipient === input.supplier.recipient &&
+                source.model === input.supplier.model,
+            )
+            if (!source)
+              return { failure: unavailable('model-send-source', 'source-not-registered') }
+            const current = source.current(input)
+            if ('failure' in current) return current
+            if (!current.ok.authorized)
+              return { failure: { kind: 'denied', action: 'send-source' } }
+            const credential = input.supplier.credential
+            if (credential.kind === 'tenant')
+              return { ok: { id: credential.id, scope: 'tenant' as const } }
+            if (
+              source.credential.kind !== 'factory' ||
+              source.credential.official !== true ||
+              !current.ok.noTenantBinding ||
+              'failure' in decodeCredentialId(source.credential.queryId)
+            )
+              return { failure: unavailable('model-send-source', 'factory-source-unavailable') }
+            return { ok: { id: source.credential.queryId, scope: 'factory' as const } }
+          })
+          if ('failure' in checked) return refused(checked.failure)
+          const key = this.identity(input)
+          if (typeof key !== 'string') return refused(key)
+          const claim = JSON.stringify([key, input.call, input.dispatch])
+          if (this.sendClaims.has(claim))
+            return { kind: 'unknown', diagnostic: 'dispatch-already-claimed' }
+          this.sendClaims.set(claim, 'claimed')
+          try {
+            const result = start(checked.ok)
+            this.sendClaims.set(claim, result.kind)
+            return result
+          } catch {
+            this.sendClaims.set(claim, 'unknown')
+            return { kind: 'unknown', diagnostic: 'transport-start-unknown' }
+          }
+        }),
+    }
   }
   updateRead(
     input: Access<P> & { readonly call: ModelCallId },

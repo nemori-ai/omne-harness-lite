@@ -115,6 +115,10 @@
         {
           "id": "runtime-support",
           "anchor": "当前构造支持与本地模拟"
+        },
+        {
+          "id": "product-send",
+          "anchor": "产品发送边界"
         }
       ]
     },
@@ -330,6 +334,10 @@
         {
           "id": "testing",
           "anchor": "内存测试入口"
+        },
+        {
+          "id": "product-send",
+          "anchor": "产品发送构造"
         }
       ]
     },
@@ -485,6 +493,10 @@
         {
           "id": "runtime-admission",
           "anchor": "受理与首次分派"
+        },
+        {
+          "id": "product-send",
+          "anchor": "产品发送验证"
         }
       ]
     },

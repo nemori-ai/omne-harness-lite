@@ -1,7 +1,7 @@
 <a id="model-实现公开入口候选"></a>
 # Model 实现公开入口
 
-本包已实现 executeModel、凭据判定与 createModelRuntime 的受理、查询、取消意图与首次分派。其他托管行为仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明；下方独立能力工厂仍是未实现设计。
+本包已实现 executeModel、凭据判定、createModelSendBoundary 与 createModelRuntime 的受理、查询、取消意图与首次分派。其他托管行为仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明；下方独立能力工厂仍是未实现设计。
 
 ## 执行函数与构造
 
@@ -57,7 +57,7 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 
 `createMemoryModelCommands(options)` 返回完整的 ModelCommands 与窄控制器。options 和证据端口以 [types.ts](../src/testing/types.ts) 为准。调用者提供当前资格适配器、精确证据采用、免守卫 owner、时钟和有限容量。guarded owner、重复 owner 或缺证据适配器在构造时拒绝。
 
-`createTestModelDependencies(options)` 返回五个 dependencies 及对应 controls。它提供手动 UTC 时钟、有限唤醒队列、按原策略位置保存的重试计划和按 dispatch 的一次性脚本传输。发送先复制本次需求的值字段，保留原租户、主体证明和取消 signal。发送依次保存物化与窗口，在最后的同步资格围栏内 start。无发送或重试计划返回明确 unavailable。
+`createTestModelDependencies(options)` 返回五个 dependencies 及对应 controls。它提供手动 UTC 时钟、有限唤醒队列、按原策略位置保存的重试计划和按 dispatch 的一次性脚本传输。发送先复制本次需求的值字段，保留原租户、主体证明和取消 signal。发送消费根入口 createModelSendBoundary，不另有测试业务编排。sending 显式提供凭据、受信来源与尝试容量；缺少时明确不可用。无发送或重试计划返回明确 unavailable。
 
 ```ts
 import { createModelRuntime } from '@omne-harness/model'
@@ -85,3 +85,14 @@ await provider.runtime.calls.dispatches(input)
 宿主负责提供可信稳定的 driveInput，不从普通请求推导执行资格。取消 operation 必须不同于原 admission。停止 drive 不取消原调用。当前实现不提供生产池或跨进程恢复。
 
 测试 limits.resultPageParts 限定每页结果项数，limits.resultPageTargetBytes 是规范 parts 数组 JSON 的 UTF-8 目标。完整 sealed/partial 项不拆分，超目标项独页；整个页不得超过原 capacity.bytes。消费者需容纳接近原容量的页。预算和本地有限上限见 [SPEC](../SPEC.md#当前构造支持与本地模拟)。createModelRuntime 的读取、ACK 与运行分页尚未实现，内存测试算法不证明这些生产行为。unknown 控制按完整 tenant/call/operation/method 注入 applied 或 not-applied，揭示不能反转真实效果。适配器是受信、同步且不可重入的本地测试模型，不证明外部资格事务、耐久证据、跨进程排除或可靠消费。
+
+
+## 产品发送构造
+
+根入口 `createModelSendBoundary(options)` 返回共同 `ModelSendBoundary<P>`。公开构造类型 `ModelSendBoundaryOptions`、`SendCoordinator`、`CredentialSelection`、`SendResources`、`SendResource` 与 `SendStart` 的唯一声明在 [send/types.ts](../src/send/types.ts)。操作仍只接受共同 SendDemand 和 AbortSignal；普通调用者不能传 authorized、official、秘密或启动回调。
+
+Commands、同步 coordinator、credentials 和 resources 由受信装配提供。coordinator.check 核当前访问；withinCurrent 在共享排他区核精确回执与窗口、当前资格及一次性认领，再最多一次同步调用产品闭包。resources.acquire 取得本次资源，startWithCredential 核本次物化归属、临时持有秘密并同步调用 start，finally 清除秘密。maxRetainedAttempts 必须是正安全整数，在取得资源前限制未知或活跃责任。
+
+测试 `MemorySendSource` 显式登记 profile、supplier、recipient、model 和官方查询条件，current 在 MemoryState 排他区核当前来源及绑定。controls.send.createSender(overrides) 构造共用原后端的另一产品 sender，coordinator 为该后端的受控同步适配入口；覆盖项只用于注入测试依赖与故障。脚本计划不再提供 operation 或 window；测试通过实际命令观察生成值。此观察不构成共同窗口交接。
+
+原写认回、流保留、失败分类和资源寿命归 [SPEC](../SPEC.md#产品发送边界)。当前 factory 已实现直接发送边界，driver 仍只准备首次 dispatch；未接入唯一 facts 消费者，不证明完整托管调用已完成。
