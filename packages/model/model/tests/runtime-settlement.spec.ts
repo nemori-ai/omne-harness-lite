@@ -1,7 +1,12 @@
 import { judgePart } from '@omne-harness/message'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
-import type { ModelCommands, Termination, TransportFact } from '@omne-harness/model-contract'
+import type {
+  ModelCommands,
+  Snapshot,
+  Termination,
+  TransportFact,
+} from '@omne-harness/model-contract'
 import { configuration, eventually, runtimeFixture } from './runtime-fixture.ts'
 import { instance, op, proof, unbox } from './memory-fixture.ts'
 
@@ -42,6 +47,20 @@ async function settlement(f: ReturnType<typeof runtimeFixture>) {
   const state = await inspect(f)
   if (state.phase !== 'settled') throw new Error('call has not settled')
   return state.settlement
+}
+async function snapshot(f: ReturnType<typeof runtimeFixture>) {
+  const route = unbox(await f.provider.runtime.instances.connect(f.admit))
+  if (route.kind !== 'live') throw new Error('missing live route')
+  const observer = route.handle
+    .observe({ ...f.admit, signal: new AbortController().signal })
+    [Symbol.asyncIterator]()
+  try {
+    const item = await observer.next()
+    if (item.done || item.value.kind !== 'snapshot') throw new Error('missing snapshot')
+    return item.value.value
+  } finally {
+    await observer.return?.()
+  }
 }
 async function finish(f: ReturnType<typeof runtimeFixture>, facts: TransportFact[]) {
   unbox(await f.provider.runtime.calls.admit(f.admit))
@@ -728,11 +747,18 @@ for (const ending of ['eof', 'throws'] as const)
   })
 
 it('hands back the same terminal evidence after the confirmation callback fails without re-preserving or re-reading', async () => {
+  let confirmed: Snapshot | undefined
+  const writes: Settle[] = []
   const f = runtimeFixture(batching, commands => ({
     ...commands,
+    settle: async input => {
+      writes.push(structuredClone(input))
+      return commands.settle(input)
+    },
     preserve: async input => {
       const result = await commands.preserve(input)
       if ('ok' in result) {
+        confirmed = structuredClone(result.ok)
         const blocks = result.ok.blocks
         let reads = 0
         // The first read fixes receiver evidence. The second is the observation callback.
@@ -752,6 +778,18 @@ it('hands back the same terminal evidence after the confirmation callback fails 
     expect(await finish(f, answer)).toMatchObject({ failure: { diagnostic: 'drive-unconfirmed' } })
     unbox(await f.drive())
     expect((await settlement(f)).termination).toEqual(completed)
+    const restored = await snapshot(f)
+    expect(restored.blocks).toEqual(confirmed?.blocks)
+    expect(restored.cursor).toBe(confirmed?.cursor)
+    expect(restored.state).toEqual(await inspect(f))
+    if (restored.state.phase !== 'settled') throw new Error('missing observed settlement')
+    expect(restored.state.settlement.cursor).toBe(restored.cursor)
+    unbox(await f.provider.runtime.calls.cancel({ ...f.admit, operation: op('after-confirm') }))
+    const controlled = await snapshot(f)
+    expect(controlled.state.control.kind).toBe('requested')
+    unbox(await f.drive())
+    expect(await snapshot(f)).toEqual(controlled)
+    expect(writes).toHaveLength(1)
     expect(f.preserveInputs).toHaveLength(1)
     expect(f.channel(f.admit.call)).toMatchObject({
       starts: 1,
@@ -760,6 +798,80 @@ it('hands back the same terminal evidence after the confirmation callback fails 
       closes: 1,
     })
   } finally {
+    await f.dispose()
+  }
+})
+
+it('keeps the content barrier through repeated confirmation failures and recovers the original Snapshot', async () => {
+  const clone = globalThis.structuredClone
+  let confirmationFailures = 0
+  let restoredClone = () => {}
+  let confirmed: Snapshot | undefined
+  let settles = 0
+  const f = runtimeFixture(batching, commands => ({
+    ...commands,
+    settle: async input => {
+      settles++
+      return commands.settle(input)
+    },
+    preserve: async input => {
+      const result = await commands.preserve(input)
+      if ('ok' in result) {
+        confirmed = clone(result.ok)
+        let snapshotClones = 0
+        let failures = 2
+        // Fault publication after receiver's first clone fixed the real committed Snapshot.
+        const spy = vi.spyOn(globalThis, 'structuredClone').mockImplementation((value, options) => {
+          if (
+            value &&
+            typeof value === 'object' &&
+            'call' in value &&
+            value.call === input.call &&
+            'cursor' in value &&
+            value.cursor === result.ok.cursor &&
+            'blocks' in value &&
+            ++snapshotClones > 1 &&
+            failures > 0
+          ) {
+            failures--
+            confirmationFailures++
+            throw new Error('confirmation-callback-failed')
+          }
+          return clone(value, options)
+        })
+        restoredClone = () => spy.mockRestore()
+      }
+      return result
+    },
+  }))
+  try {
+    expect(await finish(f, answer)).toMatchObject({ failure: { diagnostic: 'drive-unconfirmed' } })
+    const waiting = await snapshot(f)
+    expect(await f.drive()).toMatchObject({ failure: { diagnostic: 'drive-unconfirmed' } })
+    expect(confirmationFailures).toBe(2)
+    expect(settles).toBe(0)
+    expect((await inspect(f)).phase).toBe('running')
+    unbox(await f.provider.runtime.calls.cancel({ ...f.admit, operation: op('while-confirming') }))
+    for (let i = 0; i < 100; i++) await Promise.resolve()
+    expect(await snapshot(f)).toEqual(waiting)
+    unbox(await f.drive())
+    const restored = await snapshot(f)
+    expect(restored.blocks).toEqual(confirmed?.blocks)
+    expect(restored.cursor).toBe(confirmed?.cursor)
+    expect(restored.state).toEqual(await inspect(f))
+    expect(restored.state.control.kind).toBe('requested')
+    unbox(await f.drive())
+    expect(await snapshot(f)).toEqual(restored)
+    expect(settles).toBe(1)
+    expect(f.preserveInputs).toHaveLength(1)
+    expect(f.channel(f.admit.call)).toMatchObject({
+      starts: 1,
+      reads: answer.length,
+      returns: 1,
+      closes: 1,
+    })
+  } finally {
+    restoredClone()
     await f.dispose()
   }
 })
