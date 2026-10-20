@@ -222,7 +222,7 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 本节规定 `@omne-harness/agent-contract` 包根导出的判断函数的可观察行为。这些函数是 `judgeAgentDefinition`、`judgeLoopExtensions`、`judgeExtensionOutput`、身份解码函数、结构判定与 `agentBodyContract`。它们是纯函数：不读时钟，不产生随机值，不做 I/O。它们不执行调用方交来的值中的函数或访问器。值是 Proxy 时，复制会执行它的 trap，处置见各小节。其他例外也在各小节写明。本页其余各节的接口在包根只有类型，没有实现，见“主干运行契约”。
 
-设计在几处没有给出规则，本交付对这些缺口做了选择。每一项在出现处标注“本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注”。
+设计在几处没有给出规则。下文在每一处写明所用的规则，并标注它是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
 
 ### 定义与扩展声明
 
@@ -291,9 +291,11 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 - `retry.plan.supplier` 的内容，归 Model 契约 `@omne-harness/model-contract` 的 `Supplier`。
 - 可改写字段的取值。`before_model_call` 的可改写字段由该位置之后的重新组装与复核检查，见“[调模型之前的复核与最终请求](#调模型之前的复核与最终请求)”第 1 条。`before_action` 的 `effectiveArguments` 由链末的官方动作准入按新参数判断，见[扩展作者协议的官方动作准入](docs/public-api/extensions.md#官方动作准入)。`after_action` 单结果范围的 `candidate.blocks` 随候选消息交消息准入。
 
-[位置输出表](docs/public-api/extensions.md#位置输出表)按用途区分调模型之前位置的两行，按触发限制 `retry`，但没有写明用途或触发为 null 时怎样判断。实现在这两处取更严的读法，另在第 3 步与第 4 步之间划了分工。第一，`before_model_call` 的用途为 null 时按 `compaction` 行判断。第二，`retry` 的 `trigger` 为 null 时按非首内容前处理，即拒收。第三，第 3 步只查 `inject.message` 的形状，角色判断留给第 4 步，所以 `inject_source_mismatch` 可以到达。这三处是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
+成功值的类型把 `inject.message` 写成 `Message`，把 `rewrite.subject` 写成 `Subject`，把 `retry.plan.supplier` 写成 Model 的 `Supplier`。这三个值只经过本判断的检查。`message` 经第 3 步的形状检查与第 4 步的角色检查。`subject` 经第 3 步的形状检查与第 7 步的等值检查。`supplier` 只经第 3 步的形状检查。消费者在采用这些值之前，运行消息准入、该位置与 Model 各自的判断。这是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
 
-第 3 步的复制使用输出专用的限额 `OUTPUT_LIMITS`，与声明的限额分开。深度不超过 64。单个对象成员不超过 10000。JSON 值总数不超过 1000000。字符串不超过 10000000。数字的 JSON 文本不超过 100。常量还声明了 50000000 的字节上限，但复制不量字节，所以这一项不强制，是保留项。声明来自不受信的作者，所以声明限额小，用来防止滥用。输出来自进程内扩展或方言适配器，`rewrite` 的返回值本身就是整份请求，所以输出限额只防失控。这组数值是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。声明判断保持原限额。
+[位置输出表](docs/public-api/extensions.md#位置输出表)按用途区分调模型之前位置的两行，按触发限制 `retry`，但没有写明用途或触发为 null 时怎样判断。本判断在这两处按更严的规则判断，并划分第 3 步与第 4 步的检查。第一，`before_model_call` 的用途为 null 时按 `compaction` 行判断。第二，`retry` 的 `trigger` 为 null 时按非首内容前处理，即拒收。第三，第 3 步只查 `inject.message` 的形状，角色判断留给第 4 步，所以 `inject_source_mismatch` 可以到达。这三处是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
+
+第 3 步的复制使用输出专用的限额 `OUTPUT_LIMITS`，与声明的限额分开。深度不超过 64。单个对象成员不超过 10000。JSON 值总数不超过 1000000。字符串不超过 10000000。数字的 JSON 文本不超过 100。常量的成员 `maxBytes` 为 50000000。本判断不量字节，这一项不参与判断。声明来自不受信的作者，所以声明限额小，用来防止滥用。输出来自进程内扩展或方言适配器，`rewrite` 的返回值本身就是整份请求，所以输出限额只防失控。这组数值是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。声明判断保持原限额。
 
 ### 身份解码与结构判定
 
@@ -314,7 +316,7 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 ### 资产正文契约
 
-`agentBodyContract()` 返回资产包 `BodyContract`，类别是 `AgentDefinition`。消费者向资产包的类别注册表登记它：`createCategoryRegistry().register(agentBodyContract())`。依赖方向是 agent-contract 依赖 assets，assets 不依赖 agent-contract，注册表不导入本包，沿资产 SPEC 的[类别提供方](../../assets/assets/SPEC.md#category-provider)。这个方向已由项目负责人裁定。登记由装配一侧执行，本包不持有注册表。
+`agentBodyContract()` 返回资产包 `BodyContract`，类别是 `AgentDefinition`。消费者向资产包的类别注册表登记它：`createCategoryRegistry().register(agentBodyContract())`。依赖方向是 agent-contract 依赖 assets，assets 不依赖 agent-contract，注册表不导入本包，沿资产 SPEC 的[类别提供方](../../assets/assets/SPEC.md#category-provider)。这个方向是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。登记由装配一侧执行，本包不持有注册表。
 
 正文是资产包 `readBodyText` 产生的 json-text 读树，函数只读这棵树，不读资产库和时钟。`schema` 是描述正文形状的读取文档，不是校验器。契约含三个函数。
 

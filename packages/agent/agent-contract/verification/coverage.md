@@ -51,7 +51,7 @@
 
 下表列出已知的源码、测试与设计目标之间的差异。差异不表示源码有缺陷，表示设计目标尚未实施，或实施时遇到设计页没有规定的情形。设计目标拥有者见[主题与唯一拥有者](../../docs/architecture.md#主题与唯一拥有者)。每行的“须同步的消费者”列出实施该目标时必须同时修改或复核的位置。
 
-契约包 agent-contract 与 agent-cordis-contract 已经实现并有测试，实现状态见下文“阶段与接受状态”。它们的实现本身不逐项登记为差异。表中与这两个包有关的行只有三类：源码已变而外部文档尚未同步的位置，待接受的自行设计选择，以及尚未裁定的保留政策。
+契约包 agent-contract 与 agent-cordis-contract 已经实现并有测试，实现状态见下文“阶段与接受状态”。它们的实现本身不逐项登记为差异。表中与这两个包有关的行只有三类：源码已变而外部文档尚未同步的位置，自行设计的选择，以及尚未裁定的保留政策。第二类行是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
 
 | 差异 | 源码位置 | 设计目标拥有者 | 须同步的消费者 |
 | --- | --- | --- | --- |
@@ -105,7 +105,7 @@
 
 ### 接受事项
 
-下表除最后一行外，各项由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。接受只改变设计的状态，不改变实现清单中的未完成事项。最后一行是本交付（#395）自行设计的选择，尚待接受。
+下表除最后一行外，各项由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。接受只改变设计的状态，不改变实现清单中的未完成事项。最后一行是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
 
 | 事项 | 接受者 | 当前状态 |
 | --- | --- | --- |
@@ -115,4 +115,4 @@
 | 非 Tool ref 来源的模态转换位置 | 项目负责人 | 已接受，见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)：由实现消息准入的提供者在接纳前调用转换件 |
 | 目录登记的撤除方式与 Cordis 集成约定 IC-13 的差异 | 集成约定拥有者 | 已接受，见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)：三处差异修订进 IC-13，Agent 的目录登记设计符合修订后的 IC-13，目录实现的撤除行为尚未验证，见[目录登记的撤除方式怎样对应 IC-13](../../agent/docs/architecture/open-questions.md#目录登记的撤除方式怎样对应-ic-13) |
 | 兼容锚点 | 本包维护者 | [消费与系统定位](../docs/context.md)保留一个、[SPEC](../SPEC.md) 保留两个旧标题的兼容锚点，仍指向旧标题的入向链接因此可以解析。共同系统页等仍链到旧锚点的页面改写之后，才能删除这些兼容锚点 |
-| 实现阶段的自行设计选择 | 项目负责人 | 本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。选择清单：两个声明判定的成功值逐层冻结；声明判断新增的四个拒绝原因；`judgeAgentDefinition` 的检查次序；扩展声明成功值不含 `source`；`judgeLoopExtensions` 的三个阶段及阶段内次序；`judgeExtensionOutput` 放在 agent-contract、七步次序、第 3 步的形状规则、`ask_at_forbidden_position` 优先、两处取更严的读法与第 3 步和第 4 步之间的分工、输出限额；两个声明判断与 `judgeExtensionOutput` 对 trap 抛出异常或已撤销的 Proxy 得到 `malformed`；身份边界验证的函数与规则；AgentDefinition 正文契约的声明词汇、两处读法、八个拒绝原因与检查次序；扩展作者协议中 subject 表与 `Subject` 联合的权威分工；`agentInstancesPlugin` 的导出名与 `AgentInstancesService` 的形式；`AgentPublicationAuthority` 只在 `./cordis`、根入口只导出不含 Cordis 的三个类型；目录对没有条目的 resolve 与 connect 一律返回 denied；`Failure.unavailable.owner` 取服务键名；认回已结束的登记返回其当前状态；登记先核验后认回、宿主权威对同一操作的重试给出相同结论、另一个调用方 fiber 的同一操作返回 conflict；宿主在创建贡献 fiber 之前按操作身份认回 publish、同一操作的重试复用原贡献 fiber；撤除按登记身份认回、同一撤除操作配不同输入的 conflict 归宿主；监听失败的诊断用 error 级；产品页能力表“成员与验证入口”与“实现支持及限制”两列的写法。各项在 SPEC、扩展作者协议、[公开接口页](../docs/public-api/README.md)、agent-cordis-contract 的 [Cordis 页](../../agent-cordis-contract/docs/cordis.md)、agent-host-local 的[本地宿主装配](../../agent-host-local/docs/cordis.md)、产品页，以及本页“实施差异”表的身份边界验证规则一行与本行的对应处标注 |
+| 实现阶段的自行设计选择 | 项目负责人 | 本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注 |

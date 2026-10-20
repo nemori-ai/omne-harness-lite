@@ -6,6 +6,8 @@
 
 消费者依赖本包；[agent](../../agent/README.md) 提供通用实现；[agent-cordis-contract](../../agent-cordis-contract/README.md) 唯一绑定 Cordis Service；[agent-host-local](../../agent-host-local/README.md) 提供具体装配。纯契约及通用实现不依赖 Cordis，也不导入任何外部协调者的类型。
 
+本包依赖 [assets](../../../assets/assets/README.md)，assets 不依赖本包。本包实现 assets 定义的 `BodyContract`，装配一侧把 `agentBodyContract()` 登记到 assets 的类别注册表。依赖方向与登记的规则见 SPEC 的[资产正文契约](../SPEC.md#资产正文契约)。
+
 Agent 消费 Model/Tool 的公开执行契约以及 Context、HITL 的窄适配端口。外部协调者在外部提供 AgentJournal 的提交参加者，保存自己的业务关联，并消费事件。Journal 不暴露外部协调者的业务管理或业务终态方法，也不另立外部协调者的事实权威。tryFinish 终结本域执行；只有声明了提交参加者的 Journal 提供者承担与外部输入和业务终态的共同提交。独立消费者不需要终态批准协议。
 
 ## 值与行为

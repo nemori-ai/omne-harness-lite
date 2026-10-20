@@ -17,7 +17,7 @@
 - 目录插件 `agentInstancesPlugin`，静态 `inject` 是 `agentPublicationAuthority` 与 `agentAccessCheck`。
 - `Context` 对 18 个键的增补，以及 `Events` 对 `agent-cordis-contract/instance-retired` 的增补。
 
-每个抽象 Service 按同一写法声明，键、类名和契约类型见下表。表中的服务类有两个例外，其余每个都 `implements` 根契约的同名端口，方法类型取自该端口。第一个例外是 `AgentPublicationAuthorityService`：它实现本页定义的 Cordis 接口 `AgentPublicationAuthority`，不是根契约的端口，因为它的 `check` 要接收调用方的 Cordis `Context`。第二个例外是 `AgentInstancesService`：它实现根契约的 `AgentDirectory`，是含登记逻辑的具体注册表，不是抽象类。定义入口把 Context 的各个键增补为对应的服务类。主体类型由装配的可信身份适配器专化，运行时仍核验输入。接口同形不证明授权。具体插件不得再次 ctx.provide 这些键。消费者导入定义入口的键常量，提供者选择归应用装配。
+每个抽象 Service 按同一写法声明，键、类名和契约类型见下表。抽象 Service 把每个操作声明为 `readonly` 函数属性，所以提供者用箭头函数属性实现操作。提供者写成类方法时，TypeScript 报 TS2425。表中的服务类有两个例外，其余每个都 `implements` 根契约的同名端口，方法类型取自该端口。第一个例外是 `AgentPublicationAuthorityService`：它实现本页定义的 Cordis 接口 `AgentPublicationAuthority`，不是根契约的端口，因为它的 `check` 要接收调用方的 Cordis `Context`。第二个例外是 `AgentInstancesService`：它实现根契约的 `AgentDirectory`，是含登记逻辑的具体注册表，不是抽象类。定义入口把 Context 的各个键增补为对应的服务类。主体类型由装配的可信身份适配器专化，运行时仍核验输入。接口同形不证明授权。具体插件不得再次 ctx.provide 这些键。消费者导入定义入口的键常量，提供者选择归应用装配。
 
 `AgentRuntime` 描述一个实例的运行能力。同一个 isolate 内一个键只有一个提供者（[IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6)），而一个宿主可以同时承载多个实例。所以本成员不为 `AgentRuntime` 定义 Context 键。消费者经 `agentInstances` 的 `resolve` 按显式租户和实例身份取得 `AgentRuntime`，目录不将 Context 层级当租户或工作身份。
 
@@ -87,6 +87,14 @@
 | resolve | `agentInstances.resolve` | 目录核验 resolve | 只解析 published 登记 |
 | connect | `agentInstances.connect` | 目录核验 connect | 没有活体路由时返回 no-live-route |
 
+目录在边界验证身份文本与 Evidence，验证不通过的请求不交给发布权威，也不交给资格核验。四个操作先核对租户是 legal-identity 解析得到的 `TenantId`。然后目录用 agent-contract 的函数验证输入成员：
+
+- `register` 用 `decodeAgentInstanceId`、`decodeAgentOperationId` 验证 `instance` 与 `operation`，用 `judgeEvidence` 验证 `scope`。
+- `withdraw` 用 `decodeAgentInstanceId`、`decodeAgentOperationId`、`decodeAgentRegistrationId` 验证 `instance`、`operation` 与 `registration`。
+- `resolve` 与 `connect` 用 `decodeAgentInstanceId` 验证 `instance`。
+
+成员不通过时返回 invalid，`field` 是该成员名，`reason` 带解码函数或结构判定的失败。租户不合法、输入无法读取，或 `register` 的数据无法写成 JSON 时，`field` 是 `input`。宿主仍在 reserve 与 publish 核验资格。这是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。
+
 目录对没有条目的 resolve 与 connect 一律返回 denied。没有条目指别的租户的实例、从未登记的实例和已经结束的登记。目录键是显式租户加实例身份，它无法区分这三种情形，也不应当区分：跨租户的拒绝不区分对象不存在与无权访问，不返回对象状态。这是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。调用方在自己租户的实例被撤除之后，resolve 得到 denied，诊断要靠调用方自己的记录。
 
 AgentInstancesService 是包含 register 实现的具体服务。目录插件静态 inject `agentPublicationAuthority` 与 `agentAccessCheck`，用当前 Context 和发布权威构造服务。目录返回 unavailable 时，`owner` 取服务键名：agentInstances、agentAccessCheck、agentInstanceHost 或 agentPublicationAuthority。设计没有规定 `owner` 的取值。这个取值是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。发布权威属于本域消费接缝，由宿主提供；它不是任意调用者可实现后传入的准入回调。
@@ -97,7 +105,36 @@ register 的输入逐项复用根 publish 参数。authority.check 核两件事�
 
 目录在成功的调用方 fiber effect 内分配登记身份，回执复用本域 publish 的 Registration。登记身份不可猜测，同时是该贡献的 token。目录先请发布权威核验，核验通过后才按操作身份认回，所以重试同样要先通过核验。宿主的发布权威对同一操作的重试必须给出与首次相同的结论，否则已经成立的登记或撤除无法认回。相同 fiber、相同操作身份和相同输入重复登记认回同一 Registration。认回已经结束的登记时，返回它当前的状态 withdrawn，不返回旧的 published，因为旧状态已经不成立。这是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。同一操作身份配不同输入返回 conflict。同一操作身份、同一输入，但来自另一个调用方 fiber 时，同样返回 conflict。先核验后认回、宿主权威对重试的义务和这条 fiber 规则是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。所以 SPEC 的“同一操作同一输入返回原结果”要靠宿主的两项义务兑现。第一，宿主在创建贡献 fiber 之前，先按操作身份认回自己已经发起的 publish。第二，同一操作的 publish 重试复用原贡献 fiber，不新建 fiber。目录对来自另一个 fiber 的同一操作返回 conflict，作为宿主错误使用的信号。宿主的这两项义务是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。键为显式租户和实例身份，来自核验的输入，不从 Context 推断。同一实例已有 published 登记时，新登记按 SPEC 取代它：新登记的写入与旧登记转入 withdrawn 在同一个本地动作内完成，旧登记保留自己的身份。新登记的发布代次比旧登记大一。发布代次是目录为同一实例分配的登记序号，从 1 起连续，已释放的序号不复用。目录不以覆盖 Map 的方式接管。idle 实例保持登记。execution 的外部关联由外部协调者保存，不写入目录键。
 
-撤除只经 withdraw 或调用方 fiber 的卸载。目录不向调用者返回释放函数，目录条目的撤除函数由目录自己持有，条目被删除时一并移除。withdraw 先把登记状态改为 withdrawing。此后 resolve 返回 unavailable，connect 返回 no-live-route，活体观察以 retired 结束。随后目录删除条目。删除完成时返回 withdrawn。删除尚未确认时返回 withdrawing，调用方按同一登记身份重试，目录认回结果。重复撤除认回原结果。撤除同样先请发布权威核验，再按登记身份认回。目录不保存撤除的操作身份。同一撤除操作配不同输入时，conflict 由宿主返回，因为宿主持有操作身份与预约。这一分工是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。真实 Cordis 4.0.4 的 effect 立即结束，删除同步完成，所以 withdraw 返回时登记已经是 withdrawn，“删除尚未确认”的分支没有触发条件。只有调用方上下文的撤除函数抛错时，删除才没有完成，withdraw 才返回 withdrawing。`registration.spec.ts` 用一个不按 Cordis 行事的调用方上下文替身造出这种情形，检查这个分支。旧登记身份只能撤除自己的登记。晚到的旧撤除先比较登记身份，不会删除后继。fiber 卸载使用同一个幂等删除。撤除不取消原工作，也不撤销 execution。每次删除后，目录发出 `instance-retired`，见“配置、通知和撤除”。
+下图画 publish 的首次调用与重试，以及目录对一次 register 的几种答复。
+
+```mermaid
+sequenceDiagram
+    participant H as 宿主
+    participant F as 贡献fiber
+    participant R as 目录
+    participant A as 发布权威
+    H->>H: 按操作身份认回自己已经发起的publish
+    alt 首次publish
+        H->>F: 为该实例创建贡献fiber
+    else 同一操作的重试
+        H->>F: 复用原贡献fiber
+    end
+    F->>R: register 带租户 实例 操作 scope 状态
+    R->>R: 边界验证 不通过返回invalid
+    R->>A: check 输入与调用方Context
+    A-->>R: 结论 重试与首次相同
+    Note over R,A: 权威拒绝时返回它的失败 无答复时返回unavailable 都不写入
+    alt 该操作没有登记
+        R->>R: 在调用方fiber的effect内写入条目
+        R-->>F: Registration published
+    else 同一fiber 同一操作 同一输入
+        R-->>F: 认回原Registration 已结束的登记返回withdrawn
+    else 另一个fiber的同一操作 或同一操作配不同输入
+        R-->>F: conflict
+    end
+```
+
+撤除只经 withdraw 或调用方 fiber 的卸载。目录不向调用者返回释放函数，目录条目的撤除函数由目录自己持有，条目被删除时一并移除。withdraw 先把登记状态改为 withdrawing。此后 resolve 返回 unavailable，connect 返回 no-live-route，活体观察以 retired 结束。随后目录删除条目。删除完成时返回 withdrawn。删除尚未确认时返回 withdrawing，调用方按同一登记身份重试，目录认回结果。重复撤除认回原结果。撤除同样先请发布权威核验，再按登记身份认回。目录不保存撤除的操作身份。同一撤除操作配不同输入时，conflict 由宿主返回，因为宿主持有操作身份与预约。这一分工是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。真实 Cordis 4.0.4 的 effect 立即结束，删除同步完成，所以 withdraw 返回时登记已经是 withdrawn，“删除尚未确认”的分支没有触发条件。只有调用方上下文的撤除函数抛错时，删除才没有完成，withdraw 才返回 withdrawing。旧登记身份只能撤除自己的登记。晚到的旧撤除先比较登记身份，不会删除后继。fiber 卸载使用同一个幂等删除。撤除不取消原工作，也不撤销 execution。每次删除后，目录发出 `instance-retired`，见“配置、通知和撤除”。
 
 ### 换代与恢复
 
@@ -208,7 +245,7 @@ runtime 在已核验的公开操作之内调用 Journal 时不再次核验主体
 
 声明在 [src/cordis.ts](../src/cordis.ts) 的 `Events` 增补里。参数依次是 `tenant`、`instance`、`generation` 与 `reason`。
 
-通知不带消息正文、凭据或附件地址；发送者捕获监听失败，保留原提交结果，由权威扫描恢复通知遗漏。通知先按显式租户和实例过滤，数据动作再核权。通知可以丢失和重复，它只唤醒观察与路由刷新，不作为恢复事实源，也不表示 execution 终态。发送者在 `try` 中等待 `parallel` 的结果，监听者的失败只记安全诊断，不改变已经提交的操作结果。诊断用 error 级，因为 Cordis 的默认日志丢弃 warn 级。这是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。本版没有用于授权、取消、受理或提交的 Cordis 控制事件，控制一律调用根操作。将来新增可否决的异步控制事件时，必须另定义 `serial` 协议和当前资格，不使用 `bail`。
+通知不带消息正文、凭据或附件地址；发送者捕获监听失败，保留原提交结果，由权威扫描恢复通知遗漏。通知先按显式租户和实例过滤，数据动作再核权。通知可以丢失和重复，它只唤醒观察与路由刷新，不作为恢复事实源，也不表示 execution 终态。发送者在 `try` 中等待 `parallel` 的结果，监听者的失败只记安全诊断，不改变已经提交的操作结果。诊断用 error 级，因为 Cordis 的默认日志丢弃 warn 级（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。这是本交付（#395）自行设计的选择，待 PanQiWei 在 PR 接受；接受后由卡负责人删除标注。本版没有用于授权、取消、受理或提交的 Cordis 控制事件，控制一律调用根操作。将来新增可否决的异步控制事件时，必须另定义 `serial` 协议和当前资格，不使用 `bail`。
 
 ### 撤除与在途责任
 
@@ -233,13 +270,13 @@ Cordis 撤除的是登记、监听和具名可释放资源。execution 的状态
 | [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) | 宿主插件唯一的可选依赖是目录，它是登记句柄的来源。宿主在 reserve 时用 `ctx.get` 现取目录并接受 undefined。目录插件对 `agentInstanceHost` 也是可选依赖：每次 resolve 与 connect 现取，不保留旧引用，宿主缺席返回 unavailable。类型增补用 `import type` 从 `agent-cordis-contract/cordis` 取得，不从具体插件入口取得。换代时已持有的旧引用不继续用 | [依赖与定义拥有者](#依赖与定义拥有者) | 机制事实：[ctx-property-is-not-ctx-get](../../../../.meta_harness/design/basis/cordis/ctx-property-is-not-ctx-get.md)、[inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md) |
 | [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10) | 事件名是 `agent-cordis-contract/instance-retired`，用过去分词表示已发生的事实。本版没有控制事件 | [通知](#通知) | 业务协议前提 |
 | [IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) | 本成员在 `./cordis` 唯一增补 Events，JSDoc 写 `@mode` 与每项 `@param` | [通知](#通知) | 业务协议前提。已验证：`cordis-entry.spec-d.ts`（事件参数元组与 `ctx.parallel` 的类型检查，错误的身份与原因字面量被拒）、`cordis-entry.spec.ts`（构建后的声明含 `@mode parallel` 与四个 `@param`）、`registration.spec.ts`（真实 `parallel` 派发给监听者的参数次序是 tenant、instance、generation、reason，三个原因值都出现）。JSDoc 与派发模式的一致性只靠这些文本与行为断言，没有静态检查器：未验证 |
-| [IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12) | 通知用 `parallel`。发送者在 `try` 中等待，监听失败只记诊断。控制走根操作，不用 `bail`，也没有 `serial` 事件 | [通知](#通知) | 机制事实：[async-control-not-bail](../../../../.meta_harness/design/basis/cordis/async-control-not-bail.md)、[emit-listener-throw-propagates](../../../../.meta_harness/design/basis/cordis/emit-listener-throw-propagates.md)，覆盖 `bail` 与 `emit`。`parallel` 在监听失败时返回 AggregateError，只有四成员集成页“[采用来源与证据](https://github.com/nemori-ai/omne-harness-lite/blob/a69de04ae9b70f299ff74dd2b10343172433bc6c/docs/architecture/runtime/runtime-contract-integration.md#采用来源与证据)”的探针记录，没有 basis 条目：未验证。目录行为已测（`registration.spec.ts`）：监听者同步抛出、异步拒绝或两者并存时，register、withdraw 与卸载的结果不变，全部监听者都运行，慢监听者不拖住卸载。诊断只写失败的监听者个数、撤除原因与发布代次，不含监听者错误的内容，也不含租户与实例身份。测试没有直接断言 `AggregateError`，这一项没有因此变成已验证 |
+| [IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12) | 通知用 `parallel`。发送者在 `try` 中等待，监听失败只记诊断。控制走根操作，不用 `bail`，也没有 `serial` 事件 | [通知](#通知) | 机制事实：[async-control-not-bail](../../../../.meta_harness/design/basis/cordis/async-control-not-bail.md)、[emit-listener-throw-propagates](../../../../.meta_harness/design/basis/cordis/emit-listener-throw-propagates.md)，覆盖 `bail` 与 `emit`。`parallel` 在监听失败时返回 AggregateError，只有四成员集成页“[采用来源与证据](https://github.com/nemori-ai/omne-harness-lite/blob/a69de04ae9b70f299ff74dd2b10343172433bc6c/docs/architecture/runtime/runtime-contract-integration.md#采用来源与证据)”的探针记录，没有 basis 条目：未验证。目录行为已测（`registration.spec.ts`）：监听者同步抛出、异步拒绝或两者并存时，register、withdraw 与卸载的结果不变，全部监听者都运行，慢监听者不拖住卸载。诊断只写失败的监听者个数、撤除原因与发布代次，不含监听者错误的内容，也不含租户与实例身份。测试没有直接断言 `AggregateError`：未验证 |
 | [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) | 目录的 `register` 用 `this.ctx.effect` 登记在调用方 fiber 上。宿主必须经自己 fiber 的 `ctx.get(agentInstances).register` 登记，不经缓存的目录引用，也不用 `ctx.provide` 的普通对象。贡献者卸载后登记已撤除。符合修订后的 IC-13，约定允许下面三处写法。第一，`register` 返回 `Reply<Registration>`，不返回撤除函数。第二，撤除函数由目录持有，显式 withdraw 与调用方 fiber 卸载共用同一个幂等删除。第三，同一实例的后继登记在同一个本地动作内原子取代旧登记。理由：登记是业务事实，要能被显式撤销和接替，不能只随调用方 fiber 自动消失。这一对应已闭合，见开放问题“[目录登记的撤除方式怎样对应 IC-13](../../agent/docs/architecture/open-questions.md#目录登记的撤除方式怎样对应-ic-13)” | [登记输入与撤除协议](#登记输入与撤除协议) | 机制事实：[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)。已验证（`registration.spec.ts`）：`this.ctx.effect` 挂在调用方 fiber，贡献者卸载后条目消失并发 `contributor-removed`，显式撤除与卸载共用同一个幂等删除，后继在同一动作内取代旧登记，旧身份的晚到撤除不删后继。`withdrawing` 作为返回值的分支只用调用方上下文替身测试，真实 Cordis 4.0.4 下没有触发条件 |
 | [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) | 宿主插件的 `Config` 是 Standard Schema，字段来自工厂配置表。配置错误导致加载失败 | [配置](#配置) | 机制事实：[plugin-throw-fails-fiber](../../../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)。类形式的静态 `Config` 路径没有单独核验：未验证 |
 | [IC-15](../../../../docs/architecture/cordis-integration-conventions.md#ic-15) | 候选发行行 `agent-host` 与 `agent-instances`，运维者层按行 id 整行替换配置、停用或插入 | [候选发行行](../../agent-host-local/docs/cordis.md#候选发行行) | 业务协议前提。装配入口尚未实现：未验证 |
 | [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) | 行含行 id、插件标识（包名加 `./cordis` 导出名）和可序列化配置。授权适配器、时钟等运行对象由装配入口 provide，插件 inject | [候选发行行](../../agent-host-local/docs/cordis.md#候选发行行) | 业务协议前提。装配入口尚未实现：未验证 |
 | [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17) | runtime 实例不是插件，不进插件树。作用域是租户加实例身份，再加挂在调用方 fiber 上的登记。事件按这个身份过滤。Model 与 Tool 不挂成 Agent 的子 fiber | [登记输入与撤除协议](#登记输入与撤除协议)；[实例作用域与复用](../../agent-host-local/docs/cordis.md#实例作用域与复用) | 机制事实：[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)。撤除 Agent 后 Model 与 Tool 的贡献仍在：未验证 |
-| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) | 租户是每次操作的 Access 参数。目录键是显式租户加实例身份，不从 ctx、isolate 标签或插件实例推断。“不 inject 就够不着”不当访问控制 | SPEC 的“[租户与作用域绑定](../../agent-contract/SPEC.md#租户与作用域绑定)”；[租户](../../agent-host-local/docs/cordis.md#租户) | 机制事实：[inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md)。目录的跨租户拒绝已验证（`registration.spec.ts`）：resolve 与 connect 对别的租户的实例返回 denied，资格核验放行时由目录键拒绝，宿主没有被问；withdraw 用别的租户的登记身份返回 denied；同名操作在两个租户下互不认回。授权领域的真实资格核验没有提供者，只测了目录在放行与不放行下的行为 |
+| [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) | 租户是每次操作的 Access 参数。目录键是显式租户加实例身份，不从 ctx、isolate 标签或插件实例推断。“不 inject 就够不着”不当访问控制 | SPEC 的“[租户与作用域绑定](../../agent-contract/SPEC.md#租户与作用域绑定)”；[租户](../../agent-host-local/docs/cordis.md#租户) | 机制事实：[inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md)。目录的跨租户拒绝已验证（`registration.spec.ts`）：resolve 与 connect 对别的租户的实例返回 denied。目录键先拒绝，核验在键命中后进行，所以资格核验放行、拒绝、不可用或抛出时结果都是 denied，核验与宿主都没有被问；withdraw 用别的租户的登记身份返回 denied；同名操作在两个租户下互不认回。授权领域的真实资格核验没有提供者，只测了目录在放行与不放行下的行为 |
 | [IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19) | 靠同进程成立的保证有七项：单执行槽、idle 复用、stale-advance 发现、登记投影与 resolve、登记随调用方 fiber 撤除、发布权威的同步核验、`instance-retired` 通知。每项现在靠什么兑现，以及拆成多进程时由哪条协议重兑现，见下一小节。写“本版未定义”的部分没有协议，拆进程前必须先补 | [同进程保证与拆进程时的重兑现](#同进程保证与拆进程时的重兑现) | 业务协议前提。跨进程协议：未验证 |
 
 ### 同进程保证与拆进程时的重兑现

@@ -46,7 +46,7 @@ flowchart LR
 
 ### 装配与包依赖
 
-下图画四个成员的依赖方向、根入口与 `./cordis` 入口，以及 Cordis 服务键和提供者归属。它投影 [Cordis 服务定义](../../agent-cordis-contract/docs/cordis.md)，不独立定义键、提供者或依赖，两者不一致时以 Cordis 页为准。
+下图画四个成员的依赖方向、根入口与 `./cordis` 入口、agent-contract 到 assets 的依赖，以及 Cordis 服务键和提供者归属。它投影 [Cordis 服务定义](../../agent-cordis-contract/docs/cordis.md)，不独立定义键、提供者或依赖，两者不一致时以 Cordis 页为准。
 
 ```mermaid
 flowchart LR
@@ -64,6 +64,8 @@ flowchart LR
     HLR["根入口：当前为空"]
     HLC["./cordis：agentHostPlugin"]
   end
+  AS["assets：BodyContract 与类别注册表"]
+  PCR -->|实现 BodyContract，装配把 agentBodyContract 登记到注册表| AS
   Ind[独立调用者] --> PCR
   Ind --> IMR
   IMR --> PCR
