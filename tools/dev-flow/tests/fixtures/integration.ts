@@ -20,26 +20,79 @@ export function init(root: string, bare = false): void {
   for (const key of ['user.name', 'user.email'])
     git(root, ['config', key, git(process.cwd(), ['config', key])])
 }
+/** A registry track entry; tests vary it to probe parsePolicy and the upstream chain. */
+export function trackEntry(
+  id: string,
+  initialBase: string,
+  parent = 'main',
+  status: 'active' | 'paused' | 'retiring' | 'retired' = 'active',
+) {
+  return {
+    id,
+    branch: `integration/${id}`,
+    owner: 'human',
+    source: 'https://github.com/owner/repo/issues/1',
+    status,
+    parent,
+    initialBase,
+  }
+}
 /** The registry shape the tools read; tests vary it to probe parsePolicy. */
-export function policyDocument(initialMain: string, location: string) {
+export function policyDocument(
+  initialBase: string,
+  location: string,
+  tracks: Record<string, unknown>[] = [trackEntry('runtime', initialBase)],
+) {
   return {
     schemaVersion: 1,
     revision: '1',
     repository: 'owner/repo',
     deliveryConfig: 'docs/engineering/github-delivery.json',
-    tracks: [
-      {
-        id: 'runtime',
-        branch: 'integration/runtime',
-        owner: 'human',
-        source: 'https://github.com/owner/repo/issues/1',
-        status: 'active',
-        initialMain,
-      },
-    ],
+    tracks,
     transport: { kind: 'local-bare', location },
     timeouts: { networkMs: 30000 },
   }
+}
+/**
+ * Points the remote `github-gate` branch at a new commit whose tree holds `gate/cutover.json`
+ * with `cutover` as its bytes, or no such file when `cutover` is undefined.
+ */
+export function setGate(remote: string, cutover?: string): string {
+  const files =
+    cutover === undefined
+      ? `100644 blob ${git(remote, ['hash-object', '-w', '--stdin'], 'gate fixture\n')}\tREADME.md\n`
+      : `100644 blob ${git(remote, ['hash-object', '-w', '--stdin'], cutover)}\tcutover.json\n`
+  const gate = git(remote, ['mktree'], files)
+  const tree = git(remote, ['mktree'], `040000 tree ${gate}\tgate\n`)
+  const head = git(remote, ['commit-tree', tree, '-m', 'Gate fixture'])
+  git(remote, ['update-ref', 'refs/heads/github-gate', head])
+  return head
+}
+/** The `omne-gate-record:v1` start-tag record that `gate-track` writes; old records have no parent. */
+export function gateRecord(id: string, start: string, parent?: string): string {
+  return JSON.stringify({
+    schema: 'omne-gate-record:v1',
+    target: `refs/heads/integration/${id}`,
+    mode: 'track-create',
+    result: start,
+    issue: 1,
+    confirmedBy: 'human',
+    run: 'https://github.com/owner/repo/actions/runs/1',
+    gate: 'a'.repeat(40),
+    ...(parent === undefined ? {} : { parent }),
+  })
+}
+/**
+ * Creates `omne/gate/track/<id>` on the remote: an annotated tag with `message`, or a
+ * lightweight tag when `message` is undefined. Returns the ref's object ID.
+ */
+export function setStartTag(remote: string, id: string, start: string, message?: string): string {
+  const name = `omne/gate/track/${id}`
+  git(
+    remote,
+    message === undefined ? ['tag', name, start] : ['tag', '-a', name, '-m', message, start],
+  )
+  return git(remote, ['rev-parse', `refs/tags/${name}`])
 }
 /**
  * A task worktree on `human/task` with a local bare remote that has `main` and the track
@@ -82,6 +135,8 @@ export function integrationFixture(options: { admissionOnly?: boolean } = {}) {
   const main = git(root, ['rev-parse', 'HEAD'])
   git(root, ['remote', 'add', 'origin', remote])
   git(root, ['push', 'origin', 'main', `${initial}:refs/heads/integration/runtime`])
+  // Like the existing repository tracks, `runtime` has a cutover entry and no start tag.
+  setGate(remote, JSON.stringify({ main, 'integration/runtime': initial }))
   git(root, ['checkout', '-b', 'human/task'])
   const binding: TaskBinding = {
     schemaVersion: 1,

@@ -8,7 +8,32 @@
 
 I03。任务事实来自现有 Issue 的唯一 `omne-integration-binding:v1` JSON 区块，精确格式归 delivery/binding.ts。当前 revision 和 attempt、身份、责任、路线、taskBase 与写范围必须匹配。context 仅缓存事实。平台 Stage、关闭及交付接受不由本模块写入。
 
-policy 固定读当前 HEAD 提交中的 `docs/engineering/integration-policy.json`。HEAD 中没有该文件时为 unknown。`parsePolicy` 只接受 `schemaVersion`、`revision`、`repository`、`deliveryConfig`、`tracks`、`transport` 与 `timeouts`，`timeouts` 只接受 `networkMs`，已删除或未知的字段拒绝。轨道条目只接受 `id`、`branch`、`owner`、`source`、`status` 与 `initialMain`；`status` 取 active、paused、retiring 或 retired。开工只接受 active 的轨道；`status` 与 task-sync 按登记读取任何状态的轨道，未登记的轨道拒绝。
+policy 固定读当前 HEAD 提交中的 `docs/engineering/integration-policy.json`。HEAD 中没有该文件时为 unknown。`parsePolicy` 只接受 `schemaVersion`、`revision`、`repository`、`deliveryConfig`、`tracks`、`transport` 与 `timeouts`，`timeouts` 只接受 `networkMs`，已删除或未知的字段拒绝。轨道条目只接受 `id`、`branch`、`owner`、`source`、`status`、`parent` 与 `initialBase`，全部必填；`status` 取 active、paused、retiring 或 retired。`parent` 取 `main` 或另一条轨道的 ID，不能等于本条目的 `id`。轨道 ID 不能是 `main`、`stable`、`release` 或 `github-gate`。`initialBase` 是轨道在上游上的起点提交。解析只核对各条目自身的格式，不核对 `parent` 指向的条目是否已登记；上游链由开工时核对，只影响本次 route。`status` 与 task-sync 按登记读取任何状态的轨道，未登记的轨道拒绝。
+
+## 路线与目标分支
+
+route 的形状归 delivery/binding.ts：
+
+- `{kind:"track", track:ID}`：目标分支是该轨道的 `integration/<ID>`。
+- `{kind:"global" | "cross-track", track:ID, owners:[受影响拥有者]}`：目标分支是具名轨道的 `integration/<ID>`。`owners` 至少一项。开工时这条轨道在 registry 中的 `parent` 必须是 `main`，即顶层轨道。
+
+三种 route 都可以以 `track` 为 completionTarget，指 route 中的那条轨道。没有以 main 为目标分支的 route。
+
+## 上游链核对
+
+I14。`start` 对 route 中的轨道（下称目标轨道）及其上游链做下列核对，任一不满足就拒绝开工，不写 context。上游链从目标轨道开始，沿 registry 的 `parent` 逐级向上，到 `main` 为止。核对只针对这条链，链外的条目不影响本次开工。
+
+1. 链上每一条轨道都已登记，否则为 refused。链上出现重复的轨道为 refused。
+2. 目标轨道为 active；链上其余轨道为 active 或 paused。否则为 refused。
+3. 链上每一条轨道的分支都存在于远端。分支不存在为 refused；远端读不到为 unknown。
+4. 链上每一条轨道的 registry `parent` 与可信来源一致，可信来源按下列顺序确定，与 `github-gate` 流程相同：
+   1. 远端有 `refs/tags/omne/gate/track/<ID>` 时，读该附注标签的正文。正文是 `omne-gate-record:v1` JSON，取 `parent` 字段；没有该字段时为 `main`。
+   2. 否则读远端 `github-gate` 分支的 `gate/cutover.json`。其中登记了 `integration/<ID>` 时，可信上游为 `main`。
+   3. 两者都没有为 refused。
+   
+   registry 的 `parent` 与可信上游不同为 refused。标签不是附注标签、正文不是合格 JSON、`parent` 的取值不合格，或 `gate/cutover.json` 不是以分支名为键、以提交号为值的 JSON 对象，都为 unknown。远端读不到为 unknown。
+
+远端读取只取链上各轨道的分支与起点标签，以及 `github-gate` 分支上的 `gate/cutover.json`，不枚举或拉取其他标签。核对下限与本模块无关。`status` 与 task-sync 不做上游链核对。
 
 ## 两条基线
 
@@ -47,6 +72,6 @@ I13。task-sync 只在下列条件全部满足时把 `targetBase` 更新为 T：
 
 ## 验证义务与限制
 
-持续测试必须驱动真实隔离 Git 与 CLI，覆盖：policy、轨道与派发决定字段的正反例；不读取采用文件、锚点或标签的开工；reviewer 与 team 成员的派发、撤销和不相关平台变化；status 的未绑定、已绑定、behind、diverged 与远端读取失败；task-sync 的正常前进、T 等于 targetBase、未绑定，以及 T 未合并、T 不在远端目标历史、targetBase 后退或跳到另一条历史、工作树有改动、远端读不到等反例，每个反例都不改 context；同步后 baselines 使用新 targetBase、审计仍从 taskBase 开始。GitHub 响应模拟只能证明解析及只读协议。真实 Rulesets、Actions、权限与宿主加载不由本模块的测试证明。
+持续测试必须驱动真实隔离 Git 与 CLI，覆盖：policy、轨道与派发决定字段的正反例，包括 `parent` 与 `initialBase` 必填、`initialMain` 与其他未知字段拒绝、保留名与自指拒绝；三种 route 的目标分支，以及 global 与 cross-track 指向非顶层轨道时拒绝开工；I14 的每一项，包括链上未登记、retiring、retired、分支不存在、registry 仍为 active 而分支已删除、标签 `parent` 与 registry 不一致、旧标签缺 `parent` 按 main、无标签而有切换点时 `parent` 必须为 main、两者都没有、远端读不到，并且链外条目的问题不影响开工；不读取采用文件、锚点或标签的开工；reviewer 与 team 成员的派发、撤销和不相关平台变化；status 的未绑定、已绑定、behind、diverged 与远端读取失败；task-sync 的正常前进、T 等于 targetBase、未绑定，以及 T 未合并、T 不在远端目标历史、targetBase 后退或跳到另一条历史、工作树有改动、远端读不到等反例，每个反例都不改 context；同步后 baselines 使用新 targetBase、审计仍从 taskBase 开始。GitHub 响应模拟只能证明解析及只读协议。真实 Rulesets、Actions、权限与宿主加载不由本模块的测试证明。
 
 Git 网络读取使用 policy 的 `timeouts.networkMs`，fetch 仅在本地缺对象时执行。超时或读取失败为 unknown。平台读取沿[Get an issue comment](https://docs.github.com/en/rest/issues/comments#get-an-issue-comment)。这些来源不代替实际运行证据。
