@@ -1107,12 +1107,12 @@ export function createToolLedger<P, B extends ContentBlock>(
     },
     recordScheduling: input => write(input, 'recordScheduling', 'program executors'),
     recordAccount: input => later(input, 'write', 'recordAccount', 'execution facts and release'),
-    planRelease: input =>
-      mutate(input, 'write', context => {
-        const fixed = fixCleanupFields(input, ['preparation', 'custody'])
-        if ('failure' in fixed) return Promise.resolve(fixed)
-        const custody = judgeEvidenceField(fixed.ok.custody, 'custody')
-        if ('failure' in custody) return Promise.resolve(custody)
+    planRelease: async input => {
+      const fixed = fixCleanupFields(input, ['preparation', 'custody'])
+      if ('failure' in fixed) return fixed
+      const custody = judgeEvidenceField(fixed.ok.custody, 'custody')
+      if ('failure' in custody) return custody
+      return mutate(input, 'write', context => {
         const command = {
           ...context,
           preparation: fixed.ok.preparation,
@@ -1129,7 +1129,8 @@ export function createToolLedger<P, B extends ContentBlock>(
             ),
           ),
         )
-      }),
+      })
+    },
     recordRelease: async input => {
       const fixed = fixCleanupFields(input, ['release', 'outcome'])
       if ('failure' in fixed) return fixed
@@ -1178,10 +1179,10 @@ export function createToolLedger<P, B extends ContentBlock>(
     recordLateResult: input =>
       later(input, 'write', 'recordLateResult', 'process observation and diagnostics'),
     settleLost: input => later(input, 'write', 'settleLost', 'recovery scan'),
-    recordTask: input =>
-      mutate(input, 'write', context => {
-        const fixed = fixCleanupFields(input, ['task', 'resolution'])
-        if ('failure' in fixed) return Promise.resolve(fixed)
+    recordTask: async input => {
+      const fixed = fixCleanupFields(input, ['task', 'resolution'])
+      if ('failure' in fixed) return fixed
+      return mutate(input, 'write', context => {
         const command = {
           ...context,
           task: fixed.ok.task,
@@ -1198,7 +1199,8 @@ export function createToolLedger<P, B extends ContentBlock>(
             ),
           ),
         )
-      }),
+      })
+    },
   }
 
   const reads: ToolReads<P, B> = {
