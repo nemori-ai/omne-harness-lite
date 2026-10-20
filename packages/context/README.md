@@ -1,44 +1,36 @@
-# 运行感知与一次模型请求能力组
-
-`request-context` 和 `runtime-context` 已是 workspace 草稿，公开行为尚未实现。旧的 `packages.0.0.1.legacy/core/runtime-context` 不在 workspace 里。以下文档目标不授予实现或接受。
+# Context 能力组
 
 ## 责任与范围
 
-工程范围由[领域责任](../../docs/domains/runtime-context/README.md)与[产品正文](../../.meta_harness/design/product/runtime-context/design.md)约束。本组拥有成员分解、公开依赖、组协作及组合验证导航。
+本组承载两块支撑能力。Runtime Context 是作用域内共享数据的供给中介与合并协议：按当前资格供给块的当前值与变化，核对需要与登记，不拥有任何块的事实。Request Context 是一次模型请求输入的派生计算与装入保证：从历史依据、Runtime Context 读取结果、工具定义与模型档案算出候选输入、装入裁定与压缩计划，不发请求、不固定采用、不保存历史。两块都只认通用角色（作用域持有者、生产者、消费者类、集成方、协调者），不认识任何上层工作流。
+
+系统责任归[系统页 Runtime Context](../../docs/architecture/runtime/runtime-context.md)与[系统页 Request Context](../../docs/architecture/runtime/request-context.md)，领域责任与事实拥有者归[领域页](../../docs/domains/runtime-context/README.md)，产品规则归[产品正文](../../.meta_harness/design/product/runtime-context/design.md)。本组拥有成员分解、公开依赖方向、组内协作导航与组合验证责任。
 
 ## 成员与依赖
 
-目标成员的职责、状态和读取顺序从[runtime-context 入口](runtime-context/README.md)、[request-context 入口](request-context/README.md)进入，再按任务核对下面的规格与专题。
+两块各按纯契约、Cordis 服务定义、机制实现、Service 实现四段切分，与 agent、model、tool 组同构。八个成员由模板生成，公开承诺归各自 `SPEC.md`，当前都是骨架。
 
-
-状态：候选、待用户确认。组根只维护成员导航和工程关系，不设合并 SPEC、运行入口或实际 `package.json`。
-
-| 目标成员 | 完整必要行为 | 责任 |
+| 成员 | 变体 | 责任 |
 | --- | --- | --- |
-| `context/runtime-context` | [SPEC](runtime-context/SPEC.md) | 注册供给、当前读取、消费者边界、变化与恢复协作 |
-| `context/request-context` | [SPEC](request-context/SPEC.md) | 请求投影、模态选择、全预算、压缩与最终采用协作 |
+| [runtime-context-contract](runtime-context-contract/README.md) | module | 作用域引用、块声明（供给块与状态块）、上下文需要与需要绑定、登记、资格、绑定读者、更新与步提交、变化材料；纯函数与解码 |
+| [runtime-context-cordis-contract](runtime-context-cordis-contract/README.md) | service-contract | 唯一 Cordis 服务定义 `runtimeContext`、intercept 配置类型、事件增补 |
+| [runtime-context](runtime-context/README.md) | module | 不含 Cordis 的供给机制：登记表、生产者表、需要绑定解析、当前投影、观察链与游标、资格核对、步合并 |
+| [runtime-context-cordis](runtime-context-cordis/README.md) | service-provider | Service 实现：一个 isolate 一个服务、作用域为参数、按作用域过滤唤醒、登记即效应、持久化端口接入 |
+| [request-context-contract](request-context-contract/README.md) | module | 组装输入、八个纯操作、候选与装入裁定、压缩计划、七层装载布局与锚点常量、历史源与策略端口类型 |
+| [request-context-cordis-contract](request-context-cordis-contract/README.md) | service-contract | 唯一 Cordis 服务定义 `requestContext`：提示词贡献登记面与策略选择 |
+| [request-context](request-context/README.md) | module | 不含 Cordis 的派生计算：索引、缓存、默认压缩策略、默认表示策略、修剪器 |
+| [request-context-cordis](request-context-cordis/README.md) | service-provider | Service 实现：贡献登记表、作用域遮蔽、策略实现选择与配置校验 |
 
-两个成员经公开保证协作。原内容及资格仍归生产者，本会话选择归 Session，最终一致采用归发起协调者。Request Context 不反向改 Runtime Context 原数据，不直接读取其私有实现。独立使用按成员自身前提承接依赖，不强制创建 Session 或启用 Cordis。
-
-[产品规则](../../.meta_harness/design/product/runtime-context/design.md)说明业务后果，[领域架构](../../docs/domains/runtime-context/architecture.md)说明交接，依据与缺项由当前正文及技术拥有者维护定位冻结依据。共享的资格、发出前复核、历史保全与耐久交接由实际协调者联合验证；两份 SPEC 保留成员持续验证义务。
-
-这里仅镜像具名目标。提供者、适配、实际 API 和实现尚未采用，成员目录存在不授权开包。MODEL-E01 和在途保留缺项沿[问题登记](../../.meta_harness/design/product/runtime-context/design.md#未决问题与待定事项)接续。
-
-[九条产品旅程](../../.meta_harness/design/product/runtime-context/design.md#关键用户旅程)及[关键流程](docs/key-flows.md)连接 CAP-RC01 至 CAP-RC10 与两成员的持续验证场景。转换件共同技术契约仍归 [Model](../model/model-contract/SPEC.md#转换件的共同契约)，本组只承担接纳投影、表示采用与请求计算责任。阶段清单待用户选择，目标成员目录与候选通过检查均不授予阶段支持。
-
-
-工程关系见[组设计](docs/architecture.md)。成员目标已有文档，不等于真实包；公开入口、安装闭包和提供者映射尚待设计。
+依赖方向：每块内 `*-contract` ← `*-cordis-contract` ← 机制实现 ← `*-cordis`。`request-context-contract` 依赖 `runtime-context-contract` 的读取结果类型与块声明的 `volatility`，不依赖 Runtime Context 的实现或 Cordis 包。两块都不导入 Session、Agent、Model、Tool、Execution Environment 的契约；要供给块或读块的成员依赖本组的契约。精确依赖图见[组架构](docs/architecture.md)。
 
 ## 关键协作
 
-runtime-context 按合法注册与原生产者资格供给当前块和变化，request-context 经公开契约消费这些输入并计算投影、模态、完整预算与压缩。Session 保存注册与自有值，最终发起协调者固定一致采用，两成员不互读私有实现。
-
-流程从[组协作入口](docs/key-flows.md)导航到协调成员。
+Runtime Context 的三面（生产者面、持有者面、读者面）与 Request Context 的纯操作经公开契约交接；跨成员流程与按读者的阅读路径归[组协作入口](docs/key-flows.md)。单成员流程归各成员 `docs/flows.md`。共同提交（登记、步提交、压缩转换）由持有者与协调者在各自契约内兑现，本组成员只给材料。
 
 ## 组合验证
 
-两个成员分别验证供给与派生行为。最终发起与消费协调者联合验证当前资格、输入一致采用、历史保全、压缩保护及耐久交接；Session和原生产者承担恢复事实及读取依据。组合资源与真实模型、工具、存储、并发、断电及性能执行证据仍缺。
+契约成员的验证覆盖纯函数与导出面。跨成员性质（一次模型请求的上下文闭环、块变化到模型可见、压缩后重给快照）由持有者、协调者与本组成员联合验证，验证入口随各成员 `verification/` 与真实协调者维护。当前八个成员没有实现与运行验证；骨架通过不证明行为。
 
 ## 维护
 
-修改行为同步成员SPEC、原具名专题、实际消费者及相称验证；修改工程分解同步组导航和登记。具名维护人尚缺，由项目负责人指定；职责拥有者不等于已派发个人。产品、组工程和成员机制分别维护唯一正文。
+公开承诺改契约成员的 `SPEC.md` 与 `docs/`，机制改实现成员，装配改 `-cordis` 成员；新增成员或改依赖方向同步[包组织](../../docs/package-organization.md)、本页与 `documentation.json`。具名维护者由负责人指定。

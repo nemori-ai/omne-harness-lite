@@ -1,21 +1,73 @@
+# @omne-harness/runtime-context
+
 PACKAGE_TEMPLATE_DRAFT
+[中文](README_ZH.md)
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+Draft module package.
+## Responsibility and status
 
-# runtime-context 文档目标
+<!-- documentation:placeholder -->
 
-本成员的协作契约已技术接受，精确范围见 [SPEC](SPEC.md)。其余候选、生产实现及运行验证的状态分别保留。
+Describe actual consumers, platforms, responsibility, and adoption basis. Separate implemented, pending, and unverified behavior.
 
-## 责任与使用
+## Usage
 
-本成员沿[SPEC](SPEC.md)承担完整行为。独立消费通过未来公开入口及显式依赖，不要求启动Cordis；系统集成通过同包Cordis适配满足共同IC、合法身份及业务交接。公开形状、导出、安装闭包、配置、资源限额和提供者尚待设计，不虚构命令。
+<!-- documentation:placeholder -->
 
-## 契约与设计
+Give a working example, dependencies, and initialization and disposal responsibilities. Distinguish independent use from Cordis integration. Check public exports, source value dependencies, generated declarations, runtime startup, and the installation closure separately. A ./cordis entry does not prove independent installation.
 
-- [行为入口](SPEC.md)与原专题共同保持完整承诺。
-- [内部设计](docs/internals.md)解释机制、依赖与未决。
+## Contracts
 
-## 验证与维护
+<!-- documentation:placeholder -->
 
-SPEC及专题维护持续验证义务；实际测试、模型、提供者和装配证据尚缺。修改时同步公开消费者和组导航；未决按[产品第四块](../../../.meta_harness/design/product/runtime-context/design.md#未决问题与待定事项)及技术拥有者闭合。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+Link public types, necessary validation, and the sole behavior owner. SPEC.md owns behavior beyond types, and docs/public-api.md indexes the public definitions. Identify error, lifecycle, and resource responsibilities without copying signatures or state machines.
+
+## Design
+
+<!-- documentation:placeholder -->
+
+Summarize internal modules and invariant owners. The full design belongs in docs/architecture.md, docs/flows.md, and docs/object-model.md.
+
+## Configuration and operation
+
+<!-- documentation:placeholder -->
+
+Describe configuration owners, defaults, environment requirements, and explicit dependencies. State the caller and package responsibilities during operation.
+
+## Verification
+
+<!-- documentation:placeholder -->
+
+List repeatable commands, properties, assumptions, and uncovered behavior. Add tests with actual assertions. Passing structure checks does not establish business behavior.
+
+## Maintenance
+
+<!-- documentation:placeholder -->
+
+Identify consumers and checks that must change with public contracts, resources, or dependencies. Explain inapplicable information. Record named gaps for unknown information.
+
+## Directory structure and documentation roles
+
+```text
+README.md, README_ZH.md   Entry: purpose, status, and this map
+index.md                  Reading paths through the package
+SPEC.md                   Behavior beyond the public types
+documentation.json        Documentation registration
+docs/                     Internal design, public use, and integration
+├── architecture.md       Modules, state and resource ownership, mechanisms
+├── flows.md              Key business flows and data flows
+├── object-model.md       Internal object model
+├── public-api.md         Public boundary and definition index
+├── context.md            Consumer use and position in the system
+└── cordis.md             Cordis applicability and integration
+src/                      Public definitions, validation, and implementation
+tests/                    Continuous tests; fixtures/ holds test inputs
+schema/                   External schemas
+verification/             models/ and proofs/
+adr/                      Implementation decisions with continuing consumers
+examples/                 Examples against the public entry
+resources/                Non-source runtime resources
+acceptance/               Independent acceptance; fixtures/ holds its inputs
+```
+
+Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths. A docs topic can grow into a directory of the same name with README.md and index.md. Keep this map current when a topic moves.
