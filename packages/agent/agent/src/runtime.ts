@@ -101,5 +101,11 @@ export async function createAgentRuntime<P, B extends ContentBlock>(
     undeclaredJointCommit(dependencies, options.configuration)
   if (refusal !== undefined) return fail(refusal)
   const { binding } = options
-  return succeed(createProvider(binding.instance, accessGuard(binding.tenant, dependencies.access)))
+  return succeed(
+    createProvider({
+      binding,
+      guard: accessGuard(binding.tenant, dependencies.access),
+      dependencies,
+    }),
+  )
 }

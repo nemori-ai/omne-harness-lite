@@ -15,8 +15,12 @@ function forbidden(specifier: string): boolean {
   )
 }
 
-it('root entry exports the runtime factory only; the construction shapes are types', () => {
-  expect(Object.keys(agent).sort()).toEqual(['createAgentRuntime'])
+it('root entry exports the runtime factory, the generic evaluator and its checkpoint schema; the construction shapes are types', () => {
+  expect(Object.keys(agent).sort()).toEqual([
+    'agentCheckpointSchema',
+    'agentEvaluator',
+    'createAgentRuntime',
+  ])
 })
 
 it('testing entry exports the memory Journal, the scripted doubles, the clock and the assembly', async () => {
