@@ -89,7 +89,10 @@ export function createReceiver<P>(input: {
   async function reject(failure: ModelFailure): Promise<{ failure: ModelFailure }> {
     stage = { kind: 'failed', failure }
     const closed = await release()
-    if ('failure' in closed) return closed
+    if ('failure' in closed) {
+      stage = { kind: 'failed', failure: closed.failure }
+      return closed
+    }
     return { failure }
   }
   async function write<T>(

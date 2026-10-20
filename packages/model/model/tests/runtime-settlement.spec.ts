@@ -661,3 +661,105 @@ it('settles the immutable confirmed ended fact even after a late terminal change
     await f.dispose()
   }
 })
+
+it('keeps a rejected preserve release failure visible on repeated drives without a second release', async () => {
+  const f = runtimeFixture(batching)
+  f.channel(f.admit.call).releaseFails = true
+  try {
+    const first = await finish(f, [
+      { kind: 'block-delta', index: '0', delta: 'unopened' },
+      { kind: 'ended', termination: { kind: 'completed', reason: 'limit' } },
+    ])
+    expect(first).toMatchObject({ failure: { diagnostic: 'resource-release-failed' } })
+    expect(await f.drive()).toEqual(first)
+    expect(f.channel(f.admit.call)).toMatchObject({ returns: 1, closes: 1 })
+  } finally {
+    await f.dispose()
+  }
+})
+
+it('retains failed partial tool arguments without sealing them into an executable suggestion', async () => {
+  const f = runtimeFixture(batching)
+  const termination = {
+    kind: 'failed',
+    fault: { cause: 'upstream-protocol', upstreamStatus: null, diagnostic: 'partial-arguments' },
+  } as const
+  try {
+    expect(
+      await finish(f, [
+        { kind: 'block-open', index: '0', mode: 'append', content: 'tool-arguments' },
+        { kind: 'block-delta', index: '0', delta: '{"kept":' },
+        { kind: 'ended', termination },
+      ]),
+    ).toEqual({ ok: undefined })
+    expect((await settlement(f)).termination).toEqual(termination)
+    expect(await savedParts(f)).toEqual([
+      { kind: 'partial', content: 'tool-arguments', value: '{"kept":', trims: [] },
+    ])
+  } finally {
+    await f.dispose()
+  }
+})
+for (const ending of ['eof', 'throws'] as const)
+  it(`settles a real ${ending} stream failure while retaining confirmed partial output`, async () => {
+    const f = runtimeFixture(batching)
+    try {
+      unbox(await f.provider.runtime.calls.admit(f.admit))
+      await f.start(f.admit.call)
+      f.channel(f.admit.call).push(prefix)
+      await eventually(() => f.channel(f.admit.call).reads === prefix.length + 1)
+      if (ending === 'eof') f.channel(f.admit.call).finish()
+      else f.channel(f.admit.call).fail()
+      await eventually(() => f.results.has(f.admit.call))
+      expect(f.results.get(f.admit.call)).toMatchObject({
+        failure: { diagnostic: 'fact-stream-failed' },
+      })
+      expect((await settlement(f)).termination).toMatchObject({
+        kind: 'failed',
+        fault: { cause: 'stream-lost', upstreamStatus: null },
+      })
+      expect(await savedParts(f)).toEqual([
+        { kind: 'partial', content: 'text', value: 'kept', trims: [] },
+      ])
+      expect(f.channel(f.admit.call)).toMatchObject({ starts: 1, closes: 1 })
+    } finally {
+      await f.dispose()
+    }
+  })
+
+it('hands back the same terminal evidence after the confirmation callback fails without re-preserving or re-reading', async () => {
+  const f = runtimeFixture(batching, commands => ({
+    ...commands,
+    preserve: async input => {
+      const result = await commands.preserve(input)
+      if ('ok' in result) {
+        const blocks = result.ok.blocks
+        let reads = 0
+        // The first read fixes receiver evidence. The second is the observation callback.
+        // Only the returned object is faulted; the real committed Snapshot stays unchanged.
+        Object.defineProperty(result.ok, 'blocks', {
+          enumerable: true,
+          get() {
+            if (++reads === 2) throw new Error('confirmation-callback-failed')
+            return blocks
+          },
+        })
+      }
+      return result
+    },
+  }))
+  try {
+    expect(await finish(f, answer)).toMatchObject({ failure: { diagnostic: 'drive-unconfirmed' } })
+    unbox(await f.drive())
+    expect((await settlement(f)).termination).toEqual(completed)
+    expect(f.preserveInputs).toHaveLength(1)
+    expect(f.channel(f.admit.call)).toMatchObject({
+      starts: 1,
+      reads: answer.length,
+      returns: 1,
+      closes: 1,
+    })
+  } finally {
+    await f.dispose()
+  }
+})
