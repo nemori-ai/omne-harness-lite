@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ReleaseProgress, ToolEnvironment } from '@omne-harness/tool-contract'
+import type { ToolAccessGuard } from '@omne-harness/tool'
 import { settlementFixture, refProcess } from './settlement-values.ts'
 import { auditQueues } from './start-values.ts'
 import {
@@ -48,7 +49,67 @@ async function releasedFixture(inspect?: ToolEnvironment<Principal, unknown>['in
   return { ...f, release: task.release, plan, record }
 }
 
+function accessGate() {
+  const entered = Promise.withResolvers<void>()
+  const resumed = Promise.withResolvers<void>()
+  let armed = false
+  return {
+    arm: () => {
+      armed = true
+    },
+    entered: entered.promise,
+    resume: resumed.resolve,
+    wrapAccess: (access: ToolAccessGuard<Principal>): ToolAccessGuard<Principal> => ({
+      qualify: async input => {
+        const verdict = await access.qualify(input)
+        if (armed && input.action === 'write') {
+          armed = false
+          entered.resolve()
+          await resumed.promise
+        }
+        return verdict
+      },
+    }),
+  }
+}
+
 describe('canonical environment cleanup ledger', () => {
+  it('fixes preparation and custody before awaiting current qualification', async () => {
+    const gate = accessGate()
+    const f = await settlementFixture({ wrapAccess: gate.wrapAccess })
+    ok(await f.preserve())
+    const task = (await f.load()).tasks.find(task => task.kind === 'release')
+    if (task?.kind !== 'release') throw new Error('fixture missing release')
+    const original = {
+      ...f.access,
+      operation: operationId('fixed-plan'),
+      preparation: firstPreparation(f),
+      custody: task.release.custody,
+    }
+    const input = {
+      ...original,
+      preparation: { ...original.preparation, request: { ...original.preparation.request } },
+      custody: { ...original.custody },
+    }
+    const before = (await f.records()).filter(row => row.kind === 'result')
+    gate.arm()
+    const pending = f.ledger.commands.planRelease(input)
+    await gate.entered
+    input.preparation.request.command = 'replaced-during-qualification'
+    input.preparation = { ...input.preparation, operation: operationId('replaced-preparation') }
+    input.custody.record = 'replaced-custody'
+    gate.resume()
+    expect(ok(await pending)).toEqual(task.release)
+    expect(ok(await f.ledger.commands.planRelease(original))).toEqual(task.release)
+    expect(failure(await f.ledger.commands.planRelease(input)).kind).toBe('conflict')
+    expect(
+      failure(await f.ledger.commands.planRelease({ ...original, principal: principalB })).kind,
+    ).toBe('denied')
+    expect((await f.records()).filter(row => row.kind === 'environment-release')).toHaveLength(1)
+    expect((await f.load()).tasks.filter(task => task.kind === 'release')).toEqual([task])
+    expect((await f.records()).filter(row => row.kind === 'result')).toEqual(before)
+  })
+
   it('recognizes one plan across new operations, original replay and completed cleanup', async () => {
     const f = await releasedFixture()
     expect(ok(await f.ledger.commands.planRelease(f.plan))).toEqual(f.release)
@@ -450,6 +511,51 @@ describe('canonical environment cleanup ledger', () => {
 })
 
 describe('restricted settled facts task', () => {
+  it('fixes the original facts task and blocked reason before awaiting current qualification', async () => {
+    const gate = accessGate()
+    const f = await settlementFixture({
+      terminal: { kind: 'failed', cause: 'executor', diagnostic: 'failed' },
+      wrapAccess: gate.wrapAccess,
+    })
+    ok(await f.preserve())
+    const task = (await f.load()).tasks.find(task => task.kind === 'facts')
+    if (task?.kind !== 'facts') throw new Error('fixture missing facts')
+    const original = {
+      ...f.access,
+      operation: operationId('fixed-facts-task'),
+      task,
+      resolution: { kind: 'blocked', reason: 'settled-facts-source-ended' } as const,
+    }
+    const input = {
+      ...original,
+      task: { ...task, basis: { ...task.basis } },
+      resolution: { kind: 'blocked' as const, reason: 'settled-facts-source-ended' },
+    }
+    const before = await f.load()
+    const results = (await f.records()).filter(row => row.kind === 'result')
+    gate.arm()
+    const pending = f.ledger.commands.recordTask(input)
+    await gate.entered
+    input.task.basis.record = 'replaced-basis'
+    input.task = { ...input.task, operation: operationId('replaced-task') }
+    input.resolution.reason = 'settled-facts-source-unavailable'
+    gate.resume()
+    const receipt = ok(await pending)
+    expect(ok(await f.ledger.commands.recordTask(original))).toEqual(receipt)
+    expect(failure(await f.ledger.commands.recordTask(input)).kind).toBe('conflict')
+    expect(
+      failure(await f.ledger.commands.recordTask({ ...original, principal: principalB })).kind,
+    ).toBe('denied')
+    expect((await f.load()).tasks).toEqual(
+      before.tasks.map(current =>
+        current.kind === 'facts'
+          ? { ...current, state: 'blocked', diagnostic: original.resolution.reason }
+          : current,
+      ),
+    )
+    expect((await f.records()).filter(row => row.kind === 'result')).toEqual(results)
+  })
+
   it.each(['unknown-applied', 'unknown-dropped'] as const)(
     'records original blocked duty atomically and replays through %s',
     async fault => {

@@ -8,7 +8,12 @@ import type {
   ToolEnvironment,
 } from '@omne-harness/tool-contract'
 import { createMemoryToolClock } from '@omne-harness/tool-contract/testing'
-import { createToolLedger, type LedgerCommitInput, type ToolLedgerStore } from '@omne-harness/tool'
+import {
+  createToolLedger,
+  type LedgerCommitInput,
+  type ToolAccessGuard,
+  type ToolLedgerStore,
+} from '@omne-harness/tool'
 import { admitCall, startHarness } from './start-values.ts'
 import {
   adoption,
@@ -37,6 +42,7 @@ export async function settlementFixture(
       environment: ToolEnvironment<Principal, unknown>,
     ) => Pick<ToolEnvironment<Principal, unknown>, 'inspectRelease'>
     wrapCustody?: (custody: ToolOutputCustody<Principal>) => ToolOutputCustody<Principal>
+    wrapAccess?: (access: ToolAccessGuard<Principal>) => ToolAccessGuard<Principal>
   }> = {},
 ) {
   const harness = startHarness()
@@ -116,11 +122,21 @@ export async function settlementFixture(
       return memoryClock.elapsed(input)
     },
   }
-  const ledger = createToolLedger(store, guards(), clock, configurationOf({}), {
-    custody,
-    releaseInspection:
-      options.wrapReleaseInspection?.(ports.releaseInspection) ?? ports.releaseInspection,
-  })
+  const guard = guards()
+  const ledger = createToolLedger(
+    store,
+    {
+      ...guard,
+      access: options.wrapAccess?.(guard.access) ?? guard.access,
+    },
+    clock,
+    configurationOf({}),
+    {
+      custody,
+      releaseInspection:
+        options.wrapReleaseInspection?.(ports.releaseInspection) ?? ports.releaseInspection,
+    },
+  )
   const before = ok(await ledger.commands.loadRecovery(access))
   const input = {
     ...access,
