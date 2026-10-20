@@ -41,6 +41,7 @@ jobs:
       base_ref: ${{ steps.plan.outputs.base_ref }}
       base: ${{ steps.plan.outputs.base }}
       mode: ${{ steps.plan.outputs.mode }}
+      kind: ${{ steps.plan.outputs.kind }}
     steps:
       - name: Plan the publication
         id: plan
@@ -57,22 +58,89 @@ jobs:
           [ "$(jq -r .state pr.json)" = open ] || { echo "rejected: PR is not open"; exit 1; }
           [ "$(jq -r .head.repo.full_name pr.json)" = "$GITHUB_REPOSITORY" ] || { echo "rejected: PR from a fork"; exit 1; }
           [ "$(jq -r .head.sha pr.json)" = "$H" ] || { echo "rejected: PR head is not the expected commit"; exit 1; }
-          base_ref=$(jq -r .base.ref pr.json)
+          BASE_REF=$(jq -r .base.ref pr.json)
           head_ref=$(jq -r .head.ref pr.json)
-          case "$base_ref" in
-            main)
-              [[ "$head_ref" == integration/* ]] || { echo "rejected: main accepts PRs only from integration/*"; exit 1; }
-              mode=merge ;;
-            integration/*)
-              case "$head_ref" in
-                integration/*|stable|release|github-gate) echo "rejected: a track accepts PRs only from main or a personal branch"; exit 1 ;;
-              esac
-              mode=merge ;;
+          base_ref=$BASE_REF
+          REMOTE="https://github.com/$GITHUB_REPOSITORY.git"
+          CUTOVER=$RUNNER_TEMP/cutover.json BRANCHES=$RUNNER_TEMP/branches.txt
+          gh api "repos/$GITHUB_REPOSITORY/contents/gate/cutover.json?ref=$GITHUB_SHA" --jq .content | base64 -d > "$CUTOVER"
+          git ls-remote "$REMOTE" 'refs/heads/integration/*' | awk '{print $2}' > "$BRANCHES"
+          # Track topology (RFC-0011 sections 4, 5 and 8). Needs $REMOTE, $CUTOVER (cutover.json)
+          # and $BRANCHES (one refs/heads/integration/* name per line).
+          # The upstream of a track: the parent field of its start tag (main when the tag has
+          # none); otherwise main when the branch has a cutover point; otherwise no identity.
+          upstream() {
+            local name=$1 listing obj msg p
+            listing=$(git ls-remote "$REMOTE" "refs/tags/omne/gate/track/$name") || { echo "stopped: cannot read the start tag of integration/$name" >&2; return 1; }
+            obj=$(printf '%s\n' "$listing" | awk -v r="refs/tags/omne/gate/track/$name" '$2==r{print $1}')
+            if [ -n "$obj" ]; then
+              msg=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$obj" --jq .message) || { echo "stopped: the start tag of integration/$name is not an annotated tag" >&2; return 1; }
+              p=$(printf '%s' "$msg" | jq -er 'if type == "object" then (.parent // "main") else error("not a record") end') \
+                || { echo "stopped: the start tag of integration/$name has no record" >&2; return 1; }
+            elif jq -e --arg b "integration/$name" 'has($b)' "$CUTOVER" >/dev/null; then
+              p=main
+            else
+              echo "rejected: integration/$name has no start tag and no cutover point" >&2; return 1
+            fi
+            [[ "$p" == main || "$p" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "stopped: integration/$name records an invalid parent" >&2; return 1; }
+            printf '%s\n' "$p"
+          }
+          # Every track from this one up to main must have an identity and an existing branch.
+          chain() {
+            local name=$1 depth=0 p
+            while :; do
+              grep -qxF "refs/heads/integration/$name" "$BRANCHES" || { echo "rejected: integration/$name on the upstream chain does not exist" >&2; return 1; }
+              p=$(upstream "$name") || return 1
+              [ "$p" = main ] && return 0
+              depth=$((depth+1))
+              [ "$depth" -le 64 ] || { echo "stopped: the upstream chain of integration/$1 is too long" >&2; return 1; }
+              name=$p
+            done
+          }
+          # Sets kind to work, sync, promote or stable for $BASE_REF and $head_ref, or fails.
+          classify() {
+            local t x ut ux
+            case "$BASE_REF" in
+              main)
+                [[ "$head_ref" == integration/* ]] || { echo "rejected: main accepts PRs only from a top-level track" >&2; return 1; }
+                x=${head_ref#integration/}
+                chain "$x" || return 1
+                ux=$(upstream "$x") || return 1
+                [ "$ux" = main ] || { echo "rejected: $head_ref is not a top-level track; it enters only integration/$ux" >&2; return 1; }
+                kind=promote ;;
+              integration/*)
+                t=${BASE_REF#integration/}
+                chain "$t" || return 1
+                ut=$(upstream "$t") || return 1
+                case "$head_ref" in
+                  stable|release|github-gate) echo "rejected: $head_ref cannot enter a track" >&2; return 1 ;;
+                  main)
+                    [ "$ut" = main ] || { echo "rejected: main enters only a top-level track; $BASE_REF syncs from integration/$ut" >&2; return 1; }
+                    kind=sync ;;
+                  integration/*)
+                    x=${head_ref#integration/}
+                    if [ "$ut" = "$x" ]; then
+                      kind=sync
+                    else
+                      grep -qxF "refs/heads/$head_ref" "$BRANCHES" || { echo "rejected: $head_ref does not exist" >&2; return 1; }
+                      ux=$(upstream "$x") || return 1
+                      [ "$ux" = "$t" ] || { echo "rejected: $head_ref is neither the upstream nor a direct child of $BASE_REF" >&2; return 1; }
+                      kind=promote
+                    fi ;;
+                  *) kind=work ;;
+                esac ;;
+              stable)
+                [ "$head_ref" = main ] || { echo "rejected: stable accepts PRs only from main" >&2; return 1; }
+                kind=stable ;;
+              *) echo "rejected: base branch $BASE_REF is not a trunk" >&2; return 1 ;;
+            esac
+          }
+          classify
+          case "$kind" in
             stable)
-              [ "$head_ref" = main ] || { echo "rejected: stable accepts PRs only from main"; exit 1; }
               [[ "$CHECKPOINT" =~ ^[a-z0-9][a-z0-9.-]{0,39}$ ]] || { echo "rejected: checkpoint name is required for stable"; exit 1; }
               mode=fast-forward ;;
-            *) echo "rejected: base branch $base_ref is not a trunk"; exit 1 ;;
+            *) mode=merge ;;
           esac
           base=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/heads/$base_ref" | awk -v r="refs/heads/$base_ref" '$2==r{print $1}')
           base=${base:-none}
@@ -80,18 +148,18 @@ jobs:
             echo "### Publication awaiting confirmation"
             echo
             echo "- PR: #$PR ($head_ref into $base_ref)"
-            echo "- Mode: $mode"
+            echo "- Mode: $mode ($kind)"
             echo "- Target now: \`$base\`"
             echo "- PR head: \`$H\`"
             [ "$mode" = fast-forward ] && echo "- Records: \`omne/gate/stable/<result>\` and \`omne/gate/checkpoint/$CHECKPOINT\`"
             echo
             echo "Tests are not run by this flow. The confirmation note must state which checks were run locally and their results."
           } >> "$GITHUB_STEP_SUMMARY"
-          { echo "base_ref=$base_ref"; echo "base=$base"; echo "mode=$mode"; } >> "$GITHUB_OUTPUT"
+          { echo "base_ref=$base_ref"; echo "base=$base"; echo "mode=$mode"; echo "kind=$kind"; } >> "$GITHUB_OUTPUT"
 
-  # Repository toolchain gate. A PR from a personal branch into a track changes the
-  # repository; every other publication (track into main, main into a track or stable)
-  # carries commits that already entered a track this way. The protected path list
+  # Repository toolchain gate. A PR from a personal branch into a track at any level
+  # changes the repository; a sync, a promotion or main into stable carries commits
+  # that already entered a track this way. The protected path list
   # lives on github-gate (gate/toolchain-paths.txt) and is read from this run's commit,
   # so a PR cannot edit it. Hits are the files the target will change after publication,
   # computed from the same merge-tree result that publish builds.
@@ -112,14 +180,14 @@ jobs:
           H: ${{ inputs.head }}
           BASE_REF: ${{ needs.plan.outputs.base_ref }}
           B: ${{ needs.plan.outputs.base }}
-          MODE: ${{ needs.plan.outputs.mode }}
+          KIND: ${{ needs.plan.outputs.kind }}
         run: |
           [[ "$H" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: head"; exit 1; }
           [[ "$B" =~ ^([0-9a-f]{40}|none)$ ]] || { echo "rejected: base"; exit 1; }
           head_ref=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .head.ref)
-          if [ "$MODE" != merge ] || [[ "$BASE_REF" != integration/* ]] || [ "$head_ref" = main ]; then
+          if [ "$KIND" != work ]; then
             echo "toolchain=false" >> "$GITHUB_OUTPUT"
-            echo "Toolchain gate: not applicable ($head_ref into $BASE_REF)." >> "$GITHUB_STEP_SUMMARY"
+            echo "Toolchain gate: not applicable ($KIND, $head_ref into $BASE_REF)." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           gh api "repos/$GITHUB_REPOSITORY/contents/gate/toolchain-paths.txt?ref=$GITHUB_SHA" --jq .content | base64 -d > paths.txt
@@ -229,6 +297,7 @@ jobs:
           BASE_REF: ${{ needs.plan.outputs.base_ref }}
           B: ${{ needs.plan.outputs.base }}
           MODE: ${{ needs.plan.outputs.mode }}
+          KIND: ${{ needs.plan.outputs.kind }}
           APPROVER: ${{ steps.confirm.outputs.approver }}
         run: |
           [[ "$H" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: head"; exit 1; }
@@ -271,18 +340,88 @@ jobs:
           export GIT_COMMITTER_NAME="${APP_SLUG}[bot]" GIT_COMMITTER_EMAIL="${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
           run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           head_ref=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .head.ref)
-          case "$BASE_REF:$head_ref" in
-            main:integration/*|stable:main) ;;
-            integration/*:integration/*|integration/*:stable|integration/*:release|integration/*:github-gate) echo "rejected: head branch $head_ref cannot enter $BASE_REF"; exit 1 ;;
-            integration/*:*) ;;
-            *) echo "rejected: head branch $head_ref cannot enter $BASE_REF"; exit 1 ;;
-          esac
+          # Classify again after confirmation: an upstream branch may have been deleted.
+          REMOTE=origin CUTOVER=$PWD/../cutover.json BRANCHES=$PWD/../branches.txt
+          git ls-remote origin 'refs/heads/integration/*' | awk '{print $2}' > "$BRANCHES"
+          # Track topology (RFC-0011 sections 4, 5 and 8). Needs $REMOTE, $CUTOVER (cutover.json)
+          # and $BRANCHES (one refs/heads/integration/* name per line).
+          # The upstream of a track: the parent field of its start tag (main when the tag has
+          # none); otherwise main when the branch has a cutover point; otherwise no identity.
+          upstream() {
+            local name=$1 listing obj msg p
+            listing=$(git ls-remote "$REMOTE" "refs/tags/omne/gate/track/$name") || { echo "stopped: cannot read the start tag of integration/$name" >&2; return 1; }
+            obj=$(printf '%s\n' "$listing" | awk -v r="refs/tags/omne/gate/track/$name" '$2==r{print $1}')
+            if [ -n "$obj" ]; then
+              msg=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$obj" --jq .message) || { echo "stopped: the start tag of integration/$name is not an annotated tag" >&2; return 1; }
+              p=$(printf '%s' "$msg" | jq -er 'if type == "object" then (.parent // "main") else error("not a record") end') \
+                || { echo "stopped: the start tag of integration/$name has no record" >&2; return 1; }
+            elif jq -e --arg b "integration/$name" 'has($b)' "$CUTOVER" >/dev/null; then
+              p=main
+            else
+              echo "rejected: integration/$name has no start tag and no cutover point" >&2; return 1
+            fi
+            [[ "$p" == main || "$p" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "stopped: integration/$name records an invalid parent" >&2; return 1; }
+            printf '%s\n' "$p"
+          }
+          # Every track from this one up to main must have an identity and an existing branch.
+          chain() {
+            local name=$1 depth=0 p
+            while :; do
+              grep -qxF "refs/heads/integration/$name" "$BRANCHES" || { echo "rejected: integration/$name on the upstream chain does not exist" >&2; return 1; }
+              p=$(upstream "$name") || return 1
+              [ "$p" = main ] && return 0
+              depth=$((depth+1))
+              [ "$depth" -le 64 ] || { echo "stopped: the upstream chain of integration/$1 is too long" >&2; return 1; }
+              name=$p
+            done
+          }
+          # Sets kind to work, sync, promote or stable for $BASE_REF and $head_ref, or fails.
+          classify() {
+            local t x ut ux
+            case "$BASE_REF" in
+              main)
+                [[ "$head_ref" == integration/* ]] || { echo "rejected: main accepts PRs only from a top-level track" >&2; return 1; }
+                x=${head_ref#integration/}
+                chain "$x" || return 1
+                ux=$(upstream "$x") || return 1
+                [ "$ux" = main ] || { echo "rejected: $head_ref is not a top-level track; it enters only integration/$ux" >&2; return 1; }
+                kind=promote ;;
+              integration/*)
+                t=${BASE_REF#integration/}
+                chain "$t" || return 1
+                ut=$(upstream "$t") || return 1
+                case "$head_ref" in
+                  stable|release|github-gate) echo "rejected: $head_ref cannot enter a track" >&2; return 1 ;;
+                  main)
+                    [ "$ut" = main ] || { echo "rejected: main enters only a top-level track; $BASE_REF syncs from integration/$ut" >&2; return 1; }
+                    kind=sync ;;
+                  integration/*)
+                    x=${head_ref#integration/}
+                    if [ "$ut" = "$x" ]; then
+                      kind=sync
+                    else
+                      grep -qxF "refs/heads/$head_ref" "$BRANCHES" || { echo "rejected: $head_ref does not exist" >&2; return 1; }
+                      ux=$(upstream "$x") || return 1
+                      [ "$ux" = "$t" ] || { echo "rejected: $head_ref is neither the upstream nor a direct child of $BASE_REF" >&2; return 1; }
+                      kind=promote
+                    fi ;;
+                  *) kind=work ;;
+                esac ;;
+              stable)
+                [ "$head_ref" = main ] || { echo "rejected: stable accepts PRs only from main" >&2; return 1; }
+                kind=stable ;;
+              *) echo "rejected: base branch $BASE_REF is not a trunk" >&2; return 1 ;;
+            esac
+          }
+          classify
+          [ "$kind" = "$KIND" ] || { echo "stopped: the publication is now $kind, it was planned as $KIND"; exit 1; }
           title=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .title)
 
           extra=
           if [ "$MODE" = merge ]; then
             [ "$B" != none ] || { echo "rejected: target branch does not exist"; exit 1; }
-            if [ "$BASE_REF" = main ]; then covered "$head_ref" "$H"; fi
+            # A promotion carries the head track; a sync leaves the upstream records to the upstream.
+            if [ "$KIND" = promote ]; then covered "$head_ref" "$H"; fi
             tree=$(git merge-tree --write-tree "$B" "$H") || { echo "stopped: merge conflict, resolve it on the source branch first"; exit 1; }
             msg=$(printf 'Merge pull request #%s from %s\n\n%s\n\nConfirmed-by: %s\nGate-Run: %s\n' "$PR" "$head_ref" "$title" "$APPROVER" "$run_url")
             C=$(GIT_AUTHOR_NAME="$approver_name" GIT_AUTHOR_EMAIL="${approver_id}+${APPROVER}@users.noreply.github.com" \

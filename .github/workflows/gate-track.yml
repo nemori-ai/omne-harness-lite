@@ -11,8 +11,12 @@ on:
         description: Track name without the integration/ prefix
         required: true
         type: string
+      parent:
+        description: Upstream, main or a track name without the integration/ prefix
+        required: true
+        type: string
       base:
-        description: Commit on the first-parent history of main (40 hex characters)
+        description: Commit on the first-parent history of the upstream, at or after its check floor (40 hex characters)
         required: true
         type: string
       issue:
@@ -41,13 +45,55 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TRACK: ${{ inputs.track }}
+          PARENT: ${{ inputs.parent }}
           BASE: ${{ inputs.base }}
           ISSUE: ${{ inputs.issue }}
         run: |
           [[ "$GITHUB_REF" == refs/heads/github-gate ]] || { echo "rejected: run is not on github-gate"; exit 1; }
           [[ "$TRACK" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "rejected: track"; exit 1; }
+          case "$TRACK" in main|stable|release|github-gate) echo "rejected: $TRACK is a reserved name"; exit 1 ;; esac
+          [[ "$PARENT" == main || "$PARENT" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "rejected: parent"; exit 1; }
+          [ "$PARENT" != "$TRACK" ] || { echo "rejected: a track cannot be its own upstream"; exit 1; }
           [[ "$BASE" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: base"; exit 1; }
           [[ "$ISSUE" =~ ^[0-9]{1,6}$ ]] || { echo "rejected: issue"; exit 1; }
+          REMOTE="https://github.com/$GITHUB_REPOSITORY.git"
+          CUTOVER=$RUNNER_TEMP/cutover.json BRANCHES=$RUNNER_TEMP/branches.txt
+          gh api "repos/$GITHUB_REPOSITORY/contents/gate/cutover.json?ref=$GITHUB_SHA" --jq .content | base64 -d > "$CUTOVER"
+          ! jq -e --arg b "integration/$TRACK" 'has($b)' "$CUTOVER" >/dev/null || { echo "rejected: integration/$TRACK is listed in gate/cutover.json"; exit 1; }
+          git ls-remote "$REMOTE" 'refs/heads/integration/*' | awk '{print $2}' > "$BRANCHES"
+          # Track topology (RFC-0011 sections 4, 5 and 8). Needs $REMOTE, $CUTOVER (cutover.json)
+          # and $BRANCHES (one refs/heads/integration/* name per line).
+          # The upstream of a track: the parent field of its start tag (main when the tag has
+          # none); otherwise main when the branch has a cutover point; otherwise no identity.
+          upstream() {
+            local name=$1 listing obj msg p
+            listing=$(git ls-remote "$REMOTE" "refs/tags/omne/gate/track/$name") || { echo "stopped: cannot read the start tag of integration/$name" >&2; return 1; }
+            obj=$(printf '%s\n' "$listing" | awk -v r="refs/tags/omne/gate/track/$name" '$2==r{print $1}')
+            if [ -n "$obj" ]; then
+              msg=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$obj" --jq .message) || { echo "stopped: the start tag of integration/$name is not an annotated tag" >&2; return 1; }
+              p=$(printf '%s' "$msg" | jq -er 'if type == "object" then (.parent // "main") else error("not a record") end') \
+                || { echo "stopped: the start tag of integration/$name has no record" >&2; return 1; }
+            elif jq -e --arg b "integration/$name" 'has($b)' "$CUTOVER" >/dev/null; then
+              p=main
+            else
+              echo "rejected: integration/$name has no start tag and no cutover point" >&2; return 1
+            fi
+            [[ "$p" == main || "$p" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "stopped: integration/$name records an invalid parent" >&2; return 1; }
+            printf '%s\n' "$p"
+          }
+          # Every track from this one up to main must have an identity and an existing branch.
+          chain() {
+            local name=$1 depth=0 p
+            while :; do
+              grep -qxF "refs/heads/integration/$name" "$BRANCHES" || { echo "rejected: integration/$name on the upstream chain does not exist" >&2; return 1; }
+              p=$(upstream "$name") || return 1
+              [ "$p" = main ] && return 0
+              depth=$((depth+1))
+              [ "$depth" -le 64 ] || { echo "stopped: the upstream chain of integration/$1 is too long" >&2; return 1; }
+              name=$p
+            done
+          }
+          if [ "$PARENT" != main ]; then chain "$PARENT"; fi
           existing=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK" \
             | awk -v a="refs/heads/integration/$TRACK" -v b="refs/tags/omne/gate/track/$TRACK" '$2==a||$2==b{print $1}')
           [ -z "$existing" ] || { echo "rejected: integration/$TRACK or its start tag already exists"; exit 1; }
@@ -55,10 +101,13 @@ jobs:
             echo "### Track creation awaiting confirmation"
             echo
             echo "- Branch: \`integration/$TRACK\`"
-            echo "- Start: \`$BASE\` (must be on the first-parent history of main)"
+            echo "- Upstream: \`$PARENT\`"
+            echo "- Start: \`$BASE\` (must be on the first-parent history of the upstream, at or after its check floor)"
+            echo
+            echo "The confirmer checks that the upstream is active in integration-policy.json and says so in the note."
             echo "- Decision comment: #$ISSUE"
             echo
-            echo "The track must also be registered with its owner in integration-policy.json."
+            echo "The track must also be registered with its owner and parent in integration-policy.json."
           } >> "$GITHUB_STEP_SUMMARY"
 
   create:
@@ -101,18 +150,76 @@ jobs:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           APP_SLUG: ${{ steps.app.outputs.app-slug }}
           TRACK: ${{ inputs.track }}
+          PARENT: ${{ inputs.parent }}
           BASE: ${{ inputs.base }}
           ISSUE: ${{ inputs.issue }}
           APPROVER: ${{ steps.confirm.outputs.approver }}
           NOTE: ${{ steps.confirm.outputs.note }}
         run: |
           [[ "$TRACK" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "rejected: track"; exit 1; }
+          case "$TRACK" in main|stable|release|github-gate) echo "rejected: $TRACK is a reserved name"; exit 1 ;; esac
+          [[ "$PARENT" == main || "$PARENT" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "rejected: parent"; exit 1; }
+          [ "$PARENT" != "$TRACK" ] || { echo "rejected: a track cannot be its own upstream"; exit 1; }
           [[ "$BASE" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: base"; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/contents/gate/cutover.json?ref=$GITHUB_SHA" --jq .content | base64 -d > cutover.json
+          ! jq -e --arg b "integration/$TRACK" 'has($b)' cutover.json >/dev/null || { echo "rejected: integration/$TRACK is listed in gate/cutover.json"; exit 1; }
           git init -q work && cd work
           git remote add origin "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch -q --filter=blob:none --no-tags origin "refs/heads/main:refs/remotes/origin/main"
-          git rev-list --first-parent origin/main > ../main-fp.txt
-          grep -qx "$BASE" ../main-fp.txt || { echo "rejected: $BASE is not on the first-parent history of main"; exit 1; }
+          REMOTE=origin CUTOVER=$PWD/../cutover.json BRANCHES=$PWD/../branches.txt
+          git ls-remote origin 'refs/heads/integration/*' | awk '{print $2}' > "$BRANCHES"
+          # Track topology (RFC-0011 sections 4, 5 and 8). Needs $REMOTE, $CUTOVER (cutover.json)
+          # and $BRANCHES (one refs/heads/integration/* name per line).
+          # The upstream of a track: the parent field of its start tag (main when the tag has
+          # none); otherwise main when the branch has a cutover point; otherwise no identity.
+          upstream() {
+            local name=$1 listing obj msg p
+            listing=$(git ls-remote "$REMOTE" "refs/tags/omne/gate/track/$name") || { echo "stopped: cannot read the start tag of integration/$name" >&2; return 1; }
+            obj=$(printf '%s\n' "$listing" | awk -v r="refs/tags/omne/gate/track/$name" '$2==r{print $1}')
+            if [ -n "$obj" ]; then
+              msg=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$obj" --jq .message) || { echo "stopped: the start tag of integration/$name is not an annotated tag" >&2; return 1; }
+              p=$(printf '%s' "$msg" | jq -er 'if type == "object" then (.parent // "main") else error("not a record") end') \
+                || { echo "stopped: the start tag of integration/$name has no record" >&2; return 1; }
+            elif jq -e --arg b "integration/$name" 'has($b)' "$CUTOVER" >/dev/null; then
+              p=main
+            else
+              echo "rejected: integration/$name has no start tag and no cutover point" >&2; return 1
+            fi
+            [[ "$p" == main || "$p" =~ ^[a-z0-9][a-z0-9-]{1,40}$ ]] || { echo "stopped: integration/$name records an invalid parent" >&2; return 1; }
+            printf '%s\n' "$p"
+          }
+          # Every track from this one up to main must have an identity and an existing branch.
+          chain() {
+            local name=$1 depth=0 p
+            while :; do
+              grep -qxF "refs/heads/integration/$name" "$BRANCHES" || { echo "rejected: integration/$name on the upstream chain does not exist" >&2; return 1; }
+              p=$(upstream "$name") || return 1
+              [ "$p" = main ] && return 0
+              depth=$((depth+1))
+              [ "$depth" -le 64 ] || { echo "stopped: the upstream chain of integration/$1 is too long" >&2; return 1; }
+              name=$p
+            done
+          }
+          if [ "$PARENT" = main ]; then
+            up=main
+            git fetch -q --filter=blob:none --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+          else
+            chain "$PARENT"
+            up=integration/$PARENT
+            git fetch -q --filter=blob:none --no-tags origin "refs/heads/$up:refs/remotes/origin/$up"
+            # The start must be at or after the check floor of the upstream: its cutover
+            # point, otherwise the commit of its start tag.
+            floor=$(jq -r --arg b "$up" '.[$b] // ""' ../cutover.json)
+            if [ -z "$floor" ]; then
+              git fetch -q --no-tags origin "refs/tags/omne/gate/track/$PARENT:refs/tags/omne/gate/track/$PARENT" || { echo "rejected: $up has no check floor"; exit 1; }
+              floor=$(git rev-parse "refs/tags/omne/gate/track/$PARENT^{commit}")
+            fi
+            [[ "$floor" =~ ^[0-9a-f]{40}$ ]] || { echo "rejected: $up has no check floor"; exit 1; }
+          fi
+          git rev-list --first-parent "refs/remotes/origin/$up" > ../up-fp.txt
+          grep -qx "$BASE" ../up-fp.txt || { echo "rejected: $BASE is not on the first-parent history of $up"; exit 1; }
+          if [ "$PARENT" != main ]; then
+            git merge-base --is-ancestor "$floor" "$BASE" || { echo "rejected: $BASE is before the check floor of $up"; exit 1; }
+          fi
           existing=$(git ls-remote origin "refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK" \
             | awk -v a="refs/heads/integration/$TRACK" -v b="refs/tags/omne/gate/track/$TRACK" '$2==a||$2==b{print $1}')
           [ -z "$existing" ] || { echo "stopped: integration/$TRACK or its start tag already exists"; exit 1; }
@@ -120,12 +227,12 @@ jobs:
           export GIT_COMMITTER_NAME="${APP_SLUG}[bot]" GIT_COMMITTER_EMAIL="${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
           run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           record=$(jq -cn --arg target "refs/heads/integration/$TRACK" --arg start "$BASE" --arg approver "$APPROVER" \
-            --arg issue "$ISSUE" --arg run "$run_url" --arg gate "$GITHUB_SHA" \
-            '{schema:"omne-gate-record:v1",target:$target,mode:"track-create",result:$start,issue:($issue|tonumber),confirmedBy:$approver,run:$run,gate:$gate}')
+            --arg issue "$ISSUE" --arg run "$run_url" --arg gate "$GITHUB_SHA" --arg parent "$PARENT" \
+            '{schema:"omne-gate-record:v1",target:$target,mode:"track-create",result:$start,parent:$parent,issue:($issue|tonumber),confirmedBy:$approver,run:$run,gate:$gate}')
           git tag -a "omne/gate/track/$TRACK" -m "$record" "$BASE"
           quoted=$(printf '%s\n' "$NOTE" | sed 's/^/> /')
-          body=$(printf '**Track creation decision**\n\n- Branch: `integration/%s`\n- Start: `%s`\n- Record tag: `omne/gate/track/%s`\n- Confirmed by: @%s (from the platform approval record)\n- Run: %s\n\nConfirmation note:\n\n%s\n' \
-            "$TRACK" "$BASE" "$TRACK" "$APPROVER" "$run_url" "$quoted")
+          body=$(printf '**Track creation decision**\n\n- Branch: `integration/%s`\n- Upstream: `%s`\n- Start: `%s`\n- Record tag: `omne/gate/track/%s`\n- Confirmed by: @%s (from the platform approval record)\n- Run: %s\n\nConfirmation note:\n\n%s\n' \
+            "$TRACK" "$PARENT" "$BASE" "$TRACK" "$APPROVER" "$run_url" "$quoted")
           gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE/comments" -f body="$body" --jq .html_url
           git push --atomic --force-with-lease="refs/heads/integration/$TRACK:" origin "$BASE:refs/heads/integration/$TRACK" "refs/tags/omne/gate/track/$TRACK:refs/tags/omne/gate/track/$TRACK"
           after=$(git ls-remote origin "refs/heads/integration/$TRACK" | awk -v r="refs/heads/integration/$TRACK" '$2==r{print $1}')

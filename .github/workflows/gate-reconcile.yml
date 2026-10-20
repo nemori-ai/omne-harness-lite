@@ -67,6 +67,32 @@ jobs:
               report "Gate gap: $ref ${c:0:12}" "Commit \`$c\` on the first-parent history of \`$ref\` has no matching \`omne/gate/unit\` record. An admin closes this gap with a named decision in this Issue. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             done
           done
+          # A track whose upstream chain has a deleted branch can only be deleted itself
+          # (RFC-0011 sections 8 and 13). Start tags stay after a branch is deleted, so the
+          # chain is still readable. A track without any identity is reported above.
+          parent_of() {
+            local name=$1
+            if git rev-parse -q --verify "refs/tags/omne/gate/track/$name" >/dev/null; then
+              git cat-file -p "refs/tags/omne/gate/track/$name" | sed '1,/^$/d' \
+                | jq -er 'if type == "object" then (.parent // "main") else error("not a record") end'
+            elif jq -e --arg b "integration/$name" 'has($b)' ../cutover.json >/dev/null; then
+              echo main
+            else
+              return 1
+            fi
+          }
+          for ref in $refs; do
+            [[ "$ref" == integration/* ]] || continue
+            cur=${ref#integration/} depth=0
+            while p=$(parent_of "$cur") && [ "$p" != main ]; do
+              if ! git rev-parse -q --verify "refs/remotes/origin/integration/$p" >/dev/null; then
+                report "Gate gap: $ref upstream integration/$p is missing" "The upstream chain of \`$ref\` contains \`integration/$p\`, and that branch no longer exists. An upstream cannot change and a deleted name cannot be created again, so \`$ref\` and every track below the missing one can only be deleted, from the bottom up. This gap closes when they are all deleted. Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                break
+              fi
+              depth=$((depth+1)); [ "$depth" -le 64 ] || { echo "stopped: the upstream chain of $ref is too long"; exit 1; }
+              cur=$p
+            done
+          done
           if git rev-parse -q --verify refs/remotes/origin/stable >/dev/null; then
             s=$(git rev-parse refs/remotes/origin/stable)
             ok=no
