@@ -198,12 +198,12 @@
 > environment**, so when it goes, **all of them go with it**.
 
 - **形态**：对象
-- **出处**：[PF-007 §6.4 `Shell()`](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#64-shell通向命令行)（rev 25） · [PF-005 §6.3](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
+- **出处**：[元能力：`Shell()`](../../product/meta-capabilities/design.md#meta-shell)（rev 3） · [PF-005 §6.3](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
 - **⚠️ 别混**：**不是[会话](agent-runtime-loop.md#ul-session--会话--session)。**
   两者**毫无关系**——一个是协作的归属边界，一个是执行环境里的一条命令行。
   **`Shell()` 的命令名 `create_session` / `close_session` 不改**（那是接口），
   **但叙述一律写「终端会话」**。改名依据见 [现行词义](../index.md)
-- **注意**：**状态的寿命是显式的**——开会话才有持久状态，**不做隐式持久**；
+- **注意**：**状态的寿命是显式的**——只有显式开终端会话才保留可复用的终端会话状态；一次性执行的文件、外部效果、结果和账目不因此消失；
   给一个不存在的标识**必须明确失败**，不得悄悄降级成一次性执行
 
 ### UL-execution-environment-permission · 执行环境权限 · Execution Environment Permission
@@ -229,18 +229,18 @@
   **两者都是三态、都曾各有一个 `auto`**，但**一个决定「准不准」，一个决定「落在哪」**，
   而且**会在同一次执行里一前一后出现**。**两个名字特意分开取**：`auto_permission` 对 `auto_place`
 - **⚠️ 注意 ①**：**粒度是「门」这一级，不是命令级。**执行环境是配给一扇门的，
-  **门后所有命令的作用都落在同一处**；而[「能不能做」本来就是一条一条命令的事](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)
+  门后命令共同受该工具的落点策略约束，每次调用仍按设施及当前条件选择合法环境，不保证历次调用落在同一实例；而[「能不能做」本来就是一条一条命令的事](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)
 - **⚠️ 注意 ②**：**[落点不可用就是拒绝，不降级](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)。**
   `auto_place` 算出该进容器而容器起不来，**这次执行被拒**，**不回退宿主机**
 - **注意 ③**：**[meta tool](capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) 一样受它管。**
   给 `Shell()` 配 `never-allow` **并没有关掉那扇门**，只是规定它的作用落在隔离环境里——
-  **不触[「关不掉一扇门」那条红线](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)**
+  **不触[「关不掉一扇门」那条红线](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)**
 - **注意 ④**：**[工作区那一级不参与](scope-and-resolution.md#ul-workspace--工作区--workspace)**——
   授权与权限相关的配置，**加载时就把工作区来的滤掉了**
 - **注意 ⑤**：**没声明要用执行环境的工具，这一维对它不适用。**
   那是**实现时的契约**，**不是「默认取哪一档」**
 - **注意 ⑥**：**「这个工具能不能用[宿主机](#ul-host-machine--宿主机--host-machine)」没有第二项权限在管**——
-  **这一项不是 `never-allow`，就是能用**
+  不是 `never-allow` 只表示该项策略未禁止宿主机；`auto_place` 的实际选择、设施及隔离条件仍须满足
 - **弃用**：~~「执行安全策略」~~（指的是**把这一项配成 `never-allow`** 那件事，是同一项权限的配值） ·
   ~~「使用宿主机的资格」~~（＝**这一项不是 `never-allow`**）
 

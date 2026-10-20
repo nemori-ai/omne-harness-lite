@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft session package; complete the accepted public contract before delivery",
+  "description": "Draft Cordis-free session implementation; runtime factories are not implemented",
   "engines": {
     "node": ">=24"
   },
@@ -22,7 +22,9 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "pnpm run build && vitest run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/session-contract": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

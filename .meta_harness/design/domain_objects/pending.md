@@ -25,9 +25,9 @@
 
 ### 跨会话的那个对象
 
-- **现象**：PF-007 说待办「活在一次会话里，不跨会话继承。跨会话的东西不装在这扇门后面」，并在边界一节登记为「尚无归属」。它曾被叫作「目标」，但设计链里没有它的定义
-- **牵涉**：[PF-007 §6.9](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 25）；[PF-007 §八](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#八边界与依赖)（rev 25）
-- **谁来裁**：产品负责人——它要不要做、归哪个 topic，都还没有人说过；已记入 PF-007 decisions「已知的来源问题」
+- **现象**：元能力产品说待办「活在一次会话里，不跨会话继承。跨会话的东西不装在这扇门后面」，并在边界一节登记为「尚无归属」。它曾被叫作「目标」，但设计链里没有它的定义
+- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-todo)（rev 3）；[元能力：产品规则](../product/meta-capabilities/design.md#协作拥有者与非目标)（rev 3）
+- **谁来裁**：产品负责人——它要不要做、归哪个 topic，都还没有人说过；由元能力产品保留跨会话对象缺项
 - **闭合条件**：有 topic 认领它，或明确本版不做
 
 ### runtime context 的一块
@@ -39,24 +39,24 @@
 
 ### 一次派发
 
-- **现象**：`spawn` / `delegate` 的一次派发有状态（在跑 → 完成 · 失败 · 被中断）、可被查询与撤回、至多带一份报告；它由一次工具执行承载，产生一个子会话，**`spawn` 那种还要在子会话日志里落下一条起始输入记录**。PF-007 已明确后续普通消息沿输入规则，不把派发等同 Run；派发本身与承载工具执行如何建模仍需明确。词条 UL-agent-dispatch 讲的是派发这个过程
-- **牵涉**：[PF-007 §6.8](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#68-agents通向别的-agent)（rev 25）；[PF-007 §9.2](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#92-报告之后派发者再发一条消息子拿什么回应)（rev 25）
+- **现象**：`spawn` / `delegate` 的一次派发有状态（在跑 → 完成 · 失败 · 被中断）、可被查询与撤回、至多带一份报告；它由一次工具执行承载，产生一个子会话，**`spawn` 那种还要在子会话日志里落下一条起始输入记录**。元能力产品已明确后续普通消息沿输入规则，不把派发等同 Run；派发本身与承载工具执行如何建模仍需明确。词条 UL-agent-dispatch 讲的是派发这个过程
+- **牵涉**：[元能力：产品规则](../product/meta-capabilities/design.md#meta-agents)（rev 3）；[元能力：产品规则](../product/meta-capabilities/design.md#一次报告与后续消息)（rev 3）
 - **挂着谁**：[派发报告](objects.md#ul-dispatch-report--派发报告)的宿主
-- **谁来裁**：系统架构设计；PF-007 提供派发工作、一次报告和显式撤回的产品语义
+- **谁来裁**：系统架构设计；元能力产品提供派发工作、一次报告和显式撤回的产品语义
 - **闭合条件**：明确一次派发与承载工具执行的身份关系，不把它等同子会话或某一个 Run
 
 ### agent 之间的消息
 
-- **现象**：PF-007 只定了「谁能给谁发」的两条规则；一条这样的消息靠什么标识、落在谁的会话里、留不留存，全未述。它是不是统一语言里那种「消息」的某一类，也没说
-- **牵涉**：[PF-007 §6.8 先说谁能给谁发消息](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 25）；[PF-014 §4 入站到达](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
-- **谁来裁**：PF-007 与 PF-014 的 owner
-- **闭合条件**：正文写明它进收件方会话时走不走入站受理、落成哪一种消息
+- **现象**：元能力产品定义了「谁能给谁发」的两条规则；普通消息已沿接收会话的输入与 Run 规则处理，但无派发关系主会话通信的精确身份、重试、不存在目标以及持久交接协议仍未闭合，不由入口命令名补造
+- **牵涉**：[元能力：先说谁能给谁发消息](../product/meta-capabilities/design.md#双向通信与消息失败)（rev 3）；[PF-014 §4 入站到达](../product.0.0.1.legacy/PF-014-inbound-intake-and-queueing/design.md#入站到达)（rev 14）
+- **谁来裁**：元能力、Session 与入站拥有者
+- **闭合条件**：实际入站与消息拥有者明确普通通信的身份、持久交接、重试和目标不存在协议，并对应到消息类别
 
 ### 外部 harness 的 agent
 
 - **现象**：能被派发指向、「能不能派给它」本身是一项要被授予的权限；但它在本系统里有没有一条登记记录，完全未述
-- **牵涉**：[PF-007 §6.8 派给外部 harness 的 agent](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#派给外部-harness-的-agent)（rev 25）
-- **谁来裁**：PF-007 的 owner
+- **牵涉**：[元能力：派给外部 harness 的 agent](../product/meta-capabilities/design.md#外部-harness-派发)（rev 3）
+- **谁来裁**：元能力产品拥有者
 - **闭合条件**：正文写明它靠什么被指到、由谁登记与撤销
 
 ### 使用成本明细

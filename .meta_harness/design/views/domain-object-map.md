@@ -31,7 +31,7 @@
 |---|---|---|---|---|---|
 | [资产](../domain_objects/objects.md#ul-asset--资产) | [UL-asset](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset--资产--asset) | — | 技能、工具、MCP、连接件、拓展件、模态转换件、斜杠命令、插件、Agent 定义、官方件、自定义件 | PF-002（sealed provenance） | 001（sealed provenance） |
 | [资产版本](../domain_objects/objects.md#ul-asset-version--资产版本) | [UL-asset-version](../ubiquitous_language/terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | [资产](../domain_objects/objects.md#ul-asset--资产)——每一份资产有自己独立的一条版本线 | — | PF-002（sealed provenance） | 003（sealed provenance） |
-| [meta 能力](../domain_objects/objects.md#ul-meta-capability--meta-能力) | [UL-meta-capability](../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | 正文未述。只说每个 agent 装配起来之后，十三个各恒定占一个常驻槽位 | — | PF-007（sealed provenance） | — |
+| [meta 能力](../domain_objects/objects.md#ul-meta-capability--meta-能力) | [UL-meta-capability](../ubiquitous_language/terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | 正文未述。已采用并提供的元入口在 Agent 装配后各占一个常驻槽位 | — | PD-meta-capabilities | — |
 | [模型档案](../domain_objects/objects.md#ul-model-profile--模型档案) | [UL-model-profile](../ubiquitous_language/terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | —。建在出厂默认、组织或租户自己那一层；它不是资产，「用哪个模型」那项设置记的是路由名，同名的几条在范围链上按层取最具体一格的那一条（租户 > 组织 > 官方） | 官方档案、自建档案 | PF-013（sealed provenance） | — |
 
 ## 流转与授权
@@ -64,7 +64,7 @@
 | [会话级沙箱](../domain_objects/objects.md#ul-session-sandbox--会话级沙箱) | [UL-session-sandbox](../ubiquitous_language/terms/grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox) | [会话](../domain_objects/objects.md#ul-session--会话) | — | PF-005（sealed provenance） | — |
 | [租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱) | [UL-tenant-sandbox](../ubiquitous_language/terms/grounding-and-isolation.md#ul-tenant-sandbox--租户级沙箱--tenant-scoped-sandbox) | [租户](../domain_objects/objects.md#ul-tenant--租户) | — | PF-005（sealed provenance） | — |
 | [沙箱数据](../domain_objects/objects.md#ul-sandbox-data--沙箱数据) | [UL-sandbox-data](../ubiquitous_language/terms/grounding-and-isolation.md#ul-sandbox-data--沙箱数据--sandbox-data) | [租户](../domain_objects/objects.md#ul-tenant--租户)（寿命上）；[租户级沙箱](../domain_objects/objects.md#ul-tenant-sandbox--租户级沙箱)（归属上） | — | PF-005（sealed provenance） | — |
-| [终端会话](../domain_objects/objects.md#ul-terminal-session--终端会话) | [UL-terminal-session](../ubiquitous_language/terms/grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session) | [执行环境](../domain_objects/objects.md#ul-execution-environment--执行环境)（环境销毁，里面的终端会话全没） | — | PF-007（sealed provenance） | — |
+| [终端会话](../domain_objects/objects.md#ul-terminal-session--终端会话) | [UL-terminal-session](../ubiquitous_language/terms/grounding-and-isolation.md#ul-terminal-session--终端会话--terminal-session) | [执行环境](../domain_objects/objects.md#ul-execution-environment--执行环境)（环境销毁，里面的终端会话全没） | — | PD-meta-capabilities | — |
 | [会话据点](../domain_objects/objects.md#ul-session-base--会话据点) | [UL-session-base](../ubiquitous_language/terms/grounding-and-isolation.md#ul-session-base--会话据点--session-base) | 正文未述——正文只给了一条消失路径「这一处的那份数据被清除」，没说身份里那个账号那一头没了它怎么办（账号本版无注销，那一问正文无从谈起）。**它不寄宿于任何进程**：「此刻有没有进程在服务它」与「它在不在」是两件事 | — | PF-016（sealed provenance） | — |
 | [治理中心](../domain_objects/objects.md#ul-governance-center--治理中心) | [UL-governance-center](../ubiquitous_language/terms/grounding-and-isolation.md#ul-governance-center--治理中心--governance-center) | —（独立于任何人的机器。会话据点的身份里带着它，那是**据点依赖它**，不是它寄宿于谁） | — | PF-016（sealed provenance） | 017（sealed provenance） |
 
@@ -72,7 +72,7 @@
 
 | 对象 | 词条 | 宿主 | 变体 | 依据所在 | 还有谁在讲 |
 |---|---|---|---|---|---|
-| [派发报告](../domain_objects/objects.md#ul-dispatch-report--派发报告) | [UL-dispatch-report](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-dispatch-report--派发报告--dispatch-report) | 它所属的那次派发 | — | PF-007（sealed provenance） | — |
+| [派发报告](../domain_objects/objects.md#ul-dispatch-report--派发报告) | [UL-dispatch-report](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-dispatch-report--派发报告--dispatch-report) | 它所属的那次派发 | — | PD-meta-capabilities | — |
 | [决策卡片](../domain_objects/objects.md#ul-decision-card--决策卡片) | [UL-decision-card](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card) | [会话](../domain_objects/objects.md#ul-session--会话)（归属）；被它阻塞的是一次[工具执行](../domain_objects/objects.md#ul-tool-execution--工具执行)或一次[运行](../domain_objects/objects.md#ul-run--运行) | — | PF-008（sealed provenance） | — |
 | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文) | [UL-session-authorization-context](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | [会话](../domain_objects/objects.md#ul-session--会话)（与会话同寿，归档不丢，撤销归档后原样还在） | — | PF-007（sealed provenance） | 015（sealed provenance） |
 | [授权表达](../domain_objects/objects.md#ul-authorization-expression--授权表达) | [UL-authorization-expression](../ubiquitous_language/terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | [会话授权上下文](../domain_objects/objects.md#ul-session-authorization-context--会话授权上下文)——作用域为「这一次」「本会话」的那些落在它里面；**作用域为「全局」的那一笔不落在这里**，它[落成租户层的权限设置值](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度) | — | PF-007（sealed provenance） | — |
@@ -86,7 +86,7 @@
 | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志) | [UL-session-log](../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log) | [会话](../domain_objects/objects.md#ul-session--会话)（归会话，不归运行） | — | PF-012（sealed provenance） | — |
 | [消息](../domain_objects/objects.md#ul-message--消息) | [UL-message](../ubiquitous_language/terms/record-and-context.md#ul-message--消息--message) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭 | 中断提醒、占位消息、压缩记录 | PF-009（sealed provenance） | — |
 | [内容块](../domain_objects/objects.md#ul-content-block--内容块) | [UL-content-block](../ubiquitous_language/terms/record-and-context.md#ul-content-block--内容块--content-block) | [消息](../domain_objects/objects.md#ul-message--消息) | — | PF-009（sealed provenance） | — |
-| [待办条目](../domain_objects/objects.md#ul-todo-item--待办条目) | [UL-todo-item](../ubiquitous_language/terms/record-and-context.md#ul-todo-item--待办条目--todo-item) | [会话](../domain_objects/objects.md#ul-session--会话)——它活在一次会话里，不跨会话继承 | — | PF-007（sealed provenance） | 015（sealed provenance） |
+| [待办条目](../domain_objects/objects.md#ul-todo-item--待办条目) | [UL-todo-item](../ubiquitous_language/terms/record-and-context.md#ul-todo-item--待办条目--todo-item) | [会话](../domain_objects/objects.md#ul-session--会话)——它活在一次会话里，不跨会话继承 | — | PD-meta-capabilities | 015（sealed provenance） |
 | [业务日历](../domain_objects/objects.md#ul-business-calendar--业务日历) | [UL-business-calendar](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 正文未述 | — | PF-021（sealed provenance） | — |
 | [业务日历版本](../domain_objects/objects.md#ul-business-calendar-version--业务日历版本) | [UL-business-calendar-version](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 正文未述；所属业务日历可追溯，未规定随其退出而删除 | — | PF-021（sealed provenance） | — |
 
@@ -144,11 +144,11 @@
 | 待裁项 | 谁来裁 |
 |---|---|
 | [存储](../domain_objects/pending.md#存储) | PF-006 的 owner |
-| [跨会话的那个对象](../domain_objects/pending.md#跨会话的那个对象) | 产品负责人——它要不要做、归哪个 topic，都还没有人说过；已记入 PF-007 decisions「已知的来源问题」 |
+| [跨会话的那个对象](../domain_objects/pending.md#跨会话的那个对象) | 产品负责人——它要不要做、归哪个 topic，都还没有人说过；由元能力产品保留跨会话对象缺项 |
 | [runtime context 的一块](../domain_objects/pending.md#runtime-context-的一块) | PF-015 的 owner |
-| [一次派发](../domain_objects/pending.md#一次派发) | 系统架构设计；PF-007 提供派发工作、一次报告和显式撤回的产品语义 |
-| [agent 之间的消息](../domain_objects/pending.md#agent-之间的消息) | PF-007 与 PF-014 的 owner |
-| [外部 harness 的 agent](../domain_objects/pending.md#外部-harness-的-agent) | PF-007 的 owner |
+| [一次派发](../domain_objects/pending.md#一次派发) | 系统架构设计；元能力产品提供派发工作、一次报告和显式撤回的产品语义 |
+| [agent 之间的消息](../domain_objects/pending.md#agent-之间的消息) | 元能力、Session 与入站拥有者 |
+| [外部 harness 的 agent](../domain_objects/pending.md#外部-harness-的-agent) | 元能力产品拥有者 |
 | [使用成本明细](../domain_objects/pending.md#使用成本明细) | 产品负责人——「观测与计量」这一块还没有 topic |
 | [压缩策略](../domain_objects/pending.md#压缩策略) | PF-010 与 PF-015 的 owner |
 | [通知发送与投递结果](../domain_objects/pending.md#通知发送与投递结果) | 系统架构与规格，按 PF-021 已定查询单位、租户边界和送达判据决定记录分解及身份；不得以技术重试改变通知条数或业务历史范围 |

@@ -35,7 +35,10 @@ flowchart TD
     Source[原内容到消息接纳路径] --> ResultSource{是否 Model 或 Tool 真实结果}
     ResultSource -->|是| Keep[原生产者及合法消费者可靠保管原结果和消费关联]
     ResultSource -->|否| Eligible
-    Keep --> Eligible{模型可读非文本块或文件}
+    Keep --> ToolPath{Tool 结果}
+    ToolPath -->|是| Ref[内容 ref 原样投影，附件只作地址文本]
+    Ref --> Admission
+    ToolPath -->|否| Eligible{模型可读非文本块或文件}
     Eligible -->|否| Admission[按原消息准入继续]
     Eligible -->|是| Converter{共同契约选定的适用转换件}
     Converter -->|未登记| Original[按准入规则保留原块，无 transcript]
@@ -60,7 +63,7 @@ flowchart TD
 | 取消转换等待、资格失效或消费者换代 | 停止不再合法的新交付，原生产者或获准接手者继续保管原结果；不靠重跑 Tool 或副作用函数补结果。 |
 | 转换执行或接纳提交未知 | 按原内容、调用和消费位置查询接续；精确幂等身份与接续协议待设计，不推定未处理。 |
 
-失败分支见 [RQ-08](../SPEC.md#rq-08-失败否决与消费位置)。转换与旁路协议见 [CONTEXT-M02](../../../../.meta_harness/design/product/runtime-context/design.md#context-m02)，最终工具块全集及嵌套投影见 [CONTEXT-E01](../../../../.meta_harness/design/product/runtime-context/design.md#context-e01)，共享身份 MODEL-E01。未知嵌套分支不能当相容输入，已知模态检查仍须执行。持续验证见 [RQ-VJ05](../SPEC.md#rq-vj05)。
+失败分支见 [RQ-08](../SPEC.md#rq-08-失败否决与消费位置)。转换与旁路协议见 [CONTEXT-M02](../../../../.meta_harness/design/product/runtime-context/design.md#context-m02)，Tool ref 迁移与发送验证见 [CONTEXT-E01](../../../../.meta_harness/design/product/runtime-context/design.md#context-e01)，共享身份 MODEL-E01。Tool 路径的二进制由 Model 在实际请求时加载，地址文本不触发媒体读取。未知嵌套分支不能当相容输入，已知模态检查仍须执行。持续验证见 [RQ-VJ05](../SPEC.md#rq-vj05)。
 
 <a id="rc-f06"></a>
 ## RC-F06 一次请求的完整组装与固定采用

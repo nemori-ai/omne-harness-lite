@@ -1,6 +1,6 @@
 # Session log 的原生业务事件目录
 
-状态为候选，待用户确认。本文定义当前采用能力必须保存的事实语义、出处、因果、效力与治理后果。[主架构](internals.md#session-log-的事件模型)拥有封套、共同提交、查询和恢复算法，[状态与转移](session-state-transitions.md)拥有守卫与整批归约，[Session SPEC](../SPEC.md)拥有长期行为义务。
+状态为候选，待用户确认。本文定义当前采用能力必须保存的事实语义、出处、因果、效力与治理后果。[主架构](../../../session/docs/architecture/mechanisms.md#session-log-的事件模型)拥有封套、共同提交、查询和恢复算法，[状态与转移](session-state-transitions.md)拥有守卫与整批归约，[Session SPEC](../../SPEC.md)拥有长期行为义务。
 
 正式术语继续使用 Record Entry，event 说明其记录已发生事实的性质。SE 编号是本文的定位标识，不是已经发布的 kind、公开 Schema 或统一语言新词。目录覆盖当前采用的原生业务；插件以后新增事实仍需相应拥有者定义、评审和准入，不能宣称未来种类已经枚举完。
 
@@ -14,7 +14,7 @@
 
 ## 效力与解释资格
 
-一条事实是否必须记入，见架构[必须进入日志的事实](../../../../docs/architecture/runtime/session-and-run.md#必须进入日志的事实)。效力沿统一语言的 Deciding、Explaining、Transient。以下用中文“依据”“留痕”表达，不新增英文枚举。只有依据进入其合法消费者的状态转移输入。留痕可以进入历史查询和解释视图，不能改变队列、推进资格、等待或结算责任。瞬态通知、未封口增量及工程采样不能独撑恢复路径。
+一条事实是否必须记入，见架构[必须进入日志的事实](../../../../../docs/architecture/runtime/session-and-run.md#必须进入日志的事实)。效力沿统一语言的 Deciding、Explaining、Transient。以下用中文“依据”“留痕”表达，不新增英文枚举。只有依据进入其合法消费者的状态转移输入。留痕可以进入历史查询和解释视图，不能改变队列、推进资格、等待或结算责任。瞬态通知、未封口增量及工程采样不能独撑恢复路径。
 
 消息种类、是否给模型看、保留期和效力分别判断。工具过程若仅用于解释可为留痕；业务提醒或费用记录若承担后续工作、对账或结算恢复，则其必要部分为依据。目录中的条件效力必须在实际成员的用途变体中明确，不能由每次生产者随意填写。本文没有增加成本额度或预算控制业务。
 
@@ -107,4 +107,4 @@ Session 治理归约器支持其必需原生语义与已经准入的外域依据
 
 准确公开 kind/Schema、迁移编码、插件解释注册机制、经过和消费位置的公开身份、跨能力发起/控制/级联/ACK 及连续空闲取证协议仍需实际成员设计。本文没有以源码当前的八种公共事实限制完整目标，也没有证明这些义务已实现。
 
-术语效力归[当前统一语言](../../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md)，Loop 具体规则归[Agent Loop 规格候选](../../../../packages/agent/agent-contract/docs/flows/loop.md)。
+术语效力归[当前统一语言](../../../../../.meta_harness/design/ubiquitous_language/terms/record-and-context.md)，Loop 具体规则归[Agent Loop 规格候选](../../../../agent/agent-contract/docs/flows/loop.md)。

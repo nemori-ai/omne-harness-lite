@@ -21,6 +21,16 @@
 
 ## 一次执行
 
+### UL-tool-programmability · 工具可编程调用许可 · Tool Programmability
+
+> **中**：工具定义上的可选属性 `programmable`，表示是否允许 Agent 通过脚本组合或编排该工具的调用。只有显式 `true` 表示允许，省略或 `false` 表示不支持这种调用方式。
+>
+> **EN**: The optional `programmable` property of a tool definition. It permits an agent to call the tool from a script that combines or orchestrates tool calls. Only explicit `true` permits this use. An omitted value or `false` does not.
+
+- **形态**：属性
+- **出处**：[工具执行：可编程调用许可](../../product/tool-execution/design.md#可编程调用许可)（rev 3）
+- **别混**：不是当前动作授权、常驻标记或后台许可。独立程序消费 SDK 不自动属于 Agent 脚本编排；脚本经 SDK 或通用调用入口间接调用工具，仍属于该许可的范围。
+
 ### UL-tool-definition · 工具定义 · Tool Definition
 
 > **中**：**一个[工具](capabilities-and-composition.md#ul-tool--工具--tool)在数据与治理层面的
@@ -59,6 +69,8 @@
   以及[这一次的结果要不要卸载](#ul-result-offloading--结果卸载--result-offloading)。
   **三样都取决于这一次跑成什么样**，而定义里写的是这个工具跟参数无关的固有属性
 - **注意 ②**：**两种写法的多命令工具在模型面前一模一样**——agent 对不熟的命令动手前仍要先经 `Tools().inspect` 或 `help` 问一次详细用法
+
+- **可编程调用**：定义可声明[工具可编程调用许可](#ul-tool-programmability--工具可编程调用许可--tool-programmability)，省略不授予脚本编排许可。
 
 ### UL-tool-execution · 工具执行 · Tool Execution
 
@@ -99,7 +111,7 @@
 - **出处**：[PF-006 §6.6](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)（rev 24）
 - **注意 ①**：**默认往保守的那一边倒**——**没表过态，不等于表了同意**
 - **注意 ②**：**「发起时就在后台」与「中途转后台」的决定权不同**——
-  前者[由 agent 自己定](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#64-shell通向命令行)，前台那一次调用当场以转后台收场，**不算一次「转」**；
+  前者[由 agent 自己定](../../product/meta-capabilities/design.md#meta-shell)，前台那一次调用当场以转后台收场，**不算一次「转」**；
   后者[有三个触发源](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#66-前台后台-与-等待态是两个维度)：
   **跑到转后台时长或前台上限时自动转 · 用户手动切 · 用户插队时系统顺带触发**
 - **注意 ③**：**哪条路都不绕开声明**——工具没声明允许后台，插队或到了前台上限时它是[被中断](#ul-execution-outcome--执行收场--execution-outcome)，不是被转后台；发起时就要后台，也起不来
@@ -123,7 +135,7 @@
 - **出处**：[PF-006 §6.6 前台上限与并发上限](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#前台上限与并发上限)（rev 24） ·
   [PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）
 - **别混**：**不是「前台跑多久自动转后台」那一项**——那是允许后台的工具[另一项偏好设置](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#其中两项声明的是设置项)；前台上限对不许后台的工具同样起作用，到点被中断
-- **注意**：**等人的时间不算，是有意的**——[`Ask()`](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#611-ask通向人) 停在前台等人永不过期，把等人算进来，它就成了一个替人签字的到点
+- **注意**：**等人的时间不算，是有意的**——[`Ask()`](../../product/meta-capabilities/design.md#meta-ask) 停在前台等人永不过期，把等人算进来，它就成了一个替人签字的到点
 
 ### UL-tool-concurrency-limit · 工具并发上限 · Tool Concurrency Limit
 
@@ -502,7 +514,7 @@
 > **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation and does not delete the full tool result. After the release, continuation proceeds from the data the consumer saved.
 
 - **形态**：过程
-- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 2）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 1）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 2）
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 2）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 4）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 2）
 - **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
 - **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/agent-contract/SPEC.md#确认)
 - **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)

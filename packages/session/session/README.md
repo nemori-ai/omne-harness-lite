@@ -1,28 +1,35 @@
 PACKAGE_TEMPLATE_DRAFT
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
-
 # session
 
-## 职责与状态
+## Responsibility and status
 
-本卡范围的协作契约已技术接受，精确范围见 [SPEC](SPEC.md)。其余候选、生产实现及运行验证的状态分别保留。
+Reusable implementation mechanisms and factories, without Cordis. The package is initialized. Runtime APIs are not implemented; candidate designs retain their existing acceptance status.
 
-本目录维护目标成员的行为与机制文档，尚无实现成员、公开导出或运行入口。支持未核实，最小协作契约之外的公开形状及技术采用仍待确认。原有效能力与阶段承诺沿[产品正文](../../../.meta_harness/design/product/sessions-and-work/design.md)判断，不以文档存在证明兑现。
+## Usage
 
-## 使用与集成
+Current entries export no runtime capability. The [API design](docs/public-api.md) describes candidates, not executable examples.
 
-独立消费从 [SPEC](SPEC.md)读取明确输入、结果、资格和生命周期责任；目前不能提供可运行示例或命令。Cordis 消费须在公开契约明确后沿[IC 约定](../../../docs/architecture/cordis-integration-conventions.md)设计装配，不能将活体 Context 当作业务数据。
+## Contracts
 
-## 契约与设计
+The [SPEC](SPEC.md) owns behavior. The [API page](docs/public-api.md) separates actual exports from candidate interfaces.
 
-[SPEC](SPEC.md)完整维护非类型行为，[内部设计](docs/internals.md)维护本成员机制、精确流程与后续设计义务。[组入口](../README.md)维护依赖及协作。公开类型尚待形成，不复制旧签名。
+## Design
 
-## 配置与运行
+The [architecture](docs/architecture/README.md) owns mechanisms and dependency decisions. Use the [topic index](docs/index.md) for other responsibilities.
 
-配置、环境、资源限制及提供者采用沿 SPEC 和内部设计的适用条件判断。尚无已核实运行装配，不提供默认机制。
+## Configuration and operation
 
-## 验证与维护
+Pass business identities as operation inputs. Pure contract and implementation packages do not install Cordis. Binding ownership and lifecycle rules are described in [Cordis integration](docs/cordis.md).
 
-SPEC 的不变量与验证场景是持续义务，尚无本次运行证据。成员维护者改变行为时同步公开形状、机制、消费者及验证，组维护者同步跨成员协作与导航。关键未知只暂停依赖路径。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+## Verification
+
+Run `pnpm test` and `pnpm typecheck` in this directory. Declaration tests verify existing behavior. Empty-entry tests only verify the scaffold; they do not establish runtime support.
+
+## Maintenance
+
+Update actual consumers, the SPEC, and verification when a public contract changes. Implementation details do not redefine domain contracts. Member relationships are owned by the [group](../README.md).
+
+## Directory structure and documentation roles
+
+The package follows the source template skeleton. Six documentation topics are listed in [docs](docs/README.md). Source, tests, schemas, verification, ADRs, examples, resources, and acceptance each have an index. Draft resource slots do not establish template adoption or business acceptance.

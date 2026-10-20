@@ -294,7 +294,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-54：工具调用与工具结果部件由谁发布
 
 - **类型**：定义打架。2026-10-17 在 #342 的 Model 主干评审 R-2（共享 ToolCallPart）时发现。不新增词条。
-- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。[COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02) 当时有同一句。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model 契约 SPEC 的「工具定义转换与内容引用加载」](../../../packages/model/model-contract/SPEC.md#工具定义转换与内容引用加载)写调用建议采用 common/message 的 ToolCallPart。[会话日志事件 SE10](../../../packages/session/session/docs/session-log-events.md) 写 ToolMessage 形状归消息契约。
+- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。[COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02) 当时有同一句。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model 契约 SPEC 的「工具定义转换与内容引用加载」](../../../packages/model/model-contract/SPEC.md#工具定义转换与内容引用加载)写调用建议采用 common/message 的 ToolCallPart。[会话日志事件 SE10](../../../packages/session/session-contract/docs/object-model/session-log-events.md) 写 ToolMessage 形状归消息契约。
 - **反例与影响**：按旧句，工具领域要发布消息部件，Tool 就得依赖消息模型，而 Tool 目前不导入 message。按 message 一方，消息部件与工具领域没有依赖。两种读法的写者与依赖方向相反。
 - **负责与闭合条件**：负责人 PanQiWei 于 2026-10-17 指定 Model 主干更正统一语言一方。词条已改为引用 COMMON-T02，不再自写包级归属。COMMON-T02 属架构区正文，其拥有者已同步。
 - **状态**：已闭合。依据是 [COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02)：`tool_call` 与 `tool_result` 部件的形状由 `packages/common/message` 发布，工具领域产出工具结果的内容，不发布消息部件。词条与架构正文现在一致。

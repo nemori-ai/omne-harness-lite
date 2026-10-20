@@ -22,4 +22,4 @@
 
 ## 共享来源和在途恢复
 
-最终块全集和嵌套投影沿[MODEL-E01](../../../model/model/docs/architecture.md#model-e01)，已展示在途恢复沿[MODEL-M03](../../../model/model/docs/architecture.md#model-m03)。本成员RQ验证义务保持，不凭引用销项。
+Tool ref 的共享契约迁移与发送验证沿[MODEL-E01](../../../model/model/docs/architecture.md#model-e01)，已展示在途恢复沿[MODEL-M03](../../../model/model/docs/architecture.md#model-m03)。本成员RQ验证义务保持，不凭引用销项。

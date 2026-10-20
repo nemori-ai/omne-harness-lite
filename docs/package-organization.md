@@ -104,7 +104,11 @@ packages/
 │   ├── settings/               设置配值与求值
 │   └── permissions/            权限配值与求值
 ├── workspace/workspace/        工作区身份与资源关联
-├── session/session/            Session、Run与逻辑治理
+├── session/
+│   ├── session-contract/       Session、Run 与逻辑治理纯契约
+│   ├── session-cordis-contract/  唯一 Cordis 服务定义
+│   ├── session/                无 Cordis 的治理实现
+│   └── session-cordis/         长期服务的 Cordis 装配，不含存储后端
 ├── assembly/
 │   ├── assembly/               求值、采用和装配交接
 │   └── kernel-basis/           Cordis 插件辅助和测试装配
@@ -318,3 +322,7 @@ Agent 按纯契约、Cordis 定义、通用实现和具体装配分为四个 wor
 工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口与领域操作归纯契约。框架定义从 agent-cordis-contract 的 `./cordis` 提供，定义包不依赖通用实现或具体提供者。agent-host-local 负责 Agent 实例宿主。
 
 详细成员关系见 [Agent 组](../packages/agent/README.md)。
+
+## Session 的安装边界
+
+Session 按纯契约、Cordis 定义、通用实现和具体装配分为四个 workspace 成员。运行入口与 Service 尚未实现，技术接受范围沿各自 SPEC。工厂的 Dependencies、Configuration 与构造入口归通用实现；可替换端口与领域操作归纯契约。session-cordis 只装配长期 Session 服务，不引入 Session runtime、实例目录或固定数据库。详细成员关系见 [Session 组](../packages/session/README.md)。

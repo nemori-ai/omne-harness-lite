@@ -117,7 +117,7 @@
 | [UL-agent-constitution](terms/capabilities-and-composition.md#ul-agent-constitution--agent-构成--agent-constitution) | agent 构成 | Agent Constitution | 装配清单里「它是什么」的那部分；旧名 ~~实例构成~~ |
 | [UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space) | 动作空间 | Action Space | 会话已知能力的动作视图；身份单调保留，可用性与准入另判 |
 | [UL-session-slash-command-set](terms/capabilities-and-composition.md#ul-session-slash-command-set--会话斜杠命令集--session-slash-command-set) | 会话斜杠命令集 | Session Slash-Command Set | 一个会话此刻认得的斜杠命令：装配时取此人有权用的，**不在里面的就是不存在**；资产增删禁用不让它自己变，**人发对应的 reload 才重填那一张注册表**，权限收回即时去掉 |
-| [UL-meta-capability](terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | meta 能力 | Meta Capability | 一整类能力的统一入口，**必定常驻、不可禁用** |
+| [UL-meta-capability](terms/capabilities-and-composition.md#ul-meta-capability--meta-能力--meta-capability) | meta 能力 | Meta Capability | 一整类能力的统一入口；已采用提供的入口**必定常驻、不可禁用**，候选与占位不表示已提供 |
 | [UL-prompt-slot](terms/capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot) | 提示词槽位 | Prompt Slot | 系统提示词里一个恒定占位的条目 |
 | [UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile) | 模型档案 | Model Profile | 关于一个可被调用的模型的全部事实，是数据不是资产；身份是（范围, 路由名），同名的几条按层覆盖 |
 | [UL-official-model-profile](terms/capabilities-and-composition.md#ul-official-model-profile--官方档案--official-model-profile) | 官方档案 | Official Model Profile | 随系统发布、在出厂默认层的档案；同名的自建档案按层盖过它；**不是官方件** |
@@ -260,6 +260,7 @@
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
 | [UL-tool-definition](terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition) | 工具定义 | Tool Definition | 一个工具在数据与治理层面的身份与表示，**可自带实现** |
+| [UL-tool-programmability](terms/execution-and-outcome.md#ul-tool-programmability--工具可编程调用许可--tool-programmability) | 工具可编程调用许可 | Tool Programmability | 工具定义的 `programmable` 属性，只有显式 true 允许 Agent 脚本组合或编排调用 |
 | [UL-tool-execution](terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) | 工具执行 | Tool Execution | 一次执行，**计算资源，绑会话不绑实例** |
 | [UL-background-execution](terms/execution-and-outcome.md#ul-background-execution--后台执行--background-execution) | 后台执行 | Background Execution | 不占当前这一轮地跑，**不声明就是不能** |
 | [UL-foreground-time-limit](terms/execution-and-outcome.md#ul-foreground-time-limit--前台上限--foreground-time-limit) | 前台上限 | Foreground Time Limit | 一次执行在前台最多跑多久，**等待态不算**；到点允许后台的转后台、不许的被中断，**不是失败** |
@@ -314,8 +315,8 @@
 | [UL-admission-decision](terms/interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision) | 放行判断 | Admission Decision | 一个函数，**既是判官也是撰稿人**；三样输入合起来 |
 | [UL-inquiry](terms/interaction-and-dispatch.md#ul-inquiry--问询--inquiry) | 问询 | Inquiry | agent 主动问人，**一次问全** |
 | [UL-approval-request](terms/interaction-and-dispatch.md#ul-approval-request--请示--approval-request) | 请示 | Approval Request | 动手之前请人准不准，**固定两个选项** |
-| [UL-session-authorization-context](terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | 会话授权上下文 | Session Authorization Context | 用户关于授权说过的话，**按序排着的流水**；**是数据不是结论**，归档不丢 |
-| [UL-authorization-expression](terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | 授权表达 | Authorization Expression | 流水里的**一笔**：来源 × 方向 × 作用域；**「决策记录」是它的弃用说法** |
+| [UL-session-authorization-context](terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | 会话授权上下文 | Session Authorization Context | 会话承载的一次或本会话授权表达，**按序保存**；**是数据不是结论**，归档不丢 |
+| [UL-authorization-expression](terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | 授权表达 | Authorization Expression | 可指认的授权表达：来源 × 方向 × 作用域；一次/本会话追加流水，全局按资格写设置；「决策记录」是弃用说法 |
 | [UL-inbound-arrival](terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | 入站到达 | Inbound Arrival | 外面送进一个会话、**被受理之后**的那条事实；**不是消息**，**裸写「到达」不作数** |
 | [UL-inbound-target](terms/interaction-and-dispatch.md#ul-inbound-target--投递目标--inbound-target) | 投递目标 | Inbound Target | 连接件两种投递方式里 ①「已有会话开口接收」那一路的配置：进哪个会话，**本版只指一个已有的会话**；落点与身份类，**不是交付面** |
 | [UL-business-flow-extension-point](terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point) | 业务流程拓展点 | Business Flow Extension Point | 拦得住请求，**碰不到已经落定的事实**；**与 Loop 拓展点并列的另一类** |

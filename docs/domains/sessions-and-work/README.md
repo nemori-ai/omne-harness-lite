@@ -18,7 +18,7 @@
 | Run/推进治理 | 本次工作、attempt、唯一有效推进者和逻辑收束 |
 | 消费与历史承接 | 原调用关联、消费位置、可靠取得内容及后续处理 |
 
-日志表达需要记录的事实，不替代各执行账或资源状态。共享值由实际定义拥有者维护。会话必须记住的事实在[事件目录](../../../packages/session/session/docs/session-log-events.md)。活跃、休眠和等待结束不单独立条目。记入标准见[必须进入日志的事实](../../architecture/runtime/session-and-run.md#必须进入日志的事实)。
+日志表达需要记录的事实，不替代各执行账或资源状态。共享值由实际定义拥有者维护。会话必须记住的事实在[事件目录](../../../packages/session/session-contract/docs/object-model/session-log-events.md)。活跃、休眠和等待结束不单独立条目。记入标准见[必须进入日志的事实](../../architecture/runtime/session-and-run.md#必须进入日志的事实)。
 
 会话在受理进日志时铸造消息身份，格式是 `msg_` 加 16 字节不可猜文本。同一次受理返回已有身份。用户输入用那次提交身份。模型回复用模型调用和 dispatch。工具消息用工具调用身份。提醒用来源引用。压缩用那次操作的提交身份。键和身份一次写入。解析与相等在 `packages/common/message`。
 

@@ -550,10 +550,10 @@
 > go and do it.**
 
 - **形态**：对象
-- **出处**：[PF-007 §6.9 `TodoItems()`](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)（rev 25）·
+- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 3）·
   [PF-015 §5.6 第 13 项](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
-  [PF-007 明写它不装在这扇门后面，而设计链里还没有它的家](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#69-todoitems通向自己手上的待办)
+  [元能力：明写它不装在这扇门后面，而设计链里还没有它的家](../../product/meta-capabilities/design.md#meta-todo)
 - **⚠️ 注意 ①**：**它是给 agent 自己看的，不是给系统执行的**——
   **一份条目清单，不是一份计划文档**
 - **注意 ②**：**未完成的那些是一项

@@ -77,7 +77,7 @@
 - **别混 ②**：**它是聚合，不是容器**——会话**不包含**消息与运行，而是**指向**它们。
   记录是独立的 append-only 日志，运行有自己的身份。**会话拥有的是边界，不是内容物**
 - **注意 ①**：它就是[四个作用域层](scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer)里那个**「本次协作」**——
-  会话级的设置、权限、[会话授权上下文](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#会话授权上下文)、
+  会话级的设置、权限、[会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)、
   [会话级沙箱](grounding-and-isolation.md#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)都挂在它上面，**且一律不外溢**
 - **注意 ②**：**它比 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime) 长寿**——
   协程可被取消、可重新起，没了之后**会话还在、历史还在、认定的定义还在**。
@@ -203,7 +203,7 @@
 - **形态**：属性
 - **出处**：[PF-015 §4 会话类型](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话类型) · [§5.3](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#53-会话类型怎么算出来)（rev 21）
 - **⚠️ 别混**：**它不是一道闸门。**它**不参与**
-  [放行三元组](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#611-ask通向人)，
+  [放行三元组](../../product/meta-capabilities/design.md#meta-ask)，
   也不收窄任何[权限](capabilities-and-composition.md#ul-permission--权限--permission)——
   **一个 `coding` 会话不会因为类型就做不了别的事**
 - **注意 ①**：**是算出来的，不是绑上去的。**它与来源之间是一条**映射**，
@@ -229,21 +229,21 @@
 
 - **形态**：属性
 - **出处**：[PF-015 §4 会话运行模式](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#会话运行模式)（rev 21）；
-  它在[放行四步](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)（rev 25）里是第 ④ 步
+  它在[放行四步](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 3）里是第 ④ 步
 - **⚠️ 别混**：**`auto_permission` 决定「准不准」，执行环境那一维的 `auto_place` 决定「落在哪」**——
   两者会在同一次执行里一前一后出现。**两个名字特意分开取，就是为了不撞**
   （`auto_place` 是[执行环境权限](grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的一档，归 PF-005）。
   另外**上游有一个叫 `auto` 的档，语义是「不问人、改问模型」**，
   **我们这一档从不替人作判断**；`never` 与 `bypass-permissions` 两档则与上游同义
 - **注意 ①**：**`auto_permission` 是有闭环的那一档**——问人的答案**落成新的[授权表达](interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression)**，
-  下一次同样的事就算得出来了。**「同一件事不必问第二遍」就是这个闭环**
+  同一动作仍在有效授权范围内、许可未撤回或消费、重要依据未实质改变时，不重复请示；单次许可已经消费或依据变化时重新判断
 - **注意 ②**：**`bypass-permissions` 跳过的是「问」，不是「禁」**——
   **任何层的明确禁止，它一样翻不了案**
 - **注意 ③**：**`never` 连带一个后果**——
-  [`Ask().request_approval` 在这个会话里不可用](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)，
+  [`Ask().request_approval` 在这个会话里不可用](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)，
   **而 `Ask()` 这扇门还在**，`never` 本身不禁 `ask`，其交互可用性另受会话协作模式约束
 - **维度**：本词专指权限维度，运行时可变；不包括独立的[会话协作模式](#ul-session-collaboration-mode--会话协作模式--session-collaboration-mode)。
-- **注意 ④**：**它往子会话传**——[父是 `never`，子的 `request_approval` 一并不可用](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#58-子不得宽于父)
+- **注意 ④**：**它往子会话传**——[父是 `never`，子的 `request_approval` 一并不可用](../../product/meta-capabilities/design.md#动作放行与环境准入)
 
 ### UL-session-collaboration-mode · 会话协作模式 · Session Collaboration Mode
 

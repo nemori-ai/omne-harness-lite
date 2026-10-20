@@ -5,11 +5,11 @@
 ## 流程适用范围
 
 
-状态为候选，待用户确认。本页对应[产品关键用户旅程](../../../../.meta_harness/design/product/sessions-and-work/design.md#关键用户旅程)，表达 Session 受理、治理及原结果消费的协作顺序。F-SW 只是文档定位号。事件含义唯一归[SE01 至 SE34](session-log-events.md#原生事实类别)，状态、守卫及完整提交结果唯一归[ST 转移表](session-state-transitions.md#命令守卫与完整结果)。本页不增加状态或事件。
+状态为候选，待用户确认。本页对应[产品关键用户旅程](../../../../../.meta_harness/design/product/sessions-and-work/design.md#关键用户旅程)，表达 Session 受理、治理及原结果消费的协作顺序。F-SW 只是文档定位号。事件含义唯一归[SE01 至 SE34](../object-model/session-log-events.md#原生事实类别)，状态、守卫及完整提交结果唯一归[ST 转移表](../object-model/session-state-transitions.md#命令守卫与完整结果)。本页不增加状态或事件。
 
 Session 保存会话事实，Agent 决定 Loop 下一步，Model 和 Tool 保存真实执行，HITL 保存卡片决定，授权拥有者解释资格与批准，Context 负责相应输入。图中箭头标明请求、控制、事实或保管交接，参与者是逻辑角色，不表示部署或共同寿命。共同提交只约束本会话必需事实与责任，不包揽外部发起、ACK 或物理停止。下列 flowchart 表示活动与依赖，不是严格 UML 或算法证明。
 
-所有变更先核验作用域、当前资格与原操作。同次已提交操作认回原结果；提交未知保持原身份对账。一次尝试被拒或查询未找到，不能证明所有旧尝试均未提交。只有持久裁定足以阻止旧尝试晚到生效时，才可报告原操作明确未提交。机制归[共同提交算法](internals.md#追加与共同提交算法)。各图中“可靠提交”均受该规则约束。
+所有变更先核验作用域、当前资格与原操作。同次已提交操作认回原结果；提交未知保持原身份对账。一次尝试被拒或查询未找到，不能证明所有旧尝试均未提交。只有持久裁定足以阻止旧尝试晚到生效时，才可报告原操作明确未提交。机制归[共同提交算法](../../../session/docs/architecture/mechanisms.md#追加与共同提交算法)。各图中“可靠提交”均受该规则约束。
 
 <a id="f-sw01"></a>
 
@@ -17,7 +17,7 @@ Session 保存会话事实，Agent 决定 Loop 下一步，Model 和 Tool 保存
 
 ## F-SW01 创建、版本采用与 reload
 
-对应 [J-SW01](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw01)。创建采用 ST01/ST02，新 Run 采用 ST06，普通接续及 reload 采用 ST08 至 ST11。身份、设置、定义与工作区拥有者提供当前可核验依据，Session 负责本会话采用。换代时，撤销旧推进权和保存接续依据一起成立，否则换代不成立。原执行不因撤权销毁。
+对应 [J-SW01](../../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw01)。创建采用 ST01/ST02，新 Run 采用 ST06，普通接续及 reload 采用 ST08 至 ST11。身份、设置、定义与工作区拥有者提供当前可核验依据，Session 负责本会话采用。换代时，撤销旧推进权和保存接续依据一起成立，否则换代不成立。原执行不因撤权销毁。
 
 ```mermaid
 sequenceDiagram
@@ -49,13 +49,13 @@ sequenceDiagram
     end
 ```
 
-无 Run 时可以校验装配输入，不能创建 attempt；原 Run 已终结后不能用 reload 新增它的 attempt 或恢复推进。上述换代段只表达合法未终结 Run 的交接，不规定其他 reload 产品行为。创建或 reload 回执丢失按原操作核对。普通恢复采用原版本，不走显式 reload。新 Run 采用最新合法发布版本的跨源裁定不能仅靠 Session 尾部 CAS 证明；精确接口及围栏仍属 [SW-M01](internals.md#sw-m01-技术兑现义务)。已固定外部调用保留原输入。
+无 Run 时可以校验装配输入，不能创建 attempt；原 Run 已终结后不能用 reload 新增它的 attempt 或恢复推进。上述换代段只表达合法未终结 Run 的交接，不规定其他 reload 产品行为。创建或 reload 回执丢失按原操作核对。普通恢复采用原版本，不走显式 reload。新 Run 采用最新合法发布版本的跨源裁定不能仅靠 Session 尾部 CAS 证明；精确接口及围栏仍属 [SW-M01](../../../session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务)。已固定外部调用保留原输入。
 
 <a id="f-sw02"></a>
 
 ## F-SW02 可靠受理、分流与完整批次
 
-对应 [J-SW02](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw02)，采用 ST03 至 ST07。入口受理协调者拥有提交责任，命令专有行为交命令拥有者。
+对应 [J-SW02](../../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw02)，采用 ST03 至 ST07。入口受理协调者拥有提交责任，命令专有行为交命令拥有者。
 
 ```mermaid
 flowchart TD
@@ -87,7 +87,7 @@ flowchart TD
 
 ## F-SW03 工作推进、结果交接与恢复
 
-对应 [J-SW03](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw03)，采用 ST06 至 ST10、ST14 至 ST16、ST20 和 ST26。Session 的责任止于合法工作及交接，Loop、流式和真实执行仍由各自拥有者维护。正常发出时，发起者在登记时生成稳定调用身份。固定输入、调用身份和准入一起提交。模型受理和结果容量预留在同一真实事务里成立，否则不算已经发出。
+对应 [J-SW03](../../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw03)，采用 ST06 至 ST10、ST14 至 ST16、ST20 和 ST26。Session 的责任止于合法工作及交接，Loop、流式和真实执行仍由各自拥有者维护。正常发出时，发起者在登记时生成稳定调用身份。固定输入、调用身份和准入一起提交。模型受理和结果容量预留在同一真实事务里成立，否则不算已经发出。
 
 ```mermaid
 sequenceDiagram
@@ -139,7 +139,7 @@ flowchart TD
 
 ## F-SW04 出卡、答复与原扩展位置接续
 
-对应 [J-SW04](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw04)中的扩展等待，采用 ST17a、ST17b、ST17c。下图只表达扩展发起的原批次，工具内部 Ask 的答复回 Tool 自身原等待，见[TL-F04](../../../tool/tool-contract/docs/flows.md#tl-f04)。两者不能互换接续位置。出卡、答复交回及处理可以在不同时间提交，各阶段引用已经成立的原事实。
+对应 [J-SW04](../../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw04)中的扩展等待，采用 ST17a、ST17b、ST17c。下图只表达扩展发起的原批次，工具内部 Ask 的答复回 Tool 自身原等待，见[TL-F04](../../../../tool/tool-contract/docs/flows.md#tl-f04)。两者不能互换接续位置。出卡、答复交回及处理可以在不同时间提交，各阶段引用已经成立的原事实。
 
 ```mermaid
 sequenceDiagram
@@ -174,7 +174,7 @@ sequenceDiagram
 
 ## F-SW05 模式变化与模型选择
 
-对应 [J-SW05](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw05)，采用 ST12/ST13。Session 拥有当前值，权限及设置拥有者核对修改资格，模型拥有者裁定合法路由，Context 和 Agent 采用后续输入。
+对应 [J-SW05](../../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw05)，采用 ST12/ST13。Session 拥有当前值，权限及设置拥有者核对修改资格，模型拥有者裁定合法路由，Context 和 Agent 采用后续输入。
 
 ```mermaid
 flowchart TD
@@ -200,7 +200,7 @@ flowchart TD
 
 ## F-SW06 插队、单调用控制与 Run 取消
 
-对应 [J-SW06](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw06)，采用 ST18、ST19 及 ST20。控制发出、逻辑处置、真实确认分别保存。取消一旦生效，会话就记录 Run 的逻辑终态。模型和工具随后另行报告真实收场。强制或非强制只影响停止请求有多急。
+对应 [J-SW06](../../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw06)，采用 ST18、ST19 及 ST20。控制发出、逻辑处置、真实确认分别保存。取消一旦生效，会话就记录 Run 的逻辑终态。模型和工具随后另行报告真实收场。强制或非强制只影响停止请求有多急。
 
 ```mermaid
 flowchart TD
@@ -237,7 +237,7 @@ flowchart TD
 
 ## F-SW07 归档、级联与撤销
 
-对应 [J-SW07](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw07)，采用 ST21 至 ST23。四态仍只由[原状态图](session-state-transitions.md#四个生命周期视图)解释；下面展示跨参与者顺序。
+对应 [J-SW07](../../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw07)，采用 ST21 至 ST23。四态仍只由[原状态图](../object-model/session-state-transitions.md#四个生命周期视图)解释；下面展示跨参与者顺序。
 
 ```mermaid
 sequenceDiagram
@@ -270,7 +270,7 @@ sequenceDiagram
 
 ## F-SW08 连续空闲取证与自动归档
 
-对应 [J-SW08](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw08)，采用 ST23、ST24a、ST24b，成立后复用 F-SW07 的归档流程。
+对应 [J-SW08](../../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw08)，采用 ST23、ST24a、ST24b，成立后复用 F-SW07 的归档流程。
 
 ```mermaid
 flowchart TD
@@ -298,7 +298,7 @@ flowchart TD
 
 ## F-SW09 历史读取、结果定位与账目核对
 
-对应 [J-SW09](../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw09)，行为归 SL01 至 SL14、ST25/ST26 及读取规格。Session 只提供获准历史与真实账目关联，不裁定执行成本或以遥测代账本。
+对应 [J-SW09](../../../../../.meta_harness/design/product/sessions-and-work/design.md#j-sw09)，行为归 SL01 至 SL14、ST25/ST26 及读取规格。Session 只提供获准历史与真实账目关联，不裁定执行成本或以遥测代账本。
 
 ```mermaid
 sequenceDiagram
@@ -330,4 +330,4 @@ sequenceDiagram
 
 ## 缺项与持续验证入口
 
-以上流程不发布精确 Schema/API，也不确定存储布局、全局锁或部署参数。[SW-M01](internals.md#sw-m01-技术兑现义务)保留共同提交与发起围栏、控制及级联、ACK、在途耐久、连续空闲和规模证据的责任。每一旅程的规格定位及组合场景见[旅程验证](../SPEC.md#关键旅程对应与验证)。图与场景存在不证明行为已经实现或获得接受。
+以上流程不发布精确 Schema/API，也不确定存储布局、全局锁或部署参数。[SW-M01](../../../session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务)保留共同提交与发起围栏、控制及级联、ACK、在途耐久、连续空闲和规模证据的责任。每一旅程的规格定位及组合场景见[旅程验证](../../SPEC.md#关键旅程对应与验证)。图与场景存在不证明行为已经实现或获得接受。

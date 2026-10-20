@@ -53,7 +53,7 @@ sequenceDiagram
     end
 ```
 
-模式创建默认不重套，主动移除不复活，撤销归档只按 Session 状态机回到休眠及其新工作入口。该状态机由 [Session 状态转移](../../session/session/docs/session-state-transitions.md)唯一维护，此处不复制第二状态机。归档取消控制可先于独立执行物理停止，迟到结果与费用仍保留原关联。
+模式创建默认不重套，主动移除不复活，撤销归档只按 Session 状态机回到休眠及其新工作入口。该状态机由 [Session 状态转移](../../session/session-contract/docs/object-model/session-state-transitions.md)唯一维护，此处不复制第二状态机。归档取消控制可先于独立执行物理停止，迟到结果与费用仍保留原关联。
 
 普通已确认事实须跨进程崩溃、OS 崩溃及断电保留。介质损毁与开放资格仍未代定。恢复协议见 [CONTEXT-M01](../../../.meta_harness/design/product/runtime-context/design.md#context-m01)及 [CONTEXT-M02](../../../.meta_harness/design/product/runtime-context/design.md#context-m02)，已展示在途内容见 [CONTEXT-M03](../../../.meta_harness/design/product/runtime-context/design.md#context-m03)。持续验证见 [RC-VJ08](../runtime-context/SPEC.md#rc-vj08)、[RQ-VJ08](../request-context/SPEC.md#rq-vj08)。
 

@@ -1,6 +1,6 @@
 # Session 的逻辑状态、守卫与日志归约
 
-状态为候选，待用户确认。本文说明已提交事实怎样构成会话治理，以及一次合法意图必须共同改变什么。[事件目录](session-log-events.md)拥有事实语义，[主架构](internals.md)拥有共同提交、原操作认回、固定读取及恢复。[Agent Loop 规格候选](../../../../packages/agent/agent-contract/docs/flows/loop.md)拥有下一步求值和扩展顺序，本文不建立第二套 Loop。
+状态为候选，待用户确认。本文说明已提交事实怎样构成会话治理，以及一次合法意图必须共同改变什么。[事件目录](session-log-events.md)拥有事实语义，[主架构](../../../session/docs/architecture/mechanisms.md)拥有共同提交、原操作认回、固定读取及恢复。[Agent Loop 规格候选](../../../../agent/agent-contract/docs/flows/loop.md)拥有下一步求值和扩展顺序，本文不建立第二套 Loop。
 
 ## 三个计算分别做什么
 

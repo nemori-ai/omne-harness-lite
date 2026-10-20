@@ -55,6 +55,6 @@ sequenceDiagram
 
 Runtime Context 不在上图中。它继续负责注册块和派生输入，不承载凭据引用，也不把秘密交给模型或工具。
 
-本交付把调用记录和凭据保管放在同一成员 `packages/model/model` 的两个角色里。公开表面是存在性查询和获准发送时的解析。保管库的存储布局留在该成员内部。调用执行依赖这个操作类型，不依赖保管库的表结构。Cordis 只装配这一道接缝，服务定义与本地保管实现同成员共置。精确模块和集成入口见[包内架构](../../../packages/model/model/docs/architecture.md)、[建模](../../../packages/model/model/docs/object-model.md)和 [Cordis](../../../packages/model/model/docs/cordis.md)。
+调用记录和凭据保管分别承担自己的责任。公开操作是存在性查询和获准发送时的解析，调用执行依赖操作契约，不依赖保管库表结构。凭据纯契约归 model-contract，唯一 Cordis 服务定义归 model-cordis-contract，显式依赖的业务实现归 model，本地文件保管及具体装配归 model-host-local。领域与可复用实现不依赖 Cordis，具体宿主通过 Cordis 组合这些能力。
 
 另有一种切法是在 `packages/model` 下新增兄弟成员，专管保管。组规则要求，只有独立消费、依赖隔离、替换或验证收益已经明确，内部接口才成为兄弟成员。当前只有一个要验收的本地保管，最小消费者可以调用本成员的公开解析入口，不必启动完整调用执行。因此本交付不新增兄弟包。出现第二个真实保管后端时，再评估保管角色拆分。此判断仅针对凭据切片，不撤销 model-contract 与 model-cordis-contract 的已接受分包。
