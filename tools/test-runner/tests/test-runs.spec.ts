@@ -1,6 +1,14 @@
 // 测试运行工具的已知值核对：成员清单、并行度覆盖、耗时账本、计时报告器、失败归因的分类。影响面的计划另见 affected.spec.ts。
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -80,7 +88,7 @@ describe('成员清单', () => {
   })
 
   it('同一份成员清单从真实提交与文件系统读取，脚本和测试依赖一致', () => {
-    const root = mkdtempSync(join(tmpdir(), 'test-runs-tree-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'test-runs-tree-')))
     try {
       mkdirSync(join(root, 'tools', 'fixture'), { recursive: true })
       writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - tools/*\n')
@@ -511,7 +519,7 @@ describe('耗时账本', () => {
 
 describe('计时报告器（真起一次 vitest）', { timeout: 60_000 }, () => {
   it('每个文件写导入耗时；每条用例写与 JSON 报告同一拼法的全名、解析后的时限与标签', () => {
-    const project = mkdtempSync(join(tmpdir(), 'timing-reporter-'))
+    const project = realpathSync(mkdtempSync(join(tmpdir(), 'timing-reporter-')))
     try {
       writeFileSync(
         join(project, 'x.spec.ts'),
