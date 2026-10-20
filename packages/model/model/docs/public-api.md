@@ -71,7 +71,7 @@ const provider = createModelRuntime(dependencies, {
 })
 ```
 
-上述数值只用于构造示例，不是生产默认。构造不调用依赖。普通 runtime 提供 calls.admit、inspect、dispatches 与 cancel。受控宿主使用 provider.driver.drive，以原 claim 形成唯一首次 prepared 分派，不发送。beginRead 和 acknowledge 只拒绝保留 operation，其他合法输入仍 unavailable；readNext、closeRead、instances.connect、recover 与 quiesce 仍 unavailable。完整支持范围、原输入认回与限制见 [当前构造支持](../SPEC.md#当前构造支持与本地模拟)。普通 runtime 不暴露 driver。
+上述数值只用于构造示例，不是生产默认。构造不调用依赖。普通 runtime 提供 calls.admit、inspect、dispatches 与 cancel。受控宿主使用 provider.driver.drive，以原 claim 形成唯一首次 prepared 分派，不发送。beginRead 和 acknowledge 只拒绝保留 operation，其他合法输入仍 unavailable；readNext、closeRead、instances.connect、recover 与 quiesce 仍 unavailable。阶段一最小实例观察连接归 #456，完整生产宿主归 3.5。完整支持范围、原输入认回与限制见 [当前构造支持](../SPEC.md#当前构造支持与本地模拟)。普通 runtime 不暴露 driver。
 
 ```ts
 declare const input: Parameters<typeof provider.runtime.calls.admit>[0]
@@ -84,4 +84,4 @@ await provider.runtime.calls.dispatches(input)
 
 宿主负责提供可信稳定的 driveInput，不从普通请求推导执行资格。取消 operation 必须不同于原 admission。停止 drive 不取消原调用。当前实现不提供生产池或跨进程恢复。
 
-测试 limits.resultPageParts 限定每页结果项数，limits.resultPageTargetBytes 是规范 parts 数组 JSON 的 UTF-8 目标。完整 sealed/partial 项不拆分，超目标项独页；整个页不得超过原 capacity.bytes。消费者需容纳接近原容量的页。预算和本地有限上限见 [SPEC](../SPEC.md#当前构造支持与本地模拟)。生产工厂仍只构造，不据此声称运行分页已实现。unknown 控制按完整 tenant/call/operation/method 注入 applied 或 not-applied，揭示不能反转真实效果。适配器是受信、同步且不可重入的本地测试模型，不证明外部资格事务、耐久证据、跨进程排除或可靠消费。
+测试 limits.resultPageParts 限定每页结果项数，limits.resultPageTargetBytes 是规范 parts 数组 JSON 的 UTF-8 目标。完整 sealed/partial 项不拆分，超目标项独页；整个页不得超过原 capacity.bytes。消费者需容纳接近原容量的页。预算和本地有限上限见 [SPEC](../SPEC.md#当前构造支持与本地模拟)。createModelRuntime 的读取、ACK 与运行分页尚未实现，内存测试算法不证明这些生产行为。unknown 控制按完整 tenant/call/operation/method 注入 applied 或 not-applied，揭示不能反转真实效果。适配器是受信、同步且不可重入的本地测试模型，不证明外部资格事务、耐久证据、跨进程排除或可靠消费。

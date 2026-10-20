@@ -120,7 +120,7 @@ calls.admit、inspect、dispatches、cancel 分别委托 Commands 的 admit、re
 
 未知 prepare 暂存完整原输入。重入必须保持原 claim、instance、continuity 及 generation，每次重新核权。权威 query 为 unknown 时停止，为 committed 时读回原分派，为未提交时只重放原 operation、expected、dispatch、supplier 和 policyDecision。明确拒绝结束本次尝试，下次推进重新核实后才可建立新尝试。无法核实的写保留责任。陌生未决操作没有原输入时返回明确 unavailable。并发同调用在当前核权后返回 busy unavailable，不借用其他主体的执行。
 
-入参在首个 await 前固定普通业务值。已铸造 TenantId 与不透明 principal 保留原引用。调用者随后改写外层对象不改变当前操作或 schedule 的身份。停止 signal 只停止本地 drive，不能撤受理、取消业务或删除未知写。当前暂存仅存在于本 provider 实例，不提供跨进程丢失原 prepare 输入后的恢复保证。
+各入口只投影其声明字段，外层附加值不进入快照。入参在首个 await 前固定普通业务值。已铸造 TenantId 与不透明 principal 保留原引用。调用者随后改写外层对象不改变当前操作或 schedule 的身份。停止 signal 只停止本地 drive，不能撤受理、取消业务或删除未知写。当前暂存仅存在于本 provider 实例，不提供跨进程丢失原 prepare 输入后的恢复保证。
 
 | 操作 | 当前支持及剩余阶段 |
 | --- | --- |
@@ -128,7 +128,7 @@ calls.admit、inspect、dispatches、cancel 分别委托 Commands 的 admit、re
 | driver.drive | 已实现首次 prepared 分派；生产调度归 5.3 |
 | consumption.beginRead、consumption.acknowledge | 保留 operation 返回 invalid；其他输入 unavailable，业务归 1.7 |
 | consumption.readNext、consumption.closeRead | unavailable，1.7 |
-| instances.connect | unavailable，3.5 |
+| instances.connect | 当前 unavailable；阶段一最小实例观察连接归 #456，完整生产宿主归 3.5 |
 | recover | unavailable，5.4 |
 | quiesce | unavailable，5.5 |
 

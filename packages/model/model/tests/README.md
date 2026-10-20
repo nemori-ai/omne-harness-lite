@@ -18,7 +18,7 @@
 
 ## 安装闭包
 
-`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景导入 `@omne-harness/model`、`@omne-harness/model-contract`、契约 testing 入口与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。另用已安装根入口的 executeModel 连接公开脚本传输，验证一次发送与两级关闭。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口、未支持 quiesce 和 instances.connect 的诊断，以及真实 runtime 受理、认回、跨租户拒绝与唯一首次 prepared 分派。不证明完整托管业务执行或生产宿主。
+`pnpm --filter @omne-harness/model run install-closure` 调用 model-contract 的安装闭包设施，策略为 [fixtures/install-policy.json](fixtures/install-policy.json)，场景为 [install/scenario.mjs](install/scenario.mjs)。场景导入 `@omne-harness/model`、`@omne-harness/model-contract`、契约 testing 入口与 `@omne-harness/legal-identity`：以注入的端口调用 `deliver`，覆盖已发送、拒绝、缺席三条路径，并对一个快照做铸造租户的判定。另用已安装根入口的 executeModel 连接公开脚本传输，验证一次发送与两级关闭。给出 `--scenario` 时设施把闭包里的每个工作区成员声明为消费工程的直接依赖，所以场景导入得到 model-contract 与 legal-identity。运行带 `--out <报告.json>` 写出报告，退出码 0 表示 `forbidden` 为空且全部检查（含 `scenario-run`）通过。报告写在任务的 `tmp/`，不入库；它只证明 model 自己的安装闭包与场景，不证明 model-host-local 的闭包，另覆盖已安装 testing 入口、未支持 quiesce 和 instances.connect 的诊断，以及真实 runtime 受理、认回、跨租户拒绝与唯一首次 prepared 分派。instances.connect 当前 unavailable；阶段一最小实例观察连接归 #456，完整生产宿主归 3.5。不证明完整托管业务执行或生产宿主。
 
 ## 内存行为资源
 
@@ -35,5 +35,7 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 ## 受理与首次分派
 
 [runtime-admission.spec.ts](runtime-admission.spec.ts) 使用真实 createModelRuntime 和 driver。测试覆盖受理重复与冲突、取消原操作、跨租户及当前撤权、唯一首次分派、claim 冲突与 stale、未知 prepare 的 applied/dropped 原参重放、并发唤醒及停止后的待办。受控依赖只提供资格、可信 continuity、故障和唤醒，不代 driver 调用 claim 或 prepare。
+
+带类型的输入回归在各入口附加 onProgress 回调，验证回调不进入业务快照。它使用带函数的不透明 principal 和原已铸造租户，通过真实受理、查询、首次分派与取消，检查身份引用保持有效。
 
 共同符合性运行保存全部实际义务，不删去未支持项。当前 checker 含 53 项。本卡逐项要求九项 admission 通过；未知 ACK 认回归 #458，阶段复验仍要求十项 admission 全通过。完整报告写到任务 tmp/issue-454/checks/conformance.json。真实耐久、完整发送与收场、结果消费、生产宿主和跨进程恢复不在本套件的证明范围内。

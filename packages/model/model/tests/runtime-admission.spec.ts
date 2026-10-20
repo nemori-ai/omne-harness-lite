@@ -34,6 +34,41 @@ function assembled() {
 }
 const signal = () => new AbortController().signal
 
+it('ignores extra caller callbacks while preserving identity through admission and first dispatch', async () => {
+  const f = assembled()
+  const principal = { ...f.principal, proof: () => true }
+  const authorize = f.options.authority.authorize
+  f.options.authority.authorize = input =>
+    authorize({
+      ...input,
+      access: {
+        ...input.access,
+        principal: input.access.principal === principal ? f.principal : input.access.principal,
+      },
+    })
+  const caller = { ...f.admit, principal, onProgress: () => undefined }
+  const admission: Parameters<typeof f.provider.runtime.calls.admit>[0] = caller
+  expect(unbox(await f.provider.runtime.calls.admit(admission)).call).toBe(f.admit.call)
+  const inspection = { ...caller, admission: caller.operation }
+  const inspect: Parameters<typeof f.provider.runtime.calls.inspect>[0] = inspection
+  expect(await f.provider.runtime.calls.inspect(inspect)).toMatchObject({ ok: { kind: 'found' } })
+  const driving = { ...f.drive, principal, onProgress: caller.onProgress }
+  const drive: Parameters<typeof f.provider.driver.drive>[0] = driving
+  unbox(await f.provider.driver.drive(drive, signal()))
+  const dispatches: Parameters<typeof f.provider.runtime.calls.dispatches>[0] = caller
+  expect(unbox(await f.provider.runtime.calls.dispatches(dispatches))).toMatchObject([
+    { send: 'prepared', materialization: null },
+  ])
+  const cancellation = { ...caller, operation: op('cancel') }
+  const cancel: Parameters<typeof f.provider.runtime.calls.cancel>[0] = cancellation
+  expect(unbox(await f.provider.runtime.calls.cancel(cancel))).toMatchObject({
+    kind: 'requested',
+    operation: cancellation.operation,
+    propagation: 'pending',
+    upstream: 'unknown',
+  })
+})
+
 it('passes nine admission obligations through the real runtime and preserves the full report', async () => {
   const report = await checkModelProviderConformance({
     subject: () => {

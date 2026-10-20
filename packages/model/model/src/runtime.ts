@@ -1,4 +1,4 @@
-import { createFirstDispatchDriver, snapshot } from './driver.ts'
+import { createFirstDispatchDriver } from './driver.ts'
 import type {
   ModelCommands,
   ModelSendBoundary,
@@ -122,16 +122,22 @@ export function createModelRuntime<P>(
   return {
     runtime: {
       calls: {
-        admit: async original => {
-          const input = snapshot(original)
+        admit: async ({ principal, tenant, call, operation, request, consumer, capacity }) => {
+          const input = {
+            principal,
+            tenant,
+            ...structuredClone({ call, operation, request, consumer, capacity }),
+          }
           const result = await commands.admit(input)
           if ('ok' in result) await wake({ tenant: input.tenant, call: input.call })
           return result
         },
-        inspect: input => commands.recall(snapshot(input)),
-        dispatches: input => commands.dispatches(snapshot(input)),
-        cancel: async original => {
-          const input = snapshot(original)
+        inspect: ({ principal, tenant, call, admission }) =>
+          commands.recall({ principal, tenant, call, admission }),
+        dispatches: ({ principal, tenant, call }) =>
+          commands.dispatches({ principal, tenant, call }),
+        cancel: async ({ principal, tenant, call, operation }) => {
+          const input = { principal, tenant, call, operation }
           const result = await commands.control(input)
           if ('ok' in result) await wake({ tenant: input.tenant, call: input.call })
           return result

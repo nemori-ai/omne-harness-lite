@@ -18,19 +18,17 @@ function generated<T>(value: { ok: T } | { failure: unknown }): T {
   if ('ok' in value) return value.ok
   throw new Error('invalid generated Model identity')
 }
-/** Snapshots business data while preserving minted tenant and opaque principal identity. */
-export function snapshot<T extends { principal: unknown; tenant: unknown }>(input: T) {
-  const { principal, tenant, ...data } = input
-  const proof: T['principal'] = principal
-  const scope: T['tenant'] = tenant
-  return { ...structuredClone(data), principal: proof, tenant: scope }
-}
 export function createFirstDispatchDriver<P>(commands: ModelCommands<P>): ModelDriver<P> {
   const pending = new Map<string, PendingPrepare<P>>()
   const running = new Set<string>()
   return {
     async drive(original, signal) {
-      const input = snapshot(original)
+      const { principal, tenant: scope, call, instance, operation, continuity } = original
+      const input = {
+        principal,
+        tenant: scope,
+        ...structuredClone({ call, instance, operation, continuity }),
+      }
       if (signal.aborted) return { ok: undefined }
       const initial = await commands.loadRecovery(input)
       if ('failure' in initial) return initial
