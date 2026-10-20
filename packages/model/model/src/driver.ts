@@ -51,6 +51,7 @@ export function createModelDriver<P>(
 ) {
   const activities = new Map<string, Activity<P>>()
   const running = new Set<string>()
+  const refreshes = new Map<string, { requested: boolean; completion: Promise<void> }>()
   function keyOf(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
     const tenant = tenantCodec.encode(input.tenant)
     return tenant.ok ? JSON.stringify([tenant.value, input.call]) : null
@@ -62,6 +63,31 @@ export function createModelDriver<P>(
     const epoch = active.view.epoch()
     const current = await commands.loadRecovery(active.claim)
     if ('ok' in current) active.view.refresh(current.ok.state, epoch)
+  }
+  function requestRefresh(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
+    const key = keyOf(input)
+    if (!key) return
+    const pending = refreshes.get(key)
+    if (pending) {
+      pending.requested = true
+      return
+    }
+    const work = { requested: true, completion: Promise.resolve() }
+    refreshes.set(key, work)
+    work.completion = (async () => {
+      try {
+        while (work.requested) {
+          work.requested = false
+          try {
+            await refresh(input)
+          } catch {
+            /* Committed control survives an unavailable projection read. */
+          }
+        }
+      } finally {
+        refreshes.delete(key)
+      }
+    })()
   }
   const driver: ModelDriver<P> = {
     async drive(original, signal) {
@@ -235,7 +261,7 @@ export function createModelDriver<P>(
       }
     },
   }
-  return { driver, refresh }
+  return { driver, requestRefresh }
 }
 function definitelyRefused(failure: ModelFailure): boolean {
   return failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable'

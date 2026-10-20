@@ -155,7 +155,7 @@ export function createModelRuntime<P>(
           const input = { principal, tenant, call, operation }
           const result = await commands.control(input)
           if ('ok' in result) {
-            await activity.refresh(input)
+            activity.requestRefresh(input)
             await wake({ tenant: input.tenant, call: input.call })
           }
           return result

@@ -348,3 +348,47 @@ it('keeps resource release failure visible after the terminal batch was confirme
     await f.dispose()
   }
 })
+
+it('returns committed cancellation while the authoritative projection read is pending or fails', async () => {
+  let block = false
+  let entered = false
+  let release!: () => void
+  const gate = new Promise<void>(resolve => {
+    release = resolve
+  })
+  const f = runtimeFixture({}, commands => ({
+    ...commands,
+    async loadRecovery(input) {
+      if (block) {
+        entered = true
+        await gate
+        throw new Error('synthetic-projection-read-failed')
+      }
+      return commands.loadRecovery(input)
+    },
+  }))
+  try {
+    unbox(await f.provider.runtime.calls.admit(f.admit))
+    await f.start(f.admit.call)
+    block = true
+    let completed = false
+    const cancelling = f.provider.runtime.calls
+      .cancel({ ...f.admit, operation: op('cancel-read-blocked') })
+      .then(result => {
+        completed = true
+        return result
+      })
+    await eventually(() => entered && completed)
+    expect(unbox(await cancelling)).toMatchObject({ kind: 'requested' })
+    release()
+    for (let i = 0; i < 100; i++) await Promise.resolve()
+    block = false
+    expect(unbox(await f.dependencies.commands.loadRecovery(f.admit)).state.control.kind).toBe(
+      'requested',
+    )
+  } finally {
+    block = false
+    release()
+    await f.dispose()
+  }
+})
