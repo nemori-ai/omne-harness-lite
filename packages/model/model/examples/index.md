@@ -6,5 +6,5 @@
 - [02 观察与收场](02-observe-and-settle.ts)：live handle、观察事件和 Settlement。
 - [03 输出限额](03-output-limit.ts)：真实 trim 输入与 completed/limit。
 - [04 输入超限](04-input-over-limit.ts)：failed/input-over-limit 及 reported 未知值。
-- [公共测试装配](support.ts)：重复端口与资源责任。
+- [公共测试装配](../tests/example-support.ts)：重复端口与资源责任。
 - [包索引](../index.md)。

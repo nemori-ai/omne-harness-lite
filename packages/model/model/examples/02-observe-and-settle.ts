@@ -1,6 +1,6 @@
 import { createModelRuntime } from '@omne-harness/model'
 import { judgePart } from '@omne-harness/message'
-import { configuration, createExampleAssembly, operation } from './support.ts'
+import { configuration, createExampleAssembly, operation } from '../tests/example-support.ts'
 
 const text = judgePart({
   kind: 'text',

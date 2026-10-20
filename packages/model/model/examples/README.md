@@ -30,7 +30,7 @@ pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/
 3. [输出限额](03-output-limit.ts)。传输提供实际 trim，终局保持 completed/limit。脚本打印的 `upstream trim` 是传输输入，**不是 runtime 结果读取返回的明细**。Snapshot 没有完整 trims；结果读取和 ACK 尚未实现。内存 Commands 的实际保存另由行为测试验证。
 4. [输入超限](04-input-over-limit.ts)。drive 本地成功仍可形成 failed 业务终局。fault.cause 为 input-over-limit，reported 只保存上游给出的 metric、limit 和 actual，未报告值保持 null。不能重发同一输入或自动换供应商。消费者决定调整输入后，以新 call 和 admission 发起新调用。
 
-[共享装配](support.ts)解释固定请求、消费者声明、当前资格、可信证据、有限容量、同步凭据围栏、脚本资源、手动时钟与 publication。此文件只整理重复适配，不封装 admit、inspect、connect 或 observe 的教学调用。
+[共享装配](../tests/example-support.ts)解释固定请求、消费者声明、当前资格、可信证据、有限容量、同步凭据围栏、脚本资源、手动时钟与 publication。此文件只整理重复适配，不封装 admit、inspect、connect 或 observe 的教学调用。
 
 ## 核对输出与返回形状
 

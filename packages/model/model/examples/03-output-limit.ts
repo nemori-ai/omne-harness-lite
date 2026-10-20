@@ -1,5 +1,5 @@
 import { createModelRuntime } from '@omne-harness/model'
-import { configuration, createExampleAssembly, operation } from './support.ts'
+import { configuration, createExampleAssembly, operation } from '../tests/example-support.ts'
 
 // trim is an actual upstream reminder, not a locally estimated missing-token count.
 // An unsealed prefix remains partial output. It does not become an executable tool suggestion.

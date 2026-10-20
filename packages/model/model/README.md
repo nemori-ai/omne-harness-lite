@@ -47,7 +47,7 @@ Read and run these lessons in order. Each lesson also runs independently:
 | [03-output-limit.ts](examples/03-output-limit.ts) | Supply a real scripted `trim` fact. Distinguish `completed/limit` from a failure. |
 | [04-input-over-limit.ts](examples/04-input-over-limit.ts) | Inspect `failed/input-over-limit` and the supplier's `reported` fields. Preserve unknown values as `null`. |
 
-For one lesson, run `pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/02-observe-and-settle.ts`. Expected output and the shared assembly are explained in the [example guide](examples/README.md). The scripts keep their API inputs and result branches visible. [support.ts](examples/support.ts) explains each controlled adapter.
+For one lesson, run `pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/02-observe-and-settle.ts`. Expected output and the shared assembly are explained in the [example guide](examples/README.md). The scripts keep their API inputs and result branches visible. [example-support.ts](tests/example-support.ts) explains each controlled adapter.
 
 Admission records responsibility, not a send. `drive` reports local progress and resource release. `inspect` returns the authoritative business state. A successful drive can produce a failed business termination. A failed release can coexist with a confirmed Settlement. Close the observer and withdraw the host publication separately. Neither action acknowledges or cancels the call.
 

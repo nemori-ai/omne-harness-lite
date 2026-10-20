@@ -66,3 +66,5 @@ fixture 的主体与证据只在本地测试适配中可信。它们不替代真
 [runtime-settlement-facts.ts](runtime-settlement-facts.ts) 只将符合性输入变成上游事实。runtime-admission 的 settleCall 钩子只推送事实并等待真实 driver，不直接代调 settle。完整 53 项报告保留全部实际结果，直接终局项 settled-call-keeps-termination 要求通过；结果读取和 ACK 的完整符合性留给后续交付，不隐藏本轮失败项。
 
 `pnpm --filter @omne-harness/model examples` 顺序执行[四个教学脚本](../examples/README.md)。包 test 也运行这四个脚本，typecheck 覆盖 examples。脚本从真实公开入口消费构建产物，保留必要失败分支。该验证只覆盖内存后端、受控宿主与脚本传输，不覆盖真实厂商、耐久存储、读取或 ACK。
+
+[example-support.ts](example-support.ts)是四课共用的教学测试装配，只导入公开包入口。它使用 testing 提供者，按产品规则保留在 tests 路径，不能作为生产授权或宿主实现。关键业务调用仍在各课脚本。

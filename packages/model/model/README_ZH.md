@@ -47,7 +47,7 @@ pnpm --filter @omne-harness/model examples
 | [03-output-limit.ts](examples/03-output-limit.ts) | 提供真实的脚本 trim 事实，区分 completed/limit 和调用失败。 |
 | [04-input-over-limit.ts](examples/04-input-over-limit.ts) | 检查 failed/input-over-limit 和上游 reported 字段，未知值保持 null。 |
 
-单独运行第二课可用 `pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/02-observe-and-settle.ts`。预期输出和装配边界见[示例指南](examples/README.md)。关键入参及返回判别保留在脚本里；[support.ts](examples/support.ts)解释重复装配的各端口职责。
+单独运行第二课可用 `pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/02-observe-and-settle.ts`。预期输出和装配边界见[示例指南](examples/README.md)。关键入参及返回判别保留在脚本里；[example-support.ts](tests/example-support.ts)解释重复装配的各端口职责。
 
 受理记录责任，不证明已发送。drive 返回本地推进和资源释放结果，inspect 返回权威业务状态。drive 成功仍可能得到失败终局；资源释放失败也可以与已确认的 Settlement 同时成立。观察器关闭与宿主 publication 撤除分别处理，两者都不等于取消或 ACK。
 

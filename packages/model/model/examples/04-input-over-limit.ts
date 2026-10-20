@@ -1,5 +1,5 @@
 import { createModelRuntime } from '@omne-harness/model'
-import { configuration, createExampleAssembly, operation } from './support.ts'
+import { configuration, createExampleAssembly, operation } from '../tests/example-support.ts'
 
 const example = createExampleAssembly({
   facts: [],
