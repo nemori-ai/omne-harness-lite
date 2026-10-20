@@ -141,11 +141,14 @@ export type MemoryAgentJournal<P> = Readonly<{
   /**
    * Decides a pending write. `applied` runs it now under the checks of that moment; when they fail,
    * the operation is excluded. `dropped` excludes it. Returns `false` when nothing is pending.
+   * Only a pending write of the execution's own tenant is decided; for a pending `open`, whose
+   * execution does not exist yet, `tenant` names the tenant when two could match.
    */
   settle(
     execution: AgentExecutionId,
     operation: AgentOperationId,
     outcome: 'applied' | 'dropped',
+    tenant?: TenantId,
   ): boolean
   /** The joint commits that participants saved, in commit order. */
   joint(): readonly JointFact[]
@@ -201,6 +204,7 @@ type Committed = Readonly<{
 type Excluded = Readonly<{ kind: 'excluded'; evidence: Evidence }>
 type Pending = Readonly<{
   kind: 'pending'
+  tenant: TenantId
   execution: AgentExecutionId
   operation: AgentOperationId
   run: () => void
@@ -417,7 +421,14 @@ export function createMemoryAgentJournal<P>(
   ): Promise<Outcome<R, Failure>> {
     const at = operationKey(input.tenant, input.execution, input.operation)
     if (at === undefined) return fail(denied(method))
+    // The scripted fault belongs to the next call of the method, whoever makes it. Ownership is
+    // checked before the fault takes effect: a write on another tenant's execution, or on an
+    // execution that does not exist (other than `open`), is denied and never becomes pending.
     const fault = writeFaults.get(method)?.shift()
+    const target = executions.get(input.execution)
+    const foreign =
+      target === undefined ? method !== 'open' : !tenantEquals(target.tenant, input.tenant)
+    if (foreign) return fail(denied(method))
     const commitUnknown = fail<Failure>({ kind: 'commit-unknown', operation: input.operation })
     const exclude = (reason: string) => {
       if (operations.get(at)?.kind === 'committed') return
@@ -452,6 +463,7 @@ export function createMemoryAgentJournal<P>(
       if (operations.get(at)?.kind === 'committed') return
       operations.set(at, {
         kind: 'pending',
+        tenant: input.tenant,
         execution: input.execution,
         operation: input.operation,
         run: () => {
@@ -502,13 +514,22 @@ export function createMemoryAgentJournal<P>(
     })
   }
 
+  /** Whether a record is a pending write of this execution under the execution's own tenant. */
+  function pendingOf(record: OperationRecord, execution: Execution): record is Pending {
+    return (
+      record.kind === 'pending' &&
+      record.execution === execution.id &&
+      tenantEquals(record.tenant, execution.tenant)
+    )
+  }
+
   /** Excludes every pending write of an execution: the fence of `attach` (fact 5). */
-  function fence(execution: AgentExecutionId): void {
+  function fence(execution: Execution): void {
     for (const [key, record] of operations) {
-      if (record.kind !== 'pending' || record.execution !== execution) continue
+      if (!pendingOf(record, execution)) continue
       operations.set(key, {
         kind: 'excluded',
-        evidence: journalEvidence(`${execution}/excluded/${record.operation}/fenced`, 0),
+        evidence: journalEvidence(`${execution.id}/excluded/${record.operation}/fenced`, 0),
       })
     }
   }
@@ -564,7 +585,7 @@ export function createMemoryAgentJournal<P>(
     }
     const unresolved: AgentOperationId[] = []
     for (const record of operations.values()) {
-      if (record.kind === 'pending' && record.execution === execution.id) {
+      if (pendingOf(record, execution)) {
         unresolved.push(record.operation)
       }
     }
@@ -648,11 +669,7 @@ export function createMemoryAgentJournal<P>(
     const source = (what: string) =>
       journalEvidence(`${execution.id}/blocked/${what}`, execution.revision)
     for (const record of operations.values()) {
-      if (
-        record.kind === 'pending' &&
-        record.execution === execution.id &&
-        record.operation !== operation
-      ) {
+      if (pendingOf(record, execution) && record.operation !== operation) {
         return { kind: 'blocked', reason: 'operations', source: source(record.operation) }
       }
     }
@@ -773,7 +790,7 @@ export function createMemoryAgentJournal<P>(
           value: { receipt, authority },
           receipt,
           apply: () => {
-            fence(execution.id)
+            fence(execution)
             if (old !== undefined) old.status = 'superseded'
             execution.attachments.push({ authority, status: 'active', handoff: null })
             execution.state = { kind: 'reconciling' }
@@ -1440,12 +1457,15 @@ export function createMemoryAgentJournal<P>(
       queue.push(response)
       responses.set(kind, queue)
     },
-    settle(execution, operation, outcome) {
+    settle(execution, operation, outcome, tenant) {
+      // The tenant of an existing execution, or the one the test names for a pending `open`.
+      const owner = executions.get(execution)?.tenant ?? tenant
       for (const [key, record] of operations) {
         if (
           record.kind !== 'pending' ||
           record.execution !== execution ||
-          record.operation !== operation
+          record.operation !== operation ||
+          (owner !== undefined && !tenantEquals(record.tenant, owner))
         ) {
           continue
         }

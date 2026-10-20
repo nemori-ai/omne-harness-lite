@@ -1123,7 +1123,7 @@ describe('fact 10: the one terminal commit', () => {
     })
   })
 
-  it('fact 10: no event follows the ended event; a later stage fact is recorded without one', async () => {
+  it('fact 10 临时做法，待 #558 裁定：no event follows the ended event; a later stage fact is recorded without one', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     ok(
@@ -1618,6 +1618,35 @@ describe('fact 14: denied', () => {
       kind: 'denied',
       action: 'query',
     })
+  })
+
+  it('fact 14: a write of another tenant is denied before any scripted fault and never becomes pending', async () => {
+    const journal = memory()
+    const opened = await open(journal.port)
+    const commit = commitAt(
+      await load(journal.port, opened.execution),
+      opened.authority,
+      'b-commit',
+    )
+    journal.failNext('commit', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await journal.port.commit({ ...commit, ...otherTenant }))).toEqual({
+      kind: 'denied',
+      action: 'commit',
+    })
+    expect((await load(journal.port, opened.execution)).unresolved).toEqual([])
+    expect(
+      failure(
+        await journal.port.query({
+          ...otherTenant,
+          execution: opened.execution,
+          operation: commit.operation,
+        }),
+      ),
+    ).toEqual({ kind: 'denied', action: 'query' })
+    expect(journal.settle(opened.execution, commit.operation, 'applied')).toBe(false)
+    // The fault was spent on the denied call, so the owner's commit is an ordinary write.
+    ok(await journal.port.commit(commit))
+    expect((await load(journal.port, opened.execution)).unresolved).toEqual([])
   })
 })
 
