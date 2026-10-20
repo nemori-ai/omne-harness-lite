@@ -27,7 +27,7 @@ I14。`start` 对 route 中的轨道（下称目标轨道）及其上游链做�
 2. 目标轨道为 active；链上其余轨道为 active 或 paused。否则为 refused。
 3. 链上每一条轨道的分支都存在于远端。分支不存在为 refused；远端读不到为 unknown。
 4. 链上每一条轨道的 registry `parent` 与可信来源一致，可信来源按下列顺序确定，与 `github-gate` 流程相同：
-   1. 远端有 `refs/tags/omne/gate/track/<ID>` 时，读该附注标签的正文。正文是 `omne-gate-record:v1` JSON，取 `parent` 字段；没有该字段时为 `main`。
+   1. 远端有 `refs/tags/omne/gate/track/<ID>` 时，读该附注标签的正文。正文是 `omne-gate-record:v1` JSON，取 `parent` 字段；没有该字段或取值为 null 时为 `main`，与 `github-gate` 流程的读法相同。
    2. 否则读远端 `github-gate` 分支的 `gate/cutover.json`。其中登记了 `integration/<ID>` 时，可信上游为 `main`。
    3. 两者都没有为 refused。
    

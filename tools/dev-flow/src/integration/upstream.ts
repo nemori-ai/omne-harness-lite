@@ -57,7 +57,8 @@ function tagParent(root: string, policy: Policy, id: string, oid: string): strin
   }
   if (record.schema !== RECORD_SCHEMA)
     throw new IntegrationError('unknown', `Start tag of ${id} is not an ${RECORD_SCHEMA} record`)
-  if (!Object.hasOwn(record, 'parent')) return 'main'
+  // Same reading as the gate's jq `.parent // "main"`: a missing or null parent is main.
+  if (record.parent === undefined || record.parent === null) return 'main'
   try {
     return parentName(record.parent, 'record.parent')
   } catch {

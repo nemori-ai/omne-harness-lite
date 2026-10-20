@@ -212,13 +212,23 @@ describe('I14 upstream chain', () => {
     })
   })
 
-  it('accepts an old start tag without parent as main and prefers a start tag over a cutover entry', () => {
+  it('accepts an old start tag without parent, or with a null parent, as main and prefers a start tag over a cutover entry', () => {
     const f = chainFixture()
     branchAt(f.remote, 'legacy', f.initial)
     setStartTag(f.remote, 'legacy', f.initial, gateRecord('legacy', f.initial))
     expect(
       checkUpstream(f.root, f.policy([trackEntry('legacy', f.initial)]), route('legacy')).ref,
     ).toBe('refs/heads/integration/legacy')
+    branchAt(f.remote, 'nulled', f.initial)
+    setStartTag(
+      f.remote,
+      'nulled',
+      f.initial,
+      JSON.stringify({ ...JSON.parse(gateRecord('nulled', f.initial)), parent: null }),
+    )
+    expect(
+      checkUpstream(f.root, f.policy([trackEntry('nulled', f.initial)]), route('nulled')).ref,
+    ).toBe('refs/heads/integration/nulled')
     // An admin may register a check floor for a child track; its upstream still comes from the tag.
     setGate(
       f.remote,
@@ -251,7 +261,7 @@ describe('I14 upstream chain', () => {
         setStartTag(f.remote, 'child', f.initial, JSON.stringify({ parent: 'runtime' }))
       },
     ],
-    ...['integration/runtime', 'stable', 42, null].map(
+    ...['integration/runtime', 'stable', 42].map(
       parent =>
         [
           `a start tag with parent ${JSON.stringify(parent)}`,
