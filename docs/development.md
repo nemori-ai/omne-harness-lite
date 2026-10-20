@@ -298,7 +298,7 @@ RFC-0002 的四条约束这样落实：
 - 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；`packages/*`、`tools/*` 等成员目录下出现 `turbo.json` 直接报错，`apps/*` 下的由检查器按下面的成员配置规则核对合成后的任务定义；`**/turbo.json` 和本配置文件都是全局文件。根配置的预设和检查器来自钉住的 npm 包，改版本就是改锁文件与 `pnpm-workspace.yaml`，它们也是全局文件。
 - 基线显式传入：合并点经 `TURBO_SCM_BASE` 传给 turbo，不让它自己推断。
 - 未识别文件按全量处理：由上面的规则判。
-- 准入不读 PR 能写入的缓存：`OMNE_ADMISSION=1` 时构建与类型检查只写不读本地缓存（`--cache=local:w`）。
+- 准入检查不读 turbo 任务缓存：`OMNE_ADMISSION=1` 时构建与类型检查只写本地缓存，不读缓存（`--cache=local:w`）。进入任何一条主干之前的检查都带这个变量，规则见[集成规则](engineering/integration.md#检查责任)。
 
 `apps/*` 下的成员 `turbo.json` 要满足下面七条。`tools/test-runner` 的校验器按规则核对：规则 1、2 读成员原文；规则 3 至 6 读 `turbo run --dry=json` 给出的 `resolvedTaskDefinition`，合成时用的根配置与准入时相同；规则 7 两处都核对。规则 6 后半句不由校验器判断，由评审核对：
 1. `extends` 只能是 `["//"]`。
@@ -369,8 +369,10 @@ metrics只报告结构与配置范围内的覆盖；mutation只观察其选择�
 
 ```sh
 pnpm run check:plan --base "$TASK_BASE"
-BASELINE="$TASK_BASE" pnpm run check
+OMNE_ADMISSION=1 BASELINE="$TASK_BASE" pnpm run check
 ```
+
+进入任何一条主干之前的检查都带 `OMNE_ADMISSION=1`，规则见[集成规则](engineering/integration.md#检查责任)。不带这个变量的运行会读缓存，不作为准入检查结论。
 
 两条命令传基线的方式不同：`check:plan`用`--base`参数，`check`用环境变量`BASELINE`。显式传入同一提交可避免它们各自的默认值造成比较范围不同。
 
@@ -478,4 +480,4 @@ Git维护当前终态；正式RFC保留进入审议的方案与最小决定关�
 
 ## 多层分支操作
 
-先从[集成规则](engineering/integration.md)核任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。同步目标分支时，先在工作分支上用 `git merge` 合并远端目标提交并提交，再运行 task-sync 让 `targetBase` 前进；taskBase 不变。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。
+先从[集成规则](engineering/integration.md)核任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。同步目标分支时，先在工作分支上用 `git merge` 合并远端目标提交并提交，再运行 task-sync 让 `targetBase` 前进；taskBase 不变。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`。轨道组成以 main 为根的树，同步与提升只在一条轨道和它的上游之间进行，见[轨道树与上游](engineering/integration.md#轨道树与上游)。新建子轨道时派发 `gate-track` 并传入 `parent`。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。
