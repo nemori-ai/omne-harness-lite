@@ -1,6 +1,6 @@
 # Model 领域实现规格
 
-本包非 pi-ai 实现设计已接受，独立执行及凭据存在性与解析的判定已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图、原流保存、最小实例观察与下述支持范围内的调用收场，结果消费与生产托管宿主尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
+本包非 pi-ai 实现设计已接受，独立执行及凭据存在性与解析的判定已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图、原流保存、最小实例观察与下述支持范围内的调用收场，结果读取和 processed ACK 已实现，retained ACK 与生产托管宿主尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
 
 ## 独立执行
 
@@ -136,8 +136,8 @@ observerBufferBytes 是每实例观察登记与每观察者未读通知的逻辑
 | --- | --- |
 | calls.admit、calls.inspect、calls.dispatches、calls.cancel | 已实现受理、事实查询与取消意图 |
 | driver.drive | 已接原 sender、唯一事实流、确认保存与本节支持范围的收场；生产调度归 5.3 |
-| consumption.beginRead、consumption.acknowledge | 保留 operation 返回 invalid；其他输入 unavailable，业务归 1.7 |
-| consumption.readNext、consumption.closeRead | unavailable，1.7 |
+| consumption.beginRead、consumption.readNext、consumption.closeRead | 已接真实 Commands 的读准入、分页与关闭 |
+| consumption.acknowledge | processed 已接 handoff；retained 静态 unavailable，阶段 6.1；保留 operation 返回 invalid |
 | instances.connect | 委托实际 directory，提供最小实例观察；完整生产宿主归 3.5 |
 | recover | unavailable，5.4 |
 | quiesce | unavailable，5.5 |
@@ -148,11 +148,11 @@ observerBufferBytes 是每实例观察登记与每观察者未读通知的逻辑
 
 发送边界在准备前复制 execution、request、supplier、consumer 和 initiator 的值，后续异步步骤、计数和关闭使用同一份需求。合法 TenantId 与不透明 P 保留原身份，AbortSignal 保留原取消语义。调用者改写外层字段或嵌套值不改变本次发送；实际 start 仍重核当前资格、代次与控制。请求参数的统一校验覆盖 parameters、parameterAdoptions.applied 和显式 origin.requested。已知非法参数沿原结果通道拒绝，不进入摘要或消耗 unknown 注入；已有 operation 的异输入仍按原绑定冲突。retry 的决定认回也核对原请求，不重复消费决定。请求拥有的 suppliers、parameters、system、messages、tools、parameterAdoptions 及三个参数承载位置中的 stop 都要求数组无空位，并保留各自的元素规则。合法空序列仍允许，suppliers 与 stop 保持非空要求。内部规范编码独立拒绝空位，不将其编码为合法空数组。
 
-内存分页以 resultPageParts 限项数、resultPageTargetBytes 定目标。每页先放一个完整 ResultPart，再在项数及候选 parts 数组规范 UTF-8 JSON 字节数都允许时加入后项。对象键递归排序，数组保序，字符串按 JSON.stringify 转义，孤立代理码元不丢失。首项超目标独页，空结果有空 parts 与真实终局。页包装、next 和 Settlement 另受原容量 C 硬界。配置在构造时复制固定，读只保存固定源的必要位置与保护元数据，不缓存第二份页正文。合法 after 从真实组页起点和该读最远已返回页派生，未发出的页起点拒绝。
+内存分页以 resultPageParts 限项数、resultPageTargetBytes 定目标。每页先放一个完整 ResultPart，再在项数及候选 parts 数组规范 UTF-8 JSON 字节数都允许时加入后项。对象键递归排序，数组保序，字符串按 JSON.stringify 转义，孤立代理码元不丢失。首项超目标独页，空结果有空 parts 与真实终局。页包装、next 和 Settlement 另受原容量 C 硬界。受理时复制装配默认页配置。受信 configureResultPaging 只能在结果尚未收场且没有 read 时调整；结果冻结后拒绝修改。读只保存固定源的必要位置与保护元数据，不缓存第二份页正文。合法 after 从真实组页起点和该读最远已返回页派生，未发出的页起点拒绝。
 
-保存计费还包含原请求/主体/采用、输出与真实 trim/曾有内容事实、历史确认 Snapshot、原状态/账目/重试、最终有序 parts 的交付表示。实现 [pages.ts](src/testing/pages.ts) 为每个 dispatch 保留4096字节实际终局槽，逻辑终局尚未固定时另保留4096字节。逻辑终局固定后按其实际编码计费，晚到实际回执不覆盖它。另保留8192字节 Settlement、12288字节 custody、1024字节 control、首个读1024字节和最大游标页包装64字节。实际材料落入相应槽后消费预留，不重复计费。每个已接纳的 open 窗口分别保留闭合状态增长和完整确认 Snapshot，Snapshot 包含当前正文及最大修订、游标和控制额度。没有 open 窗口且逻辑终局尚未到达时，另保留一个最大合法窗口及其确认 Snapshot。每次开窗和保存都在原提交边界按剩余义务重算，首个终局不撤销其他窗口的预留。容量不足在受理、准备或合法前缀保存边界拒绝，不发布半份事实。这个额度模型不等于 JavaScript 堆占用。
+保存计费还包含原请求/主体/采用、输出与真实 trim/曾有内容事实、历史确认 Snapshot、原状态/账目/重试、最终有序 parts 的交付表示。实现 [pages.ts](src/testing/pages.ts) 为每个 dispatch 保留4096字节实际终局槽，逻辑终局尚未固定时另保留4096字节。逻辑终局固定后按其实际编码计费，晚到实际回执不覆盖它。分页配置的完整规范对象计入材料，从受理起预留两个正安全整数的最大表示及键和包装。控制器在既有 exclusive 内检查身份、正安全整数和冻结条件，复制 call、按原容量检查后一次发布；失败保留原对象与配置。另保留8192字节 Settlement、12288字节 custody、1024字节 control、首个读1024字节和最大游标页包装64字节。实际材料落入相应槽后消费预留，不重复计费。每个已接纳的 open 窗口分别保留闭合状态增长和完整确认 Snapshot，Snapshot 包含当前正文及最大修订、游标和控制额度。没有 open 窗口且逻辑终局尚未到达时，另保留一个最大合法窗口及其确认 Snapshot。每次开窗和保存都在原提交边界按剩余义务重算，首个终局不撤销其他窗口的预留。容量不足在受理、准备或合法前缀保存边界拒绝，不发布半份事实。这个额度模型不等于 JavaScript 堆占用。
 
-本地 terminal、身份事实及证据的规范编码分别最多4096字节，Settlement 最多8192字节。超长终局在 preserve/recordLateFact/策略 stop 的首次输入边界拒绝，证据在可信返回边界拒绝。consumer owner 构造/替换时最多512 UTF-8字节，避免受理无法形成有限 ACK 证据的 owner；窗口身份规范编码最多256字节，清理诊断规范编码最多4096字节。revision、cursor 和读取位置不超过 Number.MAX_SAFE_INTEGER，十进制游标最多16字节，实际铸造同时校验。UUIDv4 结果/读取身份和 SHA-256 摘要使用固定文本形状。生产 resultPageTargetBytes 当前只做构造校验，测试算法不证明生产运行。
+本地 terminal、身份事实及证据的规范编码分别最多4096字节，Settlement 最多8192字节。超长终局在 preserve/recordLateFact/策略 stop 的首次输入边界拒绝，证据在可信返回边界拒绝。consumer owner 构造/替换时最多512 UTF-8字节，避免受理无法形成有限 ACK 证据的 owner；窗口身份规范编码最多256字节，清理诊断规范编码最多4096字节。revision、cursor 和读取位置不超过 Number.MAX_SAFE_INTEGER，十进制游标最多16字节，实际铸造同时校验。UUIDv4 结果/读取身份和 SHA-256 摘要使用固定文本形状。runtime 的组页实际由注入的 Commands 拥有。内存页配置由上述受信控制准备，不证明生产后端或生产参数映射。
 
 operation 长期只保存 SHA-256 输入指纹、方法、调用、原提交修订与小回执。规范化只选协议字段，不包含 P。摘要相同按本地测试编码的碰撞假设认回，不声明数学无碰撞或跨版本持久恢复。ACK 后清理核活动读、未决操作、接收窗口及释放失败，释放后删除请求、输出、历史快照及无用引用。完全释放的调用不再参与恢复扫描，loadRecovery 返回 invalid(call, recovery-material-released)。晚到账目仍可更新最小事实。
 
@@ -174,7 +174,8 @@ receiver 在终止 preserve 的确认回执下固定原 ended、Snapshot 和独�
 | 原有效控制及真实 interrupted；无 dispatch 的已保存控制 | 已实现关联原控制收场；无 dispatch 时不发送 |
 | 首内容前可重试失败等待策略 | 策略循环尚未实现，保留 retry-not-decided 等真实拒绝，不制造默认 stop |
 | 无控制 interrupted、sender.not-started、已有 dispatch 但本实例没有确认终止证据 | 尚未支持精确收场。保留原事实和责任，不复制测试后端私有终局映射或恢复猜测 |
-| runtime 读取、ACK、生产调度、跨进程恢复、排空 | 尚未实现，继续各自后续阶段 |
+| runtime 读取与 processed ACK | 已实现，见[结果消费支持](#结果消费支持) |
+| retained ACK、生产调度、跨进程恢复、排空 | 尚未实现，继续各自后续阶段 |
 
 Activity 持有唯一的固定 settle 输入。首次写前读取当前资格、代次和 revision。query unknown、失败、调用异常或已知 committed 但原回执暂不可得时，保留原 operation、expected 和完整终局。后续 drive 先核当前资格，查询原操作，并以原参数取得回执，不重新发送或读取原流。
 
@@ -183,6 +184,18 @@ Activity 持有唯一的固定 settle 输入。首次写前读取当前资格、
 release 与业务收场分别记录。receiver 只启动一次 iterator.return 并缓存结果。driver 固定终止阶段后先发起 release，同时独立推进 settle，不先等待 release。原 drive 锁一直覆盖真实释放等待，防止第二消费者。释放挂起时 inspect 仍可读取已确认 Settlement。释放失败在收场确认后由 drive 返回，后续 drive 不重做 return 或 close。若同轮收场和释放都失败，先返回收场操作的失败，释放失败仍缓存，收场确认后再次可见。
 
 settle 确认后先固定内部阶段，再安排附带状态刷新。刷新失败不重做业务写。后续取消、可信 recordLateFact 和事件重放不能改变原 Settlement 的 termination、version 或 source。未知事实不先展示。此实现仅在当前进程持有原确认依据时接续，不证明生产耐久、跨进程恢复或真实厂商停止。
+
+## 结果消费支持
+
+`runtime.consumption` 将 beginRead、readNext、closeRead 和 processed acknowledge 分别交给 Commands 的 acquireRead、nextRead、endRead 与 handoff。公开形状归[共同类型](../model-contract/src/call-surface.ts)，读取顺序、原操作认回与当前资格归[共同规格](../model-contract/SPEC.md#342-普通调用面与实例观察)。Commands 是操作账本、读保护和 ACK 排序的唯一拥有者。
+
+四个方法在异步交接前只保存协议字段。不透明 principal 和已铸造 tenant 保留原身份，业务值及 completion 的 owner、record、revision、digest 断开调用方别名。明确失败与 commit-unknown 原样返回，程序异常继续抛出；facade 不查询、重试或换 operation。
+
+processed 的完成事实须由冻结 consumer 的 owner 提供，经实际 evidence adapter 验证。ACK 成功后仅请求已有观察刷新，不等待投影，辅助故障不改变原 AckReceipt。读取不要求额外 recovery 资格。消费方法不 schedule；自动清理工作者尚未实现，内存测试通过真实 advanceCleanup 命令验证读保护和清理状态。
+
+retained 仍未实现，直接返回 dependency=model-runtime、阶段 6.1 的固定 unavailable。保留 operation 先按现行规则返回 invalid。此静态路径不读取资源、不执行 handoff，也不声称已核承接资格。它对存在、不存在、跨租户和伪造主体给同一支持拒绝。
+
+[第五课](examples/05-read-and-acknowledge.ts)演示公开读取及 processed ACK。[消费测试](tests/README.md#公开结果消费)验证真实 runtime、内存 Commands 和脚本上游，不证明生产耐久、真实厂商或跨进程恢复。
 
 ## 产品发送边界
 

@@ -1,6 +1,6 @@
 # Model 使用示例
 
-这四课教开发者通过公开入口受理、查询、观察并收场一次调用。每个脚本都可独立运行，关键 API、真实入参和返回判别直接留在脚本内。英文与中文准备步骤分别见[English](../README.md#run-the-learning-examples)和[中文](../README_ZH.md#运行教学示例)。凭据判定另见[消费指南](../docs/context.md#独立消费入口)。
+这五课教开发者通过公开入口受理、查询、观察并收场一次调用。每个脚本都可独立运行，关键 API、真实入参和返回判别直接留在脚本内。英文与中文准备步骤分别见[English](../README.md#run-the-learning-examples)和[中文](../README_ZH.md#运行教学示例)。凭据判定另见[消费指南](../docs/context.md#独立消费入口)。
 
 ## 准备并运行
 
@@ -27,10 +27,12 @@ pnpm --filter @omne-harness/model exec node --experimental-strip-types examples/
 
 1. [提交与查询](01-submit-and-query.ts)。用显式 principal、tenant、call 和 admission operation 调用 admit，再以原 admission 查询。Reply 先判 ok 或 failure，Lookup 再判 found 或 not-accepted。accepted 只是受理，发送次数为零。
 2. [观察与收场](02-observe-and-settle.ts)。由受信宿主调用 driver，普通消费者 connect 到 live handle 并观察。首事件为 snapshot，后续 changed 只含确认后的内容和状态。inspect 的 found.state.phase 为 settled 时，读取原 Settlement。
-3. [输出限额](03-output-limit.ts)。传输提供实际 trim，终局保持 completed/limit。脚本打印的 `upstream trim` 是传输输入，**不是 runtime 结果读取返回的明细**。Snapshot 没有完整 trims；结果读取和 ACK 尚未实现。内存 Commands 的实际保存另由行为测试验证。
+3. [输出限额](03-output-limit.ts)。传输提供实际 trim，终局保持 completed/limit。脚本打印的 `upstream trim` 是传输输入，**不是 runtime 结果读取返回的明细**。Snapshot 没有完整 trims；第五课通过公开消费取得实际 trims 并提交 processed ACK。内存 Commands 的实际保存另由行为测试验证。
 4. [输入超限](04-input-over-limit.ts)。drive 本地成功仍可形成 failed 业务终局。fault.cause 为 input-over-limit，reported 只保存上游给出的 metric、limit 和 actual，未报告值保持 null。不能重发同一输入或自动换供应商。消费者决定调整输入后，以新 call 和 admission 发起新调用。
 
-[共享装配](../tests/example-support.ts)解释固定请求、消费者声明、当前资格、可信证据、有限容量、同步凭据围栏、脚本资源、手动时钟与 publication。此文件只整理重复适配，不封装 admit、inspect、connect 或 observe 的教学调用。
+5. [读取与确认](05-read-and-acknowledge.ts)。按 started/acknowledged 区分结果，逐页处理 sealed/partial 和 trims，最后关闭读取。消费者保存完成事实后提交 processed ACK，重复同参数认回原回执。commit-unknown 保留原 operation 和证据。输出包含 `read closed: ended`、原 ACK 身份、`pending` 清理状态及 `same ACK: true`。
+
+[共享装配](../tests/example-support.ts)解释固定请求、消费者声明、当前资格、可信证据、有限容量、同步凭据围栏、脚本资源、手动时钟与 publication。此文件只整理重复适配，不封装 admit、inspect、connect、observe 或消费方法 的教学调用。
 
 ## 核对输出与返回形状
 

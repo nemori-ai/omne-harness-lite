@@ -1,7 +1,7 @@
 <a id="model-实现公开入口候选"></a>
 # Model 实现公开入口
 
-本包已实现 executeModel、凭据判定、createModelSendBoundary 与 createModelRuntime 的受理、查询、取消意图、原流保存与最小实例观察。已确认调用的收场支持范围见[实现规格](../SPEC.md#已实现的调用收场)，结果消费、恢复与生产宿主仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，runtime 构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明，sender 构造类型以 [send/types.ts](../src/send/types.ts) 为唯一声明；下方独立能力工厂仍是未实现设计。
+本包已实现 executeModel、凭据判定、createModelSendBoundary 与 createModelRuntime 的受理、查询、取消意图、原流保存与最小实例观察。已确认调用的收场支持范围见[实现规格](../SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现，retained ACK、恢复与生产宿主仍未实现。领域类型与提供者端口归 [model-contract](../../model-contract/docs/public-api.md)，本页只拥有实际执行函数和本实现的构造形状。独立执行签名以 [execute.ts](../src/execute.ts) 为唯一声明，runtime 构造类型以 [runtime.ts](../src/runtime.ts) 为唯一声明，sender 构造类型以 [send/types.ts](../src/send/types.ts) 为唯一声明；下方独立能力工厂仍是未实现设计。
 
 ## 执行函数与构造
 
@@ -72,7 +72,7 @@ const provider = createModelRuntime(dependencies, {
 })
 ```
 
-上述数值只用于构造示例，不是生产默认。构造不调用依赖。runtime 提供 calls.admit、inspect、dispatches、cancel 与真实目录 connect。受信 driver 先发布初始实例，再接原发送流、保存和观察。beginRead 和 acknowledge 只拒绝保留 operation，其他合法输入仍 unavailable；readNext、closeRead、recover 与 quiesce 尚未实现。完整生产宿主仍归 3.5。普通 runtime 不暴露 driver。完整原参认回、正数批延迟的沉默读取限制、观察逻辑额度及并发 next 行为见 [当前构造支持](../SPEC.md#当前构造支持与本地模拟)。observerCheckIntervalMs 是必填正安全整数，专用于等待观察者的当前权限及实例复查，不复用 readIdleMs。
+上述数值只用于构造示例，不是生产默认。构造不调用依赖。runtime 提供 calls.admit、inspect、dispatches、cancel 与真实目录 connect。受信 driver 先发布初始实例，再接原发送流、保存和观察。beginRead、readNext、closeRead 与 processed acknowledge 已接真实 Commands。retained acknowledge 静态 unavailable，阶段 6.1；recover 与 quiesce 尚未实现。完整生产宿主仍归 3.5。普通 runtime 不暴露 driver。完整原参认回、正数批延迟的沉默读取限制、观察逻辑额度及并发 next 行为见 [当前构造支持](../SPEC.md#当前构造支持与本地模拟)。observerCheckIntervalMs 是必填正安全整数，专用于等待观察者的当前权限及实例复查，不复用 readIdleMs。
 ```ts
 declare const input: Parameters<typeof provider.runtime.calls.admit>[0]
 declare const driveInput: Parameters<typeof provider.driver.drive>[0]
@@ -84,7 +84,7 @@ await provider.runtime.calls.dispatches(input)
 
 宿主负责提供可信稳定的 driveInput，不从普通请求推导执行资格。取消 operation 必须不同于原 admission。停止 drive 不取消原调用。当前实现不提供生产池或跨进程恢复。
 
-测试 limits.resultPageParts 限定每页结果项数，limits.resultPageTargetBytes 是规范 parts 数组 JSON 的 UTF-8 目标。完整 sealed/partial 项不拆分，超目标项独页；整个页不得超过原 capacity.bytes。消费者需容纳接近原容量的页。预算和本地有限上限见 [SPEC](../SPEC.md#当前构造支持与本地模拟)。createModelRuntime 的读取、ACK 与运行分页尚未实现，内存测试算法不证明这些生产行为。unknown 控制按完整 tenant/call/operation/method 注入 applied 或 not-applied，揭示不能反转真实效果。适配器是受信、同步且不可重入的本地测试模型，不证明外部资格事务、耐久证据、跨进程排除或可靠消费。
+测试 limits.resultPageParts 限定每页结果项数，limits.resultPageTargetBytes 是规范 parts 数组 JSON 的 UTF-8 目标。完整 sealed/partial 项不拆分，超目标项独页；整个页不得超过原 capacity.bytes。消费者需容纳接近原容量的页。预算和本地有限上限见 [SPEC](../SPEC.md#当前构造支持与本地模拟)。controls.commands.configureResultPaging({tenant, call, resultPageParts, resultPageTargetBytes}) 只准备尚未收场且没有 read 的调用。两个数值须为正安全整数，结果冻结后拒绝修改。完整配置及最大表示预留进入原容量预算；失败原子不变。runtime 分页由注入的 Commands 拥有，内存测试不证明生产后端。unknown 控制按完整 tenant/call/operation/method 注入 applied 或 not-applied，揭示不能反转真实效果。适配器是受信、同步且不可重入的本地测试模型，不证明外部资格事务、耐久证据、跨进程排除或可靠消费。
 
 
 ## 产品发送构造
@@ -95,10 +95,18 @@ Commands、同步 coordinator、credentials 和 resources 由受信装配提供�
 
 测试 `MemorySendSource` 显式登记 profile、supplier、recipient、model 和官方查询条件，current 在 MemoryState 排他区核当前来源及绑定。controls.send.createSender(overrides) 构造共用原后端的另一产品 sender，coordinator 为该后端的受控同步适配入口；覆盖项只用于注入测试依赖与故障。脚本计划不再提供 operation 或 window；测试通过实际命令观察生成值。消费者从公共 started 结果取得原 window 与 facts，并将 result.window 连同原执行与分派传给 Commands.preserve；命令仍核全部绑定。
 
-原写认回、流保留、失败分类和资源寿命归 [SPEC](../SPEC.md#产品发送边界)。当前 factory 已实现直接发送边界，driver 已接入原唯一 facts 消费者及最小实例观察。原终局收场的具体支持见[实现规格](../SPEC.md#已实现的调用收场)，结果消费和生产宿主仍未完成。
+原写认回、流保留、失败分类和资源寿命归 [SPEC](../SPEC.md#产品发送边界)。当前 factory 已实现直接发送边界，driver 已接入原唯一 facts 消费者及最小实例观察。原终局收场的具体支持见[实现规格](../SPEC.md#已实现的调用收场)，结果读取及 processed ACK 已实现，retained ACK 和生产宿主仍未完成。
 
 ## 已实现的收场与返回判别
 
 `createModelRuntime` 的 driver 以真实确认终止证据调用 Commands.settle。普通调用者从 calls.inspect 的 Reply、Lookup、CallState.phase 依次判别到 Settlement。Settlement 的 version 是结果身份，termination 是原终局，source 的 owner、record、revision、digest 是提供者保存的终局依据。完整类型归[共同公开接口](../../model-contract/src/result.ts)，具体接续和未支持路径归[实现规格](../SPEC.md#已实现的调用收场)。
 
-正常输出限额为 completed/limit，输入超限为 failed/input-over-limit。Snapshot 只包含可见 blocks 与状态，不含完整 trims。drive 返回失败不自动推导业务失败，尤其释放失败可能与已收场并存。实际调用方法见[逐步示例](../examples/README.md)，示例不调用尚未实现的 runtime 读取和 ACK。
+正常输出限额为 completed/limit，输入超限为 failed/input-over-limit。Snapshot 只包含可见 blocks 与状态，不含完整 trims。drive 返回失败不自动推导业务失败，尤其释放失败可能与已收场并存。实际调用方法见[逐步示例](../examples/README.md)，[第五课](../examples/05-read-and-acknowledge.ts)展示 runtime 读取和 processed ACK。
+
+## 已实现的结果消费
+
+四个方法的唯一声明在[ModelConsumption](../../model-contract/src/call-surface.ts)，证据与回执在[result.ts](../../model-contract/src/result.ts)。beginRead 接收 principal、tenant、call、operation、result；readNext 接收原 read 与 after；closeRead 接收原 read。各方法保留身份引用并固定业务字段。
+
+beginRead 的 started 包含 read 和首个 ReadState；acknowledged 只含已确认 custody。ReadState 分 reading/page 与 ended/reason。ResultPage 保留 parts、next 与真实 Settlement；ResultPart 分 sealed/block 与 partial/content/value，并保留 trims。相同 after 返回原页，当前资格和 ended 优先。
+
+acknowledge 接收原 result、operation 与 processed/completion。completion 的四个证据字段由冻结 consumer 的 owner 提供，不能由调用方自称完成。成功返回 AckReceipt 的 call、result 与 custody；未知只用原操作和原证据认回。retained 静态 unavailable 不执行资源鉴权或 handoff。完整支持及刷新边界见[实现规格](../SPEC.md#结果消费支持)，可运行代码见[第五课](../examples/05-read-and-acknowledge.ts)。

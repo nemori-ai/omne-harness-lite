@@ -3,7 +3,7 @@ import {
   type ModelConfiguration,
   type SendResources,
 } from '@omne-harness/model'
-import { createTestModelDependencies } from '@omne-harness/model/testing'
+import { createTestModelDependencies, type MemoryModelEvidence } from '@omne-harness/model/testing'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
 import {
   decodeCredentialId,
@@ -44,10 +44,12 @@ export function runtimeFixture(
   wrap?: (
     commands: ModelCommands<ReturnType<typeof fixture>['principal']>,
   ) => ModelCommands<ReturnType<typeof fixture>['principal']>,
+  handoff?: MemoryModelEvidence['handoff'],
 ) {
   const f = fixture()
   const assembly = createTestModelDependencies({
     ...f.options,
+    evidence: f.options.evidence.map(adapter => (handoff ? { ...adapter, handoff } : adapter)),
     start: '2026-10-19T00:00:00Z',
     maxWaiters: 100,
     maxQueued: 100,

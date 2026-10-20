@@ -95,6 +95,7 @@ export type MemoryModelLimits = Readonly<{
   readIdleMs: number
   capacity: ResultCapacity
 }>
+export type ResultPaging = Pick<MemoryModelLimits, 'resultPageParts' | 'resultPageTargetBytes'>
 export type MemoryModelCommandsOptions<P> = Readonly<{
   owners: readonly ModelConsumerOwnerDeclaration[]
   authority: MemoryModelAuthority<P>
@@ -127,6 +128,7 @@ export type UnknownInjection = Pick<ExecutionRef, 'tenant' | 'call'> &
     effect: 'applied' | 'not-applied'
   }>
 export interface MemoryModelControl {
+  configureResultPaging(input: Pick<ExecutionRef, 'tenant' | 'call'> & ResultPaging): void
   injectUnknown(input: UnknownInjection): void
   reveal(
     input: Pick<UnknownInjection, 'tenant' | 'call' | 'operation'> &

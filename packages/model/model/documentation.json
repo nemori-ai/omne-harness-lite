@@ -119,6 +119,10 @@
         {
           "id": "product-send",
           "anchor": "产品发送边界"
+        },
+        {
+          "id": "consumption",
+          "anchor": "结果消费支持"
         }
       ]
     },
@@ -338,6 +342,10 @@
         {
           "id": "product-send",
           "anchor": "产品发送构造"
+        },
+        {
+          "id": "consumption",
+          "anchor": "已实现的结果消费"
         }
       ]
     },
@@ -497,6 +505,10 @@
         {
           "id": "product-send",
           "anchor": "产品发送验证"
+        },
+        {
+          "id": "consumption",
+          "anchor": "公开结果消费"
         }
       ]
     },

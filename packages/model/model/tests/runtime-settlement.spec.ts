@@ -73,7 +73,7 @@ async function finish(f: ReturnType<typeof runtimeFixture>, facts: TransportFact
   return f.results.get(f.admit.call)
 }
 async function savedParts(f: ReturnType<typeof runtimeFixture>) {
-  // This inspects the memory Commands provider, not the still-unimplemented runtime read facade.
+  // This settlement probe reads the memory Commands provider. Public consumption has separate tests.
   const result = unbox(
     await f.dependencies.commands.acquireRead({
       ...f.admit,

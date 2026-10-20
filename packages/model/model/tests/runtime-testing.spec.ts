@@ -4,7 +4,6 @@ import { createTestModelDependencies, type TestModelSendPlan } from '@omne-harne
 import {
   decodeDispatchId,
   decodeCredentialId,
-  decodeReadId,
   decodeResultVersion,
   type ModelHandle,
   type FixedModelRequest,
@@ -148,7 +147,6 @@ it('constructs the real factory without touching dependencies and keeps unsuppor
   expect(invoked).toBe(0)
   expect('driver' in provider.runtime).toBe(false)
   const result = unbox(decodeResultVersion('mrver_test'))
-  const read = unbox(decodeReadId('mread_test'))
   function unread<T extends object>(input: T): T {
     return new Proxy(input, {
       get() {
@@ -158,23 +156,17 @@ it('constructs the real factory without touching dependencies and keeps unsuppor
   }
   function invoke(subject: typeof provider) {
     return Promise.all([
-      subject.runtime.consumption.beginRead({ ...f.admit, result }),
-      subject.runtime.consumption.readNext(unread({ ...f.admit, read, after: '1' })),
-      subject.runtime.consumption.closeRead(unread({ ...f.admit, read })),
       subject.runtime.consumption.acknowledge({
         ...f.admit,
         result,
-        evidence: { kind: 'processed', completion: proof('test') },
+        evidence: { kind: 'retained', custody: proof('test') },
       }),
       subject.recover(unread(f.admit)),
       subject.quiesce(),
     ])
   }
   const expected = [
-    ['consumption.beginRead', '1.7'],
-    ['consumption.readNext', '1.7'],
-    ['consumption.closeRead', '1.7'],
-    ['consumption.acknowledge', '1.7'],
+    ['consumption.acknowledge', '6.1'],
     ['recover', '5.4'],
     ['quiesce', '5.5'],
   ]

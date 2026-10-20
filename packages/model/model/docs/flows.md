@@ -405,7 +405,7 @@ deferred-media 只表示已经检查可知事实且列出了必要待核验引�
 
 承接 J-MD04..07。独立程序选择是否需要托管，二者都不创建隐式的域外工作身份。两种路径的输入合法性、当前访问和真实发送规则一致，恢复与保管责任不同。
 
-非托管 executeModel 已实现。下面的完整托管路径仍是目标行为。createModelRuntime 已实现受理、查询、取消意图、原流保存与最小实例观察，已支持[有限的原终局收场](../SPEC.md#已实现的调用收场)，结果消费和恢复仍 unavailable。
+非托管 executeModel 已实现。下面的完整托管路径仍是目标行为。createModelRuntime 已实现受理、查询、取消意图、原流保存与最小实例观察，已支持[有限的原终局收场](../SPEC.md#已实现的调用收场)，结果读取与 processed ACK 已实现，retained ACK、自动清理及恢复仍未实现。
 
 ```mermaid
 sequenceDiagram
