@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -25,7 +25,7 @@ function put(root: string, path: string, text: string): void {
 it.each(['local', 'runner'])(
   'the %s Python step prunes archive conftest and tests but reports active failure',
   mode => {
-    const root = mkdtempSync(join(tmpdir(), 'omne-python-legacy-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-python-legacy-')))
     roots.push(root)
     put(root, 'package.json', readFileSync(join(repository, 'package.json'), 'utf8'))
     put(root, 'pytest.ini', '[pytest]\ntestpaths = tools/spec-tools/tests\n')

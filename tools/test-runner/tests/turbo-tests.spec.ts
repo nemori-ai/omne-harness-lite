@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -58,7 +59,7 @@ function workspace(members: Readonly<Record<string, FixtureMember>>): {
   root: string
   targets: TestMember[]
 } {
-  const root = mkdtempSync(join(tmpdir(), 'omne-turbo-tests-'))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-turbo-tests-')))
   roots.push(root)
   put(
     root,
