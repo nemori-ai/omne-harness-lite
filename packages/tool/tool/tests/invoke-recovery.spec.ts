@@ -184,6 +184,74 @@ describe('public persistent intent recovery over shared non-durable source and l
     expect(h.binding.controls.launches()).toBe(1)
   })
 
+  it.each(['preparing', 'queued'] as const)(
+    'wakes the original %s task after its real command commits and the driver aborts',
+    async phase => {
+      const stopped = new AbortController()
+      const h = startHarness({
+        commands: commands => ({
+          ...commands,
+          planPreparation: async access => {
+            const result = await commands.planPreparation(access)
+            if (phase === 'preparing' && 'ok' in result) stopped.abort()
+            return result
+          },
+          enqueue: async access => {
+            const result = await commands.enqueue(access)
+            if (phase === 'queued' && 'ok' in result) stopped.abort()
+            return result
+          },
+        }),
+      })
+      const first = accepted(await h.runtime.invoke(input()))
+      const { call, admission } = readToolInvocationRef(first.reference)
+      expect(first.state.phase).toBe('accepted')
+      expect(h.host.scheduled.shift()?.call).toBe(call)
+      await h.runOnce(call, stopped.signal)
+      expect(
+        await h.runtime.queries.lookup({
+          principal: principalA,
+          tenant: tenantA,
+          reference: first.reference,
+        }),
+      ).toMatchObject({ ok: { kind: 'found', state: { phase } } })
+      const recovery = ok(
+        await h.commands.loadRecovery({ principal: principalA, tenant: tenantA, call }),
+      )
+      expect(recovery.tasks.length).toBeGreaterThan(0)
+      expect(h.binding.controls.launches()).toBe(0)
+      expect(h.host.scheduled).toHaveLength(0)
+      const queue = await h.queue()
+      expect(queue).toHaveLength(1)
+      expect(queue[0]?.call).toBe(call)
+      const source = h.source.bindings()
+      const recovered = accepted(await h.rebuildRuntime().invoke(input()))
+      expect(recovered).toEqual({ ...first, recovered: true })
+      expect(h.host.scheduleAttempts).toHaveLength(2)
+      expect(h.host.scheduled).toHaveLength(1)
+      expect(await h.queue()).toEqual(queue)
+      expect(h.source.bindings()).toEqual(source)
+      const facts = await h.memory.read({ kind: 'call', tenant: tenantA, call })
+      expect(
+        facts.kind === 'complete' &&
+          facts.records.filter(
+            record => record.kind === 'operation' && record.operation.operation === admission,
+          ),
+      ).toHaveLength(1)
+      await h.host.runScheduled()
+      expect(h.binding.controls.launches()).toBe(1)
+      expect(
+        await h.runtime.queries.lookup({
+          principal: principalA,
+          tenant: tenantA,
+          reference: first.reference,
+        }),
+      ).toMatchObject({ ok: { state: { phase: 'running' } } })
+      expect(accepted(await h.runtime.invoke(input()))).toEqual({ ...first, recovered: true })
+      expect(h.host.scheduleAttempts).toHaveLength(2)
+    },
+  )
+
   it('does not overwrite the winning request when two runtimes race different inputs for one key', async () => {
     const gate = barrier()
     const real = invokeAuthority()
@@ -501,6 +569,59 @@ describe('public persistent intent recovery over shared non-durable source and l
     })
     expect(a.source.bindings()).toHaveLength(1)
   })
+
+  it.each(['unavailable', 'throw'] as const)(
+    'returns unavailable when only the source principal comparator is %s, then recovers the original receipt',
+    async fault => {
+      let failing = false
+      const real = invokeAuthority()
+      const qualify = vi.fn(real.qualify)
+      const samePrincipal = vi.fn(
+        async (access: Parameters<typeof real.samePrincipal>[0]): Promise<AccessVerdict> => {
+          if (!failing) return real.samePrincipal(access)
+          if (fault === 'throw') throw new Error('secret comparator credential')
+          return { kind: 'unavailable', diagnostic: 'comparator offline' }
+        },
+      )
+      const a = paired({ qualify, samePrincipal })
+      const first = accepted(await a.one.invoke(input(dummyRequest())))
+      const bindings = a.source.bindings()
+      const commits = a.store.commits
+      const admissions = vi.spyOn(a.dependencies.admissions, 'admit')
+      failing = true
+      const conflicting = dummyRequest({
+        limits: { concurrency: 2, foregroundMs: null, backgroundAfterMs: null },
+      })
+      for (const payload of [dummyRequest(), conflicting]) {
+        samePrincipal.mockClear()
+        const outcome = await a.two.invoke(input(payload))
+        expect(outcome).toEqual({
+          kind: 'rejected',
+          failure: {
+            kind: 'unavailable',
+            dependency: 'invoke-authority',
+            diagnostic: fault === 'throw' ? expect.any(String) : 'comparator offline',
+          },
+        })
+        expect(JSON.stringify(outcome)).not.toContain('secret comparator credential')
+        expect(samePrincipal).toHaveBeenCalledTimes(1)
+        expect(samePrincipal).toHaveBeenCalledWith({
+          current: principalA,
+          original: principalA,
+        })
+      }
+      expect(qualify).toHaveBeenCalledTimes(3)
+      expect(admissions).not.toHaveBeenCalled()
+      expect(a.store.commits).toBe(commits)
+      expect(a.source.bindings()).toEqual(bindings)
+      failing = false
+      expect(accepted(await a.two.invoke(input(dummyRequest())))).toEqual({
+        ...first,
+        recovered: true,
+      })
+      expect(a.source.bindings()).toEqual(bindings)
+    },
+  )
 
   it.each(['unavailable', 'throw'] as const)(
     'does not trust %s authority or principal comparator',
