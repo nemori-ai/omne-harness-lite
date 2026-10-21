@@ -65,8 +65,6 @@ stateDiagram-v2
 
 ## Run 与 attempt 的两层状态
 
-本节是候选修订，技术接受前不扩大本页既有承诺。
-
 Run 是 Session 里一次逻辑工作的治理记录，执行归 Agent 的执行。Run 与 Agent 执行一一对应，attempt 与执行挂接一一对应，reload 与恢复沿同一个执行。Run 状态分两层：
 
 - Run 层：`none → active → completed | failed | cancelled`。终态三选一，不可反转。

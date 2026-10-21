@@ -1,10 +1,10 @@
 # 会话与逻辑工作
 
+候选修订的节：[范围与边界](#范围与边界)、[模块角色与事实归属](#模块角色与事实归属)、[协作与依赖](#协作与依赖)、[主路径与交接](#主路径与交接)、[契约与验证导航](#契约与验证导航)、[后续设计与维护](#后续设计与维护)。这些节在技术接受前不扩大本页既有承诺。
+
 本页维护已接受的应然模块分工与公开协作，采用范围见[领域入口](../README.md#维护与状态)。引用的上游约束保持原采用范围；正文接受不表示当前代码已实现。
 
 ## 范围与边界
-
-本节是候选修订，技术接受前不扩大本页既有承诺。
 
 本责任治理会话路径中的输入与逻辑工作，包括 Session、Run、执行尝试、消费位置和有效推进资格。Session 拥有业务治理与耐久事实，不是第四个 runtime。它按业务规则协调 Agent、Model 和 Tool 三个 runtime，不要求它们共享线程、实例或寿命。会话日志是唯一的业务写入口，每个意图经一个具名操作进入。
 
@@ -13,8 +13,6 @@ Session 与六个邻域协作：Agent、Model、Tool、Runtime Context、Request
 [日程Job](../schedules-and-jobs/README.md)、独立模型/工具调用和通知各有治理者，不为复用能力创建隐式Session。
 
 ## 模块角色与事实归属
-
-本节是候选修订，技术接受前不扩大本页既有承诺。
 
 | 模块角色 | 事实与责任 |
 | --- | --- |
@@ -77,8 +75,6 @@ sequenceDiagram
 
 ## 协作与依赖
 
-本节是候选修订，技术接受前不扩大本页既有承诺。
-
 受理消费交付面输入及[命令展开](../slash-commands/README.md)，使用治理提供的合法身份与资格。受理成功须有可恢复去处，不把临时消息发送当作可靠接手。
 
 工作治理向 Agent 交出当前工作及推进资格依据。Agent 拥有执行与执行挂接。Session 只保存执行引用，不保存 Agent 的接续值。Model 和 Tool 的调用、重试与中断都由 Agent 发起。Session 与 Model、Tool 只有三种关系：资格的参加（Model 受理点守卫的参加者，以资格参加者协议闭合为前提；Tool 启动围栏的资格版本拥有者）、消费侧的 ACK 与账目、恢复对账时的查询与内容读取。
@@ -86,8 +82,6 @@ sequenceDiagram
 Runtime Context 注册的业务决定归会话，块内容归生产者。Runtime Context 的步提交由 Session 守卫并在会话日志里共同提交，见[会话契约的守卫条款](../../../packages/session/session-contract/SPEC.md#守卫条款)。会话历史由 Session 持有，请求组装经历史读口读取。需要共同成立的事实在一次权威提交里成立，见[共同提交与参加关系](../../architecture/runtime/session-and-run.md#共同提交与参加关系)。
 
 ## 主路径与交接
-
-本节是候选修订，技术接受前不扩大本页既有承诺。
 
 1. 入口验证输入和范围。受理流水线保存实际内容及承接依据。
 2. 按会话规则从队列承接工作，关联Run、当前执行尝试与消费位置。
@@ -98,15 +92,11 @@ Runtime Context 注册的业务决定归会话，块内容归生产者。Runtime
 
 ## 契约与验证导航
 
-本节是候选修订，技术接受前不扩大本页既有承诺。
-
 [会话契约](../../../packages/session/session-contract/SPEC.md)拥有受理、工作治理、消费位置和日志的不变量。[通用实现](../../../packages/session/session/SPEC.md)拥有协调器、调度器与恢复的精确行为。[适配成员](../../../packages/session/session-adapters/SPEC.md)拥有与六个邻域契约的翻译。[存储成员](../../../packages/session/session-storage-sql/SPEC.md)拥有权威表与读路径。日志格式及公开值随实际定义。
 
 上层沿[Session/Run](../../architecture/runtime/session-and-run.md)、[流式与消费](../../architecture/runtime/streaming-and-consumption.md)、[控制恢复](../../architecture/runtime/control-and-recovery.md)。六个邻域角色见[Session 的三层与邻域角色](../../architecture/runtime/session-and-run.md#session-的三层与邻域角色)。产品依据见[本域产品正文](../../../.meta_harness/design/product/sessions-and-work/design.md)，范围及状态沿该源判断。验证见[组合入口](../verification.md)。
 
 ## 后续设计与维护
-
-本节是候选修订，技术接受前不扩大本页既有承诺。
 
 输入绑定与 Agent 终结的共同提交、推进映射与重装配交接、日志与消费责任的集成，闭合位置见[SW-M01 技术兑现义务](../../../packages/session/session/docs/architecture/mechanisms.md#sw-m01-技术兑现义务)。共享存储事务域、压缩转换协调者一侧的唯一提交点、有界恢复者和迟到账目的读取资格仍是具名待决，见[联合前提与具名待决](../../architecture/runtime/session-and-run.md#联合前提与具名待决)。跨会话派发、跨会话授权和外部委托按原未决处理。下层机制待细化不取消唯一推进及可靠承接保证。
 
