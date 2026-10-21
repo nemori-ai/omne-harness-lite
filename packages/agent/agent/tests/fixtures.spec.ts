@@ -232,6 +232,13 @@ describe('selection, model context and handoff', () => {
 })
 
 describe('manual clock', () => {
+  it('now reads the provider instant without waiting and follows controlled advancement', async () => {
+    const clock = createManualAgentClock('2026-10-21T07:00:00Z')
+    expect(await clock.port.now()).toEqual({ ok: '2026-10-21T07:00:00Z' })
+    expect(clock.pending()).toEqual([])
+    ok(clock.advanceTo('2026-10-21T07:01:00Z'))
+    expect(await clock.port.now()).toEqual({ ok: '2026-10-21T07:01:00Z' })
+  })
   it('a wait elapses when the clock reaches its instant and is cancelled when its signal aborts', async () => {
     const clock = createManualAgentClock('2026-10-20T00:00:00Z')
     const elapsed = clock.port.waitUntil('2026-10-20T00:00:10Z', new AbortController().signal)

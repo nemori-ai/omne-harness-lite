@@ -156,7 +156,12 @@ describe('the cordis definition entry has no Agent implementation', () => {
 
 describe('under Cordis 4.0.4', () => {
   it('resolves a provider through the abstract definition key, as an instance of the definition', async () => {
+    let available = true
     class FixedClock extends AgentClockService {
+      readonly now: AgentClockService['now'] = async () =>
+        available
+          ? { ok: '2026-10-21T07:00:00Z' }
+          : { failure: { kind: 'unavailable', owner: 'agentClock', diagnostic: 'source offline' } }
       readonly waitUntil: AgentClockService['waitUntil'] = async () => ({ ok: 'elapsed' })
     }
     const root = new Context()
@@ -164,6 +169,11 @@ describe('under Cordis 4.0.4', () => {
     await fiber
     const clock = root.get(agentClockKey)
     expect(clock).toBeInstanceOf(AgentClockService)
+    expect(await clock?.now()).toEqual({ ok: '2026-10-21T07:00:00Z' })
+    available = false
+    expect(await clock?.now()).toEqual({
+      failure: { kind: 'unavailable', owner: 'agentClock', diagnostic: 'source offline' },
+    })
     expect(await clock?.waitUntil('2026-01-01T00:00:00Z', new AbortController().signal)).toEqual({
       ok: 'elapsed',
     })

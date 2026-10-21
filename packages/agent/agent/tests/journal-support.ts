@@ -217,7 +217,7 @@ export async function finishInput(journal: Journal, opened: Opened, name = 'fini
       conclusion: { kind: 'complete' },
       inputWatermark: snapshot.inputWatermark,
       obligations: evidence('obligations'),
-      beforeTerminal: null,
+      beforeTerminal: evidence('before-terminal'),
       failure: null,
     },
   } as const
