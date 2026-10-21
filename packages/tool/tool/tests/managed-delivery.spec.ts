@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readToolInvocationRef, readToolOperationRef } from '@omne-harness/tool-contract'
 import type {
   Handoff,
   ToolReleaseDeliveryOutcome,
@@ -48,7 +49,7 @@ describe('16 delivery release (P08)', () => {
     ['processed', processed],
   ])('16 release: the %s path releases the delivery with a Tool-side receipt', async (_, proof) => {
     const assembly = harness()
-    const invoked = await assembly.invoke(dummyRequest())
+    const invoked = await assembly.admitInternal(dummyRequest())
     if (invoked.kind !== 'accepted') throw new Error('not admitted')
     const lookupInput = {
       principal: principalA,
@@ -103,7 +104,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: one commit releases the result, records the receipt and the state, and removes the deliver task', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const released = releasedReceipt(
       await assembly.runtime.commands.releaseDelivery(release(retained)),
     )
@@ -136,7 +137,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: the consumer and the handoff are closed values, checked before any digest', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const withFunction = { ...consumer, work: () => 'work-1' }
     expect(
       await assembly.runtime.commands.releaseDelivery(
@@ -172,7 +173,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: a second release answers the released state and writes nothing more', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const released = releasedReceipt(
       await assembly.runtime.commands.releaseDelivery(release(retained)),
     )
@@ -189,7 +190,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: another consumer position is a conflict and the delivery stays pending', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const other = { ...consumer, position: 'position-2' }
     expect(
       await assembly.runtime.commands.releaseDelivery(release(retained, { consumer: other })),
@@ -209,7 +210,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: evidence that the consumer does not own, a wrong delivery and an unknown version are refused', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const foreign: Handoff = { kind: 'retained', custody: evidence('kept', 'someone-else') }
     expect(await assembly.runtime.commands.releaseDelivery(release(foreign))).toEqual({
       kind: 'rejected',
@@ -243,7 +244,7 @@ describe('16 delivery release (P08)', () => {
 
   it('16 release: the same operation with another handoff is a conflict', async () => {
     const assembly = harness()
-    await assembly.invoke(dummyRequest())
+    await assembly.admitInternal(dummyRequest())
     const { reference: _reference, ...payload } = release(retained)
     const mutation = {
       ...payload,
@@ -258,25 +259,134 @@ describe('16 delivery release (P08)', () => {
     expect(assembly.store.commits).toBe(2)
   })
 
-  it('16 release: an unknown commit keeps the responsibility until the operation is recognised', async () => {
-    const assembly = harness()
-    await assembly.invoke(dummyRequest())
-    assembly.store.injectCommit('unknown-applied')
-    const unknown = await assembly.runtime.commands.releaseDelivery(release(retained))
-    if (unknown.kind !== 'commit-unknown')
-      throw new Error(`expected commit-unknown: ${JSON.stringify(unknown)}`)
-    const resolved = ok(
-      await assembly.runtime.queries.queryOperation({
+  it.each([
+    { path: 'retained', proof: retained, fault: 'unknown-dropped' },
+    { path: 'processed', proof: processed, fault: 'unknown-dropped' },
+    { path: 'retained', proof: retained, fault: 'unknown-applied' },
+    { path: 'processed', proof: processed, fault: 'unknown-applied' },
+  ] as const)(
+    '16 release: $path recognises the original operation after $fault without losing delivery or content',
+    async ({ proof, fault }) => {
+      const assembly = harness()
+      const invoked = await assembly.runtime.invoke({
         principal: principalA,
         tenant: tenantA,
-        operation: unknown.operation,
-      }),
-    )
-    expect(resolved.kind).toBe('committed')
-    expect(await assembly.runtime.commands.releaseDelivery(release(retained))).toMatchObject({
-      kind: 'released',
-      receipt: { kind: 'released' },
-    })
-    expect(assembly.store.commits).toBe(2)
-  })
+        request: dummyRequest(),
+      })
+      if (invoked.kind !== 'accepted' || invoked.state.phase !== 'settled')
+        throw new Error('fixture did not settle')
+      const pending = invoked.state.delivery
+      if (pending === null || pending.kind !== 'pending')
+        throw new Error('fixture delivery was not pending')
+      const { call, admission } = readToolInvocationRef(invoked.reference)
+      const access = { principal: principalA, tenant: tenantA, reference: invoked.reference }
+      const readInput = { ...access, result: invoked.state.result, after: null }
+      const originalPage = ok(await assembly.runtime.queries.readResult(readInput))
+      const tasks = () =>
+        assembly.ledger.commands
+          .loadRecovery({ principal: principalA, tenant: tenantA, call })
+          .then(ok)
+          .then(recovery => recovery.tasks.filter(task => task.kind === 'deliver'))
+      const originalTasks = await tasks()
+      expect(originalTasks).toEqual([
+        {
+          kind: 'deliver',
+          operation: admission,
+          state: 'pending',
+          diagnostic: null,
+          result: invoked.state.result,
+          delivery: pending.delivery,
+          consumer,
+        },
+      ])
+      expect(originalPage.value.content.map(textOf).join('')).toContain('tool unavailable')
+      const input = {
+        ...access,
+        result: invoked.state.result,
+        delivery: pending.delivery,
+        consumer,
+        evidence: proof,
+      }
+      const before = assembly.store.commits
+      assembly.store.injectCommit(fault)
+      const unknown = await assembly.runtime.commands.releaseDelivery(input)
+      if (unknown.kind !== 'commit-unknown')
+        throw new Error(`expected commit-unknown: ${JSON.stringify(unknown)}`)
+      const operation = readToolOperationRef(unknown.operation)
+      expect(operation).toMatchObject({ tenant: tenantA, call, admission })
+      expect(operation.operation).not.toBe(admission)
+      expect(assembly.store.commits).toBe(before + 1)
+
+      const query = { principal: principalA, tenant: tenantA, operation: unknown.operation }
+      assembly.store.injectRead('unavailable')
+      expect(await assembly.runtime.queries.queryOperation(query)).toMatchObject({
+        failure: { kind: 'unavailable', dependency: 'ledger-store' },
+      })
+      expect(assembly.store.commits).toBe(before + 1)
+      const resolution = ok(await assembly.runtime.queries.queryOperation(query))
+      const found = ok(await assembly.runtime.queries.lookup(access))
+      if (found.kind !== 'found' || found.state.phase !== 'settled')
+        throw new Error('lost the settled call')
+      expect(found.state.result).toBe(invoked.state.result)
+      expect(ok(await assembly.runtime.queries.readResult(readInput))).toEqual(originalPage)
+
+      const saved = await assembly.store.read({ kind: 'call', tenant: tenantA, call })
+      if (saved.kind !== 'complete') throw new Error('fixture store unreadable')
+      const originalOperation = saved.records.find(
+        record => record.kind === 'operation' && record.operation.operation === operation.operation,
+      )
+      if (fault === 'unknown-dropped') {
+        expect(resolution).toEqual({ kind: 'not-committed' })
+        expect(originalOperation).toBeUndefined()
+        expect(judged(found.state).delivery).toEqual(pending)
+        expect(await tasks()).toEqual(originalTasks)
+      } else {
+        if (resolution.kind !== 'committed' || originalOperation?.kind !== 'operation')
+          throw new Error('lost the committed release operation')
+        expect(resolution.revision).toBe(originalOperation.operation.revision)
+        expect(resolution.receipt).toMatchObject({
+          owner: '@omne-harness/tool',
+          revision: originalOperation.operation.revision,
+          record: `operation:${JSON.stringify({
+            call,
+            operation: operation.operation,
+            tenant: { account: tenantA.account.text, organization: tenantA.organization.text },
+          })}`,
+        })
+        expect(originalOperation.operation.receipt).toEqual({
+          kind: 'release-delivery',
+          delivery: found.state.delivery,
+        })
+        expect(found.state.delivery).toMatchObject({
+          kind: 'released',
+          delivery: pending.delivery,
+          consumer,
+          evidence: { owner: '@omne-harness/tool' },
+        })
+        expect(await tasks()).toEqual([])
+      }
+
+      const beforeExplicitRelease = assembly.store.commits
+      const released = releasedReceipt(await assembly.runtime.commands.releaseDelivery(input))
+      expect(assembly.store.commits).toBe(
+        beforeExplicitRelease + (fault === 'unknown-dropped' ? 1 : 0),
+      )
+      if (fault === 'unknown-applied') expect(released).toEqual(found.state.delivery)
+      expect(released.evidence.owner).toBe('@omne-harness/tool')
+      expect(released.evidence).not.toEqual(
+        proof.kind === 'retained' ? proof.custody : proof.completion,
+      )
+      const final = ok(await assembly.runtime.queries.lookup(access))
+      expect(final).toMatchObject({ kind: 'found', state: { delivery: released } })
+      expect(await tasks()).toEqual([])
+      expect(ok(await assembly.runtime.queries.readResult(readInput))).toEqual(originalPage)
+      expect(ok(await assembly.runtime.queries.queryOperation(query))).toEqual(resolution)
+      const commits = assembly.store.commits
+      expect(await assembly.runtime.commands.releaseDelivery(input)).toEqual({
+        kind: 'released',
+        receipt: released,
+      })
+      expect(assembly.store.commits).toBe(commits)
+    },
+  )
 })

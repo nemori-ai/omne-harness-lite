@@ -14,13 +14,14 @@
         必需与可选端口的分类见 SPEC 的输入与依赖表，配置的取值范围见实现包
 
 普通调用方提交 invoke，带当前主体、租户和 payload
-    runtime 分配 call/admission 并由受信入口绑定来源
+    受信来源 resolve 原子分配或认回 call/admission，并保存完整来源绑定
     成功：accepted 返回调用引用和原状态回执，随后推进准备、排队与启动
-    相同 payload 再 invoke 是独立新调用
+    同 tenant/完整 consumer/请求再次 invoke 认回原引用与原受理回执；新执行使用新 consumer
     拒绝：rejected 给出具名 failure
-    未知：commit-unknown 带原调用引用，以 queries.lookup 认回原 admission
+    未知：commit-unknown 带原调用引用；来源或准入尚未知时沿原 invoke 接续
+        queries.lookup 查询当前准入状态，不能空读后换身份
         否定答案必须先排除该操作所有在途提交
-        完整响应丢失前未保存引用时，不能按 payload 找回
+        无引用的 association-unknown 仍以原 consumer 和固定请求重新 invoke
 
 消费方读取已保存的内容
     queries.readProcess 取过程，queries.readResult 按版本分页取结果，content 读取原内容
@@ -341,3 +342,5 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 准入、启动、等待、结果和恢复时序见 [flows](flows.md)。每条端口在 [protocols](../SPEC.md#tool-操作协议) 有守卫、提交点、失败及未知处理；产品逐项映射见 [coverage](../verification/README.md)。
 
 移除目录后仍可查询和控制原调用，只失去活体快速观察。移除当前 ToolDriver 后能从持久任务恢复。移除持久任务则无法保留外域回执未知责任，因此不能以 registry 的 Map 替代。移除程序执行方的程序内存后仍能列出子调用并保管迟到结果。上述反查是责任分离是否成立的最低判据。
+
+来源事实以合法 tenant 与完整 consumer 定位，保存原请求、原主体、call/admission 和 reserved/issued 阶段。索引属于同一事实。控制 operation 独立于该关联，每次公开 control 是新提交；内部同 operation 的认回不等于公开重发。

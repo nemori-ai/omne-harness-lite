@@ -5,6 +5,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   CallAccess,
   FixedToolRequest,
+  DurableEvidence,
   Mutation,
   Reply,
   ResultPolicy,
@@ -13,12 +14,12 @@ import type {
   ToolCallId,
   ToolCatalog,
   ToolChildren,
+  ToolContentReader,
   ToolClock,
   ToolCommands,
   ToolDecisionBridge,
   ToolEnvironment,
   ToolInstanceHost,
-  ToolInvocationIdentities,
   ToolInvocationSourceIssuer,
   ToolOperationIdentities,
   ToolOutputCustody,
@@ -103,6 +104,7 @@ export type ToolLedgerQueues<P> = Readonly<{
 }>
 
 export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
+  facts: ToolLedgerFacts<P, B>
   commands: ToolCommands<P, B>
   admissions: ToolLedgerAdmissions<P>
   queues: ToolLedgerQueues<P>
@@ -118,10 +120,22 @@ export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   catalog: ToolCatalog<P>
   reads: ToolReads<P, B>
   children: ToolChildren<P>
-  /** Mints the call and admission identities of every ordinary invoke. */
-  invocationIdentities: ToolInvocationIdentities
   /** Mints the operation identity of every ordinary command. */
   operationIdentities: ToolOperationIdentities
-  /** The trusted entry that binds the invocation source of an ordinary invoke. */
+  /** The trusted source that atomically establishes or recalls the original invocation association. */
   sourceIssuer: ToolInvocationSourceIssuer<P>
+}>
+
+/** Trusted recovery consumers can recover complete original facts by their exact evidence. */
+export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
+  read(
+    input: CallAccess<P> & Readonly<{ basis: DurableEvidence }>,
+  ): Reply<import('./ledger-store.ts').SavedFact<B>>
+}>
+
+/** Explicit ledger providers. A null content reader disables byte reads only. */
+export type ToolLedgerPorts<P> = Readonly<{
+  content: Pick<ToolContentReader<P>, 'read'> | null
+  custody: Pick<ToolOutputCustody<P>, 'retainResult'>
+  releaseInspection: Pick<ToolEnvironment<P, unknown>, 'inspectRelease'>
 }>

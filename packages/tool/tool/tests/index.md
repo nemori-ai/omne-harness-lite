@@ -15,6 +15,9 @@
 - [启动路径的排除与已收场调用的队列条目测试](start-exclusion.spec.ts)。
 - [队列域的释放记忆、释放依据、认回与对账测试](queue-release.spec.ts)。
 - [推进协程的重新推进测试](driver-retrigger.spec.ts)。
+- [绑定启动、失败与未知认回测试](binding-start.spec.ts)。
+- [绑定启动的并发交错测试](binding-races.spec.ts)。
+- [未知异常与未处理拒绝的观察工具](caught-rejection.ts)。
 - [测试依赖装配行为](testing-dependencies.spec.ts)。
 - [测试依赖装配类型](testing-dependencies.spec-d.ts)。
 - [调用方测试端口](testing-values.ts)。
@@ -28,3 +31,18 @@
 
 - [普通调用与引用行为](invocation-runtime.spec.ts)。
 - [来源绑定与篡改拒绝](invocation-source.spec.ts)。
+
+- [公开原意图恢复组合](invoke-recovery.spec.ts)。
+
+- [主体语义快照与真实来源签发切点](source-principal.spec.ts)。
+
+- [事实保管、连续游标与原件恢复](facts-receive.spec.ts)。
+
+- [来源确认、未知重入与 operation 围栏](fact-acknowledgement.spec.ts)。
+
+- [自动原事实与取消恢复组合](driver-facts.spec.ts)。
+
+- [原结果与三域未知](ledger-settlement.spec.ts)。
+- [canonical 环境清理与报告核验](ledger-environment-release.spec.ts)。
+- [多 operation 排除交错](exclusion-interleavings.spec.ts)。
+- [收场、同 slot 后继、ACK 与异常来源组合](driver-settlement.spec.ts)。

@@ -11,9 +11,12 @@
 - 独立路径：`createIndependentToolScope`（G2）与 `executeTool`（G8），即契约 SPEC [P11](../tool-contract/SPEC.md#p11-作者输出与等待原语) 的独立执行。
 - 账本：账本工厂 `createToolLedger` 与记录仓端口 `ToolLedgerStore`（G1）。
 - 逻辑终局：`createToolRuntime`（G8）的 invoke、queries.lookup、queries.queryOperation、queries.readResult、commands.releaseDelivery 与 queries.account。这些调用不进入环境或执行者（第 10–16 条）。
-- 到启动为止的真实调用：受理、环境准备、FIFO 排队、启动意图、启动围栏与启动记录，以及启动前的拒绝收场（第 19–23 条）。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。
+- 读取：固定结果完整块页、关联附件字节页和精确原件元数据，IO 后复核当前资格；字节读取须显式 provider，附非耐久内存组合（第 27 条）。
+- 事实保管：受信 `commands.receiveFacts` 接收 process/final，`recordFactAcknowledgement` 核来源确认并清除 ACK 责任，`loadRecovery.streams` 与实现读口 `ledger.facts.read` 提供恢复依据（第 24 条）。
+- 已启动调用收场：从原保存 final 主动确认独立结果保管，原子建立原结果、交付、真实 effect、物理结束及后继任务，跨域修复释放队列名额。环境释放只交付计划与报告核验（第 26 条）。
+- 到启动为止的真实调用：受理、环境准备、FIFO 排队、启动意图、live-only 绑定启动、原围栏对账与启动记录，以及永久排除后的启动前拒绝收场（第 19–23 条）。前台启动通过装配传入的 `ToolClock.begin` 开启计时段。
 
-尚未实现：已启动执行的事实接收、收场与名额释放，以及控制、计时段开启之后的计时、等待、恢复与退出。这些操作回复具名的 `unsupported`。所以一个已启动的调用停在 `running`，它的名额一直被占用。内部机制见 [architecture](docs/architecture.md)。
+尚未实现：真实环境 release 自动驱动、完整计时、控制、等待、过程观察、恢复扫描、排空与交接。未交付的操作或分支回复具名 `unsupported`。slot 释放不证明环境资源已经释放。内部机制见 [architecture](docs/architecture.md)。
 
 ## 独立执行怎样满足 P11
 
@@ -86,9 +89,9 @@
 
 ## 受理账本怎样满足 P01、P02、P08 与 P09
 
-账本由 `createToolLedger(store, guards, clock, configuration)` 构造。runtime 由 `createToolRuntime(dependencies, configuration)` 构造。两者可以取同一个 `ToolConfiguration`：账本只读其中的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1)。下列规则按编号对应测试。
+账本由 `createToolLedger(store, guards, clock, configuration, ports)` 构造。runtime 由 `createToolRuntime(dependencies, configuration)` 构造。两者可以取同一个 `ToolConfiguration`：账本只读其中的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。数据形状与决定顺序见 [architecture](docs/architecture.md#本包的记录仓与决定器g1)。下列规则按编号对应测试。
 
-签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration)` 返回 `{ commands, reads, admissions, queues }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。
+签名与契约 [G1](../tool-contract/SPEC.md#契约缺口决定g1g9) 一致：`createToolLedger(store, guards, clock, configuration, ports)` 返回 `{ commands, reads, admissions, queues, facts }`。`configuration` 给出结果页大小、提交重试上限与队列容量，三者都只有一处来源，即 `ToolConfiguration`。第五参数 `ToolLedgerPorts<P>` 必填，提供 `custody.retainResult`、`releaseInspection.inspectRelease` 与显式 `content` 字节读口或 `null`，不提供默认授权或旧构造。runtime 的 `dependencies.facts` 必须使用同账本 `facts`，配置检查核必要方法。
 
 ### 10 边界与资格
 
@@ -100,7 +103,7 @@
 
 ### 11 操作幂等（P01）
 
-同 tenant、call、operation、同规范输入摘要的重送回复原回执。内部账本的 admit 同时说明它是否认回了已提交的受理。普通 runtime.invoke 每次分配新身份，若收到 recovered=true，报告身份提供者违约并且不调度。内部 admission 不先读操作记录，所以受理只需要 `admit` 资格。两个首次受理同时竞争时，先提交的那次得到 `recovered: false`；后一次的提交因修订冲突失败，重读后认回原受理，得到原回执与 `recovered: true`。同操作异摘要回复 `conflict`。
+同 tenant、call、operation、同规范输入摘要的重送回复原回执。内部账本的 admit 同时说明它是否认回了已提交的受理。普通 runtime.invoke 通过来源 resolve 认回原身份，accepted.recovered 为来源或账本认回的逻辑或。内部 admission 不先读操作记录，所以受理只需要 `admit` 资格。两个首次受理同时竞争时，先提交的那次得到 `recovered: false`；后一次的提交因修订冲突失败，重读后认回原受理，得到原回执与 `recovered: true`。同操作异摘要回复 `conflict`。
 
 已受理的调用再以另一操作号 admit 回复 `stale-revision`，`current` 是当前状态的修订号。带 `WriteContext` 的命令先比对 `expected` 与当前状态的修订号，不匹配回复 `stale-revision`，再进入命令本身。提交结果未知回复 `commit-unknown`，Tool 不在内部重试该提交。调用者以 `queryOperation` 认回：已落盘则 `committed`，重送得到原回执且不再写第二次；否定答案见第 14 条。记录仓读取失败回复 `unavailable`（`dependency` 为 `ledger-store`），不冒充调用不存在。修订冲突时重读重判，次数上限是 `ledgerCommitAttempts`；用尽后回复 `unavailable`（`ledger-store`，`<次数> revision conflicts in a row`）。
 
@@ -169,13 +172,17 @@
 
 `releaseDelivery` 先用契约的 `judgeConsumerRef` 与 `judgeHandoff` 封闭检查消费位置与交接证据，再比较或计算摘要。多出的字段回复 `invalid`（`unknown-field`），函数等非文本值回复 `invalid`（`type`），字段前缀是 `consumer.` 或 `evidence.`。之后核版本、交付号与消费位置都是记录的值：未知调用回复 `invalid`（`call: unknown-call`），交付号不符回复 `invalid`（`delivery: mismatch`），版本未知回复 `invalid`（`result: unknown-version`），消费位置不同回复 `conflict`，`operation` 是形成该版本的操作。`retained` 的 `custody` 或 `processed` 的 `completion` 的 `owner` 必须等于消费者的 `owner`，否则回复 `invalid`（`evidence.<custody|completion>.owner: owner-mismatch`）。
 
-通过后一次提交同时写入结果记录的 `released`、操作回执、调用状态，并删除 `deliver` 任务。`released.evidence` 由本包铸造（第 15 条的 `delivery` 种类），不是请求证据的回送。已解除的交付再次解除（同操作或新操作）回复已解除状态，不再写入。解除后全文仍可经 `readResult` 读取。
+通过后一次提交同时写入结果记录的 `released`、操作回执、调用状态，并删除 `deliver` 任务。`released.evidence` 由本包铸造（第 15 条的 `delivery` 种类），不是请求证据的回送。已解除的交付再次解除（同操作或新操作）回复已解除状态，不再写入。解除后全文仍可经 `readResult` 读取，原附件和必要过程也独立保留。解除交付不授权删除内容。
+
+未知答复不等于交付必然 `pending`。内存记录仓的 `unknown-dropped` 不应用写集合，首次解除后查询原操作得到 `not-committed`，目标交付、原 `deliver` 任务与内容保持。`unknown-applied` 已应用写集合，查询原操作得到 `committed`，`lookup` 可见目标已 `released`，该版本的任务已经结束。查询不可读时保留原操作与承接责任，不自动重发。可靠否定后明确再次解除时，若尚未解除才提交，若已有释放事实则返回原回执。
+
+版本隔离按已有结果记录兑现。解除原始版本只更新其 delivery；解除 supplement 只更新 result 相同的 supplement。其他版本的完整 delivery、交付任务与固定版本内容保持不变。每个版本使用自己的 result、delivery 和原 consumer。当前 `recordLateResult` 尚未实现，多版本释放测试采用已有记录夹具，只验证释放隔离，不证明晚到结果生成。
 
 ### 17 工厂与后续增量
 
-`createToolRuntime` 在构造时检查配置：作者限额、容量、`queueCapacity` 与 `ledgerCommitAttempts` 是正安全整数，处理延迟（`processBatchDelayMs` 等）是非负安全整数，可选的 `driverStepsPerRun` 缺省为 16，给出时是正安全整数；可选的 `driverRetryDelayMs` 缺省为 1000，给出时是 1 到 2147483647 的整数，这是定时器能持有的最长延迟，0 与超过定时器上限的值抛 `TypeError`（第 23 条）。`createToolLedger` 检查它读取的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。宿主每次调用 driver.run 显式提供 instance，不存在工厂级 instance。缺端口或超出范围抛 `TypeError`，因为这是装配缺陷。`ToolDependencies.admissions` 是账本的 admit 入口（`ToolLedger.admissions`），runtime 的 invoke 在身份分配与来源绑定后用它；`ToolDependencies.queues` 是账本的队列维护入口（`ToolLedger.queues`），推进协程的等待者用它对账（第 22 条）。runtime、窄接口与 provider 都是冻结对象。受信的 invocationIdentities、operationIdentities 和 sourceIssuer 必须显式装配，不提供生产默认来源签发器。普通调用及引用失败协议归[契约的普通操作](../tool-contract/SPEC.md#342-普通操作与实例目录)。
+`createToolRuntime` 在构造时检查配置：作者限额、容量、`queueCapacity` 与 `ledgerCommitAttempts` 是正安全整数，处理延迟（`processBatchDelayMs` 等）是非负安全整数，可选的 `driverStepsPerRun` 缺省为 16，给出时是正安全整数；可选的 `driverRetryDelayMs` 缺省为 1000，给出时是 1 到 2147483647 的整数，这是定时器能持有的最长延迟，0 与超过定时器上限的值抛 `TypeError`（第 23 条）。`createToolLedger` 检查它读取的 `resultPageBytes`、`ledgerCommitAttempts` 与 `queueCapacity`。宿主每次调用 driver.run 显式提供 instance，不存在工厂级 instance。缺端口或超出范围抛 `TypeError`，因为这是装配缺陷。`ToolDependencies.admissions` 是账本的 admit 入口（`ToolLedger.admissions`），runtime 的 invoke 在来源 resolve 原子建立或认回原身份后用它；`ToolDependencies.queues` 是账本的队列维护入口（`ToolLedger.queues`），推进协程的等待者用它对账（第 22 条）。runtime、窄接口与 provider 都是冻结对象。受信的 operationIdentities 和 sourceIssuer.resolve 必须显式装配，不提供生产默认来源签发器。普通调用及引用失败协议归[契约的普通操作](../tool-contract/SPEC.md#342-普通操作与实例目录)。
 
-构造时 runtime 把推进协程装到 `instances.install`。装入不受理业务，也不读写记录仓。真实工具的 invoke 受理成功且阶段为 `accepted` 时，runtime 调用 `instances.schedule` 唤醒该调用。首次新身份收到 recovered=true 不调度。唤醒只是提示：它抛出或失败都不改变 accepted 的回复。`inspect` 转给 `catalog.inspect`，不另加判断（P16）。
+构造时 runtime 把推进协程装到 `instances.install`。装入不受理业务，也不读写记录仓。真实工具的 invoke 受理成功且阶段为 `accepted` 时，runtime 调用 `instances.schedule` 唤醒该调用。原受理回执被认回时，lookup 当前状态仍待启动则补 wake，running/settled 不补；查询未知允许保守补 wake。唤醒只是提示：它抛出或失败都不改变 accepted 的回复。`inspect` 转给 `catalog.inspect`，不另加判断（P16）。
 
 未实现的操作回复 `unsupported`，`adoption` 是 `tool-runtime` 或 `tool-ledger` 的采用，`reason` 说明操作名与它所属的后续增量。没有操作抛异常或回复空成功。`catalog` 是依赖给出的端口，content 与 instances 先解析调用引用再进入原读取端口或目录。
 
@@ -189,6 +196,15 @@
 - `unknown-dropped`：未写入，回复未知。
 - `unknown-delayed`：现在不写入，回复未知；提交保持在途，直到 `landDelayed` 按顺序落盘。落盘时重新比对 `expected`，修订号已变则丢弃并报告 `conflict`。
 - `throw-applied`：已写入后抛出。
+
+
+内存仓先在局部 Map 完成全部新值复制、put 与 delete，再同步发布 records 与 revision。复制拒绝不留下部分写入。正常提交、已应用未知、应用后抛错与延迟落地共用此路径；应用后抛错仍保留完整提交。`HostRecord.value` 的 `unknown` 不承诺任意宿主值都能编码。
+
+`toolLedgerStoreConformance()` 提供记录仓判据，`toolLedgerStoreCompositionConformance()` 用真实 ledger 提供 P01 组合判据。两者只从 `./testing` 返回既有 ConformanceCase 数组，用 node:assert 判定。具体 fixture、控制与资源责任见 [public-api](docs/public-api.md#ledger-store-conformance-testing)，消费方式见 [README](README_ZH.md#记录仓一致性用例)。提供者只供应 store，不供应 ledger 或业务 oracle。
+
+每个 case 使用新 fixture。可选手柄分别缺失时，在首次装配、seed 和 IO 前用 tool-contract/testing 的既有 NotApplicable 报告，不能作为 passed。有手柄但未制造故障仍失败。编码拒绝 probe 使用提供者明确拒绝的值，接受异常、unknown 或 unavailable 后核完整快照与 revision 未变，并核同形全合法写集成功。该 probe 的 expected 匹配且没有竞争，任何 committed 或 conflict 都失败。它不定义统一编码拒绝协议。延迟控制的 land 完成前必须重核原 expected；成功否定围栏排除旧在途尝试，随后同身份新尝试仍可受理并删除旧 exclusion。
+
+Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/reads 上的拒绝与零 store IO，不覆盖引用 codec、runtime 适配或生产身份系统。内存两组全部 passed、零 not-applicable 仅支持本进程非耐久证据，不证明真实数据库、跨重启、多连接或断电保证。验证资源见[测试导航](tests/README.md#记录仓公共一致性用例)。
 
 `createTestToolDependencies<P>` 的公开类型由 `src/testing.ts` 拥有。它固定使用 `ContentBlock` 和 `MemoryEnvironment`，每次新建七个契约内存替身、记录仓与账本，并返回完整依赖与原始手柄。调用方显式提供实例身份、守卫、配置、宿主、Catalog、子调用端口及 `bindingsFor` 解析接线。工厂不隐式授予权限，也不把 executor binding 当作 `ToolBindings`。runtime 与账本共用调用方给定的结果政策。工厂本身不构造 runtime、不装入推进协程、不调度调用，异常沿既有账本构造或调用方回调传播。输入和使用方式见 [README](README_ZH.md#testing-入口)。
 
@@ -213,7 +229,7 @@
 5. `enqueue` 先把队列条目改为 `ready`，再把状态改为 `queued`。
 6. `prepareStart` 在一个队列域事务里裁定队首与名额。条目是 `ready`，没有序号更小且尚未持有名额的条目，且已持有名额的条目数小于本调用固定的 `limits.concurrency`，才把条目改为 `held`。`null` 表示没有数量上限，但 FIFO 仍然适用。未轮到时回复 `unavailable`（`dependency` 为 `tool-queue`），诊断说明前面的条目数、持有数与上限。这一回复不写任何记录，也不是执行失败。
 
-仍在准备的较早调用（条目 `preparing`）不持有名额，但后来的同 key 调用不能越过它。转后台的调用与前台调用一样持有名额，因为名额按条目阶段计数，不看关系。名额只在条目删除时释放，删除只凭调用域里的释放依据（第 22 条）。本包现在的释放依据只有启动前的拒绝（第 21 条）。已启动执行的物理结束作为依据，随后续增量加入；仅逻辑收场不是依据。
+仍在准备的较早调用（条目 `preparing`）不持有名额，但后来的同 key 调用不能越过它。转后台的调用与前台调用一样持有名额，因为名额按条目阶段计数，不看关系。名额只在条目删除时释放，删除只凭调用域里的释放依据（第 22 条）。本包支持启动前拒绝保存的排除证据（第 21 条），以及已启动执行的可信原 final 结束依据（第 26 条）。仅逻辑收场不是释放依据。
 
 容量：真实工具的 admit 在提交前读一次队列域。该 key 下尚未释放的条目数达到 `ToolConfiguration.queueCapacity` 时回复 `unavailable`（`dependency` 为 `tool-queue`），不写记录。容量只拒绝参数通过的真实工具：dummy 不读队列域，参数失败照常形成失败终局，两者都不占条目。重送已受理的操作先认回，不受容量影响。
 
@@ -227,7 +243,7 @@
 
 `recordStart` 只接受本调用保存的那条启动记录，阶段必须是 `starting`。
 
-- `started`：状态改为 `running`，`execution` 为 `live`，`instance` 是写入上下文的实例。前台调用先由 `clock.begin` 开始计时段，`timing` 为 `running`。后台调用的 `timing` 为 `paused`。删除 `start` 待办。名额保持。
+- `started`：状态改为 `running`，`execution` 为 `live`，`instance` 是写入上下文的实例。前台调用先由 `clock.begin` 开始计时段，`timing` 为 `running`。后台调用的 `timing` 为 `paused`。删除 `start` 待办，并同提交原 start 的 `facts` 续读待办，其独立 fact-reader evidence 绑定原 start。名额保持。
 - `rejected`：同提交永久的启动拒绝、`unavailable` 终局、`effect` 与 `execution` 为 `not-started`、计时关闭、`queue` 为 `released`（释放依据是排除证据）、第一个结果版本、替换件处理账与 `deliver` 待办。然后释放队列条目（第 22 条）。
 - `not-started` 与 `unknown`：保存回执，启动记录与 `start` 待办保留。`unknown` 把 `execution` 改为 `unknown`。
 
@@ -235,13 +251,13 @@
 
 ### 22 跨域提交与修复
 
-调用域与队列域没有共同事务。每个跨域转换按同一顺序提交：调用域先写 `queue` 待办，队列域再做转换，调用域最后写结果并删除该待办。启动拒绝是例外：调用域先写结果，队列域后释放，调用域最后删除待办（见下面的「启动拒绝」）。
+调用域与队列域没有共同事务。普通跨域推进先由调用域写 `queue` 待办，队列域再做转换，调用域最后记录推进结果并删除该待办。终局释放用于启动拒绝和原 final 的 `preserveResult`：调用域先同提交终局结果、释放依据与 `queue` 待办，队列域再删除条目并写墓碑，调用域最后删除该待办。启动拒绝见下面的「启动拒绝」，原 final 收场见第 26 条。
 
 队列条目复制了调用域拥有的阶段，而队列域不能读调用域，也就不能核对条目。所以条目的生命周期靠三件事守住：队列域记住释放过的调用，只凭调用域里的依据释放，条目记录移动它的操作号。
 
 - 认回：条目的 `operation` 是最后移动它的操作号。`enqueue` 与 `prepareStart` 的队列步骤遇到已越过本步的条目时，同一操作号认回，另一个操作号回复 `conflict`，所以重做不会产生第二个条目或第二次持有，别的身份也不会借走已移动的条目。创建步骤（admit 的序号分配与 `planPreparation`）遇到仍是 `preparing` 的条目按调用认回：两个入口创建的是同一个条目，且这一步不移动它；遇到已越过 `preparing` 的条目时，只有移动它的操作号认回，其余回复 `conflict`。
 - 释放记忆：队列域为每个释放过的调用保存一条 `queue-release` 记录（墓碑，键 `released:<调用>`）。释放把删除条目与写墓碑放进同一个队列提交，没有条目的调用也写墓碑。创建条目的决定见到墓碑就回复 `released`，什么也不写。所以已释放的调用在它的 key 里永远不会再得到条目，不论调用域的读取与队列域的提交怎样交错，也不论创建提交回答未知、延迟落盘、之后读取失败还是进程崩溃：延迟落盘的创建提交带着旧修订号，而释放已推进了队列域修订号，落盘时被丢弃。这是队列域本地的安全性质，不依赖谁先读谁先写。`planPreparation` 的创建步骤回复 `released` 时，计划已经过期：命令按调用域的现状回复 `stale-revision`，修订号仍相符时回复 `invalid`（`call: queue-released`），不留条目。墓碑在 0.0.x 不剪枝；以后只能在恢复增量的压缩下剪，并写明陈旧界限。时间界限只用于回收，绝不用于安全。
-- 释放依据：只有调用域持有释放依据时才删除条目、写墓碑。依据由 `releaseBasisOf` 从调用记录读出：启动前拒绝保存的排除证据（`startRejection`）。仅逻辑收场（`settled`）不是依据，因为它不证明名额已空（契约 P02）。已启动执行的物理结束证明作为依据，随后续增量加入：`ReleaseBasis` 已声明它的位置（`physical-end`），本增量不构造它。`releaseQueue` 在收场提交之后重读调用域取依据，没有依据就不释放，也不关闭 `queue` 待办。
+- 释放依据：只有调用域持有释放依据时才删除条目、写墓碑。依据由 `releaseBasisOf` 从调用记录读出：启动前拒绝保存的排除证据（`startRejection`）。仅逻辑收场（`settled`）不是依据，因为它不证明名额已空（契约 P02）。已启动执行只从已 settled 且 `execution.ended` 持有的可信原 final 构造 `physical-end` 依据（第 26 条），不能从任意 terminal、通道结束或 disposer 推断。`releaseQueue` 在收场提交之后重读调用域取依据，没有依据就不释放，也不关闭 `queue` 待办。
 
 - 启动拒绝：调用域先收场，队列域后释放。释放失败时命令回复失败，`queue` 待办保留。推进协程看到已收场且有 `queue` 待办的调用时，以原操作号重发同一拒绝命令：调用域认回原回执，队列域释放（条目已不存在也写墓碑），调用域删除待办。
 - 被否定答案排除（第 14 条）的 `prepareStart` 已经完成队列步骤时，条目保持 `held`，没有对应的启动提交。命令不回退这一步：回退把条目放回 `ready` 并不释放名额，还会与另一个进程对同一操作的重做竞争。`planPreparation` 与 `enqueue` 被排除时条目保留 `preparing` 或 `ready`，调用仍在等待这一步，重做认回它们。
@@ -258,7 +274,7 @@
 
 ### 23 推进协程
 
-推进协程只经过账本命令写记录。它读 `loadRecovery`，按阶段与待办做一步，然后重读，直到调用等待、运行、收场或某个端口不能回答。每次最多 `ToolConfiguration.driverStepsPerRun` 步，缺省为 16。`commit-unknown`、`stale-revision` 与被否定答案排除的回复（第 14 条）都不停止推进：协程重读后重做同一步，同一身份。这三种回答都不算进展：只有提交了或认回了一次提交的步骤才算。它的操作号由受理操作号派生：`<受理>/plan`、`/prepared`、`/enqueue`、`/start`、`/started`、`/exclude`、`/reject`。所以崩溃后重做用的是同一身份，第 11 条的认回直接适用。同一进程内同一调用的运行串行，跨进程的唯一写者由修订号裁定。
+推进协程只经过账本命令写记录。它读 `loadRecovery`，按阶段与待办做一步，然后重读，直到调用等待、运行、收场或某个端口不能回答。每次最多 `ToolConfiguration.driverStepsPerRun` 步，缺省为 16。`commit-unknown`、`stale-revision` 与被否定答案排除的回复（第 14 条）都不停止推进：协程重读后重做同一步，同一身份。这三种回答都不算进展：只有提交了或认回了一次提交的步骤才算；原结果收场与 queue 修复还必须复核原 queue 待办已关闭（第 26 条），不能只凭历史主回执算作释放进展。它的操作号由受理操作号派生：`<受理>/plan`、`/prepared`、`/enqueue`、`/start`、`/started`、`/start-failed`、`/exclude`、`/reject`。所以崩溃后重做用的是同一身份，第 11 条的认回直接适用。同一进程内同一调用的运行串行，跨进程的唯一写者由修订号裁定。
 
 一次运行结束后，协程自己决定要不要再运行这个调用，因为没有别的东西会运行它。重新推进的触发有三个，策略是配置，不是写死的值：
 
@@ -266,12 +282,21 @@
 - 因记录仓或端口失败（`unavailable`）结束，或环境提供者对准备答 `pending`、`unknown`：协程在 `ToolConfiguration.driverRetryDelayMs`（缺省 1000 毫秒，1 到 2147483647 的整数，0 与超过定时器上限的值在构造时被拒绝）之后经 `instances.schedule` 重调度。上一条里没有进展的步数用尽也用这个延迟。每个调用同时只有一个等待中的重调度；`instances.schedule` 被拒绝或抛出时，再等一个延迟再试。其它失败（`invalid`、`denied`、`unsupported`、`conflict` 等）是判定，不重复。延迟是固定值；换成更复杂的退避（递增，或可替换的策略实现）由恢复扫描 `scanPending` 的调度一并评估。
 - 等待者对账：见下面的「排队」。
 
-被中止的运行不重调度：中止是宿主要它停下。重调度的定时器不占住进程（`unref`），它的释放同 `instances.install`，归排空协议（`quiesce` 与 `handover`）。除这三个触发和受理、同 key 释放的唤醒之外，没有别的东西运行一个调用；其余的缺口归恢复扫描 `scanPending`（第 22 条）。
+被中止的运行不重调度：中止是宿主要它停下。重调度的定时器不占住进程（`unref`），它的释放同 `instances.install`，归排空协议（`quiesce` 与 `handover`）。除这三个触发和受理、同 key 释放、原事实 ready 及原 reader 重连的唤醒之外，没有别的东西运行一个调用；其余的缺口归恢复扫描 `scanPending`（第 22 条）。
 
 - 环境准备：`prepared` 记下环境。`rejected` 先取得 `authority.exclude`，再 `rejectPending`，终局原因是 `environment: <原因>`。`pending` 与 `unknown` 保留准备任务，协程按重试延迟再运行，下一次运行读 `inspectPreparation` 而不再请求准备（本进程记得它问过；进程重启后没有这个记忆，协程重新请求，提供者按同一操作去重，契约 P03）。`excluded` 时停下，不启动，`excluded` 的读法见本页末的待确认项；环境端口失败时这一轮以 `unavailable` 结束，按重试延迟再来（上面的第二个触发），调用不收场。
 - 排队：`prepareStart` 回复 `tool-queue` 时，协程记下该调用在等待，对本 key 对账一次（第 22 条），然后停下。对账删除了条目的话，协程唤醒同 key 的等待者；对账报告的有 `queue` 待办的调用，协程经 `instances.schedule` 运行；宿主不接受这个请求时，这次运行按失败处理，按重试延迟再来。同 key 的调用释放条目后，协程也经 `instances.schedule` 唤醒等待者。唤醒与对账是提示加修复，不是保证。
 - 启动守卫拒绝：`prepareStart` 回复 `unsupported` 时，协程先取得 `authority.exclude`，再 `rejectPending`。
-- 启动围栏：协程先问 `authority.inspect`。`started` 或 `rejected` 直接记录，不调用绑定。所以 `recordStart` 的回复丢失后，执行者不会被调用第二次。`unknown` 停下。只有 `not-started` 时，协程取得 `authority.prepare` 的许可、`bindings.resolve` 的绑定与环境，再调用绑定的 `start`。绑定负责暂存待发胶囊并调用 `authority.consume`。之后协程再问一次 `authority.inspect`，记录其答案。只接受 `live-only` 绑定。
+- 启动围栏：协程查询原 `/start-failed` 操作回执，再问 `authority.inspect`。`started` 或 `rejected` 直接按原 invocation 记录，不调用绑定。只有合规 `not-started`、没有已确认的失败标记或本协程尚待确认的绑定失败、也没有已知 live 句柄时，才取得新许可、绑定与环境，调用 `live-only` 绑定的 `start`。绑定负责暂存待发胶囊并调用 `authority.consume`。协程随后核实实际围栏，不能以绑定失败或抛错推定未启动。
+- 启动未知：`authority` 答 `unknown` 时，协程解析固定请求采用的原绑定并调用 `inspectStart`，保留查到的 live 句柄。live、settled、lost、not-started 与 unknown 查询结果都不代替 authority 的 acceptance，也不在本增量保存执行事实或释放名额。查询失败保留启动待办和责任。已知 live 与 authority 的排除矛盾时停下，不重发。
+- 启动失败：绑定返回失败或抛错，围栏若已受理则记录 `started`，若已永久拒绝则记录 `rejected`。未确定时用独立 `/start-failed` 操作记录固定诊断的 `unknown`，保留原启动记录、待办与名额。该标记确认后重读调用，再向原绑定与 authority 对账。确认没有启动后，以原 `/exclude` 永久排除整次调用，成功后才用 `/started` 记录 `rejected`，建立结果、交付待办并释放名额。排除失败或回执未知不终局。下一次可从 authority 认回已提交的永久拒绝。
+- 失败标记认回：`reads.operation` 的 committed 才证明本驱动失败标记存在，不能从 `execution: unknown` 推断。unknown 或不可读不授权启动。not-committed 与 rolled-back 沿 P01 的否定答案排除机制处理，可能排除在途旧提交。同一协程记住尚未确认的失败，按原标记身份重试，不再调用绑定。`/started` 仅写最终的 started 或 rejected，不先写 unknown 后更换 outcome。绑定解析、许可准备与环境重连在进入 start 前失败时，仍保留原可重试语义。
+
+失败观察在标记真正提交前随进程丢失时，新协程不能从空标记区分「从未尝试」与「尝试失败」。此时仅当合规 authority 的 not-started 已排除原 ticket 及延迟请求、且没有永久拒绝时，才允许同逻辑调用、原 start 身份重新核权并取得新 permit，形成首次受理。它不重放已受理的执行效果。已读到 committed 标记的推进不再调用 start，当前协程已观察但尚未确认的失败也不再调用 start。另一协程持旧否定读时，即使标记随后提交，它仍可能进入绑定方法。标记是调用域的失败观察，不是 authority 的派发资格。consume 先于永久 exclude 成立时，继续认回原 acceptance 与 running，不能写 unavailable 或释放名额；exclude 先成立时，旧 permit 不能形成新的 acceptance 或实际执行。正常首次启动的 acceptance 与实际 launch 各恰好一次，重复推进不增加二者。内存标记不是跨重启围栏，实际唯一受理仍依赖合规 P04 提供者。
+
+本口径按 [#430 revision 2 的具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/430#issuecomment-6285621097)取代此前附加的「marker 提交后所有并发协程都不再调用 start」保证。旧 C430-1 反例的两次方法尝试、一次实际 launch 仍是有效反例，不能声称旧保证已修复。
+
+本增量没有诊断正文的持久化端口。`run` 不向外输出原绑定异常正文，`readDiagnostics` 仍未交付。固定的失败标记仅用于识别启动责任，不证明原异常正文已保存。发起前端口和查询端口返回的具名失败仍交回驱动。它们抛出的未知异常以同一错误对象向 `run` 调用方传播，不映射为 `unavailable`，也不因此自动重调度或写终局。原启动待办与名额保留。绑定已尝试后的失败与抛错则必须沿原围栏对账，不因捕获异常就终局或释放名额。后续查询抛错时传播该查询错误，保留尚未确认的绑定失败责任。运行成功或失败后只清除本次串行记录，不删除后继运行，也不生成额外的未处理拒绝。
 - 环境值：本进程准备的环境值留在内存里。没有时协程调用 `inspectPreparation` 重新连接，失败回复 `unavailable`（`dependency` 为 `tool-environment`）。
 
 ### 本包采用的读法，待契约拥有者确认
@@ -289,6 +314,160 @@
 
 ## 验证
 
+[可运行教学](examples/README.md)通过公开 dist 消费本页现行承诺，展示成功、完整参数失败、确认的发起前排除，以及模型可见 Tools 续读与交付解除。[独立场景](acceptance/README.md)另行维护其装配与判据。教学不是新增行为契约或生产耐久证据。
+
 [tests/README](tests/README.md) 列出每条规则对应的测试。每条测试名以本页所属规则的编号开头，`vitest -t` 可按编号单独运行。
 
 文档导航见 [index](index.md)。
+
+## 普通调用重入的实现范围
+
+本实现采用契约 [普通操作](../tool-contract/SPEC.md#342-普通操作与实例目录) 的来源拥有方案。runtime 无调用身份 mint 依赖，也无关联缓存；source.resolve 拥有唯一键。来源或准入任一认回时 accepted.recovered 为 true，原回执与当前 lookup 分开。当前状态为 accepted、preparing、queued 或 starting，以及查询未知时可补 wake，running/settled 不补。
+
+`ToolInvokeAuthority` 由来源提供者拥有，显式检查当前 tenant/consumer 资格及稳定主体。配对 guard 复用同一 authority 核对原主体与完整绑定；ledger 对当前凭据继续核调用及 scope 授予。测试来源提供者明确为非耐久，在同步写段分配保存 reservation，原子性只覆盖当前进程的同一共享实例。UUID 分配不是存储唯一约束或跨重启耐久证明。
+
+`createTestInvocationSource` 必填 `snapshotPrincipal:(principal:P)=>P`，由凭据语义拥有者同步取得稳定、保留认证意义的视图。可变 P 必须独立捕获，真正不可变的 opaque P 可安全复用。resolve 在请求和 tenant 形状有效后、第一次 await 前取得该视图；来源 qualify 与 samePrincipal.current 使用它，原主体保存该视图。ledger 和来源 guard 的 current 仍使用本次原始 P。通用 structuredClone 或 JSON 不作为泛型 P 的认证、复制或身份协议。
+
+快照失败答 rejected/unavailable，dependency 为 principal-snapshot，诊断不泄露异常文本；此时不读关联、不分配或写来源。来源证据摘要只覆盖 tenant、call/admission、固定请求及来源记录数据，不序列化 P。原主体由受信比较器核验，摘要不代替绑定真实性。bindings 以装配方快照隔离诊断 principal，并独立复制 tenant、request 和 invocation 等数据；返回值变异不能改写内部历史。
+
+可选 `beforeIssue?:()=>void` 是 testing 专用的同步故障钩子，在 reservation 保存后、签发前执行。抛错答 issuance-unknown，保留原 call/admission 与 reservation；下一次同意图重入按原身份重试签发。issued 重入不再执行该钩子。它不是异步事务回调，也不增加生产端口或耐久保证。该局部修订依据 [#547 来源快照与恢复补充采用](https://github.com/nemori-ai/omne-harness-lite/issues/547#issuecomment-6288512604)。
+
+公开 control 已实现输入封闭复制、分配新 operation、引用编码和现有 commands.control 的结果映射。非法 intent 不分配；委托抛错为带原 operation 的 commit-unknown。真实 ledger 控制状态机仍 unsupported，合法调用消耗身份但零控制事实，不声称停止完成。配对 commands/reads 替身只验证门面操作对账。
+
+当前提供者、原子步骤和有界模型的映射见 [恢复验证](verification/models/README.md)。未交付生产来源、自动恢复 scanner、完整控制或生产宿主。
+
+## 24. 原执行事实保管（P05、P08）
+
+本实现采用 [#431 的具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/431#issuecomment-6289828424)。公开事实协议与类型仍归契约包 [P05](../tool-contract/SPEC.md#p05-执行事实与原输出) 和 [P08](../tool-contract/SPEC.md#p08-过程分页与全文交接)。以下只规定本实现的选择。
+
+`receiveFacts` 在首次 await 前固定原 start、source、batch 和嵌套事实。凭据 principal 保持原对象交给当前 access guard，不参与 JSON 复制。边界拒绝访问器、循环、额外字段和无法保管的值。结果由装配的 ResultPolicy 验证，过程由 ContentBlock 判断验证。`write` 是受信推进方权限，不能仅凭 source owner 文本当作外部来源认证。
+
+调用域内分存事件、批次、流和过程当前块。键采用规范元组，分别包含原 start operation、source owner 和局部 event/batch。完整原 start 与 source 固定比较，source record/revision/digest 换版被拒绝。协调实例的当前代次不代替原执行身份。当前实现只交付首次 start，不交付 resume。
+
+先认回已知批次。同批同完整输入返回原回执，零写入，不回退后续 cursor，不重建已清除 ACK。新批 after 必须等于保存 cursor，首批为 null。cursor 不解析、不排序，旧边界与环被拒绝。一批可含多个事件及已知同值事件。事件同值只应用一次，异值拒绝整批。
+
+process/final 全批预判成功后，以域 revision 为条件一次提交完整新事件、过程当前块或 settle 待办、原 receipt、cursor、fact-ack 与调用 revision。event 与 custody evidence 分用途，摘要覆盖原输入，任务身份覆盖用途及完整稳定定位。同 start 的同值 final 不形成第二 settle 待办，冲突 final 不覆盖原候选。final 不写 settled、结果版本、delivery 或释放依据。
+
+process 按原 start/index 保存当前块，并保留历史事件。sequence 用 BigInt 比较，严格增大但不要求加一。相同历史 sequence 必须同值，mode 开块后固定，closed 后禁止新更新。append 只支持 text/thinking 的累计前缀，同时固定 id、kind 和 visibility。媒体、file 和 ref append 返回 unsupported，replace 支持合法完整块。过程必须对人可见。trim 的数量、原因和历史原文持续保存，不能借 trim 绕过前缀约束。readProcess/observe 仍不支持。
+
+含 wait、continued、account 或 program-scheduling 的批次整体 unsupported，零写入、零成功回执、零 ACK。源继续持有责任。原批重投只认回原保管回执。来源确认由下述 ACK 命令推进。
+
+`ledger.facts.read` 是实现包的恢复读口，输入精确 event evidence，返回具名 SavedFact。它逐次核 tenant/call 的 recover 资格，并核完整原 evidence，不按任意 record 文本读取。返回数据与存储脱离。后继收场凭 settle basis 取得完整原 final，无须源继续提供原批次。
+
+失败使用现有 ToolFailure：after 缺口或复用边界为 invalid-cursor；批次、事件、start/source 冲突为 invalid，带固定字段与原因；未知 fact basis 为 invalid。接收提交未知为 unavailable，dependency 为 ledger-store，诊断明确结果未知并要求重投原批，不伪造 operation。revision conflict 重读重判，未知提交不立即重做。端口异常脱敏。本表是本实现选择，不补写契约验证文档仍未决定的全局失败政策。
+
+`ToolLedgerGuards.factAcknowledgements` 是必填构造依赖，返回既有 SourceVerdict，只判断来源确认。`createToolFactAcknowledgementGuard(bindings)` 与 runtime 使用同一 bindings。它恢复原 start 的绑定，经 acknowledge 重送原 receipt，再比较完整 sourceReceipt。来源与确认的 owner 无须相同。来源端口失败、抛错或返回非法 evidence 为 unavailable；只有真实合法确认与待核值不同才为 forged。诊断不暴露来源文本。
+
+`recordFactAcknowledgement` 在首次 await 前固定 receipt、sourceReceipt、operation 与访问字段，tenant 和 principal 保持原身份与凭据。当前 write 资格逐次核验。已提交的同 operation 同输入认回原 progress，异输入 conflict，不再访问来源。未提交 operation 先核本域原 start、batch 和完整 receipt；未知 batch 为 invalid（receipt.batch），伪 custody、cursor 或原件为 invalid（receipt），均不调用来源。
+
+pending 时在事务外核来源；失败保留任务。已确认的同值 sourceReceipt 不重送 ACK。随后携最初预读 revision 进入事务，保留 P01 排除围栏。确认状态、完整 operation 回执、待确认项移除、fact-ack 删除及调用 revision 同提交。新 operation 的重复确认也保存自身可查询回执。原 operation 的 FactProgress 保持历史值，不随后续 cursor 改写。本域提交未知使用真实 operation 的 commit-unknown，原 receipt 和任务仍能恢复；它不表示源 ACK 未发生。
+
+验证入口为 [facts-receive.spec.ts](tests/facts-receive.spec.ts) 与 [fact-acknowledgement.spec.ts](tests/fact-acknowledgement.spec.ts)。真实账本、内存 store 与受信恢复绑定覆盖同提交、重复、冲突、未知切点、过程、重建读取、伪确认、ACK 丢答和排除围栏。自动读取组合另见下节。未覆盖生产耐久、跨进程。已保存 final 的后继收场见第 26 条。
+
+## 25. 原事实受管推进
+
+`recordStart(started)` 与 running 状态同提交原 start 的 facts 续读任务。它与 process、settle、fact-ack 的业务依据分开。driver-binding 的 live 键为 tenant/call/原 start，恢复使用 bindings.recover，不重新 start 已执行调用。
+
+`driver-facts` 持有每原 start 的 session。session 包含 controller、宿主 signal 监听、iterator、一个在途 next、一个 ready 及清理 Promise。next 回调只保存 ready 并 schedule 原 call。driver 在既有 stepsPerRun 内调用 receiveFacts，再处理 fact-ack。一个批次确认前不读下一批。ready 保管失败时保持原输入，未知重投同批。ACK operation 由原 start 和完整原 receipt 的规范摘要稳定派生，重投不换身份。
+
+driver 先修复 settled 的 queue 待办，再推进尚未终局的 settle，然后处理 fact-ack、可推进 facts 与既有准备和启动路径。ACK 故障不能遮蔽已保存 final 的收场，blocked 清理也不能遮蔽剩余 facts 或 ACK。driver 向原 live 或 recover 发送原 receipt，再调用 recordFactAcknowledgement；后者仍通过同 bindings 的 guard 独立核完整确认。ACK 提交未知沿原 operation 重试，来源已释放不能当作本域责任已消除。
+
+每次 run 开始只捕获当时仍活动的 session signal，与本轮 run.signal 共同约束命令发起。每个命令边界读取这些原信号的 aborted 值，不新增合并监听或 Promise，也不延长 session 生命周期。已经清理中的旧 signal 不进入新 run 的边界。
+
+run 返回不等于 abort。session 仅在宿主给本连接的 signal 有效时存活。监听注册前后都检查 aborted。abort 移除监听、取消 controller 并登记 iterator.return 与在途 next 的完成或拒绝。之后不发起新的读、调度和 ledger/source 命令；已经发出的命令不承诺撤销。清理完成前不开第二 reader，清理完成删除 session 引用。源永不完成 next/return 时，清理仍未完成，不声称已回收。
+
+旧清理期间的新 run 保存最新待接回意图及 signal。清理完成后，仅当该 signal 仍有效才通过已有 schedule/retryDelay 唤醒。多个意图合并到同一原 start。已中止的 signal 不重调度。session Map 只提供本 driver 的资源边界，跨实例同批唯一仍归 ledger 的 revision CAS。
+
+正常 completed 收场后，driver 按原 start 关闭 reader，汇合原 abort、return 和在途 next。关闭不作为物理结束依据，也不阻塞 queue 修复。未确认 ACK 保留原 live 或 bindings.recover.acknowledge 路由。非正常终局保留 facts 与可继续交付的 reader，晚到原 process 仍保管并 ACK，不改首结果。
+
+流 end/throw 不生成 final 或释放名额。非正常 settled 后的 end/throw/失联按第 26 条持久 blocked facts，关闭本地 reader，不自动重新启动作者。尚未收场的连接从保存 cursor 沿 driverRetryDelayMs 重试。schedule 拒绝使用同一重试政策。unavailable 重试；unsupported、invalid 等确定失败返回 DriverStop，不自动忙循环。inspectStart settled 缺 batch/cursor 时返回 unsupported，reason 为 settled-start-facts-recovery-needs-original-batch-and-cursor，保留恢复责任。完整原事实恢复仍未交付。
+
+[driver-facts.spec.ts](tests/driver-facts.spec.ts) 验证真实 invoke、ledger、绑定执行源与受控宿主的自动链，以及取消、在途命令、清理竞争、拒绝唤醒、流终止和原 ACK 恢复。调度快照用例只检验对应顺序；真实收场与下一同 slot 调用启动由 [driver-settlement.spec.ts](tests/driver-settlement.spec.ts) 的本地组合另验。[有限模型](verification/models/README.md#事实保管交接模型)仅检查 call 域原子 CAS 假设下的责任交接。生产耐久、生产宿主、恢复扫描、resume、完整异常源恢复与真实环境释放驱动未覆盖。
+
+## 26. 原结果收场与释放责任
+
+本实现采用 [#432 revision 2 决定](https://github.com/nemori-ai/omne-harness-lite/issues/432#issuecomment-6293517910)。公开操作与端口协议仍归契约包。普通调用方继续使用 invoke 及原引用，同 tenant、完整 ConsumerRef 和固定输入认回原受理。收场不重新运行作者。
+
+### 原 final 与独立保管
+
+`preserveResult` 使用 WriteContext，首次 await 前封闭复制 raw、value、terminal、effect 和执行定位。它逐次核当前 write 资格、tenant/call/instance/generation，先按 operation 和稳定摘要认回，再核 expected、原 start、当前执行与 settle.basis 指向的完整本域 final。四项输出必须逐项等于原 final。不同操作竞争先按 expected 返回 stale-revision，刷新后返回指向原 settledBy 的 conflict，不产生第二原结果或 delivery。任意 terminal 外形、reader 关闭、通道 end/throw、取消受理和 disposer 都不构成物理结束依据。
+
+账本主动调用第五构造参数的 custody.retainResult。retain 身份由原 settle 及完整 final 稳定派生，竞争协调者也使用同一保管身份。外部 retain 不放进 CAS 重试的纯决定器。同身份保管重送保持原 raw/value。确定失败保持原失败；保管 commit-unknown 或抛错返回 `unavailable`，dependency 为 `output-custody`，诊断固定且脱敏。它不冒充 call 的 commit-unknown。保管已应用但丢答仍未确认，不建立终局或释放依据，也不清除原任务。
+
+确认保管后，一个 call CAS 同提交唯一 original 版本、完整结果、真实 effect、原 consumer 与 pending delivery、execution custody 的 raw/final/retain 回执、settled 状态、execution.ended、preserve 回执、deliver 和 queue 待办，以及全部必要 release、清理和 clock 责任。前台关系成为 final，后台保留原关系。已确认的外部保管不因后继冲突而声称撤销。未执行替代结果仍用 synthetic 保管种类，不伪造 raw 或真实执行账目。
+
+所有待写 operation 都受第 14 条的首次读取排除围栏保护，包括同提交自动 canonical plan 的身份。任一身份出现更新的否定围栏就停止本次提交。已提交回执认回优先，首次读取已看见的旧围栏允许同身份新尝试，并在成功提交时清除。自动计划回执不得覆盖其他种类或异输入回执；preserve 与 canonical plan 使用同一 operation 也 conflict。每次入口核当前 write 资格，CAS 每次重读重新核本域前提与完整历史保管闭包。
+
+### call 与 queue 的独立提交
+
+主收场回执只证明 call 提交。即使认回已提交 preserve，也必须继续 releaseQueue tail，不再次 retain 或重写结果。它重读已 settled 且可信 execution.ended 的原 final 依据，随后 queue CAS 同提交 entry 删除与永久墓碑，最后 call CAS 关闭原 queue 待办。各域的 dropped/applied unknown 分别保留原操作和责任。queue 墓碑阻止迟到 order/enqueue 复活，call 与 queue 没有共同事务。启动拒绝保持第 22 条的原排除路径。
+
+driver 从原 settle 或 queue.basis 经 facts.read 取 SavedFact，核 final 与原 execution 后，以原 task.operation 和当前 expected 重送 preserveResult。成功后重读 loadRecovery，确认原 queue 待办消失才报告释放进展并 wake 等待者。任务仍在则返回具名 blocked `the original queue release is still unconfirmed`，避免把历史回执当作进展热循环。读取失败保留实际 failure 与适用重试。取消后不发起新读或 wake。等待者 reconcile 可先修复 queue，原调用仍负责关闭自己的待办。
+
+### canonical 环境计划与报告核验
+
+正常 completed 只在全部历史 process 引用已有独立保管时自动形成 canonical 环境计划。闭包检查完整历史事件，按完整 ref 比对已保管 raw.content 或最终 attachments；inline/text/thinking 原字节由本域保存。旧 file 只有地址时不能推定覆盖。计划与原终局同提交，固定原 preparation、resources、环境 adoption 和刚确认的 retained 证据，不能留下终局已成立却无人负责规划的窗口。
+
+`planRelease`、`recordRelease`、受限 `recordTask` 使用 Mutation，仅有 operation，没有 caller expected。三者在首次 await 前固定业务输入，固定副本用于当前资格核验与域 CAS 重判。public planRelease 核原准备、资源、可信 ended、原 retained、completed 及全部历史闭包。它按 preparation 唯一认回原 ReleaseRecord，新 planning operation 可以保存 alias 回执，但不创建第二环境 release 身份或 task；原任务关闭后也不重建。缺证据或非正常 final 返回具名 unsupported，保留 blocked 清理，不接受调用方新造 custody 字符串解锁。
+
+`recordRelease` 先认回自己的原观察回执，再核完整 canonical 记录。reported released 必须由原环境 inspectRelease 返回同一完整 evidence 确认，不仅比较 owner 文本。核验失败、抛错或 unknown 不清任务。pending/unknown/rejected 保存固定观察及操作回执并保留 release 责任，rejected 可 blocked。released 将确认、回执和 release task 删除同提交，不改业务结果、delivery 或 effect。released 不倒退，同值重送不复活任务，异 released evidence conflict。资源 release.operation 永久固定，后续观察使用新 recordRelease operation，原观察重试仍回原回执。本入口只核验报告，不自动调用环境 release。slot 释放不等于环境资源释放。
+
+### 非正常输出与时钟责任
+
+failed/interrupted 等非 completed final 即使历史为空，也不证明正常输出屏障闭合。结果和物理结束可以成立，环境清理保持 `awaiting-independent-custody` 的 blocked settle 责任，不自动或公开规划释放。facts 及仍可交付的 reader 保留，原 source 后续 process 继续保管及 ACK，不改原结果，也不自动解除清理 blocked。
+
+非正常 settled 的原 facts 源 end、throw 或失联时，受限 recordTask 只接受当前原 facts 完整 task/basis、resolution=blocked，以及 `settled-facts-source-ended` 或 `settled-facts-source-unavailable` 诊断。它用独立稳定 operation 同提交 blocked 任务、回执与当前 revision。同操作认回，异输入 conflict。done 或其他 task 种类仍具名 unsupported，不能借此清除责任。当前原 facts 任务的 blocked resolution 使用其他诊断时，返回 invalid，field 为 `resolution`，reason 为 `settled-facts-diagnostic-required`。协调 signal 取消不持久标记源失联。完整异常源恢复、额外过程保管和环境释放驱动仍未交付。
+
+当前 final 没有实际结束 clock marker。running 计时转 unknown，保存原 segment、accumulatedMs，诊断为 `execution-end-clock-marker-unavailable`，同提交 blocked clock 任务。原 unknown 保持证据与诊断；paused/closed 保留已知累计并 closed。收场不调用晚到 elapsed、不写零、不重复累计，也不把保管等待计成执行时间。clock 未知不阻止可信结束后的 slot 释放。
+
+[收场账本测试](tests/ledger-settlement.spec.ts)、[环境计划与确认测试](tests/ledger-environment-release.spec.ts)、[排除交错](tests/exclusion-interleavings.spec.ts)和 [driver 组合](tests/driver-settlement.spec.ts)分别覆盖对应边界。它们使用真实内存 ledger/custody/executor 与受控宿主，不能证明生产耐久、跨进程或断电恢复。[有限收场模型](verification/models/README.md#原结果与队列释放模型)只检查其明确有界范围；完整计时、控制、scanner、真实环境自动 release、完整异常源恢复及 late-result 仍未覆盖。
+
+
+## 27 固定结果与内容读取
+
+本实现消费 P05、P08 与 P14。三个入口在首次 await 前固定结果、引用及必要标量，附件复制五字段，主体保留合法身份。`readResult` 保留完整块分页，在返回候选页前再次核 `read-result`，撤权则舍弃候选。
+
+`content.read` 核正安全整数 maxBytes、固定版本、完整附件关联与 `read-content`。关联来自该版本的 attachments、content ref、offloaded original.source 或 summary ref；原件也可凭 execution custody 关联，但使用 `read-raw-content` 完整操作。该操作在同一个可信权限事实判定点核主体、合法租户、call 范围及基础 `read-content` 与 `read-raw`，不是独立许可位。无法建立一致视图时回复 `unavailable/access-guard`。关联后、provider IO 前及最终返回边界各核一次完整操作，不用分开异步结论合取。关联仍需五字段精确匹配 custody.raw 或已保管集合，不能仅凭同 storage/key 放行未登记描述。关联成立后，凡与该结果已知 raw.content 的 storage/key 相同，均选 `read-raw-content`，不因 mediaType/bytes/digest 差异降权。只比较已知逻辑地址，不猜物理别名；不同地址不因相同 digest 被一律标成原件。提供者 IO 后重读固定版本，核关联及当前资格，返回独立 byte copy。错误响应、错结果/附件、非法 offset、越界、超预算、零进度或未到已知长度的假 EOF 回复 `unavailable/content-reader`。提供者明确失败原样交回，抛错只给依赖名，不披露异常正文。
+
+配置的 content provider 必须证明完整源长度/摘要，并把 byte cursor 绑定 tenant/call/result/完整 Attachment/bytes 投影及位置。账本不解析其私有游标，因此自身范围核验不能代替这项证明。内存 provider 只支持 SHA-256，输入输出复制，首读空文件为 offset 0、空 bytes、next null。非首读指向或越过 EOF、负数、另一附件或结果及 block cursor 均拒绝为 `invalid-cursor`。
+
+`content.raw` 前后独立核 `read-raw`，返回精确结果 execution custody 的 RawOutput 副本。synthetic 结果回复 `invalid`（`result: no-raw-output`）。原 raw.content 即使同时或重复列入普通附件，也不能绕过完整操作。完整操作拒绝为 `denied/read-raw-content`，入口内容门槛仍可拒绝为 `read-content`，raw 元数据拒绝为 `read-raw`。最终允许后不再等待 store、provider 或另一 guard。判定点之后发生的撤权约束后续读取，不追溯撤回已允许候选。content provider 为 null 时有关联的字节读取明确 unsupported；原结果、raw 元数据、交付解除、收场和调用幂等不受此配置改变。
+
+`./testing` 的 createMemoryToolContent 与 createTestToolDependencies 组合 `durability:none` 的 bytes/custody。原件登记复用既有 custody double，普通附件由显式 seed 登记；seed 不授予关联或权限。故障控制允许暂停一次读取、失败、抛错、删除字节或替换响应。它们只能支持非耐久内存组合证据，不支持真实文件存储或跨进程恢复声明。验证资源见 [content-reads.spec.ts](tests/content-reads.spec.ts)。
+
+## 28. Tools 固定结果适配器
+
+根入口的 `createTools` 消费普通 runtime 的 `queries.readResult` 和 `content.read`。它不取得 invoke、control、release 或 raw。工厂提供真实 `Tools` 作者、`present` 和受信消费侧的 `readReply`。作者只有 `help`、`read_result`，显式 `programmable:false`，两操作都是 structured、program:none。输入模态为 text。直接输出可能保留源 text、image、voice 或 video 内容，因此声明四种输出模态。file ref 依其媒体类型承载内容，普通 attachments 的地址仍是文本。
+
+`help` 的闭合对象只有可选 string command。未知名称形成具名错误。`read_result` 的闭合 oneOf 分支为 result 和 attachment，kind、非空 reference、null 或非空 after 都必填。参数、注册声明和帮助从同一命令描述生成。作者先使用 ParameterCodec 的完整 JSON、重复键及预算检查，再核字段。模型不能提供 tenant、principal、路径、maxBytes 或 raw selector。
+
+### 引用与调用
+
+引用是公开、无状态、可解码的规范 UTF-8 JSON base64url，没有填充字符。前缀与 payload 之间使用句点。payload 数组为以下形状，首项为协议版本 1。
+
+- `tr1` 包含 `[1, invocationReference, resultVersion]`。内部身份必须通过契约 codec，并使用其规范形式。
+- `ta1` 包含 `[1, tr1, selector]`。selector 为非负安全整数索引或字符串 original。索引对应该固定版本的 attachments，original 对应卸载原文。
+- `tc1` 包含 `[1, kind, completeReference, projection, internalAfter]`。result 的 projection 为 full，attachment 为 bytes。读取前逐项比较分支、完整引用及投影。
+
+解码核协议、字段数、类型、规范编码及参数预算。所有发出的开始和续读提示还使用真实参数 codec 检查整份调用 JSON，并用同一预算实际解码内部引用及 cursor。单个凭据、组合参数或内部 tuple 超限都不能发出可续读提示。引用不授予权限，没有 TTL，也不依赖适配器内存表。releaseDelivery 不使引用失效。未知版本、不可定位版本或错误游标不能换成最新结果或首屏。
+
+### 模型内容与失败
+
+`present` 读原固定版本的首屏。`read_result` 每次读一页并生成新的 ToolResult。成功结果先给状态块，再保留源页块的顺序与 visibility，状态块身份避开源块。源 attachments 保持完整。新 data 和 original 都为 none，不转发源程序数据。原文卸载状态及 original 的 ta1 在文本中说明。上层调用方继续用 P14 projectToolResult 投影，固定附件块身份后追加合法逻辑附件地址。
+
+状态分别说明 reading、sourceTerminal、content 遍历及 original。读取 failed 原工具可以成功。content=end 只结束内容块遍历，不表示附件或卸载原文字节已读。附件回应提供 mediaType、十进制 offset、bytes、base64 和 next。消费方收齐字节后按 mediaType 解码，不在任意页边界解释 UTF-8。
+
+已知 ToolFailure 映射为固定错误码，仅保留受支持的 denied 动作说明。失败结果没有源内容、源附件或 next，不转发提供者诊断。元调用 completed 表示命令答复，不代表源读取成功。未知异常、非法作者输出或保管失败仍归既有故障管线。
+
+### 预算与收取
+
+构造时固定 JsonLimits 和三个正安全整数预算。resultPageBytes 必须来自所装配 runtime 的相同配置。replyMaxBytes 限制完整新 ToolResult 的 JSON UTF-8 字节。contentPageBytes 限制附件字节。每个完整块必须装入一个 resultPageBytes，完整回应必须装入 replyMaxBytes。预算不足返回固定 unsupported，不截块、凭据或 schema。固定错误无法在预算内单页交付时，构造同步抛 TypeError。
+
+源页加状态后可使新元回应再次分页。受信消费侧在调用收场后使用 readReply，沿同一 resultVersion 收齐新元回应，再投影给模型。它不生成第三个模型命令，不递归包装回应。每页 value 和累计完整 ToolResult 都受 replyMaxBytes 限制。累计大小只计一次共同元数据，再逐块增加 JSON 字节及数组分隔符。读取次数最多 `2 * ceil(replyMaxBytes / resultPageBytes) + 1`，推导值必须为安全整数。每页仍经真实读口检查当前资格。
+
+readReply 核固定版本及各页必要元数据。重复 cursor、非结束空页、元数据变化、读取失败、字节超限或次数超限都只返回明确失败，不交付部分内容。次数保证依赖现行贪心整块分页。替换提供者不能在该上限内结束时返回 unsupported。
+
+[Tools 行为测试](tests/tools.spec.ts)及[类型测试](tests/tools.spec-d.ts)覆盖真实作者注册、内存 runtime 组合、再次分页、闭合参数、引用、可见 ref、失败与精确预算。它们使用非耐久内存依赖。真实模型、生产存储、Cordis 和跨进程未验证。
+
+
+[模型消费组合](tests/tools-model-loop.spec.ts) 以实际 runtime、作者 codec、readReply 及 P14 连接受信宿主与模拟模型。模型只接收投影块和实际帮助，依据可见 reference、next、kind 形成新请求。测试宿主将入站参数预算与 ToolsOptions.arguments 对齐，分别保留 runtime 入站检查和作者参数检查。各新调用以新消费位置与调用引用区分，其结果归属按 reference/resultVersion 成对判断，版本字符串无需全局唯一。

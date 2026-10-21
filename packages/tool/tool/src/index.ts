@@ -1,5 +1,3 @@
-// The root entry of the Tool implementation. It does not import Cordis or another Tool package
-// except the contract package.
 export type {
   QueueReconciliation,
   ToolConfiguration,
@@ -7,12 +5,19 @@ export type {
   ToolLedgerAdmissions,
   ToolLedgerConfiguration,
   ToolLedgerQueues,
+  ToolLedgerFacts,
+  ToolLedgerPorts,
 } from './construction.ts'
 export { createIndependentToolScope } from './independent-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
 export type {
   AccountRecord,
+  SavedFact,
+  FactEventRecord,
+  FactBatchRecord,
+  FactStreamRecord,
+  ProcessRecord,
   CallRecord,
   ConfirmedEnvironment,
   ExclusionRecord,
@@ -30,6 +35,9 @@ export type {
   QueueReleaseRecord,
   ReleaseBasis,
   ResultRecord,
+  ResultCustody,
+  CleanupDuty,
+  EnvironmentReleaseRecord,
   StartRejection,
   ToolLedgerStore,
 } from './ledger-store.ts'
@@ -40,6 +48,8 @@ export type {
   SourceVerdict,
   StartVerdict,
   ToolAccessGuard,
+  ToolFactAcknowledgementGuard,
+  ToolInvokeAuthority,
   ToolGrantVerifier,
   ToolLedgerAction,
   ToolLedgerBudgets,
@@ -52,3 +62,11 @@ export type {
 export { isTenantShape } from './boundary.ts'
 export { digestOf as canonicalDigest } from './evidence.ts'
 export { createToolRuntime, toolRuntimeAdoption } from './runtime.ts'
+export { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'
+export {
+  createTools,
+  type Tools,
+  type ToolsAccess,
+  type ToolsOptions,
+  type ToolsReadRuntime,
+} from './tools.ts'

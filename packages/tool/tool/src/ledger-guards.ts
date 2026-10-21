@@ -3,6 +3,12 @@
 // construction; the decider consumes only their conclusions.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
+  Access,
+  CallAccess,
+  DurableEvidence,
+  FactReceipt,
+  ToolStartRecord,
+  ConsumerRef,
   FixedToolRequest,
   Mutation,
   ResourceScope,
@@ -29,6 +35,8 @@ export type ToolLedgerAction =
   | 'read-diagnostics'
   | 'read-result'
   | 'read-content'
+  | 'read-raw'
+  | 'read-raw-content'
   | 'release-delivery'
   | 'account'
   | 'recover'
@@ -44,6 +52,10 @@ export type AccessVerdict =
  * also prove that `tenant` is a tenant identity minted by legal-identity, not an object of the
  * same shape: the ledger checks only the shape and keys its records by the identity texts. A
  * forged tenant is `denied`. A missing answer is `unavailable`, never `allowed`.
+ * `read-raw-content` is the raw-byte operation, not a separate permission. Its verdict must
+ * check the current subject, tenant, call scope and both base permissions (`read-content` and
+ * `read-raw`) at one consistent decision point. Separate asynchronous verdicts cannot prove
+ * that conjunction. Without a consistent view, answer `unavailable`.
  */
 export interface ToolAccessGuard<P> {
   qualify(
@@ -65,6 +77,19 @@ export type SourceVerdict =
  */
 export interface ToolSourceGuard<P> {
   verify(input: Mutation<P> & Readonly<{ request: FixedToolRequest }>): Promise<SourceVerdict>
+}
+
+/** Verifies a source confirmation through the assembly's original recovery binding. */
+export interface ToolFactAcknowledgementGuard<P> {
+  verify(
+    input: CallAccess<P> &
+      Readonly<{
+        start: ToolStartRecord
+        source: DurableEvidence
+        receipt: FactReceipt
+        sourceReceipt: DurableEvidence
+      }>,
+  ): Promise<SourceVerdict>
 }
 
 export type GrantVerdict =
@@ -119,6 +144,7 @@ export type ToolLedgerBudgets = Readonly<{
 export type ToolLedgerGuards<P, B extends ContentBlock> = Readonly<{
   access: ToolAccessGuard<P>
   sources: ToolSourceGuard<P>
+  factAcknowledgements: ToolFactAcknowledgementGuard<P>
   /**
    * The verifier of each accepted scope owner, by owner name. A scope whose owner has no
    * verifier here is denied at admission, as a missing grant is.
@@ -132,3 +158,9 @@ export type ToolLedgerGuards<P, B extends ContentBlock> = Readonly<{
   policy: ResultPolicy<B>
   budgets: ToolLedgerBudgets
 }>
+
+/** Current consumer qualification and stable subject comparison for a paired source provider. */
+export interface ToolInvokeAuthority<P> {
+  qualify(input: Access<P> & Readonly<{ consumer: ConsumerRef }>): Promise<AccessVerdict>
+  samePrincipal(input: Readonly<{ current: P; original: P }>): Promise<AccessVerdict>
+}
