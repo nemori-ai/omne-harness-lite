@@ -62,7 +62,7 @@ assembleStream({
 
 `reasoning_state` 部件同样没有追加形式，只整块到达：以替换模式开块，再由带完整部件的封块封口。追加模式开块是 `mode`，开块与封块之间的 `fill` 也是 `mode`，与 `tool_result` 相同。不带 `block` 的封块是 `block`，`detail` 为 `payload`，因为头里没有载荷。部件由 message 的 `judgePart` 判定，所以 `toHuman` 为真、载荷为空或 `pairs` 不合法的部件得到 `block`，`detail` 是 `judgePart` 的拒绝值。封口的部件必须与头的 `id`、`visibility` 相同，别的种类的部件是 `conflict`。头里没有别的键。
 
-`finish` 可以带 `replay: { scope, format }`，不带别的键。`replay` 必须是普通对象，自有键恰好是 `scope`、`format`，没有访问器，两个值都是文本。其他形状得到 `step`，`detail` 为 `replay`，先前的装配保持不变。文本是否为空、是否过长是 message 的规则，在组成消息时判定。`finish` 被受理时，装配自己写 `at`：已封口部件中 `reasoning_state` 部件的下标，按顺序排列。它把 `{ id, role, blocks, replay: { scope, format, at } }` 交给 `judgeMessage`。`finish` 没带 `replay` 时只交 `{ id, role, blocks }`，此时有续接状态部件的消息是 `block`，`detail` 为 `replay`。有 `thinking`、没有续接状态部件的消息可以带 `replay`，`at` 为空。两者都没有的消息，以及目标不是 assistant 消息时的 `replay`，由 `judgeMessage` 拒绝，分别是 `block` 加 `replay` 与 `extra`。`stopped`、`cancelled`、`failed` 的终态只留已封口的部件，结算方组成消息时自己写 `replay`。用量与费用不在 `replay` 里，也不在任何步骤里。
+`finish` 可以带 `replay: { scope, format }`，不带别的键。`replay` 的值为 `undefined` 时视为不带，与 `judgeMessage` 相同。`replay` 必须是普通对象，自有键恰好是 `scope`、`format`，没有访问器，两个值都是文本。其他形状得到 `step`，`detail` 为 `replay`，先前的装配保持不变。文本是否为空、是否过长是 message 的规则，在组成消息时判定。`finish` 被受理时，装配自己写 `at`：已封口部件中 `reasoning_state` 部件的下标，按顺序排列。它把 `{ id, role, blocks, replay: { scope, format, at } }` 交给 `judgeMessage`。`finish` 没带 `replay` 时只交 `{ id, role, blocks }`，此时有续接状态部件的消息是 `block`，`detail` 为 `replay`。有 `thinking`、没有续接状态部件的消息可以带 `replay`，`at` 为空。两者都没有的消息，以及目标不是 assistant 消息时的 `replay`，由 `judgeMessage` 拒绝，分别是 `block` 加 `replay` 与 `extra`。`stopped`、`cancelled`、`failed` 的终态只留已封口的部件，结算方组成消息时自己写 `replay`。用量与费用不在 `replay` 里，也不在任何步骤里。
 
 ## 设计
 
