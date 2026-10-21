@@ -297,7 +297,7 @@
       "required": true,
       "visibility": "internal",
       "basis": "adopted",
-      "applicability": "applicable",
+      "applicability": "not-applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
         "anchor": "专题职责"
