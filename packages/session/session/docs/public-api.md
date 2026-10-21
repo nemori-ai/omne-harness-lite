@@ -77,7 +77,7 @@ export type SessionDependencies<P> = Readonly<{
 
 | 类 | 字段 | 怎样传入 | 缺席或失败时 |
 | --- | --- | --- | --- |
-| 启动条件 | `transactions` | 直接传入实现 | 没有它不构造实例。经 Cordis 时服务停在 `PENDING`，见 [session-cordis](../../session-cordis/README.md) |
+| 启动条件 | `transactions`、`principals` | 直接传入实现与主体 | 任一缺席时不构造实例。经 Cordis 时服务停在 `PENDING`，见 [session-cordis](../../session-cordis/README.md) |
 | 按命令必需 | `identity`、`evidence`、`clock`、`idle`、`context` | 传入完整接口。宿主在底层能力缺席时让方法返回 `unavailable`，`owner` 为该端口 | 只有需要它的操作返回 `unavailable`；不用系统时间或空材料补默认 |
 | 按调用现取 | `notifier`、`agentDrive`、`startFence`、`deliveryRelease`、`scopeRelease`、`admission` | 传入现取函数，每次调用前取一次 | 通知缺席只记诊断；出站端口缺席时调用不发出，任务保留，由调度器重放；`admission` 为空列表时 `accept` 不经槽 |
 

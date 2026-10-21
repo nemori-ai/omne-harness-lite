@@ -32,7 +32,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 本成员只有根入口 `@omne-harness/session`，现在没有导出。实现进入之后，宿主按下面的顺序使用：
 
-1. 构造 `SessionDependencies` 与 `SessionConfiguration`。启动条件只有事务端口。
+1. 构造 `SessionDependencies` 与 `SessionConfiguration`。启动条件只有事务端口与内部主体。
 2. 调用 `createSessionInstance(dependencies, configuration)`。
 3. 用 `facesFor(caller)` 给每个调用方类各自的面。
 4. 对宿主要服务的每个租户调用 `maintain(tenant)`，保存返回的句柄。

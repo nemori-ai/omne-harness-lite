@@ -22,7 +22,7 @@
 
 1. 一个事务端口的提供者，例如 [session-storage-sql](../../session-storage-sql/README.md)。没有它，本插件停在 `PENDING`。
 2. [session-adapters](../../session-adapters/README.md) 的端口提供者与入站插件。缺哪个端口，只有需要它的操作返回 `unavailable`。
-3. 装配入口经服务提供的内部主体。它的服务键还没有定义，所以现在这一步做不到，本插件也无法构造实例（[SPEC 的明确缺项](../SPEC.md#明确缺项)）。
+3. 装配入口经服务键 `sessionPrincipals` 提供的内部主体，由维护拥有者签发（[端口服务键](../../session-cordis-contract/docs/cordis.md#端口服务键)）。没有它，本插件停在 `PENDING`。
 
 装载后，其他插件经服务定义使用服务：调用方插件用对象形式 `inject: { session: { caller } }` 声明调用方类，只监听唤醒的一方用 `ctx.on`。这些用法归 [session-cordis-contract 的使用与定位](../../session-cordis-contract/docs/context.md)。
 

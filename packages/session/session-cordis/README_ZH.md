@@ -13,7 +13,7 @@ Session 的 Service 实现成员，`service-provider` 变体。
 
 - 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
 - 未实现：具体子类（即插件）、配置 Schema、端口接线、组合通知者、扫描者绑定与撤除。根入口保持为空。
-- 尚有缺口：内部主体经服务键 `sessionPrincipals` 取得。受理槽、来源变化通知与租户集合还缺少通道，见 [SPEC 的明确缺项](SPEC.md#明确缺项)。
+- 尚有缺口：受理槽、来源变化通知与租户集合还缺少通道，见 [SPEC 的明确缺项](SPEC.md#明确缺项)。内部主体经服务键 `sessionPrincipals` 取得。
 - 未验证：调用方类读取、重复装载失败、配置错误使 fiber `FAILED`、换代时新旧实例的先后，这四条机制只有源码读数或没有读数，现在是假设。SPEC 列出的验证义务都没有测试。本成员不宣称跨进程的每租户单扫描者。
 
 现在没有应用装配本插件，也没有包依赖本成员。
@@ -38,7 +38,7 @@ Session 的 Service 实现成员，`service-provider` 变体。
 
 ## 设计
 
-`./cordis` 分为配置、端口接线、服务子类、通知、扫描者绑定与撤除六块。包外依赖是 session-contract、session-cordis-contract、session 与 `@deepseek-ai/cordis`。只有事务端口进 `inject`，其余端口每次调用时用本插件的 Context 现取。本成员是提交通知的派发方。扫描者在首次见到租户的通知时绑定。模块与理由见[内部架构](docs/architecture.md)，四条生命周期流程见[生命周期流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+`./cordis` 分为配置、端口接线、服务子类、通知、扫描者绑定与撤除六块。包外依赖是 session-contract、session-cordis-contract、session 与 `@deepseek-ai/cordis`。只有事务端口与内部主体进 `inject`，其余端口每次调用时用本插件的 Context 现取。本成员是提交通知的派发方。扫描者在首次见到租户的通知时绑定。模块与理由见[内部架构](docs/architecture.md)，四条生命周期流程见[生命周期流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
@@ -60,7 +60,7 @@ pnpm turbo run test --filter=@omne-harness/session-cordis
 
 - 服务定义改变时，同步具体子类、端口接线、[Cordis 说明](docs/cordis.md)与测试。
 - session 的工厂、依赖分类或调度策略改变时，同步配置 Schema、端口接线与[公开接口页](docs/public-api.md)。
-- 服务定义成员补上内部主体、受理槽或变化通知的键时，同步 SPEC 的明确缺项与 Cordis 说明。
+- 服务定义成员补上受理槽或变化通知的键时，同步 SPEC 的明确缺项与 Cordis 说明。
 - Cordis 升版时，先重跑服务定义成员与本成员列出的 basis probe。
 - 成员关系与依赖方向归[组入口](../README.md)。具名维护者由负责人指定。
 

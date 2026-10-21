@@ -44,9 +44,9 @@ flowchart LR
 
 ## 关键机制与理由
 
-### 只 inject 事务端口
+### 只 inject 事务端口与内部主体
 
-`inject` 的含义是「它换代或不在，本插件就卸载重跑」（[plugin-body-reruns-on-provider-change](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)）。事务端口缺席时任何读写都不成立，重跑是正确的反应。其余端口缺席时只有需要它的操作失败。把它们写进 `inject`，会让一个身份桥或时钟的换代停下全部会话的读取、控制与恢复。
+`inject` 的含义是「它换代或不在，本插件就卸载重跑」（[plugin-body-reruns-on-provider-change](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)）。事务端口缺席时任何读写都不成立；内部主体缺席时协调器与调度器不能提交。两者缺席时重跑是正确的反应。其余端口缺席时只有需要它的操作失败。把它们写进 `inject`，会让一个身份桥或时钟的换代停下全部会话的读取、控制与恢复。
 
 代价：每次调用多一次服务表查找。理由是查找是常数开销，而全服务重跑会丢掉调度计时与缓存，并让所有调用方插件一起重跑。
 
@@ -85,12 +85,12 @@ session 的工厂要求身份、证据、时钟、空闲与 Context 输入是完
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
 | 根入口为空 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 实现进入后仍断言根入口没有导出 |
-| `./cordis` 只有本成员的子类与配置 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言草稿入口没有导出 | 实现进入后核对导出集合 |
+| `./cordis` 只有本成员的子类与配置 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言该入口现在没有导出 | 实现进入后核对导出集合 |
 | SPEC 的九项验证义务 | 没有 | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
 
 维护规则：
 
 1. 服务定义改变时，同步子类、端口接线、[Cordis 说明](cordis.md)与测试。
 2. session 的工厂签名、依赖分类或 `SchedulingPolicy` 改变时，同步配置 Schema、端口接线与[公开接口页](public-api.md)。
-3. 定义成员补上内部主体、受理槽或变化通知的键时，同步 SPEC 的明确缺项、`inject`、[Cordis 说明](cordis.md)与本页。
+3. 定义成员补上受理槽或变化通知的键时，同步 SPEC 的明确缺项、`inject`、[Cordis 说明](cordis.md)与本页。
 4. Cordis 升版时，先重跑服务定义成员与 [Cordis 说明的机制读数与假设](cordis.md#机制读数与假设)列出的 basis probe。

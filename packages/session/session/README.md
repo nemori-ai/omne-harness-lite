@@ -32,7 +32,7 @@ Status: mechanism member, candidate technical design. Technical acceptance has n
 
 The package has one entry: `@omne-harness/session`. The entry exports nothing now. After the implementation arrives, a host uses the package in this order:
 
-1. Build `SessionDependencies` and a `SessionConfiguration`. Only the transaction port is required to start.
+1. Build `SessionDependencies` and a `SessionConfiguration`. Only the transaction port and the internal principals are required to start.
 2. Call `createSessionInstance(dependencies, configuration)`.
 3. Give each caller class its own faces from `facesFor(caller)`.
 4. Call `maintain(tenant)` for each tenant that the host serves. Keep the handle that the call returns.

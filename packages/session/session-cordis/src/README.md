@@ -20,4 +20,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 本成员是 `service-provider` 变体。`index.ts` 保持为空：不装配 Cordis 的宿主从 session 取工厂，本成员不转导出它。`cordis.ts` 将导出 `SessionService` 的具体子类（即插件）与它的静态 `Config`。子类 `extends` 服务定义成员的抽象类，不写服务键。源码只导入 session-contract、session-cordis-contract、session 与 `@deepseek-ai/cordis`，不导入任何邻域契约或存储后端（[SPEC 性质 11](../SPEC.md#撤除与换代)）。
 
-当前缺口：子类、配置 Schema、端口接线、组合通知者、扫描者绑定与撤除都还没有进入，清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。内部主体的服务键还没有定义，它阻塞实例的构造（[SPEC 的明确缺项](../SPEC.md#明确缺项)）。具名维护者由负责人指定。
+当前缺口：子类、配置 Schema、端口接线、组合通知者、扫描者绑定与撤除都还没有进入，清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。受理槽与来源变化通知还没有服务键（[SPEC 的明确缺项](../SPEC.md#明确缺项)）。具名维护者由负责人指定。

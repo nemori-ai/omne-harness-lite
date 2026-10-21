@@ -38,7 +38,7 @@ The fiber of this plugin owns the service instance and its `SessionInstance`. Wh
 
 ## Design
 
-`./cordis` has six parts: configuration, port wiring, service subclass, notice, scanner binding, and removal. The outside dependencies are session-contract, session-cordis-contract, session, and `@deepseek-ai/cordis`. Only the transaction port is in `inject`. The plugin gets each other port at each call, through its own Context. This package sends the commit notice. The plugin binds a scanner when it first sees a tenant in a notice. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the four lifecycle flows. The [object model](docs/object-model.md) describes the objects.
+`./cordis` has six parts: configuration, port wiring, service subclass, notice, scanner binding, and removal. The outside dependencies are session-contract, session-cordis-contract, session, and `@deepseek-ai/cordis`. Only the transaction port and the internal principals are in `inject`. The plugin gets each other port at each call, through its own Context. This package sends the commit notice. The plugin binds a scanner when it first sees a tenant in a notice. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the four lifecycle flows. The [object model](docs/object-model.md) describes the objects.
 
 ## Configuration and operation
 
@@ -60,7 +60,7 @@ In this directory, run `pnpm typecheck` for the type check. The two current test
 
 - When the service definition changes, update the concrete subclass, the port wiring, the [Cordis page](docs/cordis.md), and the tests.
 - When the factory, the dependency classes, or the scheduling policy of session change, update the configuration schema, the port wiring, and the [API page](docs/public-api.md).
-- The service definition member can add a key for the internal principals, the intake slots, or the change notices. When it does, update the known gaps in the SPEC and the Cordis page.
+- The service definition member can add a key for the intake slots or the change notices. When it does, update the known gaps in the SPEC and the Cordis page.
 - Before a Cordis upgrade, run the basis probes that the service definition member and this package list.
 - The [group page](../README.md) owns member relations and dependency direction. The responsible lead names the maintainer.
 
