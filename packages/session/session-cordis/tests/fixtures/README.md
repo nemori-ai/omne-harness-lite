@@ -1,29 +1,19 @@
 # tests/fixtures
 
-<!-- documentation:placeholder -->
-
 本目录承载测试使用的固定输入。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 测试数据文件与说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 固定输入不能代替规格；数据的来源与生成方式写在本 README。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 输入格式或来源变化时，同步引用它的测试。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+现在为空。两个入口测试不需要固定输入。随实现进入的测试用代码构造插件配置与通知载荷，因为它们是小的类型化值，写在测试里更容易核对。若某个测试需要一组共用的配置样本（合法与不合法各一组），放在这里，并写明它对应 [Cordis 说明的配置](../../docs/cordis.md#配置)的哪些字段。具名维护者由负责人指定。

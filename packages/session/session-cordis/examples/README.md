@@ -1,29 +1,21 @@
 # examples
 
-<!-- documentation:placeholder -->
-
 本目录承载面向真实公开入口的使用示例。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 可运行的示例代码与说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 示例只用公开入口，并写明运行前提。示例不代替测试或规格。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 公开入口变化时，同步示例并确认它仍能运行。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
+现在为空。两个入口都没有导出，没有可运行的示例。插件树里的一行与独立使用的写法在[使用与定位](../docs/context.md#使用方式)里，只说明形状，不能运行。
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+插件实现、并且内部主体的服务键定义之后，在这里加一个最小装配示例：装载一个事务端口的替身与本插件，以一个调用方类调用一个面，再卸载插件观察撤除顺序。具名维护者由负责人指定。
