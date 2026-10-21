@@ -148,10 +148,15 @@ export function createEnvironmentRegistry<P>(deps: RegistryDependencies): Enviro
   const findRecord = (acquisition: AcquisitionRef, tenant: TenantId) =>
     records.get(acquisition)?.find(record => sameTenant(record.tenant, tenant))
 
+  const sameSet = (left: readonly string[], right: readonly string[]) =>
+    left.length === right.length && [...left].sort().every((key, i) => key === [...right].sort()[i])
+
   const samePlacement = (left: Placement, right: Placement) =>
     sameBinding(left.binding, right.binding) &&
     left.provider.name === right.provider.name &&
-    left.provider.generation === right.provider.generation
+    left.provider.generation === right.provider.generation &&
+    sameSet(left.requirement.facilities, right.requirement.facilities) &&
+    sameSet(left.requirement.isolation, right.requirement.isolation)
   let closing: Promise<Retirement> | undefined
 
   const scopeReleased = (binding: EnvironmentBinding) => {

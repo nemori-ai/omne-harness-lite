@@ -18,7 +18,7 @@ Execution Environment 按纯契约、Cordis 服务定义、机制实现、Servic
 | [execution-environment-host-local](execution-environment-host-local/README.md) | service-provider | Service 实现与撤除保留；宿主 `files` 提供者（已迁入四项操作）；`command`、`terminal` 提供者待实现 |
 | [image](image/README.md) | module | 图像预算、打开、编码与关闭；公开入口是 `imageBudget`、`open` 与句柄上的 encode 和 close |
 
-依赖方向：`execution-environment-contract` ← `execution-environment-cordis-contract` ← `execution-environment` ← `execution-environment-host-local`。契约成员依赖 `runtime-context-contract`（作用域引用与块声明类型）、`legal-identity`、`operation-result`、`json-text`、`schema-provider`；不依赖 Tool、Session、授权的契约，它们依赖本组。图像成员与 Execution Environment 没有交接。精确依赖图见[组架构](docs/architecture.md)。
+依赖方向：`execution-environment-cordis-contract` 与 `execution-environment` 各自只依赖 `execution-environment-contract`；`execution-environment-host-local` 依赖这三个成员。契约成员依赖 `runtime-context-contract`（作用域引用与块声明类型）、`legal-identity`、`operation-result`、`json-text`、`schema-provider`；不依赖 Tool、Session、授权的契约，它们依赖本组。图像成员与 Execution Environment 没有交接。精确依赖图见[组架构](docs/architecture.md)。
 
 ## 关键协作
 
