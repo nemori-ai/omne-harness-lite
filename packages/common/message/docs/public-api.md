@@ -53,7 +53,7 @@ assistant 消息将可以带推理续接状态部件 `reasoning_state` 和可选
 | 计划导出 | 种类 | 含义 |
 | --- | --- | --- |
 | `ReasoningStatePart` | 类型 | 推理续接状态部件，只在 `assistant` 消息里 |
-| `ReasoningReplay` | 类型 | 回放描述 `{ scope, format, at, tokens }` |
+| `ReasoningReplay` | 类型 | 回放描述 `{ scope, format, at }` |
 | `REASONING_STATE_PAYLOAD_MAX_LENGTH`、`REPLAY_TAG_MAX_LENGTH` | 常量 | 载荷与 `scope`、`format` 的长度上限 |
 
 `MessageRejection` 将增加 `payload`、`pairs`、`replay` 三个值；`judgePart` 只会给出前两个。

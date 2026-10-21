@@ -394,3 +394,12 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：词表改用[保留名单](terms/record-and-context.md#ul-retained-set--保留名单--retained-set)与[压缩覆盖范围](terms/record-and-context.md#ul-compacted-range--压缩覆盖范围--compacted-range)，「排除名单」列入弃用。[运行感知与一次模型请求](../product/runtime-context/design.md#7-压缩保留历史与未完工作)已修订到 rev 3。消息形状与判定规则归 `packages/common/message`。
 - **负责与闭合条件**：负责人 PanQiWei。Agent 契约成员、Agent 机制页、Model 契约 SPEC、数据与状态系统页、Agent 推进领域页与产品页模型调用的措辞已改为保留名单。仍写「排除名单」或「精确原块集合」的正式正文由各自拥有者回改：Request Context 成员（`packages/context/request-context/**`）、Session 契约 SPEC 的派生提交条款。全部回改后闭合。
 - **状态**：已裁定，待外域回改。
+
+### C-66：内容块的种类是否含推理续接状态
+
+- **类型**：定义打架。2026-10-21 承接加密推理回放的设计时发现。
+- **来源**：[内容块](terms/record-and-context.md#ul-content-block--内容块--content-block)把块的种类列为七类封闭清单：文本、思考、语音、图、文件、工具调用、工具结果。PanQiWei 2026-10-21 定下可见推理与加密推理分成两种块；[message 成员的推理续接状态](../../../packages/common/message/SPEC.md#推理续接状态)据此设计了只在 assistant 消息里出现的推理续接状态部件，装供应商交回的不透明推理状态。
+- **差别**：按词表的七类读，加密推理没有位置，只能塞进「思考」，与产品负责人的分块裁定相反；按设计读，块多出第八类，词表的封闭清单不再成立。推理续接状态、回放范围、回放声明和外来可见推理四个说法目前只在成员规格里定义，没有产品正文出处。
+- **处置**：设计按产品负责人的分块裁定写在成员规格里，状态为待接受。是否为这几个说法立词条、内容块清单是否加入第八类，需要先有产品正文出处或产品负责人对现行词义的直接裁定。
+- **负责与闭合条件**：负责人 PanQiWei。任务卡 [#605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的设计被接受，且内容块词条的种类清单与之一致（立词条或写明不立的理由）后闭合。
+- **状态**：待裁定。

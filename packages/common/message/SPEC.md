@@ -191,7 +191,6 @@ flowchart LR
 | `scope` | 回放范围，非空字符串，长度不超过 `REPLAY_TAG_MAX_LENGTH`（256 个 UTF-16 码元） |
 | `format` | 这条消息推理内容的格式与版本，非空字符串，长度上限同 `scope`。由产出它的适配器给出，本成员不解释 |
 | `at` | 全部推理续接状态部件在 `blocks` 中的下标，严格递增；消息里没有这类部件时为空数组 |
-| `tokens` | 上游为这次回复报告的推理 token 数，是非负十进制整数字符串（`0` 或不以 `0` 开头的数字串，不带符号），长度上限同 `scope`；上游没有报告时为 `null` |
 
 assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理续接状态部件。其他五种角色的 `blocks` 不能含它。
 
@@ -221,7 +220,7 @@ assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理
 
 <a id="rs-06"></a>
 
-**RS-06 本成员不解释内容。**`scope`、`format`、`payload`、`tokens` 都按原样保存和比较。哪个模型能消费哪个范围、不能消费时怎样处理、怎样把载荷写进请求体，归 [Model 契约的推理回放](../../model/model-contract/SPEC.md#推理回放)。
+**RS-06 本成员不解释内容。**`scope`、`format`、`payload` 都按原样保存和比较。用量与费用不在消息里，归模型调用的账目。哪个模型能消费哪个范围、不能消费时怎样处理、怎样把载荷写进请求体，归 [Model 契约的推理回放](../../model/model-contract/SPEC.md#推理回放)。
 
 ### `judgeMessage` 与 `judgePart` 的判定
 
@@ -237,7 +236,7 @@ assistant 的 `blocks` 在内容块和三种调用部件之外，可以含推理
 
 - **多余键。**输入的 `role` 自有属性严格等于字符串 `assistant` 时，合法键集另加 `replay`。其他角色的消息有自有可枚举键 `replay` 时判 `extra`。
 - **是否带 `replay`。**`replay` 不在必需键集里。`assistant` 角色的输入按 `in` 有 `replay` 时，与其他合法键一样读一次它的值（访问器至多调用一次）。读到 `undefined` 时视为不带，成功值里没有这个键；读到 `null` 时判 `null`；其他值进入下一项。
-- **回放描述的形状。**排在「空块」之后判。`replay` 不是普通对象；自有键不恰好是 `scope`、`format`、`at`、`tokens`；`scope` 或 `format` 不是非空字符串或超过长度上限；`at` 不是数组、自有键不只是下标和 `length`（括注与空位规则同 `pairs`）、有元素不是非负安全整数、或不严格递增；`tokens` 既不是 `null`，也不是长度不超过上限的非负十进制整数字符串：`replay`。普通对象的含义与 `covers` 相同，访问器不被调用。
+- **回放描述的形状。**排在「空块」之后判。`replay` 不是普通对象；自有键不恰好是 `scope`、`format`、`at`；`scope` 或 `format` 不是非空字符串或超过长度上限；`at` 不是数组、自有键不只是下标和 `length`（括注与空位规则同 `pairs`）、有元素不是非负安全整数、或不严格递增：`replay`。普通对象的含义与 `covers` 相同，访问器不被调用。
 
 部件、角色规则与块身份唯一都通过之后，`judgeMessage` 再判下面两项。
 

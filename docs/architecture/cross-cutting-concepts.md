@@ -341,7 +341,7 @@ flowchart TD
 
 - 思考块只出现在 `assistant` 角色的消息里。`tool` 角色消息的正文，以及 `user`、`tool_internal`、`system_reminder`、`compaction` 角色的消息，只含思考以外的内容块。部件不在该角色允许的集合里时，判定给出 `misplaced-part`。
 - `compaction` 角色的消息除 `id`、`role`、`blocks` 外，另带压缩覆盖范围 `covers`、保留名单 `retained` 和派生证据 `derivation`；其他角色不带这三个键。该成员另提供压缩记录的相对历史判定：历史持有者给出覆盖范围内的条目、范围之后的消息和未结工作，判定核对覆盖范围、保留名单、调用与结果在模型视图里同进同出，以及未结工作不被摘要。配对完整性只在这一判定里核对。
-- `assistant` 角色的消息可以含推理续接状态部件 `reasoning_state`，装供应商交回的不透明推理状态，不给人看；含这类部件的消息必须带回放描述 `replay`，写明回放范围、格式、这些部件的位置与上游报告的推理 token 数。其他角色不含这类部件，也不带 `replay`。该成员不解释回放范围与载荷；哪个模型能消费哪个范围归 Model 契约。
+- `assistant` 角色的消息可以含推理续接状态部件 `reasoning_state`，装供应商交回的不透明推理状态，不给人看；含这类部件的消息必须带回放描述 `replay`，写明回放范围、格式与这些部件的位置。其他角色不含这类部件，也不带 `replay`。该成员不解释回放范围与载荷；哪个模型能消费哪个范围归 Model 契约。
 
 形状与规则见[消息成员](../../packages/common/message/SPEC.md)。
 
