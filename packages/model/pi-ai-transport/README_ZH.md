@@ -22,8 +22,8 @@
 | 公开类型已导出 | `PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding`、`PiFamilyContributions`，形状照抄组架构的已接受代码块 | 根入口，只有类型 | `public-entry.spec.ts` 核对根入口没有运行时导出，`public-entry.spec-d.ts` 以编译期用例核对类型。没有家族实现消费这些类型 |
 | 容量与诊断隔离已实现 | 连接容量：FIFO 授予，可取消，可关闭，预约不过期，只消费一次，消费之后只经座位归还名额。诊断隔离：事件只含种类与级别，观察者的故障只改变计数 | 包内 `src/capacity.ts`、`src/diagnostics.ts`，不经入口导出 | 快层单元测试，使用真实的 `AbortController`。没有包外消费者 |
 | SSE 分帧与协议帧已实现 | 字节流到 SSE 事件 data 文本：任意切点下的 UTF-8 与换行，单事件字节上限，四种失败原因。data 文本到协议帧：end-marker 单独成帧，无损 JSON，EOF 不判定终局 | 包内 `src/sse.ts`（改编自 pi）、`src/frames.ts` | 快层单元测试，使用真实字节流与 Node 可读流。没有真实供应商的流 |
-| HTTPS 交换与网络资源已实现 | 同步发起的单次 POST，不重试，不跟随重定向。四种结果，封闭的拒绝原因，错误体三种状态。停止在物理关闭前胜出，名额在物理关闭之后归还。新建连接的连接超时。网络资源的关闭排空 | 包内 `src/http.ts`、`src/network.ts` | 慢层测试，对真实本地 HTTPS 服务与自签证书。不证明真实供应商、代理或公网 TLS |
-| 尚未交付 | `ModelTransport` 的 `prepare → materialize → start`（2.2）。请求规划、固定绑定与帧到 `TransportFact` 的映射（2.3）。OpenAI 家族（2.5），真实请求经 OpenRouter 固定路由。凭据解析与真实供应商请求（2.6）。第二个差异显著的家族对共享传输接口的验证（后续线）。按优先级与等待方式分配连接席位：未实现，未采用为契约。当前按先来先得授予名额，调用方用取消信号结束等待。方向与责任见 [docs/architecture.md“未实现的优化方向：按优先级与等待方式分配连接席位”](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位) | 无 | 这些路径没有证据 |
+| HTTPS 交换与网络资源已实现 | 同步发起的单次 POST，不重试，不跟随重定向。四种结果，封闭的拒绝原因，错误体三种状态。只有同一资源的容量授予的预约能发起交换。停止在物理关闭前胜出，名额在物理关闭之后归还。读者提前结束响应体（含第一次读取之前）时响应关闭。读者按类型区分本地停止（`ResponseBodyStoppedError`）与连接中断（`ResponseBodyReadError`）。请求进入连接池等待队列是缺陷（`ExchangeQueuedError`），不是已发起的交换。新建连接的连接超时。网络资源的关闭排空 | 包内 `src/http.ts`、`src/network.ts` | 慢层测试，对真实本地 HTTPS 服务与自签证书。不证明真实供应商、代理或公网 TLS |
+| 尚未交付 | `ModelTransport` 的 `prepare → materialize → start`（[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.2）。请求规划、固定绑定与帧到 `TransportFact` 的映射（2.3）。OpenAI 家族（2.5），真实请求经 OpenRouter 固定路由。凭据解析与真实供应商请求（2.6）。第二个差异显著的家族对共享传输接口的验证（后续线）。按优先级与等待方式分配连接席位：未实现，未采用为契约。当前按先来先得授予名额，调用方用取消信号结束等待。方向与责任见 [docs/architecture.md“未实现的优化方向：按优先级与等待方式分配连接席位”](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位) | 无 | 这些路径没有证据 |
 
 ## 使用
 
@@ -43,16 +43,12 @@
 
 所有限额都由调用方给出，本包不设默认值：
 
-- 网络资源：`maxConnections`（容量与连接池的套接字上限）、`idleConnectionTimeoutMs`（池中空闲连接的关闭时限）、可选的 `tls.ca`，以及可选的诊断观察者与 `maxPending`。
+- 网络资源：`maxConnections`（容量，也是连接池对每个接收方的套接字上限）、`idleConnectionTimeoutMs`（池中空闲连接的关闭时限）、可选的 `tls.ca`，以及可选的诊断观察者与 `maxPending`。
 - 每次交换：`connectTimeoutMs`（只作用于新建连接，`null` 表示不设）与 `maxErrorBodyBytes`。
 - SSE 分帧：`maxEventBytes`。协议帧：`endMarker` 与 JSON 限额。
+- 每个计时值最多 2147483647 毫秒，即 Node 定时器接受的最大延迟。
 
-调用方负责：
-
-- 创建网络资源并调用 `close()`；
-- 归还预约，或把它交给一次交换；
-- 读完 2xx 响应体，或停止交换；
-- 在请求头中放入凭据。
+调用方的责任见 [SPEC“调用方责任”](SPEC.md#调用方责任)。
 
 本包负责物理关闭交换、归还名额与排空在途交换。本包只校验头部字符集，不解析、保存或记录凭据。运行需要 Node.js 24 或更高版本，不需要其他外部程序。
 
@@ -71,7 +67,10 @@ pnpm run check:docs
 
 Turbo 的 `test`、`test:fast` 与 `test:slow` 先构建本包及其依赖，再执行所选测试。慢层需要 PATH 中有 `openssl`，用它生成自签证书。测试分层、夹具与替身见[测试说明](tests/README.md)，覆盖与未覆盖见 [SPEC“组合与验证”](SPEC.md#组合与验证)。
 
-已知限制：`pnpm run package:template scan --member packages/model/pi-ai-transport` 的 `integration` 为 `unknown`。原因是 `docs/architecture/constraints.json` 中本成员仍为候选，层未定。这项登记归架构拥有者，结构检查不受影响。
+`pnpm run package:template scan --member packages/model/pi-ai-transport` 的已知限制：
+
+- `integration` 为 `unknown`。原因是 `docs/architecture/constraints.json` 中本成员仍为候选，层未定。这项登记归架构拥有者，结构检查不受影响。
+- 加 `--check` 时退出码为 1。原因是 `adoption` 为 `unmarked`：`package.json` 没有包模板标记。全仓成员都是同一状况。`structure` 仍为 `pass`。
 
 ## 维护
 

@@ -11,5 +11,7 @@
 - [diagnostics.ts](diagnostics.ts)：诊断事件与观察者隔离
 - [sse.ts](sse.ts)：字节流到 SSE 事件 data 文本，改编自 pi
 - [frames.ts](frames.ts)：SSE data 文本到协议帧
-- [http.ts](http.ts)：一次同步发起的 HTTPS 交换
+- [http.ts](http.ts)：一次同步发起的 HTTPS 交换，含读者看到的错误类型
 - [network.ts](network.ts)：网络资源的组合与关闭排空
+- [iteration.ts](iteration.ts)：读者提前结束时关闭来源的包装
+- [limits.ts](limits.ts)：限额与计时值的校验

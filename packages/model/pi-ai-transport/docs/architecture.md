@@ -10,27 +10,40 @@
 | [index.ts](../src/index.ts) | 根入口，只转出 family.ts 的类型 | family.ts |
 | [capacity.ts](../src/capacity.ts) | 谁可以发：FIFO 等待队列、已授予计数、关闭标志、每个预约的状态 | operation-result（类型） |
 | [diagnostics.ts](../src/diagnostics.ts) | 观察怎样隔离：失败、在途与丢弃计数 | 无 |
-| [sse.ts](../src/sse.ts) | 字节怎样成为事件：UTF-8 解码器状态、当前行、当前事件的 data 行与字节计数 | 无，改编自 pi |
-| [frames.ts](../src/frames.ts) | 事件怎样成为协议帧：是否已过 end-marker | family.ts、json-text、operation-result |
-| [http.ts](../src/http.ts) | 怎样发一次并收场：一次交换的相位、未关闭的物理句柄、座位与结果 | Node `https`、`http`、`net`，capacity.ts 与 diagnostics.ts（类型） |
-| [network.ts](../src/network.ts) | 怎样组合与排空：容量、连接池、在途登记、诊断隔离与关闭状态 | Node `https`，capacity.ts、diagnostics.ts、http.ts（类型） |
+| [iteration.ts](../src/iteration.ts) | 读者提前结束时怎样关闭来源：未启动的生成器不运行 `finally`，由它补上 | 无 |
+| [limits.ts](../src/limits.ts) | 哪些数是合法限额：正的安全整数，以及 Node 定时器的最大延迟 | 无 |
+| [sse.ts](../src/sse.ts) | 字节怎样成为事件：UTF-8 解码器状态、当前行、当前事件的 data 行与字节计数 | iteration.ts；改编自 pi |
+| [frames.ts](../src/frames.ts) | 事件怎样成为协议帧：是否已过 end-marker | family.ts、iteration.ts、json-text、operation-result |
+| [http.ts](../src/http.ts) | 怎样发一次并收场：一次交换的相位、未关闭的物理句柄、座位、结果，以及读者看到的错误类型 | Node `https`、`http`、`net`，iteration.ts、limits.ts，capacity.ts 与 diagnostics.ts（类型） |
+| [network.ts](../src/network.ts) | 怎样组合与排空：容量、连接池、在途登记、诊断隔离与关闭状态 | Node `https`，capacity.ts、diagnostics.ts、limits.ts，http.ts（类型） |
+
+下图画出表中的全部依赖，虚线是只有类型的依赖：
 
 ```mermaid
 flowchart LR
   index[index.ts] --> family[family.ts]
-  frames[frames.ts] --> family
-  frames --> jsonText["@omne-harness/json-text"]
-  network[network.ts] --> capacity[capacity.ts]
-  network --> diagnostics[diagnostics.ts]
-  network -. 类型 .-> http[http.ts]
-  http -. 类型 .-> capacity
-  http -. 类型 .-> diagnostics
-  http --> node["Node https"]
-  network --> node
   family -. 类型 .-> contract["model-contract、content-block"]
+  family -. 类型 .-> jsonText["@omne-harness/json-text"]
+  family -. 类型 .-> result["@omne-harness/operation-result"]
+  capacity[capacity.ts] -. 类型 .-> result
+  frames[frames.ts] --> family
+  frames --> iteration[iteration.ts]
+  frames --> jsonText
+  frames -. 类型 .-> result
+  sse[sse.ts] --> iteration
+  http[http.ts] --> iteration
+  http --> limits[limits.ts]
+  http -. 类型 .-> capacity
+  http -. 类型 .-> diagnostics[diagnostics.ts]
+  http --> node["Node https"]
+  network[network.ts] --> capacity
+  network --> diagnostics
+  network --> limits
+  network -. 类型 .-> http
+  network --> node
 ```
 
-依赖方向只从组合者指向机制。http.ts 不创建容量、连接池或诊断隔离，它们由 network.ts 注入。http.ts 只看到 `ExchangeResources` 中它需要的部分：连接池、TLS 选项、诊断隔离、在途登记与关闭标志。sse.ts 只接收字节的异步迭代，不接收 Node 的 `IncomingMessage`。
+依赖方向只从组合者指向机制。http.ts 不创建容量、连接池或诊断隔离，它们由 network.ts 注入。http.ts 只看到 `ExchangeResources` 中它需要的部分：连接池、TLS 选项、诊断隔离、在途登记、关闭标志，以及容量的预约归属核对。sse.ts 只接收字节的异步迭代，不接收 Node 的 `IncomingMessage`。iteration.ts 与 limits.ts 是机制共用的小工具，不持有状态。
 
 运行依赖只有 model-contract、operation-result、json-text、content-block 与 Node 内置模块。本包不导入任何家族。家族差异只经已接受的 `PiFamilyBinding` 与 `PiResponseDecoder` 进入，由上层装配提供。[dependencies.spec.ts](../tests/dependencies.spec.ts) 核对 `package.json` 的声明与源码中的值导入和类型导入。
 
@@ -62,6 +75,7 @@ stateDiagram-v2
   concluding --> stopping: 停止
   requesting --> defective: 没有状态码
   reading_error --> defective: 错误体的块不是字节
+  stopping --> defective: 停止后错误体的块不是字节
   responding --> closed: 句柄集合为空
   concluding --> closed: 句柄集合为空
   stopping --> closed: 句柄集合为空
@@ -77,7 +91,11 @@ stateDiagram-v2
 
 集合为空时，交换进入 `closed`：清除连接超时定时器，移除信号监听器，离开在途登记，经座位归还名额，确定结果，投递 `exchange-stopped`，然后完成 `stopped`。`responding` 的结果已在收到响应头时交付，`closed` 时不再改变。
 
-停止在 `requesting`、`reading-error` 与 `concluding` 时把相位改为 `stopping`，然后销毁响应与请求。在 `responding` 时，停止不改变相位，只销毁连接，读者的迭代因此出错。其他相位上的停止不起作用。
+停止在 `requesting`、`reading-error` 与 `concluding` 时把相位改为 `stopping`，然后销毁响应与请求。在 `responding` 时，停止不改变相位，只销毁连接，读者的迭代因此以 `ResponseBodyStoppedError` 结束。其他相位上的停止不起作用。
+
+交换记住是否发生过本地停止。响应体在到达末尾之前结束时，读者按这个记录得到两种错误之一：有本地停止是 `ResponseBodyStoppedError`，没有本地停止是 `ResponseBodyReadError`，后者带 Node 报告的 `cause`。读者按类型分支，不解释 Node 的错误码。
+
+响应体的读者提前结束迭代时，本包销毁响应。未启动的异步生成器不运行 `finally`，所以 `claim()` 返回的迭代器、`readSseEvents` 与 `readProtocolFrames` 都经 [iteration.ts](../src/iteration.ts) 包装：读者在第一次 `next()` 之前调用 `return()` 或 `throw()` 时，包装先关闭来源。三层组合提前结束时，关闭逐层到达响应。
 
 ### 资源所有权
 
@@ -86,7 +104,7 @@ stateDiagram-v2
 | 预约 | 容量 | 调用 `release()` 或被一次交换消费 |
 | 座位 | 消费预约的交换 | 交换进入 `closed` 时归还 |
 | 物理请求与响应 | 交换 | 停止、读完、读者提前结束或连接失败，最终都触发 `close` 事件 |
-| 2xx 响应体 | 认领它的读者 | 读完或提前结束迭代 |
+| 2xx 响应体 | 认领它的读者 | 读完，或提前结束迭代（含第一次 `next()` 之前） |
 | 在途登记 | 网络资源 | 交换在 `closed` 时自行离开 |
 | 连接池 | 网络资源 | `close()` 销毁 |
 | 诊断计数 | 诊断隔离 | 只增减计数，不持有观察者的结果 |
@@ -100,13 +118,15 @@ stateDiagram-v2
 
 ### 同步发起与发送围栏
 
-model-contract 要求发送点 S 位于同一个同步围栏内，围栏内不得 await 或排队。因此 `startExchange` 是同步函数：校验输入、消费预约、调用 `https.request` 与 `end(body)`，然后返回句柄。容量的等待放在发起之前，由 `reserve` 完成，后续由 2.2 的 materialize 调用。
+model-contract 要求发送点 S 位于同一个同步围栏内，围栏内不得 await 或排队。因此 `startExchange` 是同步函数：校验输入、消费预约、调用 `https.request` 与 `end(body)`，然后返回句柄。容量的等待放在发起之前，由 `reserve` 完成，后续由[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.2 的 materialize 调用。
 
-容量上限等于连接池的 `maxSockets` 与 `maxTotalSockets`，预约又先于发起，所以正常情况下请求不进入 Node 连接池的等待队列。名额在请求与响应物理关闭之后才归还，使名额数与真实的套接字一致。
+同时进行的交换数由容量限制。连接池只为每个接收方设置 `maxSockets`，等于 `maxConnections`；它不设总套接字上限。总上限会把其他接收方的空闲连接计入总量：一个接收方留下的空闲连接会让下一个发往另一个接收方的请求进入连接池的等待队列，尽管它持有名额。请求发往同一个接收方时，上一次交换的连接在名额归还之前已经回到空闲池，或已经离开连接池，所以持有名额的请求不排队。
+
+发起后，本包同步核对请求没有进入连接池的等待队列（Node 公开的 `agent.requests`）。进入等待队列违反“返回前已发出”，本包按缺陷处理：销毁请求、归还名额、抛出 `ExchangeQueuedError`，不把它当成已发起的交换。名额在请求与响应物理关闭之后才归还，使名额数与真实的活动套接字一致。
 
 ### 不迁移旧的脱敏策略
 
-封存件用旧的凭据政策包对头部和错误体脱敏。本包不迁移这套策略。原样的响应头与错误体只在包内交给家族解释，对外失败只由家族形成的安全诊断表达，诊断事件只含种类与级别。这样秘密只存在于本次发送资源内，不需要第二套脱敏规则（依据 [#461](https://github.com/nemori-ai/omne-harness-lite/issues/461)）。
+封存件用旧的凭据政策包对头部和错误体脱敏。本包不迁移这套策略。原样的响应头与错误体只在包内交给家族解释，对外失败只由家族形成的安全诊断表达，诊断事件只含种类与级别。这样秘密只存在于本次发送资源内，不需要第二套脱敏规则（依据 [#461 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/461#issuecomment-6311010561)）。
 
 ### 与封存件的差异
 
@@ -114,6 +134,7 @@ model-contract 要求发送点 S 位于同一个同步围栏内，围栏内不�
 - 发起：封存件在 send 内等待容量。本包把等待移到 `reserve`，发起本身同步。
 - 地址：封存件固定 OpenRouter 路径。本包只接收调用方给出的完整 https 地址。
 - 诊断上限：封存件复用连接数作为诊断在途上限。本包的 `maxPending` 独立配置。
+- 读者看到的错误：封存件把 Node 的流错误原样交给读者。本包把本地停止与对方中断分为 `ResponseBodyStoppedError` 与 `ResponseBodyReadError` 两种类型。
 
 ### 从 pi 改编的 SSE 分帧
 
@@ -128,7 +149,7 @@ JSON 读取与 end-marker 移到本项目自写的 [frames.ts](../src/frames.ts)
 
 ## 未实现的优化方向：按优先级与等待方式分配连接席位
 
-**状态：未实现，未采用为契约。** 本节记录一个已提出的产品要求和建议的实现方向，供后续实施时使用。当前行为以 [SPEC.md](../SPEC.md#连接容量) 为准：连接席位按先来先得授予，等待在授予、取消或容量关闭时结束，调用方可以用带时限的取消信号限定等待时间。
+**状态：未实现，未采用为契约。** 本节记录一个已提出的产品要求和建议的实现方向，供后续实施时使用。产品要求的来源是 [#461 的决定评论](https://github.com/nemori-ai/omne-harness-lite/issues/461#issuecomment-6311010561)。当前行为以 [SPEC.md](../SPEC.md#连接容量) 为准：连接席位按先来先得授予，等待在授予、取消或容量关闭时结束，调用方可以用带时限的取消信号限定等待时间。
 
 ### 要解决的问题
 

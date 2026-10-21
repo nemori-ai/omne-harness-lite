@@ -172,7 +172,7 @@ scripts/                       仓库自动化
 <a id="模型组的成员与采用范围"></a>
 ### 模型组的成员与采用范围
 
-`0.0.0 → 0.1.0` 的模型适配和请求沿用项目维护的 pi-ai 技术栈。model-contract、model-cordis-contract、model、model-host-local 与 pi-ai-transport 已是 workspace 成员，非 pi-ai 设计已接受，并按下表职责拥有文档。各成员的源码状态见下表「初始化状态」。pi-ai 厂商家族成员及 tokenizer 成员尚未初始化。不保留聚合全部实现的安装门面。
+`0.0.0 → 0.1.0` 的模型适配和请求沿用项目维护的 pi-ai 技术栈。model-contract、model-cordis-contract、model、model-host-local 与 pi-ai-transport 已是 workspace 成员，并按下表职责拥有文档。其中非 pi-ai 的四个成员的设计已接受。pi-ai-transport 的设计状态见下表「设计状态」。各成员的源码状态见下表「初始化状态」。pi-ai 厂商家族成员及 tokenizer 成员尚未初始化。不保留聚合全部实现的安装门面。
 
 | 成员，位于 packages/model 下 | 包边界 | 设计状态 | 初始化状态 |
 | --- | --- | --- | --- |

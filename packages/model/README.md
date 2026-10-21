@@ -4,12 +4,13 @@
 
 ## 当前状态
 
-状态分四类，各类只说明自己的范围。
+状态分五类，各类只说明自己的范围。
 
 1. 已有：凭据引用、解析与本地保管。凭据的纯契约（引用、查询、存在性与解析结果、`CredentialPort`、持有者比较函数）在 [model-contract](model-contract/README_ZH.md) 的根入口，声明在 `src/credential.ts` 与 `src/credential-values.ts`。存在性与解析的判定在 [model](model/README_ZH.md) 的根入口。本地保管（文件保管库）与装载它的 `LocalCredentialPlugin` 在 [model-host-local](model-host-local/README_ZH.md) 的根入口与 `./cordis` 入口。Cordis 凭据服务定义 `ModelCredentialService` 在 [model-cordis-contract](model-cordis-contract/README_ZH.md) 的 `./cordis` 入口。局限：保管库只在本机文件系统上验证，并要求调用方与保管库在同一进程共享 legal-identity 实例；凭据服务不核验调用方资格，该项在 [model-cordis-contract 的 SPEC](model-cordis-contract/SPEC.md#凭据服务)登记为未决。
 2. 已实现的两个公开契约。model-contract 的根入口导出 163 个类型与 28 个运行值，`./testing` 入口导出受控替代提供者、替代传输与提供者符合性断言，共 27 个名字。model-cordis-contract 的根入口导出 8 个登记类型，`./cordis` 入口导出 42 个名字与 `Context`、`Events` 增补。两个包都有导出清单比对、类型探针、安装闭包检查与角色夹具，model-cordis-contract 另有对真实 Cordis 的登记与撤除测试。局限：替代提供者的结果由脚本给出，不证明生产提供者；这些检查证明契约面，不证明任何运行实现。
-3. model 已实现 `executeModel`、受理、原流保存、最小实例观察与[有限的原终局收场](model/SPEC.md#已实现的调用收场)，提供[逐步教学示例](model/examples/README.md)。验证使用真实产品 driver/sender 和内存 Commands、脚本传输，不证明真实厂商或生产耐久。结果读取及 processed ACK 已实现；retained ACK、自动清理、重试循环、恢复与独立能力构造尚未实现。尚未实现的还有 model-host-local 的时钟、实例调度、目录装载与托管运行插件，以及 pi 厂商家族、tokenizer 引擎等其他提供者。pi-ai-transport 的根入口已导出五个家族贡献接口类型，包内已实现连接容量、HTTP 交换、SSE 分帧与诊断隔离，只对本地 HTTPS 服务验证；ModelTransport 尚未实现。
-4. 技术设计：非 pi-ai 技术设计已接受。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 分工及迁移接受条件已接受；其余细化沿[组架构](docs/architecture.md#成员与新增条件)的各节标注。OpenAI 实现线只交付三个新成员，延期条件见[迁移接受范围](docs/architecture.md#迁移与接受条件)。
+3. model 已实现 `executeModel`、受理、原流保存、最小实例观察与[有限的原终局收场](model/SPEC.md#已实现的调用收场)，提供[逐步教学示例](model/examples/README.md)。验证使用真实产品 driver/sender 和内存 Commands、脚本传输，不证明真实厂商或生产耐久。结果读取及 processed ACK 已实现；retained ACK、自动清理、重试循环、恢复与独立能力构造尚未实现。尚未实现的还有 model-host-local 的时钟、实例调度、目录装载与托管运行插件，以及 pi 厂商家族、tokenizer 引擎等其他提供者。
+4. pi-ai-transport 的根入口已导出五个家族贡献接口类型。包内已实现连接容量、HTTP 交换、SSE 分帧、协议帧、网络资源与诊断隔离，只对本地 HTTPS 服务验证。`ModelTransport` 尚未实现。
+5. 技术设计：非 pi-ai 技术设计已接受。pi-ai 的成员划分、家族贡献取得协议、Tokenizer 分工及迁移接受条件已接受；其余细化沿[组架构](docs/architecture.md#成员与新增条件)的各节标注。OpenAI 实现线只交付三个新成员，延期条件见[迁移接受范围](docs/architecture.md#迁移与接受条件)。
 
 ## 成员与依赖
 

@@ -8,10 +8,12 @@
 
 ## 边界
 
-测试分两层，测试名带对应的用户故事编号（如 `US-14`）：
+测试名描述被测对象的可观察行为。`describe` 块对应 [SPEC.md](../SPEC.md) 的小节，SPEC“组合与验证”的表把每项义务对应到测试文件。测试分两层：
 
-- 快层：容量、诊断隔离、SSE 分帧、协议帧、发起前的拒绝、配置校验、根入口与依赖方向。它们用真实的 `AbortController`、真实的字节流与 Node 可读流，不建立网络连接。
+- 快层：容量、诊断隔离、SSE 分帧、协议帧、发起前的拒绝、配置校验、根入口与依赖方向。它们用真实的 `AbortController`、真实的字节流与 Node 可读流，不建立网络连接。拒绝用例同步核对连接池没有套接字也没有排队的请求。
 - 慢层：文件头标有 `@module-tag slow` 的 [http.spec.ts](http.spec.ts) 与 [network.spec.ts](network.spec.ts)。它们对真实的本地 HTTPS 服务发起交换，并等待真实的连接超时、空闲超时与套接字关闭。
+
+http.spec.ts 用 vitest 的模块替身把 `node:https` 的 `request` 换成一个委托真实函数并记录每个请求的包装，用于在 `startExchange` 返回后同步核对请求已经写出。其他行为都经真实的 Node `https`。
 
 慢层的夹具在 [support/https-server.ts](support/https-server.ts)：
 
@@ -19,7 +21,7 @@
 - 本地 HTTPS 服务：记录收到的方法、路径、头与体，由每个用例决定怎样响应。
 - 黑洞监听：接受 TCP 连接但从不完成 TLS 握手，用于连接超时。
 
-[support/exchange.ts](support/exchange.ts) 提供交换的输入、预约与观察工具。其中的限额只是本套测试的初值，不是本包的默认值。
+[support/exchange.ts](support/exchange.ts) 提供交换的输入、预约与观察工具，含清理断言与连接池队列的读取。其中的限额只是本套测试的初值，不是本包的默认值。[support/sources.ts](support/sources.ts) 提供记录读者行为的字节源，供分帧层的提前结束用例使用。
 
 这些测试只证明本地 HTTPS 服务上的行为，不证明真实供应商、代理、公网 TLS 或 `ModelTransport` 的组合。完整的覆盖与未覆盖见 [SPEC“组合与验证”](../SPEC.md#组合与验证)。
 

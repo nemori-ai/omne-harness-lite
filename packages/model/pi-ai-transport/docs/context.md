@@ -31,7 +31,7 @@ if ('ok' in acquired) {
 
 ### 包内消费：传输机制
 
-传输机制不经入口导出，只能由同包代码使用。下例说明 2.2 的 `ModelTransport` 预计怎样组合它们。例中的数值是示意的初值，本包不设默认值：
+传输机制不经入口导出，只能由同包代码使用。下例说明[阶段二](https://github.com/nemori-ai/omne-harness-lite/issues/446) 2.2 的 `ModelTransport` 预计怎样组合它们。例中的数值是示意的初值，本包不设默认值：
 
 ```ts
 import { createNetworkResources } from './network.ts'
@@ -67,12 +67,7 @@ await start.exchange.stopped // 名额已归还。
 await network.close()
 ```
 
-初始化与释放责任：
-
-- 网络资源的创建者负责调用 `close()`。
-- 预约的持有者负责归还预约，或把它交给一次交换。
-- 认领 2xx 响应体的读者负责读完它，或停止交换。
-- 调用方在发起时把凭据放进请求头。本包不解析、保存或记录凭据。
+初始化与释放责任见 [SPEC“调用方责任”](../SPEC.md#调用方责任)。
 
 ## 消费者与定位
 

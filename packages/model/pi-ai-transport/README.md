@@ -22,8 +22,8 @@ The support scope has five tiers. Each tier states only checked facts: what the 
 | Public types exported | `PiProtocolFrame`, `PiResponseDecoder`, `PiMaterializedMedia`, `PiFamilyBinding` and `PiFamilyContributions`. Their shapes copy the accepted code block of the group architecture | Root entry, types only | `public-entry.spec.ts` checks that the root entry has no runtime export. `public-entry.spec-d.ts` checks the types with compile-time cases. No family implementation uses these types yet |
 | Capacity and diagnostic isolation implemented | Connection capacity: FIFO grants, cancellation, close, reservations that do not expire, one consume per reservation, and after the consume only the seat returns the slot. Diagnostic isolation: events carry the kind and the level only, and a fault of the observer only changes the counters | Package-internal `src/capacity.ts` and `src/diagnostics.ts`. No entry exports them | Fast unit tests with a real `AbortController`. No consumer outside this package |
 | SSE framing and protocol frames implemented | Bytes to SSE event data text: UTF-8 and line breaks at any chunk cut, a per-event byte limit and four failure reasons. Data text to protocol frames: the end-marker is a separate frame, and the JSON reader keeps every value. The end of the stream is never a terminal frame | Package-internal `src/sse.ts` (adapted from pi) and `src/frames.ts` | Fast unit tests with real byte streams and Node readable streams. No stream from a real supplier |
-| HTTPS exchange and network resources implemented | One POST that starts synchronously, with no retry and no redirect. Four results, a closed set of refusal reasons and three error body states. A stop wins until the physical close, and the slot returns after the physical close. A connect timeout for new connections. Drain on close of the network resources | Package-internal `src/http.ts` and `src/network.ts` | Slow tests against a real local HTTPS server with a self-signed certificate. They do not prove a real supplier, a proxy or public TLS |
-| Not delivered | `prepare → materialize → start` of `ModelTransport` (2.2). Request planning, fixed binding and the map from frames to `TransportFact` (2.3). The OpenAI family (2.5), with real requests through the fixed OpenRouter route. Credential resolution and real supplier requests (2.6). Verification of the shared transport interface by a second, clearly different family (a later line). Connection slots by priority and wait mode: not implemented and not adopted as a contract. Today the capacity grants slots first come, first served, and the caller ends a wait with its cancel signal. The direction and the owners are in [docs/architecture.md, "未实现的优化方向：按优先级与等待方式分配连接席位"](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位) | None | No evidence for these paths |
+| HTTPS exchange and network resources implemented | One POST that starts synchronously, with no retry and no redirect. Four results, a closed set of refusal reasons and three error body states. Only a reservation of the same resources can start an exchange. A stop wins until the physical close, and the slot returns after the physical close. A reader that ends the body early, even before its first read, closes the response. The reader tells a local stop (`ResponseBodyStoppedError`) from a loss of the connection (`ResponseBodyReadError`). A request that the pool queues is a defect (`ExchangeQueuedError`), not a started exchange. A connect timeout for new connections. Drain on close of the network resources | Package-internal `src/http.ts` and `src/network.ts` | Slow tests against a real local HTTPS server with a self-signed certificate. They do not prove a real supplier, a proxy or public TLS |
+| Not delivered | `prepare → materialize → start` of `ModelTransport` ([stage two](https://github.com/nemori-ai/omne-harness-lite/issues/446), 2.2). Request planning, fixed binding and the map from frames to `TransportFact` (2.3). The OpenAI family (2.5), with real requests through the fixed OpenRouter route. Credential resolution and real supplier requests (2.6). Verification of the shared transport interface by a second, clearly different family (a later line). Connection slots by priority and wait mode: not implemented and not adopted as a contract. Today the capacity grants slots first come, first served, and the caller ends a wait with its cancel signal. The direction and the owners are in [docs/architecture.md, "未实现的优化方向：按优先级与等待方式分配连接席位"](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位) | None | No evidence for these paths |
 
 ## Usage
 
@@ -52,16 +52,12 @@ The network resources compose and inject the capacity, the socket pool and the d
 
 The caller gives every limit. The package has no default values:
 
-- Network resources: `maxConnections` is the capacity and the socket limit of the pool. After `idleConnectionTimeoutMs` the pool closes an idle connection. `tls.ca` and a diagnostic observer with `maxPending` are optional.
+- Network resources: `maxConnections` is the capacity, and the socket limit of the pool for each recipient. After `idleConnectionTimeoutMs` the pool closes an idle connection. `tls.ca` and a diagnostic observer with `maxPending` are optional.
 - Each exchange: `connectTimeoutMs` (new connections only, `null` for no limit) and `maxErrorBodyBytes`.
 - SSE framing: `maxEventBytes`. Protocol frames: `endMarker` and the JSON limits.
+- Each timer value is at most 2147483647 ms, the largest delay a Node timer takes.
 
-The caller must:
-
-- Create the network resources and call `close()`.
-- Return each reservation, or give it to one exchange.
-- Read each 2xx response body to the end, or stop the exchange.
-- Put the credential into the request headers.
+The duties of the caller are in [SPEC, "调用方责任"](SPEC.md#调用方责任).
 
 The package closes each exchange physically, returns its slot and drains in-flight exchanges on close. The package only checks the character set of the headers. It does not parse, keep or record credentials. The package needs Node.js 24 or later at run time and no other external program.
 
@@ -80,7 +76,10 @@ pnpm run check:docs
 
 The Turbo tasks `test`, `test:fast` and `test:slow` first build this package and its dependencies, then run the selected tests. The slow tier needs `openssl` on PATH to make a self-signed certificate. The test tiers, fixtures and test doubles are in the [test notes](tests/README.md). Coverage and gaps are in [SPEC, "组合与验证"](SPEC.md#组合与验证).
 
-Known limit: `pnpm run package:template scan --member packages/model/pi-ai-transport` reports `integration` as `unknown`. The reason is that `docs/architecture/constraints.json` still lists this member as a candidate with no layer. The architecture owner owns that entry. The structure check is not affected.
+Known limits of `pnpm run package:template scan --member packages/model/pi-ai-transport`:
+
+- It reports `integration` as `unknown`. The reason is that `docs/architecture/constraints.json` still lists this member as a candidate with no layer. The architecture owner owns that entry. The structure check is not affected.
+- With `--check` it exits 1, because `adoption` is `unmarked`: `package.json` has no package-template marker. Every member of the repository is in the same state. The `structure` result stays `pass`.
 
 ## Maintenance
 

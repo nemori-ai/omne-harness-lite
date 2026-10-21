@@ -36,7 +36,7 @@
       "file": "src/sse.ts",
       "source": "packages/ai/src/api/openai-codex-responses.ts",
       "symbol": "parseSSE",
-      "changes": "Async iterable of Uint8Array input instead of a Node response; strict UTF-8 decoding that survives arbitrary byte cuts; a per-event byte limit that counts line breaks; all SSE newline forms including a CRLF split across chunks; rejection of an unterminated tail; SseProtocolError with the closed reasons non-byte, invalid-utf8, event-too-large and unterminated. Changes against the archived fork: only an error of the TextDecoder maps to invalid-utf8 and other errors pass through; a data line without a colon has an empty value (WHATWG); JSON reading and the end-marker moved to the project-owned src/frames.ts.",
+      "changes": "Async iterable of Uint8Array input instead of a Node response; strict UTF-8 decoding that survives arbitrary byte cuts; a per-event byte limit that counts line breaks; all SSE newline forms including a CRLF split across chunks; rejection of an unterminated tail; SseProtocolError with the closed reasons non-byte, invalid-utf8, event-too-large and unterminated. Changes against the archived fork: only an error of the TextDecoder maps to invalid-utf8 and other errors pass through; a data line without a colon has an empty value (WHATWG); JSON reading and the end-marker moved to the project-owned src/frames.ts; a reader that ends the events before the first one closes the byte source, through the project-owned src/iteration.ts.",
       "basis": "nemori-ai/omne-harness-lite#461 implementation spec (SSE framing); packages/model/docs/migration.md pi-ai-transport/src sse.ts row"
     }
   ]
