@@ -101,6 +101,16 @@ final 没有实际结束时钟 marker。running 计时保留 unknown、原 segme
 
 替身只供测试，不提供耐久性、真实执行环境或生产宿主，也不增加支持表之外的 runtime 能力。工厂不创建定时器或新的释放协议。runtime 与调用方提供的资源仍由调用方拥有。
 
+### 记录仓一致性用例
+
+从 `@omne-harness/tool/testing` 导入 `toolLedgerStoreConformance`、`toolLedgerStoreCompositionConformance` 和 `createMemoryToolLedgerStoreFixture`。两组数组复用 `tool-contract/testing` 的 `ConformanceCase` 与 `runConformanceCase`，不依赖 Vitest。公开形状和独立故障手柄见 [public-api](docs/public-api.md#ledger-store-conformance-testing)，完整消费示例见[英文说明](README.md#ledger-store-conformance)。这是 G6 指定的新增测试 API，无旧消费者迁移。
+
+Store 数组验证完整快照、写入顺序、条件原子写、并发 CAS、域分区、输入输出副本与已标定故障。组合数组把提供者的 store 交给真实 Tool ledger，验证原操作幂等、异输入冲突、状态修订、未知认回、排除围栏、围栏后同身份重试与资格拒绝。Store 分区不等于授权，域修订不等于业务状态修订。
+
+每项用例须新建独立 fixture，由消费者最终调用 `close`。内存 fixture 提供全部手柄，两组须全部 passed、零 not-applicable。其他提供者缺少手柄时，suite 在装配、seed 和 IO 前返回既有 not-applicable，不能计为通过。有手柄却未制造约定故障，或发生其他异常，均失败。数据库消费者须保留断言与清理同时失败的两项错误，可用框架清理钩子或 AggregateError。
+
+组合使用固定测试主体、配对测试 source 和一份显式可信内部变更输入，核 ledger commands/reads 边界。它不证明生产身份与授权系统、引用 codec、runtime 适配、真实执行、耐久、多连接、跨重启或断电恢复。内存 fixture 声明 `durability: 'none'`。后续耐久提供者须复用同一判据并补充真实后端证据。
+
 ## 契约
 
 行为归[契约 SPEC](../tool-contract/SPEC.md)，独立路径归其中的 P11。[SPEC.md](SPEC.md) 说明本实现怎样满足契约，并固定契约留给实现的选择：失败种类、字节编码、等待历史预留量和屏障规则。契约 SPEC 的 G1、G2、G8 决定把这些工厂放在本包。

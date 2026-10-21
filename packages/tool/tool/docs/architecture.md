@@ -323,3 +323,14 @@ runtime.invoke 在第一次 await 前用契约判定器固定 payload，再通�
 
 
 [模型闭环装配](../tests/tools-model-values.ts) 在测试中分开两个调用方。受信宿主运行实际源 executor、登记 Tools 作者、经真实 runtime invoke，并用 readReply 收齐元回应后投影。PagingModel 的构造和方法只接收 P14 内容块，没有 runtime、存储、ResultPage 或私有协议 codec。故障客户端对公开凭据的损坏测试独立于 PagingModel。入站 guard 与作者 codec 使用相同的有限参数预算，两层检查均保留。
+
+
+### 记录仓一致性设施
+
+G6 的两个公共数组从 [testing.ts](../src/testing.ts) 接入既有 ConformanceCase 和 NotApplicable。该文件是跨包 testing 接线的唯一源码入口，本地 builder 只消费窄依赖，不反向导入入口。root 导出图不包含 suite 或 node:assert。
+
+[Store cases](../src/testing-ledger-store-cases.ts) 与[故障 cases](../src/testing-ledger-store-fault-cases.ts)直接消费 ToolLedgerStore。[组合 cases](../src/testing-ledger-composition-cases.ts)通过[最小装配](../src/testing-ledger-assembly.ts)运行真实 ledger。提供者只提供 store。该装配固定测试主体和权限事实，复用配对 source、clock、custody 与 environment 测试工厂，没有第二份业务决定器、runtime、driver 或 Cordis 装配。内部工厂接线只用于授权 oracle 的负控，公开入口固定使用真实 createToolLedger。
+
+两组分别保护条件原子写与 P01 业务语义。CAS 重送应冲突，业务重送应认回原 operation；围栏推进域 revision，不改 ToolState revision。否定围栏只排除旧在途尝试，后续同身份新尝试可以成功。编码拒绝 probe 核拒绝路径不留下部分写，不承诺任意 host value 可编码。
+
+输入、控制与资源责任见 [public-api](public-api.md#ledger-store-conformance-testing)，证据覆盖见[测试导航](../tests/README.md#记录仓公共一致性用例)。内存仓使用候选 Map 原子发布与引用复制，声明 durability:none。其通过不代表耐久、跨进程或生产授权系统已经验证。
