@@ -63,7 +63,8 @@ export function matchProviders<T extends ProviderCapabilities>(
       }
       qualifying.push(provider)
     }
-    if (qualifying.length > 1) return Object.freeze({ kind: 'rejected', reason: 'ambiguousEnvironment' })
+    if (qualifying.length > 1)
+      return Object.freeze({ kind: 'rejected', reason: 'ambiguousEnvironment' })
     const [provider] = qualifying
     if (provider !== undefined) return Object.freeze({ kind: 'matched', provider, binding })
   }

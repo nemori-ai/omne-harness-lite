@@ -83,22 +83,30 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
     )
   }
 
-  resolvePlacement(...args: Operation<P, 'resolvePlacement'>['args']) {
+  resolvePlacement(
+    ...args: Operation<P, 'resolvePlacement'>['args']
+  ): Operation<P, 'resolvePlacement'>['result'] {
     return this.registry.resolvePlacement(...args)
   }
-  acquire(...args: Operation<P, 'acquire'>['args']) {
+  acquire(...args: Operation<P, 'acquire'>['args']): Operation<P, 'acquire'>['result'] {
     return this.registry.acquire(...args)
   }
-  inspectAcquisition(...args: Operation<P, 'inspectAcquisition'>['args']) {
+  inspectAcquisition(
+    ...args: Operation<P, 'inspectAcquisition'>['args']
+  ): Operation<P, 'inspectAcquisition'>['result'] {
     return this.registry.inspectAcquisition(...args)
   }
-  describe(...args: Operation<P, 'describe'>['args']) {
+  describe(...args: Operation<P, 'describe'>['args']): Operation<P, 'describe'>['result'] {
     return this.registry.describe(...args)
   }
-  recoverOwned(...args: Operation<P, 'recoverOwned'>['args']) {
+  recoverOwned(
+    ...args: Operation<P, 'recoverOwned'>['args']
+  ): Operation<P, 'recoverOwned'>['result'] {
     return this.registry.recoverOwned(...args)
   }
-  releaseScope(...args: Operation<P, 'releaseScope'>['args']) {
+  releaseScope(
+    ...args: Operation<P, 'releaseScope'>['args']
+  ): Operation<P, 'releaseScope'>['result'] {
     return this.registry.releaseScope(...args)
   }
 

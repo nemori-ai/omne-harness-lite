@@ -8,7 +8,10 @@ import type {
   FileSystemFacility,
   TerminalFacility,
 } from '@omne-harness/execution-environment-contract'
-import { shellEnvironmentSlot, type ShellEnvironment as ExampleShellEnvironment } from '../examples/shell-needs.ts'
+import {
+  shellEnvironmentSlot,
+  type ShellEnvironment as ExampleShellEnvironment,
+} from '../examples/shell-needs.ts'
 
 it('compiles the Shell example in examples/ against the public entry', () => {
   expectTypeOf<ExampleShellEnvironment>().toEqualTypeOf<{
