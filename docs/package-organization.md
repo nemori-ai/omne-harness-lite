@@ -132,7 +132,7 @@ packages/
 │   ├── runtime-context-cordis-contract/  Runtime Context 的唯一 Cordis 服务定义
 │   ├── runtime-context/                  不含 Cordis 的供给机制：登记表、生产者表、绑定解析、当前投影、观察链
 │   ├── runtime-context-cordis/           Service 实现：一个 isolate 一个服务，作用域为参数
-│   ├── request-context-contract/         Request Context 纯契约：组装输入、八个纯操作、七层布局、历史源与策略端口
+│   ├── request-context-contract/         Request Context 纯契约：组装输入、九项纯操作、装载布局、历史源与策略端口
 │   ├── request-context-cordis-contract/  Request Context 的唯一 Cordis 服务定义：提示词贡献登记与策略选择
 │   ├── request-context/                  不含 Cordis 的派生计算：索引、缓存、默认压缩与表示策略
 │   └── request-context-cordis/           Service 实现：贡献登记表、作用域遮蔽、策略装配
