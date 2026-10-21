@@ -50,7 +50,7 @@ export const inject = {
 
 ## 设计
 
-每个入口一个源文件。包外依赖是 session-contract 的类型与 `@deepseek-ai/cordis`。本成员不导入任何提供者或机制。四个面共用一个服务键。只有事务端口进 `inject`，其余端口按调用现取。模块与理由见[内部架构](docs/architecture.md)。本成员为什么没有自己的流程与领域对象，见[流程](docs/flows.md)与[对象模型](docs/object-model.md)。
+每个入口一个源文件。包外依赖是 session-contract 的类型与 `@deepseek-ai/cordis`。本成员不导入任何提供者或机制。四个面共用一个服务键。只有事务端口与内部主体进 `inject`，其余端口按调用现取。模块与理由见[内部架构](docs/architecture.md)。本成员为什么没有自己的流程与领域对象，见[流程](docs/flows.md)与[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 

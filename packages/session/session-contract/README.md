@@ -7,14 +7,14 @@ The pure contract member of Session. It has no Cordis dependency.
 
 ## Responsibility and status
 
-This package owns the public contract of Session governance. It defines four caller faces: work, management, reconciliation, and history. It defines the ports that a provider supplies for construction, and the ports that Session calls outward. It defines the event catalog of the session log. It defines the signatures of the pure domain services and the reduction function `reduce`. It defines the block declaration `session.modes`.
+This package owns the public contract of Session governance. It defines four caller faces: work, management, reconciliation, and history. It defines the ports that a provider supplies for construction, and the ports that Session calls outward. It defines the event catalog of the session log. It defines the signatures of the pure domain services, the decision function `decide`, and the reduction function `reduce`. It defines the block declaration `session.modes`.
 
 The package does not own execution. Agent, Model, and Tool own their own execution lives. The package does not name a neighbor contract. It does not own storage, scheduling, or the plugin that binds a service to Cordis. A Session is a governance service. A Run and an attempt are governed objects, not running instances.
 
 Status: contract member, `draft`. The [SPEC](SPEC.md) states which earlier parts come from technical acceptance. The section [runtime contract candidate](SPEC.md#运行契约候选) is a candidate design. Technical acceptance has not happened for it.
 
 - Implemented: nothing. `src/index.ts` holds only a template marker. The root entry exports nothing.
-- Not implemented: the types, the four faces, the port interfaces, the domain services, `reduce`, and `sessionModesBlock`.
+- Not implemented: the types, the four faces, the port interfaces, the domain services, `decide`, `reduce`, and `sessionModesBlock`.
 - Not verified: every behavior clause in the SPEC. The only test checks that the root entry exports nothing. The package makes no claim about durability, concurrency, recovery, tenant isolation, or performance.
 
 Three members of the group list this package as a dependency: session, session-cordis-contract, and session-cordis. They use no export yet, because the entry is empty.

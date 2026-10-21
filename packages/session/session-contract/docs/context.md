@@ -41,11 +41,11 @@ Tool 宿主的协调者不导入本成员。它调用 Tool 契约定义的两个
 
 两个端口的形状与服务键归 Tool 契约的会话常驻规则，见 SPEC 的[由本组实现的 Tool 端口](../SPEC.md#由本组实现的-tool-端口)与[具名前提](../SPEC.md#具名前提与明确缺项)的 P-8。
 
-会话的 `lifecycle` 由事实归约得出，取值按优先次序为 `archived`、`active`、`frozen`、`dormant`。冻结不可逆，每个会话至多一次，并且独立于归档：冻结的会话可以归档，撤销归档后回到 `frozen` 或 `active`。冻结的会话不开始新 Run，也不采用新版本。冻结时未终结的 Run 不被取消，按原规则收场。规则见 SPEC 的[常驻工具与会话冻结](../SPEC.md#常驻工具与会话冻结)。
+会话的 `lifecycle` 由事实归约得出，取值按优先次序为 `archived`、`initializing`、`active`、`frozen`、`dormant`。冻结不可逆，每个会话至多一次，并且独立于归档：冻结的会话可以归档，撤销归档后回到 `frozen` 或 `active`。冻结的会话不开始新 Run，也不采用新版本。冻结时未终结的 Run 不被取消，按原规则收场。规则见 SPEC 的[常驻工具与会话冻结](../SPEC.md#常驻工具与会话冻结)。
 
 独立消费使用显式的 `SessionFaces` 及其注入的端口，不要求 Cordis。候选形状见 [public-api](public-api.md)，装配依赖与资源撤除见 [Cordis 定义](../../session-cordis-contract/docs/cordis.md)。可靠状态由相应的提供者兑现。
 
-Session 与 Model、Tool 的关系不是发起调用或控制。Tool 一侧没有读 Session 守卫的保护点：Session 是启动围栏的资格版本拥有者，撤销资格后经 `ToolStartFencePort` 调用 `invalidate`。Model 一侧的受理点守卫以资格参加者协议闭合为前提，见 SPEC 的[具名前提与明确缺项](../SPEC.md#具名前提与明确缺项)中的 P-4。
+Session 不发起模型调用或工具执行，也不控制它们。它对 Tool 只调用 `invalidate` 与交付责任解除。Tool 一侧没有读 Session 守卫的保护点：Session 是启动围栏的资格版本拥有者，撤销资格后经 `ToolStartFencePort` 调用 `invalidate`。Model 一侧的受理点守卫以资格参加者协议闭合为前提，见 SPEC 的[具名前提与明确缺项](../SPEC.md#具名前提与明确缺项)中的 P-4。
 
 ## 原消费场景的前提
 

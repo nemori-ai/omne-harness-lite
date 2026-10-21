@@ -2,7 +2,7 @@
 
 当前根入口为 `export {}`，尚无工作治理和日志操作的生产导出。
 
-实际导出与公开校验由 [src/index.ts](../src/index.ts) 及其导出模块拥有。下列声明是尚未技术接受、尚未实现的唯一候选定义，不是现有包的使用承诺。后继实现接管精确定义时，本页改为源码导航，不保留第二套手写签名。
+实际导出与公开校验由 [src/index.ts](../src/index.ts) 及其导出模块拥有。下列声明是尚未技术接受、尚未实现的唯一候选定义，不是现有包的使用承诺。实现进入后，精确定义归源码，本页只做源码导航，不保留第二套手写签名。
 
 行为、调用资格、结果与认回归 [SPEC 的运行契约候选](../SPEC.md#运行契约候选)。消费路径见 [context](context.md)，对象关系见 [object-model](object-model/README.md)。本页只给形状，不重复行为。
 
@@ -94,6 +94,7 @@ export type RunState =
       advance: AdvanceRef | null; ordinal: string; execution: ExecutionRef
     }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
+/** passage and position are the Agent's names, saved and echoed as given. The contract has no dependency on the Agent contract, so it does not narrow them. */
 export type Waiting =
   | Readonly<{ kind: 'producer'; binding: CallBinding; position: string }>
   | Readonly<{
@@ -510,9 +511,9 @@ export type RouteJudgment =
 export type RunStartJudgment =
   | Readonly<{ kind: 'eligible'; first: InputId }>
   | Readonly<{ kind: 'not-ready' | 'archived' | 'frozen' | 'run-active' | 'no-input' | 'login-required' }>
-/** Six parts, all derived from the snapshot. unreadEvents: Agent events after readThrough count as open work. */
+/** Seven parts, all derived from the snapshot. taken: inputs the Agent took with no model call registered (SE18) after them, so no model request has read them yet. unreadEvents: Agent events after readThrough count as open work. */
 export type OpenWork = Readonly<{
-  pending: readonly InputId[]; handed: readonly InputId[]
+  pending: readonly InputId[]; handed: readonly InputId[]; taken: readonly InputId[]
   waiting: readonly Waiting[]; backgroundPlaceholders: readonly ConsumptionId[]
   unresolved: readonly SessionOperationId[]
   unreadEvents: readonly Readonly<{ execution: string; after: string }>[]
@@ -560,9 +561,9 @@ export type Decision =
   | Readonly<{ kind: 'entries'; entries: readonly EncodedEntry[] }>
   | Readonly<{ kind: 'recovered'; receipt: CommitReceipt }>
   | Readonly<{ kind: 'rejected'; failure: SessionFailure }>
-/** Runs the domain services for one command and encodes the batch. reduce(decide(...)) round-trips under one interpreter. */
 /** History the storage participant reads inside the transaction. Only commitDerived(compaction) needs it; null otherwise. open holds the entry references of the open work that openWork names. */
 export type DecideReads = Readonly<{ compaction: CompactionContext | null }>
+/** Runs the domain services for one command and encodes the batch. reduce(decide(...)) round-trips under one interpreter. */
 export declare function decide(previous: WorkSnapshot, command: SessionCommand, guards: readonly GuardCommand[], record: OperationRecord | null, reads: DecideReads): Decision
 ```
 
@@ -636,7 +637,7 @@ export declare const sessionModesBlock: SessionBlockDeclaration
 
 `ScopeReleasePort` 的参数不含恢复授权。恢复授权由应用装配层的维护拥有者签发，经装配注入端口实现。`query` 的 `excluded` 是 Agent 的排除证明，等于本成员 `OperationResolution` 的 `not-committed`。`invalidate` 返回 `unavailable` 或 `commit-unknown` 时，`ControlProgress.startFence` 与 `tasks.start-fence` 保持 `pending`。`release` 结果未知或抛出时任务状态为 `unknown`，以同一操作身份重试。
 
-## 当前增量与后续接口
+## 构造依赖端口、出站端口与纯函数
 
 [构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)。
 

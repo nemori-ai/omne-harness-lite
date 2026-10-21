@@ -7,14 +7,14 @@ Session 的纯契约成员，不依赖 Cordis。
 
 ## 职责与状态
 
-本成员拥有 Session 治理的公开契约：工作、管理、对账、历史四个调用方面；构造时由提供者提供的依赖端口，以及 Session 向外调用的出站端口；会话日志的事件目录；纯领域服务的签名与归约函数 `reduce`；块声明 `session.modes`。
+本成员拥有 Session 治理的公开契约：工作、管理、对账、历史四个调用方面；构造时由提供者提供的依赖端口，以及 Session 向外调用的出站端口；会话日志的事件目录；纯领域服务的签名、决定函数 `decide` 与归约函数 `reduce`；块声明 `session.modes`。
 
 本成员不拥有执行。Agent、Model、Tool 的执行生命周期归各自成员。本成员不点名任何邻域契约，不拥有存储、调度，也不拥有把服务绑定到 Cordis 的插件。Session 是工作治理服务，Run 与 attempt 是被治理的对象，不是运行实例。
 
 状态：契约成员，`draft`。[SPEC](SPEC.md) 写明哪些较早的部分由技术接受采用。[运行契约候选](SPEC.md#运行契约候选)一节是候选设计，尚未技术接受。
 
 - 已实现：没有。`src/index.ts` 只有模板标记，根入口没有导出。
-- 未实现：类型、四个面、端口接口、领域服务、`reduce` 与 `sessionModesBlock`。
+- 未实现：类型、四个面、端口接口、领域服务、`decide`、`reduce` 与 `sessionModesBlock`。
 - 未验证：SPEC 的全部行为条款。唯一的测试只断言根入口没有导出。本成员不宣称耐久、并发、恢复、租户隔离或性能通过。
 
 组内 session、session-cordis-contract、session-cordis 三个成员在 `package.json` 里依赖本成员。入口为空，它们现在不使用任何导出。

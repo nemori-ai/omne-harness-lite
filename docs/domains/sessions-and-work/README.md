@@ -57,18 +57,17 @@ flowchart TD
 
 人能看到的内容只来自两处：会话日志的历史投影，以及生产方已经可靠保管的在途增量，见[用户可见内容的两处来源](../../architecture/runtime/streaming-and-consumption.md#用户可见内容的两处来源)。
 
-会话在收到一份账时把它记入日志。这条记录只表示会话已经收到。账目随模型响应的流式增量或流的完成、或一次已完成工具执行的工具结果产生，由消费位置拥有者保管。Agent 的事件不带账目，会话按原调用向消费位置拥有者读取，见[事件来源与日志准入](../../../packages/session/session-contract/SPEC.md#事件来源与日志准入)。
+会话在收到一份账时把它记入日志。这条记录只表示会话已经收到。账目随模型响应的流式增量或流的完成、或一次已完成工具执行的工具结果产生，由模型调用与工具执行保管。Agent 的事件不带账目，会话作为消费位置拥有者按原调用读取，见[事件来源与日志准入](../../../packages/session/session-contract/SPEC.md#事件来源与日志准入)。
 
 ```mermaid
 sequenceDiagram
+  participant Session as 会话
   participant Model as 模型调用
   participant Tool as 工具执行
-  participant Owner as 消费位置拥有者
-  participant Session as 会话
-  Model->>Owner: 流式增量或流完成带出用量和费用
-  Tool->>Owner: 工具结果带出费用
-  Session->>Owner: 按原调用读取账目
-  Owner-->>Session: 账目
+  Session->>Model: 按原调用读取账目
+  Model-->>Session: 用量和费用
+  Session->>Tool: 按原调用读取账目
+  Tool-->>Session: 费用
   Session->>Session: 记下这笔账
   Note over Session: 更后修订替换同一来源的已知金额，并标明迟到
 ```

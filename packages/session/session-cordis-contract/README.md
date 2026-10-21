@@ -50,7 +50,7 @@ The package holds no resources. The fiber of the caller plugin owns the life of 
 
 ## Design
 
-Each entry has one source file. The outside dependencies are the types of session-contract and `@deepseek-ai/cordis`. The package imports no provider and no mechanism. The service has one key for all four faces. Only the transaction port goes into `inject`. Every other port is taken at call time. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) and the [object model](docs/object-model.md) explain why this member has no flows and no domain objects of its own.
+Each entry has one source file. The outside dependencies are the types of session-contract and `@deepseek-ai/cordis`. The package imports no provider and no mechanism. The service has one key for all four faces. Only the transaction port and the internal principals go into `inject`. Every other port is taken at call time. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) and the [object model](docs/object-model.md) explain why this member has no flows and no domain objects of its own.
 
 ## Configuration and operation
 

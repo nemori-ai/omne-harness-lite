@@ -28,8 +28,7 @@
 | 宿主失联判断的证据形状 | [F-SC09](scenarios.md#f-sc09-推进映射与换代) | Agent 宿主 |
 | 「推进资格已被取代」的参加者冲突映射为 `stale-advance` | [F-SC09](scenarios.md#f-sc09-推进映射与换代) | Agent 拥有者，见[明确缺项](../../SPEC.md#具名前提与明确缺项) |
 | 迟到账目与收场的读取资格（P-3） | [F-SC10](scenarios.md#f-sc10-迟到结果与终态后的后台结果) | Model 与 Tool 的拥有者 |
-| 反向分页时 `from` 的含义，以及从 `HistoryPage.upper`（`SessionRevision`）到 `since.after`（`EntryId`）的换算 | [F-SC11](scenarios.md#f-sc11-时间线投影与在途收敛) | `session-contract` 的 `SessionHistory` |
-| 时间线显示哪些事件种类、预加载阈值、页字节数与客户端缓存键 | [F-SC11](scenarios.md#f-sc11-时间线投影与在途收敛) | `session` 投影与公开接入的策略配置 |
+| 时间线显示哪些事件种类 | [F-SC11](scenarios.md#f-sc11-时间线投影与在途收敛) | `session` 投影与公开接入的策略配置 |
 | 在途通道的订阅入口（订阅 Agent 句柄，或直接观察生产者） | [F-SC11](scenarios.md#f-sc11-时间线投影与在途收敛)、[F-SC12](scenarios.md#f-sc12-流到日志) | Agent、Model、Tool 契约与公开接入 |
 | 助手消息的条目怎样关联原调用（`AdmittedMessage.consumption` 只在工具消息与后台占位消息上非空） | [F-SC11](scenarios.md#f-sc11-时间线投影与在途收敛) | message 包与 Agent 的消息形成 |
 | 中断回复的消息形状与标记 | [F-SC12](scenarios.md#f-sc12-流到日志) | message 包与 Agent 的消息准入 |

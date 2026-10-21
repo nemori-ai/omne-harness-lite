@@ -39,11 +39,11 @@ export const inject = {
 
 ## 端口服务键
 
-七个构造依赖端口与四个出站端口各有一个服务键。接口归 `session-contract`；键与抽象类归本成员；抽象类名为端口名加 `Service`，`static readonly provide` 只在定义类声明（性质 3）。
+七个构造依赖端口、四个出站端口与内部主体各有一个服务键，共十二个。接口归 `session-contract`；键与抽象类归本成员；抽象类名为端口名加 `Service`，`static readonly provide` 只在定义类声明（性质 3）。
 
 | 键 | 端口 | 谁提供 | 怎样取得；缺席时 |
 | --- | --- | --- | --- |
-| `sessionTransactions` | `SessionTransactionPort` | [session-storage-sql](../../session-storage-sql/README.md) 或其他存储提供者 | 进 `inject`，是唯一的必需依赖。缺席时 Session 服务停在 `PENDING` |
+| `sessionTransactions` | `SessionTransactionPort` | [session-storage-sql](../../session-storage-sql/README.md) 或其他存储提供者 | 进 `inject`，与内部主体同为必需依赖。缺席时 Session 服务停在 `PENDING` |
 | `sessionPrincipals` | `SessionInternalPrincipals`：本组协调器与调度器提交命令时用的内部主体 | 应用装配（维护拥有者签发） | 进 `inject`。缺席时 Session 服务停在 `PENDING`，不启动任何协调器 |
 | `sessionIdentity` | `SessionIdentityBridge` | [session-adapters](../../session-adapters/README.md) | 按调用现取。缺席时变更操作返回 `unavailable`，读取照常 |
 | `sessionEvidence` | `SessionEvidenceBridge` | session-adapters | 按调用现取。缺席时只有需要该材料的命令返回 `unavailable` |

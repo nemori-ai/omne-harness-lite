@@ -1,6 +1,6 @@
 # @omne-harness/session-cordis-contract 行为规格
 
-状态：Cordis 定义成员，候选设计，尚未技术接受。本成员只拥有 Session 的 Cordis 定义：一个 Session 服务键、十个端口服务键、一种 intercept 配置和一个事件。领域行为归 [session-contract SPEC](../session-contract/SPEC.md)，本页不另写第二份保证。`./cordis` 的源码现在只有模板标记，没有运行实现。服务定义、依赖分类、事件与机制读数的正文归 [docs/cordis.md](docs/cordis.md)。
+状态：Cordis 定义成员，候选设计，尚未技术接受。本成员只拥有 Session 的 Cordis 定义：一个 Session 服务键、十二个依赖服务键（七个构造依赖端口、四个出站端口与内部主体）、一种 intercept 配置和一个事件。领域行为归 [session-contract SPEC](../session-contract/SPEC.md)，本页不另写第二份保证。`./cordis` 的源码现在只有模板标记，没有运行实现。服务定义、依赖分类、事件与机制读数的正文归 [docs/cordis.md](docs/cordis.md)。
 
 ## 唯一性
 
@@ -22,7 +22,7 @@ Session 不提供运行实例目录，也不为会话建 fiber。服务提供者
 | --- | --- | --- |
 | 服务键与抽象类 | 本成员 | 随包 |
 | 调用方类声明 | 调用方插件的 intercept 配置 | 随调用方 fiber |
-| 端口的实现 | 提供该端口的插件（存储、适配或应用装配） | 插件卸载；事务端口缺席时 Session 服务停在 `PENDING`，其他端口缺席时只有需要它的操作返回 `unavailable` |
+| 端口的实现 | 提供该端口的插件（存储、适配或应用装配） | 插件卸载；事务端口或内部主体缺席时 Session 服务停在 `PENDING`，其他端口缺席时只有需要它的操作返回 `unavailable` |
 | 事件监听 | 监听者的 fiber（经 `ctx.on`） | 随监听者 fiber |
 | 会话事实、修订、操作认回 | 不在本成员。归 [session-contract SPEC](../session-contract/SPEC.md) 与事务端口的提供者 | — |
 

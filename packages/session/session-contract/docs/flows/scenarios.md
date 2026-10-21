@@ -555,7 +555,7 @@ sequenceDiagram
 | 保管者不可用 | 生产者继续保管，责任没有空档 | EC-07 |
 | `recordResult` 返回 `conflict` | 结果项、版本、消费位置与交接不一致，拒绝 | AgentDrivePort |
 | `ExecutionRef.revision` 为空时的 `missing` | 表示 Agent 尚未受理，按 PM-14 处理，不是记录已删除 | AgentDrivePort |
-| P-3 不成立 | 迟到的账目与收场只能经 Agent 事件到达。Agent 不在时保持未知，不以查不到当作未发生 | EC-09、P-3 |
+| P-3 不成立 | 迟到的收场只能经 Agent 事件到达，Agent 不在时保持未知。账目在途与迟到都保持未知，不以查不到当作未发生 | EC-09、P-3 |
 | 重复报告 | 按生产者记录身份与修订派生的身份认回 | EC-09 |
 
 契约未定：迟到账目与收场的读取资格（P-3）归 Model 与 Tool 的拥有者。
@@ -585,7 +585,7 @@ sequenceDiagram
     end
     par 底部实时追加
         N-->>V: committed(revision，kinds)
-        V->>H: since(after 为已知上界，kinds，pageBytes)
+        V->>H: since(after 为已持有的最新条目，kinds，pageBytes)
         H-->>V: after 之后已提交条目的一个小页
         V-->>U: 追加到底部，上界前移
     and 生成中的回复
@@ -627,7 +627,7 @@ sequenceDiagram
 | 游标错域、失效或被篡改 | `invalid` | SessionHistory |
 | 读路径不可用 | `unavailable`，不返回空页 | SessionHistory、EC-10 |
 | 过滤造成的空页 | 不表示读完，`scannedThrough` 记录实际扫描位置 | SL11 |
-| 通知丢失、重复或合并 | 事实不变。读取者按上界 `since` 补读 | EC-11 |
+| 通知丢失、重复或合并 | 事实不变。读取者以已持有的最新条目为 `after` 调 `since` 补读 | EC-11 |
 | 崩溃后 | 只可能缺从未展示过的在途片段。恢复后的显示说明缺口，不补造 | F-SC12 |
 
 契约未定：
@@ -667,12 +667,15 @@ sequenceDiagram
     end
     M-->>A: 真实收场与账目
     A->>A: 消息准入，形成助手消息
-    A->>J: 同一提交：processed 或 custody 交接，message 交接
-    J->>S: 参加，写 SE21 或 SE20，与 SE10，见 F-SC02、F-SC04、F-SC05
+    A->>J: 提交 processed 或 custody 交接
+    J->>S: 参加，写 SE21 或 SE20，见 F-SC04、F-SC05
+    A->>J: 另一次提交：message 交接
+    J->>S: 参加，写 SE10，见 F-SC02
     A-->>S: producer 事件，经 F-SC07 写 SE19
     S-->>V: 提交通知，日志项替换「生成中」项
     S->>M: 交付责任解除，见 F-SC06
-    M-->>S: 迟到账目，receive(account) 写 SE32
+    S->>M: 按原调用读取账目（P-3），在途与迟到相同
+    M-->>S: 账目，receive(account) 写 SE32
 ```
 
 模型回复流的规则：
@@ -829,7 +832,7 @@ sequenceDiagram
     X-->>T: 会话身份与 shape，不返回定义正文
 ```
 
-引用的定义：会话当前固定的登记键含该键，并且会话未归档。冻结而未归档的会话算引用。已归档但仍有未终结 Run 的会话也算引用。已归档且没有 Run 的会话不算。存储提供者在提交 SE08、SE26、SE27 与 SE28 时维护索引。
+引用的定义：会话当前固定的登记键含该键，并且会话未归档。冻结而未归档的会话算引用。已归档的会话不算：归档在同一批里取消未终结 Run（JC-16），已归档会话没有未终结 Run。存储提供者在提交 SE08、SE26、SE27 与 SE28 时维护索引。
 
 失败分支：`denied`（系统作用域的读取资格），`invalid`（游标错域，或键不可解析），`unavailable`（不返回空页冒充没有引用）。只读，没有未知。
 
@@ -881,4 +884,4 @@ sequenceDiagram
 
 失败分支：`releasedScopes` 返回 `denied`、`invalid`（游标错域）或 `unavailable`（不返回空页）。重复释放由执行环境认回。超过策略上限时任务保持未结并报告维护拥有者，不冒充已释放。
 
-契约未定：执行环境重启到重新释放之间的窗口。本版接受这个窗口，窗口内已归档会话的作用域可能尚未释放，见[明确缺项](../../SPEC.md#具名前提与明确缺项)。
+契约未定：执行环境重启到重新释放之间的窗口。契约接受这个窗口，窗口内已归档会话的作用域可能尚未释放，见[明确缺项](../../SPEC.md#具名前提与明确缺项)。
