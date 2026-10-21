@@ -80,6 +80,7 @@ export type LoopNode = (typeof LOOP_NODES)[number]
 export type Label =
   | Next['kind']
   | `resume-${LoopNode}`
+  | 'reconcile'
   | 'terminal'
   | 'superseded'
   | 'saved-wait'
@@ -200,8 +201,10 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'I8', on: 'try-finish', to: 'F1' },
   { from: 'I8', on: 'wait', to: 'W0' },
   { from: 'F1', on: 'fixed', to: 'F2' },
+  { from: 'F1', on: 'reconcile', to: 'R0' },
   { from: 'F2', on: 'proceed', to: 'F3' },
   { from: 'F3', on: 'ended', to: 'F4' },
+  { from: 'F3', on: 'reconcile', to: 'R0' },
   { from: 'F4', on: 'observed', to: 'O0' },
   { from: 'O0', on: 'delivered', to: 'E9' },
   { from: 'E9', on: 'idle', to: null },

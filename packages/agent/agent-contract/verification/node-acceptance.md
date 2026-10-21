@@ -54,13 +54,13 @@
 | NA-I8-1 | I8 | 1（去向） | 1.7（#515） | 没有动作、普通队列为空且没有未完等待时，I8 形成完成候选转 F1，不直接写终态 | SC-AG-140 | `agent/tests/loop-reply-close.spec.ts`：`NA-I8-1: an empty queue and no outstanding wait propose completion before terminal commit`，I8 只前移到 F1，终态由后续 tryFinish 写入。 |
 | NA-I8-2 | I8 | 1（去向） | 1.7（#515） | 有新的合格输入时 I8 以新 step 转 I0 | 新增场景 | `agent/tests/loop-reply-close.spec.ts`：两个 `NA-I8-2` 用例分别核对在途 Journal.submit 后同执行 step-2，以及终态释放后新 invoke 的新执行首 step。不证明公开 submit。 |
 | NA-I8-3 | I8 | 1（去向） | 1.7（#515） | 有未完成的等待时 I8 转 W0，不形成完成候选 | SC-AG-140 | `agent/tests/loop-reply-close.spec.ts`：`NA-I8-3: an unprocessed responsibility waits at I8 despite an empty action batch and queue`；`agent/tests/loop-evaluator.spec.ts` 的同号用例核对在途生产与未交清结果。只保存一次等待，不证明真实唤醒。 |
-| NA-F1-1 | F1 | 1（基本） | 1.8（#516） | F1 把执行状态置为 settling 并提交 FinishIntent 候选，之后才调用 tryFinish | SC-AG-140 | 待实现 |
-| NA-F3-1 | F3 | 1 | 1.8（#516） | tryFinish 一次共同提交终态、ended 事件、终态后观察责任与原操作结果，不等待调用方批准，节点转 F4 | SC-AG-01、SC-AG-60 | 待实现 |
-| NA-F3-2 | F3 | 1 | 1.8（#516） | tryFinish 回执丢失时 R0 查询原终结，load 读到 ended 后节点转 F4，ended 事件唯一 | SC-AG-180、SC-AG-64 | 待实现 |
-| NA-F3-3 | F3 | 1 | 1.8（#516） | tryFinish 返回 changed 时 R0 回 E4 重读，再回 I8 或 F1；返回 blocked 时先交清保管再重提 | SC-AG-190、SC-AG-61 | 待实现 |
-| NA-F4-1 | F4 | 1（登记） | 1.8（#516） | 终态后观察未登记完时进程退出，恢复后从终态后责任台账认回，不恢复推进态 | SC-AG-65 | 待实现 |
-| NA-O0-1 | O0 | 1 | 1.8（#516） | O0 不等待读取方，交清本实例的事件与结果责任后转 E9，读取方之后从原游标读到终态事件 | SC-AG-06 | 待实现 |
-| NA-E9-1 | E9 | 1（idle） | 1.8（#516） | 执行终结后 runtime 回 idle 并保持登记，同一 runtime 以新执行身份承接下一次 invoke | SC-AG-10 | 待实现 |
+| NA-F1-1 | F1 | 1（基本） | 1.8（#516） | F1 把执行状态置为 settling 并提交 FinishIntent 候选，之后才调用 tryFinish | SC-AG-140 | `agent/tests/loop-terminal.spec.ts`：`NA-F1-1: candidate and before-terminal evidence are fixed before the one terminal commit`；`loop-intake-prepare.spec.ts` 保留 F1 excluded 的原候选与时刻回归。 |
+| NA-F3-1 | F3 | 1 | 1.8（#516） | tryFinish 一次共同提交终态、ended 事件、终态后观察责任与原操作结果，不等待调用方批准，节点转 F4 | SC-AG-01、SC-AG-60 | `agent/tests/loop-terminal.spec.ts`：NA-F1-1 的原终态、末事件与 query 回执同修订核对；NA-F4-1 的两项固定观察责任共同建账。内存 Journal。 |
+| NA-F3-2 | F3 | 1 | 1.8（#516） | tryFinish 回执丢失时 R0 查询原终结，load 读到 ended 后节点转 F4，ended 事件唯一 | SC-AG-180、SC-AG-64 | `agent/tests/loop-terminal.spec.ts`：`C2: lost %s finish queries the original operation before any further finish`，applied 唯一终态、dropped 原操作重试、pending 原查询；查询/读取 unavailable 零 waiting 提交。 |
+| NA-F3-3 | F3 | 1 | 1.8（#516） | tryFinish 返回 changed 时 R0 回 E4 重读，再回 I8 或 F1；返回 blocked 时先交清保管再重提 | SC-AG-190、SC-AG-61 | `agent/tests/loop-terminal.spec.ts`：C1 的 before-F1/before-F3 新输入竞争；NA-F3-3 的真实 custody blocked 保留与 transfer 后重提；未知不当 blocked。B1 的 no-reply 取时/F1 提交竞争在同次驱动承接新输入，原调用各 admit/read/ACK 一次、零虚假 producer 等待。 |
+| NA-F4-1 | F4 | 1（登记） | 1.8（#516） | 终态后观察未登记完时进程退出，恢复后从终态后责任台账认回，不恢复推进态 | SC-AG-65 | `agent/tests/loop-terminal.spec.ts`：`NA-F4-1: a nonempty terminal ledger survives coordinator loss and recalls the original observation registration`。非空两项台账、原登记丢回执查询、已登记认回与未登记保留、idle 后合法宿主登记。只覆盖同一非耐久内存 Journal 上的新协调者，不执行扩展或证明实际杀进程/跨进程恢复；后者由 #518 阶段组合兑现。 |
+| NA-O0-1 | O0 | 1 | 1.8（#516） | O0 不等待读取方，交清本实例的事件与结果责任后转 E9，读取方之后从原游标读到终态事件 | SC-AG-06 | `agent/tests/loop-terminal.spec.ts`：NA-O0-1 的原 Model ACK/completion 认回，无重读/重 ACK；NA-E9-1 / NA-O0-1 的 idle 后原句柄迟读 ended、零读取方代 ACK。其他 custody 保留真实 pending。 |
+| NA-E9-1 | E9 | 1（idle） | 1.8（#516） | 执行终结后 runtime 回 idle 并保持登记，同一 runtime 以新执行身份承接下一次 invoke | SC-AG-10 | `agent/tests/loop-terminal.spec.ts`：`NA-E9-1 / NA-O0-1: idle retains registration and unacknowledged events for the original reader`，原 execution 拒绝重开，新 execution 可复用，登记未撤。 |
 | NA-W0-1 | W0 | 1（基本形） | 1.9（#517） | 进入 W0 时执行状态 waiting、等待依据与 Journal 修订一次提交，事件流有 waiting 事件 | SC-AG-182 | `agent/tests/loop-recovery.spec.ts`：`NA-W0-1: state, basis and event commit once while observe remains occupied`、`NA-W0-1: a failed waiting commit stays a failure and saves no event` |
 | NA-W0-2 | W0 | 1（基本形） | 1.9（#517） | 唤醒通知丢失时到检查时刻重读来源，进度变化后经 E1 继续，没有新挂接 | SC-AG-161、SC-AG-185 | 待实现 |
 | NA-R0-1 | R0 | 1（基本形） | 1.9（#517） | Journal 提交回执丢失时 R0 以原操作身份 query，committed 时取原结果回后继节点 | SC-AG-163 | 待实现 |

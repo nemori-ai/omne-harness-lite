@@ -141,6 +141,8 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ].map(node => ['E4', `resume-${node}`, node]),
       ['E4', 'try-finish', 'F1'],
       ['R0', 'reconciled', 'E4'],
+      ['F1', 'reconcile', 'R0'],
+      ['F3', 'reconcile', 'R0'],
       ['R0', 'wait', 'W0'],
       ['W0', 'saved-wait', null],
     ]
