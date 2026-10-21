@@ -4,10 +4,10 @@
 > 要引用，引[领域对象条目](../domain_objects/objects.md)、[统一语言词条](../ubiquitous_language/index.md)或它们指向的产品正文。
 
 - derived-from：`ubiquitous_language/terms/*.md`（形态、变体的父）· `domain_objects/objects.md` · `domain_objects/pending.md` · `product/*/{README,design,flows}.md`（当前 PD rev、反链）· `product.0.0.1.legacy/PF-*/{README,design,flows}.md`（sealed provenance，不是当前采用）
-- 生成时间：2026-10-20
+- 生成时间：2026-10-21
 - 生成：`python tooling/src/domain_objects.py --root design --write`
 
-对象 **51** 个，变体 **27** 个，形态未定的词条 **0** 个，待裁 **9** 项。
+对象 **51** 个，变体 **28** 个，形态未定的词条 **0** 个，待裁 **9** 项。
 
 **按统一语言的分卷排**——分卷「按它回答什么问题」，是全链里唯一不随对象重新分解而搬家的维度。这不是能力边界，也不是限界上下文；那是系统架构设计的事。
 
@@ -85,7 +85,7 @@
 | [记录条目](../domain_objects/objects.md#ul-record-entry--记录条目) | [UL-record-entry](../ubiquitous_language/terms/record-and-context.md#ul-record-entry--记录条目--record-entry) | 它声明的寿命宿主——首批取值是会话 · 运行 · 执行尝试 · agent runtime · 租户，默认会话，取值表未封板 | — | PF-000（sealed provenance） | — |
 | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志) | [UL-session-log](../ubiquitous_language/terms/record-and-context.md#ul-session-log--会话日志--session-log) | [会话](../domain_objects/objects.md#ul-session--会话)（归会话，不归运行） | — | PF-012（sealed provenance） | — |
 | [消息](../domain_objects/objects.md#ul-message--消息) | [UL-message](../ubiquitous_language/terms/record-and-context.md#ul-message--消息--message) | [会话日志](../domain_objects/objects.md#ul-session-log--会话日志)——**`SystemMessage` 除外**：它不落日志，每次组装时按装配时定下的成分现算，没有落盘之后的那一段生灭 | 中断提醒、占位消息、压缩记录 | PF-009（sealed provenance） | runtime-context（草稿） |
-| [内容块](../domain_objects/objects.md#ul-content-block--内容块) | [UL-content-block](../ubiquitous_language/terms/record-and-context.md#ul-content-block--内容块--content-block) | [消息](../domain_objects/objects.md#ul-message--消息) | — | PF-009（sealed provenance） | — |
+| [内容块](../domain_objects/objects.md#ul-content-block--内容块) | [UL-content-block](../ubiquitous_language/terms/record-and-context.md#ul-content-block--内容块--content-block) | [消息](../domain_objects/objects.md#ul-message--消息) | 推理续接状态 | PF-009（sealed provenance） | — |
 | [待办条目](../domain_objects/objects.md#ul-todo-item--待办条目) | [UL-todo-item](../ubiquitous_language/terms/record-and-context.md#ul-todo-item--待办条目--todo-item) | [会话](../domain_objects/objects.md#ul-session--会话)——它活在一次会话里，不跨会话继承 | — | PD-meta-capabilities | 015（sealed provenance） |
 | [业务日历](../domain_objects/objects.md#ul-business-calendar--业务日历) | [UL-business-calendar](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 正文未述 | — | PF-021（sealed provenance） | — |
 | [业务日历版本](../domain_objects/objects.md#ul-business-calendar-version--业务日历版本) | [UL-business-calendar-version](../ubiquitous_language/terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 正文未述；所属业务日历可追溯，未规定随其退出而删除 | — | PF-021（sealed provenance） | — |
