@@ -1,3 +1,4 @@
+import { invocationReference, referenceParts } from './reference-input.ts'
 import {
   decodeModelCallId,
   decodeModelOperationId,
@@ -41,7 +42,10 @@ function conflictOnRetryOfAppliedWrite(
       const admission = admitted.get(input.call)
       if (admission === undefined || !('failure' in outcome)) return
       if (outcome.failure.kind !== 'commit-unknown') return
-      const seen = await calls.inspect({ ...input, admission })
+      const seen = await calls.inspect({
+        ...input,
+        reference: invocationReference({ ...input, admission }),
+      })
       if ('ok' in seen && seen.ok.kind === 'found' && took(seen.ok.state))
         applied.add(input.operation)
     }
@@ -198,7 +202,7 @@ describe('the conformance suite on acceptance', () => {
           async admit(input) {
             if (!isReserved(input.operation)) return calls.admit(input)
             await calls.admit({ ...input, operation: otherOperation })
-            return fail({ kind: 'invalid', field: 'operation', reason: 'reserved' })
+            return fail({ kind: 'invalid', field: '/operation', reason: 'reserved' })
           },
         }),
       }),
@@ -218,10 +222,15 @@ describe('the conformance suite on acceptance', () => {
           async admit(input) {
             if (isReserved(input.operation)) {
               left.add(input.call)
-              return fail({ kind: 'invalid', field: 'operation', reason: 'reserved' })
+              return fail({ kind: 'invalid', field: '/operation', reason: 'reserved' })
             }
             return left.has(input.call)
-              ? succeed({ call: input.call, revision: must(decodeRevision('1')), recovered: true })
+              ? succeed({
+                  call: input.call,
+                  revision: must(decodeRevision('1')),
+                  recovered: true,
+                  reference: invocationReference({ ...input, admission: input.operation }),
+                })
               : calls.admit(input)
           },
         }),
@@ -305,8 +314,8 @@ describe('the conformance suite on acceptance', () => {
             return outcome
           },
           async inspect(input) {
-            return unknown.has(input.admission)
-              ? succeed({ kind: 'not-accepted', operation: input.admission })
+            return unknown.has(referenceParts(input).admission)
+              ? succeed({ kind: 'not-accepted', operation: referenceParts(input).admission })
               : calls.inspect(input)
           },
         }),

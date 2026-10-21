@@ -335,35 +335,48 @@ it('rejects a trimmed executable tool seal and a completed terminal atomically, 
   ])
 })
 it('refuses oversized terminal input before publication and preserves its legal prefix for a bounded long terminal', async () => {
-  const f = await running()
-  unbox(
-    (
-      await f.preserve([
-        { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
-        { kind: 'block-delta', index: '0', delta: 'kept' },
-      ])
-    ).result,
-  )
-  const bad = await f.preserve([
-    {
-      kind: 'ended',
-      termination: {
-        kind: 'failed',
-        fault: { cause: 'upstream-protocol', diagnostic: 'x'.repeat(4096), upstreamStatus: null },
-      },
-    },
-  ])
-  expect(bad.result).toMatchObject({
-    failure: { field: 'termination', reason: 'encoded-byte-limit' },
-  })
   const good: Termination = {
     kind: 'failed',
-    fault: { cause: 'upstream-protocol', diagnostic: 'x'.repeat(3000), upstreamStatus: null },
+    fault: { cause: 'upstream-protocol', diagnostic: 'x'.repeat(4003), upstreamStatus: null },
   }
-  unbox(await f.commands.preserve({ ...bad.input, facts: [{ kind: 'ended', termination: good }] }))
+  const oversized: Termination = {
+    kind: 'failed',
+    fault: { cause: 'upstream-protocol', diagnostic: 'x'.repeat(4004), upstreamStatus: null },
+  }
+  expect(bytes(good)).toBe(4096)
+  expect(bytes(oversized)).toBe(4097)
+  const f = await running()
+  const prefix = await f.preserve([
+    { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
+    { kind: 'block-delta', index: '0', delta: 'kept' },
+  ])
+  const original = unbox(prefix.result)
+  const window = 'terminal-boundary'
+  unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }))
+  const before = await f.commands.loadRecovery(f.admit)
+  const dispatches = await f.commands.dispatches(f.admit)
+  const input = {
+    ...(await f.write()),
+    dispatch: f.dispatch,
+    window,
+    facts: [{ kind: 'ended', termination: oversized }],
+  } satisfies Parameters<typeof f.commands.preserve>[0]
+  expect(await f.commands.preserve(input)).toMatchObject({
+    failure: { field: 'termination', reason: 'encoded-byte-limit' },
+  })
+  expect(await f.commands.loadRecovery(f.admit)).toEqual(before)
+  expect(await f.commands.dispatches(f.admit)).toEqual(dispatches)
+  expect(unbox(await f.commands.preserve(prefix.input))).toEqual(original)
+  const facts: TransportFact[] = [{ kind: 'ended', termination: good }]
+  f.completeWindows.add(`${f.admit.call}/${window}/${digest(facts)}`)
+  const saved = unbox(await f.commands.preserve({ ...input, facts }))
+  expect(saved.cursor).toBe(String(BigInt(original.cursor) + 1n))
+  expect(saved.blocks).toEqual(original.blocks)
   const read = await f.read(good)
+  expect(read.page.settlement.cursor).toBe(saved.cursor)
   expect(read.page.settlement.termination).toEqual(good)
   expect(read.page.parts).toEqual([{ kind: 'partial', content: 'text', value: 'kept', trims: [] }])
+  expect(read.page.next).toBeNull()
   expect(bytes(read.page)).toBeLessThanOrEqual(Number(f.admit.capacity.bytes))
 })
 it('rejects new projection or trim material atomically within the declared finite reservation', async () => {

@@ -1,3 +1,4 @@
+import { referenceParts } from './reference-input.ts'
 import { decodeModelCallId, decodeModelOperationId } from '@omne-harness/model-contract'
 import { succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
@@ -58,7 +59,7 @@ describe('the conformance suite on control', () => {
               return outcome
             const custody = {
               kind: 'acknowledged',
-              operation: input.admission,
+              operation: referenceParts(input).admission,
               receipt: evidence('automatic'),
               cleanup: 'pending',
               diagnostic: null,
@@ -252,7 +253,11 @@ describe('the conformance suite on the other ways that control can go wrong', ()
           },
           async inspect(input) {
             const outcome = await calls.inspect(input)
-            if (!refusedFor.has(input.call) || !('ok' in outcome) || outcome.ok.kind !== 'found')
+            if (
+              !refusedFor.has(referenceParts(input).call) ||
+              !('ok' in outcome) ||
+              outcome.ok.kind !== 'found'
+            )
               return outcome
             const control = {
               kind: 'requested',

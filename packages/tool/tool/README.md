@@ -83,6 +83,24 @@ Normal completed settlement closes the reader without waiting for ACK confirmati
 
 The final has no execution-end clock marker. Running timing becomes unknown with its original segment, known accumulation, and a blocked clock task. Late elapsed samples do not replace missing duration evidence. Full conditions are in [the settlement rules](SPEC.md#26-原结果收场与释放责任).
 
+## Run the learning example
+
+Use Node.js 24 or later and pnpm 10.28.1. From the repository root:
+
+```sh
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm --workspace-concurrency=1 --filter @omne-harness/tool... --filter @omne-harness/tool-host-local... -r run build
+pnpm --filter @omne-harness/tool run examples
+```
+
+Reuse dependencies when the lockfile did not change. Rebuild after source changes. The example consumes this checkout's public `dist` exports.
+
+The [annotated tutorial](examples/README.md) runs a real function author through invoke, driver settlement, and model-visible Tools pagination. Expect `pages:3`, `sections:3`, `sourceExecutions:1`, and `next:null`. Complete-argument failure and confirmed pre-start exclusion each finish with a readable result and a released delivery. Every help/read_result call also processes and releases its own delivery. Success ends with three `PASS` lines and exit code 0.
+
+The tutorial needs no credentials, model service, database, or Cordis. Its [dedicated assembly](tests/example-assembly.ts) uses public non-durable testing providers. It does not demonstrate production authorization, a real Agent/Session, restart recovery, or complete environment cleanup.
+
+Missing modules or declarations require dependency preparation and a build in this checkout. Unsupported TypeScript syntax requires Node.js 24 or later. For unknown outcomes, keep the original request, consumer, reference, or operation. Query the original identity before further action. Do not create a new consumer position automatically. The [tutorial error guide](examples/README.md#common-errors-and-limits) covers budget, qualification, and delivery failures. Journey and cleanup failures exit nonzero.
+
 ## Usage
 
 The ledger requires `ToolLedgerPorts` as its fifth argument. Set `content` to an explicit byte reader or `null`. Pass its `facts` read port into the runtime dependencies together with its commands, reads, admissions, and queues.

@@ -22,6 +22,11 @@ import { createReceiver, newOperation, type TerminalCompetition } from './receiv
 type Prepare = Parameters<ModelCommands<unknown>['prepareDispatch']>[0]
 type Settle = Parameters<ModelCommands<unknown>['settle']>[0]
 type Receiver<P> = ReturnType<typeof createReceiver<P>>
+type Recovery<P> = Extract<
+  Awaited<ReturnType<ModelCommands<P>['loadRecovery']>>,
+  { ok: unknown }
+>['ok']
+type SettlementWrite<P> = Extract<Finishing<P>['settlement'], { kind: 'write' }>
 type Finishing<P> = {
   kind: 'finish'
   execution: ExecutionRef
@@ -113,6 +118,98 @@ export function createModelDriver<P>(
       }
     })()
   }
+  async function prepareSettlement(
+    active: Activity<P>,
+    entry: Finishing<P>,
+    termination: Termination,
+  ): Reply<void> {
+    const current = await commands.loadRecovery(active.claim)
+    if ('failure' in current) return current
+    if (current.ok.state.phase === 'settled') {
+      entry.settlement = { kind: 'confirmed' }
+      return { ok: undefined }
+    }
+    if (
+      current.ok.execution?.instance !== entry.execution.instance ||
+      current.ok.execution.generation !== entry.execution.generation
+    )
+      return blocked('pending-settle-generation-changed')
+    entry.settlement = {
+      kind: 'write',
+      pending: false,
+      input: {
+        ...entry.execution,
+        operation: newOperation(),
+        expected: current.ok.state.revision,
+        termination,
+      },
+    }
+    return { ok: undefined }
+  }
+  async function replaceSettlement(
+    active: Activity<P>,
+    entry: Finishing<P>,
+    write: SettlementWrite<P>,
+    result: { failure: ModelFailure },
+    competition: TerminalCompetition,
+  ): Reply<void> {
+    const known = await commands.query({ ...active.claim, operation: write.input.operation })
+    if ('failure' in known) return known
+    if (known.ok.kind === 'unknown')
+      return { failure: { kind: 'commit-unknown', operation: write.input.operation } }
+    if (known.ok.kind === 'committed') return result
+    const current = await commands.loadRecovery(active.claim)
+    if ('failure' in current) return current
+    if (current.ok.state.phase === 'settled') {
+      entry.settlement = { kind: 'confirmed' }
+      refreshProjection(active.claim)
+      return { ok: undefined }
+    }
+    if (
+      competition.replaced ||
+      current.ok.execution?.instance !== write.input.instance ||
+      current.ok.execution.generation !== write.input.generation
+    )
+      return result
+    competition.replaced = true
+    entry.settlement = {
+      kind: 'write',
+      pending: false,
+      input: { ...write.input, operation: newOperation(), expected: current.ok.state.revision },
+    }
+    return { ok: undefined }
+  }
+  async function writeSettlement(
+    active: Activity<P>,
+    entry: Finishing<P>,
+    write: SettlementWrite<P>,
+    competition: TerminalCompetition,
+  ): Reply<void> {
+    let committed = false
+    if (write.pending) {
+      const known = await commands.query({ ...active.claim, operation: write.input.operation })
+      if ('failure' in known) return known
+      if (known.ok.kind === 'unknown')
+        return { failure: { kind: 'commit-unknown', operation: write.input.operation } }
+      committed = known.ok.kind === 'committed'
+    }
+    write.pending = true
+    const result = await commands.settle(write.input)
+    if ('ok' in result) {
+      // Fix the confirmed phase before an optional projection read can fail.
+      entry.settlement = { kind: 'confirmed' }
+      refreshProjection(active.claim)
+      return { ok: undefined }
+    }
+    if (
+      committed ||
+      result.failure.kind !== 'conflict' ||
+      result.failure.operation !== write.input.operation ||
+      result.failure.revision === write.input.expected
+    )
+      return result
+    return replaceSettlement(active, entry, write, result, competition)
+  }
   async function settle(
     active: Activity<P>,
     entry: Finishing<P>,
@@ -120,77 +217,11 @@ export function createModelDriver<P>(
   ): Reply<void> {
     if (!entry.termination) return blocked('original-terminal-control-unavailable')
     while (entry.settlement.kind !== 'confirmed') {
-      if (entry.settlement.kind === 'ready') {
-        const current = await commands.loadRecovery(active.claim)
-        if ('failure' in current) return current
-        if (current.ok.state.phase === 'settled') {
-          entry.settlement = { kind: 'confirmed' }
-          break
-        }
-        if (
-          current.ok.execution?.instance !== entry.execution.instance ||
-          current.ok.execution.generation !== entry.execution.generation
-        )
-          return blocked('pending-settle-generation-changed')
-        entry.settlement = {
-          kind: 'write',
-          pending: false,
-          input: {
-            ...entry.execution,
-            operation: newOperation(),
-            expected: current.ok.state.revision,
-            termination: entry.termination,
-          },
-        }
-      }
-      const write = entry.settlement
-      let committed = false
-      if (write.pending) {
-        const known = await commands.query({ ...active.claim, operation: write.input.operation })
-        if ('failure' in known) return known
-        if (known.ok.kind === 'unknown')
-          return { failure: { kind: 'commit-unknown', operation: write.input.operation } }
-        committed = known.ok.kind === 'committed'
-      }
-      write.pending = true
-      const result = await commands.settle(write.input)
-      if ('ok' in result) {
-        // Fix the confirmed phase before an optional projection read can fail.
-        entry.settlement = { kind: 'confirmed' }
-        refreshProjection(active.claim)
-        break
-      }
-      if (
-        committed ||
-        result.failure.kind !== 'conflict' ||
-        result.failure.operation !== write.input.operation ||
-        result.failure.revision === write.input.expected
-      )
-        return result
-      const known = await commands.query({ ...active.claim, operation: write.input.operation })
-      if ('failure' in known) return known
-      if (known.ok.kind === 'unknown')
-        return { failure: { kind: 'commit-unknown', operation: write.input.operation } }
-      if (known.ok.kind === 'committed') return result
-      const current = await commands.loadRecovery(active.claim)
-      if ('failure' in current) return current
-      if (current.ok.state.phase === 'settled') {
-        entry.settlement = { kind: 'confirmed' }
-        refreshProjection(active.claim)
-        break
-      }
-      if (
-        competition.replaced ||
-        current.ok.execution?.instance !== write.input.instance ||
-        current.ok.execution.generation !== write.input.generation
-      )
-        return result
-      competition.replaced = true
-      entry.settlement = {
-        kind: 'write',
-        pending: false,
-        input: { ...write.input, operation: newOperation(), expected: current.ok.state.revision },
-      }
+      const result =
+        entry.settlement.kind === 'ready'
+          ? await prepareSettlement(active, entry, entry.termination)
+          : await writeSettlement(active, entry, entry.settlement, competition)
+      if ('failure' in result) return result
     }
     return { ok: undefined }
   }
@@ -212,6 +243,292 @@ export function createModelDriver<P>(
     if ('failure' in released) return released
     return entry.receiveFailure ? { failure: entry.receiveFailure } : { ok: undefined }
   }
+  function requiresOriginalClaim(
+    previous: Activity<P> | undefined,
+    input: ModelDriveInput<P>,
+  ): boolean {
+    return (
+      previous !== undefined &&
+      previous.stage.kind !== 'idle' &&
+      previous.stage.kind !== 'done' &&
+      previous.stage.kind !== 'failed' &&
+      (previous.claim.operation !== input.operation ||
+        previous.claim.instance !== input.instance ||
+        (['owner', 'record', 'revision', 'digest'] as const).some(
+          field => previous.claim.continuity[field] !== input.continuity[field],
+        ))
+    )
+  }
+  function ownsOperation(
+    active: Activity<P> | undefined,
+    input: ModelDriveInput<P>,
+    unresolved: Recovery<P>['unresolved'][number],
+  ): boolean {
+    return (
+      unresolved === input.operation ||
+      (active?.stage.kind === 'prepare' && unresolved === active.stage.input.operation) ||
+      active?.stage.kind === 'send' ||
+      (active?.stage.kind === 'receive' &&
+        unresolved === active.stage.receiver.pendingOperation()) ||
+      (active?.stage.kind === 'finish' &&
+        active.stage.settlement.kind === 'write' &&
+        unresolved === active.stage.settlement.input.operation)
+    )
+  }
+  async function recoverUnowned(
+    active: Activity<P> | undefined,
+    input: ModelDriveInput<P>,
+    operations: Recovery<P>['unresolved'],
+  ): Reply<void> {
+    // Each owner replays its own fixed write. Sender-private operations must reach sender.
+    for (const unresolved of operations) {
+      if (ownsOperation(active, input, unresolved)) continue
+      const known = await commands.query({ ...input, operation: unresolved })
+      if ('failure' in known) return known
+      if (known.ok.kind === 'unknown')
+        return { failure: { kind: 'commit-unknown', operation: unresolved } }
+      return blocked('unresolved-operation-without-original-input')
+    }
+    return { ok: undefined }
+  }
+  function beginActivity(
+    active: Activity<P>,
+    execution: ExecutionRef,
+    recovery: Recovery<P>,
+  ): void {
+    if (recovery.state.control.kind === 'requested')
+      active.stage = {
+        kind: 'finish',
+        execution,
+        receiver: null,
+        termination: { kind: 'interrupted', control: recovery.state.control.operation },
+        receiveFailure: null,
+        settlement: { kind: 'ready' },
+      }
+    else
+      active.stage = {
+        kind: 'prepare',
+        pending: false,
+        input: {
+          ...execution,
+          expected: recovery.state.revision,
+          operation: newOperation(),
+          dispatch: generated(decodeDispatchId(`mdisp_${randomUUID()}`)),
+          supplier: structuredClone(recovery.request.suppliers[0]),
+          policyDecision: null,
+        },
+      }
+  }
+  async function publishActivity(
+    key: string,
+    input: ModelDriveInput<P>,
+    execution: ExecutionRef,
+    recovery: Recovery<P>,
+    hasDispatches: boolean,
+  ): Reply<Activity<P>> {
+    const view = createObservation({
+      access: input,
+      instance: input.instance,
+      directory: instances.directory,
+      clock,
+      bufferBytes: configuration.observerBufferBytes,
+      checkIntervalMs: configuration.observerCheckIntervalMs,
+      initial:
+        !hasDispatches && !recovery.unresolved.length
+          ? {
+              call: input.call,
+              cursor: generated(decodeOutputCursor('0')),
+              blocks: [],
+              state: recovery.state,
+            }
+          : null,
+    })
+    const published = await instances.publish(execution, view.handle)
+    if ('failure' in published) return published
+    const active: Activity<P> = {
+      claim: input,
+      view,
+      publication: published.ok,
+      stage: hasDispatches ? { kind: 'done' } : { kind: 'idle' },
+    }
+    activities.set(key, active)
+    return { ok: active }
+  }
+  async function restoreActivity(
+    input: ModelDriveInput<P>,
+    execution: ExecutionRef,
+    key: string,
+    active: Activity<P> | undefined,
+  ): Reply<{ active: Activity<P>; recovery: Recovery<P> } | null> {
+    const recovery = await commands.loadRecovery(input)
+    if ('failure' in recovery) return recovery
+    const records = await commands.dispatches(input)
+    if ('failure' in records) return records
+    if (!active || active.view.handle.instance !== input.instance) {
+      const published = await publishActivity(
+        key,
+        input,
+        execution,
+        recovery.ok,
+        records.ok.length > 0,
+      )
+      if ('failure' in published) return published
+      active = published.ok
+    }
+    if (active.stage.kind === 'idle') {
+      if (records.ok.length || recovery.ok.state.phase === 'settled') return { ok: null }
+      beginActivity(active, execution, recovery.ok)
+    }
+    return { ok: { active, recovery: recovery.ok } }
+  }
+  async function prepareDispatch(
+    active: Activity<P>,
+    entry: Extract<Stage<P>, { kind: 'prepare' }>,
+    input: ModelDriveInput<P>,
+    execution: ExecutionRef,
+    recovery: Recovery<P>,
+  ): Reply<void> {
+    if (execution.generation !== entry.input.generation)
+      return blocked('pending-prepare-generation-changed')
+    let committed = false
+    if (entry.pending) {
+      const known = await commands.query({ ...input, operation: entry.input.operation })
+      if ('failure' in known) return known
+      committed = known.ok.kind === 'committed'
+      if (known.ok.kind === 'unknown')
+        return { failure: { kind: 'commit-unknown', operation: entry.input.operation } }
+    }
+    entry.pending = true
+    const prepared = await commands.prepareDispatch(entry.input)
+    if ('failure' in prepared) {
+      if (!committed && definitelyRefused(prepared.failure)) active.stage = { kind: 'idle' }
+      return prepared
+    }
+    active.stage = {
+      kind: 'send',
+      demand: {
+        principal: input.principal,
+        tenant: input.tenant,
+        call: input.call,
+        execution,
+        dispatch: entry.input.dispatch,
+        request: recovery.request,
+        supplier: entry.input.supplier,
+        consumer: recovery.state.consumer,
+        initiator: recovery.initiator,
+      },
+    }
+    refreshProjection(input)
+    return { ok: undefined }
+  }
+  async function sendDispatch(
+    active: Activity<P>,
+    demand: SendDemand<P>,
+    input: ModelDriveInput<P>,
+    signal: AbortSignal,
+  ): Reply<void> {
+    const sent = await send.send(demand, signal)
+    if (sent.kind === 'unknown') {
+      refreshProjection(input)
+      return blocked(sent.diagnostic)
+    }
+    if (sent.kind === 'not-started') {
+      active.stage = { kind: 'failed', failure: sent.failure }
+      refreshProjection(input)
+      return { failure: sent.failure }
+    }
+    const view = active.view
+    active.stage = {
+      kind: 'receive',
+      execution: demand.execution,
+      receiver: createReceiver({
+        commands,
+        clock,
+        demand,
+        window: sent.window,
+        facts: sent.facts,
+        batchBytes: configuration.outputBatchBytes,
+        batchDelayMs: configuration.outputBatchDelayMs,
+        beginContent: () => view.beginContent(),
+        rejectContent: () => view.rejectContent(),
+        confirm: snapshot => view.confirm(snapshot),
+        refresh: () => refreshProjection(input),
+      }),
+    }
+    refreshProjection(input)
+    return { ok: undefined }
+  }
+  async function receiveDispatch(
+    active: Activity<P>,
+    entry: Extract<Stage<P>, { kind: 'receive' }>,
+    signal: AbortSignal,
+    competition: TerminalCompetition,
+  ): Reply<boolean> {
+    const received = await entry.receiver.run(signal, competition)
+    if ('failure' in received) return received
+    if (!received.ok) return { ok: false }
+    active.stage = {
+      kind: 'finish',
+      execution: entry.execution,
+      receiver: entry.receiver,
+      termination: received.ok.termination,
+      receiveFailure: received.ok.failure,
+      settlement: { kind: 'ready' },
+    }
+    return { ok: true }
+  }
+  async function runStages(
+    active: Activity<P>,
+    input: ModelDriveInput<P>,
+    execution: ExecutionRef,
+    recovery: Recovery<P>,
+    signal: AbortSignal,
+    competition: TerminalCompetition,
+  ): Reply<void> {
+    if (active.stage.kind === 'prepare') {
+      const prepared = await prepareDispatch(active, active.stage, input, execution, recovery)
+      if ('failure' in prepared) return prepared
+    }
+    if (active.stage.kind === 'send') {
+      const sent = await sendDispatch(active, active.stage.demand, input, signal)
+      if ('failure' in sent) return sent
+    }
+    if (active.stage.kind === 'receive') {
+      const received = await receiveDispatch(active, active.stage, signal, competition)
+      if ('failure' in received) return received
+      if (!received.ok) return { ok: undefined }
+    }
+    if (active.stage.kind === 'finish') return finish(active, active.stage, competition)
+    if (active.stage.kind === 'failed') return { failure: active.stage.failure }
+    return { ok: undefined }
+  }
+  async function resume(
+    input: ModelDriveInput<P>,
+    initial: Recovery<P>,
+    key: string,
+    signal: AbortSignal,
+    competition: TerminalCompetition,
+  ): Reply<void> {
+    const previous = activities.get(key)
+    if (requiresOriginalClaim(previous, input))
+      return blocked('pending-work-requires-original-claim')
+    const recovered = await recoverUnowned(previous, input, initial.unresolved)
+    if ('failure' in recovered) return recovered
+    const execution = await commands.claim(input)
+    if ('failure' in execution) return execution
+    if (signal.aborted) return { ok: undefined }
+    const restored = await restoreActivity(input, execution.ok, key, previous)
+    if ('failure' in restored) return restored
+    if (!restored.ok) return { ok: undefined }
+    return runStages(
+      restored.ok.active,
+      input,
+      execution.ok,
+      restored.ok.recovery,
+      signal,
+      competition,
+    )
+  }
   const driver: ModelDriver<P> = {
     async drive(original, signal) {
       const { principal, tenant, call, instance, operation, continuity } = original
@@ -231,181 +548,7 @@ export function createModelDriver<P>(
         running.add(key)
         try {
           const competition: TerminalCompetition = { replaced: false }
-          let active = activities.get(key)
-          const previous = active
-          if (
-            previous &&
-            previous.stage.kind !== 'idle' &&
-            previous.stage.kind !== 'done' &&
-            previous.stage.kind !== 'failed' &&
-            (previous.claim.operation !== input.operation ||
-              previous.claim.instance !== input.instance ||
-              (['owner', 'record', 'revision', 'digest'] as const).some(
-                field => previous.claim.continuity[field] !== input.continuity[field],
-              ))
-          )
-            return blocked('pending-work-requires-original-claim')
-          // Each owner replays its own fixed write. Sender-private operations must reach sender.
-          for (const unresolved of initial.ok.unresolved) {
-            const owned =
-              unresolved === input.operation ||
-              (active?.stage.kind === 'prepare' && unresolved === active.stage.input.operation) ||
-              active?.stage.kind === 'send' ||
-              (active?.stage.kind === 'receive' &&
-                unresolved === active.stage.receiver.pendingOperation()) ||
-              (active?.stage.kind === 'finish' &&
-                active.stage.settlement.kind === 'write' &&
-                unresolved === active.stage.settlement.input.operation)
-            if (owned) continue
-            const known = await commands.query({ ...input, operation: unresolved })
-            if ('failure' in known) return known
-            if (known.ok.kind === 'unknown')
-              return { failure: { kind: 'commit-unknown', operation: unresolved } }
-            return blocked('unresolved-operation-without-original-input')
-          }
-          const execution = await commands.claim(input)
-          if ('failure' in execution) return execution
-          if (signal.aborted) return { ok: undefined }
-          const recovery = await commands.loadRecovery(input)
-          if ('failure' in recovery) return recovery
-          const records = await commands.dispatches(input)
-          if ('failure' in records) return records
-          if (!active || active.view.handle.instance !== input.instance) {
-            const view = createObservation({
-              access: input,
-              instance: input.instance,
-              directory: instances.directory,
-              clock,
-              bufferBytes: configuration.observerBufferBytes,
-              checkIntervalMs: configuration.observerCheckIntervalMs,
-              initial:
-                !records.ok.length && !recovery.ok.unresolved.length
-                  ? {
-                      call,
-                      cursor: generated(decodeOutputCursor('0')),
-                      blocks: [],
-                      state: recovery.ok.state,
-                    }
-                  : null,
-            })
-            const published = await instances.publish(execution.ok, view.handle)
-            if ('failure' in published) return published
-            active = {
-              claim: input,
-              view,
-              publication: published.ok,
-              stage: records.ok.length ? { kind: 'done' } : { kind: 'idle' },
-            }
-            activities.set(key, active)
-          }
-          if (active.stage.kind === 'idle') {
-            if (records.ok.length || recovery.ok.state.phase === 'settled') return { ok: undefined }
-            if (recovery.ok.state.control.kind === 'requested')
-              active.stage = {
-                kind: 'finish',
-                execution: execution.ok,
-                receiver: null,
-                termination: { kind: 'interrupted', control: recovery.ok.state.control.operation },
-                receiveFailure: null,
-                settlement: { kind: 'ready' },
-              }
-            else
-              active.stage = {
-                kind: 'prepare',
-                pending: false,
-                input: {
-                  ...execution.ok,
-                  expected: recovery.ok.state.revision,
-                  operation: newOperation(),
-                  dispatch: generated(decodeDispatchId(`mdisp_${randomUUID()}`)),
-                  supplier: structuredClone(recovery.ok.request.suppliers[0]),
-                  policyDecision: null,
-                },
-              }
-          }
-          if (active.stage.kind === 'prepare') {
-            const entry = active.stage
-            if (execution.ok.generation !== entry.input.generation)
-              return blocked('pending-prepare-generation-changed')
-            let committed = false
-            if (entry.pending) {
-              const known = await commands.query({ ...input, operation: entry.input.operation })
-              if ('failure' in known) return known
-              committed = known.ok.kind === 'committed'
-              if (known.ok.kind === 'unknown')
-                return { failure: { kind: 'commit-unknown', operation: entry.input.operation } }
-            }
-            entry.pending = true
-            const prepared = await commands.prepareDispatch(entry.input)
-            if ('failure' in prepared) {
-              if (!committed && definitelyRefused(prepared.failure)) active.stage = { kind: 'idle' }
-              return prepared
-            }
-            active.stage = {
-              kind: 'send',
-              demand: {
-                principal,
-                tenant,
-                call,
-                execution: execution.ok,
-                dispatch: entry.input.dispatch,
-                request: recovery.ok.request,
-                supplier: entry.input.supplier,
-                consumer: recovery.ok.state.consumer,
-                initiator: recovery.ok.initiator,
-              },
-            }
-            refreshProjection(input)
-          }
-          if (active.stage.kind === 'send') {
-            const demand = active.stage.demand
-            const sent = await send.send(demand, signal)
-            if (sent.kind === 'unknown') {
-              refreshProjection(input)
-              return blocked(sent.diagnostic)
-            }
-            if (sent.kind === 'not-started') {
-              active.stage = { kind: 'failed', failure: sent.failure }
-              refreshProjection(input)
-              return { failure: sent.failure }
-            }
-            const view = active.view
-            active.stage = {
-              kind: 'receive',
-              execution: demand.execution,
-              receiver: createReceiver({
-                commands,
-                clock,
-                demand,
-                window: sent.window,
-                facts: sent.facts,
-                batchBytes: configuration.outputBatchBytes,
-                batchDelayMs: configuration.outputBatchDelayMs,
-                beginContent: () => view.beginContent(),
-                rejectContent: () => view.rejectContent(),
-                confirm: snapshot => view.confirm(snapshot),
-                refresh: () => refreshProjection(input),
-              }),
-            }
-            refreshProjection(input)
-          }
-          if (active.stage.kind === 'receive') {
-            const entry = active.stage
-            const received = await entry.receiver.run(signal, competition)
-            if ('failure' in received) return received
-            if (!received.ok) return { ok: undefined }
-            active.stage = {
-              kind: 'finish',
-              execution: entry.execution,
-              receiver: entry.receiver,
-              termination: received.ok.termination,
-              receiveFailure: received.ok.failure,
-              settlement: { kind: 'ready' },
-            }
-          }
-          if (active.stage.kind === 'finish') return await finish(active, active.stage, competition)
-          if (active.stage.kind === 'failed') return { failure: active.stage.failure }
-          return { ok: undefined }
+          return await resume(input, initial.ok, key, signal, competition)
         } finally {
           running.delete(key)
         }

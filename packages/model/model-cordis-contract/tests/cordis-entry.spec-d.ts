@@ -5,7 +5,7 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   ModelCallId,
   ModelConverterCatalog,
-  ModelDirectory,
+  ModelInstanceDirectory,
   ModelOperationId,
   ModelSendBoundary,
   Revision,
@@ -101,7 +101,7 @@ it('gives the converter catalog the catalog operation of the contract and a regi
 
 it('gives the instance directory the directory operation of the contract and a registration of its own', () => {
   expectTypeOf<ModelInstancesService<string>['connect']>().toEqualTypeOf<
-    ModelDirectory<string>['connect']
+    ModelInstanceDirectory<string>['connect']
   >()
   expectTypeOf<ModelInstancesService<string>['register']>().toEqualTypeOf<
     (

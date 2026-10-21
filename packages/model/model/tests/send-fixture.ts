@@ -262,6 +262,7 @@ export function faultCommands(
 ) {
   let injected = false
   const inputs: unknown[] = []
+  const references: unknown[] = []
   let original:
     | { tenant: typeof f.tenant; call: typeof f.admit.call; operation: typeof f.admit.operation }
     | undefined
@@ -273,6 +274,7 @@ export function faultCommands(
     ) =>
     async (input: A) => {
       inputs.push(structuredClone({ ...input, tenant: undefined }))
+      references.push(input)
       if (!injected) {
         injected = true
         original = input
@@ -287,6 +289,7 @@ export function faultCommands(
   return {
     commands,
     inputs,
+    references,
     reveal() {
       if (!original) throw new Error('write not observed')
       f.controls.commands.reveal({

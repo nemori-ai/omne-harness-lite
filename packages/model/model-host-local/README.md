@@ -24,7 +24,19 @@ The vault path and the factory secret are the only configuration. The applicatio
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model-host-local typecheck`, `pnpm --filter @omne-harness/model-host-local test`, and `pnpm run check:docs`. The tests cover the five resolution results, tenant isolation, rotation and revocation, file corruption, close, cross-process update, and unknown save confirmation. They use the real Cordis 4.0.4 to check plugin publication and removal. They do not show other host capabilities. They do not show lock semantics across machines or on a network file system.
+Run these commands from the repository root. The package requires Node.js >=24 and pnpm 10.28.1. Each run report identifies the Node.js version actually tested.
+
+```sh
+pnpm turbo run typecheck --filter=@omne-harness/model-host-local
+pnpm turbo run test --filter=@omne-harness/model-host-local
+pnpm turbo run test:fast --filter=@omne-harness/model-host-local
+pnpm turbo run test:slow --filter=@omne-harness/model-host-local
+pnpm run check:docs
+```
+
+The Turbo test tasks build this package and its dependencies before they run the selected tests. The `typecheck` task does not build. Direct `pnpm --filter @omne-harness/model-host-local test` does not build, so its required build output must already exist. The `test:fast` and `test:slow` tasks select the fast and slow layers, respectively.
+
+The tests cover the five resolution results, tenant isolation, rotation and revocation, file corruption, close, cross-process update, and unknown save confirmation. They use the real Cordis 4.0.4 to check plugin publication and removal. They do not show other host capabilities. They do not show lock semantics across machines or on a network file system.
 
 ## Maintenance
 

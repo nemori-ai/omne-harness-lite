@@ -1,3 +1,4 @@
+import { invocationReference } from './reference-input.ts'
 import { describe, expect, it } from 'vitest'
 import {
   access,
@@ -51,7 +52,12 @@ describe('cancelling a scripted call', () => {
     await admitCall(scripted, 'a')
     await calls.cancel(cancelOf('a', 'cancel-1'))
     await calls.cancel(cancelOf('a', 'cancel-2'))
-    const found = must(await calls.inspect({ ...access('a'), admission: operation('admit-a') }))
+    const found = must(
+      await calls.inspect({
+        ...access('a'),
+        reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+      }),
+    )
     expect(found).toMatchObject({ state: { revision: '2' } })
   })
 
@@ -77,7 +83,12 @@ describe('cancelling a scripted call', () => {
       propagation: 'unavailable',
       upstream: 'unknown',
     })
-    const found = must(await calls.inspect({ ...access('a'), admission: operation('admit-a') }))
+    const found = must(
+      await calls.inspect({
+        ...access('a'),
+        reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+      }),
+    )
     expect(found).toMatchObject({
       kind: 'found',
       state: {
@@ -122,7 +133,12 @@ describe('cancelling a scripted call', () => {
       ...callRef('a'),
       record: { ...startedDispatch, terminal: { kind: 'completed', reason: 'stop' } },
     })
-    const found = must(await calls.inspect({ ...access('a'), admission: operation('admit-a') }))
+    const found = must(
+      await calls.inspect({
+        ...access('a'),
+        reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+      }),
+    )
     expect(found).toMatchObject({
       state: {
         phase: 'settled',
@@ -145,7 +161,12 @@ describe('cancelling a scripted call', () => {
       { kind: 'denied', action: 'cancel' },
     )
     expect(
-      must(await calls.inspect({ ...access('a'), admission: operation('admit-a') })),
+      must(
+        await calls.inspect({
+          ...access('a'),
+          reference: invocationReference({ ...access('a'), admission: operation('admit-a') }),
+        }),
+      ),
     ).toMatchObject({ state: { control: { kind: 'none' } } })
     expect(must(await calls.cancel(cancelOf('a', 'cancel-2')))).toMatchObject({
       operation: operation('cancel-2'),
@@ -171,7 +192,12 @@ describe('several calls in one scripted provider', () => {
     settleCall(scripted, 'b')
     must(await consumption.acknowledge(ackInput('b')))
 
-    const b = must(await calls.inspect({ ...access('b'), admission: operation('admit-b') }))
+    const b = must(
+      await calls.inspect({
+        ...access('b'),
+        reference: invocationReference({ ...access('b'), admission: operation('admit-b') }),
+      }),
+    )
     expect(b).toMatchObject({
       state: {
         call: call('b'),
@@ -181,7 +207,14 @@ describe('several calls in one scripted provider', () => {
       },
     })
     const a = { ...access('a'), principal: bob }
-    expect(must(await calls.inspect({ ...a, admission: operation('admit-a') }))).toMatchObject({
+    expect(
+      must(
+        await calls.inspect({
+          ...a,
+          reference: invocationReference({ ...a, admission: operation('admit-a') }),
+        }),
+      ),
+    ).toMatchObject({
       state: { call: call('a'), phase: 'accepted', custody: { kind: 'producer' } },
     })
   })

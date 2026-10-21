@@ -113,6 +113,67 @@ it('claim recognizes its original generation and excludes old writes after succe
     failure: { field: 'limit' },
   })
 })
+it('scans pending calls in order with independent cursors and rejects an authorized other tenant cursor', async () => {
+  const f = fixture()
+  const other = identity('6')
+  const authority = {
+    ...f.options.authority,
+    authorize: () => ({ ok: { owner: 'test', subject: 'test', revision: '1' } }),
+  }
+  const { commands } = createMemoryModelCommands({ ...f.options, authority })
+  for (const suffix of ['zulu', 'alpha', 'middle'])
+    unbox(
+      await commands.admit({
+        ...f.admit,
+        call: callId(suffix),
+        operation: op(`admit-${suffix}`),
+      }),
+    )
+  const otherCall = callId('other-tenant')
+  unbox(
+    await commands.admit({
+      ...f.admit,
+      tenant: other,
+      call: otherCall,
+      operation: op('admit-other-tenant'),
+    }),
+  )
+  const scan = { ...f.admit, limit: 1 }
+  const first = unbox(await commands.scanPending({ ...scan, after: null }))
+  const independentFirst = unbox(await commands.scanPending({ ...scan, after: null }))
+  expect(first.calls).toEqual([callId('alpha')])
+  expect(independentFirst.calls).toEqual(first.calls)
+  expect(first.next).not.toBeNull()
+  expect(independentFirst.next).not.toBeNull()
+  expect(unbox(await commands.scanPending({ ...scan, tenant: other, after: null }))).toEqual({
+    calls: [otherCall],
+    next: null,
+  })
+  expect(await commands.scanPending({ ...scan, tenant: other, after: first.next })).toEqual({
+    failure: { kind: 'invalid', field: 'after', reason: 'scan-cursor' },
+  })
+  const second = unbox(await commands.scanPending({ ...scan, after: first.next }))
+  expect(second.calls).toEqual([callId('middle')])
+  expect(second.next).not.toBeNull()
+  const independentSecond = unbox(
+    await commands.scanPending({ ...scan, after: independentFirst.next }),
+  )
+  expect(independentSecond.calls).toEqual([callId('middle')])
+  expect(independentSecond.next).not.toBeNull()
+  const third = unbox(await commands.scanPending({ ...scan, after: second.next }))
+  expect(third).toEqual({ calls: [callId('zulu')], next: null })
+  const independentThird = unbox(
+    await commands.scanPending({ ...scan, after: independentSecond.next }),
+  )
+  expect(independentThird).toEqual({ calls: [callId('zulu')], next: null })
+  const expected = [callId('alpha'), callId('middle'), callId('zulu')]
+  expect([...first.calls, ...second.calls, ...third.calls]).toEqual(expected)
+  expect([
+    ...independentFirst.calls,
+    ...independentSecond.calls,
+    ...independentThird.calls,
+  ]).toEqual(expected)
+})
 it('refuses guarded, duplicate and missing evidence owner declarations at construction', () => {
   const f = fixture()
   expect(

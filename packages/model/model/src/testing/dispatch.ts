@@ -1,8 +1,11 @@
+import type { Outcome } from '@omne-harness/operation-result'
 import { encodedBytes, MAX_TERMINATION_BYTES } from './pages.ts'
 import { checkedOutcome, checkedEvidence } from './value.ts'
 import { decodeDispatchId } from '@omne-harness/model-contract'
 import type {
   ModelCommands,
+  FixedModelRequest,
+  RetryDecision,
   ModelFailure,
   Revision,
   Snapshot,
@@ -87,6 +90,185 @@ export function dispatchCommands<P>(
       }),
     )
   }
+  function prepareSupplierFailure(
+    call: MemoryCall,
+    input: Parameters<ModelCommands<P>['prepareDispatch']>[0],
+  ): ModelFailure | null {
+    if (!call.request || !call.request.suppliers.some(s => digest(s) === digest(input.supplier)))
+      return invalid('supplier', 'outside-request')
+    const prior = call.dispatches.at(-1)
+    if (prior) return retrySupplierFailure(call, prior, input)
+    if (
+      digest(input.supplier) !== digest(call.request.suppliers[0]) ||
+      input.policyDecision !== null
+    )
+      return invalid('supplier', 'first-supplier')
+    return null
+  }
+  function retrySupplierFailure(
+    call: MemoryCall,
+    prior: MemoryDispatch,
+    input: Parameters<ModelCommands<P>['prepareDispatch']>[0],
+  ): ModelFailure | null {
+    const canRetry = retryable(call, prior)
+    if (canRetry) return canRetry
+    if (
+      call.retry?.kind !== 'retry' ||
+      !call.retrySource ||
+      digest(call.retry.supplier) !== digest(input.supplier) ||
+      digest(call.retrySource) !== digest(input.policyDecision)
+    )
+      return invalid('policyDecision', 'not-decided')
+    return null
+  }
+  function materializationProof(
+    call: MemoryCall,
+    dispatch: MemoryDispatch,
+    input: Parameters<ModelCommands<P>['recordMaterialization']>[0],
+  ) {
+    if (
+      dispatch.record.send !== 'prepared' ||
+      dispatch.record.materialization !== null ||
+      !call.request
+    )
+      return { failure: invalid('dispatch', 'already-materialized-or-sent') }
+    if (
+      digest(input.receipt.supplier) !== digest(dispatch.record.supplier.adoption) ||
+      digest(input.receipt.representation) !== digest(call.request.representation) ||
+      !/^[0-9a-f]{64}$/u.test(input.receipt.payloadDigest)
+    )
+      return { failure: invalid('receipt', 'binding') }
+    const adapter = store.adapter(call)
+    if ('kind' in adapter) return { failure: adapter }
+    const context = evidenceContext(input.tenant, call)
+    if ('kind' in context) return { failure: context }
+    return checkedEvidence(
+      adapter.materialization({
+        ...context,
+        dispatch: input.dispatch,
+        supplier: structuredClone(dispatch.record.supplier),
+        receipt: structuredClone(input.receipt),
+      }),
+    )
+  }
+  function receiveCompletion(
+    call: MemoryCall,
+    input: Parameters<ModelCommands<P>['preserve']>[0],
+  ): Outcome<boolean, ModelFailure> {
+    const adapter = store.adapter(call)
+    if ('kind' in adapter) return { failure: adapter }
+    const context = evidenceContext(input.tenant, call)
+    if ('kind' in context) return { failure: context }
+    const batchDigest = digest(input.facts)
+    const complete = checkedOutcome(
+      adapter.receive({
+        ...context,
+        dispatch: input.dispatch,
+        window: input.window,
+        facts: structuredClone(input.facts),
+        batchDigest,
+      }),
+    )
+    const proven =
+      'ok' in complete &&
+      complete.ok.window === input.window &&
+      complete.ok.batchDigest === batchDigest &&
+      complete.ok.paused === true &&
+      complete.ok.noPrefetch === true
+    return { ok: proven }
+  }
+  function mergeReceiveWindow(
+    call: MemoryCall,
+    dispatch: MemoryDispatch,
+    window: string,
+    proven: boolean,
+  ): void {
+    dispatch.windows.set(
+      window,
+      dispatch.record.firstContent === 'observed' || proven ? 'closed' : 'unproven',
+    )
+    const otherOpen = call.dispatches.some(d =>
+      [...d.windows.values()].some(state => state !== 'closed'),
+    )
+    if (dispatch.record.firstContent !== 'observed' && proven && !otherOpen)
+      dispatch.record = { ...dispatch.record, firstContent: 'none-proven' }
+    if (call.state.phase === 'running')
+      call.state = { ...call.state, firstContent: dispatch.record.firstContent }
+  }
+  function lateFactProof(
+    call: MemoryCall,
+    dispatch: MemoryDispatch,
+    input: Parameters<ModelCommands<P>['recordLateFact']>[0],
+  ) {
+    if (input.fact.kind === 'terminal' && encodedBytes(input.fact.actual) > MAX_TERMINATION_BYTES)
+      return { failure: invalid('termination', 'encoded-byte-limit') }
+    const adapter = store.adapter(call)
+    if ('kind' in adapter) return { failure: adapter }
+    return checkedEvidence(
+      adapter.lateFact({
+        tenant: input.tenant,
+        call: input.call,
+        consumer: structuredClone(call.state.consumer),
+        execution: call.execution,
+        dispatch: input.dispatch,
+        supplier: structuredClone(dispatch.record.supplier),
+        source: structuredClone(input.source),
+        fact: structuredClone(input.fact),
+      }),
+    )
+  }
+  function positionedRetryRequest(
+    call: MemoryCall,
+    input: Parameters<ModelCommands<P>['decideRetry']>[0],
+  ): Outcome<FixedModelRequest, ModelFailure> {
+    if (
+      !call.request ||
+      !call.retryPosition ||
+      digest(call.retryPosition) !== digest(input.position)
+    )
+      return { failure: invalid('position', 'not-original') }
+    const dispatch = dispatchOf(call, input.position.dispatch)
+    if ('kind' in dispatch) return { failure: dispatch }
+    const failure = retryable(call, dispatch)
+    if (failure) return { failure }
+    return { ok: call.request }
+  }
+  function retryProof(call: MemoryCall, input: Parameters<ModelCommands<P>['decideRetry']>[0]) {
+    const adapter = store.adapter(call)
+    if ('kind' in adapter) return { failure: adapter }
+    const context = evidenceContext(input.tenant, call)
+    if ('kind' in context) return { failure: context }
+    return checkedEvidence(
+      adapter.retry({
+        ...context,
+        position: structuredClone(input.position),
+        decision: structuredClone(input.decision),
+        source: structuredClone(input.source),
+      }),
+    )
+  }
+  function retryChoiceFailure(
+    request: FixedModelRequest,
+    dispatchCount: number,
+    decision: RetryDecision,
+  ): ModelFailure | null {
+    if (decision.kind === 'retry') {
+      if (
+        !parseInstant(decision.notBefore).ok ||
+        digest(decision.basis) !== digest(request.retryPolicy)
+      )
+        return invalid('decision', 'basis-or-time')
+      const index = request.fallback ? dispatchCount : 0
+      const supplier = request.suppliers[index]
+      if (
+        !supplier ||
+        (!request.fallback && dispatchCount >= 2) ||
+        digest(supplier) !== digest(decision.supplier)
+      )
+        return invalid('supplier', 'retry-bound')
+    }
+    return null
+  }
   return {
     prepareDispatch: input =>
       revisionWrite(
@@ -108,27 +290,8 @@ export function dispatchCommands<P>(
             call.dispatches.some(d => d.record.dispatch === input.dispatch)
           )
             return invalid('dispatch', 'duplicate-or-identity')
-          if (
-            !call.request ||
-            !call.request.suppliers.some(s => digest(s) === digest(input.supplier))
-          )
-            return invalid('supplier', 'outside-request')
-          const prior = call.dispatches.at(-1)
-          if (prior) {
-            const canRetry = retryable(call, prior)
-            if (canRetry) return canRetry
-            if (
-              call.retry?.kind !== 'retry' ||
-              !call.retrySource ||
-              digest(call.retry.supplier) !== digest(input.supplier) ||
-              digest(call.retrySource) !== digest(input.policyDecision)
-            )
-              return invalid('policyDecision', 'not-decided')
-          } else if (
-            digest(input.supplier) !== digest(call.request.suppliers[0]) ||
-            input.policyDecision !== null
-          )
-            return invalid('supplier', 'first-supplier')
+          const supplier = prepareSupplierFailure(call, input)
+          if (supplier) return supplier
           call.dispatches.push({
             record: {
               dispatch: input.dispatch,
@@ -181,30 +344,7 @@ export function dispatchCommands<P>(
             if (conflict) return { failure: conflict }
             const dispatch = dispatchOf(call, input.dispatch)
             if ('kind' in dispatch) return { failure: dispatch }
-            if (
-              dispatch.record.send !== 'prepared' ||
-              dispatch.record.materialization !== null ||
-              !call.request
-            )
-              return { failure: invalid('dispatch', 'already-materialized-or-sent') }
-            if (
-              digest(input.receipt.supplier) !== digest(dispatch.record.supplier.adoption) ||
-              digest(input.receipt.representation) !== digest(call.request.representation) ||
-              !/^[0-9a-f]{64}$/u.test(input.receipt.payloadDigest)
-            )
-              return { failure: invalid('receipt', 'binding') }
-            const adapter = store.adapter(call)
-            if ('kind' in adapter) return { failure: adapter }
-            const context = evidenceContext(input.tenant, call)
-            if ('kind' in context) return { failure: context }
-            const proof = checkedEvidence(
-              adapter.materialization({
-                ...context,
-                dispatch: input.dispatch,
-                supplier: structuredClone(dispatch.record.supplier),
-                receipt: structuredClone(input.receipt),
-              }),
-            )
+            const proof = materializationProof(call, dispatch, input)
             if ('failure' in proof) return proof
             dispatch.record = {
               ...dispatch.record,
@@ -303,37 +443,9 @@ export function dispatchCommands<P>(
               return { failure: invalid('window', 'not-open') }
             const failure = reduceFacts(call, dispatch, input.facts)
             if (failure) return { failure }
-            const adapter = store.adapter(call)
-            if ('kind' in adapter) return { failure: adapter }
-            const context = evidenceContext(input.tenant, call)
-            if ('kind' in context) return { failure: context }
-            const batchDigest = digest(input.facts)
-            const complete = checkedOutcome(
-              adapter.receive({
-                ...context,
-                dispatch: input.dispatch,
-                window: input.window,
-                facts: structuredClone(input.facts),
-                batchDigest,
-              }),
-            )
-            const proven =
-              'ok' in complete &&
-              complete.ok.window === input.window &&
-              complete.ok.batchDigest === batchDigest &&
-              complete.ok.paused === true &&
-              complete.ok.noPrefetch === true
-            dispatch.windows.set(
-              input.window,
-              dispatch.record.firstContent === 'observed' || proven ? 'closed' : 'unproven',
-            )
-            const otherOpen = call.dispatches.some(d =>
-              [...d.windows.values()].some(state => state !== 'closed'),
-            )
-            if (dispatch.record.firstContent !== 'observed' && proven && !otherOpen)
-              dispatch.record = { ...dispatch.record, firstContent: 'none-proven' }
-            if (call.state.phase === 'running')
-              call.state = { ...call.state, firstContent: dispatch.record.firstContent }
+            const completed = receiveCompletion(call, input)
+            if ('failure' in completed) return completed
+            mergeReceiveWindow(call, dispatch, input.window, completed.ok)
             call.cursor = cursor(String(BigInt(call.cursor) + 1n))
             bump(call)
             const snapshot: Snapshot = {
@@ -381,25 +493,7 @@ export function dispatchCommands<P>(
             if (!call) return { failure: invalid('call', 'not-found') }
             const dispatch = dispatchOf(call, input.dispatch)
             if ('kind' in dispatch) return { failure: dispatch }
-            if (
-              input.fact.kind === 'terminal' &&
-              encodedBytes(input.fact.actual) > MAX_TERMINATION_BYTES
-            )
-              return { failure: invalid('termination', 'encoded-byte-limit') }
-            const adapter = store.adapter(call)
-            if ('kind' in adapter) return { failure: adapter }
-            const proof = checkedEvidence(
-              adapter.lateFact({
-                tenant: input.tenant,
-                call: input.call,
-                consumer: structuredClone(call.state.consumer),
-                execution: call.execution,
-                dispatch: input.dispatch,
-                supplier: structuredClone(dispatch.record.supplier),
-                source: structuredClone(input.source),
-                fact: structuredClone(input.fact),
-              }),
-            )
+            const proof = lateFactProof(call, dispatch, input)
             if ('failure' in proof) return proof
             const event = `late:${input.fact.kind}:${input.fact.event}`
             const fingerprint = digest(input.fact)
@@ -503,46 +597,14 @@ export function dispatchCommands<P>(
             encodedBytes({ kind: 'failed', fault: input.decision.fault }) > MAX_TERMINATION_BYTES
           )
             return invalid('termination', 'encoded-byte-limit')
-          if (
-            !call.request ||
-            !call.retryPosition ||
-            digest(call.retryPosition) !== digest(input.position)
-          )
-            return invalid('position', 'not-original')
-          const dispatch = dispatchOf(call, input.position.dispatch)
-          if ('kind' in dispatch) return dispatch
-          const failure = retryable(call, dispatch)
-          if (failure) return failure
-          const adapter = store.adapter(call)
-          if ('kind' in adapter) return adapter
-          const context = evidenceContext(input.tenant, call)
-          if ('kind' in context) return context
-          const proof = checkedEvidence(
-            adapter.retry({
-              ...context,
-              position: structuredClone(input.position),
-              decision: structuredClone(input.decision),
-              source: structuredClone(input.source),
-            }),
-          )
+          const positioned = positionedRetryRequest(call, input)
+          if ('failure' in positioned) return positioned.failure
+          const proof = retryProof(call, input)
           if ('failure' in proof) return proof.failure
           if (call.retry && digest(call.retry) !== digest(input.decision))
             return { kind: 'conflict', operation: input.operation, revision: call.state.revision }
-          if (input.decision.kind === 'retry') {
-            if (
-              !parseInstant(input.decision.notBefore).ok ||
-              digest(input.decision.basis) !== digest(call.request.retryPolicy)
-            )
-              return invalid('decision', 'basis-or-time')
-            const index = call.request.fallback ? call.dispatches.length : 0
-            const supplier = call.request.suppliers[index]
-            if (
-              !supplier ||
-              (!call.request.fallback && call.dispatches.length >= 2) ||
-              digest(supplier) !== digest(input.decision.supplier)
-            )
-              return invalid('supplier', 'retry-bound')
-          }
+          const choice = retryChoiceFailure(positioned.ok, call.dispatches.length, input.decision)
+          if (choice) return choice
           call.retry = structuredClone(input.decision)
           call.retrySource = structuredClone(proof.ok)
           return null

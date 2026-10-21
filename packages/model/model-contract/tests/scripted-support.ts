@@ -1,3 +1,4 @@
+import { encodeModelInvocationRef } from '@omne-harness/model-contract'
 // Builders for the tests of the `./testing` entry. Every identity goes through the package
 // decoders, every block through the content-block judge, so no value here is made by an assertion.
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
@@ -72,7 +73,7 @@ const adoption = (name: string): Adoption => ({
   owner: 'test',
   name,
   revision: '1',
-  digest: `digest-${name}`,
+  digest: '0'.repeat(64),
 })
 
 const supplier: Supplier = {
@@ -182,7 +183,18 @@ export const callRef = (name: string, tenantId: TenantId = tenantA) => ({
 })
 
 /** The access that `alice` of tenant A has to a call. */
-export const access = (name: string) => ({ principal: alice, tenant: tenantA, call: call(name) })
+export const access = (name: string) => ({
+  principal: alice,
+  tenant: tenantA,
+  reference: must(
+    encodeModelInvocationRef({
+      tenant: tenantA,
+      call: call(name),
+      admission: operation(`admit-${name}`),
+    }),
+  ),
+  call: call(name),
+})
 
 export async function admitCall(scripted: ScriptedModelProvider<Principal>, name: string) {
   return must(await scripted.provider.runtime.calls.admit(admission(name)))

@@ -1,3 +1,4 @@
+import { invocationReference } from './reference-input.ts'
 import type { ModelHandle, Observation, Snapshot, VisibleBlock } from '@omne-harness/model-contract'
 import type { ScriptedPrincipal } from '@omne-harness/model-contract/testing'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -225,13 +226,20 @@ describe('the scene helpers of the conformance kit', () => {
     const call = callId('x')
     const { tenant, otherTenant, principal } = scene.subject
     expect(targetOf(scene, call)).toEqual({ tenant, call })
-    expect(accessOf(scene, call)).toEqual({ principal, tenant, call })
-    expect(accessOf(scene, call, otherTenant)).toEqual({ principal, tenant: otherTenant, call })
+    const reference = invocationReference({ tenant, call, admission: operationId('admit-x') })
+    expect(accessOf(scene, call)).toEqual({ principal, tenant, call, reference })
+    expect(accessOf(scene, call, otherTenant)).toEqual({
+      principal,
+      tenant: otherTenant,
+      call,
+      reference,
+    })
     expect(mutationOf(scene, call, operationId('o'))).toEqual({
       principal,
       tenant,
       call,
       operation: operationId('o'),
+      reference,
     })
     expect(mutationOf(scene, call, operationId('o'), otherTenant).tenant).toBe(otherTenant)
   })
@@ -264,7 +272,8 @@ describe('the scene helpers of the conformance kit', () => {
   it('makes a request that differs from the given one in its source only', () => {
     const changed = variantOf(DEFAULT_REQUEST)
     expect(changed).not.toEqual(DEFAULT_REQUEST)
-    expect(changed.source.digest).toBe(`${DEFAULT_REQUEST.source.digest}-variant`)
+    expect(changed.source.digest).not.toBe(DEFAULT_REQUEST.source.digest)
+    expect(changed.source.digest).toMatch(/^[0-9a-f]{64}$/u)
     expect({ ...changed, source: DEFAULT_REQUEST.source }).toEqual(DEFAULT_REQUEST)
     expect(changed.source.owner).toBe(DEFAULT_REQUEST.source.owner)
   })

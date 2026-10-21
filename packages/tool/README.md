@@ -72,6 +72,8 @@
 
 ## 组合验证
 
+社区使用者从 [Tool 教学](tool/examples/README.md)运行公开 dist，观察真实作者、runtime、driver、模型可见分页与交付解除。该教程以公开非耐久 testing 提供者装配，使用内存 authority。本地协调器的真实组合仍由 tool-host-local 自身测试承担。正式三条场景另由 tool 的 [acceptance](tool/acceptance/README.md)独立维护，教程不替代验收。
+
 Tool 验证原调用、dummy、等待、控制、收场与效果；发起和消费协调者共同验证当前资格、排队撤权、可靠承接、撤回后迟到和提交未知。提供者验证真实环境、传输、隔离及外部效果，缺环境保留无法验证。范围见[持续验证义务](tool-contract/SPEC.md#持续验证义务)。尚无真实存储、故障、断电或性能执行证据。
 
 ## 维护

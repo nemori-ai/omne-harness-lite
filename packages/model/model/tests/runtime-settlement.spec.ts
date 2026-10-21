@@ -1,3 +1,4 @@
+import { invocationReference } from './reference-input.ts'
 import { judgePart } from '@omne-harness/message'
 import { expect, it, vi } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
@@ -38,7 +39,10 @@ const answer: TransportFact[] = [
 const batching = { outputBatchDelayMs: 100, outputBatchBytes: 10000 }
 async function inspect(f: ReturnType<typeof runtimeFixture>) {
   const result = unbox(
-    await f.provider.runtime.calls.inspect({ ...f.admit, admission: f.admit.operation }),
+    await f.provider.runtime.calls.inspect({
+      ...f.admit,
+      reference: invocationReference({ ...f.admit, admission: f.admit.operation }),
+    }),
   )
   if (result.kind !== 'found') throw new Error('missing accepted call')
   return result.state
@@ -49,7 +53,13 @@ async function settlement(f: ReturnType<typeof runtimeFixture>) {
   return state.settlement
 }
 async function observe(f: ReturnType<typeof runtimeFixture>) {
-  const route = unbox(await f.provider.runtime.instances.connect(f.admit))
+  const route = unbox(
+    await f.provider.runtime.instances.connect({
+      principal: f.principal,
+      tenant: f.tenant,
+      reference: f.reference,
+    }),
+  )
   if (route.kind !== 'live') throw new Error('missing live route')
   return route.handle
     .observe({ ...f.admit, signal: new AbortController().signal })
@@ -239,10 +249,12 @@ for (const effect of ['applied', 'not-applied'] as const)
 
 it('replays a committed settle whose original receipt is temporarily unavailable without creating another intent', async () => {
   const writes: Settle[] = []
+  const references: Settle[] = []
   const f = runtimeFixture(batching, commands => ({
     ...commands,
     settle: async input => {
       writes.push(structuredClone(input))
+      references.push(input)
       const result = await commands.settle(input)
       return writes.length < 3
         ? { failure: { kind: 'unavailable', dependency: 'receipt', diagnostic: 'offline' } }
@@ -255,6 +267,8 @@ it('replays a committed settle whose original receipt is temporarily unavailable
     expect(await f.drive()).toMatchObject({ failure: { kind: 'unavailable' } })
     unbox(await f.drive())
     expect(writes).toHaveLength(3)
+    expect(references[1]).toBe(references[0])
+    expect(references[2]).toBe(references[0])
     expect(writes.every(input => JSON.stringify(input) === JSON.stringify(writes[0]))).toBe(true)
     expect(await settlement(f)).toEqual(original)
   } finally {

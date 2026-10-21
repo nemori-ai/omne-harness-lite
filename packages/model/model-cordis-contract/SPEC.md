@@ -89,3 +89,5 @@ acquire 出借的是对登记转换件的包装，包装对象的 `adoption` 与
 服务类、键和 Context/Events 的完整形状由 [public-api](docs/public-api.md#完整服务定义与类型增补)唯一拥有。业务提供者继承对应抽象 Service，不复制键。Context 的 unknown 主体在可信入口解析，租户继续显式传入。注册权威为宿主提供的能力，不是调用方可传入任意准入回调。
 
 ModelDriverHost 的绑定是领域提供者与本域执行宿主的装配操作，不通过普通 runtime Service 暴露 driver。实际 host 按领域协议提供本地绑定，再以 ModelInstanceHostService 供领域算法使用。未完成绑定不能公开受理。静态键注入与生命周期组合由宿主装配设计维护。
+
+普通 ModelRuntime 的三个引用入口及拒绝协议由 [Model 契约](../model-contract/SPEC.md#可保存调用引用)拥有。本包 raw `ModelInstancesService` 实现低层 `ModelInstanceDirectory`，按 tenant/call 路由，不核 principal。实际 ModelInstanceHost.directory 必须另兑现当前 observe 资格，不能把 raw 路由命中当作授权。

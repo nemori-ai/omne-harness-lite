@@ -2,7 +2,11 @@
 import { expect, it } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
 import { judgePart } from '@omne-harness/message'
-import type { Observation, ResultPart } from '@omne-harness/model-contract'
+import {
+  encodeModelInvocationRef,
+  type Observation,
+  type ResultPart,
+} from '@omne-harness/model-contract'
 import { configuration, createAcceptanceAssembly, operation } from './fixtures/runtime.ts'
 
 it('observes a real successful call, reads every page and acknowledges actual consumer processing', async () => {
@@ -33,6 +37,9 @@ it('observes a real successful call, reads every page and acknowledges actual co
   const provider = createModelRuntime(f.dependencies, configuration)
   const access = { ...f.access, call: f.call }
   const admission = operation('admit')
+  const encoded = encodeModelInvocationRef({ tenant: f.access.tenant, call: f.call, admission })
+  if ('failure' in encoded) throw new Error('Invalid acceptance invocation reference')
+  const lookupAccess = { ...f.access, reference: encoded.ok }
   const admitted = await provider.runtime.calls.admit({
     ...access,
     operation: admission,
@@ -41,6 +48,8 @@ it('observes a real successful call, reads every page and acknowledges actual co
     capacity: f.capacity,
   })
   expect(admitted).toMatchObject({ ok: { call: f.call, recovered: false } })
+  if ('failure' in admitted) throw new Error('Admission failed')
+  expect(admitted.ok.reference).toEqual(encoded.ok)
   const driving = provider.driver.drive(f.driveInput, new AbortController().signal)
   let observer: AsyncIterator<Observation> | undefined
   try {
@@ -50,7 +59,7 @@ it('observes a real successful call, reads every page and acknowledges actual co
         throw new Error(`Drive ended before observation: ${JSON.stringify(reply)}`)
       }),
     ])
-    const connected = await provider.runtime.instances.connect(access)
+    const connected = await provider.runtime.instances.connect(lookupAccess)
     if ('failure' in connected || connected.ok.kind !== 'live') throw new Error('No live route')
     observer = connected.ok.handle
       .observe({ ...f.access, signal: new AbortController().signal })
@@ -80,13 +89,13 @@ it('observes a real successful call, reads every page and acknowledges actual co
       phase: 'settled',
       settlement: { termination: { kind: 'completed', reason: 'stop' } },
     })
-    const lookup = await provider.runtime.calls.inspect({ ...access, admission })
+    const lookup = await provider.runtime.calls.inspect(lookupAccess)
     if ('failure' in lookup || lookup.ok.kind !== 'found' || lookup.ok.state.phase !== 'settled')
       throw new Error('No settled result')
     const settlement = lookup.ok.state.settlement
     expect(final?.state).toEqual(lookup.ok.state)
     const firstRead = await provider.runtime.consumption.beginRead({
-      ...access,
+      ...lookupAccess,
       operation: operation('read'),
       result: settlement.version,
     })
@@ -141,7 +150,7 @@ it('observes a real successful call, reads every page and acknowledges actual co
       },
     })
     if ('failure' in acknowledged) throw new Error('ACK failed')
-    const after = await provider.runtime.calls.inspect({ ...access, admission })
+    const after = await provider.runtime.calls.inspect(lookupAccess)
     expect(after).toMatchObject({
       ok: {
         kind: 'found',
@@ -157,7 +166,7 @@ it('observes a real successful call, reads every page and acknowledges actual co
     await driving
     await f.withdrawPublication()
   }
-  expect(await provider.runtime.instances.connect(access)).toEqual({
+  expect(await provider.runtime.instances.connect(lookupAccess)).toEqual({
     ok: { kind: 'no-live-route' },
   })
 })

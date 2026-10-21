@@ -8,6 +8,8 @@ Loop 使用原工作事实、已采用规则和当前运行条件求出下一步
 
 纯派生求值可以重算。实际模型或工具调用不能因重算再次发出。会改变后续推进的非确定判断、采用数据、等待及外部效果都可恢复，不只存在旧实例的内存中。
 
+Model 登记在首次 admit 前保存 `PendingCall.model.reference` 与原固定输入。提交未知或回包丢失时按该引用对账，可信 not-accepted 才沿原身份再受理。当前资格与原 ACK result/evidence 保持。Tool 关联由 Tool 契约与后续组合任务拥有。见 [Model 引用契约](../../../../model/model-contract/SPEC.md#可保存调用引用)。
+
 ## 外部可观察的保证
 
 | 保证 | 内容 | 节点 |

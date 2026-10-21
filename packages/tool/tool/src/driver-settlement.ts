@@ -31,6 +31,7 @@ export async function preserveSavedFinal<P, B extends ContentBlock, E>(
   const final = saved.ok.fact
   const input = {
     ...recovery.execution,
+    tenant: access.tenant,
     principal: access.principal,
     operation: task.operation,
     expected: recovery.state.revision,

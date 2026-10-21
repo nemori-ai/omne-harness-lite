@@ -8,7 +8,7 @@
 - [Schema](schema/index.md)。
 - [持续验证](verification/index.md)。
 - [持久设计决策](adr/index.md)。
-- [使用示例](examples/index.md)。
+- [可运行教学与模型分页](examples/README.md)，以及[示例文件导航](examples/index.md)。
 - [运行资源](resources/index.md)。
 - [独立验收](acceptance/index.md)。
 - [契约包](../tool-contract/index.md)。

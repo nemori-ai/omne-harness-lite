@@ -25,6 +25,8 @@
 - [evaluation.ts](../../src/evaluation.ts)：纯求值的值与端口。有 `ProducedResult`、`InputBatch`、`ProgressionDirective`、`Waiting`、`AgentConclusion`、`FailureCandidate`、`PreparedContextTransition`、`Failure` 与 `Reply`，原调用的 `ModelPurpose`、`PendingCall`、`ActionJudgment`、`Action`、`ActionBarrier`、`ActionSlot`、`ActionBatch`，回复准入的 `ModelReplyAdmission`、`ReplyAdmissionProjection`、`ReplyAdmissionPage`，守卫的 `GuardLevel` 与 `GuardFact`，`AgentCheckpoint`、`RuntimeConditions`、`ProducerDecisionView`、`AdvancementFact`、`LoopFacts`、`Next` 与 `AgentEvaluator`。
 - [execution.ts](../../src/execution.ts)：`LoopFacts` 引用的执行记录类型 `ExecutionControl`、`ControlStage`、`ControlStageFact`、`ControlRecord` 与 `ResultResponsibility`，与“托管协调与运行实例”一节的类型同在这个文件。
 
+Model 登记在首次 admit 前保存 `PendingCall.model.reference` 与原固定输入。提交未知或回包丢失时按该引用对账，可信 not-accepted 才沿原身份再受理。当前资格与原 ACK result/evidence 保持。Tool 关联由 Tool 契约与后续组合任务拥有。见 [Model 引用契约](../../../../model/model-contract/SPEC.md#可保存调用引用)。
+
 ProgressionDirective 是 Loop 下一步所需的具体推进要求，不是权限或协作模式的复制。CurrentConditions 的受信适配器把合法协作设置投影为该值并保存依据，Agent 不解释 never/auto_permission/bypass-permissions。RuntimeConditions 只是这项投影及其采用依据，不含守卫阶梯：守卫由 Agent 自持的守卫事实承载，见下文 `AgentCheckpoint.guard`。evaluate-completion 仅允许核完成条件，不等于批准完成；continue 不产生任意新效果许可。环境采用由相应请求/动作固定协议携带，Agent 不维护环境选择或权限策略状态机。
 
 效果协调层读取 Model/Tool 公开状态，核原 call/version/消费关联后生成 ProducerDecisionView。model-active 包括原调用内部仍在重试；只有原 Model 确认整调用真实收场才为 model-settled。tool-background 必须有真实转换确认和耐久占位。tool-result 可含 Tool 原契约的失联或晚到版本，不一概解释为物理停止。supportedControls 是公开能力快照，实际控制仍需当前核权。

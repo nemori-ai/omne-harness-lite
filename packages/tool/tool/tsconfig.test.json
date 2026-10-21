@@ -7,6 +7,6 @@
     "sourceMap": false,
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["tests/**/*.ts"],
+  "include": ["tests/**/*.ts", "examples/**/*.ts", "acceptance/**/*.ts"],
   "exclude": ["**/*.legacy/**"]
 }

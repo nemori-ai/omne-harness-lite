@@ -3,7 +3,7 @@ import type {
   CallAccess,
   CallState,
   ModelClock,
-  ModelDirectory,
+  ModelInstanceDirectory,
   ModelHandle,
   ModelInstanceId,
   Observation,
@@ -17,7 +17,7 @@ type Watcher = { lag: number; wake: () => void; end: (reason: End) => void }
 export function createObservation<P>(input: {
   access: CallAccess<P>
   instance: ModelInstanceId
-  directory: ModelDirectory<P>
+  directory: ModelInstanceDirectory<P>
   clock: ModelClock
   bufferBytes: number
   checkIntervalMs: number
@@ -77,6 +77,43 @@ export function createObservation<P>(input: {
             access.signal.removeEventListener('abort', abort)
             return { done: false, value: { kind: 'ended', reason: ending ?? 'unavailable' } }
           }
+          function authorize(
+            route: Awaited<ReturnType<typeof input.directory.connect>> | null,
+          ): boolean {
+            if (!route || 'failure' in route) {
+              watcher.end(
+                route && 'failure' in route && route.failure.kind === 'denied'
+                  ? 'denied'
+                  : 'unavailable',
+              )
+              return false
+            }
+            if (route.ok.kind !== 'live') {
+              watcher.end('unavailable')
+              return false
+            }
+            if (route.ok.handle !== handle || route.ok.handle.instance !== handle.instance) {
+              watcher.end('stale-instance')
+              return false
+            }
+            return true
+          }
+          function selectView(): IteratorResult<Observation> | null {
+            if (!view) {
+              watcher.end('unavailable')
+              return finish()
+            }
+            if (seen !== version) {
+              const first = seen < 0
+              seen = version
+              watcher.lag = 0
+              return {
+                done: false,
+                value: { kind: first ? 'snapshot' : 'changed', value: structuredClone(view) },
+              }
+            }
+            return null
+          }
           async function next(): Promise<IteratorResult<Observation>> {
             if (done) return { done: true, value: undefined }
             while (!ending) {
@@ -89,36 +126,10 @@ export function createObservation<P>(input: {
                 closure,
               ]).catch(() => null)
               if (ending) break
-              if (!route || 'failure' in route) {
-                watcher.end(
-                  route && 'failure' in route && route.failure.kind === 'denied'
-                    ? 'denied'
-                    : 'unavailable',
-                )
-                break
-              }
-              if (route.ok.kind !== 'live') {
-                watcher.end('unavailable')
-                break
-              }
-              if (route.ok.handle !== handle || route.ok.handle.instance !== handle.instance) {
-                watcher.end('stale-instance')
-                break
-              }
               // No await between the observer's current authorization and selecting the view.
-              if (!view) {
-                watcher.end('unavailable')
-                break
-              }
-              if (seen !== version) {
-                const first = seen < 0
-                seen = version
-                watcher.lag = 0
-                return {
-                  done: false,
-                  value: { kind: first ? 'snapshot' : 'changed', value: structuredClone(view) },
-                }
-              }
+              if (!authorize(route)) break
+              const selected = selectView()
+              if (selected) return selected
               const timer = new AbortController()
               const notified = new Promise<void>(resolve => {
                 wake = resolve

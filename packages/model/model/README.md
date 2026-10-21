@@ -18,11 +18,15 @@ This member implements standalone execution, credential judgments, admission, st
 
 ## Usage
 
+Admission uses the shared `judgeAdmit` synchronously before queuing. It rejects malformed input without allocating a call or capacity. The [input contract](../model-contract/SPEC.md#封闭输入判断) defines frozen payload, preserved access identity and parser limits. Lesson 01 teaches admission judging. Lesson 04 passes the pure request judge before a supplier reports input-over-limit.
+
 A standalone program or a host that selects this implementation starts from [consumption and construction](docs/context.md). The design of executeModel, createModelRuntime, and the construction parameters is accepted. For their exact shapes, see the [public API design](docs/public-api.md). `executeModel`, `createModelRuntime`, and `createModelSendBoundary` are available from the root entry. The independent capability factories remain unimplemented.
 
 For memory testing, import `createTestModelDependencies` from `@omne-harness/model/testing`. Supply the explicit authority, evidence, owners, and finite limits described in the [testing API](docs/public-api.md#内存测试入口). The returned dependencies can construct the real runtime.
 
 The memory test provider returns sealed and partial result parts with actual trim notices. Its explicit part-count and byte targets group whole parts. An oversized part has its own page. The complete page stays within the admitted capacity. See the [test entry](docs/public-api.md#内存测试入口).
+
+The caller encodes and saves the invocation reference before admit. Inspect, connect and beginRead use that reference with current Access. Lesson 05 saves an operation reference with the original ACK result and evidence. See the [shared reference contract](../model-contract/SPEC.md#可保存调用引用).
 
 ## Run the learning examples
 
@@ -92,7 +96,21 @@ A started result carries the confirmed original `window` and its single `facts` 
 
 ## Verification
 
-Run `pnpm --filter @omne-harness/model typecheck`, `pnpm --filter @omne-harness/model test`, and `pnpm run check:docs`. The execution tests call the public entry with the scripted transport and controlled failure providers. They cover one send, receipt matching, cancellation, stream loss, and cleanup. The six transport conformance checks test the provider directly. The other tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
+Run these commands from the repository root. The package requires Node.js >=24 and pnpm 10.28.1. Each run report identifies the Node.js version actually tested.
+
+```sh
+pnpm turbo run typecheck --filter=@omne-harness/model
+pnpm turbo run test --filter=@omne-harness/model
+pnpm turbo run test:fast --filter=@omne-harness/model
+pnpm turbo run test:slow --filter=@omne-harness/model
+pnpm run check:docs
+```
+
+The Turbo test tasks build this package and its dependencies before they run the selected tests. The `typecheck` task does not build. Direct `pnpm --filter @omne-harness/model test` does not build, so its required build output must already exist. The `test:fast` and `test:slow` tasks select the fast and slow layers, respectively.
+
+The full `test` runs Vitest, then executes the five learning scripts if Vitest succeeds. Neither test layer runs examples automatically. With build output ready, run `pnpm --filter @omne-harness/model examples` separately. Acceptance remains a separate script, scheduled by the [test runner](../../../tools/test-runner/README.md). Run `pnpm run acceptance` from the repository root.
+
+The execution tests call the public entry with the scripted transport and controlled failure providers. They cover one send, receipt matching, cancellation, stream loss, and cleanup. The six transport conformance checks test the provider directly. The other tests cover the credential judgment (including rejection of every tenant that was not minted), the export set of the root entry, the fact that the old subpaths do not resolve, and the fact that the manifest has no Cordis-type dependency. The tests of custody, persistence, and the Cordis plugin are in model-host-local. The memory tests cover local Commands transitions, fault injection, result reads, and resource release. These tests do not prove durable custody, real vendors, or production managed execution. For the shared protocol and the type consumption duties, see the [contract verification](../model-contract/verification/index.md).
 
 ## Maintenance
 
