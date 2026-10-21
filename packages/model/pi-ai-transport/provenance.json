@@ -1,0 +1,43 @@
+{
+  "repository": "https://github.com/earendil-works/pi",
+  "version": "1.0.0",
+  "commit": "a13d35a742c6ef8462812a28fbe1d8c8b7431c32",
+  "source_archive": "git archive --format=tar.gz a13d35a742c6ef8462812a28fbe1d8c8b7431c32 (git 2.25.1)",
+  "source_archive_sha256": "1de4da19981f0caed95df5ed76a14aa90b082fa08d997407e6e3a1898fc913d1",
+  "license_sha256": "0457f5bcec3b3b211605dfb5d1a49042fd638f3686a410fe099c24a25af13c48",
+  "sources": [
+    {
+      "path": "packages/ai/src/api/openai-codex-responses.ts",
+      "sha256": "1f7a4f169d826a30189e3905475ca9f4c7edc518812013ae4b9f86b367942a05"
+    }
+  ],
+  "rebase": {
+    "date": "2026-10-02",
+    "from": {
+      "version": "0.86.1",
+      "commit": "3390bd93630965a12a0a1a5c36ce890ec22f7e1d",
+      "note": "main two commits after the v0.86.1 release tag (v0.86.1-2-g3390bd93); the source file is byte-identical to the tag",
+      "source_archive_sha256": "29b35ae69e9cc7696cfdd0992e157892dfedc857c50762f49d752584358e4163",
+      "sources_sha256": {
+        "packages/ai/src/api/openai-codex-responses.ts": "ea1860ea6f78d1ed4e935e86b5dcb149ccb1f03a12669ff8550cc7243ec6ddc8"
+      }
+    },
+    "code_changed": false,
+    "upstream_changes": [
+      {
+        "where": "openai-codex-responses.ts parseSSE",
+        "change": "none",
+        "disposition": "src/sse.ts baseline unchanged"
+      }
+    ]
+  },
+  "adaptations": [
+    {
+      "file": "src/sse.ts",
+      "source": "packages/ai/src/api/openai-codex-responses.ts",
+      "symbol": "parseSSE",
+      "changes": "Async iterable of Uint8Array input instead of a Node response; strict UTF-8 decoding that survives arbitrary byte cuts; a per-event byte limit that counts line breaks; all SSE newline forms including a CRLF split across chunks; rejection of an unterminated tail; SseProtocolError with the closed reasons non-byte, invalid-utf8, event-too-large and unterminated. Changes against the archived fork: only an error of the TextDecoder maps to invalid-utf8 and other errors pass through; a data line without a colon has an empty value (WHATWG); JSON reading and the end-marker moved to the project-owned src/frames.ts; a reader that ends the events before the first one closes the byte source, through the project-owned src/iteration.ts.",
+      "basis": "nemori-ai/omne-harness-lite#461 implementation spec (SSE framing); packages/model/docs/migration.md pi-ai-transport/src sse.ts row"
+    }
+  ]
+}

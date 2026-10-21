@@ -53,7 +53,7 @@ Cordis 定义与宿主插件分别从 model-cordis-contract/cordis 和 model-hos
 | tokenizer-tiktoken | ModelTextTokenizer 的引擎 adapter，供 OpenAI、Anthropic、Moonshot 等家族计量器构造 | 封装 js-tiktoken、资源初始化和 count 语义；共享引擎实现，不收齐所有厂商词表 |
 | tokenizer-huggingface | ModelTextTokenizer 的引擎 adapter，供 DeepSeek、Google、Qwen、Z.AI 等家族计量器构造 | 封装 Hugging Face tokenizer 运行库及资源初始化；隔离引擎依赖，不拥有家族模板和上游计量口径 |
 
-model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前只承载本地凭据保管。`pi-ai-*` 成员及 tokenizer 成员尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
+model-contract、model-cordis-contract、model 与 model-host-local 已是 workspace 成员。model-host-local 目前只承载本地凭据保管。pi-ai-transport 的根入口已导出五个家族贡献接口类型，包内已实现连接容量、HTTP 交换、SSE 分帧与诊断隔离；ModelTransport 尚未实现。其余 `pi-ai-*` 成员及 tokenizer 成员尚未初始化。model 不转导契约或聚合提供者。后续运行成员沿[workspace](../../../docs/workspace.md)在具有实际实现和消费验证的切片建立；目标名称不表示运行能力已存在。
 
 厂商包的 interface 应让消费者一次取得相容的精确绑定及其资源租约，不要求调用方自行拼接 tokenizer、模板、投影和 usage 算法。删除厂商包后，这些关联会散布到目录、计量与传输调用者，因而其 depth 有实际价值。将每个型号各做一个只转发家族工厂的包则没有这种收益。
 
@@ -202,7 +202,7 @@ module 分解与依赖分类见[成员架构](../model/docs/architecture.md#内�
 
 本节设计已接受。所引用的通用 Model 契约按其已接受范围执行。
 
-下列是目标 pi-ai-transport 拥有的已接受接口，尚未初始化或导出。它只约束选择该实现的家族作者，不扩充领域契约或强制其他 ModelTransport 使用 pi。构造配置固定路由协议、限额和资源目录；依赖注入提供内容读取、连接容量及凭据适配；每次 acquire 的参数只选择原供应商和采用。
+下列是 pi-ai-transport 拥有的已接受接口，已从该成员根入口以类型导出；该成员尚无 ModelTransport 实现。它只约束选择该实现的家族作者，不扩充领域契约或强制其他 ModelTransport 使用 pi。构造配置固定路由协议、限额和资源目录；依赖注入提供内容读取、连接容量及凭据适配；每次 acquire 的参数只选择原供应商和采用。
 
 ```ts
 import type { Outcome } from '@omne-harness/operation-result'
