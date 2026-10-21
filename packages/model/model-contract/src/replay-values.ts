@@ -2,7 +2,7 @@
 // replay projection that an adapter and a meter share. This file imports types only from the
 // chapter files. Nothing here reads the payload of a reasoning state part.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { REPLAY_TAG_MAX_LENGTH, type MessageId } from '@omne-harness/message'
+import { REPLAY_TAG_MAX_LENGTH, type AssistantMessage, type MessageId } from '@omne-harness/message'
 import type {
   ForeignThinking,
   ProfileSupplier,
@@ -50,17 +50,24 @@ const REPLAY_KEYS: readonly string[] = ['produces', 'accepts', 'foreignThinking'
  */
 function shapeReason(declared: unknown): string | null {
   if (declared === undefined) return null
-  if (typeof declared !== 'object' || declared === null || Array.isArray(declared)) return 'replay'
-  if (Object.keys(declared).some(key => !REPLAY_KEYS.includes(key))) return 'replay'
+  if (!isDeclarationObject(declared)) return 'replay'
   const produces = 'produces' in declared ? declared.produces : undefined
-  const accepts = 'accepts' in declared ? declared.accepts : undefined
   if (produces !== undefined && typeof produces !== 'string') return 'produces'
-  if (accepts === undefined) return null
-  if (!Array.isArray(accepts)) return 'accepts'
-  for (let i = 0; i < accepts.length; i += 1) {
-    if (!Object.hasOwn(accepts, i) || typeof accepts[i] !== 'string') return 'accepts'
+  const accepts = 'accepts' in declared ? declared.accepts : undefined
+  return accepts === undefined || isDenseTextArray(accepts) ? null : 'accepts'
+}
+
+function isDeclarationObject(value: unknown): value is object {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  return Object.keys(value).every(key => REPLAY_KEYS.includes(key))
+}
+
+function isDenseTextArray(value: unknown): boolean {
+  if (!Array.isArray(value)) return false
+  for (let i = 0; i < value.length; i += 1) {
+    if (!Object.hasOwn(value, i) || typeof value[i] !== 'string') return false
   }
-  return null
+  return true
 }
 
 /**
@@ -94,42 +101,58 @@ export function judgeReplayDeclaration(
  * replay is not off and a re-dispatch does not leave it out. A part is found by `replay.at`.
  */
 export function projectReplay(input: ReplayProjectionInput): ReplayProjection {
-  const accepted = new Set(input.declaration.accepts)
+  const accepted: ReadonlySet<string> = new Set(input.declaration.accepts)
   const treatments: ReplayTreatment[] = []
   const diagnostics: ReplayDiagnostic[] = []
   input.messages.forEach((message, index) => {
     if (message.role !== 'assistant') return
-    const replay = message.replay
-    const continuable =
-      !input.off &&
-      replay !== undefined &&
-      accepted.has(replay.scope) &&
-      input.formats.has(replay.format) &&
-      !input.resent.has(message.id)
-    const at = replay?.at ?? []
-    treatments.push(
-      Object.freeze({
-        index,
-        message: message.id,
-        continuable,
-        carry: continuable ? at : [],
-        omit: continuable ? [] : at,
-        thinking: continuable ? 'native' : input.declaration.foreignThinking,
-      }),
-    )
-    if (!continuable && replay !== undefined && at.length > 0)
-      diagnostics.push(
-        Object.freeze({
-          message: message.id,
-          scope: replay.scope,
-          format: replay.format,
-          omittedParts: at.length,
-        }),
-      )
+    const continuable = canContinue(message, input, accepted)
+    treatments.push(treat(message, index, continuable, input.declaration.foreignThinking))
+    const diagnostic = continuable ? null : diagnose(message)
+    if (diagnostic !== null) diagnostics.push(diagnostic)
   })
   return Object.freeze({
     treatments: Object.freeze(treatments),
     diagnostics: Object.freeze(diagnostics),
+  })
+}
+
+function canContinue(
+  message: AssistantMessage,
+  input: ReplayProjectionInput,
+  accepted: ReadonlySet<string>,
+): boolean {
+  const { replay } = message
+  if (input.off || replay === undefined || input.resent.has(message.id)) return false
+  return accepted.has(replay.scope) && input.formats.has(replay.format)
+}
+
+function treat(
+  message: AssistantMessage,
+  index: number,
+  continuable: boolean,
+  foreignThinking: ForeignThinking,
+): ReplayTreatment {
+  const at = message.replay?.at ?? []
+  return Object.freeze({
+    index,
+    message: message.id,
+    continuable,
+    carry: continuable ? at : [],
+    omit: continuable ? [] : at,
+    thinking: continuable ? 'native' : foreignThinking,
+  })
+}
+
+/** The diagnostic of a message that cannot continue and so loses its parts, or null. */
+function diagnose(message: AssistantMessage): ReplayDiagnostic | null {
+  const { replay } = message
+  if (replay === undefined || replay.at.length === 0) return null
+  return Object.freeze({
+    message: message.id,
+    scope: replay.scope,
+    format: replay.format,
+    omittedParts: replay.at.length,
   })
 }
 
