@@ -5,10 +5,12 @@ import {
   defaultResultPolicy,
   decodeToolInstanceId,
   type Adoption,
+  type CallAccess,
   type FixedToolRequest,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
 import type { createToolLedger } from './ledger.ts'
+import type { LedgerDomain } from './ledger-store.ts'
 import { digestOf } from './evidence.ts'
 import type { ToolLedgerGuards } from './ledger-guards.ts'
 import type { ToolLedgerStoreFixture, StoreCaseDependencies } from './testing-ledger-store-types.ts'
@@ -17,6 +19,24 @@ import { callId, operationId, success } from './testing-ledger-values.ts'
 
 type Principal = Readonly<{ subject: 'alice' | 'bob' }>
 type Factory = typeof createToolLedger<Principal, ContentBlock>
+type Ledger = ReturnType<Factory>
+type AdmitInput = Parameters<Ledger['admissions']['admit']>[0]
+type Plan = Ledger['commands']['planPreparation']
+type LedgerAssembly = Readonly<{
+  ledger: Ledger
+  input: AdmitInput
+  access: CallAccess<Principal>
+  other: Principal
+  domain: Extract<LedgerDomain, { kind: 'call' }>
+  counts(): Readonly<{ reads: number; commits: number }>
+  revoke(): void
+  query(operation?: AdmitInput['operation']): ReturnType<Ledger['reads']['operation']>
+  changedInput(): AdmitInput
+  plan(
+    expected: Parameters<Plan>[0]['expected'],
+    operation?: AdmitInput['operation'],
+  ): ReturnType<Plan>
+}>
 export type LedgerAssemblyDependencies = StoreCaseDependencies &
   Readonly<{
     createLedger: Factory
@@ -91,7 +111,7 @@ function invokeRequest(): ToolInvokeRequest {
 export async function ledgerAssembly(
   fixture: ToolLedgerStoreFixture,
   deps: LedgerAssemblyDependencies,
-) {
+): Promise<LedgerAssembly> {
   const tenant = deps.tenant(`org_${'0'.repeat(26)}`, `acc_${'1'.repeat(26)}`)
   const principal: Principal = { subject: 'alice' }
   const other: Principal = { subject: 'bob' }

@@ -41,7 +41,7 @@ export function compositionCases(deps: LedgerAssemblyDependencies): readonly Led
           'business retry must not create another commit',
         )
         assert.deepEqual(
-          await fixture.store.read(f.domain),
+          await complete(fixture.store, f.domain),
           before,
           'business retry must preserve receipt and complete snapshot',
         )
@@ -67,7 +67,7 @@ export function compositionCases(deps: LedgerAssemblyDependencies): readonly Led
           'same-operation different-input retry must be a business conflict',
         )
         assert.deepEqual(
-          await fixture.store.read(f.domain),
+          await complete(fixture.store, f.domain),
           before,
           'business conflict must not change records or revision',
         )
@@ -94,7 +94,7 @@ export function compositionCases(deps: LedgerAssemblyDependencies): readonly Led
             'stale-revision must report current business revision',
           )
         assert.deepEqual(
-          await fixture.store.read(f.domain),
+          await complete(fixture.store, f.domain),
           before,
           'stale command must not mutate records',
         )
@@ -243,7 +243,7 @@ export function compositionCases(deps: LedgerAssemblyDependencies): readonly Led
         const before = await complete(fixture.store, f.domain)
         await delayed.land()
         assert.deepEqual(
-          await fixture.store.read(f.domain),
+          await complete(fixture.store, f.domain),
           before,
           'late old commit must not cross a successful fence',
         )
@@ -349,7 +349,7 @@ export function compositionCases(deps: LedgerAssemblyDependencies): readonly Led
         )
         assert.deepEqual(f.counts(), counts, 'denied write must perform zero store IO')
         assert.deepEqual(
-          await fixture.store.read(f.domain),
+          await complete(fixture.store, f.domain),
           before,
           'denied read and write must preserve the snapshot',
         )

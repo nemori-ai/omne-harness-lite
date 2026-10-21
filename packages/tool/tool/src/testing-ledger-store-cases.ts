@@ -106,7 +106,7 @@ export function storeCases(deps: StoreCaseDependencies): readonly LedgerStoreCas
           'stale CAS must conflict with current revision',
         )
         assert.deepEqual(
-          await store.read(domain),
+          await complete(store, domain),
           before,
           'conflict must leave the entire snapshot unchanged',
         )
@@ -200,6 +200,10 @@ export function storeCases(deps: StoreCaseDependencies): readonly LedgerStoreCas
       clause: 'G1',
       run: async ({ store }) => {
         await store.commit(batch(domain, [first, second]))
+        const expected = [
+          hostRecord('first', { nested: [1, { text: 'original' }] }),
+          hostRecord('second', { number: 2 }),
+        ]
         const read = await complete(store, domain)
         for (const record of read.records)
           if (
@@ -208,11 +212,24 @@ export function storeCases(deps: StoreCaseDependencies): readonly LedgerStoreCas
             record.host.value !== null
           )
             Reflect.set(record.host.value, 'nested', ['changed'])
+        const nestedRead = await complete(store, domain)
+        snapshot(nestedRead, '1', expected, 'read values must not alias stored records')
+        for (const record of nestedRead.records) {
+          if (record.kind !== 'host') continue
+          const value = record.host.value
+          if (typeof value !== 'object' || value === null) continue
+          const nested: unknown = Reflect.get(value, 'nested')
+          if (Array.isArray(nested)) {
+            const item: unknown = nested[1]
+            if (typeof item === 'object' && item !== null) Reflect.set(item, 'text', 'changed')
+            Reflect.set(nested, '0', 'changed')
+          }
+        }
         snapshot(
           await store.read(domain),
           '1',
-          [first, second],
-          'read values must not alias stored records',
+          expected,
+          'nested read values must not alias stored records',
         )
       },
     },

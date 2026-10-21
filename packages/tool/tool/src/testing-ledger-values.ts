@@ -51,7 +51,7 @@ export async function complete(store: ToolLedgerStore<ContentBlock>, domain: Led
   const read = await store.read(domain)
   assert.equal(read.kind, 'complete', 'store read must return a complete snapshot')
   assert.ok(read.kind === 'complete')
-  return read
+  return { ...read, records: sortedRecords(read.records) }
 }
 export function snapshot(
   read: LedgerRead<ContentBlock>,
@@ -62,9 +62,10 @@ export function snapshot(
   assert.equal(read.kind, 'complete', message)
   assert.ok(read.kind === 'complete')
   assert.equal(read.revision, next, message)
-  const sorted = (values: readonly LedgerRecord<ContentBlock>[]) =>
-    [...values].sort((a, b) => recordKey(a).localeCompare(recordKey(b)))
-  assert.deepEqual(sorted(read.records), sorted(records), message)
+  assert.deepEqual(sortedRecords(read.records), sortedRecords(records), message)
+}
+function sortedRecords(records: readonly LedgerRecord<ContentBlock>[]) {
+  return [...records].sort((a, b) => recordKey(a).localeCompare(recordKey(b)))
 }
 export function required<T>(offered: T | undefined, name: string, deps: StoreCaseDependencies): T {
   return offered === undefined ? deps.missing(name) : offered

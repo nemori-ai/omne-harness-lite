@@ -81,6 +81,32 @@ export function aliasOutput(): ToolLedgerStoreFixture {
     }
   })
 }
+export function shallowOutput(): ToolLedgerStoreFixture {
+  return wrappedFixture(store => {
+    let cached: LedgerRead<ContentBlock> | undefined
+    return {
+      ...store,
+      read: async domain => {
+        cached ??= await store.read(domain)
+        if (cached.kind !== 'complete') return cached
+        return {
+          ...cached,
+          records: cached.records.map(record => {
+            if (record.kind !== 'host') return structuredClone(record)
+            const value = record.host.value
+            return {
+              ...record,
+              host: {
+                ...record.host,
+                value: typeof value === 'object' && value !== null ? { ...value } : value,
+              },
+            }
+          }),
+        }
+      },
+    }
+  })
+}
 export function oldPartialApply(): ToolLedgerStoreFixture {
   return wrappedFixture(store => ({
     ...store,

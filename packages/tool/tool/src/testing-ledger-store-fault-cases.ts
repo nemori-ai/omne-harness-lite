@@ -44,7 +44,7 @@ export function storeFaultCases(deps: StoreCaseDependencies): readonly LedgerSto
           'armed commit must answer unavailable',
         )
         assert.deepEqual(
-          await store.read(domain),
+          await complete(store, domain),
           before,
           'unavailable commit must attempt no writes',
         )
@@ -117,7 +117,7 @@ export function storeFaultCases(deps: StoreCaseDependencies): readonly LedgerSto
         const fenced = await complete(store, domain)
         await delayed.land()
         assert.deepEqual(
-          await store.read(domain),
+          await complete(store, domain),
           fenced,
           'delayed commit must recheck expected after a fence',
         )
@@ -148,7 +148,7 @@ export function storeFaultCases(deps: StoreCaseDependencies): readonly LedgerSto
         }
         assert.ok(rejected, 'provider must reject its declared unencodable host value')
         assert.deepEqual(
-          await store.read(domain),
+          await complete(store, domain),
           before,
           'rejected batch must preserve every record and the revision',
         )

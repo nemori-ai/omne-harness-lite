@@ -17,6 +17,7 @@ import {
   lateWithoutCas,
   oldPartialApply,
   readMap,
+  shallowOutput,
   stateUsesDomainRevision,
   withoutOperations,
   wrappedFixture,
@@ -231,6 +232,21 @@ describe('each public case detects its targeted defect', () => {
         await fixture.close()
       }
     })
+  it('store.output-copy detects shallow shells that share nested arrays and objects', async () => {
+    const fixture = shallowOutput()
+    try {
+      await assert.rejects(
+        () => runConformanceCase(findCase('store.output-copy'), fixture),
+        error => {
+          assert.ok(error instanceof assert.AssertionError)
+          assert.ok(error.message.includes('nested read values must not alias stored records'))
+          return true
+        },
+      )
+    } finally {
+      await fixture.close()
+    }
+  })
   it('maps every store and business case except the separate internal guard negative', () => {
     assert.deepEqual(
       negatives.map(item => item.name).sort(),

@@ -90,3 +90,5 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 [ledger-store-qualification.spec.ts](ledger-store-qualification.spec.ts) 通过内部依赖接线，只把真实 ledger 的 access guard 改为 always-allow，核授权断言会失败。它是设施授权 oracle 自证，不是 store 违约证明。公开 fixture 没有可替换 ledger 或业务 oracle 的配置。
 
 公共数组的行为范围归 [SPEC 第 18 条](../SPEC.md#18-非耐久记录仓testing)。组合覆盖原 operation 回执、异输入冲突、stale-revision、未知认回与可靠否定、迟到旧提交和同身份 fresh retry、资格撤销与跨租户拒绝的零 IO。域分区单独由 Store 数组验证。测试使用真实 ledger 和非耐久 store，clock/custody/environment 为契约测试替身，不证明生产身份系统、引用适配、真实执行、数据库耐久、多连接、跨重启或断电恢复。
+
+`ledger-store-conformance.spec.ts` 还在合法变序的读提供者上运行全部 25 项公共用例，冻结 records 数组以检查比较器不原地排序。`ledger-store-negative.spec.ts` 的浅复制负控每次复制记录和值的外壳，但共享深层数组与对象，必须触发 `store.output-copy` 的深层副本断言。原有完整输出别名负控仍保留。另在深度冻结的独立快照上运行全部 25 项用例，确认只读输出也符合副本隔离承诺。

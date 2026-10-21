@@ -202,7 +202,7 @@
 
 `toolLedgerStoreConformance()` 提供记录仓判据，`toolLedgerStoreCompositionConformance()` 用真实 ledger 提供 P01 组合判据。两者只从 `./testing` 返回既有 ConformanceCase 数组，用 node:assert 判定。具体 fixture、控制与资源责任见 [public-api](docs/public-api.md#ledger-store-conformance-testing)，消费方式见 [README](README_ZH.md#记录仓一致性用例)。提供者只供应 store，不供应 ledger 或业务 oracle。
 
-每个 case 使用新 fixture。可选手柄分别缺失时，在首次装配、seed 和 IO 前用 tool-contract/testing 的既有 NotApplicable 报告，不能作为 passed。有手柄但未制造故障仍失败。编码拒绝 probe 使用提供者明确拒绝的值，接受异常、unknown 或 unavailable 后核完整快照与 revision 未变，并核同形全合法写集成功。它不定义统一编码拒绝协议。延迟控制的 land 完成前必须重核原 expected；成功否定围栏排除旧在途尝试，随后同身份新尝试仍可受理并删除旧 exclusion。
+每个 case 使用新 fixture。可选手柄分别缺失时，在首次装配、seed 和 IO 前用 tool-contract/testing 的既有 NotApplicable 报告，不能作为 passed。有手柄但未制造故障仍失败。编码拒绝 probe 使用提供者明确拒绝的值，接受异常、unknown 或 unavailable 后核完整快照与 revision 未变，并核同形全合法写集成功。该 probe 的 expected 匹配且没有竞争，任何 committed 或 conflict 都失败。它不定义统一编码拒绝协议。延迟控制的 land 完成前必须重核原 expected；成功否定围栏排除旧在途尝试，随后同身份新尝试仍可受理并删除旧 exclusion。
 
 Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/reads 上的拒绝与零 store IO，不覆盖引用 codec、runtime 适配或生产身份系统。内存两组全部 passed、零 not-applicable 仅支持本进程非耐久证据，不证明真实数据库、跨重启、多连接或断电保证。验证资源见[测试导航](tests/README.md#记录仓公共一致性用例)。
 
