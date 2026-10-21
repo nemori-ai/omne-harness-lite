@@ -237,8 +237,8 @@ describe('C1 property: next is a pure function whose steps the table can take', 
       }
       // A step is taken only at a decision segment, and the table has a row for it there.
       const position = facts.checkpoint.position as LoopNode
-      expect(['E4', 'I8'], `seed ${seed}`).toContain(position)
-      expect(successor(position, next.kind), `seed ${seed}`).toBeTruthy()
+      expect(['E4', 'I0', 'I8'], `seed ${seed}`).toContain(position)
+      expect(successor(position === 'I0' ? 'E4' : position, next.kind), `seed ${seed}`).toBeTruthy()
       if (next.kind === 'try-finish') {
         // Completion is proposed only with no input taken, nothing owed and completion to evaluate.
         expect(facts.batch.ordered, `seed ${seed}`).toEqual([])

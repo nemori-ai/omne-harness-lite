@@ -1,7 +1,7 @@
 // The one guard in front of every public operation of the provider (SPEC "租户与作用域绑定" and
 // "主体资格核验"): the tenant of the Access against the binding first, then exactly one
-// access.check. Only `allowed` lets the operation run, and the decision is never kept, so the next
-// operation checks again.
+// access.check. Only allowed lets the operation run. The guard returns that operation's decision
+// for its first E1 entry. A later public operation checks again.
 import type {
   Access,
   AgentAccessCheck,
@@ -11,7 +11,7 @@ import type {
   Failure,
 } from '@omne-harness/agent-contract'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
-import { ack, fail, type Ack } from '@omne-harness/operation-result'
+import { succeed, fail, type Outcome } from '@omne-harness/operation-result'
 import { isTenantId } from './configuration.ts'
 
 /** The service key of the access check, which names it as the owner of its unavailability. */
@@ -21,7 +21,7 @@ export type AccessGuard<P> = (
   input: Access<P>,
   operation: AgentAccessOperation,
   target: AgentAccessTarget,
-) => Promise<Ack<Failure>>
+) => Promise<Outcome<Extract<AgentAccessDecision, { kind: 'allowed' }>, Failure>>
 
 /**
  * Builds the guard of one runtime. A missing tenant, or one that legal-identity did not mint, is
@@ -53,7 +53,7 @@ export function accessGuard<P>(tenant: TenantId, access: AgentAccessCheck<P>): A
     }
     // The port's type promises a decision, but a provider can answer anything. Only a recognised
     // decision is read; anything else fails closed.
-    if (isDecision(decision, 'allowed')) return ack()
+    if (isDecision(decision, 'allowed')) return succeed(decision)
     if (isDecision(decision, 'denied')) return fail({ kind: 'denied', action: operation })
     if (isDecision(decision, 'unavailable') && typeof decision.diagnostic === 'string')
       return fail({ kind: 'unavailable', owner: ACCESS_OWNER, diagnostic: decision.diagnostic })

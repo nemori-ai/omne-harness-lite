@@ -13,6 +13,7 @@
 - [loop-evaluator.spec.ts](loop-evaluator.spec.ts)：评估器的决定、种子属性测试与导入图纯性（C1）
 - [loop-invoke.spec.ts](loop-invoke.spec.ts)：一条输入到 ended 的正常路径与骨架的临时简化（C2）
 - [loop-admission.spec.ts](loop-admission.spec.ts)：受理幂等、输入冲突、busy、commit-unknown 与 R0 重试路由
+- [loop-recovery.spec.ts](loop-recovery.spec.ts)：E1/E2 只读认回、E4 恢复路由、R0 原操作与 W0 保存等待
 - [loop-coordinator.spec.ts](loop-coordinator.spec.ts)：E1 found-existing 正常结束协调
 - [canonical.spec.ts](canonical.spec.ts)：输入等价性、元素边界与字节视图
 - [loop-port-failures.spec.ts](loop-port-failures.spec.ts)：路径上每个节点的端口失败停在该节点

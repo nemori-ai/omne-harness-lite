@@ -2,7 +2,8 @@
 // pseudocode of docs/architecture/loop-algorithm.md "正常路径伪代码" groups them (runExecution,
 // settle, runIter, prepareRequest, callModel, admitMessage). Each node is one handler that runs the
 // node's effect and names its outcome; where the node goes next is never decided here but looked up
-// in the transition table of nodes.ts. At E4 and I8 the outcome is the pure evaluator's `Next`.
+// in the transition table of nodes.ts. E4 uses a pure recovery route (J5), and delegates input
+// boundaries and iteration decisions to the evaluator. I8 uses the evaluator's Next.
 //
 // #502 1.2 is the skeleton of the normal path. Its temporary choices, each also named where it is
 // made and in tests/README.md:
@@ -18,9 +19,9 @@
 // - M04-7: `open` writes no event (the memory Journal's reading of SPEC).
 // - M04-5: `recordResult.transfer` is processed without a declared participant.
 //
-// Every outcome that is not on the normal path stops the coordinator with a named failure. Nothing
-// is retried, waited for, or turned into a success. A stop says who it belongs to, so that the wait
-// and recovery of #502 1.9 can tell them apart by `owner`:
+// E1/E2 dependency failures and unresolved R0 operations save one wait and return (J2). Other
+// Unsupported outcomes stop with a named failure. Its owner distinguishes a port failure,
+// an unimplemented stage and a coordinator defect:
 //
 // - a port's failure (Journal, Model, handoff, conditions, ...) is passed on as the port gave it;
 // - `AGENT_OWNER` (`unavailable`): an outcome the contract defines but a later #502 card handles;
@@ -32,6 +33,7 @@ import type {
   AcceptedInput,
   Access,
   AgentCheckpoint,
+  AgentAccessDecision,
   AgentEvaluator,
   AgentEventBody,
   AgentExecutionId,
@@ -59,6 +61,7 @@ import type {
   RuntimeConditions,
   SelectedModel,
   StepId,
+  Waiting,
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -78,7 +81,7 @@ import {
   stepOf,
   type Message,
 } from './identities.ts'
-import { successor, type Label, type LoopNode } from './nodes.ts'
+import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
 
 /** The ports the coordinator uses. None of them depends on the content block type. */
 export type LoopPorts<P> = Pick<
@@ -108,9 +111,9 @@ export interface ExecutionCoordinator {
   /** U0 to E0: the input is admitted and `open` accepts the execution. Resolves at E1. */
   accept(): Promise<Outcome<Authority, Halted>>
   /**
-   * E1 to E9, after `accept`: the Loop until the runtime is idle again or the run stops.
+   * After accept: run from E1 until idle, a saved wait or a failure. Consume this decision once.
    */
-  runExecution(): Promise<Outcome<void, Halted>>
+  runExecution(decision: AgentAccessDecision): Promise<Outcome<void, Halted>>
 }
 
 type ReadyPreparation = Extract<Preparation, { kind: 'ready' }>
@@ -224,6 +227,70 @@ function sameRecipient(left: SelectedModel, right: SelectedModel): boolean {
   )
 }
 
+type UnsupportedRecovery = Readonly<{ kind: 'unsupported'; node: string; card: string }>
+
+/** J5: snapshot facts that LoopFacts cannot carry stay in this pure recovery decision. */
+export function recoveryRoute(
+  read: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>,
+): Outcome<LoopNode | 'evaluate', UnsupportedRecovery> {
+  const at = read.checkpoint
+  function target(node: string): Outcome<LoopNode | 'evaluate', UnsupportedRecovery> {
+    const card = node.startsWith('X')
+      ? '#502 stage 3'
+      : node.startsWith('C')
+        ? '#502 stage 4'
+        : /^[AT]/u.test(node)
+          ? '#502 stage 2'
+          : '#502 stage 5'
+    if (
+      /^[ACTX]/u.test(node) ||
+      !LOOP_NODES.includes(node as LoopNode) ||
+      ['E0', 'E1', 'E2', 'U0', 'Q1', 'Q2', 'Q4', 'R0', 'W0', 'F0', 'H0', 'M2', 'Q5'].includes(node)
+    )
+      return fail({ kind: 'unsupported', node, card })
+    return succeed(node as LoopNode)
+  }
+  // A lost receipt must be reconciled before any dependent continuation can run.
+  if (read.unresolved.length > 0) return succeed('R0')
+  if (read.state.kind === 'ended') return succeed('F4')
+  if (read.state.kind === 'settling') return succeed(at.position === 'F3' ? 'F3' : 'F2')
+  const passage = at.passages.find(item => item.progress.kind !== 'applied')
+  if (passage !== undefined)
+    return target(
+      passage.progress.kind === 'resolved' ? 'X5' : passage.progress.kind === 'asked' ? 'X4' : 'X2',
+    )
+  if (at.batch !== null) {
+    if (at.batch.barrier.kind === 'closed') return target('A1')
+    if (at.batch.barrier.kind === 'open')
+      return target(at.position.startsWith('T') ? at.position : 'A2')
+    return target(['T2', 'T3', 'T5'].includes(at.position) ? at.position : 'T2')
+  }
+  const call = at.calls[0]
+  if (call !== undefined) {
+    if (call.purpose === 'compaction')
+      return fail({ kind: 'unsupported', node: 'M1', card: '#502 stage 4' })
+    return target(call.purpose === 'action' ? 'T0' : call.purpose === 'extension' ? 'X2' : 'M1')
+  }
+  // The input batch remains a consumption watermark after I3 closes the call. It does not rewind
+  // a later node to request preparation. Position records that these earlier facets are consumed.
+  if (['I3', 'I4', 'I8', 'F1', 'F2', 'F3', 'F4', 'O0', 'E9'].includes(at.position))
+    return at.position === 'I8' ? succeed('evaluate') : target(at.position)
+  if (at.compaction !== null)
+    return target(
+      at.compaction.ended === 'committed' ? 'I1' : at.compaction.ended === 'failed' ? 'F1' : 'C1',
+    )
+  const prepared = at.requestPreparation
+  if (prepared !== null) {
+    if (prepared.kind === 'assembled') return succeed('P0')
+    if (prepared.kind === 'ready') return succeed('P1')
+    if (prepared.kind === 'cannot-fit') return succeed('F1')
+    return target('C0')
+  }
+  if (at.inputBatch !== null) return succeed('I1')
+  if (['E4', 'I0', 'I8'].includes(at.position)) return succeed('evaluate')
+  return target(at.position)
+}
+
 export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): ExecutionCoordinator {
   const { ports, binding, evaluator, execution } = entry
   const access: Access<P> = { principal: entry.access.principal, tenant: entry.access.tenant }
@@ -241,13 +308,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   let admission: Evidence | null = null
   let iteration: Iteration | null = null
   let intent: FinishIntent | null = null
+  let eligibility: AgentAccessDecision | null = null
+  let waits: readonly Waiting[] = []
   const acknowledged: Acknowledged[] = []
 
-  async function commit(
-    node: LoopNode,
-    to: LoopNode,
-    write: Write,
-  ): Promise<Outcome<void, Failure>> {
+  async function commit(node: LoopNode, to: string, write: Write): Promise<Outcome<void, Failure>> {
     const base = required(checkpoint, 'checkpoint')
     const after = required(revision, 'revision')
     const next: AgentCheckpoint = { ...base, ...write.checkpoint, position: to }
@@ -327,14 +392,44 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   /** E2: the decision facts of the snapshot, the inputs within its watermark and the conditions. */
   async function readFacts(read: ExecutionSnapshot): Promise<Outcome<LoopFacts, Failure>> {
     const current = required(checkpoint, 'checkpoint')
-    // Producer projection (ProducerDecisionView) comes with E2's full reading in #502 1.4.
-    if (current.calls.length > 0) return fail(notYet('E2', 'a pending call', '#502 1.4'))
+    for (const operation of read.unresolved) {
+      const queried = await ports.journal.query({ ...access, execution, operation })
+      if ('failure' in queried) return queried
+    }
     const inputs = await ports.journal.inputs({
       ...access,
       execution,
       watermark: read.inputWatermark,
     })
     if ('failure' in inputs) return inputs
+    let after: string | null = null
+    const cursors = new Set<string>()
+    for (;;) {
+      const admissions = await ports.journal.readReplyAdmissions({
+        ...access,
+        execution,
+        through: read.replyAdmissions.through,
+        after,
+        limit: 100,
+      })
+      if ('failure' in admissions) return admissions
+      if (admissions.ok.kind === 'gap')
+        return fail({
+          kind: 'unavailable',
+          owner: 'agentJournal',
+          diagnostic: 'reply admission projection has a gap',
+        })
+      if (admissions.ok.complete) break
+      const next = admissions.ok.next
+      if (next === null || cursors.has(next))
+        return fail({
+          kind: 'unavailable',
+          owner: 'agentJournal',
+          diagnostic: 'reply admission projection does not advance',
+        })
+      cursors.add(next)
+      after = next
+    }
     const conditions = await ports.conditions.read({
       ...access,
       advance: required(authority, 'authority'),
@@ -347,11 +442,21 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       conditions: conditions.ok,
       batch: inputs.ok.batch,
       inputs: inputs.ok.messages,
-      producers: [],
+      // Public Model/Tool status queries belong to stage 5 (J4).
+      producers: current.calls.map(pending => ({
+        kind: 'unresolved',
+        pending,
+        source: read.history,
+      })),
       consumption: read.results,
       replyAdmissions: read.replyAdmissions,
-      controls: read.controls,
+      controls: [], // Control interpretation belongs to stage 5 (J4).
     })
+  }
+
+  function waitFor(node: LoopNode, failure: Extract<Failure, { kind: 'unavailable' }>) {
+    waits = [{ kind: 'dependency', owner: failure.owner, position: node }]
+    return step('wait', null)
   }
 
   /**
@@ -453,38 +558,62 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return step('authority', null)
     },
     /**
-     * E1: the execution state and the attachment. The access re-check comes with #502 1.4. A
+     * E1 consumes the decision of this entry once, then reads the state and attachment. A
      * revision that is not the last one this coordinator knows means that the Journal moved the
      * execution on without it: `open` gave back the receipt of an execution that already ran, for
      * example after a restart. This coordinator does not drive it; that is recovery (stage 5).
      */
     async E1() {
+      const decision = required(eligibility, 'this entry access decision')
+      eligibility = null
+      if (decision.kind === 'denied') return fail({ kind: 'denied', action: 'invoke' })
+      if (decision.kind === 'unavailable')
+        return waitFor('E1', {
+          kind: 'unavailable',
+          owner: 'agentAccessCheck',
+          diagnostic: decision.diagnostic,
+        })
       const read = await load()
-      if ('failure' in read) return read
+      if ('failure' in read)
+        return read.failure.kind === 'unavailable' ? waitFor('E1', read.failure) : read
+      const advancement = advancementOf(read.ok)
+      if (advancement.kind === 'ended') return step('terminal', null)
+      if (advancement.kind === 'superseded') return step('superseded', null)
       if (read.ok.revision !== revision) {
         entry.idle()
         return step('found-existing', null)
       }
-      const advancement = advancementOf(read.ok)
-      if (advancement.kind !== 'current' || read.ok.state.kind === 'ended')
+      if (advancement.kind !== 'current')
         return fail(notYet('E1', `an advancement that is ${advancement.kind}`, '#502 1.4'))
       checkpoint = read.ok.checkpoint
       revision = read.ok.revision
-      state = read.ok.state
+      if (read.ok.state.kind !== 'ended') state = read.ok.state
       return step('allowed', null)
     },
     /** E2: the facts of the decision, read only. */
     async E2() {
-      const read = await readFacts(required(snapshot, 'snapshot'))
-      if ('failure' in read) return read
+      const loaded = await load()
+      if ('failure' in loaded)
+        return loaded.failure.kind === 'unavailable' ? waitFor('E2', loaded.failure) : loaded
+      checkpoint = loaded.ok.checkpoint
+      revision = loaded.ok.revision
+      if (loaded.ok.state.kind !== 'ended') state = loaded.ok.state
+      const read = await readFacts(loaded.ok)
+      if ('failure' in read)
+        return read.failure.kind === 'unavailable' ? waitFor('E2', read.failure) : read
       facts = read.ok
       return step('reconciled', null)
     },
-    /** E4: an unfinished execution-start passage goes back to E3; otherwise the evaluator decides. */
+    /** E4: J5 routes snapshot continuations before delegating an input or iteration decision. */
     async E4() {
       const current = required(checkpoint, 'checkpoint')
-      if (current.position === 'E3') return step('passage-pending', null)
-      return evaluate('E4', { ...required(facts, 'facts'), checkpoint: current })
+      const route = recoveryRoute({ ...required(snapshot, 'snapshot'), checkpoint: current })
+      if ('failure' in route) return route
+      const to = route.ok
+      if (to === 'evaluate')
+        return evaluate('E4', { ...required(facts, 'facts'), checkpoint: current })
+      if (state.kind === 'settling') intent = state.intent
+      return step(to === 'E3' ? 'passage-pending' : `resume-${to}`, null)
     },
     /** E3: no extension is adopted (invoke refuses one), so the passage ends with a commit alone. */
     async E3() {
@@ -511,6 +640,47 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async E9() {
       entry.idle()
       return step('idle', null)
+    },
+    /** J2: one atomic wait record, retaining the original continuation and the occupied slot. */
+    async W0() {
+      const saved = await commit('W0', required(checkpoint, 'checkpoint').position, {
+        state: { kind: 'waiting', waits },
+        events: [{ kind: 'waiting', waits }],
+      })
+      if ('failure' in saved) return saved
+      return step('saved-wait', null)
+    },
+    /** Stage 1 R0: unknown waits; reliable answers reload the original continuation through E4. */
+    async R0() {
+      const before = required(snapshot, 'snapshot')
+      for (const operation of before.unresolved) {
+        const queried = await ports.journal.query({ ...access, execution, operation })
+        if ('failure' in queried)
+          return queried.failure.kind === 'unavailable' ? waitFor('R0', queried.failure) : queried
+        if (queried.ok.kind === 'unknown') {
+          waits = [
+            { kind: 'dependency', owner: 'agentJournal', position: before.checkpoint.position },
+          ]
+          return step('wait', null)
+        }
+      }
+      const loaded = await load()
+      if ('failure' in loaded)
+        return loaded.failure.kind === 'unavailable' ? waitFor('R0', loaded.failure) : loaded
+      snapshot = {
+        ...loaded.ok,
+        unresolved: loaded.ok.unresolved.filter(
+          operation => !before.unresolved.includes(operation),
+        ),
+      }
+      checkpoint = snapshot.checkpoint
+      revision = snapshot.revision
+      if (snapshot.state.kind !== 'ended') state = snapshot.state
+      const read = await readFacts(snapshot)
+      if ('failure' in read)
+        return read.failure.kind === 'unavailable' ? waitFor('R0', read.failure) : read
+      facts = read.ok
+      return step('reconciled', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
@@ -724,7 +894,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async M0() {
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
-      // 待 #558 M04-2: the final request record has no field in JournalCommit, so it is not written.
+      // #558 M04-2: the inherited ready preparation records the final request in this commit.
       return step('recorded', {
         checkpoint: { adoptedContext: required(current.ready, 'ready preparation').coverage },
         effects: [{ action: current.action, pending, authority: required(authority, 'authority') }],
@@ -963,7 +1133,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if ('failure' in ran) return ran
       return succeed(required(authority, 'authority'))
     },
-    async runExecution() {
+    async runExecution(decision) {
+      eligibility = decision
       const ran = await drive('E1', null)
       if ('failure' in ran) return ran
       return succeed(undefined)

@@ -26,14 +26,14 @@
 | NA-E0-2 | E0 | 1（open） | 1.3（#511） | 同一操作身份重复 invoke 认回原执行与原挂接，不再次 open，不新建执行 | SC-AG-40 | `agent/tests/loop-admission.spec.ts`：`NA-E0-2: while the run goes on`、`NA-E0-2: after the execution ended`、`NA-E0-2: in a new runtime over the same Journal, open gives the original back and the execution is not driven`。进程内重复不再 open；新 runtime 的 open 按幂等查找原记录 |
 | NA-E0-3 | E0 | 1（open） | 1.3（#511） | 执行占用执行槽时，另一个新 invoke 返回 busy，不进入隐藏队列 | SC-AG-12 | `agent/tests/loop-admission.spec.ts`：`NA-E0-3: while the first invoke is reserved, in the same turn`、`NA-E0-3: while the first run is running`、`NA-E0-3: while the first run is stopped`、`NA-E0-3: while the open of the first invoke is unresolved` |
 | NA-E0-4 | E0 | 1（open） | 1.3（#511） | open 的提交回执未知时，执行槽预约保留，R0 以原操作身份查询，不以新身份再次 open | SC-AG-163 | `agent/tests/loop-admission.spec.ts`：`NA-E0-4: pending, then applied: the retry queries the original operation, then runs on`、`NA-E0-4: applied: the query finds it committed, and the same open gives the original receipt back`、`NA-E0-4: dropped: the query finds it excluded, and the same operation opens anew`、`NA-E0-4: a failure of the retry before open keeps the R0 item, because the open may have committed` |
-| NA-E1-1 | E1 | 1 | 1.4（#512） | 资格核验允许时 E1 转 E2，E1 不写业务状态 | SC-AG-161 | 待实现 |
-| NA-E1-2 | E1 | 1 | 1.4（#512） | 资格核验不可用时 E1 转 W0，执行状态为 waiting，节点不进入 E2 | 新增场景 | 待实现 |
-| NA-E1-3 | E1 | 1 | 1.4（#512） | 执行状态已为终态时 E1 转 F4，节点不进入 E2 | 新增场景 | 待实现 |
-| NA-E2-1 | E2 | 1 | 1.4（#512） | E2 以 load、inputs、query 只读认回后转 E4，Journal 修订号不变 | SC-AG-161 | 待实现 |
-| NA-E2-2 | E2 | 1 | 1.4（#512） | load 返回 unavailable 时 E2 转 W0，等待依据含 dependency 等待，没有以空快照继续的推进 | SC-AG-184 | 待实现 |
-| NA-E4-1 | E4 | 1 | 1.4（#512） | `position` 停在输入边界时 E4 转 I0，I0 承接受理时保存的输入 | SC-AG-161 | 待实现 |
-| NA-E4-2 | E4 | 1 | 1.4（#512） | 纯求值之后、意图提交之前崩溃，恢复后 E4 回原节点，重算得到相同的下一步，修订号不变 | SC-AG-164 | 待实现 |
-| NA-E4-3 | E4 | 1 | 1.4（#512） | 主调用在 M1 等待时崩溃，恢复后 E4 转 R0，原调用收场后 M5 回 I3 | SC-AG-185 | 待实现 |
+| NA-E1-1 | E1 | 1 | 1.4（#512） | 资格核验允许时 E1 转 E2，E1 不写业务状态 | SC-AG-161 | `agent/tests/loop-recovery.spec.ts`：`NA-E1-1: allowed enters E2 with no extra access check or business write`、`NA-E1-1: denied stops E1 without reading or writing state` |
+| NA-E1-2 | E1 | 1 | 1.4（#512） | 资格核验不可用时 E1 转 W0，执行状态为 waiting，节点不进入 E2 | 新增场景 | `agent/tests/loop-recovery.spec.ts`：`NA-E1-2: unavailable saves waiting once and never enters E2` |
+| NA-E1-3 | E1 | 1 | 1.4（#512） | 执行状态已为终态时 E1 转 F4，节点不进入 E2 | 新增场景 | `agent/tests/loop-recovery.spec.ts`：`NA-E1-3: ended goes to F4 without entering E2` |
+| NA-E2-1 | E2 | 1 | 1.4（#512） | E2 以 load、inputs、query 只读认回后转 E4，Journal 修订号不变 | SC-AG-161 | `agent/tests/loop-recovery.spec.ts`：`NA-E2-1: load, query, inputs and reply admissions reclaim facts without a revision change` |
+| NA-E2-2 | E2 | 1 | 1.4（#512） | load 返回 unavailable 时 E2 转 W0，等待依据含 dependency 等待，没有以空快照继续的推进 | SC-AG-184 | `agent/tests/loop-recovery.spec.ts`：`NA-E2-2: unavailable %s saves dependency waiting instead of empty facts`、`NA-E2-2: a reply projection gap saves waiting` |
+| NA-E4-1 | E4 | 1 | 1.4（#512） | `position` 停在输入边界时 E4 转 I0，I0 承接受理时保存的输入 | SC-AG-161 | `agent/tests/loop-recovery.spec.ts`：`NA-E4-1: input boundary %s delegates I0 to the evaluator`、`NA-E4-1: I0 takes the input content saved by acceptance` |
+| NA-E4-2 | E4 | 1 | 1.4（#512） | 纯求值之后、意图提交之前崩溃，恢复后 E4 回原节点，重算得到相同的下一步，修订号不变 | SC-AG-164 | `agent/tests/loop-recovery.spec.ts`：`NA-E4-2: saved position %s resumes at %s without changing its facts` 及同前缀的字段映射用例；`agent/tests/loop-evaluator.spec.ts` 的 500 组事实属性测试核对重算纯性。未覆盖进程退出后的处理器状态恢复 |
+| NA-E4-3 | E4 | 1 | 1.4（#512） | 主调用在 M1 等待时崩溃，恢复后 E4 转 R0，原调用收场后 M5 回 I3 | SC-AG-185 | `agent/tests/loop-recovery.spec.ts`：`NA-E4-3: a pending operation goes to R0 and a settled operation resumes the main call at M1`、`NA-E4-3: R0 keeps the original operation when its result is %s`、`NA-E4-3: recovery of the original main call reaches I3 without another admission`。主调用用例在同一协调者内再入，不模拟进程退出 |
 | NA-I0-1 | I0 | 1 | 1.5（#513） | 水位线以内的全部合格输入按受理顺序进入一个输入批，输入批与新 step 在一次提交中固定，事件流有一条 input-taken | 新增场景 | 待实现 |
 | NA-I0-2 | I0 | 1 | 1.5（#513） | 已进入输入批的输入不再进入后续 step 的输入批 | 新增场景 | 待实现 |
 | NA-I1-1 | I1 | 1（ready） | 1.5（#513） | I1 取得准备结果后提交 checkpoint 的 `requestPreparation`，P0、P1 直通时节点转 I2 | 新增场景 | 待实现 |
@@ -61,7 +61,7 @@
 | NA-F4-1 | F4 | 1（登记） | 1.8（#516） | 终态后观察未登记完时进程退出，恢复后从终态后责任台账认回，不恢复推进态 | SC-AG-65 | 待实现 |
 | NA-O0-1 | O0 | 1 | 1.8（#516） | O0 不等待读取方，交清本实例的事件与结果责任后转 E9，读取方之后从原游标读到终态事件 | SC-AG-06 | 待实现 |
 | NA-E9-1 | E9 | 1（idle） | 1.8（#516） | 执行终结后 runtime 回 idle 并保持登记，同一 runtime 以新执行身份承接下一次 invoke | SC-AG-10 | 待实现 |
-| NA-W0-1 | W0 | 1（基本形） | 1.9（#517） | 进入 W0 时执行状态 waiting、等待依据与 Journal 修订一次提交，事件流有 waiting 事件 | SC-AG-182 | 待实现 |
+| NA-W0-1 | W0 | 1（基本形） | 1.9（#517） | 进入 W0 时执行状态 waiting、等待依据与 Journal 修订一次提交，事件流有 waiting 事件 | SC-AG-182 | `agent/tests/loop-recovery.spec.ts`：`NA-W0-1: state, basis and event commit once while observe remains occupied`、`NA-W0-1: a failed waiting commit stays a failure and saves no event` |
 | NA-W0-2 | W0 | 1（基本形） | 1.9（#517） | 唤醒通知丢失时到检查时刻重读来源，进度变化后经 E1 继续，没有新挂接 | SC-AG-161、SC-AG-185 | 待实现 |
 | NA-R0-1 | R0 | 1（基本形） | 1.9（#517） | Journal 提交回执丢失时 R0 以原操作身份 query，committed 时取原结果回后继节点 | SC-AG-163 | 待实现 |
 | NA-R0-2 | R0 | 1（基本形） | 1.9（#517） | query 返回 unknown 时 R0 保持等待，不用新操作身份重试，不把查无记录当作 excluded | SC-AG-195、SC-AG-71 | 待实现 |

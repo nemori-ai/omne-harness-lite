@@ -219,13 +219,13 @@ const CASES: readonly Case[] = [
     'I8',
     'journal.load',
     'I8',
-    d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(2)) }),
+    d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(3)) }),
   ],
   [
     'F1',
     'journal.load',
     'F1',
-    d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(3)) }),
+    d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(4)) }),
   ],
   [
     'F1',
@@ -243,7 +243,7 @@ const CASES: readonly Case[] = [
     'F4',
     'journal.load',
     'F3',
-    d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(4)) }),
+    d => journal(d, { load: failing(d.journal.load, fail(PORT_FAILURE), nth(5)) }),
   ],
   [
     'O0',

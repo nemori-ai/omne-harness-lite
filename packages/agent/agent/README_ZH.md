@@ -16,9 +16,9 @@ PACKAGE_TEMPLATE_DRAFT
 | 纯契约函数已实现 | 本包没有。契约函数在 `agent-contract` | 无 | 无 |
 | 独立执行已实现 | 无 | 无 | 无 |
 | runtime 已实现的路径 | `createAgentRuntime` 的创建校验：配置七项越界或绑定字段非法返回 `invalid`（`field` 写配置项路径），登记句柄的 instance 与绑定不一致返回 `denied`，十项必需依赖缺席返回 `unavailable`（`diagnostic` 指名缺席的依赖），`jointCommits` 有一种未被 Journal 声明返回 `unsupported`。失败时不创建 runtime，不调用任何依赖的方法。成功得到 idle 的 provider。访问守卫：四个面的每个公开操作先核对 Access 的租户：缺租户或租户不是 legal-identity 签发的 `TenantId` 时返回 `invalid`，跨租户返回 `denied`，都不调用 `access.check`。`observe` 例外：契约没有 `invalid` 的结束原因，缺租户或租户非法都以 `denied` 结束（见下文待拥有者一项），再调用一次 `access.check`，不缓存 allowed，`denied` 与 `unavailable` 不放行。`observe` 放行后给出当前状态，状态变化时给出新状态，signal 中止时以 `closed` 结束。`invoke` 与 `observe` 之外的操作放行后返回 `unavailable`，`diagnostic` 写「<操作> is not implemented until #502 stage N」：这是阶段性临时做法，不是契约结果 | 根入口 | `tests/factory.spec.ts` 逐项核对四种创建失败与成功的 idle。`tests/provider-access.spec.ts` 对每个公开操作核对租户核对、`access.check` 三态与恰一次。`tests/assembly.spec.ts` 用测试装配得到 idle 的 provider，核对创建没有调用任何依赖。没有覆盖下面列出的未实现校验 |
-| Loop 正常路径与受理 | `invoke` 让一条输入走无工具、无扩展的正常路径，`open` 受理后返回句柄。Loop 随后自行推进到 ended。同一操作以同一输入再次 `invoke` 取回原句柄。已记住的操作配另一输入时，若原 execution 占槽则返回 `conflict`。槽被占用时，新操作返回 `busy`。正常路径之外的结果使运行停止，停止的运行占住执行槽。步骤、图、受理、停止与槽的规则见 [Loop 正常路径](#loop-正常路径) | 根入口 | `tests/loop-transitions.spec.ts` 核对正常路径与节点表（C1），另核对 E1 的临时 `found-existing` 行。`tests/loop-evaluator.spec.ts` 核对评估器在 E4 与 I8 的决定、编码与正常路径之外的 `unsupported`，并以 500 个种子生成的 `LoopFacts` 核对同事实同结果、不改输入、每个步骤在表中有行（C1）。`tests/loop-invoke.spec.ts` 对脚本化 Model 与内存 Journal 走一条输入到 ended（C2），另核对受守卫的事件读取、多页回复与派生身份。`tests/loop-admission.spec.ts` 核对受理：同一操作再次调用（C1）、`accept` 回执丢失（C2）、`busy` 与 R0 待查项，用例名以节点验收表的行号开头。`tests/loop-slot.spec.ts` 核对槽的释放、`observe` 与登记投影。`tests/loop-port-failures.spec.ts` 核对路径上每个节点的端口失败都使运行停止，Journal 的 `position` 停在该节点。失败分支、等待与恢复没有用例 |
+| Loop 正常路径与受理 | `invoke` 让一条输入走无工具、无扩展的正常路径，`open` 受理后返回句柄。Loop 随后自行推进到 ended。同一操作以同一输入再次 `invoke` 取回原句柄。已记住的操作配另一输入时，若原 execution 占槽则返回 `conflict`。槽被占用时，新操作返回 `busy`。正常路径之外的结果使运行停止，停止的运行占住执行槽。E1/E2、恢复节点选择与一次等待保存已实现，见[恢复路由](#恢复路由)。步骤、图、受理、停止与槽的规则见 [Loop 正常路径](#loop-正常路径) | 根入口 | `tests/loop-transitions.spec.ts` 核对正常路径与节点表（C1），另核对 E1 的临时 `found-existing` 行。`tests/loop-evaluator.spec.ts` 核对评估器在 E4 与 I8 的决定、编码与正常路径之外的 `unsupported`，并以 500 个种子生成的 `LoopFacts` 核对同事实同结果、不改输入、每个步骤在表中有行（C1）。`tests/loop-invoke.spec.ts` 对脚本化 Model 与内存 Journal 走一条输入到 ended（C2），另核对受守卫的事件读取、多页回复与派生身份。`tests/loop-admission.spec.ts` 核对受理：同一操作再次调用（C1）、`accept` 回执丢失（C2）、`busy` 与 R0 待查项，用例名以节点验收表的行号开头。`tests/loop-slot.spec.ts` 核对槽的释放、`observe` 与登记投影。`tests/loop-port-failures.spec.ts` 核对E1/E2 的端口失败保存等待，其余路径节点的端口失败使运行停止，Journal 的 `position` 停在该节点。`tests/loop-recovery.spec.ts` 核对 E1/E2、纯恢复路由、原操作认回与保存等待。公开 resume 与唤醒没有用例 |
 | 测试装配（`./testing`） | `createMemoryAgentJournal`：单进程、非耐久的内存 `AgentJournal`，按[同形清单](docs/architecture/mechanisms.md#两种实现必须同形的事实)第 1 至 15 条实现全部 18 个成员，参加者集合由选项给定，可在指定操作上编排 `unavailable` 与三种 `commit-unknown`。各端口的可编排替身、`createManualAgentClock` 与手写的 `ToolRuntime` 替身。`createTestAgentDependencies` 返回 17 项依赖（`registration` 为 null）与各替身的控制手柄，`models` 是 `model-contract/testing` 的脚本化提供者 | `./testing` | `tests/memory-journal.spec.ts` 按同形清单逐条核对，用例名带条目号。`tests/fixtures.spec.ts` 为每个编排接口各有一条用例。只有一个进程，耐久性、崩溃与跨进程没有覆盖 |
-| 尚未交付的宿主与提供者 | 四个面中 `invoke`、`observe` 之外的操作本体，句柄的 `submit`（#502 的阶段表尚未分配）、`control` 与 `acknowledge`。自 E1 起 Loop 节点的精确提交点、等待与失败分支（#502 1.4 至 1.9），以及正常路径之外的节点：A、T、C、X 子图，F0、H0、Q5、M2、W0，以及 open 未定重试之外的 R0。评估器的 `decode`（阶段 5）。耐久 Journal 提供者 `agent-journal-local`。真实的 Context、HITL、授权、Session 适配器与材料存储 | 无 | 没有证据 |
+| 尚未交付的宿主与提供者 | 四个面中 `invoke`、`observe` 之外的操作本体，句柄的 `submit`（#502 的阶段表尚未分配）、`control` 与 `acknowledge`。其余节点的精确提交点与失败分支（#502 1.5 至 1.9），以及真实等待与唤醒（1.9），以及正常路径之外的节点：A、T、C、X 子图，F0、H0、Q5、M2，以及 open 重试和经 E4 恢复之外的 R0。评估器的 `decode`（阶段 5）。耐久 Journal 提供者 `agent-journal-local`。真实的 Context、HITL、授权、Session 适配器与材料存储 | 无 | 没有证据 |
 
 ### Loop 正常路径
 
@@ -36,11 +36,11 @@ Loop 随后自行推进：
 
 - 从 E1 走到 E9。E9 之后 runtime 回 idle。
 - 节点的去向只取 `src/loop/nodes.ts` 的转移表。正常路径的行依据节点表或其伪代码。E1 的 `found-existing` 行是阶段 1 的例外，见[临时做法](#临时做法)。
-- E4 与 I8 的去向由纯评估器的 `Next` 决定。
+- E4 按下文的恢复路由选择去向。评估器处理输入边界与 I8 的决定。
 - I2 以契约的 `encodeModelInvocationRef` 编码主调用的 `ModelInvocationRef`，I2 的提交在 M6 首次 admit 之前把它随 PendingCall 保存。M6、M1、M3 经 `resolveModelInvocationRef` 从它读回调用身份。
 - 协调者向 Model 受理调用，观察到真实收场后读完结果，以 `recordResult` 走 processed 路径保管，再 `acknowledge`。
 - Q1 不提交（NA-Q1-1）。候选的类型把来源与调用位置绑在一起：外部输入对应 U0，模型回复对应 I3。Q4 把每个接纳结果交回该位置一次。被拒收的候选（Q5）尚未交付，当前以具名的 `unavailable` 停止。
-- 句柄的 `output.read` 与 `output.events` 经守卫读 Journal 的事件。事件只有 input-taken、producer、ended，序号从 1 连续。
+- 句柄的 `output.read` 与 `output.events` 经守卫读 Journal 的事件。正常路径的事件为 input-taken、producer、ended，序号从 1 连续。
 
 下图是正常路径。粗边框的节点各写一次提交。Q1、Q2、Q4 走两次：一次在 `open` 之前准入输入，一次准入回复。菱形是决定点 E4 与 I8。
 
@@ -59,6 +59,42 @@ flowchart TD
     F3 --> F4[F4] --> O0[O0] --> E9[E9 idle]
     classDef commit stroke-width:3px
 ```
+
+#### 恢复路由
+
+E1 只消费本次入口的资格结论一次（J1）。它不再次调用 `check`。
+允许时，E1 依次核对终态、挂接和修订号。
+终态转 F4。被取代的挂接转 E9。
+当前挂接的修订号已推进时仍返回 `found-existing`。
+拒绝时停止且不写状态。资格或快照读取不可用时转 W0。
+公开 invoke 的守卫在 `open` 前拦下资格不可用。
+因此，E1 资格不可用分支只经协调者内部入口测试。
+唤醒或 resume 的驱动方必须为每次再入提供新结论。
+
+E2 读取一个原子快照。它按原身份查询每个未定操作。
+它按该快照的水位线读输入，并读完固定范围内的回复准入页。
+它组装 `LoopFacts`，不改变修订号。
+读取不可用或投影缺页时转 W0，不产生空事实。
+在途调用投影为 unresolved 生产者视图。
+E1、E2 不解释控制记录，也不查询 Model 或 Tool 的公开状态（J4，阶段 5）。
+
+E4 分两处进行纯决定（J5）。协调者按 checkpoint、执行状态和未定操作选择恢复节点。
+`LoopFacts` 不含执行状态和 Journal 未定操作，因此 `next` 无法完成这项决定。
+评估器处理输入边界和迭代决定。
+转移表用 `resume-<node>` 标签区分恢复去向。
+A、T 子图返回具名的阶段 2 `unsupported`。
+X 子图归阶段 3。C 子图及压缩调用归阶段 4。
+这些路由不实现公开 `resume`、恢复挂接或重建处理器的进程内状态（阶段 5）。
+
+R0 查询原操作槽。未定时保存依赖等待。
+可靠的 committed 或 excluded 结果使协调者重读快照，再经 E4 接续。
+R0 使用快照恢复，不直接处理各原节点的回执。
+
+W0 在一次提交中保存 waiting 状态和一条 waiting 事件（J2）。
+它保留 checkpoint 的原 position，然后结束本次协调。
+执行仍占槽，`observe` 显示 occupied。
+W0 不登记监听、不重读依赖，也不休眠。
+它不保存检查时刻或退避时刻（#558 M04-6）。
 
 #### 受理
 
@@ -94,7 +130,7 @@ Q2 `handoff.accept` 回执未知时，invoke 返回带本次操作身份的 `com
 
 - 正常路径之外的结果使运行停在该节点。停止不当作成功。
 - 停止之后执行槽保持占用，`observe` 显示 occupied。Journal 保留最后一次提交的 `position`。新的 `invoke` 返回 `busy`。
-- 协调者在内部返回停止及其失败，保留失败的 `owner`（#558 S-14）：端口失败保留端口的 `owner`，`@omne-harness/agent` 表示由后续卡处理的结果，`@omne-harness/agent#defect` 表示协调者自身的缺陷。停止后没有可读原因。等待尚未交付。
+- 协调者在内部返回停止及其失败，保留失败的 `owner`（#558 S-14）：端口失败保留端口的 `owner`，`@omne-harness/agent` 表示由后续卡处理的结果，`@omne-harness/agent#defect` 表示协调者自身的缺陷。停止后没有可读原因。真实等待与唤醒尚未交付。
 
 槽的规则：
 
@@ -138,8 +174,8 @@ stateDiagram-v2
 - E1 发现 Journal 修订号已超过原 open 回执时返回 `found-existing`。转移表正常结束本次协调，避免为已受理的同一操作启动第二个 Loop。节点表 E1 行没有这个去向。这是阶段 1 的读法。
 - 已 open 而修订号尚未推进的 execution，仍会由新 runtime 使用原 Authority 驱动。两个存活 runtime 因此可能同时驱动它。`attach` 围栏尚未交付。
 - 阶段 1 在 free、reserved、running 三种槽状态下，都不将同一操作换 execution 识别为同一次受理。槽空闲时可建立第二个执行。槽被占用时按现有路由处理，通常答 busy。识别这种复用需要跨 execution 的操作索引。索引属 Journal 提供者，不在阶段 1。
-- I1 把 `prepare` 返回的 assembled 或 ready 都转 P0（伪代码 `prepareRequest`）；节点表 I1 行只为 `resume` 写了 ready。
-- 最终请求记录在 `JournalCommit` 中没有字段（M04-2），M0 不写它。E1 不重核 Access（1.4）。循环判断这一受信系统扩展不在 M4 运行（阶段 3、7）。
+- I1 保留 assembled 或 ready 都转 P0 的骨架路径。默认替身在首次准备时返回 assembled，仅在带 previous 的 P1 复核中返回 ready（#558 S-11）。
+- M0 的提交继承 ready 的 `requestPreparation`，它保存最终请求（#558 M04-2）。E1 消费本次入口的资格结论。循环判断这一受信系统扩展不在 M4 运行（阶段 3、7）。
 
 内存 Journal 对三项待裁定的事实取下列临时做法。每项在源码注释、测试名与本表都写明「临时做法，待 #558 裁定」，裁定后同波修改。
 
@@ -152,7 +188,7 @@ stateDiagram-v2
 - M04-1 的读法：`control` 与 `recordControl` 按 SPEC [六个阶段](../agent-contract/SPEC.md#六个阶段)把阶段事实投影为 control 事件。同一阶段以同一依据在新的操作身份下再次登记时，认回原回执，不推进 revision，不重复投影。ended 之后，`recordControl` 照常记录阶段事实，但不投影事件：ended 事件是 execution 的最后一个事件。
 - `tryFinish` 的 blocked：按 operations（本 execution 有未定的写入）、controls（某个适用阶段登记为 unresolved）、inputs（普通终结时有未被已取批次覆盖的受理输入；取消终结不因此受阻）、custody（结果既无保管依据也无完成依据）的次序检查。SPEC 没有写明条件的地方取更严格的读法。passages 不检查：终态前经过是否完成并绑定本候选，是协调者的事实，Journal 从自己的记录判断不了。
 
-内存 Journal 不实现没有类型承载的写入（最终请求记录、退避时刻与下一检查时刻，见 M04-2），也不投影 stream 与 producer 事件（M04-1）。任何方法都不在 ended 事件之后追加事件。每个返回 `commit-unknown` 的调用都留下 `query` 可判定的记录：写入生效为 committed，没有写入为 excluded，无人能定时为未定（列在 `unresolved`，由 `attach` 围栏排除或由 `settle` 判定）。操作记录与未定写入都按租户保存：其他租户的写入在任何编排故障之前就返回 denied，不进入未定集合；`unresolved`、`attach` 的围栏、`tryFinish` 的 operations 检查与 `settle` 都只看本 execution 所属租户的记录；`query` 不向其他租户透露 execution 是否存在。
+内存 Journal 不另存退避时刻与下一检查时刻（#558 M04-6）。最终请求保存在 ready 的 `requestPreparation` 中（#558 M04-2）。它不自动生成 stream 与 producer 事件。producer 事件由 M3 的条件提交携带（#558 M04-1）。任何方法都不在 ended 事件之后追加事件。每个返回 `commit-unknown` 的调用都留下 `query` 可判定的记录：写入生效为 committed，没有写入为 excluded，无人能定时为未定（列在 `unresolved`，由 `attach` 围栏排除或由 `settle` 判定）。操作记录与未定写入都按租户保存：其他租户的写入在任何编排故障之前就返回 denied，不进入未定集合；`unresolved`、`attach` 的围栏、`tryFinish` 的 operations 检查与 `settle` 都只看本 execution 所属租户的记录；`query` 不向其他租户透露 execution 是否存在。
 
 ## 使用
 
