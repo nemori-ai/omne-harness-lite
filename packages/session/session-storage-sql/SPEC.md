@@ -249,7 +249,11 @@ since(access, after, kinds, pageBytes):
     H ← sl_journal.tail；同 next，pos = after，direction = forward，只返回一页，next 为 null
 ```
 
-复杂度 O(k log M + K log k + B)，无过滤 O(log N + K + B)，另加 R6 的标注读取。同一轮内新追加不出现。空页仍带 `scannedThrough` 推进。退化：过滤极稀疏或主体几乎无权时，K 达到 `maxScanPerPage` 仍没有可见条目，返回空页与进度，不声称恒定耗时。`maxScanPerPage` 与 `pageBytes` 的上限是策略配置。游标是签名的自描述值，服务端不保存读会话；签名密钥归装配。
+复杂度 O(k log M + K log k + B)，无过滤 O(log N + K + B)，另加 R6 的标注读取。同一轮内新追加不出现。空页仍带 `scannedThrough` 推进。退化：过滤极稀疏或主体几乎无权时，K 达到 `maxScanPerPage` 仍没有可见条目，返回空页与进度，不声称恒定耗时。`maxScanPerPage` 与 `pageBytes` 的上限是策略配置。
+
+页预算按 `sl_entry.payload_bytes` 累计。内联与外置载荷都填这一列，所以判断截断不需要先读出载荷。外置在 `sl_blob` 的载荷只在条目确定进入本页之后才读取，不为被截断的条目读 blob。载荷里指向内容拥有者的耐久引用只以引用返回，读者按需向内容拥有者另取，本成员不代取。读者经 `session` 的条目缓存（[CA-1](../session/SPEC.md#ca-1)）命中已读条目时不再到达本成员。
+
+游标是签名的自描述值，服务端不保存读会话；签名密钥归装配。
 
 <a id="r3"></a>
 

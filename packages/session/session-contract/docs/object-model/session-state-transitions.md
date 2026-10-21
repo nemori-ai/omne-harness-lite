@@ -80,8 +80,8 @@ Run 是 Session 里一次逻辑工作的治理记录，执行归 Agent 的执行
 stateDiagram-v2
     [*] --> none
     none --> active: startRun
-    active --> completed: finishRun complete
-    active --> failed: finishRun fail
+    active --> completed: receive Agent 结束事实（完成）
+    active --> failed: receive Agent 结束事实（失败），或有界收束的 finishRun
     active --> cancelled: control cancel-run, control archive, considerAutoArchive due
     completed --> [*]
     failed --> [*]

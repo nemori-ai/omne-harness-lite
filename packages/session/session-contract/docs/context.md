@@ -14,6 +14,8 @@ Session 分三层，每层的变化由不同的一方处理。完整说明见系
 | 会话采用层 | 定义与装配的实际采用、工作区选择、设置声明、Context 注册集合 | 这些是日志事实。本成员定义它们的值与写入命令 |
 | 作用域资源层 | Agent runtime 实例、Runtime Context 作用域、执行环境的落点与租约 | 资源归各自拥有者。本成员只定义关联、释放请求与读回的形状 |
 
+从 Session 看，会话建立之后只有两个入口会因重装写 SE08：新 Run 的 `startRun`（采用变化时），与显式 `reload`。`create` 写的 SE08 是初始采用，不是重装。执行实例失去连续性（崩溃、失联、宿主停用）而 Run 仍为活动时，恢复按原采用新建实例或挂接，不写 SE08。模式改变、模型选择切换、模型档案与凭据改变、工具或 MCP 的合法刷新、Skill 的增量装载都不经 Session 重装。哪些变化导致重装、哪些不导致，完整判据见系统页的[何时重装](../../../../docs/architecture/runtime/assembly-and-change.md#何时重装)。
+
 ```mermaid
 flowchart LR
   Intake[受理入口 intake] --> Faces[SessionFaces]

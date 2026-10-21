@@ -548,6 +548,7 @@ Session 契约的 [P-1 至 P-8](../session-contract/SPEC.md#具名前提与明�
 | <a id="np-05"></a>NP-05 | `load` 不区分记录不存在与读取失败 | Agent 拥有者 | 本成员不产生 `missing` |
 | <a id="np-07"></a>NP-07 | 命令域与 hooks 的公开入口 | 命令域与 hooks 拥有者 | AD-08 不登记 |
 | <a id="np-09"></a>NP-09 | Tool 的 `releaseDelivery` 结果未知、而调用方已丢失原操作引用时，没有按释放意图找回原操作的入口。`lookup` 只能认回已有释放，不能否定在途的操作 | Tool 拥有者 | 交付未释放时 AD-17 返回 `commit-unknown` 并报告，`release` 保持 pending |
+| <a id="np-10"></a>NP-10 | 换代或重启之后，恢复要把 `tasks.initialization` 重新驱动给初始化项的负责方，把 `tasks.routed-input` 重投给卡片或业务拥有者（[PM-14](../session-contract/SPEC.md#pm-14)）。这两类拥有者不在本成员的六个邻域内，AD-01 至 AD-17 没有承接它们的插件。Runtime Context 注册的重放不在此列，它由 [AD-03](#ad-03-1a) 的 1a 承接 | 初始化项负责方、卡片与业务输入的拥有者，以及 Session 的集成包拥有者 | 恢复读到这两类任务时，对应拥有者按 `unavailable` 处理。任务保留，不删除，按恢复扫描的退避重试 |
 
 Session 契约的明确缺项也约束本成员，其中两项直接影响插件：
 

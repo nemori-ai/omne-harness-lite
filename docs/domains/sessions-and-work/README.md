@@ -83,7 +83,7 @@ sequenceDiagram
 
 工作治理向 Agent 交出当前工作及推进资格依据。Agent 拥有执行与执行挂接。Session 只保存执行引用，不保存 Agent 的接续值。Model 和 Tool 的调用、重试与中断都由 Agent 发起。Session 与 Model、Tool 只有三种关系：资格的参加（Model 受理点守卫的参加者，以资格参加者协议闭合为前提；Tool 启动围栏的资格版本拥有者）、消费侧的 ACK 与账目、恢复对账时的查询与内容读取。
 
-Runtime Context 注册的业务决定归会话，块内容归生产者。会话历史由 Session 持有，请求组装经历史读口读取。需要共同成立的事实在一次权威提交里成立，见[共同提交与参加关系](../../architecture/runtime/session-and-run.md#共同提交与参加关系)。
+Runtime Context 注册的业务决定归会话，块内容归生产者。Runtime Context 的步提交由 Session 守卫并在会话日志里共同提交，见[会话契约的守卫条款](../../../packages/session/session-contract/SPEC.md#守卫条款)。会话历史由 Session 持有，请求组装经历史读口读取。需要共同成立的事实在一次权威提交里成立，见[共同提交与参加关系](../../architecture/runtime/session-and-run.md#共同提交与参加关系)。
 
 ## 主路径与交接
 
