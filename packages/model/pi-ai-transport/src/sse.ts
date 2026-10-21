@@ -1,6 +1,8 @@
 // Derived from pi 1.0.0 openai-codex-responses.ts parseSSE, commit a13d35a742c6ef8462812a28fbe1d8c8b7431c32.
 // Copyright (c) 2025 Mario Zechner. MIT: ../LICENSE.pi. See provenance.json.
 
+import { closeIterable, closeSourceOnEarlyEnd } from './iteration.ts'
+
 /** Why a byte stream is not a well-formed, bounded SSE stream. */
 export type SseFailureReason = 'non-byte' | 'invalid-utf8' | 'event-too-large' | 'unterminated'
 
@@ -25,21 +27,22 @@ export class SseProtocolError extends Error {
  * Yields the data of each SSE event. UTF-8 and CR/LF state both survive arbitrary byte cuts.
  * Comments and the event, id and retry fields are ignored; data lines join with LF. An event
  * whose bytes, line breaks included, exceed `maxEventBytes` fails. Throws `SseProtocolError`
- * for a malformed stream; any other failure of the body passes through unchanged.
+ * for a malformed stream; any other failure of the body passes through unchanged. A reader
+ * that ends the events early closes the body, even before the first event was read.
  */
 export function readSseEvents(
   body: AsyncIterable<Uint8Array>,
   maxEventBytes: number,
-): AsyncGenerator<string> {
+): AsyncGenerator<string, void, undefined> {
   if (!Number.isSafeInteger(maxEventBytes) || maxEventBytes < 1)
     throw new RangeError('maxEventBytes must be a positive integer')
-  return frameEvents(body, maxEventBytes)
+  return closeSourceOnEarlyEnd(frameEvents(body, maxEventBytes), () => closeIterable(body))
 }
 
 async function* frameEvents(
   body: AsyncIterable<Uint8Array>,
   maximum: number,
-): AsyncGenerator<string> {
+): AsyncGenerator<string, void, undefined> {
   const decoder = new TextDecoder('utf-8', { fatal: true })
   const framer = createFramer(maximum)
   for await (const chunk of body) {

@@ -19,12 +19,12 @@ function acceptedCodeBlock(markdown: string): string {
   return block
 }
 
-it('US-24: the root entry has no runtime export; it carries the accepted types only', async () => {
+it('the root entry has no runtime export; it carries the accepted types only', async () => {
   const root: object = await import('@omne-harness/pi-ai-transport')
   expect(Object.keys(root)).toEqual([])
 })
 
-it('US-24: the family types keep the shape of the accepted group architecture code block', () => {
+it('the family types keep the shape of the accepted group architecture code block', () => {
   const accepted = acceptedCodeBlock(readFileSync(groupArchitecture, 'utf8'))
   expect(shapeTokens(readFileSync(familySource, 'utf8'))).toBe(shapeTokens(accepted))
 })

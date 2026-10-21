@@ -75,6 +75,8 @@ export interface HttpsFixture {
   openedSockets(): number
   /** Accepted TLS connections that have since closed. */
   closedSockets(): number
+  /** Destroys every accepted connection without a reply: the client sees a reset. */
+  resetConnections(): void
   /** Destroys every connection and closes the listener. */
   close(): Promise<void>
 }
@@ -85,6 +87,7 @@ export async function startHttpsServer(
 ): Promise<HttpsFixture> {
   const requests: CapturedRequest[] = []
   const waiters: ((request: CapturedRequest) => void)[] = []
+  const accepted = new Set<Socket>()
   let opened = 0
   let closed = 0
   const server: Server = createServer(
@@ -107,8 +110,10 @@ export async function startHttpsServer(
   )
   server.on('secureConnection', socket => {
     opened += 1
+    accepted.add(socket)
     socket.once('close', () => {
       closed += 1
+      accepted.delete(socket)
     })
   })
   await listen(server)
@@ -119,6 +124,9 @@ export async function startHttpsServer(
     nextRequest: () => new Promise(resolve => waiters.push(resolve)),
     openedSockets: () => opened,
     closedSockets: () => closed,
+    resetConnections: () => {
+      for (const socket of accepted) socket.destroy()
+    },
     close: async () => {
       server.closeAllConnections()
       await closeServer(server)

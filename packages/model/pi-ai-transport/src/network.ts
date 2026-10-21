@@ -6,12 +6,13 @@ import {
   type IsolatedDiagnostics,
 } from './diagnostics.ts'
 import type { ExchangeResources, InFlightExchange, TlsOptions } from './http.ts'
+import { isTimerDuration, MAX_TIMER_MS } from './limits.ts'
 
 /** Every limit comes from the caller; the package holds no default policy. */
 export type NetworkConfig = Readonly<{
-  /** The connection capacity and the socket limit of the pool. */
+  /** The connection capacity, and the socket limit of the pool for each recipient. */
   maxConnections: number
-  /** A pooled idle socket is closed after this long without traffic. */
+  /** A pooled idle socket is closed after this long without traffic. At most `MAX_TIMER_MS`. */
   idleConnectionTimeoutMs: number
   tls?: TlsOptions
   /** Absent: nothing is observed and the counters stay at zero. */
@@ -30,7 +31,7 @@ export interface NetworkResources extends ExchangeResources {
 
 export function createNetworkResources(config: NetworkConfig): NetworkResources {
   requirePositiveInteger(config.maxConnections, 'maxConnections')
-  requirePositiveInteger(config.idleConnectionTimeoutMs, 'idleConnectionTimeoutMs')
+  requireTimerDuration(config.idleConnectionTimeoutMs, 'idleConnectionTimeoutMs')
   const diagnostics =
     config.diagnostics === undefined
       ? SILENT
@@ -38,10 +39,11 @@ export function createNetworkResources(config: NetworkConfig): NetworkResources 
           maxPending: config.diagnostics.maxPending,
         })
   const capacity = createConnectionCapacity(config.maxConnections)
+  // The capacity bounds the active exchanges. `maxSockets` only mirrors it for each recipient; a
+  // total limit would count idle sockets of other recipients and queue a request that holds a slot.
   const agent = new Agent({
     keepAlive: true,
     maxSockets: config.maxConnections,
-    maxTotalSockets: config.maxConnections,
     timeout: config.idleConnectionTimeoutMs,
   })
   const inFlight = new Set<InFlightExchange>()
@@ -82,4 +84,9 @@ const SILENT: IsolatedDiagnostics = {
 function requirePositiveInteger(value: number, name: string): void {
   if (!Number.isSafeInteger(value) || value < 1)
     throw new RangeError(`${name} must be a positive integer`)
+}
+
+function requireTimerDuration(value: number, name: string): void {
+  if (!isTimerDuration(value))
+    throw new RangeError(`${name} must be a positive integer of at most ${MAX_TIMER_MS}`)
 }

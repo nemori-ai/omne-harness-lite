@@ -1,8 +1,10 @@
 import type { ClientRequest, IncomingHttpHeaders, IncomingMessage } from 'node:http'
 import { request, type Agent } from 'node:https'
 import type { Socket } from 'node:net'
-import type { ConnectionReservation, ConsumedSeat } from './capacity.ts'
+import type { ConnectionCapacity, ConnectionReservation, ConsumedSeat } from './capacity.ts'
 import type { IsolatedDiagnostics } from './diagnostics.ts'
+import { closeSourceOnEarlyEnd } from './iteration.ts'
+import { isPositiveInteger, isTimerDuration } from './limits.ts'
 
 export type TlsOptions = Readonly<{ ca: string | Buffer }>
 
@@ -18,6 +20,8 @@ export interface ExchangeResources {
   readonly inFlight: Set<InFlightExchange>
   /** `true` once the resources close: no new exchange may start. */
   readonly closed: boolean
+  /** Only a reservation of this capacity may start an exchange here. */
+  readonly capacity: Pick<ConnectionCapacity, 'owns'>
 }
 
 export type ExchangeInput = Readonly<{
@@ -26,15 +30,15 @@ export type ExchangeInput = Readonly<{
   headers: Readonly<Record<string, string>>
   /** The serialized request; `content-length` is its byte length. */
   body: Uint8Array
-  /** A held reservation. The exchange consumes it and returns the slot after its physical end. */
+  /** A held reservation of the resources' capacity. The exchange consumes it and returns the slot after its physical end. */
   reservation: ConnectionReservation
-  /** Applies to a new socket only, from TCP connect to the TLS handshake; `null` disables it. */
+  /** Applies to a new socket only, from TCP connect to the TLS handshake; `null` disables it. At most `MAX_TIMER_MS`. */
   connectTimeoutMs: number | null
   /** A non-2xx body beyond this many bytes is dropped as a whole and the connection is closed. */
   maxErrorBodyBytes: number
 }>
 
-/** Why no request was sent. The reservation, if it was still held, is back in the capacity. */
+/** Why no request was sent. The reservation, if it was ours and still held, is back in the capacity. */
 export type ExchangeRefusal =
   | 'resources-closed'
   | 'reservation-unusable'
@@ -52,7 +56,10 @@ export type ExchangeStart =
 export type ResponseHeaders = Readonly<Record<string, string | readonly string[]>>
 
 export interface ResponseBody {
-  /** Hands the body to its single reader. A second claim gets `undefined`. */
+  /**
+   * Hands the body to its single reader. A second claim gets `undefined`. The reader ending
+   * the iteration early, even before its first `next()`, destroys the response.
+   */
   claim(): AsyncIterable<Uint8Array> | undefined
 }
 
@@ -81,18 +88,67 @@ export interface HttpExchange {
 }
 
 /**
+ * The reader of a 2xx body sees this when the exchange was stopped locally before the body
+ * reached its end: by `stop()`, by the cancel signal or by the close of the network resources.
+ */
+export class ResponseBodyStoppedError extends Error {
+  constructor() {
+    super('the exchange was stopped before the response body reached its end')
+    this.name = 'ResponseBodyStoppedError'
+  }
+}
+
+/**
+ * The reader of a 2xx body sees this when the body ended before its end without a local stop:
+ * the connection was reset or closed by the other side. `cause` is the failure Node reported.
+ */
+export class ResponseBodyReadError extends Error {
+  constructor(cause: unknown) {
+    super('the response body ended before its end', { cause })
+    this.name = 'ResponseBodyReadError'
+  }
+}
+
+/**
+ * A defect: the pool queued the request although the caller held a slot, so it was not on its
+ * way when `startExchange` would have returned. The request is destroyed and the slot is back
+ * in the capacity before this is thrown. Nothing was sent.
+ */
+export class ExchangeQueuedError extends Error {
+  constructor() {
+    super('the socket pool queued the request although a connection slot was held')
+    this.name = 'ExchangeQueuedError'
+  }
+}
+
+/**
  * Sends one POST at once: after the return the request is on its way, with no await and no
- * queue in between. The caller must hold a reservation; a refusal returns it. One call is one
- * physical send: nothing is retried and no redirect is followed.
+ * queue in between. The caller must hold a reservation of the resources' capacity; a refusal
+ * returns it. One call is one physical send: nothing is retried and no redirect is followed.
+ * Any synchronous throw returns the held reservation first.
  */
 export function startExchange(
   resources: ExchangeResources,
   input: ExchangeInput,
   signal: AbortSignal,
 ): ExchangeStart {
+  try {
+    return begin(resources, input, signal)
+  } catch (error) {
+    returnIfHeld(resources, input)
+    throw error
+  }
+}
+
+function begin(
+  resources: ExchangeResources,
+  input: ExchangeInput,
+  signal: AbortSignal,
+): ExchangeStart {
+  if (!(signal instanceof AbortSignal)) throw new TypeError('signal must be an AbortSignal')
   const refusal = refusalOf(resources, input, signal)
   if (refusal !== undefined) {
-    input.reservation.release()
+    returnIfHeld(resources, input)
     return { kind: 'refused', reason: refusal }
   }
   const consumed = input.reservation.consume()
@@ -100,9 +156,17 @@ export function startExchange(
   return { kind: 'started', exchange: runExchange(resources, input, signal, consumed.ok) }
 }
 
+/** Returns the reservation if it is ours and still held. A foreign or consumed one is not touched. */
+function returnIfHeld(resources: ExchangeResources, input: ExchangeInput): void {
+  if (!isObject(input)) return
+  const { reservation } = input
+  if (resources.capacity.owns(reservation)) reservation.release()
+}
+
 const HEADER_NAME = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
 const HEADER_VALUE = /^[\x20-\x7e]*$/
 
+/** Total over any input shape: a caller without the types gets a refusal, not a throw. */
 function refusalOf(
   resources: ExchangeResources,
   input: ExchangeInput,
@@ -111,11 +175,12 @@ function refusalOf(
   if (resources.closed) return 'resources-closed'
   if (signal.aborted) return 'cancelled'
   if (!isPlainHttpsUrl(input.url)) return 'invalid-url'
-  if (!Object.entries(input.headers).every(isValidHeader)) return 'invalid-header'
+  if (!isHeaderRecord(input.headers)) return 'invalid-header'
   if (!(input.body instanceof Uint8Array)) return 'invalid-body'
   if (!isPositiveInteger(input.maxErrorBodyBytes)) return 'invalid-limit'
-  if (input.connectTimeoutMs !== null && !isPositiveInteger(input.connectTimeoutMs))
+  if (input.connectTimeoutMs !== null && !isTimerDuration(input.connectTimeoutMs))
     return 'invalid-limit'
+  if (!resources.capacity.owns(input.reservation)) return 'reservation-unusable'
   return undefined
 }
 
@@ -131,12 +196,16 @@ function isPlainHttpsUrl(url: unknown): url is URL {
   )
 }
 
+function isHeaderRecord(value: unknown): value is Readonly<Record<string, string>> {
+  return isObject(value) && !Array.isArray(value) && Object.entries(value).every(isValidHeader)
+}
+
 function isValidHeader([name, value]: readonly [string, unknown]): boolean {
   return HEADER_NAME.test(name) && typeof value === 'string' && HEADER_VALUE.test(value)
 }
 
-function isPositiveInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1
+function isObject(value: unknown): value is object {
+  return typeof value === 'object' && value !== null
 }
 
 /**
@@ -170,6 +239,8 @@ function runExchange(
   let phase: Phase = { kind: 'requesting' }
   let response: IncomingMessage | undefined
   let clearConnectTimeout: () => void = noop
+  /** Set by every local stop: `stop()`, the signal, or the close of the resources. */
+  let stopRequested = false
   let req: ClientRequest
 
   const handle: HttpExchange = {
@@ -185,15 +256,20 @@ function runExchange(
       ...(resources.tls === undefined ? {} : { ca: resources.tls.ca }),
       headers: { ...input.headers, 'content-length': String(input.body.byteLength) },
     })
-    req.once('socket', onSocket)
-    req.once('response', onResponse)
     req.on('error', noop) // Every error ends in 'close', which decides the outcome.
-    req.once('close', onRequestClose)
     req.end(input.body)
+    if (isQueued(resources.agent, req)) {
+      req.destroy()
+      throw new ExchangeQueuedError()
+    }
   } catch (error) {
     seat.release()
     throw error
   }
+  // The pool hands the socket, the response and the close over on later ticks, never here.
+  req.once('socket', onSocket)
+  req.once('response', onResponse)
+  req.once('close', onRequestClose)
   signal.addEventListener('abort', stop, { once: true })
   resources.inFlight.add(handle)
   diagnostics.emit({ kind: 'exchange-started', level: 'info' })
@@ -238,7 +314,7 @@ function runExchange(
     const headers = copyHeaders(res.headers)
     if (status >= 200 && status < 300) {
       phase = { kind: 'responding' }
-      result.resolve({ kind: 'ok', status, headers, body: createBody(res) })
+      result.resolve({ kind: 'ok', status, headers, body: createBody(res, () => stopRequested) })
       return
     }
     phase = { kind: 'reading-error', status, headers }
@@ -294,6 +370,7 @@ function runExchange(
         return _exhaustive
       }
     }
+    stopRequested = true
     destroyConnection()
   }
 
@@ -346,23 +423,50 @@ function runExchange(
   }
 }
 
-function createBody(res: IncomingMessage): ResponseBody {
+/** `agent.requests` holds the requests the pool has not given a socket yet. */
+function isQueued(agent: Agent, req: ClientRequest): boolean {
+  return Object.values(agent.requests).some(queue => queue?.includes(req) === true)
+}
+
+function createBody(res: IncomingMessage, stoppedLocally: () => boolean): ResponseBody {
   let unclaimed: IncomingMessage | undefined = res
   return {
     claim() {
       if (unclaimed === undefined) return undefined
       const stream = unclaimed
       unclaimed = undefined
-      return readBytes(stream)
+      return closeSourceOnEarlyEnd(readBytes(stream, stoppedLocally), () => stream.destroy())
     },
   }
 }
 
 /** Ending the iteration early destroys the response, so the exchange still closes. */
-async function* readBytes(stream: IncomingMessage): AsyncGenerator<Uint8Array> {
-  for await (const chunk of stream) {
-    if (!(chunk instanceof Uint8Array)) throw new Error('response body chunk is not bytes')
-    yield chunk
+async function* readBytes(
+  stream: IncomingMessage,
+  stoppedLocally: () => boolean,
+): AsyncGenerator<Uint8Array, void, undefined> {
+  const source: AsyncIterator<unknown> = stream[Symbol.asyncIterator]()
+  try {
+    for (;;) {
+      const step = await nextChunk(source, stoppedLocally)
+      if (step.done === true) return
+      if (!(step.value instanceof Uint8Array)) throw new Error('response body chunk is not bytes')
+      yield step.value
+    }
+  } finally {
+    await source.return?.()
+  }
+}
+
+/** A failure of the stream is reported by its cause: a local stop, or the other side. */
+async function nextChunk(
+  source: AsyncIterator<unknown>,
+  stoppedLocally: () => boolean,
+): Promise<IteratorResult<unknown>> {
+  try {
+    return await source.next()
+  } catch (error) {
+    throw stoppedLocally() ? new ResponseBodyStoppedError() : new ResponseBodyReadError(error)
   }
 }
 

@@ -1,6 +1,7 @@
 import { Readable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
 import { readSseEvents, SseProtocolError, type SseFailureReason } from '../src/sse.ts'
+import { recordingSource } from './support/sources.ts'
 
 const encoder = new TextEncoder()
 
@@ -55,18 +56,18 @@ const mixed = encoder.encode(
 const mixedEvents = ['{"text":"你好é"}\n😀', '', ' two spaces', 'last']
 
 describe('framing a byte stream into SSE events', () => {
-  it('US-17: frames the stream delivered as one chunk', async () => {
+  it('frames the stream delivered as one chunk', async () => {
     expect(await collect(readSseEvents(cutAt(mixed, []), 1024))).toEqual(mixedEvents)
   })
 
-  it('US-17: frames the stream identically for every single byte cut', async () => {
+  it('frames the stream identically for every single byte cut', async () => {
     for (let cut = 0; cut <= mixed.length; cut += 1) {
       const events = await collect(readSseEvents(cutAt(mixed, [cut]), 1024))
       expect(events, `cut at ${cut}`).toEqual(mixedEvents)
     }
   })
 
-  it('US-17: frames the stream identically for every pair of byte cuts', async () => {
+  it('frames the stream identically for every pair of byte cuts', async () => {
     for (let first = 1; first < mixed.length; first += 1) {
       for (let second = first + 1; second < mixed.length; second += 1) {
         const events = await collect(readSseEvents(cutAt(mixed, [first, second]), 1024))
@@ -75,12 +76,12 @@ describe('framing a byte stream into SSE events', () => {
     }
   })
 
-  it('US-17: frames the stream identically when every byte is its own chunk', async () => {
+  it('frames the stream identically when every byte is its own chunk', async () => {
     const cuts = Array.from({ length: mixed.length - 1 }, (_, index) => index + 1)
     expect(await collect(readSseEvents(cutAt(mixed, cuts), 1024))).toEqual(mixedEvents)
   })
 
-  it('US-17: a CR at the end of one chunk and an LF at the start of the next are one break', async () => {
+  it('a CR at the end of one chunk and an LF at the start of the next are one break', async () => {
     const events = readSseEvents(
       chunksOf(
         encoder.encode('data: a\r'),
@@ -92,73 +93,73 @@ describe('framing a byte stream into SSE events', () => {
     expect(await collect(events)).toEqual(['a\nb'])
   })
 
-  it('US-19: ignores comments and the event, id and retry fields; joins data lines with LF', async () => {
+  it('ignores comments and the event, id and retry fields; joins data lines with LF', async () => {
     const stream = encoder.encode(
       ':comment\nevent: delta\ndata: one\nid: 3\ndata: two\nretry: 5\ndata: three\n\n',
     )
     expect(await collect(readSseEvents(cutAt(stream, []), 1024))).toEqual(['one\ntwo\nthree'])
   })
 
-  it('US-19: an event without data lines yields nothing', async () => {
+  it('an event without data lines yields nothing', async () => {
     const stream = encoder.encode(': only a comment\n\nevent: ping\nid: 1\n\ndata: real\n\n')
     expect(await collect(readSseEvents(cutAt(stream, []), 1024))).toEqual(['real'])
   })
 
-  it('US-19: a data line without a colon contributes an empty value', async () => {
+  it('a data line without a colon contributes an empty value', async () => {
     const stream = encoder.encode('data\ndata: tail\n\ndata\n\n')
     expect(await collect(readSseEvents(cutAt(stream, []), 1024))).toEqual(['\ntail', ''])
   })
 
-  it('US-19: a field whose name only starts with data is ignored', async () => {
+  it('a field whose name only starts with data is ignored', async () => {
     const stream = encoder.encode('data-extra: no\ndata: yes\n\n')
     expect(await collect(readSseEvents(cutAt(stream, []), 1024))).toEqual(['yes'])
   })
 
-  it('US-17: accepts a Uint8Array subclass such as a Node Buffer', async () => {
+  it('accepts a Uint8Array subclass such as a Node Buffer', async () => {
     const events = readSseEvents(chunksOf(Buffer.from('data: buffered\n\n')), 1024)
     expect(await collect(events)).toEqual(['buffered'])
   })
 
-  it('US-17: an empty stream yields no event and no failure', async () => {
+  it('an empty stream yields no event and no failure', async () => {
     expect(await collect(readSseEvents(chunksOf(), 1024))).toEqual([])
   })
 })
 
 describe('failing a malformed SSE stream with a closed reason', () => {
-  it('US-18: a string chunk, as from a stream with an encoding set, fails as non-byte', async () => {
+  it('a string chunk, as from a stream with an encoding set, fails as non-byte', async () => {
     const decoded = Readable.from(['data: text\n\n'])
     expect(await failureOf(readSseEvents(decoded, 1024))).toBe('non-byte')
   })
 
-  it('US-18: an invalid UTF-8 byte fails as invalid-utf8', async () => {
+  it('an invalid UTF-8 byte fails as invalid-utf8', async () => {
     const body = chunksOf(encoder.encode('data: '), Uint8Array.of(0xff), encoder.encode('\n\n'))
     expect(await failureOf(readSseEvents(body, 1024))).toBe('invalid-utf8')
   })
 
-  it('US-18: a multi-byte character cut off by the end of the stream fails as invalid-utf8', async () => {
+  it('a multi-byte character cut off by the end of the stream fails as invalid-utf8', async () => {
     const truncated = encoder.encode('data: 你').slice(0, -1)
     expect(await failureOf(readSseEvents(chunksOf(truncated), 1024))).toBe('invalid-utf8')
   })
 
-  it('US-18: an event at the byte limit passes and one byte more fails as event-too-large', async () => {
+  it('an event at the byte limit passes and one byte more fails as event-too-large', async () => {
     // 'data:你' is 8 bytes, then two line breaks: 10 bytes in the event.
     const stream = encoder.encode('data:你\n\n')
     expect(await collect(readSseEvents(cutAt(stream, [6]), 10))).toEqual(['你'])
     expect(await failureOf(readSseEvents(cutAt(stream, [6]), 9))).toBe('event-too-large')
   })
 
-  it('US-18: the byte limit applies to each event, not to the whole stream', async () => {
+  it('the byte limit applies to each event, not to the whole stream', async () => {
     const stream = encoder.encode('data: a\n\n'.repeat(50))
     const events = await collect(readSseEvents(cutAt(stream, []), 9))
     expect(events).toEqual(Array.from({ length: 50 }, () => 'a'))
   })
 
-  it('US-18: comment and ignored field bytes count toward the event limit', async () => {
+  it('comment and ignored field bytes count toward the event limit', async () => {
     const stream = encoder.encode(`: ${'x'.repeat(40)}\ndata: a\n\n`)
     expect(await failureOf(readSseEvents(cutAt(stream, []), 20))).toBe('event-too-large')
   })
 
-  it('US-18: a stream that ends after a data line fails as unterminated', async () => {
+  it('a stream that ends after a data line fails as unterminated', async () => {
     const stream = encoder.encode('data: done\n\ndata: half\n')
     const seen: string[] = []
     const events = readSseEvents(cutAt(stream, []), 1024)
@@ -170,13 +171,13 @@ describe('failing a malformed SSE stream with a closed reason', () => {
     expect(seen).toEqual(['done'])
   })
 
-  it('US-18: a stream that ends inside a line fails as unterminated', async () => {
+  it('a stream that ends inside a line fails as unterminated', async () => {
     expect(await failureOf(readSseEvents(chunksOf(encoder.encode('data: x')), 1024))).toBe(
       'unterminated',
     )
   })
 
-  it('US-18: a TypeError raised by the body passes through unchanged', async () => {
+  it('a TypeError raised by the body passes through unchanged', async () => {
     const failure = new TypeError('body broke')
     async function* broken(): AsyncGenerator<Uint8Array> {
       yield encoder.encode('data: a\n\n')
@@ -185,7 +186,26 @@ describe('failing a malformed SSE stream with a closed reason', () => {
     await expect(collect(readSseEvents(broken(), 1024))).rejects.toBe(failure)
   })
 
-  it('US-18: a protocol failure closes the body', async () => {
+  it('a reader that ends the events before the first one closes the body', async () => {
+    const { source, state } = recordingSource(encoder.encode('data: x\n\n'))
+    const events = readSseEvents(source, 1024)
+    await events.return()
+    expect(state).toEqual({ pulled: 0, ended: true })
+    expect(await events.next()).toEqual({ done: true, value: undefined })
+  })
+
+  it('a reader that ends the events after the first one closes the body once', async () => {
+    const { source, state } = recordingSource(
+      encoder.encode('data: x\n\n'),
+      encoder.encode('data: y\n\n'),
+    )
+    const events = readSseEvents(source, 1024)
+    expect(await events.next()).toEqual({ done: false, value: 'x' })
+    await events.return()
+    expect(state).toEqual({ pulled: 1, ended: true })
+  })
+
+  it('a protocol failure closes the body', async () => {
     let closed = false
     async function* body(): AsyncGenerator<Uint8Array> {
       try {
@@ -200,7 +220,7 @@ describe('failing a malformed SSE stream with a closed reason', () => {
   })
 
   it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
-    'US-18: rejects the event byte limit %s synchronously with a RangeError',
+    'rejects the event byte limit %s synchronously with a RangeError',
     limit => {
       expect(() => readSseEvents(chunksOf(), limit)).toThrow(RangeError)
     },

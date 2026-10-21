@@ -1,6 +1,8 @@
 // Test support shared by the exchange and network specs: inputs, reservations and observation.
+import { getEventListeners } from 'node:events'
 import type { Socket } from 'node:net'
-import type { ConnectionReservation } from '../../src/capacity.ts'
+import { expect } from 'vitest'
+import type { ConnectionCapacity, ConnectionReservation } from '../../src/capacity.ts'
 import type { TransportDiagnostic } from '../../src/diagnostics.ts'
 import type { ExchangeInput, ExchangeResult, ExchangeStart, HttpExchange } from '../../src/http.ts'
 import {
@@ -42,7 +44,9 @@ export function network(
   })
 }
 
-export async function held(resources: NetworkResources): Promise<ConnectionReservation> {
+export async function held(
+  resources: Readonly<{ capacity: Pick<ConnectionCapacity, 'reserve'> }>,
+): Promise<ConnectionReservation> {
   const reservation = await resources.capacity.reserve(new AbortController().signal)
   if (reservation === undefined) throw new Error('expected a held reservation')
   return reservation
@@ -109,4 +113,15 @@ export function watch<T>(promise: Promise<T>): {
 /** The client sockets the pool currently has in use, through the documented `agent.sockets`. */
 export function clientSockets(resources: NetworkResources): readonly Socket[] {
   return Object.values(resources.agent.sockets).flatMap(sockets => sockets ?? [])
+}
+
+/** The requests the pool has not given a socket yet, through the documented `agent.requests`. */
+export function queuedRequests(resources: Pick<NetworkResources, 'agent'>): number {
+  return Object.values(resources.agent.requests).flatMap(queue => queue ?? []).length
+}
+
+/** After `stopped`: the abort listener left the signal and the exchange left the registry. */
+export function expectCleanedUp(resources: NetworkResources, signal: AbortSignal): void {
+  expect(getEventListeners(signal, 'abort')).toHaveLength(0)
+  expect(resources.inFlight.size).toBe(0)
 }

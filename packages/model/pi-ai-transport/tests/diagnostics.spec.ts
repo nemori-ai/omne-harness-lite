@@ -19,7 +19,7 @@ function deferred() {
 }
 
 describe('isolating the diagnostic observer', () => {
-  it('US-23: delivers a frozen copy that holds only the kind and the level', () => {
+  it('delivers a frozen copy that holds only the kind and the level', () => {
     const received: unknown[] = []
     const sink = createDiagnosticSink(event => received.push(event), { maxPending: 1 })
     const event: TransportDiagnostic = Object.assign(
@@ -34,7 +34,7 @@ describe('isolating the diagnostic observer', () => {
     expect(sink.counters()).toEqual({ failed: 0, pending: 0, dropped: 0 })
   })
 
-  it('US-23: a synchronous throw is counted as failed and later events are still delivered', () => {
+  it('a synchronous throw is counted as failed and later events are still delivered', () => {
     const received: string[] = []
     const sink = createDiagnosticSink(
       event => {
@@ -50,7 +50,7 @@ describe('isolating the diagnostic observer', () => {
     expect(sink.counters()).toEqual({ failed: 1, pending: 0, dropped: 0 })
   })
 
-  it('US-23: a returned thenable is pending until it settles; a rejection counts as failed', async () => {
+  it('a returned thenable is pending until it settles; a rejection counts as failed', async () => {
     const accepted = deferred()
     const refused = deferred()
     const completions = [accepted.promise, refused.promise]
@@ -66,7 +66,7 @@ describe('isolating the diagnostic observer', () => {
     expect(sink.counters()).toEqual({ failed: 1, pending: 0, dropped: 0 })
   })
 
-  it('US-23: a thenable that never settles stays pending; at the bound events are dropped', async () => {
+  it('a thenable that never settles stays pending; at the bound events are dropped', async () => {
     let calls = 0
     const sink = createDiagnosticSink(
       () => {
@@ -82,7 +82,7 @@ describe('isolating the diagnostic observer', () => {
     expect(sink.counters()).toEqual({ failed: 0, pending: 2, dropped: 3 })
   })
 
-  it('US-23: delivery resumes once a pending completion settles below the bound', async () => {
+  it('delivery resumes once a pending completion settles below the bound', async () => {
     const first = deferred()
     let calls = 0
     const sink = createDiagnosticSink(
@@ -104,7 +104,7 @@ describe('isolating the diagnostic observer', () => {
     expect(sink.counters()).toEqual({ failed: 0, pending: 0, dropped: 1 })
   })
 
-  it('US-23: a completion whose then accessor throws is counted as failed', () => {
+  it('a completion whose then accessor throws is counted as failed', () => {
     // Every property read throws, the `then` lookup included.
     const hostile = new Proxy(
       {},
@@ -121,13 +121,13 @@ describe('isolating the diagnostic observer', () => {
     expect(sink.counters()).toEqual({ failed: 1, pending: 0, dropped: 0 })
   })
 
-  it('US-23: a plain return value is neither pending nor failed', () => {
+  it('a plain return value is neither pending nor failed', () => {
     const sink = createDiagnosticSink(() => 42, { maxPending: 1 })
     sink.emit(started)
     expect(sink.counters()).toEqual({ failed: 0, pending: 0, dropped: 0 })
   })
 
-  it('US-23: the counters are a frozen snapshot', () => {
+  it('the counters are a frozen snapshot', () => {
     const sink = createDiagnosticSink(
       () => {
         throw new Error('observer broke')
@@ -142,7 +142,7 @@ describe('isolating the diagnostic observer', () => {
   })
 
   it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
-    'US-23: rejects maxPending %s synchronously with a RangeError',
+    'rejects maxPending %s synchronously with a RangeError',
     maxPending => {
       expect(() => createDiagnosticSink(() => undefined, { maxPending })).toThrow(RangeError)
     },

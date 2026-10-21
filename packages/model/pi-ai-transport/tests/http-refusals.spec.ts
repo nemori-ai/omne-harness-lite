@@ -39,7 +39,13 @@ function input(
   }
 }
 
-/** Starts with a held reservation and expects a refusal that returns it. */
+/** No socket was opened and nothing waits for one, through the documented `agent` properties. */
+function expectNoNetworkUse(network: NetworkResources): void {
+  expect(network.agent.sockets).toEqual({})
+  expect(network.agent.requests).toEqual({})
+}
+
+/** Starts with a held reservation and expects a refusal that returns it without any network use. */
 async function refused(
   overrides: Partial<ExchangeInput>,
   reason: ExchangeRefusal,
@@ -49,6 +55,7 @@ async function refused(
   const start = startExchange(network, input(reservation, overrides), new AbortController().signal)
   expect(start).toEqual({ kind: 'refused', reason })
   expect(reservation.state).toBe('released')
+  expectNoNetworkUse(network)
   expect((await held(network)).state).toBe('held')
 }
 
@@ -59,11 +66,11 @@ describe('refusing an exchange before anything is sent', () => {
     { url: 'https://:secret@127.0.0.1:9/v1', why: 'a password' },
     { url: 'https://127.0.0.1:9/v1?key=value', why: 'a query' },
     { url: 'https://127.0.0.1:9/v1#fragment', why: 'a fragment' },
-  ])('US-6: refuses the URL $url ($why) as invalid-url', async ({ url }) => {
+  ])('refuses the URL $url ($why) as invalid-url', async ({ url }) => {
     await refused({ url: new URL(url) }, 'invalid-url')
   })
 
-  it('US-6: refuses a URL given as a string, not a URL object, as invalid-url', async () => {
+  it('refuses a URL given as a string, not a URL object, as invalid-url', async () => {
     // @ts-expect-error The runtime boundary must hold for a caller without the types.
     await refused({ url: UNREACHABLE.href }, 'invalid-url')
   })
@@ -75,11 +82,24 @@ describe('refusing an exchange before anything is sent', () => {
     { headers: { 'x-token': 'caf\u00e9' }, why: 'a non-ASCII value' },
     { headers: { 'x-token': 'del\u007f' }, why: 'DEL in the value' },
     { headers: { '': 'value' }, why: 'an empty name' },
-  ])('US-10: refuses the headers $headers ($why) as invalid-header', async ({ headers }) => {
+  ])('refuses the headers $headers ($why) as invalid-header', async ({ headers }) => {
     await refused({ headers }, 'invalid-header')
   })
 
-  it('US-6: refuses a body that is not bytes as invalid-body', async () => {
+  it.each([
+    { headers: null, why: 'null' },
+    { headers: 'authorization: Bearer x', why: 'a string' },
+    { headers: ['authorization'], why: 'an array' },
+    { headers: 42, why: 'a number' },
+  ])(
+    'refuses headers that are not a record ($why) as invalid-header, without a throw',
+    async ({ headers }) => {
+      // @ts-expect-error The runtime boundary must hold for a caller without the types.
+      await refused({ headers }, 'invalid-header')
+    },
+  )
+
+  it('refuses a body that is not bytes as invalid-body', async () => {
     // @ts-expect-error The runtime boundary must hold for a caller without the types.
     await refused({ body: '{}' }, 'invalid-body')
   })
@@ -91,11 +111,50 @@ describe('refusing an exchange before anything is sent', () => {
     [{ maxErrorBodyBytes: Number.NaN }],
     [{ connectTimeoutMs: 0 }],
     [{ connectTimeoutMs: Number.POSITIVE_INFINITY }],
-  ])('US-16: refuses the limits %j as invalid-limit', async limits => {
+    // One above the largest delay a Node timer takes; a larger value would fire after 1 ms.
+    [{ connectTimeoutMs: 2_147_483_648 }],
+  ])('refuses the limits %j as invalid-limit', async limits => {
     await refused(limits, 'invalid-limit')
   })
 
-  it('US-5: refuses a consumed reservation as reservation-unusable and leaves it to its owner', async () => {
+  it('refuses a reservation of another capacity as reservation-unusable and leaves it held', async () => {
+    const network = fresh()
+    const other = fresh()
+    const foreign = await held(other)
+
+    const start = startExchange(network, input(foreign), new AbortController().signal)
+    expect(start).toEqual({ kind: 'refused', reason: 'reservation-unusable' })
+    expect(foreign.state).toBe('held')
+    expectNoNetworkUse(network)
+  })
+
+  it('refuses a look-alike reservation as reservation-unusable without consuming the real one', async () => {
+    const network = fresh()
+    const real = await held(network)
+    const lookAlike: ConnectionReservation = {
+      state: 'held',
+      consume: () => real.consume(),
+      release: () => real.release(),
+    }
+
+    const start = startExchange(network, input(lookAlike), new AbortController().signal)
+    expect(start).toEqual({ kind: 'refused', reason: 'reservation-unusable' })
+    expect(real.state).toBe('held')
+    expectNoNetworkUse(network)
+  })
+
+  it('a signal that is not an AbortSignal throws a TypeError after the held reservation returned', async () => {
+    const network = fresh()
+    const reservation = await held(network)
+
+    // @ts-expect-error The runtime boundary must hold for a caller without the types.
+    expect(() => startExchange(network, input(reservation), {})).toThrow(TypeError)
+    expect(reservation.state).toBe('released')
+    expectNoNetworkUse(network)
+    expect((await held(network)).state).toBe('held')
+  })
+
+  it('refuses a consumed reservation as reservation-unusable and leaves it to its owner', async () => {
     const network = fresh()
     const reservation = await held(network)
     const consumed = reservation.consume()
@@ -104,20 +163,22 @@ describe('refusing an exchange before anything is sent', () => {
     const start = startExchange(network, input(reservation), new AbortController().signal)
     expect(start).toEqual({ kind: 'refused', reason: 'reservation-unusable' })
     expect(reservation.state).toBe('consumed')
+    expectNoNetworkUse(network)
     consumed.ok.release()
     expect(reservation.state).toBe('released')
   })
 
-  it('US-5: refuses a released reservation as reservation-unusable', async () => {
+  it('refuses a released reservation as reservation-unusable', async () => {
     const network = fresh()
     const reservation = await held(network)
     reservation.release()
 
     const start = startExchange(network, input(reservation), new AbortController().signal)
     expect(start).toEqual({ kind: 'refused', reason: 'reservation-unusable' })
+    expectNoNetworkUse(network)
   })
 
-  it('US-22: refuses once the resources are closed and returns the held reservation', async () => {
+  it('refuses once the resources are closed and returns the held reservation', async () => {
     const network = fresh()
     const reservation = await held(network)
     await network.close()
@@ -125,9 +186,10 @@ describe('refusing an exchange before anything is sent', () => {
     const start = startExchange(network, input(reservation), new AbortController().signal)
     expect(start).toEqual({ kind: 'refused', reason: 'resources-closed' })
     expect(reservation.state).toBe('released')
+    expectNoNetworkUse(network)
   })
 
-  it('US-14: refuses an already aborted signal as cancelled before any check of the input', async () => {
+  it('refuses an already aborted signal as cancelled before any check of the input', async () => {
     const network = fresh()
     const reservation = await held(network)
     const controller = new AbortController()
@@ -140,6 +202,7 @@ describe('refusing an exchange before anything is sent', () => {
     )
     expect(start).toEqual({ kind: 'refused', reason: 'cancelled' })
     expect(reservation.state).toBe('released')
+    expectNoNetworkUse(network)
   })
 })
 
@@ -153,7 +216,7 @@ describe('configuring the network resources', () => {
     },
   )
 
-  it.each([0, -1, 1.5, Number.NaN])(
+  it.each([0, -1, 1.5, Number.NaN, 2_147_483_648])(
     'rejects idleConnectionTimeoutMs %s synchronously with a RangeError',
     idleConnectionTimeoutMs => {
       expect(() => createNetworkResources({ maxConnections: 1, idleConnectionTimeoutMs })).toThrow(
@@ -161,6 +224,15 @@ describe('configuring the network resources', () => {
       )
     },
   )
+
+  it('accepts the largest delay a Node timer takes as idleConnectionTimeoutMs', async () => {
+    const network = createNetworkResources({
+      maxConnections: 1,
+      idleConnectionTimeoutMs: 2_147_483_647,
+    })
+    resources.push(network)
+    expect(network.closed).toBe(false)
+  })
 
   it('rejects a diagnostics maxPending below one synchronously with a RangeError', () => {
     expect(() =>
@@ -172,7 +244,7 @@ describe('configuring the network resources', () => {
     ).toThrow(RangeError)
   })
 
-  it('US-23: without an observer the counters read zero and the resources still close', async () => {
+  it('without an observer the counters read zero and the resources still close', async () => {
     const network = fresh()
     expect(network.diagnostics.counters()).toEqual({ failed: 0, pending: 0, dropped: 0 })
     await network.close()

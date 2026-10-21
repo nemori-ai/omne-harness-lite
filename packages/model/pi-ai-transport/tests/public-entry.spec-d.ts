@@ -18,13 +18,13 @@ import type {
 } from '@omne-harness/pi-ai-transport'
 import { expectTypeOf, it } from 'vitest'
 
-it('US-24: a protocol frame is either a data value or the end marker', () => {
+it('a protocol frame is either a data value or the end marker', () => {
   expectTypeOf<PiProtocolFrame>().toEqualTypeOf<
     Readonly<{ kind: 'data'; value: JsonValue }> | Readonly<{ kind: 'end-marker' }>
   >()
 })
 
-it('US-24: a decoder turns frames and the end into transport facts or a model fault', () => {
+it('a decoder turns frames and the end into transport facts or a model fault', () => {
   expectTypeOf<PiResponseDecoder['accept']>().parameters.toEqualTypeOf<[PiProtocolFrame]>()
   expectTypeOf<ReturnType<PiResponseDecoder['accept']>>().toEqualTypeOf<
     Outcome<readonly TransportFact[], ModelFault>
@@ -34,7 +34,7 @@ it('US-24: a decoder turns frames and the end into transport facts or a model fa
   >()
 })
 
-it('US-24: materialized media lends bytes with its reference and measurement', () => {
+it('materialized media lends bytes with its reference and measurement', () => {
   expectTypeOf<PiMaterializedMedia>().toEqualTypeOf<
     Readonly<{
       reference: ContentReference
@@ -45,14 +45,14 @@ it('US-24: materialized media lends bytes with its reference and measurement', (
   >()
 })
 
-it('US-24: a binding fixes supplier and adoption and owns its release', () => {
+it('a binding fixes supplier and adoption and owns its release', () => {
   expectTypeOf<PiFamilyBinding['supplier']>().toEqualTypeOf<Supplier>()
   expectTypeOf<PiFamilyBinding['adoption']>().toEqualTypeOf<Adoption>()
   expectTypeOf<PiFamilyBinding['createDecoder']>().returns.toEqualTypeOf<PiResponseDecoder>()
   expectTypeOf<PiFamilyBinding['release']>().returns.toEqualTypeOf<Promise<void>>()
 })
 
-it('US-24: acquire selects one supplier under a cancel signal', () => {
+it('acquire selects one supplier under a cancel signal', () => {
   expectTypeOf<PiFamilyContributions['acquire']>().parameters.toEqualTypeOf<
     [Supplier, AbortSignal]
   >()

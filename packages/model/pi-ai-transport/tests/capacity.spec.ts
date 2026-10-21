@@ -39,14 +39,14 @@ function consumedNow(reservation: ConnectionReservation): ConsumedSeat {
 }
 
 describe('reserving connection capacity', () => {
-  it('US-1: grants a held reservation at once while capacity is free', async () => {
+  it('grants a held reservation at once while capacity is free', async () => {
     const capacity = createConnectionCapacity(2)
     const first = await grantedNow(capacity)
     const second = await grantedNow(capacity)
     expect([first.state, second.state]).toEqual(['held', 'held'])
   })
 
-  it('US-1: makes the waiter beyond the maximum wait, then grants waiters in FIFO order', async () => {
+  it('makes the waiter beyond the maximum wait, then grants waiters in FIFO order', async () => {
     const capacity = createConnectionCapacity(1)
     const holder = await grantedNow(capacity)
     const order: string[] = []
@@ -71,7 +71,7 @@ describe('reserving connection capacity', () => {
     expect(order).toEqual(['a', 'b', 'c'])
   })
 
-  it('US-2: a granted reservation does not expire and keeps its slot until it is released', async () => {
+  it('a granted reservation does not expire and keeps its slot until it is released', async () => {
     const capacity = createConnectionCapacity(1)
     const holder = await grantedNow(capacity)
     const next = watch(capacity.reserve(new AbortController().signal))
@@ -84,7 +84,7 @@ describe('reserving connection capacity', () => {
     expect(next.value?.state).toBe('held')
   })
 
-  it('US-3: an already aborted signal resolves undefined and takes no slot', async () => {
+  it('an already aborted signal resolves undefined and takes no slot', async () => {
     const capacity = createConnectionCapacity(1)
     const controller = new AbortController()
     controller.abort()
@@ -92,7 +92,7 @@ describe('reserving connection capacity', () => {
     expect((await grantedNow(capacity)).state).toBe('held')
   })
 
-  it('US-3: abort while waiting resolves undefined and the cancelled waiter takes no slot', async () => {
+  it('abort while waiting resolves undefined and the cancelled waiter takes no slot', async () => {
     const capacity = createConnectionCapacity(1)
     const holder = await grantedNow(capacity)
     const cancelled = new AbortController()
@@ -110,7 +110,7 @@ describe('reserving connection capacity', () => {
     expect((await grantedNow(capacity)).state).toBe('held')
   })
 
-  it('US-3: abort after the grant leaves the reservation held', async () => {
+  it('abort after the grant leaves the reservation held', async () => {
     const capacity = createConnectionCapacity(1)
     const controller = new AbortController()
     const reservation = await capacity.reserve(controller.signal)
@@ -122,7 +122,7 @@ describe('reserving connection capacity', () => {
     expect(next.done).toBe(false)
   })
 
-  it('US-3: the abort listener leaves the signal once the waiter is granted or cancelled', async () => {
+  it('the abort listener leaves the signal once the waiter is granted or cancelled', async () => {
     const capacity = createConnectionCapacity(1)
     const first = new AbortController()
     const holder = await capacity.reserve(first.signal)
@@ -139,7 +139,7 @@ describe('reserving connection capacity', () => {
     expect(getEventListeners(cancelled.signal, 'abort')).toHaveLength(0)
   })
 
-  it('US-4: close ends every waiter with undefined and refuses new reservations', async () => {
+  it('close ends every waiter with undefined and refuses new reservations', async () => {
     const capacity = createConnectionCapacity(1)
     await grantedNow(capacity)
     const waits = [
@@ -152,7 +152,7 @@ describe('reserving connection capacity', () => {
     await expect(capacity.reserve(new AbortController().signal)).resolves.toBeUndefined()
   })
 
-  it('US-4: a reservation granted before close can still be consumed and released', async () => {
+  it('a reservation granted before close can still be consumed and released', async () => {
     const capacity = createConnectionCapacity(2)
     const unused = await grantedNow(capacity)
     const used = await grantedNow(capacity)
@@ -165,7 +165,7 @@ describe('reserving connection capacity', () => {
     await expect(capacity.reserve(new AbortController().signal)).resolves.toBeUndefined()
   })
 
-  it('US-5: a repeated release returns the slot once and admits only one waiter', async () => {
+  it('a repeated release returns the slot once and admits only one waiter', async () => {
     const capacity = createConnectionCapacity(1)
     const holder = await grantedNow(capacity)
     const second = watch(capacity.reserve(new AbortController().signal))
@@ -179,7 +179,7 @@ describe('reserving connection capacity', () => {
     expect(third.done).toBe(false)
   })
 
-  it('US-5: a reservation is consumed once; a later consume is refused with its state', async () => {
+  it('a reservation is consumed once; a later consume is refused with its state', async () => {
     const capacity = createConnectionCapacity(1)
     const reservation = await grantedNow(capacity)
 
@@ -191,7 +191,7 @@ describe('reserving connection capacity', () => {
     expect(reservation.state).toBe('released')
   })
 
-  it('US-15: releasing a consumed reservation itself keeps the slot; only the seat returns it', async () => {
+  it('releasing a consumed reservation itself keeps the slot; only the seat returns it', async () => {
     const capacity = createConnectionCapacity(1)
     const reservation = await grantedNow(capacity)
     const seat = consumedNow(reservation)
@@ -208,7 +208,7 @@ describe('reserving connection capacity', () => {
     expect(next.value?.state).toBe('held')
   })
 
-  it('US-5: a repeated seat release returns the slot once and admits only one waiter', async () => {
+  it('a repeated seat release returns the slot once and admits only one waiter', async () => {
     const capacity = createConnectionCapacity(1)
     const seat = consumedNow(await grantedNow(capacity))
     const second = watch(capacity.reserve(new AbortController().signal))
@@ -221,7 +221,7 @@ describe('reserving connection capacity', () => {
     expect(third.done).toBe(false)
   })
 
-  it('US-5: a released reservation that was never consumed cannot be consumed', async () => {
+  it('a released reservation that was never consumed cannot be consumed', async () => {
     const capacity = createConnectionCapacity(1)
     const reservation = await grantedNow(capacity)
     reservation.release()
@@ -229,9 +229,47 @@ describe('reserving connection capacity', () => {
   })
 
   it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 53])(
-    'US-1: rejects the maximum %s synchronously with a RangeError',
+    'rejects the maximum %s synchronously with a RangeError',
     maximum => {
       expect(() => createConnectionCapacity(maximum)).toThrow(RangeError)
     },
   )
+})
+
+describe('the ownership of a reservation', () => {
+  it('owns the reservations it granted, in every state, and not those of another capacity', async () => {
+    const capacity = createConnectionCapacity(3)
+    const other = createConnectionCapacity(1)
+    const held = await grantedNow(capacity)
+    const consumed = await grantedNow(capacity)
+    consumedNow(consumed)
+    const released = await grantedNow(capacity)
+    released.release()
+    const foreign = await grantedNow(other)
+
+    expect([held, consumed, released].map(reservation => capacity.owns(reservation))).toEqual([
+      true,
+      true,
+      true,
+    ])
+    expect(capacity.owns(foreign)).toBe(false)
+    expect(other.owns(held)).toBe(false)
+  })
+
+  it('does not own a look-alike, a copy or a non-object, however close they are to a reservation', async () => {
+    const capacity = createConnectionCapacity(1)
+    const real = await grantedNow(capacity)
+    const lookAlike: ConnectionReservation = {
+      get state() {
+        return real.state
+      },
+      consume: () => real.consume(),
+      release: () => real.release(),
+    }
+    expect(capacity.owns(lookAlike)).toBe(false)
+    expect(capacity.owns({ ...real })).toBe(false)
+    expect(capacity.owns(Object.create(real))).toBe(false)
+    for (const value of [undefined, null, 'held', 7, Symbol('held')])
+      expect(capacity.owns(value)).toBe(false)
+  })
 })

@@ -2,6 +2,7 @@ import type { JsonLimits } from '@omne-harness/json-text'
 import { describe, expect, it } from 'vitest'
 import { readProtocolFrames, type FrameOptions } from '../src/frames.ts'
 import { readSseEvents, SseProtocolError } from '../src/sse.ts'
+import { recordingSource } from './support/sources.ts'
 
 const json: JsonLimits = {
   maxBytes: 4096,
@@ -24,7 +25,7 @@ async function collect<T>(items: AsyncIterable<T>): Promise<T[]> {
 }
 
 describe('reading SSE event data as protocol frames', () => {
-  it('US-20: reads each data text as a lossless JSON frame, keeping a large integer lexeme', async () => {
+  it('reads each data text as a lossless JSON frame, keeping a large integer lexeme', async () => {
     const frames = await collect(
       readProtocolFrames(eventsOf('{"id":12345678901234567890123}', '[1.50e+400]'), withDone),
     )
@@ -47,7 +48,7 @@ describe('reading SSE event data as protocol frames', () => {
     ])
   })
 
-  it('US-21: the end-marker text becomes its own frame', async () => {
+  it('the end-marker text becomes its own frame', async () => {
     const frames = await collect(readProtocolFrames(eventsOf('{}', '[DONE]'), withDone))
     expect(frames).toEqual([
       { ok: { kind: 'data', value: { kind: 'object', entries: [] } } },
@@ -55,19 +56,19 @@ describe('reading SSE event data as protocol frames', () => {
     ])
   })
 
-  it('US-21: any event after the end-marker fails once and ends the frames', async () => {
+  it('any event after the end-marker fails once and ends the frames', async () => {
     const frames = await collect(
       readProtocolFrames(eventsOf('[DONE]', '{"late":true}', '{"later":true}'), withDone),
     )
     expect(frames).toEqual([{ ok: { kind: 'end-marker' } }, { failure: 'event-after-end' }])
   })
 
-  it('US-21: a second end-marker is also an event after the end', async () => {
+  it('a second end-marker is also an event after the end', async () => {
     const frames = await collect(readProtocolFrames(eventsOf('[DONE]', '[DONE]'), withDone))
     expect(frames).toEqual([{ ok: { kind: 'end-marker' } }, { failure: 'event-after-end' }])
   })
 
-  it('US-21: the end of the events without an end-marker yields no terminal frame', async () => {
+  it('the end of the events without an end-marker yields no terminal frame', async () => {
     const frames = await collect(readProtocolFrames(eventsOf('{"partial":1}'), withDone))
     expect(frames).toEqual([
       {
@@ -82,16 +83,16 @@ describe('reading SSE event data as protocol frames', () => {
     ])
   })
 
-  it('US-21: no events yield no frame', async () => {
+  it('no events yield no frame', async () => {
     expect(await collect(readProtocolFrames(eventsOf(), withDone))).toEqual([])
   })
 
-  it('US-21: without a configured end-marker its text is read as JSON and fails', async () => {
+  it('without a configured end-marker its text is read as JSON and fails', async () => {
     const frames = await collect(readProtocolFrames(eventsOf('[DONE]'), { endMarker: null, json }))
     expect(frames).toEqual([{ failure: 'invalid-json' }])
   })
 
-  it('US-20: the configured end-marker text is the only one recognized', async () => {
+  it('the configured end-marker text is the only one recognized', async () => {
     const frames = await collect(
       readProtocolFrames(eventsOf('"stop"', '[DONE]'), { endMarker: '"stop"', json }),
     )
@@ -103,18 +104,18 @@ describe('reading SSE event data as protocol frames', () => {
     ['empty data', ''],
     ['a duplicate key', '{"a":1,"a":2}'],
     ['trailing content', '{} {}'],
-  ])('US-20: %s fails as invalid-json and ends the frames', async (_name, data) => {
+  ])('%s fails as invalid-json and ends the frames', async (_name, data) => {
     const frames = await collect(readProtocolFrames(eventsOf(data, '{}'), withDone))
     expect(frames).toEqual([{ failure: 'invalid-json' }])
   })
 
-  it('US-20: data over the caller JSON limits fails as invalid-json', async () => {
+  it('data over the caller JSON limits fails as invalid-json', async () => {
     const tight: FrameOptions = { endMarker: '[DONE]', json: { ...json, maxNumberLength: 3 } }
     const frames = await collect(readProtocolFrames(eventsOf('[1234]'), tight))
     expect(frames).toEqual([{ failure: 'invalid-json' }])
   })
 
-  it('US-20: a failure stops reading and closes the event source', async () => {
+  it('a failure stops reading and closes the event source', async () => {
     let pulled = 0
     let closed = false
     async function* events(): AsyncGenerator<string> {
@@ -132,7 +133,31 @@ describe('reading SSE event data as protocol frames', () => {
     expect(closed).toBe(true)
   })
 
-  it('US-20: an SSE protocol failure passes through the frames unchanged', async () => {
+  it('a reader that ends the frames before the first one closes the event source', async () => {
+    let ended = false
+    const events: AsyncIterable<string> = {
+      [Symbol.asyncIterator]: () => ({
+        next: async () => ({ done: false, value: '{}' }),
+        return: async () => {
+          ended = true
+          return { done: true, value: undefined }
+        },
+      }),
+    }
+    const frames = readProtocolFrames(events, withDone)
+    await frames.return()
+    expect(ended).toBe(true)
+    expect(await frames.next()).toEqual({ done: true, value: undefined })
+  })
+
+  it('ending the frames before the first one reaches through the SSE layer to the body', async () => {
+    const { source, state } = recordingSource(new TextEncoder().encode('data: {}\n\n'))
+    const frames = readProtocolFrames(readSseEvents(source, 1024), withDone)
+    await frames.return()
+    expect(state).toEqual({ pulled: 0, ended: true })
+  })
+
+  it('an SSE protocol failure passes through the frames unchanged', async () => {
     const body = (async function* () {
       yield new TextEncoder().encode('data: {}\n\ndata: 1')
     })()
@@ -145,7 +170,7 @@ describe('reading SSE event data as protocol frames', () => {
     expect(seen).toEqual([{ ok: { kind: 'data', value: { kind: 'object', entries: [] } } }])
   })
 
-  it('US-17: bytes cut inside a multi-byte character become the same frames', async () => {
+  it('bytes cut inside a multi-byte character become the same frames', async () => {
     const bytes = new TextEncoder().encode('data: {"t":"你好"}\r\n\r\ndata: [DONE]\n\n')
     for (let cut = 1; cut < bytes.length; cut += 1) {
       const body = (async function* () {

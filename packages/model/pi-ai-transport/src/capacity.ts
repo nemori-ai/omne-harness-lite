@@ -39,6 +39,11 @@ export interface ConnectionCapacity {
    * grant, or when the capacity is or becomes closed. A cancelled waiter takes no slot.
    */
   reserve(signal: AbortSignal): Promise<ConnectionReservation | undefined>
+  /**
+   * `true` only for a reservation this capacity granted, whatever its state. The mark cannot
+   * be forged: a look-alike object or a reservation of another capacity is not owned.
+   */
+  owns(candidate: unknown): candidate is ConnectionReservation
   /** Ends every waiter with `undefined` and refuses new reservations. Granted ones still return. */
   close(): void
 }
@@ -53,6 +58,8 @@ export function createConnectionCapacity(maximum: number): ConnectionCapacity {
   if (!Number.isSafeInteger(maximum) || maximum < 1)
     throw new RangeError('connection capacity must be a positive integer')
   const waiting: Waiter[] = []
+  /** Every reservation this capacity granted; membership is the ownership mark. */
+  const owned = new WeakSet<object>()
   let granted = 0
   let closed = false
 
@@ -61,7 +68,9 @@ export function createConnectionCapacity(maximum: number): ConnectionCapacity {
       const waiter = waiting.shift()
       if (waiter === undefined) return
       granted += 1
-      waiter.grant(createReservation(returnSlot))
+      const reservation = createReservation(returnSlot)
+      owned.add(reservation)
+      waiter.grant(reservation)
     }
   }
 
@@ -90,6 +99,13 @@ export function createConnectionCapacity(maximum: number): ConnectionCapacity {
         signal.addEventListener('abort', waiter.cancel, { once: true })
         grantWaiters()
       })
+    },
+    owns(candidate): candidate is ConnectionReservation {
+      return (
+        (typeof candidate === 'object' || typeof candidate === 'function') &&
+        candidate !== null &&
+        owned.has(candidate)
+      )
     },
     close() {
       closed = true

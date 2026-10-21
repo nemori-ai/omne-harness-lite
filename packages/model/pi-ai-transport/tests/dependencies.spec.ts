@@ -73,7 +73,7 @@ function packageName(specifier: string): string {
   return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] ?? specifier)
 }
 
-describe('US-25: the install closure holds only contract and common members', () => {
+describe('the install closure holds only contract and common members', () => {
   const manifest = readManifest()
 
   it('declares run-time dependencies from the allowed set only, as workspace members', () => {

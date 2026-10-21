@@ -1,18 +1,31 @@
 // @module-tag slow — starts an openssl child process and talks to a real local HTTPS server,
 // with real waiting for connect timeouts and physical socket closure.
+import type { ClientRequest } from 'node:http'
+import type { RequestOptions } from 'node:https'
 import { createServer as createTcpServer } from 'node:net'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import type { JsonLimits } from '@omne-harness/json-text'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { TransportDiagnostic } from '../src/diagnostics.ts'
-import { startExchange, type ExchangeResult } from '../src/http.ts'
+import { readProtocolFrames } from '../src/frames.ts'
+import {
+  ResponseBodyReadError,
+  ResponseBodyStoppedError,
+  startExchange,
+  type ExchangeResult,
+  type HttpExchange,
+} from '../src/http.ts'
 import type { NetworkResources } from '../src/network.ts'
+import { readSseEvents } from '../src/sse.ts'
 import {
   claimed,
   clientSockets,
   decoder,
   encoder,
+  expectCleanedUp,
   held,
   input,
   network,
+  queuedRequests,
   readToEnd,
   REQUEST_BODY,
   REQUEST_HEADERS,
@@ -30,6 +43,27 @@ import {
   type HttpsFixture,
   type RequestHandler,
 } from './support/https-server.ts'
+
+/** Every request Node built for this file, recorded by a delegate of the real `https.request`. */
+const built = vi.hoisted((): { readonly requests: ClientRequest[] } => ({ requests: [] }))
+vi.mock('node:https', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:https')>()
+  const request = (url: URL, options: RequestOptions): ClientRequest => {
+    const req = actual.request(url, options)
+    built.requests.push(req)
+    return req
+  }
+  return { ...actual, request }
+})
+
+const JSON_LIMITS: JsonLimits = {
+  maxBytes: 4096,
+  maxDepth: 16,
+  maxItems: 256,
+  maxMembers: 64,
+  maxStringLength: 1024,
+  maxNumberLength: 64,
+}
 
 let certificate: Certificate
 beforeAll(() => {
@@ -71,20 +105,22 @@ async function responseArrived(resources: NetworkResources): Promise<void> {
 }
 
 describe('starting an exchange', () => {
-  it('US-6/US-7: the request is on its way when startExchange returns, before the caller awaits', async () => {
+  it('the request is written out when startExchange returns, before the caller awaits', async () => {
     await withServer(
       res => res.end('done'),
       async (server, resources) => {
         const reservation = await held(resources)
+        const signal = new AbortController().signal
         const arrival = server.nextRequest()
+        const before = built.requests.length
 
-        const start = startExchange(
-          resources,
-          input(server.url, reservation),
-          new AbortController().signal,
-        )
+        const start = startExchange(resources, input(server.url, reservation), signal)
         expect(start.kind).toBe('started')
         expect(Object.getPrototypeOf(startExchange)).toBe(Function.prototype)
+        // In the same tick: Node holds one new request, its end() was called, nothing is queued.
+        expect(built.requests).toHaveLength(before + 1)
+        expect(built.requests.at(-1)?.writableEnded).toBe(true)
+        expect(queuedRequests(resources)).toBe(0)
         // Nothing of the exchange is touched before the server reports the request.
         const request = await arrival
         expect(request).toMatchObject({ method: 'POST', path: REQUEST_PATH })
@@ -101,11 +137,12 @@ describe('starting an exchange', () => {
         expect(await readToEnd(claimed(result))).toBe('done')
         await exchange.stopped
         expect(reservation.state).toBe('released')
+        expectCleanedUp(resources, signal)
       },
     )
   })
 
-  it('US-10: the headers reach the wire as given and the diagnostics carry only kind and level', async () => {
+  it('the headers reach the wire as given and the diagnostics carry only kind and level', async () => {
     const observed: TransportDiagnostic[] = []
     await withServer(
       res => res.end(),
@@ -127,7 +164,7 @@ describe('starting an exchange', () => {
     )
   })
 
-  it('US-14: a signal already aborted sends nothing and returns the held reservation', async () => {
+  it('a signal already aborted sends nothing and returns the held reservation', async () => {
     await withServer(
       res => res.end(),
       async (server, resources) => {
@@ -148,7 +185,7 @@ describe('starting an exchange', () => {
 })
 
 describe('stopping an exchange', () => {
-  it('US-14/US-15: abort before the response closes the socket; the slot returns only after stopped', async () => {
+  it('abort before the response closes the socket; the slot returns only after stopped', async () => {
     await withServer(
       () => {}, // Receives the request and never answers.
       async (server, resources) => {
@@ -175,29 +212,27 @@ describe('stopping an exchange', () => {
     )
   })
 
-  it('US-14: stop() on the handle ends the exchange like the signal does, idempotently', async () => {
+  it('stop() on the handle ends the exchange like the signal does, idempotently', async () => {
     await withServer(
       () => {},
       async (server, resources) => {
+        const signal = new AbortController().signal
         const exchange = started(
-          startExchange(
-            resources,
-            input(server.url, await held(resources)),
-            new AbortController().signal,
-          ),
+          startExchange(resources, input(server.url, await held(resources)), signal),
         )
         await server.nextRequest()
         exchange.stop()
         exchange.stop()
         expect(await exchange.result).toEqual({ kind: 'stopped', responded: false })
         await exchange.stopped
+        expectCleanedUp(resources, signal)
         exchange.stop()
         await expect.poll(() => server.closedSockets()).toBe(1)
       },
     )
   })
 
-  it('US-14: abort while a 2xx body streams fails the reader; the slot returns after the physical close', async () => {
+  it('abort while a 2xx body streams fails the reader as stopped; the slot returns after the physical close', async () => {
     await withServer(
       res => {
         res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -217,7 +252,7 @@ describe('stopping an exchange', () => {
         expect(decoder.decode(first.value)).toBe('data: first\n\n')
 
         controller.abort()
-        await expect(reader.next()).rejects.toThrow()
+        await expect(reader.next()).rejects.toBeInstanceOf(ResponseBodyStoppedError)
         await exchange.stopped
         expect(reservation.state).toBe('released')
         await expect.poll(() => server.closedSockets()).toBe(1)
@@ -225,7 +260,7 @@ describe('stopping an exchange', () => {
     )
   })
 
-  it('US-14: abort while the error body is being read wins with responded: true', async () => {
+  it('abort while the error body is being read wins with responded: true', async () => {
     await withServer(
       res => {
         res.writeHead(503, { 'content-length': '64' })
@@ -252,8 +287,64 @@ describe('stopping an exchange', () => {
   })
 })
 
+describe('a 2xx body that ends before its end', () => {
+  type Ending = Readonly<{
+    name: string
+    end: (exchange: HttpExchange, resources: NetworkResources, server: HttpsFixture) => void
+    error: typeof ResponseBodyStoppedError | typeof ResponseBodyReadError
+  }>
+  const endings: readonly Ending[] = [
+    {
+      name: 'stop() on the handle',
+      end: exchange => exchange.stop(),
+      error: ResponseBodyStoppedError,
+    },
+    {
+      name: 'close() of the network resources',
+      end: (_exchange, resources) => watch(resources.close()),
+      error: ResponseBodyStoppedError,
+    },
+    {
+      name: 'a reset by the server',
+      end: (_exchange, _resources, server) => server.resetConnections(),
+      error: ResponseBodyReadError,
+    },
+  ]
+
+  it.each(endings)(
+    'after $name the reader sees a typed error and the result stays ok',
+    async ending => {
+      await withServer(
+        res => {
+          res.writeHead(200)
+          res.write('first') // Never ends.
+        },
+        async (server, resources) => {
+          const reservation = await held(resources)
+          const signal = new AbortController().signal
+          const exchange = started(startExchange(resources, input(server.url, reservation), signal))
+          const reader = claimed(await exchange.result)[Symbol.asyncIterator]()
+          expect(decoder.decode((await reader.next()).value)).toBe('first')
+
+          ending.end(exchange, resources, server)
+          const failure = await reader.next().then(
+            () => undefined,
+            (error: unknown) => error,
+          )
+          expect(failure).toBeInstanceOf(ending.error)
+          if (failure instanceof ResponseBodyReadError) expect(failure.cause).toBeInstanceOf(Error)
+          await exchange.stopped
+          expect((await exchange.result).kind).toBe('ok')
+          expect(reservation.state).toBe('released')
+          expectCleanedUp(resources, signal)
+        },
+      )
+    },
+  )
+})
+
 describe('a 2xx response', () => {
-  it('US-11: the body is claimed once; the slot returns after it is read to the end on a kept-alive socket', async () => {
+  it('the body is claimed once; the slot returns after it is read to the end on a kept-alive socket', async () => {
     await withServer(
       res => {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'x-request-id': 'r-1' })
@@ -280,7 +371,7 @@ describe('a 2xx response', () => {
     )
   })
 
-  it('US-11: a reader that stops early closes the response and the exchange', async () => {
+  it('a reader that stops early closes the response and the exchange', async () => {
     await withServer(
       res => {
         res.writeHead(200)
@@ -304,11 +395,54 @@ describe('a 2xx response', () => {
       },
     )
   })
+
+  it('a reader that ends the body before its first next() still closes the response and returns the slot', async () => {
+    await withServer(
+      res => {
+        res.writeHead(200)
+        res.write('chunk') // Never ends.
+      },
+      async (server, resources) => {
+        const reservation = await held(resources)
+        const exchange = started(
+          startExchange(resources, input(server.url, reservation), new AbortController().signal),
+        )
+        const reader = claimed(await exchange.result)[Symbol.asyncIterator]()
+        await reader.return?.()
+        await exchange.stopped
+        expect(reservation.state).toBe('released')
+        await expect.poll(() => server.closedSockets()).toBe(1)
+      },
+    )
+  })
+
+  it('ending the frames before the first one closes the SSE layer, the body, the response and the exchange', async () => {
+    await withServer(
+      res => {
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.write('data: {}\n\n') // Never ends.
+      },
+      async (server, resources) => {
+        const reservation = await held(resources)
+        const exchange = started(
+          startExchange(resources, input(server.url, reservation), new AbortController().signal),
+        )
+        const frames = readProtocolFrames(readSseEvents(claimed(await exchange.result), 1024), {
+          endMarker: '[DONE]',
+          json: JSON_LIMITS,
+        })
+        await frames.return()
+        await exchange.stopped
+        expect(reservation.state).toBe('released')
+        await expect.poll(() => server.closedSockets()).toBe(1)
+      },
+    )
+  })
 })
 
 describe('a non-2xx response', () => {
   it.each([429, 503])(
-    'US-8/US-12: %s is one request with its status, raw headers and complete error body',
+    '%s is one request with its status, raw headers and complete error body',
     async status => {
       await withServer(
         res => {
@@ -318,9 +452,8 @@ describe('a non-2xx response', () => {
         },
         async (server, resources) => {
           const reservation = await held(resources)
-          const exchange = started(
-            startExchange(resources, input(server.url, reservation), new AbortController().signal),
-          )
+          const signal = new AbortController().signal
+          const exchange = started(startExchange(resources, input(server.url, reservation), signal))
           const result = httpErrorOf(await exchange.result)
           expect(result.status).toBe(status)
           expect(result.headers).toMatchObject({ 'retry-after': '7', 'set-cookie': ['a=1', 'b=2'] })
@@ -332,6 +465,7 @@ describe('a non-2xx response', () => {
           })
           await exchange.stopped
           expect(reservation.state).toBe('released')
+          expectCleanedUp(resources, signal)
           await sleep(50)
           expect(server.requests).toHaveLength(1)
         },
@@ -339,7 +473,7 @@ describe('a non-2xx response', () => {
     },
   )
 
-  it('US-9: 302 is an HTTP error with its location; the redirect is not followed', async () => {
+  it('302 is an HTTP error with its location; the redirect is not followed', async () => {
     await withServer(
       (res, request) => {
         if (request.path === REQUEST_PATH) {
@@ -368,7 +502,7 @@ describe('a non-2xx response', () => {
     )
   })
 
-  it('US-13: an error body over the limit is dropped as a whole and the connection is closed', async () => {
+  it('an error body over the limit is dropped as a whole and the connection is closed', async () => {
     const observed: TransportDiagnostic[] = []
     await withServer(
       res => {
@@ -397,7 +531,7 @@ describe('a non-2xx response', () => {
     )
   })
 
-  it('US-12: an error body exactly at the limit is complete', async () => {
+  it('an error body exactly at the limit is complete', async () => {
     await withServer(
       res => {
         res.writeHead(400)
@@ -420,7 +554,7 @@ describe('a non-2xx response', () => {
     )
   })
 
-  it('US-12: a connection lost inside the error body is a read failure, not a complete body', async () => {
+  it('a connection lost inside the error body is a read failure, not a complete body', async () => {
     await withServer(
       res => {
         res.writeHead(500, { 'content-length': '40' })
@@ -442,7 +576,7 @@ describe('a non-2xx response', () => {
 })
 
 describe('connecting', () => {
-  it('US-16: a new connection that never completes its TLS handshake times out', async () => {
+  it('a new connection that never completes its TLS handshake times out', async () => {
     const hole = await startBlackHole()
     const observed: TransportDiagnostic[] = []
     const resources = network(certificate.cert, {}, observed)
@@ -471,7 +605,7 @@ describe('connecting', () => {
     }
   })
 
-  it('US-16: the connect timeout does not apply to a reused connection', async () => {
+  it('the connect timeout does not apply to a reused connection', async () => {
     await withServer(
       async (res, request) => {
         if (request.headers['x-turn'] === 'second') await sleep(500)
@@ -498,7 +632,7 @@ describe('connecting', () => {
     )
   })
 
-  it('US-16: a refused connection fails without a timeout and returns the slot', async () => {
+  it('a refused connection fails without a timeout and returns the slot', async () => {
     const probe = createTcpServer()
     await new Promise<void>(resolve => probe.listen(0, '127.0.0.1', resolve))
     const address = probe.address()
@@ -507,24 +641,43 @@ describe('connecting', () => {
     const resources = network(certificate.cert)
     try {
       const reservation = await held(resources)
+      const signal = new AbortController().signal
       const exchange = started(
         startExchange(
           resources,
           input(new URL(`https://127.0.0.1:${address.port}/`), reservation),
-          new AbortController().signal,
+          signal,
         ),
       )
       expect(await exchange.result).toEqual({ kind: 'connect-failed', timeout: false })
       await exchange.stopped
       expect(reservation.state).toBe('released')
+      expectCleanedUp(resources, signal)
     } finally {
       await resources.close()
     }
   })
+
+  it('the largest delay a Node timer takes is accepted as the connect timeout', async () => {
+    await withServer(
+      res => res.end('fine'),
+      async (server, resources) => {
+        const exchange = started(
+          startExchange(
+            resources,
+            input(server.url, await held(resources), { connectTimeoutMs: 2_147_483_647 }),
+            new AbortController().signal,
+          ),
+        )
+        expect(await readToEnd(claimed(await exchange.result))).toBe('fine')
+        await exchange.stopped
+      },
+    )
+  })
 })
 
 describe('the diagnostic observer', () => {
-  it('US-23: an observer that throws, rejects or hangs changes no exchange result', async () => {
+  it('an observer that throws, rejects or hangs changes no exchange result', async () => {
     const behaviours = [
       () => {
         throw new Error('observer broke')
