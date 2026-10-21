@@ -32,14 +32,14 @@ export const inject = {
 | --- | --- | --- |
 | `intake` | 受理入口的适配插件、宿主接入 | 受理、会话管理与控制操作 |
 | `coordinator` | Agent 提交参加者与事件消费插件、Model 与 Tool 的消费适配插件 | 推进、消息记录、保管与消费操作，按生产者事实写入的 `receive`、业务分支的 `accept`，以及 Tool 冻结判定的 `freeze` |
-| `maintainer` | 恢复扫描、待决认回、级联推进、控制重放、空闲取证与自动归档 | 恢复用到的推进与保管操作、控制、`receive`，以及只开放给它的待对账扫描、系统作用域的引用查询 `references`、空闲取证与自动归档裁定 |
-| `reader` | 历史读取者、Request Context 的历史源对接插件、人读界面 | 历史读取 |
+| `maintainer` | 恢复扫描、待决认回、级联推进、控制重放、空闲取证与自动归档 | 恢复用到的推进与保管操作、控制、`receive`，以及只开放给它的待对账扫描、系统作用域的引用查询 `references` 与已释放作用域列表 `releasedScopes`、空闲取证与自动归档裁定 |
+| `reader` | 历史读取者、Request Context 的历史源对接插件、人读界面 | 历史读取，含 epoch 视图读取 `readModelView` |
 
 调用方类按操作授权，不按面授权。每个操作允许哪些调用方类，以 [session-contract SPEC](../../session-contract/SPEC.md) 的四面操作表为准；本表只给概览。一个操作可以允许几个调用方类，例如 `receive` 允许 `coordinator` 与 `maintainer`，`queryOperation` 允许任一变更调用方类。调用方类是装配事实，不是资格授予（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。服务把配置里的调用方类与该操作允许的调用方类核对，不在其中即拒绝；这条核对是一致性检查，不计为访问控制。访问边界是每个操作的调用资格。经 `ctx.get` 现取服务的调用方没有这份配置，调用被拒绝，所以调用方必须用对象形式 `inject`。
 
 ## 端口服务键
 
-七个构造依赖端口与三个出站端口各有一个服务键。接口归 `session-contract`；键与抽象类归本成员；抽象类名为端口名加 `Service`，`static readonly provide` 只在定义类声明（性质 3）。
+七个构造依赖端口与四个出站端口各有一个服务键。接口归 `session-contract`；键与抽象类归本成员；抽象类名为端口名加 `Service`，`static readonly provide` 只在定义类声明（性质 3）。
 
 | 键 | 端口 | 谁提供 | 怎样取得；缺席时 |
 | --- | --- | --- | --- |
@@ -51,6 +51,7 @@ export const inject = {
 | `sessionContextInput` | `SessionContextInput` | session-adapters | 按调用现取。缺席时创建、声明修改与推进采用返回 `unavailable` |
 | `sessionNotifier` | `SessionNotifier` | 应用装配或 session-cordis | 每次提交后现取。缺席或失败不回滚提交 |
 | `sessionAgentDrive` | 驱动 Agent 的出站端口 | session-adapters | 按调用现取。缺席时推进、续入、恢复、控制传播与迟到结果记录的出站调用不发出，任务保留，由调度器重放；预热在 Agent 入口定义前不调用 |
+| `sessionDeliveryRelease` | `DeliveryReleasePort`：向 Model 或 Tool 发出交付责任解除 | session-adapters | 按调用现取。缺席时结果的 `release` 保持 pending，恢复协调按 `pending(release)` 找回后重发 |
 | `sessionScopeRelease` | 作用域释放的出站端口 | session-adapters | 按调用现取。缺席时释放任务保留，按策略重试 |
 | `sessionToolStartFence` | `ToolStartFencePort`：请 Tool 让启动资格失效并读回是否已生效 | session-adapters | 按调用现取。缺席时控制进度保持传播中，启动资格失效任务保留，不声称新发起已被阻止 |
 

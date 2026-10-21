@@ -99,7 +99,7 @@ Session 作为生产者向 Runtime Context 供给一个块 `session.modes`，保
 
 目标环境设置不经 Runtime Context 块，走设置求值：
 
-1. 执行环境模式变化时，Session 在同一次提交里写一条会话层的目标环境设置声明。它是会话设置声明的一种，计入[设置声明修订](../../domains/sessions-and-work/architecture.md#设置声明修订)。模式词到这条声明的翻译是[会话契约](../../../packages/session/session-contract/SPEC.md)里的纯函数，在模式变化时算好，不在工具调用时翻译。
+1. 执行环境模式变化时，Session 在同一次提交里写一条会话层的目标环境设置声明。它是会话设置声明的一种，计入[设置声明修订](../../domains/sessions-and-work/architecture.md#设置声明修订)。模式词到这条声明的翻译是 [session-adapters](../../../packages/session/session-adapters/SPEC.md) 证据桥里的纯函数，经 `change` 的设置材料进入同一次提交，在模式变化时算好，不在工具调用时翻译。
 2. 设置求值的拥有者按默认、组织、租户、工作区、会话的次序求出有效值，取最具体的合法值，上层锁定照常生效，见[配置资产的行为，同时守住权限上界](../../../.meta_harness/design/product/assets-and-rules/design.md#配置资产的行为同时守住权限上界)。
 3. Tool 装载时，设置读取适配器取得有效值，固定在 `FixedToolRequest.settings`。执行、收场与恢复都用这份快照，见 Tool 契约的 [P15 配置声明与合法装载](../../../packages/tool/tool-contract/SPEC.md#p15-配置声明与合法装载)。
 

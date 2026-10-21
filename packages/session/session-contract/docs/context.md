@@ -143,7 +143,7 @@ sequenceDiagram
 
 主体、租户、Session、Run、attempt、原操作与当前动作的参数都显式传入。固定定义归装配，固定请求归生产者与 Agent 的执行记录。Session 只保存指向它们的耐久证据。Session 不保存接续值，只保存指向 Agent 权威记录的 `ExecutionRef`（[值与结果项的约束](../SPEC.md#值与结果项的约束)）。当前权限由参加者在提交时或实际发起点核对。
 
-本成员声明七个构造依赖端口与三个出站端口。只有 `SessionTransactionPort` 是装配的必需依赖。其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`（[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)）。调度策略是 `session` 工厂的配置，不进本成员。Context 与 Fiber 不进入这份业务数据契约。
+本成员声明七个构造依赖端口与四个出站端口。只有 `SessionTransactionPort` 是装配的必需依赖。其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`（[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)）。调度策略是 `session` 工厂的配置，不进本成员。Context 与 Fiber 不进入这份业务数据契约。
 
 本成员没有公开的 `append(events)`，也没有直接修改推进布尔值的方法。`receive` 交来的 Agent 事件须经精确 schema、执行身份与序号核对。未知 JSON 不能得到可信结论。生产者事实同样核对原来源，任意调用方不能自报工具完成或 Model ACK。
 

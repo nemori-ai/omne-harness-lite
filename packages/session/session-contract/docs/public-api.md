@@ -205,7 +205,8 @@ export type SessionFailure =
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
   | Readonly<{ kind: 'stale-advance'; current: AdvanceRef | null }>
-  | Readonly<{ kind: 'archived' | 'frozen' | 'no-input' | 'run-active' | 'not-ready' | 'login-required' }>
+  | Readonly<{ kind: 'frozen'; verdict: FreezeVerdict | null }>
+  | Readonly<{ kind: 'archived' | 'no-input' | 'run-active' | 'not-ready' | 'login-required' }>
 export type Reply<T> = Promise<Outcome<T, SessionFailure>>
 export type CommitReceipt = Readonly<{
   operation: SessionOperationId; revision: SessionRevision
@@ -423,10 +424,12 @@ export type ProducerFact =
       dispositions: readonly ScopeReleaseDisposition[]; source: DurableEvidence
     }>
   | Readonly<{ kind: 'start-fence'; operation: SessionOperationId; advance: AdvanceRef; source: DurableEvidence }>
-/** unresolved: unknown operations; controls: a control stays propagating; tasks: tasks non-empty; idle-due: confirmed idle evidence is due under the current policy. */
-export type PendingReason = 'unresolved' | 'controls' | 'tasks' | 'idle-due'
+/** unresolved: unknown operations; controls: a control stays propagating; tasks: tasks non-empty; idle-due: confirmed idle evidence is due under the current policy; release: a preserved or processed result still waits for delivery release. */
+export type PendingReason = 'unresolved' | 'controls' | 'tasks' | 'idle-due' | 'release'
 /** One session that references a resident key. Carries the first-loaded shape, never the definition body. */
 export type ResidentReference = Readonly<{ tenant: TenantId; session: SessionId; capability: string; shape: JsonValue }>
+/** One scope that an archive released, read back from SE25. task is the original scope-release operation. */
+export type ReleasedScope = Readonly<{ tenant: TenantId; session: SessionId; task: SessionOperationId; scope: string }>
 export interface SessionReconciliation<P> {
   receive(input: Mutation<P> & Readonly<{ fact: ProducerFact }>): Reply<CommitReceipt>
   pending(input: Readonly<{
@@ -436,6 +439,10 @@ export interface SessionReconciliation<P> {
   references(input: Readonly<{
     principal: P; scope: 'system'; key: ResidentKey; after: string | null; limit: number
   }>): Reply<Readonly<{ sessions: readonly ResidentReference[]; next: string | null }>>
+  /** System scope. Pages through scopes that archives released, for re-release after an execution-environment provider change. */
+  releasedScopes(input: Readonly<{
+    principal: P; scope: 'system'; after: string | null; limit: number
+  }>): Reply<Readonly<{ scopes: readonly ReleasedScope[]; next: string | null }>>
 }
 export type HistoryEntry = Readonly<{
   id: EntryId; revision: SessionRevision; kind: string; schema: Adoption
@@ -446,6 +453,14 @@ export type HistoryPage = Readonly<{
   entries: readonly HistoryEntry[]; scannedThrough: string
   next: string | null; exhausted: boolean
 }>
+/** One model-visible sequence between two compactions. upper is the last row committed when the basis was taken. */
+export type ModelViewBasis = Readonly<{ epoch: string; upper: string }>
+export type ModelViewRow = Readonly<{
+  seq: string; entry: EntryId; bytes: number; prefixDigest: string; message: Message
+}>
+export type ModelViewRead =
+  | Readonly<{ kind: 'page'; basis: ModelViewBasis; rows: readonly ModelViewRow[]; next: string | null }>
+  | Readonly<{ kind: 'epoch-changed'; current: ModelViewBasis }>
 export interface SessionHistory<P> {
   begin(input: Access<P> & Readonly<{
     kinds: readonly string[]; from: EntryId | null; direction: 'forward' | 'backward'; pageBytes: number
@@ -454,6 +469,10 @@ export interface SessionHistory<P> {
   since(input: Access<P> & Readonly<{
     after: EntryId; kinds: readonly string[]; pageBytes: number
   }>): Reply<HistoryPage>
+  /** basis null reads the current epoch. A basis whose epoch is no longer current returns epoch-changed. */
+  readModelView(input: Access<P> & Readonly<{
+    basis: ModelViewBasis | null; after: string | null; pageBytes: number
+  }>): Reply<ModelViewRead>
 }
 /** The four faces as one value. The Cordis abstract class SessionService in session-cordis-contract exposes them under the key `session`. */
 export type SessionFaces<P> = Readonly<{
@@ -581,6 +600,16 @@ export interface ToolStartFencePort {
 export type ScopeReleaseReadback = Readonly<{
   dispositions: readonly ScopeReleaseDisposition[]; source: DurableEvidence
 }>
+export interface DeliveryReleasePort {
+  /** Model ACK or Tool delivery release for one result version, with the custody or completion evidence. */
+  release(input: Readonly<{
+    tenant: TenantId; session: SessionId; operation: SessionOperationId
+    consumption: ConsumptionId; result: ProducedResult; evidence: DurableEvidence
+  }>): Promise<
+    | Readonly<{ kind: 'confirmed'; source: DurableEvidence }>
+    | Readonly<{ kind: 'not-ready' | 'unavailable' | 'commit-unknown' }>
+  >
+}
 export interface ScopeReleasePort {
   release(input: Readonly<{
     tenant: TenantId; session: SessionId; task: SessionOperationId; scope: string
@@ -650,6 +679,10 @@ export interface SessionTransactionPort<P> {
   references(input: Readonly<{
     principal: P; scope: 'system'; key: ResidentKey; after: string | null; limit: number
   }>): Reply<Readonly<{ sessions: readonly ResidentReference[]; next: string | null }>>
+  /** System scope. Pages through scopes that archives released, for re-release after an execution-environment provider change. */
+  releasedScopes(input: Readonly<{
+    principal: P; scope: 'system'; after: string | null; limit: number
+  }>): Reply<Readonly<{ scopes: readonly ReleasedScope[]; next: string | null }>>
 }
 export interface SessionNotifier {
   committed(input: Readonly<{
