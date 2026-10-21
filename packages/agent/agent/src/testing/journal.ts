@@ -988,7 +988,9 @@ export function createMemoryAgentJournal<P>(
         const command = input.command
         if (command.kind !== 'cancel' && command.kind !== 'suspend') {
           const call = command.call
-          if (!execution.checkpoint.calls.some(pending => callOf(pending, execution.tenant) === call)) {
+          if (
+            !execution.checkpoint.calls.some(pending => callOf(pending, execution.tenant) === call)
+          ) {
             return answer(fail(invalid('command.call', 'not a call of this execution')))
           }
         }
