@@ -27,7 +27,8 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
-    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "acceptance": "vitest run --config vitest.acceptance.config.ts"
   },
   "dependencies": {
     "@omne-harness/agent-contract": "workspace:*",
