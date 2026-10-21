@@ -326,7 +326,10 @@ flowchart TD
   outside --> call["工具调用部件（形状归 message）"]
   outside --> result["工具结果部件（形状归 message）"]
   outside --> growing["仍在增长的块"]
+  outside --> state["推理续接状态部件（形状归 message）"]
 ```
+
+推理续接状态部件 `reasoning_state` 也不是这个成员的值，形状由 `packages/common/message` 发布，见 [COMMON-T03](#common-t03)。
 
 承接责任为共同内容、消息、Model、Tool 与各内容消费者。
 
@@ -335,7 +338,7 @@ flowchart TD
 <a id="common-t03"></a>
 ### COMMON-T03 消息形状与消费行为的承接
 
-本项是现行契约。`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。消息值是 `{ id, role, blocks }`。`id` 是 `parseMessageId` 接受的字符串。`role` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction` 之一。`blocks` 按到达顺序，不能为空。部件是已封闭内容块，或四种工具部件之一。工具部件与内容块同形，带块身份 `id` 和块标注 `visibility`，键闭合，不保留其他自有键；块身份与标注的判定来自 `content-block` 的 `judgeBlockIdentity`。`tool_call` 是参数收齐并解码的调用，`arguments` 是值树，由 `json-text` 的 `judgeJsonValue` 判定并保存冻结副本。`tool_call_incomplete` 是参数没收齐的调用，`partial` 是原样累计文本，`visibility` 两位都为 false，留在日志里备查，不参与配对。`tool_call_unparsed` 是参数收齐但不能解码的调用，`raw` 是原样累计文本，登记调用身份，不执行。两个变体的 `callId` 非空，`name` 是任意字符串，任何字段不用 `null`。`tool_result` 是不嵌套内容的关联标记，不带结果状态，正文是同一消息里紧随其后的已封闭内容块。`tool` 角色的消息第一块是标记，其余块是内容块，恰有一个标记。标记只出现在 `tool` 角色的消息里，三种调用部件只出现在 `assistant` 角色的消息里。块身份在整条消息内唯一。调用与结果的配对完整性、半截调用出现的条件不在该成员判定。工具部件在流上的开块头与封口规则归 `stream-arrival` 成员说明，承接见 [STREAM-T01](runtime/streaming-and-consumption.md#stream-t01)。`SystemMessage` 由请求组装发布，不进该成员。会话在受理进日志时铸造身份并写日志。该成员不铸造。
+本项是现行契约。`packages/common/message` 发布事实记录里的消息字段，以及六种日志角色和 `MessageId` 的解析与相等。消息不是日志条目。消息值是 `{ id, role, blocks }`。`id` 是 `parseMessageId` 接受的字符串。`role` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction` 之一。`blocks` 按到达顺序，不能为空。部件是已封闭内容块、四种工具部件之一，或推理续接状态部件。工具部件与内容块同形，带块身份 `id` 和块标注 `visibility`，键闭合，不保留其他自有键；块身份与标注的判定来自 `content-block` 的 `judgeBlockIdentity`。`tool_call` 是参数收齐并解码的调用，`arguments` 是值树，由 `json-text` 的 `judgeJsonValue` 判定并保存冻结副本。`tool_call_incomplete` 是参数没收齐的调用，`partial` 是原样累计文本，`visibility` 两位都为 false，留在日志里备查，不参与配对。`tool_call_unparsed` 是参数收齐但不能解码的调用，`raw` 是原样累计文本，登记调用身份，不执行。两个变体的 `callId` 非空，`name` 是任意字符串，任何字段不用 `null`。`tool_result` 是不嵌套内容的关联标记，不带结果状态，正文是同一消息里紧随其后的已封闭内容块。`tool` 角色的消息第一块是标记，其余块是内容块，恰有一个标记。标记只出现在 `tool` 角色的消息里，三种调用部件只出现在 `assistant` 角色的消息里。推理续接状态部件 `reasoning_state` 装供应商交回的不透明推理状态，不给人看，只出现在 `assistant` 角色的消息里；含这类部件的消息必须带回放描述 `replay`，写明推理回放范围、格式与这些部件的位置，其他角色不带 `replay`。该成员不解释推理回放范围与载荷，哪个模型能消费哪个范围归 Model 契约。块身份在整条消息内唯一。调用与结果的配对完整性、半截调用出现的条件不在该成员判定。工具部件在流上的开块头与封口规则归 `stream-arrival` 成员说明，承接见 [STREAM-T01](runtime/streaming-and-consumption.md#stream-t01)。`SystemMessage` 由请求组装发布，不进该成员。会话在受理进日志时铸造身份并写日志。该成员不铸造。
 
 ```mermaid
 flowchart TD

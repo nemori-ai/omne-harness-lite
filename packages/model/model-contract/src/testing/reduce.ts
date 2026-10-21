@@ -48,9 +48,9 @@ function argumentsEqual(text: string, block: Extract<ModelBlock, { kind: 'tool_c
   return read.kind === 'ok' && isDeepStrictEqual(read.value, block.arguments)
 }
 
-/** Seals a block that was never opened: only whole media blocks arrive that way. */
+/** Seals a block that was never opened: whole media blocks and reasoning state parts arrive that way. */
 function sealsWhole(block: ModelBlock): boolean {
-  return block.kind === 'image' || block.kind === 'file'
+  return block.kind === 'image' || block.kind === 'file' || block.kind === 'reasoning_state'
 }
 
 type OpenEntry = Extract<FillEntry, { state: 'open' }>

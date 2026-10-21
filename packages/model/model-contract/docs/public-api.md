@@ -3,7 +3,7 @@
 
 本页是本包公开声明的源码导航，不重复声明。每个声明只有一个副本，在 `src/` 里。每章写这章给谁用，并链接声明它的源码文件与对应的测试。
 
-根入口导出 163 个类型和 28 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，以及[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
+根入口导出 170 个类型和 31 个运行值，包括身份与引用 codec、比较函数、共享输入 judge 与限额常量、`deriveGuardControlOperation`，[凭据引用与解析端口](#凭据引用与解析端口)的 `MODEL_SEND`、`decodeCredentialId` 和 `sameCredentialHolder`，以及[推理回放的声明与投影](#推理回放的声明与投影)的三个函数。`./testing` 入口导出[受控替代提供者](#受控替代提供者)与[符合性断言](#符合性断言)两章的 27 个名字。[导出清单](../tests/fixtures/exports.json)逐名列出两个入口的名字，没有 `pending` 名字。
 
 [`tests/public-api-types.spec.ts`](../tests/public-api-types.spec.ts) 核对三件事。清单里每个名字都由所属章链接的源码文件声明。清单列出的每一章至少链接一个存在的源码文件。页面链接的源码与测试文件都存在。声明的形状由各章链接的类型探针（`tests/*.spec-d.ts`）核对。
 
@@ -141,6 +141,21 @@ TransportFact 是传输提供者向 Model 交出的事实。Model runtime 映射
 全部模态是四种：文字、图片、语音和视频，词表归 [`@omne-harness/modality`](../../../common/modality/docs/public-api.md)。本包不转出它，消费者直接从该成员导入 `Modality`。`ModelModality` 是 Model 本阶段支持的三种，由 `Modality` 派生。`ModelProfileDefinition` 的输入输出用 `ModelModality`，`ModalityRequirement` 用 `Modality`。
 
 `ProfileSupplier` 没有凭据字段。求值的 credential 只说明当前可用性，不返回秘密或授予发送资格。ModelProfileMaintenance 的身份参数不是跨层维护许可。精确键和摘要规则由实际提供者采用并验证，不把任意字符串当可信证明。
+
+`ProfileSupplier.replay` 是该供应商的[回放声明](../SPEC.md#推理回放)，三项都可省略，省略的项取默认值；`ReplayDeclaration` 是展开后的完整声明。`AssembledModelInput.replay` 与 `FixedModelRequest.replay` 只有一个取值 `'off'`：本次请求关闭回放，对每次发出都有效。`ReplayProjectionInput`、`ReplayProjection`、`ReplayTreatment` 与 `ReplayDiagnostic` 是回放投影的输入与输出，函数见[推理回放的声明与投影](#推理回放的声明与投影)。
+
+## 推理回放的声明与投影
+
+[行为与约束](../SPEC.md#推理回放)。
+
+本章给档案维护方、Model 适配器作者和输入计量器作者：回放声明的读取、展开与校验，以及适配器与计量器共用的回放投影。类型在[档案与请求准备](#档案与请求准备)一章。
+
+- 声明：[`src/replay-values.ts`](../src/replay-values.ts)。
+- 行为测试：[`tests/replay.spec.ts`](../tests/replay.spec.ts)。
+
+- `judgeReplayDeclaration(supplier, index)` 读取并展开供应商的回放声明，再按 SPEC 检查，返回 `Outcome`，成功值是展开后的完整声明（冻结）。`supplier.replay` 的类型是 `unknown`，因为它从存储或配置读来：只有 `undefined`（或没有该键）取全部默认值；否则必须是原型为 `Object.prototype` 或 `null` 的普通对象，自有键只能是 `produces`、`accepts`、`foreignThinking`，每个键是可枚举的数据属性，每个字段只读一次，访问器从不调用，原型链上的键不读；值为 `undefined` 的键视为未声明，取该项默认值。失败是 `invalid`，`field` 为 `suppliers[index].replay`，`reason` 依次是 `replay`（不满足上述读取规则）、`produces`（不是文本、为空或过长，包括默认值过长）、`accepts`（不是数组，或有一项是空洞、访问器、空文本或超长文本）、`accepts-duplicate`、`accepts-lacks-produces`、`foreign-thinking`（不是三个取值之一，包括 `null`）中第一个不满足的项。展开函数不对外导出。
+- `projectReplay(input)` 对 `messages` 里每条 assistant 消息给出一条 `ReplayTreatment`，按输入次序，并给出诊断。`ReplayTreatment` 按 `continuable` 判别：可续接的有 `carry`（要写入的推理续接状态部件位置，来自 `replay.at`），`thinking` 为 `native`；不可续接的有 `omit`（要略去的部件位置，来自 `replay.at`），`thinking` 为 `foreignThinking` 的取值。两边都没有对方的位置列表。诊断只含消息身份、`scope`、`format` 与略去的部件个数。函数不读取任何块，也不读取载荷。
+- `continuedMessages(projection)` 返回这次投影中可续接的消息身份。上游以 `replay-rejected` 拒绝后，再发把它们作为 `resent` 传入。
 
 ## 消息转换
 
@@ -324,7 +339,7 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 - 已经开始却长期不进展的读取的期限，以及清理进入 `blocked` 与 `pending` 的条件，页面没有给值（[普通调用面与实例观察](../SPEC.md#342-普通调用面与实例观察)）。套件只要求清理推进期间已开始的读取仍能取到下一页。结果只有一页的提供者，`read-page-stable-for-same-after`、`acknowledge-keeps-open-read-readable`、`revoked-reader-gets-no-page` 三条报告 `not-applicable`。
 - 观察者落后时结束观察，`Observation.ended` 的原因集合里没有对应的值（[参数与注入的裁定](../SPEC.md#342-参数与注入的裁定)）。套件不检查。
 - 重复 `materialize` 或 `start` 是抛出还是返回失败，页面没有规定。套件两种都接受，只要求不给出能产出事实的流、不再发送。
-- 套件没有让替代传输以上游拒绝收场、再观察重试策略的入口。「上游超限以 `input-over-limit` 收场且不重试」因此没有可观察的入口，套件不检查。
+- 套件没有让替代传输以上游拒绝收场、再观察重试策略的入口。「上游超限以 `input-over-limit` 收场且不重试」因此没有可观察的入口，套件不检查。同理，推理回放被拒后的再发不检查；回放投影与关闭回放发生在适配器编码时，套件也不检查（[推理回放](../SPEC.md#推理回放)）。
 - 媒体读取器不在 `ModelTransport` 的签名上，读取器怎样注入没有规定，所以「只在 `materialize` 读取媒体」没有可观察的入口，套件不检查。
 - `quiesce` 之后受理失败的 kind 没有规定。套件只要求不成功、不留调用。
 - 取消之后 `ControlState.upstream` 的初值没有规定。套件只要求它不是 `stopped`。

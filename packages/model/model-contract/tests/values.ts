@@ -6,6 +6,7 @@ import type { ContentBlock, ContentReference } from '@omne-harness/content-block
 import type {
   IncompleteToolCallPart,
   Message,
+  ReasoningStatePart,
   ToolCallPart,
   ToolResultPart,
   UnparsedToolCallPart,
@@ -44,6 +45,7 @@ export declare const tenant: TenantId
 export declare const block: ContentBlock
 export declare const reference: ContentReference
 export declare const message: Message
+export declare const reasoningState: ReasoningStatePart
 export declare const toolCall: ToolCallPart
 export declare const incompleteCall: IncompleteToolCallPart
 export declare const unparsedCall: UnparsedToolCallPart

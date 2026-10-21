@@ -120,6 +120,10 @@ flowchart TD
 
 请求组装的派生证据绑定这次提交的回执。提交结果未知时，请求组装按原操作查询结果，不能把未知当作已压缩继续组装，也不能重复提交同一条记录。
 
+## 推理续接状态的保存
+
+assistant 消息里的推理续接状态部件（形状归[消息成员](../../../packages/common/message/SPEC.md#推理续接状态)）的载荷是租户数据，随所在消息写入日志、保存和保留，隐私与保留规则与会话历史相同；部件不给人看，对人的时间线不展示它。会话不按回放范围建索引，也不缓存筛选结果；每次发出带哪些推理状态由 Model 决定，见[单次模型请求的上下文](request-context.md#模态表示与完整输入限制)。
+
 ## 依据
 
 Agent 工作推进的产品责任见[Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)，该产品页已由产品负责人采用（[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)），受理与队列见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，会话交接也见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。会话与工作的产品页仍为草案；本页既有承诺继续按实际接受范围执行，不因候选修订扩大采用。

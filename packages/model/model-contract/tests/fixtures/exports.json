@@ -161,6 +161,9 @@
             { "name": "ModelLimit", "kind": "type", "pending": false },
             { "name": "TokenLimit", "kind": "type", "pending": false },
             { "name": "ContextLimits", "kind": "type", "pending": false },
+            { "name": "ForeignThinking", "kind": "type", "pending": false },
+            { "name": "ProfileReplay", "kind": "type", "pending": false },
+            { "name": "ReplayDeclaration", "kind": "type", "pending": false },
             { "name": "ProfileSupplier", "kind": "type", "pending": false },
             { "name": "ModelProfileDefinition", "kind": "type", "pending": false },
             { "name": "ModelProfile", "kind": "type", "pending": false },
@@ -178,7 +181,19 @@
             { "name": "ModelRequestPreparation", "kind": "type", "pending": false },
             { "name": "MediaMeasurementFact", "kind": "type", "pending": false },
             { "name": "MeterRepresentation", "kind": "type", "pending": false },
-            { "name": "ModelInputMeter", "kind": "type", "pending": false }
+            { "name": "ModelInputMeter", "kind": "type", "pending": false },
+            { "name": "ReplayTreatment", "kind": "type", "pending": false },
+            { "name": "ReplayDiagnostic", "kind": "type", "pending": false },
+            { "name": "ReplayProjectionInput", "kind": "type", "pending": false },
+            { "name": "ReplayProjection", "kind": "type", "pending": false }
+          ]
+        },
+        {
+          "title": "推理回放的声明与投影",
+          "names": [
+            { "name": "judgeReplayDeclaration", "kind": "value", "pending": false },
+            { "name": "projectReplay", "kind": "value", "pending": false },
+            { "name": "continuedMessages", "kind": "value", "pending": false }
           ]
         },
         {
