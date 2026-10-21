@@ -33,7 +33,7 @@ inject: { requestContext: { scope: 作用域引用 } }
 插件体：dispose = ctx.requestContext.contributeSection(段)
 ```
 
-登记随贡献者插件卸载自动撤除。组装请求的调用方用 `inject: ['requestContext']`，调用 `contributions(scope)`；再调用 `assembly(scope)` 取得已按配置绑定策略与登记面的一组纯操作，把贡献集合交给这组操作。各类依赖方的完整用法见[使用与定位](docs/context.md#使用方式)。
+登记随贡献者插件卸载自动撤除。组装请求的调用方用 `inject: ['requestContext']`，调用 `assembly(scope)` 取得已按配置绑定策略的一组纯操作。这组操作每次调用时从登记面现取该作用域的贡献，调用方不传入贡献。各类依赖方的完整用法见[使用与定位](docs/context.md#使用方式)。
 
 独立使用不需要本成员。不装配 Cordis 的调用方自己收集提示词贡献，直接使用 request-context-contract 与 request-context 的根入口。
 

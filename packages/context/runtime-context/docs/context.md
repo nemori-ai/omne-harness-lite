@@ -24,10 +24,11 @@
 作用域持有者：核对结果 = 实例.prepareRegistration(注册材料)
               在自己的存储里提交注册决定
               实例.applyCommit(已提交的结果)
-              资格 = 实例.issueEligibility(…)；重签只作废游标
+              资格身份 = 实例.issueEligibility(…)
+              重签或收窄范围：实例.issueEligibility(…, 取代的资格身份)；旧资格失效，读者沿新资格继续，游标作废
               实例.revokeEligibility(资格)；之后该资格的读取按拒绝（无权）
 
-读者：读者 = 实例.bind(资格)
+读者：读者 = 实例.bind(资格身份)
       第一次 snapshot 取完整快照与游标
       之后 changes(游标)；游标作废时重新 snapshot
 

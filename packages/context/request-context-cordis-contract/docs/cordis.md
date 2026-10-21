@@ -21,10 +21,10 @@
 | --- | --- | --- |
 | `contributeSection` | 贡献者插件，在自己的插件体里调用 | 登记即效应，登记落在调用方 fiber 上。作用域引用取自调用方的 intercept 配置。带逐请求变化变量的段在登记时拒绝。见[登记与撤除协议](#登记与撤除协议) |
 | `contributeVariable` | 贡献者插件，在自己的插件体里调用 | 同上 |
-| `contributions(scope)` | 要组装系统提示词的调用方，例如协调者一侧的适配器 | 作用域是参数，不是 Context 或 isolate。解析时作用域层遮蔽全局层（性质 4、9） |
-| `assembly(scope)` | 要组装请求的调用方，例如协调者一侧的适配器 | 返回一组纯操作，已按该 isolate 的配置绑定选定的策略与该作用域的登记面。组装本身仍是纯函数。提供者卸载时结算经这组操作发起的在途组装（性质 2） |
+| `contributions(scope)` | 要查看当前贡献集合的调用方 | 作用域是参数，不是 Context 或 isolate。解析时作用域层遮蔽全局层（性质 4、9） |
+| `assembly(scope)` | 要组装请求的调用方，例如协调者一侧的适配器 | 返回一组纯操作，已按该 isolate 的配置绑定选定的策略。操作组每次调用时从登记面现取该作用域的贡献，不收调用方传入的贡献，覆盖证据记现取时的登记修订。操作组的作用域、组装上下文的作用域引用、历史依据的作用域引用三者不一致时返回无效。提供者卸载时结算经这组操作发起的在途组装（性质 2） |
 
-`assemble`、`planCompaction` 这类纯操作不直接写成服务方法。它们的类型由 [request-context-contract](../../request-context-contract/docs/public-api.md) 的根入口定义（性质 2）。经 Cordis 的调用方用 `assembly(scope)` 取得已配置的操作组：提供者按配置选的策略与带缓存的机制实例经这个入口起作用，[request-context-cordis 的性质 5](../../request-context-cordis/SPEC.md#结果与不变量) 结算的在途组装也就是经这组操作发起的组装。独立调用方不经服务，从根入口的机制工厂取得同一组操作。本成员不定义第二个服务键，也不为每个贡献者或每个作用域建服务。
+`assemble`、`planCompaction` 这类纯操作不直接写成服务方法。它们的类型由 [request-context-contract](../../request-context-contract/docs/public-api.md) 的根入口定义（性质 2）。经 Cordis 的调用方用 `assembly(scope)` 取得已配置的操作组：提供者按配置选的策略与带缓存的机制实例经这个入口起作用，[request-context-cordis 的性质 5](../../request-context-cordis/SPEC.md#结果与不变量) 结算的在途组装也就是经这组操作发起的组装。独立调用方不经服务，从 [request-context](../../request-context/SPEC.md) 的机制工厂取得同一组操作。两条路径的操作签名相同，差别只在贡献集合由独立调用方传入。本成员不定义第二个服务键，也不为每个贡献者或每个作用域建服务。
 
 ## intercept 配置与作用域
 
@@ -52,14 +52,14 @@ inject: { requestContext: { scope: 作用域引用 } }
 | --- | --- |
 | 载荷 | 作用域引用与登记修订。不带段文本或变量值 |
 | 何时发 | 贡献变化即发，每次带新的登记修订 |
-| 含义 | 只是失效提示，不是事实源。缓存按登记修订判断提示词这一组是否变了（[request-context SPEC](../../request-context/SPEC.md#候选缓存)） |
-| 过滤 | 监听者按载荷里的作用域引用过滤 |
+| 含义 | 只是失效提示，不是事实源。登记修订是整张登记表的修订，全局层或任一作用域层变化都使它前进。缓存按登记修订判断提示词这一组是否变了（[request-context SPEC](../../request-context/SPEC.md#候选缓存)） |
+| 过滤 | 监听者按载荷里的作用域引用过滤。监听作用域 X 的一方接收作用域为 X 或 `null` 的载荷 |
 | 监听者 | 同步执行，不得返回 Promise。派发方把 `emit` 放在 `try` 中，监听者失败只记录诊断，不改变已成立的登记（[IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12)、[emit-listener-throw-propagates](../../../../.meta_harness/design/basis/cordis/emit-listener-throw-propagates.md)） |
 | 丢失 | 不改变组装结果。缓存项按修订比较，修订落后的缓存项作废（[request-context SPEC](../../request-context/SPEC.md#候选缓存)） |
 
 Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做派发方过滤（源码读数：`events.ts` 的 `dispatch`）。本事件的过滤由监听者按载荷完成，所以监听者收到其他作用域的事件时要自己丢弃。
 
-明确缺项：[request-context-cordis 的组合与验证](../../request-context-cordis/SPEC.md#组合与验证)把「按作用域到达」的过滤部分列为依赖机制读数的假设，而本成员的性质 6 把过滤放在监听者一侧。过滤由派发方用 `Context.filter` 完成，还是只由监听者按载荷完成，两份 SPEC 没有统一。全局层的贡献变化时，载荷的作用域引用为 `null`（性质 6）。
+明确缺项：[request-context-cordis 的组合与验证](../../request-context-cordis/SPEC.md#组合与验证)把「按作用域到达」的过滤部分列为依赖机制读数的假设，而本成员的性质 6 把过滤放在监听者一侧。过滤由派发方用 `Context.filter` 完成，还是只由监听者按载荷完成，两份 SPEC 没有统一。全局层的贡献变化时，载荷的作用域引用为 `null`，监听任一作用域的一方都接收它（性质 6）。
 
 ## 依赖分类
 

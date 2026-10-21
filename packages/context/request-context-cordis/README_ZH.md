@@ -13,8 +13,8 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 
 - 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
 - 未实现：具体子类、插件、配置 Schema、贡献登记表与根入口的工厂。
-- 未验证：性质 2 的 intercept 部分与性质 3 的过滤部分依赖还没有进入 basis 的机制读数，现在是假设。SPEC 列出的七项验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
-- 经 Cordis 的调用方用 `assembly(scope)` 取得已配置的操作组；本插件经 `notify(change)` 把贡献变化告诉机制实例。明确缺项：根入口工厂与机制工厂怎样分工，SPEC 没有写明，见 [Cordis 说明](docs/cordis.md#插件与服务)。
+- 未验证：性质 2 的 intercept 部分与性质 3 的过滤部分依赖还没有进入 basis 的机制读数，现在是假设。SPEC 列出的八项验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
+- 经 Cordis 的调用方用 `assembly(scope)` 取得已配置的操作组，操作组每次调用时现取该作用域的贡献；本插件订阅四种变化，经 `notify(change)` 转交机制实例。明确缺项：根入口工厂与机制工厂怎样分工，SPEC 没有写明，见 [Cordis 说明](docs/cordis.md#插件与服务)。
 
 现在没有应用装配本插件，也没有包依赖本成员。
 
@@ -30,11 +30,11 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 ## 契约
 
 - 公开形状归 `src/`，现在为空。导出索引归[公开接口页](docs/public-api.md)。
-- 类型以外的行为归 [SPEC](SPEC.md)，性质 1 至 7。
+- 类型以外的行为归 [SPEC](SPEC.md)，性质 1 至 9。
 - 插件、配置与策略选择、isolate 绑定、贡献登记表、变化事件派发与撤除顺序归 [Cordis 说明](docs/cordis.md)。
 - 服务键、抽象类、intercept 配置、事件与策略选择的配置形状归 [request-context-cordis-contract](../request-context-cordis-contract/docs/cordis.md)。
 
-服务实例、机制实例与策略实例归本插件的 fiber。插件卸载时按固定顺序撤除：拒绝新的登记与组装，等在途组装结算，丢弃登记表与缓存。一条贡献的登记与渲染结果归贡献者插件的 fiber。撤除不撤回已交出的候选、计划或转换。
+服务实例、机制实例与策略实例归本插件的 fiber。插件卸载时按固定顺序撤除：拒绝新的登记，新的组装返回不可用，等在途组装结算，丢弃登记表与缓存。一条贡献的登记与渲染结果归贡献者插件的 fiber。撤除不撤回已交出的候选、计划或转换。
 
 ## 设计
 
@@ -54,7 +54,7 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 pnpm turbo run test --filter=@omne-harness/request-context-cordis
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试只断言两个入口没有导出，见 [tests/](tests/README.md)。SPEC 的七项验证义务随实现进入，其中一部分必须在真实 Cordis 上运行，见[验证义务](docs/cordis.md#验证义务)。持久化、跨进程一致性与端到端组合不在本成员。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试只断言两个入口没有导出，见 [tests/](tests/README.md)。SPEC 的八项验证义务随实现进入，其中一部分必须在真实 Cordis 上运行，见[验证义务](docs/cordis.md#验证义务)。持久化、跨进程一致性与端到端组合不在本成员。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -68,7 +68,7 @@ pnpm turbo run test --filter=@omne-harness/request-context-cordis
 ```text
 README.md、README_ZH.md   入口：用途、状态与本结构图
 index.md                  全包的阅读路径
-SPEC.md                   类型以外的行为，性质 1 至 7
+SPEC.md                   类型以外的行为，性质 1 至 9
 documentation.json        文档登记
 docs/                     内部设计、公开使用与集成说明
 ├── architecture.md       两个入口、模块、依赖、关键机制与理由

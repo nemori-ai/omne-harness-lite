@@ -5,7 +5,7 @@
 ## 包根
 
 - [README_ZH.md](README_ZH.md)、[README.md](README.md)：用途、状态、目录结构与文档职责
-- [SPEC.md](SPEC.md)：类型以外的行为，性质 1 至 7
+- [SPEC.md](SPEC.md)：类型以外的行为，性质 1 至 9
 - `documentation.json`：本成员的文档登记
 - `package.json`：根入口、`./cordis` 入口、脚本与依赖
 - `vitest.config.ts`、`tsconfig.build.json`、`tsconfig.test.json`：测试与构建配置

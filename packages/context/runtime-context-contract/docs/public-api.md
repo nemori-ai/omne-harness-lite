@@ -39,7 +39,7 @@
 | `NeedBinding` | 类型 | 需要绑定，可带翻译纯函数 | [RC-06](../SPEC.md#rc-06-需要绑定与读者形状) |
 | `Registration` | 类型 | 注册，带注册修订 | [RC-02](../SPEC.md#rc-02-块声明注册与参数) |
 | `ProducerHandle` | 类型 | 生产者句柄，带代际 | [RC-07](../SPEC.md#rc-07-生产者句柄并发撤除与恢复) |
-| `Eligibility` | 类型 | 读取资格 | [RC-03](../SPEC.md#rc-03-当前读取资格与缺项) |
+| `Eligibility` | 类型 | 读取资格：资格身份、允许的块键集合、允许的需要绑定集合等；重签时带取代的资格身份 | [RC-03](../SPEC.md#rc-03-当前读取资格与缺项) |
 | `ContextReader` | 类型 | 绑定读者：`snapshot()`、`changes(cursor)`、`read(needs)` | [RC-03](../SPEC.md#rc-03-当前读取资格与缺项)、[RC-04](../SPEC.md#rc-04-读取时点观察与变化材料) |
 | `Snapshot`、`Changes` | 类型 | 完整快照与增量，带视图修订与游标 | [RC-04](../SPEC.md#rc-04-读取时点观察与变化材料) |
 | `ContextUpdate` | 类型 | 上下文更新 | [RC-05](../SPEC.md#rc-05-状态块上下文更新与步提交) |
@@ -48,7 +48,7 @@
 | `judgeNeed` | 纯函数 | 核对一条需要本身的合法性 | [RC-06](../SPEC.md#rc-06-需要绑定与读者形状) |
 | `judgeBinding` | 纯函数 | 核对一条需要绑定 | [RC-06](../SPEC.md#rc-06-需要绑定与读者形状) |
 | `judgeRegistration` | 纯函数 | 核对一条注册材料 | [RC-02](../SPEC.md#rc-02-块声明注册与参数) |
-| `reduceStep` | 纯函数 | 把一组更新按声明的 `reduce` 合并成步提交材料 | [RC-05](../SPEC.md#rc-05-状态块上下文更新与步提交) |
+| `reduceStep` | 纯函数 | 对每条更新给出接受或拒绝（无权、不合形状），把接受的更新按声明的 `reduce` 合并成步提交材料 | [RC-05](../SPEC.md#rc-05-状态块上下文更新与步提交) |
 | `diffForReminder` | 纯函数 | 从两份快照算出变化材料 | [RC-04](../SPEC.md#rc-04-读取时点观察与变化材料) |
 | 作用域引用与块键的两个解码函数 | 纯函数 | 从字符串得到 `ScopeRef` 与 `ContextBlockKey` 品牌类型，不用类型断言。名称随实现确定 | [RC-01](../SPEC.md#rc-01-消费者身份与范围) |
 | 三面操作类型 | 类型 | `registerProducer`、`prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`bind` | [三面操作](../SPEC.md#三面操作) |

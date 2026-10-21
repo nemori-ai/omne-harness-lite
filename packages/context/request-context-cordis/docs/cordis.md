@@ -1,6 +1,6 @@
 # request-context-cordis 的 Cordis 集成
 
-本页是 Request Context 的 Service 实现正文：具体子类与插件、配置与策略选择、isolate 绑定、贡献登记表、变化事件派发与撤除顺序。它是组内「Service 实现、撤除与资源清理」这一主题在 Request Context 一侧的唯一拥有者（[组架构](../../docs/architecture.md#主题与唯一拥有者)）。性质编号指本成员 [SPEC](../SPEC.md#结果与不变量) 的性质 1 至 7。
+本页是 Request Context 的 Service 实现正文：具体子类与插件、配置与策略选择、isolate 绑定、贡献登记表、变化事件派发与撤除顺序。它是组内「Service 实现、撤除与资源清理」这一主题在 Request Context 一侧的唯一拥有者（[组架构](../../docs/architecture.md#主题与唯一拥有者)）。性质编号指本成员 [SPEC](../SPEC.md#结果与不变量) 的性质 1 至 9。
 
 服务键、抽象类、intercept 配置、事件、登记协议与策略选择的配置形状归 [request-context-cordis-contract 的 Cordis 说明](../../request-context-cordis-contract/docs/cordis.md)，本插件继承这些定义，不重复提供键。缓存、派生物与默认策略归 [request-context](../../request-context/docs/architecture.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。
 
@@ -15,11 +15,11 @@
 | 方法 | 本插件加的责任 | 交给谁 |
 | --- | --- | --- |
 | `contributeSection`、`contributeVariable` | 从调用方 fiber 取作用域引用，核对重名与逐请求变量，在调用方 fiber 上登记效应，派发变化事件。关闭后拒绝 | 段文本的预计算交给机制实例 |
-| `contributions(scope)` | 按作用域解析，作用域层遮蔽全局层。关闭后拒绝 | 结果交给调用方，作为组装输入的系统提示词一组 |
+| `contributions(scope)` | 按作用域解析，作用域层遮蔽全局层。关闭后拒绝 | 结果交给调用方查看。`assembly(scope)` 的操作组自己现取贡献，不经调用方转交 |
 
 本成员不导出第二个服务键，不增补新事件（[SPEC 范围与依据](../SPEC.md#范围与依据)）。它不导入任何协调者或持有者的契约（性质 7）。
 
-经 Cordis 的调用方用服务的 `assembly(scope)` 取得已按配置绑定策略与登记面的一组纯操作（[request-context-cordis-contract 的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)）。性质 5 结算的在途组装就是经这组操作发起的组装。本插件经机制实例的 `notify(change)` 把贡献的登记与撤销告诉实例（[request-context 的公开接口页](../../request-context/docs/public-api.md)）。
+经 Cordis 的调用方用服务的 `assembly(scope)` 取得已按配置绑定策略与登记面的一组纯操作（[request-context-cordis-contract 的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)）。性质 5 结算的在途组装就是经这组操作发起的组装。这组操作每次调用时从本插件的登记表现取该作用域的贡献集合，不收调用方传入的贡献，覆盖证据记现取时的登记修订；操作组的作用域与组装上下文、历史依据的作用域引用不一致时返回无效（性质 9）。本插件订阅四种变化（贡献登记的变化事件、持有者的提交通知、`runtime-context-cordis-contract/changed`、模型选择变更），经机制实例的 `notify(change)` 转交实例（性质 8、[request-context 的公开接口页](../../request-context/docs/public-api.md)）。
 
 ## 配置与策略选择
 
@@ -76,13 +76,13 @@
 明确缺项：
 
 - 服务定义的性质 6 把作用域过滤放在监听者一侧。本成员的[组合与验证](../SPEC.md#组合与验证)把「按作用域到达」的过滤部分列为依赖机制读数的假设，那条读数是派发方用 `Context.filter` 过滤。两份 SPEC 没有统一过滤由哪一侧完成。
-- 全局层的贡献变化时，载荷的作用域引用为 `null`（[服务定义的性质 6](../../request-context-cordis-contract/SPEC.md#结果与不变量)）。
+- 已定：全局层的贡献变化时，载荷的作用域引用为 `null`；监听作用域 X 的一方也接收 `null` 载荷。登记修订是整张登记表的修订（[服务定义的性质 6](../../request-context-cordis-contract/SPEC.md#结果与不变量)）。
 
 ## 撤除顺序
 
 插件卸载时，本插件按下列顺序撤除（性质 5）：
 
-1. 拒绝新的登记与组装。
+1. 拒绝新的登记；新的组装返回不可用（服务已卸载）。
 2. 等在途组装结算。在途组装结算后返回撤除前的结果。
 3. 丢弃登记表与缓存，关闭机制实例。
 
@@ -119,14 +119,15 @@
 
 ## 验证义务
 
-本成员的测试随实现进入 `tests/`，至少覆盖 SPEC [组合与验证](../SPEC.md#组合与验证)列出的七项：
+本成员的测试随实现进入 `tests/`，至少覆盖 SPEC [组合与验证](../SPEC.md#组合与验证)列出的八项：
 
 1. 贡献者插件卸载后，登记与渲染结果都已撤除。
 2. 同一层同名登记被拒绝。
 3. 带逐请求变化变量的段被拒绝。
 4. 变化事件带修订，并按作用域到达。
 5. 配置指向不存在的策略时 fiber 进入 `FAILED`。
-6. 插件卸载时在途组装结算，关闭后的组装被拒绝。
-7. 同一 isolate 标签下重复装载失败。
+6. 插件卸载时在途组装结算，关闭后的组装返回不可用。
+7. 四种变化都经 `notify(change)` 到达机制实例（性质 8）。
+8. 同一 isolate 标签下重复装载失败。
 
 第 1、4 项在真实 Cordis 4.0.4 上运行，不用替身。服务定义列出的「作用域层遮蔽全局层」也由本成员的测试承担（[服务定义的验证义务](../../request-context-cordis-contract/docs/cordis.md#验证义务)）。本成员不覆盖持久化与跨进程一致性，也不覆盖真实贡献者、协调者与持有者的端到端组合。定义入口自身的验证义务归 [request-context-cordis-contract](../../request-context-cordis-contract/docs/cordis.md#验证义务)。

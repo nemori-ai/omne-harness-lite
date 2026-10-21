@@ -13,8 +13,8 @@ Status: Service implementation member, `draft`. The adoption basis is the [membe
 
 - Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
 - Not implemented: the concrete subclass, the plugin, the configuration schema, the contribution registry, and the factory of the root entry.
-- Not verified: the intercept part of property 2 and the filter part of property 3 are assumptions now. They depend on mechanism readings that are not in the basis yet. None of the seven verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
-- A Cordis caller reaches the configured operations through `assembly(scope)`. The plugin tells the mechanism instance about contribution changes through `notify(change)`. Open item: the SPEC does not say how the root factory differs from the mechanism factory. See the [Cordis page](docs/cordis.md#插件与服务).
+- Not verified: the intercept part of property 2 and the filter part of property 3 are assumptions now. They depend on mechanism readings that are not in the basis yet. None of the eight verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
+- A Cordis caller reaches the configured operations through `assembly(scope)`. The operations read the contributions of that scope at each call. The plugin subscribes to four kinds of change and forwards them to the mechanism instance through `notify(change)`. Open item: the SPEC does not say how the root factory differs from the mechanism factory. See the [Cordis page](docs/cordis.md#插件与服务).
 
 No application loads this plugin now, and no package depends on this package.
 
@@ -30,7 +30,7 @@ Contributors and callers that assemble requests do not import this package. They
 ## Contracts
 
 - `src/` owns the public shapes. It is empty now. The [API page](docs/public-api.md) indexes the exports.
-- The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 7.
+- The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 9.
 - The [Cordis page](docs/cordis.md) owns the plugin, the configuration and strategy selection, the isolate binding, the contribution registry, the change event dispatch, and the removal order.
 - [request-context-cordis-contract](../request-context-cordis-contract/docs/cordis.md) owns the service key, the abstract class, the intercept configuration, the event, and the strategy selection shape.
 
@@ -67,7 +67,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/request-context-cordis
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The two current tests check only that both entries export nothing. See [tests/](tests/README.md). The seven verification obligations of the SPEC arrive with the implementation. Some of them must run on real Cordis. See the [verification obligations](docs/cordis.md#验证义务). Persistence, cross-process consistency, and end-to-end composition are outside this package. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The two current tests check only that both entries export nothing. See [tests/](tests/README.md). The eight verification obligations of the SPEC arrive with the implementation. Some of them must run on real Cordis. See the [verification obligations](docs/cordis.md#验证义务). Persistence, cross-process consistency, and end-to-end composition are outside this package. A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -81,7 +81,7 @@ In this directory, run `pnpm typecheck` for the type check. The two current test
 ```text
 README.md, README_ZH.md   Entry: purpose, status, and this map
 index.md                  Reading paths through the package
-SPEC.md                   Behavior beyond the types, properties 1 to 7
+SPEC.md                   Behavior beyond the types, properties 1 to 9
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
 ├── architecture.md       Two entries, modules, dependencies, mechanisms and reasons

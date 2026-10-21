@@ -35,7 +35,7 @@ The implementation will fix the name and signature of the factory. No runnable e
 - The [request-context-contract SPEC](../request-context-contract/SPEC.md) owns the inputs, results, and failures of the pure operations, in clauses RQ-01 to RQ-11.
 - The [object model](docs/object-model.md) owns identity and lifecycle of the internal objects.
 
-The party that calls the factory owns the instance and closes it. Close first refuses new assemblies. Then it waits for in-flight assemblies to settle. Last, it releases the cache. Close does not take back candidates, plans, or transitions that it gave out. If a construction dependency is absent or unavailable, the related operation returns unavailable with a diagnostic.
+The party that calls the factory owns the instance and closes it. After close, a new assembly returns unavailable. Close waits for in-flight assemblies to settle. Then it releases the cache. Close does not take back candidates, plans, or transitions that it gave out. If a construction dependency is absent or unavailable, the related operation returns unavailable with a diagnostic.
 
 ## Design
 

@@ -22,21 +22,21 @@ inject: { requestContext: { scope: 作用域引用 } }
 
 ### 读取贡献集合的调用方
 
-协调者一侧的适配器要为一次组装准备系统提示词这一组输入。它用数组形式 `inject`，按作用域取当前贡献集合，再把结果作为组装输入传给纯操作：
+协调者一侧的适配器要组装一次请求。它用数组形式 `inject`，按作用域取操作组。操作组每次调用时从登记面现取该作用域的贡献集合，适配器只给组装上下文，不传入贡献：
 
 ```text
 inject: ['requestContext']
-贡献集合 = ctx.requestContext.contributions(作用域引用)
-组装输入的系统提示词一组 = 贡献集合与组装上下文
 操作组 = ctx.requestContext.assembly(作用域引用)
+组装输入的系统提示词一组 = 组装上下文（贡献集合由操作组现取）
 结局 = 操作组.assemble(组装输入)
+要查看当前贡献集合时：贡献集合 = ctx.requestContext.contributions(作用域引用)
 ```
 
-作用域层的贡献遮蔽全局层的同名贡献。`assembly(scope)` 返回的操作组已按该 isolate 的配置绑定选定的策略与登记面；组装本身仍是纯函数，类型归 [request-context-contract](../../request-context-contract/docs/context.md)。
+作用域层的贡献遮蔽全局层的同名贡献。`assembly(scope)` 返回的操作组已按该 isolate 的配置绑定选定的策略，覆盖证据记现取时的登记修订。操作组的作用域、组装上下文的作用域引用、历史依据的作用域引用三者不一致时返回无效。组装本身仍是纯函数，类型归 [request-context-contract](../../request-context-contract/docs/context.md)。
 
 ### 只监听变化事件的一方
 
-不 `inject`。用 `import type {}` 取得事件类型，再 `ctx.on('request-context-cordis-contract/changed', …)`。监听者按载荷里的作用域引用过滤，同步执行，不返回 Promise。事件只是失效提示。读到什么以 `contributions(scope)` 的结果为准。
+不 `inject`。用 `import type {}` 取得事件类型，再 `ctx.on('request-context-cordis-contract/changed', …)`。监听者按载荷里的作用域引用过滤：监听作用域 X 的一方接收作用域为 X 或 `null` 的载荷。监听者同步执行，不返回 Promise。事件只是失效提示。读到什么以 `contributions(scope)` 的结果为准。
 
 ### 独立使用
 

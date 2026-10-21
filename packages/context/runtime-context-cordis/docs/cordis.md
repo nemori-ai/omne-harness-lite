@@ -88,7 +88,7 @@
 
 本阶段没有耐久存储端口（性质 5）。持有者在服务之外保存注册与步提交。`persisted` 的供给块由生产者在重启后重新发布。服务重启后，在生产者重新发布之前，这些块读到缺项。本成员不把这写成失败，也不用旧值填充。
 
-系统页的目标是值的持久化经提供者的存储端口，端口形状归存储线（[系统页 Runtime Context](../../../../docs/architecture/runtime/runtime-context.md#成员与-cordis-落位)）。这个端口进入后，缺席的含义保持不变：端口不在场就按缺项处理，不让服务加载失败。因此端口不会写进 `inject`，应按 [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 作为可选依赖现取。
+这和系统页一致：Runtime Context 不持有耐久状态，也没有存储端口，`persisted` 供给块由生产者在重启后重新发布（[系统页 Runtime Context](../../../../docs/architecture/runtime/runtime-context.md#成员与-cordis-落位)）。本成员因此不 `inject` 任何存储服务。
 
 进程失败后本成员没有可恢复的东西。重建沿 [runtime-context SPEC](../../runtime-context/SPEC.md#所有权失败与生命周期) 的顺序。
 

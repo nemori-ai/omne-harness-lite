@@ -14,9 +14,11 @@
 2. 贡献登记表的寿命随贡献者 fiber：`contributeSection`、`contributeVariable` 在方法内 `this.ctx.effect` 登记；贡献者卸载时撤除函数移除登记并丢弃它的渲染结果（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）。作用域引用从调用方 fiber 的 intercept 配置取得：`scope: null` 登记到全局层；取不到配置即拒绝。
 3. 同层同名登记拒绝。带逐请求变化变量的段拒绝。登记成功即发 `request-context-cordis-contract/changed`，载荷带作用域引用与新修订；派发放在 `try` 中，监听者失败只记录诊断（[IC-12](../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。
 4. 策略实现在插件加载时按配置选择。配置里指向不存在的策略、或策略参数不合 schema，插件加载失败，不静默回退到默认策略。假设：此时 fiber 进入 `FAILED`，Service 子类的这条路径未经 basis 核验（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。
-5. 撤除顺序：插件卸载时先拒绝新的登记与组装，再等在途组装结算，再丢弃登记表与缓存。撤除不撤回已交出的候选、计划或转换。本页的「组装」与「在途组装」都指经服务的 `assembly(scope)` 交出的操作组发起的组装（[request-context-cordis-contract 性质 2](../request-context-cordis-contract/SPEC.md#结果与不变量)）。
+5. 撤除顺序：插件卸载时先拒绝新的登记，新的组装返回不可用（服务已卸载），再等在途组装结算，再丢弃登记表与缓存。撤除不撤回已交出的候选、计划或转换。本页的「组装」与「在途组装」都指经服务的 `assembly(scope)` 交出的操作组发起的组装（[request-context-cordis-contract 性质 2](../request-context-cordis-contract/SPEC.md#结果与不变量)）。
 6. 本成员不为每次请求开 fiber，不用 `inject` 表达输入，不发第二种事件（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。租户、作用域与资格全部随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 7. 本成员不导入任何协调者或持有者的契约。
+8. 本插件订阅四种变化，并调用机制实例的 `notify(change)`：贡献登记面的变化事件（种类 `contributions`）、持有者的提交通知（`history`）、`runtime-context-cordis-contract/changed`（`runtime-context`）、模型选择变更（`model-selection`）。Cordis 路径上协调者只拿到 `assembly(scope)` 交出的操作组，没有实例句柄，所以通知由本插件转交。正确性仍靠缓存键比较（[request-context 候选缓存](../request-context/SPEC.md#候选缓存)），订阅只为在请求之前预计算。
+9. `assembly(scope)` 交出的操作组在每次调用时从本插件的登记表现取该作用域的贡献集合，不收调用方传入的贡献，覆盖证据记现取时的登记修订。操作组的作用域、组装上下文的作用域引用、历史依据的作用域引用三者不一致时返回无效（[request-context-cordis-contract 性质 2](../request-context-cordis-contract/SPEC.md#结果与不变量)）。
 
 ## 所有权、失败与生命周期
 
@@ -27,7 +29,7 @@
 | 策略实例 | 本插件 | 插件卸载 |
 | 事件监听 | 监听者的 fiber | 监听者卸载 |
 
-插件卸载时有在途组装：结算后返回撤除前的结果；关闭后到达的组装返回拒绝。进程失败：本成员没有可恢复的东西，重建沿贡献者重新登记。
+插件卸载时有在途组装：结算后返回撤除前的结果；关闭后到达的组装返回不可用（服务已卸载）。进程失败：本成员没有可恢复的东西，重建沿贡献者重新登记。
 
 ## 组合与验证
 
@@ -37,6 +39,11 @@
 | 机制、缓存、默认策略数值 | [request-context SPEC](../request-context/SPEC.md) |
 | 机制读数 | [runtime-context-cordis-contract/docs/cordis.md](../runtime-context-cordis-contract/docs/cordis.md) 列的三条；补齐前性质 2、3 的 intercept 与过滤部分是假设 |
 
-持续验证义务，随实现进入 `tests/`：贡献者卸载后登记与渲染结果都已撤除；同层重名拒绝；逐请求变量的段拒绝；变化事件带修订并按作用域到达；配置指向不存在的策略时 fiber `FAILED`；插件卸载时在途组装结算、关闭后组装拒绝；重复装载失败。
+持续验证义务，随实现进入 `tests/`：贡献者卸载后登记与渲染结果都已撤除；同层重名拒绝；逐请求变量的段拒绝；变化事件带修订并按作用域到达；配置指向不存在的策略时 fiber `FAILED`；插件卸载时在途组装结算、关闭后组装返回不可用；四种变化都经 `notify(change)` 到达机制实例；重复装载失败。
+
+明确缺项：
+
+- 根入口工厂与机制工厂的分工：根入口导出的工厂是重导出 [request-context](../request-context/SPEC.md) 的机制工厂，还是另一层包装，没有写明，随实现写定。
+- 持有者的提交通知与模型选择变更以什么事件到达本插件，事件名与载荷归各自拥有者，没有在本组写定。
 
 本成员不覆盖：持久化与跨进程一致性，以及真实贡献者、协调者与持有者的端到端组合。

@@ -38,7 +38,7 @@
 | `PlanProgress` | 计划进度 | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界)、[RQ-09](../SPEC.md#rq-09-取消恢复与迟到) |
 | `StepRequest` | 步请求，修剪步或摘要步 | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界) |
 | `ContextTransition` | 压缩转换 | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界) |
-| `HistoryEvidence` | 历史依据：epoch 加上界 | [历史源读口与 epoch 视图](../SPEC.md#历史源读口与-epoch-视图) |
+| `HistoryEvidence` | 历史依据：epoch、上界与作用域引用 | [历史源读口与 epoch 视图](../SPEC.md#历史源读口与-epoch-视图) |
 
 四种组装结果与三类失败见对象模型的[领域特有的结果与提交](object-model.md#领域特有的结果与提交)。承载它们的类型名现在没有确定，随值类型模块一起进入。
 

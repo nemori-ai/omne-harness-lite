@@ -54,7 +54,7 @@ classDiagram
 
 图中的类名是说明用的名字。`RequestContextService` 归 [request-context-cordis-contract](../../request-context-cordis-contract/docs/object-model.md)，`MechanismInstance` 归 [request-context](../../request-context/docs/object-model.md)。登记条目用聚合表示，因为条目的寿命归贡献者插件的 fiber，不归登记表。
 
-明确缺项：登记修订是整张表一个，还是每个作用域一个，SPEC 没有写明。事件载荷带作用域引用与登记修订，缓存键用提示词贡献的登记修订，两处都依赖这个粒度。
+已定：登记修订是整张登记表（全局层加全部作用域层）一个，任一层变化都使它前进（[request-context-cordis-contract 性质 6](../../request-context-cordis-contract/SPEC.md#结果与不变量)）。事件载荷带作用域引用与登记修订，缓存键用提示词贡献的登记修订，两处都按这个粒度。
 
 ## 生命周期
 

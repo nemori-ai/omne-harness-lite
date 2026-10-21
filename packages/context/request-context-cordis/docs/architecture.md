@@ -85,7 +85,7 @@ flowchart LR
 | --- | --- | --- |
 | 根入口没有 Cordis | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 工厂进入后，核对导出集合并确认不导入 Cordis |
 | `./cordis` 只有本成员的插件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言草稿入口没有导出 | 实现进入后，核对导出集合 |
-| SPEC 的七项验证义务 | 没有 | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
+| SPEC 的八项验证义务 | 没有 | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
 
 维护规则：
 
