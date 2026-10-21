@@ -136,7 +136,7 @@ sequenceDiagram
 | [runtime-context](../../../packages/context/runtime-context/SPEC.md) | module | 登记表、生产者表、需要绑定解析、当前投影、观察链与游标、资格核对、步合并 |
 | [runtime-context-cordis](../../../packages/context/runtime-context-cordis/SPEC.md) | service-provider | Service 实现：一个 isolate 一个服务，作用域为参数；按作用域过滤唤醒；登记即效应 |
 
-三面服务：生产者面 `registerProducer` 返回生产者句柄；持有者面 `prepareRegistration`、`issueEligibility`、`applyCommit`；读者面 `bind` 返回绑定读者。持有者使读者游标作废的操作是重签该读者的资格：`issueEligibility` 给出新资格即作废旧游标，压缩提交之后持有者对模型类读者这样做。Cordis 承载机制，不承载数据：生产者登记在调用方 fiber 的效应里，代际取自 fiber，卸载即撤（[IC-13](../cordis-integration-conventions.md)）；`runtime-context-cordis-contract/changed` 只作唤醒，按作用域过滤监听者。读取资格是消费者类的权威；调用方 intercept 配置里的消费者类只是装配者对该插件的声明，两者不一致即拒绝读取（机制探针待补，见[装配与变化](../assembly-and-change.md)）。作用域、资格、值、修订、观察都在服务自己的进程内状态里。每次获取不开 fiber，不用 `inject` 表达需要。
+三面服务：生产者面 `registerProducer` 返回生产者句柄；持有者面 `prepareRegistration`、`issueEligibility`、`applyCommit`；读者面 `bind` 返回绑定读者。持有者使读者游标作废的操作是重签该读者的资格：`issueEligibility` 给出新资格即作废旧游标，压缩提交之后持有者对模型类读者这样做。Cordis 承载机制，不承载数据：生产者登记在调用方 fiber 的效应里，代际取自 fiber，卸载即撤（[IC-13](../cordis-integration-conventions.md)）；`runtime-context-cordis-contract/changed` 只作唤醒，按作用域过滤监听者。读取资格是消费者类的权威；调用方 intercept 配置里的消费者类只是装配者对该插件的声明，两者不一致即拒绝读取（机制探针待补，见[装配与变化](assembly-and-change.md)）。作用域、资格、值、修订、观察都在服务自己的进程内状态里。每次获取不开 fiber，不用 `inject` 表达需要。
 
 发布带作用域：生产者句柄的每次发布指明作用域引用加块键。作用域无关的供给块（宿主事实、租户元信息、当前档案）由生产者在持有者注册该块时按回调供值，之后对每个已注册的作用域重发。
 
