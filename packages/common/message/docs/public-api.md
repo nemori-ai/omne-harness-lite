@@ -4,16 +4,26 @@
 
 ## 导出入口
 
-`package.json` 的 `exports` 只有入口 `.`，`source` 指向 [src/index.ts](../src/index.ts)。调用者不需要资格：任何需要日志消息值的能力都按包名 `@omne-harness/message` 导入。运行时导出恰为 `LOG_MESSAGE_ROLES`、`parseMessageId`、`messageIdEquals`、`judgeMessage`、`judgePart`、`isCompactionMessage`、`judgeCompaction`、`parseRecordEntryRef` 八个，由 [tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查。其余导出都是类型。本包不铸造消息身份，也不铸造块身份。
+`package.json` 的 `exports` 只有入口 `.`，`source` 指向 [src/index.ts](../src/index.ts)。调用者不需要资格：任何需要日志消息值的能力都按包名 `@omne-harness/message` 导入。运行时导出恰为 `LOG_MESSAGE_ROLES`、`parseMessageId`、`messageIdEquals`、`judgeMessage`、`judgePart`、`judgeCompaction`、`parseRecordEntryRef` 七个，由 [tests/public-entry.spec.ts](../tests/public-entry.spec.ts) 检查。其余导出都是类型。本包不铸造消息身份，也不铸造块身份。
 
 ## 定义索引
 
 | 导出 | 种类 | 定义位置 |
 | --- | --- | --- |
-| `Message`、`MessageId`、`MessageIdParse`、`MessageIdParseError`、`LogMessageRole`、`MessageRejection`、`MessageJudgment`、`ToolMessage` | 类型 | [src/message.ts](../src/message.ts) |
+| `Message`、`MessageRoleMap`、`UserMessage`、`AssistantMessage`、`ToolMessage`、`ToolInternalMessage`、`SystemReminderMessage` | 类型 | [src/message.ts](../src/message.ts) |
+| `MessageId`、`MessageIdParse`、`MessageIdParseError`、`LogMessageRole`、`MessageRejection`、`MessageJudgment` | 类型 | [src/message.ts](../src/message.ts) |
 | `judgeMessage`、`parseMessageId`、`messageIdEquals` | 函数 | [src/message.ts](../src/message.ts) |
-| `ToolCallPart`、`IncompleteToolCallPart`、`UnparsedToolCallPart`、`ToolResultPart`、`ToolPart`、`MessagePart` | 类型 | [src/parts.ts](../src/parts.ts) |
+| `ToolCallPart`、`IncompleteToolCallPart`、`UnparsedToolCallPart`、`CallPart`、`ToolResultPart`、`ToolPart`、`MessagePart` | 类型 | [src/parts.ts](../src/parts.ts) |
 | `judgePart` | 函数 | [src/parts.ts](../src/parts.ts) |
+
+每个角色的 `blocks` 类型只含该角色允许的部件，也都至少有一块，与 `judgeMessage` 的运行时规则一一对应。`CallPart` 是三种调用部件的联合。
+
+| 角色 | `blocks` 允许的部件 |
+| --- | --- |
+| `user`、`tool_internal`、`system_reminder` | 只有内容块 |
+| `assistant` | 内容块和三种调用部件，没有标记 |
+| `tool` | 第一块是标记 `tool_result`，其余是内容块 |
+| `compaction` | 只有内容块，是摘要 |
 
 失败不抛异常，是返回值：`{ rejected }`，部件上的失败另带 `blockIndex`。`judgePart` 的拒绝值是 `MessageRejection` 的子集，没有 `tool-blocks`、`duplicate-id`、`covers`、`retained`、`derivation`，这几个只有整条消息的判定才会给出。压缩变体的导出在下一节。块身份与标注（`id`、`visibility`，含 `visibility` 内的未知键）由 `@omne-harness/content-block` 的 `judgeBlockIdentity` 判定，`arguments` 由 `@omne-harness/json-text` 的 `judgeJsonValue` 判定，本包不复制这两套规则。
 
@@ -24,7 +34,6 @@
 | 导出 | 种类 | 含义 | 定义位置 |
 | --- | --- | --- | --- |
 | `CompactionMessage` | 类型 | `role` 为 `compaction` 的消息，`blocks` 是摘要，另带三个键 | [src/message.ts](../src/message.ts) |
-| `isCompactionMessage` | 函数 | 把 `judgeMessage` 的成功值收窄成 `CompactionMessage`，只核对角色和三个键是否存在 | [src/message.ts](../src/message.ts) |
 | `RecordEntryRef` | 类型 | 记录条目引用，带品牌的非空字符串，由历史持有者铸造，按字符串全等比较 | [src/compaction-shape.ts](../src/compaction-shape.ts) |
 | `parseRecordEntryRef` | 函数 | 空串返回 `null`，其他字符串原样带品牌返回 | [src/compaction-shape.ts](../src/compaction-shape.ts) |
 | `CompactedRange` | 类型 | 压缩覆盖范围 `{ from, to }` | [src/compaction-shape.ts](../src/compaction-shape.ts) |
@@ -35,7 +44,7 @@
 | `CompactionJudgment` | 类型 | `judgeCompaction` 的结论：`{ ok }`，或 `{ rejected, ref }`，`ref` 可为 `null` | [src/compaction.ts](../src/compaction.ts) |
 | `judgeCompaction` | 函数 | 先用 `judgeMessage` 判 `message`，再判范围、保留名单、调用与结果的配对、未结工作 | [src/compaction.ts](../src/compaction.ts) |
 
-`MessageRejection` 含 `covers`、`retained`、`derivation` 三个值，由 `judgeMessage` 在判 `compaction` 角色的三个键时给出。`judgeMessage` 的成功值类型是 `Message`。消费者用 `isCompactionMessage` 收窄，或直接把输入交给 `judgeCompaction`，从其成功值取得 `CompactionMessage`。`judgeCompaction` 的拒绝值与 `MessageRejection` 分开，调用者能区分形状失败与历史规则失败。行为与判定顺序见 [SPEC.md](../SPEC.md)，用例见下面的[压缩用例表](#压缩用例表)。
+`MessageRejection` 含 `covers`、`retained`、`derivation` 三个值，由 `judgeMessage` 在判 `compaction` 角色的三个键时给出。`judgeMessage` 的成功值类型是 `Message`，可以用 `role` 收窄，例如 `message.role === 'compaction'` 得到 `CompactionMessage`。消费者也可以直接把输入交给 `judgeCompaction`，从其成功值取得 `CompactionMessage`。`judgeCompaction` 的拒绝值与 `MessageRejection` 分开，调用者能区分形状失败与历史规则失败。行为与判定顺序见 [SPEC.md](../SPEC.md)，用例见下面的[压缩用例表](#压缩用例表)。
 
 ## 语义
 
@@ -62,7 +71,7 @@
 
 ## 验证义务
 
-[tests/tool-parts.spec.ts](../tests/tool-parts.spec.ts) 逐个失败值锁定四种部件的规则、`arguments` 的副本与同 json-text 的组合。[tests/tool-roles.spec.ts](../tests/tool-roles.spec.ts) 锁定角色规则与块身份唯一。[tests/tool-part-types.spec-d.ts](../tests/tool-part-types.spec-d.ts) 锁定工具部件的公开类型，[tests/compaction-types.spec-d.ts](../tests/compaction-types.spec-d.ts) 锁定压缩变体的公开类型。[tests/compaction.spec.ts](../tests/compaction.spec.ts) 锁定 `parseRecordEntryRef` 与 `isCompactionMessage`，顶层字段只读一次，消息的形状边界，三个键的边界输入（符号键、非普通原型、非枚举键、访问器、`retained` 数组上的多余自有键、稀疏数组），成功值不与输入共享，以及配对的就近、顺序和模型可读判定。[tests/normative.spec.ts](../tests/normative.spec.ts) 逐行执行下面的示例表与压缩用例表，并规定两张表必须展示哪些规则的正反两面。本包不验证结果投影方的输出，也不验证流的结算方交出的部件。
+[tests/tool-parts.spec.ts](../tests/tool-parts.spec.ts) 逐个失败值锁定四种部件的规则、`arguments` 的副本与同 json-text 的组合。[tests/tool-roles.spec.ts](../tests/tool-roles.spec.ts) 锁定角色规则与块身份唯一。[tests/tool-part-types.spec-d.ts](../tests/tool-part-types.spec-d.ts) 锁定工具部件的公开类型，[tests/message-types.spec-d.ts](../tests/message-types.spec-d.ts) 锁定按 `role` 判别的联合：`MessageRoleMap` 的键与日志角色一致，六个角色类型，按 `role` 穷举。[tests/compaction-types.spec-d.ts](../tests/compaction-types.spec-d.ts) 锁定压缩变体的公开类型，包括缺键的 `compaction` 值和带 `covers` 的 `user` 值赋不给 `Message`。[tests/compaction.spec.ts](../tests/compaction.spec.ts) 锁定 `parseRecordEntryRef`，顶层字段只读一次，消息的形状边界，三个键的边界输入（符号键、非普通原型、非枚举键、访问器、`retained` 数组上的多余自有键、稀疏数组），成功值不与输入共享，以及配对的就近、顺序和模型可读判定。[tests/normative.spec.ts](../tests/normative.spec.ts) 逐行执行下面的示例表与压缩用例表，并规定两张表必须展示哪些规则的正反两面。本包不验证结果投影方的输出，也不验证流的结算方交出的部件。
 
 ## 示例表
 

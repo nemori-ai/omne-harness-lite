@@ -2,16 +2,17 @@ import type { ContentBlock, ContentBlockRejection } from '@omne-harness/content-
 import {
   COMPACTION_KEYS,
   judgeCompactionKeys,
+  type CompactionKeys,
   type CompactedRange,
   type CompactionDerivation,
   type CompactionKeyRejection,
   type RecordEntryRef,
 } from './compaction-shape.ts'
 import {
-  isCallPart,
   isRecord,
   isToolPart,
   judgePart,
+  type CallPart,
   type MessagePart,
   type ToolResultPart,
 } from './parts.ts'
@@ -55,29 +56,68 @@ export function messageIdEquals(left: MessageId, right: MessageId): boolean {
   return left === right
 }
 
-/** The log message field. JSON data only. No tenant, standing, or causality. */
-export interface Message {
+/** What every log message has. The role decides the blocks, which are never empty. */
+interface MessageBase {
   readonly id: MessageId
-  readonly role: LogMessageRole
-  readonly blocks: readonly MessagePart[]
+}
+
+/** At least one block, all of the one kind of part. */
+type Blocks<Part extends MessagePart> = readonly [Part, ...Part[]]
+
+export interface UserMessage extends MessageBase {
+  readonly role: 'user'
+  readonly blocks: Blocks<ContentBlock>
+}
+
+/** An assistant message is the only one that has the call parts. */
+export interface AssistantMessage extends MessageBase {
+  readonly role: 'assistant'
+  readonly blocks: Blocks<ContentBlock | CallPart>
 }
 
 /** A tool message carries the result of one call: its marker, then the body content blocks. */
-export type ToolMessage = Message &
-  Readonly<{
-    role: 'tool'
-    blocks: readonly [ToolResultPart, ...ContentBlock[]]
-  }>
+export interface ToolMessage extends MessageBase {
+  readonly role: 'tool'
+  readonly blocks: readonly [ToolResultPart, ...ContentBlock[]]
+}
+
+export interface ToolInternalMessage extends MessageBase {
+  readonly role: 'tool_internal'
+  readonly blocks: Blocks<ContentBlock>
+}
+
+export interface SystemReminderMessage extends MessageBase {
+  readonly role: 'system_reminder'
+  readonly blocks: Blocks<ContentBlock>
+}
 
 /** The compaction variant. `blocks` is the summary. */
-export type CompactionMessage = Message &
-  Readonly<{
-    role: 'compaction'
-    blocks: readonly [ContentBlock, ...ContentBlock[]]
-    covers: CompactedRange
-    retained: readonly RecordEntryRef[]
-    derivation: CompactionDerivation
-  }>
+export interface CompactionMessage extends MessageBase {
+  readonly role: 'compaction'
+  readonly blocks: Blocks<ContentBlock>
+  readonly covers: CompactedRange
+  readonly retained: readonly RecordEntryRef[]
+  readonly derivation: CompactionDerivation
+}
+
+/** Each log role with its message type. The keys are exactly `LOG_MESSAGE_ROLES`. */
+export interface MessageRoleMap {
+  user: UserMessage
+  assistant: AssistantMessage
+  tool: ToolMessage
+  tool_internal: ToolInternalMessage
+  system_reminder: SystemReminderMessage
+  compaction: CompactionMessage
+}
+
+/** Fails to compile when `Map` lacks one of the roles or has a key that is not a role. */
+type ClosedOver<
+  Roles extends string,
+  Map extends Record<Roles, unknown> & { readonly [Extra in Exclude<keyof Map, Roles>]: never },
+> = Map
+
+/** The log message field, one type for each role. JSON data only. No tenant, standing, or causality. */
+export type Message = ClosedOver<LogMessageRole, MessageRoleMap>[keyof MessageRoleMap]
 
 export type MessageRejection =
   | 'shape'
@@ -112,10 +152,16 @@ function isLogRole(role: string): role is LogMessageRole {
   return LOG_MESSAGE_ROLES.some(known => known === role)
 }
 
+type NonEmpty<T> = readonly [T, ...T[]]
+
+function isNonEmpty<T>(items: readonly T[]): items is NonEmpty<T> {
+  return items.length > 0
+}
+
 interface MessageFields {
   readonly id: MessageId
   readonly role: LogMessageRole
-  readonly blocks: readonly unknown[]
+  readonly blocks: NonEmpty<unknown>
   /** The legal keys with the one value read for each. Nothing later reads the input again. */
   readonly read: Readonly<Record<string, unknown>>
 }
@@ -156,32 +202,58 @@ function messageFields(
   const id = parseMessageId(read.id)
   if (!id.ok) return { rejected: id.error }
   if (!isLogRole(read.role)) return { rejected: 'unknown' }
-  if (read.blocks.length === 0) return { rejected: 'empty' }
-  return { ok: { id: id.value, role: read.role, blocks: read.blocks, read } }
+  const blocks: readonly unknown[] = read.blocks
+  if (!isNonEmpty(blocks)) return { rejected: 'empty' }
+  return { ok: { id: id.value, role: read.role, blocks, read } }
 }
 
-function judgeBlocks(
-  blocks: readonly unknown[],
-): { readonly ok: readonly MessagePart[] } | Rejected {
+/** Each block through `judgePart`, in order. The first failure carries the index of its block. */
+function judgeBlocks(blocks: NonEmpty<unknown>): { readonly ok: NonEmpty<MessagePart> } | Rejected {
+  const [head, ...rest] = blocks
+  const first = judgePart(head)
+  if ('rejected' in first) return { rejected: first.rejected, blockIndex: 0 }
   const admitted: MessagePart[] = []
-  for (let index = 0; index < blocks.length; index += 1) {
-    const part = judgePart(blocks[index])
-    if ('rejected' in part) return { rejected: part.rejected, blockIndex: index }
+  for (const [at, block] of rest.entries()) {
+    const part = judgePart(block)
+    if ('rejected' in part) return { rejected: part.rejected, blockIndex: at + 1 }
     admitted.push(part.ok)
   }
-  return { ok: admitted }
+  return { ok: [first.ok, ...admitted] }
 }
 
-/** Whether a part may stand at `index` in a message of this role. */
-function placed(role: LogMessageRole, part: MessagePart, index: number): boolean {
-  if (role === 'tool') return index === 0 ? part.kind === 'tool_result' : !isToolPart(part)
-  if (part.kind === 'tool_result') return false
-  return role === 'assistant' || !isCallPart(part)
+/** Whether a part may stand at an index of a message. One rule for each kind of message. */
+type Stands = (part: MessagePart, index: number) => boolean
+
+/** A `tool` message has its marker first, then body content with no tool part. */
+const standsInTool: Stands = (part, index) =>
+  index === 0 ? part.kind === 'tool_result' : !isToolPart(part)
+
+/** An `assistant` message has the three call parts, and no marker. */
+const standsInAssistant: Stands = part => part.kind !== 'tool_result'
+
+/** The other roles have content only: no marker and no call. A compaction summary is one. */
+const standsAsContent: Stands = part => !isToolPart(part)
+
+/** The role check of a `tool` message, and the proof that its blocks are a marker and a body. */
+function isToolBlocks(
+  parts: NonEmpty<MessagePart>,
+): parts is readonly [ToolResultPart, ...ContentBlock[]] {
+  return parts.every(standsInTool)
 }
 
-function judgeRoles(role: LogMessageRole, parts: readonly MessagePart[]): Rejected | undefined {
-  const index = parts.findIndex((part, at) => !placed(role, part, at))
-  return index < 0 ? undefined : { rejected: 'tool-blocks', blockIndex: index }
+/** The role check of an `assistant` message, and the proof that it has no marker. */
+function isAssistantBlocks(parts: NonEmpty<MessagePart>): parts is Blocks<ContentBlock | CallPart> {
+  return parts.every(standsInAssistant)
+}
+
+/** The role check of the other roles and of a compaction summary: no tool part at all. */
+function isContentBlocks(parts: NonEmpty<MessagePart>): parts is Blocks<ContentBlock> {
+  return parts.every(standsAsContent)
+}
+
+/** The failure of a role check: the first block that may not stand where it is. */
+function misplaced(stands: Stands, parts: NonEmpty<MessagePart>): Rejected {
+  return { rejected: 'tool-blocks', blockIndex: parts.findIndex((part, at) => !stands(part, at)) }
 }
 
 function judgeUniqueIds(parts: readonly MessagePart[]): Rejected | undefined {
@@ -193,13 +265,48 @@ function judgeUniqueIds(parts: readonly MessagePart[]): Rejected | undefined {
   return undefined
 }
 
-/**
- * Narrows a message to the compaction variant. It checks only the role and that the three keys
- * exist, so it can be trusted only for a success value of `judgeMessage`. It does not judge
- * the shape again.
- */
-export function isCompactionMessage(message: Message): message is CompactionMessage {
-  return message.role === 'compaction' && COMPACTION_KEYS.every(key => Object.hasOwn(message, key))
+/** Block identity is the last check, so a message that gets here has passed the role rules. */
+function admitted(message: Message): MessageJudgment {
+  return judgeUniqueIds(message.blocks) ?? { ok: message }
+}
+
+function roleMessage(
+  id: MessageId,
+  role: Exclude<LogMessageRole, 'compaction'>,
+  parts: NonEmpty<MessagePart>,
+): MessageJudgment {
+  switch (role) {
+    case 'tool':
+      return isToolBlocks(parts)
+        ? admitted({ id, role, blocks: parts })
+        : misplaced(standsInTool, parts)
+    case 'assistant':
+      return isAssistantBlocks(parts)
+        ? admitted({ id, role, blocks: parts })
+        : misplaced(standsInAssistant, parts)
+    default:
+      return isContentBlocks(parts)
+        ? admitted({ id, role, blocks: parts })
+        : misplaced(standsAsContent, parts)
+  }
+}
+
+function compactionMessage(
+  id: MessageId,
+  parts: NonEmpty<MessagePart>,
+  keys: CompactionKeys,
+): MessageJudgment {
+  return isContentBlocks(parts)
+    ? admitted({ id, role: 'compaction', blocks: parts, ...keys })
+    : misplaced(standsAsContent, parts)
+}
+
+function withParts(
+  blocks: NonEmpty<unknown>,
+  build: (parts: NonEmpty<MessagePart>) => MessageJudgment,
+): MessageJudgment {
+  const parts = judgeBlocks(blocks)
+  return 'rejected' in parts ? parts : build(parts.ok)
 }
 
 /**
@@ -211,13 +318,11 @@ export function judgeMessage(value: unknown): MessageJudgment {
   if (!isRecord(value)) return { rejected: 'shape' }
   const fields = messageFields(value)
   if ('rejected' in fields) return { rejected: fields.rejected }
-  const compaction =
-    fields.ok.role === 'compaction' ? judgeCompactionKeys(fields.ok.read) : undefined
-  if (compaction !== undefined && 'rejected' in compaction) return compaction
-  const blocks = judgeBlocks(fields.ok.blocks)
-  if ('rejected' in blocks) return blocks
-  const misplaced = judgeRoles(fields.ok.role, blocks.ok) ?? judgeUniqueIds(blocks.ok)
-  if (misplaced !== undefined) return misplaced
-  const admitted = { id: fields.ok.id, role: fields.ok.role, blocks: blocks.ok }
-  return { ok: compaction === undefined ? admitted : { ...admitted, ...compaction.ok } }
+  const { id, role, blocks, read } = fields.ok
+  if (role === 'compaction') {
+    const keys = judgeCompactionKeys(read)
+    if ('rejected' in keys) return keys
+    return withParts(blocks, parts => compactionMessage(id, parts, keys.ok))
+  }
+  return withParts(blocks, parts => roleMessage(id, role, parts))
 }

@@ -47,7 +47,10 @@ export type ToolResultPart = Readonly<{
   callId: string
 }>
 
-export type ToolPart = ToolCallPart | IncompleteToolCallPart | UnparsedToolCallPart | ToolResultPart
+/** The three parts of a call. Only an `assistant` message has them. */
+export type CallPart = ToolCallPart | IncompleteToolCallPart | UnparsedToolCallPart
+
+export type ToolPart = CallPart | ToolResultPart
 
 export type MessagePart = ContentBlock | ToolPart
 
@@ -65,8 +68,6 @@ const TOOL_FIELDS: Readonly<Record<ToolKind, readonly ToolField[]>> = {
   tool_call_unparsed: ['id', 'visibility', 'callId', 'name', 'raw'],
   tool_result: ['id', 'visibility', 'callId'],
 }
-
-const CALL_KINDS: readonly string[] = ['tool_call', 'tool_call_incomplete', 'tool_call_unparsed']
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -96,11 +97,6 @@ function isKnownPartKind(kind: string): boolean {
 
 export function isToolPart(part: MessagePart): part is ToolPart {
   return isToolKind(part.kind)
-}
-
-/** A call part of any of the three kinds. The marker is not one. */
-export function isCallPart(part: MessagePart): boolean {
-  return CALL_KINDS.includes(part.kind)
 }
 
 export function nonEmpty(value: unknown): value is string {

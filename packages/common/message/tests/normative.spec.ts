@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
-  isCompactionMessage,
   judgeCompaction,
   judgeMessage,
   parseRecordEntryRef,
@@ -385,7 +384,7 @@ describe('the compaction table', () => {
 /** The success value keeps the three keys as they were, and no later change of the input reaches it. */
 function expectCopy(message: Record<string, unknown>): void {
   const judged = judgeMessage(message)
-  if (!('ok' in judged) || !isCompactionMessage(judged.ok)) {
+  if (!('ok' in judged) || judged.ok.role !== 'compaction') {
     throw new Error('expected an admitted compaction message')
   }
   const { covers, retained, derivation } = judged.ok

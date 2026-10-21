@@ -1,11 +1,6 @@
 import type { RecordEntryRef } from './compaction-shape.ts'
-import {
-  isCompactionMessage,
-  judgeMessage,
-  type CompactionMessage,
-  type Message,
-} from './message.ts'
-import type { ToolPart } from './parts.ts'
+import { judgeMessage, type CompactionMessage, type Message } from './message.ts'
+import type { MessagePart, ToolPart } from './parts.ts'
 import { hasDuplicates } from './values.ts'
 
 /** One entry of the compacted range, in log order. `message` is null for an entry that carries no message. */
@@ -99,7 +94,8 @@ function layoutHistory(
  * so a call part is only in an `assistant` message and a marker only in a `tool` message.
  */
 function callIdsOf(message: Message, kinds: readonly string[]): string[] {
-  return message.blocks
+  const blocks: readonly MessagePart[] = message.blocks
+  return blocks
     .filter((part): part is ToolPart => kinds.includes(part.kind))
     .map(part => part.callId)
 }
@@ -150,7 +146,7 @@ function openWorkFailure(
  */
 export function judgeCompaction(message: unknown, context: CompactionContext): CompactionJudgment {
   const judged = judgeMessage(message)
-  if ('rejected' in judged || !isCompactionMessage(judged.ok)) return fail('message', null)
+  if ('rejected' in judged || judged.ok.role !== 'compaction') return fail('message', null)
   const admitted = judged.ok
   const retained = new Set<RecordEntryRef>(admitted.retained)
   return (

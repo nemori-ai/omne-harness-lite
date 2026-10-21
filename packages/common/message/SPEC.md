@@ -28,7 +28,7 @@
 
 ### 形状
 
-`CompactionMessage` 是 `role` 为 `compaction` 的 `Message`，另有三个必需键。
+`Message` 是按 `role` 判别的联合，六种角色各有一个类型，每个类型的 `blocks` 只含该角色允许的部件，也至少有一块。`user`、`tool_internal`、`system_reminder` 的块全是内容块，`assistant` 可以另有三种调用部件，`tool` 的第一块是标记、其余是内容块。类型的定义和每个角色的部件见 [docs/public-api.md](docs/public-api.md#定义索引)。`CompactionMessage` 是 `role` 为 `compaction` 的那一种，另有三个必需键。
 
 | 键 | 含义 |
 | --- | --- |
@@ -39,7 +39,7 @@
 
 `RecordEntryRef` 是非空字符串，按字符串全等比较。`parseRecordEntryRef` 对空串返回 `null`，对其他字符串原样返回带品牌的值，不检查内部格式。
 
-`compaction` 角色的消息必须带齐这三个键。其他角色的消息不带这三个键。`isCompactionMessage(message)` 在 `message.role` 为 `compaction` 且三个键都存在时返回 `true`，用于把 `judgeMessage` 的成功值收窄成 `CompactionMessage`；它不重做形状判定。
+`compaction` 角色的消息必须带齐这三个键。其他角色的消息不带这三个键。类型上也是这样：缺任一个键的 `compaction` 值、带 `covers` 的 `user` 值都赋不给 `Message`。消费者用 `message.role === 'compaction'` 把 `judgeMessage` 的成功值收窄成 `CompactionMessage`。
 
 ### 模型视图
 
@@ -145,7 +145,7 @@ flowchart LR
 
 按下面的顺序检查，返回第一个失败。`ref` 指出违规的条目，没有条目可指时为 `null`。第 2～5 步和成功值都使用第 1 步 `judgeMessage` 的成功值 M，不再读原始输入。
 
-1. **消息本身。**`message` 通不过 `judgeMessage`，或它的成功值 M 使 `isCompactionMessage` 为假：`message`，`ref` 为 `null`。形状失败的具体拒绝值不随 `message` 返回。
+1. **消息本身。**`message` 通不过 `judgeMessage`，或它的成功值 M 的 `role` 不是 `compaction`：`message`，`ref` 为 `null`。形状失败的具体拒绝值不随 `message` 返回。
 2. **范围。**下列任一情形：`range`，`ref` 为 `null`。
    - `covered` 为空；
    - 首项的 `ref` 不等于 `covers.from`，或末项的 `ref` 不等于 `covers.to`；
@@ -175,7 +175,7 @@ flowchart LR
 ### 消费者
 
 - 压缩策略的拥有者按 CM-01 至 CM-05 生成压缩记录，消费规则见[单次模型请求的上下文](../../../docs/architecture/runtime/request-context.md#压缩与历史保留)。
-- 历史持有者在提交压缩记录之前调用 `judgeCompaction`，失败就拒绝提交，规则见[压缩记录的提交](../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)。`judgeCompaction` 自己先跑 `judgeMessage`，形状失败只报 `message`；需要具体形状拒绝值的持有者，可以先单独调用 `judgeMessage`，再用 `isCompactionMessage` 收窄。
+- 历史持有者在提交压缩记录之前调用 `judgeCompaction`，失败就拒绝提交，规则见[压缩记录的提交](../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)。`judgeCompaction` 自己先跑 `judgeMessage`，形状失败只报 `message`；需要具体形状拒绝值的持有者，可以先单独调用 `judgeMessage`，再用 `role` 收窄。
 
 ### 验证
 

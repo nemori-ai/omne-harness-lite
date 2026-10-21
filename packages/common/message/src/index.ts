@@ -1,11 +1,6 @@
-export {
-  LOG_MESSAGE_ROLES,
-  isCompactionMessage,
-  judgeMessage,
-  messageIdEquals,
-  parseMessageId,
-} from './message.ts'
+export { LOG_MESSAGE_ROLES, judgeMessage, messageIdEquals, parseMessageId } from './message.ts'
 export type {
+  AssistantMessage,
   CompactionMessage,
   LogMessageRole,
   Message,
@@ -14,7 +9,11 @@ export type {
   MessageIdParseError,
   MessageJudgment,
   MessageRejection,
+  MessageRoleMap,
+  SystemReminderMessage,
+  ToolInternalMessage,
   ToolMessage,
+  UserMessage,
 } from './message.ts'
 export { parseRecordEntryRef } from './compaction-shape.ts'
 export type { CompactedRange, CompactionDerivation, RecordEntryRef } from './compaction-shape.ts'
@@ -27,6 +26,7 @@ export type {
 } from './compaction.ts'
 export { judgePart } from './parts.ts'
 export type {
+  CallPart,
   IncompleteToolCallPart,
   MessagePart,
   ToolCallPart,

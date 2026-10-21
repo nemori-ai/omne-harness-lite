@@ -41,7 +41,7 @@ import { judgeMessage } from '@omne-harness/message'
 
 `LOG_MESSAGE_ROLES` 是 `user`、`assistant`、`tool`、`tool_internal`、`system_reminder`、`compaction`。`parseMessageId` 拒绝空串、缺少 `msg_` 前缀，以及不在 `[A-Za-z0-9_-]{22,64}` 里的正文。`messageIdEquals` 是逐字相等。
 
-`compaction` 角色的消息另带 `covers`、`retained`、`derivation`。只有 `role` 恰好是字符串 `compaction` 时，`judgeMessage` 才读这三个键，其他角色带它们是 `extra`。`judgeCompaction` 判相对历史的规则。`isCompactionMessage` 收窄已受理的消息，`parseRecordEntryRef` 生成非空的记录条目引用。形状、规则和判定顺序在 [SPEC.md](SPEC.md)。
+`compaction` 角色的消息另带 `covers`、`retained`、`derivation`。只有 `role` 恰好是字符串 `compaction` 时，`judgeMessage` 才读这三个键，其他角色带它们是 `extra`。`judgeCompaction` 判相对历史的规则。`message.role === 'compaction'` 把已受理的消息收窄成 `CompactionMessage`，`parseRecordEntryRef` 生成非空的记录条目引用。形状、规则和判定顺序在 [SPEC.md](SPEC.md)。
 
 `judgeMessage` 返回 `{ ok }` 或 `{ rejected }`。部件失败还返回 `blockIndex`。`rejected` 是 `shape`、`missing`、`null`、`empty`、`unknown`、`extra`、`prefix`、`body`、`callId`、`name`、`arguments`、`partial`、`raw`、`json`、`tool-blocks`、`duplicate-id`、`covers`、`retained`、`derivation`，或内容块的拒绝码。`tenant` 这类未知键是 `extra`。带访问器、非枚举自有键或非普通原型的部件是 `json`，部件自身键上的 getter 不被调用；嵌套位置（`visibility`、`arguments`）由各自的判定读取。消息本身的读法不同：对所有角色，`judgeMessage` 会调用顶层字段的访问器，每个字段至多一次，键集、校验和复制都用这一次读到的值。工具部件缺字段时报该字段名。成功值只含 `id`、`role` 和 `blocks`，`compaction` 角色另含 `covers`、`retained`、`derivation`，各是冻结的副本。
 
@@ -51,7 +51,7 @@ import { judgeMessage } from '@omne-harness/message'
 
 ## 设计
 
-`src/message.ts` 拥有角色表、品牌、`parseMessageId`、`messageIdEquals`、`Message`、`ToolMessage`、`CompactionMessage`、`judgeMessage` 和 `isCompactionMessage`。`src/compaction-shape.ts` 拥有记录条目引用、`covers` 与 `derivation` 的类型，以及判三个键的 `judgeCompactionKeys`。`src/compaction.ts` 拥有 `judgeCompaction` 和类型 `CoveredEntry`、`CompactionContext`、`CompactionRejection`、`CompactionJudgment`。`src/parts.ts` 拥有工具部件类型和 `judgePart`。`src/values.ts` 按键名读取闭合的普通对象并检测重复项。`src/index.ts` 只做导出。块身份规则和值树规则不在这里，来自 content-block 和 json-text。
+`src/message.ts` 拥有角色表、品牌、`parseMessageId`、`messageIdEquals`、`MessageRoleMap`、六个角色的消息类型、`Message`（六个类型的联合，按 `role` 判别）和 `judgeMessage`。每个角色类型的 `blocks` 只含该角色允许的部件，也至少有一块：`user`、`tool_internal`、`system_reminder` 和 `compaction` 的摘要是内容块，`assistant` 是内容块和三种调用部件（`CallPart`），`tool` 是一个 `tool_result` 标记加内容块。`src/compaction-shape.ts` 拥有记录条目引用、`covers` 与 `derivation` 的类型，以及判三个键的 `judgeCompactionKeys`。`src/compaction.ts` 拥有 `judgeCompaction` 和类型 `CoveredEntry`、`CompactionContext`、`CompactionRejection`、`CompactionJudgment`。`src/parts.ts` 拥有工具部件类型和 `judgePart`。`src/values.ts` 按键名读取闭合的普通对象并检测重复项。`src/index.ts` 只做导出。块身份规则和值树规则不在这里，来自 content-block 和 json-text。
 
 消息字段挂在会话日志里的事实记录上。`SystemMessage` 在请求组装时现算，不进入这份日志。
 
@@ -73,7 +73,7 @@ flowchart TD
 
 ## 验证
 
-`pnpm --filter @omne-harness/message test` 运行 `tests/` 里的文件，同时承担单元和契约。`public-entry.spec.ts` 与 `message.spec.ts` 核对解析、逐字相等、没有铸造导出，以及消息字段的接受和拒绝。`tool-parts.spec.ts` 与 `tool-roles.spec.ts` 核对四种工具部件的每个失败、角色规则、块身份、`arguments` 的副本，以及与 json-text 的组合。`part-kind.spec.ts` 核对不是对象的部件、缺失或非字符串的 `kind`，以及没有原型的部件。`tool-part-types.spec-d.ts` 核对公开类型。`compaction.spec.ts` 与 `compaction-types.spec-d.ts` 核对表格单元写不出的压缩输入和压缩类型。`normative.spec.ts` 逐行执行 `docs/public-api.md` 的示例表和压缩用例表。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
+`pnpm --filter @omne-harness/message test` 运行 `tests/` 里的文件，同时承担单元和契约。`public-entry.spec.ts` 与 `message.spec.ts` 核对解析、逐字相等、没有铸造导出，以及消息字段的接受和拒绝。`tool-parts.spec.ts` 与 `tool-roles.spec.ts` 核对四种工具部件的每个失败、角色规则、块身份、`arguments` 的副本，以及与 json-text 的组合。`part-kind.spec.ts` 核对不是对象的部件、缺失或非字符串的 `kind`，以及没有原型的部件。`tool-part-types.spec-d.ts` 核对工具部件的类型，`message-types.spec-d.ts` 核对六个角色类型的联合。`compaction.spec.ts` 与 `compaction-types.spec-d.ts` 核对表格单元写不出的压缩输入和压缩类型。`normative.spec.ts` 逐行执行 `docs/public-api.md` 的示例表和压缩用例表。本包是纯值，没有存储集成测试，也没有用户旅程的端到端测试。
 
 ## 维护
 

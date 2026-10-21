@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  isCompactionMessage,
   judgeCompaction,
   judgeMessage,
   parseRecordEntryRef,
@@ -33,7 +32,7 @@ function compaction(overrides: Record<string, unknown> = {}): Record<string, unk
 
 function admitted(overrides: Record<string, unknown> = {}): CompactionMessage {
   const judged = judgeMessage(compaction(overrides))
-  if (!('ok' in judged) || !isCompactionMessage(judged.ok)) throw new Error('expected compaction')
+  if (!('ok' in judged) || judged.ok.role !== 'compaction') throw new Error('expected compaction')
   return judged.ok
 }
 
@@ -74,27 +73,6 @@ describe('parseRecordEntryRef', () => {
     expect(parseRecordEntryRef('')).toBeNull()
     expect(parseRecordEntryRef(' a b ')).toBe(' a b ')
     expect(parseRecordEntryRef('entry/17#x')).toBe('entry/17#x')
-  })
-})
-
-describe('isCompactionMessage', () => {
-  it('is true for an admitted compaction message and false for the other roles', () => {
-    expect(isCompactionMessage(admitted())).toBe(true)
-    expect(isCompactionMessage(user())).toBe(false)
-  })
-
-  it('is false for a compaction-role message that lacks the three keys', () => {
-    const bare: Message = { ...user(), role: 'compaction' }
-    expect(isCompactionMessage(bare)).toBe(false)
-  })
-
-  it('is false when only some of the three keys exist, or when the role is another one', () => {
-    const { covers, retained } = admitted()
-    expect(isCompactionMessage(Object.assign(user(), { covers }))).toBe(false)
-    expect(
-      isCompactionMessage({ ...Object.assign(user(), { covers, retained }), role: 'compaction' }),
-    ).toBe(false)
-    expect(isCompactionMessage({ ...admitted(), role: 'user' })).toBe(false)
   })
 })
 
@@ -322,6 +300,14 @@ describe('judgeCompaction', () => {
     expect(judged.ok.retained).toEqual(['e2'])
     expect(judged.ok.retained).not.toBe(input.retained)
     expect(Object.isFrozen(judged.ok.retained)).toBe(true)
+  })
+
+  it('reports an admitted message of another role as message', () => {
+    const context = history([['e1', user()]])
+    expect(judgeCompaction({ id, role: 'user', blocks: [text] }, context)).toEqual({
+      rejected: 'message',
+      ref: null,
+    })
   })
 
   it('reports a shape failure as message, whatever the context holds', () => {
