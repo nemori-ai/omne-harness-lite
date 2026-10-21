@@ -1,6 +1,6 @@
 # 执行环境跨领域关键流程
 
-状态：技术协作草案。图表达责任，不表示进程或寿命共属。产品旅程见[产品正文](../../../.meta_harness/design/product/execution-environments/design.md)，所有 INV 与验证义务归[完整 SPEC](../../../packages/execution/execution-environment/SPEC.md)。
+状态：技术协作草案。图表达责任，不表示进程或寿命共属。产品旅程见[产品正文](../../../.meta_harness/design/product/execution-environments/design.md)，所有 INV 与验证义务归[契约成员 SPEC](../../../packages/execution/execution-environment-contract/SPEC.md)。本页只放跨领域流程；成员内部的协议级与机制级流程归[能力组协作入口](../../../packages/execution/docs/key-flows.md)与各成员 `docs/flows.md`。
 
 ## F-EE01 合法选择、准备与原调用发起
 

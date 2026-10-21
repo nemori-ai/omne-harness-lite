@@ -30,13 +30,6 @@
 - **谁来裁**：产品负责人——它要不要做、归哪个 topic，都还没有人说过；由元能力产品保留跨会话对象缺项
 - **闭合条件**：有 topic 认领它，或明确本版不做
 
-### runtime context 的一块
-
-- **现象**：PF-015 说 runtime context「是一块一块的，不是一个大袋子，每一块是一份数据」，每块有生产者与消费者、就地更新、要能恢复。词条 UL-runtime-context 指的是整批（形态为总称），真正可指认的单位「块」没有词条；而十四项里有的是实时算的、没有持久状态。PF-015 §6.18 已定义会话内注册声明为属性，支持增删与恢复；这不替各类块的数据本身裁定独立对象身份
-- **牵涉**：[PF-015 §4 runtime context](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#runtime-context)（rev 21）；[PF-015 §5.6](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
-- **谁来裁**：PF-015 的 owner
-- **闭合条件**：正文写明「块」是不是一个要被标识的单位；是的话给它名字并立词条
-
 ### 一次派发
 
 - **现象**：`spawn` / `delegate` 的一次派发有状态（在跑 → 完成 · 失败 · 被中断）、可被查询与撤回、至多带一份报告；它由一次工具执行承载，产生一个子会话，**`spawn` 那种还要在子会话日志里落下一条起始输入记录**。元能力产品已明确后续普通消息沿输入规则，不把派发等同 Run；派发本身与承载工具执行如何建模仍需明确。词条 UL-agent-dispatch 讲的是派发这个过程
@@ -65,13 +58,6 @@
 - **牵涉**：[PF-001 §6.4](../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#64-隔离)（rev 26）
 - **谁来裁**：产品负责人——「观测与计量」这一块还没有 topic
 - **闭合条件**：有 topic 认领计量，并说明一条明细是什么
-
-### 压缩策略
-
-- **现象**：PF-015 把「当前使用的 ContextCompactionSettings」列为一项 meta runtime context，没有指明它定义在哪；它是一份独立的设置对象，还是某个对象上的一项值，无从判断
-- **牵涉**：[PF-015 §5.6](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
-- **谁来裁**：PF-010 与 PF-015 的 owner
-- **闭合条件**：PF-010 认领它并说明它挂在哪
 
 ### 通知发送与投递结果
 

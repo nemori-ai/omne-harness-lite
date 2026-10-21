@@ -600,8 +600,8 @@
 - **出处**：[PF-016 §4 观感偏好](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#观感偏好) ·
   [§6.12](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)（rev 13）
 - **⚠️ 别混**：**不是[元 runtime context](scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context)
-  那十四项里的第 3 项「账号级的界面偏好」**（语言 · 时区 · 地区 · 明暗风格一类）——
-  **那些是要被 agent 感知的**，[已经是每个会话必带的一项](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)，
+  必需感知里的「账号偏好」**（语言 · 时区 · 地区 · 明暗风格一类）——
+  **那些是要被 agent 感知的**，[已经是每个会话必带的一项](../../product/runtime-context/design.md#3-必需感知按内容及消费者供给)，
   **不在这里，也不由这里定**；两者同样由账号承载（[C-26 的处置](../conflicts.md#现有冲突)），但一个进会话、一个不进
 - **注意**：[宿主不是词条的字段](../conventions.md#形态这个词指的是哪一类东西)——「由账号承载」写进定义，
   是因为[PF-016 明文把它归进个人 context](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#观感偏好)，

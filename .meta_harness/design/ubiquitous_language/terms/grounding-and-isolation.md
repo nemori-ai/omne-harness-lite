@@ -131,6 +131,7 @@
 - **出处**：[PF-005 §5.1 四种执行环境](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#51-四种执行环境)（rev 9） ·
   [§6.3](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#63-会话级沙箱到点销毁数据不留存)（rev 9）
 - **注意**：**同一个执行环境里的终端会话会一起消失**——环境是它们的宿主，agent **必须被告知**
+- **注意 ②**：寿命类名沿产品词；在执行环境的[绑定层](#ul-environment-binding--绑定层--environment-binding)里，它的归属字段是不透明的[作用域引用](scope-and-resolution.md#ul-scope-ref--作用域引用--scope-reference)，执行环境不解释它是不是会话
 
 ### UL-tenant-sandbox · 租户级沙箱 · Tenant-Scoped Sandbox
 
@@ -181,10 +182,11 @@
 
 - **形态**：属性
 - **出处**：[PF-005 §4 设施](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#设施)（rev 9）
-- **别混**：**裸写「设施」不作数**——它专指执行环境声明的这一层
+- **别混**：**裸写「设施」不作数**——它专指执行环境声明的这一层；某一种设施的协议是[设施声明](#ul-facility-descriptor--设施声明--facility-descriptor)，不是这一条
 - **注意**：**环境声明自己提供什么**归这里；**工具声明自己需要什么怎么声明**归工具那一块；
   [匹配不上的后果归 PF-005](../../product.0.0.1.legacy/PF-005-execution-environments-and-sandboxes/design.md#69-落点不可用就是拒绝不降级)
 - **注意**：**设施给不了时不降级、不绕道**
+- **注意 ③**：正文里的「命令行设施」是旧说法，它包括 `command` 与 `terminal` 两个独立的设施键；[终端会话](#ul-terminal-session--终端会话--terminal-session)开在 `terminal` 设施里
 
 ### UL-terminal-session · 终端会话 · Terminal Session
 
@@ -241,6 +243,7 @@
   那是**实现时的契约**，**不是「默认取哪一档」**
 - **注意 ⑥**：**「这个工具能不能用[宿主机](#ul-host-machine--宿主机--host-machine)」没有第二项权限在管**——
   不是 `never-allow` 只表示该项策略未禁止宿主机；`auto_place` 的实际选择、设施及隔离条件仍须满足
+- **注意 ⑦**：**三个策略词在执行环境之外求值**：发起协调者求出设置的有效值，工具宿主把它与工具声明翻译成一份有序的[绑定层](#ul-environment-binding--绑定层--environment-binding)清单；执行环境只在清单内匹配，不认识这三个词
 - **弃用**：~~「执行安全策略」~~（指的是**把这一项配成 `never-allow`** 那件事，是同一项权限的配值） ·
   ~~「使用宿主机的资格」~~（＝**这一项不是 `never-allow`**）
 
@@ -264,6 +267,168 @@
 - **别混**：**它说的是「要什么」**；[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)说的是「许落在哪」；
   这次执行实际落在哪，是按两者**每次现算**出来的——执行环境权限改了，下一次执行按新值现算，不必重建任何东西
 - **注意**：**不声明就是没有特殊要求**——它是工具定义里那项「需要什么样的执行环境」声明落成的设置
+
+### UL-environment-binding · 绑定层 · Environment Binding
+
+> **中**：一个[执行环境](#ul-execution-environment--执行环境--execution-environment)的效用跟着谁活：四种——[宿主机](#ul-host-machine--宿主机--host-machine)；[无状态沙箱](#ul-stateless-sandbox--无状态沙箱--stateless-sandbox)，随一个作用域里的一次原调用；[会话级沙箱](#ul-session-sandbox--会话级沙箱--session-scoped-sandbox)，随一个作用域；[租户级沙箱](#ul-tenant-sandbox--租户级沙箱--tenant-scoped-sandbox)，随一个租户。种类加归属就是它的值。归属用不透明的[作用域引用](scope-and-resolution.md#ul-scope-ref--作用域引用--scope-reference)或租户身份表示，执行环境不解释作用域指什么。
+>
+> **EN**: What the effects of an execution environment live with, one of four kinds: the host machine; a stateless sandbox, living with one original call inside a scope; a session-scoped sandbox, living with one scope; a tenant-scoped sandbox, living with one tenant. The kind plus the owner is its value. The owner is an opaque scope reference or a tenant identity, and the execution environment does not interpret what the scope is.
+
+- **形态**：属性
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **别混**：不是[执行环境权限](#ul-execution-environment-permission--执行环境权限--execution-environment-permission)的三个策略词。策略词在执行环境之外求值，翻译成一份有序的绑定层清单后才交给执行环境
+- **注意**：寿命类名沿产品词「会话级沙箱」，归属字段是作用域引用，不是会话身份
+
+### UL-environment-continuity · 连续性 · Environment Continuity
+
+> **中**：一个执行环境**这一刻还能不能接着用**：不保证、连续（带数据身份与修订）、已丢失（带前一个身份）三选一。它由提供者在每次描述或租约时给出。它不是寿命，寿命由[绑定层](#ul-environment-binding--绑定层--environment-binding)说。
+>
+> **EN**: Whether an execution environment **can still be continued at this moment**: not guaranteed, continuous (with a data identity and revision), or lost (with the previous identity). The provider states it on every description or lease. It is not a lifetime. The lifetime is stated by the binding.
+
+- **形态**：状态
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **别混**：不是[沙箱数据](#ul-sandbox-data--沙箱数据--sandbox-data)的保存承诺。连续说的是实例还接得上，不说数据会保存多久
+
+### UL-environment-requirement · 环境要求 · Environment Requirement
+
+> **中**：集成方为一次获取翻译出来的三样：一份**有序**的允许[绑定层](#ul-environment-binding--绑定层--environment-binding)清单、需要的设施键集合、需要确认的[隔离断言](#ul-isolation-claim--隔离断言--isolation-claim)集合。执行环境不会选清单外的层；清单内的顺序是集成方的偏好。
+>
+> **EN**: The three things an integrator translates for one acquisition: an **ordered** list of allowed bindings, the set of facility keys needed, and the set of isolation claims to confirm. The execution environment never selects a binding outside the list. The order inside the list is the integrator's preference.
+
+- **形态**：属性
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **别混**：不是[目标环境](#ul-target-environment--目标环境--target-environment)。目标环境是工具的一项设置，说工具要什么；环境要求是这项设置经策略求值、再与工具声明翻译之后交给执行环境的结果
+
+### UL-facility-descriptor · 设施声明 · Facility Descriptor
+
+> **中**：一种[环境设施](#ul-environment-facility--环境设施--environment-facility)的协议说明，由这种设施的拥有者发布：键、操作名单、其中哪些操作须逐操作授权。全系统一个键只有一份声明；提供者只能声明它提供已有声明的键；未登记的键取不到设施。它的身份是键，登记到撤除。
+>
+> **EN**: The protocol statement of one kind of environment facility, published by that facility's owner: the key, the list of operations, and which of them require per-operation authorization. One key has exactly one descriptor in the whole system. A provider can only declare keys that have a descriptor. An unregistered key yields no facility. Its identity is the key. It lives from registration to withdrawal.
+
+- **形态**：对象
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **别混**：不是[环境设施](#ul-environment-facility--环境设施--environment-facility)。环境设施是「一个环境提供哪几种手段」那一维；设施声明是其中一种手段的协议
+- **注意**：声明只提供词汇，不安装设施，也不授权操作
+
+### UL-facility-request · 设施请求 · Facility Request
+
+> **中**：对一个设施发起的一次操作所带的身份：请求身份、访问身份（主体加租户）、原调用、[绑定层](#ul-environment-binding--绑定层--environment-binding)，加该操作自己的参数。同一请求身份只有一种确认：完成、未找到对象、拒绝（带原因）、未知。后一次操作即使参数相同也是另一个请求。
+>
+> **EN**: The identity carried by one operation on a facility: the request id, the access identity (principal plus tenant), the original call, the binding, plus the operation's own parameters. One request id has exactly one confirmation: done, unresolved, rejected (with a reason), or unknown. A later operation with the same parameters is another request.
+
+- **形态**：属性
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **注意**：完成只表示这次请求确认的那一项成功：读取完成不表示写入完成；启动被接纳不表示进程已启动
+
+### UL-placement · 落点 · Placement
+
+> **中**：在[环境要求](#ul-environment-requirement--环境要求--environment-requirement)的允许清单内选中的那一个绑定层与提供者。它不授设施也不授资源；解析落点与[获取](#ul-environment-acquisition--获取--environment-acquisition)不是一个原子动作，获取时重新核对。
+>
+> **EN**: The binding and provider selected inside the allowed list of an environment requirement. It grants neither facilities nor resources. Resolving a placement and acquiring are not one atomic action. Acquisition checks again.
+
+- **形态**：属性
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **别混**：不是[执行环境](#ul-execution-environment--执行环境--execution-environment)本身。落点是选择结果；执行环境是选中后实际在跑的那一个
+
+### UL-environment-acquisition · 获取 · Environment Acquisition
+
+> **中**：集成方按一个[落点](#ul-placement--落点--placement)向执行环境要一份[租约](#ul-environment-lease--租约--environment-lease)的那一次事务。它以集成方给的幂等键识别：同键重复请求返回同一状态，不重新分配。它从落点成立起，经提供者临时回执、登记方核验、签发[采用记录](#ul-environment-adoption--采用记录--environment-adoption)，到释放确认为止；状态归调用方的耐久账本保存。
+>
+> **EN**: The transaction in which an integrator asks the execution environment for a lease at one placement. It is identified by the idempotency key the integrator supplies: a repeated request with the same key returns the same state and allocates nothing new. It runs from the placement, through the provider's provisional receipt, the registry's verification and the issue of an adoption record, to confirmed release. Its state is kept in the caller's durable ledger.
+
+- **形态**：对象
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **注意**：提供者回执是临时的，核验通过才交付；核验失败尝试释放，释放待处置则保留在原提供者登记上
+
+### UL-environment-adoption · 采用记录 · Environment Adoption
+
+> **中**：登记方在一次[获取](#ul-environment-acquisition--获取--environment-acquisition)核验通过后签发的那份记录：落点、提供者名与代、实例身份与代、[连续性](#ul-environment-continuity--连续性--environment-continuity)、提供者证据。它由集成方随自己的准备记录持久保存。提供者证据不是提供者自签的权限。
+>
+> **EN**: The record the registry issues after one acquisition passes verification: the placement, the provider's name and generation, the instance identity and generation, the continuity, and the provider's evidence. The integrator persists it with its own preparation record. The provider's evidence is not a permission the provider signed for itself.
+
+- **形态**：属性
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **别混**：不是[租约](#ul-environment-lease--租约--environment-lease)。租约是活的使用入口；采用记录是可以持久保存的事实
+
+### UL-environment-lease · 租约 · Environment Lease
+
+> **中**：一次[获取](#ul-environment-acquisition--获取--environment-acquisition)交给集成方的使用入口：只暴露[环境要求](#ul-environment-requirement--环境要求--environment-requirement)里的设施键，每次操作先过[设施守卫](#ul-facility-guard--设施守卫--facility-guard)；带实例身份与代、连续性；失效可观察。释放只对本次获取，结果是已释放，或待处置并列出未停的[受管资源](#ul-managed-resource--受管资源--managed-resource)。它的身份是获取加实例代。
+>
+> **EN**: The usage entry one acquisition hands to the integrator: it exposes only the facility keys in the environment requirement, every operation passes the facility guard first, it carries the instance identity and generation and the continuity, and invalidation is observable. Release applies to this acquisition only and ends as released, or as pending with the managed resources not yet stopped. Its identity is the acquisition plus the instance generation.
+
+- **形态**：对象
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **注意**：丢掉引用不是释放；共享环境不因一次释放而销毁
+
+### UL-managed-resource · 受管资源 · Managed Resource
+
+> **中**：执行环境里**可能跨进程寿命存活**、因此要在调用方耐久账本里登记的东西：一个进程、一条终端、一个文件批次。它的值是键、提供者与一份 JSON 引用；引用用于恢复时认回，不是活句柄或裸进程号。它从计划、许可、（接续）、运行到已停，已停分确认与未确认，未确认不写成已停。
+>
+> **EN**: Something inside an execution environment that **may outlive the process** and is therefore recorded in the caller's durable ledger: a process, a terminal, a file batch. Its value is a key, the provider, and a JSON reference. The reference is for recognition during recovery. It is not a live handle or a bare process id. It moves from planned, permitted, optionally adopted, running, to stopped. Stopped is either confirmed or unconfirmed, and unconfirmed is never written as stopped.
+
+- **形态**：对象
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **别混**：单项文件操作不是受管资源；批次是
+
+### UL-resource-ledger · 资源账本 · Resource Ledger
+
+> **中**：执行环境向集成方要的一项耐久承诺：每个[受管资源](#ul-managed-resource--受管资源--managed-resource)先计划、再取得许可，许可确认之后才发出首个外部效果；停止分别确认；账本关闭后不再发新许可。终局与许可写在同一耐久顺序里。账本由集成方实现，执行环境只调用。
+>
+> **EN**: A durable commitment the execution environment requires from the integrator: every managed resource is planned, then permitted, and the first external effect is issued only after the permit is confirmed. Stops are confirmed separately. A closed ledger issues no new permit. Finality and permits are written in the same durable order. The integrator implements the ledger. The execution environment only calls it.
+
+- **形态**：规则
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **注意**：独立调用者可以提供非耐久替身，后果自负；账本关闭不撤销已经发生的效果
+
+### UL-facility-guard · 设施守卫 · Facility Guard
+
+> **中**：执行环境向集成方要的逐操作授权：每次须授权的设施操作发出前，先问「这次操作现在还允许吗」，答案是允许、不允许或不可用。守卫由集成方按当前授权实现；执行环境不知道依据，只按答案放行或拒绝。
+>
+> **EN**: The per-operation authorization the execution environment requires from the integrator: before every guarded facility operation is issued, it asks whether this operation is still allowed now, and gets authorized, not authorized, or unavailable. The integrator implements the guard from current authorization. The execution environment does not know the basis and only passes or rejects by the answer.
+
+- **形态**：规则
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **别混**：不是动作准入。准入在发起前判一次动作准不准；守卫在每次设施操作时再判一次
+
+### UL-recovery-authority · 恢复授权 · Recovery Authority
+
+> **中**：集成方的维护拥有者签发、独立于用户访问的那份授权，用来在作用域释放或故障后停止、认回、结算该作用域的[受管资源](#ul-managed-resource--受管资源--managed-resource)。它不能用来获取环境或发起新执行。用户撤权或退出不阻断系统凭它回收。它是不可序列化的原对象。
+>
+> **EN**: The authority the integrator's maintenance owner issues, independent of user access, to stop, recognise and settle the managed resources of a scope after the scope is released or after a failure. It cannot be used to acquire an environment or to start new execution. A user's revocation or departure does not block recovery under it. It is a non-serializable original object.
+
+- **形态**：属性
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **注意**：作用域级释放由应用装配层的协调者发起，不由执行环境从任何逻辑状态推断作用域已结束
+
+### UL-isolation-claim · 隔离断言 · Isolation Claim
+
+> **中**：一个提供者声明自己能确认的隔离种类：进程隔离、文件系统根、无网络、受限 JS 等，集合开放，由拥有者增补。[环境要求](#ul-environment-requirement--环境要求--environment-requirement)点名要确认哪些；提供者确认不了的，这次获取拒绝，不写成已隔离。
+>
+> **EN**: A kind of isolation a provider declares it can confirm: process isolation, filesystem root, no network, restricted JS, and so on. The set is open and owners extend it. An environment requirement names which ones to confirm. If the provider cannot confirm one, the acquisition is rejected and is never written as isolated.
+
+- **形态**：属性
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **别混**：不是[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)。名称本身不证明隔离
+
+### UL-environment-provider · 环境提供者 · Environment Provider
+
+> **中**：向执行环境登记、实际造出并掌管环境实例的那一方：宿主机提供者或某种[沙箱实现](#ul-sandbox-implementation--沙箱实现--sandbox-implementation)。它声明自己支持的[绑定层](#ul-environment-binding--绑定层--environment-binding)、[连续性](#ul-environment-continuity--连续性--environment-continuity)、设施键与[隔离断言](#ul-isolation-claim--隔离断言--isolation-claim)；它描述、获取、恢复、退役。它的身份是名加代；退役先拒新租约再排空，清理未完或耐久责任无人承接时不报完成。
+>
+> **EN**: The party that registers with the execution environment and actually creates and controls environment instances: the host-machine provider or one sandbox implementation. It declares the bindings, continuity, facility keys and isolation claims it supports. It describes, acquires, recovers and retires. Its identity is a name plus a generation. Retirement first refuses new leases and then drains, and it never reports completion while cleanup is unfinished or durable responsibility has no taker.
+
+- **形态**：对象
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **别混**：不是 Cordis 服务提供者。它是向本域登记表登记的一方；沙箱实现是它的一种
+
+### UL-file-batch · 文件批次 · File Batch
+
+> **中**：文件设施里一次多路径写入：全批预检每个目标，暂存后逐路径发布，每个路径有自己的发布收据；暂存不是提交，收据丢失即未知并停止后续发布。它是一个[受管资源](#ul-managed-resource--受管资源--managed-resource)，身份是批次编号加代；恢复时只读原清单、目标与收据，识别为完整、部分、中断、冲突或待确认，不续发布也不回滚。
+>
+> **EN**: One multi-path write in the file facility: every target is pre-checked for the whole batch, then staged and published path by path, each path with its own publication receipt. Staging is not commit. A lost receipt means unknown and stops further publication. It is a managed resource whose identity is the batch id plus a generation. Recovery only reads the original manifest, the targets and the receipts, and recognises the batch as complete, partial, interrupted, conflicting or pending. It neither resumes publication nor rolls back.
+
+- **形态**：对象
+- **出处**：[执行环境：环境、落点与资源的概念](../../product/execution-environments/design.md#环境落点与资源的概念)（rev 2）
+- **注意**：不承诺多路径原子提交或外部读写隔离；当前字节与暂存一致不等于有收据
 
 ### UL-session-base · 会话据点 · Session Base
 

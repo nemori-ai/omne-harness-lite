@@ -375,7 +375,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **来源**：[Runtime Context 产品页](../product/runtime-context/design.md#5-当前值与变化感知)与已接受[系统页](../../../docs/architecture/runtime/runtime-context.md)以 attempt 为拉取时点。用户决定 Agent 不要求、不解释 attempt。
 - **处理**：[UL-runtime-context](terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) 不再另定时点，改指 Context 与 Agent 的现行正文。
 - **负责与闭合条件**：Context 拥有者改写拉取时点的说法。
-- **状态**：已闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。Context 一侧描述拉取时点的页面都已改为「执行开始或挂接建立」：已接受的 Runtime Context 系统页与领域页、运行时 context 规格的 [RC-04](../../../packages/context/runtime-context/SPEC.md#rc-04-读取时点变化与提醒)（标题改为「读取时点、变化与提醒」，旧锚点由兼容锚点保留）、该成员的关键流程 [RC-F01](../../../packages/context/runtime-context/docs/key-flows.md#rc-f01)、内部设计与开放问题、Context 组的关键流程，以及 [Runtime Context 产品页](../product/runtime-context/design.md) §5、RC-J01 与 CAP-RC04（产品页修订到 rev 2）。
+- **状态**：已闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。Context 一侧描述拉取时点的页面都已改为「执行开始或挂接建立」：已接受的 Runtime Context 系统页与领域页、运行时 context 规格的 RC-04（标题改为「读取时点、变化与提醒」；该规格现归 [runtime-context-contract](../../../packages/context/runtime-context-contract/SPEC.md)）、该成员的关键流程 RC-F01（现归 [Context 组协作入口](../../../packages/context/docs/key-flows.md)）、内部设计与开放问题、Context 组的关键流程，以及 [Runtime Context 产品页](../product/runtime-context/design.md) §5、RC-J01 与 CAP-RC04（产品页修订到 rev 2）。
 
 ### C-64：执行挂接的候选类型名
 
@@ -385,3 +385,21 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：[UL-execution-attachment](terms/agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment) 的英文名定为 Execution Attachment，不许简称 attachment；「挂载」与「Agent Attachment」列入弃用。类型名改为 `ExecutionAttachment`、`ExecutionAttachmentId`，字段改为 `executionAttachment`。
 - **负责与闭合条件**：Agent 契约的写者改类型名与字段名；已接受页的「挂载」随系统页修订交负责人接受后回改。两处都回改后闭合。
 - **状态**：部分闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。词条已定名，Agent 契约已改用全称类型名与字段名。已接受页（系统页 Agent runtime 的节名「实例、执行与执行挂接」与正文、领域页）已回改，英文裸写的 attachment 也已改为 execution attachment。仍缺：共同系统页 `runtime-contract-model.md` 的旧写法，该页尚未进入集成轨道，随该页进入集成轨道时回改，之后闭合。
+
+### C-65：压缩用排除名单还是保留名单
+
+- **类型**：定义打架。2026-10-20 承接产品负责人的压缩语义时发现。
+- **来源**：[压缩记录](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record)与[上下文压缩](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction)当时按封存的 PF-009、PF-010 写成以块为单位的排除名单：压缩记录点名一批块，从此不再模型可读。PanQiWei 2026-10-20 定下的语义相反：压缩后模型只看到压缩记录指定保留的消息、压缩记录本身和它之后的消息。
+- **差别**：排除名单以块为单位、列出被拿掉的部分，模型视图要逐块扣减；保留名单以消息为单位、列出留下的少数，在压缩时固定。两种读法给出的模型视图形状不同，下游的形状、校验和缓存都会照着其中一种建。
+- **处置**：词表改用[保留名单](terms/record-and-context.md#ul-retained-set--保留名单--retained-set)与[压缩覆盖范围](terms/record-and-context.md#ul-compacted-range--压缩覆盖范围--compacted-range)，「排除名单」列入弃用。[运行感知与一次模型请求](../product/runtime-context/design.md#7-压缩保留历史与未完工作)已修订到 rev 3。消息形状与判定规则归 `packages/common/message`。
+- **负责与闭合条件**：负责人 PanQiWei。仍写「排除名单」或「精确原块集合」的正式正文由各自拥有者回改：Request Context 成员（`packages/context/request-context/**`）、Session 契约 SPEC 的派生提交条款、Agent 机制页（`packages/agent/agent/docs/architecture/mechanisms.md`）、Agent 契约 SPEC 的「不选择排除集合」一句、产品页模型调用的「压缩的派生排除」一句。全部回改后闭合。
+- **状态**：已裁定，待外域回改。
+
+### C-66：运行时 context 注册是属性还是对象
+
+- **类型**：定义打架。2026-10-20 承接 Runtime Context 产品页 rev 4 时发现。
+- **来源**：[运行时 context 注册](terms/scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)原按封存 [PF-015 §6.18](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 21）写成会话上的一项属性：会话纳入一块的来源、配置与消费者声明。[运行感知与一次模型请求 §2.4](../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 4）把它写成作用域持有者为一个作用域固定的清单，身份是作用域加块键，必需项在作用域创建时固定、可选项可增删，并带需要绑定与参数。
+- **差别**：属性读法下它没有自己的身份，随会话整体存在；对象读法下每个作用域加块键一条，可以被单独引用、增删与恢复。下游按属性建，就没有「移除一项只停本作用域后续使用」这件事可做；按对象建，才有逐项的注册修订可供读取资格引用。
+- **处置**：词条形态改为对象，定义按 rev 4 改写，封存出处保留为旧说法；[objects.md](../domain_objects/objects.md#ul-runtime-context-registration--运行时-context-注册) 立条目。「会话」改为「作用域持有者」，本版持有者是会话。
+- **负责与闭合条件**：负责人 PanQiWei。Context 成员契约按对象读法写登记条款；封存 PF-015 不回改。契约落地后闭合。
+- **状态**：已裁定（随产品页 rev 4），待成员契约落地。
