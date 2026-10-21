@@ -3,71 +3,100 @@
 PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
-Draft service-contract package.
+The Cordis definition member of Runtime Context. Variant: `service-contract`.
+
 ## Responsibility and status
 
-<!-- documentation:placeholder -->
+This package owns only the Cordis definition of the Runtime Context seam. The definition has four parts: the service key `runtimeContext`, the abstract class `RuntimeContextService`, the intercept configuration `{ consumer }`, and the wake-up event `runtime-context-cordis-contract/changed`.
 
-Describe actual consumers, platforms, responsibility, and adoption basis. Separate implemented, pending, and unverified behavior.
+The package does not own domain behavior. [runtime-context-contract](../runtime-context-contract/README.md) owns the behavior of the three operation faces. [runtime-context](../runtime-context/README.md) owns the supply mechanism. [runtime-context-cordis](../runtime-context-cordis/README.md) owns the Service implementation. The package knows only generic roles: producer, scope holder, consumer class, and listener.
+
+Status: Cordis definition member, `draft`. The adoption basis is the [member and Cordis placement section](../../../docs/architecture/runtime/runtime-context.md#成员与-cordis-落位) of the system page and the [IC conventions](../../../docs/architecture/cordis-integration-conventions.md).
+
+- Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
+- Not implemented: the abstract class, the key constant, the intercept configuration type, the `Context` and `Events` augmentations, and the type re-exports of the root entry.
+- Not verified: three Cordis mechanism readings are not in the basis yet. Thus properties 3, 4, and 5 of the SPEC are assumptions. See the [Cordis page](docs/cordis.md#机制读数与假设).
+
+No package depends on this package now.
 
 ## Usage
 
-<!-- documentation:placeholder -->
+The package has two entries:
 
-Give a working example, dependencies, and initialization and disposal responsibilities. Distinguish independent use from Cordis integration. Check public exports, source value dependencies, generated declarations, runtime startup, and the installation closure separately. A ./cordis entry does not prove independent installation.
+- The root entry `@omne-harness/runtime-context-cordis-contract` re-exports only contract types. It does not import Cordis.
+- `@omne-harness/runtime-context-cordis-contract/cordis` holds the service definition.
+
+After the implementation arrives, a consumer-side adapter plugin declares its consumer class like this:
+
+```ts
+import type {} from '@omne-harness/runtime-context-cordis-contract/cordis'
+
+export const inject = {
+  runtimeContext: { consumer: 'model' },
+}
+```
+
+A producer plugin uses `inject: ['runtimeContext']` and calls `registerProducer` in its plugin body. Cordis removes the registration when the plugin unloads. The [usage page](docs/context.md#使用方式) gives the use for each kind of dependent.
+
+Independent use does not need this package. A caller without Cordis uses the root entries of runtime-context-contract and runtime-context.
 
 ## Contracts
 
-<!-- documentation:placeholder -->
+- `src/` owns the public shapes. It is empty now.
+- The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 8.
+- The [Cordis page](docs/cordis.md) owns the service definition, the event, the dependency classes, the registration and removal protocol, and the IC conformance map.
+- The [API page](docs/public-api.md) indexes the exports.
+- The [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md) owns the inputs, results, and failures of the three faces.
 
-Link public types, necessary validation, and the sole behavior owner. SPEC.md owns behavior beyond types, and docs/public-api.md indexes the public definitions. Identify error, lifecycle, and resource responsibilities without copying signatures or state machines.
+The package holds no resources. The fiber of the producer plugin owns the life of a producer registration. The fiber of the listener owns the life of an event listener. The provider owns service removal, settlement of in-flight reads, and discard of late publications.
 
 ## Design
 
-<!-- documentation:placeholder -->
-
-Summarize internal modules and invariant owners. The full design belongs in docs/architecture.md, docs/flows.md, and docs/object-model.md.
+Each entry has one source file. The outside dependencies are the types of runtime-context-contract and `@deepseek-ai/cordis`. The package does not import the mechanism or the provider. The service has one key. Blocks are data, not services. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the two mechanism flows. The [object model](docs/object-model.md) lists the three technical objects.
 
 ## Configuration and operation
 
-<!-- documentation:placeholder -->
-
-Describe configuration owners, defaults, environment requirements, and explicit dependencies. State the caller and package responsibilities during operation.
+The package has no plugin configuration, needs no environment, and reads no resources at run time. The intercept configuration `{ consumer }` is an assembly declaration of a consumer plugin. It is not configuration of this package. The provider configuration belongs to [runtime-context-cordis](../runtime-context-cordis/docs/cordis.md).
 
 ## Verification
 
-<!-- documentation:placeholder -->
+From the repository root, run:
 
-List repeatable commands, properties, assumptions, and uncovered behavior. Add tests with actual assertions. Passing structure checks does not establish business behavior.
+```sh
+pnpm turbo run test --filter=@omne-harness/runtime-context-cordis-contract
+```
+
+In this directory, run `pnpm typecheck` for the type check. The two current tests check only that both entries export nothing. See [tests/](tests/README.md). The three mechanism properties need basis probes first. Then the provider tests check them. A passing structure check does not prove behavior.
 
 ## Maintenance
 
-<!-- documentation:placeholder -->
-
-Identify consumers and checks that must change with public contracts, resources, or dependencies. Explain inapplicable information. Record named gaps for unknown information.
+- When the operation types of the three faces change in the contract, update the abstract class, the [API page](docs/public-api.md), and the export tests.
+- When the service key, the intercept configuration, or the event changes, update the [Cordis page](docs/cordis.md) and the provider runtime-context-cordis.
+- Before a Cordis upgrade, run the basis probes that the Cordis page lists.
+- The [group page](../README.md) owns member relations and dependency direction. The responsible lead names the maintainer.
 
 ## Directory structure and documentation roles
 
 ```text
 README.md, README_ZH.md   Entry: purpose, status, and this map
 index.md                  Reading paths through the package
-SPEC.md                   Behavior beyond the public types
+SPEC.md                   Behavior beyond the types, properties 1 to 8
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
-├── architecture.md       Modules, state and resource ownership, mechanisms
-├── flows.md              Key business flows and data flows
-├── object-model.md       Internal object model
-├── public-api.md         Public boundary and definition index
-├── context.md            Consumer use and position in the system
-└── cordis.md             Cordis applicability and integration
-src/                      Public definitions, validation, and implementation
-tests/                    Continuous tests; fixtures/ holds test inputs
-schema/                   External schemas
-verification/             models/ and proofs/
-adr/                      Implementation decisions with continuing consumers
-examples/                 Examples against the public entry
-resources/                Non-source runtime resources
-acceptance/               Independent acceptance; fixtures/ holds its inputs
+├── architecture.md       Two entries, dependencies, mechanisms and reasons
+├── flows.md              Mechanism flows F-RCD01 and F-RCD02
+├── object-model.md       Three technical objects; domain objects in the contract
+├── public-api.md         Export entries and definition index
+├── context.md            Use by each dependent, position
+└── cordis.md             Service definition, event, registration, IC map
+src/                      index.ts and cordis.ts, template markers only now
+tests/                    Two entry tests, fixtures/ is empty now
+schema/                   Empty, the package publishes no schema
+verification/             models/ and proofs/, empty now
+adr/                      Empty now
+examples/                 Empty now
+resources/                Empty now
+acceptance/               Empty now, fixtures/ is also empty
 ```
 
-Each directory has README.md for its role and index.md for navigation. See [index.md](index.md) for reading paths. A docs topic can grow into a directory of the same name with README.md and index.md. Keep this map current when a topic moves.
+Each directory has README.md for its role and current state, and index.md for navigation. See [index.md](index.md) for reading paths.

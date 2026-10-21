@@ -39,6 +39,6 @@
 | 机制行为 | [runtime-context SPEC](../runtime-context/SPEC.md) |
 | 三条机制读数 | [runtime-context-cordis-contract/docs/cordis.md](../runtime-context-cordis-contract/docs/cordis.md)；补齐前性质 2、3、4 是假设 |
 
-持续验证义务，随实现进入 `tests/`：生产者插件卸载后登记已撤除且 `resolvePlacement` 一类的读取读到缺项；两个消费者插件各自取到自己的 intercept 配置；作用域 A 的唤醒不到达作用域 B 的监听者；插件卸载时在途读取结算、关闭后读取拒绝；重复装载失败；配置错误时 fiber `FAILED`。
+持续验证义务，随实现进入 `tests/`：生产者插件卸载后登记已撤除且依赖该块的读取读到缺项；两个消费者插件各自取到自己的 intercept 配置；作用域 A 的唤醒不到达作用域 B 的监听者；插件卸载时在途读取结算、关闭后读取拒绝；重复装载失败；配置错误时 fiber `FAILED`。
 
 本成员不覆盖：持久化与跨进程一致性，以及真实消费者与生产者的端到端组合。

@@ -1,29 +1,19 @@
 # verification
 
-<!-- documentation:placeholder -->
-
 本目录承载本包的持续验证资源：模型、论证或证明。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 `models/` 下的形式模型，`proofs/` 下的论证或证明，以及说明文件。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 每份资源说明所验证的性质、前提、运行命令、覆盖与限制。单次运行的原始输出留任务 tmp，不进本目录。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 被验证的承诺变化时，同步模型、证明与本目录 `index.md`。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+现在为空，`models/` 与 `proofs/` 都没有资源。本成员的六项验证义务由测试承担，见 [Cordis 说明的验证义务](../docs/cordis.md#验证义务)。性质 2、3、4 依赖的三条 Cordis 机制读数由 basis probe 核验，清单归[服务定义成员](../../runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)。撤除顺序与并发卸载的交错只靠测试不能覆盖时，才在这里加入模型。

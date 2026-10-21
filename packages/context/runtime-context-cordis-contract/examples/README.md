@@ -1,29 +1,19 @@
 # examples
 
-<!-- documentation:placeholder -->
-
 本目录承载面向真实公开入口的使用示例。
 
 ## 允许的内容
-
-<!-- documentation:placeholder -->
 
 可运行的示例代码与说明。
 
 ## 边界
 
-<!-- documentation:placeholder -->
-
 示例只用公开入口，并写明运行前提。示例不代替测试或规格。
 
 ## 维护
-
-<!-- documentation:placeholder -->
 
 公开入口变化时，同步示例并确认它仍能运行。
 
 ## 本包事实
 
-<!-- documentation:placeholder -->
-
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+现在为空。两个入口都没有导出，没有可以运行的用法。依赖方的写法片段在[使用与定位](../docs/context.md#使用方式)里。`./cordis` 的服务定义与提供者 runtime-context-cordis 都进入后，这里可以放一个可运行示例：装载提供者，一个生产者插件登记，一个消费者插件 `bind` 并读取。

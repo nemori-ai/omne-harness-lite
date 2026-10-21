@@ -3,71 +3,82 @@
 PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
-module 变体草稿。
+Runtime Context 的机制实现成员，`module` 变体。
+
 ## 职责与状态
 
-<!-- documentation:placeholder -->
+本成员实现 Runtime Context 的供给机制：注册表、生产者表、需要绑定、当前投影、观察链、资格核对与翻译。它导出一个不依赖 Cordis 的工厂，输出实现契约三面操作的机制实例。公开行为归 [runtime-context-contract](../runtime-context-contract/README_ZH.md)，Cordis 绑定与唤醒归 [runtime-context-cordis](../runtime-context-cordis/README_ZH.md)。本成员不持有任何耐久状态，四张表都是进程内副本。
 
-填写实际消费者、平台、职责和采用依据。区分已实现、未实现与未验证。
+状态：机制实现成员，`draft`。采用依据是组的[成员分解](../docs/architecture.md#成员分解)与 [SPEC](SPEC.md)。现在的实现情况如下：
+
+- 已实现：没有。`src/index.ts` 只有模板标记，根入口没有导出。
+- 未实现：工厂、四张表、观察链、资格核对、翻译与关闭。
+- 未验证：SPEC 列出的十个持续验证场景都没有测试。本成员不宣称持久化、跨进程一致性或租户隔离。
+
+现在没有包依赖本成员。
 
 ## 使用
 
-<!-- documentation:placeholder -->
+本成员只有根入口 `@omne-harness/runtime-context`。装配 Cordis 的系统不直接导入它，由 runtime-context-cordis 调用工厂。不装配 Cordis 的调用方直接调用工厂，并自己承担代际、撤除与唤醒，见[使用与定位](docs/context.md#独立使用)。
 
-给出最小有效示例、依赖及初始化和释放责任。分别说明独立使用入口与 Cordis 集成入口。逐项核对公开 exports、源码值依赖、生成声明、运行启动和安装闭包。存在 ./cordis 不证明独立安装成立。
+工厂的名称与签名随实现确定，现在没有可运行的示例。
 
 ## 契约
 
-<!-- documentation:placeholder -->
+- 公开形状归 `src/`，现在为空。导出索引归[公开接口页](docs/public-api.md)。
+- 本成员的本地行为归 [SPEC](SPEC.md)：表与投影、本地行为、关闭与重建。
+- 三面操作的输入、结果与失败归 [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md)，条款 RC-01 至 RC-07。
+- 内部对象的身份与生灭归[对象模型](docs/object-model.md)。
 
-链接公开类型、必要校验及唯一行为正文。类型外行为由 SPEC.md 拥有，公开定义的导航在 docs/public-api.md。说明错误、生命周期与资源责任的拥有者，不复制签名或状态机。
+调用工厂的一方拥有机制实例，负责关闭它。关闭先拒绝新请求，再结束读者、等在途读取结算，最后释放表。关闭不撤回已交出的变化材料或外部效果。
 
 ## 设计
 
-<!-- documentation:placeholder -->
-
-概述内部模块和关键不变量的拥有者。完整设计写在 docs/architecture.md、docs/flows.md 与 docs/object-model.md。
+工厂内部分为注册表、生产者表、当前投影、观察链、读取与生命周期六个模块。包外依赖只有 runtime-context-contract。关键机制是注册修订比较、代际丢弃、作用域链查找、观察链上限与重取、读取时核资格与翻译、提交之后写入步提交、固定的关闭顺序。模块与理由见[内部架构](docs/architecture.md)，五条机制流程见[机制流程](docs/flows.md)，内部对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
-<!-- documentation:placeholder -->
-
-填写配置拥有者、默认行为、环境前提和显式依赖。说明调用者与包各自的运行责任。
+工厂接受观察链保留上限。默认值只是配置初值。经 Cordis 时，这项配置由 runtime-context-cordis 的插件配置给出并校验。本成员没有环境前提，运行时不读取资源，不访问存储。注册与步提交的耐久保存归作用域持有者，`persisted` 供给块的值由生产者重新发布。
 
 ## 验证
 
-<!-- documentation:placeholder -->
+在仓库根执行：
 
-填写可复跑命令、性质、前提和未覆盖。提供有实际断言的测试。结构通过不表示业务行为已验证。
+```sh
+pnpm turbo run test --filter=@omne-harness/runtime-context
+```
+
+在本目录执行 `pnpm typecheck` 做类型检查。现有测试只断言根入口没有导出，见 [tests/](tests/README.md)。SPEC 的[持续验证场景](SPEC.md#组合与验证)随实现进入。持久化、跨进程一致性与租户隔离的端到端证据不在本成员。结构检查通过不表示行为已验证。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-说明公开契约、资源或依赖变化时必须同步的消费者和验证入口。信息不适用时写明理由，未知时登记具名缺口。
+- 契约的读取结果、游标或步提交规则改变时，同步[内部架构](docs/architecture.md)、[机制流程](docs/flows.md)与测试。
+- 新增配置项时，同步[公开接口页](docs/public-api.md)与 runtime-context-cordis 的配置 Schema。
+- 工厂签名改变时，同步唯一的组内使用方 runtime-context-cordis。
+- 成员关系与依赖方向归[组入口](../README.md)。具名维护者由负责人指定。
 
 ## 目录结构与文档职责
 
 ```text
 README.md、README_ZH.md   入口：用途、状态与本结构图
 index.md                  全包的阅读路径
-SPEC.md                   公开类型以外的行为
+SPEC.md                   表与投影、本地行为、关闭与重建
 documentation.json        文档登记
 docs/                     内部设计、公开使用与集成说明
-├── architecture.md       模块、状态与资源归属、关键机制
-├── flows.md              关键业务流程与数据流
-├── object-model.md       内部对象模型
-├── public-api.md         公开边界与定义索引
-├── context.md            消费侧使用与系统定位
-└── cordis.md             Cordis 适用性与集成
-src/                      公开定义、运行时校验与内部实现
-tests/                    持续测试；fixtures/ 存放测试输入
-schema/                   对外 Schema
-verification/             models/ 与 proofs/
-adr/                      有持续消费者的实现取舍
-examples/                 面向公开入口的示例
-resources/                运行所需的非源码资源
-acceptance/               独立验收；fixtures/ 存放验收输入
+├── architecture.md       模块与依赖、关键机制与理由
+├── flows.md              F-RCI01 至 F-RCI05 机制流程
+├── object-model.md       表的条目、游标与实例的生灭
+├── public-api.md         导出入口与定义索引
+├── context.md            经 Cordis 使用、独立使用与定位
+└── cordis.md             不适用 Cordis 集成的理由
+src/                      只有 index.ts，现在只有模板标记
+tests/                    入口测试，fixtures/ 现在为空
+schema/                   现在为空，本成员不发布 Schema
+verification/             models/ 与 proofs/，现在为空
+adr/                      现在为空
+examples/                 现在为空
+resources/                现在为空
+acceptance/               现在为空，fixtures/ 也为空
 ```
 
-每个目录的 README.md 说明职责，index.md 负责导航。阅读路径见 [index.md](index.md)。docs 专题可以升级为同名目录，目录内须有 README.md 与 index.md；专题移动时同步本结构图。
+每个目录的 README.md 说明职责与现状，index.md 负责导航。阅读路径见 [index.md](index.md)。
