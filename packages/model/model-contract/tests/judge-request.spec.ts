@@ -836,7 +836,6 @@ it('reuses the full ContentBlock, MessagePart and lossless JSON vocabulary', () 
   const ref = { storage: 'unopened', key: 'unopened', mediaType: '', bytes: '0', digest: 'digest' }
   const blocks = [
     { kind: 'text', id: 'text', visibility, text: 'hello' },
-    { kind: 'thinking', id: 'thinking', visibility, text: '' },
     { kind: 'image', id: 'image', visibility, mediaType: '', inline: '' },
     { kind: 'voice', id: 'voice', visibility, mediaType: '', inline: '' },
     { kind: 'file', id: 'file', visibility, storage: 'unopened', key: 'unopened', mediaType: '' },
@@ -858,16 +857,26 @@ it('reuses the full ContentBlock, MessagePart and lossless JSON vocabulary', () 
       { key: 'array', value: { kind: 'array', items: [{ kind: 'null' }] } },
     ],
   }
+  const thinking = { kind: 'thinking', id: 'thinking', visibility, text: '' }
   const messages = [
-    ...['user', 'tool_internal', 'system_reminder', 'compaction'].map((role, index) => ({
+    ...['user', 'tool_internal', 'system_reminder'].map((role, index) => ({
       id: `msg_${'a'.repeat(22)}${index}`,
       role,
       blocks,
     })),
     {
+      id: `msg_${'a'.repeat(22)}3`,
+      role: 'compaction',
+      blocks,
+      covers: { from: 'e1', to: 'e2' },
+      retained: ['e2'],
+      derivation: { owner: 'owner', record: 'record', revision: '1', digest: 'digest' },
+    },
+    {
       id: `msg_${'b'.repeat(22)}`,
       role: 'assistant',
       blocks: [
+        thinking,
         {
           kind: 'tool_call',
           id: 'complete',
@@ -900,9 +909,10 @@ it('reuses the full ContentBlock, MessagePart and lossless JSON vocabulary', () 
       blocks: [{ kind: 'tool_result', id: 'result', visibility, callId: 'call' }, ...blocks],
     },
   ]
-  const raw = { ...withValue(json), system: blocks, messages }
+  const system = [thinking, ...blocks]
+  const raw = { ...withValue(json), system, messages }
   const fixed = must(judgeFixedModelRequest(raw))
-  expect(fixed.system).toEqual(blocks)
+  expect(fixed.system).toEqual(system)
   expect(fixed.messages).toEqual(messages)
   const assertFrozen = (value: unknown): void => {
     if (typeof value !== 'object' || value === null) return

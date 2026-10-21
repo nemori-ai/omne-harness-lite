@@ -2,7 +2,7 @@
 id: PD-runtime-context
 title: 运行感知与一次模型请求
 status: draft
-revision: 2
+revision: 3
 relations:
   supersedes: []
   depends-on: []

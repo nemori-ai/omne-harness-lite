@@ -42,9 +42,11 @@ it('exports exactly the message runtime names, with no mint function and no tool
   const root = (await import('@omne-harness/message')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'LOG_MESSAGE_ROLES',
+    'judgeCompaction',
     'judgeMessage',
     'judgePart',
     'messageIdEquals',
     'parseMessageId',
+    'parseRecordEntryRef',
   ])
 })

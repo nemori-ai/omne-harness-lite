@@ -360,8 +360,10 @@
 | [UL-model-facing-context](terms/record-and-context.md#ul-model-facing-context--给模型看的上下文--model-facing-context) | 给模型看的上下文 | Model-Facing Context | 两块分别组装，**只有第二块压得动** |
 | [UL-system-prompt](terms/record-and-context.md#ul-system-prompt--系统提示词--system-prompt) | 系统提示词 | System Prompt | 按当前合法输入逐请求生成，**压缩碰不到它**；不落日志，本版只含文本 |
 | [UL-prefix-consistency](terms/record-and-context.md#ul-prefix-consistency--前缀一致--prefix-consistency) | 前缀一致 | Prefix Consistency | 开头那段与上一次逐字相同，**尽可能最大化** |
-| [UL-context-compaction](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction) | 上下文压缩 | Context Compaction | **三个目标两两相冲**；能做两件、不能做两件 |
-| [UL-compaction-record](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record) | 压缩记录 | Compaction Record | `CompactionMessage`；**边界不是一条截断线** |
+| [UL-context-compaction](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction) | 上下文压缩 | Context Compaction | **三个目标两两相冲**；定范围、写摘要、点保留名单 |
+| [UL-compaction-record](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record) | 压缩记录 | Compaction Record | `CompactionMessage`；模型看到保留名单 ‖ 它 ‖ 范围之后 |
+| [UL-compacted-range](terms/record-and-context.md#ul-compacted-range--压缩覆盖范围--compacted-range) | 压缩覆盖范围 | Compacted Range | 一条压缩记录摘要的那段历史，从日志起点到压缩点之前 |
+| [UL-retained-set](terms/record-and-context.md#ul-retained-set--保留名单--retained-set) | 保留名单 | Retained Set | 覆盖范围内仍原样给模型的消息引用；弃用 ~~排除名单~~ |
 | [UL-business-calendar](terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 业务日历 | Business Calendar | 具有明确适用范围、可被指认与选用的一份日期分类知识，逐日回答工作日、假日等问题，由可追溯的业务日历版本承载。 |
 | [UL-business-calendar-version](terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 业务日历版本 | Business Calendar Version | 某份业务日历经过校验发布的一份不可变数据，带可区分的版本、覆盖范围、信息截至时点与权威出处；修订通过新版本表达。 |
 

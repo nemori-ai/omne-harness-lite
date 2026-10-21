@@ -4,6 +4,8 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type {
   IncompleteToolCallPart,
   Message,
+  MessageContentBlock,
+  MessageId,
   MessagePart,
   ToolCallPart,
   ToolMessage,
@@ -70,6 +72,11 @@ it('a message part is a content block or a tool part', () => {
 
 it('ToolMessage is a tool message that starts with its marker', () => {
   expectTypeOf<ToolMessage>().toEqualTypeOf<
-    Message & Readonly<{ role: 'tool'; blocks: readonly [ToolResultPart, ...ContentBlock[]] }>
+    Readonly<{
+      id: MessageId
+      role: 'tool'
+      blocks: readonly [ToolResultPart, ...MessageContentBlock[]]
+    }>
   >()
+  expectTypeOf<ToolMessage>().toExtend<Message>()
 })
