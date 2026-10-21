@@ -7,14 +7,14 @@ The pure contract member of Request Context. Variant: `module`.
 
 ## Responsibility and status
 
-This package owns the protocol for the derived computation of one model request input. It defines the seven input groups, the request candidate, coverage evidence, the fit verdict, and representation choices. It also defines the compaction plan and its steps, the six-layer layout, and the snapshot anchor rule. It also defines the types of the history source port and the policy ports. It defines eight single pure operations and three compaction plan operations.
+This package owns the protocol for the derived computation of one model request input. It defines the seven input groups, the request candidate, coverage evidence, the fit verdict, and representation choices. It also defines the compaction plan and its steps, the six-layer layout, and the snapshot anchor rule. It also defines the types of the history source port and the policy ports. It defines eleven pure operations: eight single operations and three compaction plan operations.
 
 Every fact that the package reads belongs to another owner. The package owns no facts, sends no request, fixes no adoption, and writes no history. It knows only generic roles: coordinator, history holder, integrator, contributor, and caller.
 
 Status: contract member, `draft`. The [SPEC](SPEC.md) states which parts come from technical acceptance and which parts come from the product text, revision 4.
 
 - Implemented: nothing. `src/index.ts` is an empty export. The root entry has no types and no runtime values.
-- Not implemented: all value types, all pure operations, the port types, and the contract constants. The [API page](docs/public-api.md#随实现切片进入的导出) lists them.
+- Not implemented: all value types, all pure operations, the port types, and the contract constants. The [API page](docs/public-api.md#随实现进入的导出) lists them.
 - Not verified: every behavior clause in the SPEC. The package has no runtime implementation. It makes no claim about tenant isolation, durability after power loss, model compatibility, or performance.
 
 No package depends on this package now. The adapter on the coordinator side does not exist yet. See the [usage page](docs/context.md#现在的真实消费者).

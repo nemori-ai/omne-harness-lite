@@ -617,9 +617,9 @@ specific.
 
 ### UL-read-eligibility · 读取资格 · Read Eligibility
 
-> **中**：作用域持有者签发给一次绑定的那份材料：作用域、消费者类、主体与租户、允许读的块键集合、签发时的注册修订。读取时逐次核对它，持有者可以撤销它。它不是从运行环境推断出来的。
+> **中**：作用域持有者签发给一次绑定的那份材料：作用域、消费者类、主体与租户、允许读的块键集合、允许的需要绑定集合、签发时的注册修订。读取时逐次核对它。持有者可以撤销它，撤销后按它读取被拒绝；持有者也可以签发一份新资格取代它（重签），重签后它失效，按它建立的读者沿新资格继续读取。它不是从运行环境推断出来的。
 >
-> **EN**: The material a scope holder issues for one binding: the scope, the consumer class, the principal and tenant, the set of block keys that may be read, and the registration revision at issue time. It is checked on every read and the holder can revoke it. It is never inferred from the runtime environment.
+> **EN**: The material a scope holder issues for one binding: the scope, the consumer class, the principal and tenant, the set of block keys that may be read, the set of need bindings that may be read, and the registration revision at issue time. It is checked on every read. The holder can revoke it, and reads under it are then refused. The holder can also issue a new eligibility that replaces it (reissue). After a reissue it is no longer valid, and readers bound under it continue under the new one. It is never inferred from the runtime environment.
 
 - **形态**：属性
 - **出处**：[运行感知与一次模型请求 §2.4](../../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 4）

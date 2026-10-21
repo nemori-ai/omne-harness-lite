@@ -88,7 +88,7 @@
 | [UL-context-need](terms/scope-and-resolution.md#ul-context-need--上下文需要--context-need) | 上下文需要 | Context Need | 消费者在自己定义里写的「我要一个这样形状的值」，**不点名块键** |
 | [UL-need-binding](terms/scope-and-resolution.md#ul-need-binding--需要绑定--need-binding) | 需要绑定 | Need Binding | 集成方在注册时写的「这条需要由哪一块满足，怎样翻译」 |
 | [UL-producer-handle](terms/scope-and-resolution.md#ul-producer-handle--生产者句柄--producer-handle) | 生产者句柄 | Producer Handle | 生产者登记后拿到的带**代际**的代表：发布、失效、撤销；旧代晚到不采用 |
-| [UL-read-eligibility](terms/scope-and-resolution.md#ul-read-eligibility--读取资格--read-eligibility) | 读取资格 | Read Eligibility | 持有者签发给一次绑定的材料：作用域、消费者类、主体与租户、允许的键；**不从运行环境推断** |
+| [UL-read-eligibility](terms/scope-and-resolution.md#ul-read-eligibility--读取资格--read-eligibility) | 读取资格 | Read Eligibility | 持有者签发给一次绑定的材料：作用域、消费者类、主体与租户、允许的键与需要绑定；可撤销，可重签取代；**不从运行环境推断** |
 | [UL-bound-reader](terms/scope-and-resolution.md#ul-bound-reader--绑定读者--bound-reader) | 绑定读者 | Bound Reader | 按一份资格建立的读取入口，消费者类固定，读到自己声明的形状，每次读重核资格 |
 | [UL-context-update](terms/scope-and-resolution.md#ul-context-update--上下文更新--context-update) | 上下文更新 | Context Update | 对状态块提出的一条局部更新，**是提案不是事实** |
 | [UL-step-commit](terms/scope-and-resolution.md#ul-step-commit--步提交--step-commit) | 步提交 | Step Commit | 持有者在步边界把该步全部更新合并成的一份结果并写成事实，**一步一份** |

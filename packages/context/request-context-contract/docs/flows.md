@@ -91,6 +91,8 @@ sequenceDiagram
   participant R as 本成员
   participant M as Model
   participant H as 历史持有者
+  participant S as 作用域持有者
+  participant RC as Runtime Context
   C->>R: planCompaction(组装输入)
   R-->>C: 计划身份、步数上界、第一步；进度为已完成零步
   opt 修剪步
@@ -105,7 +107,9 @@ sequenceDiagram
   R-->>C: 压缩转换：压缩记录、一致性证明、承诺
   C->>H: 一次权威提交：保存压缩记录与范围转换，接续位置
   H-->>C: 已提交，开新 epoch
-  C->>C: 重新完整读取 runtime context
+  S->>RC: issueEligibility 带模型类读者当前资格的身份，重签资格
+  C->>RC: 以模型类资格读取
+  RC-->>C: 游标已随重签作废，按游标状态给完整快照
   C->>R: resume(组装输入, 转换依据)
   R-->>C: 新候选，快照锚在当时的历史尾部
 ```
@@ -121,7 +125,7 @@ sequenceDiagram
 | 共同提交 | 历史持有者保存记录与范围转换，协调者保存接续位置，两者在一次权威提交中完成 | 本成员不提交。提交未知时按原操作查询，不用未提交的派生冒充已压缩 |
 | 重算 | `resume` 带转换依据重算候选，补入完整合法快照，再计全部输入限制 | 当前数据不能代替被摘要的旧提醒。补入后仍超限，返回装不下，协调者据此失败；不能只检查摘要长度 |
 
-压缩之后，模型看到的历史依次是保留名单里的消息、这条压缩记录、覆盖范围之后的全部模型可读消息。压缩记录的形状与模型视图规则归 [message](../../../common/message/README.md)。
+压缩之后模型看到的历史，顺序见 SPEC 的 [epoch 视图到六层的映射](../SPEC.md#epoch-视图到六层的映射)。持有者在提交压缩之后、重签之前崩溃时，恢复时先重签模型类读者的资格，再接续（[RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界)）。压缩记录的形状与模型视图规则归 [message](../../../common/message/README.md)。
 
 ### F-RQ04 调模型之前位置改写与复核
 

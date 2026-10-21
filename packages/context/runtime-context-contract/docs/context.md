@@ -46,7 +46,7 @@ export const localeBlock: SuppliedBlockDescriptor<'example.locale', Locale> = {
 3. 用 `reduceStep` 对一步的每条更新判接受或拒绝，把接受的合并成步提交材料。被拒的更新按逐项原因退回提出者。
 4. 用 `diffForReminder` 从两份快照算出变化材料。
 
-这些函数现在还没有导出，见[公开接口页](public-api.md#随实现切片进入的导出)。提交与存储仍归调用方自己。
+这些函数现在还没有导出，见[公开接口页](public-api.md#随实现进入的导出)。提交与存储仍归调用方自己。
 
 `ScopeRef.ref` 是品牌字符串。本成员现在不导出它的构造或解码函数。
 

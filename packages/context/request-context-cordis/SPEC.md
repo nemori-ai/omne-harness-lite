@@ -45,5 +45,6 @@
 
 - 根入口工厂与机制工厂的分工：根入口导出的工厂是重导出 [request-context](../request-context/SPEC.md) 的机制工厂，还是另一层包装，没有写明，随实现写定。
 - 持有者的提交通知与模型选择变更以什么事件到达本插件，事件名与载荷归各自拥有者，没有在本组写定。
+- `context.compaction-settings` 与 `context.window-usage` 两块的生产者登记还没有实现。两块的语义拥有者与声明归 [request-context-contract RQ-02](../request-context-contract/SPEC.md#rq-02-组装的前置输入)，生产者是本成员。
 
 本成员不覆盖：持久化与跨进程一致性，以及真实贡献者、协调者与持有者的端到端组合。

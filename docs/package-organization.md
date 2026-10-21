@@ -132,7 +132,7 @@ packages/
 │   ├── runtime-context-cordis-contract/  Runtime Context 的唯一 Cordis 服务定义
 │   ├── runtime-context/                  不含 Cordis 的供给机制：登记表、生产者表、绑定解析、当前投影、观察链
 │   ├── runtime-context-cordis/           Service 实现：一个 isolate 一个服务，作用域为参数
-│   ├── request-context-contract/         Request Context 纯契约：组装输入、九项纯操作、装载布局、历史源与策略端口
+│   ├── request-context-contract/         Request Context 纯契约：组装输入、十一个纯操作（八个单项操作加三个压缩计划操作）、装载布局、历史源与策略端口
 │   ├── request-context-cordis-contract/  Request Context 的唯一 Cordis 服务定义：提示词贡献登记与策略选择
 │   ├── request-context/                  不含 Cordis 的派生计算：索引、缓存、默认压缩与表示策略
 │   └── request-context-cordis/           Service 实现：贡献登记表、作用域遮蔽、策略装配
@@ -141,7 +141,7 @@ packages/
 │   ├── execution-environment-contract/         Execution Environment 纯契约：身份、绑定层、要求、落点、租约、需要端口、设施协议与块声明
 │   ├── execution-environment-cordis-contract/  Execution Environment 的唯一 Cordis 服务定义
 │   ├── execution-environment/                  不含 Cordis 的登记表机制：提供者与设施表、匹配、获取状态机、租约视图与逐操作门、恢复编排
-│   ├── execution-environment-host-local/       Service 实现与宿主提供者：files 已迁入，command、terminal 待实现
+│   ├── execution-environment-host-local/       Service 实现与宿主提供者：已有 files 设施的读取、查看、写入与关闭；command 与 terminal 提供者未实现
 │   └── image/                  图像字节的预算、打开、编码与关闭。技术设计已接受，已是 workspace 成员
 ├── calendar/calendar/          日历版本依据与日期计算
 ├── schedule/schedule/          日程、Job与整体结果

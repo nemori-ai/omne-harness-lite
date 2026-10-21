@@ -375,7 +375,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **来源**：[Runtime Context 产品页](../product/runtime-context/design.md#5-当前值与变化感知)与已接受[系统页](../../../docs/architecture/runtime/runtime-context.md)以 attempt 为拉取时点。用户决定 Agent 不要求、不解释 attempt。
 - **处理**：[UL-runtime-context](terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) 不再另定时点，改指 Context 与 Agent 的现行正文。
 - **负责与闭合条件**：Context 拥有者改写拉取时点的说法。
-- **状态**：已闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。Context 一侧描述拉取时点的页面都已改为「执行开始或挂接建立」：已接受的 Runtime Context 系统页与领域页、运行时 context 规格的 RC-04（标题改为「读取时点、变化与提醒」；该规格现归 [runtime-context-contract](../../../packages/context/runtime-context-contract/SPEC.md)）、该成员的关键流程 RC-F01（现归 [Context 组协作入口](../../../packages/context/docs/key-flows.md)）、内部设计与开放问题、Context 组的关键流程，以及 [Runtime Context 产品页](../product/runtime-context/design.md) §5、RC-J01 与 CAP-RC04（产品页修订到 rev 2）。
+- **状态**：已闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。Context 一侧描述拉取时点的页面都已改为「执行开始或挂接建立」：已接受的 Runtime Context 系统页与领域页、运行时 context 规格的 RC-04（该规格现归 [runtime-context-contract](../../../packages/context/runtime-context-contract/SPEC.md)，条款标题现为[「读取时点、观察与变化材料」](../../../packages/context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)）、该成员的关键流程 RC-F01（现为 runtime-context-contract 的 [F-RC03](../../../packages/context/runtime-context-contract/docs/flows.md#f-rc03-执行开始或挂接建立时的完整快照)）、内部设计与开放问题、Context 组的关键流程，以及 [Runtime Context 产品页](../product/runtime-context/design.md) §5、RC-J01 与 CAP-RC04（产品页修订到 rev 2）。
 
 ### C-64：执行挂接的候选类型名
 
@@ -393,7 +393,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **差别**：排除名单以块为单位、列出被拿掉的部分，模型视图要逐块扣减；保留名单以消息为单位、列出留下的少数，在压缩时固定。两种读法给出的模型视图形状不同，下游的形状、校验和缓存都会照着其中一种建。
 - **处置**：词表改用[保留名单](terms/record-and-context.md#ul-retained-set--保留名单--retained-set)与[压缩覆盖范围](terms/record-and-context.md#ul-compacted-range--压缩覆盖范围--compacted-range)，「排除名单」列入弃用。[运行感知与一次模型请求](../product/runtime-context/design.md#7-压缩保留历史与未完工作)已修订到 rev 3。消息形状与判定规则归 `packages/common/message`。
 - **负责与闭合条件**：负责人 PanQiWei。仍写「排除名单」或「精确原块集合」的正式正文由各自拥有者回改：Request Context 成员（`packages/context/request-context/**`）、Session 契约 SPEC 的派生提交条款、Agent 机制页（`packages/agent/agent/docs/architecture/mechanisms.md`）、Agent 契约 SPEC 的「不选择排除集合」一句、产品页模型调用的「压缩的派生排除」一句。全部回改后闭合。
-- **状态**：已裁定，待外域回改。
+- **状态**：已裁定，待外域回改。Request Context 一侧已由 [request-context-contract 的 RQ-06](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)按保留名单写定。其余各处待回改。
 
 ### C-66：运行时 context 注册是属性还是对象
 
@@ -402,4 +402,4 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **差别**：属性读法下它没有自己的身份，随会话整体存在；对象读法下每个作用域加块键一条，可以被单独引用、增删与恢复。下游按属性建，就没有「移除一项只停本作用域后续使用」这件事可做；按对象建，才有逐项的注册修订可供读取资格引用。
 - **处置**：词条形态改为对象，定义按 rev 4 改写，封存出处保留为旧说法；[objects.md](../domain_objects/objects.md#ul-runtime-context-registration--运行时-context-注册) 立条目。「会话」改为「作用域持有者」，本版持有者是会话。
 - **负责与闭合条件**：负责人 PanQiWei。Context 成员契约按对象读法写登记条款；封存 PF-015 不回改。契约落地后闭合。
-- **状态**：已裁定（随产品页 rev 4），待成员契约落地。
+- **状态**：已裁定（随产品页 rev 4）。成员契约已按对象读法写定登记条款（[RC-02](../../../packages/context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)）；随契约接受闭合。

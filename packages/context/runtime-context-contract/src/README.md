@@ -18,4 +18,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 现在只有 `index.ts` 一个源文件。它只导出类型：共享类型 `ScopeRef`、`ContextBlockKey`、`ConsumerClass`、`ContextBlocks`，以及两类块声明。根入口没有运行值。文件头带 `PACKAGE_TEMPLATE_DRAFT` 标记，它表示公开契约还没有完整进入源码。
 
-当前缺口：需要、绑定、注册、资格、读者、更新、步提交、变化材料的类型与五个纯函数还没有进入，清单见[公开接口页](../docs/public-api.md#随实现切片进入的导出)。具名维护者由负责人指定。
+当前缺口：需要、绑定、注册、资格、读者、更新、步提交、变化材料的类型与五个纯函数还没有进入，清单见[公开接口页](../docs/public-api.md#随实现进入的导出)。具名维护者由负责人指定。

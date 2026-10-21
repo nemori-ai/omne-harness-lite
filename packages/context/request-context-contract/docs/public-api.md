@@ -18,7 +18,7 @@
 
 没有。`src/index.ts` 只有 `export {}`。
 
-### 随实现切片进入的导出
+### 随实现进入的导出
 
 下列名称由 SPEC 与对象模型点名，现在不在 `src/` 里。签名随实现进入，形状以 SPEC 和对象模型为准。某项进入 `src/` 后，在本节上方加「现有导出」表并把它移过去，同时同步导出测试。所属模块见[内部架构](architecture.md#模块与依赖)。
 
@@ -39,6 +39,25 @@
 | `StepRequest` | 步请求，修剪步或摘要步 | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界) |
 | `ContextTransition` | 压缩转换 | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界) |
 | `HistoryEvidence` | 历史依据：epoch、上界与作用域引用 | [历史源读口与 epoch 视图](../SPEC.md#历史源读口与-epoch-视图) |
+| `CompactionPolicy` | 压缩策略配置：`retainRatio` 或 `retainTokens`（保留预算，作用于保留名单）、`retainPreference: 'newest-first' \| 'most-referenced'`（默认 `'newest-first'`）。触发界线、修剪优先与步数上界的字段名没有确定 | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界) |
+
+覆盖证据与读口结果里已经定名的成员：
+
+| 名称 | 所在 | 内容 | 条款 |
+| --- | --- | --- | --- |
+| `coverage.prefixBreak` | `Coverage` | 前缀变化原因 | [装载布局与前缀](../SPEC.md#装载布局与前缀) |
+| `coverage.history` | `Coverage` | `{ epoch, upper, anchors }`：epoch、上界与各层锚点的序号与前缀摘要 | [历史源读口与 epoch 视图](../SPEC.md#历史源读口与-epoch-视图) |
+| `prefixDigest` | `HistorySource.read` 返回的页的每一行 | 前缀摘要：上一行摘要与本行摘要的链式散列 | 同上 |
+| `epoch-changed` | `HistorySource.read` 的结果 | epoch 已变：持有者在本次组装期间提交了压缩 | 同上的 H2 |
+
+块声明：
+
+| 名称 | 块键 | 条款 |
+| --- | --- | --- |
+| 当前压缩设置的块声明 | `context.compaction-settings`：供给块，`model`，`stable`，`reread` | [RQ-02](../SPEC.md#rq-02-组装的前置输入) |
+| 窗口占用比例的块声明 | `context.window-usage`：供给块，`model`，`per-request`，`recompute` | [RQ-02](../SPEC.md#rq-02-组装的前置输入) |
+
+两条块声明的导出名与 `ContextBlocks` 增补随实现进入。
 
 四种组装结果与三类失败见对象模型的[领域特有的结果与提交](object-model.md#领域特有的结果与提交)。承载它们的类型名现在没有确定，随值类型模块一起进入。
 
@@ -58,17 +77,17 @@
 | `deriveStep` | 按计划、进度与步结果推导下一步、压缩转换或装不下 | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界) |
 | `resume` | 共同提交之后带转换依据重算候选 | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界)、[RQ-09](../SPEC.md#rq-09-取消恢复与迟到) |
 
-前八项是单次计算，后三项是压缩计划的三步。全部是纯函数，见 [RQ-01](../SPEC.md#rq-01-调用方与计算边界)。
+共十一个纯操作：前八项是单项操作，后三项是压缩计划操作。全部是纯函数，见 [RQ-01](../SPEC.md#rq-01-调用方与计算边界)。
 
 端口类型：
 
 | 名称 | 用途 | 条款 |
 | --- | --- | --- |
-| `HistorySource` | 历史持有者实现的读口 `read`：输入历史依据（epoch、上界、作用域引用）、访问身份（主体与租户）、游标与字节预算，返回一页、epoch 已变、无资格、无效或不可用。缺作用域引用或访问身份时返回无效 | [历史源读口与 epoch 视图](../SPEC.md#历史源读口与-epoch-视图) |
-| 压缩策略端口 | 触发界线、保留预算、保留偏好、修剪优先与步数上界的可替换实现 | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界) |
+| `HistorySource` | 历史持有者实现的读口 `read(evidence, after, budgetBytes)`：`evidence` 是历史依据（epoch、上界、作用域引用与访问身份，访问身份含主体与租户），`after` 是游标，`budgetBytes` 是字节预算；返回一页（每行带 `prefixDigest`）、`epoch-changed`、无资格、无效或不可用。缺作用域引用或访问身份时返回无效 | [历史源读口与 epoch 视图](../SPEC.md#历史源读口与-epoch-视图) |
+| 压缩策略端口 | 触发界线、保留预算、保留偏好、修剪优先与步数上界的可替换实现，保留预算与保留偏好按 `CompactionPolicy` 配置 | [RQ-06](../SPEC.md#rq-06-压缩共同结果与保护边界) |
 | 表示策略端口 | 多种表示都可用时的选择，按模态排偏好顺序 | [RQ-04](../SPEC.md#rq-04-模态与可追溯表示) |
 
-两个策略端口的类型名现在没有确定。默认实现与默认值归 [request-context](../../request-context/README.md)。计量端口与转换件结果端口是 Model 的类型，本成员只消费，见 [Model 档案与请求准备协议](../../../model/model-contract/SPEC.md#档案与请求准备协议)。
+压缩策略的配置类型名是 `CompactionPolicy`。两个策略端口本身的类型名与表示策略的配置类型名现在没有确定。默认实现与默认值归 [request-context](../../request-context/README.md)。计量端口与转换件结果端口是 Model 的类型，本成员只消费，见 [Model 档案与请求准备协议](../../../model/model-contract/SPEC.md#档案与请求准备协议)。
 
 契约常量：
 

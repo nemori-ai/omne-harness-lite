@@ -58,4 +58,4 @@
 
 ## 正式产品与技术承接
 
-[产品正文](../../../.meta_harness/design/product/runtime-context/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/context/README.md)展开工程依赖与成员机制。成员契约为待审，正式位置不升级原已接受领域正文的范围，也不表示成员已实现。
+[产品正文](../../../.meta_harness/design/product/runtime-context/design.md)维护本域产品要求、能力状态、阶段与未决。[角色与交接](architecture.md)承接领域级关系；[能力组](../../../packages/context/README.md)展开工程依赖与成员机制。成员契约的状态是 `draft`，正式位置不升级原已接受领域正文的范围，也不表示成员已实现。

@@ -27,4 +27,4 @@
 | [context.md](context.md) | 独立消费与托管消费、邻域交接、协调者端口的字段对应、适配方案与上层页面指针 |
 | [cordis.md](cordis.md) | 本成员不适用 Cordis 集成的理由，在 `documentation.json` 里记为 `not-applicable` |
 
-当前缺口：SPEC 点名的全部类型与操作都还不在 `src/` 里，见[公开接口页](public-api.md#随实现切片进入的导出)。字段对应里有几项两边对不上，见[对不上的字段](context.md#对不上的字段)。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+当前缺口：SPEC 点名的全部类型与操作都还不在 `src/` 里，见[公开接口页](public-api.md#随实现进入的导出)。字段对应里有几项两边对不上，见[对不上的字段](context.md#对不上的字段)。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

@@ -21,7 +21,7 @@
 | [request-context](request-context/README.md) | module | 不含 Cordis 的派生计算：索引、缓存、默认压缩策略、默认表示策略、修剪器 |
 | [request-context-cordis](request-context-cordis/README.md) | service-provider | Service 实现：贡献登记表、作用域遮蔽、策略实现选择与配置校验 |
 
-依赖方向：每块内 `*-contract` ← `*-cordis-contract` ← 机制实现 ← `*-cordis`。`request-context-contract` 依赖 `runtime-context-contract` 的读取结果类型与块声明的 `volatility`，不依赖 Runtime Context 的实现或 Cordis 包。两块都不导入 Session、Agent、Model、Tool、Execution Environment 的契约；要供给块或读块的成员依赖本组的契约。精确依赖图见[组架构](docs/architecture.md)。
+依赖方向：每块内 `*-contract` ← `*-cordis-contract` ← 机制实现 ← `*-cordis`。`request-context-contract` 依赖 `runtime-context-contract` 的读取结果类型与块声明的 `volatility`，不依赖 Runtime Context 的实现或 Cordis 包。两块都不导入 Session、Agent 与 Execution Environment 的契约。Request Context 契约依赖 Model、Tool、内容块与消息成员的公开值。要供给块或读块的成员依赖本组的契约。精确依赖图见[组架构](docs/architecture.md)。
 
 ## 关键协作
 
