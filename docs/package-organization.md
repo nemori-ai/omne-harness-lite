@@ -108,7 +108,9 @@ packages/
 │   ├── session-contract/       Session、Run 与逻辑治理纯契约
 │   ├── session-cordis-contract/  唯一 Cordis 服务定义
 │   ├── session/                无 Cordis 的治理实现
-│   └── session-cordis/         长期服务的 Cordis 装配，不含存储后端
+│   ├── session-cordis/         长期服务的 Cordis 装配，不含存储后端
+│   ├── session-adapters/       与邻域契约的适配插件
+│   └── session-storage-sql/    会话日志与治理状态的 SQL 存储
 ├── assembly/
 │   ├── assembly/               求值、采用和装配交接
 │   └── kernel-basis/           Cordis 插件辅助和测试装配
