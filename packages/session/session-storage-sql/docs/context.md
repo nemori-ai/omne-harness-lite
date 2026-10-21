@@ -35,7 +35,7 @@
 
 独立使用的条件：
 
-- 存储契约的提供者可用，并给出 SPEC [XP 表](../SPEC.md#xp-table)的入口。缺哪一项，对应操作返回 `unavailable`。现在存储契约没有可依赖的 workspace 成员，所以独立使用要等[存储线](https://github.com/nemori-ai/omne-harness-lite/issues/540)。
+- 存储契约的提供者可用，并给出 SPEC [XP 表](../SPEC.md#xp-table)的入口。缺哪一项，对应操作返回 `unavailable`。现在存储契约没有可依赖的 workspace 成员，所以独立使用要等存储契约拥有者给出入口（[storage 契约](../../../storage/docs/storage-contract/README.md)）。
 - 执行记录提供者与本成员在同一事务域登记同一组合版本。没有执行记录提供者时，只有 Session 自己提交的命令可用。
 - 每次操作显式传入租户与会话。本成员不从连接、事务域或装配树推断租户。
 

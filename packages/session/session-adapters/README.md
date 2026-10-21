@@ -68,7 +68,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-adapters
 ```
 
-The two current tests check only the template entries. See [tests/](tests/README.md). The continuous obligations VA-01 to VA-15 in the [SPEC](SPEC.md#组合与验证) are not covered yet. A passing structure check does not prove behavior.
+The two current tests check only the template entries. See [tests/](tests/README.md). The continuous obligations VA-01 to VA-19 in the [SPEC](SPEC.md#组合与验证) are not covered yet. A passing structure check does not prove behavior.
 
 ## Maintenance
 

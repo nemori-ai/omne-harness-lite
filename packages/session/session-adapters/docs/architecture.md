@@ -36,7 +36,7 @@ flowchart LR
   In --> Tr
   Ports --> Tr
   Out --> Tr
-  In -->|按调用方类| Session[session 服务]
+  In -->|按调用方类| Session[session 服务，由 session-cordis 实现]
   Session -->|ctx.get 现取| Ports
   Session -->|ctx.get 现取| Out
   In --- Neighbors[六个邻域的公开契约与服务定义]
@@ -56,6 +56,7 @@ flowchart LR
 - 本成员依赖 `session-contract` 与 `session-cordis-contract`，不依赖 `session`、`session-cordis` 或 `session-storage-sql`。
 - 本成员与 `session-cordis` 没有编译期依赖。出站端口与构造依赖端口的服务键由装配接上。
 - 本成员不导入邻域的提供者实现，只导入邻域契约与服务定义（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
+- 现在的 `package.json` 只声明 `@deepseek-ai/cordis`，因为两个入口都还没有导出。翻译函数与插件进入源码时，同时加入 `session-contract`、`session-cordis-contract` 与所用邻域的契约和服务定义成员。上面几条是加入依赖时的约束，不是现有依赖的描述。
 
 ## 关键机制与理由
 

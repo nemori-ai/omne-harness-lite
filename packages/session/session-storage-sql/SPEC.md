@@ -2,7 +2,7 @@
 
 状态：存储成员，`draft`，候选技术设计，没有运行实现。本成员是 Session 组里唯一接触介质的成员。它用 SQL 表兑现 [session-contract](../session-contract/SPEC.md) 声明的 `SessionTransactionPort`：提交、权威读、原操作查询、历史读、epoch 视图读、待办扫描、引用查询与已释放作用域读。治理规则不在本页，本页只写表、索引、写路径、读路径、符合性与介质差异。
 
-本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。表与索引的列、键与约束在 [docs/object-model.md](docs/object-model.md)，写路径、压缩提交与派生重建的时序在 [docs/flows.md](docs/flows.md)，验证义务在 [verification/](verification/README.md)。
+本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。表与索引的列、键与约束在 [docs/object-model.md](docs/object-model.md)，写路径、压缩提交与派生重建的时序在 [docs/flows.md](docs/flows.md)，验证义务在 [docs/verification-obligations.md](docs/verification-obligations.md)。
 
 ## 范围与依据
 
@@ -54,7 +54,7 @@
 
 ### 存储契约还没有给出的入口
 
-存储契约目前没有可依赖的 workspace 成员。本成员对它的期望写成下表。每一项都是本成员工作的前提，拥有者是存储线（[issue 540](https://github.com/nemori-ai/omne-harness-lite/issues/540)）。缺一项，本成员的对应操作返回 `unavailable`，`owner` 为存储参加者。本成员不自造替代实现，也不用内存实现代替。
+存储契约目前没有可依赖的 workspace 成员。本成员对它的期望写成下表。每一项都是本成员工作的前提，拥有者是存储契约拥有者（[storage 契约](../../storage/docs/storage-contract/README.md)）。缺一项，本成员的对应操作返回 `unavailable`，`owner` 为存储参加者。本成员不自造替代实现，也不用内存实现代替。
 
 <a id="xp-table"></a>
 
@@ -173,13 +173,13 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 | `refs.target` 非空的条目（SE33，以及其他指向旧条目的标注） | `sl_annotation_idx` 一行，`target_from` 与 `target_to` 为引用范围的首末位置，单条目时两者相等 |
 | SE08 | `sl_resident_idx`：把该会话的行集合替换为本次固定的登记键集合，每个键一行，`capability` 取自登记键所属的能力身份，`admitted_position` 为该能力 SE36 的位置 |
 | SE26 | 会话已归档时，删除该会话在 `sl_resident_idx` 的全部行 |
-| SE27 | 没有未终结 Run 时，删除该会话在 `sl_resident_idx` 的全部行；有未终结 Run 时保留 |
+| SE27 | 删除该会话在 `sl_resident_idx` 的全部行。归档同批以 SE26 取消未终结 Run，所以已归档的会话没有未终结 Run |
 | SE28 | 按最近一条 SE08 的登记键集合重建该会话在 `sl_resident_idx` 的行 |
 | SE25 且载荷是作用域释放的读回，处置含 `released`，会话已归档 | `sl_released_scope_idx` 每个已释放作用域一行，`task` 为原任务操作身份。同一 `(tenant, session, scope)` 重复读回只保留首次位置 |
 | 快照里进入或离开某个待办原因 | `sl_pending_idx` 增删，原因按 `PendingReason` 五种：`unresolved`、`controls`、`tasks`、`idle-due`、`release` |
 | 载荷超过内联阈值 | `sl_blob` 一行，条目只存引用 |
 
-增补的三类事件：SE36 写 `sl_kind_idx` 与 `sl_ref_idx(run)`（随 `startRun` 或 `reload` 时），快照的 `residents` 追加一项。SE37 写 `sl_kind_idx`，快照的 `frozen` 置为非空，`sl_resident_idx` 不变。SE38 写 `sl_kind_idx` 与 `sl_ref_idx(input)`，快照的 `pending` 移除对应输入。
+常驻工具与会话冻结的三类事件：SE36 写 `sl_kind_idx` 与 `sl_ref_idx(run)`（随 `startRun` 或 `reload` 时），快照的 `residents` 追加一项。SE37 写 `sl_kind_idx`，快照的 `frozen` 置为非空，`sl_resident_idx` 不变。SE38 写 `sl_kind_idx` 与 `sl_ref_idx(input)`，快照的 `pending` 移除对应输入。
 
 `sl_pending_idx` 的 `release` 原因：快照里任一 `ResultConsumption` 的 `custody` 或 `completion` 非空且 `release` 为 pending 时加一行，全部为 confirmed 或消费已释放时删一行。`idle-due` 由 `judgeIdle` 的结果决定，本成员只按新旧快照比较增删，不自己判断到期。
 
@@ -335,7 +335,7 @@ pending(principal, tenant, after, limit, reason):
     完成后删除进度行
 ```
 
-D 在正常运行中为 0，因为每次提交都物化。只有归约版本升级或 `sl_state` 损坏时 D = N，复杂度 O(N log M) 加内容读取，内存只需快照大小。重建期间 R1、R8、R10、R11 返回 `unavailable`，不用旧快照或旧索引授予资格；R2、R3、R5、R7 不依赖被重建的索引时照常。重建只解释事实，不调用模型、工具或外部效果。`sl_entry` 本身缺口、损坏或 `sl_journal.tail` 与最后一条条目不一致时，隔离该会话：全部读返回 `unavailable`，`owner` 为本成员，写被拒绝，不清空、不静默丢弃尾部。
+D 在正常运行中为 0，因为每次提交都物化。只有归约版本升级或 `sl_state` 损坏时 D = N，复杂度 O(N log M) 加内容读取，内存只需快照大小。重建期间 R1、R8、R10、R11 返回 `unavailable`，不用旧快照或旧索引授予资格；R2、R3、R5、R7 不依赖被重建的索引时照常。重建只解释事实，不调用模型、工具或外部效果。`sl_entry` 本身缺口、损坏或 `sl_journal.tail` 与最后一条条目不一致时，隔离该会话：`readWork` 与 `loadRecovery` 返回 `quarantined`（[SessionWork](../session-contract/SPEC.md#sessionwork) 的读结局），其余读返回 `unavailable`，`owner` 为本成员，写被拒绝，不清空、不静默丢弃尾部。
 
 <a id="r10"></a>
 
@@ -349,7 +349,7 @@ references(principal, scope = system, key, after, limit):
     返回 { sessions: [{ tenant, session, capability, shape }], next }
 ```
 
-引用的定义归契约：会话当前固定的登记键含该键且会话未归档；冻结而未归档的会话算引用；已归档但有未终结 Run 的会话算引用。索引行按 [W3](#w3) 在 SE08、SE26、SE27、SE28 提交时维护，所以读取不扫描日志。游标绑定 `key` 与系统作用域，按 `(tenant, session)` 排序。退化：事务域数 T 大时每页 O(T log M)，由 XP-6 的目录决定遍历顺序，游标记当前事务域。索引重建中或任一事务域不可读时返回 `unavailable`，不返回部分结果冒充没有引用。
+引用的定义归契约：会话当前固定的登记键含该键且会话未归档；冻结而未归档的会话算引用；已归档的会话不算引用，因为归档同批取消未终结 Run。索引行按 [W3](#w3) 在 SE08、SE26、SE27、SE28 提交时维护，所以读取不扫描日志。游标绑定 `key` 与系统作用域，按 `(tenant, session)` 排序。退化：事务域数 T 大时每页 O(T log M)，由 XP-6 的目录决定遍历顺序，游标记当前事务域。索引重建中或任一事务域不可读时返回 `unavailable`，不返回部分结果冒充没有引用。
 
 <a id="r11"></a>
 
@@ -393,7 +393,7 @@ releasedScopes(principal, scope = system, after, limit):
 | `sl_kind_idx`、`sl_ref_idx`、`sl_annotation_idx` | 从 `sl_entry` 逐条按 [W3](#w3) 的规则重新生成行集合 |
 | `sl_model_view` 的每个 epoch | 从 `sl_entry` 的 SE10 序列按 CM-01 朴素推导模型视图，再按 [W4](#w4) 重算 `seq` 与 `prefix_digest` |
 | `sl_pending_idx` | 从重算的 `sl_state` 按五种原因重新生成 |
-| `sl_resident_idx` | 从每个会话最近一条 SE08 的登记键集合，按归档状态与 Run 终态过滤 |
+| `sl_resident_idx` | 从每个会话最近一条 SE08 的登记键集合，按归档状态过滤 |
 | `sl_released_scope_idx` | 从已归档会话的 SE25 释放读回逐条重新生成 |
 | `sl_state` | 从创建批次起 `reduce` 全部批次 |
 | `sl_journal.tail`、`commit_seq`、`epoch`、`epoch_base` | 分别等于最后一条条目的位置、`sl_batch` 的行数、`sl_model_view` 的最大 epoch 与该 epoch 首个压缩记录行的位置 |
@@ -444,16 +444,16 @@ releasedScopes(principal, scope = system, after, limit):
 
 | 情形 | 本成员的结果 | 谁处置 |
 | --- | --- | --- |
-| 存储契约 `rejected_before_accept` | `unavailable`，`owner` 为存储参加者，带原因 | 装配或存储线 |
+| 存储契约 `rejected_before_accept` | `unavailable`，`owner` 为存储参加者，带原因 | 装配或存储契约拥有者 |
 | `identity_conflict` | `conflict` | 调用方 |
 | `rolled_back` 且退路重算得到拒绝结局 | 该拒绝结局 | 调用方 |
 | `rolled_back` 且退路重算与状态不符 | `changed` | 调用方重做 |
 | `unknown`、`writer_not_current`、锁等待超时 | `commit-unknown` | 调用方按原身份 R7 |
 | 材料缺项或多项 | 「不支持」，映射为 `invalid` | 调用方 |
 | `sl_state` 落后或归约版本不符 | `unavailable`，`owner` 为本成员，带追赶进度 | R9 自动追赶 |
-| `sl_entry` 缺口、损坏、`tail` 不一致 | 该会话隔离，读写都 `unavailable` | 运维按 [SL14](../session-contract/SPEC.md#日志读取投影及恢复) |
+| `sl_entry` 缺口、损坏、`tail` 不一致 | 该会话隔离：`readWork` 与 `loadRecovery` 返回 `quarantined`，其余读与写返回 `unavailable`（[R9](#r9)） | 运维按 [SL14](../session-contract/SPEC.md#日志读取投影及恢复) |
 | 派生索引重建中 | 依赖它的读 `unavailable`，带进度 | 等待重建 |
-| 读入口或事务域目录缺席（[XP-3](#xp-table)、[XP-6](#xp-table)） | `unavailable`，`owner` 为存储参加者 | 存储线 |
+| 读入口或事务域目录缺席（[XP-3](#xp-table)、[XP-6](#xp-table)） | `unavailable`，`owner` 为存储参加者 | 存储契约拥有者 |
 | 游标签名密钥缺席 | R2、R5、R8、R10、R11 返回 `unavailable` | 装配 |
 | 任何 SQL 异常 | 不转成业务拒绝；写路径响应「失败」，读路径 `unavailable` | 诊断 |
 
@@ -474,7 +474,7 @@ releasedScopes(principal, scope = system, after, limit):
 | 写并发 | 单写连接，`BEGIN IMMEDIATE` | 行级锁，MVCC | 两边都做 `tail` 条件更新（[W6](#w6)） |
 | 读连接 | 现行存储契约只有写连接，读与写串行 | 独立连接，读事务看一致快照 | 读路径按独立读连接设计；SQLite 的串行是明确缺项 |
 | 部分索引 | 支持 | 支持 | `sl_pending_idx` 等先用普通表保持同形，不用部分索引 |
-| 耐久 | `journal_mode=WAL`、`synchronous=FULL` 由提供者读回；不等于断电试验 | `fsync` 与复制配置 | 耐久证据归存储线的 SQL-T01，本成员不宣称 |
+| 耐久 | `journal_mode=WAL`、`synchronous=FULL` 由提供者读回；不等于断电试验 | `fsync` 与复制配置 | 耐久证据归 [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方，本成员不宣称 |
 | 迁移 | 同连接事务内 DDL 可回滚 | 事务性 DDL | 两边都走原子迁移 |
 | 大对象去向 | 同库 `sl_blob` | 同库 `sl_blob`，或对象存储 | 阈值与去向是策略配置 |
 
@@ -497,7 +497,7 @@ releasedScopes(principal, scope = system, after, limit):
 
 ### 自有义务的验证
 
-每条义务的验证方法、前提与未覆盖写在 [verification/obligations.md](docs/verification-obligations.md)。下表只给对应关系。全部义务都是后继实现必须通过的可观察结果，不是已执行的测试。
+每条义务的验证方法、前提与未覆盖写在 [docs/verification-obligations.md](docs/verification-obligations.md)。下表只给对应关系。全部义务都是后继实现必须通过的可观察结果，不是已执行的测试。
 
 | 义务 | 验证 |
 | --- | --- |
@@ -516,10 +516,10 @@ releasedScopes(principal, scope = system, after, limit):
 
 | 缺什么 | 谁来补 | 补上之前本成员怎样表现 |
 | --- | --- | --- |
-| [XP-1 至 XP-6](#xp-table) 的存储契约入口。XP-2 与 XP-6 也在 Session 契约的[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)里 | 存储线（[issue 540](https://github.com/nemori-ai/omne-harness-lite/issues/540)）；XP-2 与 Agent 的拥有者联合，XP-6 与应用装配联合 | 对应操作 `unavailable`，`owner` 为存储参加者。XP-2 缺席时按 [W1](#w1) 第 9 步的退路 |
-| SQLite 的独立读连接 | 存储线 | 读与提交在同一 Worker 队列串行。复杂度不变，吞吐由验证计划实测 |
+| [XP-1 至 XP-6](#xp-table) 的存储契约入口。XP-2 与 XP-6 也在 Session 契约的[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)里 | 存储契约拥有者（[storage 契约](../../storage/docs/storage-contract/README.md)）；XP-2 与 Agent 的拥有者联合，XP-6 与应用装配联合 | 对应操作 `unavailable`，`owner` 为存储参加者。XP-2 缺席时按 [W1](#w1) 第 9 步的退路 |
+| SQLite 的独立读连接 | 存储契约拥有者与 SQL 提供者 | 读与提交在同一 Worker 队列串行。复杂度不变，吞吐由验证计划实测 |
 | 对象存储作为 blob 去向 | [issue 541](https://github.com/nemori-ai/omne-harness-lite/issues/541) | 只有同库 `sl_blob` |
 | 超过 `maxCommandBytes` 的内容先由内容拥有者保管、再以耐久引用进入条目的链路（Session 契约的[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)） | 存储的拥有者与各内容拥有者 | 条目只带已达到耐久条件的引用（[TB-04](#tb-04)）。拿不到耐久引用时命令返回 `unavailable` |
 | 数值目标：每页延迟、每秒提交数、重建时长、`maxScanPerPage` 与 `pageBytes` 的初值 | 本成员，按验证计划实测后写进本页的声明边界 | 不声明任何数值。策略配置没有默认值时装配必须给出 |
-| 断电耐久 | 存储线 SQL-T01 | 本成员只声明进程级持久依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 |
+| 断电耐久 | [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方 | 本成员只声明进程级持久依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 |
 | 登记键到能力身份的绑定（R10 的 `capability` 列） | Tool 契约与事件目录对 SE08 载荷的细化 | 本成员假定 SE08 的登记键按能力身份列出；不成立时 `ResidentReference.capability` 不可填，R10 不可用 |

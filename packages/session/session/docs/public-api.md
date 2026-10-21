@@ -122,7 +122,7 @@ export type MaintenanceHandle = Readonly<{ release(): Promise<void> }>
 export type SessionInstance<P> = Readonly<{
   /** The four faces as one caller class sees them. */
   facesFor(caller: SessionCallerClass): SessionFaces<P>
-  /** Wakes S1, S2, S4 and C5 from a commit notice that another process or a participant commit produced. */
+  /** Wakes S1, S2 and C5 from a commit notice that another process or a participant commit produced. */
   committed(notice: Readonly<{
     tenant: TenantId; session: SessionId; revision: SessionRevision
     source: DurableEvidence; kinds: readonly string[]
@@ -144,7 +144,7 @@ export declare function createSessionInstance<P>(
 | 成员 | 用途 | 依据 |
 | --- | --- | --- |
 | `facesFor` | 给一个调用方类返回四个面。面上的每个操作先核对调用方类在该操作允许的范围内，再走命令处理器。session-cordis 以 intercept 配置里的调用方类调用它；独立宿主为每类调用方各取一份 | [四个面与公开操作](../../session-contract/SPEC.md#四个面与公开操作)、[CP-01](../SPEC.md#cp-01) |
-| `committed` | 把通知总线上的提交通知交给调度器。本实例自己的提交在本地直接唤醒，不依赖这个入口 | [S1](../SPEC.md#s1)、[S2](../SPEC.md#s2)、[S4](../SPEC.md#s4)、[C5](../SPEC.md#c5)、[EC-11](../../session-contract/SPEC.md#ec-11) |
+| `committed` | 把通知总线上的提交通知交给调度器。本实例自己的提交在本地直接唤醒，不依赖这个入口 | [S1](../SPEC.md#s1)、[S2](../SPEC.md#s2)、[C5](../SPEC.md#c5)、[EC-11](../../session-contract/SPEC.md#ec-11) |
 | `changed` | 把来源拥有者的变化通知与作用域变更计数交给 S7 | [S7](../SPEC.md#s7) |
 | `maintain` | 为一个租户启动恢复扫描者，并立即做一次启动扫描。释放句柄停止该租户的扫描 | [S3](../SPEC.md#s3) |
 | `close` | 按 SPEC 的停止顺序停止实例 | [资源与替换](../SPEC.md#资源与替换) |

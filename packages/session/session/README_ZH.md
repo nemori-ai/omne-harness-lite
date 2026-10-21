@@ -106,11 +106,12 @@ docs/                     内部设计、公开使用与集成说明
 ├── object-model.md       构造对象与内存状态的拥有者
 ├── public-api.md         导出入口、工厂、参数与失败
 ├── context.md            独立使用、经 Cordis 使用与定位
-└── cordis.md             本成员不加载 Cordis 的理由
+├── cordis.md             本成员不加载 Cordis 的理由
+└── fault-scenarios.md    故障场景
 src/                      只有 index.ts，现在为空导出
 tests/                    只有入口测试，fixtures/ 为空
 schema/                   现在为空，本成员不发布 Schema
-verification/             故障场景，models/ 与 proofs/ 为空
+verification/             验证资源导航，models/ 与 proofs/ 为空
 adr/                      现在为空
 examples/                 现在为空
 resources/                现在为空

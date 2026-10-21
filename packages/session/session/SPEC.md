@@ -135,7 +135,7 @@
 | --- | --- |
 | 触发源 | `control(archive)` 或到期的 `considerAutoArchive` 提交成功；S6 重放；`receive(cascade)`、`receive(scope-release)` 的回执 |
 | 顺序 | 归档提交（SE27，未终结 Run 同批 SE26 cancelled 与 SE16，`tasks.cascade` 与 `tasks.scope-release`）→ 交 C3 传播控制并调用 `invalidate`，范围为整个会话 → 对每个 `tasks.cascade` 以固定的 `childOperation`、`maintainer` 调用方类调用子会话的 `control(archive)` → 以 `tasks.scope-release` 的操作身份经 `ScopeReleasePort.release` 请执行环境释放作用域 → 子方回执与释放读回经 `receive` 写 SE25，按处置解除或保留任务 |
-| 冻结 | 冻结独立于归档（[I-F5](../session-contract/SPEC.md#i-f5)）。冻结的会话照常手动归档与级联，也照常参加自动归档裁定：`judgeIdle` 不读 `frozen`，到期的冻结会话由 S2 交来的 `considerAutoArchive` 归档。`control(unarchive)` 后的生命周期按快照归约：未冻结回 `dormant`，已冻结回 `frozen`，有未终结 Run 为 `active`。撤销归档不撤销级联任务，不重新交入任何输入 |
+| 冻结 | 冻结独立于归档（[I-F5](../session-contract/SPEC.md#i-f5)）。冻结的会话照常手动归档与级联，也照常参加自动归档裁定：`judgeIdle` 不读 `frozen`，到期的冻结会话由 S2 交来的 `considerAutoArchive` 归档。归档提交同批取消未终结 Run，所以已归档的会话没有未终结 Run（[JC-16](../session-contract/SPEC.md#共同提交与共享事务域)）。`control(unarchive)` 后的生命周期按快照归约：未冻结回 `dormant`，已冻结回 `frozen`。撤销归档不撤销级联任务，不重新交入任何输入 |
 | 输入 | `tasks.cascade`、`tasks.scope-release`、子方回执、释放读回 |
 | 产出 | 子会话的 `control(archive)` 命令；`release` 出站调用；`receive` 命令 |
 | 单写 | 每个子方一个固定 `childOperation`；每个作用域沿原任务的操作身份。重放幂等 |
@@ -155,7 +155,7 @@
 | 输入 | 恢复快照；各拥有者的查询结果 |
 | 产出 | 交给其他协调器的会话与项；本协调器直接发出的 `completeInitialization`、`receive`（含 `receive(release)`）、`finishRun`、`preserveResult` 命令与 `recordResult`、`inspect`、`query`、`DeliveryReleasePort.release` 出站调用 |
 | 单写 | 每会话一个恢复实例，由 S3 的每租户单扫描者与每会话串行队列保证 |
-| 失败分支 | 任一拥有者 `unavailable`：保留该项，不把未知当失败，退避归 S3。`queryOperation` 为 `unknown`：保留在 `unresolved`。`inspect` 为 `missing` 且 `ExecutionRef.revision` 为空：按「已授予、尚未受理」重放 `invoke`；`revision` 非空：视为记录已按保留政策删除，保管改由 Session 单方提交（[AgentDrivePort](../session-contract/SPEC.md#agentdriveport)）。`DeliveryReleasePort` 缺席：不调用，`release` 保持 pending，由 S3 以 `release` 原因找回后重发。同一结果版本的重发次数超过 `deliveryRelease.maxAttempts`：`release` 保持 pending 并报告维护者，不写 confirmed 以外的值 |
+| 失败分支 | 任一拥有者 `unavailable`：保留该项，不把未知当失败，退避归 S3。`queryOperation` 为 `unknown`：保留在 `unresolved`。`inspect` 为 `missing` 且 `ExecutionRef.revision` 为空：按「已授予、尚未受理」重放 `invoke`；`revision` 非空：视为记录已按保留政策删除，保管改由 Session 单方提交（[AgentDrivePort](../session-contract/SPEC.md#agentdriveport)）。现行 Agent 适配不产生 `missing`，因为 Agent 的 `load` 不区分记录不存在与读取失败（[NP-05](../session-adapters/SPEC.md#np-05)）；这两个分支在该缺项闭合之前不会触发，「尚未受理」改由 `query` 的 `excluded` 判断。`DeliveryReleasePort` 缺席：不调用，`release` 保持 pending，由 S3 以 `release` 原因找回后重发。同一结果版本的重发次数超过 `deliveryRelease.maxAttempts`：`release` 保持 pending 并报告维护者，不写 confirmed 以外的值 |
 
 ### 调度器
 
@@ -252,7 +252,7 @@
 | 项 | 内容 |
 | --- | --- |
 | 触发源 | 资产、工作区或设置拥有者发出的变化通知，携带作用域变更计数 |
-| 看什么 | 本会话当前采用依据（最近一条 SE08 的输入快照）记录的各类计数与通知的计数比对。任一计数变化：对尚未提交的 `startRun` 命令调用证据桥 `prepare` 预求值，结果按计数缓存（[比对代替求值](../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)）。采用会变且 [P-7](../session-contract/SPEC.md#具名前提与明确缺项) 已闭合：经 `AgentDrivePort.prewarm` 请 Agent 宿主按新采用预建空闲实例 |
+| 看什么 | 本会话当前采用依据（最近一条 SE08 的输入快照）记录的各类计数与通知的计数比对。任一计数变化：对尚未提交的 `startRun` 命令调用证据桥 `prepare` 预求值，结果由装配协调者按计数缓存，本调度器不持有候选缓存（[比对代替求值](../../../docs/architecture/runtime/assembly-and-change.md#比对代替求值)）。采用会变且 [P-7](../session-contract/SPEC.md#具名前提与明确缺项) 已闭合：经 `AgentDrivePort.prewarm` 请 Agent 宿主按新采用预建空闲实例 |
 | 交给谁 | 装配协调者；P-7 闭合后交 Agent 宿主。入口（`startRun`、`reload`）直接采用已校验候选，本调度器不写任何条目 |
 | 幂等 | 已校验候选的缓存键是全部计数，同键幂等；计数再变即失效。缓存归装配协调者 |
 | 并发 | `preEvaluation.concurrency` 限制同时预求值的会话数。同会话新的变化通知取消在途预求值并重新开始 |
@@ -341,7 +341,7 @@
 
 ## 验证
 
-当前入口测试只检查根入口为空。下列义务是后继实现必须通过的可观察结果，不是本次已执行的测试。契约的 [VC 表](../session-contract/SPEC.md#候选的持续验证义务)继续适用；本节只列机制自有的义务与崩溃矩阵。故障场景的前置、注入与期望观察在 [verification/fault-scenarios.md](docs/fault-scenarios.md)。
+当前入口测试只检查根入口为空。下列义务是后继实现必须通过的可观察结果，不是已经执行的测试。契约的 [VC 表](../session-contract/SPEC.md#候选的持续验证义务)继续适用；本节只列机制自有的义务与崩溃矩阵。故障场景的前置、注入与期望观察在 [docs/fault-scenarios.md](docs/fault-scenarios.md)。
 
 ### VM 机制的持续验证义务
 

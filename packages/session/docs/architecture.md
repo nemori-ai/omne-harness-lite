@@ -35,7 +35,7 @@ flowchart LR
 - `session-adapters` 是唯一导入邻域契约的成员。它与 `session-cordis` 没有编译期依赖，出站端口的服务键由装配接上。
 - `session-storage-sql` 依赖 `session-contract` 与存储契约成员。存储契约没有可依赖的成员时，它的 SPEC 写期望端口并标出依赖。
 
-出站端口的形状与 Agent 契约把模型、上下文等端口交给外域提供者的做法相同：接口在契约成员，服务键在服务定义成员，实现在适配成员，由服务实现注入。
+出站端口的形状与 Agent 契约把模型、上下文等端口交给外域提供者的做法相同：接口在契约成员，服务键在服务定义成员，实现在适配成员。服务实现按调用经 `ctx.get` 现取出站端口，不把它们写进 `inject`。
 
 ## 落位判据
 
@@ -56,11 +56,11 @@ flowchart LR
 | `session-contract` | module | 无 Cordis | 类型、端口接口、领域服务 | 无 |
 | `session-cordis-contract` | service-contract | 绑定只从 `./cordis` 导出 | 服务键 `session`，四个面挂同一个键；调用方类；出站端口的服务键；`Events` | 无 |
 | `session` | module | 无 Cordis | 纯工厂与 `SchedulingPolicy` 等配置 | 无；依赖经工厂参数传入 |
-| `session-cordis` | service-provider | 按模板 | `session` 服务实现、计时与通知订阅、扫描者 | 事务端口、身份与证据桥、时钟、空闲与 Context 输入、出站端口 |
+| `session-cordis` | service-provider | 按模板 | `session` 服务实现、计时与通知订阅、扫描者 | 只有事务端口 `sessionTransactions` 与内部主体 `sessionPrincipals`。身份与证据桥、时钟、空闲与 Context 输入、通知者与出站端口按调用经 `ctx.get` 现取（[端口服务键](../session-cordis-contract/docs/cordis.md#端口服务键)） |
 | `session-adapters` | cordis-module | 按模板 | 入站适配插件提供的邻域端口与登记；出站端口的实现 | `session` 服务（按调用方类）与各邻域的服务 |
 | `session-storage-sql` | cordis-module | 按模板 | 事务端口、存储参加者模块与迁移片段 | 存储契约的服务 |
 
-装配规则沿 [Cordis 集成约定](../../../docs/architecture/cordis-integration-conventions.md)：一个接缝一个服务定义，键写一次；必需依赖用 `inject`，数据不用 `inject`；租户是操作参数，不用 isolate 表达租户或会话；可调参数是配置字段，用 Standard Schema 校验；提交参加者的登记随插件生命周期，撤除插件不撤销已经提交的业务事实。每个租户一个扫描者，这一条第一版靠装配单实例兑现，见 [IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19)。
+装配规则沿 [Cordis 集成约定](../../../docs/architecture/cordis-integration-conventions.md)：一个接缝一个服务定义，键写一次；只有缺席时整个服务不能成立的依赖用 `inject`，缺席只影响部分操作的端口按调用现取，数据不用 `inject`；租户是操作参数，不用 isolate 表达租户或会话；可调参数是配置字段，用 Standard Schema 校验；提交参加者的登记随插件生命周期，撤除插件不撤销已经提交的业务事实。每个租户一个扫描者，这一条第一版靠装配单实例兑现，见 [IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19)。
 
 ## SOLID 与扩展边界
 

@@ -4,7 +4,7 @@
 
 ## 对象与关系
 
-本包没有领域对象。它的对象是两类：介质上的表与索引，进程内的三个运行对象（事务端口实现、参加者模块、读入口）。领域对象 `WorkSnapshot`、`HistoryEntry`、`CommitReceipt` 归 [session-contract](../../session-contract/docs/public-api.md)，本页只写它们怎样落到列。
+本包没有领域对象。它的对象是两类：介质上的表与索引，进程内的六个对象：三个运行对象（事务端口实现、参加者模块、读入口），两个纯函数编解码器与一份迁移片段列表，见[进程内对象](#进程内对象)。领域对象 `WorkSnapshot`、`HistoryEntry`、`CommitReceipt` 归 [session-contract](../../session-contract/docs/public-api.md)，本页只写它们怎样落到列。
 
 ```mermaid
 erDiagram
@@ -116,7 +116,7 @@ erDiagram
 | `sl_model_view` | `tenant`、`session`、`epoch`、`seq`、`position`、`bytes`、`prefix_digest` | `(tenant, session, epoch, seq)` | `toModel` 消息与压缩记录 |
 | `sl_annotation_idx` | `tenant`、`session`、`target_from`、`target_to`、`position` | 全部五列 | `refs.target` 非空的条目 |
 | `sl_pending_idx` | `tenant`、`reason`、`session` | 全部三列 | `sl_state` 的待办原因 |
-| `sl_resident_idx` | `resident_key`、`tenant`、`session`、`capability`、`admitted_position` | `(resident_key, tenant, session)` | 最近一条 SE08 的登记键，按归档与 Run 终态过滤 |
+| `sl_resident_idx` | `resident_key`、`tenant`、`session`、`capability`、`admitted_position` | `(resident_key, tenant, session)` | 最近一条 SE08 的登记键，按归档状态过滤 |
 | `sl_released_scope_idx` | `tenant`、`session`、`scope`、`task`、`position` | `(tenant, session, scope)` | 已归档会话的 SE25 释放读回 |
 | `sl_rebuild` | `tenant`、`index_name`、`session` NULL、`progress`、`started_at` | `(tenant, index_name, session)` | R9 重建进度，重建完成后删除 |
 

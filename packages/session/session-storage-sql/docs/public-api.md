@@ -2,7 +2,7 @@
 
 本文件导航本包的公开边界：导出入口、调用者资格、接口定义索引，以及输入输出与失败行为的定位。精确类型与运行时校验归公开源码，非类型行为的唯一正文是 [SPEC.md](../SPEC.md)。不手写第二套签名。
 
-本成员实现的端口 `SessionTransactionPort<P>` 由 [session-contract](../../session-contract/docs/public-api.md#当前增量与后续接口) 定义。十一个操作的输入、结果与失败在契约里写一次，本页不重复。
+本成员实现的端口 `SessionTransactionPort<P>` 由 [session-contract](../../session-contract/docs/public-api.md#构造依赖端口出站端口与纯函数) 定义。十一个操作的输入、结果与失败在契约里写一次，本页不重复。
 
 ## 导出入口
 

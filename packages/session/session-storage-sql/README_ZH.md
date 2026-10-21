@@ -16,7 +16,7 @@ Session 的存储成员，`cordis-module` 变体。
 - 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
 - 未实现：事务端口实现、参加者模块、派生维护、读路径、重建、编解码、迁移片段与 Cordis 插件。
 - 未验证：SPEC 的义务都没有测试，现有测试只断言两个入口导出为空。
-- 前提缺口：存储契约没有可依赖的 workspace 成员。SPEC 的 [XP-1 至 XP-6](SPEC.md#xp-table) 记下了本成员对它的六项期望，拥有者是存储线（[issue 540](https://github.com/nemori-ai/omne-harness-lite/issues/540)）。缺哪一项，对应操作返回 `unavailable`，本成员不用内存实现代替。
+- 前提缺口：存储契约没有可依赖的 workspace 成员。SPEC 的 [XP-1 至 XP-6](SPEC.md#xp-table) 记下了本成员对它的六项期望，拥有者是存储契约拥有者（[storage 契约](../../storage/docs/storage-contract/README.md)）。缺哪一项，对应操作返回 `unavailable`，本成员不用内存实现代替。
 
 现在没有包依赖本成员。
 
@@ -67,7 +67,7 @@ Session 的存储成员，`cordis-module` 变体。
 pnpm turbo run test --filter=@omne-harness/session-storage-sql
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试只断言两个入口导出为空，见 [tests/](tests/README.md)。SPEC 的义务按[验证义务](docs/verification-obligations.md)随实现进入：派生等于重算的影子表集合差、分页与游标的属性测试、每个共同提交行一个写路径用例、读路径复杂度基准（N 从 10³ 到 10⁶）、失败分类表的注入用例。全部义务以真实的 SQLite 或 PostgreSQL 提供者为前提，等存储线给出入口。数值目标在实测之前不声明。断电耐久归存储线的 SQL-T01，本成员不宣称。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试只断言两个入口导出为空，见 [tests/](tests/README.md)。SPEC 的义务按[验证义务](docs/verification-obligations.md)随实现进入：派生等于重算的影子表集合差、分页与游标的属性测试、每个共同提交行一个写路径用例、读路径复杂度基准（N 从 10³ 到 10⁶）、失败分类表的注入用例。全部义务以真实的 SQLite 或 PostgreSQL 提供者为前提，等存储契约给出入口。数值目标在实测之前不声明。断电耐久归 [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方，本成员不宣称。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -91,11 +91,12 @@ docs/                     内部设计、公开使用与集成说明
 ├── object-model.md       表、索引、进程内对象与生命周期
 ├── public-api.md         导出入口、候选导出与配置
 ├── context.md            使用方式、消费者与定位
-└── cordis.md             作为 sessionTransactions 提供者的 Cordis 集成
+├── cordis.md             作为 sessionTransactions 提供者的 Cordis 集成
+└── verification-obligations.md  验证义务、方法、前提与未覆盖
 src/                      两个入口，现在只有模板标记
 tests/                    入口测试，fixtures/ 现在为空
 schema/                   现在为空，表与索引的形状在 docs/object-model.md
-verification/             obligations.md 验证义务；models/ 与 proofs/ 现在为空
+verification/             验证资源导航，义务表在 docs/verification-obligations.md；models/ 与 proofs/ 现在为空
 adr/                      现在为空
 examples/                 现在为空
 resources/                现在为空

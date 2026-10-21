@@ -33,12 +33,12 @@ flowchart LR
 ```text
 实例 = createSessionInstance(依赖, { policy: defaultSchedulingPolicy 或替换后的策略 })
 
-依赖：transactions          = 存储提供者的事务端口（唯一启动条件）
+依赖：transactions          = 存储提供者的事务端口（启动条件，与 principals 一起）
       identity、evidence、clock、idle、context
                             = 完整接口；底层能力缺席时方法返回 unavailable
       notifier、agentDrive、startFence、deliveryRelease、scopeRelease、admission
                             = 现取函数；返回 null 表示当前缺席
-      principals            = 维护拥有者签发的 coordinator 与 maintainer 主体
+      principals            = 维护拥有者签发的 coordinator 与 maintainer 主体（启动条件）
 
 调用方：受理入口   使用 实例.facesFor('intake')
         外部协调者 使用 实例.facesFor('coordinator')

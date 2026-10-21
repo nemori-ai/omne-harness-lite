@@ -9,7 +9,7 @@
 | VS-D01 | 任一已提交前缀的七个派生索引等于从 `sl_entry` 重算的行集合 | 随机命令序列提交后，重算到影子表，按主键做集合差，差为空 | 真实 SQLite 或 PostgreSQL 提供者；没有内存替身 | [C-01](../SPEC.md#c-01) |
 | VS-D02 | `sl_state` 等于从创建批次起 `reduce` 全部批次 | 每次提交后抽样比对；归约版本切换后重建得到同一快照 | 同上 | [C-01](../SPEC.md#c-01)、[R9](../SPEC.md#r9) |
 | VS-D03 | `sl_model_view` 的每个 epoch 等于按 CM-01 朴素推导的模型视图 | 随机消息与压缩序列，比较视图行与直接推导的可见序列、`seq` 与 `prefix_digest` | CM-01 的朴素推导可用；压缩提交经 `decide` 的压缩分支形成 | [W4](../SPEC.md#w4) |
-| VS-D04 | `sl_resident_idx` 对未归档、冻结未归档、已归档有未终结 Run、已归档无 Run 四类会话分别为有、有、有、无 | 四类会话各一，查 `references` | 登记键到能力身份的绑定成立 | [W3](../SPEC.md#w3)、[R10](../SPEC.md#r10) |
+| VS-D04 | `sl_resident_idx` 对未归档、冻结未归档、已归档三类会话分别为有、有、无；归档前有未终结 Run 的会话归档后也为无 | 三类会话各一，另加一个归档前有未终结 Run 的会话，查 `references` | 登记键到能力身份的绑定成立 | [W3](../SPEC.md#w3)、[R10](../SPEC.md#r10) |
 | VS-D05 | `sl_released_scope_idx` 只含已归档会话的释放读回，重复读回不重复 | 同一作用域读回两次，归档前读回一次 | — | [W3](../SPEC.md#w3)、[R11](../SPEC.md#r11) |
 | VS-D06 | 不一致是 `StorageDefect`，不被忽略 | 人为改坏一行索引，符合性套件必须报缺陷并指出键 | — | [C-01](../SPEC.md#c-01) |
 
@@ -55,7 +55,7 @@
 | VS-F01 | 失败分类表的每一行各得到表中的结果 | 每行一个注入用例 | [失败分类](../SPEC.md#失败分类) |
 | VS-F02 | `unknown`、`writer_not_current`、锁等待超时都是 `commit-unknown`，不是 `not-committed` | 注入 | [W1](../SPEC.md#w1) |
 | VS-F03 | 只有提供者的 `not_committed` 五项证明齐全时 R7 才给 `not-committed` | 旧写代际未排除时查询 | [R7](../SPEC.md#r7) |
-| VS-F04 | `sl_entry` 缺口时该会话隔离，读写都 `unavailable`，不清空 | 人为删除中间一行 | [R9](../SPEC.md#r9) |
+| VS-F04 | `sl_entry` 缺口时该会话隔离：`readWork` 与 `loadRecovery` 返回 `quarantined`，其余读与写返回 `unavailable`，不清空 | 人为删除中间一行 | [R9](../SPEC.md#r9) |
 | VS-F05 | 已确认提交在普通进程终止后仍可读 | 回执已写、响应未回时结束 Worker，重启后 `queryOperation` | 提供者的进程级持久 |
 | VS-F06 | 断电耐久 | 只在声明介质上的故障试验记录之后声明。普通重启、普通 kill、`synchronous=FULL` 的读回都不是断电试验 | [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) |
 

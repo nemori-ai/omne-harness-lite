@@ -106,11 +106,12 @@ docs/                     Internal design, public use, and integration
 ├── object-model.md       Construction objects and owners of in-memory state
 ├── public-api.md         Export entry, factory, parameters, and failures
 ├── context.md            Independent use, hosted use, and position
-└── cordis.md             Why this member loads no Cordis
+├── cordis.md             Why this member loads no Cordis
+└── fault-scenarios.md    Fault scenarios
 src/                      Public definitions, only an empty index.ts now
 tests/                    Entry test only, fixtures/ is empty
 schema/                   Empty, the package publishes no schema
-verification/             Fault scenarios, models/ and proofs/ are empty
+verification/             Index of verification resources, models/ and proofs/ are empty
 adr/                      Empty now
 examples/                 Empty now
 resources/                Empty now

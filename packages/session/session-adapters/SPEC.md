@@ -14,7 +14,7 @@
 
 | 依据 | 位置 |
 | --- | --- |
-| 会话的命令、端口、共同提交与条款 | [session-contract SPEC](../session-contract/SPEC.md)，含[常驻工具与会话冻结](../session-contract/SPEC.md#常驻工具与会话冻结)的增补 |
+| 会话的命令、端口、共同提交与条款 | [session-contract SPEC](../session-contract/SPEC.md)，含[常驻工具与会话冻结](../session-contract/SPEC.md#常驻工具与会话冻结)一节 |
 | 服务键、调用方类与依赖分类 | [session-cordis-contract 的 Cordis 定义](../session-cordis-contract/docs/cordis.md) |
 | Agent | [提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)、[托管协调与运行实例](../../agent/agent-contract/SPEC.md#托管协调与运行实例)、[事件流与读取](../../agent/agent-contract/SPEC.md#事件流与读取)、[模型选择](../../agent/agent-contract/SPEC.md#模型选择)、[Agent 的 Cordis 定义](../../agent/agent-cordis-contract/docs/cordis.md) |
 | Model | [资格、共同提交与实际发送](../../model/model-contract/SPEC.md#资格共同提交与实际发送)、[消费者 owner 的装配声明](../../model/model-contract/docs/public-api.md#消费者-owner-的装配声明)、[ACK 的前提与效果](../../model/model-contract/SPEC.md#ack-的前提与效果) |
@@ -43,7 +43,7 @@
 
 「方向」中的入站指邻域调用本成员或本成员读取邻域输出，出站指 Session 经出站端口调用邻域。「调用方类」是插件调用 `session` 服务时的 intercept 配置。
 
-| 编号 | 插件 | 方向 | 提供的键 | 调用 `session` 的调用方类 | 邻域操作 | 本版状态 |
+| 编号 | 插件 | 方向 | 提供的键 | 调用 `session` 的调用方类 | 邻域操作 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- |
 | [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | `CallerCommit` 四种；`open`、`submit`、`tryFinish` 的参加 | 登记形状待 [P-1](../session-contract/SPEC.md#具名前提与明确缺项) |
 | [AD-02](#ad-02) | Agent 事件消费 | 入站 | 无 | `coordinator` | `output.events`、`output.read`、`output.acknowledge`、`agentExecutionRecovery.load` | 无活体时的读取待 [NP-03](#np-03) |
@@ -155,7 +155,7 @@ Session 结果到四种参加者响应的对应：
    1. 每次步边界提交（`change(context-step-commit)`）成功之后。
    2. 为一次新的模型请求给出历史依据之前（见 [AD-04](#ad-04)）。
 
-   上界是「下一次模型请求之前」，与时间无关。Runtime Context 契约把这个上界交给持有者定（[明确缺项](../../context/runtime-context-contract/SPEC.md#明确缺项)）。1b 与 1c 是本成员推出的技术决定，待 Runtime Context 拥有者复核。
+   上界是「下一次模型请求之前」，与时间无关。Runtime Context 契约把这个上界交给持有者定（[明确缺项](../../context/runtime-context-contract/SPEC.md#明确缺项)）。1b 与 1c 是本成员推出的技术决定，由 Runtime Context 拥有者确认，见 [NP-11](#np-11)。
 
 变化提醒的写法与时点：
 
@@ -361,7 +361,7 @@ Tool 契约定义这两个端口的形状与服务键之前，本成员不登记
 
 ### 出站端口的实现
 
-出站端口由 [session](../session/README.md) 的协调器经 `ctx.get` 现取。端口缺席时，Session 一侧的任务保留并重放，见 [Cordis 定义](../session-cordis-contract/docs/cordis.md#端口服务键)。
+出站端口由 [session-cordis](../session-cordis/README.md) 按调用经 `ctx.get` 现取，再交给 [session](../session/README.md) 的协调器使用。端口缺席时，Session 一侧的任务保留并重放，见 [Cordis 定义](../session-cordis-contract/docs/cordis.md#端口服务键)。
 
 <a id="ad-14"></a>
 
@@ -403,7 +403,7 @@ Tool 契约定义这两个端口的形状与服务键之前，本成员不登记
 
 #### AD-15 `ScopeReleasePort`
 
-本插件担任执行环境契约里的维护者。本版应用装配层把这个角色交给本插件。
+本插件担任执行环境契约里的维护者。应用装配层把这个角色交给本插件。
 
 - 提供：`sessionScopeRelease`。
 - 注入：对象形式 `executionEnvironment: { caller: 'maintainer' }`。
@@ -549,6 +549,7 @@ Session 契约的 [P-1 至 P-8](../session-contract/SPEC.md#具名前提与明�
 | <a id="np-07"></a>NP-07 | 命令域与 hooks 的公开入口 | 命令域与 hooks 拥有者 | AD-08 不登记 |
 | <a id="np-09"></a>NP-09 | Tool 的 `releaseDelivery` 结果未知、而调用方已丢失原操作引用时，没有按释放意图找回原操作的入口。`lookup` 只能认回已有释放，不能否定在途的操作 | Tool 拥有者 | 交付未释放时 AD-17 返回 `commit-unknown` 并报告，`release` 保持 pending |
 | <a id="np-10"></a>NP-10 | 换代或重启之后，恢复要把 `tasks.initialization` 重新驱动给初始化项的负责方，把 `tasks.routed-input` 重投给卡片或业务拥有者（[PM-14](../session-contract/SPEC.md#pm-14)）。这两类拥有者不在本成员的六个邻域内，AD-01 至 AD-17 没有承接它们的插件。Runtime Context 注册的重放不在此列，它由 [AD-03](#ad-03-1a) 的 1a 承接 | 初始化项负责方、卡片与业务输入的拥有者，以及 Session 的集成包拥有者 | 恢复读到这两类任务时，对应拥有者按 `unavailable` 处理。任务保留，不删除，按恢复扫描的退避重试 |
+| <a id="np-11"></a>NP-11 | AD-03 的 [1b](#ad-03-1b)（持有者保留上一份已过滤快照作为提醒前值）与 [1c](#ad-03-1c)（补拉上界是下一次模型请求之前）由本成员推出。Runtime Context 契约把补拉上界交给持有者定，没有确认这两项 | Runtime Context 拥有者 | 本插件按 1b 与 1c 工作。拥有者给出不同的规则时，按该规则改 AD-03 |
 
 Session 契约的明确缺项也约束本成员，其中两项直接影响插件：
 
@@ -559,7 +560,7 @@ Session 契约的明确缺项也约束本成员，其中两项直接影响插件
 
 本成员消费的承诺：Session 契约的提交、认回与条款；各邻域契约的操作与失败语义；Cordis 的必需依赖换代语义。本成员不验证邻域的行为，只验证翻译与对应。
 
-下表是持续验证义务，不是本次已执行的测试。它们随实现进入 `tests/`。
+下表是持续验证义务，不是已经执行的测试。它们随实现进入 `tests/`。
 
 | 编号 | 场景 | 必须观察的结果 | 条款 |
 | --- | --- | --- | --- |

@@ -37,7 +37,7 @@ flowchart LR
 
 依赖方向：
 
-1. 本成员实现 `session-contract` 的 `SessionTransactionPort<P>`，并导入它导出的纯函数：OP-00 的身份派生、`decide`、`reduce` 与 `openWork`。压缩分支另用 message 包的 `judgeCompaction` 与模型视图推导（[CM-01 至 CM-06](../../../common/message/SPEC.md#模型视图)）。
+1. 本成员实现 `session-contract` 的 `SessionTransactionPort<P>`，并导入它导出的纯函数：OP-00 的身份派生、`decide`、`reduce` 与 `openWork`。本成员不直接依赖 message 包的判定函数：压缩判定在 `decide` 里调用 `judgeCompaction`。本成员只用 message 包的类型解码消息与压缩记录，符合性重算的视图按 [CM-01 至 CM-06](../../../common/message/SPEC.md#模型视图) 推导（[编码与归约的拥有者](../SPEC.md#编码与归约的拥有者)）。
 2. 本成员依赖存储契约：`registerCombination`、`commit`、`query` 与参加者的语句端口。写连接、事务、Worker 与写者代际都归存储提供者，本成员不打开连接。存储契约还没有可依赖的 workspace 成员，期望写在 SPEC 的 [XP 表](../SPEC.md#xp-table)。
 3. SQL 用 Kysely 组成，再经语句端口执行（[技术基础](../../../../docs/architecture/technical-foundations.md#共同技术选择)）。SQLite 与 PostgreSQL 共用一套表名与列名，方言差异只在本成员内部（[介质差异表](../SPEC.md#sqlite-与-postgresql)）。
 4. 根入口不导入 `@deepseek-ai/cordis`（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。Cordis 绑定只在 `./cordis` 入口，见 [Cordis 集成](cordis.md)。
@@ -57,7 +57,7 @@ flowchart LR
 
 参加者模块在事务里调用 `session-contract` 的 `decide`，得到条目批次、原回执或拒绝结局，再调用 `reduce` 得到新快照（[领域服务与归约](../../session-contract/SPEC.md#领域服务与归约)）。本成员只为批次分配位置、写行和维护派生物，不另写编码。
 
-理由：`decide` 的编码与 `reduce` 的解码必须互逆。两者同归一个拥有者并共用归约版本号，追赶与符合性重算才会得到与提交时相同的快照。SPEC 的 W1 第 6、7 步与[明确缺项](../SPEC.md#明确缺项)仍按「编码函数没有拥有者」书写，与契约现行的 `decide` 不一致，SPEC 需要跟进。
+理由：`decide` 的编码与 `reduce` 的解码必须互逆。两者同归一个拥有者并共用归约版本号，追赶与符合性重算才会得到与提交时相同的快照。写路径的逐步顺序见 SPEC 的 [W1](../SPEC.md#w1)。
 
 ### 派生物在提交时维护
 
@@ -81,7 +81,7 @@ flowchart LR
 
 ### 不删除与隔离
 
-本成员没有删除条目、批次、回执或旧 epoch 行的操作（[RT-01](../SPEC.md#rt-01)）。`sl_entry` 出现缺口、损坏或 `tail` 不一致时，隔离该会话：读写都返回 `unavailable`，不清空尾部（[R9](../SPEC.md#r9)）。
+本成员没有删除条目、批次、回执或旧 epoch 行的操作（[RT-01](../SPEC.md#rt-01)）。`sl_entry` 出现缺口、损坏或 `tail` 不一致时，隔离该会话：`readWork` 与 `loadRecovery` 返回 `quarantined`，其余读与写返回 `unavailable`，不清空尾部（[R9](../SPEC.md#r9)）。
 
 理由：日志是会话唯一的权威历史。交付责任解除之后，SE20 是消费侧唯一可恢复的来源（[RT-02](../SPEC.md#rt-02)）。静默修剪或丢弃尾部会让恢复读到与事实不同的状态，而且无法发现。
 
@@ -101,17 +101,17 @@ flowchart LR
 
 | 限制 | 现在的表现 | 拥有者与依据 |
 | --- | --- | --- |
-| 存储契约的参加者登记入口、业务响应通道、事务外读入口、`SqlValue` 形状、迁移挂接与事务域目录 | 缺哪一项，对应操作返回 `unavailable`，`owner` 为存储参加者 | 存储线（[issue 540](https://github.com/nemori-ai/omne-harness-lite/issues/540)），见 [XP 表](../SPEC.md#xp-table) |
-| SQLite 只有一条写连接 | 读路径按独立读连接设计。现行契约下读取与提交在同一 Worker 队列串行，复杂度不变，吞吐待实测 | 存储线，见[明确缺项](../SPEC.md#明确缺项) |
-| 对象存储作为 blob 去向 | 只有同库 `sl_blob` | [issue 541](https://github.com/nemori-ai/omne-harness-lite/issues/541) |
+| 存储契约的参加者登记入口、业务响应通道、事务外读入口、`SqlValue` 形状、迁移挂接与事务域目录 | 缺哪一项，对应操作返回 `unavailable`，`owner` 为存储参加者 | 存储契约拥有者（[storage 契约](../../../storage/docs/storage-contract/README.md)），见 [XP 表](../SPEC.md#xp-table) |
+| SQLite 只有一条写连接 | 读路径按独立读连接设计。现行契约下读取与提交在同一 Worker 队列串行，复杂度不变，吞吐待实测 | 存储契约拥有者与 SQL 提供者，见[明确缺项](../SPEC.md#明确缺项) |
+| 对象存储作为 blob 去向 | 只有同库 `sl_blob` | 对象或文件存储契约的拥有者（[issue 541](https://github.com/nemori-ai/omne-harness-lite/issues/541)） |
 | 超过 `maxCommandBytes` 的内容 | 不能内联，也不能进同事务 blob。必须先由内容拥有者保管，再以耐久引用进入条目 | 存储的拥有者与各内容拥有者，见 [TB-04](../SPEC.md#tb-04) |
 | 登记键到能力身份的绑定 | 假定 SE08 的登记键按能力身份列出。不成立时 R10 不可用 | Tool 契约与事件目录 |
-| 数值目标 | 不声明任何数值。没有初值的策略配置由装配给出 | 本成员，按 [verification/obligations.md](verification-obligations.md) 实测后写进 SPEC |
-| 断电耐久 | 只依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 | 存储线 SQL-T01 |
+| 数值目标 | 不声明任何数值。没有初值的策略配置由装配给出 | 本成员，按[验证义务](verification-obligations.md)实测后写进 SPEC |
+| 断电耐久 | 只依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 | [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方 |
 
 ## 验证与维护
 
-SPEC 的[自有义务的验证](../SPEC.md#自有义务的验证)列出对应关系，方法、前提与未覆盖在 [verification/obligations.md](verification-obligations.md)。现在没有实现，也没有执行过的行为测试。
+SPEC 的[自有义务的验证](../SPEC.md#自有义务的验证)列出对应关系，方法、前提与未覆盖在[验证义务](verification-obligations.md)。现在没有实现，也没有执行过的行为测试。
 
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |

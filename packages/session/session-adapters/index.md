@@ -7,7 +7,7 @@
 - [README_ZH.md](README_ZH.md)、[README.md](README.md)：用途、状态、目录结构与文档职责
 - [SPEC.md](SPEC.md)：插件清单、每个插件的行为与结果对应、模式翻译表、具名前提与验证义务
 - `documentation.json`：本成员的文档登记
-- `package.json`：两个入口、脚本与依赖
+- `package.json`：两个入口、脚本与依赖。现在只声明 Cordis，其余依赖随实现加入，见[内部架构的依赖方向](docs/architecture.md#模块与依赖)
 - `vitest.config.ts`、`tsconfig.build.json`、`tsconfig.test.json`：测试与构建配置
 
 ## 目录

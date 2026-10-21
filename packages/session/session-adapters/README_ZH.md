@@ -68,7 +68,7 @@ export const inject = {
 pnpm turbo run test --filter=@omne-harness/session-adapters
 ```
 
-现有的两个测试只核对模板入口，见 [tests/](tests/README.md)。[SPEC](SPEC.md#组合与验证) 的持续验证义务 VA-01 至 VA-15 尚未覆盖。结构检查通过不证明行为。
+现有的两个测试只核对模板入口，见 [tests/](tests/README.md)。[SPEC](SPEC.md#组合与验证) 的持续验证义务 VA-01 至 VA-19 尚未覆盖。结构检查通过不证明行为。
 
 ## 维护
 

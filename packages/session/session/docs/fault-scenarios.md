@@ -39,7 +39,7 @@
 | FS-B-06 | 没有活体时的取消 | `control(cancel-run)` 已提交 | Agent 一侧没有 active 挂接，runtime 已失联 | 终态在提交时已成立；C3 经 C5 `resume` 取得挂接后送控制，或 `resume` 返回 `terminal` 后按 RS-10 认回；`invalidate` 生效前进度停在 `propagating`；超过上限时报告，不冒充已停 | [PM-13](../../session-contract/SPEC.md#pm-13)、[C3](../SPEC.md#c3) |
 | FS-B-07 | 失联接管 | Run 为 active，挂接仍 active | 宿主给出失联判断作为证据，恢复者持接管资格；另一次没有失联依据；另一次没有资格 | 有依据有资格：`claim` 接管后 `resume`，旧挂接 superseded，旧 runtime 后续提交得 `stale-advance`。没有依据：等 Agent，不 `claim`。没有资格：报告并保留 | [PM-14](../../session-contract/SPEC.md#pm-14)、[RS-07](../../session-contract/SPEC.md#rs-07) |
 | FS-B-08 | 撤除阶段的两条路径 | Run 为 active，准备换代 | 旧 runtime 可配合；另一次旧 runtime 不可达 | 可配合：`detach` 取得交接依据后 `release` 写 SE16。不可达：跳过撤除，`reload` 同批写 SE16 与 `tasks.start-fence`，`resume` 走接管 | [PM-04](../../session-contract/SPEC.md#pm-04)、[PM-06](../../session-contract/SPEC.md#pm-06)、CR-12 |
-| FS-B-09 | 有界收束 | Run 为 active，`advance` 为空 | `inspect` 与 `resume` 持续返回原记录不可读，重试次数达到 `boundedRecovery.maxInspectAttempts`；另一次 `inspect` 返回 `missing` 而 `ExecutionRef.revision` 为空 | 达到上限：`finishRun` 写 SE26 failed，依据为不可解释记录，写明未收尾效果。`missing` 且 `revision` 为空：以同一出站身份重放 `invoke`，不收束 | [P-5](../../session-contract/SPEC.md#具名前提与明确缺项)、[C5](../SPEC.md#c5) |
+| FS-B-09 | 有界收束 | Run 为 active，`advance` 为空 | `inspect` 与 `resume` 持续返回原记录不可读，重试次数达到 `boundedRecovery.maxInspectAttempts`；另一次 `inspect` 返回 `missing` 而 `ExecutionRef.revision` 为空 | 达到上限：`finishRun` 写 SE26 failed，依据为不可解释记录，写明未收尾效果。`missing` 且 `revision` 为空：以同一出站身份重放 `invoke`，不收束。现行 Agent 适配不产生 `missing`，这一分支在 NP-05 闭合之前用替身注入 | [P-5](../../session-contract/SPEC.md#具名前提与明确缺项)、[C5](../SPEC.md#c5)、[NP-05](../../session-adapters/SPEC.md#np-05) |
 
 ## 组 C：日志、消费责任与恢复投影
 
@@ -68,7 +68,7 @@
 | FS-F-01 | 冻结判定到达与两步之间崩溃 | 会话未冻结，有待处理输入，没有 Run | 候选采用材料带回 `FreezeVerdict`；进程在 `startRun` 返回带 `verdict` 的 `frozen` 失败之后、`freeze` 提交之前崩溃 | `startRun` 不提交；重启后 S1 再次触发，候选材料再次带回同一判定，`freeze` 首次提交 SE37，同批 SE38 解除全部待处理输入；只有一条 SE37 | [I-F1](../../session-contract/SPEC.md#i-f1)、[I-F4](../../session-contract/SPEC.md#i-f4)、CR-21 |
 | FS-F-02 | 两条路径先后交来判定 | 会话已冻结 | Tool 宿主协调者经 `ToolResidencyActions` 再次交来判定，证据不同 | `freeze` 返回原回执，`recovered` 为真，不写条目 | [I-F1](../../session-contract/SPEC.md#i-f1) |
 | FS-F-03 | 冻结的会话里 Run 终结 | 会话已冻结，Run 为 active，有待处理输入 | Agent 结束事件到达；另一次 `control(cancel-run)` | 待处理输入照常交入该 Run；终态同批写 SE38 解除余下的待处理输入；S1 之后跳过该会话；`startRun` 返回 `frozen` | [I-F3](../../session-contract/SPEC.md#i-f3)、[I-F4](../../session-contract/SPEC.md#i-f4)、[S1](../SPEC.md#s1) |
-| FS-F-04 | 冻结的会话恢复与归档 | 会话已冻结，Run 为 active，挂接丢失 | C5 走恢复路径；之后归档再撤销归档 | `claim` 与 `resume` 照常，原 Run 沿原采用接续；归档照常级联；撤销归档后 `lifecycle` 为 `frozen` 或 `active`，不为 `dormant`，任何输入不被重新交入 | [I-F2](../../session-contract/SPEC.md#i-f2)、[I-F5](../../session-contract/SPEC.md#i-f5)、[C4](../SPEC.md#c4) |
+| FS-F-04 | 冻结的会话恢复与归档 | 会话已冻结，Run 为 active，挂接丢失 | C5 走恢复路径；之后归档再撤销归档 | `claim` 与 `resume` 照常，原 Run 沿原采用接续；归档照常级联，归档批次同批以 SE26 取消原 Run；撤销归档后 `lifecycle` 为 `frozen`，不为 `dormant` 或 `active`，任何输入不被重新交入 | [I-F2](../../session-contract/SPEC.md#i-f2)、[I-F5](../../session-contract/SPEC.md#i-f5)、[JC-16](../../session-contract/SPEC.md#共同提交与共享事务域)、[C4](../SPEC.md#c4) |
 | FS-F-05 | 冻结的会话自动归档 | 会话已冻结，没有 Run，自动归档已启用，没有常驻标记 | 连续空闲达到时限；另一次之前对该会话调用 `startRun` | `startRun` 返回 `frozen`，`verdict` 为 null，C2 不调用 `freeze`；S2 照常 `recordIdle` 与 `considerAutoArchive`，裁定不读 `frozen`；到期后归档成立并交 C4 | [I-F5](../../session-contract/SPEC.md#i-f5)、[C2](../SPEC.md#c2)、[S2](../SPEC.md#s2) |
 
 ## 未覆盖

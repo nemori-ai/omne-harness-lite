@@ -20,4 +20,4 @@
 - 符合性套件的规则在 [SPEC 的符合性](../SPEC.md#符合性)，派生等于重算的检查方式是影子表集合差。
 - `models/` 与 `proofs/` 目前没有内容。候选模型是两个进程对同一 `tail` 的并发提交裁定（[W6](../SPEC.md#w6)），尚未立项。
 - 没有可运行的验证资源，也没有可依赖的存储契约成员。全部义务以真实 SQLite 或 PostgreSQL 提供者为前提，没有内存替身。
-- 断电耐久归存储线的 SQL-T01，本目录不记录耐久证据。
+- 断电耐久归 [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方，本目录不记录耐久证据。

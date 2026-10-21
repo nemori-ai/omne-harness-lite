@@ -233,7 +233,7 @@ sequenceDiagram
     SR-->>C4: 恢复结果或拒绝
     C4->>CP: receive(scope-release) 写 SE25，按五类处置解除或保留
     S6->>C4: 对保留的任务按 cascade.intervalMs 再次驱动
-    Note over CP,S6: 冻结的会话照常手动归档，也照常参加自动归档裁定；撤销归档后按归约回 dormant、frozen 或 active
+    Note over CP,S6: 冻结的会话照常手动归档，也照常参加自动归档裁定；归档同批取消未终结 Run，撤销归档后按归约回 dormant 或 frozen
 ```
 
 ### C5 恢复协调器
@@ -298,8 +298,8 @@ sequenceDiagram
 flowchart LR
     N[提交通知] --> S1[S1 推进触发]
     N --> S2[S2 空闲与自动归档]
-    N --> S4[S4 待决认回]
     N -->|SE20、SE21| C5[C5 恢复]
+    CU[命令返回 commit-unknown] --> S4[S4 待决认回]
     T[时钟] --> S2
     T --> S3[S3 恢复扫描]
     T --> S5[S5 控制重放]
@@ -310,6 +310,7 @@ flowchart LR
     S3 -->|启动时重建计时| S2
     S3 -->|idle-due| S2
     S3 -->|release| C5
+    S3 -->|unresolved| S4
     S1 --> C2[C2 Agent 推进]
     S2 -->|archived| C4[C4 归档与级联]
     S3 --> C5

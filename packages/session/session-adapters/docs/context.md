@@ -9,7 +9,7 @@
 应用装配者按下列步骤使用本成员：
 
 1. 装载 [session-cordis](../../session-cordis/README.md) 与一个存储提供者，例如 [session-storage-sql](../../session-storage-sql/README.md)。
-2. 从 `@omne-harness/session-adapters/cordis` 装载需要的插件。插件清单与本版状态见 [SPEC 的插件清单](../SPEC.md#插件清单)。状态为「待」的插件不装载。
+2. 从 `@omne-harness/session-adapters/cordis` 装载需要的插件。插件清单与当前状态见 [SPEC 的插件清单](../SPEC.md#插件清单)。状态为「待」的插件不装载。
 3. 由装配入口构造 AD-15，并交入应用装配层维护拥有者签发的恢复授权。
 4. 为会话的消费者 owner 写 Model 的装配声明。资格参加者协议闭合之前，声明为免守卫，并指明 AD-05 的受信证据适配器。
 5. 确认执行记录提供者的 `capabilities.participants` 含 AD-01 声明的四种参加种类。缺一种时，装配被拒绝。
@@ -32,7 +32,7 @@ flowchart LR
 
 | 消费者 | 怎样使用本成员 | 读什么 |
 | --- | --- | --- |
-| `session` 的协调器 | 经 `ctx.get` 现取出站端口与构造依赖端口 | [SPEC 的出站端口](../SPEC.md#出站端口的实现) |
+| session-cordis | 按调用经 `ctx.get` 现取出站端口与构造依赖端口，交给 `session` 的协调器 | [SPEC 的出站端口](../SPEC.md#出站端口的实现) |
 | Agent 的执行记录提供者 | 在共同提交里调用 Session 参加者 | [AD-01](../SPEC.md#ad-01) |
 | Agent 的请求准备 | 调用 `agentModelSelection` | [AD-07](../SPEC.md#ad-07) |
 | Request Context 的组装 | 经 `HistorySource` 读会话历史 | [AD-04](../SPEC.md#ad-04) |

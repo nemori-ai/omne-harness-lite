@@ -16,7 +16,7 @@
 - [src/](src/index.md)：两个入口，现在只有模板标记
 - [tests/](tests/index.md)：入口测试与固定输入
 - [schema/](schema/index.md)：现在为空，表与索引的形状在对象模型
-- [verification/](verification/index.md)：验证义务；模型与证明现在为空
+- [verification/](verification/index.md)：验证资源导航，义务表在 docs/；模型与证明现在为空
 - [adr/](adr/index.md)：实现取舍，现在为空
 - [examples/](examples/index.md)：使用示例，现在为空
 - [resources/](resources/index.md)：非源码资源，现在为空
@@ -30,6 +30,6 @@
 | 不装配 Cordis 的独立调用方 | [docs/context.md](docs/context.md#独立使用) | [docs/public-api.md](docs/public-api.md) |
 | 实现事务端口与读路径的开发者 | [SPEC.md](SPEC.md) | [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md)、[docs/object-model.md](docs/object-model.md) |
 | 改表、索引或迁移的开发者 | [docs/object-model.md](docs/object-model.md) | SPEC 的[派生行表](SPEC.md#w3)与[符合性](SPEC.md#符合性) |
-| 存储线的拥有者，核对本成员对存储契约的期望 | SPEC 的 [XP 表](SPEC.md#xp-table) | [docs/architecture.md](docs/architecture.md#当前设计限制) |
-| 验证者 | [verification/obligations.md](docs/verification-obligations.md) | SPEC 的[自有义务的验证](SPEC.md#自有义务的验证)、[tests/](tests/README.md) |
+| 存储契约拥有者，核对本成员对存储契约的期望 | SPEC 的 [XP 表](SPEC.md#xp-table) | [docs/architecture.md](docs/architecture.md#当前设计限制) |
+| 验证者 | [docs/verification-obligations.md](docs/verification-obligations.md) | SPEC 的[自有义务的验证](SPEC.md#自有义务的验证)、[tests/](tests/README.md) |
 | 本包的维护者 | [docs/architecture.md](docs/architecture.md#验证与维护) | SPEC 的[组合与验证](SPEC.md#组合与验证) |

@@ -16,7 +16,7 @@ Status: storage member, `draft`, candidate technical design, no running implemen
 - Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
 - Not implemented: the transaction port implementation, the participant module, the derivation maintenance, the read paths, the rebuild, the codecs, the migration fragments, and the Cordis plugin.
 - Not verified: no SPEC obligation has a test. The current tests check only that both entries export nothing.
-- Missing precondition: the storage contract has no workspace member to depend on. [XP-1 to XP-6](SPEC.md#xp-table) of the SPEC record six expectations about it. The storage line owns them ([issue 540](https://github.com/nemori-ai/omne-harness-lite/issues/540)). When one is missing, the related operation returns `unavailable`. The package does not replace it with an in-memory implementation.
+- Missing precondition: the storage contract has no workspace member to depend on. [XP-1 to XP-6](SPEC.md#xp-table) of the SPEC record six expectations about it. The owner of the storage contract owns them ([storage contract](../../storage/docs/storage-contract/README.md)). When one is missing, the related operation returns `unavailable`. The package does not replace it with an in-memory implementation.
 
 No package depends on this package now.
 
@@ -67,7 +67,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-storage-sql
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The two current tests check only that both entries export nothing. See [tests/](tests/README.md). The SPEC obligations arrive with the implementation, as listed in the [verification obligations](docs/verification-obligations.md): a shadow-table set difference for "derived equals recomputed", property tests for pagination and cursors, one write-path case for each joint-commit row, benchmarks of read-path complexity with N from 10³ to 10⁶, and injection cases for the failure table. All obligations assume a real SQLite or PostgreSQL provider, so they wait for the storage line to provide the entries. The package declares no numeric target before measurement. Power-loss durability belongs to SQL-T01 of the storage line, and this package does not claim it. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The two current tests check only that both entries export nothing. See [tests/](tests/README.md). The SPEC obligations arrive with the implementation, as listed in the [verification obligations](docs/verification-obligations.md): a shadow-table set difference for "derived equals recomputed", property tests for pagination and cursors, one write-path case for each joint-commit row, benchmarks of read-path complexity with N from 10³ to 10⁶, and injection cases for the failure table. All obligations assume a real SQLite or PostgreSQL provider, so they wait for the storage contract to provide the entries. The package declares no numeric target before measurement. Power-loss durability belongs to the owners of [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01), and this package does not claim it. A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -91,11 +91,12 @@ docs/                     Internal design, public use, and integration
 ├── object-model.md       Tables, indexes, in-process objects, lifecycle
 ├── public-api.md         Export entries, candidate exports, configuration
 ├── context.md            Usage, consumers, and position
-└── cordis.md             Cordis integration as the sessionTransactions provider
+├── cordis.md             Cordis integration as the sessionTransactions provider
+└── verification-obligations.md  Verification obligations, methods, preconditions, and gaps
 src/                      Two entries, template markers only now
 tests/                    Entry tests, fixtures/ is empty now
 schema/                   Empty now, table shapes are in docs/object-model.md
-verification/             obligations.md; models/ and proofs/ are empty now
+verification/             Index of verification resources; the obligations are in docs/verification-obligations.md; models/ and proofs/ are empty now
 adr/                      Empty now
 examples/                 Empty now
 resources/                Empty now
