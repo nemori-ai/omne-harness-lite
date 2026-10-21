@@ -41,9 +41,9 @@ flowchart LR
 
 四个面挂在同一个键 `session` 上，因为它们共享同一条权威提交序列与同一组构造依赖。按调用方切分由每个操作允许的调用方类表达，不由服务键表达。代价：一个调用方插件拿到的服务对象上有它用不到的面，核对靠调用方类与调用资格。
 
-### 只有事务端口进 `inject`
+### 只有事务端口与内部主体进 `inject`
 
-事务端口缺席时，任何读写都不成立，所以服务停在 `PENDING`。其余端口按调用现取，一个端口缺席只影响需要它的操作。`inject` 没有可选形式，如果把这些端口也放进 `inject`，任何一个缺席都会让整个服务停下（[inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md)）。
+事务端口缺席时，任何读写都不成立；内部主体缺席时，本组的协调器与调度器不能提交命令。两者缺一，服务停在 `PENDING`。内部主体是应用装配交付的运行时对象，按 IC-16 经服务键提供，不进插件配置。其余端口按调用现取，一个端口缺席只影响需要它的操作。`inject` 没有可选形式，如果把这些端口也放进 `inject`，任何一个缺席都会让整个服务停下（[inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md)）。
 
 ### 调用方类由装配声明
 

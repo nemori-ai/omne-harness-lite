@@ -1368,7 +1368,7 @@ Runtime Context 重建后，作用域持有者按下列顺序恢复本会话（[
 
 ### 构造依赖端口与出站端口
 
-本成员声明七个构造依赖端口与四个出站端口。接口在本成员，服务键在 [session-cordis-contract](../session-cordis-contract/docs/cordis.md#端口服务键)，实现在提供者与 session-adapters。只有 `SessionTransactionPort` 是装配的必需依赖；其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`，不使整个服务停下。下表的「缺席或失败时」一列与 Cordis 定义的端口表一致。
+本成员声明七个构造依赖端口与四个出站端口，另声明一个由应用装配交付的值 `SessionInternalPrincipals`：本组协调器与调度器提交命令时用的内部主体，由应用装配的维护拥有者签发，身份桥核实。接口与类型在本成员，服务键在 [session-cordis-contract](../session-cordis-contract/docs/cordis.md#端口服务键)，实现在提供者与 session-adapters。`SessionTransactionPort` 与内部主体是装配的必需依赖；其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`，不使整个服务停下。下表的「缺席或失败时」一列与 Cordis 定义的端口表一致。
 
 | 端口 | 提供什么 | 必需性 | 缺席或失败时 |
 | --- | --- | --- | --- |

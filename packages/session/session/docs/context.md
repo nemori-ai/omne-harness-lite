@@ -73,7 +73,7 @@ flowchart LR
 | 配置 | 以 Standard Schema 校验插件配置，再交给工厂 | 自己构造 `SchedulingPolicy`，工厂仍校验 |
 | 调用方类 | 读 intercept 配置里的调用方类，调用 `facesFor` | 自己按调用方分发 |
 | 唤醒 | 订阅 `session-cordis-contract/committed` 事件转给 `committed`；把来源拥有者的变化事件转给 `changed`；绑定每租户扫描者 | 自己接通 |
-| 停止 | 插件卸载时释放维护句柄并停止实例；服务换代时旧实例停止后新实例才接管 | 自己按顺序停止 |
+| 停止 | 插件卸载时释放维护句柄并停止实例；服务换代时新旧实例可能短暂并存，安全靠操作身份、`expected` 核对与提交围栏，不靠先后顺序（撤除时序的假设见 [session-cordis](../../session-cordis/SPEC.md#明确缺项)） | 自己按顺序停止 |
 
 经 Cordis 时，本成员的行为不变。区别只在接线的拥有者：Cordis 的注入、生命周期与事件派发归 session-cordis，机制与失败语义仍归本成员 SPEC。卸载插件不改变已经提交的业务事实（[Cordis 说明](cordis.md)）。
 

@@ -696,6 +696,8 @@ export interface SessionTransactionPort<P> {
     principal: P; scope: 'system'; after: string | null; limit: number
   }>): Reply<Readonly<{ scopes: readonly ReleasedScope[]; next: string | null }>>
 }
+/** Principals the application assembly issues for commands that Session's own coordinators and schedulers submit. The identity bridge verifies them. */
+export type SessionInternalPrincipals<P> = Readonly<{ coordinator: P; maintainer: P }>
 export interface SessionNotifier {
   committed(input: Readonly<{
     tenant: TenantId; session: SessionId; revision: SessionRevision

@@ -29,7 +29,7 @@ import type {
   SessionTransactionPort, SessionIdentityBridge, SessionEvidenceBridge, SessionClock,
   SessionIdleInput, SessionContextInput, SessionNotifier,
   AgentDrivePort, ToolStartFencePort, DeliveryReleasePort, ScopeReleasePort,
-  SessionFaces, SessionCallerClass, SessionId, SessionRevision, DurableEvidence,
+  SessionFaces, SessionCallerClass, SessionInternalPrincipals, SessionId, SessionRevision, DurableEvidence,
   RoutedInput, WorkSnapshot, GuardCommand, Reply,
 } from '@omne-harness/session-contract'
 
@@ -67,7 +67,7 @@ export type SessionDependencies<P> = Readonly<{
   deliveryRelease: Current<DeliveryReleasePort>
   scopeRelease: Current<ScopeReleasePort>
   /** Principals for commands that coordinators and schedulers issue. The identity bridge verifies them. */
-  principals: Readonly<{ coordinator: P; maintainer: P }>
+  principals: SessionInternalPrincipals<P>
   /** Ordered before-admit slots. An empty list makes accept run without slots. */
   admission: Current<readonly BeforeAdmitSlot[]>
 }>
