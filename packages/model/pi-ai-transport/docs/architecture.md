@@ -1,23 +1,178 @@
 # 内部架构
 
-<!-- documentation:placeholder -->
-
-本文件说明本包怎样兑现 [SPEC.md](../SPEC.md)：包内模块划分、依赖方向、状态与资源归属、关键机制及设计理由。它引用组级与系统级约束，不另立公共规则。
+本文件说明本包怎样兑现 [SPEC.md](../SPEC.md)：包内模块划分、依赖方向、状态与资源归属、关键机制及设计理由。组级边界见[组架构“成员与新增条件”](../../docs/architecture.md#成员与新增条件)与[“包依赖与装配”](../../docs/architecture.md#包依赖与装配)。
 
 ## 模块与依赖
 
-<!-- documentation:placeholder -->
+| 模块 | 回答的问题与持有的东西 | 依赖 |
+| --- | --- | --- |
+| [family.ts](../src/family.ts) | 五个已接受的家族贡献接口类型，形状照抄组架构 | model-contract、json-text、content-block、operation-result，只有类型 |
+| [index.ts](../src/index.ts) | 根入口，只转出 family.ts 的类型 | family.ts |
+| [capacity.ts](../src/capacity.ts) | 谁可以发：FIFO 等待队列、已授予计数、关闭标志、每个预约的状态 | operation-result（类型） |
+| [diagnostics.ts](../src/diagnostics.ts) | 观察怎样隔离：失败、在途与丢弃计数 | 无 |
+| [sse.ts](../src/sse.ts) | 字节怎样成为事件：UTF-8 解码器状态、当前行、当前事件的 data 行与字节计数 | 无，改编自 pi |
+| [frames.ts](../src/frames.ts) | 事件怎样成为协议帧：是否已过 end-marker | family.ts、json-text、operation-result |
+| [http.ts](../src/http.ts) | 怎样发一次并收场：一次交换的相位、未关闭的物理句柄、座位与结果 | Node `https`、`http`、`net`，capacity.ts 与 diagnostics.ts（类型） |
+| [network.ts](../src/network.ts) | 怎样组合与排空：容量、连接池、在途登记、诊断隔离与关闭状态 | Node `https`，capacity.ts、diagnostics.ts、http.ts（类型） |
 
-待补：实际模块、各自持有的状态与资源、允许的依赖方向。
+```mermaid
+flowchart LR
+  index[index.ts] --> family[family.ts]
+  frames[frames.ts] --> family
+  frames --> jsonText["@omne-harness/json-text"]
+  network[network.ts] --> capacity[capacity.ts]
+  network --> diagnostics[diagnostics.ts]
+  network -. 类型 .-> http[http.ts]
+  http -. 类型 .-> capacity
+  http -. 类型 .-> diagnostics
+  http --> node["Node https"]
+  network --> node
+  family -. 类型 .-> contract["model-contract、content-block"]
+```
+
+依赖方向只从组合者指向机制。http.ts 不创建容量、连接池或诊断隔离，它们由 network.ts 注入。http.ts 只看到 `ExchangeResources` 中它需要的部分：连接池、TLS 选项、诊断隔离、在途登记与关闭标志。sse.ts 只接收字节的异步迭代，不接收 Node 的 `IncomingMessage`。
+
+运行依赖只有 model-contract、operation-result、json-text、content-block 与 Node 内置模块。本包不导入任何家族。家族差异只经已接受的 `PiFamilyBinding` 与 `PiResponseDecoder` 进入，由上层装配提供。[dependencies.spec.ts](../tests/dependencies.spec.ts) 核对 `package.json` 的声明与源码中的值导入和类型导入。
 
 ## 关键机制与理由
 
-<!-- documentation:placeholder -->
+### 交换的相位
 
-待补：机制怎样满足保证、实际代价、边界与重新判断的条件。
+http.ts 用一个相位与一个物理句柄集合管理一次交换。相位决定结果，句柄集合决定交换何时关闭。
+
+| 相位 | 含义 |
+| --- | --- |
+| `requesting` | 请求已发出，还没有响应 |
+| `responding` | 2xx 结果已交付，响应体在读者手中 |
+| `reading-error` | 正在收集非 2xx 的错误体 |
+| `concluding` | 自然结果已知，停止仍可替换它 |
+| `stopping` | 停止已胜出 |
+| `defective` | 出现 Node 契约以外的情况 |
+| `closed` | 全部资源已释放 |
+
+```mermaid
+stateDiagram-v2
+  [*] --> requesting: startExchange
+  requesting --> responding: 2xx 响应头
+  requesting --> reading_error: 非 2xx 响应头
+  requesting --> concluding: 连接超时或请求关闭
+  requesting --> stopping: 停止
+  reading_error --> concluding: 错误体读取结束
+  reading_error --> stopping: 停止
+  concluding --> stopping: 停止
+  requesting --> defective: 没有状态码
+  reading_error --> defective: 错误体的块不是字节
+  responding --> closed: 句柄集合为空
+  concluding --> closed: 句柄集合为空
+  stopping --> closed: 句柄集合为空
+  defective --> closed: 句柄集合为空
+  closed --> [*]
+```
+
+物理句柄集合有三种成员：
+
+- `request`：发起时加入，请求的 `close` 事件时离开。
+- `response`：收到响应时加入，响应的 `close` 事件时离开。
+- `error-body`：开始读取错误体时加入，读取结束时离开。
+
+集合为空时，交换进入 `closed`：清除连接超时定时器，移除信号监听器，离开在途登记，经座位归还名额，确定结果，投递 `exchange-stopped`，然后完成 `stopped`。`responding` 的结果已在收到响应头时交付，`closed` 时不再改变。
+
+停止在 `requesting`、`reading-error` 与 `concluding` 时把相位改为 `stopping`，然后销毁响应与请求。在 `responding` 时，停止不改变相位，只销毁连接，读者的迭代因此出错。其他相位上的停止不起作用。
+
+### 资源所有权
+
+| 资源 | 拥有者 | 释放路径 |
+| --- | --- | --- |
+| 预约 | 容量 | 调用 `release()` 或被一次交换消费 |
+| 座位 | 消费预约的交换 | 交换进入 `closed` 时归还 |
+| 物理请求与响应 | 交换 | 停止、读完、读者提前结束或连接失败，最终都触发 `close` 事件 |
+| 2xx 响应体 | 认领它的读者 | 读完或提前结束迭代 |
+| 在途登记 | 网络资源 | 交换在 `closed` 时自行离开 |
+| 连接池 | 网络资源 | `close()` 销毁 |
+| 诊断计数 | 诊断隔离 | 只增减计数，不持有观察者的结果 |
+
+每个监听器与定时器都有清理路径：
+
+- 容量在授予或取消时移除信号监听器。
+- 交换在 `closed` 时移除信号监听器。
+- 交换在 TLS 握手完成、收到响应或关闭时清除连接超时定时器。
+- 诊断隔离只在 thenable 完成时调整计数，派生的 Promise 不会拒绝。
+
+### 同步发起与发送围栏
+
+model-contract 要求发送点 S 位于同一个同步围栏内，围栏内不得 await 或排队。因此 `startExchange` 是同步函数：校验输入、消费预约、调用 `https.request` 与 `end(body)`，然后返回句柄。容量的等待放在发起之前，由 `reserve` 完成，后续由 2.2 的 materialize 调用。
+
+容量上限等于连接池的 `maxSockets` 与 `maxTotalSockets`，预约又先于发起，所以正常情况下请求不进入 Node 连接池的等待队列。名额在请求与响应物理关闭之后才归还，使名额数与真实的套接字一致。
+
+### 不迁移旧的脱敏策略
+
+封存件用旧的凭据政策包对头部和错误体脱敏。本包不迁移这套策略。原样的响应头与错误体只在包内交给家族解释，对外失败只由家族形成的安全诊断表达，诊断事件只含种类与级别。这样秘密只存在于本次发送资源内，不需要第二套脱敏规则（依据 [#461](https://github.com/nemori-ai/omne-harness-lite/issues/461)）。
+
+### 与封存件的差异
+
+- 取消的报告方式：封存件把“在 Node 连接池队列中被取消”报为本地失败。本包把发出之后的取消统一报为 `stopped`，并以 `responded` 区分是否已有响应。发起前已取消的信号得到拒绝原因 `cancelled`，不发出请求。
+- 发起：封存件在 send 内等待容量。本包把等待移到 `reserve`，发起本身同步。
+- 地址：封存件固定 OpenRouter 路径。本包只接收调用方给出的完整 https 地址。
+- 诊断上限：封存件复用连接数作为诊断在途上限。本包的 `maxPending` 独立配置。
+
+### 从 pi 改编的 SSE 分帧
+
+[sse.ts](../src/sse.ts) 改编自 pi 1.0.0 的 `parseSSE`，保留逐字符的分帧算法与来源头。来源、哈希与改编内容登记在 [provenance.json](../provenance.json)，说明见 [UPSTREAM.md](../UPSTREAM.md)，原许可证在 [LICENSE.pi](../LICENSE.pi)。其他源文件是本项目自写的，不带来源头。
+
+相对封存的 fork，sse.ts 改了两处：
+
+- 只有 UTF-8 解码器的 `TypeError` 映射为非法 UTF-8，其他错误原样传出。
+- 没有冒号的 `data` 行按 WHATWG 规则取空值。
+
+JSON 读取与 end-marker 移到本项目自写的 [frames.ts](../src/frames.ts)，由 `@omne-harness/json-text` 无损解析。
+
+## 未实现的优化方向：按优先级与等待方式分配连接席位
+
+**状态：未实现，未采用为契约。** 本节记录一个已提出的产品要求和建议的实现方向，供后续实施时使用。当前行为以 [SPEC.md](../SPEC.md#连接容量) 为准：连接席位按先来先得授予，等待在授予、取消或容量关闭时结束，调用方可以用带时限的取消信号限定等待时间。
+
+### 要解决的问题
+
+发起模型请求的调用方主要是 agent。agent 有两类：在前台与人交互的 agent，以及在后台工作的 subagent。它们共用同一个传输实例的连接席位（同时占用连接的请求数上限，由 `maxConnections` 配置，即 SPEC 中容量的名额）。席位用满时，后台请求可能占住席位，前台请求排队，首字延迟（TTFT）变差。
+
+产品要求：
+
+1. 请求到达时可以带自己的优先级。
+2. 请求到达时可以声明没有席位时立即失败，还是等待一段时间。
+3. 通过配置，同时保证前台交互请求的高优先级与 TTFT，以及后台 subagent 请求的低优先级与稳定性。
+
+### 建议的机制（席位分配，归本包容量模块）
+
+- **优先级。** 用小的封闭集合，至少区分“交互”与“后台”，不用任意数字。席位空出时先授予高优先级的等待者；同一优先级内先来先得。
+- **预留席位。** 为高优先级预留一部分席位：低优先级最多占用 `maxConnections` 减去预留数。预留数由配置给出。这是保证前台 TTFT 的主要手段。
+- **防止低优先级饿死。** 二选一或并用，由配置给出：低优先级保底席位数；等待超过阈值后提升其授予顺序。
+- **请求声明等待方式。** 三种：没有空席位立即失败；最多等待一段时间，超时失败；等待到取消。每个优先级有配置的默认等待方式，请求可以覆盖。失败结果区分“没有席位立即失败”“等待超时”“被取消”。
+- **不抢占。** 优先级只决定空出席位的授予顺序。已经发出的请求不被中断让位：发出的请求不能撤回，中断还会产生费用。
+- **配置与观测。** 所有数值（预留数、保底数、提升阈值、各优先级默认等待时限）来自配置，不在代码里写永久默认值。记录每次等待的时长与结束原因，用于调参。
+
+### 尚需决定的承载方式（跨成员）
+
+优先级与等待方式要从 agent 传到本包。当前 Model 契约没有承载它们的字段：传输的 `prepare` 只接收固定请求与供应商，`materialize` 只接收取消信号。两种承载方式：
+
+| 方式 | 做法 | 影响 |
+| --- | --- | --- |
+| 装配映射 | 不改契约。装配配置按固定请求中的消费者引用或发起者身份，映射到优先级与等待方式 | 改动只在装配与本包；请求本身不声明，同一调用方不能逐次改变 |
+| 请求声明 | Model 契约增加调度意图（优先级与等待方式），调用方随请求声明，经 Model 运行时传到传输 | 要走契约变更，同步 `model-contract`、`model` 运行时与 Agent 等消费者 |
+
+建议先用装配映射落地，再按需要经契约变更引入请求声明；本包的席位机制两种方式都适用，只是取值来源不同。
+
+### 实施时的责任与入口
+
+- 席位分配机制：本包（容量模块与网络资源配置）。
+- `materialize` 等待策略的取舍（立即失败、限时、等待到取消）：传输三段语义的拥有者（阶段二 2.2 的实现及其后续）。
+- 请求声明方式：Model 契约拥有者，按契约变更协议另立任务，并同步 Agent 线。
+- 产品取值（预留比例、默认等待时限）：产品负责人。
 
 ## 验证与维护
 
-<!-- documentation:placeholder -->
+保证与测试的对应见 [SPEC“组合与验证”](../SPEC.md#组合与验证)，测试的分层与替身见 [tests/README.md](../tests/README.md)。
 
-待补：保证与持续验证资源的对应，以及设计变化时需要同步的消费者。
+- 改变家族贡献接口：先改[组架构](../../docs/architecture.md#pi-家族贡献的取得协议)的已接受代码块，再同步 family.ts、[public-entry.spec-d.ts](../tests/public-entry.spec-d.ts) 与[公开接口](public-api.md)。
+- 改变交换相位、拒绝原因或结果：同步 SPEC、[关键流程](flows.md)、http.ts 的测试，以及 2.2 的调用代码。
+- 改变 sse.ts：同步 provenance.json 的改编说明与 UPSTREAM.md。
+- 增加运行依赖：先核对组架构的依赖方向，再更新 dependencies.spec.ts 的允许集合。
+- 2.2 实现 `ModelTransport` 之后，套件的 transport 组成为更高的测试接缝，本包的网络接缝用例可以随之收敛。

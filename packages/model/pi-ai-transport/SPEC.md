@@ -1,29 +1,242 @@
 # @omne-harness/pi-ai-transport 行为规格
 
-<!-- documentation:placeholder -->
-
-本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的公开定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。没有非类型行为时，写明理由。
+本文件拥有本包在公开类型以外的必要行为。公开形状与运行时校验归 `src/` 的定义，公开定义的导航归 [docs/public-api.md](docs/public-api.md)。
 
 ## 范围与依据
 
-<!-- documentation:placeholder -->
+本包当前交付两部分：
 
-待补：接口或机制的实际拥有者、规格修订与采用范围，以及所依据的上层要求、架构与领域条款的精确修订。未接受的条款标明候选范围。
+1. 根入口导出的五个家族贡献接口类型：`PiProtocolFrame`、`PiResponseDecoder`、`PiMaterializedMedia`、`PiFamilyBinding` 与 `PiFamilyContributions`。形状与家族作者须遵守的行为归[组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)，本文件不重复这些条款。
+2. 包内传输机制：连接容量、HTTP 交换、SSE 分帧、协议帧、网络资源与诊断隔离。这些机制不经根入口导出（依据 [#461](https://github.com/nemori-ai/omne-harness-lite/issues/461)）。本文件对它们的条款约束同包的调用代码。首个调用方是阶段二 2.2 的 `ModelTransport` 实现。
+
+本文件兑现以下已接受的上层条款：
+
+- [组架构“迁移与接受条件”](../docs/architecture.md#迁移与接受条件)：容量在 materialize 阶段预约，预约不自行过期，start 同步发起实际请求，不在内部等待队列。
+- [组架构“pi 家族贡献的取得协议”](../docs/architecture.md#pi-家族贡献的取得协议)：公共传输禁用隐式 HTTP 重试与自动重定向，一次 start 对应一次物理发出。HTTP/SSE 分帧由公共传输处理。协议 end-marker 与传输 EOF 分开。
+- [model-contract“资格、共同提交与实际发送”](../model-contract/SPEC.md#资格共同提交与实际发送)：发送点 S 之后请求不可撤回。秘密只在本次发送资源内存在。
+- [迁移清单](../docs/migration.md#pi-ai-transportsrc)中标为 2.1 的行：封存件各文件的去向。
+
+本包当前不提供以下能力。本文件对它们不作承诺：
+
+- `ModelTransport`、`PreparedTransport` 与 `MaterializedTransport` 的实现，即 `prepare → materialize → start` 三段语义。归阶段二 2.2。
+- 请求规划、固定绑定，以及帧到 `TransportFact` 与 `TransportTermination` 的映射。归 2.3。
+- 任何家族实现、凭据解析与真实供应商请求。归 2.5 与 2.6。
+- 按优先级与等待方式分配名额。这是未实现的方向，记录在[内部架构](docs/architecture.md#未实现的优化方向按优先级与等待方式分配连接席位)。
 
 ## 结果与不变量
 
-<!-- documentation:placeholder -->
+### 连接容量
 
-待补：每项义务的触发条件、前提、必须的结果、禁止的结果与例外。每条给稳定的锚点。
+`createConnectionCapacity(maximum)` 创建一个容量。`maximum` 必须是正的安全整数，否则函数同步抛出 `RangeError`。
+
+- 容量同时授予的预约不超过 `maximum` 个。`reserve(signal)` 按调用顺序（FIFO）授予预约。
+- 下列情况下，`reserve` 以 `undefined` 结束，不占用名额：
+  - 调用时信号已取消，或容量已关闭；
+  - 等待中信号取消；
+  - 等待中容量关闭。
+- 被取消的等待者离开队列。授予或取消之后，等待者的监听器离开信号。
+- 预约不过期。授予之后信号再取消，预约仍是 `held`。预约一直占用名额，直到名额被归还。
+- 预约有三种状态：`held`、`consumed` 与 `released`。只有 `held` 能变成 `consumed`。
+- `consume()` 只成功一次，返回一个座位。之后再调用时，它返回当前状态（`consumed` 或 `released`）作为拒绝，不抛出异常。
+- 预约本身的 `release()` 只在预约为 `held` 时归还名额。`consume()` 之后，预约的 `release()` 不起作用，只有返回的座位能归还名额。
+- 预约与座位的 `release()` 都幂等。一个名额只归还一次，只放行一个等待者。
+- `close()` 让全部等待者以 `undefined` 结束，并拒绝之后的预约。关闭之前授予的预约仍可消费和归还。
+
+### 发起交换
+
+`startExchange(resources, input, signal)` 同步返回 `started` 或 `refused`。
+
+- 返回 `started` 时，本包已把请求交给 Node 的 `https.request`，并已调用 `end(body)`。函数不返回惰性对象，不在内部等待容量或其他 Promise。
+- 结果、停止与响应体都经返回的交换句柄取得：结果与物理关闭用 Promise，响应体用异步迭代。
+- 一次交换只对应一次物理发出。本包不重试，不跟随重定向。3xx 响应是 HTTP 错误。
+- 请求方法是 POST。本包按调用方给出的值发送请求头，只另加 `content-length`，其值是 `body` 的字节数。
+- 地址必须是 `URL` 对象，协议是 `https:`，不含用户名、密码、查询串与片段。
+
+拒绝原因是封闭集合。本包按下表顺序检查，报告第一个成立的原因：
+
+| 原因 | 条件 |
+| --- | --- |
+| `resources-closed` | 网络资源已开始关闭 |
+| `cancelled` | 信号在发起前已取消 |
+| `invalid-url` | 地址不符合上述要求 |
+| `invalid-header` | 头名不是 HTTP token，或头值不是字符串，或头值含可打印 ASCII（0x20 至 0x7E）以外的字符 |
+| `invalid-body` | `body` 不是 `Uint8Array` |
+| `invalid-limit` | `maxErrorBodyBytes` 不是正的安全整数，或 `connectTimeoutMs` 既不是 `null` 也不是正的安全整数 |
+| `reservation-unusable` | 预约已消费或已归还 |
+
+- 拒绝时，本包不建立任何网络连接。
+- 凡是未发起的交换，本包都归还仍为 `held` 的预约。已消费的预约属于另一个交换，本包不改动它。
+- `cancelled` 表示请求没有发出。发出之后的取消由结果 `stopped` 表示。调用方据此区分“未发出”与“已发出后取消”。
+- 发起时出现拒绝原因以外的同步异常时，本包先归还名额，再原样抛出该异常。
+
+### 交换结果
+
+`result` 只确定一次，取下列四种之一：
+
+| 结果 | 含义 | 确定的时刻 |
+| --- | --- | --- |
+| `ok` | 2xx 响应，带状态码、响应头与只能认领一次的响应体 | 收到响应头时 |
+| `http-error` | 2xx 以外的状态，含 3xx，带状态码、响应头与错误体 | 交换物理关闭时 |
+| `connect-failed` | 收到响应之前连接已关闭，且没有停止。`timeout` 说明是否由连接超时引起 | 交换物理关闭时 |
+| `stopped` | 取消信号或 `stop()` 胜出。`responded` 说明停止之前是否已收到响应 | 交换物理关闭时 |
+
+- 停止在物理关闭完成之前胜出。`http-error` 或 `connect-failed` 尚未确定时调用停止，结果变成 `stopped`。
+- `ok` 在收到响应头时已经确定。之后的停止不改变 `ok`，只结束响应体。
+- `result` 只在 Node 契约以外的情况下拒绝：响应没有状态码，或错误体的块不是字节。拒绝之前，本包同样物理关闭交换并归还名额。
+
+### 响应体
+
+- 2xx 响应体只能认领一次。第二次 `claim()` 返回 `undefined`。
+- 调用方必须读完响应体，或停止交换。否则响应、连接与名额一直被占用。
+- 读者提前结束迭代时，本包销毁响应，交换随之物理关闭。
+- 读取中发生停止时，读者的迭代以错误结束。
+- 响应体的块不是字节时，读者的迭代以错误结束。
+
+### 错误体
+
+非 2xx 响应的错误体有三种状态：
+
+- `complete`：读到流末尾，总字节数不超过 `maxErrorBodyBytes`。总字节数正好等于上限时也是 `complete`。
+- `too-large`：累计字节数超过上限。本包丢弃已读的全部字节，并关闭连接。
+- `read-failed`：读取中流出错，例如连接中断。本包不返回部分字节。
+
+### 连接超时与连接池
+
+- `connectTimeoutMs` 只作用于新建连接。计时从新套接字交给请求时开始，到 TLS 握手完成时结束，覆盖 TCP 连接与 TLS 握手。复用的连接不计时。`null` 表示不设连接超时。
+- 连接超时后，本包销毁请求。结果是 `connect-failed`，`timeout` 为 `true`。
+- 连接池的套接字上限等于 `maxConnections`，与容量上限相同。
+- 连接池关闭空闲时间超过 `idleConnectionTimeoutMs` 的连接。
+
+### SSE 分帧
+
+`readSseEvents(body, maxEventBytes)` 把字节块的异步迭代转为每个事件的 data 文本。`maxEventBytes` 必须是正的安全整数，否则函数同步抛出 `RangeError`。
+
+- 字节块的切点不改变结果。多字节 UTF-8 字符与 CR、LF、CRLF 换行跨越块边界时，结果相同。
+- 本包只取 `data` 字段。多条 `data` 行以 LF 连接。冒号之后的一个空格被去掉。
+- 没有冒号的 `data` 行，值为空字符串。
+- 本包忽略注释、`event`、`id`、`retry` 与其他字段。没有 `data` 行的事件不产出。
+
+单事件字节上限按下列规则计数：
+
+- 一个事件内所有行的 UTF-8 字节都计入，含注释、其他字段与换行符。
+- 结束事件的空行的换行符也计入。
+- CR 之后紧跟的 LF 不计入。
+- 每个事件分别计数，上限不作用于整条流。
+- 计数超过上限时失败。计数正好等于上限时通过。
+
+失败原因是封闭集合，由 `SseProtocolError` 的 `reason` 报告：
+
+| 原因 | 条件 |
+| --- | --- |
+| `non-byte` | 块不是 `Uint8Array`。Node 的 `Buffer` 等子类可以使用 |
+| `invalid-utf8` | UTF-8 解码器报错，含流末尾被截断的多字节字符 |
+| `event-too-large` | 单个事件的计数超过上限 |
+| `unterminated` | 流在事件中途结束：最后一行没有换行，或已有 `data` 行而没有结束事件的空行 |
+
+- 只有解码器自身的错误映射为 `invalid-utf8`。字节源抛出的其他错误原样传出。
+- 失败时本包结束对字节源的迭代，字节源随之关闭。
+
+### 协议帧
+
+`readProtocolFrames(events, { endMarker, json })` 把事件 data 文本转为 `Outcome<PiProtocolFrame, FrameFailure>` 的序列。
+
+- data 文本等于配置的 `endMarker` 时，本包产出 `end-marker` 帧。`endMarker` 为 `null` 表示协议没有 end-marker。
+- end-marker 之后再出现任何事件（含第二个 end-marker）时，本包产出一次 `event-after-end` 失败，然后结束。
+- 其他 data 文本由 `@omne-harness/json-text` 的 `readJsonText` 按调用方给出的 `JsonLimits` 无损解析。大整数保留原文词法。
+- data 文本不是一个合法 JSON 文档，或超出限额时，本包产出一次 `invalid-json` 失败，然后结束。
+- 失败之后，本包结束对事件源的迭代。SSE 层的异常原样穿过帧层。
+- 事件结束只结束帧序列，不产出终局帧。终局是否合法由家族 decoder 判断。
+
+### 诊断隔离
+
+`createDiagnosticSink(observer, { maxPending })` 隔离调用方的诊断观察者。`maxPending` 必须是正的安全整数，否则函数同步抛出 `RangeError`。
+
+- 诊断事件只含种类与级别，不含 URL、头或体。观察者收到的是冻结的副本。
+- 当前的事件种类是封闭集合：
+
+  | 种类 | 级别 | 时刻 |
+  | --- | --- | --- |
+  | `exchange-started` | `info` | 交换发起之后 |
+  | `connect-failed` | `error` | 收到响应之前连接关闭或连接超时 |
+  | `error-body-too-large` | `error` | 错误体超过上限 |
+  | `exchange-stopped` | `info` | 交换物理关闭时，不论结果 |
+
+- 观察者同步抛出时，计为 `failed`。读取返回值的 `then` 抛出时，也计为 `failed`。
+- 观察者返回 thenable 时，计为 `pending`，直到它完成。它拒绝时，再计为 `failed`。
+- `pending` 达到 `maxPending` 时，本包丢弃新事件，计为 `dropped`。
+- 观察者的任何行为都不改变交换结果，也不阻止后续事件的投递。
+- `counters()` 返回冻结的 `{ failed, pending, dropped }` 快照。网络资源没有配置观察者时，计数保持为零。
+- 事件词表的扩展、对外查询与保留不在本包当前范围。
 
 ## 所有权、失败与生命周期
 
-<!-- documentation:placeholder -->
+### 名额与交换
 
-待补：身份、状态、资源与清理的拥有者；适用的授权顺序、事务、并发、取消、恢复与进展前提；部分失败、重试、关闭与依赖丢失的后果。外部副作用不因 disposer 运行而变得可撤回。
+- 预约归容量。`consume()` 之后，名额归交换，由交换持有的座位归还。
+- 交换在下列各项都结束之后才归还名额：
+  - 请求物理关闭；
+  - 收到响应时，响应物理关闭；
+  - 有错误体时，错误体读取结束。
+- `stopped` 完成时，请求与响应已关闭，错误体已读取结束，名额已归还，交换已离开在途登记，信号上的监听器已移除。
+- `stop()` 只请求本地物理停止，并且幂等。已发出的请求不能撤回。停止不表示供应商没有收到请求。
+- 取消信号与 `stop()` 的效果相同。
+
+### 秘密与对外事实
+
+- 凭据由调用方在发起时放进请求头。本包只校验头部字符集，不解析、保存或记录凭据。
+- 响应头与错误体只在包内交给家族解释。本包不把它们写入任何对外事实或诊断。
+- 对外失败只由家族形成的安全诊断表达。
+- 家族实现者与同包调用代码必须遵守同一约束：原样的请求头、响应头与错误体不得写入对外事实或诊断。
+
+### 网络资源
+
+`createNetworkResources(config)` 组合容量、连接池、在途登记与诊断隔离。`maxConnections`、`idleConnectionTimeoutMs` 与 `diagnostics.maxPending` 必须是正的安全整数，否则函数同步抛出 `RangeError`。所有限额都来自调用方，本包不设默认值。
+
+`close()` 按下列顺序执行：
+
+1. 关闭容量。等待中的预约以 `undefined` 结束，之后的预约被拒绝。
+2. 停止每个在途交换。
+3. 销毁连接池，含池中的空闲连接。
+4. 等待每个在途交换的 `stopped` 完成。
+
+- 第 4 步完成之后，`close()` 返回的 Promise 才完成。
+- `close()` 幂等。重复调用返回同一个 Promise。
+- 第一次调用 `close()` 之后，`startExchange` 以 `resources-closed` 拒绝。
+
+### 缺陷与异常
+
+- 四种结果、七种拒绝原因、三种错误体状态与 SSE、帧的失败原因覆盖 Node 契约内的全部情况。
+- 本包只在 Node 契约以外的情况下拒绝 `result` 或抛出异常。
+- 本包不把未知异常转为普通失败，未知异常原样传出。
 
 ## 组合与验证
 
-<!-- documentation:placeholder -->
+本包消费以下承诺：
 
-待补：所消费承诺的精确修订与条款，每项自有义务对应的持续验证方法、前提与未覆盖。
+- `@omne-harness/operation-result` 的 `Outcome`。
+- `@omne-harness/json-text` 的 `readJsonText`、`JsonLimits` 与 `JsonValue`。
+- `@omne-harness/model-contract` 与 `@omne-harness/content-block` 的类型，只供五个接口类型引用。
+- Node 内置的 `https`、`http` 与 `net`。
+
+运行依赖只允许上述四个 workspace 成员与 Node 内置模块。本包不依赖 `@omne-harness/model`、Session、旧消息包或封存目录。
+
+持续验证在 [tests](tests/index.md)。快层用真实的 `AbortController` 与字节流，慢层用真实的本地 HTTPS 服务：
+
+| 义务 | 测试 | 层 |
+| --- | --- | --- |
+| 连接容量 | [capacity.spec.ts](tests/capacity.spec.ts) | 快 |
+| 诊断隔离 | [diagnostics.spec.ts](tests/diagnostics.spec.ts)；交换中的隔离见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
+| SSE 分帧 | [sse.spec.ts](tests/sse.spec.ts) | 快 |
+| 协议帧 | [frames.spec.ts](tests/frames.spec.ts) | 快 |
+| 拒绝发起与配置校验 | [http-refusals.spec.ts](tests/http-refusals.spec.ts) | 快 |
+| 同步发起、停止、2xx、非 2xx、错误体、连接超时 | [http.spec.ts](tests/http.spec.ts) | 慢 |
+| 网络资源关闭与连接池 | [network.spec.ts](tests/network.spec.ts) | 慢 |
+| 根入口与类型形状 | [public-entry.spec.ts](tests/public-entry.spec.ts)、[public-entry.spec-d.ts](tests/public-entry.spec-d.ts) | 快 |
+| 依赖方向 | [dependencies.spec.ts](tests/dependencies.spec.ts) | 快 |
+
+未覆盖：
+
+- 真实供应商、代理与公网 TLS。慢层只证明本地 HTTPS 服务上的行为。
+- 发送围栏内的调用与 `ModelTransport` 的组合。本包没有实现 `ModelTransport`。
+- 在途响应长时间没有数据时，连接池空闲超时的效果。
+- 多个进程或多个网络资源共享名额。容量是单个进程内的对象。

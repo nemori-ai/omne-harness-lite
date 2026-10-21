@@ -1,21 +1,16 @@
 # @omne-harness/pi-ai-transport 索引
 
-<!-- documentation:placeholder -->
-
 本文件列出包根文件、各目录与专题的阅读路径。本包的职责与状态见 [README_ZH.md](README_ZH.md)（[English](README.md)）。
 
 ## 包根
-
-<!-- documentation:placeholder -->
 
 - [README_ZH.md](README_ZH.md)、[README.md](README.md)：用途、状态、目录结构与文档职责
 - [SPEC.md](SPEC.md)：类型以外的行为规格
 - `documentation.json`：本包的文档登记
 - `package.json`：公开入口、脚本与依赖
+- [UPSTREAM.md](UPSTREAM.md)、[LICENSE.pi](LICENSE.pi)、`provenance.json`：从 pi 改编的 SSE 分帧的来源、许可与哈希
 
 ## 目录
-
-<!-- documentation:placeholder -->
 
 - [docs/](docs/index.md)：内部设计、公开使用与集成说明
 - [src/](src/index.md)：公开定义、运行时校验与内部实现
@@ -29,6 +24,4 @@
 
 ## 阅读路径
 
-<!-- documentation:placeholder -->
-
-使用本包：README、`docs/context.md`、`docs/public-api.md`。修改本包：`SPEC.md`、`docs/architecture.md`、`docs/flows.md`、`docs/object-model.md`、`tests/`。
+使用本包：README、`docs/context.md`、`docs/public-api.md`。修改本包：`SPEC.md`、`docs/architecture.md`、`docs/flows.md`、`docs/object-model.md`、`tests/`。修改 `src/sse.ts`：另读 `UPSTREAM.md` 与 `provenance.json`。
