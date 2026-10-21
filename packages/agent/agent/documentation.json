@@ -509,6 +509,10 @@
         {
           "id": "section-17",
           "anchor": "恢复切点表"
+        },
+        {
+          "id": "section-18",
+          "anchor": "提交点与聚合边界"
         }
       ]
     },
@@ -537,6 +541,10 @@
         {
           "id": "section-3",
           "anchor": "agent-m03-原子推进可靠交接与长期读取机制"
+        },
+        {
+          "id": "section-6",
+          "anchor": "agent-m04-journal-契约与节点表的出入"
         },
         {
           "id": "section-4",
