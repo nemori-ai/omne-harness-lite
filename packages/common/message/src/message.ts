@@ -209,13 +209,13 @@ function messageFields(
 
 /** Each block through `judgePart`, in order. The first failure carries the index of its block. */
 function judgeBlocks(blocks: NonEmpty<unknown>): { readonly ok: NonEmpty<MessagePart> } | Rejected {
-  const [head, ...rest] = blocks
-  const first = judgePart(head)
+  // By index, not through the input's own iterator: the caller controls that iterator.
+  const first = judgePart(blocks[0])
   if ('rejected' in first) return { rejected: first.rejected, blockIndex: 0 }
   const admitted: MessagePart[] = []
-  for (const [at, block] of rest.entries()) {
-    const part = judgePart(block)
-    if ('rejected' in part) return { rejected: part.rejected, blockIndex: at + 1 }
+  for (let at = 1; at < blocks.length; at += 1) {
+    const part = judgePart(blocks[at])
+    if ('rejected' in part) return { rejected: part.rejected, blockIndex: at }
     admitted.push(part.ok)
   }
   return { ok: [first.ok, ...admitted] }
@@ -284,11 +284,20 @@ function roleMessage(
       return isAssistantBlocks(parts)
         ? admitted({ id, role, blocks: parts })
         : misplaced(standsInAssistant, parts)
-    default:
+    case 'user':
+    case 'tool_internal':
+    case 'system_reminder':
       return isContentBlocks(parts)
         ? admitted({ id, role, blocks: parts })
         : misplaced(standsAsContent, parts)
+    default:
+      return unknownRole(role)
   }
+}
+
+/** A role added to `LOG_MESSAGE_ROLES` without its own case fails to compile here. */
+function unknownRole(role: never): never {
+  throw new Error(`no block rule for role ${String(role)}`)
 }
 
 function compactionMessage(

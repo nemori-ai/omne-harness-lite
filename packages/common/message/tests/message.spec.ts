@@ -115,3 +115,21 @@ it('rejects a part whose kind and callId are only inherited', () => {
     rejected: 'json',
   })
 })
+
+it('reads blocks by index, not through an iterator the input defines', () => {
+  const call = {
+    kind: 'tool_call_unparsed',
+    id: 'b2',
+    visibility: text.visibility,
+    callId: 'c1',
+    name: 'n',
+    raw: '{',
+  }
+  const blocks = [text, call]
+  Object.defineProperty(blocks, Symbol.iterator, {
+    value: function* () {
+      yield text
+    },
+  })
+  expect(judgeMessage(message('user', blocks))).toEqual({ rejected: 'tool-blocks', blockIndex: 1 })
+})

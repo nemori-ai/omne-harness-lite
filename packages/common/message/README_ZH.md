@@ -51,7 +51,7 @@ import { judgeMessage } from '@omne-harness/message'
 
 ## 设计
 
-`src/message.ts` 拥有角色表、品牌、`parseMessageId`、`messageIdEquals`、`MessageRoleMap`、六个角色的消息类型、`Message`（六个类型的联合，按 `role` 判别）和 `judgeMessage`。每个角色类型的 `blocks` 只含该角色允许的部件，也至少有一块：`user`、`tool_internal`、`system_reminder` 和 `compaction` 的摘要是内容块，`assistant` 是内容块和三种调用部件（`CallPart`），`tool` 是一个 `tool_result` 标记加内容块。`src/compaction-shape.ts` 拥有记录条目引用、`covers` 与 `derivation` 的类型，以及判三个键的 `judgeCompactionKeys`。`src/compaction.ts` 拥有 `judgeCompaction` 和类型 `CoveredEntry`、`CompactionContext`、`CompactionRejection`、`CompactionJudgment`。`src/parts.ts` 拥有工具部件类型和 `judgePart`。`src/values.ts` 按键名读取闭合的普通对象并检测重复项。`src/index.ts` 只做导出。块身份规则和值树规则不在这里，来自 content-block 和 json-text。
+`src/message.ts` 拥有角色表、品牌、`parseMessageId`、`messageIdEquals`、`MessageRoleMap`、六个角色的消息类型、`Message`（六个类型的联合，按 `role` 判别）和 `judgeMessage`。每个角色类型的 `blocks` 只含该角色允许的部件，也至少有一块：`user`、`tool_internal`、`system_reminder` 和 `compaction` 的摘要是内容块，`assistant` 是内容块和三种调用部件（`CallPart`），`tool` 先是一个 `tool_result` 标记，其后是内容块。`src/compaction-shape.ts` 拥有记录条目引用、`covers` 与 `derivation` 的类型，以及判三个键的 `judgeCompactionKeys`。`src/compaction.ts` 拥有 `judgeCompaction` 和类型 `CoveredEntry`、`CompactionContext`、`CompactionRejection`、`CompactionJudgment`。`src/parts.ts` 拥有工具部件类型和 `judgePart`。`src/values.ts` 按键名读取闭合的普通对象并检测重复项。`src/index.ts` 只做导出。块身份规则和值树规则不在这里，来自 content-block 和 json-text。
 
 消息字段挂在会话日志里的事实记录上。`SystemMessage` 在请求组装时现算，不进入这份日志。
 
