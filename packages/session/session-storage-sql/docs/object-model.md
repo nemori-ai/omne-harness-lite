@@ -79,11 +79,11 @@ erDiagram
 | 列 | 类型 | 含义 |
 | --- | --- | --- |
 | `tenant`、`session`、`operation` | TEXT | 主键 |
-| `input_digest` | TEXT | 规范化参数摘要，`resolveOperation` 用它区分同身份异事实 |
+| `input_digest` | TEXT | 规范化参数摘要，`resolveOperation` 用它区分同身份异事实。只覆盖语义参数，不含认证封套、`expected` 与材料内容（[W1 的尝试代次](../SPEC.md#w1-attempts)） |
 | `commit_seq` | INTEGER | 该操作提交的批次 |
 | `receipt` | TEXT | `CommitReceipt`，JSON：`operation`、`revision`、`first`、`last`、`source` |
 
-一个批次恰对应一行。提供者自己的回执表另存操作身份与输入摘要，不在本包。
+一个批次恰对应一行。尝试代次不进本表：提供者的回执表按存储操作身份 `<operation>#<代次>` 保存每次尝试的回执与存储输入摘要，不在本包。
 
 **`sl_state`** 每会话一行。
 
@@ -117,7 +117,7 @@ erDiagram
 | `sl_annotation_idx` | `tenant`、`session`、`target_from`、`target_to`、`position` | 全部五列 | `refs.target` 非空的条目 |
 | `sl_pending_idx` | `tenant`、`reason`、`session` | 全部三列 | `sl_state` 的待办原因 |
 | `sl_resident_idx` | `resident_key`、`tenant`、`session`、`capability`、`admitted_position` | `(resident_key, tenant, session)` | 最近一条 SE08 的登记键，按归档状态过滤 |
-| `sl_released_scope_idx` | `tenant`、`session`、`scope`、`task`、`position` | `(tenant, session, scope)` | 已归档会话的 SE25 释放读回 |
+| `sl_released_scope_idx` | `tenant`、`session`、`scope`、`task`、`position` | `(tenant, session, scope)` | 当前已归档会话的 SE25 释放读回。撤销归档（SE28）同批删除该会话的行 |
 | `sl_rebuild` | `tenant`、`index_name`、`session` NULL、`progress`、`started_at` | `(tenant, index_name, session)` | R9 重建进度，重建完成后删除 |
 
 `sl_model_view` 一个 epoch 内 `seq` 从 1 起连续。`prefix_digest` 的第一行是 `H(空 ‖ 条目 digest)`。`sl_rebuild` 是进度元数据，不是派生物，也不进 C-01 的等式。
@@ -174,4 +174,4 @@ erDiagram
 
 本包不分冷热存储层。「冷」只表示条目不在当前 epoch。压缩之后，旧 epoch 的 `sl_model_view` 行与它们对应的条目不再进入模型视图读取，但它们仍在同一组表里，按 [RT-01](../SPEC.md#rt-01) 保留。对人时间线的历史分页（[R2](../SPEC.md#r2)）照常按位置读到它们。
 
-归档会话在 `sl_pending_idx` 里与其他会话按同一规则维护：行只跟随 `sl_state` 的待办原因增删（[W3](../SPEC.md#w3)）。归档本身不增删行。归档后快照仍有待办原因时，行保留，例如作用域释放任务尚未读回，或交付责任解除仍为 pending。原因全部离开快照后，行随之删除。没有未结工作的归档会话在该索引里没有行。
+归档会话在 `sl_pending_idx` 里与其他会话按同一规则维护：行只跟随 `sl_state` 的待办原因增删（[W3](../SPEC.md#w3)）。归档没有另外的增删规则。归档提交同批取消未终结 Run，`run` 原因随之离开快照，行随之删除。归档后快照仍有待办原因时，行保留，例如作用域释放任务尚未读回，或交付责任解除仍为 pending。原因全部离开快照后，行随之删除。没有未结工作的归档会话在该索引里没有行。

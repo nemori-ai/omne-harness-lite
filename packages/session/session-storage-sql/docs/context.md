@@ -26,7 +26,7 @@
 存储.registerCombination(本成员的组合登记材料)      参加者模块 session 进 Worker
 执行迁移片段                                        随提供者的原子迁移
 
-端口 = 提供者工厂({ 介质, 内联阈值, pageBytes 上限, maxScanPerPage, 重建方式 },
+端口 = 提供者工厂({ 介质, 内联阈值, pageBytes 上限, maxScanPerPage, 重建方式, 尝试代次上限 },
                   存储, 游标签名密钥)
 会话服务 = session 工厂({ transactions: 端口, … })
 

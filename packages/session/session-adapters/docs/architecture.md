@@ -18,7 +18,7 @@ Session 认识全部邻域，邻域都不认识 Session（[五个锚点](../../s
 | 在本成员 | 不在本成员 |
 | --- | --- |
 | 邻域操作与 Session 命令之间的翻译 | 允许或拒绝的规则：归 `session-contract` 的领域服务 |
-| 邻域结果到 Session 结果的对应 | 何时检查、何时重放：归 `session` 的调度器与协调器 |
+| 邻域结果到 Session 结果的对应 | 何时检查、何时重放：归 `session` 的调度器与协调器。唯一例外是作用域释放的重新释放子插件：只有本成员看得到执行环境提供者换代，它在换代后自己发起一轮按页重新释放，重试间隔与页大小是该子插件自己的配置字段，默认值只是配置初值 |
 | 端口实现与入站插件的登记 | 服务实现、注入与扫描者：归 `session-cordis` |
 | `session.modes` 的翻译表与块声明的翻译 | 块声明本身：归 `session-contract` |
 | 可丢的派生物：句柄、订阅、上一份快照、前缀摘要缓存 | 会话事实、游标与任务：归会话日志，由 `session-storage-sql` 保存 |
@@ -70,7 +70,7 @@ flowchart LR
 
 ### 交付责任解除按生产者分派
 
-Session 只给出一个 `DeliveryReleasePort`，参数不含 Model 或 Tool 的类型。AD-17 按 `ProducedResult.producer` 分派到 Model 的 ACK 或 Tool 的交付释放，翻译表留在 AD-05 与 AD-06。理由：生产者的契约变化只改对应的消费适配，出站端口与 Session 的重发规则不变。代价是 AD-17 同时依赖 `modelRuntime` 与 `toolRuntime`，任一缺席时端口缺席，`release` 保持 pending 直到恢复协调重发。
+Session 只给出一个 `DeliveryReleasePort`，参数不含 Model 或 Tool 的类型。AD-17 按 `ProducedResult.producer` 分派到 Model 的 ACK 或 Tool 的交付释放，翻译表留在 AD-05 与 AD-06。理由：生产者的契约变化只改对应的消费适配，出站端口与 Session 的重发规则不变。代价是 AD-17 同时依赖 `modelRuntime` 与 `toolRuntime`，任一缺席时端口缺席，`release` 保持 pending 直到恢复协调重发。Tool 缺席期间 Model 的 ACK 也停，Model 一侧未确认结果的保留量随之增长；Model 契约是否给这类保留设上界未定，是本成员的设计限制，交 Model 契约拥有者确认。
 
 ### 结果对应写成封闭表
 

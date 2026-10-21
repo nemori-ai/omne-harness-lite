@@ -24,16 +24,16 @@ sequenceDiagram
     alt 已提交
         CP-->>Caller: 原回执，recovered 为真
     else 未见
-        CP->>Tx: readWork，记下 expected
+        CP->>Tx: readWork；命令带 expected 时记下 expected
         CP->>DS: 事务外调用 decide，只取拒绝原因与所需材料
         alt 拒绝结局
             CP-->>Caller: 失败，不提交
         else 允许
             CP->>Br: 按命令要材料
             CP->>Tx: commit(命令, 材料)
-            Note over Tx: 事务内核对 expected，调用 decide 取得条目批次后写入
-            alt changed
-                Note over CP: 回到点查重做，次数受策略上限
+            Note over Tx: 选尝试代次；事务内调用 decide：带 expected 的七种命令核对 expected，其余按当前状态重新裁定
+            alt changed（只有带 expected 的命令）
+                Note over CP: 回到点查，以同一身份重做，次数受策略上限
             else commit-unknown
                 CP-->>Caller: commit-unknown，不改写
             else 成功
@@ -44,7 +44,7 @@ sequenceDiagram
     end
 ```
 
-命令到条目的编码只在 `decide` 里。事务外的 `decide` 只决定是否拒绝与要收哪些材料，结果不进入提交。Session 为参加者时（[CP-02](../SPEC.md#cp-02)），存储参加者在执行记录提供者的事务里调用 `decide` 并写条目，由提交方提交。
+命令到条目的编码只在 `decide` 里。事务外的 `decide` 只决定是否拒绝与要收哪些材料，结果不进入提交。重做与同一意图的重试沿用同一操作身份，存储参加者为每次尝试开新的尝试代次（[尝试代次](../../session-storage-sql/SPEC.md#w1-attempts)）。Session 为参加者时（[CP-02](../SPEC.md#cp-02)），存储参加者在执行记录提供者的事务里调用 `decide` 并写条目，由提交方提交。
 
 ### C1 受理流水线
 
@@ -123,9 +123,9 @@ sequenceDiagram
         else 产生条目的事件
             C2->>CP: receive(agent-event)，身份为 execution 与序号，readThrough 设为本序号
             alt recovered
-                Note over C2: 重放，已写，继续
-            else changed
-                C2->>C2: 重读 readThrough 后继续
+                Note over C2: 重放或另一消费者已写，认回后重读 readThrough 继续
+            else commit-unknown
+                Note over C2: 另一消费者的提交在途，交 S4 认回，不换身份
             end
         end
     end
@@ -306,9 +306,9 @@ flowchart LR
     T --> S6[S6 级联推进]
     V[资产、工作区、设置的变化通知] --> S7[S7 预求值与预热]
     Boot[进程启动] --> S3
-    S3 -->|启动时补触发| S1
-    S3 -->|启动时重建计时| S2
-    S3 -->|idle-due| S2
+    S3 -->|inputs| S1
+    S3 -->|idle-armed| S2
+    S3 -->|run| C2
     S3 -->|release| C5
     S3 -->|unresolved| S4
     S1 --> C2[C2 Agent 推进]
@@ -360,13 +360,21 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    B[启动] --> All[pending 不带 reason，分页]
-    P[周期] --> R1[unresolved] --> C5[C5]
-    P --> R2[controls] --> C5
+    Dir[事务域目录，缺席时用装配交入的租户集合并报告缺口] --> B
+    Dir --> P
+    B[启动] --> All[pending 不带 reason，七个原因的并集，分页] --> Disp[按每个会话的原因分派]
+    P[周期] --> R1[unresolved] --> S4[S4]
+    P --> R2[controls] --> C5[C5]
     P --> R3[tasks] --> C5
-    P --> R4[idle-due] --> S2[S2]
+    P --> R6[inputs] --> S1[S1]
+    P --> R7[run] --> C5
+    R7 --> C2[C2 事件消费]
+    P --> R4[idle-armed] --> S2[S2 计时，judgeIdle 裁定到期]
     P --> R5[release] --> C5
-    All --> C5
+    Disp --> S4
+    Disp --> C5
+    Disp --> S1
+    Disp --> S2
     U[C2、C3 上报] --> One[单个会话] --> C5
     C5 -->|unavailable| BO[按 sessionBackoff 退避后再交]
 ```
@@ -377,7 +385,7 @@ flowchart LR
 flowchart LR
     U[commit-unknown 或 unresolved] --> Q[queryOperation，同一身份]
     Q -->|committed| O[回执交原协调器]
-    Q -->|not-committed| F[原发起者以同一身份重试]
+    Q -->|not-committed 或 attempt-rejected| F[原发起者以同一身份重试，开新尝试代次]
     Q -->|unknown| W[按 retryIntervalMs 再查]
     W -->|超过 maxAttempts| Rep[保持 unresolved 并报告]
 ```

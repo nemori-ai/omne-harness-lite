@@ -40,8 +40,8 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 
 5. 提交通知：本成员交给工厂的 `notifier` 是一个组合通知者。每次提交确认耐久后，它先派发事件 `session-cordis-contract/committed`，再现取 `sessionNotifier`，存在时把同一载荷转发给它。派发用本插件 Context 的 `parallel`，不在提交路径上等待监听者完成。派发在 `await` 外捕获失败，包括 `AggregateError` 里的监听者失败，只记录诊断（[IC-12](../../../docs/architecture/cordis-integration-conventions.md#ic-12)、[事件与作用域](../../../docs/architecture/runtime/runtime-contract-integration.md#事件与作用域)）。通知缺席或失败不回滚提交，不改回执（[EC-11](../session-contract/SPEC.md#ec-11)）。插件同时用 `ctx.on` 监听同一事件，把载荷交给实例的 `committed`。本插件自己派发的通知可以跳过这一步，因为实例已在本地唤醒；跳过只是优化，重复交入也无害。监听者同步执行，不返回 Promise，失败只记录诊断。
 6. 调用方类核对：四个面属性 `work`、`management`、`reconciliation`、`history` 每次被读取时，用 `this[Service.resolveConfig]()` 取调用方 fiber 的 intercept 配置（定义性质 4）。取不到配置，或其中的调用方类不在四类之中时，该面的每个操作返回 `denied`，`action` 为操作名，不默认为任何一类。取到时返回 `facesFor(caller)` 给出的面，该面在每个操作上再核对调用方类是否在该操作允许的范围内（[VC-O05](../session-contract/SPEC.md#候选的持续验证义务)）。两层核对都是一致性检查，不计为访问控制。访问边界是每个操作的调用资格（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。属性读取经调用方的服务代理到达这里，所以 `this.ctx` 是调用方的 Context。这一点与定义性质 4 一样只有源码读数，是假设。
-7. 每租户一个扫描者：第一版靠装配单实例兑现（[IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19)、[靠装配兑现的保证](../session-cordis-contract/docs/cordis.md#靠装配兑现的保证)）。应用装配在全部进程里只装一份本插件。本插件第一次在某个租户的提交通知里见到该租户时，调用 `maintain(tenant)`，持有返回的句柄。通知可以来自本实例的提交，也可以来自监听到的事件。同一实例对同一租户再次调用 `maintain` 得到已有句柄。`maintain` 返回失败时，本插件记录诊断，等该租户的下一条通知再试，不在失败后立即重试。在两个 isolate 标签下各装一份本插件，会使一个租户有两个扫描者。这违反本条，装配拥有者不得这样装，除非租约协议已经定义。这时第二道保护仍是操作幂等、`expected` 核对与执行记录提供者的条件提交围栏（[SR-2](../session/SPEC.md#sr-2)）。租户集合的来源是[明确缺项](#明确缺项)。
-8. 内部主体与受理槽：工厂要求 `principals`（协调器与调度器提交命令时用的主体）与 `admission`（受理前的槽列表）。主体是运行时对象，由应用装配的维护拥有者签发，按 [IC-16](../../../docs/architecture/cordis-integration-conventions.md#ic-16) 由装配入口经服务键 `sessionPrincipals` 提供（[端口服务键](../session-cordis-contract/docs/cordis.md#端口服务键)），本插件与事务端口一起 `inject` 取得。槽由命令域与 hooks 的拥有者经 session-adapters 接入（[AD-08](../session-adapters/SPEC.md#ad-08)），它的服务键尚未定义，见[明确缺项](#明确缺项)。槽的键定义之前，`admission.current()` 返回空列表，`accept` 不经槽。
+7. 每租户一个扫描者：第一版靠装配单实例兑现（[IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19)、[靠装配兑现的保证](../session-cordis-contract/docs/cordis.md#靠装配兑现的保证)）。应用装配在全部进程里只装一份本插件。本插件第一次在某个租户的提交通知里见到该租户时，调用 `maintain(tenant)`，持有返回的句柄。通知可以来自本实例的提交，也可以来自监听到的事件。同一实例对同一租户再次调用 `maintain` 得到已有句柄。`maintain` 返回失败时，本插件记录诊断，等该租户的下一条通知再试，不在失败后立即重试。在两个 isolate 标签下各装一份本插件，会使一个租户有两个扫描者。这违反本条，装配拥有者不得这样装，除非租约协议已经定义。这时第二道保护仍是操作幂等、`expected` 核对与执行记录提供者的条件提交围栏（[SR-2](../session/SPEC.md#sr-2)）。插件配置 `tenants` 列出的租户在装载时就绑定扫描者，S3 的启动扫描因此覆盖它们。租户集合的完整来源是[明确缺项](#明确缺项)。
+8. 内部主体与受理槽：工厂要求 `principals`（协调器与调度器提交命令时用的主体）与 `admission`（受理前的槽列表）。主体是运行时对象，由应用装配的维护拥有者签发，按 [IC-16](../../../docs/architecture/cordis-integration-conventions.md#ic-16) 由装配入口经服务键 `sessionPrincipals` 提供（[端口服务键](../session-cordis-contract/docs/cordis.md#端口服务键)），本插件与事务端口一起 `inject` 取得。槽由命令域与 hooks 的拥有者经 session-adapters 接入（[AD-08](../session-adapters/SPEC.md#ad-08)），它的服务键尚未定义，见[明确缺项](#明确缺项)。槽的键定义之前，受理准入按不可用处理（[准入服务不可用走全拒承接](../../../docs/architecture/runtime/control-and-recovery.md#存储与关键服务降级)）：`admission.current()` 返回不可用，`accept` 返回 `unavailable`，`owner` 为受理槽，不经槽受理。只有装配在插件配置里以 `admission: 'none'` 声明本部署没有命令域与 hooks 时，`admission.current()` 才返回空列表，`accept` 不经槽。这项声明由装配者负责，本成员不推断。
 
 ### 撤除与换代
 
@@ -75,10 +75,10 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 
 | 缺什么 | 拥有者 | 之前 |
 | --- | --- | --- |
-| 受理槽列表的服务键或登记入口 | session-cordis-contract，随命令域与 hooks 的公开入口一起定义（[NP-07](../session-adapters/SPEC.md#np-07)） | `admission` 返回空列表 |
+| 受理槽列表的服务键或登记入口 | session-cordis-contract，随命令域与 hooks 的公开入口一起定义（[NP-07](../session-adapters/SPEC.md#np-07)）。缺项期间是否允许限定降级由命令域与 hooks 的拥有者裁定 | `accept` 返回 `unavailable`；装配声明 `admission: 'none'` 时不经槽 |
 | 来源拥有者变化通知到达本成员的通道。本成员不导入资产、工作区或设置的契约，session-adapters 与本成员没有编译期依赖 | session-cordis-contract | 本插件不调用实例的 `changed`，S7 在 Cordis 装配下不被唤醒。`startRun` 与 `reload` 照常在入口求值，只失去提前求值带来的时延收益（[S7](../session/SPEC.md#s7)） |
-| 租户集合的来源 | 存储的拥有者与应用装配，与契约的事务域目录缺项相关（[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)） | 扫描者按性质 7 在见到租户的第一条通知时绑定。进程重启后，有待办却没有新提交的租户，在下一条通知之前不被启动扫描覆盖 |
-| `SessionClock.waitUntil` 在时钟缺席时的结果 | [session](../session/SPEC.md) 与 [session-contract](../session-contract/SPEC.md) | 代理拒绝这个 Promise。session 怎样处置被拒绝的等待，现在没有写定 |
+| 租户集合的来源 | 应用装配，即契约明确缺项里的事务域目录（[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)） | 扫描者按性质 7 在见到租户的第一条通知时绑定，另为装配在插件配置里列出的租户启动时绑定。进程重启后，未列出、有待办却没有新提交的租户，在下一条通知之前不被启动扫描覆盖 |
+| `SessionClock.waitUntil` 在时钟缺席时的结果类型 | [session-contract](../session-contract/SPEC.md) | 代理拒绝这个 Promise。session 的调度器按它的[时钟被拒](../session/SPEC.md#调度器)规则处置 |
 | Cordis 4.0.4 重跑插件体前是否等待旧 fiber 撤除完成；Service 子类静态 `Config` 失败是否使 fiber `FAILED`；同一 isolate 标签重复 `provide` 是否抛出 | 本成员，补 probe | 按性质 3、性质 1 与性质 10 的假设设计。补齐前这三条不是已核验的保证 |
 
 ## 验证

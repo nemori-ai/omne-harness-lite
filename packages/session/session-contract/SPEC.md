@@ -619,7 +619,7 @@ Session 命令：
 | `references` | `denied`；`invalid`（游标错域，或键不可解析）；`unavailable`（不返回空页） | 只读，没有未知 | 不适用 | 引用从会话事实派生（[常驻工具与会话冻结](#常驻工具与会话冻结)）；键的含义归 Tool |
 | `releasedScopes` | `denied`；`invalid`（游标错域）；`unavailable`（不返回空页） | 只读，没有未知 | 不适用 | 账本是会话日志的 SE25；存储提供者维护派生索引，读取不扫描日志 |
 
-`PendingReason` 的取值：`unresolved` 指 `unresolved` 非空；`controls` 指有停在 propagating 的控制；`tasks` 指 `tasks` 非空；`idle-due` 指有已确认的空闲依据且按当前策略已到期，等待裁定；`release` 指有已保管或已处理、交付责任解除仍为 pending 的结果版本（[EC-04](#ec-04)）。
+`PendingReason` 的取值只由快照决定，不读时间，所以提交时就能准确维护：`unresolved` 指 `unresolved` 非空；`controls` 指有停在 propagating 的控制；`tasks` 指 `tasks` 非空；`inputs` 指待处理输入非空；`run` 指有未终结的 Run；`idle-armed` 指自动归档已启用、未豁免且没有未终结 Run，是否到期由扫描时的 `judgeIdle` 裁定；`release` 指有已保管或已处理、交付责任解除仍为 pending 的结果版本（[EC-04](#ec-04)）。
 
 #### SessionHistory
 
@@ -1222,7 +1222,7 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | `resolveOperation` | 操作身份、规范化参数摘要、已提交记录 | `new`、`recovered`（原回执）、`conflict` | 全部变更命令的第一步；`queryOperation` | [SL07](#日志提交与查询结果) |
 | `reduce` | 前状态、已提交的完整批次 | 新 `WorkSnapshot`、`quarantined` | 全部权威读 | [SL12、SL13](#日志读取投影及恢复)、[SL18](#原生事实与状态转移) |
 
-`decide` 把一个命令变成一次提交的内容：认回原操作，调用上表的领域服务与守卫，产出条目批次或拒绝结局。它是 `reduce` 的逆：同一解释版本下，`reduce` 解释 `decide` 产出的批次得到命令要求的后态。存储参加者在提交事务里调用 `decide`，命令到条目的编码只此一份，不在 `session` 或存储成员里另写。全部拒绝、认回与条件变化（含消费游标回退返回 `changed`）都由 `decide` 判定。`commitDerived(compaction)` 需要的历史输入由存储参加者在同一事务里从权威日志读出、经 `DecideReads.compaction` 交入：`covered` 是覆盖范围内的全部条目，`after` 是覆盖范围之后、压缩点之前的消息，`open` 是 `openWork` 列出的未结工作所在的条目引用（由存储参加者按索引定位）；`decide` 核对 `open` 与快照的 `openWork` 一致。缺这一输入时 `decide` 返回 `invalid`。
+`decide` 把一个命令变成一次提交的内容：认回原操作，调用上表的领域服务与守卫，产出条目批次或拒绝结局。它是 `reduce` 的逆：同一解释版本下，`reduce` 解释 `decide` 产出的批次得到命令要求的后态。存储参加者在提交事务里调用 `decide`，命令到条目的编码只此一份，不在 `session` 或存储成员里另写。全部拒绝、认回与条件变化都由 `decide` 判定。`receive` 遇到不晚于 `readThrough` 的事件时认回原回执，不返回 `changed`。`commitDerived(compaction)` 需要的历史输入由存储参加者在同一事务里从权威日志读出、经 `DecideReads.compaction` 交入：`covered` 是覆盖范围内的全部条目，`after` 是覆盖范围之后、压缩点之前的消息，`open` 是 `openWork` 列出的未结工作所在的条目引用（由存储参加者按索引定位）；`decide` 核对 `open` 与快照的 `openWork` 一致。缺这一输入时 `decide` 返回 `invalid`。
 
 `openWork` 只有一个实现，供三处共用：历史持有者交给 Request Context 的未结工作下界、条件终结只读参加的阻塞依据、空闲裁定的本会话部分。三处读同一结果，所以不会对「还有未结工作」给出不同答案。`judgeIdle` 的跨会话部分（子方与在途调用）不在纯函数里计算，由 `SessionIdleInput.inspect` 收集成 `IdleCoverage` 后传入。`reduce` 的算法见[纯批次归约算法](docs/object-model/session-state-transitions.md#纯批次归约算法)。
 
@@ -1555,7 +1555,9 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 | 执行环境重启到重新释放之间的窗口 | 执行环境契约的拥有者与发起获取的集成方（工具宿主） | 接受这个窗口。释放插件在执行环境提供者换代后按页重新释放；窗口内已归档会话的作用域可能尚未释放 |
 | 每个租户一个恢复扫描者的租约协议 | 存储的拥有者与 Session 的装配 | 第一版靠应用装配只装一个扫描者兑现（[IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19)）。换成多实例之前，必须先定义租约协议 |
 | 存储契约的参加者业务响应通道：参加者的拒绝、冲突与依据随提交结果交回提交方，不只得到回滚 | 存储与 Agent 的拥有者联合 | Session 自己提交的命令在事务外重算拒绝原因。Agent 发起的共同提交里，Session 的「冲突」只表现为提交回滚，依据要由 Agent 按原操作查询取得 |
-| 跨租户的系统作用域读取所需的事务域目录（`references` 与 `releasedScopes`） | 存储的拥有者与应用装配 | 第一版单机部署只有一个存储事务域集合，由装配交给存储提供者；目录缺席时两个读取返回 `unavailable`，不返回空页 |
+| 事务域目录：本部署有哪些租户及其存储事务域。`references`、`releasedScopes` 与恢复扫描的启动扫描都按它枚举租户 | 应用装配 | 第一版单机部署只有一个存储事务域集合，由装配交给存储提供者。目录缺席时两个读取返回 `unavailable`，不返回空页；启动扫描只覆盖装配显式列出的租户，其余租户在它的下一次提交通知时才被扫描 |
+| Runtime Context 作用域的结束与已签发读取资格的撤销入口 | Runtime Context 的拥有者 | 归档不结束会话的 Runtime Context 作用域，注册与资格保留到入口定义之后；Session 不声称已释放 |
+| 会话级 Agent runtime 实例的释放入口：Agent 宿主按会话作用域保有空闲实例时，归档后由谁请求释放 | Agent 宿主的拥有者 | Session 不调用任何实例释放入口；实例按 Agent 宿主自己的空闲回收规则结束 |
 | 超过单条命令字节上限的内容先由内容拥有者保管、再以耐久引用进入条目的链路 | 存储的拥有者与各内容拥有者 | 条目只带已达到耐久条件的引用（[SL08](#日志提交与查询结果)）；拿不到耐久引用时命令返回 `unavailable` |
 | 迟到账目与收场的读取资格（P-3） | Model 与 Tool 的拥有者 | 迟到的收场只能经 Agent 事件到达；账目在途与迟到都保持未知 |
 | 把「推进资格已被取代」的参加者冲突映射为 `stale-advance` | Agent 的拥有者 | 旧 runtime 在 `claim` 与接续之间得到 `changed`，窗口的上界是恢复扫描周期（[PM-05](#pm-05)） |

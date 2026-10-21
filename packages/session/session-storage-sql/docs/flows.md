@@ -16,17 +16,22 @@ sequenceDiagram
     participant M as 参加者模块 session
     participant D as 表与索引
     S->>T: commit(command, guards)
-    T->>T: 构造操作身份；规范化 { command, guards } 为 JSON
+    T->>D: 点查 sl_operation（命中则返回原回执）
+    loop 代次 k = 1, 2, …
+        T->>P: query(<SessionOperationId>#k)
+        Note over T,P: rolled_back 继续；not_committed 选用 k；committed 认回；unknown 返回 commit-unknown
+    end
+    T->>T: 构造身份 <SessionOperationId>#k；规范化 { command, guards } 为 JSON
     T->>P: commit(identity, combinationVersion, [{ participant: session, facts }])
     P->>P: 受理前核对；BEGIN IMMEDIATE；按身份读回执
     P->>M: execute(facts, port)
     M->>M: 核对材料集合
     M->>D: 点查 sl_operation 得到操作记录
-    M->>D: 读 sl_journal.tail 与 sl_state，核 covered == tail
+    M->>D: 锁住并读 sl_journal（PostgreSQL 为 FOR UPDATE），读 sl_state，核 covered == tail
     M->>M: decide(快照, command, guards, 操作记录)
     M->>D: 为批次分配 position；写 sl_blob、sl_entry、派生索引行
     M->>M: reduce(前状态, 本批)
-    M->>D: 替换 sl_state；增删 sl_pending_idx；写 sl_batch、sl_operation；更新 sl_journal
+    M->>D: 替换 sl_state；增删 sl_pending_idx；写 sl_batch、sl_operation；条件更新 sl_journal
     M-->>P: 参加
     P->>P: 写回执；COMMIT
     P-->>T: committed
@@ -38,14 +43,20 @@ sequenceDiagram
 
 | 分支 | 发生在 | 结果 |
 | --- | --- | --- |
+| 选代次时已有已提交代次 | 事务端口实现 | 不提交，返回原回执，`recovered` 为真 |
+| 选代次时某代次未知或在途 | 事务端口实现 | 不开新代次，`commit-unknown`；`session` 的 S4 认回 |
+| 代次达到上限，全部回滚 | 事务端口实现 | `unavailable`，`owner` 为本包 |
 | 受理前拒绝 | 提供者 | `unavailable`，`owner` 为存储参加者，不进事务 |
-| 同身份同摘要 | 提供者第 13 步，或模块里 `decide` 返回 `recovered` | 不写行，返回原回执，`recovered` 为真 |
-| 同身份异摘要 | 提供者，或模块里 `decide` 返回 `conflict` | `conflict` |
-| 材料集合不符 | 模块 | 「不支持」，映射为 `invalid`，明确回滚 |
-| `expected ≠ tail` | 模块里的 `decide` | 「冲突」，`changed` 带当前 `revision`，明确回滚。`session` 重做流水线 |
-| `decide` 返回其他拒绝 | 模块 | 「冲突」，明确回滚。没有响应通道时本包在事务外再调用一次 `decide` 求拒绝原因（W1 第 9 步） |
+| 同一代次同摘要 | 提供者 | 不写行，返回该代次的已保存回执 |
+| 同一代次异摘要（`identity_conflict`） | 提供者 | 已有回执为已提交：比较 Session 输入摘要，相同返回原回执，不同返回 `conflict`。已有回执为回滚：选下一个代次 |
+| 模块里 `decide` 返回 `recovered` | 模块 | 「参加」，不写行，返回原回执，`recovered` 为真 |
+| 同 Session 操作异输入摘要 | 模块里的 `decide` | `conflict` |
+| 材料集合不符 | 模块 | 「不支持」，明确回滚。XP-2 成立时映射为 `invalid`；缺席时按退路返回 `unavailable` |
+| 带 `expected` 的命令，`expected ≠ tail` | 模块里的 `decide` | 「冲突」，`changed` 带当前 `revision`，明确回滚。`session` 以同一身份重做，开新代次 |
+| `decide` 返回其他拒绝 | 模块 | 「冲突」，明确回滚。没有响应通道时本包在事务外再调用一次 `decide` 求拒绝原因（W1 第 9 步）；重算允许提交时返回 `unavailable` |
 | `reduce` 对 `decide` 的批次返回 `quarantined` | 模块 | 「失败」，不写行。这是契约实现的缺陷 |
 | `sl_state` 落后 | 模块 | 「失败」，`unavailable`；R9 追赶 |
+| `sl_journal` 条件更新影响 0 行 | 模块 | 「失败」，`unavailable`，记诊断 |
 | 语句失败 | 提供者关闭端口 | 「失败」，`rolled_back` 或 `unknown` |
 | `COMMIT` 结果不确定、锁等待超时 | 提供者 | `commit-unknown`；调用方按原身份 `queryOperation` |
 
@@ -106,7 +117,7 @@ sequenceDiagram
     end
 ```
 
-数据去向：旧 epoch 的行保留。只复制索引行，不复制内容。写成本 O(|retained| + 保留尾)。
+数据去向：旧 epoch 的行保留。只复制索引行，不复制内容。写成本 O(|retained| + 保留尾)。读 `covers` 的代价随覆盖范围线性增长，契约没有给出它的条目数上界。SQLite 下这段时间同一事务域的其他提交等待（[W4](../SPEC.md#w4)）。
 
 ### epoch 视图读取
 
@@ -145,17 +156,19 @@ flowchart TD
     B -- 是 --> D[从 covered_commit 之后起]
     C --> E[按批读 sl_batch 与 sl_entry]
     D --> E
-    E --> F[reduce 一批，小事务写回 sl_state]
+    E --> V{本构建支持该批的 interpreter?}
+    V -- 否 --> Q[该会话 quarantined，停止追赶]
+    V -- 是 --> F[按该批的解释版本 reduce，小事务写回 sl_state]
     F --> G{追平 tail?}
     G -- 否 --> E
     G -- 是 --> H[治理读恢复返回快照]
     I[重建某索引] --> K[写 sl_rebuild 进度行]
-    K --> L[清空范围内的行]
-    L --> M[按 sl_entry 顺序重算，每批一个事务]
-    M --> N[删除进度行]
+    K --> L[逐个会话：锁住 sl_journal 行，清空该会话的行]
+    L --> M[按 sl_entry 顺序重算该会话，提交]
+    M --> N[全部会话完成后删除进度行]
 ```
 
-重建期间依赖该索引的读返回 `unavailable` 并带进度。重建只解释事实，不发外部效果。重建写入的行必须与 [C-01](../SPEC.md#c-01) 的重算一致，重建本身就是重算。
+重建期间依赖该索引的读返回 `unavailable` 并带进度。重建按会话持有 `sl_journal` 行锁，与 W1 第 5 步是同一把锁，所以在线写不会与重建交错。重建只解释事实，不发外部效果。重建写入的行必须与 [C-01](../SPEC.md#c-01) 的重算一致，重建本身就是重算。
 
 ## 失败与生命周期
 

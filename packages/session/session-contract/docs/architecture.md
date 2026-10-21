@@ -17,8 +17,9 @@
 本成员不拥有下列内容：
 
 - 服务键 `session`、调用方类的 intercept 绑定、出站端口的服务键与 `Events` 归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md)。
-- 命令处理流水线、协调器与调度器的算法、三层缓存与 `SchedulingPolicy` 归 [session](../../session/README.md)。
-- Service 实现、真实时钟、提交通知订阅与扫描者绑定归 [session-cordis](../../session-cordis/README.md)。
+- 命令处理流水线、协调器与调度器的算法、计时逻辑、CA-1 与 CA-3 缓存与 `SchedulingPolicy` 归 [session](../../session/README.md)。
+- Service 实现、时钟与端口的现取代理、提交通知订阅与扫描者绑定归 [session-cordis](../../session-cordis/README.md)。真实时钟由应用装配提供。
+- CA-2 缓存（邻域读数）归 session-adapters。
 - 邻域名称与形状的翻译、入站适配插件与出站端口的实现归 [session-adapters](../../session-adapters/SPEC.md)。
 - 存储介质、权威表与读路径归 [session-storage-sql](../../session-storage-sql/README.md)。
 - Agent 的执行状态、检查点与接续值归 Agent。本成员只定义指向它们的 `ExecutionRef`。

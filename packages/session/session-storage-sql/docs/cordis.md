@@ -50,6 +50,7 @@ flowchart LR
 | 大对象去向 | 同库 `sl_blob` | 取初值。对象存储待 [issue 541](https://github.com/nemori-ai/omne-harness-lite/issues/541) |
 | `pageBytes` 上限、`maxScanPerPage` | 无 | 装配必须给出。数值待验证计划实测 |
 | 快照重建方式 | 无 | 装配必须给出 |
+| 尝试代次上限 | 16 | 取初值。它只是配置初值，不是常量 |
 
 配置错误时插件加载失败，fiber 进入 `FAILED`，不提供服务（[plugin-throw-fails-fiber](../../../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)）。本插件不静默回退到某个默认值：没有初值的字段缺省时，回退会让装配者以为自己选的配置在用。basis 只核验了函数插件，`Service` 子类静态 `Config` 的路径没有单独核验，所以「配置错误即 `FAILED`」对本插件还是假设，由本包的测试补证。
 

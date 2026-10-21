@@ -33,7 +33,7 @@ flowchart LR
 - `session` 只依赖 `session-contract`，经本域端口与出站端口接口呼出，根入口不加载 Cordis。
 - `session-cordis` 依赖前三者，不依赖邻域契约与存储后端。
 - `session-adapters` 是唯一导入邻域契约的成员。它与 `session-cordis` 没有编译期依赖，出站端口的服务键由装配接上。
-- `session-storage-sql` 依赖 `session-contract` 与存储契约成员。存储契约没有可依赖的成员时，它的 SPEC 写期望端口并标出依赖。
+- `session-storage-sql` 依赖 `session-contract`、`session-cordis-contract` 的 `./cordis` 入口（提供事务端口的键）与存储契约成员。存储契约没有可依赖的成员时，它的 SPEC 写期望端口并标出依赖。
 
 出站端口的形状与 Agent 契约把模型、上下文等端口交给外域提供者的做法相同：接口在契约成员，服务键在服务定义成员，实现在适配成员。服务实现按调用经 `ctx.get` 现取出站端口，不把它们写进 `inject`。
 
@@ -45,7 +45,7 @@ flowchart LR
 | --- | --- |
 | 只用类型、值、身份与纯判断，不调用任何东西 | `session-contract` |
 | 用替身就能跑完整个状态机 | `session` |
-| 要碰真实时钟、通知总线或装配端口 | `session-cordis` |
+| 要从 Cordis 现取时钟、通知总线或装配端口（真实时钟由应用装配提供，计时逻辑在 `session` 的调度器） | `session-cordis` |
 | 要导入任何邻域契约 | `session-adapters` |
 | 与存储介质相关 | `session-storage-sql` |
 
@@ -56,7 +56,7 @@ flowchart LR
 | `session-contract` | module | 无 Cordis | 类型、端口接口、领域服务 | 无 |
 | `session-cordis-contract` | service-contract | 绑定只从 `./cordis` 导出 | 服务键 `session`，四个面挂同一个键；调用方类；出站端口的服务键；`Events` | 无 |
 | `session` | module | 无 Cordis | 纯工厂与 `SchedulingPolicy` 等配置 | 无；依赖经工厂参数传入 |
-| `session-cordis` | service-provider | 按模板 | `session` 服务实现、计时与通知订阅、扫描者 | 只有事务端口 `sessionTransactions` 与内部主体 `sessionPrincipals`。身份与证据桥、时钟、空闲与 Context 输入、通知者与出站端口按调用经 `ctx.get` 现取（[端口服务键](../session-cordis-contract/docs/cordis.md#端口服务键)） |
+| `session-cordis` | service-provider | 按模板 | `session` 服务实现、时钟与端口的现取代理、通知订阅、扫描者 | 只有事务端口 `sessionTransactions` 与内部主体 `sessionPrincipals`。身份与证据桥、时钟、空闲与 Context 输入、通知者与出站端口按调用经 `ctx.get` 现取（[端口服务键](../session-cordis-contract/docs/cordis.md#端口服务键)） |
 | `session-adapters` | cordis-module | 按模板 | 入站适配插件提供的邻域端口与登记；出站端口的实现 | `session` 服务（按调用方类）与各邻域的服务 |
 | `session-storage-sql` | cordis-module | 按模板 | 事务端口、存储参加者模块与迁移片段 | 存储契约的服务 |
 
@@ -69,7 +69,7 @@ flowchart LR
 | 单一职责 | 六处各管一件事：领域服务裁定允许或拒绝，命令处理编排一次提交，调度器决定何时检查，协调器决定发出什么，适配插件决定怎样调用邻域，存储成员管介质 | 协调器里写允许或拒绝的规则；存储成员里写治理判断 |
 | 开闭 | 新的控制种类、派生消息和恢复任务类型是目录与联合类型的新变体。开闭只对入站邻域成立：新的入站邻域是一个新适配插件，不改 `session-contract`。新增出站方向时，在 `session-contract` 加一个出站端口接口，这是唯一允许的契约改动，因为依赖倒置要求出站接口由本域声明 | 为接入一个新的入站邻域而改 `session-contract`；新增出站方向时让 `session` 直接导入邻域契约，绕过出站端口接口 |
 | 里氏替换 | 存储、身份、时钟、空闲与 Context 输入的替身与真实实现可以互换；调度器可以整体换成外部工作流引擎，只要它仍只产生带同一操作身份的命令 | 替身返回真实实现不会给出的结局 |
-| 接口隔离 | 四个面按调用方切分：受理方拿不到开始 Run，Agent 协调方拿不到创建会话，读取方拿不到任何变更操作 | 一个什么都能做的服务面 |
+| 接口隔离 | 四个面按调用方切分，每个操作再按调用方类核对：受理方调用不了开始 Run，Agent 协调方调用不了创建会话，读取方调用不了任何变更操作。服务对象上有全部面，调用方类核对是一致性检查，访问边界是每个操作的调用资格 | 一个什么都能做的服务面 |
 | 依赖倒置 | `session` 依赖端口接口；出站端口的接口在契约成员，键在服务定义成员，实现在适配成员 | `session` 直接导入邻域契约 |
 
 各成员的 `docs/architecture.md` 再按同样三栏写本成员的选择。

@@ -425,8 +425,8 @@ export type ProducerFact =
       dispositions: readonly ScopeReleaseDisposition[]; source: DurableEvidence
     }>
   | Readonly<{ kind: 'start-fence'; operation: SessionOperationId; advance: AdvanceRef; source: DurableEvidence }>
-/** unresolved: unknown operations; controls: a control stays propagating; tasks: tasks non-empty; idle-due: confirmed idle evidence is due under the current policy; release: a preserved or processed result still waits for delivery release. */
-export type PendingReason = 'unresolved' | 'controls' | 'tasks' | 'idle-due' | 'release'
+/** Every value is decided from the snapshot alone, so the index stays exact at commit time. unresolved: unknown operations; controls: a control stays propagating; tasks: tasks non-empty; inputs: pending inputs non-empty; run: an unfinished Run exists; idle-armed: auto-archive is enabled, not exempt, and no Run is unfinished, so the scanner asks judgeIdle whether it is due; release: a preserved or processed result still waits for delivery release. */
+export type PendingReason = 'unresolved' | 'controls' | 'tasks' | 'inputs' | 'run' | 'idle-armed' | 'release'
 /** One session that references a resident key. Carries the first-loaded shape, never the definition body. */
 export type ResidentReference = Readonly<{ tenant: TenantId; session: SessionId; capability: string; shape: JsonValue }>
 /** One scope that an archive released, read back from SE25. task is the original scope-release operation. */

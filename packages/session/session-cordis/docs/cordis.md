@@ -43,6 +43,8 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 | --- | --- | --- |
 | `policy` | session 的 `SchedulingPolicy`。每个字段可以省略，省略时取 `defaultSchedulingPolicy`。字段含义与初值归 session SPEC 的 [SchedulingPolicy](../../session/SPEC.md#schedulingpolicy) | 合成完整策略后作为 `SessionConfiguration.policy` 传给工厂 |
 | `disposeWaitMs` | 撤除时等待实例 `close` 完成的上限，毫秒 | 本插件的撤除 effect |
+| `admission` | 省略或 `'none'`。`'none'` 表示装配声明本部署没有命令域与 hooks，`accept` 不经槽；省略时受理槽缺席按不可用处理，`accept` 返回 `unavailable` | [SPEC 性质 8](../SPEC.md#唤醒调用方与扫描者) |
+| `tenants` | 启动时就绑定扫描者的租户列表，可省略。它补足租户集合来源的缺项，不是租户授权 | [SPEC 性质 7](../SPEC.md#唤醒调用方与扫描者) |
 
 校验拒绝未知键、类型错误、负数、零上限、空退避序列与非有限数。`preEvaluation.prewarm` 只接受 `false`，与 session 的类型一致：Agent 宿主创建实例的入口定义之前，配置无法打开预热（[配置](../../session/docs/public-api.md#配置)）。`disposeWaitMs` 的初值随实现确定。根关闭的物理等待上界由部署给出，本字段只限制本插件的等待（[必需依赖、局部依赖与有序交接](../../../../docs/architecture/runtime/runtime-contract-integration.md#必需依赖局部依赖与有序交接)）。
 

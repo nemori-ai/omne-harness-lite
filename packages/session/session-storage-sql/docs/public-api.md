@@ -42,6 +42,7 @@
 | 大对象去向 | 同库 `sl_blob`。对象存储待 [issue 541](https://github.com/nemori-ai/omne-harness-lite/issues/541) | 同库 `sl_blob` | [TB-04](../SPEC.md#tb-04) |
 | `pageBytes` 上限、`maxScanPerPage` | 每页读出字节与每页扫描条目的上限 | 无，按验证计划实测后写进 SPEC | [R2](../SPEC.md#r2)、[明确缺项](../SPEC.md#明确缺项) |
 | 快照重建方式 | 归约版本升级时，在开放写准入之前全量重建，或在首次治理读时按会话惰性重建 | 无，装配给出 | [迁移与生命周期](../SPEC.md#迁移与生命周期) |
+| 尝试代次上限 | 一个 Session 操作最多开几个存储提交尝试代次。前面的代次全部回滚且达到上限时，`commit` 返回 `unavailable`。它必须大于 `session` 的 `command.retriesOnChanged` 加一，否则 `changed` 的重做会先用完代次 | 16 | [W1 的尝试代次](../SPEC.md#w1-attempts) |
 
 保留政策不是配置项。本成员不删除条目、批次、回执、blob 或旧 epoch 行（[RT-01](../SPEC.md#rt-01) 至 [RT-03](../SPEC.md#rt-03)），所以没有保留期限或清理开关。
 
@@ -53,7 +54,8 @@
 
 | 关心什么 | 正文 |
 | --- | --- |
-| 提交结果的映射：`rolled_back`、`unknown`、`writer_not_current` 与锁等待超时 | [W1](../SPEC.md#w1) |
+| 提交结果的映射：`rolled_back`、`unknown`、`identity_conflict`、`writer_not_current` 与锁等待超时 | [W1](../SPEC.md#w1) |
+| 尝试代次怎样选，`attempt-rejected` 与 `not-committed` 怎样区分 | [W1 的尝试代次](../SPEC.md#w1-attempts)、[R7](../SPEC.md#r7) |
 | 每条读路径的算法、复杂度与退化 | [读路径](../SPEC.md#读路径) |
 | 本成员返回的失败与处置方 | [失败分类](../SPEC.md#失败分类) |
 | 品牌字符串与 64 位位置的编码 | [TB-03](../SPEC.md#tb-03) |

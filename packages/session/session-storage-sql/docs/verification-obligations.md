@@ -10,7 +10,8 @@
 | VS-D02 | `sl_state` 等于从创建批次起 `reduce` 全部批次 | 每次提交后抽样比对；归约版本切换后重建得到同一快照 | 同上 | [C-01](../SPEC.md#c-01)、[R9](../SPEC.md#r9) |
 | VS-D03 | `sl_model_view` 的每个 epoch 等于按 CM-01 朴素推导的模型视图 | 随机消息与压缩序列，比较视图行与直接推导的可见序列、`seq` 与 `prefix_digest` | CM-01 的朴素推导可用；压缩提交经 `decide` 的压缩分支形成 | [W4](../SPEC.md#w4) |
 | VS-D04 | `sl_resident_idx` 对未归档、冻结未归档、已归档三类会话分别为有、有、无；归档前有未终结 Run 的会话归档后也为无 | 三类会话各一，另加一个归档前有未终结 Run 的会话，查 `references` | 登记键到能力身份的绑定成立 | [W3](../SPEC.md#w3)、[R10](../SPEC.md#r10) |
-| VS-D05 | `sl_released_scope_idx` 只含已归档会话的释放读回，重复读回不重复 | 同一作用域读回两次，归档前读回一次 | — | [W3](../SPEC.md#w3)、[R11](../SPEC.md#r11) |
+| VS-D05 | `sl_released_scope_idx` 只含当前已归档会话的释放读回，重复读回不重复，撤销归档后该会话没有行 | 同一作用域读回两次，归档前读回一次；归档后撤销归档，再查 `releasedScopes` | — | [W3](../SPEC.md#w3)、[R11](../SPEC.md#r11) |
+| VS-D07 | `sl_pending_idx` 的七个原因各自只由快照决定：只有待处理输入、只有未终结 Run、只有已启用的自动归档，三类会话都能经 `pending` 读到 | 三类会话各一，不带 `reason` 与按各原因分别读 `pending`；再让每个原因离开快照，核对行被删除 | — | [W3](../SPEC.md#w3)、[R8](../SPEC.md#r8) |
 | VS-D06 | 不一致是 `StorageDefect`，不被忽略 | 人为改坏一行索引，符合性套件必须报缺陷并指出键 | — | [C-01](../SPEC.md#c-01) |
 
 ## 组 R：读路径的复杂度与退化
@@ -37,14 +38,17 @@
 | 编号 | 性质 | 方法 | 条款 |
 | --- | --- | --- | --- |
 | VS-W01 | 每个 JC 行提交后，派生行与 `sl_state` 与 [W3](../SPEC.md#w3) 一致 | 每个 JC 行一个用例 | [W1](../SPEC.md#w1)、[W3](../SPEC.md#w3) |
-| VS-W02 | 两个进程基于同一 `tail` 提交，只有一个成功，另一个得到 `changed` | SQLite 与 PostgreSQL 各一组交错用例 | [W6](../SPEC.md#w6) |
-| VS-W03 | `receive` 的 `readThrough` 回退得到 `changed`；游标与条目同一事务 | 乱序事件 | [W5](../SPEC.md#w5) |
+| VS-W02 | 两个进程并发提交同一会话：后到者等前一个提交，在新尾部上裁定。带 `expected` 的命令得到 `changed`；不带 `expected` 的命令按新状态裁定，不得到 `changed`；`sl_journal` 条件更新从不影响 0 行 | SQLite 与 PostgreSQL 各一组交错用例，两类命令各一 | [W1](../SPEC.md#w1) 第 5 步、[W6](../SPEC.md#w6) |
+| VS-W03 | 已处理事件的 `receive` 按事件身份认回，`recovered` 为真，`readThrough` 不回退；游标与条目同一事务 | 重放与乱序事件 | [W5](../SPEC.md#w5) |
 | VS-W04 | 材料缺项或多项时不写任何行 | 缺身份桥材料的 `accept` | [W1](../SPEC.md#w1) 第 3 步 |
 | VS-W05 | 参加者路径下提交方失败时 Session 一侧不保存 | 注入 Agent 参加者语句失败 | [W2](../SPEC.md#w2) |
 | VS-W06 | 压缩提交任一步失败整体回滚，旧 epoch 仍为当前 | 注入新 epoch 写入失败 | [W4](../SPEC.md#w4) |
 | VS-W07 | 载荷超过内联阈值时先写 blob 再写条目，读回一致 | 阈值两侧各一 | [TB-04](../SPEC.md#tb-04) |
 | VS-W08 | 读事务看不到未提交尾部 | 提交途中并发读 | 事务与并发 |
-| VS-W09 | `rolled_back` 后退路重算的拒绝与事务内的结局相同；状态已变时为 `changed` | 对比模块内 `decide` 的结局与事务外再次调用 `decide` 的结局 | [W1](../SPEC.md#w1) 第 9 步 |
+| VS-W09 | `rolled_back` 后退路重算的拒绝与事务内的结局相同；带 `expected` 的命令在尾部已变时为 `changed`；重算允许提交时为 `unavailable` | 对比模块内 `decide` 的结局与事务外再次调用 `decide` 的结局；另注入参加者「失败」与「不支持」 | [W1](../SPEC.md#w1) 第 9 步 |
+| VS-W12 | 尝试代次：前面代次全部回滚时开新代次；有已提交代次时认回；有未知代次时 `commit-unknown`；达到上限时 `unavailable`；新代次开出后旧代次不会生效 | 按代次回执组合构造用例；`changed` 后同身份重做、同一受理标识在回滚后重试、两个消费者并发 `receive` 同一事件，核对都不得到 `conflict` | [W1 的尝试代次](../SPEC.md#w1-attempts) |
+| VS-W13 | Session 输入摘要只覆盖语义参数：只差认证封套、`expected` 或材料内容的两次提交摘要相同 | 构造这三类差异的命令对，比较 `sl_operation.input_digest` | [W1 的尝试代次](../SPEC.md#w1-attempts) |
+| VS-W14 | 撤销归档同批删除该会话在 `sl_released_scope_idx` 的行 | 归档、释放读回、撤销归档，再查 `releasedScopes` | [W3](../SPEC.md#w3) |
 | VS-W10 | `decide` 往返：`reduce(前状态, decide(...) 的批次)` 得到命令要求的后态，且等于提交后 `readWork` 读到的快照 | 随机命令序列，每个 JC 行至少一例。对每次提交比较三者：命令要求的后态、`reduce` 结果、`sl_state`。`quarantined` 计为失败 | [W1](../SPEC.md#w1) 第 6、7 步、[编码与归约的拥有者](../SPEC.md#编码与归约的拥有者) |
 | VS-W11 | 参加者模块不在 `decide` 之外调用领域服务，也不另写编码 | 实现的导入核对：参加者模块只从 `session-contract` 导入 OP-00 派生、`decide` 与 `reduce`，不直接导入 message 包的判定函数 | [编码与归约的拥有者](../SPEC.md#编码与归约的拥有者) |
 
@@ -54,7 +58,7 @@
 | --- | --- | --- | --- |
 | VS-F01 | 失败分类表的每一行各得到表中的结果 | 每行一个注入用例 | [失败分类](../SPEC.md#失败分类) |
 | VS-F02 | `unknown`、`writer_not_current`、锁等待超时都是 `commit-unknown`，不是 `not-committed` | 注入 | [W1](../SPEC.md#w1) |
-| VS-F03 | 只有提供者的 `not_committed` 五项证明齐全时 R7 才给 `not-committed` | 旧写代际未排除时查询 | [R7](../SPEC.md#r7) |
+| VS-F03 | 只有提供者对代次 1 给出五项证明齐全的 `not_committed` 时 R7 才给 `not-committed`；最新代次回滚、此前没有已提交或未知代次时给 `attempt-rejected`；参加操作未命中时给 `unknown`，不给 `not-committed` | 旧写代际未排除时查询；构造一个与两个回滚代次；以参加操作的身份查询。辨认参加操作的入口补上之前，代次 1 为 `not_committed` 时也只给 `unknown` | [R7](../SPEC.md#r7) |
 | VS-F04 | `sl_entry` 缺口时该会话隔离：`readWork` 与 `loadRecovery` 返回 `quarantined`，其余读与写返回 `unavailable`，不清空 | 人为删除中间一行 | [R9](../SPEC.md#r9) |
 | VS-F05 | 已确认提交在普通进程终止后仍可读 | 回执已写、响应未回时结束 Worker，重启后 `queryOperation` | 提供者的进程级持久 |
 | VS-F06 | 断电耐久 | 只在声明介质上的故障试验记录之后声明。普通重启、普通 kill、`synchronous=FULL` 的读回都不是断电试验 | [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) |

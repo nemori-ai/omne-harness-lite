@@ -75,7 +75,7 @@
 | 时序 | 转换计划交给历史持有者 → 校验保留名单与压缩覆盖范围 → 压缩消息作为派生消息提交 → 模型视图开新一代 → 通知新代 |
 | 数据去向 | 压缩消息进会话日志；原消息保留，人读历史按压缩记录加标记 |
 | 失败分支 | 校验失败时拒绝这次提交，原模型视图不变 |
-| 来源成员 | 派生消息形状：`session-contract`；校验：`session`；新代索引：`session-storage-sql` |
+| 来源成员 | 派生消息形状与判定（`decide` 调 `judgeCompaction`）：`session-contract`；在事务内调用 `decide` 与写新代索引：`session-storage-sql` |
 | 成员流程 | 契约协议 [F-SC03](../session-contract/docs/flows/scenarios.md#f-sc03-压缩转换的共同提交与-epoch-新代)；机制见 [session 的机制流程](../session/docs/flows.md) |
 
 系统层说明见[压缩记录的提交](../../../docs/architecture/runtime/session-and-run.md#压缩记录的提交)。
