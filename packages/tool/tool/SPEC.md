@@ -197,6 +197,15 @@
 - `unknown-delayed`：现在不写入，回复未知；提交保持在途，直到 `landDelayed` 按顺序落盘。落盘时重新比对 `expected`，修订号已变则丢弃并报告 `conflict`。
 - `throw-applied`：已写入后抛出。
 
+
+内存仓先在局部 Map 完成全部新值复制、put 与 delete，再同步发布 records 与 revision。复制拒绝不留下部分写入。正常提交、已应用未知、应用后抛错与延迟落地共用此路径；应用后抛错仍保留完整提交。`HostRecord.value` 的 `unknown` 不承诺任意宿主值都能编码。
+
+`toolLedgerStoreConformance()` 提供记录仓判据，`toolLedgerStoreCompositionConformance()` 用真实 ledger 提供 P01 组合判据。两者只从 `./testing` 返回既有 ConformanceCase 数组，用 node:assert 判定。具体 fixture、控制与资源责任见 [public-api](docs/public-api.md#ledger-store-conformance-testing)，消费方式见 [README](README_ZH.md#记录仓一致性用例)。提供者只供应 store，不供应 ledger 或业务 oracle。
+
+每个 case 使用新 fixture。可选手柄分别缺失时，在首次装配、seed 和 IO 前用 tool-contract/testing 的既有 NotApplicable 报告，不能作为 passed。有手柄但未制造故障仍失败。编码拒绝 probe 使用提供者明确拒绝的值，接受异常、unknown 或 unavailable 后核完整快照与 revision 未变，并核同形全合法写集成功。该 probe 的 expected 匹配且没有竞争，任何 committed 或 conflict 都失败。它不定义统一编码拒绝协议。延迟控制的 land 完成前必须重核原 expected；成功否定围栏排除旧在途尝试，随后同身份新尝试仍可受理并删除旧 exclusion。
+
+Store 分区与 ledger 授权分别验证。组合只核真实 ledger commands/reads 上的拒绝与零 store IO，不覆盖引用 codec、runtime 适配或生产身份系统。内存两组全部 passed、零 not-applicable 仅支持本进程非耐久证据，不证明真实数据库、跨重启、多连接或断电保证。验证资源见[测试导航](tests/README.md#记录仓公共一致性用例)。
+
 `createTestToolDependencies<P>` 的公开类型由 `src/testing.ts` 拥有。它固定使用 `ContentBlock` 和 `MemoryEnvironment`，每次新建七个契约内存替身、记录仓与账本，并返回完整依赖与原始手柄。调用方显式提供实例身份、守卫、配置、宿主、Catalog、子调用端口及 `bindingsFor` 解析接线。工厂不隐式授予权限，也不把 executor binding 当作 `ToolBindings`。runtime 与账本共用调用方给定的结果政策。工厂本身不构造 runtime、不装入推进协程、不调度调用，异常沿既有账本构造或调用方回调传播。输入和使用方式见 [README](README_ZH.md#testing-入口)。
 
 该工厂和记录仓只从 `./testing` 导出，均为非耐久测试设施。源码不得依赖测试目录；root 与 testing 的源码、JavaScript 和声明图均不得引入 Cordis、tool-host-local 或 tool-cordis-contract。根入口图另不得引入 testing 或 `node:assert`。

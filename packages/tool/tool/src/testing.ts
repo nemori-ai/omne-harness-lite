@@ -17,6 +17,9 @@ import type {
   ToolOperationIdentities,
 } from '@omne-harness/tool-contract'
 import {
+  NotApplicable,
+  testingTenant,
+  type ConformanceCase,
   createMemoryToolClock,
   createMemoryToolDecisionBridge,
   createMemoryToolEnvironment,
@@ -40,6 +43,12 @@ import { createToolFactAcknowledgementGuard } from './fact-acknowledgements.ts'
 import type { ToolLedgerGuards } from './ledger-guards.ts'
 import { createToolLedger, type ToolLedger } from './ledger.ts'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from './testing-store.ts'
+
+import type { ToolLedgerStoreFixture } from './testing-ledger-store-types.ts'
+import { storeCases } from './testing-ledger-store-cases.ts'
+import { storeFaultCases } from './testing-ledger-store-fault-cases.ts'
+import { compositionCases } from './testing-ledger-composition-cases.ts'
+import { createTestInvocationSource } from './testing-source.ts'
 
 /** The caller supplies authorization, the trusted construction ports and the remaining ports. */
 export type TestToolDependenciesInput<P> = Readonly<{
@@ -321,4 +330,37 @@ export function createMemoryToolContent<P>(): MemoryToolContent<P> {
       },
     },
   }
+}
+
+export type {
+  ToolLedgerStoreFixture,
+  ToolLedgerStoreControls,
+} from './testing-ledger-store-types.ts'
+export { createMemoryToolLedgerStoreFixture } from './testing-ledger-store-fixture.ts'
+
+const ledgerStoreCaseDependencies = {
+  tenant: testingTenant,
+  missing: (handle: string): never => {
+    throw new NotApplicable(handle)
+  },
+}
+
+/** Provider-level snapshot, conditional commit, isolation and fault checks (G1/G6). */
+export function toolLedgerStoreConformance(): readonly ConformanceCase<ToolLedgerStoreFixture>[] {
+  return [
+    ...storeCases(ledgerStoreCaseDependencies),
+    ...storeFaultCases(ledgerStoreCaseDependencies),
+  ]
+}
+
+/** P01 checks through the real ledger. The provider supplies only the record store. */
+export function toolLedgerStoreCompositionConformance(): readonly ConformanceCase<ToolLedgerStoreFixture>[] {
+  return compositionCases({
+    ...ledgerStoreCaseDependencies,
+    createLedger: createToolLedger,
+    source: createTestInvocationSource,
+    clock: createMemoryToolClock,
+    custody: createMemoryToolOutputCustody,
+    environment: createMemoryToolEnvironment,
+  })
 }

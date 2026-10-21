@@ -38,3 +38,15 @@
 
 
 Tools 的基本调用顺序和 JSON 参数示例见 [README](../README.md#model-result-retrieval)。宿主须对齐 runtime 入站参数限制与 ToolsOptions.arguments，固定当前身份和每次新调用的消费位置，再于 readReply 完整成功后调用 P14。结果身份为调用引用与结果版本的组合。模型无需获得这些宿主能力，投影与实际 help 足以完成接续。
+
+## Ledger store conformance (`./testing`)
+
+`ToolLedgerStoreFixture` and `ToolLedgerStoreControls` are defined in [testing-ledger-store-types.ts](../src/testing-ledger-store-types.ts). The fixture fixes `ContentBlock`, supplies only a store and independent optional fault handles, and has a consumer-owned `close`. It supplies no business oracle. The root entry continues to own `ToolLedgerStore` and its record types.
+
+`toolLedgerStoreConformance()` returns the G1/G6 store cases. `toolLedgerStoreCompositionConformance()` returns the P01 cases through a real Tool ledger. Both return the existing `ConformanceCase<ToolLedgerStoreFixture>[]` protocol from `tool-contract/testing`. `runConformanceCase`, `NotApplicable` and verdicts remain in that package. This entry does not re-export them.
+
+`createMemoryToolLedgerStoreFixture()` returns a new non-durable positive control with every handle. Each case needs its own fixture. Consumers run the case through the existing runner, count `passed` and `not-applicable` separately, and call `close` even after failure. A missing handle is detected before assembly, seed or store IO. An offered broken handle or any other exception fails the case.
+
+The controls arm the next corresponding IO: `readUnavailable`, `commitUnavailable`, `unknownApplied`, `unknownDropped` and `throwApplied`. `delayed.arm` holds a commit with an unknown reply. `delayed.land` resolves after all held commits finish their original expected-revision check. `rejectedHostValue` returns a value that this provider explicitly refuses to encode. The probe accepts an exception, `unknown` or `unavailable`, then requires an unchanged complete snapshot and a successful equivalent legal batch. It does not define a common encoding rejection protocol. The probe uses a matching expected revision without competing commits. Any `committed` or `conflict` reply fails the probe.
+
+The cases have stable `name` and `clause` fields. Direct consumption and the evidence limits are described in the [usage guide](../README.md#ledger-store-conformance). This adds a testing API in the G6 owner package. No existing consumer requires migration.

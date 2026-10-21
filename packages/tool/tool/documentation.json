@@ -51,6 +51,10 @@
         {
           "id": "maintenance",
           "anchor": "maintenance"
+        },
+        {
+          "id": "ledger-store-conformance",
+          "anchor": "ledger-store-conformance"
         }
       ]
     },
@@ -95,6 +99,10 @@
         {
           "id": "maintenance",
           "anchor": "维护"
+        },
+        {
+          "id": "ledger-store-conformance",
+          "anchor": "记录仓一致性用例"
         }
       ]
     },
@@ -138,6 +146,10 @@
         {
           "id": "tools-result-adapter",
           "anchor": "28-tools-固定结果适配器"
+        },
+        {
+          "id": "ledger-store-conformance",
+          "anchor": "18-非耐久记录仓testing"
         }
       ]
     },
@@ -229,7 +241,12 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "reference-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "ledger-store-conformance",
+          "anchor": "ledger-store-conformance-testing"
+        }
+      ]
     },
     {
       "id": "context",
@@ -304,7 +321,12 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": []
+      "requiredSections": [
+        {
+          "id": "ledger-store-conformance",
+          "anchor": "记录仓公共一致性用例"
+        }
+      ]
     },
     {
       "id": "tests-index",

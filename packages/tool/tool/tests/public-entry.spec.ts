@@ -36,9 +36,12 @@ it('testing entry exports the non-durable store and dependency assembly', async 
     'TEST_SOURCE_OWNER',
     'createMemoryToolContent',
     'createMemoryToolLedgerStore',
+    'createMemoryToolLedgerStoreFixture',
     'createTestInvocationSource',
     'createTestToolDependencies',
     'createTestToolIdentities',
+    'toolLedgerStoreCompositionConformance',
+    'toolLedgerStoreConformance',
   ])
 })
 

@@ -136,6 +136,40 @@ The block type is fixed to `ContentBlock`, and the environment type is fixed to 
 
 These doubles are for tests only. They provide no durability, real execution environment or production host. The factory does not add runtime operations beyond the support table, and it creates no timers or disposal protocol. The caller owns the runtime and any resources supplied through its ports.
 
+### Ledger store conformance
+
+A provider can reuse the same store checks without Vitest. The store suite checks complete snapshots, ordered writes, conditional atomic commits, concurrent CAS, domain partitioning, reference copies and controlled failures. The composition suite runs the real Tool ledger over the supplied store. It checks operation retries, input conflicts, state revisions, unknown receipts, exclusion fences, fresh retries and qualification before IO.
+
+```ts
+import assert from 'node:assert/strict'
+import { runConformanceCase } from '@omne-harness/tool-contract/testing'
+import {
+  createMemoryToolLedgerStoreFixture,
+  toolLedgerStoreConformance,
+  toolLedgerStoreCompositionConformance,
+} from '@omne-harness/tool/testing'
+
+for (const check of [
+  ...toolLedgerStoreConformance(),
+  ...toolLedgerStoreCompositionConformance(),
+]) {
+  const fixture = createMemoryToolLedgerStoreFixture()
+  try {
+    assert.deepEqual(await runConformanceCase(check, fixture), { kind: 'passed' })
+  } finally {
+    await fixture.close()
+  }
+}
+```
+
+The memory fixture has all fault controls, so both arrays must pass with zero not-applicable results. For another provider, replace the fixture factory and count each `not-applicable` verdict separately. An absent control checks nothing. An offered control that does not create its declared fault fails. The [public API](docs/public-api.md#ledger-store-conformance-testing) defines the independent handles and the encoding rejection probe.
+
+The consumer owns each fixture and its resources. A database consumer must preserve both errors when the case and cleanup fail, through its test runner's cleanup hook or an `AggregateError`. The memory fixture owns no external resources. Do not reuse a fixture between cases.
+
+The composition uses fixed test principals, a paired test source and a second explicit trusted internal binding for the input-conflict probe. It tests the ledger commands/reads qualification boundary. It does not prove a production identity or authorization system, reference codecs, runtime adapters, execution, durability, restart recovery, multiple connections or power-loss behavior. The fixture reports `durability: 'none'`. A future durable provider needs the same cases and its own real-backend evidence.
+
+The new API belongs to `tool/testing` under G6. Existing consumers do not need migration. It replaces no production provider. The root export graph excludes these suites and `node:assert`.
+
 ## Contracts
 
 Behavior belongs to the [contract SPEC](../tool-contract/SPEC.md), P11 for the independent path. [SPEC.md](SPEC.md) states how this implementation meets it and fixes the choices the contract leaves open: failure kinds, the byte encoding, the wait history reservation and the barrier rules. The G1, G2 and G8 decisions in the contract SPEC place the factories here.

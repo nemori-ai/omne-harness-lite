@@ -80,3 +80,15 @@ Vitest 经本成员已安装的依赖，将契约包的根入口、`./binding` �
 
 
 `tools-model-loop.spec.ts` 经 `tools-model-values.ts` 建立受信宿主和只接收投影及实际 help 的 PagingModel。真实源 executor 执行一次，模型读取至少三页原内容，每次新 meta 调用使用新消费位置与引用。宿主断言固定源结果及各 meta 结果的归属，并先用 readReply 收齐再次分页的回应。失败原终态、内容结束、附件跨 UTF-8 字节页、源仓读取失败、错误公开凭据、换租户、后续撤权及原件同地址描述变体各有组合断言。交付解除后重建适配器仍能使用先前可见引用。测试不依赖时间型 TTL，也不声称真实模型、生产存储、Cordis 或跨进程支持。
+
+## 记录仓公共一致性用例
+
+[ledger-store-conformance.spec.ts](ledger-store-conformance.spec.ts) 从公开 testing 入口消费两组 case 数组，每项创建新 memory fixture。两组全部 passed，不能把缺手柄算通过。[ledger-store-controls.spec.ts](ledger-store-controls.spec.ts) 逐项移除所需手柄，核既有 not-applicable 和零 IO，并核提供者异常原样失败。
+
+[ledger-store-negative.spec.ts](ledger-store-negative.spec.ts) 将每项 store/业务 case 映射到具名违约 store 或故障控制，要求目标 AssertionError 与稳定消息。违约实现包括忽略 CAS、快照漏项、空写不推进、域键折叠、输入或输出共享、未知落地错态、延迟跳过 expected，以及[负控 helper](ledger-store-negative-values.ts)中的旧复制失败部分写路径。DataCloneError 本身不是检出依据，后续完整快照断言才是。
+
+[ledger-store-qualification.spec.ts](ledger-store-qualification.spec.ts) 通过内部依赖接线，只把真实 ledger 的 access guard 改为 always-allow，核授权断言会失败。它是设施授权 oracle 自证，不是 store 违约证明。公开 fixture 没有可替换 ledger 或业务 oracle 的配置。
+
+公共数组的行为范围归 [SPEC 第 18 条](../SPEC.md#18-非耐久记录仓testing)。组合覆盖原 operation 回执、异输入冲突、stale-revision、未知认回与可靠否定、迟到旧提交和同身份 fresh retry、资格撤销与跨租户拒绝的零 IO。域分区单独由 Store 数组验证。测试使用真实 ledger 和非耐久 store，clock/custody/environment 为契约测试替身，不证明生产身份系统、引用适配、真实执行、数据库耐久、多连接、跨重启或断电恢复。
+
+`ledger-store-conformance.spec.ts` 还在合法变序的读提供者上运行全部 25 项公共用例，冻结 records 数组以检查比较器不原地排序。`ledger-store-negative.spec.ts` 的浅复制负控每次复制记录和值的外壳，但共享深层数组与对象，必须触发 `store.output-copy` 的深层副本断言。原有完整输出别名负控仍保留。另在深度冻结的独立快照上运行全部 25 项用例，确认只读输出也符合副本隔离承诺。
