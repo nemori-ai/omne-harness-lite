@@ -532,6 +532,23 @@ describe('judgeReplayDeclaration', () => {
     expect(calls).toBe(0)
   })
 
+  it('rejects, without throwing, a replay that reports a key it gives no descriptor for', () => {
+    const hollow = new Proxy(
+      {},
+      { ownKeys: () => ['produces'], getOwnPropertyDescriptor: () => undefined },
+    )
+    expect(judgeReplayDeclaration(supplier(hollow as ProfileSupplier['replay']), 2)).toEqual(
+      invalid('replay'),
+    )
+  })
+
+  it('rejects a replay that is a string, a number or an array', () => {
+    const stored = (value: unknown) => supplier(value as ProfileSupplier['replay'])
+    for (const value of ['p', 1, ['p']]) {
+      expect(judgeReplayDeclaration(stored(value), 2)).toEqual(invalid('replay'))
+    }
+  })
+
   it('reads a key whose value is undefined as not declared', () => {
     const stored = (value: unknown) => supplier(value as ProfileSupplier['replay'])
     const undeclared = { produces: undefined, accepts: undefined, foreignThinking: undefined }

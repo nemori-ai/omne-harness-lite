@@ -23,29 +23,36 @@ function invalid(index: number, reason: string) {
   return fail({ kind: 'invalid', field: `suppliers[${index}].replay`, reason } as const)
 }
 
-const REPLAY_KEYS: readonly string[] = ['produces', 'accepts', 'foreignThinking']
+const REPLAY_KEYS: ReadonlySet<PropertyKey> = new Set(['produces', 'accepts', 'foreignThinking'])
 
-/** The three keys of a stored declaration, each one as read, or absent. */
+/** The three keys of a stored declaration, each one as read. A value of `undefined` is absent. */
 type DeclaredReplay = Readonly<{ produces?: unknown; accepts?: unknown; foreignThinking?: unknown }>
 
 /**
- * The keys of a declaration as stored, read once each by descriptor, or `undefined` when the value
- * is not a plain object with only the three keys as enumerable data properties. An accessor is
- * never called and the prototype chain is never read. A key whose value is `undefined` is absent.
- * `undefined` as the whole value is a declaration without keys.
+ * The value of an own enumerable data property, read by descriptor, or `undefined` for a missing
+ * key, a non-enumerable key or an accessor. An accessor is never called.
+ */
+function ownData(raw: object, key: PropertyKey): { value: unknown } | undefined {
+  const descriptor = Reflect.getOwnPropertyDescriptor(raw, key)
+  if (descriptor === undefined || descriptor.enumerable !== true) return undefined
+  return 'value' in descriptor ? { value: descriptor.value } : undefined
+}
+
+/**
+ * The keys of a declaration as stored, or `undefined` when the value is not a plain object with only
+ * the three keys as enumerable data properties. A primitive and an array fail on their prototype.
+ * The prototype chain is never read. `undefined` as the whole value is a declaration without keys.
  */
 function readDeclared(raw: unknown): DeclaredReplay | undefined {
   if (raw === undefined) return {}
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined
+  if (raw === null) return undefined
   const proto: unknown = Object.getPrototypeOf(raw)
   if (proto !== Object.prototype && proto !== null) return undefined
   const read: Record<string, unknown> = {}
   for (const key of Reflect.ownKeys(raw)) {
-    if (typeof key !== 'string' || !REPLAY_KEYS.includes(key)) return undefined
-    const descriptor = Object.getOwnPropertyDescriptor(raw, key)
-    if (descriptor === undefined || descriptor.enumerable !== true || !('value' in descriptor))
-      return undefined
-    if (descriptor.value !== undefined) read[key] = descriptor.value
+    const field = REPLAY_KEYS.has(key) ? ownData(raw, key) : undefined
+    if (field === undefined) return undefined
+    read[String(key)] = field.value
   }
   return read
 }
@@ -57,11 +64,30 @@ function readDeclared(raw: unknown): DeclaredReplay | undefined {
 function readItems(raw: readonly unknown[]): unknown[] | undefined {
   const items: unknown[] = []
   for (let position = 0; position < raw.length; position += 1) {
-    const descriptor = Object.getOwnPropertyDescriptor(raw, position)
-    if (descriptor === undefined || !('value' in descriptor)) return undefined
-    items.push(descriptor.value)
+    const item = ownData(raw, position)
+    if (item === undefined) return undefined
+    items.push(item.value)
   }
   return items
+}
+
+function isOptionalText(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === 'string'
+}
+
+function isOptionalArray(value: unknown): value is readonly unknown[] | undefined {
+  return value === undefined || Array.isArray(value)
+}
+
+/**
+ * The items of `accepts` as tags when they and `produces` keep the tag rules, or the first reason
+ * they break them. `accepts` is `undefined` when its items could not be read.
+ */
+function checkTags(produces: string, accepts: readonly unknown[] | undefined): string[] | string {
+  if (!isReplayTag(produces)) return 'produces'
+  if (accepts === undefined || !accepts.every(isReplayTag)) return 'accepts'
+  if (new Set(accepts).size !== accepts.length) return 'accepts-duplicate'
+  return accepts.includes(produces) ? [...accepts] : 'accepts-lacks-produces'
 }
 
 /**
@@ -80,20 +106,16 @@ export function judgeReplayDeclaration(
 ): Outcome<ReplayDeclaration, Extract<ModelFailure, { kind: 'invalid' }>> {
   const declared = readDeclared(supplier.replay)
   if (declared === undefined) return invalid(index, 'replay')
-  if (declared.produces !== undefined && typeof declared.produces !== 'string')
-    return invalid(index, 'produces')
-  if (declared.accepts !== undefined && !Array.isArray(declared.accepts))
-    return invalid(index, 'accepts')
+  if (!isOptionalText(declared.produces)) return invalid(index, 'produces')
+  if (!isOptionalArray(declared.accepts)) return invalid(index, 'accepts')
   const produces = declared.produces ?? `${supplier.recipient}/${supplier.model}`
   const accepts = declared.accepts === undefined ? [produces] : readItems(declared.accepts)
-  if (!isReplayTag(produces)) return invalid(index, 'produces')
-  if (accepts === undefined || !accepts.every(isReplayTag)) return invalid(index, 'accepts')
-  if (new Set(accepts).size !== accepts.length) return invalid(index, 'accepts-duplicate')
-  if (!accepts.includes(produces)) return invalid(index, 'accepts-lacks-produces')
+  const tags = checkTags(produces, accepts)
+  if (typeof tags === 'string') return invalid(index, tags)
   // A null is a stored value that is not a choice, so `??` would hide it.
   const foreignThinking = declared.foreignThinking === undefined ? 'omit' : declared.foreignThinking
   if (!isForeignThinking(foreignThinking)) return invalid(index, 'foreign-thinking')
-  return succeed(Object.freeze({ produces, accepts: Object.freeze(accepts), foreignThinking }))
+  return succeed(Object.freeze({ produces, accepts: Object.freeze(tags), foreignThinking }))
 }
 
 /**
