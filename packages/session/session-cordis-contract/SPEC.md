@@ -8,7 +8,7 @@
 
 1. 服务键 `session` 只由抽象类 `SessionService` 的 `static readonly provide` 给出。导出的键常量取自它。提供者不另写键，不再次 `ctx.provide` 这个键（[IC-1](../../../docs/architecture/cordis-integration-conventions.md#ic-1)、[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。
 2. `SessionService` 以四个属性暴露契约根入口的四个面：`work`、`management`、`reconciliation`、`history`。四个面挂在同一个键上，不为每个面另立服务键。同一组签名不写两份，类型取自 `session-contract`（[IC-3](../../../docs/architecture/cordis-integration-conventions.md#ic-3)）。
-3. 七个构造依赖端口、四个出站端口与内部主体 `SessionInternalPrincipals` 各有一个服务键，每个键只由对应抽象类的 `static readonly provide` 给出。端口的接口归 `session-contract`；本成员只给键与抽象类。完整清单见 [docs/cordis.md 的端口服务键](docs/cordis.md#端口服务键)。只有事务端口进 `inject`，其余端口按调用现取。
+3. 七个构造依赖端口、四个出站端口与内部主体 `SessionInternalPrincipals` 各有一个服务键，每个键只由对应抽象类的 `static readonly provide` 给出。端口的接口归 `session-contract`；本成员只给键与抽象类。完整清单见 [docs/cordis.md 的端口服务键](docs/cordis.md#端口服务键)。只有事务端口与内部主体进 `inject`，其余端口按调用现取。
 4. intercept 配置类型是 `{ caller: SessionCallerClass }`，调用方类取 `intake`、`coordinator`、`maintainer`、`reader` 之一。调用方插件以对象形式 `inject: { session: { caller: '…' } }` 声明自己的调用方类，服务方法经 `this[Service.resolveConfig]()` 沿调用方 fiber 取得。调用方类是装配事实，不是资格授予（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。调用方类按操作授权：服务把它与该操作允许的调用方类核对，不在其中即拒绝；这条核对是一致性检查，不计为访问控制。访问边界仍是每个操作的调用资格，由 [session-contract SPEC](../session-contract/SPEC.md) 定义。
 5. 事件只有一个：`session-cordis-contract/committed`。载荷是租户、会话身份、会话修订、原提交证据与本次提交的事件种类集合，不带消息正文、凭据或附件地址。它只是唤醒提示，不是事实源；丢失不影响正确性，权威扫描承接（[IC-10](../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../docs/architecture/cordis-integration-conventions.md#ic-11)）。
 6. 一个 isolate 标签下一个提供者（[IC-6](../../../docs/architecture/cordis-integration-conventions.md#ic-6)）。租户与会话是操作参数，不用 isolate 或 Cordis Context 表达（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)、[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
@@ -39,4 +39,4 @@ Service 实现与依赖注入归 [session-cordis](../session-cordis/README.md)�
 | 事件命名与增补位置 | [IC-10](../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../docs/architecture/cordis-integration-conventions.md#ic-11) | 性质 5 |
 | 靠同进程成立的保证 | [IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19) | 每租户一个扫描者第一版靠装配单实例兑现，见 [docs/cordis.md](docs/cordis.md#靠装配兑现的保证) |
 
-持续验证义务由实现者承担：根入口不加载绑定；定义入口不导入任何提供者；每个服务键唯一；两个声明不同调用方类的插件各自取到自己的 intercept 配置，调用方类不在操作允许的范围内时被拒绝；事务端口缺席时 Session 服务停在 `PENDING`，其他端口缺席只影响需要它的操作，可选的通知能力缺席不阻止提交；事件载荷不含正文。现有骨架测试不证明这些保证。机制读数与性质的对应见 [docs/cordis.md 的机制读数与假设](docs/cordis.md#机制读数与假设)。
+持续验证义务由实现者承担：根入口不加载绑定；定义入口不导入任何提供者；每个服务键唯一；两个声明不同调用方类的插件各自取到自己的 intercept 配置，调用方类不在操作允许的范围内时被拒绝；事务端口或内部主体缺席时 Session 服务停在 `PENDING`，其他端口缺席只影响需要它的操作，可选的通知能力缺席不阻止提交；事件载荷不含正文。现有骨架测试不证明这些保证。机制读数与性质的对应见 [docs/cordis.md 的机制读数与假设](docs/cordis.md#机制读数与假设)。

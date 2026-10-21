@@ -162,7 +162,7 @@ sequenceDiagram
 | 情形 | 结果 | 责任方 | 依据 |
 | --- | --- | --- | --- |
 | 配置错误 | fiber `FAILED` | 装配者 | [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) |
-| 事务端口缺席 | fiber `PENDING` | 装配者装载存储提供者 | 性质 2 |
+| 事务端口或内部主体缺席 | fiber `PENDING` | 装配者装载存储提供者，或经 `sessionPrincipals` 提供内部主体 | 性质 2、性质 8 |
 | 重复装载 | 第二份失败 | 装配者 | [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) |
 | 现取端口缺席或抛出 | 只有需要它的操作返回 `unavailable` | 端口的提供者 | [SPEC 的端口接线](../SPEC.md#端口接线) |
 | 调用方类缺失或不合法 | `denied` | 调用方插件 | 性质 6 |

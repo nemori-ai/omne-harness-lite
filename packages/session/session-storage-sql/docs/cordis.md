@@ -117,7 +117,7 @@ flowchart LR
 | --- | --- | --- |
 | 存储契约服务的键名与形状，以及 SPEC 的 [XP-1 至 XP-6](../SPEC.md#xp-table) | 存储契约没有可依赖的 workspace 成员。缺哪一项，对应操作返回 `unavailable` | 存储契约拥有者（[storage 契约](../../../storage/docs/storage-contract/README.md)） |
 | 游标签名密钥的服务键 | 还没有定义。缺席时依赖游标的读返回 `unavailable` | 装配与本成员。定键时，同步 session-cordis-contract 的[端口服务键表](../../session-cordis-contract/docs/cordis.md#端口服务键)是否收录它 |
-| 租户到事务域的对应怎样进入插件 | 配置数据，或存储契约的事务域目录（XP-6）。SPEC 只要求装配按租户给出 | 装配与存储契约拥有者 |
+| 租户到事务域的对应怎样进入插件 | 配置数据，或事务域目录（XP-6）。SPEC 只要求装配按租户给出 | 应用装配（事务域目录的拥有者，见 Session 契约的明确缺项） |
 | 介质与存储提供者介质是否一致 | 存储契约现在没有读取提供者介质的入口，一致性由装配保证。入口出现后改为加载时核对，不一致即 `FAILED` | 存储契约拥有者 |
 | 机制读数 | 同一 isolate 标签下重复 `provide` 抛出只有源码读数；`Service` 子类静态 `Config` 失败使 fiber `FAILED` 的 basis 只核验了函数插件 | 本包的测试补证。Cordis 升版时按 IC 约定重跑相关 probe |
 

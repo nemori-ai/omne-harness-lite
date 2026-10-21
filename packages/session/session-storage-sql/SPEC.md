@@ -134,7 +134,7 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 **W1 Session 为提交方的提交。**`SessionTransactionPort.commit` 按下列步骤执行。`session` 的流水线（[CP-01](../session/SPEC.md#cp-01)）在事务外完成它的第 1 至第 4 步，本成员从 CP-01 的第 5 步接手。时序见[写路径](docs/flows.md#写路径session-为提交方)。
 
 1. 选尝试代次并构造存储操作身份。代次的规则见下文的[尝试代次](#w1-attempts)。`tenant` 为命令的租户，`transactionDomain` 为该租户的事务域，`operation` 与 `operationKey` 都是 `<SessionOperationId>#<代次>`，`protocolVersion` 为 `1`。规范化 `{ command, guards }` 为 JSON 值：位置、序号与 epoch 都是十进制文本，没有 BigInt、`undefined`、`Date` 或函数。另算 Session 操作的输入摘要，它写进 `sl_operation.input_digest`，见[尝试代次](#w1-attempts)。
-2. 调用存储契约的 `commit`，命令数组只有一条 `participant` 为 `session` 的命令。`rejected_before_accept` 映射为 `unavailable`，`owner` 为存储参加者，不改写为业务拒绝。`identity_conflict` 说明同一 Session 操作的另一次尝试已经用了这个代次：已有回执为 `committed` 时，本成员读 `sl_operation`，Session 输入摘要相同则返回原回执，`recovered` 为真，不同则返回 `conflict`；已有回执为 `rolled_back` 时，回到第 1 步选下一个代次。
+2. 调用存储契约的 `commit`，命令数组只有一条 `participant` 为 `session` 的命令。`rejected_before_accept` 映射为 `unavailable`，`owner` 为存储参加者，不改写为业务拒绝；其中 `writer_not_current` 与锁等待超时例外，映射为 `commit-unknown`，见本节末的 `attempt-rejected` 一段。`identity_conflict` 说明同一 Session 操作的另一次尝试已经用了这个代次：已有回执为 `committed` 时，本成员读 `sl_operation`，Session 输入摘要相同则返回原回执，`recovered` 为真，不同则返回 `conflict`；已有回执为 `rolled_back` 时，回到第 1 步选下一个代次。
 3. Worker 内，`session` 模块收到 `facts` 与语句端口。先核对材料：每个 `GuardCommand` 的 `owner`、`participant`、`protocol` 与该命令种类要求的材料集合一致。集合按[共同提交表](../session-contract/SPEC.md#共同提交与共享事务域)的「参加者」列固定在本成员的材料表里。缺一项或多一项，响应「不支持」，不写任何行。
 4. 点查 `sl_operation`，得到该操作的 `OperationRecord`，没有时为 null。认回由第 6 步的 `decide` 判定，本步只读行。
 5. 锁住并读 `sl_journal`，再读 `sl_state`。PostgreSQL 下用 `SELECT ... FOR UPDATE` 锁住该会话的 `sl_journal` 行，同一会话后到的事务在这里等待，前一个事务提交后才读到新尾部。SQLite 只有一个写者，事务本来就串行，不另加锁。`sl_state.covered` 不等于 `sl_journal.tail`，或归约版本不是当前版本：响应「失败」，原因为 `unavailable`，`owner` 为本成员，由 R9 追赶后重试。核对通过时，交给 `decide` 的快照的 `revision` 等于 `tail`。
@@ -528,7 +528,7 @@ releasedScopes(principal, scope = system, after, limit):
 | `sl_state` 落后或归约版本不符 | `unavailable`，`owner` 为本成员，带追赶进度 | R9 自动追赶 |
 | `sl_entry` 缺口、损坏、`tail` 不一致 | 该会话隔离：`readWork` 与 `loadRecovery` 返回 `quarantined`，其余读与写返回 `unavailable`（[R9](#r9)） | 运维按 [SL14](../session-contract/SPEC.md#日志读取投影及恢复) |
 | 派生索引重建中 | 依赖它的读 `unavailable`，带进度 | 等待重建 |
-| 读入口或事务域目录缺席（[XP-3](#xp-table)、[XP-6](#xp-table)） | `unavailable`，`owner` 为存储参加者 | 存储契约拥有者 |
+| 读入口或事务域目录缺席（[XP-3](#xp-table)、[XP-6](#xp-table)） | `unavailable`，`owner` 为存储参加者 | 读入口：存储契约拥有者；事务域目录：应用装配 |
 | 游标签名密钥缺席 | R2、R5、R8、R10、R11 返回 `unavailable` | 装配 |
 | 任何 SQL 异常 | 不转成业务拒绝；写路径响应「失败」，读路径 `unavailable` | 诊断 |
 
@@ -599,7 +599,7 @@ releasedScopes(principal, scope = system, after, limit):
 | 数值目标：每页延迟、每秒提交数、重建时长、`maxScanPerPage` 与 `pageBytes` 的初值 | 本成员，按验证计划实测后写进本页的声明边界 | 不声明任何数值。策略配置没有默认值时装配必须给出 |
 | 断电耐久 | [SQL-T01](../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方 | 本成员只声明进程级持久依赖提供者读回的 `synchronous=FULL`，不宣称断电耐久 |
 | 登记键到能力身份的绑定（R10 的 `capability` 列） | Tool 契约与事件目录对 SE08 载荷的细化 | 本成员假定 SE08 的登记键按能力身份列出；不成立时 `ResidentReference.capability` 不可填，R10 不可用 |
-| 从 `SessionOperationId` 辨认参加操作的入口，例如身份编码带派生种类，或 `queryOperation` 的输入带种类（[R7](#r7)） | Session 契约拥有者 | R7 对未命中的操作一律探查代次，代次 1 为 `not_committed` 时返回 `unknown`，不给 `not-committed`。Session 提交的操作仍可用同一身份重做命令，由 [W1 的尝试代次](#w1-attempts)选代次 |
+| 从 `SessionOperationId` 辨认参加操作的入口，例如身份编码带派生种类，或 `queryOperation` 的输入带种类（[R7](#r7)） | Session 契约拥有者 | R7 对未命中的操作一律探查代次，代次 1 为 `not_committed` 时返回 `unknown`，不给 `not-committed`。Session 提交的操作仍可用同一身份重做命令，由 [W1 的尝试代次](#w1-attempts)选代次。协调器与调度器发起的操作停在 `unknown` 时，靠 S1、S3 等触发者以同一身份再次触发才收敛 |
 | `accept` 的上限或背压策略：一个会话的待处理输入数上限，与超限时的拒绝原因（[W1 的代价与退化](#w1-cost)） | 本成员提出字段与初值；超限的拒绝原因归 Session 契约拥有者 | 没有上限。积累 P 条待处理输入的会话，每次 `accept` 的代价是 O(P) |
 | 压缩覆盖范围的条目数上界（[W4](#w4)） | [request-context-contract](../../context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界) 的拥有者 | W4 在写事务里读出 `covers` 的全部条目，代价随覆盖范围线性增长。SQLite 下同一事务域的其他提交在此期间等待 |
 | 撤销归档之后，作用域引用会不会被复用（[W3](#w3) 的 SE28 行） | 执行环境契约的拥有者 | 撤销归档时删除该会话在 `sl_released_scope_idx` 的行，R11 不再返回这些作用域。作用域引用若被复用，本成员不区分新旧两次使用 |

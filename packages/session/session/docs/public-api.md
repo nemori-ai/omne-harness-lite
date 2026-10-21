@@ -68,7 +68,7 @@ export type SessionDependencies<P> = Readonly<{
   scopeRelease: Current<ScopeReleasePort>
   /** Principals for commands that coordinators and schedulers issue. The identity bridge verifies them. */
   principals: SessionInternalPrincipals<P>
-  /** Ordered before-admit slots. An empty list makes accept run without slots. */
+  /** Ordered before-admit slots. null means admission is unavailable, so accept returns unavailable. An empty list, given only when the assembly declares no command domain and no hooks, makes accept run without slots. */
   admission: Current<readonly BeforeAdmitSlot[]>
 }>
 ```
@@ -79,11 +79,11 @@ export type SessionDependencies<P> = Readonly<{
 | --- | --- | --- | --- |
 | 启动条件 | `transactions`、`principals` | 直接传入实现与主体 | 任一缺席时不构造实例。经 Cordis 时服务停在 `PENDING`，见 [session-cordis](../../session-cordis/README.md) |
 | 按命令必需 | `identity`、`evidence`、`clock`、`idle`、`context` | 传入完整接口。宿主在底层能力缺席时让方法返回 `unavailable`，`owner` 为该端口 | 只有需要它的操作返回 `unavailable`；不用系统时间或空材料补默认 |
-| 按调用现取 | `notifier`、`agentDrive`、`startFence`、`deliveryRelease`、`scopeRelease`、`admission` | 传入现取函数，每次调用前取一次 | 通知缺席只记诊断；出站端口缺席时调用不发出，任务保留，由调度器重放；`admission` 为空列表时 `accept` 不经槽 |
+| 按调用现取 | `notifier`、`agentDrive`、`startFence`、`deliveryRelease`、`scopeRelease`、`admission` | 传入现取函数，每次调用前取一次 | 通知缺席只记诊断；出站端口缺席时调用不发出，任务保留，由调度器重放；`admission` 取不到时 `accept` 返回 `unavailable`；只有装配声明没有命令域与 hooks 时才是空列表，`accept` 不经槽 |
 
 `principals` 是本成员内部动作使用的主体。协调器以 `coordinator` 调用方类、调度器与恢复以 `maintainer` 调用方类提交命令时，带上对应的主体，由身份桥核实它的可信来源。主体由应用装配的维护拥有者签发，本成员不铸造主体。
 
-`BeforeAdmitSlot` 的输入与输出取自 [EX-1](../SPEC.md#ex-1) 的表：输入是原提交、来源与会话当前值，输出是放行（可能已展开的内容与该槽的结论）或拦截（原因与留痕材料）。前一个槽放行的 `submission` 是后一个槽的输入。槽的结论与留痕以 `GuardCommand` 表示，作为参加者材料进入 `accept`，`participant` 为该槽的拥有者。槽的语义与公开入口归命令域与 hooks 的拥有者，尚未定义。定义之前 session-adapters 不登记槽，`admission` 返回空列表。
+`BeforeAdmitSlot` 的输入与输出取自 [EX-1](../SPEC.md#ex-1) 的表：输入是原提交、来源与会话当前值，输出是放行（可能已展开的内容与该槽的结论）或拦截（原因与留痕材料）。前一个槽放行的 `submission` 是后一个槽的输入。槽的结论与留痕以 `GuardCommand` 表示，作为参加者材料进入 `accept`，`participant` 为该槽的拥有者。槽的语义与公开入口归命令域与 hooks 的拥有者，尚未定义。定义之前 session-adapters 不登记槽，`admission` 取不到，`accept` 返回 `unavailable`；只有装配声明 `admission: 'none'` 时才返回空列表。
 
 ### 配置
 
