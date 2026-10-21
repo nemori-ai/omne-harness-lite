@@ -39,6 +39,55 @@ export interface MutationReport {
   >
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isPosition(value: unknown): value is Position {
+  return (
+    isRecord(value) &&
+    Number.isInteger(value['line']) &&
+    typeof value['line'] === 'number' &&
+    value['line'] > 0 &&
+    Number.isInteger(value['column']) &&
+    typeof value['column'] === 'number' &&
+    value['column'] > 0
+  )
+}
+
+function isReportMutant(value: unknown): value is ReportMutant {
+  if (!isRecord(value) || !isRecord(value['location'])) return false
+  return (
+    typeof value['id'] === 'string' &&
+    typeof value['mutatorName'] === 'string' &&
+    MUTANT_STATUSES.some(status => status === value['status']) &&
+    isPosition(value['location']['start']) &&
+    isPosition(value['location']['end']) &&
+    (value['replacement'] === undefined || typeof value['replacement'] === 'string') &&
+    (value['static'] === undefined || typeof value['static'] === 'boolean') &&
+    (value['testsCompleted'] === undefined ||
+      (typeof value['testsCompleted'] === 'number' &&
+        Number.isInteger(value['testsCompleted']) &&
+        value['testsCompleted'] >= 0)) &&
+    (value['coveredBy'] === undefined ||
+      (Array.isArray(value['coveredBy']) && value['coveredBy'].every(id => typeof id === 'string')))
+  )
+}
+
+export function isMutationReport(value: unknown): value is MutationReport {
+  return (
+    isRecord(value) &&
+    isRecord(value['files']) &&
+    Object.values(value['files']).every(
+      file =>
+        isRecord(file) &&
+        typeof file['source'] === 'string' &&
+        Array.isArray(file['mutants']) &&
+        file['mutants'].every(isReportMutant),
+    )
+  )
+}
+
 export interface Finding {
   /** 仓库相对路径。 */
   readonly file: string
@@ -171,4 +220,18 @@ export function memberLines(result: MemberMutation, detail: boolean): string[] {
 export function notRunError(result: MemberMutation, logPath: string): string | undefined {
   if (result.notRun.length === 0) return undefined
   return `${result.member}：${result.notRun.length} 个变异体有用例覆盖、却一条用例都没跑完，Stryker 报成了存活；判为运行出错，日志 ${logPath}`
+}
+
+/** Runtime errors invalidate the whole measurement, including mutants outside the target lines. */
+export function runtimeError(
+  report: MutationReport,
+  member: string,
+  reportPath: string,
+): string | undefined {
+  const count = Object.values(report.files)
+    .flatMap(file => file.mutants)
+    .filter(mutant => mutant.status === 'RuntimeError').length
+  return count === 0
+    ? undefined
+    : `${member}：${count} 个 RuntimeError，成员测量无效，原始报告 ${reportPath}`
 }

@@ -3,6 +3,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -311,7 +312,7 @@ describe('sandbox 与配置', () => {
       nonce: '7',
     })
     expect(config).toMatchObject({
-      testRunner: 'vitest',
+      testRunner: 'omne-vitest',
       vitest: { configFile: 'vitest.stryker-sandbox.config.mts', related: false },
       mutate: ['src/a.ts:2-3'],
       symlinkNodeModules: false,
@@ -501,7 +502,7 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     const ran = spawnSync(
       process.execPath,
       ['--experimental-strip-types', CLI, 'run', '--root', root, '--plan', planPath, '--out', out],
-      { encoding: 'utf8', env: { ...process.env, VITEST_MAX_WORKERS: '2' } },
+      { encoding: 'utf8', env: { ...process.env, BASELINE: undefined, VITEST_MAX_WORKERS: '2' } },
     )
     const summary = existsSync(join(out, 'summary.json'))
       ? (JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8')) as {
@@ -604,6 +605,93 @@ describe('夹具项目上真起 Stryker', { tags: ['slow'] }, () => {
     expect(member?.counts['Survived']).toBe(0)
     expect(member?.counts['Killed']).toBeGreaterThan(0)
   })
+
+  it.each(['module', 'suite'] as const)(
+    '静态变异使文件或深层 suite 自身出错时成员无效，原始报告保留；同 out 重跑不复用错误（%s）',
+    container => {
+      const { root, memberDir } = fixture()
+      writeFileSync(
+        join(memberDir, 'src/sign.ts'),
+        "export const zero = 0\nexport function names(): string[] { return ['alpha', 'beta'] }\n",
+      )
+      // describe 收集异常归模块；内层 beforeAll 才产生 suite 自身错误，顶层调用保留静态变异。
+      writeFileSync(
+        join(memberDir, 'tests/collection.spec.ts'),
+        [
+          "import { names } from '../src/sign.ts'",
+          ...(container === 'suite'
+            ? [
+                'const collectedNames = names()',
+                "describe('collection outer', () => {",
+                "describe('collection inner', () => {",
+                'beforeAll(() => { Array.from(collectedNames) })',
+                "test('registered', () => { expect(collectedNames).toBeDefined() })",
+                '})',
+                '})',
+              ]
+            : [
+                'for (const name of names()) test(name, () => { expect(name.length).toBeGreaterThan(0) })',
+              ]),
+        ].join('\n'),
+      )
+      const out = join(root, 'out')
+      const invalid = mutate(root, out)
+      const evidence = process.env['OMNE_MUTATION_FIXTURE_EVIDENCE']
+      if (evidence !== undefined) {
+        mkdirSync(evidence, { recursive: true })
+        cpSync(out, join(evidence, `static-collection-${container}`), { recursive: true })
+        writeFileSync(
+          join(evidence, `static-cli-${container}.txt`),
+          invalid.ran.stdout + invalid.ran.stderr,
+        )
+      }
+      expect(invalid.ran.status, invalid.ran.stdout + invalid.ran.stderr).toBe(1)
+      expect(invalid.summary?.members).toEqual([])
+      expect(invalid.summary?.errors).toEqual([expect.stringContaining('RuntimeError')])
+      const raw = readFileSync(join(out, 'packages__core__sign.mutation.json'), 'utf8')
+      expect(raw).toContain('RuntimeError')
+      expect(raw).toContain('collection.spec.ts')
+      expect(raw).toContain('文件或 suite 收集错误')
+      if (container === 'suite') {
+        const report: unknown = JSON.parse(raw)
+        expect(report).toMatchObject({
+          files: {
+            'src/sign.ts': {
+              mutants: expect.arrayContaining([
+                expect.objectContaining({
+                  status: 'RuntimeError',
+                  static: true,
+                  statusReason: expect.stringContaining(
+                    '"suite":"collection outer > collection inner"',
+                  ),
+                }),
+              ]),
+            },
+          },
+        })
+      }
+      rmSync(join(memberDir, 'tests/collection.spec.ts'))
+      const rerun = mutate(root, out)
+      expect(rerun.ran.status, rerun.ran.stdout + rerun.ran.stderr).toBe(0)
+      expect(rerun.summary?.errors).toEqual([])
+      expect(rerun.summary?.members).toHaveLength(1)
+      const history = readdirSync(out).filter(name => name.includes('.history-'))
+      expect(history).toHaveLength(1)
+      expect(
+        readFileSync(join(out, history[0] ?? '', 'packages__core__sign.mutation.json'), 'utf8'),
+      ).toBe(raw)
+      writeFileSync(
+        join(memberDir, 'tests/broken.spec.ts'),
+        "throw new Error('fresh preflight failure')",
+      )
+      const failedRerun = mutate(root, out)
+      expect(failedRerun.ran.status, failedRerun.ran.stdout + failedRerun.ran.stderr).toBe(1)
+      expect(failedRerun.summary?.members).toEqual([])
+      expect(failedRerun.summary?.errors).toEqual([expect.stringContaining('sandbox 预检没通过')])
+      expect(existsSync(join(out, 'packages__core__sign.mutation.json'))).toBe(false)
+      expect(readdirSync(out).filter(name => name.includes('.history-'))).toHaveLength(2)
+    },
+  )
 
   it('有测试文件在 sandbox 里加载失败就报错、不出读数，别的文件里的用例全过也一样（#481）', () => {
     const { root, memberDir } = fixture()

@@ -10,6 +10,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   MEMBER_DIR_ENV,
   PREFLIGHT_FAILED_ENV,
@@ -32,11 +33,12 @@ writeFileSync(
   [
     "import { defineConfig, mergeConfig } from 'vitest/config'",
     "import member from './vitest.config.ts'",
+    `import CollectionReporter from ${JSON.stringify(fileURLToPath(new URL('./collection-reporter.ts', import.meta.url)))}`,
     'export default defineConfig(env => {',
     // 成员配置不是按 mode 的函数时选不了层，报错，不悄悄两层都跑。
     "  if (typeof member !== 'function') throw new Error('vitest.config.ts 须写成 defineConfig(({ mode }) => …)，否则选不了快层')",
     "  const own = member({ ...env, mode: 'fast' })",
-    `  return mergeConfig(own, { test: { testTimeout: ${timeout}, experimental: { preParse: false } } })`,
+    `  return mergeConfig(own, { test: { reporters: [...(own.test?.reporters ? [] : ['default']), new CollectionReporter()], testTimeout: ${timeout}, experimental: { preParse: false } } })`,
     '})',
     '',
   ].join('\n'),
