@@ -133,7 +133,10 @@ Agent 提供原执行的对账与接续。发现哪些会话需要恢复、何�
 flowchart TD
     Scan[恢复扫描<br/>启动 · 周期 · 失败上报] --> Snapshot[读取会话的恢复快照]
     Snapshot --> Unknown[结果未知的操作] --> Requery[待决认回]
+    Snapshot --> Routed[初始化项与已分流输入] --> Owners[交还各自拥有者]
     Snapshot --> Tasks[级联与作用域释放任务] --> Archive[归档与级联]
+    Snapshot --> Pending[已受理、尚未交入的输入] --> Resubmit[按同一输入身份重新交入]
+    Snapshot --> Reported[已报告、尚未保管的结果] --> Custody[经结果记录入口保管]
     Snapshot --> Controls[传播中的控制] --> Propagate[控制传播]
     Snapshot --> Granted[已授予、Agent 尚未受理的 Run] --> Replay[按同一操作身份重放 invoke]
     Snapshot --> ActiveRun[无有效挂接的未终结 Run] --> Resume[读取原记录并接续原 Agent 执行]

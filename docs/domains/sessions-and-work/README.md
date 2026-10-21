@@ -57,16 +57,18 @@ flowchart TD
 
 人能看到的内容只来自两处：会话日志的历史投影，以及生产方已经可靠保管的在途增量，见[用户可见内容的两处来源](../../architecture/runtime/streaming-and-consumption.md#用户可见内容的两处来源)。
 
-会话在收到一份账时把它记入日志。这条记录只表示会话已经收到。载体是模型响应的一次流式增量、该流的完成，或一次已完成工具执行的工具结果。
+会话在收到一份账时把它记入日志。这条记录只表示会话已经收到。账目随模型响应的流式增量或流的完成、或一次已完成工具执行的工具结果产生，由消费位置拥有者保管。Agent 的事件不带账目，会话按原调用向消费位置拥有者读取，见[事件来源与日志准入](../../../packages/session/session-contract/SPEC.md#事件来源与日志准入)。
 
 ```mermaid
 sequenceDiagram
   participant Model as 模型调用
-  participant Session as 会话
   participant Tool as 工具执行
-  Model->>Session: 流式增量或流完成
-  Session->>Session: 记下用量和费用
-  Tool->>Session: 工具结果
+  participant Owner as 消费位置拥有者
+  participant Session as 会话
+  Model->>Owner: 流式增量或流完成带出用量和费用
+  Tool->>Owner: 工具结果带出费用
+  Session->>Owner: 按原调用读取账目
+  Owner-->>Session: 账目
   Session->>Session: 记下这笔账
   Note over Session: 更后修订替换同一来源的已知金额，并标明迟到
 ```
@@ -79,12 +81,12 @@ sequenceDiagram
 
 工作治理向 Agent 交出当前工作及推进资格依据。Agent 拥有执行与执行挂接。Session 只保存执行引用，不保存 Agent 的接续值。Model 和 Tool 的调用、重试与中断都由 Agent 发起。Session 与 Model、Tool 只有三种关系：资格的参加（Model 受理点守卫的参加者，以资格参加者协议闭合为前提；Tool 启动围栏的资格版本拥有者）、消费侧的 ACK 与账目、恢复对账时的查询与内容读取。
 
-Runtime Context 注册的业务决定归会话，块内容归生产者。Runtime Context 的步提交由 Session 守卫并在会话日志里共同提交，见[会话契约的守卫条款](../../../packages/session/session-contract/SPEC.md#守卫条款)。会话历史由 Session 持有，请求组装经历史读口读取。需要共同成立的事实在一次权威提交里成立，见[共同提交与参加关系](../../architecture/runtime/session-and-run.md#共同提交与参加关系)。
+Runtime Context 注册的业务决定归会话，块内容归生产者。Runtime Context 的步提交由 Session 守卫，作为 Session 自己的一次提交写入会话日志，见[会话契约的守卫条款](../../../packages/session/session-contract/SPEC.md#守卫条款)。会话历史由 Session 持有，请求组装经历史读口读取。需要共同成立的事实在一次权威提交里成立，见[共同提交与参加关系](../../architecture/runtime/session-and-run.md#共同提交与参加关系)。
 
 ## 主路径与交接
 
 1. 入口验证输入和范围。受理流水线保存实际内容及承接依据。
-2. 按会话规则从队列承接工作，关联Run、当前执行尝试与消费位置。
+2. 按会话规则开始 Run 并逐条交入待处理输入。批界由 Agent 的承接决定，Session 读到承接事件后关联 Run、当前执行尝试与消费位置。
 3. Session 交出推进资格依据。Agent 打开执行时核对这份依据，按Loop求值并调用 Model 和 Tool。
 4. 可靠取得结果后继续原工作，分别记录逻辑终态和调用实际收场。
 
