@@ -606,6 +606,8 @@ Session 命令：
 
 前三个读操作的拒绝原因是 `denied`、`invalid`（游标错域、失效或被篡改，或 `pageBytes` 不合法）与 `unavailable`（不返回空页）。它们只读，没有未知，也没有认回。每页重新核权，授权扩大不扩大原游标，撤权后不继续披露（[SL10、SL11](#日志读取投影及恢复)）。空页不表示读完，`scannedThrough` 记录实际扫描位置。读路径归存储提供者。
 
+`begin` 的 `from` 不含本身：前向从 `from` 之后开始，反向从 `from` 之前开始；为 null 时前向从第一条开始，反向从固定上界处的最新一条开始。`since` 的 `after` 是读者已持有的最新条目，前向补读不用 `HistoryPage.upper`：`upper` 只说明这一轮遍历固定的读取上界。读者还没有持有任何条目时，以 `begin` 前向重新开始。
+
 `readModelView` 是历史持有者为 Request Context 实现的历史源读口（[历史源读口与 epoch 视图](../../context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)），session-adapters 把它翻译为 `HistorySource.read`。
 
 - epoch 视图是两次压缩之间的模型可见序列。每次 `commitDerived(compaction)` 在同一事务里开新 epoch，首行序列为保留名单、压缩记录、覆盖范围之后的行。行带序号、条目位置、字节数、前缀摘要与消息。

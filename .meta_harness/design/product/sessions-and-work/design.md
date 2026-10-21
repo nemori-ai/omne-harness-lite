@@ -190,7 +190,7 @@ flowchart TD
 
 新 Run 采用同一定义的最新合法发布版本。新版本校验失败时，原合法采用仍适用就用它开始并说明原因，否则不开始 Run，输入继续等待并说明原因。普通故障恢复保持原 Run 采用版本；原 Run 存在、未终结且具当前继续资格时，用户显式 reload 的候选通过校验并可安全交接后，原 Run 才采用同标识新版本并更换 attempt。用户看到的是版本更新，历史、原调用、卡片和待消费结果仍可接续。没有未终结 Run 时，通过校验的 reload 只更新会话当前采用，供下一个 Run 使用。候选无效时保留原合法采用，取消或归档先成立时不能靠 reload 重启工作。使用另一个定义须建立独立会话。精确规则见[创建](#建立一段可以持续协作的会话)与[版本采用](#定义版本可以更新定义身份不随之改变)。
 
-能力为 [CAP-SW01](#cap-sw01-会话创建与固定身份)、[CAP-SW02](#cap-sw02-同定义版本采用与执行实例交接)。协作见[流程 F-SW01](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sw01)，持续验证见[旅程验证 V-SW01](../../../../packages/session/session-contract/SPEC.md#v-sw01)。
+能力为 [CAP-SW01](#cap-sw01-会话创建与固定身份)、[CAP-SW02](#cap-sw02-同定义版本采用与执行实例交接)。协作见[流程 F-SW01](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sc09-推进映射与换代)，持续验证见[旅程验证 V-SW01](../../../../packages/session/session-contract/SPEC.md#v-sw01)。
 
 <a id="j-sw02"></a>
 
@@ -200,7 +200,7 @@ flowchart TD
 
 系统可靠保存输入及去处后才确认受理。普通消息按顺序等待，卡片答复回原卡片，控制交控制处理方，系统业务输入交原业务。用户可区分已受理、待处理、某 Run 已承接和工作完成。每轮承接当时全部合格普通输入，搬运分块不产生新批界。回执丢失时沿原标识查询或重试，结果未知仍保留原输入及提交依据；不能换标识重发来猜结果。同文的新发送仍是新输入。受理后通知丢失，由系统接续责任恢复；归档竞争只能明确拒绝或先受理后取消资格。规则见[受理与分流](#提交输入后知道系统是否已经接下工作)。
 
-能力为 [CAP-SW04](#cap-sw04-输入可靠受理与提交认回)、[CAP-SW05](#cap-sw05-输入分流与完整批次承接)、[CAP-SW06](#cap-sw06-受理前提醒与命令衔接)。协作见[流程 F-SW02](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sw02)，持续验证见[旅程验证 V-SW02](../../../../packages/session/session-contract/SPEC.md#v-sw02)。
+能力为 [CAP-SW04](#cap-sw04-输入可靠受理与提交认回)、[CAP-SW05](#cap-sw05-输入分流与完整批次承接)、[CAP-SW06](#cap-sw06-受理前提醒与命令衔接)。协作见[流程 F-SW02](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sc01-打开执行与交入输入)，持续验证见[旅程验证 V-SW02](../../../../packages/session/session-contract/SPEC.md#v-sw02)。
 
 <a id="j-sw03"></a>
 
@@ -212,7 +212,7 @@ Agent 推进可并行调用独立模型或工具，等待期间 Run 仍未终结
 
 只有原工作及适用完成检查成立才报告完成；失败或取消沿原依据形成唯一终态。模型流结束、队列暂空和实例退出均不能替代该判断。原 Run 终态后，仍有投递资格的后台结果作为新输入受理，没有未终结 Run 时自动开始后继工作，保留原关联。被归档或单独取消原调用撤销的投递资格不能恢复。规则见[一次工作](#一次工作可以等待恢复和并行调用)与[故障接续](#故障后接续原工作并保留真实结果与成本)。
 
-能力为 [CAP-SW07](#cap-sw07-run-与-attempt-的单活跃治理)、[CAP-SW08](#cap-sw08-原等待与人工答复接续)、[CAP-SW09](#cap-sw09-完成检查与不可反转终态)、[CAP-SW15](#cap-sw15-故障恢复与可靠结果消费)。协作见[流程 F-SW03](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sw03)，持续验证见[旅程验证 V-SW03](../../../../packages/session/session-contract/SPEC.md#v-sw03)。
+能力为 [CAP-SW07](#cap-sw07-run-与-attempt-的单活跃治理)、[CAP-SW08](#cap-sw08-原等待与人工答复接续)、[CAP-SW09](#cap-sw09-完成检查与不可反转终态)、[CAP-SW15](#cap-sw15-故障恢复与可靠结果消费)。协作见[流程 F-SW03](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sc05-处理完成的共同提交)，持续验证见[旅程验证 V-SW03](../../../../packages/session/session-contract/SPEC.md#v-sw03)。
 
 <a id="j-sw04"></a>
 
@@ -222,7 +222,7 @@ Agent 推进可并行调用独立模型或工具，等待期间 Run 仍未终结
 
 明确不回答计为原卡片已处理但不授予批准。扩展发起的同批卡片分别处理，全部处理后 Agent 才回原扩展位置继续，不能提前执行已获准部分。工具内部 Ask 的答复则回到工具自身的原等待，由工具继续执行，不改送 Agent 扩展位置；该路径见[工具内部人工等待](../../../../packages/tool/tool-contract/docs/flows.md#tl-f04)。授权含义由授权拥有者解释，信息答复不自动成为许可。时间经过或进程释放不自动替人决定，恢复认回各自原卡片及原等待。插队、取消或归档可以改变原等待资格，迟到答复仍保持真实来源，不能复活原工作。规则见[人工答复与等待](#一次工作可以等待恢复和并行调用)及[分流](#提交输入后知道系统是否已经接下工作)。
 
-能力为 [CAP-SW05](#cap-sw05-输入分流与完整批次承接)、[CAP-SW08](#cap-sw08-原等待与人工答复接续)、[CAP-SW15](#cap-sw15-故障恢复与可靠结果消费)。协作见[流程 F-SW04](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sw04)，持续验证见[旅程验证 V-SW04](../../../../packages/session/session-contract/SPEC.md#v-sw04)。
+能力为 [CAP-SW05](#cap-sw05-输入分流与完整批次承接)、[CAP-SW08](#cap-sw08-原等待与人工答复接续)、[CAP-SW15](#cap-sw15-故障恢复与可靠结果消费)。协作见[流程 F-SW04](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sc07-从-agent-事件派生事实)，持续验证见[旅程验证 V-SW04](../../../../packages/session/session-contract/SPEC.md#v-sw04)。
 
 <a id="j-sw05"></a>
 
@@ -232,7 +232,7 @@ Agent 推进可并行调用独立模型或工具，等待期间 Run 仍未终结
 
 用户也可选择合法模型路由名，Agent 只能代办明确合法指令。选择可靠保存后立即可查，缺凭据的合法目标须说明暂时不可调用。已固定请求保持原模型与输入，下一尚未固定请求才重新组装并使用新选择。切换不新建 Run 或 attempt。非法目标保留旧选择，保存未知沿原操作认回；下一请求压缩后仍不能满足条件时按原工作失败，已保存选择和历史不回滚，也不暗换模型。规则见[三轴模式](#按协作需要调整三个独立模式)与[模型选择](#按协作需要选择和切换模型)。
 
-能力为 [CAP-SW10](#cap-sw10-三轴模式与会话设置)、[CAP-SW17](#cap-sw17-会话模型选择与切换)。协作见[流程 F-SW05](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sw05)，持续验证见[旅程验证 V-SW05](../../../../packages/session/session-contract/SPEC.md#v-sw05)。
+能力为 [CAP-SW10](#cap-sw10-三轴模式与会话设置)、[CAP-SW17](#cap-sw17-会话模型选择与切换)。协作见[流程 F-SW05](../../../../packages/session/session-contract/SPEC.md#会话块声明与设置值的固定时点)，持续验证见[旅程验证 V-SW05](../../../../packages/session/session-contract/SPEC.md#v-sw05)。
 
 <a id="j-sw06"></a>
 
@@ -242,7 +242,7 @@ Agent 推进可并行调用独立模型或工具，等待期间 Run 仍未终结
 
 用户单独控制某个调用时，其兄弟调用和 Run 不自动取消。取消整个 Run 时，系统在同一次提交里保存取消意图与被取消终态，取消由此生效并撤销新推进资格，系统再向该 Run 模型及前台工具传播。Run 已有终态时取消不生效，用户看到已经成立的终态。优雅取消给相关执行收尾机会，强制停止把停止请求催得更急。两者都不改变取消生效的时点。未确认的停止或效果仍显示未知。后台工具、子会话及无关 Run 外调用不自动跟随。控制重试认回原事实，恢复继续未结控制，不能重做加急输入、外部效果或生成第二终态。规则见[插队与取消](#插队取消工作和归档有不同影响范围)。
 
-能力为 [CAP-SW09](#cap-sw09-完成检查与不可反转终态)、[CAP-SW11](#cap-sw11-插队及按目标控制)。协作见[流程 F-SW06](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sw06)，持续验证见[旅程验证 V-SW06](../../../../packages/session/session-contract/SPEC.md#v-sw06)。
+能力为 [CAP-SW09](#cap-sw09-完成检查与不可反转终态)、[CAP-SW11](#cap-sw11-插队及按目标控制)。协作见[流程 F-SW06](../../../../packages/session/docs/key-flows.md#f-se03-控制传播)，持续验证见[旅程验证 V-SW06](../../../../packages/session/session-contract/SPEC.md#v-sw06)。
 
 <a id="j-sw07"></a>
 
@@ -254,7 +254,7 @@ Agent 推进可并行调用独立模型或工具，等待期间 Run 仍未终结
 
 用户撤销归档后，本会话回休眠并从撤销时刻重新计空闲。用户须显式提交新任务才能开始新工作，旧 Run、卡片、等待、取消输入和子会话均不自动恢复。历史及授权流水保留，单次许可仍按原范围和失效条件判断。会话没有删除业务入口。规则见[归档](#插队取消工作和归档有不同影响范围)与[主子关系](#管理主子关系和自动归档)。
 
-能力为 [CAP-SW12](#cap-sw12-会话归档与撤销归档)、[CAP-SW13](#cap-sw13-主子关系及独立治理)。协作见[流程 F-SW07](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sw07)，持续验证见[旅程验证 V-SW07](../../../../packages/session/session-contract/SPEC.md#v-sw07)。
+能力为 [CAP-SW12](#cap-sw12-会话归档与撤销归档)、[CAP-SW13](#cap-sw13-主子关系及独立治理)。协作见[流程 F-SW07](../../../../packages/session/docs/key-flows.md#f-se04-归档级联与作用域释放)，持续验证见[旅程验证 V-SW07](../../../../packages/session/session-contract/SPEC.md#v-sw07)。
 
 <a id="j-sw08"></a>
 
@@ -266,7 +266,7 @@ Agent 推进可并行调用独立模型或工具，等待期间 Run 仍未终结
 
 普通重启、关闭开关、成员失效和常驻不清零已经成立的连续空闲。新工作使连续空闲重新计时，查看历史不重置；撤销归档从撤销时刻计时。恢复只能采用可确认区间，未知时间不能补造为空闲。系统使用自己的限定资格，不冒用已失效成员身份。规则见[自动归档](#管理主子关系和自动归档)。
 
-能力为 [CAP-SW13](#cap-sw13-主子关系及独立治理)、[CAP-SW14](#cap-sw14-自动归档与主会话常驻)。协作见[流程 F-SW08](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sw08)，持续验证见[旅程验证 V-SW08](../../../../packages/session/session-contract/SPEC.md#v-sw08)。
+能力为 [CAP-SW13](#cap-sw13-主子关系及独立治理)、[CAP-SW14](#cap-sw14-自动归档与主会话常驻)。协作见[流程 F-SW08](../../../../packages/session/session-contract/SPEC.md#自动归档与模式变化)，持续验证见[旅程验证 V-SW08](../../../../packages/session/session-contract/SPEC.md#v-sw08)。
 
 <a id="j-sw09"></a>
 
@@ -278,7 +278,7 @@ Agent 推进可并行调用独立模型或工具，等待期间 Run 仍未终结
 
 租户查看自己的费用，组织管理员查看本组织账目，账目资格不自动开放正文、附件或凭据。调用成本保持原身份及实际存在的 Run、attempt 关联，Run 外调用不补造工作。迟到结算与未知效果可继续追踪，未知费用不当零，重连、恢复和重复通知不重复计费。规则见[协作历史](#在协作历史中看清发生过什么)与[结果与成本](#故障后接续原工作并保留真实结果与成本)。
 
-能力为 [CAP-SW03](#cap-sw03-会话日志与不可变历史)、[CAP-SW15](#cap-sw15-故障恢复与可靠结果消费)、[CAP-SW16](#cap-sw16-原工作追溯与成本可见)。协作见[流程 F-SW09](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sw09)，持续验证见[旅程验证 V-SW09](../../../../packages/session/session-contract/SPEC.md#v-sw09)。
+能力为 [CAP-SW03](#cap-sw03-会话日志与不可变历史)、[CAP-SW15](#cap-sw15-故障恢复与可靠结果消费)、[CAP-SW16](#cap-sw16-原工作追溯与成本可见)。协作见[流程 F-SW09](../../../../packages/session/session-contract/docs/flows/scenarios.md#f-sc11-时间线投影与在途收敛)，持续验证见[旅程验证 V-SW09](../../../../packages/session/session-contract/SPEC.md#v-sw09)。
 
 ## 能力定义与实现状态记录表
 
