@@ -62,20 +62,22 @@ flowchart TD
 
 #### Recovery routing
 
-E1 consumes the access decision of this entry once (J1). It does not call `check` again.
-An allowed entry checks the terminal state, the attachment and then the revision.
+The public guard checks access once before acceptance (J1).
+Denied or unavailable qualification returns failure without writes and does not enter the coordinator.
+E1 reads the terminal state, attachment and revision of an already accepted operation.
 A terminal execution goes to F4. A replaced attachment goes to E9.
-An active execution with a newer revision still uses `found-existing`.
-Denied stops without a write. Unavailable qualification or snapshot reading goes to W0.
-The public invoke guard rejects unavailable qualification before `open`.
-The E1 unavailable branch therefore has an internal coordinator test only.
-A wakeup or resume driver must provide a fresh decision for each entry.
+A newer revision uses `found-existing`, unless this coordinator has its own unknown commit to reconcile.
+An unavailable internal snapshot read goes to W0 under the original Authority and expected revision.
+A wakeup of the same execution does not create a new public operation.
+A later public `resume` must perform its own access check when that operation is delivered.
 
 E2 loads one atomic snapshot. It queries each unresolved operation with its original identity.
 It reads inputs at that snapshot's watermark and all reply admission pages through the fixed range.
 It builds `LoopFacts` without changing the revision.
 Unavailable reads or a projection gap go to W0. They do not produce empty facts.
 Pending calls become unresolved producer views.
+If the latest snapshot is terminal or its attachment is replaced, business fact reads stop.
+E4 gives F4 or E9 priority over business continuation, including after an R0 reload.
 E1 and E2 do not interpret controls or query public Model or Tool status (J4, stage 5).
 
 E4 has two pure decisions (J5). The coordinator routes recovery from the checkpoint, execution state and unresolved operations.
@@ -87,8 +89,11 @@ The X graph belongs to stage 3. The C graph and compaction calls belong to stage
 These routes do not implement public `resume`, attachment recovery or restoration of transient handler frames (stage 5).
 
 R0 queries the original operation slot. Unknown saves a dependency wait.
-A reliable committed or excluded result reloads the snapshot and returns through E4.
-R0 uses snapshot recovery. It does not process node-specific receipts directly.
+A committed result reloads the saved successor, preserving request admission and result consumption stages.
+An excluded result re-evaluates the original node in the same coordinator.
+The local record holds only the unknown operation and its original node. Journal query decides its outcome.
+M3 reuses the processed result of that same call. I3 retains admission until its commit is known to hold.
+These local facts support re-entry into the same coordinator. They do not survive process exit.
 
 W0 commits waiting state and one waiting event together (J2).
 It preserves the checkpoint position and returns from coordination.
@@ -175,7 +180,7 @@ These choices describe phase 1 readings and mechanisms not delivered. The node t
 - An execution opened without any later revision can still run under its original Authority in a new runtime. Two live runtimes can therefore drive it. Fencing with `attach` is not delivered.
 - In free, reserved and running slots, phase 1 does not recognize the same operation naming another execution as the same admission. A free slot can admit a second execution. A held slot follows normal routing and usually returns busy. Detecting this reuse requires an index across executions. The Journal provider owns that index. Phase 1 does not provide it.
 - I1 retains the skeleton path from assembled or ready to P0. The default double returns assembled first. It returns ready only with previous at P1 (#558 S-11).
-- M0 inherits the ready `requestPreparation`, which holds the final request (#558 M04-2). E1 consumes the access decision of this entry. The loop judgment, a trusted system extension, does not run at M4 (stages 3 and 7).
+- M0 inherits the ready `requestPreparation`, which holds the final request (#558 M04-2). The loop judgment, a trusted system extension, does not run at M4 (stages 3 and 7).
 
 The memory Journal uses these temporary choices for three open facts. The source comments, the test names and this table mark each one as 「临时做法，待 #558 裁定」 (temporary, waiting for the #558 decision). They change in the same wave as the decision.
 

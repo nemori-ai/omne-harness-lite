@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import { succeed } from '@omne-harness/operation-result'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
-import { acceptedInput, evidence, execution, failure, ok, operation } from './journal-support.ts'
+import { acceptedInput, execution, failure, ok, operation } from './journal-support.ts'
 import { options } from './factory-support.ts'
 import { alice, eventually, eventsOf, invoke, loopAssembly, shown } from './loop-support.ts'
 
@@ -38,9 +38,7 @@ describe('the coordinator result of an admission already advanced in the Journal
       },
     })
     ok(await coordinator.accept())
-    expect(
-      await coordinator.runExecution({ kind: 'allowed', evidence: evidence('access') }),
-    ).toEqual(succeed(undefined))
+    expect(await coordinator.runExecution()).toEqual(succeed(undefined))
     expect(idle).toBe(1)
     expect(commits).toBe(committed)
   })
@@ -66,9 +64,7 @@ describe('the coordinator result when a node throws', () => {
       idle: () => {},
     })
     ok(await coordinator.accept())
-    expect(
-      failure(await coordinator.runExecution({ kind: 'allowed', evidence: evidence('access') })),
-    ).toMatchObject({
+    expect(failure(await coordinator.runExecution())).toMatchObject({
       node: 'E4',
       failure: { kind: 'unavailable', owner: '@omne-harness/agent#defect' },
     })

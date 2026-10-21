@@ -14,7 +14,7 @@
 - `canonical.spec.ts` 直接调用 `src/canonical.ts` 的纯函数，核对其注释承诺的输入等价性。
 - `loop-coordinator.spec.ts` 直接调用协调者，核对 E1 `found-existing` 返回成功，以及节点抛错时返回的停止节点与 failure 种类。公开观察没有停止原因，不能区分这些协调结果。此测试只读返回值，不读私有状态。
 
-- `loop-recovery.spec.ts` 直接导入协调者及其纯路由。它核对 E1 资格结论、E2 只读认回、E4 的快照路由、R0 原操作与 W0 保存等待。公开 invoke 在 open 前拦下资格不可用，因此该 E1 分支只能使用内部入口。主调用用例在同一协调者的 M1 停止后再入，核对 M5 回 I3 且不再次 admit。它不模拟进程退出，也不证明公开 resume 或进程内状态的耐久恢复。
+- `loop-recovery.spec.ts` 直接导入协调者及其纯路由。它核对 E1/E2 只读认回、E4 路由、R0 原操作与 W0 保存等待。公开资格失败由 `provider-access.spec.ts` 的真实守卫测试验证，协调者不接收人为注入的准入结果。主调用用例在同一协调者停止后再入，不模拟进程退出，不证明公开 resume 或跨进程恢复。
 
 ## 测试范围
 
@@ -35,7 +35,7 @@
 - 同文件核对 busy 与路由。预约中、运行中、已停止、open 未定各有 busy 用例。只有操作与 execution 都匹配 R0 待查项才进入重试查询。查询进行中，预约仍挡住另一 invoke。Journal 查询的 denied 读作 busy，unavailable 原样返回，unknown 返回本次操作的 commit-unknown。
 - 同文件核对 C2：Q2 accept 回执未知时，invoke 返回原操作的 commit-unknown，新受理释放槽。同一操作以同一候选再次调用 accept 即查询，并取得原结果。此测试核对两次 accept 的操作身份与候选相同。
 - 同文件核对 E0 的 R0 路径。pending、applied、dropped 故障配合 settle，覆盖 unknown、committed、excluded 三种查询结果。committed 后重试在 open 前失败保留预约，excluded 后同样的失败释放预约。查询失败原样返回并保留 R0 待查项。
-- `loop-recovery.spec.ts` 的用例名以节点验收表行号开头。表驱动用例核对阶段 1 的已存 position、输入批、assembled/ready 准备、主调用、settling 与未建成节点。E1/E2 不推进修订号。不可用读取与准入投影 gap 保存等待。R0 对 unknown、committed、excluded 均保留原操作身份。W0 的状态与事件一次提交，失败保持为失败。
+- `loop-recovery.spec.ts` 的用例名以节点验收表行号开头。表驱动用例核对阶段 1 的已存 position、输入批、assembled/ready 准备、主调用、settling 与未建成节点。E1/E2 不推进修订号。不可用读取与准入投影 gap 保存等待。R0 对 unknown、committed、excluded 均保留原操作身份。11 个真实提交切点分别在再入前或 R0 查询时 settle 为 committed/excluded，核对受理、读取、处理、ACK 与 producer 事件的次数，以及回复准入事实。E1/E2 之间真实 detach 后不再次连接 Model，本地协调回 idle。E2 读取终态时不再读取业务输入，终态路由优先于未定业务操作。W0 的状态与事件一次提交，失败保持为失败。
 - `canonical.spec.ts` 核对对象键顺序与缺席成员不改变输入。它保留 null、数组顺序与元素边界。字节视图只使用其偏移与长度范围内的字节。
 - `loop-port-failures.spec.ts` 记录 #502 1.2 只走正常路径这一限制：对路径上每个调用端口的节点注入一次端口的 `unavailable`。E1/E2 保存等待，其余节点停止，Journal 的 `position` 停在最后一次提交写下的节点并保持 20 轮，F3 之前 execution 不终结，`observe` 显示 occupied。停止的 `owner` 只保留在协调者内部（#558 S-14）。公开测试不核对停止原因。`open` 之前的端口失败（`adoptions.resolve`、Q2 `handoff.accept`、E0 `open`）是 `invoke` 的回答，并释放槽。
 - `loop-slot.spec.ts` 核对单执行槽：扩展拒绝在 `open` 之前释放槽；登记句柄的 `report` 抛出不影响 `invoke` 与回 idle；在 `invoke` 之前打开的观察先见 idle、再被唤醒见 occupied；E4 的 stop 与缺少转移行的结果都使运行停在 E4、未终结且仍占槽，后者走协调者的 `#defect` 路径；P1 再选择与第一次不一致时运行停在 P1（#502 1.2 的替代做法，1.5 补自环）。

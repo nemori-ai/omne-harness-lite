@@ -110,6 +110,10 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ['E2', 'wait', 'W0'],
       ...[
         'R0',
+        'I0',
+        'I8',
+        'Q2',
+        'Q4',
         'I1',
         'P0',
         'P1',

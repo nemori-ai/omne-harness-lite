@@ -17,7 +17,6 @@ import type {
   Access,
   AgentAccessOperation,
   AgentAccessTarget,
-  AgentAccessDecision,
   AgentExecutionHandle,
   AgentExecutionId,
   AgentInstanceId,
@@ -265,7 +264,6 @@ export function createProvider<P, B extends ContentBlock>(
   async function admit(
     input: InvokeInput<P>,
     back: Slot,
-    decision: AgentAccessDecision,
   ): Promise<Outcome<AgentExecutionHandle<P>, Failure>> {
     const { execution, operation } = input
     const release = () => occupy({ kind: 'free' })
@@ -313,7 +311,7 @@ export function createProvider<P, B extends ContentBlock>(
     const attachment = opened.ok.executionAttachment
     occupy({ kind: 'running', execution, attachment })
     // drive catches node failures and defects. A stopped run keeps its occupied slot.
-    void coordinator.runExecution(decision).catch(() => {
+    void coordinator.runExecution().catch(() => {
       // Node 24 ends the process on an unhandled rejection; discard it and keep the slot occupied.
     })
     return succeed(handleOf(execution))
@@ -327,7 +325,6 @@ export function createProvider<P, B extends ContentBlock>(
   async function retryUnresolved(
     input: InvokeInput<P>,
     held: Extract<Slot, { kind: 'reserved' }>,
-    decision: AgentAccessDecision,
   ): Promise<Outcome<AgentExecutionHandle<P>, Failure>> {
     occupy({ ...held, unresolved: null })
     const found = await dependencies.journal.query({
@@ -342,7 +339,7 @@ export function createProvider<P, B extends ContentBlock>(
         ? found
         : fail({ kind: 'commit-unknown', operation: input.operation })
     }
-    return admit(input, found.ok.kind === 'excluded' ? { kind: 'free' } : held, decision)
+    return admit(input, found.ok.kind === 'excluded' ? { kind: 'free' } : held)
   }
 
   /** A held slot cannot hide an earlier admission (SPEC 804 and mechanisms.md). */
@@ -410,12 +407,12 @@ export function createProvider<P, B extends ContentBlock>(
       slot.unresolved === input.operation &&
       slot.execution === input.execution
     )
-      return retryUnresolved(input, slot, passed.ok)
+      return retryUnresolved(input, slot)
     // SPEC 646: a new invoke while the slot is held answers busy; it is never queued.
     if (slot.kind !== 'free')
       return slot.execution === input.execution ? fail({ kind: 'busy' }) : findAccepted(input)
     occupy({ kind: 'reserved', execution: input.execution, unresolved: null })
-    return admit(input, { kind: 'free' }, passed.ok)
+    return admit(input, { kind: 'free' })
   }
 
   return {

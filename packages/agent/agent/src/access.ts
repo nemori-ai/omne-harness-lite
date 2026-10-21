@@ -1,7 +1,6 @@
 // The one guard in front of every public operation of the provider (SPEC "租户与作用域绑定" and
 // "主体资格核验"): the tenant of the Access against the binding first, then exactly one
-// access.check. Only allowed lets the operation run. The guard returns that operation's decision
-// for its first E1 entry. A later public operation checks again.
+// access.check. Only allowed lets the operation run. Each public operation checks independently.
 import type {
   Access,
   AgentAccessCheck,

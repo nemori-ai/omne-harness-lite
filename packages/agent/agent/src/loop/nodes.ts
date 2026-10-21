@@ -128,7 +128,7 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'U0', on: 'admitted', to: 'E0' },
   { from: 'E0', on: 'authority', to: 'E1' },
   { from: 'E1', on: 'allowed', to: 'E2' },
-  // Node table E1: terminal, superseded and unavailable qualification.
+  // Node table E1: terminal, superseded and unavailable internal reads.
   { from: 'E1', on: 'terminal', to: 'F4' },
   { from: 'E1', on: 'superseded', to: 'E9' },
   { from: 'E1', on: 'wait', to: 'W0' },
@@ -142,6 +142,11 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'E4', on: 'take-inputs', to: 'I0' },
   // Recovery mapping (J5): each internal label identifies the selected continuation.
   { from: 'E4', on: 'resume-R0', to: 'R0' },
+  // R0 excluded: the original node is retained by this coordinator's unknown commit.
+  { from: 'E4', on: 'resume-I0', to: 'I0' },
+  { from: 'E4', on: 'resume-I8', to: 'I8' },
+  { from: 'E4', on: 'resume-Q2', to: 'Q2' },
+  { from: 'E4', on: 'resume-Q4', to: 'Q4' },
   { from: 'E4', on: 'resume-I1', to: 'I1' },
   { from: 'E4', on: 'resume-P0', to: 'P0' },
   { from: 'E4', on: 'resume-P1', to: 'P1' },

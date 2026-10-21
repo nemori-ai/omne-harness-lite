@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type {
-  AgentAccessDecision,
   AgentCheckpoint,
+  Authority,
   ExecutionSnapshot,
   Failure,
 } from '@omne-harness/agent-contract'
@@ -37,7 +37,6 @@ import {
   type LoopAssembly,
 } from './loop-support.ts'
 
-const ALLOWED: AgentAccessDecision = { kind: 'allowed', evidence: evidence('access') }
 const STOP: Failure = { kind: 'invalid', field: 'test', reason: 'stop at the evaluator' }
 
 function coordinator(assembly: LoopAssembly, change: Partial<ExecutionEntry<Principal>> = {}) {
@@ -115,7 +114,7 @@ describe('E4 recovery routing', () => {
     assembly.release.open()
     const c = coordinator(assembly)
     ok(await c.accept())
-    ok(await c.runExecution(ALLOWED))
+    ok(await c.runExecution())
     const preparations = assembly.controls.requests.prepare.calls
     expect(preparations).toHaveLength(2)
     expect(preparationsSaved[0]?.requestPreparation?.kind).toBe('assembled')
@@ -200,55 +199,10 @@ describe('E1 and E2 read-only recognition', () => {
     })
     ok(await c.accept())
     const before = await load(assembly)
-    expect(failure(await c.runExecution(ALLOWED))).toEqual({ node: 'E4', failure: STOP })
+    expect(failure(await c.runExecution())).toEqual({ node: 'E4', failure: STOP })
     expect(evaluations).toBe(1)
     expect((await load(assembly)).revision).toBe(before.revision)
     expect(assembly.controls.access.check.calls).toHaveLength(0)
-  })
-
-  it('NA-E1-1: denied stops E1 without reading or writing state', async () => {
-    const assembly = await loopAssembly([execution()])
-    const c = coordinator(assembly)
-    ok(await c.accept())
-    const before = await load(assembly)
-    expect(failure(await c.runExecution({ kind: 'denied' }))).toMatchObject({
-      node: 'E1',
-      failure: { kind: 'denied' },
-    })
-    expect(await load(assembly)).toEqual(before)
-  })
-
-  it('NA-E1-2: unavailable saves waiting once and never enters E2', async () => {
-    let inputReads = 0
-    const assembly = await loopAssembly([execution()], d => ({
-      ...d,
-      journal: {
-        ...d.journal,
-        inputs: async input => {
-          inputReads += 1
-          return d.journal.inputs(input)
-        },
-      },
-    }))
-    const c = coordinator(assembly)
-    ok(await c.accept())
-    ok(await c.runExecution({ kind: 'unavailable', diagnostic: 'offline' }))
-    const saved = await load(assembly)
-    expect(saved.state).toMatchObject({
-      kind: 'waiting',
-      waits: [{ kind: 'dependency', owner: 'agentAccessCheck', position: 'E1' }],
-    })
-    expect(saved.checkpoint.position).toBe('E3')
-    expect(inputReads).toBe(0)
-    const page = ok(
-      await assembly.dependencies.journal.output.read({
-        ...alice,
-        execution: execution(),
-        after: null,
-        limit: 20,
-      }),
-    )
-    expect(page.kind === 'page' && page.events.map(e => e.body.kind)).toEqual(['waiting'])
   })
 
   it('NA-E1-3: ended goes to F4 without entering E2', async () => {
@@ -266,11 +220,11 @@ describe('E1 and E2 read-only recognition', () => {
     assembly.release.open()
     const first = coordinator(assembly)
     ok(await first.accept())
-    ok(await first.runExecution(ALLOWED))
+    ok(await first.runExecution())
     reads = 0
     const again = coordinator(assembly)
     ok(await again.accept())
-    ok(await again.runExecution(ALLOWED))
+    ok(await again.runExecution())
     expect(reads).toBe(0)
     expect((await load(assembly)).state.kind).toBe('ended')
   })
@@ -305,7 +259,7 @@ describe('E1 and E2 read-only recognition', () => {
           return read
         }
       } else assembly.controls.journal.failNextRead(method)
-      ok(await c.runExecution(ALLOWED))
+      ok(await c.runExecution())
       expect((await load(assembly)).state).toMatchObject({
         kind: 'waiting',
         waits: [{ kind: 'dependency', position: 'E2' }],
@@ -323,7 +277,7 @@ describe('E1 and E2 read-only recognition', () => {
     }))
     const c = coordinator(assembly)
     ok(await c.accept())
-    ok(await c.runExecution(ALLOWED))
+    ok(await c.runExecution())
     expect((await load(assembly)).state.kind).toBe('waiting')
   })
 })
@@ -371,7 +325,7 @@ describe('R0 and W0 coordination', () => {
           ),
         ),
       ).toMatchObject({ kind: 'commit-unknown' })
-      const ran = await c.runExecution(ALLOWED)
+      const ran = await c.runExecution()
       expect(queried).toEqual([pending, pending])
       if (outcome === 'unknown') {
         ok(ran)
@@ -412,10 +366,10 @@ describe('R0 and W0 coordination', () => {
     }))
     const c = coordinator(assembly)
     ok(await c.accept())
-    expect(failure(await c.runExecution(ALLOWED)).node).toBe('M1')
+    expect(failure(await c.runExecution()).node).toBe('M1')
     const call = (await load(assembly)).checkpoint.calls[0]
     assembly.release.open()
-    ok(await c.runExecution(ALLOWED))
+    ok(await c.runExecution())
     expect(admits).toBe(1)
     expect(assembly.controls.handoff.accept.calls.at(-1)?.source).toMatchObject({
       kind: 'model-reply',
@@ -425,15 +379,262 @@ describe('R0 and W0 coordination', () => {
     expect((await load(assembly)).state.kind).toBe('ended')
   })
 
+  it.each(
+    ['I0', 'I2', 'M0', 'M1', 'M3', 'Q2', 'Q4', 'I3', 'I8', 'F1', 'F2'].flatMap(target =>
+      (['applied', 'dropped'] as const).flatMap(outcome =>
+        (['at-R0', 'before-reentry'] as const).map(when => [target, outcome, when] as const),
+      ),
+    ),
+  )(
+    'NA-E4-3: %s %s %s resumes its successor or original frame without consuming twice',
+    async (target, outcome, when) => {
+      let original: ReturnType<typeof operation> | null = null
+      let queries = 0
+      let admits = 0
+      let connects = 0
+      let reads = 0
+      let acknowledgements = 0
+      let processed = 0
+      let admittedCall: string | null = null
+      let acknowledgedResult: string | null = null
+      const writes: string[] = []
+      const assembly = await loopAssembly([execution()], d => ({
+        ...d,
+        journal: {
+          ...d.journal,
+          commit: input => {
+            writes.push(input.operation)
+            if (original === null && input.operation.startsWith(`${target}/commit@`)) {
+              original = input.operation
+              assembly.controls.journal.failNext('commit', {
+                kind: 'commit-unknown',
+                outcome: 'pending',
+              })
+            }
+            return d.journal.commit(input)
+          },
+          recordResult: input => {
+            if (input.transfer.kind === 'processed') processed += 1
+            return d.journal.recordResult(input)
+          },
+          query: input => {
+            queries += 1
+            if (queries === 2 && original !== null && when === 'at-R0')
+              expect(assembly.controls.journal.settle(execution(), original, outcome)).toBe(true)
+            return d.journal.query(input)
+          },
+        },
+        models: {
+          ...d.models,
+          calls: {
+            ...d.models.calls,
+            admit: input => {
+              admits += 1
+              admittedCall = input.call
+              return d.models.calls.admit(input)
+            },
+          },
+          instances: {
+            ...d.models.instances,
+            connect: input => {
+              connects += 1
+              return d.models.instances.connect(input)
+            },
+          },
+          consumption: {
+            ...d.models.consumption,
+            acknowledge: input => {
+              acknowledgements += 1
+              acknowledgedResult = input.result
+              return d.models.consumption.acknowledge(input)
+            },
+            beginRead: input => {
+              reads += 1
+              return d.models.consumption.beginRead(input)
+            },
+          },
+        },
+      }))
+      assembly.release.open()
+      const c = coordinator(assembly)
+      ok(await c.accept())
+      expect(failure(await c.runExecution()), outcome).toMatchObject({
+        node: target,
+        failure: { kind: 'commit-unknown' },
+      })
+      if (when === 'before-reentry' && original !== null)
+        expect(assembly.controls.journal.settle(execution(), original, outcome)).toBe(true)
+      ok(await c.runExecution())
+      expect(original).not.toBeNull()
+      expect(queries).toBe(2)
+      expect(admits).toBe(1)
+      expect(connects).toBe(target === 'M1' && outcome === 'dropped' ? 2 : 1)
+      expect(reads).toBe(1)
+      expect(acknowledgements).toBe(1)
+      expect(processed).toBe(1)
+      expect(assembly.controls.handoff.accept.calls).toHaveLength(
+        target === 'Q2' && outcome === 'dropped' ? 3 : 2,
+      )
+      const saved = await load(assembly)
+      expect(saved.state.kind).toBe('ended')
+      expect(saved.results[0]?.result.producer).toEqual({ kind: 'model', call: admittedCall })
+      expect(saved.results[0]?.result.version).toBe(acknowledgedResult)
+      const admissions = ok(
+        await assembly.dependencies.journal.readReplyAdmissions({
+          ...alice,
+          execution: execution(),
+          through: saved.replyAdmissions.through,
+          after: null,
+          limit: 100,
+        }),
+      )
+      expect(
+        admissions.kind === 'page' && admissions.items.map(item => item.fact.decision),
+      ).toEqual(['admitted'])
+      expect(writes.filter(value => value === original)).toHaveLength(outcome === 'applied' ? 1 : 2)
+      const page = ok(
+        await assembly.dependencies.journal.output.read({
+          ...alice,
+          execution: execution(),
+          after: null,
+          limit: 100,
+        }),
+      )
+      expect(page.kind === 'page' && page.events.map(event => event.body.kind)).toEqual([
+        'input-taken',
+        'producer',
+        'ended',
+      ])
+      expect(
+        page.kind === 'page' && page.events.find(event => event.body.kind === 'producer')?.body,
+      ).toMatchObject({
+        result: saved.results[0]?.result,
+        consumption: saved.results[0]?.consumption,
+      })
+    },
+  )
+
+  it('NA-E1-1: detach between E1 and E2 stops before another Model connection', async () => {
+    let connects = 0
+    let reentryLoads = 0
+    let resuming = false
+    let idle = 0
+    let authority: Authority | null = null
+    const assembly = await loopAssembly([execution()], d => ({
+      ...d,
+      journal: {
+        ...d.journal,
+        load: async input => {
+          if (resuming && ++reentryLoads === 2) {
+            if (authority === null) throw new Error('accept has not returned')
+            ok(
+              await d.journal.detach({
+                ...alice,
+                execution: execution(),
+                operation: operation('detach-between-E1-E2'),
+                authority,
+                reason: evidence('handoff'),
+              }),
+            )
+          }
+          return d.journal.load(input)
+        },
+      },
+      models: {
+        ...d.models,
+        instances: {
+          ...d.models.instances,
+          connect: input => {
+            connects += 1
+            return connects === 1
+              ? Promise.resolve(
+                  fail({ kind: 'unavailable' as const, dependency: 'test', diagnostic: 'pause' }),
+                )
+              : d.models.instances.connect(input)
+          },
+        },
+      },
+    }))
+    const c = coordinator(assembly, {
+      idle: () => {
+        idle += 1
+      },
+    })
+    authority = ok(await c.accept())
+    expect(failure(await c.runExecution()).node).toBe('M1')
+    const before = await load(assembly)
+    assembly.release.open()
+    resuming = true
+    ok(await c.runExecution())
+    resuming = false
+    expect(connects).toBe(1)
+    expect(idle).toBe(1)
+    const saved = await load(assembly)
+    expect(saved.executionAttachment).toBeNull()
+    expect(saved.state.kind).toBe('suspended')
+    expect(saved.checkpoint).toEqual(before.checkpoint)
+  })
+
+  it('NA-E1-3: a terminal E2 snapshot takes priority over unresolved business continuation', async () => {
+    let reentry = false
+    let loads = 0
+    let idle = 0
+    let inputReads = 0
+    let finish: Parameters<ExecutionEntry<Principal>['ports']['journal']['tryFinish']>[0] | null =
+      null
+    const assembly = await loopAssembly([execution()], d => ({
+      ...d,
+      journal: {
+        ...d.journal,
+        tryFinish: async input => {
+          finish = input
+          return fail({ kind: 'unavailable', owner: 'test', diagnostic: 'pause before terminal' })
+        },
+        load: async input => {
+          if (reentry && ++loads === 2) {
+            if (finish === null) throw new Error('no finish intent')
+            ok(await d.journal.tryFinish(finish))
+          }
+          return d.journal.load(input)
+        },
+        inputs: input => {
+          inputReads += 1
+          return d.journal.inputs(input)
+        },
+      },
+    }))
+    assembly.release.open()
+    const c = coordinator(assembly, {
+      idle: () => {
+        idle += 1
+      },
+    })
+    ok(await c.accept())
+    expect(failure(await c.runExecution()).node).toBe('F3')
+    const before = inputReads
+    reentry = true
+    ok(await c.runExecution())
+    reentry = false
+    expect(inputReads).toBe(before)
+    expect(idle).toBe(1)
+    const saved = await load(assembly)
+    expect(saved.state.kind).toBe('ended')
+    expect(ok(recoveryRoute({ ...saved, unresolved: [operation('old-business-commit')] }))).toBe(
+      'F4',
+    )
+  })
+
   it('NA-W0-1: a failed waiting commit stays a failure and saves no event', async () => {
     const assembly = await loopAssembly([execution()])
     const c = coordinator(assembly)
     ok(await c.accept())
     const before = await load(assembly)
+    assembly.controls.journal.failNextRead('load')
     assembly.controls.journal.failNext('commit', { kind: 'unavailable' })
-    expect(
-      failure(await c.runExecution({ kind: 'unavailable', diagnostic: 'offline' })),
-    ).toMatchObject({ node: 'W0', failure: { kind: 'unavailable' } })
+    expect(failure(await c.runExecution())).toMatchObject({
+      node: 'W0',
+      failure: { kind: 'unavailable' },
+    })
     expect(await load(assembly)).toEqual(before)
   })
 
@@ -474,7 +675,7 @@ describe('R0 and W0 coordination', () => {
     })
     ok(await c.accept())
     const before = await load(assembly)
-    expect(failure(await c.runExecution(ALLOWED))).toEqual({ node: 'E4', failure: STOP })
+    expect(failure(await c.runExecution())).toEqual({ node: 'E4', failure: STOP })
     expect((await load(assembly)).revision).toBe(before.revision)
     expect(queried).toEqual([operation('invoke-exec-1'), operation('invoke-exec-1')])
     expect(inputReads).toBe(2)
@@ -515,7 +716,7 @@ describe('saved waiting through invoke', () => {
     const c = coordinator(assembly)
     ok(await c.accept())
     assembly.controls.journal.failNextRead('load')
-    ok(await c.runExecution(ALLOWED))
+    ok(await c.runExecution())
     expect(await load(assembly)).toMatchObject({
       checkpoint: { position: 'E3' },
       state: { kind: 'waiting', waits: [{ kind: 'dependency', position: 'E1' }] },
@@ -541,7 +742,7 @@ describe('saved waiting through invoke', () => {
     })
     ok(await c.accept())
     const before = await load(assembly)
-    ok(await c.runExecution(ALLOWED))
+    ok(await c.runExecution())
     expect(idle).toBe(1)
     expect(await load(assembly)).toEqual(before)
   })
@@ -591,14 +792,14 @@ describe('checkpoint positions saved by the current assembly', () => {
       P0: 'P0',
       P1: 'P0',
       I2: 'P1',
-      M0: 'M1',
-      M6: 'M1',
+      M0: 'M0',
+      M6: 'M6',
       M1: 'M1',
-      M3: 'M1',
-      M4: 'M1',
-      M5: 'M1',
-      I3: 'M1',
-      Q4: 'M1',
+      M3: 'M3',
+      M4: 'M4',
+      M5: 'M5',
+      I3: 'I3',
+      Q4: 'Q4',
       I4: 'I4',
       I8: 'evaluate',
       F1: 'F1',
@@ -608,7 +809,7 @@ describe('checkpoint positions saved by the current assembly', () => {
     assembly.release.open()
     const c = coordinator(assembly)
     ok(await c.accept())
-    ok(await c.runExecution(ALLOWED))
+    ok(await c.runExecution())
     for (const snapshot of saved)
       expect(ok(recoveryRoute(snapshot)), snapshot.checkpoint.position).toBe(
         expected[snapshot.checkpoint.position],

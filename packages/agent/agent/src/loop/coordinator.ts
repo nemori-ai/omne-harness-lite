@@ -33,7 +33,6 @@ import type {
   AcceptedInput,
   Access,
   AgentCheckpoint,
-  AgentAccessDecision,
   AgentEvaluator,
   AgentEventBody,
   AgentExecutionId,
@@ -111,9 +110,9 @@ export interface ExecutionCoordinator {
   /** U0 to E0: the input is admitted and `open` accepts the execution. Resolves at E1. */
   accept(): Promise<Outcome<Authority, Halted>>
   /**
-   * After accept: run from E1 until idle, a saved wait or a failure. Consume this decision once.
+   * After a legally accepted operation: run from E1 until idle, a saved wait or a failure.
    */
-  runExecution(decision: AgentAccessDecision): Promise<Outcome<void, Halted>>
+  runExecution(): Promise<Outcome<void, Halted>>
 }
 
 type ReadyPreparation = Extract<Preparation, { kind: 'ready' }>
@@ -245,14 +244,14 @@ export function recoveryRoute(
     if (
       /^[ACTX]/u.test(node) ||
       !LOOP_NODES.includes(node as LoopNode) ||
-      ['E0', 'E1', 'E2', 'U0', 'Q1', 'Q2', 'Q4', 'R0', 'W0', 'F0', 'H0', 'M2', 'Q5'].includes(node)
+      ['E0', 'E1', 'E2', 'U0', 'Q1', 'R0', 'W0', 'F0', 'H0', 'M2', 'Q5'].includes(node)
     )
       return fail({ kind: 'unsupported', node, card })
     return succeed(node as LoopNode)
   }
-  // A lost receipt must be reconciled before any dependent continuation can run.
-  if (read.unresolved.length > 0) return succeed('R0')
   if (read.state.kind === 'ended') return succeed('F4')
+  // A lost receipt must be reconciled before any dependent business continuation can run.
+  if (read.unresolved.length > 0) return succeed('R0')
   if (read.state.kind === 'settling') return succeed(at.position === 'F3' ? 'F3' : 'F2')
   const passage = at.passages.find(item => item.progress.kind !== 'applied')
   if (passage !== undefined)
@@ -269,7 +268,13 @@ export function recoveryRoute(
   if (call !== undefined) {
     if (call.purpose === 'compaction')
       return fail({ kind: 'unsupported', node: 'M1', card: '#502 stage 4' })
-    return target(call.purpose === 'action' ? 'T0' : call.purpose === 'extension' ? 'X2' : 'M1')
+    if (call.purpose === 'action') return target('T0')
+    if (call.purpose === 'extension') return target('X2')
+    // A saved call survives request admission and result consumption. Its presence alone does
+    // not mean that observation at M1 is still pending.
+    if (['M0', 'M6', 'M1', 'M3', 'M4', 'M5', 'I3', 'Q2', 'Q4'].includes(at.position))
+      return target(at.position)
+    return target('M1')
   }
   // The input batch remains a consumption watermark after I3 closes the call. It does not rewind
   // a later node to request preparation. Position records that these earlier facets are consumed.
@@ -308,7 +313,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   let admission: Evidence | null = null
   let iteration: Iteration | null = null
   let intent: FinishIntent | null = null
-  let eligibility: AgentAccessDecision | null = null
+  // Only the identity and original node of this coordinator's uncertain conditional commit.
+  // Journal query remains the authority over whether that operation actually committed.
+  let pendingCommit: Readonly<{ operation: AgentOperationId; node: LoopNode }> | null = null
+  let excludedNode: LoopNode | null = null
   let waits: readonly Waiting[] = []
   const acknowledged: Acknowledged[] = []
 
@@ -330,7 +338,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       caller: { kind: 'none' },
       replyAdmission: write.replyAdmission ?? null,
     })
-    if ('failure' in committed) return committed
+    if ('failure' in committed) {
+      if (committed.failure.kind === 'commit-unknown')
+        pendingCommit = { operation: committed.failure.operation, node }
+      return committed
+    }
     revision = committed.ok.revision
     checkpoint = next
     state = nextState
@@ -558,28 +570,18 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       return step('authority', null)
     },
     /**
-     * E1 consumes the decision of this entry once, then reads the state and attachment. A
-     * revision that is not the last one this coordinator knows means that the Journal moved the
-     * execution on without it: `open` gave back the receipt of an execution that already ran, for
-     * example after a restart. This coordinator does not drive it; that is recovery (stage 5).
+     * E1 reads the state and attachment of an already accepted operation. A revision that is
+     * not the last one this coordinator knows means that another driver moved the execution on,
+     * unless this coordinator still has its own unknown commit to reconcile.
      */
     async E1() {
-      const decision = required(eligibility, 'this entry access decision')
-      eligibility = null
-      if (decision.kind === 'denied') return fail({ kind: 'denied', action: 'invoke' })
-      if (decision.kind === 'unavailable')
-        return waitFor('E1', {
-          kind: 'unavailable',
-          owner: 'agentAccessCheck',
-          diagnostic: decision.diagnostic,
-        })
       const read = await load()
       if ('failure' in read)
         return read.failure.kind === 'unavailable' ? waitFor('E1', read.failure) : read
       const advancement = advancementOf(read.ok)
       if (advancement.kind === 'ended') return step('terminal', null)
       if (advancement.kind === 'superseded') return step('superseded', null)
-      if (read.ok.revision !== revision) {
+      if (read.ok.revision !== revision && pendingCommit === null) {
         entry.idle()
         return step('found-existing', null)
       }
@@ -598,7 +600,14 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       checkpoint = loaded.ok.checkpoint
       revision = loaded.ok.revision
       if (loaded.ok.state.kind !== 'ended') state = loaded.ok.state
-      const read = await readFacts(loaded.ok)
+      // Do not read business facts under an attachment the latest snapshot has already revoked.
+      if (advancementOf(loaded.ok).kind !== 'current') return step('reconciled', null)
+      const unresolved = loaded.ok.unresolved
+      snapshot =
+        pendingCommit === null || unresolved.includes(pendingCommit.operation)
+          ? loaded.ok
+          : { ...loaded.ok, unresolved: [...unresolved, pendingCommit.operation] }
+      const read = await readFacts(snapshot)
       if ('failure' in read)
         return read.failure.kind === 'unavailable' ? waitFor('E2', read.failure) : read
       facts = read.ok
@@ -607,7 +616,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     /** E4: J5 routes snapshot continuations before delegating an input or iteration decision. */
     async E4() {
       const current = required(checkpoint, 'checkpoint')
-      const route = recoveryRoute({ ...required(snapshot, 'snapshot'), checkpoint: current })
+      const latest = required(snapshot, 'snapshot')
+      const advancement = advancementOf(latest)
+      if (advancement.kind === 'ended') return step('resume-F4', null)
+      if (advancement.kind === 'superseded') return step('resume-E9', null)
+      const route =
+        excludedNode === null
+          ? recoveryRoute({ ...latest, checkpoint: current })
+          : succeed(excludedNode)
+      excludedNode = null
       if ('failure' in route) return route
       const to = route.ok
       if (to === 'evaluate')
@@ -650,13 +667,17 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if ('failure' in saved) return saved
       return step('saved-wait', null)
     },
-    /** Stage 1 R0: unknown waits; reliable answers reload the original continuation through E4. */
+    /** R0: committed follows the saved successor; excluded re-evaluates the original local node. */
     async R0() {
       const before = required(snapshot, 'snapshot')
       for (const operation of before.unresolved) {
         const queried = await ports.journal.query({ ...access, execution, operation })
         if ('failure' in queried)
           return queried.failure.kind === 'unavailable' ? waitFor('R0', queried.failure) : queried
+        if (queried.ok.kind !== 'unknown' && pendingCommit?.operation === operation) {
+          excludedNode = queried.ok.kind === 'excluded' ? pendingCommit.node : null
+          pendingCommit = null
+        }
         if (queried.ok.kind === 'unknown') {
           waits = [
             { kind: 'dependency', owner: 'agentJournal', position: before.checkpoint.position },
@@ -676,6 +697,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       checkpoint = snapshot.checkpoint
       revision = snapshot.revision
       if (snapshot.state.kind !== 'ended') state = snapshot.state
+      if (advancementOf(snapshot).kind !== 'current') return step('reconciled', null)
       const read = await readFacts(snapshot)
       if ('failure' in read)
         return read.failure.kind === 'unavailable' ? waitFor('R0', read.failure) : read
@@ -739,12 +761,14 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         }
         return step('admit', null)
       }
-      admission = null
-      candidate = null
+      // Keep the admitted reply until this conditional commit is known to hold. An excluded
+      // I3 commit must re-evaluate the same admission rather than admit the reply a second time.
       return step('admitted', { checkpoint: { calls: [] } })
     },
     /** I4: the tool call parts of the admitted reply. Actions are #502 stage 2. */
     async I4() {
+      admission = null
+      candidate = null
       const reply = required(required(iteration, 'iteration').reply, 'reply')
       if (reply.blocks.some(block => block.kind === 'tool_call'))
         return fail(notYet('I4', 'a reply with tool calls', '#502 stage 2'))
@@ -940,6 +964,14 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async M3() {
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
+      // The same iteration retains its original PendingCall and processed result. A failed
+      // checkpoint commit does not reopen that call's already acknowledged result read.
+      if (current.produced !== null && current.reply !== null)
+        return step('kept', {
+          events: [
+            { kind: 'producer', result: current.produced, consumption: current.consumption },
+          ],
+        })
       const settlement = required(current.settlement, 'settlement')
       const { termination } = settlement
       if (termination.kind !== 'completed' || termination.reason !== 'stop')
@@ -1135,8 +1167,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if ('failure' in ran) return ran
       return succeed(required(authority, 'authority'))
     },
-    async runExecution(decision) {
-      eligibility = decision
+    async runExecution() {
       const ran = await drive('E1', null)
       if ('failure' in ran) return ran
       return succeed(undefined)
