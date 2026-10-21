@@ -39,8 +39,7 @@ const NORMAL_PATH: readonly Row[] = [
   ['E3', 'passed', 'E4', '如何返回', '效果采纳或单独提交后转 E4'],
   ['E4', 'take-inputs', 'I0', '如何返回', '新 iter 或原输入边界转 I0'],
   ['I0', 'taken', 'I1', '如何返回', '转 I1'],
-  // 如何返回 names assembled; a ready answer of prepare also goes to P0, as the pseudocode
-  // prepareRequest calls P0 after every prepare that needs no compaction. Reading of #510.
+  // #558 S-11: the first prepare returns assembled. P1's review produces ready.
   ['I1', 'prepared', 'P0', '如何返回', 'assembled 转 P0'],
   ['P0', 'proceed', 'P1', '如何返回', 'proceed 转 P1'],
   ['P1', 'ready', 'I2', '如何返回', 'ready 且再选择一致转 I2'],
@@ -108,6 +107,8 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ['E1', 'superseded', 'E9'],
       ['E1', 'wait', 'W0'],
       ['E2', 'wait', 'W0'],
+      ['I1', 'wait', 'W0'],
+      ['I1', 'try-finish', 'F1'],
       ...[
         'R0',
         'I0',
@@ -144,6 +145,13 @@ describe('C1 the transition table follows the node table on the normal path', ()
   it('has one successor per node and outcome', () => {
     const keys = TRANSITIONS.map(row => `${row.from} ${row.on}`)
     expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  it('I1 waits on unavailable reads and takes a real cannot-fit to F1', () => {
+    expect(successor('I1', 'wait')).toBe('W0')
+    expect(cell('I1', '何时等待')).toContain('读取端口不可用时转 W0')
+    expect(successor('I1', 'try-finish')).toBe('F1')
+    expect(cell('I1', '如何返回')).toContain('cannot-fit 或已进入计划后再次 needs-compaction 转 F1')
   })
 
   it('an outcome without a row has no successor, so the coordinator stops on it', () => {

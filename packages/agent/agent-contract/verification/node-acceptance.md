@@ -34,11 +34,11 @@
 | NA-E4-1 | E4 | 1 | 1.4（#512） | `position` 停在输入边界时 E4 转 I0，I0 承接受理时保存的输入 | SC-AG-161 | `agent/tests/loop-recovery.spec.ts`：`NA-E4-1: input boundary %s delegates I0 to the evaluator`、`NA-E4-1: I0 takes the input content saved by acceptance` |
 | NA-E4-2 | E4 | 1 | 1.4（#512） | 纯求值之后、意图提交之前崩溃，恢复后 E4 回原节点，重算得到相同的下一步，修订号不变 | SC-AG-164 | `agent/tests/loop-recovery.spec.ts`：`NA-E4-2: saved position %s resumes at %s without changing its facts` 及同前缀的字段映射用例；`agent/tests/loop-evaluator.spec.ts` 的 500 组事实属性测试核对重算纯性。未覆盖进程退出后的处理器状态恢复 |
 | NA-E4-3 | E4 | 1 | 1.4（#512） | 主调用在 M1 等待时崩溃，恢复后 E4 转 R0，原调用收场后 M5 回 I3 | SC-AG-185 | `agent/tests/loop-recovery.spec.ts`：`NA-E4-3: a pending operation goes to R0 and a settled operation resumes the main call at M1`、`NA-E4-3: R0 keeps the original operation when its result is %s`、`NA-E4-3: recovery of the original main call reaches I3 without another admission`、`NA-E4-3: %s %s %s resumes its successor or original frame without consuming twice`。同一协调者内覆盖原提交的 committed/excluded 接续，不模拟进程退出 |
-| NA-I0-1 | I0 | 1 | 1.5（#513） | 水位线以内的全部合格输入按受理顺序进入一个输入批，输入批与新 step 在一次提交中固定，事件流有一条 input-taken | 新增场景 | 待实现 |
-| NA-I0-2 | I0 | 1 | 1.5（#513） | 已进入输入批的输入不再进入后续 step 的输入批 | 新增场景 | 待实现 |
-| NA-I1-1 | I1 | 1（ready） | 1.5（#513） | I1 取得准备结果后提交 checkpoint 的 `requestPreparation`，P0、P1 直通时节点转 I2 | 新增场景 | 待实现 |
-| NA-I1-2 | I1 | 1（ready） | 1.5（#513） | 新 execution 的 Runtime Context 读取传入空的 adopted，最终请求记录之后 adoptedContext 等于这次读取的 coverage | SC-AG-75 | 待实现 |
-| NA-I1-3 | I1 | 1（ready） | 1.5（#513） | 条件、选择、Runtime Context 或请求准备的读取端口不可用时 I1 转 W0，`requestPreparation` 不变 | 新增场景 | 待实现 |
+| NA-I0-1 | I0 | 1 | 1.5（#513） | 水位线以内的全部合格输入按受理顺序进入一个输入批，输入批与新 step 在一次提交中固定，事件流有一条 input-taken | 新增场景 | `agent/tests/loop-intake-prepare.spec.ts`：`NA-I0-1: fixes all accepted inputs, the new step and one input-taken in one commit` |
+| NA-I0-2 | I0 | 1 | 1.5（#513） | 已进入输入批的输入不再进入后续 step 的输入批 | 新增场景 | `agent/tests/loop-intake-prepare.spec.ts`：`NA-I0-2: an input accepted before reply custody waits for the next step`、`NA-I0-2: two invokes on the runtime take disjoint input batches`（真实在途 changed 的完整接续留后续卡） |
+| NA-I1-1 | I1 | 1（ready） | 1.5（#513） | I1 取得准备结果后提交 checkpoint 的 `requestPreparation`，P0、P1 直通时节点转 I2 | 新增场景 | `agent/tests/loop-intake-prepare.spec.ts`：`NA-I1-1: reads conditions, selects, reads context and commits assembled before P1 produces ready` |
+| NA-I1-2 | I1 | 1（ready） | 1.5（#513） | 新 execution 的 Runtime Context 读取传入空的 adopted，最终请求记录之后 adoptedContext 等于这次读取的 coverage | SC-AG-75 | `agent/tests/loop-intake-prepare.spec.ts`：`NA-I1-2: new execution reads with no adopted coverage, then M0 adopts the returned coverage` |
+| NA-I1-3 | I1 | 1（ready） | 1.5（#513） | 条件、选择、Runtime Context 或请求准备的读取端口不可用时 I1 转 W0，`requestPreparation` 不变 | 新增场景 | `agent/tests/loop-intake-prepare.spec.ts`：`NA-I1-3: unavailable %s saves one I1 wait without preparing or calling Model` |
 | NA-I2-1 | I2 | 1 | 1.6（#514） | 主调用的 PendingCall 用途为 main、返回去处为 I3，M5 返回后节点转 I3 | SC-AG-185 | 待实现 |
 | NA-I2-2 | I2 | 1 | 1.6（#514） | 主调用在途时到达的新输入不改写已记录的最终请求 | 新增场景 | 待实现 |
 | NA-M0-1 | M0 | 1（main） | 1.6（#514） | FinalRequest、adoptedContext 与效果意图在向 Model 受理之前一次提交，在提交前后崩溃时 PendingCall 与 EffectIntent 的身份不变 | SC-AG-160 | 待实现 |

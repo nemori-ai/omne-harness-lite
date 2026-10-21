@@ -4,7 +4,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与状态
 
-不含 Cordis 的通用实现机制、配置与依赖聚合。设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。根入口导出工厂的公开类型与 `createAgentRuntime`。工厂校验配置、绑定、登记句柄、必需依赖与共同提交，成功时返回 idle 的 provider。四个面的公开操作都先核对租户、再调用一次 `access.check`；`invoke` 走 Loop 正常路径的骨架（#502 1.2），`observe` 随实例状态的变化给出新状态；其他操作本体尚未实现，放行后返回具名的 `unavailable`。根入口另导出通用评估器 `agentEvaluator`，装配经 `AgentAdoptions` 为绑定的定义采用它。`./testing` 入口给测试装配：内存 Journal、各端口的可编排替身、可控时钟与 `createTestAgentDependencies`。
+不含 Cordis 的通用实现机制、配置与依赖聚合。设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。根入口导出工厂的公开类型与 `createAgentRuntime`。工厂校验配置、绑定、登记句柄、必需依赖与共同提交，成功时返回 idle 的 provider。四个面的公开操作都先核对租户、再调用一次 `access.check`；`invoke` 走 Loop 正常路径的骨架（#502 1.2），`observe` 随实例状态的变化给出新状态；其他操作本体尚未实现，放行后返回具名的 `unavailable`。根入口另导出通用评估器 `agentEvaluator`，装配经 `AgentAdoptions` 为绑定的定义采用它。`./testing` 入口给测试装配：内存 Journal、各端口的可编排替身、提供当前时刻读取与等待的可控时钟，以及 `createTestAgentDependencies`。
 
 ### 支持范围
 
@@ -16,9 +16,9 @@ PACKAGE_TEMPLATE_DRAFT
 | 纯契约函数已实现 | 本包没有。契约函数在 `agent-contract` | 无 | 无 |
 | 独立执行已实现 | 无 | 无 | 无 |
 | runtime 已实现的路径 | `createAgentRuntime` 的创建校验：配置七项越界或绑定字段非法返回 `invalid`（`field` 写配置项路径），登记句柄的 instance 与绑定不一致返回 `denied`，十项必需依赖缺席返回 `unavailable`（`diagnostic` 指名缺席的依赖），`jointCommits` 有一种未被 Journal 声明返回 `unsupported`。失败时不创建 runtime，不调用任何依赖的方法。成功得到 idle 的 provider。访问守卫：四个面的每个公开操作先核对 Access 的租户：缺租户或租户不是 legal-identity 签发的 `TenantId` 时返回 `invalid`，跨租户返回 `denied`，都不调用 `access.check`。`observe` 例外：契约没有 `invalid` 的结束原因，缺租户或租户非法都以 `denied` 结束（见下文待拥有者一项），再调用一次 `access.check`，不缓存 allowed，`denied` 与 `unavailable` 不放行。`observe` 放行后给出当前状态，状态变化时给出新状态，signal 中止时以 `closed` 结束。`invoke` 与 `observe` 之外的操作放行后返回 `unavailable`，`diagnostic` 写「<操作> is not implemented until #502 stage N」：这是阶段性临时做法，不是契约结果 | 根入口 | `tests/factory.spec.ts` 逐项核对四种创建失败与成功的 idle。`tests/provider-access.spec.ts` 对每个公开操作核对租户核对、`access.check` 三态与恰一次。`tests/assembly.spec.ts` 用测试装配得到 idle 的 provider，核对创建没有调用任何依赖。没有覆盖下面列出的未实现校验 |
-| Loop 正常路径与受理 | `invoke` 让一条输入走无工具、无扩展的正常路径，`open` 受理后返回句柄。Loop 随后自行推进到 ended。同一操作以同一输入再次 `invoke` 取回原句柄。已记住的操作配另一输入时，若原 execution 占槽则返回 `conflict`。槽被占用时，新操作返回 `busy`。正常路径之外的结果使运行停止，停止的运行占住执行槽。E1/E2、恢复节点选择与一次等待保存已实现，见[恢复路由](#恢复路由)。步骤、图、受理、停止与槽的规则见 [Loop 正常路径](#loop-正常路径) | 根入口 | `tests/loop-transitions.spec.ts` 核对正常路径与节点表（C1），另核对 E1 的临时 `found-existing` 行。`tests/loop-evaluator.spec.ts` 核对评估器在 E4 与 I8 的决定、编码与正常路径之外的 `unsupported`，并以 500 个种子生成的 `LoopFacts` 核对同事实同结果、不改输入、每个步骤在表中有行（C1）。`tests/loop-invoke.spec.ts` 对脚本化 Model 与内存 Journal 走一条输入到 ended（C2），另核对受守卫的事件读取、多页回复与派生身份。`tests/loop-admission.spec.ts` 核对受理：同一操作再次调用（C1）、`accept` 回执丢失（C2）、`busy` 与 R0 待查项，用例名以节点验收表的行号开头。`tests/loop-slot.spec.ts` 核对槽的释放、`observe` 与登记投影。`tests/loop-port-failures.spec.ts` 核对E1/E2 的端口失败保存等待，其余路径节点的端口失败使运行停止，Journal 的 `position` 停在该节点。`tests/loop-recovery.spec.ts` 核对 E1/E2、纯恢复路由、原操作认回与保存等待。公开 resume 与唤醒没有用例 |
+| Loop 正常路径与受理 | `invoke` 让一条输入走无工具、无扩展的正常路径，`open` 受理后返回句柄。Loop 随后自行推进到 ended。同一操作以同一输入再次 `invoke` 取回原句柄。已记住的操作配另一输入时，若原 execution 占槽则返回 `conflict`。槽被占用时，新操作返回 `busy`。正常路径之外的结果使运行停止，停止的运行占住执行槽。E1/E2、恢复节点选择、I0 输入批、I1 准备与一次等待保存已实现，见[恢复路由](#恢复路由)。步骤、图、受理、停止与槽的规则见 [Loop 正常路径](#loop-正常路径) | 根入口 | `tests/loop-transitions.spec.ts` 核对正常路径与节点表（C1），另核对 E1 的临时 `found-existing` 行。`tests/loop-evaluator.spec.ts` 核对评估器在 E4 与 I8 的决定、编码与正常路径之外的 `unsupported`，并以 500 个种子生成的 `LoopFacts` 核对同事实同结果、不改输入、每个步骤在表中有行（C1）。`tests/loop-invoke.spec.ts` 对脚本化 Model 与内存 Journal 走一条输入到 ended（C2），另核对受守卫的事件读取、多页回复与派生身份。`tests/loop-admission.spec.ts` 核对受理：同一操作再次调用（C1）、`accept` 回执丢失（C2）、`busy` 与 R0 待查项，用例名以节点验收表的行号开头。`tests/loop-slot.spec.ts` 核对槽的释放、`observe` 与登记投影。`tests/loop-port-failures.spec.ts` 核对 E1/E2/I1 的端口失败保存等待，其余路径节点的端口失败使运行停止。`tests/loop-intake-prepare.spec.ts` 核对 I0/I1 与准备失败，Journal 的 `position` 停在该节点。`tests/loop-recovery.spec.ts` 核对 E1/E2、纯恢复路由、原操作认回与保存等待。公开 resume 与唤醒没有用例 |
 | 测试装配（`./testing`） | `createMemoryAgentJournal`：单进程、非耐久的内存 `AgentJournal`，按[同形清单](docs/architecture/mechanisms.md#两种实现必须同形的事实)第 1 至 15 条实现全部 18 个成员，参加者集合由选项给定，可在指定操作上编排 `unavailable` 与三种 `commit-unknown`。各端口的可编排替身、`createManualAgentClock` 与手写的 `ToolRuntime` 替身。`createTestAgentDependencies` 返回 17 项依赖（`registration` 为 null）与各替身的控制手柄，`models` 是 `model-contract/testing` 的脚本化提供者 | `./testing` | `tests/memory-journal.spec.ts` 按同形清单逐条核对，用例名带条目号。`tests/fixtures.spec.ts` 为每个编排接口各有一条用例。只有一个进程，耐久性、崩溃与跨进程没有覆盖 |
-| 尚未交付的宿主与提供者 | 四个面中 `invoke`、`observe` 之外的操作本体，句柄的 `submit`（#502 的阶段表尚未分配）、`control` 与 `acknowledge`。其余节点的精确提交点与失败分支（#502 1.5 至 1.9），以及真实等待与唤醒（1.9），以及正常路径之外的节点：A、T、C、X 子图，F0、H0、Q5、M2，以及 open 重试和经 E4 恢复之外的 R0。评估器的 `decode`（阶段 5）。耐久 Journal 提供者 `agent-journal-local`。真实的 Context、HITL、授权、Session 适配器与材料存储 | 无 | 没有证据 |
+| 尚未交付的宿主与提供者 | 四个面中 `invoke`、`observe` 之外的操作本体，句柄的 `submit`（#502 的阶段表尚未分配）、`control` 与 `acknowledge`。其余节点的精确提交点与失败分支（#502 1.6 至 1.9），以及真实等待与唤醒（1.9），以及正常路径之外的节点：A、T、C、X 子图，F0、H0、Q5、M2，以及 open 重试和经 E4 恢复之外的 R0。评估器的 `decode`（阶段 5）。耐久 Journal 提供者 `agent-journal-local`。真实的 Context、HITL、授权、Session 适配器与材料存储 | 无 | 没有证据 |
 
 ### Loop 正常路径
 
@@ -59,6 +59,34 @@ flowchart TD
     F3 --> F4[F4] --> O0[O0] --> E9[E9 idle]
     classDef commit stroke-width:3px
 ```
+
+#### 输入批与请求准备
+
+I0 只在 E4 或 I8 允许的输入边界承接快照水位线以内的完整输入批。
+一次提交保存输入批身份、新 step 与一条 input-taken 事件，并清空上一步的准备与压缩状态。
+已经承接的输入不再进入下一批。
+
+I1 依次读条件、选择模型、读 Runtime Context、调用 prepare。
+首次调用传 previous=null 与 beforeModelCall=null，装得下时以 assembled 转 P0。
+同次提交保存 requestPreparation 与已用于准备的条件依据。
+新 execution 读取时 adopted=null；既有 M0 提交采用 ready 的覆盖。
+四个端口任一不可用时，W0 保存原 owner 与 I1 续点的一次等待。
+首次返回 ready 属提供者违约，以 owner=requestPreparation 停止，不启动调用。
+
+真实 cannot-fit 先提交原准备，再转 F1。
+F1 首次构造候选时从注入的 AgentClock.now 取时，保存原原因与 Context 来源，cause 绑定完整候选。
+取时不可用时保留准备与 F1 续点，不写候选。
+同一协调者在 F1 提交被排除后保留同一个候选及其时刻，不再次取时。
+测试分别覆盖 I1、F1 未知提交的 committed/excluded 接续、取时次数，以及不可用后重试成功。
+
+按 [revision 2 决定](https://github.com/nemori-ai/omne-harness-lite/issues/513#issuecomment-6310398942)，needs-compaction 在 I1 保存原准备后返回 unsupported。
+它不构造失败候选，也不发起压缩调用。压缩路径与相应 F1 结果归 4.5。
+runtime 继续占用执行槽。公开 observe 不呈现这一内部停止原因。
+
+输入测试直接调用内存 Journal.submit，不表示公开 input.submit 已交付。
+主调用真实在途时，新输入不改已固定请求，但随后 M1 提交返回 changed。
+该处的 changed 恢复与完整 SC-AG-157 交错留给后续调用、迭代、终结卡。
+另一用例核对回复保管之前受理的新输入进入下一 step。两条边界分别验证。
 
 #### 恢复路由
 
@@ -172,14 +200,14 @@ stateDiagram-v2
 
 - 临时简化，1.3–1.9 按节点表收紧：骨架对写 checkpoint 的节点，在结束时各提交一次。提交把 `position` 前移到下一节点，不区分节点表规定的精确提交点。U0 至 Q4 在 execution 存在之前运行，不提交；E1、E2、E4 只读，不提交，否则会覆盖 E4 要读的 `position`；F3 用 `tryFinish`；ended 之后 Journal 拒绝提交，F4、O0、E9 只用各自的记录方法。
 - 待 #558 M04-1：producer 事件由 M3 的 `recordResult` 之后紧随的一次提交承载。
-- 待 #558 M04-8（本读法）：input-taken 事件由 I0 的提交承载。
+- 按 #558 M04-8，input-taken 只由 I0 的提交承载。
 - 待 #558 M04-7：`open` 不写事件。
 - 待 #558 M04-5：独立装配下 `recordResult.transfer` 取 processed，没有声明参加者。
 - Q2 回执采用 [R0 重试](#r0-重试)中的阶段 1 读法。按 #558 S-13，以同一操作与同一候选再次调用 `accept` 即是查询。
 - E1 发现 Journal 修订号已超过原 open 回执时返回 `found-existing`。转移表正常结束本次协调，避免为已受理的同一操作启动第二个 Loop。节点表 E1 行没有这个去向。这是阶段 1 的读法。
 - 已 open 而修订号尚未推进的 execution，仍会由新 runtime 使用原 Authority 驱动。两个存活 runtime 因此可能同时驱动它。`attach` 围栏尚未交付。
 - 阶段 1 在 free、reserved、running 三种槽状态下，都不将同一操作换 execution 识别为同一次受理。槽空闲时可建立第二个执行。槽被占用时按现有路由处理，通常答 busy。识别这种复用需要跨 execution 的操作索引。索引属 Journal 提供者，不在阶段 1。
-- I1 保留 assembled 或 ready 都转 P0 的骨架路径。默认替身在首次准备时返回 assembled，仅在带 previous 的 P1 复核中返回 ready（#558 S-11）。
+- I1 首次 prepare 接受 assembled，非法的首次 ready 使运行停止（#558 S-11）。P0/P1 仍是没有扩展的直通路径。选择变化、收件模型与覆盖不一致时的重新准备，以及记录之前额外的一次选择尚未交付。
 - M0 的提交继承 ready 的 `requestPreparation`，它保存最终请求（#558 M04-2）。循环判断这一受信系统扩展不在 M4 运行（阶段 3、7）。
 
 内存 Journal 对三项待裁定的事实取下列临时做法。每项在源码注释、测试名与本表都写明「临时做法，待 #558 裁定」，裁定后同波修改。

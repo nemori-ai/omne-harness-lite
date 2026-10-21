@@ -8,6 +8,8 @@
 
 ## 生命周期
 
+`AgentClockService` 同形公开 `AgentClock.now` 与 `waitUntil`。它不自行取系统时间，也不把提供者的不可用读作成功。时间来源、失败与候选时刻的规则归 [Agent 时钟契约](../agent-contract/SPEC.md#时钟读取与等待)。
+
 实例登记、条件撤除和旧 token 不删除后继的协议归本包；登记不授予业务推进资格。
 
 ## 实现与验证
