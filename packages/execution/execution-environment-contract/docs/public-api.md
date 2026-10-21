@@ -48,7 +48,7 @@
 | `EnvironmentRequirement` | 类型 | 集成方为一次获取给的输入：有序的允许绑定层清单、设施键、隔离断言 | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配) |
 | `IsolationClaims` | 接口 | 开放的隔离断言表，初始有 `process`、`filesystem-root`、`network-none`、`restricted-js`。拥有者用 `declare module` 增补 | [INV-EE03](../SPEC.md#inv-ee03-必需设施和隔离不得降低满足)、[INV-EE10](../SPEC.md#inv-ee10-受限执行域限制可达数据和能力) |
 | `IsolationClaim` | 类型 | 隔离断言的键 | 同上 |
-| `judgeRequirement` | 纯函数 | 在边界上把外部值一次解码成 `EnvironmentRequirement`。失败返回 `invalidInput` 与逐项原因，拒绝三样以外的字段 | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配) |
+| `judgeRequirement` | 纯函数 | 在边界上把外部值一次解码成 `EnvironmentRequirement`。失败返回 `invalidInput` 与逐项原因，拒绝三样以外的字段。租户级沙箱的租户写成 legal-identity 的租户文本，由 `tenantCodec` 解码并铸造；本进程内已铸造的 `TenantId` 原样保留 | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配) |
 | `RequirementRefusal` | 类型 | `judgeRequirement` 的失败值 | 同上 |
 | `matchProviders` | 纯函数 | 沿允许清单的顺序，返回第一个声明该层、覆盖全部设施键与隔离断言的提供者。不选清单外的层。失败时给出全部层里最接近的原因 | [获取与租约](../SPEC.md#获取与租约) |
 | `ProviderCapabilities` | 类型 | `matchProviders` 读取的提供者能力：绑定层、设施键、隔离断言 | 同上 |
@@ -101,7 +101,7 @@
 | `OutputPolicy` | 类型 | 有界缓冲：缓冲上限、单块上限，溢出时丢弃 | 同上 |
 | `OutputCount` | 类型 | 一路输出观察到与丢弃的字节数 | 同上 |
 | `OutputSummary` | 类型 | 按输出模式汇总各路的计数 | 同上 |
-| `CommandOutcome` | 类型 | 进程终局：`completed` 带退出码、信号或未知退出；`failed` 带 `unavailable` 或 `effectUnknown` | [INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) |
+| `CommandOutcome` | 类型 | 进程终局：`completed` 的 `exit` 是带 `kind` 的联合，`code` 带退出码，`signal` 带信号，`unknown` 表示退出方式未知；`failed` 带 `unavailable` 或 `effectUnknown` | [INV-EE13](../SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) |
 | `terminalFacility` | 值 | `terminal` 的设施声明，四项操作全部须授权 | [设施协议](../SPEC.md#设施协议) |
 | `TerminalFacility` | 接口 | 终端设施：创建、分段执行、关闭、列表 | 同上、[INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确) |
 | `TerminalRef` | 类型 | 终端身份加代 | [INV-EE07](../SPEC.md#inv-ee07-临时状态边界与实际回收明确) |
@@ -129,8 +129,10 @@
 | `Rejected` | 类型 | 带拒绝原因的结果 | 同上 |
 | `EnvironmentAdoption` | 类型 | 采用记录：获取键、原调用、落点、提供者、实例、连续性与提供者证据。由本成员的实现签发，不由提供者自签 | [INV-EE05](../SPEC.md#inv-ee05-实际执行捕获原落点与版本) |
 | `EnvironmentLease` | 接口 | 租约：落点、实例、连续性、按键取设施、失效信号与释放 | [获取与租约](../SPEC.md#获取与租约)、[对象模型 获取](object-model.md#获取) |
+| `LeaseInvalidation` | 类型 | 失效原因，按来源区分：`source: 'registry'` 带登记表的封闭原因集合，`source: 'provider'` 带提供者自报的原因文本 | 同上 |
+| `RegistryInvalidationReason` | 类型 | 登记表给出的失效原因：`providerRetired`、`scopeReleased`、`registryClosed`、`released`、`providerInvalidated` | 同上 |
 | `LeaseRelease` | 类型 | 释放的结果：已释放，或待处置并列出未停的受管资源 | 同上 |
-| `AcquisitionState` | 类型 | 一次获取的状态，按获取键查询。`unrecorded` 表示没有调用方能看到的记录 | 同上 |
+| `AcquisitionState` | 类型 | 一次获取的状态，按获取键查询。`unrecorded` 表示没有调用方能看到的记录。`invalidated` 状态带 `invalidation`（`LeaseInvalidation`） | 同上 |
 | `Acquired` | 类型 | 已获取：租约与采用记录 | 同上 |
 | `Pending` | 类型 | 获取存在但现在没有可用租约；没有新分配 | 同上 |
 

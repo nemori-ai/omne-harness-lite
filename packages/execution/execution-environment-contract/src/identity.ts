@@ -6,7 +6,7 @@ export type OriginRef = string & { readonly __origin: unique symbol }
 /** Idempotency key the caller gives to one acquisition. */
 export type AcquisitionRef = string & { readonly __acquisition: unique symbol }
 
-/** Access identity: the environment compares and passes the principal, it never interprets it. */
+/** Access identity: the environment only passes the principal on; it neither compares nor interprets it. */
 export type Access<P> = Readonly<{ principal: P; tenant: TenantId }>
 
 function isOriginText(text: string): text is OriginRef {

@@ -9,7 +9,7 @@
 | `@omne-harness/execution-environment-host-local` | `src/index.ts` | 重导出下面两个模块的三个函数，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） |
 | 同上 | `src/host-files.ts` | 宿主文件设施 `createHostFiles` 与对象身份读取 `hostObjectToken` |
 | 同上 | `src/host-provider.ts` | 宿主文件提供者 `createHostFilesProvider` |
-| `@omne-harness/execution-environment-host-local/cordis` | `src/cordis.ts` | Service 子类 `ExecutionEnvironmentRegistry`、插件工厂 `executionEnvironmentRegistryWith`、插件 `hostFilesPlugin`、空配置 Schema、`unavailableRecoveryAuthority` |
+| `@omne-harness/execution-environment-host-local/cordis` | `src/cordis.ts` | Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin`、插件 `hostFilesPlugin`、空配置 Schema |
 
 | 模块 | 持有的状态 | 承担的 SPEC 行为 |
 | --- | --- | --- |
@@ -59,15 +59,19 @@ flowchart LR
 
 ### Service 子类转发，登记落在调用方 fiber
 
-`ExecutionEnvironmentRegistry` 只做转发与生命周期：六个环境与恢复方法原样转给登记表，两个登记方法用 `this.ctx.effect` 包住登记表的同名方法，构造时登记一个关闭效应。匹配、核验与恢复的规则都留在登记表。理由是登记表可以不装配 Cordis 独立使用，Service 子类不应改变它的行为（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。
+`ExecutionEnvironmentRegistry` 只做转发与生命周期：六个环境与恢复方法原样转给登记表，两个登记方法用 `this.ctx.effect` 包住登记表的同名方法，构造时登记一个关闭效应。`registerProvider` 返回给调用方的撤除函数直接调用登记表的撤除函数，不经效应，因为效应撤除只运行一次，经效应就不能重试待处置的退役。匹配、核验与恢复的规则都留在登记表。理由是登记表可以不装配 Cordis 独立使用，Service 子类不应改变它的行为（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。
 
 ### 恢复授权缺省为不可用
 
-直接装载 Service 子类时没有恢复授权端口，恢复两操作一律以 `unavailable` 拒绝。理由：没有维护拥有者签发授权时，恢复不能默认允许。装配者要恢复，就装载 `executionEnvironmentRegistryWith(恢复授权)`。恢复授权端口是运行时对象，不进插件树，所以用插件工厂的参数给出，不写进配置（[IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。
+没有装载 `executionRecoveryAuthority` 服务时，恢复两操作一律以 `unavailable` 拒绝。理由：没有维护拥有者签发授权时，恢复不能默认允许。恢复授权端口是运行时对象，不进插件树，也不写进配置（[IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。装配入口装载 `ExecutionRecoveryAuthorityService` 的子类来提供它。Service 子类每次恢复操作现取，不持有旧引用（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)）。
+
+### `files` 声明与宿主提供者分成两个插件
+
+`filesFacilityPlugin` 只登记 `files` 设施声明，`hostFilesPlugin` 只登记宿主文件提供者。理由：声明的拥有者是 `files` 设施，宿主提供者只是它的一个实现者。两者有不同的变化原因；合在一个插件里时，宿主提供者卸载会带走声明，别的 `files` 提供者也就无法独立存在。
 
 ### 撤除失败不报告完成
 
-服务卸载与提供者撤除在退役待处置时抛出 `RetirementPending`。理由：撤除函数正常返回会被当作资源已清理。待处置的受管资源仍在集成方账本里，由维护者处置（[INV-EE18](../../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
+服务卸载与提供者撤除在退役待处置时抛出 `RetirementPending`。理由：撤除函数正常返回会被当作资源已清理。待处置的受管资源仍在集成方账本里，由维护者处置（[INV-EE18](../../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。代价：fiber 卸载时 Cordis 只把这个抛出写入 `ctx.logger`，卸载本身照常完成。装配从 `ctx.logger` 与登记表的结果观察待处置，不从卸载结果观察。
 
 代价：Cordis 怎样处置撤除函数抛出的错误，现在没有 basis 条目。
 
@@ -136,5 +140,5 @@ flowchart LR
 
 1. 改宿主文件使用的已接受行为，要经原接受入口重新接受，再同步本页、SPEC 与测试。
 2. 服务定义改变时，同步 Service 子类、[Cordis 说明](cordis.md)与测试。
-3. 登记表工厂的签名改变时，同步 Service 子类与 `executionEnvironmentRegistryWith`。
+3. 登记表工厂的签名改变时，同步 Service 子类。
 4. 新的宿主设施进入时，同步[公开接口页](public-api.md)、SPEC 的宿主提供者事实与 [Cordis 说明](cordis.md)。

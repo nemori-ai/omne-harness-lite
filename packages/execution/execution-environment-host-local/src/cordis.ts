@@ -1,4 +1,4 @@
-// PACKAGE_TEMPLATE_DRAFT: The registry Service and the host files plugin are in place; the Runtime Context producer plugin, the command and terminal providers and caller-class enforcement are not yet accepted.
+// PACKAGE_TEMPLATE_DRAFT: The registry Service, the files declaration plugin and the host files plugin are in place; the Runtime Context producer plugin, the command and terminal providers and caller-class enforcement are not yet accepted.
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createEnvironmentRegistry,
@@ -17,6 +17,7 @@ import {
 import {
   ExecutionEnvironmentService,
   executionEnvironmentKey,
+  executionRecoveryAuthorityKey,
 } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { createHostFilesProvider } from './host-provider.ts'
 
@@ -44,33 +45,33 @@ const emptyConfig: EmptyConfig = {
   },
 }
 
-/** Used when the assembly gives no recovery authority: every recovery request is `unavailable`. */
-export const unavailableRecoveryAuthority: RecoveryAuthority = Object.freeze({
-  async authorizeRecovery(): Promise<'unavailable'> {
-    return 'unavailable'
-  },
-})
-
 type Operation<P, O extends keyof ExecutionEnvironment<P>> = {
   args: Parameters<ExecutionEnvironment<P>[O]>
   result: ReturnType<ExecutionEnvironment<P>[O]>
 }
 
 /**
- * The `executionEnvironment` Service backed by the Cordis-free registry. On unload it refuses new
- * leases first, then retires every provider; a retirement that leaves resources behind fails the
- * unload instead of reporting completion.
+ * The `executionEnvironment` Service backed by the Cordis-free registry. Recovery asks the
+ * `executionRecoveryAuthority` service read at the time of each recovery operation; without one,
+ * recovery is `unavailable`. On unload it closes the registry: new leases are refused first, then
+ * every provider retires. The unload itself always completes. When the close is pending, the
+ * removal throws `RetirementPending` with the resources not yet stopped, and Cordis writes that
+ * error to `ctx.logger`; the unload does not fail.
  */
 export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService<P> {
   static readonly Config = emptyConfig
   private readonly registry: EnvironmentRegistry<P>
 
-  constructor(
-    ctx: Context,
-    _config: unknown = {},
-    recovery: RecoveryAuthority = unavailableRecoveryAuthority,
-  ) {
+  constructor(ctx: Context) {
     super(ctx)
+    // Read on each use (IC-9): the authority may come, go or be replaced while the registry runs.
+    const recovery: RecoveryAuthority = {
+      async authorizeRecovery(access, scope, resources) {
+        const authority = ctx.get(executionRecoveryAuthorityKey)
+        if (authority === undefined) return 'unavailable'
+        return authority.authorizeRecovery(access, scope, resources)
+      },
+    }
     const registry = createEnvironmentRegistry<P>({ recovery })
     this.registry = registry
     ctx.effect(
@@ -121,36 +122,42 @@ export class ExecutionEnvironmentRegistry<P> extends ExecutionEnvironmentService
     return () => Promise.resolve(dispose())
   }
 
-  /** Registers on the caller's fiber: the provider retires when the caller unloads. */
+  /**
+   * Registers on the caller's fiber: the provider retires when the caller unloads. The returned
+   * removal calls the registry's removal itself, so it can be retried after `RetirementPending`;
+   * the Cordis effect only calls that removal once, when the caller's fiber unloads.
+   */
   registerProvider(
     provider: EnvironmentProvider,
   ): ReturnType<ProviderRegistrations['registerProvider']> {
-    const dispose = this.ctx.effect(
-      () => this.registry.registerProvider(provider),
-      `executionEnvironment.registerProvider(${provider.name})`,
-    )
-    return () => Promise.resolve(dispose())
+    let remove: () => Promise<void> = async () => undefined
+    this.ctx.effect(() => {
+      remove = this.registry.registerProvider(provider)
+      return () => remove()
+    }, `executionEnvironment.registerProvider(${provider.name})`)
+    return () => remove()
   }
 }
 
-/** A registry plugin whose recovery operations ask the given authority. */
-export function executionEnvironmentRegistryWith(recovery: RecoveryAuthority) {
-  return {
-    name: 'executionEnvironmentRegistry',
-    Config: emptyConfig,
-    apply(ctx: Context) {
-      new ExecutionEnvironmentRegistry(ctx, {}, recovery)
-    },
-  }
+/** Registers the `files` facility declaration on the loading fiber. It registers no provider. */
+export const filesFacilityPlugin = {
+  name: 'filesFacility',
+  Config: emptyConfig,
+  inject: [executionEnvironmentKey],
+  apply(ctx: Context) {
+    ctx.executionEnvironment.registerFacility(filesFacility)
+  },
 }
 
-/** Registers the `files` descriptor and the host files provider on the loading fiber. */
+/**
+ * Registers one host files provider on the loading fiber. The `files` declaration comes from
+ * `filesFacilityPlugin`; without it, acquisitions that need `files` are refused.
+ */
 export const hostFilesPlugin = {
   name: 'hostFiles',
   Config: emptyConfig,
   inject: [executionEnvironmentKey],
   apply(ctx: Context) {
-    ctx.executionEnvironment.registerFacility(filesFacility)
     ctx.executionEnvironment.registerProvider(createHostFilesProvider())
   },
 }

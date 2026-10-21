@@ -27,4 +27,4 @@
 | [context.md](context.md) | 经 Cordis 使用、独立使用、调用方要提供的端口与定位 |
 | [cordis.md](cordis.md) | 不适用 Cordis 集成的理由 |
 
-当前缺口：SPEC [明确缺项](../SPEC.md#明确缺项)的四项。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+当前缺口：SPEC [明确缺项](../SPEC.md#明确缺项)的各项。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

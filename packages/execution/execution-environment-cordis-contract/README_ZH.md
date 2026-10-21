@@ -67,7 +67,7 @@ export function apply(ctx: Context) {
 pnpm --filter @omne-harness/execution-environment-cordis-contract test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试文件共四个测试：根入口没有运行导出，`./cordis` 的导出集合与键常量，子类在键上提供服务并随插件卸载撤除。见 [tests/](tests/README.md)。2026-10-21 在 Node v24.18.0、linux 上，这两个文件的四个测试全部通过。调用方类核对与导入边界没有测试。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试文件共五个测试：根入口没有运行导出，`./cordis` 的导出集合与键常量，子类在键上提供服务并随插件卸载撤除。见 [tests/](tests/README.md)。2026-10-21 在 Node v24.18.0、linux 上，这两个文件的五个测试全部通过。调用方类核对与导入边界没有测试。结构检查通过不表示行为已验证。
 
 ## 维护
 

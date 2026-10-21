@@ -50,7 +50,7 @@ inject: ['executionEnvironment']
         插件卸载时两项登记自动撤除，提供者开始退役
 ```
 
-宿主文件提供者 `hostFilesPlugin` 就是这样登记的，见 [execution-environment-host-local 的 Cordis 说明](../../execution-environment-host-local/docs/cordis.md)。
+`files` 设施声明的插件 `filesFacilityPlugin` 与宿主文件提供者的插件 `hostFilesPlugin` 就是这样分别登记的，见 [execution-environment-host-local 的 Cordis 说明](../../execution-environment-host-local/docs/cordis.md)。
 
 ### 独立使用
 
@@ -76,7 +76,7 @@ flowchart LR
 
 | 依赖方 | 怎样依赖 | 用什么 |
 | --- | --- | --- |
-| [execution-environment-host-local](../../execution-environment-host-local/README.md) | `extends ExecutionEnvironmentService`；`hostFilesPlugin` 的 `inject` 用 `executionEnvironmentKey` | 抽象类、键常量 |
+| [execution-environment-host-local](../../execution-environment-host-local/README.md) | `extends ExecutionEnvironmentService`；`filesFacilityPlugin` 与 `hostFilesPlugin` 的 `inject` 用 `executionEnvironmentKey`；恢复授权每次用 `executionRecoveryAuthorityKey` 现取 | 抽象类、键常量 |
 | 集成方的适配器插件 | 数组形式 `inject`，或对象形式带 `caller: 'integrator'` | 环境面四个方法 |
 | 维护者插件 | 对象形式 `inject` 带 `caller: 'maintainer'` | 恢复面两个方法 |
 | 提供者与设施拥有者插件 | 数组形式 `inject` | 登记面两个方法 |

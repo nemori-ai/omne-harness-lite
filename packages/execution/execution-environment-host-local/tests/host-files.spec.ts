@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
@@ -156,4 +156,39 @@ it('refuses a replace whose expected version no longer matches and leaves the fi
   })
   expect(result).toEqual({ kind: 'rejected', requestId: 'stale', reason: 'conflict' })
   expect(await readFile(path, 'utf8')).toBe('changed-by-someone-else')
+})
+
+it('refuses a relative path as invalid input without opening or changing the file it would reach', async () => {
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'kept')
+  const named = await hostObjectToken(path)
+  const relativePath = relative(process.cwd(), path)
+  const parentToken = await hostObjectToken(root)
+  const files = createHostFiles()
+  const refused = (requestId: string) => ({ kind: 'rejected', requestId, reason: 'invalidInput' })
+  expect(await files.read(request(relativePath, named, 'read'))).toEqual(refused('read'))
+  expect(await files.stat(request(relativePath, named, 'stat'))).toEqual(refused('stat'))
+  expect(
+    await files.write({
+      ...request(relativePath, named, 'replace'),
+      bytes: text('x'),
+      mode: 'replace',
+    }),
+  ).toEqual(refused('replace'))
+  expect(
+    await files.write({
+      ...request(relative(process.cwd(), join(root, 'new.txt')), parentToken, 'create'),
+      bytes: text('x'),
+      mode: 'create',
+    }),
+  ).toEqual(refused('create'))
+  expect(
+    await files.close({
+      ...request(relativePath, named, 'close'),
+      handle: { object: named, generation: '1' },
+    }),
+  ).toEqual(refused('close'))
+  expect(await readFile(path, 'utf8')).toBe('kept')
+  await expect(readFile(join(root, 'new.txt'))).rejects.toMatchObject({ code: 'ENOENT' })
 })

@@ -9,6 +9,7 @@
 - [registry.ts](registry.ts)：登记表：四张表、落点解析、获取与核验、退役、恢复授权核对、关闭
 - [lease-view.ts](lease-view.ts)：租约视图：逐操作门、失效、释放与重试
 - [recovery.ts](recovery.ts)：恢复编排：逐提供者枚举与停止
+- [compare.ts](compare.ts)：绑定层、作用域与键集合的比较
 
 ## 阅读路径
 

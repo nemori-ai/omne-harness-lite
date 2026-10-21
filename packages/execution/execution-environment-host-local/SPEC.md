@@ -7,7 +7,7 @@
 本成员有两个入口：
 
 - 根入口与 Cordis 无关（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)），导出 `createHostFiles`、`hostObjectToken` 与 `createHostFilesProvider`。
-- `./cordis` 导出 Service 子类 `ExecutionEnvironmentRegistry`、插件工厂 `executionEnvironmentRegistryWith`、插件 `hostFilesPlugin` 与恢复授权的缺省值 `unavailableRecoveryAuthority`。
+- `./cordis` 导出 Service 子类 `ExecutionEnvironmentRegistry`、登记 `files` 设施声明的插件 `filesFacilityPlugin` 与登记宿主文件提供者的插件 `hostFilesPlugin`。
 
 上层依据：系统页[执行环境](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备)的成员分工，领域页[文件使用的交接](../../../docs/domains/execution-environments/architecture.md#文件使用的交接)，契约的[设施协议](../execution-environment-contract/SPEC.md#设施协议)、[INV-EE04](../execution-environment-contract/SPEC.md#inv-ee04-原主体在实际边界继续受约束)、[INV-EE09](../execution-environment-contract/SPEC.md#inv-ee09-资源和秘密以最小必要条件提供)、[INV-EE13](../execution-environment-contract/SPEC.md#inv-ee13-控制请求与实际停止释放分别确认) 与 [INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)。
 
@@ -28,10 +28,11 @@
 | 隔离断言 | 空。本提供者不确认任何隔离 |
 | 宿主事实（`describe`） | 名称、代、`process.platform`、设施键、空隔离断言，前提一律为已满足 |
 
-- `acquire` 在提供者退役后返回 `providerUnavailable`。落点的绑定层不是 `host_machine` 时返回 `noMatchingEnvironment`。其余情况交回一个租约原件：实例身份是 `host` 加提供者的代，`facility('files')` 返回同一个宿主文件设施，释放总是已释放。证据记录提供者名称与代。
-- 一个提供者只有一个宿主文件设施实例。这个提供者交出的全部租约共用它。
-- 本提供者的文件操作不留下受管资源。它不调用账本，也没有 `listRecoveryResources` 与 `recover`。恢复编排把它记为不支持。
-- `retire()` 把提供者标为已退役，使它交出的全部租约原件以 `providerRetired` 失效，然后立即返回已排空，不等在途文件操作。前提：在途的文件操作在自己返回前完成关闭，退役不等待它们；关闭失败而挂起的描述符由实例释放时回收；本提供者没有受管资源。这是对契约排空定义的偏离（契约的排空见 [INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
+- `acquire` 在提供者退役后返回 `providerUnavailable`。落点的绑定层不是 `host_machine` 时返回 `noMatchingEnvironment`。其余情况交回一个租约原件：实例身份是 `host` 加提供者的代，`facility('files')` 返回这次获取的文件设施，释放总是已释放。证据记录提供者名称与代。
+- 一个提供者只有一个宿主文件设施实例。每次获取交出的文件设施包住这个实例，并在每次文件操作开始前查这次获取账本的 `closed` 信号。账本已关闭时，操作返回 `rejected`，原因 `closed`，不触碰文件系统（[INV-EE15](../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)）。全部 12 项文件操作都先查。
+- 本提供者的文件操作不留下受管资源。它只读账本的 `closed` 信号，不调用账本的方法，也没有 `listRecoveryResources` 与 `recover`。恢复编排把它记为不支持。
+- 租约原件释放时，提供者删除这份租约的失效通知，之后退役不再通知它。
+- `retire()` 把提供者标为已退役，使它交出的、尚未释放的租约原件以来源 `provider`、原因 `providerRetired` 失效，然后立即返回已排空，不等在途文件操作。前提：在途的文件操作在自己返回前完成关闭，退役不等待它们；关闭失败而挂起的描述符由实例释放时回收；本提供者没有受管资源。这是对契约排空定义的偏离（契约的排空见 [INV-EE18](../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）。
 
 前提一律为已满足，不是探测的结果。平台前提的探测还没有接受。
 
@@ -57,6 +58,7 @@
 
 - 本设施的结果用契约的设施结果四态表达：完成是 `done`，未解析是 `unresolved`，拒绝是 `rejected` 带原因，未知是 `unknown`。
 - 绑定层不是 `host_machine` 的请求返回 `rejected`，原因 `unsupported`，不触碰文件系统。
+- 读取、查看、两种模式的写入与关闭的路径必须是绝对路径。相对路径返回 `rejected`，原因 `invalidInput`，不触碰文件系统。含空字节的路径同样如此。
 - 契约的 `files` 设施另有列表、搜索、建目录、删除、移动、复制、提交批次与恢复批次八项操作。本设施对这八项一律返回 `rejected`，原因 `unsupported`，不触碰文件系统。
 - 打开失败按错误码映射：`ENOENT`、`ENOTDIR` 为未解析；`ELOOP`、`EMLINK`、`EISDIR` 为 `unsupported`；`EINVAL` 为 `invalidInput`；`EACCES`、`EPERM` 为 `notAuthorized`；其余错误为未知。
 - 读取接受起点与上限两个字节数。两者必须是非负安全整数，否则返回 `invalidInput`。读取目录返回 `unsupported`。完成时带字节、下一次读取的起点与是否已到文件末尾。
@@ -69,17 +71,19 @@
 ### Service 实现
 
 - `ExecutionEnvironmentRegistry<P>` `extends ExecutionEnvironmentService<P>`，不另写键（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。构造时调用 `createEnvironmentRegistry`，把环境面与恢复面六个方法原样转给登记表。
-- 构造函数的第三个参数是恢复授权端口。没有给出时用 `unavailableRecoveryAuthority`，它对每次恢复都答复不可用。所以直接装载 `ExecutionEnvironmentRegistry` 时，`recoverOwned` 与 `releaseScope` 一律以 `unavailable` 拒绝。要恢复，装配者装载 `executionEnvironmentRegistryWith(恢复授权)` 返回的插件。
-- `registerFacility` 与 `registerProvider` 在方法里用 `this.ctx.effect` 调用登记表的同名方法。登记落在调用方插件的 fiber 上，调用方卸载即撤除（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）。返回的撤除函数调用同一个效应撤除。
-- 插件配置只接受缺省、`null` 或空对象，其余值以「configuration accepts no fields」校验失败（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。Service 子类、`executionEnvironmentRegistryWith` 返回的插件与 `hostFilesPlugin` 都用这份配置。
-- `hostFilesPlugin` 的 `inject` 是服务键常量。装载时它经 `ctx.executionEnvironment` 登记 `files` 设施声明与一个新的宿主文件提供者。
+- 恢复授权端口不经构造参数进入。登记表的恢复授权每次被调用时，用 `ctx.get(executionRecoveryAuthorityKey)` 现取 `executionRecoveryAuthority` 服务并转交（[IC-9](../../../docs/architecture/cordis-integration-conventions.md#ic-9)、[IC-16](../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。取不到时答不可用，所以没有装载恢复授权服务时，`recoverOwned` 与 `releaseScope` 一律以 `unavailable` 拒绝。
+- `registerFacility` 与 `registerProvider` 在方法里用 `this.ctx.effect` 调用登记表的同名方法。登记落在调用方插件的 fiber 上，调用方卸载即撤除（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）。`registerFacility` 返回的撤除函数调用同一个效应撤除。`registerProvider` 返回的撤除函数直接调用登记表的撤除函数：它可以重试，并发调用共用一次退役；效应只在调用方 fiber 卸载时调用一次登记表的撤除函数。
+- 插件配置只接受缺省、`null` 或空对象，其余值以「configuration accepts no fields」校验失败（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。Service 子类、`filesFacilityPlugin` 与 `hostFilesPlugin` 都用这份配置。
+- `filesFacilityPlugin` 与 `hostFilesPlugin` 的 `inject` 都是服务键常量。`filesFacilityPlugin` 装载时经 `ctx.executionEnvironment` 登记 `files` 设施声明，不登记提供者。`hostFilesPlugin` 装载时登记一个新的宿主文件提供者，不登记声明。声明的生灭与宿主提供者的生灭分开：只装 `hostFilesPlugin` 时，需要 `files` 的落点解析返回 `missingFacility`。
 - 本成员不读取调用方类的 intercept 配置，不按调用方类拒绝调用。
 - 本成员不登记 Runtime Context 的生产者，不发布 `execution.placement` 与 `execution.host-facts` 两条块。
 
 ### 撤除顺序
 
-- `hostFilesPlugin` 卸载时，它的两个效应并发撤除（[effect-disposal-concurrent-not-ordered](../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）：`files` 设施声明从登记表移除，宿主文件提供者开始退役。退役使它交出的租约以 `providerRetired` 失效，之后 `files` 不再有提供者，宿主层的落点解析返回 `noMatchingEnvironment`。
-- `ExecutionEnvironmentRegistry` 卸载时，它在构造时登记的效应调用登记表的 `close()`。关闭顺序归 [execution-environment SPEC 的关闭](../execution-environment/SPEC.md#关闭)。本成员只承担一件事：关闭结果是待处置时，撤除函数抛出 `RetirementPending`，不以正常返回报告完成。
+- `hostFilesPlugin` 卸载时，宿主文件提供者开始退役。退役使它交出的租约以 `providerRetired` 失效，之后 `files` 不再有提供者，宿主层的落点解析返回 `noMatchingEnvironment`。`files` 设施声明不受影响。
+- `filesFacilityPlugin` 卸载时，`files` 设施声明从登记表移除。之后需要 `files` 的落点解析返回 `missingFacility`，已取到的 `files` 设施对象上的操作返回 `unsupported`。宿主文件提供者仍在场。
+- `ExecutionEnvironmentRegistry` 卸载时，它在构造时登记的效应调用登记表的 `close()`。关闭顺序归 [execution-environment SPEC 的关闭](../execution-environment/SPEC.md#关闭)。关闭结果是待处置时，这个效应的撤除函数抛出 `RetirementPending`，带未停的受管资源。
+- fiber 卸载本身总是完成。退役或关闭待处置时，撤除函数抛出的 `RetirementPending` 由 Cordis 写入 `ctx.logger` 的错误，卸载不失败，`fiber.dispose()` 正常返回（Cordis 4.0.4 读数，见 [Cordis 说明](docs/cordis.md#机制读数与假设)）。未停的资源经这条错误与登记表的退役、关闭结果可见。只有调用方直接调用 `registerProvider` 返回的撤除函数时，待处置才以抛出报告。
 - 服务卸载时，`inject` 了本服务的插件随之卸载或重跑，它们的效应与服务的关闭并发运行。提供者退役共用一次 `retire()` 调用，不因两条撤除路径而退役两次。
 - 撤除不撤回任何外部效果。已经写入宿主文件的字节留在文件里。
 
@@ -87,13 +91,14 @@
 
 | 事物 | 拥有者 | 失败时 | 结束 |
 | --- | --- | --- | --- |
-| 服务实例与登记表实例 | `ExecutionEnvironmentRegistry` 插件的 fiber | 关闭待处置时撤除函数抛出 `RetirementPending` | 插件卸载 |
-| `files` 设施声明与宿主文件提供者的登记 | `hostFilesPlugin` 的 fiber | 重复登记抛出，插件 fiber 进入 `FAILED` | 插件卸载，或服务撤除 |
+| 服务实例与登记表实例 | `ExecutionEnvironmentRegistry` 插件的 fiber | 关闭待处置时撤除函数抛出 `RetirementPending`，Cordis 记入 `ctx.logger`，卸载照常完成 | 插件卸载 |
+| `files` 设施声明的登记 | `filesFacilityPlugin` 的 fiber | 重复登记抛出，插件 fiber 进入 `FAILED` | 插件卸载，或服务撤除 |
+| 宿主文件提供者的登记 | `hostFilesPlugin` 的 fiber | 重复登记抛出，插件 fiber 进入 `FAILED`；退役待处置时撤除函数抛出 `RetirementPending` | 插件卸载，或服务撤除 |
 | 宿主文件设施实例 | 宿主文件提供者 | 关闭失败的描述符留在设施实例里，每次公开操作前重试关闭 | 随提供者实例被丢弃，由运行时回收 |
 | 已发出的句柄代际 | 宿主文件设施实例 | 关闭没有成功回执时为未知 | 关闭成功回执 |
 | 写入宿主文件的字节 | 宿主文件系统 | 截断后没写完时为未知 | 不随撤除撤回 |
 
-进程失败：本成员没有可恢复的东西。宿主文件提供者没有受管资源。登记表的重建沿 [execution-environment SPEC](../execution-environment/SPEC.md#所有权失败与生命周期)。撤除函数抛出的错误怎样被 Cordis 处置、`fiber.dispose()` 的调用方能否观察到，现在没有 basis 条目，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
+进程失败：本成员没有可恢复的东西。宿主文件提供者没有受管资源。登记表的重建沿 [execution-environment SPEC](../execution-environment/SPEC.md#所有权失败与生命周期)。撤除函数抛出的错误只进 `ctx.logger`，`fiber.dispose()` 的调用方观察不到，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
 
 ## 组合与验证
 
@@ -108,14 +113,21 @@
 | 测试文件 | 覆盖 |
 | --- | --- |
 | [host-file-results.spec.ts](tests/host-file-results.spec.ts) | 未点名拒绝、空字节拒绝、未解析、末段符号链接拒绝、中间目录换成链接、经祖先链接读取、查看与写入不带字节、关闭只回句柄、撤权后保留旧字节、对象替换后不复用旧完成、关闭失败的三种路径、代次递增、尾部斜杠、目录读取、请求与字节的快照、错误路径保留无法关闭的描述符 |
-| [host-files.spec.ts](tests/host-files.spec.ts) | 读工作区目录之外的点名文件、字节范围、查看、新建与拒绝覆盖、父目录不符拒绝、预期版本不符拒绝 |
+| [host-files.spec.ts](tests/host-files.spec.ts) | 读工作区目录之外的点名文件、字节范围、查看、新建与拒绝覆盖、父目录不符拒绝、预期版本不符拒绝；相对路径在读取、查看、两种写入与关闭上返回 `invalidInput` 且不触碰文件 |
 | [host-files-unsupported.spec.ts](tests/host-files-unsupported.spec.ts) | 八项未实现操作返回 `unsupported` 且不触碰文件系统 |
-| [cordis-entry.spec.ts](tests/cordis-entry.spec.ts) | 装载服务与 `hostFilesPlugin` 后经租约读文件；沙箱层没有提供者；`hostFilesPlugin` 卸载后租约以 `providerRetired` 失效、宿主层没有匹配；服务卸载后键上没有服务、租约以 `registryClosed` 失效、新获取返回 `ownerStopped`；没有恢复授权时恢复两操作返回 `unavailable`；注入恢复授权后宿主提供者记为不支持 |
+| [host-file-edges.spec.ts](tests/host-file-edges.spec.ts) | 查看、写入与关闭不点名时的拒绝；新建前的各项拒绝与父目录缺失；宿主拒绝访问为 `notAuthorized`；未映射的打开错误为未知；关闭的绑定层与对象核对；多段读取、上限与文件末尾；同一文件状态的版本在写入、读取、查看与新建之间一致 |
+| [host-provider.spec.ts](tests/host-provider.spec.ts) | 宿主提供者声明的事实；租约的身份、证据与只有 `files`；沙箱落点与退役后的拒绝；账本关闭后 12 项文件操作都返回 `closed` 且文件不变，另一份获取的账本不受影响；退役只通知尚未释放的租约 |
+| [cordis-entry.spec.ts](tests/cordis-entry.spec.ts) | 装载服务、`filesFacilityPlugin` 与 `hostFilesPlugin` 后经租约读文件；沙箱层没有提供者；`hostFilesPlugin` 卸载后租约以 `providerRetired` 失效、宿主层没有匹配；只装提供者时落点为 `missingFacility`，卸载声明插件后已取到的设施返回 `unsupported`；服务卸载后键上没有服务、租约以 `registryClosed` 失效、新获取返回 `ownerStopped`；恢复授权服务缺席时恢复两操作返回 `unavailable`，装载后被现取、宿主提供者记为不支持，卸载后又返回 `unavailable`；经服务登记的提供者退役待处置时，返回的撤除函数每次调用都再退役并抛出 `RetirementPending`；退役与关闭待处置时 fiber 卸载照常完成，`ctx.logger` 收到 `RetirementPending` |
 | [public-entry.spec.ts](tests/public-entry.spec.ts) | 根入口只导出三个函数；根入口可达的模块不导入 Cordis 或 `./cordis` |
 
 运行记录：
 
 - PanQiWei 接受时，包测试只在 Node v26.0.0、darwin 上运行过。
-- 2026-10-21 在 Node v24.18.0、linux 上，`pnpm --filter @omne-harness/execution-environment-host-local test` 的 5 个测试文件、50 个测试全部通过，退出码 0。本成员 `package.json` 声明的引擎是 `>=24`。
+- 2026-10-21 在 Node v24.18.0、linux 上，`pnpm --filter @omne-harness/execution-environment-host-local test` 的 7 个测试文件、72 个测试全部通过，退出码 0。本成员 `package.json` 声明的引擎是 `>=24`。
 
 本成员不覆盖：授予根限制、平台前提的探测、`command` 与 `terminal` 提供者、Runtime Context 块的发布、调用方类核对、同一 isolate 标签下重复装载的失败，以及配置校验失败时 fiber 进入 `FAILED`。持久化与真实集成方的端到端组合也不在本成员。
+
+### 明确缺项
+
+- 长期运行的保留与淘汰策略待定（应可配置）：宿主文件设施的已签发句柄表只增不减，当前随进程结束释放。
+- 两个插件仍是手写的插件对象，没有经过 kernel-basis 的 `definePlugin`，空配置 Schema 仍在本成员（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。加依赖需要更新工作区锁文件，待派发者裁定。

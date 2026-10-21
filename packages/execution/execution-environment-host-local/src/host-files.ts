@@ -1,6 +1,6 @@
 import { constants } from 'node:fs'
 import { lstat, open } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { dirname, isAbsolute } from 'node:path'
 import type {
   EnvironmentBinding,
   FacilityReason,
@@ -58,6 +58,11 @@ function reject(requestId: string, reason: FacilityReason): FacilityResult<never
 
 function unknown(requestId: string): FacilityResult<never> {
   return { kind: 'unknown', requestId }
+}
+
+/** A host path is absolute and has no NUL byte; anything else is refused before the file system. */
+function isHostPath(path: string): boolean {
+  return isAbsolute(path) && !path.includes('\0')
 }
 
 function pathWithoutTrailingSlash(path: string): string {
@@ -175,7 +180,7 @@ export function createHostFiles(): FileSystemFacility<unknown> {
     | FacilityResult<never>
   > {
     if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
-    if (path.includes('\0')) return reject(requestId, 'invalidInput')
+    if (!isHostPath(path)) return reject(requestId, 'invalidInput')
     if (namedToken === '') return reject(requestId, 'notAuthorized')
 
     let handle: FileHandle
@@ -285,7 +290,7 @@ export function createHostFiles(): FileSystemFacility<unknown> {
     bytes: Uint8Array,
   ): Promise<FacilityResult<FileIdentity>> {
     if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
-    if (path.includes('\0')) return reject(requestId, 'invalidInput')
+    if (!isHostPath(path)) return reject(requestId, 'invalidInput')
     if (namedToken === '') return reject(requestId, 'notAuthorized')
     if (path.length > 1 && path.endsWith('/')) return reject(requestId, 'invalidInput')
 
@@ -435,7 +440,7 @@ export function createHostFiles(): FileSystemFacility<unknown> {
       await drainPendingClose()
 
       if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
-      if (path.includes('\0')) return reject(requestId, 'invalidInput')
+      if (!isHostPath(path)) return reject(requestId, 'invalidInput')
       if (named === null) return reject(requestId, 'notAuthorized')
       if (handleObject.token !== namedToken) return unknown(requestId)
 

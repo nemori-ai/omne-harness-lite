@@ -17,8 +17,8 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 ## 本包事实
 
 - `host-files.ts`：宿主文件设施 `createHostFiles` 与 `hostObjectToken`，另有一个标为 `@internal` 的测试辅助函数，根入口不导出它。
-- `host-provider.ts`：宿主文件提供者 `createHostFilesProvider`。
-- `cordis.ts`：`ExecutionEnvironmentRegistry`、`executionEnvironmentRegistryWith`、`hostFilesPlugin`、`unavailableRecoveryAuthority` 与空配置 Schema。
+- `host-provider.ts`：宿主文件提供者 `createHostFilesProvider`，以及每次获取包住设施、先查账本 `closed` 的一层。
+- `cordis.ts`：`ExecutionEnvironmentRegistry`、`filesFacilityPlugin`、`hostFilesPlugin` 与空配置 Schema。
 - `index.ts`：重导出根入口的三个函数。
 
 `index.ts` 与 `cordis.ts` 带 `PACKAGE_TEMPLATE_DRAFT` 注释，写明还没有接受的部分：`files` 的其余操作、`command` 与 `terminal` 提供者、平台前提探测、Runtime Context 生产者插件、调用方类核对。具名维护者由负责人指定。

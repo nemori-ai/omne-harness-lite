@@ -69,7 +69,7 @@ From the repository root, run:
 pnpm --filter @omne-harness/execution-environment-cordis-contract test
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The two test files hold four tests. They check that the root entry has no runtime export, the export set and the key constant of `./cordis`, and that a subclass provides the service on the key and goes away when its plugin unloads. See [tests/](tests/README.md). On 2026-10-21, on Node v24.18.0 and linux, all four tests passed. No test covers the caller-class check or the import boundary. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The two test files hold five tests. They check that the root entry has no runtime export, the export set and the key constant of `./cordis`, and that a subclass provides the service on the key and goes away when its plugin unloads. See [tests/](tests/README.md). On 2026-10-21, on Node v24.18.0 and linux, all five tests passed. No test covers the caller-class check or the import boundary. A passing structure check does not prove behavior.
 
 ## Maintenance
 

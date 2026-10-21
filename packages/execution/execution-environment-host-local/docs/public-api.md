@@ -27,9 +27,8 @@
 
 | 名称 | 种类 | 用途 | 依据 |
 | --- | --- | --- | --- |
-| `ExecutionEnvironmentRegistry<P>` | `ExecutionEnvironmentService<P>` 的具体子类，带静态 `Config` | 直接当插件装载，提供 `executionEnvironment`；恢复授权缺省为不可用 | [SPEC Service 实现](../SPEC.md#service-实现)、[插件与配置](cordis.md#插件与配置) |
-| `executionEnvironmentRegistryWith` | 函数，输入 `RecoveryAuthority`，输出函数插件 | 装载带恢复授权的服务 | 同上 |
-| `hostFilesPlugin` | 函数插件 | 登记 `files` 设施声明与宿主文件提供者 | 同上 |
-| `unavailableRecoveryAuthority` | `RecoveryAuthority` 值 | 对每次恢复答复不可用 | [SPEC Service 实现](../SPEC.md#service-实现) |
+| `ExecutionEnvironmentRegistry<P>` | `ExecutionEnvironmentService<P>` 的具体子类，带静态 `Config` | 直接当插件装载，提供 `executionEnvironment`；每次恢复操作现取 `executionRecoveryAuthority` 服务，取不到答不可用 | [SPEC Service 实现](../SPEC.md#service-实现)、[插件与配置](cordis.md#插件与配置) |
+| `filesFacilityPlugin` | 函数插件 | 登记 `files` 设施声明 | 同上 |
+| `hostFilesPlugin` | 函数插件 | 登记宿主文件提供者 | 同上 |
 
 `ExecutionEnvironmentRegistry` 的八个方法是抽象类的方法，签名只在契约里写一次（[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)），见 [execution-environment-cordis-contract 的公开接口页](../../execution-environment-cordis-contract/docs/public-api.md)。

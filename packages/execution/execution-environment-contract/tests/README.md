@@ -16,13 +16,14 @@
 
 ## 本包事实
 
-现在有四个运行测试文件与一个类型测试文件：
+现在有五个运行测试文件与一个类型测试文件：
 
 | 文件 | 覆盖什么 | 条款 |
 | --- | --- | --- |
 | [public-entry.spec.ts](public-entry.spec.ts) | 根入口导出三个设施声明、需要声明的 schema 与采用身份、两条块声明与两个纯函数；三个核心设施的每项操作都须授权；两条块是稳定的供给块，恢复方式是重算；任何模块都不导入 Cordis | [设施协议](../SPEC.md#设施协议)、[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)、[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) |
 | [judge-requirement.spec.ts](judge-requirement.spec.ts) | 解码环境要求并保留租户对象；拒绝不带作用域引用的绑定层；拒绝带策略词的要求；用块的 schema 核对落点块的值 | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配) |
 | [match-providers.spec.ts](match-providers.spec.ts) | 按允许清单的顺序匹配，不按提供者的登记顺序；不选清单外的层；缺设施时拒绝为 `missingFacility`；隔离不满足时拒绝为 `isolationUnconfirmed` | [INV-EE02](../SPEC.md#inv-ee02-策略在域外求值环境只在允许清单内匹配)、[INV-EE03](../SPEC.md#inv-ee03-必需设施和隔离不得降低满足) |
+| [decode.spec.ts](decode.spec.ts) | 租户文本经 `tenantCodec` 解码后与原租户相等；本进程已铸造的租户原样保留；手造租户、JSON 往返后的对象形与不合法的租户文本被拒；各绑定层、落点块与宿主事实块的每个字段在自己的路径上拒绝；块声明的读者与稳定性；最接近的未命中原因；`bindingScope`、`originRef`、`acquisitionRef` 与 `createRecoveryAccess` | [获取与租约](../SPEC.md#获取与租约)、[INV-EE17](../SPEC.md#inv-ee17-真实落点痕迹与诊断可定位且守住披露)、[工具环境声明](../SPEC.md#工具环境声明) |
 | [need-declaration.spec.ts](need-declaration.spec.ts) | 接受未登记的设施键；拒绝未知字段、非字符串元素与不存在的绑定层；`digest` 等于 schema 文件字节的摘要 | [工具环境声明](../SPEC.md#工具环境声明) |
 | [facility-set.spec-d.ts](facility-set.spec-d.ts) | 示例按公开入口编译；`FacilitySet` 只给出声明点名的设施；三个核心设施键已登记且键集开放；声明不能写不存在的绑定层；租约按键给出设施类型 | [工具环境声明](../SPEC.md#工具环境声明)、[设施协议](../SPEC.md#设施协议) |
 

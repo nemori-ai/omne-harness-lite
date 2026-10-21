@@ -24,9 +24,11 @@
 | `ExecutionEnvironmentService<P>` | 抽象类，`static readonly provide = 'executionEnvironment'`，八个抽象方法 | [性质 1、2](../SPEC.md#结果与不变量)、[服务定义](cordis.md#服务定义) |
 | `executionEnvironmentKey` | 常量，取自 `ExecutionEnvironmentService.provide` | 性质 1 |
 | `ExecutionEnvironmentIntercept` | 类型 `{ caller: 'integrator' \| 'maintainer' \| 'provider' }` | 性质 4、[intercept 配置与调用方类](cordis.md#intercept-配置与调用方类) |
-| `Context` 增补 | `executionEnvironment` 属性的类型为 `ExecutionEnvironmentService<unknown>` | 性质 3 |
+| `ExecutionRecoveryAuthorityService` | 抽象类，`static readonly provide = 'executionRecoveryAuthority'`，抽象方法 `authorizeRecovery`，`implements` 契约的 `RecoveryAuthority` | [性质 9](../SPEC.md#结果与不变量)、[服务定义](cordis.md#服务定义) |
+| `executionRecoveryAuthorityKey` | 常量，取自 `ExecutionRecoveryAuthorityService.provide` | 性质 9 |
+| `Context` 增补 | `executionEnvironment` 属性的类型为 `ExecutionEnvironmentService<unknown>`；`executionRecoveryAuthority` 属性的类型为 `ExecutionRecoveryAuthorityService` | 性质 3、9 |
 
-运行时导出只有 `ExecutionEnvironmentService` 与 `executionEnvironmentKey`。[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对这个集合。`ExecutionEnvironmentIntercept` 与 `Context` 增补只是类型。
+运行时导出只有两个抽象类与两个键常量。[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 核对这个集合。`ExecutionEnvironmentIntercept` 与 `Context` 增补只是类型。
 
 `ExecutionEnvironmentService` 的八个方法是契约两个操作类型的方法：
 

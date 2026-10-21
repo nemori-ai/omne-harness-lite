@@ -15,15 +15,17 @@ sequenceDiagram
   participant A as 装配入口
   participant S as ExecutionEnvironmentRegistry
   participant R as 登记表
+  participant D as filesFacilityPlugin fiber
   participant H as hostFilesPlugin fiber
-  A->>S: 装载（或 executionEnvironmentRegistryWith(恢复授权)）
+  A->>S: 装载 ExecutionEnvironmentRegistry
   S->>S: 校验空配置
-  S->>R: createEnvironmentRegistry({ recovery })
+  S->>R: createEnvironmentRegistry({ recovery })，recovery 每次现取恢复授权服务
   S->>S: 登记关闭效应 executionEnvironment.close
-  A->>H: 装载 hostFilesPlugin（inject executionEnvironment）
-  H->>S: registerFacility(files 声明)
-  S->>H: this.ctx.effect，效应落在 H 上
+  A->>D: 装载 filesFacilityPlugin（inject executionEnvironment）
+  D->>S: registerFacility(files 声明)
+  S->>D: this.ctx.effect，效应落在 D 上
   S->>R: 写入设施声明表
+  A->>H: 装载 hostFilesPlugin（inject executionEnvironment）
   H->>S: registerProvider(宿主文件提供者)
   S->>H: this.ctx.effect，效应落在 H 上
   S->>R: 写入提供者表
@@ -32,9 +34,10 @@ sequenceDiagram
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
 | 配置 | 只接受缺省、`null` 或空对象 | 其余值校验失败，插件不装载 |
-| 恢复授权 | 直接装载时缺省为不可用 | 装配者要恢复，改装 `executionEnvironmentRegistryWith` 返回的插件 |
-| 登记 | 两项登记的寿命等于 `hostFilesPlugin` 的 fiber | 重复登记抛出，`hostFilesPlugin` 的 fiber 进入 `FAILED` |
-| 服务不在场 | `hostFilesPlugin` 停在 `PENDING` | 装配者装载服务 |
+| 恢复授权 | 每次恢复操作现取 `executionRecoveryAuthority` 服务 | 装配入口装载 `ExecutionRecoveryAuthorityService` 的子类。没有装载时恢复答不可用 |
+| 登记 | 设施声明的寿命等于 `filesFacilityPlugin` 的 fiber，提供者登记的寿命等于 `hostFilesPlugin` 的 fiber | 重复登记抛出，该插件的 fiber 进入 `FAILED` |
+| 只装其中一个插件 | 只有提供者时落点解析返回 `missingFacility`；只有声明时返回 `noMatchingEnvironment` | 装配者两个都装 |
+| 服务不在场 | 两个插件都停在 `PENDING` | 装配者装载服务 |
 
 ### F-EEH02 宿主文件使用
 
@@ -60,7 +63,7 @@ flowchart TD
 
 末段符号链接由打开时的 `O_NOFOLLOW` 拒绝，不再使用先 `lstat` 再打开的竞态预检。设备号和 inode 的核对发生在打开之后。核对失败不返回字节。后一次请求重新点名。上一次字节留在上一次结果里。`Shell()` 不经过这张图。
 
-经 Cordis 装配时，这张图之前还有登记表的逐操作门：请求形状、租约有效、租户一致与守卫。门的流程归 [execution-environment 的 F-EER02](../../execution-environment/docs/flows.md#f-eer02-一次设施操作过门)。
+经 Cordis 装配时，这张图之前还有登记表的逐操作门：请求形状、租约是否仍接纳新操作、此刻的设施声明、租户一致、绑定层一致与守卫。门之后、这张图之前，宿主提供者再查这次获取账本的 `closed` 信号。门的流程归 [execution-environment 的 F-EER02](../../execution-environment/docs/flows.md#f-eer02-一次设施操作过门)。
 
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
@@ -77,12 +80,15 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
+  participant D as filesFacilityPlugin fiber
   participant H as hostFilesPlugin fiber
   participant S as ExecutionEnvironmentRegistry fiber
   participant R as 登记表
   participant P as 宿主文件提供者
-  alt hostFilesPlugin 卸载
-    H->>R: 撤除 files 声明（与下一步并发）
+  alt filesFacilityPlugin 卸载
+    D->>R: 撤除 files 声明
+    R-->>D: 已取到的设施对象此后返回 unsupported
+  else hostFilesPlugin 卸载
     H->>R: 撤除提供者
     R->>R: 标为不在场，租约以 providerRetired 失效
     R->>P: retire()
@@ -93,15 +99,15 @@ sequenceDiagram
     R->>P: retire()（各提供者并发）
     P-->>R: 已排空
     R-->>S: 已排空或待处置
-    S-->>S: 待处置时抛出 RetirementPending
+    S-->>S: 待处置时撤除函数抛出 RetirementPending，Cordis 写入 ctx.logger，卸载照常完成
   end
 ```
 
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
-| 两个效应的先后 | 不固定 | 两者都让新获取取不到宿主文件设施 |
+| 两个插件的卸载先后 | 不固定 | 各自独立，先后不影响结果 |
 | 已交租约 | 失效，之后的设施操作返回 `closed` | 集成方释放租约，或丢弃引用 |
-| 退役待处置 | 撤除函数抛出 `RetirementPending` | 未停的受管资源在集成方账本里，由维护者处置。宿主文件提供者没有受管资源 |
+| 退役待处置 | 撤除函数抛出 `RetirementPending`。fiber 卸载时这个错误只进 `ctx.logger`；调用方直接调用撤除函数时可以重试 | 未停的受管资源在集成方账本里，由维护者处置。宿主文件提供者没有受管资源 |
 | 服务卸载时依赖它的插件 | 随之卸载或重跑，与 `close()` 并发 | 同一个提供者的退役共用一次 `retire()` |
 | 外部效果 | 不撤回 | 已写入的字节留在文件里 |
 
@@ -114,4 +120,5 @@ sequenceDiagram
 | 进程失败 | 没有可恢复的东西。宿主文件提供者没有受管资源 | 集成方据账本处置 | [execution-environment SPEC](../../execution-environment/SPEC.md#所有权失败与生命周期) |
 | 重复装载服务 | 第二份在 `provide` 时失败 | 装配者 | [Cordis 说明的 isolate 绑定](cordis.md#isolate-绑定) |
 | 配置不是空对象 | 校验失败，插件不装载 | 装配者 | [Cordis 说明的插件与配置](cordis.md#插件与配置) |
-| 撤除函数抛出 | Cordis 的处置没有 basis 条目 | 装配者观察 | [Cordis 说明的机制读数](cordis.md#机制读数与假设) |
+| 撤除函数抛出 | Cordis 写入 `ctx.logger`，卸载照常完成 | 装配者经 `ctx.logger` 观察 | [Cordis 说明的机制读数](cordis.md#机制读数与假设) |
+| 获取账本已关闭 | 这份获取的文件操作返回 `closed`，不触碰文件系统 | 集成方 | [SPEC 宿主提供者的事实](../SPEC.md#宿主提供者的事实) |

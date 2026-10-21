@@ -1,12 +1,14 @@
-// PACKAGE_TEMPLATE_DRAFT: The service key, the abstract Service and the intercept configuration type are in place; enforcement of the caller class for the two recovery operations is not yet accepted.
-// The Cordis service definition of the execution environment: one abstract Service, its key and the
-// intercept configuration type. It has no events; placement changes reach readers as Runtime Context blocks.
+// PACKAGE_TEMPLATE_DRAFT: The service keys, the abstract Services and the intercept configuration type are in place; enforcement of the caller class for the two recovery operations is not yet accepted.
+// The Cordis service definitions of the execution environment: the environment Service and the
+// recovery authority Service, their keys and the intercept configuration type. It has no events;
+// placement changes reach readers as Runtime Context blocks.
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type {
   ExecutionEnvironment,
   FacilityDescriptor,
   FacilityKey,
   ProviderRegistrations,
+  RecoveryAuthority,
 } from '@omne-harness/execution-environment-contract'
 
 /** Parameters and result of one `ExecutionEnvironment` operation, so the signatures are written once. */
@@ -53,10 +55,33 @@ export abstract class ExecutionEnvironmentService<P>
 
 export const executionEnvironmentKey = ExecutionEnvironmentService.provide
 
+/**
+ * The recovery authority of the execution environment as a service. The assembly entry provides it
+ * by loading a subclass; the Service implementation reads it on each recovery operation and treats
+ * its absence as `unavailable`. It is an optional dependency, so nobody writes it in `inject`.
+ *
+ * @owner packages/execution/execution-environment-cordis-contract
+ */
+export abstract class ExecutionRecoveryAuthorityService
+  extends Service
+  implements RecoveryAuthority
+{
+  static readonly provide = 'executionRecoveryAuthority'
+  constructor(ctx: Context) {
+    super(ctx, ExecutionRecoveryAuthorityService.provide)
+  }
+  abstract authorizeRecovery(
+    ...args: Parameters<RecoveryAuthority['authorizeRecovery']>
+  ): ReturnType<RecoveryAuthority['authorizeRecovery']>
+}
+
+export const executionRecoveryAuthorityKey = ExecutionRecoveryAuthorityService.provide
+
 declare module '@deepseek-ai/cordis' {
   // The trusted identity adapter of an assembly narrows the principal type. Providers still check
   // every input at run time.
   interface Context {
     executionEnvironment: ExecutionEnvironmentService<unknown>
+    executionRecoveryAuthority: ExecutionRecoveryAuthorityService
   }
 }

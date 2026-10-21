@@ -1,4 +1,4 @@
-import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { StandardTyped } from '@omne-harness/schema-provider'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
@@ -124,28 +124,43 @@ export const decodeScope: Decoder<ScopeRef> = (value, path) => {
   return accept(Object.freeze({ ref, parent: parent.value }))
 }
 
-function isIdentityPart(value: unknown, name: string): boolean {
-  return (
-    isRecord(value) &&
-    Object.keys(value).length === 2 &&
-    value['name'] === name &&
-    typeof value['text'] === 'string'
-  )
+type IdentityPart<N extends string> = Readonly<{ name: N; text: string }>
+
+type TenantShape = Readonly<{
+  name: 'TenantId'
+  organization: IdentityPart<'OrganizationId'>
+  account: IdentityPart<'AccountId'>
+}>
+
+function isIdentityPart<N extends string>(value: unknown, name: N): value is IdentityPart<N> {
+  return isRecord(value) && value['name'] === name && typeof value['text'] === 'string'
 }
 
-function isTenantId(value: unknown): value is TenantId {
+// Checks the shape only. Whether legal-identity minted the value is asked of its own codec below.
+function hasTenantShape(value: unknown): value is TenantShape {
   return (
     isRecord(value) &&
-    Object.keys(value).length === 3 &&
     value['name'] === 'TenantId' &&
     isIdentityPart(value['organization'], 'OrganizationId') &&
     isIdentityPart(value['account'], 'AccountId')
   )
 }
 
-/** Keeps the original tenant object, so identity equality of minted tenants still holds. */
-export const decodeTenant: Decoder<TenantId> = (value, path) =>
-  isTenantId(value) ? accept(value) : refuse(path, 'expected a tenant identity')
+/**
+ * The wire form of a tenant belongs to legal-identity: the tenant text of `tenantCodec`, parsed and
+ * minted by that codec. A tenant minted in this process passes unchanged when `tenantCodec` can
+ * encode it. Any other object, even one shaped like a tenant, is refused.
+ */
+export const decodeTenant: Decoder<TenantId> = (value, path) => {
+  if (typeof value === 'string') {
+    const parsed = tenantCodec.parse(value)
+    return parsed.ok
+      ? accept(parsed.value)
+      : refuse(path, `expected tenant text (${parsed.error.code})`)
+  }
+  if (hasTenantShape(value) && tenantCodec.encode(value).ok) return accept(value)
+  return refuse(path, 'expected tenant text or a minted tenant identity')
+}
 
 export const decodeBinding: Decoder<EnvironmentBinding> = (value, path) => {
   if (!isRecord(value)) return refuse(path, 'expected a binding')

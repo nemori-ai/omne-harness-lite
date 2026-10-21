@@ -18,6 +18,7 @@ import {
   type FacilityGuard,
   type FacilityKey,
   type FacilityResult,
+  type LeaseInvalidation,
   type Placement,
   type ProcessHandle,
   type RecoveryAuthority,
@@ -78,8 +79,8 @@ function stubProvider(options: {
   keys: readonly FacilityKey[]
 }): EnvironmentProvider & { readonly calls: Calls } {
   const calls: Calls = { acquire: 0, retire: 0, start: 0 }
-  let retired: (value: { readonly reason: string }) => void = () => undefined
-  const invalidated = new Promise<{ readonly reason: string }>(resolve => {
+  let retired: (value: LeaseInvalidation) => void = () => undefined
+  const invalidated = new Promise<LeaseInvalidation>(resolve => {
     retired = resolve
   })
   return {
@@ -118,7 +119,7 @@ function stubProvider(options: {
     },
     async retire() {
       calls.retire += 1
-      retired({ reason: 'retired' })
+      retired({ source: 'provider', reason: 'retired' })
       return { kind: 'drained' }
     },
   }
@@ -201,7 +202,10 @@ it('refuses a layer with no provider, and refuses again after the provider is re
 
   await remove()
   expect(provider.calls.retire).toBe(1)
-  await expect(acquired.lease.invalidated).resolves.toEqual({ reason: 'providerRetired' })
+  await expect(acquired.lease.invalidated).resolves.toEqual({
+    source: 'registry',
+    reason: 'providerRetired',
+  })
   const after = await registry.resolvePlacement(accessA, requirement([host], ['command']))
   expect(after).toEqual({ kind: 'rejected', reason: 'noMatchingEnvironment' })
   expect(await registry.acquire(accessA, acquireInput(placement, 'acq-2'))).toEqual({
@@ -383,7 +387,14 @@ it('refuses a facility key whose descriptor is not registered, even when the pro
     keys: ['command'],
   })
   registry.registerProvider(provider)
+  expect(await registry.resolvePlacement(accessA, requirement([host], ['command']))).toEqual({
+    kind: 'rejected',
+    reason: 'missingFacility',
+  })
+
+  const removeDeclaration = registry.registerFacility(commandFacility)
   const placement = await placed(registry, requirement([host], ['command']))
+  await removeDeclaration()
   expect(await registry.acquire(accessA, acquireInput(placement))).toEqual({
     kind: 'rejected',
     reason: 'unsupportedFacility',
@@ -489,7 +500,10 @@ it('releases a scope only with recovery authorization, then refuses new acquisit
     unsupported: [{ kind: 'provider', provider: { name: 'session-command', generation: '1' } }],
     unavailable: [],
   })
-  await expect(acquired.lease.invalidated).resolves.toEqual({ reason: 'scopeReleased' })
+  await expect(acquired.lease.invalidated).resolves.toEqual({
+    source: 'registry',
+    reason: 'scopeReleased',
+  })
   expect(await registry.acquire(accessA, acquireInput(placement, 'acq-3'))).toEqual({
     kind: 'rejected',
     reason: 'referenceExpired',
@@ -514,7 +528,10 @@ it('closes by refusing new acquisitions, invalidating leases and retiring provid
 
   expect(await registry.close()).toEqual({ kind: 'drained' })
   expect(provider.calls.retire).toBe(1)
-  await expect(acquired.lease.invalidated).resolves.toEqual({ reason: 'registryClosed' })
+  await expect(acquired.lease.invalidated).resolves.toEqual({
+    source: 'registry',
+    reason: 'registryClosed',
+  })
   expect(await registry.acquire(accessA, acquireInput(placement, 'acq-2'))).toEqual({
     kind: 'rejected',
     reason: 'ownerStopped',

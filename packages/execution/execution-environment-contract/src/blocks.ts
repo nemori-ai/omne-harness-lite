@@ -143,7 +143,7 @@ export const executionPlacementBlock: SuppliedBlockDescriptor<
   recovery: 'recompute',
 })
 
-/** Platform, facility keys, isolation claims and prerequisites of the host providers. */
+/** Platform, facility keys, isolation claims and prerequisites of every registered provider. */
 export const executionHostFactsBlock: SuppliedBlockDescriptor<
   'execution.host-facts',
   ExecutionHostFactsValue

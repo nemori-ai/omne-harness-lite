@@ -11,9 +11,9 @@ This package does two jobs. First, it puts the registry of [execution-environmen
 
 Status: Service implementation member, `draft`. The host file use section is accepted. See [host file use in the SPEC](SPEC.md#宿主文件使用). The adoption basis also includes the [system page](../../../docs/architecture/runtime/execution-environment.md#环境选择与资源准备) and the [topic owner table](../docs/architecture.md#主题与唯一拥有者) of the group.
 
-- Implemented: read, stat, write, and close of the host files facility. The host files provider. The Service subclass `ExecutionEnvironmentRegistry`, the plugin factory `executionEnvironmentRegistryWith`, and the plugin `hostFilesPlugin`.
-- Not implemented: the other eight `files` operations (they reply `unsupported` now), the `command` and `terminal` providers, the platform prerequisite probe, the grant root restriction, publication of the two Runtime Context blocks, and the caller-class check.
-- Not verified: no test covers a second load under one isolate label, a configuration check failure, or a removal function that throws on a pending retirement.
+- Implemented: read, stat, write, and close of the host files facility. The host files provider. The Service subclass `ExecutionEnvironmentRegistry`, the plugin `filesFacilityPlugin`, and the plugin `hostFilesPlugin`.
+- Not implemented: the other eight `files` operations (they reply `unsupported` now), the `command` and `terminal` providers, the platform prerequisite probe, the grant root restriction, publication of the two Runtime Context blocks, the caller-class check, and `definePlugin` for the two plugins. See the SPEC [gap list](SPEC.md#明确缺项).
+- Not verified: no test covers a second load under one isolate label or a configuration check failure.
 
 No application assembles this package now, and no package depends on it.
 
@@ -21,22 +21,25 @@ No application assembles this package now, and no package depends on it.
 
 The package has two entries:
 
-- `@omne-harness/execution-environment-host-local/cordis` holds the plugins. An application assembler loads the service and the host files plugin.
+- `@omne-harness/execution-environment-host-local/cordis` holds the plugins. An application assembler loads the service, the `files` declaration plugin, and the host files plugin.
 - `@omne-harness/execution-environment-host-local` holds the host files facility, the object identity reader, and the host files provider. It does not depend on Cordis.
 
 ```ts
 import { Context } from '@deepseek-ai/cordis'
 import {
-  executionEnvironmentRegistryWith,
+  ExecutionEnvironmentRegistry,
+  filesFacilityPlugin,
   hostFilesPlugin,
 } from '@omne-harness/execution-environment-host-local/cordis'
 
 const ctx = new Context()
-await ctx.plugin(executionEnvironmentRegistryWith(myRecoveryAuthority))
+await ctx.plugin(ExecutionEnvironmentRegistry)
+await ctx.plugin(MyRecoveryAuthority)
+await ctx.plugin(filesFacilityPlugin)
 await ctx.plugin(hostFilesPlugin)
 ```
 
-`myRecoveryAuthority` is the recovery authority port that the maintenance owner of the integrator implements. Calling plugins use the service through the service definition. They do not import this package. The execution adapter names an object with `hostObjectToken` from the root entry. The [usage page](docs/context.md#使用方式) covers assembly, naming, and independent use.
+`MyRecoveryAuthority` is a subclass of `ExecutionRecoveryAuthorityService` from `@omne-harness/execution-environment-cordis-contract/cordis`. The maintenance owner of the integrator implements it. The service reads it on each recovery operation. Without it, recovery answers `unavailable`. Calling plugins use the service through the service definition. They do not import this package. The execution adapter names an object with `hostObjectToken` from the root entry. The [usage page](docs/context.md#使用方式) covers assembly, naming, and independent use.
 
 ## Contracts
 
@@ -46,15 +49,15 @@ await ctx.plugin(hostFilesPlugin)
 - The [Cordis page](docs/cordis.md) owns the plugins, the configuration, registration as effect, the removal order, and the IC map.
 - [execution-environment-cordis-contract](../execution-environment-cordis-contract/docs/cordis.md) owns the service key and the abstract class.
 
-The fiber of the service plugin owns the service instance and the registry instance. On service removal, the package closes the registry: it refuses new requests, invalidates leases, and retires all providers. When a retirement stays pending, the removal function throws `RetirementPending`. The fiber of `hostFilesPlugin` owns the `files` descriptor registration and the host files provider registration. Removal does not undo bytes already written.
+The fiber of the service plugin owns the service instance and the registry instance. On service removal, the package closes the registry: it refuses new requests, invalidates leases, and retires all providers. When a retirement stays pending, the removal function throws `RetirementPending`. On a fiber unload, Cordis writes that error to `ctx.logger` and the unload completes. A caller that calls the returned removal itself can retry it. The fiber of `filesFacilityPlugin` owns the `files` descriptor registration. The fiber of `hostFilesPlugin` owns the host files provider registration. Removal does not undo bytes already written.
 
 ## Design
 
-The root entry has two modules: the host files facility and the host files provider. `./cordis` has the Service subclass and two plugins. The outside dependencies are execution-environment-contract, execution-environment, execution-environment-cordis-contract, and `@deepseek-ai/cordis`. The host files facility checks only the object identity. The lease view of the registry checks the tenant and the guard. One provider shares one facility instance. The Service subclass only forwards calls and manages life. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives three mechanism flows. The [object model](docs/object-model.md) lists the objects.
+The root entry has two modules: the host files facility and the host files provider. `./cordis` has the Service subclass and two plugins. The outside dependencies are execution-environment-contract, execution-environment, execution-environment-cordis-contract, and `@deepseek-ai/cordis`. The host files facility checks only the object identity. The lease view of the registry checks the tenant and the guard. One provider shares one facility instance. Each acquisition gets a wrapper that refuses operations with `closed` after its ledger closes. The Service subclass only forwards calls and manages life. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives three mechanism flows. The [object model](docs/object-model.md) lists the objects.
 
 ## Configuration and operation
 
-The three assembly units share one configuration schema. It accepts only an absent value, `null`, or an empty object. The package has no tunable parameter. The recovery authority port comes as the argument of `executionEnvironmentRegistryWith`. It does not go into the plugin tree. One isolate label holds one service.
+The three assembly units share one configuration schema. It accepts only an absent value, `null`, or an empty object. The package has no tunable parameter. The recovery authority port comes as the service `executionRecoveryAuthority`. It does not go into the plugin tree. One isolate label holds one service.
 
 The host files facility runs on Node. It checks the object identity with `O_NOFOLLOW`, the device number, and the inode. `package.json` declares the engine `>=24`. The platform in the host facts comes from `process.platform`. The prerequisites always read as satisfied. No probe runs.
 
@@ -66,13 +69,13 @@ From the repository root, run:
 pnpm --filter @omne-harness/execution-environment-host-local test
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The five test files hold fifty tests. See [tests/](tests/README.md). File bytes, symbolic links, and object replacement use the real file system. Cordis loading uses real Cordis 4.0.4. Authorization decisions use stubs. Run records: at acceptance, the tests ran only on Node v26.0.0 and darwin. On 2026-10-21, on Node v24.18.0 and linux, all fifty tests passed. No test covers the grant root restriction, a second load, or a configuration check failure. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The seven test files hold seventy-two tests. See [tests/](tests/README.md). File bytes, symbolic links, and object replacement use the real file system. Cordis loading uses real Cordis 4.0.4. Authorization decisions use stubs. Run records: at acceptance, the tests ran only on Node v26.0.0 and darwin. On 2026-10-21, on Node v24.18.0 and linux, all seventy-two tests passed. No test covers the grant root restriction, a second load, or a configuration check failure. A passing structure check does not prove behavior.
 
 ## Maintenance
 
 - A change to the accepted host file use behavior needs a new acceptance through the original acceptance entry. Then update the SPEC, the [architecture section](docs/architecture.md#宿主文件使用), and the tests.
 - When the service definition changes, update the Service subclass, the [Cordis page](docs/cordis.md), and the tests.
-- When the registry factory changes, update the Service subclass and `executionEnvironmentRegistryWith`.
+- When the registry factory changes, update the Service subclass.
 - When a new host facility arrives, update the host provider facts in the SPEC, the [API page](docs/public-api.md), and the Cordis page.
 - Before a Cordis upgrade, run the basis probes that the service definition member lists.
 - The [group page](../README.md) owns member relations and dependency direction. The responsible lead names the maintainer.

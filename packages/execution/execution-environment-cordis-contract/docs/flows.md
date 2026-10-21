@@ -22,9 +22,9 @@ sequenceDiagram
   S->>T: 写入提供者，参与匹配
   S-->>PF: 撤除函数
   alt 提供者插件卸载
-    PF->>S: fiber 撤除，运行撤除函数
-  else 提供者调用撤除函数
-    PF->>S: 调用同一撤除函数
+    PF->>S: fiber 撤除，效应调用一次登记表的撤除
+  else 提供者调用返回的撤除函数
+    PF->>S: 直接调用登记表的同一撤除，可以重试
   end
   S->>T: 标记退役：不再参与匹配，拒绝新租约
   S->>S: 使该提供者交出的租约失效
@@ -42,7 +42,7 @@ sequenceDiagram
 | 在根 Context 上登记 | 效应属于根 fiber，不随任何提供者撤除 | 只允许测试或装配入口这样用 |
 | 撤除开始 | 提供者不再参与新的落点与获取 | 退役先拒新租约再排空，次序写在同一个撤除函数里（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)） |
 | 已交租约 | 失效可见，失效后的设施操作返回 `closed` | 规则归[契约的获取与租约](../../execution-environment-contract/SPEC.md#获取与租约) |
-| 退役待处置 | 撤除函数不以正常返回报告完成。提供者留在提供者表里，不参与匹配 | 确认不了停止的受管资源留在集成方账本里，由维护者的恢复操作处置（[INV-EE15](../../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)） |
+| 退役待处置 | 调用方直接调用的撤除函数不以正常返回报告完成，再调用会再次退役。fiber 卸载照常完成，待处置只经 `ctx.logger` 的错误可见。提供者留在提供者表里，不参与匹配 | 确认不了停止的受管资源留在集成方账本里，由维护者的恢复操作处置（[INV-EE15](../../execution-environment-contract/SPEC.md#inv-ee15-准备持有回收与确认保持一致)） |
 | 撤除之后 | 新的落点解析不再选中这个提供者 | 撤除不撤回已发生的外部效果 |
 
 ### F-EED02 调用方类声明与读取

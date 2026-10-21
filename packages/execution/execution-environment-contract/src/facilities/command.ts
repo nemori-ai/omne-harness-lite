@@ -29,9 +29,9 @@ export type CommandOutcome =
   | {
       readonly kind: 'completed'
       readonly exit:
-        | { readonly code: number }
-        | { readonly signal: string }
-        | { readonly unknown: true }
+        | { readonly kind: 'code'; readonly code: number }
+        | { readonly kind: 'signal'; readonly signal: string }
+        | { readonly kind: 'unknown' }
       readonly durationMs: number
       readonly output: OutputSummary
     }

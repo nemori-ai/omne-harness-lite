@@ -37,6 +37,22 @@ export type Placement = Readonly<{
   continuity: EnvironmentContinuity
 }>
 
+/** Reasons the registry itself gives when it invalidates a lease. */
+export type RegistryInvalidationReason =
+  | 'providerRetired'
+  | 'scopeReleased'
+  | 'registryClosed'
+  | 'released'
+  | 'providerInvalidated'
+
+/**
+ * Why a lease stopped being valid. The registry names its own reasons from a closed set; a reason a
+ * provider reports is carried as the provider wrote it.
+ */
+export type LeaseInvalidation =
+  | { readonly source: 'registry'; readonly reason: RegistryInvalidationReason }
+  | { readonly source: 'provider'; readonly reason: string }
+
 export type LeaseRelease =
   | { readonly kind: 'released' }
   | { readonly kind: 'pending'; readonly resources: readonly ManagedResource[] }
@@ -48,7 +64,7 @@ export interface EnvironmentLease<K extends FacilityKey = FacilityKey> {
   /** Only keys of the requirement resolve; any other key gives `undefined`. */
   facility<F extends K>(key: F): EnvironmentFacilities[F] | undefined
   /** Settles when the provider retires, the scope is released, the registry closes, the environment is reclaimed at its lifetime bound, or the instance is lost or replaced. */
-  readonly invalidated: Promise<{ readonly reason: string }>
+  readonly invalidated: Promise<LeaseInvalidation>
   /** Releases this acquisition only; a shared environment is not destroyed. */
   release(): Promise<LeaseRelease>
 }
@@ -80,7 +96,7 @@ export type AcquisitionState =
   | {
       readonly kind: 'invalidated'
       readonly adoption: EnvironmentAdoption
-      readonly reason: string
+      readonly invalidation: LeaseInvalidation
     }
   | { readonly kind: 'releasing'; readonly adoption: EnvironmentAdoption }
   | {

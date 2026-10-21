@@ -150,7 +150,11 @@
 
 `describe(访问身份, 作用域)` 只列出调用方租户的获取，并按作用域过滤：绑定层属于该作用域、已签发采用记录且尚未释放的获取。每项带获取键、原调用、绑定层、提供者身份、实例身份与代、连续性、设施键与当前状态。执行环境关闭后，`describe` 以 `ownerStopped` 拒绝。
 
-租约只暴露环境要求里的设施键；每次须授权的操作先过设施守卫，答案是允许、不允许或不可用，执行环境不知道依据。租约只绑定租户：请求里的租户必须等于获取方的租户，否则 `notAuthorized`。主体由设施守卫判断，执行环境不比较主体。租约带实例身份与代、连续性；失效可观察，失效或释放后的新操作返回 `closed`。租约失效后，在途的输出、终局和停止仍由原提供者处理。提供者退役时先拒新租约，再排空：已接纳的操作结束，受管资源已停或已列为待处置（[INV-EE18](#inv-ee18-提供者换代和-cordis-集成保留原责任)）。释放只对本次获取，结果是已释放，或待处置并列出未停的受管资源；同一释放可重试；共享环境不因一次释放而销毁；丢掉引用不是释放。
+租约只暴露环境要求里的设施键；每次须授权的操作先过设施守卫，答案是允许、不允许或不可用，执行环境不知道依据。每次设施操作按下列顺序核对，第一项不成立即拒绝：请求形状（`invalidInput`）；租约仍接纳新操作，即没有失效、也没有发起释放（`closed`）；这个键的设施声明仍在并列出这个操作（`unsupported`）；租户（`notAuthorized`）；绑定层（`invalidInput`）；须授权的操作问设施守卫；守卫答允许后再核一次租约（`closed`）。所以租约已关闭时，即使声明也已撤除，答复仍是 `closed`。租约只绑定租户：请求里的租户必须等于获取方的租户，否则 `notAuthorized`。租户核对之后，请求里的绑定层必须等于租约落点的绑定层，否则 `invalidInput`，这个请求不交给设施守卫。请求里的原调用现在不核对。主体由设施守卫判断，执行环境不比较主体。租约带实例身份与代、连续性；失效可观察，失效后或释放发起后的新操作返回 `closed`。释放发起后，不论结果是已释放、待处置还是仍在进行，租约都不再接纳新操作；待处置后仍可重试释放。租约失效后，在途的输出、终局和停止仍由原提供者处理。提供者退役时先拒新租约，再排空：已接纳的操作结束，受管资源已停或已列为待处置（[INV-EE18](#inv-ee18-提供者换代和-cordis-集成保留原责任)）。释放只对本次获取，结果是已释放，或待处置并列出未停的受管资源；同一释放可重试；共享环境不因一次释放而销毁；丢掉引用不是释放。
+
+租户的线上形式归 legal-identity：跨序列化边界的租户写成它的租户文本，由 `tenantCodec` 解码并铸造。本成员的解码器（`judgeRequirement` 与两条块声明的 schema）接受租户文本，也原样保留本进程内已铸造的 `TenantId`。其他形状一律拒绝，包括形状与 `TenantId` 相同的手造对象。比较租户只用 legal-identity 的 `tenantEquals`。
+
+访问身份里的租户也必须是 legal-identity 铸造的值；执行环境用 `tenantEquals(租户, 租户)` 核对，未铸造的值不等于任何租户。执行环境在 `resolvePlacement`、`acquire`、`inspectAcquisition` 与 `describe` 的最前面做这项核对。未铸造时，`resolvePlacement`、`acquire` 与 `describe` 以 `invalidInput` 拒绝，不写记录，也不调用提供者。`AcquisitionState` 没有表示无效输入的答复，所以 `inspectAcquisition` 答复 `unrecorded`。`recoverOwned` 与 `releaseScope` 不带访问身份，不做这项核对。
 
 ### 拒绝原因
 
@@ -158,6 +162,7 @@
 
 | 操作 | 原因 | 触发条件 |
 | --- | --- | --- |
+| `resolvePlacement`、`acquire`、`describe` | `invalidInput` | 访问身份里的租户不是 legal-identity 铸造的值；先于其他核对 |
 | `resolvePlacement` | `ownerStopped` | 执行环境已关闭 |
 | `resolvePlacement` | `noMatchingEnvironment` | 允许清单里没有一层有声明该层的在场提供者 |
 | `resolvePlacement` | `missingFacility` | 有提供者的层里，所需设施键的声明没有登记，或提供者不提供这个键 |
@@ -175,7 +180,7 @@
 | `acquire` | `unsupportedFacility` | 所需设施键有一项没有登记声明、不由该提供者提供，或回执的租约取不到它 |
 | `acquire` | `unavailable` | 回执里的绑定层与落点不一致 |
 | `acquire` | 提供者给出的原因 | 提供者拒绝时，原因原样交给集成方，取值仍在本集合内。例如接续时账本答 `unavailable`，提供者以 `unavailable` 拒绝（[INV-EE15](#inv-ee15-准备持有回收与确认保持一致)） |
-| `inspectAcquisition` | 不拒绝 | 没有调用方租户在这个键下的记录时答复 `unrecorded` |
+| `inspectAcquisition` | 不拒绝 | 没有调用方租户在这个键下的记录时答复 `unrecorded`；访问身份里的租户未铸造时也答复 `unrecorded` |
 | `describe` | `ownerStopped` | 执行环境已关闭 |
 | `recoverOwned`、`releaseScope` | `notAuthorized`、`unavailable` | 恢复授权端口答不允许或不可用；端口抛出按 `unavailable` 处理 |
 

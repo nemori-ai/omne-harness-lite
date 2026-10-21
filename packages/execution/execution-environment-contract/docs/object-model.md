@@ -158,6 +158,8 @@ stateDiagram-v2
   rejected --> [*]
 ```
 
+失效原因是 `LeaseInvalidation`：来源 `registry` 的原因取自封闭集合（`providerRetired`、`scopeReleased`、`registryClosed`、`released`、`providerInvalidated`），来源 `provider` 的原因是提供者自报的文本。`invalidated` 状态带这个原因。
+
 同一幂等键的重复请求返回当前状态，不改变状态。`unrecorded` 是执行环境对不认识的键的答复：从未见过，或执行环境的实现重启之后。集成方据自己的账本判断是哪一种。状态名与 `AcquisitionState` 一致。条款见 [SPEC 获取与租约](../SPEC.md#获取与租约)。
 
 ### 受管资源
@@ -182,7 +184,7 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
   [*] --> requested
-  requested --> rejected : 租户不等于获取方的租户 / 租约已失效 / 键不在要求里
+  requested --> rejected : 租户不等于获取方的租户 / 绑定层不等于租约落点（invalidInput） / 租约已失效或释放已发起 / 键不在要求里
   requested --> authorized : 守卫答允许
   requested --> rejected : 守卫答不允许 / 守卫不可用（操作未发出，原因 unavailable）
   authorized --> done : 完成

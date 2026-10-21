@@ -6,21 +6,24 @@
 
 ### 装配
 
-应用装配者在进程里装载服务与宿主文件插件：
+应用装配者在进程里装载服务、`files` 声明插件与宿主文件插件：
 
 ```ts
 import { Context } from '@deepseek-ai/cordis'
 import {
-  executionEnvironmentRegistryWith,
+  ExecutionEnvironmentRegistry,
+  filesFacilityPlugin,
   hostFilesPlugin,
 } from '@omne-harness/execution-environment-host-local/cordis'
 
 const ctx = new Context()
-await ctx.plugin(executionEnvironmentRegistryWith(myRecoveryAuthority))
+await ctx.plugin(ExecutionEnvironmentRegistry)
+await ctx.plugin(MyRecoveryAuthority)
+await ctx.plugin(filesFacilityPlugin)
 await ctx.plugin(hostFilesPlugin)
 ```
 
-`myRecoveryAuthority` 是集成方维护拥有者实现的恢复授权端口。不需要恢复时，可以直接 `ctx.plugin(ExecutionEnvironmentRegistry)`，恢复两操作随之一律返回 `unavailable`。两个插件都不接受配置字段。
+`MyRecoveryAuthority` 是 `ExecutionRecoveryAuthorityService` 的子类，由集成方维护拥有者实现。服务每次恢复操作现取它。不需要恢复时不装它，恢复两操作随之一律返回 `unavailable`。三个插件都不接受配置字段。
 
 装载之后，集成方、维护者、提供者与设施拥有者的插件经服务定义使用服务，见 [execution-environment-cordis-contract 的使用](../../execution-environment-cordis-contract/docs/context.md#使用方式)。它们不导入本成员。
 
@@ -66,7 +69,7 @@ flowchart LR
 
 | 使用方 | 怎样使用 | 用什么 |
 | --- | --- | --- |
-| 应用装配者 | 装载 `./cordis` 的插件 | `executionEnvironmentRegistryWith` 或 `ExecutionEnvironmentRegistry`，`hostFilesPlugin` |
+| 应用装配者 | 装载 `./cordis` 的插件与恢复授权服务 | `ExecutionEnvironmentRegistry`、`filesFacilityPlugin`、`hostFilesPlugin`；`ExecutionRecoveryAuthorityService` 的子类 |
 | 执行适配 | 点名对象 | 根入口的 `hostObjectToken` |
 | 独立调用方 | 登记到不含 Cordis 的登记表 | 根入口的 `createHostFilesProvider` |
 

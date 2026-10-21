@@ -16,11 +16,14 @@ SPEC 的行为或[明确缺项](../SPEC.md#明确缺项)变化时，同步对应
 
 ## 本包事实
 
-现在有两个测试文件，共十四个测试：
+现在有五个测试文件，共六十一个测试，替身集中在 [doubles.ts](doubles.ts)：
 
 - [public-entry.spec.ts](public-entry.spec.ts)：两个测试。根入口只导出 `createEnvironmentRegistry` 与 `RetirementPending`；任何模块都不导入 `@deepseek-ai/cordis`。
-- [registry.spec.ts](registry.spec.ts)：十二个测试，对应 SPEC [组合与验证](../SPEC.md#组合与验证)的场景表。
+- [registry.spec.ts](registry.spec.ts)：十二个测试，对应 SPEC [组合与验证](../SPEC.md#组合与验证)的第一张场景表。
+- [acquisition.spec.ts](acquisition.spec.ts)：二十一个测试。获取的失败、核验与补偿释放、重核落点、同键的集合比较、租户级沙箱与未铸造的访问租户。
+- [lease-gate.spec.ts](lease-gate.spec.ts)：十四个测试。逐操作门、失效与释放。
+- [lifecycle.spec.ts](lifecycle.spec.ts)：十二个测试。登记、退役、关闭、描述与恢复。
 
-没有 `*.spec-d.ts` 类型测试。运行方式：在仓库根执行 `pnpm --filter @omne-harness/execution-environment test`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。2026-10-21 在 Node v24.18.0、linux 上，十四个测试全部通过，退出码 0。
+没有 `*.spec-d.ts` 类型测试。运行方式：在仓库根执行 `pnpm --filter @omne-harness/execution-environment test`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。2026-10-21 在 Node v24.18.0、linux 上，六十一个测试全部通过，退出码 0。
 
-当前缺口：没有直接测试待处置后重试释放、`retire()` 待处置时撤除函数抛出 `RetirementPending`、恢复枚举失败记为不可用。SPEC 明确缺项里的四项没有测试。具名维护者由负责人指定。
+当前缺口：SPEC 明确缺项里的各项没有测试。具名维护者由负责人指定。

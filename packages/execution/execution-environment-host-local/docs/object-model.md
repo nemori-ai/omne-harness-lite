@@ -7,8 +7,9 @@
 | 对象 | 身份 | 拥有者 | 内容 |
 | --- | --- | --- | --- |
 | `ExecutionEnvironmentRegistry` 服务实例 | 服务键 `executionEnvironment`，每个 isolate 标签一份 | 装载它的插件 fiber | 一个登记表实例 |
-| 宿主文件提供者 | `host-files` 加随机 UUID 的代 | 登记它的 `hostFilesPlugin` fiber | 宿主事实、一个宿主文件设施实例、已交租约的失效回调、是否已退役 |
-| 宿主租约原件 | 实例身份 `host` 加提供者的代 | 宿主文件提供者 | 落点、连续性、失效通知；`facility('files')` 返回共用的设施实例 |
+| 宿主文件提供者 | `host-files` 加随机 UUID 的代 | 登记它的 `hostFilesPlugin` fiber | 宿主事实、一个宿主文件设施实例、尚未释放的租约的失效回调、是否已退役 |
+| 宿主租约原件 | 实例身份 `host` 加提供者的代 | 宿主文件提供者 | 落点、连续性、失效通知；`facility('files')` 返回包住共用设施实例的这次获取的设施，每次操作先查这次获取账本的 `closed` |
+| `files` 设施声明的登记 | 设施键 `files` | 登记它的 `filesFacilityPlugin` fiber | 契约的 `filesFacility` |
 | 宿主文件设施实例 | 每个提供者一个 | 宿主文件提供者 | 已发出的句柄代际表、关闭失败待重试的描述符集合、下一个代次 |
 | 对象身份 `ObjectToken` | 设备号加 inode | 宿主文件系统 | 由 `hostObjectToken` 或打开后的 `fstat` 读出 |
 | 句柄代际 `HandleGeneration` | 对象身份加代次 | 宿主文件设施实例 | 成功的读取、查看与写入各发出一个，从 `1` 递增 |
@@ -75,8 +76,8 @@ classDiagram
 
 ### 宿主文件提供者
 
-创建（生成代）→ 经 `hostFilesPlugin` 登记 → 在场，交出租约 → 退役：标为已退役，已交租约以 `providerRetired` 失效，返回已排空 → 之后的 `acquire` 返回 `providerUnavailable`。
+创建（生成代）→ 经 `hostFilesPlugin` 登记 → 在场，交出租约；租约释放时删除它的失效回调 → 退役：标为已退役，尚未释放的租约以来源 `provider`、原因 `providerRetired` 失效，返回已排空 → 之后的 `acquire` 返回 `providerUnavailable`。
 
 ### 服务实例
 
-装载（校验配置，建立登记表，登记关闭效应）→ 提供服务 → 卸载：关闭登记表，待处置时撤除函数抛出 → 键上没有服务。
+装载（校验配置，建立登记表，登记关闭效应）→ 提供服务 → 卸载：关闭登记表，待处置时撤除函数抛出，Cordis 写入 `ctx.logger`，卸载照常完成 → 键上没有服务。

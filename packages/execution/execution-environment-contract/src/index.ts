@@ -63,10 +63,12 @@ export type {
   EnvironmentLease,
   FacilitySet,
   InstanceIdentity,
+  LeaseInvalidation,
   LeaseRelease,
   Pending,
   Placement,
   ProviderIdentity,
+  RegistryInvalidationReason,
   RejectReason,
   Rejected,
 } from './lease.ts'

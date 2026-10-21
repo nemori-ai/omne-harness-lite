@@ -16,11 +16,11 @@
 
 ## 本包事实
 
-现在有两个测试文件，共四个测试：
+现在有两个测试文件，共五个测试：
 
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口没有运行导出。
-- [cordis-entry.spec.ts](cordis-entry.spec.ts)：键常量等于 `executionEnvironment` 与 `ExecutionEnvironmentService.provide`；`./cordis` 只导出抽象类与键常量；探针子类作为插件装载时在键上提供服务，插件卸载后键上没有服务。
+- [cordis-entry.spec.ts](cordis-entry.spec.ts)：键常量等于 `executionEnvironment` 与 `ExecutionEnvironmentService.provide`；`./cordis` 只导出两个抽象类与两个键常量；探针子类作为插件装载时在键上提供服务，插件卸载后键上没有服务；恢复授权键常量等于 `ExecutionRecoveryAuthorityService.provide`，子类装载后在这个键上答复，卸载后键上没有服务。
 
-没有 `*.spec-d.ts` 类型测试。运行方式：在仓库根执行 `pnpm --filter @omne-harness/execution-environment-cordis-contract test`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。2026-10-21 在 Node v24.18.0、linux 上，四个测试全部通过。
+没有 `*.spec-d.ts` 类型测试。运行方式：在仓库根执行 `pnpm --filter @omne-harness/execution-environment-cordis-contract test`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。2026-10-21 在 Node v24.18.0、linux 上，五个测试全部通过。
 
 当前缺口：没有核对 [SPEC 性质 8](../SPEC.md#结果与不变量) 的逐文件导入检查，也没有调用方类核对的测试。具名维护者由负责人指定。

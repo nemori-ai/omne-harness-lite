@@ -11,7 +11,7 @@
 | 入口 | 源文件 | 承载 | 现状 |
 | --- | --- | --- | --- |
 | `@omne-harness/execution-environment-cordis-contract` | `src/index.ts` | 空导出，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 已实现，带模板标记 |
-| `@omne-harness/execution-environment-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `ExecutionEnvironmentService<P>`、键常量 `executionEnvironmentKey`、intercept 配置类型 `ExecutionEnvironmentIntercept`、`Context` 增补 | 已实现，带模板标记；调用方类核对没有接受 |
+| `@omne-harness/execution-environment-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `ExecutionEnvironmentService<P>`、键常量 `executionEnvironmentKey`、恢复授权的抽象类 `ExecutionRecoveryAuthorityService` 与键常量 `executionRecoveryAuthorityKey`、intercept 配置类型 `ExecutionEnvironmentIntercept`、`Context` 增补 | 已实现，带模板标记；调用方类核对没有接受 |
 
 ```mermaid
 flowchart LR
