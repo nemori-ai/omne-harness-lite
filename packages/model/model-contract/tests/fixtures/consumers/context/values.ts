@@ -9,7 +9,7 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
-import { parseMessageId, type Message, type MessagePart } from '@omne-harness/message'
+import { judgeMessage, parseMessageId, type Message, type MessagePart } from '@omne-harness/message'
 import {
   decodeModelCallId,
   decodeRevision,
@@ -126,7 +126,9 @@ export const imageBlock = (id: string): ContentBlock =>
 export function userMessage(name: string, blocks: readonly MessagePart[]): Message {
   const parsed = parseMessageId(`msg_${name.padEnd(22, 'x')}`)
   if (!parsed.ok) throw new Error('the fixture message id is invalid')
-  return { id: parsed.value, role: 'user', blocks }
+  const judged = judgeMessage({ id: parsed.value, role: 'user', blocks })
+  if ('rejected' in judged) throw new Error(`the fixture message is invalid: ${judged.rejected}`)
+  return judged.ok
 }
 
 const limits = {

@@ -6,7 +6,7 @@
 // call says that the upstream found the input over its limit, the context compresses again and
 // sends a new call. It never reads media and never asks for a transport.
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { Message, MessagePart } from '@omne-harness/message'
+import { judgeMessage, type Message, type MessagePart } from '@omne-harness/message'
 import type {
   AssembledModelInput,
   BudgetCheck,
@@ -84,7 +84,11 @@ async function convertedHistory(
   for (const message of history) {
     const blocks = await convertedParts(conversion, message.blocks, signal)
     if (!('ok' in blocks)) return fail(blocks.failure)
-    out.push({ ...message, blocks: blocks.ok })
+    // Each role allows its own parts, so the converted message is judged again before use.
+    const judged = judgeMessage({ ...message, blocks: blocks.ok })
+    if ('rejected' in judged)
+      throw new Error(`the converted message is invalid: ${judged.rejected}`)
+    out.push(judged.ok)
   }
   return succeed(out)
 }
