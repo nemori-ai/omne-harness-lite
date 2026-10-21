@@ -163,7 +163,7 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 | 项 | 内容 |
 | --- | --- |
-| 拥有者 | [Cordis 上层集成约定](../../../../../docs/architecture/cordis-integration-conventions.md#ic-13)的拥有者。四成员集成页的“[生命周期与宿主](https://github.com/nemori-ai/omne-harness-lite/blob/a69de04ae9b70f299ff74dd2b10343172433bc6c/docs/architecture/runtime/runtime-contract-integration.md#生命周期与宿主)”节有相关的写法 |
+| 拥有者 | [Cordis 上层集成约定](../../../../../docs/architecture/cordis-integration-conventions.md#ic-13)的拥有者。四成员集成页的“[生命周期与宿主](../../../../../docs/architecture/runtime/runtime-contract-integration.md#生命周期与宿主)”节有相关的写法 |
 | Agent 所需保证 | 下面三处写法已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，并修订进 IC-13。第一，目录的 `register` 返回 `Reply<Registration>`，不返回撤除函数。第二，撤除函数由目录持有，显式 withdraw 与调用方 fiber 卸载共用同一个幂等删除。第三，同一实例的后继登记在同一个本地动作内原子取代旧登记。Agent 的理由是：登记是业务事实，要能被显式撤销和接替，不能只随调用方 fiber 自动消失。贡献者 fiber 卸载后登记仍随之撤除，这一点与 IC-13 相同 |
 | 阻塞的能力 | 无。Agent 的 Cordis 设计符合修订后的 IC-13，目录实现的撤除行为尚未验证 |
 | Agent 侧已产出的边界 | Cordis 页的[登记输入与撤除协议](../../../agent-cordis-contract/docs/cordis.md#登记输入与撤除协议)和[符合性映射](../../../agent-cordis-contract/docs/cordis.md#符合性映射)的 IC-13 行。后继取代的行为见 SPEC 的“[创建、登记与复用](../../../agent-contract/SPEC.md#创建登记与复用)” |

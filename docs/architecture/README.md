@@ -48,7 +48,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | 正文 | 必要内容范围 |
 |---|---|
 | [总览](runtime/README.md) | 代表性主流程、生命周期、并发取消、失败恢复和阅读地图。 |
-| [Session 与 Run](runtime/session-and-run.md) | 身份、输入受理、推进权、attempt、终态与多会话边界。 |
+| [Session 与 Run](runtime/session-and-run.md) | 身份、会话模式、与六个邻域的角色、输入受理、推进权、attempt、终态与多会话边界。 |
 | [Agent runtime](runtime/agent-runtime.md) | Loop 主线、回复准入、动作处理、完成与接续。 |
 | [Loop extensions](runtime/loop-extensions.md) | 九个位置、干预力、有序组合、HITL、失效与系统扩展。 |
 | [Model runtime](runtime/model-runtime.md) | 输入、真实发出、首内容、重试、失联、结果和独立调用。 |
@@ -58,7 +58,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | [请求上下文](runtime/request-context.md) | 来源、模态、限额、压缩、输入固定与长期性能。 |
 | [执行环境](runtime/execution-environment.md) | 环境选择、资源、隔离、数据责任和故障域。 |
 | [流式与消费](runtime/streaming-and-consumption.md) | 到达、观察、收场、持久承接、模型 ACK 与清理。 |
-| [控制与恢复](runtime/control-and-recovery.md) | 插队、取消、归档、原调用接续及关键服务降级。 |
+| [控制与恢复](runtime/control-and-recovery.md) | 插队、取消、归档与作用域释放、原调用接续、恢复的发现与收束及关键服务降级。 |
 
 后续状态机与接口须遵循已接受的独立生命周期、可靠交接、权限和真实性要求。各页明确保留的局部对账项继续有效，不因正文接受而自动解决。正文接受不表示实现或验证完成。
 

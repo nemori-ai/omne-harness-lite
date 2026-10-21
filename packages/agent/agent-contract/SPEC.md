@@ -365,7 +365,7 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 本节已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，前文已采用范围继续由本页开头的状态标明。接受不表示实现完成。包根导出下面各节的类型，以及声明判断、扩展输出判断、身份解码与结构判定和资产正文契约。求值、协调和实例接口的实现，包括 Loop、Journal 提供者与 runtime，尚未提供。
 
-Agent 将明确事实求成下一步，再通过公开端口协调工作。外部协调者在外部拥有自己的业务关联和终态，通过提交参加者适配输入受理、保存与共同终结，这些概念不进入 Agent 核心。Model/Tool 拥有真实执行。Agent 的纯求值、可恢复 execution 与可复用 runtime 分别表达。对象与层次关系见[共同模型](https://github.com/nemori-ai/omne-harness-lite/blob/a69de04ae9b70f299ff74dd2b10343172433bc6c/docs/architecture/runtime/runtime-contract-model.md)。
+Agent 将明确事实求成下一步，再通过公开端口协调工作。外部协调者在外部拥有自己的业务关联和终态，通过提交参加者适配输入受理、保存与共同终结，这些概念不进入 Agent 核心。Model/Tool 拥有真实执行。Agent 的纯求值、可恢复 execution 与可复用 runtime 分别表达。对象与层次关系见[共同模型](../../../docs/architecture/runtime/runtime-contract-model.md)。
 
 ### 身份、原位置与纯求值
 
