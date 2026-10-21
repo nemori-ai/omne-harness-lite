@@ -56,24 +56,24 @@ export function judgeFixedModelRequest(
   return 'failure' in parsed ? parsed : succeed(freezeTree(parsed.ok))
 }
 
-/** Synchronous snapshot before any consumer can queue or await. Access stays opaque. */
-export function judgeAdmit<P>(
-  value: ModelAdmitCandidate<P>,
-): Outcome<Admit<P>, ModelInputRejection> {
+const admitKeys = ['principal', 'tenant', 'call', 'operation', 'request', 'consumer', 'capacity']
+function captureAdmitFields(
+  value: unknown,
+): Outcome<Record<string, PropertyDescriptor>, ModelInputRejection> {
   if (typeof value !== 'object' || value === null) return rejected('', 'type')
-  const keys = ['principal', 'tenant', 'call', 'operation', 'request', 'consumer', 'capacity']
-  const root = captureRoot(value, keys)
+  const root = captureRoot(value, admitKeys)
   if ('failure' in root) return root
   const fields: Record<string, PropertyDescriptor> = {}
-  for (const key of keys) {
+  for (const key of admitKeys) {
     const captured = dataField(value, key, `/${key}`)
     if ('failure' in captured) return captured
     fields[key] = captured.ok
   }
-  // The typed Access supplies P. Its captured own data value is retained without traversal.
-  const principal: P = fields.principal?.value
-  const tenant: ModelAdmitCandidate<P>['tenant'] = fields.tenant?.value
-  if (!tenantCodec.encode(tenant).ok) return rejected('/tenant', 'identity')
+  return succeed(fields)
+}
+function copyAdmitPayload(
+  fields: Record<string, PropertyDescriptor>,
+): Outcome<Record<string, unknown>, ModelInputRejection> {
   const tree = new InputTree(true)
   const payload: Record<string, unknown> = {}
   for (const key of ['call', 'operation', 'request', 'consumer', 'capacity']) {
@@ -83,6 +83,23 @@ export function judgeAdmit<P>(
     if ('failure' in copied) return copied
     payload[key] = copied.ok
   }
+  return succeed(payload)
+}
+
+/** Synchronous snapshot before any consumer can queue or await. Access stays opaque. */
+export function judgeAdmit<P>(
+  value: ModelAdmitCandidate<P>,
+): Outcome<Admit<P>, ModelInputRejection> {
+  const captured = captureAdmitFields(value)
+  if ('failure' in captured) return captured
+  const fields = captured.ok
+  // The typed Access supplies P. Its captured own data value is retained without traversal.
+  const principal: P = fields.principal?.value
+  const tenant: ModelAdmitCandidate<P>['tenant'] = fields.tenant?.value
+  if (!tenantCodec.encode(tenant).ok) return rejected('/tenant', 'identity')
+  const copied = copyAdmitPayload(fields)
+  if ('failure' in copied) return copied
+  const payload = copied.ok
   const call = decodeModelCallId(payload.call)
   if ('failure' in call) return rejected('/call', 'identity')
   const operation = decodeModelOperationId(payload.operation)

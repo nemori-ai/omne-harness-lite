@@ -49,6 +49,34 @@ export function dataField(
   return succeed(descriptor)
 }
 
+function arrayLength(value: object, field: string): Outcome<number, ModelInputRejection> {
+  const length = dataField(value, 'length', field, true)
+  if ('failure' in length) return length
+  const size: unknown = length.ok.value
+  if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0)
+    return rejected(field, 'type')
+  if (size > MODEL_INPUT_LIMITS.maxArrayLength) return rejected(field, 'budget-array')
+  return succeed(size)
+}
+
+function arrayShape(
+  value: object,
+  keys: readonly PropertyKey[],
+  field: string,
+): Outcome<number, ModelInputRejection> {
+  const length = arrayLength(value, field)
+  if ('failure' in length) return length
+  const size = length.ok
+  if (keys.some(key => typeof key === 'symbol')) return rejected(field, 'symbol-key')
+  for (const key of keys) {
+    if (key === 'length') continue
+    if (typeof key !== 'string' || !/^(0|[1-9][0-9]*)$/u.test(key) || Number(key) >= size)
+      return rejected(field, 'unknown-field')
+  }
+  if (keys.length !== size + 1) return rejected(field, 'sparse')
+  return succeed(size)
+}
+
 /** One budget per public boundary. Shared DAGs consume a budget for every occurrence. */
 export class InputTree {
   private nodes: number
@@ -67,13 +95,7 @@ export class InputTree {
   copy(value: unknown, field: string, depth = 1): Outcome<unknown, ModelInputRejection> {
     this.nodes += 1
     if (this.nodes > MODEL_INPUT_LIMITS.maxNodes) return rejected(field, 'budget-nodes')
-    if (typeof value === 'string') {
-      if (value.length > MODEL_INPUT_LIMITS.maxStringLength) return rejected(field, 'budget-string')
-      this.strings += value.length
-      if (this.strings > MODEL_INPUT_LIMITS.maxTotalStringLength)
-        return rejected(field, 'budget-strings')
-      return succeed(value)
-    }
+    if (typeof value === 'string') return this.copyString(value, field)
     if (value === null || typeof value === 'boolean' || typeof value === 'number')
       return succeed(value)
     if (typeof value !== 'object') return rejected(field, 'type')
@@ -88,25 +110,22 @@ export class InputTree {
     this.ancestors.delete(value)
     return copied
   }
+  private copyString(value: string, field: string): Outcome<string, ModelInputRejection> {
+    if (value.length > MODEL_INPUT_LIMITS.maxStringLength) return rejected(field, 'budget-string')
+    this.strings += value.length
+    if (this.strings > MODEL_INPUT_LIMITS.maxTotalStringLength)
+      return rejected(field, 'budget-strings')
+    return succeed(value)
+  }
   private array(
     value: object,
     keys: readonly PropertyKey[],
     field: string,
     depth: number,
   ): Outcome<unknown, ModelInputRejection> {
-    const length = dataField(value, 'length', field, true)
-    if ('failure' in length) return length
-    const size: unknown = length.ok.value
-    if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0)
-      return rejected(field, 'type')
-    if (size > MODEL_INPUT_LIMITS.maxArrayLength) return rejected(field, 'budget-array')
-    if (keys.some(key => typeof key === 'symbol')) return rejected(field, 'symbol-key')
-    for (const key of keys) {
-      if (key === 'length') continue
-      if (typeof key !== 'string' || !/^(0|[1-9][0-9]*)$/u.test(key) || Number(key) >= size)
-        return rejected(field, 'unknown-field')
-    }
-    if (keys.length !== size + 1) return rejected(field, 'sparse')
+    const shape = arrayShape(value, keys, field)
+    if ('failure' in shape) return shape
+    const size = shape.ok
     const result: unknown[] = []
     for (let index = 0; index < size; index += 1) {
       const entry = dataField(value, String(index), field)
