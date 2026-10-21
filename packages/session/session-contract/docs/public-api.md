@@ -452,6 +452,8 @@ export type HistoryPage = Readonly<{
   source: string; interpreter: Adoption; upper: SessionRevision
   entries: readonly HistoryEntry[]; scannedThrough: string
   next: string | null; exhausted: boolean
+  /** SE33 entries committed up to upper whose target lies in this page but which are not in entries. */
+  annotations: readonly HistoryEntry[]
 }>
 /** One model-visible sequence between two compactions. upper is the last row committed when the basis was taken. */
 export type ModelViewBasis = Readonly<{ epoch: string; upper: string }>
@@ -487,7 +489,7 @@ export type SessionFaces<P> = Readonly<{
 
 ## 领域服务与归约
 
-[行为与约束](../SPEC.md#领域服务与归约)。九个领域服务与 `reduce` 都是纯函数。`openWork` 只有一个实现。
+[行为与约束](../SPEC.md#领域服务与归约)。九个领域服务、`reduce` 与 `decide` 都是纯函数。`openWork` 只有一个实现。
 
 ```ts
 export type AdvanceJudgment =
@@ -552,6 +554,14 @@ export declare function judgeIdle(snapshot: WorkSnapshot, input: Readonly<{
 }>): IdleJudgment
 export declare function resolveOperation(record: OperationRecord | null, operation: SessionOperationId, digest: string): OperationJudgment
 export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch): ReduceResult
+/** Entries without id and revision; the storage provider assigns both at commit. */
+export type EncodedEntry = Omit<HistoryEntry, 'id' | 'revision'>
+export type Decision =
+  | Readonly<{ kind: 'entries'; entries: readonly EncodedEntry[] }>
+  | Readonly<{ kind: 'recovered'; receipt: CommitReceipt }>
+  | Readonly<{ kind: 'rejected'; failure: SessionFailure }>
+/** Runs the domain services for one command and encodes the batch. reduce(decide(...)) round-trips under one interpreter. */
+export declare function decide(previous: WorkSnapshot, command: SessionCommand, guards: readonly GuardCommand[], record: OperationRecord | null): Decision
 ```
 
 ## 出站端口与块声明

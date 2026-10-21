@@ -351,15 +351,15 @@
       "requiredSections": [
         {
           "id": "section-1",
-          "anchor": "服务定义与入口"
+          "anchor": "服务定义"
         },
         {
           "id": "section-2",
-          "anchor": "依赖与定义拥有者"
+          "anchor": "依赖分类"
         },
         {
           "id": "section-3",
-          "anchor": "配置通知和撤除"
+          "anchor": "事件"
         },
         {
           "id": "section-4",
