@@ -19,6 +19,6 @@ pnpm --filter @omne-harness/tool run acceptance --maxWorkers=1
 
 每条场景输出 JSON 记录，其中 `result` 为 `PASS` 或 `FAIL`。断言失败使 Vitest 以非零退出码结束。设置 `OMNE_QA_EVIDENCE_DIR` 可额外保存各场景的结构化观察和消费完成记录。该目录必须是派发者允许写入的证据目录。消费者先完成字符计数与正文摘要，保存调用引用、固定版本、delivery、consumer 和正文，再提交 `processed` 依据。
 
-装配使用真实 runtime、driver、ledger 和独立执行入口。替身及固定业务输入见[验收夹具](fixtures/README.md)。本组只证明单进程、非耐久提供者边界。生产授权、真实模型、Agent/Session、持久化和跨进程恢复未覆盖。非终端面，终端几关不适用。
+装配使用真实 runtime、driver、ledger 和独立执行入口。替身及固定业务输入见[验收夹具](fixtures/README.md)。本组只证明单进程、非耐久提供者边界。生产授权、真实模型、Agent/Session、持久化和跨进程恢复未覆盖。
 
 最终候选仍须由另一实例独立验收。场景作者自跑不等于整项交付的 QA 或接受。契约范围见 [SPEC](../SPEC.md)，导航见 [index](index.md)。
