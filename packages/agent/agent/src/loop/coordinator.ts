@@ -85,6 +85,7 @@ import {
 } from './identities.ts'
 import { canonical } from '../canonical.ts'
 import { waitForExecutionChange } from './wait.ts'
+import { diagnosticOf } from './diagnostic.ts'
 import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
 import { consumeModelResult, type ModelResult, type ModelOutcome } from './model-result.ts'
 import {
@@ -242,15 +243,6 @@ function modelFailure(
 function required<T>(value: T | null, what: string): T {
   if (value === null) throw new Error(`coordinator defect: ${what} is not set`)
   return value
-}
-
-/** Diagnostic conversion must not throw while handling a node's thrown value. */
-function diagnosticOf(error: unknown): string {
-  try {
-    return error instanceof Error ? String(error.message) : String(error)
-  } catch {
-    return 'the thrown value could not be converted to diagnostic text'
-  }
 }
 
 function sameRecipient(left: SelectedModel, right: SelectedModel): boolean {

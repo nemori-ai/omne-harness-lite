@@ -961,4 +961,58 @@ describe('review regressions preserve the original wait responsibility', () => {
       expect(child.stderr).not.toContain('PromiseRejectionHandledWarning')
     },
   )
+
+  it.each(['observer', 'clock'] as const)(
+    'joins %s rejection when the thrown value cannot become diagnostic text',
+    mode => {
+      const waitUrl = new URL('../src/loop/wait.ts', import.meta.url).href
+      const child = spawnSync(process.execPath, ['--conditions=source', '--input-type=module'], {
+        input: `
+        import assert from 'node:assert/strict'
+        import { setTimeout as delay } from 'node:timers/promises'
+        import { waitForExecutionChange } from ${JSON.stringify(waitUrl)}
+        const mode = ${JSON.stringify(mode)}
+        const thrown = { [Symbol.toPrimitive]() { throw new Error('diagnostic conversion failed') } }
+        let closed = false
+        const snapshot = { revision: '1', output: { emittedThrough: null } }
+        const untilAborted = signal => signal.aborted ? Promise.resolve() :
+          new Promise(resolve => signal.addEventListener('abort', resolve, { once: true }))
+        const result = await waitForExecutionChange({
+          ports: {
+            journal: {
+              async load() { return { ok: snapshot } },
+              output: { async *events({ signal }) {
+                try {
+                  if (mode === 'observer') { await delay(5); throw thrown }
+                  await untilAborted(signal)
+                } finally { await delay(20); closed = true }
+              } },
+            },
+            clock: {
+              async now() { return { ok: '1970-01-01T00:00:00.000Z' } },
+              async waitUntil(_at, signal) {
+                if (mode === 'clock') throw thrown
+                await untilAborted(signal)
+                return { ok: 'cancelled' }
+              },
+            },
+          },
+          access: {}, execution: 'exec-1', expected: '1', operations: [], waits: [],
+          position: 'E2', reconciliationDelayMs: 1000, signal: new AbortController().signal,
+        })
+        assert.equal(closed, true)
+        assert.equal(result.failure.kind, 'unavailable')
+        assert.equal(result.failure.owner, '@omne-harness/agent#defect')
+        assert.equal(result.failure.diagnostic, 'the thrown value could not be converted to diagnostic text')
+        console.log('joined hostile rejection with no unhandled rejection')
+      `,
+        encoding: 'utf8',
+        timeout: 10_000,
+      })
+      expect(child.error).toBeUndefined()
+      expect(child.status, child.stderr).toBe(0)
+      expect(child.stdout).toContain('joined hostile rejection with no unhandled rejection')
+      expect(child.stderr).not.toContain('PromiseRejectionHandledWarning')
+    },
+  )
 })
